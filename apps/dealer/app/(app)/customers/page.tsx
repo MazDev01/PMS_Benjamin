@@ -285,7 +285,7 @@ const LIFECYCLE_META: Record<LifecycleType,{label:string; fg:string; bg:string}>
 };
 
 // ── Customer form shape — ใช้กับฟอร์ม "แก้ไขในตัว" เท่านั้น ──
-// ลูกค้าสร้างใหม่โดยตรงไม่ได้ (ฝั่งตัวแทน) — เกิดจาก Lead→Won อัตโนมัติเท่านั้น · หน้านี้ไว้ดู/แก้ไขที่มีอยู่
+// ลูกค้าสร้างใหม่โดยตรงไม่ได้ (ฝั่งดีลเลอร์) — เกิดจาก Lead→Won อัตโนมัติเท่านั้น · หน้านี้ไว้ดู/แก้ไขที่มีอยู่
 type CustomerForm = Omit<CustomerRow,"id"|"initials"|"color"|"totalValue">;
 
 // ─── ภาพรวม (แก้ไขในตัว) — ฟอร์มแก้ไขข้อมูลลูกค้าในแท็บ "ข้อมูล" ของโมดัลรายละเอียด ───
@@ -415,7 +415,7 @@ export default function CustomersPage(){
   const customerNotes = useCustomerNotes(userProfile.profile.name);
   const [addingNote, setAddingNote] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
-  const [noteBody, setNoteBody] = useState(""); // โน้ตลูกค้าผ่าน repo (ผู้เขียน = ผู้ใช้ที่ล็อกอิน) // VAT จาก HQ ผ่าน repo (ตัวแทนตั้งเองไม่ได้ · อัปเดตตามเมื่อ HQ แก้)
+  const [noteBody, setNoteBody] = useState(""); // โน้ตลูกค้าผ่าน repo (ผู้เขียน = ผู้ใช้ที่ล็อกอิน) // VAT จาก HQ ผ่าน repo (ดีลเลอร์ตั้งเองไม่ได้ · อัปเดตตามเมื่อ HQ แก้)
   // scope ทุกอย่างเป็นของสาขาที่ล็อกอิน (multi-tenant) — RYG ไม่เห็นลูกค้า/ใบ/ลูกค้าเป้าหมายของ CNX
   // undefined = ของ CNX (สมุดงานเดิม) · ที่เหลือกรองด้วย dealerCode ตรง ๆ
   const data = useMemo(() => allCustomers.filter(c => (c.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code), [allCustomers, currentDealer.code]);
@@ -539,7 +539,7 @@ export default function CustomersPage(){
   const [dealForm, setDealForm] = useState({project:"",product:"",value:"",area:"",status:"WAITING" as LeadStatus,assigned:"",note:""});
   // ข้อความฟ้องตอนกดบันทึก — ต้องมีเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย ไม่ใช่กดแล้วเงียบ
   const [dealErr, setDealErr] = useState("");
-  // นำเข้าลูกค้าเดิม (ตัวแทน) — ลูกค้าก่อนมีระบบ / ไม่ได้ผ่าน Lead→Won · CSV + คีย์มือ
+  // นำเข้าลูกค้าเดิม (ดีลเลอร์) — ลูกค้าก่อนมีระบบ / ไม่ได้ผ่าน Lead→Won · CSV + คีย์มือ
   const [showImport, setShowImport]   = useState(false);
   const [importRows, setImportRows]   = useState<ImportRow[]>([]);
   const [importErr, setImportErr]     = useState("");
@@ -739,7 +739,7 @@ export default function CustomersPage(){
     setSelected(p=>p?.id===target.id?null:p);
     setDelTarget(null);
   }
-  // ── นำเข้าลูกค้าเดิม (ตัวแทน) — เพิ่มเข้า SalesContext เดียว · flag imported=true ──
+  // ── นำเข้าลูกค้าเดิม (ดีลเลอร์) — เพิ่มเข้า SalesContext เดียว · flag imported=true ──
   function makeImported(r: ImportRow, id: number): CustomerRow {
     return { id, name:r.name||r.company, company:r.company, email:r.email, phone:r.phone,
       address:r.address||undefined,
@@ -1013,7 +1013,7 @@ export default function CustomersPage(){
         {/* ── ตารางลูกค้า — คลิกแถวเพื่อเปิดแผงรายละเอียด · เรียงได้ที่หัวคอลัมน์
              ความกว้างคุมที่ colgroup เท่านั้น (table-layout:fixed — ใส่ที่ th ไม่มีผล) ── */}
         {/* ⚠️ ต้องแยก "ไม่มีลูกค้าเลย" ออกจาก "กรองแล้วไม่เจอ" (แก้ 10 ส.ค. 69)
-             เดิมขึ้นข้อความเดียวกันหมด — ตัวแทนที่ยังไม่มีลูกค้าสักรายเห็น "ลองล้างตัวกรอง"
+             เดิมขึ้นข้อความเดียวกันหมด — ดีลเลอร์ที่ยังไม่มีลูกค้าสักรายเห็น "ลองล้างตัวกรอง"
              พร้อมปุ่มล้างตัวกรองที่กดแล้วไม่เกิดอะไร เพราะไม่ได้ตั้งตัวกรองไว้ตั้งแต่แรก
              = ชี้ทางผิด ผู้ใช้เสียเวลาหาว่าตัวเองตั้งตัวกรองอะไรไว้
              ที่ถูกคือบอกว่าลูกค้าเกิดจากการปิดการขายลูกค้าเป้าหมาย แล้วพาไปหน้าลูกค้าเป้าหมาย */}
@@ -1859,7 +1859,7 @@ export default function CustomersPage(){
             </div>
             <div style={{padding:20,display:"flex",flexDirection:"column",gap:14}}>
               {/* ย้ายลูกค้าเดิมจากระบบเก่า = ทางเดียวคือเทมเพลต (บอสสั่ง 28 ส.ค. 69)
-                  ตัวแทนดึงรายชื่อลูกค้าของตัวเองจากระบบเก่า กรอกลงเทมเพลต แล้วอัปกลับเข้ามา
+                  ดีลเลอร์ดึงรายชื่อลูกค้าของตัวเองจากระบบเก่า กรอกลงเทมเพลต แล้วอัปกลับเข้ามา
                   ทำเป็น 3 ขั้นชัด ๆ เพราะของเดิมเป็นปุ่มเรียงกัน ผู้ใช้ไม่รู้ว่าต้องเริ่มตรงไหน */}
               {[
                 { ที่: 1, หัว: "ดาวน์โหลดเทมเพลต", รอง: "เปิดด้วย Excel หรือ Google ชีต แล้วพิมพ์ต่อได้เลย — มีหัวคอลัมน์และแถวตัวอย่างให้พิมพ์ทับ" },
@@ -2066,7 +2066,7 @@ export default function CustomersPage(){
           </div>
         </div>
       )}
-      {/* ลูกค้าเกิดจาก Lead→Won อัตโนมัติเท่านั้น — ฝั่งตัวแทนสร้างลูกค้าเองไม่ได้ (ไม่มีฟอร์มเพิ่ม) */}
+      {/* ลูกค้าเกิดจาก Lead→Won อัตโนมัติเท่านั้น — ฝั่งดีลเลอร์สร้างลูกค้าเองไม่ได้ (ไม่มีฟอร์มเพิ่ม) */}
       {previewFile && <FilePreviewModal file={previewFile} onClose={()=>setPreviewFile(null)} />}
 
       {/* รายละเอียดนัดหมาย (ดูในตัว) */}

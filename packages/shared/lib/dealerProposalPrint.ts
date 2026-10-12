@@ -1,7 +1,7 @@
-// ── พิมพ์ใบเสนอแพ็กเกจตัวแทน (A4) — หน้าตาชุดเดียวกับใบเสนอราคาของตัวแทน (quotationPrint.ts) ──
+// ── พิมพ์ใบค่าแฟรนไชส์ (A4) — หน้าตาชุดเดียวกับใบเสนอราคาของดีลเลอร์ (quotationPrint.ts) ──
 //
 // ต่างจากใบเสนอราคาตรงผู้ออก: ใบนี้เป็นเอกสารของสำนักงานใหญ่ → หัวกระดาษใช้ข้อมูลบริษัทจาก ตั้งค่า › บริษัท
-//   (ใบเสนอราคาของตัวแทนออกในนามบริษัทตัวแทน — คนละเอกสารกัน กติกาเรื่องชื่อบนหัวกระดาษจึงไม่เหมือนกัน)
+//   (ใบเสนอราคาของดีลเลอร์ออกในนามบริษัทดีลเลอร์ — คนละเอกสารกัน กติกาเรื่องชื่อบนหัวกระดาษจึงไม่เหมือนกัน)
 //
 // ⚠️ ทุกค่าที่มาจากผู้ใช้ต้องผ่าน esc() — หน้าพิมพ์ประกอบ HTML แล้วเขียนลงหน้าต่างใหม่ตรง ๆ
 //    ชื่อลูกค้าเป้าหมาย/เงื่อนไขที่มี <script> จะรันจริงถ้าลืม (มีเทสต์ล็อกไว้)
@@ -15,7 +15,7 @@ function esc(s: unknown) {
 
 export type ผู้รับข้อเสนอ = Pick<DealerProspect, "name" | "phone" | "email" | "province" | "social">;
 
-/** ผู้ลงนามช่อง "ผู้เสนอ" (หน้าตั้งค่า › หาตัวแทน) — ชื่อว่าง = ใช้ชื่อบริษัท */
+/** ผู้ลงนามช่อง "ผู้เสนอ" (หน้าตั้งค่า › หาดีลเลอร์) — ชื่อว่าง = ใช้ชื่อบริษัท */
 export type ผู้ลงนามข้อเสนอ = { name?: string; title?: string };
 
 export function buildDealerProposalHTML(p: DealerPackageProposal, prospect: ผู้รับข้อเสนอ, hq: HQCompany, ผู้ลงนาม?: ผู้ลงนามข้อเสนอ): string {
@@ -32,7 +32,7 @@ export function buildDealerProposalHTML(p: DealerPackageProposal, prospect: ผ�
   const ร่าง = p.status === "draft";
 
   return `<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/>
-<title>ใบเสนอแพ็กเกจตัวแทน ${esc(p.proposalNo)}</title>
+<title>ใบค่าแฟรนไชส์ ${esc(p.proposalNo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -73,7 +73,7 @@ table.items td.r,table.items th.r{text-align:right}
       <div class="issuer-meta">${esc(hqMeta)}</div>
     </div>
     <div class="doc-title">
-      <h1>ใบเสนอแพ็กเกจตัวแทน</h1>
+      <h1>ใบค่าแฟรนไชส์</h1>
       <div class="sub">DEALER PACKAGE PROPOSAL</div>
       <div class="doc-meta">เลขที่ <b>${esc(p.proposalNo || "—")}</b><br/>วันที่ ${esc(p.proposedDate ? fmtISOToThai(p.proposedDate) : "—")}${p.validUntil ? `<br/>ข้อเสนอมีผลถึง ${esc(fmtISOToThai(p.validUntil))}` : ""}</div>
     </div>
@@ -95,7 +95,7 @@ table.items td.r,table.items th.r{text-align:right}
   <table class="items">
     <thead><tr><th>รายการ</th><th class="r" style="width:220px">รายละเอียด</th></tr></thead>
     <tbody>
-      <tr><td><b>แพ็กเกจตัวแทนจำหน่าย ${esc(packageLabel[p.package] ?? p.package)}</b><br/><span style="color:#888;font-size:11px">พื้นที่: ${esc(พื้นที่)}</span></td><td class="r">${esc(packageLabel[p.package] ?? p.package)}</td></tr>
+      <tr><td><b>แพ็กเกจดีลเลอร์ ${esc(packageLabel[p.package] ?? p.package)}</b><br/><span style="color:#888;font-size:11px">พื้นที่: ${esc(พื้นที่)}</span></td><td class="r">${esc(packageLabel[p.package] ?? p.package)}</td></tr>
       <tr><td>ค่าแรกเข้า (จ่ายครั้งเดียว)</td><td class="r">${esc(มูลค่าอ่านง่าย(p.amount))}</td></tr>
       <tr><td>ระยะสัญญา</td><td class="r">${esc(ระยะสัญญาอ่านง่าย(p.contractMonths))}</td></tr>
       <tr><td>เป้ายอดซื้อต่อปี</td><td class="r">${esc(มูลค่าอ่านง่าย(p.annualTarget))}</td></tr>
@@ -106,7 +106,7 @@ table.items td.r,table.items th.r{text-align:right}
     <div class="sign"><div class="line">ผู้เสนอ<br/>( ${esc(ผู้ลงนาม?.name?.trim() || hq.name || "สำนักงานใหญ่")} )${ผู้ลงนาม?.name?.trim() && ผู้ลงนาม.title?.trim() ? `<br/>${esc(ผู้ลงนาม.title.trim())}` : ""}${ผู้ลงนาม?.name?.trim() && hq.name ? `<br/>${esc(hq.name)}` : ""}</div></div>
     <div class="sign"><div class="line">ผู้ตอบรับข้อเสนอ<br/>( ${esc(prospect.name)} )</div></div>
   </div>
-  <div class="bar">เอกสารนี้เป็นข้อเสนอเงื่อนไขการเป็นตัวแทนจำหน่าย ไม่ใช่ใบแจ้งหนี้หรือใบเสร็จรับเงิน</div>
+  <div class="bar">เอกสารนี้เป็นข้อเสนอเงื่อนไขการเป็นดีลเลอร์ ไม่ใช่ใบแจ้งหนี้หรือใบเสร็จรับเงิน</div>
 </div>
 <script>window.onload=function(){setTimeout(function(){window.print();},350);}</script>
 </body></html>`;

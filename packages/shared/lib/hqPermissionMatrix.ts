@@ -8,7 +8,7 @@ import type { Permission } from "@pms/shared/lib/permissions";
 //    และขาดสามเมนูที่มีจริง: ภาพรวมยอดขาย · แคตตาล็อกแม่แบบ · บันทึกการใช้งาน
 //    ตารางสิทธิ์ที่ไม่ตรงกับเมนูจริง = ผู้ดูแลอ่านแล้วเข้าใจสิทธิ์ของทีมตัวเองผิด
 export const MODULE_LIST = [
-  "แดชบอร์ด", "ตัวแทนจำหน่าย", "ภาพรวมยอดขาย", "ลูกค้าเป้าหมายทั้งเครือ",
+  "แดชบอร์ด", "ดีลเลอร์", "ภาพรวมยอดขาย", "ลูกค้าเป้าหมายทั้งเครือ",
   "ใบเสนอราคาทั้งเครือ", "ลูกค้าทั้งเครือ", "แคตตาล็อกแม่แบบ", "บันทึกการใช้งาน", "ตั้งค่า",
 ];
 // ตารางสิทธิ์คำนวณจาก ROLE_PERMISSIONS ซึ่งเป็นชุดเดียวกับที่ RLS ที่ DB บังคับ
@@ -20,7 +20,7 @@ export const MODULE_LIST = [
 // เช่น /hq/dealers กั้นด้วย dealers:manage · /hq/master กั้นด้วย catalog:edit · /hq/settings กั้นด้วย hq:all_data
 export const MODULE_PERMS: Record<string, { read: Permission; create?: Permission; update?: Permission; del?: Permission }> = {
   "แดชบอร์ด":              { read: "reports:view" },
-  "ตัวแทนจำหน่าย":         { read: "dealers:manage", create: "dealers:manage", update: "dealers:manage", del: "dealers:manage" },
+  "ดีลเลอร์":         { read: "dealers:manage", create: "dealers:manage", update: "dealers:manage", del: "dealers:manage" },
   "ภาพรวมยอดขาย":         { read: "analytics:view" },
   "ลูกค้าเป้าหมายทั้งเครือ": { read: "leads:read", create: "leads:create", update: "leads:update", del: "leads:delete" },
   "ใบเสนอราคาทั้งเครือ":    { read: "quotations:read", create: "quotations:create", update: "quotations:update", del: "quotations:delete" },

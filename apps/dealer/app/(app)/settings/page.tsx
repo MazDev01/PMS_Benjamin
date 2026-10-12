@@ -29,7 +29,7 @@ import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 
 // ป้ายตำแหน่งตาม role (ใช้ในบัญชีดีลเลอร์)
 const ROLE_LABEL: Record<string, string> = {
-  HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการตัวแทน", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม",
+  HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม",
 };
 
 type SettingTab = "company" | "documents" | "persons" | "notifications";
@@ -58,7 +58,7 @@ const COMPANY_KEY   = "dealer_issuer_profile_v2"; // v2 = รีเซ็ตข�
 const LOGO_KEY      = "dealer_company_logo_v2";      // โลโก้สัญลักษณ์ (ไอคอน) → แถบเมนู
 type CompanyProfile = { company: string; address: string; phone: string; email: string; website: string; taxId: string };
 // ⛔ ต้องว่างเสมอ ห้ามใส่ข้อมูลบริษัทของสาขาใดสาขาหนึ่ง — เหตุผลเดียวกับ DEFAULT_ISSUER ใน mock.ts
-//   เดิมใส่ข้อมูลจริงของ CNX ไว้ ตัวแทนที่เพิ่งสร้างใหม่จึงเปิดหน้านี้แล้วเห็นชื่อ/ที่อยู่/อีเมล/เว็บไซต์
+//   เดิมใส่ข้อมูลจริงของ CNX ไว้ ดีลเลอร์ที่เพิ่งสร้างใหม่จึงเปิดหน้านี้แล้วเห็นชื่อ/ที่อยู่/อีเมล/เว็บไซต์
 //   ของสาขาอื่นขึ้นมาเต็มฟอร์ม เหมือนเป็นข้อมูลตัวเอง (พบ 7 ส.ค. 69)
 //   ตัวอย่างการกรอกให้ใส่ที่ placeholder ของแต่ละช่องแทน — ไม่ใช่ใส่เป็นค่าจริงในฟอร์ม
 const COMPANY_DEFAULT: CompanyProfile = {
@@ -123,7 +123,7 @@ function CompanyTab() {
   const roleLabel = ROLE_LABEL[session.role] ?? "ผู้ใช้งาน";
   // ชื่อบัญชีต้องตรงกับ "ชื่อบริษัท" ที่กรอกไว้ในหน้าเดียวกันเสมอ (บอสสั่ง 13 ส.ค. 69)
   //   เดิมเอาชื่อสาขาจากระบบมาก่อน → หัวการ์ดขึ้นชื่อหนึ่ง แต่ช่องชื่อบริษัทข้างล่างเป็นอีกชื่อ
-  //   ทั้งที่เป็นบริษัทเดียวกัน · ตัวแทนแก้ชื่อบริษัทแล้วหัวการ์ดไม่ขยับตาม เหมือนแก้ไม่ติด
+  //   ทั้งที่เป็นบริษัทเดียวกัน · ดีลเลอร์แก้ชื่อบริษัทแล้วหัวการ์ดไม่ขยับตาม เหมือนแก้ไม่ติด
   //   ยังไม่ได้กรอกชื่อบริษัท ค่อยตกไปใช้ชื่อสาขาที่สำนักงานใหญ่ตั้งไว้
   const accountName = form.company.trim() || session.dealerName || session.dealerCode;
   const initial = accountName.charAt(0).toUpperCase();
@@ -157,7 +157,7 @@ function CompanyTab() {
                 <ShieldCheck size={11} /> {roleLabel}
               </span>
             </div>
-            <div style={{ fontSize: "0.72rem", color: "#8a929c", marginTop: 3 }}>ผู้ดูแลบัญชี: {prof.name || session.name}{session.dealerCode ? ` · รหัสตัวแทน ${session.dealerCode}` : ""}</div>
+            <div style={{ fontSize: "0.72rem", color: "#8a929c", marginTop: 3 }}>ผู้ดูแลบัญชี: {prof.name || session.name}{session.dealerCode ? ` · รหัสดีลเลอร์ ${session.dealerCode}` : ""}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10 }}>
               <button onClick={() => avatarRef.current?.click()} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#003366", fontSize: "0.74rem", fontWeight: 700, padding: 0, fontFamily: "inherit" }}>
                 <RotateCcw size={13} /> เปลี่ยนรูปถ่าย
@@ -172,7 +172,7 @@ function CompanyTab() {
         </div>
 
         {/* ── ข้อมูลบริษัท ── */}
-        <div style={sec}><Building2 size={14} /> ข้อมูลบริษัท (ออกในนามตัวแทน)</div>
+        <div style={sec}><Building2 size={14} /> ข้อมูลบริษัท (ออกในนามดีลเลอร์)</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginBottom: 14 }}>
           <div>
             <label className="form-label">ชื่อบริษัท</label>
@@ -207,7 +207,7 @@ function CompanyTab() {
             placeholder="ที่อยู่เต็ม รวมจังหวัดและรหัสไปรษณีย์" style={{ resize: "vertical" }} />
         </div>
 
-        {/* ── ข้อมูลบัญชี — ตัวแทนแก้อีเมล/รหัสผ่านเองได้ (บอสสั่ง 28 ส.ค. 69) ──
+        {/* ── ข้อมูลบัญชี — ดีลเลอร์แก้อีเมล/รหัสผ่านเองได้ (บอสสั่ง 28 ส.ค. 69) ──
              เดิมล็อกไว้ให้สำนักงานใหญ่จัดการอย่างเดียว · กติกาโควตา/การขออนุมัติอยู่ใน DealerAccountCard
              และถูกบังคับจริงที่เซิร์ฟเวอร์ (ไม่ใช่แค่ซ่อนปุ่ม) */}
         {/* หน้าตั้งค่าโชว์แค่ "บัญชีที่ใช้อยู่" (อีเมลเท่านั้น) — การแก้ไปทำที่หน้าบัญชีแยก */}
@@ -228,7 +228,7 @@ type DocumentSettings = {
   runningNumber: number;
   vatPercent: number;
   /** อัตราภาษีหัก ณ ที่จ่ายตั้งต้นของสาขา (%) — ใช้เป็นค่าเริ่มต้นตอนออกใบ
-   *  ตัวแทนยังเปิด/ปิดและแก้อัตรารายใบได้เสมอ (บอสสั่ง 28 ส.ค. 69) */
+   *  ดีลเลอร์ยังเปิด/ปิดและแก้อัตรารายใบได้เสมอ (บอสสั่ง 28 ส.ค. 69) */
   whtPercent: number;
   validityDays: number;    // อายุใบเสนอราคา (วัน) → วันหมดอายุเริ่มต้น
   expiryWarnDays: number;  // เตือน "ใกล้หมดอายุ" ในกระดิ่ง เมื่อเหลือไม่เกินกี่วัน (บอสสั่ง 21 ก.ย. 69)
@@ -343,7 +343,7 @@ function DocumentsTab() {
       </div>
       <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 22 }}>
 
-        {/* Quote number format — ตัวแทนตั้งเลขลำดับ/อายุใบ/VAT เองได้ · ล็อกเฉพาะคำนำหน้าเลขที่ (ระบบออกให้) */}
+        {/* Quote number format — ดีลเลอร์ตั้งเลขลำดับ/อายุใบ/VAT เองได้ · ล็อกเฉพาะคำนำหน้าเลขที่ (ระบบออกให้) */}
         <div>
           <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#003366", letterSpacing: "0.05em", marginBottom: 10, textTransform: "uppercase" }}>
             เลขที่ใบเสนอราคา
@@ -365,7 +365,7 @@ function DocumentsTab() {
                 ariaLabel="เลขลำดับถัดไป" style={{ fontFamily: "monospace" }} />
             </div>
             <div>
-              {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ตัวแทนตั้งเอง (7 ส.ค. 69)
+              {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69)
                   ใบที่ออกไปแล้วไม่กระทบ — ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง */}
               <label className="form-label">ภาษีมูลค่าเพิ่ม %</label>
               {/* ผูกชื่อช่องไว้ด้วย — โปรแกรมอ่านหน้าจอต้องบอกได้ว่าช่องตัวเลขนี้คืออะไร
@@ -388,7 +388,7 @@ function DocumentsTab() {
               <div style={{ fontFamily: "monospace", fontWeight: 800, color: "#003366", fontSize: "1rem" }}>{previewNo}</div>
             </div>
           </div>
-          {/* ค่าเริ่มต้น: อายุใบเสนอราคา (ตัวแทนตั้งได้เอง) */}
+          {/* ค่าเริ่มต้น: อายุใบเสนอราคา (ดีลเลอร์ตั้งได้เอง) */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 200px))", gap: 12, marginTop: 14 }}>
             <div>
               <label className="form-label">อายุใบเสนอราคา (วัน)</label>
@@ -742,7 +742,7 @@ function PersonsTab() {
 // NOTIFICATIONS TAB — เปิด/ปิดการแจ้งเตือนแต่ละชนิด (มีผลกับกระดิ่งบน Topbar)
 // เลย์เอาต์เดียวกับ /hq/settings → การแจ้งเตือน: หัวข้อมีไอคอน · ตารางแถวมีขอบ ·
 // คอลัมน์ "เปิด" ชิดขวา · แถบบอกว่าค่านี้ถูกใช้ที่ไหน · บันทึกด้วยปุ่มกลางบนหัว (ไม่ auto-save)
-// ตัวแทนมีช่องทางเดียวคือกระดิ่งในระบบ — ไม่มีคอลัมน์ "อีเมล" แบบ HQ เพราะไม่มีระบบส่งอีเมลให้ตัวแทน
+// ดีลเลอร์มีช่องทางเดียวคือกระดิ่งในระบบ — ไม่มีคอลัมน์ "อีเมล" แบบ HQ เพราะไม่มีระบบส่งอีเมลให้ดีลเลอร์
 // ─────────────────────────────────────────────────────────────────────────────
 function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   return (
@@ -819,7 +819,7 @@ function NotificationsTab() {
       <div className="card-header">
         <div>
           <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "var(--primary)", display: "flex" }}><Bell size={19} /></span>การแจ้งเตือนของตัวแทน
+            <span style={{ color: "var(--primary)", display: "flex" }}><Bell size={19} /></span>การแจ้งเตือนของดีลเลอร์
           </div>
           {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}
         </div>
@@ -849,8 +849,8 @@ function NotificationsTab() {
 }
 
 // ─── กฎการดูแลลูกค้าเป้าหมายของสาขานี้ ────────────────────────────────────────
-// ย้ายมาจาก /hq/settings ตามคำสั่ง — เดิม HQ ตั้งค่าเดียวบังคับทุกสาขา ("ตัวแทนแก้เองไม่ได้")
-// ตอนนี้ตัวแทนแต่ละสาขาตั้งเอง เก็บแยกด้วยรหัสสาขา (key: dealer_lead_rules)
+// ย้ายมาจาก /hq/settings ตามคำสั่ง — เดิม HQ ตั้งค่าเดียวบังคับทุกสาขา ("ดีลเลอร์แก้เองไม่ได้")
+// ตอนนี้ดีลเลอร์แต่ละสาขาตั้งเอง เก็บแยกด้วยรหัสสาขา (key: dealer_lead_rules)
 // ⚠️ ค่านี้กระทบหน้า HQ ด้วย — HQ อ่านเกณฑ์ของแต่ละสาขามาคิดทีละใบ (useLeadRulesOf)
 function LeadRulesCard({ draft, set }: { draft: LeadRules; set: (k: keyof LeadRules, n: number) => void }) {
   const currentDealer = useCurrentDealer(); // ชื่อ/รหัสสาขาที่ล็อกอิน (แสดงบนหัวการ์ด)

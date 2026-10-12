@@ -48,7 +48,7 @@ const BG       = "#fafafa";
 type NotifBucket = "today" | "yesterday" | "older";
 
 // กุญแจของการแจ้งเตือนสำหรับจำว่า "อ่านแล้ว" — ต้องผูกกับเนื้อหา ไม่ใช่เลขลำดับ
-//   ฝั่งตัวแทนใช้เลขไล่ตอนสร้างรายการ ซึ่งเลื่อนได้ทุกครั้งที่มีของใหม่เข้ามา
+//   ฝั่งดีลเลอร์ใช้เลขไล่ตอนสร้างรายการ ซึ่งเลื่อนได้ทุกครั้งที่มีของใหม่เข้ามา
 //   เก็บเลขไว้แล้ววันถัดไปเลขนั้นอาจไปตกที่การแจ้งเตือนคนละอัน = ทำเครื่องหมายอ่านผิดตัว
 const notifKey = (n: Notif) => `${n.sortDate}|${n.title}|${n.body}|${n.time}`;
 
@@ -228,13 +228,13 @@ function buildHQNotifications(entries: AuditEntry[]): Notif[] {
 
 // ── การแจ้งเตือนตามกฎของ HQ (ตั้งที่ /hq/settings → การแจ้งเตือน) ──
 // เนื้อหาคำนวณจากข้อมูลจริงใน @pms/shared/lib/hqAlerts — ที่นี่แค่ใส่ไอคอน/สี
-// ขอบเขต = งานของสำนักงานใหญ่เอง (บอสสั่ง 14 ก.ย. 69) — ไม่มีเรื่องงานขายของตัวแทน
+// ขอบเขต = งานของสำนักงานใหญ่เอง (บอสสั่ง 14 ก.ย. 69) — ไม่มีเรื่องงานขายของดีลเลอร์
 const HQ_ALERT_ICON: Record<HQAlertKey, { el: React.ReactNode; bg: string; color: string }> = {
   prospectFollowUpDue: { el: <CalendarClock size={14} />, bg: "#fff3cd", color: "#d97706" },
   prospectIdle:        { el: <AlertTriangle size={14} />, bg: "#fff3cd", color: "#d97706" },
   proposalAwaiting:    { el: <FileText size={14} />,      bg: "#dce5f0", color: "#003366" },
   proposalExpired:     { el: <FileText size={14} />,      bg: "#fdecec", color: "#dc2626" },
-  // แดงเข้ม: เรื่องนี้ไม่ใช่ "ควรดู" แต่เป็น "ตัวแทนทำงานต่อไม่ได้จนกว่าจะแก้"
+  // แดงเข้ม: เรื่องนี้ไม่ใช่ "ควรดู" แต่เป็น "ดีลเลอร์ทำงานต่อไม่ได้จนกว่าจะแก้"
   catalogNoPrice:      { el: <Tag size={14} />,           bg: "#fdecec", color: "#dc2626" },
 };
 // "ต้องดูด่วน" แสดงทีละรายการ (บอสสั่ง 22 ก.ย. 69 — เดิมจัดกลุ่มแล้วอัดข้อความยาวบรรทัดเดียว อ่านไม่รู้เรื่อง)
@@ -243,8 +243,8 @@ const ALERT_PREVIEW = 10;
 const HQ_ALERT_TAG: Record<HQAlertKey, string> = {
   prospectFollowUpDue: "ถึงกำหนดติดตาม",
   prospectIdle: "ไม่ได้ติดต่อนาน",
-  proposalAwaiting: "ใบเสนอแพ็กเกจรอคำตอบ",
-  proposalExpired: "ใบเสนอแพ็กเกจหมดอายุ",
+  proposalAwaiting: "ใบค่าแฟรนไชส์รอคำตอบ",
+  proposalExpired: "ใบค่าแฟรนไชส์หมดอายุ",
   catalogNoPrice: "แม่แบบยังไม่ตั้งราคา",
 };
 
@@ -274,10 +274,10 @@ const TITLE_MAP: { match: string; title: string }[] = [
   /* HQ */
   { match: "/hq/dashboard",      title: "แดชบอร์ดสำนักงานใหญ่" },
   { match: "/hq/pipeline",       title: "ภาพรวมยอดขาย" },
-  // ต้องตรงกับชื่อในเมนูข้าง — เดิมเมนูเรียก "ตัวแทนจำหน่าย" แต่หัวหน้าเพจเรียก "ตัวแทน"
-  { match: "/hq/dealers",        title: "ตัวแทนจำหน่าย" },
+  // ต้องตรงกับชื่อในเมนูข้าง — เดิมเมนูเรียก "ดีลเลอร์" แต่หัวหน้าเพจเรียก "ดีลเลอร์"
+  { match: "/hq/dealers",        title: "ดีลเลอร์" },
   { match: "/hq/prospects",      title: "ลูกค้าเป้าหมาย (HQ)" },
-  { match: "/hq/proposals",      title: "ใบเสนอแพ็กเกจตัวแทน" },
+  { match: "/hq/proposals",      title: "ใบค่าแฟรนไชส์" },
   { match: "/hq/leads",          title: "ลูกค้าเป้าหมายทั้งเครือ" },
   { match: "/hq/customers",      title: "ลูกค้าทั้งเครือ" },
   { match: "/hq/quotations",     title: "ใบเสนอราคาทั้งเครือ" },
@@ -307,9 +307,9 @@ const DEALER_PAGES: PageEntry[] = [
 ];
 const HQ_PAGES: PageEntry[] = [
   { label: "แดชบอร์ดสำนักงานใหญ่", href: "/hq/dashboard",  keywords: "แดชบอร์ด dashboard สำนักงานใหญ่ hq ภาพรวม สรุป หน้าแรก" },
-  { label: "ตัวแทน",              href: "/hq/dealers",    keywords: "ตัวแทน dealer dealers จำหน่าย" },
-  { label: "ลูกค้าเป้าหมาย (HQ)", href: "/hq/prospects", keywords: "ลูกค้าเป้าหมาย ผู้สนใจ สมัครตัวแทน prospect prospects dealer ใหม่ hq" },
-  { label: "ใบเสนอแพ็กเกจตัวแทน", href: "/hq/proposals", keywords: "ใบเสนอแพ็กเกจ แพ็กเกจตัวแทน ค่าแรกเข้า ระยะสัญญา proposal package dp hq" },
+  { label: "ดีลเลอร์",              href: "/hq/dealers",    keywords: "ดีลเลอร์ dealer dealers จำหน่าย" },
+  { label: "ลูกค้าเป้าหมาย (HQ)", href: "/hq/prospects", keywords: "ลูกค้าเป้าหมาย ผู้สนใจ สมัครดีลเลอร์ prospect prospects dealer ใหม่ hq" },
+  { label: "ใบค่าแฟรนไชส์", href: "/hq/proposals", keywords: "ใบค่าแฟรนไชส์ แพ็กเกจดีลเลอร์ ค่าแรกเข้า ระยะสัญญา proposal package dp hq" },
   { label: "ลูกค้าเป้าหมายทั้งเครือ", href: "/hq/leads",   keywords: "ลูกค้าเป้าหมาย lead leads ลีด ทั้งเครือ" },
   { label: "ลูกค้าทั้งเครือ",       href: "/hq/customers",  keywords: "ลูกค้า customer customers ทั้งเครือ" },
   { label: "ภาพรวมยอดขาย",        href: "/hq/pipeline",   keywords: "ภาพรวมยอดขาย pipeline ยอดขาย sales funnel" },
@@ -325,9 +325,9 @@ const HQ_PAGES: PageEntry[] = [
 
 export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   const { session, isHQ, logout } = useRole();
-  // แท็บนี้เปิดมาจาก "สำนักงานใหญ่กดเข้าระบบแทนตัวแทน" หรือเปล่า — ใช้ซ่อนปุ่มออกจากระบบ
+  // แท็บนี้เปิดมาจาก "สำนักงานใหญ่กดเข้าระบบแทนดีลเลอร์" หรือเปล่า — ใช้ซ่อนปุ่มออกจากระบบ
   const สวมสิทธิ์อยู่ = useImpersonating();
-  const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน — กระดิ่งฝั่งตัวแทน scope ด้วย code นี้
+  const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน — กระดิ่งฝั่งดีลเลอร์ scope ด้วย code นี้
   const router = useRouter();
   const pathname = usePathname();
 
@@ -340,7 +340,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   // อ่านผ่าน repo — เดิม loadNotifPrefs() อ่าน localStorage ตรง ๆ
   // (ยังฟัง NOTIF_PREFS_EVENT อยู่ เพราะหน้าตั้งค่ายิง event นี้ตอนกดบันทึก → กระดิ่งอัปเดตทันที)
   const dealerCfg = useDealerSettings();
-  // เกณฑ์ของกระดิ่งฝั่งตัวแทน — ตัวเดียวกับหน้าใบเสนอราคา/ลูกค้าเป้าหมาย (อายุใบ · ขาดการติดต่อเกินกี่วัน)
+  // เกณฑ์ของกระดิ่งฝั่งดีลเลอร์ — ตัวเดียวกับหน้าใบเสนอราคา/ลูกค้าเป้าหมาย (อายุใบ · ขาดการติดต่อเกินกี่วัน)
   const quoteValidity = useQuoteValidity();
   const { followUpAlertDays } = useLeadRules(currentDealer.code);
   const expiryWarnDays = useQuoteExpiryWarnDays();
@@ -368,11 +368,11 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   const { leads: allLeads, quotations: liveQuotations, appointments: liveAppointments, customers: liveCustomers } = useSales();
 
   // ── ขอบเขตข้อมูลของลูกค้าเป้าหมาย (สำคัญ) ────────────────────────────────────────────
-  // SalesContext ถือลูกค้าเป้าหมายของ "ทั้งเครือ" 10 สาขา — ตัวแทนต้องเห็นเฉพาะสมุดงานตัวเอง
-  // กติกาเดียวกับ DealerDashboard/หน้า /leads: ไม่มี dealerCode = ลูกค้าเป้าหมายที่ตัวแทนสร้างเอง → ของสาขาตัวเอง
+  // SalesContext ถือลูกค้าเป้าหมายของ "ทั้งเครือ" 10 สาขา — ดีลเลอร์ต้องเห็นเฉพาะสมุดงานตัวเอง
+  // กติกาเดียวกับ DealerDashboard/หน้า /leads: ไม่มี dealerCode = ลูกค้าเป้าหมายที่ดีลเลอร์สร้างเอง → ของสาขาตัวเอง
   // HQ เห็นทั้งเครือตามปกติ
   //
-  // เดิม Topbar ใช้ allLeads ตรง ๆ ทั้งกระดิ่งและช่องค้นหา → ตัวแทน CNX เห็นลูกค้าเป้าหมายของ RYG/MST
+  // เดิม Topbar ใช้ allLeads ตรง ๆ ทั้งกระดิ่งและช่องค้นหา → ดีลเลอร์ CNX เห็นลูกค้าเป้าหมายของ RYG/MST
   // พร้อมชื่อผู้ติดต่อ เบอร์ มูลค่าดีล และชื่อเซลส์สาขาอื่น (ยืนยันด้วยเทสต์: ระยอง/ตาก โผล่ในกระดิ่ง CNX)
   const liveLeads = useMemo(
     () => isHQ ? allLeads : allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
@@ -390,7 +390,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   // จึงแสดงแยกเป็นกลุ่มไว้บนสุดของแผง (ดู alertGroups) ไม่ปนกับไทม์ไลน์วันนี้/เมื่อวาน
   const notifs = useMemo(() => {
     if (isHQ) {
-      // เฉพาะสิ่งที่คนของ HQ ทำ (บอสสั่ง 21 ก.ย. 69) — บันทึกการใช้งานเก็บงานขายของตัวแทนด้วย
+      // เฉพาะสิ่งที่คนของ HQ ทำ (บอสสั่ง 21 ก.ย. 69) — บันทึกการใช้งานเก็บงานขายของดีลเลอร์ด้วย
       //   (ตัวดักฐานข้อมูล 0150: สร้าง/ลบลูกค้าเป้าหมาย/ใบเสนอราคา ของสาขา) ซึ่งไม่ใช่เรื่องของกระดิ่ง HQ
       //   ดูย้อนหลังทั้งหมดยังทำได้ที่ /hq/audit · แถวที่ไม่มีบทบาท (ระบบ) ยังแสดง
       const ของHQ = auditEntries.filter(e => !String(e.role ?? "").startsWith("DEALER"));
@@ -450,7 +450,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // รายชื่อตัวแทนในผลค้นหา — จากทะเบียนจริง ไม่ใช่ชุดตัวอย่าง
+  // รายชื่อดีลเลอร์ในผลค้นหา — จากทะเบียนจริง ไม่ใช่ชุดตัวอย่าง
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
 
   // ── search results (grouped, ≥2 chars, up to 5 per group) ──
@@ -501,11 +501,11 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
         .filter((qt: QuotationMock) => has(qt.id) || has(qt.customer) || has(qt.project))
         .slice(0, 5)
         .map((qt: QuotationMock) => ({ type: "ใบเสนอราคา", label: qt.id, sub: `${qt.customer} · ${qt.total}`, href: "/quotations" })),
-      // ตัวแทนจำหน่าย — เฉพาะ role HQ (dealer ไม่มีสิทธิ์เข้าหน้า /hq)
+      // ดีลเลอร์ — เฉพาะ role HQ (dealer ไม่มีสิทธิ์เข้าหน้า /hq)
       ...(isHQ ? dealers
         .filter((d: DealerRow) => has(d.name) || has(d.code) || has(d.region))
         .slice(0, 5)
-        .map((d: DealerRow) => ({ type: "ตัวแทน", label: d.name, sub: `${d.code} · ${d.region}`, href: `/hq/dealers/${d.code}` })) : []),
+        .map((d: DealerRow) => ({ type: "ดีลเลอร์", label: d.name, sub: `${d.code} · ${d.region}`, href: `/hq/dealers/${d.code}` })) : []),
     ];
   }, [q, dealers, liveLeads, liveCustomers, liveQuotations, isHQ, hqSearch]);
 
@@ -553,7 +553,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
     "ลูกค้าเป้าหมาย":  { bg: "#dce5f0", text: PRIMARY,   icon: <MessageSquare size={14} /> },
     "ลูกค้า":         { bg: "#e5faf0", text: "#059669", icon: <Users size={14} /> },
     "ใบเสนอราคา":     { bg: "#fef3cd", text: "#b45309", icon: <FileText size={14} /> },
-    "ตัวแทน":  { bg: "#e8eaed", text: STEEL, icon: <Sparkles size={14} /> },
+    "ดีลเลอร์":  { bg: "#e8eaed", text: STEEL, icon: <Sparkles size={14} /> },
   };
 
   return (
@@ -576,7 +576,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
                 ref={searchInputRef}
                 value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
-                placeholder={isHQ ? "ค้นหาหน้า ลูกค้าเป้าหมาย ตัวแทน ใบเสนอราคา…" : "ค้นหาหน้า ลูกค้าเป้าหมาย ลูกค้า ใบเสนอราคา…"}
+                placeholder={isHQ ? "ค้นหาหน้า ลูกค้าเป้าหมาย ดีลเลอร์ ใบเสนอราคา…" : "ค้นหาหน้า ลูกค้าเป้าหมาย ลูกค้า ใบเสนอราคา…"}
                 style={{ flex:1, border:"none", outline:"none", fontSize:"0.92rem", color:STEEL, background:"transparent" }}/>
               <button onClick={() => { setShowSearch(false); setSearchQ(""); }}
                 style={{ fontSize:"0.72rem", color:"#9ca3af", background:"none", border:`1px solid ${BORDER}`, borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>
@@ -638,7 +638,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
         <button type="button" className="topbar-search" aria-label="ค้นหา"
           onClick={() => { setShowSearch(true); setShowNotifs(false); setShowUser(false); }}>
           <Search size={16} />
-          <span>{isHQ ? "ค้นหาหน้า ลูกค้าเป้าหมาย ตัวแทน ใบเสนอราคา…" : "ค้นหาหน้า ลูกค้าเป้าหมาย ลูกค้า ใบเสนอราคา…"}</span>
+          <span>{isHQ ? "ค้นหาหน้า ลูกค้าเป้าหมาย ดีลเลอร์ ใบเสนอราคา…" : "ค้นหาหน้า ลูกค้าเป้าหมาย ลูกค้า ใบเสนอราคา…"}</span>
         </button>
 
         {/* ── ป้ายบอกว่ากำลังดูชุดข้อมูลตัวอย่าง (บอสสั่ง 24 ส.ค. 69 · ผลตรวจภายนอก DL-05/HQ-12a) ──
@@ -687,7 +687,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
               <div style={{ maxHeight:400, overflowY:"auto" }}>
                 {/* ── ต้องดูด่วน — กฎแจ้งเตือนของ HQ จัดกลุ่มตามเรื่อง ──
                     สถานะปัจจุบันของเครือ ไม่ใช่เหตุการณ์ในอดีต จึงไม่มีจุด "อ่านแล้ว" และไม่เข้าบัคเก็ตวันนี้/เมื่อวาน
-                    (เรื่องจะหายเองเมื่อตัวแทนไปจัดการจริง — กด "อ่านแล้ว" ไม่ได้ทำให้งานเสร็จ) */}
+                    (เรื่องจะหายเองเมื่อดีลเลอร์ไปจัดการจริง — กด "อ่านแล้ว" ไม่ได้ทำให้งานเสร็จ) */}
                 {alertGroupsUnread.length > 0 && (
                   <div style={{ borderBottom:`1px solid ${BORDER}` }}>
                     <div style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 16px 5px", background:"#fafafa", borderBottom:`1px solid ${BG}` }}>
@@ -825,7 +825,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
               {/* Menu items */}
               <div style={{ padding:"6px 0" }}>
                 {[
-                  // ตัวแทน: บัญชีดีลเลอร์รวมอยู่ในหน้า "ตั้งค่า" แล้ว → ไม่ต้องมีเมนูซ้ำ · HQ ยังมี "โปรไฟล์" (/profile) แยก
+                  // ดีลเลอร์: บัญชีดีลเลอร์รวมอยู่ในหน้า "ตั้งค่า" แล้ว → ไม่ต้องมีเมนูซ้ำ · HQ ยังมี "โปรไฟล์" (/profile) แยก
                   ...(isHQ ? [{ Icon: UserCircle, label: "โปรไฟล์", href: "/profile" }] : []),
                   { Icon: Settings,    label:"ตั้งค่า",  href: isHQ ? "/hq/settings" : "/settings" },
                 ].map(item => (
@@ -838,7 +838,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
                 ))}
               </div>
 
-              {/* Logout — ซ่อนตอน "สำนักงานใหญ่กำลังเข้าระบบแทนตัวแทน" (บอสสั่ง 20 ส.ค. 69)
+              {/* Logout — ซ่อนตอน "สำนักงานใหญ่กำลังเข้าระบบแทนดีลเลอร์" (บอสสั่ง 20 ส.ค. 69)
                   แท็บนี้มีทางกลับอยู่แล้วสองที่ (แถบแจ้งด้านบน + ท้ายเมนูข้าง) ปุ่มออกจากระบบ
                   จึงเป็นทางที่สาม ที่พาไปผิดที่ด้วย: ออกจากบัญชีสาขาแล้วค้างอยู่หน้าเข้าสู่ระบบ
                   ทั้งที่สิ่งที่ผู้ดูแลต้องการคือ "กลับไปหน้า HQ ของตัวเอง" */}
@@ -861,7 +861,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
 
       {/* ── หัวหน้าเพจ (UI รอบใหม่ 14 ก.ย. 69) — ชื่อหน้าตัวใหญ่ · ปุ่มเฉพาะหน้าอยู่ขวา · เส้นคั่นล่าง ──
           ไม่มีคำโปรยใต้ชื่อหน้า (บอสสั่ง 14 ส.ค. 69 · บอสยืนยันอีกครั้งตอนเลือกแบบ)
-          ไม่มีป้ายกลุ่มเมนูเหนือชื่อหน้า (เช่น "ภาพรวม" "งานขาย") — บอสสั่งเอาออกทุกหน้าทั้ง HQ และตัวแทน 15 ก.ย. 69 ห้ามเติมกลับ
+          ไม่มีป้ายกลุ่มเมนูเหนือชื่อหน้า (เช่น "ภาพรวม" "งานขาย") — บอสสั่งเอาออกทุกหน้าทั้ง HQ และดีลเลอร์ 15 ก.ย. 69 ห้ามเติมกลับ
           คลาส topbar-title คงไว้ที่ h1 — เทสต์และตัวช่วยเดิมยังหาชื่อหน้าจากคลาสนี้ */}
       <div className="page-header">
         <div className="page-header-text">

@@ -1,10 +1,10 @@
 "use client";
 
-// ── แผง "ใบเสนอแพ็กเกจตัวแทน" ของลูกค้าเป้าหมายหนึ่งราย (แท็บในหน้าต่างรายละเอียดของ /hq/prospects) ──
+// ── แผง "ใบค่าแฟรนไชส์" ของลูกค้าเป้าหมายหนึ่งราย (แท็บในหน้าต่างรายละเอียดของ /hq/prospects) ──
 //
 // บอสสั่ง 14 ก.ย. 69: "ต้องทำเหมือนดีลเลอร์ที่ต้องมีใบเสนอราคา แต่อันนี้ของ HQ"
 //   ออกใบ (ร่าง) → พิมพ์ส่งให้ → เปลี่ยนเป็น "ส่งแล้ว" → ตอบรับ / ปฏิเสธ
-//   ต้องมีใบที่ส่งแล้วหรือตอบรับอย่างน้อย 1 ใบ ถึงจะสร้างตัวแทนใหม่จากรายนี้ได้ (หน้าแม่รับรายการผ่าน onChange)
+//   ต้องมีใบที่ส่งแล้วหรือตอบรับอย่างน้อย 1 ใบ ถึงจะสร้างดีลเลอร์ใหม่จากรายนี้ได้ (หน้าแม่รับรายการผ่าน onChange)
 //
 // ฟอร์ม (ProposalFormModal) และคำสั่ง พิมพ์/เปลี่ยนสถานะ/ลบ (useProposalActions) ใช้ชุดเดียวกับหน้ารวมใบเสนอ
 // ส่งแล้วแก้เนื้อหา/ลบไม่ได้ — ฐานข้อมูลบังคับ (0172) หน้าจอแค่ไม่เปิดปุ่มให้กด
@@ -27,11 +27,11 @@ const MUTED = "#6b7280";
 
 export function ProspectProposalsPanel({ prospect, editable, onChange, เปิดฟอร์มทันที = false }: {
   prospect: DealerProspect;
-  /** ผู้มีสิทธิ์จัดการตัวแทน — ไม่มีสิทธิ์ = ดู/พิมพ์ได้อย่างเดียว */
+  /** ผู้มีสิทธิ์จัดการดีลเลอร์ — ไม่มีสิทธิ์ = ดู/พิมพ์ได้อย่างเดียว */
   editable: boolean;
   /** แจ้งรายการใบล่าสุดให้หน้าแม่ (ต้องเป็นฟังก์ชันที่คงที่ — เปลี่ยนทุกครั้งจะโหลดวนไม่หยุด) */
   onChange?: (list: DealerPackageProposal[]) => void;
-  /** เปิดฟอร์มออกใบใหม่ให้ครั้งเดียวหลังโหลดรายการเสร็จ (ปุ่มลัด "ออกใบเสนอแพ็กเกจ" / งานส่งใบเสนอ) */
+  /** เปิดฟอร์มออกใบใหม่ให้ครั้งเดียวหลังโหลดรายการเสร็จ (ปุ่มลัด "ออกใบค่าแฟรนไชส์" / งานส่งใบเสนอ) */
   เปิดฟอร์มทันที?: boolean;
 }) {
   const { พิมพ์, เปลี่ยนสถานะ, ลบใบ } = useProposalActions();
@@ -51,7 +51,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
       setLoadErr("");
     } catch (e) {
       // ห้ามปล่อยว่างเงียบ ๆ — ผู้ใช้จะนึกว่ายังไม่เคยออกใบ แล้วออกซ้ำ
-      setLoadErr(friendlyError(e, "โหลดใบเสนอแพ็กเกจไม่สำเร็จ"));
+      setLoadErr(friendlyError(e, "โหลดใบค่าแฟรนไชส์ไม่สำเร็จ"));
     } finally {
       setLoaded(true);
     }
@@ -78,17 +78,17 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <FileText size={15} color={PRIMARY} />
-        <div style={{ fontWeight: 800, color: "#2D2D2D", fontSize: "0.88rem" }}>ใบเสนอแพ็กเกจตัวแทน</div>
+        <div style={{ fontWeight: 800, color: "#2D2D2D", fontSize: "0.88rem" }}>ใบค่าแฟรนไชส์</div>
         <span style={{ fontSize: "0.72rem", color: MUTED }}>{loaded ? `${list.length} ใบ` : ""}</span>
         <div style={{ flex: 1 }} />
         {editable && !ฟอร์ม && (
           <button className="btn btn-secondary btn-sm" onClick={() => setฟอร์ม({ editing: null })}>
-            <Plus size={13} /> ออกใบเสนอแพ็กเกจ
+            <Plus size={13} /> ออกใบค่าแฟรนไชส์
           </button>
         )}
       </div>
       <div style={{ fontSize: "0.7rem", color: MUTED, marginBottom: 10, lineHeight: 1.6 }}>
-        สร้างตัวแทนใหม่จากรายนี้ได้ ต่อเมื่อมีใบที่ “ส่งแล้ว” หรือ “ตอบรับ” อย่างน้อย 1 ใบ · ส่งแล้วแก้เนื้อหาไม่ได้
+        สร้างดีลเลอร์ใหม่จากรายนี้ได้ ต่อเมื่อมีใบที่ “ส่งแล้ว” หรือ “ตอบรับ” อย่างน้อย 1 ใบ · ส่งแล้วแก้เนื้อหาไม่ได้
       </div>
 
       {/* ออก/แก้ใบ = เปิดฟอร์มในแท็บนี้เลย ไม่เด้งหน้าต่าง (บอสสั่ง 15 ก.ย. 69) · ยกเลิก/บันทึกแล้วกลับเป็นรายการ */}
@@ -108,7 +108,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
       {!loadErr && (!loaded
         ? <div style={{ fontSize: "0.78rem", color: MUTED }}>กำลังโหลด…</div>
         : list.length === 0
-          ? <div style={{ fontSize: "0.78rem", color: "#9ca3af", padding: "10px 0" }}>ยังไม่มีใบเสนอแพ็กเกจ</div>
+          ? <div style={{ fontSize: "0.78rem", color: "#9ca3af", padding: "10px 0" }}>ยังไม่มีใบค่าแฟรนไชส์</div>
           : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {list.map(p => {

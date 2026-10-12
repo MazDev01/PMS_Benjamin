@@ -22,8 +22,8 @@ const ALERT_MS = 8000;
 function SyncErrorBar() {
   const { syncError, clearSyncError } = useSales();
   const pathname = usePathname();
-  // ข้อมูลระดับเครือ (ทะเบียนตัวแทน/แคตตาล็อก/ตั้งค่า) บันทึกผ่าน useRepoState คนละทางกับงานขาย
-  // แต่ต้องเตือนที่เดียวกัน — ไม่งั้นลบตัวแทนไม่สำเร็จแล้วผู้ใช้ไม่รู้เลย
+  // ข้อมูลระดับเครือ (ทะเบียนดีลเลอร์/แคตตาล็อก/ตั้งค่า) บันทึกผ่าน useRepoState คนละทางกับงานขาย
+  // แต่ต้องเตือนที่เดียวกัน — ไม่งั้นลบดีลเลอร์ไม่สำเร็จแล้วผู้ใช้ไม่รู้เลย
   const [repoError, setRepoError] = useState<string | null>(null);
   useEffect(() => {
     const onErr = (e: Event) => setRepoError((e as CustomEvent<string>).detail || "บันทึกไม่สำเร็จ");
@@ -107,11 +107,11 @@ function ReadErrorBar() {
 }
 
 // แถบเตือน "กำลังเข้าระบบแทนโดย HQ" — HQ เปิดแท็บนี้ผ่านลิงก์เข้าระบบแทน (magic-link, ดู
-// /api/admin/dealers/impersonate) ต้องมีทางกลับที่ชัดเจน ไม่ใช่ให้ HQ งงว่าจะออกจากบัญชีตัวแทนยังไง
+// /api/admin/dealers/impersonate) ต้องมีทางกลับที่ชัดเจน ไม่ใช่ให้ HQ งงว่าจะออกจากบัญชีดีลเลอร์ยังไง
 // เก็บสถานะไว้ที่ sessionStorage ของแท็บนี้เท่านั้น — ตั้งใจให้แยกต่อแท็บ
-// (ต่างจากใบผ่านเข้าระบบซึ่งอยู่ที่ localStorage ใช้ร่วมกันทุกแท็บ) เพราะการสวมสิทธิ์ดูแทนตัวแทน
+// (ต่างจากใบผ่านเข้าระบบซึ่งอยู่ที่ localStorage ใช้ร่วมกันทุกแท็บ) เพราะการสวมสิทธิ์ดูแทนดีลเลอร์
 // เป็นเรื่องของหน้าต่างที่กำลังดูอยู่ ไม่ควรลามไปแท็บอื่นที่เปิดค้างไว้
-// เพื่อให้แถบยังอยู่ต่อแม้เปลี่ยนหน้าในแอปตัวแทน ไม่ใช่แค่หน้าแรกที่ query param ?impersonated=1 มาถึง
+// เพื่อให้แถบยังอยู่ต่อแม้เปลี่ยนหน้าในแอปดีลเลอร์ ไม่ใช่แค่หน้าแรกที่ query param ?impersonated=1 มาถึง
 function ImpersonationBanner() {
   const active = useImpersonating();
   const { logout } = useRole();
@@ -126,7 +126,7 @@ function ImpersonationBanner() {
       background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1d4ed8",
       borderRadius: 10, padding: "10px 14px", fontSize: "0.8rem", fontWeight: 600,
     }}>
-      <span style={{ flex: 1 }}>กำลังเข้าระบบแทนตัวแทนโดยสำนักงานใหญ่ (HQ)</span>
+      <span style={{ flex: 1 }}>กำลังเข้าระบบแทนดีลเลอร์โดยสำนักงานใหญ่ (HQ)</span>
       <button onClick={backToHQ}
         style={{ background: "#1d4ed8", border: "none", borderRadius: 6, cursor: "pointer", color: "#fff", fontWeight: 700, padding: "5px 12px", fontSize: "0.78rem" }}>
         กลับสู่ HQ
@@ -139,7 +139,7 @@ function ImpersonationBanner() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
-  // ล้างรายชื่อตัวแทนรุ่นเก่าที่ค้างในเครื่อง (ดู HQ_DEALERS_KEY ใน mock.ts) — ทำครั้งเดียวตอนเข้าแอป
+  // ล้างรายชื่อดีลเลอร์รุ่นเก่าที่ค้างในเครื่อง (ดู HQ_DEALERS_KEY ใน mock.ts) — ทำครั้งเดียวตอนเข้าแอป
   useEffect(() => { purgeOldDealerKeys(); }, []);
   const { isHQ } = useRole(); // เมนู HQ ชื่อยาวกว่า (แดชบอร์ดสำนักงานใหญ่ / ใบเสนอราคาทั้งเครือ) → ขยายแถบข้าง
   return (

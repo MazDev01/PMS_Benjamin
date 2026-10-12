@@ -165,7 +165,7 @@ export function useHQCustomersPage(opts: HQCustomersPageOpts): HQCustomersPageRe
   return page;
 }
 
-// ตัวเลือกตัวกรอง (ตัวแทน/จังหวัด/ประเภทอาคาร/ปีที่ส่งมอบ) ของหน้าฐานข้อมูลลูกค้า — ไม่อิงตัวกรองปัจจุบัน
+// ตัวเลือกตัวกรอง (ดีลเลอร์/จังหวัด/ประเภทอาคาร/ปีที่ส่งมอบ) ของหน้าฐานข้อมูลลูกค้า — ไม่อิงตัวกรองปัจจุบัน
 // supabase เท่านั้น · local คืน null → หน้าคำนวณตัวเลือกจาก useCustomerDbLocal() เอง
 export function useHQCustomersFilterOptions(): HQCustomersFilterOptions | null {
   const ready = useAuthReady();   // ยังไม่ล็อกอิน = ห้ามยิงคำขอ (ดู useAuthReady.ts)
@@ -254,7 +254,7 @@ export function useNetworkCustomerSummary(
         .catch(err => logRepoRead("metrics.networkCustomerSummary", err));
     }, 150);
     return () => { alive = false; clearTimeout(t); };
-    // ⚠️ ต้องมีตัวกรองใน dependency ด้วย — ไม่งั้นเปลี่ยนตัวแทน/ช่วงเวลาแล้วตัวเลขค้างของเดิม
+    // ⚠️ ต้องมีตัวกรองใน dependency ด้วย — ไม่งั้นเปลี่ยนดีลเลอร์/ช่วงเวลาแล้วตัวเลขค้างของเดิม
     //    (คีย์เป็นสตริงเพื่อไม่ให้ object ที่สร้างใหม่ทุกเรนเดอร์ยิงซ้ำไม่รู้จบ)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, salesVersion, JSON.stringify(filters ?? {})]);
@@ -273,7 +273,7 @@ export const CURRENT_DEALER = { code: "CNX", name: "เชียงใหม่�
 // multi-tenant: บันทึกที่สาขาอื่นสร้างจริง (SalesContext ติด dealerCode) → HQ ต้องระบุสาขาให้ถูก
 //
 // ชื่อสาขาต้องมาจากทะเบียนจริง — เดิมสร้าง Map จากชุด seed ตอน import โมดูล
-// สาขาที่ HQ เพิ่มใหม่จึงแสดงเป็นรหัส 3 ตัวแทนชื่อบริษัท และแก้ชื่อแล้วก็ไม่เปลี่ยนตาม
+// สาขาที่ HQ เพิ่มใหม่จึงแสดงเป็นรหัส 3 ดีลเลอร์ชื่อบริษัท และแก้ชื่อแล้วก็ไม่เปลี่ยนตาม
 // อ่านไม่ได้/ยังไม่โหลด → ใช้รหัสสาขาไปก่อน (ไม่กุชื่อขึ้นมาเอง)
 function useDealerInfo() {
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
@@ -299,7 +299,7 @@ export function useNetworkQuotations(): HQQuotation[] {
         dealerCode: dl.code, dealerName: dl.name,
         customer: q.customer, valueNum: q.totalValue,
         status: q.status, createdAt: fmtISOToThai(q.date), savedAt: q.savedAt,
-        salesperson: lead?.assigned ?? `ตัวแทน ${dl.code}`,
+        salesperson: lead?.assigned ?? `ดีลเลอร์ ${dl.code}`,
         productLine: q.buildingType || q.project,
         // รายละเอียดราคาจริงของใบที่ดีลเลอร์สร้าง → HQ เจาะดูรายการสินค้าได้
         materialCost: q.materialCost, lineItems: q.lineItems,
@@ -353,7 +353,7 @@ export function useNetworkCustomers(): HQCustomer[] {
 // ของ pageAll() แบบเงียบ ๆ · พบจากผลตรวจสอบระบบ 30 ก.ค. 69) — สูงพอที่จะไม่กระทบการใช้งานจริงตอนนี้
 const HQ_CUSTOMERS_FETCH_CAP = 5000;
 
-// ลูกค้าของตัวแทนสาขาเดียว (หน้ารายละเอียดตัวแทน /hq/dealers/[code]) — กรองที่ repo ตรง ๆ
+// ลูกค้าของดีลเลอร์สาขาเดียว (หน้ารายละเอียดดีลเลอร์ /hq/dealers/[code]) — กรองที่ repo ตรง ๆ
 // เดิมดึงลูกค้าทั้งเครือ (~5000 แถวสูงสุด) แล้วค่อยกรอง .filter() ฝั่ง client — วัดจริงพบ ~1.15MB/หน้า
 // ทั้งที่โชว์แค่สาขาเดียว (ผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69) แก้เป็นกรองที่ repo ตรงแทน
 export function useNetworkCustomersForDealer(code: string): HQCustomer[] {
@@ -394,7 +394,7 @@ export function useNetworkCustomersForDealer(code: string): HQCustomer[] {
   }, [rows, local, dealerInfoOf, code]);
 }
 
-// ─── รายละเอียดตัวแทน (เจาะรายสาขา) — CNX = ข้อมูลสด · สาขาอื่น = seed ────────────
+// ─── รายละเอียดดีลเลอร์ (เจาะรายสาขา) — CNX = ข้อมูลสด · สาขาอื่น = seed ────────────
 const LEAD_TO_ITEM: Record<LeadStatus, DealerLeadItem["status"]> = {
   WAITING: "contacted", BULLET: "contacted", QUOTED: "quoted", FOLLOWUP: "quoted", NEGO: "quoted", PAID: "won", CANCELLED: "lost",
 };

@@ -40,11 +40,11 @@ test("สวมบทบาทอื่นไม่ได้", async () => {
   expect(error, "เขียนบันทึกโดยอ้างบทบาทอื่นต้องถูกปฏิเสธ").not.toBeNull();
 });
 
-test("ตัวแทนเขียนบันทึกของสำนักงานใหญ่ไม่ได้", async () => {
+test("ดีลเลอร์เขียนบันทึกของสำนักงานใหญ่ไม่ได้", async () => {
   const dealer = await as(RYG);
   const { error } = await dealer.from("audit_log")
-    .insert({ user: RYG.email, role: "DEALER_ADMIN", action: "ZZTEST-ตัวแทนเขียน", target: "x" }).select();
-  expect(error, "ตัวแทนต้องเขียนบันทึกตรวจสอบไม่ได้").not.toBeNull();
+    .insert({ user: RYG.email, role: "DEALER_ADMIN", action: "ZZTEST-ดีลเลอร์เขียน", target: "x" }).select();
+  expect(error, "ดีลเลอร์ต้องเขียนบันทึกตรวจสอบไม่ได้").not.toBeNull();
 });
 
 test("แก้/ลบบันทึกย้อนหลังไม่ได้ (append-only)", async () => {

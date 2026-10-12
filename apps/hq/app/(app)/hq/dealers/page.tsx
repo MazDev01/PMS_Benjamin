@@ -34,9 +34,9 @@ import type { DealerPackage } from "@pms/shared/lib/data/types";
 
 const CARD: React.CSSProperties = { background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)" };
 const REGIONS = ["เหนือ", "กลาง", "ตะวันออก", "ตะวันตก", "ใต้", "อีสาน"];
-/** รหัสของ "สำนักงานใหญ่" ในทะเบียนตัวแทน — ดูแลทุกภาคทุกจังหวัด และตรึงไว้บนสุดของตารางเสมอ */
+/** รหัสของ "สำนักงานใหญ่" ในทะเบียนดีลเลอร์ — ดูแลทุกภาคทุกจังหวัด และตรึงไว้บนสุดของตารางเสมอ */
 const HQ_CODE = "HQ";
-// เวลาที่เพิ่มตัวแทน (ms) — ไม่มีค่า (ข้อมูลตัวอย่างเดิม) = 0 ไปอยู่ท้าย
+// เวลาที่เพิ่มดีลเลอร์ (ms) — ไม่มีค่า (ข้อมูลตัวอย่างเดิม) = 0 ไปอยู่ท้าย
 const เวลาเพิ่ม = (d: DealerRow) => { const t = d.createdAt ? Date.parse(d.createdAt) : NaN; return Number.isFinite(t) ? t : 0; };
 /** การ์ดต่อหน้า — 12 ใบ = แถวละ 4 ใบ 3 แถวเต็ม (จอเล็ก 2 ใบ / มือถือ 1 ใบ ก็ยังเต็มแถว) */
 const CARDS_PER_PAGE = 12;
@@ -52,7 +52,7 @@ const CARD_GRID_CSS = `
 `;
 // สีจางไล่มุมล่างของการ์ด วนตามลำดับ (ตามภาพตัวอย่างที่บอสส่ง 14 ก.ย. 69) — แค่ตกแต่ง ไม่ได้สื่อความหมาย
 const สีการ์ด = ["#eaf2fd", "#e8f6ef", "#f0ecfb"];
-/** ป้ายแพ็กเกจของตัวแทน (บอสสั่ง 15 ก.ย. 69: "เอา Standard Exclusive ไปใช้แสดงข้อมูลของแต่ละดีลเลอร์ด้วย")
+/** ป้ายแพ็กเกจของดีลเลอร์ (บอสสั่ง 15 ก.ย. 69: "เอา Standard Exclusive ไปใช้แสดงข้อมูลของแต่ละดีลเลอร์ด้วย")
  *  ไม่มีแพ็กเกจ = "—" ไม่เดาแพ็กเกจให้ */
 function ป้ายแพ็กเกจ({ p }: { p?: DealerPackage | null }) {
   if (!p) return <span style={{ color: "#C0C0C0", fontSize: "0.8rem" }}>—</span>;
@@ -63,7 +63,7 @@ function ป้ายแพ็กเกจ({ p }: { p?: DealerPackage | null }) 
 const ตัวย่อ = (d: DealerRow) => d.name.replace(/บจ\.|หจก\.|บริษัท|คุณ/g, "").trim().slice(0, 2) || d.code.slice(0, 2);
 
 // ── Dealer status ───────────────────────────────────────────────
-// คำเรียก/สี มาจาก @pms/shared/lib/mock (แหล่งเดียว) — หน้ารายละเอียดตัวแทนใช้ชุดเดียวกัน
+// คำเรียก/สี มาจาก @pms/shared/lib/mock (แหล่งเดียว) — หน้ารายละเอียดดีลเลอร์ใช้ชุดเดียวกัน
 // สถานะจริงมี 2 ค่าเท่านั้นตาม DealerRow.status — ไม่มี "ระงับ" (ดูเหตุผลใน mock.ts)
 const dealerStatus = (d: { status: DealerStatus }): DealerStatus => d.status;
 const STATUS_PILLS: { value: DealerStatus | "all"; label: string }[] = [
@@ -81,7 +81,7 @@ function StatusBadge({ status }: { status: DealerStatus }) {
 
 function RevBar({ actual, target }: { actual: number; target: number }) {
   // ⚠️ ตัวเลขที่โชว์ต้องเป็นค่าจริง · ตัดที่ 100 ได้เฉพาะ "ความยาวแท่ง" (บอสสั่ง 24 ส.ค. 69)
-  //   เดิมใช้ค่าที่ตัดแล้วทั้งสองที่ → ตัวแทนที่ทำได้ 410% ของเป้าขึ้นว่า "100%"
+  //   เดิมใช้ค่าที่ตัดแล้วทั้งสองที่ → ดีลเลอร์ที่ทำได้ 410% ของเป้าขึ้นว่า "100%"
   //   อ่านแล้วเข้าใจว่าถึงเป้าพอดี ทั้งที่ทำได้เกินเป้าสี่เท่า และหน้าเดียวกัน (แผงเจาะรายสาขา)
   //   กลับโชว์ 410% อยู่ — เลขสองตัวในหน้าเดียวขัดกันเอง
   const pct = target > 0 ? Math.round(actual / target * 100) : 0;
@@ -91,9 +91,9 @@ function RevBar({ actual, target }: { actual: number; target: number }) {
     // ⚠️ ห้ามใส่ minWidth ที่กล่องข้างใน (แก้ 10 ส.ค. 69)
     //   ช่องตารางมีระยะขอบซ้ายขวารวม ~32px · กล่องข้างในที่กว้างตายตัวจึงล้นออกนอกช่อง
     //   แล้วโดน overflow:hidden ตัดทิ้ง → ป้าย "100%" ถูกเฉือนเหลือ "10" อ่านเป็นสิบเปอร์เซ็นต์
-    //   ตัวแทนที่ทำได้เต็มเป้าถูกอ่านว่าทำได้แค่ 10% · ความกว้างคุมที่ colgroup แทน (table-layout:fixed)
+    //   ดีลเลอร์ที่ทำได้เต็มเป้าถูกอ่านว่าทำได้แค่ 10% · ความกว้างคุมที่ colgroup แทน (table-layout:fixed)
     <div>
-      {/* ⚠️ ตัวเลขย่อ (฿24.6M) ต้องดูค่าเต็มได้ — ฝั่งตัวแทนโชว์เต็ม (฿24,600,000) พอเอามาเทียบกันแล้ว
+      {/* ⚠️ ตัวเลขย่อ (฿24.6M) ต้องดูค่าเต็มได้ — ฝั่งดีลเลอร์โชว์เต็ม (฿24,600,000) พอเอามาเทียบกันแล้ว
           ผู้ใช้ไม่แน่ใจว่าเป็นเลขเดียวกันไหม (ผลตรวจภายนอก DL-12 · 24 ส.ค. 69) */}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: "0.72rem", marginBottom: 3 }}
         title={`ยอดขายสะสม ฿${Math.round(actual).toLocaleString("th-TH")} · เป้า ฿${Math.round(target).toLocaleString("th-TH")}`}>
@@ -122,9 +122,9 @@ function OnTimeBadge({ pct }: { pct: number | null }) {
 }
 
 // secret = ปิดบังค่าไว้ก่อน ต้องกดตาถึงเห็น (ยังคัดลอกได้โดยไม่ต้องเปิดดู)
-// ใช้กับรหัสผ่านในแผงรายละเอียดตัวแทน — เดิมโชว์รหัสจริงเต็ม ๆ ทันทีที่เปิดแถว
-// ใครเดินผ่านหลังจอ/แชร์หน้าจอ/ถ่ายภาพหน้าจอ ก็ได้รหัสเข้าระบบของตัวแทนไปเลย
-// (โมดัลตอนสร้าง/รีเซ็ตยังโชว์เต็มโดยตั้งใจ — เป็นจังหวะเดียวที่ HQ ต้องอ่านไปแจ้งตัวแทน)
+// ใช้กับรหัสผ่านในแผงรายละเอียดดีลเลอร์ — เดิมโชว์รหัสจริงเต็ม ๆ ทันทีที่เปิดแถว
+// ใครเดินผ่านหลังจอ/แชร์หน้าจอ/ถ่ายภาพหน้าจอ ก็ได้รหัสเข้าระบบของดีลเลอร์ไปเลย
+// (โมดัลตอนสร้าง/รีเซ็ตยังโชว์เต็มโดยตั้งใจ — เป็นจังหวะเดียวที่ HQ ต้องอ่านไปแจ้งดีลเลอร์)
 // CopyField / DealerPasswordField ย้ายไปเป็นของกลางที่ DealerCredentialsCard.tsx แล้ว (13 ส.ค. 69)
 
 function InputField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -154,7 +154,7 @@ function genResetPassword(code: string, nonce: number): string {
 
 // ── Main page ───────────────────────────────────────────────────
 
-// จัดการตัวแทน (แก้ไข/รีเซ็ตรหัส/ลบ) = ต้องมีสิทธิ์ dealers:manage — HQ_STAFF เข้าไม่ได้
+// จัดการดีลเลอร์ (แก้ไข/รีเซ็ตรหัส/ลบ) = ต้องมีสิทธิ์ dealers:manage — HQ_STAFF เข้าไม่ได้
 
 export default function HQDealersPage() {
   return <AdminGate perm="dealers:manage"><HQDealersPageInner /></AdminGate>;
@@ -195,7 +195,7 @@ function HQDealersPageInner() {
     if (v === "card" || v === "table") setมุมมอง(v);
   }, []);
   // รูปของแต่ละสาขา — ใช้เฉพาะรูปที่มีจริง ไม่มี = ตัวย่อชื่อ (ห้ามเอารูปอื่นมาใส่แทน)
-  //   1) โลโก้ที่ตัวแทนตั้งเองในหน้าตั้งค่าของสาขา  2) รูปประจำตัวตอนเป็นลูกค้าเป้าหมาย (HQ) ของสาขานั้น
+  //   1) โลโก้ที่ดีลเลอร์ตั้งเองในหน้าตั้งค่าของสาขา  2) รูปประจำตัวตอนเป็นลูกค้าเป้าหมาย (HQ) ของสาขานั้น
   const [รูปสาขา, setรูปสาขา] = useState<Record<string, string>>({});
   useEffect(() => {
     let alive = true;
@@ -213,11 +213,11 @@ function HQDealersPageInner() {
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<DealerRow | null>(null);
   const [form, setForm] = useState({ code: "", name: "", province: "", region: "", revenueTarget: 0, package: "" as DealerPackage | "", targetManual: false, status: "active" as "active" | "inactive" });
-  // เป้ายอดขายเชื่อมกับแพ็กเกจ (บอสสั่ง 15 ก.ย. 69) — แพ็กเกจที่ตั้งเป้าไว้ที่ ตั้งค่า › หาตัวแทน ใช้เป้านั้น (ฐานข้อมูลบังคับ 0178)
-  //   เว้นแต่ติ๊ก "กำหนดเป้าเอง" ให้ตัวแทนรายนั้น (0180 · บอสสั่ง "ให้สามารถแก้เองหรือแก้ในตั้งค่าก็ได้")
-  const ค่าตั้งหาตัวแทน = useRecruitSettings();
-  //   แยกตามภาค (0179): เป้าของแพ็กเกจในภาคของตัวแทน → เป้ากลางของแพ็กเกจ → กรอกเอง
-  const เป้าแพ็กเกจ = เป้าตามแพ็กเกจ(ค่าตั้งหาตัวแทน, form.package || null, form.region);
+  // เป้ายอดขายเชื่อมกับแพ็กเกจ (บอสสั่ง 15 ก.ย. 69) — แพ็กเกจที่ตั้งเป้าไว้ที่ ตั้งค่า › หาดีลเลอร์ ใช้เป้านั้น (ฐานข้อมูลบังคับ 0178)
+  //   เว้นแต่ติ๊ก "กำหนดเป้าเอง" ให้ดีลเลอร์รายนั้น (0180 · บอสสั่ง "ให้สามารถแก้เองหรือแก้ในตั้งค่าก็ได้")
+  const ค่าตั้งหาดีลเลอร์ = useRecruitSettings();
+  //   แยกตามภาค (0179): เป้าของแพ็กเกจในภาคของดีลเลอร์ → เป้ากลางของแพ็กเกจ → กรอกเอง
+  const เป้าแพ็กเกจ = เป้าตามแพ็กเกจ(ค่าตั้งหาดีลเลอร์, form.package || null, form.region);
   const [formErr, setFormErr] = useState("");
   // สาขาที่ลบไม่ได้เพราะยังมีข้อมูล → เปิดกล่อง "ย้ายข้อมูลไปสาขาอื่น" ให้แทนที่จะจบแค่แจ้งเตือน
   const [moveFrom, setMoveFrom] = useState<DealerRow | null>(null);
@@ -241,7 +241,7 @@ function HQDealersPageInner() {
     // สำนักงานใหญ่อยู่บนสุดเสมอ (บอสสั่ง 7 ก.ย. 69) — ไม่ใช่สาขาขาย จึงไม่ควรถูกยอดขายดันตกไปหน้าอื่น
     //   ตรึงก่อนเรียงยอด ไม่งั้นพอมี 155 ราย HQ (ยอด 0) จะไปโผล่หน้าสุดท้าย
   }).sort((a, b) => (b.code === HQ_CODE ? 1 : 0) - (a.code === HQ_CODE ? 1 : 0)
-    // ถัดจาก HQ = ตัวแทนที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
+    // ถัดจาก HQ = ดีลเลอร์ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
     || เวลาเพิ่ม(b) - เวลาเพิ่ม(a)
     || perfOf(b.code).revenue - perfOf(a.code).revenue);
 
@@ -250,13 +250,13 @@ function HQDealersPageInner() {
   const totalRevenue = filtered.reduce((s, d) => s + perfOf(d.code).revenue, 0);
   const totalTarget = filtered.reduce((s, d) => s + d.revenueTarget, 0);
   const totalProjects = filtered.reduce((s, d) => s + perfOf(d.code).openLeads, 0);
-  // ── ตัวแทนที่ปิดใช้งาน ยังถูกนับรวมในการ์ดยอดรวม (บอสตัดสิน 24 ส.ค. 69) ──
+  // ── ดีลเลอร์ที่ปิดใช้งาน ยังถูกนับรวมในการ์ดยอดรวม (บอสตัดสิน 24 ส.ค. 69) ──
   // เหตุผล: ยอดขายที่เคยทำไว้ยังเป็นของเครือ ตัดออกแล้วยอดรวมทั้งเครือจะหด ทั้งที่เงินเข้าจริง
-  // แต่ต้องเขียนบอกไว้ ไม่งั้นอ่านแล้วขัดกับ "เปิดใช้งาน N ตัวแทน" บนการ์ดใบแรก (ผลตรวจภายนอก HQ-11)
+  // แต่ต้องเขียนบอกไว้ ไม่งั้นอ่านแล้วขัดกับ "เปิดใช้งาน N ดีลเลอร์" บนการ์ดใบแรก (ผลตรวจภายนอก HQ-11)
   const ปิดใช้งาน = filtered.filter(d => dealerStatus(d) !== "active");
   const มีงานค้างที่ปิดใช้งาน = ปิดใช้งาน.filter(d => perfOf(d.code).openLeads > 0).length;
-  const หมายเหตุปิดใช้งาน = ปิดใช้งาน.length > 0 ? ` · รวมตัวแทนที่ปิดใช้งาน ${ปิดใช้งาน.length} ราย` : "";
-  // เฉลี่ยเฉพาะตัวแทนที่ "มีข้อมูล" (onTimePct > 0) — ตัวที่เป็น 0 = ยังไม่มีข้อมูล (ตารางแสดง "—")
+  const หมายเหตุปิดใช้งาน = ปิดใช้งาน.length > 0 ? ` · รวมดีลเลอร์ที่ปิดใช้งาน ${ปิดใช้งาน.length} ราย` : "";
+  // เฉลี่ยเฉพาะดีลเลอร์ที่ "มีข้อมูล" (onTimePct > 0) — ตัวที่เป็น 0 = ยังไม่มีข้อมูล (ตารางแสดง "—")
   // เอามาเฉลี่ยเป็น 0 ไม่ได้ = เอา 0 สวมรอย "—" · ไม่มีใครมีข้อมูล → null → การ์ดแสดง "—"
   // เฉลี่ยเฉพาะสาขาที่ "มีข้อมูลให้วัด" — สาขาที่ยังไม่มีลูกค้าเป้าหมาย/ใบ ไม่เอา 0 มาถ่วงค่าเฉลี่ย
   const avgOf = (pick: (c: string) => number | null): number | null => {
@@ -283,11 +283,11 @@ function HQDealersPageInner() {
   }
 
   async function save() {
-    // หน้านี้แก้ไขตัวแทนที่มีอยู่ได้อย่างเดียว — สร้างตัวแทนใหม่ต้องผ่านลูกค้าเป้าหมาย (/hq/prospects)
+    // หน้านี้แก้ไขดีลเลอร์ที่มีอยู่ได้อย่างเดียว — สร้างดีลเลอร์ใหม่ต้องผ่านลูกค้าเป้าหมาย (/hq/prospects)
     if (!editTarget) return;
     const code = form.code.trim().toUpperCase();
-    if (!code) { setFormErr("ต้องระบุรหัสตัวแทน"); return; }
-    if (!form.name.trim()) { setFormErr("ต้องระบุชื่อตัวแทน"); return; }
+    if (!code) { setFormErr("ต้องระบุรหัสดีลเลอร์"); return; }
+    if (!form.name.trim()) { setFormErr("ต้องระบุชื่อดีลเลอร์"); return; }
     if (!form.region.trim()) { setFormErr("ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก"); return; }
     if (!form.province.trim()) { setFormErr("ต้องระบุจังหวัด"); return; }
     const dupe = dealers.find(d => d.code === code && d.id !== editTarget?.id);
@@ -302,21 +302,21 @@ function HQDealersPageInner() {
         }; })(),
         package: form.package || null, status: form.status,
       } : d));
-      logAudit("แก้ไขตัวแทน", `${code} · ${form.name.trim()}`);
+      logAudit("แก้ไขดีลเลอร์", `${code} · ${form.name.trim()}`);
       setShowForm(false);
       return;
     }
 
-    // ⛔ ไม่มีการสร้างตัวแทนตรง ๆ ที่หน้านี้แล้ว (บอสสั่ง 14 ก.ย. 69)
-    //   ตัวแทนต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้ว — /hq/prospects › ตั้งเป็นตัวแทนจำหน่าย
-    //   route สร้างตัวแทนก็ปฏิเสธคำขอที่ไม่ผูกลูกค้าเป้าหมายด้วย (กันคนยิง API ตรง)
+    // ⛔ ไม่มีการสร้างดีลเลอร์ตรง ๆ ที่หน้านี้แล้ว (บอสสั่ง 14 ก.ย. 69)
+    //   ดีลเลอร์ต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้ว — /hq/prospects › ตั้งเป็นดีลเลอร์
+    //   route สร้างดีลเลอร์ก็ปฏิเสธคำขอที่ไม่ผูกลูกค้าเป้าหมายด้วย (กันคนยิง API ตรง)
   }
 
   async function remove(d: DealerRow) {
     if (!(await ยืนยัน({
       หัวข้อ: `ลบ "${d.name}" ออกจากระบบ ?`,
       รายละเอียด: "การกระทำนี้ไม่สามารถย้อนกลับได้",
-      ปุ่มตกลง: "ลบตัวแทน", อันตราย: true,
+      ปุ่มตกลง: "ลบดีลเลอร์", อันตราย: true,
     }))) return;
     // โหมดจริง (supabase): ลบผ่าน route เซิร์ฟเวอร์ (service_role) → ลบบัญชี auth ของสาขาด้วย
     //   ไม่ทิ้งบัญชีกำพร้า · เดิม dealersRepo.remove ลบได้แค่แถว dealers (RLS) บัญชียังค้าง
@@ -327,7 +327,7 @@ function HQDealersPageInner() {
           // แล้วผู้ดูแลไม่มีทางไปต่อ นอกจากลบข้อมูลลูกค้าจริงทิ้ง ซึ่งไม่มีใครกล้าทำ
           // → เสนอทางที่สาม: ยกงานทั้งหมดให้สาขาที่รับช่วงต่อ แล้วค่อยลบสาขาที่ว่างแล้ว
           if (/ยังมีข้อมูล/.test(res.error)) { setMoveFrom(d); return; }
-          แจ้งพลาด("ลบตัวแทนไม่สำเร็จ: " + res.error); return;
+          แจ้งพลาด("ลบดีลเลอร์ไม่สำเร็จ: " + res.error); return;
         }
         // ลบสำเร็จ (หรือสำเร็จบางส่วน) = ทะเบียนสาขาหายไปจากระบบจริงแล้ว ต้องเอาออกจากหน้าจอเสมอ
         //   เดิมกรณี "สำเร็จบางส่วน" ถูกตีความเป็นล้มเหลว แล้วคงสาขาไว้บนจอ ทั้งที่ในระบบไม่มีแล้ว
@@ -342,26 +342,26 @@ function HQDealersPageInner() {
     // การเดาแบบนั้นทำให้ "โหลดยังไม่เสร็จแล้วผู้ใช้แก้" กลายเป็นคำสั่งลบทั้งตาราง
     void dealersRepo.remove(d.code)
       .then(() => setDealers(prev => prev.filter(x => x.id !== d.id)))
-      .catch(e => แจ้งพลาด("ลบตัวแทนไม่สำเร็จ: " + friendlyError(e)));
-    logAudit("ลบตัวแทน", `${d.code} · ${d.name}`);
+      .catch(e => แจ้งพลาด("ลบดีลเลอร์ไม่สำเร็จ: " + friendlyError(e)));
+    logAudit("ลบดีลเลอร์", `${d.code} · ${d.name}`);
   }
 
   function toggleStatus(d: DealerRow) {
     const next = d.status === "active" ? "inactive" : "active";
     setDealers(prev => prev.map(x => x.id === d.id ? { ...x, status: next } : x));
-    // บันทึกให้ตรงกับสิ่งที่เกิดขึ้นจริง — เดิมเขียน "ระงับตัวแทน" ทั้งที่สั่ง "ปิดใช้งาน" (คนละคำกับที่ผู้ใช้กด)
-    logAudit(next === "active" ? "เปิดใช้งานตัวแทน" : "ปิดใช้งานตัวแทน", `${d.code} · ${d.name}`);
+    // บันทึกให้ตรงกับสิ่งที่เกิดขึ้นจริง — เดิมเขียน "ระงับดีลเลอร์" ทั้งที่สั่ง "ปิดใช้งาน" (คนละคำกับที่ผู้ใช้กด)
+    logAudit(next === "active" ? "เปิดใช้งานดีลเลอร์" : "ปิดใช้งานดีลเลอร์", `${d.code} · ${d.name}`);
   }
 
-  // "เข้าระบบแทนตัวแทน" — HQ มีสิทธิ์เข้าบัญชีตัวแทนไหนก็ได้ (บอสยืนยัน)
+  // "เข้าระบบแทนดีลเลอร์" — HQ มีสิทธิ์เข้าบัญชีดีลเลอร์ไหนก็ได้ (บอสยืนยัน)
   //
   // โหมดเดโม (local): เดิมปุ่มนี้เรียก login("dealer") ซึ่งเข้าด้วยบัญชีเดโมตัวเดียวเสมอ (CNX)
   // ไม่ว่าจะกดจากแถวไหน → คงพฤติกรรมเดิมไว้ (ไม่มีระบบยืนยันตัวตนจริงให้ผูกต่อสาขา)
   //
-  // โหมดจริง (supabase): เดิมเข้าใจผิดว่าทำไม่ได้เพราะรหัสผ่านตัวแทนถูก hash ไว้ — แต่ service_role
+  // โหมดจริง (supabase): เดิมเข้าใจผิดว่าทำไม่ได้เพราะรหัสผ่านดีลเลอร์ถูก hash ไว้ — แต่ service_role
   // ไม่จำเป็นต้อง "รู้" รหัสผ่านเพื่อสร้าง session แทนผู้ใช้อื่น: ใช้ Supabase magic-link
   // (generateLink ฝั่งเซิร์ฟเวอร์ — ดู /api/admin/dealers/impersonate) ออกลิงก์เข้าระบบครั้งเดียว
-  // เปิดในแท็บใหม่ไปยังแอปตัวแทน (คนละ origin กับ HQ · session แยกต่อแท็บอยู่แล้ว — ดู client.ts)
+  // เปิดในแท็บใหม่ไปยังแอปดีลเลอร์ (คนละ origin กับ HQ · session แยกต่อแท็บอยู่แล้ว — ดู client.ts)
   // จึงไม่กระทบ session ของ HQ เองในแท็บปัจจุบันเลย
   const canImpersonate = true;
   async function enterDealer(d: DealerRow) {
@@ -378,7 +378,7 @@ function HQDealersPageInner() {
     //   ผู้ใช้เห็นเป็น "กดปุ่มแล้วไม่มีอะไรเกิดขึ้น" โดยไม่มีข้อความอะไรบอกเลย
     // แก้: จองแท็บไว้ตั้งแต่จังหวะคลิก แล้วค่อยพาไปที่ลิงก์เมื่อได้มา
     //   ถ้าจองไม่ได้ (ตัวกันป๊อปอัพเข้มมาก) → ไปในแท็บเดิมแทน ดีกว่าเงียบหาย
-    //   (แอปตัวแทนคนละ origin กับ HQ · session ของ HQ ไม่หายไปด้วย)
+    //   (แอปดีลเลอร์คนละ origin กับ HQ · session ของ HQ ไม่หายไปด้วย)
     const แท็บ = window.open("", "_blank");
     setEntering(d.id);
     const res = await impersonateDealer(d.code);
@@ -392,36 +392,36 @@ function HQDealersPageInner() {
     //   (ดู apps/hq/app/api/admin/dealers/impersonate/route.ts)
   }
 
-  // การรีเซ็ตรหัสผ่านให้ตัวแทน ย้ายไปอยู่ในการ์ด "ข้อมูลเข้าระบบของตัวแทน"
-  // ที่หน้ารายละเอียดตัวแทนแล้ว (DealerCredentialsCard · 13 ส.ค. 69)
+  // การรีเซ็ตรหัสผ่านให้ดีลเลอร์ ย้ายไปอยู่ในการ์ด "ข้อมูลเข้าระบบของดีลเลอร์"
+  // ที่หน้ารายละเอียดดีลเลอร์แล้ว (DealerCredentialsCard · 13 ส.ค. 69)
 
   return (
     <div className="erp">
       {/* Header */}
       {/* ปุ่ม/ตัวกรองของหน้าอยู่ขวาหัวหน้าเพจ (UI รอบใหม่ 14 ก.ย. 69) — ชื่อหน้า/ป้ายกลุ่มมาจากแถบบนแล้ว */}
       <TopbarActions>
-          <ExportMenu filename="dealers" title="ตัวแทน (ทั้งเครือ)"
-            headers={["รหัส","ตัวแทน","จังหวัด","ภาค","อีเมล","รายได้จริง","เป้า","อัตราปิดการขาย %","โอกาสการขาย","สถานะ"]}
+          <ExportMenu filename="dealers" title="ดีลเลอร์ (ทั้งเครือ)"
+            headers={["รหัส","ดีลเลอร์","จังหวัด","ภาค","อีเมล","รายได้จริง","เป้า","อัตราปิดการขาย %","โอกาสการขาย","สถานะ"]}
             rows={filtered.map(d=>[d.code,d.name,d.province,d.region,loginEmailOf(d.code),perfOf(d.code).revenue,d.revenueTarget,perfOf(d.code).winRate ?? "—",perfOf(d.code).openLeads,dealerStatusLabel[d.status]])} />
-          {/* ⛔ ไม่มีปุ่มสร้าง/เพิ่มตัวแทนที่หน้านี้ (บอสสั่ง 14 ก.ย. 69)
-              ตัวแทนต้องมาจาก "ลูกค้าเป้าหมาย (HQ)" ที่สำเร็จแล้วเท่านั้น — เข้าจากเมนูข้างได้เลย
+          {/* ⛔ ไม่มีปุ่มสร้าง/เพิ่มดีลเลอร์ที่หน้านี้ (บอสสั่ง 14 ก.ย. 69)
+              ดีลเลอร์ต้องมาจาก "ลูกค้าเป้าหมาย (HQ)" ที่สำเร็จแล้วเท่านั้น — เข้าจากเมนูข้างได้เลย
               เคยมีปุ่ม "เพิ่มผ่านลูกค้าเป้าหมาย" ลัดไปหน้านั้น บอสสั่งเอาออก ("เอาออกเลย") — ห้ามใส่กลับ */}
       </TopbarActions>
 
-      {/* คำขอเปลี่ยนบัญชีเข้าระบบจากตัวแทน (โผล่เฉพาะเมื่อมีคำขอ) — ครั้งที่ 3 ขึ้นไปต้องอนุมัติที่นี่ */}
+      {/* คำขอเปลี่ยนบัญชีเข้าระบบจากดีลเลอร์ (โผล่เฉพาะเมื่อมีคำขอ) — ครั้งที่ 3 ขึ้นไปต้องอนุมัติที่นี่ */}
       <AccountRequestsCard />
 
       {/* ── KPI 4 ใบ — มาตรฐานเดียวกับหน้า HQ อื่นทั้งหมด (แดชบอร์ด · ภาพรวมยอดขาย · ใบเสนอราคา · ลูกค้า) ──
-          เดิมหน้านี้ใช้ .stat-card ของเก่า: แถบสีซ้าย + ตัวเลขสีใหญ่ + หน่วยติดในตัวเลข ("10 ตัวแทน")
+          เดิมหน้านี้ใช้ .stat-card ของเก่า: แถบสีซ้าย + ตัวเลขสีใหญ่ + หน่วยติดในตัวเลข ("10 ดีลเลอร์")
           ซึ่งเป็นที่เดียวในระบบที่ทำแบบนั้น · .stat-grid ยังไม่มี breakpoint ด้วย (จอแคบบีบ 4 ใบค้าง)
           กติกาของ .hq-kpi4: ป้าย → ตัวเลข (เข้ม ไม่ใส่สี) → หน่วย/บริบท · ไอคอนในกล่องสีจางมุมขวา */}
       {/* ⚠️ ทุกใบต้องรอข้อมูลก่อนประกาศตัวเลข — เลข 0 ระหว่างโหลดคือ "ข้อมูลผิด" ไม่ใช่ "ยังว่าง"
           รอบก่อนแก้เฉพาะใบแรก อีก 3 ใบยังประกาศ 0 อยู่ (พบจากผลตรวจรอบสุดท้าย 10 ส.ค. 69) */}
       <div className="hq-kpi4" style={{ marginBottom: "1.25rem" }}>
         {([
-          { label: "ตัวแทนทั้งหมด", value: dealersLoaded ? `${filtered.length}` : "—", sub: dealersLoaded ? `เปิดใช้งาน ${active.length} ตัวแทน` : "กำลังโหลด…", Icon: Store, color: "#003366", bg: "#E8F0FE" },
-          { label: "รายได้รวม", value: dealersLoaded ? `฿${(totalRevenue / 1_000_000).toFixed(1)}M` : "—", sub: `${totalPct}% ของผลรวมเป้ารายตัวแทน ฿${(totalTarget / 1_000_000).toFixed(1)}M${หมายเหตุปิดใช้งาน}`, Icon: Coins, color: "#059669", bg: "#E6F6EF" },
-          { label: "โอกาสการขายทั้งหมด", value: dealersLoaded ? `${totalProjects}` : "—", sub: dealersLoaded ? `${active.filter(d => perfOf(d.code).openLeads > 0).length} จาก ${active.length} ตัวแทนที่เปิดใช้งาน มีงานอยู่${มีงานค้างที่ปิดใช้งาน > 0 ? ` · ปิดใช้งานแต่ยังมีงานค้าง ${มีงานค้างที่ปิดใช้งาน} ราย` : ""}` : "กำลังโหลด…", Icon: Briefcase, color: "#0891B2", bg: "#E6F4F9" },
+          { label: "ดีลเลอร์ทั้งหมด", value: dealersLoaded ? `${filtered.length}` : "—", sub: dealersLoaded ? `เปิดใช้งาน ${active.length} ดีลเลอร์` : "กำลังโหลด…", Icon: Store, color: "#003366", bg: "#E8F0FE" },
+          { label: "รายได้รวม", value: dealersLoaded ? `฿${(totalRevenue / 1_000_000).toFixed(1)}M` : "—", sub: `${totalPct}% ของผลรวมเป้ารายดีลเลอร์ ฿${(totalTarget / 1_000_000).toFixed(1)}M${หมายเหตุปิดใช้งาน}`, Icon: Coins, color: "#059669", bg: "#E6F6EF" },
+          { label: "โอกาสการขายทั้งหมด", value: dealersLoaded ? `${totalProjects}` : "—", sub: dealersLoaded ? `${active.filter(d => perfOf(d.code).openLeads > 0).length} จาก ${active.length} ดีลเลอร์ที่เปิดใช้งาน มีงานอยู่${มีงานค้างที่ปิดใช้งาน > 0 ? ` · ปิดใช้งานแต่ยังมีงานค้าง ${มีงานค้างที่ปิดใช้งาน} ราย` : ""}` : "กำลังโหลด…", Icon: Briefcase, color: "#0891B2", bg: "#E6F4F9" },
           { label: "ติดตามตรงเวลา", value: avgOnTime === null ? "—" : `${avgOnTime}%`, sub: avgOnTime === null ? "ยังไม่มีข้อมูล" : `${avgOnTime >= 85 ? "ดี" : avgOnTime >= 70 ? "พอใช้" : "ต้องปรับปรุง"} · เฉลี่ยเท่าที่มีข้อมูล`, Icon: Clock, color: "#7C3AED", bg: "#F0EBFB" },
         ] as const).map(t => (
           <div key={t.label} className="card" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
@@ -437,11 +437,11 @@ function HQDealersPageInner() {
         ))}
       </div>
 
-      {/* Toolbar — ค้นหา + ตัวแทน/ภาค/สถานะ รวมแถวเดียว (เหมือนหน้าอื่นทั้งระบบ) */}
+      {/* Toolbar — ค้นหา + ดีลเลอร์/ภาค/สถานะ รวมแถวเดียว (เหมือนหน้าอื่นทั้งระบบ) */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap", padding: "10px 14px" }}>
         <div className="search-bar">
           <Search size={13} color="#6b7280" />
-          <input value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาตัวแทน..." />
+          <input value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาดีลเลอร์..." />
         </div>
         <div style={{ flex: 1 }} />
         {/* ตัวเลือกแรกคือทั้งหมด — สร้างจากรายการ ["ทั้งหมด", ...REGIONS] */}
@@ -449,7 +449,7 @@ function HQDealersPageInner() {
           {["ทั้งหมด", ...REGIONS].map(r => <option key={r} value={r}>{r}</option>)}
         </select>
         {/* ตัวเลือกแรกคือทั้งหมด — สร้างจากรายการเช่นเดียวกับตัวกรองภูมิภาค */}
-        <select aria-label="กรองตามสถานะตัวแทน" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as DealerStatus | "all"); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
+        <select aria-label="กรองตามสถานะดีลเลอร์" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as DealerStatus | "all"); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
           {STATUS_PILLS.map(p => <option key={p.value} value={p.value}>{p.value === "all" ? "ทุกสถานะ" : p.label}</option>)}
         </select>
         {/* สลับการ์ด/ตาราง — ขนาดหน้าต่างกัน (12 / 10) จึงกลับหน้า 1 ทุกครั้งที่สลับ */}
@@ -482,7 +482,7 @@ function HQDealersPageInner() {
                   return (
                     // การ์ดตามภาพตัวอย่างล่าสุด (บอสสั่ง 14 ก.ย. 69 "เอาแบบนี้"):
                     //   ป้ายรหัสมุมซ้ายบน · รูปวงกลมพื้นฟ้าจาง · ชื่อ · จังหวัด/ภาค · สถานะมีจุด · ปุ่มเข้าระบบเต็มความกว้าง + ปุ่มไอคอน 2 ปุ่ม
-                    <div key={d.id} className="dealer-card" role="button" tabIndex={0} aria-label={`เปิดรายละเอียดตัวแทน ${d.name}`}
+                    <div key={d.id} className="dealer-card" role="button" tabIndex={0} aria-label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}
                       onClick={() => setSelectedDealer(d)}
                       onKeyDown={ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelectedDealer(d); } }}
                       style={{
@@ -508,16 +508,16 @@ function HQDealersPageInner() {
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: canImpersonate ? "1fr auto auto" : "1fr 1fr", gap: 8, marginTop: 12 }} onClick={ev => ev.stopPropagation()}>
                         {canImpersonate && (
-                          <button onClick={() => enterDealer(d)} disabled={entering === d.id} title="เข้าระบบแทนตัวแทน"
+                          <button onClick={() => enterDealer(d)} disabled={entering === d.id} title="เข้าระบบแทนดีลเลอร์"
                             style={{ height: 36, borderRadius: 9, border: "none", background: "linear-gradient(180deg, #0a4a8a 0%, #003366 100%)", color: "#fff", fontSize: "0.78rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", opacity: entering === d.id ? 0.6 : 1, fontFamily: "inherit", boxShadow: "0 3px 8px rgba(0,51,102,.22)" }}>
                             <LogIn size={13} /> {entering === d.id ? "..." : "เข้าระบบ"}
                           </button>
                         )}
-                        <button onClick={() => router.push(`/hq/dealers/${d.code}`)} title="ดูรายละเอียดตัวแทน" aria-label={`ดูรายละเอียดตัวแทน ${d.name}`}
+                        <button onClick={() => router.push(`/hq/dealers/${d.code}`)} title="ดูรายละเอียดดีลเลอร์" aria-label={`ดูรายละเอียดดีลเลอร์ ${d.name}`}
                           style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #e3ebf5", borderRadius: 9, color: "#003366", cursor: "pointer" }}>
                           <BarChart2 size={14} />
                         </button>
-                        <button onClick={() => openEdit(d)} title="แก้ไข" aria-label={`แก้ไขตัวแทน ${d.name}`}
+                        <button onClick={() => openEdit(d)} title="แก้ไข" aria-label={`แก้ไขดีลเลอร์ ${d.name}`}
                           style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #e3ebf5", borderRadius: 9, color: "#003366", cursor: "pointer" }}>
                           <Pencil size={14} />
                         </button>
@@ -559,7 +559,7 @@ function HQDealersPageInner() {
                   จนดูเหมือนลำดับไม่เรียง (บอสทัก 7 ก.ย. 69) */}
               <col style={{ width: "6%", minWidth: 68 }} />{/* ลำดับ */}
               <col style={{ width: "6%", minWidth: 68 }} />{/* รหัส — ต้องอ่านครบ 3 ตัวอักษร ห้ามตัด */}
-              <col style={{ width: "9%", minWidth: 90 }} />{/* ชื่อตัวแทน — ยาวเกินตัดด้วยจุดไข่ปลา + tooltip (ยอมให้ตัดได้) */}
+              <col style={{ width: "9%", minWidth: 90 }} />{/* ชื่อดีลเลอร์ — ยาวเกินตัดด้วยจุดไข่ปลา + tooltip (ยอมให้ตัดได้) */}
               <col style={{ width: "8%", minWidth: 78 }} />{/* จังหวัด — ยาวเกินตัด + tooltip เช่นกัน */}
               <col style={{ width: "8%", minWidth: 104 }} />{/* ภาค — ป้ายชื่อ ห้ามตัด (ยาวสุด "ตะวันออก" + ระยะขอบของป้าย) */}
               {/* แพ็กเกจ (บอสสั่ง 15 ก.ย. 69) — ป้าย "Exclusive" + ระยะขอบของป้าย ห้ามตัด · minWidth รวมทั้งตาราง 1,228px */}
@@ -581,7 +581,7 @@ function HQDealersPageInner() {
                     ที่จอ 1280 ตารางกว้าง 1120 แต่พื้นที่มีแค่ ~968 จึงต้องเลื่อนแนวนอน
                     เดิมปุ่มเลยหลุดออกนอกกรอบ ต้องเลื่อนก่อนถึงจะกดได้ (คนเห็นแล้วคิดว่าระบบพัง)
                     ตรึงไว้แบบนี้ ปุ่มอยู่ให้กดตลอดทุกความกว้างจอ โดยไม่ต้องตัดคอลัมน์ไหนทิ้ง */}
-                {["ลำดับ", "รหัส", "ชื่อตัวแทน", "จังหวัด", "ภาค", "แพ็กเกจ", "ยอด / เป้า", "โอกาสขาย", "ตรงเวลา", "สถานะ", ""].map((h, i, arr) => (
+                {["ลำดับ", "รหัส", "ชื่อดีลเลอร์", "จังหวัด", "ภาค", "แพ็กเกจ", "ยอด / เป้า", "โอกาสขาย", "ตรงเวลา", "สถานะ", ""].map((h, i, arr) => (
                   <th key={i} style={i === arr.length - 1 ? ตรึงคอลัมน์ปุ่ม(true) : undefined}>{h}</th>
                 ))}
               </tr>
@@ -591,7 +591,7 @@ function HQDealersPageInner() {
                 <tr><td colSpan={11} style={{ padding: "32px", textAlign: "center", fontSize: "0.8rem", color: "#6b7280" }}>{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
               ) : pageSlice(filtered, Math.min(page, pageCountOf(filtered.length) - 1)).map((d, i) => (
                 <ClickableRow key={d.id} className="clickable" style={{ opacity: dealerStatus(d) === "active" ? 1 : 0.55 }}
-                  onActivate={() => setSelectedDealer(d)} label={`เปิดรายละเอียดตัวแทน ${d.name}`}>
+                  onActivate={() => setSelectedDealer(d)} label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}>
                   <td style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>{Math.min(page, pageCountOf(filtered.length) - 1) * ROWS_PER_PAGE + i + 1}</td>
                   <td>
                     <span style={{ fontWeight: 800, color: "#003366", fontSize: "0.8rem", letterSpacing: "0.05em" }}>{d.code}</span>
@@ -619,19 +619,19 @@ function HQDealersPageInner() {
                   <td style={{ overflow: "visible", ...ตรึงคอลัมน์ปุ่ม() }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>
                       {canImpersonate && (
-                        <button onClick={e => { e.stopPropagation(); enterDealer(d); }} disabled={entering === d.id} title="เข้าระบบแทนตัวแทน"
+                        <button onClick={e => { e.stopPropagation(); enterDealer(d); }} disabled={entering === d.id} title="เข้าระบบแทนดีลเลอร์"
                           className="btn btn-primary btn-sm" style={{ opacity: entering === d.id ? 0.6 : 1, whiteSpace: "nowrap", flexShrink: 0 }}>
                           <LogIn size={12} /> {entering === d.id ? "..." : "เข้าระบบ"}
                         </button>
                       )}
-                      <button onClick={e => { e.stopPropagation(); router.push(`/hq/dealers/${d.code}`); }} title="ดูรายละเอียดตัวแทน"
+                      <button onClick={e => { e.stopPropagation(); router.push(`/hq/dealers/${d.code}`); }} title="ดูรายละเอียดดีลเลอร์"
                         style={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f4f8", border: "1px solid #e5e7eb", borderRadius: 7, color: "#003366", cursor: "pointer" }}>
                         <BarChart2 size={12} />
                       </button>
-                      {/* ปุ่มรูปกุญแจ (ดูรหัสเข้าระบบ/รีเซ็ตรหัสผ่าน) ย้ายไปหน้ารายละเอียดตัวแทนแล้ว (บอสสั่ง 13 ส.ค. 69)
+                      {/* ปุ่มรูปกุญแจ (ดูรหัสเข้าระบบ/รีเซ็ตรหัสผ่าน) ย้ายไปหน้ารายละเอียดดีลเลอร์แล้ว (บอสสั่ง 13 ส.ค. 69)
                           เป็นงานราย "สาขา" ไม่ใช่งานที่ต้องทำรัวจากลิสต์ · ตารางนี้เคยมีปุ่มต่อแถวถึง 6 ปุ่มจนแน่น
-                          เข้าถึงได้ที่ปุ่มรูปกราฟข้างบน → การ์ด "ข้อมูลเข้าระบบของตัวแทน" ในแท็บภาพรวม */}
-                      <button onClick={e => { e.stopPropagation(); openEdit(d); }} title="แก้ไข" aria-label={`แก้ไขตัวแทน ${d.name}`}
+                          เข้าถึงได้ที่ปุ่มรูปกราฟข้างบน → การ์ด "ข้อมูลเข้าระบบของดีลเลอร์" ในแท็บภาพรวม */}
+                      <button onClick={e => { e.stopPropagation(); openEdit(d); }} title="แก้ไข" aria-label={`แก้ไขดีลเลอร์ ${d.name}`}
                         style={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 7, color: "#6b7280", cursor: "pointer" }}>
                         <Pencil size={12} />
                       </button>
@@ -657,22 +657,22 @@ function HQDealersPageInner() {
       {/* ── Add / Edit Modal ── */}
       {showForm && (
         <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => setShowForm(false)} label="ฟอร์มข้อมูลตัวแทน" className="modal-fit" style={{ ...CARD, width: 460, maxWidth: '100%' }}>
+          <ModalCard onClose={() => setShowForm(false)} label="ฟอร์มข้อมูลดีลเลอร์" className="modal-fit" style={{ ...CARD, width: 460, maxWidth: '100%' }}>
             <div style={{ padding: "18px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "#2D2D2D" }}>แก้ไขข้อมูลตัวแทน</h2>
+              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "#2D2D2D" }}>แก้ไขข้อมูลดีลเลอร์</h2>
               <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex" }}><X size={18} /></button>
             </div>
             <div className="modal-fit-body" style={{ padding: "18px 20px" }}>
               {formErr && <div style={{ background: "#fee2e2", border: "1px solid #dc262630", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: "0.8rem", color: "#dc2626", fontWeight: 600 }}>{formErr}</div>}
 
               <div className="form-grid" style={{ gridTemplateColumns: "1fr 2fr" }}>
-                <div className="form-section">ข้อมูลตัวแทน</div>
-                <InputField label="รหัสตัวแทน *">
+                <div className="form-section">ข้อมูลดีลเลอร์</div>
+                <InputField label="รหัสดีลเลอร์ *">
                   <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase().slice(0, 6) }))} placeholder="เช่น BKK" disabled={!!editTarget}
                     style={{ ...INPUT_STYLE, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em", opacity: editTarget ? 0.6 : 1 }} />
                   {editTarget && <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 3 }}>แก้ไขรหัสไม่ได้</div>}
                 </InputField>
-                <InputField label="ชื่อตัวแทน *">
+                <InputField label="ชื่อดีลเลอร์ *">
                   <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="บจ. ตัวอย่างสตีล..." style={INPUT_STYLE} />
                 </InputField>
               </div>
@@ -691,7 +691,7 @@ function HQDealersPageInner() {
                   </select>
                 </InputField>
                 <InputField label="จังหวัดที่ตั้ง *">
-                  {/* จังหวัดของตัวแทนเดิมที่ไม่อยู่ในรายการของภาคนั้น (สะกดต่าง/ข้อมูลเก่า) ต้องยังเห็นค่าเดิมอยู่
+                  {/* จังหวัดของดีลเลอร์เดิมที่ไม่อยู่ในรายการของภาคนั้น (สะกดต่าง/ข้อมูลเก่า) ต้องยังเห็นค่าเดิมอยู่
                       ไม่งั้นแค่เปิดฟอร์มมาแก้ชื่อ จังหวัดก็หายไปเงียบ ๆ แล้วถูกบันทึกทับเป็นค่าว่าง */}
                   <select aria-label="จังหวัดที่ตั้ง" value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))}
                     style={{ ...INPUT_STYLE, cursor: "pointer" }}>
@@ -706,7 +706,7 @@ function HQDealersPageInner() {
                 </InputField>
                 <div className="form-section">เป้าหมายและสถานะ</div>
                 <InputField label="แพ็กเกจ">
-                  <select aria-label="แพ็กเกจตัวแทน" value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value as DealerPackage | "" }))}
+                  <select aria-label="แพ็กเกจดีลเลอร์" value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value as DealerPackage | "" }))}
                     style={{ ...INPUT_STYLE, cursor: "pointer" }}>
                     <option value="">— ยังไม่ระบุ —</option>
                     {PACKAGE_ORDER.map(k => <option key={k} value={k}>{packageLabel[k]}</option>)}
@@ -728,16 +728,16 @@ function HQDealersPageInner() {
                         <input type="text" aria-label="เป้ายอดขายทั้งปี" value={formatMoneyInput(String(เป้าแพ็กเกจ))} readOnly disabled
                           style={{ ...INPUT_STYLE, background: "#f3f4f6", color: "#374151", fontWeight: 700, cursor: "not-allowed" }} />
                       )}
-                      {/* สลับได้ 2 ทาง: ตามแพ็กเกจ (แก้ที่ตั้งค่า) หรือกำหนดเองรายตัวแทน — ติ๊กแล้วเริ่มจากเป้าแพ็กเกจเดิมให้แก้ต่อ */}
+                      {/* สลับได้ 2 ทาง: ตามแพ็กเกจ (แก้ที่ตั้งค่า) หรือกำหนดเองรายดีลเลอร์ — ติ๊กแล้วเริ่มจากเป้าแพ็กเกจเดิมให้แก้ต่อ */}
                       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", color: "#374151", marginTop: 6, cursor: "pointer" }}>
                         <input type="checkbox" aria-label="กำหนดเป้าเอง" checked={form.targetManual}
                           onChange={e => { const on = e.target.checked; setForm(f => ({ ...f, targetManual: on, revenueTarget: on ? (f.revenueTarget || เป้าแพ็กเกจ) : f.revenueTarget })); }} />
-                        กำหนดเป้าเองสำหรับตัวแทนรายนี้
+                        กำหนดเป้าเองสำหรับดีลเลอร์รายนี้
                       </label>
                       <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 3 }}>
                         {form.targetManual
-                          ? `ไม่ตามแพ็กเกจ ${packageLabel[form.package as DealerPackage]} · แก้เป้าแพ็กเกจที่ตั้งค่าแล้วตัวแทนรายนี้ไม่เปลี่ยนตาม`
-                          : `ตามแพ็กเกจ ${packageLabel[form.package as DealerPackage]}${form.region ? ` · ${form.region}` : ""} · แก้ได้ที่ ตั้งค่า › หาตัวแทน`}
+                          ? `ไม่ตามแพ็กเกจ ${packageLabel[form.package as DealerPackage]} · แก้เป้าแพ็กเกจที่ตั้งค่าแล้วดีลเลอร์รายนี้ไม่เปลี่ยนตาม`
+                          : `ตามแพ็กเกจ ${packageLabel[form.package as DealerPackage]}${form.region ? ` · ${form.region}` : ""} · แก้ได้ที่ ตั้งค่า › หาดีลเลอร์`}
                       </div>
                     </>
                   ) : (
@@ -748,15 +748,15 @@ function HQDealersPageInner() {
                         placeholder="0" style={INPUT_STYLE} />
                       {form.package && (
                         <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 3 }}>
-                          แพ็กเกจ {packageLabel[form.package]} ยังไม่ได้ตั้งเป้า — กรอกเองได้ หรือตั้งที่ ตั้งค่า › หาตัวแทน
+                          แพ็กเกจ {packageLabel[form.package]} ยังไม่ได้ตั้งเป้า — กรอกเองได้ หรือตั้งที่ ตั้งค่า › หาดีลเลอร์
                         </div>
                       )}
                     </>
                   )}
                 </InputField>
                 <InputField label="สถานะ">
-                  {/* ต้องมีค่าเสมอ — ตัวแทนต้องเป็นเปิดหรือปิดใช้งานอย่างใดอย่างหนึ่ง ว่างไม่ได้ */}
-                  <select aria-label="สถานะตัวแทน" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as DealerStatus }))} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+                  {/* ต้องมีค่าเสมอ — ดีลเลอร์ต้องเป็นเปิดหรือปิดใช้งานอย่างใดอย่างหนึ่ง ว่างไม่ได้ */}
+                  <select aria-label="สถานะดีลเลอร์" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as DealerStatus }))} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
                     <option value="active">{dealerStatusLabel.active}</option>
                     <option value="inactive">{dealerStatusLabel.inactive}</option>
                   </select>
@@ -776,7 +776,7 @@ function HQDealersPageInner() {
       {moveFrom && (
         <div onClick={() => !moving && setMoveFrom(null)}
           style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(45,45,45,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <ModalCard onClose={() => !moving && setMoveFrom(null)} label="ย้ายข้อมูลตัวแทน"
+          <ModalCard onClose={() => !moving && setMoveFrom(null)} label="ย้ายข้อมูลดีลเลอร์"
             style={{ width: "100%", maxWidth: 520, background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
             <div style={{ background: "#003366", color: "#fff", padding: "16px 22px", fontWeight: 800 }}>
               ลบ &quot;{moveFrom.name}&quot; ไม่ได้ — ยังมีข้อมูลอยู่
@@ -839,16 +839,16 @@ function HQDealersPageInner() {
         // ระดับผลงานตัดสินจาก % เป้า + อัตราปิดการขาย (ข้อมูลที่ระบบมีจริง) · ไม่มีเป้า = ไม่ติดป้าย
         const wr = dPerf.winRate ?? 0;
         const tier = !มีเป้า ? null : revPct >= 90 && wr >= 50
-          ? { label: "ตัวแทนดีเด่น", color: "#059669", bg: "#e5faf0" }
+          ? { label: "ดีลเลอร์ดีเด่น", color: "#059669", bg: "#e5faf0" }
           : revPct >= 70 && wr >= 35
           ? { label: "ผลงานดี", color: "#003366", bg: "#dce5f0" }
           : revPct >= 50
           ? { label: "กำลังพัฒนา", color: "#f59e0b", bg: "#fef3cd" }
           : { label: "ต้องปรับปรุง", color: "#dc2626", bg: "#fee2e2" };
         // ที่มาของเป้า — กติกาเดียวกับฟอร์มแก้ไข (ตัวดักฐานข้อมูล 0178/0180 เป็นผู้ตั้งค่าจริง)
-        const เป้าของแพ็กเกจ = เป้าตามแพ็กเกจ(ค่าตั้งหาตัวแทน, d.package ?? null, d.region);
+        const เป้าของแพ็กเกจ = เป้าตามแพ็กเกจ(ค่าตั้งหาดีลเลอร์, d.package ?? null, d.region);
         const ที่มาเป้า = !มีเป้า ? "ยังไม่ได้ตั้งเป้า"
-          : d.targetManual ? "กำหนดเองรายตัวแทน"
+          : d.targetManual ? "กำหนดเองรายดีลเลอร์"
           : d.package && เป้าของแพ็กเกจ != null ? `ตามแพ็กเกจ ${packageLabel[d.package]}`
           : "กรอกเอง";
         const ขาดอีก = Math.max(0, d.revenueTarget - dPerf.revenue);
@@ -856,8 +856,8 @@ function HQDealersPageInner() {
         const เข้าระบบเมื่อ = d.createdAt ? fmtISOToThai(d.createdAt.slice(0, 10)) : "—";
         // เรื่องที่ควรดู — ข้อเท็จจริงจากตัวเลขเท่านั้น ไม่พยากรณ์
         const ควรดู: { tone: "bad" | "warn" | "good"; text: string }[] = [];
-        if (dealerStatus(d) === "inactive") ควรดู.push({ tone: "warn", text: "ปิดใช้งานอยู่ — ตัวแทนเข้าระบบไม่ได้" });
-        if (!มีเป้า) ควรดู.push({ tone: "warn", text: d.package ? `แพ็กเกจ ${packageLabel[d.package]} ยังไม่ได้ตั้งเป้า — ตั้งที่ ตั้งค่า › หาตัวแทน` : "ยังไม่มีเป้ายอดขาย — กำหนดได้ที่ปุ่มแก้ไข" });
+        if (dealerStatus(d) === "inactive") ควรดู.push({ tone: "warn", text: "ปิดใช้งานอยู่ — ดีลเลอร์เข้าระบบไม่ได้" });
+        if (!มีเป้า) ควรดู.push({ tone: "warn", text: d.package ? `แพ็กเกจ ${packageLabel[d.package]} ยังไม่ได้ตั้งเป้า — ตั้งที่ ตั้งค่า › หาดีลเลอร์` : "ยังไม่มีเป้ายอดขาย — กำหนดได้ที่ปุ่มแก้ไข" });
         if (มีเป้า && revPct >= 100) ควรดู.push({ tone: "good", text: `ถึงเป้าทั้งปีแล้ว${revPct > 100 ? ` · เกินเป้า ${revPct - 100}%` : ""}` });
         if (dPerf.winRate !== null && wr < targets.winRateTarget) ควรดู.push({ tone: wr < targets.winRateTarget - 15 ? "bad" : "warn", text: `อัตราปิดการขาย ${wr}% ต่ำกว่าเป้าเครือ ${targets.winRateTarget}%` });
         if (dPerf.onTimePct !== null && dPerf.onTimePct < targets.onTimeTarget) ควรดู.push({ tone: dPerf.onTimePct < targets.onTimeTarget - 15 ? "bad" : "warn", text: `ติดตามตรงเวลา ${dPerf.onTimePct}% ต่ำกว่าเป้าเครือ ${targets.onTimeTarget}%` });
@@ -878,7 +878,7 @@ function HQDealersPageInner() {
         return (
           <>
             <div onClick={() => setSelectedDealer(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.3)", zIndex: 1040 }} />
-            <div className="modal-pop" role="dialog" aria-label={`รายละเอียดตัวแทน ${d.name}`} style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 920, maxWidth: "calc(100vw - 32px)", maxHeight: "calc(100vh - 48px)", background: "#fff", zIndex: 1050, borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div className="modal-pop" role="dialog" aria-label={`รายละเอียดดีลเลอร์ ${d.name}`} style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 920, maxWidth: "calc(100vw - 32px)", maxHeight: "calc(100vh - 48px)", background: "#fff", zIndex: 1050, borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {/* Header */}
               <div style={{ padding: "18px 20px 16px", borderBottom: "1px solid #e5e7eb", background: "#f8f9fb", flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
@@ -898,7 +898,7 @@ function HQDealersPageInner() {
 
               {/* Scrollable content */}
               <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 12, alignItems: "start" }}>
-                {/* แนวกว้าง (บอสสั่ง 22 ก.ย. 69): ซ้าย = ผลงาน · ขวา = ข้อมูลตัวแทน/เข้าระบบ · จอแคบเรียงเป็นคอลัมน์เดียว */}
+                {/* แนวกว้าง (บอสสั่ง 22 ก.ย. 69): ซ้าย = ผลงาน · ขวา = ข้อมูลดีลเลอร์/เข้าระบบ · จอแคบเรียงเป็นคอลัมน์เดียว */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
 
                 {/* ยอดขายเทียบเป้าทั้งปี + ที่มาของเป้า */}
@@ -945,9 +945,9 @@ function HQDealersPageInner() {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-                {/* ข้อมูลตัวแทน — ค่าปัจจุบันในทะเบียน */}
+                {/* ข้อมูลดีลเลอร์ — ค่าปัจจุบันในทะเบียน */}
                 <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px 8px", flexShrink: 0 }}>
-                  <div style={หัวข้อ}>ข้อมูลตัวแทน</div>
+                  <div style={หัวข้อ}>ข้อมูลดีลเลอร์</div>
                   {แถว(<Package size={14} />, "แพ็กเกจ", d.package ? packageLabel[d.package] : "—")}
                   {แถว(<Target size={14} />, "เป้าทั้งปี", มีเป้า ? `฿${d.revenueTarget.toLocaleString("th-TH")} · ${ที่มาเป้า}` : "—")}
                   {แถว(<MapPin size={14} />, "จังหวัด", d.province || "—")}
@@ -988,7 +988,7 @@ function HQDealersPageInner() {
         );
       })()}
 
-      {/* โมดัล "รหัสเข้าระบบ/รีเซ็ตรหัสผ่าน" ย้ายไปเป็นการ์ดในหน้ารายละเอียดตัวแทนแล้ว (13 ส.ค. 69)
+      {/* โมดัล "รหัสเข้าระบบ/รีเซ็ตรหัสผ่าน" ย้ายไปเป็นการ์ดในหน้ารายละเอียดดีลเลอร์แล้ว (13 ส.ค. 69)
           ดู DealerCredentialsCard — ความสามารถเท่าเดิมทุกอย่าง */}
     </div>
   );

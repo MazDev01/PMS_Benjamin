@@ -74,7 +74,7 @@ test("[func·dealer] ตั้งชื่อบริษัทแล้ว → 
     expect(html).toContain("ภาษีมูลค่าเพิ่ม");
     expect(html).toContain("รวมเป็นเงิน");
     expect(html).toContain("ยอดชำระสุทธิ");
-    // เอกสารออกในนามตัวแทน ห้ามมีชื่อ Benjamin (ข้อบังคับเรื่องแบรนด์)
+    // เอกสารออกในนามดีลเลอร์ ห้ามมีชื่อ Benjamin (ข้อบังคับเรื่องแบรนด์)
     expect(html.toLowerCase()).not.toContain("benjamin");
     // หัวกระดาษต้องไม่เขียนอายุใบตายตัว ต้องเป็นวันจริงของใบนั้น (แก้ 24 ส.ค. 69)
     expect(html).not.toMatch(/ยืนราคา\s*30\s*วัน/);

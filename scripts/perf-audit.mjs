@@ -34,7 +34,7 @@ async function วัด(ชื่อ, origin, who, method, path, body) {
 const ครก = (s) => s;
 
 console.log("");
-console.log("=== ฝั่งตัวแทน: โหลดข้อมูลทั้งสาขา (แอปดึงทั้งก้อนเข้าหน่วยความจำ) ===");
+console.log("=== ฝั่งดีลเลอร์: โหลดข้อมูลทั้งสาขา (แอปดึงทั้งก้อนเข้าหน่วยความจำ) ===");
 await วัด("ลูกค้าเป้าหมายทั้งสาขา", D, "RYG", "GET", "/api/v1/leads?dealer=RYG");
 await วัด("ใบเสนอราคาทั้งสาขา", D, "RYG", "GET", "/api/v1/quotations?dealer=RYG");
 await วัด("ลูกค้าทั้งสาขา", D, "RYG", "GET", "/api/v1/customers?dealer=RYG");

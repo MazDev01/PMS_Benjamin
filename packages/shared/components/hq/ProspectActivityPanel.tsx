@@ -1,7 +1,7 @@
 "use client";
 
 // ── บันทึกการติดต่อ + ประวัติ ของลูกค้าเป้าหมาย (HQ) ────────────────────────────────────
-//   บอสสั่ง 14 ก.ย. 69: "ให้มันทำงานแบบเดียวกับดีลเลอร์" (กิจกรรม/รายงานติดตามของตัวแทน)
+//   บอสสั่ง 14 ก.ย. 69: "ให้มันทำงานแบบเดียวกับดีลเลอร์" (กิจกรรม/รายงานติดตามของดีลเลอร์)
 //
 //   บันทึกการติดต่อ: ช่องทาง · คุยอะไร · นัดติดตามครั้งถัดไป
 //     → ฐานข้อมูลตั้ง ติดต่อล่าสุด / นัดติดตาม / วันเริ่มติดต่อ / รอติดต่อ→ติดต่อแล้ว ให้เอง (0174)
@@ -23,12 +23,12 @@ const ป้ายชนิด: Record<ProspectActivity["kind"], { type: string;
   created:  { type: "note",   label: "เพิ่มรายชื่อ" },
   status:   { type: "status", label: "เปลี่ยนขั้น" },
   contact:  { type: "call",   label: "ติดต่อ" },
-  proposal: { type: "quote",  label: "ใบเสนอแพ็กเกจ" },
+  proposal: { type: "quote",  label: "ใบค่าแฟรนไชส์" },
 };
 
 export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, editable, formOpen, setFormOpen, onReload, onAdded, ช่องทาง = ช่องทางติดต่อ }: {
   prospect: DealerProspect;
-  /** ช่องทางที่เลือกได้ (หน้าตั้งค่า › หาตัวแทน) — ไม่ส่ง = รายการเริ่มต้น */
+  /** ช่องทางที่เลือกได้ (หน้าตั้งค่า › หาดีลเลอร์) — ไม่ส่ง = รายการเริ่มต้น */
   ช่องทาง?: readonly string[];
   activities: ProspectActivity[];
   loaded: boolean;

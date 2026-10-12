@@ -33,7 +33,7 @@ export default function DealerProductsPage() {
   // ค้นหา/มุมมองของรายการแม่แบบย่อยในกล่องรายละเอียด (ชุดเดียวกับฝั่งสำนักงานใหญ่ 28 ส.ค. 69)
   const [subQ, setSubQ] = useState("");
 
-  // ── ส่วนบวกเพิ่มจากราคากลาง — ตัวแทนตั้งเอง (บอสสั่ง 20 ส.ค. 69) ───────────────
+  // ── ส่วนบวกเพิ่มจากราคากลาง — ดีลเลอร์ตั้งเอง (บอสสั่ง 20 ส.ค. 69) ───────────────
   // เก็บที่ตั้งค่าของสาขา (dealer_settings.pricing) → ตามไปทุกเครื่อง/ทุกเบราว์เซอร์ของสาขานั้น
   // ร่าง = ค่าที่กำลังพิมพ์อยู่ (ยังไม่บันทึก) แยกจากค่าจริง เพื่อให้พิมพ์ "1" ก่อนเป็น "12" ได้
   //   โดยหน้าจอไม่กระตุกและไม่ยิงบันทึกทุกตัวอักษร — บันทึกตอนออกจากช่อง/กด Enter
@@ -227,8 +227,8 @@ export default function DealerProductsPage() {
                     </div>
                   </div>
 
-                  {/* ── ส่วนบวกเพิ่มของสาขา — ตัวแทนตั้งเอง (บอสสั่ง 20 ส.ค. 69) ──
-                      ราคากลาง = ต้นทุนที่สำนักงานใหญ่ตั้ง · ราคาขายเป็นสิทธิ์ของตัวแทน
+                  {/* ── ส่วนบวกเพิ่มของสาขา — ดีลเลอร์ตั้งเอง (บอสสั่ง 20 ส.ค. 69) ──
+                      ราคากลาง = ต้นทุนที่สำนักงานใหญ่ตั้ง · ราคาขายเป็นสิทธิ์ของดีลเลอร์
                       ไม่มีเพดาน ไม่มีขั้นต่ำ — ห้ามใส่ตัวตรวจเทียบราคากลาง */}
                   <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "9px 10px", background: "#f7f9fc", border: `1px solid ${BORDER}`, borderRadius: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -312,7 +312,7 @@ export default function DealerProductsPage() {
                     <span style={{ fontSize: "0.95rem", fontWeight: 800, color: STEEL, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewP.name}</span>
                   </div>
                   <div style={{ fontSize: "0.78rem", lineHeight: 1.6, color: "#4b5563" }}>{viewP.spec || "—"}</div>
-                  {/* ⚠️ ตัวแทนต้องเห็น "ราคาขายของเรา" เป็นตัวเด่น — ราคากลางของสำนักงานใหญ่เป็นต้นทุน
+                  {/* ⚠️ ดีลเลอร์ต้องเห็น "ราคาขายของเรา" เป็นตัวเด่น — ราคากลางของสำนักงานใหญ่เป็นต้นทุน
                        ไม่ใช่ตัวเลขที่เอาไปคุยกับลูกค้า (กติกาเดิมของหน้านี้ ห้ามสลับที่กัน) */}
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
                     <span style={{ fontSize: "1.1rem", fontWeight: 800, color: PRIMARY, fontVariantNumeric: "tabular-nums" }}>{fmtMoney(withMarkup(viewP.price, markupPctOf(pricing, viewP.id)))}</span>
@@ -323,7 +323,7 @@ export default function DealerProductsPage() {
               </div>
 
 
-              {/* ── แบบแปลนของแม่แบบนี้ — ตัวแทนเปิดดู/ดาวน์โหลดได้ (บอสสั่ง 28 ส.ค. 69) ──── */}
+              {/* ── แบบแปลนของแม่แบบนี้ — ดีลเลอร์เปิดดู/ดาวน์โหลดได้ (บอสสั่ง 28 ส.ค. 69) ──── */}
               {(viewP.plans?.length ?? 0) > 0 && (
                 <div>
                   <div style={{ fontSize: "1.02rem", fontWeight: 800, color: STEEL, marginBottom: 10 }}>แบบแปลน</div>
@@ -571,7 +571,7 @@ export default function DealerProductsPage() {
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f5f7fa", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "8px 12px", color: MUTED, fontSize: "0.72rem" }}>
                 <Lock size={13} style={{ color: PRIMARY, flexShrink: 0 }} />
-                <span>ราคากลางและประวัติราคากำหนดโดยสำนักงานใหญ่ — ตัวแทนจำหน่ายดูได้อย่างเดียว</span>
+                <span>ราคากลางและประวัติราคากำหนดโดยสำนักงานใหญ่ — ดีลเลอร์ดูได้อย่างเดียว</span>
               </div>
 
               {/* ราคาปัจจุบัน */}

@@ -5,8 +5,8 @@
 // ลูกค้าที่ไม่มีใบปิดการขาย จะไม่ปรากฏในกราฟที่เกี่ยวกับอาคาร (ไม่ใช่การซ่อน — ไม่มีข้อมูลจริง)
 //
 // เลือกชนิดกราฟตาม "รูปร่างข้อมูล" ไม่ใช่ตามความสวย:
-//   โดนัท   = กลุ่มต้องไม่ทับกันและรวมกันได้ยอดจริง (ลูกค้า 1 ราย = ตัวแทน 1 เจ้า → ใช้ได้)
-//   แท่งตั้ง = เทียบค่าข้ามหมวดที่ป้ายสั้น (รหัสตัวแทน) และมี 2 ชุดตัวเลขหน่วยเดียวกัน
+//   โดนัท   = กลุ่มต้องไม่ทับกันและรวมกันได้ยอดจริง (ลูกค้า 1 ราย = ดีลเลอร์ 1 เจ้า → ใช้ได้)
+//   แท่งตั้ง = เทียบค่าข้ามหมวดที่ป้ายสั้น (รหัสดีลเลอร์) และมี 2 ชุดตัวเลขหน่วยเดียวกัน
 //   แท่งนอน = อันดับ/ป้ายไทยยาว หรือกลุ่มที่ "ทับกันได้" (ลูกค้า 1 รายซื้อหลายประเภทอาคาร → นับซ้ำในหลายแถว
 //             เอาไปทำโดนัทไม่ได้ ผลรวมจะเกินจำนวนลูกค้าจริง)
 import { useState } from "react";
@@ -15,7 +15,7 @@ import { Donut, GroupedBarChart } from "@pms/shared/components/ui/Charts";
 import type { HQCustomersCharts } from "@pms/shared/lib/data/ports";
 
 const PRIMARY = "#003366";
-// ชุดสีโดนัท — ไล่จากกรมท่าเข้ม (ตัวแทนรายใหญ่) ไปอ่อน · ก้อน "ตัวแทนอื่น" ใช้เทาเสมอ
+// ชุดสีโดนัท — ไล่จากกรมท่าเข้ม (ดีลเลอร์รายใหญ่) ไปอ่อน · ก้อน "ดีลเลอร์อื่น" ใช้เทาเสมอ
 const DEALER_RAMP = ["#003366", "#0d5c9e", "#0891b2", "#0d9488", "#7c3aed", "#d97706"];
 const REST_COLOR = "#94a3b8";
 
@@ -127,22 +127,22 @@ export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
   // 1 · ลูกค้าตามประเภทอาคาร (แม่แบบหลัก)
   const byType: HRow[] = charts.byType;
 
-  // 2 · ลูกค้าตามตัวแทน
+  // 2 · ลูกค้าตามดีลเลอร์
   const byDealer: HRow[] = charts.byDealer.map(d => ({ label: `${d.code} · ${d.name}`, value: d.value }));
 
-  // 2b · โดนัท "ลูกค้า ตามตัวแทน" — ลูกค้า 1 ราย = ตัวแทน 1 เจ้า → กลุ่มไม่ทับกัน รวมกันได้จำนวนลูกค้าจริง
-  // ตัวแทนเกิน 6 เจ้ายุบเป็นก้อน "ตัวแทนอื่น" (ยังรวมได้ยอดเดิมเป๊ะ ไม่ตัดใครทิ้ง) — 10 ก้อนอ่านไม่ออก
+  // 2b · โดนัท "ลูกค้า ตามดีลเลอร์" — ลูกค้า 1 ราย = ดีลเลอร์ 1 เจ้า → กลุ่มไม่ทับกัน รวมกันได้จำนวนลูกค้าจริง
+  // ดีลเลอร์เกิน 6 เจ้ายุบเป็นก้อน "ดีลเลอร์อื่น" (ยังรวมได้ยอดเดิมเป๊ะ ไม่ตัดใครทิ้ง) — 10 ก้อนอ่านไม่ออก
   const dealerDonut = (() => {
     const top = byDealer.slice(0, 6).map((r, i) => ({ label: r.label, value: r.value, color: DEALER_RAMP[i] }));
     const rest = byDealer.slice(6);
     const restSum = rest.reduce((s, r) => s + r.value, 0);
     return restSum > 0
-      ? [...top, { label: `ตัวแทนอื่น (${rest.length} เจ้า)`, value: restSum, color: REST_COLOR }]
+      ? [...top, { label: `ดีลเลอร์อื่น (${rest.length} เจ้า)`, value: restSum, color: REST_COLOR }]
       : top;
   })();
   const dealerTotal = dealerDonut.reduce((s, r) => s + r.value, 0);
 
-  // 3 · ยอดซื้อตามตัวแทน — แท่งตั้ง ชุดเดียว (ยอดซื้อสะสม)
+  // 3 · ยอดซื้อตามดีลเลอร์ — แท่งตั้ง ชุดเดียว (ยอดซื้อสะสม)
   // ⚠️ อย่าเอา "เฉลี่ยต่อลูกค้า" มาวางเป็นแท่งคู่บนแกนเดียวกัน: ยอดสะสมสูงสุด ฿47M แต่ค่าเฉลี่ยแค่ ฿1.4–4.2M
   //    ต่างกัน ~30 เท่า → แท่งเฉลี่ยเตี้ยติดพื้นจนอ่านไม่ออก (ลองแล้ว) · ตัวเลขเฉลี่ยดูได้ที่ตารางด้านล่าง
   const revenueByDealer = charts.revenueByDealer;
@@ -165,7 +165,7 @@ export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
         <HBar rows={byType} fmt={cnt} empty="ยังไม่มีลูกค้าที่ปิดการขายในผลกรองนี้" unit="ประเภท" />
       </Card>
 
-      <Card title="ลูกค้า ตามตัวแทน">
+      <Card title="ลูกค้า ตามดีลเลอร์">
         {!dealerTotal ? (
           <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>—</div>
         ) : (
@@ -174,7 +174,7 @@ export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
         )}
       </Card>
 
-      <Card title="ยอดซื้อ ตามตัวแทน">
+      <Card title="ยอดซื้อ ตามดีลเลอร์">
         {!revenueByDealer.length ? (
           <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>—</div>
         ) : (

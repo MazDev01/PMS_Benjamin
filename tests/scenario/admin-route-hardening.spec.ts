@@ -78,7 +78,7 @@ test("หนึ่งสาขาหนึ่งบัญชี — DB ปฏิ
   // ไม่ใช่แค่ logic ใน route ที่เลี่ยงได้ถ้าเขียนข้อมูลทางอื่น
   const { data: existing } = await admin.from("profiles")
     .select("id, dealer_code").not("dealer_code", "eq", "").limit(1);
-  test.skip(!existing?.length, "ยังไม่มีบัญชีตัวแทนในระบบให้ทดสอบ");
+  test.skip(!existing?.length, "ยังไม่มีบัญชีดีลเลอร์ในระบบให้ทดสอบ");
 
   const code = String(existing![0].dealer_code);
   const fakeId = "00000000-0000-4000-8000-0000000000ff";
@@ -101,32 +101,32 @@ test("route ที่ไม่มีสิทธิ์ยังถูกปฏ�
   const rygToken = (await (await db(RYG)).auth.getSession()).data.session?.access_token ?? "";
   const cases: Array<{ name: string; run: () => Promise<{ status(): number }> }> = [
     {
-      name: "ตัวแทนขอเข้าระบบแทนตัวแทน (impersonate)",
+      name: "ดีลเลอร์ขอเข้าระบบแทนดีลเลอร์ (impersonate)",
       run: () => request.post(`${HQ_ORIGIN}/api/admin/dealers/impersonate?code=CNX`, {
         headers: { authorization: `Bearer ${rygToken}` }, ...รอได้,
       }),
     },
     {
-      name: "ตัวแทนรีเซ็ตรหัสผ่านตัวแทน",
+      name: "ดีลเลอร์รีเซ็ตรหัสผ่านดีลเลอร์",
       run: () => request.patch(`${HQ_ORIGIN}/api/admin/dealers?code=CNX`, {
         headers: { authorization: `Bearer ${rygToken}` }, ...รอได้,
       }),
     },
     {
-      name: "ตัวแทนลบตัวแทน",
+      name: "ดีลเลอร์ลบดีลเลอร์",
       run: () => request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=CNX`, {
         headers: { authorization: `Bearer ${rygToken}` }, ...รอได้,
       }),
     },
     {
-      name: "ตัวแทนสร้างผู้ใช้ HQ",
+      name: "ดีลเลอร์สร้างผู้ใช้ HQ",
       run: () => request.post(`${HQ_ORIGIN}/api/admin/users`, {
         headers: { authorization: `Bearer ${rygToken}` }, ...รอได้,
         data: { name: "x", email: "x@y.co", role: "SUPER_ADMIN" },
       }),
     },
     {
-      name: "ตัวแทนลบผู้ใช้ HQ",
+      name: "ดีลเลอร์ลบผู้ใช้ HQ",
       run: () => request.delete(`${HQ_ORIGIN}/api/admin/users?id=00000000-0000-4000-8000-000000000001`, {
         headers: { authorization: `Bearer ${rygToken}` }, ...รอได้,
       }),

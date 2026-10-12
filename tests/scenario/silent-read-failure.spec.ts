@@ -77,7 +77,7 @@ test("รายการไฟล์ของ HQ โหลดไม่สำเ�
   expect(seen.join(" | "), `จุดที่รายงาน: ${seen.join(", ") || "(ไม่มี)"}`).toMatch(/files\.list/);
 });
 
-test("รายการไฟล์ฝั่งตัวแทนโหลดไม่สำเร็จ → ต้องรายงาน", async ({ page }) => {
+test("รายการไฟล์ฝั่งดีลเลอร์โหลดไม่สำเร็จ → ต้องรายงาน", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const tags = await collectReadErrorTags(page);
   await breakRequests(page, source("files", "files"));

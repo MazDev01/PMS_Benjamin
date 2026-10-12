@@ -1,11 +1,11 @@
 "use client";
 
-// ── เส้นทางการทำงานของลูกค้าเป้าหมาย (HQ) — แบบเดียวกับ "งาน/ความคืบหน้า" ของตัวแทน (LeadTasks) ──
+// ── เส้นทางการทำงานของลูกค้าเป้าหมาย (HQ) — แบบเดียวกับ "งาน/ความคืบหน้า" ของดีลเลอร์ (LeadTasks) ──
 //   บอสสั่ง 14 ก.ย. 69: "ให้มันทำงานแบบเดียวกับดีลเลอร์"
 //
 //   ติ๊กงานตามลำดับ → ขั้นเลื่อนเอง · % คิดจากงาน (ปรับเองไม่ได้)
 //   งานที่ต้องมีของจริง (บันทึกการติดต่อ / ใบเสนอที่ส่งแล้ว) กดแล้วพาไปทำของจริงแทน ระบบติ๊กให้ทีหลัง
-//   ปิดท้าย: ตั้งเป็นตัวแทนจำหน่าย / ไม่สำเร็จ (ต้องมีเหตุผล) / เปิดติดตามใหม่
+//   ปิดท้าย: ตั้งเป็นดีลเลอร์ / ไม่สำเร็จ (ต้องมีเหตุผล) / เปิดติดตามใหม่
 //   กติกาชุดเดียวกับฐานข้อมูล (lib/prospectJourney.ts ↔ migration 0174)
 import React, { useState } from "react";
 import { Check, Lock, Store, XCircle, RotateCcw, Trophy } from "lucide-react";
@@ -19,7 +19,7 @@ const เหตุผลอื่น = "__อื่น__";
 
 export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง }: {
   prospect: DealerProspect;
-  /** ชื่องาน + รายการเหตุผลที่ไม่สำเร็จ ที่ตั้งไว้ (หน้าตั้งค่า › หาตัวแทน) — ไม่ส่ง = ชื่อเดิม/พิมพ์เหตุผลเอง */
+  /** ชื่องาน + รายการเหตุผลที่ไม่สำเร็จ ที่ตั้งไว้ (หน้าตั้งค่า › หาดีลเลอร์) — ไม่ส่ง = ชื่อเดิม/พิมพ์เหตุผลเอง */
   ค่าตั้ง?: Pick<HQRecruitSettings, "taskLabels" | "lostReasons">;
   /** รายที่ไม่สำเร็จ: ขั้นก่อนปิด (ใช้แสดงงานที่ทำไปแล้ว + เปิดติดตามใหม่) */
   ขั้นก่อนปิด: DealerProspectStatus;
@@ -138,7 +138,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
         {status === "won" ? (
           <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 10, background: "#e5faf0" }}>
             <Trophy size={18} color="#059669" />
-            <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#059669" }}>เป็นตัวแทนจำหน่ายแล้ว{prospect.dealerCode ? ` · ${prospect.dealerCode}` : ""}</div>
+            <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#059669" }}>เป็นดีลเลอร์แล้ว{prospect.dealerCode ? ` · ${prospect.dealerCode}` : ""}</div>
           </div>
         ) : status === "lost" ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", borderRadius: 10, background: "#fee2e2", flexWrap: "wrap" }}>
@@ -184,7 +184,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ flex: 1, fontSize: "0.8rem", fontWeight: 700, color: "#374151" }}>ปิดท้าย :</span>
             <button type="button" className="btn btn-sm" disabled={busy} onClick={onConvert} style={{ background: "#059669", color: "#fff" }}>
-              <Store size={13} /> ตั้งเป็นตัวแทนจำหน่าย
+              <Store size={13} /> ตั้งเป็นดีลเลอร์
             </button>
             <button type="button" className="btn btn-sm" disabled={busy} onClick={() => setเปิดไม่สำเร็จ(true)}
               style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca" }}>

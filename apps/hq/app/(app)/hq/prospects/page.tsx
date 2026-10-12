@@ -1,21 +1,21 @@
 "use client";
 
-// ─── HQ · ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นตัวแทนจำหน่าย) ────────────────────
+// ─── HQ · ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นดีลเลอร์) ────────────────────
 //
 // บอสสั่ง 14 ก.ย. 69:
-//   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นตัวแทนจำหน่าย"
+//   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นดีลเลอร์"
 //   "ทำให้ ลูกค้าเป้าหมาย ออกแบบการทำออกมาใช้งานให้เสร็จ" · "ให้มันทำงานแบบเดียวกับดีลเลอร์"
 //
-// ทำงานแบบเดียวกับลูกค้าเป้าหมายของตัวแทน:
+// ทำงานแบบเดียวกับลูกค้าเป้าหมายของดีลเลอร์:
 //   กดแถว → แผงกลางจอ 820px หัวน้ำเงิน + ปุ่มลัด + แท็บ
-//     ภาพรวม (แก้ข้อมูล) · งาน/ความคืบหน้า (ติ๊กงาน ขั้นเลื่อนเอง) · บันทึกการติดต่อ (+ ประวัติ) · ใบเสนอแพ็กเกจ
+//     ภาพรวม (แก้ข้อมูล) · งาน/ความคืบหน้า (ติ๊กงาน ขั้นเลื่อนเอง) · บันทึกการติดต่อ (+ ประวัติ) · ใบค่าแฟรนไชส์
 //   ตารางมี "ติดต่อล่าสุด" + ตัวกรองไม่ได้ติดต่อ 7/14/30 วัน (สเปก: ตัวกรองติดตามด่วน)
-//   ปิดท้าย: ตั้งเป็นตัวแทนจำหน่าย (สร้างสาขาใหม่พร้อมบัญชี / ผูกกับตัวแทนที่มีอยู่) หรือ ไม่สำเร็จ
+//   ปิดท้าย: ตั้งเป็นดีลเลอร์ (สร้างสาขาใหม่พร้อมบัญชี / ผูกกับดีลเลอร์ที่มีอยู่) หรือ ไม่สำเร็จ
 //
 // ⚠️ ขั้นเปลี่ยนจากงานเท่านั้น — ฟอร์มไม่มีช่องเลือกสถานะแล้ว · ฐานข้อมูลบังคับทีละขั้น (0174)
-// ⚠️ คนละเรื่องกับ "ลูกค้าเป้าหมายทั้งเครือ" (/hq/leads = ลูกค้าที่จะซื้ออาคารของตัวแทน) — คนละตาราง (0170)
+// ⚠️ คนละเรื่องกับ "ลูกค้าเป้าหมายทั้งเครือ" (/hq/leads = ลูกค้าที่จะซื้ออาคารของดีลเลอร์) — คนละตาราง (0170)
 //
-// สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · เพิ่ม/แก้/ลบ/ตั้งเป็นตัวแทน = ผู้มีสิทธิ์จัดการตัวแทน (dealers:manage)
+// สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์ = ผู้มีสิทธิ์จัดการดีลเลอร์ (dealers:manage)
 //   RLS บังคับซ้ำที่ฐานข้อมูล — การซ่อนปุ่มตรงนี้เป็นแค่ความสะดวก ไม่ใช่ด่านจริง
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -42,7 +42,7 @@ import { DEMO_PASSWORD } from "@pms/shared/lib/auth";
 import { ProspectProposalsPanel } from "@pms/shared/components/hq/ProspectProposalsPanel";
 import { ProspectJourney } from "@pms/shared/components/hq/ProspectJourney";
 import { ProspectActivityPanel } from "@pms/shared/components/hq/ProspectActivityPanel";
-import { มีใบเสนอที่ส่งแล้ว, ใบหลักสำหรับตั้งตัวแทน, มูลค่าอ่านง่าย } from "@pms/shared/lib/dealerProposals";
+import { มีใบเสนอที่ส่งแล้ว, ใบหลักสำหรับตั้งดีลเลอร์, มูลค่าอ่านง่าย } from "@pms/shared/lib/dealerProposals";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useAuditLogger } from "@pms/shared/lib/useAudit";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
@@ -62,12 +62,12 @@ import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
 const HQ_CODE = "HQ";
-// ช่องทางที่เข้ามา / ประเภทธุรกิจ / ช่องทางติดต่อ / เหตุผลที่ไม่สำเร็จ / ชื่องาน มาจากหน้าตั้งค่า › หาตัวแทน (0176)
+// ช่องทางที่เข้ามา / ประเภทธุรกิจ / ช่องทางติดต่อ / เหตุผลที่ไม่สำเร็จ / ชื่องาน มาจากหน้าตั้งค่า › หาดีลเลอร์ (0176)
 //   เดิมเขียนตายตัวที่นี่ — ทีมเพิ่มตัวเลือกเองไม่ได้ (บอสสั่งให้ตั้งเองได้ 14 ก.ย. 69)
 
 const ร่างว่าง = (): Partial<DealerProspect> => ({ name: "", status: "new", firstContact: APP_NOW_ISO });
 
-type ฟอร์มตัวแทน = { code: string; name: string; region: string; province: string; email: string; password: string; existingCode: string };
+type ฟอร์มดีลเลอร์ = { code: string; name: string; region: string; province: string; email: string; password: string; existingCode: string };
 type แท็บ = "overview" | "tasks" | "contact" | "proposals";
 type ตัวกรองสถานะ = "all" | "due" | "idle7" | "idle14" | "idle30" | DealerProspectStatus;
 
@@ -75,7 +75,7 @@ const แท็บทั้งหมด: { key: แท็บ; label: string }[] 
   { key: "overview",  label: "ภาพรวม" },
   { key: "tasks",     label: "งาน/ความคืบหน้า" },
   { key: "contact",   label: "บันทึกการติดต่อ" },
-  { key: "proposals", label: "ใบเสนอแพ็กเกจ" },
+  { key: "proposals", label: "ใบค่าแฟรนไชส์" },
 ];
 
 export default function HQProspectsPage() {
@@ -117,7 +117,7 @@ export default function HQProspectsPage() {
 
   const [converting, setConverting] = useState<DealerProspect | null>(null);
   const [โหมดตั้ง, setโหมดตั้ง] = useState<"new" | "existing">("new");
-  const [ฟอร์ม, setฟอร์ม] = useState<ฟอร์มตัวแทน>({ code: "", name: "", region: "", province: "", email: "", password: "", existingCode: "" });
+  const [ฟอร์ม, setฟอร์ม] = useState<ฟอร์มดีลเลอร์>({ code: "", name: "", region: "", province: "", email: "", password: "", existingCode: "" });
   const [convErr, setConvErr] = useState("");
   const [convBusy, setConvBusy] = useState(false);
   // ผูกกับสาขาที่ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ต้องเตือนให้เห็นชัด พร้อมทางไปตั้งอีเมล/รหัสผ่าน
@@ -139,10 +139,10 @@ export default function HQProspectsPage() {
       setLoaded(true);
     }
   }, []);
-  const โหลดตัวแทน = useCallback(() => {
+  const โหลดดีลเลอร์ = useCallback(() => {
     dealersRepo.list().then(setDealers).catch(e => logRepoRead("dealers.list", e));
   }, []);
-  useEffect(() => { void โหลด(); โหลดตัวแทน(); }, [โหลด, โหลดตัวแทน]);
+  useEffect(() => { void โหลด(); โหลดดีลเลอร์(); }, [โหลด, โหลดดีลเลอร์]);
   // เปิดหน้าต่างผูก → ถามเซิร์ฟเวอร์ว่าสาขาไหนมีบัญชีเข้าระบบ (ห้ามเดาจากรหัสสาขา)
   const เปิดผูกอยู่ = !!converting;
   useEffect(() => {
@@ -224,7 +224,7 @@ export default function HQProspectsPage() {
     ปิดแผงทันที();
   }
 
-  // ?open=ID → เปิดแผงรายนั้นหลังโหลดรายการเสร็จ (ลิงก์จากหน้าใบเสนอแพ็กเกจ) · ล้างพารามิเตอร์กันเปิดซ้ำตอนรีเฟรช
+  // ?open=ID → เปิดแผงรายนั้นหลังโหลดรายการเสร็จ (ลิงก์จากหน้าใบค่าแฟรนไชส์) · ล้างพารามิเตอร์กันเปิดซ้ำตอนรีเฟรช
   //   ไม่พบ = บอกตรง ๆ ไม่เงียบ (รายนั้นอาจถูกลบไปแล้ว)
   const เปิดจากลิงก์แล้ว = useRef(false);
   useEffect(() => {
@@ -234,18 +234,18 @@ export default function HQProspectsPage() {
     if (!รหัส) return;
     window.history.replaceState(null, "", "/hq/prospects");
     const ราย = list.find(x => String(x.id) === รหัส);
-    // เป็นตัวแทนแล้ว = ไม่อยู่หน้านี้ → พาไปหน้าตัวแทนนั้นแทน (ลิงก์เก่าจากกระดิ่ง/บันทึกการใช้งานยังใช้ได้)
+    // เป็นดีลเลอร์แล้ว = ไม่อยู่หน้านี้ → พาไปหน้าดีลเลอร์นั้นแทน (ลิงก์เก่าจากกระดิ่ง/บันทึกการใช้งานยังใช้ได้)
     if (ราย?.status === "won") {
       if (ราย.dealerCode) window.location.assign(`/hq/dealers/${ราย.dealerCode}`);
-      else แจ้งพลาด(`“${ราย.name}” เป็นตัวแทนแล้ว แต่ไม่พบตัวแทนที่ผูกไว้ (อาจถูกลบไปแล้ว)`);
+      else แจ้งพลาด(`“${ราย.name}” เป็นดีลเลอร์แล้ว แต่ไม่พบดีลเลอร์ที่ผูกไว้ (อาจถูกลบไปแล้ว)`);
     }
     else if (ราย) เปิดแผง(ราย);
     else if (!loadErr) แจ้งพลาด("ไม่พบลูกค้าเป้าหมายรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำครั้งเดียวตอนโหลดเสร็จ ไม่ต้องทำซ้ำเมื่อรายการเปลี่ยน
   }, [loaded]);
 
-  const ชื่อตัวแทน = useMemo(() => new Map(dealers.map(d => [d.code, d.name])), [dealers]);
-  // เป็นตัวแทนแล้ว (ครบ 100%) = ไปอยู่หน้าตัวแทนจำหน่าย ไม่แสดงในหน้านี้ (บอสสั่ง 15 ก.ย. 69)
+  const ชื่อดีลเลอร์ = useMemo(() => new Map(dealers.map(d => [d.code, d.name])), [dealers]);
+  // เป็นดีลเลอร์แล้ว (ครบ 100%) = ไปอยู่หน้าดีลเลอร์ ไม่แสดงในหน้านี้ (บอสสั่ง 15 ก.ย. 69)
   //   ตาราง · ตัวกรอง · ส่งออก · การ์ดตัวเลข ใช้รายการนี้ทั้งหมด — ข้อมูลยังอยู่ครบในฐานข้อมูล (ประวัติ/ใบเสนอไม่หาย)
   const รายที่แสดงได้ = useMemo(() => list.filter(p => p.status !== "won"), [list]);
   const จังหวัดในข้อมูล = useMemo(
@@ -266,7 +266,7 @@ export default function HQProspectsPage() {
 
   // การ์ดตัวเลขคิดจาก "ผลที่กรองอยู่" — ตรงกับสิ่งที่ตารางแสดง (กติกาเดียวกับทุกหน้า HQ)
   const สรุป = useMemo(() => สรุปผู้สนใจ(filtered, APP_NOW_ISO), [filtered]);
-  // อัตราสำเร็จต้องนับรายที่เป็นตัวแทนแล้วด้วย — ซ่อนจากตาราง แต่ยังเป็นผลงานจริง (ตามจังหวัด/คำค้นที่เลือกอยู่)
+  // อัตราสำเร็จต้องนับรายที่เป็นดีลเลอร์แล้วด้วย — ซ่อนจากตาราง แต่ยังเป็นผลงานจริง (ตามจังหวัด/คำค้นที่เลือกอยู่)
   const อัตราสำเร็จ = useMemo(() => สรุปผู้สนใจ(
     list.filter(p => (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q)),
     APP_NOW_ISO,
@@ -277,7 +277,7 @@ export default function HQProspectsPage() {
     setเพิ่มใหม่(true); setร่าง(ร่างว่าง()); setFormErr("");
   }
   const ตั้งค่า = <K extends keyof DealerProspect>(k: K, v: DealerProspect[K]) => setร่าง(r => ({ ...r, [k]: v }));
-  // รูปประจำตัว — ย่อเหลือ 256px ก่อนเก็บ แบบเดียวกับรูปลูกค้าเป้าหมายของตัวแทน (fileToResizedDataURL)
+  // รูปประจำตัว — ย่อเหลือ 256px ก่อนเก็บ แบบเดียวกับรูปลูกค้าเป้าหมายของดีลเลอร์ (fileToResizedDataURL)
   async function อัปโหลดรูป(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";   // ให้เลือกไฟล์เดิมซ้ำได้หลังถูกปฏิเสธ
@@ -295,7 +295,7 @@ export default function HQProspectsPage() {
 
   async function บันทึก() {
     if (!เพิ่มใหม่ && !รายที่เปิด) return;
-    // ขั้น/เหตุผล/ตัวแทนที่ผูก มาจากของจริงล่าสุดเสมอ — ฟอร์มนี้แก้แค่ข้อมูลผู้ติดต่อ (ขั้นเปลี่ยนจากแท็บงานเท่านั้น)
+    // ขั้น/เหตุผล/ดีลเลอร์ที่ผูก มาจากของจริงล่าสุดเสมอ — ฟอร์มนี้แก้แค่ข้อมูลผู้ติดต่อ (ขั้นเปลี่ยนจากแท็บงานเท่านั้น)
     const row = เตรียมบันทึก(รายที่เปิด && !เพิ่มใหม่
       ? { ...ร่าง, status: รายที่เปิด.status, lostReason: รายที่เปิด.lostReason, dealerCode: รายที่เปิด.dealerCode, convertedAt: รายที่เปิด.convertedAt }
       : { ...ร่าง, status: "new" });
@@ -309,7 +309,7 @@ export default function HQProspectsPage() {
         logAudit("เพิ่มลูกค้าเป้าหมาย (HQ)", saved.name);
         แจ้งสำเร็จ(`เพิ่ม “${saved.name}” แล้ว — เริ่มจากบันทึกการติดต่อครั้งแรก`);
         setเพิ่มใหม่(false);
-        เปิดแผง(saved, "tasks");   // เพิ่มเสร็จพาเข้างานทันที แบบเดียวกับฝั่งตัวแทน
+        เปิดแผง(saved, "tasks");   // เพิ่มเสร็จพาเข้างานทันที แบบเดียวกับฝั่งดีลเลอร์
       } else if (รายที่เปิด) {
         const saved = await prospectsRepo.update({ ...row, id: รายที่เปิด.id, createdAt: รายที่เปิด.createdAt });
         setList(l => l.map(x => x.id === saved.id ? saved : x));
@@ -346,10 +346,10 @@ export default function HQProspectsPage() {
   async function ลบ(p: DealerProspect) {
     if (!(await ยืนยัน({
       หัวข้อ: `ลบ “${p.name}” ออกจากลูกค้าเป้าหมาย ?`,
-      // ลบรายที่เป็นตัวแทนแล้ว = ลบแค่ประวัติการติดตาม ตัวแทนและบัญชีเข้าระบบยังอยู่ครบ — ต้องบอกให้ชัด
+      // ลบรายที่เป็นดีลเลอร์แล้ว = ลบแค่ประวัติการติดตาม ดีลเลอร์และบัญชีเข้าระบบยังอยู่ครบ — ต้องบอกให้ชัด
       รายละเอียด: p.status === "won" && p.dealerCode
-        ? `ตัวแทนจำหน่าย ${p.dealerCode} ที่สร้างไปแล้วจะยังอยู่ครบ — ลบเฉพาะประวัติการติดตามรายนี้ · ย้อนกลับไม่ได้`
-        : "ใบเสนอแพ็กเกจและประวัติของรายนี้จะหายไปด้วย · ย้อนกลับไม่ได้",
+        ? `ดีลเลอร์ ${p.dealerCode} ที่สร้างไปแล้วจะยังอยู่ครบ — ลบเฉพาะประวัติการติดตามรายนี้ · ย้อนกลับไม่ได้`
+        : "ใบค่าแฟรนไชส์และประวัติของรายนี้จะหายไปด้วย · ย้อนกลับไม่ได้",
       ปุ่มตกลง: "ลบลูกค้าเป้าหมาย", อันตราย: true,
     }))) return;
     try {
@@ -362,8 +362,8 @@ export default function HQProspectsPage() {
     }
   }
 
-  // ── ตั้งเป็นตัวแทนจำหน่าย ──
-  function เปิดตั้งตัวแทน(p: DealerProspect) {
+  // ── ตั้งเป็นดีลเลอร์ ──
+  function เปิดตั้งดีลเลอร์(p: DealerProspect) {
     // เดาภาคจากจังหวัดที่บันทึกไว้ให้ก่อน — ถ้าจังหวัดสะกดไม่ตรงรายการ ปล่อยว่างให้เลือกเอง ไม่เดาต่อ
     const ภาค = p.region || regionOf(p.province ?? "") || "";
     const จังหวัดเดิม = (p.province ?? "").trim();
@@ -387,18 +387,18 @@ export default function HQProspectsPage() {
     }));
   }
 
-  async function ยืนยันตั้งตัวแทน() {
+  async function ยืนยันตั้งดีลเลอร์() {
     if (!converting) return;
     setConvErr("");
     if (โหมดตั้ง === "existing") {
-      if (!ฟอร์ม.existingCode) { setConvErr("ต้องเลือกตัวแทนจำหน่าย"); return; }
+      if (!ฟอร์ม.existingCode) { setConvErr("ต้องเลือกดีลเลอร์"); return; }
       const row = เตรียมบันทึก({
         ...converting, status: "won", dealerCode: ฟอร์ม.existingCode, convertedAt: new Date().toISOString(), lostReason: null,
       });
       const ผิด = ตรวจผู้สนใจ(row);
       if (ผิด) { setConvErr(ผิด); return; }
       const ผูกอยู่ = list.find(x => x.id !== converting.id && x.dealerCode === ฟอร์ม.existingCode);
-      if (ผูกอยู่) { setConvErr(`ตัวแทน ${ฟอร์ม.existingCode} ถูกผูกกับ “${ผูกอยู่.name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`); return; }
+      if (ผูกอยู่) { setConvErr(`ดีลเลอร์ ${ฟอร์ม.existingCode} ถูกผูกกับ “${ผูกอยู่.name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`); return; }
       setConvBusy(true);
       try {
         const code = ฟอร์ม.existingCode;
@@ -411,9 +411,9 @@ export default function HQProspectsPage() {
         } else {
           const saved = await prospectsRepo.update({ ...row, id: converting.id, createdAt: converting.createdAt });
           setList(l => l.map(x => x.id === saved.id ? saved : x));
-          logAudit("ลูกค้าเป้าหมายเป็นตัวแทนแล้ว", `#${saved.id} → ${code} · ${saved.name}`);
+          logAudit("ลูกค้าเป้าหมายเป็นดีลเลอร์แล้ว", `#${saved.id} → ${code} · ${saved.name}`);
         }
-        แจ้งสำเร็จ(`ผูก “${converting.name}” กับตัวแทน ${code} แล้ว — ย้ายไปอยู่หน้าตัวแทนจำหน่าย`);
+        แจ้งสำเร็จ(`ผูก “${converting.name}” กับดีลเลอร์ ${code} แล้ว — ย้ายไปอยู่หน้าดีลเลอร์`);
         setConverting(null); ปิดแผงทันที();
       } catch (e) {
         setConvErr(friendlyError(e, "บันทึกไม่สำเร็จ"));
@@ -423,12 +423,12 @@ export default function HQProspectsPage() {
       return;
     }
 
-    // สร้างตัวแทนใหม่ — ตรวจที่หน้าจอก่อนเพื่อบอกตรงช่องที่ผิด (เซิร์ฟเวอร์ตรวจซ้ำเสมอ)
-    if (!มีใบเสนอที่ส่งแล้ว(ใบของรายที่เปิด)) { setConvErr("ต้องส่งใบเสนอแพ็กเกจตัวแทนก่อน อย่างน้อย 1 ใบ"); return; }
+    // สร้างดีลเลอร์ใหม่ — ตรวจที่หน้าจอก่อนเพื่อบอกตรงช่องที่ผิด (เซิร์ฟเวอร์ตรวจซ้ำเสมอ)
+    if (!มีใบเสนอที่ส่งแล้ว(ใบของรายที่เปิด)) { setConvErr("ต้องส่งใบค่าแฟรนไชส์ก่อน อย่างน้อย 1 ใบ"); return; }
     const code = ฟอร์ม.code.trim().toUpperCase();
-    if (!/^[A-Z]{2,5}$/.test(code)) { setConvErr("รหัสตัวแทนต้องเป็นตัวอักษร A–Z 2–5 ตัว (ห้ามมีตัวเลข)"); return; }
+    if (!/^[A-Z]{2,5}$/.test(code)) { setConvErr("รหัสดีลเลอร์ต้องเป็นตัวอักษร A–Z 2–5 ตัว (ห้ามมีตัวเลข)"); return; }
     if (dealers.some(d => d.code === code)) { setConvErr(`รหัส “${code}” มีอยู่แล้ว`); return; }
-    if (!ฟอร์ม.name.trim()) { setConvErr("ต้องระบุชื่อตัวแทน"); return; }
+    if (!ฟอร์ม.name.trim()) { setConvErr("ต้องระบุชื่อดีลเลอร์"); return; }
     if (!ฟอร์ม.region) { setConvErr("ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก"); return; }
     if (!ฟอร์ม.province) { setConvErr("ต้องระบุจังหวัด"); return; }
     const อีเมล = ฟอร์ม.email.trim();
@@ -444,14 +444,14 @@ export default function HQProspectsPage() {
         const ทะเบียน = await dealersRepo.list();
         const อีเมลเดโม = (อีเมล || `${code.toLowerCase()}@partner-agent.co.th`).toLowerCase();
         if (ทะเบียน.some(d => d.credentials?.email?.toLowerCase() === อีเมลเดโม)) {
-          setConvErr(`อีเมล ${อีเมลเดโม} ถูกใช้กับตัวแทนรายอื่นแล้ว — ใช้อีเมลอื่น`);
+          setConvErr(`อีเมล ${อีเมลเดโม} ถูกใช้กับดีลเลอร์รายอื่นแล้ว — ใช้อีเมลอื่น`);
           return;
         }
         const แถวใหม่: DealerRow = {
           id: code, code, name: ฟอร์ม.name.trim(), province: ฟอร์ม.province, region: ฟอร์ม.region,
-          revenueTarget: ใบหลักสำหรับตั้งตัวแทน(ใบของรายที่เปิด)?.annualTarget ?? 0, status: "active",
-          package: ใบหลักสำหรับตั้งตัวแทน(ใบของรายที่เปิด)?.package ?? null,
-          createdAt: new Date().toISOString(), // ให้ขึ้นบนสุดในตารางตัวแทน (ใหม่ก่อน)
+          revenueTarget: ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด)?.annualTarget ?? 0, status: "active",
+          package: ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด)?.package ?? null,
+          createdAt: new Date().toISOString(), // ให้ขึ้นบนสุดในตารางดีลเลอร์ (ใหม่ก่อน)
           // ต้องมีอีเมลเข้าระบบ ไม่งั้นหน้าเข้าสู่ระบบแบบตัวอย่างหาสาขานี้ไม่เจอ (เดิมสร้างแล้วเข้าระบบไม่ได้)
           //   ไม่เก็บรหัสผ่าน (ดู DealerCredentials) — โหมดตัวอย่างเข้าด้วยรหัสกลาง DEMO_PASSWORD
           credentials: { email: อีเมลเดโม },
@@ -461,17 +461,17 @@ export default function HQProspectsPage() {
         const saved = await prospectsRepo.update({ ...row, id: converting.id, createdAt: converting.createdAt });
         setList(l => l.map(x => x.id === saved.id ? saved : x));
         invalidateCache("dealers.list");
-        โหลดตัวแทน();
+        โหลดดีลเลอร์();
         // ใบล่าสุดที่ส่งแล้ว → ตอบรับ (แบบเดียวกับที่เซิร์ฟเวอร์ทำในโหมดจริง)
         if (!ใบของรายที่เปิด.some(x => x.status === "accepted")) {
           const ใบส่งแล้ว = ใบของรายที่เปิด.find(x => x.status === "sent");
           if (ใบส่งแล้ว) await proposalsRepo.setStatus(ใบส่งแล้ว.id, "accepted");
         }
-        logAudit("สร้างตัวแทน", `${code} · ${แถวใหม่.name} (จากลูกค้าเป้าหมาย #${saved.id})`);
+        logAudit("สร้างดีลเลอร์", `${code} · ${แถวใหม่.name} (จากลูกค้าเป้าหมาย #${saved.id})`);
         setCreds({ name: แถวใหม่.name, code, email: อีเมลเดโม, password: DEMO_PASSWORD });
         setConverting(null); ปิดแผงทันที();
       } catch (e) {
-        setConvErr(friendlyError(e, "สร้างตัวแทนไม่สำเร็จ"));
+        setConvErr(friendlyError(e, "สร้างดีลเลอร์ไม่สำเร็จ"));
       } finally {
         setConvBusy(false);
       }
@@ -481,22 +481,22 @@ export default function HQProspectsPage() {
     setConvBusy(true);
     const res = await createDealerAccount({
       code, name: ฟอร์ม.name.trim(), province: ฟอร์ม.province, region: ฟอร์ม.region,
-      // เป้ายอดขายรายปี = เป้ายอดซื้อต่อปีในใบเสนอแพ็กเกจ (บอสสั่ง 14 ก.ย. 69) · ใบไม่ระบุ = 0 (ห้ามเดา)
+      // เป้ายอดขายรายปี = เป้ายอดซื้อต่อปีในใบค่าแฟรนไชส์ (บอสสั่ง 14 ก.ย. 69) · ใบไม่ระบุ = 0 (ห้ามเดา)
       //   เซิร์ฟเวอร์อ่านจากใบด้วยกติกาเดียวกันอีกชั้น — ค่าตรงนี้เป็นแค่ค่าสำรองของคำขอ
-      revenueTarget: ใบหลักสำหรับตั้งตัวแทน(ใบของรายที่เปิด)?.annualTarget ?? 0,
+      revenueTarget: ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด)?.annualTarget ?? 0,
       email: อีเมล || undefined, password: ฟอร์ม.password || undefined,
       prospectId: converting.id,
     });
     setConvBusy(false);
     if (!res.ok) { setConvErr(res.error); return; } // ล้มเหลวต้องบอกจริง คงฟอร์มไว้ให้แก้
 
-    // ทะเบียนตัวแทนถูกแคชไว้ 30 วินาที — ต้องล้างทันที ไม่งั้นหน้าตัวแทนจำหน่ายยังไม่เห็นสาขาใหม่
+    // ทะเบียนดีลเลอร์ถูกแคชไว้ 30 วินาที — ต้องล้างทันที ไม่งั้นหน้าดีลเลอร์ยังไม่เห็นสาขาใหม่
     invalidateCache("dealers.list");
-    โหลดตัวแทน();
+    โหลดดีลเลอร์();
     await โหลด();
     if (res.prospectLinked === false) {
       // สาขาถูกสร้างแล้วจริง (บัญชีใช้ได้) แต่ผูกกลับมาที่รายนี้ไม่สำเร็จ — บอกทางแก้ที่ทำได้เอง
-      แจ้งพลาด(`สร้างตัวแทน ${code} แล้ว แต่ผูกกับลูกค้าเป้าหมายรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับตัวแทนที่มีอยู่แล้ว” → ${code}`);
+      แจ้งพลาด(`สร้างดีลเลอร์ ${code} แล้ว แต่ผูกกับลูกค้าเป้าหมายรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
     }
     setCreds({ name: ฟอร์ม.name.trim(), code, email: res.email, password: res.password });
     setConverting(null); ปิดแผงทันที();
@@ -513,14 +513,14 @@ export default function HQProspectsPage() {
   }
 
   const ดูอย่างเดียว = !จัดการได้;
-  // ใบที่จะใช้ตั้งตัวแทน (ตอบรับล่าสุด หรือส่งแล้วล่าสุด) — บอกล่วงหน้าในกล่องว่าเป้ายอดขายจะตั้งตามใบไหน
-  const ใบหลัก = ใบหลักสำหรับตั้งตัวแทน(ใบของรายที่เปิด);
+  // ใบที่จะใช้ตั้งดีลเลอร์ (ตอบรับล่าสุด หรือส่งแล้วล่าสุด) — บอกล่วงหน้าในกล่องว่าเป้ายอดขายจะตั้งตามใบไหน
+  const ใบหลัก = ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด);
   const มีใบส่งแล้ว = มีใบเสนอที่ส่งแล้ว(ใบของรายที่เปิด);
 
   // ── ช่องข้อมูลผู้ติดต่อ — ใช้ทั้งหน้าต่างเพิ่มรายใหม่ และแท็บภาพรวม ──
   const ช่องข้อมูล = (
     <fieldset disabled={ดูอย่างเดียว || saving} style={{ border: "none", margin: 0, padding: 0 }}>
-      {/* รูปประจำตัวอยู่บนสุด — แบบเดียวกับการ์ดลูกค้าเป้าหมายของตัวแทน (บอสสั่ง 14 ก.ย. 69 · "มีเพิ่มรูปตั้งแต่ในนี้") */}
+      {/* รูปประจำตัวอยู่บนสุด — แบบเดียวกับการ์ดลูกค้าเป้าหมายของดีลเลอร์ (บอสสั่ง 14 ก.ย. 69 · "มีเพิ่มรูปตั้งแต่ในนี้") */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
         <span style={{ width: 56, height: 56, borderRadius: 14, flexShrink: 0, overflow: "hidden", background: ร่าง.logo ? "#fff" : "#f8fafc",
           border: `1px ${ร่าง.logo ? "solid" : "dashed"} #e5e7eb`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -548,7 +548,7 @@ export default function HQProspectsPage() {
         </div>
         <div>
           <label className="form-label" htmlFor="pr-phone">เบอร์โทร</label>
-          {/* พิมพ์ได้แต่ตัวเลข ใส่ขีดให้เอง (บอสสั่ง 14 ก.ย. 69) — ตัวจัดรูปแบบเดียวกับฟอร์มลูกค้า/ลูกค้าเป้าหมายของตัวแทน */}
+          {/* พิมพ์ได้แต่ตัวเลข ใส่ขีดให้เอง (บอสสั่ง 14 ก.ย. 69) — ตัวจัดรูปแบบเดียวกับฟอร์มลูกค้า/ลูกค้าเป้าหมายของดีลเลอร์ */}
           <input id="pr-phone" className="form-input" inputMode="tel" value={ร่าง.phone ?? ""} onChange={e => ตั้งค่า("phone", formatPhone(e.target.value))} placeholder="08x-xxx-xxxx" />
         </div>
         <div>
@@ -636,7 +636,7 @@ export default function HQProspectsPage() {
         <ExportMenu
           filename="hq-prospects"
           title="ลูกค้าเป้าหมาย (HQ)"
-          headers={["ชื่อ", "ชื่อบนโซเชียล", "เบอร์โทร", "อีเมล", "ภาค", "จังหวัด", "ประเภทธุรกิจ", "ช่องทาง", "เริ่มติดต่อ", "ติดตามครั้งถัดไป", "สถานะ", "เหตุผลที่ไม่สำเร็จ", "ผู้ดูแล", "รหัสตัวแทน", "หมายเหตุ"]}
+          headers={["ชื่อ", "ชื่อบนโซเชียล", "เบอร์โทร", "อีเมล", "ภาค", "จังหวัด", "ประเภทธุรกิจ", "ช่องทาง", "เริ่มติดต่อ", "ติดตามครั้งถัดไป", "สถานะ", "เหตุผลที่ไม่สำเร็จ", "ผู้ดูแล", "รหัสดีลเลอร์", "หมายเหตุ"]}
           rows={filtered.map(p => [
             p.name, p.social ?? "", p.phone ?? "", p.email ?? "", p.region ?? "", p.province ?? "", p.businessType ?? "", p.channel ?? "",
             p.firstContact ?? "", p.followUp ?? "", prospectStatusLabel[p.status], p.lostReason ?? "", p.assigned ?? "",
@@ -654,9 +654,9 @@ export default function HQProspectsPage() {
       <div className="kpi-bar">
         <div className="kpi"><div className="kpi-icon kpi-navy"><Users size={16} /></div><div><div className="kpi-val">{สรุป.ทั้งหมด.toLocaleString()}</div><div className="kpi-label">ลูกค้าเป้าหมายที่แสดงอยู่</div></div></div>
         <div className="kpi"><div className="kpi-icon kpi-navy"><AlarmClock size={16} /></div><div><div className="kpi-val">{สรุป.ถึงกำหนด.toLocaleString()}</div><div className="kpi-label">ถึงกำหนดติดตาม</div></div></div>
-        {/* "เป็นตัวแทนแล้ว" ไม่อยู่หน้านี้แล้ว (บอสสั่ง 15 ก.ย. 69) → การ์ดใบที่ 3 นับรายที่ยังติดตามอยู่แทน */}
+        {/* "เป็นดีลเลอร์แล้ว" ไม่อยู่หน้านี้แล้ว (บอสสั่ง 15 ก.ย. 69) → การ์ดใบที่ 3 นับรายที่ยังติดตามอยู่แทน */}
         <div className="kpi"><div className="kpi-icon kpi-navy"><Store size={16} /></div><div><div className="kpi-val">{สรุป.กำลังติดตาม.toLocaleString()}</div><div className="kpi-label">กำลังติดตาม</div></div></div>
-        {/* อัตราสำเร็จคิดจากรายที่จบแล้วเท่านั้น (รวมรายที่เป็นตัวแทนแล้วซึ่งซ่อนจากตาราง) · ยังไม่มีรายที่จบ = "—" ไม่ใช่ 0% */}
+        {/* อัตราสำเร็จคิดจากรายที่จบแล้วเท่านั้น (รวมรายที่เป็นดีลเลอร์แล้วซึ่งซ่อนจากตาราง) · ยังไม่มีรายที่จบ = "—" ไม่ใช่ 0% */}
         <div className="kpi"><div className="kpi-icon kpi-green"><Percent size={16} /></div><div><div className="kpi-val">{อัตราสำเร็จ === null ? "—" : `${อัตราสำเร็จ}%`}</div><div className="kpi-label">อัตราสำเร็จ (จากรายที่จบแล้ว)</div></div></div>
       </div>
 
@@ -712,7 +712,7 @@ export default function HQProspectsPage() {
               <col style={{ width: "7%", minWidth: 60 }} />
             </colgroup>
             <thead>
-              <tr><th>ลำดับ</th><th>ชื่อ</th><th>ชื่อบนโซเชียล</th><th>เบอร์โทร</th><th>จังหวัด</th><th>ช่องทาง</th><th>ขั้น · ความคืบหน้า</th><th>ติดต่อล่าสุด</th><th>นัดติดตาม</th><th>ตัวแทน</th></tr>
+              <tr><th>ลำดับ</th><th>ชื่อ</th><th>ชื่อบนโซเชียล</th><th>เบอร์โทร</th><th>จังหวัด</th><th>ช่องทาง</th><th>ขั้น · ความคืบหน้า</th><th>ติดต่อล่าสุด</th><th>นัดติดตาม</th><th>ดีลเลอร์</th></tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
@@ -725,11 +725,11 @@ export default function HQProspectsPage() {
                 const เลยกำหนด = ถึงกำหนดติดตาม(p, APP_NOW_ISO);
                 const ไม่ได้ติดต่อนาน = ไม่ได้ติดต่อเกิน(p, 7, APP_NOW_ISO);
                 const pct = ความคืบหน้า(p.status);
-                // คีย์ใช้ p.id ได้: id ไม่ซ้ำทั้งระบบ (identity เดียวทั้งตาราง · dealerCode ในแถวนี้คือตัวแทนที่รายนั้นกลายมาเป็น ไม่ใช่สาขาเจ้าของ)
+                // คีย์ใช้ p.id ได้: id ไม่ซ้ำทั้งระบบ (identity เดียวทั้งตาราง · dealerCode ในแถวนี้คือดีลเลอร์ที่รายนั้นกลายมาเป็น ไม่ใช่สาขาเจ้าของ)
                 return (
                   <ClickableRow key={p.id} onActivate={() => เปิดแผง(p)} label={`เปิดรายละเอียดลูกค้าเป้าหมาย ${p.name}`}
                     style={{ background: รายที่เปิด?.id === p.id ? "#f0f6ff" : undefined }}>
-                    {/* ลำดับต่อเนื่องข้ามหน้า — สูตรเดียวกับตารางตัวแทนจำหน่าย */}
+                    {/* ลำดับต่อเนื่องข้ามหน้า — สูตรเดียวกับตารางดีลเลอร์ */}
                     <td style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>{Math.min(page, pageCountOf(filtered.length) - 1) * ROWS_PER_PAGE + i + 1}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
@@ -762,7 +762,7 @@ export default function HQProspectsPage() {
                     </td>
                     <td>
                       {p.dealerCode
-                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อตัวแทน.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{p.dealerCode}</Link>
+                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{p.dealerCode}</Link>
                         : "—"}
                     </td>
                   </ClickableRow>
@@ -798,7 +798,7 @@ export default function HQProspectsPage() {
         </div>
       )}
 
-      {/* ══ แผงลูกค้าเป้าหมาย — กลางจอ 820px หัวน้ำเงิน + แท็บ (แบบเดียวกับลูกค้าเป้าหมายของตัวแทน) ══ */}
+      {/* ══ แผงลูกค้าเป้าหมาย — กลางจอ 820px หัวน้ำเงิน + แท็บ (แบบเดียวกับลูกค้าเป้าหมายของดีลเลอร์) ══ */}
       {รายที่เปิด && (() => {
         const ราย = รายที่เปิด;
         const sc = prospectStatusColor[ราย.status];
@@ -829,12 +829,12 @@ export default function HQProspectsPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                    {/* ปุ่มลัด "บันทึกการติดต่อ" / "ออกใบเสนอแพ็กเกจ" บนหัวแผง บอสสั่งเอาออก (14 ก.ย. 69) — ทำในแท็บของมันแทน ห้ามใส่กลับ */}
+                    {/* ปุ่มลัด "บันทึกการติดต่อ" / "ออกใบค่าแฟรนไชส์" บนหัวแผง บอสสั่งเอาออก (14 ก.ย. 69) — ทำในแท็บของมันแทน ห้ามใส่กลับ */}
                     {จัดการได้ && ติดตามอยู่ && (
-                      <button style={qa} onClick={() => เปิดตั้งตัวแทน(ราย)}><Store size={13} /> ตั้งเป็นตัวแทนจำหน่าย</button>
+                      <button style={qa} onClick={() => เปิดตั้งดีลเลอร์(ราย)}><Store size={13} /> ตั้งเป็นดีลเลอร์</button>
                     )}
                     {ราย.status === "won" && ราย.dealerCode && (
-                      <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ตัวแทน {ราย.dealerCode}</Link>
+                      <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ดีลเลอร์ {ราย.dealerCode}</Link>
                     )}
                     {จัดการได้ && (
                       <button onClick={() => void ลบ(ราย)} title="ลบลูกค้าเป้าหมาย" aria-label="ลบลูกค้าเป้าหมาย" style={{ ...qa, width: 30, padding: 0, justifyContent: "center", color: "#fecaca" }}><Trash2 size={14} /></button>
@@ -871,8 +871,8 @@ export default function HQProspectsPage() {
                     <>
                       {ราย.status === "won" && ราย.dealerCode && (
                         <div style={{ background: "#dcfce7", border: "1px solid #86efac", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: "0.78rem", color: "#15803d", fontWeight: 600 }}>
-                          เป็นตัวแทนจำหน่ายแล้ว — <Link href={`/hq/dealers/${ราย.dealerCode}`} style={{ color: "#15803d", textDecoration: "underline" }}>
-                            {ราย.dealerCode} · {ชื่อตัวแทน.get(ราย.dealerCode) ?? ""}
+                          เป็นดีลเลอร์แล้ว — <Link href={`/hq/dealers/${ราย.dealerCode}`} style={{ color: "#15803d", textDecoration: "underline" }}>
+                            {ราย.dealerCode} · {ชื่อดีลเลอร์.get(ราย.dealerCode) ?? ""}
                           </Link>
                           {ราย.convertedAt && ` (ตั้งเมื่อ ${fmtISOToThai(ราย.convertedAt)})`}
                         </div>
@@ -908,9 +908,9 @@ export default function HQProspectsPage() {
                         if (!ใบของรายที่เปิด.length) setสัญญาณออกใบ(n => n + 1);
                         แจ้งสำเร็จ(ใบของรายที่เปิด.length
                           ? "ติ๊กงานนี้เองไม่ได้ — เปลี่ยนสถานะใบเป็น “ส่งแล้ว” แล้วระบบจะติ๊กให้เอง"
-                          : "ติ๊กงานนี้เองไม่ได้ — ออกใบเสนอแพ็กเกจแล้วเปลี่ยนเป็น “ส่งแล้ว” ระบบจะติ๊กให้เอง");
+                          : "ติ๊กงานนี้เองไม่ได้ — ออกใบค่าแฟรนไชส์แล้วเปลี่ยนเป็น “ส่งแล้ว” ระบบจะติ๊กให้เอง");
                       }}
-                      onConvert={() => เปิดตั้งตัวแทน(ราย)}
+                      onConvert={() => เปิดตั้งดีลเลอร์(ราย)}
                       ค่าตั้ง={ค่าตั้ง}
                     />
                   )}
@@ -931,7 +931,7 @@ export default function HQProspectsPage() {
                   )}
 
                   {แท็บที่เปิด === "proposals" && (
-                    // key พ่วงสัญญาณ: กดปุ่มลัด "ออกใบเสนอแพ็กเกจ" ซ้ำ → แผงสร้างใหม่แล้วเปิดฟอร์มให้อีกครั้ง
+                    // key พ่วงสัญญาณ: กดปุ่มลัด "ออกใบค่าแฟรนไชส์" ซ้ำ → แผงสร้างใหม่แล้วเปิดฟอร์มให้อีกครั้ง
                     <ProspectProposalsPanel key={`${ราย.id}-${สัญญาณออกใบ}`} prospect={ราย} editable={จัดการได้ && ติดตามอยู่}
                       onChange={เมื่อใบเปลี่ยน} เปิดฟอร์มทันที={สัญญาณออกใบ > 0} />
                   )}
@@ -942,43 +942,43 @@ export default function HQProspectsPage() {
         );
       })()}
 
-      {/* ── ตั้งเป็นตัวแทนจำหน่าย ── */}
+      {/* ── ตั้งเป็นดีลเลอร์ ── */}
       {converting && (
         <div onClick={() => !convBusy && setConverting(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => !convBusy && setConverting(null)} label="ตั้งเป็นตัวแทนจำหน่าย" className="modal-fit"
+          <ModalCard onClose={() => !convBusy && setConverting(null)} label="ตั้งเป็นดีลเลอร์" className="modal-fit"
             style={{ background: "#fff", borderRadius: 16, width: 520, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,.3)" }}>
             <div style={{ background: PRIMARY, color: "#fff", padding: "14px 20px", fontWeight: 800, borderRadius: "16px 16px 0 0" }}>
-              ตั้ง “{converting.name}” เป็นตัวแทนจำหน่าย
+              ตั้ง “{converting.name}” เป็นดีลเลอร์
             </div>
             <div className="modal-fit-body" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               {convErr && <div role="alert" style={{ background: "#fee2e2", border: "1px solid #dc262630", borderRadius: 8, padding: "8px 12px", fontSize: "0.8rem", color: "#dc2626", fontWeight: 600 }}>{convErr}</div>}
 
-              <div role="radiogroup" aria-label="วิธีตั้งเป็นตัวแทน" style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "0.82rem" }}>
+              <div role="radiogroup" aria-label="วิธีตั้งเป็นดีลเลอร์" style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "0.82rem" }}>
                 <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="convert-mode" checked={โหมดตั้ง === "new"} onChange={() => { setโหมดตั้ง("new"); setConvErr(""); }} disabled={convBusy} />
-                  สร้างตัวแทนจำหน่ายใหม่ พร้อมบัญชีเข้าระบบ
+                  สร้างดีลเลอร์ใหม่ พร้อมบัญชีเข้าระบบ
                 </label>
                 <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="convert-mode" checked={โหมดตั้ง === "existing"} onChange={() => { setโหมดตั้ง("existing"); setConvErr(""); }} disabled={convBusy} />
-                  ผูกกับตัวแทนจำหน่ายที่มีอยู่แล้ว
+                  ผูกกับดีลเลอร์ที่มีอยู่แล้ว
                 </label>
               </div>
 
               {/* ด่านเดียวกับที่เซิร์ฟเวอร์บังคับ — บอกก่อนกด ไม่ต้องให้ผู้ใช้กรอกครบแล้วค่อยโดนปฏิเสธ
-                  ผูกกับตัวแทนที่มีอยู่แล้วไม่ต้องมีใบ (บันทึกประวัติรายที่เป็นตัวแทนมาก่อนระบบนี้) */}
+                  ผูกกับดีลเลอร์ที่มีอยู่แล้วไม่ต้องมีใบ (บันทึกประวัติรายที่เป็นดีลเลอร์มาก่อนระบบนี้) */}
               {โหมดตั้ง === "new" && !มีใบส่งแล้ว && (
                 <div role="note" style={{ background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.78rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
-                  ยังสร้างตัวแทนใหม่ไม่ได้ — ต้องมี “ใบเสนอแพ็กเกจตัวแทน” ที่ส่งแล้วหรือตอบรับอย่างน้อย 1 ใบ
-                  (ออกใบได้ในแท็บใบเสนอแพ็กเกจของรายนี้) · ถ้าเป็นตัวแทนอยู่แล้ว เลือก “ผูกกับตัวแทนจำหน่ายที่มีอยู่แล้ว”
+                  ยังสร้างดีลเลอร์ใหม่ไม่ได้ — ต้องมี “ใบค่าแฟรนไชส์” ที่ส่งแล้วหรือตอบรับอย่างน้อย 1 ใบ
+                  (ออกใบได้ในแท็บใบค่าแฟรนไชส์ของรายนี้) · ถ้าเป็นดีลเลอร์อยู่แล้ว เลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว”
                 </div>
               )}
 
               {โหมดตั้ง === "existing" ? (
                 <div>
-                  <label className="form-label" htmlFor="cv-existing">ตัวแทนจำหน่าย</label>
+                  <label className="form-label" htmlFor="cv-existing">ดีลเลอร์</label>
                   <select id="cv-existing" className="form-select" value={ฟอร์ม.existingCode} disabled={convBusy}
                     onChange={e => { setฟอร์ม(f => ({ ...f, existingCode: e.target.value })); setConvErr(""); }} style={{ cursor: "pointer" }}>
-                    <option value="">— เลือกตัวแทนจำหน่าย —</option>
+                    <option value="">— เลือกดีลเลอร์ —</option>
                     {/* ปิดใช้งาน / ผูกกับรายอื่นแล้ว = เลือกไม่ได้ (เซิร์ฟเวอร์ตรวจซ้ำเสมอ) */}
                     {dealers.filter(d => d.code !== HQ_CODE).map(d => {
                       const ผูกกับ = list.find(x => x.id !== converting.id && x.dealerCode === d.code);
@@ -992,21 +992,21 @@ export default function HQProspectsPage() {
                   </select>
                   {ฟอร์ม.existingCode && สาขามีบัญชี && !สาขามีบัญชี[ฟอร์ม.existingCode] && (
                     <div role="note" style={{ marginTop: 8, background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.78rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
-                      ตัวแทน {ฟอร์ม.existingCode} ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ตัวแทนจะยังเข้าระบบไม่ได้
-                      จนกว่าจะตั้งอีเมล/รหัสผ่านที่หน้าตัวแทนจำหน่าย
+                      ดีลเลอร์ {ฟอร์ม.existingCode} ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ดีลเลอร์จะยังเข้าระบบไม่ได้
+                      จนกว่าจะตั้งอีเมล/รหัสผ่านที่หน้าดีลเลอร์
                     </div>
                   )}
                 </div>
               ) : (
                 <fieldset disabled={convBusy} style={{ border: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12 }}>
                   <div>
-                    <label className="form-label" htmlFor="cv-code">รหัสตัวแทน *</label>
+                    <label className="form-label" htmlFor="cv-code">รหัสดีลเลอร์ *</label>
                     <input id="cv-code" className="form-input" value={ฟอร์ม.code} placeholder="เช่น CNXB"
                       onChange={e => setฟอร์ม(f => ({ ...f, code: e.target.value.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 5) }))}
                       style={{ textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em" }} />
                   </div>
                   <div>
-                    <label className="form-label" htmlFor="cv-name">ชื่อตัวแทน *</label>
+                    <label className="form-label" htmlFor="cv-name">ชื่อดีลเลอร์ *</label>
                     <input id="cv-name" className="form-input" value={ฟอร์ม.name} onChange={e => setฟอร์ม(f => ({ ...f, name: e.target.value }))} placeholder="ชื่อที่จะใช้ในระบบ" />
                   </div>
                   <div>
@@ -1014,7 +1014,7 @@ export default function HQProspectsPage() {
                     <select id="cv-region" className="form-select" value={ฟอร์ม.region} onChange={e => เปลี่ยนภาค(e.target.value)} style={{ cursor: "pointer" }}>
                       <option value="">— ยังไม่ระบุ —</option>
                       {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                      {/* ทุกภาค = ทั่วประเทศ (แบบเดียวกับฟอร์มตัวแทน) → จังหวัดเป็น "ทุกจังหวัด" ให้เอง */}
+                      {/* ทุกภาค = ทั่วประเทศ (แบบเดียวกับฟอร์มดีลเลอร์) → จังหวัดเป็น "ทุกจังหวัด" ให้เอง */}
                       <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
                     </select>
                   </div>
@@ -1041,16 +1041,16 @@ export default function HQProspectsPage() {
                   <div style={{ gridColumn: "1 / -1", fontSize: "0.7rem", color: MUTED, lineHeight: 1.6 }}>
                     {ใบหลัก?.annualTarget != null
                       ? `เป้ายอดขายรายปีของสาขาจะตั้งตามใบเสนอ ${ใบหลัก.proposalNo ?? ""}: ${มูลค่าอ่านง่าย(ใบหลัก.annualTarget)}`
-                      : "ใบเสนอยังไม่ได้ระบุเป้ายอดซื้อต่อปี — เป้ายอดขายตั้งเป็น 0 ไว้ก่อน แก้ได้ที่หน้าตัวแทนจำหน่าย"}
+                      : "ใบเสนอยังไม่ได้ระบุเป้ายอดซื้อต่อปี — เป้ายอดขายตั้งเป็น 0 ไว้ก่อน แก้ได้ที่หน้าดีลเลอร์"}
                   </div>
                 </fieldset>
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
                 <button className="btn btn-secondary btn-md" disabled={convBusy} onClick={() => setConverting(null)}>ยกเลิก</button>
-                <button className="btn btn-primary btn-md" disabled={convBusy || (โหมดตั้ง === "new" && !มีใบส่งแล้ว)} onClick={() => void ยืนยันตั้งตัวแทน()}
+                <button className="btn btn-primary btn-md" disabled={convBusy || (โหมดตั้ง === "new" && !มีใบส่งแล้ว)} onClick={() => void ยืนยันตั้งดีลเลอร์()}
                   style={convBusy ? { opacity: .6, cursor: "not-allowed" } : undefined}>
-                  {convBusy ? "กำลังดำเนินการ…" : โหมดตั้ง === "new" ? "สร้างตัวแทนจำหน่าย" : "ผูกกับตัวแทนนี้"}
+                  {convBusy ? "กำลังดำเนินการ…" : โหมดตั้ง === "new" ? "สร้างดีลเลอร์" : "ผูกกับดีลเลอร์นี้"}
                 </button>
               </div>
             </div>
@@ -1061,14 +1061,14 @@ export default function HQProspectsPage() {
       {/* ── ผูกแล้ว แต่สาขายังไม่มีบัญชีเข้าระบบ — เตือนให้เห็นชัด พร้อมทางไปตั้งอีเมล/รหัสผ่าน ── */}
       {ผูกแล้วไม่มีบัญชี && (
         <div onClick={() => setผูกแล้วไม่มีบัญชี(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => setผูกแล้วไม่มีบัญชี(null)} label="ตัวแทนยังไม่มีบัญชีเข้าระบบ"
+          <ModalCard onClose={() => setผูกแล้วไม่มีบัญชี(null)} label="ดีลเลอร์ยังไม่มีบัญชีเข้าระบบ"
             style={{ background: "#fff", borderRadius: 16, width: 440, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,.3)" }}>
             <div style={{ background: "#b45309", color: "#fff", padding: "14px 20px", fontWeight: 800, borderRadius: "16px 16px 0 0" }}>
-              ตัวแทน {ผูกแล้วไม่มีบัญชี.code} ยังไม่มีบัญชีเข้าระบบ
+              ดีลเลอร์ {ผูกแล้วไม่มีบัญชี.code} ยังไม่มีบัญชีเข้าระบบ
             </div>
             <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
               <p style={{ margin: 0, fontSize: "0.84rem", color: "#374151", lineHeight: 1.7 }}>
-                ผูก “{ผูกแล้วไม่มีบัญชี.name}” กับตัวแทน {ผูกแล้วไม่มีบัญชี.code} แล้ว
+                ผูก “{ผูกแล้วไม่มีบัญชี.name}” กับดีลเลอร์ {ผูกแล้วไม่มีบัญชี.code} แล้ว
                 แต่สาขานี้ยังเข้าระบบไม่ได้ — ต้องตั้งอีเมลและรหัสผ่านให้ก่อน
               </p>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -1083,13 +1083,13 @@ export default function HQProspectsPage() {
         </div>
       )}
 
-      {/* ── บัญชีเข้าระบบของตัวแทนใหม่ (โชว์ครั้งเดียวให้คัดลอกไปแจ้ง) ── */}
+      {/* ── บัญชีเข้าระบบของดีลเลอร์ใหม่ (โชว์ครั้งเดียวให้คัดลอกไปแจ้ง) ── */}
       {creds && (
         <div onClick={() => setCreds(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1150, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => setCreds(null)} label="บัญชีเข้าระบบของตัวแทนใหม่"
+          <ModalCard onClose={() => setCreds(null)} label="บัญชีเข้าระบบของดีลเลอร์ใหม่"
             style={{ background: "#fff", borderRadius: 16, width: 440, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,.3)", padding: 22 }}>
-            <div style={{ fontWeight: 800, fontSize: "1rem", color: "#15803d", marginBottom: 4 }}>สร้างตัวแทนจำหน่ายสำเร็จ</div>
-            <div style={{ fontSize: "0.8rem", color: MUTED, marginBottom: 14 }}>{creds.code} · {creds.name} — คัดลอกบัญชีไปแจ้งตัวแทน</div>
+            <div style={{ fontWeight: 800, fontSize: "1rem", color: "#15803d", marginBottom: 4 }}>สร้างดีลเลอร์สำเร็จ</div>
+            <div style={{ fontSize: "0.8rem", color: MUTED, marginBottom: 14 }}>{creds.code} · {creds.name} — คัดลอกบัญชีไปแจ้งดีลเลอร์</div>
             {[["อีเมลเข้าระบบ", creds.email, "email"], ["รหัสผ่าน", creds.password, "password"]].map(([ป้ายช่อง, ค่า, ช่อง]) => (
               <div key={ช่อง} style={{ marginBottom: 10 }}>
                 <div className="form-label">{ป้ายช่อง}</div>
@@ -1103,14 +1103,14 @@ export default function HQProspectsPage() {
             ))}
             {!REAL_BACKEND && (
               <div role="note" style={{ background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.76rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
-                โหมดข้อมูลตัวอย่าง — ใช้อีเมลนี้กับรหัสกลางของชุดตัวอย่างเข้าระบบฝั่งตัวแทนได้ ไม่ใช่บัญชีจริง
+                โหมดข้อมูลตัวอย่าง — ใช้อีเมลนี้กับรหัสกลางของชุดตัวอย่างเข้าระบบฝั่งดีลเลอร์ได้ ไม่ใช่บัญชีจริง
               </div>
             )}
             <div style={{ fontSize: "0.72rem", color: MUTED, margin: "8px 0 14px", lineHeight: 1.6 }}>
-              เปิดดูรหัสย้อนหลัง หรือแก้อีเมล/รหัสผ่านได้ที่หน้ารายละเอียดตัวแทน {creds.code} · ตัวแทนเปลี่ยนเองได้ 2 ครั้ง ครั้งต่อไปต้องขออนุมัติ
+              เปิดดูรหัสย้อนหลัง หรือแก้อีเมล/รหัสผ่านได้ที่หน้ารายละเอียดดีลเลอร์ {creds.code} · ดีลเลอร์เปลี่ยนเองได้ 2 ครั้ง ครั้งต่อไปต้องขออนุมัติ
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <Link href={`/hq/dealers/${creds.code}`} className="btn btn-secondary btn-md">ไปที่ตัวแทน {creds.code}</Link>
+              <Link href={`/hq/dealers/${creds.code}`} className="btn btn-secondary btn-md">ไปที่ดีลเลอร์ {creds.code}</Link>
               <button className="btn btn-primary btn-md" onClick={() => setCreds(null)}>เสร็จแล้ว</button>
             </div>
           </ModalCard>

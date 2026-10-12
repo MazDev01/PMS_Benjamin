@@ -24,7 +24,7 @@ const notoThai = Noto_Sans_Thai({
   display: "swap",
 });
 
-// เดิม title เดียวกันเป๊ะกับแอปตัวแทน — เปิดสองแอปพร้อมกันแยกแท็บไม่ออก (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
+// เดิม title เดียวกันเป๊ะกับแอปดีลเลอร์ — เปิดสองแอปพร้อมกันแยกแท็บไม่ออก (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
 export const metadata: Metadata = {
   title: "Benjamin PMS · สำนักงานใหญ่",
   description: "ระบบบริหารจัดการ Benjamin — Pre-Engineered Steel Building (สำนักงานใหญ่)",

@@ -26,7 +26,7 @@ test.describe("[func·hq] สำรอง/กู้คืนการตั้�
     });
     expect(ไบต์.subarray(0, 2).toString()).toBe("PK");
     const ข้อความในไฟล์ = ไบต์.toString("utf8");
-    for (const แท็บ of ["ข้อมูลบริษัท", "นโยบายการขาย", "เป้าหมายยอดขาย", "ตัวแทนจำหน่าย", "แม่แบบสินค้า"]) {
+    for (const แท็บ of ["ข้อมูลบริษัท", "นโยบายการขาย", "เป้าหมายยอดขาย", "ดีลเลอร์", "แม่แบบสินค้า"]) {
       expect(ข้อความในไฟล์).toContain(แท็บ);
     }
     await expect(page.getByText(/ส่งออกแล้ว — \d+ แท็บ/)).toBeVisible();

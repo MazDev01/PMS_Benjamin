@@ -1,20 +1,20 @@
 ﻿"use client";
 
 // ─── HQ · ตั้งค่า (Enterprise Administration) ──────────────────────────────────
-// แท็บแนวนอน 6 หัวข้อ (เลย์เอาต์เดียวกับหน้าตั้งค่าตัวแทน /settings):
-//   บริษัท · ผู้ใช้งานและสิทธิ์ · เส้นทางการขาย · ตัวแทนจำหน่าย · เป้าหมายยอดขาย · การแจ้งเตือน
+// แท็บแนวนอน 6 หัวข้อ (เลย์เอาต์เดียวกับหน้าตั้งค่าดีลเลอร์ /settings):
+//   บริษัท · ผู้ใช้งานและสิทธิ์ · เส้นทางการขาย · ดีลเลอร์ · เป้าหมายยอดขาย · การแจ้งเตือน
 // แท็บ "กฎธุรกิจ" ถูกยุบเข้า "เส้นทางการขาย" (เหลือ: เหตุผลปิดไม่สำเร็จ) — คีย์ localStorage เดิมทุกตัว ค่าที่ตั้งไว้ไม่หาย
 // การ์ดที่เป็นข้อความนโยบายล้วน ๆ (นโยบายราคา · ประเภทสินค้าและแม่แบบ) บอสสั่งลบ 17 ก.ค. 69 — ไม่มีช่องตั้งค่า ไม่ต้องมีในหน้าตั้งค่า
 // การ์ด "กฎใบเสนอราคา" (VAT · อายุใบ · เลขที่) บอสสั่งลบ 17 ก.ค. 69 — ค่ายังทำงานอยู่แต่ตรึงที่ค่าตั้งต้น แก้ผ่านหน้าจอไม่ได้แล้ว
-// ตัวแทนไม่มีสิทธิ์เข้าหน้านี้ · ทุกอย่างชิดซ้าย · ปุ่มบันทึก/รีเซ็ตอยู่บนแถบบน
+// ดีลเลอร์ไม่มีสิทธิ์เข้าหน้านี้ · ทุกอย่างชิดซ้าย · ปุ่มบันทึก/รีเซ็ตอยู่บนแถบบน
 //
 // ไม่มีในหน้านี้ (ตัดตามสเปก): สินทรัพย์แบรนด์ · โลโก้/ธีม/สี/ฟอนต์ · ความปลอดภัย · SLA · LSA · AI · ส่วนลด
 //
 // กติกาของหน้านี้: ทุกช่องตั้งค่าต้องมีโค้ดอ่านไปใช้จริง — ห้ามมีช่องที่กดแล้วไม่เกิดอะไร
-//   (เกณฑ์ 48 ชม. / 7 วัน ย้ายไปหน้าตั้งค่าของตัวแทนแล้ว — ตัวแทนตั้งเอง แยกรายสาขา)
+//   (เกณฑ์ 48 ชม. / 7 วัน ย้ายไปหน้าตั้งค่าของดีลเลอร์แล้ว — ดีลเลอร์ตั้งเอง แยกรายสาขา)
 //   กฎแจ้งเตือนงาน HQ    → กระดิ่ง HQ (ผ่าน @pms/shared/lib/hqAlerts)
-//   เหตุผลปิดไม่สำเร็จ     → ตัวเลือกตอนปิดดีลของตัวแทน (loadLostReasons)
-//   เป้าทั้งปี            → แดชบอร์ด HQ + แดชบอร์ดตัวแทน
+//   เหตุผลปิดไม่สำเร็จ     → ตัวเลือกตอนปิดดีลของดีลเลอร์ (loadLostReasons)
+//   เป้าทั้งปี            → แดชบอร์ด HQ + แดชบอร์ดดีลเลอร์
 import {
   useState, useEffect, useRef, useCallback, useMemo, useContext,
   type ReactNode, type Dispatch, type SetStateAction,
@@ -30,7 +30,7 @@ import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/
 import { fmtBahtM as fmtB, formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import {
   DEFAULT_RECRUIT_SETTINGS, จำนวนรายการสูงสุด, ความยาวรายการสูงสุด,
-  type HQRecruitSettings, type คีย์งานหาตัวแทน, type ค่าตั้งแพ็กเกจ,
+  type HQRecruitSettings, type คีย์งานหาดีลเลอร์, type ค่าตั้งแพ็กเกจ,
 } from "@pms/shared/lib/recruitSettings";
 import { งานมาตรฐาน } from "@pms/shared/lib/prospectJourney";
 import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealerProspects";
@@ -159,12 +159,12 @@ const numInput = (value: number, onChange: (n: number) => void, unit: string, st
 // เพราะคัมบัง/ตาราง/แดชบอร์ด และชนิดข้อมูลใน DB (enum lead_status) ผูกกับ 7 ขั้นนี้
 //
 // สิ่งที่ HQ แก้ได้จริงคือ "งานมาตรฐาน" ในแต่ละขั้น (13 ส.ค. 69) — เก็บที่ hq_sales_journey.tasks
-// งานพวกนี้คือของจริงที่ตัวแทนเช็ก และเป็นตัวเลื่อนขั้นให้ลูกค้าเป้าหมาย ไม่ใช่ข้อความประดับ
+// งานพวกนี้คือของจริงที่ดีลเลอร์เช็ก และเป็นตัวเลื่อนขั้นให้ลูกค้าเป้าหมาย ไม่ใช่ข้อความประดับ
 const STAGE_ORDER: LeadStatus[] = LEAD_STATUS_ORDER;
 // เหตุผลปิดการขายไม่สำเร็จ — ขั้น "ปิดไม่สำเร็จ" เป็นปลายทางหนึ่งของเส้นทางการขาย จึงอยู่แท็บนี้
 // (เดิมอยู่แท็บ "กฎธุรกิจ" ซึ่งยุบไปแล้ว — คีย์ hq_sales_journey เหมือนเดิม ค่าที่ตั้งไว้ไม่หาย)
-// เก็บผ่าน repository — เดิมเขียนลง localStorage ของ origin ฝั่ง HQ ซึ่งตัวแทน (คนละ origin)
-// อ่านไม่เห็นเลย รายการที่ตั้งไว้จึงไม่เคยมีผลกับใคร (ค่าเริ่มต้นใช้ LOST_REASONS แหล่งเดียวกับตัวแทน)
+// เก็บผ่าน repository — เดิมเขียนลง localStorage ของ origin ฝั่ง HQ ซึ่งดีลเลอร์ (คนละ origin)
+// อ่านไม่เห็นเลย รายการที่ตั้งไว้จึงไม่เคยมีผลกับใคร (ค่าเริ่มต้นใช้ LOST_REASONS แหล่งเดียวกับดีลเลอร์)
 type Journey = { lost: string[] };
 const DEFAULT_JOURNEY: Journey = { lost: [...LOST_REASONS] };
 
@@ -189,7 +189,7 @@ function JourneyTab() {
     (v) => { settingsRepo.saveLostReasons(v.lost).catch(e => toast("บันทึกรายการเหตุผลไม่สำเร็จ: " + friendlyError(e))); },
     DEFAULT_JOURNEY,
   );
-  // งานมาตรฐานรายขั้น — ของจริงที่ตัวแทนเช็ก (บันทึกผ่านปุ่มบันทึกกลางเหมือนการ์ดอื่นในหน้านี้)
+  // งานมาตรฐานรายขั้น — ของจริงที่ดีลเลอร์เช็ก (บันทึกผ่านปุ่มบันทึกกลางเหมือนการ์ดอื่นในหน้านี้)
   const tk = useRepoDraft<LeadTaskDef[]>(
     () => settingsRepo.getLeadTasks(),
     (v) => { settingsRepo.saveLeadTasks(v).catch(e => toast("บันทึกงานมาตรฐานไม่สำเร็จ: " + friendlyError(e))); },
@@ -211,7 +211,7 @@ function JourneyTab() {
   const removeTask = (key: string) => tk.set(p => p.filter(t => t.key !== key));
   const addTask = (stage: LeadStatus) => tk.set(p => {
     const def: LeadTaskDef = { key: newTaskKey(p, stage), label: "", stage };
-    // แทรกต่อท้ายงานของขั้นเดียวกัน — ลำดับงานคือลำดับที่ตัวแทนต้องเช็ก ห้ามไปโผล่ท้ายสุดข้ามขั้น
+    // แทรกต่อท้ายงานของขั้นเดียวกัน — ลำดับงานคือลำดับที่ดีลเลอร์ต้องเช็ก ห้ามไปโผล่ท้ายสุดข้ามขั้น
     const last = p.map(t => t.stage).lastIndexOf(stage);
     if (last < 0) return [...p, def];
     return [...p.slice(0, last + 1), def, ...p.slice(last + 1)];
@@ -220,7 +220,7 @@ function JourneyTab() {
   return (
     <>
       <SectionCard icon={<GitMerge size={19} />} title="ขั้นตอนการขายมาตรฐาน"
-        desc="เส้นทางเดียวกันทุกตัวแทน — สำนักงานใหญ่กำหนดงานของแต่ละขั้น ตัวแทนแก้ไขไม่ได้">
+        desc="เส้นทางเดียวกันทุกดีลเลอร์ — สำนักงานใหญ่กำหนดงานของแต่ละขั้น ดีลเลอร์แก้ไขไม่ได้">
         <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden", marginTop: 6 }}>
           {active.map((s, idx) => (
             <div key={s} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderBottom: idx < active.length - 1 ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>
@@ -266,9 +266,9 @@ function JourneyTab() {
         </div>
       </SectionCard>
 
-      {/* การ์ด "กฎการดูแลลูกค้าเป้าหมาย" (48 ชม. / 7 วัน) ถูกย้ายไปหน้าตั้งค่าของตัวแทนตามคำสั่ง
-          เจ้าของกฎเปลี่ยนจาก HQ → ตัวแทน และแยกเป็นรายสาขา (ตั้งที่ /settings → การแจ้งเตือน)
-          HQ ตั้งเกณฑ์นี้ให้ตัวแทนไม่ได้แล้ว · หน้า HQ อ่านเกณฑ์ของแต่ละสาขามาแสดงแทน (ผ่าน useLeadRulesOf)
+      {/* การ์ด "กฎการดูแลลูกค้าเป้าหมาย" (48 ชม. / 7 วัน) ถูกย้ายไปหน้าตั้งค่าของดีลเลอร์ตามคำสั่ง
+          เจ้าของกฎเปลี่ยนจาก HQ → ดีลเลอร์ และแยกเป็นรายสาขา (ตั้งที่ /settings → การแจ้งเตือน)
+          HQ ตั้งเกณฑ์นี้ให้ดีลเลอร์ไม่ได้แล้ว · หน้า HQ อ่านเกณฑ์ของแต่ละสาขามาแสดงแทน (ผ่าน useLeadRulesOf)
           ⚠️ อย่าใส่กลับมาที่นี่ — จะกลายเป็นสองแหล่งที่ขัดกันเอง */}
 
       {/* การ์ด "กฎใบเสนอราคา (Quotation Rules)" ถูกลบตามคำสั่ง (17 ก.ค. 69)
@@ -279,7 +279,7 @@ function JourneyTab() {
           pol/sys ยังคงอยู่ เพราะกลไกบันทึกรวมของหน้านี้ (saveAll/dirty/reset) ใช้ร่วมกับการ์ดอื่น */}
 
       {/* เหตุผลปิดการขายไม่สำเร็จ — ปลายทาง "ปิดไม่สำเร็จ" ของเส้นทางการขาย (ย้ายมาจากแท็บ "กฎธุรกิจ") */}
-      <SectionCard icon={<X size={19} />} title="เหตุผลปิดการขายไม่สำเร็จ" desc="ตัวเลือกมาตรฐานที่ตัวแทนต้องเลือกตอนปิดดีลไม่สำเร็จ">
+      <SectionCard icon={<X size={19} />} title="เหตุผลปิดการขายไม่สำเร็จ" desc="ตัวเลือกมาตรฐานที่ดีลเลอร์ต้องเลือกตอนปิดดีลไม่สำเร็จ">
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
           {jn.draft.lost.map((r, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px" }}>
@@ -290,16 +290,16 @@ function JourneyTab() {
           ))}
           {!jn.draft.lost.length && (
             <div style={{ fontSize: "0.78rem", color: "#b45309", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "9px 12px" }}>
-              ต้องมีอย่างน้อย 1 เหตุผล — ไม่งั้นตัวแทนจะไม่มีตัวเลือกตอนปิดดีลไม่สำเร็จ
+              ต้องมีอย่างน้อย 1 เหตุผล — ไม่งั้นดีลเลอร์จะไม่มีตัวเลือกตอนปิดดีลไม่สำเร็จ
             </div>
           )}
 
           {/* ── "อื่นๆ (ระบุเอง)" อยู่ในรายการจริงแล้ว (บอสสั่ง 21 ส.ค. 69) ────────────────
-              เพิ่ม/ลบ/แก้ได้เหมือนเหตุผลอื่นทุกประการ — ตัวแทนเห็นตรงกับที่ตั้งไว้ที่นี่เป๊ะ
-              ⚠️ ตัวเลือกนี้พิเศษตรงที่ "กดแล้วให้พิมพ์เอง": ระบบเก็บข้อความที่ตัวแทนพิมพ์
+              เพิ่ม/ลบ/แก้ได้เหมือนเหตุผลอื่นทุกประการ — ดีลเลอร์เห็นตรงกับที่ตั้งไว้ที่นี่เป๊ะ
+              ⚠️ ตัวเลือกนี้พิเศษตรงที่ "กดแล้วให้พิมพ์เอง": ระบบเก็บข้อความที่ดีลเลอร์พิมพ์
                  ไม่ได้เก็บคำว่า "อื่นๆ" — รายงานจึงยังเห็นเหตุผลจริงรายใบ ไม่ใช่กองรวมกัน */}
           <div style={{ fontSize: "0.7rem", color: "#8a929c", marginTop: 2 }}>
-            ตัวเลือก “{OTHER_REASON_OPTION}” ในรายการนี้ = ตัวแทนกดแล้วพิมพ์เหตุผลเองได้ · ระบบเก็บข้อความที่พิมพ์จริง
+            ตัวเลือก “{OTHER_REASON_OPTION}” ในรายการนี้ = ดีลเลอร์กดแล้วพิมพ์เหตุผลเองได้ · ระบบเก็บข้อความที่พิมพ์จริง
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, marginTop: 10, maxWidth: 420 }}>
@@ -315,10 +315,10 @@ function JourneyTab() {
 }
 
 
-// ═══════════════════════ 4 · หาตัวแทน ═════════════════════════════════════════
+// ═══════════════════════ 4 · หาดีลเลอร์ ═════════════════════════════════════════
 // บอสสั่ง 14 ก.ย. 69 (ข้อ 1 + ข้อ 2 ที่แนะนำ) — เก็บที่ hq_recruit_settings (0176) · กติกาอยู่ lib/recruitSettings.ts
 //   ช่องทางที่เข้ามา / ช่องทางในบันทึกการติดต่อ / ประเภทธุรกิจ / เหตุผลที่ไม่สำเร็จ / ชื่องานตามขั้น
-//   ค่าตั้งต้นใบเสนอแพ็กเกจตัวแทน (อายุใบ · เงื่อนไขมาตรฐาน · ผู้ลงนาม · ตัวเลขตั้งต้นของแต่ละแพ็กเกจ)
+//   ค่าตั้งต้นใบค่าแฟรนไชส์ (อายุใบ · เงื่อนไขมาตรฐาน · ผู้ลงนาม · ตัวเลขตั้งต้นของแต่ละแพ็กเกจ)
 // ⚠️ งานตามขั้นแก้ได้แค่ชื่อ — เพิ่ม/ลบไม่ได้ เพราะ 4 งานผูกกับขั้นที่ฐานข้อมูลบังคับ (0174)
 const ปุ่มไอคอน = (ปิด: boolean) => ({
   background: "none", border: "none", cursor: ปิด ? "default" : "pointer",
@@ -383,14 +383,14 @@ function RecruitTab() {
   const toast = useToast();
   const rc = useRepoDraft<HQRecruitSettings>(
     () => settingsRepo.getRecruitSettings(),
-    (v) => { settingsRepo.saveRecruitSettings(v).catch(e => toast("บันทึกค่าตั้งหาตัวแทนไม่สำเร็จ: " + friendlyError(e))); },
+    (v) => { settingsRepo.saveRecruitSettings(v).catch(e => toast("บันทึกค่าตั้งหาดีลเลอร์ไม่สำเร็จ: " + friendlyError(e))); },
     DEFAULT_RECRUIT_SETTINGS,
   );
   useReport(useMemo(() => ({ dirty: rc.dirty, save: rc.save, reset: rc.reset }), [rc.dirty, rc.save, rc.reset]));
   const d = rc.draft;
   const ตั้งรายการ = (k: "channels" | "contactChannels" | "businessTypes" | "lostReasons") =>
     (next: string[]) => rc.set(p => ({ ...p, [k]: next }));
-  const ตั้งชื่องาน = (k: คีย์งานหาตัวแทน, v: string) => rc.set(p => ({ ...p, taskLabels: { ...p.taskLabels, [k]: v } }));
+  const ตั้งชื่องาน = (k: คีย์งานหาดีลเลอร์, v: string) => rc.set(p => ({ ...p, taskLabels: { ...p.taskLabels, [k]: v } }));
   const ตั้งใบ = (patch: Partial<HQRecruitSettings["proposal"]>) => rc.set(p => ({ ...p, proposal: { ...p.proposal, ...patch } }));
   const ตั้งแพ็กเกจ = (k: DealerPackage, patch: Partial<ค่าตั้งแพ็กเกจ>) => rc.set(p => ({
     ...p, proposal: { ...p.proposal, packages: { ...p.proposal.packages, [k]: { ...p.proposal.packages[k], ...patch } } },
@@ -433,7 +433,7 @@ function RecruitTab() {
         <SectionCard fill icon={<X size={19} />} title="เหตุผลที่ไม่สำเร็จ (ลูกค้าเป้าหมาย HQ)">
           <ListEditor label="เหตุผลที่ไม่สำเร็จ" items={d.lostReasons} onChange={ตั้งรายการ("lostReasons")} placeholder="เช่น เงินทุนไม่พอ"
             emptyNote="ยังไม่ได้ตั้ง — ตอนปิดว่าไม่สำเร็จยังพิมพ์เหตุผลเองได้"
-            note="ตั้งรายการแล้ว มีตัวเลือก “อื่น ๆ (ระบุเอง)” ให้ด้วย · แยกจากเหตุผลของตัวแทน" noteLines={2} />
+            note="ตั้งรายการแล้ว มีตัวเลือก “อื่น ๆ (ระบุเอง)” ให้ด้วย · แยกจากเหตุผลของดีลเลอร์" noteLines={2} />
         </SectionCard>
       </div>
 
@@ -456,10 +456,10 @@ function RecruitTab() {
         <div style={หมายเหตุ}>เว้นว่าง = ใช้ชื่อเดิม · เพิ่มหรือลบงานไม่ได้ เพราะแต่ละงานผูกกับขั้นที่ระบบบังคับ</div>
       </SectionCard>
 
-      <SectionCard icon={<FileText size={19} />} title="ค่าตั้งต้นใบเสนอแพ็กเกจตัวแทน">
+      <SectionCard icon={<FileText size={19} />} title="ค่าตั้งต้นใบค่าแฟรนไชส์">
         <Row label="อายุใบ">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input className="form-input" aria-label="อายุใบเสนอแพ็กเกจ (วัน)" inputMode="numeric" value={d.proposal.validityDays ?? ""} placeholder="เว้นว่าง = ไม่เติม"
+            <input className="form-input" aria-label="อายุใบค่าแฟรนไชส์ (วัน)" inputMode="numeric" value={d.proposal.validityDays ?? ""} placeholder="เว้นว่าง = ไม่เติม"
               onChange={e => { const t = e.target.value.replace(/\D/g, "").slice(0, 3); ตั้งใบ({ validityDays: t ? Math.min(365, Number(t)) || null : null }); }}
               style={{ textAlign: "right", fontWeight: 700 }} />
             <span style={{ fontSize: "0.72rem", color: "#6b7280", whiteSpace: "nowrap" }}>วัน นับจากวันที่เสนอ</span>
@@ -520,7 +520,7 @@ function RecruitTab() {
             })}
           </div>
           <div style={หมายเหตุ}>เลือกแพ็กเกจในใบใหม่แล้วเติมตัวเลขให้ · แก้ในแต่ละใบได้ · ใบที่ออกไปแล้วไม่เปลี่ยนตาม</div>
-          <div style={หมายเหตุ}>เป้ายอดซื้อต่อปี = เป้ายอดขายของตัวแทนในแพ็กเกจนั้นด้วย (ภาคที่ตั้งแยกใช้เป้าของภาค ภาคอื่นใช้ค่ากลาง) · แก้แล้วเป้าของตัวแทนเปลี่ยนตามทันที · เว้นว่างทั้งหมด = ตัวแทนใช้เป้าที่กรอกเอง</div>
+          <div style={หมายเหตุ}>เป้ายอดซื้อต่อปี = เป้ายอดขายของดีลเลอร์ในแพ็กเกจนั้นด้วย (ภาคที่ตั้งแยกใช้เป้าของภาค ภาคอื่นใช้ค่ากลาง) · แก้แล้วเป้าของดีลเลอร์เปลี่ยนตามทันที · เว้นว่างทั้งหมด = ดีลเลอร์ใช้เป้าที่กรอกเอง</div>
         </div>
       </SectionCard>
     </>
@@ -528,8 +528,8 @@ function RecruitTab() {
 }
 
 // ═══════════════════════ 5 · เป้าหมายยอดขาย ═══════════════════════════════════
-// เป้าทั้งปี = แหล่งเดียว (แดชบอร์ด HQ/ตัวแทนอ่านค่านี้) · ไตรมาส/เดือน = แบ่งจากเป้าทั้งปี
-// เป้ารายตัวแทน = DealerRow.revenueTarget (ตั้งที่หน้า “ตัวแทน”) · ความคืบหน้า = ยอดจริงเทียบเป้า
+// เป้าทั้งปี = แหล่งเดียว (แดชบอร์ด HQ/ดีลเลอร์อ่านค่านี้) · ไตรมาส/เดือน = แบ่งจากเป้าทั้งปี
+// เป้ารายดีลเลอร์ = DealerRow.revenueTarget (ตั้งที่หน้า “ดีลเลอร์”) · ความคืบหน้า = ยอดจริงเทียบเป้า
 // ไม่มี "คาดการณ์" (Forecast) — ระบบไม่มีข้อมูลคาดการณ์ (ไม่มีวันคาดปิดการขาย / ค่าความน่าจะเป็น)
 function RollupTable({ title, hint, rows, countryTarget, ready = true }: {
   title: string; hint?: string;
@@ -557,7 +557,7 @@ function RollupTable({ title, hint, rows, countryTarget, ready = true }: {
           <thead>
             <tr>
               <th>พื้นที่</th>
-              <th className="num">ตัวแทน</th>
+              <th className="num">ดีลเลอร์</th>
               <th className="num">เป้า</th>
               <th className="num">ทำได้จริง</th>
               <th className="num">ความคืบหน้า</th>
@@ -589,7 +589,7 @@ function RollupTable({ title, hint, rows, countryTarget, ready = true }: {
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: diff < 0 ? "#fff7ed" : "#f0f4fa", border: `1px solid ${diff < 0 ? "#fed7aa" : "#dbe4f0"}`, borderRadius: 10, padding: "10px 14px", marginTop: 12, fontSize: "0.78rem", color: diff < 0 ? "#b45309" : NAVY }}>
             <AlertCircle size={14} style={{ flexShrink: 0 }} />
-            ผลรวมเป้าตัวแทน {fmtB(sum)} {diff < 0 ? "ต่ำกว่า" : "สูงกว่า"}เป้าทั้งเครือ {fmtB(countryTarget)} อยู่ {fmtB(Math.abs(diff))}
+            ผลรวมเป้าดีลเลอร์ {fmtB(sum)} {diff < 0 ? "ต่ำกว่า" : "สูงกว่า"}เป้าทั้งเครือ {fmtB(countryTarget)} อยู่ {fmtB(Math.abs(diff))}
           </div>
         );
       })()}
@@ -599,9 +599,9 @@ function RollupTable({ title, hint, rows, countryTarget, ready = true }: {
 
 function TargetsTab() {
   const { draft, set, dirty, save, reset } = useRepoDraft<HQTargets>(() => settingsRepo.getTargets(), (v) => settingsRepo.saveTargets(v), DEFAULT_HQ_TARGETS);
-  // แท็บนี้ "อ่านอย่างเดียว" — เป้ารายตัวแทนแก้ที่แท็บตัวแทนจำหน่าย/หน้า /hq/dealers
+  // แท็บนี้ "อ่านอย่างเดียว" — เป้ารายดีลเลอร์แก้ที่แท็บดีลเลอร์/หน้า /hq/dealers
   // ห้ามใช้ usePersistentState: มันเขียนกลับตอน mount → กลายเป็นคนเขียน hq_dealers_v3 คนที่ 3
-  // ทั้งที่ไม่เคยแก้ตัวแทนเลย (กติกาเดียวกับที่ mock.ts:893 เตือนไว้)
+  // ทั้งที่ไม่เคยแก้ดีลเลอร์เลย (กติกาเดียวกับที่ mock.ts:893 เตือนไว้)
   const [dealers, setDealers] = useState<DealerRow[]>([]); // ของจริงมาจาก repo — ห้ามตั้งต้นด้วย seed
   // "ทำได้จริง" = ยอดจากใบที่ปิดการขายได้ ไม่ใช่คอลัมน์ revenue_actual ที่ seed ไว้
   const perf = useDealerPerformance();
@@ -609,7 +609,7 @@ function TargetsTab() {
   useEffect(() => { dealersRepo.list().then(setDealers).catch(e => logRepoRead("dealers.list", e)); }, []);
   useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
 
-  // รวมเป้า/ผลจริงตามพื้นที่ — มาจากเป้ารายตัวแทนที่ตั้งไว้จริง ไม่ได้กุตัวเลข
+  // รวมเป้า/ผลจริงตามพื้นที่ — มาจากเป้ารายดีลเลอร์ที่ตั้งไว้จริง ไม่ได้กุตัวเลข
   const byRegion = useMemo(() => {
     const m = new Map<string, { target: number; actual: number; dealers: number }>();
     dealers.forEach(d => {
@@ -624,34 +624,34 @@ function TargetsTab() {
 
   const totalActual = dealers.reduce((s, d) => s + actualOf(d.code), 0);
   const achievement = draft.annualTarget > 0 ? Math.round(totalActual / draft.annualTarget * 100) : 0;
-  // ── เป้าทั้งเครือ vs ผลรวมเป้าที่แจกให้ตัวแทน (บอสสั่ง 24 ส.ค. 69 · ผลตรวจภายนอก HQ-01) ──
-  //   สองค่านี้ตั้งแยกกันโดยตั้งใจ: เป้าทั้งเครือคือเป้าที่ผู้บริหารตั้ง · เป้ารายตัวแทนคือที่แจกลงไป
-  //   แต่เดิมไม่มีที่ไหนบอกว่ามันต่างกัน → แดชบอร์ดคิด % จากเป้าทั้งเครือ หน้าตัวแทนคิดจากผลรวมที่แจก
+  // ── เป้าทั้งเครือ vs ผลรวมเป้าที่แจกให้ดีลเลอร์ (บอสสั่ง 24 ส.ค. 69 · ผลตรวจภายนอก HQ-01) ──
+  //   สองค่านี้ตั้งแยกกันโดยตั้งใจ: เป้าทั้งเครือคือเป้าที่ผู้บริหารตั้ง · เป้ารายดีลเลอร์คือที่แจกลงไป
+  //   แต่เดิมไม่มีที่ไหนบอกว่ามันต่างกัน → แดชบอร์ดคิด % จากเป้าทั้งเครือ หน้าดีลเลอร์คิดจากผลรวมที่แจก
   //   ผู้บริหารเห็นสองเลขขัดกันโดยไม่รู้ว่าทำไม · ตรงนี้จึงต้องบอกส่วนต่างให้เห็นตอนตั้งค่า
   const แจกไปแล้ว = dealers.reduce((s, d) => s + (d.revenueTarget || 0), 0);
   const ส่วนต่าง = แจกไปแล้ว - draft.annualTarget;
 
   return (
     <>
-      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="ตั้งเป้าทั้งปี — แดชบอร์ดสำนักงานใหญ่และแดชบอร์ดตัวแทนใช้ค่านี้">
-        <Row label="เป้ายอดขายทั้งปี" desc="เป้าที่ผู้บริหารตั้งให้ทั้งเครือ — ไม่ใช่ผลรวมเป้าที่แจกให้ตัวแทน">
+      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="ตั้งเป้าทั้งปี — แดชบอร์ดสำนักงานใหญ่และแดชบอร์ดดีลเลอร์ใช้ค่านี้">
+        <Row label="เป้ายอดขายทั้งปี" desc="เป้าที่ผู้บริหารตั้งให้ทั้งเครือ — ไม่ใช่ผลรวมเป้าที่แจกให้ดีลเลอร์">
           {numInput(draft.annualTarget, n => set(p => ({ ...p, annualTarget: n })), "บาท", 1_000_000)}
         </Row>
-        {/* เทียบกับที่แจกลงตัวแทนจริง — ตัวเลขทั้งสองมาจากคนละที่ ถ้าไม่บอกไว้จะอ่านขัดกันบนแดชบอร์ด */}
+        {/* เทียบกับที่แจกลงดีลเลอร์จริง — ตัวเลขทั้งสองมาจากคนละที่ ถ้าไม่บอกไว้จะอ่านขัดกันบนแดชบอร์ด */}
         <div style={{ margin: "-4px 0 4px", padding: "10px 14px", borderRadius: 12,
           background: ส่วนต่าง === 0 ? "#f0fdf4" : "#fffbeb",
           border: `1px solid ${ส่วนต่าง === 0 ? "#bbf7d0" : "#fde68a"}`, fontSize: "0.74rem", color: "#5b5b5b" }}>
-          <b style={{ color: NAVY }}>ผลรวมเป้าที่แจกให้ตัวแทน {dealers.length} สาขา: {fmtB(แจกไปแล้ว)}</b>
+          <b style={{ color: NAVY }}>ผลรวมเป้าที่แจกให้ดีลเลอร์ {dealers.length} สาขา: {fmtB(แจกไปแล้ว)}</b>
           {ส่วนต่าง === 0
             ? " — เท่ากับเป้าทั้งเครือพอดี"
             : ส่วนต่าง > 0
-              ? ` — แจกเกินเป้าทั้งเครือ ${fmtB(ส่วนต่าง)} (หน้าตัวแทนจะคิด % จากยอดที่แจก จึงได้ % ต่ำกว่าบนแดชบอร์ด)`
-              : ` — แจกยังไม่ครบเป้าทั้งเครือ อีก ${fmtB(-ส่วนต่าง)} (หน้าตัวแทนจะคิด % จากยอดที่แจก จึงได้ % สูงกว่าบนแดชบอร์ด)`}
+              ? ` — แจกเกินเป้าทั้งเครือ ${fmtB(ส่วนต่าง)} (หน้าดีลเลอร์จะคิด % จากยอดที่แจก จึงได้ % ต่ำกว่าบนแดชบอร์ด)`
+              : ` — แจกยังไม่ครบเป้าทั้งเครือ อีก ${fmtB(-ส่วนต่าง)} (หน้าดีลเลอร์จะคิด % จากยอดที่แจก จึงได้ % สูงกว่าบนแดชบอร์ด)`}
         </div>
-        <Row label="เป้าอัตราปิดการขายเฉลี่ย" desc="เกณฑ์สีบนหน้าตัวแทน — ต่ำกว่านี้ขึ้นสีเตือน">
+        <Row label="เป้าอัตราปิดการขายเฉลี่ย" desc="เกณฑ์สีบนหน้าดีลเลอร์ — ต่ำกว่านี้ขึ้นสีเตือน">
           {numInput(draft.winRateTarget, n => set(p => ({ ...p, winRateTarget: n })), "%")}
         </Row>
-        <Row label="เป้าติดตามตรงเวลา" desc="เกณฑ์สีบนหน้าตัวแทน — งานติดตามที่ทำทันเวลา">
+        <Row label="เป้าติดตามตรงเวลา" desc="เกณฑ์สีบนหน้าดีลเลอร์ — งานติดตามที่ทำทันเวลา">
           {numInput(draft.onTimeTarget, n => set(p => ({ ...p, onTimeTarget: n })), "%")}
         </Row>
 
@@ -674,7 +674,7 @@ function TargetsTab() {
       </SectionCard>
 
       {/* ความคืบหน้า: เป้า / ทำได้จริง / % — ไม่มี "คาดการณ์" เพราะระบบไม่มีข้อมูล forecast */}
-      <SectionCard icon={<Target size={19} />} title="ความคืบหน้าทั้งเครือ" desc="ยอดสะสมทั้งปีของทุกตัวแทน เทียบเป้าที่ตั้งไว้ด้านบน">
+      <SectionCard icon={<Target size={19} />} title="ความคืบหน้าทั้งเครือ" desc="ยอดสะสมทั้งปีของทุกดีลเลอร์ เทียบเป้าที่ตั้งไว้ด้านบน">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginTop: 6 }}>
           {[
             { label: "เป้าหมาย", value: fmtB(draft.annualTarget), color: STEEL },
@@ -693,15 +693,15 @@ function TargetsTab() {
       </SectionCard>
 
       <RollupTable title="เป้าหมายรายภูมิภาค" rows={byRegion} countryTarget={draft.annualTarget} ready={perf.ready} />
-      <RollupTable title="เป้าหมายรายตัวแทน" rows={byDealer} ready={perf.ready} />
+      <RollupTable title="เป้าหมายรายดีลเลอร์" rows={byDealer} ready={perf.ready} />
     </>
   );
 }
 
 // ═══════════════════════ 7 · การแจ้งเตือน ═════════════════════════════════════
 // 2 การ์ด:
-//  1) กฎแจ้งเตือนงานของสำนักงานใหญ่เอง (ลูกค้าเป้าหมาย HQ · ใบเสนอแพ็กเกจ · แม่แบบ) — ขึ้นกระดิ่ง HQ (ดู @pms/shared/lib/hqAlerts)
-//     งานขายของตัวแทนไม่อยู่ในนี้แล้ว (บอสสั่ง 14 ก.ย. 69 "ตั้งค่าในขอบเขต hq")
+//  1) กฎแจ้งเตือนงานของสำนักงานใหญ่เอง (ลูกค้าเป้าหมาย HQ · ใบค่าแฟรนไชส์ · แม่แบบ) — ขึ้นกระดิ่ง HQ (ดู @pms/shared/lib/hqAlerts)
+//     งานขายของดีลเลอร์ไม่อยู่ในนี้แล้ว (บอสสั่ง 14 ก.ย. 69 "ตั้งค่าในขอบเขต hq")
 //  2) บันทึกการใช้งาน — หมวดจาก Audit Log ที่กรองกระดิ่ง HQ (Topbar อ่าน hqAuditCategory + inapp)
 // ช่องทาง = "ในระบบ" (กระดิ่ง) อย่างเดียว
 // ⚠️ ช่อง "อีเมล" ถูกเอาออกตามที่บอสสั่ง 3 ก.ย. 69 — ระบบยังไม่มีตัวส่งอีเมลแจ้งเตือนจริง
@@ -741,7 +741,7 @@ function NotificationsTab() {
   return (
     <>
       <SectionCard icon={<Bell size={19} />} title="การแจ้งเตือนของสำนักงานใหญ่"
-        desc="งานของสำนักงานใหญ่เอง — ลูกค้าเป้าหมาย (HQ) · ใบเสนอแพ็กเกจตัวแทน · แม่แบบ คำนวณจากข้อมูลจริง แล้วขึ้นที่กระดิ่ง">
+        desc="งานของสำนักงานใหญ่เอง — ลูกค้าเป้าหมาย (HQ) · ใบค่าแฟรนไชส์ · แม่แบบ คำนวณจากข้อมูลจริง แล้วขึ้นที่กระดิ่ง">
         {/* สวิตช์เดียว "เปิด" (บอสสั่ง 3 ก.ย. 69) — เดิมมีช่อง "ในระบบ" แยกไว้เลือกช่องทาง
             แต่พอเหลือช่องทางเดียว (กระดิ่ง) สองสวิตช์ให้ผลเหมือนกันทุกกรณี = ซ้ำซ้อนและชวนสับสน */}
         <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px 8px", fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af" }}>
@@ -823,7 +823,7 @@ function BackupCard() {
       const ชื่อไฟล์ = `การตั้งค่าเบญจมิน-${APP_NOW_ISO.slice(0, 10)}.xlsx`;
       ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx(แผ่นงาน), ชื่อไฟล์);
       logAudit("ส่งออกการตั้งค่า", ชื่อไฟล์);
-      toast(`ส่งออกแล้ว — ${แผ่นงาน.length} แท็บ · ตัวแทน ${dealers.length} ราย · แม่แบบ ${catalog.length} รายการ`);
+      toast(`ส่งออกแล้ว — ${แผ่นงาน.length} แท็บ · ดีลเลอร์ ${dealers.length} ราย · แม่แบบ ${catalog.length} รายการ`);
     } catch (e) {
       toast("ส่งออกไม่สำเร็จ: " + friendlyError(e));
     }
@@ -860,7 +860,7 @@ function BackupCard() {
       }
       // ค่าตั้งเครือ 5 กลุ่ม (policy/targets/notifRules/lostReasons/company) เขียนแบบ all-or-nothing
       // ในคำสั่งเดียว (RPC, 0093 — Phase 4 transaction) — เดิมยิงแยกกัน เน็ตหลุดกลางทาง = กู้คืนได้แค่
-      // บางส่วน · ทะเบียนตัวแทน/แคตตาล็อก เป็นชุดข้อมูลแยก ยังคงเขียนแยกเหมือนเดิม (คนละความเสี่ยง)
+      // บางส่วน · ทะเบียนดีลเลอร์/แคตตาล็อก เป็นชุดข้อมูลแยก ยังคงเขียนแยกเหมือนเดิม (คนละความเสี่ยง)
       await settingsRepo.restoreSettings({
         policy: ที่จะเขียน.policy, targets: ที่จะเขียน.targets, notifRules: ที่จะเขียน.notifRules,
         lostReasons: ที่จะเขียน.lostReasons, company: ที่จะเขียน.company,
@@ -880,7 +880,7 @@ function BackupCard() {
   async function restoreDefaults() {
     if (!(await ยืนยัน({
       หัวข้อ: "คืนค่าเริ่มต้นของนโยบาย เป้าหมาย กฎแจ้งเตือน และเหตุผลปิดการขาย ?",
-      รายละเอียด: "ทะเบียนตัวแทนและแคตตาล็อกจะไม่ถูกแตะ",
+      รายละเอียด: "ทะเบียนดีลเลอร์และแคตตาล็อกจะไม่ถูกแตะ",
       ปุ่มตกลง: "คืนค่าเริ่มต้น", อันตราย: true,
     }))) return;
     try {
@@ -918,21 +918,21 @@ function CompanyTab() {
 
 // ═══════════════════════ ROOT ═════════════════════════════════════════════════
 // ไม่มี ความปลอดภัย / SLA / LSA / แบรนด์ / ธีม / AI / ส่วนลด
-// แท็บ "ตัวแทนจำหน่าย" ถูกยุบตามคำสั่ง — ทั้งใบซ้ำกับหน้า /hq/dealers (ตารางบัญชี · สลับสถานะ · เข้าระบบแทน)
+// แท็บ "ดีลเลอร์" ถูกยุบตามคำสั่ง — ทั้งใบซ้ำกับหน้า /hq/dealers (ตารางบัญชี · สลับสถานะ · เข้าระบบแทน)
 //   "รีเซ็ตรหัสผ่าน" ย้ายไปอยู่ในโมดัล "รหัสเข้าระบบ" ของหน้า /hq/dealers แล้ว (ไม่มีที่อื่นมาก่อน)
-//   "ค่ามาตรฐานตัวแทน" (defaultQuota) ถูกลบ — ไม่มีใครอ่านค่านั้นเลย ค่าจริงตอนสร้างตัวแทนอยู่ที่ /hq/dealers
+//   "ค่ามาตรฐานดีลเลอร์" (defaultQuota) ถูกลบ — ไม่มีใครอ่านค่านั้นเลย ค่าจริงตอนสร้างดีลเลอร์อยู่ที่ /hq/dealers
 type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "notifications";
 const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNode }[] = [
   { key: "company", label: "บริษัท", icon: <Building2 size={15} />, render: () => <CompanyTab /> },
   { key: "users", label: "ผู้ใช้งานและสิทธิ์", icon: <Users size={15} />, render: () => <UsersPanel embedded /> },
   { key: "journey", label: "เส้นทางการขาย", icon: <GitMerge size={15} />, render: () => <JourneyTab /> },
-  // งานหาตัวแทนของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของตัวแทน
-  { key: "recruit", label: "หาตัวแทน", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
+  // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
+  { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
   { key: "targets", label: "เป้าหมายยอดขาย", icon: <Target size={15} />, render: () => <TargetsTab /> },
   { key: "notifications", label: "การแจ้งเตือน", icon: <Bell size={15} />, render: () => <NotificationsTab /> },
 ];
 
-// ตั้งค่าส่วนกลาง (ผู้ใช้/นโยบาย/เป้า/ตัวแทน) = ต้องมีสิทธิ์ hq:all_data — HQ_STAFF เข้าไม่ได้
+// ตั้งค่าส่วนกลาง (ผู้ใช้/นโยบาย/เป้า/ดีลเลอร์) = ต้องมีสิทธิ์ hq:all_data — HQ_STAFF เข้าไม่ได้
 export default function HQSettingsPage() {
   return <AdminGate perm="hq:all_data"><HQSettingsPageInner /></AdminGate>;
 }
@@ -963,7 +963,7 @@ function HQSettingsPageInner() {
   return (
     <BusCtx.Provider value={{ report, toast: showToast }}>
       <div className="erp">
-        {/* ปุ่มบันทึก/รีเซ็ต → แถบบน (ชื่อหน้ามาจาก Topbar) — เลย์เอาต์เดียวกับหน้าตั้งค่าตัวแทน */}
+        {/* ปุ่มบันทึก/รีเซ็ต → แถบบน (ชื่อหน้ามาจาก Topbar) — เลย์เอาต์เดียวกับหน้าตั้งค่าดีลเลอร์ */}
         <TopbarActions>
           {dirty && <span style={{ fontSize: "0.72rem", color: "#d97706", fontWeight: 600 }}>ยังไม่บันทึก</span>}
           <button className="btn btn-secondary btn-sm" onClick={resetAll} disabled={!dirty} style={!dirty ? { opacity: .5, cursor: "not-allowed" } : undefined}><RotateCcw size={14} /> รีเซ็ต</button>

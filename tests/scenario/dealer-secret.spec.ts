@@ -4,13 +4,13 @@ import { ADMIN, RYG, CNX, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supa
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, statuses } from "./adminEnv";
 import { HQ_ORIGIN, db } from "./funcHelpers";
 
-// ── สำเนารหัสผ่านตัวแทนที่ HQ เปิดดูได้ (บอสสั่ง 5 ส.ค. 69) ──
+// ── สำเนารหัสผ่านดีลเลอร์ที่ HQ เปิดดูได้ (บอสสั่ง 5 ส.ค. 69) ──
 //
-// ธุรกิจต้องการให้ HQ ดูรหัสของตัวแทนได้ตลอด ซึ่งจำเป็นต้องเก็บสำเนาไว้ (Supabase Auth เก็บเป็น
+// ธุรกิจต้องการให้ HQ ดูรหัสของดีลเลอร์ได้ตลอด ซึ่งจำเป็นต้องเก็บสำเนาไว้ (Supabase Auth เก็บเป็น
 // hash อ่านกลับไม่ได้) — เป็นความเสี่ยงที่รับไว้อย่างรู้ตัว โดยมีด่านป้องกัน 4 ชั้นกำกับ
 // เทสต์นี้คือตัวยืนยันว่าทั้ง 4 ชั้นยังอยู่ครบ ห้ามให้หลุดไปทีละชั้นโดยไม่มีใครรู้
 //
-// ⚠️ บริบทสำคัญ: ครั้งก่อนรหัสผ่านตัวแทนถูกฝังใน mock.ts แล้วติดไปกับไฟล์ที่เบราว์เซอร์โหลด
+// ⚠️ บริบทสำคัญ: ครั้งก่อนรหัสผ่านดีลเลอร์ถูกฝังใน mock.ts แล้วติดไปกับไฟล์ที่เบราว์เซอร์โหลด
 //    ทุกหน้า รวมหน้าล็อกอินที่ยังไม่ต้องเข้าระบบ (Critical) — ฟีเจอร์นี้ต้องไม่พาเรากลับไปจุดนั้น
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(120_000);
@@ -30,14 +30,14 @@ test("ชั้นที่ 1 — ต้องมีสิทธิ์ dealers:m
   const asDealer = await request.get(`${HQ_ORIGIN}/api/admin/dealers/secret?code=CNX`, {
     headers: { authorization: `Bearer ${await tokenOf(RYG)}` },
   });
-  expect(statuses(403), `ตัวแทนต้องดูรหัสของสาขาอื่นไม่ได้ (ได้ ${asDealer.status()})`).toContain(asDealer.status());
+  expect(statuses(403), `ดีลเลอร์ต้องดูรหัสของสาขาอื่นไม่ได้ (ได้ ${asDealer.status()})`).toContain(asDealer.status());
   expect(await asDealer.text(), "ต้องไม่มีรหัสผ่านติดมา").not.toMatch(/PEB-|BJ-/);
 
-  // แม้แต่รหัสของตัวเองตัวแทนก็ดูผ่าน API นี้ไม่ได้ (เป็นเครื่องมือของ HQ ไม่ใช่ของตัวแทน)
+  // แม้แต่รหัสของตัวเองดีลเลอร์ก็ดูผ่าน API นี้ไม่ได้ (เป็นเครื่องมือของ HQ ไม่ใช่ของดีลเลอร์)
   const ownCode = await request.get(`${HQ_ORIGIN}/api/admin/dealers/secret?code=RYG`, {
     headers: { authorization: `Bearer ${await tokenOf(RYG)}` },
   });
-  expect(statuses(403), `ตัวแทนต้องดูแม้แต่รหัสตัวเองผ่าน API นี้ไม่ได้ (ได้ ${ownCode.status()})`).toContain(ownCode.status());
+  expect(statuses(403), `ดีลเลอร์ต้องดูแม้แต่รหัสตัวเองผ่าน API นี้ไม่ได้ (ได้ ${ownCode.status()})`).toContain(ownCode.status());
 });
 
 test("ชั้นที่ 2 — ตารางเก็บรหัสอ่านตรงไม่ได้เลย ไม่ว่าใคร", async () => {
@@ -51,10 +51,10 @@ test("ชั้นที่ 2 — ตารางเก็บรหัสอ่�
   expect(error, "แม้แต่ผู้ดูแล HQ ก็ต้องอ่านตารางตรงไม่ได้ — ต้องผ่าน API ที่บันทึกการเข้าถึง").not.toBeNull();
   expect(data ?? [], "ต้องไม่มีข้อมูลหลุดออกมา").toEqual([]);
 
-  // ตัวแทน
+  // ดีลเลอร์
   const dealerSb = await db(CNX);
   const { error: dErr } = await dealerSb.from("dealer_login_secrets").select("*");
-  expect(dErr, "ตัวแทนต้องอ่านตารางนี้ไม่ได้").not.toBeNull();
+  expect(dErr, "ดีลเลอร์ต้องอ่านตารางนี้ไม่ได้").not.toBeNull();
 });
 
 test("ชั้นที่ 3 — ค่าที่เก็บในฐานข้อมูลต้องเข้ารหัส ไม่ใช่ข้อความเปล่า", async () => {
@@ -93,7 +93,7 @@ test("ชั้นที่ 4 — HQ ดูได้จริง และทุ
 test("อีเมล+รหัสผ่านที่หน้าจอโชว์ ต้องเข้าระบบได้จริง (ไม่ใช่แค่มีตัวอักษรขึ้น)", async ({ page }) => {
   // บั๊กจริงที่ผู้ใช้แจ้ง (6 ส.ค. 69): หน้าจอโชว์อีเมลที่ "คำนวณจากรหัสสาขา" (cnx@partner-agent.co.th)
   //   ซึ่งไม่ใช่บัญชีที่มีอยู่จริง (ของจริงคือ sales@cmsteelbuild.co.th) คู่กับรหัสผ่านที่ถูกต้อง
-  //   → HQ คัดลอกไปให้ตัวแทน แล้วเข้าระบบไม่ได้ ทั้งที่ทั้งสองช่องดู "มีข้อมูลครบ"
+  //   → HQ คัดลอกไปให้ดีลเลอร์ แล้วเข้าระบบไม่ได้ ทั้งที่ทั้งสองช่องดู "มีข้อมูลครบ"
   // เทสต์ที่ดูแค่ว่า "มีอีเมลขึ้นไหม/มีรหัสขึ้นไหม" จับบั๊กนี้ไม่ได้ — ต้องเอาไปล็อกอินจริงเท่านั้น
   const { open } = await import("./helpers");
   await open(page, "hq", "/hq/dealers?view=table");   // หน้าเริ่มเป็นการ์ด — เทสต์นี้ใช้แถวตาราง

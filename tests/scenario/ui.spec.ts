@@ -5,7 +5,7 @@ import { open } from "./helpers";
 // "เลย์เอาต์แตกไหม · responsive ไหม · ไม่มี body เลื่อนแนวนอน · หัวข้อครบ"
 
 const PAGES: [("hq" | "dealer"), string, string][] = [
-  ["dealer", "/dashboard", "แดชบอร์ดตัวแทน"],
+  ["dealer", "/dashboard", "แดชบอร์ดดีลเลอร์"],
   ["dealer", "/leads", "ลูกค้าเป้าหมาย"],
   ["dealer", "/quotations", "ใบเสนอราคา"],
   ["hq", "/hq/dashboard", "แดชบอร์ด HQ"],
@@ -32,11 +32,11 @@ test("[ui·hq] KPI หน้าแม่แบบแสดงค่าครบ"
 });
 
 // KPI ของ /hq/dealers ต้องเป็นดีไซน์เดียวกับหน้า HQ อื่น: .hq-kpi4 · 4 ใบ · ตัวเลขเข้ม (ไม่ใส่สี) + ไอคอน
-test("[ui·hq] KPI หน้าตัวแทนใช้มาตรฐาน .hq-kpi4 เหมือนหน้าอื่น", async ({ page }) => {
+test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐาน .hq-kpi4 เหมือนหน้าอื่น", async ({ page }) => {
   await open(page, "hq", "/hq/dealers");
   const tiles = page.locator(".hq-kpi4 > .card");
   await expect(tiles).toHaveCount(4);
-  await expect(page.locator(".hq-kpi4").getByText("ตัวแทนทั้งหมด")).toBeVisible();
+  await expect(page.locator(".hq-kpi4").getByText("ดีลเลอร์ทั้งหมด")).toBeVisible();
   await expect(tiles.first().locator("svg")).toBeVisible();          // ไอคอนในกล่องสีจาง
   await expect(page.locator(".stat-card")).toHaveCount(0);            // ต้องไม่เหลือการ์ดแบบเก่า
 });
@@ -74,7 +74,7 @@ test("[ui·desktop] modal ลูกค้า HQ ครอบเต็มจอ (
 // สิ่งที่ต้องกันคือ "ไม่มีแอนิเมชันเข้าเลย" (none)
 const ENTRANCE_ANIMS = ["cardIn", "chart-fade-in"];
 for (const [path, selector, label] of [
-  ["/hq/dealers/CNX", ".stat-card", "หน้ารายละเอียดตัวแทน (.stat-card)"],
+  ["/hq/dealers/CNX", ".stat-card", "หน้ารายละเอียดดีลเลอร์ (.stat-card)"],
   ["/hq/master", ".hq-kpi4 > .card", "หน้าแม่แบบ (.hq-kpi4)"],
   ["/hq/quotations", ".hq-kpi4 > .card", "หน้าใบเสนอราคาทั้งเครือ (.hq-kpi4)"],
 ] as const) {

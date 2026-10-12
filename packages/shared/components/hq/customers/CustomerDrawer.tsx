@@ -82,9 +82,9 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             <PanelRow icon={Compass} label="ภาค" value={row.region} />
             <PanelRow icon={Repeat} label="ลูกค้าซื้อซ้ำ" value={row.isRepeat ? "ใช่" : "ไม่ใช่"} />
           </PanelSection>
-          <PanelSection icon={Store} title="ตัวแทนที่ดูแล">
-            <PanelRow icon={IdCard} label="รหัสตัวแทน" value={row.dealerCode} />
-            <PanelRow icon={Store} label="ตัวแทน" value={row.dealerName} />
+          <PanelSection icon={Store} title="ดีลเลอร์ที่ดูแล">
+            <PanelRow icon={IdCard} label="รหัสดีลเลอร์" value={row.dealerCode} />
+            <PanelRow icon={Store} label="ดีลเลอร์" value={row.dealerName} />
           </PanelSection>
           <PanelSection icon={Wallet} title="สรุปการซื้อ">
             <PanelRow icon={Wallet} label="ยอดซื้อรวม" value={row.totalRevenue > 0 ? fmtBaht(row.totalRevenue) : undefined} strong />
@@ -114,7 +114,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             );
           })}
         </PanelSection>
-      ) : <Empty text="ยังไม่มีบันทึกของลูกค้ารายนี้ (ดูอย่างเดียว — แก้ไขได้ที่หน้าลูกค้าฝั่งตัวแทน)" />,
+      ) : <Empty text="ยังไม่มีบันทึกของลูกค้ารายนี้ (ดูอย่างเดียว — แก้ไขได้ที่หน้าลูกค้าฝั่งดีลเลอร์)" />,
     },
     {
       key: "buildings",
@@ -148,7 +148,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
       ) : <Empty text="ไม่มีใบเสนอราคาที่ปิดการขายได้ผูกกับลูกค้ารายนี้" />,
     },
     // ⚠️ เคยมีแท็บ "การส่งมอบ" ตรงนี้ — ลบทั้งแท็บแล้ว (บอสสั่ง 20 ส.ค. 69)
-    //    ไม่มีที่กรอกวันส่งมอบจริงทั้งฝั่งตัวแทนและสำนักงานใหญ่ · ที่โชว์อยู่คือ
+    //    ไม่มีที่กรอกวันส่งมอบจริงทั้งฝั่งดีลเลอร์และสำนักงานใหญ่ · ที่โชว์อยู่คือ
     //    "วันปิดการขาย + 90 วัน" ที่ระบบคิดเอง = ตัวเลขที่ไม่มีอยู่จริงในงาน
     {
       key: "timeline",
@@ -191,7 +191,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
         ...(row.isRepeat ? [{ ข้อความ: "ลูกค้าซื้อซ้ำ", พื้น: "#DCFCE7", ตัวอักษร: "#166534" }] : []),
       ]}
       tabs={tabs}
-      footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ตัวแทนเจ้าของลูกค้า"
+      footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของลูกค้า"
       width={460}
     />
   );

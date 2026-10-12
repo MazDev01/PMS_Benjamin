@@ -14,11 +14,11 @@ const สร้าง = (o: { prospects?: DealerProspect[]; proposals?: DealerPa
   buildHQAlerts({ rules: o.rules ?? DEFAULT_HQ_NOTIF_RULES, prospects: o.prospects, proposals: o.proposals, วันนี้ISO: วันนี้ });
 
 describe("ขอบเขตการแจ้งเตือน HQ", () => {
-  it("มีแต่เรื่องงานของสำนักงานใหญ่ ไม่มีเรื่องงานขายของตัวแทน", () => {
+  it("มีแต่เรื่องงานของสำนักงานใหญ่ ไม่มีเรื่องงานขายของดีลเลอร์", () => {
     expect(HQ_ALERT_META.map(m => m.key)).toEqual(["prospectFollowUpDue", "prospectIdle", "proposalAwaiting", "proposalExpired", "catalogNoPrice"]);
   });
 
-  it("กฎที่บันทึกไว้ชุดเก่า: คีย์งานขายตัวแทนถูกทิ้ง · เรื่องใหม่ได้ค่าเริ่มต้น", () => {
+  it("กฎที่บันทึกไว้ชุดเก่า: คีย์งานขายดีลเลอร์ถูกทิ้ง · เรื่องใหม่ได้ค่าเริ่มต้น", () => {
     const r = รวมกฎแจ้งเตือน({ alerts: { unassignedLead: { on: true, email: true, inapp: true }, catalogNoPrice: { on: false, email: false, inapp: false } } } as never);
     expect(Object.keys(r.alerts).sort()).toEqual(HQ_ALERT_META.map(m => m.key).sort());
     expect(r.alerts.catalogNoPrice.on).toBe(false);
@@ -60,7 +60,7 @@ describe("ลูกค้าเป้าหมาย (HQ)", () => {
   });
 });
 
-describe("ใบเสนอแพ็กเกจตัวแทน", () => {
+describe("ใบค่าแฟรนไชส์", () => {
   it("รอคำตอบนับจากวันที่เสนอ · ไม่มีวันที่เสนอใช้แก้ล่าสุด · ไม่ใช่ใบส่งแล้ว = null", () => {
     expect(ใบรอคำตอบมากี่วัน(ใบ({ id: 1, prospectId: 1, proposedDate: "2026-09-04" }), วันนี้)).toBe(10);
     expect(ใบรอคำตอบมากี่วัน(ใบ({ id: 1, prospectId: 1, proposedDate: null, updatedAt: "2026-09-06T20:00:00Z" }), วันนี้)).toBe(7);

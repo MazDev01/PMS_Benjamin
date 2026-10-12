@@ -66,7 +66,7 @@ test("[rls] แต่ละสาขาเห็นเฉพาะลูกค�
   }
 });
 
-test("[rls] ตัวแทนแก้/ลบลูกค้าเป้าหมายของสาขาอื่นไม่ได้", async () => {
+test("[rls] ดีลเลอร์แก้/ลบลูกค้าเป้าหมายของสาขาอื่นไม่ได้", async () => {
   const ryg = await signIn(RYG);
   const cnx = await signIn(CNX);
   const id = "TEST-RLS-CROSS";
@@ -87,13 +87,13 @@ test("[rls] ตัวแทนแก้/ลบลูกค้าเป้าห�
   }
 });
 
-test("[rls] ตัวแทนสร้างลูกค้าเป้าหมายใส่สาขาอื่นไม่ได้", async () => {
+test("[rls] ดีลเลอร์สร้างลูกค้าเป้าหมายใส่สาขาอื่นไม่ได้", async () => {
   const sb = await signIn(RYG);
   const res = await sb.from("leads").insert(lead("TEST-RLS-XDEALER", "CNX")).select();
   expect(wasBlocked(res), "เขียนข้ามสาขาต้องถูกปฏิเสธ").toBe(true);
 });
 
-test("[rls] HQ เขียนงานขายของตัวแทนไม่ได้ (C3)", async () => {
+test("[rls] HQ เขียนงานขายของดีลเลอร์ไม่ได้ (C3)", async () => {
   const sb = await signIn(ADMIN);
   const res = await sb.from("leads").insert(lead("TEST-RLS-HQWRITE", "RYG")).select();
   expect(wasBlocked(res), "HQ มีสิทธิ์อ่านงานขาย แต่ต้องเขียนไม่ได้").toBe(true);
@@ -105,17 +105,17 @@ test("[fk] สร้างลูกค้าเป้าหมายใส่ร
   expect(wasBlocked(res), "รหัสสาขาที่ไม่มีใน dealers ต้องถูกปฏิเสธ").toBe(true);
 });
 
-test("[rls] ตัวแทนแก้แคตตาล็อกกลางไม่ได้ · HQ แก้ได้ (0015)", async () => {
+test("[rls] ดีลเลอร์แก้แคตตาล็อกกลางไม่ได้ · HQ แก้ได้ (0015)", async () => {
   const hq = await signIn(ADMIN);
   const { data: rows, error } = await hq.from("master_catalog").select("id,name").limit(1);
   expect(error).toBeNull();
   const row = (rows ?? [])[0];
   expect(row, "ต้องมีแม่แบบในแคตตาล็อกกลางอย่างน้อย 1 รายการ").toBeTruthy();
 
-  // ตัวแทนพยายามแก้ราคากลาง → ต้องไม่มีแถวไหนเปลี่ยน
+  // ดีลเลอร์พยายามแก้ราคากลาง → ต้องไม่มีแถวไหนเปลี่ยน
   const dealer = await signIn(CNX);
   const blocked = await dealer.from("master_catalog").update({ name: row.name }).eq("id", row.id).select();
-  expect(wasBlocked(blocked), "ตัวแทนต้องแก้แคตตาล็อกกลางไม่ได้").toBe(true);
+  expect(wasBlocked(blocked), "ดีลเลอร์ต้องแก้แคตตาล็อกกลางไม่ได้").toBe(true);
 
   // HQ แก้ได้ — เขียนทับด้วยค่าเดิม ไม่เปลี่ยนข้อมูลจริง
   const allowed = await hq.from("master_catalog").update({ name: row.name }).eq("id", row.id).select();
@@ -132,7 +132,7 @@ test("[rpc] เลข id ลูกค้าเดินหน้าทีละ�
   expect(Number(b.data) - Number(a.data), "เรียกสองครั้งต้องได้เลขต่างกัน 1").toBe(1);
 });
 
-test("[rpc-guard] ตัวแทนเรียก RPC 'ออกเลข/สร้างใบ' ของสาขาอื่นไม่ได้ (dealer mismatch)", async () => {
+test("[rpc-guard] ดีลเลอร์เรียก RPC 'ออกเลข/สร้างใบ' ของสาขาอื่นไม่ได้ (dealer mismatch)", async () => {
   // ยิง RPC ตรงเหมือนผู้ไม่หวังดี — guard ที่ฟังก์ชัน (security definer) ต้องปฏิเสธ ไม่ใช่แค่ RLS
   //   next_entity_id (0016) · next_quote_no (0031) · create_quotation (0034) มี dealer-match guard
   const cnx = await signIn(CNX); // ล็อกอินสาขา CNX แล้วพยายามทำของสาขา RYG
@@ -158,15 +158,15 @@ test("[rpc] ใบที่ส่งแล้วและเลยกำหน�
     // HQ เรียกได้แต่ไม่มีสิทธิ์เขียนงานขาย → ต้องไม่ปิดใบของใครเลย
     //
     // จดสถานะไว้ "ทันทีก่อน" ให้ HQ เรียก แล้วเทียบว่าไม่เปลี่ยน — ห้ามล็อกค่าไว้เป็น sent_to_client ตายตัว
-    //   เพราะแอปฝั่งตัวแทนสั่งปิดใบหมดอายุของสาขาตัวเองอัตโนมัติทุกครั้งที่เปิดแอป (expireOverdue ใน SalesContext)
+    //   เพราะแอปฝั่งดีลเลอร์สั่งปิดใบหมดอายุของสาขาตัวเองอัตโนมัติทุกครั้งที่เปิดแอป (expireOverdue ใน SalesContext)
     //   ตอนรันชุดเต็ม สเปกอื่นที่ล็อกอินเป็น RYG จะไปปิดใบทดสอบใบนี้ให้เอง = ถูกต้องตามระบบ ไม่ใช่ HQ เป็นคนปิด
     //   สิ่งที่เทสต์นี้ต้องพิสูจน์คือ "HQ ไม่ได้เปลี่ยนอะไร" เท่านั้น
     const before = (await ryg.from("quotations").select("status").eq("id", id)).data?.[0]?.status;
     const byHQ = await hq.rpc("expire_quotations", { p_as_of: "2026-06-30" });
     expect(byHQ.error).toBeNull();
-    expect(Number(byHQ.data), "HQ ต้องปิดใบของตัวแทนไม่ได้").toBe(0);
+    expect(Number(byHQ.data), "HQ ต้องปิดใบของดีลเลอร์ไม่ได้").toBe(0);
     expect((await ryg.from("quotations").select("status").eq("id", id)).data?.[0]?.status,
-      "HQ ต้องไม่เปลี่ยนสถานะใบของตัวแทน").toBe(before);
+      "HQ ต้องไม่เปลี่ยนสถานะใบของดีลเลอร์").toBe(before);
 
     // สาขาเจ้าของเรียกเอง → ใบของตัวเองต้องถูกปิด
     const byDealer = await ryg.rpc("expire_quotations", { p_as_of: "2026-06-30" });
@@ -178,7 +178,7 @@ test("[rpc] ใบที่ส่งแล้วและเลยกำหน�
   }
 });
 
-test("[hq→dealer] เหตุผลปิดการขายไม่สำเร็จที่ HQ ตั้ง ไปถึงตัวแทนจริง (0021)", async () => {
+test("[hq→dealer] เหตุผลปิดการขายไม่สำเร็จที่ HQ ตั้ง ไปถึงดีลเลอร์จริง (0021)", async () => {
   const hq = await signIn(ADMIN);
   const dealer = await signIn(RYG);
   const before = (await hq.from("hq_sales_journey").select("lost").eq("id", 1)).data?.[0]?.lost as string[];
@@ -186,15 +186,15 @@ test("[hq→dealer] เหตุผลปิดการขายไม่สำ
 
   const probe = [...before, "เทสต์อัตโนมัติ-ห้ามค้าง"];
   try {
-    // ตัวแทนแก้เองไม่ได้
+    // ดีลเลอร์แก้เองไม่ได้
     const blocked = await dealer.from("hq_sales_journey").update({ lost: probe }).eq("id", 1).select();
-    expect(wasBlocked(blocked), "ตัวแทนต้องแก้รายการเหตุผลไม่ได้").toBe(true);
+    expect(wasBlocked(blocked), "ดีลเลอร์ต้องแก้รายการเหตุผลไม่ได้").toBe(true);
 
-    // HQ แก้ได้ แล้วตัวแทนต้องอ่านเห็นค่าใหม่ (คนละ session — พิสูจน์ว่าไม่ได้ผ่าน localStorage)
+    // HQ แก้ได้ แล้วดีลเลอร์ต้องอ่านเห็นค่าใหม่ (คนละ session — พิสูจน์ว่าไม่ได้ผ่าน localStorage)
     const saved = await hq.from("hq_sales_journey").update({ lost: probe }).eq("id", 1).select();
     expect(saved.error).toBeNull();
     const seen = (await dealer.from("hq_sales_journey").select("lost").eq("id", 1)).data?.[0]?.lost as string[];
-    expect(seen, "ตัวแทนต้องเห็นรายการที่ HQ เพิ่งตั้ง").toEqual(probe);
+    expect(seen, "ดีลเลอร์ต้องเห็นรายการที่ HQ เพิ่งตั้ง").toEqual(probe);
   } finally {
     await hq.from("hq_sales_journey").update({ lost: before }).eq("id", 1);
   }
@@ -236,14 +236,14 @@ test("[multi-tenant] สองสาขาสร้างลูกค้าเ�
   }
 });
 
-test("[rpc] คำนำหน้าเลขที่ที่ตัวแทนตั้ง มีผลกับเลขที่ DB ออกให้ (A3)", async () => {
+test("[rpc] คำนำหน้าเลขที่ที่ดีลเลอร์ตั้ง มีผลกับเลขที่ DB ออกให้ (A3)", async () => {
   const sb = await signIn(RYG);
   // ไม่ส่งคำนำหน้า → ใช้ค่า default ของฟังก์ชัน
   const def = await sb.rpc("next_quote_no", { p_dealer: "RYG" });
   expect(def.error).toBeNull();
   expect(String(def.data), "ค่า default ต้องขึ้นต้น Q-RYG- (รหัสสาขาฝังอยู่เสมอ — 0088)").toMatch(/^Q-RYG-\d{4}-\d{4}$/);
 
-  // ส่งคำนำหน้าของตัวแทน → ต้องใช้ตามนั้น (รหัสสาขา+ปียังต่อท้ายเสมอ ไม่ว่าจะกำหนด prefix เองหรือไม่)
+  // ส่งคำนำหน้าของดีลเลอร์ → ต้องใช้ตามนั้น (รหัสสาขา+ปียังต่อท้ายเสมอ ไม่ว่าจะกำหนด prefix เองหรือไม่)
   const mine = await sb.rpc("next_quote_no", { p_dealer: "RYG", p_prefix: "RYG-2569-" });
   expect(mine.error).toBeNull();
   expect(String(mine.data), "ต้องใช้คำนำหน้าที่ส่งไป").toMatch(/^RYG-2569-RYG-\d{4}-\d{4}$/);
@@ -254,13 +254,13 @@ test("[rpc] คำนำหน้าเลขที่ที่ตัวแท�
   expect(b - a, "เรียกสองครั้งติดกันต้องได้เลขต่างกัน 1").toBe(1);
 });
 
-test("[repo] HQ ลบตัวแทนแล้วหายจาก DB จริง ไม่ใช่แค่หายจากหน้าจอ (A4)", async () => {
+test("[repo] HQ ลบดีลเลอร์แล้วหายจาก DB จริง ไม่ใช่แค่หายจากหน้าจอ (A4)", async () => {
   const sb = await signIn(ADMIN);
   const CODE = "ZTEST";
   const before = (await sb.from("dealers").select("code")).data ?? [];
-  expect(before.length, "ต้องมีตัวแทนอยู่ก่อน").toBeGreaterThan(0);
+  expect(before.length, "ต้องมีดีลเลอร์อยู่ก่อน").toBeGreaterThan(0);
   try {
-    // เพิ่มตัวแทนชั่วคราว — select("code") เท่านั้น (0091: revenue_target/คอลัมน์อื่นถอด SELECT
+    // เพิ่มดีลเลอร์ชั่วคราว — select("code") เท่านั้น (0091: revenue_target/คอลัมน์อื่นถอด SELECT
     // ทั้งตารางออกจาก authenticated แล้ว select() เปล่าๆ จะโดน "permission denied for table dealers")
     const ins = await sb.from("dealers").insert({
       code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพฯ", region: "กลาง", status: "active",
@@ -274,7 +274,7 @@ test("[repo] HQ ลบตัวแทนแล้วหายจาก DB จร
     expect(del.error, `ลบไม่ได้: ${JSON.stringify(del.error)}`).toBeNull();
 
     const after = (await sb.from("dealers").select("code")).data ?? [];
-    expect(after.length, "ตัวแทนที่ถูกเอาออกต้องหายจาก DB").toBe(before.length);
+    expect(after.length, "ดีลเลอร์ที่ถูกเอาออกต้องหายจาก DB").toBe(before.length);
     expect(after.some(d => d.code === CODE), "ZTEST ต้องไม่เหลือ").toBe(false);
   } finally {
     await sb.from("dealers").delete().eq("code", CODE);
@@ -287,7 +287,7 @@ test("[schema] ตาราง dealers ไม่มีคอลัมน์ KPI 
   const { data, error } = await sb.from("dealers").select("code, name, province, region, status, created_at").limit(1);
   expect(error).toBeNull();
   const row = (data ?? [])[0];
-  expect(row, "ต้องมีตัวแทนอย่างน้อย 1 สาขา").toBeTruthy();
+  expect(row, "ต้องมีดีลเลอร์อย่างน้อย 1 สาขา").toBeTruthy();
   // ค่าพวกนี้เป็น "ผลลัพธ์ที่คำนวณได้" จากใบเสนอราคา/ลูกค้าเป้าหมาย — เก็บในตารางเมื่อไหร่ก็เพี้ยนจากของจริง
   for (const col of ["revenue_actual", "win_rate", "active_projects", "on_time_pct"]) {
     expect(Object.keys(row), `คอลัมน์ ${col} ต้องถูกลบไปแล้ว`).not.toContain(col);
@@ -305,8 +305,8 @@ test("[schema] dealers_directory มาสก์ revenue_target ข้ามส�
   expect(byDealer.error).toBeNull();
   const mine = byDealer.data?.find(d => d.code === "RYG");
   const other = byDealer.data?.find(d => d.code !== "RYG");
-  expect(mine?.revenue_target, "ตัวแทนต้องเห็น revenue_target ของสาขาตัวเอง").not.toBeNull();
-  expect(other?.revenue_target, "ตัวแทนต้องไม่เห็น revenue_target ของสาขาอื่น (ต้องเป็น null)").toBeNull();
+  expect(mine?.revenue_target, "ดีลเลอร์ต้องเห็น revenue_target ของสาขาตัวเอง").not.toBeNull();
+  expect(other?.revenue_target, "ดีลเลอร์ต้องไม่เห็น revenue_target ของสาขาอื่น (ต้องเป็น null)").toBeNull();
 
   const byHQ = await hq.from("dealers_directory").select("code, revenue_target");
   expect(byHQ.error).toBeNull();
@@ -338,7 +338,7 @@ test("[dealer-settings] หัวกระดาษ/เอกสารของ�
     // HQ อ่านได้ (ดูแลทั้งเครือ) แต่แก้ไม่ได้ — เป็นข้อมูลบริษัทของสาขา
     expect(((await hq.from("dealer_settings").select("dealer_code").eq("dealer_code", "RYG")).data ?? []).length).toBe(1);
     const byHQ = await hq.from("dealer_settings").update({ issuer: { company: "HQ แก้" } }).eq("dealer_code", "RYG").select();
-    expect(wasBlocked(byHQ), "HQ ต้องแก้หัวกระดาษของตัวแทนไม่ได้").toBe(true);
+    expect(wasBlocked(byHQ), "HQ ต้องแก้หัวกระดาษของดีลเลอร์ไม่ได้").toBe(true);
   } finally {
     await ryg.from("dealer_settings").delete().eq("dealer_code", "RYG");
   }
@@ -405,7 +405,7 @@ test("[notes] โน้ตลูกค้าเก็บที่ DB · สา�
     // HQ อ่านได้ทั้งเครือ แต่เขียนงานขายไม่ได้ (นิยามเดียวกับลูกค้าเป้าหมาย/ใบเสนอราคา)
     expect(((await hq.from("customer_notes").select("id").eq("id", id)).data ?? []).length).toBe(1);
     const byHQ = await hq.from("customer_notes").update({ content: "HQ แก้" }).eq("id", id).select();
-    expect(wasBlocked(byHQ), "HQ ต้องแก้โน้ตของตัวแทนไม่ได้").toBe(true);
+    expect(wasBlocked(byHQ), "HQ ต้องแก้โน้ตของดีลเลอร์ไม่ได้").toBe(true);
   } finally {
     if (id !== null) await ryg.from("customer_notes").delete().eq("id", id);
   }
@@ -417,10 +417,10 @@ test("[hq-company] ข้อมูลบริษัท HQ อ่านได้
   const before = (await hq.from("hq_company").select("name").eq("id", 1)).data?.[0] as { name: string };
   expect(before, "ต้องมีแถวข้อมูลบริษัท (0028 seed ให้)").toBeTruthy();
   try {
-    // ตัวแทนอ่านได้ (อ้างอิงชื่อบริษัทแม่) แต่แก้ไม่ได้
+    // ดีลเลอร์อ่านได้ (อ้างอิงชื่อบริษัทแม่) แต่แก้ไม่ได้
     expect(((await dealer.from("hq_company").select("name").eq("id", 1)).data ?? []).length).toBe(1);
-    const blocked = await dealer.from("hq_company").update({ name: "ตัวแทนแก้" }).eq("id", 1).select();
-    expect(wasBlocked(blocked), "ตัวแทนต้องแก้ข้อมูลบริษัท HQ ไม่ได้").toBe(true);
+    const blocked = await dealer.from("hq_company").update({ name: "ดีลเลอร์แก้" }).eq("id", 1).select();
+    expect(wasBlocked(blocked), "ดีลเลอร์ต้องแก้ข้อมูลบริษัท HQ ไม่ได้").toBe(true);
 
     const ok = await hq.from("hq_company").update({ name: "ทดสอบอัตโนมัติ" }).eq("id", 1).select();
     expect(ok.error).toBeNull();

@@ -1,4 +1,4 @@
-// ── "ใครเป็นคนเรียก" สำหรับ API บัญชีของตัวแทน (ใช้ร่วมกันหลาย route) ─────────────
+// ── "ใครเป็นคนเรียก" สำหรับ API บัญชีของดีลเลอร์ (ใช้ร่วมกันหลาย route) ─────────────
 //
 // แยกออกมาจาก /api/account เพราะมีมากกว่าหนึ่งเส้นทางที่ต้องตอบคำถามเดียวกัน:
 //   • เปลี่ยนอีเมล/รหัสผ่านของตัวเอง        (/api/account)
@@ -15,7 +15,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-/** แอปตัวแทนอยู่คนละที่อยู่ → อนุญาตข้ามต้นทางเฉพาะที่อยู่ที่ตั้งไว้ (DEALER_APP_ORIGIN) */
+/** แอปดีลเลอร์อยู่คนละที่อยู่ → อนุญาตข้ามต้นทางเฉพาะที่อยู่ที่ตั้งไว้ (DEALER_APP_ORIGIN) */
 export function dealerCors(req: NextRequest): Record<string, string> {
   const allow = (process.env.DEALER_APP_ORIGIN ?? "").split(",").map(s => s.trim()).filter(Boolean);
   const origin = req.headers.get("origin") ?? "";
@@ -29,7 +29,7 @@ export function dealerCors(req: NextRequest): Record<string, string> {
 export const dealerJson = (req: NextRequest, body: unknown, status = 200) =>
   NextResponse.json(body, { status, headers: dealerCors(req) });
 
-export type ตัวแทนผู้เรียก = {
+export type ดีลเลอร์ผู้เรียก = {
   admin: SupabaseClient;
   userId: string;
   email: string;
@@ -37,10 +37,10 @@ export type ตัวแทนผู้เรียก = {
   name: string;
 };
 
-/** ตรวจใบผ่าน → คืนบัญชี "ของสาขา" ที่เรียกมา · ไม่ใช่ตัวแทน = ปฏิเสธ */
-export async function ตัวแทนที่เรียก(
+/** ตรวจใบผ่าน → คืนบัญชี "ของสาขา" ที่เรียกมา · ไม่ใช่ดีลเลอร์ = ปฏิเสธ */
+export async function ดีลเลอร์ที่เรียก(
   req: NextRequest,
-): Promise<{ ok: true; who: ตัวแทนผู้เรียก } | { ok: false; res: NextResponse }> {
+): Promise<{ ok: true; who: ดีลเลอร์ผู้เรียก } | { ok: false; res: NextResponse }> {
   if (!SUPABASE_URL || !SERVICE_KEY) {
     return { ok: false, res: dealerJson(req, { error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ — ใช้งานหน้านี้ยังไม่ได้" }, 501) };
   }

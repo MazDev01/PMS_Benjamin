@@ -31,19 +31,19 @@ export type CreateDealerInput = {
   code: string; name: string; province: string; region: string; revenueTarget: number;
   /** อีเมล/รหัสผ่านที่ HQ กรอกเอง — เว้นว่าง = ให้เซิร์ฟเวอร์ตั้งให้ (บอสสั่ง 20 ส.ค. 69) */
   email?: string; password?: string;
-  /** บังคับ — ตัวแทนต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้ว (บอสสั่ง 14 ก.ย. 69)
-   *  เซิร์ฟเวอร์ผูกรายนั้นเป็น "เป็นตัวแทนแล้ว" ให้ในคำขอเดียวกัน */
+  /** บังคับ — ดีลเลอร์ต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้ว (บอสสั่ง 14 ก.ย. 69)
+   *  เซิร์ฟเวอร์ผูกรายนั้นเป็น "เป็นดีลเลอร์แล้ว" ให้ในคำขอเดียวกัน */
   prospectId: number;
 };
 export type CreateDealerResult =
   | { ok: true; email: string; password: string; prospectLinked?: boolean }
   | { ok: false; error: string };
 
-/** สร้างตัวแทน "พร้อมบัญชีเข้าระบบจริง" ผ่าน Route Handler ฝั่งเซิร์ฟเวอร์ (H5) */
+/** สร้างดีลเลอร์ "พร้อมบัญชีเข้าระบบจริง" ผ่าน Route Handler ฝั่งเซิร์ฟเวอร์ (H5) */
 export async function createDealerAccount(input: CreateDealerInput): Promise<CreateDealerResult> {
   // โหมดเดโม (local) ไม่มีระบบยืนยันตัวตนจริงให้ผูก — บอกตามจริง ไม่แกล้งทำสำเร็จ
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: สร้างบัญชีตัวแทนจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
+    return { ok: false, error: "โหมดเดโม: สร้างบัญชีดีลเลอร์จริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
   }
   const token = await adminToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
@@ -65,7 +65,7 @@ export async function createDealerAccount(input: CreateDealerInput): Promise<Cre
 // ใบผ่านของผู้เรียก — โหมด cookie ไม่มีให้อ่าน (โดยตั้งใจ) จึงใช้ตัวช่วยกลางตัวเดียวกัน
 const callerToken = adminToken;
 
-/** ผูกลูกค้าเป้าหมายกับตัวแทนที่มีอยู่แล้ว — เซิร์ฟเวอร์ตรวจว่าสาขามีจริง/เปิดใช้งาน/ยังไม่ถูกผูกกับรายอื่น
+/** ผูกลูกค้าเป้าหมายกับดีลเลอร์ที่มีอยู่แล้ว — เซิร์ฟเวอร์ตรวจว่าสาขามีจริง/เปิดใช้งาน/ยังไม่ถูกผูกกับรายอื่น
  *  hasAccount=false = ผูกแล้ว แต่สาขายังไม่มีบัญชีเข้าระบบ (หน้าจอต้องเตือน) · โหมดเดโมหน้าจอทำเอง */
 export async function linkProspectToDealer(prospectId: number, dealerCode: string): Promise<
   { ok: true; hasAccount: boolean } | { ok: false; error: string }
@@ -87,7 +87,7 @@ export async function linkProspectToDealer(prospectId: number, dealerCode: strin
   }
 }
 
-/** สิทธิ์แก้อีเมล/รหัสผ่านเองของตัวแทน — ใช้ไปกี่ครั้ง (HQ ดู) */
+/** สิทธิ์แก้อีเมล/รหัสผ่านเองของดีลเลอร์ — ใช้ไปกี่ครั้ง (HQ ดู) */
 export async function getDealerSelfQuota(code: string): Promise<
   { ok: true; used: number; limit: number } | { ok: false; error: string }
 > {
@@ -185,7 +185,7 @@ export async function deleteHQUser(id: string): Promise<{ ok: true } | { ok: fal
   }
 }
 
-/** ออกรหัสผ่านใหม่ให้ตัวแทน (HQ คุมรหัสผ่านของตัวแทนเท่านั้น — ตัวแทนไม่มีสิทธิ์ตั้ง/ขอรีเซ็ตเอง)
+/** ออกรหัสผ่านใหม่ให้ดีลเลอร์ (HQ คุมรหัสผ่านของดีลเลอร์เท่านั้น — ดีลเลอร์ไม่มีสิทธิ์ตั้ง/ขอรีเซ็ตเอง)
  *  รหัสใหม่สุ่มที่เซิร์ฟเวอร์เสมอ คืนมาโชว์ครั้งเดียวเหมือนตอนสร้างบัญชี */
 export async function resetDealerPassword(
   code: string,
@@ -235,7 +235,7 @@ export async function listDealerLoginEmails(): Promise<Record<string, string>> {
   } catch { return {}; }
 }
 
-/** เปิดดูรหัสผ่านของตัวแทน (HQ ที่มีสิทธิ์ dealers:manage เท่านั้น)
+/** เปิดดูรหัสผ่านของดีลเลอร์ (HQ ที่มีสิทธิ์ dealers:manage เท่านั้น)
  *  ดึงตอนกดดูเท่านั้น — ห้ามโหลดล่วงหน้ามาไว้ในหน้า เพราะเคยมีรหัสหลุดไปกับ bundle มาแล้ว
  *  ฝั่งเซิร์ฟเวอร์บันทึก audit ทุกครั้งที่เรียก (ดู /api/admin/dealers/secret) */
 export async function viewDealerPassword(code: string): Promise<
@@ -259,8 +259,8 @@ export async function viewDealerPassword(code: string): Promise<
   }
 }
 
-/** ขอลิงก์ "เข้าระบบแทนตัวแทน" — ไม่ต้องรู้/รีเซ็ตรหัสผ่านตัวแทนเลย (ใช้ Supabase magic-link)
- *  ลิงก์ใช้ได้ครั้งเดียวแล้วหมดอายุ — เปิดในแท็บใหม่ไปยังแอปตัวแทนเสมอ (คนละ origin กับ HQ) */
+/** ขอลิงก์ "เข้าระบบแทนดีลเลอร์" — ไม่ต้องรู้/รีเซ็ตรหัสผ่านดีลเลอร์เลย (ใช้ Supabase magic-link)
+ *  ลิงก์ใช้ได้ครั้งเดียวแล้วหมดอายุ — เปิดในแท็บใหม่ไปยังแอปดีลเลอร์เสมอ (คนละ origin กับ HQ) */
 export async function impersonateDealer(code: string): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
   if (!REAL_BACKEND) {
     return { ok: false, error: "โหมดเดโม: ไม่ต้องขอลิงก์ — ใช้ปุ่มเข้าระบบแทนแบบเดโมได้เลย" };
@@ -280,7 +280,7 @@ export async function impersonateDealer(code: string): Promise<{ ok: true; link:
   }
 }
 
-/** ลบตัวแทนจริง (auth ของผู้ใช้สังกัดสาขา + แถว dealers) ผ่าน Route Handler ฝั่งเซิร์ฟเวอร์
+/** ลบดีลเลอร์จริง (auth ของผู้ใช้สังกัดสาขา + แถว dealers) ผ่าน Route Handler ฝั่งเซิร์ฟเวอร์
  *  เดิมลบผ่าน repo ตรง ๆ ได้แค่แถว dealers → บัญชี auth ของสาขายังค้างเป็นบัญชีกำพร้า */
 export async function deleteDealerAccount(code: string): Promise<
   { ok: true; warning?: string } | { ok: false; error: string }
@@ -351,7 +351,7 @@ export async function clearAuditLog(): Promise<
 }
 
 // ตั้งรหัสผ่านใหม่ให้ผู้ใช้สำนักงานใหญ่ — เฉพาะผู้ดูแลสูงสุด (เซิร์ฟเวอร์บังคับอีกชั้น)
-// คืนรหัสใหม่มาโชว์ครั้งเดียว ให้ผู้ดูแลคัดลอกไปแจ้งเจ้าตัว (แนวเดียวกับรีเซ็ตรหัสของตัวแทน)
+// คืนรหัสใหม่มาโชว์ครั้งเดียว ให้ผู้ดูแลคัดลอกไปแจ้งเจ้าตัว (แนวเดียวกับรีเซ็ตรหัสของดีลเลอร์)
 // ต่างจาก "ส่งลิงก์ทางอีเมล" ตรงที่ไม่พึ่งอีเมลเลย — ใช้ได้แม้ยังไม่ได้ตั้ง SMTP
 export async function resetHQUserPassword(id: string, password?: string): Promise<
   { ok: true; email: string; password: string } | { ok: false; error: string }

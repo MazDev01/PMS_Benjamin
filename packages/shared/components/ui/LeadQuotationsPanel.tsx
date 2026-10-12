@@ -26,7 +26,7 @@ import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 const MOCK_TODAY = APP_NOW_ISO;
 
 /** วันหมดอายุของใบ = วันที่ออกใบ + อายุใบที่สำนักงานใหญ่ตั้งไว้ (บอสสั่ง 20 ส.ค. 69)
- *  คิดจุดเดียวที่นี่ — ตัวแทนไม่ต้องพิมพ์เอง จะได้ไม่มีทางพิมพ์ผิดหรือขัดกับนโยบาย */
+ *  คิดจุดเดียวที่นี่ — ดีลเลอร์ไม่ต้องพิมพ์เอง จะได้ไม่มีทางพิมพ์ผิดหรือขัดกับนโยบาย */
 function วันหมดอายุจาก(วันออกใบ: string, อายุวัน: number): string {
   const d = new Date(วันออกใบ);
   if (Number.isNaN(d.getTime())) return "";
@@ -34,7 +34,7 @@ function วันหมดอายุจาก(วันออกใบ: strin
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// vatOn/whtOn = "ใบนี้คิดภาษีตัวนั้นไหม" · vatPct/whtPct = อัตราที่ตัวแทนแก้เองได้ในฟอร์ม
+// vatOn/whtOn = "ใบนี้คิดภาษีตัวนั้นไหม" · vatPct/whtPct = อัตราที่ดีลเลอร์แก้เองได้ในฟอร์ม
 // ค่าตั้งต้น (บอสสั่ง 28 ส.ค. 69): VAT ติ๊กไว้ · หัก ณ ที่จ่าย ไม่ติ๊ก
 type FormState = { project: string; buildingType: string; items: string; price: string; expiry: string; note: string;
   lineItems: QuoteLineItem[]; vatOn: boolean; vatPct: string; whtOn: boolean; whtPct: string };
@@ -43,7 +43,7 @@ type FormState = { project: string; buildingType: string; items: string; price: 
 //   TS ไม่บังคับ จึงต้องใช้ customer! เดาเอาว่ามาแน่ ๆ ตอนไม่มี lead (พังถ้ามีคนเรียกผิดในอนาคต)
 //   ตอนนี้เป็น discriminated union — เรียกไม่ครบ/เรียกทั้งคู่ = TS error ตั้งแต่คอมไพล์ ไม่ต้องพึ่ง !
 // openCreateSignal = ตัวนับจากหน้าแม่ — ค่าเปลี่ยนเมื่อไร แปลว่า "เปิดฟอร์มออกใบให้เลย"
-// ใช้ตอนตัวแทนลากลูกค้าเป้าหมายไปขั้นเสนอราคา / กดติ๊กงาน "จัดทำใบเสนอราคา" (ต้องมีใบจริงถึงจะขยับขั้นได้)
+// ใช้ตอนดีลเลอร์ลากลูกค้าเป้าหมายไปขั้นเสนอราคา / กดติ๊กงาน "จัดทำใบเสนอราคา" (ต้องมีใบจริงถึงจะขยับขั้นได้)
 type LeadQuotationsPanelProps =
   | { lead: LeadRow; customer?: undefined; onToast?: (m: string) => void; openCreateSignal?: number }
   | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined };
@@ -59,7 +59,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   const savingRef = useRef(false); // กันกดออกใบซ้ำระหว่างรอเลขที่ใบจาก DB (H8 · guard synchronous)
   const [saving, setSaving] = useState(false); // ไว้ disable ปุ่ม (visual)
   const policy = useHQPolicy(); // นโยบาย HQ — อายุใบ ฯลฯ (VAT ย้ายไปเป็นของสาขาแล้ว · 7 ส.ค. 69)
-  // อายุใบเสนอราคาที่สำนักงานใหญ่ประกาศไว้ — ใช้คิดวันหมดอายุแทนการให้ตัวแทนพิมพ์เอง
+  // อายุใบเสนอราคาที่สำนักงานใหญ่ประกาศไว้ — ใช้คิดวันหมดอายุแทนการให้ดีลเลอร์พิมพ์เอง
   // อายุใบเสนอราคาของ "สาขา" มาก่อนนโยบายเครือเสมอ (บอสสั่ง 20 ส.ค. 69)
   const validityDays = useQuoteValidity();
   // ใบใหม่: นับจากวันที่ออกใบ · ใบเดิมที่เคยระบุวันไว้แล้ว: คงวันเดิม ไม่เขียนทับของเก่า
@@ -78,7 +78,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     customerId: lead.customerId, dealId: lead.numId as number | undefined,
     value: lead.value,                       // มูลค่าประเมินจากลูกค้าเป้าหมาย — ใช้ตั้งต้น BOQ
     area: lead.area,                         // พื้นที่ที่กรอกไว้ตอนเพิ่มลูกค้าเป้าหมาย — ใช้เป็นจำนวนตั้งต้นของ BOQ
-    project: lead.project,                   // ชื่อโครงการที่ตัวแทนตั้งไว้ตอนสร้างดีล (ถ้ามี)
+    project: lead.project,                   // ชื่อโครงการที่ดีลเลอร์ตั้งไว้ตอนสร้างดีล (ถ้ามี)
   } : {
     kind: "customer" as const, company: customer.company, contact: customer.name, phone: customer.phone, email: customer.email,
     province: customer.province, assigned: customer.owner, product: customer.category || "",
@@ -87,7 +87,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     area: undefined as number | undefined,   // ลูกค้า (ปิดการขายแล้ว) ไม่มีพื้นที่ตั้งต้น — ใบเสนอราคาของลูกค้าดูอย่างเดียวอยู่แล้ว
     project: undefined as string | undefined,
   };
-  // ตัวแทนตั้งชื่อโครงการไว้แล้วตอนสร้างดีล → ใช้ชื่อนั้น ไม่ใช่ประกอบชื่อใหม่ทับ
+  // ดีลเลอร์ตั้งชื่อโครงการไว้แล้วตอนสร้างดีล → ใช้ชื่อนั้น ไม่ใช่ประกอบชื่อใหม่ทับ
   // ไม่ได้ตั้งไว้ค่อยประกอบจากแม่แบบ + ชื่อบริษัท (ยังแก้ในช่องได้ตามเดิม)
   const defProject = () => subj.project?.trim() || (subj.product ? `${subj.product} — ${subj.company}` : subj.company);
   const readOnly = subj.kind === "customer"; // แท็บใบเสนอราคาของ "ลูกค้า" = ดูอย่างเดียว (ไม่แก้/สร้าง/ลบ)
@@ -96,7 +96,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // โครงสร้าง BOQ ที่ถูก: ราคา/หน่วย = ราคากลางของ HQ (คงที่) · จำนวน = พื้นที่ (ตัวแปร)
   // จึงถอดพื้นที่ออกมาจากมูลค่าประเมิน: จำนวน = มูลค่าประเมิน ÷ ราคากลาง — ไม่ใช่ยัดมูลค่าทั้งก้อนลงราคา/หน่วย
   // ลูกค้าเป้าหมายอาจระบุ "แม่แบบย่อย" (เช่น โรงงานอาหาร อยู่ใต้ โรงงาน) → หาในแคตตาล็อกทั้ง 2 ชั้น
-  // ทั้งสองทางเป็นแค่ "ค่าตั้งต้น" — ตัวแทนแก้ทับใน BOQ ได้ และพื้นที่บนใบยึดตาม BOQ ตอนบันทึกเสมอ
+  // ทั้งสองทางเป็นแค่ "ค่าตั้งต้น" — ดีลเลอร์แก้ทับใน BOQ ได้ และพื้นที่บนใบยึดตาม BOQ ตอนบันทึกเสมอ
   const emptyForm = (): FormState => {
     const seed = seedLineItems({ product: subj.product, value: subj.value, area: subj.area }, catalog, pricing);
     const total = boqSubtotal(seed);
@@ -112,7 +112,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // แคตตาล็อกมาช้ากว่าฟอร์ม → ตั้งต้น BOQ ใหม่ให้เมื่อของมาถึง
   // useMasterCatalog เริ่มด้วยรายการว่างเสมอแล้วค่อยโหลด ถ้าผู้ใช้กด "สร้างใบเสนอราคา" ก่อนโหลดเสร็จ
   // ราคากลางจะเป็น 0 → BOQ ว่าง และหน้านี้ซ่อนปุ่มเลือกแคตตาล็อกไว้ = เพิ่มแถวเองไม่ได้ ออกใบไม่ได้เลย
-  // เติมเฉพาะตอน "สร้างใหม่ + ยังไม่มีแถวเลย" จึงไม่ทับของที่ตัวแทนแก้ไว้
+  // เติมเฉพาะตอน "สร้างใหม่ + ยังไม่มีแถวเลย" จึงไม่ทับของที่ดีลเลอร์แก้ไว้
   useEffect(() => {
     if (mode !== "create" || form.lineItems.length > 0 || catalog.length === 0) return;
     const seed = seedLineItems({ product: subj.product, value: subj.value, area: subj.area }, catalog, pricing);
@@ -137,7 +137,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // ── ปุ่ม "เลือกจากแคตตาล็อก" เปิดตลอด (บอสสั่ง 20 ส.ค. 69) ────────────────────
   //
   // เดิมซ่อนไว้ เพราะ BOQ ตั้งต้นมาจากแม่แบบของลูกค้าเป้าหมายให้แล้ว (บอสสั่งไว้เมื่อก่อน)
-  //   ผลข้างเคียงที่เพิ่งเห็นชัด: พอเพิ่มรายการที่สองในใบเดิมไม่ได้ ตัวแทนก็ไปกดออกใบใหม่แทน
+  //   ผลข้างเคียงที่เพิ่งเห็นชัด: พอเพิ่มรายการที่สองในใบเดิมไม่ได้ ดีลเลอร์ก็ไปกดออกใบใหม่แทน
   //   ลูกค้ารายเดียวเลยมีใบเสนอราคา 2 ฉบับ ทั้งที่เป็นงานเดียวกัน แค่มีของหลายรายการ
   // เปิดปุ่มไว้เสมอ = เพิ่มรายการในใบเดิมได้ ไม่ต้องออกใบใหม่ (แก้ที่ต้นเหตุของ "2 ใบ")
   //   ปุ่มลบรายการก็กลับมาด้วย (LineItemsEditor ผูกสองอย่างนี้ไว้ด้วยกัน) — แก้รายการในใบเดิมได้ครบ
@@ -275,8 +275,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     const hasAmount = net > 0;
     const canSave = hasItems && hasAmount;
     // ── ต้นเหตุที่พบจากการใช้งานจริง (19 ส.ค. 69): สำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ/ราคา ──
-    //   รายการสินค้าเพิ่มได้ทางเดียวคือเลือกจากแคตตาล็อก ตัวแทนจึงตันโดยไม่รู้ว่าติดตรงไหน
-    //   ข้อความเดิมบอกแค่ "ยอดรวมเป็น ฿0" ซึ่งฟังเหมือนตัวแทนกรอกผิดเอง
+    //   รายการสินค้าเพิ่มได้ทางเดียวคือเลือกจากแคตตาล็อก ดีลเลอร์จึงตันโดยไม่รู้ว่าติดตรงไหน
+    //   ข้อความเดิมบอกแค่ "ยอดรวมเป็น ฿0" ซึ่งฟังเหมือนดีลเลอร์กรอกผิดเอง
     const แม่แบบว่าง = catalogReady && catalog.length === 0;
     const ราคาแม่แบบยังไม่ตั้ง = !แม่แบบว่าง && hasItems && !hasAmount
       && form.lineItems.every(it => it.unitPrice <= 0);
@@ -343,7 +343,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
 
         {/* ── วันหมดอายุ: ระบบกำหนดให้เอง ไม่ต้องกรอก (บอสสั่ง 20 ส.ค. 69) ──────────
             อายุใบเป็นนโยบายของสำนักงานใหญ่อยู่แล้ว (ตั้งที่ ตั้งค่า › ใบเสนอราคา)
-            ให้ตัวแทนพิมพ์เองซ้ำ = พิมพ์ผิดได้ และไม่ตรงกับนโยบายที่ประกาศไว้
+            ให้ดีลเลอร์พิมพ์เองซ้ำ = พิมพ์ผิดได้ และไม่ตรงกับนโยบายที่ประกาศไว้
             นับจากวันที่ออกใบเสมอ · ใบเก่าที่เคยระบุวันไว้เองยังคงวันเดิม ไม่ถูกเขียนทับ */}
         <div style={{ marginTop: 14 }}>
           <label style={lbl}><Calendar size={11} style={{ verticalAlign: "-1px" }} /> วันหมดอายุ</label>

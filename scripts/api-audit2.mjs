@@ -22,7 +22,7 @@ async function req(origin, who, method, path, body) {
 console.log("login RYG " + await login("RYG", DEALER) + " / CNX " + await login("CNX", DEALER) + " / ADMIN " + await login("ADMIN", HQ));
 
 console.log("");
-console.log("=== 1) ตัวแทนขอข้อมูลทั้งเครือ (hq=1) หลุดข้ามสาขาไหม ===");
+console.log("=== 1) ดีลเลอร์ขอข้อมูลทั้งเครือ (hq=1) หลุดข้ามสาขาไหม ===");
 for (const res of ["leads", "quotations", "customers", "appointments"]) {
   const r = await req(DEALER, "RYG", "GET", "/api/v1/" + res + "?hq=1");
   let codes = [];
@@ -33,7 +33,7 @@ const admin = await req(HQ, "ADMIN", "GET", "/api/v1/leads?hq=1");
 try { const j = JSON.parse(admin.text); const rows = j.rows ?? j; console.log("  (เทียบ) ADMIN เห็น " + [...new Set(rows.map(x => x.dealerCode))].length + " สาขา · " + rows.length + " แถว"); } catch { console.log("  ADMIN parse ไม่ได้"); }
 
 console.log("");
-console.log("=== 2) ตัวแทนเขียนข้ามสาขา ===");
+console.log("=== 2) ดีลเลอร์เขียนข้ามสาขา ===");
 const cnxLead = await req(DEALER, "CNX", "GET", "/api/v1/leads?dealer=CNX");
 let target = null; try { const j = JSON.parse(cnxLead.text); target = (j.rows ?? j)[0]; } catch {}
 if (!target) console.log("  ข้าม — สาขา CNX ไม่มีลีดให้ทดสอบ");
@@ -55,6 +55,6 @@ for (const k of ["policy", "targets", "notifRules", "journey", "leadRules"]) {
   console.log("  k=" + k.padEnd(11) + " → " + r.status + " " + r.text.slice(0, 90));
 }
 const w = await req(DEALER, "RYG", "PUT", "/api/v1/settings?k=policy", { quoteValidityDays: 1 });
-console.log("  ตัวแทนแก้ค่าตั้งระบบ (policy) → " + w.status + " " + w.text.slice(0, 140));
+console.log("  ดีลเลอร์แก้ค่าตั้งระบบ (policy) → " + w.status + " " + w.text.slice(0, 140));
 const chk = await req(HQ, "ADMIN", "GET", "/api/v1/settings?k=policy");
 console.log("  ค่าจริงหลังจากนั้น: " + chk.text.slice(0, 140));

@@ -1,12 +1,12 @@
 "use client";
 
-// ─── ข้อมูลเข้าระบบของตัวแทน (ดูอีเมล/รหัสผ่าน · รีเซ็ตรหัสผ่าน) ─────────────────────
+// ─── ข้อมูลเข้าระบบของดีลเลอร์ (ดูอีเมล/รหัสผ่าน · รีเซ็ตรหัสผ่าน) ─────────────────────
 //
-// ย้ายมาจากปุ่มรูปกุญแจในตารางหน้า "ตัวแทนจำหน่าย" (บอสสั่งเอาออกจากตาราง 13 ส.ค. 69)
+// ย้ายมาจากปุ่มรูปกุญแจในตารางหน้า "ดีลเลอร์" (บอสสั่งเอาออกจากตาราง 13 ส.ค. 69)
 // ตารางนั้นมีปุ่มต่อแถวถึง 6 ปุ่มจนแน่น — งานนี้เป็นงานราย "สาขา" ไม่ใช่งานที่ต้องทำรัวจากลิสต์
 // จึงย้ายมาอยู่ในหน้ารายละเอียดของสาขานั้น ๆ แทน · ความสามารถเท่าเดิมทุกอย่าง ไม่ได้ตัดอะไรทิ้ง
 //
-// ⚠️ รหัสผ่านต้อง "ดึงตอนกดดู" เท่านั้น ห้ามส่งมากับข้อมูลตัวแทนตั้งแต่แรก
+// ⚠️ รหัสผ่านต้อง "ดึงตอนกดดู" เท่านั้น ห้ามส่งมากับข้อมูลดีลเลอร์ตั้งแต่แรก
 //    ครั้งก่อนรหัสถูกฝังในไฟล์ที่เบราว์เซอร์โหลดทุกหน้า ใครเปิดดูซอร์สก็อ่านได้ (Critical · 5 ส.ค. 69)
 //    ฝั่งเซิร์ฟเวอร์บันทึกทุกครั้งว่าใครเปิดดูรหัสของสาขาไหน
 import { useEffect, useState } from "react";
@@ -19,7 +19,7 @@ import { fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
-/** ช่องคัดลอกค่า (ปิดบังได้) — ใช้ทั้งที่นี่และตอนสร้างตัวแทนใหม่ */
+/** ช่องคัดลอกค่า (ปิดบังได้) — ใช้ทั้งที่นี่และตอนสร้างดีลเลอร์ใหม่ */
 export function CopyField({ label, value, secret = false, defaultShown = false }: {
   label: string; value: string; secret?: boolean; defaultShown?: boolean;
 }) {
@@ -141,7 +141,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
     if (!สิทธิ์ || สิทธิ์.used === 0) return;
     const ตกลง = await ยืนยัน({
       หัวข้อ: `คืนสิทธิ์แก้อีเมล/รหัสผ่านเองให้ "${dealer.name}"?`,
-      รายละเอียด: `ประวัติการเปลี่ยนเดิมยังอยู่ แค่เริ่มนับใหม่ — ตัวแทนแก้เองได้อีก ${สิทธิ์.limit} ครั้ง`,
+      รายละเอียด: `ประวัติการเปลี่ยนเดิมยังอยู่ แค่เริ่มนับใหม่ — ดีลเลอร์แก้เองได้อีก ${สิทธิ์.limit} ครั้ง`,
       ปุ่มตกลง: "คืนสิทธิ์",
     });
     if (!ตกลง) return;
@@ -162,7 +162,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
     setแก้บัญชี(v => (v && !v.email ? { ...v, email } : v));
   }, [email, แก้บัญชี, พิมพ์อีเมลเอง]);
 
-  // จัดการบัญชีตัวแทนได้เฉพาะผู้มีสิทธิ์ — ผู้ใช้ HQ ระดับปฏิบัติงานไม่ควรเห็นรหัสของสาขา
+  // จัดการบัญชีดีลเลอร์ได้เฉพาะผู้มีสิทธิ์ — ผู้ใช้ HQ ระดับปฏิบัติงานไม่ควรเห็นรหัสของสาขา
   if (!can("dealers:manage")) return null;
 
 
@@ -190,7 +190,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
     <div className="card" style={{ padding: "18px 20px", gridColumn: "1 / -1" }}>
       <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em",
         display: "flex", alignItems: "center", gap: 7 }}>
-        <Key size={13} color="#003366" /> ข้อมูลเข้าระบบของตัวแทน
+        <Key size={13} color="#003366" /> ข้อมูลเข้าระบบของดีลเลอร์
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
         <CopyField label="อีเมลเข้าสู่ระบบ" value={email} />
@@ -198,7 +198,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
         <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>
-          ตัวแทนใช้อีเมลนี้เข้าสู่ระบบที่หน้าเข้าสู่ระบบของตัวแทน
+          ดีลเลอร์ใช้อีเมลนี้เข้าสู่ระบบที่หน้าเข้าสู่ระบบของดีลเลอร์
         </div>
         {/* เหลือปุ่มเดียว (บอสสั่ง 20 ส.ค. 69) — ปุ่ม "รีเซ็ตรหัสผ่าน" ถูกถอดออก
             เพราะซ้ำกับปุ่มนี้: อยากได้รหัสใหม่ก็พิมพ์รหัสที่ต้องการลงไปตรง ๆ ได้เลย
@@ -215,7 +215,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
       {สิทธิ์ && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #eef1f5" }}>
           <div style={{ fontSize: "0.74rem", color: "#374151" }} data-testid="self-quota">
-            ตัวแทนแก้อีเมล/รหัสผ่านเองไปแล้ว <b>{สิทธิ์.used} / {สิทธิ์.limit}</b> ครั้ง
+            ดีลเลอร์แก้อีเมล/รหัสผ่านเองไปแล้ว <b>{สิทธิ์.used} / {สิทธิ์.limit}</b> ครั้ง
             {สิทธิ์.used >= สิทธิ์.limit && <span style={{ color: "#b45309", fontWeight: 700 }}> · ครบแล้ว ครั้งต่อไปต้องขออนุมัติ</span>}
           </div>
           <button onClick={() => void คืนสิทธิ์()} disabled={กำลังคืน || สิทธิ์.used === 0}
@@ -236,7 +236,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
       {แก้บัญชี && (
         <ModalPortal>
         <div onClick={() => setแก้บัญชี(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1060, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => setแก้บัญชี(null)} label="แก้บัญชีเข้าระบบของตัวแทน"
+          <ModalCard onClose={() => setแก้บัญชี(null)} label="แก้บัญชีเข้าระบบของดีลเลอร์"
             style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)", width: 400, maxWidth: "100%" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
@@ -283,11 +283,11 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
         </ModalPortal>
       )}
 
-      {/* รหัสใหม่หลังรีเซ็ต — ต้องคัดลอกไปแจ้งตัวแทนทันที ปิดแล้วดูซ้ำได้ที่ปุ่ม "ดูรหัสผ่าน" ด้านบน */}
+      {/* รหัสใหม่หลังรีเซ็ต — ต้องคัดลอกไปแจ้งดีลเลอร์ทันที ปิดแล้วดูซ้ำได้ที่ปุ่ม "ดูรหัสผ่าน" ด้านบน */}
       {newCreds && (
         <ModalPortal>
         <div onClick={() => setNewCreds(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1060, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => setNewCreds(null)} label="รหัสผ่านใหม่ของตัวแทน"
+          <ModalCard onClose={() => setNewCreds(null)} label="รหัสผ่านใหม่ของดีลเลอร์"
             style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)", width: 380, maxWidth: "100%" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
@@ -300,7 +300,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
               <CopyField label="อีเมล" value={newCreds.email} />
               <CopyField label="รหัสผ่านใหม่" value={newCreds.password} secret defaultShown />
               <div style={{ fontSize: "0.72rem", color: "#7a5b12", background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 8, padding: "9px 12px", marginTop: 6 }}>
-                รหัสเดิมใช้ไม่ได้แล้ว — ต้องแจ้งรหัสใหม่นี้ให้ตัวแทนทราบ
+                รหัสเดิมใช้ไม่ได้แล้ว — ต้องแจ้งรหัสใหม่นี้ให้ดีลเลอร์ทราบ
               </div>
             </div>
           </ModalCard>

@@ -12,7 +12,7 @@ import { bad, authorizeAdmin, auditLog, withErrors } from "@pms/shared/lib/admin
 
 export const runtime = "nodejs";
 
-const DENY = "ไม่มีสิทธิ์จัดการตัวแทน";
+const DENY = "ไม่มีสิทธิ์จัดการดีลเลอร์";
 const NOT_CONFIGURED = "ระบบยังไม่ได้ตั้งค่าสิทธิ์ผู้ดูแล";
 
 export const POST = withErrors("move-dealer-data", async (req: NextRequest) => {
@@ -28,7 +28,7 @@ export const POST = withErrors("move-dealer-data", async (req: NextRequest) => {
   const body = await req.json().catch(() => null) as { from?: string; to?: string } | null;
   const from = (body?.from ?? "").trim().toUpperCase();
   const to   = (body?.to   ?? "").trim().toUpperCase();
-  if (!/^[A-Z]{2,5}$/.test(from) || !/^[A-Z]{2,5}$/.test(to)) return bad(400, "รหัสตัวแทนไม่ถูกต้อง");
+  if (!/^[A-Z]{2,5}$/.test(from) || !/^[A-Z]{2,5}$/.test(to)) return bad(400, "รหัสดีลเลอร์ไม่ถูกต้อง");
   if (from === to) return bad(400, "ต้นทางและปลายทางต้องเป็นคนละสาขา");
 
   const { data, error } = await admin.rpc("move_dealer_data_atomic", { p_from: from, p_to: to });
@@ -48,7 +48,7 @@ export const POST = withErrors("move-dealer-data", async (req: NextRequest) => {
     }
     if (/same_dealer:/.test(msg)) return bad(400, "ต้นทางและปลายทางต้องเป็นคนละสาขา");
     const notFound = /dealer_not_found:([A-Z]+)/.exec(msg);
-    if (notFound) return bad(404, `ไม่พบตัวแทนรหัส "${notFound[1]}"`);
+    if (notFound) return bad(404, `ไม่พบดีลเลอร์รหัส "${notFound[1]}"`);
     if (/forbidden:/.test(msg)) return bad(403, DENY);
     console.error(`[move-dealer-data] ย้าย ${from} → ${to} ไม่สำเร็จ`, error);
     return bad(503, "ย้ายข้อมูลไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
@@ -56,6 +56,6 @@ export const POST = withErrors("move-dealer-data", async (req: NextRequest) => {
 
   const rows = (data ?? []) as { entity: string; moved: number }[];
   const total = rows.reduce((s, r) => s + Number(r.moved ?? 0), 0);
-  await auditLog(admin, prof, "ย้ายข้อมูลตัวแทน", `${from} → ${to} · ${total} รายการ`);
+  await auditLog(admin, prof, "ย้ายข้อมูลดีลเลอร์", `${from} → ${to} · ${total} รายการ`);
   return NextResponse.json({ ok: true, moved: rows, total });
 });

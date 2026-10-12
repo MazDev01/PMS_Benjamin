@@ -5,14 +5,14 @@ import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 
-// ── ลูกค้าเป้าหมายของสำนักงานใหญ่ = ผู้สนใจเป็นตัวแทนจำหน่าย (บอสสั่ง 14 ก.ย. 69) ─────────
-//   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นตัวแทนจำหน่าย"
+// ── ลูกค้าเป้าหมายของสำนักงานใหญ่ = ผู้สนใจเป็นดีลเลอร์ (บอสสั่ง 14 ก.ย. 69) ─────────
+//   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นดีลเลอร์"
 //
 // สิ่งที่ต้องพิสูจน์:
-//   1) ตัวแทนจำหน่ายมองไม่เห็นรายชื่อนี้เลย (ข้อมูลอ่อนไหว — ผู้สนใจรายอื่นในพื้นที่เดียวกัน)
-//   2) เซิร์ฟเวอร์ไม่ยอมให้นับ "เป็นตัวแทนแล้ว" ถ้าไม่ได้ผูกสาขาจริง
-//   3) เส้นทางผ่านหน้าจอครบ: เพิ่ม → เปลี่ยนขั้น → ผูกกับตัวแทนที่มีอยู่
-//   4) สร้างตัวแทนใหม่จากรายนี้ได้บัญชีจริง และกดซ้ำไม่ได้สาขาซ้อน
+//   1) ดีลเลอร์มองไม่เห็นรายชื่อนี้เลย (ข้อมูลอ่อนไหว — ผู้สนใจรายอื่นในพื้นที่เดียวกัน)
+//   2) เซิร์ฟเวอร์ไม่ยอมให้นับ "เป็นดีลเลอร์แล้ว" ถ้าไม่ได้ผูกสาขาจริง
+//   3) เส้นทางผ่านหน้าจอครบ: เพิ่ม → เปลี่ยนขั้น → ผูกกับดีลเลอร์ที่มีอยู่
+//   4) สร้างดีลเลอร์ใหม่จากรายนี้ได้บัญชีจริง และกดซ้ำไม่ได้สาขาซ้อน
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
 test.describe.configure({ mode: "serial" });
@@ -20,7 +20,7 @@ test.describe.configure({ mode: "serial" });
 const NS = specNS("PROSPECT");
 const NEW_CODE = "ZZP";      // สร้างผ่านหน้าจอ
 const DUP_CODE = "ZZQ";      // รหัสที่ใช้ลองสร้างซ้อน — ต้องไม่ถูกสร้างจริง
-const NOACC_CODE = "ZZL";    // สาขาที่ไม่มีบัญชีเข้าระบบ (ลงทะเบียนตรง) — ใช้ทดสอบผูกกับตัวแทนที่มีอยู่แล้ว
+const NOACC_CODE = "ZZL";    // สาขาที่ไม่มีบัญชีเข้าระบบ (ลงทะเบียนตรง) — ใช้ทดสอบผูกกับดีลเลอร์ที่มีอยู่แล้ว
 
 async function purgeNoAccountDealer() {
   if (!ADMIN_SERVICE_ROLE_KEY) return;
@@ -66,7 +66,7 @@ test.afterAll(async () => {
   await purgeDealer(DUP_CODE);
 });
 
-test("[security] ตัวแทนจำหน่ายมองไม่เห็น และเขียนลูกค้าเป้าหมายของสำนักงานใหญ่ไม่ได้", async () => {
+test("[security] ดีลเลอร์มองไม่เห็น และเขียนลูกค้าเป้าหมายของสำนักงานใหญ่ไม่ได้", async () => {
   const hq = await db(ADMIN);
   const { error: hqErr } = await hq.from("dealer_prospects").insert({ name: `${NS}-ลับ`, phone: "0800000000" });
   expect(hqErr, "ผู้ดูแลสำนักงานใหญ่ต้องเพิ่มได้").toBeNull();
@@ -74,13 +74,13 @@ test("[security] ตัวแทนจำหน่ายมองไม่เห
   const dealer = await db(RYG);
   const { data, error } = await dealer.from("dealer_prospects").select("id").like("name", `${NS}%`);
   expect(error).toBeNull();
-  expect(data ?? [], "ตัวแทนต้องไม่เห็นสักแถว (RLS กรองทิ้ง ไม่ใช่แค่ซ่อนเมนู)").toHaveLength(0);
+  expect(data ?? [], "ดีลเลอร์ต้องไม่เห็นสักแถว (RLS กรองทิ้ง ไม่ใช่แค่ซ่อนเมนู)").toHaveLength(0);
 
   const { error: dealerErr } = await dealer.from("dealer_prospects").insert({ name: `${NS}-ปลอม` });
-  expect(dealerErr, "ตัวแทนต้องเพิ่มไม่ได้").not.toBeNull();
+  expect(dealerErr, "ดีลเลอร์ต้องเพิ่มไม่ได้").not.toBeNull();
 });
 
-test("[api] ตั้งสถานะ “เป็นตัวแทนแล้ว” โดยไม่ผูกรหัสตัวแทน ต้องถูกปฏิเสธที่เซิร์ฟเวอร์", async () => {
+test("[api] ตั้งสถานะ “เป็นดีลเลอร์แล้ว” โดยไม่ผูกรหัสดีลเลอร์ ต้องถูกปฏิเสธที่เซิร์ฟเวอร์", async () => {
   const token = await adminToken();
   const res = await fetch(`${HQ_ORIGIN}/api/v1/prospects`, {
     method: "POST",
@@ -88,10 +88,10 @@ test("[api] ตั้งสถานะ “เป็นตัวแทนแล�
     body: JSON.stringify({ name: `${NS}-สำเร็จปลอม`, status: "won" }),
   });
   expect(res.status).toBe(400);
-  expect(((await res.json()) as { error?: string }).error ?? "").toMatch(/ผูกกับตัวแทน/);
+  expect(((await res.json()) as { error?: string }).error ?? "").toMatch(/ผูกกับดีลเลอร์/);
 });
 
-test("[func·hq] เพิ่มลูกค้าเป้าหมาย → เปลี่ยนขั้น → ผูกกับตัวแทนที่มีอยู่แล้ว", async ({ page }) => {
+test("[func·hq] เพิ่มลูกค้าเป้าหมาย → เปลี่ยนขั้น → ผูกกับดีลเลอร์ที่มีอยู่แล้ว", async ({ page }) => {
   const errs = watchErrors(page);
   const name = `${NS}-ผูกสาขาเดิม`;
   const sb = await db(ADMIN);
@@ -106,14 +106,14 @@ test("[func·hq] เพิ่มลูกค้าเป้าหมาย → �
   expect(row.status).toBe("new");
 
   const แถว = page.getByRole("row", { name: new RegExp(name) });
-  // เพิ่มเสร็จ ระบบเปิดแผงของรายนั้นที่แท็บงานให้เลย (แบบเดียวกับฝั่งตัวแทน — บอสสั่ง 14 ก.ย. 69)
+  // เพิ่มเสร็จ ระบบเปิดแผงของรายนั้นที่แท็บงานให้เลย (แบบเดียวกับฝั่งดีลเลอร์ — บอสสั่ง 14 ก.ย. 69)
   //   ขั้นเปลี่ยนจากงานเท่านั้น ฟอร์มไม่มีช่องเลือกสถานะแล้ว
   await expect(แก้ไข.getByRole("tab", { name: "งาน/ความคืบหน้า" })).toHaveAttribute("aria-selected", "true", { timeout: 15_000 });
   await expect(แก้ไข.locator("#pr-status"), "ห้ามมีช่องเลือกสถานะเอง").toHaveCount(0);
   // งานแรกต้องมีบันทึกการติดต่อจริง — กดติ๊กแล้วพาไปฟอร์มบันทึกการติดต่อ ระบบติ๊กให้เอง
   await แก้ไข.getByRole("checkbox", { name: "ติดต่อครั้งแรก" }).click();
   await แก้ไข.locator("#pc-channel").selectOption("โทรศัพท์");
-  await แก้ไข.locator("#pc-body").fill("สนใจเป็นตัวแทน ขอข้อมูลบริษัท");
+  await แก้ไข.locator("#pc-body").fill("สนใจเป็นดีลเลอร์ ขอข้อมูลบริษัท");
   await แก้ไข.getByRole("button", { name: "บันทึกการติดต่อ" }).last().click();
   await waitRow(sb, "dealer_prospects", { name, status: "contacted" });
   await แก้ไข.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
@@ -121,21 +121,21 @@ test("[func·hq] เพิ่มลูกค้าเป้าหมาย → �
   await แก้ไข.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
   await waitRow(sb, "dealer_prospects", { name, status: "profile_sent" });
 
-  await แก้ไข.getByRole("button", { name: "ตั้งเป็นตัวแทนจำหน่าย" }).first().click();
-  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นตัวแทนจำหน่าย" });
-  await ตั้ง.getByLabel("ผูกกับตัวแทนจำหน่ายที่มีอยู่แล้ว").check();
+  await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click();
+  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
+  await ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว").check();
   // CNX ไม่ใช่ RYG — สเปกอื่นผูกลูกค้าเป้าหมายทดสอบกับ RYG อยู่ และหนึ่งสาขาผูกได้รายเดียว (บอสสั่ง 15 ก.ย. 69)
   await ตั้ง.locator("#cv-existing").selectOption("CNX");
-  await ตั้ง.getByRole("button", { name: "ผูกกับตัวแทนนี้" }).click();
+  await ตั้ง.getByRole("button", { name: "ผูกกับดีลเลอร์นี้" }).click();
 
   await waitRow(sb, "dealer_prospects", { name, status: "won", dealer_code: "CNX" });
-  // เป็นตัวแทนแล้ว = ไปอยู่หน้าตัวแทนจำหน่าย ไม่แสดงในหน้าลูกค้าเป้าหมาย (บอสสั่ง 15 ก.ย. 69)
-  await expect(แถว, "เป็นตัวแทนแล้วต้องหายจากตารางลูกค้าเป้าหมาย").toHaveCount(0, { timeout: 15_000 });
-  await expect(page.getByLabel("กรองตามสถานะ").locator("option", { hasText: "เป็นตัวแทนแล้ว" }), "ไม่มีตัวกรองเป็นตัวแทนแล้ว").toHaveCount(0);
+  // เป็นดีลเลอร์แล้ว = ไปอยู่หน้าดีลเลอร์ ไม่แสดงในหน้าลูกค้าเป้าหมาย (บอสสั่ง 15 ก.ย. 69)
+  await expect(แถว, "เป็นดีลเลอร์แล้วต้องหายจากตารางลูกค้าเป้าหมาย").toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByLabel("กรองตามสถานะ").locator("option", { hasText: "เป็นดีลเลอร์แล้ว" }), "ไม่มีตัวกรองเป็นดีลเลอร์แล้ว").toHaveCount(0);
   assertNoErrors(errs, "หน้าลูกค้าเป้าหมาย (HQ)");
 });
 
-test("[api] ผูกกับตัวแทนที่มีอยู่แล้ว: ตรวจที่เซิร์ฟเวอร์ · สาขาไม่มีบัญชีผูกได้แต่บอก · ผูกซ้ำ/ปิดใช้งานไม่ได้", async () => {
+test("[api] ผูกกับดีลเลอร์ที่มีอยู่แล้ว: ตรวจที่เซิร์ฟเวอร์ · สาขาไม่มีบัญชีผูกได้แต่บอก · ผูกซ้ำ/ปิดใช้งานไม่ได้", async () => {
   test.skip(!ADMIN_SERVICE_ROLE_KEY, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const sb = await db(ADMIN);
@@ -147,7 +147,7 @@ test("[api] ผูกกับตัวแทนที่มีอยู่แ�
   const เพิ่มราย = async (ชื่อ: string) =>
     ((await sb.from("dealer_prospects").insert({ name: `${NS}-${ชื่อ}`, status: "meeting" }).select("id").single()).data as { id: number }).id;
 
-  // สาขาทดสอบที่ไม่มีบัญชีเข้าระบบ (ลงทะเบียนตรง แบบรายชื่อตัวแทนเดิมจาก Excel)
+  // สาขาทดสอบที่ไม่มีบัญชีเข้าระบบ (ลงทะเบียนตรง แบบรายชื่อดีลเลอร์เดิมจาก Excel)
   expect((await admin.from("dealers").insert({ code: NOACC_CODE, name: "ZZTEST สาขาไม่มีบัญชี", province: "ระยอง", region: "ตะวันออก", revenue_target: 0, status: "active" })).error).toBeNull();
 
   const ก = await เพิ่มราย("ผูกสาขาไม่มีบัญชี");
@@ -163,7 +163,7 @@ test("[api] ผูกกับตัวแทนที่มีอยู่แ�
   const ซ้ำ = await ผูก(ข, NOACC_CODE);
   expect(ซ้ำ.status, "หนึ่งสาขาผูกได้รายเดียว").toBe(409);
   expect(((await ซ้ำ.json()) as { error: string }).error).toMatch(/ผูกกับลูกค้าเป้าหมาย/);
-  expect(((await ผูก(ก, "CNX")).status), "รายที่เป็นตัวแทนแล้วผูกใหม่ไม่ได้").toBe(409);
+  expect(((await ผูก(ก, "CNX")).status), "รายที่เป็นดีลเลอร์แล้วผูกใหม่ไม่ได้").toBe(409);
 
   // ปลดรายแรกออก แล้วปิดใช้งานสาขา → ผูกไม่ได้เพราะปิดใช้งาน
   expect((await admin.from("dealer_prospects").delete().eq("id", ก)).error).toBeNull();
@@ -172,13 +172,13 @@ test("[api] ผูกกับตัวแทนที่มีอยู่แ�
   expect(ปิด.status, "สาขาที่ปิดใช้งานต้องผูกไม่ได้").toBe(409);
   expect(((await ปิด.json()) as { error: string }).error).toMatch(/ปิดใช้งาน/);
 
-  // ผู้ใช้ตัวแทนยิงตรงต้องไม่ได้
-  const ตัวแทน = (await (await db(RYG)).auth.getSession()).data.session?.access_token ?? "";
+  // ผู้ใช้ดีลเลอร์ยิงตรงต้องไม่ได้
+  const ดีลเลอร์ = (await (await db(RYG)).auth.getSession()).data.session?.access_token ?? "";
   const โดนกัน = await fetch(`${HQ_ORIGIN}/api/admin/dealers/link-prospect`, {
-    method: "POST", headers: { authorization: `Bearer ${ตัวแทน}`, "content-type": "application/json" },
+    method: "POST", headers: { authorization: `Bearer ${ดีลเลอร์}`, "content-type": "application/json" },
     body: JSON.stringify({ prospectId: ข, dealerCode: "RYG" }),
   });
-  expect(โดนกัน.status, "ตัวแทนต้องผูกไม่ได้").toBe(403);
+  expect(โดนกัน.status, "ดีลเลอร์ต้องผูกไม่ได้").toBe(403);
 });
 
 test("[func·hq] ผูกกับสาขาที่ยังไม่มีบัญชี → เตือนก่อนผูก · ผูกแล้วมีปุ่มไปตั้งอีเมล/รหัสผ่าน", async ({ page }) => {
@@ -196,14 +196,14 @@ test("[func·hq] ผูกกับสาขาที่ยังไม่มี
 
   await loginUI(page, HQ_ORIGIN, `/hq/prospects?open=${id}`, ADMIN);
   const แผง = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
-  await แผง.getByRole("button", { name: "ตั้งเป็นตัวแทนจำหน่าย" }).first().click({ timeout: 30_000 });
-  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นตัวแทนจำหน่าย" });
-  await ตั้ง.getByLabel("ผูกกับตัวแทนจำหน่ายที่มีอยู่แล้ว").check();
+  await แผง.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click({ timeout: 30_000 });
+  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
+  await ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว").check();
   await ตั้ง.locator("#cv-existing").selectOption(NOACC_CODE);
-  await expect(ตั้ง.getByText(`ตัวแทน ${NOACC_CODE} ยังไม่มีบัญชีเข้าระบบ`), "ต้องเตือนก่อนกดผูก").toBeVisible({ timeout: 15_000 });
-  await ตั้ง.getByRole("button", { name: "ผูกกับตัวแทนนี้" }).click();
+  await expect(ตั้ง.getByText(`ดีลเลอร์ ${NOACC_CODE} ยังไม่มีบัญชีเข้าระบบ`), "ต้องเตือนก่อนกดผูก").toBeVisible({ timeout: 15_000 });
+  await ตั้ง.getByRole("button", { name: "ผูกกับดีลเลอร์นี้" }).click();
 
-  const เตือน = page.getByRole("dialog", { name: "ตัวแทนยังไม่มีบัญชีเข้าระบบ" });
+  const เตือน = page.getByRole("dialog", { name: "ดีลเลอร์ยังไม่มีบัญชีเข้าระบบ" });
   await expect(เตือน, "ผูกแล้วต้องเตือนให้เห็นชัด").toBeVisible({ timeout: 20_000 });
   await waitRow(sb, "dealer_prospects", { id, status: "won", dealer_code: NOACC_CODE });
   await เตือน.getByRole("link", { name: "ไปตั้งอีเมล/รหัสผ่าน" }).click();
@@ -211,7 +211,7 @@ test("[func·hq] ผูกกับสาขาที่ยังไม่มี
   assertNoErrors(errs, "ผูกกับสาขาที่ไม่มีบัญชี");
 });
 
-test("[func·hq] ตั้งเป็นตัวแทนจำหน่ายใหม่ → ได้สาขาพร้อมบัญชี · กดซ้ำไม่ได้สาขาซ้อน", async ({ page }) => {
+test("[func·hq] ตั้งเป็นดีลเลอร์ใหม่ → ได้สาขาพร้อมบัญชี · กดซ้ำไม่ได้สาขาซ้อน", async ({ page }) => {
   const errs = watchErrors(page);
   const name = `${NS}-สาขาใหม่`;
   const sb = await db(ADMIN);
@@ -219,26 +219,26 @@ test("[func·hq] ตั้งเป็นตัวแทนจำหน่าย
     .insert({ name, province: "ระยอง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const id = (ins as { id: number }).id;
-  // ต้องมีใบเสนอแพ็กเกจที่ส่งแล้ว ถึงจะสร้างตัวแทนใหม่ได้ (บอสสั่ง 14 ก.ย. 69)
+  // ต้องมีใบค่าแฟรนไชส์ที่ส่งแล้ว ถึงจะสร้างดีลเลอร์ใหม่ได้ (บอสสั่ง 14 ก.ย. 69)
   const { error: ใบErr } = await sb.from("dealer_package_proposals")
     .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: "2026-09-14", contract_months: 12, annual_target: 12_000_000 });
   expect(ใบErr).toBeNull();
 
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await page.getByRole("row", { name: new RegExp(name) }).click();
-  await page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" }).getByRole("button", { name: "ตั้งเป็นตัวแทนจำหน่าย" }).click();
-  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นตัวแทนจำหน่าย" });
+  await page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" }).getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
+  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
   // ภาค/จังหวัดเติมจากที่บันทึกไว้ให้แล้ว — ไม่ต้องเลือกซ้ำ
   await expect(ตั้ง.locator("#cv-province")).toHaveValue("ระยอง");
   await expect(ตั้ง.locator("#cv-region")).not.toHaveValue("");
   await expect(ตั้ง.getByText(/เป้ายอดขายรายปีของสาขาจะตั้งตามใบเสนอ .*฿12,000,000/), "ต้องบอกล่วงหน้าว่าเป้าจะตั้งตามใบไหน").toBeVisible();
   await ตั้ง.locator("#cv-code").fill(NEW_CODE);
-  await ตั้ง.getByRole("button", { name: "สร้างตัวแทนจำหน่าย" }).click();
+  await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
 
-  await expect(page.getByText("สร้างตัวแทนจำหน่ายสำเร็จ")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("link", { name: `ไปที่ตัวแทน ${NEW_CODE}` }), "มีทางไปหน้าตัวแทนที่เพิ่งสร้าง").toBeVisible();
+  await expect(page.getByText("สร้างดีลเลอร์สำเร็จ")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("link", { name: `ไปที่ดีลเลอร์ ${NEW_CODE}` }), "มีทางไปหน้าดีลเลอร์ที่เพิ่งสร้าง").toBeVisible();
   await page.getByRole("button", { name: "เสร็จแล้ว" }).click();
-  await expect(page.getByRole("row", { name: new RegExp(name) }), "เป็นตัวแทนแล้วต้องหายจากตารางลูกค้าเป้าหมาย").toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByRole("row", { name: new RegExp(name) }), "เป็นดีลเลอร์แล้วต้องหายจากตารางลูกค้าเป้าหมาย").toHaveCount(0, { timeout: 15_000 });
   await waitRow(sb, "dealers", { code: NEW_CODE });
   await waitRow(sb, "dealer_prospects", { id, status: "won", dealer_code: NEW_CODE });
   // เป้ายอดขายรายปีของสาขา = เป้ายอดซื้อต่อปีในใบ (บอสสั่ง "เอา 3 ช่อง") · ใบนั้นกลายเป็นตอบรับ
@@ -258,17 +258,17 @@ test("[func·hq] ตั้งเป็นตัวแทนจำหน่าย
   expect(again.status).toBe(409);
   const { data: ซ้อน } = await sb.from("dealers").select("code").eq("code", DUP_CODE);
   expect(ซ้อน ?? [], "ต้องไม่มีสาขาซ้อนถูกสร้าง").toHaveLength(0);
-  assertNoErrors(errs, "ตั้งเป็นตัวแทนจำหน่ายใหม่");
+  assertNoErrors(errs, "ตั้งเป็นดีลเลอร์ใหม่");
 });
 
-test("[api] สร้างตัวแทนโดยไม่ผูกลูกค้าเป้าหมาย ต้องถูกปฏิเสธ และไม่มีสาขาเกิดขึ้น (บอสสั่ง 14 ก.ย. 69)", async () => {
+test("[api] สร้างดีลเลอร์โดยไม่ผูกลูกค้าเป้าหมาย ต้องถูกปฏิเสธ และไม่มีสาขาเกิดขึ้น (บอสสั่ง 14 ก.ย. 69)", async () => {
   const token = await adminToken();
   const res = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify({ code: DUP_CODE, name: `${NS}-สร้างตรง`, province: "ระยอง", region: "ตะวันออก", revenueTarget: 0 }),
   });
-  expect(res.status, "ต้องปฏิเสธ — ตัวแทนต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้วเท่านั้น").toBe(400);
+  expect(res.status, "ต้องปฏิเสธ — ดีลเลอร์ต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้วเท่านั้น").toBe(400);
   expect(((await res.json()) as { error?: string }).error ?? "").toMatch(/ลูกค้าเป้าหมาย/);
   const { data } = await (await db(ADMIN)).from("dealers").select("code").eq("code", DUP_CODE);
   expect(data ?? [], "คำขอที่ถูกปฏิเสธต้องไม่สร้างสาขา").toHaveLength(0);
@@ -302,9 +302,9 @@ test("[ui·hq] ฟอร์มลูกค้าเป้าหมาย: เล
   assertNoErrors(errs, "ฟอร์มลูกค้าเป้าหมาย: ภาค/จังหวัด");
 });
 
-// ── ใบเสนอแพ็กเกจตัวแทน (บอสสั่ง 14 ก.ย. 69: "เหมือนดีลเลอร์ที่ต้องมีใบเสนอราคา แต่อันนี้ของ HQ") ──
+// ── ใบค่าแฟรนไชส์ (บอสสั่ง 14 ก.ย. 69: "เหมือนดีลเลอร์ที่ต้องมีใบเสนอราคา แต่อันนี้ของ HQ") ──
 
-test("[api] ยังไม่มีใบเสนอแพ็กเกจที่ส่งแล้ว → สร้างตัวแทนไม่ได้ (ใบร่างไม่นับ)", async () => {
+test("[api] ยังไม่มีใบค่าแฟรนไชส์ที่ส่งแล้ว → สร้างดีลเลอร์ไม่ได้ (ใบร่างไม่นับ)", async () => {
   const sb = await db(ADMIN);
   const name = `${NS}-ยังไม่ส่งใบ`;
   const { data: ins, error } = await sb.from("dealer_prospects").insert({ name, status: "considering" }).select("id").single();
@@ -319,13 +319,13 @@ test("[api] ยังไม่มีใบเสนอแพ็กเกจท�
     headers: { authorization: `Bearer ${await adminToken()}`, "content-type": "application/json" },
     body: JSON.stringify({ code: DUP_CODE, name, province: "ระยอง", region: "ตะวันออก", revenueTarget: 0, prospectId: id }),
   });
-  expect(res.status, "มีแต่ใบร่าง ต้องสร้างตัวแทนไม่ได้").toBe(400);
-  expect(((await res.json()) as { error?: string }).error ?? "").toMatch(/ใบเสนอแพ็กเกจ/);
+  expect(res.status, "มีแต่ใบร่าง ต้องสร้างดีลเลอร์ไม่ได้").toBe(400);
+  expect(((await res.json()) as { error?: string }).error ?? "").toMatch(/ใบค่าแฟรนไชส์/);
   const { data } = await sb.from("dealers").select("code").eq("code", DUP_CODE);
   expect(data ?? [], "คำขอที่ถูกปฏิเสธต้องไม่สร้างสาขา").toHaveLength(0);
 });
 
-test("[security] ใบเสนอแพ็กเกจ: ตัวแทนมองไม่เห็น · ข้ามจากร่างไปตอบรับไม่ได้ · ส่งแล้วแก้เนื้อหา/ลบไม่ได้", async () => {
+test("[security] ใบค่าแฟรนไชส์: ดีลเลอร์มองไม่เห็น · ข้ามจากร่างไปตอบรับไม่ได้ · ส่งแล้วแก้เนื้อหา/ลบไม่ได้", async () => {
   const sb = await db(ADMIN);
   const { data: pr, error } = await sb.from("dealer_prospects").insert({ name: `${NS}-ตรวจกติกาใบ` }).select("id").single();
   expect(error).toBeNull();
@@ -354,10 +354,10 @@ test("[security] ใบเสนอแพ็กเกจ: ตัวแทนม�
 
   const dealer = await db(RYG);
   const { data: เห็น } = await dealer.from("dealer_package_proposals").select("id").eq("id", row.id);
-  expect(เห็น ?? [], "ตัวแทนต้องไม่เห็นใบเสนอแพ็กเกจของสำนักงานใหญ่").toHaveLength(0);
+  expect(เห็น ?? [], "ดีลเลอร์ต้องไม่เห็นใบค่าแฟรนไชส์ของสำนักงานใหญ่").toHaveLength(0);
 });
 
-test("[func·hq] ออกใบเสนอแพ็กเกจ → ยังเป็นร่าง สร้างตัวแทนไม่ได้ → ส่งแล้ว สร้างได้", async ({ page }) => {
+test("[func·hq] ออกใบค่าแฟรนไชส์ → ยังเป็นร่าง สร้างดีลเลอร์ไม่ได้ → ส่งแล้ว สร้างได้", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-ออกใบผ่านหน้าจอ`;
@@ -369,15 +369,15 @@ test("[func·hq] ออกใบเสนอแพ็กเกจ → ยัง�
   await page.getByLabel("ค้นหาลูกค้าเป้าหมาย").fill(name);
   await page.getByRole("row", { name: new RegExp(name) }).click();
   const แก้ไข = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
-  // ปุ่มลัดบนหัวแผงบอสสั่งเอาออก (14 ก.ย. 69) — ออกใบจากแท็บใบเสนอแพ็กเกจ
-  await แก้ไข.getByRole("tab", { name: /ใบเสนอแพ็กเกจ/ }).click();
-  await แก้ไข.getByRole("button", { name: "ออกใบเสนอแพ็กเกจ" }).click();
+  // ปุ่มลัดบนหัวแผงบอสสั่งเอาออก (14 ก.ย. 69) — ออกใบจากแท็บใบค่าแฟรนไชส์
+  await แก้ไข.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click();
+  await แก้ไข.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).click();
 
   // ฟอร์มเปิดในแท็บเลย ไม่เด้งหน้าต่าง (บอสสั่ง 15 ก.ย. 69 "ไม่ต้องทำเป็นป็อบอัพ ทำเป็นเปิดในหน้านั้นเลย")
-  const ใบ = แก้ไข.getByRole("region", { name: "ใบเสนอแพ็กเกจตัวแทน" });
+  const ใบ = แก้ไข.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await expect(ใบ, "ฟอร์มต้องอยู่ในแท็บของหน้าต่างลูกค้าเป้าหมาย").toBeVisible();
-  await expect(page.getByRole("dialog", { name: "ใบเสนอแพ็กเกจตัวแทน" }), "ต้องไม่มีหน้าต่างเด้งซ้อน").toHaveCount(0);
-  await expect(แก้ไข.getByRole("button", { name: "ออกใบเสนอแพ็กเกจ" }), "เปิดฟอร์มแล้วซ่อนปุ่มออกใบซ้ำ").toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์" }), "ต้องไม่มีหน้าต่างเด้งซ้อน").toHaveCount(0);
+  await expect(แก้ไข.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }), "เปิดฟอร์มแล้วซ่อนปุ่มออกใบซ้ำ").toHaveCount(0);
   await ใบ.getByRole("button", { name: "บันทึกใบ" }).click();
   await expect(ใบ.getByText(/ต้องเลือกแพ็กเกจ/), "ไม่เลือกแพ็กเกจ = บันทึกไม่ได้ (ห้ามเลือกให้เอง)").toBeVisible();
   await ใบ.locator("#pp-package").selectOption("exclusive");
@@ -398,19 +398,19 @@ test("[func·hq] ออกใบเสนอแพ็กเกจ → ยัง�
   await expect(แก้ไข.getByText(แถวใบ.proposal_no)).toBeVisible();
   await expect(ใบ, "บันทึกแล้วฟอร์มปิด กลับเป็นรายการใบ").toHaveCount(0);
 
-  // ยังเป็นร่าง → ปุ่มสร้างตัวแทนต้องกดไม่ได้ พร้อมบอกเหตุผล
-  await แก้ไข.getByRole("button", { name: "ตั้งเป็นตัวแทนจำหน่าย" }).click();
-  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นตัวแทนจำหน่าย" });
-  await expect(ตั้ง.getByRole("button", { name: "สร้างตัวแทนจำหน่าย" })).toBeDisabled();
-  await expect(ตั้ง.getByText(/ต้องมี “ใบเสนอแพ็กเกจตัวแทน”/)).toBeVisible();
+  // ยังเป็นร่าง → ปุ่มสร้างดีลเลอร์ต้องกดไม่ได้ พร้อมบอกเหตุผล
+  await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
+  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
+  await expect(ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" })).toBeDisabled();
+  await expect(ตั้ง.getByText(/ต้องมี “ใบค่าแฟรนไชส์”/)).toBeVisible();
   await ตั้ง.getByRole("button", { name: "ยกเลิก" }).click();
 
-  // เปลี่ยนเป็นส่งแล้ว → สร้างตัวแทนได้
+  // เปลี่ยนเป็นส่งแล้ว → สร้างดีลเลอร์ได้
   await แก้ไข.getByLabel(`สถานะใบ ${แถวใบ.proposal_no}`).selectOption("sent");
   await กดตกลงในกล่องยืนยัน(page);
   await waitRow(sb, "dealer_package_proposals", { id: แถวใบ.id, status: "sent" });
-  await แก้ไข.getByRole("button", { name: "ตั้งเป็นตัวแทนจำหน่าย" }).click();
-  await expect(ตั้ง.getByRole("button", { name: "สร้างตัวแทนจำหน่าย" }), "มีใบที่ส่งแล้ว ต้องกดได้").toBeEnabled();
-  assertNoErrors(errs, "ออกใบเสนอแพ็กเกจตัวแทน");
+  await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
+  await expect(ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }), "มีใบที่ส่งแล้ว ต้องกดได้").toBeEnabled();
+  assertNoErrors(errs, "ออกใบค่าแฟรนไชส์");
 });
 

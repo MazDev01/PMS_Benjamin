@@ -54,13 +54,13 @@ async function walk(page: Page, origin: string, paths: string[], errs: string[])
   }
 }
 
-test("[errcheck] ทุกหน้าฝั่งตัวแทน", async ({ page }) => {
+test("[errcheck] ทุกหน้าฝั่งดีลเลอร์", async ({ page }) => {
   const errs = watch(page);
   await login(page, DEALER, "/login", RYG);
   await walk(page, DEALER, ["/dashboard", "/leads", "/customers", "/quotations", "/products", "/calendar", "/files", "/settings", "/profile"], errs);
   const real = errs.filter(e => !NOISE.test(e));
   if (real.length) console.log("=== พบ ===\n" + real.slice(0, 20).join("\n"));
-  expect(real, "ฝั่งตัวแทนต้องไม่มี error").toEqual([]);
+  expect(real, "ฝั่งดีลเลอร์ต้องไม่มี error").toEqual([]);
 });
 
 test("[errcheck] ทุกหน้าฝั่ง HQ", async ({ page }) => {

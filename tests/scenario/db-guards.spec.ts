@@ -17,8 +17,8 @@ const GHOST = "ZZGH";
 
 test.afterAll(async () => { await svc.from("dealers").delete().eq("code", GHOST); });
 
-test("บันทึกแก้ไขตัวแทน ต้องสร้างสาขาใหม่ไม่ได้ (กันสาขาผีที่ไม่มีบัญชีเข้าระบบ)", async () => {
-  // การสร้างสาขาที่ถูกต้องต้องผ่านหน้าจัดการตัวแทน ซึ่งสร้าง "บัญชีเข้าระบบ" คู่กันเสมอ
+test("บันทึกแก้ไขดีลเลอร์ ต้องสร้างสาขาใหม่ไม่ได้ (กันสาขาผีที่ไม่มีบัญชีเข้าระบบ)", async () => {
+  // การสร้างสาขาที่ถูกต้องต้องผ่านหน้าจัดการดีลเลอร์ ซึ่งสร้าง "บัญชีเข้าระบบ" คู่กันเสมอ
   // ถ้าเส้นทาง "บันทึกการแก้ไข" สร้างแถวสาขาได้ด้วย จะได้สาขาที่ไม่มีใครเข้าได้
   const hq = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
   const { error: loginErr } = await hq.auth.signInWithPassword(ADMIN);
@@ -35,7 +35,7 @@ test("บันทึกแก้ไขตัวแทน ต้องสร้�
   expect(rows ?? [], "ต้องไม่มีสาขาใหม่ถูกสร้างขึ้น").toEqual([]);
 });
 
-test("บันทึกแก้ไขตัวแทนที่มีอยู่จริง ยังทำได้ตามปกติ (กฎต้องไม่เข้มจนใช้งานไม่ได้)", async () => {
+test("บันทึกแก้ไขดีลเลอร์ที่มีอยู่จริง ยังทำได้ตามปกติ (กฎต้องไม่เข้มจนใช้งานไม่ได้)", async () => {
   const hq = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
   await hq.auth.signInWithPassword(ADMIN);
 
@@ -94,7 +94,7 @@ test("สร้างใบเสนอราคาโดยไม่ส่ง�
   const { RYG } = await import("./supabaseEnv");
   const dealer = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
   const { error: le } = await dealer.auth.signInWithPassword(RYG);
-  expect(le?.message ?? "", "ล็อกอินตัวแทนต้องผ่าน").toBe("");
+  expect(le?.message ?? "", "ล็อกอินดีลเลอร์ต้องผ่าน").toBe("");
 
   const company = "ZZTEST-DEFAULTS-ใบไม่ส่งยอด";
   const { data, error } = await dealer.rpc("create_quotation", {

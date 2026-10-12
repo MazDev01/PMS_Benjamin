@@ -1,9 +1,9 @@
-// ── ตัวแทนแก้อีเมล/รหัสผ่านเข้าระบบของตัวเอง (บอสสั่ง 28 ส.ค. 69) ─────────────────
+// ── ดีลเลอร์แก้อีเมล/รหัสผ่านเข้าระบบของตัวเอง (บอสสั่ง 28 ส.ค. 69) ─────────────────
 //
-// ทำไม route นี้อยู่ที่แอปสำนักงานใหญ่ ทั้งที่คนใช้คือตัวแทน:
+// ทำไม route นี้อยู่ที่แอปสำนักงานใหญ่ ทั้งที่คนใช้คือดีลเลอร์:
 //   คีย์ผู้ดูแล (service role) และกุญแจถอดรหัสสำเนารหัสผ่าน (DEALER_SECRET_KEY) อยู่ที่นี่ที่เดียว
-//   ถ้าให้แอปตัวแทนเปลี่ยนบัญชีเองตรง ๆ สำนักงานใหญ่จะเปิดดูรหัสที่ตัวแทนตั้งไม่ได้เลย
-//   (แอปตัวแทนยิงข้ามมาที่นี่พร้อมใบผ่านของตัวเอง — ดู accountRemote.ts)
+//   ถ้าให้แอปดีลเลอร์เปลี่ยนบัญชีเองตรง ๆ สำนักงานใหญ่จะเปิดดูรหัสที่ดีลเลอร์ตั้งไม่ได้เลย
+//   (แอปดีลเลอร์ยิงข้ามมาที่นี่พร้อมใบผ่านของตัวเอง — ดู accountRemote.ts)
 //
 // ด่านป้องกัน:
 //   1) ต้องมีใบผ่านที่ใช้ได้ และเป็นบัญชี "ของสาขานั้นจริง" (เทียบ profiles.dealer_code)
@@ -25,10 +25,10 @@ export const runtime = "nodejs";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-/** จำนวนครั้งที่ตัวแทนแก้เองได้ตลอดอายุบัญชี — ต้องตรงกับฝั่งหน้าจอ (accountLocal.SELF_CHANGE_LIMIT) */
+/** จำนวนครั้งที่ดีลเลอร์แก้เองได้ตลอดอายุบัญชี — ต้องตรงกับฝั่งหน้าจอ (accountLocal.SELF_CHANGE_LIMIT) */
 const SELF_LIMIT = 2;
 
-/** แอปตัวแทนอยู่คนละที่อยู่กับแอปนี้ → ต้องอนุญาตข้ามต้นทางให้เฉพาะที่อยู่ที่เราตั้งไว้เท่านั้น */
+/** แอปดีลเลอร์อยู่คนละที่อยู่กับแอปนี้ → ต้องอนุญาตข้ามต้นทางให้เฉพาะที่อยู่ที่เราตั้งไว้เท่านั้น */
 function corsHeaders(req: NextRequest): Record<string, string> {
   const allow = (process.env.DEALER_APP_ORIGIN ?? "").split(",").map(s => s.trim()).filter(Boolean);
   const origin = req.headers.get("origin") ?? "";
@@ -54,8 +54,8 @@ type ผู้เรียก = {
   mustChangePassword: boolean;
 };
 
-/** ตรวจใบผ่าน → คืนบัญชี "ของสาขา" ที่เรียกมา · ไม่ใช่ตัวแทน = ปฏิเสธ */
-async function ตัวแทนที่เรียก(req: NextRequest): Promise<{ ok: true; who: ผู้เรียก } | { ok: false; res: NextResponse }> {
+/** ตรวจใบผ่าน → คืนบัญชี "ของสาขา" ที่เรียกมา · ไม่ใช่ดีลเลอร์ = ปฏิเสธ */
+async function ดีลเลอร์ที่เรียก(req: NextRequest): Promise<{ ok: true; who: ผู้เรียก } | { ok: false; res: NextResponse }> {
   if (!SUPABASE_URL || !SERVICE_KEY) {
     return { ok: false, res: json(req, { error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ — เปลี่ยนบัญชีเข้าระบบยังไม่ได้" }, 501) };
   }
@@ -107,7 +107,7 @@ async function สรุปสถานะ(admin: SupabaseClient, dealerCode: st
     admin.from("dealer_account_requests")
       .select("id, dealer_code, kind, new_email, status, requested_at")
       .eq("dealer_code", dealerCode).eq("status", "pending").maybeSingle(),
-    // คำขอล่าสุดที่ถูกปฏิเสธ — หน้าอนุมัติบอก HQ ว่า "ตัวแทนจะเห็นว่าถูกปฏิเสธ" จึงต้องส่งให้ตัวแทนเห็นจริง
+    // คำขอล่าสุดที่ถูกปฏิเสธ — หน้าอนุมัติบอก HQ ว่า "ดีลเลอร์จะเห็นว่าถูกปฏิเสธ" จึงต้องส่งให้ดีลเลอร์เห็นจริง
     admin.from("dealer_account_requests")
       .select("kind, new_email, requested_at, decided_at, reason")
       .eq("dealer_code", dealerCode).eq("status", "rejected")
@@ -125,10 +125,10 @@ async function สรุปสถานะ(admin: SupabaseClient, dealerCode: st
   } : null;
   // ⚠️ ต้อง "ล้มแบบปิดประตู" เมื่อยืนยันโควตาไม่ได้ — ไม่ใช่ปล่อยผ่านเป็น 0 ครั้ง
   //    ยังไม่ได้ติดตั้งตาราง PostgREST คืน count = null โดยไม่มี error (ไม่ใช่ 42P01 เสมอไป)
-  //    ถ้าถือว่า "ใช้ไป 0 ครั้ง" ตัวแทนจะแก้บัญชีได้ไม่จำกัด และไม่มีบันทึกให้สำนักงานใหญ่เห็นเลย
+  //    ถ้าถือว่า "ใช้ไป 0 ครั้ง" ดีลเลอร์จะแก้บัญชีได้ไม่จำกัด และไม่มีบันทึกให้สำนักงานใหญ่เห็นเลย
   const ขาดตาราง = changes.count === null
     || [changes.error, pendingRes.error].some(e => e && (e.code === "42P01" || /does not exist|schema cache/i.test(e.message ?? "")));
-  if (ขาดตาราง) throw new ยังไม่ได้ติดตั้ง("ยังไม่ได้ติดตั้งตารางบัญชีตัวแทนในฐานข้อมูล (migration 0165) — รัน npx supabase db push ก่อน");
+  if (ขาดตาราง) throw new ยังไม่ได้ติดตั้ง("ยังไม่ได้ติดตั้งตารางบัญชีดีลเลอร์ในฐานข้อมูล (migration 0165) — รัน npx supabase db push ก่อน");
   const { count } = changes;
   const pending = pendingRes.data;
   return {
@@ -146,12 +146,12 @@ async function สรุปสถานะ(admin: SupabaseClient, dealerCode: st
 
 // ── สถานะบัญชีของสาขาที่ล็อกอินอยู่ (อีเมล · โควตาที่เหลือ · คำขอที่ค้าง · ต้องตั้งรหัสครั้งแรกไหม) ──
 export const GET = withErrors("dealer-account-state", async (req: NextRequest) => {
-  const who = await ตัวแทนที่เรียก(req);
+  const who = await ดีลเลอร์ที่เรียก(req);
   if (!who.ok) return who.res;
   const { admin, dealerCode, email, mustChangePassword } = who.who;
 
   // เส้นทางนี้คืนแค่สถานะ (อีเมล · โควตา · คำขอค้าง · คำขอล่าสุดที่ถูกปฏิเสธ) ไม่คืนรหัสผ่าน
-  //   ตัวแทนดูรหัสของตัวเองได้ที่ /api/account/reveal (ต้องยืนยันเลขทางอีเมล · บอสสั่ง 1 ก.ย. 69)
+  //   ดีลเลอร์ดูรหัสของตัวเองได้ที่ /api/account/reveal (ต้องยืนยันเลขทางอีเมล · บอสสั่ง 1 ก.ย. 69)
   //   mustChangePassword ต้องมาก่อนเสมอ แม้ตารางโควตายังไม่ได้ติดตั้ง — หน้าตั้งรหัสครั้งแรกอ่านค่านี้
   try {
     return json(req, { ...(await สรุปสถานะ(admin, dealerCode, email)), mustChangePassword });
@@ -194,13 +194,13 @@ async function ตั้งรหัสครั้งแรก(req: NextRequest
   const { error: logErr } = await admin.from("dealer_account_changes")
     .insert({ dealer_code: dealerCode, kind: "password", by_self: false });
   if (logErr && logErr.code !== "42P01") console.error(`[account] บันทึกการตั้งรหัสครั้งแรกของ ${dealerCode} ไม่สำเร็จ`, logErr);
-  await auditLog(admin, { name, role: "DEALER" }, "ตัวแทนตั้งรหัสผ่านใหม่ตอนเข้าระบบครั้งแรก", dealerCode);
+  await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์ตั้งรหัสผ่านใหม่ตอนเข้าระบบครั้งแรก", dealerCode);
   return json(req, { message: "ตั้งรหัสผ่านใหม่แล้ว — กำลังพาไปเข้าสู่ระบบด้วยรหัสใหม่" });
 }
 
 // ── ขอเปลี่ยนอีเมล/รหัสผ่านของตัวเอง ──
 export const POST = withErrors("dealer-account-change", async (req: NextRequest) => {
-  const who = await ตัวแทนที่เรียก(req);
+  const who = await ดีลเลอร์ที่เรียก(req);
   if (!who.ok) return who.res;
   const { admin, userId, email: อีเมลเดิม, dealerCode, name } = who.who;
 
@@ -261,7 +261,7 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
       console.error(`[account] เปิดคำขอของสาขา ${dealerCode} ไม่สำเร็จ`, error);
       return json(req, { error: "ส่งคำขอไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503);
     }
-    await auditLog(admin, { name, role: "DEALER" }, "ตัวแทนขอเปลี่ยนบัญชีเข้าระบบ", `${dealerCode}${อีเมลใหม่ ? ` · ${อีเมลใหม่}` : ""}`);
+    await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์ขอเปลี่ยนบัญชีเข้าระบบ", `${dealerCode}${อีเมลใหม่ ? ` · ${อีเมลใหม่}` : ""}`);
     return json(req, {
       applied: false, pending: true,
       message: "ใช้สิทธิ์แก้เองครบแล้ว — ส่งคำขอให้สำนักงานใหญ่อนุมัติแล้ว การเปลี่ยนจะมีผลเมื่อได้รับอนุมัติ",
@@ -286,7 +286,7 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
     const secret = encryptSecret(รหัสใหม่);
     if (secret) {
       const { error } = await admin.from("dealer_login_secrets")
-        .upsert({ dealer_code: dealerCode, secret, updated_at: new Date().toISOString(), updated_by: `${name} (ตัวแทนตั้งเอง)` });
+        .upsert({ dealer_code: dealerCode, secret, updated_at: new Date().toISOString(), updated_by: `${name} (ดีลเลอร์ตั้งเอง)` });
       if (error) console.error(`[account] เก็บสำเนารหัสของ ${dealerCode} ไม่สำเร็จ`, error);
     }
   }
@@ -296,7 +296,7 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
   if (logErr) console.error(`[account] บันทึกการเปลี่ยนของ ${dealerCode} ไม่สำเร็จ`, logErr);
 
   await auditLog(admin, { name, role: "DEALER" },
-    kind === "email" ? "ตัวแทนเปลี่ยนอีเมลเข้าระบบเอง" : kind === "password" ? "ตัวแทนเปลี่ยนรหัสผ่านเอง" : "ตัวแทนเปลี่ยนอีเมลและรหัสผ่านเอง",
+    kind === "email" ? "ดีลเลอร์เปลี่ยนอีเมลเข้าระบบเอง" : kind === "password" ? "ดีลเลอร์เปลี่ยนรหัสผ่านเอง" : "ดีลเลอร์เปลี่ยนอีเมลและรหัสผ่านเอง",
     `${dealerCode}${อีเมลใหม่ ? ` · ${อีเมลใหม่}` : ""}`);
 
   const เหลือ = Math.max(0, SELF_LIMIT - สถานะ.selfChangesUsed - 1);

@@ -1,6 +1,6 @@
 "use client";
 
-// ─── ค่าคุมระดับเครือที่ HQ เป็นเจ้าของ — ฝั่งตัวแทน "อ่านอย่างเดียว" ──────────────
+// ─── ค่าคุมระดับเครือที่ HQ เป็นเจ้าของ — ฝั่งดีลเลอร์ "อ่านอย่างเดียว" ──────────────
 // VAT / อายุใบเสนอราคา / เป้ายอดขาย ตั้งที่ /hq/settings แล้วมีผลกับทุกสาขา
 //
 // ทำไมต้องเป็น hook (ห้ามเรียก loadHQPolicy() ตรง ๆ ตอน render อีก):
@@ -51,12 +51,12 @@ function useHQValue<T>(tag: string, load: () => Promise<T>, initial: T): T {
   return value;
 }
 
-/** นโยบายการขายของ HQ (VAT ฯลฯ) — ตัวแทนตั้งเองไม่ได้ */
+/** นโยบายการขายของ HQ (VAT ฯลฯ) — ดีลเลอร์ตั้งเองไม่ได้ */
 export function useHQPolicy(): HQPolicy {
   return useHQValue<HQPolicy>("settings.getPolicy", () => settingsRepo.getPolicy(), DEFAULT_HQ_POLICY);
 }
 
-/** เป้ายอดขายของเครือ — แดชบอร์ดตัวแทนใช้เทียบความคืบหน้า */
+/** เป้ายอดขายของเครือ — แดชบอร์ดดีลเลอร์ใช้เทียบความคืบหน้า */
 export function useHQTargets(): HQTargets {
   return useHQValue<HQTargets>("settings.getTargets", () => settingsRepo.getTargets(), DEFAULT_HQ_TARGETS);
 }
@@ -67,16 +67,16 @@ export function useQuoteValidityDays(): number {
     () => settingsRepo.getQuoteValidityDays(), DEFAULT_HQ_POLICY.quoteValidityDays);
 }
 
-/** เหตุผล "ปิดการขายไม่สำเร็จ" ที่ HQ กำหนด — ตัวแทนเลือกจากรายการนี้เท่านั้น
- *  เดิมอ่าน localStorage ตรง ๆ ซึ่งเป็นคนละ origin กับที่ HQ เขียน → ค่าที่ตั้งไม่เคยไปถึงตัวแทน */
+/** เหตุผล "ปิดการขายไม่สำเร็จ" ที่ HQ กำหนด — ดีลเลอร์เลือกจากรายการนี้เท่านั้น
+ *  เดิมอ่าน localStorage ตรง ๆ ซึ่งเป็นคนละ origin กับที่ HQ เขียน → ค่าที่ตั้งไม่เคยไปถึงดีลเลอร์ */
 export function useLostReasons(): string[] {
   return useHQValue<string[]>("settings.getLostReasons", () => settingsRepo.getLostReasons(), [...LOST_REASONS]);
 }
 
-/** งานมาตรฐานของแต่ละขั้น ที่ HQ ตั้งไว้ — ตัวแทนเช็กงานชุดนี้ และเป็นตัวเลื่อนขั้นให้ลูกค้าเป้าหมาย
+/** งานมาตรฐานของแต่ละขั้น ที่ HQ ตั้งไว้ — ดีลเลอร์เช็กงานชุดนี้ และเป็นตัวเลื่อนขั้นให้ลูกค้าเป้าหมาย
  *  ห้ามใช้ LEAD_TASK_TEMPLATE ตรง ๆ ในหน้าจอ: นั่นเป็นแค่ค่าเริ่มต้น ไม่ใช่ของที่ HQ ตั้งไว้จริง */
-/** ค่าตั้งงานหาตัวแทนของ HQ (ช่องทาง/ประเภทธุรกิจ/เหตุผล/ชื่องาน/ค่าตั้งต้นใบเสนอแพ็กเกจ)
- *  ใช้ในหน้าฝั่ง HQ เท่านั้น — ตัวแทนอ่านตารางนี้ไม่ได้ (RLS) */
+/** ค่าตั้งงานหาดีลเลอร์ของ HQ (ช่องทาง/ประเภทธุรกิจ/เหตุผล/ชื่องาน/ค่าตั้งต้นใบค่าแฟรนไชส์)
+ *  ใช้ในหน้าฝั่ง HQ เท่านั้น — ดีลเลอร์อ่านตารางนี้ไม่ได้ (RLS) */
 export function useRecruitSettings(): HQRecruitSettings {
   return useHQValue<HQRecruitSettings>("settings.getRecruitSettings", () => settingsRepo.getRecruitSettings(), DEFAULT_RECRUIT_SETTINGS);
 }

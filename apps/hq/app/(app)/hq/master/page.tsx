@@ -39,7 +39,7 @@ type EditForm = { name: string; spec: string; price: string; unit: string; subty
 // ⚠️ เดิมเป็นช่องพิมพ์อิสระ ซึ่งอันตรายกว่าที่เห็น: ตัวคิดราคาอัตโนมัติเทียบ "ตร.ม." แบบตรงตัว
 //    (lib/boq.ts — พื้นที่ × ราคากลาง ทำได้เฉพาะแม่แบบที่ขายเป็น ตร.ม.)
 //    พิมพ์ตกจุดเป็น "ตร.ม" หรือพิมพ์ "ตารางเมตร" = ระบบเลิกคิดราคาให้เงียบ ๆ
-//    ไม่มีอะไรฟ้องเลย ตัวแทนแค่เห็นช่องประเมินราคาว่างแล้วไม่รู้ว่าทำไม
+//    ไม่มีอะไรฟ้องเลย ดีลเลอร์แค่เห็นช่องประเมินราคาว่างแล้วไม่รู้ว่าทำไม
 //    เลือกจากรายการจึงพิมพ์ผิดไม่ได้ และยังเปลี่ยนหน่วยได้อิสระเหมือนเดิม
 const หน่วยที่ใช้ได้ = ["ตร.ม.", "ตร.ฟุต", "เมตร", "ตัน", "หลัง", "ชุด", "งาน", "รายการ"] as const;
 
@@ -62,13 +62,13 @@ const subInp: React.CSSProperties = { border: `1px solid ${BORDER}`, borderRadiu
 //
 // ⚠️ ไฟล์จริงไปอยู่ใน Storage ไม่ใช่ในคอลัมน์ (ดู migration 0166)
 //    ที่เก็บในข้อมูลคือรายการอ้างอิง {ชื่อที่คนอ่านรู้เรื่อง, พาธ, ขนาด}
-//    ถ้าเก็บไฟล์ลงคอลัมน์แบบเดียวกับรูปแม่แบบ ทุกหน้าที่อ่านแคตตาล็อก (ตัวแทน/ฟอร์มลูกค้าเป้าหมาย/
+//    ถ้าเก็บไฟล์ลงคอลัมน์แบบเดียวกับรูปแม่แบบ ทุกหน้าที่อ่านแคตตาล็อก (ดีลเลอร์/ฟอร์มลูกค้าเป้าหมาย/
 //    ใบเสนอราคา) จะลากไฟล์หลาย MB มาด้วยทุกครั้ง ทั้งที่แทบไม่มีใครเปิดดู
 //
 // ⚠️ อัปโหลดสำเร็จแล้วผู้ใช้ยังไม่กด "บันทึก" = ไฟล์ค้างในที่เก็บโดยไม่มีใครอ้างถึง
 //    ยอมให้ค้างดีกว่าลบผิดตัว — ถ้าลบตอนกดยกเลิก แล้วผู้ใช้กดยกเลิกหลังบันทึกไปแล้วรอบหนึ่ง
 //    ไฟล์ที่ใช้งานอยู่จริงจะหายไปด้วย (คนละกรณีกับกดถังขยะ ซึ่งลบทันทีถูกแล้ว)
-const PLAN_MAX = UPLOAD_MAX_BYTES;   // เท่ากับเพดานไฟล์แนบของตัวแทน — ผู้ใช้จะได้ไม่ต้องจำสองตัวเลข
+const PLAN_MAX = UPLOAD_MAX_BYTES;   // เท่ากับเพดานไฟล์แนบของดีลเลอร์ — ผู้ใช้จะได้ไม่ต้องจำสองตัวเลข
 
 function PlansEditor({ value, onChange }: { value: CatalogPlan[]; onChange: (next: CatalogPlan[]) => void }) {
   const [กำลังอัป, setกำลังอัป] = useState(false);
@@ -380,7 +380,7 @@ function HQMasterPageInner() {
   const editTouched = useRef<Set<string>>(new Set());
   const [history, setHistory]   = useState<SolutionProduct | null>(null);
   const [delTarget, setDelTarget] = useState<SolutionProduct | null>(null);
-  // ดูรายละเอียดแม่แบบ (แบบเดียวกับหน้าตัวแทน) + เจาะแม่แบบย่อยพร้อมรูป
+  // ดูรายละเอียดแม่แบบ (แบบเดียวกับหน้าดีลเลอร์) + เจาะแม่แบบย่อยพร้อมรูป
   const [viewing, setViewing]   = useState<SolutionProduct | null>(null);
   const [subView, setSubView]   = useState<{ parent: SolutionProduct; sub: string } | null>(null);
   // ค้นหา/มุมมองของรายการแม่แบบย่อยในกล่องรายละเอียด (ออกแบบใหม่ตามแบบที่บอสส่งมา 28 ส.ค. 69)
@@ -517,7 +517,7 @@ function HQMasterPageInner() {
     if (!editing) return;
     // ⚠️ ห้ามปิดกล่องเงียบ ๆ เมื่อค่าใช้ไม่ได้ (บั๊กจริง พบ 10 ส.ค. 69 ตอนยังเป็นกล่อง "ปรับราคา")
     //   เดิมกรอก 0 หรือติดลบ แล้วกล่องปิดลงเหมือนบันทึกสำเร็จ ทั้งที่ราคาไม่ได้เปลี่ยนเลย
-    //   ผู้ดูแลเชื่อว่าปรับราคากลางทั้งเครือแล้ว แต่ตัวแทนทุกสาขายังเห็นราคาเดิม โดยไม่มีร่องรอยอะไรเลย
+    //   ผู้ดูแลเชื่อว่าปรับราคากลางทั้งเครือแล้ว แต่ดีลเลอร์ทุกสาขายังเห็นราคาเดิม โดยไม่มีร่องรอยอะไรเลย
     if (!editForm.name.trim()) { setEditError("ต้องระบุชื่อแม่แบบ"); return; }
     const price = parseFloat(editForm.price);
     if (!(price > 0)) { setEditError("ราคากลางต้องมากกว่า 0 บาท"); return; }
@@ -548,7 +548,7 @@ function HQMasterPageInner() {
   function addProduct() {
     // กันกดซ้ำ (H8 · guard synchronous) — nid คำนวณจาก catalog ปิดคลุม (closure) ไม่ใช่ prev ข้างใน
     // updater กดรัว ๆ เร็วกว่า React re-render ทันจะได้ nid ซ้ำ (สร้างสองแม่แบบ id ชนกัน) — พบจาก
-    // Edge Case sweep เดียวกับที่เจอในฟอร์มเพิ่มลูกค้าเป้าหมาย/ลูกค้าฝั่งตัวแทน (3 ส.ค. 69)
+    // Edge Case sweep เดียวกับที่เจอในฟอร์มเพิ่มลูกค้าเป้าหมาย/ลูกค้าฝั่งดีลเลอร์ (3 ส.ค. 69)
     if (addingRef.current) return;
     const price = parseFloat(addForm.price);
     if (!addForm.name.trim() || !(price > 0)) return;
@@ -589,7 +589,7 @@ function HQMasterPageInner() {
   }, [รอบันทึกเพิ่ม, กำลังบันทึก]);
   function deleteProduct() {
     if (!delTarget) return;
-    // สั่งลบตรง ๆ (เหตุผลเดียวกับหน้าตัวแทน — ห้ามอนุมานการลบจากอาร์เรย์ที่หายไป)
+    // สั่งลบตรง ๆ (เหตุผลเดียวกับหน้าดีลเลอร์ — ห้ามอนุมานการลบจากอาร์เรย์ที่หายไป)
     const target = delTarget;
     void catalogRepo.remove(target.id)
       .then(() => setCatalog(prev => prev.filter(p => p.id !== target.id)))
@@ -713,7 +713,7 @@ function HQMasterPageInner() {
         )}
       </div>
 
-      {/* ── View detail modal — ดูแบบเดียวกับที่ตัวแทนเห็น + จัดการได้ในตัว (HQ ควบคุม) ── */}
+      {/* ── View detail modal — ดูแบบเดียวกับที่ดีลเลอร์เห็น + จัดการได้ในตัว (HQ ควบคุม) ── */}
       {viewing && (
         <div onClick={() => setViewing(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <ModalCard onClose={() => setViewing(null)} label="รายละเอียดแม่แบบ" className="modal-pop-flex"
@@ -765,7 +765,7 @@ function HQMasterPageInner() {
               </div>
 
 
-              {/* ── แบบแปลนของแม่แบบนี้ — ตัวแทนเปิดดู/ดาวน์โหลดได้ (บอสสั่ง 28 ส.ค. 69) ──── */}
+              {/* ── แบบแปลนของแม่แบบนี้ — ดีลเลอร์เปิดดู/ดาวน์โหลดได้ (บอสสั่ง 28 ส.ค. 69) ──── */}
               {(viewing.plans?.length ?? 0) > 0 && (
                 <div>
                   <div style={{ fontSize: "1.02rem", fontWeight: 800, color: STEEL, marginBottom: 10 }}>แบบแปลน</div>
@@ -1220,7 +1220,7 @@ function HQMasterPageInner() {
                 <span style={{ width: 38, height: 38, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Trash2 size={17} color="#dc2626" /></span>
                 <div style={{ fontSize: "1rem", fontWeight: 800, color: STEEL }}>ลบแม่แบบ</div>
               </div>
-              <p style={{ fontSize: "0.8rem", color: MUTED, lineHeight: 1.6, margin: 0 }}>ต้องการลบ <strong style={{ color: STEEL }}>{delTarget.name}</strong>? ตัวแทนจะไม่เห็นแม่แบบนี้อีก</p>
+              <p style={{ fontSize: "0.8rem", color: MUTED, lineHeight: 1.6, margin: 0 }}>ต้องการลบ <strong style={{ color: STEEL }}>{delTarget.name}</strong>? ดีลเลอร์จะไม่เห็นแม่แบบนี้อีก</p>
             </div>
             <div style={{ padding: "14px 22px", borderTop: `1px solid ${BORDER}`, background: "#fafafa", display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button className="btn btn-secondary btn-md" onClick={() => setDelTarget(null)}>ยกเลิก</button>

@@ -17,7 +17,7 @@ import type { DealerPackageProposal } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
-import { รวมค่าตั้งหาตัวแทน } from "../../recruitSettings";
+import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
 import type {
   DataAdapter, DealersRepo, CatalogRepo, FilesRepo, PersonsRepo, SettingsRepo,
   DealerSettingsRepo, ProfileRepo, HQCompanyRepo, NotesRepo, UsersRepo, AuditRepo,
@@ -245,8 +245,8 @@ const settings: SettingsRepo = {
       ? normalizeLeadTaskTemplate(row.tasks) : [...LEAD_TASK_TEMPLATE];
   },
   saveLeadTasks: (tasks) => putOne("leadTasks", { value: tasks }),
-  getRecruitSettings: async () => รวมค่าตั้งหาตัวแทน((await getOne<{ config?: unknown }>("recruit"))?.config),
-  saveRecruitSettings: (s) => putOne("recruit", { config: รวมค่าตั้งหาตัวแทน(s) }),
+  getRecruitSettings: async () => รวมค่าตั้งหาดีลเลอร์((await getOne<{ config?: unknown }>("recruit"))?.config),
+  saveRecruitSettings: (s) => putOne("recruit", { config: รวมค่าตั้งหาดีลเลอร์(s) }),
   savePolicy: (p) => putOne("policy", p),
   saveTargets: (t) => putOne("targets", t),
   saveNotifRules: (r) => putOne("notifRules", r),
@@ -291,7 +291,7 @@ const prospects: ProspectsRepo = {
   update: (p) => put<DealerProspect>("/prospects", p),
   remove: async (id) => { await apiFetch(`/prospects?id=${id}`, { method: "DELETE" }); },
 };
-// ใบเสนอแพ็กเกจตัวแทน — เซิร์ฟเวอร์จัดข้อมูล/ตรวจซ้ำเสมอ (server/v1/proposals.ts)
+// ใบค่าแฟรนไชส์ — เซิร์ฟเวอร์จัดข้อมูล/ตรวจซ้ำเสมอ (server/v1/proposals.ts)
 const proposals: ProposalsRepo = {
   list: (prospectId) => apiFetch<DealerPackageProposal[]>(`/proposals${prospectId != null ? `?prospect=${prospectId}` : ""}`),
   create: (p) => post<DealerPackageProposal>("/proposals", p),
@@ -459,6 +459,6 @@ const realtime: RealtimePort = {
 export const HttpAdapter: DataAdapter = {
   storage, realtime, dealers, catalog, files, persons, settings, dealerSettings,
   profile, hqCompany, notes, users, audit, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
-  // บัญชีเข้าระบบของตัวแทน — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
+  // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
 };

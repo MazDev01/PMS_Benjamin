@@ -114,7 +114,7 @@ function TimeRangePicker() {
       />
       {open && (
         <Menu width={272}>
-          {/* preset — รายการเดียว + เช็กมาร์ก (สไตล์เดียวกับแดชบอร์ดตัวแทน) */}
+          {/* preset — รายการเดียว + เช็กมาร์ก (สไตล์เดียวกับแดชบอร์ดดีลเลอร์) */}
           <div style={{ padding: "6px 0" }}>
             {PRESET_ORDER.map(k => {
               const opt = TIME_PRESETS.find(p => p.key === k)!;
@@ -269,7 +269,7 @@ export function FilterBar({
       {time && <TimeRangePicker />}
 
       {show.includes("dealer") && (
-        <SelectFilter caption="ตัวแทน" value={dealer}
+        <SelectFilter caption="ดีลเลอร์" value={dealer}
           options={dealerOptions ?? liveDealers} onChange={setDealer} />
       )}
       {show.includes("province") && (

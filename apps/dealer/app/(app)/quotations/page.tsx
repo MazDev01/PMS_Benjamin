@@ -170,8 +170,8 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId }:
   const total=form.lineItems.reduce((s,it)=>s+it.qty*it.unitPrice,0); // = Σ รายการ (BOQ)
   // ── กันออกใบที่บันทึกไม่ได้ พร้อมบอกต้นเหตุจริง (บอสแจ้ง 19 ส.ค. 69) ──
   //   ฐานข้อมูลปฏิเสธใบที่ไม่มีรายการอยู่แล้ว (ใบ 0073) แต่ฟอร์มนี้ไม่ได้กันไว้
-  //   ตัวแทนจึงกดบันทึกแล้วเจอข้อความของฐานข้อมูลดิบ ๆ แทนที่จะรู้ว่าติดตรงไหน
-  //   และต้นเหตุที่พบจริงคือสำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ/ราคา ซึ่งตัวแทนแก้เองไม่ได้
+  //   ดีลเลอร์จึงกดบันทึกแล้วเจอข้อความของฐานข้อมูลดิบ ๆ แทนที่จะรู้ว่าติดตรงไหน
+  //   และต้นเหตุที่พบจริงคือสำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ/ราคา ซึ่งดีลเลอร์แก้เองไม่ได้
   const แม่แบบว่าง=catalogReady&&catalogForForm.length===0;
   const ราคาแม่แบบยังไม่ตั้ง=!แม่แบบว่าง&&form.lineItems.length>0&&total<=0
     &&form.lineItems.every(it=>it.unitPrice<=0);
@@ -210,7 +210,7 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId }:
           </div>
           <div className="form-grid" style={{padding:"20px 22px",overflowY:"auto",maxHeight:"68vh"}}>
             <div className="form-section">ลูกค้า</div>
-            {/* เลขที่ — โชว์อย่างเดียวตามที่บอสสั่ง (HQ กำหนดรูปแบบ ตัวแทนแก้ไม่ได้) */}
+            {/* เลขที่ — โชว์อย่างเดียวตามที่บอสสั่ง (HQ กำหนดรูปแบบ ดีลเลอร์แก้ไม่ได้) */}
             {quoteId && (
               <div className="col-full">
                 <label style={LBL}>เลขที่</label>
@@ -643,7 +643,7 @@ function QuotationsPageInner(){
     if(!w){ แจ้งพลาด("เบราว์เซอร์บล็อกป็อปอัป — กรุณาอนุญาตป็อปอัปเพื่อพิมพ์ใบเสนอราคา"); return; }
     // ใบเก่าใช้สแนปช็อตผู้ออกที่ตรึงไว้ (คงชื่อเดิม); ใบที่ยังไม่มีค่อยใช้โปรไฟล์ปัจจุบัน
     // VAT: ใช้สแนปช็อตที่ตรึงไว้กับใบตอนสร้าง (q.vatPercent) เสมอถ้ามี
-    //   ใบเก่าที่ไม่มีค่อย fallback ไปใช้ค่าที่สาขาตั้งไว้ปัจจุบัน (ตัวแทนตั้ง VAT เองได้แล้ว · 7 ส.ค. 69)
+    //   ใบเก่าที่ไม่มีค่อย fallback ไปใช้ค่าที่สาขาตั้งไว้ปัจจุบัน (ดีลเลอร์ตั้ง VAT เองได้แล้ว · 7 ส.ค. 69)
     w.document.write(buildQuotationHTML(q,q.issuer??issuer,cust,{...docProfile,vatPercent:q.vatPercent??dealerVat}));
     w.document.close();
   }

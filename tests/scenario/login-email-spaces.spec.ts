@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
 // เดิมตัดช่องว่างตอนกดเข้าระบบเท่านั้น ผู้ใช้จึงเห็นช่องว่างค้างอยู่หน้าอีเมล
 // แล้วไม่แน่ใจว่าที่เข้าไม่ได้เป็นเพราะช่องว่างหรือเพราะรหัสผิด
 
-for (const [ชื่อ, url] of [["สำนักงานใหญ่", "http://localhost:3002/hq/login"], ["ตัวแทน", "http://localhost:3001/login"]] as const) {
+for (const [ชื่อ, url] of [["สำนักงานใหญ่", "http://localhost:3002/hq/login"], ["ดีลเลอร์", "http://localhost:3001/login"]] as const) {
   test(`[func] หน้าเข้าสู่ระบบ${ชื่อ}: พิมพ์เว้นวรรคในช่องอีเมล/รหัสผ่านต้องไม่ติด`, async ({ page }) => {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     const ช่องอีเมล = page.getByLabel("อีเมล / Email");

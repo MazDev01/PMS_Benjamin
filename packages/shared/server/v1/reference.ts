@@ -39,7 +39,7 @@ export const personsPUT = handler("persons.save", async (req: NextRequest, sb) =
   return ok({ ok: true });
 });
 
-// ── ทะเบียนตัวแทน ──
+// ── ทะเบียนดีลเลอร์ ──
 export const dealersGET = handler("dealers.list", async (_req: NextRequest, sb) => {
   const { data, error } = await sb.from("dealers_directory").select("*").order("code", { ascending: true });
   if (error) return dbFail("dealers.list", error);
@@ -49,7 +49,7 @@ export const dealersGET = handler("dealers.list", async (_req: NextRequest, sb) 
 
 export const dealersPUT = handler("dealers.save", async (req: NextRequest, sb) => {
   const body = (await req.json().catch(() => null)) as DealerRow[] | null;
-  if (!Array.isArray(body)) return fail(400, "ต้องส่งรายการตัวแทนมาเป็น array");
+  if (!Array.isArray(body)) return fail(400, "ต้องส่งรายการดีลเลอร์มาเป็น array");
   const rows = body.map(d => {
     const r = toSnake(d as unknown as Row);
     delete r.id; delete r.credentials; delete r.created_at;   // ไม่มีคอลัมน์เหล่านี้ / DB เป็นเจ้าของ
@@ -62,7 +62,7 @@ export const dealersPUT = handler("dealers.save", async (req: NextRequest, sb) =
 
 export const dealersDELETE = handler("dealers.remove", async (req: NextRequest, sb) => {
   const code = (new URL(req.url).searchParams.get("code") ?? "").trim();
-  if (!code) return fail(400, "ไม่ได้ระบุตัวแทนที่จะลบ");
+  if (!code) return fail(400, "ไม่ได้ระบุดีลเลอร์ที่จะลบ");
   const { error } = await sb.from("dealers").delete().eq("code", code);
   if (error) return dbFail("dealers.remove", error);
   return ok({ ok: true });
@@ -122,7 +122,7 @@ export const companyPUT = handler("hqCompany.save", async (req: NextRequest, sb)
 // คืน "ดิบ" ให้ฝั่งแอปเติมค่ากลางเอง — ค่ากลาง (DEFAULT_ISSUER ฯลฯ) อยู่ใน mock.ts ฝั่ง client
 // ถ้าเติมที่นี่ต้องดึง mock.ts เข้ามาที่เซิร์ฟเวอร์ด้วย ซึ่งพาไฟล์ข้อมูลตัวอย่างทั้งก้อนตามมา
 export const dsGET = handler("dealerSettings.get", async (req: NextRequest, sb) => {
-  // ?logos=1 → โลโก้ของทุกสาขาที่ตั้งไว้ (รหัสสาขา → รูป) สำหรับการ์ดหน้าตัวแทนจำหน่ายของ HQ
+  // ?logos=1 → โลโก้ของทุกสาขาที่ตั้งไว้ (รหัสสาขา → รูป) สำหรับการ์ดหน้าดีลเลอร์ของ HQ
   //   RLS ตัดให้เองว่าใครเห็นของสาขาไหน · ไล่ทีละหน้าเสมอ (เพดาน 1,000 แถว)
   if (new URL(req.url).searchParams.get("logos") === "1") {
     const map: Record<string, string> = {};
@@ -155,7 +155,7 @@ export const dsPUT = handler("dealerSettings.save", async (req: NextRequest, sb)
   if (patch.logo !== undefined) row.logo = patch.logo;
   if (patch.notifPrefs) row.notif_prefs = patch.notifPrefs;
   // ⚠️ ส่วนบวกเพิ่มจากราคากลางของสาขา — ลืมส่งต่อตั้งแต่แรก (แก้ 27 ส.ค. 69)
-  //    ผลคือตัวแทนตั้ง % แล้วหน้าจอขึ้นว่าบันทึกแล้ว แต่ปิดหน้าไปค่าหายทุกครั้ง (เฉพาะโหมดที่เว็บจริงใช้)
+  //    ผลคือดีลเลอร์ตั้ง % แล้วหน้าจอขึ้นว่าบันทึกแล้ว แต่ปิดหน้าไปค่าหายทุกครั้ง (เฉพาะโหมดที่เว็บจริงใช้)
   if (patch.pricing) row.pricing = patch.pricing;
   const { error } = await sb.from("dealer_settings").upsert(row);
   if (error) return dbFail("dealerSettings.save", error);

@@ -1,8 +1,8 @@
 "use client";
 
-// ── ฟอร์มออก/แก้ "ใบเสนอแพ็กเกจตัวแทน" — ตัวเดียวใช้ทั้งหน้ารวมใบเสนอ และหน้าต่างลูกค้าเป้าหมาย ──
+// ── ฟอร์มออก/แก้ "ใบค่าแฟรนไชส์" — ตัวเดียวใช้ทั้งหน้ารวมใบเสนอ และหน้าต่างลูกค้าเป้าหมาย ──
 //
-// บอสสั่ง 14 ก.ย. 69: "ใบเสนอแพ็กเกจตัวแทนมันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
+// บอสสั่ง 14 ก.ย. 69: "ใบค่าแฟรนไชส์มันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
 //   → หน้ารวมใบเสนอออกใบได้เลยในฟอร์มเดียว (เลือกลูกค้าเป้าหมายในฟอร์ม) ไม่ต้องเปิดต่อหลายชั้น
 //
 // ⚠️ ห้ามแยกเขียนฟอร์มนี้ซ้ำที่อื่น — กติกา (ช่องบังคับ/ช่องเงินมีลูกน้ำ/ภาคก่อนจังหวัด) ต้องเหมือนกันทุกหน้า
@@ -71,7 +71,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
   const [formErr, setFormErr] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // ── ค่าตั้งต้นจากหน้าตั้งค่า › หาตัวแทน (ข้อ 2) — ใช้กับ "ใบใหม่" เท่านั้น · ใบเดิมไม่แตะ ──
+  // ── ค่าตั้งต้นจากหน้าตั้งค่า › หาดีลเลอร์ (ข้อ 2) — ใช้กับ "ใบใหม่" เท่านั้น · ใบเดิมไม่แตะ ──
   //   เติมเฉพาะช่องที่ยังว่าง หรือช่องที่ยังเป็นค่าที่ระบบเติมให้ (ผู้ใช้แก้แล้ว = ไม่ทับ)
   //   ไม่ได้ตั้งไว้ = ไม่เติมอะไรเลย (ห้ามเดาตัวเลขให้)
   const ค่าตั้งใบ = useRecruitSettings().proposal;
@@ -157,17 +157,17 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
     try {
       if (ร่าง.id) {
         const saved = await proposalsRepo.update({ ...row, id: ร่าง.id, proposalNo: ร่าง.proposalNo, createdAt: ร่าง.createdAt });
-        logAudit("แก้ไขใบเสนอแพ็กเกจตัวแทน", `${saved.proposalNo ?? ""} · ${รายของใบ.name}`);
+        logAudit("แก้ไขใบค่าแฟรนไชส์", `${saved.proposalNo ?? ""} · ${รายของใบ.name}`);
         แจ้งสำเร็จ(`บันทึกใบ ${saved.proposalNo ?? ""} แล้ว`);
         onSaved(saved, รายของใบ);
       } else {
         const saved = await proposalsRepo.create(row);
-        logAudit("ออกใบเสนอแพ็กเกจตัวแทน", `${saved.proposalNo ?? ""} · ${รายของใบ.name} · ${packageLabel[saved.package]}`);
+        logAudit("ออกใบค่าแฟรนไชส์", `${saved.proposalNo ?? ""} · ${รายของใบ.name} · ${packageLabel[saved.package]}`);
         แจ้งสำเร็จ(`ออกใบ ${saved.proposalNo ?? ""} แล้ว (ร่าง)`);
         onSaved(saved, รายของใบ);
       }
     } catch (e) {
-      setFormErr(friendlyError(e, "บันทึกใบเสนอแพ็กเกจไม่สำเร็จ"));
+      setFormErr(friendlyError(e, "บันทึกใบค่าแฟรนไชส์ไม่สำเร็จ"));
     } finally {
       setBusy(false);
     }
@@ -176,7 +176,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
   // เนื้อฟอร์มชุดเดียว — ห่อเป็นหน้าต่างเด้ง หรือวางในหน้าเดิม (กติกาช่องต่าง ๆ ต้องเหมือนกันทุกที่)
   const ห่อ = (เนื้อ: React.ReactNode) => แบบ === "inline"
     ? (
-      <section ref={ในหน้าRef} role="region" aria-label="ใบเสนอแพ็กเกจตัวแทน"
+      <section ref={ในหน้าRef} role="region" aria-label="ใบค่าแฟรนไชส์"
         style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,51,102,.06)", scrollMarginTop: 12 }}>
         {เนื้อ}
       </section>
@@ -184,7 +184,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
     : typeof document === "undefined" ? null : createPortal(
       <div onClick={e => { e.stopPropagation(); if (!busy) onClose(); }}
         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1120, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-        <ModalCard onClose={() => !busy && onClose()} label="ใบเสนอแพ็กเกจตัวแทน" className="modal-fit"
+        <ModalCard onClose={() => !busy && onClose()} label="ใบค่าแฟรนไชส์" className="modal-fit"
           style={{ background: "#fff", borderRadius: 16, width: 560, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,.3)" }}>
           {เนื้อ}
         </ModalCard>
@@ -196,7 +196,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
     <>
         <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 800, color: "#2D2D2D" }}>
-            {ร่าง.id ? `แก้ไขใบ ${ร่าง.proposalNo ?? ""}` : "ออกใบเสนอแพ็กเกจตัวแทน"}
+            {ร่าง.id ? `แก้ไขใบ ${ร่าง.proposalNo ?? ""}` : "ออกใบค่าแฟรนไชส์"}
             {รายของใบ && !เลือกในฟอร์ม && <span style={{ display: "block", fontSize: "0.72rem", color: MUTED, fontWeight: 600 }}>{รายของใบ.name}</span>}
           </h2>
           <button aria-label="ปิด" onClick={() => !busy && onClose()} style={{ background: "none", border: "none", cursor: "pointer", color: MUTED, display: "flex" }}><X size={18} /></button>
@@ -238,7 +238,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
               <label className="form-label" htmlFor="pp-target">เป้ายอดซื้อต่อปี (บาท)</label>
               <input id="pp-target" className="form-input" type="text" inputMode="numeric" value={ร่าง.เป้าที่พิมพ์}
                 onChange={e => ตั้งค่า("เป้าที่พิมพ์", formatMoneyInput(e.target.value))} placeholder="เว้นว่างได้" />
-              <div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 3 }}>ตั้งเป็นตัวแทนแล้ว ใช้เป็นเป้ายอดขายรายปีของสาขา</div>
+              <div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 3 }}>ตั้งเป็นดีลเลอร์แล้ว ใช้เป็นเป้ายอดขายรายปีของสาขา</div>
             </div>
             {/* ภาคมาก่อนจังหวัด — กติกาเดียวกับฟอร์มลูกค้าเป้าหมาย · "ทุกภาค" = ทุกจังหวัด */}
             <div>

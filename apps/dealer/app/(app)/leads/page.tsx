@@ -69,7 +69,7 @@ import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
 const ALL_STATUSES: LeadStatus[] = LEAD_STATUS_ORDER;
 // ความคืบหน้าตามขั้นตอน (module-level เพื่อใช้ใน OverviewEditor) — PAID=100, CANCELLED=0
 // (DEFAULT_PERSONS ถูกลบ — เดิมเป็นพนักงาน 5 คนจากชุดตัวอย่าง
-//  ตาราง responsible_persons ว่าง = ไม่มีวันถูกแทนที่ → ตัวแทนเลือกชื่อคนที่ไม่มีอยู่จริง
+//  ตาราง responsible_persons ว่าง = ไม่มีวันถูกแทนที่ → ดีลเลอร์เลือกชื่อคนที่ไม่มีอยู่จริง
 //  แล้วชื่อนั้นถูกบันทึกลงลูกค้าเป้าหมายใน DB จริง)
 // Lead Source ตามสเปก: Facebook / Website / LINE / Walk-in / Referral / Exhibition / Other
 // สีของแต่ละแหล่งที่มา (โดนัท) — วนใช้ตามลำดับจำนวนมาก→น้อย
@@ -902,9 +902,9 @@ export default function LeadsPage() {
     appointments, addAppointment, newAppointmentId, quotations, quotationsReady, ensureQuotations,
   } = useSales();
   // ปิดการขายสำเร็จ = เป็น "ลูกค้า" แล้ว → ไม่แสดงในหน้าลูกค้าเป้าหมาย (ไปอยู่ที่ /customers)
-  // สมุดงานของ "ตัวแทนที่ล็อกอิน" เท่านั้น — กรองด้วย dealerCode
+  // สมุดงานของ "ดีลเลอร์ที่ล็อกอิน" เท่านั้น — กรองด้วย dealerCode
   // จำเป็นตั้งแต่มีลูกค้าเป้าหมายของสาขาอื่นในระบบ (ก่อนหน้านี้มีสาขาเดียวเลยไม่กรองก็ไม่มีใครเห็นความต่าง)
-  // ลูกค้าเป้าหมายที่ตัวแทนสร้างเองไม่มี dealerCode → ถือเป็นของสาขาตัวเอง
+  // ลูกค้าเป้าหมายที่ดีลเลอร์สร้างเองไม่มี dealerCode → ถือเป็นของสาขาตัวเอง
   // สมุดงานของสาขาตัวเอง "ทุกสถานะ" (รวมที่ปิดการขายสำเร็จแล้ว) — ใช้คิดอัตราปิดการขาย
   const myAllLeads = useMemo(
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
@@ -1329,7 +1329,7 @@ export default function LeadsPage() {
   const pageEnd = Math.min(page*PAGE_SIZE, filtered.length);
 
   // totalValue / wonLeads / nonLost / winRate ถูกลบ — คำนวณไว้แต่ไม่มีใครแสดง
-  // และทั้งสามคิดจาก allLeads (ทั้งเครือ) ซึ่งผิดขอบเขตของหน้าตัวแทนอยู่แล้ว
+  // และทั้งสามคิดจาก allLeads (ทั้งเครือ) ซึ่งผิดขอบเขตของหน้าดีลเลอร์อยู่แล้ว
   // อัตราปิดการขายที่แสดงจริงคือ convRate ด้านล่าง (คิดจาก myAllLeads)
   const hasActiveFilters = !!(fAssignee || fProvince || fSource || fValueMin || fValueMax);
   // ช่วงมูลค่าใน FilterRow ↔ fValueMin/fValueMax ที่ตัวกรองจริงใช้ (แหล่งความจริงเดียวยังเป็นสองค่านี้)
@@ -1622,7 +1622,7 @@ export default function LeadsPage() {
   }, [ฐานสรุปรวมปิดแล้ว, quotations]);
 
   // stageStats (Sales Journey) ถูกลบพร้อมการ์ดเส้นทาง/action center — เหลือแต่การคำนวณที่ไม่มีใครอ่าน
-  // และนับจาก allLeads ทั้งเครือ ซึ่งผิดขอบเขตของหน้าตัวแทน
+  // และนับจาก allLeads ทั้งเครือ ซึ่งผิดขอบเขตของหน้าดีลเลอร์
 
   // ─── RENDER ────────────────────────────────────────────────────────────
   return (

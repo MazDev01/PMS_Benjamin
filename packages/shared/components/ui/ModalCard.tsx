@@ -16,7 +16,7 @@ import { useModalA11y } from "@pms/shared/lib/useModalA11y";
 //   Esc ปิดได้ · Tab วนอยู่ในกล่อง · ปิดแล้วโฟกัสกลับไปที่ปุ่มที่กดเปิด
 export function ModalCard({ onClose, label, style, className, children }: {
   onClose: () => void;
-  /** ชื่อที่โปรแกรมอ่านหน้าจอจะอ่าน เช่น "ฟอร์มเพิ่มตัวแทน" */
+  /** ชื่อที่โปรแกรมอ่านหน้าจอจะอ่าน เช่น "ฟอร์มเพิ่มดีลเลอร์" */
   label: string;
   style?: CSSProperties;
   className?: string;

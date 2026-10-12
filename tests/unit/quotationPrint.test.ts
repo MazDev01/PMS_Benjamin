@@ -39,14 +39,14 @@ describe("วันยืนราคา — ต้องมาจากข้�
     expect(html).toContain("15 ก.ค. 2569");
   });
 
-  it("ไม่มีวันหมดอายุ → นับจากวันที่ออก + อายุใบที่ตัวแทนตั้งไว้ (ไม่ใช่ 30 วันตายตัว)", () => {
+  it("ไม่มีวันหมดอายุ → นับจากวันที่ออก + อายุใบที่ดีลเลอร์ตั้งไว้ (ไม่ใช่ 30 วันตายตัว)", () => {
     const doc: DocProfile = { ...DEFAULT_DOC, validityDays: 45 };
     const html = buildQuotationHTML(ใบ({ date: "2026-06-01" }), ผู้ออก, undefined, doc);
     expect(html).toContain("16 ก.ค. 2569");   // 1 มิ.ย. + 45 วัน
     expect(html).not.toContain("1 ก.ค. 2569"); // ไม่ใช่ 30 วัน
   });
 
-  it("ทั้งเอกสารต้องไม่มีข้อความ 'ยืนราคา 30 วัน' เขียนตาย เมื่อตัวแทนตั้งอายุใบเป็น 45", () => {
+  it("ทั้งเอกสารต้องไม่มีข้อความ 'ยืนราคา 30 วัน' เขียนตาย เมื่อดีลเลอร์ตั้งอายุใบเป็น 45", () => {
     const html = buildQuotationHTML(ใบ(), ผู้ออก, undefined, { ...DEFAULT_DOC, validityDays: 45 });
     expect(html).not.toMatch(/ยืนราคา\s*30\s*วัน/);
   });
@@ -59,7 +59,7 @@ describe("เงื่อนไข — ไม่กรอกต้องไม�
     expect(ส่วนเงื่อนไข.split("<br/>").filter(l => l.includes("•")).length).toBeLessThanOrEqual(1);
   });
 
-  it("ตัวแทนพิมพ์เงื่อนไขเอง → ต้องขึ้นครบทุกบรรทัด", () => {
+  it("ดีลเลอร์พิมพ์เงื่อนไขเอง → ต้องขึ้นครบทุกบรรทัด", () => {
     const html = buildQuotationHTML(ใบ(), ผู้ออก, undefined, { ...DEFAULT_DOC, termsAndConditions: "มัดจำ 30%\nส่งมอบใน 60 วัน" });
     expect(html).toContain("มัดจำ 30%");
     expect(html).toContain("ส่งมอบใน 60 วัน");
@@ -94,7 +94,7 @@ describe("ความปลอดภัยของเอกสาร", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
-  it("หัวเอกสารต้องเป็นชื่อบริษัทตัวแทน ไม่มีชื่อ Benjamin (ตามข้อบังคับเรื่องแบรนด์)", () => {
+  it("หัวเอกสารต้องเป็นชื่อบริษัทดีลเลอร์ ไม่มีชื่อ Benjamin (ตามข้อบังคับเรื่องแบรนด์)", () => {
     const html = buildQuotationHTML(ใบ(), ผู้ออก, undefined, DEFAULT_DOC);
     expect(html).toContain("เชียงใหม่สตีล");
     expect(html.toLowerCase()).not.toContain("benjamin");

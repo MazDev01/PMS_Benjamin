@@ -112,7 +112,7 @@ console.log("\n=== 4. ความปลอดภัย: คนนอกที�
 
   const v = await fetch(`${URL_}/rest/v1/dealers_directory?select=*&limit=1`, { headers: { apikey: ANON } });
   const vRows = v.ok ? await v.json().catch(() => []) : [];
-  check("ทะเบียนตัวแทนไม่เปิดให้คนนอกดึงดู", !(Array.isArray(vRows) && vRows.length > 0),
+  check("ทะเบียนดีลเลอร์ไม่เปิดให้คนนอกดึงดู", !(Array.isArray(vRows) && vRows.length > 0),
     v.ok && vRows.length ? "ยังดึงได้" : `ตอบกลับ ${v.status}`);
 }
 

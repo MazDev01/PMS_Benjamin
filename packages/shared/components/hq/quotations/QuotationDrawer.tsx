@@ -12,7 +12,7 @@
 //  · ประวัติการเปิดอ่าน — ลบทั้งฟีเจอร์แล้ว (ไม่มีการติดตามจริง)
 //  · ไทม์ไลน์/ประวัติการแก้ไขของ "ใบเสนอราคา" — ระบบเก็บไทม์ไลน์ไว้ที่ดีล ไม่ได้ผูกรายใบ
 //  · เอกสารแนบรายใบ — คลังไฟล์ผูกกับลูกค้า/ลูกค้าเป้าหมาย ไม่ได้ผูกกับเลขที่ใบเสนอราคา
-//  · รายการสินค้า — มีเฉพาะใบที่ตัวแทนสร้างจริง ที่เหลือขึ้น "—"
+//  · รายการสินค้า — มีเฉพาะใบที่ดีลเลอร์สร้างจริง ที่เหลือขึ้น "—"
 import { FileText, User, Store, Wallet, Package, CalendarDays, CalendarClock, Clock, MapPin, IdCard, UserCheck, Building2 } from "lucide-react";
 import { quotationStatusLabel, quotationStatusColor } from "@pms/shared/lib/mock";
 import { fmtBaht } from "@pms/shared/lib/format";
@@ -42,7 +42,7 @@ export function QuotationDrawer({ quote, onClose }: {
         { ข้อความ: quotationStatusLabel[quote.status], พื้น: sc.bg, ตัวอักษร: sc.text },
         { ข้อความ: fmtBaht(quote.valueNum) },
       ]}
-      footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไข/ลบใบได้ที่ตัวแทนเจ้าของใบ"
+      footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไข/ลบใบได้ที่ดีลเลอร์เจ้าของใบ"
     >
       {/* แถบสรุปบนสุด — มูลค่ากับอายุใบ อ่านได้ตั้งแต่ยังไม่เลื่อนจอ (เหมือนแผงลูกค้าเป้าหมาย) */}
       <PanelStats>
@@ -68,9 +68,9 @@ export function QuotationDrawer({ quote, onClose }: {
         <PanelRow icon={Wallet} label="มูลค่างาน (ก่อน VAT)" value={fmtBaht(quote.valueNum)} strong />
       </PanelSection>
 
-      <PanelSection icon={Store} title="ข้อมูลตัวแทนจำหน่าย">
-        <PanelRow icon={IdCard} label="รหัสตัวแทน" value={quote.dealerCode} />
-        <PanelRow icon={Store} label="ตัวแทน" value={quote.dealerName} />
+      <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">
+        <PanelRow icon={IdCard} label="รหัสดีลเลอร์" value={quote.dealerCode} />
+        <PanelRow icon={Store} label="ดีลเลอร์" value={quote.dealerName} />
         <PanelRow icon={MapPin} label="จังหวัด" value={quote.dealerProvince} />
         <PanelRow icon={MapPin} label="ภูมิภาค" value={regionDisplay(quote.region)} />
         <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={quote.salesperson} />

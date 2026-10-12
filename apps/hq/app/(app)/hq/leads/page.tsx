@@ -2,7 +2,7 @@
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ลูกค้าเป้าหมายทั้งเครือ (Network Leads) ──────────────────────────────
-// ภาพรวมลูกค้าเป้าหมายของทุกตัวแทน · กรอง (ค้นหา/สถานะ/จังหวัด/ช่วงเวลา) · KPI · กราฟ · ตาราง drill-down
+// ภาพรวมลูกค้าเป้าหมายของทุกดีลเลอร์ · กรอง (ค้นหา/สถานะ/จังหวัด/ช่วงเวลา) · KPI · กราฟ · ตาราง drill-down
 // ใช้ข้อมูลจริงจาก SalesContext (leads) — HQ ดูอย่างเดียว (Sales CRM เท่านั้น)
 import { useMemo, useState, useEffect, useRef } from "react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
@@ -47,7 +47,7 @@ import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { fmtBaht, pctOrNull, parseBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
 
-// ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งตัวแทน (บอสสั่ง 21 ส.ค. 69) ──
+// ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
 //   มูลค่าเก็บเป็นข้อความอิสระ ("5310000" / "฿1.4M" / เว้นว่าง) — แปลงเป็นตัวเลขก่อนแล้วค่อยใส่ลูกน้ำ
 //   ⚠️ อ่านค่าไม่ออก = คืนข้อความเดิม ห้ามกลายเป็น ฿0 (กติกาเดิมของทั้งระบบ)
 const มูลค่าอ่านง่าย = (v?: string) => {
@@ -77,8 +77,8 @@ const TREND_QUOTE_START = new Date(2000, 0, 1);
 const TREND_QUOTE_END = new Date(2999, 11, 31);
 // "ต้องติดตาม" = ลูกค้าเป้าหมายที่ยังไม่ปิด และเงียบเกินเกณฑ์ของสาขาเจ้าของลูกค้าเป้าหมาย (needsFollowUp)
 // ⚠️ ห้ามกลับไปใช้รายการสถานะ: เดิมเป็น ["WAITING","FOLLOWUP"] ซึ่งไม่ได้นับวันเลย
-//    แต่ป้ายเขียนว่า ">7 วัน" → ตัวเลขไม่ตรงกับคำ และไม่ตรงกับที่ตัวแทนเห็นบนหน้าตัวเอง
-//    เกณฑ์วันเป็นของแต่ละสาขา (ตัวแทนตั้งเอง) → ต้องถามด้วย dealerCode ของลูกค้าเป้าหมายใบนั้นเสมอ
+//    แต่ป้ายเขียนว่า ">7 วัน" → ตัวเลขไม่ตรงกับคำ และไม่ตรงกับที่ดีลเลอร์เห็นบนหน้าตัวเอง
+//    เกณฑ์วันเป็นของแต่ละสาขา (ดีลเลอร์ตั้งเอง) → ต้องถามด้วย dealerCode ของลูกค้าเป้าหมายใบนั้นเสมอ
 
 
 export default function HQLeadsPage() {
@@ -86,7 +86,7 @@ export default function HQLeadsPage() {
   const { timeRange } = useFilters();
   const ละเอียดของหน้า = ความละเอียดของช่วง(timeRange.start, timeRange.end);
   const leads = useNetworkLeads();
-  // เกณฑ์เป็นของแต่ละสาขา (ตัวแทนตั้งเองที่ ตั้งค่า › การแจ้งเตือน) → ถามเป็นรายใบด้วย dealerCode
+  // เกณฑ์เป็นของแต่ละสาขา (ดีลเลอร์ตั้งเองที่ ตั้งค่า › การแจ้งเตือน) → ถามเป็นรายใบด้วย dealerCode
   const rulesOf = useLeadRulesOf();
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [query, setQuery] = useState("");
@@ -123,7 +123,7 @@ export default function HQLeadsPage() {
     return () => window.removeEventListener(DEALER_FILES_EVENT, read);
   }, []);
 
-  // ภาค/ชื่อของตัวแทน — จากทะเบียนตัวแทนจริง (เดิมอ่านจากชุด seed → โหมด supabase ได้ภาคของสาขาที่ไม่มีอยู่จริง)
+  // ภาค/ชื่อของดีลเลอร์ — จากทะเบียนดีลเลอร์จริง (เดิมอ่านจากชุด seed → โหมด supabase ได้ภาคของสาขาที่ไม่มีอยู่จริง)
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   const REGION_OF = useMemo(() => new Map(allDealers.map(d => [d.code, d.region])), [allDealers]);
 
@@ -145,7 +145,7 @@ export default function HQLeadsPage() {
     ? optsSummary.byProvince.map(p => p.province)
     : [...new Set(scoped.map(l => l.province).filter(Boolean))]).sort(), [optsSummary, scoped]);
 
-  // ฐานของ KPI = ตัวกรอง "ขอบเขต" ทุกตัว (ตัวแทน · ภูมิภาค · จังหวัด · ประเภทอาคาร · แหล่งที่มา · ค้นหา)
+  // ฐานของ KPI = ตัวกรอง "ขอบเขต" ทุกตัว (ดีลเลอร์ · ภูมิภาค · จังหวัด · ประเภทอาคาร · แหล่งที่มา · ค้นหา)
   // แต่ยังไม่กรองด้วย "สถานะ" และ "ต้องติดตามด่วน" — สองอันนั้นคือปุ่มของการ์ด KPI เอง
   // ถ้า KPI ตามสองอันนั้นด้วย ตัวเลขจะยุบเหลือค่าเดียวทันทีที่กด การ์ดจะไร้ความหมาย
   const kpiBase = useMemo(() => {
@@ -217,7 +217,7 @@ export default function HQLeadsPage() {
 
   // ── เตือน: ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบนานเกินเกณฑ์ (กฎธุรกิจ HQ · ค่าเริ่มต้น 48 ชม.) ──
   // ตอนนี้ลูกค้าเป้าหมายทุกใบมีผู้รับผิดชอบ → ขึ้น 0 ซึ่งเป็นความจริง · ตรรกะพร้อมใช้ พอมีลูกค้าเป้าหมาย assigned ว่างเกินเกณฑ์ การ์ดจะเด้ง
-  // อิงขอบเขต kpiBase (ตัวแทน/ภาค/จังหวัด/แม่แบบ/แหล่ง/ค้นหา + ช่วงเวลา) — ไม่ผูกสถานะ (เตือนไร้ผู้รับผิดชอบ ไม่เกี่ยวสถานะ)
+  // อิงขอบเขต kpiBase (ดีลเลอร์/ภาค/จังหวัด/แม่แบบ/แหล่ง/ค้นหา + ช่วงเวลา) — ไม่ผูกสถานะ (เตือนไร้ผู้รับผิดชอบ ไม่เกี่ยวสถานะ)
   const perDealerHours = useMemo(() => Object.fromEntries(allDealers.map(d => [d.code, rulesOf(d.code).unassignedAlertHours])), [allDealers, rulesOf]);
   const unassignedSummary = useUnassignedLeads(useMemo(() => ({
     asOf: isoDateOf(APP_NOW), defaultHours: DEFAULT_LEAD_RULES.unassignedAlertHours, perDealer: perDealerHours,
@@ -249,7 +249,7 @@ export default function HQLeadsPage() {
   const anyFilter = !!query.trim() || [status, province, dealerSel, regionSel, btSel, srcSel].some(v => v !== "ALL");
 
   // KPI — คิดจาก kpiBase (ตามตัวกรองขอบเขต) ไม่ใช่ scoped (ทั้งเครือ)
-  // เดิมคิดจาก scoped → กรองเหลือตัวแทนเดียว ตารางหด 25→7 แถว แต่ KPI นิ่งที่ 61/24/42% คนอ่านเข้าใจผิด
+  // เดิมคิดจาก scoped → กรองเหลือดีลเลอร์เดียว ตารางหด 25→7 แถว แต่ KPI นิ่งที่ 61/24/42% คนอ่านเข้าใจผิด
   const kpis = useMemo(() => {
     const followUp = followUpPage ? followUpPage.total : kpiBase.filter(l => needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays)).length; // supabase: leads_page overdue · local: client
     const lastM = timeRange.end.getMonth();
@@ -268,7 +268,7 @@ export default function HQLeadsPage() {
     return { total, followUp, newThis, conv: pctOrNull(won, closed) };
   }, [sumBase, followUpPage, kpiBase, timeRange.end, rulesOf]);
 
-  // ── Section 1 · ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา รายตัวแทน ─────────────────────────────
+  // ── Section 1 · ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา รายดีลเลอร์ ─────────────────────────────
   // สาขาไหนรับลูกค้าเป้าหมายเยอะแต่ออกใบเสนอราคาน้อย = จุดที่ผู้บริหารต้องเร่ง
   //
   // อัตราแปลง = ลูกค้าเป้าหมายที่ไปถึงขั้น "เสนอราคา" ขึ้นไป ÷ ลูกค้าเป้าหมายทั้งหมด
@@ -409,7 +409,7 @@ export default function HQLeadsPage() {
 
   // ── Section 4 · เหตุผลที่ปิดการขายไม่สำเร็จ ────────────────────────────────
   // นับเฉพาะลูกค้าเป้าหมายที่ปิดไม่สำเร็จ "และบันทึกเหตุผลไว้จริง" — ไม่เดาเหตุผลให้ลูกค้าเป้าหมายที่ไม่ได้ระบุ
-  // รายการเหตุผลเป็นของ HQ (ตั้งค่า › เส้นทางการขาย) ใช้ร่วมทุกตัวแทน
+  // รายการเหตุผลเป็นของ HQ (ตั้งค่า › เส้นทางการขาย) ใช้ร่วมทุกดีลเลอร์
   const lostReasons = useMemo(() => {
     const ดิบ = chartSummary
       ? chartSummary.byLostReason.map(r => ({ reason: r.reason, count: r.count }))
@@ -424,7 +424,7 @@ export default function HQLeadsPage() {
   }, [chartSummary, filtered]);
 
 
-  // ── Section 5 · ผลงานตัวแทน (Top 10) ─────────────────────────────────────
+  // ── Section 5 · ผลงานดีลเลอร์ (Top 10) ─────────────────────────────────────
   // ใช้ leadVsQuote ที่คำนวณไว้แล้ว (แหล่งเดียว ไม่คำนวณซ้ำ) + ยอดขายจากใบที่ตอบรับ
   const dealerPerf = useMemo(() => {
     const sales = new Map<string, number>();
@@ -465,11 +465,11 @@ export default function HQLeadsPage() {
           <FilterBar dims={[]} />
           {/* ส่งออก = สิ่งที่เห็นบนจอตอนนี้ (ผ่านตัวกรองทุกตัวแล้ว) · คอลัมน์เรียงตรงกับตาราง */}
           <ExportMenu filename="hq-leads" title="ลูกค้าเป้าหมายทั้งเครือ"
-            headers={["รหัสลูกค้าเป้าหมาย","รหัสตัวแทน","ตัวแทน","ลูกค้า","ผู้ติดต่อ","จังหวัด","ประเภทอาคาร","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","สถานะ","เหตุผลที่ปิดไม่สำเร็จ"]}
+            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","ประเภทอาคาร","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","สถานะ","เหตุผลที่ปิดไม่สำเร็จ"]}
             rows={filtered.map(leadToCells)} getRows={exportGetRows} />
       </TopbarActions>
 
-      {/* ── KPI ── หน้าตาเดียวกับ /hq/pipeline และแดชบอร์ดตัวแทน (ค่าลอกมาตรง ๆ ห้ามเพี้ยน)
+      {/* ── KPI ── หน้าตาเดียวกับ /hq/pipeline และแดชบอร์ดดีลเลอร์ (ค่าลอกมาตรง ๆ ห้ามเพี้ยน)
           แถบสีนำสายตาด้านซ้ายถูกตัดออก — หน้าอื่นไม่มี การ์ด KPI ต้องหน้าตาเหมือนกันทุกหน้า
           ต่างจากหน้าอื่นตรงที่ "กดเพื่อกรองสถานะได้" → คงปุ่ม + สถานะถูกเลือก (ขอบน้ำเงิน) ไว้ */}
       <div className="dash-kpis" style={{ marginBottom: 16 }}>
@@ -494,12 +494,12 @@ export default function HQLeadsPage() {
           เดิมแถบนี้อยู่ล่างสุดเหนือตาราง → กราฟทุกใบอยู่ "เหนือ" ตัวกรอง คนอ่านเลยไม่รู้ว่ามันคุมกราฟได้
           ตอนนี้คุมทั้งหน้า: การ์ดตัวเลข · กราฟ · 10 อันดับแรก · การ์ดเตือน · ตาราง
           (KPI ตามตัวกรองขอบเขตทุกตัว แต่ไม่ตาม "สถานะ"/"ต้องติดตามด่วน" เพราะการ์ด KPI คือปุ่มของสองอันนั้นเอง — ดู kpiBase)
-          ตัวเลือกในดรอปดาวน์สร้างจาก scoped ไม่ใช่ filtered — ไม่งั้นพอเลือกตัวแทนแล้วจะเปลี่ยนกลับไม่ได้ */}
+          ตัวเลือกในดรอปดาวน์สร้างจาก scoped ไม่ใช่ filtered — ไม่งั้นพอเลือกดีลเลอร์แล้วจะเปลี่ยนกลับไม่ได้ */}
       <div className="card hq-sticky-filter" style={{ marginBottom: "1.25rem" }}>
         <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 14, paddingBottom: 14 }}>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…"
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
-          {leadSel(dealerSel, setDealerSel, "ทุกตัวแทน", dealerOpts.map(o => ({ v: o, l: `${o} – ${DEALER_NAME.get(o) ?? o}` })))}
+          {leadSel(dealerSel, setDealerSel, "ทุกดีลเลอร์", dealerOpts.map(o => ({ v: o, l: `${o} – ${DEALER_NAME.get(o) ?? o}` })))}
           {leadSel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(o => ({ v: o, l: regionDisplay(o) })))}
           {leadSel(province, setProvince, "ทุกจังหวัด", provinces.map(p => ({ v: p, l: p })))}
           {leadSel(btSel, setBtSel, "ทุกประเภทอาคาร (จากลูกค้าเป้าหมาย)", btOpts.map(o => ({ v: o, l: o })))}
@@ -650,7 +650,7 @@ export default function HQLeadsPage() {
                 {(() => {
                   const รวม = lostReasons.reduce((s, r) => s + r.count, 0) || 1;
                   return lostReasons.map((r, i) => (
-                    // ก้อน "อื่นๆ (ระบุเอง)" ชี้เมาส์แล้วเห็นข้อความจริงที่ตัวแทนพิมพ์ไว้ (ยุบเพื่อให้อ่านง่าย ไม่ใช่ซ่อน)
+                    // ก้อน "อื่นๆ (ระบุเอง)" ชี้เมาส์แล้วเห็นข้อความจริงที่ดีลเลอร์พิมพ์ไว้ (ยุบเพื่อให้อ่านง่าย ไม่ใช่ซ่อน)
                     <div key={r.reason} title={r.details?.length ? r.details.join(" · ") : undefined}
                       style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem" }}>
                       <span style={{ width: 9, height: 9, borderRadius: 3, background: LOST_RAMP[i % LOST_RAMP.length], flexShrink: 0 }} />
@@ -666,11 +666,11 @@ export default function HQLeadsPage() {
         </div>
       </div>
 
-      {/* ── แถว 3 · ผลงานตัวแทนจำหน่าย (Top 10) — เต็มความกว้าง ──
+      {/* ── แถว 3 · ผลงานดีลเลอร์ (Top 10) — เต็มความกว้าง ──
           ตารางนี้มี 6 คอลัมน์ กว้างขั้นต่ำ 674px (colgroup) จึงอยู่ในช่องแคบไม่ได้
           เคยอยู่ช่องที่ 3 ของกริด (~300px) → เห็นแค่คอลัมน์ "ลูกค้าเป้าหมาย" ที่เหลือต้องเลื่อนแนวนอน */}
       <div className="card" style={{ marginBottom: 16, display: "flex", flexDirection: "column" }}>
-        <div className="card-header"><div className="card-title">ผลงานตัวแทนจำหน่าย 10 อันดับแรก</div></div>
+        <div className="card-header"><div className="card-title">ผลงานดีลเลอร์ 10 อันดับแรก</div></div>
         <div className="table-wrap">
           <table>
             <colgroup>
@@ -682,7 +682,7 @@ export default function HQLeadsPage() {
               <col style={{ width: "18%", minWidth: 120 }} />
             </colgroup>
             <thead><tr>
-              <th>อันดับ</th><th>ตัวแทนจำหน่าย</th>
+              <th>อันดับ</th><th>ดีลเลอร์</th>
               <th className="num">ลูกค้าเป้าหมาย</th><th className="num">ใบเสนอราคา</th>
               <th className="num" title="ลูกค้าเป้าหมายที่ออกใบเสนอราคาแล้ว ÷ ลูกค้าเป้าหมายทั้งหมด — ไม่ใช่อัตราปิดการขาย">อัตราออกใบเสนอราคา</th><th className="num">ยอดขาย</th>
             </tr></thead>
@@ -690,7 +690,7 @@ export default function HQLeadsPage() {
               {!dealerPerf.length ? (
                 <tr><td colSpan={6} style={{ textAlign: "center", padding: "28px 14px", color: "var(--muted-foreground)" }}>ไม่มีข้อมูลในช่วงที่เลือก</td></tr>
               ) : dealerPerf.map((d, i) => (
-                <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าตัวแทน ${d.name}`}>
+                <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าดีลเลอร์ ${d.name}`}>
                   <td>
                     {/* อันดับ 1-3 = เหรียญ ทอง/เงิน/ทองแดง · ที่เหลือ = เลขในชิปเทา (โพลิชแบบ leaderboard) */}
                     <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 8, fontWeight: 800, fontSize: "0.72rem", fontVariantNumeric: "tabular-nums",
@@ -721,13 +721,13 @@ export default function HQLeadsPage() {
           <table>
             {/* 12 คอลัมน์ · รวม minWidth = 1,116px — พอดีพื้นที่จริง 1,128px (วัดที่จอ 1440 · 11 ส.ค. 69)
                 ชุดก่อนหน้ารวม 1,214px → เกินไป 86px ตารางจึงยังมีแถบเลื่อนแนวนอนคาอยู่
-                (เดิม 13 คอลัมน์ = 1,440px · ที่ประหยัดมาได้: รวม "รหัสตัวแทน" เข้ากับ "ตัวแทน" ซึ่งข้อมูลซ้ำกัน)
+                (เดิม 13 คอลัมน์ = 1,440px · ที่ประหยัดมาได้: รวม "รหัสดีลเลอร์" เข้ากับ "ดีลเลอร์" ซึ่งข้อมูลซ้ำกัน)
                 จอกว้างกว่า 1440 คอลัมน์จะยืดตาม % เอง (รวมต้องได้ 100)
                 เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่เท่านั้น (table-layout: fixed — ใส่ที่ <th> ไม่มีผล)
                 และต้องคุมผลรวม minWidth ไม่ให้เกินกรอบ ไม่งั้นกลับมาล้นอีก */}
             <colgroup>
               <col style={{ width: "7%", minWidth: 88 }} />{/* รหัสลูกค้าเป้าหมาย */}
-              <col style={{ width: "12%", minWidth: 140 }} />{/* ตัวแทน (รหัส + ชื่อ) */}
+              <col style={{ width: "12%", minWidth: 140 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
               <col style={{ width: "11%", minWidth: 120 }} />{/* ลูกค้า */}
               <col style={{ width: "7%", minWidth: 84 }} />{/* จังหวัด */}
               <col style={{ width: "9%", minWidth: 100 }} />{/* ประเภทอาคาร */}
@@ -740,7 +740,7 @@ export default function HQLeadsPage() {
               <col style={{ width: "5%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน (ปุ่ม 28px + padding ของ td) */}
             </colgroup>
             <thead><tr>
-              <th>รหัส</th><th>ตัวแทน</th><th>ลูกค้า</th>
+              <th>รหัส</th><th>ดีลเลอร์</th><th>ลูกค้า</th>
               <th>จังหวัด</th><th>ประเภทอาคาร</th><th>แหล่งที่มา</th>
               {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกตัด (th ตั้ง white-space: nowrap ทั้งระบบ) — ไฟล์ส่งออกยังใช้ชื่อเต็ม */}
               <th className="num">มูลค่า</th><th>เสนอราคา</th><th>ติดต่อล่าสุด</th>
@@ -763,7 +763,7 @@ export default function HQLeadsPage() {
                 return (
                   <ClickableRow key={`${l.dealerCode ?? ""}-${l.id}`} className="clickable" onActivate={() => setViewLead(l)} label={`เปิดรายละเอียดลูกค้าเป้าหมาย ${l.company}`}>
                     <td style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY, whiteSpace: "nowrap" }}>{l.id}</td>
-                    {/* รหัส + ชื่อตัวแทนรวมเซลล์เดียว — เดิมแยก 2 คอลัมน์ทั้งที่เป็นข้อมูลตัวเดียวกัน กินที่ 228px */}
+                    {/* รหัส + ชื่อดีลเลอร์รวมเซลล์เดียว — เดิมแยก 2 คอลัมน์ทั้งที่เป็นข้อมูลตัวเดียวกัน กินที่ 228px */}
                     <td title={DEALER_NAME.get(l.dealerCode ?? "") ?? ""} style={{ overflow: "hidden" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                         <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace", flexShrink: 0 }}>{l.dealerCode || "—"}</span>
@@ -879,9 +879,9 @@ export default function HQLeadsPage() {
                   <PanelRow icon={CalendarDays} label="สร้างเมื่อ" value={l.createdAt} />
                 </PanelSection>
 
-                <PanelSection icon={Store} title="ข้อมูลตัวแทนจำหน่าย">
-                  <PanelRow icon={IdCard} label="รหัสตัวแทน" value={l.dealerCode} />
-                  <PanelRow icon={Store} label="ตัวแทน" value={DEALER_NAME.get(l.dealerCode ?? "")} />
+                <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">
+                  <PanelRow icon={IdCard} label="รหัสดีลเลอร์" value={l.dealerCode} />
+                  <PanelRow icon={Store} label="ดีลเลอร์" value={DEALER_NAME.get(l.dealerCode ?? "")} />
                   <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={l.assigned} />
                 </PanelSection>
 
@@ -961,7 +961,7 @@ export default function HQLeadsPage() {
 
               <div style={{ padding: "12px 20px", borderTop: "1px solid #E5E7EB", background: "#fff", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.66rem", color: "#64748B", flex: 1 }}>
-                  <Lock size={12} color="#94A3B8" /> สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ตัวแทนเจ้าของรายการ
+                  <Lock size={12} color="#94A3B8" /> สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของรายการ
                 </span>
                 <button onClick={() => setViewLead(null)} className="btn btn-secondary btn-md" style={{ color: "#374151" }}>ปิด</button>
               </div>

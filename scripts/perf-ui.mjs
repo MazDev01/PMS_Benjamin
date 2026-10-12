@@ -12,7 +12,7 @@ const หน้า = [
   [HQ, "ADMIN", "/hq/pipeline", "ภาพรวมยอดขาย"],
   [HQ, "ADMIN", "/hq/quotations", "ใบเสนอราคาทั้งเครือ"],
   [HQ, "ADMIN", "/hq/customers", "ลูกค้าทั้งเครือ"],
-  [D, "RYG", "/dashboard", "แดชบอร์ดตัวแทน"],
+  [D, "RYG", "/dashboard", "แดชบอร์ดดีลเลอร์"],
   [D, "RYG", "/leads", "ลูกค้าเป้าหมายของสาขา"],
   [D, "RYG", "/quotations", "ใบเสนอราคาของสาขา"],
   [D, "RYG", "/customers", "ลูกค้าของสาขา"],

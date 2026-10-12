@@ -3,7 +3,7 @@
 // ตัวเลือกของแถบตัวกรอง — ต้องมาจากข้อมูลจริงเสมอ
 //
 // เดิมเป็นค่าคงที่ระดับโมดูลใน FilterContext ที่คำนวณจากชุด seed ตอน import
-// โหมด supabase จึงเห็น "ตัวแทน/จังหวัด/ผู้รับผิดชอบ" ที่ไม่มีอยู่จริงในระบบ (กติกา: ห้ามกุข้อมูล)
+// โหมด supabase จึงเห็น "ดีลเลอร์/จังหวัด/ผู้รับผิดชอบ" ที่ไม่มีอยู่จริงในระบบ (กติกา: ห้ามกุข้อมูล)
 // ย้ายมาเป็น hook อ่านผ่าน repository → โหมด supabase ได้ของจริงจาก DB
 // ส่วนโหมด local ยังได้ชุดเดิม เพราะ LocalAdapter อ่านจาก seed อยู่แล้ว (พฤติกรรมไม่เปลี่ยน)
 import { useMemo } from "react";
@@ -17,7 +17,7 @@ export type Option = { value: string; label: string };
 
 const byThai = (a: string, b: string) => a.localeCompare(b, "th");
 
-/** ตัวแทนทั้งเครือ — จากทะเบียนตัวแทนจริง */
+/** ดีลเลอร์ทั้งเครือ — จากทะเบียนดีลเลอร์จริง */
 export function useDealerOptions(): Option[] {
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   return useMemo(() => dealers.map(d => ({ value: d.code, label: d.name })), [dealers]);

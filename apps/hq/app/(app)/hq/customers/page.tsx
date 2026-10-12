@@ -3,7 +3,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ฐานข้อมูลลูกค้าทั้งเครือ ───────────────────────────────────────────────
 // ฐานข้อมูลลูกค้าหลังปิดการขาย — HQ ดูอย่างเดียว (ไม่มี เพิ่ม/แก้ไข/ลบ)
-// Data Ownership เป็นของ Benjamin → เจาะดูได้ทุกตัวแทน
+// Data Ownership เป็นของ Benjamin → เจาะดูได้ทุกดีลเลอร์
 //
 // ตัวกรอง "ประเภทธุรกิจ (Industry)" และคอลัมน์ "บุคคล/บริษัท" ไม่มีในหน้านี้
 // เพราะระบบไม่เก็บข้อมูลสองอย่างนั้น (ตัดออกตามที่ตัดสินไว้ — อย่าใส่กลับโดยไม่มีฟิลด์จริง)
@@ -219,7 +219,7 @@ export default function HQCustomersPage() {
   }, [viewId, localDetail, remoteRowMeta, remoteBuildQuotes]);
 
   // ตัวกรอง 5 ช่อง + ช่องค้นหา ต้องอยู่บรรทัดเดียว (แถวนี้ตั้ง flex-wrap: nowrap)
-  //   maxWidth — select ที่ width:auto จะกว้างตามตัวเลือกที่ยาวที่สุด (เช่น "RYG – ตัวแทนระยอง สตีล") ต้องคุมเพดาน
+  //   maxWidth — select ที่ width:auto จะกว้างตามตัวเลือกที่ยาวที่สุด (เช่น "RYG – ดีลเลอร์ระยอง สตีล") ต้องคุมเพดาน
   //   minWidth: 0 + flexShrink — ให้ยุบตัวลงได้เมื่อจอแคบ แทนที่จะตกบรรทัด (nowrap ทำให้ยุบก่อน ไม่ใช่ wrap)
   // ขนาดตัวอักษร/ระยะขอบ ใช้สเกลเดียวกับแถบกรองหน้า /hq/pipeline
   const selectStyle = { width: "auto", flex: "0 1 auto", minWidth: 0, maxWidth: 146, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" } as const;
@@ -243,7 +243,7 @@ export default function HQCustomersPage() {
           <ExportMenu
             filename="hq-customers"
             title="ลูกค้าทั้งเครือ"
-            headers={["รหัสลูกค้า", "ลูกค้า", "รหัส", "ชื่อตัวแทน", "จังหวัด", "ภาค", "ประเภทอาคาร", "แม่แบบ", "ยอดซื้อรวม", "ซื้อล่าสุด"]}
+            headers={["รหัสลูกค้า", "ลูกค้า", "รหัส", "ชื่อดีลเลอร์", "จังหวัด", "ภาค", "ประเภทอาคาร", "แม่แบบ", "ยอดซื้อรวม", "ซื้อล่าสุด"]}
             rows={pageResult ? tableRows.map(rowToCells) : localExportRows}
             getRows={pageResult
               ? async () => {
@@ -256,7 +256,7 @@ export default function HQCustomersPage() {
 
       <CustomerKPICards kpi={kpi} />
 
-      {/* ตัวกรอง — ค้นหา + ตัวแทน/ภาค/จังหวัด/ประเภทอาคาร */}
+      {/* ตัวกรอง — ค้นหา + ดีลเลอร์/ภาค/จังหวัด/ประเภทอาคาร */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>
         {/* ขนาดช่องค้นหาต้องเท่ากันทุกหน้า (บอสสั่ง 20 ส.ค. 69) — ใช้ .search-bar ตัวมาตรฐาน
             เดิมหน้านี้สั่งให้ยืดกินที่ว่าง จึงกว้างกว่าหน้าอื่นเกือบสามเท่าเวลาจอกว้าง
@@ -273,8 +273,8 @@ export default function HQCustomersPage() {
 
         <div style={{ flex: 1 }} />
 
-        <select aria-label="กรองตามตัวแทน" value={dealerSel} onChange={e => setDealerSel(e.target.value)} className="form-select" style={selectStyle}>
-          <option value="all">ทุกตัวแทน</option>
+        <select aria-label="กรองตามดีลเลอร์" value={dealerSel} onChange={e => setDealerSel(e.target.value)} className="form-select" style={selectStyle}>
+          <option value="all">ทุกดีลเลอร์</option>
           {dealerOptions.map(([code, name]) => <option key={code} value={code}>{code} – {name}</option>)}
         </select>
 

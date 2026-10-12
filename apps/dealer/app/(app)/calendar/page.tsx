@@ -478,7 +478,7 @@ function AddApptModal({ initial, defaultDate, onSave, onClose }: { initial?: App
   const { session } = useRole(); // ผู้รับผิดชอบเริ่มต้น = ผู้ใช้ที่ล็อกอิน
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
   const { leads: allLeads, newAppointmentId } = useSales();
-  // เลือกได้เฉพาะลูกค้าเป้าหมายของตัวแทนที่ล็อกอิน — ไม่ให้เห็นลูกค้าเป้าหมายของตัวแทนรายอื่นทั้งเครือ
+  // เลือกได้เฉพาะลูกค้าเป้าหมายของดีลเลอร์ที่ล็อกอิน — ไม่ให้เห็นลูกค้าเป้าหมายของดีลเลอร์รายอื่นทั้งเครือ
   const leads = useMemo(
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],

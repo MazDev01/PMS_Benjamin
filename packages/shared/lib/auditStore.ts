@@ -13,7 +13,7 @@ import { APP_NOW } from "@pms/shared/context/FilterContext";
 import type { AuditEntry } from "@pms/shared/lib/data/types";
 import { ชั่วโมงนาทีไทย } from "./thaiDate";
 
-// v2: SEED เดิม (v1) มีรายการของฟีเจอร์ที่ถูกลบแล้ว ("ตั้งเพดานส่วนลด") + คำเก่า ("ระงับตัวแทน")
+// v2: SEED เดิม (v1) มีรายการของฟีเจอร์ที่ถูกลบแล้ว ("ตั้งเพดานส่วนลด") + คำเก่า ("ระงับดีลเลอร์")
 // loadAudit อ่าน localStorage ก่อน SEED → เบราว์เซอร์เก่าจะเห็นของค้างตลอดแม้ SEED ในโค้ดสะอาดแล้ว
 // ขึ้นเวอร์ชันคีย์ + ลบคีย์เก่าทิ้ง เพื่อบังคับ re-seed จาก SEED ปัจจุบัน (กติกา version-key ของทั้งระบบ)
 const KEY = "hq_audit_log_v2";

@@ -8,7 +8,7 @@ import type { CustomerNote, DealerFile, SystemUser } from "@pms/shared/lib/data/
 type Row = Record<string, unknown>;
 export { runtime } from "./_ctx";
 
-/** ตัวแทนเห็นเฉพาะสาขาตัวเอง · HQ เห็นทั้งเครือ — ตรงกับ selectScoped ของ SupabaseAdapter
+/** ดีลเลอร์เห็นเฉพาะสาขาตัวเอง · HQ เห็นทั้งเครือ — ตรงกับ selectScoped ของ SupabaseAdapter
  *  (RLS บังคับอยู่แล้วอีกชั้น อันนี้แค่ไม่ดึงเกินความจำเป็น) */
 function scopeOf(req: NextRequest) {
   const u = new URL(req.url);

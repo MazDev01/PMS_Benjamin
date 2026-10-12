@@ -140,7 +140,7 @@ export const POST = async (req: NextRequest): Promise<Response> => {
     return res;
   }
 
-  // ── op = adopt: รับใบผ่านที่มากับลิงก์ "เข้าระบบแทนตัวแทน" แล้วเก็บลง cookie ──────
+  // ── op = adopt: รับใบผ่านที่มากับลิงก์ "เข้าระบบแทนดีลเลอร์" แล้วเก็บลง cookie ──────
   //
   // ลิงก์เข้าระบบครั้งเดียว (magic link) ของ Supabase ส่งใบผ่านกลับมาทาง URL เสมอ
   //   โหมด supabase: supabase-js เก็บเข้า localStorage ให้เอง

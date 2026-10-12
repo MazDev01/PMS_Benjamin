@@ -5,9 +5,9 @@ import { chromium } from "@playwright/test";
 
 const เว็บ = [
   ["สำนักงานใหญ่ (ของจริง)", "https://pms.benjaminpebsteel.com/hq/login"],
-  ["ตัวแทน (ของจริง)", "https://dealerpms.benjaminpebsteel.com/login"],
+  ["ดีลเลอร์ (ของจริง)", "https://dealerpms.benjaminpebsteel.com/login"],
   ["สำนักงานใหญ่ (ตัวอย่าง)", "https://pms-demo-two.vercel.app/hq/login"],
-  ["ตัวแทน (ตัวอย่าง)", "https://pms-demo-dealer.vercel.app/login"],
+  ["ดีลเลอร์ (ตัวอย่าง)", "https://pms-demo-dealer.vercel.app/login"],
 ];
 const browser = await chromium.launch();
 for (const [ชื่อ, url] of เว็บ) {

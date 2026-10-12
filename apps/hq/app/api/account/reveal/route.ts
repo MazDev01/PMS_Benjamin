@@ -1,7 +1,7 @@
-// ── ตัวแทนขอ "ดูรหัสผ่านของตัวเอง" โดยยืนยันด้วยเลขที่ส่งไปทางอีเมล ─────────────────
+// ── ดีลเลอร์ขอ "ดูรหัสผ่านของตัวเอง" โดยยืนยันด้วยเลขที่ส่งไปทางอีเมล ─────────────────
 //
-// บอสสั่ง 1 ก.ย. 69: หน้าบัญชีของตัวแทนต้องมีปุ่มดูรหัสผ่าน แต่กดแล้วต้องส่งเลขไปที่อีเมลก่อน
-//   เอาเลขนั้นมากรอกจึงจะเห็นรหัส (กติกานี้ทับของเดิม 28 ส.ค. 69 ที่ห้ามตัวแทนดูรหัสตัวเองเลย)
+// บอสสั่ง 1 ก.ย. 69: หน้าบัญชีของดีลเลอร์ต้องมีปุ่มดูรหัสผ่าน แต่กดแล้วต้องส่งเลขไปที่อีเมลก่อน
+//   เอาเลขนั้นมากรอกจึงจะเห็นรหัส (กติกานี้ทับของเดิม 28 ส.ค. 69 ที่ห้ามดีลเลอร์ดูรหัสตัวเองเลย)
 //
 // ทำไมต้องมีเลขจากอีเมล ไม่ใช่กดแล้วโชว์เลย:
 //   หน้าจอที่เปิดค้างไว้ในออฟฟิศ = ใครเดินมานั่งก็กดดูรหัสของสาขาได้ทันที
@@ -13,14 +13,14 @@
 //   session ที่ได้จากการยืนยันถูกทิ้งทันที (ไม่ persist) — ใช้แค่พิสูจน์ว่าถือกล่องอีเมลนั้นจริง
 //
 // ⚠️ รหัสที่คืนมาคือ "สำเนาที่ระบบบันทึกไว้ตอนตั้งรหัสครั้งล่าสุด" (dealer_login_secrets)
-//    ถ้าตัวแทนไปตั้งรหัสใหม่ผ่านลิงก์อีเมล (ลืมรหัสผ่าน) สำเนาจะถูกลบทิ้งโดยตั้งใจ
+//    ถ้าดีลเลอร์ไปตั้งรหัสใหม่ผ่านลิงก์อีเมล (ลืมรหัสผ่าน) สำเนาจะถูกลบทิ้งโดยตั้งใจ
 //    → ตรงนั้นต้องบอกตรง ๆ ว่า "ระบบไม่มีสำเนา" ไม่ใช่คืนเลขเก่าที่ใช้ไม่ได้แล้ว
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { checkRateLimit } from "@pms/shared/lib/rateLimit";
 import { auditLog, withErrors, รหัสผ่านยังเข้าระบบได้ } from "@pms/shared/lib/adminRoute";
 import { decryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
-import { dealerCors, dealerJson, ตัวแทนที่เรียก, ปิดบางส่วนของอีเมล } from "@pms/shared/lib/dealerCaller";
+import { dealerCors, dealerJson, ดีลเลอร์ที่เรียก, ปิดบางส่วนของอีเมล } from "@pms/shared/lib/dealerCaller";
 
 export const runtime = "nodejs";
 
@@ -32,7 +32,7 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export const POST = withErrors("dealer-reveal-password", async (req: NextRequest) => {
-  const who = await ตัวแทนที่เรียก(req);
+  const who = await ดีลเลอร์ที่เรียก(req);
   if (!who.ok) return who.res;
   const { admin, userId, email, dealerCode, name } = who.who;
   if (!ANON_KEY) return dealerJson(req, { error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ — ดูรหัสผ่านยังไม่ได้" }, 501);
@@ -130,7 +130,7 @@ export const POST = withErrors("dealer-reveal-password", async (req: NextRequest
       }, 404);
     }
     // เปิดดูรหัสต้องมีร่องรอยเสมอ — สำนักงานใหญ่เห็นว่าใครเปิดดูเมื่อไหร่ (เหมือนฝั่ง HQ กดดู)
-    await auditLog(admin, { name, role: "DEALER" }, "ตัวแทนเปิดดูรหัสผ่านของตัวเอง (ยืนยันด้วยเลขทางอีเมล)", dealerCode);
+    await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์เปิดดูรหัสผ่านของตัวเอง (ยืนยันด้วยเลขทางอีเมล)", dealerCode);
     return dealerJson(req, { password });
   }
 

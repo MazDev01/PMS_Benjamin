@@ -1,15 +1,15 @@
 "use client";
 
-// ─── HQ · ใบเสนอแพ็กเกจตัวแทน (หน้ารวมทุกลูกค้าเป้าหมาย) ─────────────────────────────
+// ─── HQ · ใบค่าแฟรนไชส์ (หน้ารวมทุกลูกค้าเป้าหมาย) ─────────────────────────────
 //
 // บอสสั่ง 14 ก.ย. 69:
-//   "ทำหน้า ใบเสนอแพ็กเกจ ด้วย"
-//   "ให้มีการแสดงในหน้าเดียวแบบดีลเลอร์" · "ใบเสนอแพ็กเกจตัวแทนมันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
-//   → แบบเดียวกับหน้าใบเสนอราคาของตัวแทน: ทุกแถวมีปุ่ม ส่ง/ดู/พิมพ์/แก้ไข/ลบ · ดูรายละเอียดเป็นแผงกลางจอ
+//   "ทำหน้า ใบค่าแฟรนไชส์ ด้วย"
+//   "ให้มีการแสดงในหน้าเดียวแบบดีลเลอร์" · "ใบค่าแฟรนไชส์มันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
+//   → แบบเดียวกับหน้าใบเสนอราคาของดีลเลอร์: ทุกแถวมีปุ่ม ส่ง/ดู/พิมพ์/แก้ไข/ลบ · ดูรายละเอียดเป็นแผงกลางจอ
 //     เปลี่ยนสถานะได้ในแผงเลย · ออกใบใหม่เลือกลูกค้าเป้าหมายในฟอร์มเดียว (ไม่ต้องเปิดต่อหลายชั้น)
 //
 // ⚠️ ห้ามเขียนฟอร์ม/คำสั่งซ้ำในหน้านี้ — ใช้ ProposalFormModal + useProposalActions ชุดเดียวกับหน้าลูกค้าเป้าหมาย
-// สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · ออกใบ/เปลี่ยนสถานะ = ผู้มีสิทธิ์จัดการตัวแทน (RLS 0172 บังคับซ้ำ)
+// สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · ออกใบ/เปลี่ยนสถานะ = ผู้มีสิทธิ์จัดการดีลเลอร์ (RLS 0172 บังคับซ้ำ)
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -45,7 +45,7 @@ const BORDER = "#e5e7eb";
 const พื้นที่ของใบ = (p: DealerPackageProposal) =>
   p.region === "ทุกภาค" ? "ทั่วประเทศ" : [p.province, p.region ? `ภาค${p.region}` : ""].filter(Boolean).join(" · ") || "—";
 
-// ปุ่มไอคอนในแถว — หน้าตาเดียวกับหน้าใบเสนอราคาของตัวแทน
+// ปุ่มไอคอนในแถว — หน้าตาเดียวกับหน้าใบเสนอราคาของดีลเลอร์
 const ปุ่มไอคอน = (อันตราย = false): React.CSSProperties => ({
   width: 28, height: 28, borderRadius: 7, border: `1px solid ${อันตราย ? "#f3c9c9" : BORDER}`, background: "#fff",
   color: อันตราย ? "#dc2626" : PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
@@ -78,7 +78,7 @@ export default function HQProposalsPage() {
       setLoadErr("");
     } catch (e) {
       // ห้ามปล่อยตารางว่างเงียบ ๆ — ผู้ใช้จะนึกว่ายังไม่เคยออกใบ
-      setLoadErr(friendlyError(e, "โหลดใบเสนอแพ็กเกจไม่สำเร็จ"));
+      setLoadErr(friendlyError(e, "โหลดใบค่าแฟรนไชส์ไม่สำเร็จ"));
     } finally {
       setLoaded(true);
     }
@@ -111,7 +111,7 @@ export default function HQProposalsPage() {
     };
   }, [filtered]);
 
-  // ออกใบได้เฉพาะรายที่ยังติดตามอยู่ — รายที่เป็นตัวแทนแล้วหรือจบว่าไม่สำเร็จ ไม่มีเหตุให้เสนอแพ็กเกจอีก
+  // ออกใบได้เฉพาะรายที่ยังติดตามอยู่ — รายที่เป็นดีลเลอร์แล้วหรือจบว่าไม่สำเร็จ ไม่มีเหตุให้เสนอแพ็กเกจอีก
   const รายที่ออกใบได้ = useMemo(
     () => ราย.filter(r => ยังติดตามอยู่(r.status)).sort((a, b) => a.name.localeCompare(b.name, "th")),
     [ราย],
@@ -153,7 +153,7 @@ export default function HQProposalsPage() {
       <TopbarActions>
         <ExportMenu
           filename="hq-dealer-package-proposals"
-          title="ใบเสนอแพ็กเกจตัวแทน"
+          title="ใบค่าแฟรนไชส์"
           headers={["เลขที่", "ลูกค้าเป้าหมาย", "แพ็กเกจ", "ภาค", "จังหวัด", "ค่าแรกเข้า (บาท)", "ระยะสัญญา (เดือน)", "เป้ายอดซื้อต่อปี (บาท)", "สถานะ", "วันที่เสนอ", "มีผลถึง", "เงื่อนไข"]}
           rows={filtered.map(p => [
             p.proposalNo ?? "", รายตามรหัส.get(p.prospectId)?.name ?? "", packageLabel[p.package], p.region ?? "", p.province ?? "",
@@ -163,7 +163,7 @@ export default function HQProposalsPage() {
         />
         {จัดการได้ && (
           <button className="btn btn-primary btn-sm" onClick={() => setฟอร์ม({ editing: null, prospect: null })}>
-            <Plus size={14} /> ออกใบเสนอแพ็กเกจ
+            <Plus size={14} /> ออกใบค่าแฟรนไชส์
           </button>
         )}
       </TopbarActions>
@@ -180,7 +180,7 @@ export default function HQProposalsPage() {
       <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 16 }}>
         <div className="search-bar">
           <Search size={14} color="#9ca3af" />
-          <input aria-label="ค้นหาใบเสนอแพ็กเกจ" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาเลขที่ / ลูกค้าเป้าหมาย / จังหวัด..." />
+          <input aria-label="ค้นหาใบค่าแฟรนไชส์" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาเลขที่ / ลูกค้าเป้าหมาย / จังหวัด..." />
           {q && <button aria-label="ล้างคำค้น" onClick={() => { setQ(""); setPage(0); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
         <div style={{ flex: 1 }} />
@@ -228,7 +228,7 @@ export default function HQProposalsPage() {
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={8} style={{ textAlign: "center", padding: "36px 14px", color: "#9ca3af", fontSize: "0.8rem" }}>
-                  {!loaded ? "กำลังโหลด…" : ใบ.length === 0 ? "ยังไม่มีใบเสนอแพ็กเกจ — กด “ออกใบเสนอแพ็กเกจ” มุมขวาบน" : "ไม่พบใบเสนอแพ็กเกจตามตัวกรองที่เลือก"}
+                  {!loaded ? "กำลังโหลด…" : ใบ.length === 0 ? "ยังไม่มีใบค่าแฟรนไชส์ — กด “ออกใบค่าแฟรนไชส์” มุมขวาบน" : "ไม่พบใบค่าแฟรนไชส์ตามตัวกรองที่เลือก"}
                 </td></tr>
               )}
               {pageSlice(filtered, page).map(p => {
@@ -238,7 +238,7 @@ export default function HQProposalsPage() {
                 const ล็อก = ใบล็อกแล้ว(p.status);
                 // คีย์ใช้ p.id ได้: id ไม่ซ้ำทั้งระบบ (identity เดียวทั้งตาราง dealer_package_proposals)
                 return (
-                  <ClickableRow key={p.id} onActivate={() => setดูรหัส(p.id)} label={`เปิดใบเสนอแพ็กเกจ ${p.proposalNo ?? ""} ของ ${r?.name ?? ""}`}
+                  <ClickableRow key={p.id} onActivate={() => setดูรหัส(p.id)} label={`เปิดใบค่าแฟรนไชส์ ${p.proposalNo ?? ""} ของ ${r?.name ?? ""}`}
                     style={{ background: ดูรหัส === p.id ? "#f0f6ff" : undefined }}>
                     <td style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap", fontFamily: "monospace" }}>{p.proposalNo ?? "—"}</td>
                     <td title={r?.name} style={{ fontWeight: 700, color: STEEL, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r?.name ?? "—"}</td>
@@ -251,13 +251,13 @@ export default function HQProposalsPage() {
                     </td>
                     <td style={ตรึงคอลัมน์ปุ่ม()} onClick={e => e.stopPropagation()}>
                       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                        {/* ปุ่มไอคอนล้วนแบบหน้าใบเสนอราคาของตัวแทน — ชี้ค้างเห็นชื่อปุ่ม */}
+                        {/* ปุ่มไอคอนล้วนแบบหน้าใบเสนอราคาของดีลเลอร์ — ชี้ค้างเห็นชื่อปุ่ม */}
                         {จัดการได้ && p.status === "draft" && (
                           <button onClick={() => void กดเปลี่ยนสถานะ(p, "sent")} title="เปลี่ยนเป็นส่งแล้ว" aria-label={`ส่งใบ ${p.proposalNo ?? ""}`}
                             style={{ ...ปุ่มไอคอน(), border: "none", background: "#d97706", color: "#fff" }}><Send size={12} /></button>
                         )}
                         <button onClick={() => setดูรหัส(p.id)} title="ดูรายละเอียด" aria-label={`ดูใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()}><Eye size={13} /></button>
-                        <button onClick={() => กดพิมพ์(p)} title="พิมพ์ใบเสนอแพ็กเกจ" aria-label={`พิมพ์ใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()} disabled={!r}><Printer size={13} /></button>
+                        <button onClick={() => กดพิมพ์(p)} title="พิมพ์ใบค่าแฟรนไชส์" aria-label={`พิมพ์ใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()} disabled={!r}><Printer size={13} /></button>
                         {จัดการได้ && (
                           <>
                             <button onClick={() => !ล็อก && กดแก้ไข(p)} disabled={ล็อก} aria-label={`แก้ไขใบ ${p.proposalNo ?? ""}`}
@@ -279,7 +279,7 @@ export default function HQProposalsPage() {
         <TablePagination page={page} total={filtered.length} onPage={setPage} unit="ใบ" />
       </div>
 
-      {/* ══ แผงรายละเอียดใบ — กลางจอ หัวน้ำเงิน แบบหน้าใบเสนอราคาของตัวแทน ══ */}
+      {/* ══ แผงรายละเอียดใบ — กลางจอ หัวน้ำเงิน แบบหน้าใบเสนอราคาของดีลเลอร์ ══ */}
       {ใบที่ดู && (() => {
         const p = ใบที่ดู;
         const r = รายของใบที่ดู;
@@ -292,7 +292,7 @@ export default function HQProposalsPage() {
         const termLines = String(p.terms ?? "").split(/\r?\n/).map(t => t.trim()).filter(Boolean);
         return (
           <div onClick={() => setดูรหัส(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
-            <ModalCard onClose={() => setดูรหัส(null)} label="รายละเอียดใบเสนอแพ็กเกจ"
+            <ModalCard onClose={() => setดูรหัส(null)} label="รายละเอียดใบค่าแฟรนไชส์"
               style={{ width: 760, maxWidth: "100%", maxHeight: "calc(100vh - 24px)", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
@@ -312,9 +312,9 @@ export default function HQProposalsPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                     {r && <button onClick={() => กดพิมพ์(p)} style={qa}><Printer size={13} /> พิมพ์ PDF</button>}
                     {จัดการได้ && !ล็อก && <button onClick={() => กดแก้ไข(p)} style={qa}><Pencil size={13} /> แก้ไข</button>}
-                    {/* เป็นตัวแทนแล้ว = ไม่อยู่หน้าลูกค้าเป้าหมายแล้ว (บอสสั่ง 15 ก.ย. 69) → ลิงก์ไปหน้าตัวแทนนั้นแทน */}
+                    {/* เป็นดีลเลอร์แล้ว = ไม่อยู่หน้าลูกค้าเป้าหมายแล้ว (บอสสั่ง 15 ก.ย. 69) → ลิงก์ไปหน้าดีลเลอร์นั้นแทน */}
                     {r && r.status === "won"
-                      ? r.dealerCode && <Link href={`/hq/dealers/${r.dealerCode}`} style={qa}><ExternalLink size={13} /> ตัวแทน {r.dealerCode}</Link>
+                      ? r.dealerCode && <Link href={`/hq/dealers/${r.dealerCode}`} style={qa}><ExternalLink size={13} /> ดีลเลอร์ {r.dealerCode}</Link>
                       : r && <Link href={`/hq/prospects?open=${r.id}`} style={qa}><ExternalLink size={13} /> ลูกค้าเป้าหมาย</Link>}
                     {จัดการได้ && !ล็อก && <button onClick={() => void กดลบ(p)} title="ลบใบร่าง" aria-label="ลบใบร่าง" style={{ ...qa, width: 30, padding: 0, justifyContent: "center", color: "#fecaca" }}><Trash2 size={14} /></button>}
                     <button onClick={() => setดูรหัส(null)} title="ปิด" aria-label="ปิด" style={{ ...qa, width: 30, padding: 0, justifyContent: "center" }}><X size={15} /></button>

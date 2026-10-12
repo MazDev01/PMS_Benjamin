@@ -1,4 +1,4 @@
-// ── /api/v1/proposals — ใบเสนอแพ็กเกจตัวแทน (ของสำนักงานใหญ่) ─────────────────────────
+// ── /api/v1/proposals — ใบค่าแฟรนไชส์ (ของสำนักงานใหญ่) ─────────────────────────
 //
 // ทำงาน "ในนามผู้ใช้ที่เรียกมา" เหมือนเส้นทางอื่นในระยะ 1 — RLS ของ 0172 เป็นด่านสิทธิ์จริง
 //   สถานะเดินหน้าทางเดียว / ใบที่ส่งแล้วแก้-ลบไม่ได้ บังคับที่ตัวดักของฐานข้อมูล (ทุกเส้นทางโดนเหมือนกัน)
@@ -34,7 +34,7 @@ export const proposalsGET = handler("proposals.list", async (req: NextRequest, s
 
 export const proposalsPOST = handler("proposals.create", async (req: NextRequest, sb) => {
   const body = (await req.json().catch(() => null)) as Partial<DealerPackageProposal> | null;
-  if (!body || typeof body !== "object") return fail(400, "ข้อมูลใบเสนอแพ็กเกจไม่ถูกต้อง");
+  if (!body || typeof body !== "object") return fail(400, "ข้อมูลใบค่าแฟรนไชส์ไม่ถูกต้อง");
   const row = เตรียมบันทึกใบ(body);
   const ผิด = ตรวจใบเสนอ(row);
   if (ผิด) return fail(400, ผิด);
@@ -46,7 +46,7 @@ export const proposalsPOST = handler("proposals.create", async (req: NextRequest
 export const proposalsPUT = handler("proposals.update", async (req: NextRequest, sb) => {
   const body = (await req.json().catch(() => null)) as Partial<DealerPackageProposal> | null;
   const id = Number(body?.id);
-  if (!body || !Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบเสนอแพ็กเกจที่จะแก้");
+  if (!body || !Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์ที่จะแก้");
   const row = เตรียมบันทึกใบ(body);
   const ผิด = ตรวจใบเสนอ(row);
   if (ผิด) return fail(400, ผิด);
@@ -59,8 +59,8 @@ export const proposalsPUT = handler("proposals.update", async (req: NextRequest,
 export const proposalsPATCH = handler("proposals.status", async (req: NextRequest, sb) => {
   const body = (await req.json().catch(() => null)) as { id?: number; status?: string } | null;
   const id = Number(body?.id);
-  if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบเสนอแพ็กเกจ");
-  if (!เป็นสถานะใบ(body?.status)) return fail(400, "สถานะใบเสนอแพ็กเกจไม่ถูกต้อง");
+  if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์");
+  if (!เป็นสถานะใบ(body?.status)) return fail(400, "สถานะใบค่าแฟรนไชส์ไม่ถูกต้อง");
   const { data, error } = await sb.from("dealer_package_proposals").update({ status: body!.status }).eq("id", id).select().single();
   if (error) return dbFail("proposals.status", error);
   return ok(toCamel<DealerPackageProposal>(data as Row));
@@ -68,7 +68,7 @@ export const proposalsPATCH = handler("proposals.status", async (req: NextReques
 
 export const proposalsDELETE = handler("proposals.remove", async (req: NextRequest, sb) => {
   const id = Number(new URL(req.url).searchParams.get("id"));
-  if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบเสนอแพ็กเกจที่จะลบ");
+  if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์ที่จะลบ");
   const { error } = await sb.from("dealer_package_proposals").delete().eq("id", id);
   if (error) return dbFail("proposals.remove", error);
   return ok({ ok: true });

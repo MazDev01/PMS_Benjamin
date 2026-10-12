@@ -126,7 +126,7 @@ export async function checkConnection(): Promise<{ ok: boolean; error?: string }
   }
 }
 
-/** ใบผ่านของผู้ใช้ที่ล็อกอินอยู่ — ใช้แนบไปกับคำขอข้ามแอป (เช่น ตัวแทนยิงไป API ของสำนักงานใหญ่)
+/** ใบผ่านของผู้ใช้ที่ล็อกอินอยู่ — ใช้แนบไปกับคำขอข้ามแอป (เช่น ดีลเลอร์ยิงไป API ของสำนักงานใหญ่)
  *  ไม่มี session = คืน null ให้ผู้เรียกตัดสินใจเอง (ห้ามส่งคำขอแบบไม่มีใบผ่านแล้วหวังให้ผ่าน) */
 export async function getAccessToken(): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;

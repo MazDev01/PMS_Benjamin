@@ -1,4 +1,4 @@
-// เส้นทาง /api/account ของแอปตัวแทน = ทางผ่านไปยัง API บัญชีของสำนักงานใหญ่
+// เส้นทาง /api/account ของแอปดีลเลอร์ = ทางผ่านไปยัง API บัญชีของสำนักงานใหญ่
 // (โหมด api เก็บใบผ่านใน cookie หน้าเว็บแนบเองไม่ได้ — ดู accountProxy.ts)
 export { GET, POST } from "@pms/shared/server/v1/accountProxy";
 

@@ -1,4 +1,4 @@
-// โครงโหลดของทุกหน้าตัวแทน (Next แสดงระหว่างนำทางอัตโนมัติ) — สเกเลตัน KPI + ตาราง
+// โครงโหลดของทุกหน้าดีลเลอร์ (Next แสดงระหว่างนำทางอัตโนมัติ) — สเกเลตัน KPI + ตาราง
 import { PageSkeleton } from "@pms/shared/components/ui/PageSkeleton";
 
 export default function DealerLoading() {

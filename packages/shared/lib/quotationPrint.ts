@@ -4,8 +4,8 @@
 import { DEFAULT_ISSUER, ISSUER_KEY, loadHQPolicy, fmtISOToThai, type IssuerProfile, type QuotationMock } from "./mock";
 
 // การตั้งค่าเอกสาร (จาก Settings → ตั้งค่าใบเสนอราคา) — คนละคีย์กับโปรไฟล์บริษัท
-// termsAndConditions / validityDays มาจากหน้าตั้งค่าตัวแทน (คีย์ dealer_document_settings เดียวกัน)
-// เดิมไม่ได้ประกาศไว้ → เอกสารพิมพ์เงื่อนไขที่เขียนตายในโค้ด ตัวแทนแก้ที่หน้าตั้งค่าไปก็ไม่มีผล
+// termsAndConditions / validityDays มาจากหน้าตั้งค่าดีลเลอร์ (คีย์ dealer_document_settings เดียวกัน)
+// เดิมไม่ได้ประกาศไว้ → เอกสารพิมพ์เงื่อนไขที่เขียนตายในโค้ด ดีลเลอร์แก้ที่หน้าตั้งค่าไปก็ไม่มีผล
 import { คิดภาษีใบเสนอราคา } from "./quoteTax";
 
 export type DocProfile = { stamp: string; signature: string; vatPercent: number; quotePrefix: string; runningNumber: number; termsAndConditions?: string; validityDays?: number };
@@ -23,7 +23,7 @@ export function loadIssuer(): IssuerProfile {
 }
 
 // อ่านการตั้งค่าเอกสาร (ตรา/ลายเซ็น/prefix/เลขรัน) — fallback = DEFAULT_DOC
-// VAT บังคับมาจากนโยบาย HQ เสมอ (HQ คุมอัตราภาษีทั้งเครือ · ตัวแทนแก้ไม่ได้)
+// VAT บังคับมาจากนโยบาย HQ เสมอ (HQ คุมอัตราภาษีทั้งเครือ · ดีลเลอร์แก้ไม่ได้)
 // vatPercent: ส่งมาจากหน้าจอ (useHQPolicy) — เป็นค่าจริงที่ HQ ตั้งไว้
 // ถ้าไม่ส่งมา จะ fallback อ่าน localStorage ซึ่งถูกเฉพาะโหมด local เท่านั้น
 // (โหมด supabase นโยบายอยู่ใน DB → ต้องส่งค่ามาเสมอ ไม่งั้นได้ค่า default = คิด VAT ผิด)
@@ -44,9 +44,9 @@ export function buildQuotationHTML(q: QuotationMock, issuer: IssuerProfile, cust
   // ── เงื่อนไข ────────────────────────────────────────────────────────────────
   // ยึดข้อมูลจริงเท่านั้น:
   //  · วันยืนยันราคา = "วันหมดอายุ" ของใบนั้น (ถ้าไม่มี = วันที่ออก + อายุใบจากตั้งค่า)
-  //    เดิมเขียนตายว่า "30 วัน" → ตัวแทนตั้งอายุใบเป็น 45 เอกสารก็ยังพิมพ์ 30 = เอกสารโกหก
+  //    เดิมเขียนตายว่า "30 วัน" → ดีลเลอร์ตั้งอายุใบเป็น 45 เอกสารก็ยังพิมพ์ 30 = เอกสารโกหก
   //  · บรรทัด VAT ตัดออก — ตารางสรุปด้านบนแยก "ก่อน VAT / ภาษี / รวมสุทธิ" ให้เห็นตัวเลขจริงแล้ว
-  //  · ที่เหลือ = เงื่อนไขที่ตัวแทนพิมพ์เองในหน้าตั้งค่า (ไม่กรอก = ไม่ขึ้นอะไร ไม่ยัดข้อความให้)
+  //  · ที่เหลือ = เงื่อนไขที่ดีลเลอร์พิมพ์เองในหน้าตั้งค่า (ไม่กรอก = ไม่ขึ้นอะไร ไม่ยัดข้อความให้)
   const validUntil = (() => {
     if (q.expiry) return q.expiry;
     if (!q.date) return "";
@@ -121,14 +121,14 @@ table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical
 <div class="sheet">
   <div class="top">
     <div>
-      ${/* Constitution V2 · Branding: ตัวแทนอัปโหลดโลโก้เองไม่ได้ → หัวเอกสารใช้ "ชื่อบริษัทตัวแทน" เป็นข้อความเท่านั้น (ไม่มีชื่อ/โลโก้ Benjamin) */""}
+      ${/* Constitution V2 · Branding: ดีลเลอร์อัปโหลดโลโก้เองไม่ได้ → หัวเอกสารใช้ "ชื่อบริษัทดีลเลอร์" เป็นข้อความเท่านั้น (ไม่มีชื่อ/โลโก้ Benjamin) */""}
       <div class="issuer-name">${esc(issuer.company)}</div>
       <div class="issuer-meta">${esc(issuerMeta)}</div>
     </div>
     <div class="doc-title">
       <h1>ใบเสนอราคา</h1>
       <div class="sub">QUOTATION</div>
-      ${/* ⚠️ เดิมบรรทัดนี้เขียนตายว่า "ยืนราคา 30 วัน" — ตัวแทนตั้งอายุใบเป็น 45 วัน หัวกระดาษก็ยังพิมพ์ 30
+      ${/* ⚠️ เดิมบรรทัดนี้เขียนตายว่า "ยืนราคา 30 วัน" — ดีลเลอร์ตั้งอายุใบเป็น 45 วัน หัวกระดาษก็ยังพิมพ์ 30
              แล้วขัดกับบรรทัดเงื่อนไขด้านล่างที่คำนวณวันจริง = เอกสารเถียงกันเองต่อหน้าลูกค้า
              (เจอตอนเขียนเทสต์ชุดแรกของเอกสารพิมพ์ 24 ส.ค. 69) ตอนนี้ใช้วันจริงใบเดียวกับเงื่อนไข */""}
       <div class="doc-meta">เลขที่ <b>${esc(q.id)}</b><br/>วันที่ ${esc(fmtDate(q.date))}${validUntil ? `<br/>ยืนราคาถึง ${esc(fmtDate(validUntil))}` : ""}</div>

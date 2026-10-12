@@ -1,6 +1,6 @@
-// ── คำขอเปลี่ยนบัญชีเข้าระบบจากตัวแทน — ฝั่งสำนักงานใหญ่ (อนุมัติ/ปฏิเสธ) ──────────
+// ── คำขอเปลี่ยนบัญชีเข้าระบบจากดีลเลอร์ — ฝั่งสำนักงานใหญ่ (อนุมัติ/ปฏิเสธ) ──────────
 //
-// ตัวแทนแก้อีเมล/รหัสผ่านเองได้ 2 ครั้งตลอดอายุบัญชี (ดู /api/account)
+// ดีลเลอร์แก้อีเมล/รหัสผ่านเองได้ 2 ครั้งตลอดอายุบัญชี (ดู /api/account)
 // ครั้งที่ 3 เป็นต้นไปจะกลายเป็น "คำขอ" ที่ยังไม่มีผล — ต้องอนุมัติที่นี่ก่อน
 //
 // อนุมัติแล้วมีผลทันที: ระบบเปลี่ยนอีเมล/รหัสผ่านให้ตามที่ขอ แล้วเก็บสำเนารหัสไว้ให้ HQ เปิดดูได้
@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-const DENY = "ไม่มีสิทธิ์จัดการคำขอเปลี่ยนบัญชีของตัวแทน";
+const DENY = "ไม่มีสิทธิ์จัดการคำขอเปลี่ยนบัญชีของดีลเลอร์";
 const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — จัดการคำขอจากที่นี่ยังไม่ได้";
 
 // ── รายการคำขอ (ค้างก่อน แล้วตามด้วยที่ตัดสินแล้ว) ──
@@ -96,7 +96,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
 
   // "จอง" คำขอก่อนทำอะไรกับบัญชี — อัปเดตเฉพาะแถวที่ยังรออยู่ ถ้าไม่ได้แถวคืน = มีคนตัดสินไปแล้ว
   //   เดิมเปลี่ยนบัญชีก่อนแล้วค่อยปิดคำขอ: ถ้าปิดคำขอไม่สำเร็จ บัญชีเปลี่ยนแล้วแต่คำขอยังค้าง
-  //   ตัวแทนส่งคำขอใหม่ไม่ได้ (409) และ HQ กดอนุมัติซ้ำได้อีก · กดพร้อมกันสองคนก็เปลี่ยนซ้ำสองรอบ
+  //   ดีลเลอร์ส่งคำขอใหม่ไม่ได้ (409) และ HQ กดอนุมัติซ้ำได้อีก · กดพร้อมกันสองคนก็เปลี่ยนซ้ำสองรอบ
   async function จองคำขอ(status: "approved" | "rejected"): Promise<NextResponse | null> {
     const { data: ได้, error } = await admin.from("dealer_account_requests")
       .update({ status, ...ผลตัดสิน }).eq("id", id).eq("status", "pending").select("id");
@@ -124,17 +124,17 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
     if (ใบ.secret) {
       if (!dealerSecretReady()) return bad(501, "ยังไม่ได้ตั้ง DEALER_SECRET_KEY ที่เซิร์ฟเวอร์ — อนุมัติคำขอเปลี่ยนรหัสผ่านไม่ได้");
       รหัสใหม่ = decryptSecret(String(ใบ.secret)) ?? "";
-      if (!รหัสใหม่) return bad(500, "ถอดรหัสคำขอไม่สำเร็จ — ให้ตัวแทนส่งคำขอใหม่");
+      if (!รหัสใหม่) return bad(500, "ถอดรหัสคำขอไม่สำเร็จ — ให้ดีลเลอร์ส่งคำขอใหม่");
       // คำขอเก่าที่ส่งมาก่อนมีกติกากลาง อาจมีรหัสที่ใช้เข้าระบบไม่ได้จริง (เช่น มีช่องว่าง)
       const ผิดกติกา = ตรวจรหัสผ่านใหม่(รหัสใหม่);
-      if (ผิดกติกา) return bad(400, `รหัสผ่านในคำขอนี้ใช้ไม่ได้ (${ผิดกติกา}) — ปฏิเสธคำขอแล้วให้ตัวแทนส่งใหม่`);
+      if (ผิดกติกา) return bad(400, `รหัสผ่านในคำขอนี้ใช้ไม่ได้ (${ผิดกติกา}) — ปฏิเสธคำขอแล้วให้ดีลเลอร์ส่งใหม่`);
     }
 
     // อีเมลซ้ำ = คำขอนี้อนุมัติไม่ได้ ต้องบอกให้ชัด (ระบบยืนยันตัวตนตอบ 500 เนื้อความว่าง จับจากข้อความไม่ได้)
     if (อีเมลใหม่ && (await อีเมลถูกใช้แล้ว(SUPABASE_URL, SERVICE_KEY, อีเมลใหม่, found.id)) === true) {
-      return bad(400, `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบ — ให้ตัวแทนส่งคำขอใหม่ด้วยอีเมลอื่น`);
+      return bad(400, `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบ — ให้ดีลเลอร์ส่งคำขอใหม่ด้วยอีเมลอื่น`);
     }
-    // อีเมลเดิมเก็บลงประวัติ (เหมือนตอนตัวแทนแก้เอง) — ประวัติจะได้ตอบได้ว่าเปลี่ยนจากอะไรเป็นอะไร
+    // อีเมลเดิมเก็บลงประวัติ (เหมือนตอนดีลเลอร์แก้เอง) — ประวัติจะได้ตอบได้ว่าเปลี่ยนจากอะไรเป็นอะไร
     const { data: บัญชีเดิม } = await admin.auth.admin.getUserById(found.id);
     const อีเมลเดิม = บัญชีเดิม?.user?.email ?? null;
 
@@ -159,7 +159,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
     if (รหัสใหม่) {
       const secret = ใบ.secret as string;
       const { error } = await admin.from("dealer_login_secrets")
-        .upsert({ dealer_code: code, secret, updated_at: new Date().toISOString(), updated_by: `${prof?.name ?? ""} (อนุมัติคำขอตัวแทน)` });
+        .upsert({ dealer_code: code, secret, updated_at: new Date().toISOString(), updated_by: `${prof?.name ?? ""} (อนุมัติคำขอดีลเลอร์)` });
       if (error) console.error(`[account-requests] เก็บสำเนารหัสของ ${code} ไม่สำเร็จ`, error);
     }
     await ล้างรหัสในคำขอ();
@@ -171,7 +171,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
   }
 
   await auditLog(admin, prof,
-    action === "approve" ? "อนุมัติคำขอเปลี่ยนบัญชีของตัวแทน" : "ปฏิเสธคำขอเปลี่ยนบัญชีของตัวแทน",
+    action === "approve" ? "อนุมัติคำขอเปลี่ยนบัญชีของดีลเลอร์" : "ปฏิเสธคำขอเปลี่ยนบัญชีของดีลเลอร์",
     `${code}${อีเมลใหม่ ? ` · ${อีเมลใหม่}` : ""}${reason ? ` · ${reason}` : ""}`);
 
   return NextResponse.json({ ok: true });

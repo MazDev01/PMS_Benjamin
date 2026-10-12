@@ -1,13 +1,13 @@
 "use client";
 
-// ─── วิเคราะห์ประสิทธิภาพการปิดการขายของตัวแทน (Quotation Performance by Dealer) ───
-// คำถามที่กราฟนี้ตอบ: ตัวแทนรายไหน "ออกใบเสนอราคาเยอะ แต่ปิดการขายได้น้อย"
-// แท่งคู่รายตัวแทน · เรียงจากออกใบมาก→น้อย · ใต้กราฟมีตารางสรุปตัวเลขเดียวกัน
+// ─── วิเคราะห์ประสิทธิภาพการปิดการขายของดีลเลอร์ (Quotation Performance by Dealer) ───
+// คำถามที่กราฟนี้ตอบ: ดีลเลอร์รายไหน "ออกใบเสนอราคาเยอะ แต่ปิดการขายได้น้อย"
+// แท่งคู่รายดีลเลอร์ · เรียงจากออกใบมาก→น้อย · ใต้กราฟมีตารางสรุปตัวเลขเดียวกัน
 // HQ ดูอย่างเดียว — ไม่มีปุ่มเพิ่ม/แก้/ลบ
 //
 // ⚠️ กฎสำคัญ: "ปิดไม่ได้" = ใบที่ลูกค้าปฏิเสธจริง (status = lost) เท่านั้น
 //    ห้ามคิดว่า ปิดไม่ได้ = ใบทั้งหมด − ปิดได้ เพราะจะเหมาใบที่ "ยังรอลูกค้าตอบ / หมดอายุ / ร่าง"
-//    เป็นความล้มเหลวของตัวแทน (ข้อมูลจริงทั้งเครือ: ปฏิเสธจริงแค่ 4 ใบ แต่ยังรอตอบ 14 ใบ)
+//    เป็นความล้มเหลวของดีลเลอร์ (ข้อมูลจริงทั้งเครือ: ปฏิเสธจริงแค่ 4 ใบ แต่ยังรอตอบ 14 ใบ)
 //    (เดิมมีใบแฝด DealerClosingChart ที่ /hq/quotations ถามคำถามเดียวกัน — ยุบมาเหลือใบนี้ใบเดียว)
 // อัตราปิด = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้) — ตัวหารนับเฉพาะใบที่รู้ผลแล้ว
 //    นิยามเดียวกับคอลัมน์ "อัตราปิด" ในตารางผลงาน และ KPI ของหน้านี้ (ห้ามใช้คนละสูตรในหน้าเดียวกัน)
@@ -47,10 +47,10 @@ export function DealerQuotationPerformance({ rows }: {
     return (
       <div className="card" style={{ marginBottom: "1.25rem" }}>
         <div className="card-header">
-          <div className="card-title">วิเคราะห์ประสิทธิภาพการปิดการขายของตัวแทน</div>
+          <div className="card-title">วิเคราะห์ประสิทธิภาพการปิดการขายของดีลเลอร์</div>
         </div>
         <div className="card-body" style={{ fontSize: "0.74rem", color: MUTED }}>
-          — ไม่มีตัวแทนที่ออกใบเสนอราคาในช่วงที่เลือก
+          — ไม่มีดีลเลอร์ที่ออกใบเสนอราคาในช่วงที่เลือก
         </div>
       </div>
     );
@@ -75,7 +75,7 @@ export function DealerQuotationPerformance({ rows }: {
     <div className="card" style={{ marginBottom: "1.25rem" }}>
       <div className="card-header">
         <div>
-          <div className="card-title">วิเคราะห์ประสิทธิภาพการปิดการขายของตัวแทน</div>
+          <div className="card-title">วิเคราะห์ประสิทธิภาพการปิดการขายของดีลเลอร์</div>
           {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}
         </div>
         <span style={{ display: "flex", gap: 12, flexShrink: 0, fontSize: "0.62rem", color: MUTED }}>
@@ -90,7 +90,7 @@ export function DealerQuotationPerformance({ rows }: {
 
       <div className="card-body" style={{ paddingTop: 4 }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ display: "block", width: "100%", height: "auto", overflow: "visible" }}
-          role="img" aria-label="ใบเสนอราคาที่ออก เทียบ ปิดการขายได้ รายตัวแทน">
+          role="img" aria-label="ใบเสนอราคาที่ออก เทียบ ปิดการขายได้ รายดีลเลอร์">
           {/* เส้นกริดแนวนอน + ป้ายแกน Y (จำนวนใบ) */}
           {Array.from({ length: 5 }, (_, i) => i * step).map((v, i) => (
             <g key={v}>
@@ -119,7 +119,7 @@ export function DealerQuotationPerformance({ rows }: {
               </g>
             );
           })}
-          <text x={W - pR} y={H - 8} textAnchor="end" fontSize="8.5" fill="#aab2bd">รหัสตัวแทน</text>
+          <text x={W - pR} y={H - 8} textAnchor="end" fontSize="8.5" fill="#aab2bd">รหัสดีลเลอร์</text>
 
           {/* กล่องข้อความตอนชี้ — วาดท้ายสุดให้ทับแท่งอื่น */}
           {hover !== null && (() => {
@@ -176,7 +176,7 @@ export function DealerQuotationTable({ rows, avgConv }: {
     <div className="card" style={{ marginBottom: 0 }}>
       <div className="card-header">
         <div>
-          <div className="card-title">ตัวเลขการปิดการขาย รายตัวแทน</div>
+          <div className="card-title">ตัวเลขการปิดการขาย รายดีลเลอร์</div>
           {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}
         </div>
       </div>
@@ -185,10 +185,10 @@ export function DealerQuotationTable({ rows, avgConv }: {
           {/* ความกว้างคุมที่ colgroup เท่านั้น (table-layout:fixed — ใส่ที่ th ไม่มีผล)
               การ์ดนี้อยู่ในกริดครึ่งจอ (~550px) → minWidth รวมต้องไม่เกินนั้น
               เดิมรวม 608px ทำให้คอลัมน์สุดท้าย "อัตราปิด" ถูกดันออกนอกกรอบ ต้องเลื่อนแนวนอนถึงเห็น
-              ซึ่งเป็นคอลัมน์ที่คำอธิบายการ์ดอ้างถึงโดยตรง (ตัวแทนที่ต่ำกว่าเฉลี่ยขึ้นสีแดง) */}
+              ซึ่งเป็นคอลัมน์ที่คำอธิบายการ์ดอ้างถึงโดยตรง (ดีลเลอร์ที่ต่ำกว่าเฉลี่ยขึ้นสีแดง) */}
           <colgroup>
             <col style={{ width: "10%" }} />{/* รหัส */}
-            <col style={{ width: "26%" }} />{/* ตัวแทน — ยาวเกินตัดด้วย … (มี title ให้ชี้ดูชื่อเต็ม) */}
+            <col style={{ width: "26%" }} />{/* ดีลเลอร์ — ยาวเกินตัดด้วย … (มี title ให้ชี้ดูชื่อเต็ม) */}
             <col style={{ width: "15%" }} />{/* ใบเสนอราคา — หัวคอลัมน์ยาวสุด จึงกว้างกว่าเพื่อน */}
             <col style={{ width: "11%" }} />{/* ปิดได้ */}
             <col style={{ width: "12%" }} />{/* ปิดไม่ได้ */}
@@ -198,7 +198,7 @@ export function DealerQuotationTable({ rows, avgConv }: {
           <thead>
             <tr>
               <th>รหัส</th>
-              <th>ตัวแทนจำหน่าย</th>
+              <th>ดีลเลอร์</th>
               <th style={{ textAlign: "right" }}>ใบเสนอราคา</th>
               <th style={{ textAlign: "right" }}>ปิดได้</th>
               <th style={{ textAlign: "right" }}>ปิดไม่ได้</th>
@@ -225,7 +225,7 @@ export function DealerQuotationTable({ rows, avgConv }: {
           </tbody>
         </table>
       </div>
-      <TablePagination page={cur} total={rows.length} onPage={setPage} unit="ตัวแทน" />
+      <TablePagination page={cur} total={rows.length} onPage={setPage} unit="ดีลเลอร์" />
       {/* คำอธิบายสูตรใต้ตารางถูกเอาออก (บอสสั่ง 22 ก.ย. 69) — กติกาเดิมยังใช้อยู่:
           ปิดไม่ได้ = ลูกค้าปฏิเสธจริงเท่านั้น · อัตราปิด = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้) · ยังไม่มีใบรู้ผล = "—" */}
     </div>

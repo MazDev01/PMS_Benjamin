@@ -43,12 +43,12 @@ await วัด("นับ leads แบบประมาณ (planned)", () => �
 await วัด("อ่าน leads 1000 แถว (ในนาม HQ)", () => ในนามผู้ใช้.from("leads").select("*").range(0, 999));
 await วัด("อ่าน leads 1000 แถว (กุญแจระบบ)", () => ระบบ.from("leads").select("*").range(0, 999));
 
-// ล็อกอินเป็นตัวแทน (สาขาเดียว) เทียบกับ HQ (เห็นทั้งเครือ)
-const ตัวแทน = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
-const { data: s2 } = await ตัวแทน.auth.signInWithPassword({ email: T.get("TEST_RYG_EMAIL"), password: T.get("TEST_RYG_PASSWORD") });
-const ในนามตัวแทน = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false },
+// ล็อกอินเป็นดีลเลอร์ (สาขาเดียว) เทียบกับ HQ (เห็นทั้งเครือ)
+const ดีลเลอร์ = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+const { data: s2 } = await ดีลเลอร์.auth.signInWithPassword({ email: T.get("TEST_RYG_EMAIL"), password: T.get("TEST_RYG_PASSWORD") });
+const ในนามดีลเลอร์ = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false },
   global: { headers: { Authorization: "Bearer " + s2.session.access_token } } });
 console.log("");
-console.log("=== ในนามตัวแทน (เห็นแค่สาขาตัวเอง 2,500 แถว) ===");
-await วัด("นับ leads", () => ในนามตัวแทน.from("leads").select("id", { count: "exact", head: true }));
-await วัด("leads_page 20 แถว", () => ในนามตัวแทน.rpc("leads_page", args));
+console.log("=== ในนามดีลเลอร์ (เห็นแค่สาขาตัวเอง 2,500 แถว) ===");
+await วัด("นับ leads", () => ในนามดีลเลอร์.from("leads").select("id", { count: "exact", head: true }));
+await วัด("leads_page 20 แถว", () => ในนามดีลเลอร์.rpc("leads_page", args));

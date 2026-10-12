@@ -62,13 +62,13 @@ const addDaysD = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.ge
 export default function HQDashboard() {
   const router = useRouter();
   const { timeRange } = useFilters();
-  // ข้อมูลตัวแทน = ชุดเดียวกับหน้า "ตัวแทน" (persist ผ่าน HQ_DEALERS_KEY) — คุณสมบัติคงที่ (ชื่อ/ภาค/เป้าทั้งปี/สถานะ)
+  // ข้อมูลดีลเลอร์ = ชุดเดียวกับหน้า "ดีลเลอร์" (persist ผ่าน HQ_DEALERS_KEY) — คุณสมบัติคงที่ (ชื่อ/ภาค/เป้าทั้งปี/สถานะ)
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   // เป้าหมายที่ HQ ตั้งไว้ (แหล่งเดียว) — ใช้เป็นเกณฑ์สี Win rate แทนการ hardcode
   const targets = useRepoValue<HQTargets>(() => settingsRepo.getTargets(), DEFAULT_HQ_TARGETS);
   // เกณฑ์การแจ้งเตือน (ตั้งที่ /hq/settings → การแจ้งเตือน) — อ่านหลัง mount กัน hydration mismatch
   // notifRules ถูกลบพร้อมการ์ดแจ้งเตือน — เกณฑ์เตือนไม่มีใครอ่านแล้ว
-  // ตัวเลือกตัวแทนเฉพาะหน้านี้ (แต่ละหน้า HQ เลือกแยกกัน ไม่จำข้ามหน้า)
+  // ตัวเลือกดีลเลอร์เฉพาะหน้านี้ (แต่ละหน้า HQ เลือกแยกกัน ไม่จำข้ามหน้า)
   const [dealerSel, setDealerSel] = useState<string>("all");
   const dealers = useMemo(
     () => dealerSel === "all" ? allDealers : allDealers.filter(d => d.code === dealerSel),
@@ -88,12 +88,12 @@ export default function HQDashboard() {
   const prevRange = useNetworkQuoteRange(addDaysD(timeRange.start, -periodDays), addDaysD(timeRange.start, -1), selDealer?.code);
   // สรุปใบในช่วง (byStatus/byProduct/byMonth) ที่ DB — ป้อน productAgg/buildingPerf/quoteStatus/pipeline/wonVal
   const quoteSummary = useDashboardQuoteSummary(timeRange.start, timeRange.end, selDealer?.code);
-  // สรุปลูกค้าเป้าหมาย + ลูกค้าทั้งเครือ ที่ DB · ผูกตัวแทนที่เลือก (selDealer) ให้ตรงกับฝั่งใบเสนอราคา (M3)
+  // สรุปลูกค้าเป้าหมาย + ลูกค้าทั้งเครือ ที่ DB · ผูกดีลเลอร์ที่เลือก (selDealer) ให้ตรงกับฝั่งใบเสนอราคา (M3)
   //   เดิมไม่ผูก selDealer → พอเลือกสาขา กราฟ/KPI ลูกค้าเป้าหมายยังโชว์ทั้งเครือ แต่ใบ/ยอดโชว์เฉพาะสาขา = ขัดกันในการ์ดเดียว
   //   ปลด journeyStages/leadQuoteSeries/monthly/bottomMetrics/barTrend/provinceTop6 ออกจาก array (M9 Phase 4)
   //   null (local/ยังไม่โหลด) → useMemo แต่ละใบ fallback คำนวณจาก allNetLeads/netCustomers เดิม
   // ── ทุกอย่างบนแดชบอร์ดต้องเดินตามตัวกรองของหน้า (บอสสั่ง 21 ส.ค. 69) ──────────────
-  //   เดิมสรุปลูกค้าเป้าหมายผูกแค่ "ตัวแทน" ไม่ผูก "ช่วงเวลา" → เลือกช่วง 3 เดือน
+  //   เดิมสรุปลูกค้าเป้าหมายผูกแค่ "ดีลเลอร์" ไม่ผูก "ช่วงเวลา" → เลือกช่วง 3 เดือน
   //   การ์ดใบเสนอราคาเปลี่ยนตาม แต่การ์ด/กราฟลูกค้าเป้าหมายยังเป็นของทุกช่วง = ขัดกันในหน้าเดียว
   const dashLeadSum = useLeadSummary(useMemo(() => ({
     ...(selDealer ? { dealerCodes: [selDealer.code] } : {}),
@@ -117,7 +117,7 @@ export default function HQDashboard() {
   );
   const { appointments } = useSales();
   const totalDealers = allDealers.length;
-  // ใบเสนอราคาของตัวแทนที่เลือก — ยังไม่ตัดตามช่วงเวลา
+  // ใบเสนอราคาของดีลเลอร์ที่เลือก — ยังไม่ตัดตามช่วงเวลา
   // กราฟแนวโน้ม (เส้น/แท่ง) ใช้ชุดนี้ เพราะมีปุ่มช่วงย้อนหลังของตัวเอง ต้องมองข้ามตัวกรองเวลาบนแถบบนได้
   const scopedQuotes = useMemo(
     () => selDealer ? netQuotes.filter(q => q.dealerCode === selDealer.code) : netQuotes,
@@ -210,7 +210,7 @@ export default function HQDashboard() {
     };
   }, [winQuotes, prevQuotes, curRange, prevRange, totalDealers, leadTotal, allNetLeads.length, custSummary?.total, netCustomers.length]);
 
-  // ── สถิติรายตัวแทนในช่วง — คำนวณจากใบเสนอราคาจริง (รายได้=มูลค่า won · อัตราปิด=won/(won+lost)) ──
+  // ── สถิติรายดีลเลอร์ในช่วง — คำนวณจากใบเสนอราคาจริง (รายได้=มูลค่า won · อัตราปิด=won/(won+lost)) ──
   const dealerStats = useMemo(() => {
     const m = new Map<string, { revenue: number; total: number; won: number; lost: number }>();
     // supabase: มาจาก rollup ช่วงที่ DB (parity) · local/ยังไม่กลับ: คำนวณจาก winQuotes เดิม
@@ -228,9 +228,9 @@ export default function HQDashboard() {
     return m;
   }, [winQuotes, curRange]);
 
-  // ยอดขายสะสมทั้งปีจริง รายตัวแทน — สำหรับ "% เป้า" (เป้าเป็นรายปี ห้ามเทียบกับยอดแค่ในช่วงตัวกรอง)
+  // ยอดขายสะสมทั้งปีจริง รายดีลเลอร์ — สำหรับ "% เป้า" (เป้าเป็นรายปี ห้ามเทียบกับยอดแค่ในช่วงตัวกรอง)
   // มาจาก rollup กลาง (useDealerPerformance.revenue = Σ มูลค่า won ปีนี้ รายสาขา) — supabase คิดที่ DB (M9)
-  // scope selDealer: มีตัวแทนที่เลือก = คงเฉพาะสาขานั้น (เท่าพฤติกรรมเดิมที่กรองผ่าน scopedQuotes)
+  // scope selDealer: มีดีลเลอร์ที่เลือก = คงเฉพาะสาขานั้น (เท่าพฤติกรรมเดิมที่กรองผ่าน scopedQuotes)
   const dealerPerf = useDealerPerformance();
   const annualWonByDealer = useMemo(() => {
     const m = new Map<string, number>();
@@ -241,7 +241,7 @@ export default function HQDashboard() {
     return m;
   }, [dealerPerf, selDealer]);
 
-  // อันดับตัวแทน — ทุกคอลัมน์คำนวณจากใบเสนอราคาจริง (บอสสั่ง 17 ก.ค. 69: "ให้แสดงค่าข้อมูลจริง")
+  // อันดับดีลเลอร์ — ทุกคอลัมน์คำนวณจากใบเสนอราคาจริง (บอสสั่ง 17 ก.ค. 69: "ให้แสดงค่าข้อมูลจริง")
   // เดิมใช้ค่าซีดตายตัวของ DealerRow (revenueActual/winRate) → ตัวเลขไม่ขยับตามช่วงเวลา
   // และไม่ตรงกับหน้าอื่นที่คำนวณจริง (CNX ฿22.4M ที่นี่ vs ฿24.6M ที่ pipeline/leads/quotations)
   //   ยอดขาย  = มูลค่าใบที่ปิดได้ "ในช่วงที่เลือก" (แหล่งเดียวกับ KPI ของหน้านี้)
@@ -344,14 +344,14 @@ export default function HQDashboard() {
   const หน่วยเวลา = trendHourly ? "รายชั่วโมง" : (แยกรายวัน || แยกรายชั่วโมง) ? "รายวัน" : "รายเดือน";
   const trendTitle = selDealer ? `ยอดขาย ${selDealer.name.replace("Benjamin ", "")} ${หน่วยเวลา}` : `ยอดขายรวมทั้งเครือ ${หน่วยเวลา}`;
 
-  // ผลงานรายภาค — count = จำนวนตัวแทน (โดนัท) · revenue = ยอดขายในช่วงที่เลือก
+  // ผลงานรายภาค — count = จำนวนดีลเลอร์ (โดนัท) · revenue = ยอดขายในช่วงที่เลือก
   // ⚠️ เปลี่ยนจาก "ยอดทั้งปี" มาเป็น "ยอดในช่วงตัวกรอง" ตามที่บอสสั่ง 25 ส.ค. 69
   //    (ทุกอย่างบนหน้านี้ต้องเดินตามแถบกรองด้านบน) — ป้ายใต้แถบถูกแก้ให้ตรงกันแล้ว
   //    revenueW = ยอด won ในช่วง (มาจาก dealerStats ซึ่งกรองด้วย timeRange อยู่แล้ว)
   const regions = useMemo(() => {
     const m = new Map<string, { revenue: number; count: number }>();
-    // จำนวนตัวแทน = ทะเบียนสาขา ไม่ขึ้นกับช่วงเวลา (บอสสั่งกลับ 26 ส.ค. 69)
-    //   เลือก "วันนี้" แล้วโดนัทเหลือ 0 สาขา อ่านเหมือนไม่มีตัวแทนอยู่เลย
+    // จำนวนดีลเลอร์ = ทะเบียนสาขา ไม่ขึ้นกับช่วงเวลา (บอสสั่งกลับ 26 ส.ค. 69)
+    //   เลือก "วันนี้" แล้วโดนัทเหลือ 0 สาขา อ่านเหมือนไม่มีดีลเลอร์อยู่เลย
     //   ส่วนแถบยอดขายใต้โดนัทยังเดินตามตัวกรองตามเดิม (เป็นยอดขาย ไม่ใช่ทะเบียน)
     rankedWin.forEach(d => {
       const r = m.get(d.region) ?? { revenue: 0, count: 0 };
@@ -503,7 +503,7 @@ export default function HQDashboard() {
   const goalPeriod = Math.round(targets.annualTarget * periodDays / 365) || 1;
   const achievementPct = Math.round(wonValNum / goalPeriod * 100);
   // ยอดปิดได้สะสม "ทั้งปีนี้" (ไม่ขึ้นกับตัวกรองเวลา) — ใช้กับการ์ดเป้าหมายทั้งปี/วงแหวน % เป้า
-  // กฎระบบ: เป้าเป็นรายปี ห้ามเทียบกับยอดแค่ในช่วงตัวกรอง (ตารางอันดับตัวแทนใช้หลักเดียวกัน — annualWonByDealer)
+  // กฎระบบ: เป้าเป็นรายปี ห้ามเทียบกับยอดแค่ในช่วงตัวกรอง (ตารางอันดับดีลเลอร์ใช้หลักเดียวกัน — annualWonByDealer)
   const annualWonTotal = useMemo(() => { let s = 0; annualWonByDealer.forEach(v => (s += v)); return s; }, [annualWonByDealer]);
   // ── การ์ดเป้าหมาย: เทียบตามช่วงที่เลือก (บอสสั่ง 25 ส.ค. 69 "แก้ทุกอันทุกหน้า") ──────
   // ⚠️ ทับกฎเดิมที่บอสเคยวางไว้ว่า "เป้าเป็นรายปี ห้ามเทียบกับยอดในช่วงตัวกรอง"
@@ -531,7 +531,7 @@ export default function HQDashboard() {
   }, [productArr]);
 
   // ── กราฟแท่ง "ลูกค้าเป้าหมาย · ใบเสนอราคา · ปิดการขาย (รายเดือน)" — ปุ่มช่วงย้อนหลังของตัวเอง ──
-  // ไม่ผูกกับตัวกรองเวลาบนแถบบน (เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ · กติกาเดียวกับแดชบอร์ดตัวแทน)
+  // ไม่ผูกกับตัวกรองเวลาบนแถบบน (เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ · กติกาเดียวกับแดชบอร์ดดีลเลอร์)
   // ถังเดือนใช้คีย์ YYYY-MM — ช่วง 12 เดือนคาบเกี่ยว 2 ปี ถ้านับแต่เลขเดือนยอดปีที่แล้วจะทับปีนี้
   const [barRange, setBarRange] = useState<MonthRange>(6);
   // สรุปใบในหน้าต่าง barRange ที่ DB (byMonth) — supabase · local/ยังไม่กลับ = scopedQuotes เดิม
@@ -574,7 +574,7 @@ export default function HQDashboard() {
     else scopedQuotes.forEach(q => { const d = parseThaiDate(q.createdAt); if (!d) return; const k = monthKeyOf(d); bump(quotesM, k); if (q.status === "won") bump(wonM, k); });
     // ลูกค้าเป้าหมายต่อเดือน (คีย์ YYYY-MM): supabase = lead_summary.byMonth (all-time ครอบคลุมหน้าต่าง barRange) · local = array
     if (dashLeadSum) { for (const r of dashLeadSum.byMonth) leadsM.set(monthKey(r.y, r.m), r.created); }
-    // local fallback: กรองลูกค้าเป้าหมายตามตัวแทนที่เลือกด้วย (M3) — ไม่งั้นแท่งลูกค้าเป้าหมายโชว์ทั้งเครือทั้งที่เลือกสาขาเดียว
+    // local fallback: กรองลูกค้าเป้าหมายตามดีลเลอร์ที่เลือกด้วย (M3) — ไม่งั้นแท่งลูกค้าเป้าหมายโชว์ทั้งเครือทั้งที่เลือกสาขาเดียว
     else allNetLeads.filter(l => !selDealer || (l.dealerCode ?? DEFAULT_DEALER_CODE) === selDealer.code)
       .forEach(l => { const d = parseThaiDate(l.createdAt ?? ""); if (d) bump(leadsM, monthKeyOf(d)); });
     return {
@@ -591,7 +591,7 @@ export default function HQDashboard() {
   // เวลาเก็บเป็น "30 มิ.ย. 2569 · 09:22" → parseThaiDate อ่านส่วนหน้าได้ ใช้กรองตามช่วงเวลาของหน้าได้เลย
   const auditEntries = useAuditEntries();
   const AUDIT_ICON: Record<string, string> = {
-    dealer: "meeting",   // ตัวแทน → ไอคอนกลุ่มคน
+    dealer: "meeting",   // ดีลเลอร์ → ไอคอนกลุ่มคน
     users: "meeting",
     pricing: "quote",    // ราคากลาง/แม่แบบ → ไอคอนเอกสาร
     catalog: "quote",
@@ -692,12 +692,12 @@ export default function HQDashboard() {
     return { months: [...trendMonthly.map(p => p.month), ...nextMo], data: [...vals, ...proj], splitAt: vals.length };
   }, [trendMonthly, timeRange]);
 
-  // การ์ด KPI 6 ใบ — ดีไซน์เดียวกับแดชบอร์ดตัวแทน (ไอคอนพาสเทล · (i) คำอธิบาย · การ์ดเป้าหมายเป็นวงแหวน · "ดูรายละเอียด")
+  // การ์ด KPI 6 ใบ — ดีไซน์เดียวกับแดชบอร์ดดีลเลอร์ (ไอคอนพาสเทล · (i) คำอธิบาย · การ์ดเป้าหมายเป็นวงแหวน · "ดูรายละเอียด")
   const kpiCards = [
-    // ⚠️ เป้านี้คือ "เป้าที่ผู้บริหารตั้งให้ทั้งเครือ" (ตั้งที่หน้าตั้งค่า) ไม่ใช่ผลรวมเป้าที่แจกให้ตัวแทน
-    //    สองค่านี้ไม่จำเป็นต้องเท่ากัน — หน้าตัวแทนคิด % จากยอดที่แจก การ์ดนี้คิดจากเป้าที่ตั้ง
+    // ⚠️ เป้านี้คือ "เป้าที่ผู้บริหารตั้งให้ทั้งเครือ" (ตั้งที่หน้าตั้งค่า) ไม่ใช่ผลรวมเป้าที่แจกให้ดีลเลอร์
+    //    สองค่านี้ไม่จำเป็นต้องเท่ากัน — หน้าดีลเลอร์คิด % จากยอดที่แจก การ์ดนี้คิดจากเป้าที่ตั้ง
     //    ถ้าไม่บอกไว้ ผู้บริหารจะเห็น % สองตัวขัดกันแล้วไม่รู้ว่าอันไหนจริง (ผลตรวจภายนอก HQ-01)
-    { label: "เป้าหมายยอดขายทั้งเครือ", tip: "เป้าที่ผู้บริหารตั้งให้ทั้งเครือ (ตั้งที่หน้าตั้งค่า) เทียบกับยอดปิดการขายสะสมทั้งปี — คนละตัวกับผลรวมเป้าที่แจกให้ตัวแทน ซึ่งหน้าตัวแทนใช้คิด %", Icon: Target, color: "#2563EB", bg: "#E8F0FE", href: "/hq/settings", ring: true },
+    { label: "เป้าหมายยอดขายทั้งเครือ", tip: "เป้าที่ผู้บริหารตั้งให้ทั้งเครือ (ตั้งที่หน้าตั้งค่า) เทียบกับยอดปิดการขายสะสมทั้งปี — คนละตัวกับผลรวมเป้าที่แจกให้ดีลเลอร์ ซึ่งหน้าดีลเลอร์ใช้คิด %", Icon: Target, color: "#2563EB", bg: "#E8F0FE", href: "/hq/settings", ring: true },
     { label: "ใบเสนอราคารวม", tip: "จำนวนใบเสนอราคาทั้งเครือในช่วงเวลาที่เลือก", Icon: FileText, color: "#0891B2", bg: "#E6F4F9", href: "/hq/quotations", value: sc.quotes.value, sub1: "ใบ" },
     // ⚠️ การ์ดนี้เดินตามตัวกรองช่วงเวลา (ใบ 0155) = นับ "ลูกค้าที่เริ่มเป็นลูกค้าในช่วงที่เลือก"
     //    ป้ายเดิมเขียนว่า "ลูกค้าทั้งเครือ / จำนวนลูกค้าทั้งหมดในเครือ" ซึ่งขัดกับค่าที่นับจริง
@@ -742,14 +742,14 @@ export default function HQDashboard() {
     <div className="erp">
       {/* ปุ่ม/ตัวกรองของหน้าอยู่ขวาหัวหน้าเพจ (UI รอบใหม่ 14 ก.ย. 69) — ชื่อหน้า/ป้ายกลุ่มมาจากแถบบนแล้ว */}
       <TopbarActions>
-          {/* เลือกดูภาพรวมทั้งเครือ หรือเจาะรายตัวแทน — ตัวเลือกเฉพาะหน้านี้ (UI เดียวกับตัวกรองเวลา) */}
-          <SelectFilter caption="ทุกตัวแทน (ทั้งเครือ)" value={dealerSel}
+          {/* เลือกดูภาพรวมทั้งเครือ หรือเจาะรายดีลเลอร์ — ตัวเลือกเฉพาะหน้านี้ (UI เดียวกับตัวกรองเวลา) */}
+          <SelectFilter caption="ทุกดีลเลอร์ (ทั้งเครือ)" value={dealerSel}
             options={allDealers.map(d => ({ value: d.code, label: `${d.code} – ${d.name}` }))}
             onChange={setDealerSel} />
           <FilterBar dims={[]} />
       </TopbarActions>
 
-      {/* KPI 4 ใบ — ดีไซน์เดียวกับแดชบอร์ดตัวแทน (การ์ดเป้าหมาย=วงแหวน · ที่เหลือ=ไอคอน + "ดูรายละเอียด") */}
+      {/* KPI 4 ใบ — ดีไซน์เดียวกับแดชบอร์ดดีลเลอร์ (การ์ดเป้าหมาย=วงแหวน · ที่เหลือ=ไอคอน + "ดูรายละเอียด") */}
       <div className="hq-kpi4" style={{ marginBottom: "1.5rem" }}>
         {kpiCards.map(k => (
           <div key={k.label} className="card" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -786,22 +786,22 @@ export default function HQDashboard() {
         ))}
       </div>
 
-      {/* แถวการ์ดแจ้งเตือน (ลูกค้าเป้าหมายไม่มีผู้รับผิดชอบ/ไม่ติดต่อ/ใบใกล้หมดอายุ/ตัวแทนยอดต่ำ) เอาออกตามที่บอสสั่ง */}
+      {/* แถวการ์ดแจ้งเตือน (ลูกค้าเป้าหมายไม่มีผู้รับผิดชอบ/ไม่ติดต่อ/ใบใกล้หมดอายุ/ดีลเลอร์ยอดต่ำ) เอาออกตามที่บอสสั่ง */}
 
       {/* แถว 1: แนวโน้มยอดขายรวม · ยอดขายตามภูมิภาค */}
       <div className="hq-row2a" style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem" }}>
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
           <div className="card-body" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start", paddingTop: "1.15rem" }}>
             {/* height = ความสูงจริงของกราฟเป็น px (หลัง LineTrendChart วัดความกว้างการ์ดเอง)
-                395 = ที่ว่างในการ์ดหลังหักหัวข้อ/ปุ่มช่วงเวลา — พอดีกับการ์ด "สัดส่วนตัวแทนจำหน่าย" ที่อยู่คู่กัน */}
+                395 = ที่ว่างในการ์ดหลังหักหัวข้อ/ปุ่มช่วงเวลา — พอดีกับการ์ด "สัดส่วนดีลเลอร์" ที่อยู่คู่กัน */}
             <SalesTrendChart title={trendTitle} monthly={trendSeries} granularity={trendHourly ? "hour" : (แยกรายวัน || แยกรายชั่วโมง) ? "day" : "month"} height={395} />
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header">
             <div>
-              <div className="card-title">สัดส่วนตัวแทนจำหน่าย</div>
-              {/* การ์ดนี้ไม่ขึ้นกับตัวกรองเวลา — จำนวนตัวแทนไม่มีวันที่ให้กรอง และยอดขายใช้ยอดสะสมทั้งปี
+              <div className="card-title">สัดส่วนดีลเลอร์</div>
+              {/* การ์ดนี้ไม่ขึ้นกับตัวกรองเวลา — จำนวนดีลเลอร์ไม่มีวันที่ให้กรอง และยอดขายใช้ยอดสะสมทั้งปี
                   (ค่าเดียวกับ revenueActual ที่หน้า /hq/dealers ใช้) · ต้องกำกับไว้ ไม่งั้นขัดกับคำโปรยบนหัวหน้า */}
               {/* เดินตามตัวกรองแล้ว (บอสสั่ง 25 ส.ค. 69 "แก้ทุกอันทุกหน้า") — นับเฉพาะสาขาที่มียอดขายในช่วง
                   ⚠️ ความหมายเปลี่ยนจาก "ทะเบียนสาขาทั้งหมด" เป็น "สาขาที่มีผลงานในช่วง" ป้ายจึงต้องเปลี่ยนตาม */}
@@ -814,7 +814,7 @@ export default function HQDashboard() {
               // สีผูกกับ "ภาค" ไม่ใช่ลำดับ — โดนัทกับแถบล่างเรียงคนละแบบ ถ้าสีอิง index ภาคเดียวกันจะคนละสีในสองที่
               const colorOf = new Map(regions.map((r, i) => [r.region, RAMP[i % RAMP.length]]));
               const segs = regions.map(r => ({ region: r.region, label: regionDisplay(r.region), value: r.count, color: colorOf.get(r.region)!, revenue: r.revenue, pct: Math.round(r.count / totC * 100) }));
-              // โดนัท/legend โชว์ "จำนวนตัวแทน" → ต้องเรียงตามจำนวนตัวแทน
+              // โดนัท/legend โชว์ "จำนวนดีลเลอร์" → ต้องเรียงตามจำนวนดีลเลอร์
               // (เดิมเรียงตามยอดขายแต่โชว์จำนวน → legend ออกมา 12,12,7,5,7,5 เหมือนไม่ได้เรียง คนอ่านนึกว่าพัง)
               const byCount = [...segs].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "th"));
               // แถบล่างโชว์ "ยอดขาย" → เรียงตามยอดขาย · แสดงครบทุกภาค ไม่ตัดเงียบ
@@ -824,7 +824,7 @@ export default function HQDashboard() {
                 <>
                   {/* โดนัทสัดส่วน + legend (สไตล์ Chateau) */}
                   <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <Donut segments={byCount} centerLabel="ตัวแทน" centerValue={`${totalDealers}`} size={140} />
+                    <Donut segments={byCount} centerLabel="ดีลเลอร์" centerValue={`${totalDealers}`} size={140} />
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                       {byCount.map(s => (
                         <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.8rem" }}>
@@ -891,25 +891,25 @@ export default function HQDashboard() {
         </div>
       </div>
 
-      {/* แถว 3: ผลงานตัวแทน Top 10 · ยอดขายตามประเภทอาคาร · เหตุผลปิดการขายไม่สำเร็จ */}
+      {/* แถว 3: ผลงานดีลเลอร์ Top 10 · ยอดขายตามประเภทอาคาร · เหตุผลปิดการขายไม่สำเร็จ */}
       {/* minHeight = พื้นการ์ดขั้นต่ำของแถวนี้ (แถวนี้เป็น grid + stretch → การ์ดสูงเท่าใบที่เนื้อสูงสุด)
-          เดิมไม่ได้กำหนดไว้ พอเครือข่ายยังมีตัวแทนน้อยและประเภทอาคารไม่กี่ชนิด สองใบซ้ายเตี้ยมาก
+          เดิมไม่ได้กำหนดไว้ พอเครือข่ายยังมีดีลเลอร์น้อยและประเภทอาคารไม่กี่ชนิด สองใบซ้ายเตี้ยมาก
           แถวเลยเตี้ยตาม แล้วการ์ด "กิจกรรมล่าสุด" ที่ยาวกว่าถูกบีบจนเห็นแค่ 2 รายการต้องเลื่อนตลอด
           ใช้ 340px = ขนาด .chart-m ของ design system (เพดานคือ .chart-l 420px ห้ามเกิน)
-          เป็น min ไม่ใช่ height ตายตัว — พอตัวแทนครบ 10 รายการ์ดยังยืดเองได้ ไม่โดนตัดข้อมูลทิ้ง */}
+          เป็น min ไม่ใช่ height ตายตัว — พอดีลเลอร์ครบ 10 รายการ์ดยังยืดเองได้ ไม่โดนตัดข้อมูลทิ้ง */}
       <div className="hq-row3c" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem", minHeight: 340 }}>
         <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header"><div className="card-title">ผลงานตัวแทนจำหน่าย 10 อันดับแรก</div>
+          <div className="card-header"><div className="card-title">ผลงานดีลเลอร์ 10 อันดับแรก</div>
             {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div>
           <div className="card-body" style={{ paddingTop: 4, display: "flex", flexDirection: "column", gap: 9 }}>
             <div style={{ display: "flex", fontSize: "0.68rem", color: "var(--muted-foreground)", paddingLeft: 26, gap: 8 }}>
               <span style={{ flex: 1 }} /><span style={{ flex: "0 0 44px", textAlign: "right" }}>ยอดขาย</span><span style={{ flex: "0 0 34px", textAlign: "right" }}>% เป้า</span><span style={{ flex: "0 0 44px", textAlign: "right" }}>อัตราปิด</span>
             </div>
             {(() => { const maxRev = Math.max(...rankedWin.map(d => d.revenueW), 1); return rankedWin.slice(0, 10).map((d, i) => (
-              // แถวอันดับนี้คลิกไปหน้าตัวแทนได้ — ต้องกดด้วยคีย์บอร์ดได้ด้วย (role/tabIndex/Enter-Space)
+              // แถวอันดับนี้คลิกไปหน้าดีลเลอร์ได้ — ต้องกดด้วยคีย์บอร์ดได้ด้วย (role/tabIndex/Enter-Space)
               // ไม่เปลี่ยนเป็น <button> เพราะข้างในมีแถบกราฟที่เป็น div (ปุ่มรับได้แต่เนื้อหาแบบ phrasing)
               <div key={d.code} className="clickable" role="button" tabIndex={0}
-                aria-label={`เปิดหน้าตัวแทน ${d.name}`}
+                aria-label={`เปิดหน้าดีลเลอร์ ${d.name}`}
                 onClick={() => router.push(`/hq/dealers/${d.code}`)}
                 onKeyDown={e => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); router.push(`/hq/dealers/${d.code}`); } }}
                 style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
@@ -928,7 +928,7 @@ export default function HQDashboard() {
         <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header"><div className="card-title">ยอดขายตามประเภทอาคาร</div>
             {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div>
-          {/* ใบนี้เป็นต้นแบบของ CategoryRows — แดชบอร์ดตัวแทนใช้คอมโพเนนต์ตัวเดียวกัน (ห้ามแยกมาร์กอัป) */}
+          {/* ใบนี้เป็นต้นแบบของ CategoryRows — แดชบอร์ดดีลเลอร์ใช้คอมโพเนนต์ตัวเดียวกัน (ห้ามแยกมาร์กอัป) */}
           <div className="card-body" style={{ paddingTop: 4 }}>
             <CategoryRows
               data={buildingPerf.map(p => ({ label: p.product, value: p.value, note: `${p.projects} โครงการ` }))}
@@ -957,7 +957,7 @@ export default function HQDashboard() {
   );
 }
 
-// วงแหวนความคืบหน้าใช้ ProgressRing จาก @pms/shared/components/ui/Charts — แหล่งเดียวร่วมกับแดชบอร์ดตัวแทน
+// วงแหวนความคืบหน้าใช้ ProgressRing จาก @pms/shared/components/ui/Charts — แหล่งเดียวร่วมกับแดชบอร์ดดีลเลอร์
 // (เดิมเขียนซ้ำไว้ที่นี่ แต่ตกตัวแก้ที่ทำให้แอนิเมชันวิ่ง วงแหวนเลยนิ่งอยู่ที่ค่าจริงตั้งแต่เฟรมแรก)
 
 // เคยมีกราฟที่เขียนไว้เองในไฟล์นี้อีก 4 ตัว (GroupedBar / Sparkline / StatusBars / ThailandMap)

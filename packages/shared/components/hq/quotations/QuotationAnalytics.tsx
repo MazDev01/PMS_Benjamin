@@ -1,8 +1,8 @@
 "use client";
 
 // ─── ส่วนวิเคราะห์ใบเสนอราคาทั้งเครือ ─────────────────────────────────────────
-// ลูกค้าเป้าหมาย→ใบเสนอราคา · มูลค่าเทียบยอดขายจริง · ใบเสนอราคารายตัวแทน · สถานะแยกตัวแทน
-// แนวโน้ม 12 เดือน · เทียบรายภูมิภาค · ประเภทอาคาร · เหตุผลที่เสียโอกาส · อายุใบที่ค้าง · อันดับตัวแทน
+// ลูกค้าเป้าหมาย→ใบเสนอราคา · มูลค่าเทียบยอดขายจริง · ใบเสนอราคารายดีลเลอร์ · สถานะแยกดีลเลอร์
+// แนวโน้ม 12 เดือน · เทียบรายภูมิภาค · ประเภทอาคาร · เหตุผลที่เสียโอกาส · อายุใบที่ค้าง · อันดับดีลเลอร์
 // ใช้เฉพาะแท่ง/แท่งแนวนอน/แท่งซ้อน/เส้น — ไม่มีกรวย/วงกลม/เกจ
 //
 // ไม่มี "อัตราการเปิดอ่าน" และ "การใช้แม่แบบ" — ระบบไม่มีข้อมูลรองรับทั้งสองอย่าง (ห้ามกุ)
@@ -70,7 +70,7 @@ function RegionalComparison({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
   );
 }
 
-// ── #3 อันดับตัวแทน — 10 อันดับแรก: ใบเสนอราคา · มูลค่า · ตอบรับ · อัตราปิดการขาย ──
+// ── #3 อันดับดีลเลอร์ — 10 อันดับแรก: ใบเสนอราคา · มูลค่า · ตอบรับ · อัตราปิดการขาย ──
 const TOP_N = 10;
 function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
   const router = useRouter();
@@ -81,7 +81,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
   return (
     <div className="card" style={{ marginBottom: 0 }}>
       <div className="card-header">
-        <div className="card-title">อันดับตัวแทนจำหน่าย</div>
+        <div className="card-title">อันดับดีลเลอร์</div>
         {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}
       </div>
       <div className="table-wrap">
@@ -102,7 +102,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
             <tr>
               <th>อันดับ</th>
               <th>รหัส</th>
-              <th>ตัวแทนจำหน่าย</th>
+              <th>ดีลเลอร์</th>
               <th>ภูมิภาค</th>
               <th className="num">ใบเสนอราคา</th>
               <th className="num">มูลค่า</th>
@@ -115,7 +115,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
             {!ranked.length ? (
               <tr><td colSpan={9} style={{ textAlign: "center", padding: "28px 14px", color: "var(--muted-foreground)" }}>ไม่พบข้อมูล</td></tr>
             ) : ranked.map((d, i) => (
-              <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าตัวแทน ${d.name}`}>
+              <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าดีลเลอร์ ${d.name}`}>
                 <td style={{ fontWeight: 700, color: "var(--muted-foreground)" }}>{i + 1}</td>
                 <td style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }}>{d.code}</td>
                 <td style={{ fontWeight: 600, color: "#1F2937" }}>{d.name}</td>
@@ -127,7 +127,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
                 <td className="num" style={{ fontWeight: 700, color: "#374151", fontVariantNumeric: "tabular-nums" }}>{d.sent ? `${conversionRate(d)}%` : "—"}</td>
                 <td onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button title="ดูรายละเอียดตัวแทน" onClick={() => router.push(`/hq/dealers/${d.code}`)}
+                    <button title="ดูรายละเอียดดีลเลอร์" onClick={() => router.push(`/hq/dealers/${d.code}`)}
                       style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Eye size={13} />
                     </button>
@@ -140,10 +140,10 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
       </div>
       {/* ตารางนี้ตั้งใจโชว์แค่ 10 อันดับแรกตามสเปก — แถบจึงเป็น "หน้า 1 / 1" เสมอ
           (มีไว้ให้ท้ายตารางเหมือนกันทุกหน้า HQ) · จำนวนที่ไม่ได้แสดงบอกไว้ใต้แถบ */}
-      <TablePagination page={0} total={ranked.length} onPage={() => {}} size={TOP_N} unit="ตัวแทน" />
+      <TablePagination page={0} total={ranked.length} onPage={() => {}} size={TOP_N} unit="ดีลเลอร์" />
       {hidden > 0 && (
         <div style={{ padding: "8px 14px", fontSize: "0.65rem", color: "#9ca3af", borderTop: "1px solid #f2f4f7" }}>
-          แสดง 10 อันดับแรก — อีก {hidden} ตัวแทนไม่ได้แสดงในตารางนี้
+          แสดง 10 อันดับแรก — อีก {hidden} ดีลเลอร์ไม่ได้แสดงในตารางนี้
         </div>
       )}
     </div>
@@ -164,7 +164,7 @@ export function QuotationAnalytics({ dealerAgg, productTypes, aging, trend, ห�
 }) {
   return (
     <>
-      {/* แนวโน้ม 12 เดือน มาก่อน — ให้เห็นภาพรวมว่าทั้งเครือกำลังไปทางไหน แล้วค่อยแยกย่อยรายตัวแทน/ภาค/แม่แบบ
+      {/* แนวโน้ม 12 เดือน มาก่อน — ให้เห็นภาพรวมว่าทั้งเครือกำลังไปทางไหน แล้วค่อยแยกย่อยรายดีลเลอร์/ภาค/แม่แบบ
           กินเต็มแถว: กราฟ 12 จุดอ่านง่ายกว่าตอนกว้าง (และไม่มีใบไหนคู่ควรจับคู่ด้วย) */}
       <QuotationTrendChart trend={trend} หน่วยเวลา={หน่วยเวลา} />
 
@@ -173,11 +173,11 @@ export function QuotationAnalytics({ dealerAgg, productTypes, aging, trend, ห�
         <QuotationValueVsSalesChart dealerAgg={dealerAgg} />
       </div>
 
-      {/* "ใบเสนอราคา รายตัวแทน" (DealerRankingChart) ถูกตัดออก — ข้อมูลซ้ำทั้งใบ:
-          มูลค่ารายตัวแทนมีใน "มูลค่าใบเสนอราคา เทียบ ยอดขายจริง" · จำนวนใบมีใน "อัตราลูกค้าเป้าหมายที่ออกใบเสนอราคา แยกตามตัวแทน"
-          และตาราง "อันดับตัวแทนจำหน่าย" ท้ายหน้ามีครบทั้งคู่ + อัตราปิดการขาย */}
+      {/* "ใบเสนอราคา รายดีลเลอร์" (DealerRankingChart) ถูกตัดออก — ข้อมูลซ้ำทั้งใบ:
+          มูลค่ารายดีลเลอร์มีใน "มูลค่าใบเสนอราคา เทียบ ยอดขายจริง" · จำนวนใบมีใน "อัตราลูกค้าเป้าหมายที่ออกใบเสนอราคา แยกตามดีลเลอร์"
+          และตาราง "อันดับดีลเลอร์" ท้ายหน้ามีครบทั้งคู่ + อัตราปิดการขาย */}
       {/* "ออกใบเสนอราคาเยอะ แต่ปิดได้น้อย" (DealerClosingChart) ถูกตัดออก — ย้ายไปอยู่ที่ /hq/pipeline
-          ซึ่งเป็นเจ้าของเรื่อง "ผลงานตัวแทน / ใครต้องเข้าไปช่วย" (ใบนั้นมีตารางสรุปใต้กราฟด้วย)
+          ซึ่งเป็นเจ้าของเรื่อง "ผลงานดีลเลอร์ / ใครต้องเข้าไปช่วย" (ใบนั้นมีตารางสรุปใต้กราฟด้วย)
           หน้านี้เหลือเฉพาะเรื่องของตัวเอกสารใบเสนอราคา — อายุใบ / สถานะ / แนวโน้ม / มูลค่า */}
       <div className="hq-dealer-charts">
         <RegionalComparison dealerAgg={dealerAgg} />
@@ -189,7 +189,7 @@ export function QuotationAnalytics({ dealerAgg, productTypes, aging, trend, ห�
         <QuotationAgingChart aging={aging} />
       </div>
 
-      {/* ตารางอันดับปิดท้าย — เป็น "ตัวเลขครบทุกตัวแทน" ที่ให้ไล่อ่านหลังดูกราฟภาพรวมจบแล้ว */}
+      {/* ตารางอันดับปิดท้าย — เป็น "ตัวเลขครบทุกดีลเลอร์" ที่ให้ไล่อ่านหลังดูกราฟภาพรวมจบแล้ว */}
       <div style={{ marginBottom: 24 }}>
         <TopDealerRanking dealerAgg={dealerAgg} />
       </div>

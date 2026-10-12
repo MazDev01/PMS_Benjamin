@@ -58,7 +58,7 @@ async function login(page: Page, origin: string, path: string, who: Account) {
   throw new Error(`ล็อกอินไม่ผ่าน (${who.email}) — ยังอยู่ที่ ${page.url()} · ข้อความบนฟอร์ม: ${JSON.stringify(alerts)}`);
 }
 
-test("[supabase] ตัวแทน RYG ล็อกอินผ่านหน้าจอจริงแล้วเข้าระบบได้", async ({ page }) => {
+test("[supabase] ดีลเลอร์ RYG ล็อกอินผ่านหน้าจอจริงแล้วเข้าระบบได้", async ({ page }) => {
   const errs = trackErrors(page);
   await login(page, DEALER, "/login", RYG);
   // ล็อกอินสำเร็จ = เด้งออกจากหน้า login
@@ -71,7 +71,7 @@ test("[supabase] ตัวแทน RYG ล็อกอินผ่านหน�
   expect(fatal, "ต้องไม่มี error ตอนเข้าระบบด้วย backend จริง").toEqual([]);
 });
 
-test("[supabase] ตัวแทนเปิดหน้าหลักได้ครบ ไม่พัง", async ({ page }) => {
+test("[supabase] ดีลเลอร์เปิดหน้าหลักได้ครบ ไม่พัง", async ({ page }) => {
   const errs = trackErrors(page);
   await login(page, DEALER, "/login", RYG);
   for (const p of ["/dashboard", "/leads", "/customers", "/quotations", "/products", "/calendar", "/files"]) {
@@ -87,7 +87,7 @@ test("[supabase] ตัวแทนเปิดหน้าหลักได้
   expect(fatal, "ทุกหน้าต้องไม่มี error").toEqual([]);
 });
 
-test("[supabase] หน้าแม่แบบของตัวแทนดึงแคตตาล็อกจาก HQ ได้จริง", async ({ page }) => {
+test("[supabase] หน้าแม่แบบของดีลเลอร์ดึงแคตตาล็อกจาก HQ ได้จริง", async ({ page }) => {
   await login(page, DEALER, "/login", RYG);
   await page.goto(`${DEALER}/products`, { waitUntil: "domcontentloaded" });
   // แม่แบบที่ seed ไว้ใน master_catalog ต้องโผล่ (ไม่ใช่ mock ในเครื่อง)
@@ -118,7 +118,7 @@ test("[supabase] HQ ล็อกอินแล้วเปิดหน้าเ
 //   → เสียเวลาไล่หาว่าโค้ดพังตรงไหน ทั้งที่ไม่มีอะไรพัง
 //   สิ่งที่อยากพิสูจน์จริง ๆ คือ "หน้าจอแสดงสาขาตามที่มีอยู่ในฐานข้อมูล ไม่ใช่ข้อมูลตัวอย่างที่ฝังในโค้ด"
 //   จึงเปลี่ยนไปเทียบกับฐานข้อมูลตรง ๆ — เพิ่มหรือลบสาขากี่ครั้งเทสต์นี้ก็ยังถูกเสมอ
-test("[supabase] หน้าทะเบียนตัวแทนแสดงสาขาตรงกับที่มีในฐานข้อมูลจริง", async ({ page }) => {
+test("[supabase] หน้าทะเบียนดีลเลอร์แสดงสาขาตรงกับที่มีในฐานข้อมูลจริง", async ({ page }) => {
   await login(page, HQ, "/hq/login", ADMIN);
   await page.goto(`${HQ}/hq/dealers`, { waitUntil: "domcontentloaded" });
 
@@ -147,7 +147,7 @@ test("[supabase] หน้าทะเบียนตัวแทนแสดง
   }
   // ถ้าสาขาน้อยกว่าหนึ่งหน้า ต้องเห็นครบทุกสาขา ไม่มีหายไปเงียบ ๆ
   if (names.length <= 10) expect(rows.length, "สาขาไม่ถึงหนึ่งหน้า ต้องแสดงครบทุกสาขา").toBe(names.length);
-  console.log(`ทะเบียนตัวแทนแสดง ${rows.length} สาขาจากฐานข้อมูล: ${shown.join(", ")}`);
+  console.log(`ทะเบียนดีลเลอร์แสดง ${rows.length} สาขาจากฐานข้อมูล: ${shown.join(", ")}`);
 });
 
 test("[supabase] หน้าจอโชว์ชื่อคน/ชื่อสาขาจริง ไม่ใช่อีเมล/รหัสสาขา (B5)", async ({ page }) => {

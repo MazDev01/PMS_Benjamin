@@ -3,7 +3,7 @@
 //    (media query ไม่เพิ่ม specificity) → เนื้อหาถูกบีบเหลือ 244px อีก 524px ว่างเปล่า
 // 2. /leads การ์ด "เกิน N วัน" ฮาร์ดโค้ด 7 ทั้งป้ายและตัวกรอง ทั้งที่ตัวเลขนับตามกฎของสาขา
 // 3. HQ นับ "ต้องติดตาม" จากรายการสถานะ แต่ป้ายเขียน ">7 วัน" (ไม่ได้นับวันเลย)
-// 4. รหัสผ่านตัวแทนโชว์เต็มทันทีที่เปิดแถว
+// 4. รหัสผ่านดีลเลอร์โชว์เต็มทันทีที่เปิดแถว
 // 5. คำว่า "อัตราปิด/ปิดได้ %" ถูกใช้กับหลายสูตร จนอ่านเหมือนตัวเลขขัดกัน
 import { test, expect } from "@playwright/test";
 import { open } from "./helpers";
@@ -34,7 +34,7 @@ test.describe("768px", () => {
 test.describe("อื่น ๆ", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  // ข้อ 2 — การ์ด/ตัวกรองฝั่งตัวแทน ต้องใช้เกณฑ์ของสาขา
+  // ข้อ 2 — การ์ด/ตัวกรองฝั่งดีลเลอร์ ต้องใช้เกณฑ์ของสาขา
   test("[2] /leads ป้ายกับตัวกรองตรงกับกฎที่ตั้ง", async ({ page }) => {
     test.skip(REAL_BACKEND, SEED_LOCAL_ONLY);
     await page.addInitScript(() => localStorage.setItem("dealer_lead_rules", JSON.stringify({ CNX: { followUpAlertDays: 3, unassignedAlertHours: 48 } })));
@@ -56,7 +56,7 @@ test.describe("อื่น ๆ", () => {
   });
 
   // ข้อ 4 — รหัสผ่านต้องถูกปิดบัง
-  test("[4] รหัสผ่านตัวแทนถูกปิดบัง", async ({ page }) => {
+  test("[4] รหัสผ่านดีลเลอร์ถูกปิดบัง", async ({ page }) => {
     await open(page, "hq", "/hq/dealers?view=table");   // หน้าเริ่มเป็นการ์ด — เทสต์นี้ใช้แถวตาราง
     await page.locator("table tbody tr").first().click();
     // ต้องขึ้นจุดไข่ปลา + ปุ่มให้กดดู — ไม่ใช่โชว์รหัสมาเลย
@@ -72,7 +72,7 @@ test.describe("อื่น ๆ", () => {
   test("[5] ป้ายอัตราต่าง ๆ แยกกันชัด", async ({ page }) => {
     await open(page, "hq", "/hq/pipeline");
     await expect(page.getByText(/ของมูลค่า/).first()).toBeVisible();          // "ปิดได้ X% ของมูลค่า"
-    const tbl = page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายตัวแทน" }).first();
+    const tbl = page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }).first();
     await expect(tbl).toContainText("อัตราปิด = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้)");
     await expect(tbl).not.toContainText("ชุดเดียวกับกราฟด้านบน");
   });

@@ -108,20 +108,20 @@ export async function run({ call, login, DEALER, HQ }) {
 
   console.log("");
   console.log("-- เส้นทางผู้ดูแลระบบ --");
-  await call("ตัวแทนขอรายชื่อผู้ใช้", { origin: HQ, as: "RYG", path: "/api/v1/users" });
-  await call("ตัวแทนขอบันทึกการใช้งาน", { origin: HQ, as: "RYG", path: "/api/v1/audit" });
-  await call("ตัวแทนแก้ทะเบียนสาขา", { origin: HQ, as: "RYG", method: "PUT", path: "/api/v1/dealers",
+  await call("ดีลเลอร์ขอรายชื่อผู้ใช้", { origin: HQ, as: "RYG", path: "/api/v1/users" });
+  await call("ดีลเลอร์ขอบันทึกการใช้งาน", { origin: HQ, as: "RYG", path: "/api/v1/audit" });
+  await call("ดีลเลอร์แก้ทะเบียนสาขา", { origin: HQ, as: "RYG", method: "PUT", path: "/api/v1/dealers",
     body: [{ code: "HACK", name: "hack" }] });
-  await call("ตัวแทนแก้ตั้งค่าระบบ", { origin: HQ, as: "RYG", method: "PUT", path: "/api/v1/settings?op=policy",
+  await call("ดีลเลอร์แก้ตั้งค่าระบบ", { origin: HQ, as: "RYG", method: "PUT", path: "/api/v1/settings?op=policy",
     body: { quoteValidityDays: 1 } });
-  await call("ตัวแทนแก้แคตตาล็อก", { origin: HQ, as: "RYG", method: "PUT", path: "/api/v1/catalog",
+  await call("ดีลเลอร์แก้แคตตาล็อก", { origin: HQ, as: "RYG", method: "PUT", path: "/api/v1/catalog",
     body: [{ id: "x", name: "hack", price: 1 }] });
-  await call("ตัวแทนขอข้อมูลบริษัท HQ", { origin: HQ, as: "RYG", path: "/api/v1/hq-company" });
+  await call("ดีลเลอร์ขอข้อมูลบริษัท HQ", { origin: HQ, as: "RYG", path: "/api/v1/hq-company" });
   await call("ผู้ดูแลขอรายชื่อผู้ใช้", { origin: HQ, as: "ADMIN", path: "/api/v1/users", expect: 200 });
   await call("ผู้ดูแลขอบันทึกการใช้งาน", { origin: HQ, as: "ADMIN", path: "/api/v1/audit", expect: 200 });
   await call("admin/dealers ไม่มีใบผ่าน", { origin: HQ, as: null, path: "/api/admin/dealers", expect: [401, 403, 405] });
-  await call("ตัวแทนเรียก admin/dealers", { origin: HQ, as: "RYG", path: "/api/admin/dealers" });
-  await call("ตัวแทนเรียก admin/users", { origin: HQ, as: "RYG", path: "/api/admin/users" });
+  await call("ดีลเลอร์เรียก admin/dealers", { origin: HQ, as: "RYG", path: "/api/admin/dealers" });
+  await call("ดีลเลอร์เรียก admin/users", { origin: HQ, as: "RYG", path: "/api/admin/users" });
 
   console.log("");
   console.log("-- เส้นทาง/เมธอดที่ไม่รองรับ --");

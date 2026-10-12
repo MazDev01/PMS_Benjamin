@@ -1,4 +1,4 @@
-// ── สร้างตัวแทน: HQ กรอกอีเมล/รหัสผ่านเองได้ (บอสสั่ง 20 ส.ค. 69) ────────────────
+// ── สร้างดีลเลอร์: HQ กรอกอีเมล/รหัสผ่านเองได้ (บอสสั่ง 20 ส.ค. 69) ────────────────
 //
 // ทำไมต้องกรอกเอง: สาขาจริงใช้อีเมลธุรกิจของตัวเอง (CNX = sales@cmsteelbuild.co.th)
 //   อีเมลที่ระบบประกอบจากรหัสสาขา (`ztc@partner-agent.co.th`) ไม่มีอยู่จริง
@@ -42,7 +42,7 @@ async function purge() {
 test.beforeAll(purge);
 test.afterAll(purge);
 
-test("[admin] สร้างตัวแทนด้วยอีเมล/รหัสผ่านที่กรอกเอง แล้วล็อกอินได้จริง", async ({ request }) => {
+test("[admin] สร้างดีลเลอร์ด้วยอีเมล/รหัสผ่านที่กรอกเอง แล้วล็อกอินได้จริง", async ({ request }) => {
   const token = (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
   const res = await request.post(`${HQ_ORIGIN}/api/admin/dealers`, {
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -204,13 +204,13 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   expect(error, `ต้องล็อกอินด้วยคู่ใหม่ที่แก้ผ่านหน้าจอได้ (${error?.message ?? ""})`).toBeNull();
   await sb.auth.signOut().catch(() => {});
 
-  // ── ปุ่ม "คืนสิทธิ์แก้เอง" (บอสสั่ง 15 ก.ย. 69) — ตัวแทนใช้สิทธิ์ครบ 2 ครั้ง → HQ กดคืน → เริ่มนับใหม่ ──
+  // ── ปุ่ม "คืนสิทธิ์แก้เอง" (บอสสั่ง 15 ก.ย. 69) — ดีลเลอร์ใช้สิทธิ์ครบ 2 ครั้ง → HQ กดคืน → เริ่มนับใหม่ ──
   expect((await admin.from("dealer_account_changes").insert([
     { dealer_code: CODE3, kind: "password", by_self: true }, { dealer_code: CODE3, kind: "password", by_self: true },
   ])).error).toBeNull();
   await page.reload({ waitUntil: "domcontentloaded" });
   const สิทธิ์ = page.getByTestId("self-quota");
-  await expect(สิทธิ์, "HQ ต้องเห็นว่าตัวแทนใช้สิทธิ์ครบแล้ว").toContainText("2 / 2", { timeout: 30_000 });
+  await expect(สิทธิ์, "HQ ต้องเห็นว่าดีลเลอร์ใช้สิทธิ์ครบแล้ว").toContainText("2 / 2", { timeout: 30_000 });
   await page.getByRole("button", { name: "คืนสิทธิ์แก้เอง" }).click();
   await page.getByRole("button", { name: "คืนสิทธิ์", exact: true }).click();
   await expect(สิทธิ์, "กดคืนแล้วต้องเริ่มนับใหม่").toContainText("0 / 2", { timeout: 20_000 });

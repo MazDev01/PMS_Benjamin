@@ -1,7 +1,7 @@
 // ── เข้าระบบครั้งแรกต้องตั้งรหัสผ่านใหม่ก่อนใช้งาน · ไม่นับสิทธิ์แก้เอง 2 ครั้ง (บอสสั่ง 15 ก.ย. 69) ──
 //
 // สิ่งที่ต้องพิสูจน์:
-//   1) บัญชีที่สร้างจาก "ตั้งเป็นตัวแทนจำหน่าย" ถูกทำเครื่องหมายไว้ · เข้าครั้งแรกเจอหน้าตั้งรหัส ไม่เห็นเมนูระบบ
+//   1) บัญชีที่สร้างจาก "ตั้งเป็นดีลเลอร์" ถูกทำเครื่องหมายไว้ · เข้าครั้งแรกเจอหน้าตั้งรหัส ไม่เห็นเมนูระบบ
 //   2) กติกาเดียวกับทุกทาง: รหัสซ้ำรหัสเดิม/มีช่องว่าง ถูกปฏิเสธที่เซิร์ฟเวอร์
 //   3) ตั้งแล้ว: พาไปเข้าสู่ระบบใหม่ · รหัสใหม่ใช้ได้ รหัสเดิมใช้ไม่ได้ · สิทธิ์แก้เองยังเหลือ 2 ครั้ง
 //      · ประวัติบันทึกแบบไม่นับสิทธิ์ · สำเนาที่ HQ ดูได้เป็นรหัสใหม่ · ตั้งซ้ำไม่ได้
@@ -17,7 +17,7 @@ test.setTimeout(180_000);
 const CODE = "ZTK";
 const EMAIL = "zztest-first-login@example.co.th";
 const PASSWORD = "ZZtest-First-2569";
-const รหัสของตัวแทน = "ZZtest-Own-2569";
+const รหัสของดีลเลอร์ = "ZZtest-Own-2569";
 const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 async function purge() {
@@ -73,13 +73,13 @@ test("[auth·dealer] เข้าระบบครั้งแรกต้อ�
   expect(เว้นวรรค.status(), "ยิงตรงด้วยรหัสมีช่องว่างต้องถูกปฏิเสธ").toBe(400);
 
   // ── 3) ตั้งรหัสของตัวเอง → พาไปเข้าสู่ระบบใหม่ ──
-  await page.locator("#fp-new").fill(รหัสของตัวแทน);
-  await page.locator("#fp-confirm").fill(รหัสของตัวแทน);
+  await page.locator("#fp-new").fill(รหัสของดีลเลอร์);
+  await page.locator("#fp-confirm").fill(รหัสของดีลเลอร์);
   await page.getByRole("button", { name: "ตั้งรหัสผ่านใหม่", exact: true }).click();
   await page.waitForURL(/\/login/, { timeout: 30_000 });
 
-  const ใหม่ = await sb.auth.signInWithPassword({ email: EMAIL, password: รหัสของตัวแทน });
-  expect(ใหม่.error, "รหัสที่ตัวแทนตั้งเองต้องใช้เข้าระบบได้").toBeNull();
+  const ใหม่ = await sb.auth.signInWithPassword({ email: EMAIL, password: รหัสของดีลเลอร์ });
+  expect(ใหม่.error, "รหัสที่ดีลเลอร์ตั้งเองต้องใช้เข้าระบบได้").toBeNull();
   const เดิม = await createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } }).auth
     .signInWithPassword({ email: EMAIL, password: PASSWORD });
   expect(เดิม.error, "รหัสจากสำนักงานใหญ่ต้องใช้ไม่ได้แล้ว").not.toBeNull();
@@ -94,7 +94,7 @@ test("[auth·dealer] เข้าระบบครั้งแรกต้อ�
   const ดู = await request.get(`${HQ_ORIGIN}/api/admin/dealers/secret?code=${CODE}`, { headers: { authorization: `Bearer ${hq}` } });
   if (ดู.status() !== 501) {
     expect(ดู.status(), await ดู.text()).toBe(200);
-    expect((await ดู.json() as { password: string }).password, "สำเนาที่ HQ ดูได้ต้องเป็นรหัสที่ตัวแทนตั้งเอง").toBe(รหัสของตัวแทน);
+    expect((await ดู.json() as { password: string }).password, "สำเนาที่ HQ ดูได้ต้องเป็นรหัสที่ดีลเลอร์ตั้งเอง").toBe(รหัสของดีลเลอร์);
   }
 
   const ซ้ำ = await request.post(`${HQ_ORIGIN}/api/account`, {
@@ -104,7 +104,7 @@ test("[auth·dealer] เข้าระบบครั้งแรกต้อ�
   expect(ซ้ำ.status(), "ตั้งรหัสครั้งแรกซ้ำไม่ได้ (ต้องไปใช้หน้าบัญชีแทน)").toBe(409);
 });
 
-test("[auth·dealer] ตัวแทนเดิมที่ยังไม่เคยเข้าระบบ: HQ ตั้งรหัสให้ครั้งแรก → ต้องตั้งรหัสใหม่ · เคยเข้าแล้วไม่บังคับซ้ำ", async ({ request }) => {
+test("[auth·dealer] ดีลเลอร์เดิมที่ยังไม่เคยเข้าระบบ: HQ ตั้งรหัสให้ครั้งแรก → ต้องตั้งรหัสใหม่ · เคยเข้าแล้วไม่บังคับซ้ำ", async ({ request }) => {
   await purge();
   const hq = (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
   const hdr = { authorization: `Bearer ${hq}`, "content-type": "application/json" };
@@ -115,7 +115,7 @@ test("[auth·dealer] ตัวแทนเดิมที่ยังไม่�
   });
   test.skip(สร้าง.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   expect(สร้าง.status(), await สร้าง.text()).toBe(200);
-  // จำลองบัญชีจากสคริปต์เปิดบัญชีตัวแทนเดิม: ไม่มีเครื่องหมาย และยังไม่เคยเข้าระบบ
+  // จำลองบัญชีจากสคริปต์เปิดบัญชีดีลเลอร์เดิม: ไม่มีเครื่องหมาย และยังไม่เคยเข้าระบบ
   const { data: profs } = await admin.from("profiles").select("id").eq("dealer_code", CODE);
   const uid = String(profs?.[0]?.id ?? "");
   await admin.auth.admin.updateUserById(uid, { app_metadata: { must_change_password: false } });

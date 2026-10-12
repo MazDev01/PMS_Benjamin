@@ -36,8 +36,8 @@ const svc = createClient(target.url, target.serviceKey, { auth: { persistSession
 {
   const { data } = await svc.from("dealers").select("code").limit(1);
   if (!data?.length) {
-    console.error("\n❌ ฐานข้อมูลนี้ยังไม่มีตัวแทนสักราย — ซ้อมกู้คืนไม่ได้");
-    console.error("   การซ้อมต้องสร้างลีดของสาขาใดสาขาหนึ่ง ให้เพิ่มตัวแทนก่อนแล้วค่อยซ้อม");
+    console.error("\n❌ ฐานข้อมูลนี้ยังไม่มีดีลเลอร์สักราย — ซ้อมกู้คืนไม่ได้");
+    console.error("   การซ้อมต้องสร้างลีดของสาขาใดสาขาหนึ่ง ให้เพิ่มดีลเลอร์ก่อนแล้วค่อยซ้อม");
     process.exit(1);
   }
   MARK.dealer_code = data[0].code;

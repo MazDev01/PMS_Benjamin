@@ -4,10 +4,10 @@ import LoginCard from "@pms/shared/components/auth/LoginCard";
 
 export const metadata: Metadata = {
   title: "เข้าสู่ระบบสำนักงานใหญ่ · Benjamin PMS",
-  description: "ศูนย์บริหารเครือข่ายตัวแทนจำหน่าย Benjamin — สำหรับทีมสำนักงานใหญ่",
+  description: "ศูนย์บริหารเครือข่ายดีลเลอร์ Benjamin — สำหรับทีมสำนักงานใหญ่",
 };
 
-// หน้า login สำนักงานใหญ่ (/hq/login) — ใช้ดีไซน์ split-panel เดียวกับพอร์ทัลตัวแทน แต่เป็นฉบับ HQ
+// หน้า login สำนักงานใหญ่ (/hq/login) — ใช้ดีไซน์ split-panel เดียวกับพอร์ทัลดีลเลอร์ แต่เป็นฉบับ HQ
 // (variant="hq": แบรนด์/หัวข้อ/ฟีเจอร์เชิงบริหารทั้งเครือ · บัญชีทดลองเฉพาะ HQ)
 // พื้นหน้าสีขาว (บอสสั่ง 15 ก.ย. 69 "ทำให้เป็นสีขาว") — การ์ดยังมีเงา+เส้นขอบบางแยกจากพื้น
 export default function HQLoginPage() {

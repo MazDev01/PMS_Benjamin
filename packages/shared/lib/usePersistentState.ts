@@ -18,7 +18,7 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> =>
 // ถูกบันทึกไว้ตั้งแต่ก่อนโค้ดจะเพิ่มฟิลด์ใหม่ ถ้าเอามาใช้ทั้งก้อนดิบ ๆ ฟิลด์ใหม่จะเป็น undefined
 // → <input value={undefined}> กลายเป็น uncontrolled (React เตือน + ช่องนั้นแก้ไม่ติด) และเลขที่หายไปทำให้คำนวณเพี้ยน
 // (เจอจริง: เพิ่ม leadIdleDays/lostRateMinClosed ใน HQNotifRules แต่คีย์ hq_notif_rules_v2 เดิมยังอยู่ในเครื่องผู้ใช้)
-// recursive เฉพาะ object ธรรมดา · array ทับทั้งก้อน (เช่น รายชื่อตัวแทน — ลบแถวแล้วต้องลบจริง ไม่ใช่โผล่กลับมา)
+// recursive เฉพาะ object ธรรมดา · array ทับทั้งก้อน (เช่น รายชื่อดีลเลอร์ — ลบแถวแล้วต้องลบจริง ไม่ใช่โผล่กลับมา)
 export function withDefaults<T>(initial: T, stored: unknown): T {
   if (!isPlainObject(initial) || !isPlainObject(stored)) return (stored === undefined ? initial : stored) as T;
   const out: Record<string, unknown> = { ...initial };

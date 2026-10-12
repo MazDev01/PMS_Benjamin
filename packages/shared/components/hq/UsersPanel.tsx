@@ -3,7 +3,7 @@ import { formatPhone } from "@pms/shared/lib/format";
 
 // ─── HQ · ผู้ใช้งานและสิทธิ์ (HQ Users เท่านั้น) ─────────────────────────────────
 // บริหารผู้ใช้ของ "สำนักงานใหญ่" เท่านั้น — ไม่แสดงผู้ใช้ Dealer (ดีลเลอร์จัดการใน Workspace ตัวเอง
-// ผ่านเมนู "ตัวแทน" → เจาะรายตัว). Stat · Filter · Data table · Action dropdown · Detail Drawer+Timeline · Permission Matrix
+// ผ่านเมนู "ดีลเลอร์" → เจาะรายตัว). Stat · Filter · Data table · Action dropdown · Detail Drawer+Timeline · Permission Matrix
 import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { SortableTh } from "@pms/shared/components/ui/SortableTh";
 import { TablePagination } from "@pms/shared/components/ui/TablePagination";
@@ -76,7 +76,7 @@ const capOf = (role: RoleKey, module: string): Cap => {
 };
 const roleSummary: Record<RoleKey, string> = {
   SUPER_ADMIN:   "จัดการทุกอย่างในระบบ · แก้ข้อมูลกลางและผู้ใช้ได้",
-  HQ_MANAGEMENT: "ดูงานขายทั้งเครือ · แก้ข้อมูลกลาง (แคตตาล็อก/ตัวแทน/นโยบาย) ได้",
+  HQ_MANAGEMENT: "ดูงานขายทั้งเครือ · แก้ข้อมูลกลาง (แคตตาล็อก/ดีลเลอร์/นโยบาย) ได้",
   HQ_STAFF:      "ดูงานขายทั้งเครือได้อย่างเดียว · แก้ข้อมูลกลางไม่ได้",
 };
 
@@ -157,7 +157,7 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
                 : f.firstName.trim()
                 ? <span style={{ width: 84, height: 84, borderRadius: "50%", background: ROLE_BY_KEY[f.role]?.tone ?? PRIMARY, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "2rem" }}>{f.firstName.trim().charAt(0)}</span>
                 // ฟอร์มเปล่า (ยังไม่พิมพ์ชื่อ) ต้องเห็นไอคอน "เพิ่มรูป" ไม่ใช่ "?" ที่อ่านได้ว่ารูปเสีย
-                //   แบบเดียวกับฟอร์มเพิ่มผู้รับผิดชอบฝั่งตัวแทน (ผู้ใช้แจ้ง 7 ส.ค. 69)
+                //   แบบเดียวกับฟอร์มเพิ่มผู้รับผิดชอบฝั่งดีลเลอร์ (ผู้ใช้แจ้ง 7 ส.ค. 69)
                 : <span style={{ width: 84, height: 84, borderRadius: "50%", background: "#eef3f8", border: `2px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: PRIMARY }}><ImagePlus size={30} strokeWidth={1.8} /></span>}
               <span style={{ position: "absolute", right: 0, bottom: 2, width: 26, height: 26, borderRadius: "50%", background: PRIMARY, border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}><ImagePlus size={13} /></span>
               {f.avatar && <button type="button" onClick={e => { e.preventDefault(); setF(p => ({ ...p, avatar: undefined })); }} style={{ position: "absolute", left: 0, bottom: 2, width: 24, height: 24, borderRadius: "50%", background: "#fff", border: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", cursor: "pointer" }}><X size={12} /></button>}
@@ -417,7 +417,7 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
 
   return (
     <div className="erp">
-      {!embedded && <div className="page-head"><div><p>บริหารผู้ใช้ของสำนักงานใหญ่ (HQ) — ผู้ใช้ของตัวแทนจัดการที่เมนู “ตัวแทน”</p></div></div>}
+      {!embedded && <div className="page-head"><div><p>บริหารผู้ใช้ของสำนักงานใหญ่ (HQ) — ผู้ใช้ของดีลเลอร์จัดการที่เมนู “ดีลเลอร์”</p></div></div>}
 
       {/* Summary cards (4) */}
       <div className="stat-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>

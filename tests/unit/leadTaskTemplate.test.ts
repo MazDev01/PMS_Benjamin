@@ -123,7 +123,7 @@ describe("ปรับงานของลูกค้าเป้าหมา�
     { key: "close", label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID" },
   ];
 
-  it("งานใหม่ที่ HQ เพิ่มต้องโผล่ที่ตัวแทน (ยังไม่ติ๊ก)", () => {
+  it("งานใหม่ที่ HQ เพิ่มต้องโผล่ที่ดีลเลอร์ (ยังไม่ติ๊ก)", () => {
     const out = applyTaskTemplate([{ key: "contact", label: "ติดต่อแล้ว", done: true }], tpl);
     expect(out.map(t => t.key)).toEqual(["contact", "req", "close"]);
     expect(out.find(t => t.key === "req")?.done).toBe(false);
@@ -135,7 +135,7 @@ describe("ปรับงานของลูกค้าเป้าหมา�
     expect(out[0]).toMatchObject({ done: true, doneAt: เดิม.doneAt, doneBy: "สมชาย" });
   });
 
-  it("HQ เปลี่ยนชื่องาน → ตัวแทนเห็นชื่อใหม่ทันที", () => {
+  it("HQ เปลี่ยนชื่องาน → ดีลเลอร์เห็นชื่อใหม่ทันที", () => {
     const out = applyTaskTemplate([{ key: "contact", label: "ติดต่อครั้งแรก", done: true }], tpl);
     expect(out[0].label).toBe("ติดต่อแล้ว");
   });

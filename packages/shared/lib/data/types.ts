@@ -20,7 +20,7 @@ export type DealerSettings = {
   pricing: DealerPricing; // ส่วนบวกเพิ่มจากราคากลางของสาขานี้ (ดูด้านล่าง)
 };
 
-/** ส่วนบวกเพิ่มจากราคากลางของสำนักงานใหญ่ — เป็นสิทธิ์ของตัวแทน ตั้งเองได้อิสระ
+/** ส่วนบวกเพิ่มจากราคากลางของสำนักงานใหญ่ — เป็นสิทธิ์ของดีลเลอร์ ตั้งเองได้อิสระ
  *  หน่วยเป็นเปอร์เซ็นต์ (10 = บวก 10%) · ไม่ตั้ง/0 = ใช้ราคากลางตรง ๆ
  *  byTemplate ชนะ defaultPct เสมอ (ตั้งเฉพาะแม่แบบได้ ไม่งั้นใช้ค่ากลางของสาขา) */
 export type DealerPricing = {
@@ -79,8 +79,8 @@ export type SystemUser = {
 // วันนี้ LocalAdapter ใช้ filter · เฟส B ส่งให้ RLS ที่ Supabase คุมแทน
 export type Scope = { dealerCode?: string; isHQ?: boolean };
 
-// ── ลูกค้าเป้าหมายของสำนักงานใหญ่ = ผู้สนใจเป็นตัวแทนจำหน่าย (บอสสั่ง 14 ก.ย. 69) ──
-//   คนละเรื่องกับ LeadRow (ลูกค้าที่จะซื้ออาคารของตัวแทน) — ดู migration 0170 · lib/dealerProspects.ts
+// ── ลูกค้าเป้าหมายของสำนักงานใหญ่ = ผู้สนใจเป็นดีลเลอร์ (บอสสั่ง 14 ก.ย. 69) ──
+//   คนละเรื่องกับ LeadRow (ลูกค้าที่จะซื้ออาคารของดีลเลอร์) — ดู migration 0170 · lib/dealerProspects.ts
 export type DealerProspectStatus = "new" | "contacted" | "profile_sent" | "meeting" | "considering" | "won" | "lost";
 export type DealerProspect = {
   id: number;
@@ -98,7 +98,7 @@ export type DealerProspect = {
   status: DealerProspectStatus;
   lostReason?: string | null;
   assigned?: string | null;      // ผู้ดูแลฝั่งสำนักงานใหญ่ (ชื่อ ไม่ใช่บัญชีเข้าระบบ)
-  dealerCode?: string | null;    // ตัวแทนที่รายนี้กลายมาเป็น (ตั้งเมื่อสำเร็จ)
+  dealerCode?: string | null;    // ดีลเลอร์ที่รายนี้กลายมาเป็น (ตั้งเมื่อสำเร็จ)
   convertedAt?: string | null;
   logo?: string | null;          // รูปประจำตัว (data URL ย่อ 256px · 0175) — ว่าง = ตัวย่อชื่อ
   lastContactAt?: string | null; // ติดต่อล่าสุด — ฐานข้อมูลตั้งจากบันทึกการติดต่อเท่านั้น (0174) แอปเขียนเองไม่ได้
@@ -122,9 +122,9 @@ export type ProspectActivity = {
 };
 export type ProspectContactInput = { prospectId: number; channel: string; body: string; nextFollowUp?: string | null };
 
-// ── ใบเสนอแพ็กเกจตัวแทน (บอสสั่ง 14 ก.ย. 69) ──
-//   "เหมือนใบเสนอราคาของตัวแทน แต่ของ HQ" · คล้ายแฟรนไชส์แต่ไม่ใช่แฟรนไชส์ (บอสยืนยัน)
-//   ต้องมีใบที่ส่งแล้ว/ตอบรับ ถึงจะสร้างตัวแทนใหม่ได้ · ดู migration 0172 · lib/dealerProposals.ts
+// ── ใบค่าแฟรนไชส์ (บอสสั่ง 14 ก.ย. 69) ──
+//   "เหมือนใบเสนอราคาของดีลเลอร์ แต่ของ HQ" · คล้ายแฟรนไชส์แต่ไม่ใช่แฟรนไชส์ (บอสยืนยัน)
+//   ต้องมีใบที่ส่งแล้ว/ตอบรับ ถึงจะสร้างดีลเลอร์ใหม่ได้ · ดู migration 0172 · lib/dealerProposals.ts
 export type DealerPackage = "standard" | "exclusive";
 export type DealerProposalStatus = "draft" | "sent" | "accepted" | "rejected";
 export type DealerPackageProposal = {
@@ -136,7 +136,7 @@ export type DealerPackageProposal = {
   province?: string | null;
   amount?: number | null;        // ค่าแรกเข้า (บาท · จ่ายครั้งเดียว) — HQ กรอกเอง ไม่บังคับ
   contractMonths?: number | null; // ระยะสัญญา (เดือน) 1–120 — ไม่บังคับ
-  annualTarget?: number | null;  // เป้ายอดซื้อต่อปี (บาท) — ตั้งเป็นตัวแทนแล้วเป็นเป้ายอดขายรายปีของสาขา
+  annualTarget?: number | null;  // เป้ายอดซื้อต่อปี (บาท) — ตั้งเป็นดีลเลอร์แล้วเป็นเป้ายอดขายรายปีของสาขา
   terms?: string | null;
   proposedDate?: string | null;  // YYYY-MM-DD
   validUntil?: string | null;    // YYYY-MM-DD

@@ -8,8 +8,8 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // ── สิ่งที่ตัดออกจากสเปก เพราะข้อมูลจริงไม่รองรับ (อย่าใส่กลับโดยไม่มีข้อมูลก่อน) ──
 // • Forecast / คาดการณ์รายได้ — ระบบไม่มีวันคาดปิดการขาย (ลบทั้งฟีเจอร์แล้ว) และไม่มีฟิลด์ % ความน่าจะเป็น
 //   จึงถ่วงน้ำหนัก pipeline ไม่ได้ · บอสสั่งตัดออก
-// • ย้อนหลังฟิกซ์ 12 เดือน — ตัวแทน 9/10 รายมีข้อมูลแค่ 3 เดือน · กราฟตัดตามตัวกรองเวลา "เท่าที่มีข้อมูล"
-// • Last Updated รายตัวแทน — DealerRow ไม่มีฟิลด์นี้ · ใช้ "ใบเสนอราคาล่าสุด" ที่หาได้จริงแทน (ชื่อคอลัมน์ตรงกับสิ่งที่มันเป็น)
+// • ย้อนหลังฟิกซ์ 12 เดือน — ดีลเลอร์ 9/10 รายมีข้อมูลแค่ 3 เดือน · กราฟตัดตามตัวกรองเวลา "เท่าที่มีข้อมูล"
+// • Last Updated รายดีลเลอร์ — DealerRow ไม่มีฟิลด์นี้ · ใช้ "ใบเสนอราคาล่าสุด" ที่หาได้จริงแทน (ชื่อคอลัมน์ตรงกับสิ่งที่มันเป็น)
 // • Refresh — ระบบไม่มี backend ให้ refresh (ข้อมูลสดจาก SalesContext อยู่แล้ว)
 import { useMemo, useState, useRef, useEffect } from "react";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
@@ -56,7 +56,7 @@ const ALL = "ALL";
 const EMPTY_QF = {};
 
 // ── แท่งแนวนอนคู่ — ใช้ซ้ำใน Section 1 / 2 / 3 (แท่งหลัก + แท่งเทียบ) ──
-// เปิดมาโชว์ครบทุกแถวเลย (บอสสั่ง 17 ก.ค. 69) — ให้อ่านคู่กับตารางข้าง ๆ ที่ก็ลิสต์ครบทุกตัวแทนเหมือนกัน
+// เปิดมาโชว์ครบทุกแถวเลย (บอสสั่ง 17 ก.ค. 69) — ให้อ่านคู่กับตารางข้าง ๆ ที่ก็ลิสต์ครบทุกดีลเลอร์เหมือนกัน
 // การ์ดไม่ยืดตามจำนวนแถว เพราะความสูงตรึงด้วย .chart-l แล้วให้ .chart-scroll เลื่อนข้างใน
 // (กติกาใน globals.css: ข้อมูลล้น = เลื่อนใน .chart-scroll หรือตัด Top N + ปุ่มดูทั้งหมด — ที่นี่ใช้แบบเลื่อน)
 // ปุ่มย่อกลับเป็น 5 อันดับแรกยังอยู่ เผื่ออยากดูเฉพาะหัวตาราง
@@ -166,7 +166,7 @@ export default function SalesAnalyticsPage() {
     { v: "gte8", l: "฿8M ขึ้นไป", hit: (n: number) => n >= 8e6 },
   ], []);
 
-  // ตัวแทนที่ผ่านตัวกรอง = ขอบเขตของทั้งหน้า (ทุกกราฟ/ตารางอิงชุดนี้ชุดเดียว)
+  // ดีลเลอร์ที่ผ่านตัวกรอง = ขอบเขตของทั้งหน้า (ทุกกราฟ/ตารางอิงชุดนี้ชุดเดียว)
   const dealers = useMemo(() => {
     const s = q.trim().toLowerCase();
     return allDealers.filter(d =>
@@ -191,7 +191,7 @@ export default function SalesAnalyticsPage() {
     [netLeads, codes, inRange, btSel],
   );
 
-  // filter(Boolean) จำเป็น ไม่ใช่กันไว้เฉย ๆ — ตัวแทนที่บันทึกไว้ก่อนมีฟิลด์ province/region จะได้ค่า undefined
+  // filter(Boolean) จำเป็น ไม่ใช่กันไว้เฉย ๆ — ดีลเลอร์ที่บันทึกไว้ก่อนมีฟิลด์ province/region จะได้ค่า undefined
   // กลายเป็น <option> ที่เลือกแล้วกรองอะไรไม่ได้ + React เตือน "unique key" (key={undefined})
   const regionOpts = useMemo(() => [...new Set(allDealers.map(d => d.region).filter(Boolean))].sort(), [allDealers]);
   const provOpts = useMemo(() => [...new Set(allDealers.map(d => d.province).filter(Boolean))].sort(), [allDealers]);
@@ -201,7 +201,7 @@ export default function SalesAnalyticsPage() {
     ? allProdSummary.byProduct.map(p => p.product ?? "").filter(Boolean)
     : [...new Set(netQuotes.map(x => x.productLine).filter(Boolean))]).sort(), [allProdSummary, netQuotes]);
 
-  // สถิติใบรายตัวแทน "หลังกรอง" ที่ DB (M9 Phase 2) — supabase · local/ยังไม่กลับ = client จาก quotes
+  // สถิติใบรายดีลเลอร์ "หลังกรอง" ที่ DB (M9 Phase 2) — supabase · local/ยังไม่กลับ = client จาก quotes
   // ตัวกรอง = ชุดเดียวกับ quotes: dealerCodes (codes ที่ผ่านตัวกรอง) · productLines (btSel) · ช่วงเวลา
   const qSummary = useHQQuotationsSummary(useMemo(() => ({
     dealerCodes: [...codes], productLines: btSel !== ALL ? [btSel] : undefined,
@@ -216,7 +216,7 @@ export default function SalesAnalyticsPage() {
   }), [codes, btSel, timeRange.start, timeRange.end]));
   const leadByDealer = useMemo(() => leadSum ? new Map(leadSum.byDealer.map(d => [d.dealerCode, d])) : null, [leadSum]);
 
-  // ── สถิติรายตัวแทน — แหล่งเดียวของทุกกราฟ/ตาราง (คำนวณครั้งเดียว) ──
+  // ── สถิติรายดีลเลอร์ — แหล่งเดียวของทุกกราฟ/ตาราง (คำนวณครั้งเดียว) ──
   const perf = useMemo(() => dealers.map(d => {
     const dq = quotes.filter(x => x.dealerCode === d.code);
     const dl = leads.filter(l => l.dealerCode === d.code);
@@ -248,7 +248,7 @@ export default function SalesAnalyticsPage() {
       wonVal,
       conv: closed ? Math.round(wonCount / closed * 100) : null,
       // ⚠️ ยอดสะสม/เป้า = ตัวเลข "ทั้งปี" ไม่ขึ้นกับตัวกรอง (บอสสั่งกลับ 26 ส.ค. 69)
-      //    เป้าที่ HQ ตั้งให้ตัวแทนเป็นรายปี — ถ้าหดตามช่วง เลือก "วันนี้" จะได้ 0% ทุกสาขา
+      //    เป้าที่ HQ ตั้งให้ดีลเลอร์เป็นรายปี — ถ้าหดตามช่วง เลือก "วันนี้" จะได้ 0% ทุกสาขา
       //    ส่วนคอลัมน์ลูกค้าเป้าหมาย/ใบเสนอราคา/มูลค่า ยังเดินตามตัวกรองตามเดิม
       revenueActual: perfOf(d.code).revenue,
       tpct: d.revenueTarget > 0 ? Math.round(perfOf(d.code).revenue / d.revenueTarget * 100) : 0,
@@ -256,13 +256,13 @@ export default function SalesAnalyticsPage() {
     };
   }).sort((a, b) => b.revenueActual - a.revenueActual), [dealers, quotes, leads, byDealer, leadByDealer]);
 
-  // ── Executive KPI (4 การ์ด — ตัด Forecast ออก ไม่มีข้อมูล · ตัด "ตัวแทนยอดขายสูงสุด" ตามคำสั่ง) ──
+  // ── Executive KPI (4 การ์ด — ตัด Forecast ออก ไม่มีข้อมูล · ตัด "ดีลเลอร์ยอดขายสูงสุด" ตามคำสั่ง) ──
   const kpi = useMemo(() => {
     // รวมจาก perf (มาจาก byDealer ที่ DB เมื่อพร้อม · client เมื่อ fallback) — ชุดเดียวกับตาราง/กราฟ
     const wonCount = perf.reduce((s, d) => s + d.wonCount, 0), lostCount = perf.reduce((s, d) => s + d.lostCount, 0);
     const closed = wonCount + lostCount;
     const actual = dealers.reduce((s, d) => s + perfOf(d.code).revenue, 0);   // ยอดสะสมทั้งปี
-    // เป้าทั้งเครือใช้ค่าที่ HQ ตั้งไว้ · แต่ถ้ากรองเหลือบางตัวแทน ต้องรวมเป้าเฉพาะรายนั้น ไม่งั้น % ผิด
+    // เป้าทั้งเครือใช้ค่าที่ HQ ตั้งไว้ · แต่ถ้ากรองเหลือบางดีลเลอร์ ต้องรวมเป้าเฉพาะรายนั้น ไม่งั้น % ผิด
     const filtered = dealers.length !== allDealers.length;
     const target = filtered ? dealers.reduce((s, d) => s + d.revenueTarget, 0) : targets.annualTarget;
     return {
@@ -341,7 +341,7 @@ export default function SalesAnalyticsPage() {
     })).sort((x, y) => y.a - x.a);
   }, [view, leadSum, leads, DEALER_META, timeRange, router]);
 
-  // ── Section 2 · มูลค่าใบเสนอราคา เทียบ ยอดขายจริง (รายตัวแทน) ──
+  // ── Section 2 · มูลค่าใบเสนอราคา เทียบ ยอดขายจริง (รายดีลเลอร์) ──
   const quoteVsSales = useMemo(() => perf.map(d => ({
     key: d.code, label: `${d.code} – ${d.name}`, a: d.quoteVal, b: d.wonVal,
     // สัดส่วน "มูลค่า" ไม่ใช่ "จำนวนใบ" — คนละตัวกับ "อัตราปิดการขาย" ที่นับใบ ต้องกำกับหน่วยไว้ ไม่งั้นอ่านว่าขัดกัน
@@ -349,8 +349,8 @@ export default function SalesAnalyticsPage() {
     onClick: () => router.push(`/hq/dealers/${d.code}`),
   })).sort((a, b) => b.a - a.a), [perf, router]);
 
-  // ── Section 2b · วิเคราะห์ประสิทธิภาพการปิดการขายของตัวแทน ──
-  // แท่งคู่ทุกตัวแทน: ออกใบกี่ใบ เทียบ ปิดได้กี่ใบ · เรียงออกใบมาก→น้อย
+  // ── Section 2b · วิเคราะห์ประสิทธิภาพการปิดการขายของดีลเลอร์ ──
+  // แท่งคู่ทุกดีลเลอร์: ออกใบกี่ใบ เทียบ ปิดได้กี่ใบ · เรียงออกใบมาก→น้อย
   // "ยังไม่รู้ผล" ต้องแยกออกมาเสมอ ไม่ยุบเข้า "ปิดไม่ได้" (ดูเหตุผลในคอมเมนต์ของคอมโพเนนต์)
   const quotePerf = useMemo(
     () => perf
@@ -385,7 +385,7 @@ export default function SalesAnalyticsPage() {
       // ยอดเท่ากัน (เช่นต้นปียัง ฿0 หมด) → % ของเป้า แล้วค่อยเป้าที่ใหญ่กว่า
       .sort((x, y) => y.a - x.a || (y.b ? y.a / y.b : 0) - (x.b ? x.a / x.b : 0) || y.b - x.b);
   }, [tgView, dealers, DEALER_META, router]);
-  // แสดงหน้าละ 7 แถว + แถบเปลี่ยนหน้า (บอสสั่ง 22 ก.ย. 69 — เดิมเทรวดทุกตัวแทน 155 แถว ยาวเกินไป)
+  // แสดงหน้าละ 7 แถว + แถบเปลี่ยนหน้า (บอสสั่ง 22 ก.ย. 69 — เดิมเทรวดทุกดีลเลอร์ 155 แถว ยาวเกินไป)
   const TG_PAGE_SIZE = 7;
   const [tgPage, setTgPage] = useState(0);
   useEffect(() => { setTgPage(0); }, [tgView]);
@@ -394,13 +394,13 @@ export default function SalesAnalyticsPage() {
 
   // เดิมมี regional / lostReasons / trend สำหรับกราฟ 4 ใบที่ถูกตัดออก (ข้อมูลซ้ำกับหน้าอื่น) — ลบทิ้งพร้อมกัน
 
-  // ── Drawer (View) — เจาะรายตัวแทน ไม่เปลี่ยนหน้า ──
+  // ── Drawer (View) — เจาะรายดีลเลอร์ ไม่เปลี่ยนหน้า ──
   const [drawer, setDrawer] = useState<typeof perf[number] | null>(null);
   // ข้อมูลรายสาขาใน drawer — supabase: ดึงตรงจาก repo (M9 Phase 4) · local/ยังไม่กลับ: กรอง array เดิม
   const drawerData = useDealerDrawerData(drawer?.code ?? null);
   const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, btSel, salesSel].some(v => v !== ALL);
 
-  // ── ตารางผลงานตัวแทน: แบ่งหน้า 10 แถวเท่าทุกตารางในระบบ ──
+  // ── ตารางผลงานดีลเลอร์: แบ่งหน้า 10 แถวเท่าทุกตารางในระบบ ──
   // เปลี่ยนตัวกรองต้องกลับหน้า 1 เสมอ — ไม่งั้นกรองแล้วค้างอยู่หน้ากลางลิสต์ที่ไม่มีข้อมูลแล้ว
   const [perfPage, setPerfPage] = useState(0);
   useEffect(() => { setPerfPage(0); }, [q, dealerSel, regionSel, provSel, btSel, salesSel]);
@@ -418,7 +418,7 @@ export default function SalesAnalyticsPage() {
   ];
 
   // ตัวกรองทุกช่องกว้างเท่ากันและยืด/หดร่วมกันในแถวเดียว (บอสสั่ง 14 ก.ย. 69 "แก้" — ภาพแถบที่ขึ้น 2 แถว)
-  //   เดิม width:auto → ช่อง "ทุกตัวแทน" กว้างตามชื่อตัวแทนที่ยาวที่สุด ดันช่องอื่นตกไปแถวสอง
+  //   เดิม width:auto → ช่อง "ทุกดีลเลอร์" กว้างตามชื่อดีลเลอร์ที่ยาวที่สุด ดันช่องอื่นตกไปแถวสอง
   //   ป้ายยาว (เช่น ที่มาของประเภทอาคาร) ถูกตัดด้วย … ในช่อง — ชี้ค้างอ่านเต็มได้จาก title · ห้ามตัดคำบอกที่มาทิ้ง
   const sel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
     // ตัวเลือกแรกคือทั้งหมด — ป้าย "ทุก…" ของตัวกรองแต่ละช่อง
@@ -444,7 +444,7 @@ export default function SalesAnalyticsPage() {
           <FilterBar dims={[]} />
           {/* ส่งออก = ตารางผลงานที่เห็นบนจอ (ผ่านตัวกรองทุกตัวแล้ว) */}
           <ExportMenu filename="hq-sales-analytics" title="ภาพรวมยอดขายทั้งเครือ"
-            headers={["รหัสตัวแทน", "ตัวแทนจำหน่าย", "ภูมิภาค", "จังหวัด", "ลูกค้าเป้าหมาย", "ใบเสนอราคา", "มูลค่าใบเสนอราคา", "ยอดขายสะสมทั้งปี", "อัตราปิดการขาย", "เป้าหมายทั้งปี", "% ของเป้า", "ใบเสนอราคาล่าสุด"]}
+            headers={["รหัสดีลเลอร์", "ดีลเลอร์", "ภูมิภาค", "จังหวัด", "ลูกค้าเป้าหมาย", "ใบเสนอราคา", "มูลค่าใบเสนอราคา", "ยอดขายสะสมทั้งปี", "อัตราปิดการขาย", "เป้าหมายทั้งปี", "% ของเป้า", "ใบเสนอราคาล่าสุด"]}
             rows={perf.map(d => [
               d.code, d.name, regionDisplay(d.region), d.province, d.leads, d.quotes, d.quoteVal,
               d.revenueActual, d.conv === null ? "—" : `${d.conv}%`, d.revenueTarget, `${d.tpct}%`, d.latest,
@@ -467,17 +467,17 @@ export default function SalesAnalyticsPage() {
         ))}
       </div>
 
-      {/* ── SMART FILTER ── อยู่ใต้ KPI เหมือนหน้า HQ อื่น (ใบเสนอราคา/ลูกค้า/ตัวแทน)
+      {/* ── SMART FILTER ── อยู่ใต้ KPI เหมือนหน้า HQ อื่น (ใบเสนอราคา/ลูกค้า/ดีลเลอร์)
           เดิมหน้านี้หน้าเดียวที่เอาตัวกรองไว้เหนือ KPI */}
       <div className="card hq-sticky-filter" style={{ marginBottom: "1.25rem" }}>
         <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 12, paddingBottom: 12 }}>
           {/* ช่องค้นหาแบบเดียวกับทุกหน้า HQ (ไอคอน + ปุ่มล้าง) */}
           <div className="search-bar" style={{ flex: "1.4 1 200px", minWidth: 180, maxWidth: 300 }}>
             <Search size={14} color="#9ca3af" />
-            <input aria-label="ค้นหาตัวแทน" value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหารหัส ชื่อตัวแทน จังหวัด…" />
+            <input aria-label="ค้นหาดีลเลอร์" value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหารหัส ชื่อดีลเลอร์ จังหวัด…" />
             {q && <button aria-label="ล้างคำค้น" onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
           </div>
-          {sel(dealerSel, setDealerSel, "ทุกตัวแทน", allDealers.map(d => ({ v: d.code, l: `${d.code} – ${d.name}` })))}
+          {sel(dealerSel, setDealerSel, "ทุกดีลเลอร์", allDealers.map(d => ({ v: d.code, l: `${d.code} – ${d.name}` })))}
           {sel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(r => ({ v: r, l: regionDisplay(r) })))}
           {sel(provSel, setProvSel, "ทุกจังหวัด", provOpts.map(p => ({ v: p, l: p })))}
           {sel(btSel, setBtSel, "ทุกประเภทอาคาร (จากใบเสนอราคาทั้งเครือ)", btOpts.map(b => ({ v: b, l: b })))}
@@ -489,20 +489,20 @@ export default function SalesAnalyticsPage() {
         </div>
       </div>
 
-      {/* ── แถว 1 · วิเคราะห์ประสิทธิภาพการปิดการขายของตัวแทน — เต็มความกว้าง ──
+      {/* ── แถว 1 · วิเคราะห์ประสิทธิภาพการปิดการขายของดีลเลอร์ — เต็มความกว้าง ──
           คำถามหลักของหน้า "ใครออกใบเยอะแต่ปิดได้น้อย" จึงขึ้นก่อนเพื่อน
-          แท่งคู่ 10 ตัวแทน · ตัวเลขชุดเดียวกันอยู่ในตารางแถว 3 (แยกการ์ดเพื่อไม่ให้ใบเดียวสูง 1,010px) */}
+          แท่งคู่ 10 ดีลเลอร์ · ตัวเลขชุดเดียวกันอยู่ในตารางแถว 3 (แยกการ์ดเพื่อไม่ให้ใบเดียวสูง 1,010px) */}
       <DealerQuotationPerformance rows={quotePerf} />
 
-      {/* ── แถว 2 · เปรียบเทียบรายตัวแทน: ลูกค้าเป้าหมาย→ใบเสนอราคา | มูลค่า→ยอดขายจริง ──
-          สองใบนี้เป็นแท่งคู่รายตัวแทนเหมือนกันและสูงพอ ๆ กัน จับคู่ไว้แถวเดียว
+      {/* ── แถว 2 · เปรียบเทียบรายดีลเลอร์: ลูกค้าเป้าหมาย→ใบเสนอราคา | มูลค่า→ยอดขายจริง ──
+          สองใบนี้เป็นแท่งคู่รายดีลเลอร์เหมือนกันและสูงพอ ๆ กัน จับคู่ไว้แถวเดียว
           (เดิมทั้งหน้าเป็นการ์ดเต็มความกว้าง 8 ใบเรียงซ้อนกัน ยาว 4,800px) */}
       <div className="hq-dealer-charts" style={{ marginBottom: "1.25rem", alignItems: "stretch" }}>
       <div className="card chart-m" style={{ marginBottom: 0 }}>
         <div className="card-header">
           <div className="card-title">ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว</div>
           <div style={{ display: "flex", gap: 5 }}>
-            {([["dealer", "ตัวแทน"], ["region", "ภูมิภาค"], ["province", "จังหวัด"], ["month", "รายเดือน"]] as const)
+            {([["dealer", "ดีลเลอร์"], ["region", "ภูมิภาค"], ["province", "จังหวัด"], ["month", "รายเดือน"]] as const)
               .map(([v, l]) => viewTab(view, v, l, () => setView(v)))}
           </div>
         </div>
@@ -512,7 +512,7 @@ export default function SalesAnalyticsPage() {
       {/* ── SECTION 2 · มูลค่าใบเสนอราคา เทียบ ยอดขายจริง ── */}
       <div className="card chart-m" style={{ marginBottom: 0 }}>
         <div className="card-header">
-          <div className="card-title">มูลค่าใบเสนอราคา เทียบ ยอดขายจริง · รายตัวแทน</div>
+          <div className="card-title">มูลค่าใบเสนอราคา เทียบ ยอดขายจริง · รายดีลเลอร์</div>
         </div>
         <HBars rows={quoteVsSales} aLabel="มูลค่าใบเสนอราคา" bLabel="ยอดขายจริง" aColor="#0891b2" bColor="#059669" fmt={fmtBaht} />
       </div>
@@ -523,14 +523,14 @@ export default function SalesAnalyticsPage() {
       <div className="hq-dealer-charts" style={{ marginBottom: "1.25rem", alignItems: "stretch" }}>
       <DealerQuotationTable rows={quotePerf} avgConv={kpi.conv} />
 
-      {/* ไม่ใช้ chart-l (ล็อกสูง 420px ตายตัว) — การ์ดคู่กันเป็นตารางที่สูงตามจำนวนตัวแทน
+      {/* ไม่ใช้ chart-l (ล็อกสูง 420px ตายตัว) — การ์ดคู่กันเป็นตารางที่สูงตามจำนวนดีลเลอร์
           ความสูงตายตัวชนะ align-items: stretch เสมอ → การ์ดขวาเตี้ยกว่า เหลือช่องว่างใต้การ์ด
           ยืดเองด้วย flex column แทน แล้วปล่อยให้ .chart-scroll ข้างในกินที่ที่เหลือ */}
       <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
         <div className="card-header">
           <div className="card-title">เป้าหมายทั้งปี เทียบ ยอดขายจริง</div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            {([["dealer", "ตัวแทน"], ["region", "ภูมิภาค"], ["province", "จังหวัด"]] as const)
+            {([["dealer", "ดีลเลอร์"], ["region", "ภูมิภาค"], ["province", "จังหวัด"]] as const)
               .map(([v, l]) => viewTab(tgView, v, l, () => setTgView(v)))}
           </div>
         </div>
@@ -538,7 +538,7 @@ export default function SalesAnalyticsPage() {
           <HBars rows={tgRows} aLabel="ยอดขายสะสมทั้งปี" bLabel="เป้าหมายทั้งปี" fmt={fmtBaht} paged />
         </div>
         <TablePagination page={tgPageSafe} total={targetVsActual.length} onPage={setTgPage} size={TG_PAGE_SIZE}
-          unit={tgView === "dealer" ? "ตัวแทน" : tgView === "region" ? "ภูมิภาค" : "จังหวัด"} />
+          unit={tgView === "dealer" ? "ดีลเลอร์" : tgView === "region" ? "ภูมิภาค" : "จังหวัด"} />
       </div>
       </div>
 
@@ -549,7 +549,7 @@ export default function SalesAnalyticsPage() {
       {/* ── PERFORMANCE TABLE — ตารางเต็มท้ายหน้าตามเดิม (ตามที่บอสสั่ง ไม่แยกแท็บ) ── */}
       <div className="card" style={{ marginBottom: 0 }}>
         <div className="card-header">
-          <div className="card-title">ตารางผลงานตัวแทนจำหน่าย</div>
+          <div className="card-title">ตารางผลงานดีลเลอร์</div>
         </div>
         <div className="table-wrap">
           <table>
@@ -558,7 +558,7 @@ export default function SalesAnalyticsPage() {
                   ชุดเดิมรวม 996px แต่แบ่งผิดสัดส่วน: ช่องภูมิภาคแคบกว่าป้ายชื่อภาคเต็ม
                   ("ภาคตะวันออกเฉียงเหนือ") และหัวคอลัมน์ยาวหลายอันถูกเฉือน ทั้งที่ยังเหลือที่ว่าง */}
               <col style={{ width: "5%", minWidth: 58 }} />{/* รหัส */}
-              <col style={{ width: "12%", minWidth: 136 }} />{/* ตัวแทน */}
+              <col style={{ width: "12%", minWidth: 136 }} />{/* ดีลเลอร์ */}
               <col style={{ width: "13%", minWidth: 148 }} />{/* ภูมิภาค — ป้ายชื่อภาคเต็ม ห้ามตัด */}
               <col style={{ width: "5%", minWidth: 58 }} />{/* ลูกค้าเป้าหมาย */}
               <col style={{ width: "8%", minWidth: 94 }} />{/* ใบเสนอราคา */}
@@ -573,7 +573,7 @@ export default function SalesAnalyticsPage() {
             <thead>
               <tr>
                 <th>รหัส</th>
-                <th>ตัวแทนจำหน่าย</th>
+                <th>ดีลเลอร์</th>
                 <th>ภูมิภาค</th>
                 <th style={{ textAlign: "right" }} title="ลูกค้าเป้าหมาย">เป้าหมาย</th>
                 <th style={{ textAlign: "right" }}>ใบเสนอราคา</th>
@@ -588,9 +588,9 @@ export default function SalesAnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {!perf.length && <tr><td colSpan={12} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่พบตัวแทนที่ตรงกับตัวกรอง</td></tr>}
+              {!perf.length && <tr><td colSpan={12} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {perfRows.map(d => (
-                <ClickableRow key={d.code} className="clickable" onActivate={() => setDrawer(d)} label={`เปิดรายละเอียดตัวแทน ${d.name}`}>
+                <ClickableRow key={d.code} className="clickable" onActivate={() => setDrawer(d)} label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}>
                   <td style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }}>{d.code}</td>
                   <td style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {d.name}
@@ -618,10 +618,10 @@ export default function SalesAnalyticsPage() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={perfPageSafe} total={perf.length} onPage={setPerfPage} unit="ตัวแทน" />
+        <TablePagination page={perfPageSafe} total={perf.length} onPage={setPerfPage} unit="ดีลเลอร์" />
       </div>
 
-      {/* ── DRAWER — เจาะรายตัวแทน (อ่านอย่างเดียว ไม่มีแก้/ลบ) ── */}
+      {/* ── DRAWER — เจาะรายดีลเลอร์ (อ่านอย่างเดียว ไม่มีแก้/ลบ) ── */}
       {drawer && <DealerDrawer d={drawer} onClose={() => setDrawer(null)}
         customers={drawerData ? drawerData.customers : netCustomers.filter(c => c.dealerCode === drawer.code)}
         leads={drawerData ? drawerData.leads : netLeads.filter(l => l.dealerCode === drawer.code)}
@@ -632,8 +632,8 @@ export default function SalesAnalyticsPage() {
 }
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
-// นัดหมาย/ไฟล์ ไม่มี dealerCode ในระบบ → ผูกผ่าน leadId/recordId = numId ของลูกค้าเป้าหมายตัวแทนรายนี้
-// ตัวแทนที่ยังไม่มีนัดหมาย/ไฟล์บันทึกไว้จะขึ้น "—" ตามจริง (ไม่เติมข้อมูลปลอม)
+// นัดหมาย/ไฟล์ ไม่มี dealerCode ในระบบ → ผูกผ่าน leadId/recordId = numId ของลูกค้าเป้าหมายดีลเลอร์รายนี้
+// ดีลเลอร์ที่ยังไม่มีนัดหมาย/ไฟล์บันทึกไว้จะขึ้น "—" ตามจริง (ไม่เติมข้อมูลปลอม)
 function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, files, onOpenDealer }: {
   d: { code: string; name: string; region: string; province: string; status: string; revenueActual: number; revenueTarget: number; tpct: number; leads: number; quoted: number; quotes: number; quoteVal: number; wonCount: number; wonVal: number; conv: number | null; latest: string };
   onClose: () => void;
@@ -648,7 +648,7 @@ function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, file
   const appts = appointments.filter(a => a.leadId != null && leadIds.has(a.leadId));
   const docs = files.filter(f => f.source === "lead" && f.recordId != null && leadIds.has(f.recordId));
 
-  // ยอดขายรายเดือนของตัวแทนรายนี้ — จากใบเสนอราคาที่ปิดได้จริง
+  // ยอดขายรายเดือนของดีลเลอร์รายนี้ — จากใบเสนอราคาที่ปิดได้จริง
   const monthly = (() => {
     const m = Array(12).fill(0);
     quotes.forEach(x => { if (x.status !== "won") return; const dt = parseThaiDate(x.createdAt); if (dt) m[dt.getMonth()] += x.valueNum; });
@@ -722,7 +722,7 @@ function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, file
           </>)}
 
           <div style={head}><Coins size={11} /> สรุปยอดขาย</div>
-          <div style={{ fontSize: "0.66rem", color: "#94A3B8", marginBottom: 6 }}>ยอดสะสม/เป้า = ตัวเลขทางการของตัวแทน · ไม่ใช่ผลรวมใบเสนอราคาด้านบน</div>
+          <div style={{ fontSize: "0.66rem", color: "#94A3B8", marginBottom: 6 }}>ยอดสะสม/เป้า = ตัวเลขทางการของดีลเลอร์ · ไม่ใช่ผลรวมใบเสนอราคาด้านบน</div>
           {กล่อง(<>
             {row("ยอดขายสะสมทั้งปี", fmtBaht(d.revenueActual))}
             {row("เป้าหมายทั้งปี", fmtBaht(d.revenueTarget))}
@@ -745,7 +745,7 @@ function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, file
           )}
 
           <div style={head}><CalendarDays size={11} /> ไทม์ไลน์นัดหมาย</div>
-          {กล่อง(!appts.length ? empty("ไม่มีนัดหมายที่ผูกกับลูกค้าเป้าหมายของตัวแทนรายนี้") : (
+          {กล่อง(!appts.length ? empty("ไม่มีนัดหมายที่ผูกกับลูกค้าเป้าหมายของดีลเลอร์รายนี้") : (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {appts.map((a, i) => (
                 <div key={a.id} style={{ padding: "9px 0", borderBottom: i === appts.length - 1 ? "none" : "1px solid #F1F5F9" }}>
@@ -757,7 +757,7 @@ function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, file
           ))}
 
           <div style={head}><FolderOpen size={11} /> เอกสาร</div>
-          {กล่อง(!docs.length ? empty("ไม่มีเอกสารที่ผูกกับลูกค้าเป้าหมายของตัวแทนรายนี้") : (
+          {กล่อง(!docs.length ? empty("ไม่มีเอกสารที่ผูกกับลูกค้าเป้าหมายของดีลเลอร์รายนี้") : (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {docs.map((f, i) => (
                 <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 0", borderBottom: i === docs.length - 1 ? "none" : "1px solid #F1F5F9" }}>
@@ -772,7 +772,7 @@ function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, file
         <div style={{ borderTop: "1px solid #e6ebf2", background: "#fff", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexShrink: 0 }}>
           <span style={{ fontSize: "0.68rem", color: MUTED }}>สำนักงานใหญ่ดูอย่างเดียว</span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onOpenDealer} className="btn btn-secondary btn-sm">เปิดหน้าตัวแทน</button>
+            <button onClick={onOpenDealer} className="btn btn-secondary btn-sm">เปิดหน้าดีลเลอร์</button>
             <button onClick={onClose} className="btn btn-primary btn-sm">ปิด</button>
           </div>
         </div>

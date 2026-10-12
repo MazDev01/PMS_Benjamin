@@ -13,10 +13,10 @@ export const fmtThaiDate = (d: Date) => `${d.getDate()} ${TH_MO[d.getMonth()]} $
 
 export const regionDisplay = (r: string) => r === "อีสาน" ? "ภาคตะวันออกเฉียงเหนือ" : r === "ไม่ระบุ" ? r : `ภาค${r}`;
 
-// ภาค/จังหวัดของใบเสนอราคา = ของ "ตัวแทนที่ออกใบ" (ใบไม่มีฟิลด์ภาค/จังหวัดของตัวเอง)
+// ภาค/จังหวัดของใบเสนอราคา = ของ "ดีลเลอร์ที่ออกใบ" (ใบไม่มีฟิลด์ภาค/จังหวัดของตัวเอง)
 //
 // เดิมสร้าง Map จากชุด seed ตอน import โมดูล → สาขาที่ HQ เพิ่มใหม่จะได้ภาค "ไม่ระบุ"
-// และจังหวัดไม่โผล่ในตัวกรองเลย · ตอนนี้รับทะเบียนตัวแทนจริงเข้ามาแทน
+// และจังหวัดไม่โผล่ในตัวกรองเลย · ตอนนี้รับทะเบียนดีลเลอร์จริงเข้ามาแทน
 export type DealerLookups = {
   regionOf: (code: string) => string;
   provinceOf: (code: string) => string;
@@ -55,10 +55,10 @@ export function agingBucketOf(days: number): AgingBucket {
   return "30+";
 }
 
-/** ใบเสนอราคา + ฟิลด์ที่คำนวณได้จากข้อมูลจริง (ภาค/จังหวัดตัวแทน/อายุ/วันหมดอายุ) */
+/** ใบเสนอราคา + ฟิลด์ที่คำนวณได้จากข้อมูลจริง (ภาค/จังหวัดดีลเลอร์/อายุ/วันหมดอายุ) */
 export type QuoteRow = HQQuotation & {
   region: string;
-  dealerProvince: string;     // จังหวัดของตัวแทนที่ออกใบ (ไม่ใช่จังหวัดลูกค้า)
+  dealerProvince: string;     // จังหวัดของดีลเลอร์ที่ออกใบ (ไม่ใช่จังหวัดลูกค้า)
   createdDate: Date | null;
   agingDays: number | null;   // จำนวนวันนับจากวันที่สร้าง ถึง "วันนี้" ของระบบ (30 มิ.ย. 2569)
   validUntil: string | null;  // วันที่สร้าง + อายุใบเสนอราคาตามนโยบาย HQ
@@ -89,15 +89,15 @@ export function toQuoteRows(quotes: HQQuotation[], validityDays: number, look: D
   });
 }
 
-/** สรุปตัวเลขต่อกลุ่ม (ใช้ซ้ำทั้งรายตัวแทนและรายภูมิภาค) */
+/** สรุปตัวเลขต่อกลุ่ม (ใช้ซ้ำทั้งรายดีลเลอร์และรายภูมิภาค) */
 export type QuoteAgg = {
   count: number; value: number; sent: number; accepted: number; rejected: number;
   wonValue: number;  // มูลค่าเฉพาะใบที่ปิดการขายได้ = "ยอดขายจริง" ที่เทียบกับมูลค่าใบเสนอราคา
 };
-// รายตัวแทน = QuoteAgg + ข้อมูลตัวแทน (ใช้ป้อน analytics เมื่อรวมยอดที่ DB · M9 Phase 2)
+// รายดีลเลอร์ = QuoteAgg + ข้อมูลดีลเลอร์ (ใช้ป้อน analytics เมื่อรวมยอดที่ DB · M9 Phase 2)
 export type DealerAgg = QuoteAgg & { code: string; name: string; region: string };
 export const EMPTY_AGG: QuoteAgg = { count: 0, value: 0, sent: 0, accepted: 0, rejected: 0, wonValue: 0 };
-/** รวม QuoteAgg หลายก้อน (เช่น รายตัวแทน → ยอดรวม/รายภูมิภาค) */
+/** รวม QuoteAgg หลายก้อน (เช่น รายดีลเลอร์ → ยอดรวม/รายภูมิภาค) */
 export function sumAggs(list: QuoteAgg[]): QuoteAgg {
   return list.reduce<QuoteAgg>((a, d) => ({
     count: a.count + d.count, value: a.value + d.value, sent: a.sent + d.sent,

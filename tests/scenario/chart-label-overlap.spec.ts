@@ -39,10 +39,10 @@ async function overlaps(page: import("@playwright/test").Page) {
   });
 }
 
-const หน้าตัวแทน = ["/dashboard", "/leads", "/quotations", "/customers"];
+const หน้าดีลเลอร์ = ["/dashboard", "/leads", "/quotations", "/customers"];
 const หน้าสำนักงานใหญ่ = ["/hq/dashboard", "/hq/leads", "/hq/pipeline", "/hq/quotations", "/hq/customers", "/hq/dealers"];
 
-for (const path of หน้าตัวแทน) {
+for (const path of หน้าดีลเลอร์) {
   test(`[ui·dealer] ป้ายในกราฟหน้า ${path} ต้องไม่ทับกัน`, async ({ page }) => {
     await openAs(page, RYG, "dealer", path);
     await settle(page);

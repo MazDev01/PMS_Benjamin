@@ -75,7 +75,7 @@ test.describe("เว็บใช้งานจริง — สำนักง
   }
 });
 
-test.describe("เว็บใช้งานจริง — ตัวแทน", () => {
+test.describe("เว็บใช้งานจริง — ดีลเลอร์", () => {
   test.skip(() => skipReason("dealer") !== "", skipReason("dealer") || "พร้อมรัน");
 
   const หน้า = ["/dashboard", "/leads", "/quotations", "/customers",
@@ -93,7 +93,7 @@ test.describe("เว็บใช้งานจริง — ตัวแทน
 });
 
 test("[prod] จุดเช็กสุขภาพของทั้งสองเว็บต้องปกติ", async ({ request }) => {
-  for (const [ชื่อ, origin] of [["สำนักงานใหญ่", HQ_URL], ["ตัวแทน", DEALER_URL]] as const) {
+  for (const [ชื่อ, origin] of [["สำนักงานใหญ่", HQ_URL], ["ดีลเลอร์", DEALER_URL]] as const) {
     const r = await request.get(`${origin}/api/health`);
     expect(r.status(), `${ชื่อ} จุดเช็กสุขภาพต้องตอบ 200`).toBe(200);
   }

@@ -53,7 +53,7 @@ const HQ_PAGES = [
   { path: "/hq/customers", name: "ฐานข้อมูลลูกค้า" },
   { path: "/hq/quotations", name: "ใบเสนอราคาทั้งเครือ" },
   { path: "/hq/leads", name: "ลูกค้าเป้าหมายทั้งเครือ" },
-  { path: "/hq/dealers?view=table", name: "ตัวแทนจำหน่าย" },   // ตรวจแถวตาราง — หน้าเริ่มเป็นการ์ด
+  { path: "/hq/dealers?view=table", name: "ดีลเลอร์" },   // ตรวจแถวตาราง — หน้าเริ่มเป็นการ์ด
   { path: "/hq/pipeline", name: "ภาพรวมยอดขาย" },
 ];
 
@@ -65,7 +65,7 @@ for (const p of HQ_PAGES) {
   });
 }
 
-test("[ตัวแทน] ทุกแถวที่กดได้ ต้องโฟกัสด้วยคีย์บอร์ดได้ + มีคำอธิบาย", async ({ page }) => {
+test("[ดีลเลอร์] ทุกแถวที่กดได้ ต้องโฟกัสด้วยคีย์บอร์ดได้ + มีคำอธิบาย", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   let checked = 0;
   for (const path of ["/leads", "/customers", "/quotations", "/files"]) {

@@ -10,7 +10,7 @@ import { open } from "./helpers";
 //      เพราะตารางมีความหนาแน่นสูง ถ้าดันทุกปุ่มเป็น 44 แถวจะยืดจนอ่านยากกว่าเดิม
 test.use({ ...devices["iPhone 12"] });
 
-const หน้าตัวแทน = ["/dashboard", "/leads", "/quotations", "/customers", "/files", "/settings"];
+const หน้าดีลเลอร์ = ["/dashboard", "/leads", "/quotations", "/customers", "/files", "/settings"];
 const หน้าสำนักงานใหญ่ = ["/hq/dashboard", "/hq/dealers", "/hq/pipeline", "/hq/leads", "/hq/quotations", "/hq/customers", "/hq/settings"];
 
 async function ตรวจหน้า(page: import("@playwright/test").Page, ชื่อ: string) {
@@ -24,12 +24,12 @@ async function ตรวจหน้า(page: import("@playwright/test").Page, �
   expect(ผล.ปุ่มเตี้ย, `${ชื่อ} มีปุ่มที่เตี้ยกว่า 30px: ${ผล.ปุ่มเตี้ย.join(" · ")}`).toEqual([]);
 }
 
-test("[ui·dealer] ทุกหน้าของตัวแทนใช้งานบนมือถือได้", async ({ page }) => {
+test("[ui·dealer] ทุกหน้าของดีลเลอร์ใช้งานบนมือถือได้", async ({ page }) => {
   test.setTimeout(180_000);
-  for (const path of หน้าตัวแทน) {
+  for (const path of หน้าดีลเลอร์) {
     await open(page, "dealer", path);
     await page.waitForTimeout(1_500);
-    await ตรวจหน้า(page, `ตัวแทน ${path}`);
+    await ตรวจหน้า(page, `ดีลเลอร์ ${path}`);
   }
 });
 

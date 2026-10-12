@@ -1,7 +1,7 @@
 // ─── การแจ้งเตือนของสำนักงานใหญ่ (คำนวณล้วน) ──────────────────────────────────
 // แหล่งเดียวของ "กฎแจ้งเตือน" ที่ตั้งไว้ที่ /hq/settings → การแจ้งเตือน
-// ขอบเขต = งานของสำนักงานใหญ่เองเท่านั้น (บอสสั่ง 14 ก.ย. 69) — ลูกค้าเป้าหมาย (HQ) · ใบเสนอแพ็กเกจตัวแทน · แคตตาล็อกแม่แบบ
-//   งานขายของตัวแทน (ลูกค้าเป้าหมาย/ใบเสนอราคาของสาขา) ไม่ขึ้นที่นี่อีกแล้ว — ห้ามเติมกลับ
+// ขอบเขต = งานของสำนักงานใหญ่เองเท่านั้น (บอสสั่ง 14 ก.ย. 69) — ลูกค้าเป้าหมาย (HQ) · ใบค่าแฟรนไชส์ · แคตตาล็อกแม่แบบ
+//   งานขายของดีลเลอร์ (ลูกค้าเป้าหมาย/ใบเสนอราคาของสาขา) ไม่ขึ้นที่นี่อีกแล้ว — ห้ามเติมกลับ
 // ทุกข้อคำนวณจากข้อมูลจริงเท่านั้น — ไม่มีตัวเลขสังเคราะห์
 // ผลลัพธ์เป็นข้อมูลล้วน (ไม่มี JSX) → Topbar เอาไปใส่ไอคอนแล้วขึ้นกระดิ่ง
 import {
@@ -20,26 +20,26 @@ import { หมดอายุแล้ว, packageLabel } from "@pms/shared/lib
  *  body = ข้อความเต็มบรรทัดเดียว (เดิม) ยังเก็บไว้ให้ที่อื่น/ชุดทดสอบใช้ */
 export type HQAlert = { key: HQAlertKey; title: string; body: string; href: string; subject?: string; detail?: string };
 
-/** แม่แบบไม่มี/ไม่มีราคา = ตัวแทนออกใบเสนอราคาไม่ได้เลย (พบจากการใช้งานจริง 19 ส.ค. 69)
+/** แม่แบบไม่มี/ไม่มีราคา = ดีลเลอร์ออกใบเสนอราคาไม่ได้เลย (พบจากการใช้งานจริง 19 ส.ค. 69)
  *
- *  ทำไมต้องเป็นการแจ้งเตือน ไม่ใช่แค่ปล่อยให้ตัวแทนบ่น:
+ *  ทำไมต้องเป็นการแจ้งเตือน ไม่ใช่แค่ปล่อยให้ดีลเลอร์บ่น:
  *    รายการสินค้าในใบเสนอราคาเพิ่มได้ทางเดียวคือเลือกจากแคตตาล็อก — ไม่มีแม่แบบ = เพิ่มไม่ได้
- *    = บันทึกใบไม่ได้ = ปิดการขายไม่ได้ · ตัวแทนแก้เองไม่ได้ ต้องรอสำนักงานใหญ่เท่านั้น
+ *    = บันทึกใบไม่ได้ = ปิดการขายไม่ได้ · ดีลเลอร์แก้เองไม่ได้ ต้องรอสำนักงานใหญ่เท่านั้น
  *    ถ้าสำนักงานใหญ่ไม่รู้ตัว ทั้งเครือจะค้างอยู่แบบนั้นโดยไม่มีใครเห็นสาเหตุ */
 function catalogAlerts(catalog: SolutionProduct[]): HQAlert[] {
   if (!catalog.length) return [{
     key: "catalogNoPrice",
     title: "ยังไม่มีแม่แบบในระบบ",
-    body: "ตัวแทนออกใบเสนอราคาไม่ได้เลยจนกว่าจะมีแม่แบบอย่างน้อย 1 รายการพร้อมราคา",
+    body: "ดีลเลอร์ออกใบเสนอราคาไม่ได้เลยจนกว่าจะมีแม่แบบอย่างน้อย 1 รายการพร้อมราคา",
     href: "/hq/master",
   }];
   return templatesMissingPrice(catalog).map(name => ({
     key: "catalogNoPrice" as HQAlertKey,
     title: "แม่แบบยังไม่ได้ตั้งราคา",
-    body: `${name} — ตัวแทนหยิบไปออกใบเสนอราคาแล้วยอดเป็น ฿0 บันทึกไม่ได้`,
+    body: `${name} — ดีลเลอร์หยิบไปออกใบเสนอราคาแล้วยอดเป็น ฿0 บันทึกไม่ได้`,
     href: "/hq/master",
     subject: name,
-    detail: "ราคากลางยังเป็น ฿0 — ตัวแทนใช้แม่แบบนี้ออกใบเสนอราคาไม่ได้",
+    detail: "ราคากลางยังเป็น ฿0 — ดีลเลอร์ใช้แม่แบบนี้ออกใบเสนอราคาไม่ได้",
   }));
 }
 
@@ -113,18 +113,18 @@ export function buildHQAlerts(input: {
     });
   }
   if (proposals) {
-    // ลูกค้าเป้าหมายที่จบแล้ว (เป็นตัวแทน/ไม่สำเร็จ) ไม่ต้องตามใบของรายนั้นอีก
+    // ลูกค้าเป้าหมายที่จบแล้ว (เป็นดีลเลอร์/ไม่สำเร็จ) ไม่ต้องตามใบของรายนั้นอีก
     const จบแล้ว = new Set((prospects ?? []).filter(p => !ยังติดตามอยู่(p.status)).map(p => p.id));
     const ใบค้าง = proposals.filter(q => q.status === "sent" && !จบแล้ว.has(q.prospectId));
-    const เลขใบ = (q: DealerPackageProposal) => `${q.proposalNo || "ใบเสนอแพ็กเกจ"} · ${ชื่อราย.get(q.prospectId) ?? "—"} · ${packageLabel[q.package] ?? q.package}`;
+    const เลขใบ = (q: DealerPackageProposal) => `${q.proposalNo || "ใบค่าแฟรนไชส์"} · ${ชื่อราย.get(q.prospectId) ?? "—"} · ${packageLabel[q.package] ?? q.package}`;
     if (on("proposalExpired")) {
       for (const q of ใบค้าง.filter(x => หมดอายุแล้ว(x, วันนี้ISO)).sort((a, b) => (a.validUntil ?? "").localeCompare(b.validUntil ?? ""))) out.push({
         key: "proposalExpired",
-        title: "ใบเสนอแพ็กเกจเลยวันมีผล",
+        title: "ใบค่าแฟรนไชส์เลยวันมีผล",
         body: `${เลขใบ(q)} · มีผลถึง ${fmtISOToThai(q.validUntil!)} ยังไม่มีคำตอบ`,
         href: เปิดราย(q.prospectId),
         subject: ชื่อราย.get(q.prospectId) ?? "—",
-        detail: `${q.proposalNo || "ใบเสนอแพ็กเกจ"} (${packageLabel[q.package] ?? q.package}) หมดอายุ ${fmtISOToThai(q.validUntil!)} ยังไม่ตอบ`,
+        detail: `${q.proposalNo || "ใบค่าแฟรนไชส์"} (${packageLabel[q.package] ?? q.package}) หมดอายุ ${fmtISOToThai(q.validUntil!)} ยังไม่ตอบ`,
       });
     }
     if (on("proposalAwaiting")) {
@@ -137,11 +137,11 @@ export function buildHQAlerts(input: {
         .sort((a, b) => b.รอ - a.รอ);
       for (const { q, รอ } of rows) out.push({
         key: "proposalAwaiting",
-        title: "ใบเสนอแพ็กเกจรอคำตอบ",
+        title: "ใบค่าแฟรนไชส์รอคำตอบ",
         body: `${เลขใบ(q)} · ส่งแล้ว ${รอ} วัน ยังไม่ตอบรับหรือปฏิเสธ`,
         href: เปิดราย(q.prospectId),
         subject: ชื่อราย.get(q.prospectId) ?? "—",
-        detail: `${q.proposalNo || "ใบเสนอแพ็กเกจ"} (${packageLabel[q.package] ?? q.package}) ส่งไป ${รอ} วัน ยังไม่ตอบ`,
+        detail: `${q.proposalNo || "ใบค่าแฟรนไชส์"} (${packageLabel[q.package] ?? q.package}) ส่งไป ${รอ} วัน ยังไม่ตอบ`,
       });
     }
   }

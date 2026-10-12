@@ -1,6 +1,6 @@
 "use client";
 
-// ── คำสั่งของใบเสนอแพ็กเกจตัวแทน: พิมพ์ · เปลี่ยนสถานะ · ลบใบร่าง ──
+// ── คำสั่งของใบค่าแฟรนไชส์: พิมพ์ · เปลี่ยนสถานะ · ลบใบร่าง ──
 //   ชุดเดียวใช้ทั้งหน้ารวมใบเสนอ (ปุ่มในแถว/แผงรายละเอียด) และแผงใบในหน้าต่างลูกค้าเป้าหมาย
 //   ⚠️ ห้ามเขียนซ้ำที่อื่น — ข้อความยืนยัน/การบันทึกการใช้งานต้องเหมือนกันทุกหน้า
 import { useCallback } from "react";
@@ -21,7 +21,7 @@ export function useProposalActions() {
     const w = window.open("", "_blank");
     if (!w) { แจ้งพลาด("เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — อนุญาตป๊อปอัปของเว็บนี้แล้วลองใหม่"); return; }
     try {
-      // ผู้ลงนามช่อง "ผู้เสนอ" จากหน้าตั้งค่า › หาตัวแทน — อ่านไม่ได้ก็ยังพิมพ์ได้ (ใช้ชื่อบริษัทแทน) แต่ต้องแจ้งไว้
+      // ผู้ลงนามช่อง "ผู้เสนอ" จากหน้าตั้งค่า › หาดีลเลอร์ — อ่านไม่ได้ก็ยังพิมพ์ได้ (ใช้ชื่อบริษัทแทน) แต่ต้องแจ้งไว้
       const [hq, ค่าตั้ง] = await Promise.all([
         hqCompanyRepo.get(),
         settingsRepo.getRecruitSettings().catch(e => { logRepoRead("settings.getRecruitSettings(print)", e); return null; }),
@@ -46,7 +46,7 @@ export function useProposalActions() {
     }))) return null;
     try {
       const saved = await proposalsRepo.setStatus(p.id, status);
-      logAudit("เปลี่ยนสถานะใบเสนอแพ็กเกจตัวแทน", `${p.proposalNo ?? ""} · ${ชื่อราย} → ${proposalStatusLabel[status]}`);
+      logAudit("เปลี่ยนสถานะใบค่าแฟรนไชส์", `${p.proposalNo ?? ""} · ${ชื่อราย} → ${proposalStatusLabel[status]}`);
       return saved;
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "เปลี่ยนสถานะไม่สำเร็จ"));
@@ -63,7 +63,7 @@ export function useProposalActions() {
     }))) return false;
     try {
       await proposalsRepo.remove(p.id);
-      logAudit("ลบใบเสนอแพ็กเกจตัวแทน (ร่าง)", `${p.proposalNo ?? ""} · ${ชื่อราย}`);
+      logAudit("ลบใบค่าแฟรนไชส์ (ร่าง)", `${p.proposalNo ?? ""} · ${ชื่อราย}`);
       return true;
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "ลบใบไม่สำเร็จ"));

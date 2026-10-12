@@ -14,7 +14,7 @@ import { SupabaseAdapter } from "./supabase/SupabaseAdapter";
 import { HttpAdapter } from "./http/HttpAdapter";
 import { dedupeRead, ttlCacheRead, invalidateCache } from "./dedupe";
 
-// TTL ของแคชข้อมูลอ้างอิง (ทะเบียนตัวแทน/แคตตาล็อก/กฎธุรกิจ/ผู้รับผิดชอบ) — สั้นพอที่ผู้ใช้จะไม่รู้สึกว่า
+// TTL ของแคชข้อมูลอ้างอิง (ทะเบียนดีลเลอร์/แคตตาล็อก/กฎธุรกิจ/ผู้รับผิดชอบ) — สั้นพอที่ผู้ใช้จะไม่รู้สึกว่า
 // ข้อมูลค้าง (แก้เองก็ invalidate ทันทีอยู่แล้ว) ยาวพอที่จะตัดคำขอซ้ำตอนสลับหน้าไปมาเร็ว ๆ
 const REF_TTL_MS = 30_000;
 import type { DataAdapter, DealersRepo, CatalogRepo, SettingsRepo, MetricsRepo, PersonsRepo, DealerSettingsRepo, AuditRepo, ProfileRepo, LeadsRepo, QuotationsRepo, CustomersRepo } from "./ports";
@@ -91,14 +91,14 @@ export const profile: ProfileRepo = {
 };
 export const hqCompany = adapter.hqCompany;
 export const notes = adapter.notes;
-// ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นตัวแทน) — หน้าเดียวใช้ ไม่ต้องแคช
+// ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นดีลเลอร์) — หน้าเดียวใช้ ไม่ต้องแคช
 export const prospects = adapter.prospects;
-// ใบเสนอแพ็กเกจตัวแทน — ใช้ในหน้าต่างรายละเอียดลูกค้าเป้าหมาย HQ เท่านั้น ไม่ต้องแคช
+// ใบค่าแฟรนไชส์ — ใช้ในหน้าต่างรายละเอียดลูกค้าเป้าหมาย HQ เท่านั้น ไม่ต้องแคช
 export const proposals = adapter.proposals;
 // ประวัติ + บันทึกการติดต่อ ของลูกค้าเป้าหมาย HQ — ต้องสดเสมอหลังบันทึก ไม่ต้องแคช
 export const prospectActivities = adapter.prospectActivities;
 export const users = adapter.users;
-// บัญชีเข้าระบบของตัวแทน (แก้อีเมล/รหัสผ่านเอง · โควตา 2 ครั้ง · เกินนั้นขออนุมัติ)
+// บัญชีเข้าระบบของดีลเลอร์ (แก้อีเมล/รหัสผ่านเอง · โควตา 2 ครั้ง · เกินนั้นขออนุมัติ)
 export const account = adapter.account;
 export const audit: AuditRepo = {
   ..._audit,

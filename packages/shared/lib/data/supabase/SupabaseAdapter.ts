@@ -8,7 +8,7 @@ import type { DealerPackageProposal } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
-import { รวมค่าตั้งหาตัวแทน } from "@pms/shared/lib/recruitSettings";
+import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
@@ -68,10 +68,10 @@ type RowsResult = { data: unknown[] | null; error: { message: string } | null };
 // ── "เสถียร" ต้องหมายถึง "ไม่มีทางเสมอกันได้เลย" ── (ผลตรวจสอบระบบรอบ 2 · Part 8)
 // เลขที่ของงานขาย (customers.id · leads.num_id · quotations.id · appointments.id) เดินแยกกันรายสาขา
 // คีย์จริงคือ dealer_code + id — เลข 1 ของระยองกับเลข 1 ของเชียงใหม่คนละรายกันแต่ค่าเท่ากัน
-// ฝั่งตัวแทนไม่มีปัญหา (กรองสาขาเดียวอยู่แล้ว) แต่ฝั่งสำนักงานใหญ่ที่ดูรวมทั้งเครือ เลขจะซ้ำกันเป็นแถบ
+// ฝั่งดีลเลอร์ไม่มีปัญหา (กรองสาขาเดียวอยู่แล้ว) แต่ฝั่งสำนักงานใหญ่ที่ดูรวมทั้งเครือ เลขจะซ้ำกันเป็นแถบ
 // พอสั่งเรียงด้วย id เฉย ๆ แล้วตัดหน้า แถวที่ "เสมอกัน" จะถูกจัดหน้าตามใจฐานข้อมูล ไม่รับประกันว่าซ้ำเดิม
 // ผลคือรายการเดียวกันโผล่สองหน้า หรือหายไปเลย โดยไม่มีอะไรฟ้อง
-// จึงต้องพ่วง dealer_code เป็นตัวตัดสินท้ายสุดทุกครั้ง — ฝั่งตัวแทนไม่มีผลอะไร (มีสาขาเดียว)
+// จึงต้องพ่วง dealer_code เป็นตัวตัดสินท้ายสุดทุกครั้ง — ฝั่งดีลเลอร์ไม่มีผลอะไร (มีสาขาเดียว)
 const TIEBREAK_COL = "dealer_code";
 
 // คอลัมน์ที่รายการลูกค้าเป้าหมายต้องใช้จริง (เว้น report และ activities)
@@ -150,7 +150,7 @@ async function withNetworkRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T
   }
 }
 
-// select ทั้งตาราง + กรองตาม scope (ตัวแทน = เฉพาะสาขาตัวเอง · HQ = ทั้งหมด) → แปลงเป็น camelCase
+// select ทั้งตาราง + กรองตาม scope (ดีลเลอร์ = เฉพาะสาขาตัวเอง · HQ = ทั้งหมด) → แปลงเป็น camelCase
 // tiebreak = คอลัมน์ตัดสินท้ายสุดเวลา orderCol เสมอกันได้ · ส่ง null เมื่อ orderCol ไม่ซ้ำอยู่แล้ว
 //   (ทะเบียนสาขาเรียงด้วย code · แคตตาล็อกกลางเป็นของส่วนกลาง — สองตารางนี้ไม่มีคอลัมน์ dealer_code ด้วยซ้ำ)
 async function selectScoped<T>(
@@ -339,9 +339,9 @@ export const SupabaseAdapter: DataAdapter = {
         .on("postgres_changes", { event: "*", schema: "public", table: "master_catalog" }, () => onChange())),
     subscribeSettings: (onChange) => subscribeWithRetry("ตั้งค่าเครือ", () => {
       const ch = sb().channel(topic("settings-changes"));
-      // ต้องครบทุกตารางที่ HQ เป็นเจ้าของและตัวแทนต้องใช้ตาม
+      // ต้องครบทุกตารางที่ HQ เป็นเจ้าของและดีลเลอร์ต้องใช้ตาม
       // (0021 เปิด Realtime ให้ hq_sales_journey ไว้แล้ว แต่ฝั่ง client ลืมฟัง
-      //  → เหตุผลปิดการขายที่ HQ แก้ ตัวแทนไม่เห็นจนกว่าจะรีโหลดหน้า)
+      //  → เหตุผลปิดการขายที่ HQ แก้ ดีลเลอร์ไม่เห็นจนกว่าจะรีโหลดหน้า)
       for (const t of ["hq_policy", "hq_targets", "hq_notif_rules", "hq_sales_journey", "hq_recruit_settings"]) {
         ch.on("postgres_changes", { event: "*", schema: "public", table: t }, () => onChange());
       }
@@ -376,7 +376,7 @@ export const SupabaseAdapter: DataAdapter = {
       //
       // ⚠️ ถ้าไม่ตัด: upsert เป็น bulk · PostgREST รวมชุดคอลัมน์จาก "ทุกแถว" ให้เท่ากัน
       //    สาขาเดิมที่โหลดมาจาก DB มี created_at · สาขาใหม่ที่เพิ่งกรอกในฟอร์มไม่มี
-      //    → แถวใหม่ถูกเติมเป็น null → ชน not-null → เพิ่มตัวแทนใหม่ไม่สำเร็จเลยสักครั้ง
+      //    → แถวใหม่ถูกเติมเป็น null → ชน not-null → เพิ่มดีลเลอร์ใหม่ไม่สำเร็จเลยสักครั้ง
       // เขียนผ่าน RPC save_dealers (SECURITY DEFINER) แทน upsert ตรง — ตั้งแต่ 0091 ตัด SELECT
       // ทั้งตารางออกจาก authenticated (revenue_target อ่านได้แค่ผ่าน dealers_directory) upsert ตรง
       // จึงพัง (INSERT...ON CONFLICT DO UPDATE ต้องมี SELECT บนคอลัมน์ที่ SET ด้วย ไม่ใช่แค่ INSERT/UPDATE)
@@ -388,11 +388,11 @@ export const SupabaseAdapter: DataAdapter = {
       });
       await must(sb().rpc("save_dealers", { p_rows: rows }));
     },
-    // ⚠️ ห้ามเรียกจริง — การลบตัวแทนในระบบจริงต้องผ่าน /api/admin/dealers (DELETE) เท่านั้น เพราะที่นั่น
+    // ⚠️ ห้ามเรียกจริง — การลบดีลเลอร์ในระบบจริงต้องผ่าน /api/admin/dealers (DELETE) เท่านั้น เพราะที่นั่น
     // เช็ก FK-restrict ครบ 6 ตาราง + ลบบัญชี auth ของสาขาด้วย + เขียน audit log ก่อนลบจริง — .delete() ตรง
     // ที่นี่ไม่มีอะไรกันเลยสักอย่าง (ผลตรวจสอบ DB×หน้าจอทั้งระบบ พบว่าไม่มีจุดไหนเรียกเมธอดนี้ในโหมด supabase
     // จริงเลย — คงไว้เพื่อให้ตรงตาม DealersRepo interface เท่านั้น แต่ทำให้ throw ชัดเจนแทนลบเงียบๆ ถ้าถูกเรียกผิดจุด)
-    remove: async () => { throw new Error("ห้ามลบตัวแทนผ่านทางนี้ — ใช้ DELETE /api/admin/dealers เท่านั้น (กัน FK/บัญชีกำพร้า)"); },
+    remove: async () => { throw new Error("ห้ามลบดีลเลอร์ผ่านทางนี้ — ใช้ DELETE /api/admin/dealers เท่านั้น (กัน FK/บัญชีกำพร้า)"); },
   },
   catalog: {
     list: () => selectScoped<SolutionProduct>("master_catalog", undefined, "dealer_code", "id", null),
@@ -478,7 +478,7 @@ export const SupabaseAdapter: DataAdapter = {
       return p?.quoteValidityDays ?? DEFAULT_HQ_POLICY.quoteValidityDays;
     },
     // lost เป็น text[] ของ Postgres — ไม่ต้องแปลงคีย์ (คอลัมน์เดียว ชื่อตรงอยู่แล้ว)
-    // แถวยังไม่ถูก seed / รายการว่าง → ใช้ค่าเริ่มต้นกลาง ไม่ปล่อยให้ตัวแทนได้ dropdown เปล่า
+    // แถวยังไม่ถูก seed / รายการว่าง → ใช้ค่าเริ่มต้นกลาง ไม่ปล่อยให้ดีลเลอร์ได้ dropdown เปล่า
     getLostReasons: async () => {
       const row = await one<{ lost?: string[] }>("hq_sales_journey");
       return row?.lost?.length ? row.lost : [...LOST_REASONS];
@@ -496,10 +496,10 @@ export const SupabaseAdapter: DataAdapter = {
     // config เป็น jsonb ก้อนเดียว (0176) — ไม่แปลงคีย์ข้างใน · ขาด/เพี้ยน = ค่าเริ่มต้น
     getRecruitSettings: async () => {
       const row = await one<{ config?: unknown }>("hq_recruit_settings");
-      return รวมค่าตั้งหาตัวแทน(row?.config);
+      return รวมค่าตั้งหาดีลเลอร์(row?.config);
     },
     saveRecruitSettings: (s) =>
-      must(sb().from("hq_recruit_settings").upsert({ id: 1, config: รวมค่าตั้งหาตัวแทน(s) })),
+      must(sb().from("hq_recruit_settings").upsert({ id: 1, config: รวมค่าตั้งหาดีลเลอร์(s) })),
   },
   // ตั้งค่าของสาขา — แถวเดียวต่อ dealer_code · RLS คุมว่าแก้ได้เฉพาะของตัวเอง
   // เก็บเป็น jsonb ราย "กลุ่ม" จึงไม่ต้องแปลง snake/camel ข้างใน (ปล่อยผ่านทั้งก้อน)
@@ -527,7 +527,7 @@ export const SupabaseAdapter: DataAdapter = {
       if (patch.pricing)                row.pricing = patch.pricing;
       await must(sb().from("dealer_settings").upsert(row, { onConflict: "dealer_code" }));
     },
-    // RLS (0024/0124): HQ อ่านได้ทั้งเครือ · ตัวแทนเห็นแค่ของตัวเอง · ไล่ทีละหน้าเสมอ (เพดาน 1,000 แถว)
+    // RLS (0024/0124): HQ อ่านได้ทั้งเครือ · ดีลเลอร์เห็นแค่ของตัวเอง · ไล่ทีละหน้าเสมอ (เพดาน 1,000 แถว)
     logos: async () => {
       const rows = await pageAll((from, to) =>
         sb().from("dealer_settings").select("dealer_code,logo").not("logo", "is", null)
@@ -598,7 +598,7 @@ export const SupabaseAdapter: DataAdapter = {
     }),
     remove: (id) => must(sb().from("dealer_prospects").delete().eq("id", id)),
   },
-  // ใบเสนอแพ็กเกจตัวแทน — RLS (0172) ชุดเดียวกับลูกค้าเป้าหมาย HQ · สถานะ/การล็อกเนื้อหา ตัวดักของฐานข้อมูลบังคับ
+  // ใบค่าแฟรนไชส์ — RLS (0172) ชุดเดียวกับลูกค้าเป้าหมาย HQ · สถานะ/การล็อกเนื้อหา ตัวดักของฐานข้อมูลบังคับ
   proposals: {
     list: async (prospectId) => (await pageAll((from, to) => {
       let q = sb().from("dealer_package_proposals").select("*");
@@ -675,7 +675,7 @@ export const SupabaseAdapter: DataAdapter = {
     // สร้าง/ลบบัญชีต้องใช้ service_role — ห้ามอยู่ฝั่ง client เด็ดขาด
     canCreate: () => false,
   },
-  // บัญชีเข้าระบบของตัวแทน — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
+  // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
   audit: {
     // อ่านล่าสุดสูงสุด limit รายการ (id desc) + แปลง at (timestamptz) → สตริงไทยที่ /hq/audit (parseDate) เข้าใจ
@@ -702,7 +702,7 @@ export const SupabaseAdapter: DataAdapter = {
     },
   },
 
-  // rollup รายสาขา (M9 Phase 1) — รวมยอดที่ DB ผ่าน RPC dealer_rollup · RLS คุม scope (ตัวแทน=สาขาตน · HQ=ทั้งเครือ)
+  // rollup รายสาขา (M9 Phase 1) — รวมยอดที่ DB ผ่าน RPC dealer_rollup · RLS คุม scope (ดีลเลอร์=สาขาตน · HQ=ทั้งเครือ)
   metrics: {
     dealerRollup: async (year, opts) => {
       const { data, error } = await sb().rpc("dealer_rollup", {
@@ -1009,7 +1009,7 @@ export const SupabaseAdapter: DataAdapter = {
     // ใบ won ของลูกค้ารายเดียว — bounded read ตรง ๆ (RLS คุม scope อยู่แล้ว) ไม่ต้อง RPC (M9 Phase 6)
     listForCustomer: async (customerId, dealerCode) => {
       // ต้องระบุสาขาเสมอ — customer_id ซ้ำกันได้ข้ามสาขา (คีย์จริงคือ dealer_code + id)
-      //   RLS กันให้เฉพาะตอนที่ผู้เรียกเป็นตัวแทน · แต่ HQ เห็นทั้งเครือ ถ้าไม่ระบุสาขา
+      //   RLS กันให้เฉพาะตอนที่ผู้เรียกเป็นดีลเลอร์ · แต่ HQ เห็นทั้งเครือ ถ้าไม่ระบุสาขา
       //   แผงลูกค้าฝั่ง HQ จะดึงใบของลูกค้าเลขเดียวกันจากสาขาอื่นมาปนด้วย
       const { data, error } = await sb().from("quotations").select("*")
         .eq("dealer_code", dealerCode).eq("customer_id", customerId).eq("status", "won").order("date", { ascending: true });

@@ -5,7 +5,7 @@ import { AppShell } from "@pms/shared/components/layout/AppShell";
 import { FirstPasswordGate } from "@pms/shared/components/ui/FirstPasswordGate";
 import { useRole } from "@pms/shared/context/RoleContext";
 
-// กันบัญชี HQ หลงเข้ามาใช้หน้าตัวแทน — ฝั่ง HQ มี HQLayout กันบัญชีตัวแทนอยู่แล้ว (apps/hq/app/(app)/hq/layout.tsx)
+// กันบัญชี HQ หลงเข้ามาใช้หน้าดีลเลอร์ — ฝั่ง HQ มี HQLayout กันบัญชีดีลเลอร์อยู่แล้ว (apps/hq/app/(app)/hq/layout.tsx)
 // แต่ฝั่งนี้ไม่เคยมีด่านแบบเดียวกัน (พบจากผลตรวจสอบตรรกะระบบ 31 ก.ค. 69) — เดิมหน้าเปิดให้ใช้งานได้ตามปกติ
 // จนกว่าจะกดบันทึกจริงแล้วโดน RLS ปฏิเสธแบบงงๆ แทนที่จะกันไว้ตั้งแต่แรก
 function DealerRoleGuard({ children }: { children: React.ReactNode }) {
@@ -16,7 +16,7 @@ function DealerRoleGuard({ children }: { children: React.ReactNode }) {
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", fontFamily: "inherit" }}>
         <div style={{ maxWidth: 420 }}>
           <div style={{ fontSize: "1rem", fontWeight: 800, color: "#003366", marginBottom: 8 }}>บัญชีนี้เป็นบัญชีสำนักงานใหญ่ (HQ)</div>
-          <div style={{ fontSize: "0.85rem", color: "#6b7280", lineHeight: 1.7 }}>ระบบนี้สำหรับบัญชีตัวแทนเท่านั้น — กรุณาออกจากระบบแล้วเข้าใช้งานที่ระบบสำนักงานใหญ่แทน</div>
+          <div style={{ fontSize: "0.85rem", color: "#6b7280", lineHeight: 1.7 }}>ระบบนี้สำหรับบัญชีดีลเลอร์เท่านั้น — กรุณาออกจากระบบแล้วเข้าใช้งานที่ระบบสำนักงานใหญ่แทน</div>
         </div>
       </div>
     );

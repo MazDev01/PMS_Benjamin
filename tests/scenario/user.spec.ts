@@ -5,13 +5,13 @@ import { open, assertHealthyPage } from "./helpers";
 // "ผู้ใช้จะเปิดหน้าไหนบ้าง แล้วมันพังไหม" — ไล่ทุกหน้าหลักของทั้ง 2 workspace + edge cases
 
 const DEALER_PAGES = [
-  ["/dashboard", "แดชบอร์ดตัวแทน"], ["/leads", "ลูกค้าเป้าหมาย"], ["/customers", "ลูกค้า"],
+  ["/dashboard", "แดชบอร์ดดีลเลอร์"], ["/leads", "ลูกค้าเป้าหมาย"], ["/customers", "ลูกค้า"],
   ["/quotations", "ใบเสนอราคา"], ["/products", "แม่แบบ"], ["/calendar", "ปฏิทิน"],
   ["/files", "ไฟล์"], ["/settings", "ตั้งค่า Dealer"],
 ] as const;
 
 const HQ_PAGES = [
-  ["/hq/dashboard", "แดชบอร์ด HQ"], ["/hq/dealers", "ตัวแทน"], ["/hq/customers", "ลูกค้าทั้งเครือ"],
+  ["/hq/dashboard", "แดชบอร์ด HQ"], ["/hq/dealers", "ดีลเลอร์"], ["/hq/customers", "ลูกค้าทั้งเครือ"],
   ["/hq/pipeline", "ภาพรวมยอดขาย"], ["/hq/quotations", "ใบเสนอราคาทั้งเครือ"], ["/hq/master", "แคตตาล็อก"],
   ["/hq/audit", "บันทึกการใช้งาน"], ["/hq/settings", "ตั้งค่า HQ"],
 ] as const;
@@ -30,8 +30,8 @@ for (const [path, label] of HQ_PAGES) {
   });
 }
 
-// Edge: เปิดหน้าเจาะตัวแทนที่ไม่มีอยู่ → ต้องไม่แครช (แสดง not-found)
-test("[user·hq·edge] ตัวแทนที่ไม่มีจริง (/hq/dealers/ZZZ) ไม่แครช", async ({ page }) => {
+// Edge: เปิดหน้าเจาะดีลเลอร์ที่ไม่มีอยู่ → ต้องไม่แครช (แสดง not-found)
+test("[user·hq·edge] ดีลเลอร์ที่ไม่มีจริง (/hq/dealers/ZZZ) ไม่แครช", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await open(page, "hq", "/hq/dealers/ZZZ");

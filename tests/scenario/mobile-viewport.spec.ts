@@ -9,14 +9,14 @@ import { open } from "./helpers";
 const MOBILE = { width: 390, height: 844 };
 
 const PAGES: [("hq" | "dealer"), string, string][] = [
-  ["dealer", "/dashboard", "แดชบอร์ดตัวแทน"],
+  ["dealer", "/dashboard", "แดชบอร์ดดีลเลอร์"],
   ["dealer", "/leads", "ลูกค้าเป้าหมาย"],
   ["dealer", "/quotations", "ใบเสนอราคา"],
-  ["dealer", "/customers", "ลูกค้าของตัวแทน"],
+  ["dealer", "/customers", "ลูกค้าของดีลเลอร์"],
   ["hq", "/hq/dashboard", "แดชบอร์ด HQ"],
   ["hq", "/hq/pipeline", "ภาพรวมยอดขาย"],
   ["hq", "/hq/customers", "ลูกค้าทั้งเครือ"],
-  ["hq", "/hq/dealers", "ตัวแทน"],
+  ["hq", "/hq/dealers", "ดีลเลอร์"],
 ];
 
 // iPad ต้องวัดที่ "จอ iPad จริง" ไม่ใช่บีบเป็น 390px

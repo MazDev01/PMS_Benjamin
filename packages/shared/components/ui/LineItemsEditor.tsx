@@ -37,7 +37,7 @@ const clamp = (n: number, max: number) => Math.min(max, Math.max(0, Number.isFin
 export function LineItemsEditor({ items, onChange, defaultQty, showCatalog = true }: { items: QuoteLineItem[]; onChange: (items: QuoteLineItem[]) => void; defaultQty?: number; showCatalog?: boolean }) {
   const catalog = useMasterCatalog();
   // ราคาที่โชว์ในตัวเลือก = "ราคาขายของสาขา" (ราคากลาง + ส่วนบวกเพิ่มที่ตั้งไว้ที่หน้าแม่แบบ)
-  // ต้องเป็นตัวเลขเดียวกับที่หน้าแม่แบบโชว์ ไม่งั้นตัวแทนเห็นราคาหนึ่ง แต่ใบออกมาอีกราคา
+  // ต้องเป็นตัวเลขเดียวกับที่หน้าแม่แบบโชว์ ไม่งั้นดีลเลอร์เห็นราคาหนึ่ง แต่ใบออกมาอีกราคา
   const pricing = useDealerSettings().settings.pricing;
   const ราคาขาย = (p: typeof catalog[number], subtype?: string) => sellRate(p, subtype ?? p.name, pricing);
   const [pickOpen, setPickOpen] = useState(false);
@@ -96,7 +96,7 @@ export function LineItemsEditor({ items, onChange, defaultQty, showCatalog = tru
               <div onClick={() => setPickOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 220 }} />
               <div ref={pickRef} style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 221, background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 12, boxShadow: "0 16px 40px rgba(0,0,0,.16)", padding: 6, width: 300, maxHeight: 320, overflowY: "auto" }}>
                 {catalog.length === 0 && (
-                  // ต้นเหตุจริงคือสำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ — ตัวแทนแก้เองไม่ได้ ต้องบอกให้รู้ว่าไปบอกใคร
+                  // ต้นเหตุจริงคือสำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ — ดีลเลอร์แก้เองไม่ได้ ต้องบอกให้รู้ว่าไปบอกใคร
                   <div style={{ padding: "12px 14px", fontSize: "0.75rem", color: "#b45309", background: "#fef7ed", borderRadius: 8, lineHeight: 1.6 }}>
                     สำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ<br />
                     <span style={{ color: "#92400e" }}>ออกใบเสนอราคาไม่ได้จนกว่าจะมีแม่แบบพร้อมราคา — กรุณาแจ้งสำนักงานใหญ่</span>
@@ -107,7 +107,7 @@ export function LineItemsEditor({ items, onChange, defaultQty, showCatalog = tru
                     <button type="button" onClick={() => addFromCatalog(p.name, p.unit, ราคาขาย(p))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, width: "100%", padding: "8px 10px", border: "none", background: "none", cursor: "pointer", borderRadius: 8, fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D", textAlign: "left", fontFamily: "inherit" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#f0f4fa")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                       <span>{p.name}</span>
-                      {/* ราคา 0 = สำนักงานใหญ่ยังไม่ได้ตั้ง — บอกตรงนี้เลย ไม่ให้ตัวแทนเลือกไปแล้วงงว่าทำไมบันทึกไม่ได้ */}
+                      {/* ราคา 0 = สำนักงานใหญ่ยังไม่ได้ตั้ง — บอกตรงนี้เลย ไม่ให้ดีลเลอร์เลือกไปแล้วงงว่าทำไมบันทึกไม่ได้ */}
                       <span style={{ fontSize: "0.68rem", color: p.price > 0 ? PRIMARY : "#b45309", fontWeight: 800, flexShrink: 0 }}>
                         {p.price > 0 ? `฿${fmt(ราคาขาย(p))}/${p.unit}` : "ยังไม่ได้ตั้งราคา"}
                       </span>

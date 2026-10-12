@@ -11,7 +11,7 @@
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 import { toCamel, toCamelList, toSnake } from "@pms/shared/lib/data/supabase/mappers";
-import { รวมค่าตั้งหาตัวแทน } from "@pms/shared/lib/recruitSettings";
+import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 
 type Row = Record<string, unknown>;
 export { runtime } from "./_ctx";
@@ -22,7 +22,7 @@ const ONE: Record<string, string> = {
   targets: "hq_targets",
   notifRules: "hq_notif_rules",
   journey: "hq_sales_journey",   // เก็บทั้ง lost reasons และ lead tasks
-  recruit: "hq_recruit_settings", // ค่าตั้งหาตัวแทน (0176) — body = { config } · RLS: อ่าน HQ เขียนผู้ดูแลข้อมูลกลาง
+  recruit: "hq_recruit_settings", // ค่าตั้งหาดีลเลอร์ (0176) — body = { config } · RLS: อ่าน HQ เขียนผู้ดูแลข้อมูลกลาง
 };
 
 export const GET = handler("settings.get", async (req: NextRequest, sb) => {
@@ -77,9 +77,9 @@ export const PUT = handler("settings.save", async (req: NextRequest, sb) => {
     return ok({ ok: true });
   }
 
-  // ค่าตั้งหาตัวแทน — จัดรูปแบบซ้ำที่เซิร์ฟเวอร์เสมอ ห้ามเชื่อว่าหน้าจอจัดมาแล้ว
+  // ค่าตั้งหาดีลเลอร์ — จัดรูปแบบซ้ำที่เซิร์ฟเวอร์เสมอ ห้ามเชื่อว่าหน้าจอจัดมาแล้ว
   if (k === "recruit") {
-    const { error } = await sb.from("hq_recruit_settings").upsert({ id: 1, config: รวมค่าตั้งหาตัวแทน(body.config) });
+    const { error } = await sb.from("hq_recruit_settings").upsert({ id: 1, config: รวมค่าตั้งหาดีลเลอร์(body.config) });
     if (error) return dbFail("settings.recruit", error);
     return ok({ ok: true });
   }

@@ -210,8 +210,8 @@ export async function cleanup(sb: SupabaseClient, dealerCode: string, tag: strin
   }
 }
 
-// ── ตัวแทนต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้วเท่านั้น (บอสสั่ง 14 ก.ย. 69) ──────────────
-//   route สร้างตัวแทนปฏิเสธคำขอที่ไม่มี prospectId และหน้าทะเบียนตัวแทนไม่มีฟอร์ม "เพิ่มตัวแทน" แล้ว
+// ── ดีลเลอร์ต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้วเท่านั้น (บอสสั่ง 14 ก.ย. 69) ──────────────
+//   route สร้างดีลเลอร์ปฏิเสธคำขอที่ไม่มี prospectId และหน้าทะเบียนดีลเลอร์ไม่มีฟอร์ม "เพิ่มดีลเลอร์" แล้ว
 //   (ของเดิม fillDealerForm กรอกฟอร์มนั้น — ถอดทิ้งไปพร้อมฟอร์ม)
 
 /** ลูกค้าเป้าหมายรองรับการสร้างสาขาทดสอบ — คืน id ไว้ส่งเป็น prospectId
@@ -224,30 +224,30 @@ export async function ลูกค้าเป้าหมายรองรั�
   const { data, error } = await sb.from("dealer_prospects").insert({ name, status: "considering" }).select("id").single();
   if (error || !data) throw new Error(`สร้างลูกค้าเป้าหมายรองรับสาขา ${code} ไม่สำเร็จ: ${error?.message ?? "ไม่มีข้อมูลคืนมา"}`);
   const id = (data as { id: number }).id;
-  // ต้องมีใบเสนอแพ็กเกจตัวแทนที่ส่งแล้ว ถึงจะสร้างตัวแทนได้ (บอสสั่ง 14 ก.ย. 69)
+  // ต้องมีใบค่าแฟรนไชส์ที่ส่งแล้ว ถึงจะสร้างดีลเลอร์ได้ (บอสสั่ง 14 ก.ย. 69)
   const { error: ใบErr } = await sb.from("dealer_package_proposals")
     .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: new Date().toISOString().slice(0, 10) });
-  if (ใบErr) throw new Error(`สร้างใบเสนอแพ็กเกจรองรับสาขา ${code} ไม่สำเร็จ: ${ใบErr.message}`);
+  if (ใบErr) throw new Error(`สร้างใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ใบErr.message}`);
   return id;
 }
 
-/** เปิดกล่อง "ตั้งเป็นตัวแทนจำหน่าย" ของลูกค้าเป้าหมายที่สร้างให้สาขานี้ (ยังไม่กรอกอะไร) — ต้องล็อกอิน HQ ไว้ก่อน */
-export async function เปิดกล่องตั้งตัวแทน(page: Page, code: string) {
+/** เปิดกล่อง "ตั้งเป็นดีลเลอร์" ของลูกค้าเป้าหมายที่สร้างให้สาขานี้ (ยังไม่กรอกอะไร) — ต้องล็อกอิน HQ ไว้ก่อน */
+export async function เปิดกล่องตั้งดีลเลอร์(page: Page, code: string) {
   await ลูกค้าเป้าหมายรองรับสาขา(code);
   await page.goto(`${HQ_ORIGIN}/hq/prospects`, { waitUntil: "domcontentloaded" });
   // ค้นก่อนเสมอ — ตารางแบ่งหน้าละ 10 ราย เทสต์อื่นที่รันขนานกันอาจดันรายนี้ตกไปหน้าถัดไป
   await page.getByLabel("ค้นหาลูกค้าเป้าหมาย").fill(`ผู้สนใจ-${code}`);
   await page.getByRole("row", { name: new RegExp(`ผู้สนใจ-${code}`) }).click({ timeout: 30_000 });
-  await page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" }).getByRole("button", { name: "ตั้งเป็นตัวแทนจำหน่าย" }).click();
-  return page.getByRole("dialog", { name: "ตั้งเป็นตัวแทนจำหน่าย" });
+  await page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" }).getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
+  return page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
 }
 
-/** กรอกกล่องตั้งเป็นตัวแทนจำหน่ายให้ครบ (สร้างตัวแทนใหม่) — ไม่กดยืนยัน ให้เทสต์เป็นคนกดเอง */
-export async function เปิดฟอร์มตั้งตัวแทน(
+/** กรอกกล่องตั้งเป็นดีลเลอร์ให้ครบ (สร้างดีลเลอร์ใหม่) — ไม่กดยืนยัน ให้เทสต์เป็นคนกดเอง */
+export async function เปิดฟอร์มตั้งดีลเลอร์(
   page: Page, code: string, name: string,
   province = "ระยอง", region = "ตะวันออก",
 ) {
-  const ตั้ง = await เปิดกล่องตั้งตัวแทน(page, code);
+  const ตั้ง = await เปิดกล่องตั้งดีลเลอร์(page, code);
   await ตั้ง.locator("#cv-code").fill(code);
   await ตั้ง.locator("#cv-name").fill(name);
   await ตั้ง.locator("#cv-region").selectOption(region);
@@ -271,7 +271,7 @@ export async function เปิดฟอร์มตั้งตัวแทน(
  *    เทสต์ที่โฟกัสเรื่อง "ปิดการขายแล้วเกิดอะไรขึ้นต่อ" จึงต้องจัดฉากให้ผ่านด่านนี้ก่อน
  *    ไม่งั้นจะล้มด้วยอาการที่ไม่เกี่ยวกับสิ่งที่มันตั้งใจตรวจ
  *
- *  ใช้ client ของผู้ใช้จริง (ไม่ใช่สิทธิ์ระดับระบบ) — การกดส่งใบเป็นสิ่งที่ตัวแทนทำได้เองอยู่แล้ว
+ *  ใช้ client ของผู้ใช้จริง (ไม่ใช่สิทธิ์ระดับระบบ) — การกดส่งใบเป็นสิ่งที่ดีลเลอร์ทำได้เองอยู่แล้ว
  *  ถ้าจะตรวจ "ปุ่มส่งใบบนหน้าจอ" ให้เขียนเป็นเทสต์ของตัวเอง อย่ามาใช้ตัวนี้แทน */
 export async function markQuotationSent(
   sb: SupabaseClient, dealerCode: string, company: string,
@@ -357,7 +357,7 @@ export async function งานก่อนหน้าครบถึง(sb: Su
 }
 
 /** เพิ่มลูกค้าหนึ่งรายผ่านหน้าจอจริง ด้วยการ "นำเข้าไฟล์" (ต้องอยู่ที่หน้า /customers แล้ว)
- *  ปุ่ม "คีย์เองทีละราย" ถูกเอาออกตามที่บอสสั่ง 2 ก.ย. 69 — ทางเดียวที่ตัวแทนเพิ่มลูกค้าเดิมได้คือไฟล์
+ *  ปุ่ม "คีย์เองทีละราย" ถูกเอาออกตามที่บอสสั่ง 2 ก.ย. 69 — ทางเดียวที่ดีลเลอร์เพิ่มลูกค้าเดิมได้คือไฟล์
  *  ไฟล์ที่ป้อนใช้หัวตารางชุดเดียวกับเทมเพลตที่ระบบแจก (ดู CSV_HEADERS ในหน้าลูกค้า) */
 export async function นำเข้าลูกค้าหนึ่งราย(
   page: Page, company: string,

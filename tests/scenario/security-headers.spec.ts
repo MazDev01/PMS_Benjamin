@@ -25,7 +25,7 @@ const FORBIDDEN = ["content-security-policy-report-only"];
 
 for (const [name, origin, path] of [
   ["สำนักงานใหญ่", HQ_ORIGIN, "/hq/login"],
-  ["ตัวแทน", DEALER_ORIGIN, "/login"],
+  ["ดีลเลอร์", DEALER_ORIGIN, "/login"],
 ] as const) {
   test(`หน้าเว็บฝั่ง${name} ต้องมีหัวข้อความปลอดภัยครบ`, async ({ request }) => {
     const res = await request.get(`${origin}${path}`);

@@ -1,6 +1,6 @@
 "use client";
 
-// ─── โปรไฟล์ของฉัน — ใช้ได้ทั้ง HQ และตัวแทน (แยก persist ต่อ workspace) ─────
+// ─── โปรไฟล์ของฉัน — ใช้ได้ทั้ง HQ และดีลเลอร์ (แยก persist ต่อ workspace) ─────
 // แก้รูป/ชื่อ/อีเมล/เบอร์ + เปลี่ยนรหัสผ่าน (เดโม) · บันทึกลง localStorage แล้วอัปเดต Topbar ทันที
 //
 // เดิมไฟล์นี้อยู่แค่ apps/dealer/app/(app)/profile/page.tsx เท่านั้น — ตอนแยกโมโนเรโปจาก main
@@ -40,7 +40,7 @@ const BORDER = "#e5e7eb";
 
 const ROLE_LABEL: Record<string, string> = {
   HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่",
-  DEALER_ADMIN: "ผู้จัดการตัวแทน",
+  DEALER_ADMIN: "ผู้จัดการดีลเลอร์",
   DEALER_SALES: "เซลส์",
   DEALER_SITE: "เซลส์ภาคสนาม",
 };
@@ -48,10 +48,10 @@ const ROLE_LABEL: Record<string, string> = {
 export default function ProfilePage() {
   const { session, isHQ, hydrated } = useRole();
   const router = useRouter();
-  // ฝั่งตัวแทน: โปรไฟล์ส่วนตัวถูกรวมเป็น "บัญชีดีลเลอร์" ในหน้าตั้งค่าแล้ว → ส่งไปที่นั่น (HQ ยังใช้หน้านี้)
+  // ฝั่งดีลเลอร์: โปรไฟล์ส่วนตัวถูกรวมเป็น "บัญชีดีลเลอร์" ในหน้าตั้งค่าแล้ว → ส่งไปที่นั่น (HQ ยังใช้หน้านี้)
   //
   // ⚠️ ต้องรอฟื้น session ให้เสร็จก่อน (hydrated) — แก้ 11 ส.ค. 69
-  //   ก่อนฟื้นเสร็จ ระบบใช้ session ตั้งต้นซึ่งเป็นของ "ตัวแทน" ทำให้ isHQ เป็นเท็จชั่วขณะ
+  //   ก่อนฟื้นเสร็จ ระบบใช้ session ตั้งต้นซึ่งเป็นของ "ดีลเลอร์" ทำให้ isHQ เป็นเท็จชั่วขณะ
   //   ผู้ใช้สำนักงานใหญ่ที่กดรีเฟรชหน้าโปรไฟล์จึงถูกเด้งไป /settings ทันทีทุกครั้ง
   //   ซึ่งฝั่งสำนักงานใหญ่ไม่มีเส้นทางนั้น (ของเขาคือ /hq/settings) → ตกไปหน้าไม่พบหน้าที่ต้องการ
   //   อาการที่ผู้ใช้เห็น: แก้โปรไฟล์แล้วรีเฟรชดู กลับไม่ได้เห็นหน้าโปรไฟล์อีกเลย
@@ -201,7 +201,7 @@ export default function ProfilePage() {
         border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 12px" }}>{รหัสที่เห็น}</code>
       <button className="btn btn-secondary btn-sm" style={{ color: STEEL }}
         onClick={() => { void navigator.clipboard?.writeText(รหัสที่เห็น).catch(() => {}); }}>คัดลอก</button>
-      {/* กดซ่อนแล้วยังกดดูซ้ำได้ ไม่ต้องขอเลขใหม่ (แพตเทิร์นเดียวกับหน้าบัญชีของตัวแทน) */}
+      {/* กดซ่อนแล้วยังกดดูซ้ำได้ ไม่ต้องขอเลขใหม่ (แพตเทิร์นเดียวกับหน้าบัญชีของดีลเลอร์) */}
       <button className="btn btn-secondary btn-sm" style={{ color: STEEL }}
         onClick={() => setขั้นดูรหัส("ซ่อนอยู่")}>ซ่อน</button>
     </>
@@ -231,13 +231,13 @@ export default function ProfilePage() {
       onClick={() => void ขอเลขทางอีเมล()}><Eye size={14} /> {กำลังดู ? "กำลังส่งเลข…" : "ดูรหัสผ่าน"}</button>
   );
 
-  if (!isHQ) return null; // ฝั่งตัวแทน redirect ไป /settings (บัญชีดีลเลอร์) แล้ว — ไม่เรนเดอร์โปรไฟล์เดิม
+  if (!isHQ) return null; // ฝั่งดีลเลอร์ redirect ไป /settings (บัญชีดีลเลอร์) แล้ว — ไม่เรนเดอร์โปรไฟล์เดิม
 
   return (
     <div className="erp">
       <div className="page-head">
         <div>
-          <p>ข้อมูลส่วนตัวและความปลอดภัยของบัญชี · {isHQ ? "สำนักงานใหญ่" : "ตัวแทน"}</p>
+          <p>ข้อมูลส่วนตัวและความปลอดภัยของบัญชี · {isHQ ? "สำนักงานใหญ่" : "ดีลเลอร์"}</p>
         </div>
       </div>
 
@@ -289,7 +289,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* อีเมล — HQ แก้ได้ · ตัวแทนใช้อีเมลล็อกอินที่ HQ ตั้งให้ (read-only) */}
+          {/* อีเมล — HQ แก้ได้ · ดีลเลอร์ใช้อีเมลล็อกอินที่ HQ ตั้งให้ (read-only) */}
           <div style={{ marginBottom: 14 }}>
             <label style={lbl}>อีเมล{!isHQ && " (สำหรับเข้าสู่ระบบ)"}</label>
             {isHQ ? (
@@ -348,7 +348,7 @@ export default function ProfilePage() {
               <div style={roBox}><ShieldCheck size={14} color={MUTED} /> {roleLabel}</div>
             </div>
             <div>
-              <label style={lbl}>{isHQ ? "หน่วยงาน" : "บริษัทตัวแทน"}</label>
+              <label style={lbl}>{isHQ ? "หน่วยงาน" : "บริษัทดีลเลอร์"}</label>
               <div style={roBox}><Building2 size={14} color={MUTED} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.dealerName}{session.dealerCode ? ` (${session.dealerCode})` : ""}</span></div>
             </div>
           </div>
@@ -361,7 +361,7 @@ export default function ProfilePage() {
             <Lock size={11} /> ตำแหน่งและหน่วยงานกำหนดโดยผู้ดูแลระบบ — แก้ไขที่นี่ไม่ได้
           </div>
 
-          {/* ── ส่วนความปลอดภัย ── HQ เปลี่ยนรหัสผ่านเองได้ · ตัวแทนจัดการโดยสำนักงานใหญ่ */}
+          {/* ── ส่วนความปลอดภัย ── HQ เปลี่ยนรหัสผ่านเองได้ · ดีลเลอร์จัดการโดยสำนักงานใหญ่ */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, marginTop: 22, paddingTop: 20, borderTop: `1px solid ${BORDER}` }}>
             <KeyRound size={18} color={PRIMARY} />
             <span style={{ fontSize: "0.92rem", fontWeight: 800, color: STEEL }}>ความปลอดภัย</span>
@@ -418,14 +418,14 @@ export default function ProfilePage() {
               </div>)}
             </>
           ) : (
-            // ตัวแทน: รหัสผ่านออกและจัดการโดยสำนักงานใหญ่ — แก้เองไม่ได้
+            // ดีลเลอร์: รหัสผ่านออกและจัดการโดยสำนักงานใหญ่ — แก้เองไม่ได้
             <div>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#f5f7fa", border: `1px solid ${BORDER}`, borderRadius: 12, padding: "14px 16px" }}>
                 <span style={{ width: 34, height: 34, borderRadius: "50%", background: "#eef3f8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Lock size={16} color={PRIMARY} />
                 </span>
                 <div>
-                  {/* ข้อความเดิม "ตัวแทนเปลี่ยนรหัสผ่านเองไม่ได้" ขัดกับระบบปัจจุบัน (ตัวแทนแก้เองได้ 2 ครั้ง · บอสสั่ง 28 ส.ค. 69) */}
+                  {/* ข้อความเดิม "ดีลเลอร์เปลี่ยนรหัสผ่านเองไม่ได้" ขัดกับระบบปัจจุบัน (ดีลเลอร์แก้เองได้ 2 ครั้ง · บอสสั่ง 28 ส.ค. 69) */}
                   <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL, marginBottom: 3 }}>เปลี่ยนอีเมล/รหัสผ่านที่หน้าบัญชีเข้าสู่ระบบ</div>
                   <div style={{ fontSize: "0.72rem", color: MUTED, lineHeight: 1.6 }}>
                     ไปที่ ตั้งค่า › บัญชีเข้าสู่ระบบ · แก้เองได้ 2 ครั้ง ครั้งต่อไปต้องให้สำนักงานใหญ่อนุมัติ · ลืมรหัสผ่านใช้ปุ่ม “ลืมรหัสผ่าน?” ที่หน้าเข้าสู่ระบบ

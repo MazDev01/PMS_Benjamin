@@ -112,8 +112,8 @@ function OverviewTab({ dealer, detail }: { dealer: DealerRow; detail: DealerDeta
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      {/* ข้อมูลเข้าระบบของสาขานี้ — ย้ายมาจากปุ่มรูปกุญแจในตารางหน้ารายชื่อตัวแทน (13 ส.ค. 69)
-          แสดงเฉพาะผู้มีสิทธิ์จัดการตัวแทน (การ์ดเช็คสิทธิ์ในตัวเอง) */}
+      {/* ข้อมูลเข้าระบบของสาขานี้ — ย้ายมาจากปุ่มรูปกุญแจในตารางหน้ารายชื่อดีลเลอร์ (13 ส.ค. 69)
+          แสดงเฉพาะผู้มีสิทธิ์จัดการดีลเลอร์ (การ์ดเช็คสิทธิ์ในตัวเอง) */}
       <DealerCredentialsCard dealer={dealer} />
 
       {/* Revenue progress */}
@@ -130,7 +130,7 @@ function OverviewTab({ dealer, detail }: { dealer: DealerRow; detail: DealerDeta
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
               <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>ยอดจริง</span>
-              {/* ทศนิยม 1 ตำแหน่ง — เป้า Standard 1.6 ล้าน เดิมปัดขึ้น "฿2M" ไม่ตรงกับหน้าตัวแทน */}
+              {/* ทศนิยม 1 ตำแหน่ง — เป้า Standard 1.6 ล้าน เดิมปัดขึ้น "฿2M" ไม่ตรงกับหน้าดีลเลอร์ */}
               <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>เป้า ฿{(dealer.revenueTarget / 1_000_000).toFixed(1)}M{dealer.package ? ` · ${packageLabel[dealer.package]}` : ""}</span>
             </div>
             {isAtRisk && (
@@ -334,14 +334,14 @@ const TABS = [
   { key: "activity",  label: "กิจกรรม" },
 ] as const;
 
-// ── Customer tab (read-only) — ลูกค้าที่ตัวแทนนี้ดูแล ────────────────────────────
+// ── Customer tab (read-only) — ลูกค้าที่ดีลเลอร์นี้ดูแล ────────────────────────────
 function CustomerTab({ customers }: { customers: HQCustomer[] }) {
   const [page, setPage] = useState(0);
   const cur = Math.min(page, pageCountOf(customers.length) - 1);
   const rows = pageSlice(customers, cur);
   return (
     <div className="card">
-      <div className="card-header"><div className="card-title">ลูกค้าที่ตัวแทนนี้ดูแล</div></div>
+      <div className="card-header"><div className="card-title">ลูกค้าที่ดีลเลอร์นี้ดูแล</div></div>
       <div className="table-wrap">
         <table>
           <thead>
@@ -400,31 +400,31 @@ type TabKey = typeof TABS[number]["key"];
 
 export default function DealerDrillDownPage({ params }: { params: Promise<{ dealerCode: string }> }) {
   const { dealerCode } = use(params);
-  // อ่านจากชุดที่ persist (HQ_DEALERS_KEY) — ตัวแทนที่ HQ เพิ่มใหม่ต้องเปิดหน้านี้ได้ ไม่ใช่ 404
+  // อ่านจากชุดที่ persist (HQ_DEALERS_KEY) — ดีลเลอร์ที่ HQ เพิ่มใหม่ต้องเปิดหน้านี้ได้ ไม่ใช่ 404
   const { value: dealers, loaded } = useRepoValueLoaded<DealerRow[]>(() => dealersRepo.list(), []);
   const perfMap = useDealerPerformance();
   const [tab, setTab] = useState<TabKey>("overview");
   const code = dealerCode.toUpperCase();
   const dealer = dealers.find(d => d.code === code);
-  // รายละเอียดตัวแทนแบบเชื่อมต่อ: CNX = ข้อมูลสด (leads/projects/quotes/ยอดรายเดือน) · สาขาอื่น = seed
+  // รายละเอียดดีลเลอร์แบบเชื่อมต่อ: CNX = ข้อมูลสด (leads/projects/quotes/ยอดรายเดือน) · สาขาอื่น = seed
   const detail = useNetworkDealerDetail(code);
-  const custs = useNetworkCustomersForDealer(code); // ลูกค้าของตัวแทนนี้ (กรองที่ repo ตรง ๆ — ไม่ดึงทั้งเครือ)
+  const custs = useNetworkCustomersForDealer(code); // ลูกค้าของดีลเลอร์นี้ (กรองที่ repo ตรง ๆ — ไม่ดึงทั้งเครือ)
 
-  // ทะเบียนตัวแทนมาจาก repo (async) — ต้องรอโหลดจบก่อน ไม่งั้นเรนเดอร์แรกเด้ง 404 ทุกครั้ง
+  // ทะเบียนดีลเลอร์มาจาก repo (async) — ต้องรอโหลดจบก่อน ไม่งั้นเรนเดอร์แรกเด้ง 404 ทุกครั้ง
   if (!loaded) return <div className="erp" />;
-  // รหัสตัวแทนที่พิมพ์ผิด/บุ๊กมาร์กเก่า/สาขาที่ถูกลบไปแล้ว — เรนเดอร์ข้อความในหน้าเอง (ไม่ใช้ notFound())
+  // รหัสดีลเลอร์ที่พิมพ์ผิด/บุ๊กมาร์กเก่า/สาขาที่ถูกลบไปแล้ว — เรนเดอร์ข้อความในหน้าเอง (ไม่ใช้ notFound())
   // เพราะ notFound() ในคอมโพเนนต์ "use client" ที่ไม่มี not-found.tsx ครอบ เคยขึ้นจอเปล่าเงียบ ๆ
   // ไม่มี error เลยด้วย (พบจริงจากผลตรวจสอบระบบเต็มรูปแบบรอบ 2, 31 ก.ค. 69)
   if (!dealer) {
     return (
       <div className="erp" style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ maxWidth: 380, textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 8 }}>ไม่พบตัวแทนรหัส &quot;{code}&quot;</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 8 }}>ไม่พบดีลเลอร์รหัส &quot;{code}&quot;</div>
           <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20, lineHeight: 1.6 }}>
-            อาจพิมพ์รหัสผิด หรือตัวแทนรายนี้ถูกลบ/ยังไม่ถูกสร้างในระบบ
+            อาจพิมพ์รหัสผิด หรือดีลเลอร์รายนี้ถูกลบ/ยังไม่ถูกสร้างในระบบ
           </p>
           <Link href="/hq/dealers" className="btn btn-primary" style={{ display: "inline-flex", textDecoration: "none" }}>
-            <ArrowLeft size={14} style={{ marginRight: 6 }} /> กลับไปหน้าตัวแทน
+            <ArrowLeft size={14} style={{ marginRight: 6 }} /> กลับไปหน้าดีลเลอร์
           </Link>
         </div>
       </div>
@@ -446,7 +446,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
     <div className="erp">
       {/* Back link */}
       <Link href="/hq/dealers" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.8rem", color: "#6b7280", textDecoration: "none", marginBottom: 16, fontWeight: 600 }}>
-        <ArrowLeft size={14} /> กลับไปหน้าตัวแทน
+        <ArrowLeft size={14} /> กลับไปหน้าดีลเลอร์
       </Link>
 
       {/* Header */}
@@ -455,7 +455,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
             <h2 style={{ marginBottom: 0 }}>{dealer.name}</h2>
             <span className="badge" style={BADGE("#f0f0f5", "#6b7280")}>{dealer.code}</span>
-            {/* แพ็กเกจของตัวแทน (บอสสั่ง 15 ก.ย. 69) — สีเดียวกับป้ายในหน้า /hq/dealers · ไม่มีแพ็กเกจ = ไม่แสดง */}
+            {/* แพ็กเกจของดีลเลอร์ (บอสสั่ง 15 ก.ย. 69) — สีเดียวกับป้ายในหน้า /hq/dealers · ไม่มีแพ็กเกจ = ไม่แสดง */}
             {dealer.package && (
               <span className="badge" style={dealer.package === "exclusive" ? BADGE("#fdf3e1", "#b45309") : BADGE("#e8f0fe", "#1d4ed8")}>
                 แพ็กเกจ {packageLabel[dealer.package]}
@@ -476,7 +476,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
         </div>
       </div>
 
-      {/* โหมดดูอย่างเดียว — HQ เจาะดูข้อมูลตัวแทนได้ทั้งหมด แก้ไม่ได้ (จัดการที่หน้าตัวแทน) */}
+      {/* โหมดดูอย่างเดียว — HQ เจาะดูข้อมูลดีลเลอร์ได้ทั้งหมด แก้ไม่ได้ (จัดการที่หน้าดีลเลอร์) */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#f5f7fa", border: "1px solid #e5e7eb",
         borderLeft: "3px solid #003366", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
         <Lock size={15} color="#003366" style={{ flexShrink: 0 }} />
@@ -484,15 +484,15 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
           {/* ⚠️ ข้อความเดิมพูดคลุมเกินจริง (บอสแจ้ง 20 ส.ค. 69: กำลังจะแก้อีเมล/รหัสผ่านแล้วมาเจอป้ายนี้)
               หน้านี้แก้ "บัญชีเข้าระบบ" ได้จริงที่การ์ดด้านล่าง — ป้ายที่บอกว่าแก้อะไรไม่ได้เลย
               ทำให้ผู้ดูแลไม่กล้ากดต่อ หรือนึกว่าปุ่มที่เห็นเป็นปุ่มที่กดไม่ได้ */}
-          <strong style={{ color: "#003366" }}>โหมดดูอย่างเดียว</strong> — ข้อมูลงานขายของตัวแทน (ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า) แก้จากหน้านี้ไม่ได้
-          {" · "}บัญชีเข้าระบบแก้ได้ที่การ์ด “ข้อมูลเข้าระบบของตัวแทน” ด้านล่าง
+          <strong style={{ color: "#003366" }}>โหมดดูอย่างเดียว</strong> — ข้อมูลงานขายของดีลเลอร์ (ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า) แก้จากหน้านี้ไม่ได้
+          {" · "}บัญชีเข้าระบบแก้ได้ที่การ์ด “ข้อมูลเข้าระบบของดีลเลอร์” ด้านล่าง
         </span>
         {/* ⚠️ ปุ่ม "เข้าสู่โหมดจัดการ" ถูกลบเมื่อ 10 ส.ค. 69 — เดิมเขียน disabled ตายตัวในโค้ด
             ทดสอบด้วยบัญชีผู้ดูแลระบบจริงก็ยังกดไม่ได้ พร้อมคำอธิบายว่า "เฉพาะ Super Admin"
             ซึ่งผู้ใช้เข้าเงื่อนไขอยู่แล้ว = ปุ่มที่ไม่มีวันกดได้และบอกเหตุผลผิด
-            การจัดการตัวแทนทำที่หน้าทะเบียนตัวแทนอยู่แล้ว จึงชี้ทางไปที่นั่นแทน */}
+            การจัดการดีลเลอร์ทำที่หน้าทะเบียนดีลเลอร์อยู่แล้ว จึงชี้ทางไปที่นั่นแทน */}
         <Link href="/hq/dealers" className="btn btn-secondary btn-sm">
-          <Lock size={12} /> จัดการที่หน้าทะเบียนตัวแทน
+          <Lock size={12} /> จัดการที่หน้าทะเบียนดีลเลอร์
         </Link>
       </div>
 

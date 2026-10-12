@@ -9,8 +9,8 @@ import { catalog as catalogRepo, realtime } from "./data";
 // เริ่มด้วย mock (SSR-safe) แล้วโหลดจาก repository ตอน mount + ติดตามการแก้เพื่ออัปเดตตามทันที:
 //   • supabase → Realtime (postgres_changes บน master_catalog) = ข้ามแอป/ข้ามเครื่องได้จริง
 //   • local    → event ตอนกดบันทึก + storage event = ได้เฉพาะ origin เดียวกัน
-//     ⚠️ โหมด local ตัวแทน(:3001) กับ HQ(:3002) คนละ origin → localStorage แยกกัน จึงไม่เห็นกัน
-//        ถ้าต้องการให้ HQ แก้แล้วตัวแทนเปลี่ยนตาม ต้องตั้ง NEXT_PUBLIC_DATA_SOURCE=supabase
+//     ⚠️ โหมด local ดีลเลอร์(:3001) กับ HQ(:3002) คนละ origin → localStorage แยกกัน จึงไม่เห็นกัน
+//        ถ้าต้องการให้ HQ แก้แล้วดีลเลอร์เปลี่ยนตาม ต้องตั้ง NEXT_PUBLIC_DATA_SOURCE=supabase
 export function useMasterCatalog(): SolutionProduct[] {
   return useMasterCatalogState().catalog;
 }

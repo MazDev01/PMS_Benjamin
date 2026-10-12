@@ -130,24 +130,24 @@ test.describe("แบบแปลนรายแม่แบบย่อย", ()
   });
 });
 
-// ── ตัวแทนต้องเห็นแบบแปลนครบทุกระดับ (บอสสั่ง 28 ส.ค. 69) ────────────────────────
+// ── ดีลเลอร์ต้องเห็นแบบแปลนครบทุกระดับ (บอสสั่ง 28 ส.ค. 69) ────────────────────────
 //
-// สำนักงานใหญ่เป็นคนอัปโหลด · ตัวแทนดูอย่างเดียวแต่ต้อง "เห็นทุกอย่าง"
+// สำนักงานใหญ่เป็นคนอัปโหลด · ดีลเลอร์ดูอย่างเดียวแต่ต้อง "เห็นทุกอย่าง"
 //   • แบบแปลนของแม่แบบหลัก — ในกล่องรายละเอียดแม่แบบ
 //   • แบบแปลนของแม่แบบย่อย — ในกล่องรายละเอียดแม่แบบย่อย
 //   • ย่อยที่ไม่มีแบบแปลนเฉพาะ → ใช้ของแม่แบบหลัก และต้องมีป้ายบอกว่าเป็นของแม่แบบหลัก
 //     (ไม่งั้นเข้าใจว่าเป็นแบบแปลนเฉพาะของย่อยตัวนั้น แล้วส่งผิดแบบให้ลูกค้า)
 //
 // ⚠️ ต้องเปิดไฟล์ได้จริงด้วย ไม่ใช่แค่เห็นชื่อ — ยิงลิงก์ที่หน้าจอให้มาแล้ววัดสถานะ
-test.describe("ตัวแทนดูแบบแปลน", () => {
-  const ID3 = "zzt-dealerplans", ชื่อ3 = `${TAG}-แปลนตัวแทน`;
+test.describe("ดีลเลอร์ดูแบบแปลน", () => {
+  const ID3 = "zzt-dealerplans", ชื่อ3 = `${TAG}-แปลนดีลเลอร์`;
   const มีแปลนเอง = "รุ่นมีแปลน", ตามแม่ = "รุ่นตามแม่";
   let พาธแม่ = "", พาธย่อย = "";
 
   test.beforeAll(async () => {
     const sb = await db(ADMIN);
     await sb.from("master_catalog").delete().eq("id", ID3);
-    // อัปไฟล์จริงขึ้นที่เก็บ (จำลองว่า HQ อัปไว้แล้ว) — ตัวแทนต้องเปิดได้
+    // อัปไฟล์จริงขึ้นที่เก็บ (จำลองว่า HQ อัปไว้แล้ว) — ดีลเลอร์ต้องเปิดได้
     const อัป = async (ชื่อไฟล์: string, เนื้อ: string) => {
       const path = `plans/zzt-${Date.now()}-${ชื่อไฟล์}`;
       await sb.storage.from("catalog-plans").upload(path, Buffer.from(เนื้อ), { contentType: "application/pdf" });
@@ -156,7 +156,7 @@ test.describe("ตัวแทนดูแบบแปลน", () => {
     พาธแม่ = await อัป("main.pdf", "%PDF-1.4 แม่แบบหลัก");
     พาธย่อย = await อัป("sub.pdf", "%PDF-1.4 แม่แบบย่อย");
     await sb.from("master_catalog").insert({
-      id: ID3, name: ชื่อ3, spec: "ทดสอบตัวแทนดูแปลน", price: 5000, unit: "ตร.ม.",
+      id: ID3, name: ชื่อ3, spec: "ทดสอบดีลเลอร์ดูแปลน", price: 5000, unit: "ตร.ม.",
       effective_date: "1 ส.ค. 2569", price_history: [], subtypes: [มีแปลนเอง, ตามแม่],
       plans: [{ name: "แปลนแม่แบบหลัก.pdf", path: พาธแม่, size: 2048 }],
       subtype_plans: { [มีแปลนเอง]: [{ name: "แปลนเฉพาะรุ่นนี้.pdf", path: พาธย่อย, size: 1024 }] },
@@ -168,7 +168,7 @@ test.describe("ตัวแทนดูแบบแปลน", () => {
     await sb.storage.from("catalog-plans").remove([พาธแม่, พาธย่อย]);
   });
 
-  test("[func·dealer] ตัวแทนเห็นแบบแปลนทั้งของแม่แบบหลักและแม่แบบย่อย · เปิดไฟล์ได้จริง", async ({ page, request }) => {
+  test("[func·dealer] ดีลเลอร์เห็นแบบแปลนทั้งของแม่แบบหลักและแม่แบบย่อย · เปิดไฟล์ได้จริง", async ({ page, request }) => {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/products`, { waitUntil: "domcontentloaded" });
     await settle(page);
@@ -178,7 +178,7 @@ test.describe("ตัวแทนดูแบบแปลน", () => {
     // 1) แบบแปลนของแม่แบบหลัก
     const กล่อง = page.locator('[role="dialog"]').last();
     const ลิงก์แม่ = กล่อง.getByRole("link", { name: /แปลนแม่แบบหลัก\.pdf/ });
-    await expect(ลิงก์แม่, "ตัวแทนต้องเห็นแบบแปลนของแม่แบบหลัก").toBeVisible({ timeout: 20_000 });
+    await expect(ลิงก์แม่, "ดีลเลอร์ต้องเห็นแบบแปลนของแม่แบบหลัก").toBeVisible({ timeout: 20_000 });
     const url = await ลิงก์แม่.getAttribute("href");
     expect((await request.get(url!)).status(), "ไฟล์ต้องเปิดได้จริง ไม่ใช่เห็นแต่ชื่อ").toBe(200);
 

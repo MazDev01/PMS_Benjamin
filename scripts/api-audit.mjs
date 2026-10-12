@@ -1,6 +1,6 @@
 // ── ตรวจ API จริงทุกเส้นทาง (ยิงคำขอจริงใส่เซิร์ฟเวอร์ที่รันอยู่) ──────────────
 // ใช้: node scripts/api-audit.mjs
-// อ่านบัญชีทดสอบจาก tests/.env.test · ต้องมีเซิร์ฟเวอร์โหมด api รันที่ :3001 (ตัวแทน) และ :3002 (HQ)
+// อ่านบัญชีทดสอบจาก tests/.env.test · ต้องมีเซิร์ฟเวอร์โหมด api รันที่ :3001 (ดีลเลอร์) และ :3002 (HQ)
 import { readFileSync, writeFileSync } from "node:fs";
 
 const env = (file) => {

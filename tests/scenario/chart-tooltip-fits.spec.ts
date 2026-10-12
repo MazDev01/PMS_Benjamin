@@ -7,7 +7,7 @@ import { open } from "./helpers";
 // เทสต์นี้วัด "ความกว้างจริงของตัวหนังสือ" เทียบกับกล่องในเบราว์เซอร์ ไม่ใช่เดาจากโค้ด
 test("[ui] กล่องตัวเลขในกราฟ ต้องไม่มีตัวหนังสือล้นกรอบ", async ({ page }) => {
   await page.setViewportSize({ width: 1500, height: 1000 });
-  for (const [ชื่อ, role, path] of [["HQ", "hq", "/hq/dashboard"], ["ตัวแทน", "dealer", "/dashboard"]] as const) {
+  for (const [ชื่อ, role, path] of [["HQ", "hq", "/hq/dashboard"], ["ดีลเลอร์", "dealer", "/dashboard"]] as const) {
     await open(page, role, path);
     await page.waitForTimeout(3000);
     const cards = page.locator(".card");

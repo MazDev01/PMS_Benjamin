@@ -52,7 +52,7 @@ test("ชื่อการ์ดอัตราปิดการขายต�
   console.log("ชื่อการ์ดสองหน้าแยกกันแล้ว ✓");
 });
 
-test("สัดส่วนขั้นตอนการขายบนแดชบอร์ดตัวแทน ต้องรวมได้ 100%", async ({ page }) => {
+test("สัดส่วนขั้นตอนการขายบนแดชบอร์ดดีลเลอร์ ต้องรวมได้ 100%", async ({ page }) => {
   await openAs(page, RYG, "dealer", "/dashboard");
   await settle(page); await page.waitForTimeout(2500);
   const card = page.locator(".card").filter({ hasText: "ขั้นตอนการขาย" }).first();

@@ -74,7 +74,7 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
   await forceQuoteTotal(sb, q.id, 770_000); // BOQ ว่าง (ไม่ได้เลือกแม่แบบ) → บังคับยอดที่รู้แน่นอนแทน เพื่อดูว่ายอดนี้ไปโผล่ที่ลูกค้าไหม
   console.log(`[audit] ใบ ${q.id} total_value=770000 status=${q.status}`);
 
-  // 2) ปิดจากฝั่งลูกค้าเป้าหมายโดยตรง (ไม่แตะใบเสนอราคาเลย) — action ที่ตัวแทนน่าจะกดเป็นธรรมชาติที่สุด
+  // 2) ปิดจากฝั่งลูกค้าเป้าหมายโดยตรง (ไม่แตะใบเสนอราคาเลย) — action ที่ดีลเลอร์น่าจะกดเป็นธรรมชาติที่สุด
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "ตาราง" }).click();
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
@@ -355,7 +355,7 @@ test("[audit] เปิดฟอร์มสร้างใบเสนอรา
   assertNoErrors(errs, "ละทิ้งฟอร์มใบเสนอราคากลางคัน");
 });
 
-test("[audit] cross-role: ตัวแทนปิดการขาย → HQ เห็นตัวเลขตรงกันทันที ใน /hq/leads /hq/quotations /hq/customers /hq/dealers/RYG", async ({ page }) => {
+test("[audit] cross-role: ดีลเลอร์ปิดการขาย → HQ เห็นตัวเลขตรงกันทันที ใน /hq/leads /hq/quotations /hq/customers /hq/dealers/RYG", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(RYG);
   const COMPANY = tg("ข้ามroleเช็ค");

@@ -28,16 +28,16 @@ export function QuotationTable({ rows, onView, pagination }: {
               minWidth ทุกช่องวัดจากเบราว์เซอร์จริง (td padding ข้างละ 16px) ด้วยกฎ 2 ข้อ:
                 1) หัวคอลัมน์ห้ามโดนตัดทุกขนาดจอ → minWidth ต้อง ≥ ความกว้างหัว
                 2) เลขที่/จังหวัด/มูลค่า/สถานะ/วันที่/ปุ่ม = ตัดไม่ได้ → minWidth ≥ ความกว้างข้อมูล
-                   ตัวแทน/ลูกค้า/ประเภทอาคาร = ชื่อยาวตัด … ได้ตามปกติ
+                   ดีลเลอร์/ลูกค้า/ประเภทอาคาร = ชื่อยาวตัด … ได้ตามปกติ
               รวม minWidth = 1098px → พอดีตั้งแต่จอ 1440 ขึ้นไป
               จอแคบกว่านั้น (1280/1366) เลื่อนแนวนอนใน .table-wrap — 11 คอลัมน์ยังไงก็ไม่พอ
               เพิ่ม/ลบคอลัมน์เมื่อไร ต้องมาวัดใหม่และแก้ colgroup ด้วยเสมอ */}
           <colgroup>
             <col style={{ width: "10%", minWidth: 120 }} />{/* เลขที่ — "Q-2026-0089" ต้องการ 111px */}
             <col style={{ width: "6%", minWidth: 72 }} />{/* รหัส */}
-            <col style={{ width: "9%", minWidth: 88 }} />{/* ตัวแทน — ชื่อยาวตัด … ได้ */}
+            <col style={{ width: "9%", minWidth: 88 }} />{/* ดีลเลอร์ — ชื่อยาวตัด … ได้ */}
             <col style={{ width: "9%", minWidth: 88 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ */}
-            <col style={{ width: "12%", minWidth: 128 }} />{/* จังหวัดตัวแทน — "พระนครศรีอยุธยา" ต้องการ 125px */}
+            <col style={{ width: "12%", minWidth: 128 }} />{/* จังหวัดดีลเลอร์ — "พระนครศรีอยุธยา" ต้องการ 125px */}
             <col style={{ width: "10%", minWidth: 104 }} />{/* ประเภทอาคาร — หัวกว้าง 100px · ชื่อยาวตัด … ได้ */}
             <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
             <col style={{ width: "8%", minWidth: 94 }} />{/* สถานะ */}
@@ -49,10 +49,10 @@ export function QuotationTable({ rows, onView, pagination }: {
             <tr>
               <th>เลขที่</th>
               <th>รหัส</th>
-              <th>ตัวแทน</th>
+              <th>ดีลเลอร์</th>
               <th>ลูกค้า</th>
-              {/* จังหวัดของตัวแทนที่ออกใบ — ไม่ใช่จังหวัดลูกค้า (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง) */}
-              <th>จังหวัดตัวแทน</th>
+              {/* จังหวัดของดีลเลอร์ที่ออกใบ — ไม่ใช่จังหวัดลูกค้า (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง) */}
+              <th>จังหวัดดีลเลอร์</th>
               <th>ประเภทอาคาร</th>
               <th className="num">มูลค่า</th>
               <th>สถานะ</th>
@@ -78,7 +78,7 @@ export function QuotationTable({ rows, onView, pagination }: {
                   {/* ชื่อยาวตัด … — ใส่ title ให้ hover อ่านเต็มได้ (ชื่อเต็มอยู่ในลิ้นชักด้วย) */}
                   <td title={q.dealerName} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerName}</td>
                   <td title={q.customer} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.customer}</td>
-                  <td title={`จังหวัดของตัวแทน ${q.dealerName}`} style={{ color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerProvince}</td>
+                  <td title={`จังหวัดของดีลเลอร์ ${q.dealerName}`} style={{ color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerProvince}</td>
                   <td title={q.productLine} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.productLine}</td>
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>
                   <td>

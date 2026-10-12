@@ -3,7 +3,7 @@ import { hasPermission, ROLE_PERMISSIONS, type Permission } from "../../packages
 import type { UserRole } from "../../packages/shared/lib/mock";
 
 // สิทธิ์ต้อง "ตรงกับ RLS ที่ DB" — เทสต์นี้ล็อกกติกาธุรกิจหลักไว้ (Benjamin):
-//   ตัวแทน = เจ้าของงานขาย · HQ = ดูทั้งเครือ "แต่แก้งานขายไม่ได้" (บั๊ก C1/C3 ที่เคยเปิดปุ่มให้กดแล้ว DB ปฏิเสธ)
+//   ดีลเลอร์ = เจ้าของงานขาย · HQ = ดูทั้งเครือ "แต่แก้งานขายไม่ได้" (บั๊ก C1/C3 ที่เคยเปิดปุ่มให้กดแล้ว DB ปฏิเสธ)
 
 const HQ_ROLES: UserRole[] = ["SUPER_ADMIN", "HQ_MANAGEMENT", "HQ_STAFF"];
 const SALES_WRITE: Permission[] = [
@@ -13,7 +13,7 @@ const SALES_WRITE: Permission[] = [
 ];
 
 describe("hasPermission — พื้นฐาน", () => {
-  it("ตัวแทน (DEALER_ADMIN) สร้างลูกค้าเป้าหมายได้", () => {
+  it("ดีลเลอร์ (DEALER_ADMIN) สร้างลูกค้าเป้าหมายได้", () => {
     expect(hasPermission("DEALER_ADMIN", "leads:create")).toBe(true);
   });
   it("บทบาทที่ไม่รู้จัก → false (ไม่ throw)", () => {
@@ -39,7 +39,7 @@ describe("กติกาหลัก: HQ ทุกบทบาท 'แก้ง
 });
 
 describe("สิทธิ์ข้อมูลกลาง (can_write_master) = เฉพาะ SUPER_ADMIN / HQ_MANAGEMENT", () => {
-  it("SUPER_ADMIN + HQ_MANAGEMENT แก้แคตตาล็อก/จัดการตัวแทนได้", () => {
+  it("SUPER_ADMIN + HQ_MANAGEMENT แก้แคตตาล็อก/จัดการดีลเลอร์ได้", () => {
     for (const role of ["SUPER_ADMIN", "HQ_MANAGEMENT"] as UserRole[]) {
       expect(hasPermission(role, "catalog:edit")).toBe(true);
       expect(hasPermission(role, "dealers:manage")).toBe(true);
@@ -52,7 +52,7 @@ describe("สิทธิ์ข้อมูลกลาง (can_write_master) = 
     expect(hasPermission("HQ_STAFF", "dealers:manage")).toBe(false);
     expect(hasPermission("HQ_STAFF", "hq:all_data")).toBe(false);
   });
-  it("ตัวแทนจัดการตัวแทน/ข้อมูลกลางไม่ได้", () => {
+  it("ดีลเลอร์จัดการดีลเลอร์/ข้อมูลกลางไม่ได้", () => {
     expect(hasPermission("DEALER_ADMIN", "dealers:manage")).toBe(false);
     expect(hasPermission("DEALER_ADMIN", "catalog:edit")).toBe(false);
   });

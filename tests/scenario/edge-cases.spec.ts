@@ -2,10 +2,10 @@ import { test, expect } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, waitRow, cleanup, specNS, nsTag, เปิดฟอร์มตั้งตัวแทน, pickTemplate
+  db, waitRow, cleanup, specNS, nsTag, เปิดฟอร์มตั้งดีลเลอร์, pickTemplate
 } from "./funcHelpers";
 
-// ลบตัวแทน "พร้อมบัญชี auth" ผ่าน route (service_role) — เหมือน func-hq.spec.ts (purgeDealerAccount)
+// ลบดีลเลอร์ "พร้อมบัญชี auth" ผ่าน route (service_role) — เหมือน func-hq.spec.ts (purgeDealerAccount)
 // test harness ไม่ถือ service_role เอง จึงต้องผ่าน DELETE /api/admin/dealers เพื่อลบทั้งบัญชี auth+แถว
 async function purgeDealerAccount(code: string) {
   const sb = await db(ADMIN);
@@ -39,7 +39,7 @@ test.describe.configure({ mode: "serial" });
 const NS = specNS("EDGE");
 const tg = nsTag(NS);
 
-const NEW_DEALER_CODE = "ZZEDG"; // รหัสตัวแทนทดสอบเฉพาะไฟล์นี้ (แยกจาก func-hq.spec.ts กันชน) — ต้อง A–Z 2–5 ตัว
+const NEW_DEALER_CODE = "ZZEDG"; // รหัสดีลเลอร์ทดสอบเฉพาะไฟล์นี้ (แยกจาก func-hq.spec.ts กันชน) — ต้อง A–Z 2–5 ตัว
 
 test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); await purgeDealerAccount(NEW_DEALER_CODE); });
 test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); await purgeDealerAccount(NEW_DEALER_CODE); });
@@ -317,15 +317,15 @@ test("[edge] แก้ 'มูลค่า' ลูกค้าเป้าหม
   }
 });
 
-test("[edge·hq] กดปุ่ม 'สร้างตัวแทน' ซ้ำเร็ว ๆ → สร้างตัวแทนแค่ 1 ราย ไม่ซ้ำ (ไม่มีบัญชี auth กำพร้า)", async ({ page }) => {
+test("[edge·hq] กดปุ่ม 'สร้างดีลเลอร์' ซ้ำเร็ว ๆ → สร้างดีลเลอร์แค่ 1 ราย ไม่ซ้ำ (ไม่มีบัญชี auth กำพร้า)", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
 
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-  // ตัวแทนต้องมาจากลูกค้าเป้าหมาย (บอสสั่ง 14 ก.ย. 69) — กดรัวที่ปุ่ม "สร้างตัวแทนจำหน่าย" ของเส้นทางใหม่
-  const ตั้ง = await เปิดฟอร์มตั้งตัวแทน(page, NEW_DEALER_CODE, tg("ตัวแทนกดซ้ำ"));
+  // ดีลเลอร์ต้องมาจากลูกค้าเป้าหมาย (บอสสั่ง 14 ก.ย. 69) — กดรัวที่ปุ่ม "สร้างดีลเลอร์" ของเส้นทางใหม่
+  const ตั้ง = await เปิดฟอร์มตั้งดีลเลอร์(page, NEW_DEALER_CODE, tg("ดีลเลอร์กดซ้ำ"));
 
-  const saveBtn = ตั้ง.getByRole("button", { name: "สร้างตัวแทนจำหน่าย" });
+  const saveBtn = ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" });
   await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
   const btnHandle = await saveBtn.elementHandle();
   await page.evaluate((el) => {
@@ -337,15 +337,15 @@ test("[edge·hq] กดปุ่ม 'สร้างตัวแทน' ซ้�
   // โดยตรงแล้ว (0091_dealers_revoke_table_grant) แอปจริงก็อ่านผ่าน view นี้เท่านั้นเหมือนกัน
   await waitRow(sb, "dealers_directory", { code: NEW_DEALER_CODE }, 25_000);
   await page.waitForTimeout(3000); // เผื่อเวลาให้คำขอซ้ำ (ถ้ามี) ไปถึง DB/สร้าง auth user ซ้ำก่อนนับ
-  // ไม่เรียก assertNoErrors ตรงนี้ — คำขอที่ 2-5 "ควร" โดนปฏิเสธด้วย 400 (รหัสตัวแทนซ้ำ) นี่คือพฤติกรรม
+  // ไม่เรียก assertNoErrors ตรงนี้ — คำขอที่ 2-5 "ควร" โดนปฏิเสธด้วย 400 (รหัสดีลเลอร์ซ้ำ) นี่คือพฤติกรรม
   // ที่ถูกต้อง (มี unique constraint กันไว้ที่ระดับเซิร์ฟเวอร์แล้ว ต่างจากฟอร์มเพิ่มลูกค้าเป้าหมาย/ลูกค้าที่ไม่มี
   // การกันชนธรรมชาติแบบนี้) สิ่งที่ต้องยืนยันจริงคือ "จำนวนแถวสุดท้าย" ต้องเป็น 1 เท่านั้น ไม่ใช่ "ไม่มี error เลย"
   const dup400s = errs.filter(e => e.includes("[http 400]") && e.includes("/api/admin/dealers")).length;
-  console.log(`[info] คำขอสร้างตัวแทนที่ถูกปฏิเสธเพราะรหัสซ้ำ (พฤติกรรมที่ถูกต้อง): ${dup400s} ครั้ง`);
+  console.log(`[info] คำขอสร้างดีลเลอร์ที่ถูกปฏิเสธเพราะรหัสซ้ำ (พฤติกรรมที่ถูกต้อง): ${dup400s} ครั้ง`);
 
   const { data: dealerRows, error: dErr } = await sb.from("dealers_directory").select("code").eq("code", NEW_DEALER_CODE);
   if (dErr) throw new Error(dErr.message);
-  expect(dealerRows?.length, `จำนวนแถวตัวแทนที่สร้างจริงจากรหัส ${NEW_DEALER_CODE}`).toBe(1);
+  expect(dealerRows?.length, `จำนวนแถวดีลเลอร์ที่สร้างจริงจากรหัส ${NEW_DEALER_CODE}`).toBe(1);
 
   // เช็คบัญชี auth ไม่กำพร้าซ้ำ — นับจาก profiles ที่ผูกกับรหัสสาขานี้ (สร้างคู่กับ auth user เสมอ)
   const { data: profileRows, error: pErr } = await sb.from("profiles").select("id").eq("dealer_code", NEW_DEALER_CODE);
@@ -380,7 +380,7 @@ test("[edge·hq] กดปุ่ม 'บันทึก' (เพิ่มผู�
   // profiles ไม่มีคอลัมน์ email (อยู่ที่ auth.users เท่านั้น) จับคู่ด้วย name (ติดแท็กไม่ซ้ำ) แทน
   await waitRow(sb, "profiles", { name: NAME }, 25_000);
   await page.waitForTimeout(3000); // เผื่อเวลาให้คำขอซ้ำ (ถ้ามี) ไปถึง DB ก่อนนับ
-  // เช่นเดียวกับตัวแทน — อีเมลควรมี unique constraint ตามธรรมชาติที่ระดับ auth อยู่แล้ว
+  // เช่นเดียวกับดีลเลอร์ — อีเมลควรมี unique constraint ตามธรรมชาติที่ระดับ auth อยู่แล้ว
   // สิ่งที่ต้องยืนยันจริงคือ "จำนวนบัญชีสุดท้าย" ต้องเป็น 1 เท่านั้น
 
   const { data: profileRows, error: pErr } = await sb.from("profiles").select("id").eq("name", NAME);

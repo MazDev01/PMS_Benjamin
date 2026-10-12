@@ -6,7 +6,7 @@ import { settle } from "./helpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 
 // ── Multi-Dealer Load / Stress Test ──────────────────────────────────────────
-// จำลอง 10 ตัวแทนใช้งานพร้อมกันจริง (บัญชี auth จริง ไม่ใช่ mock) + HQ ติดตามแบบเรียลไทม์
+// จำลอง 10 ดีลเลอร์ใช้งานพร้อมกันจริง (บัญชี auth จริง ไม่ใช่ mock) + HQ ติดตามแบบเรียลไทม์
 // ทุกขั้นตอนตามที่ขอ: เพิ่ม/แก้ไข/ค้นหาลูกค้า → สร้างใบเสนอราคา → เปลี่ยนสถานะ → ปิดการขายสำเร็จ/ไม่สำเร็จ
 //   → แนบไฟล์ + บันทึกหมายเหตุ — ทำพร้อมกันทั้ง 10 บัญชี แล้วตรวจว่าไม่มีข้อมูลปนกัน/เลขซ้ำ/ระบบค้าง
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
@@ -14,7 +14,7 @@ test.setTimeout(600_000);
 
 const N = 10;
 const TAG = "ZZLOAD";
-// รหัสตัวแทนต้องเป็น A–Z ล้วน 2–5 ตัว (0091_dealers_revoke_table_grant + validation ฝั่งเซิร์ฟเวอร์)
+// รหัสดีลเลอร์ต้องเป็น A–Z ล้วน 2–5 ตัว (0091_dealers_revoke_table_grant + validation ฝั่งเซิร์ฟเวอร์)
 const CODES = ["ZZLA","ZZLB","ZZLC","ZZLD","ZZLE","ZZLF","ZZLG","ZZLH","ZZLI","ZZLJ"].slice(0, N);
 
 type Provisioned = { code: string; email: string; password: string };
@@ -37,10 +37,10 @@ async function provisionDealer(token: string, code: string): Promise<Provisioned
   const res = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify({ code, name: `${TAG}-ตัวแทน-${code}`, province: "ทดสอบโหลด", region: "กลาง", revenueTarget: 0, status: "active", prospectId: await ลูกค้าเป้าหมายรองรับสาขา(code) }),
+    body: JSON.stringify({ code, name: `${TAG}-ดีลเลอร์-${code}`, province: "ทดสอบโหลด", region: "กลาง", revenueTarget: 0, status: "active", prospectId: await ลูกค้าเป้าหมายรองรับสาขา(code) }),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) { console.log(`[setup] สร้างตัวแทน ${code} ไม่สำเร็จ: ${JSON.stringify(json)}`); return null; }
+  if (!res.ok) { console.log(`[setup] สร้างดีลเลอร์ ${code} ไม่สำเร็จ: ${JSON.stringify(json)}`); return null; }
   // เทสต์นี้ไม่ได้ทดสอบหน้าตั้งรหัสครั้งแรก — ปลดไว้ ไม่งั้นทุกหน้าติดอยู่ที่หน้านั้น
   await (await import("./firstLogin")).ข้ามตั้งรหัสครั้งแรก(json.email);
   return { code, email: json.email, password: json.password };
@@ -51,14 +51,14 @@ const COOKIE_AUTH = appEnv("NEXT_PUBLIC_DATA_SOURCE") === "api";   // ใบผ�
 async function openAsDealer(context: BrowserContext, dealer: Provisioned): Promise<{ page: Page; sb: SupabaseClient }> {
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await sb.auth.signInWithPassword({ email: dealer.email, password: dealer.password });
-  if (error || !data.session) throw new Error(`ล็อกอินตัวแทน ${dealer.code} ไม่ผ่าน: ${error?.message}`);
+  if (error || !data.session) throw new Error(`ล็อกอินดีลเลอร์ ${dealer.code} ไม่ผ่าน: ${error?.message}`);
   const page = await context.newPage();
   // ระยะ 4: โหมด api เก็บใบผ่านใน cookie httpOnly — ยัด localStorage ไม่มีผล ต้องล็อกอินผ่าน backend
   if (COOKIE_AUTH) {
     const r = await context.request.post(`${DEALER_ORIGIN}/api/v1/auth?op=login`, {
       data: { email: dealer.email, password: dealer.password },
     });
-    if (!r.ok()) throw new Error(`ล็อกอินตัวแทน ${dealer.code} ผ่าน backend ไม่ผ่าน: ${r.status()}`);
+    if (!r.ok()) throw new Error(`ล็อกอินดีลเลอร์ ${dealer.code} ผ่าน backend ไม่ผ่าน: ${r.status()}`);
   } else {
     await page.addInitScript(({ key, session }) => { localStorage.setItem(key, JSON.stringify(session)); },
       { key: SESSION_KEY, session: data.session });
@@ -66,7 +66,7 @@ async function openAsDealer(context: BrowserContext, dealer: Provisioned): Promi
   return { page, sb };
 }
 
-// ── ขั้นตอนงานของตัวแทนหนึ่งราย: เพิ่มลูกค้า → แก้ไข → ค้นหา → สร้างใบเสนอราคา
+// ── ขั้นตอนงานของดีลเลอร์หนึ่งราย: เพิ่มลูกค้า → แก้ไข → ค้นหา → สร้างใบเสนอราคา
 //    → ส่ง → ปิดการขาย(สำเร็จ/ไม่สำเร็จ) → แนบไฟล์ → บันทึกหมายเหตุ ──
 async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willWin: boolean, timings: Record<string, number>) {
   const COMPANY = `${TAG}-ลูกค้า-${code}`;
@@ -213,17 +213,17 @@ test.beforeAll(async () => {
 //    ขั้นอื่นในไฟล์นี้ยืดเวลาไว้อยู่แล้ว (30-45 วินาที) เหลือแต่การกดที่ยังใช้ค่าเริ่มต้น
 test.use({ actionTimeout: 30_000 });
 
-test("[stress] เตรียม 10 บัญชีตัวแทนจริง (auth+dealer) สำหรับทดสอบโหลด", async () => {
+test("[stress] เตรียม 10 บัญชีดีลเลอร์จริง (auth+dealer) สำหรับทดสอบโหลด", async () => {
   for (const code of CODES) {
     const p = await provisionDealer(adminTok, code);
-    expect(p, `ต้องสร้างบัญชีตัวแทน ${code} ได้`).not.toBeNull();
+    expect(p, `ต้องสร้างบัญชีดีลเลอร์ ${code} ได้`).not.toBeNull();
     if (p) provisioned.push(p);
   }
-  expect(provisioned.length, "ต้องสร้างตัวแทนได้ครบตามจำนวนที่ขอ").toBe(N);
+  expect(provisioned.length, "ต้องสร้างดีลเลอร์ได้ครบตามจำนวนที่ขอ").toBe(N);
 });
 
-test("[stress] 10 ตัวแทนทำงานพร้อมกันเต็มวงจร + HQ เห็นข้อมูลอัปเดตจริง", async ({ browser }) => {
-  expect(provisioned.length, "ต้องมีตัวแทนที่เตรียมไว้ก่อนหน้า").toBe(N);
+test("[stress] 10 ดีลเลอร์ทำงานพร้อมกันเต็มวงจร + HQ เห็นข้อมูลอัปเดตจริง", async ({ browser }) => {
+  expect(provisioned.length, "ต้องมีดีลเลอร์ที่เตรียมไว้ก่อนหน้า").toBe(N);
 
   // ── HQ baseline (ก่อนเริ่ม) ──
   const { sb: hqSb } = await adminToken();
@@ -259,18 +259,18 @@ test("[stress] 10 ตัวแทนทำงานพร้อมกันเ�
     provisioned.map((d, i) => {
       const errs = watchErrors(sessions[i].page);
       return runDealerFlow(sessions[i].page, sessions[i].sb, d.code, i % 2 === 0, timings)
-        .then(() => assertNoErrors(errs, `ตัวแทน ${d.code}`));
+        .then(() => assertNoErrors(errs, `ดีลเลอร์ ${d.code}`));
     })
   );
   const elapsedSec = (Date.now() - started) / 1000;
-  console.log(`[stress] 10 ตัวแทนทำงานพร้อมกันเสร็จภายใน ${elapsedSec.toFixed(1)} วินาที`);
+  console.log(`[stress] 10 ดีลเลอร์ทำงานพร้อมกันเสร็จภายใน ${elapsedSec.toFixed(1)} วินาที`);
   console.log(`[stress] timings: ${JSON.stringify(timings, null, 1)}`);
 
   const failed = results.map((r, i) => ({ r, code: provisioned[i].code })).filter(x => x.r.status === "rejected");
   if (failed.length) {
     for (const f of failed) console.log(`[stress] ${f.code} ล้มเหลว: ${(f.r as PromiseRejectedResult).reason}`);
   }
-  expect(failed.length, `ตัวแทนที่ทำงานไม่สำเร็จ: ${failed.map(f => f.code).join(",")}`).toBe(0);
+  expect(failed.length, `ดีลเลอร์ที่ทำงานไม่สำเร็จ: ${failed.map(f => f.code).join(",")}`).toBe(0);
 
   // ── ตรวจความถูกต้องของข้อมูลหลังจบ — ไม่มีข้อมูลปนกันข้ามสาขา ──
   const staleTotals: string[] = [];
@@ -312,13 +312,13 @@ test("[stress] 10 ตัวแทนทำงานพร้อมกันเ�
 });
 
 test.afterAll(async () => {
-  // เก็บกวาดข้อมูลของแต่ละสาขา "ในฐานะตัวแทนเจ้าของ" (HQ เขียน/ลบข้อมูลขายตรงไม่ได้ตาม RLS)
-  // แล้วค่อยลบบัญชีตัวแทน+auth ผ่าน route (route เองก็บังคับให้ข้อมูลว่างก่อนถึงจะลบแถวได้)
+  // เก็บกวาดข้อมูลของแต่ละสาขา "ในฐานะดีลเลอร์เจ้าของ" (HQ เขียน/ลบข้อมูลขายตรงไม่ได้ตาม RLS)
+  // แล้วค่อยลบบัญชีดีลเลอร์+auth ผ่าน route (route เองก็บังคับให้ข้อมูลว่างก่อนถึงจะลบแถวได้)
   //
   // เคยพบ (พบจาก Final Acceptance run): cleanup() ลบ leads/quotations/appointments/files/notes ครบ
   // แต่บางครั้ง "customers" เหลือ 1 แถวเงียบ ๆ (ไม่ throw — DELETE แค่ไม่โดนแถวตามเงื่อนไข RLS ชั่วขณะ
-  // เป็นครั้งคราว) → purgeDealer ตามมาเจอ 409 (ยังมีข้อมูล) แล้ว catch เงียบทิ้ง เหลือตัวแทนผีค้างให้รันรอบ
-  // ถัดไปชนรหัสซ้ำ (provisionDealer คืน null ทันทีตั้งแต่ตัวแรก) — เช็กซ้ำ + retry ครั้งเดียวกันไว้ก่อนลบตัวแทน
+  // เป็นครั้งคราว) → purgeDealer ตามมาเจอ 409 (ยังมีข้อมูล) แล้ว catch เงียบทิ้ง เหลือดีลเลอร์ผีค้างให้รันรอบ
+  // ถัดไปชนรหัสซ้ำ (provisionDealer คืน null ทันทีตั้งแต่ตัวแรก) — เช็กซ้ำ + retry ครั้งเดียวกันไว้ก่อนลบดีลเลอร์
   //
   // ทำทีละคนตามลำดับ (for-loop เดิม) ช้าเกิน afterAll timeout ของ Playwright (30s) พอมี 10 คน ×
   // sign-in+cleanup+verify+purge ต่อคน — เปลี่ยนเป็นขนานทั้ง 10 คนพร้อมกันเหมือน test หลักที่ใช้ Promise.all

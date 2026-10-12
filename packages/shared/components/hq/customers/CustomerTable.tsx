@@ -48,8 +48,8 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
         <colgroup>
           <col style={{ width: "7%", minWidth: 92 }} />{/* รหัสลูกค้า */}
           <col style={{ width: "15%", minWidth: 148 }} />{/* ลูกค้า — ยาวเกินตัด + tooltip */}
-          <col style={{ width: "5%", minWidth: 60 }} />{/* รหัสตัวแทน */}
-          <col style={{ width: "12%", minWidth: 130 }} />{/* ชื่อตัวแทน */}
+          <col style={{ width: "5%", minWidth: 60 }} />{/* รหัสดีลเลอร์ */}
+          <col style={{ width: "12%", minWidth: 130 }} />{/* ชื่อดีลเลอร์ */}
           <col style={{ width: "8%", minWidth: 84 }} />{/* จังหวัด */}
           <col style={{ width: "7%", minWidth: 76 }} />{/* ภาค */}
           <col style={{ width: "10%", minWidth: 104 }} />{/* ประเภทอาคาร */}
@@ -63,7 +63,7 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
             <th>รหัสลูกค้า</th>
             <th>ลูกค้า</th>
             <th style={{ paddingRight: 0 }}>รหัส</th>
-            <th style={{ paddingLeft: 8 }}>ชื่อตัวแทน</th>
+            <th style={{ paddingLeft: 8 }}>ชื่อดีลเลอร์</th>
             <th>จังหวัด</th>
             <th>ภาค</th>
             <th>ประเภทอาคาร</th>

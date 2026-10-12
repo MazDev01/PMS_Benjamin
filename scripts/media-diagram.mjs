@@ -13,12 +13,12 @@ const html = `<!doctype html><meta charset="utf-8">
  .tag{display:inline-block;font-size:12px;background:#e0e7ff;color:#3730a3;border-radius:999px;padding:2px 10px;margin:3px 2px}
 </style>
 <div class="row">
-  <div class="box"><b>ผู้ใช้ฝั่งตัวแทน</b><span>เบราว์เซอร์ / มือถือ</span></div>
+  <div class="box"><b>ผู้ใช้ฝั่งดีลเลอร์</b><span>เบราว์เซอร์ / มือถือ</span></div>
   <div class="box"><b>ผู้ใช้สำนักงานใหญ่</b><span>เบราว์เซอร์</span></div>
 </div>
 <div class="arrow">▼</div>
 <div class="row">
-  <div class="box"><b>เว็บตัวแทน</b><span>dealerpms.benjaminpebsteel.com<br>12 หน้า</span></div>
+  <div class="box"><b>เว็บดีลเลอร์</b><span>dealerpms.benjaminpebsteel.com<br>12 หน้า</span></div>
   <div class="box"><b>เว็บสำนักงานใหญ่</b><span>pms.benjaminpebsteel.com<br>13 หน้า</span></div>
 </div>
 <div class="arrow">▼ &nbsp; ทุกคำขอผ่านการตรวจสิทธิ์ &nbsp; ▼</div>

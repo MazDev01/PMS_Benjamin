@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-// กติกาบัญชีตัวแทน (โหมดเดโม): แก้เอง 2 ครั้ง · ครั้งที่ 3 เป็นคำขอที่ต้องรออนุมัติ
+// กติกาบัญชีดีลเลอร์ (โหมดเดโม): แก้เอง 2 ครั้ง · ครั้งที่ 3 เป็นคำขอที่ต้องรออนุมัติ
 // ทดสอบตรรกะจริงของ accountLocal — ไม่ mock กติกา ไม่งั้นเทสต์ผ่านทั้งที่ของจริงพัง
 
 class MemStorage {
@@ -25,7 +25,7 @@ const { accountLocal, SELF_CHANGE_LIMIT, localDealerPassword, localDealerEmail }
 const CODE = "TST";
 const เดิม = "benjamin";   // รหัสกลางของชุดตัวอย่าง — ต้องตรงกับหน้าเข้าสู่ระบบ (auth.ts)
 
-describe("บัญชีตัวแทนแก้เอง", () => {
+describe("บัญชีดีลเลอร์แก้เอง", () => {
   beforeEach(() => store.clear());
 
   it("รหัสผ่านปัจจุบันผิด = เปลี่ยนไม่ได้", async () => {

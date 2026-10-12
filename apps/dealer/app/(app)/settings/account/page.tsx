@@ -1,6 +1,6 @@
 "use client";
 
-// ── หน้าจัดการบัญชีเข้าระบบของตัวแทน (แยกจากหน้าตั้งค่ารวม) ──────────────────────
+// ── หน้าจัดการบัญชีเข้าระบบของดีลเลอร์ (แยกจากหน้าตั้งค่ารวม) ──────────────────────
 //
 // ทำไมต้องแยกหน้า (บอสสั่ง 28 ส.ค. 69):
 //   การเปลี่ยนอีเมล/รหัสผ่านคือการแตะ "กุญแจเข้าระบบ" ไม่ใช่ข้อมูลบริษัททั่วไป
@@ -61,7 +61,7 @@ export default function DealerAccountPage() {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#fff" }}>บัญชีเข้าสู่ระบบ</div>
             <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,.72)", marginTop: 3 }}>
-              {session.dealerName ?? ""} · รหัสตัวแทน {session.dealerCode}
+              {session.dealerName ?? ""} · รหัสดีลเลอร์ {session.dealerCode}
             </div>
           </div>
         </div>

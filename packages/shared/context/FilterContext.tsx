@@ -99,7 +99,7 @@ function buildTimeRange(preset: TimePreset, customStart?: string, customEnd?: st
 
 // ── Option lists ──
 // ย้ายไป lib/useFilterOptions.ts แล้ว — เดิมคำนวณจากชุด seed ตอน import โมดูล
-// ทำให้โหมด supabase เห็นตัวแทน/จังหวัด/ผู้รับผิดชอบที่ไม่มีอยู่จริง (ห้ามกุข้อมูล)
+// ทำให้โหมด supabase เห็นดีลเลอร์/จังหวัด/ผู้รับผิดชอบที่ไม่มีอยู่จริง (ห้ามกุข้อมูล)
 
 // ── Filter state ──
 export type FilterDim = "dealer" | "province" | "product" | "status" | "person";

@@ -69,7 +69,7 @@ async function tokenOf(sb: SupabaseClient): Promise<string> {
   return (await sb.auth.getSession()).data.session?.access_token ?? "";
 }
 
-test("[role] HQ_MANAGEMENT — ดูงานขายทั้งเครือได้ · แก้ข้อมูลกลางได้ · แก้งานขายของตัวแทนไม่ได้", async () => {
+test("[role] HQ_MANAGEMENT — ดูงานขายทั้งเครือได้ · แก้ข้อมูลกลางได้ · แก้งานขายของดีลเลอร์ไม่ได้", async () => {
   const sb = await signIn("HQ_MANAGEMENT");
 
   // claim ที่ออกให้ต้องตรงกับบทบาทจริง — ถ้าไม่ตรง RLS ทั้งระบบจะตัดสินผิดหมด
@@ -95,7 +95,7 @@ test("[role] HQ_MANAGEMENT — ดูงานขายทั้งเครื�
   expect(upd.data?.length, "ต้องแก้ได้จริง 1 แถว").toBe(1);
   await svc.from("master_catalog").update({ name: seed!.name }).eq("id", seed!.id);   // คืนค่าเดิม
 
-  // แก้งานขายของตัวแทนไม่ได้ — เส้นแบ่งหลักของระบบ (HQ กำกับดูแล ไม่ใช่เจ้าของงานขาย)
+  // แก้งานขายของดีลเลอร์ไม่ได้ — เส้นแบ่งหลักของระบบ (HQ กำกับดูแล ไม่ใช่เจ้าของงานขาย)
   const w = await sb.from("leads").update({ company: "ห้ามแก้ได้" }).eq("dealer_code", "RYG").select();
   expect(w.error ? "ถูกปฏิเสธ" : (w.data?.length ? `⚠ แก้ได้ ${w.data.length} แถว` : "ไม่โดนแถวไหน"))
     .not.toContain("⚠");
@@ -127,7 +127,7 @@ test("[role] HQ_STAFF — ดูงานขายทั้งเครือไ
   expect(pol.error ? 0 : (pol.data?.length ?? 0), "HQ_STAFF ต้องแก้นโยบายเครือไม่ได้").toBe(0);
 });
 
-test("[role] HQ_STAFF เรียก API จัดการตัวแทน/ผู้ใช้ ต้องถูกปฏิเสธ (ไม่ใช่แค่ซ่อนปุ่มบนหน้าจอ)", async () => {
+test("[role] HQ_STAFF เรียก API จัดการดีลเลอร์/ผู้ใช้ ต้องถูกปฏิเสธ (ไม่ใช่แค่ซ่อนปุ่มบนหน้าจอ)", async () => {
   const sb = await signIn("HQ_STAFF");
   const tok = await tokenOf(sb);
 
@@ -135,7 +135,7 @@ test("[role] HQ_STAFF เรียก API จัดการตัวแทน/�
     method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
     body: JSON.stringify({ code: "ZZRL", name: `${NS}-สาขา`, province: "ทดสอบ", region: "กลาง", revenueTarget: 0, status: "active" }),
   });
-  expect(mk.status, `HQ_STAFF สร้างตัวแทนไม่ได้ (ได้ ${mk.status})`).toBe(403);
+  expect(mk.status, `HQ_STAFF สร้างดีลเลอร์ไม่ได้ (ได้ ${mk.status})`).toBe(403);
 
   const usr = await fetch(`${HQ_ORIGIN}/api/admin/users`, {
     method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
@@ -144,7 +144,7 @@ test("[role] HQ_STAFF เรียก API จัดการตัวแทน/�
   expect(usr.status, `HQ_STAFF สร้างผู้ใช้ไม่ได้ (ได้ ${usr.status})`).toBe(403);
 
   const logins = await fetch(`${HQ_ORIGIN}/api/admin/dealers/logins`, { headers: { authorization: `Bearer ${tok}` } });
-  expect(logins.status, `HQ_STAFF ดูอีเมลเข้าระบบของตัวแทนไม่ได้ (ได้ ${logins.status})`).toBe(403);
+  expect(logins.status, `HQ_STAFF ดูอีเมลเข้าระบบของดีลเลอร์ไม่ได้ (ได้ ${logins.status})`).toBe(403);
 
   // ต้องไม่มีสาขาผีเกิดขึ้นจากคำขอที่ถูกปฏิเสธ
   const { data } = await svc.from("dealers").select("code").eq("code", "ZZRL");

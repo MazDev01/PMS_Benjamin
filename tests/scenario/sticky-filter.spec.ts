@@ -3,7 +3,7 @@ import { open } from "./helpers";
 
 // แถบตัวกรองติดหนึบต้องค้างอยู่ "ใต้" แถบบนตอนเลื่อน ไม่มุดไปซ่อนข้างใต้ (บอสทัก 22 ก.ย. 69)
 //   เดิม top:8px วัดจากขอบบนของตัวที่เลื่อน ขณะที่แถบบน (sticky สูง 64px) อยู่ในตัวเดียวกัน → โดนบังเกือบทั้งแถบ
-for (const [ชื่อ, path] of [["ตัวแทนจำหน่าย", "/hq/dealers"], ["ใบเสนอราคาทั้งเครือ", "/hq/quotations"]] as const) {
+for (const [ชื่อ, path] of [["ดีลเลอร์", "/hq/dealers"], ["ใบเสนอราคาทั้งเครือ", "/hq/quotations"]] as const) {
   test(`[ui·hq] แถบตัวกรองหน้า${ชื่อ} ค้างใต้แถบบนตอนเลื่อน`, async ({ page }) => {
     await open(page, "hq", path);
     const แถบกรอง = page.locator(".hq-sticky-filter").first();

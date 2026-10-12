@@ -30,7 +30,7 @@ for (const s of ["QUOTED", "NEGO", "PAID"]) {
 console.log("  สรุป: ถ้าเปลี่ยนได้ทุกขั้น = กฎอยู่แค่บนหน้าจอ ข้ามได้ด้วยการยิง API ตรง");
 
 console.log("");
-console.log("=== กฎ: ตัวแทนสร้างลูกค้าเองไม่ได้ (ต้องเกิดจากปิดการขายเท่านั้น) ===");
+console.log("=== กฎ: ดีลเลอร์สร้างลูกค้าเองไม่ได้ (ต้องเกิดจากปิดการขายเท่านั้น) ===");
 const c = await api("POST", "/api/v1/customers", { id: 991999001, dealerCode: "RYG", name: TAG + "-สร้างเอง",
   company: TAG + "-สร้างเอง", province: "ระยอง", phone: "0800000000", status: "active", joinDate: "2026-08-27", totalValue: 0 });
 console.log("  POST /api/v1/customers → " + c.s + " " + c.t.slice(0, 120));

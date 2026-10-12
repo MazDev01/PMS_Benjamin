@@ -31,7 +31,7 @@ for (const origin of ["http://localhost:3001", "http://localhost:3002"]) {
 
 // แต่ละคลิป = เดินหน้าจอตามลำดับที่คนดูควรเห็น (หยุดค้างให้อ่านทันด้วย)
 const คลิป = [
-  { ชื่อ: "1-ตัวแทน-ขายตั้งแต่ลีดถึงใบเสนอราคา", ผู้ใช้: "ryg", ฐาน: "http://localhost:3001",
+  { ชื่อ: "1-ดีลเลอร์-ขายตั้งแต่ลีดถึงใบเสนอราคา", ผู้ใช้: "ryg", ฐาน: "http://localhost:3001",
     ทาง: ["/dashboard", "/leads", "/quotations", "/customers", "/calendar"] },
   { ชื่อ: "2-สำนักงานใหญ่-ภาพรวมทั้งเครือ", ผู้ใช้: "admin", ฐาน: "http://localhost:3002",
     ทาง: ["/hq/dashboard", "/hq/pipeline", "/hq/quotations", "/hq/dealers", "/hq/master"] },

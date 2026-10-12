@@ -3,11 +3,11 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 
-// ── หน้ารวม "ใบเสนอแพ็กเกจตัวแทน" ของสำนักงานใหญ่ ──
-//   บอสสั่ง 14 ก.ย. 69: "ทำหน้า ใบเสนอแพ็กเกจ ด้วย" · "ให้มีการแสดงในหน้าเดียวแบบดีลเลอร์"
-//                      "ใบเสนอแพ็กเกจตัวแทนมันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
+// ── หน้ารวม "ใบค่าแฟรนไชส์" ของสำนักงานใหญ่ ──
+//   บอสสั่ง 14 ก.ย. 69: "ทำหน้า ใบค่าแฟรนไชส์ ด้วย" · "ให้มีการแสดงในหน้าเดียวแบบดีลเลอร์"
+//                      "ใบค่าแฟรนไชส์มันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
 //
-// สิ่งที่ต้องพิสูจน์ (ทุกอย่างจบในหน้าเดียว แบบหน้าใบเสนอราคาของตัวแทน):
+// สิ่งที่ต้องพิสูจน์ (ทุกอย่างจบในหน้าเดียว แบบหน้าใบเสนอราคาของดีลเลอร์):
 //   1) เห็นใบในตาราง · ค้นหา/กรอง · ปุ่มดูเปิดแผงรายละเอียด · เปลี่ยนสถานะในแผงได้ · ลิงก์ไปลูกค้าเป้าหมาย
 //   2) ออกใบใหม่: เลือกลูกค้าเป้าหมายในฟอร์มเดียว → ได้ใบร่าง → แผงเปิดให้ → กดส่งแล้ว (ขั้นลูกค้าเป้าหมายเลื่อนเอง)
 //   3) ปุ่มในแถว: แก้ไข/ลบใบร่างได้ · ใบที่ส่งแล้วปุ่มแก้/ลบกดไม่ได้
@@ -25,7 +25,7 @@ async function cleanup() {
 test.beforeAll(cleanup);
 test.afterAll(cleanup);
 
-test("[func·hq] หน้าใบเสนอแพ็กเกจ: ตาราง · ค้นหา/กรอง · แผงรายละเอียด · ตอบรับในแผง · ลิงก์ไปลูกค้าเป้าหมาย", async ({ page }) => {
+test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาราง · ค้นหา/กรอง · แผงรายละเอียด · ตอบรับในแผง · ลิงก์ไปลูกค้าเป้าหมาย", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-มีใบส่งแล้ว`;
@@ -40,10 +40,10 @@ test("[func·hq] หน้าใบเสนอแพ็กเกจ: ตาร�
   expect((await sb.from("dealer_package_proposals").update({ status: "sent" }).eq("id", ใบId)).error).toBeNull();
 
   await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
-  await expect(page.getByRole("link", { name: "ใบเสนอแพ็กเกจตัวแทน" }), "ต้องมีเมนูข้าง").toBeVisible({ timeout: 25_000 });
+  await expect(page.getByRole("link", { name: "ใบค่าแฟรนไชส์" }), "ต้องมีเมนูข้าง").toBeVisible({ timeout: 25_000 });
 
   // ค้นก่อนเสมอ — ตารางแบ่งหน้าละ 10 ใบ ข้อมูลของเทสต์อื่นอาจดันใบนี้ไปหน้าถัดไป
-  await page.getByLabel("ค้นหาใบเสนอแพ็กเกจ").fill(name);
+  await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
   const แถว = page.getByRole("row", { name: new RegExp(เลขที่) });
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await expect(แถว).toContainText(name);
@@ -61,7 +61,7 @@ test("[func·hq] หน้าใบเสนอแพ็กเกจ: ตาร�
 
   // ปุ่มดู → แผงรายละเอียดกลางจอ · ข้อมูลครบ · ตอบรับได้ในแผงเลย
   await page.getByRole("button", { name: `ดูใบ ${เลขที่}` }).click();
-  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบเสนอแพ็กเกจ" });
+  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
   await expect(แผง.getByText(เลขที่)).toBeVisible();
   await expect(แผง).toContainText("24 เดือน (2 ปี)");
   await expect(แผง).toContainText("฿3,000,000");
@@ -76,7 +76,7 @@ test("[func·hq] หน้าใบเสนอแพ็กเกจ: ตาร�
   const รายละเอียด = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
   await expect(รายละเอียด.locator("#pr-name"), "ต้องเปิดแผงของรายที่กดมา").toHaveValue(name, { timeout: 25_000 });
   await expect(page, "ล้างพารามิเตอร์แล้ว รีเฟรชไม่เปิดซ้ำ").not.toHaveURL(/open=/);
-  assertNoErrors(errs, "หน้าใบเสนอแพ็กเกจตัวแทน");
+  assertNoErrors(errs, "หน้าใบค่าแฟรนไชส์");
 });
 
 test("[func·hq] ออกใบในฟอร์มเดียว (เลือกลูกค้าเป้าหมายในฟอร์ม) → ใบร่าง → กดส่งแล้วในแผง → ขั้นลูกค้าเป้าหมายเลื่อนเอง", async ({ page }) => {
@@ -88,8 +88,8 @@ test("[func·hq] ออกใบในฟอร์มเดียว (เลื�
   const prospectId = (pr as { id: number }).id;
 
   await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
-  await page.getByRole("button", { name: "ออกใบเสนอแพ็กเกจ" }).first().click({ timeout: 25_000 });
-  const ฟอร์ม = page.getByRole("dialog", { name: "ใบเสนอแพ็กเกจตัวแทน", exact: true });
+  await page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).first().click({ timeout: 25_000 });
+  const ฟอร์ม = page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์", exact: true });
   await expect(ฟอร์ม, "กดปุ่มเดียวได้ฟอร์มเลย ไม่มีกล่องเลือกรายก่อน").toBeVisible();
   await ฟอร์ม.locator("#pp-package").selectOption("standard");
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
@@ -104,7 +104,7 @@ test("[func·hq] ออกใบในฟอร์มเดียว (เลื�
   expect(Number(แถวใบ.amount)).toBe(90_000);
 
   // บันทึกเสร็จ แผงของใบเปิดให้เลย → กดส่งแล้วต่อได้ทันที
-  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบเสนอแพ็กเกจ" });
+  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
   await expect(แผง.getByText(แถวใบ.proposal_no)).toBeVisible({ timeout: 15_000 });
   await แผง.getByRole("button", { name: "ส่งแล้ว" }).click();
   await กดตกลงในกล่องยืนยัน(page);
@@ -113,10 +113,10 @@ test("[func·hq] ออกใบในฟอร์มเดียว (เลื�
   await waitRow(sb, "dealer_prospects", { id: prospectId, status: "considering" });
   await แผง.getByRole("button", { name: "ปิด" }).click();
 
-  await page.getByLabel("ค้นหาใบเสนอแพ็กเกจ").fill(name);
+  await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
   const แถว = page.getByRole("row", { name: new RegExp(แถวใบ.proposal_no) });
   await expect(แถว).toContainText("ส่งแล้ว", { timeout: 15_000 });
-  assertNoErrors(errs, "ออกใบเสนอแพ็กเกจจากหน้ารวม");
+  assertNoErrors(errs, "ออกใบค่าแฟรนไชส์จากหน้ารวม");
 });
 
 test("[func·hq] ปุ่มในแถว: แก้ไขใบร่าง · ลบใบร่าง", async ({ page }) => {
@@ -132,21 +132,21 @@ test("[func·hq] ปุ่มในแถว: แก้ไขใบร่าง 
   const { id: ใบId, proposal_no: เลขที่ } = ใบ as { id: number; proposal_no: string };
 
   await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
-  await page.getByLabel("ค้นหาใบเสนอแพ็กเกจ").fill(name);
+  await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
   await expect(page.getByRole("row", { name: new RegExp(เลขที่) })).toBeVisible({ timeout: 25_000 });
 
   await page.getByRole("button", { name: `แก้ไขใบ ${เลขที่}` }).click();
-  const ฟอร์ม = page.getByRole("dialog", { name: "ใบเสนอแพ็กเกจตัวแทน", exact: true });
+  const ฟอร์ม = page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์", exact: true });
   await expect(ฟอร์ม.locator("#pp-amount"), "ฟอร์มแก้ต้องมีค่าเดิม").toHaveValue("100,000");
   await ฟอร์ม.locator("#pp-amount").fill("120000");
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
   await waitRow(sb, "dealer_package_proposals", { id: ใบId, amount: 120_000 });
-  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบเสนอแพ็กเกจ" });
+  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
   await แผง.getByRole("button", { name: "ปิด" }).click();
 
   await page.getByRole("button", { name: `ลบใบ ${เลขที่}` }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("dealer_package_proposals").select("id").eq("id", ใบId)).data?.length ?? -1,
     { timeout: 15_000 }).toBe(0);
-  assertNoErrors(errs, "ปุ่มแก้ไข/ลบในแถวใบเสนอแพ็กเกจ");
+  assertNoErrors(errs, "ปุ่มแก้ไข/ลบในแถวใบค่าแฟรนไชส์");
 });

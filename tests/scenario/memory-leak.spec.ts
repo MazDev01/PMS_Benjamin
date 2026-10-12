@@ -71,7 +71,7 @@ test("[memory] เปิด-ปิดแผงรายละเอียดล�
 // คลิกลิงก์แถบเมนูจริง (Next.js client-side navigation ไม่ reload หน้า) แทน page.goto() — goto()
 // รีเซ็ต JS context ทั้งหมดทุกครั้งจึงวัดการรั่วของ SPA จริงไม่ได้เลย (ทดลองแล้วโตเป็น 0.00MB
 // ทุกตัวอย่าง ซึ่งไม่ใช่ผลจริง — เป็นเพราะ heap ถูกรีเซ็ตพร้อมหน้าใหม่ทุกครั้ง)
-test("[memory] สลับหน้าไปมา (ตัวแทน) 20 รอบ ผ่านเมนูจริง (client-side nav) → หน่วยความจำต้องไม่โตต่อเนื่องไม่หยุด", async ({ page }) => {
+test("[memory] สลับหน้าไปมา (ดีลเลอร์) 20 รอบ ผ่านเมนูจริง (client-side nav) → หน่วยความจำต้องไม่โตต่อเนื่องไม่หยุด", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const labels = ["แดชบอร์ด", "ลูกค้าเป้าหมาย", "ใบเสนอราคา", "ลูกค้า"];
   await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
@@ -89,7 +89,7 @@ test("[memory] สลับหน้าไปมา (ตัวแทน) 20 ร�
   samples.push(await heap.sample());
   await heap.close();
 
-  const { secondHalfGrowth, totalGrowthMB } = analyzeGrowth(samples, "สลับหน้าตัวแทน 20 รอบ (client-side)");
+  const { secondHalfGrowth, totalGrowthMB } = analyzeGrowth(samples, "สลับหน้าดีลเลอร์ 20 รอบ (client-side)");
   expect(totalGrowthMB, `หน่วยความจำโตรวม ${totalGrowthMB.toFixed(2)}MB จาก 20 รอบสลับหน้า`).toBeLessThan(25);
   expect(secondHalfGrowth, "ครึ่งหลังต้องไม่โตต่อเนื่องไม่หยุด (สัญญาณรั่ว)").toBeLessThan(12 * 1024 * 1024);
 });

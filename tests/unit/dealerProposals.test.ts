@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   เตรียมบันทึกใบ, ตรวจใบเสนอ, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว, หมดอายุแล้ว, มูลค่าอ่านง่าย, ใบล็อกแล้ว,
-  ระยะสัญญาอ่านง่าย, ใบหลักสำหรับตั้งตัวแทน,
+  ระยะสัญญาอ่านง่าย, ใบหลักสำหรับตั้งดีลเลอร์,
 } from "../../packages/shared/lib/dealerProposals";
 import { buildDealerProposalHTML } from "../../packages/shared/lib/dealerProposalPrint";
 import type { DealerPackageProposal, HQCompany } from "../../packages/shared/lib/data/types";
 
-// ใบเสนอแพ็กเกจตัวแทน (บอสสั่ง 14 ก.ย. 69: "เหมือนดีลเลอร์ที่ต้องมีใบเสนอราคา แต่อันนี้ของ HQ")
+// ใบค่าแฟรนไชส์ (บอสสั่ง 14 ก.ย. 69: "เหมือนดีลเลอร์ที่ต้องมีใบเสนอราคา แต่อันนี้ของ HQ")
 const ใบ = (x: Partial<DealerPackageProposal>): DealerPackageProposal => ({
   id: 1, prospectId: 7, proposalNo: "DP-2026-0001", package: "standard", status: "draft", proposedDate: "2026-09-14", ...x,
 });
@@ -52,7 +52,7 @@ describe("สถานะใบ (ตรงกับตัวดักของ�
     expect(ใบล็อกแล้ว("draft")).toBe(false);
     expect(ใบล็อกแล้ว("sent")).toBe(true);
   });
-  it("ด่านสร้างตัวแทน: นับเฉพาะใบที่ส่งแล้วหรือตอบรับ (ร่าง/ปฏิเสธไม่นับ)", () => {
+  it("ด่านสร้างดีลเลอร์: นับเฉพาะใบที่ส่งแล้วหรือตอบรับ (ร่าง/ปฏิเสธไม่นับ)", () => {
     expect(มีใบเสนอที่ส่งแล้ว([ใบ({ status: "draft" }), ใบ({ status: "rejected" })])).toBe(false);
     expect(มีใบเสนอที่ส่งแล้ว([ใบ({ status: "sent" })])).toBe(true);
     expect(มีใบเสนอที่ส่งแล้ว([ใบ({ status: "accepted" })])).toBe(true);
@@ -70,13 +70,13 @@ describe("สถานะใบ (ตรงกับตัวดักของ�
   });
 });
 
-describe("พิมพ์ใบเสนอแพ็กเกจตัวแทน", () => {
+describe("พิมพ์ใบค่าแฟรนไชส์", () => {
   const hq: HQCompany = { name: "บริษัท ทดสอบสำนักงานใหญ่ จำกัด", address: "กรุงเทพฯ", taxId: "", phone: "02-000-0000", email: "", website: "" };
 
   it("หัวกระดาษเป็นของสำนักงานใหญ่ · มีเลขที่ แพ็กเกจ พื้นที่ มูลค่า", () => {
     const html = buildDealerProposalHTML(ใบ({ package: "exclusive", region: "ตะวันออก", province: "ชลบุรี", amount: 150000, status: "sent" }),
       { name: "คุณสมชาย" }, hq);
-    expect(html).toContain("ใบเสนอแพ็กเกจตัวแทน");
+    expect(html).toContain("ใบค่าแฟรนไชส์");
     expect(html).toContain("บริษัท ทดสอบสำนักงานใหญ่ จำกัด");
     expect(html).toContain("DP-2026-0001");
     expect(html).toContain("Exclusive");
@@ -143,10 +143,10 @@ describe("ช่องตัวเลข 3 ช่อง (บอสสั่ง �
     expect(ระยะสัญญาอ่านง่าย(null)).toBe("—");
   });
 
-  it("ใบหลักที่ใช้ตั้งตัวแทน: ตอบรับล่าสุดก่อน ไม่มีค่อยใช้ส่งแล้วล่าสุด · ร่าง/ปฏิเสธไม่นับ", () => {
-    expect(ใบหลักสำหรับตั้งตัวแทน([ใบ({ id: 1, status: "sent" }), ใบ({ id: 3, status: "sent" }), ใบ({ id: 2, status: "accepted" })])?.id).toBe(2);
-    expect(ใบหลักสำหรับตั้งตัวแทน([ใบ({ id: 1, status: "sent" }), ใบ({ id: 3, status: "sent" }), ใบ({ id: 4, status: "draft" })])?.id).toBe(3);
-    expect(ใบหลักสำหรับตั้งตัวแทน([ใบ({ id: 1, status: "draft" }), ใบ({ id: 2, status: "rejected" })])).toBeNull();
+  it("ใบหลักที่ใช้ตั้งดีลเลอร์: ตอบรับล่าสุดก่อน ไม่มีค่อยใช้ส่งแล้วล่าสุด · ร่าง/ปฏิเสธไม่นับ", () => {
+    expect(ใบหลักสำหรับตั้งดีลเลอร์([ใบ({ id: 1, status: "sent" }), ใบ({ id: 3, status: "sent" }), ใบ({ id: 2, status: "accepted" })])?.id).toBe(2);
+    expect(ใบหลักสำหรับตั้งดีลเลอร์([ใบ({ id: 1, status: "sent" }), ใบ({ id: 3, status: "sent" }), ใบ({ id: 4, status: "draft" })])?.id).toBe(3);
+    expect(ใบหลักสำหรับตั้งดีลเลอร์([ใบ({ id: 1, status: "draft" }), ใบ({ id: 2, status: "rejected" })])).toBeNull();
   });
 
   it("เอกสารพิมพ์มีครบสามบรรทัด · ไม่ได้กรอกขึ้น —", () => {

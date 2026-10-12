@@ -23,7 +23,7 @@ async function openBell(page: import("@playwright/test").Page) {
   await page.waitForTimeout(500);
 }
 
-test("กระดิ่งตัวแทน (CNX) ไม่โผล่ลูกค้าเป้าหมายสาขาอื่น", async ({ page }) => {
+test("กระดิ่งดีลเลอร์ (CNX) ไม่โผล่ลูกค้าเป้าหมายสาขาอื่น", async ({ page }) => {
   const otherBranch = await otherBranchCompanies("CNX");
   await openAs(page, CNX, "dealer", "/dashboard");
   await page.waitForTimeout(1500);
@@ -39,7 +39,7 @@ test("กระดิ่งตัวแทน (CNX) ไม่โผล่ลู�
   const leaked = otherBranch.filter(name => panelText.includes(name));
   console.log(`บริษัทสาขาอื่นทั้งหมด ${otherBranch.length} ราย · โผล่ในกระดิ่ง: ${leaked.length}`);
   if (leaked.length) console.log("  รั่ว:", JSON.stringify(leaked.slice(0, 6)));
-  expect(leaked, "กระดิ่งตัวแทนต้องไม่มีบริษัทของสาขาอื่น").toEqual([]);
+  expect(leaked, "กระดิ่งดีลเลอร์ต้องไม่มีบริษัทของสาขาอื่น").toEqual([]);
 });
 
 test("หน้า HQ เจาะสาขา CNX ไม่โผล่ลูกค้าเป้าหมายของสาขาอื่น", async ({ page }) => {
@@ -79,5 +79,5 @@ test("ค้นหาบน Topbar (CNX) ไม่โผล่ลูกค้า
   const resultText = await page.evaluate(() => document.body.innerText);
   const leaked = otherBranch.filter(name => name.includes(PROBE) && resultText.includes(name));
   console.log(`ค้นหา "${PROBE}" → โผล่บริษัทสาขาอื่น: ${leaked.length}`, JSON.stringify(leaked.slice(0, 4)));
-  expect(leaked, "ค้นหาของตัวแทนต้องไม่เจอบริษัทสาขาอื่น").toEqual([]);
+  expect(leaked, "ค้นหาของดีลเลอร์ต้องไม่เจอบริษัทสาขาอื่น").toEqual([]);
 });

@@ -51,7 +51,7 @@ test("[ui·hq] ชี้ที่แถวคำอธิบาย → ก้อ
   const ก้อน = โดนัท.locator("svg path, svg circle + circle");
   test.skip(await ก้อน.count() < 2, "ข้อมูลไม่พอ");
 
-  // แถวคำอธิบายแถวแรกของการ์ด "ลูกค้า ตามตัวแทน"
+  // แถวคำอธิบายแถวแรกของการ์ด "ลูกค้า ตามดีลเลอร์"
   const แถว = page.locator('[aria-label]').filter({ hasText: "%" }).first();
   await แถว.hover();
   await expect.poll(async () => Number(await ก้อน.nth(1).getAttribute("opacity")),

@@ -1,11 +1,11 @@
 "use client";
 
 // ─── ตัวกรองใบเสนอราคาทั้งเครือ (Sticky) ──────────────────────────────────────
-// ค้นหา: เลขที่ / ตัวแทน / รหัสตัวแทน / ลูกค้า
-// ตัวเลือก: ตัวแทน · ภูมิภาค · จังหวัดตัวแทน · ประเภทอาคาร · สถานะ
+// ค้นหา: เลขที่ / ดีลเลอร์ / รหัสดีลเลอร์ / ลูกค้า
+// ตัวเลือก: ดีลเลอร์ · ภูมิภาค · จังหวัดดีลเลอร์ · ประเภทอาคาร · สถานะ
 // (ตัวกรอง "ช่วงมูลค่า" ถูกลบทั้งฟีเจอร์ตามที่บอสสั่ง — อย่าใส่กลับ)
-// หมายเหตุ: "จังหวัด" = จังหวัดของตัวแทนที่ออกใบ ไม่ใช่จังหวัดลูกค้า/หน้างาน
-// (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง — ป้ายบนตัวเลือกจึงต้องเขียนว่า "จังหวัดตัวแทน" ให้ชัด)
+// หมายเหตุ: "จังหวัด" = จังหวัดของดีลเลอร์ที่ออกใบ ไม่ใช่จังหวัดลูกค้า/หน้างาน
+// (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง — ป้ายบนตัวเลือกจึงต้องเขียนว่า "จังหวัดดีลเลอร์" ให้ชัด)
 import { Search, X } from "lucide-react";
 import { quotationStatusLabel, type QuotationStatus } from "@pms/shared/lib/mock";
 import { regionDisplay } from "@pms/shared/lib/hqQuotations";
@@ -51,7 +51,7 @@ export function QuotationFilterBar({
         <Search size={14} color={MUTED} strokeWidth={2} />
         <input
           type="text"
-          placeholder="ค้นหาเลขที่ / ลูกค้า / ตัวแทน / รหัสตัวแทน..."
+          placeholder="ค้นหาเลขที่ / ลูกค้า / ดีลเลอร์ / รหัสดีลเลอร์..."
           value={filters.search}
           onChange={e => set("search", e.target.value)}
         />
@@ -60,8 +60,8 @@ export function QuotationFilterBar({
       <div style={{ flex: 1 }} />
 
 
-      <select aria-label="กรองตามตัวแทน" value={filters.dealer} onChange={e => set("dealer", e.target.value)} className="form-select" style={ช่องเลือก}>
-        <option value="all">ทุกตัวแทน</option>
+      <select aria-label="กรองตามดีลเลอร์" value={filters.dealer} onChange={e => set("dealer", e.target.value)} className="form-select" style={ช่องเลือก}>
+        <option value="all">ทุกดีลเลอร์</option>
         {dealers.map(d => <option key={d.code} value={d.code}>{d.code} – {d.name}</option>)}
       </select>
 
@@ -70,9 +70,9 @@ export function QuotationFilterBar({
         {regions.map(r => <option key={r} value={r}>{regionDisplay(r)}</option>)}
       </select>
 
-      {/* ป้ายเขียน "จังหวัดตัวแทน" ชัด ๆ — กันเข้าใจผิดว่าเป็นจังหวัดของลูกค้า */}
-      <select value={filters.province} onChange={e => set("province", e.target.value)} className="form-select" style={ช่องเลือก} aria-label="จังหวัดตัวแทน">
-        <option value="all">ทุกจังหวัด (ตัวแทน)</option>
+      {/* ป้ายเขียน "จังหวัดดีลเลอร์" ชัด ๆ — กันเข้าใจผิดว่าเป็นจังหวัดของลูกค้า */}
+      <select value={filters.province} onChange={e => set("province", e.target.value)} className="form-select" style={ช่องเลือก} aria-label="จังหวัดดีลเลอร์">
+        <option value="all">ทุกจังหวัด (ดีลเลอร์)</option>
         {provinces.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
 

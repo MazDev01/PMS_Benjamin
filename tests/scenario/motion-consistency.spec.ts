@@ -29,10 +29,10 @@ test("[ui·dealer] การ์ด KPI หน้าปฏิทินมีท�
   expect(ยก, "ชี้เมาส์แล้วการ์ดต้องยกขึ้นเหมือนการ์ดหน้าอื่น").not.toBe("none");
 });
 
-test("[ui·hq] กราฟผลงานตัวแทนที่ /hq/pipeline มีแท่งโตขึ้นตอนเปิดหน้า", async ({ page }) => {
+test("[ui·hq] กราฟผลงานดีลเลอร์ที่ /hq/pipeline มีแท่งโตขึ้นตอนเปิดหน้า", async ({ page }) => {
   await openAs(page, ADMIN, "hq", "/hq/pipeline");
   await settle(page);
-  const กราฟ = page.locator('svg[aria-label="ใบเสนอราคาที่ออก เทียบ ปิดการขายได้ รายตัวแทน"]').first();
+  const กราฟ = page.locator('svg[aria-label="ใบเสนอราคาที่ออก เทียบ ปิดการขายได้ รายดีลเลอร์"]').first();
   await expect(กราฟ).toBeVisible({ timeout: 30_000 });
   const แท่ง = await กราฟ.evaluate(svg => {
     const r = Array.from(svg.querySelectorAll("rect")).find(x => getComputedStyle(x).transitionDuration !== "0s");

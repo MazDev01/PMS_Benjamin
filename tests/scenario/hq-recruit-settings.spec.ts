@@ -3,11 +3,11 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { ช่องทางที่เข้ามาเริ่มต้น, บวกวัน } from "../../packages/shared/lib/recruitSettings";
 
-// ── ตั้งค่า › หาตัวแทน (บอสสั่ง 14 ก.ย. 69 · ข้อ 1 + ข้อ 2) ─────────────────────────────
+// ── ตั้งค่า › หาดีลเลอร์ (บอสสั่ง 14 ก.ย. 69 · ข้อ 1 + ข้อ 2) ─────────────────────────────
 // สิ่งที่ต้องพิสูจน์:
 //   1) ตั้งรายการ/ชื่องาน/ค่าตั้งต้นใบ แล้วบันทึกลงฐานข้อมูลจริง (hq_recruit_settings · 0176)
 //   2) ฟอร์มลูกค้าเป้าหมาย (HQ) ใช้รายการที่ตั้ง: ประเภทธุรกิจ/ช่องทางเป็นดรอปดาวน์ · ชื่องานเปลี่ยน · เหตุผลเลือกจากรายการ
-//   3) ใบเสนอแพ็กเกจใหม่เติมค่าตั้งต้น: เงื่อนไข · วันมีผล · ตัวเลขของแพ็กเกจ (เปลี่ยนแพ็กเกจแล้วตัวเลขเปลี่ยนตาม)
+//   3) ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น: เงื่อนไข · วันมีผล · ตัวเลขของแพ็กเกจ (เปลี่ยนแพ็กเกจแล้วตัวเลขเปลี่ยนตาม)
 // ค่าตั้งเป็นแถวเดียวของทั้งระบบ — เก็บของเดิมไว้แล้วคืนให้ท้ายไฟล์เสมอ
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -24,7 +24,7 @@ test.beforeAll(async () => {
   await cleanup();
   const sb = await db(ADMIN);
   const { data, error } = await sb.from("hq_recruit_settings").select("config").eq("id", 1).maybeSingle();
-  expect(error, "ต้องอ่านค่าตั้งหาตัวแทนได้ (migration 0176)").toBeNull();
+  expect(error, "ต้องอ่านค่าตั้งหาดีลเลอร์ได้ (migration 0176)").toBeNull();
   ค่าตั้งเดิม = (data as { config?: unknown } | null)?.config ?? {};
   // เริ่มจากค่าเริ่มต้นเสมอ — ค่าที่ค้างจากรอบก่อนจะทำให้ปุ่มเพิ่มฟ้อง "มีอยู่แล้ว"
   expect((await sb.from("hq_recruit_settings").upsert({ id: 1, config: {} })).error).toBeNull();
@@ -34,23 +34,23 @@ test.afterAll(async () => {
   await (await db(ADMIN)).from("hq_recruit_settings").upsert({ id: 1, config: ค่าตั้งเดิม });
 });
 
-test("[security] ตัวแทนจำหน่ายอ่าน/แก้ค่าตั้งหาตัวแทนของสำนักงานใหญ่ไม่ได้", async () => {
+test("[security] ดีลเลอร์อ่าน/แก้ค่าตั้งหาดีลเลอร์ของสำนักงานใหญ่ไม่ได้", async () => {
   const dealer = await db(RYG);
   const { data, error } = await dealer.from("hq_recruit_settings").select("config");
   expect(error).toBeNull();
-  expect(data ?? [], "ตัวแทนต้องไม่เห็นแถวค่าตั้งเลย").toHaveLength(0);
+  expect(data ?? [], "ดีลเลอร์ต้องไม่เห็นแถวค่าตั้งเลย").toHaveLength(0);
   const แก้ = await dealer.from("hq_recruit_settings").update({ config: { businessTypes: ["แอบแก้"] } }).eq("id", 1).select();
-  expect(แก้.data ?? [], "ตัวแทนแก้ค่าตั้งไม่ได้").toHaveLength(0);
+  expect(แก้.data ?? [], "ดีลเลอร์แก้ค่าตั้งไม่ได้").toHaveLength(0);
   const { data: หลังแก้ } = await (await db(ADMIN)).from("hq_recruit_settings").select("config").eq("id", 1).single();
   expect(JSON.stringify((หลังแก้ as { config: unknown }).config)).not.toContain("แอบแก้");
 });
 
-test("[func·hq] ตั้งค่า › หาตัวแทน → ฟอร์มลูกค้าเป้าหมาย (HQ) ใช้รายการที่ตั้ง", async ({ page }) => {
+test("[func·hq] ตั้งค่า › หาดีลเลอร์ → ฟอร์มลูกค้าเป้าหมาย (HQ) ใช้รายการที่ตั้ง", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
 
   await loginUI(page, HQ_ORIGIN, "/hq/settings", ADMIN);
-  await page.locator(".tab-bar").getByRole("button", { name: "หาตัวแทน" }).click({ timeout: 25_000 });
+  await page.locator(".tab-bar").getByRole("button", { name: "หาดีลเลอร์" }).click({ timeout: 25_000 });
 
   const เพิ่ม = async (ชื่อรายการ: string, ค่า: string) => {
     await page.getByRole("textbox", { name: `เพิ่ม${ชื่อรายการ}` }).fill(ค่า);
@@ -67,7 +67,7 @@ test("[func·hq] ตั้งค่า › หาตัวแทน → ฟอ�
   await expect(page.getByText("“ผู้รับเหมาทดสอบ” มีอยู่แล้ว")).toBeVisible();
 
   await page.getByLabel("ชื่องาน ส่งข้อมูลบริษัท").fill("ส่งโบรชัวร์ทดสอบ");
-  await page.getByLabel("อายุใบเสนอแพ็กเกจ (วัน)").fill("30");
+  await page.getByLabel("อายุใบค่าแฟรนไชส์ (วัน)").fill("30");
   await page.getByLabel("ชื่อผู้ลงนาม").fill("คุณทดสอบ ลงนาม");
   await page.locator("#rc-terms").fill("ข้อทดสอบหนึ่ง");
   await page.locator("#rc-standard-amount").fill("150000");
@@ -115,10 +115,10 @@ test("[func·hq] ตั้งค่า › หาตัวแทน → ฟอ�
   await แผง.locator("#pj-lost-reason").selectOption("เงินทุนไม่พอ (ทดสอบ)");
   await แผง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }).click();
   await waitRow(sb, "dealer_prospects", { name, status: "lost", lost_reason: "เงินทุนไม่พอ (ทดสอบ)" });
-  assertNoErrors(errs, "ตั้งค่าหาตัวแทน → ฟอร์มลูกค้าเป้าหมาย");
+  assertNoErrors(errs, "ตั้งค่าหาดีลเลอร์ → ฟอร์มลูกค้าเป้าหมาย");
 });
 
-test("[func·hq] ใบเสนอแพ็กเกจใหม่เติมค่าตั้งต้น: เงื่อนไข · วันมีผล · ตัวเลขตามแพ็กเกจ", async ({ page }) => {
+test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น: เงื่อนไข · วันมีผล · ตัวเลขตามแพ็กเกจ", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-ออกใบค่าตั้งต้น`;
@@ -127,8 +127,8 @@ test("[func·hq] ใบเสนอแพ็กเกจใหม่เติม
   const prospectId = (pr as { id: number }).id;
 
   await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
-  await page.getByRole("button", { name: "ออกใบเสนอแพ็กเกจ" }).first().click({ timeout: 25_000 });
-  const ฟอร์ม = page.getByRole("dialog", { name: "ใบเสนอแพ็กเกจตัวแทน", exact: true });
+  await page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).first().click({ timeout: 25_000 });
+  const ฟอร์ม = page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์", exact: true });
   await expect(ฟอร์ม.locator("#pp-terms"), "เงื่อนไขมาตรฐานเติมให้").toHaveValue("ข้อทดสอบหนึ่ง", { timeout: 15_000 });
   const วันเสนอ = await ฟอร์ม.locator("#pp-date").inputValue();
   await expect(ฟอร์ม.locator("#pp-valid"), "วันมีผล = วันที่เสนอ + 30 วัน").toHaveValue(บวกวัน(วันเสนอ, 30)!);
@@ -155,5 +155,5 @@ test("[func·hq] ใบเสนอแพ็กเกจใหม่เติม
   expect(แถว.contract_months).toBe(12);
   expect(แถว.terms).toBe("ข้อทดสอบหนึ่ง");
   expect(แถว.valid_until).toBe(บวกวัน(วันเสนอ, 30));
-  assertNoErrors(errs, "ใบเสนอแพ็กเกจใหม่เติมค่าตั้งต้น");
+  assertNoErrors(errs, "ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น");
 });

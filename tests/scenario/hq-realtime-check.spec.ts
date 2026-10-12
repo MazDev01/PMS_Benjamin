@@ -4,8 +4,8 @@ import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db, cleanup, specNS, nsTag } from ".
 import { settle } from "./helpers";
 
 // ── ยืนยันว่า HQ Dashboard อัปเดต "โดยไม่ต้องรีเฟรชเอง" จริงไหม (ไม่ใช่แค่ถูกต้องตอน navigate ใหม่) ──
-// เปิด HQ dashboard ค้างไว้ 1 แท็บ แล้วให้ตัวแทนสร้างลูกค้าใหม่ผ่านอีกช่องทาง (ตรงผ่าน DB จำลอง
-// การเขียนจริงจากฝั่งตัวแทน) แล้วจับเวลาว่าตัวเลขบนแท็บ HQ ที่เปิดค้างไว้เปลี่ยนเองภายในกี่วินาที
+// เปิด HQ dashboard ค้างไว้ 1 แท็บ แล้วให้ดีลเลอร์สร้างลูกค้าใหม่ผ่านอีกช่องทาง (ตรงผ่าน DB จำลอง
+// การเขียนจริงจากฝั่งดีลเลอร์) แล้วจับเวลาว่าตัวเลขบนแท็บ HQ ที่เปิดค้างไว้เปลี่ยนเองภายในกี่วินาที
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(120_000);
 
@@ -15,7 +15,7 @@ const tg = nsTag(NS);
 test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 
-test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเลขลูกค้าทั้งเครือขยับเองโดยไม่ต้องรีเฟรช เมื่อตัวแทนเพิ่มลูกค้าใหม่", async ({ page }) => {
+test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเลขลูกค้าทั้งเครือขยับเองโดยไม่ต้องรีเฟรช เมื่อดีลเลอร์เพิ่มลูกค้าใหม่", async ({ page }) => {
   // บันทึกอายุการเชื่อมต่อ realtime ไว้ — ถ้าจอไม่อัปเดต ต้องรู้ว่า "ต่อไม่ติด/ถูกตัด" หรือ "ต่อติดแต่ไม่มีสัญญาณมา"
   const wsLog: string[] = [];
   const joinReplies: string[] = [];
@@ -47,10 +47,10 @@ test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเ
   const kpiLocator = page.locator(".card").filter({ hasText: /ลูกค้า(ใหม่)?ทั้งเครือ/ }).first();
   await expect(kpiLocator).toBeVisible({ timeout: 15_000 });
   const before = (await kpiLocator.innerText()).trim();
-  console.log(`[realtime] ตัวเลขก่อนตัวแทนเพิ่มลูกค้า: "${before.replace(/\n/g, " | ")}"`);
+  console.log(`[realtime] ตัวเลขก่อนดีลเลอร์เพิ่มลูกค้า: "${before.replace(/\n/g, " | ")}"`);
 
   // ให้ RYG เพิ่มลูกค้าใหม่จริงผ่านช่องทางที่แอปใช้จริง (RPC atomic เดียวกับที่ฟอร์มเรียก) —
-  // ไม่ผ่าน UI ของตัวแทน กันตัวแปรเรื่องความเร็ว UI ปน กับสิ่งที่ทดสอบจริง (ความเร็ว realtime ฝั่ง HQ)
+  // ไม่ผ่าน UI ของดีลเลอร์ กันตัวแปรเรื่องความเร็ว UI ปน กับสิ่งที่ทดสอบจริง (ความเร็ว realtime ฝั่ง HQ)
   //
   // เพิ่มทีละ 3 ราย ไม่ใช่ 1: การ์ดนี้นับ "ลูกค้าทั้งเครือ" = ยอดรวมทั้งระบบ ซึ่งสเปกอื่นที่รันขนานกัน
   // ก็ลบลูกค้าทดสอบของตัวเองอยู่เหมือนกัน · ถ้าเราเพิ่ม 1 แล้วบังเอิญมีคนลบ 1 พร้อมกัน ตัวเลขจะเท่าเดิม

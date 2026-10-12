@@ -44,13 +44,13 @@ export interface SettingsRepo {
   getLeadRulesMap(): Promise<DealerLeadRulesMap>;
   saveLeadRules(dealerCode: string, rules: LeadRules): Promise<void>;
   getQuoteValidityDays(): Promise<number>;
-  /** เหตุผล "ปิดการขายไม่สำเร็จ" ที่ HQ ตั้ง — ตัวแทนใช้ร่วมกันทั้งเครือ (เขียนได้เฉพาะ HQ) */
+  /** เหตุผล "ปิดการขายไม่สำเร็จ" ที่ HQ ตั้ง — ดีลเลอร์ใช้ร่วมกันทั้งเครือ (เขียนได้เฉพาะ HQ) */
   getLostReasons(): Promise<string[]>;
   saveLostReasons(lost: string[]): Promise<void>;
-  /** งานมาตรฐานของแต่ละขั้นในเส้นทางการขาย ที่ HQ ตั้ง — ตัวแทนเช็กงานชุดนี้ (เขียนได้เฉพาะ HQ) */
+  /** งานมาตรฐานของแต่ละขั้นในเส้นทางการขาย ที่ HQ ตั้ง — ดีลเลอร์เช็กงานชุดนี้ (เขียนได้เฉพาะ HQ) */
   getLeadTasks(): Promise<LeadTaskDef[]>;
   saveLeadTasks(tasks: LeadTaskDef[]): Promise<void>;
-  /** ค่าตั้งงานหาตัวแทนของ HQ (ช่องทาง/ประเภทธุรกิจ/เหตุผล/ชื่องาน/ค่าตั้งต้นใบเสนอแพ็กเกจ · 0176) — อ่าน HQ · เขียนผู้ดูแลข้อมูลกลาง */
+  /** ค่าตั้งงานหาดีลเลอร์ของ HQ (ช่องทาง/ประเภทธุรกิจ/เหตุผล/ชื่องาน/ค่าตั้งต้นใบค่าแฟรนไชส์ · 0176) — อ่าน HQ · เขียนผู้ดูแลข้อมูลกลาง */
   getRecruitSettings(): Promise<HQRecruitSettings>;
   saveRecruitSettings(s: HQRecruitSettings): Promise<void>;
   // เขียนนโยบายระดับเครือ (HQ เท่านั้น — RLS is_hq ฝั่ง supabase · singleton id=1)
@@ -64,14 +64,14 @@ export interface SettingsRepo {
     policy?: HQPolicy; targets?: HQTargets; notifRules?: HQNotifRules; lostReasons?: string[]; company?: HQCompany;
   }): Promise<void>;
 }
-// ── ตั้งค่าของตัวแทนแต่ละสาขา (หัวกระดาษ/เอกสาร/โลโก้/แจ้งเตือน) ──
+// ── ตั้งค่าของดีลเลอร์แต่ละสาขา (หัวกระดาษ/เอกสาร/โลโก้/แจ้งเตือน) ──
 // เดิมอยู่ใน localStorage ของเครื่องที่ใช้ → ล้างเบราว์เซอร์/ย้ายเครื่องแล้วหาย
 // เจ้าของคือ "สาขา" ไม่ใช่ผู้ใช้คนใดคนหนึ่ง · HQ อ่านได้แต่แก้ไม่ได้ (RLS ที่ DB บังคับ)
 export interface DealerSettingsRepo {
   get(dealerCode: string): Promise<DealerSettings>;
   /** บันทึกเฉพาะกลุ่มที่ส่งมา (patch) — ไม่ต้องส่งครบทุกกลุ่ม */
   save(dealerCode: string, patch: Partial<DealerSettings>): Promise<void>;
-  /** โลโก้ของทุกสาขาที่ตั้งไว้แล้ว (รหัสสาขา → รูป) — HQ ใช้แสดงการ์ดหน้าตัวแทนจำหน่าย · ไม่มีรูป = ไม่มีคีย์ */
+  /** โลโก้ของทุกสาขาที่ตั้งไว้แล้ว (รหัสสาขา → รูป) — HQ ใช้แสดงการ์ดหน้าดีลเลอร์ · ไม่มีรูป = ไม่มีคีย์ */
   logos(): Promise<Record<string, string>>;
 }
 
@@ -97,7 +97,7 @@ export interface NotesRepo {
   remove(id: number): Promise<void>;
 }
 
-// ── ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นตัวแทนจำหน่าย) — อ่าน = HQ · เขียน = ผู้ดูแลข้อมูลกลาง (0170) ──
+// ── ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นดีลเลอร์) — อ่าน = HQ · เขียน = ผู้ดูแลข้อมูลกลาง (0170) ──
 export interface ProspectsRepo {
   list(): Promise<DealerProspect[]>;
   create(p: Omit<DealerProspect, "id">): Promise<DealerProspect>;
@@ -105,7 +105,7 @@ export interface ProspectsRepo {
   remove(id: number): Promise<void>;
 }
 
-// ── ใบเสนอแพ็กเกจตัวแทน (ของสำนักงานใหญ่) — สิทธิ์ชุดเดียวกับลูกค้าเป้าหมาย HQ (0172) ──
+// ── ใบค่าแฟรนไชส์ (ของสำนักงานใหญ่) — สิทธิ์ชุดเดียวกับลูกค้าเป้าหมาย HQ (0172) ──
 //   setStatus แยกจาก update: ใบที่ส่งแล้วถูกล็อกเนื้อหา เปลี่ยนสถานะต้องไม่ส่งทั้งแถวกลับไป
 export interface ProposalsRepo {
   list(prospectId?: number): Promise<DealerPackageProposal[]>;
@@ -144,13 +144,13 @@ export interface UsersRepo {
   canCreate(): boolean;
 }
 
-// ── บัญชีเข้าระบบของตัวแทน (ตัวแทนแก้อีเมล/รหัสผ่านเองได้) ─────────────────────
+// ── บัญชีเข้าระบบของดีลเลอร์ (ดีลเลอร์แก้อีเมล/รหัสผ่านเองได้) ─────────────────────
 //
 // กติกา (บอสสั่ง 28 ส.ค. 69):
-//   • ตัวแทนแก้เองได้ 2 ครั้ง "ตลอดอายุบัญชี" (นับรวมตั้งแต่ HQ สร้างบัญชีให้)
+//   • ดีลเลอร์แก้เองได้ 2 ครั้ง "ตลอดอายุบัญชี" (นับรวมตั้งแต่ HQ สร้างบัญชีให้)
 //   • ครั้งที่ 3 เป็นต้นไป ต้องส่งคำขอให้สำนักงานใหญ่อนุมัติก่อน จึงจะมีผล
 //   • ทุกครั้งที่เปลี่ยน สำนักงานใหญ่ต้องรู้ (แจ้งเตือน + บันทึกการใช้งาน)
-//     และเปิดดูรหัสที่ตัวแทนตั้งเองได้เหมือนรหัสที่ HQ ตั้งให้
+//     และเปิดดูรหัสที่ดีลเลอร์ตั้งเองได้เหมือนรหัสที่ HQ ตั้งให้
 export type AccountChangeKind = "email" | "password" | "both";
 
 export type AccountRequest = {
@@ -174,7 +174,7 @@ export type AccountState = {
   selfChangesLimit: number;
   /** คำขอที่ยังรอสำนักงานใหญ่อนุมัติ (มีได้ทีละใบ) */
   pending: AccountRequest | null;
-  /** คำขอล่าสุดที่ถูกปฏิเสธ (ยังไม่มีการเปลี่ยนบัญชีหลังจากนั้น) — ตัวแทนต้องรู้ผล ไม่ใช่คำขอหายเงียบ */
+  /** คำขอล่าสุดที่ถูกปฏิเสธ (ยังไม่มีการเปลี่ยนบัญชีหลังจากนั้น) — ดีลเลอร์ต้องรู้ผล ไม่ใช่คำขอหายเงียบ */
   lastRejected?: { kind: AccountChangeKind; newEmail?: string; requestedAt: string; decidedAt: string; reason?: string } | null;
   /** ยังไม่ได้ตั้งรหัสผ่านของตัวเองตั้งแต่สำนักงานใหญ่สร้างบัญชี — ต้องตั้งก่อนใช้งาน (ไม่นับสิทธิ์แก้เอง) */
   mustChangePassword?: boolean;
@@ -183,12 +183,12 @@ export type AccountState = {
 /** ผลของการกดบันทึก — applied = มีผลทันที · pending = ส่งคำขอรออนุมัติแล้ว */
 export type AccountChangeResult = { applied: boolean; pending: boolean; message: string };
 
-// ตัวแทนเปลี่ยนอีเมล/รหัสผ่านเองได้ (ยืนยันด้วยรหัสปัจจุบัน) · ดูรหัสของตัวเองได้เมื่อยืนยันเลขทางอีเมล (ดูด้านล่าง)
+// ดีลเลอร์เปลี่ยนอีเมล/รหัสผ่านเองได้ (ยืนยันด้วยรหัสปัจจุบัน) · ดูรหัสของตัวเองได้เมื่อยืนยันเลขทางอีเมล (ดูด้านล่าง)
 //   สำนักงานใหญ่เปิดดูสำเนารหัสของทุกสาขาได้ที่ /api/admin/dealers/secret
 export interface AccountRepo {
   /** สถานะบัญชีของสาขา (อีเมลปัจจุบัน · โควตาที่เหลือ · คำขอที่ค้าง) */
   state(dealerCode: string): Promise<AccountState>;
-  /** ตัวแทนขอเปลี่ยนอีเมล/รหัสผ่านของตัวเอง — ต้องยืนยันรหัสผ่านปัจจุบันเสมอ */
+  /** ดีลเลอร์ขอเปลี่ยนอีเมล/รหัสผ่านของตัวเอง — ต้องยืนยันรหัสผ่านปัจจุบันเสมอ */
   change(input: {
     dealerCode: string;
     currentPassword: string;
@@ -199,12 +199,12 @@ export interface AccountRepo {
   listRequests(): Promise<AccountRequest[]>;
   /** ฝั่งสำนักงานใหญ่: อนุมัติ/ปฏิเสธคำขอ — อนุมัติแล้วระบบเปลี่ยนให้ทันที */
   decide(id: string, action: "approve" | "reject", reason?: string): Promise<void>;
-  /** ตัวแทนตั้งรหัสผ่านใหม่ตอนเข้าระบบครั้งแรก — ไม่นับสิทธิ์แก้เอง 2 ครั้ง (บอสสั่ง 15 ก.ย. 69) */
+  /** ดีลเลอร์ตั้งรหัสผ่านใหม่ตอนเข้าระบบครั้งแรก — ไม่นับสิทธิ์แก้เอง 2 ครั้ง (บอสสั่ง 15 ก.ย. 69) */
   setFirstPassword(password: string): Promise<{ message: string }>;
 
   // ── ดูรหัสผ่านของตัวเอง โดยยืนยันด้วยเลขที่ส่งไปทางอีเมล (บอสสั่ง 1 ก.ย. 69) ──
   //
-  // ⚠️ กติกาเปลี่ยนจากเดิม: 28 ส.ค. 69 เคยกำหนดว่า "ตัวแทนดูรหัสผ่านตัวเองไม่ได้เลย"
+  // ⚠️ กติกาเปลี่ยนจากเดิม: 28 ส.ค. 69 เคยกำหนดว่า "ดีลเลอร์ดูรหัสผ่านตัวเองไม่ได้เลย"
   //    บอสสั่งใหม่ให้ดูได้ แต่ต้องพิสูจน์ก่อนว่าเป็นเจ้าของอีเมลนั้นจริง
   //    (คนที่แอบนั่งหน้าจอที่เปิดค้างไว้ จะเปิดดูไม่ได้ถ้าไม่มีอีเมลของสาขา)
 
@@ -279,7 +279,7 @@ export interface QuoteSummaryFilters {
   dealerCodes?: string[];
   productLines?: string[];
   search?: string;
-  /** รหัสตัวแทนที่ชื่อ/รหัส match คำค้น — OR เข้ากับ id/customer (ให้ search ตรงกับ client ที่ค้นชื่อตัวแทนได้) */
+  /** รหัสดีลเลอร์ที่ชื่อ/รหัส match คำค้น — OR เข้ากับ id/customer (ให้ search ตรงกับ client ที่ค้นชื่อดีลเลอร์ได้) */
   searchDealers?: string[];
   dateStart?: string;
   dateEnd?: string;
@@ -336,7 +336,7 @@ export interface HQCustomerPageRow {
   id: number; name: string; dealerCode: string; dealerName: string; province: string;
   totalValue: number; buildingTypes: string[]; templates: string[];
   // ⚠️ เคยมี deliveredAt (วันส่งมอบ) ตรงนี้ — ลบทั้งฟีเจอร์แล้ว (บอสสั่ง 20 ส.ค. 69)
-  //    เพราะไม่มีที่กรอกวันส่งมอบจริงทั้งฝั่งตัวแทนและสำนักงานใหญ่ ตัวเลขที่โชว์คือ
+  //    เพราะไม่มีที่กรอกวันส่งมอบจริงทั้งฝั่งดีลเลอร์และสำนักงานใหญ่ ตัวเลขที่โชว์คือ
   //    "วันปิดการขาย + 90 วัน" ซึ่งเป็นค่าที่ระบบคิดขึ้นเอง ไม่ใช่ข้อมูลจริงของงาน
   /** ISO date (ไม่ใช่ Thai string) — client format เองด้วย fmtISOToThai ตอนแสดงผล */
   lastPurchaseAt: string | null;
@@ -369,19 +369,19 @@ export interface HQCustomersFilterOptions {
 }
 export interface MetricsRepo {
   /** rollup รายสาขาของปีที่ระบุ (key = dealerCode) — supabase: RPC dealer_rollup · local: คำนวณจาก array เอง
-   *  scope คุมด้วย RLS ฝั่ง supabase (ตัวแทน=สาขาตน · HQ=ทั้งเครือ) เหมือนที่ client เคยเห็น */
+   *  scope คุมด้วย RLS ฝั่ง supabase (ดีลเลอร์=สาขาตน · HQ=ทั้งเครือ) เหมือนที่ client เคยเห็น */
   dealerRollup(year: number, opts?: DealerRollupOpts): Promise<Map<string, DealerRollup>>;
   /** สรุปลูกค้าเป้าหมายหลังกรอง (byStatus/bySource/byProduct/byLostReason/byMonth) — ป้อน analytics หน้า /hq/leads */
   leadSummary(filters: LeadSummaryFilters): Promise<LeadSummary>;
   /** สรุปใบหลังกรอง (byDealer/byMonth/byProduct/aging) — ป้อน analytics หน้า /hq/quotations (M9 Phase 2) */
   hqQuotationsSummary(filters: QuoteSummaryFilters): Promise<HQQuotationsSummary>;
   /** สถิติใบในช่วง [start,end] (ISO YYYY-MM-DD, inclusive) รายสาขา (key = dealerCode)
-   *  dealer ระบุ = ดูตัวแทนรายตัว (selDealer) · ไม่ระบุ = ทั้ง scope · parity กับ winQuotes ฝั่ง client */
+   *  dealer ระบุ = ดูดีลเลอร์รายตัว (selDealer) · ไม่ระบุ = ทั้ง scope · parity กับ winQuotes ฝั่ง client */
   networkQuoteRange(start: string, end: string, dealer?: string): Promise<Map<string, QuoteRangeRow>>;
   /** สรุปใบในช่วง (byMonth/byStatus/byProduct) รอบเดียว — ป้อนการ์ด dashboard หลายใบ (M9) */
   dashboardQuoteSummary(start: string, end: string, dealer?: string): Promise<DashboardQuoteSummary>;
   /** สรุปลูกค้าทั้งเครือ (total + byProvince) — ปลด dashboard ออกจาก netCustomers array (M9 Phase 4) */
-  /** สรุปลูกค้าทั้งเครือ · กรองตามตัวแทน/ช่วงเวลาได้ (0155) — ไม่ส่งอะไร = ทั้งหมดเหมือนเดิม */
+  /** สรุปลูกค้าทั้งเครือ · กรองตามดีลเลอร์/ช่วงเวลาได้ (0155) — ไม่ส่งอะไร = ทั้งหมดเหมือนเดิม */
   networkCustomerSummary(f?: { dealerCode?: string; dateStart?: string; dateEnd?: string }): Promise<NetworkCustomerSummary>;
   /** ลูกค้าเป้าหมายไร้ผู้รับผิดชอบเกินเกณฑ์ (ชม.) รายสาขา — ปลดการ์ดเตือน /hq/leads ออกจาก netLeads array (M9 Phase 4) */
   unassignedLeads(filters: UnassignedFilters): Promise<UnassignedSummary>;
@@ -389,7 +389,7 @@ export interface MetricsRepo {
   hqAlerts(filters: HQAlertsFilters): Promise<HQAlertsData>;
   /** หน้าเดียวของฐานข้อมูลลูกค้า HQ + KPI/กราฟ 5 ตัวจากทั้งชุดที่กรองแล้ว — ปลด /hq/customers จากการดึงทั้งตาราง (M9 Phase 6) */
   hqCustomersPage(opts: HQCustomersPageOpts): Promise<HQCustomersPageResult>;
-  /** ตัวเลือกตัวกรอง (ตัวแทน/จังหวัด/ประเภทอาคาร/ปีที่ส่งมอบ) ของหน้าฐานข้อมูลลูกค้า — ไม่อิงตัวกรองปัจจุบัน */
+  /** ตัวเลือกตัวกรอง (ดีลเลอร์/จังหวัด/ประเภทอาคาร/ปีที่ส่งมอบ) ของหน้าฐานข้อมูลลูกค้า — ไม่อิงตัวกรองปัจจุบัน */
   hqCustomersFilterOptions(): Promise<HQCustomersFilterOptions>;
 }
 
@@ -436,7 +436,7 @@ export interface LeadsRepo {
   setStatus(id: string, status: LeadRow["status"]): Promise<void>;
 }
 /** ตัวเลือกดึงใบแบบ "แบ่งหน้า + กรอง + เรียง ที่ DB" (M9 Phase 2) — ผู้เรียก resolve derived filter มาก่อน
- *  (region/province/ชื่อตัวแทน → dealerCodes · product → productLines) เหลือแต่คอลัมน์จริงส่งให้ DB */
+ *  (region/province/ชื่อดีลเลอร์ → dealerCodes · product → productLines) เหลือแต่คอลัมน์จริงส่งให้ DB */
 export interface QuoteListOpts {
   limit: number;
   offset: number;
@@ -446,7 +446,7 @@ export interface QuoteListOpts {
   dealerCodes?: string[];       // dealer_code in (...) — จาก dealer/region/province/ค้นหาชื่อ
   productLines?: string[];      // product_line in (...) — จาก product filter (รวม mainTemplate ที่ resolve แล้ว)
   search?: string;              // ilike บน id/customer
-  searchDealers?: string[];     // รหัสตัวแทนที่ชื่อ/รหัส match คำค้น — OR เข้ากับ search (ค้นชื่อตัวแทน)
+  searchDealers?: string[];     // รหัสดีลเลอร์ที่ชื่อ/รหัส match คำค้น — OR เข้ากับ search (ค้นชื่อดีลเลอร์)
   dateStart?: string;           // ISO YYYY-MM-DD (inclusive) บนคอลัมน์ date
   dateEnd?: string;
   /** จำนวนรวมที่ผู้เรียก "รู้อยู่แล้ว" จากการนับครั้งก่อน (ตัวกรองชุดเดียวกัน)
@@ -531,7 +531,7 @@ export interface CustomersRepo {
 export type CustomerDeletionResult = { quotations: number; leads: number; storagePaths: string[] };
 export interface AppointmentsRepo {
   list(scope?: Scope): Promise<AppointmentMock[]>;
-  /** นัดหมายของสาขาหนึ่ง (HQ เจาะดูตัวแทน) — ดึงเฉพาะที่ต้องใช้ ไม่ต้องโหลดทั้งเครือ (M9 Phase 4) */
+  /** นัดหมายของสาขาหนึ่ง (HQ เจาะดูดีลเลอร์) — ดึงเฉพาะที่ต้องใช้ ไม่ต้องโหลดทั้งเครือ (M9 Phase 4) */
   listForDealer(dealerCode: string): Promise<AppointmentMock[]>;
   /** นัดหมายของลูกค้าเป้าหมายหนึ่ง (drawer ดูลูกค้าเป้าหมาย) — ผูกด้วย lead_id = numId (M9 Phase 4) */
   listForLead(leadId: number, dealerCode: string): Promise<AppointmentMock[]>;
@@ -547,8 +547,8 @@ export interface StoragePort {
   upload(dealerCode: string, file: File): Promise<string | null>; // คืน storagePath
   signedUrl(path: string): Promise<string | null>;                // ลิงก์ดาวน์โหลดชั่วคราว
   remove(path: string): Promise<void>;
-  // ── ไฟล์ของแคตตาล็อก (แบบแปลนแม่แบบ) — คนละถังกับไฟล์ของตัวแทน ──────────────────
-  //   ถังของตัวแทนคุมสิทธิ์ด้วย "โฟลเดอร์ชั้นแรก = รหัสสาขา" ซึ่งบัญชีสำนักงานใหญ่ไม่มี
+  // ── ไฟล์ของแคตตาล็อก (แบบแปลนแม่แบบ) — คนละถังกับไฟล์ของดีลเลอร์ ──────────────────
+  //   ถังของดีลเลอร์คุมสิทธิ์ด้วย "โฟลเดอร์ชั้นแรก = รหัสสาขา" ซึ่งบัญชีสำนักงานใหญ่ไม่มี
   //   จึงเขียนลงถังนั้นไม่ได้เลย · แบบแปลนเป็นของกลางทั้งเครือ ใช้ถัง catalog-images (0010)
   uploadCatalog(file: File): Promise<string | null>;
   catalogUrl(path: string): string;   // ถังนี้อ่านสาธารณะ — ได้ลิงก์ตรงไม่ต้องขอทีละครั้ง
@@ -574,7 +574,7 @@ export interface RealtimePort {
   subscribeSales(onChange: (change: SalesChange) => void): () => void;
   /** แคตตาล็อกแม่แบบ/ราคากลางเปลี่ยน (HQ แก้ที่ /hq/master) → ทุกหน้าที่ใช้ catalog อัปเดตตาม */
   subscribeCatalog(onChange: () => void): () => void;
-  /** นโยบาย/เป้า/กฎแจ้งเตือนของ HQ เปลี่ยน → ฝั่งตัวแทนใช้ค่าใหม่ทันที (VAT/อายุใบมีผลกับการคิดเงิน) */
+  /** นโยบาย/เป้า/กฎแจ้งเตือนของ HQ เปลี่ยน → ฝั่งดีลเลอร์ใช้ค่าใหม่ทันที (VAT/อายุใบมีผลกับการคิดเงิน) */
   subscribeSettings(onChange: () => void): () => void;
   /** โน้ตลูกค้าเปลี่ยน (เพิ่ม/แก้/ลบ จากอีกแท็บ/อีกเครื่อง) → โหลดโน้ตใหม่
    *  แยกช่องจาก subscribeSales เพราะโน้ตไม่ได้อยู่ในสี่ตารางงานขาย (0028 เปิด Realtime ให้แล้ว) */

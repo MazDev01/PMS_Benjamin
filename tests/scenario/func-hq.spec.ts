@@ -5,11 +5,11 @@ import { กดตกลงในกล่องยืนยัน, ดักข
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import {
   HQ_ORIGIN, DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, waitRow, waitGone, TAG, เปิดฟอร์มตั้งตัวแทน, เปิดกล่องตั้งตัวแทน,
+  db, waitRow, waitGone, TAG, เปิดฟอร์มตั้งดีลเลอร์, เปิดกล่องตั้งดีลเลอร์,
 } from "./funcHelpers";
 
 // ฝั่งสำนักงานใหญ่ — ข้อมูลกลางที่ทั้งเครือใช้ร่วมกัน
-// รวมถึงบทพิสูจน์สำคัญที่สุดของโมเดล: HQ แก้ที่ :3002 แล้วตัวแทนที่ :3001 เห็นตาม
+// รวมถึงบทพิสูจน์สำคัญที่สุดของโมเดล: HQ แก้ที่ :3002 แล้วดีลเลอร์ที่ :3001 เห็นตาม
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
 test.describe.configure({ mode: "serial" });
@@ -19,7 +19,7 @@ const DEALER_NAME = `${TAG}-สาขาทดสอบ`;
 const NEW_CODE = "ZZC";                  // สร้างผ่าน UI (แยกรหัสกับ fixture กันชน)
 const NEW_NAME = `${TAG}-สาขาสร้างใหม่`;
 
-// ลบตัวแทน "พร้อมบัญชี auth" ผ่าน route (service_role) — test harness ไม่ถือ service_role เอง
+// ลบดีลเลอร์ "พร้อมบัญชี auth" ผ่าน route (service_role) — test harness ไม่ถือ service_role เอง
 // จึงลบ auth user ที่ NEW_CODE สร้างไว้ผ่าน DELETE /api/admin/dealers ได้ · ทำให้เทสต์ H5 รันซ้ำได้ไม่ทิ้ง orphan
 async function purgeDealerAccount(code: string) {
   const sb = await db(ADMIN);
@@ -45,7 +45,7 @@ test.beforeAll(async () => {
   await sb.from("dealers").delete().in("code", [CODE, NEW_CODE]);
   await sb.from("master_catalog").delete().like("name", `%${TAG}%`);
   // fixture: สาขาที่ "มีอยู่แล้ว" สำหรับเทสต์ตัวกรอง/ลบ — ใส่ตรงผ่าน ADMIN
-  // (การสร้างตัวแทน "พร้อมบัญชี" ต้องใช้ service_role ที่เซิร์ฟเวอร์ · เทสต์ตัวกรอง/ลบไม่ควรผูกกับเรื่องนั้น)
+  // (การสร้างดีลเลอร์ "พร้อมบัญชี" ต้องใช้ service_role ที่เซิร์ฟเวอร์ · เทสต์ตัวกรอง/ลบไม่ควรผูกกับเรื่องนั้น)
   await sb.from("dealers").insert({ code: CODE, name: DEALER_NAME, province: "ระยอง", region: "ตะวันออก", status: "active" });
 });
 test.afterAll(async () => {
@@ -56,39 +56,39 @@ test.afterAll(async () => {
   await sb.from("master_catalog").delete().like("name", `%${TAG}%`);
 });
 
-// H5 — สร้างตัวแทน "พร้อมบัญชีเข้าระบบ" ต้องทำผ่าน route เซิร์ฟเวอร์ (service_role)
+// H5 — สร้างดีลเลอร์ "พร้อมบัญชีเข้าระบบ" ต้องทำผ่าน route เซิร์ฟเวอร์ (service_role)
 // เทสต์นี้ทน "ทั้งสองสภาพ" ได้:
-//   • ตั้ง service_role แล้ว → โมดัลรหัส + ตัวแทนลง DB จริง (บัญชีล็อกอินได้)
-//   • ยังไม่ตั้ง → ต้องขึ้น error จริง และ "ไม่มีตัวแทนผี" ใน DB (เดิมโชว์รหัสปลอมทั้งที่ล็อกอินไม่ได้ = บั๊ก H5)
-test("[func·hq] สร้างตัวแทน = สร้างบัญชีจริง (มี key→ลง DB · ไม่มี key→error ไม่ทิ้งตัวแทนผี) (H5)", async ({ page }) => {
+//   • ตั้ง service_role แล้ว → โมดัลรหัส + ดีลเลอร์ลง DB จริง (บัญชีล็อกอินได้)
+//   • ยังไม่ตั้ง → ต้องขึ้น error จริง และ "ไม่มีดีลเลอร์ผี" ใน DB (เดิมโชว์รหัสปลอมทั้งที่ล็อกอินไม่ได้ = บั๊ก H5)
+test("[func·hq] สร้างดีลเลอร์ = สร้างบัญชีจริง (มี key→ลง DB · ไม่มี key→error ไม่ทิ้งดีลเลอร์ผี) (H5)", async ({ page }) => {
   const sb = await db(ADMIN);
 
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers`, { waitUntil: "domcontentloaded" });
   await expect.poll(async () => page.evaluate(() => document.body.innerText),
-    { timeout: 25_000, message: "ทะเบียนตัวแทนต้องโหลดเสร็จก่อน" }).toContain("ระยองสตีลเวิร์คส์");
-  // ตัวแทนต้องมาจากลูกค้าเป้าหมาย (บอสสั่ง 14 ก.ย. 69) — สร้างผ่านกล่อง "ตั้งเป็นตัวแทนจำหน่าย"
-  const ตั้ง = await เปิดฟอร์มตั้งตัวแทน(page, NEW_CODE, NEW_NAME);
-  await ตั้ง.getByRole("button", { name: "สร้างตัวแทนจำหน่าย" }).click();
+    { timeout: 25_000, message: "ทะเบียนดีลเลอร์ต้องโหลดเสร็จก่อน" }).toContain("ระยองสตีลเวิร์คส์");
+  // ดีลเลอร์ต้องมาจากลูกค้าเป้าหมาย (บอสสั่ง 14 ก.ย. 69) — สร้างผ่านกล่อง "ตั้งเป็นดีลเลอร์"
+  const ตั้ง = await เปิดฟอร์มตั้งดีลเลอร์(page, NEW_CODE, NEW_NAME);
+  await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
 
   // ผลอย่างใดอย่างหนึ่ง: โมดัลสำเร็จ (มี key) หรือ ข้อความ error ในฟอร์ม (ไม่มี key)
-  const okModal = page.getByText("สร้างตัวแทนจำหน่ายสำเร็จ");
+  const okModal = page.getByText("สร้างดีลเลอร์สำเร็จ");
   const errMsg = page.getByText(/service_role|ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์/i);
   await expect(okModal.or(errMsg).first(), "ต้องเห็นผลจริงอย่างใดอย่างหนึ่ง").toBeVisible({ timeout: 25_000 });
 
   const rows = (await sb.from("dealers").select("code,name").eq("code", NEW_CODE)).data ?? [];
   if (await okModal.isVisible()) {
-    expect(rows.length, "ตั้ง key แล้ว → ตัวแทนต้องลง DB").toBe(1);
+    expect(rows.length, "ตั้ง key แล้ว → ดีลเลอร์ต้องลง DB").toBe(1);
     expect(rows[0].name).toBe(NEW_NAME);
   } else {
-    expect(rows.length, "ไม่มี key → ต้องไม่เหลือตัวแทนผีใน DB (บัญชีล็อกอินไม่ได้)").toBe(0);
+    expect(rows.length, "ไม่มี key → ต้องไม่เหลือดีลเลอร์ผีใน DB (บัญชีล็อกอินไม่ได้)").toBe(0);
   }
 });
 
 // H5 — ประตูความปลอดภัยของ route (durable ทั้งสองสภาพ):
-//   ไม่มี token = ห้ามผ่านเด็ดขาด · token ของตัวแทน (ไม่ใช่ HQ) ก็ห้ามสร้างตัวแทน
+//   ไม่มี token = ห้ามผ่านเด็ดขาด · token ของดีลเลอร์ (ไม่ใช่ HQ) ก็ห้ามสร้างดีลเลอร์
 //   ตั้ง key แล้ว → 401/403 · ยังไม่ตั้ง → 501 · ทั้งหมดต้อง "ไม่ใช่ 200" และไม่มีสาขาเกิดขึ้น
-test("[func·hq] route สร้างตัวแทนปฏิเสธคำขอที่ไม่มีสิทธิ์ (H5)", async ({ request }) => {
+test("[func·hq] route สร้างดีลเลอร์ปฏิเสธคำขอที่ไม่มีสิทธิ์ (H5)", async ({ request }) => {
   const sb = await db(ADMIN);
   const payload = { code: "ZZX", name: "ทดสอบสิทธิ์", province: "กรุงเทพฯ", region: "กลาง", revenueTarget: 0 };
   try {
@@ -97,12 +97,12 @@ test("[func·hq] route สร้างตัวแทนปฏิเสธคำ
     expect(noAuth.status(), "ไม่มี token ต้องไม่ผ่าน").not.toBe(200);
     expect(statuses(401), `สถานะที่ยอมรับ (ได้ ${noAuth.status()})`).toContain(noAuth.status());
 
-    // 2) token ของ "ตัวแทน" (ไม่ใช่ HQ) — ต้องไม่มีสิทธิ์สร้างตัวแทน
+    // 2) token ของ "ดีลเลอร์" (ไม่ใช่ HQ) — ต้องไม่มีสิทธิ์สร้างดีลเลอร์
     const rygToken = (await (await db(RYG)).auth.getSession()).data.session?.access_token ?? "";
     const asDealer = await request.post(`${HQ_ORIGIN}/api/admin/dealers`, {
       headers: { authorization: `Bearer ${rygToken}` }, data: payload,
     });
-    expect(asDealer.status(), "ตัวแทนสร้างตัวแทนไม่ได้").not.toBe(200);
+    expect(asDealer.status(), "ดีลเลอร์สร้างดีลเลอร์ไม่ได้").not.toBe(200);
     expect(statuses(403), `สถานะที่ยอมรับ (ได้ ${asDealer.status()})`).toContain(asDealer.status());
 
     // ไม่ว่ากรณีไหน ต้องไม่มีสาขา ZZX เกิดขึ้น
@@ -117,15 +117,15 @@ test("[func·hq] สาขาที่เพิ่งเพิ่ม โผล�
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
 
-  // ทะเบียนตัวแทนเป็นแหล่งเดียวของทุกหน้า — สาขาใหม่ต้องไม่ตกหล่นที่ไหน
+  // ทะเบียนดีลเลอร์เป็นแหล่งเดียวของทุกหน้า — สาขาใหม่ต้องไม่ตกหล่นที่ไหน
   await page.goto(`${HQ_ORIGIN}/hq/dealers`, { waitUntil: "domcontentloaded" });
   await expect.poll(async () => page.evaluate(() => document.body.innerText),
-    { timeout: 20_000, message: "หน้าตัวแทนต้องเห็นสาขาใหม่" }).toContain(DEALER_NAME);
+    { timeout: 20_000, message: "หน้าดีลเลอร์ต้องเห็นสาขาใหม่" }).toContain(DEALER_NAME);
 
   assertNoErrors(errs, "สาขาใหม่ในหน้าอื่น");
 });
 
-test("[func·hq] ลบตัวแทนผ่านหน้าจอ → หายจาก DB จริง", async ({ page }) => {
+test("[func·hq] ลบดีลเลอร์ผ่านหน้าจอ → หายจาก DB จริง", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
 
@@ -144,34 +144,34 @@ test("[func·hq] ลบตัวแทนผ่านหน้าจอ → ห�
   console.log("กล่องโต้ตอบ:", JSON.stringify([...dialogs, ...ข้อความแจ้ง()]));
 
   await waitGone(sb, "dealers", { code: CODE }, 20_000);
-  assertNoErrors(errs, "ลบตัวแทน");
+  assertNoErrors(errs, "ลบดีลเลอร์");
 });
 
-test("[func·hq→dealer] HQ เพิ่มแม่แบบในแคตตาล็อกกลาง → ตัวแทนเห็น", async ({ page }) => {
+test("[func·hq→dealer] HQ เพิ่มแม่แบบในแคตตาล็อกกลาง → ดีลเลอร์เห็น", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const PRODUCT = `${TAG}-แม่แบบทดสอบ`;
 
-  // เพิ่มผ่าน repo ฝั่ง HQ (ฟอร์มแคตตาล็อกมีหลายช่อง — ที่ต้องพิสูจน์คือ "ถึงตัวแทนไหม")
+  // เพิ่มผ่าน repo ฝั่ง HQ (ฟอร์มแคตตาล็อกมีหลายช่อง — ที่ต้องพิสูจน์คือ "ถึงดีลเลอร์ไหม")
   const ins = await sb.from("master_catalog")
     .insert({ id: "zzt-test", name: PRODUCT, price: 9999, unit: "ตร.ม." }).select();
   expect(ins.error, `HQ เพิ่มแม่แบบไม่ได้: ${JSON.stringify(ins.error)}`).toBeNull();
 
   try {
-    // ตัวแทนคนละ origin (:3001) — ถ้ายังเป็นโหมด local จะไม่มีทางเห็นเลย
+    // ดีลเลอร์คนละ origin (:3001) — ถ้ายังเป็นโหมด local จะไม่มีทางเห็นเลย
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/products`, { waitUntil: "domcontentloaded" });
     await expect.poll(async () => page.evaluate(() => document.body.innerText),
-      { timeout: 20_000, message: "ตัวแทนต้องเห็นแม่แบบที่ HQ เพิ่งเพิ่ม" }).toContain(PRODUCT);
+      { timeout: 20_000, message: "ดีลเลอร์ต้องเห็นแม่แบบที่ HQ เพิ่งเพิ่ม" }).toContain(PRODUCT);
 
-    assertNoErrors(errs, "แคตตาล็อกถึงตัวแทน");
+    assertNoErrors(errs, "แคตตาล็อกถึงดีลเลอร์");
   } finally {
     await sb.from("master_catalog").delete().eq("id", "zzt-test");
   }
 });
 
 // ── VAT เป็นของสาขา ไม่ใช่ของสำนักงานใหญ่ ────────────────────────────────────
-// เดิมอัตราภาษีเป็นค่ากลางของทั้งเครือ (สำนักงานใหญ่ตั้ง) แล้วตัวแทนใช้ตาม
+// เดิมอัตราภาษีเป็นค่ากลางของทั้งเครือ (สำนักงานใหญ่ตั้ง) แล้วดีลเลอร์ใช้ตาม
 // ต่อมาย้ายให้แต่ละสาขาตั้งเอง (ตั้งค่า › ใบเสนอราคา) เพราะจดทะเบียนภาษีคนละแบบกัน
 // เทสต์นี้จึงเปลี่ยนหน้าที่: จากเดิม "ค่าต้องไหลลงมา" เป็น "ค่าของสาขาต้องไม่ถูกทับ"
 //   ถ้าวันหนึ่งมีใครผูกสองอย่างนี้กลับเข้าหากัน เทสต์นี้จะจับได้ทันที
@@ -182,7 +182,7 @@ test("[func·hq→dealer] สำนักงานใหญ่แก้ VAT แ�
   const origVat = (before?.vat as number) ?? 7;
   const newVat = origVat === 7 ? 10 : 7;
 
-  // ค่าที่สาขา RYG ตั้งไว้เอง — คือค่าที่ต้องเห็นบนหน้าจอตัวแทนเสมอ
+  // ค่าที่สาขา RYG ตั้งไว้เอง — คือค่าที่ต้องเห็นบนหน้าจอดีลเลอร์เสมอ
   const dealerSb = await db(RYG);
   const { data: ds } = await dealerSb.from("dealer_settings").select("document").eq("dealer_code", "RYG").maybeSingle();
   const vatของสาขา = (ds?.document as { vatPercent?: number } | null)?.vatPercent ?? 7;
@@ -197,7 +197,7 @@ test("[func·hq→dealer] สำนักงานใหญ่แก้ VAT แ�
 
     // ค่าอยู่ในช่องกรอก ไม่ใช่ข้อความในหน้า — ต้องอ่านจากช่องโดยตรง
     const ช่องVat = page.getByLabel("ภาษีมูลค่าเพิ่ม %");
-    await expect(ช่องVat, "หน้าตั้งค่าของตัวแทนต้องโหลดเสร็จ").toBeVisible({ timeout: 20_000 });
+    await expect(ช่องVat, "หน้าตั้งค่าของดีลเลอร์ต้องโหลดเสร็จ").toBeVisible({ timeout: 20_000 });
     await expect(ช่องVat, "ต้องเห็น VAT ของสาขาตัวเอง ไม่ใช่ค่าที่สำนักงานใหญ่เพิ่งเปลี่ยน")
       .toHaveValue(String(vatของสาขา), { timeout: 20_000 });
 
@@ -223,17 +223,17 @@ test("[func·hq] HQ เปิดหน้างานขายได้ แต�
   assertNoErrors(errs, "หน้าใบเสนอราคา HQ");
 });
 
-// ── ตัวแทนต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้วเท่านั้น (บอสสั่ง 14 ก.ย. 69) ──
-// แทนเทสต์เดิม "กดเพิ่มตัวแทนก่อนทะเบียนโหลดเสร็จ" — ฟอร์มสร้างตัวแทนตรง ๆ ถูกถอดทั้งอันแล้ว สถานการณ์นั้นเกิดไม่ได้อีก
+// ── ดีลเลอร์ต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้วเท่านั้น (บอสสั่ง 14 ก.ย. 69) ──
+// แทนเทสต์เดิม "กดเพิ่มดีลเลอร์ก่อนทะเบียนโหลดเสร็จ" — ฟอร์มสร้างดีลเลอร์ตรง ๆ ถูกถอดทั้งอันแล้ว สถานการณ์นั้นเกิดไม่ได้อีก
 // (ฝั่งเซิร์ฟเวอร์ที่ปฏิเสธการสร้างโดยไม่ผูกลูกค้าเป้าหมาย ตรวจไว้ที่ hq-prospects.spec.ts)
 // ปุ่ม "เพิ่มผ่านลูกค้าเป้าหมาย" ที่เคยลัดไปหน้าลูกค้าเป้าหมาย บอสสั่งเอาออกด้วย ("เอาออกเลย") — หน้านี้ไม่มีปุ่มเพิ่มใด ๆ
-test("[func·hq] หน้าตัวแทนไม่มีปุ่มสร้าง/เพิ่มตัวแทนเลย", async ({ page }) => {
+test("[func·hq] หน้าดีลเลอร์ไม่มีปุ่มสร้าง/เพิ่มดีลเลอร์เลย", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers`, { waitUntil: "domcontentloaded" });
   // รอให้หน้าโหลดจริงก่อน (ปุ่มส่งออกอยู่แถวเดียวกับที่ปุ่มเพิ่มเคยอยู่) — ไม่งั้นนับปุ่มตอนหน้ายังว่าง แล้วผ่านแบบหลอก
   await expect(page.getByRole("button", { name: /ส่งออก/ }).first()).toBeVisible({ timeout: 25_000 });
-  await expect(page.getByRole("button", { name: /เพิ่มผ่านลูกค้าเป้าหมาย|^(เพิ่มตัวแทน|สร้างตัวแทน)$/ }),
-    "หน้าตัวแทนต้องไม่มีปุ่มสร้าง/เพิ่มตัวแทน").toHaveCount(0);
+  await expect(page.getByRole("button", { name: /เพิ่มผ่านลูกค้าเป้าหมาย|^(เพิ่มดีลเลอร์|สร้างดีลเลอร์)$/ }),
+    "หน้าดีลเลอร์ต้องไม่มีปุ่มสร้าง/เพิ่มดีลเลอร์").toHaveCount(0);
 });
 
 // H4 — รีเซ็ตรหัสผ่านผู้ใช้ HQ = "ส่งลิงก์ทางอีเมล" (ไม่ใช่โชว์รหัสปลอมแบบเดิม)
@@ -259,13 +259,13 @@ test("[func·hq] หน้า /reset-password เปิดตรงโดยไ�
     .toBeVisible({ timeout: 10_000 });
 });
 
-// ── กล่องตั้งเป็นตัวแทน: ภาคต้องเลือกก่อนจังหวัด (ผู้ใช้แจ้ง 18 ส.ค. 69 · ย้ายจากฟอร์มเพิ่มตัวแทนเดิม 14 ก.ย. 69) ──
-// เดิมช่อง "ภาค" ตั้งต้นเป็น "กลาง" ให้เองทั้งที่ไม่มีใครเลือก — ตัวแทนภาคอื่นจึงถูกบันทึกเป็นภาคกลางได้ง่าย ๆ
+// ── กล่องตั้งเป็นดีลเลอร์: ภาคต้องเลือกก่อนจังหวัด (ผู้ใช้แจ้ง 18 ส.ค. 69 · ย้ายจากฟอร์มเพิ่มดีลเลอร์เดิม 14 ก.ย. 69) ──
+// เดิมช่อง "ภาค" ตั้งต้นเป็น "กลาง" ให้เองทั้งที่ไม่มีใครเลือก — ดีลเลอร์ภาคอื่นจึงถูกบันทึกเป็นภาคกลางได้ง่าย ๆ
 // และเพราะรายการจังหวัดขึ้นกับภาค ถ้ายังไม่เลือกภาคก็เลือกจังหวัดไม่ได้เลย — ต้องบอกให้รู้ ห้ามเงียบ
 // ต้องมี "ทุกภาค" ด้วย (บอสสั่ง 14 ก.ย. 69) — เลือกแล้วจังหวัดเป็น "ทุกจังหวัด" ให้เอง
-test("[func·hq] กล่องตั้งเป็นตัวแทน: ภาคเริ่มที่ “ยังไม่ระบุ” · มีทุกภาค · ไม่เลือกภาค = บันทึกไม่ผ่าน", async ({ page }) => {
+test("[func·hq] กล่องตั้งเป็นดีลเลอร์: ภาคเริ่มที่ “ยังไม่ระบุ” · มีทุกภาค · ไม่เลือกภาค = บันทึกไม่ผ่าน", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-  const ตั้ง = await เปิดกล่องตั้งตัวแทน(page, "ZZR");   // ลูกค้าเป้าหมายไม่มีจังหวัด → ภาคต้องว่าง
+  const ตั้ง = await เปิดกล่องตั้งดีลเลอร์(page, "ZZR");   // ลูกค้าเป้าหมายไม่มีจังหวัด → ภาคต้องว่าง
   const region = ตั้ง.locator("#cv-region");
   const prov = ตั้ง.locator("#cv-province");
 
@@ -275,7 +275,7 @@ test("[func·hq] กล่องตั้งเป็นตัวแทน: ภ�
   expect((await region.locator("option").allInnerTexts()).join(" "), "ต้องมีตัวเลือกทุกภาค").toContain("ทุกภาค");
 
   await ตั้ง.locator("#cv-code").fill("ZZR");
-  await ตั้ง.getByRole("button", { name: "สร้างตัวแทนจำหน่าย" }).click();
+  await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
   await expect(ตั้ง.getByText(/ต้องเลือกภาคก่อน/),
     "กดบันทึกโดยไม่เลือกภาค → ต้องฟ้อง ห้ามบันทึกผ่าน").toBeVisible();
 
@@ -288,10 +288,10 @@ test("[func·hq] กล่องตั้งเป็นตัวแทน: ภ�
   expect(error, "ล้างลูกค้าเป้าหมายทดสอบ").toBeNull();
 });
 
-// ── สร้างตัวแทน → ต้องตั้งชื่อบริษัทให้ด้วย (บอสสั่ง 18 ส.ค. 69) ──
+// ── สร้างดีลเลอร์ → ต้องตั้งชื่อบริษัทให้ด้วย (บอสสั่ง 18 ส.ค. 69) ──
 // เดิมสาขาใหม่เกิดมาโดยช่อง "ชื่อบริษัท" ว่าง → หัวเอกสาร/แถบบน/เมนูซ้ายตกไปขึ้น "รหัสสาขา"
 // ชื่อที่ HQ เห็นกับที่สาขาเห็นจึงไม่ตรงกัน — ผู้ใช้แจ้งจริง
-test("[func·hq] สร้างตัวแทน → ชื่อบริษัทของสาขาถูกตั้งให้ตั้งแต่ต้น ไม่ปล่อยว่าง", async ({ page }) => {
+test("[func·hq] สร้างดีลเลอร์ → ชื่อบริษัทของสาขาถูกตั้งให้ตั้งแต่ต้น ไม่ปล่อยว่าง", async ({ page }) => {
   // ⚠️ ห้ามชนรหัสกับ NEW_CODE ของเทสต์ H5 ด้านบน — รันคู่กันแล้วบัญชี auth ชนกัน สร้างไม่ผ่าน
   const CODE = "ZZS", NAME = "ZZ บริษัทชื่อทดสอบ";
   const sb = await db(ADMIN);
@@ -304,8 +304,8 @@ test("[func·hq] สร้างตัวแทน → ชื่อบริษ�
   await wipe();
 
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-  const ตั้ง = await เปิดฟอร์มตั้งตัวแทน(page, CODE, NAME);
-  await ตั้ง.getByRole("button", { name: "สร้างตัวแทนจำหน่าย" }).click();
+  const ตั้ง = await เปิดฟอร์มตั้งดีลเลอร์(page, CODE, NAME);
+  await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
 
   await expect.poll(async () => {
     const r = (await sb.from("dealer_settings").select("issuer").eq("dealer_code", CODE).maybeSingle()).data as { issuer?: { company?: string } } | null;

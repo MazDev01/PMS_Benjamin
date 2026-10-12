@@ -1,7 +1,7 @@
 // Benjamin PMS — แปล error จาก Postgres/PostgREST/Supabase Auth เป็นข้อความไทยที่ผู้ใช้เข้าใจได้
 // (Phase 8: Error Handling — Enterprise Production Readiness Mission, 31 ก.ค. 69)
 //
-// เดิม: จุดจับ error ทั่วแอป (onFail ของ SalesContext, หน้าตั้งค่า/ผู้ใช้/ตัวแทน ฯลฯ) โชว์
+// เดิม: จุดจับ error ทั่วแอป (onFail ของ SalesContext, หน้าตั้งค่า/ผู้ใช้/ดีลเลอร์ ฯลฯ) โชว์
 // `e.message` ดิบให้ผู้ใช้เห็นตรงๆ — ข้อความจาก Postgres เป็นภาษาอังกฤษเทคนิคัลล้วน เช่น
 // "duplicate key value violates unique constraint...", "new row violates row-level
 // security policy for table...", "permission denied for table..." ผู้ใช้ทั่วไป (พนักงานขาย)

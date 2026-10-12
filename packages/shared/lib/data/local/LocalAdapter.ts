@@ -41,7 +41,7 @@ import { accountLocal } from "./accountLocal";
 import type { DataAdapter } from "../ports";
 import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope, DealerSettings, HQCompany, CustomerNote, SystemUser, DealerProspect, DealerPackageProposal, ProspectActivity, DealerProspectStatus } from "../types";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
-import { รวมค่าตั้งหาตัวแทน, ใช้เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
+import { รวมค่าตั้งหาดีลเลอร์, ใช้เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
 import { เตรียมบันทึกใบ, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว } from "@pms/shared/lib/dealerProposals";
 import {
   ตรวจเปลี่ยนขั้น, ข้อความเพิ่มราย, ข้อความเปลี่ยนขั้น, ข้อความใบเสนอ, ข้อความถอยเพราะใบถูกปฏิเสธ, ประวัติใหม่ก่อน,
@@ -60,16 +60,16 @@ const EMPTY_HQ_COMPANY: HQCompany = { name: "", address: "", taxId: "", phone: "
 import { DEFAULT_ISSUER, DEFAULT_NOTIF_PREFS, ISSUER_KEY, NOTIF_PREFS_KEY, DEALER_PRICING_KEY } from "@pms/shared/lib/mock";
 import { DEFAULT_DOC, DOC_KEY } from "@pms/shared/lib/quotationPrint";
 
-// โลโก้ไอคอนบนแถบเมนู — คีย์เดิมของหน้าตั้งค่าตัวแทน
+// โลโก้ไอคอนบนแถบเมนู — คีย์เดิมของหน้าตั้งค่าดีลเลอร์
 const LOGO_KEY = "dealer_company_logo_v2";
 
 const ok = <T>(v: T): Promise<T> => Promise.resolve(v);
 const done = (): Promise<void> => Promise.resolve();
 
-function ค่าตั้งหาตัวแทนเดโม() {
+function ค่าตั้งหาดีลเลอร์เดโม() {
   let raw: unknown = null;
   try { raw = JSON.parse(localStorage.getItem(RECRUIT_KEY) ?? "null"); } catch {}
-  return รวมค่าตั้งหาตัวแทน(raw);
+  return รวมค่าตั้งหาดีลเลอร์(raw);
 }
 
 // ── ประวัติลูกค้าเป้าหมาย HQ (โหมดเดโม) — เลียนแบบตัวดักของฐานข้อมูล 0174 ──
@@ -179,10 +179,10 @@ export const LocalAdapter: DataAdapter = {
   dealers: {
     list: () => ok(loadHQDealers()),
     // เป้าตามแพ็กเกจ (แบบเดียวกับตัวดักฐานข้อมูล 0178)
-    save: (all) => { writeKey(HQ_DEALERS_KEY, all.map(d => ใช้เป้าตามแพ็กเกจ(d, ค่าตั้งหาตัวแทนเดโม()))); return done(); },
+    save: (all) => { writeKey(HQ_DEALERS_KEY, all.map(d => ใช้เป้าตามแพ็กเกจ(d, ค่าตั้งหาดีลเลอร์เดโม()))); return done(); },
     remove: (code) => {
       writeKey(HQ_DEALERS_KEY, loadHQDealers().filter(d => d.code !== code));
-      // ลบตัวแทนแล้ว ลูกค้าเป้าหมายต้นทางลบตามไปด้วย พร้อมใบเสนอและประวัติ (บอสสั่ง 15 ก.ย. 69: "ลบไปแล้วลบไปเลย")
+      // ลบดีลเลอร์แล้ว ลูกค้าเป้าหมายต้นทางลบตามไปด้วย พร้อมใบเสนอและประวัติ (บอสสั่ง 15 ก.ย. 69: "ลบไปแล้วลบไปเลย")
       //   แบบเดียวกับโหมดจริง (DELETE /api/admin/dealers)
       const ต้นทาง = new Set(อ่านผู้สนใจเดโม().filter(p => p.dealerCode === code).map(p => p.id));
       if (ต้นทาง.size) {
@@ -244,11 +244,11 @@ export const LocalAdapter: DataAdapter = {
       fireSettings();
       return done();
     },
-    getRecruitSettings: () => ok(ค่าตั้งหาตัวแทนเดโม()),
+    getRecruitSettings: () => ok(ค่าตั้งหาดีลเลอร์เดโม()),
     saveRecruitSettings: (s) => {
-      const ค่าใหม่ = รวมค่าตั้งหาตัวแทน(s);
+      const ค่าใหม่ = รวมค่าตั้งหาดีลเลอร์(s);
       writeKey(RECRUIT_KEY, ค่าใหม่);
-      // แก้เป้าของแพ็กเกจ → ตัวแทนในแพ็กเกจนั้นเปลี่ยนตาม (แบบเดียวกับตัวดักฐานข้อมูล 0178)
+      // แก้เป้าของแพ็กเกจ → ดีลเลอร์ในแพ็กเกจนั้นเปลี่ยนตาม (แบบเดียวกับตัวดักฐานข้อมูล 0178)
       writeKey(HQ_DEALERS_KEY, loadHQDealers().map(d => ใช้เป้าตามแพ็กเกจ(d, ค่าใหม่)));
       fireSettings();
       return done();
@@ -352,7 +352,7 @@ export const LocalAdapter: DataAdapter = {
       return done();
     },
   },
-  // ใบเสนอแพ็กเกจตัวแทน (โหมดเดโม) — กติกาเดียวกับตัวดักของฐานข้อมูล 0172:
+  // ใบค่าแฟรนไชส์ (โหมดเดโม) — กติกาเดียวกับตัวดักของฐานข้อมูล 0172:
   //   เลขที่ออกให้เอง · สถานะเดินหน้าทางเดียว · ส่งแล้วแก้เนื้อหา/ลบไม่ได้
   proposals: {
     list: (prospectId) => ok(readKey<DealerPackageProposal[]>(PROPOSALS_KEY, [])
@@ -374,7 +374,7 @@ export const LocalAdapter: DataAdapter = {
     update: (p) => {
       const all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);
       const เดิม = all.find(x => x.id === p.id);
-      if (!เดิม) return Promise.reject(new Error("ไม่พบใบเสนอแพ็กเกจนี้แล้ว"));
+      if (!เดิม) return Promise.reject(new Error("ไม่พบใบค่าแฟรนไชส์นี้แล้ว"));
       if (ใบล็อกแล้ว(เดิม.status)) return Promise.reject(new Error("ใบที่ส่งแล้วแก้เนื้อหาไม่ได้ — เปลี่ยนได้แค่สถานะ"));
       const row: DealerPackageProposal = {
         ...เตรียมบันทึกใบ(p), id: เดิม.id, prospectId: เดิม.prospectId, proposalNo: เดิม.proposalNo,
@@ -386,9 +386,9 @@ export const LocalAdapter: DataAdapter = {
     setStatus: (id, status) => {
       const all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);
       const เดิม = all.find(x => x.id === id);
-      if (!เดิม) return Promise.reject(new Error("ไม่พบใบเสนอแพ็กเกจนี้แล้ว"));
+      if (!เดิม) return Promise.reject(new Error("ไม่พบใบค่าแฟรนไชส์นี้แล้ว"));
       if (!สถานะที่เปลี่ยนไปได้(เดิม.status).includes(status)) {
-        return Promise.reject(new Error(`เปลี่ยนสถานะใบเสนอแพ็กเกจจาก ${เดิม.status} เป็น ${status} ไม่ได้`));
+        return Promise.reject(new Error(`เปลี่ยนสถานะใบค่าแฟรนไชส์จาก ${เดิม.status} เป็น ${status} ไม่ได้`));
       }
       const row = { ...เดิม, status, updatedAt: new Date().toISOString() };
       writeKey(PROPOSALS_KEY, all.map(x => x.id === id ? row : x));
@@ -458,7 +458,7 @@ export const LocalAdapter: DataAdapter = {
     },
     canCreate: () => true,
   },
-  // บัญชีเข้าระบบของตัวแทน (แก้เอง 2 ครั้ง · ครั้งที่ 3 ขอ HQ อนุมัติ) — จำลองครบในเครื่อง
+  // บัญชีเข้าระบบของดีลเลอร์ (แก้เอง 2 ครั้ง · ครั้งที่ 3 ขอ HQ อนุมัติ) — จำลองครบในเครื่อง
   account: accountLocal,
   audit: {
     // local: loadAudit เพดาน MAX=300 อยู่แล้ว · เคารพ limit เพื่อพฤติกรรมตรงกับ supabase (M8)
@@ -941,7 +941,7 @@ export const LocalAdapter: DataAdapter = {
     create: (row) => {
       const list = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
       // ประทับ "เวลาที่ระบบบันทึก" ให้เองเหมือนที่ฐานข้อมูลจริงทำ (บอสสั่ง 25 ส.ค. 69)
-      // ตัวแทนไม่ต้องกรอกเวลาเอง — ระบบจับเวลาให้ แล้วสำนักงานใหญ่เอาไปทำกราฟรายชั่วโมงได้
+      // ดีลเลอร์ไม่ต้องกรอกเวลาเอง — ระบบจับเวลาให้ แล้วสำนักงานใหญ่เอาไปทำกราฟรายชั่วโมงได้
       // ⚠️ ตั้งเฉพาะตอนสร้างใหม่ ห้ามทับของเดิมตอนแก้ไข (ไม่งั้นเวลาบันทึกจะขยับทุกครั้งที่แก้)
       const พร้อมเวลา: QuotationMock = { ...row, savedAt: row.savedAt ?? new Date().toISOString() };
       writeKey(SALES.quotations, [พร้อมเวลา, ...list]);

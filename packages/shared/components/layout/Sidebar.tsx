@@ -21,7 +21,7 @@ export function Sidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boole
   const pathname = usePathname();
   const router = useRouter();
   const { isHQ, session, logout } = useRole();
-  // แท็บนี้เปิดมาจากปุ่ม "เข้าระบบแทนตัวแทน" ของสำนักงานใหญ่หรือเปล่า
+  // แท็บนี้เปิดมาจากปุ่ม "เข้าระบบแทนดีลเลอร์" ของสำนักงานใหญ่หรือเปล่า
   const สวมสิทธิ์อยู่ = useImpersonating();
   // โปรไฟล์ผ่าน repo — ชื่อ/รูปในการ์ดท้ายแถบอัปเดตทันทีเมื่อบันทึก (แหล่งเดียวกับ Topbar)
   const { profile } = useUserProfile();
@@ -29,7 +29,7 @@ export function Sidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boole
 
   // ── เมนูต้องรอจนรู้ว่าใครล็อกอินอยู่ก่อนเสมอ ────────────────────────────────
   // ⚠️ isHQ มาจาก session ซึ่งค่าเริ่มต้นคือ "สาขาเดโม" — ก่อนรู้ตัวตนจริง แอปสำนักงานใหญ่
-  //    จะเรนเดอร์เมนูของ *ตัวแทน* ชั่วขณะ แล้ว Next.js ไปดึงหน้าเหล่านั้นล่วงหน้า → 404 เจ็ดครั้งทุกครั้งที่เปิดหน้า
+  //    จะเรนเดอร์เมนูของ *ดีลเลอร์* ชั่วขณะ แล้ว Next.js ไปดึงหน้าเหล่านั้นล่วงหน้า → 404 เจ็ดครั้งทุกครั้งที่เปิดหน้า
   // ⚠️ เดาจาก URL แทนไม่ได้ — แอปสำนักงานใหญ่มี /dashboard และ /profile ของตัวเองที่ไม่ได้ขึ้นต้นด้วย /hq
   const ready = useAuthReady();
 
@@ -45,7 +45,7 @@ export function Sidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boole
 
   return (
     <aside className={`erp-sidebar${mobileOpen ? " open" : ""}`}>
-      {/* Brand — แบรนด์ Benjamin เท่านั้นทุกบทบาท (ตัวแทนเปลี่ยนโลโก้/แบรนด์เองไม่ได้)
+      {/* Brand — แบรนด์ Benjamin เท่านั้นทุกบทบาท (ดีลเลอร์เปลี่ยนโลโก้/แบรนด์เองไม่ได้)
           ไม่มีคำบรรยายใต้ชื่อแบรนด์ (บอสสั่ง 1 ก.ย. 69) · ชื่อหน้าจริง (h1) อยู่ที่หัวหน้าเพจ */}
       <div className="sidebar-brand">
         <div className="brand-mark">
@@ -93,8 +93,8 @@ export function Sidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boole
         })}
       </nav>
 
-      {/* ท้ายแถบ — การ์ดผู้ใช้ + ปุ่มออก (HQ=ผู้ใช้ · ตัวแทน=บัญชีตัวแทน)
-          สวมสิทธิ์จากสำนักงานใหญ่ = ปุ่มเป็น "กลับสู่ HQ" (บอสสั่ง 20 ส.ค. 69) — ล้างใบผ่านของตัวแทนในแท็บนี้ให้ด้วย */}
+      {/* ท้ายแถบ — การ์ดผู้ใช้ + ปุ่มออก (HQ=ผู้ใช้ · ดีลเลอร์=บัญชีดีลเลอร์)
+          สวมสิทธิ์จากสำนักงานใหญ่ = ปุ่มเป็น "กลับสู่ HQ" (บอสสั่ง 20 ส.ค. 69) — ล้างใบผ่านของดีลเลอร์ในแท็บนี้ให้ด้วย */}
       <div className="sidebar-footer" style={{ padding: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px 10px 10px", borderRadius: 12, background: "rgba(0,51,102,.05)", border: "1px solid rgba(0,51,102,.08)" }}>
           {profile?.avatar

@@ -5,7 +5,7 @@
 //   • ไม่มีป้ายกลุ่มเหนือชื่อหน้าแล้ว — บอสสั่งเอาออกทุกหน้า 15 ก.ย. 69 (ชื่อกลุ่มใช้เป็นหัวกลุ่มในเมนูอย่างเดียว)
 //
 // ⚠️ ลำดับเมนูภายในยังเป็นลำดับเดิมที่บอสสั่งไว้ทุกข้อ — แค่จัดเข้ากลุ่ม ห้ามสลับลำดับเอง
-//    (ลูกค้าเป้าหมาย HQ ก่อนตัวแทนจำหน่าย · ภาพรวมยอดขายก่อนลูกค้าเป้าหมายทั้งเครือ ฯลฯ)
+//    (ลูกค้าเป้าหมาย HQ ก่อนดีลเลอร์ · ภาพรวมยอดขายก่อนลูกค้าเป้าหมายทั้งเครือ ฯลฯ)
 import {
   LayoutDashboard, Store, Phone, Package, Settings, GitMerge, ScrollText, Users,
   CalendarDays, FolderOpen, History, UserPlus, FileText,
@@ -43,15 +43,15 @@ export const DEALER_NAV: NavGroup[] = [
 ];
 
 // HQ — ลำดับ "ภาพรวมยอดขาย" มาก่อน "ลูกค้าเป้าหมายทั้งเครือ" (บอสสั่ง 16 ก.ค. 69)
-//      "ลูกค้าเป้าหมาย (HQ)" + "ใบเสนอแพ็กเกจตัวแทน" มาก่อน "ตัวแทนจำหน่าย" (บอสสั่ง 14 ก.ย. 69)
+//      "ลูกค้าเป้าหมาย (HQ)" + "ใบค่าแฟรนไชส์" มาก่อน "ดีลเลอร์" (บอสสั่ง 14 ก.ย. 69)
 export const HQ_NAV: NavGroup[] = [
   { key: "overview", group: "ภาพรวมทั้งเครือ", flat: true, items: [
     { label: "แดชบอร์ดสำนักงานใหญ่", href: "/hq/dashboard", icon: <LayoutDashboard size={17} /> },
   ] },
-  { key: "recruit", group: "หาตัวแทน", icon: <UserPlus size={15} />, items: [
+  { key: "recruit", group: "หาดีลเลอร์", icon: <UserPlus size={15} />, items: [
     { label: "ลูกค้าเป้าหมาย (HQ)",  href: "/hq/prospects", icon: <UserPlus size={16} /> },
-    { label: "ใบเสนอแพ็กเกจตัวแทน", href: "/hq/proposals", icon: <FileText size={16} /> },
-    { label: "ตัวแทนจำหน่าย",       href: "/hq/dealers",   icon: <Store size={16} /> },
+    { label: "ใบค่าแฟรนไชส์", href: "/hq/proposals", icon: <FileText size={16} /> },
+    { label: "ดีลเลอร์",       href: "/hq/dealers",   icon: <Store size={16} /> },
   ] },
   { key: "sales", group: "งานขายทั้งเครือ", icon: <GitMerge size={15} />, items: [
     { label: "ภาพรวมยอดขาย",          href: "/hq/pipeline",   icon: <GitMerge size={16} /> },

@@ -26,7 +26,7 @@ const ROLE_LABEL: Record<string, { label: string; bg: string; color: string }> =
   //   ซึ่งเป็นชื่อตัวแปรในโปรแกรม ไม่ใช่คำที่ผู้ใช้ควรเห็นในระบบภาษาไทย
   SUPER_ADMIN: { label: "ผู้ดูแลระบบ", bg: "#dce5f0", color: "#003366" },
   HQ_MANAGEMENT: { label: "ผู้บริหาร HQ", bg: "#dce5f0", color: "#003366" },
-  DEALER_ADMIN: { label: "ตัวแทน", bg: "#fff3cd", color: "#92400e" },
+  DEALER_ADMIN: { label: "ดีลเลอร์", bg: "#fff3cd", color: "#92400e" },
   DEALER_SALES: { label: "ฝ่ายขาย", bg: "#eef2f7", color: "#475569" },
 };
 

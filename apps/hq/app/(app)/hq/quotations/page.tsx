@@ -2,7 +2,7 @@
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ใบเสนอราคาทั้งเครือ (Network Quotations) ────────────────────────────
-// ศูนย์กลางใบเสนอราคาของตัวแทนทุกสาขา — HQ เป็นเจ้าของข้อมูล แต่ "ไม่ออกใบเอง"
+// ศูนย์กลางใบเสนอราคาของดีลเลอร์ทุกสาขา — HQ เป็นเจ้าของข้อมูล แต่ "ไม่ออกใบเอง"
 // จึงมีแค่ ดู / วิเคราะห์ / เปรียบเทียบ / ส่งออก — ไม่มีปุ่มสร้าง แก้ไข ลบ อนุมัติ
 import { useState, useMemo, useEffect } from "react";
 import { ความละเอียดของช่วง, ช่องเวลาในช่วง, คีย์ช่อง, type ความละเอียด } from "@pms/shared/lib/trendBuckets";
@@ -46,15 +46,15 @@ export default function NetworkQuotationPage() {
   // อายุใบเสนอราคา = นโยบาย HQ — อ่านผ่าน repo (เดิมอ่าน localStorage ตรง ๆ
   // โหมด supabase เลยได้ค่า default 30 วันเสมอ ไม่ใช่ค่าจริงที่ HQ ตั้งไว้ → วันหมดอายุบนหน้าเพี้ยน)
   const validityDays = useQuoteValidityDays();
-  // รายชื่อตัวแทนจากทะเบียนจริง (เดิมถอดจากใบเสนอราคา mock → เห็นสาขาที่ไม่มีอยู่จริง)
+  // รายชื่อดีลเลอร์จากทะเบียนจริง (เดิมถอดจากใบเสนอราคา mock → เห็นสาขาที่ไม่มีอยู่จริง)
   const ALL_DEALERS_FULL = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   const ALL_DEALERS = useMemo(
     () => ALL_DEALERS_FULL.map(d => ({ code: d.code, name: d.name })).sort((a, b) => a.code.localeCompare(b.code)),
     [ALL_DEALERS_FULL],
   );
 
-  // เปิดหน้าด้วย ?dealer=CODE (กดมาจากแดชบอร์ด/การ์ดสถิติ) → กรองตัวแทนนั้นให้เลย
-  // เก็บค่าจาก URL ไว้ก่อน แล้วค่อยใช้ตอนทะเบียนตัวแทนโหลดเสร็จ
+  // เปิดหน้าด้วย ?dealer=CODE (กดมาจากแดชบอร์ด/การ์ดสถิติ) → กรองดีลเลอร์นั้นให้เลย
+  // เก็บค่าจาก URL ไว้ก่อน แล้วค่อยใช้ตอนทะเบียนดีลเลอร์โหลดเสร็จ
   // (ทะเบียนมาจาก repo = ยังว่างตอนเรนเดอร์แรก · ถ้าเช็คทันทีแล้วล้าง URL ทิ้ง ตัวกรองจะไม่ติดเลย)
   const [pendingDealer, setPendingDealer] = useState<string | null>(null);
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function NetworkQuotationPage() {
     setPendingDealer(null);
   }, [pendingDealer, ALL_DEALERS]);
 
-  // ภาค/จังหวัดมาจากทะเบียนตัวแทนจริง — สาขาที่ HQ เพิ่งเพิ่มต้องโผล่ในตัวกรองด้วย
+  // ภาค/จังหวัดมาจากทะเบียนดีลเลอร์จริง — สาขาที่ HQ เพิ่งเพิ่มต้องโผล่ในตัวกรองด้วย
   const look = useMemo(() => dealerLookups(ALL_DEALERS_FULL), [ALL_DEALERS_FULL]);
   const allRows = useMemo(() => toQuoteRows(netQuotes, validityDays, look), [netQuotes, validityDays, look]);
 
@@ -103,8 +103,8 @@ export default function NetworkQuotationPage() {
   const trendRows = useMemo(() => allRows.filter(matchesNonTime), [allRows, matchesNonTime]);
   const rows = useMemo(() => trendRows.filter(r => inRange(r.createdAt)), [trendRows, inRange]);
 
-  // ลูกค้าเป้าหมายสำหรับกราฟ "อัตราลูกค้าเป้าหมายที่ออกใบเสนอราคา แยกตามตัวแทน" และ "เหตุผลที่เสียโอกาส"
-  // กรองเฉพาะมิติที่ลูกค้าเป้าหมายมีจริง: ขอบเขตตัวแทน (ตัวแทน/ภูมิภาค/จังหวัดตัวแทน) + ช่วงเวลา
+  // ลูกค้าเป้าหมายสำหรับกราฟ "อัตราลูกค้าเป้าหมายที่ออกใบเสนอราคา แยกตามดีลเลอร์" และ "เหตุผลที่เสียโอกาส"
+  // กรองเฉพาะมิติที่ลูกค้าเป้าหมายมีจริง: ขอบเขตดีลเลอร์ (ดีลเลอร์/ภูมิภาค/จังหวัดดีลเลอร์) + ช่วงเวลา
   // ไม่กรองด้วยสถานะของใบเสนอราคา — เป็นคนละเอกสารกัน จะกรองข้ามไม่ได้
   const leadRows = useMemo(() => netLeads.filter(l => {
     const code = l.dealerCode || "";
@@ -148,7 +148,7 @@ export default function NetworkQuotationPage() {
   const trendSummary = useHQQuotationsSummary(baseFilters); // ไม่มีเวลา → กราฟแนวโน้ม 12 เดือน
 
   // ลูกค้าเป้าหมายของสาขาในตัวกรอง (ขอบเขต+เวลาเดียวกับ leadRows) ที่ DB — ป้อน LeadsVsQuotations + LostReasons
-  //   province ใช้ resolvedDealerCodes (จังหวัด "ของตัวแทน") ไม่ใช่ p_province ของ lead_summary (จังหวัดลูกค้า)
+  //   province ใช้ resolvedDealerCodes (จังหวัด "ของดีลเลอร์") ไม่ใช่ p_province ของ lead_summary (จังหวัดลูกค้า)
   const leadSum = useLeadSummary({ dealerCodes: resolvedDealerCodes, dateStart: qFilters.dateStart, dateEnd: qFilters.dateEnd });
   // leads = ลูกค้าเป้าหมายทั้งหมด · quoted = ที่ไปถึงขั้นเสนอราคาแล้ว (QUOTED_UP)
   //   quoted ใช้คิด "อัตราแปลง" — สูตรเดียวกับ /hq/leads และ /hq/pipeline (เดิมกราฟนี้หาร "จำนวนใบ" จึงเกิน 100% ได้)
@@ -181,7 +181,7 @@ export default function NetworkQuotationPage() {
     [leadSum, leadRows, totalLost, lostReasons],
   );
 
-  // dealerAgg = รายตัวแทน (supabase: DB · local/ยังไม่กลับ: client จาก rows) → ป้อน KPI/ภูมิภาค/อันดับ/ลูกค้าเป้าหมายเทียบใบ/มูลค่า
+  // dealerAgg = รายดีลเลอร์ (supabase: DB · local/ยังไม่กลับ: client จาก rows) → ป้อน KPI/ภูมิภาค/อันดับ/ลูกค้าเป้าหมายเทียบใบ/มูลค่า
   const dealerAgg = useMemo<DealerAgg[]>(() => {
     if (summary) return summary.byDealer.map(d => ({
       code: d.dealerCode, name: nameOf.get(d.dealerCode) ?? d.dealerCode, region: look.regionOf(d.dealerCode),
@@ -252,11 +252,11 @@ export default function NetworkQuotationPage() {
     return {
       id: `LIVE-${q.id}`, quoteNo: q.id, dealerCode: code, dealerName: nameOf.get(code) ?? code,
       customer: q.customer, valueNum: q.totalValue, status: q.status, createdAt: fmtISOToThai(q.date),
-      salesperson: lead?.assigned ?? `ตัวแทน ${code}`, productLine: q.buildingType || q.project || "",
+      salesperson: lead?.assigned ?? `ดีลเลอร์ ${code}`, productLine: q.buildingType || q.project || "",
       materialCost: q.materialCost, lineItems: q.lineItems,
     };
   };
-  // mapToHQ ปิดคลุม netLeads/nameOf — ขาดไปก่อนหน้านี้ทำให้ชื่อผู้รับผิดชอบค้างค่าเก่าถ้าลูกค้าเป้าหมาย/ทะเบียนตัวแทน
+  // mapToHQ ปิดคลุม netLeads/nameOf — ขาดไปก่อนหน้านี้ทำให้ชื่อผู้รับผิดชอบค้างค่าเก่าถ้าลูกค้าเป้าหมาย/ทะเบียนดีลเลอร์
   // เปลี่ยนผ่าน realtime โดย pageResult reference เดิม (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
   // local ต้องตัดเป็นหน้า ๆ ที่ client ด้วย — ไม่งั้นแถบเปลี่ยนหน้าบอก "หน้า 1/9" แต่ตารางเทมาทั้ง 9 หน้า
   const localPageCount = Math.max(1, Math.ceil(tableRows.length / QPAGE_SIZE));
@@ -291,7 +291,7 @@ export default function NetworkQuotationPage() {
           <ExportMenu
             filename="hq-network-quotations"
             title="ใบเสนอราคาทั้งเครือ"
-            headers={["เลขที่", "รหัสตัวแทน", "ตัวแทน", "ลูกค้า", "จังหวัด (ตัวแทน)", "ประเภทอาคาร", "ภูมิภาค", "มูลค่า (บาท)", "สถานะ", "วันที่สร้าง", "ใช้ได้ถึง", "อายุใบ (วัน)"]}
+            headers={["เลขที่", "รหัสดีลเลอร์", "ดีลเลอร์", "ลูกค้า", "จังหวัด (ดีลเลอร์)", "ประเภทอาคาร", "ภูมิภาค", "มูลค่า (บาท)", "สถานะ", "วันที่สร้าง", "ใช้ได้ถึง", "อายุใบ (วัน)"]}
             rows={tableRows.map(quoteToCells)}
             getRows={exportGetRows}
           />

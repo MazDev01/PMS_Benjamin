@@ -1,6 +1,6 @@
 "use client";
 
-// ─── กฎการดูแลลูกค้าเป้าหมาย — ตัวแทนตั้งเอง แยกรายสาขา ────────────────────────
+// ─── กฎการดูแลลูกค้าเป้าหมาย — ดีลเลอร์ตั้งเอง แยกรายสาขา ────────────────────────
 // ⚠️ เจ้าของกฎเปลี่ยนแล้ว (บอสสั่ง): เดิม HQ ตั้งค่าเดียวที่ /hq/settings บังคับทุกสาขา
 //    ตอนนี้แต่ละสาขาตั้งของตัวเองที่ /settings → "การแจ้งเตือน" · HQ ตั้งให้ไม่ได้แล้ว
 //    → ไม่มี "เกณฑ์ของทั้งเครือ" อีกต่อไป ทุกจุดต้องถามด้วยรหัสสาขาเสมอ
@@ -8,7 +8,7 @@
 //
 // ห้ามใช้ usePersistentState ที่นี่ — hook นั้น "เขียนกลับ" ลง localStorage ด้วย
 // หน้าที่แค่อ่านกฎ (แดชบอร์ด/หน้าลูกค้าเป้าหมาย) จะเขียนค่า default ทับค่าที่ตั้งไว้ตอน mount
-// (เจอจริงตอนทดสอบ: ตั้ง 1000 วัน → เปิดแดชบอร์ดตัวแทน → ค่าเด้งกลับเป็น 7)
+// (เจอจริงตอนทดสอบ: ตั้ง 1000 วัน → เปิดแดชบอร์ดดีลเลอร์ → ค่าเด้งกลับเป็น 7)
 // ที่นี่จึงอ่านอย่างเดียว + ฟัง event ตอนกดบันทึก และ storage ตอนเปลี่ยนจากแท็บอื่น
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -46,7 +46,7 @@ export function useLeadRulesOf(): (dealerCode: string | undefined) => LeadRules 
   return useCallback((code: string | undefined) => leadRulesOf(map, code), [map]);
 }
 
-/** กฎของสาขาเดียว — หน้าฝั่งตัวแทนส่งรหัสสาขาตัวเองเข้ามา */
+/** กฎของสาขาเดียว — หน้าฝั่งดีลเลอร์ส่งรหัสสาขาตัวเองเข้ามา */
 export function useLeadRules(dealerCode: string): LeadRules {
   const map = useDealerLeadRulesMap();
   return useMemo(() => leadRulesOf(map, dealerCode), [map, dealerCode]);
