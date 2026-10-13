@@ -1,5 +1,5 @@
 {
- "migration": "0187",
+ "migration": "0188",
  "functions": [
   {
    "f": "guard_profile_privilege()",
@@ -352,13 +352,6 @@
    "definer": true
   },
   {
-   "f": "delete_dealer_atomic(p_code text)",
-   "anon": false,
-   "authenticated": true,
-   "service_role": false,
-   "definer": true
-  },
-  {
    "f": "guard_dealer_file_ext()",
    "anon": true,
    "authenticated": true,
@@ -373,10 +366,10 @@
    "definer": true
   },
   {
-   "f": "move_dealer_data_atomic(p_from text, p_to text)",
+   "f": "delete_dealer_atomic(p_code text)",
    "anon": false,
-   "authenticated": true,
-   "service_role": false,
+   "authenticated": false,
+   "service_role": true,
    "definer": true
   },
   {
@@ -692,6 +685,13 @@
    "anon": false,
    "authenticated": true,
    "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "move_dealer_data_atomic(p_from text, p_to text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
    "definer": true
   }
  ]
