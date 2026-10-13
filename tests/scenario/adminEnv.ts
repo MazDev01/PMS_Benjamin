@@ -19,8 +19,11 @@ function readEnvFile(file: string): Map<string, string> {
 const ROOT = path.join(__dirname, "../..");
 const hqVars = readEnvFile(path.join(ROOT, "apps/hq/.env.local"));
 
-export const ADMIN_SUPABASE_URL = hqVars.get("NEXT_PUBLIC_SUPABASE_URL") ?? "";
-export const ADMIN_SERVICE_ROLE_KEY = hqVars.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// ⚠️ อ่าน process.env ก่อนไฟล์ เหมือน supabaseEnv.ts (แก้ 13 ต.ค. 69)
+//    เดิมอ่านไฟล์อย่างเดียว → สั่งรันชุดทดสอบกับฐานอีกตัว (NEXT_PUBLIC_SUPABASE_URL=…) แล้วแอปกับข้อทดสอบไปฐานใหม่
+//    แต่ตัวเตรียม/เก็บกวาดข้อมูลยังยิงฐานเดิม = เตรียมข้อมูลผิดฐานโดยไม่มีอะไรบอก
+export const ADMIN_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? hqVars.get("NEXT_PUBLIC_SUPABASE_URL") ?? "";
+export const ADMIN_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? hqVars.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 /** เซิร์ฟเวอร์ตั้งค่า service_role ครบหรือยัง
  *

@@ -32,3 +32,10 @@ revoke all on public.dealer_account_requests   from anon, authenticated;
 -- ไม่งั้นหน้าเจาะสาขาของสำนักงานใหญ่จะว่างเปล่าทั้งหน้า (เจอจริงตอนย้ายมารันในเครื่อง)
 revoke all on public.dealers_directory from anon;
 grant select on public.dealers_directory to authenticated, service_role;
+-- มุมมองแม่แบบสำหรับดีลเลอร์ (ใบ 0186) — เหตุผลเดียวกับ dealers_directory:
+--   มุมมองนี้อ่านด้วยสิทธิ์เจ้าของ (ข้ามกฎรายตาราง) ใบ 0186 ถอนสิทธิ์คนที่ยังไม่เข้าระบบไว้แล้ว
+--   แต่บรรทัด "grant all on all tables" ข้างบนรันทีหลังใบ จึงให้สิทธิ์คืน → คนนอกอ่านรายการแม่แบบได้
+--   (ชุดทดสอบ anon-exposure จับได้ 13 ต.ค. 69 บนฐานที่สร้างใหม่จากใบ · ฐานจริงไม่มีไฟล์นี้ จึงไม่โดน)
+--   ⚠️ เพิ่มมุมมองใหม่ที่ข้ามกฎรายตารางเมื่อไร ต้องมาถอนสิทธิ์ซ้ำตรงนี้ด้วยทุกครั้ง
+revoke all on public.master_catalog_public from anon;
+grant select on public.master_catalog_public to authenticated, service_role;

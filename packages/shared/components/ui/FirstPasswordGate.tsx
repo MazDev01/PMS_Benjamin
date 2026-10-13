@@ -16,7 +16,6 @@ import { KeyRound, Lock, LogOut } from "lucide-react";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { account } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
-import { IMPERSONATING_KEY } from "@pms/shared/lib/useImpersonating";
 import { sbSignOutLocal } from "@pms/shared/lib/supabaseAuth";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -36,12 +35,10 @@ export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!REAL_BACKEND) return;
-    let สวมสิทธิ์ = false;
-    try {
-      สวมสิทธิ์ = new URL(window.location.href).searchParams.get("impersonated") === "1"
-        || sessionStorage.getItem(IMPERSONATING_KEY) === "1";
-    } catch { /* storage ปิดอยู่ = ถือว่าไม่ได้สวมสิทธิ์ */ }
-    if (สวมสิทธิ์ || !session.dealerCode) { setขั้นตอน("ผ่าน"); return; }
+    // ⚠️ ไม่ยกเว้นการเข้าระบบแทนดีลเลอร์ (ข้อตัดสิน 13 ต.ค. 69): ใบผ่านที่ได้เป็นของบัญชีนั้นเอง
+    //    ฐานข้อมูลปฏิเสธข้อมูลทุกอย่างจนกว่าบัญชีจะตั้งรหัสของตัวเอง (ใบ 0187) — ยกเว้นที่หน้าจอ = เห็นหน้าระบบว่างเปล่า
+    //    สำนักงานใหญ่เข้าแทนบัญชีที่ยังไม่ตั้งรหัส จึงต้องเจอหน้าตั้งรหัสเหมือนดีลเลอร์เอง
+    if (!session.dealerCode) { setขั้นตอน("ผ่าน"); return; }
     let alive = true;
     account.state(session.dealerCode)
       .then(s => { if (alive) setขั้นตอน(s.mustChangePassword ? "ต้องตั้ง" : "ผ่าน"); })

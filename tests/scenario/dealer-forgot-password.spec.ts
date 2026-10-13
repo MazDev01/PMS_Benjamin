@@ -41,7 +41,16 @@ test("[dealer] หน้า /reset-password เปิดตรงโดยไม
 //   บนคลาวด์ไม่มีทางอ่านอีเมลจริงได้ เทสต์นี้จึงข้ามตัวเองไปอย่างมีเหตุผล
 // ทำไมต้องมี: ก่อนหน้านี้พิสูจน์ได้แค่ "หน้าจอบอกว่าส่งแล้ว" — ไม่เคยรู้ว่าอีเมลออกจริงไหม
 //   ลิงก์ในอีเมลพาไปถูกที่ไหม และตั้งรหัสใหม่แล้วใช้เข้าระบบได้จริงไหม (บอสสั่งตรวจ 1 ก.ย. 69)
-const MAIL = "http://127.0.0.1:54324";
+function เลขที่ฐาน(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const txt = (require("node:fs") as typeof import("node:fs")).readFileSync("apps/dealer/.env.local", "utf8");
+    return (txt.match(/^NEXT_PUBLIC_SUPABASE_URL=(.+)$/m)?.[1] ?? "http://127.0.0.1:54321").trim();
+  } catch { return "http://127.0.0.1:54321"; }
+}
+// กล่องจดหมายทดสอบของ Supabase ในเครื่อง = พอร์ตของ API + 3 (ค่าตั้งต้น 54321 → 54324)
+//   คิดจากที่อยู่ฐานที่ใช้อยู่จริง ไม่เขียนพอร์ตตายตัว — สลับไปฐานอีกตัวแล้วต้องอ่านกล่องจดหมายของฐานนั้น (แก้ 13 ต.ค. 69)
+const MAIL = process.env.PMS_MAIL_URL ?? (process.env.NEXT_PUBLIC_SUPABASE_URL ?? เลขที่ฐาน()).replace(/:(\d+)\/?$/, (_m, p) => `:${Number(p) + 3}`);
 const มีกล่องจดหมายในเครื่อง = async () =>
   await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false);
 

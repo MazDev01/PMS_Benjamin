@@ -1,0 +1,698 @@
+{
+ "migration": "0187",
+ "functions": [
+  {
+   "f": "guard_profile_privilege()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "can_write_master()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "custom_access_token_hook(event jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_alerts(p_as_of date, p_unassigned_default_hours integer, p_unassigned_per_dealer jsonb, p_lead_idle_days integer, p_quote_validity_days integer, p_quote_expiring_days integer, p_dealer_idle_days integer)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "expire_quotations(p_as_of date, p_validity_days integer)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "replace_responsible_persons(p_dealer text, p_rows jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "is_hq()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "auth_dealer()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "auth_role()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "next_entity_id(p_dealer text, p_entity text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "is_account_active()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "can_write_sales()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "next_quote_no(p_dealer text, p_prefix text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "set_quotation_product_line()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "customer_rollup()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "parse_thai_date(s text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "lead_last_activity_date(p_activities jsonb)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "dealer_rollup(p_year integer, p_as_of date, p_default_days integer, p_follow_up_days jsonb)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "set_lead_dates()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "hq_quotations_summary(p_status text, p_dealer_codes text[], p_product_lines text[], p_search text, p_date_start date, p_date_end date, p_as_of date, p_search_dealers text[])",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "parse_baht(v text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "check_rate_limit(p_key text, p_max integer, p_window_seconds integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "lead_summary(p_dealer_codes text[], p_province text, p_product text, p_source text, p_search text, p_status text, p_date_start date, p_date_end date)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "hq_customers_filter_options()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "sync_quotation_items_count()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "network_quote_range(p_start date, p_end date, p_dealer text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "unassigned_leads(p_as_of date, p_default_hours integer, p_per_dealer jsonb, p_dealer_codes text[], p_province text, p_product text, p_source text, p_search text, p_date_start date, p_date_end date)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "log_quotation_change()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "leads_page(p_limit integer, p_offset integer, p_status text, p_dealer_codes text[], p_province text, p_product text, p_source text, p_search text, p_date_start date, p_date_end date, p_overdue boolean, p_as_of date, p_default_days integer, p_follow_up_days jsonb, p_skip_count boolean)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "restore_hq_settings(p_policy jsonb, p_targets jsonb, p_notif_rules jsonb, p_lost_reasons jsonb, p_company jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "relink_customer_quotes(p_dealer text, p_customer_id bigint, p_company text, p_cascade_won boolean)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "guard_profile_dealer_exists()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "set_quotation_date_normalized()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "set_quotation_status_reconciled(p_quote_id text, p_status text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dashboard_quote_summary(p_start date, p_end date, p_dealer text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "dealer_package_proposals_before_delete()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "prospect_stage_no(s text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "dealer_prospects_touch()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "dealer_prospect_activities_before_insert()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "dealer_prospect_activities_after_contact()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "dealer_prospects_insert_clean()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "dealer_package_proposals_before_write()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "prospect_status_th(s text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "upsert_customer_for_company(p_dealer text, p_payload jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quotation_salesperson(p_quote_id text, p_dealer_code text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "reconcile_customer_won_total(p_customer_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "is_own_identity(p_name text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "sync_customer_won_total()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "guard_last_super_admin()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "sync_dealer_name_to_profile()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "delete_dealer_atomic(p_code text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "guard_dealer_file_ext()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "log_catalog_change()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "move_dealer_data_atomic(p_from text, p_to text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "delete_customer_cascade(p_customer_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "guard_quotation_total_matches_boq()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "close_won_quotation(p_dealer text, p_known_customer_id bigint, p_lead_company text, p_target_quote_id text, p_cascade_won boolean, p_customer_payload jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "guard_price_history_append_only()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "check_own_rate_limit(p_scope text, p_max integer, p_window_seconds integer)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "log_quotation_price_change()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "audit_actor()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "log_lead_change()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "hq_recruit_settings_touch()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "create_quotation(p_dealer text, p_prefix text, p_payload jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "fill_price_history()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "network_customer_summary(p_dealer_code text, p_date_start date, p_date_end date)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "hq_customers_page(p_search text, p_dealer_code text, p_provinces text[], p_building_type text, p_bought_from date, p_bought_to date, p_limit integer, p_offset integer)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "dealers_package_target()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "hq_recruit_settings_sync_targets()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "dealer_prospects_log()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "dealer_package_proposals_log()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "package_annual_target(p text, r text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_lead_flow_set_status(p_dealer text, p_num_id integer, p_status lead_status, p_lost_reason text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "save_dealers(p_rows jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_request_sla_days()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "quote_request_overdue(r quote_requests)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "leads_hq_pricing_guard()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "quote_requests_log()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "touch_updated_at()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "can_price_quotes()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "hq_quote_copy_from(p_request_id bigint, p_source_hq_quote_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "must_set_password()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "restore_sync_sequences()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "quotations_hq_link_guard()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "hq_quotes_lock_sent()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "quotations_flow_sync()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "quote_request_submit(p_lead_num_id integer, p_product text, p_subtype text, p_area numeric, p_spec text, p_province text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_request_cancel(p_id bigint, p_reason text, p_close_lead boolean)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_request_reprice(p_id bigint, p_reason text, p_spec text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_request_accept(p_id bigint, p_assignee uuid)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_quote_save(p_request_id bigint, p_lines jsonb, p_valid_until date, p_note text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_prospects_stage_guard()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "hq_version_expired_reason()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "hq_quote_send(p_request_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quotations_hq_apply_markup()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "catalog_price_hidden()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "lead_dedupe_key(p_company text, p_phone text)",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "leads_new_lead_guard()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "quote_request_duplicates(p_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  }
+ ]
+}

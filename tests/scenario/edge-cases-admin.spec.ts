@@ -89,6 +89,9 @@ test("[edge·hq] ลบสาขาที่ยังมีข้อมูลค
 
   // ให้สาขาสร้างลูกค้าของตัวเองไว้ 1 ราย (เขียนในฐานะเจ้าของสาขา — HQ เขียนข้อมูลขายไม่ได้ตาม RLS)
   const dealerSb: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
+  // บัญชีที่สร้างจากสำนักงานใหญ่ยังไม่ได้ตั้งรหัสของตัวเอง → ฐานข้อมูลปฏิเสธทุกอย่างจนกว่าจะตั้ง (ใบ 0187)
+  //   ข้อนี้ทดสอบการลบสาขา ไม่ใช่หน้าตั้งรหัส จึงปลดเครื่องหมายก่อน เหมือนข้ออื่นที่ใช้บัญชีสร้างใหม่
+  await (await import("./firstLogin")).ข้ามตั้งรหัสครั้งแรก(dealerLogin!.email);
   const { error: loginErr } = await dealerSb.auth.signInWithPassword(dealerLogin!);
   expect(loginErr?.message ?? "", "ต้องล็อกอินเป็นสาขาทดสอบได้").toBe("");
   const { error: rpcErr } = await dealerSb.rpc("upsert_customer_for_company", {

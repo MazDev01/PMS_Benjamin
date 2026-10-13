@@ -5,7 +5,16 @@ import { test, expect } from "@playwright/test";
 // หน้าเข้าสู่ระบบใช้คอมโพเนนต์ตัวเดียวกันทั้งสองแอป (LoginCard variant="hq")
 // แต่ "ใช้ตัวเดียวกัน" ไม่เท่ากับ "ทำงานเหมือนกัน" — คนละที่อยู่เว็บ คนละบัญชี คนละเส้นทางหลังเข้าระบบ
 // จึงต้องมีเทสต์ของฝั่ง HQ แยกไว้ ไม่ใช่เชื่อว่าฝั่งดีลเลอร์ผ่านแล้วฝั่งนี้จะผ่านด้วย
-const MAIL = "http://127.0.0.1:54324";
+function เลขที่ฐาน(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const txt = (require("node:fs") as typeof import("node:fs")).readFileSync("apps/dealer/.env.local", "utf8");
+    return (txt.match(/^NEXT_PUBLIC_SUPABASE_URL=(.+)$/m)?.[1] ?? "http://127.0.0.1:54321").trim();
+  } catch { return "http://127.0.0.1:54321"; }
+}
+// กล่องจดหมายทดสอบของ Supabase ในเครื่อง = พอร์ตของ API + 3 (ค่าตั้งต้น 54321 → 54324)
+//   คิดจากที่อยู่ฐานที่ใช้อยู่จริง ไม่เขียนพอร์ตตายตัว — สลับไปฐานอีกตัวแล้วต้องอ่านกล่องจดหมายของฐานนั้น (แก้ 13 ต.ค. 69)
+const MAIL = process.env.PMS_MAIL_URL ?? (process.env.NEXT_PUBLIC_SUPABASE_URL ?? เลขที่ฐาน()).replace(/:(\d+)\/?$/, (_m, p) => `:${Number(p) + 3}`);
 const มีกล่องจดหมายในเครื่อง = async () =>
   await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false);
 
