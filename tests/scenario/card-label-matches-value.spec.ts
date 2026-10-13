@@ -49,12 +49,15 @@ test("แดชบอร์ดดีลเลอร์: แท่งคู่ต
   // ค่าจากกราฟ: แท่งหน้า (ลูกค้าเป้าหมายใหม่) ต้อง >= แท่งหลังทุกเดือน
   const คู่ = await card.locator("svg rect[height]").count();
   const สูง = await card.evaluate(el => {
-    const rects = [...el.querySelectorAll("svg rect")].filter(r => Number(r.getAttribute("height")) > 0 && r.getAttribute("fill") && !/transparent/.test(r.getAttribute("fill")!));
+    // ⚠️ ห้ามตัดแท่งที่สูง 0 ทิ้ง (พบ 12 ต.ค. 69): เดือนที่ยังไม่มีใบเสนอราคา แท่งหลังสูง 0
+    //    ตัดทิ้งแล้วจับคู่ตามลำดับ = แท่งหลังของเดือนถัดไปเลื่อนมาเทียบกับแท่งหน้าของเดือนนี้ → ตกทั้งที่กราฟถูก
+    const rects = [...el.querySelectorAll("svg rect")].filter(r => r.getAttribute("fill") && !/transparent/.test(r.getAttribute("fill")!));
     return rects.map(r => ({ x: Math.round(Number(r.getAttribute("x"))), h: Number(r.getAttribute("height")), f: r.getAttribute("fill") }));
   });
   const น้ำเงิน = สูง.filter(r => r.f === "#2563EB").sort((a, b) => a.x - b.x);
   const เหลือง = สูง.filter(r => r.f !== "#2563EB").sort((a, b) => a.x - b.x);
   console.log(`จำนวนแท่ง: ลูกค้าเป้าหมาย ${น้ำเงิน.length} · ออกใบแล้ว ${เหลือง.length} (rect ทั้งหมด ${คู่})`);
+  expect(เหลือง.length, "ทุกเดือนต้องมีแท่งครบคู่ (แท่งหน้า + แท่งหลัง)").toBe(น้ำเงิน.length);
   for (let i = 0; i < Math.min(น้ำเงิน.length, เหลือง.length); i++) {
     expect(เหลือง[i].h, `เดือนที่ ${i + 1}: แท่งหลังต้องไม่สูงกว่าแท่งหน้า`).toBeLessThanOrEqual(น้ำเงิน[i].h + 0.5);
   }

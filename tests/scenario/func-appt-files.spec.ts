@@ -19,8 +19,17 @@ const tg = nsTag(NS);
 const CUSTOMER = tg("นัดหมาย");
 
 // cleanup() ล้างทั้งแถว files และไบต์ใน Storage ให้แล้ว (ดู funcHelpers) · ลบเฉพาะช่อง NS
-test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
-test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
+// ⚠️ นัดหมายของข้อแรกติดป้ายไว้ที่ "หมายเหตุ" เท่านั้น ซึ่ง cleanup() ไม่ได้กวาด (กวาดตามบริษัท/จังหวัด)
+//    เดิมแถวจึงค้างสะสมทุกรอบ แล้วข้อทดสอบไปหยิบ "แถวเก่าจากรอบก่อน" มาตรวจแทนแถวที่เพิ่งสร้าง
+//    = ตรวจเลขนัดของรอบเก่า ไม่มีวันตก (พบ 13 ต.ค. 69 ตอนจงใจทำให้เลขนัดเป็นเลขเวลาแล้วข้อนี้ยังผ่าน)
+//    แก้ 2 ชั้น: กวาดตามหมายเหตุทั้งก่อนและหลัง + หมายเหตุมีเลขประจำรอบ แถวเก่าจับคู่ไม่ได้อีก
+const กวาดนัดของสเปก = async () => {
+  const sb = await db(RYG);
+  await sb.from("appointments").delete().eq("dealer_code", "RYG").like("note", `%${NS}%`);
+};
+const NOTE = `นัดทดสอบอัตโนมัติ ${CUSTOMER} #${Date.now()}`;
+test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); await กวาดนัดของสเปก(); });
+test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); await กวาดนัดของสเปก(); });
 
 test("[func] สร้างนัดหมายผ่านหน้าจอ → ลง DB ของสาขา", async ({ page }) => {
   const errs = watchErrors(page);
@@ -37,17 +46,19 @@ test("[func] สร้างนัดหมายผ่านหน้าจอ 
   await page.getByLabel("ประเภท").selectOption({ index: 1 });
   // ช่องจังหวัดเป็น "ตัวเลือกตามเขตของสาขา" แล้ว (บอสสั่ง 20 ส.ค. 69) พิมพ์เองไม่ได้อีก
   await page.getByLabel("จังหวัด").selectOption({ index: 1 });
-  await note.fill(`นัดทดสอบอัตโนมัติ ${CUSTOMER}`);
+  await note.fill(NOTE);
   await page.getByRole("button", { name: "เพิ่มกิจกรรม" }).last().click();
 
   // ตามหาแถวด้วย "หมายเหตุ" แทนจังหวัด (จังหวัดเลือกจากรายการแล้ว ใส่ป้ายทดสอบไม่ได้)
   const row = await waitRow<{ dealer_code: string; id: number }>(
-    sb, "appointments", { note: `นัดทดสอบอัตโนมัติ ${CUSTOMER}` }, 20_000);
+    sb, "appointments", { note: NOTE }, 20_000);
   expect(row.dealer_code, "นัดใหม่ต้องเป็นของสาขาที่ล็อกอิน").toBe("RYG");
   // เลขต้องมาจากตัวนับของ DB (next_entity_id) ไม่ใช่ Date.now()
   // ค่าจาก Date.now() เป็นเลข 13 หลัก (~1.7e12) — เลขนับของสาขาต้องเล็กกว่ามาก
   expect(row.id, "เลขนัดต้องมาจากตัวนับของสาขา").toBeGreaterThan(0);
-  expect(row.id, "เลขนัดต้องไม่ใช่ timestamp (Date.now)").toBeLessThan(1_000_000);
+  // เกณฑ์เดิม 1,000,000 ต่ำกว่าเลขของข้อมูลตั้งต้นในฐานทดสอบ (9936xxxxx) — ตัวนับต้องออกเลขถัดจากนั้น จึงเกินเกณฑ์ทั้งที่ถูก
+  //   (พบ 13 ต.ค. 69) · timestamp เป็นเลข 13 หลัก เกณฑ์ 12 หลักยังแยกสองอย่างออกจากกันได้ชัด
+  expect(row.id, "เลขนัดต้องไม่ใช่ timestamp (Date.now)").toBeLessThan(100_000_000_000);
 
   assertNoErrors(errs, "สร้างนัดหมาย");
 });

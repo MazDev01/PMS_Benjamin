@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     // ออกจาก recovery session — ให้เข้าสู่ระบบใหม่ด้วยรหัสที่เพิ่งตั้ง
-    await sbSignOut().catch(() => {});
+    await sbSignOut("global").catch(() => {});   // ตั้งรหัสใหม่แล้ว ทุกเครื่องที่ใช้รหัสเดิมต้องหลุด (ตั้งใจ)
     setPhase("done");
   }
 

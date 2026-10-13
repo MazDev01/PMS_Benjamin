@@ -130,7 +130,7 @@ test("[func] ปิดการขายไม่สำเร็จ: เลื�
   const sb = await db(RYG);
   await cleanup(sb, "RYG", NS);
   const numId = 940000 + (Date.now() % 9000);
-  await sb.from("leads").insert({
+  await sb.from("leads").insert({ phone: "081-999-0101",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: LOST_COMPANY, name: LOST_COMPANY,
     contact: "t", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "BULLET", value: "฿600,000", assigned: "t",
   });

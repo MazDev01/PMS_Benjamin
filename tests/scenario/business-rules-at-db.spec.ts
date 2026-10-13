@@ -40,7 +40,7 @@ async function makeSet(label: string, leadStatus: string, withQuote: boolean) {
 
   const numId = Number((await ryg.rpc("next_entity_id", { p_dealer: "RYG", p_entity: "leads" })).data);
   const leadId = `${TAG}-L-${numId}`;
-  const insLead = await ryg.from("leads").insert({
+  const insLead = await ryg.from("leads").insert({ phone: "081-999-0101", province: "ระยอง",
     id: leadId, dealer_code: "RYG", num_id: numId, company, status: leadStatus, customer_id: cid,
   }).select();
   expect(insLead.error, `สร้างดีลทดสอบไม่ได้: ${JSON.stringify(insLead.error)}`).toBeNull();

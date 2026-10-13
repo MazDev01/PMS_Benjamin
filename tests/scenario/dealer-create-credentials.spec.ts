@@ -62,7 +62,7 @@ test("[admin] สร้างดีลเลอร์ด้วยอีเมล
   expect(error, `ต้องล็อกอินด้วยรหัสที่ HQ ตั้งได้จริง (${error?.message ?? ""})`).toBeNull();
   const { data: prof } = await admin.from("profiles").select("dealer_code").eq("id", String(signed.user?.id)).maybeSingle();
   expect(prof?.dealer_code, "บัญชีต้องผูกกับสาขาที่เพิ่งสร้าง").toBe(CODE);
-  await sb.auth.signOut().catch(() => {});
+  await sb.auth.signOut({ scope: "local" }).catch(() => {});
 });
 
 test("[admin] รหัสผ่านสั้นเกินไป/อีเมลผิดรูปแบบ ต้องถูกปฏิเสธที่เซิร์ฟเวอร์", async ({ request }) => {
@@ -121,7 +121,7 @@ test("[admin] HQ แก้อีเมล/รหัสผ่านของส�
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error: e1 } = await sb.auth.signInWithPassword({ email: EMAIL2_NEW, password: PASSWORD });
   expect(e1, `อีเมลใหม่ + รหัสเดิมต้องเข้าได้ (${e1?.message ?? ""})`).toBeNull();
-  await sb.auth.signOut().catch(() => {});
+  await sb.auth.signOut({ scope: "local" }).catch(() => {});
 
   // ── ตั้งรหัสผ่านเอง → ต้องเข้าด้วยรหัสใหม่ได้ และรหัสเดิมใช้ไม่ได้แล้ว ──
   const รหัสใหม่ = "ZZtest-Changed-2569";
@@ -133,7 +133,7 @@ test("[admin] HQ แก้อีเมล/รหัสผ่านของส�
   const sb2 = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error: e2 } = await sb2.auth.signInWithPassword({ email: EMAIL2_NEW, password: รหัสใหม่ });
   expect(e2, `ต้องเข้าด้วยรหัสที่ HQ ตั้งเองได้ (${e2?.message ?? ""})`).toBeNull();
-  await sb2.auth.signOut().catch(() => {});
+  await sb2.auth.signOut({ scope: "local" }).catch(() => {});
 
   const sb3 = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error: e3 } = await sb3.auth.signInWithPassword({ email: EMAIL2_NEW, password: PASSWORD });
@@ -202,7 +202,7 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error } = await sb.auth.signInWithPassword({ email: อีเมลใหม่, password: "ZZtest-UI-2569" });
   expect(error, `ต้องล็อกอินด้วยคู่ใหม่ที่แก้ผ่านหน้าจอได้ (${error?.message ?? ""})`).toBeNull();
-  await sb.auth.signOut().catch(() => {});
+  await sb.auth.signOut({ scope: "local" }).catch(() => {});
 
   // ── ปุ่ม "คืนสิทธิ์แก้เอง" (บอสสั่ง 15 ก.ย. 69) — ดีลเลอร์ใช้สิทธิ์ครบ 2 ครั้ง → HQ กดคืน → เริ่มนับใหม่ ──
   expect((await admin.from("dealer_account_changes").insert([

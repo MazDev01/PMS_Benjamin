@@ -50,6 +50,11 @@ export default async function globalTeardown() {
   const เก็บชุดตั้งต้นไว้ = process.env.KEEP_TEST_DATA === "1";
   if (!เก็บชุดตั้งต้นไว้) await teardownBaseline(admin);
   await restoreAlertsIfPending(admin); // คืน hq_notif_rules.alerts เป็นค่าเดิมก่อน seed
+  // สวิตช์ซ่อนราคาแม่แบบต้องปิดเสมอเมื่อจบทั้งชุด — ตาข่ายชั้นที่สองต่อจาก afterAll ของชุด price-switch
+  //   (afterAll ไม่ทำงานถ้า worker ถูกฆ่ากลางทาง · ตัวนี้รันตอนจบทั้งรอบไม่ว่าข้อไหนจะตก)
+  //   ฐานที่ยังไม่มีสวิตช์จะได้ error กลับมาเฉย ๆ ไม่ต้องทำอะไร
+  const { data: ปิดให้ } = await admin.from("hq_policy").update({ hide_catalog_price: false }).eq("hide_catalog_price", true).select("id");
+  if (ปิดให้?.length) console.log("[global-teardown] ⚠ สวิตช์ซ่อนราคาแม่แบบเปิดค้างอยู่ตอนจบรอบ — ปิดคืนให้แล้ว (ดูสาเหตุในรายงานรอบนี้: ชุด price-switch ตก หรือสวิตช์ถูกเปิดเองในฐาน)");
   // ลูกค้าเป้าหมายชื่อ "บจ. ไทยสตีล" ที่ customer-dedupe.spec.ts สร้างผ่านหน้าจอ ไม่มีป้าย ZZTEST
   //   (ต้องเป็นชื่อสะอาด ไม่งั้นตัวจับคู่ลูกค้าซ้ำทำงานไม่ได้ — ดูเหตุผลที่ global-setup.ts)
   //   จึงต้องกวาดด้วยชื่อเป๊ะเสมอ แม้ในโหมดเก็บชุดตั้งต้นไว้ ไม่งั้นสะสมทุกรอบ

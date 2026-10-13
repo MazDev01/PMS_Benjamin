@@ -124,6 +124,8 @@ export default async function globalSetup() {
   // กวาดของเก่าทิ้งก่อน (เผื่อรันค้างจากรอบก่อนแล้ว teardown ไม่ทัน) — idempotent
   await teardownBaseline(admin);
   await restoreAlertsIfPending(admin); // เผื่อรันค้างจากรอบก่อน (ไม่งั้น snapshot ที่ค้างจะทับของจริงตอน teardown รอบนี้)
+  await ต้องไม่มีสวิตช์ซ่อนราคาเปิดค้าง(admin);
+  await ขยับตัวนับให้พ้นข้อมูลที่มี(admin);
 
   // ── hq_notif_rules.alerts เดิมเป็น {} (ยังไม่มีใครเปิดกฎแจ้งเตือนเลย) → การ์ด "ต้องดูด่วน"
   // ไม่มีทางโผล่ได้เลยไม่ว่าจะ seed ข้อมูลลูกค้าเป้าหมาย/ใบเสนอราคาแบบไหน (ui/ux/hq-quotations spec ต้องการให้โผล่)
@@ -236,6 +238,51 @@ export default async function globalSetup() {
 //
 // เปิดทีละหน้าแบบเรียงกัน ไม่ยิงพร้อมกัน — ยิงพร้อมกันคือการสร้างปัญหาเดิมซ้ำตั้งแต่ตอนอุ่นเครื่อง
 // ⚠️ ล้มเหลวตรงนี้ต้องไม่ทำให้ทั้งชุดล้ม — นี่เป็นแค่การอุ่นเครื่อง ไม่ใช่การตรวจ
+/** ชุดหลักเริ่มได้ก็ต่อเมื่อสวิตช์ซ่อนราคาแม่แบบ "ปิด" — เปิดค้าง = หยุดทันทีพร้อมบอกวิธีแก้
+ *
+ *  สวิตช์ hq_policy.hide_catalog_price ถูกเปิดโดยชุด price-switch (catalog-price-switch.spec.ts) เท่านั้น
+ *  และชุดนั้นปิดคืนให้เองทุกครั้ง (afterAll + global-teardown) — ถ้ายังเปิดอยู่ตอนเริ่ม แปลว่ารอบก่อนถูกฆ่ากลางทาง
+ *  ปล่อยให้รันต่อ = ดีลเลอร์ในชุดทดสอบอ่านราคาแม่แบบไม่ได้ ข้อทดสอบออกใบเสนอราคาตกเป็นสิบข้อ
+ *  ด้วยอาการ "ปุ่มกดไม่ได้" ที่ไม่มีอะไรชี้กลับมาที่สวิตช์เลย — หยุดตรงนี้ชัดกว่า */
+async function ต้องไม่มีสวิตช์ซ่อนราคาเปิดค้าง(admin: SupabaseClient) {
+  const { data, error } = await admin.from("hq_policy").select("hide_catalog_price").order("id").limit(1).maybeSingle();
+  if (error) return;   // ฐานที่ยังไม่มีสวิตช์ (ยังไม่ลงใบ 0186) — ไม่มีอะไรให้ค้าง
+  if (data?.hide_catalog_price) {
+    throw new Error(
+      "[global-setup] หยุด: สวิตช์ซ่อนราคาแม่แบบ (hq_policy.hide_catalog_price) เปิดค้างอยู่ในฐานทดสอบ — " +
+      "ชุดหลักรันไม่ได้เพราะดีลเลอร์จะอ่านราคาแม่แบบไม่ได้ · ปิดก่อนด้วย SQL: " +
+      "update hq_policy set hide_catalog_price = false;  แล้วรันใหม่ " +
+      "(ปกติชุด price-switch ปิดคืนให้เอง — เปิดค้างแปลว่ารอบก่อนถูกหยุดกลางทาง)",
+    );
+  }
+}
+
+/** ตัวนับเลขรายสาขา (ลูกค้าเป้าหมาย/ลูกค้า/นัดหมาย) ต้องอยู่ "หลัง" เลขที่มีในฐานเสมอ
+ *
+ *  เจอจริง 12 ต.ค. 69: ฐานทดสอบในเครื่องมีข้อมูลตั้งต้นที่ใส่เลขสูงไว้ตรง ๆ (9936xxxxx)
+ *  แต่ตัวนับของสาขา RYG ถูกสร้างไว้ก่อนหน้านั้น (ค้างที่ 946505) → ลูกค้าเป้าหมายที่เพิ่มผ่านหน้าจอ
+ *  ได้เลขต่ำกว่าของเดิม ตารางเรียง "เพิ่มล่าสุดบนสุด" ด้วยเลขนี้ จึงไปโผล่หน้าหลัง
+ *  → customer-dedupe ข้อปิดการขายหาแถวที่เพิ่งเพิ่มไม่เจอ ทั้งที่บันทึกลงฐานแล้ว
+ *  ระบบจริงไม่เป็น เพราะเลขออกจากตัวนับทางเดียว — เป็นเรื่องของข้อมูลทดสอบล้วน ๆ */
+async function ขยับตัวนับให้พ้นข้อมูลที่มี(admin: SupabaseClient) {
+  const { data: ตัวนับ } = await admin.from("entity_counters").select("dealer_code,entity,next_id");
+  const ที่มา: Record<string, { table: string; col: string }> = {
+    leads: { table: "leads", col: "num_id" }, customers: { table: "customers", col: "id" }, appointments: { table: "appointments", col: "id" },
+  };
+  for (const c of ตัวนับ ?? []) {
+    const t = ที่มา[c.entity as string];
+    if (!t) continue;
+    const { data } = await admin.from(t.table).select(t.col).eq("dealer_code", c.dealer_code)
+      .order(t.col, { ascending: false }).limit(1);
+    const สูงสุด = Number((data?.[0] as Record<string, unknown> | undefined)?.[t.col] ?? 0);
+    if (Number(c.next_id) <= สูงสุด) {
+      await admin.from("entity_counters").update({ next_id: สูงสุด + 1 })
+        .eq("dealer_code", c.dealer_code).eq("entity", c.entity);
+      console.log(`[global-setup] ขยับตัวนับ ${c.dealer_code}/${c.entity}: ${c.next_id} → ${สูงสุด + 1}`);
+    }
+  }
+}
+
 async function อุ่นเครื่องทุกหน้า() {
   const หน้า = [
     ["http://localhost:3002", ["/hq/login", "/hq/dashboard", "/hq/dealers", "/hq/pipeline", "/hq/leads",

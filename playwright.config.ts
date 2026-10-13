@@ -4,6 +4,16 @@ import { defineConfig, devices } from "@playwright/test";
 // โมโนเรโป: `npm run dev` (turbo) สตาร์ท dealer(:3001) + hq(:3002) · baseURL ตั้งเป็น HQ (:3002)
 // เพราะเทสต์ส่วนใหญ่ยิง route /hq/* · เทสต์ dealer-only ให้ใช้ URL เต็ม http://localhost:3001/...
 // reuseExistingServer=true → ถ้ามี dev server รันอยู่แล้วใช้ตัวนั้น ไม่สตาร์ทซ้ำ (กัน .next เขียนทับกัน)
+// ── ตัวแปรที่สั่งให้ชุด price-switch "ตกโดยตั้งใจ" ห้ามตั้งในระบบรันอัตโนมัติ (CI) ─────────────
+// PMS_FORCE_FAIL_PRICE_SWITCH=1 มีไว้ให้คนพิสูจน์ด้วยมือว่า "ชุดตกกลางทางแล้วสวิตช์ซ่อนราคายังถูกปิดคืน"
+// หลุดเข้า CI = ชุดทดสอบแดงทุกรอบโดยไม่มีใครรู้ว่าตั้งใจ และข้อที่เหลือในไฟล์นั้นไม่ได้รันเลย → หยุดตั้งแต่โหลดค่าตั้งต้น
+if (process.env.CI && process.env.PMS_FORCE_FAIL_PRICE_SWITCH) {
+  throw new Error(
+    "ห้ามตั้ง PMS_FORCE_FAIL_PRICE_SWITCH ในระบบรันอัตโนมัติ (CI) — ตัวแปรนี้ทำให้ชุด price-switch ตกโดยตั้งใจ " +
+    "ใช้เฉพาะตอนพิสูจน์ด้วยมือบนเครื่องพัฒนา (ดู docs/GO-LIVE-CHECKLIST.md ข้อ 5.1) · เอาตัวแปรนี้ออกแล้วรันใหม่",
+  );
+}
+
 export default defineConfig({
   testDir: "./tests/scenario",
   // ข้อมูลตั้งต้น (ลีด/ใบเสนอราคา/ลูกค้า ติดแท็ก ZZTEST-BASE) สำหรับกลุ่มเทสต์ที่แค่ "เปิดหน้าไปดู"
@@ -67,7 +77,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /multi-dealer-stress\.spec\.ts/,
+      testIgnore: /(multi-dealer-stress|catalog-price-switch)\.spec\.ts/,
     },
     {
       // ── Safari (WebKit) — สำหรับผู้ใช้ iPhone / iPad / Mac ──────────────────────
@@ -81,6 +91,16 @@ export default defineConfig({
       // อยากรันครบบน Safari ให้สั่งเองตอนต้องการ: npx playwright test --project=safari tests/scenario/ui.spec.ts
       testMatch: /mobile-viewport\.spec\.ts/,
       dependencies: ["chromium"],
+    },
+    {
+      // ── สวิตช์ซ่อนราคาแม่แบบ — ต้องรัน "เดี่ยว หลังทุกชุดจบ" ─────────────────────────────
+      // ชุดนี้เปิดสวิตช์ hq_policy.hide_catalog_price ซึ่งเป็นค่ากลางทั้งระบบ
+      // เปิดระหว่างที่ชุดอื่นรันอยู่ = ดีลเลอร์ในชุดนั้นอ่านราคาแม่แบบไม่ได้ ข้อทดสอบออกใบเสนอราคาตกหมด
+      // จึงขึ้นกับทุกโปรเจกต์ที่เหลือ (Playwright รันชุดที่ถูกพึ่งให้จบก่อน) และไฟล์เดียวรันทีละข้อ
+      name: "price-switch",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /catalog-price-switch\.spec\.ts/,
+      dependencies: ["chromium", "safari", "stress"],
     },
     {
       name: "stress",

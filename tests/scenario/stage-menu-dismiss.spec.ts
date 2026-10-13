@@ -18,7 +18,7 @@ test.beforeAll(async () => {
   const sb = await db(RYG);
   await cleanup(sb, "RYG", NS);
   const numId = 920000 + (Date.now() % 9000);
-  await sb.from("leads").insert({
+  await sb.from("leads").insert({ phone: "081-999-0101",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: COMPANY, name: COMPANY,
     contact: "ผู้ทดสอบ", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "WAITING",
     value: "฿600,000", assigned: "ผู้ทดสอบ",

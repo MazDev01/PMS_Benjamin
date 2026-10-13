@@ -95,10 +95,18 @@ test("[dealer] ลืมรหัสผ่าน — อีเมลออกจ
     //    ที่หน้าตั้งไว้ แล้วหน้าจะขึ้น "ลิงก์ไม่ถูกต้องหรือหมดอายุ" ทั้งที่ลิงก์ใช้ได้)
     //    ตัวขั้นตอนตั้งรหัสใหม่ถูกตรวจไว้แล้วที่ dealer-password-change-relogin.spec.ts
   } finally {
-    // คืนรหัสเดิมเสมอ ไม่งั้นเทสต์อื่นล็อกอินไม่ได้
-    const { data: u } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const me = (u?.users ?? []).find(x => String(x.email).toLowerCase() === RYG.email.toLowerCase());
-    if (me) await admin.auth.admin.updateUserById(me.id, { password: RYG.password });
+    // คืนรหัสเดิม "เฉพาะเมื่อรหัสเปลี่ยนไปจริง" — ไม่งั้นเทสต์อื่นล็อกอินไม่ได้
+    // ⚠️ ห้ามตั้งรหัสทับทุกครั้ง (พบ 12 ต.ค. 69 · ทดลองยืนยันแล้ว): ผู้ดูแลตั้งรหัสผ่านให้บัญชีไหน
+    //    ระบบยืนยันตัวตนจะยกเลิกใบผ่าน "ทุกใบ" ของบัญชีนั้นทันที แม้รหัสจะเหมือนเดิม
+    //    บัญชี RYG ใช้ร่วมกันทั้งชุดทดสอบ → ข้ออื่นที่รันอยู่พร้อมกันได้ 401 จาก /api/account แล้วตกแบบสุ่ม
+    //    (ข้อนี้ไม่ได้ตั้งรหัสใหม่จริงอยู่แล้ว ดูหมายเหตุด้านบน — ปกติจึงไม่ต้องคืนอะไร)
+    const ลองเข้า = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { error: เข้าไม่ได้ } = await ลองเข้า.auth.signInWithPassword(RYG);
+    if (เข้าไม่ได้) {
+      const { data: u } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      const me = (u?.users ?? []).find(x => String(x.email).toLowerCase() === RYG.email.toLowerCase());
+      if (me) await admin.auth.admin.updateUserById(me.id, { password: RYG.password });
+    }
   }
 });
 

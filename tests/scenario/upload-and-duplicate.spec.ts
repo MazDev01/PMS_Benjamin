@@ -125,7 +125,7 @@ test("กรอกบริษัทที่มีลูกค้าเป้�
   // มีลูกค้าเป้าหมายของบริษัทนี้อยู่แล้วในสาขา (เหมือนเพิ่งกดบันทึกไปในอีกแท็บ)
   const { data: seq } = await sb.from("leads").select("num_id").order("num_id", { ascending: false }).limit(1);
   const nextId = Number(seq?.[0]?.num_id ?? 0) + 9001;
-  const { error } = await sb.from("leads").insert({
+  const { error } = await sb.from("leads").insert({ phone: "081-999-0101",
     id: nextId, num_id: nextId, dealer_code: "RYG", company, contact: "คุณทดสอบ",
     status: "WAITING", province: "ระยอง",
   });

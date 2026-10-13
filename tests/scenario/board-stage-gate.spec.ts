@@ -22,7 +22,7 @@ async function seedLead(ติ๊กถึง: number) {
   const { data: j } = await sb.from("hq_sales_journey").select("tasks").eq("id", 1).maybeSingle();
   const tpl = (j?.tasks as { key: string; label: string }[] | null) ?? [];
   await sb.from("leads").delete().eq("dealer_code", "RYG").eq("company", COMPANY);
-  await sb.from("leads").insert({
+  await sb.from("leads").insert({ phone: "081-999-0101",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: COMPANY, name: COMPANY,
     contact: "ผู้ทดสอบ", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING",
     value: "500000", area: "120", assigned: "ผู้ทดสอบ",

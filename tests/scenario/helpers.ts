@@ -19,9 +19,19 @@ export async function loginAs(page: Page, role: "hq" | "dealer") {
 export const SESSION_KEY = `sb-${new URL(SUPABASE_URL || "https://x.supabase.co").hostname.split(".")[0]}-auth-token`;
 
 const sessionCache = new Map<string, Promise<Session>>();
+/** ใบผ่านที่จำไว้ยัง "ใช้ได้อีกนานพอ" ไหม — เหลือไม่ถึง 60 วินาทีถือว่าใช้ไม่ได้แล้ว */
+const ยังใช้ได้ = (s: Session) => (s.expires_at ?? 0) * 1000 - Date.now() > 60_000;
 export async function getSession(who: Account): Promise<Session> {
+  // ⚠️ ต้องเช็กอายุก่อนคืนใบผ่านที่จำไว้ (พบ 13 ต.ค. 69)
+  //    ฐานทดสอบในเครื่องตั้งอายุใบผ่านไว้ 10 นาที (supabase/config.toml · jwt_expiry) แต่ตัวรันหนึ่งตัวทำงานนานกว่านั้น
+  //    เดิมจำใบแรกไว้ตลอด → ข้อทดสอบที่ใช้ใบนี้ยิงฐานข้อมูลตรง ๆ หลังนาทีที่ 10 ได้ "JWT expired"
+  //    แล้วตกแบบสุ่มตามลำดับการรัน (ผ่านเมื่อรันซ้ำเพราะตัวรันใหม่เข้าระบบใหม่) — เข้าระบบใหม่เมื่อใบใกล้หมดอายุ
   const cached = sessionCache.get(who.email);
-  if (cached) return cached;
+  if (cached) {
+    const s = await cached.catch(() => null);
+    if (s && ยังใช้ได้(s)) return s;
+    sessionCache.delete(who.email);
+  }
   const p = (async () => {
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data, error } = await sb.auth.signInWithPassword(who);

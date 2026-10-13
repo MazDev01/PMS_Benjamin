@@ -251,7 +251,7 @@ test("[edge] แก้ 'มูลค่า' ลูกค้าเป้าหม
   const COMPANY = tg("2แท็บ");
 
   // สร้างลูกค้าเป้าหมายตั้งต้นตรงผ่าน DB (เร็วกว่าเปิดฟอร์ม + ตัดตัวแปรของฟอร์มออกไป เหลือแค่ประเด็น concurrent write)
-  const { data: created, error: cErr } = await sb.from("leads").insert({
+  const { data: created, error: cErr } = await sb.from("leads").insert({ phone: "081-999-0101",
     id: `${COMPANY}`, dealer_code: "RYG", company: COMPANY, contact: "คุณสองแท็บ",
     province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING", value: "฿1,000,000",
     assigned: "—", source: "เว็บไซต์",
@@ -399,7 +399,7 @@ test("[edge] พิมพ์เหตุผลปิดไม่สำเร็�
   const COMPANY = tg("วรรคหาย");
   const CUSTOM_REASON = "ราคา สูง เกินไป";
 
-  const { error: insErr } = await sb.from("leads").insert({
+  const { error: insErr } = await sb.from("leads").insert({ phone: "081-999-0101",
     id: `${COMPANY}`, dealer_code: "RYG", company: COMPANY, contact: "คุณวรรคหาย",
     province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING", value: "฿1,000,000",
     assigned: "—", source: "เว็บไซต์",

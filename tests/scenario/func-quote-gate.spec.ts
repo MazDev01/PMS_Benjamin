@@ -55,7 +55,7 @@ async function seedLead() {
       ? { doneAt: "1 ส.ค. 2569 · 10:00", doneBy: "ผู้ทดสอบ" } : {}),
   }));
 
-  await sb.from("leads").insert({
+  await sb.from("leads").insert({ phone: "081-999-0101",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: COMPANY, name: COMPANY,
     contact: "ผู้ทดสอบ", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "BULLET",
     value: "฿600,000", assigned: "ผู้ทดสอบ",

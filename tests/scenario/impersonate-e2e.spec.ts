@@ -18,7 +18,10 @@ test("[func] HQ กด 'เข้าระบบแทนดีลเลอร�
   await openAs(page, ADMIN, "hq", "/hq/dealers?view=table");   // หน้าเริ่มเป็นการ์ด — เทสต์นี้ใช้แถวตาราง
   await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 30_000 });
 
-  const ปุ่ม = page.getByRole("button", { name: /เข้าระบบ/ }).first();
+  // ⚠️ ต้องกดที่แถวของสาขาที่ "มีบัญชีเข้าระบบ" (RYG) — ห้ามกดแถวแรกเฉย ๆ (พบ 12 ต.ค. 69)
+  //    ฐานทดสอบมีบัญชีแค่ RYG/CNX อีก 6 สาขาไม่มี · ตารางเรียงเพิ่มล่าสุดบนสุด แถวแรกจึงเป็นสาขาที่ไม่มีบัญชี
+  //    → เซิร์ฟเวอร์ตอบ 404 "ไม่พบบัญชีเข้าระบบ" หน้าจอแจ้งและปิดแท็บ (ถูกต้องแล้ว) แต่ข้อนี้ตกเพราะรอแท็บที่ไม่มีวันเปิด
+  const ปุ่ม = page.locator("tbody tr").filter({ hasText: "RYG" }).getByRole("button", { name: /เข้าระบบ/ }).first();
   await expect(ปุ่ม, "ต้องมีปุ่มเข้าระบบแทนให้ผู้ดูแลกด").toBeVisible();
   const [แท็บ] = await Promise.all([
     context.waitForEvent("page", { timeout: 60_000 }),

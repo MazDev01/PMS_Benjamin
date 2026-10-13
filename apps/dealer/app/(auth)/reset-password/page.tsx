@@ -69,7 +69,7 @@ export default function DealerResetPasswordPage() {
     // ต้องแจ้งก่อนออกจาก recovery session — ออกก่อนแล้วจะไม่มีใบผ่านให้ยืนยันตัวตนอีก
     await แจ้งสำนักงานใหญ่();
     setBusy(false);
-    await sbSignOut().catch(() => {});
+    await sbSignOut("global").catch(() => {});   // ตั้งรหัสใหม่แล้ว ทุกเครื่องที่ใช้รหัสเดิมต้องหลุด (ตั้งใจ)
     setPhase("done");
   }
 

@@ -10,10 +10,13 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 test.setTimeout(180_000);
 
 test("[auth] HQ กดเข้าระบบแทนดีลเลอร์ → เข้าแอปดีลเลอร์ได้จริง และมีปุ่มกลับสู่ HQ แทนออกจากระบบ", async ({ page, context }) => {
-  await openAs(page, ADMIN, "hq", "/hq/dealers");
+  await openAs(page, ADMIN, "hq", "/hq/dealers?view=table");   // มุมมองตาราง — เลือกแถวของสาขาที่ต้องการได้ชัด
   await settle(page);
 
-  const ปุ่ม = page.getByRole("button", { name: "เข้าระบบ" }).first();
+  // ⚠️ ต้องกดที่แถวของสาขาที่ "มีบัญชีเข้าระบบ" (RYG) — ห้ามกดแถวแรกเฉย ๆ (พบ 12 ต.ค. 69)
+  //    ฐานทดสอบมีบัญชีแค่ RYG/CNX อีก 6 สาขาไม่มี · ตารางเรียงเพิ่มล่าสุดบนสุด แถวแรกจึงเป็นสาขาที่ไม่มีบัญชี
+  //    → เซิร์ฟเวอร์ตอบ 404 "ไม่พบบัญชีเข้าระบบ" หน้าจอแจ้งและปิดแท็บ (ถูกต้องแล้ว) แต่ข้อนี้ตกเพราะรอแท็บที่ไม่มีวันเปิด
+  const ปุ่ม = page.locator("tbody tr").filter({ hasText: "RYG" }).getByRole("button", { name: "เข้าระบบ" }).first();
   await expect(ปุ่ม, "หน้าดีลเลอร์ต้องมีปุ่มเข้าระบบแทน").toBeVisible({ timeout: 30_000 });
 
   const [แท็บดีลเลอร์] = await Promise.all([

@@ -38,6 +38,7 @@ function wasBlocked(res: { error: unknown; data: unknown }): boolean {
 
 const lead = (id: string, dealer: string) => ({
   id, dealer_code: dealer, company: `เทสต์อัตโนมัติ ${id}`, status: "WAITING",
+  phone: "081-999-0101", province: "ระยอง",   // รายใหม่ต้องมีเบอร์โทรและจังหวัด (ใบ 0186)
 });
 
 test("[rls] แต่ละสาขาเห็นเฉพาะลูกค้าเป้าหมายของตัวเอง · HQ เห็นทั้งสองสาขา", async () => {
@@ -215,8 +216,8 @@ test("[multi-tenant] สองสาขาสร้างลูกค้าเ�
   const LID = "#L-RLSPAIR";
   const QID = "Q-RLSPAIR-01";
   try {
-    const a = await ryg.from("leads").insert({ id: LID, dealer_code: "RYG", company: "ทดสอบ RYG", status: "WAITING" }).select();
-    const b = await cnx.from("leads").insert({ id: LID, dealer_code: "CNX", company: "ทดสอบ CNX", status: "WAITING" }).select();
+    const a = await ryg.from("leads").insert({ phone: "081-999-0101", province: "ระยอง", id: LID, dealer_code: "RYG", company: "ทดสอบ RYG", status: "WAITING" }).select();
+    const b = await cnx.from("leads").insert({ phone: "081-999-0101", province: "ระยอง", id: LID, dealer_code: "CNX", company: "ทดสอบ CNX", status: "WAITING" }).select();
     expect(a.error, `RYG สร้างลูกค้าเป้าหมายไม่ได้: ${JSON.stringify(a.error)}`).toBeNull();
     expect(b.error, `CNX สร้างลูกค้าเป้าหมายเลขเดียวกันไม่ได้ = ระบบใช้หลายสาขาไม่ได้: ${JSON.stringify(b.error)}`).toBeNull();
 

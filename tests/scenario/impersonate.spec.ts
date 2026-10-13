@@ -134,7 +134,7 @@ test("HQ ที่มีสิทธิ์ได้ลิงก์ที่ใ�
   const hit = (logs ?? []).find(l => String(l.action).includes("เข้าระบบแทน") && String(l.target).includes("CNX"));
   expect(hit, `ต้องมีบันทึก "เข้าระบบแทนดีลเลอร์ CNX" ใน audit log (พบ: ${JSON.stringify(logs?.slice(0, 5))})`).toBeTruthy();
 
-  await sb.auth.signOut().catch(() => {});
+  await sb.auth.signOut({ scope: "local" }).catch(() => {});
 });
 
 test("ขอเข้าระบบแทนถี่เกินไป → ถูกจำกัด (rate limit)", async ({ request }) => {

@@ -12,6 +12,7 @@
 // รัน: node scripts/preflight.mjs
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { ตรวจสวิตช์ซ่อนราคา } from "./lib/priceSwitchCheck.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
 
 const results = [];
@@ -187,6 +188,20 @@ for (const [fn, args] of [["is_account_active", {}], ["next_entity_id", { p_deal
   add(days <= 7, "ข้อมูลสำรองล่าสุด",
     !newest ? `⚠ ไม่มีข้อมูลสำรองของฐาน ${target.ref} เลย — สั่ง npm run backup`
             : `${newest.name} (${days < 1 ? "วันนี้" : `${Math.floor(days)} วันก่อน`}) · ควรไม่เกิน 7 วัน`);
+}
+
+// ── 13) สวิตช์ซ่อนราคาแม่แบบ ห้ามเปิดก่อน Flow ใบ HQ ขึ้นระบบ ──
+// เปิดก่อน = ดีลเลอร์อ่านราคาไม่ได้ และยังไม่มีทางรับราคาจากสำนักงานใหญ่ → ออกใบไม่ได้ทั้งเครือ (ดู lib/priceSwitchCheck.mjs)
+{
+  const pol = await svc.from("hq_policy").select("hide_catalog_price").order("id").limit(1).maybeSingle();
+  const switchOn = pol.error ? null : (pol.data ? !!pol.data.hide_catalog_price : null);   // error = ฐานยังไม่มีคอลัมน์นี้
+  let sentHqQuotes = null;
+  if (switchOn) {
+    const q = await svc.from("hq_quotes").select("id", { count: "exact", head: true }).in("status", ["sent", "ordered"]);
+    sentHqQuotes = q.error ? null : (q.count ?? 0);
+  }
+  const r = ตรวจสวิตช์ซ่อนราคา({ switchOn, sentHqQuotes });
+  add(r.ok, "สวิตช์ซ่อนราคาแม่แบบ", r.detail);
 }
 
 report();

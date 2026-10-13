@@ -73,7 +73,24 @@ test.describe("อื่น ๆ", () => {
     await open(page, "hq", "/hq/pipeline");
     await expect(page.getByText(/ของมูลค่า/).first()).toBeVisible();          // "ปิดได้ X% ของมูลค่า"
     const tbl = page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }).first();
-    await expect(tbl).toContainText("อัตราปิด = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้)");
     await expect(tbl).not.toContainText("ชุดเดียวกับกราฟด้านบน");
+    // คำอธิบายสูตรใต้ตารางถูกเอาออก (บอสสั่ง 22 ก.ย. 69 · commit 4e269ac "เอาคำอธิบายใต้ตารางผลงานออก")
+    //   เดิมข้อนี้ตรวจว่า "มีข้อความสูตร" — ตอนนี้ต้องไม่มี และตรวจกติกาเดิมจากตัวเลขในตารางแทน:
+    //   อัตราปิด = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้) · ยังไม่มีใบไหนรู้ผล = "—" ไม่ใช่ 0%
+    await expect(tbl).not.toContainText("อัตราปิด = ปิดได้ ÷");
+    const หัว = (await tbl.locator("thead th").allInnerTexts()).map(t => t.trim());
+    const ช่อง = (ชื่อ: string) => หัว.findIndex(h => h === ชื่อ);
+    const [iได้, iไม่ได้, iอัตรา] = [ช่อง("ปิดได้"), ช่อง("ปิดไม่ได้"), ช่อง("อัตราปิด")];
+    expect([iได้, iไม่ได้, iอัตรา].every(i => i >= 0), `ต้องมีคอลัมน์ ปิดได้ / ปิดไม่ได้ / อัตราปิด แยกกัน (ได้: ${หัว.join(" · ")})`).toBe(true);
+    const แถว = tbl.locator("tbody tr");
+    const จำนวน = await แถว.count();
+    expect(จำนวน, "ตารางต้องมีดีลเลอร์อย่างน้อย 1 แถว").toBeGreaterThan(0);
+    for (let r = 0; r < จำนวน; r++) {
+      const เซลล์ = (await แถว.nth(r).locator("td").allInnerTexts()).map(t => t.trim());
+      const ได้ = Number(เซลล์[iได้].replace(/[^0-9.]/g, "")), ไม่ได้ = Number(เซลล์[iไม่ได้].replace(/[^0-9.]/g, ""));
+      if (ได้ + ไม่ได้ === 0) expect(เซลล์[iอัตรา], `แถว ${เซลล์[0]}: ยังไม่มีใบรู้ผลต้องขึ้น "—"`).toBe("—");
+      else expect(Math.abs(parseFloat(เซลล์[iอัตรา]) - (ได้ / (ได้ + ไม่ได้)) * 100),
+        `แถว ${เซลล์[0]}: อัตราปิด ${เซลล์[iอัตรา]} ต้องเท่ากับ ${ได้} ÷ (${ได้} + ${ไม่ได้})`).toBeLessThan(0.6);
+    }
   });
 });

@@ -74,5 +74,5 @@ test("[auth·dealer] เปลี่ยนรหัสผ่านตัวเ�
   // และรหัสใหม่ใช้เข้าระบบได้จริง
   const { error: errNew } = await sb.auth.signInWithPassword({ email: EMAIL, password: รหัสใหม่ });
   expect(errNew, "รหัสผ่านใหม่ต้องใช้เข้าระบบได้จริง").toBeNull();
-  await sb.auth.signOut().catch(() => {});
+  await sb.auth.signOut({ scope: "local" }).catch(() => {});
 });
