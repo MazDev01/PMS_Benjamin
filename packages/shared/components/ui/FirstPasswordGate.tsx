@@ -12,7 +12,8 @@
 //   • อ่านสถานะบัญชีไม่ได้ — ไม่ขังผู้ใช้ไว้หน้านี้เพราะเน็ตสะดุด (บันทึกข้อผิดพลาดไว้)
 // ⚠️ ด่านจริงของ "ครั้งแรก" อยู่ที่เซิร์ฟเวอร์ (/api/account op=first-password) — หน้านี้แค่พาไปทำ
 import { useEffect, useState } from "react";
-import { KeyRound, Lock, LogOut } from "lucide-react";
+import { KeyRound, Lock, LogOut, Mail } from "lucide-react";
+import { ContactEmailForm } from "./ContactEmailForm";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { account } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
@@ -22,7 +23,9 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 
 const NAVY = "#003366";
-type ขั้น = "ตรวจ" | "ผ่าน" | "ต้องตั้ง";
+// "ต้องยืนยันอีเมล" (ด่าน 1 · 14 ต.ค. 69): บัญชีที่ HQ สร้างให้ ตั้งรหัสแล้ว แต่ยังไม่ยืนยันอีเมลติดต่อ
+//   ด่านนี้อยู่ที่หน้าจออย่างเดียว ไม่ปิดข้อมูลที่ฐาน — เรื่องการแจ้งเตือน ไม่ใช่ความปลอดภัย (ข้อตัดสินของบอส)
+type ขั้น = "ตรวจ" | "ผ่าน" | "ต้องตั้ง" | "ต้องยืนยันอีเมล";
 
 export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
   const { session, logout } = useRole();
@@ -32,6 +35,7 @@ export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
   const [err, setErr] = useState("");
   const [สำเร็จ, setสำเร็จ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [อีเมลติดต่อ, setอีเมลติดต่อ] = useState("");
 
   useEffect(() => {
     if (!REAL_BACKEND) return;
@@ -41,7 +45,11 @@ export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
     if (!session.dealerCode) { setขั้นตอน("ผ่าน"); return; }
     let alive = true;
     account.state(session.dealerCode)
-      .then(s => { if (alive) setขั้นตอน(s.mustChangePassword ? "ต้องตั้ง" : "ผ่าน"); })
+      .then(s => {
+        if (!alive) return;
+        setอีเมลติดต่อ(s.contactEmail ?? "");
+        setขั้นตอน(s.mustChangePassword ? "ต้องตั้ง" : s.mustVerifyEmail && !s.contactEmailVerified ? "ต้องยืนยันอีเมล" : "ผ่าน");
+      })
       .catch(e => {
         // ใบผ่านใช้ไม่ได้แล้ว (สาขาถูกลบ/ปิดใช้งาน) = AuthGuard กำลังพาออกจากระบบอยู่แล้ว ไม่ใช่ข้อผิดพลาดที่ต้องรายงาน
         if (!/unauthorized|401|403|ปิดการใช้งาน/i.test(String((e as Error)?.message ?? e))) logRepoRead("account.state(first-password)", e);
@@ -79,6 +87,26 @@ export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
   // ยังไม่รู้ผล: เรนเดอร์ไว้แต่ซ่อน (ตอน build ต้องมีเนื้อหาให้สร้างหน้า — แนวเดียวกับ AuthGuard)
   if (ขั้นตอน === "ตรวจ") return <div style={{ visibility: "hidden" }}>{children}</div>;
   if (ขั้นตอน === "ผ่าน") return <>{children}</>;
+  if (ขั้นตอน === "ต้องยืนยันอีเมล") return (
+    <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#eef1f5", padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 480, background: "#fff", borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,.14)", overflow: "hidden" }}>
+        <div style={{ background: NAVY, color: "#fff", padding: "18px 24px", display: "flex", alignItems: "center", gap: 10 }}>
+          <Mail size={18} />
+          <h1 style={{ margin: 0, fontSize: "1rem", fontWeight: 800 }}>ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน</h1>
+        </div>
+        <div style={{ padding: 24 }}>
+          <p style={{ margin: "0 0 16px", fontSize: "0.84rem", color: "#374151", lineHeight: 1.7 }}>
+            ขั้นสุดท้าย — กรอกอีเมลที่ใช้ติดต่อจริง ระบบจะส่งโค้ดไปให้ยืนยัน สำนักงานใหญ่ใช้อีเมลนี้แจ้งเรื่องสำคัญของงานขายถึงคุณ
+          </p>
+          <ContactEmailForm initialEmail={อีเมลติดต่อ} dealerCode={session.dealerCode ?? ""} onVerified={() => setขั้นตอน("ผ่าน")} />
+          <button type="button" onClick={logout}
+            style={{ marginTop: 16, width: "100%", background: "none", border: "none", color: "#6b7280", fontSize: "0.78rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <LogOut size={13} /> ออกจากระบบ
+          </button>
+        </div>
+      </div>
+    </main>
+  );
 
   const ช่อง: React.CSSProperties = {
     width: "100%", border: "1px solid #d5dbe4", borderRadius: 10, padding: "11px 12px 11px 38px",

@@ -178,6 +178,11 @@ export type AccountState = {
   lastRejected?: { kind: AccountChangeKind; newEmail?: string; requestedAt: string; decidedAt: string; reason?: string } | null;
   /** ยังไม่ได้ตั้งรหัสผ่านของตัวเองตั้งแต่สำนักงานใหญ่สร้างบัญชี — ต้องตั้งก่อนใช้งาน (ไม่นับสิทธิ์แก้เอง) */
   mustChangePassword?: boolean;
+  /** อีเมลติดต่อ (รับแจ้งเตือน) และสถานะยืนยัน — ด่าน 1 · ใบ 0194 */
+  contactEmail?: string;
+  contactEmailVerified?: boolean;
+  /** บัญชีที่ HQ สร้างให้และยังไม่ได้ยืนยันอีเมลติดต่อ — หน้าจอพาไปยืนยันหลังตั้งรหัสครั้งแรก */
+  mustVerifyEmail?: boolean;
 };
 
 /** ผลของการกดบันทึก — applied = มีผลทันที · pending = ส่งคำขอรออนุมัติแล้ว */
@@ -201,6 +206,13 @@ export interface AccountRepo {
   decide(id: string, action: "approve" | "reject", reason?: string): Promise<void>;
   /** ดีลเลอร์ตั้งรหัสผ่านใหม่ตอนเข้าระบบครั้งแรก — ไม่นับสิทธิ์แก้เอง 2 ครั้ง (บอสสั่ง 15 ก.ย. 69) */
   setFirstPassword(password: string): Promise<{ message: string }>;
+  /** บันทึกอีเมลติดต่อและส่งโค้ดยืนยันไปที่อีเมลนั้น (ส่งไม่สำเร็จ = โยนข้อผิดพลาดพร้อมข้อความบอกทางออก) */
+  sendContactEmailCode(email: string): Promise<{ sentTo: string }>;
+  /** กรอกโค้ดที่ได้รับ → ยืนยันอีเมลติดต่อ */
+  verifyContactEmail(code: string): Promise<{ verified: true }>;
+  /** ฝั่งสำนักงานใหญ่: สถานะอีเมลติดต่อของดีลเลอร์ / ยืนยันแทน */
+  contactEmailOf(dealerCode: string): Promise<{ contactEmail: string; verified: boolean }>;
+  verifyContactEmailFor(dealerCode: string): Promise<{ verified: true; contactEmail: string }>;
 
   // ── ดูรหัสผ่านของตัวเอง โดยยืนยันด้วยเลขที่ส่งไปทางอีเมล (บอสสั่ง 1 ก.ย. 69) ──
   //

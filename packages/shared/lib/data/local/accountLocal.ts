@@ -116,6 +116,12 @@ export const accountLocal = {
   },
 
   // โหมดตัวอย่างไม่ได้สร้างบัญชีจริง จึงไม่มีบัญชีที่ต้องตั้งรหัสตอนเข้าครั้งแรก (state ไม่ส่ง mustChangePassword)
+  // โหมดข้อมูลตัวอย่างไม่มีตัวส่งอีเมล — ด่านอีเมลติดต่อข้ามไปเอง (mustVerifyEmail ไม่ถูกตั้ง)
+  async sendContactEmailCode(): Promise<{ sentTo: string }> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีการส่งอีเมล"); },
+  async verifyContactEmail(): Promise<{ verified: true }> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีการส่งอีเมล"); },
+  async contactEmailOf(): Promise<{ contactEmail: string; verified: boolean }> { return { contactEmail: "", verified: false }; },
+  async verifyContactEmailFor(): Promise<{ verified: true; contactEmail: string }> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีอีเมลติดต่อ"); },
+
   async setFirstPassword(): Promise<{ message: string }> {
     throw new Error("โหมดข้อมูลตัวอย่างไม่มีการตั้งรหัสผ่านตอนเข้าระบบครั้งแรก");
   },

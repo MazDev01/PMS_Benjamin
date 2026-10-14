@@ -19,6 +19,7 @@ import { checkRateLimit } from "@pms/shared/lib/rateLimit";
 import { auditLog, withErrors, อีเมลถูกใช้แล้ว, รหัสผ่านยังเข้าระบบได้ } from "@pms/shared/lib/adminRoute";
 import { encryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
+import { สถานะอีเมลติดต่อ, ส่งโค้ดยืนยันอีเมล, ยืนยันโค้ดอีเมล } from "@pms/shared/server/contactEmail";
 
 export const runtime = "nodejs";
 
@@ -52,6 +53,8 @@ type ผู้เรียก = {
   appMeta: Record<string, unknown>;
   /** บัญชีที่ HQ สร้างให้และยังไม่เคยตั้งรหัสของตัวเอง */
   mustChangePassword: boolean;
+  /** บัญชีที่ HQ สร้างให้และยังไม่ได้ยืนยันอีเมลติดต่อ (ด่าน 1) — หน้าจอพาไปยืนยันหลังตั้งรหัส */
+  mustVerifyEmail: boolean;
 };
 
 /** ตรวจใบผ่าน → คืนบัญชี "ของสาขา" ที่เรียกมา · ไม่ใช่ดีลเลอร์ = ปฏิเสธ */
@@ -83,7 +86,7 @@ async function ดีลเลอร์ที่เรียก(req: NextRequest
   const appMeta = (caller.user.app_metadata ?? {}) as Record<string, unknown>;
   return { ok: true, who: {
     admin, userId: caller.user.id, email: caller.user.email ?? "", dealerCode, name: String(prof.name ?? ""),
-    appMeta, mustChangePassword: appMeta.must_change_password === true,
+    appMeta, mustChangePassword: appMeta.must_change_password === true, mustVerifyEmail: appMeta.must_verify_email === true,
   } };
 }
 
@@ -148,15 +151,17 @@ async function สรุปสถานะ(admin: SupabaseClient, dealerCode: st
 export const GET = withErrors("dealer-account-state", async (req: NextRequest) => {
   const who = await ดีลเลอร์ที่เรียก(req);
   if (!who.ok) return who.res;
-  const { admin, dealerCode, email, mustChangePassword } = who.who;
+  const { admin, dealerCode, email, mustChangePassword, mustVerifyEmail, userId } = who.who;
+  // อีเมลติดต่อ (ด่าน 1): อ่านพลาดไม่ทำให้สถานะบัญชีทั้งก้อนล้ม — ถือว่ายังไม่ยืนยัน แถบเตือนขึ้นแทน
+  const ติดต่อ = await สถานะอีเมลติดต่อ(admin, userId).catch(e => { console.error("[account] อ่านอีเมลติดต่อไม่สำเร็จ", e); return { contactEmail: "", contactEmailVerified: false }; });
 
   // เส้นทางนี้คืนแค่สถานะ (อีเมล · โควตา · คำขอค้าง · คำขอล่าสุดที่ถูกปฏิเสธ) ไม่คืนรหัสผ่าน
   //   ดีลเลอร์ดูรหัสของตัวเองได้ที่ /api/account/reveal (ต้องยืนยันเลขทางอีเมล · บอสสั่ง 1 ก.ย. 69)
   //   mustChangePassword ต้องมาก่อนเสมอ แม้ตารางโควตายังไม่ได้ติดตั้ง — หน้าตั้งรหัสครั้งแรกอ่านค่านี้
   try {
-    return json(req, { ...(await สรุปสถานะ(admin, dealerCode, email)), mustChangePassword });
+    return json(req, { ...(await สรุปสถานะ(admin, dealerCode, email)), mustChangePassword, mustVerifyEmail, ...ติดต่อ });
   } catch (e) {
-    if (e instanceof ยังไม่ได้ติดตั้ง) return json(req, { error: e.message, mustChangePassword }, 501);
+    if (e instanceof ยังไม่ได้ติดตั้ง) return json(req, { error: e.message, mustChangePassword, mustVerifyEmail, ...ติดต่อ }, 501);
     throw e;
   }
 });
@@ -208,8 +213,21 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
     return json(req, { error: "เปลี่ยนบัญชีถี่เกินไป — รอสักครู่แล้วลองใหม่" }, 429);
   }
 
-  const body = (await req.json().catch(() => null)) as null | { op?: string; email?: string; password?: string; currentPassword?: string };
+  const body = (await req.json().catch(() => null)) as null | { op?: string; email?: string; password?: string; currentPassword?: string; code?: string };
   if (body?.op === "first-password") return ตั้งรหัสครั้งแรก(req, who.who, String(body.password ?? ""));
+  // ── อีเมลติดต่อ (ด่าน 1 · ใบ 0194): ส่งโค้ด / ยืนยันโค้ด — ไม่ต้องกรอกรหัสผ่านปัจจุบัน (ไม่ใช่อีเมลเข้าระบบ) ──
+  if (body?.op === "contact-email-send") {
+    const r = await ส่งโค้ดยืนยันอีเมล(admin, who.who, String(body.email ?? ""));
+    if (!r.ok) return json(req, { error: r.error }, r.status);
+    await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์ขอโค้ดยืนยันอีเมลติดต่อ", `${dealerCode} · ${r.sentTo}`);
+    return json(req, { sentTo: r.sentTo });
+  }
+  if (body?.op === "contact-email-verify") {
+    const r = await ยืนยันโค้ดอีเมล(admin, who.who, String(body.code ?? ""));
+    if (!r.ok) return json(req, { error: r.error }, r.status);
+    await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์ยืนยันอีเมลติดต่อ", dealerCode);
+    return json(req, { verified: true });
+  }
 
   const อีเมลที่ส่ง = String(body?.email ?? "").trim().toLowerCase();
   const รหัสใหม่ = String(body?.password ?? "");

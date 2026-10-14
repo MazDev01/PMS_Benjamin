@@ -70,17 +70,21 @@ export async function ตัวส่งSMTP(env: Record<string, string | undefi
 // ── คลังจริงบนฐานข้อมูล (กุญแจฝั่งเซิร์ฟเวอร์) ──────────────────────────────────────────────
 const หน่วงครั้งถัดไป = (ครั้ง: number) => Math.min(60, 2 ** ครั้ง) * 60_000;   // 2 · 4 · 8 · 16 · 32 นาที
 
-export function คลังบนฐาน(admin: SupabaseClient): คลังกล่องขาออก {
+/** @param เฉพาะ  ส่งเฉพาะจดหมายเลขนี้ (เส้นทางที่ต้องส่งทันที เช่นโค้ดยืนยันอีเมล) — ไม่หยิบฉบับอื่นไปด้วย */
+export function คลังบนฐาน(admin: SupabaseClient, เฉพาะ?: number): คลังกล่องขาออก {
   return {
     async สแกนเกินกำหนด() {
+      if (เฉพาะ != null) return 0;
       const { data, error } = await admin.rpc("quote_requests_overdue_scan");
       if (error) throw new Error(error.message);
       return Number(data ?? 0);
     },
     async จองที่ถึงเวลา(จำนวน) {
       const now = new Date().toISOString();
-      const { data, error } = await admin.from("email_outbox").select("id, to_email, subject, body, attempts")
+      let q = admin.from("email_outbox").select("id, to_email, subject, body, attempts")
         .eq("status", "pending").lte("next_attempt_at", now).order("id").limit(จำนวน);
+      if (เฉพาะ != null) q = q.eq("id", เฉพาะ);
+      const { data, error } = await q;
       if (error) throw new Error(error.message);
       const ได้: จดหมาย[] = [];
       for (const m of (data ?? []) as จดหมาย[]) {

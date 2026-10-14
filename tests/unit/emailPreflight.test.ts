@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+// @ts-expect-error — สคริปต์ดูแลระบบเป็น .mjs ไม่มีไฟล์ชนิดข้อมูล (แบบเดียวกับ priceSwitchPreflight.test.ts)
 import { ตรวจค่าSMTP, ตรวจผู้รับของHQ } from "../../scripts/lib/emailReadinessCheck.mjs";
 
 // ── preflight: อีเมลแจ้งเตือนต้องพร้อมก่อนขึ้นระบบ (ด่าน 1) ──────────────────────────────────────

@@ -18,6 +18,7 @@ import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { account } from "@pms/shared/lib/data";
 
 /** ช่องคัดลอกค่า (ปิดบังได้) — ใช้ทั้งที่นี่และตอนสร้างดีลเลอร์ใหม่ */
 export function CopyField({ label, value, secret = false, defaultShown = false }: {
@@ -227,6 +228,8 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
         </div>
       )}
 
+      <DealerContactEmailRow code={dealer.code} />
+
       {/* แก้บัญชีเข้าระบบเอง — เว้นช่องไหนไว้ = ไม่แตะของเดิมช่องนั้น
           (แก้อีเมลอย่างเดียวต้องไม่ไปเปลี่ยนรหัสผ่านทิ้ง ไม่งั้นสาขาหลุดจากระบบทันทีโดยไม่มีใครตั้งใจ) */}
       {/* ⚠️ ต้องแขวนที่ <body> ผ่าน ModalPortal เสมอ (บอสเจอ 20 ส.ค. 69: ปุ่มบันทึกถูกการ์ดถัดไปทับ)
@@ -306,6 +309,48 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
           </ModalCard>
         </div>
         </ModalPortal>
+      )}
+    </div>
+  );
+}
+
+// ── อีเมลติดต่อของดีลเลอร์ + "ยืนยันอีเมลแทน" (ด่าน 1 · ใบ 0194) ─────────────────────────────────────
+// ทางออกเมื่อระบบส่งอีเมลขัดข้องหรือดีลเลอร์ไม่ได้รับโค้ด — ยืนยันได้เฉพาะอีเมลที่ดีลเลอร์กรอกไว้เอง
+// ฝั่งเซิร์ฟเวอร์บันทึกการใช้งานว่าใครยืนยันแทน (/api/admin/dealers/contact-email)
+function DealerContactEmailRow({ code }: { code: string }) {
+  const [สถานะ, setสถานะ] = useState<{ contactEmail: string; verified: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!REAL_BACKEND) return;
+    let alive = true;
+    account.contactEmailOf(code).then(s => { if (alive) setสถานะ(s); }).catch(() => { /* ไม่มีสิทธิ์/อ่านไม่ได้ = ไม่แสดงแถวนี้ */ });
+    return () => { alive = false; };
+  }, [code]);
+  if (!สถานะ) return null;
+  const ยืนยันแทน = async () => {
+    if (!(await ยืนยัน({
+      หัวข้อ: `ยืนยันอีเมล ${สถานะ.contactEmail} แทนดีลเลอร์ ${code}?`,
+      รายละเอียด: "ใช้เมื่อดีลเลอร์ไม่ได้รับโค้ดทางอีเมล · ระบบบันทึกว่าคุณเป็นผู้ยืนยัน",
+      ปุ่มตกลง: "ยืนยันอีเมลแทน",
+    }))) return;
+    setBusy(true);
+    try { const r = await account.verifyContactEmailFor(code); setสถานะ({ contactEmail: r.contactEmail, verified: true }); แจ้งสำเร็จ("ยืนยันอีเมลติดต่อแทนดีลเลอร์แล้ว"); }
+    catch (e) { แจ้งพลาด((e as Error)?.message ?? "ยืนยันไม่สำเร็จ"); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div data-testid="dealer-contact-email" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #eef1f5" }}>
+      <div style={{ fontSize: "0.74rem", color: "#374151" }}>
+        อีเมลติดต่อ (รับแจ้งเตือน): <b>{สถานะ.contactEmail || "—"}</b>{" "}
+        {สถานะ.contactEmail && (สถานะ.verified
+          ? <span style={{ color: "#047857", fontWeight: 700 }}>· ยืนยันแล้ว</span>
+          : <span style={{ color: "#b45309", fontWeight: 700 }}>· ยังไม่ยืนยัน</span>)}
+      </div>
+      {สถานะ.contactEmail && !สถานะ.verified && (
+        <button onClick={() => void ยืนยันแทน()} disabled={busy}
+          style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid #d5dbe4", background: "#fff", color: "#003366", fontSize: "0.76rem", fontWeight: 700, fontFamily: "inherit", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}>
+          {busy ? "กำลังยืนยัน…" : "ยืนยันอีเมลแทน"}
+        </button>
       )}
     </div>
   );

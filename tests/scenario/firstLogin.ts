@@ -16,7 +16,7 @@ export async function ข้ามตั้งรหัสครั้งแร�
     const u = data.users.find(x => (x.email ?? "").toLowerCase() === เป้า);
     if (u) {
       const { error: upErr } = await svc.auth.admin.updateUserById(u.id, {
-        app_metadata: { ...(u.app_metadata ?? {}), must_change_password: false },
+        app_metadata: { ...(u.app_metadata ?? {}), must_change_password: false, must_verify_email: false },   // ข้ามด่านยืนยันอีเมลติดต่อด้วย (ด่าน 1) — ข้อทดสอบที่ใช้ตัวนี้ไม่ได้ทดสอบเรื่องนั้น
       });
       if (upErr) throw new Error(`ปลดเครื่องหมายตั้งรหัสครั้งแรกของ ${email} ไม่สำเร็จ: ${upErr.message}`);
       return;

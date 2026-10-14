@@ -176,7 +176,8 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     email, password, email_confirm: true,
     // เข้าระบบครั้งแรกต้องตั้งรหัสผ่านใหม่ก่อนใช้งาน (บอสสั่ง 15 ก.ย. 69) — ครั้งนี้ไม่นับสิทธิ์แก้เอง 2 ครั้ง
     //   เก็บที่บัญชีเข้าระบบ (app_metadata ผู้ใช้แก้เองไม่ได้) · ดู FirstPasswordGate + /api/account op=first-password
-    app_metadata: { must_change_password: true },
+    // must_verify_email (ด่าน 1 · 14 ต.ค. 69): หลังตั้งรหัสแล้ว หน้าจอพาไปกรอกและยืนยันอีเมลติดต่อก่อนเข้าใช้งาน
+    app_metadata: { must_change_password: true, must_verify_email: true },
   });
   if (createErr || !createdUser.user) {
     const msg = createErr?.message ?? "สร้างบัญชีเข้าระบบไม่สำเร็จ";
@@ -293,7 +294,7 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
   const ได้บัญชีครั้งแรก = !!password && !!บัญชีเดิม?.user && !บัญชีเดิม.user.last_sign_in_at;
   const { data: updated, error: updateErr } = await admin.auth.admin.updateUserById(found.id, {
     ...(password ? { password } : {}),
-    ...(ได้บัญชีครั้งแรก ? { app_metadata: { ...(บัญชีเดิม?.user?.app_metadata ?? {}), must_change_password: true } } : {}),
+    ...(ได้บัญชีครั้งแรก ? { app_metadata: { ...(บัญชีเดิม?.user?.app_metadata ?? {}), must_change_password: true, must_verify_email: true } } : {}),
     ...(อีเมลใหม่ ? { email: อีเมลใหม่, email_confirm: true } : {}),
   });
   if (updateErr || !updated.user) {

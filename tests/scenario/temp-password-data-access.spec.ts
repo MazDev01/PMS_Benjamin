@@ -3,6 +3,7 @@ import { createClient, type Session } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
+import { ข้ามตั้งรหัสครั้งแรก } from "./firstLogin";
 
 // ── บัญชีที่ยังถือ "รหัสชั่วคราวจากสำนักงานใหญ่" ต้องแตะข้อมูลไม่ได้ จนกว่าจะตั้งรหัสของตัวเอง ──────
 //
@@ -179,6 +180,8 @@ test("ตั้งรหัสของตัวเองแล้ว → เข
   const ทางแอป = await (await ผ่านแอป(request, `leads?dealer=${CODE}`, data.session!.access_token)).text();
   expect(ทางแอป.includes(บริษัท), "และอ่านผ่าน /api/v1 ได้").toBe(true);
 
+  // ขั้นยืนยันอีเมลติดต่อหลังตั้งรหัส (ด่าน 1) ไม่ใช่เรื่องที่ข้อนี้ทดสอบ — ข้ามไป (มีข้อทดสอบของตัวเองที่ contact-email-verify.spec.ts)
+  await ข้ามตั้งรหัสครั้งแรก(EMAIL);
   // หน้าจอ: เข้าระบบด้วยรหัสใหม่ผ่านหน้าเข้าสู่ระบบจริง → หน้าลูกค้าเป้าหมายต้องมีข้อมูลของสาขา ไม่ว่าง
   await loginUI(page, DEALER_ORIGIN, "/login", { email: EMAIL, password: รหัสของดีลเลอร์ });
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });

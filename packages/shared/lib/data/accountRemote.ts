@@ -77,6 +77,16 @@ export const accountRemote: AccountRepo = {
   setFirstPassword: (password) =>
     ยิง<{ message: string }>("/api/account", { method: "POST", body: JSON.stringify({ op: "first-password", password }) }),
 
+  // อีเมลติดต่อ (ด่าน 1 · ใบ 0194)
+  sendContactEmailCode: (email) =>
+    ยิง<{ sentTo: string }>("/api/account", { method: "POST", body: JSON.stringify({ op: "contact-email-send", email }) }),
+  verifyContactEmail: (code) =>
+    ยิง<{ verified: true }>("/api/account", { method: "POST", body: JSON.stringify({ op: "contact-email-verify", code }) }),
+  contactEmailOf: (dealerCode) =>
+    ยิง<{ contactEmail: string; verified: boolean }>(`/api/admin/dealers/contact-email?code=${encodeURIComponent(dealerCode)}`),
+  verifyContactEmailFor: (dealerCode) =>
+    ยิง<{ verified: true; contactEmail: string }>(`/api/admin/dealers/contact-email?code=${encodeURIComponent(dealerCode)}`, { method: "POST" }),
+
   // ดูรหัสผ่านของตัวเอง: ขอเลขทางอีเมลก่อน แล้วเอาเลขนั้นมายืนยัน (บอสสั่ง 1 ก.ย. 69)
   sendRevealCode: () =>
     ยิง<{ sentTo: string }>("/api/account/reveal", { method: "POST", body: JSON.stringify({ op: "send" }) }),

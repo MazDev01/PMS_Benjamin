@@ -131,6 +131,10 @@ export default async function globalSetup() {
   await teardownBaseline(admin);
   await restoreAlertsIfPending(admin); // เผื่อรันค้างจากรอบก่อน (ไม่งั้น snapshot ที่ค้างจะทับของจริงตอน teardown รอบนี้)
   await ต้องไม่มีสวิตช์ซ่อนราคาเปิดค้าง(admin);
+  // บัญชีทดสอบหลัก (RYG / CNX) มีอีเมลติดต่อที่ยืนยันแล้ว — ไม่งั้นแถบเตือนอีเมล (ด่าน 1) ขึ้นทุกหน้าของดีลเลอร์
+  //   แล้วข้อทดสอบหน้าจอที่ไม่เกี่ยวกับอีเมลเห็นหน้าตาต่างไป · ข้อทดสอบของแถบเตือนใช้สาขาทดสอบของตัวเอง
+  await admin.from("profiles").update({ contact_email_verified_at: new Date().toISOString() })
+    .in("dealer_code", ["RYG", "CNX"]).eq("role", "DEALER_ADMIN").neq("contact_email", "").is("contact_email_verified_at", null);
   await ขยับตัวนับให้พ้นข้อมูลที่มี(admin);
 
   // ── hq_notif_rules.alerts เดิมเป็น {} (ยังไม่มีใครเปิดกฎแจ้งเตือนเลย) → การ์ด "ต้องดูด่วน"

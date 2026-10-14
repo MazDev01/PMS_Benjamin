@@ -3,6 +3,7 @@
 import { AuthGuard } from "@pms/shared/components/layout/AuthGuard";
 import { AppShell } from "@pms/shared/components/layout/AppShell";
 import { FirstPasswordGate } from "@pms/shared/components/ui/FirstPasswordGate";
+import { ContactEmailBanner } from "@pms/shared/components/ui/ContactEmailBanner";
 import { useRole } from "@pms/shared/context/RoleContext";
 
 // กันบัญชี HQ หลงเข้ามาใช้หน้าดีลเลอร์ — ฝั่ง HQ มี HQLayout กันบัญชีดีลเลอร์อยู่แล้ว (apps/hq/app/(app)/hq/layout.tsx)
@@ -31,7 +32,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <DealerRoleGuard>
         {/* เข้าระบบครั้งแรกต้องตั้งรหัสผ่านใหม่ก่อน (บอสสั่ง 15 ก.ย. 69) — ยังไม่ตั้ง = ไม่เห็นเมนูระบบเลย */}
         <FirstPasswordGate>
-          <AppShell>{children}</AppShell>
+          {/* ยังไม่มีอีเมลติดต่อที่ยืนยัน = แถบเตือนที่ปิดไม่ได้ แต่ไม่บล็อกการใช้งาน (ด่าน 1 · 14 ต.ค. 69) */}
+          <AppShell><ContactEmailBanner />{children}</AppShell>
         </FirstPasswordGate>
       </DealerRoleGuard>
     </AuthGuard>
