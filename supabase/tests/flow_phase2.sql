@@ -99,10 +99,19 @@ begin
   select * into r from quote_requests where id = r.id;
   perform flowtest.ok(r.status = 'quoted', 'คำขอยังเปิดอยู่ ให้ดีลเลอร์ขอแก้ราคาเพื่อรับใบใหม่ได้');
 
-  -- ══ ค. ใบแบบเดิม (ไม่ผูกใบ HQ) ไม่ถูกแตะ ══
+  -- ══ ค. ใบแบบเดิม (ไม่ผูกใบ HQ): สร้างใหม่ไม่ได้แล้ว (ด่าน 3 · 0201) · ใบเดิมที่มีอยู่ไม่ถูกแตะ ══
+  perform flowtest.must_fail($q$insert into quotations (id, dealer_code, customer, line_items, total_value)
+    values ('T2-CNX-NEW', 'CNX', 'ใบแบบเดิม', '[{"name":"ของเดิม","qty":2,"unit":"ชุด","unitPrice":500}]'::jsonb, 1000)$q$,
+    'hq_quote_required', 'ใบที่ไม่ผูกใบ HQ สร้างใหม่ไม่ได้ (ปิดทางเดิม)');
+  perform flowtest.as_root();
+  alter table quotations disable trigger quotations_hq_link_guard;   -- จำลองใบเก่าที่มีอยู่ก่อนปิดทางเดิม
   insert into quotations (id, dealer_code, customer, line_items, total_value)
-  values ('T2-CNX-OLD', 'CNX', 'ใบแบบเดิม', '[{"name":"ของเดิม","qty":2,"unit":"ชุด","unitPrice":500}]'::jsonb, 1000) returning * into q;
-  perform flowtest.ok(q.line_items -> 0 ->> 'name' = 'ของเดิม' and q.total_value = 1000 and q.material_cost = 0, 'ใบที่ไม่ผูกใบ HQ ทำงานแบบเดิมทุกอย่าง');
+  values ('T2-CNX-OLD', 'CNX', 'ใบแบบเดิม', '[{"name":"ของเดิม","qty":2,"unit":"ชุด","unitPrice":500}]'::jsonb, 1000);
+  alter table quotations enable trigger quotations_hq_link_guard;
+  perform flowtest.as_dealer('CNX', c.cnx_uid);
+  update quotations set line_items = '[{"name":"ของเดิม","qty":3,"unit":"ชุด","unitPrice":500}]'::jsonb, total_value = 1500
+   where dealer_code = 'CNX' and id = 'T2-CNX-OLD' returning * into q;
+  perform flowtest.ok(q.line_items -> 0 ->> 'name' = 'ของเดิม' and q.total_value = 1500 and q.material_cost = 0, 'ใบเดิมที่ไม่ผูกใบ HQ ยังแก้ได้แบบเดิม (ไม่ถูกคิดราคาใหม่)');
 
   -- ══ ง. ราคาแม่แบบ: สวิตช์ HQ เห็นคนเดียว ══
   select count(*) into n from master_catalog;
