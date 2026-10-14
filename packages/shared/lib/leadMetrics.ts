@@ -89,6 +89,8 @@ export function daysSinceContact(l: LeadRow): number | null {
 export function isLeadOpen(l: LeadRow): boolean { return l.status !== "PAID" && l.status !== "CANCELLED"; }
 export function needsFollowUp(l: LeadRow, threshold = 7): boolean {
   if (!isLeadOpen(l)) return false; // ปิดแล้วไม่ต้องตาม
+  // รอราคา HQ = ลูกบอลอยู่ที่สำนักงานใหญ่ ไม่เตือนดีลเลอร์ว่านิ่ง (FLOW.html ขั้น 4–6 · ฐานข้อมูลนับแบบเดียวกัน ใบ 0198)
+  if (l.status === "HQ_PRICING") return false;
   const days = daysSinceContact(l);
   return days !== null && days > threshold;
 }
