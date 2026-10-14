@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { test, expect } from "@playwright/test";
 import { กดตกลงในกล่องยืนยัน, ดักข้อความแจ้งเตือน } from "./helpers";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
+import { ลบสาขาทดสอบตรง } from "./testDealers";
 import {
   HQ_ORIGIN, DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
   db, waitRow, waitGone, TAG, เปิดฟอร์มตั้งดีลเลอร์, เปิดกล่องตั้งดีลเลอร์,
@@ -19,23 +20,10 @@ const DEALER_NAME = `${TAG}-สาขาทดสอบ`;
 const NEW_CODE = "ZZC";                  // สร้างผ่าน UI (แยกรหัสกับ fixture กันชน)
 const NEW_NAME = `${TAG}-สาขาสร้างใหม่`;
 
-// ลบดีลเลอร์ "พร้อมบัญชี auth" ผ่าน route (service_role) — test harness ไม่ถือ service_role เอง
-// จึงลบ auth user ที่ NEW_CODE สร้างไว้ผ่าน DELETE /api/admin/dealers ได้ · ทำให้เทสต์ H5 รันซ้ำได้ไม่ทิ้ง orphan
+// เก็บกวาดสาขาทดสอบด้วยสิทธิ์เซิร์ฟเวอร์โดยตรง — ไม่ผ่านเส้นทาง "ลบดีลเลอร์" ของระบบ (13 ต.ค. 69)
+//   เดิมเรียกเส้นทางนั้น: วันที่เส้นทางพัง สาขาทดสอบค้างในฐาน แล้วข้อทดสอบอื่นที่ไม่เกี่ยวตกตาม (ดู testDealers.ts)
 async function purgeDealerAccount(code: string) {
-  const sb = await db(ADMIN);
-  const token = (await sb.auth.getSession()).data.session?.access_token ?? "";
-  await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${code}`, {
-    method: "DELETE", headers: { authorization: `Bearer ${token}` },
-  }).catch(() => { /* best-effort cleanup */ });
-
-  // เก็บ "บัญชีเข้าระบบที่ค้าง" ด้วย — เส้นทางลบผ่าน route จะข้ามการลบบัญชีเมื่อไม่เจอแถวสาขาแล้ว
-  // (เคยเจอจริง: รอบก่อนลบแถวสาขาสำเร็จแต่ลบบัญชีไม่ผ่าน → รอบถัดไปสร้างไม่ได้เพราะ "อีเมลถูกใช้แล้ว"
-  //  แล้วเทสต์ตกโดยไม่เกี่ยวกับสิ่งที่กำลังวัดเลย)
-  if (!ADMIN_SERVICE_ROLE_KEY || !/^ZZ[A-Z]{0,3}$/.test(code)) return; // กันพลาด: เฉพาะรหัสทดสอบเท่านั้น
-  const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const orphan = (data?.users ?? []).filter(u => (u.email ?? "").toLowerCase().startsWith(`${code.toLowerCase()}@`));
-  for (const u of orphan) await admin.auth.admin.deleteUser(u.id);
+  await ลบสาขาทดสอบตรง(code);
 }
 
 test.beforeAll(async () => {
@@ -143,7 +131,7 @@ test("[func·hq] ลบดีลเลอร์ผ่านหน้าจอ �
   await page.waitForTimeout(2500);
   console.log("กล่องโต้ตอบ:", JSON.stringify([...dialogs, ...ข้อความแจ้ง()]));
 
-  await waitGone(sb, "dealers", { code: CODE }, 20_000);
+  await waitGone(sb, "dealers_directory", { code: CODE }, 20_000);   // อ่านผ่านมุมมอง: ผู้ใช้อ่านตาราง dealers ได้เฉพาะบางคอลัมน์ (ใบ 0091) select * ถูกปฏิเสธ
   assertNoErrors(errs, "ลบดีลเลอร์");
 });
 

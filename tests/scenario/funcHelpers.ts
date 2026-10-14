@@ -151,8 +151,11 @@ export async function waitGone(
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    const { data } = await sb.from(table).select("*").match(match).limit(1);
-    if (!data || !data.length) return;
+    const { data, error } = await sb.from(table).select("*").match(match).limit(1);
+    // อ่านไม่ได้ ≠ แถวหายแล้ว — เดิมถือว่า "หายแล้ว" ข้อทดสอบจึงผ่านทั้งที่ไม่ได้ตรวจอะไร
+    //   (เจอ 13 ต.ค. 69: อ่านตาราง dealers ด้วย select * ถูกปฏิเสธสิทธิ์ แล้วข้อ "ลบสาขาแล้วแถวต้องหาย" ผ่านฟรี)
+    if (error) throw new Error(`อ่าน ${table} ไม่ได้ จึงยืนยันไม่ได้ว่าแถวถูกลบแล้ว: ${error.message}`);
+    if (!data.length) return;
     await new Promise(r => setTimeout(r, 500));
   }
   throw new Error(`แถวใน ${table} ที่ ${JSON.stringify(match)} ยังไม่ถูกลบภายใน ${timeoutMs}ms`);

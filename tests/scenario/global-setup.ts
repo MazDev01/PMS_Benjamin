@@ -3,6 +3,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
+import { กวาดสาขาทดสอบค้าง } from "./testDealers";
 
 // snapshot ของ hq_notif_rules.alerts เดิม (singleton row จริง ไม่ใช่ข้อมูลแท็กที่ลบทิ้งได้เฉยๆ)
 // ต้องคืนค่าเดิมใน teardown เสมอ — ไม่ใช่ตั้งเป็นค่า test แล้วปล่อยทิ้งไว้
@@ -122,6 +123,11 @@ export default async function globalSetup() {
   const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
 
   // กวาดของเก่าทิ้งก่อน (เผื่อรันค้างจากรอบก่อนแล้ว teardown ไม่ทัน) — idempotent
+  // สาขาทดสอบที่ค้างจากรอบก่อน (รอบก่อนถูกหยุดกลางทางจน global-teardown ไม่ได้รัน) — ไม่กวาด = รอบนี้ตกที่ขั้นเตรียมข้อมูล
+  //   ด้วย "รหัสมีอยู่แล้ว" หรือสาขาค้างดันสาขาจริงตกหน้าแรกของทะเบียน ทั้งที่ไม่เกี่ยวกับสิ่งที่กำลังวัด (เจอจริง 13 ต.ค. 69)
+  const สาขาค้าง = await กวาดสาขาทดสอบค้าง(admin);
+  if (สาขาค้าง.ลบแล้ว.length) console.log(`[global-setup] กวาดสาขาทดสอบที่ค้างจากรอบก่อน: ${สาขาค้าง.ลบแล้ว.join(", ")}`);
+  if (สาขาค้าง.พลาด.length) throw new Error(`[global-setup] กวาดสาขาทดสอบที่ค้างไม่สำเร็จ — แก้ก่อนรัน ไม่งั้นผลรอบนี้เชื่อไม่ได้: ${สาขาค้าง.พลาด.join(" · ")}`);
   await teardownBaseline(admin);
   await restoreAlertsIfPending(admin); // เผื่อรันค้างจากรอบก่อน (ไม่งั้น snapshot ที่ค้างจะทับของจริงตอน teardown รอบนี้)
   await ต้องไม่มีสวิตช์ซ่อนราคาเปิดค้าง(admin);

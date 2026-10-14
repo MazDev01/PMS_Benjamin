@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason, appEnv } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, cleanup, watchErrors, assertNoErrors, pickTemplate, นำเข้าลูกค้าหนึ่งราย, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
 import { settle } from "./helpers";
+import { ลบสาขาทดสอบตรง } from "./testDealers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 
 // ── Multi-Dealer Load / Stress Test ──────────────────────────────────────────
@@ -27,10 +28,10 @@ async function adminToken(): Promise<{ sb: SupabaseClient; token: string }> {
   return { sb, token: data.session?.access_token ?? "" };
 }
 
-async function purgeDealer(token: string, code: string) {
-  await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${code}`, {
-    method: "DELETE", headers: { authorization: `Bearer ${token}` },
-  }).catch(() => {});
+// เก็บกวาดสาขาทดสอบด้วยสิทธิ์เซิร์ฟเวอร์โดยตรง — ไม่ผ่านเส้นทาง "ลบดีลเลอร์" ของระบบ (13 ต.ค. 69)
+//   เดิมเรียกเส้นทางนั้น: วันที่เส้นทางพัง สาขาทดสอบค้างในฐาน แล้วข้อทดสอบอื่นที่ไม่เกี่ยวตกตาม (ดู testDealers.ts)
+async function purgeDealer(_token: string, code: string) {
+  await ลบสาขาทดสอบตรง(code);
 }
 
 async function provisionDealer(token: string, code: string): Promise<Provisioned | null> {

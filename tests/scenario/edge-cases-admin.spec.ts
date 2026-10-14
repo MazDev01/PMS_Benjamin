@@ -4,6 +4,7 @@ import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { open } from "./helpers";
+import { ลบสาขาทดสอบตรง } from "./testDealers";
 
 // ── Edge Case ฝั่งผู้ดูแล: ตั้งค่าที่เป็นไปไม่ได้ · ลบสาขาที่ยังมีข้อมูล ────────────
 //
@@ -30,16 +31,10 @@ async function hqToken(): Promise<string> {
   return (await sb.auth.getSession()).data.session?.access_token ?? "";
 }
 
+// เก็บกวาดสาขาทดสอบด้วยสิทธิ์เซิร์ฟเวอร์โดยตรง — ไม่ผ่านเส้นทาง "ลบดีลเลอร์" ของระบบ (13 ต.ค. 69)
+//   เดิมเรียกเส้นทางนั้น: วันที่เส้นทางพัง สาขาทดสอบค้างในฐาน แล้วข้อทดสอบอื่นที่ไม่เกี่ยวตกตาม (ดู testDealers.ts)
 async function purge() {
-  // ต้องกวาดข้อมูลขายที่อาจค้างจากรอบก่อนออกก่อน — ไม่งั้นการลบสาขาจะถูกปฏิเสธ (409 "ยังมีข้อมูล")
-  // แล้วรอบถัดไปจะตกตั้งแต่ขั้นเตรียมข้อมูลด้วย "รหัสมีอยู่แล้ว" ทั้งที่ไม่เกี่ยวกับสิ่งที่กำลังวัด
-  const svc = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  for (const t of ["customer_notes", "files", "appointments", "quotations", "leads", "customers"]) {
-    await svc.from(t).delete().eq("dealer_code", CODE);
-  }
-  await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${CODE}`, {
-    method: "DELETE", headers: { authorization: `Bearer ${adminTok}` },
-  }).catch(() => {});
+  await ลบสาขาทดสอบตรง(CODE);
 }
 
 test.beforeAll(async () => {

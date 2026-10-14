@@ -4,6 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
+import { ลบสาขาทดสอบตรง } from "./testDealers";
 
 // ── ลูกค้าเป้าหมายของสำนักงานใหญ่ = ผู้สนใจเป็นดีลเลอร์ (บอสสั่ง 14 ก.ย. 69) ─────────
 //   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นดีลเลอร์"
@@ -34,17 +35,10 @@ async function adminToken(): Promise<string> {
   return (await sb.auth.getSession()).data.session?.access_token ?? "";
 }
 
-// ลบสาขาทดสอบ "พร้อมบัญชีเข้าระบบ" — แบบเดียวกับ func-hq.spec.ts (ไม่ทิ้งบัญชีกำพร้าให้รอบถัดไปสร้างไม่ได้)
+// เก็บกวาดสาขาทดสอบด้วยสิทธิ์เซิร์ฟเวอร์โดยตรง — ไม่ผ่านเส้นทาง "ลบดีลเลอร์" ของระบบ (13 ต.ค. 69)
+//   เดิมเรียกเส้นทางนั้น: วันที่เส้นทางพัง สาขาทดสอบค้างในฐาน แล้วข้อทดสอบอื่นที่ไม่เกี่ยวตกตาม (ดู testDealers.ts)
 async function purgeDealer(code: string) {
-  const token = await adminToken();
-  await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${code}`, {
-    method: "DELETE", headers: { authorization: `Bearer ${token}` },
-  }).catch(() => { /* best-effort cleanup */ });
-  if (!ADMIN_SERVICE_ROLE_KEY || !/^ZZ[A-Z]{0,3}$/.test(code)) return; // กันพลาด: เฉพาะรหัสทดสอบเท่านั้น
-  const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const orphan = (data?.users ?? []).filter(u => (u.email ?? "").toLowerCase().startsWith(`${code.toLowerCase()}@`));
-  for (const u of orphan) await admin.auth.admin.deleteUser(u.id);
+  await ลบสาขาทดสอบตรง(code);
 }
 
 async function cleanupProspects() {
@@ -239,7 +233,7 @@ test("[func·hq] ตั้งเป็นดีลเลอร์ใหม่ �
   await expect(page.getByRole("link", { name: `ไปที่ดีลเลอร์ ${NEW_CODE}` }), "มีทางไปหน้าดีลเลอร์ที่เพิ่งสร้าง").toBeVisible();
   await page.getByRole("button", { name: "เสร็จแล้ว" }).click();
   await expect(page.getByRole("row", { name: new RegExp(name) }), "เป็นดีลเลอร์แล้วต้องหายจากตารางลูกค้าเป้าหมาย").toHaveCount(0, { timeout: 15_000 });
-  await waitRow(sb, "dealers", { code: NEW_CODE });
+  await waitRow(sb, "dealers_directory", { code: NEW_CODE });   // อ่านผ่านมุมมอง: ผู้ใช้อ่านตาราง dealers ได้เฉพาะบางคอลัมน์ (ใบ 0091) select * ถูกปฏิเสธ
   await waitRow(sb, "dealer_prospects", { id, status: "won", dealer_code: NEW_CODE });
   // เป้ายอดขายรายปีของสาขา = เป้ายอดซื้อต่อปีในใบ (บอสสั่ง "เอา 3 ช่อง") · ใบนั้นกลายเป็นตอบรับ
   //   อ่านด้วยสิทธิ์ระบบ — ตาราง dealers ถอนสิทธิ์อ่านคอลัมน์เป้าจากผู้ใช้ทั่วไปแล้ว

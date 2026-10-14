@@ -1,18 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
+import { ลบสาขาทดสอบตรง } from "./testDealers";
 import {
   DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors,
   db, waitRow, cleanup, specNS, nsTag, เปิดฟอร์มตั้งดีลเลอร์, pickTemplate
 } from "./funcHelpers";
 
-// ลบดีลเลอร์ "พร้อมบัญชี auth" ผ่าน route (service_role) — เหมือน func-hq.spec.ts (purgeDealerAccount)
-// test harness ไม่ถือ service_role เอง จึงต้องผ่าน DELETE /api/admin/dealers เพื่อลบทั้งบัญชี auth+แถว
+// เก็บกวาดสาขาทดสอบด้วยสิทธิ์เซิร์ฟเวอร์โดยตรง — ไม่ผ่านเส้นทาง "ลบดีลเลอร์" ของระบบ (13 ต.ค. 69)
+//   เดิมเรียกเส้นทางนั้น: วันที่เส้นทางพัง สาขาทดสอบค้างในฐาน แล้วข้อทดสอบอื่นที่ไม่เกี่ยวตกตาม (ดู testDealers.ts)
 async function purgeDealerAccount(code: string) {
-  const sb = await db(ADMIN);
-  const token = (await sb.auth.getSession()).data.session?.access_token ?? "";
-  await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${code}`, {
-    method: "DELETE", headers: { authorization: `Bearer ${token}` },
-  }).catch(() => { /* best-effort cleanup */ });
+  await ลบสาขาทดสอบตรง(code);
 }
 
 // ลบผู้ใช้ HQ "พร้อมบัญชี auth" ผ่าน route (service_role) — เดียวกับ purgeDealerAccount แต่คนละ endpoint

@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { teardownBaseline, restoreAlertsIfPending, NS, EXISTING_CUSTOMER_NAME } from "./global-setup";
+import { กวาดสาขาทดสอบค้าง } from "./testDealers";
 
 // ── กวาดข้อมูลทดสอบ "ครั้งสุดท้าย" หลังทุกอย่างจบจริง ─────────────────────────────
 //
@@ -37,6 +38,9 @@ async function sweep(admin: SupabaseClient, เก็บชุดตั้งต
     await del("leads", "company", mark);
     await del("leads", "id", mark);
     await del("customers", "company", mark);
+    // ลูกค้าเป้าหมาย (HQ) ที่ข้อทดสอบสร้างไว้รองรับการสร้างสาขา — ใบค่าแฟรนไชส์/บันทึกการติดต่อหายตามกุญแจนอก
+    //   (เคยค้างสะสม 12 แถว: ข้อทดสอบลบสาขาตรงที่ตาราง รายต้นทางหลุดจากสาขาแต่ไม่ถูกลบ · พบ 13 ต.ค. 69)
+    await del("dealer_prospects", "name", mark);
   }
   return removed.join(" · ");
 }
@@ -59,6 +63,10 @@ export default async function globalTeardown() {
   //   (ต้องเป็นชื่อสะอาด ไม่งั้นตัวจับคู่ลูกค้าซ้ำทำงานไม่ได้ — ดูเหตุผลที่ global-setup.ts)
   //   จึงต้องกวาดด้วยชื่อเป๊ะเสมอ แม้ในโหมดเก็บชุดตั้งต้นไว้ ไม่งั้นสะสมทุกรอบ
   await admin.from("leads").delete().eq("company", EXISTING_CUSTOMER_NAME).eq("dealer_code", "RYG");
+  // สาขาทดสอบที่ค้าง (ข้อทดสอบตกกลางทาง · worker ถูกฆ่า · คำสั่งลบของระบบพัง) — กวาดก่อนตารางอื่น เพราะข้อมูลของสาขาผูกกุญแจนอกอยู่
+  const สาขา = await กวาดสาขาทดสอบค้าง(admin);
+  if (สาขา.ลบแล้ว.length) console.log(`[global-teardown] ⚠ กวาดสาขาทดสอบที่ค้าง: ${สาขา.ลบแล้ว.join(", ")} — ข้อทดสอบที่สร้างไม่ได้เก็บกวาดเอง (ดูว่าข้อไหนตกในรอบนี้)`);
+  if (สาขา.พลาด.length) console.log(`[global-teardown] ❌ กวาดสาขาทดสอบไม่สำเร็จ: ${สาขา.พลาด.join(" · ")}`);
   const leftovers = await sweep(admin, เก็บชุดตั้งต้นไว้);
   console.log(`[global-teardown] ${เก็บชุดตั้งต้นไว้ ? "เก็บข้อมูลตั้งต้น (ZZTEST-BASE) ไว้ตามที่สั่ง" : "ลบข้อมูลตั้งต้น (ZZTEST-BASE)"} + คืนค่า alerts เดิมแล้ว${leftovers ? ` · เก็บของตกค้าง: ${leftovers}` : ""}`);
 }
