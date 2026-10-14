@@ -1,5 +1,5 @@
 {
- "migration": "0203",
+ "migration": "0204",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -597,6 +597,13 @@
    "definer": false
   },
   {
+   "f": "quotation_revert_won(p_dealer text, p_id text, p_reason text, p_to quotation_status)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotation_salesperson(p_quote_id text, p_dealer_code text)",
    "anon": false,
    "authenticated": true,
@@ -609,6 +616,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "quotations_guard_won_status()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "quotations_hq_apply_markup()",
