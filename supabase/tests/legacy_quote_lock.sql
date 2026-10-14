@@ -71,7 +71,7 @@ begin
 
   -- ══ ใบเก่าที่ปิดแล้ว: ล็อกทั้งใบ ══
   perform flowtest.must_fail($q$update quotations set note = 'x' where id = 'ZZL-WON' and dealer_code = 'CNX'$q$, 'legacy_quote_locked', 'ใบเก่าที่ตอบรับแล้ว: แก้หมายเหตุก็ไม่ได้');
-  perform flowtest.must_fail($q$update quotations set status = 'sent_to_client' where id = 'ZZL-WON' and dealer_code = 'CNX'$q$, 'legacy_quote_locked', 'ใบเก่าที่ตอบรับแล้ว: เปลี่ยนสถานะไม่ได้');
+  perform flowtest.must_fail($q$update quotations set status = 'sent_to_client' where id = 'ZZL-WON' and dealer_code = 'CNX'$q$, 'quote_won_locked', 'ใบเก่าที่ตอบรับแล้ว: เปลี่ยนสถานะไม่ได้ (ย้อนได้เฉพาะ HQ · 0204)');
   perform flowtest.must_fail($q$update quotations set total_value = 1, line_items = '[{"name":"x","qty":1,"unit":"ชุด","unitPrice":1}]' where id = 'ZZL-LOST' and dealer_code = 'CNX'$q$, 'legacy_quote_locked', 'ใบเก่าที่ลูกค้าปฏิเสธ: แก้ราคาไม่ได้');
   perform flowtest.must_fail($q$update quotations set status = 'draft' where id = 'ZZL-EXP' and dealer_code = 'CNX'$q$, 'legacy_quote_locked', 'ใบเก่าที่หมดอายุ: เปิดกลับมาใช้ไม่ได้');
   perform flowtest.must_fail($q$update quotations set expiry = '2099-01-01' where id = 'ZZL-EXP' and dealer_code = 'CNX'$q$, 'legacy_quote_locked', 'ใบเก่าที่หมดอายุ: ต่ออายุไม่ได้');
