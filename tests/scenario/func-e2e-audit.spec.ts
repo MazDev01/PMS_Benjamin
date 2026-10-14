@@ -191,6 +191,10 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
   //   ตามกติกา "ห้ามออกใบ ฿0" · boq.ts) — ดีลแรกกรอกพื้นที่ไว้ ดีลที่สองต้องกรอกเหมือนกัน (พบ 12 ต.ค. 69: ข้อนี้ตกเพราะไม่ได้กรอก)
   await page.getByPlaceholder("เช่น 1200", { exact: true }).last().fill("300");
   await page.getByRole("button", { name: "เพิ่มงานขาย", exact: true }).click();
+  // ⚠️ รอให้ดีลที่สองลงฐานจริงก่อนเปลี่ยนหน้า (พบ 14 ต.ค. 69 บน production build โหมด api):
+  //    เปลี่ยนหน้าทันทีหลังกด = คำขอสร้างที่ยังไม่จบถูกตัดกลางทาง → ไม่มีดีลที่สองให้หา (เคยไม่นิ่งตั้งแต่ปิดด่าน 2)
+  await expect.poll(async () => (await sb.from("leads").select("num_id").eq("dealer_code", "RYG").eq("company", COMPANY)).data?.length ?? 0,
+    { timeout: 20_000, message: "ดีลที่สองต้องลงฐานก่อนเปลี่ยนหน้า" }).toBe(2);
 
   // ดีลใหม่ = ลูกค้าเป้าหมายใหม่ผูก customerId — หาในหน้าลูกค้าเป้าหมาย แล้วออกใบ + ปิดให้ผ่านฟลว์เดียวกัน
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
@@ -232,7 +236,8 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
   assertNoErrors(errs, "ดีลที่สองของลูกค้าเดิม");
 });
 
-test("[audit] ลบใบเสนอราคาที่ won แล้ว — ยอดลูกค้าต้องปรับลดตาม ไม่ค้างเกินจริง", async ({ page }) => {
+// ด่าน 3 (ใบ 0203 · ข้อตัดสินของบอส): ใบที่ won ลบไม่ได้ — ยอดขายที่ปิดแล้วต้องไม่หาย (เดิม: ลบได้แล้วยอดลด)
+test("[audit] ลบใบเสนอราคาที่ won แล้ว — ฐานปฏิเสธ ใบยังอยู่ ยอดลูกค้าไม่หาย", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(RYG);
   const COMPANY = tg("ลบใบวอน");
@@ -297,21 +302,15 @@ test("[audit] ลบใบเสนอราคาที่ won แล้ว —
   if (delAllowed) {
     await delBtn.click();
     await page.getByRole("button", { name: "ลบ", exact: false }).last().click();
-    await expect.poll(async () =>
-      (await sb.from("quotations").select("id").eq("id", q.id)).data?.length,
-      { timeout: 15_000 }).toBe(0);
-
-    // waitRow match แค่ {id} ซึ่งมีอยู่แล้วตั้งแต่ก่อนลบใบ (id คงที่) → resolve ทันทีโดยไม่รอ reconcile
-    // (fire-and-forget หลังลบใบ) commit จริงก่อน — ต้อง poll ค่า total_value ให้ตกที่ 0 จริงเหมือนที่
-    // poll ตอน > 0 ด้านบน (ยืนยันแยกแล้วว่า reconcile_customer_won_total RPC คำนวณถูกต้องเสมอ)
-    await expect.poll(async () =>
-      (await sb.from("customers").select("total_value").eq("id", cust.id).single()).data?.total_value,
-      { timeout: 15_000, message: "ยอดลูกค้าต้องลดลงหลังลบใบที่ won ไป — ไม่ควรค้างยอดเกินจริง" }).toBe(0);
+    // ฐานปฏิเสธ (quote_won_locked) — รอให้หน้าจอได้คำตอบแล้วยืนยันว่าใบยังอยู่ ยอดลูกค้าไม่ขยับ
+    await expect(page.getByText(/ลบไม่ได้|ตอบรับแล้ว|quote_won_locked/).first(), "ต้องบอกผู้ใช้ว่าลบไม่ได้").toBeVisible({ timeout: 15_000 });
+    expect((await sb.from("quotations").select("id,status").eq("id", q.id)).data?.[0]?.status, "ใบ won ต้องยังอยู่").toBe("won");
     const custAfter = (await sb.from("customers").select("total_value").eq("id", cust.id).single()).data as { total_value: number };
-    console.log(`[audit] หลังลบใบ won: ยอดลูกค้า=${custAfter.total_value} (คาดหวัง=0)`);
+    expect(custAfter.total_value, "ยอดลูกค้าต้องไม่หาย").toBe(cust.total_value);
   }
 
-  assertNoErrors(errs, "ลบใบที่ won แล้ว");
+  // คำขอลบที่ถูกฐานปฏิเสธ = สิ่งที่ข้อนี้ตั้งใจให้เกิด ไม่ใช่ข้อผิดพลาดของระบบ
+  assertNoErrors(errs.filter(e => !/quote_won_locked|ลบใบเสนอราคา|409|400|403/.test(e)), "ลบใบที่ won แล้ว");
 });
 
 test("[audit] เปิดฟอร์มสร้างใบเสนอราคาแล้วไม่กดบันทึก — นำทางออกไปหน้าอื่น ต้องไม่มีข้อมูลผีลง DB", async ({ page }) => {

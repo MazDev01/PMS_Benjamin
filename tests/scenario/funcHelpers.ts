@@ -320,9 +320,16 @@ export async function ensureSentQuotation(
  *  ทางเดียวกับผู้ใช้จริงตั้งแต่ด่าน 3 (ทางสร้างใบแบบเดิมปิดแล้ว) — ต้องอยู่หน้า /leads ของดีลเลอร์ที่เข้าระบบแล้ว */
 export async function เปิดฟอร์มทำใบจากใบHQ(page: Page, dealerCode: string, company: string, lines?: { name: string; qty: number; unit: string; unitCost: number }[]) {
   const sb = await db(dealerCode === "RYG" ? RYG : CNX);
-  const lead = await waitRow<{ num_id: number; status: string }>(sb, "leads", { dealer_code: dealerCode, company });
+  // ลูกค้ารายเดิมอาจมีหลายงานขาย (ดีลเก่าปิดไปแล้ว) — ขอราคาได้เฉพาะรายที่ยังอยู่ขั้นติดต่อแล้ว/รวบรวมความต้องการ เอารายล่าสุด
+  let lead = null as { num_id: number } | null;
+  await expect.poll(async () => {
+    const { data } = await sb.from("leads").select("num_id").eq("dealer_code", dealerCode).eq("company", company)
+      .in("status", ["WAITING", "BULLET"]).order("num_id", { ascending: false }).limit(1);
+    lead = data?.[0] ?? null;
+    return lead != null;
+  }, { timeout: 20_000, message: `ต้องมีลูกค้าเป้าหมาย "${company}" ที่ยังขอราคาได้` }).toBe(true);
   const { ใบHQให้ลูกค้าเป้าหมายเดิม } = await import("./hqQuoteFixture");
-  const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(dealerCode === "RYG" ? RYG : CNX, dealerCode, Number(lead.num_id), lines);
+  const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(dealerCode === "RYG" ? RYG : CNX, dealerCode, Number(lead!.num_id), lines);
   const origin = page.url().startsWith(HQ_ORIGIN) ? HQ_ORIGIN : DEALER_ORIGIN;
   await page.goto(`${origin}/leads`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});

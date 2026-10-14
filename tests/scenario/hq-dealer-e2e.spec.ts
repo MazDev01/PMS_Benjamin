@@ -29,6 +29,10 @@ const บริษัท = (s: string) => `${NS}-${s}`;
 const ยอดดีล = 1_250_000;
 
 async function ล้างข้อมูลชุดนี้() {
+  // ด่าน 3: ใบ won ลบด้วยกุญแจไม่ได้ (0203) และคำขอราคา/ใบ HQ ที่ส่งแล้วลบไม่ได้ — ล้างที่ฐานทดสอบในเครื่องตรง ๆ
+  const { ลบใบทดสอบที่ฐาน, ล้างใบHQทดสอบ } = await import("./legacyQuotes");
+  const { data: ลีด } = await db.from("leads").select("num_id").eq("dealer_code", "RYG").like("company", `${NS}%`);
+  try { ล้างใบHQทดสอบ("RYG", (ลีด ?? []).map(l => Number(l.num_id))); ลบใบทดสอบที่ฐาน(`customer like '${NS}%'`); } catch { /* ไม่มี docker */ }
   await db.from("quotations").delete().like("customer", `${NS}%`);
   await db.from("customers").delete().like("company", `${NS}%`);
   await db.from("leads").delete().like("company", `${NS}%`);
@@ -38,6 +42,27 @@ async function ล้างข้อมูลชุดนี้() {
 async function เข้าระบบ(request: APIRequestContext, origin: string, who: { email: string; password: string }) {
   const r = await request.post(`${origin}/api/v1/auth?op=login`, { data: who });
   expect(r.ok(), `เข้าสู่ระบบ ${who.email} ต้องผ่าน (ได้ ${r.status()})`).toBe(true);
+}
+
+/** ด่าน 3: ใบลูกค้าต้องทำจากใบ HQ — ดีลเลอร์ขอราคา → HQ ทำ BOQ + ส่งใบ → คืนเลขใบ HQ (ทุกขั้นผ่าน /api/v1 จริง)
+ *  request = ช่องทางที่เข้าระบบเป็นดีลเลอร์ไว้แล้ว · HQ ใช้ช่องทางแยกของตัวเอง */
+async function ใบHQผ่านAPI(request: APIRequestContext, playwright: { request: { newContext: () => Promise<APIRequestContext> } },
+  leadNum: number, ต้นทุน: number): Promise<number> {
+  const ขอ = await request.post(`${DEALER_ORIGIN}/api/v1/quote-requests`, { data: { op: "submit", leadNumId: leadNum, product: "โกดังสำเร็จรูป", province: "ระยอง" } });
+  expect(ขอ.status(), `ดีลเลอร์ขอราคาต้องผ่าน (${await ขอ.text()})`).toBe(200);
+  const คำขอ = await ขอ.json() as { id: number };
+  const hq = await playwright.request.newContext();
+  try {
+    await เข้าระบบ(hq, HQ_ORIGIN, ADMIN);
+    const บันทึก = await hq.post(`${HQ_ORIGIN}/api/v1/quote-requests`, { data: { op: "save-hq", id: คำขอ.id,
+      lines: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitCost: ต้นทุน }],
+      validUntil: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10), note: "" } });
+    expect(บันทึก.status(), `HQ ทำ BOQ ต้องผ่าน (${await บันทึก.text()})`).toBe(200);
+    const ส่ง = await hq.post(`${HQ_ORIGIN}/api/v1/quote-requests`, { data: { op: "send-hq", id: คำขอ.id } });
+    expect(ส่ง.status(), `HQ ส่งใบต้องผ่าน (${await ส่ง.text()})`).toBe(200);
+  } finally { await hq.dispose(); }
+  const { data: ใบHQ } = await db.from("hq_quotes").select("id").eq("request_id", คำขอ.id).single();
+  return Number(ใบHQ?.id);
 }
 
 test.beforeAll(ล้างข้อมูลชุดนี้);
@@ -72,15 +97,17 @@ test("[2] ดีลเลอร์สร้างลูกค้าเป้า�
 });
 
 // ── 3) ดีลเลอร์ออกใบเสนอราคา ───────────────────────────────────────────────────
-test("[3] ดีลเลอร์ออกใบเสนอราคา เลขที่ใบมาจากฐานข้อมูล และยอดตรงกับรายการ", async ({ request }) => {
+// ด่าน 3: ใบลูกค้าต้องทำจากใบ HQ — ดีลเลอร์ขอราคา → HQ ทำ BOQ + ส่งใบ → ดีลเลอร์ทำใบจากใบ HQ (ทุกขั้นผ่าน /api/v1 จริง)
+test("[3] ดีลเลอร์ออกใบเสนอราคาจากใบ HQ เลขที่ใบมาจากฐานข้อมูล และยอดตรงกับรายการ", async ({ request, playwright }) => {
   await เข้าระบบ(request, DEALER_ORIGIN, RYG);
   const { data: lead } = await db.from("leads").select("num_id").eq("company", บริษัท("ดีลหลัก")).single();
+  const ใบHQid = await ใบHQผ่านAPI(request, playwright, Number(lead?.num_id), ยอดดีล);
   const r = await request.post(`${DEALER_ORIGIN}/api/v1/quotations?op=numbered`, { data: {
     dealer: "RYG", prefix: "Q-", row: {
       customer: บริษัท("ดีลหลัก"), project: บริษัท("ดีลหลัก"), date: "2026-08-20", province: "ระยอง",
       buildingType: "โกดังสำเร็จรูป", area: 300, dealId: lead?.num_id, total: String(ยอดดีล), totalValue: ยอดดีล,
-      materialCost: ยอดดีล, items: 1, status: "draft",
-      lineItems: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitPrice: ยอดดีล }],
+      materialCost: ยอดดีล, items: 1, status: "draft", hqQuoteId: ใบHQid, markupPercent: null,
+      lineItems: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitPrice: ยอดดีล, markupPct: 0 }],
     } } });
   expect(r.status(), "ออกใบเสนอราคาต้องผ่าน").toBe(200);
   const ใบ = await r.json();
@@ -96,8 +123,9 @@ test("[4] ดีลเลอร์แก้ใบเสนอราคา ยอ
   const r = await request.put(`${DEALER_ORIGIN}/api/v1/quotations`, { data: {
     id: q!.id, dealerCode: "RYG", customer: บริษัท("ดีลหลัก"), project: บริษัท("ดีลหลัก"),
     date: q!.date, province: "ระยอง", buildingType: "โกดังสำเร็จรูป", area: 300, dealId: q!.deal_id,
-    total: String(ยอดใหม่), totalValue: ยอดใหม่, materialCost: ยอดใหม่, items: 1, status: "draft",
-    lineItems: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitPrice: ยอดใหม่ }],
+    total: String(ยอดใหม่), totalValue: ยอดใหม่, materialCost: ยอดดีล, items: 1, status: "draft", hqQuoteId: q!.hq_quote_id,
+    // ใบจากใบ HQ แก้ราคาด้วย % — 1,250,000 × 1.12 = 1,400,000 (ฐานคิดจาก % ราคาที่ส่งมาไม่มีผล)
+    lineItems: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitPrice: ยอดใหม่, markupPct: 12 }],
   } });
   expect(r.status(), "แก้ใบเสนอราคาต้องผ่าน").toBe(200);
   const { data: หลังแก้ } = await db.from("quotations").select("total_value,price_history").eq("id", q!.id).single();
@@ -283,18 +311,20 @@ test("[15] ผู้ใช้ 20 คนพร้อมกัน: ทุกคน
 });
 
 // ── 16-17) ยิงซ้ำใบเดียวกันพร้อมกัน + การแข่งกันเขียน ───────────────────────
-test("[16-17] ปิดการขายใบเดียวกันพร้อมกัน 10 สาย → ต้องได้ลูกค้ารายเดียว ยอดไม่บวกซ้ำ", async ({ request }) => {
+test("[16-17] ปิดการขายใบเดียวกันพร้อมกัน 10 สาย → ต้องได้ลูกค้ารายเดียว ยอดไม่บวกซ้ำ", async ({ request, playwright }) => {
   await เข้าระบบ(request, DEALER_ORIGIN, RYG);
   const COMPANY = บริษัท("ปิดพร้อมกัน");
   const numId = await (await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=next`, { data: { dealerCode: "RYG" } })).json();
   await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id: `#L-${numId}`, dealerCode: "RYG", numId, name: COMPANY, company: COMPANY, contact: "x",
-    phone: "081-000-0003", province: "ระยอง", status: "QUOTED", value: "800000", area: "200", assigned: "ทดสอบระบบ" } });
+    phone: "081-000-0003", province: "ระยอง", status: "BULLET", value: "800000", area: "200", assigned: "ทดสอบระบบ" } });
+  // ด่าน 3: ใบทำจากใบ HQ (ต้นทุน 800,000 บวก 0%)
+  const ใบHQid = await ใบHQผ่านAPI(request, playwright, Number(numId), 800_000);
   const ใบ = await (await request.post(`${DEALER_ORIGIN}/api/v1/quotations?op=numbered`, { data: {
     dealer: "RYG", prefix: "Q-", row: { customer: COMPANY, project: COMPANY, date: "2026-08-20", province: "ระยอง",
       buildingType: "โกดังสำเร็จรูป", area: 200, dealId: numId, total: "800000", totalValue: 800_000,
-      materialCost: 800_000, items: 1, status: "draft",
-      lineItems: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitPrice: 800_000 }] } } })).json();
+      materialCost: 800_000, items: 1, status: "draft", hqQuoteId: ใบHQid, markupPercent: null,
+      lineItems: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitPrice: 800_000, markupPct: 0 }] } } })).json();
   await db.from("quotations").update({ status: "sent_to_client" }).eq("id", ใบ.id);
 
   const payload = { dealer: "RYG", knownCustomerId: null, leadCompany: COMPANY, targetQuoteId: ใบ.id, cascadeWon: true,
