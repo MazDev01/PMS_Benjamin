@@ -1,5 +1,5 @@
 {
- "migration": "0204",
+ "migration": "0205",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
