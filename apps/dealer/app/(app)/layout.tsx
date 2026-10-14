@@ -33,7 +33,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* เข้าระบบครั้งแรกต้องตั้งรหัสผ่านใหม่ก่อน (บอสสั่ง 15 ก.ย. 69) — ยังไม่ตั้ง = ไม่เห็นเมนูระบบเลย */}
         <FirstPasswordGate>
           {/* ยังไม่มีอีเมลติดต่อที่ยืนยัน = แถบเตือนที่ปิดไม่ได้ แต่ไม่บล็อกการใช้งาน (ด่าน 1 · 14 ต.ค. 69) */}
-          <AppShell><ContactEmailBanner />{children}</AppShell>
+          <AppShell notice={<ContactEmailBanner />}>{children}</AppShell>
         </FirstPasswordGate>
       </DealerRoleGuard>
     </AuthGuard>

@@ -31,7 +31,11 @@ const A = { code: "ZTV", email: "ztv-login@example.test", pw: "ZZtest-Temp-ZTV-1
 const B = { code: "ZTW", email: "ztw-login@example.test", pw: "ZZtest-Temp-ZTW-1", ใหม่: "ZZtest-Own-ZTW-2", ติดต่อ: "zztest-ztw-contact@example.test" };
 
 test.beforeAll(async () => { for (const d of [A, B]) await ลบสาขาทดสอบตรง(d.code, admin); });
-test.afterAll(async () => { for (const d of [A, B]) await ลบสาขาทดสอบตรง(d.code, admin); });
+test.afterAll(async () => {
+  for (const d of [A, B]) await ลบสาขาทดสอบตรง(d.code, admin);
+  // จดหมายโค้ดยืนยันที่ข้อทดสอบนี้สร้าง (ที่อยู่ของข้อทดสอบเท่านั้น) — ไม่งั้นค้างในกล่องขาออก (check-test-leftovers จับได้ 14 ต.ค. 69)
+  await admin.from("email_outbox").delete().ilike("to_email", "zztest-zt%-contact@example.test");
+});
 
 const hqToken = async () => (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
 async function สร้างสาขา(request: import("@playwright/test").APIRequestContext, d: typeof A) {

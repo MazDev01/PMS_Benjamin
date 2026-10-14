@@ -136,7 +136,9 @@ function ImpersonationBanner() {
 }
 
 // เชลล์ของเวิร์กสเปซ — ถือสถานะเปิด/ปิดเมนูมือถือ (hamburger drawer)
-export function AppShell({ children }: { children: React.ReactNode }) {
+/** notice = แถบประกาศของแอปนั้น (เช่น แถบเตือนอีเมลติดต่อของดีลเลอร์) วางใต้แถบแจ้งข้อผิดพลาด เหนือเนื้อหา
+ *  แยกเป็นช่องของตัวเอง ไม่ส่งปนมากับ children — children ของ layout ใน Next อาจเป็นรายการ ส่งปนแล้ว React เตือนเรื่อง key (14 ต.ค. 69) */
+export function AppShell({ children, notice }: { children: React.ReactNode; notice?: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
   // ล้างรายชื่อดีลเลอร์รุ่นเก่าที่ค้างในเครื่อง (ดู HQ_DEALERS_KEY ใน mock.ts) — ทำครั้งเดียวตอนเข้าแอป
@@ -151,6 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ImpersonationBanner />
         <SyncErrorBar />
         <ReadErrorBar />
+        {notice}
         {/* ตัวกรองแยกอิสระต่อหน้า — key+storageKey ต่อ pathname (เปลี่ยนหน้า A ไม่กระทบหน้า B) */}
         <div className="content">
           <FilterProvider key={pathname} storageKey={`bpms_filters:${pathname}`}>

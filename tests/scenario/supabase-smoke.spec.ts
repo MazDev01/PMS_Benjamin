@@ -62,10 +62,11 @@ test("[supabase] ดีลเลอร์ RYG ล็อกอินผ่าน�
   const errs = trackErrors(page);
   await login(page, DEALER, "/login", RYG);
   // ล็อกอินสำเร็จ = เด้งออกจากหน้า login
-  await page.waitForTimeout(2500);
+  // รอจนเนื้อหาขึ้นจริง ไม่ใช่รอเวลาตายตัว (เดิม 2.5 วินาที — ตกทุกครั้งเมื่อการตรวจสถานะบัญชีช้าลงเล็กน้อย · 14 ต.ค. 69)
+  //   หน้าในระบบซ่อนเนื้อหาไว้ระหว่างตรวจว่าต้องตั้งรหัส/ยืนยันอีเมลหรือไม่ จึงต้องรอให้ตรวจเสร็จ
+  await expect.poll(() => page.evaluate(() => document.body.innerText.length), { timeout: 20_000, message: "หน้าต้องเรนเดอร์เนื้อหา ไม่ใช่จอเปล่า" })
+    .toBeGreaterThan(200);
   console.log("URL หลังล็อกอิน:", page.url());
-  const body = await page.evaluate(() => document.body.innerText);
-  expect(body.length, "หน้าต้องเรนเดอร์เนื้อหา ไม่ใช่จอเปล่า").toBeGreaterThan(200);
   const fatal = errs.filter(e => !/favicon|hydrat|Download the React/i.test(e));
   console.log(fatal.length ? `errors:\n${fatal.slice(0, 5).join("\n")}` : "ไม่มี error");
   expect(fatal, "ต้องไม่มี error ตอนเข้าระบบด้วย backend จริง").toEqual([]);
