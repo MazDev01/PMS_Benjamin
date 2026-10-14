@@ -1,5 +1,5 @@
 {
- "migration": "0200",
+ "migration": "0202",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -227,6 +227,13 @@
   },
   {
    "f": "delete_dealer_atomic(p_code text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "expire_hq_linked_quotations(p_as_of date)",
    "anon": false,
    "authenticated": false,
    "service_role": true,
@@ -583,6 +590,13 @@
    "definer": false
   },
   {
+   "f": "quotation_margin(p_dealer text, p_id text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
    "f": "quotation_salesperson(p_quote_id text, p_dealer_code text)",
    "anon": false,
    "authenticated": true,
@@ -609,6 +623,20 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "quotations_legacy_lock()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "quotations_won_lock()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "quote_request_accept(p_id bigint, p_assignee uuid)",
