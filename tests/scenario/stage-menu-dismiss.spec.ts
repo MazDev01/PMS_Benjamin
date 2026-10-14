@@ -20,7 +20,7 @@ test.beforeAll(async () => {
   const numId = 920000 + (Date.now() % 9000);
   await sb.from("leads").insert({ phone: "081-999-0101",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: COMPANY, name: COMPANY,
-    contact: "ผู้ทดสอบ", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "WAITING",
+    contact: "ผู้ทดสอบ", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING",   // หน้างานต้องอยู่ในพื้นที่ของ RYG (กฎพื้นที่ ใบ 0195)
     value: "฿600,000", assigned: "ผู้ทดสอบ",
     // ติ๊กงานของขั้นแรกไว้ ไม่งั้นกระดานจะกันการย้ายขั้น (ด่านใหม่ 21 ส.ค. 69) — คนละเรื่องกับที่เทสต์นี้ตรวจ
     tasks: await งานตามเส้นทาง(sb, "WAITING"),

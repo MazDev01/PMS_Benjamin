@@ -25,6 +25,7 @@ const คำสั่ง = { ลบ: "delete_dealer_atomic", ย้าย: "move
 const ยกเว้น = [
   // ── ลบดีลเลอร์ ──
   { table: "quote_counters", fn: "ลบ", reason: "ตัวนับเลขใบเสนอราคาของสาขา หายตามแถวสาขา", fk: { to: "dealers", del: "CASCADE" } },
+  { table: "dealer_territories", fn: "ลบ", reason: "พื้นที่ (จังหวัด) ของสาขา หายตามแถวสาขา — จังหวัดนั้นกลับเป็นจังหวัดว่าง (ใบ 0195)", fk: { to: "dealers", del: "CASCADE" } },
   { table: "entity_counters", fn: "ลบ", reason: "ตัวนับเลขของสาขา หายตามแถวสาขา", fk: { to: "dealers", del: "CASCADE" } },
   { table: "dealer_settings", fn: "ลบ", reason: "ค่าตั้งของสาขา หายตามแถวสาขา", fk: { to: "dealers", del: "CASCADE" } },
   { table: "dealer_login_secrets", fn: "ลบ", reason: "สำเนารหัสผ่านของสาขา หายตามแถวสาขา", fk: { to: "dealers", del: "CASCADE" } },
@@ -39,6 +40,7 @@ const ยกเว้น = [
   { table: "dealer_account_changes", fn: "ย้าย", reason: "ประวัติการแก้บัญชีของสาขาต้นทาง — อยู่กับบัญชี" },
   { table: "dealer_account_requests", fn: "ย้าย", reason: "คำขอเปลี่ยนบัญชีของสาขาต้นทาง — อยู่กับบัญชี" },
   { table: "dealer_settings", fn: "ย้าย", reason: "ค่าตั้งของสาขาต้นทาง — สาขาปลายทางใช้ค่าตั้งของตัวเอง" },
+  { table: "dealer_territories", fn: "ย้าย", reason: "พื้นที่ของสาขาต้นทางไม่ย้ายตามข้อมูลงานขาย — HQ กำหนดพื้นที่ของสาขาปลายทางเองตามกฎหนึ่งจังหวัดหนึ่งดีลเลอร์ (ใบ 0195)" },
   { table: "dealer_lead_rules", fn: "ย้าย", reason: "กฎติดตามลูกค้าเป้าหมายของสาขาต้นทาง — สาขาปลายทางใช้กฎของตัวเอง" },
   { table: "quote_counters", fn: "ย้าย", reason: "ตัวนับเลขใบเสนอราคาของสาขาต้นทาง — ใบที่ย้ายถือเลขเดิมซึ่งมีรหัสสาขาต้นทางอยู่ในเลข จึงไม่ชนกับเลขของปลายทาง" },
   { table: "dealer_prospects", fn: "ย้าย", reason: "ลูกค้าเป้าหมาย (HQ) ที่กลายมาเป็นสาขาต้นทาง — เป็นประวัติของตัวสาขา ไม่ใช่งานขาย" },

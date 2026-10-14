@@ -80,7 +80,7 @@ test("ฐานข้อมูลต้องปฏิเสธการเข�
 test("ชื่อบริษัทลูกค้าห้ามเป็นช่องว่างเปล่า (แนวเดียวกับลูกค้าเป้าหมายที่แก้ไปแล้ว)", async () => {
   const { error } = await admin.from("customers").insert({
     id: 990502, dealer_code: "RYG", company: "   ",
-    name: "", email: "", phone: "", province: "", category: "", owner: "", initials: "", color: "",
+    name: "", email: "", phone: "", province: "ระยอง", category: "", owner: "", initials: "", color: "",
     join_date: "2026-08-05", status: "active", total_value: 0, projects: 0,
   });
   expect(error, "ชื่อบริษัทที่มีแต่ช่องว่างต้องถูกปฏิเสธ").not.toBeNull();

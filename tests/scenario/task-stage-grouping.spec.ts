@@ -21,7 +21,7 @@ async function seedLead() {
   const done = (key: string, label: string) => ({ key, label, done: true, doneAt: "1 ส.ค. 2569 · 10:00", doneBy: "ผู้ทดสอบ" });
   await sb.from("leads").insert({ phone: "081-999-0101",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: COMPANY, name: COMPANY,
-    contact: "ผู้ทดสอบ", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "BULLET",
+    contact: "ผู้ทดสอบ", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",   // หน้างานต้องอยู่ในพื้นที่ของ RYG (กฎพื้นที่ ใบ 0195)
     value: "฿600,000", assigned: "ผู้ทดสอบ",
     tasks: [
       done("contact", "ติดต่อแล้ว"), done("collect", "เก็บข้อมูลลูกค้า"), done("appointment", "นัดหมาย"),
