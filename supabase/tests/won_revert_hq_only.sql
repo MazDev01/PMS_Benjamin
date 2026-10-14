@@ -67,7 +67,13 @@ begin
   perform flowtest.must_fail($q$update quotations set status = 'lost', lost_reason = 'x' where id = 'ZZR-OLD-WON' and dealer_code = 'CNX'$q$, 'quote_won_locked', 'ใบเก่าที่ won: ดีลเลอร์ย้อนเป็นไม่สำเร็จไม่ได้');
   perform flowtest.must_fail(format($q$update quotations set status = 'lost', lost_reason = 'x' where id = %L and dealer_code = 'CNX'$q$, q.id), 'quote_won_locked', 'ใบจากใบ HQ ที่ won: ดีลเลอร์ย้อนเป็นไม่สำเร็จไม่ได้');
   perform flowtest.must_fail(format($q$update quotations set status = 'sent_to_client' where id = %L and dealer_code = 'CNX'$q$, q.id), 'quote_won_locked', 'ใบจากใบ HQ ที่ won: ดีลเลอร์ย้อนเป็นส่งแล้วไม่ได้');
-  perform flowtest.must_fail(format($q$select quotation_revert_won('CNX', %L, 'ลูกค้ายกเลิก')$q$, q.id), 'forbidden', 'ดีลเลอร์เรียกคำสั่งย้อนของ HQ ไม่ได้');
+  perform flowtest.must_fail(format($q$select quotation_revert_won('CNX', %L, 'ลูกค้ายกเลิก')$q$, q.id), 'forbidden', 'ดีลเลอร์เรียกคำสั่งย้อนของ HQ โดยตรงไม่ได้');
+  perform flowtest.must_fail(format($q$select quotation_revert_won('CNX', %L, 'ลูกค้ายกเลิก', 'lost')$q$, q.id), 'forbidden', 'ดีลเลอร์เรียกคำสั่งย้อนของ HQ (ย้อนเป็นไม่สำเร็จ) ไม่ได้');
+  -- คำสั่งย้อนผ่านกฎล็อกด้วยธงชั่วคราว pms.revert_won — ดีลเลอร์ตั้งธงเองแล้วแก้ตรงที่ตารางต้องไม่ผ่าน
+  perform set_config('pms.revert_won', '1', true);
+  perform flowtest.must_fail(format($q$update quotations set status = 'lost', lost_reason = 'x' where id = %L and dealer_code = 'CNX'$q$, q.id), 'quote_won_locked', 'ดีลเลอร์ตั้งธงของคำสั่งย้อนเองแล้วแก้สถานะใบจากใบ HQ ไม่ได้');
+  perform flowtest.must_fail($q$update quotations set status = 'lost', lost_reason = 'x' where id = 'ZZR-OLD-WON' and dealer_code = 'CNX'$q$, '_locked', 'ดีลเลอร์ตั้งธงของคำสั่งย้อนเองแล้วแก้สถานะใบเก่าไม่ได้');
+  perform set_config('pms.revert_won', '', true);
   perform flowtest.as_root();
   perform flowtest.must_fail(format($q$update quotations set status = 'lost' where id = %L$q$, q.id), 'quote_won_locked', 'แก้ตรงที่ตาราง (สิทธิ์สูงสุด) ไม่ผ่านคำสั่งของ HQ ก็ย้อนไม่ได้');
 
