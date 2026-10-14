@@ -1,6 +1,7 @@
 // ตรวจซ้ำสองเรื่องที่รอบก่อนวัดผิดวิธี: ประวัติราคา (ต้องมีของก่อนถึงจะลบได้) + ตัวนับเลขที่ผ่าน API จริง
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { วางใบเดิมที่ฐาน } from "./lib/legacyQuoteSeed.mjs";
 const env = (f) => { const m = new Map(); for (const line of readFileSync(f, "utf8").split(String.fromCharCode(10))) { const t = line.trim(); if (!t || t.startsWith("#")) continue; const i = t.indexOf("="); if (i > 0) m.set(t.slice(0, i).trim(), t.slice(i + 1).trim()); } return m; };
 const H = env("apps/hq/.env.local"), T = env("tests/.env.test");
 const db = createClient(H.get("NEXT_PUBLIC_SUPABASE_URL"), H.get("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
@@ -11,7 +12,8 @@ await db.from("quotations").delete().like("customer", TAG + "%");
 const base = { dealer_code: "RYG", customer: TAG + "-A", project: TAG + "-A", date: "2026-08-19",
   province: "ระยอง", building_type: "โกดังสำเร็จรูป", area: "1", total: "500000", total_value: 500000,
   material_cost: 500000, items: 1, line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 500000 }], status: "draft" };
-await db.from("quotations").insert({ id: TAG + "-Q1", ...base });
+// ใบเดิม (ไม่มีใบ HQ) สร้างผ่านแอป/API ไม่ได้แล้ว (ด่าน 3) — วางที่ฐานทดสอบตรง ๆ เพื่อวัดประวัติราคา
+วางใบเดิมที่ฐาน([{ id: TAG + "-Q1", ...base }]);
 console.log("=== ประวัติการต่อรองราคา ===");
 const up = await db.from("quotations").update({ total_value: 600000, total: "600000", material_cost: 600000,
   line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 600000 }] }).eq("id", TAG + "-Q1");

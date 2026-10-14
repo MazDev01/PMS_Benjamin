@@ -12,6 +12,10 @@ import type { QuoteLineItem } from "@pms/shared/lib/mock";
 import { type HqQuoteLine, ราคาขายจากต้นทุน, ยอดบรรทัด } from "@pms/shared/lib/quoteRequests";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 
+// เพดานกันพิมพ์ผิดจำนวนหลัก (ไม่ใช่เพดานทางธุรกิจ — ดีลเลอร์ตั้งราคาขายเองได้): ราคาขายต่อหน่วยไม่เกิน 100 ล้าน
+//   เพดานเดียวกับช่องราคาต่อหน่วยของใบเดิม (LineItemsEditor · MAX_UNIT_PRICE) — พิมพ์ 0 เกินแล้วใบหลุดถึงลูกค้าไม่ได้
+const MAX_UNIT_PRICE = 100_000_000;
+const เพดานเปอร์เซ็นต์ = (unitCost: number) => unitCost > 0 ? Math.floor((MAX_UNIT_PRICE / unitCost - 1) * 100) : 0;
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function HqMarkupEditor({ hqLines, items, onChange, readOnly }: {
@@ -22,13 +26,14 @@ export function HqMarkupEditor({ hqLines, items, onChange, readOnly }: {
   readOnly?: boolean;
 }) {
   const [ทั้งใบ, setทั้งใบ] = useState<number>(items[0]?.markupPct ?? 0);
-  const pctOf = (i: number) => Math.max(0, Number(items[i]?.markupPct ?? 0) || 0);
+  const จำกัด = (i: number, pct: number) => Math.min(เพดานเปอร์เซ็นต์(Number(hqLines[i]?.unitCost)), Math.max(0, Number(pct) || 0));
+  const pctOf = (i: number) => จำกัด(i, Number(items[i]?.markupPct ?? 0));
   const สร้าง = (pcts: number[]): QuoteLineItem[] => hqLines.map((l, i) => ({
     ...(items[i]?.id ? { id: items[i].id } : {}),
     name: l.name, qty: Number(l.qty), unit: l.unit, markupPct: pcts[i], unitPrice: ราคาขายจากต้นทุน(l.unitCost, pcts[i]),
   }));
-  const ตั้งบรรทัด = (i: number, pct: number) => onChange(สร้าง(hqLines.map((_, j) => j === i ? Math.max(0, pct) : pctOf(j))));
-  const ตั้งทั้งใบ = (pct: number) => onChange(สร้าง(hqLines.map(() => Math.max(0, pct))));
+  const ตั้งบรรทัด = (i: number, pct: number) => onChange(สร้าง(hqLines.map((_, j) => j === i ? จำกัด(j, pct) : pctOf(j))));
+  const ตั้งทั้งใบ = (pct: number) => onChange(สร้าง(hqLines.map((_, j) => จำกัด(j, pct))));
 
   const ต้นทุนรวม = hqLines.reduce((s, l) => s + ยอดบรรทัด(l), 0);
   const ขายรวม = hqLines.reduce((s, l, i) => s + ยอดบรรทัด({ qty: l.qty, unitCost: ราคาขายจากต้นทุน(l.unitCost, pctOf(i)) }), 0);

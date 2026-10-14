@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { RYG, skipReason } from "./supabaseEnv";
 import { db, specNS, nsTag, cleanup } from "./funcHelpers";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
+import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 
 // ── ช่องข้อมูลหลักต้องมีค่าเสมอ ห้ามเป็นค่าว่าง NULL (ตรวจสอบระบบ 5 ส.ค. 69) ──
 //
@@ -89,10 +90,12 @@ test("ชื่อบริษัทลูกค้าห้ามเป็น�
 
 test("ยอดเงินในใบเสนอราคาห้ามเป็นค่าว่าง", async () => {
   for (const col of ["total_value", "material_cost"]) {
-    const { error } = await admin.from("quotations").insert({
-      id: `ZZNULL-${col}`, dealer_code: "RYG", status: "draft", [col]: null,
-    });
-    expect(error, `ยอด "${col}" เป็นค่าว่างต้องถูกปฏิเสธ`).not.toBeNull();
+    // ด่าน 3: ใบที่ไม่มีใบ HQ สร้างผ่าน API ไม่ได้แล้ว (ถ้ายิงแบบเดิม จะถูกปฏิเสธด้วยกฎนั้นแทน = ไม่ได้วัดกฎค่าว่าง)
+    //   จึงวางที่ฐานทดสอบตรง ๆ (ปิดเฉพาะตัวดักใบ HQ) แล้วต้องเจอกฎ "ห้ามค่าว่าง" ของคอลัมน์จริง
+    let ข้อผิดพลาด = "";
+    try { วางใบเดิมที่ฐาน([{ id: `ZZNULL-${col}`, dealer_code: "RYG", status: "draft", [col]: null }]); }
+    catch (e) { ข้อผิดพลาด = String((e as { stderr?: Buffer }).stderr ?? e); }
+    expect(ข้อผิดพลาด, `ยอด "${col}" เป็นค่าว่างต้องถูกปฏิเสธด้วยกฎห้ามค่าว่าง`).toMatch(/null value in column|not-null/);
     await admin.from("quotations").delete().eq("id", `ZZNULL-${col}`);
   }
 });

@@ -4,7 +4,7 @@ import path from "node:path";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { กวาดสาขาทดสอบค้าง } from "./testDealers";
-import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+import { วางใบเดิมที่ฐาน, ล้างใบHQทดสอบ } from "./legacyQuotes";
 
 // snapshot ของ hq_notif_rules.alerts เดิม (singleton row จริง ไม่ใช่ข้อมูลแท็กที่ลบทิ้งได้เฉยๆ)
 // ต้องคืนค่าเดิมใน teardown เสมอ — ไม่ใช่ตั้งเป็นค่า test แล้วปล่อยทิ้งไว้
@@ -331,6 +331,9 @@ export async function teardownBaseline(admin: SupabaseClient) {
   // จากลูกค้าเป้าหมายที่ seed ไว้ (เช่น openLeadQuotationForm → "สร้างใบเสนอราคา") — ใบแบบหลังได้ id ออกเลขปกติ
   // จาก DB (เช่น "Q-2026-0384") ไม่มีแท็กในตัวเอง แต่ผูก customer = ชื่อบริษัทที่ seed ไว้
   // (พลาดมาแล้วรอบหนึ่ง: ลืมกวาดทางที่สอง ทำให้ใบที่เทสต์สร้างผ่าน UI ค้างสะสมใน DB จริงทุกรอบที่รัน)
+  // ลูกค้าเป้าหมายที่ตัวช่วย openLeadQuotationForm เตรียมใบ HQ ให้ (ด่าน 3) — ใบ HQ ที่ส่งแล้วลบด้วยกุญแจไม่ได้ ต้องล้างที่ฐานตรง
+  const { data: ลีดใบHQ } = await admin.from("leads").select("num_id").eq("dealer_code", "RYG").like("company", `${NS}-ใบHQ%`);
+  try { ล้างใบHQทดสอบ("RYG", (ลีดใบHQ ?? []).map(l => Number(l.num_id))); } catch (e) { console.warn(`[teardown] ล้างใบ HQ ของข้อทดสอบไม่สำเร็จ: ${String(e).slice(0, 120)}`); }
   await admin.from("quotations").delete().like("id", `${NS}%`);
   await admin.from("quotations").delete().like("customer", `${NS}%`);
   await admin.from("customers").delete().like("company", `${NS}%`);

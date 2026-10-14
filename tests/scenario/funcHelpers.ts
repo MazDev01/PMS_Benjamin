@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, SUPABASE_ANON, ADMIN, type Account, appEnv } from "./supabaseEnv";
+import { SUPABASE_URL, SUPABASE_ANON, ADMIN, RYG, CNX, type Account, appEnv } from "./supabaseEnv";
 import { SESSION_KEY, getSession, settle, เข้าระบบด้วยคุกกี้, ล็อกอินใหม่ } from "./helpers";
 
 export const DEALER_ORIGIN = process.env.PMS_DEALER_ORIGIN ?? "http://localhost:3001";
@@ -192,6 +192,12 @@ export const nsTag = (ns: string) => (s: string) => `${ns}-${s}`;
 /** กวาดข้อมูลทดสอบทิ้งทุกตาราง — เรียกทั้งก่อนและหลังชุดเทสต์ · tag = ช่องของสเปก (ค่าเริ่มต้น = ร่วม) */
 export async function cleanup(sb: SupabaseClient, dealerCode: string, tag: string = TAG) {
   await sb.from("customer_notes").delete().like("title", `%${tag}%`);
+  // ด่าน 3: ลูกค้าเป้าหมายที่ได้ใบ HQ แล้ว — ใบ HQ ที่ส่งแล้ว/คำขอราคา ลบด้วยกุญแจไม่ได้ (ตั้งใจ) ต้องล้างที่ฐานทดสอบตรง
+  const { data: ลีดมีคำขอ } = await sb.from("leads").select("num_id").eq("dealer_code", dealerCode).like("company", `%${tag}%`);
+  if (ลีดมีคำขอ?.length) {
+    const { ล้างใบHQทดสอบ } = await import("./legacyQuotes");
+    try { ล้างใบHQทดสอบ(dealerCode, ลีดมีคำขอ.map(l => Number(l.num_id))); } catch { /* ไม่มี docker — ข้าม */ }
+  }
   await sb.from("quotations").delete().eq("dealer_code", dealerCode).like("customer", `%${tag}%`);
   await sb.from("quotations").delete().eq("dealer_code", dealerCode).like("id", `%${tag}%`);
   // appointments ไม่มีคอลัมน์ customer (ของจริงคือ company/province)
@@ -294,18 +300,34 @@ export async function ensureSentQuotation(
   const { data: มีอยู่ } = await sb.from("quotations")
     .select("id").eq("dealer_code", dealerCode).eq("customer", company).limit(1);
   if (!มีอยู่?.length) {
-    const { error } = await sb.rpc("create_quotation", {
-      p_dealer: dealerCode, p_prefix: "Q-",
-      p_payload: {
-        customer: company, project: company, date: "2026-08-19",
-        province: "ระยอง", building_type: "โกดังสำเร็จรูป", area: "1",
-        total: String(amount), total_value: amount, material_cost: amount, items: 1,
-        line_items: [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitPrice: amount }],
-      },
-    });
-    if (error) throw new Error(`ออกใบเสนอราคาให้ ${company} ไม่สำเร็จ: ${error.message}`);
+    // ด่าน 3: ใบใหม่ต้องทำจากใบ HQ — ขอราคาให้ลูกค้าเป้าหมายรายนี้ → HQ ส่งใบ (ต้นทุน = amount) → ทำใบบวก 0%
+    const lead = await waitRow<{ num_id: number }>(sb, "leads", { dealer_code: dealerCode, company });
+    const { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ } = await import("./hqQuoteFixture");
+    const dealer = dealerCode === "RYG" ? RYG : CNX;
+    const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(dealer, dealerCode, Number(lead.num_id), [{ name: "งานตามสัญญา", qty: 1, unit: "งาน", unitCost: amount }]);
+    await ทำใบลูกค้าจากใบHQ(dealer, ใบ, { customer: company, markupPercent: 0, extra: { date: "2026-08-19" } });
   }
   await markQuotationSent(sb, dealerCode, company);
+}
+
+/** ลูกค้าเป้าหมายที่สร้างไว้แล้ว (ผ่านหน้าจอ) → ได้ใบ HQ → เปิดฟอร์ม "ทำใบเสนอราคาจากใบ HQ" ในแผงของลูกค้าเป้าหมาย
+ *  ทางเดียวกับผู้ใช้จริงตั้งแต่ด่าน 3 (ทางสร้างใบแบบเดิมปิดแล้ว) — ต้องอยู่หน้า /leads ของดีลเลอร์ที่เข้าระบบแล้ว */
+export async function เปิดฟอร์มทำใบจากใบHQ(page: Page, dealerCode: string, company: string, lines?: { name: string; qty: number; unit: string; unitCost: number }[]) {
+  const sb = await db(dealerCode === "RYG" ? RYG : CNX);
+  const lead = await waitRow<{ num_id: number; status: string }>(sb, "leads", { dealer_code: dealerCode, company });
+  const { ใบHQให้ลูกค้าเป้าหมายเดิม } = await import("./hqQuoteFixture");
+  const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(dealerCode === "RYG" ? RYG : CNX, dealerCode, Number(lead.num_id), lines);
+  const origin = page.url().startsWith(HQ_ORIGIN) ? HQ_ORIGIN : DEALER_ORIGIN;
+  await page.goto(`${origin}/leads`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
+  const row = page.locator("tbody tr").filter({ hasText: company }).first();
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 20_000 });
+  await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 10_000 });
+  return ใบ;
 }
 
 export async function pickTemplate(page: Page, label = "แม่แบบ") {

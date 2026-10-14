@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, RYG, CNX, ADMIN, skipReason, type Account } from "./supabaseEnv";
+import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 
 // กฎความปลอดภัยที่ "มีจริงเฉพาะโหมด supabase" — RLS / สิทธิ์เขียน / FK / ตัวนับเลขที่ (M5)
 //
@@ -152,11 +153,8 @@ test("[rpc] ใบที่ส่งแล้วและเลยกำหน�
   const hq  = await signIn(ADMIN);
   const id = "TEST-RLS-EXPIRE";
   try {
-    const ins = await ryg.from("quotations").insert({
-      id, dealer_code: "RYG", customer: "เทสต์อัตโนมัติ", status: "sent_to_client",
-      expiry: "2026-01-01", date: "2025-12-01",
-    }).select();
-    expect(ins.error, `สร้างใบทดสอบไม่ได้: ${JSON.stringify(ins.error)}`).toBeNull();
+    // ใบเดิมที่ส่งแล้วและเลยกำหนด — สร้างผ่านแอปไม่ได้แล้ว (ด่าน 3) จึงวางที่ฐานตรง ๆ (ข้อนี้วัดสิทธิ์สั่งปิดใบหมดอายุ)
+    วางใบเดิมที่ฐาน([{ id, dealer_code: "RYG", customer: "เทสต์อัตโนมัติ", status: "sent_to_client", expiry: "2026-01-01", date: "2025-12-01" }]);
 
     // HQ เรียกได้แต่ไม่มีสิทธิ์เขียนงานขาย → ต้องไม่ปิดใบของใครเลย
     //
@@ -227,10 +225,10 @@ test("[multi-tenant] สองสาขาสร้างลูกค้าเ�
     expect(((await ryg.from("leads").select("company").eq("id", LID)).data ?? [])[0]?.company).toBe("ทดสอบ RYG");
     expect(((await cnx.from("leads").select("company").eq("id", LID)).data ?? [])[0]?.company).toBe("ทดสอบ CNX");
 
-    const qa = await ryg.from("quotations").insert({ id: QID, dealer_code: "RYG", customer: "ทดสอบ RYG", status: "draft" }).select();
-    const qb = await cnx.from("quotations").insert({ id: QID, dealer_code: "CNX", customer: "ทดสอบ CNX", status: "draft" }).select();
-    expect(qa.error, `RYG ออกใบไม่ได้: ${JSON.stringify(qa.error)}`).toBeNull();
-    expect(qb.error, `CNX ออกใบเลขเดียวกันไม่ได้: ${JSON.stringify(qb.error)}`).toBeNull();
+    // เลขใบซ้ำข้ามสาขา: วัดที่คีย์ของตาราง (dealer_code, id) — ใบเดิมสร้างผ่านแอปไม่ได้แล้ว (ด่าน 3) จึงวางที่ฐานตรง ๆ
+    วางใบเดิมที่ฐาน([{ id: QID, dealer_code: "RYG", customer: "ทดสอบ RYG", status: "draft" }, { id: QID, dealer_code: "CNX", customer: "ทดสอบ CNX", status: "draft" }]);
+    expect(((await ryg.from("quotations").select("customer").eq("id", QID)).data ?? []).map(r => r.customer), "RYG เห็นใบของตัวเองเท่านั้น").toEqual(["ทดสอบ RYG"]);
+    expect(((await cnx.from("quotations").select("customer").eq("id", QID)).data ?? []).map(r => r.customer), "CNX เห็นใบของตัวเองเท่านั้น").toEqual(["ทดสอบ CNX"]);
   } finally {
     await ryg.from("leads").delete().eq("id", LID);
     await cnx.from("leads").delete().eq("id", LID);

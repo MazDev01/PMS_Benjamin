@@ -94,20 +94,13 @@ test("[ux·dealer] ใบเสนอราคาที่สร้างให�
 
 // ฟอร์มสร้างใบเสนอราคา inline ในหน้า Lead (รีสไตล์ให้เหมือน wizard) — VAT breakdown + section เหมือนกัน
 test("[ui·dealer] ฟอร์มใบเสนอราคา inline ในหน้าลูกค้าเป้าหมายรีสไตล์แล้ว (VAT breakdown)", async ({ page }) => {
-  await open(page, "dealer", "/leads");
-  await page.getByRole("button", { name: "ตาราง" }).click(); // ค่าเริ่มต้น=บอร์ด → สลับเป็นตาราง
-  await page.waitForTimeout(300);
-  await page.locator("tbody tr").first().locator("td").first().click(); // เปิดแผงรายละเอียด
-  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click(); // แท็บใบเสนอราคา
-  await page.waitForTimeout(300);
-  // ปุ่มบนหัวแท็บ: ยังไม่มีใบ = "สร้างใบเสนอราคา" · มีใบที่ยังแก้ได้ = "เพิ่มรายการในใบเสนอราคา"
-  await page.getByRole("button", { name: /(สร้าง|เพิ่มรายการใน)ใบเสนอราคา/ }).first().click();
-  await expect(page.getByText(/สร้างใบเสนอราคาใหม่|^แก้ไข /)).toBeVisible();
+  // ด่าน 3: ใบใหม่ทำจากใบ HQ — เข้าฟอร์มผ่านตัวช่วยกลาง (เตรียมลูกค้าเป้าหมายที่ได้ใบ HQ แล้วกด "ทำใบเสนอราคาจากใบ HQ")
+  await openLeadQuotationForm(page);
   // แม่แบบ + BOQ รวมเป็นก้อนเดียว "รายการใบเสนอราคา" — เลือกแม่แบบจากแคตตาล็อกใน BOQ (ไม่มีช่องแม่แบบซ้ำ)
   await expect(page.getByText("รายการใบเสนอราคา")).toBeVisible();
   await expect(page.getByText("ชื่อโครงการ / เอกสาร")).toBeVisible();
   await expect(page.getByText("แม่แบบที่เสนอ"), "ช่องแม่แบบซ้ำถูกตัดออกแล้ว").toHaveCount(0);
-  await expect(page.getByText("รายการสินค้า (BOQ)").first()).toBeVisible();
+  await expect(page.locator("[data-editor='hq-markup']"), "รายการมาจากใบ HQ (แก้ได้เฉพาะ %)").toBeVisible();
   // ยอดเงินโชว์แบบเดียวกับ wizard: ก่อน VAT (ยอดที่บันทึก) + ยอดชำระสุทธิ
   await expect(page.getByText("มูลค่างาน (ก่อน VAT)")).toBeVisible();
   await expect(page.getByText("ยอดชำระสุทธิ").first()).toBeVisible();

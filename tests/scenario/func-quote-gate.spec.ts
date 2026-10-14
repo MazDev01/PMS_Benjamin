@@ -3,8 +3,7 @@ import { RYG, skipReason } from "./supabaseEnv";
 import { settle } from "./helpers";
 import {
   DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, cleanup, specNS, nsTag,
-} from "./funcHelpers";
+  db, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
 // ── ขั้น "เสนอราคา" ต้องมีใบเสนอราคาจริง (บอสสั่ง 14 ส.ค. 69) ────────────────────
 //
@@ -83,10 +82,10 @@ test("[func] ติ๊กงาน 'จัดทำใบเสนอราค�
   await page.getByRole("button", { name: "งาน", exact: true }).first().click();
   await page.getByText("จัดทำใบเสนอราคา").first().click();
 
-  // กติกา 20 ส.ค. 69: ถ้ามีใบที่ยังแก้ได้อยู่แล้ว ระบบพาไปเพิ่มรายการในใบนั้น (ไม่ออกใบที่สอง)
-  // สิ่งที่เทสต์นี้ตรวจคือ "ต้องพาไปฟอร์มใบเสนอราคา ไม่ใช่ติ๊กงานให้เฉย ๆ" — ได้ทั้งสองโหมด
-  await expect(page.getByText(/สร้างใบเสนอราคาใหม่|^แก้ไข /),
-    "ต้องพาไปฟอร์มใบเสนอราคา ไม่ใช่ติ๊กงานให้เฉย ๆ").toBeVisible({ timeout: 15_000 });
+  // ด่าน 3: ใบใหม่ต้องทำจากใบ HQ — ลูกค้าเป้าหมายนี้ยังไม่ได้ขอราคา ระบบต้องบอกให้ขอราคาจาก HQ ก่อน
+  //   (เจตนาเดิมยังอยู่: "ต้องพาผู้ใช้ไปทำสิ่งที่ถูก ไม่ใช่ติ๊กงานให้เฉย ๆ")
+  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first(),
+    "ยังไม่มีใบ HQ → ต้องบอกให้ขอราคาก่อน ไม่ใช่ติ๊กงานให้เฉย ๆ").toBeVisible({ timeout: 15_000 });
 
   const sb = await db(RYG);
   const lead = (await sb.from("leads").select("tasks,status").eq("company", COMPANY).single())
@@ -107,8 +106,9 @@ test("[func] ย้ายลูกค้าเป้าหมายไปขั�
   await row.getByRole("button", { name: /ติดต่อแล้ว|รวบรวม/ }).first().click();
   await page.getByRole("button", { name: "เสนอราคา", exact: true }).first().click();
 
-  await expect(page.getByText("สร้างใบเสนอราคาใหม่"),
-    "ต้องพาไปฟอร์มออกใบ ไม่ใช่เลื่อนขั้นให้เฉย ๆ").toBeVisible({ timeout: 15_000 });
+  // ด่าน 3: ยังไม่มีใบ HQ → บอกให้ขอราคาก่อน (เดิม: พาไปฟอร์มออกใบ) · ขั้นยังต้องไม่ขยับ
+  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first(),
+    "ต้องบอกให้ขอราคาจาก HQ ก่อน ไม่ใช่เลื่อนขั้นให้เฉย ๆ").toBeVisible({ timeout: 15_000 });
 
   const sb = await db(RYG);
   const lead = (await sb.from("leads").select("status").eq("company", COMPANY).single()).data as { status: string };
@@ -117,42 +117,28 @@ test("[func] ย้ายลูกค้าเป้าหมายไปขั�
   assertNoErrors(errs, "ด่านใบเสนอราคา (ย้ายขั้น)");
 });
 
-test("[func] ออกใบจริงจากฟอร์มที่ถูกพามา → ระบบติ๊กงาน + เลื่อนขั้นให้เอง", async ({ page }) => {
+// ด่าน 3 (FLOW.html ขั้น 7–8): ใบทำจากใบ HQ · ลูกค้าเป้าหมายคงขั้น "รอราคา HQ" จนส่งใบให้ลูกค้า แล้วฐานขยับเป็นเสนอราคาเอง
+//   (เดิม: ออกใบแล้วแอปเลื่อนขั้นเป็นเสนอราคาทันที — ขัดกับตารางสถานะของ FLOW)
+test("[func] ออกใบจากใบ HQ → ระบบติ๊กงาน 'จัดทำใบเสนอราคา' · ขั้นคงเป็นรอราคา HQ จนกว่าจะส่งใบ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await openTestLead(page);
-
-  const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await row.getByRole("button", { name: /ติดต่อแล้ว|รวบรวม/ }).first().click();
-  await page.getByRole("button", { name: "เสนอราคา", exact: true }).first().click();
-  await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 15_000 });
-
-  // ลูกค้าเป้าหมายนี้ระบุแม่แบบที่ไม่มีในแคตตาล็อก → BOQ ตั้งต้นว่าง ต้องมีปุ่มเลือกแคตตาล็อกให้ ไม่งั้นออกใบไม่ได้
-  const pick = page.getByRole("button", { name: /เลือกจากแคตตาล็อก/ });
-  await expect(pick.first(), "BOQ ตั้งต้นไม่ได้ ต้องเปิดให้เลือกรายการเอง").toBeVisible({ timeout: 10_000 });
-  await pick.first().click();
-  // ต้องเปิดติดตั้งแต่คลิกแรก — เคยพังตรงนี้ (17 ส.ค. 69): ฟอร์มที่ถูกพามาเลื่อนจอแบบ smooth อยู่
-  // เมนูดัก event "scroll" ไว้ปิดตัวเอง เลยปิดทันทีที่เพิ่งเปิด → ผู้ใช้เห็นเป็น "กดแล้วไม่ขึ้น" ออกใบไม่ได้เลย
-  const catalogItem = page.locator("button").filter({ hasText: /฿[\d,]+\// }).first();
-  await expect(catalogItem, "กดเลือกจากแคตตาล็อกครั้งเดียวแล้วรายการต้องขึ้น (เมนูต้องไม่ปิดตัวเองเพราะจอเลื่อนอัตโนมัติ)")
-    .toBeVisible({ timeout: 10_000 });
-  await catalogItem.click();
-
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY);
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toHaveCount(0, { timeout: 30_000 });
 
   const sb = await db(RYG);
-  await expect.poll(async () =>
-    (await sb.from("leads").select("status").eq("company", COMPANY).single()).data?.status,
-    { timeout: 20_000, message: "ออกใบแล้วขั้นต้องเลื่อนเป็นเสนอราคาเอง" }).toBe("QUOTED");
-  const lead = (await sb.from("leads").select("tasks").eq("company", COMPANY).single())
-    .data as { tasks?: { key: string; done: boolean }[] };
-  expect(lead.tasks?.find(t => t.key === "makeQuote")?.done, "ออกใบแล้วระบบต้องติ๊กงานให้เอง").toBe(true);
+  await expect.poll(async () => {
+    const l = (await sb.from("leads").select("tasks").eq("company", COMPANY).single()).data as { tasks?: { key: string; done: boolean }[] };
+    return l.tasks?.find(t => t.key === "makeQuote")?.done;
+  }, { timeout: 20_000, message: "ออกใบแล้วระบบต้องติ๊กงานให้เอง" }).toBe(true);
+  expect((await sb.from("leads").select("status").eq("company", COMPANY).single()).data?.status,
+    "ยังไม่ส่งใบให้ลูกค้า → ขั้นคงเป็นรอราคา HQ").toBe("HQ_PRICING");
   const quotes = (await sb.from("quotations").select("id,status").eq("customer", COMPANY)).data ?? [];
   expect(quotes.length, "ต้องมีใบเสนอราคาจริงใน DB").toBeGreaterThan(0);
   expect(quotes[0].status, "ใบที่เพิ่งออกต้องเป็นร่าง — ยังไม่ได้ส่งถึงลูกค้า").toBe("draft");
 
-  assertNoErrors(errs, "ออกใบแล้วขั้นเลื่อนเอง");
+  assertNoErrors(errs, "ออกใบจากใบ HQ");
 });
 
 // รันต่อจากข้อบน (serial) — ตอนนี้ลูกค้าเป้าหมายมีใบแล้ว 1 ใบ สถานะ "ร่าง"

@@ -6,8 +6,7 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import {
-  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, pickTemplate,
-} from "./funcHelpers";
+  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, pickTemplate, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -19,7 +18,9 @@ const COMPANY = nsTag(NS)("ใบเดียว");
 test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 
-test("[func] เพิ่มรายการที่สองในใบเดิมได้ → ไม่ต้องออกใบใหม่", async ({ page }) => {
+// ด่าน 3: รายการของใบมาจากใบ HQ (ล็อก) — "เพิ่มรายการเอง" ไม่มีแล้ว (ต้องขอแก้ราคาให้ HQ ออกเวอร์ชันใหม่)
+//   กติกาที่ยังต้องจริง: หนึ่งดีล = ใบเดียว · ใบมีรายการตามใบ HQ ครบ
+test("[func] ทำใบจากใบ HQ ที่มี 2 รายการ → ได้ใบเดียวที่มี 2 รายการ ไม่ใช่ 2 ใบ", async ({ page }) => {
   const sb = await db(RYG);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
 
@@ -35,24 +36,14 @@ test("[func] เพิ่มรายการที่สองในใบเ�
   await page.getByRole("button", { name: "บันทึก" }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
-  // 2) เปิดฟอร์มออกใบ — ปุ่มเลือกจากแคตตาล็อกต้องมีให้ใช้เสมอ
-  await page.getByRole("button", { name: "ตาราง" }).click();
-  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
-  const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await expect(row).toBeVisible({ timeout: 15_000 });
-  await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
-  await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 20_000 });
-
-  const แถว = page.getByLabel("ราคาต่อหน่วย");
-  await expect(แถว).toHaveCount(1, { timeout: 20_000 });   // ตั้งต้นจากแม่แบบ 1 รายการ
-
-  // 3) เพิ่มรายการที่สองลงในใบเดียวกัน
-  await page.getByRole("button", { name: /เลือกจากแคตตาล็อก/ }).click();
-  // แถวในรายการแคตตาล็อกเขียนราคาแบบ "฿5,100/ตร.ม." — ใช้หน่วยเป็นตัวแยกจากปุ่มอื่นในหน้า
-  await page.locator("button").filter({ hasText: /฿[\d,]+\/\S+/ }).first().click();
-  await expect(แถว, "เพิ่มรายการที่สองในใบเดิมต้องได้").toHaveCount(2, { timeout: 10_000 });
+  // 2) ได้ใบ HQ 2 รายการ → เปิดฟอร์มทำใบจากใบ HQ — รายการทั้งสองมาจากใบ HQ แก้ได้เฉพาะ %
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY, [
+    { name: "โครงสร้างหลัก", qty: 500, unit: "ตร.ม.", unitCost: 4500 },
+    { name: "รางน้ำ", qty: 80, unit: "เมตร", unitCost: 350 },
+  ]);
+  const ตาราง = page.locator("[data-editor='hq-markup']");
+  await expect(ตาราง.locator("tbody tr"), "รายการตามใบ HQ ครบ 2 รายการ").toHaveCount(2, { timeout: 20_000 });
+  await expect(page.getByRole("button", { name: /เลือกจากแคตตาล็อก/ }), "ใบจากใบ HQ เพิ่มรายการเองไม่ได้").toHaveCount(0);
 
   // 4) บันทึก → ต้องได้ใบเดียวที่มี 2 รายการ ไม่ใช่ 2 ใบ
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
@@ -74,8 +65,9 @@ test("[func] มีใบที่ยังแก้ได้อยู่ → �
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
 
   // ป้ายปุ่มต้องบอกตรง ๆ ว่าจะไปเพิ่มรายการ ไม่ใช่ออกใบใหม่
-  const ปุ่ม = page.getByRole("button", { name: "เพิ่มรายการในใบเสนอราคา" }).first();
-  await expect(ปุ่ม, "มีใบที่ยังแก้ได้ ปุ่มต้องเปลี่ยนเป็นเพิ่มรายการ").toBeVisible({ timeout: 20_000 });
+  //   ด่าน 3 (ระบบจริง): ใบจากใบ HQ เพิ่มรายการไม่ได้ ป้ายจึงเป็น "แก้ใบเสนอราคา" (ไปแก้ % ในใบเดิม)
+  const ปุ่ม = page.getByRole("button", { name: /^(แก้ใบเสนอราคา|เพิ่มรายการในใบเสนอราคา)$/ }).first();
+  await expect(ปุ่ม, "มีใบที่ยังแก้ได้ ปุ่มต้องพาไปใบเดิม ไม่ใช่ออกใบใหม่").toBeVisible({ timeout: 20_000 });
   await ปุ่ม.click();
 
   // เข้าโหมดแก้ใบเดิม (หัวฟอร์มขึ้น "แก้ไข <เลขที่ใบ>")

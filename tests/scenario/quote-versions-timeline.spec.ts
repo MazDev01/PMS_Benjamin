@@ -6,7 +6,7 @@
 //   3. ไทม์ไลน์เรียงเก่า→ใหม่ (บนสุดคือเหตุการณ์แรก)
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 import { settle } from "./helpers";
 
 const NS = specNS("QVER");
@@ -48,15 +48,10 @@ async function เปิดแท็บใบเสนอราคา(page: impo
 test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V2 · ทุกขั้นลงไทม์ไลน์ · เรียงเก่าไปใหม่", async ({ page }) => {
   const sb = await db(RYG);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  await เปิดแท็บใบเสนอราคา(page);
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
 
-  // ออกใบ (V1)
-  await page.getByRole("button", { name: /(สร้าง|เพิ่มรายการใน)ใบเสนอราคา/ }).first().click();
-  const ราคาต่อหน่วย = page.getByLabel("ราคาต่อหน่วย");
-  if (await ราคาต่อหน่วย.count() === 0) {
-    await page.getByRole("button", { name: /เลือกจากแคตตาล็อก/ }).click();
-    await page.locator("button").filter({ hasText: /฿[\d,]+\/\S+/ }).first().click();
-  }
+  // ออกใบ (V1) — ด่าน 3: ทำจากใบ HQ (ได้ใบ HQ ก่อน แล้วกด "ทำใบเสนอราคาจากใบ HQ")
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY);
   await page.getByRole("button", { name: /^(สร้างใบเสนอราคา|บันทึก)$/ }).last().click();
   await expect.poll(async () =>
     (await sb.from("quotations").select("id,revision,status").eq("customer", COMPANY)).data?.length ?? 0,
@@ -84,7 +79,8 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
   // แก้ใบที่ส่งไปแล้ว → ต้องขึ้นเป็น V2
   // ⚠️ getByTitle("แก้ไข") ไปโดนช่องมูลค่าในตาราง ("คลิกเพื่อแก้ไขมูลค่า") — ต้องเจาะจงในแผงใบเสนอราคา
   await page.getByRole("button", { name: "แก้ไข", exact: true }).first().click();
-  await page.getByLabel("ราคาต่อหน่วย").first().fill("7777");
+  // ด่าน 3: ใบจากใบ HQ แก้ได้เฉพาะ % ที่บวก — เปลี่ยน % = เปลี่ยนราคา → ใบที่ส่งแล้วต้องขึ้นฉบับใหม่
+  await page.locator("[data-editor='hq-markup']").getByLabel("% ที่บวก 1").fill("15");
   await page.getByRole("button", { name: /^(บันทึก|สร้างใบเสนอราคา)$/ }).last().click();
   await expect.poll(async () =>
     (await sb.from("quotations").select("revision").eq("customer", COMPANY).limit(1).single()).data?.revision,

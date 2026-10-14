@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, db, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
+import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 
 // ── ย้ายข้อมูลงานขายจากสาขาหนึ่งไปอีกสาขา แล้วลบสาขาเดิมได้ ────────────────────────
 //
@@ -61,11 +62,10 @@ test("[admin] ย้ายข้อมูลไปสาขาที่รับ
     company: "ZZTMP ลูกค้าย้ายสาขา", name: "ZZTMP ลูกค้าย้ายสาขา", contact: "ผู้ทดสอบ",
     province: "ระยอง", product: "โกดังสำเร็จรูป", status: "PAID", value: "฿500,000", assigned: "ผู้ทดสอบ",
   });
-  await admin.from("quotations").insert({
-    id: "Q-ZTA-0001", dealer_code: FROM, customer_id: custId, deal_id: leadNum,
+  // ใบเดิม (ไม่มีใบ HQ) สร้างผ่านแอปไม่ได้แล้ว (ด่าน 3) — ข้อนี้วัดการย้ายสาขา จึงวางที่ฐานตรง ๆ
+  วางใบเดิมที่ฐาน([{ id: "Q-ZTA-0001", dealer_code: FROM, customer_id: custId, deal_id: leadNum,
     customer: "ZZTMP ลูกค้าย้ายสาขา", project: "งานทดสอบย้ายสาขา", building_type: "โกดังสำเร็จรูป",
-    total_value: 500000, status: "won", date: "2026-08-01", items: 1, area: 100,
-  });
+    total_value: 500000, status: "won", date: "2026-08-01", items: 1, area: "100" }]);
 
   // 3) ลบสาขาต้นทางตอนที่ยังมีข้อมูล — ต้องถูกปฏิเสธ (นี่คือเหตุผลที่ต้องมีฟีเจอร์ย้าย)
   const blocked = await request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=${FROM}`, {

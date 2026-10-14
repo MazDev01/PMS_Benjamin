@@ -7,7 +7,7 @@
 //    จึงต้องคืนค่าเป็น 0 ให้เรียบร้อยทุกครั้งที่จบ (afterAll) ไม่ว่าเทสต์จะผ่านหรือล้ม
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { DEALER_ORIGIN, loginUI, db, waitRow, pickTemplate } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, db, waitRow, pickTemplate, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -45,7 +45,8 @@ test("[func] ตั้ง % ที่หน้าแม่แบบ → รา�
   await expect(page.locator('input[aria-label^="บวกเพิ่มจากราคากลาง"]').first()).toHaveValue("20", { timeout: 30_000 });
 });
 
-test("[func] ใบเสนอราคาใหม่ตั้งต้นด้วยราคาขายของสาขา ไม่ใช่ราคากลางดิบ", async ({ page }) => {
+// ด่าน 3: ใบใหม่ทำจากใบ HQ — ส่วนบวกของสาขากลายเป็น "% ตั้งต้น" ของแต่ละบรรทัด (ราคา = ต้นทุนจากใบ HQ × (1 + %))
+test("[func] ใบเสนอราคาใหม่ตั้งต้นด้วยส่วนบวกของสาขา ไม่ใช่ราคาต้นทุนดิบ", async ({ page }) => {
   const sb = await db(RYG);
   const COMPANY = `ZZTEST-MARKUP-${Date.now().toString().slice(-6)}`;
 
@@ -64,29 +65,14 @@ test("[func] ใบเสนอราคาใหม่ตั้งต้นด�
   await page.getByRole("button", { name: "บันทึก" }).click();
   const lead = await waitRow<{ product: string }>(sb, "leads", { company: COMPANY });
 
-  // ราคากลางของแม่แบบที่ลูกค้าเป้าหมายรายนี้เลือกไว้
-  const { data: cat } = await sb.from("master_catalog").select("name,price,subtypes,subtype_prices");
-  const prod = (cat ?? []).find(c => c.name === lead.product)
-            ?? (cat ?? []).find(c => (c.subtypes as string[] | null)?.includes(lead.product));
-  const ย่อย = (prod?.subtype_prices as Record<string, number> | null)?.[lead.product];
-  const ราคากลาง = ย่อย && ย่อย > 0 ? ย่อย : Number(prod?.price ?? 0);
-  test.skip(!(ราคากลาง > 0), "แม่แบบที่เลือกยังไม่มีราคากลางในฐานทดสอบ");
-  const ราคาขายที่คาด = Math.round(ราคากลาง * 1.2);
-
   // เปิดแผงลูกค้าเป้าหมาย → แท็บใบเสนอราคา → สร้าง
-  await page.getByRole("button", { name: "ตาราง" }).click();
-  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
-  const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await expect(row).toBeVisible({ timeout: 15_000 });
-  await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
-  await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 20_000 });
+  void lead;
+  const ใบ = await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY, [{ name: "โครงสร้างทดสอบส่วนบวก", qty: 100, unit: "ตร.ม.", unitCost: 4500 }]);
+  const ตาราง = page.locator("[data-editor='hq-markup']");
+  await expect(ตาราง.getByLabel("% ที่บวก 1"), "% ตั้งต้นต้องเป็นส่วนบวกของสาขา (20%)").toHaveValue("20", { timeout: 20_000 });
+  await expect(ตาราง.getByTestId("hq-line-price-0"), "ราคาขาย = ต้นทุน 4,500 × 1.20").toHaveText("5,400.00");
 
-  await expect(page.getByLabel("ราคาต่อหน่วย").first(), "ราคาต่อหน่วยตั้งต้นต้องเป็นราคาขายของสาขา (ราคากลาง +20%)")
-    // ช่องเงินโชว์ลูกน้ำแล้ว (26 ส.ค. 69) — ค่าที่เห็นจึงเป็น "1,234" ไม่ใช่ "1234"
-    .toHaveValue(ราคาขายที่คาด.toLocaleString("en-US"), { timeout: 20_000 });
-
-  // เก็บกวาดลูกค้าเป้าหมายที่สร้างไว้
-  await sb.from("leads").delete().eq("dealer_code", "RYG").eq("company", COMPANY);
+  // เก็บกวาดลูกค้าเป้าหมายที่สร้างไว้ (ใบ HQ ที่ส่งแล้วลบด้วยกุญแจไม่ได้ — ล้างที่ฐานทดสอบ)
+  const { ล้างใบHQทดสอบ } = await import("./legacyQuotes");
+  ล้างใบHQทดสอบ("RYG", [ใบ.leadNum]);
 });

@@ -3,8 +3,7 @@ import { กดตกลงในกล่องยืนยัน } from "./hel
 import { RYG, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, waitRow, cleanup, specNS, nsTag, pickTemplate, markQuotationSent
-} from "./funcHelpers";
+  db, waitRow, cleanup, specNS, nsTag, pickTemplate, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
 // โซ่ธุรกิจหลักของทั้งระบบ: ลูกค้าเป้าหมาย → ใบเสนอราคา (BOQ) → ปิดการขาย → ลูกค้า
 // ทุกขั้นต้องลง DB จริง ไม่ใช่แค่เปลี่ยนบนจอ
@@ -47,7 +46,7 @@ test("[func] ออกใบเสนอราคาจากลูกค้า�
   await expect(row).toBeVisible({ timeout: 15_000 });
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY);   // ด่าน 3: ใบใหม่ทำจากใบ HQ (ทางสร้างใบแบบเดิมปิดแล้ว)
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 10_000 });
 
   // ปุ่มส่งฟอร์มชื่อเดียวกับปุ่มเปิดฟอร์ม — ตัวสุดท้ายในหน้าคือปุ่มในฟอร์ม (อยู่ถัดจาก "ยกเลิก")
@@ -146,7 +145,7 @@ test("[func] ปิดการขายจากหน้าใบเสนอ�
   await expect(lrow).toBeVisible({ timeout: 25_000 });
   await lrow.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMP);   // ด่าน 3: ใบใหม่ทำจากใบ HQ (ทางสร้างใบแบบเดิมปิดแล้ว)
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   const q = await waitRow<{ id: string }>(sb, "quotations", { customer: COMP });

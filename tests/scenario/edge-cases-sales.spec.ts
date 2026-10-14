@@ -2,8 +2,7 @@ import { test, expect } from "@playwright/test";
 import { กดตกลงในกล่องยืนยัน, ดักข้อความแจ้งเตือน } from "./helpers";
 import { RYG, skipReason } from "./supabaseEnv";
 import {
-  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, pickTemplate, markQuotationSent
-} from "./funcHelpers";
+  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, pickTemplate, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 import { validateUpload } from "@pms/shared/lib/uploadLimits";
 
 // ── Edge Case / การใช้งานผิดวิธี: ใบเสนอราคา · ปิดการขาย · เน็ตหลุด ──────────────
@@ -51,7 +50,7 @@ test("[edge] กดปุ่ม 'สร้างใบเสนอราคา' 
 
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", company);   // ด่าน 3: ใบใหม่ทำจากใบ HQ (ทางสร้างใบแบบเดิมปิดแล้ว)
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 30_000 });
 
   const submit = page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last();
@@ -85,7 +84,7 @@ test("[edge] กด 'ปิดการขายสำเร็จ' รัว �
   // ต้องมีใบเสนอราคาก่อน ยอดลูกค้าถึงจะมีที่มา
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", company);   // ด่าน 3: ใบใหม่ทำจากใบ HQ (ทางสร้างใบแบบเดิมปิดแล้ว)
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   await waitRow(sb, "quotations", { customer: company }, 60_000);
@@ -209,56 +208,46 @@ test("[edge] เน็ตหลุดตอนกดบันทึกลูก�
 // ── ใบเสนอราคา: ตัวเลขที่กรอกผิด/จงใจกรอกมั่ว ต้องไม่ทำให้ยอดเพี้ยน ────────────────
 // ยอดในใบเสนอราคาคือตัวเลขที่ไหลต่อไปเป็น "ยอดขายของสาขา" และ "ยอดสะสมของลูกค้า"
 // ผิดตรงนี้ = ตัวเลขที่ผู้บริหารใช้ตัดสินใจผิดตามทั้งสาย
-async function openQuoteForm(page: import("@playwright/test").Page, company: string) {
-  const { row } = await newLeadOpened(page, company);
-  await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
-  await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 30_000 });
-  // ช่องจำนวน/ราคาต่อหน่วยแยกกันด้วยเพดานของตัวเอง (max) — ชี้ตรงตัวได้โดยไม่ต้องพึ่งลำดับคอลัมน์
-  return {
-    qty: page.locator('input[type="number"][max="100000"]').first(),
-    // ราคาต่อหน่วยเป็นช่อง text แล้ว (26 ส.ค. 69 ใส่ลูกน้ำระหว่างพิมพ์) — ชี้ด้วยป้ายกำกับแทน max
-    unitPrice: page.getByLabel("ราคาต่อหน่วย").first(),
-  };
+// ด่าน 3: ใบใหม่ทำจากใบ HQ — จำนวน/ต้นทุนล็อกจากใบ HQ ดีลเลอร์กรอกได้ช่องเดียวคือ % ที่บวก
+//   เจตนาเดิมของกลุ่มนี้ (กรอกติดลบ / พิมพ์เลขเกิน / ภาษีปัดเศษ / ยอดศูนย์) วัดบนช่อง % แทนช่องจำนวน/ราคา
+async function openQuoteForm(page: import("@playwright/test").Page, company: string, lines?: { name: string; qty: number; unit: string; unitCost: number }[]) {
+  await newLeadOpened(page, company);
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", company, lines);
+  const ตาราง = page.locator("[data-editor='hq-markup']");
+  return { ตาราง, pct: ตาราง.getByLabel("% ที่บวก 1"), ราคา: ตาราง.getByTestId("hq-line-price-0") };
 }
 
-test("[edge] กรอกจำนวน/ราคาติดลบในใบเสนอราคา → ต้องไม่ติดลบ และยอดต้องไม่ติดลบ", async ({ page }) => {
+test("[edge] กรอก % ติดลบในใบเสนอราคา → ต้องไม่ติดลบ และยอดต้องไม่ติดลบ (ขายต่ำกว่าทุนไม่ได้)", async ({ page }) => {
   const company = tg("ติดลบ");
-  const { qty, unitPrice } = await openQuoteForm(page, company);
+  const { ตาราง, pct, ราคา } = await openQuoteForm(page, company, [{ name: "งานทดสอบติดลบ", qty: 2, unit: "ชุด", unitCost: 1000 }]);
+  await expect(ตาราง.locator('input[aria-label^="จำนวน"]'), "จำนวนมาจากใบ HQ แก้ไม่ได้").toHaveCount(0);
 
   // fill() พิมพ์ค่าลงช่องตรง ๆ ข้าม min=0 ของเบราว์เซอร์ได้ — จำลองคนที่ตั้งใจเลี่ยง
-  await qty.fill("-5");
-  await unitPrice.fill("-1000");
+  await pct.fill("-50");
+  await pct.blur();
   await page.waitForTimeout(500);
-
-  expect(Number(await qty.inputValue() || 0), "จำนวนติดลบต้องถูกปรับเป็น 0").toBeGreaterThanOrEqual(0);
-  expect(Number((await unitPrice.inputValue()).replace(/,/g, "") || 0), "ราคาติดลบต้องถูกปรับเป็น 0").toBeGreaterThanOrEqual(0);
+  expect(Number(await pct.inputValue() || 0), "% ติดลบต้องถูกปรับเป็น 0").toBeGreaterThanOrEqual(0);
+  expect(Number((await ราคา.innerText()).replace(/,/g, "")), "ราคาขายต้องไม่ต่ำกว่าต้นทุน").toBeGreaterThanOrEqual(1000);
 
   const panel = await page.locator("body").innerText();
   expect(/-\s*฿|฿\s*-/.test(panel), "ต้องไม่มียอดติดลบโผล่บนหน้าจอเลย").toBe(false);
 });
 
-test("[edge] กรอกจำนวนมหาศาล → ต้องถูกจำกัดที่เพดาน ไม่บวมเป็นยอดพันล้าน", async ({ page }) => {
+test("[edge] พิมพ์ % มหาศาล → ราคาต่อหน่วยต้องถูกจำกัดที่เพดาน ไม่บวมเป็นยอดพันล้าน", async ({ page }) => {
   // เคสจริง: พิมพ์ 0 เกินโดยไม่ตั้งใจ แล้วใบหลุดออกไปหาลูกค้าด้วยยอดผิดมหาศาล
   const company = tg("เลขบวม");
-  const { qty, unitPrice } = await openQuoteForm(page, company);
-
-  await qty.fill("999999999");
-  await unitPrice.fill("999999999");
+  const { pct, ราคา } = await openQuoteForm(page, company, [{ name: "งานทดสอบเลขบวม", qty: 1, unit: "ชุด", unitCost: 1000 }]);
+  await pct.fill("999999999");
+  await pct.blur();
   await page.waitForTimeout(500);
-
-  expect(Number(await qty.inputValue() || 0), "จำนวนต้องไม่เกินเพดาน 100,000").toBeLessThanOrEqual(100_000);
-  expect(Number((await unitPrice.inputValue()).replace(/,/g, "") || 0), "ราคาต่อหน่วยต้องไม่เกินเพดาน 100 ล้าน").toBeLessThanOrEqual(100_000_000);
+  expect(Number((await ราคา.innerText()).replace(/,/g, "")), "ราคาต่อหน่วยต้องไม่เกินเพดาน 100 ล้าน").toBeLessThanOrEqual(100_000_000);
 });
 
 test("[edge] VAT ต้องคำนวณจากยอดก่อน VAT ให้ตรง ไม่ปัดเศษเพี้ยน", async ({ page }) => {
-  // ตั้งยอดให้มีเศษสตางค์แน่ ๆ (999 × 7% = 69.93) แล้วดูว่าระบบปัดและบวกถูกไหม
+  // ตั้งยอดให้มีเศษสตางค์แน่ ๆ (999 × 7% = 69.93) แล้วดูว่าระบบปัดและบวกถูกไหม — ต้นทุน 333 × 3 บวก 0%
   const company = tg("ภาษี");
-  const { qty, unitPrice } = await openQuoteForm(page, company);
-
-  await qty.fill("3");
-  await unitPrice.fill("333");
+  const { pct } = await openQuoteForm(page, company, [{ name: "งานทดสอบภาษี", qty: 3, unit: "ชุด", unitCost: 333 }]);
+  await pct.fill("0");
   await page.waitForTimeout(800);
 
   const text = await page.locator("body").innerText();
@@ -281,15 +270,14 @@ test("[edge] VAT ต้องคำนวณจากยอดก่อน VAT �
 
 test("[edge] ใบเสนอราคายอด 0 บาท ต้องออกไม่ได้", async ({ page }) => {
   // ใบยอด 0 = เอกสารที่ส่งให้ลูกค้าไม่ได้จริง แต่ไหลไปนับใน "จำนวนใบเสนอราคา" ของสาขา
-  // และถ้าเผลอปิดการขาย จะได้ลูกค้าที่มียอดสะสม 0 ปนอยู่ในฐาน
+  // ด่าน 3: จำนวน/ต้นทุนมาจากใบ HQ (ฐานไม่ให้ HQ ส่งใบยอด 0 · quote_empty) และ % ติดลบไม่ได้ → ยอดศูนย์เกิดไม่ได้โดยโครงสร้าง
+  //   ข้อนี้ยืนยันว่าดีลเลอร์ไม่มีช่องไหนทำให้ยอดเป็น 0 ได้: ไม่มีช่องจำนวน/ราคา และ % ต่ำสุด (0) ยอดยังเท่าต้นทุน
   const company = tg("ยอดศูนย์");
-  const { qty } = await openQuoteForm(page, company);
-
-  await qty.fill("0");
-  await page.waitForTimeout(800);
-
-  const submit = page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last();
-  await expect(submit, "ยอดเป็น 0 ต้องกดสร้างไม่ได้").toBeDisabled({ timeout: 10_000 });
+  const { ตาราง, pct, ราคา } = await openQuoteForm(page, company, [{ name: "งานทดสอบยอดศูนย์", qty: 1, unit: "ชุด", unitCost: 500 }]);
+  await expect(ตาราง.locator('input[aria-label^="จำนวน"], input[aria-label="ราคาต่อหน่วย"]'), "ไม่มีช่องจำนวน/ราคาให้แก้").toHaveCount(0);
+  await pct.fill("0");
+  await page.waitForTimeout(500);
+  expect(Number((await ราคา.innerText()).replace(/,/g, "")), "% ต่ำสุดแล้วยอดยังเท่าต้นทุน ไม่ใช่ 0").toBe(500);
 });
 
 test("[edge] ปิดการขายสำเร็จแล้ว — ยอดลูกค้าต้องเท่ากับใบที่ชนะเสมอ แม้พยายามย้อนสถานะ", async ({ page }) => {
@@ -301,7 +289,7 @@ test("[edge] ปิดการขายสำเร็จแล้ว — ย�
 
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", company);   // ด่าน 3: ใบใหม่ทำจากใบ HQ (ทางสร้างใบแบบเดิมปิดแล้ว)
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   const q = await waitRow<{ id: string }>(sb, "quotations", { customer: company }, 60_000);

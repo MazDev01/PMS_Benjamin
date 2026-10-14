@@ -5,7 +5,6 @@
 //   ลูกค้าเป้าหมาย → ดีลเลอร์ขอราคา → HQ ทำ BOQ + ส่งใบ → ดีลเลอร์ทำใบลูกค้าจากใบ HQ (บวก %)
 //   ทั้งหมดผ่านคำสั่งของฐานในนามผู้ใช้จริง (ดีลเลอร์ / HQ) — ไม่ข้ามกฎใด ๆ
 // ล้างทิ้ง: ใบ HQ ที่ส่งแล้วลบไม่ได้แม้ด้วยกุญแจฝั่งเซิร์ฟเวอร์ (ตั้งใจ) → ลบที่ฐานทดสอบในเครื่องตรง ๆ (docker)
-import { execFileSync } from "node:child_process";
 import { ADMIN, type Account } from "./supabaseEnv";
 import { db } from "./funcHelpers";
 
@@ -28,22 +27,30 @@ export async function เตรียมใบHQ(dealer: Account & { code?: stri
     contact: "ผู้ทดสอบ", phone, province: opts.province, product: opts.product ?? "โกดังสำเร็จรูป", status: "BULLET",
   });
   if (l.error) throw new Error(`สร้างลูกค้าเป้าหมายทดสอบไม่สำเร็จ: ${l.error.message}`);
+  return ใบHQให้ลูกค้าเป้าหมายเดิม(dealer, opts.dealerCode, leadNum, opts.lines, opts);
+}
+
+/** ลูกค้าเป้าหมายที่มีอยู่แล้ว (สร้างผ่านหน้าจอ ฯลฯ · ต้องอยู่ขั้นติดต่อแล้ว/รวบรวมความต้องการ) → ขอราคา → HQ ส่งใบ HQ */
+export async function ใบHQให้ลูกค้าเป้าหมายเดิม(dealer: Account, dealerCode: string, leadNum: number, lines?: ใบHQบรรทัด[],
+  opts: { validDays?: number; product?: string } = {}): Promise<ใบHQพร้อมใช้> {
+  const sb = await db(dealer);
   const r = await sb.rpc("quote_request_submit", { p_lead_num_id: leadNum, p_product: opts.product ?? "โกดังสำเร็จรูป" });
   if (r.error) throw new Error(`ส่งคำขอราคาไม่สำเร็จ: ${r.error.message}`);
   const requestId = Number((r.data as { id: number }).id);
   const hq = await db(ADMIN);
   const valid = new Date(Date.now() + 7 * 3_600_000 + (opts.validDays ?? 30) * 86_400_000).toISOString().slice(0, 10);
-  const s = await hq.rpc("hq_quote_save", { p_request_id: requestId, p_lines: opts.lines, p_valid_until: valid, p_note: "" });
+  const s = await hq.rpc("hq_quote_save", { p_request_id: requestId,
+    p_lines: lines ?? [{ name: "โกดังสำเร็จรูป", qty: 100, unit: "ตร.ม.", unitCost: 4500 }], p_valid_until: valid, p_note: "" });
   if (s.error) throw new Error(`HQ บันทึกใบไม่สำเร็จ: ${s.error.message}`);
   const h = await hq.rpc("hq_quote_send", { p_request_id: requestId });
   if (h.error) throw new Error(`HQ ส่งใบไม่สำเร็จ: ${h.error.message}`);
   const row = h.data as { id: number; quote_no: string };
-  return { dealerCode: opts.dealerCode, leadNum, requestId, hqQuoteId: Number(row.id), quoteNo: String(row.quote_no) };
+  return { dealerCode, leadNum, requestId, hqQuoteId: Number(row.id), quoteNo: String(row.quote_no) };
 }
 
 /** ดีลเลอร์ทำใบลูกค้าจากใบ HQ (ทางเดียวกับหน้าจอ: คำสั่งออกเลขใบ) — ฐานคิดราคา = ต้นทุน × (1 + %) */
 export async function ทำใบลูกค้าจากใบHQ(dealer: Account, ใบ: ใบHQพร้อมใช้, opts: {
-  customer: string; markupPercent?: number; linePcts?: number[]; status?: "draft" | "sent_to_client"; extra?: Record<string, unknown>;
+  customer: string; markupPercent?: number; linePcts?: number[]; status?: "draft" | "sent_to_client" | "won" | "lost"; extra?: Record<string, unknown>;
 }): Promise<{ id: string; total_value: number; line_items: { unitPrice: number; markupPct: number }[] }> {
   const sb = await db(dealer);
   const hq = await sb.from("hq_quotes").select("line_items").eq("id", ใบ.hqQuoteId).single();
@@ -64,24 +71,5 @@ export async function ทำใบลูกค้าจากใบHQ(dealer: Ac
   return q.data as { id: string; total_value: number; line_items: { unitPrice: number; markupPct: number }[] };
 }
 
-/** ล้างทุกอย่างที่ผูกกับลูกค้าเป้าหมายของข้อทดสอบ (ใบลูกค้า · ใบ HQ · คำขอ · อีเมล · ลูกค้าเป้าหมาย) ที่ฐานทดสอบในเครื่อง */
-export function ล้างใบHQทดสอบ(dealerCode: string, leadNums: number[]) {
-  const nums = leadNums.filter(n => Number.isInteger(n) && n > 0);
-  if (!nums.length) return;
-  const ids = nums.join(",");
-  const sql = `alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
-    delete from public.quotations q using public.hq_quotes h, public.quote_requests r
-      where q.hq_quote_id = h.id and h.request_id = r.id and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
-    delete from public.quotations where dealer_code = '${dealerCode}' and deal_id in (${ids});
-    delete from public.hq_quotes h using public.quote_requests r where h.request_id = r.id and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
-    alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
-    delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
-    update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = '${dealerCode}' and lead_num_id in (${ids});
-    delete from public.quote_requests where dealer_code = '${dealerCode}' and lead_num_id in (${ids});
-    delete from public.leads where dealer_code = '${dealerCode}' and num_id in (${ids});`;
-  const c = execFileSync("docker", ["ps", "--filter", "name=supabase_db_", "--format", "{{.Names}}"], { encoding: "utf8" })
-    .split(/\r?\n/).find(n => n.includes("dbcheck")) ?? "";
-  if (c) execFileSync("docker", ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres", "-q", "-c", sql], { stdio: "ignore" });
-}
 
-export { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+export { วางใบเดิมที่ฐาน, ล้างใบHQทดสอบ } from "./legacyQuotes";

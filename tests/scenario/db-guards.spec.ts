@@ -96,19 +96,23 @@ test("สร้างใบเสนอราคาโดยไม่ส่ง�
   const { error: le } = await dealer.auth.signInWithPassword(RYG);
   expect(le?.message ?? "", "ล็อกอินดีลเลอร์ต้องผ่าน").toBe("");
 
+  // ด่าน 3: ใบใหม่ต้องทำจากใบ HQ (0201) — ส่งแค่ใบ HQ + รายการขั้นต่ำ ไม่ส่งยอด/ต้นทุน/จำนวนรายการ
   const company = "ZZTEST-DEFAULTS-ใบไม่ส่งยอด";
+  const { เตรียมใบHQ, ล้างใบHQทดสอบ } = await import("./hqQuoteFixture");
+  const ใบ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: `${company}-${Date.now() % 100000}`, province: "ระยอง",
+    lines: [{ name: "ทดสอบ", qty: 1, unit: "งาน", unitCost: 1234 }] });
   const { data, error } = await dealer.rpc("create_quotation", {
     p_dealer: "RYG", p_prefix: "Q-",
-    p_payload: { customer: company, date: "2026-05-01", line_items: [{ name: "ทดสอบ", qty: 1, unit: "งาน", unitPrice: 0 }] },
+    p_payload: { customer: company, date: "2026-05-01", hq_quote_id: ใบ.hqQuoteId, line_items: [{ name: "ทดสอบ", qty: 1 }] },
   });
   expect(error?.message ?? "", "สร้างใบต้องสำเร็จ").toBe("");
 
   const row = Array.isArray(data) ? data[0] : data;
-  expect(row.total_value, "ยอดต้องเป็น 0 ไม่ใช่ค่าว่าง").not.toBeNull();
-  expect(Number(row.total_value), "ยอดต้องเป็น 0").toBe(0);
+  expect(row.total_value, "ยอดต้องไม่ใช่ค่าว่าง").not.toBeNull();
+  expect(Number(row.total_value), "ไม่ส่ง % = บวก 0 → ยอดเท่าต้นทุนจากใบ HQ").toBe(1234);
   expect(row.material_cost, "ต้นทุนวัสดุต้องเป็น 0 ไม่ใช่ค่าว่าง").not.toBeNull();
   expect(row.items, "จำนวนรายการต้องเป็นตัวเลข ไม่ใช่ค่าว่าง").not.toBeNull();
   expect(row.status, "สถานะต้องเป็นร่าง").toBe("draft");
 
-  await svc.from("quotations").delete().eq("id", row.id).eq("dealer_code", "RYG");
+  ล้างใบHQทดสอบ("RYG", [ใบ.leadNum]);
 });

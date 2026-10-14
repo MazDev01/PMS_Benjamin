@@ -184,7 +184,32 @@ async function สร้างลูกค้าเป้าหมายว่�
 
 // เปิดฟอร์ม "สร้างใบเสนอราคาใหม่" — ตอนนี้อยู่ในแผงรายละเอียดลูกค้าเป้าหมาย (แท็บใบเสนอราคา)
 // wizard เดิมบนหน้า /quotations ถูกลบทั้งฟีเจอร์ → ดีลเลอร์ออกใบจากลูกค้าเป้าหมายเท่านั้น
+/** ชื่อบริษัทของลูกค้าเป้าหมายที่ตัวช่วยเตรียมใบ HQ ให้ — global teardown กวาดด้วยคำนำหน้านี้ */
+export const คำนำหน้าลูกค้าเป้าหมายใบHQ = "ZZTEST-BASE-ใบHQ";
+
 export async function openLeadQuotationForm(page: Page, opts?: { ใบใหม่เท่านั้น?: boolean }) {
+  // ── ด่าน 3 (ใบ 0201): ใบลูกค้าใหม่ต้องทำจากใบ HQ — ทางออกใบแบบเดิมปิดแล้ว ─────────────────────────────
+  //   ระบบจริง: เตรียมลูกค้าเป้าหมายใหม่ของข้อทดสอบที่ได้ใบ HQ แล้ว (ขอราคา → HQ ส่งใบ ผ่านคำสั่งของฐาน)
+  //   แล้วเข้าฟอร์มด้วยปุ่ม "ทำใบเสนอราคาจากใบ HQ" แบบผู้ใช้ — ได้ใบใหม่เสมอ (opts เดิมไม่จำเป็นแล้ว)
+  //   โหมดข้อมูลตัวอย่าง (ไม่มีฐาน) ยังเป็นทางเดิมด้านล่าง
+  if (REAL_BACKEND) {
+    const { เตรียมใบHQ } = await import("./hqQuoteFixture");
+    const ชื่อ = `${คำนำหน้าลูกค้าเป้าหมายใบHQ}-${Date.now() % 1_000_000}`;
+    await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ชื่อ, province: "ระยอง",
+      lines: [{ name: "โกดังสำเร็จรูป", qty: 100, unit: "ตร.ม.", unitCost: 4500 }] });
+    await open(page, "dealer", "/leads");
+    await page.getByRole("button", { name: "ตาราง" }).click();
+    await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ);
+    const แถว = page.locator("tbody tr").filter({ hasText: ชื่อ }).first();
+    await expect(แถว).toBeVisible({ timeout: 20_000 });
+    await แถว.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+    await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 20_000 });
+    await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible();
+    await expect(page.locator("[data-editor='hq-markup']")).toBeVisible({ timeout: 20_000 });
+    return ชื่อ;
+  }
+  void opts;
   await open(page, "dealer", "/leads");
   await page.getByRole("button", { name: "ตาราง" }).click(); // ค่าเริ่มต้น=บอร์ด → สลับเป็นตาราง
 

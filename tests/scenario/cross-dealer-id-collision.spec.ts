@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { SUPABASE_URL, SUPABASE_ANON, REAL_BACKEND, ADMIN } from "./supabaseEnv";
+import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 
 // ── regression: id ลูกค้า/ลูกค้าเป้าหมาย นับแยกต่อสาขา — ห้าม join/group ข้ามตารางด้วย id เปล่า ──
 //
@@ -44,11 +45,9 @@ test.beforeAll(async () => {
     if (ec) throw new Error(`เตรียมลูกค้า ${d.code} ไม่สำเร็จ: ${ec.message}`);
 
     // ใบปิดการขายของสาขาตัวเอง — ประเภทอาคารต่างกันชัดเจน จะได้รู้ทันทีถ้าปนกัน
-    const { error: eq } = await admin.from("quotations").insert({
-      id: `${TAG}-${d.code}-Q1`, dealer_code: d.code, customer_id: CID, status: "won",
-      building_type: d.type, date: d.date, total_value: 1_000_000, customer: `${TAG}-${d.code}`,
-    });
-    if (eq) throw new Error(`เตรียมใบเสนอราคา ${d.code} ไม่สำเร็จ: ${eq.message}`);
+    // ใบเดิม (ไม่มีใบ HQ) สร้างผ่านแอป/API ไม่ได้แล้ว (ด่าน 3) — ข้อนี้วัดการแยกสาขา จึงวางที่ฐานตรง ๆ
+    วางใบเดิมที่ฐาน([{ id: `${TAG}-${d.code}-Q1`, dealer_code: d.code, customer_id: CID, status: "won",
+      building_type: d.type, date: d.date, total_value: 1_000_000, customer: `${TAG}-${d.code}` }]);
 
     // ลูกค้าเป้าหมายผูกลูกค้ารายเดียวกัน — ใช้ทดสอบ quotation_salesperson (ผู้รับผิดชอบต่างคนกันคนละสาขา)
     // เช็ค error ทุกจุด: ถ้าเตรียมข้อมูลพลาดเงียบ ๆ เทสต์จะ "ผ่าน" แบบไม่ได้ทดสอบอะไรเลย
@@ -119,11 +118,8 @@ test.beforeAll(async () => {
     // ผูกกับ "ลูกค้าเป้าหมาย" ผ่าน deal_id แทน customer_id โดยตั้งใจ — ถ้าผูกกับลูกค้ารายเดิม
     // ใบใบนี้จะไปนับเป็นใบที่สองของลูกค้า แล้วทำให้ KPI "ลูกค้าประจำ" ของเทสต์ด้านบนเปลี่ยน
     // (เทสต์จะตกเพราะข้อมูลที่เราเติมเอง ไม่ใช่เพราะบั๊ก — ต้องแยกให้ขาดจากกัน)
-    const { error } = await admin.from("quotations").insert({
-      id: SAME_ID, dealer_code: d.code, deal_id: d.leadId, status: "draft",
-      building_type: d.type, date: d.date, total_value: 1_000_000, customer: `${TAG}-${d.code}`,
-    });
-    if (error) throw new Error(`เตรียมใบเลขซ้ำของ ${d.code} ไม่สำเร็จ: ${error.message}`);
+    วางใบเดิมที่ฐาน([{ id: SAME_ID, dealer_code: d.code, deal_id: d.leadId, status: "draft",
+      building_type: d.type, date: d.date, total_value: 1_000_000, customer: `${TAG}-${d.code}` }]);
   }
 });
 test.afterAll(async () => { await admin.from("quotations").delete().eq("id", SAME_ID); });

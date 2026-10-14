@@ -2,8 +2,9 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
-import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, pickTemplate } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, pickTemplate, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 import { settle } from "./helpers";
+import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 
 // ── ภาษีมูลค่าเพิ่ม + ภาษีหัก ณ ที่จ่าย บนใบเสนอราคา (บอสสั่ง 28 ส.ค. 69) ──────
 //
@@ -23,6 +24,7 @@ test.setTimeout(240_000);
 test.describe.configure({ mode: "serial" });
 
 async function ล้าง() {
+  await cleanup(await db(RYG), "RYG", NS);   // รวมใบ HQ / คำขอราคา ของลูกค้าเป้าหมายข้อทดสอบ (ด่าน 3)
   await admin.from("quotations").delete().like("customer", `${NS}%`);
   await admin.from("leads").delete().like("company", `${NS}%`);
 }
@@ -33,7 +35,8 @@ test.beforeAll(async () => {
   const { error } = await admin.from("leads").insert({
     id: `#L-${numId}`, dealer_code: "RYG", num_id: numId, name: COMPANY, company: COMPANY,
     contact: "คุณทดสอบภาษี", phone: "081-000-0009", province: "ระยอง", product: "โรงงาน",
-    status: "QUOTED", value: "500000", area: "100", assigned: "ทดสอบระบบ",
+    // ด่าน 3: ต้องขอราคาจาก HQ ได้ (ขั้นติดต่อแล้ว/รวบรวมความต้องการเท่านั้น) — เดิมตั้งเป็นเสนอราคาไว้เลย
+    status: "BULLET", value: "500000", area: "100", assigned: "ทดสอบระบบ",
   });
   if (error) throw new Error(`สร้างลูกค้าเป้าหมายไม่ได้: ${error.message}`);
 });
@@ -50,11 +53,13 @@ async function เปิดฟอร์มออกใบ(page: import("@playwri
   await expect(row).toBeVisible({ timeout: 20_000 });
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: /(สร้าง|เพิ่มรายการใน)ใบเสนอราคา/ }).first().click();
-  if (await page.getByLabel("ราคาต่อหน่วย").count() === 0) {
-    await page.getByRole("button", { name: /เลือกจากแคตตาล็อก/ }).click();
-    await page.locator("button").filter({ hasText: /฿[\d,]+\/\S+/ }).first().click();
-  }
+  // ด่าน 3: ใบใหม่ทำจากใบ HQ — ลูกค้าเป้าหมายนี้ได้ใบ HQ ครั้งแรกที่เปิดฟอร์ม · ครั้งต่อไปปุ่มพาไปแก้ใบเดิม
+  const ทำใหม่ = page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ });
+  const แก้เดิม = page.getByRole("button", { name: /^(แก้ใบเสนอราคา|เพิ่มรายการในใบเสนอราคา)$/ });
+  await expect(ทำใหม่.or(แก้เดิม).first()).toBeVisible({ timeout: 20_000 });
+  if (await แก้เดิม.count() > 0) { await แก้เดิม.first().click(); return; }
+  if (await ทำใหม่.isEnabled()) { await ทำใหม่.click(); return; }   // ได้ใบ HQ แล้วจากข้อก่อน
+  await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY);
 }
 
 test("[tax] ฟอร์มออกใบ: ติ๊ก VAT + หัก ณ ที่จ่าย แล้วยอดบนจอต้องขยับตามสูตร", async ({ page }) => {
@@ -109,12 +114,13 @@ test("[tax] บันทึกใบ → ฐานข้อมูลเก็บ
 
 test("[tax] ใบเก่าที่ยังไม่มีข้อมูลภาษี ต้องเปิดดู/พิมพ์ได้ตามปกติ (ไม่พัง)", async ({ page }) => {
   const เก่า = `${NS}-ใบเก่าไม่มีภาษี`;
-  await admin.from("quotations").insert({
+  // ใบเก่า (ก่อนปิดทางเดิม · ด่าน 3) สร้างผ่านแอปไม่ได้แล้ว — วางที่ฐานทดสอบตรง ๆ
+  วางใบเดิมที่ฐาน([{
     id: `${NS}-OLD`, dealer_code: "RYG", customer: เก่า, project: เก่า, date: "2026-08-20",
     province: "ระยอง", building_type: "โกดังสำเร็จรูป", area: "1", total: "400000",
     total_value: 400_000, material_cost: 400_000, items: 1, status: "sent_to_client",
     line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 400_000 }],
-  });
+  }]);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
