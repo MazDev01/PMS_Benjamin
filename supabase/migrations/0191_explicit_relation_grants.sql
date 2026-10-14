@@ -90,9 +90,10 @@ grant all on table public.dealers to anon;
 grant delete, insert, references, trigger, truncate, update on table public.dealers to authenticated;
 grant all on table public.dealers to service_role;
 grant select (code, created_at, name, province, region, status) on table public.dealers to authenticated;
--- มุมมอง dealers_directory — anon: ไม่มี · authenticated: ทั้งหมด · service_role: ทั้งหมด
-grant all on table public.dealers_directory to authenticated;
-grant all on table public.dealers_directory to service_role;
+-- มุมมอง dealers_directory — anon: ไม่มี · authenticated: select · service_role: select
+--   มุมมองอ่านอย่างเดียวเสมอ (14 ต.ค. 69 · ใบ 0199): ให้สิทธิ์ทั้งหมด = เขียนผ่านมุมมองข้ามกฎรายแถวของตารางจริงได้
+grant select on table public.dealers_directory to authenticated;
+grant select on table public.dealers_directory to service_role;
 -- ตาราง hq_login_secrets — anon: ไม่มี · authenticated: ไม่มี · service_role: ทั้งหมด
 grant all on table public.hq_login_secrets to service_role;
 -- ตาราง hq_quotes — anon: ไม่มี · authenticated: references,select,trigger · service_role: ทั้งหมด
@@ -101,9 +102,10 @@ grant all on table public.hq_quotes to service_role;
 -- ตาราง hq_recruit_settings — anon: ไม่มี · authenticated: ทั้งหมด · service_role: ทั้งหมด
 grant all on table public.hq_recruit_settings to authenticated;
 grant all on table public.hq_recruit_settings to service_role;
--- มุมมอง master_catalog_public — anon: ไม่มี · authenticated: ทั้งหมด · service_role: ทั้งหมด
-grant all on table public.master_catalog_public to authenticated;
-grant all on table public.master_catalog_public to service_role;
+-- มุมมอง master_catalog_public — anon: ไม่มี · authenticated: select · service_role: select
+--   มุมมองอ่านอย่างเดียวเสมอ (14 ต.ค. 69 · ใบ 0199): ให้สิทธิ์ทั้งหมด = เขียนผ่านมุมมองข้ามกฎรายแถวของตารางจริงได้
+grant select on table public.master_catalog_public to authenticated;
+grant select on table public.master_catalog_public to service_role;
 -- ตาราง quote_pricing_roles — anon: ไม่มี · authenticated: references,select,trigger · service_role: ทั้งหมด
 grant references, select, trigger on table public.quote_pricing_roles to authenticated;
 grant all on table public.quote_pricing_roles to service_role;

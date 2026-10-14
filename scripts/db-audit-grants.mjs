@@ -150,6 +150,22 @@ if (ตรวจตาราง) {
   for (const a of จริง.relations) if (!ควรเป็นตาราง.relations.some(e => e.r === a.r))
     พบ.push({ หมวด: "ตาราง", ชื่อ: `${ชนิด[a.kind] ?? a.kind} ${a.r}`, msg: "มีในฐานที่ตรวจ แต่ไม่มีในใบแก้ฐานข้อมูล", หลวม: Boolean(a.anon || a.authenticated) });
 
+  // ── 2ข) กฎตายตัว: มุมมองห้ามให้ผู้ใช้เขียนผ่าน (พบ 14 ต.ค. 69 · ใบ 0199) ──
+  //   มุมมองแบบง่ายเขียนผ่านได้ และทำงานด้วยสิทธิ์เจ้าของ = ข้ามกฎรายแถวของตารางจริง
+  //   (ดีลเลอร์แก้สถานะดีลเลอร์อื่นผ่าน dealers_directory · แก้/ลบแม่แบบผ่าน master_catalog_public)
+  //   ตรวจทั้งฐานจริงและค่าที่ถ่ายไว้ — ไม่งั้นถ่ายค่าจากฐานที่หลวมอยู่แล้ว ช่องโหว่จะกลายเป็น "ค่าที่ควรเป็น"
+  const เขียน = ["INSERT", "UPDATE", "DELETE", "TRUNCATE"];
+  for (const [แหล่ง, rows] of [["ฐานที่ตรวจ", จริง.relations], ["ค่าที่ถ่ายไว้", ควรเป็นตาราง.relations]]) {
+    for (const a of rows) {
+      if (a.kind !== "v" && a.kind !== "m") continue;
+      for (const role of ["anon", "authenticated"]) {
+        const ผิด = [...ชุด(a[role])].filter(p => เขียน.includes(p));
+        if (ผิด.length) พบ.push({ หมวด: "ตาราง", ชื่อ: `มุมมอง ${a.r}`, หลวม: true,
+          msg: `${ใคร[role]}เขียนผ่านมุมมองได้ (${แหล่ง}): ${ผิด.join(", ")} — มุมมองต้องอ่านอย่างเดียว` });
+      }
+    }
+  }
+
   // ── 3) สิทธิ์รายคอลัมน์ ──
   const k = x => `${x.c}|${x.role}`;
   const mc = new Map((จริง.columns ?? []).map(x => [k(x), x])), ec = new Map(ควรเป็นตาราง.columns.map(x => [k(x), x]));

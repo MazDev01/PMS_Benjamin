@@ -1,5 +1,5 @@
 {
- "migration": "0198",
+ "migration": "0199",
  "relations": [
   {
    "r": "appointments",
@@ -198,8 +198,8 @@
    "kind": "v",
    "rls": false,
    "anon": "",
-   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
-   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+   "authenticated": "SELECT",
+   "service_role": "SELECT"
   },
   {
    "r": "email_outbox",
@@ -334,8 +334,8 @@
    "kind": "v",
    "rls": false,
    "anon": "",
-   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
-   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+   "authenticated": "SELECT",
+   "service_role": "SELECT"
   },
   {
    "r": "profiles",
