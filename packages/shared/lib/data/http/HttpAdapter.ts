@@ -16,7 +16,7 @@ import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
 import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo } from "../ports";
-import type { QuoteRequest, HqQuote } from "../../quoteRequests";
+import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
@@ -289,6 +289,8 @@ const quoteRequests: QuoteRequestsRepo = {
   saveHqQuote: (requestId, lines, validUntil, note) => post<HqQuote>("/quote-requests", { op: "save-hq", id: requestId, lines, validUntil, note }),
   sendHqQuote: (requestId) => post<HqQuote>("/quote-requests", { op: "send-hq", id: requestId }),
   copyHqQuote: (requestId, sourceHqQuoteId) => post<HqQuote>("/quote-requests", { op: "copy-hq", id: requestId, sourceId: sourceHqQuoteId }),
+  hqQuoteById: (id) => apiFetch<HqQuote | null>(`/quote-requests?view=hq-quote-id&id=${id}`),
+  margin: (dealerCode, quotationId) => apiFetch<QuoteMargin | null>(`/quote-requests?view=margin&dealer=${encodeURIComponent(dealerCode)}&quote=${encodeURIComponent(quotationId)}`),
   quotedLeadIds: (dealerCode) => apiFetch<number[]>(`/quote-requests?view=quoted-leads&dealer=${encodeURIComponent(dealerCode)}`),
 };
 // พื้นที่ของดีลเลอร์ (ใบ 0195)

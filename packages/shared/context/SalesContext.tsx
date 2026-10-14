@@ -235,9 +235,43 @@ export function SalesProvider({
     leadWrites.set(id, คิวนี้);
     void คิวนี้.finally(() => { if (leadWrites.get(id) === คิวนี้) leadWrites.delete(id); });
   };
+  // ── ลูกค้าเป้าหมายที่ฐานข้อมูลกำลังขยับขั้นให้ (Flow ใบ HQ · ด่าน 3 · พบ 14 ต.ค. 69) ─────────────────────────
+  //   ใบที่ทำจากใบ HQ เปลี่ยนสถานะ (ส่งให้ลูกค้า / ตอบรับ / ปฏิเสธ) → ฐานข้อมูลขยับขั้นของลูกค้าเป้าหมายเอง (0183)
+  //   แต่แอปยังเขียนลูกค้าเป้าหมายทั้งแถวตามหลัง (ติ๊กงาน · จดไทม์ไลน์ · ผูกเลขลูกค้า) จากสำเนาในเครื่องที่ยังเป็นขั้นเดิม
+  //   → ขั้นที่ฐานเพิ่งตั้ง (เช่น ปิดการขายสำเร็จ) ถูกเขียนกลับเป็นขั้นเดิม เงียบ ๆ (ข้อทดสอบหน้าจอขั้น 10 จับได้)
+  //   กั้นคิวเขียนของลูกค้าเป้าหมายรายนั้นไว้จนฐานทำเสร็จ แล้วงานเขียนที่ยังถือ "ขั้นเดิม" ได้ขั้นล่าสุดจากฐานแทน
+  //   งานที่ตั้งใจเปลี่ยนขั้นเอง (ขั้นไม่เท่าขั้นเดิม) ไม่ถูกแตะ
+  const ลีดรอฐานขยับ = useRef(new Map<string, { ขั้นเดิม: LeadRow["status"]; หมดเวลา: number }>()).current;
+  const กั้นลีดระหว่างฐานขยับ = (q: Pick<QuotationMock, "hqQuoteId" | "dealId" | "dealerCode">): (() => void) => {
+    if (!q.hqQuoteId || q.dealId == null) return () => {};
+    const เจ้าของ = q.dealerCode ?? myDealerCode;
+    const lead = leadsRef.current.find(l => l.numId === q.dealId && (l.dealerCode ?? DEFAULT_DEALER_CODE) === เจ้าของ);
+    if (!lead) return () => {};
+    let ปล่อย: () => void = () => {};
+    const รอ = new Promise<void>(r => { ปล่อย = r; });
+    ลีดรอฐานขยับ.set(lead.id, { ขั้นเดิม: lead.status, หมดเวลา: Number.POSITIVE_INFINITY });
+    เข้าคิวเขียนลีด(lead.id, () => รอ);
+    return () => {
+      const g = ลีดรอฐานขยับ.get(lead.id);
+      if (g) g.หมดเวลา = Date.now() + 30_000;   // งานเขียนที่ตามมาจากการกดครั้งเดียวกันยังได้ขั้นจากฐาน
+      ปล่อย();
+    };
+  };
+  const ขั้นจากฐาน = async (l: LeadRow): Promise<LeadRow> => {
+    const g = ลีดรอฐานขยับ.get(l.id);
+    if (!g) return l;
+    if (Date.now() > g.หมดเวลา) { ลีดรอฐานขยับ.delete(l.id); return l; }
+    if (l.status !== g.ขั้นเดิม) return l;                  // ตั้งใจเปลี่ยนขั้นเอง — ไม่แตะ
+    const fresh = await leadsRepo.get(l.id).catch(() => null);
+    if (!fresh || fresh.status === l.status) return l;
+    const ล่าสุด = { status: fresh.status, lostReason: fresh.lostReason };
+    leadsRef.current = leadsRef.current.map(x => x.id !== l.id ? x : { ...x, ...ล่าสุด });
+    setLeads(prev => prev.map(x => x.id !== l.id ? x : { ...x, ...ล่าสุด }));
+    return { ...l, ...ล่าสุด };
+  };
   const persistLead = useRef({
     create: (l: LeadRow) => { bumpWrite(); เข้าคิวเขียนลีด(l.id, () => leadsRepo.create(l).catch(onFail("leads", "สร้างลูกค้าเป้าหมาย"))); },
-    update: (l: LeadRow) => { bumpWrite(); เข้าคิวเขียนลีด(l.id, () => leadsRepo.update(l).catch(onFail("leads", "แก้ไขลูกค้าเป้าหมาย"))); },
+    update: (l: LeadRow) => { bumpWrite(); เข้าคิวเขียนลีด(l.id, async () => leadsRepo.update(await ขั้นจากฐาน(l)).catch(onFail("leads", "แก้ไขลูกค้าเป้าหมาย"))); },
     remove: (id: string) => { bumpWrite(); เข้าคิวเขียนลีด(id, () => leadsRepo.remove(id).catch(onFail("leads", "ลบลูกค้าเป้าหมาย"))); },
   }).current;
   // ── Customers (Phase 2) — โหลดผ่าน repository (async) + เขียนทะลุถึง repo ──
@@ -767,8 +801,9 @@ export function SalesProvider({
     setQuotations(prev => prev.map(q => q.id !== quotation.id ? q : quotation));
     // แก้ใบที่ won (หรือเคย won) ที่ผูกลูกค้า → ยอดลูกค้าต้องตาม (แก้ totalValue/สถานะ) · H2
     const needsReconcile = quotation.customerId && quotation.customerId > 0 && (quotation.status === "won" || before?.status === "won");
+    const ปล่อยลีด = before?.status !== quotation.status ? กั้นลีดระหว่างฐานขยับ(quotation) : () => {};
     if (!needsReconcile) {
-      persistQuote.update(quotation);
+      void Promise.resolve(persistQuote.update(quotation)).finally(ปล่อยลีด);
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
       จดกิจกรรมของใบ(before, quotation, opts);
       return;
@@ -780,7 +815,7 @@ export function SalesProvider({
       } catch (e) {
         onFail("quotations", "แก้ไขใบเสนอราคา")(e);
         return;
-      }
+      } finally { ปล่อยลีด(); }
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
       จดกิจกรรมของใบ(before, quotation, opts);
       try {
@@ -821,6 +856,8 @@ export function SalesProvider({
     const prevStatus = target?.status;
     setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status })); // optimistic UI
     if (!target || status === "draft") { persistQuote.setStatus(id, status); return; }
+    // ใบที่ทำจากใบ HQ: ฐานขยับขั้นลูกค้าเป้าหมายเอง — กั้นงานเขียนลูกค้าเป้าหมายไว้จนฐานทำเสร็จ (ดู กั้นลีดระหว่างฐานขยับ)
+    const ปล่อยลีด = กั้นลีดระหว่างฐานขยับ(target);
     // เปลี่ยนเป็นสถานะหลังการส่ง → ติ๊ก จัดทำ/ส่งใบเสนอราคา ให้ลูกค้าเป้าหมายอัตโนมัติ
     // (setTimeout กัน StrictMode เรียกซ้ำระหว่าง updater)
     const snap = { ...target, status };
@@ -845,7 +882,11 @@ export function SalesProvider({
       // R6/H2: ใบที่ผูกลูกค้าเดิมอยู่แล้ว เปลี่ยนเป็น won (ดีลที่ 2+) หรือย้อน won ออก (→ lost/expired/sent)
       //   → รวมยอดลูกค้าใหม่หลังเปลี่ยนสถานะ · เดิมคิดเฉพาะขา won → ย้อน won ออกแล้วยอดไม่ลด
       const needsReconcile = target.customerId && target.customerId > 0 && (status === "won" || prevStatus === "won");
-      if (!needsReconcile) { persistQuote.setStatus(id, status); return; }
+      if (!needsReconcile) {
+        bumpWrite();
+        void quotationsRepo.setStatus(id, status).catch(onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")).finally(ปล่อยลีด);
+        return;
+      }
       // เปลี่ยนสถานะ + รวมยอดลูกค้าใหม่ในทรานแซกชันเดียว (0102) — เดิมเรียก setStatus แล้วค่อย reconcile
       // แยก 2 คำขอ ภายใต้โหลดสูงเจอช่องว่างจังหวะเวลาที่ reconcile คำนวณได้ 0 ทั้งที่สถานะเปลี่ยนไปแล้วจริง
       void (async () => {
@@ -856,7 +897,7 @@ export function SalesProvider({
         } catch (e) {
           onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")(e);
           setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status: prevStatus ?? q.status }));
-        }
+        } finally { ปล่อยลีด(); }
       })();
     };
     const linkable = status === "won" && !(target.customerId && target.customerId > 0);
@@ -876,7 +917,7 @@ export function SalesProvider({
         } catch {
           // ล้มเหลว (error ถูกแจ้งแล้วในตัว convertLeadToCustomer) → ย้อนสถานะใบใน UI
           setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status: prevStatus ?? "sent_to_client" }));
-        }
+        } finally { ปล่อยลีด(); }
       })();
       return;
     }

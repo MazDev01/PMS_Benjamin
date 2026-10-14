@@ -4,6 +4,7 @@ import path from "node:path";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { กวาดสาขาทดสอบค้าง } from "./testDealers";
+import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 
 // snapshot ของ hq_notif_rules.alerts เดิม (singleton row จริง ไม่ใช่ข้อมูลแท็กที่ลบทิ้งได้เฉยๆ)
 // ต้องคืนค่าเดิมใน teardown เสมอ — ไม่ใช่ตั้งเป็นค่า test แล้วปล่อยทิ้งไว้
@@ -232,8 +233,9 @@ export default async function globalSetup() {
     items: 1,
     customer_id: q.customerIdOffset != null ? ID_BASE + q.customerIdOffset : null,
   }));
-  const { error: quoteErr } = await admin.from("quotations").insert(quoteRows);
-  if (quoteErr) throw new Error(`[global-setup] insert quotations ล้มเหลว: ${quoteErr.message}`);
+  // ใบชุดนี้จำลอง "ประวัติก่อนปิดทางออกใบแบบเดิม" (ด่าน 3 · ใบ 0201) — ฐานปฏิเสธใบใหม่ที่ไม่มีใบ HQ ทุกทางแล้ว
+  //   จึงวางที่ฐานทดสอบในเครื่องตรง ๆ (ระบบจริงมีใบแบบนี้อยู่ หน้าจอต้องแสดงได้) · ข้อทดสอบที่วัดการสร้างใบใช้ hqQuoteFixture
+  วางใบเดิมที่ฐาน(quoteRows);
 
   console.log(`[global-setup] seed สำเร็จ: ${leadRows.length} leads, ${quoteRows.length} quotations, ${custRows.length} customers`);
   await อุ่นเครื่องทุกหน้า();

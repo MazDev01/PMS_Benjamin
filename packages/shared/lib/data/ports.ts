@@ -124,6 +124,10 @@ export interface QuoteRequestsRepo {
   sendHqQuote(requestId: number): Promise<import("../quoteRequests").HqQuote>;
   /** HQ เริ่มเวอร์ชันใหม่จากใบที่ส่งไปแล้ว (หลังดีลเลอร์ขอแก้ราคา) */
   copyHqQuote(requestId: number, sourceHqQuoteId: number): Promise<import("../quoteRequests").HqQuote>;
+  /** ใบ HQ ตามเลขใบ (ใบลูกค้าที่ผูกไว้ · ด่าน 3) — ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้วของสาขาตัวเอง */
+  hqQuoteById(id: number): Promise<import("../quoteRequests").HqQuote | null>;
+  /** margin ของใบลูกค้า (ใบ 0201 · quotation_margin) — HQ ทุกใบ · ดีลเลอร์ของตัวเอง · ไม่ผูกใบ HQ = null */
+  margin(dealerCode: string, quotationId: string): Promise<import("../quoteRequests").QuoteMargin | null>;
   /** ลูกค้าเป้าหมายของสาขาที่ HQ ส่งใบแล้ว รอดีลเลอร์ทำใบให้ลูกค้า (ป้าย "ได้ราคาแล้ว") */
   quotedLeadIds(dealerCode: string): Promise<number[]>;
 }

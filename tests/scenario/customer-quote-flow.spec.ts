@@ -1,0 +1,193 @@
+import { test, expect, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { ADMIN, RYG, skipReason } from "./supabaseEnv";
+import { SERVICE_ROLE_READY } from "./adminEnv";
+import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
+import { adminClient } from "./testDealers";
+import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { เตรียมใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
+
+// ── ขายหนึ่งงาน ขั้น 7–11 บนหน้าจอ + ตารางสถานะ (ส่งใบให้ลูกค้า / won / lost) · ด่าน 3 (FLOW.html) ──────────────
+//   ขั้น 7  ทำใบให้ลูกค้าจากใบ HQ: รายการ/จำนวนล็อก · ดีลเลอร์ตั้ง % รายบรรทัด · ราคา = ต้นทุน × (1 + %)
+//   ขั้น 8  ส่งใบให้ลูกค้า → ลูกค้าเป้าหมาย QUOTED · หน้าพิมพ์/ไฟล์ส่งออก "ไม่มีต้นทุนหรือ %" (ตรวจที่ไฟล์จริง)
+//   margin  HQ เปิดใบ: ต้นทุน 10 บวก 50% → ขาย 15 · บวก 5 บาท · 50% ของต้นทุน · 33.33% ของราคาขาย (เงื่อนไขปิดด่านของบอส)
+//   ขั้น 10–11 ลูกค้าตอบรับ → PAID · ใบ HQ สั่งผลิต · ราคาล็อก (แก้ % ไม่ได้)   ลูกค้าปฏิเสธ → CANCELLED + เหตุผล
+//   ปิดทางเดิม: ไม่มีใบ HQ = ปุ่มทำใบกดไม่ได้ · API/ฐานข้อมูลปฏิเสธทุกทาง
+test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
+test.describe.configure({ mode: "serial" });
+test.setTimeout(180_000);
+
+const admin = adminClient();
+const แท็ก = `${Date.now() % 100000}`;
+const สิบ = `ZZTEST-ใบลูกค้า10-${แท็ก}`;      // ต้นทุน 10 ×1 → บวก 50% (ตัวอย่างของบอส)
+const ลับ = `ZZTEST-ใบลูกค้าลับ-${แท็ก}`;     // ต้นทุน 12,345.67 ×2 → บวก 37% (ตัวเลขเฉพาะตัว ใช้ตรวจว่าต้นทุนไม่หลุด)
+const ไม่มีใบ = `ZZTEST-ไม่มีใบHQ-${แท็ก}`;
+let ก: ใบHQพร้อมใช้, ข: ใบHQพร้อมใช้;
+let เลขไม่มีใบ = 0;
+
+test.beforeAll(async () => {
+  ก = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: สิบ, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 10 }] });
+  ข = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลับ, province: "ระยอง", lines: [{ name: "หลังคาชุดทดสอบ", qty: 2, unit: "ชุด", unitCost: 12345.67 }] });
+  เลขไม่มีใบ = ก.leadNum + 7;
+  const r = await (await db(RYG)).from("leads").insert({ id: `#L-${เลขไม่มีใบ}`, num_id: เลขไม่มีใบ, dealer_code: "RYG", company: ไม่มีใบ, name: ไม่มีใบ,
+    contact: "ผู้ทดสอบ", phone: `08${String(เลขไม่มีใบ).slice(-8)}`, province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET" });
+  if (r.error) throw new Error(r.error.message);
+});
+test.afterAll(async () => {
+  const { data: cs } = await admin.from("customers").select("id").eq("dealer_code", "RYG").in("company", [สิบ, ลับ]);
+  ล้างใบHQทดสอบ("RYG", [ก?.leadNum, ข?.leadNum, เลขไม่มีใบ]);
+  for (const c of cs ?? []) await admin.from("customers").delete().eq("dealer_code", "RYG").eq("id", c.id);
+});
+
+const ใบของ = async (leadNum: number) => (await admin.from("quotations").select("id, status, total_value, line_items, hq_quote_id").eq("dealer_code", "RYG").eq("deal_id", leadNum).order("created_at", { ascending: false }).limit(1).maybeSingle()).data;
+const สถานะลูกค้าเป้าหมาย = async (n: number) => (await admin.from("leads").select("status, lost_reason").eq("dealer_code", "RYG").eq("num_id", n).single()).data;
+
+async function เปิดแท็บใบเสนอราคา(page: Page, company: string) {
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
+  const row = page.locator("tbody tr").filter({ hasText: company }).first();
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  await row.locator("td").first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+}
+
+test("[flow·dealer] ปิดทางเดิม: ไม่มีใบ HQ = ทำใบไม่ได้ ทั้งหน้าจอและ API", async ({ page, request }) => {
+  await เปิดแท็บใบเสนอราคา(page, ไม่มีใบ);
+  const ปุ่ม = page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ });
+  await expect(ปุ่ม, "ยังไม่ได้ใบ HQ ปุ่มทำใบต้องกดไม่ได้").toBeDisabled({ timeout: 20_000 });
+  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first()).toBeVisible();
+
+  // ทาง API เดิมทั้งสองทาง + ยิงตรงฐาน — ต้องถูกปฏิเสธทั้งหมด
+  const sb = await db(RYG);
+  const token = (await sb.auth.getSession()).data.session?.access_token ?? "";
+  const หัว = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  const แถว = { customer: ไม่มีใบ, project: ไม่มีใบ, total: "฿100", totalValue: 100, materialCost: 100, province: "ระยอง", buildingType: "โกดัง",
+    area: 0, status: "draft", date: "2026-10-14", items: 1, lineItems: [{ name: "x", qty: 1, unit: "ชุด", unitPrice: 100 }], customerId: 0, projectId: 0, dealId: เลขไม่มีใบ };
+  for (const [ทาง, url, data] of [
+    ["ออกเลขใบ (หน้าจอใช้)", `${DEALER_ORIGIN}/api/v1/quotations?op=numbered`, { dealer: "RYG", prefix: "Q-", row: แถว }],
+    ["บันทึกใบตรง", `${DEALER_ORIGIN}/api/v1/quotations`, { ...แถว, id: `ZZ-OLD-${แท็ก}`, dealerCode: "RYG" }],
+  ] as const) {
+    const r = await request.post(url, { headers: หัว, data });
+    expect(r.ok(), `ทางเดิม (${ทาง}) ต้องถูกปฏิเสธ — ได้ ${r.status()} ${await r.text()}`).toBe(false);
+  }
+  const ตรง = await sb.from("quotations").insert({ id: `ZZ-OLD2-${แท็ก}`, dealer_code: "RYG", customer: ไม่มีใบ, line_items: [{ name: "x", qty: 1, unit: "ชุด", unitPrice: 100 }], total_value: 100 });
+  expect(ตรง.error?.message ?? "", "ยิงตรงฐานต้องถูกปฏิเสธ").toContain("hq_quote_required");
+  expect((await admin.from("quotations").select("id").eq("dealer_code", "RYG").eq("customer", ไม่มีใบ)).data ?? [], "ไม่มีใบหลุดเข้าฐาน").toEqual([]);
+});
+
+test("[flow·dealer] ขั้น 7: ทำใบให้ลูกค้าจากใบ HQ — รายการล็อก · ตั้ง % รายบรรทัด · ราคา = ต้นทุน × (1 + %)", async ({ page }) => {
+  const errs = watchErrors(page);
+  for (const [บริษัท, pct] of [[สิบ, "50"], [ลับ, "37"]] as const) {
+    await เปิดแท็บใบเสนอราคา(page, บริษัท);
+    await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click();
+    const ตาราง = page.locator("[data-editor='hq-markup']");
+    await expect(ตาราง).toBeVisible({ timeout: 20_000 });
+    await expect(ตาราง.getByRole("textbox", { name: /ชื่อรายการ/ }), "ชื่อรายการแก้ไม่ได้").toHaveCount(0);
+    await ตาราง.getByLabel("% ที่บวก 1").fill(pct);
+    await expect(ตาราง.getByTestId("hq-line-price-0")).toHaveText(บริษัท === สิบ ? "15.00" : "16,913.57");
+    await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
+    const ใบHQ = บริษัท === สิบ ? ก : ข;
+    await expect.poll(async () => (await ใบของ(ใบHQ.leadNum))?.hq_quote_id, { timeout: 20_000, message: "ใบลูกค้าต้องผูกใบ HQ" }).toBe(ใบHQ.hqQuoteId);
+  }
+  const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
+  expect(Number(q10!.total_value), "ต้นทุน 10 บวก 50% = 15").toBe(15);
+  expect(Number(qลับ!.total_value), "12,345.67 × 1.37 = 16,913.57 × 2").toBe(33827.14);
+  assertNoErrors(errs, "ทำใบจากใบ HQ");
+});
+
+test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า → QUOTED · หน้าพิมพ์และไฟล์ส่งออกไม่มีต้นทุนหรือ % (ตรวจที่ไฟล์จริง)", async ({ page }) => {
+  const qลับ = await ใบของ(ข.leadNum);
+  test.skip(!qลับ, "ข้อก่อนหน้าไม่ผ่าน");
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  for (const บริษัท of [สิบ, ลับ]) {
+    const แถว = page.locator("tbody tr").filter({ hasText: บริษัท }).first();
+    await expect(แถว).toBeVisible({ timeout: 25_000 });
+    await แถว.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+  }
+  await expect.poll(async () => (await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.status, { timeout: 25_000, message: "ส่งใบแล้วลูกค้าเป้าหมายต้องเป็น QUOTED" }).toBe("QUOTED");
+  expect((await สถานะลูกค้าเป้าหมาย(ก.leadNum))?.status).toBe("QUOTED");
+
+  // หน้าพิมพ์ที่ลูกค้าได้รับ — อ่านเอกสารจริงที่เปิดออกมา
+  const ห้าม = ["12,345.67", "12345.67", "24,691.34", "ต้นทุน", "37%", "37 %", "markup", "unitCost", "HQ-"];
+  //   พิมพ์จากแผงใบเสนอราคาของลูกค้าเป้าหมาย (ตัวสร้างเอกสารชุดเดียวกับหน้ารายการใบ — buildQuotationHTML)
+  await เปิดแท็บใบเสนอราคา(page, ลับ);
+  const [หน้าพิมพ์] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "พิมพ์", exact: true }).first().click()]);
+  await หน้าพิมพ์.waitForLoadState("domcontentloaded");
+  const html = await หน้าพิมพ์.content();
+  expect(html, "หน้าพิมพ์ต้องมีราคาขาย").toContain("16,913.57");
+  for (const คำ of ห้าม) expect(html, `หน้าพิมพ์ต้องไม่มี "${คำ}"`).not.toContain(คำ);
+  await หน้าพิมพ์.close();
+
+  // ไฟล์ส่งออกจากหน้าใบเสนอราคา (CSV และ Excel) — อ่านไฟล์ที่ดาวน์โหลดจริง
+  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  for (const แบบ of ["CSV", "Excel"]) {
+    await page.getByRole("button", { name: /ส่งออก|Export/ }).first().click();
+    const [ไฟล์] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: new RegExp(`^${แบบ}`) }).first().click()]);
+    const เนื้อ = readFileSync(await ไฟล์.path()).toString("utf8");
+    expect(เนื้อ, `ไฟล์ ${แบบ} ต้องมีใบของข้อทดสอบ`).toContain(ลับ);
+    for (const คำ of ห้าม) expect(เนื้อ, `ไฟล์ ${แบบ} ต้องไม่มี "${คำ}"`).not.toContain(คำ);
+  }
+});
+
+test("[flow·hq] margin: HQ เห็นต้นทุน · % · ราคาขาย · บาทที่บวก รายบรรทัดและทั้งใบ (10 → 15 · 5 บาท · 50% · 33.33%)", async ({ page }) => {
+  const q10 = await ใบของ(ก.leadNum);
+  test.skip(!q10, "ข้อก่อนหน้าไม่ผ่าน");
+  const errs = watchErrors(page);
+  await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByPlaceholder(/ค้นหา/).first().fill(q10!.id);
+  const แถว = page.locator("tbody tr").filter({ hasText: q10!.id }).first();
+  await expect(แถว).toBeVisible({ timeout: 25_000 });
+  await แถว.getByRole("button", { name: /ดู/ }).first().click();
+  const แผง = page.locator("[data-panel='quote-margin']");
+  await expect(แผง).toBeVisible({ timeout: 20_000 });
+  const บรรทัด = แผง.locator("[data-margin-line='0']");
+  await expect(บรรทัด.locator("[data-cell='cost']")).toHaveText("10.00");
+  await expect(บรรทัด.locator("[data-cell='pct']")).toHaveText("50.00%");
+  await expect(บรรทัด.locator("[data-cell='price']")).toHaveText("15.00");
+  await expect(บรรทัด.locator("[data-cell='baht']")).toHaveText("5.00");
+  await expect(แผง.locator("[data-cell='sum-baht']")).toHaveText("5.00 บาท");
+  await expect(แผง.locator("[data-cell='sum-pct-cost']")).toHaveText("50.00%");
+  await expect(แผง.locator("[data-cell='sum-pct-sale']")).toHaveText("33.33%");
+  assertNoErrors(errs, "margin ฝั่ง HQ");
+});
+
+test("[flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเสธ: won → PAID · ใบ HQ สั่งผลิต · ราคาล็อก | lost → CANCELLED + เหตุผล", async ({ page }) => {
+  const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
+  test.skip(!q10 || q10.status !== "sent_to_client", "ข้อก่อนหน้าไม่ผ่าน");
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+
+  // won
+  await page.locator("tbody tr").filter({ hasText: สิบ }).first().click();
+  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await กดตกลงในกล่องยืนยัน(page);
+  await expect.poll(async () => (await สถานะลูกค้าเป้าหมาย(ก.leadNum))?.status, { timeout: 25_000, message: "won → ลูกค้าเป้าหมาย PAID" }).toBe("PAID");
+  expect((await admin.from("hq_quotes").select("status").eq("id", ก.hqQuoteId).single()).data?.status, "ใบ HQ = สั่งผลิต").toBe("ordered");
+  expect((await admin.from("quote_requests").select("status").eq("id", ก.requestId).single()).data?.status, "คำขอปิด won").toBe("won");
+  const แก้ = await (await db(RYG)).from("quotations").update({ markup_percent: 80 }).eq("dealer_code", "RYG").eq("id", q10!.id);
+  expect(แก้.error?.message ?? "", "สั่งผลิตแล้วแก้ % ไม่ได้").toContain("quote_locked");
+  await page.keyboard.press("Escape");
+
+  // lost
+  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.locator("tbody tr").filter({ hasText: ลับ }).first().click();
+  await page.getByRole("button", { name: "ลูกค้าปฏิเสธ", exact: true }).click();
+  const ตัวเลือก = page.getByText("เลือกเหตุผลที่ลูกค้าปฏิเสธใบเสนอราคานี้");
+  await expect(ตัวเลือก).toBeVisible({ timeout: 30_000 });
+  await ตัวเลือก.locator("xpath=following-sibling::div[1]//button").first().click();
+  await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
+  await expect.poll(async () => (await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.status, { timeout: 25_000, message: "lost → ลูกค้าเป้าหมาย CANCELLED" }).toBe("CANCELLED");
+  expect((await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.lost_reason, "ต้องมีเหตุผล").toBeTruthy();
+  expect((await admin.from("quote_requests").select("status").eq("id", ข.requestId).single()).data?.status, "คำขอปิด lost").toBe("lost");
+  expect(qลับ).toBeTruthy();
+});

@@ -12,6 +12,9 @@ import {
   type QuotationStatus, type QuotationMock, type CustomerRow, type IssuerProfile, type QuoteLineItem,
 } from "@pms/shared/lib/mock";
 import { LineItemsEditor } from "@pms/shared/components/ui/LineItemsEditor";
+import { HqMarkupEditor } from "@pms/shared/components/ui/HqMarkupEditor";
+import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
+import type { HqQuote } from "@pms/shared/lib/quoteRequests";
 import { useMasterCatalogState } from "@pms/shared/lib/useMasterCatalog";
 import { boqLineItems, boqSubtotal } from "@pms/shared/lib/boq";
 import { คิดภาษีใบเสนอราคา, ช่องภาษีสำหรับบันทึก } from "@pms/shared/lib/quoteTax";
@@ -156,11 +159,22 @@ function buildBlank(customers:CustomerRow[], validityDays:number): QForm {
   return { vatOn:true, vatPct:"7", whtOn:false, whtPct:"3", customerId:c?.id??0, customer:c?.company??"", project:suggestProject(c), projectId:0, province:c?.province??"", buildingType:c?.category||""   /* ห้ามเดาแม่แบบให้ — เดิมยัด "โกดังสำเร็จรูป" ทั้งที่ยังไม่มีใครเลือก */, area:0, materialCost:0, status:"draft", date:TODAY, items:0, lineItems:[], revision:"V1", expiry:defaultExpiry(validityDays), owner:c?.owner??"" };
 }
 
-function QuotationModal({ initial, title, onSave, onClose, customers, quoteId }:{
+function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, hqQuoteId, locked }:{
   initial:QForm; title:string; onSave:(f:QForm)=>void|Promise<void>; onClose:()=>void; customers:CustomerRow[];
+  /** ใบที่ทำจากใบ HQ (ด่าน 3) — รายการ/จำนวนล็อก แก้ได้เฉพาะ % ที่บวก · ไม่มี = ใบเดิม (แก้แบบเดิม) */
+  hqQuoteId?:number|null;
+  /** ลูกค้าตอบรับและสั่งผลิตแล้ว — ราคาถูกล็อกที่ฐานข้อมูล (ใบ 0201) */
+  locked?:boolean;
   quoteId?:string; // เลขที่ใบ — โชว์อย่างเดียว แก้ไม่ได้ (HQ กำหนดรูปแบบ/เลขรัน)
 }){
   const [form,setForm]=useState<QForm>(initial);
+  const [ใบHQ,setใบHQ]=useState<HqQuote|null>(null);
+  useEffect(()=>{
+    if(!hqQuoteId) return;
+    let alive=true;
+    quoteRequestsRepo.hqQuoteById(hqQuoteId).then(h=>{ if(alive) setใบHQ(h); }).catch(()=>{ /* ขึ้น "กำลังโหลดใบ HQ" ค้างไว้ — บันทึกไม่ได้ */ });
+    return ()=>{ alive=false; };
+  },[hqQuoteId]);
   // แคตตาล็อกแม่แบบ — ใช้บอกต้นเหตุตอนบันทึกไม่ได้ · ready กันขึ้นข้อความผิดตอนยังโหลดไม่เสร็จ
   const { catalog: catalogForForm, ready: catalogReady }=useMasterCatalogState();
   const [busy,setBusy]=useState(false); // กันกดบันทึกซ้ำ + รอออกเลขที่ใบจาก DB (H8)
@@ -268,8 +282,13 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId }:
             </div>
             {/* รายการสินค้า (BOQ) — เลือกจากแคตตาล็อก → ราคากลาง HQ · แม่แบบ derive จากรายการแรก (ไม่มีช่องแม่แบบซ้ำ) */}
             <div className="form-section">รายการสินค้า</div>
-            <div className="col-full"><LineItemsEditor items={form.lineItems} defaultQty={form.area}
-              onChange={li=>setForm(p=>({...p,lineItems:li,buildingType:li.length?li[0].name.split(" · ")[0]:p.buildingType}))} /></div>
+            <div className="col-full">{hqQuoteId
+              ? (ใบHQ
+                  ? <HqMarkupEditor hqLines={ใบHQ.lineItems} items={form.lineItems} readOnly={locked}
+                      onChange={li=>setForm(p=>({...p,lineItems:li}))} />
+                  : <div style={{color:MUTED,fontSize:"0.78rem",padding:12}}>กำลังโหลดใบ HQ…</div>)
+              : <LineItemsEditor items={form.lineItems} defaultQty={form.area}
+                  onChange={li=>setForm(p=>({...p,lineItems:li,buildingType:li.length?li[0].name.split(" · ")[0]:p.buildingType}))} />}</div>
             {/* ── ภาษีของใบนี้ + ยอดสรุปสด (บอสสั่ง 28 ส.ค. 69) ────────────────────
                  ⚠️ "มูลค่างาน" คือยอดที่บันทึกเป็นยอดขาย — ภาษีไม่ไปแตะตัวนี้ */}
             <div className="col-full" style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -1272,6 +1291,8 @@ function QuotationsPageInner(){
           initial={toForm(editingQ)}
           customers={customers}
           quoteId={editingQ.id}
+          hqQuoteId={editingQ.hqQuoteId}
+          locked={editingQ.status==="won"&&!!editingQ.hqQuoteId}
           onSave={saveQ} onClose={()=>setShowModal(false)}/>
       )}
 

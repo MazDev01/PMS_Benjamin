@@ -1105,7 +1105,11 @@ export function fmtISOToThai(iso: string): string {
 export type QuotationStatus = "draft" | "sent_to_client" | "won" | "lost" | "expired";
 
 // รายการสินค้าในใบเสนอราคา (BOQ) — ราคา/หน่วยดึงจากราคากลาง HQ (แคตตาล็อกแม่แบบ) แก้ได้
-export type QuoteLineItem = { id?: string; name: string; qty: number; unit: string; unitPrice: number };
+export type QuoteLineItem = {
+  id?: string; name: string; qty: number; unit: string; unitPrice: number;
+  /** ใบที่ทำจากใบ HQ (ด่าน 3): % ที่ดีลเลอร์บวกบนต้นทุนของบรรทัดนี้ — ฐานข้อมูลคิดราคาจากค่านี้ (ราคาที่ส่งมาไม่มีผล) */
+  markupPct?: number;
+};
 
 // หนึ่งรอบของการต่อรองราคา — ยอดก่อน → ยอดหลัง พร้อมเวลาที่เปลี่ยน
 // at = เวลาไทยแบบ "2026-08-19T14:05:00" (ฐานข้อมูลแปลงมาให้แล้ว) · by = รหัสผู้ใช้ที่แก้
@@ -1161,6 +1165,12 @@ export type QuotationMock = {
    *  ใช้ทำกราฟรายชั่วโมงของวันนี้เท่านั้น (บอสเลือกทาง ก · 25 ส.ค. 69)
    *  ⚠️ อ่านอย่างเดียว ห้ามส่งกลับไปเขียน — ฐานข้อมูลเป็นเจ้าของ */
   savedAt?: string;
+  /** ใบ HQ ที่ใบนี้ทำจาก (ด่าน 3 · 0201) — ใบใหม่ทุกใบต้องมี · ว่าง = ใบแบบเดิม (ก่อนปิดทางเดิม) ดูได้อย่างเดียวเรื่องราคา */
+  hqQuoteId?: number | null;
+  /** % ที่บวกทั้งใบ (บรรทัดที่ไม่ได้ตั้ง % เองใช้ค่านี้) */
+  markupPercent?: number | null;
+  /** เหตุที่หมดอายุ (เช่น ใบ HQ หมดอายุ / มีเวอร์ชันใหม่) — ฐานข้อมูลเขียนให้ */
+  expiredReason?: string | null;
 };
 
 // สถานะใบเสนอราคาตามสเปก: Draft / Sent / Viewed / Accepted / Rejected / Expired

@@ -10,7 +10,7 @@ import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/type
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
-import type { QuoteRequest, HqQuote } from "../../quoteRequests";
+import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
 import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
@@ -636,6 +636,16 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("hq_quote_copy_from", { p_request_id: requestId, p_source_hq_quote_id: sourceHqQuoteId });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return toCamel<HqQuote>(data as Row);
+    },
+    hqQuoteById: async (id) => {
+      const { data, error } = await sb().from("hq_quotes").select("*").eq("id", id).maybeSingle();
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return data ? toCamel<HqQuote>(data as Row) : null;
+    },
+    margin: async (dealerCode, quotationId) => {
+      const { data, error } = await sb().rpc("quotation_margin", { p_dealer: dealerCode, p_id: quotationId });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return (data ?? null) as QuoteMargin | null;
     },
     quotedLeadIds: async (dealerCode) => {
       const { data, error } = await sb().from("quote_requests").select("lead_num_id").eq("dealer_code", dealerCode).eq("status", "quoted");

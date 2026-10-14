@@ -103,3 +103,23 @@ export const ยอดบรรทัด = (l: Pick<HqQuoteLine, "qty" | "unitCo
 export const ยอดรวมใบ = (lines: Pick<HqQuoteLine, "qty" | "unitCost">[]) => Math.round(lines.reduce((s, l) => s + ยอดบรรทัด(l), 0) * 100) / 100;
 /** ป้ายฝั่งดีลเลอร์ (ตารางสถานะแถว "HQ ส่งใบ": Lead คงเดิม + ป้าย "ได้ราคาแล้ว") */
 export const ป้ายได้ราคาแล้ว = "ได้ราคาแล้ว";
+
+// ── ใบลูกค้าจากใบ HQ (ขั้น 7 · ด่าน 3) ─────────────────────────────────────────────────────────────────────
+//   ราคาขาย = ต้นทุน × (1 + %) ปัด 2 ตำแหน่ง — สูตรเดียวกับฐานข้อมูล (quotations_hq_apply_markup) ที่เป็นตัวตัดสินจริง
+//   หน้าจอคิดให้เห็นก่อนบันทึกเท่านั้น · รายการและจำนวนมาจากใบ HQ เสมอ แก้ไม่ได้
+export const ราคาขายจากต้นทุน = (unitCost: number, pct: number) => Math.round(Number(unitCost) * (1 + (Number(pct) || 0) / 100) * 100) / 100;
+export function รายการใบลูกค้าจากใบHQ(
+  hqLines: HqQuoteLine[], pctOf: (line: HqQuoteLine, i: number) => number,
+): import("./mock").QuoteLineItem[] {
+  return hqLines.map((l, i) => {
+    const pct = Math.max(0, Number(pctOf(l, i)) || 0);
+    return { name: l.name, qty: Number(l.qty), unit: l.unit, unitPrice: ราคาขายจากต้นทุน(l.unitCost, pct), markupPct: pct };
+  });
+}
+
+/** margin ที่ HQ เห็น (FLOW "% ที่ดีลเลอร์บวก → HQ ดู margin") — ฐานข้อมูลคิดให้ (quotation_margin) ราคาก่อนภาษี */
+export type QuoteMarginLine = { name: string; qty: number; unit: string; unitCost: number; markupPct: number; unitPrice: number; markupBaht: number };
+export type QuoteMargin = {
+  hqQuoteNo: string; lines: QuoteMarginLine[];
+  costTotal: number; saleTotal: number; markupBaht: number; pctOfCost: number | null; pctOfSale: number | null;
+};

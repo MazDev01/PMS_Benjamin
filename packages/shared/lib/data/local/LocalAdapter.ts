@@ -309,6 +309,8 @@ export const LocalAdapter: DataAdapter = {
     sendHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
     copyHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
     quotedLeadIds: () => ok([]),
+    hqQuoteById: () => ok(null),
+    margin: () => ok(null),
   },
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {

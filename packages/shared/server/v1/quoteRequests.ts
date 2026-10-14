@@ -41,6 +41,17 @@ export const quoteRequestsGET = handler("quoteRequests.list", async (req: NextRe
     if (error) return dbFail("quoteRequests.hqQuote", error);
     return ok(data ? toCamel(data as Row) : null);
   }
+  if (q.get("view") === "hq-quote-id") {
+    const { data, error } = await sb.from("hq_quotes").select("*").eq("id", Number(q.get("id"))).maybeSingle();
+    if (error) return dbFail("quoteRequests.hqQuoteById", error);
+    return ok(data ? toCamel(data as Row) : null);
+  }
+  if (q.get("view") === "margin") {
+    // ฐานข้อมูลคิดและตรวจสิทธิ์เอง (security invoker) — ดีลเลอร์อื่นได้ null
+    const { data, error } = await sb.rpc("quotation_margin", { p_dealer: String(q.get("dealer") ?? ""), p_id: String(q.get("quote") ?? "") });
+    if (error) return dbFail("quoteRequests.margin", error);
+    return ok(data ?? null);
+  }
   if (q.get("view") === "quoted-leads") {
     const { data, error } = await sb.from("quote_requests").select("lead_num_id")
       .eq("dealer_code", String(q.get("dealer") ?? "").trim().toUpperCase()).eq("status", "quoted");
