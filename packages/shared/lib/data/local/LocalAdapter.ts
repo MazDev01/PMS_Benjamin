@@ -304,6 +304,11 @@ export const LocalAdapter: DataAdapter = {
     cancel: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
     reprice: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
     accept: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+    hqQuoteFor: () => ok(null),
+    saveHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
+    sendHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
+    copyHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
+    quotedLeadIds: () => ok([]),
   },
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {

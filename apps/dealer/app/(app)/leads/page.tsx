@@ -19,6 +19,9 @@ import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
+import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
+import { REAL_BACKEND } from "@pms/shared/lib/data/config";
+import { ป้ายได้ราคาแล้ว } from "@pms/shared/lib/quoteRequests";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { useMasterCatalog } from "@pms/shared/lib/useMasterCatalog";
 import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
@@ -908,6 +911,25 @@ export default function LeadsPage() {
   // จำเป็นตั้งแต่มีลูกค้าเป้าหมายของสาขาอื่นในระบบ (ก่อนหน้านี้มีสาขาเดียวเลยไม่กรองก็ไม่มีใครเห็นความต่าง)
   // ลูกค้าเป้าหมายที่ดีลเลอร์สร้างเองไม่มี dealerCode → ถือเป็นของสาขาตัวเอง
   // สมุดงานของสาขาตัวเอง "ทุกสถานะ" (รวมที่ปิดการขายสำเร็จแล้ว) — ใช้คิดอัตราปิดการขาย
+  // ป้าย "ได้ราคาแล้ว" (FLOW ตารางสถานะแถว "HQ ส่งใบ" · ด่าน 2): ลูกค้าเป้าหมายคงขั้น "รอราคา HQ" แต่ HQ ส่งใบแล้ว
+  //   ถามฐานใหม่เมื่อชุดลูกค้าเป้าหมายที่รอราคาเปลี่ยน และทุกครั้งที่กลับมาที่แท็บนี้
+  //   (HQ ส่งใบไม่ได้เปลี่ยนขั้นของลูกค้าเป้าหมาย — สายอัปเดตสดของลูกค้าเป้าหมายจึงไม่พาป้ายนี้มา)
+  const [ได้ราคาแล้ว, setได้ราคาแล้ว] = useState<Set<number>>(new Set());
+  const [ถามป้ายใหม่, setถามป้ายใหม่] = useState(0);
+  useEffect(() => {
+    const กลับมา = () => { if (document.visibilityState === "visible") setถามป้ายใหม่(n => n + 1); };
+    document.addEventListener("visibilitychange", กลับมา);
+    return () => document.removeEventListener("visibilitychange", กลับมา);
+  }, []);
+  const รอราคาKey = allLeads.filter(l => l.status === "HQ_PRICING" && (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code)
+    .map(l => l.numId).join(",");
+  useEffect(() => {
+    if (!REAL_BACKEND || !รอราคาKey) { setได้ราคาแล้ว(new Set()); return; }
+    let alive = true;
+    quoteRequestsRepo.quotedLeadIds(currentDealer.code).then(ids => alive && setได้ราคาแล้ว(new Set(ids)))
+      .catch(e => logRepoRead("quoteRequests.quotedLeadIds", e));
+    return () => { alive = false; };
+  }, [รอราคาKey, currentDealer.code, ถามป้ายใหม่]);
   const myAllLeads = useMemo(
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
@@ -1824,6 +1846,9 @@ export default function LeadsPage() {
                               maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex" }}>
                             <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{leadStatusLabel[l.status]}</span> ▾
                           </button>
+                          {l.status === "HQ_PRICING" && l.numId != null && ได้ราคาแล้ว.has(l.numId) && (
+                            <div><span className="badge" data-badge="hq-quoted" style={{ background:"#dcfce7", color:"#166534", marginTop:4 }}>{ป้ายได้ราคาแล้ว}</span></div>
+                          )}
                           {statusMenu?.id === l.id && (
                             <>
                               {/* ⛔ ห้ามเอา portal ออก — ถ้าเมนูอยู่ในเซลล์ตาราง ตัวเลือกจะไปโผล่ใต้ขอบจอกดไม่ได้ */}
@@ -2057,6 +2082,9 @@ export default function LeadsPage() {
                         {l.company}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:6, margin:"6px 0" }}>
+                        {l.status === "HQ_PRICING" && l.numId != null && ได้ราคาแล้ว.has(l.numId) && (
+                          <span className="badge" data-badge="hq-quoted" style={{ background:"#dcfce7", color:"#166534", fontSize:"0.68rem" }}>{ป้ายได้ราคาแล้ว}</span>
+                        )}
                         <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:"0.68rem", fontWeight:600, color:"#64748b",
                           background:"#f1f5f9", borderRadius:6, padding:"2px 8px", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.contact}>
                           <User size={10} /> {l.contact}

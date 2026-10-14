@@ -10,7 +10,7 @@ import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/type
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
-import type { QuoteRequest } from "../../quoteRequests";
+import type { QuoteRequest, HqQuote } from "../../quoteRequests";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
 import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
@@ -616,6 +616,31 @@ export const SupabaseAdapter: DataAdapter = {
       const { data: u } = await sb().auth.getUser();
       const { error } = await sb().rpc("quote_request_accept", { p_id: id, p_assignee: u.user?.id ?? null });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
+    },
+    hqQuoteFor: async (requestId) => {
+      const { data, error } = await sb().from("hq_quotes").select("*").eq("request_id", requestId).maybeSingle();
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return data ? toCamel<HqQuote>(data as Row) : null;
+    },
+    saveHqQuote: async (requestId, lines, validUntil, note) => {
+      const { data, error } = await sb().rpc("hq_quote_save", { p_request_id: requestId, p_lines: lines, p_valid_until: validUntil || null, p_note: note });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamel<HqQuote>(data as Row);
+    },
+    sendHqQuote: async (requestId) => {
+      const { data, error } = await sb().rpc("hq_quote_send", { p_request_id: requestId });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamel<HqQuote>(data as Row);
+    },
+    copyHqQuote: async (requestId, sourceHqQuoteId) => {
+      const { data, error } = await sb().rpc("hq_quote_copy_from", { p_request_id: requestId, p_source_hq_quote_id: sourceHqQuoteId });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamel<HqQuote>(data as Row);
+    },
+    quotedLeadIds: async (dealerCode) => {
+      const { data, error } = await sb().from("quote_requests").select("lead_num_id").eq("dealer_code", dealerCode).eq("status", "quoted");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return ((data ?? []) as Row[]).map(r => Number(r.lead_num_id));
     },
   },
   // พื้นที่ของดีลเลอร์ (ใบ 0195) — อ่านได้ทุกบัญชี · เคลียร์ผ่านคำสั่งของฐาน (ตรวจสิทธิ์ HQ ข้างใน)

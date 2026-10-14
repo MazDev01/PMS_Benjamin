@@ -5,6 +5,8 @@
 // ขั้น 3: ดีลเลอร์ส่งคำขอ (แม่แบบ + สเปก) → ลูกค้าเป้าหมาย "รอราคา HQ" — ฐานข้อมูลขยับสถานะเอง
 // ระหว่างรอ HQ: ยกเลิกได้จนกว่า HQ ส่งใบ ต้องระบุเหตุผล (กลับรวบรวมความต้องการ หรือปิดเป็นไม่สำเร็จ) — แถว 6
 // หลัง HQ ส่งใบ: ขอแก้ราคาได้ (ใบเก่าปิด คำขอใหม่เริ่มนับ 14 วัน) — แถว 7
+// HQ ส่งใบแล้ว (แถว 4 · ด่าน 2): ป้าย "ได้ราคาแล้ว" + ใบ HQ แบบอ่านอย่างเดียว (ต้นทุนของดีลเลอร์ · เลขใบ · เวอร์ชัน · ยืนราคาถึง)
+//   ฐานให้ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้วของสาขาตัวเอง — ร่างของ HQ ไม่หลุดมาที่นี่
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
 import { useCallback, useEffect, useState } from "react";
 import { Send } from "lucide-react";
@@ -13,11 +15,13 @@ import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import {
-  type QuoteRequest, quoteRequestStatusLabel, quoteRequestStatusColor, อยู่กับHQ, คำขอเปิดอยู่, เกินกำหนด, วันไทยสั้น,
+  type QuoteRequest, type HqQuote, quoteRequestStatusLabel, quoteRequestStatusColor, อยู่กับHQ, คำขอเปิดอยู่, เกินกำหนด, วันไทยสั้น,
+  ยอดบรรทัด, ป้ายได้ราคาแล้ว,
 } from "@pms/shared/lib/quoteRequests";
 import type { LeadRow } from "@pms/shared/lib/mock";
 
 type โหมด = "ดู" | "ขอราคา" | "ยกเลิก" | "แก้ราคา";
+const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d5dbe4", borderRadius: 9, padding: "9px 11px", fontSize: "0.84rem", fontFamily: "inherit", boxSizing: "border-box" };
 
 export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChanged?: () => void }) {
@@ -31,6 +35,7 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
   const [ปิดงาน, setปิดงาน] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
 
   const dealerCode = lead.dealerCode ?? "";
   const โหลด = useCallback(() => {
@@ -43,9 +48,17 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
     catalogRepo.list().then(l => setแม่แบบ([...new Set(l.map(p => p.name).filter(Boolean))])).catch(e => logRepoRead("catalog.list(quote-request)", e));
   }, [โหมด, แม่แบบ.length]);
 
-  if (!REAL_BACKEND) return null;
   const ล่าสุด = รายการ?.[0];
   const เปิด = ล่าสุด && คำขอเปิดอยู่(ล่าสุด.status) ? ล่าสุด : null;
+  const ได้ราคา = เปิด?.status === "quoted" ? เปิด.id : 0;
+  useEffect(() => {
+    if (!ได้ราคา) { setใบHQ(null); return; }
+    let alive = true;
+    repo.hqQuoteFor(ได้ราคา).then(h => alive && setใบHQ(h)).catch(e => logRepoRead("quoteRequests.hqQuoteFor(dealer)", e));
+    return () => { alive = false; };
+  }, [ได้ราคา]);
+
+  if (!REAL_BACKEND) return null;
   const ขอได้ = !เปิด && (lead.status === "WAITING" || lead.status === "BULLET");
 
   const ทำ = async (fn: () => Promise<unknown>) => {
@@ -82,9 +95,32 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
               {quoteRequestStatusLabel[เปิด.status]}
             </span>
             {เกินกำหนด(เปิด) && <span className="badge" style={{ marginLeft: 6, background: "#fee2e2", color: "#b91c1c" }}>เกินกำหนด</span>}
+            {เปิด.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
           </div>
           <div>แม่แบบ: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
           {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
+          {ใบHQ && (
+            <div data-panel="hq-quote" style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", marginTop: 8 }}>
+              <div style={{ fontWeight: 700, color: "#3b0764" }}>
+                ใบ HQ {ใบHQ.quoteNo} · เวอร์ชัน {ใบHQ.version}
+                <span style={{ fontWeight: 400, color: "#6b7280" }}> · ยืนราคาถึง {ใบHQ.validUntil ? วันไทยสั้น(ใบHQ.validUntil) : "—"}</span>
+              </div>
+              <div className="table-scroll">
+                <table className="table" style={{ width: "100%", fontSize: "0.78rem" }} aria-label="รายการในใบ HQ">
+                  <thead><tr><th>รายการ</th><th style={{ textAlign: "right" }}>จำนวน</th><th>หน่วย</th><th style={{ textAlign: "right" }}>ต้นทุน/หน่วย</th><th style={{ textAlign: "right" }}>ยอด</th></tr></thead>
+                  <tbody>
+                    {ใบHQ.lineItems.map((l, i) => (
+                      <tr key={i}><td>{l.name}</td><td style={{ textAlign: "right" }}>{Number(l.qty).toLocaleString()}</td><td>{l.unit}</td>
+                        <td style={{ textAlign: "right" }}>{บาท(Number(l.unitCost))}</td><td style={{ textAlign: "right" }}>{บาท(ยอดบรรทัด(l))}</td></tr>
+                    ))}
+                  </tbody>
+                  <tfoot><tr><td colSpan={4} style={{ textAlign: "right", fontWeight: 700 }}>ต้นทุนรวมจาก HQ</td><td style={{ textAlign: "right", fontWeight: 800 }} data-testid="dealer-hq-quote-total">{บาท(Number(ใบHQ.totalCost))}</td></tr></tfoot>
+                </table>
+              </div>
+              {ใบHQ.note && <div style={{ color: "#4b5563" }}>หมายเหตุจาก HQ: {ใบHQ.note}</div>}
+              <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคานี้เป็นต้นทุนของคุณ ไม่แสดงต่อลูกค้า — ทำใบเสนอราคาให้ลูกค้าโดยบวก % จากใบนี้</div>
+            </div>
+          )}
           {โหมด === "ดู" && (
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("ยกเลิก"); }}>ยกเลิกคำขอ</button>}

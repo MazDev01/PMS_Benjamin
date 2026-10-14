@@ -66,3 +66,40 @@ export function วันไทยสั้น(iso: string): string {
   const t = new Date(d.getTime() + 7 * 3_600_000);   // เวลาไทย
   return `${t.getUTCDate()} ${เดือน[t.getUTCMonth()]} ${t.getUTCFullYear() + 543}`;
 }
+
+// ── ใบ HQ (BOQ + ต้นทุนดีลเลอร์ · ขั้น 5–6 · ด่าน 2) ─────────────────────────────────────────────────────────
+//   ร่าง (draft) แก้ได้เรื่อย ๆ และดีลเลอร์ไม่เห็น · ส่งแล้ว (sent) ล็อกทั้งใบ — แก้ราคา = ดีลเลอร์ขอแก้ราคา → เวอร์ชันใหม่
+export type HqQuoteStatus = "draft" | "sent" | "ordered" | "superseded";
+export type HqQuoteLine = {
+  name: string;
+  qty: number;
+  unit: string;
+  unitCost: number;
+  /** แม่แบบที่ใช้ราคา (ว่าง = รายการที่ HQ พิมพ์เอง เช่น ค่าขนส่ง) */
+  catalogId?: string;
+  subtype?: string;
+};
+export type HqQuote = {
+  id: number;
+  requestId: number;
+  version: number;
+  quoteNo: string;
+  status: HqQuoteStatus;
+  lineItems: HqQuoteLine[];
+  totalCost: number;
+  validUntil: string | null;
+  note: string;
+  sentAt: string | null;
+  sentByName: string;
+};
+export const hqQuoteStatusLabel: Record<HqQuoteStatus, string> = {
+  draft: "ร่าง (ดีลเลอร์ยังไม่เห็น)",
+  sent: "ส่งแล้ว",
+  ordered: "สั่งผลิตแล้ว",
+  superseded: "มีเวอร์ชันใหม่แทน",
+};
+/** ยอดรายบรรทัด — ปัดสองตำแหน่งแบบเดียวกับฐานข้อมูล (hq_quote_save) */
+export const ยอดบรรทัด = (l: Pick<HqQuoteLine, "qty" | "unitCost">) => Math.round(Number(l.qty) * Number(l.unitCost) * 100) / 100;
+export const ยอดรวมใบ = (lines: Pick<HqQuoteLine, "qty" | "unitCost">[]) => Math.round(lines.reduce((s, l) => s + ยอดบรรทัด(l), 0) * 100) / 100;
+/** ป้ายฝั่งดีลเลอร์ (ตารางสถานะแถว "HQ ส่งใบ": Lead คงเดิม + ป้าย "ได้ราคาแล้ว") */
+export const ป้ายได้ราคาแล้ว = "ได้ราคาแล้ว";

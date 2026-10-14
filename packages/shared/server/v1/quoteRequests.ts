@@ -2,7 +2,7 @@
 //
 // ทำงานในนามผู้ใช้ที่เรียกมา (ใบผ่านของผู้ใช้) — คำสั่งของฐานตรวจสิทธิ์และขยับสถานะทั้งสองฝั่งเอง
 //   ดีลเลอร์: ส่ง · ยกเลิก · ขอแก้ราคา · ดูคำขอของลูกค้าเป้าหมายตัวเอง
-//   HQ: ดูคิว · รับเรื่อง
+//   HQ: ดูคิว · รับเรื่อง · ทำ BOQ (ร่างใบ HQ) · ส่งใบ · เริ่มเวอร์ชันใหม่จากใบเดิม (ด่าน 2)
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 import { toCamel, toCamelList } from "@pms/shared/lib/data/supabase/mappers";
@@ -34,6 +34,18 @@ export const quoteRequestsGET = handler("quoteRequests.list", async (req: NextRe
       }
     }
     return ok(toCamelList<Row>(rows).map(r => ({ ...r, leadCompany: ชื่อ.get(`${r.dealerCode}#${r.leadNumId}`) ?? "" })));
+  }
+  if (q.get("view") === "hq-quote") {
+    // ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้วของสาขาตัวเอง — กฎรายแถวของฐานกรองให้ (ใบผ่านของผู้เรียก)
+    const { data, error } = await sb.from("hq_quotes").select("*").eq("request_id", Number(q.get("request"))).maybeSingle();
+    if (error) return dbFail("quoteRequests.hqQuote", error);
+    return ok(data ? toCamel(data as Row) : null);
+  }
+  if (q.get("view") === "quoted-leads") {
+    const { data, error } = await sb.from("quote_requests").select("lead_num_id")
+      .eq("dealer_code", String(q.get("dealer") ?? "").trim().toUpperCase()).eq("status", "quoted");
+    if (error) return dbFail("quoteRequests.quotedLeads", error);
+    return ok(((data ?? []) as Row[]).map(r => Number(r.lead_num_id)));
   }
   const dealer = String(q.get("dealer") ?? "").trim().toUpperCase(), lead = Number(q.get("lead"));
   if (!/^[A-Z]{2,5}$/.test(dealer) || !Number.isInteger(lead)) return fail(400, "ระบุ dealer และ lead");
@@ -70,6 +82,23 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
       const { error } = await sb.rpc("quote_request_accept", { p_id: id, p_assignee: u.user?.id ?? null });
       if (error) return dbFail("quoteRequests.accept", error);
       return ok({ ok: true });
+    }
+    case "save-hq": {
+      const { data, error } = await sb.rpc("hq_quote_save", {
+        p_request_id: id, p_lines: Array.isArray(b.lines) ? b.lines : [], p_valid_until: b.validUntil ? String(b.validUntil) : null, p_note: String(b.note ?? ""),
+      });
+      if (error) return dbFail("quoteRequests.saveHq", error);
+      return ok(toCamel(data as Row));
+    }
+    case "send-hq": {
+      const { data, error } = await sb.rpc("hq_quote_send", { p_request_id: id });
+      if (error) return dbFail("quoteRequests.sendHq", error);
+      return ok(toCamel(data as Row));
+    }
+    case "copy-hq": {
+      const { data, error } = await sb.rpc("hq_quote_copy_from", { p_request_id: id, p_source_hq_quote_id: Number(b.sourceId) });
+      if (error) return dbFail("quoteRequests.copyHq", error);
+      return ok(toCamel(data as Row));
     }
     default: return fail(400, "คำสั่งไม่ถูกต้อง");
   }

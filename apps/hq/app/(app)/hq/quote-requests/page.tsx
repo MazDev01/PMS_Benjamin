@@ -5,7 +5,8 @@
 // ขั้น 4: คำขอเข้าคิว HQ (อีเมลแจ้ง · เริ่มนับ 14 วัน) — ตารางสถานะ
 //   แถว 2 "HQ กดรับเรื่อง" → กำลังทำราคา (ผู้รับผิดชอบ = ผู้กด) · ลูกค้าเป้าหมายของดีลเลอร์คงเดิม
 //   แถว 3 "ครบ 14 วันยังไม่ส่งใบ" → ป้ายแดง เกินกำหนด (อีเมลถึงผู้รับของ HQ ส่งจากงานตั้งเวลา)
-// ทำ BOQ และส่งใบ HQ (ขั้น 5–6) เป็นของด่าน 2
+// ขั้น 5–6 (ด่าน 2): ปุ่ม "ทำใบ HQ" เปิดแผงทำ BOQ ด้วยราคาแม่แบบ → บันทึกร่าง → ส่งใบ (ล็อกเวอร์ชัน · หยุดนับ 14 วัน · อีเมลถึงดีลเลอร์)
+//   คำขอที่ส่งใบแล้วเปิดดูใบได้แบบอ่านอย่างเดียว
 // เรียงตามกำหนดส่งที่ใกล้สุดก่อน — คิวงานคือ "อะไรต้องทำก่อน" ไม่ใช่ "อะไรมาใหม่สุด" (ข้อยกเว้นของกติกาเรียงใหม่สุดก่อน: งานตามขั้น/ด่วน)
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Inbox, Search, X } from "lucide-react";
@@ -19,12 +20,14 @@ import { TablePagination, pageSlice } from "@pms/shared/components/ui/TablePagin
 import { แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { HqQuoteEditor } from "@pms/shared/components/hq/HqQuoteEditor";
 
 export default function HQQuoteRequestsPage() {
   const [รายการ, setรายการ] = useState<QuoteRequest[] | null>(null);
   const [ค้นหา, setค้นหา] = useState("");
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(0);
+  const [เปิดใบ, setเปิดใบ] = useState<QuoteRequest | null>(null);
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   const ชื่อดีลเลอร์ = (c: string) => dealers.find(d => d.code === c)?.name ?? "";
 
@@ -68,7 +71,7 @@ export default function HQQuoteRequestsPage() {
         <div className="table-scroll">
           <table className="table" style={{ width: "100%" }}>
             <thead>
-              <tr><th>เลขคำขอ</th><th>ดีลเลอร์</th><th>ลูกค้าเป้าหมาย</th><th>แม่แบบ</th><th>จังหวัด</th><th>สถานะ</th><th>กำหนดส่งใบ HQ</th><th>ผู้รับผิดชอบ</th><th style={{ width: 110 }}></th></tr>
+              <tr><th>เลขคำขอ</th><th>ดีลเลอร์</th><th>ลูกค้าเป้าหมาย</th><th>แม่แบบ</th><th>จังหวัด</th><th>สถานะ</th><th>กำหนดส่งใบ HQ</th><th>ผู้รับผิดชอบ</th><th style={{ width: 190 }}></th></tr>
             </thead>
             <tbody>
               {รายการ === null && <tr><td colSpan={9} style={{ textAlign: "center", color: "#9ca3af", padding: 24 }}>กำลังโหลด…</td></tr>}
@@ -88,10 +91,13 @@ export default function HQQuoteRequestsPage() {
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{r.status === "quoted" ? "—" : วันไทยสั้น(r.dueAt)}</td>
                     <td>{r.assigneeName || "—"}</td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       {r.status === "new" && (
-                        <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => void รับเรื่อง(r)}>รับเรื่อง</button>
+                        <button type="button" className="btn btn-outline btn-sm" disabled={busy === r.id} onClick={() => void รับเรื่อง(r)} style={{ marginRight: 6 }}>รับเรื่อง</button>
                       )}
+                      <button type="button" className={r.status === "quoted" ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"} onClick={() => setเปิดใบ(r)}>
+                        {r.status === "quoted" ? "ดูใบ HQ" : "ทำใบ HQ"}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -101,6 +107,10 @@ export default function HQQuoteRequestsPage() {
         </div>
         <TablePagination page={page} total={กรอง.length} onPage={setPage} unit="คำขอ" />
       </div>
+
+      {เปิดใบ && (
+        <HqQuoteEditor request={เปิดใบ} dealerName={ชื่อดีลเลอร์(เปิดใบ.dealerCode)} onClose={() => setเปิดใบ(null)} onChanged={โหลด} />
+      )}
     </div>
   );
 }
