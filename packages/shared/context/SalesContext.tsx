@@ -62,6 +62,9 @@ export type SalesContextType = {
   addLead: (lead: LeadRow) => void;
   updateLead: (lead: LeadRow) => void;
   deleteLead: (leadId: string) => void;
+  /** ดึงแถวของลูกค้าเป้าหมายรายนี้จากฐานข้อมูลมาแทนของในหน่วยความจำ — ใช้หลังคำสั่งที่ฐานขยับสถานะเอง
+   *  (ส่ง/ยกเลิกคำขอราคา · ขอแก้ราคา) ผู้ใช้ต้องเห็นสถานะใหม่ทันที ไม่ต้องรอสัญญาณสด */
+  syncLeadFromServer: (leadId: string) => Promise<void>;
 
   // Customers (lifted — one shared list app-wide)
   customers: CustomerRow[];
@@ -680,7 +683,8 @@ export function SalesProvider({
       });
       if (!changed) return l;
       const next = stageFromTasks(tasks, taskTplRef.current);
-      const status = (RANK[next] ?? 0) > (RANK[l.status] ?? 0) ? next : l.status;
+      // "รอราคา HQ" ฐานข้อมูลเป็นคนขยับ (ส่ง/ยกเลิกคำขอ · ส่งใบให้ลูกค้า) — ติ๊กงานแล้วต้องไม่เลื่อนขั้นเอง (ฐานจะปฏิเสธ)
+      const status = l.status !== "HQ_PRICING" && (RANK[next] ?? 0) > (RANK[l.status] ?? 0) ? next : l.status;
       const nl: LeadRow = { ...l, tasks, status };
       changedLeads.push(nl);
       return nl;
@@ -926,7 +930,8 @@ export function SalesProvider({
         ? { ...t, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" }
         : t);
       const next = stageFromTasks(tasks, taskTplRef.current);
-      const status = (RANK[next] ?? 0) > (RANK[l.status] ?? 0) ? next : l.status;
+      // "รอราคา HQ" ฐานข้อมูลเป็นคนขยับ (ส่ง/ยกเลิกคำขอ · ส่งใบให้ลูกค้า) — ติ๊กงานแล้วต้องไม่เลื่อนขั้นเอง (ฐานจะปฏิเสธ)
+      const status = l.status !== "HQ_PRICING" && (RANK[next] ?? 0) > (RANK[l.status] ?? 0) ? next : l.status;
       const nl: LeadRow = { ...l, tasks, status };
       changed.push(nl);
       return nl;
@@ -960,10 +965,16 @@ export function SalesProvider({
   // ค่า context ถูกใช้แทบทุกหน้าในทั้งสองแอป — ถ้าไม่ memo ทุก consumer จะเรนเดอร์ซ้ำทุกครั้งที่
   // provider นี้เรนเดอร์ใหม่ แม้ส่วนที่ตัวเองอ่านจะไม่ได้เปลี่ยนเลย (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
   const clearSyncError = useCallback(() => setSyncError(null), []);
+  const syncLeadFromServer = useCallback(async (leadId: string) => {
+    const fresh = await leadsRepo.get(leadId).catch(e => { logRepoRead("leads.get(sync)", e); return null; });
+    if (!fresh) return;
+    leadsRef.current = leadsRef.current.map(l => l.id !== leadId ? l : { ...l, ...fresh });
+    setLeads(prev => prev.map(l => l.id !== leadId ? l : { ...l, ...fresh }));
+  }, []);
   // โหลดเสร็จแล้ว = คืนของในมือทันที · ยังไม่เสร็จ = รอคำขอรอบล่าสุดให้จบก่อนค่อยตอบ
   // (ล้มเหลว = คืนเท่าที่มี ดีกว่าค้างรอตลอดกาล — ผู้เรียกจะเห็นว่าไม่มีใบแล้วบอกผู้ใช้ตามจริง)
   const value = useMemo(() => ({
-    leads, updateLeadStatus, newLeadNumId, addLead, updateLead, deleteLead,
+    leads, updateLeadStatus, newLeadNumId, addLead, updateLead, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
@@ -972,7 +983,7 @@ export function SalesProvider({
     syncError, clearSyncError,
     salesVersion,
   }), [
-    leads, updateLeadStatus, newLeadNumId, addLead, updateLead, deleteLead,
+    leads, updateLeadStatus, newLeadNumId, addLead, updateLead, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,

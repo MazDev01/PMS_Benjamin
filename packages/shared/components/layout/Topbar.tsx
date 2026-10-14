@@ -278,6 +278,7 @@ const TITLE_MAP: { match: string; title: string }[] = [
   { match: "/hq/dealers",        title: "ดีลเลอร์" },
   { match: "/hq/prospects",      title: "ลูกค้าเป้าหมาย (HQ)" },
   { match: "/hq/proposals",      title: "ใบค่าแฟรนไชส์" },
+  { match: "/hq/quote-requests", title: "คำขอใบเสนอราคา" },
   { match: "/hq/leads",          title: "ลูกค้าเป้าหมายทั้งเครือ" },
   { match: "/hq/customers",      title: "ลูกค้าทั้งเครือ" },
   { match: "/hq/quotations",     title: "ใบเสนอราคาทั้งเครือ" },

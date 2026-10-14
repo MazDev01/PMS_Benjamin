@@ -15,7 +15,8 @@
 import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
-import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer, HqTransferPlanRow } from "../ports";
+import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo } from "../ports";
+import type { QuoteRequest } from "../../quoteRequests";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
@@ -58,6 +59,7 @@ export const MIGRATED: readonly string[] = [
   "profile",
   "hqCompany",
   "territories",
+  "quoteRequests",
   "dealerSettings",
   "settings",
   "notes",
@@ -275,6 +277,15 @@ const profile: ProfileRepo = {
   get: () => apiFetch<UserProfile | null>("/profile"),
   save: async (p) => { await apiFetch("/profile", { method: "PUT", body: JSON.stringify(p) }); },
 };
+// คำขอใบเสนอราคา (ใบ 0183)
+const quoteRequests: QuoteRequestsRepo = {
+  listForLead: (dealerCode, leadNumId) => apiFetch<QuoteRequest[]>(`/quote-requests?dealer=${encodeURIComponent(dealerCode)}&lead=${leadNumId}`),
+  listQueue: () => apiFetch<QuoteRequest[]>("/quote-requests?view=queue"),
+  submit: (i) => post<QuoteRequest>("/quote-requests", { op: "submit", ...i }),
+  cancel: async (id, reason, closeLead) => { await post("/quote-requests", { op: "cancel", id, reason, closeLead }); },
+  reprice: (id, reason, spec) => post<QuoteRequest>("/quote-requests", { op: "reprice", id, reason, spec }),
+  accept: async (id) => { await post("/quote-requests", { op: "accept", id }); },
+};
 // พื้นที่ของดีลเลอร์ (ใบ 0195)
 const territories: TerritoriesRepo = {
   overlaps: () => apiFetch<TerritoryOverlap[]>("/territories?view=overlaps"),
@@ -469,7 +480,7 @@ const realtime: RealtimePort = {
 
 export const HttpAdapter: DataAdapter = {
   storage, realtime, dealers, catalog, files, persons, settings, dealerSettings,
-  profile, hqCompany, territories, notes, users, audit, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
+  profile, hqCompany, territories, quoteRequests, notes, users, audit, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
 };

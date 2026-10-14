@@ -102,6 +102,22 @@ export interface TerritoriesRepo {
   transfer(province: string, to: string): Promise<number>;
 }
 
+// ── คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183) — ทุกคำสั่งเรียกคำสั่งของฐาน ฐานขยับสถานะทั้งสองฝั่งเอง ──
+export type QuoteRequestInput = { leadNumId: number; product: string; subtype?: string; area?: number | null; spec?: string; province?: string };
+export interface QuoteRequestsRepo {
+  /** คำขอทั้งหมดของลูกค้าเป้าหมายหนึ่งราย (ใหม่→เก่า) */
+  listForLead(dealerCode: string, leadNumId: number): Promise<import("../quoteRequests").QuoteRequest[]>;
+  /** คิวของสำนักงานใหญ่: คำขอที่ยังเปิดอยู่ทั้งเครือ (ใหม่ / กำลังทำราคา / ส่งใบแล้ว) พร้อมชื่อบริษัท */
+  listQueue(): Promise<import("../quoteRequests").QuoteRequest[]>;
+  submit(input: QuoteRequestInput): Promise<import("../quoteRequests").QuoteRequest>;
+  /** ยกเลิกได้จนกว่า HQ ส่งใบ · ต้องมีเหตุผล · closeLead = ปิดลูกค้าเป้าหมายเป็นไม่สำเร็จ (ไม่งั้นกลับเป็นรวบรวมความต้องการ) */
+  cancel(id: number, reason: string, closeLead: boolean): Promise<void>;
+  /** ขอแก้ราคา (หลัง HQ ส่งใบ) — คำขอเดิมปิด เปิดคำขอใหม่ เริ่มนับ 14 วันใหม่ */
+  reprice(id: number, reason: string, spec?: string): Promise<import("../quoteRequests").QuoteRequest>;
+  /** HQ กดรับเรื่อง → กำลังทำราคา (ผู้รับผิดชอบ = ผู้กด) */
+  accept(id: number): Promise<void>;
+}
+
 export interface HQCompanyRepo {
   get(): Promise<HQCompany>;
   save(c: HQCompany): Promise<void>;
@@ -627,6 +643,7 @@ export interface DataAdapter {
   profile: ProfileRepo;
   hqCompany: HQCompanyRepo;
   territories: TerritoriesRepo;
+  quoteRequests: QuoteRequestsRepo;
   notes: NotesRepo;
   users: UsersRepo;
   audit: AuditRepo;

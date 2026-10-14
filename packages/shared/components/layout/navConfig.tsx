@@ -8,7 +8,7 @@
 //    (ลูกค้าเป้าหมาย HQ ก่อนดีลเลอร์ · ภาพรวมยอดขายก่อนลูกค้าเป้าหมายทั้งเครือ ฯลฯ)
 import {
   LayoutDashboard, Store, Phone, Package, Settings, GitMerge, ScrollText, Users,
-  CalendarDays, FolderOpen, History, UserPlus, FileText,
+  CalendarDays, FolderOpen, History, UserPlus, FileText, Inbox,
 } from "lucide-react";
 
 export type NavItem = { label: string; href: string; icon: React.ReactNode; badge?: number };
@@ -55,6 +55,8 @@ export const HQ_NAV: NavGroup[] = [
   ] },
   { key: "sales", group: "งานขายทั้งเครือ", icon: <GitMerge size={15} />, items: [
     { label: "ภาพรวมยอดขาย",          href: "/hq/pipeline",   icon: <GitMerge size={16} /> },
+    // คิวคำขอใบเสนอราคาจากดีลเลอร์ (Flow ใหม่ · FLOW.html ขั้น 4)
+    { label: "คำขอใบเสนอราคา",        href: "/hq/quote-requests", icon: <Inbox size={16} /> },
     { label: "ลูกค้าเป้าหมายทั้งเครือ", href: "/hq/leads",      icon: <Phone size={16} /> },
     { label: "ใบเสนอราคาทั้งเครือ",    href: "/hq/quotations", icon: <ScrollText size={16} /> },
     { label: "ลูกค้าทั้งเครือ",        href: "/hq/customers",  icon: <Users size={16} /> },

@@ -10,6 +10,7 @@ import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/type
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
+import type { QuoteRequest } from "../../quoteRequests";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
 import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
@@ -267,6 +268,21 @@ function subscribeWithRetry(label: string, build: () => RealtimeChannel): () => 
     // ออกจากระบบแล้ว sb() จะโยน no-session — การเก็บกวาดช่องต้องไม่พังตามไปด้วย
     if (ch) { try { void sb().removeChannel(ch); } catch { /* ไม่มีเซสชันแล้ว ช่องถูกปิดไปเองอยู่แล้ว */ } }
   };
+}
+
+/** เติมชื่อบริษัทของลูกค้าเป้าหมายให้คำขอ (คิวของ HQ) — อ่านเฉพาะรายที่อยู่ในคิว */
+async function เติมชื่อบริษัท(rows: QuoteRequest[]): Promise<QuoteRequest[]> {
+  const byDealer = new Map<string, number[]>();
+  for (const r of rows) byDealer.set(r.dealerCode, [...(byDealer.get(r.dealerCode) ?? []), r.leadNumId]);
+  const ชื่อ = new Map<string, string>();
+  for (const [dealer, nums] of byDealer) {
+    for (let i = 0; i < nums.length; i += 200) {
+      const { data, error } = await sb().from("leads").select("dealer_code, num_id, company").eq("dealer_code", dealer).in("num_id", nums.slice(i, i + 200));
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      for (const l of (data ?? []) as Row[]) ชื่อ.set(`${l.dealer_code}#${l.num_id}`, String(l.company ?? ""));
+    }
+  }
+  return rows.map(r => ({ ...r, leadCompany: ชื่อ.get(`${r.dealerCode}#${r.leadNumId}`) ?? "" }));
 }
 
 export const SupabaseAdapter: DataAdapter = {
@@ -565,6 +581,41 @@ export const SupabaseAdapter: DataAdapter = {
       await must(sb().from("profiles")
         .update({ name: p.name, phone: p.phone, contact_email: p.email, avatar: p.avatar ?? null })
         .eq("id", id));
+    },
+  },
+  // คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183)
+  quoteRequests: {
+    listForLead: async (dealerCode, leadNumId) => {
+      const { data, error } = await sb().from("quote_requests").select("*")
+        .eq("dealer_code", dealerCode).eq("lead_num_id", leadNumId).order("id", { ascending: false });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamelList<QuoteRequest>((data ?? []) as Row[]);
+    },
+    listQueue: async () => {
+      const rows = await pageAll((from, to) => sb().from("quote_requests").select("*")
+        .in("status", ["new", "pricing", "quoted"]).order("due_at", { ascending: true }).order("id", { ascending: true }).range(from, to), "quote_requests");
+      return เติมชื่อบริษัท(toCamelList<QuoteRequest>(rows as Row[]));
+    },
+    submit: async (i) => {
+      const { data, error } = await sb().rpc("quote_request_submit", {
+        p_lead_num_id: i.leadNumId, p_product: i.product, p_subtype: i.subtype ?? "", p_area: i.area ?? null, p_spec: i.spec ?? "", p_province: i.province ?? "",
+      });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamel<QuoteRequest>(data as Row);
+    },
+    cancel: async (id, reason, closeLead) => {
+      const { error } = await sb().rpc("quote_request_cancel", { p_id: id, p_reason: reason, p_close_lead: closeLead });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+    },
+    reprice: async (id, reason, spec) => {
+      const { data, error } = await sb().rpc("quote_request_reprice", { p_id: id, p_reason: reason, p_spec: spec ?? null });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamel<QuoteRequest>(data as Row);
+    },
+    accept: async (id) => {
+      const { data: u } = await sb().auth.getUser();
+      const { error } = await sb().rpc("quote_request_accept", { p_id: id, p_assignee: u.user?.id ?? null });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
     },
   },
   // พื้นที่ของดีลเลอร์ (ใบ 0195) — อ่านได้ทุกบัญชี · เคลียร์ผ่านคำสั่งของฐาน (ตรวจสิทธิ์ HQ ข้างใน)

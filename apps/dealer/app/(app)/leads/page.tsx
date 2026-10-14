@@ -9,7 +9,7 @@ import {
   leadStatusLabel, leadStatusColor,
   buildLeadReport, applyTaskTemplate, findAppointmentTask,
   seedLeadTasks, taskProgress, mainTemplateOf, apptTypeLabel, fmtISOToThai,
-  DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
+  DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, MANUAL_LEAD_STATUSES, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
   OTHER_LOST_REASON, OTHER_REASON_OPTION,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile, type LeadTaskDef,
 } from "@pms/shared/lib/mock";
@@ -18,6 +18,7 @@ import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
+import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { useMasterCatalog } from "@pms/shared/lib/useMasterCatalog";
 import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
@@ -841,8 +842,9 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                 {/* เลือกได้เฉพาะขั้นก่อน "เสนอราคา" — ขั้นเสนอราคาขึ้นไปเลื่อนอัตโนมัติเมื่อมีใบเสนอราคา
                     aria-label: ชื่อเดียวกับ label — กันสับสนกับ dropdown "ทุกสถานะ" บนแถบเครื่องมือที่มีครบทุกขั้น */}
                 {/* ต้องมีค่าเสมอ — งานขายต้องเริ่มที่ขั้นใดขั้นหนึ่งเสมอ */}
-                <select aria-label="ขั้นตอน" value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle}>
-                  {(isEdit ? ALL_STATUSES : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
+                {/* "รอราคา HQ" ฐานข้อมูลขยับให้เองตามคำขอราคา (FLOW.html) — ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ ยกเลิกคำขอได้ที่แท็บใบเสนอราคา */}
+                <select aria-label="ขั้นตอน" value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={form.status==="HQ_PRICING"}>
+                  {(form.status==="HQ_PRICING" ? (["HQ_PRICING"] as LeadStatus[]) : isEdit ? MANUAL_LEAD_STATUSES : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
                 </select>
               </div>
 
@@ -898,7 +900,7 @@ export default function LeadsPage() {
 
   // List state
   const {
-    leads: allLeads, addLead, updateLead, deleteLead: removeLead, updateLeadStatus, newLeadNumId,
+    leads: allLeads, addLead, updateLead, deleteLead: removeLead, updateLeadStatus, newLeadNumId, syncLeadFromServer,
     appointments, addAppointment, newAppointmentId, quotations, quotationsReady, ensureQuotations,
   } = useSales();
   // ปิดการขายสำเร็จ = เป็น "ลูกค้า" แล้ว → ไม่แสดงในหน้าลูกค้าเป้าหมาย (ไปอยู่ที่ /customers)
@@ -1813,7 +1815,7 @@ export default function LeadsPage() {
                               const r = e.currentTarget.getBoundingClientRect();
                               // ความสูงเมนูคำนวณได้แน่นอน (จำนวนขั้น × สูงแถว + ขอบ) — ไม่ต้องรอวัดหลังเรนเดอร์
                               //   ถ้าเพิ่ม/ลดขั้น หรือเปลี่ยนความสูงแถว ต้องอัปเดตเลข 38 ด้วย
-                              const H = ALL_STATUSES.length * 38 + 12;
+                              const H = MANUAL_LEAD_STATUSES.length * 38 + 12;
                               const below = r.bottom + 4;
                               const y = below + H <= window.innerHeight - 8 ? below : Math.max(8, r.top - 4 - H);
                               setStatusMenu({ id: l.id, x: r.left, y });
@@ -1836,7 +1838,12 @@ export default function LeadsPage() {
                               <div data-menu="stage" style={{ position:"fixed", top:statusMenu.y, left:statusMenu.x, zIndex:300,
                                 background:"#fff", border:"1px solid #e5e7eb", borderRadius:12,
                                 boxShadow:"0 8px 24px rgba(0,0,0,.14)", minWidth:168, overflow:"hidden" }}>
-                                {ALL_STATUSES.map(s => {
+                                {/* เมนูเปลี่ยนขั้นเอง: ไม่มี "รอราคา HQ" (ฐานข้อมูลขยับให้ตามคำขอราคา) · ระหว่างรอราคา HQ ฐานข้อมูลไม่ให้เปลี่ยนขั้นเอง */}
+                                {l.status === "HQ_PRICING" ? (
+                                  <div style={{ padding:"10px 14px", fontSize:"0.76rem", color:"#6b21a8", maxWidth:240, lineHeight:1.6 }}>
+                                    รอราคาจากสำนักงานใหญ่ — เปลี่ยนขั้นเองไม่ได้ระหว่างรอ · ยกเลิกคำขอได้ที่แท็บใบเสนอราคา
+                                  </div>
+                                ) : MANUAL_LEAD_STATUSES.map(s => {
                                   const c = leadStatusColor[s];
                                   return (
                                     <button key={s}
@@ -2536,6 +2543,8 @@ export default function LeadsPage() {
         // ── Tab: ใบเสนอราคา — สร้าง/แก้/ดู/พิมพ์/ทำสำเนา/ลบ inline (ไม่ออกจากหน้า) ──
         const tabQuotation = (
           <DrawerSection title="ใบเสนอราคา">
+            {/* ราคาจากสำนักงานใหญ่ (Flow ใหม่ · ขั้น 3) — ส่งคำขอ / ยกเลิก / ขอแก้ราคา · ฐานข้อมูลขยับสถานะเอง */}
+            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} />
             <LeadQuotationsPanel lead={c} onToast={setToast} openCreateSignal={quoteFormSignal} />
           </DrawerSection>
         );

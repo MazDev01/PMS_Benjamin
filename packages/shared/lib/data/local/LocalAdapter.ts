@@ -296,6 +296,15 @@ export const LocalAdapter: DataAdapter = {
     save: (p) => { writeKey(profileKey(currentDealerCode()), p); fireProfile(); return done(); },
   },
   // ข้อมูลบริษัท HQ — โหมด local ใช้คีย์เดิม (ค่าที่เคยตั้งไม่หาย)
+  // คำขอใบเสนอราคา — โหมดข้อมูลตัวอย่างไม่มี Flow ใบ HQ (ต้องมีฐานข้อมูล)
+  quoteRequests: {
+    listForLead: () => ok([]),
+    listQueue: () => ok([]),
+    submit: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+    cancel: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+    reprice: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+    accept: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+  },
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {
     overlaps: () => ok([]),

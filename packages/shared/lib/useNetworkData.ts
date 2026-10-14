@@ -396,9 +396,9 @@ export function useNetworkCustomersForDealer(code: string): HQCustomer[] {
 
 // ─── รายละเอียดดีลเลอร์ (เจาะรายสาขา) — CNX = ข้อมูลสด · สาขาอื่น = seed ────────────
 const LEAD_TO_ITEM: Record<LeadStatus, DealerLeadItem["status"]> = {
-  WAITING: "contacted", BULLET: "contacted", QUOTED: "quoted", FOLLOWUP: "quoted", NEGO: "quoted", PAID: "won", CANCELLED: "lost",
+  WAITING: "contacted", BULLET: "contacted", HQ_PRICING: "contacted", QUOTED: "quoted", FOLLOWUP: "quoted", NEGO: "quoted", PAID: "won", CANCELLED: "lost",
 };
-const LEAD_PROGRESS: Record<LeadStatus, number> = { WAITING: 15, BULLET: 30, QUOTED: 50, FOLLOWUP: 65, NEGO: 80, PAID: 100, CANCELLED: 0 };
+const LEAD_PROGRESS: Record<LeadStatus, number> = { WAITING: 15, BULLET: 30, HQ_PRICING: 40, QUOTED: 50, FOLLOWUP: 65, NEGO: 80, PAID: 100, CANCELLED: 0 };
 const TH_MO = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 export function useNetworkDealerDetail(code: string): DealerDetail {
