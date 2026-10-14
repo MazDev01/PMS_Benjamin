@@ -1,0 +1,465 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Flow ระบบ Benjamin PMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: เอกสารคอลัมน์เดียว อ่านจากบนลงล่าง ตามลำดับที่ข้อมูลไหลจริง · สีแยกตามผู้เล่น (ลูกค้า / ดีลเลอร์ / HQ) */
+:root {
+  --bg: #f3f5f6;
+  --surface: #ffffff;
+  --fg: #18222c;
+  --muted: #5b6874;
+  --line: #cfd7de;
+  --hq: #1f4e79;
+  --hq-tint: #e3ecf5;
+  --dealer: #17705f;
+  --dealer-tint: #e0f1ec;
+  --cust: #9a6412;
+  --cust-tint: #f6ecdc;
+  --alert: #b8352a;
+  --alert-tint: #f8e3e0;
+  --font-display: "Bai Jamjuree", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11171c; --surface: #1a2229; --fg: #e4eaef; --muted: #98a6b2; --line: #33404b;
+    --hq: #7fb0e0; --hq-tint: #1b2a3a; --dealer: #5fc4ae; --dealer-tint: #15302a;
+    --cust: #e0aa5a; --cust-tint: #33281a; --alert: #ef7d70; --alert-tint: #3a1f1c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11171c; --surface: #1a2229; --fg: #e4eaef; --muted: #98a6b2; --line: #33404b;
+  --hq: #7fb0e0; --hq-tint: #1b2a3a; --dealer: #5fc4ae; --dealer-tint: #15302a;
+  --cust: #e0aa5a; --cust-tint: #33281a; --alert: #ef7d70; --alert-tint: #3a1f1c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.65; }
+.wrap { max-width: 880px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 64px; display: flex; flex-direction: column; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.25; text-wrap: balance; margin: 0; }
+h1 { font-size: 2rem; font-weight: 700; }
+h2 { font-size: 1.35rem; font-weight: 700; }
+h3 { font-size: 1rem; font-weight: 600; }
+p { margin: 0; max-width: 65ch; }
+.eyebrow { font-family: var(--font-display); font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+header { display: flex; flex-direction: column; gap: 10px; }
+.lede { color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .85rem; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 2px solid; }
+.dot.c { background: var(--cust-tint); border-color: var(--cust); }
+.dot.d { background: var(--dealer-tint); border-color: var(--dealer); }
+.dot.h { background: var(--hq-tint); border-color: var(--hq); }
+.dot.a { background: var(--alert-tint); border-color: var(--alert); }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; }
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+figure svg { display: block; width: 100%; height: auto; }
+.scroll svg.wide { min-width: 640px; }
+figcaption { font-size: .85rem; color: var(--muted); }
+/* SVG classes */
+.svg-text { fill: var(--fg); font-family: var(--font-body); }
+.svg-muted { fill: var(--muted); font-family: var(--font-body); }
+.svg-head { font-family: var(--font-display); font-weight: 700; }
+.lane-c { fill: var(--cust-tint); } .lane-d { fill: var(--dealer-tint); } .lane-h { fill: var(--hq-tint); }
+.box { fill: var(--surface); stroke-width: 1.6; }
+.box.c { stroke: var(--cust); } .box.d { stroke: var(--dealer); } .box.h { stroke: var(--hq); }
+.note { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.note.a { stroke: var(--alert); fill: var(--alert-tint); }
+.badge.c { fill: var(--cust); } .badge.d { fill: var(--dealer); } .badge.h { fill: var(--hq); }
+.badge-t { fill: var(--surface); font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+.flow { fill: none; stroke: var(--muted); stroke-width: 1.6; }
+.flow.dash { stroke-dasharray: 6 5; }
+.flow-label { fill: var(--fg); font-family: var(--font-body); font-size: 11.5px; font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+.timer { stroke: var(--alert); stroke-width: 2; fill: none; }
+.timer-t { fill: var(--alert); font-family: var(--font-body); font-size: 11px; font-weight: 600; }
+.arrowhead { fill: var(--muted); }
+.lane-title.c { fill: var(--cust); } .lane-title.d { fill: var(--dealer); } .lane-title.h { fill: var(--hq); }
+/* recruit chain */
+.chain { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.step { background: var(--surface); border: 1.6px solid var(--hq); border-radius: 8px; padding: 10px 12px; flex: 1 1 140px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.step b { font-family: var(--font-display); font-weight: 600; }
+.step small { color: var(--muted); font-size: .8rem; line-height: 1.45; }
+.step.end { border-color: var(--dealer); background: var(--dealer-tint); }
+.step.lost { border-style: dashed; border-color: var(--muted); }
+.arrow { align-self: center; color: var(--muted); font-size: 1.1rem; }
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; min-width: 560px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-display); font-weight: 600; font-size: .8rem; letter-spacing: .04em; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: none; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: .75rem; padding: 1px 8px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+.pill.h { color: var(--hq); border-color: var(--hq); background: var(--hq-tint); }
+.pill.d { color: var(--dealer); border-color: var(--dealer); background: var(--dealer-tint); }
+.pill.c { color: var(--cust); border-color: var(--cust); background: var(--cust-tint); }
+.pill.a { color: var(--alert); border-color: var(--alert); background: var(--alert-tint); }
+.pill.n { color: var(--muted); border-color: var(--line); background: var(--bg); }
+.who { display: flex; flex-wrap: wrap; gap: 4px; }
+/* stage track */
+.track { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.stage { font-family: var(--font-mono); font-size: .78rem; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); }
+.stage.new { border-color: var(--alert); color: var(--alert); background: var(--alert-tint); font-weight: 500; }
+.track .sep { color: var(--muted); }
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.rule { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rule b { font-family: var(--font-display); font-weight: 600; }
+.rule small { color: var(--muted); font-size: .82rem; line-height: 1.5; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.panel ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
+footer { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Benjamin PMS · แผนระบบใหม่</div>
+    <h1>Flow ระบบ Benjamin PMS</h1>
+    <p class="lede">ข้อมูลไหลจาก HQ หาดีลเลอร์ใหม่ ไปจนถึงลูกค้าปลายทางตอบรับและสั่งผลิต อ่านจากบนลงล่างตามลำดับที่เกิดขึ้นจริง</p>
+    <div class="legend" aria-label="คำอธิบายสี">
+      <span><i class="dot h"></i>HQ (Benjamin)</span>
+      <span><i class="dot d"></i>ดีลเลอร์</span>
+      <span><i class="dot c"></i>ลูกค้าปลายทาง</span>
+      <span><i class="dot a"></i>แจ้งเตือน / ส่วนที่เพิ่มใหม่</span>
+    </div>
+  </header>
+
+  <!-- 1 ภาพรวม -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">ภาพรวม</div>
+      <h2>ใครส่งอะไรให้ใคร</h2>
+    </div>
+    <figure>
+      <div class="scroll">
+        <svg class="wide" viewBox="0 0 800 176" role="img" aria-label="HQ ส่งใบค่าแฟรนไชส์ให้ผู้สนใจและใบ HQ ให้ดีลเลอร์ ดีลเลอร์ส่งคำขอราคาและคำสั่งผลิตให้ HQ ส่งใบเสนอราคาให้ลูกค้า ลูกค้าตอบรับกลับมาที่ดีลเลอร์">
+          <defs>
+            <marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker>
+          </defs>
+          <!-- nodes -->
+          <rect x="10" y="50" width="120" height="56" rx="8" class="note"/>
+          <text x="70" y="76" text-anchor="middle" class="svg-text svg-head" font-size="14">ผู้สนใจ</text>
+          <text x="70" y="94" text-anchor="middle" class="svg-muted" font-size="11">อยากเป็นดีลเลอร์</text>
+
+          <rect x="210" y="50" width="140" height="56" rx="8" class="box h"/>
+          <text x="280" y="76" text-anchor="middle" class="svg-head lane-title h" font-size="15">HQ</text>
+          <text x="280" y="94" text-anchor="middle" class="svg-muted" font-size="11">ตีราคา · ดูภาพรวม</text>
+
+          <rect x="450" y="50" width="140" height="56" rx="8" class="box d"/>
+          <text x="520" y="76" text-anchor="middle" class="svg-head lane-title d" font-size="15">ดีลเลอร์</text>
+          <text x="520" y="94" text-anchor="middle" class="svg-muted" font-size="11">หาลูกค้า · บวก %</text>
+
+          <rect x="670" y="50" width="120" height="56" rx="8" class="box c"/>
+          <text x="730" y="76" text-anchor="middle" class="svg-head lane-title c" font-size="15">ลูกค้า</text>
+          <text x="730" y="94" text-anchor="middle" class="svg-muted" font-size="11">เจ้าของงาน</text>
+
+          <!-- HQ -> prospect -->
+          <line x1="210" y1="78" x2="134" y2="78" class="flow" marker-end="url(#ah1)"/>
+          <text x="170" y="40" text-anchor="middle" class="flow-label">ใบค่าแฟรนไชส์</text>
+
+          <!-- HQ <-> dealer -->
+          <line x1="350" y1="68" x2="446" y2="68" class="flow" marker-end="url(#ah1)"/>
+          <text x="400" y="40" text-anchor="middle" class="flow-label">ใบ HQ (ต้นทุน)</text>
+          <line x1="450" y1="90" x2="354" y2="90" class="flow" marker-end="url(#ah1)"/>
+          <text x="400" y="126" text-anchor="middle" class="flow-label">คำขอราคา · สั่งผลิต</text>
+
+          <!-- dealer <-> customer -->
+          <line x1="590" y1="68" x2="666" y2="68" class="flow" marker-end="url(#ah1)"/>
+          <text x="630" y="40" text-anchor="middle" class="flow-label">ใบเสนอราคา</text>
+          <line x1="670" y1="90" x2="594" y2="90" class="flow" marker-end="url(#ah1)"/>
+          <text x="630" y="126" text-anchor="middle" class="flow-label">ตอบรับ</text>
+
+          <!-- prospect becomes dealer -->
+          <path d="M70 106 V158 H520 V112" class="flow dash" marker-end="url(#ah1)"/>
+          <text x="295" y="162" text-anchor="middle" class="flow-label">แปลงเป็นดีลเลอร์ + สร้างบัญชี</text>
+        </svg>
+      </div>
+      <figcaption>HQ ไม่คุยกับลูกค้าปลายทางโดยตรง ราคาทุกใบผ่านดีลเลอร์ ส่วนลูกค้าเห็นแค่ราคาขายของดีลเลอร์</figcaption>
+    </figure>
+  </section>
+
+  <!-- 2 หาดีลเลอร์ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">ช่วงที่ 1 · HQ</div>
+      <h2>หาดีลเลอร์ใหม่</h2>
+      <p class="lede">pipeline ของ HQ เอง แยกจาก lead ลูกค้า</p>
+    </div>
+    <div class="chain">
+      <div class="step"><b>ผู้สนใจ</b><small>เก็บข้อมูลติดต่อ จังหวัด แหล่งที่มา ผู้ดูแลฝั่ง HQ</small></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><b>ติดตาม / นัดคุย</b><small>ขยับสถานะใน pipeline</small></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><b>ใบค่าแฟรนไชส์</b><small>ออกจากระบบใบ HQ ชุดเดียวกับใบที่ส่งดีลเลอร์</small></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><b>ตกลง + ชำระ</b><small>ปฏิเสธหรือหมดอายุ → ปิด พร้อมเหตุผล</small></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step end"><b>แปลงเป็นดีลเลอร์</b><small>สร้างบัญชี DEALER_ADMIN อัตโนมัติ · HQ กำหนดจังหวัดที่ดูแล</small></div>
+    </div>
+  </section>
+
+  <!-- 3 swimlane -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">ช่วงที่ 2 · ดีลเลอร์ ↔ HQ ↔ ลูกค้า</div>
+      <h2>ขายหนึ่งงาน ตั้งแต่ลูกค้าติดต่อจนสั่งผลิต</h2>
+      <p class="lede">แต่ละคอลัมน์คือใครเป็นคนทำ ลูกศรคือข้อมูลที่ส่งต่อ</p>
+    </div>
+    <figure>
+      <div class="scroll">
+        <svg class="wide" viewBox="0 0 780 1010" role="img" aria-label="ลำดับ 11 ขั้น: ลูกค้าติดต่อ ดีลเลอร์สร้าง lead และส่งคำขอราคา HQ ทำ BOQ และส่งใบ HQ ภายใน 14 วัน ดีลเลอร์บวก % ทำใบให้ลูกค้า ลูกค้าตอบรับ ดีลเลอร์ปิดการขาย และใบ HQ กลายเป็นคำสั่งผลิต">
+          <defs>
+            <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker>
+          </defs>
+          <!-- lanes -->
+          <rect x="10" y="0" width="240" height="1010" rx="8" class="lane-c"/>
+          <rect x="270" y="0" width="240" height="1010" rx="8" class="lane-d"/>
+          <rect x="530" y="0" width="240" height="1010" rx="8" class="lane-h"/>
+          <text x="130" y="38" text-anchor="middle" class="svg-head lane-title c" font-size="16">ลูกค้า</text>
+          <text x="390" y="38" text-anchor="middle" class="svg-head lane-title d" font-size="16">ดีลเลอร์</text>
+          <text x="650" y="38" text-anchor="middle" class="svg-head lane-title h" font-size="16">HQ</text>
+
+          <!-- flows (drawn under boxes) -->
+          <path d="M130 128 V145 H390 V158" class="flow" marker-end="url(#ah2)"/>
+          <text x="260" y="141" text-anchor="middle" class="flow-label">ข้อมูลลูกค้า</text>
+          <path d="M390 214 V244" class="flow" marker-end="url(#ah2)"/>
+          <path d="M390 300 V317 H650 V330" class="flow" marker-end="url(#ah2)"/>
+          <text x="520" y="313" text-anchor="middle" class="flow-label">คำขอ + สเปก</text>
+          <path d="M650 386 V416" class="flow" marker-end="url(#ah2)"/>
+          <path d="M650 472 V502" class="flow" marker-end="url(#ah2)"/>
+          <path d="M650 558 V575 H390 V588" class="flow" marker-end="url(#ah2)"/>
+          <text x="520" y="571" text-anchor="middle" class="flow-label">ใบ HQ (BOQ + ต้นทุน)</text>
+          <path d="M390 644 V661 H130 V674" class="flow" marker-end="url(#ah2)"/>
+          <text x="260" y="657" text-anchor="middle" class="flow-label">ใบเสนอราคา (ราคาขาย)</text>
+          <path d="M130 730 V760" class="flow" marker-end="url(#ah2)"/>
+          <path d="M130 816 V833 H390 V846" class="flow" marker-end="url(#ah2)"/>
+          <text x="260" y="829" text-anchor="middle" class="flow-label">ตอบรับ</text>
+          <path d="M390 902 V919 H650 V932" class="flow" marker-end="url(#ah2)"/>
+          <text x="520" y="915" text-anchor="middle" class="flow-label">สั่งผลิต</text>
+
+          <!-- 14-day timer -->
+          <line x1="527" y1="334" x2="527" y2="558" class="timer"/>
+          <line x1="522" y1="334" x2="534" y2="334" class="timer"/>
+          <line x1="522" y1="558" x2="534" y2="558" class="timer"/>
+          <text x="0" y="0" transform="translate(522 446) rotate(-90)" text-anchor="middle" class="timer-t">ภายใน 14 วัน</text>
+
+          <!-- steps -->
+          <g>
+            <rect x="22" y="76" width="216" height="52" rx="8" class="box c"/>
+            <circle cx="40" cy="102" r="10" class="badge c"/><text x="40" y="106" text-anchor="middle" class="badge-t">1</text>
+            <text x="58" y="98" class="svg-text svg-head" font-size="13">ลูกค้าติดต่อ</text>
+            <text x="58" y="116" class="svg-muted" font-size="11">อยากสร้างโกดัง / โรงงาน</text>
+          </g>
+          <g>
+            <rect x="282" y="162" width="216" height="52" rx="8" class="box d"/>
+            <circle cx="300" cy="188" r="10" class="badge d"/><text x="300" y="192" text-anchor="middle" class="badge-t">2</text>
+            <text x="318" y="184" class="svg-text svg-head" font-size="13">สร้าง Lead</text>
+            <text x="318" y="202" class="svg-muted" font-size="11">กันชื่อ+เบอร์ซ้ำ · เช็คพื้นที่</text>
+          </g>
+          <g>
+            <rect x="282" y="248" width="216" height="52" rx="8" class="box d"/>
+            <circle cx="300" cy="274" r="10" class="badge d"/><text x="300" y="278" text-anchor="middle" class="badge-t">3</text>
+            <text x="318" y="270" class="svg-text svg-head" font-size="13">ส่งคำขอใบเสนอราคา</text>
+            <text x="318" y="288" class="svg-muted" font-size="11">แม่แบบ + สเปก · Lead → รอราคา HQ</text>
+          </g>
+          <g>
+            <rect x="542" y="334" width="216" height="52" rx="8" class="box h"/>
+            <circle cx="560" cy="360" r="10" class="badge h"/><text x="560" y="364" text-anchor="middle" class="badge-t">4</text>
+            <text x="578" y="356" class="svg-text svg-head" font-size="13">คำขอเข้าคิว HQ</text>
+            <text x="578" y="374" class="svg-muted" font-size="11">อีเมลแจ้ง · เริ่มนับ 14 วัน</text>
+          </g>
+          <g>
+            <rect x="542" y="420" width="216" height="52" rx="8" class="box h"/>
+            <circle cx="560" cy="446" r="10" class="badge h"/><text x="560" y="450" text-anchor="middle" class="badge-t">5</text>
+            <text x="578" y="442" class="svg-text svg-head" font-size="13">ทำ BOQ</text>
+            <text x="578" y="460" class="svg-muted" font-size="11">ใช้ราคาแม่แบบที่ HQ เห็นคนเดียว</text>
+          </g>
+          <g>
+            <rect x="542" y="506" width="216" height="52" rx="8" class="box h"/>
+            <circle cx="560" cy="532" r="10" class="badge h"/><text x="560" y="536" text-anchor="middle" class="badge-t">6</text>
+            <text x="578" y="528" class="svg-text svg-head" font-size="13">ส่งใบ HQ ให้ดีลเลอร์</text>
+            <text x="578" y="546" class="svg-muted" font-size="11">ล็อกเวอร์ชัน · หยุดนับ 14 วัน</text>
+          </g>
+          <g>
+            <rect x="282" y="592" width="216" height="52" rx="8" class="box d"/>
+            <circle cx="300" cy="618" r="10" class="badge d"/><text x="300" y="622" text-anchor="middle" class="badge-t">7</text>
+            <text x="318" y="614" class="svg-text svg-head" font-size="13">ทำใบให้ลูกค้า</text>
+            <text x="318" y="632" class="svg-muted" font-size="11">ต้นทุน HQ + % (แก้รายบรรทัดได้)</text>
+          </g>
+          <g>
+            <rect x="22" y="678" width="216" height="52" rx="8" class="box c"/>
+            <circle cx="40" cy="704" r="10" class="badge c"/><text x="40" y="708" text-anchor="middle" class="badge-t">8</text>
+            <text x="58" y="700" class="svg-text svg-head" font-size="13">ได้รับใบเสนอราคา</text>
+            <text x="58" y="718" class="svg-muted" font-size="11">เห็นแค่ราคาขาย · Lead → QUOTED</text>
+          </g>
+          <g>
+            <rect x="22" y="764" width="216" height="52" rx="8" class="box c"/>
+            <circle cx="40" cy="790" r="10" class="badge c"/><text x="40" y="794" text-anchor="middle" class="badge-t">9</text>
+            <text x="58" y="786" class="svg-text svg-head" font-size="13">ตอบรับ</text>
+            <text x="58" y="804" class="svg-muted" font-size="11">หลังติดตาม / ต่อรอง</text>
+          </g>
+          <g>
+            <rect x="282" y="850" width="216" height="52" rx="8" class="box d"/>
+            <circle cx="300" cy="876" r="10" class="badge d"/><text x="300" y="880" text-anchor="middle" class="badge-t">10</text>
+            <text x="318" y="872" class="svg-text svg-head" font-size="13">ปิดการขาย (won)</text>
+            <text x="318" y="890" class="svg-muted" font-size="11">สร้างลูกค้า · Lead → PAID</text>
+          </g>
+          <g>
+            <rect x="542" y="936" width="216" height="52" rx="8" class="box h"/>
+            <circle cx="560" cy="962" r="10" class="badge h"/><text x="560" y="966" text-anchor="middle" class="badge-t">11</text>
+            <text x="578" y="958" class="svg-text svg-head" font-size="13">สั่งผลิต</text>
+            <text x="578" y="976" class="svg-muted" font-size="11">ล็อกราคา · นับเป็นยอดขาย HQ</text>
+          </g>
+
+          <!-- side notes -->
+          <rect x="282" y="352" width="216" height="104" rx="8" class="note"/>
+          <text x="296" y="376" class="svg-text svg-head" font-size="12">ระหว่างรอ HQ</text>
+          <text x="296" y="396" class="svg-muted" font-size="11">ยกเลิกคำขอได้จนกว่า HQ ส่งใบ</text>
+          <text x="296" y="414" class="svg-muted" font-size="11">ต้องระบุเหตุผล</text>
+          <text x="296" y="432" class="svg-muted" font-size="11">Lead กลับ BULLET หรือ CANCELLED</text>
+
+          <rect x="542" y="250" width="216" height="62" rx="8" class="note a"/>
+          <text x="556" y="274" class="timer-t" font-size="12">เกิน 14 วันยังไม่ส่งใบ</text>
+          <text x="556" y="294" class="svg-muted" font-size="11">อีเมลถึงผู้รับผิดชอบ + ผู้บริหาร</text>
+
+          <rect x="282" y="742" width="216" height="74" rx="8" class="note"/>
+          <text x="296" y="766" class="svg-text svg-head" font-size="12">ถ้าลูกค้าปฏิเสธ</text>
+          <text x="296" y="786" class="svg-muted" font-size="11">Lead → CANCELLED + เหตุผล</text>
+          <text x="296" y="804" class="svg-muted" font-size="11">คำขอปิดเป็น lost</text>
+        </svg>
+      </div>
+      <figcaption>ขั้น 4–6 คือช่วงที่ลูกบอลอยู่ที่ HQ ระบบจึงนับ 14 วันเฉพาะช่วงนี้ และไม่เตือนดีลเลอร์ว่า lead นิ่ง</figcaption>
+    </figure>
+  </section>
+
+  <!-- 4 สถานะ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">สถานะ</div>
+      <h2>สองฝั่งขยับตามกันอัตโนมัติ</h2>
+      <p class="lede">ไม่มีใครต้องไปกดเปลี่ยนสถานะฝั่งตรงข้ามเอง ฐานข้อมูลเป็นคนขยับให้</p>
+    </div>
+    <div class="panel">
+      <h3>Pipeline lead ของดีลเลอร์</h3>
+      <div class="track">
+        <span class="stage">WAITING</span><span class="sep">→</span>
+        <span class="stage">BULLET</span><span class="sep">→</span>
+        <span class="stage new">รอราคา HQ</span><span class="sep">→</span>
+        <span class="stage">QUOTED</span><span class="sep">→</span>
+        <span class="stage">FOLLOWUP</span><span class="sep">→</span>
+        <span class="stage">NEGO</span><span class="sep">→</span>
+        <span class="stage">PAID</span><span class="sep">/</span>
+        <span class="stage">CANCELLED</span>
+      </div>
+      <h3>Pipeline คำขอใบเสนอราคาของ HQ</h3>
+      <div class="track">
+        <span class="stage">ใหม่</span><span class="sep">→</span>
+        <span class="stage">กำลังทำราคา</span><span class="sep">→</span>
+        <span class="stage">ส่งใบแล้ว</span><span class="sep">→</span>
+        <span class="stage">ปิด (won / lost)</span><span class="sep">·</span>
+        <span class="stage">ยกเลิก</span>
+      </div>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>เหตุการณ์</th><th>คำขอ (HQ)</th><th>Lead (ดีลเลอร์)</th><th>อีเมล</th></tr></thead>
+        <tbody>
+          <tr><td>ดีลเลอร์ส่งคำขอ</td><td>ใหม่</td><td>→ รอราคา HQ</td><td><span class="pill h">HQ</span></td></tr>
+          <tr><td>HQ กดรับเรื่อง</td><td>กำลังทำราคา</td><td>คงเดิม</td><td>—</td></tr>
+          <tr><td>ครบ 14 วันยังไม่ส่งใบ</td><td>ป้ายแดง เกินกำหนด</td><td>คงเดิม</td><td><span class="pill a">ผู้รับผิดชอบ + ผู้บริหาร</span></td></tr>
+          <tr><td>HQ ส่งใบ</td><td>ส่งใบแล้ว</td><td>คงเดิม + ป้าย "ได้ราคาแล้ว"</td><td><span class="pill d">ดีลเลอร์</span></td></tr>
+          <tr><td>ดีลเลอร์ส่งใบให้ลูกค้า</td><td>คงเดิม</td><td>→ QUOTED</td><td>—</td></tr>
+          <tr><td>ดีลเลอร์ยกเลิกคำขอ</td><td>ยกเลิก</td><td>→ BULLET หรือ CANCELLED</td><td><span class="pill h">HQ</span></td></tr>
+          <tr><td>ขอแก้ราคา</td><td>ใบเก่าปิด · คำขอใหม่เริ่มนับ 14 วัน</td><td>→ รอราคา HQ</td><td><span class="pill h">HQ</span></td></tr>
+          <tr><td>ลูกค้าตอบรับ (won)</td><td>ปิด (won) · ใบ HQ = สั่งผลิต</td><td>→ PAID + สร้างลูกค้า</td><td><span class="pill h">HQ</span></td></tr>
+          <tr><td>ลูกค้าปฏิเสธ</td><td>ปิด (lost)</td><td>→ CANCELLED + เหตุผล</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5 ใครเห็นอะไร -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">การมองเห็นข้อมูล</div>
+      <h2>ข้อมูลแต่ละชิ้น ใครเห็นได้</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>ข้อมูล</th><th>ใครสร้าง</th><th>ใครเห็น</th></tr></thead>
+        <tbody>
+          <tr><td>ราคาแม่แบบ</td><td><span class="pill h">HQ</span></td><td><div class="who"><span class="pill h">HQ เท่านั้น</span></div></td></tr>
+          <tr><td>แม่แบบ (รูป สเปก แบบ)</td><td><span class="pill h">HQ</span></td><td><div class="who"><span class="pill h">HQ</span><span class="pill d">ดีลเลอร์ทุกราย</span></div></td></tr>
+          <tr><td>Lead · ลูกค้า · นัดหมาย</td><td><span class="pill d">ดีลเลอร์</span></td><td><div class="who"><span class="pill d">ดีลเลอร์เจ้าของ</span><span class="pill h">HQ (อ่าน)</span></div></td></tr>
+          <tr><td>คำขอใบเสนอราคา</td><td><span class="pill d">ดีลเลอร์</span></td><td><div class="who"><span class="pill d">ดีลเลอร์เจ้าของ</span><span class="pill h">HQ</span></div></td></tr>
+          <tr><td>ใบ HQ (ต้นทุนดีลเลอร์)</td><td><span class="pill h">HQ</span></td><td><div class="who"><span class="pill h">HQ</span><span class="pill d">ดีลเลอร์ที่ได้รับใบ</span></div></td></tr>
+          <tr><td>% ที่ดีลเลอร์บวก</td><td><span class="pill d">ดีลเลอร์</span></td><td><div class="who"><span class="pill d">ดีลเลอร์เจ้าของ</span><span class="pill h">HQ (ดู margin)</span></div></td></tr>
+          <tr><td>ใบเสนอราคาลูกค้า</td><td><span class="pill d">ดีลเลอร์</span></td><td><div class="who"><span class="pill d">ดีลเลอร์เจ้าของ</span><span class="pill h">HQ (อ่าน)</span><span class="pill c">ลูกค้า (ราคาขายอย่างเดียว)</span></div></td></tr>
+          <tr><td>ผู้สนใจเป็นดีลเลอร์ · ใบค่าแฟรนไชส์</td><td><span class="pill h">HQ</span></td><td><div class="who"><span class="pill h">HQ เท่านั้น</span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6 กฎ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">กฎที่ระบบบังคับ</div>
+      <h2>ฐานข้อมูลปฏิเสธเอง ไม่พึ่งให้คนจำ</h2>
+    </div>
+    <div class="rules">
+      <div class="rule"><b>ไม่มี lead ซ้ำ</b><small>ชื่อ + เบอร์ (หลังปรับรูปแบบ) ซ้ำกับงานที่เปิดอยู่ → สร้างไม่ได้ ลูกค้าเดิมต้องสร้างผ่าน "สร้างดีลใหม่"</small></div>
+      <div class="rule"><b>หนึ่งจังหวัด หนึ่งดีลเลอร์</b><small>หน้างานต้องอยู่ในพื้นที่ตัวเอง จังหวัดที่ยังว่าง ใครยื่นก่อนได้งาน</small></div>
+      <div class="rule"><b>ใบลูกค้าตรงกับใบ HQ</b><small>รายการและจำนวนล็อก ราคา = ต้นทุน × (1 + %) และ % ต้องไม่ติดลบ</small></div>
+      <div class="rule"><b>อายุใบไม่เกินใบ HQ</b><small>ใบ HQ หมดอายุ ใบลูกค้าที่ผูกอยู่หมดตาม และกด won ไม่ได้</small></div>
+      <div class="rule"><b>ใบ HQ ที่ส่งแล้วแก้ไม่ได้</b><small>ต้องออกเวอร์ชันใหม่ ใบลูกค้าเดิมยังผูกกับเวอร์ชันที่ใช้</small></div>
+      <div class="rule"><b>ต้นทุนไม่หลุดถึงลูกค้า</b><small>ทั้งหน้าพิมพ์และไฟล์ export ไม่มีต้นทุนหรือ %</small></div>
+    </div>
+  </section>
+
+  <!-- 7 HQ overview -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">ช่วงที่ 3 · HQ</div>
+      <h2>สิ่งที่ HQ เห็นในภาพรวม</h2>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <h3>หาดีลเลอร์ใหม่</h3>
+        <ul>
+          <li>ผู้สนใจแต่ละขั้น</li>
+          <li>ใบค่าแฟรนไชส์ที่รอตอบ</li>
+          <li>จังหวัดที่มี lead แต่ยังไม่มีดีลเลอร์</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>คำขอใบเสนอราคา</h3>
+        <ul>
+          <li>คิวงานแยกตามผู้รับผิดชอบ</li>
+          <li>คำขอเกิน 14 วัน</li>
+          <li>เวลาตอบเฉลี่ย</li>
+          <li>ใบ HQ ที่ปิดการขายได้กี่ %</li>
+          <li>อัตรายกเลิกและเหตุผล</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>ยอดขายเครือข่าย</h3>
+        <ul>
+          <li>ยอดขาย HQ จากใบที่สั่งผลิต</li>
+          <li>ยอดขายดีลเลอร์ให้ลูกค้า</li>
+          <li>margin เฉลี่ยแต่ละดีลเลอร์</li>
+          <li>แจ้งเตือนเดิม (lead นิ่ง อัตราแพ้ ฯลฯ)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>ยังไม่อยู่ในรอบนี้: ระบบไฟล์ (แนบไฟล์กับคำขอ, PDF ใบ HQ, คลังกลาง) และ "ยืนยันสั่งผลิต" แบบเต็มที่ต้องแนบสัญญาหรือสลิปมัดจำ</footer>
+</div>
+
+</body></html>
