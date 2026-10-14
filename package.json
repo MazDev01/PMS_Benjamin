@@ -16,7 +16,7 @@
     "test:mobile": "playwright test -c playwright.mobile.config.ts",
     "test:unit": "vitest run",
     "audit:api": "node scripts/api-audit.mjs",
-    "audit:db": "node scripts/db-audit.mjs && node scripts/db-audit2.mjs && node scripts/db-audit3.mjs && node scripts/db-audit4.mjs && node scripts/db-audit-grants.mjs",
+    "audit:db": "node scripts/db-audit.mjs && node scripts/db-audit2.mjs && node scripts/db-audit3.mjs && node scripts/db-audit4.mjs && node scripts/db-audit5.mjs && node scripts/db-audit-grants.mjs",
     "audit:race": "node scripts/race-audit.mjs",
     "audit:storage": "node scripts/storage-audit.mjs",
     "audit:admin": "node scripts/admin-audit.mjs",
