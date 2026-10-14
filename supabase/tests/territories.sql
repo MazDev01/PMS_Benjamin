@@ -131,6 +131,30 @@ begin
   update dealer_territories set dealer_code = 'RYG' where province = 'ชลบุรี';
   get diagnostics n = row_count;
   perform flowtest.ok(n = 0, 'ดีลเลอร์แก้พื้นที่เองไม่ได้');
+  -- ══ ญ. จังหวัดของลูกค้าเป้าหมายต้องอยู่ในรายชื่อมาตรฐาน (กันเลี่ยงกฎพื้นที่ด้วยชื่อย่อ/สะกดผิด) ══
+  perform flowtest.must_fail('select flowtest.new_lead(''RYG'', ''#TT-10'', ''บจ. ชื่อย่อจังหวัด'', ''081-100-0010'', ''กรุงเทพฯ'')',
+    'lead_province_invalid', 'สร้างลูกค้าเป้าหมายจังหวัด "กรุงเทพฯ" (ไม่ตรงรายชื่อมาตรฐาน) → ถูกปฏิเสธ');
+  perform flowtest.must_fail('update leads set province = ''ระยองง'' where dealer_code = ''RYG'' and id = ''#TT-9''',
+    'lead_province_invalid', 'แก้จังหวัดเป็นชื่อที่สะกดผิด → ถูกปฏิเสธ');
+  perform flowtest.as_root();
+  perform flowtest.must_fail('insert into leads (id, dealer_code, num_id, name, company, phone, province) values (''#TT-11'', ''RYG'', 980999998, ''x'', ''x'', ''081'', ''กรุงเทพฯ'')',
+    'lead_province_invalid', 'ฝั่งเซิร์ฟเวอร์ (นำเข้า) ก็ใส่จังหวัดนอกรายชื่อไม่ได้');
+end $$;
+
+do $$
+declare c record;
+begin
+  select * into c from flowtest.t_ctx;
+  -- ข้อมูลเดิมที่จังหวัดไม่ตรงรายชื่อ (มีอยู่ก่อนกฎ) แก้ช่องอื่นได้ตามปกติ — ไม่บล็อกจนกว่าจะแก้จังหวัด
+  alter table leads disable trigger user;
+  insert into leads (id, dealer_code, num_id, name, company, phone, province, status)
+  values ('#TT-12', 'RYG', 980999997, 'เดิม', 'บจ. รายเดิมจังหวัดชื่อย่อ', '081-100-0012', 'กรุงเทพฯ', 'WAITING');
+  alter table leads enable trigger user;
+  perform flowtest.as_dealer('RYG', c.ryg_uid);
+  update leads set note = 'แก้โน้ตรายเดิม' where dealer_code = 'RYG' and id = '#TT-12';
+  perform flowtest.ok(found, 'รายเดิมที่จังหวัดไม่ตรงรายชื่อ (มีก่อนกฎ) แก้ช่องอื่นได้ตามปกติ');
+  update leads set province = 'ระยอง' where dealer_code = 'RYG' and id = '#TT-12';
+  perform flowtest.ok(found, 'แก้จังหวัดของรายเดิมให้ถูกรายชื่อ → ได้');
   perform flowtest.as_root();
   raise notice 'ALL PASS';
 end $$;
