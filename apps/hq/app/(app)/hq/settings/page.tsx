@@ -68,6 +68,7 @@ import {
   Save, RotateCcw, Plus, Trash2, Check, X,
   Download, Upload, RefreshCw, AlertCircle,
   ShieldCheck,
+  Mail,
 } from "lucide-react";
 
 // ── tokens (Benjamin CI) ────────────────────────────────────────────────────
@@ -714,6 +715,43 @@ const CHANNELS: { k: keyof HQNotifChannels; label: string }[] = [
 ];
 // เกณฑ์ (จำนวนวัน) ของแต่ละกฎอยู่ใน HQ_ALERT_META[].เกณฑ์ · ค่าที่ตั้งเก็บใน alerts[เรื่อง].days
 
+// ── อีเมลผู้รับแจ้งเตือนของสำนักงานใหญ่ (ด่าน 1 · ใบ 0193) ─────────────────────────────────────
+// ผู้รับของอีเมล "คำขอใบเสนอราคาใหม่ · เกิน 14 วัน · ดีลเลอร์ยกเลิก · ขอแก้ราคา" — ทุกฉบับส่งถึงทุกคนในรายชื่อ
+// พิมพ์ทีละบรรทัด (หรือคั่นด้วยจุลภาค) · บรรทัดที่ไม่ใช่อีเมลไม่ถูกนำไปบันทึก และบอกชัดว่าบรรทัดไหนผิด
+const รูปแบบอีเมล = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+function EmailRecipientsCard({ value, onChange }: { value: string[]; onChange: (list: string[]) => void }) {
+  const [text, setText] = useState(value.join("\n"));
+  const [ผิด, setผิด] = useState<string[]>([]);
+  // ค่าจากฐานมาถึงทีหลัง (โหลดเสร็จ) หรือถูกล้างด้วยปุ่มยกเลิก → ตามค่านั้น เว้นแต่ผู้ใช้กำลังพิมพ์ค่าที่ยังผิดอยู่
+  const ค่าปัจจุบัน = value.join("\n");
+  useEffect(() => { if (!ผิด.length) setText(ค่าปัจจุบัน); }, [ค่าปัจจุบัน]); // eslint-disable-line react-hooks/exhaustive-deps
+  const เปลี่ยน = (s: string) => {
+    setText(s);
+    const บรรทัด = s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+    const ไม่ผ่าน = บรรทัด.filter(x => !รูปแบบอีเมล.test(x));
+    setผิด(ไม่ผ่าน);
+    if (!ไม่ผ่าน.length) onChange([...new Set(บรรทัด.map(x => x.toLowerCase()))]);
+  };
+  return (
+    <SectionCard icon={<Mail size={19} />} title="อีเมลผู้รับแจ้งเตือน"
+      desc="อีเมลของคำขอใบเสนอราคาใหม่ · คำขอเกิน 14 วัน · ดีลเลอร์ยกเลิกคำขอ · ดีลเลอร์ขอแก้ราคา ส่งถึงทุกคนในรายชื่อนี้ · บรรทัดละหนึ่งอีเมล">
+      <textarea aria-label="อีเมลผู้รับแจ้งเตือน" value={text} onChange={e => เปลี่ยน(e.target.value)} rows={4}
+        placeholder={"เช่น\nsales@benjaminpebsteel.com"}
+        style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${ผิด.length ? "#fca5a5" : "var(--border,#e5e7eb)"}`, borderRadius: 10, padding: "10px 12px", fontSize: "0.84rem", fontFamily: "inherit", resize: "vertical" }} />
+      {ผิด.length > 0 && (
+        <div role="alert" style={{ marginTop: 6, fontSize: "0.74rem", color: "#b91c1c" }}>
+          ไม่ใช่รูปแบบอีเมล: {ผิด.join(", ")} — แก้ให้ถูกก่อน ค่าที่ผิดจะไม่ถูกบันทึก
+        </div>
+      )}
+      {!ผิด.length && value.length === 0 && (
+        <div style={{ marginTop: 6, fontSize: "0.74rem", color: "#b45309" }}>
+          ยังไม่มีผู้รับ — คำขอใหม่และคำขอเกิน 14 วันจะไม่มีอีเมลถึงใครเลย
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 function NotificationsTab() {
   // ช่องทางแจ้งเตือน (อีเมล/ในระบบ) เก็บรวมกับ hq_notif_rules ใน DB แล้ว
   // เดิมอยู่ใน localStorage คีย์ hq_notifications_v2 → ผู้ดูแลคนหนึ่งตั้งไว้ อีกคนไม่เห็น
@@ -740,6 +778,7 @@ function NotificationsTab() {
 
   return (
     <>
+      <EmailRecipientsCard value={rules.draft.emailRecipients ?? []} onChange={list => rules.set(p => ({ ...p, emailRecipients: list }))} />
       <SectionCard icon={<Bell size={19} />} title="การแจ้งเตือนของสำนักงานใหญ่"
         desc="งานของสำนักงานใหญ่เอง — ลูกค้าเป้าหมาย (HQ) · ใบค่าแฟรนไชส์ · แม่แบบ คำนวณจากข้อมูลจริง แล้วขึ้นที่กระดิ่ง">
         {/* สวิตช์เดียว "เปิด" (บอสสั่ง 3 ก.ย. 69) — เดิมมีช่อง "ในระบบ" แยกไว้เลือกช่องทาง

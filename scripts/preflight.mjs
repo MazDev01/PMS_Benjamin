@@ -13,6 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { ตรวจสวิตช์ซ่อนราคา } from "./lib/priceSwitchCheck.mjs";
+import { ตรวจค่าSMTP, ตรวจผู้รับของHQ } from "./lib/emailReadinessCheck.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
 
 const results = [];
@@ -202,6 +203,16 @@ for (const [fn, args] of [["is_account_active", {}], ["next_entity_id", { p_deal
   }
   const r = ตรวจสวิตช์ซ่อนราคา({ switchOn, sentHqQuotes });
   add(r.ok, "สวิตช์ซ่อนราคาแม่แบบ", r.detail);
+}
+
+// ── อีเมลแจ้งเตือน (ด่าน 1 · ใบ 0193): ตั้ง SMTP แล้ว และ HQ มีผู้รับอย่างน้อย 1 ราย ──
+//   ไม่พร้อม = คำขอใหม่ / เกิน 14 วัน / ยกเลิก / ขอแก้ราคา ค้างในกล่องขาออกเงียบ ๆ
+{
+  const s = ตรวจค่าSMTP(hq);
+  add(s.ok, "ตัวส่งอีเมล (SMTP)", s.detail);
+  const rec = await svc.from("hq_notif_rules").select("email_recipients").eq("id", 1).maybeSingle();
+  const r = ตรวจผู้รับของHQ({ recipients: rec.error ? null : (rec.data?.email_recipients ?? []) });
+  add(r.ok, "ผู้รับแจ้งเตือนของ HQ", r.detail);
 }
 
 report();

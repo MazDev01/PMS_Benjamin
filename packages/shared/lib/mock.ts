@@ -265,6 +265,9 @@ export type HQNotifRules = {
   // ช่องทางแจ้งเตือนของแต่ละเรื่อง (อีเมล/ในระบบ) — ย้ายจาก localStorage คีย์ hq_notifications_v2
   // เดิมผู้ดูแลคนหนึ่งตั้งไว้ อีกคนไม่เห็น และล้างเบราว์เซอร์แล้วกลับไปค่าเริ่มต้น
   channels?: Record<string, HQNotifChannels>;
+  // ผู้รับอีเมลแจ้งเตือนของสำนักงานใหญ่ (คำขอใหม่ · เกิน 14 วัน · ยกเลิก · ขอแก้ราคา) — ใบ 0193 · ตั้งที่ ตั้งค่า › การแจ้งเตือน
+  //   ฐานข้อมูลตรวจรูปแบบ ตัดซ้ำ และทำเป็นตัวเล็กให้เอง · ไม่ใช้อีเมลรายคน (ข้อตัดสิน 14 ต.ค. 69)
+  emailRecipients?: string[];
 };
 export const HQ_NOTIF_RULES_KEY = "hq_notif_rules_v2";
 const alertPref = (on: boolean, email: boolean): HQAlertPref => ({ on, email, inapp: true });

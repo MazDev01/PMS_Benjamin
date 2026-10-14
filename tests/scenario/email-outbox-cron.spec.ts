@@ -1,0 +1,82 @@
+import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { CNX, skipReason, SUPABASE_URL } from "./supabaseEnv";
+import { SERVICE_ROLE_READY } from "./adminEnv";
+import { db, HQ_ORIGIN } from "./funcHelpers";
+import { adminClient } from "./testDealers";
+
+// ── คำขอเกิน 14 วัน → อีเมลจริงหนึ่งฉบับ (เงื่อนไขปิดด่าน 1 · FLOW.html ตารางสถานะแถว "ครบ 14 วันยังไม่ส่งใบ") ──────
+//
+// เส้นทางจริงทั้งเส้น: คำขอเลยกำหนด → งานตั้งเวลา /api/cron/send-email → ตรวจคำขอเกินกำหนด → วางจดหมายในกล่องขาออก
+//   → ส่งทาง SMTP → ถึงกล่องจดหมายทดสอบของฐานในเครื่อง (Mailpit) · ไม่ใช่แค่แจ้งในระบบ
+test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
+test.describe.configure({ mode: "serial" });
+
+function ค่าในไฟล์(key: string): string {
+  if (process.env[key]) return process.env[key]!;
+  try {
+    const m = readFileSync(path.join(__dirname, "../../apps/hq/.env.local"), "utf8").match(new RegExp(`^${key}=(.*)$`, "m"));
+    return (m?.[1] ?? "").trim();
+  } catch { return ""; }
+}
+const CRON_SECRET = ค่าในไฟล์("CRON_SECRET");
+const MAIL = process.env.PMS_MAIL_URL ?? SUPABASE_URL.replace(/:(\d+)\/?$/, (_m, p) => `:${Number(p) + 3}`);
+const ผู้รับ = "zztest-hq-overdue@example.test";
+const admin = adminClient();
+let เดิม: string[] = [];
+let คำขอ = 0;
+
+test.beforeAll(async () => {
+  const { data } = await admin.from("hq_notif_rules").select("email_recipients").eq("id", 1).single();
+  เดิม = (data?.email_recipients as string[]) ?? [];
+});
+test.afterAll(async () => {
+  await admin.from("hq_notif_rules").update({ email_recipients: เดิม }).eq("id", 1);
+  if (คำขอ) {
+    await admin.from("email_outbox").delete().eq("ref_table", "quote_requests").eq("ref_id", String(คำขอ));
+    await admin.from("quote_requests").delete().eq("id", คำขอ);
+  }
+});
+
+test("[email] งานตั้งเวลาต้องมีกุญแจ — คนนอกสั่งให้ระบบส่งอีเมลไม่ได้", async ({ request }) => {
+  expect((await request.get(`${HQ_ORIGIN}/api/cron/send-email`)).status()).toBe(401);
+  expect((await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: "Bearer wrong-secret" } })).status()).toBe(401);
+});
+
+test("[email] คำขอเกิน 14 วัน → อีเมลถึงผู้รับของ HQ หนึ่งฉบับจริง และไม่ส่งซ้ำ", async ({ request }) => {
+  test.skip(!CRON_SECRET, "ยังไม่ได้ตั้ง CRON_SECRET ใน apps/hq/.env.local");
+  test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);
+  expect((await admin.from("hq_notif_rules").update({ email_recipients: [ผู้รับ] }).eq("id", 1)).error).toBeNull();
+
+  // ดีลเลอร์ส่งคำขอจริง (ผ่านคำสั่งของระบบ ด้วยใบผ่านของดีลเลอร์)
+  const cnx = await db(CNX);
+  const { data: lead } = await cnx.from("leads").select("num_id").eq("dealer_code", "CNX").in("status", ["WAITING", "BULLET"]).order("num_id").limit(1).single();
+  const ส่ง = await cnx.rpc("quote_request_submit", { p_lead_num_id: lead!.num_id, p_product: "โกดังและคลังสินค้า" });
+  expect(ส่ง.error, `ดีลเลอร์ส่งคำขอต้องผ่าน (${ส่ง.error?.message})`).toBeNull();
+  const r = ส่ง.data as { id: number; request_no: string };
+  คำขอ = r.id;
+
+  // เลื่อนกำหนดส่งให้เลยมาแล้ว (จำลองเวลาผ่านไป 14 วัน)
+  await admin.from("quote_requests").update({ due_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", r.id);
+  await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
+
+  const รอบ1 = await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: `Bearer ${CRON_SECRET}` }, timeout: 60_000 });
+  expect(รอบ1.status(), await รอบ1.text()).toBe(200);
+  expect((await รอบ1.json()).ข้าม, "ต้องตั้งค่า SMTP ในเครื่องแล้ว").toBe("");
+
+  const ในกล่อง = async () => {
+    const j = await (await fetch(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:${ผู้รับ}`)}`)).json() as { messages?: { Subject: string }[] };
+    return (j.messages ?? []).map(m => m.Subject);
+  };
+  await expect.poll(ในกล่อง, { timeout: 20_000, message: "อีเมลเกินกำหนดต้องถึงกล่องจดหมาย" }).toContain(`คำขอเกินกำหนด 14 วัน ${r.request_no}`);
+
+  const { data: แถว } = await admin.from("email_outbox").select("kind, status").eq("ref_id", String(r.id)).eq("to_email", ผู้รับ);
+  expect(แถว?.filter(x => x.kind === "quote_request_overdue").map(x => x.status), "กล่องขาออกบันทึกว่าส่งแล้ว").toEqual(["sent"]);
+
+  // รอบถัดไป: ไม่มีฉบับเกินกำหนดซ้ำ
+  await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: `Bearer ${CRON_SECRET}` } });
+  const หัวเรื่อง = await ในกล่อง();
+  expect(หัวเรื่อง.filter(s => s.startsWith("คำขอเกินกำหนด")).length, "เกินกำหนดแจ้งครั้งเดียวต่อคำขอ").toBe(1);
+  expect(หัวเรื่อง, "คำขอใหม่ก็ถูกส่งถึง HQ ด้วย (แถว 1)").toContain(`คำขอใบเสนอราคาใหม่ ${r.request_no}`);
+});
