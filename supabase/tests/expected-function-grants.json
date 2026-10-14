@@ -1,8 +1,15 @@
 {
- "migration": "0199",
+ "migration": "0200",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_email_enqueue_dealer(p_dealer text, p_kind text, p_subject text, p_body text, p_ref_table text, p_ref_id text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
