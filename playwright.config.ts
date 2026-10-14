@@ -73,11 +73,22 @@ export default defineConfig({
   // แยกเป็นคนละ project + ให้ขึ้นกับ project หลัก = Playwright รันชุดหลักให้จบก่อนแล้วค่อยรันชุดนี้
   //   ชุดโหลดหนักจึงได้เครื่องทั้งเครื่อง และชุดอื่นไม่ต้องแย่งทรัพยากรกับมัน
   //   (ไม่ได้ลดความเข้มของการทดสอบเลย — ยังรัน 10 ตัวแทนพร้อมกันเหมือนเดิมทุกประการ)
+  // ── ทุกโปรเจกต์พึ่งแค่ "setup" (บอสสั่ง 14 ต.ค. 69 · ปิดด่าน 3) ─────────────────────────────────────────────
+  //   เดิม safari/stress/price-switch พึ่งผลของ chromium → chromium ตกข้อเดียว 18 ข้อไม่ได้รันเลยโดยไม่มีใครเห็น
+  //   ลำดับที่ต้องการ (price-switch เดี่ยวหลังสุด · stress ไม่แย่งเครื่อง) คุมที่ตัวรันเป็นช่วง scripts/test-prodbuild.mjs
+  //   ⚠️ สั่ง `npx playwright test` ทุกโปรเจกต์พร้อมกันเอง = price-switch คาบเกี่ยวกับชุดอื่น → ใช้ตัวรันเป็นช่วงเสมอตอนปิดด่าน
+  //   ตัวตรวจ scripts/check-e2e-ran.mjs ตกถ้ามีข้อที่ไม่ได้รัน/ถูกข้ามโดยไม่มีเหตุผลเขียนไว้ในโค้ด
   projects: [
+    {
+      name: "setup",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /setup-ready\.spec\.ts/,
+    },
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(multi-dealer-stress|catalog-price-switch)\.spec\.ts/,
+      testIgnore: /(multi-dealer-stress|catalog-price-switch|setup-ready)\.spec\.ts/,
+      dependencies: ["setup"],
     },
     {
       // ── Safari (WebKit) — สำหรับผู้ใช้ iPhone / iPad / Mac ──────────────────────
@@ -90,23 +101,23 @@ export default defineConfig({
       // กันชั่วคราว ("Request rate limit reached") แล้วขึ้นแดงทั้งที่ระบบไม่ได้พัง (เจอจริง 25 ส.ค. 69)
       // อยากรันครบบน Safari ให้สั่งเองตอนต้องการ: npx playwright test --project=safari tests/scenario/ui.spec.ts
       testMatch: /mobile-viewport\.spec\.ts/,
-      dependencies: ["chromium"],
+      dependencies: ["setup"],
     },
     {
       // ── สวิตช์ซ่อนราคาแม่แบบ — ต้องรัน "เดี่ยว หลังทุกชุดจบ" ─────────────────────────────
       // ชุดนี้เปิดสวิตช์ hq_policy.hide_catalog_price ซึ่งเป็นค่ากลางทั้งระบบ
       // เปิดระหว่างที่ชุดอื่นรันอยู่ = ดีลเลอร์ในชุดนั้นอ่านราคาแม่แบบไม่ได้ ข้อทดสอบออกใบเสนอราคาตกหมด
-      // จึงขึ้นกับทุกโปรเจกต์ที่เหลือ (Playwright รันชุดที่ถูกพึ่งให้จบก่อน) และไฟล์เดียวรันทีละข้อ
+      // จึงต้องรันเป็นช่วงสุดท้ายแบบเดี่ยว (ตัวรันเป็นช่วงคุมให้) และไฟล์เดียวรันทีละข้อ
       name: "price-switch",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /catalog-price-switch\.spec\.ts/,
-      dependencies: ["chromium", "safari", "stress"],
+      dependencies: ["setup"],
     },
     {
       name: "stress",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /multi-dealer-stress\.spec\.ts/,
-      dependencies: ["chromium"],
+      dependencies: ["setup"],
     },
   ],
   webServer: {

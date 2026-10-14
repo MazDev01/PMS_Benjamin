@@ -49,6 +49,34 @@ for (const a of แอป) {
 }
 console.log("▶ เซิร์ฟเวอร์พร้อม เริ่มรันชุดทดสอบบนโค้ดแบบที่ขึ้นเว็บจริง");
 
-const t = spawn("npx", ["playwright", "test", "-c", "playwright.prodbuild.config.ts", ...process.argv.slice(2)],
-  { env, stdio: "inherit", shell: true });
-t.on("exit", code => { ปิดทั้งหมด(); process.exit(code ?? 1); });
+// ── รอบปิดด่าน (ไม่ระบุไฟล์/โปรเจกต์) = รันเป็นช่วงต่อกัน แล้วตัวตรวจ check-e2e-ran เป็นขั้นบังคับท้ายรอบ ──────────
+//   (บอสสั่ง 14 ต.ค. 69 · ปิดด่าน 3) เดิมสั่ง playwright ครั้งเดียวทุกโปรเจกต์ — safari/stress/price-switch พึ่งผลของ chromium
+//   chromium ตกข้อเดียว 18 ข้อไม่ได้รันเลย ตอนนี้ทุกโปรเจกต์พึ่งแค่ setup และทุกช่วงรันเสมอไม่ว่าช่วงก่อนจะตก
+//   ลำดับ: chromium → safari → stress (ไม่แย่งเครื่อง) → price-switch (เปิดสวิตช์ค่ากลาง ต้องเดี่ยวหลังสุด)
+//   ระบุไฟล์/ตัวเลือกเอง (เช่น เจาะไฟล์เดียว) = รันครั้งเดียวแบบเดิม ไม่มีตัวตรวจ
+const อาร์กิวเมนต์ = process.argv.slice(2);
+const รายงานหลัก = process.env.PLAYWRIGHT_JSON_OUTPUT_NAME ?? "test-results/gate-report.json";
+const เป็นรอบเต็ม = !อาร์กิวเมนต์.some(a => !a.startsWith("--reporter"));
+const รัน = (args, extraEnv = {}) => new Promise(resolve => {
+  const p = spawn("npx", ["playwright", "test", "-c", "playwright.prodbuild.config.ts", ...args], { env: { ...env, ...extraEnv }, stdio: "inherit", shell: true });
+  p.on("exit", code => resolve(code ?? 1));
+});
+if (!เป็นรอบเต็ม) {
+  const code = await รัน(อาร์กิวเมนต์);
+  ปิดทั้งหมด(); process.exit(code);
+}
+const ช่วง = ["chromium", "safari", "stress", "price-switch"];
+const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json";
+const รายงาน = [];
+let ตก = 0;
+for (const โปรเจกต์ of ช่วง) {
+  const ไฟล์รายงาน = รายงานหลัก.replace(/\.json$/, "") + `.${โปรเจกต์}.json`;
+  รายงาน.push(ไฟล์รายงาน);
+  console.log(`▶ ช่วง ${โปรเจกต์}`);
+  const code = await รัน([`--project=${โปรเจกต์}`, รีพอร์ตเตอร์], { PLAYWRIGHT_JSON_OUTPUT_NAME: ไฟล์รายงาน });
+  if (code !== 0) ตก = code;
+}
+ปิดทั้งหมด();
+console.log("▶ ตัวตรวจรอบปิดด่าน: ทุกข้อต้องได้รันจริง");
+const ตรวจ = spawnSync("node", ["scripts/check-e2e-ran.mjs", ...รายงาน], { stdio: "inherit", shell: true });
+process.exit(ตก || ตรวจ.status || 0);

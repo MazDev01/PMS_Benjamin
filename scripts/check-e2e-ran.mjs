@@ -1,0 +1,57 @@
+// ── ตัวตรวจรอบปิดด่าน: ทุกข้อทดสอบต้อง "ได้รันจริง" (บอสสั่ง 14 ต.ค. 69 · ปิดด่าน 3) ─────────────────────────────
+//
+// ทำไมต้องมี: รอบปิดด่าน 1–2 มี 18 ข้อ (safari / stress / price-switch) ไม่ได้รันเลย เพราะโปรเจกต์เหล่านั้นพึ่งผลของ
+//   chromium ซึ่งมีข้อตกทุกรอบ — รายงานนับรวมเป็น "ถูกข้าม" ไม่มีใครเห็นว่าไม่ได้ทดสอบ
+//   และข้อในไฟล์แบบต่อเนื่อง (serial) ที่อยู่หลังข้อที่ตก ก็ไม่ได้รันแบบเงียบ ๆ เหมือนกัน
+//
+// อ่านรายงาน JSON ของ Playwright (ไฟล์เดียวหรือหลายไฟล์ของตัวรันเป็นช่วง) แล้ว:
+//   - สรุป ผ่าน / ตก / ไม่นิ่ง / ถูกข้าม
+//   - ถูกข้าม "ตั้งใจ" = มี test.skip พร้อมเหตุผลเขียนไว้ในโค้ด (annotation type skip + description) → พิมพ์รายชื่อพร้อมเหตุผล
+//   - ถูกข้ามแบบอื่น / ไม่ได้รัน (ไม่มีผลการรัน หรือข้ามโดยไม่มีเหตุผล) → ตัวตรวจตก พร้อมรายชื่อ
+// ไม่ตัดสินเรื่องข้อที่ตก (ตัวรันตัดสินเอง) — ตัวนี้ตอบคำถามเดียว: "มีข้อไหนไม่ได้ทดสอบโดยไม่มีเหตุผลไหม"
+//
+// ใช้: node scripts/check-e2e-ran.mjs <report.json> [<report2.json> ...]
+import { readFileSync, existsSync } from "node:fs";
+
+const ไฟล์ = process.argv.slice(2);
+if (!ไฟล์.length) { console.error("ใช้: node scripts/check-e2e-ran.mjs <report.json> [...]"); process.exit(2); }
+
+const แถว = [];
+for (const f of ไฟล์) {
+  if (!existsSync(f)) { console.error(`❌ ไม่พบรายงาน ${f} — ช่วงนั้นไม่ได้รันเลย`); process.exit(1); }
+  const j = JSON.parse(readFileSync(f, "utf8"));
+  (function เดิน(s, file) {
+    for (const x of s.suites ?? []) เดิน(x, x.file ?? file);
+    for (const sp of s.specs ?? []) for (const t of sp.tests) แถว.push({ ไฟล์: sp.file ?? file, บรรทัด: sp.line, ชื่อ: sp.title, โปรเจกต์: t.projectName, t });
+  })(j);
+}
+
+const นับ = { ผ่าน: 0, ตก: 0, ไม่นิ่ง: 0, ถูกข้าม: 0 };
+const ตั้งใจ = [], ไม่ได้รัน = [];
+for (const r of แถว) {
+  const st = r.t.status;
+  if (st === "expected") นับ.ผ่าน++;
+  else if (st === "unexpected") นับ.ตก++;
+  else if (st === "flaky") นับ.ไม่นิ่ง++;
+  else {
+    นับ.ถูกข้าม++;
+    const เหตุผล = (r.t.annotations ?? []).find(a => a.type === "skip" && String(a.description ?? "").trim());
+    if (เหตุผล) ตั้งใจ.push({ ...r, เหตุผล: String(เหตุผล.description).trim() });
+    else ไม่ได้รัน.push(r);
+  }
+}
+
+console.log(`ผล: ผ่าน ${นับ.ผ่าน} · ตก ${นับ.ตก} · ไม่นิ่ง ${นับ.ไม่นิ่ง} · ถูกข้าม ${นับ.ถูกข้าม} (ตั้งใจ ${ตั้งใจ.length} · ไม่ได้รัน ${ไม่ได้รัน.length})`);
+if (ตั้งใจ.length) {
+  console.log("ถูกข้ามตามที่ตั้งใจ (มีเหตุผลในโค้ด):");
+  const กลุ่ม = new Map();
+  for (const r of ตั้งใจ) { const k = r.เหตุผล.slice(0, 90); กลุ่ม.set(k, [...(กลุ่ม.get(k) ?? []), `${r.ไฟล์}:${r.บรรทัด} [${r.โปรเจกต์}]`]); }
+  for (const [k, l] of กลุ่ม) console.log(`  • ${k}\n      ${l.join(" · ")}`);
+}
+if (ไม่ได้รัน.length) {
+  console.log("❌ ไม่ได้รัน / ถูกข้ามโดยไม่มีเหตุผล (มักเพราะข้อก่อนหน้าในไฟล์หรือโปรเจกต์ที่พึ่งตก):");
+  for (const r of ไม่ได้รัน) console.log(`  ✗ ${r.ไฟล์}:${r.บรรทัด} [${r.โปรเจกต์}] ${r.ชื่อ}`);
+  console.log("ตัวตรวจรอบปิดด่าน: ตก — ทุกข้อต้องได้รันจริง หรือข้ามพร้อมเหตุผลที่เขียนไว้ในโค้ด");
+  process.exit(1);
+}
+console.log("ตัวตรวจรอบปิดด่าน: ผ่าน — ทุกข้อได้รันจริง (หรือข้ามพร้อมเหตุผลในโค้ด)");

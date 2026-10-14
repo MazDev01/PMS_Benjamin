@@ -10,6 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { db, loginUI, HQ_ORIGIN, watchErrors, assertNoErrors } from "./funcHelpers";
+import { settle } from "./helpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.describe.configure({ mode: "serial" });
@@ -145,7 +146,7 @@ test("[ui·hq] หน้าดีลเลอร์: เลือกแพ็ก
     .toEqual({ package: "standard", region: "เหนือ", revenue_target: 3_000_000 });
 
   // ── ตั้งค่า › หาดีลเลอร์ › เป้าแยกภาค ──
-  await page.waitForLoadState("networkidle");
+  await settle(page);   // ไม่ใช้ networkidle — โหมด api เปิดสายอัปเดตสดค้างไว้ ไม่มีวัน "เงียบ" (ดู helpers.settle)
   await page.goto(`${HQ_ORIGIN}/hq/settings`);
   await page.locator(".tab-bar").getByRole("button", { name: "หาดีลเลอร์" }).click({ timeout: 25_000 });
   const ช่องเหนือ = page.locator("#rc-standard-target-เหนือ");
@@ -156,6 +157,6 @@ test("[ui·hq] หน้าดีลเลอร์: เลือกแพ็ก
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await expect.poll(async () => เป้าของ(STD), { timeout: 20_000, message: "กรอกเป้าภาคเหนือแล้ว ดีลเลอร์ภาคเหนือต้องเปลี่ยนตาม" })
     .toBe(1_800_000);
-  await page.waitForLoadState("networkidle");
+  await settle(page);   // ไม่ใช้ networkidle — โหมด api เปิดสายอัปเดตสดค้างไว้ ไม่มีวัน "เงียบ" (ดู helpers.settle)
   assertNoErrors(errs, "หน้าดีลเลอร์ + ตั้งค่า › หาดีลเลอร์ (เป้าตามแพ็กเกจ)");
 });
