@@ -12,7 +12,7 @@ import type { MockSession, UserRole } from "./mock";
 import { HQ_ROLES } from "./permissions";
 import { logRepoRead } from "./repoLog";
 import { DATA_SOURCE } from "./data/config";
-import { caAdoptTokens } from "./cookieAuth";
+import { caAdoptTokens, caSignOut } from "./cookieAuth";
 
 const isHQRole = (r: UserRole): boolean => HQ_ROLES.includes(r);
 
@@ -177,6 +177,10 @@ export async function sbSignOut(scope: "local" | "global" = "local"): Promise<vo
  *  สั่ง signOut ปกติจะได้ 403 แล้ว "ไม่ได้ล้างของในเครื่อง" → เดินกลับเข้าหน้าเดิมได้ทั้งที่ใบผ่านตายแล้ว */
 export async function sbSignOutLocal(): Promise<void> {
   try { await getSupabase().auth.signOut({ scope: "local" }); } catch { /* ล้างไม่ได้ก็ยังต้องเด้งออก */ }
+  // ⚠️ โหมด api (เว็บจริง) ใบผ่านอยู่ในคุกกี้ httpOnly ที่หน้าเว็บลบเองไม่ได้ (พบ 14 ต.ค. 69 ตอนปิดด่าน 1):
+  //    เดิมล้างแค่ในเครื่อง → ตั้งรหัสครั้งแรก/เปลี่ยนรหัสแล้วถูกพาไปหน้าเข้าสู่ระบบ แต่คุกกี้เดิมยังอยู่
+  //    เปิดหน้าอื่นต่อได้ทั้งที่ควรต้องเข้าใหม่ = ล็อกอินผี — ต้องให้เซิร์ฟเวอร์ลบคุกกี้ให้ด้วย
+  if (DATA_SOURCE === "api") await caSignOut();
 }
 
 /** ผลของการฟื้น session

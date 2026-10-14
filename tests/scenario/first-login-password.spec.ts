@@ -10,6 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
+import { เข้าระบบผ่านหน้าจอ, มีกล่องจดหมายทดสอบ, โค้ดยืนยันในกล่อง } from "./helpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -18,6 +19,7 @@ const CODE = "ZTK";
 const EMAIL = "zztest-first-login@example.co.th";
 const PASSWORD = "ZZtest-First-2569";
 const รหัสของดีลเลอร์ = "ZZtest-Own-2569";
+const อีเมลติดต่อ = "zztest-ztk-contact@example.test";
 const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 async function purge() {
@@ -30,6 +32,7 @@ async function purge() {
   const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   for (const u of users?.users ?? []) if (u.email === EMAIL) await admin.auth.admin.deleteUser(u.id).catch(() => {});
   await admin.from("dealer_prospects").delete().like("name", `%ผู้สนใจ-${CODE}`);
+  await admin.from("email_outbox").delete().eq("to_email", อีเมลติดต่อ);
 }
 test.beforeAll(purge);
 test.afterAll(purge);
@@ -53,9 +56,8 @@ test("[auth·dealer] เข้าระบบครั้งแรกต้อ�
   expect((await สถานะ(token)).mustChangePassword, "บัญชีใหม่ต้องถูกทำเครื่องหมายให้ตั้งรหัสครั้งแรก").toBe(true);
 
   // ── 1) เข้าหน้าใดก็ตามต้องเจอหน้าตั้งรหัส ไม่เห็นเมนูระบบ ──
-  const คีย์ = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
-  await page.goto(`${DEALER_ORIGIN}/login`, { waitUntil: "domcontentloaded" });
-  await page.evaluate(([k, v]) => localStorage.setItem(k, v), [คีย์, JSON.stringify(signed.session)] as const);
+  //    เข้าผ่านหน้าเข้าสู่ระบบจริง (ตัวช่วยกลาง) — โหมด api ใบผ่านอยู่ในคุกกี้ ยัดลงเครื่องเองไม่มีผล (14 ต.ค. 69)
+  await เข้าระบบผ่านหน้าจอ(page, DEALER_ORIGIN, EMAIL, PASSWORD);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }), "ยังไม่ตั้งรหัส ต้องใช้หน้าระบบไม่ได้").toHaveCount(0);
@@ -77,6 +79,8 @@ test("[auth·dealer] เข้าระบบครั้งแรกต้อ�
   await page.locator("#fp-confirm").fill(รหัสของดีลเลอร์);
   await page.getByRole("button", { name: "ตั้งรหัสผ่านใหม่", exact: true }).click();
   await page.waitForURL(/\/login/, { timeout: 30_000 });
+  const คุกกี้ค้าง = (await page.context().cookies()).filter(c => /^pms_(at|rt)/.test(c.name) && c.value).map(c => c.name);
+  expect(คุกกี้ค้าง, "ตั้งรหัสแล้วคุกกี้ใบผ่านของรหัสชั่วคราวต้องถูกลบ (โหมด api)").toEqual([]);
 
   const ใหม่ = await sb.auth.signInWithPassword({ email: EMAIL, password: รหัสของดีลเลอร์ });
   expect(ใหม่.error, "รหัสที่ดีลเลอร์ตั้งเองต้องใช้เข้าระบบได้").toBeNull();
@@ -102,6 +106,22 @@ test("[auth·dealer] เข้าระบบครั้งแรกต้อ�
     data: { op: "first-password", password: "ZZtest-Again-2569" },
   });
   expect(ซ้ำ.status(), "ตั้งรหัสครั้งแรกซ้ำไม่ได้ (ต้องไปใช้หน้าบัญชีแทน)").toBe(409);
+
+  // ── 4) เข้าใหม่ด้วยรหัสของตัวเอง → ขั้นยืนยันอีเมลติดต่อ (ด่าน 1) → ยืนยันแล้วจึงใช้งานได้ ──
+  if (!(await มีกล่องจดหมายทดสอบ())) return;   // เครื่องที่ไม่มีกล่องจดหมายทดสอบ: ข้อ 1–3 ยังวัดครบ
+  await เข้าระบบผ่านหน้าจอ(page, DEALER_ORIGIN, EMAIL, รหัสของดีลเลอร์);
+  const ด่านอีเมล = page.getByRole("heading", { name: "ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน" });
+  await expect(ด่านอีเมล, "ตั้งรหัสแล้ว ต้องเจอขั้นยืนยันอีเมลติดต่อต่อ").toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }), "ยังไม่ยืนยันอีเมล ต้องใช้หน้าระบบไม่ได้").toHaveCount(0);
+  await page.locator("#ce-email").fill(อีเมลติดต่อ);
+  const กดส่งเมื่อ = Date.now();
+  await page.getByRole("button", { name: /^ส่งโค้ด/ }).click();
+  await expect(page.getByText(`ส่งโค้ด 6 หลักไปที่ ${อีเมลติดต่อ} แล้ว`)).toBeVisible({ timeout: 30_000 });
+  await page.locator("#ce-code").fill(await โค้ดยืนยันในกล่อง(อีเมลติดต่อ, กดส่งเมื่อ));
+  await page.getByRole("button", { name: "ยืนยันอีเมล" }).click();
+  await expect(ด่านอีเมล, "ยืนยันแล้วต้องผ่านด่าน").toHaveCount(0, { timeout: 30_000 });
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first(), "ผ่านทั้งสองขั้นแล้วต้องใช้หน้าระบบได้").toBeVisible({ timeout: 30_000 });
 });
 
 test("[auth·dealer] ดีลเลอร์เดิมที่ยังไม่เคยเข้าระบบ: HQ ตั้งรหัสให้ครั้งแรก → ต้องตั้งรหัสใหม่ · เคยเข้าแล้วไม่บังคับซ้ำ", async ({ request }) => {

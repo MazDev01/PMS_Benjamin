@@ -6,7 +6,7 @@ import { ADMIN, SUPABASE_URL, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
 import { adminClient, ลบสาขาทดสอบตรง } from "./testDealers";
-import { settle } from "./helpers";
+import { เข้าระบบผ่านหน้าจอ, MAIL_URL as MAIL, โค้ดยืนยันในกล่อง } from "./helpers";
 
 // ── อีเมลติดต่อของดีลเลอร์: ยืนยันด้วยโค้ดตอนเข้าครั้งแรก · แถบเตือน · HQ ยืนยันแทน (ด่าน 1 · ใบ 0194) ─────────────
 //
@@ -19,7 +19,6 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(240_000);
 
 const admin = adminClient();
-const MAIL = process.env.PMS_MAIL_URL ?? SUPABASE_URL.replace(/:(\d+)\/?$/, (_m, p) => `:${Number(p) + 3}`);
 const ค่าในไฟล์ = (key: string) => {
   try { return (readFileSync(path.join(__dirname, "../../apps/hq/.env.local"), "utf8").match(new RegExp(`^${key}=(.*)$`, "m"))?.[1] ?? "").trim(); }
   catch { return ""; }
@@ -46,21 +45,8 @@ async function สร้างสาขา(request: import("@playwright/test").A
   });
   expect(r.status(), await r.text()).toBe(200);
 }
-/** เข้าระบบผ่านหน้าจอจริงทุกครั้ง — ไม่ใช้ loginUI เพราะตัวนั้นจำใบผ่านต่อบัญชีไว้ (ใบผ่านของรหัสชั่วคราวใช้ไม่ได้แล้วหลังตั้งรหัสใหม่)
- *  และฝังสคริปต์วางใบผ่านไว้กับหน้า ซึ่งจะทับการเข้าระบบครั้งที่สองของบัญชีเดียวกัน */
-async function เข้าระบบ(page: Page, email: string, password: string) {
-  await page.goto(`${DEALER_ORIGIN}/login`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  const ช่องอีเมล = page.getByLabel(/อีเมล/i).first(), ช่องรหัส = page.getByLabel(/รหัสผ่าน/i).first();
-  // หน้าเข้าสู่ระบบเพิ่งโหลด อาจล้างช่องทิ้งตอนพร้อมใช้งาน — กรอกซ้ำจนค่าอยู่นิ่ง (วิธีเดียวกับ loginUI)
-  for (let i = 0; i < 6; i++) {
-    await ช่องอีเมล.fill(email); await ช่องรหัส.fill(password);
-    await page.waitForTimeout(300);
-    if (await ช่องอีเมล.inputValue() === email && await ช่องรหัส.inputValue() === password) break;
-  }
-  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
-  await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 30_000 });
-}
+// เข้าระบบผ่านหน้าจอจริงทุกครั้ง (ตัวช่วยกลาง · ไม่จำใบผ่าน เพราะรหัสเปลี่ยนระหว่างข้อทดสอบ)
+const เข้าระบบ = (page: Page, email: string, password: string) => เข้าระบบผ่านหน้าจอ(page, DEALER_ORIGIN, email, password);
 /** เข้าครั้งแรกด้วยรหัสจาก HQ → ตั้งรหัสของตัวเอง → เข้าใหม่ด้วยรหัสใหม่ */
 async function ตั้งรหัสครั้งแรกแล้วเข้าใหม่(page: Page, d: typeof A) {
   await เข้าระบบ(page, d.email, d.pw);
@@ -76,15 +62,7 @@ const สถานะในฐาน = async (code: string) => {
   const { data: u } = await admin.auth.admin.getUserById(String(data!.id));
   return { email: String(data!.contact_email), verified: !!data!.contact_email_verified_at, mustVerify: u?.user?.app_metadata?.must_verify_email === true };
 };
-async function โค้ดในกล่อง(ถึง: string): Promise<string> {
-  let โค้ด = "";
-  await expect.poll(async () => {
-    const j = await (await fetch(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:${ถึง}`)}`)).json() as { messages?: { Subject: string }[] };
-    โค้ด = (j.messages ?? []).map(m => /(\d{6})\s*$/.exec(m.Subject)?.[1] ?? "").find(Boolean) ?? "";
-    return โค้ด;
-  }, { timeout: 20_000, message: `ต้องมีอีเมลโค้ดยืนยันถึง ${ถึง}` }).not.toBe("");
-  return โค้ด;
-}
+const โค้ดในกล่อง = โค้ดยืนยันในกล่อง;
 
 test("[email·dealer] เข้าครั้งแรก: ตั้งรหัสแล้วต้องยืนยันอีเมลติดต่อก่อนใช้งาน · ยังไม่ยืนยัน = ยังผ่านด่านไม่ได้", async ({ page, request }) => {
   test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);

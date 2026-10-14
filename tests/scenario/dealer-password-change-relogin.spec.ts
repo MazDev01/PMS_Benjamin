@@ -7,11 +7,14 @@
 //
 // ⚠️ ห้ามยัดใบผ่านด้วย addInitScript — มันรันใหม่ทุกครั้งที่เปลี่ยนหน้า จะยัดใบผ่านกลับเข้าไปเอง
 //    หลังระบบล้างทิ้ง แล้วเทสต์จะบอกว่า "ยังค้างอยู่" ทั้งที่ระบบทำถูกแล้ว
+// ⚠️ และห้ามวางใบผ่านลงเครื่องเองด้วย (14 ต.ค. 69): โหมด api ใบผ่านอยู่ในคุกกี้ httpOnly — ข้อนี้เคยไม่ได้วัดบนเส้นทางเว็บจริงเลย
+//    เข้าผ่านหน้าเข้าสู่ระบบจริงด้วยตัวช่วยกลาง เข้าระบบผ่านหน้าจอ แทน
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
+import { เข้าระบบผ่านหน้าจอ } from "./helpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -47,13 +50,8 @@ test("[auth·dealer] เปลี่ยนรหัสผ่านตัวเ�
   // เทสต์นี้ทดสอบการเปลี่ยนรหัสที่หน้าบัญชี ไม่ใช่หน้าตั้งรหัสครั้งแรก (มีเทสต์แยก) — ปลดไว้ก่อน
   await (await import("./firstLogin")).ข้ามตั้งรหัสครั้งแรก(EMAIL);
 
-  // เข้าระบบเป็นสาขานั้นแล้ววางใบผ่านไว้ในเครื่อง (วางหลังเปิดหน้าแล้ว ไม่ใช้ addInitScript)
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: signed, error } = await sb.auth.signInWithPassword({ email: EMAIL, password: PASSWORD });
-  expect(error, `ต้องเข้าระบบด้วยบัญชีที่เพิ่งสร้างได้ (${error?.message ?? ""})`).toBeNull();
-  const คีย์ = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
-  await page.goto(`${DEALER_ORIGIN}/login`, { waitUntil: "domcontentloaded" });
-  await page.evaluate(([k, v]) => localStorage.setItem(k, v), [คีย์, JSON.stringify(signed.session)] as const);
+  // เข้าระบบเป็นสาขานั้นผ่านหน้าเข้าสู่ระบบจริง
+  await เข้าระบบผ่านหน้าจอ(page, DEALER_ORIGIN, EMAIL, PASSWORD);
 
   // เปลี่ยนรหัสผ่านผ่านหน้าจอจริง
   await page.goto(`${DEALER_ORIGIN}/settings/account`, { waitUntil: "domcontentloaded" });
@@ -66,12 +64,16 @@ test("[auth·dealer] เปลี่ยนรหัสผ่านตัวเ�
   await page.waitForURL(/\/login/, { timeout: 30_000 });
   const ใบผ่านค้าง = await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith("sb-") && k.endsWith("-auth-token")));
   expect(ใบผ่านค้าง, "ใบผ่านที่ถูกยกเลิกแล้วต้องไม่ค้างอยู่ในเครื่อง").toEqual([]);
+  // โหมด api (เว็บจริง): ใบผ่านอยู่ในคุกกี้ httpOnly — ต้องถูกเซิร์ฟเวอร์ลบด้วย (14 ต.ค. 69 เจอว่าค้าง)
+  const คุกกี้ค้าง = (await page.context().cookies()).filter(c => /^pms_(at|rt)/.test(c.name) && c.value).map(c => c.name);
+  expect(คุกกี้ค้าง, "คุกกี้ใบผ่านต้องไม่ค้างอยู่หลังเปลี่ยนรหัส").toEqual([]);
 
   // เดินกลับเข้าหน้าใช้งานไม่ได้อีก (ไม่ใช่เห็นเมนูครบแต่ข้อมูลว่าง)
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
   await page.waitForURL(/\/login/, { timeout: 30_000 });
 
   // และรหัสใหม่ใช้เข้าระบบได้จริง
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error: errNew } = await sb.auth.signInWithPassword({ email: EMAIL, password: รหัสใหม่ });
   expect(errNew, "รหัสผ่านใหม่ต้องใช้เข้าระบบได้จริง").toBeNull();
   await sb.auth.signOut({ scope: "local" }).catch(() => {});

@@ -324,3 +324,41 @@ export async function รอข้อความแจ้งเตือน(pag
     return (await ใบ.innerText()).replace(/\s+/g, " ").trim();
   } catch { return ""; }
 }
+
+/** เข้าระบบด้วยอีเมล+รหัสผ่านผ่านหน้าเข้าสู่ระบบจริงทุกครั้ง — ตัวช่วยกลางสำหรับบัญชีที่ "รหัสผ่านเปลี่ยนระหว่างข้อทดสอบ"
+ *
+ *  ใช้ได้ทั้งสองโหมดโดยไม่ต้องรู้ว่าใบผ่านเก็บที่ไหน: โหมด api ได้คุกกี้ httpOnly จากเซิร์ฟเวอร์ · โหมดปกติได้ใบผ่านในเครื่อง
+ *  ⚠️ ห้ามยัดใบผ่านลง localStorage เอง (พบ 14 ต.ค. 69 ตอนปิดด่าน 1): โหมด api ไม่อ่านใบผ่านจาก localStorage เลย
+ *     ข้อทดสอบหน้าตั้งรหัสครั้งแรก/เปลี่ยนรหัส จึงเด้งไปหน้าเข้าสู่ระบบ และไม่เคยได้วัดบนเส้นทางเว็บจริง
+ *  ไม่จำใบผ่านไว้ใช้ซ้ำ (ต่างจาก เข้าระบบด้วยคุกกี้) — รหัสเปลี่ยนแล้วใบเดิมต้องใช้ไม่ได้ จำไว้ = วัดผิด */
+export async function เข้าระบบผ่านหน้าจอ(page: Page, origin: string, email: string, password: string) {
+  await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  // หน้าเข้าสู่ระบบเด้งออกเอง = ยังมีใบผ่านเดิมค้างอยู่ — ถ้าเดินต่อจะได้ "เข้าระบบแล้ว" ด้วยใบเก่า ไม่ใช่รหัสที่ส่งมา
+  if (!page.url().includes("/login")) throw new Error(`เปิดหน้าเข้าสู่ระบบไม่ได้ เพราะยังมีใบผ่านเดิมค้างอยู่ (ถูกพาไป ${page.url()})`);
+  const ช่องอีเมล = page.getByLabel(/อีเมล/i).first(), ช่องรหัส = page.getByLabel(/รหัสผ่าน/i).first();
+  // หน้าเข้าสู่ระบบเพิ่งโหลด อาจล้างช่องทิ้งตอนพร้อมใช้งาน — กรอกซ้ำจนค่าอยู่นิ่ง (วิธีเดียวกับ loginUI)
+  for (let i = 0; i < 6; i++) {
+    await ช่องอีเมล.fill(email); await ช่องรหัส.fill(password);
+    await page.waitForTimeout(300);
+    if (await ช่องอีเมล.inputValue() === email && await ช่องรหัส.inputValue() === password) break;
+  }
+  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+  await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 30_000 });
+}
+
+/** กล่องจดหมายทดสอบ (mailpit ของฐานในเครื่อง: พอร์ต API ของฐาน + 3) */
+export const MAIL_URL = process.env.PMS_MAIL_URL ?? SUPABASE_URL.replace(/:(\d+)\/?$/, (_m, p) => `:${Number(p) + 3}`);
+export const มีกล่องจดหมายทดสอบ = () => fetch(`${MAIL_URL}/api/v1/messages?limit=1`).then(r => r.ok, () => false);
+/** โค้ดยืนยันอีเมลติดต่อ 6 หลักที่ส่งถึงที่อยู่นี้ (อ่านจากหัวเรื่องจดหมาย)
+ *  ตั้งแต่ = รับเฉพาะจดหมายที่มาถึงหลังเวลานี้ — กล่องทดสอบเก็บจดหมายของรอบก่อนไว้ ไม่กรอง = ได้โค้ดเก่าที่ใช้ไม่ได้ (14 ต.ค. 69) */
+export async function โค้ดยืนยันในกล่อง(ถึง: string, ตั้งแต่ = 0): Promise<string> {
+  let โค้ด = "";
+  await expect.poll(async () => {
+    const j = await (await fetch(`${MAIL_URL}/api/v1/search?query=${encodeURIComponent(`to:${ถึง}`)}`)).json() as { messages?: { Subject: string; Created: string }[] };
+    โค้ด = (j.messages ?? []).filter(m => Date.parse(m.Created) >= ตั้งแต่ - 5_000)
+      .map(m => /(\d{6})\s*$/.exec(m.Subject)?.[1] ?? "").find(Boolean) ?? "";
+    return โค้ด;
+  }, { timeout: 20_000, message: `ต้องมีอีเมลโค้ดยืนยันถึง ${ถึง}` }).not.toBe("");
+  return โค้ด;
+}

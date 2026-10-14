@@ -211,11 +211,15 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
   if (!who.ok) return who.res;
   const { admin, userId, email: อีเมลเดิม, dealerCode, name } = who.who;
 
-  if (!(await checkRateLimit(admin, `dealer-account-change:${userId}`, 5, 300))) {
-    return json(req, { error: "เปลี่ยนบัญชีถี่เกินไป — รอสักครู่แล้วลองใหม่" }, 429);
+  const body = (await req.json().catch(() => null)) as null | { op?: string; email?: string; password?: string; currentPassword?: string; code?: string };
+  // อีเมลติดต่อใช้โควตาแยก (พบ 14 ต.ค. 69 บนเส้นทางเว็บจริง): เดิมนับรวมกับการเปลี่ยนบัญชี 5 ครั้ง/5 นาที
+  //   เข้าครั้งแรก = ตั้งรหัส (+ครั้งที่ไม่ผ่านกฎ) + ส่งโค้ด + ส่งใหม่ + กรอกผิด + ยืนยัน → ติด 429 ที่ขั้นสุดท้าย ต้องรอ 5 นาที
+  //   ขั้นนี้มีตัวกันของตัวเองอยู่แล้ว (ส่งซ้ำได้ทุก 60 วินาที · กรอกโค้ดผิดได้จำกัดครั้งต่อโค้ด) — เพดานนี้กันยิงรัวเท่านั้น
+  const อีเมลติดต่อ = body?.op === "contact-email-send" || body?.op === "contact-email-verify";
+  if (!(await checkRateLimit(admin, อีเมลติดต่อ ? `dealer-contact-email:${userId}` : `dealer-account-change:${userId}`, อีเมลติดต่อ ? 15 : 5, 300))) {
+    return json(req, { error: อีเมลติดต่อ ? "ส่งคำขอถี่เกินไป — รอสักครู่แล้วลองใหม่" : "เปลี่ยนบัญชีถี่เกินไป — รอสักครู่แล้วลองใหม่" }, 429);
   }
 
-  const body = (await req.json().catch(() => null)) as null | { op?: string; email?: string; password?: string; currentPassword?: string; code?: string };
   if (body?.op === "first-password") return ตั้งรหัสครั้งแรก(req, who.who, String(body.password ?? ""));
   // ── อีเมลติดต่อ (ด่าน 1 · ใบ 0194): ส่งโค้ด / ยืนยันโค้ด — ไม่ต้องกรอกรหัสผ่านปัจจุบัน (ไม่ใช่อีเมลเข้าระบบ) ──
   if (body?.op === "contact-email-send") {
