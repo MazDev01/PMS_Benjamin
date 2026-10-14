@@ -198,6 +198,12 @@ export async function cleanup(sb: SupabaseClient, dealerCode: string, tag: strin
     const { ล้างใบHQทดสอบ } = await import("./legacyQuotes");
     try { ล้างใบHQทดสอบ(dealerCode, ลีดมีคำขอ.map(l => Number(l.num_id))); } catch { /* ไม่มี docker — ข้าม */ }
   }
+  // ใบ won ลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203 · ด่าน 3) — ลบใบของข้อทดสอบที่ฐานทดสอบในเครื่องตรง ๆ
+  try {
+    const { ลบใบทดสอบที่ฐาน } = await import("./legacyQuotes");
+    const แท็ก = tag.replace(/'/g, "''");
+    ลบใบทดสอบที่ฐาน(`dealer_code = '${dealerCode}' and (customer like '%${แท็ก}%' or id like '%${แท็ก}%')`);
+  } catch { /* ไม่มี docker — ใช้ทางเดิม (ใบ won จะค้าง) */ }
   await sb.from("quotations").delete().eq("dealer_code", dealerCode).like("customer", `%${tag}%`);
   await sb.from("quotations").delete().eq("dealer_code", dealerCode).like("id", `%${tag}%`);
   // appointments ไม่มีคอลัมน์ customer (ของจริงคือ company/province)

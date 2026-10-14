@@ -36,6 +36,8 @@ export async function ลบสาขาทดสอบตรง(code: string, c
   };
 
   // ลำดับ = ลูกก่อนแม่ ตามกุญแจนอกที่ห้ามลบแม่ขณะยังมีลูก
+  // ใบ won ลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203) — สาขาทดสอบ (รหัสขึ้นต้น ZZ/ZT) ลบใบที่ฐานทดสอบในเครื่องตรง ๆ
+  try { const { ลบใบทดสอบที่ฐาน } = await import("./legacyQuotes"); ลบใบทดสอบที่ฐาน(`dealer_code = '${code}'`); } catch { /* ไม่มี docker */ }
   await ลบ("quotations");
   const { data: คำขอ } = await admin.from("quote_requests").select("id").eq("dealer_code", code);
   if (คำขอ?.length) {

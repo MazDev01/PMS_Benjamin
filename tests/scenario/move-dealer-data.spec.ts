@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, db, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
-import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
 // ── ย้ายข้อมูลงานขายจากสาขาหนึ่งไปอีกสาขา แล้วลบสาขาเดิมได้ ────────────────────────
 //
@@ -26,7 +26,7 @@ async function adminToken() {
 }
 async function purge() {
   for (const code of [FROM, TO]) {
-    await admin.from("quotations").delete().eq("dealer_code", code);
+    ลบใบทดสอบที่ฐาน(`dealer_code = '${code}'`);   // มีใบ won — ลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203)
     await admin.from("appointments").delete().eq("dealer_code", code);
     await admin.from("leads").delete().eq("dealer_code", code);
     await admin.from("customers").delete().eq("dealer_code", code);

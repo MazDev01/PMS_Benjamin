@@ -26,11 +26,13 @@ export function ล้างใบHQทดสอบ(dealerCode: string, leadNums
   if (!nums.length) return;
   const ids = nums.join(",");
   const sql = `alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
+    alter table public.quotations disable trigger quotations_no_delete_won;
     delete from public.quotations q using public.hq_quotes h, public.quote_requests r
       where q.hq_quote_id = h.id and h.request_id = r.id and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
     delete from public.quotations where dealer_code = '${dealerCode}' and deal_id in (${ids});
     delete from public.hq_quotes h using public.quote_requests r where h.request_id = r.id and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
     alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
+    alter table public.quotations enable trigger quotations_no_delete_won;
     delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
     update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = '${dealerCode}' and lead_num_id in (${ids});
     delete from public.quote_requests where dealer_code = '${dealerCode}' and lead_num_id in (${ids});
@@ -38,4 +40,21 @@ export function ล้างใบHQทดสอบ(dealerCode: string, leadNums
   const c = execFileSync("docker", ["ps", "--filter", "name=supabase_db_", "--format", "{{.Names}}"], { encoding: "utf8" })
     .split(/\r?\n/).find(n => n.includes("dbcheck")) ?? "";
   if (c) execFileSync("docker", ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres", "-q", "-c", sql], { stdio: "ignore" });
+}
+
+/** ลบใบเสนอราคาของข้อทดสอบที่ฐานทดสอบในเครื่องตรง ๆ — รวมใบที่ลูกค้าตอบรับแล้ว (won) ซึ่งลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203 · ด่าน 3)
+ *  where = เงื่อนไข SQL ของแถวที่จะลบ (ผู้เรียกต้องจำกัดเฉพาะแถวทดสอบเท่านั้น เช่น customer like '%ZZTEST%') · คืนจำนวนที่ลบ */
+export function ลบใบทดสอบที่ฐาน(where: string): number {
+  if (!/ZZ|ZT|Q-RLSPAIR|TEST-RLS/.test(where)) throw new Error(`ลบใบทดสอบที่ฐาน: เงื่อนไขต้องจำกัดเฉพาะแถวทดสอบ (${where})`);
+  const sql = `begin;
+    alter table public.quotations disable trigger quotations_no_delete_won;
+    with d as (delete from public.quotations where ${where} returning 1) select count(*) from d;
+    alter table public.quotations enable trigger quotations_no_delete_won;
+    commit;`;
+  const c = execFileSync("docker", ["ps", "--filter", "name=supabase_db_", "--format", "{{.Names}}"], { encoding: "utf8" })
+    .split(/\r?\n/).find(n => n.includes("dbcheck")) ?? "";
+  if (!c) return 0;
+  const out = execFileSync("docker", ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres", "-At", "-v", "ON_ERROR_STOP=1"],
+    { input: sql, encoding: "utf8" });
+  return Number((out.match(/^\d+$/m) ?? ["0"])[0]);
 }

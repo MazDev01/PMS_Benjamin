@@ -3,6 +3,7 @@ import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { teardownBaseline, restoreAlertsIfPending, NS, EXISTING_CUSTOMER_NAME } from "./global-setup";
 import { กวาดสาขาทดสอบค้าง } from "./testDealers";
+import { ลบใบทดสอบที่ฐาน, ล้างใบHQทดสอบ } from "./legacyQuotes";
 
 // ── กวาดข้อมูลทดสอบ "ครั้งสุดท้าย" หลังทุกอย่างจบจริง ─────────────────────────────
 //
@@ -32,9 +33,22 @@ async function sweep(admin: SupabaseClient, เก็บชุดตั้งต
     // ลำดับสำคัญ: ลบลูก (ที่อ้างถึงลูกค้า) ก่อนเสมอ ไม่งั้น FK จะกันการลบแม่ไว้
     await del("customer_notes", "title", mark);
     await del("files", "name", mark);
-    await del("quotations", "customer", mark);
-    await del("quotations", "id", mark);
+    // ใบเสนอราคา: ใบ won ลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203 · ด่าน 3) — ลบที่ฐานทดสอบในเครื่องตรง ๆ
+    try {
+      const กันชุดตั้งต้น = เก็บชุดตั้งต้นไว้ ? ` and customer not like '${NS}%' and id not like '${NS}%'` : "";
+      const n = ลบใบทดสอบที่ฐาน(`(customer like '%${mark}%' or id like '%${mark}%')${กันชุดตั้งต้น}`);
+      if (n) removed.push(`quotations ${n}`);
+    } catch (e) { removed.push(`quotations:ลบไม่ได้(${String(e).slice(0, 40)})`); }
     await del("appointments", "company", mark);
+    // ลูกค้าเป้าหมายทดสอบที่ได้ขอราคา/ได้ใบ HQ แล้ว (ด่าน 2–3) — คำขอ/ใบ HQ ที่ส่งแล้วลบด้วยกุญแจไม่ได้ ต้องล้างที่ฐานตรงก่อน
+    {
+      let q = admin.from("leads").select("dealer_code, num_id").like("company", `%${mark}%`);
+      if (เก็บชุดตั้งต้นไว้) q = q.not("company", "like", `${NS}%`);
+      const { data: ลีด } = await q;
+      const ตามสาขา = new Map<string, number[]>();
+      for (const l of ลีด ?? []) ตามสาขา.set(String(l.dealer_code), [...(ตามสาขา.get(String(l.dealer_code)) ?? []), Number(l.num_id)]);
+      for (const [สาขา, เลข] of ตามสาขา) { try { ล้างใบHQทดสอบ(สาขา, เลข); } catch { /* ไม่มี docker */ } }
+    }
     await del("leads", "company", mark);
     await del("leads", "id", mark);
     await del("customers", "company", mark);

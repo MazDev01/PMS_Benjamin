@@ -4,7 +4,7 @@ import path from "node:path";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { กวาดสาขาทดสอบค้าง } from "./testDealers";
-import { วางใบเดิมที่ฐาน, ล้างใบHQทดสอบ } from "./legacyQuotes";
+import { วางใบเดิมที่ฐาน, ล้างใบHQทดสอบ, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
 // snapshot ของ hq_notif_rules.alerts เดิม (singleton row จริง ไม่ใช่ข้อมูลแท็กที่ลบทิ้งได้เฉยๆ)
 // ต้องคืนค่าเดิมใน teardown เสมอ — ไม่ใช่ตั้งเป็นค่า test แล้วปล่อยทิ้งไว้
@@ -334,8 +334,8 @@ export async function teardownBaseline(admin: SupabaseClient) {
   // ลูกค้าเป้าหมายที่ตัวช่วย openLeadQuotationForm เตรียมใบ HQ ให้ (ด่าน 3) — ใบ HQ ที่ส่งแล้วลบด้วยกุญแจไม่ได้ ต้องล้างที่ฐานตรง
   const { data: ลีดใบHQ } = await admin.from("leads").select("num_id").eq("dealer_code", "RYG").like("company", `${NS}-ใบHQ%`);
   try { ล้างใบHQทดสอบ("RYG", (ลีดใบHQ ?? []).map(l => Number(l.num_id))); } catch (e) { console.warn(`[teardown] ล้างใบ HQ ของข้อทดสอบไม่สำเร็จ: ${String(e).slice(0, 120)}`); }
-  await admin.from("quotations").delete().like("id", `${NS}%`);
-  await admin.from("quotations").delete().like("customer", `${NS}%`);
+  // ใบ won ลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203) — ลบใบของชุดตั้งต้นที่ฐานทดสอบตรง ๆ
+  try { ลบใบทดสอบที่ฐาน(`id like '${NS}%' or customer like '${NS}%'`); } catch (e) { console.warn(`[teardown] ลบใบชุดตั้งต้นไม่สำเร็จ: ${String(e).slice(0, 120)}`); }
   await admin.from("customers").delete().like("company", `${NS}%`);
   await admin.from("leads").delete().like("company", `${NS}%`);
   await admin.from("dealer_prospects").delete().like("name", `${NS}%`); // ประวัติ/ใบค่าแฟรนไชส์ลบตามเอง (on delete cascade)
@@ -347,7 +347,8 @@ export async function teardownBaseline(admin: SupabaseClient) {
   //   ใบที่เทสต์ออกให้ลูกค้า/ลูกค้าเป้าหมายชื่อนี้ไม่มีแท็กในตัวเอง และผูก FK ไว้ทั้งกับลูกค้าและกับดีล
   //   ลบแม่ก่อนจึงถูกฐานข้อมูลปฏิเสธเงียบ ๆ (โค้ดนี้ไม่ได้เช็ค error) → ลูกค้า/ลีดค้างข้ามรอบ
   //   แล้วรอบถัดไป seed ทับไม่ได้ ล้มตั้งแต่ setup ด้วย duplicate key ทั้งชุด
-  await admin.from("quotations").delete().eq("customer", EXISTING_CUSTOMER_NAME);
+  try { ลบใบทดสอบที่ฐาน(`dealer_code = 'RYG' and (customer = '${EXISTING_CUSTOMER_NAME}' or customer_id = ${EXISTING_CUSTOMER_ID}) and 'ZZ' = 'ZZ'`); }
+  catch (e) { console.warn(`[teardown] ลบใบของลูกค้า "${EXISTING_CUSTOMER_NAME}" ไม่สำเร็จ: ${String(e).slice(0, 120)}`); }
   const { data: staleLeads } = await admin.from("leads").select("id").eq("company", EXISTING_CUSTOMER_NAME);
   for (const l of staleLeads ?? []) await admin.from("quotations").delete().eq("deal_id", l.id);
   await admin.from("customers").delete().eq("id", EXISTING_CUSTOMER_ID);

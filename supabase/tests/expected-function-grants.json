@@ -1,5 +1,5 @@
 {
- "migration": "0202",
+ "migration": "0203",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -626,6 +626,13 @@
   },
   {
    "f": "quotations_legacy_lock()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "quotations_no_delete_won()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

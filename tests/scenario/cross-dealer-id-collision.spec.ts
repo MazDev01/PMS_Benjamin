@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { SUPABASE_URL, SUPABASE_ANON, REAL_BACKEND, ADMIN } from "./supabaseEnv";
-import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
 // ── regression: id ลูกค้า/ลูกค้าเป้าหมาย นับแยกต่อสาขา — ห้าม join/group ข้ามตารางด้วย id เปล่า ──
 //
@@ -28,7 +28,7 @@ const A = { code: "CNX", type: "โกดังเก็บสินค้าท
 const B = { code: "RYG", type: "โรงงานอาหาร",          parent: "โรงงาน",        date: "2026-05-20", who: `${TAG}-ผู้ขาย-RYG`, leadId: 990102 };
 
 async function cleanup() {
-  await admin.from("quotations").delete().like("id", `${TAG}%`);
+  ลบใบทดสอบที่ฐาน(`id like '${TAG}%'`);   // มีใบ won — ลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203)
   await admin.from("leads").delete().in("id", [A.leadId, B.leadId]);
   await admin.from("customers").delete().eq("id", CID);
 }

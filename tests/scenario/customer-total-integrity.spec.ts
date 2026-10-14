@@ -74,9 +74,16 @@ test("ย้อนใบกลับเป็นไม่สำเร็จ → 
   expect(await totalOf(), "ยอดต้องลดกลับ").toBe(500_000);
 });
 
-test("ลบใบที่ปิดการขายได้ → ยอดลดลงตาม", async () => {
-  await db.from("quotations").delete().eq("id", ใบเลข.get("Q1")!).eq("dealer_code", DEALER);
-  expect(await totalOf(), "ลบใบแล้วยอดต้องกลับเป็น 0").toBe(0);
+// ด่าน 3 (ใบ 0203 · ข้อตัดสินของบอส): ใบที่ปิดการขายได้ (won) ลบไม่ได้ — ยอดขายที่ปิดแล้วต้องไม่หายเงียบ ๆ
+//   เอาออกจริงต้องย้อนเป็น "ไม่สำเร็จ" ก่อน (ยอดลดตาม) แล้วใบที่ไม่สำเร็จจึงลบได้
+test("ลบใบที่ปิดการขายได้ → ถูกปฏิเสธ ยอดไม่หาย · ย้อนเป็นไม่สำเร็จก่อน ยอดลดแล้วจึงลบได้", async () => {
+  const ลบ = await db.from("quotations").delete().eq("id", ใบเลข.get("Q1")!).eq("dealer_code", DEALER);
+  expect(ลบ.error?.message ?? "", "ใบ won ต้องลบไม่ได้").toContain("quote_won_locked");
+  expect(await totalOf(), "ลบไม่สำเร็จ ยอดต้องคงเดิม").toBe(500_000);
+  await db.from("quotations").update({ status: "lost" }).eq("id", ใบเลข.get("Q1")!).eq("dealer_code", DEALER);
+  expect(await totalOf(), "ย้อนเป็นไม่สำเร็จแล้วยอดต้องกลับเป็น 0").toBe(0);
+  const ลบหลังย้อน = await db.from("quotations").delete().eq("id", ใบเลข.get("Q1")!).eq("dealer_code", DEALER);
+  expect(ลบหลังย้อน.error?.message ?? "", "ใบที่ไม่สำเร็จลบได้").toBe("");
 });
 
 test("ปิดการขายหลายใบพร้อมกัน → ยอดต้องครบทุกใบ ไม่หายไปใบใดใบหนึ่ง", async () => {
