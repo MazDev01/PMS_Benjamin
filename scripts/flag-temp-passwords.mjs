@@ -65,7 +65,8 @@ else {
   let สำเร็จ = 0, พลาด = 0;
   for (const a of ต้องตั้ง) {
     // ต้องส่ง app_metadata เดิมกลับไปด้วย — ช่องนี้ถูกเขียนทับทั้งก้อน ส่งแค่เครื่องหมายเดียวจะลบค่าอื่นของบัญชีทิ้ง
-    const { error } = await svc.auth.admin.updateUserById(a.id, { app_metadata: { ...a.appMeta, must_change_password: true } });
+    // must_verify_email (ด่าน 1): หลังตั้งรหัสแล้วพาไปกรอกและยืนยันอีเมลติดต่อ — ระบบจริงมีอีเมลติดต่อ 0/155 บัญชี
+    const { error } = await svc.auth.admin.updateUserById(a.id, { app_metadata: { ...a.appMeta, must_change_password: true, must_verify_email: true } });
     if (error) พลาด++; else สำเร็จ++;
   }
   console.log(`\nตั้งเครื่องหมายแล้ว ${สำเร็จ} บัญชี${พลาด ? ` · ไม่สำเร็จ ${พลาด} บัญชี` : ""}\n`);
