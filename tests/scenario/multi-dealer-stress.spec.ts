@@ -20,6 +20,10 @@ const CODES = ["ZZLA","ZZLB","ZZLC","ZZLD","ZZLE","ZZLF","ZZLG","ZZLH","ZZLI","Z
 
 type Provisioned = { code: string; email: string; password: string };
 
+/** ใบผ่าน HQ ตัวเดียวใช้ร่วมกันทั้ง 10 ดีลเลอร์ (ล็อกอินถี่ = ชนด่านจำกัดคำขอของระบบยืนยันตัวตน) */
+let hqClientP: Promise<SupabaseClient> | null = null;
+const hqClient = () => (hqClientP ??= adminToken().then(r => r.sb));
+
 async function adminToken(): Promise<{ sb: SupabaseClient; token: string }> {
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error } = await sb.auth.signInWithPassword(ADMIN);
@@ -141,9 +145,30 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
     { timeout: 45_000, message: `${code}: ไฟล์ต้องขึ้น Storage/DB` }).toBeGreaterThan(0);
   mark("file_attached");
 
-  // 6) สร้างใบเสนอราคาจากลูกค้าเป้าหมาย
+  // 6) ด่าน 3 (ใบ 0201): ใบลูกค้าต้องทำจากใบ HQ — ดีลเลอร์ขอราคาให้งานขายนี้ → HQ ทำ BOQ + ส่งใบ (ผ่านคำสั่งของฐาน)
+  //    แล้วดีลเลอร์ทำใบจากใบ HQ บนหน้าจอ (เดิม: กดสร้างใบเสนอราคาแบบเดิม ซึ่งปิดไปแล้ว)
+  const { data: ดีล } = await sb.from("leads").select("num_id").eq("dealer_code", code).eq("company", COMPANY)
+    .in("status", ["WAITING", "BULLET"]).order("num_id", { ascending: false }).limit(1);
+  if (!ดีล?.length) throw new Error(`${code}: ไม่พบงานขายที่ขอราคาได้`);
+  const ขอ = await sb.rpc("quote_request_submit", { p_lead_num_id: Number(ดีล[0].num_id), p_product: "โกดังสำเร็จรูป" });
+  if (ขอ.error) throw new Error(`${code}: ขอราคาไม่สำเร็จ ${ขอ.error.message}`);
+  const hq = await hqClient();
+  const บันทึก = await hq.rpc("hq_quote_save", { p_request_id: Number((ขอ.data as { id: number }).id),
+    p_lines: [{ name: "โกดังสำเร็จรูป", qty: 100, unit: "ตร.ม.", unitCost: 12_000 }],
+    p_valid_until: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10), p_note: "" });
+  if (บันทึก.error) throw new Error(`${code}: HQ ทำ BOQ ไม่สำเร็จ ${บันทึก.error.message}`);
+  const ส่ง = await hq.rpc("hq_quote_send", { p_request_id: Number((ขอ.data as { id: number }).id) });
+  if (ส่ง.error) throw new Error(`${code}: HQ ส่งใบไม่สำเร็จ ${ส่ง.error.message}`);
+  // เปิดลูกค้าเป้าหมายใหม่จากตาราง (แผงที่เปิดค้างจาก ?open= ยังไม่รู้ว่ามีใบ HQ · ลิงก์ ?open= ใช้ได้ครั้งเดียว)
+  await settle(page);   // รอคำขอบันทึกที่ค้าง (งาน/ไทม์ไลน์ของลูกค้าเป้าหมาย) จบก่อนเปลี่ยนหน้า — ไม่งั้นถูกตัดกลางทาง
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
+  const แถวดีล = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
+  await expect(แถวดีล, `${code}: งานขายต้องอยู่ในตาราง`).toBeVisible({ timeout: 45_000 });
+  await แถวดีล.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).first().click();
+  await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 45_000 });
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   await expect.poll(async () => (await sb.from("quotations").select("id").eq("customer", COMPANY)).data?.length ?? 0,
@@ -154,6 +179,7 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   const quoteId = qrows![0].id as string;
 
   // 7) ไปหน้าใบเสนอราคา → เปิดใบ → เปลี่ยนสถานะ (ส่ง → ตอบรับ/ปฏิเสธ)
+  await settle(page);   // รอคำขอบันทึกที่ค้าง (งาน/ไทม์ไลน์ของลูกค้าเป้าหมาย) จบก่อนเปลี่ยนหน้า — ไม่งั้นถูกตัดกลางทาง
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   const qrow = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(qrow, `${code}: ใบเสนอราคาต้องโผล่ในตาราง`).toBeVisible({ timeout: 45_000 });
@@ -181,6 +207,7 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   }
 
   // 8) บันทึกหมายเหตุที่ลูกค้า
+  await settle(page);   // รอคำขอบันทึกที่ค้าง (งาน/ไทม์ไลน์ของลูกค้าเป้าหมาย) จบก่อนเปลี่ยนหน้า — ไม่งั้นถูกตัดกลางทาง
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
   await page.getByPlaceholder("ค้นหาลูกค้า, เบอร์โทร, อีเมล...").fill(COMPANY);
   await expect(page.locator("tbody tr").filter({ hasText: COMPANY }).first()).toBeVisible({ timeout: 45_000 });

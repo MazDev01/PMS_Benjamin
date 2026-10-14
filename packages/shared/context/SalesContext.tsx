@@ -259,9 +259,11 @@ export function SalesProvider({
   };
   const ขั้นจากฐาน = async (l: LeadRow): Promise<LeadRow> => {
     const g = ลีดรอฐานขยับ.get(l.id);
-    if (!g) return l;
-    if (Date.now() > g.หมดเวลา) { ลีดรอฐานขยับ.delete(l.id); return l; }
-    if (l.status !== g.ขั้นเดิม) return l;                  // ตั้งใจเปลี่ยนขั้นเอง — ไม่แตะ
+    if (g && Date.now() > g.หมดเวลา) ลีดรอฐานขยับ.delete(l.id);
+    const ยังกั้นอยู่ = !!g && Date.now() <= g.หมดเวลา && l.status === g.ขั้นเดิม;
+    // "รอราคา HQ" ดีลเลอร์ตั้งเองไม่ได้ (ฐานเป็นเจ้าของขั้นนี้ · 0183) — งานเขียนที่ยังถือขั้นนี้ไว้ = สำเนาเก่าเสมอ
+    //   (ทดสอบโหลด 10 ดีลเลอร์ · 14 ต.ค. 69: ส่งใบ/ปิดการขายแล้ว ติ๊กงานตามมานอกช่วงที่กั้นไว้ → ฐานปฏิเสธทั้งคำขอ งานที่ติ๊กหาย)
+    if (!ยังกั้นอยู่ && l.status !== "HQ_PRICING") return l;   // ตั้งใจเปลี่ยนขั้นเอง / ไม่ได้ถือขั้นของฐาน — ไม่แตะ
     const fresh = await leadsRepo.get(l.id).catch(() => null);
     if (!fresh || fresh.status === l.status) return l;
     const ล่าสุด = { status: fresh.status, lostReason: fresh.lostReason };
