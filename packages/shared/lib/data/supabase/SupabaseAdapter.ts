@@ -583,6 +583,22 @@ export const SupabaseAdapter: DataAdapter = {
       const { error } = await sb().rpc("territory_resolve_overlap", { p_province: province, p_keep: keep });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
     },
+    transferPlan: async () => {
+      const { data, error } = await sb().rpc("hq_lead_transfer_plan");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamelList<{ province: string; mode: "auto" | "choose" | "queue"; leads: number; dealerCodes: string[] }>((data ?? []) as Row[])
+        .map(r => ({ ...r, leads: Number(r.leads) }));
+    },
+    transferAuto: async () => {
+      const { data, error } = await sb().rpc("transfer_hq_leads_auto");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return Number(data ?? 0);
+    },
+    transfer: async (province, to) => {
+      const { data, error } = await sb().rpc("transfer_hq_leads", { p_province: province, p_to: to });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return Number(data ?? 0);
+    },
   },
   hqCompany: {
     get: async () => (await one<HQCompany>("hq_company")) ?? EMPTY_HQ_COMPANY,

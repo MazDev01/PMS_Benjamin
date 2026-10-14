@@ -87,6 +87,8 @@ export interface ProfileRepo {
 // ── พื้นที่ของดีลเลอร์ (กฎหนึ่งจังหวัด หนึ่งดีลเลอร์ · ใบ 0195) ──
 export type TerritoryOverlap = { province: string; region: string; dealerCodes: string[] };
 export type UnmatchedDealer = { dealerCode: string; province: string };
+/** แผนโอนลูกค้าเป้าหมายของ HQ ต่อจังหวัด — auto = ดีลเลอร์รายเดียว · choose = ทับซ้อน HQ เลือก · queue = ไม่มีจังหวัด/จังหวัดว่าง */
+export type HqTransferPlanRow = { province: string; mode: "auto" | "choose" | "queue"; leads: number; dealerCodes: string[] };
 export interface TerritoriesRepo {
   /** จังหวัดที่ดีลเลอร์เดิมทับกันอยู่ (legacy) — HQ เคลียร์ทีละจังหวัด */
   overlaps(): Promise<TerritoryOverlap[]>;
@@ -94,6 +96,10 @@ export interface TerritoriesRepo {
   unmatched(): Promise<UnmatchedDealer[]>;
   /** เก็บดีลเลอร์ keep ไว้รายเดียวในจังหวัดนั้น ที่เหลือถอดออก — กฎใช้เต็ม */
   resolveOverlap(province: string, keep: string): Promise<void>;
+  /** โอนลูกค้าเป้าหมายของ HQ (ใบ 0197): แผน · โอนทุกจังหวัดที่มีดีลเลอร์รายเดียว · โอนจังหวัดเดียวให้ดีลเลอร์ที่เลือก — คืนจำนวนที่โอน */
+  transferPlan(): Promise<HqTransferPlanRow[]>;
+  transferAuto(): Promise<number>;
+  transfer(province: string, to: string): Promise<number>;
 }
 
 export interface HQCompanyRepo {

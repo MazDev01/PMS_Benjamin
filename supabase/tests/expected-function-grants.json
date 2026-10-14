@@ -1,5 +1,5 @@
 {
- "migration": "0196",
+ "migration": "0197",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -297,6 +297,13 @@
   },
   {
    "f": "hq_customers_page(p_search text, p_dealer_code text, p_provinces text[], p_building_type text, p_bought_from date, p_bought_to date, p_limit integer, p_offset integer)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_lead_transfer_plan()",
    "anon": false,
    "authenticated": true,
    "service_role": false,
@@ -777,6 +784,20 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "transfer_hq_leads(p_province text, p_to text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "transfer_hq_leads_auto()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "unassigned_leads(p_as_of date, p_default_hours integer, p_per_dealer jsonb, p_dealer_codes text[], p_province text, p_product text, p_source text, p_search text, p_date_start date, p_date_end date)",

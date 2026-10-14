@@ -15,7 +15,7 @@
 import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
-import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer } from "../ports";
+import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer, HqTransferPlanRow } from "../ports";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
@@ -280,6 +280,9 @@ const territories: TerritoriesRepo = {
   overlaps: () => apiFetch<TerritoryOverlap[]>("/territories?view=overlaps"),
   unmatched: () => apiFetch<UnmatchedDealer[]>("/territories?view=unmatched"),
   resolveOverlap: async (province, keep) => { await post("/territories", { op: "resolve-overlap", province, keep }); },
+  transferPlan: () => apiFetch<HqTransferPlanRow[]>("/territories?view=transfer-plan"),
+  transferAuto: async () => (await post<{ moved: number }>("/territories", { op: "transfer-auto" })).moved,
+  transfer: async (province, to) => (await post<{ moved: number }>("/territories", { op: "transfer", province, to })).moved,
 };
 const hqCompany: HQCompanyRepo = {
   // ยังไม่เคยตั้งค่า = คืนค่ากลาง (เหมือน SupabaseAdapter) ไม่ใช่ null ให้หน้าจอไปพังเอง

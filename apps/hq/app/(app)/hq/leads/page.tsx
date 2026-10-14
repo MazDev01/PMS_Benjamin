@@ -46,6 +46,7 @@ import { leadStatusLabel, leadStatusColor, QUOTED_UP, LEAD_STATUS_ORDER, type Le
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { fmtBaht, pctOrNull, parseBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
+import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
 
 // ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
 //   มูลค่าเก็บเป็นข้อความอิสระ ("5310000" / "฿1.4M" / เว้นว่าง) — แปลงเป็นตัวเลขก่อนแล้วค่อยใส่ลูกน้ำ
@@ -468,6 +469,9 @@ export default function HQLeadsPage() {
             headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","ประเภทอาคาร","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","สถานะ","เหตุผลที่ปิดไม่สำเร็จ"]}
             rows={filtered.map(leadToCells)} getRows={exportGetRows} />
       </TopbarActions>
+
+      {/* โอนลูกค้าเป้าหมายใต้รหัส HQ ให้ดีลเลอร์ (ด่าน 1 · ใบ 0197) — HQ ไม่ขายตรง · ไม่มีลูกค้าเป้าหมายของ HQ = ไม่แสดง */}
+      <HqLeadTransferCard dealerName={c => allDealers.find(d => d.code === c)?.name ?? ""} />
 
       {/* ── KPI ── หน้าตาเดียวกับ /hq/pipeline และแดชบอร์ดดีลเลอร์ (ค่าลอกมาตรง ๆ ห้ามเพี้ยน)
           แถบสีนำสายตาด้านซ้ายถูกตัดออก — หน้าอื่นไม่มี การ์ด KPI ต้องหน้าตาเหมือนกันทุกหน้า

@@ -21,11 +21,29 @@ export const territoriesGET = handler("territories.list", async (req: NextReques
     if (error) return dbFail("territories.unmatched", error);
     return ok(toCamelList((data ?? []) as Row[]));
   }
-  return fail(400, "ระบุ view=overlaps หรือ view=unmatched");
+  if (view === "transfer-plan") {
+    const { data, error } = await sb.rpc("hq_lead_transfer_plan");
+    if (error) return dbFail("territories.transferPlan", error);
+    return ok(toCamelList<Row>((data ?? []) as Row[]).map(r => ({ ...r, leads: Number(r.leads) })));
+  }
+  return fail(400, "ระบุ view=overlaps · unmatched · transfer-plan");
 });
 
 export const territoriesPOST = handler("territories.write", async (req: NextRequest, sb) => {
-  const b = (await req.json().catch(() => null)) as { op?: string; province?: string; keep?: string } | null;
+  const b = (await req.json().catch(() => null)) as { op?: string; province?: string; keep?: string; to?: string } | null;
+  // โอนลูกค้าเป้าหมายของ HQ (ใบ 0197) — ตัวคำสั่งของฐานตรวจว่าเป็นสำนักงานใหญ่ และดีลเลอร์ปลายทางดูแลจังหวัดนั้น
+  if (b?.op === "transfer-auto") {
+    const { data, error } = await sb.rpc("transfer_hq_leads_auto");
+    if (error) return dbFail("territories.transferAuto", error);
+    return ok({ moved: Number(data ?? 0) });
+  }
+  if (b?.op === "transfer") {
+    const to = String(b.to ?? "").trim().toUpperCase();
+    if (!/^[A-Z]{2,5}$/.test(to)) return fail(400, "ระบุรหัสดีลเลอร์ปลายทาง");
+    const { data, error } = await sb.rpc("transfer_hq_leads", { p_province: String(b.province ?? ""), p_to: to });
+    if (error) return dbFail("territories.transfer", error);
+    return ok({ moved: Number(data ?? 0) });
+  }
   if (b?.op !== "resolve-overlap") return fail(400, "คำสั่งไม่ถูกต้อง");
   const province = String(b.province ?? "").trim(), keep = String(b.keep ?? "").trim().toUpperCase();
   if (!province || !/^[A-Z]{2,5}$/.test(keep)) return fail(400, "ระบุจังหวัดและรหัสดีลเลอร์ที่จะเก็บไว้");

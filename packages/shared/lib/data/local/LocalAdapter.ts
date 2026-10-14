@@ -301,6 +301,9 @@ export const LocalAdapter: DataAdapter = {
     overlaps: () => ok([]),
     unmatched: () => ok([]),
     resolveOverlap: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่")),
+    transferPlan: () => ok([]),
+    transferAuto: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีการโอนลูกค้าเป้าหมาย")),
+    transfer: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีการโอนลูกค้าเป้าหมาย")),
   },
   hqCompany: {
     get: () => ok(readKey<HQCompany>(HQ_COMPANY_KEY, EMPTY_HQ_COMPANY)),
