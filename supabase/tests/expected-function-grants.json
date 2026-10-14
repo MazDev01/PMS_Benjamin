@@ -1,8 +1,29 @@
 {
- "migration": "0191",
+ "migration": "0196",
  "functions": [
   {
+   "f": "_dealer_notify_emails(p_dealer text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_email_enqueue_hq(p_kind text, p_subject text, p_body text, p_ref_table text, p_ref_id text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_lead_flow_set_status(p_dealer text, p_num_id integer, p_status lead_status, p_lost_reason text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_quote_request_mail_lines(r quote_requests)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -177,6 +198,13 @@
    "definer": false
   },
   {
+   "f": "dealer_territories_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "dealers_package_target()",
    "anon": false,
    "authenticated": false,
@@ -273,6 +301,13 @@
    "authenticated": true,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "hq_notif_rules_clean_recipients()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "hq_quotations_summary(p_status text, p_dealer_codes text[], p_product_lines text[], p_search text, p_date_start date, p_date_end date, p_as_of date, p_search_dealers text[])",
@@ -380,6 +415,13 @@
    "definer": false
   },
   {
+   "f": "leads_activities_append_only()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "leads_hq_pricing_guard()",
    "anon": false,
    "authenticated": false,
@@ -399,6 +441,20 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "leads_province_standard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "leads_territory_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "log_catalog_change()",
@@ -489,6 +545,13 @@
    "anon": false,
    "authenticated": true,
    "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "profiles_contact_email_verify_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
    "definer": false
   },
   {
@@ -583,10 +646,24 @@
    "definer": true
   },
   {
+   "f": "quote_requests_email()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quote_requests_log()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_requests_overdue_scan()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
    "definer": true
   },
   {
@@ -678,6 +755,20 @@
    "anon": false,
    "authenticated": false,
    "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "territory_resolve_overlap(p_province text, p_keep text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "territory_unmatched_dealers()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
    "definer": false
   },
   {

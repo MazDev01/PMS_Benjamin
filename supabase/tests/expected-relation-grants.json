@@ -1,5 +1,5 @@
 {
- "migration": "0191",
+ "migration": "0196",
  "relations": [
   {
    "r": "appointments",
@@ -24,6 +24,14 @@
    "anon": "SELECT,UPDATE,USAGE",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "contact_email_codes",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
   {
    "r": "customer_notes",
@@ -162,6 +170,22 @@
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
   {
+   "r": "dealer_territories",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "DELETE,INSERT,SELECT,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_territories_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "",
+   "authenticated": "SELECT,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
    "r": "dealers",
    "kind": "r",
    "rls": true,
@@ -176,6 +200,22 @@
    "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "email_outbox",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "email_outbox_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
   },
   {
    "r": "entity_counters",
@@ -384,6 +424,22 @@
    "anon": "SELECT,UPDATE,USAGE",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "territory_overlaps",
+   "kind": "v",
+   "rls": false,
+   "anon": "",
+   "authenticated": "SELECT",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "th_provinces",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "SELECT",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   }
  ],
  "columns": [

@@ -296,6 +296,12 @@ export const LocalAdapter: DataAdapter = {
     save: (p) => { writeKey(profileKey(currentDealerCode()), p); fireProfile(); return done(); },
   },
   // ข้อมูลบริษัท HQ — โหมด local ใช้คีย์เดิม (ค่าที่เคยตั้งไม่หาย)
+  // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
+  territories: {
+    overlaps: () => ok([]),
+    unmatched: () => ok([]),
+    resolveOverlap: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่")),
+  },
   hqCompany: {
     get: () => ok(readKey<HQCompany>(HQ_COMPANY_KEY, EMPTY_HQ_COMPANY)),
     save: (c) => { writeKey(HQ_COMPANY_KEY, c); fireSettings(); return done(); },

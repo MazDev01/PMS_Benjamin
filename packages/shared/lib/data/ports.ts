@@ -84,6 +84,18 @@ export interface ProfileRepo {
 }
 
 // ── ข้อมูลบริษัทของสำนักงานใหญ่ — อ่านได้ทุกคน เขียนเฉพาะผู้มีสิทธิ์แก้ข้อมูลกลาง ──
+// ── พื้นที่ของดีลเลอร์ (กฎหนึ่งจังหวัด หนึ่งดีลเลอร์ · ใบ 0195) ──
+export type TerritoryOverlap = { province: string; region: string; dealerCodes: string[] };
+export type UnmatchedDealer = { dealerCode: string; province: string };
+export interface TerritoriesRepo {
+  /** จังหวัดที่ดีลเลอร์เดิมทับกันอยู่ (legacy) — HQ เคลียร์ทีละจังหวัด */
+  overlaps(): Promise<TerritoryOverlap[]>;
+  /** ดีลเลอร์ที่ไม่ได้พื้นที่ เพราะจังหวัดในทะเบียนไม่ตรงรายชื่อมาตรฐาน (ระบบไม่เดาจับคู่) */
+  unmatched(): Promise<UnmatchedDealer[]>;
+  /** เก็บดีลเลอร์ keep ไว้รายเดียวในจังหวัดนั้น ที่เหลือถอดออก — กฎใช้เต็ม */
+  resolveOverlap(province: string, keep: string): Promise<void>;
+}
+
 export interface HQCompanyRepo {
   get(): Promise<HQCompany>;
   save(c: HQCompany): Promise<void>;
@@ -608,6 +620,7 @@ export interface DataAdapter {
   dealerSettings: DealerSettingsRepo;
   profile: ProfileRepo;
   hqCompany: HQCompanyRepo;
+  territories: TerritoriesRepo;
   notes: NotesRepo;
   users: UsersRepo;
   audit: AuditRepo;

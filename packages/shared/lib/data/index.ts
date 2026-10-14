@@ -90,6 +90,7 @@ export const profile: ProfileRepo = {
   get: () => dedupeRead("profile.get", () => _profile.get()),
 };
 export const hqCompany = adapter.hqCompany;
+export const territories = adapter.territories;
 export const notes = adapter.notes;
 // ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นดีลเลอร์) — หน้าเดียวใช้ ไม่ต้องแคช
 export const prospects = adapter.prospects;

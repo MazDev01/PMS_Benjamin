@@ -15,6 +15,7 @@
 import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
+import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer } from "../ports";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
@@ -56,6 +57,7 @@ export const MIGRATED: readonly string[] = [
   "persons",
   "profile",
   "hqCompany",
+  "territories",
   "dealerSettings",
   "settings",
   "notes",
@@ -273,6 +275,12 @@ const profile: ProfileRepo = {
   get: () => apiFetch<UserProfile | null>("/profile"),
   save: async (p) => { await apiFetch("/profile", { method: "PUT", body: JSON.stringify(p) }); },
 };
+// พื้นที่ของดีลเลอร์ (ใบ 0195)
+const territories: TerritoriesRepo = {
+  overlaps: () => apiFetch<TerritoryOverlap[]>("/territories?view=overlaps"),
+  unmatched: () => apiFetch<UnmatchedDealer[]>("/territories?view=unmatched"),
+  resolveOverlap: async (province, keep) => { await post("/territories", { op: "resolve-overlap", province, keep }); },
+};
 const hqCompany: HQCompanyRepo = {
   // ยังไม่เคยตั้งค่า = คืนค่ากลาง (เหมือน SupabaseAdapter) ไม่ใช่ null ให้หน้าจอไปพังเอง
   get: async () => (await apiFetch<HQCompany | null>("/hq-company")) ?? EMPTY_HQ_COMPANY,
@@ -458,7 +466,7 @@ const realtime: RealtimePort = {
 
 export const HttpAdapter: DataAdapter = {
   storage, realtime, dealers, catalog, files, persons, settings, dealerSettings,
-  profile, hqCompany, notes, users, audit, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
+  profile, hqCompany, territories, notes, users, audit, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
 };

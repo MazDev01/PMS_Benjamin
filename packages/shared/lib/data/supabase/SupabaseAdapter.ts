@@ -567,6 +567,23 @@ export const SupabaseAdapter: DataAdapter = {
         .eq("id", id));
     },
   },
+  // พื้นที่ของดีลเลอร์ (ใบ 0195) — อ่านได้ทุกบัญชี · เคลียร์ผ่านคำสั่งของฐาน (ตรวจสิทธิ์ HQ ข้างใน)
+  territories: {
+    overlaps: async () => {
+      const { data, error } = await sb().from("territory_overlaps").select("*").order("province");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamelList<{ province: string; region: string; dealerCodes: string[] }>((data ?? []) as Row[]);
+    },
+    unmatched: async () => {
+      const { data, error } = await sb().rpc("territory_unmatched_dealers");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamelList<{ dealerCode: string; province: string }>((data ?? []) as Row[]);
+    },
+    resolveOverlap: async (province, keep) => {
+      const { error } = await sb().rpc("territory_resolve_overlap", { p_province: province, p_keep: keep });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+    },
+  },
   hqCompany: {
     get: async () => (await one<HQCompany>("hq_company")) ?? EMPTY_HQ_COMPANY,
     save: (c) => must(sb().from("hq_company").upsert({ id: 1, ...toSnake(c as unknown as Row) })),

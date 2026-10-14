@@ -27,6 +27,7 @@ import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useRouter } from "next/navigation";
 import { Search, X, LogIn, Pencil, Trash2, EyeOff, Eye, AlertTriangle, BarChart2, Trophy, Target, Clock, Store, Coins, Briefcase, LayoutGrid, List, MapPin, Package, CalendarDays } from "lucide-react";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
+import { TerritoryOverlapsCard } from "@pms/shared/components/hq/TerritoryOverlapsCard";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 import { เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
 import { PACKAGE_ORDER, packageLabel } from "@pms/shared/lib/dealerProposals";
@@ -410,6 +411,8 @@ function HQDealersPageInner() {
 
       {/* คำขอเปลี่ยนบัญชีเข้าระบบจากดีลเลอร์ (โผล่เฉพาะเมื่อมีคำขอ) — ครั้งที่ 3 ขึ้นไปต้องอนุมัติที่นี่ */}
       <AccountRequestsCard />
+      {/* จังหวัดทับซ้อน + ดีลเลอร์ที่จับคู่จังหวัดไม่ได้ (กฎพื้นที่ · ด่าน 1) — หน้านี้กั้นด้วยสิทธิ์ dealers:manage อยู่แล้ว */}
+      <TerritoryOverlapsCard canManage dealerName={c => dealers.find(d => d.code === c)?.name ?? ""} />
 
       {/* ── KPI 4 ใบ — มาตรฐานเดียวกับหน้า HQ อื่นทั้งหมด (แดชบอร์ด · ภาพรวมยอดขาย · ใบเสนอราคา · ลูกค้า) ──
           เดิมหน้านี้ใช้ .stat-card ของเก่า: แถบสีซ้าย + ตัวเลขสีใหญ่ + หน่วยติดในตัวเลข ("10 ดีลเลอร์")
