@@ -1,22 +1,29 @@
-// ── ตัวตรวจ: คำสั่งที่โค้ดฝั่งเซิร์ฟเวอร์เรียกด้วยกุญแจ service_role ต้องมีสิทธิ์ service_role จริง ──────────
+// ── ตัวตรวจ: คำสั่งของฐานข้อมูลที่โค้ดเรียก ต้องมีสิทธิ์เรียกตรงกับผู้เรียกจริง ─────────────────────
 //
-// บั๊กจริง (พบ 13 ต.ค. 69 · ใบ 0188): เส้นทางลบดีลเลอร์และย้ายข้อมูลดีลเลอร์ของสำนักงานใหญ่
-//   เรียก delete_dealer_atomic / move_dealer_data_atomic ด้วยกุญแจฝั่งเซิร์ฟเวอร์
-//   แต่ใบแก้ฐานข้อมูลถอนสิทธิ์ทุกคนแล้วให้คืนเฉพาะผู้ใช้ที่เข้าระบบ — ฝั่งเซิร์ฟเวอร์เรียกไม่ได้ ได้ 503 ทุกครั้ง
-//   ฐานทดสอบในเครื่องถูกให้สิทธิ์แบบเหมานอกใบ ข้อทดสอบจึงผ่านมาตลอด
+// บั๊กจริง (พบ 13 ต.ค. 69 · ใบ 0188 / 0190):
+//   เส้นทางลบดีลเลอร์และย้ายข้อมูลดีลเลอร์ของสำนักงานใหญ่เรียกคำสั่งด้วยกุญแจฝั่งเซิร์ฟเวอร์
+//   แต่ใบแก้ฐานข้อมูลให้สิทธิ์เฉพาะผู้ใช้ที่เข้าระบบ — บนฐานในเครื่องรุ่นเก่าเรียกไม่ได้ ได้ 503 ทุกครั้ง
+//   ส่วนฐานรุ่นใหม่ให้สิทธิ์ตั้งต้นกว้างจนบั๊กไม่โผล่ = สิทธิ์เรียกคำสั่งขึ้นกับรุ่นของฐาน ไม่ได้ขึ้นกับใบ
+//   ตั้งแต่ใบ 0190 ทุกคำสั่งถูกกำหนดสิทธิ์ชัด: ไม่ให้ = เรียกไม่ได้จริงบนทุกฐาน ตัวตรวจนี้จึงต้องครอบทั้งสองฝั่ง
 //
 // วิธีตรวจ (ไม่ต้องต่อฐานข้อมูล รันใน CI ได้):
-//   1) ไล่โค้ดฝั่งเซิร์ฟเวอร์ หาการเรียก <ตัวเชื่อมต่อสิทธิ์เซิร์ฟเวอร์>.rpc("ชื่อคำสั่ง")
-//      ตัวเชื่อมต่อสิทธิ์เซิร์ฟเวอร์ = ตัวแปรที่สร้างด้วยกุญแจ service_role — ในโปรเจกต์นี้ตั้งชื่อ admin / svc เสมอ
+//   1) ไล่โค้ด หาการเรียก <ตัวเชื่อมต่อ>.rpc("ชื่อคำสั่ง") และตารางคำสั่งแบบ rpc: "ชื่อคำสั่ง" (metrics.ts)
+//      ตัวเชื่อมต่อสิทธิ์เซิร์ฟเวอร์ = ตัวแปรชื่อ admin / svc หรือตัวแปรที่สร้างด้วยกุญแจ SERVICE_ROLE ในไฟล์เดียวกัน
+//      นอกนั้น = เรียกด้วยใบผ่านของผู้ใช้ (หน้าเว็บ และ /api/v1 ที่ส่งใบผ่านของผู้ใช้ต่อ)
 //   2) เทียบกับค่าที่ถ่ายจากฐานเปล่าที่สร้างจากใบแก้ฐานข้อมูลล้วน ๆ (supabase/tests/expected-function-grants.json)
-//      คำสั่งไหน service_role เรียกไม่ได้ → ตก
+//      ฝั่งเซิร์ฟเวอร์เรียก → ต้องมีสิทธิ์ service_role · ผู้ใช้เรียก → ต้องมีสิทธิ์ authenticated
+//   3) คนที่ยังไม่เข้าระบบ (anon) ต้องเรียกคำสั่งไหนไม่ได้เลย เว้นแต่อยู่ในรายการยกเว้นพร้อมเหตุผล
 // รัน: node scripts/check-server-rpc-grants.mjs [ไฟล์ค่าที่ถ่ายไว้]
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 const ไฟล์ค่าที่ถ่ายไว้ = process.argv[2] ?? "supabase/tests/expected-function-grants.json";
-const ที่มีโค้ดฝั่งเซิร์ฟเวอร์ = ["apps/hq/app/api", "apps/dealer/app/api", "packages/shared/server", "packages/shared/lib/rateLimit.ts", "scripts"];
-const ตัวเชื่อมต่อสิทธิ์เซิร์ฟเวอร์ = /\b(?:admin|svc)\s*\.rpc\(\s*["'`]([a-z_0-9]+)["'`]/g;
+const ที่มีโค้ด = ["apps", "packages", "scripts"];
+
+/** คำสั่งที่คนยังไม่เข้าระบบเรียกได้ — ต้องมีเหตุผล (ตอนนี้ไม่มี: หน้าเข้าสู่ระบบไม่เรียกคำสั่งไหนของฐาน) */
+const ยกเว้นคนนอก = [
+  // { name: "ชื่อคำสั่ง", reason: "ทำไมคนที่ยังไม่เข้าระบบต้องเรียกได้" },
+];
 
 function ไล่ไฟล์(p, out = []) {
   let st; try { st = statSync(p); } catch { return out; }
@@ -25,34 +32,48 @@ function ไล่ไฟล์(p, out = []) {
   return out;
 }
 
-const เรียกจาก = new Map();   // ชื่อคำสั่ง → ไฟล์ที่เรียก
-for (const root of ที่มีโค้ดฝั่งเซิร์ฟเวอร์) {
+const เซิร์ฟเวอร์ = new Map(), ผู้ใช้ = new Map();   // ชื่อคำสั่ง → ที่เรียก
+const จด = (m, name, ที่) => { if (!m.has(name)) m.set(name, []); m.get(name).push(ที่); };
+for (const root of ที่มีโค้ด) {
   for (const f of ไล่ไฟล์(root)) {
-    if (path.basename(f) === "check-server-rpc-grants.mjs") continue;
-    const src = readFileSync(f, "utf8");
-    for (const m of src.matchAll(ตัวเชื่อมต่อสิทธิ์เซิร์ฟเวอร์)) {
-      const ln = src.slice(0, m.index).split("\n").length;
-      if (!เรียกจาก.has(m[1])) เรียกจาก.set(m[1], []);
-      เรียกจาก.get(m[1]).push(`${f.replaceAll("\\", "/")}:${ln}`);
+    if (/check-server-rpc-grants\.mjs$/.test(f)) continue;
+    const src = readFileSync(f, "utf8"), ไฟล์ = f.replaceAll("\\", "/");
+    const บรรทัด = i => src.slice(0, i).split("\n").length;
+    const ตัวแปรเซิร์ฟเวอร์ = new Set(["admin", "svc"]);
+    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*createClient\([^;]*?SERVICE_ROLE/gs)) ตัวแปรเซิร์ฟเวอร์.add(m[1]);
+    for (const m of src.matchAll(/([\w.()]+)\s*\.rpc\(\s*["'`]([a-z_0-9]+)["'`]/g)) {
+      const ตัวแปร = m[1].split(".").pop().replace(/[()]/g, "");
+      จด(ตัวแปรเซิร์ฟเวอร์.has(ตัวแปร) ? เซิร์ฟเวอร์ : ผู้ใช้, m[2], `${ไฟล์}:${บรรทัด(m.index)}`);
     }
+    for (const m of src.matchAll(/\brpc:\s*["']([a-z_0-9]+)["']/g)) จด(ผู้ใช้, m[1], `${ไฟล์}:${บรรทัด(m.index)}`);
   }
 }
-if (เรียกจาก.size === 0) {
-  console.error("❌ ไม่พบการเรียกคำสั่งด้วยสิทธิ์เซิร์ฟเวอร์เลยสักจุด — รูปแบบโค้ดเปลี่ยน (ชื่อตัวแปร admin / svc) ต้องปรับตัวตรวจนี้ตาม");
+if (เซิร์ฟเวอร์.size === 0 || ผู้ใช้.size === 0) {
+  console.error("❌ ไม่พบการเรียกคำสั่งของฐานฝั่งใดฝั่งหนึ่งเลย — รูปแบบโค้ดเปลี่ยน ต้องปรับตัวตรวจนี้ตาม");
   process.exit(1);
 }
 
 const ค่า = JSON.parse(readFileSync(ไฟล์ค่าที่ถ่ายไว้, "utf8"));
 const พบ = [];
-for (const [name, ที่] of [...เรียกจาก].sort()) {
-  const แบบ = ค่า.functions.filter(f => f.f.startsWith(name + "("));
-  if (!แบบ.length) { พบ.push({ name, ที่, msg: "ไม่มีคำสั่งนี้ในฐานที่สร้างจากใบแก้ฐานข้อมูล" }); continue; }
-  if (!แบบ.some(f => f.service_role)) พบ.push({ name, ที่, msg: "ฝั่งเซิร์ฟเวอร์ (service_role) ไม่มีสิทธิ์เรียก — เรียกแล้วจะถูกปฏิเสธทุกครั้ง" });
+const ตรวจ = (m, role, ใคร) => {
+  for (const [name, ที่] of [...m].sort()) {
+    const แบบ = ค่า.functions.filter(f => f.f.startsWith(name + "("));
+    if (!แบบ.length) { พบ.push({ name, ที่, msg: "ไม่มีคำสั่งนี้ในฐานที่สร้างจากใบแก้ฐานข้อมูล" }); continue; }
+    if (!แบบ.some(f => f[role])) พบ.push({ name, ที่, msg: `${ใคร} (${role}) ไม่มีสิทธิ์เรียก — เรียกแล้วจะถูกปฏิเสธทุกครั้ง` });
+  }
+};
+ตรวจ(เซิร์ฟเวอร์, "service_role", "ฝั่งเซิร์ฟเวอร์");
+ตรวจ(ผู้ใช้, "authenticated", "ผู้ใช้ที่เข้าระบบ");
+for (const f of ค่า.functions) {
+  const name = f.f.split("(")[0];
+  if (f.anon && !ยกเว้นคนนอก.some(e => e.name === name)) พบ.push({ name, ที่: [], msg: "คนที่ยังไม่เข้าระบบ (anon) เรียกได้ และไม่อยู่ในรายการยกเว้น" });
 }
+for (const e of ยกเว้นคนนอก) if (!ค่า.functions.some(f => f.f.startsWith(e.name + "(") && f.anon)) พบ.push({ name: e.name, ที่: [], msg: "รายการยกเว้นคนนอกไม่ตรงกับคำสั่งที่คนนอกเรียกได้แล้ว — เอาออก" });
+
 for (const p of พบ) {
   console.log(`  ✗ ${p.name}  ${p.msg}`);
   for (const t of p.ที่) console.log(`      เรียกที่ ${t}`);
 }
-if (พบ.length) console.log("      แก้: เพิ่มใบแก้ฐานข้อมูล grant execute on function … to service_role แล้วถ่ายค่าใหม่ (node scripts/db-audit-grants.mjs --snapshot …)");
-console.log(`คำสั่งที่ฝั่งเซิร์ฟเวอร์เรียกแต่ไม่มีสิทธิ์: ${พบ.length} (ตรวจ ${เรียกจาก.size} คำสั่ง · ค่าที่ถ่ายไว้ ณ ใบ ${ค่า.migration})`);
+if (พบ.length) console.log("      แก้: เพิ่มใบแก้ฐานข้อมูล grant execute on function … to <ผู้เรียก> แล้วถ่ายค่าใหม่ (node scripts/db-audit-grants.mjs --snapshot …)");
+console.log(`คำสั่งของฐานที่สิทธิ์เรียกไม่ตรงกับผู้เรียกในโค้ด: ${พบ.length} (ฝั่งเซิร์ฟเวอร์เรียก ${เซิร์ฟเวอร์.size} คำสั่ง · ผู้ใช้เรียก ${ผู้ใช้.size} คำสั่ง · ค่าที่ถ่ายไว้ ณ ใบ ${ค่า.migration})`);
 process.exit(พบ.length ? 1 : 0);

@@ -1,0 +1,421 @@
+{
+ "migration": "0191",
+ "relations": [
+  {
+   "r": "appointments",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "audit_log",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "audit_log_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "customer_notes",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "customer_notes_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "customers",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_account_changes",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_account_changes_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "dealer_account_requests",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_account_requests_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "dealer_lead_rules",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_login_secrets",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_package_proposals",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_package_proposals_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "dealer_proposal_counters",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_prospect_activities",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "INSERT,SELECT",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_prospect_activities_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "dealer_prospects",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_prospects_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "dealer_settings",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealers",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealers_directory",
+   "kind": "v",
+   "rls": false,
+   "anon": "",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "entity_counters",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "files",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "files_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "hq_company",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hq_login_secrets",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hq_notif_rules",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hq_policy",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hq_quotes",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "REFERENCES,SELECT,TRIGGER",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hq_quotes_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "hq_recruit_settings",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hq_sales_journey",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hq_targets",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "leads",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "master_catalog",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "master_catalog_public",
+   "kind": "v",
+   "rls": false,
+   "anon": "",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "profiles",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "quotations",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "quote_counters",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "quote_pricing_roles",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "REFERENCES,SELECT,TRIGGER",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "quote_request_events",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "REFERENCES,SELECT,TRIGGER",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "quote_request_events_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "quote_requests",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "REFERENCES,SELECT,TRIGGER",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "quote_requests_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "rate_limits",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "responsible_persons",
+   "kind": "r",
+   "rls": true,
+   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "responsible_persons_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  }
+ ],
+ "columns": [
+  {
+   "c": "dealers.code",
+   "role": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "c": "dealers.created_at",
+   "role": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "c": "dealers.name",
+   "role": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "c": "dealers.province",
+   "role": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "c": "dealers.region",
+   "role": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "c": "dealers.status",
+   "role": "authenticated",
+   "privs": "SELECT"
+  }
+ ]
+}

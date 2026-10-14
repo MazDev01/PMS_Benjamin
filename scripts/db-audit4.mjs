@@ -14,8 +14,9 @@
 //    โครงของฐานจริงมาจากใบแก้ฐานข้อมูลชุดเดียวกัน ผลจึงใช้แทนกันได้ตราบที่ขึ้นใบครบ
 // รัน: node scripts/db-audit4.mjs
 import { execFileSync } from "node:child_process";
+import { localDbContainer } from "./lib/localDbContainer.mjs";
 
-const คอนเทนเนอร์ = process.env.PMS_DB_CONTAINER ?? "supabase_db_Benjamin-HQ-main";
+const คอนเทนเนอร์ = localDbContainer();
 const ตัวช่วยตรวจสิทธิ์ = "(auth_dealer|auth_role|is_hq|can_write_|can_price_quotes|is_account_active|is_own_identity|auth\\.uid\\(\\)|auth\\.role\\(\\))";
 
 /** ฟังก์ชันที่ไม่ต้องตรวจสิทธิ์ — ระบุชื่อ + เหตุผล (รายการที่ไม่ตรงกับฟังก์ชันไหนแล้ว = ตก ต้องเอาออก) */
