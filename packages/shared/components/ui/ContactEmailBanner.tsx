@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useRole } from "@pms/shared/context/RoleContext";
-import { account } from "@pms/shared/lib/data";
+import { accountStateOnce, ล้างสถานะบัญชี } from "@pms/shared/lib/accountStateOnce";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { ContactEmailForm } from "./ContactEmailForm";
@@ -22,7 +22,7 @@ export function ContactEmailBanner() {
 
   const ตรวจ = useCallback(() => {
     if (!REAL_BACKEND || !session.dealerCode) return;
-    account.state(session.dealerCode)
+    accountStateOnce(session.dealerCode)
       .then(s => { setอีเมล(s.contactEmail ?? ""); setแสดง(!s.contactEmailVerified && !s.mustVerifyEmail && !s.mustChangePassword); })
       .catch(e => {
         // อ่านไม่ได้ = ไม่แสดง ไม่ขวางการใช้งาน · ใบผ่านใช้ไม่ได้แล้ว (สาขาถูกลบ/ปิดใช้งาน) = AuthGuard กำลังพาออกจากระบบอยู่ ไม่ต้องบันทึก
@@ -48,7 +48,7 @@ export function ContactEmailBanner() {
       </div>
       {เปิดฟอร์ม && (
         <div style={{ marginTop: 12, background: "#fff", borderRadius: 10, padding: 14, maxWidth: 520 }}>
-          <ContactEmailForm initialEmail={อีเมล} dealerCode={session.dealerCode ?? ""} onVerified={() => { setเปิดฟอร์ม(false); ตรวจ(); }} />
+          <ContactEmailForm initialEmail={อีเมล} dealerCode={session.dealerCode ?? ""} onVerified={() => { setเปิดฟอร์ม(false); ล้างสถานะบัญชี(session.dealerCode ?? undefined); ตรวจ(); }} />
         </div>
       )}
     </div>

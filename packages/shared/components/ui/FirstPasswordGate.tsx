@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Lock, LogOut, Mail } from "lucide-react";
 import { ContactEmailForm } from "./ContactEmailForm";
+import { accountStateOnce, ล้างสถานะบัญชี } from "@pms/shared/lib/accountStateOnce";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { account } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
@@ -44,7 +45,7 @@ export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
     //    สำนักงานใหญ่เข้าแทนบัญชีที่ยังไม่ตั้งรหัส จึงต้องเจอหน้าตั้งรหัสเหมือนดีลเลอร์เอง
     if (!session.dealerCode) { setขั้นตอน("ผ่าน"); return; }
     let alive = true;
-    account.state(session.dealerCode)
+    accountStateOnce(session.dealerCode)
       .then(s => {
         if (!alive) return;
         setอีเมลติดต่อ(s.contactEmail ?? "");
@@ -98,7 +99,7 @@ export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
           <p style={{ margin: "0 0 16px", fontSize: "0.84rem", color: "#374151", lineHeight: 1.7 }}>
             ขั้นสุดท้าย — กรอกอีเมลที่ใช้ติดต่อจริง ระบบจะส่งโค้ดไปให้ยืนยัน สำนักงานใหญ่ใช้อีเมลนี้แจ้งเรื่องสำคัญของงานขายถึงคุณ
           </p>
-          <ContactEmailForm initialEmail={อีเมลติดต่อ} dealerCode={session.dealerCode ?? ""} onVerified={() => setขั้นตอน("ผ่าน")} />
+          <ContactEmailForm initialEmail={อีเมลติดต่อ} dealerCode={session.dealerCode ?? ""} onVerified={() => { ล้างสถานะบัญชี(session.dealerCode ?? undefined); setขั้นตอน("ผ่าน"); }} />
           <button type="button" onClick={logout}
             style={{ marginTop: 16, width: "100%", background: "none", border: "none", color: "#6b7280", fontSize: "0.78rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             <LogOut size={13} /> ออกจากระบบ

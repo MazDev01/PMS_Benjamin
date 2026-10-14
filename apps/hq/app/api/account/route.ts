@@ -153,15 +153,17 @@ export const GET = withErrors("dealer-account-state", async (req: NextRequest) =
   if (!who.ok) return who.res;
   const { admin, dealerCode, email, mustChangePassword, mustVerifyEmail, userId } = who.who;
   // อีเมลติดต่อ (ด่าน 1): อ่านพลาดไม่ทำให้สถานะบัญชีทั้งก้อนล้ม — ถือว่ายังไม่ยืนยัน แถบเตือนขึ้นแทน
-  const ติดต่อ = await สถานะอีเมลติดต่อ(admin, userId).catch(e => { console.error("[account] อ่านอีเมลติดต่อไม่สำเร็จ", e); return { contactEmail: "", contactEmailVerified: false }; });
+  //   เริ่มอ่านพร้อมกับสรุปสถานะ ไม่ต่อคิว — ทุกหน้าของดีลเลอร์รอคำตอบนี้ก่อนแสดงเนื้อหา (ด่านตั้งรหัสครั้งแรก)
+  const ติดต่อP = สถานะอีเมลติดต่อ(admin, userId).catch(e => { console.error("[account] อ่านอีเมลติดต่อไม่สำเร็จ", e); return { contactEmail: "", contactEmailVerified: false }; });
 
   // เส้นทางนี้คืนแค่สถานะ (อีเมล · โควตา · คำขอค้าง · คำขอล่าสุดที่ถูกปฏิเสธ) ไม่คืนรหัสผ่าน
   //   ดีลเลอร์ดูรหัสของตัวเองได้ที่ /api/account/reveal (ต้องยืนยันเลขทางอีเมล · บอสสั่ง 1 ก.ย. 69)
   //   mustChangePassword ต้องมาก่อนเสมอ แม้ตารางโควตายังไม่ได้ติดตั้ง — หน้าตั้งรหัสครั้งแรกอ่านค่านี้
   try {
-    return json(req, { ...(await สรุปสถานะ(admin, dealerCode, email)), mustChangePassword, mustVerifyEmail, ...ติดต่อ });
+    const [สรุป, ติดต่อ] = await Promise.all([สรุปสถานะ(admin, dealerCode, email), ติดต่อP]);
+    return json(req, { ...สรุป, mustChangePassword, mustVerifyEmail, ...ติดต่อ });
   } catch (e) {
-    if (e instanceof ยังไม่ได้ติดตั้ง) return json(req, { error: e.message, mustChangePassword, mustVerifyEmail, ...ติดต่อ }, 501);
+    if (e instanceof ยังไม่ได้ติดตั้ง) return json(req, { error: e.message, mustChangePassword, mustVerifyEmail, ...(await ติดต่อP) }, 501);
     throw e;
   }
 });
