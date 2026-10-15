@@ -76,7 +76,7 @@ for (const โปรเจกต์ of ช่วง) {
   const ไฟล์รายงาน = รายงานหลัก.replace(/\.json$/, "") + `.${โปรเจกต์}.json`;
   รายงาน.push(ไฟล์รายงาน);
   console.log(`▶ ช่วง ${โปรเจกต์}`);
-  const code = await รัน([`--project=${โปรเจกต์}`, รีพอร์ตเตอร์], { PLAYWRIGHT_JSON_OUTPUT_NAME: ไฟล์รายงาน });
+  const code = await รัน([`--project=${โปรเจกต์}`, รีพอร์ตเตอร์], { PLAYWRIGHT_JSON_OUTPUT_NAME: ไฟล์รายงาน, PMS_RUN_STAGE: โปรเจกต์ });
   if (code !== 0) ตก = code;
 }
 ปิดทั้งหมด();

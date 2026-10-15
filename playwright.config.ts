@@ -30,7 +30,9 @@ export default defineConfig({
   globalTeardown: "./tests/scenario/global-teardown.ts",
   // เก็บ artifact ไว้ใน node_modules/.cache — ที่เดิม (test-results/) อยู่ในโปรเจกต์
   // ทุกครั้งที่เทสต์เขียนไฟล์ dev server จะเห็นไฟล์เปลี่ยนแล้ว recompile ทั้งหน้า → เทสต์เจอ 404 กลางคัน
-  outputDir: `node_modules/.cache/playwright-results/${process.env.PMS_RUN_ID}`,
+  //   ช่วงของตัวรันเป็นช่วง (chromium/safari/…) ได้โฟลเดอร์ย่อยของตัวเอง — Playwright ล้าง outputDir ทุกครั้งที่เริ่ม
+  //   ใช้โฟลเดอร์เดียวกันทั้งรอบ = ช่วงหลังลบหลักฐานของช่วงก่อน (รอบปิดด่าน 4 · 15 ต.ค. 69 โฟลเดอร์ว่างทั้งที่มีข้อตก)
+  outputDir: `node_modules/.cache/playwright-results/${process.env.PMS_RUN_ID}${process.env.PMS_RUN_STAGE ? `/${process.env.PMS_RUN_STAGE}` : ""}`,
   // ⛔ ห้ามเปิด fullyParallel — เคยเปิดไว้แล้วทำให้ผลเทสต์เชื่อไม่ได้ (พิสูจน์แล้ว 6 ส.ค. 69)
   //
   // fullyParallel=true แจกเทสต์ "ในไฟล์เดียวกัน" ไปคนละ worker ได้ แต่ Playwright รัน
