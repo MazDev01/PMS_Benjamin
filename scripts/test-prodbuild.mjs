@@ -9,7 +9,9 @@
 import { spawn, spawnSync } from "node:child_process";
 
 const MODE = process.env.NEXT_PUBLIC_DATA_SOURCE ?? "api";   // ค่าตั้งต้น = โหมดเดียวกับเว็บจริง
-const env = { ...process.env, NEXT_PUBLIC_DATA_SOURCE: MODE };
+// รหัสรอบเดียวให้ทุกช่วง — หลักฐานข้อที่ตกของรอบนี้อยู่โฟลเดอร์เดียวกัน (playwright.config.ts)
+const PMS_RUN_ID = process.env.PMS_RUN_ID ?? new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 19).replace(/[:T]/g, "-");
+const env = { ...process.env, NEXT_PUBLIC_DATA_SOURCE: MODE, PMS_RUN_ID };
 const แอป = [
   { ชื่อ: "hq", cwd: "apps/hq", port: 3002 },
   { ชื่อ: "dealer", cwd: "apps/dealer", port: 3001 },
@@ -78,6 +80,7 @@ for (const โปรเจกต์ of ช่วง) {
   if (code !== 0) ตก = code;
 }
 ปิดทั้งหมด();
+console.log(`▶ หลักฐานข้อที่ตก (trace + ภาพหน้าจอ): node_modules/.cache/playwright-results/${PMS_RUN_ID}`);
 console.log("▶ ตัวตรวจรอบปิดด่าน: ทุกข้อต้องได้รันจริง");
 const ตรวจ = spawnSync("node", ["scripts/check-e2e-ran.mjs", ...รายงาน], { stdio: "inherit", shell: true });
 process.exit(ตก || ตรวจ.status || 0);

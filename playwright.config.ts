@@ -14,6 +14,13 @@ if (process.env.CI && process.env.PMS_FORCE_FAIL_PRICE_SWITCH) {
   );
 }
 
+// ── หลักฐานของข้อที่ตก แยกโฟลเดอร์ตามรอบ (บอสสั่ง 15 ต.ค. 69) ─────────────────────────────────────────────
+//   เดิมทุกรอบเขียนทับโฟลเดอร์เดียวกัน — hq-quote-flow:120 ตกครั้งแรกในรอบปิดด่าน 3 แล้วหลักฐานถูกรอบหลังลบทิ้ง
+//   ตอนนี้: ข้อที่ตกเก็บ trace (มีคำขอเครือข่าย + คำตอบ + ภาพทุกขั้น) และภาพหน้าจอ ไว้ที่โฟลเดอร์ของรอบ (วันเวลา)
+//   รหัสรอบตั้งครั้งเดียวใน process หลัก แล้ว worker ได้ค่าเดียวกันผ่าน env · ตัวรันเป็นช่วงตั้งค่าเดียวให้ทุกช่วง
+//   ดู trace: npx playwright show-trace <โฟลเดอร์ของข้อ>/trace.zip
+process.env.PMS_RUN_ID ??= new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
 export default defineConfig({
   testDir: "./tests/scenario",
   // ข้อมูลตั้งต้น (ลีด/ใบเสนอราคา/ลูกค้า ติดแท็ก ZZTEST-BASE) สำหรับกลุ่มเทสต์ที่แค่ "เปิดหน้าไปดู"
@@ -23,7 +30,7 @@ export default defineConfig({
   globalTeardown: "./tests/scenario/global-teardown.ts",
   // เก็บ artifact ไว้ใน node_modules/.cache — ที่เดิม (test-results/) อยู่ในโปรเจกต์
   // ทุกครั้งที่เทสต์เขียนไฟล์ dev server จะเห็นไฟล์เปลี่ยนแล้ว recompile ทั้งหน้า → เทสต์เจอ 404 กลางคัน
-  outputDir: "node_modules/.cache/playwright-results",
+  outputDir: `node_modules/.cache/playwright-results/${process.env.PMS_RUN_ID}`,
   // ⛔ ห้ามเปิด fullyParallel — เคยเปิดไว้แล้วทำให้ผลเทสต์เชื่อไม่ได้ (พิสูจน์แล้ว 6 ส.ค. 69)
   //
   // fullyParallel=true แจกเทสต์ "ในไฟล์เดียวกัน" ไปคนละ worker ได้ แต่ Playwright รัน
@@ -56,6 +63,8 @@ export default defineConfig({
     baseURL: "http://localhost:3002",
     headless: true,
     viewport: { width: 1280, height: 900 },
+    trace: "retain-on-failure",          // เก็บเฉพาะครั้งที่ตก (รวมครั้งแรกของข้อที่ไม่นิ่ง) — ผ่านแล้วลบทิ้ง
+    screenshot: "only-on-failure",
     actionTimeout: 8_000,
     navigationTimeout: 20_000,
   },
