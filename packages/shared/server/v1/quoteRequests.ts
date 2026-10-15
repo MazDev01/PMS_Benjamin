@@ -111,6 +111,15 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
       if (error) return dbFail("quoteRequests.copyHq", error);
       return ok(toCamel(data as Row));
     }
+    // HQ ย้อนการตอบรับ (won) ของใบลูกค้า — คำสั่งของฐานตรวจว่าเป็น HQ · ต้องมีเหตุผล · จดไทม์ไลน์เอง (0204/0205)
+    case "revert-won": {
+      const to = b.to === "lost" ? "lost" : "sent_to_client";
+      const reason = String(b.reason ?? "").trim().slice(0, 500);
+      if (!reason) return fail(400, "ย้อนการตอบรับต้องระบุเหตุผล");
+      const { error } = await sb.rpc("quotation_revert_won", { p_dealer: String(b.dealer ?? ""), p_id: String(b.quote ?? ""), p_reason: reason, p_to: to });
+      if (error) return dbFail("quoteRequests.revertWon", error);
+      return ok({ ok: true });
+    }
     default: return fail(400, "คำสั่งไม่ถูกต้อง");
   }
 });

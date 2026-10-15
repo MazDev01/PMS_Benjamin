@@ -309,6 +309,7 @@ export const LocalAdapter: DataAdapter = {
     saveHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
     sendHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
     copyHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
+    revertWon: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างย้อนการตอบรับไม่ได้")),
     quotedLeadIds: () => ok([]),
     hqQuoteById: () => ok(null),
     margin: () => ok(null),
@@ -907,6 +908,24 @@ export const LocalAdapter: DataAdapter = {
         lastPurchaseAt: c.lastPurchaseAt,
       }));
       return ok({ total, kpi, charts, rows });
+    },
+    // ภาพรวม HQ (โหมดตัวอย่าง) — คิดจากข้อมูลในเครื่องเท่าที่มี: ผู้สนใจ/ใบค่าแฟรนไชส์/ใบเสนอราคา won
+    //   โหมดตัวอย่างไม่มีคำขอราคา/ใบ HQ/พื้นที่ดีลเลอร์ → ส่วนนั้นเป็นศูนย์ (ห้ามเติมตัวเลข)
+    hqOverview: () => {
+      const ราย = readKey<DealerProspect[]>(PROSPECTS_KEY, HQ_PROSPECTS_SEED);
+      const ใบ = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []).filter(p => p.status === "sent");
+      const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed).filter(q => q.status === "won");
+      const นับ = (s: DealerProspectStatus) => ราย.filter(r => r.status === s).length;
+      return ok({
+        recruit: {
+          stages: { new: นับ("new"), contacted: นับ("contacted"), profile_sent: นับ("profile_sent"), meeting: นับ("meeting"),
+            considering: นับ("considering"), won: นับ("won"), lost: นับ("lost") },
+          proposalsWaiting: { count: ใบ.length, amount: ใบ.reduce((s, p) => s + Number(p.amount ?? 0), 0) },
+          provincesNoDealer: [],
+        },
+        requests: { queue: [], overdue: 0, avgResponseDays: null, closeRate: { won: 0, lost: 0, pct: null }, cancel: { cancelled: 0, total: 0, pct: null, reasons: [] } },
+        sales: { hqOrdered: 0, dealerWon: quotes.reduce((s, q) => s + Number(q.totalValue ?? 0), 0), marginByDealer: [] },
+      });
     },
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);

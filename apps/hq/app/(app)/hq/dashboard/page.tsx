@@ -34,6 +34,7 @@ import { regionDisplay } from "@pms/shared/lib/hqQuotations";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { useAuditEntries } from "@pms/shared/lib/useAudit";
 import { fmtBaht, parseBaht } from "@pms/shared/lib/format";
+import { HqOverviewBoxes } from "@pms/shared/components/hq/HqOverviewBoxes";
 
 const PRIMARY = "#003366";
 // palette หลายสีสำหรับกราฟรายภาค/แม่แบบ — navy หลัก + สีเสริม (ไม่ฉูดฉาด)
@@ -785,6 +786,9 @@ export default function HQDashboard() {
           </div>
         ))}
       </div>
+
+      {/* ภาพรวม 3 กล่องตาม FLOW ช่วงที่ 3 (ด่าน 5): หาดีลเลอร์ใหม่ · คำขอใบเสนอราคา · ยอดขายเครือข่าย */}
+      <HqOverviewBoxes />
 
       {/* แถวการ์ดแจ้งเตือน (ลูกค้าเป้าหมายไม่มีผู้รับผิดชอบ/ไม่ติดต่อ/ใบใกล้หมดอายุ/ดีลเลอร์ยอดต่ำ) เอาออกตามที่บอสสั่ง */}
 

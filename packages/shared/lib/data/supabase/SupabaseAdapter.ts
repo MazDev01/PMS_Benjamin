@@ -5,6 +5,7 @@
 // แปลง snake_case (DB) ↔ camelCase (type) ด้วย mappers.ts
 import { เตรียมบันทึกใบ } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
+import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
@@ -647,6 +648,10 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return (data ?? null) as QuoteMargin | null;
     },
+    revertWon: async (dealerCode, quotationId, reason, to) => {
+      const { error } = await sb().rpc("quotation_revert_won", { p_dealer: dealerCode, p_id: quotationId, p_reason: reason, p_to: to });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+    },
     quotedLeadIds: async (dealerCode) => {
       const { data, error } = await sb().from("quote_requests").select("lead_num_id").eq("dealer_code", dealerCode).eq("status", "quoted");
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
@@ -999,6 +1004,11 @@ export const SupabaseAdapter: DataAdapter = {
           lastPurchaseAt: (r.last_purchase_at as string | null) ?? null,
         })),
       };
+    },
+    hqOverview: async () => {
+      const { data, error } = await sb().rpc("hq_overview");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return จัดรูปภาพรวมHQ(data);
     },
     hqCustomersFilterOptions: async () => {
       const { data, error } = await sb().rpc("hq_customers_filter_options");

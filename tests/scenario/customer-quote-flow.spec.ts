@@ -191,3 +191,36 @@ test("[flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเสธ
   expect((await admin.from("quote_requests").select("status").eq("id", ข.requestId).single()).data?.status, "คำขอปิด lost").toBe("lost");
   expect(qลับ).toBeTruthy();
 });
+
+test("[flow·hq] HQ ย้อนการตอบรับ (won) พร้อมเหตุผล — ปุ่มอยู่ที่แผงใบของ HQ · ไทม์ไลน์บอกว่าใคร/เหตุผล · ใบที่ไม่ใช่ won ไม่มีปุ่ม", async ({ page }) => {
+  // BACKLOG "ต้องแก้ก่อนขึ้นระบบจริง" (ด่าน 3 → ด่าน 5): ก่อนนี้ย้อนได้ทางเดียวคือคำสั่งของฐาน quotation_revert_won
+  const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
+  test.skip(q10?.status !== "won", "ข้อก่อนหน้าไม่ผ่าน");
+  const errs = watchErrors(page);
+  await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  const เปิดใบ = async (id: string) => {
+    await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    await page.getByPlaceholder(/ค้นหา/).first().fill(id);
+    const แถว = page.locator("tbody tr").filter({ hasText: id }).first();
+    await expect(แถว).toBeVisible({ timeout: 25_000 });
+    await แถว.getByRole("button", { name: /ดู/ }).first().click();
+    return page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
+  };
+
+  // ใบที่ลูกค้าปฏิเสธ (ไม่ใช่ won) ไม่มีปุ่มย้อน
+  const แผงลับ = await เปิดใบ(qลับ!.id);
+  await expect(แผงลับ.locator("[data-panel='revert-won']"), "ใบที่ไม่ใช่ won ไม่มีปุ่มย้อน").toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  const แผง = await เปิดใบ(q10!.id);
+  await แผง.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว" }).click();
+  const ถาม = page.getByRole("alertdialog", { name: /ย้อนการตอบรับใบ/ });
+  await expect(ถาม.getByRole("button", { name: "ย้อนการตอบรับ" }), "ยังไม่กรอกเหตุผล กดย้อนไม่ได้").toBeDisabled();
+  await ถาม.getByLabel("เหตุผลที่ย้อน").fill("ดีลเลอร์กดตอบรับผิดใบ");
+  await ถาม.getByRole("button", { name: "ย้อนการตอบรับ" }).click();
+  await expect.poll(async () => (await ใบของ(ก.leadNum))?.status, { timeout: 20_000, message: "ย้อนแล้วใบต้องเป็นส่งให้ลูกค้าแล้ว" }).toBe("sent_to_client");
+  const { data: ลีด } = await admin.from("leads").select("activities").eq("dealer_code", "RYG").eq("num_id", ก.leadNum).single();
+  expect(JSON.stringify(ลีด?.activities ?? []), "ไทม์ไลน์ต้องบอกว่าสำนักงานใหญ่ย้อน พร้อมเหตุผล").toMatch(/สำนักงานใหญ่.*ย้อนการตอบรับ.*ดีลเลอร์กดตอบรับผิดใบ/);
+  assertNoErrors(errs, "HQ ย้อนการตอบรับ");
+});

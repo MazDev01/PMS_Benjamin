@@ -289,6 +289,7 @@ const quoteRequests: QuoteRequestsRepo = {
   saveHqQuote: (requestId, lines, validUntil, note) => post<HqQuote>("/quote-requests", { op: "save-hq", id: requestId, lines, validUntil, note }),
   sendHqQuote: (requestId) => post<HqQuote>("/quote-requests", { op: "send-hq", id: requestId }),
   copyHqQuote: (requestId, sourceHqQuoteId) => post<HqQuote>("/quote-requests", { op: "copy-hq", id: requestId, sourceId: sourceHqQuoteId }),
+  revertWon: async (dealerCode, quotationId, reason, to) => { await post("/quote-requests", { op: "revert-won", dealer: dealerCode, quote: quotationId, reason, to }); },
   hqQuoteById: (id) => apiFetch<HqQuote | null>(`/quote-requests?view=hq-quote-id&id=${id}`),
   margin: (dealerCode, quotationId) => apiFetch<QuoteMargin | null>(`/quote-requests?view=margin&dealer=${encodeURIComponent(dealerCode)}&quote=${encodeURIComponent(quotationId)}`),
   quotedLeadIds: (dealerCode) => apiFetch<number[]>(`/quote-requests?view=quoted-leads&dealer=${encodeURIComponent(dealerCode)}`),
@@ -389,6 +390,7 @@ const metrics: MetricsRepo = {
   hqQuotationsSummary: (f) => metric("hqQuotationsSummary", { ...f, search: trimmed(f.search), asOf: f.asOf ?? APP_NOW_ISO }),
   hqCustomersPage: (o) => metric("hqCustomersPage", { ...o, search: trimmed(o.search) }),
   hqCustomersFilterOptions: () => metric("hqCustomersFilterOptions"),
+  hqOverview: () => metric("hqOverview"),
 };
 // ── งานขาย ──
 // scope ส่งไปกับคำขอ (?hq=1 / ?dealer=…) — RLS ที่ DB ยังเป็นด่านจริง อันนี้แค่ไม่ดึงเกินจำเป็น

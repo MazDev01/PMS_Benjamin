@@ -7,6 +7,7 @@
 //    ที่นี่ส่งต่อตรง ๆ ห้ามเดาค่าแทน ไม่งั้นตัวเลขบนจอกับที่คิดจริงจะคนละชุด
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
+import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 
 type Row = Record<string, unknown>;
 type Args = Record<string, unknown>;
@@ -18,6 +19,8 @@ const S = (v: unknown) => String(v ?? "");
 /** ชื่อ RPC + วิธีจัดรูปผลลัพธ์ ของแต่ละตัวสรุป — คัดมาจาก SupabaseAdapter.metrics ตรง ๆ */
 // export ไว้ให้เทสต์ย่อยเรียกตรวจรูปแบบข้อมูลได้ โดยไม่ต้องยกเซิร์ฟเวอร์ทั้งตัว
 export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape: (d: unknown) => unknown }> = {
+  // ภาพรวม HQ 3 กล่อง (ด่าน 5 · 0209) — ตัวคำนวณตรวจว่าเป็น HQ เอง · จัดรูปด้วยตัวเดียวกับฝั่งต่อฐานตรง
+  hqOverview: { rpc: "hq_overview", args: () => ({}), shape: d => จัดรูปภาพรวมHQ(d) },
   dealerRollup: {
     rpc: "dealer_rollup",
     args: a => ({ p_year: a.year, p_as_of: a.asOf, p_default_days: a.defaultDays, p_follow_up_days: a.perDealer ?? null }),

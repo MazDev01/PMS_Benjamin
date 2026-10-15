@@ -1,5 +1,5 @@
 {
- "migration": "0208",
+ "migration": "0209",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -378,6 +378,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "hq_overview()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "hq_quotations_summary(p_status text, p_dealer_codes text[], p_product_lines text[], p_search text, p_date_start date, p_date_end date, p_as_of date, p_search_dealers text[])",

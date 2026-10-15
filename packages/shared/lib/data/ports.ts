@@ -1,3 +1,4 @@
+import type { HqOverview } from "../hqOverview";
 // Ports — สัญญา (interface) ที่ทุก adapter ต้องมี
 // context/hook เรียกผ่าน repository เหล่านี้เท่านั้น · เบื้องหลังสลับ adapter ได้
 // ทุกเมธอดเป็น async ตั้งแต่แรก → ต่อ network (เฟส B) ไม่ต้องแก้ signature
@@ -132,6 +133,8 @@ export interface QuoteRequestsRepo {
   hqQuoteById(id: number): Promise<import("../quoteRequests").HqQuote | null>;
   /** margin ของใบลูกค้า (ใบ 0201 · quotation_margin) — HQ ทุกใบ · ดีลเลอร์ของตัวเอง · ไม่ผูกใบ HQ = null */
   margin(dealerCode: string, quotationId: string): Promise<import("../quoteRequests").QuoteMargin | null>;
+  /** HQ ย้อนการตอบรับ (won) ของใบลูกค้า — ต้องมีเหตุผล · ฐานตรวจว่าเป็น HQ + จดไทม์ไลน์/บันทึกการใช้งานเอง (ใบ 0204/0205) */
+  revertWon(dealerCode: string, quotationId: string, reason: string, to: "sent_to_client" | "lost"): Promise<void>;
   /** ลูกค้าเป้าหมายของสาขาที่ HQ ส่งใบแล้ว รอดีลเลอร์ทำใบให้ลูกค้า (ป้าย "ได้ราคาแล้ว") */
   quotedLeadIds(dealerCode: string): Promise<number[]>;
 }
@@ -464,6 +467,8 @@ export interface MetricsRepo {
   hqCustomersPage(opts: HQCustomersPageOpts): Promise<HQCustomersPageResult>;
   /** ตัวเลือกตัวกรอง (ดีลเลอร์/จังหวัด/ประเภทอาคาร/ปีที่ส่งมอบ) ของหน้าฐานข้อมูลลูกค้า — ไม่อิงตัวกรองปัจจุบัน */
   hqCustomersFilterOptions(): Promise<HQCustomersFilterOptions>;
+  /** ภาพรวม HQ 3 กล่องตาม FLOW (ด่าน 5 · ใบ 0209) — ตัวเลข ณ ตอนนี้ ไม่ขึ้นกับตัวกรอง · HQ เท่านั้น */
+  hqOverview(): Promise<HqOverview>;
 }
 
 // ── โดเมนงานขาย — list (อ่าน) + CRUD เต็ม (Phase 0) ──

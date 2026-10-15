@@ -28,14 +28,18 @@ import { fmtBaht } from "@pms/shared/lib/format";
 import { regionDisplay, type QuoteRow } from "@pms/shared/lib/hqQuotations";
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
 import { SidePanel } from "@pms/shared/components/ui/SidePanel";
+import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { friendlyError } from "@pms/shared/lib/friendlyError";
 
 const PRIMARY = "#003366";
 const บาท2 = (n: number) => Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const เปอร์เซ็นต์ = (n: number | null) => n == null ? "—" : `${Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 
-export function QuotationDrawer({ quote, onClose }: {
+export function QuotationDrawer({ quote, onClose, onChanged }: {
   quote: QuoteRow;
   onClose: () => void;
+  /** สถานะใบเปลี่ยน (HQ ย้อนการตอบรับ) — ให้หน้าแม่โหลดตารางใหม่ */
+  onChanged?: () => void;
 }) {
   const sc = quotationStatusColor[quote.status];
   const items = quote.lineItems ?? [];
@@ -52,6 +56,25 @@ export function QuotationDrawer({ quote, onClose }: {
     return () => { alive = false; };
   }, [quote.dealerCode, quote.quoteNo]);
 
+  // ── HQ ย้อนการตอบรับ (won) — ดีลเลอร์ทำเองไม่ได้ (ฐานข้อมูลบังคับ 0204/0205) · ต้องมีเหตุผล · ไทม์ไลน์บอกว่าใคร/เมื่อไร ──
+  const [ย้อนอยู่, setย้อนอยู่] = useState(false);
+  async function ย้อน(to: "sent_to_client" | "lost") {
+    const เหตุผล = await ถามเหตุผล({
+      หัวข้อ: `ย้อนการตอบรับใบ ${quote.quoteNo} เป็น “${to === "lost" ? "ลูกค้าปฏิเสธ" : "ส่งให้ลูกค้าแล้ว"}” ?`,
+      รายละเอียด: "ยอดขายของใบนี้จะไม่นับแล้ว · ไทม์ไลน์ของลูกค้าเป้าหมายบันทึกว่าสำนักงานใหญ่ย้อน พร้อมเหตุผล",
+      ป้ายช่อง: "เหตุผลที่ย้อน", ปุ่มตกลง: "ย้อนการตอบรับ", อันตราย: true,
+    });
+    if (เหตุผล == null) return;
+    setย้อนอยู่(true);
+    try {
+      await quoteRequestsRepo.revertWon(quote.dealerCode, quote.quoteNo, เหตุผล, to);
+      แจ้งสำเร็จ(`ย้อนการตอบรับใบ ${quote.quoteNo} แล้ว`);
+      onChanged?.();
+      onClose();
+    } catch (e) { แจ้งพลาด(friendlyError(e, "ย้อนการตอบรับไม่สำเร็จ")); }
+    finally { setย้อนอยู่(false); }
+  }
+
   return (
     <SidePanel
       label="รายละเอียดใบเสนอราคา"
@@ -62,8 +85,18 @@ export function QuotationDrawer({ quote, onClose }: {
         { ข้อความ: quotationStatusLabel[quote.status], พื้น: sc.bg, ตัวอักษร: sc.text },
         { ข้อความ: fmtBaht(quote.valueNum) },
       ]}
-      footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไข/ลบใบได้ที่ดีลเลอร์เจ้าของใบ"
+      footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไข/ลบใบได้ที่ดีลเลอร์เจ้าของใบ (ย้อนการตอบรับทำได้ที่สำนักงานใหญ่เท่านั้น)"
     >
+      {ปิดการขายแล้ว && (
+        <div data-panel="revert-won" style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: "0.74rem", color: "#9A3412" }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>ลูกค้าตอบรับแล้ว — ดีลเลอร์เปลี่ยนสถานะเองไม่ได้ ถ้าตอบรับผิด สำนักงานใหญ่ย้อนได้พร้อมเหตุผล</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={ย้อนอยู่} onClick={() => void ย้อน("sent_to_client")}>ย้อนเป็นส่งให้ลูกค้าแล้ว</button>
+            <button type="button" className="btn btn-sm" disabled={ย้อนอยู่} onClick={() => void ย้อน("lost")}
+              style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }}>ย้อนเป็นลูกค้าปฏิเสธ</button>
+          </div>
+        </div>
+      )}
       {/* แถบสรุปบนสุด — มูลค่ากับอายุใบ อ่านได้ตั้งแต่ยังไม่เลื่อนจอ (เหมือนแผงลูกค้าเป้าหมาย) */}
       <PanelStats>
         <PanelStat label="มูลค่างาน (ก่อน VAT)" value={fmtBaht(quote.valueNum)} />
