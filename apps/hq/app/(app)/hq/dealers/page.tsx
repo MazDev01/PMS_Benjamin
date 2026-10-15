@@ -28,8 +28,6 @@ import { useRouter } from "next/navigation";
 import { Search, X, LogIn, Pencil, Trash2, EyeOff, Eye, AlertTriangle, BarChart2, Trophy, Target, Clock, Store, Coins, Briefcase, LayoutGrid, List, MapPin, Package, CalendarDays } from "lucide-react";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
 import { TerritoryOverlapsCard } from "@pms/shared/components/hq/TerritoryOverlapsCard";
-import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
-import { เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
 import { PACKAGE_ORDER, packageLabel } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackage } from "@pms/shared/lib/data/types";
 
@@ -213,12 +211,9 @@ function HQDealersPageInner() {
   // Modals
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<DealerRow | null>(null);
-  const [form, setForm] = useState({ code: "", name: "", province: "", region: "", revenueTarget: 0, package: "" as DealerPackage | "", targetManual: false, status: "active" as "active" | "inactive" });
-  // เป้ายอดขายเชื่อมกับแพ็กเกจ (บอสสั่ง 15 ก.ย. 69) — แพ็กเกจที่ตั้งเป้าไว้ที่ ตั้งค่า › หาดีลเลอร์ ใช้เป้านั้น (ฐานข้อมูลบังคับ 0178)
-  //   เว้นแต่ติ๊ก "กำหนดเป้าเอง" ให้ดีลเลอร์รายนั้น (0180 · บอสสั่ง "ให้สามารถแก้เองหรือแก้ในตั้งค่าก็ได้")
-  const ค่าตั้งหาดีลเลอร์ = useRecruitSettings();
-  //   แยกตามภาค (0179): เป้าของแพ็กเกจในภาคของดีลเลอร์ → เป้ากลางของแพ็กเกจ → กรอกเอง
-  const เป้าแพ็กเกจ = เป้าตามแพ็กเกจ(ค่าตั้งหาดีลเลอร์, form.package || null, form.region);
+  const [form, setForm] = useState({ code: "", name: "", province: "", region: "", revenueTarget: 0, package: "" as DealerPackage | "", status: "active" as "active" | "inactive" });
+  // เป้ายอดขายเป็นของดีลเลอร์รายนั้น — ตั้งจากเป้าในใบค่าแฟรนไชส์ตอนแปลงเป็นดีลเลอร์ (บอสตัดสิน 15 ต.ค. 69 · ใบ 0206)
+  //   เป้าของแพ็กเกจ (ตั้งค่า › หาดีลเลอร์) = ค่าตั้งต้นตอนออกใบใหม่เท่านั้น ไม่ผูกกับดีลเลอร์แล้ว (เดิม 0178–0180)
   const [formErr, setFormErr] = useState("");
   // สาขาที่ลบไม่ได้เพราะยังมีข้อมูล → เปิดกล่อง "ย้ายข้อมูลไปสาขาอื่น" ให้แทนที่จะจบแค่แจ้งเตือน
   const [moveFrom, setMoveFrom] = useState<DealerRow | null>(null);
@@ -267,7 +262,7 @@ function HQDealersPageInner() {
   const avgOnTime = avgOf(c => perfOf(c).onTimePct);
   const totalPct = totalTarget > 0 ? Math.round(totalRevenue / totalTarget * 100) : 0;
 
-  function openEdit(d: DealerRow) { setEditTarget(d); setForm({ code: d.code, name: d.name, province: d.province, region: d.region, revenueTarget: d.revenueTarget, package: d.package ?? "", targetManual: d.targetManual ?? false, status: d.status }); setFormErr(""); setShowForm(true); }
+  function openEdit(d: DealerRow) { setEditTarget(d); setForm({ code: d.code, name: d.name, province: d.province, region: d.region, revenueTarget: d.revenueTarget, package: d.package ?? "", status: d.status }); setFormErr(""); setShowForm(true); }
 
   // เปลี่ยนภาค: อัปเดตภาค
   //   และล้างจังหวัดทิ้งถ้ามันไม่ได้อยู่ในภาคใหม่ — กันข้อมูลขัดกันเอง (เช่น ภาค "ใต้" + จังหวัด "เชียงใหม่")
@@ -297,10 +292,7 @@ function HQDealersPageInner() {
     if (editTarget) {
       setDealers(prev => prev.map(d => d.id === editTarget.id ? {
         ...d, name: form.name.trim(), province: form.province.trim(), region: form.region,
-        // กำหนดเองได้เฉพาะเมื่อแพ็กเกจมีเป้า — ไม่มีเป้าแพ็กเกจ ช่องเป้าเป็นกรอกเองอยู่แล้ว ไม่ต้องเก็บสวิตช์
-        ...(() => { const เอง = เป้าแพ็กเกจ != null && form.targetManual; return {
-          revenueTarget: เป้าแพ็กเกจ != null && !เอง ? เป้าแพ็กเกจ : form.revenueTarget, targetManual: เอง,
-        }; })(),
+        revenueTarget: form.revenueTarget,
         package: form.package || null, status: form.status,
       } : d));
       logAudit("แก้ไขดีลเลอร์", `${code} · ${form.name.trim()}`);
@@ -720,42 +712,12 @@ function HQDealersPageInner() {
                       เปอร์เซ็นต์ความสำเร็จของสาขา · เป้ารวมทั้งเครือบนหัวตาราง · กราฟเทียบเป้า
                       เดิมรับค่าติดลบตรง ๆ (พิมพ์ -5000000 แล้วบันทึกลงระบบได้จริง · พบ 6 ส.ค. 69) */}
                   {/* ช่องเงินใช้ text + ใส่ลูกน้ำเอง — type="number" ใส่ลูกน้ำไม่ได้ และหลักล้านอ่านยากมาก (บอสสั่ง 26 ส.ค. 69) */}
-                  {เป้าแพ็กเกจ != null ? (
-                    <>
-                      {form.targetManual ? (
-                        <input type="text" inputMode="numeric" aria-label="เป้ายอดขายทั้งปี"
-                          value={form.revenueTarget ? formatMoneyInput(String(form.revenueTarget)) : ""}
-                          onChange={e => setForm(f => ({ ...f, revenueTarget: parseMoneyInput(e.target.value) }))}
-                          placeholder="0" style={INPUT_STYLE} />
-                      ) : (
-                        <input type="text" aria-label="เป้ายอดขายทั้งปี" value={formatMoneyInput(String(เป้าแพ็กเกจ))} readOnly disabled
-                          style={{ ...INPUT_STYLE, background: "#f3f4f6", color: "#374151", fontWeight: 700, cursor: "not-allowed" }} />
-                      )}
-                      {/* สลับได้ 2 ทาง: ตามแพ็กเกจ (แก้ที่ตั้งค่า) หรือกำหนดเองรายดีลเลอร์ — ติ๊กแล้วเริ่มจากเป้าแพ็กเกจเดิมให้แก้ต่อ */}
-                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", color: "#374151", marginTop: 6, cursor: "pointer" }}>
-                        <input type="checkbox" aria-label="กำหนดเป้าเอง" checked={form.targetManual}
-                          onChange={e => { const on = e.target.checked; setForm(f => ({ ...f, targetManual: on, revenueTarget: on ? (f.revenueTarget || เป้าแพ็กเกจ) : f.revenueTarget })); }} />
-                        กำหนดเป้าเองสำหรับดีลเลอร์รายนี้
-                      </label>
-                      <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 3 }}>
-                        {form.targetManual
-                          ? `ไม่ตามแพ็กเกจ ${packageLabel[form.package as DealerPackage]} · แก้เป้าแพ็กเกจที่ตั้งค่าแล้วดีลเลอร์รายนี้ไม่เปลี่ยนตาม`
-                          : `ตามแพ็กเกจ ${packageLabel[form.package as DealerPackage]}${form.region ? ` · ${form.region}` : ""} · แก้ได้ที่ ตั้งค่า › หาดีลเลอร์`}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <input type="text" inputMode="numeric" aria-label="เป้ายอดขายทั้งปี"
-                        value={form.revenueTarget ? formatMoneyInput(String(form.revenueTarget)) : ""}
-                        onChange={e => setForm(f => ({ ...f, revenueTarget: parseMoneyInput(e.target.value) }))}
-                        placeholder="0" style={INPUT_STYLE} />
-                      {form.package && (
-                        <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 3 }}>
-                          แพ็กเกจ {packageLabel[form.package]} ยังไม่ได้ตั้งเป้า — กรอกเองได้ หรือตั้งที่ ตั้งค่า › หาดีลเลอร์
-                        </div>
-                      )}
-                    </>
-                  )}
+                  {/* เป้าเป็นของดีลเลอร์รายนี้ — ตั้งจากเป้าในใบค่าแฟรนไชส์ตอนแปลงเป็นดีลเลอร์ แก้เองได้ทีหลัง
+                      แก้เป้าของแพ็กเกจที่ตั้งค่าไม่ทับเป้าของดีลเลอร์ที่มีอยู่ (บอสตัดสิน 15 ต.ค. 69 · ใบ 0206) */}
+                  <input type="text" inputMode="numeric" aria-label="เป้ายอดขายทั้งปี"
+                    value={form.revenueTarget ? formatMoneyInput(String(form.revenueTarget)) : ""}
+                    onChange={e => setForm(f => ({ ...f, revenueTarget: parseMoneyInput(e.target.value) }))}
+                    placeholder="0" style={INPUT_STYLE} />
                 </InputField>
                 <InputField label="สถานะ">
                   {/* ต้องมีค่าเสมอ — ดีลเลอร์ต้องเป็นเปิดหรือปิดใช้งานอย่างใดอย่างหนึ่ง ว่างไม่ได้ */}
@@ -848,12 +810,7 @@ function HQDealersPageInner() {
           : revPct >= 50
           ? { label: "กำลังพัฒนา", color: "#f59e0b", bg: "#fef3cd" }
           : { label: "ต้องปรับปรุง", color: "#dc2626", bg: "#fee2e2" };
-        // ที่มาของเป้า — กติกาเดียวกับฟอร์มแก้ไข (ตัวดักฐานข้อมูล 0178/0180 เป็นผู้ตั้งค่าจริง)
-        const เป้าของแพ็กเกจ = เป้าตามแพ็กเกจ(ค่าตั้งหาดีลเลอร์, d.package ?? null, d.region);
-        const ที่มาเป้า = !มีเป้า ? "ยังไม่ได้ตั้งเป้า"
-          : d.targetManual ? "กำหนดเองรายดีลเลอร์"
-          : d.package && เป้าของแพ็กเกจ != null ? `ตามแพ็กเกจ ${packageLabel[d.package]}`
-          : "กรอกเอง";
+        const ที่มาเป้า = มีเป้า ? "" : "ยังไม่ได้ตั้งเป้า";
         const ขาดอีก = Math.max(0, d.revenueTarget - dPerf.revenue);
         const บาท = (n: number) => n >= 1_000_000 ? `฿${(n / 1_000_000).toFixed(1)}M` : `฿${Math.round(n).toLocaleString("th-TH")}`;
         const เข้าระบบเมื่อ = d.createdAt ? fmtISOToThai(d.createdAt.slice(0, 10)) : "—";
@@ -908,7 +865,7 @@ function HQDealersPageInner() {
                 <div style={{ background: "#f8f9fb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", flexShrink: 0 }}>
                   <div style={{ ...หัวข้อ, display: "flex", justifyContent: "space-between", gap: 8 }}>
                     <span>ยอดขายเทียบเป้าทั้งปี</span>
-                    <span style={{ textTransform: "none", letterSpacing: 0, color: d.targetManual ? "#b45309" : "#003366" }}>{ที่มาเป้า}</span>
+                    <span style={{ textTransform: "none", letterSpacing: 0, color: "#003366" }}>{ที่มาเป้า}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
                     <span style={{ fontSize: "1.5rem", fontWeight: 800, color: revColor, fontVariantNumeric: "tabular-nums" }}>{บาท(dPerf.revenue)}</span>
@@ -952,7 +909,7 @@ function HQDealersPageInner() {
                 <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px 8px", flexShrink: 0 }}>
                   <div style={หัวข้อ}>ข้อมูลดีลเลอร์</div>
                   {แถว(<Package size={14} />, "แพ็กเกจ", d.package ? packageLabel[d.package] : "—")}
-                  {แถว(<Target size={14} />, "เป้าทั้งปี", มีเป้า ? `฿${d.revenueTarget.toLocaleString("th-TH")} · ${ที่มาเป้า}` : "—")}
+                  {แถว(<Target size={14} />, "เป้าทั้งปี", มีเป้า ? `฿${d.revenueTarget.toLocaleString("th-TH")}` : "—")}
                   {แถว(<MapPin size={14} />, "จังหวัด", d.province || "—")}
                   {แถว(<Store size={14} />, "ภาค", d.region || "—")}
                   {แถว(<CalendarDays size={14} />, "เข้าระบบเมื่อ", เข้าระบบเมื่อ)}

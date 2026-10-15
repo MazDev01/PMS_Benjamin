@@ -47,22 +47,21 @@ async function cleanupProspects() {
   if (error) console.warn("[hq-prospects] ล้างข้อมูลทดสอบไม่สำเร็จ", error.message);
 }
 
-// ข้อ "ตั้งเป็นดีลเลอร์ใหม่" ตรวจว่าเป้าสาขามาจากใบเสนอ — เงื่อนไขคือแพ็กเกจยังไม่ได้ตั้งเป้า
-//   ถ้าแพ็กเกจตั้งเป้าไว้ ตัวดัก 0178 ใช้เป้าของแพ็กเกจแทน (เป้าในใบถูกทับ) ข้อนี้จึงต้องตั้งเงื่อนไขเอง ไม่พึ่งค่าที่ค้างในฐาน
-//   (รอบปิดระยะ 4 · 15 ต.ค. 69: รอบก่อนถูกหยุดกลางทาง เป้า standard 3,000,000 ค้างในฐาน → ข้อนี้ได้ 3,000,000 แทน 12,000,000)
-//   ไฟล์นี้อยู่โปรเจกต์ hq-settings (workers: 1) — แก้ค่ากลางชุดนี้ได้โดยไม่ชนไฟล์อื่น
+// ข้อ "ตั้งเป็นดีลเลอร์ใหม่" = ข้อทดสอบตามข้อตัดสินของบอส 15 ต.ค. 69 (เป้าในใบค่าแฟรนไชส์ชนะ · ใบ 0206):
+//   แพ็กเกจ standard ตั้งเป้า 3,000,000 · ใบระบุ 12,000,000 → ตั้งเป็นดีลเลอร์ → เป้าสาขาต้องเป็น 12,000,000
+//   (ก่อน 0206 ตัวดัก 0178/0179 ทับเป็น 3,000,000 — รอบปิดด่าน 3 ตกด้วยค่านี้จริง)
+//   ไฟล์นี้อยู่โปรเจกต์ hq-settings (workers: 1) — แก้ค่ากลางชุดนี้ได้โดยไม่ชนไฟล์อื่น · คืนค่าเดิมหลังจบ
 let ค่าตั้งเดิม: unknown = undefined;
-async function ปิดเป้าแพ็กเกจ() {
+async function ตั้งเป้าแพ็กเกจ3ล้าน() {
   if (!ADMIN_SERVICE_ROLE_KEY) return;
   const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const เดิม = ((await admin.from("hq_recruit_settings").select("config").eq("id", 1).maybeSingle()).data as { config: Record<string, unknown> } | null)?.config;
   if (!เดิม) return;
   ค่าตั้งเดิม = เดิม;
   const proposal = (เดิม.proposal && typeof เดิม.proposal === "object" ? เดิม.proposal : {}) as Record<string, unknown>;
-  const ไม่มีเป้า = { annualTarget: null, targetsByRegion: {} };
-  const { error } = await admin.from("hq_recruit_settings")
-    .update({ config: { ...เดิม, proposal: { ...proposal, packages: { standard: ไม่มีเป้า, exclusive: ไม่มีเป้า } } } }).eq("id", 1);
-  if (error) throw new Error(`ปิดเป้าแพ็กเกจไม่สำเร็จ: ${error.message}`);
+  const { error } = await admin.from("hq_recruit_settings").update({ config: { ...เดิม, proposal: { ...proposal, packages: {
+    standard: { annualTarget: 3_000_000, targetsByRegion: {} }, exclusive: { annualTarget: null, targetsByRegion: {} } } } } }).eq("id", 1);
+  if (error) throw new Error(`ตั้งเป้าแพ็กเกจไม่สำเร็จ: ${error.message}`);
 }
 async function คืนค่าตั้งเดิม() {
   if (!ADMIN_SERVICE_ROLE_KEY || ค่าตั้งเดิม === undefined) return;
@@ -71,7 +70,7 @@ async function คืนค่าตั้งเดิม() {
 }
 
 test.beforeAll(async () => {
-  await ปิดเป้าแพ็กเกจ();
+  await ตั้งเป้าแพ็กเกจ3ล้าน();
   await cleanupProspects();
   await purgeNoAccountDealer();
   await purgeDealer(NEW_CODE);
@@ -264,7 +263,7 @@ test("[func·hq] ตั้งเป็นดีลเลอร์ใหม่ �
   //   อ่านด้วยสิทธิ์ระบบ — ตาราง dealers ถอนสิทธิ์อ่านคอลัมน์เป้าจากผู้ใช้ทั่วไปแล้ว
   const svc = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const { data: สาขา } = await svc.from("dealers").select("revenue_target").eq("code", NEW_CODE).single();
-  expect(Number((สาขา as { revenue_target: number } | null)?.revenue_target), "เป้าของสาขาต้องมาจากใบเสนอ").toBe(12_000_000);
+  expect(Number((สาขา as { revenue_target: number } | null)?.revenue_target), "เป้าของสาขาต้องมาจากใบ (12,000,000) ไม่ใช่เป้าแพ็กเกจ (3,000,000)").toBe(12_000_000);
   await waitRow(sb, "dealer_package_proposals", { prospect_id: id, status: "accepted" });
 
   // ยิงซ้ำด้วยรายเดิม (เช่น กดสองครั้ง / สองคนกดพร้อมกัน) ต้องถูกปฏิเสธก่อนสร้างบัญชี
