@@ -428,7 +428,9 @@ export default function FilesPage() {
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return files.filter(f => {
-      const matchQ = !q || f.name.toLowerCase().includes(q) || f.project.toLowerCase().includes(q) || f.uploadedBy.toLowerCase().includes(q);
+      // ช่องว่างได้ในฐาน (ใบที่ไม่มีชื่อโครงการ → แถวไฟล์ของใบ project ว่าง) — เดิม .toLowerCase() ตรง ๆ หน้าไฟล์พังทั้งหน้า (15 ต.ค. 69)
+      const มี = (v: string | null | undefined) => (v ?? "").toLowerCase().includes(q);
+      const matchQ = !q || มี(f.name) || มี(f.project) || มี(f.uploadedBy);
       const matchC = catFilter === "ALL" || f.category === catFilter;
       const matchS = sourceFilter === "ALL" || f.source === sourceFilter;
       const matchCust = custFilter === "ALL" || String(f.customerId ?? "") === custFilter;

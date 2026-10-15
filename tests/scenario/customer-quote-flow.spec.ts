@@ -91,6 +91,9 @@ test("[flow·dealer] ขั้น 7: ทำใบให้ลูกค้าจ�
     await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
     const ใบHQ = บริษัท === สิบ ? ก : ข;
     await expect.poll(async () => (await ใบของ(ใบHQ.leadNum))?.hq_quote_id, { timeout: 20_000, message: "ใบลูกค้าต้องผูกใบ HQ" }).toBe(ใบHQ.hqQuoteId);
+    // ใบลงฐานแล้ว แต่แอปยังเขียนตามหลังอีก (แก้ลูกค้าเป้าหมาย + แนบไฟล์ใบ) — รอให้เสร็จก่อนเปลี่ยนหน้า
+    //   เดิมเปลี่ยนหน้าทันที → คำสั่งแก้ลูกค้าเป้าหมายถูกตัด (Failed to fetch) · trace 15 ต.ค. 69: ใบลง 3.56 วิ · แก้ลูกค้าเป้าหมาย 3.69 · เปลี่ยนหน้า 3.72
+    await settle(page);
   }
   const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
   expect(Number(q10!.total_value), "ต้นทุน 10 บวก 50% = 15").toBe(15);

@@ -13,24 +13,11 @@ import { useMemo } from "react";
 import { useCurrentDealer } from "./useCurrentDealer";
 import { useRepoValue } from "./useRepoState";
 import { dealers as dealersRepo } from "./data";
-import { provincesOfRegion, ALL_PROVINCES } from "./provinces";
+import { จังหวัดให้เลือก } from "./provinces";
 import type { DealerRow } from "./mock";
-
-/** รายชื่อจังหวัดสำรอง — ใช้เฉพาะตอนทะเบียนดีลเลอร์ยังโหลดไม่เสร็จ (ยังไม่รู้ภาค) */
-const PROVINCES_FALLBACK = ["กรุงเทพฯ","เชียงใหม่","ระยอง","เชียงราย","นนทบุรี","สมุทรสาคร","นครสวรรค์","ราชบุรี","ขอนแก่น","อื่นๆ"];
 
 export function useMyProvinces(current?: string): string[] {
   const me = useCurrentDealer();
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
-  return useMemo(() => {
-    const mine = dealers.find(d => d.code === me.code);
-    const inRegion = provincesOfRegion(mine?.region ?? "");
-    const ฐาน = inRegion.length ? inRegion : [...PROVINCES_FALLBACK];
-    const พ่วง: string[] = [];
-    // จังหวัดที่ตั้งของสาขาต้องอยู่ในลิสต์เสมอ (บางสาขาตั้งอยู่คนละภาคกับที่รับผิดชอบ)
-    //   ยกเว้น "ทุกจังหวัด" ของสำนักงานใหญ่ — เป็นคำบอกขอบเขต ไม่ใช่ชื่อจังหวัดที่เลือกลงเอกสารได้
-    if (inRegion.length && mine?.province && mine.province !== ALL_PROVINCES && !ฐาน.includes(mine.province)) พ่วง.push(mine.province);
-    if (current && !ฐาน.includes(current) && !พ่วง.includes(current)) พ่วง.push(current);
-    return พ่วง.length ? [...พ่วง, ...ฐาน] : ฐาน;
-  }, [dealers, me.code, current]);
+  return useMemo(() => จังหวัดให้เลือก(dealers, me.code, current), [dealers, me.code, current]);
 }

@@ -7,6 +7,7 @@ import { ข้ามตั้งรหัสครั้งแรก } from "./
 import { ลบสาขาทดสอบตรง } from "./testDealers";
 import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 import { execFileSync } from "node:child_process";
+import { คอนเทนเนอร์ฐาน } from "./localDb";
 import { createHmac } from "node:crypto";
 
 // ── สาขาถูกปิดใช้งาน แต่ใบผ่าน (token) เดิมยังไม่หมดอายุ (บอสสั่ง 15 ต.ค. 69) ──────────────────────────────────
@@ -39,8 +40,7 @@ let ใบผ่านเดิม = "";
 /** JWT secret ของฐานทดสอบในเครื่อง (ค่าตั้งต้นของ Supabase CLI ใน container auth) — ไม่มี = ไม่ใช่ฐานในเครื่อง */
 function ความลับในเครื่อง(): string | null {
   try {
-    const c = execFileSync("docker", ["ps", "--filter", "name=supabase_auth_", "--format", "{{.Names}}"], { encoding: "utf8" })
-      .split(String.fromCharCode(10)).map(n => n.trim()).find(n => n.includes("dbcheck"));
+    const c = คอนเทนเนอร์ฐาน("auth");
     if (!c) return null;
     return execFileSync("docker", ["exec", c, "printenv", "GOTRUE_JWT_SECRET"], { encoding: "utf8" }).trim() || null;
   } catch { return null; }

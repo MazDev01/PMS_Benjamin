@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { รันSQLในฐาน } from "./localDb";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, HQ_ORIGIN, loginUI } from "./funcHelpers";
@@ -30,9 +30,7 @@ function ล้างที่ฐาน() {
     delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and r.dealer_code = 'RYG' and r.lead_num_id = ${leadNum};
     delete from public.quote_requests where dealer_code = 'RYG' and lead_num_id = ${leadNum};
     delete from public.leads where dealer_code = 'RYG' and num_id = ${leadNum};`;
-  const c = execFileSync("docker", ["ps", "--filter", "name=supabase_db_", "--format", "{{.Names}}"], { encoding: "utf8" })
-    .split(String.fromCharCode(10)).map(n => n.trim()).find(n => n.includes("dbcheck")) ?? "";
-  if (c && leadNum) execFileSync("docker", ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres", "-q", "-c", sql], { stdio: "ignore" });
+  if (leadNum) รันSQLในฐาน(sql);
 }
 
 test.beforeAll(async () => {

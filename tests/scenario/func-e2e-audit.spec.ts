@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { กดตกลงในกล่องยืนยัน, มีกล่องยืนยัน } from "./helpers";
+import { กดตกลงในกล่องยืนยัน, มีกล่องยืนยัน, settle } from "./helpers";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors,
@@ -145,6 +145,8 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
     const q = await waitRow<{ id: string; total_value: number }>(sb, "quotations", { customer: company });
     expect(Number((await sb.from("quotations").select("total_value").eq("id", q.id).single()).data?.total_value), "ยอดใบ = ต้นทุนจากใบ HQ").toBe(knownTotal);
 
+    // รอคำขอที่แอปยังวิ่งอยู่ (อ่านลูกค้าเป้าหมายกลับหลังสร้างใบ) ให้จบก่อนเปลี่ยนหน้า — trace 15 ต.ค. 69: เปลี่ยนหน้าทับ = Failed to fetch
+    await settle(page);
     // ส่ง → ตอบรับ (won) ผ่านหน้าใบเสนอราคาโดยตรง (เส้นทางที่ตั้งใจให้ผูก won จริง)
     await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
     const qrow = page.locator("tbody tr").filter({ hasText: company }).first();
@@ -159,6 +161,7 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
     await expect.poll(async () =>
       (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
       { timeout: 25_000, message: "ใบต้องเป็น won" }).toBe("won");
+    await settle(page);   // เส้นทางปิดการขายยังเขียนต่อ (ลูกค้า · ผูกลูกค้าให้ลูกค้าเป้าหมาย) — ให้จบก่อนผู้เรียกเปลี่ยนหน้า
 
     const fresh = (await sb.from("quotations").select("total_value").eq("id", q.id).single()).data as { total_value: number };
     return fresh.total_value;

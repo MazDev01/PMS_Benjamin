@@ -43,3 +43,23 @@ export const provincesOfRegion = (region: string): string[] => {
   if (r === ALL_REGIONS) return REGIONS.flatMap(x => PROVINCES_OF[x] ?? []);
   return PROVINCES_OF[r] ?? [];
 };
+
+/** จังหวัดมาตรฐาน 77 จังหวัด (ตรงกับ th_provinces ในฐาน) — ใช้ตรวจว่าชื่อจังหวัดเป็นชื่อมาตรฐาน */
+const จังหวัดมาตรฐาน = provincesOfRegion(ALL_REGIONS);
+
+/** ตัวคำนวณล้วนของ useMyProvinces (useMyProvinces.ts) — แยกไว้ให้เทสย่อยเรียกได้ */
+export function จังหวัดให้เลือก(dealers: { code: string; region?: string | null; province?: string | null }[], code: string, current?: string): string[] {
+  const mine = dealers.find(d => d.code === code);
+  const inRegion = provincesOfRegion(mine?.region ?? "");
+  // ยังไม่รู้ภาคของสาขา (ทะเบียนดีลเลอร์ยังโหลดไม่เสร็จ) = ยังไม่มีตัวเลือก — ห้ามเดารายชื่อสำรอง (15 ต.ค. 69 · trace ข้อทดสอบที่ไม่นิ่ง)
+  //   เดิมรายชื่อสำรองมี "กรุงเทพฯ"/"อื่นๆ" (ฐานปฏิเสธ · ใบ 0196) แล้วเปลี่ยนเป็น 77 จังหวัด ก็ยังเลือกจังหวัดของสาขาอื่นได้
+  //   (ฐานปฏิเสธ lead_outside_territory — หนึ่งจังหวัด หนึ่งดีลเลอร์) · ช่องเลือกโชว์ "ยังไม่ระบุ" จนกว่าจะรู้ภาค
+  const ฐาน = inRegion;
+  const พ่วง: string[] = [];
+  // จังหวัดที่ตั้งของสาขาต้องอยู่ในลิสต์เสมอ (บางสาขาตั้งอยู่คนละภาคกับที่รับผิดชอบ)
+  //   ยกเว้น "ทุกจังหวัด" ของสำนักงานใหญ่ — เป็นคำบอกขอบเขต ไม่ใช่ชื่อจังหวัดที่เลือกลงเอกสารได้
+  //   และยกเว้นชื่อที่ไม่ใช่ชื่อมาตรฐาน (เช่นชื่อย่อ "กรุงเทพฯ") — ฐานไม่รับ · ชื่อมาตรฐานอยู่ในรายการภาคอยู่แล้ว
+  if (inRegion.length && mine?.province && mine.province !== ALL_PROVINCES && จังหวัดมาตรฐาน.includes(mine.province) && !ฐาน.includes(mine.province)) พ่วง.push(mine.province);
+  if (current && !ฐาน.includes(current) && !พ่วง.includes(current)) พ่วง.push(current);
+  return พ่วง.length ? [...พ่วง, ...ฐาน] : ฐาน;
+}
