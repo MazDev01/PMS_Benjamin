@@ -3,6 +3,7 @@
 // ─── ตัวแก้รายงานติดตามของลูกค้าเป้าหมาย — แหล่งเดียวของทั้งแอป ──────────────────
 // เดิมเขียนฝังอยู่ในหน้า /leads หน้าเดียว · ย้ายออกมาเพื่อให้แผงงานขายในหน้า /customers ใช้ซ้ำได้
 // รายงานเก็บที่ LeadRow.report = ผูกกับ "ดีล" ไม่ใช่ลูกค้า → 1 ลูกค้ามีหลายดีล แต่ละดีลมีรายงานของตัวเอง
+import type { LeadIntent } from "@pms/shared/lib/leadIntent";
 import { useState, useEffect } from "react";
 import { buildLeadReport, type LeadRow } from "@pms/shared/lib/mock";
 import { APP_NOW } from "@pms/shared/context/FilterContext";
@@ -14,7 +15,7 @@ const thaiDateStr = (d: Date) => `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${
 // วันหัวรายงาน = "วันนี้" ของระบบ (APP_NOW) ไม่ใช่นาฬิกาเครื่อง — เดิม new Date() ได้วันจริงที่ล้ำยุคข้อมูล
 const todayStr = () => thaiDateStr(APP_NOW);
 
-export function ReportEditor({ lead, onSave }: { lead: LeadRow; onSave: (l: LeadRow) => void }) {
+export function ReportEditor({ lead, onSave }: { lead: LeadRow; onSave: (intent: LeadIntent) => void }) {
   // ⚠ รายการลูกค้าเป้าหมายไม่ได้ส่ง report มาด้วย (เป็นข้อความยาว กินขนส่งราว 1 ใน 3 ของขนาดแถว)
   //   ตัวนี้จึงโหลดเองตอนเปิด — ทำที่เดียวตรงนี้ ทุกหน้าที่เรียกใช้จึงปลอดภัยเหมือนกัน
   //   ห้ามเดาว่าไม่มีรายงานแล้วเสนอเทมเพลตทันที — ผู้ใช้กดบันทึกครั้งเดียว รายงานจริงหายทันที
@@ -53,7 +54,7 @@ export function ReportEditor({ lead, onSave }: { lead: LeadRow; onSave: (l: Lead
           fontSize: "0.8rem", lineHeight: 1.7, fontFamily: "inherit", color: "#2D2D2D", background: "#fff", resize: "vertical", whiteSpace: "pre-wrap" }} />
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
         {dirty && <button onClick={() => setText(เดิม || buildLeadReport(lead, todayStr()))} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>ยกเลิก</button>}
-        <button onClick={() => onSave({ ...lead, report: text })} disabled={!dirty}
+        <button onClick={() => { onSave({ fields: { report: text } }); setเดิม(text); }} disabled={!dirty}
           className="btn btn-primary btn-sm" style={!dirty ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
           บันทึกรายงาน
         </button>

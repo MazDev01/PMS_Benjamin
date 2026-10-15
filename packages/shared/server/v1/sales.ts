@@ -19,9 +19,10 @@ import { parse, str, num, bool, oneOf, arrOf, mapOfNum, isoDate } from "./_valid
 import { pageAll, rangedFetch, TIEBREAK_COL } from "./_page";
 import { toCamel, toSnake } from "@pms/shared/lib/data/supabase/mappers";
 import {
-  normalizeCustomer, leadToRow, leadToUpdateRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt,
+  normalizeCustomer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt,
 } from "@pms/shared/lib/data/supabase/rowMappers";
 import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock } from "@pms/shared/lib/data/types";
+import { leadIntentToWire, type LeadIntent } from "@pms/shared/lib/leadIntent";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Row = Record<string, unknown>;
@@ -132,6 +133,25 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
     if (error) return dbFail("leads.get", error);
     return ok(data ? rowToLead(data as Row) : null);
   }
+  // ── บันทึกส่วนต่าง: ทางเดียวที่แก้ลูกค้าเป้าหมาย (ใบ 0211 · ก่อนขึ้นระบบจริง ข้อ 14) ──
+  //   ฐานรวมกับค่าล่าสุด + บังคับกฎปิดการขายเอง (เดิมตรวจที่นี่ — ต่อฐานตรงข้ามได้)
+  if (o === "apply") {
+    const b = await body<{ id?: unknown; intent?: unknown }>(req);
+    const id = typeof b?.id === "string" ? b.id : "";
+    const i = b?.intent as Record<string, unknown> | undefined;
+    const ผิด = !id || id.length > 40 ? "ไม่ได้ระบุลูกค้าเป้าหมายที่จะแก้"
+      : !i || typeof i !== "object" || Array.isArray(i) ? "เจตนาไม่ถูกต้อง"
+      : i.fields != null && (typeof i.fields !== "object" || Array.isArray(i.fields)) ? "fields ต้องเป็นออบเจ็กต์"
+      : i.tasks != null && (!Array.isArray(i.tasks) || i.tasks.length > 50) ? "tasks ต้องเป็นรายการ (ไม่เกิน 50)"
+      : i.activities != null && (!Array.isArray(i.activities) || i.activities.length > 20) ? "activities ต้องเป็นรายการ (ไม่เกิน 20)"
+      : i.stage != null && (typeof i.stage !== "object" || !(LEAD_STATUS as readonly string[]).includes(String((i.stage as { status?: unknown }).status))) ? "ขั้นไม่ถูกต้อง"
+      : i.deriveStage != null && i.deriveStage !== "any" && i.deriveStage !== "up" ? "deriveStage ไม่ถูกต้อง"
+      : JSON.stringify(i).length > 400_000 ? "ข้อมูลใหญ่เกิน" : "";
+    if (ผิด) return fail(400, ผิด);
+    const { data, error } = await sb.rpc("lead_apply", { p_id: id, p_intent: leadIntentToWire(i as LeadIntent) });
+    if (error) return dbFail("leads.apply", error);
+    return ok(rowToLead(data as Row));
+  }
   if (o === "next") {
     const b = parse({ dealerCode: str({ max: 20 }) }, await body<unknown>(req));
     const { data, error } = await sb.rpc("next_entity_id", { p_dealer: b.dealerCode, p_entity: "leads" });
@@ -173,54 +193,11 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
   return ok(rowToLead(data as Row));
 });
 
-// -- กฎการปิดดีล ต้องบังคับที่หลังบ้านด้วย ไม่ใช่แค่ปุ่มบนหน้าจอ (ตรวจพบ 27 ส.ค. 69) --
-// ยิง API ตรง ๆ จากคอนโซลเบราว์เซอร์ด้วยบัญชีดีลเลอร์ของตัวเอง เคยตั้งลีดใหม่เอี่ยมเป็น PAID ได้ทันที
-// ทั้งที่ไม่มีใบเสนอราคาสักใบ และตั้ง CANCELLED ได้โดยไม่ใส่เหตุผล
-// ผลคือฐานข้อมูลมีลูกค้ายอด 0 กับดีลที่แพ้แบบไม่มีเหตุผล -> อัตราปิดการขาย/รายงานเพี้ยนโดยไม่มีใครรู้
-// (กติกาเดียวกับด่าน "ยอดต้องตรงกับ BOQ" ซึ่งบังคับที่ฐานข้อมูลอยู่แล้ว)
-async function ตรวจกฎการปิดดีล(
-  sb: SupabaseClient, id: string, status: string, lostReason?: unknown,
-): Promise<string> {
-  if (status === "PAID") {
-    const { data: lead } = await sb.from("leads").select("num_id,company").eq("id", id).maybeSingle();
-    const l = lead as { num_id?: number; company?: string } | null;
-    if (!l) return "";   // ไม่มีลีดนี้ให้ตรวจ -- ปล่อยให้ขั้นตอนถัดไปจัดการตามปกติ
-    const { data: qs } = await sb.from("quotations").select("status,deal_id,customer")
-      .or(`deal_id.eq.${l.num_id ?? -1},customer.eq.${l.company ?? ""}`);
-    const ใบที่ส่งแล้ว = ((qs ?? []) as { status?: string }[]).filter(q => q.status && q.status !== "draft");
-    if (!ใบที่ส่งแล้ว.length)
-      return "ปิดการขายสำเร็จไม่ได้ — ต้องมีใบเสนอราคาที่ส่งให้ลูกค้าแล้วอย่างน้อยหนึ่งใบ";
-  }
-  if (status === "CANCELLED") {
-    const มีเหตุผล = typeof lostReason === "string" && lostReason.trim() !== "";
-    if (!มีเหตุผล) {
-      const { data: lead } = await sb.from("leads").select("lost_reason").eq("id", id).maybeSingle();
-      const เดิม = (lead as { lost_reason?: string } | null)?.lost_reason ?? "";
-      if (!เดิม.trim()) return "ปิดการขายไม่สำเร็จต้องระบุเหตุผลเสมอ";
-    }
-  }
-  return "";
-}
-
-export const leadsPUT = handler("leads.update", async (req, sb) => {
-  if (op(req) === "status") {
-    const b = parse({ id: str({ max: 40 }), status: oneOf(LEAD_STATUS) }, await body<unknown>(req));
-    const ห้าม = await ตรวจกฎการปิดดีล(sb, b.id, b.status);
-    if (ห้าม) return fail(422, ห้าม);
-    const { error } = await sb.from("leads").update({ status: b.status }).eq("id", b.id);
-    if (error) return dbFail("leads.setStatus", error);
-    return ok({ ok: true });
-  }
-  const row = await body<LeadRow>(req);
-  if (!row?.id) return fail(400, "ไม่ได้ระบุลูกค้าเป้าหมายที่จะแก้");
-  if (row.status === "PAID" || row.status === "CANCELLED") {
-    const ห้าม = await ตรวจกฎการปิดดีล(sb, row.id, row.status, (row as { lostReason?: unknown }).lostReason);
-    if (ห้าม) return fail(422, ห้าม);
-  }
-  const { data, error } = await sb.from("leads").update(leadToUpdateRow(row)).eq("id", row.id).select().single();
-  if (error) return dbFail("leads.update", error);
-  return ok(rowToLead(data as Row));
-});
+// -- แก้ลูกค้าเป้าหมายทั้งแถว / ตั้งสถานะตรง: ปิดแล้ว (15 ต.ค. 69 · ก่อนขึ้นระบบจริง ข้อ 14) --
+// หน้าที่เปิดค้างเขียนสำเนาเก่าทับงาน/ขั้นที่ฐานเพิ่งตั้ง → ใช้ POST /leads?op=apply (ส่วนต่าง) ทางเดียว
+// กฎปิดการขาย (ปิดสำเร็จต้องมีใบที่ส่งแล้ว · ปิดไม่สำเร็จต้องมีเหตุผล) ย้ายไปบังคับในฐาน (lead_apply · ใบ 0211)
+export const leadsPUT = handler("leads.update", async () =>
+  fail(410, "ทางนี้ปิดแล้ว — แก้ลูกค้าเป้าหมายด้วย POST /api/v1/leads?op=apply (ส่งเฉพาะส่วนต่าง)"));
 
 // -- ลบแล้วต้องรู้ว่าลบได้จริงไหม (ตรวจพบ 27 ส.ค. 69 จากการยิง API จริง) --
 // เดิม delete() ไม่ขอผลกลับ -> ฐานข้อมูลกันไว้ (กฎความปลอดภัยข้ามสาขา) หรือไม่มีแถวนั้นอยู่จริง

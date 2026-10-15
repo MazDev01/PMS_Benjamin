@@ -404,7 +404,7 @@ export default function CustomersPage(){
   const {
     customers: allCustomers, quotations: allQuotations, leads: allLeadsRaw,
     appointments,
-    addLead, updateLead, newLeadNumId, addCustomer: ctxAddCustomer,
+    addLead, บันทึกลีด, newLeadNumId, addCustomer: ctxAddCustomer,
     updateCustomer: ctxUpdateCustomer, deleteCustomer: ctxDeleteCustomer,
   } = useSales();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant) — ใช้ออกรหัสลูกค้า
@@ -1645,7 +1645,7 @@ export default function CustomersPage(){
                   {/* รายงานติดตามของดีลนี้ — แก้ได้ (เก็บที่ LeadRow.report ของดีลที่ผูกกับใบนี้) */}
                   <div style={cardS}>
                     {deal
-                      ? <ReportEditor lead={deal} onSave={updateLead} />
+                      ? <ReportEditor lead={deal} onSave={intent => บันทึกลีด(deal.id, intent)} />
                       : <><div style={secL}><StickyNote size={13} color={PRIMARY}/> รายงานติดตาม</div>
                           <div style={{fontSize:"0.78rem",color:MUTED}}>— ใบนี้ไม่ได้ผูกกับดีลในระบบ จึงยังไม่มีที่เก็บรายงาน</div></>}
                   </div>

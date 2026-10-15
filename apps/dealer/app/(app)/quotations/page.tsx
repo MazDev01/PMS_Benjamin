@@ -429,7 +429,7 @@ function QuotationsPageInner(){
   const {
     quotations: allQuotationsRaw, customers: allCustomersRaw, leads: allLeads,
     createQuotation, updateQuotation, deleteQuotation: ctxDeleteQuotation, setQuotationStatus,
-    updateCustomer, updateLead,
+    updateCustomer, บันทึกลีด,
   } = useSales();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
   // scope ทุกอย่างเป็นของสาขาที่ล็อกอิน — RYG ไม่เห็นใบ/ลูกค้า/ลูกค้าเป้าหมายของ CNX (undefined = ของ CNX)
@@ -591,7 +591,7 @@ function QuotationsPageInner(){
       const lead = (editingQ?.dealId ? leads.find(l=>l.numId===editingQ.dealId) : undefined)
         ?? leads.find(l=>l.company===qf.customer);
       if(lead && lead.assigned !== owner){
-        updateLead({ ...lead, assigned: owner });
+        บันทึกลีด(lead.id, { fields: { assigned: owner } });
         setToast(`บันทึกแล้ว · เปลี่ยนผู้รับผิดชอบของลูกค้าเป้าหมาย ${lead.company} เป็น ${owner||"—"}`);
       }
     }

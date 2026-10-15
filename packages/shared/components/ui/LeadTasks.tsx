@@ -1,5 +1,6 @@
 "use client";
 
+import { diffLeadTasks, type LeadIntent } from "@pms/shared/lib/leadIntent";
 import { useState, useMemo } from "react";
 import { Check, Trophy, XCircle, RotateCcw, Lock } from "lucide-react";
 import {
@@ -21,7 +22,7 @@ function stampNow() {
 
 // Task-driven Sales Journey — เช็ก Task → บันทึกเวลา/ผู้ทำ → คำนวณ % → เลื่อน Stage อัตโนมัติ
 export function LeadTasks({ lead, performedBy, onSave, onRequestQuotation, onRequestAppointment, whyCannotWin }: {
-  lead: LeadRow; performedBy: string; onSave: (l: LeadRow) => void;
+  lead: LeadRow; performedBy: string; onSave: (intent: LeadIntent) => void;
   /** งานที่ต้องมี "ของจริง" ถึงจะติ๊กได้ (จัดทำ/ส่งใบเสนอราคา) — หน้าแม่ส่งฟังก์ชันนี้มาเมื่องานนั้น
    *  ยังทำไม่ได้จริง แล้วพาผู้ใช้ไปทำของจริงแทน · คืน false = ไม่ได้จัดการ ให้ติ๊กตามปกติ
    *  (กดติ๊กเองแล้วขั้นขยับทั้งที่ยังไม่มีใบ/ยังไม่ได้ส่ง = ตัวเลขบนแดชบอร์ดไม่ตรงกับของจริงที่ถึงลูกค้า) */
@@ -104,20 +105,22 @@ export function LeadTasks({ lead, performedBy, onSave, onRequestQuotation, onReq
           : { ...t, done: true, doneAt: now, doneBy: performedBy })
       : t);
     // เช็ก Task → คำนวณ stage ใหม่อัตโนมัติ (เลื่อน stage ตาม task ที่ทำล่าสุด)
-    onSave({ ...lead, tasks: next, status: stageFromTasks(next, taskTpl) });
+    // ฐานคิดขั้นจากงานในฐาน (ใบ 0211) — ส่งเฉพาะงานนี้ ไม่ส่งรายการงานทั้งชุด (หน้าค้างจะไม่ทับงานที่ฐานเพิ่งติ๊ก)
+    onSave({ tasks: diffLeadTasks(tasks, next), deriveStage: "any" });
   }
 
   function close(outcome: "won" | "lost", reason?: string) {
     const now = stampNow();
     // ปิดการขาย → ทุก task ถือว่าเสร็จ = 100% · stage = Won / Lost
     const next = tasks.map(t => ({ ...t, done: true, doneAt: t.doneAt ?? now, doneBy: t.doneBy ?? performedBy }));
-    onSave({ ...lead, tasks: next, status: outcome === "won" ? "PAID" : "CANCELLED", lostReason: outcome === "lost" ? (reason ?? "") : undefined });
+    onSave({ tasks: diffLeadTasks(tasks, next),
+      stage: { status: outcome === "won" ? "PAID" : "CANCELLED", ...(outcome === "lost" ? { lostReason: reason ?? "" } : {}) } });
     setLostOpen(false); setLostReason(""); setOtherText("");
   }
 
   function reopen() {
     const next = tasks.map(t => t.key === "close" ? { ...t, done: false, doneAt: undefined, doneBy: undefined } : t);
-    onSave({ ...lead, tasks: next, status: stageFromTasks(next, taskTpl), lostReason: undefined });
+    onSave({ tasks: diffLeadTasks(tasks, next), stage: { status: stageFromTasks(next, taskTpl) } });
   }
 
   const barColor = lead.status === "CANCELLED" ? "#dc2626" : lead.status === "PAID" ? "#059669" : "#003366";

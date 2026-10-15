@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { diffLeadFields, type LeadIntent, type LeadFields } from "@pms/shared/lib/leadIntent";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { validateUpload, humanFileSize } from "@pms/shared/lib/uploadLimits";
@@ -301,7 +302,7 @@ function OvCell({ icon:Ic, label, children }:{ icon: typeof User; label:string; 
 }
 
 function OverviewEditor({ lead, persons, onSave }: {
-  lead: LeadRow; persons: string[]; onSave: (l: LeadRow) => void;
+  lead: LeadRow; persons: string[]; onSave: (intent: LeadIntent) => void;
 }) {
   const catalog = useMasterCatalog(); // แม่แบบจากแคตตาล็อกกลาง (HQ แก้ → เห็นตรงกัน)
   const lostReasons = useLostReasons(); // เหตุผลปิดไม่สำเร็จที่ HQ กำหนด (ผ่าน repo)
@@ -318,6 +319,8 @@ function OverviewEditor({ lead, persons, onSave }: {
     note: lead.note ?? "", lostReason: lead.lostReason ?? "", logo: lead.logo ?? "",
   });
   const [f, setF] = useState(seed);
+  // ค่าตอนเปิดฟอร์ม — บันทึกส่งเฉพาะช่องที่ต่างจากนี้ (ไม่ใช่ค่าล่าสุดบนจอ: ช่องที่ฐาน/แท็บอื่นเพิ่งเปลี่ยนต้องไม่ถูกส่งทับ)
+  const [ต้นฉบับ, setต้นฉบับ] = useState<LeadRow>(lead);
   // ── ประเมินราคาให้อัตโนมัติ: พื้นที่ × ราคาขายของเรา (บอสสั่ง 20 ส.ค. 69) ──────────
   // คิดให้เป็นค่าตั้งต้นเท่านั้น · พิมพ์ทับเมื่อไรก็หยุดคิดให้ทันที (ห้ามเขียนทับของที่ผู้ใช้ตั้งใจใส่)
   // ⚠️ คิดไม่ได้ = ปล่อยว่าง ให้หน้าจอขึ้น "—" ห้ามใส่ 0
@@ -333,7 +336,7 @@ function OverviewEditor({ lead, persons, onSave }: {
   // reseed เมื่อสลับลูกค้าเป้าหมาย
   // จงใจไม่ใส่ seed ใน dependency — seed ถูกสร้างใหม่ทุก render จะล้างสิ่งที่ผู้ใช้กำลังพิมพ์ทิ้ง
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setF(seed()); }, [lead.id]);
+  useEffect(() => { setF(seed()); setต้นฉบับ(lead); }, [lead.id]);
   const set = (k: keyof ReturnType<typeof seed>, v: string) => setF(p => ({ ...p, [k]: v }));
   async function uploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -367,7 +370,7 @@ function OverviewEditor({ lead, persons, onSave }: {
     const ผิดตรงไหน = ตรวจมูลค่าลูกค้าเป้าหมาย(f.value);
     if (ผิดตรงไหน) { setValueErr(ผิดตรงไหน); return; }
     setValueErr("");
-    onSave({
+    const หลัง: LeadRow = {
       // value: เก็บตามที่พิมพ์ ไม่ย่อเป็น ฿1.2M ตอนบันทึก (จะปัดเงินหายเหมือนฟอร์มเพิ่ม)
       ...lead, ...f, logo: f.logo || undefined, category: mainTemplateOf(f.product), value: f.value.trim(),
       address: f.address.trim() || undefined,   // ว่าง = ไม่มีข้อมูล (undefined) — ห้ามเก็บสตริงว่างหลอกว่ากรอกแล้ว
@@ -375,7 +378,14 @@ function OverviewEditor({ lead, persons, onSave }: {
       area: f.area.trim() && Number(f.area) > 0 ? Number(f.area) : undefined,
       project: f.project.trim() || undefined,
       lostReason: f.status === "CANCELLED" && f.lostReason.trim() && f.lostReason !== OTHER_LOST_REASON ? f.lostReason.trim() : undefined,
+    };
+    // ส่วนต่างจากตอนเปิดฟอร์ม · ขั้น/เหตุผลปิด = เจตนาเปลี่ยนขั้น (ฐานเป็นเจ้าของ — ไม่ส่งทาง fields)
+    const ขั้นเปลี่ยน = หลัง.status !== ต้นฉบับ.status || (หลัง.status === "CANCELLED" && (หลัง.lostReason ?? "") !== (ต้นฉบับ.lostReason ?? ""));
+    onSave({
+      fields: diffLeadFields({ ...ต้นฉบับ, category: mainTemplateOf(ต้นฉบับ.product ?? "") }, หลัง),
+      ...(ขั้นเปลี่ยน ? { stage: { status: หลัง.status, ...(หลัง.lostReason ? { lostReason: หลัง.lostReason } : {}) } } : {}),
     });
+    setต้นฉบับ(หลัง);
   }
 
   // แก้ไข "ในที่เดิม" — ใช้แถวหน้าตาเดียวกับตอนอ่าน (ไอคอน + ป้าย + ค่า) ค่ากลายเป็นช่องกรอก
@@ -903,7 +913,7 @@ export default function LeadsPage() {
 
   // List state
   const {
-    leads: allLeads, addLead, updateLead, deleteLead: removeLead, updateLeadStatus, newLeadNumId, syncLeadFromServer,
+    leads: allLeads, addLead, บันทึกลีด, deleteLead: removeLead, updateLeadStatus, newLeadNumId, syncLeadFromServer,
     appointments, addAppointment, newAppointmentId, quotations, quotationsReady, ensureQuotations,
   } = useSales();
   // ปิดการขายสำเร็จ = เป็น "ลูกค้า" แล้ว → ไม่แสดงในหน้าลูกค้าเป้าหมาย (ไปอยู่ที่ /customers)
@@ -942,17 +952,27 @@ export default function LeadsPage() {
     if (!selectedLead) return;
     const fresh = allLeads.find(l => l.id === selectedLead.id);
     if (!fresh) return;
-    if (fresh.tasks !== selectedLead.tasks || fresh.status !== selectedLead.status) {
-      setSelectedLead(prev => prev ? { ...prev, tasks: fresh.tasks, status: fresh.status } : prev);
-      setDraft(prev => prev ? { ...prev, tasks: fresh.tasks, status: fresh.status } : prev);
+    // ไทม์ไลน์/เหตุผลปิด: ฐานจดเอง (ใบ 0211) — ค่าที่ฐานคืนมาหลังบันทึกต้องขึ้นในแผงด้วย
+    const กิจกรรมใหม่ = fresh.activities !== undefined && fresh.activities !== selectedLead.activities;
+    if (fresh.tasks !== selectedLead.tasks || fresh.status !== selectedLead.status || กิจกรรมใหม่ || fresh.lostReason !== selectedLead.lostReason) {
+      const ซิงก์ = (prev: LeadRow | null) => prev ? { ...prev, tasks: fresh.tasks, status: fresh.status, lostReason: fresh.lostReason,
+        ...(กิจกรรมใหม่ ? { activities: fresh.activities } : {}) } : prev;
+      setSelectedLead(ซิงก์);
+      setDraft(ซิงก์);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allLeads]);
 
   // บันทึกลูกค้าเป้าหมาย + sync snapshot ในโมดัลทันที (กันปัญหา "เช็ก task แล้วไม่ติ๊ก" เพราะ c เป็นค่าเก่า)
-  function saveLead(l: LeadRow) {
-    const prevStatus = selectedLead?.status;
-    updateLead(l); setSelectedLead(l); setDraft(l);
+  // บันทึกผ่านตัวกลาง — ส่งเฉพาะเจตนา/ส่วนต่าง ไม่ส่งลูกค้าเป้าหมายทั้งก้อน (ก่อนขึ้นระบบจริง ข้อ 14)
+  //   แผงนี้ถือรายงาน/ไทม์ไลน์ที่เติมเองตอนเปิด (รายการไม่ดึงมา) — รวมกลับ ไม่ให้หายจากจอระหว่างรอฐาน
+  function saveLead(intent: LeadIntent) {
+    if (!selectedLead) return;
+    const prevStatus = selectedLead.status;
+    const ได้ = บันทึกลีด(selectedLead.id, intent);
+    if (!ได้) return;
+    const l: LeadRow = { ...selectedLead, ...ได้, report: ได้.report ?? selectedLead.report, activities: ได้.activities ?? selectedLead.activities };
+    setSelectedLead(l); setDraft(l);
     // เช็กงานแล้วสถานะเลื่อนอัตโนมัติ → แจ้ง toast ให้เห็นชัด (ป้ายหัวโมดัล/ตาราง/บอร์ด/funnel เปลี่ยนตามทันที)
     if (prevStatus && l.status !== prevStatus) {
       setToast(l.status === "PAID"
@@ -1096,7 +1116,7 @@ export default function LeadsPage() {
     if (!pendingLostId || !reason || reason === OTHER_LOST_REASON) return;
     const target = allLeads.find(l => l.id === pendingLostId);
     if (!target) { setPendingLostId(null); return; }
-    updateLead({ ...target, status: "CANCELLED", lostReason: reason });
+    บันทึกลีด(target.id, { stage: { status: "CANCELLED", lostReason: reason } });
     setPendingLostId(null); setPendingLostReason("");
   }
   const [dragOver, setDragOver] = useState<LeadStatus|null>(null); // คอลัมน์ที่กำลังลากค้างอยู่ (ไฮไลต์)
@@ -1268,7 +1288,7 @@ export default function LeadsPage() {
   const [valueDraft, setValueDraft] = useState("");
   function commitValue(l: LeadRow) {
     const v = valueDraft.trim();
-    if (v) updateLead({ ...l, value: fmtVal(v) });
+    if (v) บันทึกลีด(l.id, { fields: { value: fmtVal(v) } });
     setEditValueId(null);
   }
 
@@ -1463,9 +1483,7 @@ export default function LeadsPage() {
   }
   function handleStatusChange(val: string) {
     if (!draft) return;
-    const next = {...draft, status: val as LeadStatus};
-    updateLead(next);
-    setSelectedLead(next); setDraft(next);
+    saveLead({ stage: { status: val as LeadStatus } });
   }
 
   // หมายเหตุ: ลูกค้าถูกสร้างอัตโนมัติเมื่อปิดการขายสำเร็จ (WON) ผ่าน context — ไม่มีปุ่มสร้างเองแล้ว
@@ -1545,9 +1563,7 @@ export default function LeadsPage() {
   function closeFieldPopup() { setPopupField(null); setEditPopupPos(null); setEditPopupVal(""); setEditPopupOptions(null); }
   function commitFieldPopup() {
     if (!draft || !popupField) return;
-    const updated = { ...draft, [popupField]: editPopupVal };
-    updateLead(updated);
-    setSelectedLead(updated); setDraft(updated);
+    saveLead({ fields: { [popupField]: editPopupVal } as LeadFields });
     closeFieldPopup();
   }
 

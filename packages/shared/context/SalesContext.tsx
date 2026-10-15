@@ -6,12 +6,13 @@ import {
 } from "react";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { applyLeadIntent, diffLeadTasks, intentIsEmpty, type LeadIntent } from "@pms/shared/lib/leadIntent";
 import { useRole } from "@pms/shared/context/RoleContext";
 import {
   quotations as seedQuotations, initialCustomers, DEFAULT_ISSUER, QUOTE_PREFIX,
   type IssuerProfile,
   appointments as seedAppointments, buildLeadTasks, stageFromTasks, syncTasksToStage, findAppointmentTask,
-  quotationToFile, AUTO_FILE_BY, fmtISOToThai, DEFAULT_DEALER_CODE, leadStatusLabel,
+  quotationToFile, AUTO_FILE_BY, fmtISOToThai, DEFAULT_DEALER_CODE, leadStatusLabel, nowStampTH,
   type LeadRow,
   type CustomerRow, type QuotationMock, type QuotationStatus,
   type AppointmentMock, type DealerFile,
@@ -60,7 +61,9 @@ export type SalesContextType = {
    *  เดิมหน้าจอใช้ Math.max+1 ฝั่ง client → สร้างลูกค้าเป้าหมายพร้อมกันในสาขาเดียว num_id/id ชนกันได้ */
   newLeadNumId: () => Promise<number>;
   addLead: (lead: LeadRow) => void;
-  updateLead: (lead: LeadRow) => void;
+  /** ตัวกลางบันทึกลูกค้าเป้าหมาย — ทางเดียวที่แก้ leads · ส่งเฉพาะส่วนต่าง (ดู lib/leadIntent.ts · ใบ 0211)
+   *  คืนแถวหลังรวมเจตนา (แสดงผลทันที) · null = ผิดกฎ/ไม่พบ (แจ้งผู้ใช้แล้ว) */
+  บันทึกลีด: (id: string, intent: LeadIntent) => LeadRow | null;
   deleteLead: (leadId: string) => void;
   /** ดึงแถวของลูกค้าเป้าหมายรายนี้จากฐานข้อมูลมาแทนของในหน่วยความจำ — ใช้หลังคำสั่งที่ฐานขยับสถานะเอง
    *  (ส่ง/ยกเลิกคำขอราคา · ขอแก้ราคา) ผู้ใช้ต้องเห็นสถานะใหม่ทันที ไม่ต้องรอสัญญาณสด */
@@ -228,12 +231,13 @@ export function SalesProvider({
   //   ผู้เรียกประกอบแถวจาก leadsRef ที่อัปเดตทันทีอยู่แล้ว คำสั่งหลังจึงเป็น "ของครบกว่า" เสมอ
   //   (คิวรายแถว ไม่ใช่คิวรวม — คนละลูกค้าเป้าหมายยังเขียนพร้อมกันได้เหมือนเดิม ไม่ช้าลง)
   const leadWrites = useRef(new Map<string, Promise<unknown>>()).current;
-  const เข้าคิวเขียนลีด = (id: string, ทำ: () => Promise<unknown>): void => {
+  const เข้าคิวเขียนลีด = (id: string, ทำ: () => Promise<unknown>): Promise<unknown> => {
     const ก่อนหน้า = leadWrites.get(id) ?? Promise.resolve();
     // .catch ก่อน then — คำสั่งก่อนล้มเหลวต้องไม่ทำให้คำสั่งถัดไปไม่ได้ยิง (ตัวมันเองรายงาน error เองแล้ว)
     const คิวนี้ = ก่อนหน้า.catch(() => {}).then(ทำ);
     leadWrites.set(id, คิวนี้);
     void คิวนี้.finally(() => { if (leadWrites.get(id) === คิวนี้) leadWrites.delete(id); });
+    return คิวนี้;
   };
   // ── ลูกค้าเป้าหมายที่ฐานข้อมูลกำลังขยับขั้นให้ (Flow ใบ HQ · ด่าน 3 · พบ 14 ต.ค. 69) ─────────────────────────
   //   ใบที่ทำจากใบ HQ เปลี่ยนสถานะ (ส่งให้ลูกค้า / ตอบรับ / ปฏิเสธ) → ฐานข้อมูลขยับขั้นของลูกค้าเป้าหมายเอง (0183)
@@ -241,7 +245,7 @@ export function SalesProvider({
   //   → ขั้นที่ฐานเพิ่งตั้ง (เช่น ปิดการขายสำเร็จ) ถูกเขียนกลับเป็นขั้นเดิม เงียบ ๆ (ข้อทดสอบหน้าจอขั้น 10 จับได้)
   //   กั้นคิวเขียนของลูกค้าเป้าหมายรายนั้นไว้จนฐานทำเสร็จ แล้วงานเขียนที่ยังถือ "ขั้นเดิม" ได้ขั้นล่าสุดจากฐานแทน
   //   งานที่ตั้งใจเปลี่ยนขั้นเอง (ขั้นไม่เท่าขั้นเดิม) ไม่ถูกแตะ
-  const ลีดรอฐานขยับ = useRef(new Map<string, { ขั้นเดิม: LeadRow["status"]; หมดเวลา: number }>()).current;
+  // ⚠️ ตั้งแต่ใบ 0211 (15 ต.ค. 69) แอปไม่ส่งขั้นอีกแล้ว ยกเว้นผู้ใช้ตั้งใจเปลี่ยน — กั้นคิวไว้แค่ให้คำสั่งตามหลังเริ่มหลังฐานขยับเสร็จ
   const กั้นลีดระหว่างฐานขยับ = (q: Pick<QuotationMock, "hqQuoteId" | "dealId" | "dealerCode">): (() => void) => {
     if (!q.hqQuoteId || q.dealId == null) return () => {};
     const เจ้าของ = q.dealerCode ?? myDealerCode;
@@ -249,30 +253,20 @@ export function SalesProvider({
     if (!lead) return () => {};
     let ปล่อย: () => void = () => {};
     const รอ = new Promise<void>(r => { ปล่อย = r; });
-    ลีดรอฐานขยับ.set(lead.id, { ขั้นเดิม: lead.status, หมดเวลา: Number.POSITIVE_INFINITY });
-    เข้าคิวเขียนลีด(lead.id, () => รอ);
-    return () => {
-      const g = ลีดรอฐานขยับ.get(lead.id);
-      if (g) g.หมดเวลา = Date.now() + 30_000;   // งานเขียนที่ตามมาจากการกดครั้งเดียวกันยังได้ขั้นจากฐาน
-      ปล่อย();
-    };
-  };
-  const ขั้นจากฐาน = async (l: LeadRow): Promise<LeadRow> => {
-    const g = ลีดรอฐานขยับ.get(l.id);
-    if (!g) return l;
-    if (Date.now() > g.หมดเวลา) { ลีดรอฐานขยับ.delete(l.id); return l; }
-    if (l.status !== g.ขั้นเดิม) return l;                  // ตั้งใจเปลี่ยนขั้นเอง — ไม่แตะ
-    const fresh = await leadsRepo.get(l.id).catch(() => null);
-    if (!fresh || fresh.status === l.status) return l;
-    const ล่าสุด = { status: fresh.status, lostReason: fresh.lostReason };
-    leadsRef.current = leadsRef.current.map(x => x.id !== l.id ? x : { ...x, ...ล่าสุด });
-    setLeads(prev => prev.map(x => x.id !== l.id ? x : { ...x, ...ล่าสุด }));
-    return { ...l, ...ล่าสุด };
+    void เข้าคิวเขียนลีด(lead.id, () => รอ);
+    return () => ปล่อย();
   };
   const persistLead = useRef({
-    create: (l: LeadRow) => { bumpWrite(); เข้าคิวเขียนลีด(l.id, () => leadsRepo.create(l).catch(onFail("leads", "สร้างลูกค้าเป้าหมาย"))); },
-    update: (l: LeadRow) => { bumpWrite(); เข้าคิวเขียนลีด(l.id, async () => leadsRepo.update(await ขั้นจากฐาน(l)).catch(onFail("leads", "แก้ไขลูกค้าเป้าหมาย"))); },
-    remove: (id: string) => { bumpWrite(); เข้าคิวเขียนลีด(id, () => leadsRepo.remove(id).catch(onFail("leads", "ลบลูกค้าเป้าหมาย"))); },
+    create: (l: LeadRow) => { bumpWrite(); void เข้าคิวเขียนลีด(l.id, () => leadsRepo.create(l).catch(onFail("leads", "สร้างลูกค้าเป้าหมาย"))); },
+    // ส่วนต่างเท่านั้น (ใบ 0211) — คืนแถวล่าสุดจากฐาน · null = ล้มเหลว (onFail แจ้งผู้ใช้ + ดึงของจริงมาทับแล้ว)
+    apply: (id: string, intent: LeadIntent): Promise<LeadRow | null> => {
+      bumpWrite();
+      return new Promise(res => {
+        void เข้าคิวเขียนลีด(id, () => leadsRepo.apply(id, intent).then(r => res(r),
+          e => { onFail("leads", "แก้ไขลูกค้าเป้าหมาย")(e); res(null); }));
+      });
+    },
+    remove: (id: string) => { bumpWrite(); void เข้าคิวเขียนลีด(id, () => leadsRepo.remove(id).catch(onFail("leads", "ลบลูกค้าเป้าหมาย"))); },
   }).current;
   // ── Customers (Phase 2) — โหลดผ่าน repository (async) + เขียนทะลุถึง repo ──
   // supabase: RLS แยกสาขา (HQ = ทั้งเครือ) · local: LocalAdapter กรอง + เก็บ localStorage
@@ -313,6 +307,31 @@ export function SalesProvider({
   }, []);
   const quotationsRef = useRef(quotations);
   useEffect(() => { quotationsRef.current = quotations; }, [quotations]);
+
+  // ── ตัวกลางบันทึกลูกค้าเป้าหมาย: ทางเดียวที่แอปแก้ leads (บอสสั่ง 15 ต.ค. 69 · ก่อนขึ้นระบบจริง ข้อ 14) ─────────────
+  //   รับ "เจตนา" (ช่องที่แก้ · งานทีละงาน · ขั้นที่ตั้งใจเปลี่ยน · กิจกรรมต่อท้าย) ไม่รับทั้งแถว
+  //   ฐานรวมกับค่าล่าสุดของตัวเอง (lead_apply) → หน้าที่เปิดค้างไม่ทับงาน/ขั้นที่ฐานหรือแท็บอื่นเพิ่งตั้ง
+  //   จอแสดงผลทันทีด้วยตรรกะเดียวกับฐาน (applyLeadIntent) แล้วแทนด้วยค่าจริงที่ฐานคืนมา
+  //   ⚠️ ห้ามเขียน leads ทางอื่น — scripts/check-lead-writes.mjs ใน pnpm checks จับ
+  const ปิดการขายRef = useRef<(lead: LeadRow) => void>(() => {});
+  const บันทึกลีด = useCallback((id: string, intent: LeadIntent): LeadRow | null => {
+    const lead = leadsRef.current.find(l => l.id === id);
+    if (!lead) return null;
+    if (intentIsEmpty(intent)) return lead;
+    let next: LeadRow;
+    try { next = applyLeadIntent(lead, intent, { tpl: taskTplRef.current, now: nowStampTH() }); }
+    catch (e) { setSyncError(`บันทึกไม่สำเร็จ: แก้ไขลูกค้าเป้าหมาย — ${friendlyError(e)}`); return null; }
+    leadsRef.current = leadsRef.current.map(l => l.id !== id ? l : next);
+    setLeads(prev => prev.map(l => l.id !== id ? l : next));
+    void persistLead.apply(id, intent).then(fresh => {
+      if (!fresh) return;
+      leadsRef.current = leadsRef.current.map(l => l.id !== id ? l : { ...l, ...fresh });
+      setLeads(prev => prev.map(l => l.id !== id ? l : { ...l, ...fresh }));
+    });
+    // ปิดการขายสำเร็จ → เดินเส้นทางปิดการขายเสมอ (สร้างลูกค้าถ้ายังไม่มี · ปิดใบเสนอราคา · รวมยอดใหม่)
+    if (intent.stage && shouldCloseWon(intent.stage.status)) setTimeout(() => ปิดการขายRef.current(next), 0);
+    return next;
+  }, [persistLead]);
   useEffect(() => {
     if (!ready || gateHQ) return; // HQ/supabase: ใบทั้งเครืออ่านผ่าน RPC (summary/listPage) แทน array
     let alive = true;
@@ -501,25 +520,22 @@ export function SalesProvider({
       persistLead.remove(lead.id);
     } else {
       // แค่ผูกลูกค้าให้ลูกค้าเป้าหมาย (ยังเป็นลูกค้าเป้าหมายอยู่)
-      setLeads(prev => prev.map(l => l.id !== lead.id ? l : { ...l, customerId: saved.id }));
-      persistLead.update({ ...lead, customerId: saved.id });
+      บันทึกลีด(lead.id, { fields: { customerId: saved.id }, log: false });
     }
     return saved;
-  }, [myDealerCode, persistLead, bumpWrite]);
+  }, [myDealerCode, persistLead, bumpWrite, บันทึกลีด]);
+  ปิดการขายRef.current = lead => { void convertLeadToCustomer(lead, false).catch(() => { /* onFail แจ้งแล้ว */ }); };
 
   // ── Lead mutations ───────────────────────────────────────────────
   const updateLeadStatus = useCallback((leadId: string, status: LeadRow["status"]) => {
-    // สร้างลูกค้าเฉพาะตอนปิดการขายสำเร็จ (WON) — ตัดสินใจนอก updater กัน StrictMode เรียกซ้ำใน dev
     const lead = leadsRef.current.find(l => l.id === leadId);
     if (!lead) return;
     // ย้ายสถานะ → ติ๊กงานใน Checklist ให้ถึงสเตจนั้นอัตโนมัติ (ผู้ทำ = ผู้รับผิดชอบของลูกค้าเป้าหมาย)
-    const updated: LeadRow = { ...lead, status, tasks: syncTasksToStage(lead.tasks, status, lead.assigned || "—", taskTplRef.current) };
-    setLeads(prev => prev.map(l => l.id !== leadId ? l : updated));
-    persistLead.update(updated); // สถานะ + tasks เปลี่ยน → update ทั้งแถว (แทน setStatus)
-    if (shouldCloseWon(status)) {
-      setTimeout(() => { void convertLeadToCustomer({ ...lead, status }, false).catch(() => { /* onFail แจ้งแล้ว */ }); }, 0);
-    }
-  }, [convertLeadToCustomer, persistLead]);
+    //   ส่งเฉพาะงานที่เปลี่ยน + ขั้นที่ตั้งใจ (ไม่ส่งรายการงานทั้งชุด) · ไม่จดไทม์ไลน์ (แบบเดิมของการลากการ์ด)
+    const ก่อน = lead.tasks && lead.tasks.length ? lead.tasks : buildLeadTasks(taskTplRef.current);
+    const หลัง = syncTasksToStage(lead.tasks, status, lead.assigned || "—", taskTplRef.current);
+    บันทึกลีด(leadId, { stage: { status }, tasks: diffLeadTasks(ก่อน, หลัง), log: false });
+  }, [บันทึกลีด]);
 
   const addLead = useCallback((lead: LeadRow) => {
     // ติด dealerCode ของสาขาที่ล็อกอิน (multi-tenant) — ลูกค้าเป้าหมายใหม่เป็นของสาขานั้น (RLS with-check ฝั่ง supabase)
@@ -537,65 +553,12 @@ export function SalesProvider({
   // ⚠️ ต่อท้ายเสมอ (เก่าอยู่บน ใหม่อยู่ล่าง) ให้ตรงกับลำดับที่หน้าจอแสดง
   // ⚠️ best-effort: บันทึกไม่ลงต้องไม่ทำให้การกระทำหลักล้ม (ออกใบสำเร็จแล้วแต่จดประวัติไม่ได้ = ยังดีกว่าออกใบไม่ได้)
   const logLeadActivity = useCallback((dealId: number | undefined, text: string, type = "task") => {
-    const เวลาตอนนี้ = () => ชั่วโมงนาทีไทย();
     if (dealId == null) return;
     const lead = leadsRef.current.find(l => l.numId === dealId);
     if (!lead) return;
-    const เดิม = lead.activities ?? [];
-    const next: LeadRow = {
-      ...lead,
-      activities: [...เดิม, {
-        id: (เดิม.reduce((m, a) => Math.max(m, Number(a.id) || 0), 0) || 0) + 1,
-        // ⚠️ ต้องเป็นวันที่แบบไทย ("21 ส.ค. 2569") ให้ตรงกับที่ทั้งระบบอ่าน —
-        //    ตัวคำนวณ "ติดต่อล่าสุด/ค้างติดต่อกี่วัน" อ่านวันจากไทม์ไลน์ด้วยตัวแปลงแบบไทยเท่านั้น
-        //    ถ้าเขียนเป็น 2026-08-21 มันจะอ่านไม่ออกแล้วมองว่าดีลนี้ "ไม่เคยติดต่อเลย" เงียบ ๆ
-        // เวลาต่อท้ายด้วย " · HH:MM" (บอสสั่ง 21 ส.ค. 69: ต้องรู้ว่าทำอะไร วันไหน เวลาเท่าไร)
-        //    ตัวแปลงวันไทยอ่านเฉพาะส่วนหน้า จึงต่อเวลาไว้ท้ายได้โดยไม่กระทบการคำนวณวัน
-        date: `${toThaiDate(new Date(APP_NOW_ISO))} · ${เวลาตอนนี้()}`, icon: type, text, type,
-      }],
-    };
-    // ⚠️ ต้องอัปเดต leadsRef ทันทีด้วย ไม่ใช่รอ re-render (บั๊กจริง 21 ส.ค. 69)
-    //    ref จะตามทันก็ต่อเมื่อ React เรนเดอร์รอบใหม่ — แต่ในจังหวะเดียวกันนี้ยังมีตัวเขียนอื่น
-    //    (ติ๊กงานอัตโนมัติ) ที่อ่าน leadsRef ไปประกอบ "ทั้งแถว" แล้วเขียนทับลงฐานข้อมูล
-    //    ถ้า ref ยังเป็นภาพเก่า กิจกรรมที่เพิ่งบันทึกจะถูกทับหายไปเงียบ ๆ (เขียนทีหลังชนะ)
-    leadsRef.current = leadsRef.current.map(l => l.id !== next.id ? l : next);
-    setLeads(prev => prev.map(l => l.id !== next.id ? l : next));
-    persistLead.update(next);
-  }, [persistLead]);
-
-  const updateLead = useCallback((lead: LeadRow) => {
-    // ── ทุกการกระทำกับดีลต้องขึ้นไทม์ไลน์ (บอสสั่ง 21 ส.ค. 69) ─────────────────────
-    //   เทียบกับของเดิมในหน่วยความจำ แล้วจดเฉพาะ "สิ่งที่เพิ่งเปลี่ยนจริง"
-    //   ⚠️ ต้องต่อกิจกรรมเข้าไปใน "แถวเดียวกัน" ที่กำลังจะเขียน ไม่ใช่เขียนแยกอีกรอบ
-    //      เขียนแยก = สองคำสั่งชนกัน แล้วอันหลังทับอันแรกหาย (บั๊กจริง 21 ส.ค. 69)
-    const ก่อน = leadsRef.current.find(l => l.id === lead.id);
-    const เพิ่ม: { id: number; date: string; icon: string; text: string; type: string }[] = [];
-    const เวลา = () => `${toThaiDate(new Date(APP_NOW_ISO))} · ${ชั่วโมงนาทีไทย()}`;
-    if (ก่อน) {
-      const เดิมทำแล้ว = new Set((ก่อน.tasks ?? []).filter(t => t.done).map(t => t.key));
-      for (const t of lead.tasks ?? []) {
-        if (t.done && !เดิมทำแล้ว.has(t.key)) เพิ่ม.push({ id: 0, date: เวลา(), icon: "task", text: `ทำงาน: ${t.label}`, type: "task" });
-      }
-      if (ก่อน.status !== lead.status) {
-        เพิ่ม.push({ id: 0, date: เวลา(), icon: "task", text: `เปลี่ยนขั้นเป็น "${leadStatusLabel[lead.status]}"`, type: "task" });
-      }
-      if ((ก่อน.assigned ?? "") !== (lead.assigned ?? "") && lead.assigned) {
-        เพิ่ม.push({ id: 0, date: เวลา(), icon: "note", text: `เปลี่ยนผู้รับผิดชอบเป็น ${lead.assigned}`, type: "note" });
-      }
-    }
-    if (เพิ่ม.length) {
-      const เดิม = lead.activities ?? ก่อน?.activities ?? [];
-      let next = เดิม.reduce((m, a) => Math.max(m, Number(a.id) || 0), 0);
-      lead = { ...lead, activities: [...เดิม, ...เพิ่ม.map(a => ({ ...a, id: ++next }))] };
-    }
-    leadsRef.current = leadsRef.current.map(l => l.id !== lead.id ? l : lead);
-    setLeads(prev => prev.map(l => l.id !== lead.id ? l : lead));
-    persistLead.update(lead);
-    // ปิดการขายสำเร็จ → เดินเส้นทางปิดการขายเสมอ (สร้างลูกค้าถ้ายังไม่มี · ปิดใบเสนอราคา · รวมยอดใหม่)
-    if (shouldCloseWon(lead.status)) {
-      setTimeout(() => { void convertLeadToCustomer(lead, false).catch(() => { /* onFail แจ้งแล้ว */ }); }, 0);
-    }
-  }, [convertLeadToCustomer, persistLead]);
+    // ต่อท้ายผ่านตัวกลาง — วันเวลาฐานใส่เอง (วันไทย + " · HH:MM" แบบเดิม · ตัวคำนวณ "ติดต่อล่าสุด" อ่านแบบนี้)
+    บันทึกลีด(lead.id, { activities: [{ text, type }] });
+  }, [บันทึกลีด]);
 
   // เก็บกวาดไฟล์ที่ผูกกับเรคคอร์ดที่ถูกลบ (metadata + ไบต์ใน Storage) — กันไฟล์กำพร้า (A2.1)
   //   files.record_id เป็น polymorphic (ลูกค้าเป้าหมาย/ลูกค้า) ผูก FK/cascade ที่ DB ไม่ได้ จึงเก็บที่ชั้นแอป
@@ -694,43 +657,20 @@ export function SalesProvider({
   //   ⚠️ ห้ามติ๊กให้เองโดยไม่ถาม — เซลส์อาจตั้งใจส่งเฉพาะใบ ไม่ส่งสเปกสินค้าให้ลูกค้า
   // แล้วเลื่อนสถานะลูกค้าเป้าหมายตาม stageFromTasks (เลื่อนขึ้นเท่านั้น ไม่ดึงถอยหลัง)
   const completeLeadQuoteTasks = useCallback((quotation: QuotationMock, keys: string[]) => {
-    const RANK: Partial<Record<LeadRow["status"], number>> = { WAITING: 0, BULLET: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4 };
-    // คิดจาก leadsRef (ค่าล่าสุด) แทน updater เพื่อเก็บ "ลูกค้าเป้าหมายที่เปลี่ยน" ไป persist ทีละแถวได้
-    const changedLeads: LeadRow[] = [];
-    const nextList = leadsRef.current.map(l => {
-      // กันเขียนข้ามสาขา: repo คืนเฉพาะลูกค้าเป้าหมายสาขาที่ล็อกอินอยู่แล้ว แต่กันไว้อีกชั้น (ลูกค้าเป้าหมายไม่ระบุ dealerCode = CNX)
-      // ไม่งั้น match ด้วย company ชื่อซ้ำ/พิมพ์เอง จะเลื่อนสถานะ+ประทับผู้ทำทับลูกค้าเป้าหมายของสาขาอื่น
-      // (คู่แฝดฝั่งเขียนของบั๊กรั่วข้ามสาขา — ดู branch-isolation.spec.ts) · แตะเฉพาะลูกค้าเป้าหมายของสาขาที่ล็อกอิน
-      if ((l.dealerCode ?? DEFAULT_DEALER_CODE) !== myDealerCode) return l;
+    for (const l of leadsRef.current) {
+      // กันเขียนข้ามสาขา: แตะเฉพาะลูกค้าเป้าหมายของสาขาที่ล็อกอิน (ลูกค้าเป้าหมายไม่ระบุ dealerCode = CNX) — ดู branch-isolation.spec.ts
+      if ((l.dealerCode ?? DEFAULT_DEALER_CODE) !== myDealerCode) continue;
       const match = (quotation.customerId != null && quotation.customerId !== 0 && l.customerId === quotation.customerId)
         || l.company === quotation.customer;
-      if (!match || l.status === "PAID" || l.status === "CANCELLED") return l;
-      let changed = false;
-      const base = l.tasks && l.tasks.length ? l.tasks : buildLeadTasks(taskTplRef.current);
-      const tasks = base.map(t => {
-        if (keys.includes(t.key) && !t.done) {
-          changed = true;
-          // ผู้ทำงาน = ผู้รับผิดชอบของลูกค้าเป้าหมาย (ไม่ใช่ "ระบบ"/ดีลเลอร์) · วันปิดงาน = วันนี้ของระบบ (supabase=จริง)
-          return { ...t, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" };
-        }
-        return t;
-      });
-      if (!changed) return l;
-      const next = stageFromTasks(tasks, taskTplRef.current);
-      // "รอราคา HQ" ฐานข้อมูลเป็นคนขยับ (ส่ง/ยกเลิกคำขอ · ส่งใบให้ลูกค้า) — ติ๊กงานแล้วต้องไม่เลื่อนขั้นเอง (ฐานจะปฏิเสธ)
-      const status = l.status !== "HQ_PRICING" && (RANK[next] ?? 0) > (RANK[l.status] ?? 0) ? next : l.status;
-      const nl: LeadRow = { ...l, tasks, status };
-      changedLeads.push(nl);
-      return nl;
-    });
-    if (changedLeads.length) {
-      // อัปเดต ref ทันทีด้วยเหตุผลเดียวกับ logLeadActivity — ตัวเขียนถัดไปในจังหวะเดียวกัน
-      // ต้องเห็นงานที่เพิ่งติ๊ก ไม่งั้นมันจะเขียนทับด้วยภาพเก่า
-      leadsRef.current = nextList;
-      setLeads(nextList);
-      changedLeads.forEach(l => persistLead.update(l));
+      if (!match || l.status === "PAID" || l.status === "CANCELLED") continue;
+      const ทำแล้ว = new Set((l.tasks ?? []).filter(t => t.done).map(t => t.key));
+      const งาน = keys.filter(k => !ทำแล้ว.has(k));
+      if (!งาน.length) continue;
+      // ติ๊กโดยระบบ: ผู้ทำ = ผู้รับผิดชอบ · ขั้นเลื่อนขึ้นเท่านั้น (ฐานคิดจากงานในฐาน · ไม่แตะ "รอราคา HQ") · ไม่จดไทม์ไลน์
+      บันทึกลีด(l.id, { tasks: งาน.map(key => ({ key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" })),
+        deriveStage: "up", log: false });
     }
-  }, [myDealerCode, persistLead]);
+  }, [myDealerCode, บันทึกลีด]);
 
   // ── รวมยอดลูกค้า (reconcile) = Σ ใบที่ won ของลูกค้ารายนั้น จาก DB สดตรง ๆ แล้วอัปเดตจอ (H2) ──
   //   เรียกเฉพาะตอนที่มี "ใบที่ won" เข้ามาเกี่ยว (won ใหม่ / ลบใบ won / แก้ใบ won / ย้อน won ออก)
@@ -756,6 +696,21 @@ export function SalesProvider({
     const created = await quotationsRepo.createNumbered(myDealerCode, QUOTE_PREFIX, base);
     bumpWrite(); // ออกเลขใบผ่าน RPC ไม่ผ่าน persist* — กันผลโหลดเก่าทับใบที่เพิ่งสร้าง
     setQuotations(prev => [created, ...prev]);
+    if (USE_SUPABASE) {
+      // ฐานจริง: ติ๊กงาน · จดกิจกรรม · แถวไฟล์ของใบ ฐานทำเองในธุรกรรมเดียวกับการสร้างใบ (ใบ 0210 · 15 ต.ค. 69)
+      //   เดิมยิงคำสั่งเขียนตามหลัง 3 คำสั่ง (เขียนลูกค้าเป้าหมายทั้งแถวทับ) — เปลี่ยนหน้าเร็ว = ลูกค้าเป้าหมายไม่ครบ
+      //   ตรงนี้แค่อ่านกลับมาโชว์ · อ่านไม่สำเร็จไม่เสียอะไร (ข้อมูลอยู่ในฐานแล้ว)
+      const ลีด = created.dealId != null ? leadsRef.current.find(l => l.numId === created.dealId && (l.dealerCode ?? DEFAULT_DEALER_CODE) === myDealerCode) : undefined;
+      if (ลีด) {
+        void leadsRepo.get(ลีด.id).then(fresh => {
+          if (!fresh) return;
+          leadsRef.current = leadsRef.current.map(l => l.id !== ลีด.id ? l : { ...l, ...fresh });
+          setLeads(prev => prev.map(l => l.id !== ลีด.id ? l : { ...l, ...fresh }));
+        }).catch(e => logRepoRead("leads.get(หลังสร้างใบ)", e));
+      }
+      return created;
+    }
+    // โหมดตัวอย่าง (ไม่มีฐาน): ทำที่แอปเหมือนเดิม
     // สร้างใบ → จัดทำใบเสนอราคา (ถ้าสร้างเป็นสถานะส่งแล้วขึ้นไป ให้ติ๊กส่งด้วย)
     completeLeadQuoteTasks(created, created.status === "draft" ? ["makeQuote"] : ["makeQuote", "sendQuote"]);
       logLeadActivity(created.dealId, `ออกใบเสนอราคา ${created.id} (${created.revision ?? "V1"}) · ยอด ${created.total}`, "doc");
@@ -960,29 +915,12 @@ export function SalesProvider({
     const def = findAppointmentTask(taskTplRef.current);
     // นัดที่ไม่ได้ผูกกับลูกค้าเป้าหมาย (เช่นนัดภายใน) ไม่มีงานให้ติ๊ก
     if (!def || !leadNumId) return;
-    const RANK: Partial<Record<LeadRow["status"], number>> = { WAITING: 0, BULLET: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4 };
-    const changed: LeadRow[] = [];
-    const nextList = leadsRef.current.map(l => {
-      if ((l.dealerCode ?? DEFAULT_DEALER_CODE) !== myDealerCode) return l;
-      if (l.numId !== leadNumId || l.status === "PAID" || l.status === "CANCELLED") return l;
-      const base = l.tasks && l.tasks.length ? l.tasks : buildLeadTasks(taskTplRef.current);
-      if (base.find(t => t.key === def.key)?.done) return l;
-      const tasks = base.map(t => t.key === def.key
-        ? { ...t, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" }
-        : t);
-      const next = stageFromTasks(tasks, taskTplRef.current);
-      // "รอราคา HQ" ฐานข้อมูลเป็นคนขยับ (ส่ง/ยกเลิกคำขอ · ส่งใบให้ลูกค้า) — ติ๊กงานแล้วต้องไม่เลื่อนขั้นเอง (ฐานจะปฏิเสธ)
-      const status = l.status !== "HQ_PRICING" && (RANK[next] ?? 0) > (RANK[l.status] ?? 0) ? next : l.status;
-      const nl: LeadRow = { ...l, tasks, status };
-      changed.push(nl);
-      return nl;
-    });
-    if (changed.length) {
-      leadsRef.current = nextList;
-      setLeads(nextList);
-      changed.forEach(l => persistLead.update(l));
-    }
-  }, [myDealerCode, persistLead]);
+    const l = leadsRef.current.find(x => (x.dealerCode ?? DEFAULT_DEALER_CODE) === myDealerCode && x.numId === leadNumId);
+    if (!l || l.status === "PAID" || l.status === "CANCELLED") return;
+    if ((l.tasks ?? []).find(t => t.key === def.key)?.done) return;
+    บันทึกลีด(l.id, { tasks: [{ key: def.key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" }],
+      deriveStage: "up", log: false });
+  }, [myDealerCode, บันทึกลีด]);
 
 
   const addAppointment = useCallback((appt: AppointmentMock) => {
@@ -1015,7 +953,7 @@ export function SalesProvider({
   // โหลดเสร็จแล้ว = คืนของในมือทันที · ยังไม่เสร็จ = รอคำขอรอบล่าสุดให้จบก่อนค่อยตอบ
   // (ล้มเหลว = คืนเท่าที่มี ดีกว่าค้างรอตลอดกาล — ผู้เรียกจะเห็นว่าไม่มีใบแล้วบอกผู้ใช้ตามจริง)
   const value = useMemo(() => ({
-    leads, updateLeadStatus, newLeadNumId, addLead, updateLead, deleteLead, syncLeadFromServer,
+    leads, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
@@ -1024,7 +962,7 @@ export function SalesProvider({
     syncError, clearSyncError,
     salesVersion,
   }), [
-    leads, updateLeadStatus, newLeadNumId, addLead, updateLead, deleteLead, syncLeadFromServer,
+    leads, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,

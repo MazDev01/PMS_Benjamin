@@ -23,7 +23,8 @@ await db.from("leads").insert({ id: "#L-996001", dealer_code: "RYG", num_id: 996
 
 console.log("=== กฎ: เลื่อนขั้นลีดต้องมีของจริงรองรับ (ทดสอบที่ API ตรง ๆ ไม่ผ่านหน้าจอ) ===");
 for (const s of ["QUOTED", "NEGO", "PAID"]) {
-  const res = await api("PUT", "/api/v1/leads?op=status", { id: "#L-996001", status: s });
+  // ทางแก้ลูกค้าเป้าหมายมีทางเดียวแล้ว: POST op=apply (ส่วนต่าง · ใบ 0211) — PUT ทั้งแถว/op=status ปิดแล้ว (ตอบ 410)
+  const res = await api("POST", "/api/v1/leads?op=apply", { id: "#L-996001", intent: { stage: { status: s } } });
   const { data } = await db.from("leads").select("status").eq("id", "#L-996001").single();
   console.log("  ตั้งสถานะ " + s.padEnd(8) + " ทั้งที่ยังไม่มีใบเสนอราคาเลย → HTTP " + res.s + " · สถานะจริงใน DB = " + data.status);
 }

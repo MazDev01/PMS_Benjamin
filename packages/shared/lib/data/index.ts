@@ -163,9 +163,8 @@ export const leads: LeadsRepo = {
   ..._leads,
   listPage: จำยอดรวม("leads.page", _leads.listPage.bind(_leads)),
   create: ล้างเมื่อเขียน("leads.page", _leads.create.bind(_leads)),
-  update: ล้างเมื่อเขียน("leads.page", _leads.update.bind(_leads)),
+  apply: ล้างเมื่อเขียน("leads.page", _leads.apply.bind(_leads)),
   remove: ล้างเมื่อเขียน("leads.page", _leads.remove.bind(_leads)),
-  setStatus: ล้างเมื่อเขียน("leads.page", _leads.setStatus.bind(_leads)),
 };
 export const quotations: QuotationsRepo = {
   ..._quotations,

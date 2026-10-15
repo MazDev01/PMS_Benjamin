@@ -1,3 +1,4 @@
+import type { LeadIntent } from "../leadIntent";
 import type { HqOverview } from "../hqOverview";
 // Ports — สัญญา (interface) ที่ทุก adapter ต้องมี
 // context/hook เรียกผ่าน repository เหล่านี้เท่านั้น · เบื้องหลังสลับ adapter ได้
@@ -509,9 +510,10 @@ export interface LeadsRepo {
    *  id ที่แสดง (#L-....) แอป derive จาก num_id นี้ · เดิม Math.max+1 ฝั่ง client ชนกันได้ */
   nextNumId(dealerCode: string): Promise<number>;
   create(row: LeadRow): Promise<LeadRow>;
-  update(row: LeadRow): Promise<LeadRow>;
+  /** บันทึกส่วนต่าง (ทางเดียวที่แก้ลูกค้าเป้าหมาย · ใบ 0211 lead_apply) — คืนแถวล่าสุดจากฐาน
+   *  ⚠️ ไม่มี update ทั้งแถวแล้ว (15 ต.ค. 69): หน้าที่เปิดค้างเขียนทับงาน/ขั้นที่ฐานเพิ่งตั้ง · ดู lib/leadIntent.ts */
+  apply(id: string, intent: LeadIntent): Promise<LeadRow>;
   remove(id: string): Promise<void>;
-  setStatus(id: string, status: LeadRow["status"]): Promise<void>;
 }
 /** ตัวเลือกดึงใบแบบ "แบ่งหน้า + กรอง + เรียง ที่ DB" (M9 Phase 2) — ผู้เรียก resolve derived filter มาก่อน
  *  (region/province/ชื่อดีลเลอร์ → dealerCodes · product → productLines) เหลือแต่คอลัมน์จริงส่งให้ DB */

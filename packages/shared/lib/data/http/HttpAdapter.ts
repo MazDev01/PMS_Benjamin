@@ -181,7 +181,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
 /** list ทั้งตาราง — เซิร์ฟเวอร์ส่งธง partial มาด้วยเมื่อชนเพดาน ต้องเตือนผู้ใช้ ไม่ใช่ตัดเงียบ */
 async function listAll<T>(path: string, label: string, scope?: Scope): Promise<T[]> {
-  const r = await apiFetch<{ rows: T[]; partial: boolean }>(`${path}${scopeQ(scope)}`);
+  const r = await apiFetch<{ rows: T[]; partial: boolean } | null>(`${path}${scopeQ(scope)}`);
+  // ตอบ 2xx แต่ไม่มีเนื้อหา (คำขอถูกตัดกลางทาง) — เดิมอ่าน r.partial ตรง ๆ แล้วพังด้วย TypeError ที่ไม่บอกอะไร (trace 15 ต.ค. 69)
+  if (!r || !Array.isArray(r.rows)) throw new DbError(`โหลด "${label}" ไม่สำเร็จ — เซิร์ฟเวอร์ตอบกลับไม่ครบ ลองใหม่อีกครั้ง`);
   if (r.partial) {
     reportPartialData(`ข้อมูลที่แสดงไม่ครบ — "${label}" มีจำนวนมากเกินกว่าที่ระบบโหลดไหวในครั้งเดียว กรุณาใช้ตัวกรองช่วยแคบผลลัพธ์`);
   }
@@ -407,8 +409,7 @@ const leads: LeadsRepo = {
   }),
   nextNumId: (dealerCode) => post("/leads?op=next", { dealerCode }),
   create: (row) => post<LeadRow>("/leads", row),
-  update: (row) => put<LeadRow>("/leads", row),
-  setStatus: async (id, status) => { await put("/leads?op=status", { id, status }); },
+  apply: (id, intent) => post<LeadRow>("/leads?op=apply", { id, intent }),
   remove: async (id) => { await apiFetch(`/leads?id=${encodeURIComponent(id)}`, { method: "DELETE" }); },
 };
 const quotations: QuotationsRepo = {

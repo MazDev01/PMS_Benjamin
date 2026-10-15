@@ -3,6 +3,7 @@
 // SupabaseAdapter — เชื่อม repository ทุกตัวเข้ากับตาราง Supabase (เฟส B)
 // map ตาราง ↔ type ตาม BACKEND-DESIGN.md · ขอบเขตข้อมูล (dealer_code) บังคับด้วย RLS ที่ DB
 // แปลง snake_case (DB) ↔ camelCase (type) ด้วย mappers.ts
+import { leadIntentToWire } from "@pms/shared/lib/leadIntent";
 import { เตรียมบันทึกใบ } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
@@ -14,7 +15,7 @@ import { accountRemote } from "../accountRemote";
 import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
-import { normalizeCustomer, normalizeDealer, leadToRow, leadToUpdateRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
+import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
 import { DEFAULT_HQ_POLICY, DEFAULT_HQ_TARGETS, DEFAULT_HQ_NOTIF_RULES, รวมกฎแจ้งเตือน, DEFAULT_LEAD_RULES, LOST_REASONS,
   LEAD_TASK_TEMPLATE, normalizeLeadTaskTemplate,
   DEFAULT_ISSUER, DEFAULT_NOTIF_PREFS } from "@pms/shared/lib/mock";
@@ -1090,13 +1091,13 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return rowToLead(data as Row);
     }),
-    update: (row) => withNetworkRetry(async () => {
-      const { data, error } = await sb().from("leads").update(leadToUpdateRow(row)).eq("id", row.id).select().single();
+    // ส่วนต่างเท่านั้น — ฐานรวมกับค่าล่าสุดเอง (ใบ 0211) · ไม่ลองซ้ำ: คำขอแรกอาจลงแล้ว ลองซ้ำ = จดไทม์ไลน์ซ้ำ
+    apply: async (id, intent) => {
+      const { data, error } = await sb().rpc("lead_apply", { p_id: id, p_intent: leadIntentToWire(intent) });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return rowToLead(data as Row);
-    }),
+    },
     remove: (id) => must(sb().from("leads").delete().eq("id", id)),
-    setStatus: (id, status) => must(sb().from("leads").update({ status }).eq("id", id)),
   },
   quotations: {
     list: async (scope) => {

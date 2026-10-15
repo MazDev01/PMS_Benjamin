@@ -2,13 +2,14 @@
 
 // LocalAdapter — ห่อ loader / localStorage เดิม (mock.ts, useAudit.ts) โดยไม่แก้ของเดิม
 // เป็น adapter เริ่มต้น (NEXT_PUBLIC_DATA_SOURCE=local) · พฤติกรรมเท่าเดิม แค่รวมเข้าท่อเดียว
+import { applyLeadIntent } from "@pms/shared/lib/leadIntent";
 import {
   loadHQDealers, HQ_DEALERS_KEY,
   loadMasterCatalog, MASTER_CATALOG_KEY, MASTER_CATALOG_EVENT,
   loadDealerFiles, saveDealerFiles, addDealerFile, removeDealerFile,
   loadResponsiblePersons, RP_STORAGE_KEY,
   loadHQPolicy, loadHQTargets, loadHQNotifRules, loadLostReasons, HQ_JOURNEY_KEY,
-  loadLeadTaskTemplate, normalizeLeadTaskTemplate,
+  loadLeadTaskTemplate, normalizeLeadTaskTemplate, nowStampTH,
   HQ_POLICY_KEY, HQ_TARGETS_KEY, HQ_NOTIF_RULES_KEY, HQ_SETTINGS_EVENT,
   loadDealerLeadRulesMap, saveDealerLeadRules, loadQuoteValidityDays,
   leads as leadSeed, initialCustomers, quotations as quoteSeed, appointments as apptSeed,
@@ -996,19 +997,22 @@ export const LocalAdapter: DataAdapter = {
       writeKey(SALES.leads, [row, ...list]);
       return ok(row);
     },
-    update: (row) => {
+    // โหมดตัวอย่าง: ตรรกะเดียวกับฐาน (lib/leadIntent.ts ↔ ใบ 0211)
+    apply: (id, intent) => {
       const list = readKey<LeadRow[]>(SALES.leads, leadSeed);
-      writeKey(SALES.leads, list.map((l) => (l.id === row.id ? row : l)));
-      return ok(row);
+      const lead = list.find((l) => l.id === id);
+      if (!lead) return Promise.reject(new Error("not_found: ไม่พบลูกค้าเป้าหมายนี้ (อาจถูกลบ หรือไม่มีสิทธิ์)"));
+      try {
+        const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
+        const next = applyLeadIntent(lead, intent, { tpl: loadLeadTaskTemplate(), now: nowStampTH(),
+          hasSentQuote: () => quotes.some((q) => q.status !== "draft" && (q.dealId === lead.numId || q.customer === lead.company)) });
+        writeKey(SALES.leads, list.map((l) => (l.id === id ? next : l)));
+        return ok(next);
+      } catch (e) { return Promise.reject(e); }
     },
     remove: (id) => {
       const list = readKey<LeadRow[]>(SALES.leads, leadSeed);
       writeKey(SALES.leads, list.filter((l) => l.id !== id));
-      return done();
-    },
-    setStatus: (id, status) => {
-      const list = readKey<LeadRow[]>(SALES.leads, leadSeed);
-      writeKey(SALES.leads, list.map((l) => (l.id === id ? { ...l, status } : l)));
       return done();
     },
   },

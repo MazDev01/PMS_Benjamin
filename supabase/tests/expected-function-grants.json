@@ -1,5 +1,5 @@
 {
- "migration": "0209",
+ "migration": "0211",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -35,6 +35,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "_thai_date(p timestamp with time zone, p_with_time boolean)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "audit_actor()",
@@ -464,6 +471,13 @@
    "definer": true
   },
   {
+   "f": "lead_apply(p_id text, p_intent jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "lead_dedupe_key(p_company text, p_phone text)",
    "anon": false,
    "authenticated": true,
@@ -658,6 +672,13 @@
    "authenticated": true,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "quotations_created_lead_sync()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "quotations_flow_sync()",

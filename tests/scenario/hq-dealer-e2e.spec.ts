@@ -216,15 +216,15 @@ test("[11] ปิดการขายไม่สำเร็จ: ไม่ใ�
     id, dealerCode: "RYG", numId, name: บริษัท("ดีลแพ้"), company: บริษัท("ดีลแพ้"), contact: "x",
     phone: "081-000-0002", province: "ระยอง", status: "NEGO", value: "500000", area: "100", assigned: "ทดสอบระบบ" } });
 
-  const ไม่มีเหตุผล = await request.put(`${DEALER_ORIGIN}/api/v1/leads?op=status`, { data: { id, status: "CANCELLED" } });
-  expect(ไม่มีเหตุผล.status(), "ปิดไม่สำเร็จโดยไม่ใส่เหตุผล ต้องถูกปฏิเสธ").toBe(422);
+  // ทางแก้ลูกค้าเป้าหมายทางเดียว: op=apply (ส่วนต่าง · ใบ 0211) — กฎปิดการขายบังคับในฐาน (เดิมตรวจที่เซิร์ฟเวอร์แอป ตอบ 422)
+  const ไม่มีเหตุผล = await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=apply`, { data: { id, intent: { stage: { status: "CANCELLED" } } } });
+  expect(ไม่มีเหตุผล.status(), "ปิดไม่สำเร็จโดยไม่ใส่เหตุผล ต้องถูกปฏิเสธ").toBe(400);
+  expect(await ไม่มีเหตุผล.text(), "ต้องบอกเหตุผล").toContain("ต้องระบุเหตุผล");
   const { data: ยังไม่เปลี่ยน } = await db.from("leads").select("status").eq("id", id).single();
   expect(ยังไม่เปลี่ยน?.status, "สถานะต้องไม่ถูกเปลี่ยนเมื่อถูกปฏิเสธ").toBe("NEGO");
 
-  const มีเหตุผล = await request.put(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
-    id, dealerCode: "RYG", numId, name: บริษัท("ดีลแพ้"), company: บริษัท("ดีลแพ้"), contact: "x",
-    phone: "081-000-0002", province: "ระยอง", status: "CANCELLED", lostReason: "ราคาสูงกว่าคู่แข่ง",
-    value: "500000", area: "100", assigned: "ทดสอบระบบ" } });
+  const มีเหตุผล = await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=apply`, { data: {
+    id, intent: { stage: { status: "CANCELLED", lostReason: "ราคาสูงกว่าคู่แข่ง" } } } });
   expect(มีเหตุผล.status(), "ใส่เหตุผลแล้วต้องบันทึกได้").toBe(200);
   const { data: แพ้แล้ว } = await db.from("leads").select("status,lost_reason").eq("id", id).single();
   expect(แพ้แล้ว?.status).toBe("CANCELLED");
@@ -340,9 +340,8 @@ test("[16-17] ปิดการขายใบเดียวกันพร้
 
   // แก้ลีดตัวเดียวกันพร้อมกัน 10 สาย ค่าต่างกัน — ต้องได้ค่าใดค่าหนึ่ง ไม่ใช่ค่าผสม และต้องไม่มีแถวซ้ำ
   const ค่าที่ยิง = Array.from({ length: 10 }, (_, i) => String(100_000 * (i + 1)));
-  await Promise.all(ค่าที่ยิง.map(v => request.put(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
-    id: `#L-${numId}`, dealerCode: "RYG", numId, name: COMPANY, company: COMPANY, contact: "x",
-    phone: "081-000-0003", province: "ระยอง", status: "QUOTED", value: v, area: "200", assigned: "ทดสอบระบบ" } })));
+  await Promise.all(ค่าที่ยิง.map(v => request.post(`${DEALER_ORIGIN}/api/v1/leads?op=apply`, { data: {
+    id: `#L-${numId}`, intent: { fields: { value: v } } } })));
   const { data: ลีด } = await db.from("leads").select("value").eq("company", COMPANY);
   expect(ลีด?.length, "ต้องเหลือลูกค้าเป้าหมายแถวเดียว").toBe(1);
   expect(ค่าที่ยิง, "ค่าที่บันทึกต้องเป็นหนึ่งในค่าที่ยิงไป ไม่ใช่ค่าผสม").toContain(ลีด![0].value);
