@@ -11,7 +11,8 @@ import { spawn, spawnSync } from "node:child_process";
 const MODE = process.env.NEXT_PUBLIC_DATA_SOURCE ?? "api";   // ค่าตั้งต้น = โหมดเดียวกับเว็บจริง
 // รหัสรอบเดียวให้ทุกช่วง — หลักฐานข้อที่ตกของรอบนี้อยู่โฟลเดอร์เดียวกัน (playwright.config.ts)
 const PMS_RUN_ID = process.env.PMS_RUN_ID ?? new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 19).replace(/[:T]/g, "-");
-const env = { ...process.env, NEXT_PUBLIC_DATA_SOURCE: MODE, PMS_RUN_ID };
+// PMS_LOCAL_HTTP_TEST: เซิร์ฟเวอร์ในเครื่องรันบน http — ให้คุกกี้ใบผ่านไม่ติด Secure (WebKit ทิ้งคุกกี้ Secure บน http · ดู _cookie.ts)
+const env = { ...process.env, NEXT_PUBLIC_DATA_SOURCE: MODE, PMS_RUN_ID, PMS_LOCAL_HTTP_TEST: "1" };
 const แอป = [
   { ชื่อ: "hq", cwd: "apps/hq", port: 3002 },
   { ชื่อ: "dealer", cwd: "apps/dealer", port: 3001 },

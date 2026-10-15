@@ -38,13 +38,20 @@ export const LEGACY_COOKIES = ["pms_at", "pms_rt"] as const;
 
 const isHttps = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https")
   || process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+// รอบทดสอบ production build ในเครื่อง (scripts/test-prodbuild.mjs) รันบน http://localhost
+//   NODE_ENV=production ทำให้คุกกี้เป็น Secure → WebKit (Safari/iPhone) ไม่เก็บคุกกี้ Secure บน http ล็อกอินไม่ติด
+//   (Chrome ยกเว้นให้ localhost จึงไม่เห็น) — ต้นเหตุเมนูมือถือ 2 ข้อที่ตกมาตั้งแต่ด่าน 1 (15 ต.ค. 69)
+//   ปิด Secure ได้เฉพาะ: ตัวรันรอบทดสอบตั้ง PMS_LOCAL_HTTP_TEST=1 · ไม่ใช่ Vercel · ที่อยู่เว็บไม่ใช่ https
+//   บน Vercel (มี VERCEL_ENV เสมอ) คุกกี้เป็น Secure ตามเดิม ตัวแปรนี้ไม่มีผล
+const ทดสอบhttpในเครื่อง = () => process.env.PMS_LOCAL_HTTP_TEST === "1" && !process.env.VERCEL_ENV
+  && !(process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https");
 
 /** ค่ามาตรฐานของ cookie ใบผ่าน — ต้องเหมือนกันทุกที่ ไม่งั้นลบไม่ออก/ทับไม่ได้ */
 function base(maxAgeSec: number) {
   return {
     httpOnly: true,            // ⚠️ หัวใจของระยะนี้ — JavaScript อ่านไม่ได้
     sameSite: "lax" as const,  // กันถูกเว็บอื่นยิงแทนผู้ใช้ (CSRF) ในกรณีทั่วไป
-    secure: isHttps(),         // ตอนพัฒนาเป็น http ถ้าบังคับ secure เบราว์เซอร์จะทิ้ง cookie ทิ้งเงียบ ๆ
+    secure: isHttps() && !ทดสอบhttpในเครื่อง(),   // ตอนพัฒนาเป็น http ถ้าบังคับ secure เบราว์เซอร์จะทิ้ง cookie ทิ้งเงียบ ๆ
     path: "/",
     maxAge: maxAgeSec,
   };
