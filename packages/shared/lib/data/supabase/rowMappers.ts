@@ -34,6 +34,18 @@ export function leadToRow(l: LeadRow): Row {
   if (r.area != null) r.area = String(r.area);
   return r;
 }
+// แก้แถวลีด: ไม่ส่งสถานะ "รอราคา HQ" — ขั้นนี้ฐานเป็นเจ้าของคนเดียว (0183: ตั้งเองไม่ได้ · ออกเองไม่ได้)
+//   สำเนาในจอที่ยังถือขั้นนี้ = ไม่ได้ตั้งใจเปลี่ยนขั้นเสมอ: ฐานยังเป็นขั้นนี้ (ส่งไปก็ไม่เปลี่ยน) หรือฐานขยับไปแล้ว (ส่งไป = ถูกปฏิเสธทั้งคำขอ)
+//   (ทดสอบโหลด 10 ดีลเลอร์ · 14 ต.ค. 69: HQ ส่งใบแล้วดีลเลอร์ติ๊กงานตามมา → 400 hq_pricing_locked งานที่ติ๊กหาย)
+//   ไม่ส่งเหตุผลที่ปิดไม่สำเร็จด้วย — ระหว่างรอราคา HQ ลูกค้าเป้าหมายยังไม่ปิด สำเนานี้จึงมีแค่ค่าว่าง
+//   (รอบปิดระยะ 4 · 15 ต.ค. 69: ตัดแค่สถานะ → สำเนาเก่าล้างเหตุผลที่ฐานเพิ่งตั้งตอนลูกค้าปฏิเสธใบ
+//    แล้วการบันทึกครั้งถัดไปถูกปฏิเสธ 422 "ปิดการขายไม่สำเร็จต้องระบุเหตุผลเสมอ")
+//   ใช้ทั้งต่อฐานตรง (SupabaseAdapter) และเส้นทางเว็บจริง (server/v1 leadsPUT)
+export function leadToUpdateRow(l: LeadRow): Row {
+  const r = leadToRow(l);
+  if (r.status === "HQ_PRICING") { delete r.status; delete r.lost_reason; }
+  return r;
+}
 export function rowToLead(row: Row): LeadRow {
   const l = toCamel<Record<string, unknown>>(row);
   if (typeof l.createdLabel === "string") l.createdAt = l.createdLabel; // แสดงผลด้วยสตริงไทยจากแอป

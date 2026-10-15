@@ -19,7 +19,7 @@ import { parse, str, num, bool, oneOf, arrOf, mapOfNum, isoDate } from "./_valid
 import { pageAll, rangedFetch, TIEBREAK_COL } from "./_page";
 import { toCamel, toSnake } from "@pms/shared/lib/data/supabase/mappers";
 import {
-  normalizeCustomer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt,
+  normalizeCustomer, leadToRow, leadToUpdateRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt,
 } from "@pms/shared/lib/data/supabase/rowMappers";
 import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock } from "@pms/shared/lib/data/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -217,7 +217,7 @@ export const leadsPUT = handler("leads.update", async (req, sb) => {
     const ห้าม = await ตรวจกฎการปิดดีล(sb, row.id, row.status, (row as { lostReason?: unknown }).lostReason);
     if (ห้าม) return fail(422, ห้าม);
   }
-  const { data, error } = await sb.from("leads").update(leadToRow(row)).eq("id", row.id).select().single();
+  const { data, error } = await sb.from("leads").update(leadToUpdateRow(row)).eq("id", row.id).select().single();
   if (error) return dbFail("leads.update", error);
   return ok(rowToLead(data as Row));
 });

@@ -13,7 +13,7 @@ import { accountRemote } from "../accountRemote";
 import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
-import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
+import { normalizeCustomer, normalizeDealer, leadToRow, leadToUpdateRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
 import { DEFAULT_HQ_POLICY, DEFAULT_HQ_TARGETS, DEFAULT_HQ_NOTIF_RULES, รวมกฎแจ้งเตือน, DEFAULT_LEAD_RULES, LOST_REASONS,
   LEAD_TASK_TEMPLATE, normalizeLeadTaskTemplate,
   DEFAULT_ISSUER, DEFAULT_NOTIF_PREFS } from "@pms/shared/lib/mock";
@@ -1050,7 +1050,7 @@ export const SupabaseAdapter: DataAdapter = {
       return rowToLead(data as Row);
     }),
     update: (row) => withNetworkRetry(async () => {
-      const { data, error } = await sb().from("leads").update(leadToRow(row)).eq("id", row.id).select().single();
+      const { data, error } = await sb().from("leads").update(leadToUpdateRow(row)).eq("id", row.id).select().single();
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return rowToLead(data as Row);
     }),
