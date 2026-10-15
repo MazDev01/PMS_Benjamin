@@ -1,6 +1,6 @@
 // ── งานตั้งเวลา: ส่งอีเมลที่ค้างในกล่องขาออก + ตรวจคำขอใบเสนอราคาเกิน 14 วัน ──────────────────────────
 //
-// ผู้เรียก: งานตั้งเวลาของ Vercel (apps/hq/vercel.json · ทุก 15 นาที) — ส่ง Authorization: Bearer <CRON_SECRET>
+// ผู้เรียก: งานตั้งเวลาของฐาน pg_cron + pg_net (ใบ 0212 · ทุก 15 นาที · แผน Hobby ของ Vercel ตั้งถี่ไม่ได้) — ส่ง Authorization: Bearer <CRON_SECRET>
 //   ไม่มีหรือไม่ตรง = 401 (คนนอกสั่งให้ระบบยิงอีเมลรัว ๆ ไม่ได้)
 // ตรรกะอยู่ที่ packages/shared/server/mail/outbox.ts · ตารางกล่องขาออก: ใบ 0193
 import { NextResponse, type NextRequest } from "next/server";

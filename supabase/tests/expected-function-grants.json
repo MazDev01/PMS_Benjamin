@@ -1,6 +1,13 @@
 {
- "migration": "0211",
+ "migration": "0212",
  "functions": [
+  {
+   "f": "_cron_send_email()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
   {
    "f": "_dealer_notify_emails(p_dealer text)",
    "anon": false,
