@@ -182,4 +182,4 @@ export const POST = handler("metrics", async (req: NextRequest, sb) => {
   const { data, error } = await sb.rpc(call.rpc, call.args(a));
   if (error) return dbFail(`metrics.${k}`, error);
   return ok(call.shape(data));
-});
+}, { อ่าน: () => true });   // ตัวเลขสรุปทุกตัวเป็นการอ่าน (RPC อ่านอย่างเดียว) — นับถังอ่าน

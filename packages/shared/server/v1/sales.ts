@@ -14,7 +14,7 @@
 // ⚠️ ค่ากลาง (APP_NOW / DEFAULT_LEAD_RULES / DEFAULT_HQ_POLICY) เป็นของฝั่งแอป —
 //    ผู้เรียกเติมมาให้แล้ว เซิร์ฟเวอร์ส่งต่อตรง ๆ (เหตุผลเดียวกับ settings/dealerSettings)
 import type { NextRequest } from "next/server";
-import { handler, ok, dbFail, fail } from "./_ctx";
+import { handler, ok, dbFail, fail, อ่านเมื่อop } from "./_ctx";
 import { parse, str, num, bool, oneOf, arrOf, mapOfNum, isoDate } from "./_valid";
 import { pageAll, rangedFetch, TIEBREAK_COL } from "./_page";
 import { toCamel, toSnake } from "@pms/shared/lib/data/supabase/mappers";
@@ -191,7 +191,7 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
   const { data, error } = await sb.from("leads").insert(leadToRow(row)).select().single();
   if (error) return dbFail("leads.create", error);
   return ok(rowToLead(data as Row));
-});
+}, { อ่าน: อ่านเมื่อop("get", "page", "salesperson", "for-customer") });
 
 // -- แก้ลูกค้าเป้าหมายทั้งแถว / ตั้งสถานะตรง: ปิดแล้ว (15 ต.ค. 69 · ก่อนขึ้นระบบจริง ข้อ 14) --
 // หน้าที่เปิดค้างเขียนสำเนาเก่าทับงาน/ขั้นที่ฐานเพิ่งตั้ง → ใช้ POST /leads?op=apply (ส่วนต่าง) ทางเดียว
@@ -304,7 +304,7 @@ export const quotesPOST = handler("quotations.write", async (req, sb) => {
   const { data, error } = await sb.from("quotations").insert(quoteToRow(row)).select().single();
   if (error) return dbFail("quotations.create", error);
   return ok(rowToQuote(data as Row));
-});
+}, { อ่าน: อ่านเมื่อop("page") });
 
 export const quotesPUT = handler("quotations.update", async (req, sb) => {
   const o = op(req);
@@ -421,7 +421,7 @@ export const customersPOST = handler("customers.write", async (req, sb) => {
   const { data, error } = await sb.from("customers").insert(toSnake(row as unknown as Row)).select().single();
   if (error) return dbFail("customers.create", error);
   return ok(normalizeCustomer(toCamel<CustomerRow>(data as Row)));
-});
+}, { อ่าน: อ่านเมื่อop("page", "for-lead", "for-dealer") });
 
 export const customersPUT = handler("customers.update", async (req, sb) => {
   const row = await body<CustomerRow>(req);

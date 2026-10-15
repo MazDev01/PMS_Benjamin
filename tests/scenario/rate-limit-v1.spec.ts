@@ -3,6 +3,7 @@ import { RYG, CNX, skipReason } from "./supabaseEnv";
 import { getSession } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
+import { เตรียมใบHQ, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
 
 // ── ด่านจำกัดจำนวนคำขอบนเส้นทางงานขาย (ผลตรวจระบบ 19 ส.ค. 69) ──────────────────
 // เดิมด่านนี้มีเฉพาะ /api/admin/* งานขายทั้งหมดยิงได้ไม่จำกัด
@@ -55,6 +56,35 @@ test("[security] ยิงคำขอเขียนเกินโควตา
   expect(await ยิง(s.access_token, "GET"), "อ่านข้อมูลต้องยังทำได้").toBe(200);
 
   await admin.from("rate_limits").delete().like("key", `v1:%${s.user.id}`);
+});
+
+// ── คำขอ "อ่าน" ที่ส่งแบบ POST ต้องนับถังอ่าน ไม่กินโควตาบันทึก (ก่อนขึ้นระบบจริง · 15 ต.ค. 69) ─────────────────────
+//   หน้าจอโหลดข้อมูลด้วย POST หลายทาง (เปิดแผงลูกค้าเป้าหมาย op=get · ตารางแบ่งหน้า op=page · ตัวเลขสรุป metrics)
+//   เดิมนับเป็น "เขียน" (300/นาที/บัญชี) — เปิดหน้าดูรัว ๆ แล้วกดสร้างใบไม่ได้ (429) · พบจาก quote-versions-timeline:48
+test("[security] อ่านแบบ POST เกินโควตาเขียน → ยังสร้างใบเสนอราคาได้", async () => {
+  const s = await getSession(RYG);
+  const ใบHQ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: `ZZTEST-โควตาอ่าน-${Date.now() % 100000}`, province: "ระยอง",
+    lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 10 }] });
+  const หัว = { Authorization: `Bearer ${s.access_token}`, "content-type": "application/json" };
+  try {
+    await admin.from("rate_limits").delete().like("key", `v1:%${s.user.id}`);
+    // อ่านแบบ POST เกินโควตาเขียน (ชุดละ 30 ให้จบในหน้าต่างเวลาเดียว — เหตุผลเดียวกับข้อข้างบน)
+    const อ่าน: number[] = [];
+    for (let i = 0; i < WRITE_QUOTA + 30; i += 30) {
+      อ่าน.push(...await Promise.all(Array.from({ length: 30 }, () =>
+        fetch(`${DEALER}/api/v1/leads?op=get`, { method: "POST", headers: หัว, body: JSON.stringify({ id: `#L-${ใบHQ.leadNum}` }) }).then(r => r.status))));
+    }
+    expect(อ่าน.filter(x => x === 429).length, "อ่านแบบ POST ต้องไม่ถูกจำกัดด้วยโควตาเขียน").toBe(0);
+
+    const r = await fetch(`${DEALER}/api/v1/quotations?op=numbered`, { method: "POST", headers: หัว, body: JSON.stringify({
+      dealer: "RYG", prefix: "Q-", row: { customer: `ZZTEST-โควตาอ่าน`, project: "ZZTEST-โควตาอ่าน", date: "2026-10-15", province: "ระยอง",
+        buildingType: "โกดังสำเร็จรูป", area: 1, dealId: ใบHQ.leadNum, total: "10", totalValue: 10, materialCost: 10, items: 1, status: "draft",
+        hqQuoteId: ใบHQ.hqQuoteId, lineItems: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitPrice: 10, markupPct: 0 }] } }) });
+    expect(r.status, `สร้างใบต้องยังทำได้หลังอ่านรัว ๆ — ได้ ${r.status} ${(await r.text()).slice(0, 120)}`).toBe(200);
+  } finally {
+    await admin.from("rate_limits").delete().like("key", `v1:%${s.user.id}`);
+    ล้างใบHQทดสอบ("RYG", [ใบHQ.leadNum]);
+  }
 });
 
 test("[security] โควตาของแต่ละบัญชีแยกกัน — คนหนึ่งยิงเต็มไม่ทำให้อีกคนใช้งานไม่ได้", async () => {

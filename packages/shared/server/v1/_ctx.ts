@@ -85,15 +85,21 @@ export function asCaller(req: NextRequest): SupabaseClient | null {
 }
 
 /** ห่อ handler: จับ error ที่หลุดออกมา ไม่ให้ stack trace โผล่ถึงเบราว์เซอร์ แต่ต้องมี log ฝั่งเซิร์ฟเวอร์ */
+/** ทาง POST ที่เป็นการอ่านล้วน — นับถังอ่าน (15 ต.ค. 69 · ก่อนขึ้นระบบจริง)
+ *  หน้าจอโหลดข้อมูลด้วย POST หลายทาง (op=get · op=page · ตัวเลขสรุป) เดิมนับเป็น "เขียน" ทั้งหมด
+ *  → เปิดหน้าดูรัว ๆ (หรือเซลส์หลายคนใช้บัญชีสาขาเดียวกัน) แล้วกดบันทึกไม่ได้ 429 · ทางที่เปลี่ยนข้อมูลยังนับถังเขียนเหมือนเดิม */
+export const อ่านเมื่อop = (...ops: string[]) => (req: NextRequest) => ops.includes(new URL(req.url).searchParams.get("op") ?? "");
+
 export function handler(
   name: string,
   fn: (req: NextRequest, sb: SupabaseClient) => Promise<Response>,
+  opts: { อ่าน?: (req: NextRequest) => boolean } = {},
 ) {
   return async (req: NextRequest): Promise<Response> => {
     const sb = asCaller(req);
     if (!sb) return fail(401, "ยังไม่ได้เข้าสู่ระบบ");
     // ด่านจำกัดจำนวนคำขอ — อ่านกับเขียนแยกถังกัน (โหลดหน้าจอไม่ควรกินโควตาของการบันทึก)
-    const เขียน = req.method !== "GET" && req.method !== "HEAD";
+    const เขียน = req.method !== "GET" && req.method !== "HEAD" && !(opts.อ่าน?.(req) ?? false);
     const { max, windowSec } = เขียน ? LIMIT_WRITE : LIMIT_READ;
     if (!(await withinQuota(sb, เขียน ? "write" : "read", max, windowSec))) {
       console.warn(`[api/v1/${name}] เกินโควตา (${เขียน ? "write" : "read"})`);
