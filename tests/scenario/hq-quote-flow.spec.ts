@@ -126,7 +126,13 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
   const ถาม = await กดตกลงในกล่องยืนยัน(page);
   expect(ถาม, "กล่องยืนยันบอกว่าส่งแล้วแก้ไม่ได้").toContain("แก้ไม่ได้");
 
-  await expect.poll(async () => (await ใบในฐาน())?.status, { timeout: 15_000 }).toBe("sent");
+  // ไม่ถึงฐาน = แนบข้อความแจ้งเตือนบนจอไว้ในผล (รอบปิดด่าน 3 ตกครั้งแรกแล้วไม่มีหลักฐานว่าคำขอพลาดเพราะอะไร · 15 ต.ค. 69)
+  //   กติกาหน้าจอ "ส่งแล้วเฉพาะเมื่อฐานยืนยัน · พลาดต้องบอกและกดใหม่ได้" ล็อกแยกไว้ใน hq-quote-send-failure.spec.ts
+  await expect.poll(async () => (await ใบในฐาน())?.status, { timeout: 15_000 }).toBe("sent").catch(async (e: Error) => {
+    const บนจอ = await page.locator("[data-sonner-toast]").allInnerTexts().catch(() => [] as string[]);
+    throw new Error(`${e.message}
+ข้อความบนจอตอนนั้น: ${JSON.stringify(บนจอ)}`);
+  });
   expect(await สถานะคำขอ(), "คำขอ = ส่งใบแล้ว").toBe("quoted");
   expect(await สถานะลูกค้าเป้าหมาย(), "ลูกค้าเป้าหมายคงเดิม").toBe("HQ_PRICING");
 
