@@ -133,29 +133,36 @@ export async function openAs(page: Page, who: Account, appRole: "hq" | "dealer",
  *    รอ 600 มิลลิวินาทีเฉย ๆ ทำให้เทสต์อ่านหน้าก่อนข้อมูลมาถึง ล้มเพิ่ม 7 ข้อ "ทั้งสองโหมด"
  *    ต้องรอ "จนคำขอข้อมูลหยุดจริง" เหมือน networkidle เดิม แค่ไม่นับสายอัปเดตสดเข้าไปด้วย
  */
-export async function settle(page: Page, quietMs = 500, timeoutMs = 15_000) {
-  await page.waitForLoadState("load").catch(() => {});
+// ── ติดตามคำขอที่ยังวิ่งอยู่ของแต่ละหน้า ตลอดอายุหน้า (ด่าน 5 · 15 ต.ค. 69) ────────────────────────────────────────
+//   เดิม settle เริ่มนับตอนถูกเรียก → คำขอที่เริ่มก่อนหน้านั้นนิดเดียวไม่ถูกนับ แล้ว settle ปล่อยผ่านหลังเงียบ 500 ms
+//   ทั้งที่คำขอยังวิ่งอยู่ — ข้อทดสอบเปลี่ยนหน้าทับ คำขอถูกตัด ("Failed to fetch")
+//   หลักฐาน (trace รอบปิดด่าน 5 · ชุดโหลด ZZLB): บันทึกลูกค้าเป้าหมายเริ่ม 30.81 วิ · เปลี่ยนหน้า 31.37 วิ (≈ settle + 500 ms)
+//   ตอนนี้: ติดตามตั้งแต่ครั้งแรกที่หน้าผ่านตัวช่วย (ล็อกอิน/settle) แล้วนับคำขอที่วิ่งอยู่จริงทั้งหมด
+const คำขอค้างของหน้า = new WeakMap<Page, Set<unknown>>();
+export function ติดตามคำขอ(page: Page): Set<unknown> {
+  let ค้าง = คำขอค้างของหน้า.get(page);
+  if (ค้าง) return ค้าง;
+  const ชุด = new Set<unknown>();
   const isStream = (u: string) => u.includes("/api/v1/events");
-  let pending = 0;
-  const onStart = (r: { url(): string }) => { if (!isStream(r.url())) pending += 1; };
-  const onEnd   = (r: { url(): string }) => { if (!isStream(r.url())) pending = Math.max(0, pending - 1); };
-  page.on("request", onStart);
-  page.on("requestfinished", onEnd);
-  page.on("requestfailed", onEnd);
+  page.on("request", r => { if (!isStream(r.url())) ชุด.add(r); });
+  page.on("requestfinished", r => ชุด.delete(r));
+  page.on("requestfailed", r => ชุด.delete(r));
+  คำขอค้างของหน้า.set(page, ชุด);
+  return ชุด;
+}
+
+export async function settle(page: Page, quietMs = 500, timeoutMs = 15_000) {
+  const ค้าง = ติดตามคำขอ(page);
+  await page.waitForLoadState("load").catch(() => {});
   const deadline = Date.now() + timeoutMs;
   let quietSince = Date.now();
   try {
     while (Date.now() < deadline) {
-      if (pending > 0) quietSince = Date.now();
+      if (ค้าง.size > 0) quietSince = Date.now();
       else if (Date.now() - quietSince >= quietMs) return;
       await page.waitForTimeout(50);
     }
   } catch { /* หน้าถูกปิดระหว่างรอ — ไม่ใช่ความผิดพลาด */ }
-  finally {
-    page.off("request", onStart);
-    page.off("requestfinished", onEnd);
-    page.off("requestfailed", onEnd);
-  }
 }
 
 export { RYG, CNX, ADMIN };

@@ -17,12 +17,19 @@ const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
 const WRITE_QUOTA = 300;   // ต้องตรงกับ LIMIT_WRITE ใน packages/shared/server/v1/_ctx.ts (ขยับ 27 ส.ค. 69)
 
 async function ยิง(token: string, method: "GET" | "POST") {
-  const r = await fetch(`${DEALER}/api/v1/leads?dealerCode=RYG`, {
-    method,
-    headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: method === "GET" ? undefined : JSON.stringify({ company: "" }),
-  });
-  return r.status;
+  try {
+    const r = await fetch(`${DEALER}/api/v1/leads?dealerCode=RYG`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: method === "GET" ? undefined : JSON.stringify({ company: "" }),
+    });
+    return r.status;
+  } catch (e) {
+    // ต่อไม่ได้ (fetch failed) — พิมพ์รหัสจริงของทุกที่อยู่ที่ลอง (AggregateError) ไว้เป็นหลักฐานว่าฝั่งไหนพัง
+    const c = (e as { cause?: { code?: string; errors?: { code?: string; address?: string }[] } }).cause;
+    const รหัส = c?.errors?.map(x => `${x.address ?? "?"}:${x.code ?? "?"}`).join(", ") ?? c?.code ?? "ไม่ทราบ";
+    throw new Error(`ต่อเซิร์ฟเวอร์ไม่ได้ (${method}) — ${รหัส}`);
+  }
 }
 
 test("[security] ยิงคำขอเขียนเกินโควตา → ถูกปฏิเสธ 429 และงานอ่านยังทำได้", async () => {
@@ -54,7 +61,11 @@ test("[security] โควตาของแต่ละบัญชีแยก
   const a = await getSession(RYG), b = await getSession(CNX);
   await admin.from("rate_limits").delete().like("key", "v1:%");
 
-  await Promise.all(Array.from({ length: WRITE_QUOTA + 30 }, () => ยิง(a.access_token, "POST")));
+  // ยิงทีละชุด 30 (แบบข้อด้านบน) — ไม่ยิง 330 ครั้งพร้อมกันรวดเดียว
+  //   ไม่นิ่งซ้ำทุกรอบปิดด่าน (ด่าน 1–5): ครั้งแรก "fetch failed" ภายใน 0.3 วิ ต่อไม่ได้ทั้ง IPv4/IPv6 (AggregateError)
+  //   ตรงจังหวะยิงชุดใหญ่ · จำลองซ้ำไม่ได้แม้ยิงพร้อมกัน 990 คำขอ แต่ตัวรัน (Node บน Windows) พ่น "Assertion failed"
+  //   ของชั้นการเชื่อมต่อออกมาระหว่างจำลอง — ต้นเหตุที่น่าจะใช่ ยังไม่พิสูจน์ · ถ้าตกอีก ข้อความบอกรหัสจริงแล้ว
+  for (let i = 0; i < WRITE_QUOTA + 30; i += 30) await Promise.all(Array.from({ length: 30 }, () => ยิง(a.access_token, "POST")));
   // อีกบัญชีต้องยังยิงได้ตามปกติ (ต้องไม่ใช่ 429)
   expect(await ยิง(b.access_token, "GET"), "บัญชีอื่นต้องไม่โดนหางเลข").not.toBe(429);
 

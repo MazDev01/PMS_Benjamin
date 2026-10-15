@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, ADMIN, RYG, CNX, type Account, appEnv } from "./supabaseEnv";
-import { SESSION_KEY, getSession, settle, เข้าระบบด้วยคุกกี้, ล็อกอินใหม่ } from "./helpers";
+import { SESSION_KEY, getSession, settle, ติดตามคำขอ, เข้าระบบด้วยคุกกี้, ล็อกอินใหม่ } from "./helpers";
 
 export const DEALER_ORIGIN = process.env.PMS_DEALER_ORIGIN ?? "http://localhost:3001";
 export const HQ_ORIGIN = process.env.PMS_HQ_ORIGIN ?? "http://localhost:3002";
@@ -42,6 +42,7 @@ const HOME_AFTER_LOGIN: Record<string, string> = { "/login": "/dashboard", "/hq/
 const COOKIE_AUTH = appEnv("NEXT_PUBLIC_DATA_SOURCE") === "api";
 
 export async function loginUI(page: Page, origin: string, path: string, who: Account) {
+  ติดตามคำขอ(page);   // settle ต้องเห็นคำขอที่เริ่มก่อนถูกเรียกด้วย (ดู helpers.ติดตามคำขอ)
   // ระยะ 4: โหมด api เก็บใบผ่านใน cookie httpOnly — ยัด session ลง localStorage ไม่มีผลอีกต่อไป
   // ต้องล็อกอินผ่าน backend จริงเหมือนผู้ใช้ (เหตุผลเดียวกับ openAs ใน helpers.ts)
   if (COOKIE_AUTH) {

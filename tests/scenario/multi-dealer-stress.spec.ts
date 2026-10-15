@@ -2,7 +2,7 @@ import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason, appEnv } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, cleanup, watchErrors, assertNoErrors, pickTemplate, นำเข้าลูกค้าหนึ่งราย, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, ติดตามคำขอ } from "./helpers";
 import { ลบสาขาทดสอบตรง } from "./testDealers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 
@@ -58,6 +58,7 @@ async function openAsDealer(context: BrowserContext, dealer: Provisioned): Promi
   const { data, error } = await sb.auth.signInWithPassword({ email: dealer.email, password: dealer.password });
   if (error || !data.session) throw new Error(`ล็อกอินดีลเลอร์ ${dealer.code} ไม่ผ่าน: ${error?.message}`);
   const page = await context.newPage();
+  ติดตามคำขอ(page);   // settle ก่อนเปลี่ยนหน้าต้องเห็นคำขอบันทึกที่เริ่มก่อนถูกเรียก (ต้นเหตุไม่นิ่ง · รอบปิดด่าน 5)
   // ระยะ 4: โหมด api เก็บใบผ่านใน cookie httpOnly — ยัด localStorage ไม่มีผล ต้องล็อกอินผ่าน backend
   if (COOKIE_AUTH) {
     const r = await context.request.post(`${DEALER_ORIGIN}/api/v1/auth?op=login`, {
