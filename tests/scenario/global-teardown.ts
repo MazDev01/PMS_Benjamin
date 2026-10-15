@@ -49,6 +49,9 @@ async function sweep(admin: SupabaseClient, เก็บชุดตั้งต
       for (const l of ลีด ?? []) ตามสาขา.set(String(l.dealer_code), [...(ตามสาขา.get(String(l.dealer_code)) ?? []), Number(l.num_id)]);
       for (const [สาขา, เลข] of ตามสาขา) { try { ล้างใบHQทดสอบ(สาขา, เลข); } catch { /* ไม่มี docker */ } }
     }
+    // อีเมลแจ้ง "ได้ราคาจากสำนักงานใหญ่แล้ว" ของคำขอที่ข้อทดสอบลบไปแล้ว — ไม่หายตามคำขอ (อ้างด้วย ref_id ไม่ใช่กุญแจนอก)
+    //   พบ 15 ต.ค. 69 จาก check-test-leftovers: ค้าง 9 แถว
+    await del("email_outbox", "body", mark);
     await del("leads", "company", mark);
     await del("leads", "id", mark);
     await del("customers", "company", mark);

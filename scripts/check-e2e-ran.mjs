@@ -17,13 +17,19 @@ const ไฟล์ = process.argv.slice(2);
 if (!ไฟล์.length) { console.error("ใช้: node scripts/check-e2e-ran.mjs <report.json> [...]"); process.exit(2); }
 
 const แถว = [];
+// ช่วงที่ตัวเตรียมข้อมูล (global setup) ล้ม = ไม่มีข้อไหนได้รัน แต่รายงานก็ยังเป็น "ผ่าน 0 · ตก 0" — เดิมตัวตรวจปล่อยผ่าน
+//   (พบ 15 ต.ค. 69 ตอนรันกับฐานที่สร้างใหม่: ทุกช่วงล้มที่ตัวเตรียม แต่ตัวตรวจบอก "ผ่าน — ทุกข้อได้รันจริง")
+const ช่วงที่ล้ม = [];
 for (const f of ไฟล์) {
   if (!existsSync(f)) { console.error(`❌ ไม่พบรายงาน ${f} — ช่วงนั้นไม่ได้รันเลย`); process.exit(1); }
   const j = JSON.parse(readFileSync(f, "utf8"));
+  const ก่อน = แถว.length;
   (function เดิน(s, file) {
     for (const x of s.suites ?? []) เดิน(x, x.file ?? file);
     for (const sp of s.specs ?? []) for (const t of sp.tests) แถว.push({ ไฟล์: sp.file ?? file, บรรทัด: sp.line, ชื่อ: sp.title, โปรเจกต์: t.projectName, t });
   })(j);
+  const ข้อผิดพลาด = (j.errors ?? []).map(e => String(e.message ?? e.value ?? "").split(/\r?\n/)[0]).filter(Boolean);
+  if (ข้อผิดพลาด.length || แถว.length === ก่อน) ช่วงที่ล้ม.push(`${f}: ${ข้อผิดพลาด[0] ?? "ไม่มีข้อทดสอบในรายงานเลย"}`);
 }
 
 const นับ = { ผ่าน: 0, ตก: 0, ไม่นิ่ง: 0, ถูกข้าม: 0 };
@@ -47,6 +53,12 @@ if (ตั้งใจ.length) {
   const กลุ่ม = new Map();
   for (const r of ตั้งใจ) { const k = r.เหตุผล.slice(0, 90); กลุ่ม.set(k, [...(กลุ่ม.get(k) ?? []), `${r.ไฟล์}:${r.บรรทัด} [${r.โปรเจกต์}]`]); }
   for (const [k, l] of กลุ่ม) console.log(`  • ${k}\n      ${l.join(" · ")}`);
+}
+if (ช่วงที่ล้ม.length) {
+  console.log("❌ ช่วงที่ล้มทั้งช่วง (ตัวเตรียมข้อมูลล้ม / ไม่มีข้อทดสอบได้รัน):");
+  for (const l of ช่วงที่ล้ม) console.log(`  ✗ ${l}`);
+  console.log("ตัวตรวจรอบปิดด่าน: ตก — มีช่วงที่ไม่ได้ทดสอบอะไรเลย");
+  process.exit(1);
 }
 if (ไม่ได้รัน.length) {
   console.log("❌ ไม่ได้รัน / ถูกข้ามโดยไม่มีเหตุผล (มักเพราะข้อก่อนหน้าในไฟล์หรือโปรเจกต์ที่พึ่งตก):");

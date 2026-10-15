@@ -14,6 +14,7 @@ import { quoteRequests as repo, catalog as catalogRepo } from "@pms/shared/lib/d
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import {
   type QuoteRequest, type HqQuote, quoteRequestStatusLabel, quoteRequestStatusColor, อยู่กับHQ, คำขอเปิดอยู่, เกินกำหนด, วันไทยสั้น,
   ยอดบรรทัด, ป้ายได้ราคาแล้ว,
@@ -37,7 +38,7 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
   const [busy, setBusy] = useState(false);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
 
-  const dealerCode = lead.dealerCode ?? "";
+  const dealerCode = dealerCodeOf(lead);
   const โหลด = useCallback(() => {
     if (!REAL_BACKEND || !dealerCode || lead.numId == null) return;
     repo.listForLead(dealerCode, lead.numId).then(setรายการ).catch(e => logRepoRead("quoteRequests.listForLead", e));

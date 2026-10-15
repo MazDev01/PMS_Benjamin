@@ -79,7 +79,7 @@ export default function HQQuoteRequestsPage() {
               {pageSlice(กรอง, page).map(r => {
                 const c = quoteRequestStatusColor[r.status];
                 return (
-                  <tr key={r.id} aria-label={`${r.requestNo} ${r.leadCompany ?? ""}`}>
+                  <tr key={`${r.dealerCode}-${r.id}`} aria-label={`${r.requestNo} ${r.leadCompany ?? ""}`}>
                     <td style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{r.requestNo}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{r.dealerCode} <span style={{ color: "#6b7280", fontSize: "0.76rem" }}>{ชื่อดีลเลอร์(r.dealerCode)}</span></td>
                     <td>{r.leadCompany || "—"}</td>

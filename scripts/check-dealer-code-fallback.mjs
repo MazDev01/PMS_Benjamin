@@ -11,7 +11,7 @@ const ข้าม = /node_modules|\.next|dist|\.turbo/;
 // จุดที่ยอมได้: ใช้เป็นข้อความให้คนอ่าน (ป้าย/ค้นหา/คีย์ React) ไม่ได้เอาไปนับ
 // จุดที่ยอมได้: ใช้เป็นข้อความให้คนอ่าน (ป้าย/ค้นหา/คีย์ React) · หรืออ่านค่าที่ "ส่งเข้ามา"
 // (ใบผ่าน/คำขอ/ค่าที่เก็บไว้) ซึ่งค่าว่างแปลว่า "ไม่ได้ระบุ" จริง ๆ ไม่ใช่เรคคอร์ดที่ขาดรหัส
-const ยอมได้ = /title=|key=|label|DEALER_NAME|includes\(|localeCompare|toLowerCase|`\$\{|JSON\.parse|body\?\.|p\.dealerCode/;
+const ยอมได้ = /title=|key=|label|DEALER_NAME|includes\(|localeCompare|toLowerCase|`\$\{|JSON\.parse|body\?\.|p\.dealerCode|session\.dealerCode/;   // session = ใบผ่าน: ค่าว่าง = ผู้ใช้ HQ (ห้ามเติมเป็นสาขาตั้งต้น)
 const ไฟล์ที่ยกเว้น = /cookieAuth\.ts|server[\/]v1[\/]/;
 const เจอ = [];
 

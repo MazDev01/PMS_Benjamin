@@ -7,6 +7,7 @@
 //      npm run test:prodbuild -- tests/scenario/ui.spec.ts     (เจาะไฟล์เดียว)
 //      SKIP_BUILD=1 npm run test:prodbuild                      (ใช้ของที่ build ไว้แล้ว)
 import { spawn, spawnSync } from "node:child_process";
+import net from "node:net";
 
 const MODE = process.env.NEXT_PUBLIC_DATA_SOURCE ?? "api";   // ค่าตั้งต้น = โหมดเดียวกับเว็บจริง
 // รหัสรอบเดียวให้ทุกช่วง — หลักฐานข้อที่ตกของรอบนี้อยู่โฟลเดอร์เดียวกัน (playwright.config.ts)
@@ -30,12 +31,37 @@ const รอจนพร้อม = async (port, วินาที = 120) => {
   return false;
 };
 
+// ── ปิดเซิร์ฟเวอร์ให้หมดทั้งต้น (15 ต.ค. 69) ─────────────────────────────────────────────────────────────
+//   spawn(..., { shell: true }) บน Windows = cmd → npx → node next start · p.kill() ปิดแค่ cmd ตัวบนสุด
+//   next start ข้างในค้างถือพอร์ตต่อ → รอบถัดไปสตาร์ทไม่ขึ้น (พอร์ตไม่ว่าง) แต่ตัวเช็กความพร้อมเจอเซิร์ฟเวอร์เก่าตอบแทน
+//   ข้อทดสอบทั้งรอบคุยกับ build เก่าที่ไฟล์บนดิสก์ถูกแทนไปแล้ว (หน้าเปล่า · ไฟล์ JS ตอบ 400) — รอบปิดด่านพังทั้งรอบ
 const เซิร์ฟเวอร์ = [];
 const ปิดทั้งหมด = () => {
-  for (const p of เซิร์ฟเวอร์) { try { p.kill(); } catch { /* ปิดไปแล้ว */ } }
+  for (const p of เซิร์ฟเวอร์) {
+    try {
+      if (process.platform === "win32" && p.pid) spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"], { stdio: "ignore" });
+      else p.kill();
+    } catch { /* ปิดไปแล้ว */ }
+  }
 };
+// พอร์ตต้องว่างก่อนสตาร์ท — ไม่ว่าง = มีเซิร์ฟเวอร์ค้าง (ของรอบก่อน/ของคนอื่น) · ห้ามรันต่อเพราะจะทดสอบผิดตัว
+const พอร์ตว่าง = port => new Promise(ok => {
+  const s = net.createServer().once("error", () => ok(false)).once("listening", () => s.close(() => ok(true)));
+  s.listen(port);
+});
 process.on("exit", ปิดทั้งหมด);
 process.on("SIGINT", () => { ปิดทั้งหมด(); process.exit(130); });
+
+// ── ขั้นแรกของรอบปิดด่าน: typecheck + pnpm checks — แดง = หยุดทั้งรอบ (บอสสั่ง 15 ต.ค. 69) ───────────────────────
+//   เดิมตัวตรวจกับดักแดงค้างมาตั้งแต่ด่าน 1–2 โดยไม่มีใครเห็น เพราะรอบปิดด่านไม่ได้รันมัน
+//   ไม่มีตัวเลือกข้าม · เจาะไฟล์เดียว (ระบุอาร์กิวเมนต์เอง) ไม่ใช่รอบปิดด่าน จึงไม่บังคับ
+if (!process.argv.slice(2).length) {
+  for (const [ชื่อ, สคริปต์] of [["typecheck", "typecheck"], ["ตัวตรวจกับดัก (pnpm checks)", "checks"]]) {
+    console.log(`▶ ขั้นแรก: ${ชื่อ}`);
+    const r = spawnSync("npm", ["run", "-s", สคริปต์], { env: process.env, stdio: "inherit", shell: true });
+    if (r.status !== 0) { console.error(`❌ ${ชื่อ} ไม่ผ่าน — ไม่เริ่มรอบปิดด่าน`); process.exit(r.status ?? 1); }
+  }
+}
 
 if (!process.env.SKIP_BUILD) {
   console.log(`▶ build ทั้งสองแอป (โหมด ${MODE}) — ใช้เวลาราว 1 นาที`);
@@ -43,6 +69,12 @@ if (!process.env.SKIP_BUILD) {
   if (b.status !== 0) { console.error("build ไม่ผ่าน — หยุด"); process.exit(b.status ?? 1); }
 }
 
+for (const a of แอป) {
+  if (!await พอร์ตว่าง(a.port)) {
+    console.error(`❌ พอร์ต ${a.port} ถูกใช้อยู่ (มีเซิร์ฟเวอร์ค้าง) — ปิดก่อนแล้วรันใหม่ · ไม่รันต่อเพราะข้อทดสอบจะคุยกับเซิร์ฟเวอร์ผิดตัว`);
+    process.exit(1);
+  }
+}
 for (const a of แอป) {
   console.log(`▶ สตาร์ท ${a.ชื่อ} แบบ production ที่พอร์ต ${a.port}`);
   เซิร์ฟเวอร์.push(spawn("npx", ["next", "start", "-p", String(a.port)], { cwd: a.cwd, env, stdio: "ignore", shell: true }));

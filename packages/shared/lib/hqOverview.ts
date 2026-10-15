@@ -49,7 +49,7 @@ export function จัดรูปภาพรวมHQ(d: unknown): HqOverview {
     },
     sales: {
       hqOrdered: N(sl.hqOrdered), dealerWon: N(sl.dealerWon),
-      marginByDealer: L(sl.marginByDealer).map(r => ({ dealerCode: String(r.dealerCode ?? ""), quotes: N(r.quotes), sale: N(r.sale), cost: N(r.cost),
+      marginByDealer: L(sl.marginByDealer).map(r => ({ dealerCode: String(r.dealerCode ?? "—"), quotes: N(r.quotes), sale: N(r.sale), cost: N(r.cost),
         pctOfSale: Nn(r.pctOfSale), pctOfCost: Nn(r.pctOfCost) })),
     },
   };
