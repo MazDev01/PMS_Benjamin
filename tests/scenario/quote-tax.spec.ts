@@ -57,8 +57,17 @@ async function เปิดฟอร์มออกใบ(page: import("@playwri
   const ทำใหม่ = page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ });
   const แก้เดิม = page.getByRole("button", { name: /^(แก้ใบเสนอราคา|เพิ่มรายการในใบเสนอราคา)$/ });
   await expect(ทำใหม่.or(แก้เดิม).first()).toBeVisible({ timeout: 20_000 });
-  if (await แก้เดิม.count() > 0) { await แก้เดิม.first().click(); return; }
-  if (await ทำใหม่.isEnabled()) { await ทำใหม่.click(); return; }   // ได้ใบ HQ แล้วจากข้อก่อน
+  // ได้ใบ HQ แล้วหรือยัง — ถามฐาน ไม่เดาจากสถานะปุ่มในจังหวะเดียว (15 ต.ค. 69 · ไม่นิ่งครั้งที่ 4 · trace รอบปิดด่าน):
+  //   ข้อก่อนหน้าขอราคาไปแล้ว (ลีด = รอราคา HQ) · แผงยังโหลดใบ HQ อยู่ตอนเช็ก isEnabled → ได้ false
+  //   → ไปทางขอราคาใหม่ซึ่งรอลีด "ยังขอราคาได้" ที่ไม่มีวันเกิด (หมดเวลา 20 วิ) · รันซ้ำผ่านเพราะ worker ใหม่สร้างลีดใหม่
+  const เลขลีด = ((await admin.from("leads").select("num_id").eq("dealer_code", "RYG").eq("company", COMPANY)).data ?? []).map(l => Number(l.num_id));
+  const { data: ใบHQ } = เลขลีด.length ? await admin.from("hq_quotes").select("id, quote_requests!inner(lead_num_id, dealer_code)")
+    .eq("status", "sent").eq("quote_requests.dealer_code", "RYG").in("quote_requests.lead_num_id", เลขลีด).limit(1) : { data: [] };
+  if (ใบHQ?.length) {
+    await expect(ทำใหม่.or(แก้เดิม).first(), "มีใบ HQ แล้ว — ปุ่มทำใบ/แก้ใบต้องกดได้เมื่อแผงโหลดเสร็จ").toBeEnabled({ timeout: 20_000 });
+    if (await แก้เดิม.count() > 0) { await แก้เดิม.first().click(); return; }
+    await ทำใหม่.click(); return;
+  }
   await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY);
 }
 
