@@ -71,13 +71,18 @@ export async function ยืนยันโค้ดอีเมล(admin: Supab
   if (Number(แถว.attempts) >= ลองโค้ดได้) return { ok: false, status: 429, error: "กรอกโค้ดผิดหลายครั้งเกินไป — กด “ส่งโค้ดใหม่”" };
   const { contactEmail } = await สถานะอีเมลติดต่อ(admin, who.userId);
   if (contactEmail.trim().toLowerCase() !== String(แถว.email)) return { ok: false, status: 400, error: "อีเมลติดต่อเปลี่ยนไปหลังขอโค้ด — กด “ส่งโค้ดใหม่”" };
-  if (แฮช(who.userId, code.trim()) !== แถว.code_hash) {
-    await admin.from("contact_email_codes").update({ attempts: Number(แถว.attempts) + 1 }).eq("user_id", who.userId);
-    return { ok: false, status: 400, error: "โค้ดไม่ถูกต้อง" };
-  }
+  // นับครั้งก่อนเทียบโค้ด ทุกครั้ง (บอสสั่ง 15 ต.ค. 69) — เขียนไม่สำเร็จ = ปฏิเสธ แม้โค้ดถูก
+  //   เดิมนับเฉพาะตอนผิด และไม่ดูผล: เขียนไม่สำเร็จแล้วตัวนับไม่ขึ้น → เดาโค้ดได้ไม่จำกัด
+  //   เขียนแบบมีเงื่อนไข (ตัวนับต้องยังเป็นค่าเดิม) — สองคำขอพร้อมกันนับซ้อนกันไม่ได้ อีกคำขอถูกปฏิเสธ
+  const { data: นับแล้ว, error: นับErr } = await admin.from("contact_email_codes")
+    .update({ attempts: Number(แถว.attempts) + 1 }).eq("user_id", who.userId).eq("attempts", Number(แถว.attempts)).select("attempts");
+  if (นับErr || !นับแล้ว?.length) return { ok: false, status: 503, error: "ตรวจโค้ดไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  if (แฮช(who.userId, code.trim()) !== แถว.code_hash) return { ok: false, status: 400, error: "โค้ดไม่ถูกต้อง" };
+  // โค้ดใช้ได้ครั้งเดียว: ลบก่อนตั้งสถานะ — ลบไม่สำเร็จ = ปฏิเสธ (ไม่ให้โค้ดเดิมใช้ซ้ำได้)
+  const { data: ลบแล้ว, error: ลบErr } = await admin.from("contact_email_codes").delete().eq("user_id", who.userId).select("user_id");
+  if (ลบErr || !ลบแล้ว?.length) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
   const { error } = await admin.from("profiles").update({ contact_email_verified_at: new Date().toISOString() }).eq("id", who.userId);
-  if (error) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
-  await admin.from("contact_email_codes").delete().eq("user_id", who.userId);
+  if (error) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — กด “ส่งโค้ดใหม่” แล้วลองอีกครั้ง" };
   if (who.appMeta.must_verify_email) await admin.auth.admin.updateUserById(who.userId, { app_metadata: { ...who.appMeta, must_verify_email: false } });
   return { ok: true };
 }
@@ -90,9 +95,11 @@ export async function ยืนยันอีเมลแทนดีลเล�
   if (error) return { ok: false, status: 503, error: "อ่านบัญชีดีลเลอร์ไม่สำเร็จชั่วคราว" };
   const บัญชี = (profs ?? []).find(p => String(p.contact_email ?? "").trim());
   if (!บัญชี) return { ok: false, status: 400, error: "ดีลเลอร์ยังไม่ได้กรอกอีเมลติดต่อ — ให้ดีลเลอร์กรอกก่อน แล้วจึงยืนยันแทนได้" };
+  // ล้างโค้ดที่ค้างก่อน — ล้างไม่สำเร็จ = ปฏิเสธ (บอสสั่ง 15 ต.ค. 69 · โค้ดค้างใช้ยืนยันซ้ำทีหลังได้)
+  const { error: ลบErr } = await admin.from("contact_email_codes").delete().eq("user_id", บัญชี.id);
+  if (ลบErr) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
   const { error: upErr } = await admin.from("profiles").update({ contact_email_verified_at: new Date().toISOString() }).eq("id", บัญชี.id);
   if (upErr) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
-  await admin.from("contact_email_codes").delete().eq("user_id", บัญชี.id);
   const { data: u } = await admin.auth.admin.getUserById(String(บัญชี.id));
   const meta = (u?.user?.app_metadata ?? {}) as Record<string, unknown>;
   if (meta.must_verify_email) await admin.auth.admin.updateUserById(String(บัญชี.id), { app_metadata: { ...meta, must_verify_email: false } });
