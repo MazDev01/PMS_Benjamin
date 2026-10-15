@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import {
   prospects as prospectsRepo, dealers as dealersRepo, proposals as proposalsRepo, prospectActivities as activitiesRepo,
-  users as usersRepo,
+  users as usersRepo, territories as territoriesRepo,
 } from "@pms/shared/lib/data";
 import { invalidateCache } from "@pms/shared/lib/data/dedupe";
 import type { DealerPackageProposal, DealerProspect, DealerProspectStatus, DealerRow, ProspectActivity, SystemUser } from "@pms/shared/lib/data/types";
@@ -120,6 +120,11 @@ export default function HQProspectsPage() {
   const [ฟอร์ม, setฟอร์ม] = useState<ฟอร์มดีลเลอร์>({ code: "", name: "", region: "", province: "", email: "", password: "", existingCode: "" });
   const [convErr, setConvErr] = useState("");
   const [convBusy, setConvBusy] = useState(false);
+  // จังหวัดที่ดูแล (ด่าน 4 · FLOW: แปลงเป็นดีลเลอร์ · HQ กำหนดจังหวัดที่ดูแล · หนึ่งจังหวัด หนึ่งดีลเลอร์ 0195)
+  //   เจ้าของพื้นที่ = null ระหว่างโหลด · โหลดไม่ได้ = บอกตรง ๆ ห้ามแสดงว่าทุกจังหวัดว่าง
+  const [พื้นที่, setพื้นที่] = useState<string[]>([]);
+  const [เจ้าของพื้นที่, setเจ้าของพื้นที่] = useState<Map<string, string> | null>(null);
+  const [พื้นที่ผิด, setพื้นที่ผิด] = useState("");
   // ผูกกับสาขาที่ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ต้องเตือนให้เห็นชัด พร้อมทางไปตั้งอีเมล/รหัสผ่าน
   const [ผูกแล้วไม่มีบัญชี, setผูกแล้วไม่มีบัญชี] = useState<{ name: string; code: string } | null>(null);
   // สาขาที่มีบัญชีเข้าระบบ (รหัส → อีเมล) — โหลดตอนเปิดหน้าต่างผูก · null = ยังไม่รู้ (ไม่เตือนมั่ว)
@@ -378,6 +383,13 @@ export default function HQProspectsPage() {
       email: p.email ?? "", password: "", existingCode: "",
     });
     setConvErr("");
+    setพื้นที่([]); setเจ้าของพื้นที่(null); setพื้นที่ผิด("");
+    territoriesRepo.owners().then(list => {
+      const m = new Map(list.map(x => [x.province, x.dealerCode]));
+      setเจ้าของพื้นที่(m);
+      // ตั้งต้น = จังหวัดของรายนี้ ถ้ายังว่าง (HQ เลือกเพิ่ม/ถอดได้)
+      if (จังหวัดใช้ได้ && จังหวัดเดิม !== ALL_PROVINCES && !m.has(จังหวัดเดิม)) setพื้นที่([จังหวัดเดิม]);
+    }).catch(e => { logRepoRead("territories.owners(convert)", e); setพื้นที่ผิด(friendlyError(e, "โหลดพื้นที่ของดีลเลอร์ไม่สำเร็จ")); });
   }
 
   function เปลี่ยนภาค(region: string) {
@@ -431,6 +443,7 @@ export default function HQProspectsPage() {
     if (!ฟอร์ม.name.trim()) { setConvErr("ต้องระบุชื่อดีลเลอร์"); return; }
     if (!ฟอร์ม.region) { setConvErr("ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก"); return; }
     if (!ฟอร์ม.province) { setConvErr("ต้องระบุจังหวัด"); return; }
+    if (พื้นที่.length === 0) { setConvErr("ต้องเลือกจังหวัดที่ดูแลอย่างน้อย 1 จังหวัด"); return; }
     const อีเมล = ฟอร์ม.email.trim();
     if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setConvErr("รูปแบบอีเมลไม่ถูกต้อง"); return; }
     if (ฟอร์ม.password && ฟอร์ม.password.length < 8) { setConvErr("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
@@ -485,7 +498,7 @@ export default function HQProspectsPage() {
       //   เซิร์ฟเวอร์อ่านจากใบด้วยกติกาเดียวกันอีกชั้น — ค่าตรงนี้เป็นแค่ค่าสำรองของคำขอ
       revenueTarget: ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด)?.annualTarget ?? 0,
       email: อีเมล || undefined, password: ฟอร์ม.password || undefined,
-      prospectId: converting.id,
+      prospectId: converting.id, provinces: พื้นที่,
     });
     setConvBusy(false);
     if (!res.ok) { setConvErr(res.error); return; } // ล้มเหลวต้องบอกจริง คงฟอร์มไว้ให้แก้
@@ -1025,6 +1038,29 @@ export default function HQProspectsPage() {
                       {ฟอร์ม.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
                       {provincesOfRegion(ฟอร์ม.region).map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <div className="form-label" id="cv-territory-label">จังหวัดที่ดูแล * <span style={{ fontWeight: 400, color: MUTED }}>(หนึ่งจังหวัด หนึ่งดีลเลอร์)</span></div>
+                    {พื้นที่ผิด ? (
+                      <div role="alert" style={{ fontSize: "0.75rem", color: "#b91c1c" }}>{พื้นที่ผิด}</div>
+                    ) : !เจ้าของพื้นที่ ? (
+                      <div style={{ fontSize: "0.75rem", color: MUTED }}>กำลังโหลดพื้นที่…</div>
+                    ) : !ฟอร์ม.region ? (
+                      <div style={{ fontSize: "0.75rem", color: MUTED }}>เลือกภาคก่อน</div>
+                    ) : (
+                      <div role="group" aria-labelledby="cv-territory-label" style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", maxHeight: 150, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px" }}>
+                        {[...new Set([...พื้นที่, ...provincesOfRegion(ฟอร์ม.region)])].map(จ => {
+                          const เจ้าของ = เจ้าของพื้นที่.get(จ);
+                          return (
+                            <label key={จ} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.76rem", color: เจ้าของ ? "#9ca3af" : "#374151", cursor: เจ้าของ ? "not-allowed" : "pointer" }}>
+                              <input type="checkbox" aria-label={`ดูแลจังหวัด ${จ}`} disabled={!!เจ้าของ} checked={พื้นที่.includes(จ)}
+                                onChange={e => setพื้นที่(l => e.target.checked ? [...l, จ] : l.filter(x => x !== จ))} />
+                              {จ}{เจ้าของ ? ` (${เจ้าของ})` : ""}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label className="form-label" htmlFor="cv-email">อีเมลเข้าระบบ</label>

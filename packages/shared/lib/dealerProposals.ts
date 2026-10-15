@@ -20,16 +20,19 @@ import { ตรวจภาคกับจังหวัด } from "./dealerPro
 export const PACKAGE_ORDER: readonly DealerPackage[] = ["standard", "exclusive"];
 export const packageLabel: Record<DealerPackage, string> = { standard: "Standard", exclusive: "Exclusive" };
 
-export const PROPOSAL_STATUS_ORDER: readonly DealerProposalStatus[] = ["draft", "sent", "accepted", "rejected"];
+export const PROPOSAL_STATUS_ORDER: readonly DealerProposalStatus[] = ["draft", "sent", "accepted", "rejected", "expired", "superseded"];
 // คำเดียวกับสถานะใบเสนอราคาของดีลเลอร์ (ร่าง / ส่งแล้ว / ตอบรับ / ปฏิเสธ) — คนใช้สองระบบจะได้ไม่สับสน
 export const proposalStatusLabel: Record<DealerProposalStatus, string> = {
   draft: "ร่าง", sent: "ส่งแล้ว", accepted: "ตอบรับ", rejected: "ปฏิเสธ",
+  expired: "หมดอายุ", superseded: "ถูกแทนด้วยเวอร์ชันใหม่",
 };
 export const proposalStatusColor: Record<DealerProposalStatus, { bg: string; text: string }> = {
   draft:    { bg: "#f3f4f6", text: "#4b5563" },
   sent:     { bg: "#dce5f0", text: "#003366" },
   accepted: { bg: "#dcfce7", text: "#15803d" },
   rejected: { bg: "#fee2e2", text: "#b91c1c" },
+  expired:  { bg: "#fef3c7", text: "#92400e" },
+  superseded: { bg: "#f3f4f6", text: "#6b7280" },
 };
 
 export const เป็นแพ็กเกจ = (v: unknown): v is DealerPackage =>
@@ -46,6 +49,14 @@ export function สถานะที่เปลี่ยนไปได้(จ
   if (จาก === "sent") return ["sent", "accepted", "rejected"];
   return [จาก];
 }
+
+/** ทำเวอร์ชันใหม่ได้: ใบล่าสุดของสาย (ไม่มีใบไหนอ้างใบนี้) ที่ส่งแล้ว/ปฏิเสธ/หมดอายุ — กติกาเดียวกับฐานข้อมูล 0207 */
+export function ทำเวอร์ชันใหม่ได้(p: Pick<DealerPackageProposal, "id" | "status">, ทุกใบของราย: Pick<DealerPackageProposal, "supersedesId">[]): boolean {
+  return (p.status === "sent" || p.status === "rejected" || p.status === "expired")
+    && !ทุกใบของราย.some(x => x.supersedesId === p.id);
+}
+/** ปฏิเสธต้องมีเหตุผล (ฐานข้อมูลบังคับ 0207) */
+export const ต้องมีเหตุผล = (s: DealerProposalStatus) => s === "rejected";
 
 /** ใบที่ "นับได้" สำหรับด่านสร้างดีลเลอร์ — ส่งแล้วหรือตอบรับ (ใบร่าง/ปฏิเสธไม่นับ) */
 export const ใบนับได้ = (s: DealerProposalStatus) => s === "sent" || s === "accepted";

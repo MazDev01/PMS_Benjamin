@@ -126,7 +126,8 @@ export type ProspectContactInput = { prospectId: number; channel: string; body: 
 //   "เหมือนใบเสนอราคาของดีลเลอร์ แต่ของ HQ" · คล้ายแฟรนไชส์แต่ไม่ใช่แฟรนไชส์ (บอสยืนยัน)
 //   ต้องมีใบที่ส่งแล้ว/ตอบรับ ถึงจะสร้างดีลเลอร์ใหม่ได้ · ดู migration 0172 · lib/dealerProposals.ts
 export type DealerPackage = "standard" | "exclusive";
-export type DealerProposalStatus = "draft" | "sent" | "accepted" | "rejected";
+// expired / superseded ระบบตั้งให้เท่านั้น (เลยวันยืนราคา · ส่งเวอร์ชันใหม่แล้ว · 0207)
+export type DealerProposalStatus = "draft" | "sent" | "accepted" | "rejected" | "expired" | "superseded";
 export type DealerPackageProposal = {
   id: number;
   prospectId: number;
@@ -142,6 +143,10 @@ export type DealerPackageProposal = {
   validUntil?: string | null;    // YYYY-MM-DD
   status: DealerProposalStatus;
   note?: string | null;          // หมายเหตุภายใน ไม่พิมพ์ลงเอกสาร
+  version?: number;              // เวอร์ชันในสายเดียวกัน (1 = ใบแรก) · ฐานข้อมูลตั้งให้ (0207)
+  supersedesId?: number | null;  // ใบเวอร์ชันก่อนหน้า
+  closeReason?: string | null;   // เหตุผลที่ปิด (ปฏิเสธ/หมดอายุ/ถูกแทน)
+  closedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

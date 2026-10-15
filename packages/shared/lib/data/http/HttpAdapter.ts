@@ -296,6 +296,7 @@ const quoteRequests: QuoteRequestsRepo = {
 // พื้นที่ของดีลเลอร์ (ใบ 0195)
 const territories: TerritoriesRepo = {
   overlaps: () => apiFetch<TerritoryOverlap[]>("/territories?view=overlaps"),
+  owners: () => apiFetch<{ province: string; dealerCode: string; legacy: boolean }[]>("/territories?view=owners"),
   unmatched: () => apiFetch<UnmatchedDealer[]>("/territories?view=unmatched"),
   resolveOverlap: async (province, keep) => { await post("/territories", { op: "resolve-overlap", province, keep }); },
   transferPlan: () => apiFetch<HqTransferPlanRow[]>("/territories?view=transfer-plan"),
@@ -325,7 +326,8 @@ const proposals: ProposalsRepo = {
   list: (prospectId) => apiFetch<DealerPackageProposal[]>(`/proposals${prospectId != null ? `?prospect=${prospectId}` : ""}`),
   create: (p) => post<DealerPackageProposal>("/proposals", p),
   update: (p) => put<DealerPackageProposal>("/proposals", p),
-  setStatus: (id, status) => apiFetch<DealerPackageProposal>("/proposals", { method: "PATCH", body: JSON.stringify({ id, status }) }),
+  setStatus: (id, status, reason) => apiFetch<DealerPackageProposal>("/proposals", { method: "PATCH", body: JSON.stringify({ id, status, reason }) }),
+  newVersion: (id) => post<DealerPackageProposal>("/proposals?op=new-version", { id }),
   remove: async (id) => { await apiFetch(`/proposals?id=${id}`, { method: "DELETE" }); },
 };
 // ประวัติ + บันทึกการติดต่อ ลูกค้าเป้าหมาย HQ (server/v1/prospectActivities.ts)

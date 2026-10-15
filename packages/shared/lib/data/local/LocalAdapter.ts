@@ -42,7 +42,7 @@ import type { DataAdapter } from "../ports";
 import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope, DealerSettings, HQCompany, CustomerNote, SystemUser, DealerProspect, DealerPackageProposal, ProspectActivity, DealerProspectStatus } from "../types";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import { รวมค่าตั้งหาดีลเลอร์, ใช้เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
-import { เตรียมบันทึกใบ, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว } from "@pms/shared/lib/dealerProposals";
+import { เตรียมบันทึกใบ, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว, ทำเวอร์ชันใหม่ได้, ต้องมีเหตุผล } from "@pms/shared/lib/dealerProposals";
 import {
   ตรวจเปลี่ยนขั้น, ข้อความเพิ่มราย, ข้อความเปลี่ยนขั้น, ข้อความใบเสนอ, ข้อความถอยเพราะใบถูกปฏิเสธ, ประวัติใหม่ก่อน,
   เตรียมบันทึกการติดต่อ, ตรวจบันทึกการติดต่อ, วันไทยของเวลา,
@@ -315,6 +315,7 @@ export const LocalAdapter: DataAdapter = {
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {
     overlaps: () => ok([]),
+    owners: () => ok([]),   // โหมดตัวอย่างไม่มีกฎพื้นที่ — ทุกจังหวัดว่าง
     unmatched: () => ok([]),
     resolveOverlap: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่")),
     transferPlan: () => ok([]),
@@ -408,20 +409,48 @@ export const LocalAdapter: DataAdapter = {
       writeKey(PROPOSALS_KEY, all.map(x => x.id === row.id ? row : x));
       return ok(row);
     },
-    setStatus: (id, status) => {
-      const all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);
+    setStatus: (id, status, reason) => {
+      let all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);
       const เดิม = all.find(x => x.id === id);
       if (!เดิม) return Promise.reject(new Error("ไม่พบใบค่าแฟรนไชส์นี้แล้ว"));
       if (!สถานะที่เปลี่ยนไปได้(เดิม.status).includes(status)) {
         return Promise.reject(new Error(`เปลี่ยนสถานะใบค่าแฟรนไชส์จาก ${เดิม.status} เป็น ${status} ไม่ได้`));
       }
-      const row = { ...เดิม, status, updatedAt: new Date().toISOString() };
-      writeKey(PROPOSALS_KEY, all.map(x => x.id === id ? row : x));
+      if (ต้องมีเหตุผล(status) && !reason?.trim()) return Promise.reject(new Error("ปิดใบค่าแฟรนไชส์ต้องระบุเหตุผล"));
+      const now = new Date().toISOString();
+      const row: DealerPackageProposal = { ...เดิม, status, updatedAt: now,
+        ...(ต้องมีเหตุผล(status) ? { closeReason: reason!.trim(), closedAt: now } : {}) };
+      all = all.map(x => x.id === id ? row : x);
+      // ส่งเวอร์ชันใหม่ → ใบก่อนหน้าในสายที่ยังส่งแล้วอยู่ = ถูกแทน (แบบตัวดัก 0207)
+      if (status === "sent" && row.supersedesId != null) {
+        const สาย = new Set<number>();
+        for (let c: DealerPackageProposal | undefined = all.find(x => x.id === row.supersedesId); c; c = all.find(x => x.id === c!.supersedesId)) สาย.add(c.id);
+        all = all.map(x => สาย.has(x.id) && x.status === "sent"
+          ? { ...x, status: "superseded", closeReason: `แทนด้วย ${row.proposalNo ?? ""}`, closedAt: now, updatedAt: now } : x);
+      }
+      writeKey(PROPOSALS_KEY, all);
       if (status !== เดิม.status) {
         บันทึกประวัติเดโม({ prospectId: row.prospectId, kind: "proposal", body: ข้อความใบเสนอ(row.proposalNo ?? "", status, false) });
         if (status === "sent") เลื่อนเป็นรอตัดสินใจเดโม(row.prospectId);
         if (status === "rejected") ถอยเพราะใบถูกปฏิเสธเดโม(row.prospectId, row.proposalNo ?? "");
       }
+      return ok(row);
+    },
+    newVersion: (id) => {
+      const all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);
+      const เดิม = all.find(x => x.id === id);
+      if (!เดิม) return Promise.reject(new Error("ไม่พบใบค่าแฟรนไชส์นี้แล้ว"));
+      if (all.some(x => x.supersedesId === id && x.status === "draft")) return Promise.reject(new Error("ใบนี้มีร่างเวอร์ชันใหม่ค้างอยู่แล้ว — แก้ร่างนั้นต่อ"));
+      if (!ทำเวอร์ชันใหม่ได้(เดิม, all)) return Promise.reject(new Error("ทำเวอร์ชันใหม่ได้เฉพาะใบล่าสุดที่ส่งแล้ว/ปฏิเสธ/หมดอายุ"));
+      const now = new Date().toISOString();
+      const version = (เดิม.version ?? 1) + 1;
+      const row: DealerPackageProposal = {
+        ...เดิม, id: all.reduce((m, x) => Math.max(m, x.id), 0) + 1, supersedesId: เดิม.id, version, status: "draft",
+        proposalNo: `${String(เดิม.proposalNo ?? "").replace(/-V\d+$/, "")}-V${version}`,
+        proposedDate: now.slice(0, 10), closeReason: null, closedAt: null, createdAt: now, updatedAt: now,
+      };
+      writeKey(PROPOSALS_KEY, [row, ...all]);
+      บันทึกประวัติเดโม({ prospectId: row.prospectId, kind: "proposal", body: ข้อความใบเสนอ(row.proposalNo ?? "", row.status, true) });
       return ok(row);
     },
     remove: (id) => {

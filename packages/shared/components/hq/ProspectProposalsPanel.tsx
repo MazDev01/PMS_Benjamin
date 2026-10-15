@@ -9,12 +9,12 @@
 // ฟอร์ม (ProposalFormModal) และคำสั่ง พิมพ์/เปลี่ยนสถานะ/ลบ (useProposalActions) ใช้ชุดเดียวกับหน้ารวมใบเสนอ
 // ส่งแล้วแก้เนื้อหา/ลบไม่ได้ — ฐานข้อมูลบังคับ (0172) หน้าจอแค่ไม่เปิดปุ่มให้กด
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Plus, Printer, Pencil, Trash2 } from "lucide-react";
+import { FileText, Plus, Printer, Pencil, Trash2, CopyPlus } from "lucide-react";
 import { proposals as proposalsRepo } from "@pms/shared/lib/data";
 import type { DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
 import {
   packageLabel, proposalStatusLabel, proposalStatusColor,
-  สถานะที่เปลี่ยนไปได้, ใบล็อกแล้ว, มูลค่าอ่านง่าย, หมดอายุแล้ว, ระยะสัญญาอ่านง่าย,
+  สถานะที่เปลี่ยนไปได้, ใบล็อกแล้ว, มูลค่าอ่านง่าย, หมดอายุแล้ว, ระยะสัญญาอ่านง่าย, ทำเวอร์ชันใหม่ได้,
 } from "@pms/shared/lib/dealerProposals";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
@@ -34,7 +34,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
   /** เปิดฟอร์มออกใบใหม่ให้ครั้งเดียวหลังโหลดรายการเสร็จ (ปุ่มลัด "ออกใบค่าแฟรนไชส์" / งานส่งใบเสนอ) */
   เปิดฟอร์มทันที?: boolean;
 }) {
-  const { พิมพ์, เปลี่ยนสถานะ, ลบใบ } = useProposalActions();
+  const { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ } = useProposalActions();
   const [list, setList] = useState<DealerPackageProposal[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState("");
@@ -70,6 +70,12 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
     const saved = await เปลี่ยนสถานะ(p, status, prospect.name);
     if (saved) ตั้งรายการ(list.map(x => x.id === saved.id ? saved : x));
   }
+  async function กดทำเวอร์ชันใหม่(p: DealerPackageProposal) {
+    const ใหม่ = await ทำเวอร์ชันใหม่(p, prospect.name);
+    if (!ใหม่) return;
+    ตั้งรายการ([ใหม่, ...list]);
+    setฟอร์ม({ editing: ใหม่ });   // เปิดร่างเวอร์ชันใหม่ให้แก้ทันที
+  }
   async function กดลบ(p: DealerPackageProposal) {
     if (await ลบใบ(p, prospect.name)) ตั้งรายการ(list.filter(x => x.id !== p.id));
   }
@@ -88,7 +94,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
         )}
       </div>
       <div style={{ fontSize: "0.7rem", color: MUTED, marginBottom: 10, lineHeight: 1.6 }}>
-        สร้างดีลเลอร์ใหม่จากรายนี้ได้ ต่อเมื่อมีใบที่ “ส่งแล้ว” หรือ “ตอบรับ” อย่างน้อย 1 ใบ · ส่งแล้วแก้เนื้อหาไม่ได้
+        สร้างดีลเลอร์ใหม่จากรายนี้ได้ ต่อเมื่อมีใบที่ “ส่งแล้ว” หรือ “ตอบรับ” อย่างน้อย 1 ใบ · ส่งแล้วแก้เนื้อหาไม่ได้ ต้องทำเวอร์ชันใหม่
       </div>
 
       {/* ออก/แก้ใบ = เปิดฟอร์มในแท็บนี้เลย ไม่เด้งหน้าต่าง (บอสสั่ง 15 ก.ย. 69) · ยกเลิก/บันทึกแล้วกลับเป็นรายการ */}
@@ -117,7 +123,10 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                 return (
                   <div key={p.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#fff" }}>
                     <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                      <div style={{ fontWeight: 800, color: PRIMARY, fontSize: "0.82rem" }}>{p.proposalNo ?? "—"}</div>
+                      <div style={{ fontWeight: 800, color: PRIMARY, fontSize: "0.82rem" }}>
+                        {p.proposalNo ?? "—"}
+                        {(p.version ?? 1) > 1 && <span style={{ fontWeight: 600, color: MUTED, fontSize: "0.7rem" }}> · เวอร์ชัน {p.version}</span>}
+                      </div>
                       <div style={{ fontSize: "0.74rem", color: "#374151" }}>
                         {packageLabel[p.package]} · ค่าแรกเข้า {มูลค่าอ่านง่าย(p.amount)}
                         {p.proposedDate ? ` · เสนอ ${fmtISOToThai(p.proposedDate)}` : ""}
@@ -129,6 +138,9 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                         <div style={{ fontSize: "0.7rem", color: หมดอายุ ? "#b91c1c" : MUTED, fontWeight: หมดอายุ ? 700 : 400 }}>
                           มีผลถึง {fmtISOToThai(p.validUntil)}{หมดอายุ ? " · เลยกำหนดแล้ว" : ""}
                         </div>
+                      )}
+                      {p.closeReason && (
+                        <div data-testid={`เหตุผลปิด-${p.proposalNo ?? ""}`} style={{ fontSize: "0.7rem", color: "#991b1b" }}>เหตุผล: {p.closeReason}</div>
                       )}
                     </div>
                     {editable && สถานะที่เปลี่ยนไปได้(p.status).length > 1 ? (
@@ -145,6 +157,12 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                       <button className="btn btn-secondary btn-sm" aria-label={`พิมพ์ใบ ${p.proposalNo ?? ""}`} title="พิมพ์" onClick={() => void พิมพ์(p, prospect)}>
                         <Printer size={13} />
                       </button>
+                      {editable && ทำเวอร์ชันใหม่ได้(p, list) && (
+                        <button className="btn btn-secondary btn-sm" aria-label={`ทำเวอร์ชันใหม่จากใบ ${p.proposalNo ?? ""}`} title="ทำเวอร์ชันใหม่"
+                          onClick={() => void กดทำเวอร์ชันใหม่(p)}>
+                          <CopyPlus size={13} /> เวอร์ชันใหม่
+                        </button>
+                      )}
                       {editable && !ใบล็อกแล้ว(p.status) && (
                         <>
                           <button className="btn btn-secondary btn-sm" aria-label={`แก้ไขใบ ${p.proposalNo ?? ""}`} title="แก้ไข" onClick={() => setฟอร์ม({ editing: p })}>

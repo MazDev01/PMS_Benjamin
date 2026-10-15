@@ -73,7 +73,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   // ── 2) ตรวจ payload ──
   const body = (await req.json().catch(() => null)) as null | {
     code?: string; name?: string; province?: string; region?: string; revenueTarget?: number;
-    email?: string; password?: string; prospectId?: number;
+    email?: string; password?: string; prospectId?: number; provinces?: unknown;
   };
   if (!body) return bad(400, "รูปแบบข้อมูลไม่ถูกต้อง");
   const code = String(body.code ?? "").trim().toUpperCase();
@@ -146,6 +146,30 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     }
   }
 
+  // ── จังหวัดที่ดูแล (ด่าน 4 · FLOW: แปลงเป็นดีลเลอร์ · HQ กำหนดจังหวัดที่ดูแล) ──
+  //   ตรวจ "ก่อน" สร้างบัญชี: เป็นจังหวัดจริง และยังไม่มีดีลเลอร์ดูแล (หนึ่งจังหวัด หนึ่งดีลเลอร์ · 0195)
+  //   บันทึกพร้อมทะเบียนสาขาในข้อ 4 — ชนกันระหว่างทาง (อีกคนกำหนดจังหวัดเดียวกันพร้อมกัน) ตัวดักของฐานปฏิเสธ แล้วย้อนทั้งหมด
+  //   ไม่ส่งมา = ไม่กำหนด (สคริปต์/ข้อทดสอบเดิม) · หน้าจอบังคับเลือกอย่างน้อย 1 จังหวัด
+  const พื้นที่ = Array.isArray(body.provinces)
+    ? [...new Set(body.provinces.map(x => String(x ?? "").trim()).filter(Boolean))] : [];
+  if (Array.isArray(body.provinces) && พื้นที่.length === 0) return bad(400, "ต้องเลือกจังหวัดที่ดูแลอย่างน้อย 1 จังหวัด");
+  if (พื้นที่.length > 80) return bad(400, "จังหวัดที่ดูแลมากเกินไป");
+  if (พื้นที่.length) {
+    const [{ data: มีจริง, error: e1 }, { data: มีเจ้าของ, error: e2 }] = await Promise.all([
+      admin.from("th_provinces").select("name").in("name", พื้นที่),
+      admin.from("dealer_territories").select("province, dealer_code").in("province", พื้นที่),
+    ]);
+    if (e1 || e2) {
+      console.error("[create-dealer] ตรวจจังหวัดที่ดูแลไม่สำเร็จ", e1 ?? e2);
+      return bad(503, "ตรวจจังหวัดที่ดูแลไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+    }
+    const รู้จัก = new Set((มีจริง ?? []).map(r => String(r.name)));
+    const ไม่รู้จัก = พื้นที่.filter(p => !รู้จัก.has(p));
+    if (ไม่รู้จัก.length) return bad(400, `ไม่รู้จักจังหวัด: ${ไม่รู้จัก.join(", ")}`);
+    if (มีเจ้าของ?.length) {
+      return bad(409, `จังหวัดมีดีลเลอร์ดูแลอยู่แล้ว — หนึ่งจังหวัด หนึ่งดีลเลอร์: ${มีเจ้าของ.map(r => `${r.province} (${r.dealer_code})`).join(", ")}`);
+    }
+  }
   // ── อีเมล/รหัสผ่าน: HQ กรอกเองได้ (บอสสั่ง 20 ส.ค. 69) · ไม่กรอก = ระบบตั้งให้เหมือนเดิม ──
   //
   // ทำไมต้องให้กรอกเอง: สาขาจริงใช้อีเมลธุรกิจของตัวเอง (เช่น sales@cmsteelbuild.co.th)
@@ -196,6 +220,9 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     await must(admin.from("dealers").insert({
       code, name, province, region, revenue_target: revenueTarget, status: "active", package: แพ็กเกจ,
     }));
+    if (พื้นที่.length) {
+      await must(admin.from("dealer_territories").insert(พื้นที่.map(p => ({ province: p, dealer_code: code }))));
+    }
     // profiles.id → auth.users(id) · บทบาทตั้งต้นของหัวสาขา = DEALER_ADMIN
     await must(admin.from("profiles").upsert({
       id: uid, role: "DEALER_ADMIN", dealer_code: code, name, status: "active",
@@ -217,6 +244,10 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
       if (delErr) console.error(`[create-dealer] ย้อนลบทะเบียนสาขา ${code} ไม่สำเร็จ`, delErr);
     } catch (re) { console.error(`[create-dealer] ย้อนลบทะเบียนสาขา ${code} ไม่สำเร็จ`, re); }
     // ถึงตรงนี้แปลว่าคำขอผ่านการตรวจความถูกต้องมาหมดแล้ว — ที่พังคือฝั่งเซิร์ฟเวอร์ ไม่ใช่ข้อมูลที่กรอก
+    // ยกเว้น: จังหวัดถูกกำหนดให้ดีลเลอร์อื่นระหว่างทาง (ตัวดักของฐาน 0195) — เป็นเรื่องที่ผู้ใช้แก้ได้ ไม่ใช่ระบบขัดข้อง
+    if (/territory_taken/.test(String((e as Error)?.message ?? e))) {
+      return bad(409, "มีจังหวัดที่เลือกถูกกำหนดให้ดีลเลอร์อื่นไปแล้วระหว่างนี้ — โหลดใหม่แล้วเลือกจังหวัดอีกครั้ง");
+    }
     console.error(`[create-dealer] สร้างทะเบียน/โปรไฟล์สาขา ${code} ไม่สำเร็จ`, e);
     return bad(503, "สร้างดีลเลอร์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }

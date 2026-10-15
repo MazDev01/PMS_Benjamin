@@ -7,10 +7,10 @@ import { useCallback } from "react";
 import { proposals as proposalsRepo, hqCompany as hqCompanyRepo, settings as settingsRepo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import type { DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
-import { proposalStatusLabel } from "@pms/shared/lib/dealerProposals";
+import { proposalStatusLabel, ต้องมีเหตุผล } from "@pms/shared/lib/dealerProposals";
 import { เขียนใบเสนอลงหน้าต่าง } from "@pms/shared/lib/dealerProposalPrint";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
-import { ยืนยัน, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
+import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { useAuditLogger } from "@pms/shared/lib/useAudit";
 
 export function useProposalActions() {
@@ -37,19 +37,47 @@ export function useProposalActions() {
   /** คืนใบที่บันทึกแล้ว · ผู้ใช้กดยกเลิก/บันทึกไม่สำเร็จ = null */
   const เปลี่ยนสถานะ = useCallback(async (p: DealerPackageProposal, status: DealerProposalStatus, ชื่อราย: string) => {
     if (status === p.status) return null;
-    if (!(await ยืนยัน({
+    // ปฏิเสธ = ปิดใบ ต้องมีเหตุผล (FLOW: ปฏิเสธหรือหมดอายุ → ปิด พร้อมเหตุผล · ฐานข้อมูลบังคับ 0207)
+    let เหตุผล: string | undefined;
+    if (ต้องมีเหตุผล(status)) {
+      const ตอบ = await ถามเหตุผล({
+        หัวข้อ: `ปฏิเสธใบ ${p.proposalNo ?? ""} ?`,
+        รายละเอียด: "ปิดใบแล้วย้อนกลับไม่ได้ — ถ้าจะเจรจาต่อ ทำเวอร์ชันใหม่จากใบนี้ได้",
+        ป้ายช่อง: "เหตุผลที่ปฏิเสธ", ปุ่มตกลง: "ปฏิเสธใบนี้", อันตราย: true,
+      });
+      if (ตอบ == null) return null;
+      เหตุผล = ตอบ;
+    } else if (!(await ยืนยัน({
       หัวข้อ: `เปลี่ยนใบ ${p.proposalNo ?? ""} เป็น “${proposalStatusLabel[status]}” ?`,
       รายละเอียด: status === "sent"
-        ? "ส่งแล้วจะแก้เนื้อหาในใบและลบใบไม่ได้อีก (เปลี่ยนได้แค่สถานะ) — ใบนี้คือหลักฐานว่าเสนออะไรไป"
+        ? "ส่งแล้วจะแก้เนื้อหาในใบและลบใบไม่ได้อีก — ถ้าต้องแก้ ทำเวอร์ชันใหม่ · ใบนี้คือหลักฐานว่าเสนออะไรไป"
         : "เปลี่ยนแล้วย้อนกลับไม่ได้",
       ปุ่มตกลง: `เปลี่ยนเป็น${proposalStatusLabel[status]}`,
     }))) return null;
     try {
-      const saved = await proposalsRepo.setStatus(p.id, status);
-      logAudit("เปลี่ยนสถานะใบค่าแฟรนไชส์", `${p.proposalNo ?? ""} · ${ชื่อราย} → ${proposalStatusLabel[status]}`);
+      const saved = await proposalsRepo.setStatus(p.id, status, เหตุผล);
+      logAudit("เปลี่ยนสถานะใบค่าแฟรนไชส์", `${p.proposalNo ?? ""} · ${ชื่อราย} → ${proposalStatusLabel[status]}${เหตุผล ? ` · ${เหตุผล}` : ""}`);
       return saved;
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "เปลี่ยนสถานะไม่สำเร็จ"));
+      return null;
+    }
+  }, [logAudit]);
+
+  /** ส่งแล้วแก้ไม่ได้ → ทำเวอร์ชันใหม่ (ร่าง) · คืนใบใหม่ · ยกเลิก/ไม่สำเร็จ = null */
+  const ทำเวอร์ชันใหม่ = useCallback(async (p: DealerPackageProposal, ชื่อราย: string) => {
+    if (!(await ยืนยัน({
+      หัวข้อ: `ทำเวอร์ชันใหม่จากใบ ${p.proposalNo ?? ""} ?`,
+      รายละเอียด: "ได้ใบร่างเวอร์ชันใหม่ (คัดลอกเนื้อหาเดิม) ให้แก้แล้วส่ง · ส่งแล้วใบเดิมจะเป็น “ถูกแทนด้วยเวอร์ชันใหม่”",
+      ปุ่มตกลง: "ทำเวอร์ชันใหม่",
+    }))) return null;
+    try {
+      const ใหม่ = await proposalsRepo.newVersion(p.id);
+      logAudit("ทำเวอร์ชันใหม่ใบค่าแฟรนไชส์", `${p.proposalNo ?? ""} → ${ใหม่.proposalNo ?? ""} · ${ชื่อราย}`);
+      แจ้งสำเร็จ(`สร้างร่าง ${ใหม่.proposalNo ?? ""} แล้ว — แก้แล้วเปลี่ยนเป็น “ส่งแล้ว”`);
+      return ใหม่;
+    } catch (e) {
+      แจ้งพลาด(friendlyError(e, "ทำเวอร์ชันใหม่ไม่สำเร็จ"));
       return null;
     }
   }, [logAudit]);
@@ -71,5 +99,5 @@ export function useProposalActions() {
     }
   }, [logAudit]);
 
-  return { พิมพ์, เปลี่ยนสถานะ, ลบใบ };
+  return { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ };
 }

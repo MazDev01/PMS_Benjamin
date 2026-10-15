@@ -1,5 +1,5 @@
 {
- "migration": "0205",
+ "migration": "0207",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -156,6 +156,20 @@
    "definer": true
   },
   {
+   "f": "dealer_package_proposals_supersede()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_proposal_new_version(p_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealer_prospect_activities_after_contact()",
    "anon": false,
    "authenticated": false,
@@ -212,13 +226,6 @@
    "definer": false
   },
   {
-   "f": "dealers_package_target()",
-   "anon": false,
-   "authenticated": false,
-   "service_role": false,
-   "definer": true
-  },
-  {
    "f": "delete_customer_cascade(p_customer_id bigint)",
    "anon": false,
    "authenticated": true,
@@ -230,6 +237,13 @@
    "anon": false,
    "authenticated": false,
    "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "expire_dealer_proposals()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
    "definer": true
   },
   {
@@ -367,13 +381,6 @@
   },
   {
    "f": "hq_quotes_set_recipient()",
-   "anon": false,
-   "authenticated": false,
-   "service_role": false,
-   "definer": true
-  },
-  {
-   "f": "hq_recruit_settings_sync_targets()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

@@ -34,6 +34,8 @@ export type CreateDealerInput = {
   /** บังคับ — ดีลเลอร์ต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้ว (บอสสั่ง 14 ก.ย. 69)
    *  เซิร์ฟเวอร์ผูกรายนั้นเป็น "เป็นดีลเลอร์แล้ว" ให้ในคำขอเดียวกัน */
   prospectId: number;
+  /** จังหวัดที่ดูแล (FLOW: แปลงเป็นดีลเลอร์ · HQ กำหนดจังหวัดที่ดูแล · กฎหนึ่งจังหวัดหนึ่งดีลเลอร์ 0195) */
+  provinces?: string[];
 };
 export type CreateDealerResult =
   | { ok: true; email: string; password: string; prospectLinked?: boolean }

@@ -96,7 +96,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(multi-dealer-stress|catalog-price-switch|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects)\.spec\.ts/,
+      testIgnore: /(multi-dealer-stress|catalog-price-switch|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow)\.spec\.ts/,
       dependencies: ["setup"],
     },
     {
@@ -106,7 +106,7 @@ export default defineConfig({
       //   hq-recruit-settings ก็แก้ค่าตั้งต้นใบเสนอแพ็กเกจชุดเดียวกัน · แยกโปรเจกต์ workers: 1 = ไม่มีวันคาบเกี่ยวกัน
       name: "hq-settings",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects)\.spec\.ts/,
+      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow)\.spec\.ts/,
       workers: 1,
       dependencies: ["setup"],
     },

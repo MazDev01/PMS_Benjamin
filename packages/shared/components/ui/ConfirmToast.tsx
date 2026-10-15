@@ -13,7 +13,7 @@
 //
 // การใช้งาน (ต้อง await เสมอ — ต่างจาก confirm() เดิมที่คืนค่าทันที):
 //   if (!(await ยืนยัน({ หัวข้อ: "ลบรายการนี้?", รายละเอียด: "ย้อนกลับไม่ได้", อันตราย: true }))) return;
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 
@@ -73,6 +73,54 @@ export function ยืนยัน(o: ตัวเลือกยืนยัน
     });
 
     ใบที่ค้าง = { id, ยกเลิก: () => ตอบ(false) };
+  });
+}
+
+// ── ถามเหตุผล: กล่องยืนยันที่ต้องกรอกเหตุผลก่อนกดตกลง (ด่าน 4 · ปฏิเสธใบค่าแฟรนไชส์ต้องมีเหตุผล) ───────────
+//   กติกาเดียวกับ ยืนยัน(): ทีละใบ · ปัดทิ้ง/Esc = ยกเลิก (คืน null) · ไม่หายเอง
+//   เหตุผลว่าง/มีแต่ช่องว่าง = กดตกลงไม่ได้ (ฐานข้อมูลก็ปฏิเสธซ้ำอีกชั้น)
+function กล่องเหตุผล({ o, ตอบ }: { o: ตัวเลือกยืนยัน & { ป้ายช่อง: string }; ตอบ: (ผล: string | null) => void }) {
+  const [ค่า, setค่า] = useState("");
+  const ว่าง = ค่า.trim() === "";
+  return (
+    <div className="pms-confirm" role="alertdialog" aria-modal="false" aria-label={o.หัวข้อ}>
+      <div className="pms-confirm-head">
+        {o.อันตราย && <AlertTriangle size={16} className="pms-confirm-icon" aria-hidden />}
+        <div className="pms-confirm-title">{o.หัวข้อ}</div>
+      </div>
+      {o.รายละเอียด && <div className="pms-confirm-detail">{o.รายละเอียด}</div>}
+      <textarea aria-label={o.ป้ายช่อง} placeholder={o.ป้ายช่อง} value={ค่า} autoFocus rows={2}
+        onChange={e => setค่า(e.target.value)}
+        style={{ width: "100%", marginTop: 8, padding: "6px 8px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.82rem", fontFamily: "inherit", resize: "vertical" }} />
+      <div className="pms-confirm-actions">
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => ตอบ(null)}>{o.ปุ่มยกเลิก ?? "ยกเลิก"}</button>
+        <button type="button" disabled={ว่าง}
+          className={`btn btn-sm ${o.อันตราย ? "pms-confirm-danger" : "btn-primary"}`}
+          onClick={() => ตอบ(ค่า.trim())}>
+          {o.ปุ่มตกลง ?? "ตกลง"}
+        </button>
+      </div>
+    </div>
+  );
+}
+/** ถามเหตุผลแบบ "ต้องได้คำตอบ" — คืนเหตุผล (ตัดช่องว่างหัวท้ายแล้ว) · ยกเลิก/ปัดทิ้ง = null */
+export function ถามเหตุผล(o: ตัวเลือกยืนยัน & { ป้ายช่อง: string }): Promise<string | null> {
+  if (ใบที่ค้าง) { const เก่า = ใบที่ค้าง; ใบที่ค้าง = null; เก่า.ยกเลิก(); toast.dismiss(เก่า.id); }
+  return new Promise<string | null>((resolve) => {
+    let ตอบแล้ว = false;
+    const ตอบ = (ผล: string | null) => {
+      if (ตอบแล้ว) return;
+      ตอบแล้ว = true;
+      if (ใบที่ค้าง?.id === id) ใบที่ค้าง = null;
+      resolve(ผล);
+    };
+    const id = toast.custom((t) => <กล่องเหตุผล o={o} ตอบ={ผล => { ตอบ(ผล); toast.dismiss(t); }} />, {
+      duration: Infinity,
+      onDismiss: () => ตอบ(null),
+      onAutoClose: () => ตอบ(null),
+      className: "pms-confirm-toast",
+    });
+    ใบที่ค้าง = { id, ยกเลิก: () => ตอบ(null) };
   });
 }
 

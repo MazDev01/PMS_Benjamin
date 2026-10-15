@@ -16,6 +16,11 @@ export const territoriesGET = handler("territories.list", async (req: NextReques
     if (error) return dbFail("territories.overlaps", error);
     return ok(toCamelList((data ?? []) as Row[]));
   }
+  if (view === "owners") {
+    const { data, error } = await sb.from("dealer_territories").select("province, dealer_code, legacy").order("province");
+    if (error) return dbFail("territories.owners", error);
+    return ok(toCamelList((data ?? []) as Row[]));
+  }
   if (view === "unmatched") {
     const { data, error } = await sb.rpc("territory_unmatched_dealers");
     if (error) return dbFail("territories.unmatched", error);
@@ -26,7 +31,7 @@ export const territoriesGET = handler("territories.list", async (req: NextReques
     if (error) return dbFail("territories.transferPlan", error);
     return ok(toCamelList<Row>((data ?? []) as Row[]).map(r => ({ ...r, leads: Number(r.leads) })));
   }
-  return fail(400, "ระบุ view=overlaps · unmatched · transfer-plan");
+  return fail(400, "ระบุ view=owners · overlaps · unmatched · transfer-plan");
 });
 
 export const territoriesPOST = handler("territories.write", async (req: NextRequest, sb) => {

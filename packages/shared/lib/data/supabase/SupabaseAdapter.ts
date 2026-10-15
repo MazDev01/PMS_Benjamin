@@ -655,6 +655,11 @@ export const SupabaseAdapter: DataAdapter = {
   },
   // พื้นที่ของดีลเลอร์ (ใบ 0195) — อ่านได้ทุกบัญชี · เคลียร์ผ่านคำสั่งของฐาน (ตรวจสิทธิ์ HQ ข้างใน)
   territories: {
+    owners: async () => {
+      const { data, error } = await sb().from("dealer_territories").select("province, dealer_code, legacy").order("province");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamelList<{ province: string; dealerCode: string; legacy: boolean }>((data ?? []) as Row[]);
+    },
     overlaps: async () => {
       const { data, error } = await sb().from("territory_overlaps").select("*").order("province");
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
@@ -737,12 +742,17 @@ export const SupabaseAdapter: DataAdapter = {
       return toCamel<DealerPackageProposal>(data as Row);
     }),
     // เปลี่ยนสถานะอย่างเดียว — ไม่ส่งทั้งแถว (ใบที่ส่งแล้วถูกล็อกเนื้อหา)
-    setStatus: (id, status) => withNetworkRetry(async () => {
+    setStatus: (id, status, reason) => withNetworkRetry(async () => {
       const { data, error } = await sb().from("dealer_package_proposals")
-        .update({ status }).eq("id", id).select().single();
+        .update(reason ? { status, close_reason: reason } : { status }).eq("id", id).select().single();
       if (error) throw new DbError(error.message, error.code);
       return toCamel<DealerPackageProposal>(data as Row);
     }),
+    newVersion: async (id) => {
+      const { data, error } = await sb().rpc("dealer_proposal_new_version", { p_id: id });
+      if (error) throw new DbError(error.message, error.code);
+      return toCamel<DealerPackageProposal>(data as Row);
+    },
     remove: (id) => must(sb().from("dealer_package_proposals").delete().eq("id", id)),
   },
   // ประวัติลูกค้าเป้าหมาย HQ — RLS (0174): อ่าน = HQ · เพิ่มได้แค่บันทึกการติดต่อ · ผู้ทำ/เวลา ฐานข้อมูลตั้งเอง

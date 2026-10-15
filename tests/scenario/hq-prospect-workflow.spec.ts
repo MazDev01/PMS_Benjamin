@@ -93,8 +93,10 @@ test("[db] ใบถูกปฏิเสธ → รอตัดสินใจ�
   const ขั้น = async () => ((await sb.from("dealer_prospects").select("status").eq("id", id).single()).data as { status: string }).status;
   const ออกใบ = async () => ((await sb.from("dealer_package_proposals")
     .insert({ prospect_id: id, package: "standard", proposed_date: "2026-09-15" }).select("id, proposal_no").single()).data as { id: number; proposal_no: string });
+  // ปฏิเสธต้องมีเหตุผล (ด่าน 4 · 0207)
   const ตั้ง = async (ใบId: number, status: string) =>
-    expect((await sb.from("dealer_package_proposals").update({ status }).eq("id", ใบId)).error).toBeNull();
+    expect((await sb.from("dealer_package_proposals")
+      .update(status === "rejected" ? { status, close_reason: "ผู้สนใจไม่รับเงื่อนไข" } : { status }).eq("id", ใบId)).error).toBeNull();
 
   const ใบ1 = await ออกใบ();
   const ใบ2 = await ออกใบ();

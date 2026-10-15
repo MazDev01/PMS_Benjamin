@@ -33,6 +33,15 @@ export const proposalsGET = handler("proposals.list", async (req: NextRequest, s
 });
 
 export const proposalsPOST = handler("proposals.create", async (req: NextRequest, sb) => {
+  // ทำเวอร์ชันใหม่ (0207) — ฐานข้อมูลตรวจสิทธิ์/สถานะ/ใบล่าสุดของสายเอง
+  if (new URL(req.url).searchParams.get("op") === "new-version") {
+    const b = (await req.json().catch(() => null)) as { id?: number } | null;
+    const id = Number(b?.id);
+    if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์");
+    const { data, error } = await sb.rpc("dealer_proposal_new_version", { p_id: id });
+    if (error) return dbFail("proposals.newVersion", error);
+    return ok(toCamel<DealerPackageProposal>(data as Row));
+  }
   const body = (await req.json().catch(() => null)) as Partial<DealerPackageProposal> | null;
   if (!body || typeof body !== "object") return fail(400, "ข้อมูลใบค่าแฟรนไชส์ไม่ถูกต้อง");
   const row = เตรียมบันทึกใบ(body);
@@ -57,11 +66,14 @@ export const proposalsPUT = handler("proposals.update", async (req: NextRequest,
 
 // เปลี่ยนสถานะอย่างเดียว — แยกจาก PUT เพราะใบที่ส่งแล้วถูกล็อกเนื้อหา ส่งทั้งแถวกลับไปอาจชนตัวดักโดยไม่ได้ตั้งใจ
 export const proposalsPATCH = handler("proposals.status", async (req: NextRequest, sb) => {
-  const body = (await req.json().catch(() => null)) as { id?: number; status?: string } | null;
+  const body = (await req.json().catch(() => null)) as { id?: number; status?: string; reason?: unknown } | null;
   const id = Number(body?.id);
   if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์");
   if (!เป็นสถานะใบ(body?.status)) return fail(400, "สถานะใบค่าแฟรนไชส์ไม่ถูกต้อง");
-  const { data, error } = await sb.from("dealer_package_proposals").update({ status: body!.status }).eq("id", id).select().single();
+  // เหตุผลที่ปิด (ปฏิเสธต้องมี — ฐานข้อมูลบังคับ 0207) · ยาวสุด 500 ตัวอักษร
+  const reason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+  const { data, error } = await sb.from("dealer_package_proposals")
+    .update(reason ? { status: body!.status, close_reason: reason } : { status: body!.status }).eq("id", id).select().single();
   if (error) return dbFail("proposals.status", error);
   return ok(toCamel<DealerPackageProposal>(data as Row));
 });

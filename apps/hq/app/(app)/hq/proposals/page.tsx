@@ -13,13 +13,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  FileText, Send, CheckCircle2, Percent, Search, X, Plus, Eye, Printer, Pencil, Trash2, MapPin, ExternalLink, Coins, XCircle,
+  FileText, Send, CheckCircle2, Percent, Search, X, Plus, Eye, Printer, Pencil, Trash2, MapPin, ExternalLink, Coins, XCircle, CopyPlus,
 } from "lucide-react";
 import { proposals as proposalsRepo, prospects as prospectsRepo } from "@pms/shared/lib/data";
 import type { DealerPackage, DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
 import {
   PACKAGE_ORDER, PROPOSAL_STATUS_ORDER, packageLabel, proposalStatusLabel, proposalStatusColor,
-  มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้,
+  มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, ทำเวอร์ชันใหม่ได้,
 } from "@pms/shared/lib/dealerProposals";
 import { ยังติดตามอยู่ } from "@pms/shared/lib/dealerProspects";
 import { ProposalFormModal } from "@pms/shared/components/hq/ProposalFormModal";
@@ -55,7 +55,7 @@ const ปุ่มปิดใช้: React.CSSProperties = { opacity: .35, curs
 export default function HQProposalsPage() {
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
-  const { พิมพ์, เปลี่ยนสถานะ, ลบใบ } = useProposalActions();
+  const { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ } = useProposalActions();
 
   const [ใบ, setใบ] = useState<DealerPackageProposal[]>([]);
   const [ราย, setราย] = useState<DealerProspect[]>([]);
@@ -132,6 +132,14 @@ export default function HQProposalsPage() {
       // ส่งใบแล้ว ฐานข้อมูลอาจเลื่อนขั้นลูกค้าเป้าหมายให้ (นัดคุยแล้ว → รอตัดสินใจ) — ดึงรายชื่อใหม่ให้ตรงของจริง
       prospectsRepo.list().then(setราย).catch(() => { /* ตารางใบยังถูกต้อง — ขั้นของรายค่อยตรงตอนโหลดหน้าครั้งถัดไป */ });
     }
+  }
+  async function กดทำเวอร์ชันใหม่(p: DealerPackageProposal) {
+    const r = รายตามรหัส.get(p.prospectId);
+    const ใหม่ = await ทำเวอร์ชันใหม่(p, r?.name ?? "");
+    if (!ใหม่) return;
+    setใบ(l => [ใหม่, ...l]);
+    setดูรหัส(null);
+    กดแก้ไข(ใหม่);   // เปิดร่างเวอร์ชันใหม่ให้แก้ทันที
   }
   async function กดลบ(p: DealerPackageProposal) {
     const r = รายตามรหัส.get(p.prospectId);
@@ -312,6 +320,7 @@ export default function HQProposalsPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                     {r && <button onClick={() => กดพิมพ์(p)} style={qa}><Printer size={13} /> พิมพ์ PDF</button>}
                     {จัดการได้ && !ล็อก && <button onClick={() => กดแก้ไข(p)} style={qa}><Pencil size={13} /> แก้ไข</button>}
+                    {จัดการได้ && ทำเวอร์ชันใหม่ได้(p, ใบ) && <button onClick={() => void กดทำเวอร์ชันใหม่(p)} style={qa}><CopyPlus size={13} /> ทำเวอร์ชันใหม่</button>}
                     {/* เป็นดีลเลอร์แล้ว = ไม่อยู่หน้าลูกค้าเป้าหมายแล้ว (บอสสั่ง 15 ก.ย. 69) → ลิงก์ไปหน้าดีลเลอร์นั้นแทน */}
                     {r && r.status === "won"
                       ? r.dealerCode && <Link href={`/hq/dealers/${r.dealerCode}`} style={qa}><ExternalLink size={13} /> ดีลเลอร์ {r.dealerCode}</Link>
@@ -322,6 +331,8 @@ export default function HQProposalsPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
                   <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: sc.bg, color: sc.text }}>{proposalStatusLabel[p.status]}</span>
+                  {(p.version ?? 1) > 1 && <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" }}>เวอร์ชัน {p.version}</span>}
+                  {p.closeReason && <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "#fee2e2", color: "#991b1b" }}>เหตุผล: {p.closeReason}</span>}
                   <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" }}>แพ็กเกจ {packageLabel[p.package]}</span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 800, background: "#fff", color: PRIMARY }}><Coins size={11} /> ค่าแรกเข้า {มูลค่าอ่านง่าย(p.amount)}</span>
                 </div>
