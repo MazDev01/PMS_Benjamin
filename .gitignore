@@ -59,3 +59,15 @@ scripts/data/dealers-seed.json
 scripts/data/hq-leads-seed.json
 
 scripts/data/hq-leads-bot-seed.json
+
+# ── ไฟล์ตาราง/ข้อมูลดิบ: ห้ามเข้า repo (บอสสั่ง 15 ต.ค. 69) ──
+# ไฟล์ Excel จากเบนจามินมีเบอร์/อีเมลจริง — เก็บนอก repo ที่ C:\.claude\pms-private-data\
+# ข้อยกเว้นเฉพาะไฟล์ที่ตรวจแล้วว่าไม่มีข้อมูลจริง (แบบฟอร์มเปล่า · ไฟล์ตัวอย่างของเว็บเดโม)
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.ods
+!docs/แบบฟอร์มกรอกข้อมูลตั้งต้น.xlsx
+!apps/dealer/public/demo-files/sample-sheet.xlsx
+!docs/templates/*.csv
