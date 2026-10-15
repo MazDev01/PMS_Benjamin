@@ -152,12 +152,15 @@ test("[supabase] หน้าทะเบียนดีลเลอร์แส
 });
 
 test("[supabase] หน้าจอโชว์ชื่อคน/ชื่อสาขาจริง ไม่ใช่อีเมล/รหัสสาขา (B5)", async ({ page }) => {
+  // ชื่อสาขาอ่านจากฐาน ไม่เขียนตายตัว — ข้อมูลตั้งต้นใช้ชื่อตามสูตร (tests/fixtures/test-baseline.sql · 15 ต.ค. 69)
+  const ชื่อสาขา = String((await (await db(ADMIN)).from("dealers").select("name").eq("code", "RYG").single()).data?.name ?? "");
+  expect(ชื่อสาขา, "ต้องมีสาขา RYG ในฐานทดสอบ").not.toBe("");
+  expect(ชื่อสาขา, "ชื่อสาขาต้องไม่ใช่รหัส 3 ตัว").not.toBe("RYG");
   await login(page, DEALER, "/login", RYG);
   await page.goto(`${DEALER}/dashboard`, { waitUntil: "domcontentloaded" });
-  await expect.poll(async () => page.evaluate(() => document.body.innerText), { timeout: 15_000 })
-    .toContain("ระยอง");
-  const txt = await page.evaluate(() => document.body.innerText);
   // ชื่อสาขาต้องเป็นชื่อบริษัทจาก dealers.name ไม่ใช่รหัส 3 ตัว
-  expect(txt, "ต้องเห็นชื่อสาขาจริง").toMatch(/ระยองสตีลเวิร์คส|ระยอง/);
-  console.log("ชื่อที่แสดง:", txt.split("\n").filter(l => /ระยอง|@/.test(l)).slice(0, 4).join(" | "));
+  await expect.poll(async () => page.evaluate(() => document.body.innerText), { timeout: 15_000, message: "ต้องเห็นชื่อสาขาจริง" })
+    .toContain(ชื่อสาขา);
+  const txt = await page.evaluate(() => document.body.innerText);
+  expect(txt, "ต้องไม่โชว์อีเมลแทนชื่อคน").not.toContain(RYG.email);
 });

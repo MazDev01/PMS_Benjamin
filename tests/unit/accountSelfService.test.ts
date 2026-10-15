@@ -19,11 +19,11 @@ const store = new MemStorage();
 } as unknown as Window;
 (globalThis as unknown as { localStorage: MemStorage }).localStorage = store;
 
-const { accountLocal, SELF_CHANGE_LIMIT, localDealerPassword, localDealerEmail } =
+const { accountLocal, SELF_CHANGE_LIMIT, localDealerPassword, localDealerEmail, DEMO_PASSWORD } =
   await import("../../packages/shared/lib/data/local/accountLocal");
 
 const CODE = "TST";
-const เดิม = "benjamin";   // รหัสกลางของชุดตัวอย่าง — ต้องตรงกับหน้าเข้าสู่ระบบ (auth.ts)
+const เดิม = DEMO_PASSWORD;   // รหัสกลางของชุดตัวอย่าง — ต้องตรงกับหน้าเข้าสู่ระบบ (auth.ts)
 
 describe("บัญชีดีลเลอร์แก้เอง", () => {
   beforeEach(() => store.clear());

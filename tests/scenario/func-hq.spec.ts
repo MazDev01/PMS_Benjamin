@@ -55,8 +55,11 @@ test("[func·hq] สร้างดีลเลอร์ = สร้างบั
 
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers`, { waitUntil: "domcontentloaded" });
+  // ชื่อสาขาอ่านจากฐาน ไม่เขียนตายตัว — ข้อมูลตั้งต้นใช้ชื่อตามสูตร (tests/fixtures/test-baseline.sql · 15 ต.ค. 69)
+  const ชื่อRYG = String((await sb.from("dealers").select("name").eq("code", "RYG").single()).data?.name ?? "");
+  expect(ชื่อRYG, "ต้องมีสาขา RYG ในฐานทดสอบ").not.toBe("");
   await expect.poll(async () => page.evaluate(() => document.body.innerText),
-    { timeout: 25_000, message: "ทะเบียนดีลเลอร์ต้องโหลดเสร็จก่อน" }).toContain("ระยองสตีลเวิร์คส์");
+    { timeout: 25_000, message: "ทะเบียนดีลเลอร์ต้องโหลดเสร็จก่อน" }).toContain(ชื่อRYG);
   // ดีลเลอร์ต้องมาจากลูกค้าเป้าหมาย (บอสสั่ง 14 ก.ย. 69) — สร้างผ่านกล่อง "ตั้งเป็นดีลเลอร์"
   const ตั้ง = await เปิดฟอร์มตั้งดีลเลอร์(page, NEW_CODE, NEW_NAME);
   await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();

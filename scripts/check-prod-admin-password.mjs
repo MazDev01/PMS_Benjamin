@@ -10,6 +10,7 @@
 // ใช้:
 //   PMS_PROD_DB_URL="postgresql://…" node scripts/check-prod-admin-password.mjs     ระบบจริง (บอสใส่ที่อยู่ตอนรัน ไม่เก็บในไฟล์)
 //   node scripts/check-prod-admin-password.mjs --test                                ทดสอบตัวเองกับฐานทดสอบในเครื่อง (ต้องได้ "ใช่")
+//   PMS_OLD_ADMIN_PASSWORDS="…" …                                                   ตรวจเพิ่ม: ยังใช้รหัสตั้งต้นที่เคยอยู่ในโค้ดไหม (โค้ดไม่เก็บรหัสนี้)
 //   node scripts/check-prod-admin-password.mjs --test --env-file <ไฟล์รหัสที่ไม่ตรง>   ทดสอบฝั่ง "ไม่ใช่" (ใช้เฉพาะไฟล์ ไม่รวมตัวแปรแวดล้อม)
 //
 // รหัสของบัญชีทดสอบอ่านจาก tests/.env.test (TEST_*_PASSWORD) และ process.env (SEED_PASSWORD_*)
@@ -30,11 +31,18 @@ const รหัสทดสอบ = [...new Set([
 ].filter(Boolean))];
 if (!รหัสทดสอบ.length) { console.error("❌ ไม่พบรหัสของบัญชีทดสอบ (tests/.env.test → TEST_*_PASSWORD)"); process.exit(2); }
 
-// รายการ read only — เขียนอะไรไม่ได้แม้คำสั่งผิด · ผลเป็นตัวเลข 2 ตัว: บัญชีผู้ดูแลที่ตรวจ · ที่รหัสตรงกับรหัสทดสอบ
+// รหัสผู้ดูแลตั้งต้นที่เคยเขียนไว้ในโค้ด/คู่มือ — ยังอยู่ในประวัติ git (บอสสั่งไม่แก้ประวัติ) ใครเข้าถึง repo ก็อ่านได้
+//   เพิ่ม 15 ต.ค. 69: ตอบแยกอีกบรรทัด · ตัวรหัสไม่เก็บในโค้ดแล้ว → ใส่ตอนรัน PMS_OLD_ADMIN_PASSWORDS="รหัส1,รหัส2"
+//   ไม่ใส่ = บรรทัดนี้ขึ้น "ไม่ได้ตรวจ" (ไม่ถือว่าผ่าน)
+const รหัสในโค้ด = (process.env.PMS_OLD_ADMIN_PASSWORDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+
+// รายการ read only — เขียนอะไรไม่ได้แม้คำสั่งผิด · ผลเป็นตัวเลข 3 ตัว: บัญชีผู้ดูแลที่ตรวจ · ที่รหัสตรงกับรหัสทดสอบ · ที่ใช้รหัสในโค้ด
 const คำสั่ง = `begin transaction read only;
 select count(*) as admins,
        count(*) filter (where exists (select 1 from unnest(string_to_array(:'pw', E'\\x1f')) x(p)
-                                      where u.encrypted_password = extensions.crypt(x.p, u.encrypted_password))) as same
+                                      where u.encrypted_password = extensions.crypt(x.p, u.encrypted_password))) as same,
+       count(*) filter (where exists (select 1 from unnest(string_to_array(:'pw2', E'\\x1f')) x(p)
+                                      where u.encrypted_password = extensions.crypt(x.p, u.encrypted_password))) as code
   from auth.users u join public.profiles pr on pr.id = u.id
  where (pr.role::text = 'SUPER_ADMIN' or pr.role::text like 'HQ\\_%')
    and coalesce(u.encrypted_password, '') <> '';
@@ -42,7 +50,7 @@ rollback;`;
 const ตัวคั่น = String.fromCharCode(0x1f);   // ตัวคั่นที่ไม่มีทางอยู่ในรหัสผ่าน
 
 function รัน() {
-  const psqlArgs = ["-X", "-q", "-A", "-t", "-F", "|", "-v", "ON_ERROR_STOP=1", "-v", `pw=${รหัสทดสอบ.join(ตัวคั่น)}`];
+  const psqlArgs = ["-X", "-q", "-A", "-t", "-F", "|", "-v", "ON_ERROR_STOP=1", "-v", `pw=${รหัสทดสอบ.join(ตัวคั่น)}`, "-v", `pw2=${รหัสในโค้ด.join(ตัวคั่น)}`];
   if (ทดสอบตัวเอง) {
     const c = execFileSync("docker", ["ps", "--filter", "name=supabase_db_", "--format", "{{.Names}}"], { encoding: "utf8" })
       .split(String.fromCharCode(10)).map(s => s.trim()).find(s => s.includes("dbcheck"));
@@ -62,7 +70,9 @@ function รัน() {
 let ผล;
 try { ผล = รัน(); }
 catch (e) { console.error(`❌ ตรวจไม่สำเร็จ: ${String(e.stderr ?? e.message).split(String.fromCharCode(10))[0]}`); process.exit(2); }
-const [admins, same] = ผล.trim().split(String.fromCharCode(10)).filter(Boolean).pop().split("|").map(Number);
+const [admins, same, code] = ผล.trim().split(String.fromCharCode(10)).filter(Boolean).pop().split("|").map(Number);
 console.log(`\n🎯 ฐานข้อมูล: ${ทดสอบตัวเอง ? "ชุดทดสอบในเครื่อง" : "ระบบจริง"} · ตรวจบัญชีผู้ดูแล ${admins} บัญชี · เทียบกับรหัสบัญชีทดสอบ ${รหัสทดสอบ.length} ชุด`);
 console.log(`บัญชีผู้ดูแลใช้รหัสเดียวกับบัญชีทดสอบ: ${same > 0 ? "ใช่" : "ไม่ใช่"}${same > 0 ? ` (${same} บัญชี)` : ""}\n`);
-process.exitCode = same > 0 ? 1 : 0;
+console.log(`บัญชีผู้ดูแลใช้รหัสตั้งต้นที่เคยอยู่ในโค้ด: ${!รหัสในโค้ด.length ? "ไม่ได้ตรวจ (ไม่ได้ใส่ PMS_OLD_ADMIN_PASSWORDS)" : code > 0 ? `ใช่ (${code} บัญชี)` : "ไม่ใช่"}
+`);
+process.exitCode = same > 0 || code > 0 ? 1 : 0;

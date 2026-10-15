@@ -2,11 +2,18 @@
 // สร้าง: ตาราง dealers + auth users + profiles (role/dealer_code) สำหรับทุกสาขา + HQ
 // ต้องใช้ service_role key (ข้าม RLS + สร้าง auth user ได้) — ห้าม commit / ห้ามใส่ฝั่ง client
 //
-// รัน (Git Bash):   SUPABASE_SERVICE_ROLE_KEY=... node supabase/seed.mjs
-// รัน (PowerShell): $env:SUPABASE_SERVICE_ROLE_KEY="..."; node supabase/seed.mjs
+// รัน (Git Bash):   SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=... node supabase/seed.mjs
+// รัน (PowerShell): $env:SUPABASE_URL="http://127.0.0.1:54321"; $env:SUPABASE_SERVICE_ROLE_KEY="..."; node supabase/seed.mjs
 import { createClient } from "@supabase/supabase-js";
 
-const URL = process.env.SUPABASE_URL || "https://yhhhcrvhkforwsagojho.supabase.co";
+// ฐานในเครื่องเท่านั้น (15 ต.ค. 69 · ก่อนขึ้นระบบจริง ข้อ 5): เดิมไม่ใส่ SUPABASE_URL = ยิงฐานจริงเป็นค่าตั้งต้น
+//   ตัวนี้สร้างดีลเลอร์/บัญชีสมมติ ซึ่งล้างออกจากฐานจริงไปแล้ว — ต้องระบุที่อยู่เอง และต้องเป็น 127.0.0.1/localhost
+//   ฐานทดสอบแบบครบชุดใช้ scripts/reset-test-db.mjs แทน
+const URL = process.env.SUPABASE_URL ?? "";
+if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(URL)) {
+  console.error("❌ ตั้ง SUPABASE_URL เป็นฐานในเครื่อง (http://127.0.0.1:<พอร์ต>) — ตัวนี้ไม่รันกับฐานบนคลาวด์");
+  process.exit(1);
+}
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!KEY) {
   console.error("❌ ต้องตั้ง SUPABASE_SERVICE_ROLE_KEY (เอาจาก Supabase → Settings → API → service_role)");

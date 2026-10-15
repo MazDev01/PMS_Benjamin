@@ -67,22 +67,24 @@ route `/api/admin/dealers` และ `/api/admin/users` (สร้าง/ลบ�
 > แอป **dealer ไม่ต้องมี** key นี้ (ไม่มี route admin)
 > key นี้ข้าม RLS ทั้งระบบ — ถ้าหลุดเมื่อไหร่ให้ rotate ที่ Settings → API ทันที
 
-## 6) Seed ข้อมูลตั้งต้น (ครั้งเดียว)
-ต้องมี `@supabase/supabase-js` ติดตั้งแล้ว (มีใน devDependencies) · รันจาก root:
+## 6) Seed ข้อมูลตั้งต้น (ฐานในเครื่องเท่านั้น)
+> 15 ต.ค. 69: สคริปต์ seed ทุกตัวรับเฉพาะฐานในเครื่อง (`http://127.0.0.1:<พอร์ต>`) — ฐานบนคลาวด์ถูกปฏิเสธ
+> ฐานจริงไม่ต้อง seed (ดีลเลอร์จริงมาจากหน้า HQ · แคตตาล็อกแก้ที่หน้า HQ)
+
+ฐานทดสอบครบชุด (ลงใบทั้งหมด + ข้อมูลตั้งต้น `tests/fixtures/test-baseline.sql` + บัญชีทดสอบจาก `tests/.env.test`):
 ```bash
-# Git Bash
-SUPABASE_URL=https://<project>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<key> node supabase/seed.mjs
-SUPABASE_URL=https://<project>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<key> node supabase/seed-catalog.mjs
+node scripts/reset-test-db.mjs                          # ฐานของโฟลเดอร์นี้ (พอร์ต 54321)
+node scripts/reset-test-db.mjs --workdir ../pms-dbcheck # ฐานในเครื่องตัวอื่น
 ```
-```powershell
-# PowerShell
-$env:SUPABASE_URL="https://<project>.supabase.co"; $env:SUPABASE_SERVICE_ROLE_KEY="<key>"; node supabase/seed.mjs
-$env:SUPABASE_SERVICE_ROLE_KEY="<key>"; node supabase/seed-catalog.mjs
+สคริปต์เดิม (ต้องใส่ที่อยู่ + กุญแจเองทุกครั้ง ไม่มีค่าตั้งต้น):
+```bash
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=<key> node supabase/seed.mjs
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=<key> HQ_EMAIL=<อีเมล> HQ_PASSWORD=<รหัส> node supabase/seed-catalog.mjs
 ```
 - `seed.mjs` = 10 สาขา + auth users + profiles (role/dealer_code) + บัญชี HQ
 - `seed-catalog.mjs` = ราคากลาง master catalog
 
-> ⚠️ seed สร้างบัญชีผู้ดูแลตั้งต้น **`admin@benjamin.com` / `benjamin`** (รหัสอ่อน — สำหรับ bootstrap เท่านั้น)
+> ⚠️ seed เคยสร้างบัญชีผู้ดูแลตั้งต้น `admin@benjamin.com` ด้วยรหัสอ่อน (สำหรับ bootstrap เท่านั้น · 15 ต.ค. 69 เอารหัสออกจากโค้ด/คู่มือแล้ว)
 > หลัง go-live ให้เข้าไปเปลี่ยนรหัส หรือสร้าง SUPER_ADMIN ตัวจริงที่หน้า `/hq/users` แล้วลบบัญชี bootstrap ทิ้ง
 
 ## 7) ยืนยันว่าใช้งานได้จริง (end-to-end)
@@ -114,7 +116,7 @@ $env:SUPABASE_SERVICE_ROLE_KEY="<key>"; node supabase/seed-catalog.mjs
 - [x] ขั้น 5.2 — **`SUPABASE_SERVICE_ROLE_KEY` ใส่ให้ HQ server (dev) แล้ว** · ⚠️ deploy: ยังต้องตั้ง env var เดียวกันบน Vercel ของแอป HQ แยกอีกที
 - [x] ขั้น 7.3 — **ยืนยัน E2E ผ่านแล้ว** (27 ก.ค. 69): POST/DELETE `/api/admin/users` บน dev(3002)+production — สร้าง user → บัญชีล็อกอินได้จริง (hook ใส่บทบาทถูก) → อีเมลซ้ำ/ไม่มี JWT/ลบตัวเอง ถูกปฏิเสธ → ลบแล้วล็อกอินไม่ได้อีก · ไม่มี user ทดสอบค้าง
 
-> ⚠️ บัญชี bootstrap `admin@benjamin.com` / `benjamin` **ยังใช้รหัสอ่อนอยู่** — เปลี่ยน/ลบหลังตั้ง SUPER_ADMIN ตัวจริง
+> ⚠️ บัญชี bootstrap `admin@benjamin.com` — 15 ต.ค. 69 บอสเปลี่ยนรหัสบนระบบจริง (ตรวจซ้ำได้ด้วย scripts/check-prod-admin-password.mjs)
 
 โค้ดฝั่งแอปพร้อมหมดแล้ว (route/adapter/hook migration/seed script อยู่ครบใน repo)
 

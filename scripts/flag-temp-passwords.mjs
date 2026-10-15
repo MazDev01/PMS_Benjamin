@@ -27,6 +27,12 @@ const only = (args[args.indexOf("--only") + 1] ?? "").split(",").map(s => s.trim
 if (มี("--only") && !only.length) { console.error("❌ --only ต้องตามด้วยรหัสดีลเลอร์ เช่น --only ABC,XYZ"); process.exit(1); }
 
 const env = readEnvFile(ฐานจริง ? ".env.production.local" : "apps/hq/.env.local");
+// ชุดทดสอบที่สั่งรันกับฐานในเครื่องอีกตัว (NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:… ใน env) → ใช้ฐานนั้นด้วย
+//   รับเฉพาะที่อยู่ในเครื่อง — ค่าใน env ชี้ที่อื่นไม่มีผล (15 ต.ค. 69 · ก่อนขึ้นระบบจริง ข้อ 5)
+if (!ฐานจริง && /^http:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "") && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
 const prodRef = refOf(readEnvFile(".env.production.local").NEXT_PUBLIC_SUPABASE_URL ?? "");
 const URL_ = env.NEXT_PUBLIC_SUPABASE_URL, KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 if (!URL_ || !KEY) { console.error("❌ ไม่พบค่าเชื่อมต่อฐานข้อมูล"); process.exit(1); }

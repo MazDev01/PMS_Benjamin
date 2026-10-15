@@ -1,0 +1,106 @@
+# ── รอบทดสอบเต็มบนฐานที่สร้างใหม่จากศูนย์ (ก่อนขึ้นระบบจริง ข้อ 5 · 15 ต.ค. 69) ─────────────────────────
+#
+# ทำไมต้องมี: ci.yml ตรวจแค่ typecheck/เทสย่อย ไม่มีฐานข้อมูล — ข้อทดสอบหน้าจอ ~580 ข้อรันได้แค่เครื่องคนทำงาน
+#   ตัวนี้ยก Supabase ในเครื่องของ runner → ลงใบทั้งหมด → ข้อมูลตั้งต้น (tests/fixtures/test-baseline.sql)
+#   → รันแบบ production build โหมด api (โหมดเดียวกับเว็บจริง) ทุกช่วง + ตัวตรวจ "ทุกข้อได้รันจริง"
+#
+# ไม่ใช้ความลับของโปรเจกต์เลย: ฐานเป็นของ runner เอง · รหัสบัญชีทดสอบ/กุญแจสำเนารหัส/CRON สุ่มใหม่ทุกรอบ
+#   ไม่แตะฐานจริง ไม่แตะฐานทดสอบบนคลาวด์
+#
+# ⚠️ ยังไม่เคยรันบน GitHub (ยังไม่ push) — รอบแรกหลัง push อาจต้องแก้ค่าแวดล้อม · ในเครื่องพิสูจน์ด้วย
+#    scripts/reset-test-db.mjs --workdir <ฐานเปล่า> + test:prodbuild กับฐานนั้นแล้ว
+name: ทดสอบหน้าจอเต็มชุด
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: production build · โหมด api · ฐานสร้างใหม่
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: ติดตั้ง dependency
+        run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      # supabase/config.toml หลัก: API 54321 · กล่องจดหมาย 54324 · SMTP 54325
+      - name: ยก Supabase ในเครื่อง (ลงใบทั้งหมด)
+        run: supabase start -x imgproxy,pooler,studio,edge-runtime,logflare,vector
+
+      - name: ค่าแวดล้อมของแอปและบัญชีทดสอบ (สุ่มใหม่ทุกรอบ)
+        run: |
+          set -eu
+          eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+          rnd() { openssl rand -hex 16; }
+          cat > apps/hq/.env.local <<EOF
+          NEXT_PUBLIC_DATA_SOURCE=api
+          NEXT_PUBLIC_SUPABASE_URL=${API_URL}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}
+          NEXT_PUBLIC_LOGIN_PATH=/hq/login
+          NEXT_PUBLIC_DEALER_APP_URL=http://localhost:3001
+          SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
+          DEALER_SECRET_KEY=$(rnd)$(rnd)
+          DEALER_APP_ORIGIN=http://localhost:3001
+          SMTP_HOST=127.0.0.1
+          SMTP_PORT=54325
+          SMTP_FROM=pms@example.test
+          CRON_SECRET=$(rnd)
+          EOF
+          cat > apps/dealer/.env.local <<EOF
+          NEXT_PUBLIC_DATA_SOURCE=api
+          NEXT_PUBLIC_SUPABASE_URL=${API_URL}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}
+          NEXT_PUBLIC_HQ_ORIGIN=http://localhost:3002
+          EOF
+          cat > tests/.env.test <<EOF
+          TEST_RYG_EMAIL=ci-ryg@example.test
+          TEST_RYG_PASSWORD=Ci-Ryg-$(rnd)
+          TEST_CNX_EMAIL=ci-cnx@example.test
+          TEST_CNX_PASSWORD=Ci-Cnx-$(rnd)
+          TEST_ADMIN_EMAIL=ci-admin@example.test
+          TEST_ADMIN_PASSWORD=Ci-Adm-$(rnd)
+          EOF
+          sed -i 's/^ *//' apps/hq/.env.local apps/dealer/.env.local tests/.env.test
+
+      - name: ข้อมูลตั้งต้น + บัญชีทดสอบ
+        run: node scripts/reset-test-db.mjs --skip-reset
+
+      - name: ติดตั้งเบราว์เซอร์
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      # ทุกช่วง (chromium → hq-settings → safari → stress → price-switch) + ตัวตรวจ check-e2e-ran
+      - name: รอบทดสอบเต็ม (production build · โหมด api)
+        run: npm run test:prodbuild
+        env:
+          PMS_RUN_ID: ci-${{ github.run_id }}
+
+      - name: เก็บหลักฐานข้อที่ตก (trace + ภาพหน้าจอ)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-evidence
+          path: |
+            node_modules/.cache/playwright-results/ci-${{ github.run_id }}
+            test-results/*.json
+          retention-days: 7

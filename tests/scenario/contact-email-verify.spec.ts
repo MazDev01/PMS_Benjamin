@@ -19,7 +19,9 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(240_000);
 
 const admin = adminClient();
+// อ่าน process.env ก่อนไฟล์ — เหมือน supabaseEnv/adminEnv (15 ต.ค. 69: รันกับฐานอีกตัวแล้วต้องหาคอนเทนเนอร์จดหมาย/กุญแจของฐานนั้น)
 const ค่าในไฟล์ = (key: string) => {
+  if (process.env[key]) return process.env[key]!;
   try { return (readFileSync(path.join(__dirname, "../../apps/hq/.env.local"), "utf8").match(new RegExp(`^${key}=(.*)$`, "m"))?.[1] ?? "").trim(); }
   catch { return ""; }
 };
