@@ -7,7 +7,7 @@ import { ข้ามตั้งรหัสครั้งแรก } from "./
 import { ลบสาขาทดสอบตรง } from "./testDealers";
 import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 import { execFileSync } from "node:child_process";
-import { createPrivateKey, sign } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 // ── สาขาถูกปิดใช้งาน แต่ใบผ่าน (token) เดิมยังไม่หมดอายุ (บอสสั่ง 15 ต.ค. 69) ──────────────────────────────────
 //
@@ -36,24 +36,22 @@ async function purge() {
 // ใบผ่านจริงของสาขาที่ถูกปิด (ใช้ต่อในข้อ ค)
 let ใบผ่านเดิม = "";
 
-/** กุญแจเซ็นใบผ่านของฐานทดสอบในเครื่อง (ค่าตั้งต้นของ Supabase CLI ใน container auth) — ไม่มี = ไม่ใช่ฐานในเครื่อง */
-function กุญแจเซ็นในเครื่อง(): JsonWebKey & { kid?: string } | null {
+/** JWT secret ของฐานทดสอบในเครื่อง (ค่าตั้งต้นของ Supabase CLI ใน container auth) — ไม่มี = ไม่ใช่ฐานในเครื่อง */
+function ความลับในเครื่อง(): string | null {
   try {
     const c = execFileSync("docker", ["ps", "--filter", "name=supabase_auth_", "--format", "{{.Names}}"], { encoding: "utf8" })
       .split(String.fromCharCode(10)).map(n => n.trim()).find(n => n.includes("dbcheck"));
     if (!c) return null;
-    const env = execFileSync("docker", ["exec", c, "printenv", "GOTRUE_JWT_KEYS"], { encoding: "utf8" });
-    const keys = JSON.parse(env) as (JsonWebKey & { kid?: string; key_ops?: string[] })[];
-    return keys.find(k => k.alg === "ES256" && k.d) ?? null;
+    return execFileSync("docker", ["exec", c, "printenv", "GOTRUE_JWT_SECRET"], { encoding: "utf8" }).trim() || null;
   } catch { return null; }
 }
-/** ใบผ่านใบเดิมทุกตัวอักษรของเนื้อใบ เปลี่ยนแค่เวลาหมดอายุ แล้วเซ็นด้วยกุญแจเดียวกับที่ฐานเชื่อ */
-function เซ็นใหม่(token: string, exp: number, key: JsonWebKey & { kid?: string }): string {
+/** ใบผ่านอายุสั้น: เนื้อใบเดียวกับใบผ่านจริงของสาขาที่ถูกปิด (ผู้ใช้ · บทบาท · รหัสสาขา) เปลี่ยนแค่เวลาออก/หมดอายุ */
+function ออกใบอายุสั้น(token: string, วินาที: number, secret: string): { token: string; exp: number } {
   const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
-  const payload = { ...JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()), exp };
-  const head = `${b64({ alg: "ES256", kid: key.kid, typ: "JWT" })}.${b64(payload)}`;
-  const sig = sign("sha256", Buffer.from(head), { key: createPrivateKey({ key, format: "jwk" }), dsaEncoding: "ieee-p1363" });
-  return `${head}.${sig.toString("base64url")}`;
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { ...JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()), iat: now, exp: now + วินาที };
+  const head = `${b64({ alg: "HS256", typ: "JWT" })}.${b64(payload)}`;
+  return { token: `${head}.${createHmac("sha256", secret).update(head).digest("base64url")}`, exp: payload.exp };
 }
 
 test.beforeAll(purge);
@@ -136,24 +134,24 @@ test("[security·db] ปิดใช้งานสาขา → เขียน
 });
 
 test("[security·db] ปิดใช้งานสาขา → ใบผ่านเดิมหมดอายุแล้ว อ่าน leads · quotations · quote_requests ไม่ได้", async () => {
-  // ── ค) ใบผ่านเดิมเมื่อหมดอายุ ───────────────────────────────────────────────────────────────────
-  //   รอหมดอายุจริงในชุดทดสอบไม่ได้ (ฐานในเครื่อง 600 วินาที) → เอาใบผ่านจริงใบเดิม เปลี่ยนแค่เวลาหมดอายุให้เป็นอดีต
-  //   แล้วเซ็นด้วยกุญแจเดียวกับที่ฐานเชื่อ = ฐานเห็นใบเหมือนตอนหมดอายุจริงทุกอย่าง
-  //   ตัวคุม: ใบที่เซ็นใหม่แบบยังไม่หมดอายุต้องอ่านได้ (ไม่งั้นที่อ่านไม่ได้อาจเป็นเพราะเซ็นผิด ไม่ใช่เพราะหมดอายุ)
-  //   (ยืนยันแบบรอหมดอายุจริงแล้ว 1 รอบ 15 ต.ค. 69 — ผลตรงกัน)
-  const key = กุญแจเซ็นในเครื่อง();
-  test.skip(!key, "ไม่พบกุญแจเซ็นใบผ่านของฐานทดสอบในเครื่อง (docker) — ข้อนี้ใช้ได้เฉพาะฐานในเครื่อง");
+  // ── ค) ใบผ่านของสาขาที่ถูกปิด เมื่อหมดอายุ ─────────────────────────────────────────────────────────
+  //   ข้อทดสอบออกใบอายุ 5 วินาทีเอง (เนื้อใบเดียวกับใบจริง) ด้วย JWT secret ของฐานในเครื่อง — ไม่ต้องรอใบจริง 600 วินาที
+  //   ตรวจที่ "หมดอายุ + 45 วินาที": ตัวกลาง API (PostgREST) เผื่อนาฬิกาคลาดราว 30 วินาที
+  //     หลักฐาน (รอใบจริงหมดอายุ 15 ต.ค. 69): +12 วินาที ยังอ่านได้ครบ 3 ตาราง · +46 วินาที "JWT expired" ทั้ง 3 ตาราง
+  //   ตัวคุม: ใบเดียวกันตอนยังไม่หมดอายุต้องอ่านได้ (ไม่งั้นที่อ่านไม่ได้อาจเป็นเพราะเซ็นผิด ไม่ใช่เพราะหมดอายุ)
+  test.setTimeout(120_000);
+  const secret = ความลับในเครื่อง();
+  test.skip(!secret, "ไม่พบ JWT secret ของฐานทดสอบในเครื่อง (docker) — ข้อนี้ใช้ได้เฉพาะฐานในเครื่อง");
   expect(ใบผ่านเดิม, "ต้องมีใบผ่านจากข้อก่อนหน้า").not.toBe("");
-  const ด้วยใบ = (token: string) => createClient(SUPABASE_URL, SUPABASE_ANON, {
-    auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  const อ่านด้วย = async (token: string, table: string) => {
-    const r = await ด้วยใบ(token).from(table).select("id").eq("dealer_code", CODE);
+  const ใบ = ออกใบอายุสั้น(ใบผ่านเดิม, 5, secret!);
+  const ด้วยใบ = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { Authorization: `Bearer ${ใบ.token}` } } });
+  const อ่าน = async (table: string) => {
+    const r = await ด้วยใบ.from(table).select("id").eq("dealer_code", CODE);
     return r.error ? 0 : (r.data?.length ?? 0);
   };
-  const ตอนนี้ = Math.floor(Date.now() / 1000);
-  const ยังไม่หมด = เซ็นใหม่(ใบผ่านเดิม, ตอนนี้ + 300, key!);
-  expect(await อ่านด้วย(ยังไม่หมด, "leads"), "ตัวคุม: ใบที่เซ็นใหม่แบบยังไม่หมดอายุต้องอ่านได้ (เซ็นถูก)").toBe(2);
-  const หมดแล้ว = เซ็นใหม่(ใบผ่านเดิม, ตอนนี้ - 60, key!);
+  expect(await อ่าน("leads"), "ตัวคุม: ใบอายุสั้นตอนยังไม่หมดอายุต้องอ่านได้ (เซ็นถูก · ช่วงอ่านตามใบ 0032)").toBe(2);
+  while (Date.now() < (ใบ.exp + 45) * 1000) await new Promise(r => setTimeout(r, 1_000));
   for (const t of ["leads", "quote_requests", "quotations"])
-    expect.soft(await อ่านด้วย(หมดแล้ว, t), `ใบผ่านหมดอายุแล้ว อ่าน ${t} ต้องไม่ได้`).toBe(0);
+    expect.soft(await อ่าน(t), `ใบผ่านหมดอายุแล้ว (+45 วินาที) อ่าน ${t} ต้องไม่ได้`).toBe(0);
 });
