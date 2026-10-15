@@ -46,21 +46,36 @@ const isHttps = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https
 const ทดสอบhttpในเครื่อง = () => process.env.PMS_LOCAL_HTTP_TEST === "1" && !process.env.VERCEL_ENV
   && !(process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https");
 
+/** คำขอที่ใช้ตัดสิน Secure — รับรูปแบบย่อ (เทสย่อยส่งออบเจ็กต์ธรรมดาได้) */
+export type คำขอคุกกี้ = { url: string; headers: { get(name: string): string | null } };
+
+/** คุกกี้ใบผ่านต้องติด Secure ไหม — ตัดสินจาก "คำขอนี้มาทาง https" (บอสสั่ง 15 ต.ค. 69 · เทสย่อย authCookie.test.ts)
+ *  • Vercel: TLS จบที่ขอบเครือข่าย ตัวแอปเห็น http — ต้องดู x-forwarded-proto · และบังคับ Secure เสมอเมื่ออยู่บน Vercel (กันพลาดชั้นสอง)
+ *  • http://localhost (พัฒนา · รอบทดสอบ production build ในเครื่อง) → ไม่ติด Secure — WebKit ทิ้งคุกกี้ Secure บน http (ต้นเหตุเมนูมือถือ · 9d5a827)
+ *  • ไม่มีคำขอให้ดู → ใช้กติกาเดิมจากค่าแวดล้อม */
+export function ใช้Secure(req?: คำขอคุกกี้ | null): boolean {
+  if (process.env.VERCEL_ENV) return true;
+  if (!req) return isHttps() && !ทดสอบhttpในเครื่อง();
+  const proto = (req.headers.get("x-forwarded-proto") ?? "").split(",")[0].trim().toLowerCase();
+  if (proto) return proto === "https";
+  try { return new URL(req.url).protocol === "https:"; } catch { return isHttps() && !ทดสอบhttpในเครื่อง(); }
+}
+
 /** ค่ามาตรฐานของ cookie ใบผ่าน — ต้องเหมือนกันทุกที่ ไม่งั้นลบไม่ออก/ทับไม่ได้ */
-function base(maxAgeSec: number) {
+function base(maxAgeSec: number, req?: คำขอคุกกี้ | null) {
   return {
     httpOnly: true,            // ⚠️ หัวใจของระยะนี้ — JavaScript อ่านไม่ได้
     sameSite: "lax" as const,  // กันถูกเว็บอื่นยิงแทนผู้ใช้ (CSRF) ในกรณีทั่วไป
-    secure: isHttps() && !ทดสอบhttpในเครื่อง(),   // ตอนพัฒนาเป็น http ถ้าบังคับ secure เบราว์เซอร์จะทิ้ง cookie ทิ้งเงียบ ๆ
+    secure: ใช้Secure(req),     // http ตอนพัฒนา: ถ้าบังคับ secure เบราว์เซอร์จะทิ้ง cookie เงียบ ๆ
     path: "/",
     maxAge: maxAgeSec,
   };
 }
 
-export const accessCookie  = (v: string, maxAgeSec: number) => ({ name: ACCESS_COOKIE,  value: v, ...base(maxAgeSec) });
-export const refreshCookie = (v: string) => ({ name: REFRESH_COOKIE, value: v, ...base(60 * 60 * 24 * 30) });
+export const accessCookie  = (v: string, maxAgeSec: number, req?: คำขอคุกกี้ | null) => ({ name: ACCESS_COOKIE,  value: v, ...base(maxAgeSec, req) });
+export const refreshCookie = (v: string, req?: คำขอคุกกี้ | null) => ({ name: REFRESH_COOKIE, value: v, ...base(60 * 60 * 24 * 30, req) });
 /** ลบ cookie = ตั้งค่าว่างและหมดอายุทันที (ต้องส่งค่าตั้งอื่นให้ตรงกับตอนตั้ง ไม่งั้นเบราว์เซอร์ไม่ลบให้) */
-export const clearCookie = (name: string) => ({ name, value: "", ...base(0) });
+export const clearCookie = (name: string, req?: คำขอคุกกี้ | null) => ({ name, value: "", ...base(0, req) });
 
 /** ใบผ่านของผู้เรียก — อ่านจาก cookie ก่อน แล้วค่อยถอยไปดู header
  *

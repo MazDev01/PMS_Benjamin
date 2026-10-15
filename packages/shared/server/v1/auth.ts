@@ -86,12 +86,12 @@ async function publicSession(token: string) {
 }
 
 /** ตัดใบผ่านทิ้งพร้อมล้าง cookie — ใช้เมื่อบัญชี/สาขาถูกลบหรือปิดใช้งานระหว่างเปิดหน้าค้างไว้ */
-function evict(error: string) {
+function evict(error: string, req?: NextRequest) {
   const res = NextResponse.json({ error }, { status: 401, headers: { "cache-control": "no-store" } });
-  res.cookies.set(clearCookie(ACCESS_COOKIE));
-  res.cookies.set(clearCookie(REFRESH_COOKIE));
+  res.cookies.set(clearCookie(ACCESS_COOKIE, req));
+  res.cookies.set(clearCookie(REFRESH_COOKIE, req));
   // ลบชื่อเดิมก่อนแยกรายแอปด้วย — ไม่งั้นของเก่าค้างในเครื่องผู้ใช้แล้วสับสนภายหลัง
-  for (const เดิม of LEGACY_COOKIES) res.cookies.set(clearCookie(เดิม));
+  for (const เดิม of LEGACY_COOKIES) res.cookies.set(clearCookie(เดิม, req));
   return res;
 }
 
@@ -115,8 +115,8 @@ export const POST = async (req: NextRequest): Promise<Response> => {
       await sb.auth.signOut({ scope: "local" }).catch(() => { /* ออกไม่ได้ก็ยังต้องลบ cookie */ });
     }
     const res = NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
-    res.cookies.set(clearCookie(ACCESS_COOKIE));
-    res.cookies.set(clearCookie(REFRESH_COOKIE));
+    res.cookies.set(clearCookie(ACCESS_COOKIE, req));
+    res.cookies.set(clearCookie(REFRESH_COOKIE, req));
     return res;
   }
 
@@ -128,15 +128,15 @@ export const POST = async (req: NextRequest): Promise<Response> => {
     if (error || !s?.access_token) {
       // ต่ออายุไม่ได้ = ใบผ่านใช้ไม่ได้แล้ว → ล้างทิ้ง ไม่ปล่อยให้ค้างแล้วพังซ้ำ ๆ
       const res = fail(401, "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่");
-      res.cookies.set(clearCookie(ACCESS_COOKIE));
-      res.cookies.set(clearCookie(REFRESH_COOKIE));
+      res.cookies.set(clearCookie(ACCESS_COOKIE, req));
+      res.cookies.set(clearCookie(REFRESH_COOKIE, req));
       return res;
     }
     const { alive, ...me } = await publicSession(s.access_token);
-    if (!alive) return evict(GONE);
+    if (!alive) return evict(GONE, req);
     const res = NextResponse.json(me, { headers: { "cache-control": "no-store" } });
-    res.cookies.set(accessCookie(s.access_token, s.expires_in ?? 3600));
-    if (s.refresh_token) res.cookies.set(refreshCookie(s.refresh_token));
+    res.cookies.set(accessCookie(s.access_token, s.expires_in ?? 3600, req));
+    if (s.refresh_token) res.cookies.set(refreshCookie(s.refresh_token, req));
     return res;
   }
 
@@ -173,12 +173,12 @@ export const POST = async (req: NextRequest): Promise<Response> => {
     if (!userOk) return fail(401, "ลิงก์เข้าระบบหมดอายุหรือถูกใช้ไปแล้ว");
 
     const { alive, ...me } = await publicSession(at);
-    if (!alive) return evict(GONE);
+    if (!alive) return evict(GONE, req);
     const claims = claimsOf(at);
     const ttl = claims.exp ? Math.max(60, claims.exp - Math.floor(Date.now() / 1000)) : 3600;
     const res = NextResponse.json(me, { headers: { "cache-control": "no-store" } });
-    res.cookies.set(accessCookie(at, ttl));
-    if (b?.refresh_token) res.cookies.set(refreshCookie(b.refresh_token));
+    res.cookies.set(accessCookie(at, ttl, req));
+    if (b?.refresh_token) res.cookies.set(refreshCookie(b.refresh_token, req));
     return res;
   }
 
@@ -199,10 +199,10 @@ export const POST = async (req: NextRequest): Promise<Response> => {
   }
 
   const { alive, ...me } = await publicSession(s.access_token);
-  if (!alive) return evict(GONE);
+  if (!alive) return evict(GONE, req);
   const res = NextResponse.json(me, { headers: { "cache-control": "no-store" } });
-  res.cookies.set(accessCookie(s.access_token, s.expires_in ?? 3600));
-  if (s.refresh_token) res.cookies.set(refreshCookie(s.refresh_token));
+  res.cookies.set(accessCookie(s.access_token, s.expires_in ?? 3600, req));
+  if (s.refresh_token) res.cookies.set(refreshCookie(s.refresh_token, req));
   return res;
 };
 
@@ -229,6 +229,6 @@ export const GET = async (req: NextRequest): Promise<Response> => {
   // ใบผ่านหมดอายุแล้ว → บอกให้ไปต่ออายุ ไม่ใช่ตอบว่ายังล็อกอินอยู่
   if (c.exp && c.exp * 1000 <= Date.now()) return fail(401, "เซสชันหมดอายุ");
   const { alive, ...me } = await publicSession(token);
-  if (!alive) return evict(GONE);
+  if (!alive) return evict(GONE, req);
   return NextResponse.json(me, { headers: { "cache-control": "no-store" } });
 };
