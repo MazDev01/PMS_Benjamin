@@ -237,10 +237,11 @@ test("[func·hq] ตั้งเป็นดีลเลอร์ใหม่ �
     .insert({ name, province: "ระยอง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const id = (ins as { id: number }).id;
-  // ต้องมีใบค่าแฟรนไชส์ที่ส่งแล้ว ถึงจะสร้างดีลเลอร์ใหม่ได้ (บอสสั่ง 14 ก.ย. 69)
-  const { error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: "2026-09-14", contract_months: 12, annual_target: 12_000_000 });
+  // ตกลง + ชำระ (ด่าน 4 · 0208): ใบตอบรับ + ชำระครบ — ใบนี้ไม่ระบุค่าแรกเข้า (ยอด 0) ตอบรับแล้วแปลงได้เลย
+  const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
+    .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: "2026-09-14", contract_months: 12, annual_target: 12_000_000 }).select("id").single();
   expect(ใบErr).toBeNull();
+  expect((await sb.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", (ใบ as { id: number }).id)).error).toBeNull();
 
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await page.getByRole("row", { name: new RegExp(name) }).click();
@@ -385,7 +386,7 @@ test("[security] ใบค่าแฟรนไชส์: ดีลเลอร�
   expect(เห็น ?? [], "ดีลเลอร์ต้องไม่เห็นใบค่าแฟรนไชส์ของสำนักงานใหญ่").toHaveLength(0);
 });
 
-test("[func·hq] ออกใบค่าแฟรนไชส์ → ยังเป็นร่าง สร้างดีลเลอร์ไม่ได้ → ส่งแล้ว สร้างได้", async ({ page }) => {
+test("[func·hq] ออกใบค่าแฟรนไชส์ → ร่าง/ส่งแล้วยังสร้างไม่ได้ → ตอบรับ + ชำระไม่ครบ สร้างไม่ได้ → ครบ สร้างได้ → ยกเลิกงวดจนไม่ครบ สร้างไม่ได้", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-ออกใบผ่านหน้าจอ`;
@@ -426,19 +427,64 @@ test("[func·hq] ออกใบค่าแฟรนไชส์ → ยัง�
   await expect(แก้ไข.getByText(แถวใบ.proposal_no)).toBeVisible();
   await expect(ใบ, "บันทึกแล้วฟอร์มปิด กลับเป็นรายการใบ").toHaveCount(0);
 
-  // ยังเป็นร่าง → ปุ่มสร้างดีลเลอร์ต้องกดไม่ได้ พร้อมบอกเหตุผล
-  await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
+  // ── ตกลง + ชำระ (ด่าน 4 · บอสตัดสิน 15 ต.ค. 69 · ฐานข้อมูลบังคับ 0208) ──
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
-  await expect(ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" })).toBeDisabled();
-  await expect(ตั้ง.getByText(/ต้องมี “ใบค่าแฟรนไชส์”/)).toBeVisible();
-  await ตั้ง.getByRole("button", { name: "ยกเลิก" }).click();
+  const ปุ่มสร้าง = ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" });
+  const เปิดกล่องตั้ง = async () => { await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click(); await expect(ตั้ง).toBeVisible(); };
+  const ปิดกล่องตั้ง = async () => { await ตั้ง.getByRole("button", { name: "ยกเลิก" }).click(); await expect(ตั้ง).toHaveCount(0); };
 
-  // เปลี่ยนเป็นส่งแล้ว → สร้างดีลเลอร์ได้
+  // ยังเป็นร่าง → กดสร้างไม่ได้ พร้อมบอกเหตุผล
+  await เปิดกล่องตั้ง();
+  await expect(ตั้ง.getByText(/ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ/)).toBeVisible({ timeout: 15_000 });
+  await expect(ปุ่มสร้าง).toBeDisabled();
+  await ปิดกล่องตั้ง();
+
+  // ส่งแล้ว (ยังไม่ตอบรับ) → ยังสร้างไม่ได้
   await แก้ไข.getByLabel(`สถานะใบ ${แถวใบ.proposal_no}`).selectOption("sent");
   await กดตกลงในกล่องยืนยัน(page);
   await waitRow(sb, "dealer_package_proposals", { id: แถวใบ.id, status: "sent" });
-  await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
-  await expect(ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }), "มีใบที่ส่งแล้ว ต้องกดได้").toBeEnabled();
-  assertNoErrors(errs, "ออกใบค่าแฟรนไชส์");
+  await เปิดกล่องตั้ง();
+  await expect(ตั้ง.getByText(/ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ/), "ส่งแล้วแต่ยังไม่ตอบรับ ต้องสร้างไม่ได้").toBeVisible({ timeout: 15_000 });
+  await expect(ปุ่มสร้าง).toBeDisabled();
+  await ปิดกล่องตั้ง();
+
+  // ตอบรับ → บันทึกการชำระงวดแรก 100,000 จาก 150,000 → ยังสร้างไม่ได้ (บอกยอดค้าง)
+  await แก้ไข.getByLabel(`สถานะใบ ${แถวใบ.proposal_no}`).selectOption("accepted");
+  await กดตกลงในกล่องยืนยัน(page);
+  await waitRow(sb, "dealer_package_proposals", { id: แถวใบ.id, status: "accepted" });
+  const ชำระ = แก้ไข.getByRole("region", { name: `การชำระ ${แถวใบ.proposal_no}` });
+  await ชำระ.getByLabel("ยอดชำระ").fill("100000");
+  await ชำระ.getByLabel("เลขอ้างอิง").fill("TR-ZZ-1");
+  await ชำระ.getByRole("button", { name: "บันทึกการชำระ" }).click();
+  await waitRow(sb, "dealer_proposal_payments", { proposal_id: แถวใบ.id, reference: "TR-ZZ-1" });
+  await expect(ชำระ.getByTestId(`ยอดชำระ-${แถวใบ.proposal_no}`)).toContainText("ค้าง 50,000.00");
+  await เปิดกล่องตั้ง();
+  await expect(ตั้ง.getByText(/ยังชำระไม่ครบ/), "ชำระ 1 งวดไม่ครบ → สร้างไม่ได้").toBeVisible({ timeout: 15_000 });
+  await expect(ปุ่มสร้าง).toBeDisabled();
+  await ปิดกล่องตั้ง();
+
+  // งวดที่ 2 ครบ → สร้างได้
+  await ชำระ.getByLabel("ยอดชำระ").fill("50000");
+  await ชำระ.getByLabel("เลขอ้างอิง").fill("TR-ZZ-2");
+  await ชำระ.getByRole("button", { name: "บันทึกการชำระ" }).click();
+  await waitRow(sb, "dealer_proposal_payments", { proposal_id: แถวใบ.id, reference: "TR-ZZ-2" });
+  await expect(ชำระ.getByTestId(`ยอดชำระ-${แถวใบ.proposal_no}`)).toContainText("ครบแล้ว");
+  await เปิดกล่องตั้ง();
+  await expect(ปุ่มสร้าง, "ชำระครบ → สร้างได้").toBeEnabled({ timeout: 15_000 });
+  await ปิดกล่องตั้ง();
+
+  // ยกเลิกงวดที่ 2 (ต้องมีเหตุผล) → ยอดไม่ครบอีก → สร้างไม่ได้
+  await ชำระ.getByRole("button", { name: "ยกเลิกการชำระ TR-ZZ-2" }).click();
+  const ถาม = page.getByRole("alertdialog", { name: /ยกเลิกการชำระ/ });
+  await expect(ถาม.getByRole("button", { name: "ยกเลิกการชำระ" }), "ยังไม่กรอกเหตุผล ยกเลิกไม่ได้").toBeDisabled();
+  await ถาม.getByLabel("เหตุผลที่ยกเลิก").fill("บันทึกยอดผิด");
+  await ถาม.getByRole("button", { name: "ยกเลิกการชำระ" }).click();
+  await waitRow(sb, "dealer_proposal_payments", { proposal_id: แถวใบ.id, reference: "TR-ZZ-2", cancel_reason: "บันทึกยอดผิด" });
+  await expect(ชำระ.getByText("ยกเลิกแล้ว: บันทึกยอดผิด")).toBeVisible();
+  await เปิดกล่องตั้ง();
+  await expect(ตั้ง.getByText(/ยังชำระไม่ครบ/), "ยกเลิกงวดจนยอดไม่ครบ → สร้างไม่ได้").toBeVisible({ timeout: 15_000 });
+  await expect(ปุ่มสร้าง).toBeDisabled();
+  await ปิดกล่องตั้ง();
+  assertNoErrors(errs, "ออกใบค่าแฟรนไชส์ + ตกลง + ชำระ");
 });
 

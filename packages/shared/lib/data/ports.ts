@@ -1,7 +1,7 @@
 // Ports — สัญญา (interface) ที่ทุก adapter ต้องมี
 // context/hook เรียกผ่าน repository เหล่านี้เท่านั้น · เบื้องหลังสลับ adapter ได้
 // ทุกเมธอดเป็น async ตั้งแต่แรก → ต่อ network (เฟส B) ไม่ต้องแก้ signature
-import type { DealerPackageProposal, DealerProposalStatus } from "./types";
+import type { DealerPackageProposal, DealerProposalStatus, DealerProposalPayment, DealerProposalPaymentInput } from "./types";
 import type { DealerProspect, ProspectActivity, ProspectContactInput } from "./types";
 import type { HQRecruitSettings } from "../recruitSettings";
 import type {
@@ -168,6 +168,12 @@ export interface ProposalsRepo {
   /** ส่งแล้วแก้ไม่ได้ → ทำเวอร์ชันใหม่ (ร่าง) จากใบล่าสุดของสาย ที่ส่งแล้ว/ปฏิเสธ/หมดอายุ (0207) */
   newVersion(id: number): Promise<DealerPackageProposal>;
   remove(id: number): Promise<void>;
+  /** ตกลง + ชำระ (0208): บันทึกการชำระของใบที่ตอบรับ — HQ เท่านั้น · แก้/ลบไม่ได้ ยกเลิกพร้อมเหตุผล */
+  payments(proposalId: number): Promise<DealerProposalPayment[]>;
+  addPayment(input: DealerProposalPaymentInput): Promise<DealerProposalPayment>;
+  cancelPayment(id: number, reason: string): Promise<DealerProposalPayment>;
+  /** พร้อมแปลงเป็นดีลเลอร์ไหม — null = พร้อม · ข้อความ = ยังไม่พร้อมเพราะอะไร (ฐานข้อมูลตอบ) */
+  conversionReady(prospectId: number): Promise<string | null>;
 }
 
 // ── ประวัติลูกค้าเป้าหมาย (HQ) — อ่าน = HQ · เพิ่มได้แค่บันทึกการติดต่อ · ไม่มีแก้/ลบ (0174) ──

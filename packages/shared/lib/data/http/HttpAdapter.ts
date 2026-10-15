@@ -13,7 +13,7 @@
 //    RLS ทั้ง 72 กฎจึงยังบังคับเหมือนเดิม — ต่างแค่คำขอเดินผ่านเซิร์ฟเวอร์ของเราอีกทอด
 // ⚠️ ก่อนเปิดโหมดนี้บนของจริง ดูข้อจำกัดอายุสายอัปเดตสดใน server/v1/events.ts ก่อน
 import type { ProposalsRepo } from "../ports";
-import type { DealerPackageProposal } from "../types";
+import type { DealerPackageProposal, DealerProposalPayment } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
 import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo } from "../ports";
 import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
@@ -328,6 +328,10 @@ const proposals: ProposalsRepo = {
   update: (p) => put<DealerPackageProposal>("/proposals", p),
   setStatus: (id, status, reason) => apiFetch<DealerPackageProposal>("/proposals", { method: "PATCH", body: JSON.stringify({ id, status, reason }) }),
   newVersion: (id) => post<DealerPackageProposal>("/proposals?op=new-version", { id }),
+  payments: (proposalId) => apiFetch<DealerProposalPayment[]>(`/proposals?view=payments&proposal=${proposalId}`),
+  addPayment: (x) => post<DealerProposalPayment>("/proposals?op=payment", x),
+  cancelPayment: (id, reason) => post<DealerProposalPayment>("/proposals?op=cancel-payment", { id, reason }),
+  conversionReady: async (prospectId) => (await apiFetch<{ reason: string | null }>(`/proposals?view=ready&prospect=${prospectId}`)).reason,
   remove: async (id) => { await apiFetch(`/proposals?id=${id}`, { method: "DELETE" }); },
 };
 // ประวัติ + บันทึกการติดต่อ ลูกค้าเป้าหมาย HQ (server/v1/prospectActivities.ts)

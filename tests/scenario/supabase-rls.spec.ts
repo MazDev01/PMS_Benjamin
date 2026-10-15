@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, RYG, CNX, ADMIN, skipReason, type Account } from "./supabaseEnv";
 import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+import { adminClient } from "./testDealers";
 
 // กฎความปลอดภัยที่ "มีจริงเฉพาะโหมด supabase" — RLS / สิทธิ์เขียน / FK / ตัวนับเลขที่ (M5)
 //
@@ -261,9 +262,13 @@ test("[repo] HQ ลบดีลเลอร์แล้วหายจาก DB 
   const before = (await sb.from("dealers").select("code")).data ?? [];
   expect(before.length, "ต้องมีดีลเลอร์อยู่ก่อน").toBeGreaterThan(0);
   try {
-    // เพิ่มดีลเลอร์ชั่วคราว — select("code") เท่านั้น (0091: revenue_target/คอลัมน์อื่นถอด SELECT
-    // ทั้งตารางออกจาก authenticated แล้ว select() เปล่าๆ จะโดน "permission denied for table dealers")
-    const ins = await sb.from("dealers").insert({
+    // HQ เพิ่มแถวดีลเลอร์ตรงไม่ได้แล้ว — ต้องมาจากผู้สนใจที่ตอบรับ + ชำระครบ (ฐานข้อมูลบังคับ 0208 · ด่าน 4)
+    const ตรง = await sb.from("dealers").insert({
+      code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพฯ", region: "กลาง", status: "active",
+    }).select("code");
+    expect(ตรง.error?.message ?? "", "HQ เพิ่มดีลเลอร์ตรงโดยไม่ผูกผู้สนใจต้องถูกปฏิเสธ").toContain("conversion_needs_prospect");
+    // เพิ่มดีลเลอร์ชั่วคราวด้วยสิทธิ์เซิร์ฟเวอร์ (ทางเดียวกับสคริปต์ลงทะเบียนสาขาตั้งต้น) — ข้อนี้ทดสอบการลบของ HQ
+    const ins = await adminClient().from("dealers").insert({
       code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพฯ", region: "กลาง", status: "active",
     }).select("code");
     expect(ins.error, `เพิ่มไม่ได้: ${JSON.stringify(ins.error)}`).toBeNull();

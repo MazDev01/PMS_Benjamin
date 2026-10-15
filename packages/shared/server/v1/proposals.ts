@@ -15,7 +15,24 @@ const PAGE = 1000;
 export { runtime } from "./_ctx";
 
 export const proposalsGET = handler("proposals.list", async (req: NextRequest, sb) => {
-  const raw = new URL(req.url).searchParams.get("prospect");
+  const sp = new URL(req.url).searchParams;
+  // บันทึกการชำระของใบ (0208) — กฎรายตาราง: HQ อ่านได้เท่านั้น
+  if (sp.get("view") === "payments") {
+    const proposal = Number(sp.get("proposal"));
+    if (!Number.isInteger(proposal) || proposal <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์");
+    const { data, error } = await sb.from("dealer_proposal_payments").select("*").eq("proposal_id", proposal).order("id");
+    if (error) return dbFail("proposals.payments", error);
+    return ok(((data ?? []) as Row[]).map(r => ({ ...toCamel<Row>(r), amount: Number(r.amount) })));
+  }
+  // พร้อมแปลงเป็นดีลเลอร์ไหม (ฐานข้อมูลตอบ · คำสั่งตรวจว่าเป็น HQ เอง)
+  if (sp.get("view") === "ready") {
+    const prospect = Number(sp.get("prospect"));
+    if (!Number.isInteger(prospect) || prospect <= 0) return fail(400, "รหัสลูกค้าเป้าหมายไม่ถูกต้อง");
+    const { data, error } = await sb.rpc("dealer_conversion_ready", { p_prospect: prospect });
+    if (error) return dbFail("proposals.ready", error);
+    return ok({ reason: (data as string | null) ?? null });
+  }
+  const raw = sp.get("prospect");
   const prospect = raw == null ? null : Number(raw);
   if (prospect !== null && (!Number.isInteger(prospect) || prospect <= 0)) return fail(400, "รหัสลูกค้าเป้าหมายไม่ถูกต้อง");
   // ⚠️ ไล่ทีละหน้าเสมอ — ฐานข้อมูลคืนสูงสุด 1,000 แถว/คำขอ
@@ -34,7 +51,31 @@ export const proposalsGET = handler("proposals.list", async (req: NextRequest, s
 
 export const proposalsPOST = handler("proposals.create", async (req: NextRequest, sb) => {
   // ทำเวอร์ชันใหม่ (0207) — ฐานข้อมูลตรวจสิทธิ์/สถานะ/ใบล่าสุดของสายเอง
-  if (new URL(req.url).searchParams.get("op") === "new-version") {
+  const op = new URL(req.url).searchParams.get("op");
+  // ตกลง + ชำระ (0208) — ฐานข้อมูลตรวจสิทธิ์ (HQ) · ใบต้องตอบรับ · ยอด > 0 · เลขอ้างอิง · ยกเลิกต้องมีเหตุผล
+  if (op === "payment") {
+    const b = (await req.json().catch(() => null)) as { proposalId?: unknown; paidOn?: unknown; amount?: unknown; reference?: unknown } | null;
+    const proposalId = Number(b?.proposalId), amount = Number(b?.amount);
+    const paidOn = String(b?.paidOn ?? ""), reference = String(b?.reference ?? "").trim().slice(0, 200);
+    if (!Number.isInteger(proposalId) || proposalId <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) return fail(400, "วันที่ชำระไม่ถูกต้อง");
+    if (!Number.isFinite(amount) || amount <= 0) return fail(400, "ยอดชำระต้องมากกว่า 0");
+    if (!reference) return fail(400, "ต้องระบุเลขอ้างอิงการชำระ");
+    const { data, error } = await sb.from("dealer_proposal_payments")
+      .insert({ proposal_id: proposalId, paid_on: paidOn, amount, reference }).select().single();
+    if (error) return dbFail("proposals.addPayment", error);
+    return ok({ ...toCamel<Row>(data as Row), amount: Number((data as Row).amount) });
+  }
+  if (op === "cancel-payment") {
+    const b = (await req.json().catch(() => null)) as { id?: unknown; reason?: unknown } | null;
+    const id = Number(b?.id), reason = String(b?.reason ?? "").trim().slice(0, 500);
+    if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุบันทึกการชำระ");
+    if (!reason) return fail(400, "ยกเลิกบันทึกการชำระต้องระบุเหตุผล");
+    const { data, error } = await sb.from("dealer_proposal_payments").update({ cancel_reason: reason }).eq("id", id).select().single();
+    if (error) return dbFail("proposals.cancelPayment", error);
+    return ok({ ...toCamel<Row>(data as Row), amount: Number((data as Row).amount) });
+  }
+  if (op === "new-version") {
     const b = (await req.json().catch(() => null)) as { id?: number } | null;
     const id = Number(b?.id);
     if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์");

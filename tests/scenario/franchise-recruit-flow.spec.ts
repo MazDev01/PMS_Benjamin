@@ -12,7 +12,7 @@ import { ลบสาขาทดสอบตรง } from "./testDealers";
 //   3) ใบค่าแฟรนไชส์: ออกใบ → ส่ง · ส่งแล้วแก้ไม่ได้ ต้องทำเวอร์ชันใหม่ (ใบเดิม = ถูกแทนด้วยเวอร์ชันใหม่)
 //   4) ปฏิเสธ → ปิดพร้อมเหตุผล (กลับไปนัดคุย) · ทำเวอร์ชันใหม่เจรจาต่อ   [หมดอายุ → ปิดพร้อมเหตุผล: ยิงตรงฐานใน franchise_proposal_rules.sql]
 //   5) แปลงเป็นดีลเลอร์: สร้างบัญชีอัตโนมัติ · HQ กำหนดจังหวัดที่ดูแล (หนึ่งจังหวัด หนึ่งดีลเลอร์) · เป้าสาขา = เป้าในใบ
-// "ตกลง + ชำระ" รอบอสกำหนดว่าการชำระต้องเก็บอะไร (ถาม 15 ต.ค. 69) — ตอนนี้แปลงได้เมื่อมีใบที่ส่งแล้ว (ใบนั้นกลายเป็นตอบรับ)
+//   ตกลง + ชำระ: ตอบรับใบ → บันทึกการชำระครบตามใบ (บอสตัดสิน 15 ต.ค. 69 · 0208 · กรณีไม่ครบ/ยกเลิกอยู่ใน hq-prospects และ franchise_payment_rules.sql)
 // อยู่โปรเจกต์ hq-settings (workers: 1): ฟอร์มใบเติมค่าตั้งต้นจากตั้งค่า › หาดีลเลอร์ ซึ่งไฟล์อื่นในกลุ่มแก้อยู่
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -130,6 +130,17 @@ test("[flow·hq] หาดีลเลอร์ใหม่ครบเส้น
   expect((await svc().from("dealer_package_proposals").select("status").eq("id", v2.id).single()).data?.status,
     "ส่งเวอร์ชันใหม่ ใบที่ปฏิเสธแล้วคงเป็นปฏิเสธ").toBe("rejected");
 
+  // ── ตกลง + ชำระ: ตอบรับ V3 แล้วบันทึกการชำระครบ 200,000 ─────────────────────────────────────────────
+  await แผง.getByLabel(`สถานะใบ ${v3no}`).selectOption("accepted");
+  await กดตกลงในกล่องยืนยัน(page);
+  await waitRow(sb, "dealer_package_proposals", { id: v3.id, status: "accepted" });
+  const ชำระ = แผง.getByRole("region", { name: `การชำระ ${v3no}` });
+  await ชำระ.getByLabel("ยอดชำระ").fill("200000");
+  await ชำระ.getByLabel("เลขอ้างอิง").fill("TR-RECRUIT-1");
+  await ชำระ.getByRole("button", { name: "บันทึกการชำระ" }).click();
+  await waitRow(sb, "dealer_proposal_payments", { proposal_id: v3.id, reference: "TR-RECRUIT-1" });
+  await expect(ชำระ.getByTestId(`ยอดชำระ-${v3no}`)).toContainText("ครบแล้ว");
+
   // ── 5) แปลงเป็นดีลเลอร์ + จังหวัดที่ดูแล ───────────────────────────────────────────────────────────
   await แผง.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click();
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
@@ -141,7 +152,6 @@ test("[flow·hq] หาดีลเลอร์ใหม่ครบเส้น
   await expect(page.getByText("สร้างดีลเลอร์สำเร็จ")).toBeVisible({ timeout: 30_000 });
 
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "won", dealer_code: CODE });
-  await waitRow(sb, "dealer_package_proposals", { id: v3.id, status: "accepted" });
   const admin = svc();
   const { data: สาขา } = await admin.from("dealers").select("revenue_target, package, status").eq("code", CODE).single();
   expect(สาขา, "สาขาใหม่: เป้า = เป้าในใบ · แพ็กเกจตามใบ").toEqual({ revenue_target: 6_000_000, package: "standard", status: "active" });

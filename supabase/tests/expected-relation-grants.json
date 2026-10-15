@@ -1,5 +1,5 @@
 {
- "migration": "0207",
+ "migration": "0208",
  "relations": [
   {
    "r": "appointments",
@@ -128,6 +128,22 @@
    "anon": "",
    "authenticated": "",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_proposal_payments",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "INSERT,SELECT,UPDATE",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "dealer_proposal_payments_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
   },
   {
    "r": "dealer_prospect_activities",

@@ -125,6 +125,8 @@ export default function HQProspectsPage() {
   const [พื้นที่, setพื้นที่] = useState<string[]>([]);
   const [เจ้าของพื้นที่, setเจ้าของพื้นที่] = useState<Map<string, string> | null>(null);
   const [พื้นที่ผิด, setพื้นที่ผิด] = useState("");
+  // ตกลง + ชำระ (0208): ฐานข้อมูลตอบว่าพร้อมแปลงไหม — undefined = กำลังตรวจ · null = พร้อม · ข้อความ = ยังไม่พร้อมเพราะอะไร
+  const [ยังไม่พร้อมแปลง, setยังไม่พร้อมแปลง] = useState<string | null | undefined>(undefined);
   // ผูกกับสาขาที่ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ต้องเตือนให้เห็นชัด พร้อมทางไปตั้งอีเมล/รหัสผ่าน
   const [ผูกแล้วไม่มีบัญชี, setผูกแล้วไม่มีบัญชี] = useState<{ name: string; code: string } | null>(null);
   // สาขาที่มีบัญชีเข้าระบบ (รหัส → อีเมล) — โหลดตอนเปิดหน้าต่างผูก · null = ยังไม่รู้ (ไม่เตือนมั่ว)
@@ -384,6 +386,9 @@ export default function HQProspectsPage() {
     });
     setConvErr("");
     setพื้นที่([]); setเจ้าของพื้นที่(null); setพื้นที่ผิด("");
+    setยังไม่พร้อมแปลง(undefined);
+    proposalsRepo.conversionReady(p.id).then(setยังไม่พร้อมแปลง)
+      .catch(e => setยังไม่พร้อมแปลง(friendlyError(e, "ตรวจใบค่าแฟรนไชส์ไม่สำเร็จ — ปิดแล้วเปิดใหม่")));
     territoriesRepo.owners().then(list => {
       const m = new Map(list.map(x => [x.province, x.dealerCode]));
       setเจ้าของพื้นที่(m);
@@ -436,7 +441,7 @@ export default function HQProspectsPage() {
     }
 
     // สร้างดีลเลอร์ใหม่ — ตรวจที่หน้าจอก่อนเพื่อบอกตรงช่องที่ผิด (เซิร์ฟเวอร์ตรวจซ้ำเสมอ)
-    if (!มีใบเสนอที่ส่งแล้ว(ใบของรายที่เปิด)) { setConvErr("ต้องส่งใบค่าแฟรนไชส์ก่อน อย่างน้อย 1 ใบ"); return; }
+    if (ยังไม่พร้อมแปลง !== null) { setConvErr(ยังไม่พร้อมแปลง ?? "กำลังตรวจใบค่าแฟรนไชส์ — รอสักครู่"); return; }
     const code = ฟอร์ม.code.trim().toUpperCase();
     if (!/^[A-Z]{2,5}$/.test(code)) { setConvErr("รหัสดีลเลอร์ต้องเป็นตัวอักษร A–Z 2–5 ตัว (ห้ามมีตัวเลข)"); return; }
     if (dealers.some(d => d.code === code)) { setConvErr(`รหัส “${code}” มีอยู่แล้ว`); return; }
@@ -475,11 +480,6 @@ export default function HQProspectsPage() {
         setList(l => l.map(x => x.id === saved.id ? saved : x));
         invalidateCache("dealers.list");
         โหลดดีลเลอร์();
-        // ใบล่าสุดที่ส่งแล้ว → ตอบรับ (แบบเดียวกับที่เซิร์ฟเวอร์ทำในโหมดจริง)
-        if (!ใบของรายที่เปิด.some(x => x.status === "accepted")) {
-          const ใบส่งแล้ว = ใบของรายที่เปิด.find(x => x.status === "sent");
-          if (ใบส่งแล้ว) await proposalsRepo.setStatus(ใบส่งแล้ว.id, "accepted");
-        }
         logAudit("สร้างดีลเลอร์", `${code} · ${แถวใหม่.name} (จากลูกค้าเป้าหมาย #${saved.id})`);
         setCreds({ name: แถวใหม่.name, code, email: อีเมลเดโม, password: DEMO_PASSWORD });
         setConverting(null); ปิดแผงทันที();
@@ -979,10 +979,12 @@ export default function HQProspectsPage() {
 
               {/* ด่านเดียวกับที่เซิร์ฟเวอร์บังคับ — บอกก่อนกด ไม่ต้องให้ผู้ใช้กรอกครบแล้วค่อยโดนปฏิเสธ
                   ผูกกับดีลเลอร์ที่มีอยู่แล้วไม่ต้องมีใบ (บันทึกประวัติรายที่เป็นดีลเลอร์มาก่อนระบบนี้) */}
-              {โหมดตั้ง === "new" && !มีใบส่งแล้ว && (
+              {โหมดตั้ง === "new" && ยังไม่พร้อมแปลง !== null && (
                 <div role="note" style={{ background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.78rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
-                  ยังสร้างดีลเลอร์ใหม่ไม่ได้ — ต้องมี “ใบค่าแฟรนไชส์” ที่ส่งแล้วหรือตอบรับอย่างน้อย 1 ใบ
-                  (ออกใบได้ในแท็บใบค่าแฟรนไชส์ของรายนี้) · ถ้าเป็นดีลเลอร์อยู่แล้ว เลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว”
+                  {ยังไม่พร้อมแปลง === undefined ? "กำลังตรวจใบค่าแฟรนไชส์…" : <>
+                    ยังสร้างดีลเลอร์ใหม่ไม่ได้ — {ยังไม่พร้อมแปลง}
+                    <br />ต้องตกลง + ชำระ: ใบค่าแฟรนไชส์ “ตอบรับ” และยอดชำระรวมครบตามใบ (บันทึกในแท็บใบค่าแฟรนไชส์) · ถ้าเป็นดีลเลอร์อยู่แล้ว เลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว”
+                  </>}
                 </div>
               )}
 
@@ -1084,7 +1086,7 @@ export default function HQProspectsPage() {
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
                 <button className="btn btn-secondary btn-md" disabled={convBusy} onClick={() => setConverting(null)}>ยกเลิก</button>
-                <button className="btn btn-primary btn-md" disabled={convBusy || (โหมดตั้ง === "new" && !มีใบส่งแล้ว)} onClick={() => void ยืนยันตั้งดีลเลอร์()}
+                <button className="btn btn-primary btn-md" disabled={convBusy || (โหมดตั้ง === "new" && ยังไม่พร้อมแปลง !== null)} onClick={() => void ยืนยันตั้งดีลเลอร์()}
                   style={convBusy ? { opacity: .6, cursor: "not-allowed" } : undefined}>
                   {convBusy ? "กำลังดำเนินการ…" : โหมดตั้ง === "new" ? "สร้างดีลเลอร์" : "ผูกกับดีลเลอร์นี้"}
                 </button>

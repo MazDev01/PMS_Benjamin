@@ -39,7 +39,7 @@ function fireProfile() {
 import { putLocalBlob, localBlobUrl, removeLocalBlob } from "./blobStore";
 import { accountLocal } from "./accountLocal";
 import type { DataAdapter } from "../ports";
-import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope, DealerSettings, HQCompany, CustomerNote, SystemUser, DealerProspect, DealerPackageProposal, ProspectActivity, DealerProspectStatus } from "../types";
+import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope, DealerSettings, HQCompany, CustomerNote, SystemUser, DealerProspect, DealerPackageProposal, DealerProposalPayment, ProspectActivity, DealerProspectStatus } from "../types";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import { รวมค่าตั้งหาดีลเลอร์, ใช้เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
 import { เตรียมบันทึกใบ, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว, ทำเวอร์ชันใหม่ได้, ต้องมีเหตุผล } from "@pms/shared/lib/dealerProposals";
@@ -53,6 +53,7 @@ const NOTES_KEY = "customer_notes_v1";
 const PROSPECTS_KEY = "hq_dealer_prospects_v1";
 import { HQ_PROSPECTS_SEED } from "./hqProspectsSeed";
 const PROPOSALS_KEY = "hq_dealer_proposals_v1";
+const PAYMENTS_KEY = "hq_dealer_proposal_payments_v1";
 const PROSPECT_ACTIVITIES_KEY = "hq_dealer_prospect_activities_v1";
 const HQ_USERS_KEY = "hq_users_v4";
 const RECRUIT_KEY = "hq_recruit_settings_v1";
@@ -452,6 +453,36 @@ export const LocalAdapter: DataAdapter = {
       writeKey(PROPOSALS_KEY, [row, ...all]);
       บันทึกประวัติเดโม({ prospectId: row.prospectId, kind: "proposal", body: ข้อความใบเสนอ(row.proposalNo ?? "", row.status, true) });
       return ok(row);
+    },
+    // ตกลง + ชำระ (โหมดเดโม) — กติกาเดียวกับตัวดัก 0208: ใบต้องตอบรับ · ยอด > 0 · มีเลขอ้างอิง · ยกเลิกต้องมีเหตุผล
+    payments: (proposalId) => ok(readKey<DealerProposalPayment[]>(PAYMENTS_KEY, []).filter(x => x.proposalId === proposalId)),
+    addPayment: (x) => {
+      const ใบ = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []).find(p => p.id === x.proposalId);
+      if (ใบ?.status !== "accepted") return Promise.reject(new Error("บันทึกการชำระได้เฉพาะใบค่าแฟรนไชส์ที่ตอบรับแล้ว"));
+      if (!(Number(x.amount) > 0)) return Promise.reject(new Error("ยอดชำระต้องมากกว่า 0"));
+      if (!String(x.reference ?? "").trim()) return Promise.reject(new Error("ต้องระบุเลขอ้างอิงการชำระ"));
+      const all = readKey<DealerProposalPayment[]>(PAYMENTS_KEY, []);
+      const row: DealerProposalPayment = { id: all.reduce((m, y) => Math.max(m, y.id), 0) + 1, proposalId: x.proposalId,
+        paidOn: x.paidOn, amount: Number(x.amount), reference: x.reference.trim(), createdAt: new Date().toISOString(), cancelReason: null, cancelledAt: null };
+      writeKey(PAYMENTS_KEY, [...all, row]);
+      return ok(row);
+    },
+    cancelPayment: (id, reason) => {
+      const all = readKey<DealerProposalPayment[]>(PAYMENTS_KEY, []);
+      const เดิม = all.find(x => x.id === id);
+      if (!เดิม) return Promise.reject(new Error("ไม่พบบันทึกการชำระนี้"));
+      if (เดิม.cancelledAt) return Promise.reject(new Error("บันทึกการชำระนี้ยกเลิกไปแล้ว"));
+      if (!reason.trim()) return Promise.reject(new Error("ยกเลิกบันทึกการชำระต้องระบุเหตุผล"));
+      const row = { ...เดิม, cancelReason: reason.trim(), cancelledAt: new Date().toISOString() };
+      writeKey(PAYMENTS_KEY, all.map(x => x.id === id ? row : x));
+      return ok(row);
+    },
+    conversionReady: (prospectId) => {
+      const จ่าย = readKey<DealerProposalPayment[]>(PAYMENTS_KEY, []).filter(x => !x.cancelledAt);
+      const ตอบรับ = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []).filter(p => p.prospectId === prospectId && p.status === "accepted");
+      if (!ตอบรับ.length) return ok("ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ — ตอบรับใบแล้วบันทึกการชำระให้ครบก่อน");
+      const ครบ = ตอบรับ.some(p => จ่าย.filter(x => x.proposalId === p.id).reduce((s, x) => s + x.amount, 0) >= Number(p.amount ?? 0));
+      return ok(ครบ ? null : "ยังชำระไม่ครบ");
     },
     remove: (id) => {
       const all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);

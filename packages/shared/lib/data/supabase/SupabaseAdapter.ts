@@ -4,7 +4,7 @@
 // map ตาราง ↔ type ตาม BACKEND-DESIGN.md · ขอบเขตข้อมูล (dealer_code) บังคับด้วย RLS ที่ DB
 // แปลง snake_case (DB) ↔ camelCase (type) ด้วย mappers.ts
 import { เตรียมบันทึกใบ } from "@pms/shared/lib/dealerProposals";
-import type { DealerPackageProposal } from "@pms/shared/lib/data/types";
+import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
@@ -752,6 +752,27 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("dealer_proposal_new_version", { p_id: id });
       if (error) throw new DbError(error.message, error.code);
       return toCamel<DealerPackageProposal>(data as Row);
+    },
+    payments: async (proposalId) => {
+      const { data, error } = await sb().from("dealer_proposal_payments").select("*").eq("proposal_id", proposalId).order("id");
+      if (error) throw new DbError(error.message, error.code);
+      return ((data ?? []) as Row[]).map(r => ({ ...toCamel<DealerProposalPayment>(r), amount: Number(r.amount) }));
+    },
+    addPayment: async (x) => {
+      const { data, error } = await sb().from("dealer_proposal_payments")
+        .insert({ proposal_id: x.proposalId, paid_on: x.paidOn, amount: x.amount, reference: x.reference }).select().single();
+      if (error) throw new DbError(error.message, error.code);
+      return { ...toCamel<DealerProposalPayment>(data as Row), amount: Number((data as Row).amount) };
+    },
+    cancelPayment: async (id, reason) => {
+      const { data, error } = await sb().from("dealer_proposal_payments").update({ cancel_reason: reason }).eq("id", id).select().single();
+      if (error) throw new DbError(error.message, error.code);
+      return { ...toCamel<DealerProposalPayment>(data as Row), amount: Number((data as Row).amount) };
+    },
+    conversionReady: async (prospectId) => {
+      const { data, error } = await sb().rpc("dealer_conversion_ready", { p_prospect: prospectId });
+      if (error) throw new DbError(error.message, error.code);
+      return (data as string | null) ?? null;
     },
     remove: (id) => must(sb().from("dealer_package_proposals").delete().eq("id", id)),
   },

@@ -1,5 +1,5 @@
 {
- "migration": "0207",
+ "migration": "0208",
  "functions": [
   {
    "f": "_dealer_notify_emails(p_dealer text)",
@@ -135,6 +135,13 @@
    "definer": false
   },
   {
+   "f": "dealer_conversion_ready(p_prospect bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
+   "definer": true
+  },
+  {
    "f": "dealer_package_proposals_before_delete()",
    "anon": false,
    "authenticated": false,
@@ -166,6 +173,27 @@
    "f": "dealer_proposal_new_version(p_id bigint)",
    "anon": false,
    "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_proposal_paid_total(p_proposal bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "dealer_proposal_payments_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_proposal_payments_log()",
+   "anon": false,
+   "authenticated": false,
    "service_role": false,
    "definer": true
   },
@@ -224,6 +252,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "dealers_conversion_gate()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "delete_customer_cascade(p_customer_id bigint)",

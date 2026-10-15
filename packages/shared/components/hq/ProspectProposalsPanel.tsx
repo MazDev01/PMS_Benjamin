@@ -21,6 +21,7 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ProposalFormModal } from "@pms/shared/components/hq/ProposalFormModal";
 import { useProposalActions } from "@pms/shared/components/hq/useProposalActions";
+import { ProposalPaymentsBox } from "@pms/shared/components/hq/ProposalPaymentsBox";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -94,7 +95,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
         )}
       </div>
       <div style={{ fontSize: "0.7rem", color: MUTED, marginBottom: 10, lineHeight: 1.6 }}>
-        สร้างดีลเลอร์ใหม่จากรายนี้ได้ ต่อเมื่อมีใบที่ “ส่งแล้ว” หรือ “ตอบรับ” อย่างน้อย 1 ใบ · ส่งแล้วแก้เนื้อหาไม่ได้ ต้องทำเวอร์ชันใหม่
+        สร้างดีลเลอร์ใหม่จากรายนี้ได้ ต่อเมื่อใบ “ตอบรับ” และบันทึกการชำระครบตามใบ · ส่งแล้วแก้เนื้อหาไม่ได้ ต้องทำเวอร์ชันใหม่
       </div>
 
       {/* ออก/แก้ใบ = เปิดฟอร์มในแท็บนี้เลย ไม่เด้งหน้าต่าง (บอสสั่ง 15 ก.ย. 69) · ยกเลิก/บันทึกแล้วกลับเป็นรายการ */}
@@ -175,6 +176,8 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                         </>
                       )}
                     </div>
+                    {/* ตกลง + ชำระ (0208) — บันทึกการชำระได้เฉพาะใบที่ตอบรับ */}
+                    {p.status === "accepted" && <ProposalPaymentsBox proposal={p} editable={editable} />}
                   </div>
                 );
               })}

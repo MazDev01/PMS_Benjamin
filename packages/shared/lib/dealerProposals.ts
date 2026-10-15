@@ -77,7 +77,8 @@ export function ระยะสัญญาอ่านง่าย(เดือ
  *  เซิร์ฟเวอร์เลือกใบด้วยกติกาเดียวกัน (route สร้างดีลเลอร์) — หน้าจอใช้บอกล่วงหน้าว่าเป้าจะตั้งตามใบไหน */
 export function ใบหลักสำหรับตั้งดีลเลอร์<T extends Pick<DealerPackageProposal, "id" | "status">>(list: T[]): T | null {
   const เรียง = [...list].sort((a, b) => b.id - a.id);
-  return เรียง.find(x => x.status === "accepted") ?? เรียง.find(x => x.status === "sent") ?? null;
+  // ตกลง + ชำระ (0208): แปลงจากใบที่ตอบรับเท่านั้น — กติกาเดียวกับเส้นทางสร้างดีลเลอร์
+  return เรียง.find(x => x.status === "accepted") ?? null;
 }
 
 /** มูลค่าอ่านง่าย — ไม่ได้กรอก = "—" ไม่ใช่ ฿0 */

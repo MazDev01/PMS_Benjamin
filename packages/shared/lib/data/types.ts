@@ -126,6 +126,19 @@ export type ProspectContactInput = { prospectId: number; channel: string; body: 
 //   "เหมือนใบเสนอราคาของดีลเลอร์ แต่ของ HQ" · คล้ายแฟรนไชส์แต่ไม่ใช่แฟรนไชส์ (บอสยืนยัน)
 //   ต้องมีใบที่ส่งแล้ว/ตอบรับ ถึงจะสร้างดีลเลอร์ใหม่ได้ · ดู migration 0172 · lib/dealerProposals.ts
 export type DealerPackage = "standard" | "exclusive";
+/** บันทึกการชำระค่าแฟรนไชส์ (0208) — แก้/ลบไม่ได้ ยกเลิกพร้อมเหตุผลแล้วบันทึกใหม่ · ยอดที่ยกเลิกไม่นับ */
+export type DealerProposalPayment = {
+  id: number;
+  proposalId: number;
+  paidOn: string;                // YYYY-MM-DD
+  amount: number;
+  reference: string;
+  createdAt?: string;
+  createdByName?: string | null;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+};
+export type DealerProposalPaymentInput = { proposalId: number; paidOn: string; amount: number; reference: string };
 // expired / superseded ระบบตั้งให้เท่านั้น (เลยวันยืนราคา · ส่งเวอร์ชันใหม่แล้ว · 0207)
 export type DealerProposalStatus = "draft" | "sent" | "accepted" | "rejected" | "expired" | "superseded";
 export type DealerPackageProposal = {

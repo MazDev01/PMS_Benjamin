@@ -239,10 +239,14 @@ export async function ลูกค้าเป้าหมายรองรั�
   const { data, error } = await sb.from("dealer_prospects").insert({ name, status: "considering" }).select("id").single();
   if (error || !data) throw new Error(`สร้างลูกค้าเป้าหมายรองรับสาขา ${code} ไม่สำเร็จ: ${error?.message ?? "ไม่มีข้อมูลคืนมา"}`);
   const id = (data as { id: number }).id;
-  // ต้องมีใบค่าแฟรนไชส์ที่ส่งแล้ว ถึงจะสร้างดีลเลอร์ได้ (บอสสั่ง 14 ก.ย. 69)
-  const { error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: new Date().toISOString().slice(0, 10) });
-  if (ใบErr) throw new Error(`สร้างใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ใบErr.message}`);
+  // ตกลง + ชำระ (ด่าน 4 · 0208): แปลงได้เมื่อใบ "ตอบรับ" + ยอดชำระรวมครบตามใบ
+  //   ใบรองรับสาขาทดสอบไม่ระบุค่าแรกเข้า (ยอด 0) → ตอบรับแล้วแปลงได้เลย ไม่ต้องบันทึกการชำระ
+  //   ข้อทดสอบที่ตรวจการชำระโดยเฉพาะอยู่ที่ franchise_payment_rules.sql / franchise-recruit-flow.spec.ts
+  const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
+    .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: new Date().toISOString().slice(0, 10) }).select("id").single();
+  if (ใบErr || !ใบ) throw new Error(`สร้างใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ใบErr?.message ?? "ไม่มีข้อมูลคืนมา"}`);
+  const { error: ตอบรับErr } = await sb.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", (ใบ as { id: number }).id);
+  if (ตอบรับErr) throw new Error(`ตอบรับใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ตอบรับErr.message}`);
   return id;
 }
 
@@ -257,6 +261,10 @@ export async function เปิดกล่องตั้งดีลเลอ�
   return page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
 }
 
+/** จังหวัดที่ดูแลของสาขาทดสอบที่สร้างผ่านหน้าจอ — จังหวัดภาคตะวันออกที่ยังไม่มีเจ้าของในชุดทดสอบ ห้ามซ้ำกัน
+ *  (ตราด = hq-prospects · จันทบุรี = franchise-recruit-flow) */
+const พื้นที่ของสาขาทดสอบ: Record<string, string> = { ZZEDG: "ฉะเชิงเทรา", ZZC: "ปราจีนบุรี", ZZS: "สระแก้ว" };
+
 /** กรอกกล่องตั้งเป็นดีลเลอร์ให้ครบ (สร้างดีลเลอร์ใหม่) — ไม่กดยืนยัน ให้เทสต์เป็นคนกดเอง */
 export async function เปิดฟอร์มตั้งดีลเลอร์(
   page: Page, code: string, name: string,
@@ -267,6 +275,10 @@ export async function เปิดฟอร์มตั้งดีลเลอ�
   await ตั้ง.locator("#cv-name").fill(name);
   await ตั้ง.locator("#cv-region").selectOption(region);
   await ตั้ง.locator("#cv-province").selectOption(province);
+  // จังหวัดที่ดูแล (ด่าน 4 · หนึ่งจังหวัด หนึ่งดีลเลอร์) — แต่ละรหัสได้จังหวัดว่างของตัวเองตายตัว ไม่ชนกันเมื่อรันพร้อมกัน
+  const พื้นที่ = พื้นที่ของสาขาทดสอบ[code];
+  if (!พื้นที่) throw new Error(`เปิดฟอร์มตั้งดีลเลอร์: ยังไม่ได้กำหนดจังหวัดที่ดูแลของรหัส ${code} — เพิ่มใน พื้นที่ของสาขาทดสอบ (ใช้จังหวัดที่ยังไม่มีเจ้าของ ไม่ซ้ำรหัสอื่น)`);
+  await ตั้ง.getByRole("group", { name: /จังหวัดที่ดูแล/ }).getByLabel(`ดูแลจังหวัด ${พื้นที่}`).check();
   return ตั้ง;
 }
 

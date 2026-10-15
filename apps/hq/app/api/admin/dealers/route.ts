@@ -108,8 +108,6 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     return bad(400, "ดีลเลอร์ต้องสร้างจากลูกค้าเป้าหมายที่สำเร็จแล้ว — เริ่มที่หน้า “ลูกค้าเป้าหมาย (HQ)”");
   }
   const prospectId = Number(body.prospectId);
-  // ใบค่าแฟรนไชส์ที่จะตั้งเป็น "ตอบรับ" หลังสร้างสาขาสำเร็จ (null = มีใบที่ตอบรับอยู่แล้ว ไม่ต้องแตะ)
-  let ใบที่จะตอบรับ: number | null = null;
   // แพ็กเกจของสาขา = แพ็กเกจของใบหลัก → เป้ายอดขายเชื่อมกับแพ็กเกจ (0178 · บอสสั่ง 15 ก.ย. 69)
   let แพ็กเกจ: string | null = null;
   {
@@ -123,23 +121,25 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     if (!pr) return bad(404, "ไม่พบลูกค้าเป้าหมายรายนี้แล้ว — อาจถูกลบไปก่อนหน้า");
     if (pr.status === "won" && pr.dealer_code) return bad(409, `ลูกค้าเป้าหมายรายนี้เป็นดีลเลอร์แล้ว (รหัส ${pr.dealer_code})`);
 
-    // ── ต้องมี "ใบค่าแฟรนไชส์" ที่ส่งแล้วหรือตอบรับ อย่างน้อย 1 ใบ (บอสสั่ง 14 ก.ย. 69) ──
-    //   กติกาเดียวกับฝั่งดีลเลอร์ที่ปิดการขายไม่ได้ถ้ายังไม่มีใบเสนอราคาที่ส่งแล้ว (0145)
-    //   ใบร่าง/ปฏิเสธไม่นับ · ตรวจก่อนสร้างบัญชี ไม่ทิ้งบัญชีกำพร้า
-    const { data: ใบ, error: ใบErr } = await admin.from("dealer_package_proposals")
-      .select("id, status, annual_target, package").eq("prospect_id", prospectId).in("status", ["sent", "accepted"])
-      .order("id", { ascending: false });
-    if (ใบErr) {
-      console.error("[create-dealer] ตรวจใบค่าแฟรนไชส์ไม่สำเร็จ", ใบErr);
+    // ── ตกลง + ชำระ (ด่าน 4 · บอสตัดสิน 15 ต.ค. 69 · 0208) ──
+    //   แปลงได้เมื่อ ใบค่าแฟรนไชส์ตอบรับ + ยอดชำระรวม (ไม่นับที่ยกเลิก) ≥ ยอดในใบ — ฐานข้อมูลตอบ (dealer_conversion_ready)
+    //   ตรวจ "ก่อน" สร้างบัญชี ไม่ทิ้งบัญชีกำพร้า · ฐานข้อมูลบังคับซ้ำตอนเพิ่มแถวดีลเลอร์ (dealers.prospect_id)
+    //   (เดิม 14 ก.ย. 69: แค่มีใบที่ส่งแล้วก็แปลงได้ แล้วระบบตั้งใบนั้นเป็นตอบรับให้เอง)
+    const { data: ยังไม่พร้อม, error: พร้อมErr } = await admin.rpc("dealer_conversion_ready", { p_prospect: prospectId });
+    if (พร้อมErr) {
+      console.error("[create-dealer] ตรวจความพร้อมแปลงไม่สำเร็จ", พร้อมErr);
       return bad(503, "ตรวจใบค่าแฟรนไชส์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
     }
-    if (!ใบ?.length) {
-      return bad(400, "ต้องส่งใบค่าแฟรนไชส์ให้รายนี้ก่อน อย่างน้อย 1 ใบ — แล้วค่อยตั้งเป็นดีลเลอร์");
+    if (ยังไม่พร้อม) return bad(400, `ยังแปลงเป็นดีลเลอร์ไม่ได้ — ${ยังไม่พร้อม}`);
+    const { data: ใบ, error: ใบErr } = await admin.from("dealer_package_proposals")
+      .select("id, status, annual_target, package").eq("prospect_id", prospectId).eq("status", "accepted")
+      .order("id", { ascending: false });
+    if (ใบErr || !ใบ?.length) {
+      console.error("[create-dealer] อ่านใบค่าแฟรนไชส์ที่ตอบรับไม่สำเร็จ", ใบErr);
+      return bad(503, "ตรวจใบค่าแฟรนไชส์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
     }
-    ใบที่จะตอบรับ = ใบ.some(x => x.status === "accepted") ? null : Number(ใบ[0].id);
-    // เป้ายอดขายรายปีของสาขา = เป้ายอดซื้อต่อปีในใบหลัก (ตอบรับล่าสุด ไม่มีค่อยใช้ส่งแล้วล่าสุด)
-    //   กติกาเดียวกับหน้าจอ (ใบหลักสำหรับตั้งดีลเลอร์) · ใบไม่ระบุ = ใช้ค่าที่ส่งมา (หน้าจอส่ง 0)
-    const ใบหลัก = ใบ.find(x => x.status === "accepted") ?? ใบ[0];
+    // เป้ายอดขายรายปีของสาขา = เป้ายอดซื้อต่อปีในใบที่ตอบรับล่าสุด (0206: เป้าในใบชนะ) · ใบไม่ระบุ = ใช้ค่าที่ส่งมา (หน้าจอส่ง 0)
+    const ใบหลัก = ใบ[0];
     แพ็กเกจ = ใบหลัก.package === "standard" || ใบหลัก.package === "exclusive" ? ใบหลัก.package : null;
     if (ใบหลัก.annual_target != null && Number.isFinite(Number(ใบหลัก.annual_target)) && Number(ใบหลัก.annual_target) >= 0) {
       revenueTarget = Number(ใบหลัก.annual_target);
@@ -219,6 +219,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   try {
     await must(admin.from("dealers").insert({
       code, name, province, region, revenue_target: revenueTarget, status: "active", package: แพ็กเกจ,
+      prospect_id: prospectId,   // ด่านในฐาน (0208): ผูกผู้สนใจแล้วต้องตอบรับ + ชำระครบ
     }));
     if (พื้นที่.length) {
       await must(admin.from("dealer_territories").insert(พื้นที่.map(p => ({ province: p, dealer_code: code }))));
@@ -245,7 +246,11 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     } catch (re) { console.error(`[create-dealer] ย้อนลบทะเบียนสาขา ${code} ไม่สำเร็จ`, re); }
     // ถึงตรงนี้แปลว่าคำขอผ่านการตรวจความถูกต้องมาหมดแล้ว — ที่พังคือฝั่งเซิร์ฟเวอร์ ไม่ใช่ข้อมูลที่กรอก
     // ยกเว้น: จังหวัดถูกกำหนดให้ดีลเลอร์อื่นระหว่างทาง (ตัวดักของฐาน 0195) — เป็นเรื่องที่ผู้ใช้แก้ได้ ไม่ใช่ระบบขัดข้อง
-    if (/territory_taken/.test(String((e as Error)?.message ?? e))) {
+    const ข้อความ = String((e as Error)?.message ?? e);
+    // ยอดชำระถูกยกเลิกระหว่างตรวจกับเพิ่มแถว (ด่านในฐาน 0208) — บอกเหตุผลจริง
+    const ยังไม่พร้อม = /conversion_not_ready: (.*)/.exec(ข้อความ);
+    if (ยังไม่พร้อม) return bad(409, `ยังแปลงเป็นดีลเลอร์ไม่ได้ — ${ยังไม่พร้อม[1]}`);
+    if (/territory_taken/.test(ข้อความ)) {
       return bad(409, "มีจังหวัดที่เลือกถูกกำหนดให้ดีลเลอร์อื่นไปแล้วระหว่างนี้ — โหลดใหม่แล้วเลือกจังหวัดอีกครั้ง");
     }
     console.error(`[create-dealer] สร้างทะเบียน/โปรไฟล์สาขา ${code} ไม่สำเร็จ`, e);
@@ -265,13 +270,6 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     prospectLinked = !linkErr;
     if (linkErr) console.error(`[create-dealer] ผูกลูกค้าเป้าหมาย #${prospectId} กับสาขา ${code} ไม่สำเร็จ`, linkErr);
     else await auditLog(admin, prof, "ลูกค้าเป้าหมายเป็นดีลเลอร์แล้ว", `#${prospectId} → ${code} · ${name}`);
-    // สาขาเกิดจากใบนี้ → ใบล่าสุดที่ส่งแล้วถือว่า "ตอบรับ" (แบบเดียวกับใบเสนอราคาที่ปิดการขายแล้วกลายเป็นตอบรับ)
-    //   ล้มตรงนี้ไม่ย้อนการสร้างสาขา แต่ต้องมีร่องรอย
-    if (ใบที่จะตอบรับ !== null) {
-      const { error: ตอบรับErr } = await admin.from("dealer_package_proposals")
-        .update({ status: "accepted" }).eq("id", ใบที่จะตอบรับ);
-      if (ตอบรับErr) console.error(`[create-dealer] ตั้งใบค่าแฟรนไชส์ #${ใบที่จะตอบรับ} เป็นตอบรับไม่สำเร็จ`, ตอบรับErr);
-    }
   }
   // คืนรหัสให้หน้าจอโชว์ให้ก๊อปไปแจ้งดีลเลอร์ (และเก็บสำเนาเข้ารหัสไว้ให้ HQ เปิดดูภายหลังได้)
   return NextResponse.json({ ok: true, email, password, prospectLinked });

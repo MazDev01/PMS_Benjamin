@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { test, expect } from "@playwright/test";
 import { กดตกลงในกล่องยืนยัน, ดักข้อความแจ้งเตือน } from "./helpers";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
-import { ลบสาขาทดสอบตรง } from "./testDealers";
+import { ลบสาขาทดสอบตรง, adminClient } from "./testDealers";
 import {
   HQ_ORIGIN, DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
   db, waitRow, waitGone, TAG, เปิดฟอร์มตั้งดีลเลอร์, เปิดกล่องตั้งดีลเลอร์,
@@ -32,9 +32,11 @@ test.beforeAll(async () => {
   await purgeDealerAccount(NEW_CODE);
   await sb.from("dealers").delete().in("code", [CODE, NEW_CODE]);
   await sb.from("master_catalog").delete().like("name", `%${TAG}%`);
-  // fixture: สาขาที่ "มีอยู่แล้ว" สำหรับเทสต์ตัวกรอง/ลบ — ใส่ตรงผ่าน ADMIN
-  // (การสร้างดีลเลอร์ "พร้อมบัญชี" ต้องใช้ service_role ที่เซิร์ฟเวอร์ · เทสต์ตัวกรอง/ลบไม่ควรผูกกับเรื่องนั้น)
-  await sb.from("dealers").insert({ code: CODE, name: DEALER_NAME, province: "ระยอง", region: "ตะวันออก", status: "active" });
+  // fixture: สาขาที่ "มีอยู่แล้ว" สำหรับเทสต์ตัวกรอง/ลบ — ใส่ตรงด้วยสิทธิ์เซิร์ฟเวอร์
+  //   บัญชี HQ เพิ่มแถวดีลเลอร์ตรงไม่ได้แล้ว (ต้องมาจากผู้สนใจที่ตอบรับ + ชำระครบ · ฐานข้อมูลบังคับ 0208)
+  //   เทสต์ตัวกรอง/ลบไม่ควรผูกกับเรื่องนั้น จึงใช้ทางเดียวกับสคริปต์ลงทะเบียนสาขาตั้งต้น
+  const ใส่ = await adminClient().from("dealers").insert({ code: CODE, name: DEALER_NAME, province: "ระยอง", region: "ตะวันออก", status: "active" });
+  if (ใส่.error) throw new Error(`ใส่สาขาทดสอบ ${CODE} ไม่สำเร็จ: ${ใส่.error.message}`);
 });
 test.afterAll(async () => {
   const sb = await db(ADMIN);
