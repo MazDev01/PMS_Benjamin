@@ -87,7 +87,18 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(multi-dealer-stress|catalog-price-switch|setup-ready)\.spec\.ts/,
+      testIgnore: /(multi-dealer-stress|catalog-price-switch|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects)\.spec\.ts/,
+      dependencies: ["setup"],
+    },
+    {
+      // ── ไฟล์ที่แก้ค่าตั้งค่ากลางของ HQ ชุดเดียวกัน — รันทีละไฟล์ ─────────────────────────────────
+      // dealer-package-target ตั้งเป้าของแพ็กเกจ standard ชั่วคราว (ค่ากลางทั้งระบบ · ตัวดัก 0178 เขียนทับเป้าสาขาในแพ็กเกจ)
+      //   รันพร้อม hq-prospects ซึ่งสร้างสาขาแพ็กเกจ standard → เป้าสาขาได้ 3,000,000 แทน 12,000,000 ตามใบ (รอบปิดด่าน 3 จับได้)
+      //   hq-recruit-settings ก็แก้ค่าตั้งต้นใบเสนอแพ็กเกจชุดเดียวกัน · แยกโปรเจกต์ workers: 1 = ไม่มีวันคาบเกี่ยวกัน
+      name: "hq-settings",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects)\.spec\.ts/,
+      workers: 1,
       dependencies: ["setup"],
     },
     {

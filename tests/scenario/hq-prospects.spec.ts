@@ -47,7 +47,31 @@ async function cleanupProspects() {
   if (error) console.warn("[hq-prospects] ล้างข้อมูลทดสอบไม่สำเร็จ", error.message);
 }
 
+// ข้อ "ตั้งเป็นดีลเลอร์ใหม่" ตรวจว่าเป้าสาขามาจากใบเสนอ — เงื่อนไขคือแพ็กเกจยังไม่ได้ตั้งเป้า
+//   ถ้าแพ็กเกจตั้งเป้าไว้ ตัวดัก 0178 ใช้เป้าของแพ็กเกจแทน (เป้าในใบถูกทับ) ข้อนี้จึงต้องตั้งเงื่อนไขเอง ไม่พึ่งค่าที่ค้างในฐาน
+//   (รอบปิดระยะ 4 · 15 ต.ค. 69: รอบก่อนถูกหยุดกลางทาง เป้า standard 3,000,000 ค้างในฐาน → ข้อนี้ได้ 3,000,000 แทน 12,000,000)
+//   ไฟล์นี้อยู่โปรเจกต์ hq-settings (workers: 1) — แก้ค่ากลางชุดนี้ได้โดยไม่ชนไฟล์อื่น
+let ค่าตั้งเดิม: unknown = undefined;
+async function ปิดเป้าแพ็กเกจ() {
+  if (!ADMIN_SERVICE_ROLE_KEY) return;
+  const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  const เดิม = ((await admin.from("hq_recruit_settings").select("config").eq("id", 1).maybeSingle()).data as { config: Record<string, unknown> } | null)?.config;
+  if (!เดิม) return;
+  ค่าตั้งเดิม = เดิม;
+  const proposal = (เดิม.proposal && typeof เดิม.proposal === "object" ? เดิม.proposal : {}) as Record<string, unknown>;
+  const ไม่มีเป้า = { annualTarget: null, targetsByRegion: {} };
+  const { error } = await admin.from("hq_recruit_settings")
+    .update({ config: { ...เดิม, proposal: { ...proposal, packages: { standard: ไม่มีเป้า, exclusive: ไม่มีเป้า } } } }).eq("id", 1);
+  if (error) throw new Error(`ปิดเป้าแพ็กเกจไม่สำเร็จ: ${error.message}`);
+}
+async function คืนค่าตั้งเดิม() {
+  if (!ADMIN_SERVICE_ROLE_KEY || ค่าตั้งเดิม === undefined) return;
+  const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  await admin.from("hq_recruit_settings").update({ config: ค่าตั้งเดิม }).eq("id", 1);
+}
+
 test.beforeAll(async () => {
+  await ปิดเป้าแพ็กเกจ();
   await cleanupProspects();
   await purgeNoAccountDealer();
   await purgeDealer(NEW_CODE);
@@ -58,6 +82,7 @@ test.afterAll(async () => {
   await purgeNoAccountDealer();
   await purgeDealer(NEW_CODE);
   await purgeDealer(DUP_CODE);
+  await คืนค่าตั้งเดิม();
 });
 
 test("[security] ดีลเลอร์มองไม่เห็น และเขียนลูกค้าเป้าหมายของสำนักงานใหญ่ไม่ได้", async () => {
