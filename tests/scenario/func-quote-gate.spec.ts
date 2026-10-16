@@ -37,13 +37,14 @@ async function seedLead() {
   //   งาน "จัดทำใบเสนอราคา" เลยถูกล็อกด้วยกฎ "ทำงานก่อนหน้าให้ครบก่อน" แล้วเทสต์ล้ม
   //   ทั้งที่ไม่เกี่ยวกับสิ่งที่เทสต์นี้ตรวจเลย · อ่านเส้นทางจริงมาใช้ = ไม่ผูกกับคีย์ตายตัวอีก
   const { data: journey } = await sb.from("hq_sales_journey").select("tasks").eq("id", 1).maybeSingle();
+  // งาน "ส่งแม่แบบให้ลูกค้า" (key catalog) เลิกใช้แล้ว 16 ต.ค. 69 — แอปไม่แสดง (normalizeLeadTaskTemplate) จึงไม่ seed ด้วย
   const tpl = (journey?.tasks as { key: string; label: string }[] | null)?.length
-    ? (journey!.tasks as { key: string; label: string }[])
+    ? (journey!.tasks as { key: string; label: string }[]).filter(t => t.key !== "catalog")
     : [
         { key: "contact", label: "ติดต่อแล้ว" }, { key: "collect", label: "เก็บข้อมูลลูกค้า" },
         { key: "appointment", label: "นัดหมาย" }, { key: "requirement", label: "สรุปความต้องการ" },
         { key: "makeQuote", label: "จัดทำใบเสนอราคา" }, { key: "sendQuote", label: "ส่งใบเสนอราคา" },
-        { key: "catalog", label: "ส่งแม่แบบให้ลูกค้า" }, { key: "followup", label: "ติดตามผล" },
+        { key: "followup", label: "ติดตามผล" },
         { key: "negotiate", label: "เจรจาต่อรอง" }, { key: "close", label: "ปิดการขาย / ไม่สำเร็จ" },
       ];
   const เริ่มขั้นเสนอราคา = tpl.findIndex(t => t.key === "makeQuote");
@@ -172,19 +173,13 @@ test("[func] กดส่งใบจริง → ระบบติ๊กง�
 
   await page.getByTitle("ส่งใบเสนอราคา").first().click();
 
-  // ── ต้องถามก่อนว่าแนบแม่แบบไปด้วยไหม (บอสสั่ง 21 ส.ค. 69) ────────────────────
-  //   ห้ามส่งทันทีแบบเงียบ ๆ — แม่แบบเป็นเอกสารคนละใบ เซลส์ต้องเป็นคนตัดสินใจ
-  await expect(page.getByText("ส่ง แม่แบบ (สเปกสินค้า) ไปให้ลูกค้าพร้อมใบเสนอราคาด้วยไหม")
-    .or(page.getByText(/ไปให้ลูกค้าพร้อมใบเสนอราคาด้วยไหม/)),
-  "กดส่งแล้วต้องมีกล่องถามเรื่องแม่แบบก่อน").toBeVisible({ timeout: 15_000 });
-  await page.getByRole("button", { name: /แนบแม่แบบไปด้วย/ }).click();
-
-  // ข้อความแจ้งต้องบอกด้วยว่า "แม่แบบไปกับใบ" (บอสสั่ง 21 ส.ค. 69)
-  //   ⚠️ ข้อความโผล่ ~2.6 วินาทีแล้วหายเอง — ต้องเฝ้าดูแบบถี่ ๆ ไม่งั้นจับไม่ทันเป็นบางครั้ง
+  // ── กดส่ง = ส่งทันที ไม่มีกล่องถาม "แนบแม่แบบไปด้วยไหม" แล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) ─────────
+  //   ⚠️ ข้อความแจ้งโผล่ ~2.6 วินาทีแล้วหายเอง — ต้องเฝ้าดูแบบถี่ ๆ ไม่งั้นจับไม่ทันเป็นบางครั้ง
   await page.waitForFunction(
-    () => /ส่งใบเสนอราคา .* พร้อมแม่แบบ/.test(document.body.innerText),
+    () => /ส่งใบเสนอราคา \S+ ให้ลูกค้าแล้ว/.test(document.body.innerText),
     undefined, { timeout: 20_000, polling: 100 },
   );
+  await expect(page.getByText(/แนบแม่แบบ|พร้อมใบเสนอราคาด้วยไหม/), "ต้องไม่มีกล่องถามเรื่องแม่แบบ").toHaveCount(0);
 
   const sb = await db(RYG);
   await expect.poll(async () => {
@@ -192,12 +187,6 @@ test("[func] กดส่งใบจริง → ระบบติ๊กง�
       .data as { tasks?: { key: string; done: boolean }[] };
     return l.tasks?.find(t => t.key === "sendQuote")?.done;
   }, { timeout: 20_000, message: "ส่งใบจริงแล้วระบบต้องติ๊กงานให้เอง" }).toBe(true);
-
-  // ส่งใบ = ส่งแม่แบบไปด้วย → งาน "ส่งแม่แบบให้ลูกค้า" ต้องถูกติ๊กพร้อมกัน ไม่ค้างให้ติ๊กเองทีหลัง
-  const หลังส่ง = (await sb.from("leads").select("tasks").eq("company", COMPANY).single())
-    .data as { tasks?: { key: string; done: boolean }[] };
-  expect(หลังส่ง.tasks?.find(t => t.key === "catalog")?.done,
-    "ส่งใบแล้วงาน 'ส่งแม่แบบให้ลูกค้า' ต้องถูกติ๊กด้วย").toBe(true);
 
   const q = (await sb.from("quotations").select("status").eq("customer", COMPANY).limit(1).single()).data as { status: string };
   expect(q.status, "ใบต้องเปลี่ยนเป็น 'ส่งแล้ว' จริง").toBe("sent_to_client");

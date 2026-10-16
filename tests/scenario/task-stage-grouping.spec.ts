@@ -28,7 +28,6 @@ async function seedLead() {
       { key: "requirement", label: "สรุปความต้องการ", done: false },
       { key: "makeQuote", label: "จัดทำใบเสนอราคา", done: false },
       { key: "sendQuote", label: "ส่งใบเสนอราคา", done: false },
-      { key: "catalog", label: "ส่งแม่แบบให้ลูกค้า", done: false },
       { key: "followup", label: "ติดตามผล", done: false },
       { key: "negotiate", label: "เจรจาต่อรอง", done: false },
       { key: "close", label: "ปิดการขาย / ไม่สำเร็จ", done: false },
@@ -50,7 +49,7 @@ test("[func] แท็บงานจัดกลุ่มตามขั้น�
   await page.getByRole("button", { name: "งาน", exact: true }).first().click();
 
   const head = (stage: string) => page.locator(`[data-stage-head="${stage}"]`);
-  // งานทั้ง 8 (ไม่รวมงานปิดการขาย) ต้องอยู่ใต้หัวขั้นของมันจริง ไม่ใช่รายการเรียบ
+  // งานทุกตัว (ไม่รวมงานปิดการขาย) ต้องอยู่ใต้หัวขั้นของมันจริง ไม่ใช่รายการเรียบ
   for (const s of ["WAITING", "BULLET", "QUOTED", "FOLLOWUP", "NEGO"]) {
     await expect(head(s), `ต้องมีหัวขั้น ${s}`).toBeVisible({ timeout: 20_000 });
   }
@@ -73,10 +72,13 @@ test("[func] แท็บงานจัดกลุ่มตามขั้น�
   const { data: journey } = await sb.from("hq_sales_journey").select("tasks").eq("id", 1).maybeSingle();
   const ตามเส้นทาง = ((journey?.tasks as { key?: string; label: string }[] | null) ?? [])
     .filter(t => t.key !== "close")
+    // งาน "ส่งแม่แบบให้ลูกค้า" (key catalog) เลิกใช้ 16 ต.ค. 69 — ฐานอาจยังมีในเส้นทางเดิม แต่แอปไม่แสดง (normalizeLeadTaskTemplate)
+    .filter(t => t.key !== "catalog")
     .map(t => t.label);
   const labels = await page.locator("[data-stage-head] ~ div button span:nth-child(2) > span:first-child").allInnerTexts();
   expect(labels.map(s => s.trim()).slice(0, ตามเส้นทาง.length),
     "ลำดับงานบนหน้าจอต้องตรงกับเส้นทางการขายที่สำนักงานใหญ่ตั้งไว้").toEqual(ตามเส้นทาง);
+  await expect(page.getByText("ส่งแม่แบบให้ลูกค้า"), "งานส่งแม่แบบเลิกใช้แล้ว ต้องไม่ขึ้นในแท็บงาน").toHaveCount(0);
 
   assertNoErrors(errs, "จัดกลุ่มงานตามขั้น");
 });

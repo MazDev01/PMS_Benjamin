@@ -3,7 +3,7 @@ import { กดตกลงในกล่องยืนยัน, มีกล
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, waitRow, cleanup, specNS, nsTag, pickTemplate, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
+  db, waitRow, cleanup, specNS, nsTag, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
 // ── E2E audit: end-to-end sales journey coverage NOT already in func-quote-win/func-dealer-sales ──
 // โฟกัส: (1) ปิดการขายผ่านลูกค้าเป้าหมายโดยไม่เคยส่ง/ตอบรับใบเสนอราคา (2) ดีลที่สองของลูกค้าเดิม — ยอดรวม
@@ -16,8 +16,7 @@ test.describe.configure({ mode: "serial" });
 const NS = specNS("AUDIT");
 const tg = nsTag(NS);
 
-// ตั้งยอดใบเสนอราคาให้เป็นค่าที่รู้แน่นอน หลังสร้างจริงผ่าน UI แล้ว (ต้องเลือกแม่แบบก่อนถึงสร้างได้ —
-// ปุ่มสร้างใบถูก disable ถ้า BOQ ว่าง, ดู H-audit fix) — override เป็นเลขที่จำง่าย/พิสูจน์ผลรวมได้ชัด
+// ตั้งยอดใบเสนอราคาให้เป็นค่าที่รู้แน่นอน หลังสร้างจริงผ่าน UI แล้ว — override เป็นเลขที่จำง่าย/พิสูจน์ผลรวมได้ชัด
 // แทนยอดจริงจาก area×ราคากลาง ซึ่งคำนวณผ่านได้แต่ตัวเลขไม่กลมพอจะอ่าน assertion ตามให้ทัน
 //
 // ⚠️ ต้องเปลี่ยนรายการ BOQ ให้ตรงกับยอดใหม่ด้วย — ฐานข้อมูลบังคับว่ายอดต้องเท่ากับ Σ รายการเสมอ (0142)
@@ -48,7 +47,6 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await pickTemplate(page); // ต้องเลือกแม่แบบจริง ไม่งั้น BOQ ว่าง → ปุ่มสร้างใบถูก disable (H-audit fix)
   await page.getByRole("button", { name: "บันทึก" }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
@@ -126,7 +124,6 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
     await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
     await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
     await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-    await pickTemplate(page); // ต้องเลือกแม่แบบจริง ไม่งั้น BOQ ว่าง → ปุ่มสร้างใบถูก disable (H-audit fix)
     await page.getByRole("button", { name: "บันทึก" }).click();
     await waitRow(sb, "leads", { company });
 
@@ -186,10 +183,6 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
   await expect(newDealBtn, "ต้องมีปุ่มสร้างดีลใหม่ในหน้ารายละเอียดลูกค้า").toBeVisible({ timeout: 10_000 });
   await newDealBtn.click();
   await expect(page.getByRole("button", { name: "เพิ่มงานขาย", exact: true })).toBeVisible({ timeout: 10_000 });
-  // dealForm.product เริ่มที่ "" เสมอ (ไม่ได้ดึงจาก category ของลูกค้าอัตโนมัติแบบที่คอมเมนต์เดิมเข้าใจผิด
-  // ไว้ — select ที่ไม่มี option ตรงค่า "" แค่ "โชว์" ตัวเลือกแรกตามพฤติกรรม browser เฉยๆ ไม่ได้เซ็ตค่าจริง
-  // ทำให้ลูกค้าเป้าหมายดีลใหม่ได้ product="" แล้ว BOQ ว่าง → ปุ่มสร้างใบถูก disable แบบสุ่ม/แล้วแต่จังหวะโหลดแคตตาล็อก)
-  await pickTemplate(page, "แม่แบบ"); // ต้องเลือกแม่แบบจริง ไม่งั้นปุ่มเพิ่มงานขายถูกปิด
   // งานขายที่ไม่มีทั้งพื้นที่และมูลค่าประเมิน ระบบตั้งจำนวนในใบเสนอราคาให้ไม่ได้ (จำนวน 0 → ยอด ฿0 → ปุ่มสร้างใบถูกปิด
   //   ตามกติกา "ห้ามออกใบ ฿0" · boq.ts) — ดีลแรกกรอกพื้นที่ไว้ ดีลที่สองต้องกรอกเหมือนกัน (พบ 12 ต.ค. 69: ข้อนี้ตกเพราะไม่ได้กรอก)
   await page.getByPlaceholder("เช่น 1200", { exact: true }).last().fill("300");
@@ -254,7 +247,6 @@ test("[audit] ลบใบเสนอราคาที่ won แล้ว —
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await pickTemplate(page); // ต้องเลือกแม่แบบจริง ไม่งั้น BOQ ว่าง → ปุ่มสร้างใบถูก disable (H-audit fix)
   await page.getByRole("button", { name: "บันทึก" }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
@@ -372,7 +364,6 @@ test("[audit] cross-role: ดีลเลอร์ปิดการขาย �
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await pickTemplate(page); // ต้องเลือกแม่แบบจริง ไม่งั้น BOQ ว่าง → ปุ่มสร้างใบถูก disable (H-audit fix)
   await page.getByRole("button", { name: "บันทึก" }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 

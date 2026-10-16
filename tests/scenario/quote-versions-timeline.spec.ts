@@ -57,9 +57,8 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
     (await sb.from("quotations").select("id,revision,status").eq("customer", COMPANY)).data?.length ?? 0,
     { timeout: 30_000, message: "ต้องมีใบเสนอราคาใน DB" }).toBeGreaterThan(0);
 
-  // ส่งให้ลูกค้า (แนบแม่แบบ)
+  // ส่งให้ลูกค้า — กดแล้วส่งทันที (ไม่มีกล่องถามแนบแม่แบบแล้ว · เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   await page.getByTitle("ส่งใบเสนอราคา").first().click();
-  await page.getByRole("button", { name: /แนบแม่แบบไปด้วย/ }).click();
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("customer", COMPANY).limit(1).single()).data?.status,
     { timeout: 30_000, message: "ใบต้องถูกส่งจริง" }).toBe("sent_to_client");
@@ -74,7 +73,7 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
     const l = (await sb.from("leads").select("activities").eq("company", COMPANY).single())
       .data as { activities?: { text: string }[] };
     return (l.activities ?? []).map(a => a.text).join(" | ");
-  }, { timeout: 30_000, message: "ร่องรอย 'ส่งใบพร้อมแม่แบบ' ต้องลงไทม์ไลน์ก่อน" }).toMatch(/พร้อมแม่แบบ/);
+  }, { timeout: 30_000, message: "ร่องรอย 'ส่งใบให้ลูกค้า' ต้องลงไทม์ไลน์ก่อน" }).toMatch(/ส่งใบเสนอราคา \S+ \(V1\) ให้ลูกค้า/);
 
   // แก้ใบที่ส่งไปแล้ว → ต้องขึ้นเป็น V2
   // ⚠️ getByTitle("แก้ไข") ไปโดนช่องมูลค่าในตาราง ("คลิกเพื่อแก้ไขมูลค่า") — ต้องเจาะจงในแผงใบเสนอราคา
@@ -94,7 +93,7 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
       .data as { activities?: { text: string }[] };
     return (l.activities ?? []).map(a => a.text).join(" | ");
   }, { timeout: 30_000, message: "ต้องมีร่องรอยครบทั้งออกใบ/ส่งใบ/แก้เป็น V2" })
-    .toMatch(/ออกใบเสนอราคา[\s\S]*พร้อมแม่แบบ[\s\S]*ฉบับ V2/);
+    .toMatch(/ออกใบเสนอราคา[\s\S]*ส่งใบเสนอราคา \S+ \(V1\) ให้ลูกค้า[\s\S]*ฉบับ V2/);
 
   const lead = (await sb.from("leads").select("activities").eq("company", COMPANY).single())
     .data as { activities?: { id: number; text: string; date?: string }[] };

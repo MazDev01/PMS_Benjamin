@@ -6,13 +6,13 @@ import { open, assertHealthyPage } from "./helpers";
 
 const DEALER_PAGES = [
   ["/dashboard", "แดชบอร์ดดีลเลอร์"], ["/leads", "ลูกค้าเป้าหมาย"], ["/customers", "ลูกค้า"],
-  ["/quotations", "ใบเสนอราคา"], ["/products", "แม่แบบ"], ["/calendar", "ปฏิทิน"],
+  ["/quotations", "ใบเสนอราคา"], ["/calendar", "ปฏิทิน"],
   ["/files", "ไฟล์"], ["/settings", "ตั้งค่า Dealer"],
 ] as const;
 
 const HQ_PAGES = [
   ["/hq/dashboard", "แดชบอร์ด HQ"], ["/hq/dealers", "ดีลเลอร์"], ["/hq/customers", "ลูกค้าทั้งเครือ"],
-  ["/hq/pipeline", "ภาพรวมยอดขาย"], ["/hq/quotations", "ใบเสนอราคาทั้งเครือ"], ["/hq/master", "แคตตาล็อก"],
+  ["/hq/pipeline", "ภาพรวมยอดขาย"], ["/hq/quotations", "ใบเสนอราคาทั้งเครือ"],
   ["/hq/audit", "บันทึกการใช้งาน"], ["/hq/settings", "ตั้งค่า HQ"],
 ] as const;
 

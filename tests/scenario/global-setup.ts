@@ -131,7 +131,6 @@ export default async function globalSetup() {
   if (สาขาค้าง.พลาด.length) throw new Error(`[global-setup] กวาดสาขาทดสอบที่ค้างไม่สำเร็จ — แก้ก่อนรัน ไม่งั้นผลรอบนี้เชื่อไม่ได้: ${สาขาค้าง.พลาด.join(" · ")}`);
   await teardownBaseline(admin);
   await restoreAlertsIfPending(admin); // เผื่อรันค้างจากรอบก่อน (ไม่งั้น snapshot ที่ค้างจะทับของจริงตอน teardown รอบนี้)
-  await ต้องไม่มีสวิตช์ซ่อนราคาเปิดค้าง(admin);
   // บัญชีทดสอบหลัก (RYG / CNX) มีอีเมลติดต่อที่ยืนยันแล้ว — ไม่งั้นแถบเตือนอีเมล (ด่าน 1) ขึ้นทุกหน้าของดีลเลอร์
   //   แล้วข้อทดสอบหน้าจอที่ไม่เกี่ยวกับอีเมลเห็นหน้าตาต่างไป · ข้อทดสอบของแถบเตือนใช้สาขาทดสอบของตัวเอง
   await admin.from("profiles").update({ contact_email_verified_at: new Date().toISOString() })
@@ -151,7 +150,7 @@ export default async function globalSetup() {
   await admin.from("hq_notif_rules").update({
     alerts: {
       prospectFollowUpDue: allOn, prospectIdle: allOn, proposalAwaiting: allOn,
-      proposalExpired: allOn, catalogNoPrice: allOn,
+      proposalExpired: allOn,
     },
   }).eq("id", 1);
 
@@ -250,25 +249,6 @@ export default async function globalSetup() {
 //
 // เปิดทีละหน้าแบบเรียงกัน ไม่ยิงพร้อมกัน — ยิงพร้อมกันคือการสร้างปัญหาเดิมซ้ำตั้งแต่ตอนอุ่นเครื่อง
 // ⚠️ ล้มเหลวตรงนี้ต้องไม่ทำให้ทั้งชุดล้ม — นี่เป็นแค่การอุ่นเครื่อง ไม่ใช่การตรวจ
-/** ชุดหลักเริ่มได้ก็ต่อเมื่อสวิตช์ซ่อนราคาแม่แบบ "ปิด" — เปิดค้าง = หยุดทันทีพร้อมบอกวิธีแก้
- *
- *  สวิตช์ hq_policy.hide_catalog_price ถูกเปิดโดยชุด price-switch (catalog-price-switch.spec.ts) เท่านั้น
- *  และชุดนั้นปิดคืนให้เองทุกครั้ง (afterAll + global-teardown) — ถ้ายังเปิดอยู่ตอนเริ่ม แปลว่ารอบก่อนถูกฆ่ากลางทาง
- *  ปล่อยให้รันต่อ = ดีลเลอร์ในชุดทดสอบอ่านราคาแม่แบบไม่ได้ ข้อทดสอบออกใบเสนอราคาตกเป็นสิบข้อ
- *  ด้วยอาการ "ปุ่มกดไม่ได้" ที่ไม่มีอะไรชี้กลับมาที่สวิตช์เลย — หยุดตรงนี้ชัดกว่า */
-async function ต้องไม่มีสวิตช์ซ่อนราคาเปิดค้าง(admin: SupabaseClient) {
-  const { data, error } = await admin.from("hq_policy").select("hide_catalog_price").order("id").limit(1).maybeSingle();
-  if (error) return;   // ฐานที่ยังไม่มีสวิตช์ (ยังไม่ลงใบ 0186) — ไม่มีอะไรให้ค้าง
-  if (data?.hide_catalog_price) {
-    throw new Error(
-      "[global-setup] หยุด: สวิตช์ซ่อนราคาแม่แบบ (hq_policy.hide_catalog_price) เปิดค้างอยู่ในฐานทดสอบ — " +
-      "ชุดหลักรันไม่ได้เพราะดีลเลอร์จะอ่านราคาแม่แบบไม่ได้ · ปิดก่อนด้วย SQL: " +
-      "update hq_policy set hide_catalog_price = false;  แล้วรันใหม่ " +
-      "(ปกติชุด price-switch ปิดคืนให้เอง — เปิดค้างแปลว่ารอบก่อนถูกหยุดกลางทาง)",
-    );
-  }
-}
-
 /** ตัวนับเลขรายสาขา (ลูกค้าเป้าหมาย/ลูกค้า/นัดหมาย) ต้องอยู่ "หลัง" เลขที่มีในฐานเสมอ
  *
  *  เจอจริง 12 ต.ค. 69: ฐานทดสอบในเครื่องมีข้อมูลตั้งต้นที่ใส่เลขสูงไว้ตรง ๆ (9936xxxxx)
@@ -298,9 +278,9 @@ async function ขยับตัวนับให้พ้นข้อมู�
 async function อุ่นเครื่องทุกหน้า() {
   const หน้า = [
     ["http://localhost:3002", ["/hq/login", "/hq/dashboard", "/hq/dealers", "/hq/pipeline", "/hq/leads",
-      "/hq/quotations", "/hq/customers", "/hq/master", "/hq/audit", "/hq/settings"]],
+      "/hq/quotations", "/hq/customers", "/hq/audit", "/hq/settings"]],
     ["http://localhost:3001", ["/login", "/dashboard", "/leads", "/quotations", "/customers",
-      "/products", "/calendar", "/files", "/settings"]],
+      "/calendar", "/files", "/settings"]],
   ] as const;
   const เริ่ม = Date.now();
   let สำเร็จ = 0;

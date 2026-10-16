@@ -34,11 +34,11 @@ test("[func·dealer] เพิ่มงานขายใหม่: มูลค
   await expect(page.getByRole("alert").filter({ hasText: "สูงเกินจริง" })).toBeVisible();
 });
 
-test("[func·dealer] เพิ่มงานขายใหม่: เปิดมาต้องยังไม่เลือกแม่แบบให้ (ห้ามเดาแทนผู้ใช้)", async ({ page }) => {
+test("[func·dealer] เพิ่มงานขายใหม่: ไม่มีช่องแม่แบบ (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)", async ({ page }) => {
   await เปิดฟอร์มเพิ่มงานขาย(page);
-  // เดิมเติมแม่แบบของงานเดิม/ตัวแรกในแคตตาล็อกให้ ผู้ใช้กดผ่านแล้วได้แม่แบบผิดโดยไม่รู้ตัว
-  // หน้าลูกค้ามีตัวกรอง "แม่แบบ" บนแถบเครื่องมืออยู่ก่อนแล้ว — ตัวในฟอร์มคือตัวหลัง
-  await expect(page.getByLabel("แม่แบบ").last()).toHaveValue("");
+  await expect(page.getByLabel("ประเมินราคา"), "ฟอร์มต้องเปิดแล้ว").toBeVisible();
+  await expect(page.getByLabel("แม่แบบ", { exact: true }), "ฟอร์มเพิ่มงานขายต้องไม่มีช่องแม่แบบ").toHaveCount(0);
+  await expect(page.getByText("แม่แบบ", { exact: true }), "ต้องไม่มีป้ายแม่แบบ").toHaveCount(0);
 });
 
 test("[func·dealer] เพิ่มงานขายใหม่: ช่องต้องเรียกชื่อเหมือนฟอร์มลูกค้าเป้าหมาย และคำอธิบายเป็นภาษาไทย", async ({ page }) => {

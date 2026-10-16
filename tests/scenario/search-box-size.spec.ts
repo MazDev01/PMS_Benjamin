@@ -10,7 +10,7 @@ import { openAs, settle } from "./helpers";
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
 
-const หน้า = ["/hq/customers", "/hq/quotations", "/hq/audit", "/hq/dealers", "/hq/master"];
+const หน้า = ["/hq/customers", "/hq/quotations", "/hq/audit", "/hq/dealers"];
 
 test("[ui·hq] ช่องค้นหาทุกหน้ากว้างเท่ากัน", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

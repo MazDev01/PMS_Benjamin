@@ -24,12 +24,7 @@ for (const [role, path, label] of PAGES) {
   });
 }
 
-// KPI ต้องเรนเดอร์ค่าครบ (ไม่ค้าง 0 / ไม่พังเป็นว่าง)
-// หมายเหตุ 20 ส.ค. 69: หน้าแม่แบบย้ายจาก .hqx-kpi ชุดเก่า มาใช้มาตรฐาน .hq-kpi4 เหมือนหน้า HQ อื่น (บอสสั่ง)
-test("[ui·hq] KPI หน้าแม่แบบแสดงค่าครบ", async ({ page }) => {
-  await open(page, "hq", "/hq/master");
-  await expect(page.locator(".hq-kpi4 > .card").first()).not.toBeEmpty();
-});
+// (ข้อ "KPI หน้าแม่แบบแสดงค่าครบ" ลบแล้ว 16 ต.ค. 69 — หน้า /hq/master ลบไปพร้อมการเอาแม่แบบออกทั้งระบบ)
 
 // KPI ของ /hq/dealers ต้องเป็นดีไซน์เดียวกับหน้า HQ อื่น: .hq-kpi4 · 4 ใบ · ตัวเลขเข้ม (ไม่ใส่สี) + ไอคอน
 test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐาน .hq-kpi4 เหมือนหน้าอื่น", async ({ page }) => {
@@ -75,7 +70,6 @@ test("[ui·desktop] modal ลูกค้า HQ ครอบเต็มจอ (
 const ENTRANCE_ANIMS = ["cardIn", "chart-fade-in"];
 for (const [path, selector, label] of [
   ["/hq/dealers/CNX", ".stat-card", "หน้ารายละเอียดดีลเลอร์ (.stat-card)"],
-  ["/hq/master", ".hq-kpi4 > .card", "หน้าแม่แบบ (.hq-kpi4)"],
   ["/hq/quotations", ".hq-kpi4 > .card", "หน้าใบเสนอราคาทั้งเครือ (.hq-kpi4)"],
 ] as const) {
   test(`[ui·hq] KPI cards ${label} มีแอนิเมชันเข้า`, async ({ page }) => {

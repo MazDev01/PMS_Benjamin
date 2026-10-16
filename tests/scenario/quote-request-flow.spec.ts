@@ -73,12 +73,19 @@ test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอ
   const errs = watchErrors(page);
   const แผง = await เปิดแท็บใบเสนอราคา(page);
   await แผง.getByRole("button", { name: "ขอราคาจาก HQ" }).click();
-  await แผง.getByLabel("แม่แบบ").selectOption({ index: 1 });
+  // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69) — ดีลเลอร์พิมพ์ "งานที่ขอราคา" เอง และเป็นช่องบังคับ
+  await expect(แผง.getByLabel("แม่แบบ", { exact: true }), "คำขอราคาต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
   await แผง.getByLabel("สเปก / รายละเอียด").fill("โกดัง 20x40 ม. สูง 8 ม.");
+  await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
+  await expect(page.getByText("ระบุงานที่ขอราคาก่อน").first(), "ไม่ระบุงานที่ขอราคา ต้องบอกเหตุผล ไม่ส่ง").toBeVisible({ timeout: 10_000 });
+  expect(await สถานะลูกค้าเป้าหมาย(), "ยังไม่ส่งคำขอ → ขั้นต้องไม่เปลี่ยน").not.toBe("HQ_PRICING");
+  await แผง.getByLabel("งานที่ขอราคา").fill("โกดังเก็บสินค้า");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   await expect(แผง.getByText("ใหม่", { exact: true }), "คำขอขึ้นสถานะใหม่บนหน้าจอ").toBeVisible({ timeout: 20_000 });
   await expect(แผง.getByText(/กำหนดส่งใบ HQ/)).toBeVisible();
   expect(await สถานะลูกค้าเป้าหมาย(), "ลูกค้าเป้าหมาย → รอราคา HQ").toBe("HQ_PRICING");
+  const { id: ridใหม่ } = await คำขอล่าสุด();
+  expect((await admin.from("quote_requests").select("product").eq("id", ridใหม่).single()).data?.product, "งานที่พิมพ์ต้องลงฐาน").toBe("โกดังเก็บสินค้า");
   expect(await อีเมล("quote_request_new"), "อีเมลคำขอใหม่ถึง HQ").toBe(1);
   // ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ (เมนูขั้นบอกเหตุผล)
   await expect(page.locator("text=รอราคา HQ >> visible=true").first(), "หน้าจอแสดงขั้น รอราคา HQ ทันที (ไม่ต้องรีเฟรช)").toBeVisible({ timeout: 15_000 });

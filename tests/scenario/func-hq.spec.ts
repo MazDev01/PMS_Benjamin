@@ -31,7 +31,6 @@ test.beforeAll(async () => {
   // ล้างของค้างจากรอบก่อน: NEW_CODE ลบทั้งบัญชี auth+แถว (route) · CODE เป็น fixture ใส่ตรงไม่มี auth
   await purgeDealerAccount(NEW_CODE);
   await sb.from("dealers").delete().in("code", [CODE, NEW_CODE]);
-  await sb.from("master_catalog").delete().like("name", `%${TAG}%`);
   // fixture: สาขาที่ "มีอยู่แล้ว" สำหรับเทสต์ตัวกรอง/ลบ — ใส่ตรงด้วยสิทธิ์เซิร์ฟเวอร์
   //   บัญชี HQ เพิ่มแถวดีลเลอร์ตรงไม่ได้แล้ว (ต้องมาจากผู้สนใจที่ตอบรับ + ชำระครบ · ฐานข้อมูลบังคับ 0208)
   //   เทสต์ตัวกรอง/ลบไม่ควรผูกกับเรื่องนั้น จึงใช้ทางเดียวกับสคริปต์ลงทะเบียนสาขาตั้งต้น
@@ -43,7 +42,6 @@ test.afterAll(async () => {
   // NEW_CODE: ลบบัญชี auth ที่เทสต์สร้างด้วย (กัน orphan) · แล้วเก็บกวาดแถวที่เหลือ
   await purgeDealerAccount(NEW_CODE);
   await sb.from("dealers").delete().in("code", [CODE, NEW_CODE]);
-  await sb.from("master_catalog").delete().like("name", `%${TAG}%`);
 });
 
 // H5 — สร้างดีลเลอร์ "พร้อมบัญชีเข้าระบบ" ต้องทำผ่าน route เซิร์ฟเวอร์ (service_role)
@@ -138,29 +136,6 @@ test("[func·hq] ลบดีลเลอร์ผ่านหน้าจอ �
 
   await waitGone(sb, "dealers_directory", { code: CODE }, 20_000);   // อ่านผ่านมุมมอง: ผู้ใช้อ่านตาราง dealers ได้เฉพาะบางคอลัมน์ (ใบ 0091) select * ถูกปฏิเสธ
   assertNoErrors(errs, "ลบดีลเลอร์");
-});
-
-test("[func·hq→dealer] HQ เพิ่มแม่แบบในแคตตาล็อกกลาง → ดีลเลอร์เห็น", async ({ page }) => {
-  const errs = watchErrors(page);
-  const sb = await db(ADMIN);
-  const PRODUCT = `${TAG}-แม่แบบทดสอบ`;
-
-  // เพิ่มผ่าน repo ฝั่ง HQ (ฟอร์มแคตตาล็อกมีหลายช่อง — ที่ต้องพิสูจน์คือ "ถึงดีลเลอร์ไหม")
-  const ins = await sb.from("master_catalog")
-    .insert({ id: "zzt-test", name: PRODUCT, price: 9999, unit: "ตร.ม." }).select();
-  expect(ins.error, `HQ เพิ่มแม่แบบไม่ได้: ${JSON.stringify(ins.error)}`).toBeNull();
-
-  try {
-    // ดีลเลอร์คนละ origin (:3001) — ถ้ายังเป็นโหมด local จะไม่มีทางเห็นเลย
-    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-    await page.goto(`${DEALER_ORIGIN}/products`, { waitUntil: "domcontentloaded" });
-    await expect.poll(async () => page.evaluate(() => document.body.innerText),
-      { timeout: 20_000, message: "ดีลเลอร์ต้องเห็นแม่แบบที่ HQ เพิ่งเพิ่ม" }).toContain(PRODUCT);
-
-    assertNoErrors(errs, "แคตตาล็อกถึงดีลเลอร์");
-  } finally {
-    await sb.from("master_catalog").delete().eq("id", "zzt-test");
-  }
 });
 
 // ── VAT เป็นของสาขา ไม่ใช่ของสำนักงานใหญ่ ────────────────────────────────────

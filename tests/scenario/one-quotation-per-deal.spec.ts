@@ -6,7 +6,7 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import {
-  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, pickTemplate, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
+  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -24,7 +24,7 @@ test("[func] ทำใบจากใบ HQ ที่มี 2 รายการ
   const sb = await db(RYG);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
 
-  // 1) ลูกค้าเป้าหมายใหม่ (มีแม่แบบ + พื้นที่ → BOQ ตั้งต้นให้ 1 รายการ)
+  // 1) ลูกค้าเป้าหมายใหม่ (มีพื้นที่)
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
@@ -32,7 +32,6 @@ test("[func] ทำใบจากใบ HQ ที่มี 2 รายการ
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await pickTemplate(page);
   await page.getByRole("button", { name: "บันทึก" }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 

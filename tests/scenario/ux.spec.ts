@@ -12,7 +12,7 @@ const HQ_SETTINGS_NAV = ".tab-bar";
 // เมนู HQ ต้องไปได้ทุกลิงก์ (ไม่มี dead link)
 test("[ux·hq] เมนูข้างไปได้ทุกหน้า", async ({ page }) => {
   await open(page, "hq", "/hq/dashboard");
-  const links = ["ดีลเลอร์", "ลูกค้าทั้งเครือ", "ภาพรวมยอดขาย", "ใบเสนอราคาทั้งเครือ", "แคตตาล็อกแม่แบบ", "บันทึกการใช้งาน", "ตั้งค่า"];
+  const links = ["ดีลเลอร์", "ลูกค้าทั้งเครือ", "ภาพรวมยอดขาย", "ใบเสนอราคาทั้งเครือ", "บันทึกการใช้งาน", "ตั้งค่า"];   // "แคตตาล็อกแม่แบบ" ลบแล้ว 16 ต.ค. 69
   for (const label of links) {
     await page.getByRole("link", { name: label, exact: false }).first().click();
     await expect(page.locator(".topbar-title").first()).toBeVisible(); // หัวข้อหน้าอยู่บน Topbar (ตัด h2 ซ้ำในหน้าออกแล้ว)
@@ -103,7 +103,7 @@ test("[ux·dealer] ฟอร์มเพิ่มลูกค้าเป้า�
   await expect(stage.getByRole("option", { name: "ติดต่อแล้ว", exact: true })).toHaveCount(1);
 });
 
-// ใบเสนอราคา = ฟอร์มหน้าเดียว (ไม่มี stepper) · ทุก section แสดงพร้อมกัน · แม่แบบรวมกับ BOQ ไม่ซ้ำ
+// ใบเสนอราคา = ฟอร์มหน้าเดียว (ไม่มี stepper) · ทุก section แสดงพร้อมกัน · ไม่มีช่องแม่แบบ
 // ยอดเงินสรุปต้องแสดง "ที่เดียว" · หัวข้อ "รายการสินค้า (BOQ)" ต้องมีที่เดียว
 test("[ux·dealer] ฟอร์มใบเสนอราคาหน้าเดียว + ยอด/หัวข้อ BOQ ไม่ซ้ำ", async ({ page }) => {
   await openLeadQuotationForm(page);
@@ -111,7 +111,7 @@ test("[ux·dealer] ฟอร์มใบเสนอราคาหน้าเ�
   await expect(page.getByText("ชื่อโครงการ / เอกสาร")).toBeVisible();
   await expect(page.getByText("รายการใบเสนอราคา")).toBeVisible();
   await expect(page.getByText("เลือกแม่แบบ", { exact: true })).toHaveCount(0);
-  // ช่องเลือกแม่แบบ/หมวดอาคารซ้ำถูกตัดออก — แม่แบบมาจากรายการ BOQ ที่เดียว
+  // ช่องเลือกแม่แบบ/หมวดอาคารต้องไม่มี (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   await expect(page.getByText(/หมวดอาคาร/)).toHaveCount(0);
   await expect(page.getByText("แม่แบบที่เสนอ")).toHaveCount(0);
   // หัวข้อ "รายการสินค้า (BOQ)" ต้องมีที่เดียว (LineItemsEditor ในตัว — ไม่ใส่ label ซ้ำ)
@@ -180,8 +180,9 @@ test("[ux·hq] หัวข้อแจ้งเตือน HQ ใช้ event 
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /การแจ้งเตือน/ }).click();
   // เรื่องที่ HQ อยากเห็นจากบันทึกการใช้งาน
   await expect(page.getByText("จัดการดีลเลอร์")).toBeVisible();
-  // "ส่วนลด" ถูกลบทั้งฟีเจอร์แล้ว → หัวข้อเหลือ "ราคากลาง" เฉย ๆ
-  await expect(page.getByText("ราคากลาง", { exact: true })).toBeVisible();
+  // หัวข้อ "ราคากลาง" ถูกลบไปพร้อมแม่แบบ (16 ต.ค. 69) · "ส่วนลด" ถูกลบทั้งฟีเจอร์แล้ว
+  await expect(page.getByText("ราคากลาง", { exact: true }), "หัวข้อราคากลางลบไปพร้อมแม่แบบ").toHaveCount(0);
+  await expect(page.getByText(/แม่แบบและแคตตาล็อก/), "หัวข้อแม่แบบและแคตตาล็อกลบแล้ว").toHaveCount(0);
   await expect(page.getByText(/ส่วนลด/), "ส่วนลดถูกลบทั้งฟีเจอร์แล้ว").toHaveCount(0);
   // ต้องไม่มี event งานขายของดีลเลอร์หลงมา
   await expect(page.getByText("มีลูกค้าเป้าหมายเข้ามาใหม่")).toHaveCount(0);

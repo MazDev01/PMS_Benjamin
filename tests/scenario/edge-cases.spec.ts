@@ -3,7 +3,7 @@ import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { ลบสาขาทดสอบตรง } from "./testDealers";
 import {
   DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, waitRow, cleanup, specNS, nsTag, เปิดฟอร์มตั้งดีลเลอร์, pickTemplate
+  db, waitRow, cleanup, specNS, nsTag, เปิดฟอร์มตั้งดีลเลอร์
 } from "./funcHelpers";
 
 // เก็บกวาดสาขาทดสอบด้วยสิทธิ์เซิร์ฟเวอร์โดยตรง — ไม่ผ่านเส้นทาง "ลบดีลเลอร์" ของระบบ (13 ต.ค. 69)
@@ -63,7 +63,6 @@ test("[edge] มูลค่าประเมินติดลบ/ข้อค
   await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("-500000");
   await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").blur();
   const afterBlur = await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").inputValue();
-  await pickTemplate(page);
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   // ต้องขึ้นเหตุผลให้ผู้ใช้เห็น ไม่ใช่บันทึกผ่านไปเงียบ ๆ
@@ -90,7 +89,6 @@ test("[edge] ชื่อบริษัทยาวผิดปกติ (2000 
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
-  await pickTemplate(page);
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   const row = await waitRow<{ company: string }>(sb, "leads", { company: LONG });
@@ -121,7 +119,6 @@ test("[edge] อักขระพิเศษ/emoji/แท็ก HTML ในช
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
-  await pickTemplate(page);
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   const row = await waitRow<{ company: string }>(sb, "leads", { company: WEIRD });
@@ -153,7 +150,6 @@ test("[edge] กดปุ่มบันทึกซ้ำเร็ว ๆ (doub
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
-  await pickTemplate(page);
 
   const saveBtn = page.getByRole("button", { name: "บันทึก" });
   // ยิง pointerdown ตรง ๆ ผ่าน dispatchEvent 5 ครั้งรัว ๆ ในจังหวะเดียว (เร็วกว่าที่ React จะ re-render
@@ -188,7 +184,6 @@ test("[edge] พื้นที่ (ตร.ม.) ติดลบผ่าน fil
   // type=number min=0 กัน spinner ได้ แต่ fill() เขียนค่าตรง ๆ ผ่าน DOM (จำลอง paste ค่าติดลบ)
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("-999");
   await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
-  await pickTemplate(page);
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   const row = await waitRow<{ area: number | null }>(sb, "leads", { company: COMPANY });
@@ -226,7 +221,7 @@ test("[edge] กดปุ่ม 'เพิ่มงานขาย' (ดีล�
   await newDealBtn.click();
 
   const saveBtn = page.getByRole("button", { name: "เพิ่มงานขาย", exact: true });
-  await expect(saveBtn).toBeEnabled({ timeout: 10_000 }); // แม่แบบ default ต้อง populate ก่อนปุ่มไม่ disabled
+  await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
   const btnHandle = await saveBtn.elementHandle();
   await page.evaluate((el) => {
     for (let i = 0; i < 5; i++) el?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));

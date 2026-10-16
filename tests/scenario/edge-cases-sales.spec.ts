@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { กดตกลงในกล่องยืนยัน, ดักข้อความแจ้งเตือน } from "./helpers";
 import { RYG, skipReason } from "./supabaseEnv";
 import {
-  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, pickTemplate, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
+  DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 import { validateUpload } from "@pms/shared/lib/uploadLimits";
 
 // ── Edge Case / การใช้งานผิดวิธี: ใบเสนอราคา · ปิดการขาย · เน็ตหลุด ──────────────
@@ -19,7 +19,7 @@ const tg = nsTag(NS);
 test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 
-/** สร้างลูกค้าเป้าหมายพร้อมแม่แบบ (BOQ ตั้งต้นไม่ว่าง) แล้วเปิดแผงรายละเอียดค้างไว้ */
+/** สร้างลูกค้าเป้าหมายแล้วเปิดแผงรายละเอียดค้างไว้ */
 async function newLeadOpened(page: import("@playwright/test").Page, company: string) {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
@@ -30,7 +30,6 @@ async function newLeadOpened(page: import("@playwright/test").Page, company: str
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await pickTemplate(page);
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   const sb = await db(RYG);

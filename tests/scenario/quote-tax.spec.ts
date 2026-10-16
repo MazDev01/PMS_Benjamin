@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
-import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, pickTemplate, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 import { settle } from "./helpers";
 import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
 

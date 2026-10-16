@@ -4,6 +4,7 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
+import { db } from "./funcHelpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -28,13 +29,15 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
   expect(บรรทัด.length, "ต้องเจอครบ 5 บรรทัด").toBe(5);
   for (const b of บรรทัด) expect(b.ค่า, `บรรทัด ${b.ป้าย} ต้องมีค่าหรือขีด`).not.toBe("");
 
-  // หัวการ์ด = แม่แบบ · ชื่อลูกค้าอยู่บรรทัดถัดมา (บอสสั่ง 20 ส.ค. 69) · ไม่มีป้าย "สนใจ:" ซ้ำอีก
+  // หัวการ์ด = ชื่อบริษัท (เดิมเป็นแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) · ไม่มีป้าย "สนใจ:" ซ้ำอีก
   const ลำดับ = await การ์ด.evaluate(el => {
     const t = (el.textContent ?? "").replace(/\s+/g, " ");
     return { หัว: (el.firstElementChild?.textContent ?? "").trim(), เต็ม: t };
   });
   expect(ลำดับ.เต็ม, 'ป้าย "สนใจ:" ต้องถูกถอดออกแล้ว').not.toContain("สนใจ:");
-  expect(ลำดับ.หัว, "หัวการ์ดต้องเป็นชื่อแม่แบบ ไม่ใช่ชื่อบริษัท").not.toBe("");
+  expect(ลำดับ.หัว, "หัวการ์ดต้องไม่ว่าง").not.toBe("");
+  const { data: ลีด } = await (await db(RYG)).from("leads").select("company").eq("dealer_code", "RYG").eq("company", ลำดับ.หัว).limit(1);
+  expect(ลีด?.length ?? 0, `หัวการ์ด "${ลำดับ.หัว}" ต้องเป็นชื่อบริษัทของลูกค้าเป้าหมายจริงในสาขา`).toBe(1);
 
   // มูลค่าต้องแสดงที่เดียว (ป้ายด้านบน) ไม่ใช่ซ้ำกับหัวข้อ "มูลค่าโครงการ" เดิม
   await expect(การ์ด.getByText("มูลค่าโครงการ")).toHaveCount(0);

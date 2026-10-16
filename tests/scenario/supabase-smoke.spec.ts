@@ -75,7 +75,7 @@ test("[supabase] ดีลเลอร์ RYG ล็อกอินผ่าน�
 test("[supabase] ดีลเลอร์เปิดหน้าหลักได้ครบ ไม่พัง", async ({ page }) => {
   const errs = trackErrors(page);
   await login(page, DEALER, "/login", RYG);
-  for (const p of ["/dashboard", "/leads", "/customers", "/quotations", "/products", "/calendar", "/files"]) {
+  for (const p of ["/dashboard", "/leads", "/customers", "/quotations", "/calendar", "/files"]) {
     await page.goto(`${DEALER}${p}`, { waitUntil: "domcontentloaded" });
     // รอจนหน้ามีเนื้อหาจริง — หน่วงคงที่ไม่พอเมื่อรันหลาย worker พร้อมกัน (เครื่องช้าลง → เทสต์แกว่ง)
     await expect.poll(async () => (await page.evaluate(() => document.body.innerText)).length,
@@ -88,21 +88,12 @@ test("[supabase] ดีลเลอร์เปิดหน้าหลักไ
   expect(fatal, "ทุกหน้าต้องไม่มี error").toEqual([]);
 });
 
-test("[supabase] หน้าแม่แบบของดีลเลอร์ดึงแคตตาล็อกจาก HQ ได้จริง", async ({ page }) => {
-  await login(page, DEALER, "/login", RYG);
-  await page.goto(`${DEALER}/products`, { waitUntil: "domcontentloaded" });
-  // แม่แบบที่ seed ไว้ใน master_catalog ต้องโผล่ (ไม่ใช่ mock ในเครื่อง)
-  await expect.poll(async () => page.evaluate(() => document.body.innerText), { timeout: 15_000 })
-    .toContain("โกดังสำเร็จรูป");
-  const txt = await page.evaluate(() => document.body.innerText);
-  for (const name of ["โรงงาน", "งานรีโนเวท"]) expect(txt, `ต้องมีแม่แบบ "${name}"`).toContain(name);
-  console.log("แม่แบบจากแคตตาล็อกกลางแสดงครบ");
-});
+// ข้อ "หน้าแม่แบบของดีลเลอร์ดึงแคตตาล็อกจาก HQ" ลบแล้ว 16 ต.ค. 69 — เอาแม่แบบออกทั้งระบบ (ดู no-template.spec.ts)
 
 test("[supabase] HQ ล็อกอินแล้วเปิดหน้าเครือได้", async ({ page }) => {
   const errs = trackErrors(page);
   await login(page, HQ, "/hq/login", ADMIN);
-  for (const p of ["/hq/dashboard", "/hq/dealers", "/hq/leads", "/hq/master", "/hq/settings"]) {
+  for (const p of ["/hq/dashboard", "/hq/dealers", "/hq/leads", "/hq/settings"]) {
     await page.goto(`${HQ}${p}`, { waitUntil: "domcontentloaded" });
     await expect.poll(async () => (await page.evaluate(() => document.body.innerText)).length,
       { timeout: 20_000, message: `${p} ต้องเรนเดอร์ได้` }).toBeGreaterThan(100);

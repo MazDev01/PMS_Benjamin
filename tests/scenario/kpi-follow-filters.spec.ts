@@ -51,15 +51,16 @@ test("[ui·dealer] หน้าใบเสนอราคา: กรองแ�
   const ก่อน = await เลขบนการ์ด(page, "ใบเสนอราคาทั้งหมด");
   expect(ก่อน, "ต้องมีใบเสนอราคาให้ทดสอบ").toBeGreaterThan(0);
 
-  // กรองด้วยประเภทอาคาร (ตัวกรองที่ไม่ใช่สถานะ — การ์ดต้องขยับตาม)
-  const ประเภท = page.locator("select").filter({ hasText: "ทุกประเภท" }).first();
-  const ตัวเลือก = await ประเภท.evaluate(el => [...(el as HTMLSelectElement).options].map(o => o.value).filter(v => v && v !== "ALL"));
-  test.skip(ตัวเลือก.length === 0, "ฐานทดสอบยังไม่มีประเภทอาคารให้กรอง");
-  await ประเภท.selectOption(ตัวเลือก[0]);
+  // กรองด้วยจังหวัด (ตัวกรองที่ไม่ใช่สถานะ — การ์ดต้องขยับตาม)
+  //   เดิมใช้ตัวกรองประเภทอาคาร ซึ่งถอดออกแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+  const จังหวัด = page.locator("select").filter({ hasText: "ทุกจังหวัด" }).first();
+  const ตัวเลือก = await จังหวัด.evaluate(el => [...(el as HTMLSelectElement).options].map(o => o.value).filter(v => v && v !== "ALL"));
+  test.skip(ตัวเลือก.length === 0, "ฐานทดสอบยังไม่มีจังหวัดให้กรอง");
+  await จังหวัด.selectOption(ตัวเลือก[0]);
   await page.waitForTimeout(900);
 
   const หลัง = await เลขบนการ์ด(page, "ใบเสนอราคาทั้งหมด");
-  expect(หลัง, "กรองประเภทอาคารแล้วการ์ดต้องนับเฉพาะที่กรอง").toBe(await ยอดในตาราง(page));
+  expect(หลัง, "กรองจังหวัดแล้วการ์ดต้องนับเฉพาะที่กรอง").toBe(await ยอดในตาราง(page));
   expect(หลัง).toBeLessThanOrEqual(ก่อน);
 });
 

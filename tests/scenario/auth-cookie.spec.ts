@@ -53,9 +53,10 @@ test("[auth] มี cookie แล้วเรียก API ได้โดยไ
   const who = await ctx.get(`${HQ_ORIGIN}/api/v1/auth`);
   expect(who.status(), "ถามว่าเป็นใครต้องได้คำตอบจาก cookie").toBe(200);
 
-  const catalog = await ctx.get(`${HQ_ORIGIN}/api/v1/catalog`);
-  expect(catalog.status(), "ดึงข้อมูลจริงต้องผ่านด้วย cookie ล้วน").toBe(200);
-  expect(Array.isArray(await catalog.json()), "ต้องได้รายการแคตตาล็อกกลับมา").toBe(true);
+  // ใช้รายชื่อลูกค้าเป็นตัวแทน "ข้อมูลจริง" (เดิมใช้แคตตาล็อก — ปิดเป็น 410 แล้วตั้งแต่เอาแม่แบบออก 16 ต.ค. 69)
+  const customers = await ctx.get(`${HQ_ORIGIN}/api/v1/customers`);
+  expect(customers.status(), "ดึงข้อมูลจริงต้องผ่านด้วย cookie ล้วน").toBe(200);
+  expect(Array.isArray((await customers.json() as { rows?: unknown }).rows), "ต้องได้รายการลูกค้ากลับมา").toBe(true);
 
   await ctx.dispose();
 });
@@ -63,12 +64,12 @@ test("[auth] มี cookie แล้วเรียก API ได้โดยไ
 test("[auth] ออกจากระบบ → cookie ถูกล้าง และเรียก API ต่อไม่ได้", async () => {
   const ctx = await pwRequest.newContext();
   await ctx.post(`${HQ_ORIGIN}/api/v1/auth?op=login`, { data: { email: RYG.email, password: RYG.password } });
-  expect((await ctx.get(`${HQ_ORIGIN}/api/v1/catalog`)).status(), "ก่อนออกต้องเรียกได้").toBe(200);
+  expect((await ctx.get(`${HQ_ORIGIN}/api/v1/customers`)).status(), "ก่อนออกต้องเรียกได้").toBe(200);
 
   const out = await ctx.post(`${HQ_ORIGIN}/api/v1/auth?op=logout`);
   expect(out.status()).toBe(200);
 
-  const after = await ctx.get(`${HQ_ORIGIN}/api/v1/catalog`);
+  const after = await ctx.get(`${HQ_ORIGIN}/api/v1/customers`);
   expect(after.status(), "ออกจากระบบแล้วต้องเรียกไม่ได้").toBe(401);
   await ctx.dispose();
 });

@@ -78,7 +78,7 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     await เปิดแท็บใบเสนอราคาของลีด(d);
     const แผง = d.locator("[data-panel='quote-request']");
     await แผง.getByRole("button", { name: "ขอราคาจาก HQ" }).click();
-    await แผง.getByLabel("แม่แบบ").selectOption({ index: 1 });
+    await แผง.getByLabel("งานที่ขอราคา").fill("ทดสอบระบบ — โกดัง");   // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69)
     await แผง.getByLabel("สเปก / รายละเอียด").fill("ทดสอบระบบ — โกดัง 10x10 ม.");
     await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
     await expect(แผง.getByText("ใหม่", { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -98,10 +98,12 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     await row.getByRole("button", { name: /ทำใบ HQ|ดูใบ HQ/ }).click();
     const กล่อง = h.getByRole("dialog", { name: "ใบ HQ" });
     await expect(กล่อง).toBeVisible({ timeout: 20_000 });
-    const ตัวเลือก = กล่อง.getByLabel("เพิ่มรายการจากแม่แบบ");
-    await ตัวเลือก.selectOption((await ตัวเลือก.locator("option").nth(1).getAttribute("value"))!);
+    // HQ พิมพ์รายการเอง (ไม่มีแม่แบบแล้ว 16 ต.ค. 69) — ใบใหม่เริ่มว่าง
+    if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
+    await กล่อง.getByLabel("ชื่อรายการ 1").fill("ทดสอบระบบ — โครงสร้างเหล็ก");
     await กล่อง.getByLabel("จำนวน 1").fill("100");
-    await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");   // แม่แบบบนระบบจริงยังไม่มีราคา (7/7 = 0) — HQ พิมพ์ต้นทุนเอง
+    await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
+    await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
     await expect(กล่อง.getByTestId("hq-quote-total")).toHaveText("100,000.00");
     await กล่อง.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" }).click();
     await ตกลงในกล่องยืนยัน(h);
@@ -149,4 +151,21 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
 
   expect(ข้อผิดพลาด, "ไม่มี error บนหน้า / 5xx").toEqual([]);
   await ctxD.close(); await ctxH.close();
+});
+
+// ── ไม่มีหน้า/เมนู/API แม่แบบ (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) ──
+test("[live] ไม่มีหน้า/เมนู/API แม่แบบ", async ({ browser }) => {
+  for (const [origin, path, who, หน้าแม่แบบ] of [
+    [DEALER, "/login", ดีลเลอร์, "/products"], [HQ, "/hq/login", ผู้ดูแล, "/hq/master"],
+  ] as const) {
+    const ctx = await browser.newContext(); const p = await ctx.newPage();
+    await เข้าระบบ(p, origin, path, who);
+    await expect(p.locator("nav, aside").first(), `${origin}: เมนูต้องขึ้นก่อนตรวจ`).toBeVisible({ timeout: 30_000 });
+    await expect(p.getByRole("link", { name: /แม่แบบ/ }), `${origin}: เมนูต้องไม่มีแม่แบบ`).toHaveCount(0);
+    const หน้า = await p.goto(`${origin}${หน้าแม่แบบ}`, { waitUntil: "domcontentloaded" });
+    expect(หน้า?.status(), `${origin}${หน้าแม่แบบ} ต้องไม่พบหน้า`).toBe(404);
+    const api = await ctx.request.get(`${origin}/api/v1/catalog`);
+    expect(api.status(), `${origin}/api/v1/catalog ต้องตอบ 410`).toBe(410);
+    await ctx.close();
+  }
 });

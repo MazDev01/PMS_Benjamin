@@ -3,7 +3,7 @@ import { กดตกลงในกล่องยืนยัน } from "./hel
 import { RYG, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, waitRow, cleanup, specNS, nsTag, pickTemplate, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
+  db, waitRow, cleanup, specNS, nsTag, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
 // โซ่ธุรกิจหลักของทั้งระบบ: ลูกค้าเป้าหมาย → ใบเสนอราคา (BOQ) → ปิดการขาย → ลูกค้า
 // ทุกขั้นต้องลง DB จริง ไม่ใช่แค่เปลี่ยนบนจอ
@@ -34,7 +34,6 @@ test("[func] ออกใบเสนอราคาจากลูกค้า�
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");   // พื้นที่ → ใช้ตั้งต้น BOQ
-  await pickTemplate(page); // ต้องเลือกแม่แบบจริง ไม่งั้น BOQ ว่าง → ปุ่มสร้างใบถูก disable (H-audit fix)
   await page.getByRole("button", { name: "บันทึก" }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
@@ -134,7 +133,6 @@ test("[func] ปิดการขายจากหน้าใบเสนอ�
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500"); // พื้นที่ → ใช้ตั้งต้น BOQ
-  await pickTemplate(page); // ต้องเลือกแม่แบบจริง ไม่งั้น BOQ ว่าง → ปุ่มสร้างใบถูก disable (H-audit fix)
   await page.getByRole("button", { name: "บันทึก" }).click();
   await waitRow(sb, "leads", { company: COMP });
 

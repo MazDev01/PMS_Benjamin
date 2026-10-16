@@ -62,7 +62,7 @@ test.describe("เว็บใช้งานจริง — สำนักง
   test.skip(() => skipReason("hq") !== "", skipReason("hq") || "พร้อมรัน");
 
   const หน้า = ["/hq/dashboard", "/hq/pipeline", "/hq/dealers", "/hq/leads",
-                "/hq/quotations", "/hq/customers", "/hq/master", "/hq/audit", "/hq/settings"];
+                "/hq/quotations", "/hq/customers", "/hq/audit", "/hq/settings"];
 
   for (const p of หน้า) {
     test(`[prod-hq] ${p} เปิดได้ทุกช่วงเวลา`, async ({ page }) => {
@@ -79,7 +79,7 @@ test.describe("เว็บใช้งานจริง — ดีลเลอ
   test.skip(() => skipReason("dealer") !== "", skipReason("dealer") || "พร้อมรัน");
 
   const หน้า = ["/dashboard", "/leads", "/quotations", "/customers",
-                "/products", "/calendar", "/files", "/settings"];
+                "/calendar", "/files", "/settings"];
 
   for (const p of หน้า) {
     test(`[prod-dealer] ${p} เปิดได้ทุกช่วงเวลา`, async ({ page }) => {

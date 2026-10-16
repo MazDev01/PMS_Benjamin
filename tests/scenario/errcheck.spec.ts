@@ -57,7 +57,7 @@ async function walk(page: Page, origin: string, paths: string[], errs: string[])
 test("[errcheck] ทุกหน้าฝั่งดีลเลอร์", async ({ page }) => {
   const errs = watch(page);
   await login(page, DEALER, "/login", RYG);
-  await walk(page, DEALER, ["/dashboard", "/leads", "/customers", "/quotations", "/products", "/calendar", "/files", "/settings", "/profile"], errs);
+  await walk(page, DEALER, ["/dashboard", "/leads", "/customers", "/quotations", "/calendar", "/files", "/settings", "/profile"], errs);
   const real = errs.filter(e => !NOISE.test(e));
   if (real.length) console.log("=== พบ ===\n" + real.slice(0, 20).join("\n"));
   expect(real, "ฝั่งดีลเลอร์ต้องไม่มี error").toEqual([]);
@@ -66,7 +66,7 @@ test("[errcheck] ทุกหน้าฝั่งดีลเลอร์", asy
 test("[errcheck] ทุกหน้าฝั่ง HQ", async ({ page }) => {
   const errs = watch(page);
   await login(page, HQ, "/hq/login", ADMIN);
-  await walk(page, HQ, ["/hq/dashboard", "/hq/leads", "/hq/quotations", "/hq/customers", "/hq/dealers", "/hq/pipeline", "/hq/master", "/hq/settings", "/hq/audit"], errs);
+  await walk(page, HQ, ["/hq/dashboard", "/hq/leads", "/hq/quotations", "/hq/customers", "/hq/dealers", "/hq/pipeline", "/hq/settings", "/hq/audit"], errs);
   const real = errs.filter(e => !NOISE.test(e));
   if (real.length) console.log("=== พบ ===\n" + real.slice(0, 20).join("\n"));
   expect(real, "ฝั่ง HQ ต้องไม่มี error").toEqual([]);

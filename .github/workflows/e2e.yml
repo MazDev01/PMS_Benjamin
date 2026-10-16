@@ -89,7 +89,7 @@ jobs:
       - name: ติดตั้งเบราว์เซอร์
         run: pnpm exec playwright install --with-deps chromium webkit
 
-      # ทุกช่วง (chromium → hq-settings → safari → stress → price-switch) + ตัวตรวจ check-e2e-ran
+      # ทุกช่วง (chromium → hq-settings → safari → stress) + ตัวตรวจ check-e2e-ran
       - name: รอบทดสอบเต็ม (production build · โหมด api)
         run: npm run test:prodbuild
         env:

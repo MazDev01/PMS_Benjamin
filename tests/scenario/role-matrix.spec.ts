@@ -88,12 +88,14 @@ test("[role] HQ_MANAGEMENT — ดูงานขายทั้งเครื�
   // แก้ข้อมูลกลางได้ (can_write_master ครอบ SUPER_ADMIN + HQ_MANAGEMENT)
   // ใช้แถวที่มีอยู่จริงแล้วคืนค่า — ตารางนี้ไม่ได้ออกเลขให้อัตโนมัติ การ insert เองจึงพังและ
   // ไม่ใช่สิ่งที่ต้องการวัดด้วย (ที่วัดคือ "แก้ได้ไหม" ไม่ใช่ "เพิ่มได้ไหม")
-  const { data: seed } = await svc.from("master_catalog").select("id,name").limit(1).single();
-  expect(seed, "ต้องมีแม่แบบในแคตตาล็อกให้ทดสอบ").toBeTruthy();
-  const upd = await sb.from("master_catalog").update({ name: `${NS}-แก้แล้ว` }).eq("id", seed!.id).select();
-  expect(upd.error, "HQ_MANAGEMENT ต้องแก้แคตตาล็อกกลางได้").toBeNull();
+  //   (เดิมวัดที่แคตตาล็อกแม่แบบ — เลิกใช้แล้ว 16 ต.ค. 69 · ย้ายมาวัดที่ข้อมูลบริษัท HQ ซึ่งอยู่ใต้กติกาเดียวกัน can_write_master · ใบ 0099)
+  //   แก้ช่อง website (ไม่ใช่ชื่อบริษัท ซึ่งไปขึ้นหัวเอกสารของสเปกอื่นที่รันขนานกัน) แล้วคืนค่า
+  const { data: seed } = await svc.from("hq_company").select("id,website").eq("id", 1).single();
+  expect(seed, "ต้องมีข้อมูลบริษัท HQ ให้ทดสอบ").toBeTruthy();
+  const upd = await sb.from("hq_company").update({ website: `${NS}-แก้แล้ว` }).eq("id", 1).select();
+  expect(upd.error, "HQ_MANAGEMENT ต้องแก้ข้อมูลกลางได้").toBeNull();
   expect(upd.data?.length, "ต้องแก้ได้จริง 1 แถว").toBe(1);
-  await svc.from("master_catalog").update({ name: seed!.name }).eq("id", seed!.id);   // คืนค่าเดิม
+  await svc.from("hq_company").update({ website: seed!.website }).eq("id", 1);   // คืนค่าเดิม
 
   // แก้งานขายของดีลเลอร์ไม่ได้ — เส้นแบ่งหลักของระบบ (HQ กำกับดูแล ไม่ใช่เจ้าของงานขาย)
   const w = await sb.from("leads").update({ company: "ห้ามแก้ได้" }).eq("dealer_code", "RYG").select();
@@ -112,15 +114,16 @@ test("[role] HQ_STAFF — ดูงานขายทั้งเครือไ
   }
 
   // ห้ามแก้ข้อมูลกลาง — นี่คือความต่างเดียวจาก HQ_MANAGEMENT ที่ต้องพิสูจน์ให้ได้
-  const { data: seed } = await svc.from("master_catalog").select("id,name").limit(1).single();
-  expect(seed, "ต้องมีแม่แบบในแคตตาล็อกให้ทดสอบ").toBeTruthy();
-  const upd = await sb.from("master_catalog").update({ name: "ห้ามแก้ได้" }).eq("id", seed!.id).select();
-  expect(upd.error ? 0 : (upd.data?.length ?? 0), "HQ_STAFF ต้องแก้แคตตาล็อกกลางไม่ได้").toBe(0);
-  const del = await sb.from("master_catalog").delete().eq("id", seed!.id).select();
-  expect(del.error ? 0 : (del.data?.length ?? 0), "HQ_STAFF ต้องลบแคตตาล็อกกลางไม่ได้").toBe(0);
-  // ตรวจซ้ำว่าแถวจริงไม่ถูกแตะเลย (ทั้งชื่อและตัวแถวเอง)
-  const { data: after } = await svc.from("master_catalog").select("name").eq("id", seed!.id);
-  expect(after?.[0]?.name, "แม่แบบของจริงต้องไม่ถูกแก้").toBe(seed!.name);
+  //   (เดิมวัดที่แคตตาล็อกแม่แบบ — เลิกใช้แล้ว 16 ต.ค. 69 · ย้ายมาวัดที่ข้อมูลบริษัท HQ ซึ่งอยู่ใต้กติกาเดียวกัน can_write_master)
+  const { data: seed } = await svc.from("hq_company").select("id,website").eq("id", 1).single();
+  expect(seed, "ต้องมีข้อมูลบริษัท HQ ให้ทดสอบ").toBeTruthy();
+  const upd = await sb.from("hq_company").update({ website: "ห้ามแก้ได้" }).eq("id", 1).select();
+  expect(upd.error ? 0 : (upd.data?.length ?? 0), "HQ_STAFF ต้องแก้ข้อมูลกลางไม่ได้").toBe(0);
+  const del = await sb.from("hq_company").delete().eq("id", 1).select();
+  expect(del.error ? 0 : (del.data?.length ?? 0), "HQ_STAFF ต้องลบข้อมูลกลางไม่ได้").toBe(0);
+  // ตรวจซ้ำว่าแถวจริงไม่ถูกแตะเลย (ทั้งค่าและตัวแถวเอง)
+  const { data: after } = await svc.from("hq_company").select("website").eq("id", 1);
+  expect(after?.[0]?.website, "ข้อมูลกลางของจริงต้องไม่ถูกแก้").toBe(seed!.website);
 
   // ห้ามแก้ตั้งค่านโยบายของเครือ (VAT ฯลฯ)
   const pol = await sb.from("hq_policy").update({ vat: 99 }).neq("id", -1).select();

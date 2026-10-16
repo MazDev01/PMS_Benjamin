@@ -7,7 +7,7 @@ import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 
 // ── ขายหนึ่งงาน ขั้น 5–6 บนหน้าจอ + ตารางสถานะแถว "HQ ส่งใบ" (FLOW.html · ด่าน 2) ─────────────────────────────
-//   ขั้น 5  HQ ทำ BOQ ด้วยราคาแม่แบบ (HQ เห็นคนเดียว) → บันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้าย
+//   ขั้น 5  HQ ทำ BOQ ด้วยรายการที่พิมพ์เอง (ต้นทุน HQ เห็นคนเดียว · ไม่มีแม่แบบแล้ว 16 ต.ค. 69) → บันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้าย
 //   ขั้น 6  HQ ส่งใบ → ล็อกเวอร์ชัน (เปิดดูซ้ำแก้ไม่ได้) · คำขอ "ส่งใบแล้ว" · หยุดนับ 14 วัน
 //   แถว "HQ ส่งใบ": ลูกค้าเป้าหมายคงเดิม (รอราคา HQ) + ป้าย "ได้ราคาแล้ว" · ดีลเลอร์เห็นใบ HQ (ต้นทุนของตัวเอง)
 //   (อีเมลถึงดีลเลอร์ · กฎแก้ไม่ได้แม้ยิงตรง · การมองเห็นทุกแถว — ข้อทดสอบยิงตรงฐาน hq_quote_send.sql / visibility.sql)
@@ -20,7 +20,6 @@ const admin = adminClient();
 const COMPANY = `ZZTEST-ใบHQ-${Date.now() % 100000}`;
 let leadNum = 0;
 let requestId = 0;
-let ราคาแม่แบบแรก = 0;
 
 /** ใบ HQ ที่ส่งแล้วลบไม่ได้แม้ด้วยกุญแจฝั่งเซิร์ฟเวอร์ (ตั้งใจ) — ลบที่ฐานทดสอบในเครื่องตรง ๆ (วิธีเดียวกับ quote-request-flow) */
 function ล้างที่ฐาน() {
@@ -76,25 +75,27 @@ async function เปิดแผงดีลเลอร์(page: Page) {
   return row;
 }
 
-test("[flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยราคาแม่แบบแล้วบันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้ายได้ราคา", async ({ page }) => {
+test("[flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายการที่พิมพ์เองแล้วบันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้ายได้ราคา", async ({ page }) => {
   const errs = watchErrors(page);
-  const { data: cat } = await admin.from("master_catalog").select("id, name, price").order("id");
   const กล่อง = await เปิดใบHQ(page);
 
-  // แม่แบบตัวแรกในรายการ — ต้นทุนต่อหน่วยตั้งต้นต้องเป็นราคาแม่แบบ และจำนวนตั้งต้น = พื้นที่ที่ดีลเลอร์ขอ (100 ตร.ม.)
-  const ตัวเลือก = กล่อง.getByLabel("เพิ่มรายการจากแม่แบบ");
-  const ค่าแรก = await ตัวเลือก.locator("option").nth(1).getAttribute("value");
-  await ตัวเลือก.selectOption(ค่าแรก!);
-  ราคาแม่แบบแรก = Number(cat?.find(c => c.id === ค่าแรก)?.price ?? NaN);
-  expect(ราคาแม่แบบแรก, "แม่แบบที่เลือกต้องมีราคาในฐาน").toBeGreaterThan(0);
-  await expect(กล่อง.getByLabel("ต้นทุนต่อหน่วย 1"), "ต้นทุนตั้งต้นจากราคาแม่แบบ").toHaveValue(new RegExp(String(ราคาแม่แบบแรก).replace(/\B(?=(\d{3})+(?!\d))/g, ",?")));
-  await expect(กล่อง.getByLabel("จำนวน 1"), "จำนวนตั้งต้น = พื้นที่ที่ขอ").toHaveValue("100");
+  // ไม่มีตัวเลือกแม่แบบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) — ใบเริ่มว่าง HQ พิมพ์รายการเอง
+  await expect(กล่อง.getByLabel("เพิ่มรายการจากแม่แบบ"), "BOQ ของ HQ ต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
+  await expect(กล่อง.getByLabel("ชื่อรายการ 1"), "ใบใหม่เริ่มว่าง").toHaveCount(0);
+  await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
+  // บรรทัดใหม่ตั้งต้น: จำนวน 1 · หน่วย "งาน" · ต้นทุน 0
+  await expect(กล่อง.getByLabel("จำนวน 1")).toHaveValue("1");
+  await expect(กล่อง.getByLabel("หน่วย 1", { exact: true })).toHaveValue("งาน");
+  await expect(กล่อง.getByLabel("ต้นทุนต่อหน่วย 1")).toHaveValue("0");
+  await กล่อง.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็กพร้อมติดตั้ง");
+  await กล่อง.getByLabel("จำนวน 1").fill("100");
+  await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
+  await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1500");
 
-  // รายการที่ HQ พิมพ์เอง
   await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
   await กล่อง.getByLabel("ชื่อรายการ 2").fill("ค่าขนส่ง");
   await กล่อง.getByLabel("ต้นทุนต่อหน่วย 2").fill("5000");
-  const คาด = ราคาแม่แบบแรก * 100 + 5000;
+  const คาด = 1500 * 100 + 5000;
   await expect(กล่อง.getByTestId("hq-quote-total")).toHaveText(บาท(คาด));
 
   await กล่อง.getByRole("button", { name: "บันทึกร่าง" }).click();

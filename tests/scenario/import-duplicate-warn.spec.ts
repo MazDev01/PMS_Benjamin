@@ -31,8 +31,8 @@ test("[func·dealer] นำเข้าไฟล์ที่มีชื่อ�
 
   // รอบสอง: ชื่อเดียวกัน (พิมพ์ต่างตัวพิมพ์/มีช่องว่างเกิน ก็ต้องถือว่าซ้ำ)
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
-  const หัว = "บริษัท,ผู้ติดต่อ,โทรศัพท์,อีเมล,ที่อยู่,จังหวัด,แม่แบบ,เป็นลูกค้าเมื่อ,ผู้รับผิดชอบ";
-  const แถว = `  ${company} ,,0822222222,ใหม่@example.com,,ระยอง,,,`;
+  const หัว = "บริษัท,ผู้ติดต่อ,โทรศัพท์,อีเมล,ที่อยู่,จังหวัด,เป็นลูกค้าเมื่อ,ผู้รับผิดชอบ";
+  const แถว = `  ${company} ,,0822222222,ใหม่@example.com,,ระยอง,,`;
   await page.getByRole("button", { name: "นำเข้าลูกค้าเดิม" }).click();
   await page.getByLabel("นำเข้าลูกค้าจากไฟล์").setInputFiles({
     name: "ซ้ำ.csv", mimeType: "text/csv", buffer: Buffer.from("\ufeff" + หัว + "\n" + แถว, "utf8"),

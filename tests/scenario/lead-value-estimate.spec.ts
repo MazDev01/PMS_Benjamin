@@ -1,4 +1,4 @@
-// ── ประเมินราคาคิดให้อัตโนมัติ = พื้นที่ × ราคาขายของสาขา (บอสสั่ง 20 ส.ค. 69) ────
+// ── ช่องประเมินราคาของลูกค้าเป้าหมาย (กรอกเอง · การคิดให้อัตโนมัติลบไปพร้อม Flow เก่า 16 ต.ค. 69) ────
 //
 // ที่มา: บอสถามว่า "ทำไมมูลค่าถึงไม่มี แล้วเอามูลค่ามาจากไหน" — เดิมมาจากช่องที่เซลส์
 // กรอกเองล้วน ๆ ไม่กรอกก็ว่าง ตอนนี้ระบบคิดให้เป็นค่าตั้งต้น แต่พิมพ์ทับได้เสมอ
@@ -7,53 +7,13 @@
 // (บอสแจ้ง: "ข้อมูลที่กรอกและที่แก้ไม่ตรงกัน ข้อมูลกรอกมีประเมินราคา แต่ที่แก้ไม่มี")
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { DEALER_ORIGIN, loginUI, db, pickTemplate } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
 
-test("[func] กรอกพื้นที่ + เลือกแม่แบบ → ประเมินราคาขึ้นให้เอง และพิมพ์ทับได้", async ({ page }) => {
-  const sb = await db(RYG);
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
-
-  const ช่องราคา = page.getByRole("dialog").getByLabel("ประเมินราคา").or(page.locator('input[placeholder="เช่น 1200000 หรือ ฿1.2M"]')).first();
-  await expect(ช่องราคา, "เปิดฟอร์มมาต้องยังว่าง — ยังไม่มีพื้นที่/แม่แบบให้คิด").toHaveValue("");
-
-  await pickTemplate(page);
-  await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("100");
-
-  // ราคาที่ต้องได้ = พื้นที่ × ราคาขายของสาขา (ราคากลางของแม่แบบที่ถูกเลือก + % ที่ตั้งไว้)
-  const เลือกไว้ = await page.getByRole("dialog").getByLabel("แม่แบบ").first().inputValue();
-  const { data: cat } = await sb.from("master_catalog").select("name,price,unit,subtypes,subtype_prices");
-  const prod = (cat ?? []).find(c => c.name === เลือกไว้) ?? (cat ?? []).find(c => (c.subtypes as string[] | null)?.includes(เลือกไว้));
-  const ย่อย = (prod?.subtype_prices as Record<string, number> | null)?.[เลือกไว้];
-  const ราคากลาง = ย่อย && ย่อย > 0 ? ย่อย : Number(prod?.price ?? 0);
-  test.skip(!(ราคากลาง > 0) || prod?.unit !== "ตร.ม.", "แม่แบบตัวแรกยังไม่มีราคากลาง/ไม่ได้ขายเป็น ตร.ม. ในฐานทดสอบ");
-
-  const { data: st } = await sb.from("dealer_settings").select("pricing").eq("dealer_code", "RYG").maybeSingle();
-  const pricing = (st?.pricing ?? {}) as { defaultPct?: number; byTemplate?: Record<string, number> };
-  const pct = pricing.byTemplate?.[String(prod?.name && (cat ?? []).find(c => c.name === prod.name) ? "" : "")] ?? pricing.defaultPct ?? 0;
-  // ช่องนี้แสดงแบบอ่านง่าย "510,000" ตอนไม่ได้พิมพ์ — มีลูกน้ำอย่างเดียว
-  // (คำว่า "บาท" ถูกตัดออก 28 ส.ค. 69 — ในช่องกรอกมันดูเหมือนตัวหนังสือที่ต้องพิมพ์เอง)
-  const ตัวเลข = Math.round(Math.round(ราคากลาง * (1 + pct / 100)) * 100);
-  const ที่คาด = ตัวเลข.toLocaleString("th-TH");
-
-  await expect(ช่องราคา, "กรอกพื้นที่แล้วราคาต้องขึ้นให้เอง").toHaveValue(ที่คาด, { timeout: 15_000 });
-
-  // พิมพ์ทับแล้วต้องอยู่กับที่ — แก้พื้นที่ต่อก็ห้ามเขียนทับของที่เซลส์ตั้งใจใส่
-  // ⚠️ ต้องพิมพ์แบบผู้ใช้จริง (คลิก → เลือกทั้งหมด → พิมพ์) ห้ามใช้ fill()
-  //    ช่องนี้สลับการแสดงผลตอนคลิกเข้าไป (อ่านง่าย "561,000" ↔ ตัวเลขล้วน)
-  //    fill() ยัดค่าใส่ช่องก่อนที่หน้าจอจะสลับเสร็จ ค่าใหม่เลยไปต่อท้ายค่าเดิมกลายเป็น 561000999999
-  //    ซึ่งเป็นข้อจำกัดของการยัดค่าแบบข้ามขั้นตอน ไม่ใช่สิ่งที่ผู้ใช้เจอ (คลิก/วางทับ ทำงานถูกต้อง)
-  await ช่องราคา.click();
-  await page.keyboard.press("Control+A");
-  await page.keyboard.type("999999");
-  await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("150");
-  // พอออกจากช่องแล้วจะแสดงแบบอ่านง่าย — สิ่งที่ต้องคงอยู่คือ "ค่าที่พิมพ์เอง" ไม่ถูกคิดทับ
-  await expect(ช่องราคา, "กรอกเองแล้วระบบห้ามคิดทับ").toHaveValue(/^999,999$|^999999$/);
-});
+// ข้อ "กรอกพื้นที่ + เลือกแม่แบบ → ประเมินราคาขึ้นให้เอง" ลบแล้ว 16 ต.ค. 69 — การคิดจาก พื้นที่ × ราคาแม่แบบ เป็นของ Flow เก่า
+//   (บอสสั่งลบ Flow เก่า · ดีลเลอร์ไม่เห็นราคาแม่แบบแล้ว) ช่องประเมินราคาเหลือให้กรอกเอง
 
 test("[ui] ช่องประเมินราคาต้องมีทั้งตอนเพิ่มและตอนแก้ไข อยู่กลุ่มเดียวกัน", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
@@ -66,7 +26,7 @@ test("[ui] ช่องประเมินราคาต้องมีทั
   const ช่องแก้ = page.getByLabel("ประเมินราคา").first();
   await expect(ช่องแก้, "แผงแก้ไขต้องมีช่องประเมินราคาเหมือนฟอร์มเพิ่ม").toBeVisible({ timeout: 20_000 });
 
-  // ต้องอยู่ในกลุ่ม "รายละเอียดงาน" คู่กับแม่แบบ/พื้นที่ — ที่เดียวกับฟอร์มเพิ่ม
+  // ต้องอยู่ในกลุ่ม "รายละเอียดงาน" คู่กับพื้นที่ — ที่เดียวกับฟอร์มเพิ่ม
   const อยู่ใต้ = await ช่องแก้.evaluate(el => {
     const box = el.getBoundingClientRect();
     const หัวข้อ = Array.from(document.querySelectorAll("div")).find(d => d.textContent?.trim() === "รายละเอียดงาน");

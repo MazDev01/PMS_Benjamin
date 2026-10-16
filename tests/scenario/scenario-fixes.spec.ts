@@ -17,7 +17,7 @@ const SEED_LOCAL_ONLY = "seed ผ่าน localStorage — ใช้โหม�
 // ข้อ 1 — HQ ต้องยุบเป็นคอลัมน์เดียวที่ ≤768px
 test.describe("768px", () => {
   test.use({ viewport: { width: 768, height: 900 } });
-  for (const p of ["/hq/dashboard", "/hq/leads", "/hq/quotations", "/hq/pipeline", "/hq/customers", "/hq/dealers", "/hq/master", "/hq/settings", "/hq/audit"]) {
+  for (const p of ["/hq/dashboard", "/hq/leads", "/hq/quotations", "/hq/pipeline", "/hq/customers", "/hq/dealers", "/hq/settings", "/hq/audit"]) {
     test(`[1] ${p} เต็มจอ`, async ({ page }) => {
       await open(page, "hq", p);
       await page.waitForTimeout(700);

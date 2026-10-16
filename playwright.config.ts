@@ -4,16 +4,6 @@ import { defineConfig, devices } from "@playwright/test";
 // โมโนเรโป: `npm run dev` (turbo) สตาร์ท dealer(:3001) + hq(:3002) · baseURL ตั้งเป็น HQ (:3002)
 // เพราะเทสต์ส่วนใหญ่ยิง route /hq/* · เทสต์ dealer-only ให้ใช้ URL เต็ม http://localhost:3001/...
 // reuseExistingServer=true → ถ้ามี dev server รันอยู่แล้วใช้ตัวนั้น ไม่สตาร์ทซ้ำ (กัน .next เขียนทับกัน)
-// ── ตัวแปรที่สั่งให้ชุด price-switch "ตกโดยตั้งใจ" ห้ามตั้งในระบบรันอัตโนมัติ (CI) ─────────────
-// PMS_FORCE_FAIL_PRICE_SWITCH=1 มีไว้ให้คนพิสูจน์ด้วยมือว่า "ชุดตกกลางทางแล้วสวิตช์ซ่อนราคายังถูกปิดคืน"
-// หลุดเข้า CI = ชุดทดสอบแดงทุกรอบโดยไม่มีใครรู้ว่าตั้งใจ และข้อที่เหลือในไฟล์นั้นไม่ได้รันเลย → หยุดตั้งแต่โหลดค่าตั้งต้น
-if (process.env.CI && process.env.PMS_FORCE_FAIL_PRICE_SWITCH) {
-  throw new Error(
-    "ห้ามตั้ง PMS_FORCE_FAIL_PRICE_SWITCH ในระบบรันอัตโนมัติ (CI) — ตัวแปรนี้ทำให้ชุด price-switch ตกโดยตั้งใจ " +
-    "ใช้เฉพาะตอนพิสูจน์ด้วยมือบนเครื่องพัฒนา (ดู docs/GO-LIVE-CHECKLIST.md ข้อ 5.1) · เอาตัวแปรนี้ออกแล้วรันใหม่",
-  );
-}
-
 // ── หลักฐานของข้อที่ตก แยกโฟลเดอร์ตามรอบ (บอสสั่ง 15 ต.ค. 69) ─────────────────────────────────────────────
 //   เดิมทุกรอบเขียนทับโฟลเดอร์เดียวกัน — hq-quote-flow:120 ตกครั้งแรกในรอบปิดด่าน 3 แล้วหลักฐานถูกรอบหลังลบทิ้ง
 //   ตอนนี้: ข้อที่ตกเก็บ trace (มีคำขอเครือข่าย + คำตอบ + ภาพทุกขั้น) และภาพหน้าจอ ไว้ที่โฟลเดอร์ของรอบ (วันเวลา)
@@ -85,9 +75,10 @@ export default defineConfig({
   //   ชุดโหลดหนักจึงได้เครื่องทั้งเครื่อง และชุดอื่นไม่ต้องแย่งทรัพยากรกับมัน
   //   (ไม่ได้ลดความเข้มของการทดสอบเลย — ยังรัน 10 ตัวแทนพร้อมกันเหมือนเดิมทุกประการ)
   // ── ทุกโปรเจกต์พึ่งแค่ "setup" (บอสสั่ง 14 ต.ค. 69 · ปิดด่าน 3) ─────────────────────────────────────────────
-  //   เดิม safari/stress/price-switch พึ่งผลของ chromium → chromium ตกข้อเดียว 18 ข้อไม่ได้รันเลยโดยไม่มีใครเห็น
-  //   ลำดับที่ต้องการ (price-switch เดี่ยวหลังสุด · stress ไม่แย่งเครื่อง) คุมที่ตัวรันเป็นช่วง scripts/test-prodbuild.mjs
-  //   ⚠️ สั่ง `npx playwright test` ทุกโปรเจกต์พร้อมกันเอง = price-switch คาบเกี่ยวกับชุดอื่น → ใช้ตัวรันเป็นช่วงเสมอตอนปิดด่าน
+  //   เดิม safari/stress พึ่งผลของ chromium → chromium ตกข้อเดียว 18 ข้อไม่ได้รันเลยโดยไม่มีใครเห็น
+  //   ลำดับที่ต้องการ (stress ไม่แย่งเครื่อง) คุมที่ตัวรันเป็นช่วง scripts/test-prodbuild.mjs
+  //   ⚠️ สั่ง `npx playwright test` ทุกโปรเจกต์พร้อมกันเอง = stress คาบเกี่ยวกับชุดอื่น → ใช้ตัวรันเป็นช่วงเสมอตอนปิดด่าน
+  //   (ชุด price-switch ถูกลบ 16 ต.ค. 69 — เอาแม่แบบออกทั้งระบบ ไม่มีราคาแม่แบบให้ซ่อนแล้ว · ดู no-template.spec.ts)
   //   ตัวตรวจ scripts/check-e2e-ran.mjs ตกถ้ามีข้อที่ไม่ได้รัน/ถูกข้ามโดยไม่มีเหตุผลเขียนไว้ในโค้ด
   projects: [
     {
@@ -98,7 +89,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(multi-dealer-stress|catalog-price-switch|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview)\.spec\.ts/,
+      testIgnore: /(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview)\.spec\.ts/,
       dependencies: ["setup"],
     },
     {
@@ -123,16 +114,6 @@ export default defineConfig({
       // กันชั่วคราว ("Request rate limit reached") แล้วขึ้นแดงทั้งที่ระบบไม่ได้พัง (เจอจริง 25 ส.ค. 69)
       // อยากรันครบบน Safari ให้สั่งเองตอนต้องการ: npx playwright test --project=safari tests/scenario/ui.spec.ts
       testMatch: /mobile-viewport\.spec\.ts/,
-      dependencies: ["setup"],
-    },
-    {
-      // ── สวิตช์ซ่อนราคาแม่แบบ — ต้องรัน "เดี่ยว หลังทุกชุดจบ" ─────────────────────────────
-      // ชุดนี้เปิดสวิตช์ hq_policy.hide_catalog_price ซึ่งเป็นค่ากลางทั้งระบบ
-      // เปิดระหว่างที่ชุดอื่นรันอยู่ = ดีลเลอร์ในชุดนั้นอ่านราคาแม่แบบไม่ได้ ข้อทดสอบออกใบเสนอราคาตกหมด
-      // จึงต้องรันเป็นช่วงสุดท้ายแบบเดี่ยว (ตัวรันเป็นช่วงคุมให้) และไฟล์เดียวรันทีละข้อ
-      name: "price-switch",
-      use: { ...devices["Desktop Chrome"] },
-      testMatch: /catalog-price-switch\.spec\.ts/,
       dependencies: ["setup"],
     },
     {

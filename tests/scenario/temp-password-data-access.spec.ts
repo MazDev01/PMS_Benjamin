@@ -109,7 +109,7 @@ test("[security] รหัสชั่วคราว · ผ่าน /api/v1 �
   const อ่าน = await ผ่านแอป(request, `leads?dealer=${CODE}`, ใบผ่าน.access_token);
   const ข้อความ = await อ่าน.text();
   expect(ข้อความ.includes(บริษัท), `/api/v1/leads ต้องไม่ส่งลูกค้าเป้าหมายของสาขากลับมา (สถานะ ${อ่าน.status()})`).toBe(false);
-  for (const r of ["quotations", "customers", "catalog"]) {
+  for (const r of ["quotations", "customers", "appointments"]) {   // เดิมมี catalog — ปิดเป็น 410 แล้ว (เอาแม่แบบออก 16 ต.ค. 69)
     const res = await ผ่านแอป(request, `${r}?dealer=${CODE}`, ใบผ่าน.access_token);
     const body = await res.text();
     const จำนวน = res.ok() ? (() => { try { const j = JSON.parse(body); return Array.isArray(j) ? j.length : 0; } catch { return 0; } })() : 0;
