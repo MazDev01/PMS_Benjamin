@@ -32,7 +32,7 @@ test("[dealer] บัญชีเข้าระบบ: หน้าตั้ง
   await expect(ปุ่มดูรหัส).toHaveCount(1);
   // กดแล้วต้องยังไม่เห็นรหัส — ต้องผ่านขั้นกรอกเลขจากอีเมลก่อนเสมอ
   await ปุ่มดูรหัส.click();
-  await expect(page.getByLabel("เลขยืนยันจากอีเมล").or(page.getByText(/ส่งเลขยืนยันไปที่|ไม่มีสำเนารหัสผ่าน|ส่งเลขยืนยัน/)).first())
+  await expect(page.getByLabel("เลขยืนยันจากอีเมล").or(page.getByText(/ปิดชั่วคราว|ส่งเลขยืนยันไปที่|ไม่มีสำเนารหัสผ่าน|ส่งเลขยืนยัน/)).first())
     .toBeVisible({ timeout: 20_000 });
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/acct-page.png` });

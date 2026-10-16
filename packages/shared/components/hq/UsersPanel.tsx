@@ -22,7 +22,6 @@ import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { hasPermission, type Permission } from "@pms/shared/lib/permissions";
 import { users as usersRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
-import { sbSendPasswordReset } from "@pms/shared/lib/supabaseAuth";
 import { createHQUser, deleteHQUser } from "@pms/shared/lib/adminApi";
 import { useRole } from "@pms/shared/context/RoleContext";
 import type { UserRole } from "@pms/shared/lib/mock";
@@ -287,7 +286,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
   // ที่บล็อกทั้งหน้าจอและดูไม่ตรงกับ pattern ของแอป (พบจาก /scenario 31 ก.ค. 69)
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const notify = useCallback((m: string) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 2800); }, []);
-  const [resetInfo, setResetInfo] = useState<{ user: AppUser } | null>(null);
   const [menu, setMenu] = useState<{ user: AppUser; x: number; y: number } | null>(null);
   const [matrixRole, setMatrixRole] = useState<RoleKey>("SUPER_ADMIN");
   const [creds, setCreds] = useState<{ name: string; email: string; password: string } | null>(null);
@@ -381,9 +379,7 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
     return { ok: true };
   }
   function toggleStatus(u: AppUser) { update(u.id, { status: u.status === "active" ? "inactive" : "active" }); logAudit(u.status === "active" ? "ปิดใช้งานผู้ใช้" : "เปิดใช้งานผู้ใช้", u.email); }
-  // H4 — รีเซ็ตรหัสผ่าน = "ส่งลิงก์ตั้งรหัสใหม่ทางอีเมล" (ไม่ใช่ออกรหัสปลอมแล้วโชว์แบบเดิม)
-  // เดิม genTempPassword() สร้างสตริงที่ล็อกอินไม่ได้จริง + ลง audit ว่ารีเซ็ตแล้วทั้งที่ไม่เคยส่งไปที่ระบบยืนยันตัวตน
-  function resetPassword(u: AppUser) { setResetInfo({ user: u }); }
+  // "รีเซ็ตรหัสผ่าน (ส่งลิงก์ทางอีเมล)" เอาออกแล้ว — ปิดอีเมลของระบบล็อกอิน (บอสสั่ง 16 ต.ค. 69 · ใบ 0213) · ใช้ "ตั้งรหัสผ่านใหม่ทันที" แทน
   // ── ตั้งรหัสผ่านใหม่ให้ทันที (บอสสั่ง 14 ส.ค. 69) ──
   // ต่างจาก "ส่งลิงก์ทางอีเมล" ตรงที่ไม่พึ่งอีเมลเลย — ใช้ได้แม้ยังไม่ได้ตั้ง SMTP
   // หรือผู้ใช้เข้าอีเมลไม่ได้ · เซิร์ฟเวอร์สุ่มรหัสให้แล้วคืนมาโชว์ครั้งเดียว
@@ -536,7 +532,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
         <ActionMenu pos={{ x: menu.x, y: menu.y }} onClose={() => setMenu(null)} items={[
           { label: "ดูรายละเอียด", icon: <Eye size={14} />, onClick: () => setDetailUser(menu.user) },
           { label: "แก้ไข", icon: <Pencil size={14} />, onClick: () => setDialogUser(menu.user) },
-          { label: "รีเซ็ตรหัสผ่าน (ส่งลิงก์ทางอีเมล)", icon: <KeyRound size={14} />, onClick: () => resetPassword(menu.user) },
           // ตั้งรหัสให้ตรง ๆ = สวมสิทธิ์เข้าระบบแทนเขาได้ จึงเปิดเฉพาะผู้ดูแลสูงสุด
           // (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น — ซ่อนเมนูอย่างเดียวไม่ใช่การป้องกัน)
           ...(canEditPrivileges ? [{
@@ -555,12 +550,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
       {/* ตั้งรหัสผ่านให้ตรง ๆ — ผู้ดูแลพิมพ์เองก็ได้ หรือให้ระบบสุ่มให้ (ไม่พึ่งอีเมลเลย) */}
       {pwTarget && <SetPasswordDialog user={pwTarget} onApply={applyPassword} onClose={() => setPwTarget(null)} />}
 
-      {/* Reset password = ส่งลิงก์ตั้งรหัสใหม่ทางอีเมล (H4) */}
-      {resetInfo && (
-        <ResetEmailDialog user={resetInfo.user}
-          onSent={email => logAudit("ส่งลิงก์รีเซ็ตรหัสผ่าน", email)}
-          onClose={() => setResetInfo(null)} />
-      )}
 
       {/* บัญชีใหม่: โชว์อีเมล+รหัสผ่านครั้งเดียว ให้ HQ ก๊อปไปแจ้งผู้ใช้ */}
       {creds && <NewCredsDialog name={creds.name} email={creds.email} password={creds.password} onClose={() => setCreds(null)} />}
@@ -661,9 +650,6 @@ function DeleteUserDialog({ user, onConfirm, onClose }: { user: AppUser; onConfi
   );
 }
 
-// ── H4 · ส่งลิงก์ตั้งรหัสผ่านใหม่ทางอีเมล ─────────────────────────────────────────
-// อ่าน "อีเมลล็อกอิน" จาก auth.users ที่ฝั่ง client ไม่ได้ (ต้อง service_role) → ให้ผู้ดูแลยืนยันอีเมล
-// (เติมอีเมลติดต่อไว้เป็นค่าเริ่มต้น) แล้วส่งลิงก์ · Supabase ตอบสำเร็จแม้ไม่พบอีเมล (กัน enumeration)
 // ── ตั้งรหัสผ่านให้ผู้ใช้ HQ ตรง ๆ (ไม่พึ่งอีเมล) ────────────────────────────────
 // บอสสั่ง 14 ส.ค. 69: "ผู้ดูแลระบบมีสิทธิเปลี่ยนแบบไม่ต้องส่งอีเมลยืนยัน"
 // พิมพ์รหัสเองก็ได้ (เช่น อยากตั้งรหัสชั่วคราวที่บอกทางโทรศัพท์ได้ง่าย)
@@ -724,68 +710,6 @@ function SetPasswordDialog({ user, onApply, onClose }: {
             style={busy || tooShort ? { opacity: .6, cursor: "not-allowed" } : undefined}>
             {busy ? "กำลังตั้ง…" : pw.trim() ? "ตั้งรหัสนี้" : "สุ่มรหัสให้"}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResetEmailDialog({ user, onSent, onClose }: { user: AppUser; onSent: (email: string) => void; onClose: () => void }) {
-  const [email, setEmail] = useState(user.email || "");
-  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
-  const [err, setErr] = useState("");
-  async function send() {
-    setErr("");
-    if (!REAL_BACKEND) { setErr("โหมดเดโม: ส่งลิงก์รีเซ็ตจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)"); return; }
-    setState("sending");
-    const r = await sbSendPasswordReset(email);
-    if (!r.ok) { setState("idle"); setErr(r.error); return; }
-    setState("sent"); onSent(email.trim().toLowerCase());
-  }
-  const dialogRef = useModalA11y<HTMLDivElement>(onClose);   // Esc ปิด · Tab วนในกล่อง · คืนโฟกัสเดิม
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(45,45,45,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="ส่งลิงก์ตั้งรหัสผ่านใหม่" onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,.22)" }}>
-        <div style={{ background: PRIMARY, color: "#fff", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 800 }}><KeyRound size={16} /> รีเซ็ตรหัสผ่าน</div>
-          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "none", cursor: "pointer" }}><X size={14} /></button>
-        </div>
-        <div style={{ padding: 20 }}>
-          {state === "sent" ? (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#e7f6ee", display: "flex", alignItems: "center", justifyContent: "center", margin: "4px auto 12px" }}><Check size={22} color="#059669" /></div>
-              <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL, marginBottom: 6 }}>ส่งลิงก์แล้ว</div>
-              <div style={{ fontSize: "0.78rem", color: MUTED, lineHeight: 1.6 }}>
-                ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่ <strong style={{ color: STEEL }}>{email}</strong> แล้ว · ผู้ใช้กดลิงก์ในอีเมลเพื่อตั้งรหัสเอง
-              </div>
-              <button onClick={onClose} className="btn btn-secondary btn-md" style={{ marginTop: 16 }}>ปิด</button>
-            </div>
-          ) : (
-            <>
-              <div style={{ fontSize: "0.82rem", color: MUTED, marginBottom: 12 }}>
-                ส่งลิงก์ตั้งรหัสผ่านใหม่ให้ <strong style={{ color: STEEL }}>{user.name}</strong> — ยืนยันอีเมลที่ใช้เข้าสู่ระบบ
-              </div>
-              <label style={{ fontSize: "0.72rem", color: MUTED, fontWeight: 600, display: "block", marginBottom: 5 }}>อีเมลเข้าสู่ระบบ</label>
-              <input value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} placeholder="name@benjamin.co.th"
-                style={{ width: "100%", border: `1px solid ${BORDER}`, borderRadius: 9, padding: "9px 12px", fontSize: "0.86rem", color: STEEL, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
-              {/* ค่าเริ่มต้นมาจาก "อีเมลติดต่อ" (profiles.contact_email) ซึ่งอาจไม่ตรงกับอีเมลล็อกอินจริง
-                  (client อ่าน auth.users ไม่ได้) + Supabase ตอบสำเร็จเสมอแม้พิมพ์ผิด (กัน enumeration)
-                  → ต้องเตือนให้ตรวจสอบเองเสมอ ไม่งั้น HQ อาจพิมพ์ผิดแล้วไม่รู้ตัวว่าไม่มีใครได้ลิงก์
-                  (พบจาก /scenario 31 ก.ค. 69) */}
-              <div style={{ fontSize: "0.7rem", color: "#b45309", marginTop: 6, lineHeight: 1.5, display: "flex", gap: 5 }}>
-                <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>ตรวจสอบให้แน่ใจว่าเป็นอีเมลที่ผู้ใช้ใช้ล็อกอินจริง — ระบบจะแจ้งว่า &quot;ส่งลิงก์แล้ว&quot; เสมอแม้พิมพ์อีเมลผิด (ป้องกันข้อมูลรั่วไหล)</span>
-              </div>
-              {err && <div style={{ fontSize: "0.74rem", color: "#dc2626", fontWeight: 600, marginTop: 8 }}>{err}</div>}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
-                <button onClick={onClose} className="btn btn-secondary btn-md">ยกเลิก</button>
-                <button onClick={() => void send()} disabled={state === "sending" || !email} className="btn btn-primary btn-md"
-                  style={state === "sending" || !email ? { opacity: .6, cursor: "not-allowed" } : undefined}>
-                  {state === "sending" ? "กำลังส่ง…" : "ส่งลิงก์รีเซ็ต"}
-                </button>
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>

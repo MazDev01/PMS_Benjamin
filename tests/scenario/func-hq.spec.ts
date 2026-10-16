@@ -204,20 +204,17 @@ test("[func·hq] หน้าดีลเลอร์ไม่มีปุ่ม
     "หน้าดีลเลอร์ต้องไม่มีปุ่มสร้าง/เพิ่มดีลเลอร์").toHaveCount(0);
 });
 
-// H4 — รีเซ็ตรหัสผ่านผู้ใช้ HQ = "ส่งลิงก์ทางอีเมล" (ไม่ใช่โชว์รหัสปลอมแบบเดิม)
-// ไม่กด "ส่ง" จริงในเทสต์ เพื่อเลี่ยง rate limit อีเมลของ Supabase — ตรวจแค่ว่า UI เปลี่ยนเป็นแบบส่งอีเมล
-test("[func·hq] รีเซ็ตรหัสผ่านผู้ใช้ = โมดัลส่งลิงก์อีเมล ไม่ใช่รหัสชั่วคราวปลอม (H4)", async ({ page }) => {
+// รีเซ็ตรหัสผ่านผู้ใช้ HQ — เมนู "ส่งลิงก์ทางอีเมล" (H4) เอาออกแล้ว: ปิดอีเมลของระบบล็อกอิน (บอสสั่ง 16 ต.ค. 69 · ใบ 0213)
+//   เหลือ "ตั้งรหัสผ่านใหม่ทันที" (ไม่พึ่งอีเมล) · ตรวจซ้ำกับ auth-email-blocked.spec.ts
+test("[func·hq] รีเซ็ตรหัสผ่านผู้ใช้ = ตั้งรหัสใหม่ทันที ไม่มีเมนูส่งลิงก์ทางอีเมล", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/users`, { waitUntil: "domcontentloaded" });
 
   const firstRow = page.locator("tbody tr").first();
   await expect(firstRow, "ต้องมีผู้ใช้ในตาราง").toBeVisible({ timeout: 25_000 });
   await firstRow.getByRole("button", { name: "จัดการ" }).click();
-  await page.getByRole("button", { name: "รีเซ็ตรหัสผ่าน" }).click();
-
-  // โมดัลใหม่ = ส่งลิงก์อีเมล (มีปุ่ม "ส่งลิงก์รีเซ็ต") · ต้องไม่มี "รหัสผ่านชั่วคราว" แบบเก่า
-  await expect(page.getByRole("button", { name: "ส่งลิงก์รีเซ็ต" }), "ต้องเป็นโมดัลส่งอีเมล").toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText("รหัสผ่านชั่วคราว"), "ต้องไม่มีรหัสปลอมแบบเดิม").toHaveCount(0);
+  await expect(page.getByRole("button", { name: /ตั้งรหัสผ่านใหม่ทันที/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /ส่งลิงก์ทางอีเมล/ }), "ต้องไม่มีเมนูส่งลิงก์ทางอีเมล").toHaveCount(0);
 });
 
 // H4 — หน้าปลายทางของลิงก์รีเซ็ต: เปิดตรงโดยไม่มี recovery token → ต้องบอกว่าลิงก์ไม่ถูกต้อง (ไม่ค้าง/ไม่พัง)

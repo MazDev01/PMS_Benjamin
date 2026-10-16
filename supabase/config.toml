@@ -322,6 +322,13 @@ max_frequency = "5s"
 enabled = true
 uri = "pg-functions://postgres/public/custom_access_token_hook"
 
+# ปิดอีเมลของระบบล็อกอินทั้งหมด (ลืมรหัสผ่าน · เลขเข้าระบบ) — บอสสั่ง 16 ต.ค. 69 · ใบ 0213
+# อีเมลล็อกอินของทุกบัญชีเป็นโดเมนที่เราไม่ได้คุม → ใครคุมโดเมนได้ = ยึดบัญชีผ่าน /recover หรือ /otp
+# ระบบจริงต้องเปิดที่ Dashboard → Authentication → Hooks → Send Email Hook ด้วย (ค่านี้มีผลเฉพาะในเครื่อง/config push)
+[auth.hook.send_email]
+enabled = true
+uri = "pg-functions://postgres/public/hook_send_email"
+
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
 enabled = false

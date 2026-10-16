@@ -1,5 +1,5 @@
 {
- "migration": "0212",
+ "migration": "0213",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -353,6 +353,13 @@
   },
   {
    "f": "guard_quotation_total_matches_boq()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "hook_send_email(event jsonb)",
    "anon": false,
    "authenticated": false,
    "service_role": false,

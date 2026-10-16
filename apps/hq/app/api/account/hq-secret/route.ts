@@ -118,6 +118,10 @@ export const POST = withErrors("hq-own-password", async (req: NextRequest) => {
     const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
     if (error) {
       const msg = String(error.message ?? "");
+      // อีเมลของระบบล็อกอินปิดอยู่ (Send Email Hook · ใบ 0213 · บอสสั่ง 16 ต.ค. 69)
+      if (/auth_email_disabled/.test(msg)) {
+        return ตอบ({ error: "ดูรหัสผ่านทางอีเมลปิดชั่วคราว — ติดต่อผู้ดูแลให้ตั้งรหัสใหม่ให้" }, 403);
+      }
       if (/invalid/i.test(msg) && /email/i.test(msg)) {
         return ตอบ({ error: `ส่งเลขยืนยันไปที่ ${email} ไม่ได้ — อีเมลนี้ใช้ส่งจริงไม่ได้ ต้องเปลี่ยนอีเมลบัญชีก่อน` }, 400);
       }
