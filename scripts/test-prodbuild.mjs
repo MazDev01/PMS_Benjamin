@@ -88,7 +88,7 @@ console.log("▶ เซิร์ฟเวอร์พร้อม เริ่�
 //   (บอสสั่ง 14 ต.ค. 69 · ปิดด่าน 3) เดิมสั่ง playwright ครั้งเดียวทุกโปรเจกต์ — safari/stress/price-switch พึ่งผลของ chromium
 //   chromium ตกข้อเดียว 18 ข้อไม่ได้รันเลย ตอนนี้ทุกโปรเจกต์พึ่งแค่ setup และทุกช่วงรันเสมอไม่ว่าช่วงก่อนจะตก
 //   ลำดับ: chromium → hq-settings (ไฟล์ที่แก้ค่ากลางของ HQ · ทีละไฟล์) → safari → stress (ไม่แย่งเครื่อง)
-//          → price-switch (เปิดสวิตช์ค่ากลาง ต้องเดี่ยวหลังสุด)
+//   (ช่วง price-switch ถูกลบ 16 ต.ค. 69 — เอาแม่แบบออกทั้งระบบ ไม่มีสวิตช์ซ่อนราคาแม่แบบให้ทดสอบแล้ว)
 //   ระบุไฟล์/ตัวเลือกเอง (เช่น เจาะไฟล์เดียว) = รันครั้งเดียวแบบเดิม ไม่มีตัวตรวจ
 const อาร์กิวเมนต์ = process.argv.slice(2);
 const รายงานหลัก = process.env.PLAYWRIGHT_JSON_OUTPUT_NAME ?? "test-results/gate-report.json";
@@ -101,7 +101,7 @@ if (!เป็นรอบเต็ม) {
   const code = await รัน(อาร์กิวเมนต์);
   ปิดทั้งหมด(); process.exit(code);
 }
-const ช่วง = ["chromium", "hq-settings", "safari", "stress", "price-switch"];
+const ช่วง = ["chromium", "hq-settings", "safari", "stress"];
 const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json";
 const รายงาน = [];
 let ตก = 0;

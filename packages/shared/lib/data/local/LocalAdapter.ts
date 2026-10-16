@@ -5,7 +5,6 @@
 import { applyLeadIntent } from "@pms/shared/lib/leadIntent";
 import {
   loadHQDealers, HQ_DEALERS_KEY,
-  loadMasterCatalog, MASTER_CATALOG_KEY, MASTER_CATALOG_EVENT,
   loadDealerFiles, saveDealerFiles, addDealerFile, removeDealerFile,
   loadResponsiblePersons, RP_STORAGE_KEY,
   loadHQPolicy, loadHQTargets, loadHQNotifRules, loadLostReasons, HQ_JOURNEY_KEY,
@@ -23,7 +22,7 @@ import { parseThaiDate as parseThaiDateLocal } from "@pms/shared/lib/leadMetrics
 import { parseBaht } from "@pms/shared/lib/format";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { profileKey, PROFILE_UPDATED_EVENT, sessions, QUOTED_UP, DEFAULT_DEALER_CODE,
-  DEFAULT_LEAD_RULES, DEFAULT_HQ_NOTIF_RULES, DEFAULT_HQ_POLICY, mainTemplateOf, type UserProfile } from "@pms/shared/lib/mock";
+  DEFAULT_LEAD_RULES, DEFAULT_HQ_NOTIF_RULES, DEFAULT_HQ_POLICY, type UserProfile } from "@pms/shared/lib/mock";
 
 // โหมด local ไม่มี session จริง — อ่านรหัสสาขาจากคีย์ที่ RoleContext เก็บไว้ (คีย์เดิมของแอป)
 function currentDealerCode(): string {
@@ -169,15 +168,9 @@ export const LocalAdapter: DataAdapter = {
     upload: (dealerCode, file) => putLocalBlob(dealerCode, file),
     signedUrl: (path) => localBlobUrl(path),
     remove: (path) => removeLocalBlob(path),
-    // แบบแปลนแม่แบบ — โหมดเดโมเก็บลงที่เดียวกับไฟล์อื่น (คนละ "โฟลเดอร์" เท่านั้น)
-    //   ไม่มีถังแยกเหมือนของจริง แต่ต้องทำงานได้ ไม่ใช่พังตอนกดอัปโหลด
-    uploadCatalog: (file) => putLocalBlob("catalog", file),
-    catalogUrl: (path) => path,   // โหมดเดโมพาธคือ URL อยู่แล้ว (blob ในเครื่อง)
-    removeCatalog: (path) => removeLocalBlob(path),
   },
   // โหมด local ไม่มี Realtime — ข้อมูลอยู่ในเครื่องเดียว (ข้ามแท็บใช้ event bus/storage event เหมือนเดิม)
-  // (หน้าจอฝั่ง local ใช้ event/storage ของ origin ตัวเองแทน — ดู useMasterCatalog)
-  realtime: { subscribeSales: () => () => {}, subscribeCatalog: () => () => {}, subscribeSettings: () => () => {}, subscribeNotes: () => () => {}, subscribeDealerSettings: () => () => {} },
+  realtime: { subscribeSales: () => () => {}, subscribeSettings: () => () => {}, subscribeNotes: () => () => {}, subscribeDealerSettings: () => () => {} },
   dealers: {
     list: () => ok(loadHQDealers()),
     // เป้าตามแพ็กเกจ (แบบเดียวกับตัวดักฐานข้อมูล 0178)
@@ -192,20 +185,6 @@ export const LocalAdapter: DataAdapter = {
         writeKey(PROPOSALS_KEY, readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []).filter(x => !ต้นทาง.has(x.prospectId)));
         writeKey(PROSPECT_ACTIVITIES_KEY, readKey<ProspectActivity[]>(PROSPECT_ACTIVITIES_KEY, []).filter(x => !ต้นทาง.has(x.prospectId)));
       }
-      return done();
-    },
-  },
-  catalog: {
-    list: () => ok(loadMasterCatalog()),
-    // บันทึกแล้วยิง event → หน้าอื่น (origin เดียวกัน) ที่ใช้ useMasterCatalog โหลดใหม่ทันที
-    save: (all) => {
-      writeKey(MASTER_CATALOG_KEY, all);
-      try { window.dispatchEvent(new Event(MASTER_CATALOG_EVENT)); } catch {}
-      return done();
-    },
-    remove: (id) => {
-      writeKey(MASTER_CATALOG_KEY, loadMasterCatalog().filter(p => p.id !== id));
-      try { window.dispatchEvent(new Event(MASTER_CATALOG_EVENT)); } catch {}
       return done();
     },
   },
@@ -605,10 +584,10 @@ export const LocalAdapter: DataAdapter = {
         if (iso && f.dateEnd && iso > f.dateEnd) return false;
         if (f.dealerCodes?.length && !f.dealerCodes.includes(l.dealerCode ?? DEFAULT_DEALER_CODE)) return false;
         if (f.province && l.province !== f.province) return false;
-        if (f.product && l.product !== f.product) return false;
+        // ตัวกรอง/ค้นตามแม่แบบ (l.product) ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         if (f.source && (l.source || "ไม่ระบุ") !== f.source) return false;
         if (f.status && l.status !== f.status) return false;
-        if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.product ?? ""} ${l.assigned ?? ""} ${l.id ?? ""} ${l.dealerCode ?? ""}`.toLowerCase().includes(search)) return false;
+        if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.assigned ?? ""} ${l.id ?? ""} ${l.dealerCode ?? ""}`.toLowerCase().includes(search)) return false;
         return true;
       });
       const cnt = <K extends string>(key: (l: LeadRow) => K) => { const m = new Map<K, number>(); rows.forEach(l => m.set(key(l), (m.get(key(l)) ?? 0) + 1)); return m; };
@@ -616,7 +595,7 @@ export const LocalAdapter: DataAdapter = {
       const statusValM = new Map<string, number>();
       rows.forEach(l => statusValM.set(l.status, (statusValM.get(l.status) ?? 0) + parseBaht(l.value)));
       const sourceM = cnt(l => (l.source || "ไม่ระบุ"));
-      const productM = cnt(l => (l.product || "ไม่ระบุ"));
+      const productM = new Map<string, number>(); // ไม่นับตามแม่แบบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
       const provM = new Map<string, number>();
       rows.forEach(l => { const p = (l.province ?? "").trim(); if (p) provM.set(p, (provM.get(p) ?? 0) + 1); });
       const lostM = new Map<string, { count: number; value: number }>();
@@ -683,7 +662,7 @@ export const LocalAdapter: DataAdapter = {
         let sm = statusM.get(q.status);
         if (!sm) { sm = { count: 0, value: 0 }; statusM.set(q.status, sm); }
         sm.count += 1; sm.value += v;
-        const raw = q.buildingType || q.project; // productLine = buildingType || project
+        const raw = q.project; // ไม่ใช้ประเภทอาคาร (แม่แบบ) แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         const product = raw ? raw : null;         // ว่าง/undefined → null (ตรงกับ nullif ใน SQL)
         let pm = prodM.get(product);
         if (!pm) { pm = { value: 0, projects: 0 }; prodM.set(product, pm); }
@@ -740,9 +719,8 @@ export const LocalAdapter: DataAdapter = {
         const code = l.dealerCode ?? DEFAULT_DEALER_CODE;
         if (f.dealerCodes?.length && !f.dealerCodes.includes(code)) return false;
         if (f.province && l.province !== f.province) return false;
-        if (f.product && l.product !== f.product) return false;
         if (f.source && (l.source || "ไม่ระบุ") !== f.source) return false;
-        if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.product ?? ""} ${l.id ?? ""} ${code}`.toLowerCase().includes(search)) return false;
+        if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.id ?? ""} ${code}`.toLowerCase().includes(search)) return false;
         const hours = f.perDealer?.[code] ?? f.defaultHours ?? DEFAULT_LEAD_RULES.unassignedAlertHours;
         return (asOf.getTime() - d.getTime()) / 3_600_000 > hours;
       });
@@ -794,7 +772,7 @@ export const LocalAdapter: DataAdapter = {
       const qs = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
       const asOfMs = Date.parse(f.asOf ?? "2026-06-30");
       const search = (f.search ?? "").trim().toLowerCase();
-      const plOf = (q: QuotationMock): string | null => { const bt = (q.buildingType ?? "").trim(); return bt ? bt : (q.project ?? null); };
+      const plOf = (q: QuotationMock): string | null => (q.project ?? "").trim() || null; // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
       const dateOf = (q: QuotationMock) => /^(\d{4}-\d{2}-\d{2})/.exec(q.date || "")?.[1];
       const dM = new Map<string, { count: number; value: number; sent: number; won: number; lost: number; wonVal: number; latest: string | null }>();
       const mM = new Map<string, { y: number; m: number; quotes: number; won: number; lost: number; wonVal: number }>();
@@ -843,12 +821,9 @@ export const LocalAdapter: DataAdapter = {
         if (q.status !== "won" || !q.customerId) continue;
         const wonDate = /^\d{4}-\d{2}-\d{2}/.exec(q.date || "")?.[0];
         if (!wonDate) continue;
-        const main = mainTemplateOf(q.buildingType) || q.buildingType || "";
-        if (!main) continue;
+        // ไม่จัดกลุ่มลูกค้าตามประเภทอาคาร (แม่แบบ) แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · buildingTypes ว่างเสมอ
         let a = aggByCustomer.get(q.customerId);
         if (!a) { a = { buildingTypes: new Set(), templates: new Set(), lastPurchaseAt: null, count: 0 }; aggByCustomer.set(q.customerId, a); }
-        a.buildingTypes.add(main);
-        if (main !== q.buildingType) a.templates.add(q.buildingType);
         if (!a.lastPurchaseAt || wonDate > a.lastPurchaseAt) a.lastPurchaseAt = wonDate;
         a.count++;
       }
@@ -941,8 +916,7 @@ export const LocalAdapter: DataAdapter = {
         if (q.status !== "won" || !q.customerId) return;
         const wonDate = /^\d{4}-\d{2}-\d{2}/.exec(q.date || "")?.[0];
         if (!wonDate) return;
-        const main = mainTemplateOf(q.buildingType) || q.buildingType || "";
-        if (main) types.add(main);
+        // ตัวเลือกประเภทอาคาร (แม่แบบ) ไม่มีแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
       });
       return ok({
         dealers: [...dealers.entries()].map(([code, name]) => ({ code, name })).sort((a, b) => a.code.localeCompare(b.code)),
@@ -970,9 +944,8 @@ export const LocalAdapter: DataAdapter = {
         if (opts.status && l.status !== opts.status) return false;
         if (opts.dealerCodes?.length && !opts.dealerCodes.includes(l.dealerCode ?? DEFAULT_DEALER_CODE)) return false;
         if (opts.province && l.province !== opts.province) return false;
-        if (opts.product && l.product !== opts.product) return false;
         if (opts.source && (l.source || "ไม่ระบุ") !== opts.source) return false;
-        if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.product ?? ""} ${l.assigned ?? ""} ${l.id ?? ""} ${l.dealerCode ?? ""}`.toLowerCase().includes(search)) return false;
+        if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.assigned ?? ""} ${l.id ?? ""} ${l.dealerCode ?? ""}`.toLowerCase().includes(search)) return false;
         if (opts.overdue) {
           if (l.status === "PAID" || l.status === "CANCELLED") return false;
           const lm = lastMs(l); if (lm == null) return false;
@@ -1022,7 +995,7 @@ export const LocalAdapter: DataAdapter = {
     listPage: (scope, opts) => {
       const s = (opts.search ?? "").trim().toLowerCase();
       const dateOf = (q: QuotationMock) => /^(\d{4}-\d{2}-\d{2})/.exec(q.date || "")?.[1];
-      const plOf = (q: QuotationMock) => { const bt = (q.buildingType ?? "").trim(); return bt ? bt : (q.project ?? undefined); };
+      const plOf = (q: QuotationMock) => (q.project ?? "").trim() || undefined; // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
       let arr = scopeByDealer(readKey<QuotationMock[]>(SALES.quotations, quoteSeed), scope).filter(q => {
         if (opts.status && q.status !== opts.status) return false;
         if (opts.dealerCodes?.length && !opts.dealerCodes.includes(q.dealerCode ?? DEFAULT_DEALER_CODE)) return false;
@@ -1045,15 +1018,6 @@ export const LocalAdapter: DataAdapter = {
         return c;
       });
       return ok({ rows: arr.slice(opts.offset, opts.offset + opts.limit), total: arr.length });
-    },
-    create: (row) => {
-      const list = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
-      // ประทับ "เวลาที่ระบบบันทึก" ให้เองเหมือนที่ฐานข้อมูลจริงทำ (บอสสั่ง 25 ส.ค. 69)
-      // ดีลเลอร์ไม่ต้องกรอกเวลาเอง — ระบบจับเวลาให้ แล้วสำนักงานใหญ่เอาไปทำกราฟรายชั่วโมงได้
-      // ⚠️ ตั้งเฉพาะตอนสร้างใหม่ ห้ามทับของเดิมตอนแก้ไข (ไม่งั้นเวลาบันทึกจะขยับทุกครั้งที่แก้)
-      const พร้อมเวลา: QuotationMock = { ...row, savedAt: row.savedAt ?? new Date().toISOString() };
-      writeKey(SALES.quotations, [พร้อมเวลา, ...list]);
-      return ok(พร้อมเวลา);
     },
     // เซฟตี้เน็ตชั้นที่ 2 (mirror quotations_won_requires_customer, 0069/0071) — โหมด local ไม่มี DB
     // constraint คุมให้ ถ้าไม่เช็คตรงนี้ ฟอร์มแก้ไขทั่วไป (ที่ตอนนี้ตัดตัวเลือก "won" ออกแล้วก็จริง)

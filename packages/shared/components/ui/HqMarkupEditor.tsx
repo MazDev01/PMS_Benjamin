@@ -13,7 +13,7 @@ import { type HqQuoteLine, ราคาขายจากต้นทุน, ย
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 
 // เพดานกันพิมพ์ผิดจำนวนหลัก (ไม่ใช่เพดานทางธุรกิจ — ดีลเลอร์ตั้งราคาขายเองได้): ราคาขายต่อหน่วยไม่เกิน 100 ล้าน
-//   เพดานเดียวกับช่องราคาต่อหน่วยของใบเดิม (LineItemsEditor · MAX_UNIT_PRICE) — พิมพ์ 0 เกินแล้วใบหลุดถึงลูกค้าไม่ได้
+//   เพดานราคาต่อหน่วย 100 ล้าน (เท่าช่องราคาของใบแบบเดิมที่ลบไปแล้ว) — พิมพ์ 0 เกินแล้วใบหลุดถึงลูกค้าไม่ได้
 const MAX_UNIT_PRICE = 100_000_000;
 const เพดานเปอร์เซ็นต์ = (unitCost: number) => unitCost > 0 ? Math.floor((MAX_UNIT_PRICE / unitCost - 1) * 100) : 0;
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

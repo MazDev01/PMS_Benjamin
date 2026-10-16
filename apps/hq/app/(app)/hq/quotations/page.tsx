@@ -6,7 +6,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // จึงมีแค่ ดู / วิเคราะห์ / เปรียบเทียบ / ส่งออก — ไม่มีปุ่มสร้าง แก้ไข ลบ อนุมัติ
 import { useState, useMemo, useEffect } from "react";
 import { ความละเอียดของช่วง, ช่องเวลาในช่วง, คีย์ช่อง, type ความละเอียด } from "@pms/shared/lib/trendBuckets";
-import { quotationStatusLabel, mainTemplateOf, fmtISOToThai, DEFAULT_DEALER_CODE, QUOTED_UP, type HQQuotation } from "@pms/shared/lib/mock";
+import { quotationStatusLabel, fmtISOToThai, DEFAULT_DEALER_CODE, QUOTED_UP, type HQQuotation } from "@pms/shared/lib/mock";
 import type { QuotationMock } from "@pms/shared/lib/data/types";
 import { useQuoteValidityDays } from "@pms/shared/lib/useHQConfig";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -26,8 +26,6 @@ import { groupLostReasons } from "@pms/shared/lib/lostReasons";
 const TH_ABBR = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const QPAGE_SIZE = 10;
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-// ตัวกรองว่าง (ทั้งเครือ ทุกช่วง) — อ้างอิงคงที่ ดึง product_line ทั้งหมดครั้งเดียว ไม่รีเฟตช์
-const ALL_PRODUCTS_FILTER: QuoteSummaryFilters = {};
 import { QuotationKPICards } from "@pms/shared/components/hq/quotations/QuotationKPICards";
 import { QuotationFilterBar, EMPTY_FILTERS, type QuotationFilters } from "@pms/shared/components/hq/quotations/QuotationFilterBar";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
@@ -71,19 +69,8 @@ export default function NetworkQuotationPage() {
   const look = useMemo(() => dealerLookups(ALL_DEALERS_FULL), [ALL_DEALERS_FULL]);
   const allRows = useMemo(() => toQuoteRows(netQuotes, validityDays, look), [netQuotes, validityDays, look]);
 
-  // รายชื่อ product_line ทั้งหมดในเครือ (ไม่ผูกตัวกรอง) — ป้อนตัวเลือกแม่แบบ + resolve product→product_lines
-  //   supabase: hq_quotations_summary(ว่าง).byProduct · local/ยังไม่กลับ: จาก allRows (ทั้งชุด)
-  const allProductsSummary = useHQQuotationsSummary(ALL_PRODUCTS_FILTER);
-  const allProductLines = useMemo<string[]>(
-    () => allProductsSummary
-      ? allProductsSummary.byProduct.map(p => p.product ?? "").filter(Boolean)
-      : [...new Set(allRows.map(r => r.productLine))],
-    [allProductsSummary, allRows],
-  );
-  const products = useMemo(
-    () => [...new Set(allProductLines.map(pl => mainTemplateOf(pl)))].sort(),
-    [allProductLines],
-  );
+  // ตัวกรอง/กราฟ/คอลัมน์ส่งออก "ประเภทอาคาร" (แม่แบบ) ถอดออกทั้งหมด — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
+  //   ไม่ส่ง productLines ให้ฐานข้อมูลแล้ว (byProduct ที่ RPC ยังส่งมา = ไม่ใช้)
 
   // ตัวกรองทุกตัว "ยกเว้นช่วงเวลา" — กราฟแนวโน้ม 12 เดือนใช้ชุดนี้ (ถ้าอิงช่วงเวลาจะว่าง 11 ช่อง)
   const matchesNonTime = useMemo(() => (r: QuoteRow) => {
@@ -91,7 +78,6 @@ export default function NetworkQuotationPage() {
     if (filters.region !== "all" && r.region !== filters.region) return false;
     if (filters.province !== "all" && r.dealerProvince !== filters.province) return false;
     if (filters.status !== "all" && r.status !== filters.status) return false;
-    if (filters.product !== "all" && r.productLine !== filters.product && mainTemplateOf(r.productLine) !== filters.product) return false;
     if (filters.search.trim()) {
       const s = filters.search.trim().toLowerCase();
       const hay = `${r.quoteNo} ${r.customer} ${r.dealerName} ${r.dealerCode}`.toLowerCase();
@@ -128,12 +114,6 @@ export default function NetworkQuotationPage() {
     if (filters.province !== "all") restrict(c => look.provinceOf(c) === filters.province);
     return codes;
   }, [filters.dealer, filters.region, filters.province, ALL_DEALERS_FULL, look]);
-  const resolvedProductLines = useMemo<string[] | undefined>(() => {
-    if (filters.product === "all") return undefined;
-    const set = new Set<string>();
-    allProductLines.forEach(pl => { if (pl === filters.product || mainTemplateOf(pl) === filters.product) set.add(pl); });
-    return [...set];
-  }, [filters.product, allProductLines]);
   const search = filters.search.trim();
   const searchDealers = useMemo<string[] | undefined>(() => {
     if (!search) return undefined;
@@ -142,7 +122,7 @@ export default function NetworkQuotationPage() {
   }, [search, ALL_DEALERS_FULL]);
 
   const status = filters.status === "all" ? undefined : filters.status;
-  const baseFilters: QuoteSummaryFilters = { status, dealerCodes: resolvedDealerCodes, productLines: resolvedProductLines, search: search || undefined, searchDealers, asOf: isoDateOf(APP_NOW) };
+  const baseFilters: QuoteSummaryFilters = { status, dealerCodes: resolvedDealerCodes, search: search || undefined, searchDealers, asOf: isoDateOf(APP_NOW) };
   const qFilters: QuoteSummaryFilters = { ...baseFilters, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) };
   const summary = useHQQuotationsSummary(qFilters);       // มีเวลา → analytics/KPI/ตาราง
   const trendSummary = useHQQuotationsSummary(baseFilters); // ไม่มีเวลา → กราฟแนวโน้ม 12 เดือน
@@ -191,13 +171,6 @@ export default function NetworkQuotationPage() {
   }, [summary, rows, nameOf, look]);
   const agg = useMemo(() => sumAggs(dealerAgg), [dealerAgg]);
 
-  const productTypes = useMemo(() => {
-    const m = new Map<string, { count: number; value: number }>();
-    if (summary) summary.byProduct.forEach(p => { const t = mainTemplateOf(p.product ?? "") || "ไม่ระบุ"; const r = m.get(t) ?? { count: 0, value: 0 }; r.count += p.projects; r.value += p.value; m.set(t, r); });
-    else rows.forEach(r => { const t = mainTemplateOf(r.productLine) || "ไม่ระบุ"; const x = m.get(t) ?? { count: 0, value: 0 }; x.count += 1; x.value += r.valueNum; m.set(t, x); });
-    return [...m.entries()].map(([type, x]) => ({ type, ...x })).sort((a, b) => b.count - a.count);
-  }, [summary, rows]);
-
   const aging = useMemo(() => {
     if (summary) return summary.aging.map(a => ({ key: a.bucket as AgingBucket, count: a.count, value: a.value }));
     const m = new Map<AgingBucket, { count: number; value: number }>();
@@ -241,7 +214,7 @@ export default function NetworkQuotationPage() {
   useEffect(() => { setTablePage(0); }, [tableKey]); // เปลี่ยนตัวกรอง → กลับหน้า 1
   const listOpts = useMemo<QuoteListOpts>(() => ({
     limit: QPAGE_SIZE, offset: tablePage * QPAGE_SIZE, sort: { col: "created_at", dir: "desc" }, // ใบที่สร้างล่าสุดก่อน (บอสสั่ง 21 ก.ย. 69) — date เปลี่ยนทุกครั้งที่ส่ง
-    status, dealerCodes: resolvedDealerCodes, productLines: resolvedProductLines, search: search || undefined, searchDealers,
+    status, dealerCodes: resolvedDealerCodes, search: search || undefined, searchDealers,
     dateStart: qFilters.dateStart, dateEnd: qFilters.dateEnd,
   }), [tablePage, tableKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const pageResult = useQuotationsPage(listOpts);
@@ -252,7 +225,7 @@ export default function NetworkQuotationPage() {
     return {
       id: `LIVE-${q.id}`, quoteNo: q.id, dealerCode: code, dealerName: nameOf.get(code) ?? code,
       customer: q.customer, valueNum: q.totalValue, status: q.status, createdAt: fmtISOToThai(q.date),
-      salesperson: lead?.assigned ?? `ดีลเลอร์ ${code}`, productLine: q.buildingType || q.project || "",
+      salesperson: lead?.assigned ?? `ดีลเลอร์ ${code}`, productLine: q.project || "",
       materialCost: q.materialCost, lineItems: q.lineItems,
     };
   };
@@ -272,7 +245,7 @@ export default function NetworkQuotationPage() {
 
   // Export — หนึ่งแถวต่อใบ · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด · local: จาก tableRows (ทั้งชุดอยู่แล้ว)
   const quoteToCells = (q: QuoteRow) => [
-    q.quoteNo, q.dealerCode, q.dealerName, q.customer, q.dealerProvince, q.productLine, regionDisplay(q.region),
+    q.quoteNo, q.dealerCode, q.dealerName, q.customer, q.dealerProvince, regionDisplay(q.region),
     q.valueNum, quotationStatusLabel[q.status], q.createdAt, q.validUntil ?? "—", q.agingDays ?? "—",
   ];
   const exportGetRows = pageResult
@@ -291,7 +264,7 @@ export default function NetworkQuotationPage() {
           <ExportMenu
             filename="hq-network-quotations"
             title="ใบเสนอราคาทั้งเครือ"
-            headers={["เลขที่", "รหัสดีลเลอร์", "ดีลเลอร์", "ลูกค้า", "จังหวัด (ดีลเลอร์)", "ประเภทอาคาร", "ภูมิภาค", "มูลค่า (บาท)", "สถานะ", "วันที่สร้าง", "ใช้ได้ถึง", "อายุใบ (วัน)"]}
+            headers={["เลขที่", "รหัสดีลเลอร์", "ดีลเลอร์", "ลูกค้า", "จังหวัด (ดีลเลอร์)", "ภูมิภาค", "มูลค่า (บาท)", "สถานะ", "วันที่สร้าง", "ใช้ได้ถึง", "อายุใบ (วัน)"]}
             rows={tableRows.map(quoteToCells)}
             getRows={exportGetRows}
           />
@@ -305,10 +278,9 @@ export default function NetworkQuotationPage() {
         dealers={ALL_DEALERS}
         regions={look.allRegions}
         provinces={look.allProvinces}
-        products={products}
       />
 
-      <QuotationAnalytics dealerAgg={dealerAgg} productTypes={productTypes} aging={aging} trend={trend} หน่วยเวลา={ละเอียดแท่ง === "month" ? "รายเดือน" : "รายวัน"} leadsByDealer={leadsByDealer} lostReasons={lostReasons} unspecifiedLost={unspecifiedLost} totalLost={totalLost} />
+      <QuotationAnalytics dealerAgg={dealerAgg} aging={aging} trend={trend} หน่วยเวลา={ละเอียดแท่ง === "month" ? "รายเดือน" : "รายวัน"} leadsByDealer={leadsByDealer} lostReasons={lostReasons} unspecifiedLost={unspecifiedLost} totalLost={totalLost} />
 
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ)
           ความยาวหน้าคุมด้วยกฎอื่นแทน: การ์ดกราฟตรึงความสูง S/M/L + กราฟรายการโชว์ Top N

@@ -87,9 +87,8 @@ export type SalesContextType = {
   ensureQuotations: () => Promise<QuotationMock[]>;
   /** สร้างใบใหม่ = ออกเลข + insert แบบ atomic (H8) · รับ draft ที่ยังไม่มี id · คืนใบที่บันทึกจริง */
   createQuotation: (draft: Omit<QuotationMock, "id">) => Promise<QuotationMock>;
-  /** แก้ใบเสนอราคา · opts.แนบแม่แบบ = ผู้ใช้ยืนยันว่าส่งแม่แบบไปกับใบด้วย (ติ๊กงาน "ส่งแม่แบบให้ลูกค้า" ให้)
-   *  ไม่ส่ง opts มา = ไม่ติ๊กงานนั้น — ห้ามเดาแทนผู้ใช้ว่าแนบไปหรือเปล่า */
-  updateQuotation: (quotation: QuotationMock, opts?: { แนบแม่แบบ?: boolean }) => void;
+  /** แก้ใบเสนอราคา (รวมส่งให้ลูกค้า) */
+  updateQuotation: (quotation: QuotationMock) => void;
   deleteQuotation: (id: string) => void;
   setQuotationStatus: (id: string, status: QuotationStatus) => void;
   /** เลขนัดหมายถัดไปของสาขา — ออกจาก DB แบบ atomic เหมือนเลขลูกค้า/เลขที่ใบ
@@ -359,7 +358,6 @@ export function SalesProvider({
     return () => { alive = false; };
   }, [ready, dealerCode, myDealerCode, isHQ, isLoggedIn, gateHQ, quoteValidityDays, loadFresh]);
   const persistQuote = useRef({
-    create: (q: QuotationMock) => { bumpWrite(); void quotationsRepo.create(q).catch(onFail("quotations", "สร้างใบเสนอราคา")); },
     update: (q: QuotationMock) => { bumpWrite(); return quotationsRepo.update(q).catch(onFail("quotations", "แก้ไขใบเสนอราคา")); },
     remove: (id: string) => { bumpWrite(); void quotationsRepo.remove(id).catch(onFail("quotations", "ลบใบเสนอราคา")); },
     setStatus: (id: string, status: QuotationStatus) => { bumpWrite(); void quotationsRepo.setStatus(id, status).catch(onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")); },
@@ -653,8 +651,7 @@ export function SalesProvider({
 
   // ── Quotation → เช็กงานของลูกค้าเป้าหมายอัตโนมัติ ─────────────────────────────
   // สร้างใบเสนอราคา = ติ๊ก "จัดทำใบเสนอราคา" · ส่งใบเสนอราคา = ติ๊ก "ส่งใบเสนอราคา"
-  // งาน "ส่งแม่แบบให้ลูกค้า" ติ๊กเฉพาะตอนที่ผู้ใช้ยืนยันในกล่องถามว่าแนบแม่แบบไปด้วย (บอสสั่ง 21 ส.ค. 69)
-  //   ⚠️ ห้ามติ๊กให้เองโดยไม่ถาม — เซลส์อาจตั้งใจส่งเฉพาะใบ ไม่ส่งสเปกสินค้าให้ลูกค้า
+  // (งาน "ส่งแม่แบบให้ลูกค้า" เลิกใช้แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   // แล้วเลื่อนสถานะลูกค้าเป้าหมายตาม stageFromTasks (เลื่อนขึ้นเท่านั้น ไม่ดึงถอยหลัง)
   const completeLeadQuoteTasks = useCallback((quotation: QuotationMock, keys: string[]) => {
     for (const l of leadsRef.current) {
@@ -721,11 +718,11 @@ export function SalesProvider({
   /** แปลง "ใบก่อน → ใบหลัง" เป็นบรรทัดกิจกรรมที่คนอ่านรู้เรื่อง
    *  ส่งใบ / ขึ้นเวอร์ชันใหม่ / แก้ยอด — เขียนคนละแบบ ไม่เหมารวมเป็น "แก้ไขใบ" เฉย ๆ */
   const จดกิจกรรมของใบ = useCallback((
-    before: QuotationMock | undefined, after: QuotationMock, opts?: { แนบแม่แบบ?: boolean },
+    before: QuotationMock | undefined, after: QuotationMock,
   ) => {
     if (before && before.status === "draft" && after.status === "sent_to_client") {
       logLeadActivity(after.dealId,
-        `ส่งใบเสนอราคา ${after.id} (${after.revision ?? "V1"}) ให้ลูกค้า${opts?.แนบแม่แบบ ? " พร้อมแม่แบบ" : " (ไม่ได้แนบแม่แบบ)"}`, "doc");
+        `ส่งใบเสนอราคา ${after.id} (${after.revision ?? "V1"}) ให้ลูกค้า`, "doc");
       return;
     }
     if (before && before.status !== "draft" && after.status === "sent_to_client" && before.revision === after.revision) {
@@ -744,9 +741,9 @@ export function SalesProvider({
     if (before) logLeadActivity(after.dealId, `แก้ไขรายละเอียดใบเสนอราคา ${after.id}`, "doc");
   }, [logLeadActivity]);
 
-  const updateQuotation = useCallback((ที่แก้มา: QuotationMock, opts?: { แนบแม่แบบ?: boolean }) => {
-    // งานที่ระบบติ๊กให้เมื่อใบถูกส่งจริง — "ส่งแม่แบบให้ลูกค้า" ติ๊กเฉพาะเมื่อผู้ใช้ยืนยันว่าแนบไปด้วย
-    const งานที่ติ๊ก = opts?.แนบแม่แบบ ? ["makeQuote", "sendQuote", "catalog"] : ["makeQuote", "sendQuote"];
+  const updateQuotation = useCallback((ที่แก้มา: QuotationMock) => {
+    // งานที่ระบบติ๊กให้เมื่อใบถูกส่งจริง
+    const งานที่ติ๊ก = ["makeQuote", "sendQuote"];
     const before = quotationsRef.current.find(q => q.id === ที่แก้มา.id);
     // ── เลขฉบับ (V1→V2) ตัดสินที่นี่ที่เดียว ──────────────────────────────────────
     // ทางผ่านทางเดียวของทุกหน้า → หน้า /quotations กับแผงในหน้าลูกค้าเป้าหมายได้กติกาเดียวกัน
@@ -760,7 +757,7 @@ export function SalesProvider({
     if (!needsReconcile) {
       void Promise.resolve(persistQuote.update(quotation)).finally(ปล่อยลีด);
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
-      จดกิจกรรมของใบ(before, quotation, opts);
+      จดกิจกรรมของใบ(before, quotation);
       return;
     }
     // ต้อง await การเขียนใบให้ commit จริงก่อนค่อย reconcile — RPC คำนวณผลรวมจาก DB สด (กัน race, 0078)
@@ -772,7 +769,7 @@ export function SalesProvider({
         return;
       } finally { ปล่อยลีด(); }
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
-      จดกิจกรรมของใบ(before, quotation, opts);
+      จดกิจกรรมของใบ(before, quotation);
       try {
         await reconcileCustomerTotal(quotation.customerId);
       } catch (e) {

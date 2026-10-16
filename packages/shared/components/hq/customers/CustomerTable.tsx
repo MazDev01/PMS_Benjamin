@@ -20,19 +20,6 @@ function fmtM(n: number): string {
   return n.toLocaleString("th-TH");
 }
 
-/** รายการหลายค่าในช่องเดียว — เกิน 1 ค่าแสดงตัวแรก + "+n" (กันตารางบวม) */
-function MultiCell({ values }: { values: string[] }) {
-  if (!values.length) return DASH;
-  return (
-    <span style={{ whiteSpace: "nowrap" }} title={values.join(", ")}>
-      {values[0]}
-      {values.length > 1 && (
-        <span style={{ color: "var(--muted-foreground)", fontWeight: 500 }}> +{values.length - 1}</span>
-      )}
-    </span>
-  );
-}
-
 export function CustomerTable({ rows, onView, pagination, loading }: {
   rows: HQCustomerPageRow[]; onView: (r: HQCustomerPageRow) => void;
   /** หน้าปัจจุบัน/จำนวนทั้งหมด — ไม่ส่งมา (local, ยังไม่กลับ) ก็ยังมีแถบ โดยนับจากแถวที่เห็นอยู่ */
@@ -44,16 +31,15 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
   return (
     <div className="table-wrap" style={{ borderTop: "none" }}>
       <table>
-        {/* ความกว้างทุกคอลัมน์กำหนดที่นี่เท่านั้น (table-layout: fixed) — เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่ด้วย */}
+        {/* ความกว้างทุกคอลัมน์กำหนดที่นี่เท่านั้น (table-layout: fixed) — เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่ด้วย
+            ถอดคอลัมน์ "ประเภทอาคาร" + "แม่แบบ" (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → 19% ยกให้คอลัมน์ "ลูกค้า" */}
         <colgroup>
           <col style={{ width: "7%", minWidth: 92 }} />{/* รหัสลูกค้า */}
-          <col style={{ width: "15%", minWidth: 148 }} />{/* ลูกค้า — ยาวเกินตัด + tooltip */}
+          <col style={{ width: "34%", minWidth: 200 }} />{/* ลูกค้า — ยาวเกินตัด + tooltip */}
           <col style={{ width: "5%", minWidth: 60 }} />{/* รหัสดีลเลอร์ */}
           <col style={{ width: "12%", minWidth: 130 }} />{/* ชื่อดีลเลอร์ */}
           <col style={{ width: "8%", minWidth: 84 }} />{/* จังหวัด */}
           <col style={{ width: "7%", minWidth: 76 }} />{/* ภาค */}
-          <col style={{ width: "10%", minWidth: 104 }} />{/* ประเภทอาคาร */}
-          <col style={{ width: "9%", minWidth: 96 }} />{/* แม่แบบ */}
           <col style={{ width: "7%", minWidth: 96 }} />{/* ยอดซื้อรวม — หัวคอลัมน์ต้องอ่านครบ (th ไม่ตัดบรรทัด) */}
           <col style={{ width: "8%", minWidth: 92 }} />{/* ซื้อล่าสุด */}
           <col style={{ width: "4%", minWidth: 56 }} />{/* ปุ่มดู */}
@@ -66,8 +52,6 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
             <th style={{ paddingLeft: 8 }}>ชื่อดีลเลอร์</th>
             <th>จังหวัด</th>
             <th>ภาค</th>
-            <th>ประเภทอาคาร</th>
-            <th>แม่แบบ</th>
             <th className="num">ยอดซื้อรวม</th>
             <th>ซื้อล่าสุด</th>
             {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 ปุ่มเคยหลุดออกนอกกรอบ (26 ส.ค. 69) */}
@@ -77,7 +61,7 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={12} style={{ textAlign: "center", padding: "40px 14px", color: "#6b7280" }}>
+              <td colSpan={9} style={{ textAlign: "center", padding: "40px 14px", color: "#6b7280" }}>
                 {loading ? "กำลังโหลด…" : "ไม่พบลูกค้า"}
               </td>
             </tr>
@@ -94,8 +78,6 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
                 <td style={{ whiteSpace: "nowrap", paddingLeft: 8, overflow: "hidden", textOverflow: "ellipsis" }} title={c.dealerName}>{c.dealerName}</td>
                 <td style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>
                 <td style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ?? DASH}</td>
-                <td><MultiCell values={c.buildingTypes} /></td>
-                <td><MultiCell values={c.templates} /></td>
                 <td className="num" style={{ whiteSpace: "nowrap", fontWeight: c.totalValue > 0 ? 700 : 400, color: c.totalValue > 0 ? PRIMARY : "#6b7280" }}>
                   {c.totalValue > 0 ? fmtM(c.totalValue) : DASH}
                 </td>

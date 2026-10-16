@@ -10,21 +10,17 @@ describe("แบบฟอร์มกรอกข้อมูลตั้งต�
 
   it("ระบบอ่านหัวตารางได้ทุกแท็บ และรับค่าที่กรอกลงไป", async () => {
     const เล่ม = await แยกสมุดงานจากXlsx(fs.readFileSync(ไฟล์).buffer as ArrayBuffer);
-    expect([...เล่ม.keys()]).toContain(แผ่น.แม่แบบ);
+    // แท็บแม่แบบ/ราคาแม่แบบย่อยลบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+    expect([...เล่ม.keys()].some(k => k.includes("แม่แบบ"))).toBe(false);
     // แบบฟอร์มที่ส่งให้ลูกค้าไปแล้วยังใช้ชื่อแท็บ/หัวตารางคำเดิม (ก่อนเปลี่ยนคำเรียก 12 ต.ค. 69) — ต้องนำเข้าได้เหมือนเดิม
     expect([...เล่ม.keys()].map(เป็นคำปัจจุบัน)).toContain(แผ่น.ดีลเลอร์);
 
     // จำลองว่าลูกค้ากรอกราคาและข้อมูลบริษัทลงไป
-    เล่ม.get(แผ่น.แม่แบบ)![1][3] = "5,100";
     เล่ม.get(แผ่น.บริษัท)!.find(r => r[0] === "เลขประจำตัวผู้เสียภาษี")![1] = "0105500000000";
-    เล่ม.get(แผ่น.แม่แบบย่อย)![1][3] = "6200";
     เล่ม.get(แผ่น.เป้าหมาย)![1][1] = "60000000";
 
     const ผล = อ่านแผ่นงานสำรอง(เล่ม, {});
-    expect(ผล.catalog?.length).toBe(6);
-    expect(ผล.catalog?.[0]).toMatchObject({ id: "tpl-1", name: "โกดังสำเร็จรูป", price: 5_100, unit: "ตร.ม." });
-    expect(ผล.catalog?.[0].subtypes?.length).toBe(5);
-    expect(ผล.catalog?.[0].subtypePrices).toEqual({ "โกดังเก็บสินค้าทั่วไป": 6_200 });
+    expect(Object.keys(ผล)).not.toContain("catalog");
     expect(ผล.company?.taxId).toBe("0105500000000");
     expect(ผล.targets?.annualTarget).toBe(60_000_000);
     expect(ผล.lostReasons?.length).toBe(4);

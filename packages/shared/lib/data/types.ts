@@ -2,7 +2,7 @@
 // เพื่อไม่ให้ shape ข้อมูลระหว่าง local/backend หลุดจากกัน (drift)
 export type {
   LeadRow, CustomerRow, QuotationMock, AppointmentMock,
-  DealerRow, SolutionProduct, DealerFile, ResponsiblePerson,
+  DealerRow, DealerFile, ResponsiblePerson,
   HQPolicy, HQTargets, HQNotifRules, LeadRules, DealerLeadRulesMap, QuoteNumbering,
   LeadTaskDef,
 } from "@pms/shared/lib/mock";
@@ -17,12 +17,11 @@ export type DealerSettings = {
   document: _Doc;       // คำนำหน้าเลขที่ · อายุใบ · เงื่อนไข · ตราประทับ · ลายเซ็น
   logo: string;         // โลโก้สัญลักษณ์ (ไอคอน) บนแถบเมนู · "" = ยังไม่ตั้ง
   notifPrefs: _Notif;   // การแจ้งเตือนที่สาขาเปิด/ปิดเอง
-  pricing: DealerPricing; // ส่วนบวกเพิ่มจากราคากลางของสาขานี้ (ดูด้านล่าง)
+  pricing: DealerPricing; // % บวกตั้งต้นของสาขานี้ (ดูด้านล่าง)
 };
 
-/** ส่วนบวกเพิ่มจากราคากลางของสำนักงานใหญ่ — เป็นสิทธิ์ของดีลเลอร์ ตั้งเองได้อิสระ
- *  หน่วยเป็นเปอร์เซ็นต์ (10 = บวก 10%) · ไม่ตั้ง/0 = ใช้ราคากลางตรง ๆ
- *  byTemplate ชนะ defaultPct เสมอ (ตั้งเฉพาะแม่แบบได้ ไม่งั้นใช้ค่ากลางของสาขา) */
+/** % บวกตั้งต้นของสาขา (บวกบนต้นทุนจากใบ HQ) — เป็นสิทธิ์ของดีลเลอร์ ตั้งเองได้อิสระ · หน่วยเปอร์เซ็นต์ (10 = บวก 10%)
+ *  defaultPct = ค่าที่ใช้ · byTemplate = ค่าเดิมสมัยตั้งรายแม่แบบ (อ่านอย่างเดียว ใช้ย้ายค่า — ดู markupPctOf ใน lib/boq.ts) */
 export type DealerPricing = {
   defaultPct?: number;
   byTemplate?: Record<string, number>;

@@ -2,10 +2,11 @@
 
 // ─── ส่วนวิเคราะห์ใบเสนอราคาทั้งเครือ ─────────────────────────────────────────
 // ลูกค้าเป้าหมาย→ใบเสนอราคา · มูลค่าเทียบยอดขายจริง · ใบเสนอราคารายดีลเลอร์ · สถานะแยกดีลเลอร์
-// แนวโน้ม 12 เดือน · เทียบรายภูมิภาค · ประเภทอาคาร · เหตุผลที่เสียโอกาส · อายุใบที่ค้าง · อันดับดีลเลอร์
+// แนวโน้ม 12 เดือน · เทียบรายภูมิภาค · เหตุผลที่เสียโอกาส · อายุใบที่ค้าง · อันดับดีลเลอร์
 // ใช้เฉพาะแท่ง/แท่งแนวนอน/แท่งซ้อน/เส้น — ไม่มีกรวย/วงกลม/เกจ
 //
 // ไม่มี "อัตราการเปิดอ่าน" และ "การใช้แม่แบบ" — ระบบไม่มีข้อมูลรองรับทั้งสองอย่าง (ห้ามกุ)
+// ไม่มีกราฟ "ประเภทอาคาร" (จัดกลุ่มตามแม่แบบ) แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
 import { useRouter } from "next/navigation";
 import { Eye } from "lucide-react";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
@@ -15,7 +16,6 @@ import { QuotationAgingChart } from "./QuotationAgingChart";
 import { LeadsVsQuotationsChart } from "./LeadsVsQuotationsChart";
 import { QuotationValueVsSalesChart } from "./QuotationValueVsSalesChart";
 import { TopNRows } from "@pms/shared/components/hq/TopNRows";
-import { BuildingTypeChart } from "./BuildingTypeChart";
 import { LostReasonsChart } from "./LostReasonsChart";
 import { conversionRate, sumAggs, regionDisplay, type DealerAgg, type AgingBucket } from "@pms/shared/lib/hqQuotations";
 import { fmtBaht } from "@pms/shared/lib/format";
@@ -150,9 +150,8 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
   );
 }
 
-export function QuotationAnalytics({ dealerAgg, productTypes, aging, trend, หน่วยเวลา, leadsByDealer, lostReasons, unspecifiedLost, totalLost }: {
+export function QuotationAnalytics({ dealerAgg, aging, trend, หน่วยเวลา, leadsByDealer, lostReasons, unspecifiedLost, totalLost }: {
   dealerAgg: DealerAgg[];
-  productTypes: { type: string; count: number; value: number }[];
   aging: { key: AgingBucket; count: number; value: number }[];
   trend: { months: string[]; bar: number[]; line: number[] };
   /** ป้ายหน่วยเวลาของกราฟแนวโน้ม — ต้องตรงกับช่องที่หน้าเรียกตัดมา */
@@ -164,7 +163,7 @@ export function QuotationAnalytics({ dealerAgg, productTypes, aging, trend, ห�
 }) {
   return (
     <>
-      {/* แนวโน้ม 12 เดือน มาก่อน — ให้เห็นภาพรวมว่าทั้งเครือกำลังไปทางไหน แล้วค่อยแยกย่อยรายดีลเลอร์/ภาค/แม่แบบ
+      {/* แนวโน้ม 12 เดือน มาก่อน — ให้เห็นภาพรวมว่าทั้งเครือกำลังไปทางไหน แล้วค่อยแยกย่อยรายดีลเลอร์/ภาค
           กินเต็มแถว: กราฟ 12 จุดอ่านง่ายกว่าตอนกว้าง (และไม่มีใบไหนคู่ควรจับคู่ด้วย) */}
       <QuotationTrendChart trend={trend} หน่วยเวลา={หน่วยเวลา} />
 
@@ -179,9 +178,10 @@ export function QuotationAnalytics({ dealerAgg, productTypes, aging, trend, ห�
       {/* "ออกใบเสนอราคาเยอะ แต่ปิดได้น้อย" (DealerClosingChart) ถูกตัดออก — ย้ายไปอยู่ที่ /hq/pipeline
           ซึ่งเป็นเจ้าของเรื่อง "ผลงานดีลเลอร์ / ใครต้องเข้าไปช่วย" (ใบนั้นมีตารางสรุปใต้กราฟด้วย)
           หน้านี้เหลือเฉพาะเรื่องของตัวเอกสารใบเสนอราคา — อายุใบ / สถานะ / แนวโน้ม / มูลค่า */}
-      <div className="hq-dealer-charts">
+      {/* เทียบรายภูมิภาค กินเต็มแถว — คู่เดิม "ประเภทอาคาร" (แม่แบบ) ถูกถอด: เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
+          ไม่เว้นช่องว่างครึ่งแถวไว้ (มาตรฐานการ์ดคู่) */}
+      <div style={{ marginBottom: 24 }}>
         <RegionalComparison dealerAgg={dealerAgg} />
-        <BuildingTypeChart types={productTypes} />
       </div>
 
       <div className="hq-dealer-charts">

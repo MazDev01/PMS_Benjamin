@@ -39,22 +39,22 @@ describe("กติกาหลัก: HQ ทุกบทบาท 'แก้ง
 });
 
 describe("สิทธิ์ข้อมูลกลาง (can_write_master) = เฉพาะ SUPER_ADMIN / HQ_MANAGEMENT", () => {
-  it("SUPER_ADMIN + HQ_MANAGEMENT แก้แคตตาล็อก/จัดการดีลเลอร์ได้", () => {
+  it("SUPER_ADMIN + HQ_MANAGEMENT แก้ค่าตั้งเครือ/จัดการดีลเลอร์ได้", () => {
     for (const role of ["SUPER_ADMIN", "HQ_MANAGEMENT"] as UserRole[]) {
-      expect(hasPermission(role, "catalog:edit")).toBe(true);
+      expect(hasPermission(role, "settings:edit")).toBe(true);
       expect(hasPermission(role, "dealers:manage")).toBe(true);
       expect(hasPermission(role, "hq:all_data")).toBe(true);
     }
   });
   it("HQ_STAFF ดูได้แต่แก้ข้อมูลกลางไม่ได้", () => {
     expect(hasPermission("HQ_STAFF", "reports:view")).toBe(true);
-    expect(hasPermission("HQ_STAFF", "catalog:edit")).toBe(false);
+    expect(hasPermission("HQ_STAFF", "settings:edit")).toBe(false);
     expect(hasPermission("HQ_STAFF", "dealers:manage")).toBe(false);
     expect(hasPermission("HQ_STAFF", "hq:all_data")).toBe(false);
   });
   it("ดีลเลอร์จัดการดีลเลอร์/ข้อมูลกลางไม่ได้", () => {
     expect(hasPermission("DEALER_ADMIN", "dealers:manage")).toBe(false);
-    expect(hasPermission("DEALER_ADMIN", "catalog:edit")).toBe(false);
+    expect(hasPermission("DEALER_ADMIN", "settings:edit")).toBe(false);
   });
 });
 

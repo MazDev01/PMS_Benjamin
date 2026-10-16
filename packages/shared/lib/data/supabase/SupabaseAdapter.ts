@@ -29,7 +29,7 @@ import type { SalesTable, SalesChange } from "../ports";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { วันเวลาไทย } from "@pms/shared/lib/thaiDate";
 import type {
-  DealerRow, SolutionProduct, DealerFile, ResponsiblePerson,
+  DealerRow, DealerFile, ResponsiblePerson,
   HQPolicy, HQTargets, HQNotifRules, DealerLeadRulesMap, LeadRules,
   AuditEntry, QuotationMock, CustomerRow, Scope,
   DealerSettings, UserProfile, HQCompany, CustomerNote, SystemUser,
@@ -205,7 +205,6 @@ async function nextEntityId(dealerCode: string, entity: "customers" | "appointme
 }
 
 const FILES_BUCKET = "dealer-files";
-const CATALOG_BUCKET = "catalog-plans";   // แบบแปลนแม่แบบ · อ่านสาธารณะ · เขียนเฉพาะ HQ (0167)
 
 // ชื่อช่อง Realtime ต้องไม่ซ้ำกันต่อการ subscribe หนึ่งครั้ง
 // ถ้าใช้ชื่อตายตัว: หลายคอมโพเนนต์ที่ subscribe พร้อมกัน (เช่น useHQPolicy + useQuoteValidityDays
@@ -307,20 +306,6 @@ export const SupabaseAdapter: DataAdapter = {
       const { error } = await sb().storage.from(FILES_BUCKET).remove([path]);
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
     },
-    // ── แบบแปลนแม่แบบ → ถัง catalog-images (สิทธิ์เขียน = สำนักงานใหญ่เท่านั้น ตั้งไว้ที่ 0010) ──
-    uploadCatalog: async (file) => {
-      // ชื่อไฟล์ที่เป็น key ต้องเป็น ASCII ล้วน (ไทย/ช่องว่าง → "Invalid key") — ชื่อจริงเก็บใน plans[].name
-      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_+/g, "_") || "file";
-      const path = `plans/${Date.now()}-${safe}`;
-      const { error } = await sb().storage.from(CATALOG_BUCKET).upload(path, file, { upsert: false });
-      if (error) throw new DbError(error.message, (error as { code?: string }).code);
-      return path;
-    },
-    catalogUrl: (path) => sb().storage.from(CATALOG_BUCKET).getPublicUrl(path).data.publicUrl,
-    removeCatalog: async (path) => {
-      const { error } = await sb().storage.from(CATALOG_BUCKET).remove([path]);
-      if (error) throw new DbError(error.message, (error as { code?: string }).code);
-    },
   },
   // Realtime — ช่องเดียวฟังครบ 4 ตารางงานขาย · RLS กรอง event ให้ตามสาขาที่ล็อกอินอยู่แล้ว
   realtime: {
@@ -352,9 +337,6 @@ export const SupabaseAdapter: DataAdapter = {
       return ch;
       });
     },
-    subscribeCatalog: (onChange) => subscribeWithRetry("แคตตาล็อกกลาง", () =>
-      sb().channel(topic("catalog-changes"))
-        .on("postgres_changes", { event: "*", schema: "public", table: "master_catalog" }, () => onChange())),
     subscribeSettings: (onChange) => subscribeWithRetry("ตั้งค่าเครือ", () => {
       const ch = sb().channel(topic("settings-changes"));
       // ต้องครบทุกตารางที่ HQ เป็นเจ้าของและดีลเลอร์ต้องใช้ตาม
@@ -411,29 +393,6 @@ export const SupabaseAdapter: DataAdapter = {
     // ที่นี่ไม่มีอะไรกันเลยสักอย่าง (ผลตรวจสอบ DB×หน้าจอทั้งระบบ พบว่าไม่มีจุดไหนเรียกเมธอดนี้ในโหมด supabase
     // จริงเลย — คงไว้เพื่อให้ตรงตาม DealersRepo interface เท่านั้น แต่ทำให้ throw ชัดเจนแทนลบเงียบๆ ถ้าถูกเรียกผิดจุด)
     remove: async () => { throw new Error("ห้ามลบดีลเลอร์ผ่านทางนี้ — ใช้ DELETE /api/admin/dealers เท่านั้น (กัน FK/บัญชีกำพร้า)"); },
-  },
-  catalog: {
-    list: () => selectScoped<SolutionProduct>("master_catalog", undefined, "dealer_code", "id", null),
-    save: async (all) => {
-      // เหตุผลเดียวกับ dealers.save — created_at เป็นของ DB (ดูคำอธิบายด้านบน)
-      const rows = toSnakeList(all as unknown as Row[]).map(r => {
-        const c = { ...r };
-        delete c.created_at;
-        for (const k of Object.keys(c)) if (c[k] === undefined) delete c[k];
-        return c;
-      });
-      // ⚠️ ต้องแบ่งกลุ่มตาม "ชุดคอลัมน์" ก่อนบันทึก — เหตุผลเต็มอยู่ที่ server/v1/catalog.ts
-      //    ส่งหลายแถวที่คอลัมน์ไม่เท่ากันในคำสั่งเดียว ตัวเชื่อมจะเติม NULL ให้แถวที่ขาด
-      //    แล้วคอลัมน์ที่ห้ามว่าง (subtype_prices) จะทำให้ทั้งชุดถูกปฏิเสธ (ผู้ใช้แจ้ง 28 ส.ค. 69)
-      const กลุ่ม = new Map<string, Row[]>();
-      for (const r of rows) {
-        const คีย์ = Object.keys(r).sort().join("|");
-        const ก = กลุ่ม.get(คีย์);
-        if (ก) ก.push(r); else กลุ่ม.set(คีย์, [r]);
-      }
-      for (const ชุด of กลุ่ม.values()) await must(sb().from("master_catalog").upsert(ชุด));
-    },
-    remove: (id) => must(sb().from("master_catalog").delete().eq("id", id)),
   },
   files: {
     list: (scope) => selectScoped<DealerFile>("files", scope),
@@ -1132,11 +1091,6 @@ export const SupabaseAdapter: DataAdapter = {
       };
       const { rows, total } = await rangedFetch(buildQuery, opts.limit, opts.offset);
       return { rows: rows.map(rowToQuote), total: opts.knownTotal != null && opts.knownTotal >= 0 ? opts.knownTotal : total };
-    },
-    create: async (row) => {
-      const { data, error } = await sb().from("quotations").insert(quoteToRow(row)).select().single();
-      if (error) throw new DbError(error.message, (error as { code?: string }).code);
-      return rowToQuote(data as Row);
     },
     update: (row) => withNetworkRetry(async () => {
       const { data, error } = await sb().from("quotations").update(quoteToRow(row)).eq("id", row.id).select().single();

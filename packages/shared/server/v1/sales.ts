@@ -299,11 +299,9 @@ export const quotesPOST = handler("quotations.write", async (req, sb) => {
     if (error) return dbFail("quotations.relinkCustomerQuotes", error);
     return ok((data as Row[]).map(rowToQuote));
   }
-  const row = await body<QuotationMock>(req);
-  if (!row) return fail(400, "ข้อมูลใบเสนอราคาไม่ถูกต้อง");
-  const { data, error } = await sb.from("quotations").insert(quoteToRow(row)).select().single();
-  if (error) return dbFail("quotations.create", error);
-  return ok(rowToQuote(data as Row));
+  // ทางเขียนใบตรง ๆ (Flow เก่า: ใบไม่มีใบ HQ) ปิดแล้ว 16 ต.ค. 69 — ใบใหม่ใช้ op=numbered ที่ผูกใบ HQ เท่านั้น
+  //   (ฐานปฏิเสธใบที่ไม่มีใบ HQ อยู่แล้วตั้งแต่ใบ 0201 · ตอบ 410 ให้ชัดว่าทางนี้เลิกใช้ ไม่ใช่ข้อมูลผิด)
+  return fail(410, "ทางนี้ปิดแล้ว — ออกใบเสนอราคาใหม่ด้วย POST /api/v1/quotations?op=numbered จากใบ HQ");
 }, { อ่าน: อ่านเมื่อop("page") });
 
 export const quotesPUT = handler("quotations.update", async (req, sb) => {

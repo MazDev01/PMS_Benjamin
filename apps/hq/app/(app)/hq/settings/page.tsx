@@ -36,7 +36,7 @@ import { งานมาตรฐาน } from "@pms/shared/lib/prospectJourney"
 import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealerProspects";
 import { PACKAGE_ORDER, packageLabel } from "@pms/shared/lib/dealerProposals";
 import { REGIONS, type Region } from "@pms/shared/lib/provinces";
-import { settings as settingsRepo, dealers as dealersRepo, hqCompany as hqCompanyRepo, catalog as catalogRepo } from "@pms/shared/lib/data";
+import { settings as settingsRepo, dealers as dealersRepo, hqCompany as hqCompanyRepo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { สร้างแผ่นงานสำรอง, อ่านแผ่นงานสำรอง, type ชุดการตั้งค่า } from "@pms/shared/lib/settingsBackup";
@@ -51,7 +51,6 @@ import {
   DEFAULT_HQ_NOTIF_RULES,
   HQ_ALERT_META, เกณฑ์วันแจ้งเตือน, leadStatusLabel, leadStatusColor, LEAD_TASK_TEMPLATE, LEAD_STATUS_ORDER,
   LOST_REASONS,
-  type SolutionProduct,
   type HQPolicy, type HQTargets, type HQNotifChannels, type HQNotifRules,
   type HQAlertKey, type DealerRow, type LeadStatus, type LeadTaskDef,
   OTHER_REASON_OPTION,
@@ -702,7 +701,7 @@ function TargetsTab() {
 
 // ═══════════════════════ 7 · การแจ้งเตือน ═════════════════════════════════════
 // 2 การ์ด:
-//  1) กฎแจ้งเตือนงานของสำนักงานใหญ่เอง (ลูกค้าเป้าหมาย HQ · ใบค่าแฟรนไชส์ · แม่แบบ) — ขึ้นกระดิ่ง HQ (ดู @pms/shared/lib/hqAlerts)
+//  1) กฎแจ้งเตือนงานของสำนักงานใหญ่เอง (ลูกค้าเป้าหมาย HQ · ใบค่าแฟรนไชส์) — ขึ้นกระดิ่ง HQ (ดู @pms/shared/lib/hqAlerts)
 //     งานขายของดีลเลอร์ไม่อยู่ในนี้แล้ว (บอสสั่ง 14 ก.ย. 69 "ตั้งค่าในขอบเขต hq")
 //  2) บันทึกการใช้งาน — หมวดจาก Audit Log ที่กรองกระดิ่ง HQ (Topbar อ่าน hqAuditCategory + inapp)
 // ช่องทาง = "ในระบบ" (กระดิ่ง) อย่างเดียว
@@ -781,7 +780,7 @@ function NotificationsTab() {
     <>
       <EmailRecipientsCard value={rules.draft.emailRecipients ?? []} onChange={list => rules.set(p => ({ ...p, emailRecipients: list }))} />
       <SectionCard icon={<Bell size={19} />} title="การแจ้งเตือนของสำนักงานใหญ่"
-        desc="งานของสำนักงานใหญ่เอง — ลูกค้าเป้าหมาย (HQ) · ใบค่าแฟรนไชส์ · แม่แบบ คำนวณจากข้อมูลจริง แล้วขึ้นที่กระดิ่ง">
+        desc="งานของสำนักงานใหญ่เอง — ลูกค้าเป้าหมาย (HQ) · ใบค่าแฟรนไชส์ คำนวณจากข้อมูลจริง แล้วขึ้นที่กระดิ่ง">
         {/* สวิตช์เดียว "เปิด" (บอสสั่ง 3 ก.ย. 69) — เดิมมีช่อง "ในระบบ" แยกไว้เลือกช่องทาง
             แต่พอเหลือช่องทางเดียว (กระดิ่ง) สองสวิตช์ให้ผลเหมือนกันทุกกรณี = ซ้ำซ้อนและชวนสับสน */}
         <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px 8px", fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af" }}>
@@ -853,17 +852,17 @@ function BackupCard() {
   //   ส่งออกได้ไฟล์ว่าง · นำเข้าไม่มีผล · "คืนค่าเริ่มต้น" ขึ้น confirm แล้วไม่เกิดอะไรขึ้น
   async function exportAll() {
     try {
-      const [policy, targets, notifRules, lostReasons, company, dealers, catalog] = await Promise.all([
+      const [policy, targets, notifRules, lostReasons, company, dealers] = await Promise.all([
         settingsRepo.getPolicy(), settingsRepo.getTargets(), settingsRepo.getNotifRules(),
-        settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(), catalogRepo.list(),
+        settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(),
       ]);
       // ไฟล์ Excel เล่มเดียว แยกแท็บตามเรื่อง หัวตารางภาษาไทย — เปิดอ่าน/แก้ แล้วนำเข้ากลับได้เลย
       // (เดิมเป็น .json ซึ่งเปิดแล้วอ่านไม่รู้เรื่อง และเอาไปทำอะไรต่อไม่ได้)
-      const แผ่นงาน = สร้างแผ่นงานสำรอง({ policy, targets, notifRules, lostReasons, company, dealers, catalog });
+      const แผ่นงาน = สร้างแผ่นงานสำรอง({ policy, targets, notifRules, lostReasons, company, dealers });
       const ชื่อไฟล์ = `การตั้งค่าเบญจมิน-${APP_NOW_ISO.slice(0, 10)}.xlsx`;
       ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx(แผ่นงาน), ชื่อไฟล์);
       logAudit("ส่งออกการตั้งค่า", ชื่อไฟล์);
-      toast(`ส่งออกแล้ว — ${แผ่นงาน.length} แท็บ · ดีลเลอร์ ${dealers.length} ราย · แม่แบบ ${catalog.length} รายการ`);
+      toast(`ส่งออกแล้ว — ${แผ่นงาน.length} แท็บ · ดีลเลอร์ ${dealers.length} ราย`);
     } catch (e) {
       toast("ส่งออกไม่สำเร็จ: " + friendlyError(e));
     }
@@ -883,16 +882,15 @@ function BackupCard() {
           lostReasons: Array.isArray(obj.lostReasons) ? obj.lostReasons as string[] : undefined,
           company: obj.company as HQCompany | undefined,
           dealers: Array.isArray(obj.dealers) ? obj.dealers as DealerRow[] : undefined,
-          catalog: Array.isArray(obj.catalog) ? obj.catalog as SolutionProduct[] : undefined,
         };
       } else {
-        // ต่อยอดจากค่าที่ใช้อยู่จริง — สิ่งที่ตารางใส่ไม่ได้ (รูปแม่แบบ/แบบแปลน/ประวัติราคา) จะไม่หาย
-        const [policy, targets, notifRules, lostReasons, company, dealers, catalog] = await Promise.all([
+        // ต่อยอดจากค่าที่ใช้อยู่จริง — แท็บไหนไม่มีในไฟล์ = ไม่แตะเรื่องนั้น
+        const [policy, targets, notifRules, lostReasons, company, dealers] = await Promise.all([
           settingsRepo.getPolicy(), settingsRepo.getTargets(), settingsRepo.getNotifRules(),
-          settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(), catalogRepo.list(),
+          settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(),
         ]);
         const เล่ม = await อ่านสมุดงานจากไฟล์(file);
-        ที่จะเขียน = อ่านแผ่นงานสำรอง(เล่ม, { policy, targets, notifRules, lostReasons, company, dealers, catalog });
+        ที่จะเขียน = อ่านแผ่นงานสำรอง(เล่ม, { policy, targets, notifRules, lostReasons, company, dealers });
         if (!Object.keys(ที่จะเขียน).length) {
           toast("ไฟล์นี้ไม่มีแท็บการตั้งค่าที่ระบบรู้จัก — ใช้ไฟล์ที่ส่งออกจากปุ่ม “ส่งออก (สำรองข้อมูล)”");
           return;
@@ -907,7 +905,6 @@ function BackupCard() {
       });
       const jobs: Promise<unknown>[] = [];
       if (ที่จะเขียน.dealers?.length) jobs.push(dealersRepo.save(ที่จะเขียน.dealers));
-      if (ที่จะเขียน.catalog?.length) jobs.push(catalogRepo.save(ที่จะเขียน.catalog));
       await Promise.all(jobs);
       logAudit("นำเข้าการตั้งค่า (กู้คืน)", file.name);
       toast("นำเข้าสำเร็จ — กำลังโหลดใหม่");

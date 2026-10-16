@@ -36,9 +36,8 @@ export function QuotationTable({ rows, onView, pagination }: {
             <col style={{ width: "10%", minWidth: 120 }} />{/* เลขที่ — "Q-2026-0089" ต้องการ 111px */}
             <col style={{ width: "6%", minWidth: 72 }} />{/* รหัส */}
             <col style={{ width: "9%", minWidth: 88 }} />{/* ดีลเลอร์ — ชื่อยาวตัด … ได้ */}
-            <col style={{ width: "9%", minWidth: 88 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ */}
+            <col style={{ width: "19%", minWidth: 120 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ (รับความกว้างของคอลัมน์ประเภทอาคารที่ลบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
             <col style={{ width: "12%", minWidth: 128 }} />{/* จังหวัดดีลเลอร์ — "พระนครศรีอยุธยา" ต้องการ 125px */}
-            <col style={{ width: "10%", minWidth: 104 }} />{/* ประเภทอาคาร — หัวกว้าง 100px · ชื่อยาวตัด … ได้ */}
             <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
             <col style={{ width: "8%", minWidth: 94 }} />{/* สถานะ */}
             <col style={{ width: "10%", minWidth: 116 }} />{/* วันที่สร้าง — "27 มิ.ย. 2569" ต้องการ 107px */}
@@ -53,7 +52,6 @@ export function QuotationTable({ rows, onView, pagination }: {
               <th>ลูกค้า</th>
               {/* จังหวัดของดีลเลอร์ที่ออกใบ — ไม่ใช่จังหวัดลูกค้า (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง) */}
               <th>จังหวัดดีลเลอร์</th>
-              <th>ประเภทอาคาร</th>
               <th className="num">มูลค่า</th>
               <th>สถานะ</th>
               <th>วันที่สร้าง</th>
@@ -64,7 +62,7 @@ export function QuotationTable({ rows, onView, pagination }: {
           </thead>
           <tbody>
             {!rows.length ? (
-              <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px 14px", color: MUTED }}>ไม่พบข้อมูลที่ค้นหา</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: "center", padding: "32px 14px", color: MUTED }}>ไม่พบข้อมูลที่ค้นหา</td></tr>
             ) : rows.map(q => {
               const sc = quotationStatusColor[q.status];
               // คีย์ต้องพ่วงรหัสสาขา — เลขที่ใบไม่ซ้ำ "เฉพาะภายในสาขา" (คีย์จริง = สาขา + เลขที่)
@@ -79,7 +77,6 @@ export function QuotationTable({ rows, onView, pagination }: {
                   <td title={q.dealerName} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerName}</td>
                   <td title={q.customer} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.customer}</td>
                   <td title={`จังหวัดของดีลเลอร์ ${q.dealerName}`} style={{ color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerProvince}</td>
-                  <td title={q.productLine} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.productLine}</td>
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>
                   <td>
                     <span className="badge" style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{quotationStatusLabel[q.status]}</span>

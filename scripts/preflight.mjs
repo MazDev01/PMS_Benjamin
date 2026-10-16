@@ -12,7 +12,6 @@
 // รัน: node scripts/preflight.mjs
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { ตรวจสวิตช์ซ่อนราคา } from "./lib/priceSwitchCheck.mjs";
 import { ตรวจค่าSMTP, ตรวจผู้รับของHQ } from "./lib/emailReadinessCheck.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
 
@@ -191,19 +190,7 @@ for (const [fn, args] of [["is_account_active", {}], ["next_entity_id", { p_deal
             : `${newest.name} (${days < 1 ? "วันนี้" : `${Math.floor(days)} วันก่อน`}) · ควรไม่เกิน 7 วัน`);
 }
 
-// ── 13) สวิตช์ซ่อนราคาแม่แบบ ห้ามเปิดก่อน Flow ใบ HQ ขึ้นระบบ ──
-// เปิดก่อน = ดีลเลอร์อ่านราคาไม่ได้ และยังไม่มีทางรับราคาจากสำนักงานใหญ่ → ออกใบไม่ได้ทั้งเครือ (ดู lib/priceSwitchCheck.mjs)
-{
-  const pol = await svc.from("hq_policy").select("hide_catalog_price").order("id").limit(1).maybeSingle();
-  const switchOn = pol.error ? null : (pol.data ? !!pol.data.hide_catalog_price : null);   // error = ฐานยังไม่มีคอลัมน์นี้
-  let sentHqQuotes = null;
-  if (switchOn) {
-    const q = await svc.from("hq_quotes").select("id", { count: "exact", head: true }).in("status", ["sent", "ordered"]);
-    sentHqQuotes = q.error ? null : (q.count ?? 0);
-  }
-  const r = ตรวจสวิตช์ซ่อนราคา({ switchOn, sentHqQuotes });
-  add(r.ok, "สวิตช์ซ่อนราคาแม่แบบ", r.detail);
-}
+// (ข้อ 13 สวิตช์ซ่อนราคาแม่แบบ ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ไม่มีราคาแม่แบบให้ซ่อน)
 
 // ── อีเมลแจ้งเตือน (ด่าน 1 · ใบ 0193): ตั้ง SMTP แล้ว และ HQ มีผู้รับอย่างน้อย 1 ราย ──
 //   ไม่พร้อม = คำขอใหม่ / เกิน 14 วัน / ยกเลิก / ขอแก้ราคา ค้างในกล่องขาออกเงียบ ๆ

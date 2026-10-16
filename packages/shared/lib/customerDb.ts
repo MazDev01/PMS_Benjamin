@@ -13,7 +13,7 @@
 // ลูกค้าที่ไม่มีใบปิดการขายจับคู่ได้ → ไม่มีอาคาร/ส่งมอบ = null → หน้าแสดง "—"
 // (ห้ามเดาแทน — ลูกค้า seed หลายรายมี dealsWon แต่ไม่มีใบในระบบ ถือว่าไม่มีข้อมูล)
 import { useMemo } from "react";
-import { mainTemplateOf, type HQCustomer } from "@pms/shared/lib/mock";
+import { type HQCustomer } from "@pms/shared/lib/mock";
 import { useNetworkCustomers, useNetworkQuotations } from "@pms/shared/lib/useNetworkData";
 import { parseThaiDate } from "@pms/shared/lib/thaiDate";
 
@@ -26,9 +26,8 @@ import type { Region } from "@pms/shared/lib/provinces";
 // ─── อาคารที่ลูกค้าซื้อไปแล้ว (1 ใบที่ปิดการขายได้ = 1 อาคาร) ────────────────────
 export type PurchasedBuilding = {
   quoteNo: string;
-  product: string;          // ชื่อสินค้าบนใบ (อาจเป็นแม่แบบหลักหรือแม่แบบย่อย)
-  buildingType: string;     // แม่แบบหลักของ Master Catalog
-  template: string | null;  // แม่แบบย่อย — ไม่มี = ใบระบุแค่แม่แบบหลัก
+  product: string;          // ข้อความประเภทอาคารดิบบนใบ (ไม่ยุบเป็นแม่แบบแล้ว)
+  // (ช่อง buildingType/template ที่ยุบเป็นแม่แบบ ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   value: number;
   wonDate: string;          // วันปิดการขาย (ไทย)
   wonAt: Date | null;
@@ -40,8 +39,6 @@ export type PurchasedBuilding = {
 export type CustomerDbRow = HQCustomer & {
   region: Region | null;
   buildings: PurchasedBuilding[];
-  buildingTypes: string[];      // แม่แบบหลักที่ซื้อ (ไม่ซ้ำ)
-  templates: string[];          // แม่แบบย่อยที่ซื้อ (ไม่ซ้ำ)
   lastPurchase: string | null;  // วันปิดการขายล่าสุด (ไทย)
   lastPurchaseAt: Date | null;
   isRepeat: boolean;            // ซื้อซ้ำ = มีอาคารที่ซื้อแล้วมากกว่า 1
@@ -51,12 +48,9 @@ export type CustomerDbRow = HQCustomer & {
 export type BuildingSrc = { quoteNo: string; productLine: string; valueNum: number; createdAt: string };
 export const buildingOf = (q: BuildingSrc): PurchasedBuilding => {
   const product = q.productLine ?? "";
-  const main = mainTemplateOf(product) || product;
   return {
     quoteNo: q.quoteNo,
     product,
-    buildingType: main,
-    template: product && product !== main ? product : null,
     value: q.valueNum,
     wonDate: q.createdAt,
     wonAt: parseThaiDate(q.createdAt),
@@ -97,8 +91,6 @@ export function useCustomerDbLocal(): CustomerDbRow[] {
         ...c,
         region: regionOf(c.province),
         buildings,
-        buildingTypes: [...new Set(buildings.map(b => b.buildingType).filter(Boolean))],
-        templates: [...new Set(buildings.map(b => b.template).filter((t): t is string => !!t))],
         lastPurchase: lastBuy?.wonDate ?? null,
         lastPurchaseAt: lastBuy?.wonAt ?? null,
         isRepeat: buildings.length > 1,

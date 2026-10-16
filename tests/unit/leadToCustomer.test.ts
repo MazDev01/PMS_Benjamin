@@ -28,7 +28,8 @@ describe("ลูกค้าเป้าหมาย → ลูกค้า", ()
     expect(c.phone).toBe(lead.phone);
     expect(c.email).toBe(lead.email);
     expect(c.province).toBe("เชียงใหม่");
-    expect(c.category).toBe("โกดังสำเร็จรูป");
+    // ไม่สืบแม่แบบของลูกค้าเป้าหมายมาเป็นหมวดลูกค้า (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+    expect(c.category).toBe("");
     expect(c.owner).toBe("วิภา รัตนกุล");   // ผู้รับผิดชอบเดิมดูแลต่อ
     expect(c.logo).toBe(lead.logo);
     expect(c.dealerCode).toBe("CNX");        // ลูกค้าเป็นของสาขาเดียวกับลูกค้าเป้าหมาย

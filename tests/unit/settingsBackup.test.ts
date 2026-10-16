@@ -14,12 +14,6 @@ const ของจริง: ชุดการตั้งค่า = {
     { id: "d1", code: "CNX", name: "เชียงใหม่", province: "เชียงใหม่", region: "เหนือ", revenueTarget: 12_000_000, status: "active" },
     { id: "d2", code: "RYG", name: "ระยอง", province: "ระยอง", region: "ตะวันออก", revenueTarget: 8_000_000, status: "inactive" },
   ],
-  catalog: [{
-    id: "P1", name: "โรงงาน", spec: "โครงสร้างเหล็ก", price: 5_500, unit: "ตร.ม.", effectiveDate: "2026-01-01",
-    priceHistory: [{ price: 5_000, effectiveDate: "2025-01-01" }],
-    subtypes: ["โรงงานอาหาร", "คลังสินค้า"], subtypePrices: { "โรงงานอาหาร": 6_200 },
-    image: "/templates/factory.svg", plans: [{ name: "แปลน A", path: "a.pdf", size: 100 }],
-  }],
 };
 
 /** ส่งออกเป็นไฟล์จริง แล้วอ่านกลับเข้ามาเหมือนที่หน้าเว็บทำ */
@@ -35,7 +29,7 @@ describe("ไฟล์สำรองการตั้งค่า (Excel)", ()
     const แผ่นงาน = สร้างแผ่นงานสำรอง(ของจริง);
     expect(แผ่นงาน.map(s => s.ชื่อ)).toEqual([
       แผ่น.บริษัท, แผ่น.นโยบาย, แผ่น.เป้าหมาย, แผ่น.เกณฑ์เตือน, แผ่น.หัวข้อเตือน,
-      แผ่น.เหตุผล, แผ่น.ดีลเลอร์, แผ่น.แม่แบบ, แผ่น.แม่แบบย่อย, แผ่น.ประวัติราคา,
+      แผ่น.เหตุผล, แผ่น.ดีลเลอร์,
     ]);
     const ดีลเลอร์ = แผ่นงาน.find(s => s.ชื่อ === แผ่น.ดีลเลอร์)!;
     expect(ดีลเลอร์.หัวตาราง).toEqual(["รหัสดีลเลอร์", "ชื่อดีลเลอร์", "จังหวัด", "ภูมิภาค", "เป้าทั้งปี (บาท)", "สถานะ"]);
@@ -46,10 +40,6 @@ describe("ไฟล์สำรองการตั้งค่า (Excel)", ()
     // ค่าเปิด/ปิด ต้องอ่านออกโดยไม่ต้องแปลศัพท์
     expect(แผ่นงาน.find(s => s.ชื่อ === แผ่น.หัวข้อเตือน)!.แถว[0][1]).toBe("เปิด");
     expect(แผ่นงาน.find(s => s.ชื่อ === แผ่น.นโยบาย)!.แถว[0][1]).toBe(7);   // VAT เป็นตัวเลขจริง
-    // ราคาต้องเป็นตัวเลขจริง เอาไปคำนวณต่อใน Excel ได้
-    expect(แผ่นงาน.find(s => s.ชื่อ === แผ่น.แม่แบบ)!.แถว[0][3]).toBe(5_500);
-    expect(แผ่นงาน.find(s => s.ชื่อ === แผ่น.แม่แบบย่อย)!.แถว).toEqual([["P1", "โรงงาน", "โรงงานอาหาร", 6_200, 5_500], ["P1", "โรงงาน", "คลังสินค้า", "", 5_500]]);
-    expect(แผ่นงาน.find(s => s.ชื่อ === แผ่น.ประวัติราคา)!.แถว).toEqual([["P1", "โรงงาน", 5_000, "2025-01-01", ""]]);
   });
 
   it("ส่งออกแล้วนำเข้ากลับ ได้ค่าเดิมทุกเรื่อง", async () => {
@@ -61,7 +51,6 @@ describe("ไฟล์สำรองการตั้งค่า (Excel)", ()
     expect(ก.dealers).toEqual(ของจริง.dealers);
     expect(ก.notifRules?.alerts.prospectIdle.days).toBe(DEFAULT_HQ_NOTIF_RULES.alerts.prospectIdle.days);
     expect(ก.notifRules?.alerts.proposalAwaiting.days).toBe(DEFAULT_HQ_NOTIF_RULES.alerts.proposalAwaiting.days);
-    expect(ก.catalog?.[0].price).toBe(5_500);
   });
 
   it("แก้ค่าใน Excel แล้วนำเข้า ค่าที่แก้มีผลจริง", async () => {
@@ -71,7 +60,6 @@ describe("ไฟล์สำรองการตั้งค่า (Excel)", ()
       เล่ม.get(แผ่น.หัวข้อเตือน)![1][1] = "ปิด";
       เล่ม.get(แผ่น.เกณฑ์เตือน)![1][1] = "21";   // แถวแรก = ลูกค้าเป้าหมาย (HQ) ไม่ได้ติดต่อกี่วัน
       เล่ม.get(แผ่น.ดีลเลอร์)!.push(["LPG", "ลำปาง", "ลำปาง", "เหนือ", "3000000", "เปิดใช้งาน"]);
-      เล่ม.get(แผ่น.แม่แบบ)![1][3] = "6000";
     });
     expect(ผล.targets?.annualTarget).toBe(123_000_000);
     expect(ผล.notifRules?.alerts.prospectFollowUpDue.on).toBe(false);
@@ -80,25 +68,30 @@ describe("ไฟล์สำรองการตั้งค่า (Excel)", ()
     expect(ผล.notifRules?.alerts.prospectIdle.on).toBe(true);
     expect(ผล.dealers?.length).toBe(3);
     expect(ผล.dealers?.[2]).toMatchObject({ code: "LPG", name: "ลำปาง", revenueTarget: 3_000_000, status: "active" });
-    expect(ผล.catalog?.[0].price).toBe(6_000);
   });
 
-  it("สิ่งที่ใส่ในตารางไม่ได้ (รูป/แบบแปลน/ประวัติราคา/รหัสภายใน) ต้องไม่หายตอนนำเข้า", async () => {
+  it("สิ่งที่ใส่ในตารางไม่ได้ (รหัสภายใน) ต้องไม่หายตอนนำเข้า", async () => {
     const ผล = await ไปกลับ();
-    expect(ผล.catalog?.[0].image).toBe("/templates/factory.svg");
-    expect(ผล.catalog?.[0].plans?.length).toBe(1);
-    expect(ผล.catalog?.[0].priceHistory.length).toBe(1);
     expect(ผล.dealers?.[0].id).toBe("d1");   // ดีลเลอร์เดิมต้องคงรหัสภายใน ไม่งั้นงานขายหลุดจากเจ้าของ
   });
 
   it("ลบแท็บที่ไม่ต้องการทิ้ง = ไม่แตะเรื่องนั้น", async () => {
     const ผล = await ไปกลับ(เล่ม => {
-      for (const k of [แผ่น.ดีลเลอร์, แผ่น.แม่แบบ, แผ่น.บริษัท]) เล่ม.delete(k);
+      for (const k of [แผ่น.ดีลเลอร์, แผ่น.บริษัท]) เล่ม.delete(k);
     });
     expect(ผล.dealers).toBeUndefined();
-    expect(ผล.catalog).toBeUndefined();
     expect(ผล.company).toBeUndefined();
     expect(ผล.targets?.annualTarget).toBe(260_000_000);
+  });
+
+  it("ไฟล์สำรองรุ่นเก่าที่มีแท็บแม่แบบ (ก่อนเอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) — แท็บอื่นนำเข้าได้ แท็บแม่แบบถูกข้าม", async () => {
+    const ผล = await ไปกลับ(เล่ม => {
+      เล่ม.set("แม่แบบสินค้า", [["รหัสแม่แบบ", "ชื่อแม่แบบ", "ราคากลาง (บาท)"], ["P1", "โรงงาน", "5500"]]);
+      เล่ม.set("ราคาแม่แบบย่อย", [["รหัสแม่แบบ", "แม่แบบย่อย"], ["P1", "โรงงานอาหาร"]]);
+    });
+    expect(Object.keys(ผล)).not.toContain("catalog");
+    expect(ผล.dealers?.length).toBe(2);
+    expect(ผล.targets).toEqual(ของจริง.targets);
   });
 
   it("ช่องที่เว้นว่างไว้ = ใช้ค่าเดิม ไม่ใช่ศูนย์", () => {

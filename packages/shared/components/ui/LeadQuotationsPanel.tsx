@@ -7,21 +7,17 @@ import {
   quotationStatusLabel, quotationStatusColor, fmtISOToThai,
   type LeadRow, type CustomerRow, type QuotationMock, type QuoteLineItem,
 } from "@pms/shared/lib/mock";
-import { LineItemsEditor } from "@pms/shared/components/ui/LineItemsEditor";
 import { HqMarkupEditor } from "@pms/shared/components/ui/HqMarkupEditor";
 import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { type HqQuote, รายการใบลูกค้าจากใบHQ, วันไทยสั้น } from "@pms/shared/lib/quoteRequests";
 import { markupPctOf } from "@pms/shared/lib/boq";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
-import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
-import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { boqLineItems, boqSubtotal, seedLineItems } from "@pms/shared/lib/boq";
+import { boqLineItems } from "@pms/shared/lib/boq";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
 import { ฉบับถัดไป, จะขึ้นฉบับใหม่ } from "@pms/shared/lib/quoteRevision";
 import { parseBaht, fmtBaht, fmtFull } from "@pms/shared/lib/format";
 import { คิดภาษีใบเสนอราคา, ช่องภาษีสำหรับบันทึก } from "@pms/shared/lib/quoteTax";
-import { useMasterCatalogState } from "@pms/shared/lib/useMasterCatalog";
 import { useHQPolicy } from "@pms/shared/lib/useHQConfig";
 import { useQuoteValidity } from "@pms/shared/lib/useQuoteValidity";
 import { useDealerSettings, useDealerVat, useDealerWht } from "@pms/shared/lib/useDealerSettings";
@@ -42,7 +38,7 @@ function วันหมดอายุจาก(วันออกใบ: strin
 
 // vatOn/whtOn = "ใบนี้คิดภาษีตัวนั้นไหม" · vatPct/whtPct = อัตราที่ดีลเลอร์แก้เองได้ในฟอร์ม
 // ค่าตั้งต้น (บอสสั่ง 28 ส.ค. 69): VAT ติ๊กไว้ · หัก ณ ที่จ่าย ไม่ติ๊ก
-type FormState = { project: string; buildingType: string; items: string; price: string; expiry: string; note: string;
+type FormState = { project: string; items: string; price: string; expiry: string; note: string;
   lineItems: QuoteLineItem[]; vatOn: boolean; vatPct: string; whtOn: boolean; whtPct: string };
 
 // ต้องส่งมาอย่างใดอย่างหนึ่งเท่านั้น (lead หรือ customer) — เดิม prop เป็น optional ทั้งคู่แยกกัน
@@ -56,9 +52,6 @@ type LeadQuotationsPanelProps =
 
 export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal }: LeadQuotationsPanelProps) {
   const { quotations, createQuotation, updateQuotation, deleteQuotation } = useSales();
-  // ready = โหลดแคตตาล็อกจบแล้ว — ต้องรอก่อนถึงจะบอกว่า "ยังไม่มีแม่แบบ" (ว่างเพราะยังโหลดไม่เสร็จไม่นับ)
-  const { catalog, ready: catalogReady } = useMasterCatalogState();
- // ราคากลาง HQ — ใช้ตั้งราคา/หน่วยของ BOQ ตั้งต้น
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
   const [editing, setEditing] = useState<QuotationMock | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
@@ -71,7 +64,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // ใบใหม่: นับจากวันที่ออกใบ · ใบเดิมที่เคยระบุวันไว้แล้ว: คงวันเดิม ไม่เขียนทับของเก่า
   const วันหมดอายุตามสาขา = (mode === "edit" && editing?.expiry) ? editing.expiry : วันหมดอายุจาก(MOCK_TODAY, validityDays);
   const dealerCfg = useDealerSettings(); // หัวกระดาษ/ตราประทับ/VAT ของสาขา (ผ่าน repo)
-  // ส่วนบวกเพิ่มจากราคากลางที่สาขาตั้งไว้เองที่หน้าแม่แบบ — ใช้ตั้งต้นราคาต่อหน่วยใน BOQ
+  // % ที่บวกตั้งต้นต่อแม่แบบที่สาขาตั้งไว้เอง — ใช้ตั้งต้น % ของแต่ละบรรทัดในใบที่ทำจากใบ HQ
   const pricing = dealerCfg.settings.pricing;
   const dealerVat = useDealerVat();
   const dealerWht = useDealerWht();   // อัตราหัก ณ ที่จ่ายตั้งต้นของสาขา (ตั้งค่า › ใบเสนอราคา)      // % VAT ที่สาขาตั้งเอง — ใช้ตอนออกใบใหม่และเป็นค่าสำรองของใบเก่า
@@ -80,36 +73,30 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // subject รวม — รองรับทั้ง "ลูกค้าเป้าหมาย" (lead) และ "ลูกค้า" (customer)
   const subj = lead ? {
     kind: "lead" as const, company: lead.company, contact: lead.contact, phone: lead.phone, email: lead.email,
-    province: lead.province, assigned: lead.assigned, product: lead.product,
+    province: lead.province, assigned: lead.assigned,
     customerId: lead.customerId, dealId: lead.numId as number | undefined,
     value: lead.value,                       // มูลค่าประเมินจากลูกค้าเป้าหมาย — ใช้ตั้งต้น BOQ
     area: lead.area,                         // พื้นที่ที่กรอกไว้ตอนเพิ่มลูกค้าเป้าหมาย — ใช้เป็นจำนวนตั้งต้นของ BOQ
     project: lead.project,                   // ชื่อโครงการที่ดีลเลอร์ตั้งไว้ตอนสร้างดีล (ถ้ามี)
   } : {
     kind: "customer" as const, company: customer.company, contact: customer.name, phone: customer.phone, email: customer.email,
-    province: customer.province, assigned: customer.owner, product: customer.category || "",
+    province: customer.province, assigned: customer.owner,
     customerId: customer.id, dealId: undefined as number | undefined,
     value: customer.totalValue ? String(customer.totalValue) : "",
     area: undefined as number | undefined,   // ลูกค้า (ปิดการขายแล้ว) ไม่มีพื้นที่ตั้งต้น — ใบเสนอราคาของลูกค้าดูอย่างเดียวอยู่แล้ว
     project: undefined as string | undefined,
   };
   // ดีลเลอร์ตั้งชื่อโครงการไว้แล้วตอนสร้างดีล → ใช้ชื่อนั้น ไม่ใช่ประกอบชื่อใหม่ทับ
-  // ไม่ได้ตั้งไว้ค่อยประกอบจากแม่แบบ + ชื่อบริษัท (ยังแก้ในช่องได้ตามเดิม)
-  const defProject = () => subj.project?.trim() || (subj.product ? `${subj.product} — ${subj.company}` : subj.company);
+  // ไม่ได้ตั้งไว้ใช้ชื่อบริษัท (ยังแก้ในช่องได้ตามเดิม) — ไม่ประกอบจากแม่แบบเก่าแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+  const defProject = () => subj.project?.trim() || subj.company;
   const readOnly = subj.kind === "customer"; // แท็บใบเสนอราคาของ "ลูกค้า" = ดูอย่างเดียว (ไม่แก้/สร้าง/ลบ)
 
-  // ตั้งต้น BOQ จากข้อมูลลูกค้าเป้าหมายเลย ไม่ต้องให้ไปเลือกแคตตาล็อกเอง (บอสสั่ง)
-  // โครงสร้าง BOQ ที่ถูก: ราคา/หน่วย = ราคากลางของ HQ (คงที่) · จำนวน = พื้นที่ (ตัวแปร)
-  // จึงถอดพื้นที่ออกมาจากมูลค่าประเมิน: จำนวน = มูลค่าประเมิน ÷ ราคากลาง — ไม่ใช่ยัดมูลค่าทั้งก้อนลงราคา/หน่วย
-  // ลูกค้าเป้าหมายอาจระบุ "แม่แบบย่อย" (เช่น โรงงานอาหาร อยู่ใต้ โรงงาน) → หาในแคตตาล็อกทั้ง 2 ชั้น
-  // ทั้งสองทางเป็นแค่ "ค่าตั้งต้น" — ดีลเลอร์แก้ทับใน BOQ ได้ และพื้นที่บนใบยึดตาม BOQ ตอนบันทึกเสมอ
+  // ฟอร์มว่าง — รายการมาจากใบ HQ เท่านั้น (openCreate เติมให้) · Flow เก่าที่ตั้งรายการจากราคาแม่แบบลบแล้ว (16 ต.ค. 69)
   const emptyForm = (): FormState => {
-    const seed = seedLineItems({ product: subj.product, value: subj.value, area: subj.area }, catalog, pricing);
-    const total = boqSubtotal(seed);
     return {
-      project: defProject(), buildingType: subj.product,
-      items: String(seed.length), price: total > 0 ? String(total) : "",
-      expiry: "", note: "", lineItems: seed,
+      project: defProject(),
+      items: "0", price: "",
+      expiry: "", note: "", lineItems: [],
       vatOn: true, vatPct: String(dealerVat ?? 7), whtOn: false, whtPct: String(dealerWht ?? 3),
     };
   };
@@ -118,8 +105,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // ── ใบลูกค้าต้องทำจากใบ HQ (FLOW.html ขั้น 7 · ด่าน 3 · ใบ 0201) ───────────────────────────────────────
   //   ทางเดิม (ตั้งรายการจากแคตตาล็อกแล้วพิมพ์ราคาเอง) ปิดแล้ว — ฐานข้อมูลปฏิเสธใบใหม่ที่ไม่มีใบ HQ ทุกทาง
   //   ใบใหม่: รายการ/จำนวนจากใบ HQ ที่ส่งแล้วของลูกค้าเป้าหมายรายนี้ · ดีลเลอร์ตั้ง % ที่บวก (ตั้งต้นตามส่วนบวกของสาขา)
-  //   ใบเดิมที่ไม่มีใบ HQ ยังเปิดดู/แก้ได้แบบเดิม (ไม่ได้สร้างใหม่)
-  //   โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่มี Flow ใบ HQ — ยังทำงานแบบเดิม
+  //   ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว (บอสสั่งลบ Flow เก่า 16 ต.ค. 69) — แก้/ส่ง/ลบ/ทำสำเนาไม่ได้
+  //   โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่มี Flow ใบ HQ = ดูใบได้อย่างเดียว ออกใบใหม่ไม่ได้
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);              // ใบ HQ ที่ส่งแล้วของลูกค้าเป้าหมายนี้ (ใช้ออกใบใหม่)
   const [ใบHQของใบที่แก้, setใบHQของใบที่แก้] = useState<HqQuote | null>(null);
   const [รอใบHQ, setรอใบHQ] = useState(REAL_BACKEND && !!lead);
@@ -137,22 +124,10 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     return () => { alive = false; };
   }, [lead?.dealerCode, lead?.numId, lead?.status]);   // ขั้นเปลี่ยน (ส่งใบ/ขอแก้ราคา) = ถามใหม่
   const ใบHQของฟอร์ม = REAL_BACKEND ? (mode === "create" ? ใบHQ : editing?.hqQuoteId ? ใบHQของใบที่แก้ : null) : null;
-  const รายการจากใบHQ = (h: HqQuote) => รายการใบลูกค้าจากใบHQ(h.lineItems, l => markupPctOf(pricing, l.catalogId));
+  const รายการจากใบHQ = (h: HqQuote) => รายการใบลูกค้าจากใบHQ(h.lineItems, () => markupPctOf(pricing));
   // อายุใบลูกค้าไม่เกินใบ HQ (กฎใน FLOW · ฐานข้อมูลบังคับอีกชั้น) — โชว์วันที่จะถูกบันทึกจริง
   const วันหมดอายุ = ใบHQของฟอร์ม?.validUntil && ใบHQของฟอร์ม.validUntil < วันหมดอายุตามสาขา ? ใบHQของฟอร์ม.validUntil : วันหมดอายุตามสาขา;
 
-  // แคตตาล็อกมาช้ากว่าฟอร์ม → ตั้งต้น BOQ ใหม่ให้เมื่อของมาถึง
-  // useMasterCatalog เริ่มด้วยรายการว่างเสมอแล้วค่อยโหลด ถ้าผู้ใช้กด "สร้างใบเสนอราคา" ก่อนโหลดเสร็จ
-  // ราคากลางจะเป็น 0 → BOQ ว่าง และหน้านี้ซ่อนปุ่มเลือกแคตตาล็อกไว้ = เพิ่มแถวเองไม่ได้ ออกใบไม่ได้เลย
-  // เติมเฉพาะตอน "สร้างใหม่ + ยังไม่มีแถวเลย" จึงไม่ทับของที่ดีลเลอร์แก้ไว้
-  useEffect(() => {
-    if (mode !== "create" || form.lineItems.length > 0 || catalog.length === 0) return;
-    const seed = seedLineItems({ product: subj.product, value: subj.value, area: subj.area }, catalog, pricing);
-    if (!seed.length) return;
-    const total = boqSubtotal(seed);
-    setForm(p => ({ ...p, lineItems: seed, items: String(seed.length), price: String(total) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalog, mode, form.lineItems.length, subj.product, subj.value, subj.area]);
   // รับได้ทั้งข้อความและติ๊กถูก (ช่องภาษีเป็น boolean — เพิ่ม 28 ส.ค. 69)
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(p => ({ ...p, [k]: v }));
 
@@ -166,13 +141,6 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // มูลค่างาน (ก่อน VAT) = ผลรวมรายการสินค้า — ระบบไม่มีส่วนลดแล้ว
   function netTotal(f: FormState) { return parseBaht(f.price); }
 
-  // ── ปุ่ม "เลือกจากแคตตาล็อก" เปิดตลอด (บอสสั่ง 20 ส.ค. 69) ────────────────────
-  //
-  // เดิมซ่อนไว้ เพราะ BOQ ตั้งต้นมาจากแม่แบบของลูกค้าเป้าหมายให้แล้ว (บอสสั่งไว้เมื่อก่อน)
-  //   ผลข้างเคียงที่เพิ่งเห็นชัด: พอเพิ่มรายการที่สองในใบเดิมไม่ได้ ดีลเลอร์ก็ไปกดออกใบใหม่แทน
-  //   ลูกค้ารายเดียวเลยมีใบเสนอราคา 2 ฉบับ ทั้งที่เป็นงานเดียวกัน แค่มีของหลายรายการ
-  // เปิดปุ่มไว้เสมอ = เพิ่มรายการในใบเดิมได้ ไม่ต้องออกใบใหม่ (แก้ที่ต้นเหตุของ "2 ใบ")
-  //   ปุ่มลบรายการก็กลับมาด้วย (LineItemsEditor ผูกสองอย่างนี้ไว้ด้วยกัน) — แก้รายการในใบเดิมได้ครบ
   // ── หนึ่งดีล = ใบเสนอราคาใบเดียว (บอสสั่ง 20 ส.ค. 69) ─────────────────────────
   //
   // เดิมกด "สร้างใบเสนอราคา" ทีไรก็ได้ใบใหม่ทุกครั้ง ลูกค้ารายเดียวเลยมีใบ 2-3 ฉบับ
@@ -183,19 +151,22 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   //    ยอดขายและยอดสะสมของลูกค้าอ้างอิงใบพวกนี้อยู่ · ถ้าลูกค้าซื้อรอบใหม่ก็ต้องเป็นใบใหม่จริง ๆ
   //   ระบบจริง: นับเฉพาะใบที่ทำจากใบ HQ เวอร์ชันปัจจุบัน — ใบเดิมที่ไม่มีใบ HQ ไม่ใช่ที่ "เพิ่มรายการ" ได้อีก
   const ใบที่ยังแก้ได้ = related.find(q => (q.status === "draft" || q.status === "sent_to_client")
-    && (!REAL_BACKEND || (ใบHQ != null && q.hqQuoteId === ใบHQ.id)));
+    && ใบHQ != null && q.hqQuoteId === ใบHQ.id);
+  // ใบเดิม (ไม่มีใบ HQ) = ดูได้อย่างเดียว · แท็บของลูกค้า = ดูอย่างเดียวทั้งหมด
+  const แก้ได้ = (q: QuotationMock) => !readOnly && !!q.hqQuoteId;
   function openCreate() {
     if (ใบที่ยังแก้ได้) {
       openEdit(ใบที่ยังแก้ได้);
       onToast?.(`เพิ่มรายการในใบ ${ใบที่ยังแก้ได้.id} ที่มีอยู่แล้ว — ไม่ออกใบใหม่`);
       return;
     }
-    if (REAL_BACKEND && !ใบHQ) {
+    if (!REAL_BACKEND) { onToast?.("ข้อมูลตัวอย่างไม่มีขั้นขอราคาจากสำนักงานใหญ่ — ออกใบเสนอราคาได้ในระบบจริงเท่านั้น"); return; }
+    if (!ใบHQ) {
       onToast?.(รอใบHQ ? "กำลังโหลดใบ HQ…" : "ต้องได้ราคาจากสำนักงานใหญ่ก่อน — ส่งคำขอที่แผง “ราคาจากสำนักงานใหญ่” ด้านบน");
       return;
     }
     const f = emptyForm();
-    if (REAL_BACKEND && ใบHQ) {
+    {
       const li = รายการจากใบHQ(ใบHQ);
       f.lineItems = li; f.items = String(li.length);
       f.price = String(li.reduce((s, it) => s + it.qty * it.unitPrice, 0));
@@ -222,7 +193,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
       quoteRequestsRepo.hqQuoteById(q.hqQuoteId).then(setใบHQของใบที่แก้).catch(e => logRepoRead("quoteRequests.hqQuoteById", e));
     }
     const lineItems: QuoteLineItem[] = boqLineItems(q);
-    setForm({ project: q.project, buildingType: q.buildingType, items: String(lineItems.length),
+    setForm({ project: q.project, items: String(lineItems.length),
       price: String(q.materialCost || q.totalValue), expiry: q.expiry ?? "", note: q.note ?? "", lineItems,
       // อัตราที่ตรึงไว้กับใบเป็นตัวจริงเสมอ — ใบเก่าที่ไม่มีค่า ให้ตกไปใช้ค่าที่สาขาตั้งไว้
       vatOn: (q.vatPercent ?? dealerVat ?? 0) > 0, vatPct: String(q.vatPercent ?? dealerVat ?? 7),
@@ -247,7 +218,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
       // ⚠️ ต้องเทียบกับ "ใบล่าสุดในระบบ" ไม่ใช่สำเนาที่ค้างอยู่ในฟอร์ม (แก้ 27 ส.ค. 69)
       //    ผู้ใช้กดส่งใบ แล้วกดแก้ไขต่อทันที — สำเนาในฟอร์มอาจยังเป็น "ร่าง" อยู่
       const ใบล่าสุด = quotations.find(q => q.id === editing.id) ?? editing;
-      const ใบหลังแก้ = { ...ใบล่าสุด, project: form.project, buildingType: form.buildingType, items: form.lineItems.length,
+      const ใบหลังแก้ = { ...ใบล่าสุด, project: form.project, items: form.lineItems.length,
         lineItems: form.lineItems, materialCost: parseBaht(form.price), totalValue: net, total: "฿" + net.toLocaleString("th-TH"),
         expiry: วันหมดอายุ, note: form.note || undefined, ...ภาษีที่บันทึก };
       const เวอร์ชันใหม่ = ฉบับถัดไป(ใบล่าสุด, ใบหลังแก้);
@@ -262,7 +233,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
         customer: subj.company, project: form.project || defProject(),
         total: "฿" + net.toLocaleString("th-TH"), totalValue: net, materialCost: parseBaht(form.price),
         // พื้นที่ = จำนวนของรายการ BOQ ที่คิดเป็น ตร.ม. (เดิม hardcode 0 → พื้นที่หายไปจากใบ)
-        province: subj.province, buildingType: form.buildingType,
+        province: subj.province, buildingType: "", // ใบใหม่ไม่มีประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         area: form.lineItems.filter(it => it.unit === "ตร.ม.").reduce((s, it) => s + it.qty, 0),
         status: "draft", date: MOCK_TODAY, items: form.lineItems.length, lineItems: form.lineItems,
         customerId: subj.customerId ?? 0, projectId: 0, dealId: subj.dealId, revision: "V1", expiry: วันหมดอายุ,
@@ -289,21 +260,11 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     } finally { savingRef.current = false; setSaving(false); }
   }
 
-  // ── กดส่ง → ถามก่อนว่า "แนบแม่แบบไปด้วยไหม" (บอสสั่ง 21 ส.ค. 69) ─────────────────
-  //
-  // ทำไมต้องถาม ไม่ใช่ติ๊กให้เอง: แม่แบบ (สเปกสินค้า) เป็นเอกสารคนละใบกับใบเสนอราคา
-  //   เซลส์บางรายส่งเฉพาะใบ ไม่ส่งสเปกให้ลูกค้าถือไว้ · ถ้าระบบติ๊กงาน "ส่งแม่แบบให้ลูกค้า" ให้เอง
-  //   เช็กลิสต์จะบอกว่าส่งแล้วทั้งที่ไม่ได้ส่ง = ข้อมูลในระบบไม่ตรงกับความจริง
-  // ตอบว่าแนบ → ติ๊กงานให้ · ตอบว่าไม่แนบ → ส่งเฉพาะใบ งานนั้นยังค้างไว้ให้ทำจริงทีหลัง
-  const [ถามแนบแม่แบบ, setถามแนบแม่แบบ] = useState<QuotationMock | null>(null);
-
-  function sendQuote(q: QuotationMock, แนบแม่แบบ: boolean) {
+  // กดส่ง = ส่งเลย (เดิมถาม "แนบแม่แบบไปด้วยไหม" — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+  function sendQuote(q: QuotationMock) {
     const resend = q.status !== "draft";
-    updateQuotation({ ...q, status: "sent_to_client", date: MOCK_TODAY }, { แนบแม่แบบ });
-    const ท้าย = resend ? "ให้ลูกค้าอีกครั้งแล้ว" : "ให้ลูกค้าแล้ว";
-    onToast?.(แนบแม่แบบ
-      ? `ส่งใบเสนอราคา ${q.id} พร้อมแม่แบบ ${ท้าย}`
-      : `ส่งใบเสนอราคา ${q.id} ${ท้าย} (ไม่ได้แนบแม่แบบ)`);
+    updateQuotation({ ...q, status: "sent_to_client", date: MOCK_TODAY });
+    onToast?.(`ส่งใบเสนอราคา ${q.id} ${resend ? "ให้ลูกค้าอีกครั้งแล้ว" : "ให้ลูกค้าแล้ว"}`);
   }
 
   const lbl: React.CSSProperties = { display: "block", fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 };
@@ -323,17 +284,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     const hasItems = form.lineItems.length > 0;
     const hasAmount = net > 0;
     const canSave = hasItems && hasAmount && !(editing?.hqQuoteId && !ใบHQของฟอร์ม);
-    // ── ต้นเหตุที่พบจากการใช้งานจริง (19 ส.ค. 69): สำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ/ราคา ──
-    //   รายการสินค้าเพิ่มได้ทางเดียวคือเลือกจากแคตตาล็อก ดีลเลอร์จึงตันโดยไม่รู้ว่าติดตรงไหน
-    //   ข้อความเดิมบอกแค่ "ยอดรวมเป็น ฿0" ซึ่งฟังเหมือนดีลเลอร์กรอกผิดเอง
-    const แม่แบบว่าง = catalogReady && catalog.length === 0;
-    const ราคาแม่แบบยังไม่ตั้ง = !แม่แบบว่าง && hasItems && !hasAmount
-      && form.lineItems.every(it => it.unitPrice <= 0);
-    // ── งานขายที่ยังไม่ได้เลือกแม่แบบ (พบ 26 ส.ค. 69) ────────────────────────────
-    //   ตารางรายการตั้งต้นให้อัตโนมัติจาก "แม่แบบ + ประเมินราคา" ของงานขาย
-    //   ถ้างานขายไม่มีแม่แบบ ตารางจะว่างเปล่า แล้วข้อความเดิมบอกแค่ "ต้องมีรายการสินค้า"
-    //   ซึ่งชี้ผิดที่ — ผู้ใช้ไปนั่งหาปุ่มเพิ่มรายการ ทั้งที่ต้องกลับไปเลือกแม่แบบก่อน
-    const งานขายยังไม่มีแม่แบบ = !แม่แบบว่าง && !hasItems && !subj.product;
+
     // ── ภาษีของใบนี้ — คิดสดตามที่ติ๊กไว้ในฟอร์ม (บอสสั่ง 28 ส.ค. 69) ─────────────
     //   สูตรอยู่ที่ lib/quoteTax.ts ที่เดียว ใช้ร่วมกับเอกสารที่พิมพ์และค่าที่บันทึกลงฐานข้อมูล
     //   ⚠️ ไม่แตะ net (มูลค่างานก่อน VAT = ผลรวม BOQ) ซึ่งเป็นยอดขายที่รายงาน/เป้าใช้อยู่
@@ -375,13 +326,12 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
           <div><b style={{ color: "#8a929c", fontWeight: 700 }}>จังหวัด:</b> {subj.province}</div><div><b style={{ color: "#8a929c", fontWeight: 700 }}>ผู้รับผิดชอบ:</b> {subj.assigned}</div>
         </div>
 
-        {/* รายการใบเสนอราคา — ชื่อเอกสาร + BOQ ก้อนเดียว · แม่แบบเลือกได้จาก "เลือกจากแคตตาล็อก" ใน BOQ (ไม่มีช่องแม่แบบซ้ำอีก) */}
+        {/* รายการใบเสนอราคา — ชื่อเอกสาร + รายการจากใบ HQ (แก้ได้เฉพาะ % ที่บวก) */}
         <div style={secLabel}><FileText size={12} color="#003366" /> รายการใบเสนอราคา</div>
         <div style={{ marginBottom: 14 }}>
           <label style={lbl}>ชื่อโครงการ / เอกสาร</label>
           <input value={form.project} onChange={e => set("project", e.target.value)} style={inp} placeholder="เช่น โกดังเก็บสินค้าเกษตร — บจ. ..." />
         </div>
-        {/* เปิดปุ่มเลือกแคตตาล็อกเสมอ — ให้เพิ่มรายการในใบเดิมได้ แทนที่จะไปออกใบใหม่ */}
         {ใบHQของฟอร์ม ? (
           <>
             <div style={{ fontSize: "0.72rem", color: "#6b21a8", marginBottom: 6 }}>
@@ -394,15 +344,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
           </>
         ) : editing?.hqQuoteId ? (
           <div style={{ color: "#9ca3af", fontSize: "0.78rem", padding: 12 }}>กำลังโหลดใบ HQ…</div>
-        ) : (REAL_BACKEND && mode === "create") ? null : (
-        <LineItemsEditor items={form.lineItems}
-          onChange={li => setForm(p => ({
-            ...p, lineItems: li, items: String(li.length),
-            price: String(li.reduce((s, it) => s + it.qty * it.unitPrice, 0)),
-            // แม่แบบ = ชื่อหลักของรายการแรก (ตัด " · ประเภทย่อย" ออก) — เก็บไว้ใช้ในเอกสาร/พิมพ์ โดยไม่ต้องเลือกซ้ำ
-            buildingType: li.length ? li[0].name.split(" · ")[0] : p.buildingType,
-          })) } />
-        )}
+        ) : null}
 
         {/* ── วันหมดอายุ: ระบบกำหนดให้เอง ไม่ต้องกรอก (บอสสั่ง 20 ส.ค. 69) ──────────
             อายุใบเป็นนโยบายของสำนักงานใหญ่อยู่แล้ว (ตั้งที่ ตั้งค่า › ใบเสนอราคา)
@@ -497,13 +439,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
             <div style={{ marginRight: "auto", color: "#dc2626", fontSize: "0.72rem", fontWeight: 600 }}>
               {ใบHQของฟอร์ม || editing?.hqQuoteId
                 ? "กำลังโหลดใบ HQ — รอสักครู่"
-                : แม่แบบว่าง
-                ? "สำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ — ออกใบเสนอราคาไม่ได้จนกว่าจะมีแม่แบบพร้อมราคา กรุณาแจ้งสำนักงานใหญ่"
-                : ราคาแม่แบบยังไม่ตั้ง
-                  ? "สำนักงานใหญ่ยังไม่ได้ตั้งราคาของแม่แบบนี้ — พิมพ์ราคาต่อหน่วยเองได้ หรือแจ้งสำนักงานใหญ่ให้ตั้งราคากลางก่อน"
-                  : งานขายยังไม่มีแม่แบบ
-                    ? "งานขายนี้ยังไม่ได้เลือกแม่แบบ — เลือกแม่แบบให้งานขายก่อน ระบบจึงจะตั้งรายการสินค้าให้อัตโนมัติได้"
-                  : !hasItems
+                : !hasItems
                     ? "ต้องมีรายการสินค้าอย่างน้อย 1 รายการก่อนบันทึก"
                     : "ยอดรวมเป็น ฿0 — ระบุจำนวนและราคาต่อหน่วยก่อนออกใบ"}
             </div>
@@ -593,9 +529,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
           <button onClick={() => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
-          {!readOnly && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
-          {!readOnly && (q.status === "draft" || q.status === "sent_to_client") && (
-            <button onClick={() => { setถามแนบแม่แบบ(q); setMode("list"); }} className="btn btn-primary btn-sm">
+          {แก้ได้(q) && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
+          {แก้ได้(q) && (q.status === "draft" || q.status === "sent_to_client") && (
+            <button onClick={() => { sendQuote(q); setMode("list"); }} className="btn btn-primary btn-sm">
               <Send size={13} /> {q.status === "draft" ? "ส่งใบเสนอราคา" : "ส่งอีกครั้ง"}
             </button>
           )}
@@ -613,9 +549,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
             ไม่งั้นกดคำว่า "สร้าง" แล้วได้หน้าแก้ไขใบเก่า ผู้ใช้จะงงว่ากดผิดหรือระบบพัง */}
         {!readOnly && (
           <button onClick={openCreate} className="btn btn-primary btn-sm"
-            disabled={REAL_BACKEND && !ใบHQ && !ใบที่ยังแก้ได้}
-            title={REAL_BACKEND && !ใบHQ && !ใบที่ยังแก้ได้ ? "ต้องได้ราคาจากสำนักงานใหญ่ก่อน" : undefined}>
-            <FilePlus size={13} /> {ใบที่ยังแก้ได้ ? (REAL_BACKEND ? "แก้ใบเสนอราคา" : "เพิ่มรายการในใบเสนอราคา") : REAL_BACKEND ? "ทำใบเสนอราคาจากใบ HQ" : "สร้างใบเสนอราคา"}
+            disabled={!ใบHQ && !ใบที่ยังแก้ได้}
+            title={!ใบHQ && !ใบที่ยังแก้ได้ ? (REAL_BACKEND ? "ต้องได้ราคาจากสำนักงานใหญ่ก่อน" : "ข้อมูลตัวอย่างออกใบใหม่ไม่ได้") : undefined}>
+            <FilePlus size={13} /> {ใบที่ยังแก้ได้ ? "แก้ใบเสนอราคา" : "ทำใบเสนอราคาจากใบ HQ"}
           </button>
         )}
       </div>
@@ -644,21 +580,21 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {/* ส่งใบเสนอราคา — เด่นเป็นปุ่ม navy · แสดงเฉพาะใบที่ยังส่งได้ (ร่าง/ส่งแล้ว) · ซ่อนเมื่อดูอย่างเดียว */}
-                    {!readOnly && (q.status === "draft" || q.status === "sent_to_client") && (
-                      <button onClick={() => setถามแนบแม่แบบ(q)} title={q.status === "draft" ? "ส่งใบเสนอราคา" : "ส่งอีกครั้ง"}
+                    {แก้ได้(q) && (q.status === "draft" || q.status === "sent_to_client") && (
+                      <button onClick={() => sendQuote(q)} title={q.status === "draft" ? "ส่งใบเสนอราคา" : "ส่งอีกครั้ง"}
                         className="btn btn-primary btn-sm" style={{ height: 28, padding: "0 11px" }}>
                         <Send size={12} /> {q.status === "draft" ? "ส่ง" : "ส่งอีกครั้ง"}
                       </button>
                     )}
                     {([
                       { ic: <Eye size={13} />, t: "ดู", fn: () => { setEditing(q); setMode("view"); } },
-                      ...(readOnly ? [] : [{ ic: <Pencil size={13} />, t: "แก้ไข", fn: () => openEdit(q) }]),
+                      ...(แก้ได้(q) ? [{ ic: <Pencil size={13} />, t: "แก้ไข", fn: () => openEdit(q) }] : []),
                       { ic: <Printer size={13} />, t: "พิมพ์", fn: () => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg) },
-                      ...(readOnly ? [] : [
-                        // ทำสำเนาได้เฉพาะใบที่ทำจากใบ HQ (ใบเดิมที่ไม่มีใบ HQ = ทางเดิม สร้างใหม่ไม่ได้แล้ว)
-                        ...(!REAL_BACKEND || q.hqQuoteId ? [{ ic: <Copy size={13} />, t: "ทำสำเนา", fn: () => duplicate(q) }] : []),
+                      // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีทำสำเนา/ลบ (บอสสั่งเก็บไว้เป็นประวัติ 16 ต.ค. 69)
+                      ...(แก้ได้(q) ? [
+                        { ic: <Copy size={13} />, t: "ทำสำเนา", fn: () => duplicate(q) },
                         { ic: <Trash2 size={13} />, t: "ลบ", fn: () => setConfirmDel(q.id), danger: true },
-                      ]),
+                      ] : []),
                     ] as { ic: React.ReactNode; t: string; fn: () => void; danger?: boolean }[]).map((b, i) => (
                       <button key={i} onClick={b.fn} title={b.t} aria-label={b.t}
                         style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #e5e7eb", background: "#fff",
@@ -679,47 +615,6 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
         </div>
       )}
 
-      {/* ── ถามก่อนส่ง: แนบแม่แบบไปด้วยไหม (บอสสั่ง 21 ส.ค. 69) ────────────────────
-          ⚠️ แขวนที่ระดับหน้าเว็บผ่าน ModalPortal — แผงนี้อยู่ในกล่องการ์ดที่มี transform
-          ถ้าไม่แขวน กล่องถามจะไปยึดกับการ์ดแล้วโดนการ์ดใบถัดไปวาดทับ (เจอมาแล้ว 20 ส.ค.) */}
-      {ถามแนบแม่แบบ && (
-        <ModalPortal>
-          <div onClick={() => setถามแนบแม่แบบ(null)}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1060, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-            <ModalCard onClose={() => setถามแนบแม่แบบ(null)} label="ส่งใบเสนอราคาให้ลูกค้า"
-              style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)", width: 420, maxWidth: "100%" }}>
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb" }}>
-                <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "#2D2D2D" }}>ส่งใบเสนอราคาให้ลูกค้า</h3>
-                <div style={{ fontSize: "0.74rem", color: "#6b7280", marginTop: 3 }}>
-                  {ถามแนบแม่แบบ.id} · {subj.company}
-                </div>
-              </div>
-              <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
-                <div style={{ fontSize: "0.84rem", color: "#374151", lineHeight: 1.6 }}>
-                  ส่ง <b>แม่แบบ (สเปกสินค้า)</b> ไปให้ลูกค้าพร้อมใบเสนอราคาด้วยไหม
-                  <span style={{ display: "block", fontSize: "0.74rem", color: "#6b7280", marginTop: 4 }}>
-                    เลือก “แนบแม่แบบไปด้วย” ระบบจะติ๊กงาน “ส่งแม่แบบให้ลูกค้า” ให้เอง
-                  </span>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <button onClick={() => { sendQuote(ถามแนบแม่แบบ, true); setถามแนบแม่แบบ(null); }}
-                    className="btn btn-primary btn-sm" style={{ justifyContent: "center", padding: "10px 14px" }}>
-                    <Send size={13} /> ส่งใบเสนอราคา + แนบแม่แบบไปด้วย
-                  </button>
-                  <button onClick={() => { sendQuote(ถามแนบแม่แบบ, false); setถามแนบแม่แบบ(null); }}
-                    className="btn btn-secondary btn-sm" style={{ justifyContent: "center", padding: "10px 14px", color: "#374151" }}>
-                    ส่งเฉพาะใบเสนอราคา (ไม่แนบแม่แบบ)
-                  </button>
-                  <button onClick={() => setถามแนบแม่แบบ(null)}
-                    style={{ background: "none", border: "none", color: "#6b7280", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: "4px 0" }}>
-                    ยกเลิก
-                  </button>
-                </div>
-              </div>
-            </ModalCard>
-          </div>
-        </ModalPortal>
-      )}
     </div>
   );
 }

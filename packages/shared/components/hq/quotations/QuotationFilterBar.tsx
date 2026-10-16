@@ -2,7 +2,8 @@
 
 // ─── ตัวกรองใบเสนอราคาทั้งเครือ (Sticky) ──────────────────────────────────────
 // ค้นหา: เลขที่ / ดีลเลอร์ / รหัสดีลเลอร์ / ลูกค้า
-// ตัวเลือก: ดีลเลอร์ · ภูมิภาค · จังหวัดดีลเลอร์ · ประเภทอาคาร · สถานะ
+// ตัวเลือก: ดีลเลอร์ · ภูมิภาค · จังหวัดดีลเลอร์ · สถานะ
+// (ตัวกรอง "ประเภทอาคาร"/แม่แบบ ถอดออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // (ตัวกรอง "ช่วงมูลค่า" ถูกลบทั้งฟีเจอร์ตามที่บอสสั่ง — อย่าใส่กลับ)
 // หมายเหตุ: "จังหวัด" = จังหวัดของดีลเลอร์ที่ออกใบ ไม่ใช่จังหวัดลูกค้า/หน้างาน
 // (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง — ป้ายบนตัวเลือกจึงต้องเขียนว่า "จังหวัดดีลเลอร์" ให้ชัด)
@@ -17,26 +18,24 @@ export type QuotationFilters = {
   dealer: string;
   region: string;
   province: string;
-  product: string;
   status: QuotationStatus | "all";
 };
 
 export const EMPTY_FILTERS: QuotationFilters = {
-  search: "", dealer: "all", region: "all", province: "all", product: "all", status: "all",
+  search: "", dealer: "all", region: "all", province: "all", status: "all",
 };
 
 export function QuotationFilterBar({
-  filters, onChange, dealers, regions, provinces, products, }: {
+  filters, onChange, dealers, regions, provinces, }: {
   filters: QuotationFilters;
   onChange: (f: QuotationFilters) => void;
   dealers: { code: string; name: string }[];
   regions: string[];
   provinces: string[];
-  products: string[];
 }) {
   const set = <K extends keyof QuotationFilters>(k: K, v: QuotationFilters[K]) => onChange({ ...filters, [k]: v });
   const dirty = filters.search !== "" || filters.dealer !== "all" || filters.region !== "all"
-    || filters.province !== "all" || filters.product !== "all" || filters.status !== "all";
+    || filters.province !== "all" || filters.status !== "all";
 
   // ขนาดเดียวกับแถบกรองหน้าลูกค้าทั้งเครือ — ย่อตัวได้เมื่อจอแคบ ไม่ตกบรรทัด
   const ช่องเลือก = { width: "auto", flex: "0 1 auto", minWidth: 0, maxWidth: 168, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" } as const;
@@ -74,11 +73,6 @@ export function QuotationFilterBar({
       <select value={filters.province} onChange={e => set("province", e.target.value)} className="form-select" style={ช่องเลือก} aria-label="จังหวัดดีลเลอร์">
         <option value="all">ทุกจังหวัด (ดีลเลอร์)</option>
         {provinces.map(p => <option key={p} value={p}>{p}</option>)}
-      </select>
-
-      <select aria-label="กรองตามแม่แบบ" value={filters.product} onChange={e => set("product", e.target.value)} className="form-select" style={ช่องเลือก}>
-        <option value="all">ทุกประเภทอาคาร (จากใบเสนอราคา)</option>
-        {products.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
 
       <select aria-label="กรองตามสถานะใบเสนอราคา" value={filters.status} onChange={e => set("status", e.target.value as QuotationFilters["status"])} className="form-select" style={ช่องเลือก}>

@@ -300,7 +300,7 @@ export function useNetworkQuotations(): HQQuotation[] {
         customer: q.customer, valueNum: q.totalValue,
         status: q.status, createdAt: fmtISOToThai(q.date), savedAt: q.savedAt,
         salesperson: lead?.assigned ?? `ดีลเลอร์ ${dl.code}`,
-        productLine: q.buildingType || q.project,
+        productLine: q.project, // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         // รายละเอียดราคาจริงของใบที่ดีลเลอร์สร้าง → HQ เจาะดูรายการสินค้าได้
         materialCost: q.materialCost, lineItems: q.lineItems,
       };
@@ -430,15 +430,15 @@ export function useNetworkDealerDetail(code: string): DealerDetail {
     const myQuotes = (fetched ? fetched.quotes : quotations.filter(q => (q.dealerCode ?? CURRENT_DEALER.code) === code))
       .slice().sort((a, b) => b.id.localeCompare(a.id, "en", { numeric: true }));
     const quotes: DealerQuoteItem[] = myQuotes.map(q => ({
-      quoteNo: q.id, customer: q.customer, product: q.buildingType || q.project,
+      quoteNo: q.id, customer: q.customer, product: q.project,
       valueNum: q.totalValue, status: q.status, date: fmtISOToThai(q.date),
     }));
     const leadItems: DealerLeadItem[] = mine.map(l => ({
-      id: l.id, name: l.company || l.name, province: l.province, product: l.product,
+      id: l.id, name: l.company || l.name, province: l.province, product: "", // ไม่แสดงแม่แบบของลูกค้าเป้าหมาย
       valueNum: parseBaht(l.value), status: LEAD_TO_ITEM[l.status], assignedAt: l.createdAt ?? "—",
     }));
     const projects: DealerProjectItem[] = mine.filter(l => l.status !== "CANCELLED").map(l => ({
-      id: l.id, name: l.company || l.name, product: l.product, valueNum: parseBaht(l.value),
+      id: l.id, name: l.company || l.name, product: "", valueNum: parseBaht(l.value),
       progress: LEAD_PROGRESS[l.status], status: l.status === "PAID" ? "completed" : "in_progress",
     }));
     // ยอดขายรายเดือน (พันบาท) จากใบเสนอราคาที่ปิดได้ของสาขานี้ · แสดง ม.ค.–มิ.ย. (mock วันนี้ = มิ.ย.)

@@ -7,7 +7,7 @@
 // ⚠️ ลำดับเมนูภายในยังเป็นลำดับเดิมที่บอสสั่งไว้ทุกข้อ — แค่จัดเข้ากลุ่ม ห้ามสลับลำดับเอง
 //    (ลูกค้าเป้าหมาย HQ ก่อนดีลเลอร์ · ภาพรวมยอดขายก่อนลูกค้าเป้าหมายทั้งเครือ ฯลฯ)
 import {
-  LayoutDashboard, Store, Phone, Package, Settings, GitMerge, ScrollText, Users,
+  LayoutDashboard, Store, Phone, Settings, GitMerge, ScrollText, Users,
   CalendarDays, FolderOpen, History, UserPlus, FileText, Inbox,
 } from "lucide-react";
 
@@ -31,7 +31,6 @@ export const DEALER_NAV: NavGroup[] = [
     { label: "ลูกค้าเป้าหมาย", href: "/leads",      icon: <Phone size={16} /> },
     { label: "ใบเสนอราคา",     href: "/quotations", icon: <ScrollText size={16} /> },
     { label: "ลูกค้า",         href: "/customers",  icon: <Users size={16} /> },
-    { label: "แม่แบบ",         href: "/products",   icon: <Package size={16} /> },
   ] },
   { key: "tools", group: "เครื่องมือ", icon: <FolderOpen size={15} />, items: [
     { label: "ปฏิทิน", href: "/calendar", icon: <CalendarDays size={16} /> },
@@ -61,9 +60,7 @@ export const HQ_NAV: NavGroup[] = [
     { label: "ใบเสนอราคาทั้งเครือ",    href: "/hq/quotations", icon: <ScrollText size={16} /> },
     { label: "ลูกค้าทั้งเครือ",        href: "/hq/customers",  icon: <Users size={16} /> },
   ] },
-  { key: "catalog", group: "สินค้า", icon: <Package size={15} />, items: [
-    { label: "แคตตาล็อกแม่แบบ", href: "/hq/master", icon: <Package size={16} /> },
-  ] },
+  // กลุ่ม "สินค้า" (แคตตาล็อกแม่แบบ) ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
   { key: "system", group: "ระบบ", icon: <Settings size={15} />, items: [
     { label: "บันทึกการใช้งาน", href: "/hq/audit",    icon: <History size={16} /> },
     { label: "ตั้งค่า",         href: "/hq/settings", icon: <Settings size={16} /> },

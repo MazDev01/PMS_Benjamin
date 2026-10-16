@@ -77,7 +77,7 @@ describe("ลูกค้าเป้าหมายใช้ชุดงาน�
 // แต่บอสยืนยันว่าให้อยู่หลัง "ส่งใบเสนอราคา" · ถ้าตั้ง stage ผิดเป็น BULLET
 // normalize จะเรียงตามขั้นแล้วเด้งกลับไปอยู่ก่อนออกใบเอง = ผิดคำสั่งโดยไม่มีใครรู้
 describe("ลำดับงานมาตรฐานตามที่บอสสั่ง", () => {
-  it("ชื่อและลำดับต้องตรงเป๊ะ 10 งาน", () => {
+  it("ชื่อและลำดับต้องตรงเป๊ะ 9 งาน (ตัด 'ส่งแม่แบบให้ลูกค้า' — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)", () => {
     expect(buildLeadTasks().map(t => t.label)).toEqual([
       "ติดต่อแล้ว",
       "เก็บข้อมูลลูกค้า",
@@ -85,7 +85,6 @@ describe("ลำดับงานมาตรฐานตามที่บอ�
       "สรุปความต้องการ",
       "จัดทำใบเสนอราคา",
       "ส่งใบเสนอราคา",
-      "ส่งแม่แบบให้ลูกค้า",
       "ติดตามผล",
       "เจรจาต่อรอง",
       "ปิดการขาย / ไม่สำเร็จ",
@@ -94,8 +93,16 @@ describe("ลำดับงานมาตรฐานตามที่บอ�
 
   it("ผ่าน normalize แล้วลำดับต้องไม่สลับ (เรียงตามขั้นแต่คงลำดับในขั้นเดียวกัน)", () => {
     expect(normalizeLeadTaskTemplate(LEAD_TASK_TEMPLATE).map(t => t.key)).toEqual([
-      "contact", "collect", "appointment", "requirement", "makeQuote", "sendQuote", "catalog", "followup", "negotiate", "close",
+      "contact", "collect", "appointment", "requirement", "makeQuote", "sendQuote", "followup", "negotiate", "close",
     ]);
+  });
+
+  it("ชุดงานที่ HQ บันทึกไว้ในฐานซึ่งยังมีงาน 'ส่งแม่แบบให้ลูกค้า' (key catalog) — ไม่แสดงอีก", () => {
+    const out = normalizeLeadTaskTemplate([
+      { key: "sendQuote", label: "ส่งใบเสนอราคา", stage: "QUOTED" },
+      { key: "catalog", label: "ส่งแม่แบบให้ลูกค้า", stage: "QUOTED" },
+    ]);
+    expect(out.map(t => t.key)).toEqual(["sendQuote", CLOSE_TASK_KEY]);
   });
 
   it("ไม่มีงานชื่อ 'รวบรวมความต้องการ' (บอสสั่งตัด 17 ส.ค. — งานขั้นนี้ใช้ชื่อ 'สรุปความต้องการ' แทน)", () => {

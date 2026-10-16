@@ -30,7 +30,7 @@ export function customerPayloadFromLead(lead: LeadRow, opts: { joinDate: string;
     phone: lead.phone ?? "",
     address: lead.address,          // ที่อยู่ที่กรอกไว้ตอนเป็นลูกค้าเป้าหมาย (ไม่มี = undefined ห้ามใส่ค่าว่าง)
     province: lead.province,
-    category: lead.category || lead.product || "อื่นๆ",
+    category: "", // ไม่สืบแม่แบบของลูกค้าเป้าหมายมาเป็นหมวดลูกค้า — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
     status: "active",
     projects: 0,
     joinDate: opts.joinDate,        // วันสมัคร = วันนี้ของระบบ (supabase=จริง / local=ตรึง)

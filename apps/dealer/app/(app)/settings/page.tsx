@@ -17,6 +17,7 @@ import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
+import { markupPctOf } from "@pms/shared/lib/boq";
 import { useRouter } from "next/navigation";
 import { DealerAccountSummary } from "@pms/shared/components/ui/DealerAccountCard";
 import { settings as settingsRepo, persons as personsRepo } from "@pms/shared/lib/data";
@@ -295,6 +296,9 @@ function ImageUploadBox({
 
 function DocumentsTab() {
   const [doc, setDoc] = useState<DocumentSettings>(DOC_DEFAULT);
+  // % บวกตั้งต้นของสาขา (ย้ายมาจากหน้าแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+  //   อ่านผ่าน markupPctOf → ค่าเดิมที่เคยตั้งรายแม่แบบไม่หาย · บันทึกเป็น pricing.defaultPct (byTemplate เดิมคงไว้ในฐาน)
+  const [pct, setPct] = useState(0);
   const [baseline, setBaseline] = useState(""); // สแนปช็อตค่าที่บันทึกล่าสุด → ใช้เทียบ dirty
   const dealerCfg = useDealerSettings(); // ตั้งค่าเอกสารของสาขา รวม % VAT (ผ่าน repo)
   const currentDealer = useCurrentDealer(); // รหัสสาขาที่ล็อกอิน — ใช้ประกอบคำนำหน้าเลขที่
@@ -305,25 +309,28 @@ function DocumentsTab() {
     // quotePrefix บังคับกลับเป็นค่าคงที่ของระบบเสมอ — ช่องนี้ล็อกแล้ว ค่าที่เคยพิมพ์ทับไว้ใน DB
     // (เช่น "Q-CNX-2026-") ต้องไม่ถูกอ่านกลับมาใช้ ไม่งั้นบันทึกครั้งถัดไปจะพาค่าเสียกลับลงไปอีก
     const d = { ...DOC_DEFAULT, ...dealerCfg.settings.document, quotePrefix: QUOTE_PREFIX } as DocumentSettings;
+    const p = markupPctOf(dealerCfg.settings.pricing);
     setDoc(d);
-    setBaseline(JSON.stringify(d));
+    setPct(p);
+    setBaseline(JSON.stringify({ d, p }));
   }, [dealerCfg.loaded, dealerCfg.settings]);
 
   function set<K extends keyof DocumentSettings>(k: K, v: DocumentSettings[K]) {
     setDoc(p => ({ ...p, [k]: v }));
   }
 
+  const pricingเดิม = dealerCfg.settings.pricing;
   const save = useCallback(() => {
-    void dealerCfg.save({ document: doc })
+    void dealerCfg.save({ document: doc, pricing: { ...pricingเดิม, defaultPct: pct } })
       .catch(e => แจ้งพลาด("บันทึกตั้งค่าเอกสารไม่สำเร็จ: " + friendlyError(e)));
-    setBaseline(JSON.stringify(doc));
+    setBaseline(JSON.stringify({ d: doc, p: pct }));
     // dep ต้องเป็น dealerCfg.save (useCallback ที่เสถียร) ไม่ใช่ dealerCfg ทั้งก้อน
     // เพราะ hook คืน object ใหม่ทุกเรนเดอร์ → save ใหม่ทุกเรนเดอร์ → useMemo/useReport ยิงซ้ำ = เรนเดอร์วนไม่จบ
-  }, [doc, dealerCfg.save]);
-  const dirty = baseline !== "" && JSON.stringify(doc) !== baseline;
+  }, [doc, pct, pricingเดิม, dealerCfg.save]);
+  const dirty = baseline !== "" && JSON.stringify({ d: doc, p: pct }) !== baseline;
   const reset = useCallback(() => {
     if (!baseline) return;
-    try { setDoc(JSON.parse(baseline)); } catch {}
+    try { const b = JSON.parse(baseline) as { d: DocumentSettings; p: number }; setDoc(b.d); setPct(b.p); } catch {}
   }, [baseline]);
   useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
 
@@ -381,6 +388,14 @@ function DocumentsTab() {
               <label className="form-label">ภาษีหัก ณ ที่จ่าย %</label>
               <NumberInput ariaLabel="ภาษีหัก ณ ที่จ่าย %" min={0} max={100} step={0.5}
                 value={doc.whtPercent} onChange={n => set("whtPercent", n)}
+                style={{ fontFamily: "monospace" }} />
+            </div>
+            <div>
+              {/* % บวกตั้งต้น — ใช้ตั้งต้น % ของทุกบรรทัดตอนทำใบให้ลูกค้าจากใบ HQ (แก้รายบรรทัดได้)
+                  ตั้งได้อิสระ ไม่มีเพดาน ไม่มีขั้นต่ำ (ห้ามใส่ตัวตรวจเทียบต้นทุน) */}
+              <label className="form-label">% บวกตั้งต้น</label>
+              <NumberInput ariaLabel="% บวกตั้งต้น" step={0.5}
+                value={pct} onChange={n => setPct(n)}
                 style={{ fontFamily: "monospace" }} />
             </div>
             <div style={{ padding: "10px 14px", background: "#f0f4fa", borderRadius: 10, border: "1px solid #dce5f0" }}>

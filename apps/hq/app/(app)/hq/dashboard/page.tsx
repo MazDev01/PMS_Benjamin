@@ -5,11 +5,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Trophy, Building2,
+  Trophy,
   FileText, ChevronRight, Users2,
   Target,
 } from "lucide-react";
-import { PlanVsActualBars, GroupedBarChart, Donut, ProgressRing, CategoryRows } from "@pms/shared/components/ui/Charts";
+import { PlanVsActualBars, GroupedBarChart, Donut, ProgressRing } from "@pms/shared/components/ui/Charts";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
 import {
   MonthRangeToggle, lastNMonths, monthKeyOf, monthKey,
@@ -37,7 +37,7 @@ import { fmtBaht, parseBaht } from "@pms/shared/lib/format";
 import { HqOverviewBoxes } from "@pms/shared/components/hq/HqOverviewBoxes";
 
 const PRIMARY = "#003366";
-// palette หลายสีสำหรับกราฟรายภาค/แม่แบบ — navy หลัก + สีเสริม (ไม่ฉูดฉาด)
+// palette หลายสีสำหรับกราฟรายภาค — navy หลัก + สีเสริม (ไม่ฉูดฉาด)
 const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626"];
 // ลูกค้าเป้าหมายทั้งเครือทุกช่วง (ตัวกรองว่าง) — อ้างอิงคงที่ กัน useLeadSummary รีเฟตช์ทุกเรนเดอร์
 const EMPTY_LEAD_FILTER = {};
@@ -87,7 +87,8 @@ export default function HQDashboard() {
   // ป้อน Scorecard (ผลรวม) + dealerStats — parity กับ winQuotes เป๊ะ จึงตรงกับการ์ดอื่นที่ยังใช้ winQuotes
   const curRange = useNetworkQuoteRange(timeRange.start, timeRange.end, selDealer?.code);
   const prevRange = useNetworkQuoteRange(addDaysD(timeRange.start, -periodDays), addDaysD(timeRange.start, -1), selDealer?.code);
-  // สรุปใบในช่วง (byStatus/byProduct/byMonth) ที่ DB — ป้อน productAgg/buildingPerf/quoteStatus/pipeline/wonVal
+  // สรุปใบในช่วง (byStatus/byMonth) ที่ DB — ป้อน quoteStatus/pipeline/wonVal
+  //   (byProduct ยังส่งมาจาก RPC แต่หน้านี้ไม่ใช้แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   const quoteSummary = useDashboardQuoteSummary(timeRange.start, timeRange.end, selDealer?.code);
   // สรุปลูกค้าเป้าหมาย + ลูกค้าทั้งเครือ ที่ DB · ผูกดีลเลอร์ที่เลือก (selDealer) ให้ตรงกับฝั่งใบเสนอราคา (M3)
   //   เดิมไม่ผูก selDealer → พอเลือกสาขา กราฟ/KPI ลูกค้าเป้าหมายยังโชว์ทั้งเครือ แต่ใบ/ยอดโชว์เฉพาะสาขา = ขัดกันในการ์ดเดียว
@@ -136,27 +137,13 @@ export default function HQDashboard() {
     };
   }, [scopedQuotes, timeRange.start, timeRange.end, periodDays]);
 
-  // ── ชุดสรุปใบในช่วง (สถานะ/แม่แบบ/รายเดือน) — supabase: จาก RPC dashboard_quote_summary · local/ยังไม่กลับ: จาก winQuotes ──
+  // ── ชุดสรุปใบในช่วง (สถานะ/รายเดือน) — supabase: จาก RPC dashboard_quote_summary · local/ยังไม่กลับ: จาก winQuotes ──
   // parity เดียวกันจึงให้ผลตรงกับการ์ดที่ยังใช้ winQuotes · ประกาศก่อน consumer ทุกตัว (trendMonthly ใช้ตั้งแต่ต้น)
   const statusAgg = useMemo(() => {
     const m = new Map<string, { count: number; value: number }>();
     if (quoteSummary) { for (const r of quoteSummary.byStatus) m.set(r.status, { count: r.count, value: r.value }); return m; }
     winQuotes.forEach(q => { const r = m.get(q.status) ?? { count: 0, value: 0 }; r.count += 1; r.value += q.valueNum; m.set(q.status, r); });
     return m;
-  }, [quoteSummary, winQuotes]);
-  // ⚠️ การ์ดนี้ชื่อ "ยอดขายตามประเภทอาคาร" → ต้องนับเฉพาะใบที่ปิดการขายได้ (แก้ 10 ส.ค. 69)
-  //   เดิมฝั่ง DB ส่ง value = ยอดรวมทุกใบ (รวมร่าง/ที่ปิดไม่สำเร็จ) → การ์ดขึ้น ฿15.6M
-  //   ขณะที่การ์ดอื่นในหน้าเดียวกันขึ้น ฿10.2M · ฝั่ง local คิดจากใบที่ชนะอยู่แล้วมาแต่แรก
-  //   = ทางที่ถูกคือใบที่ชนะ · ตอนนี้ DB ส่ง wonValue/wonProjects มาให้แล้ว (migration 0132)
-  const productArr = useMemo(() => {
-    if (quoteSummary) return quoteSummary.byProduct.map(r => ({
-      product: (r.product ?? undefined) as string,
-      value: r.wonValue ?? r.value,
-      projects: r.wonProjects ?? r.projects,
-    }));
-    const m = new Map<string, { value: number; projects: number }>();
-    winQuotes.forEach(q => { const r = m.get(q.productLine) ?? { value: 0, projects: 0 }; r.value += q.valueNum; r.projects += 1; m.set(q.productLine, r); });
-    return [...m.entries()].map(([product, v]) => ({ product, ...v })).sort((a, b) => b.value - a.value);
   }, [quoteSummary, winQuotes]);
   // byMonth ราย (ปี,เดือน) — supabase: จาก RPC · local/ยังไม่กลับ: จาก winQuotes (parity เดียวกัน)
   const monthAgg = useMemo(() => {
@@ -364,12 +351,6 @@ export default function HQDashboard() {
     return arr.map(a => ({ ...a, pct: Math.round((a.revenue / max) * 100) }));
   }, [rankedWin]);
 
-  // สัดส่วนมูลค่าตามแม่แบบ (มูลค่าใบเสนอราคาในช่วง แยกตาม productLine)
-  const productAgg = useMemo(
-    () => productArr.map((p, i) => ({ product: p.product, valueNum: p.value, color: RAMP[i % RAMP.length] })),
-    [productArr],
-  );
-
   // ── ใบเสนอราคา เทียบ ปิดการขาย (รายเดือน) + การวิเคราะห์การแปลง (Funnel เป็นแถบ) ──
   const quoteWonSeries = useMemo(() => ({ qC: monthCal.quotes, wC: monthCal.won }), [monthCal]);
   // ── Sales Journey Pipeline — การ์ดขั้นตอนแนวนอน (ไม่ใช่ funnel/กรวย) ──
@@ -429,10 +410,6 @@ export default function HQDashboard() {
     ];
     return order.map(o => ({ ...o, count: statusAgg.get(o.k)?.count ?? 0 }));
   }, [statusAgg]);
-
-  // ── ยอดขายตามประเภทอาคาร (Top 5) + % ──
-  const templateTotal = useMemo(() => productAgg.reduce((s, p) => s + p.valueNum, 0), [productAgg]);
-  const templateTop = useMemo(() => productAgg.slice(0, 5).map(p => ({ ...p, pct: templateTotal ? Math.round(p.valueNum / templateTotal * 100) : 0 })), [productAgg, templateTotal]);
 
   // ตัวคำนวณ alerts ถูกลบพร้อมการ์ดแจ้งเตือน — ไม่มีใครอ่านผลแล้ว
 
@@ -522,14 +499,6 @@ export default function HQDashboard() {
   const เต็มปี = true;
   const เป้าที่ใช้ = targets.annualTarget;
   const ยอดที่ใช้ = annualWonTotal;
-
-  // ประเภทอาคาร + จำนวนโครงการ
-  // การ์ดโชว์ 5 อันดับแรก · ข้อความบอกส่วนที่เหลือถูกลบทั้งหมดตามที่บอสสั่ง (25 ส.ค. 69)
-  //    รายการครบดูได้ที่หน้าใบเสนอราคาทั้งเครือ — การ์ดนี้ไว้ดูอันดับอย่างเดียว
-  const buildingPerf = useMemo(() => {
-    const max = Math.max(...productArr.map(a => a.value), 1);
-    return productArr.slice(0, 5).map((p, i) => ({ product: p.product, value: p.value, projects: p.projects, pct: Math.round(p.value / max * 100), color: RAMP[i % RAMP.length] }));
-  }, [productArr]);
 
   // ── กราฟแท่ง "ลูกค้าเป้าหมาย · ใบเสนอราคา · ปิดการขาย (รายเดือน)" — ปุ่มช่วงย้อนหลังของตัวเอง ──
   // ไม่ผูกกับตัวกรองเวลาบนแถบบน (เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ · กติกาเดียวกับแดชบอร์ดดีลเลอร์)
@@ -895,13 +864,14 @@ export default function HQDashboard() {
         </div>
       </div>
 
-      {/* แถว 3: ผลงานดีลเลอร์ Top 10 · ยอดขายตามประเภทอาคาร · เหตุผลปิดการขายไม่สำเร็จ */}
+      {/* แถว 3: ผลงานดีลเลอร์ Top 10 · กิจกรรมล่าสุด (คู่ 2 คอลัมน์)
+          การ์ด "ยอดขายตามประเภทอาคาร" (จัดกลุ่มตามแม่แบบ) เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
       {/* minHeight = พื้นการ์ดขั้นต่ำของแถวนี้ (แถวนี้เป็น grid + stretch → การ์ดสูงเท่าใบที่เนื้อสูงสุด)
-          เดิมไม่ได้กำหนดไว้ พอเครือข่ายยังมีดีลเลอร์น้อยและประเภทอาคารไม่กี่ชนิด สองใบซ้ายเตี้ยมาก
+          เดิมไม่ได้กำหนดไว้ พอเครือข่ายยังมีดีลเลอร์น้อย การ์ดซ้ายเตี้ยมาก
           แถวเลยเตี้ยตาม แล้วการ์ด "กิจกรรมล่าสุด" ที่ยาวกว่าถูกบีบจนเห็นแค่ 2 รายการต้องเลื่อนตลอด
           ใช้ 340px = ขนาด .chart-m ของ design system (เพดานคือ .chart-l 420px ห้ามเกิน)
           เป็น min ไม่ใช่ height ตายตัว — พอดีลเลอร์ครบ 10 รายการ์ดยังยืดเองได้ ไม่โดนตัดข้อมูลทิ้ง */}
-      <div className="hq-row3c" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem", minHeight: 340 }}>
+      <div className="hq-row3c" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem", minHeight: 340 }}>
         <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header"><div className="card-title">ผลงานดีลเลอร์ 10 อันดับแรก</div>
             {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div>
@@ -927,17 +897,6 @@ export default function HQDashboard() {
                 <span style={{ flex: "0 0 44px", fontSize: "0.74rem", fontWeight: 700, color: "var(--muted-foreground)", textAlign: "right" }}>{d.convW === null ? "—" : `${d.convW}%`}</span>
               </div>
             )); })()}
-          </div>
-        </div>
-        <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header"><div className="card-title">ยอดขายตามประเภทอาคาร</div>
-            {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div>
-          {/* ใบนี้เป็นต้นแบบของ CategoryRows — แดชบอร์ดดีลเลอร์ใช้คอมโพเนนต์ตัวเดียวกัน (ห้ามแยกมาร์กอัป) */}
-          <div className="card-body" style={{ paddingTop: 4 }}>
-            <CategoryRows
-              data={buildingPerf.map(p => ({ label: p.product, value: p.value, note: `${p.projects} โครงการ` }))}
-              fmt={fmtBaht} icon={<Building2 size={11} />}
-              ariaLabel="ยอดขายแยกตามประเภทอาคาร" />
           </div>
         </div>
         {/* การ์ด "เหตุผลปิดการขายไม่สำเร็จ" เอาออกตามที่บอสสั่ง → ช่องที่ว่างใส่ "กิจกรรมล่าสุด" แทน

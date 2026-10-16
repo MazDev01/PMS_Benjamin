@@ -39,7 +39,7 @@ const STEEL   = "#2D2D2D";
 const BORDER  = "#e5e7eb";
 const MUTED   = "#6b7280";
 
-type FileCategory = "ใบเสนอราคา" | "แม่แบบ" | "รูปภาพ" | "นำเสนอ" | "สัญญา" | "อื่นๆ";
+type FileCategory = "ใบเสนอราคา" | "แบบแปลน" | "รูปภาพ" | "นำเสนอ" | "สัญญา" | "อื่นๆ";
 type FileExt = "pdf" | "docx" | "xlsx" | "dwg" | "pptx" | "jpg" | "png" | "other";
 
 // ชนิด/ขนาดไฟล์ที่รับอัปโหลด — ใช้กฎกลาง uploadLimits.ts (ต้องตรงกับ allowed_mime_types/file_size_limit
@@ -52,14 +52,14 @@ type FileMock = DealerFile;
 
 const CAT_COLORS: Record<FileCategory, { bg: string; text: string }> = {
   ใบเสนอราคา: { bg: "#dce5f0", text: "#003366" },
-  แม่แบบ:      { bg: "#e5faf0", text: "#059669" },
+  แบบแปลน:     { bg: "#e5faf0", text: "#059669" },
   รูปภาพ:     { bg: "#e8ecf2", text: "#475569" },
   นำเสนอ:     { bg: "#fff3cd", text: "#d97706" },
   สัญญา:      { bg: "#fde8e8", text: "#dc2626" },
   อื่นๆ:      { bg: "#f0f0f5", text: "#6b7280" },
 };
 
-const ALL_CATS: FileCategory[] = ["ใบเสนอราคา","แม่แบบ","รูปภาพ","นำเสนอ","สัญญา","อื่นๆ"];
+const ALL_CATS: FileCategory[] = ["ใบเสนอราคา","แบบแปลน","รูปภาพ","นำเสนอ","สัญญา","อื่นๆ"];
 
 // คอลัมน์ที่ซ่อน/แสดงได้ของตาราง (มุมมองรายการ) — คอลัมน์ "ไฟล์" กับปุ่มการทำงานคงไว้เสมอ
 const COLS = [
@@ -393,7 +393,7 @@ export default function FilesPage() {
   const reloadFiles = () => {
     const myReq = ++reloadReqRef.current;
     return filesRepo.list({ dealerCode: currentDealer.code, isHQ: false })
-      // ชื่อโฟลเดอร์เก่า ("แบบแปลน") ที่ค้างอยู่ในฐานข้อมูล → แปลงเป็นชื่อปัจจุบันตอนอ่าน
+      // ชื่อโฟลเดอร์เก่า ("แม่แบบ") ที่ค้างอยู่ในฐานข้อมูล → แปลงเป็นชื่อปัจจุบันตอนอ่าน
       .then(r => { if (reloadReqRef.current === myReq) setFiles(r.map(f => ({ ...f, category: normalizeFileCategory(f.category) }))); })
       .catch(e => logRepoRead("files.list", e));
   };
@@ -504,7 +504,7 @@ export default function FilesPage() {
 
   const catCounts = useMemo(() => {
     const c: Record<FileCategory, number> = {
-      ใบเสนอราคา: 0, แม่แบบ: 0, รูปภาพ: 0, นำเสนอ: 0, สัญญา: 0, "อื่นๆ": 0,
+      ใบเสนอราคา: 0, แบบแปลน: 0, รูปภาพ: 0, นำเสนอ: 0, สัญญา: 0, "อื่นๆ": 0,
     };
     files.forEach(f => { c[f.category] += 1; });
     return c;

@@ -5,8 +5,8 @@
 // ทุกข้อคำนวณจากข้อมูลจริงเท่านั้น — ไม่มีตัวเลขสังเคราะห์
 // ผลลัพธ์เป็นข้อมูลล้วน (ไม่มี JSX) → Topbar เอาไปใส่ไอคอนแล้วขึ้นกระดิ่ง
 import {
-  templatesMissingPrice, เกณฑ์วันแจ้งเตือน, fmtISOToThai,
-  type HQAlertKey, type HQNotifRules, type LeadRules, type LeadRow, type SolutionProduct,
+  เกณฑ์วันแจ้งเตือน, fmtISOToThai,
+  type HQAlertKey, type HQNotifRules, type LeadRules, type LeadRow,
 } from "@pms/shared/lib/mock";
 import type { DealerProspect, DealerPackageProposal } from "@pms/shared/lib/data/types";
 import { APP_NOW } from "@pms/shared/lib/appTime";
@@ -20,28 +20,6 @@ import { หมดอายุแล้ว, packageLabel } from "@pms/shared/lib
  *  body = ข้อความเต็มบรรทัดเดียว (เดิม) ยังเก็บไว้ให้ที่อื่น/ชุดทดสอบใช้ */
 export type HQAlert = { key: HQAlertKey; title: string; body: string; href: string; subject?: string; detail?: string };
 
-/** แม่แบบไม่มี/ไม่มีราคา = ดีลเลอร์ออกใบเสนอราคาไม่ได้เลย (พบจากการใช้งานจริง 19 ส.ค. 69)
- *
- *  ทำไมต้องเป็นการแจ้งเตือน ไม่ใช่แค่ปล่อยให้ดีลเลอร์บ่น:
- *    รายการสินค้าในใบเสนอราคาเพิ่มได้ทางเดียวคือเลือกจากแคตตาล็อก — ไม่มีแม่แบบ = เพิ่มไม่ได้
- *    = บันทึกใบไม่ได้ = ปิดการขายไม่ได้ · ดีลเลอร์แก้เองไม่ได้ ต้องรอสำนักงานใหญ่เท่านั้น
- *    ถ้าสำนักงานใหญ่ไม่รู้ตัว ทั้งเครือจะค้างอยู่แบบนั้นโดยไม่มีใครเห็นสาเหตุ */
-function catalogAlerts(catalog: SolutionProduct[]): HQAlert[] {
-  if (!catalog.length) return [{
-    key: "catalogNoPrice",
-    title: "ยังไม่มีแม่แบบในระบบ",
-    body: "ดีลเลอร์ออกใบเสนอราคาไม่ได้เลยจนกว่าจะมีแม่แบบอย่างน้อย 1 รายการพร้อมราคา",
-    href: "/hq/master",
-  }];
-  return templatesMissingPrice(catalog).map(name => ({
-    key: "catalogNoPrice" as HQAlertKey,
-    title: "แม่แบบยังไม่ได้ตั้งราคา",
-    body: `${name} — ดีลเลอร์หยิบไปออกใบเสนอราคาแล้วยอดเป็น ฿0 บันทึกไม่ได้`,
-    href: "/hq/master",
-    subject: name,
-    detail: "ราคากลางยังเป็น ฿0 — ดีลเลอร์ใช้แม่แบบนี้ออกใบเสนอราคาไม่ได้",
-  }));
-}
 
 /** ลูกค้าเป้าหมายของสาขาที่ยังไม่มีผู้รับผิดชอบ นานเกินเกณฑ์ของ "สาขาเจ้าของลูกค้าเป้าหมาย" — นับจากวันที่สร้าง
  *  ไม่ได้ขึ้นกระดิ่ง HQ แล้ว — ยังใช้เป็นตัวกรองในหน้า /hq/leads */
@@ -69,12 +47,11 @@ export function ใบรอคำตอบมากี่วัน(p: Pick<Deal
 }
 
 /** รวมการแจ้งเตือนทุกข้อตามกฎที่เปิดไว้ (เฉพาะข้อที่ inapp = ขึ้นกระดิ่ง)
- *  prospects/proposals/catalog = undefined → ยังโหลดไม่เสร็จ ข้ามเรื่องนั้นไปก่อน (ไม่ใช่ "ไม่มีข้อมูล") */
+ *  prospects/proposals = undefined → ยังโหลดไม่เสร็จ ข้ามเรื่องนั้นไปก่อน (ไม่ใช่ "ไม่มีข้อมูล") */
 export function buildHQAlerts(input: {
   rules: HQNotifRules;
   prospects?: DealerProspect[];
   proposals?: DealerPackageProposal[];
-  catalog?: SolutionProduct[];
   วันนี้ISO: string;
 }): HQAlert[] {
   const { rules, prospects, proposals, วันนี้ISO } = input;
@@ -145,6 +122,5 @@ export function buildHQAlerts(input: {
       });
     }
   }
-  if (on("catalogNoPrice") && input.catalog) out.push(...catalogAlerts(input.catalog));
   return out;
 }

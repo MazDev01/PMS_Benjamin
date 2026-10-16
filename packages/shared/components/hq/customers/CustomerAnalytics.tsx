@@ -7,8 +7,9 @@
 // เลือกชนิดกราฟตาม "รูปร่างข้อมูล" ไม่ใช่ตามความสวย:
 //   โดนัท   = กลุ่มต้องไม่ทับกันและรวมกันได้ยอดจริง (ลูกค้า 1 ราย = ดีลเลอร์ 1 เจ้า → ใช้ได้)
 //   แท่งตั้ง = เทียบค่าข้ามหมวดที่ป้ายสั้น (รหัสดีลเลอร์) และมี 2 ชุดตัวเลขหน่วยเดียวกัน
-//   แท่งนอน = อันดับ/ป้ายไทยยาว หรือกลุ่มที่ "ทับกันได้" (ลูกค้า 1 รายซื้อหลายประเภทอาคาร → นับซ้ำในหลายแถว
-//             เอาไปทำโดนัทไม่ได้ ผลรวมจะเกินจำนวนลูกค้าจริง)
+//   แท่งนอน = อันดับ/ป้ายไทยยาว
+// การ์ด "ลูกค้า ตามประเภทอาคาร" (แม่แบบหลัก) และ "ลูกค้า ตามแม่แบบย่อย" ถอดออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
+//   (charts.byType / charts.bySubtype ยังอยู่ใน type ของ ports แต่หน้านี้ไม่อ่านแล้ว)
 import { useState } from "react";
 import { TopNRows } from "@pms/shared/components/hq/TopNRows";
 import { Donut, GroupedBarChart } from "@pms/shared/components/ui/Charts";
@@ -124,10 +125,7 @@ function Card({ title, hint, children }: { title: string; hint?: string; childre
 
 // charts คำนวณที่ DB จากทั้งชุดที่กรองแล้วแล้ว (byProvince ตัด 10 อันดับแรกมาจาก DB) — M9 Phase 6, migration 0080
 export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
-  // 1 · ลูกค้าตามประเภทอาคาร (แม่แบบหลัก)
-  const byType: HRow[] = charts.byType;
-
-  // 2 · ลูกค้าตามดีลเลอร์
+  // 1 · ลูกค้าตามดีลเลอร์
   const byDealer: HRow[] = charts.byDealer.map(d => ({ label: `${d.code} · ${d.name}`, value: d.value }));
 
   // 2b · โดนัท "ลูกค้า ตามดีลเลอร์" — ลูกค้า 1 ราย = ดีลเลอร์ 1 เจ้า → กลุ่มไม่ทับกัน รวมกันได้จำนวนลูกค้าจริง
@@ -142,29 +140,20 @@ export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
   })();
   const dealerTotal = dealerDonut.reduce((s, r) => s + r.value, 0);
 
-  // 3 · ยอดซื้อตามดีลเลอร์ — แท่งตั้ง ชุดเดียว (ยอดซื้อสะสม)
+  // 2 · ยอดซื้อตามดีลเลอร์ — แท่งตั้ง ชุดเดียว (ยอดซื้อสะสม)
   // ⚠️ อย่าเอา "เฉลี่ยต่อลูกค้า" มาวางเป็นแท่งคู่บนแกนเดียวกัน: ยอดสะสมสูงสุด ฿47M แต่ค่าเฉลี่ยแค่ ฿1.4–4.2M
   //    ต่างกัน ~30 เท่า → แท่งเฉลี่ยเตี้ยติดพื้นจนอ่านไม่ออก (ลองแล้ว) · ตัวเลขเฉลี่ยดูได้ที่ตารางด้านล่าง
   const revenueByDealer = charts.revenueByDealer;
   const toM = (v: number) => Math.round(v / 1e5) / 10; // บาท → ล้านบาท (ทศนิยม 1 ตำแหน่ง)
 
-  // 4 · จังหวัด (10 อันดับแรก — ตัดมาจาก DB แล้ว)
+  // 3 · จังหวัด (10 อันดับแรก — ตัดมาจาก DB แล้ว)
   const byProvince: HRow[] = charts.byProvince;
-
-  // 5 · แม่แบบย่อย — ใบที่ระบุแค่แม่แบบหลักจะไม่นับ (ไม่มีแม่แบบย่อยจริง)
-  const bySubtype: HRow[] = charts.bySubtype;
 
   const cnt = (v: number) => `${v} ราย`;
 
   return (
+    // คู่ 2 คอลัมน์: (ตามดีลเลอร์ · ยอดซื้อตามดีลเลอร์) — แถวสอง "ตามจังหวัด" กินเต็มแถว ไม่เว้นช่องว่างครึ่งแถว
     <div className="hq-cust-charts">
-      {/* ⚠️ ลูกค้าหนึ่งรายที่ซื้อหลายประเภท จะถูกนับในทุกประเภทที่ซื้อ → ผลรวมของกราฟ "มากกว่า" จำนวนลูกค้าได้
-          (ผลตรวจภายนอก HQ-04 · 24 ส.ค. 69: กราฟรวม 36 แต่ลูกค้าที่ซื้อแล้วมี 32 ราย)
-          ไม่ได้ผิด แต่ถ้าไม่บอกไว้ ผู้อ่านจะเอาไปบวกแล้วสรุปว่าจำนวนลูกค้าไม่ตรงกัน */}
-      <Card title="ลูกค้า ตามประเภทอาคาร">
-        <HBar rows={byType} fmt={cnt} empty="ยังไม่มีลูกค้าที่ปิดการขายในผลกรองนี้" unit="ประเภท" />
-      </Card>
-
       <Card title="ลูกค้า ตามดีลเลอร์">
         {!dealerTotal ? (
           <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>—</div>
@@ -187,13 +176,11 @@ export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
         )}
       </Card>
 
-      <Card title="ลูกค้า ตามจังหวัด">
-        <HBar rows={byProvince} fmt={cnt} color="#6366F1" unit="จังหวัด" />
-      </Card>
-
-      <Card title="ลูกค้า ตามแม่แบบย่อย">
-        <HBar rows={bySubtype} fmt={cnt} color="#7C3AED" empty="ไม่มีใบที่ระบุแม่แบบย่อยในผลกรองนี้" unit="แม่แบบ" />
-      </Card>
+      <div style={{ gridColumn: "1 / -1" }}>
+        <Card title="ลูกค้า ตามจังหวัด">
+          <HBar rows={byProvince} fmt={cnt} color="#6366F1" unit="จังหวัด" />
+        </Card>
+      </div>
 
     </div>
   );

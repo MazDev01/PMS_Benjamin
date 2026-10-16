@@ -12,7 +12,7 @@ export type Permission =
   | "customers:create" | "customers:read" | "customers:update" | "customers:delete"
   | "quotations:create" | "quotations:read" | "quotations:update" | "quotations:delete"
   | "tasks:manage"
-  | "catalog:edit"
+  | "settings:edit"   // แก้ค่าตั้งของเครือ (เดิมชื่อ catalog:edit — เปลี่ยนชื่อตอนเอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · บทบาทเดิมทุกตัว)
   | "dealers:manage"
   | "users:manage"
   | "reports:view"
@@ -37,7 +37,7 @@ const DEALER_BASE: Permission[] = [...SALES_READ, ...SALES_WRITE, "tasks:manage"
 const HQ_BASE: Permission[] = [...SALES_READ, "reports:view", "analytics:view"];
 
 // สิทธิ์ระดับเครือ (ข้อมูลกลางที่ HQ เป็นเจ้าของ) — RLS ฝั่ง DB คุมด้วย can_write_master()
-const HQ_MASTER: Permission[] = ["catalog:edit", "dealers:manage", "users:manage", "hq:all_data"];
+const HQ_MASTER: Permission[] = ["settings:edit", "dealers:manage", "users:manage", "hq:all_data"];
 
 // ⚠️ DEALER_SALES / DEALER_SITE = "เก็บไว้เป็นบันทึกเท่านั้น ไม่มีบัญชีเข้าระบบจริง" (ตัดสิน 7 ส.ค. 69)
 //   ระบบบังคับ "หนึ่งสาขา หนึ่งบัญชีเข้าระบบ" ที่ฐานข้อมูล (0105 · unique index บน dealer_code)

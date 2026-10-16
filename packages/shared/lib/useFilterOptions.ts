@@ -8,7 +8,6 @@
 // ส่วนโหมด local ยังได้ชุดเดิม เพราะ LocalAdapter อ่านจาก seed อยู่แล้ว (พฤติกรรมไม่เปลี่ยน)
 import { useMemo } from "react";
 import { useSales } from "@pms/shared/context/SalesContext";
-import { useMasterCatalog } from "./useMasterCatalog";
 import { useRepoValue } from "./useRepoState";
 import { dealers as dealersRepo, persons as personsRepo } from "./data";
 import type { DealerRow, ResponsiblePerson } from "./data/types";
@@ -21,12 +20,6 @@ const byThai = (a: string, b: string) => a.localeCompare(b, "th");
 export function useDealerOptions(): Option[] {
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   return useMemo(() => dealers.map(d => ({ value: d.code, label: d.name })), [dealers]);
-}
-
-/** แม่แบบ — จากแคตตาล็อกกลางที่ HQ ดูแล (แหล่งเดียวกับฟอร์มลูกค้าเป้าหมาย/ใบเสนอราคา) */
-export function useProductOptions(): Option[] {
-  const catalog = useMasterCatalog();
-  return useMemo(() => catalog.map(p => ({ value: p.name, label: p.name })), [catalog]);
 }
 
 /** จังหวัด — เก็บจากจังหวัดที่ "มีอยู่จริง" ในลูกค้า/ใบเสนอราคา/ลูกค้าเป้าหมาย ไม่ใช่รายชื่อจังหวัดทั้งประเทศ */

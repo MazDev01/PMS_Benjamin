@@ -6,7 +6,7 @@ import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT } from "@pms/shared/
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
 import {
   buildLeadTasks, leadStatusLabel, leadStatusColor, QUOTED_UP, DEFAULT_DEALER_CODE,
-  quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, mainTemplateOf, customerCode,
+  quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel,
   type QuotationMock, type QuoteLineItem, type LeadRow,
   type CustomerRow, type DealerFile, type LeadStatus,
@@ -40,7 +40,6 @@ import { useUserProfile } from "@pms/shared/lib/useUserProfile";
 import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
 import type { CustomerNote } from "@pms/shared/lib/data/types";
 import { DATA_SOURCE } from "@pms/shared/lib/data/config";
-import { TemplateSelect } from "@pms/shared/components/ui/TemplateSelect";
 import { boqLineItems, boqSubtotal } from "@pms/shared/lib/boq";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
@@ -48,7 +47,6 @@ import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
 import { useTableLayout, type Col } from "@pms/shared/components/ui/TableTools";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
 import { PersonPicker } from "@pms/shared/components/ui/PersonPicker";
-import { useMasterCatalog } from "@pms/shared/lib/useMasterCatalog";
 import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { provincesOfRegion } from "@pms/shared/lib/provinces";
@@ -62,7 +60,6 @@ import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { Donut } from "@pms/shared/components/ui/Charts";
-import { TemplateHero } from "@pms/shared/components/ui/TemplateHero";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -74,7 +71,7 @@ import {
   Trash2,
   Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer,
   MapPin, Mail, Coins, Layers, TrendingUp, CalendarClock,
-  Users, ChevronRight,
+  Users,
 } from "lucide-react";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { customerDeletionImpact } from "@pms/shared/lib/customerDeletion";
@@ -175,13 +172,10 @@ function totalSalesFor(customerId:number, qs:QuotationMock[]){
 function wonQuotationCountFor(customerId:number, qs:QuotationMock[]){
   return qs.filter(q=>q.customerId===customerId && q.status==="won").length;
 }
-// สินค้า/งานที่ลูกค้า "ซื้อไปแล้ว" — ชนิดอาคารจากใบเสนอราคาที่ปิดการขาย (won) · ใช้ดูประวัติชัดเจน
-function purchasedItemsFor(customerId:number, qs:QuotationMock[]): string[] {
-  const items = qs.filter(q=>q.customerId===customerId && q.status==="won").map(q=>q.buildingType).filter(Boolean);
-  return Array.from(new Set(items));
-}
+// ⚠️ เคยมี purchasedItemsFor (ชื่อแม่แบบของใบที่ปิดการขาย) ไว้ทำคอลัมน์ "สินค้าที่ซื้อไป" ในไฟล์ส่งออก
+//    เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 → ลบทิ้ง ข้อมูล building_type ยังอยู่ในฐาน แค่ไม่แสดงแล้ว
 // พิมพ์ข้อมูลลูกค้า — เปิดหน้าต่างพิมพ์ (ข้อมูลลูกค้า + ประวัติการปิดการขาย) · รูปแบบเดียวกับ ExportMenu → PDF
-function printCustomer(c:CustomerRow, rows:{q:QuotationMock;template:string}[], code:string){
+function printCustomer(c:CustomerRow, rows:QuotationMock[], code:string){
   const win = window.open("", "_blank", "width=900,height=700");
   if(!win) return;
   // XSS: หน้านี้ประกอบ HTML ด้วย document.write() ตรงๆ — ต้อง escape เอนทิตี HTML จริง ไม่ใช่แค่ stringify
@@ -190,11 +184,12 @@ function printCustomer(c:CustomerRow, rows:{q:QuotationMock;template:string}[], 
   const info: [string,string][] = [
     ["รหัสลูกค้า", code], ["ชื่อ-สกุล", esc(c.name)],
     ["เบอร์โทรศัพท์", esc(c.phone)], ["อีเมล", esc(c.email)], ["ที่อยู่", esc(c.address)],
-    ["จังหวัด", esc(c.province)], ["แม่แบบ", esc(c.category)],
+    // แถว "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
+    ["จังหวัด", esc(c.province)],
     ["เป็นลูกค้าเมื่อ", fmtDate(c.joinDate)], ["ผู้รับผิดชอบ", esc(c.owner)],
     ["สถานะ", c.status==="active"?"ใช้งาน":"ไม่ใช้งาน"],
   ];
-  const total = rows.reduce((s,r)=>s+r.q.totalValue,0);
+  const total = rows.reduce((s,q)=>s+q.totalValue,0);
   win.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ข้อมูลลูกค้า — ${esc(c.company)}</title>
     <style>
       *{font-family:"Noto Sans Thai","Sarabun",system-ui,sans-serif;box-sizing:border-box}
@@ -218,31 +213,19 @@ function printCustomer(c:CustomerRow, rows:{q:QuotationMock;template:string}[], 
     <div class="grid">${info.map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("")}</div>
     <h2>ประวัติการปิดการขาย (${rows.length})</h2>
     ${rows.length===0 ? `<div style="font-size:11px;color:#6b7280">— ยังไม่มีโครงการที่ปิดการขาย</div>` : `
-    <table><thead><tr><th>#</th><th>เลขที่ใบเสนอราคา</th><th>ชื่องาน</th><th>แม่แบบ</th><th>วันที่ซื้อ</th><th class="num">ราคา</th></tr></thead>
-    <tbody>${rows.map(({q,template},i)=>`<tr><td>${i+1}</td><td>${esc(q.id)}</td><td>${esc(q.project)}</td><td>${esc(template)}</td><td>${fmtDate(q.date)}</td><td class="num">${fmtMoney(q.totalValue)}</td></tr>`).join("")}</tbody>
-    <tfoot><tr><td colspan="5" class="num">รวมมูลค่าทั้งหมด</td><td class="num">${fmtMoney(total)}</td></tr></tfoot></table>`}
+    <table><thead><tr><th>#</th><th>เลขที่ใบเสนอราคา</th><th>ชื่องาน</th><th>วันที่ซื้อ</th><th class="num">ราคา</th></tr></thead>
+    <tbody>${rows.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.id)}</td><td>${esc(q.project)}</td><td>${fmtDate(q.date)}</td><td class="num">${fmtMoney(q.totalValue)}</td></tr>`).join("")}</tbody>
+    <tfoot><tr><td colspan="4" class="num">รวมมูลค่าทั้งหมด</td><td class="num">${fmtMoney(total)}</td></tr></tfoot></table>`}
     <script>window.onload=function(){window.print()}<\/script>
     </body></html>`);
   win.document.close();
 }
 
-// โครงการที่ซื้อไปแล้ว จัดกลุ่มตาม "แม่แบบหลัก" — ใบเสนอราคาที่ปิดการขาย (won) เท่านั้น
+// โครงการที่ซื้อไปแล้ว — ใบเสนอราคาที่ปิดการขาย (won) เท่านั้น · เรียงวันปิดล่าสุดขึ้นก่อน
 // ไม่มีใบ won = ยังไม่มีโครงการที่ซื้อ (ไม่เดาจากดีลที่ยังไม่ปิด)
-type PurchasedGroup = { template:string; projects:QuotationMock[]; total:number };
-function purchasedGroupsFor(customerId:number, qs:QuotationMock[]): PurchasedGroup[] {
-  const won = qs.filter(q=>q.customerId===customerId && q.status==="won");
-  const m = new Map<string, QuotationMock[]>();
-  won.forEach(q=>{
-    const key = mainTemplateOf(q.buildingType) || q.buildingType || "ไม่ระบุประเภทอาคาร";
-    const arr = m.get(key); if(arr) arr.push(q); else m.set(key,[q]);
-  });
-  return [...m.entries()]
-    .map(([template,projects])=>({
-      template,
-      projects: [...projects].sort((a,b)=>a.date<b.date?1:-1),
-      total: projects.reduce((s,q)=>s+q.totalValue,0),
-    }))
-    .sort((a,b)=>b.total-a.total);
+// เดิมจัดกลุ่มตาม "แม่แบบหลัก" — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 จึงเป็นรายการใบต่อใบตรง ๆ
+function purchasedFor(customerId:number, qs:QuotationMock[]): QuotationMock[] {
+  return qs.filter(q=>q.customerId===customerId && q.status==="won").sort((a,b)=>a.date<b.date?1:-1);
 }
 // ⚠️ เคยมี deliveryDateFor (วันส่งมอบ) ตรงนี้ — ลบทั้งฟีเจอร์แล้ว (บอสสั่ง 20 ส.ค. 69)
 //    ไม่มีที่ให้ใครกรอกวันส่งมอบจริงเลยทั้งระบบ · ค่าที่เคยใส่ในไฟล์ส่งออกคือ
@@ -286,7 +269,7 @@ const LIFECYCLE_META: Record<LifecycleType,{label:string; fg:string; bg:string}>
 
 // ── Customer form shape — ใช้กับฟอร์ม "แก้ไขในตัว" เท่านั้น ──
 // ลูกค้าสร้างใหม่โดยตรงไม่ได้ (ฝั่งดีลเลอร์) — เกิดจาก Lead→Won อัตโนมัติเท่านั้น · หน้านี้ไว้ดู/แก้ไขที่มีอยู่
-type CustomerForm = Omit<CustomerRow,"id"|"initials"|"color"|"totalValue">;
+type CustomerForm = Omit<CustomerRow,"id"|"initials"|"color"|"totalValue"|"category">; // ไม่มี category (แม่แบบ) — คงค่าเดิมผ่าน ...selected ตอนบันทึก (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 
 // ─── ภาพรวม (แก้ไขในตัว) — ฟอร์มแก้ไขข้อมูลลูกค้าในแท็บ "ข้อมูล" ของโมดัลรายละเอียด ───
 // สไตล์ + Row ต้องอยู่นอกคอมโพเนนต์ — ประกาศข้างในจะได้ "ฟังก์ชันตัวใหม่" ทุกเรนเดอร์
@@ -310,7 +293,7 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
 }){
   const seed = (): CustomerForm => ({
     name: customer.name, company: customer.company, email: customer.email,
-    phone: customer.phone, address: customer.address ?? "", province: customer.province, category: customer.category,
+    phone: customer.phone, address: customer.address ?? "", province: customer.province,
     status: customer.status, projects: customer.projects, joinDate: customer.joinDate, owner: customer.owner,
     logo: customer.logo ?? "",
   });
@@ -376,7 +359,8 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
               {f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>}
             </select>
           </Row>
-          <Row label="แม่แบบ"><TemplateSelect value={f.category} onChange={v=>set("category",v)} style={inp} /></Row>
+          {/* แถว "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · category ยังอยู่ใน f (มาจาก seed)
+              บันทึกแล้วส่งค่าเดิมกลับไปตรง ๆ ไม่มีใครแก้ได้ ข้อมูลในฐานจึงไม่เปลี่ยน */}
           {/* joinDate = วันที่เข้าระบบเป็นลูกค้า — ป้าย "วันที่สมัคร" เดิมชวนเข้าใจผิด (บอสสั่งเปลี่ยน 17 ก.ค. 69) */}
           <Row label="เป็นลูกค้าเมื่อ"><input type="date" aria-label="วันที่เป็นลูกค้า" value={f.joinDate} onChange={e=>set("joinDate",e.target.value)} style={inp} /></Row>
           <Row label="ผู้รับผิดชอบ"><PersonPicker value={f.owner} onChange={v=>set("owner",v)} multiple /></Row>
@@ -421,31 +405,19 @@ export default function CustomersPage(){
   const data = useMemo(() => allCustomers.filter(c => (c.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code), [allCustomers, currentDealer.code]);
   const quotations = useMemo(() => allQuotations.filter(q => (q.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code), [allQuotations, currentDealer.code]);
   const leads = useMemo(() => allLeadsRaw.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code), [allLeadsRaw, currentDealer.code]);
-  const catalog = useMasterCatalog(); // แม่แบบจากแคตตาล็อกกลาง — ใช้เป็นตัวเลือกตัวกรอง "แม่แบบ"
   // รายชื่อผู้รับผิดชอบของสาขา — ใช้เติมลงเทมเพลตนำเข้า ให้กรอกแล้วตรงกับที่ระบบมีจริง
   const จังหวัดของสาขา = useMyProvinces();   // จังหวัดตามภาคของสาขาที่ล็อกอิน (กติกาเดียวกับฟอร์มกรอกมือ)
   const persons = useRepoValue(() => personsRepo.list({ dealerCode: currentDealer.code, isHQ: false }), []);
   // ค่าจริงในระบบที่ต้องใส่ลงเทมเพลตนำเข้า — กรอกตามนี้แล้วอัปกลับเข้ามาได้โดยไม่ติดขัด
   const ค่าที่ระบบมี = useMemo(() => ({
-    แม่แบบ: catalog.map(c => c.name),
     จังหวัด: จังหวัดของสาขา,
     ผู้รับผิดชอบ: persons.filter(p => p.active !== false).map(p => p.name),
-  }), [catalog, จังหวัดของสาขา, persons]);
+  }), [จังหวัดของสาขา, persons]);
   const taskTpl = useLeadTaskTemplate(); // งานมาตรฐานที่ HQ ตั้ง — ดีลใหม่ต้องได้ checklist ชุดเดียวกับลูกค้าเป้าหมายอื่น
   const { passes, timeRange, inRange, setPreset, setCustomRange } = useFilters(); // ตัวกรองช่วงเวลา (กรองตามกิจกรรมล่าสุดของลูกค้า)
   // ตัวกรองช่วงเวลากลาง (วันเดือนปี) — กรองจากวันที่เข้าเป็นลูกค้า
   const [query, setQuery]             = useState("");
-  const [catFilter, setCatFilter]     = useState("ALL");
-  // มาจากแดชบอร์ด (การ์ด "ยอดขายตามแม่แบบ") → /customers?template=<แม่แบบหลัก> · ตั้งตัวกรองให้ตรงกับแถวที่กดมา
-  // อ่านจาก window.location แทน useSearchParams เพื่อไม่ต้องครอบ <Suspense> ทั้งหน้า
-  // ตั้งค่าเฉพาะแม่แบบที่มีอยู่จริงในแคตตาล็อก — ค่าที่ไม่รู้จักจะทำให้ตัวกรองโชว์ค่าว่างและลิสต์ว่างโดยไม่มีเหตุผล
-  const urlFilterDone = useRef(false);
-  useEffect(() => {
-    if (urlFilterDone.current || !catalog.length) return;
-    urlFilterDone.current = true;
-    const t = new URLSearchParams(window.location.search).get("template");
-    if (t && catalog.some(p => p.name === t)) setCatFilter(t);
-  }, [catalog]);
+  // ตัวกรอง "แม่แบบ" + ลิงก์ ?template= จากแดชบอร์ด เอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
   // มาจากปุ่ม "ดูลูกค้าใหม่" หลังปิดการขาย (/leads, /quotations) → /customers?search=<ชื่อบริษัท>
   // ตั้งช่องค้นหาให้ทันที กันลูกค้าที่เพิ่งปิดการขายหายไปในรายการที่แบ่งหน้า (/scenario 31 ก.ค. 69)
   const urlSearchDone = useRef(false);
@@ -513,7 +485,7 @@ export default function CustomersPage(){
   const [delTarget, setDelTarget] = useState<CustomerRow|null>(null);
   const [detailTab, setDetailTab]     = useState<"info"|"deals"|"quotes"|"appts"|"notes"|"files">("info");
   // โครงการที่กดดู (จากตาราง "ประวัติการปิดการขาย") → เปิดแผงรายละเอียดโครงการซ้อนขึ้นมา
-  const [viewProject, setViewProject] = useState<{ q: QuotationMock; template: string } | null>(null);
+  const [viewProject, setViewProject] = useState<{ q: QuotationMock } | null>(null);
   // ไทม์ไลน์กิจกรรมของดีลที่กำลังเปิดดู — รายการลูกค้าเป้าหมายไม่ขน activities มาแล้ว (กินขนส่ง)
   //   จึงโหลดเฉพาะตอนเปิดแผงใบเสนอราคา · ไม่โหลด = ไทม์ไลน์ว่างทั้งที่มีข้อมูลจริง
   const [dealActs, setDealActs] = useState<LeadActivity[] | null>(null);
@@ -531,12 +503,10 @@ export default function CustomersPage(){
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewDealId]);
-  // แม่แบบที่มีหลายงาน → กดการ์ดแล้วเปิดตัวเลือกก่อนว่าจะดูงานไหน (แม่แบบเดียวอาจมีถึง v30)
-  const [pickGroup, setPickGroup] = useState<PurchasedGroup | null>(null);
   // สร้างดีลใหม่ (ลูกค้าเดิมซื้อโครงการใหม่) — Deal = ลูกค้าเป้าหมายที่ผูก customerId
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [dealCustomer, setDealCustomer] = useState<CustomerRow|null>(null);
-  const [dealForm, setDealForm] = useState({project:"",product:"",value:"",area:"",status:"WAITING" as LeadStatus,assigned:"",note:""});
+  const [dealForm, setDealForm] = useState({project:"",value:"",area:"",status:"WAITING" as LeadStatus,assigned:"",note:""});
   // ข้อความฟ้องตอนกดบันทึก — ต้องมีเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย ไม่ใช่กดแล้วเงียบ
   const [dealErr, setDealErr] = useState("");
   // นำเข้าลูกค้าเดิม (ดีลเลอร์) — ลูกค้าก่อนมีระบบ / ไม่ได้ผ่าน Lead→Won · CSV + คีย์มือ
@@ -551,7 +521,7 @@ export default function CustomersPage(){
   // ⚠️ ช่องในฟอร์มนี้ต้องครบเท่ากับ "ข้อมูลที่ลูกค้าหนึ่งรายมี" (บอสสั่ง 1 ก.ย. 69)
   //    ที่เหลือของ CustomerRow เป็นค่าที่ระบบคิดเอง: จำนวนงานขาย/มูลค่ารวมมาจากดีลจริง
   //    ตัวย่อ/สีการ์ดมาจากชื่อบริษัท — กรอกเองไม่ได้และไม่ควรให้กรอก
-  const legacyเปล่า = {company:"",name:"",phone:"",email:"",address:"",province:"กรุงเทพฯ",category:"",joinDate:"",owner:"สมชาย เชียงใหม่",status:"" as CustomerStatus | "",logo:""};
+  const legacyเปล่า = {company:"",name:"",phone:"",email:"",address:"",province:"กรุงเทพฯ",joinDate:"",owner:"สมชาย เชียงใหม่",status:"" as CustomerStatus | "",logo:""};
   const [legacyForm, setLegacyForm]   = useState(legacyเปล่า);
   const legacyLogoRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -619,18 +589,17 @@ export default function CustomersPage(){
   function handleSort(k: SortKey){ if(sortKey===k) setSortDir(d=>d==="asc"?"desc":"asc"); else{setSortKey(k);setSortDir("asc");} }
 
   // มีตัวกรองถูกตั้งไว้จริงไหม — ใช้เลือกข้อความตอนไม่มีผลลัพธ์ (ดูหมายเหตุที่ตารางด้านล่าง)
-  const hasActiveFilter = query.trim() !== "" || catFilter !== "ALL" || provFilter !== "ALL" || ownerFilter !== "ALL";
+  const hasActiveFilter = query.trim() !== "" || provFilter !== "ALL" || ownerFilter !== "ALL";
   const filtered = useMemo(()=>{
     let rows=data.filter(c=>{
       const q=query.toLowerCase();
       const matchQ=!q||c.company.toLowerCase().includes(q)||c.name.toLowerCase().includes(q)||c.province.toLowerCase().includes(q)||c.phone.includes(q);
       // ตัวกรอง "สถานะ" + "ลูกค้าใหม่/เดิม" ถูกลบตามที่บอสสั่ง — ไม่มี UI ให้ตั้งค่าแล้ว
-      const matchC=catFilter==="ALL"||mainTemplateOf(c.category)===catFilter;
       const matchP=provFilter==="ALL"||c.province===provFilter;
       const matchO=ownerFilter==="ALL"||(c.owner||"")===ownerFilter;
       // กรองตามช่วงเวลา — ใช้ "กิจกรรมล่าสุด" ของลูกค้า (โชว์ลูกค้าที่มีความเคลื่อนไหวในช่วงที่เลือก)
       const matchT=passes({date:lastActivityFor(c.id,c.joinDate,quotations)});
-      return matchQ&&matchC&&matchP&&matchO&&matchT;
+      return matchQ&&matchP&&matchO&&matchT;
     });
     if(sortKey===null) return [...rows].sort((a,b)=>b.id-a.id);
     const sortVal=(c:CustomerRow):string|number=>{
@@ -653,7 +622,7 @@ export default function CustomersPage(){
       return 0;
     });
     return rows;
-  },[data,quotations,query,catFilter,provFilter,ownerFilter,sortKey,sortDir,timeRange,passes]);
+  },[data,quotations,query,provFilter,ownerFilter,sortKey,sortDir,timeRange,passes]);
 
   // ตัวเลือกตัวกรอง — ดึงจากข้อมูลลูกค้าจริงที่มีอยู่ (ไม่ hardcode รายการจังหวัด/พนักงาน)
   const provOptions  = useMemo(()=>[...new Set(data.map(c=>c.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data]);
@@ -662,7 +631,7 @@ export default function CustomersPage(){
   // ── Pagination (client-side) ──────────────────────────────
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   // รีเซ็ต/clamp หน้าเมื่อค้นหา/เรียง/ตัวกรองเปลี่ยน หรือจำนวนหน้าลดลง
-  useEffect(() => { setPage(1); }, [query,catFilter,provFilter,ownerFilter,sortKey,sortDir]);
+  useEffect(() => { setPage(1); }, [query,provFilter,ownerFilter,sortKey,sortDir]);
   useEffect(() => { setPage(p => Math.min(p, totalPages)); }, [totalPages]);
   const pageStart = (page - 1) * PAGE_SIZE;
   const paged     = filtered.slice(pageStart, pageStart + PAGE_SIZE);
@@ -670,18 +639,17 @@ export default function CustomersPage(){
   const rangeTo   = Math.min(pageStart + PAGE_SIZE, filtered.length);
 
   // ── สรุปด้านบนต้องเดินตามตัวกรองของหน้านี้ (บอสสั่ง 20 ส.ค. 69) ─────────────────
-  //   เดิมนับจากลูกค้าทั้งหมดเสมอ เลือกจังหวัด/แม่แบบ/ผู้ดูแลแล้วตารางเหลือไม่กี่ราย
+  //   เดิมนับจากลูกค้าทั้งหมดเสมอ เลือกจังหวัด/ผู้ดูแลแล้วตารางเหลือไม่กี่ราย
   //   แต่การ์ด "ลูกค้าทั้งหมด/ยอดขายรวม" กับกราฟยังเป็นของทั้งสาขา = อ่านคู่กันแล้วขัดกันเอง
   //   หน้านี้ไม่มีการ์ดที่ใช้สลับตัวกรอง จึงรวมทุกตัวกรองได้เลย (ต่างจากหน้าลูกค้าเป้าหมาย/ใบเสนอราคา)
   const scoped = useMemo(()=>data.filter(c=>{
     const q=query.toLowerCase();
     const matchQ=!q||c.company.toLowerCase().includes(q)||c.name.toLowerCase().includes(q)||c.province.toLowerCase().includes(q)||c.phone.includes(q);
-    const matchC=catFilter==="ALL"||mainTemplateOf(c.category)===catFilter;
     const matchP=provFilter==="ALL"||c.province===provFilter;
     const matchO=ownerFilter==="ALL"||(c.owner||"")===ownerFilter;
     const matchT=passes({date:lastActivityFor(c.id,c.joinDate,quotations)});
-    return matchQ&&matchC&&matchP&&matchO&&matchT;
-  }),[data,query,catFilter,provFilter,ownerFilter,passes,quotations]);
+    return matchQ&&matchP&&matchO&&matchT;
+  }),[data,query,provFilter,ownerFilter,passes,quotations]);
   const totalAll      = scoped.length;
   const totalValue    = scoped.reduce((s,c)=>s+c.totalValue,0);
 
@@ -699,14 +667,7 @@ export default function CustomersPage(){
     for (let i = 0; i < 12; i++) { run += per[i]; cum.push(run); }
     return { per, cum };
   }, [scoped]);
-  // กราฟ 2 — สินค้าที่ซื้อ (โดนัทตามแม่แบบหลัก)
-  const productSegments = useMemo(() => {
-    const m = new Map<string, number>();
-    scoped.forEach(c => { const k = mainTemplateOf(c.category) || c.category || "อื่นๆ"; m.set(k, (m.get(k) ?? 0) + 1); });
-    const total = scoped.length || 1;
-    const COLORS = ["#2563EB","#16A34A","#F59E0B","#7C3AED","#EA580C","#0D9488","#94A3B8"];
-    return [...m.entries()].sort((a,b)=>b[1]-a[1]).map(([label,value],i)=>({ label, value, color: COLORS[i%COLORS.length], pct: Math.round((value/total)*100) }));
-  }, [scoped]);
+  // กราฟ 2 "สินค้าที่ซื้อ (โดนัทตามแม่แบบหลัก)" ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
 
   // Related data for selected customer
   const relatedQuotations   = selected ? quotations.filter(q=>q.customerId===selected.id) : [];
@@ -740,10 +701,12 @@ export default function CustomersPage(){
     setDelTarget(null);
   }
   // ── นำเข้าลูกค้าเดิม (ดีลเลอร์) — เพิ่มเข้า SalesContext เดียว · flag imported=true ──
-  function makeImported(r: ImportRow, id: number): CustomerRow {
+  // รับแถวที่ไม่มี category ก็ได้ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ลูกค้าที่นำเข้าใหม่ได้ category ว่างเสมอ
+  //   (ไม่อ่าน r.category แม้ไฟล์จะมีคอลัมน์แม่แบบติดมา เพราะไม่มีที่ไหนในระบบแสดง/แก้ค่านี้แล้ว)
+  function makeImported(r: Omit<ImportRow,"category">, id: number): CustomerRow {
     return { id, name:r.name||r.company, company:r.company, email:r.email, phone:r.phone,
       address:r.address||undefined,
-      province:r.province||"กรุงเทพฯ", category:r.category, status:"active", projects:0,
+      province:r.province||"กรุงเทพฯ", category:"", status:"active", projects:0,
       // วันที่/ผู้รับผิดชอบจากไฟล์ก่อนเสมอ — ไม่มีค่อยใช้ค่าตั้งต้น (วันนี้ / ผู้รับผิดชอบที่เลือกในฟอร์ม)
       joinDate:r.joinDate||APP_NOW_ISO, owner:r.owner||legacyForm.owner||"สมชาย เชียงใหม่",
       initials:initials(r.company), color:PALETTE[id%PALETTE.length], totalValue:0, imported:true };
@@ -761,7 +724,7 @@ export default function CustomersPage(){
       phone: เอา(r.phone, เดิม.phone) || เดิม.phone,
       address: เอา(r.address, เดิม.address),
       province: เอา(r.province, เดิม.province) || เดิม.province,
-      category: เอา(r.category, เดิม.category) || เดิม.category,
+      // category ไม่แตะ (มาจาก ...เดิม) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 ไฟล์นำเข้าห้ามทับค่าเดิม
       joinDate: เอา(r.joinDate, เดิม.joinDate) || เดิม.joinDate,
       owner: เอา(r.owner, เดิม.owner) || เดิม.owner };
   }
@@ -839,7 +802,7 @@ export default function CustomersPage(){
       const base=Math.max(0,...data.map(c=>c.id)); // seed สีเท่านั้น — id จริงจาก counter
       await warnBeforeUnloadDuring(() =>
         ctxAddCustomer({...makeImported({company:legacyForm.company.trim(),name:legacyForm.name.trim(),phone:legacyForm.phone,
-          email:legacyForm.email,address:legacyForm.address.trim(),province:legacyForm.province,category:legacyForm.category,
+          email:legacyForm.email,address:legacyForm.address.trim(),province:legacyForm.province,
           joinDate:legacyForm.joinDate,owner:legacyForm.owner}, base+1),
           // สองช่องนี้มีเฉพาะตอนคีย์เอง (ไฟล์นำเข้าไม่มีคอลัมน์รูป/สถานะ)
           status:legacyForm.status || "active", ...(legacyForm.logo ? {logo:legacyForm.logo} : {})})
@@ -849,18 +812,16 @@ export default function CustomersPage(){
     } catch(e){ แจ้งพลาด("เพิ่มลูกค้าไม่สำเร็จ: " + friendlyError(e)); }
     finally { savingLegacyRef.current = false; }
   }
-  // เปิด dialog สร้างดีลใหม่ — prefill แม่แบบ/ผู้รับผิดชอบจากลูกค้า (เรียกจากการ์ด/หัวโมดัล/แท็บดีล)
+  // เปิด dialog สร้างดีลใหม่ — prefill ผู้รับผิดชอบจากลูกค้า (เรียกจากการ์ด/หัวโมดัล/แท็บดีล)
+  //   ช่อง "แม่แบบ" ไม่มีแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
   function openNewDeal(c: CustomerRow){
     setDealCustomer(c);
-    // ⚠️ ห้าม prefill แม่แบบ (บอสสั่ง 25 ส.ค. 69) — เดิมเติมแม่แบบของงานเดิมหรือตัวแรกในแคตตาล็อกให้
-    //    ผู้ใช้เห็นช่องมีค่าอยู่แล้วก็กดผ่านไป ได้งานขายที่แม่แบบไม่ตรงกับที่ลูกค้าจะซื้อจริง
-    //    ต้องเริ่มที่ "ยังไม่ระบุแม่แบบ" แล้วให้คนเลือกเอง เหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย
-    setDealForm({project:"",product:"",value:"",area:"",status:"WAITING",assigned:c.owner,note:""}); setDealErr("");
+    setDealForm({project:"",value:"",area:"",status:"WAITING",assigned:c.owner,note:""}); setDealErr("");
     setShowNewDeal(true);
   }
   // กันกดสร้างดีลซ้ำ (H8 · guard synchronous) — เดิมไม่มี guard: กดรัว ๆ ระหว่างรอ newLeadNumId() (async)
   // จะยิงขอเลขซ้อนกันได้หลายครั้ง สร้างดีลซ้ำหลายใบจากคลิกเดียว (แพทเทิร์นเดียวกับที่พบใน
-  // ฟอร์มเพิ่มลูกค้าเป้าหมาย/ลูกค้า/แม่แบบ — Edge Case sweep 3 ส.ค. 69)
+  // ฟอร์มเพิ่มลูกค้าเป้าหมาย/ลูกค้า — Edge Case sweep 3 ส.ค. 69)
   const creatingDealRef = useRef(false);
   // สร้างดีล = ลูกค้าเป้าหมายใหม่ผูก customerId · status WAITING · tasks = default checklist · activities/report ว่าง → เปิด Deal Detail ทันที
   async function createDeal(){
@@ -874,13 +835,13 @@ export default function CustomersPage(){
     creatingDealRef.current = true;
     try {
       const nid = await newLeadNumId(); // num_id atomic ต่อสาขา (M7) — เลิก Math.max+1 ที่ชนได้
-      const product=dealForm.product;
       const newDeal: LeadRow={
         id:`#L-${40321+nid}`, numId:nid,
         name:c.company, company:c.company,                              // ── ข้อมูลลูกค้าเดิม ──
         contact:c.name, phone:c.phone, email:c.email, province:c.province, address:c.address,
         assigned:dealForm.assigned||c.owner, logo:c.logo, customerId:c.id,
-        product, category:mainTemplateOf(product),                     // ── รายละเอียดดีล ──
+        // ── รายละเอียดดีล ── ไม่มีช่องแม่แบบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → product/category ว่าง
+        product:"", category:"",
         // เก็บตามที่พิมพ์ เหมือนฟอร์มลูกค้าเป้าหมาย — เดิมย่อผ่าน fmtDealValue เป็น "฿1.2M"
         // ทำให้ 1,234,567 กลายเป็น 1.2M = เงินหายไปสามหมื่นกว่าบาทตั้งแต่ตอนบันทึก
         value:dealForm.value.trim(),
@@ -952,14 +913,13 @@ export default function CustomersPage(){
               จึงให้คอลัมน์ชุดแรกตรงกับเทมเพลตนำเข้าเป๊ะ (CSV_HEADERS) แล้วค่อยต่อด้วยตัวเลขสรุปที่ระบบคำนวณเอง
               ⚠️ ตัวเลขสรุปท้ายตาราง (กิจกรรมล่าสุด/จำนวนใบ/ยอดขาย/สินค้าที่ซื้อ) นำเข้ากลับไม่ได้โดยตั้งใจ —
                  เป็นค่าที่คิดจากใบเสนอราคาจริง ถ้ารับกลับมาก็เท่ากับให้พิมพ์ยอดขายเอง
-              ⚠️ "เป็นลูกค้าเมื่อ" ส่งออกเป็น YYYY-MM-DD ซึ่ง แปลงวันที่นำเข้า() อ่านกลับได้ ห้ามเปลี่ยนเป็นวันไทย */}
+              ⚠️ "เป็นลูกค้าเมื่อ" ส่งออกเป็น YYYY-MM-DD ซึ่ง แปลงวันที่นำเข้า() อ่านกลับได้ ห้ามเปลี่ยนเป็นวันไทย
+              เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 → ตัดคอลัมน์ "แม่แบบ" กับ "สินค้าที่ซื้อไป" (ชื่อแม่แบบของใบที่ปิด) ออก
+              ⚠️ คอลัมน์ชุดแรก = CSV_HEADERS ตรงตัว · scripts/check-export-import-columns.mjs ตรวจให้ */}
           <ExportMenu filename="customers" title="รายชื่อลูกค้า"
-            headers={[...CSV_HEADERS,"กิจกรรมล่าสุด","จำนวนใบเสนอราคา","ยอดขายรวม","สินค้าที่ซื้อไป"]}
-            rows={filtered.map(c=>{
-              const bought=purchasedItemsFor(c.id,quotations);
-              return [c.company,c.name,c.phone,c.email,c.address??"",c.province,c.category,c.joinDate,c.owner,
-                lastActivityFor(c.id,c.joinDate,quotations),quotationCountFor(c.id,quotations),fmtMoney(totalSalesFor(c.id,quotations)),bought.length?bought.join(", "):"—"];
-            })} />
+            headers={[...CSV_HEADERS,"กิจกรรมล่าสุด","จำนวนใบเสนอราคา","ยอดขายรวม"]}
+            rows={filtered.map(c=>[c.company,c.name,c.phone,c.email,c.address??"",c.province,c.joinDate,c.owner,
+                lastActivityFor(c.id,c.joinDate,quotations),quotationCountFor(c.id,quotations),fmtMoney(totalSalesFor(c.id,quotations))])} />
           {/* นำเข้าลูกค้าเดิม (คีย์มือ/CSV) — ลูกค้าใหม่ยังเกิดจาก Lead→Won เท่านั้น */}
           <button className="btn btn-primary btn-sm" onClick={()=>{setImportRows([]);setImportErr("");setImportFile("");setShowImport(true);}}>
             <Upload size={14}/> นำเข้าลูกค้าเดิม
@@ -995,15 +955,13 @@ export default function CustomersPage(){
 
         {/* ── แถบตัวกรองแถวเดียว (มาตรฐานเดียวกับหน้า /hq/pipeline) ──
             เดิมเป็นปุ่ม "ตัวกรอง" + แผงชิปเลื่อนจากขวา — ตอนนี้เห็นตัวกรองทุกตัวพร้อมกัน
-            ตัวเลือกจังหวัด/ผู้รับผิดชอบสร้างจากข้อมูลลูกค้าจริง · แม่แบบมาจากแคตตาล็อกกลาง
+            ตัวเลือกจังหวัด/ผู้รับผิดชอบสร้างจากข้อมูลลูกค้าจริง · ตัวกรองแม่แบบเอาออกแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
             "ลูกค้าทั้งหมด N รายการ" เอาออกตามที่บอสสั่ง — จำนวนดูได้ที่การ์ด KPI และแถบแบ่งหน้า */}
         <FilterRow
           query={query} onQuery={setQuery} placeholder="ค้นหาลูกค้า, เบอร์โทร, อีเมล..."
-          showClear={catFilter!=="ALL" || provFilter!=="ALL" || ownerFilter!=="ALL" || !!query}
-          onClear={()=>{ setQuery(""); setCatFilter("ALL"); setProvFilter("ALL"); setOwnerFilter("ALL"); }}
+          showClear={provFilter!=="ALL" || ownerFilter!=="ALL" || !!query}
+          onClear={()=>{ setQuery(""); setProvFilter("ALL"); setOwnerFilter("ALL"); }}
         >
-          <FilterSelect caption="ทุกแม่แบบ" value={catFilter} onChange={setCatFilter}
-            options={catalog.map(p=>({v:p.name,l:p.name}))} minWidth={140} />
           <FilterSelect caption="ทุกจังหวัด" value={provFilter} onChange={setProvFilter}
             options={provOptions.map(p=>({v:p,l:p}))} />
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={ownerFilter} onChange={setOwnerFilter}
@@ -1022,7 +980,7 @@ export default function CustomersPage(){
             {hasActiveFilter ? (
               <EmptyState icon={<User size={28}/>} title="ไม่พบลูกค้าที่ตรงกับเงื่อนไข"
                 description="ลองปรับคำค้นหรือล้างตัวกรองเพื่อดูลูกค้าทั้งหมด"
-                action={<button className="btn btn-secondary btn-md" style={{color:PRIMARY}} onClick={()=>{ setCatFilter("ALL"); setProvFilter("ALL"); setOwnerFilter("ALL"); setQuery(""); }}>ล้างตัวกรอง</button>} />
+                action={<button className="btn btn-secondary btn-md" style={{color:PRIMARY}} onClick={()=>{ setProvFilter("ALL"); setOwnerFilter("ALL"); setQuery(""); }}>ล้างตัวกรอง</button>} />
             ) : (
               <EmptyState icon={<User size={28}/>} title="ยังไม่มีลูกค้าในระบบ"
                 description="ลูกค้าจะถูกสร้างให้อัตโนมัติเมื่อปิดการขายลูกค้าเป้าหมายได้สำเร็จ"
@@ -1038,11 +996,11 @@ export default function CustomersPage(){
                       "ยอดขายรวม" หัวต้องการ 111px และ "โครงการ" 87px — เคยตั้งแคบไปจนหัวโดนตัด */}
                   {/* บริษัท/ผู้ติดต่อ/จังหวัด หดรวม 32px แลกที่ให้ปุ่ม "ลบ" ที่เพิ่มเข้ามา (13 ส.ค. 69)
                       สามช่องนี้ตัดข้อความด้วย … + hover ดูเต็มได้ และยังกว้างกว่าหัวคอลัมน์ของตัวเอง */}
-                  <col style={{ width:"15.4%", minWidth:154 }} />{/* บริษัท */}
+                  {/* คอลัมน์ "แม่แบบ" (12% · min 116) เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ยกความกว้างให้ "บริษัท" ทั้งก้อน */}
+                  <col style={{ width:"27.4%", minWidth:154 }} />{/* บริษัท */}
                   <col style={{ width:"11.2%", minWidth:110 }} />{/* ผู้ติดต่อ */}
                   <col style={{ width:"11%",   minWidth:118 }} />{/* โทรศัพท์ — เบอร์ห้ามตัด */}
                   <col style={{ width:"9.2%",  minWidth:96 }} />{/* จังหวัด */}
-                  <col style={{ width:"12%",   minWidth:116 }} />{/* แม่แบบ */}
                   <col style={{ width:"11.5%", minWidth:114 }} />{/* ยอดขายรวม — หัว 111 */}
                   <col style={{ width:"9%",    minWidth:90 }} />{/* โครงการ — หัว 87 */}
                   <col style={{ width:"11%",   minWidth:112 }} />{/* ติดต่อล่าสุด */}
@@ -1054,7 +1012,7 @@ export default function CustomersPage(){
                         (มาตรฐานเดียวกับตารางลูกค้าเป้าหมาย/ใบเสนอราคา) · คอลัมน์ตัวเลขจัดชิดขวาให้ตรงกับค่าในเซลล์ */}
                     {([
                       ["company","บริษัท",false],["name","ผู้ติดต่อ",false],["phone","โทรศัพท์",false],["province","จังหวัด",false],
-                      [null,"แม่แบบ",false],[null,"ยอดขายรวม",true],[null,"โครงการ",true],["lastActivity","ติดต่อล่าสุด",false],
+                      [null,"ยอดขายรวม",true],[null,"โครงการ",true],["lastActivity","ติดต่อล่าสุด",false],
                     ] as [SortKey|null,string,boolean][]).map(([k,label,isNum])=>(
                       <th key={label} className={isNum?"num":(k?"clickable":undefined)}
                         onClick={k?()=>handleSort(k):undefined}
@@ -1070,9 +1028,8 @@ export default function CustomersPage(){
                 <tbody>
                   {paged.map(c=>{
                     const sales = totalSalesFor(c.id, quotations) || c.totalValue;
-                    const cat = mainTemplateOf(c.category) || c.category || "—";
                     // จำนวนโครงการ = ใบเสนอราคาที่ปิดการขายจริง (ยังไม่ซื้อ = "—" ไม่เดา)
-                    const projects = purchasedGroupsFor(c.id, quotations).reduce((n,g)=>n+g.projects.length,0);
+                    const projects = purchasedFor(c.id, quotations).length;
                     return (
                       <ClickableRow key={c.id} className="clickable"
                         onActivate={()=>{ setSelected(c); setCustTab("overview"); setDelTarget(null); }}
@@ -1090,9 +1047,6 @@ export default function CustomersPage(){
                         <td title={c.name} style={{ color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name || "—"}</td>
                         <td style={{ color:"#374151", whiteSpace:"nowrap" }}>{c.phone || "—"}</td>
                         <td style={{ color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.province || "—"}</td>
-                        <td title={cat} style={{ overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
-                          <span className="badge" style={{ background:"#eef3f8", color:PRIMARY }}>{cat}</span>
-                        </td>
                         <td className="num" style={{ fontWeight:800, color:PRIMARY, fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap" }}>{fmtMoney(sales)}</td>
                         <td className="num" style={{ fontWeight:700, color: projects?STEEL:"#9ca3af", fontVariantNumeric:"tabular-nums" }}>{projects || "—"}</td>
                         <td style={{ color:MUTED, fontSize:"0.78rem", whiteSpace:"nowrap" }}>{fmtDate(lastActivityFor(c.id,c.joinDate,quotations))}</td>
@@ -1131,19 +1085,14 @@ export default function CustomersPage(){
         const lcMeta = LIFECYCLE_META[lcType];
         // ลูกค้ามาจากลูกค้าเป้าหมายที่ปิดการขาย → ถ้ายังไม่มีใบเสนอราคาปิดผูกไว้ ใช้มูลค่าที่ยกมาจากลูกค้าเป้าหมาย (totalValue) เป็นค่าตั้งต้น
         const totalSales = totalSalesFor(selected.id, quotations) || selected.totalValue;
-        // สินค้าที่ซื้อ — จากใบเสนอราคาที่ปิด · ไม่มี → ใช้แม่แบบที่ลูกค้าซื้อ (มาจากลูกค้าเป้าหมาย)
-        // โครงการที่ซื้อไปแล้ว (ใบเสนอราคาที่ปิดการขาย) — จัดกลุ่มตามแม่แบบ
-        const purchasedGroups = purchasedGroupsFor(selected.id, quotations);
-        // การ์ด = 1 ใบต่อ 1 งานที่ปิดการขาย · เรียงวันปิดล่าสุดขึ้นก่อน (ข้ามแม่แบบ)
-        // เดิมเรียงตามกลุ่มแม่แบบ → งานใหม่ของแม่แบบที่ยอดน้อยจะไปจมท้ายรายการ
-        const purchasedRows = purchasedGroups
-          .flatMap(g => g.projects.map(q => ({ q, template: g.template })))
-          .sort((a,b) => a.q.date < b.q.date ? 1 : -1);
-        const purchasedTotal = purchasedRows.reduce((s,r)=>s+r.q.totalValue,0);
+        // โครงการที่ซื้อไปแล้ว (ใบเสนอราคาที่ปิดการขาย) — 1 ใบต่อ 1 งาน · เรียงวันปิดล่าสุดขึ้นก่อน
+        // เดิมจัดกลุ่มตามแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
+        const purchasedRows = purchasedFor(selected.id, quotations);
+        const purchasedTotal = purchasedRows.reduce((s,q)=>s+q.totalValue,0);
         // รหัสลูกค้า = รูปแบบแสดงผลของ id จริง (ไม่ใช่ฟิลด์ใหม่)
         const custCode = customerCode(currentDealer.code, selected.id); // แหล่งเดียวกับฝั่ง HQ
 
-        // ตารางประวัติการปิดการขาย — # / เลขที่ใบ / ชื่องาน+รูปแม่แบบ / วันที่ซื้อ / ราคา / ดู · ปิดท้ายด้วยแถวรวม
+        // ประวัติการปิดการขาย — การ์ดต่อใบ (ชื่องาน / เลขที่ใบ / วันที่ซื้อ / ราคา) · ปิดท้ายด้วยแถวรวม
         // ไม่มีคอลัมน์ "สถานะ" (บอสสั่งตัด — สถานะแบบ โอน/ผ่อน/จอง เป็นของธุรกิจอสังหา ระบบนี้ไม่มี)
         const purchasedTable = (
           <>
@@ -1154,41 +1103,27 @@ export default function CustomersPage(){
               </div>
             ) : (
               <>
-                {/* การ์ด = 1 ใบต่อ "แม่แบบ" ไม่ใช่ต่องาน — แม่แบบเดียวอาจมีหลายงาน (v1…v30)
-                    ถ้าแตกเป็นการ์ดต่องาน พอมี 30 งานจะกลายเป็น 30 การ์ด หายากกว่าเดิม (บอสทัก)
-                    มีงานเดียว → กดแล้วเข้าเลย · หลายงาน → กดแล้วเปิดตัวเลือกให้เลือกก่อน */}
+                {/* การ์ด = 1 ใบต่อ 1 งานที่ปิดการขาย · กดแล้วเปิดรายละเอียดงานนั้นเลย
+                    เดิมเป็นการ์ดต่อ "แม่แบบ" + รูปแม่แบบ + ตัวเลือกงานเมื่อมีหลายงาน — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12}}>
-                  {purchasedGroups.map(g=>{
-                    const many = g.projects.length > 1;
-                    const latest = g.projects[0]; // เรียงวันที่ล่าสุดก่อนแล้วใน purchasedGroupsFor
-                    return (
-                      <button key={g.template}
-                        onClick={()=> many ? setPickGroup(g) : setViewProject({q:latest,template:g.template})}
-                        title={many ? `${g.template} — ${g.projects.length} งาน (กดเพื่อเลือก)` : latest.project}
-                        style={{border:"1px solid #eef1f5",borderRadius:12,overflow:"hidden",background:"#fff",padding:0,
-                          cursor:"pointer",textAlign:"left",fontFamily:"inherit",display:"flex",flexDirection:"column"}}
-                        onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="rgba(0,51,102,.25)"; }}
-                        onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#eef1f5"; }}>
-                        <span style={{position:"relative",display:"block",height:104,background:"#eaf1fb"}}>
-                          <TemplateHero name={g.template} />
-                          {many && (
-                            <span style={{position:"absolute",top:8,right:8,background:PRIMARY,color:"#fff",borderRadius:99,
-                              padding:"3px 9px",fontSize:"0.62rem",fontWeight:800}}>{g.projects.length} งาน</span>
-                          )}
+                  {purchasedRows.map(q=>(
+                    <button key={q.id}
+                      onClick={()=>setViewProject({q})}
+                      title={q.project || q.id}
+                      style={{border:"1px solid #eef1f5",borderRadius:12,overflow:"hidden",background:"#fff",padding:0,
+                        cursor:"pointer",textAlign:"left",fontFamily:"inherit",display:"flex",flexDirection:"column"}}
+                      onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="rgba(0,51,102,.25)"; }}
+                      onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#eef1f5"; }}>
+                      <span style={{padding:"10px 12px",display:"block",minWidth:0}}>
+                        <span style={{display:"block",fontSize:"0.78rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project || q.id}</span>
+                        <span style={{display:"block",fontSize:"0.66rem",color:MUTED,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:2}}>{q.id}</span>
+                        <span style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:6,marginTop:6}}>
+                          <span style={{fontSize:"0.62rem",color:"#8a929c",whiteSpace:"nowrap"}}>{fmtDate(q.date)}</span>
+                          <span style={{fontSize:"0.72rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmtMoney(q.totalValue)}</span>
                         </span>
-                        <span style={{padding:"10px 12px",display:"block",minWidth:0}}>
-                          <span style={{display:"block",fontSize:"0.78rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={g.template}>{g.template}</span>
-                          <span style={{display:"block",fontSize:"0.66rem",color:MUTED,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:2}}>
-                            {many ? `ล่าสุด ${fmtDate(latest.date)}` : latest.project}
-                          </span>
-                          <span style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:6,marginTop:6}}>
-                            <span style={{fontSize:"0.62rem",color:"#8a929c",whiteSpace:"nowrap"}}>{many ? "รวมทุกงาน" : fmtDate(latest.date)}</span>
-                            <span style={{fontSize:"0.72rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmtMoney(g.total)}</span>
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
+                      </span>
+                    </button>
+                  ))}
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",borderTop:"1px solid #eef1f5",marginTop:12,paddingTop:10}}>
                   <span style={{fontSize:"0.75rem",color:"#8a929c",fontWeight:700}}>รวมมูลค่าทั้งหมด</span>
@@ -1235,9 +1170,8 @@ export default function CustomersPage(){
                   <button onClick={()=>setSelected(null)} title="ปิด" style={{...qa,width:30,padding:0,justifyContent:"center"}}><X size={15}/></button>
                 </div>
               </div>
-              {/* Badges: แม่แบบ · ยอดขายรวม */}
+              {/* Badges: ยอดขายรวม (ป้ายแม่แบบเอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
               <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:12}}>
-                {selected.category && <span style={{display:"flex",alignItems:"center",gap:4,padding:"2px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:700,background:"rgba(255,255,255,.18)",color:"#fff"}}><Building2 size={11}/> {selected.category}</span>}
                 <span style={{display:"flex",alignItems:"center",gap:4,padding:"2px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:800,background:"#fff",color:PRIMARY}}><Coins size={11}/> {fmtMoney(totalSales)}</span>
               </div>
             </div>
@@ -1258,19 +1192,16 @@ export default function CustomersPage(){
               <div style={{ padding:16, display:custTab==="overview"?"flex":"none", flexDirection:"column", gap:14 }}>
                 <div style={cardStyle}>
                   {/* แก้ไขได้ในที่เดิมตลอดเวลา — ปุ่มสลับโหมด "แก้ไขข้อมูล" ถูกถอดออก (บอสสั่ง 17 ก.ค. 69 · มาตรฐานเดียวกับหน้าลูกค้าเป้าหมาย)
-                      หัวการ์ด (ยอดขายรวม + ป้ายแม่แบบ) เป็นค่าที่ระบบคำนวณ คงไว้เหนือฟอร์ม · สถานะย้ายไปเป็นดรอปดาวน์ในฟอร์ม */}
+                      หัวการ์ด (ยอดขายรวม) เป็นค่าที่ระบบคำนวณ คงไว้เหนือฟอร์ม · ป้ายแม่แบบเอาออก (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:2}}>
                     <div style={{...secLabel,marginBottom:0}}><User size={13} color={PRIMARY}/> ข้อมูลลูกค้า</div>
                   </div>
                   <div style={{fontSize:"0.62rem",color:"#8a929c",fontWeight:700}}>ยอดขายรวม</div>
-                  <div style={{fontSize:"1.5rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums",lineHeight:1.2}}>{fmtMoney(totalSales)}</div>
-                  <div style={{display:"flex",gap:6,marginTop:8,marginBottom:12,flexWrap:"wrap"}}>
-                    {selected.category && <span style={{padding:"3px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:700,background:"#eef3f8",color:PRIMARY}}>{selected.category}</span>}
-                  </div>
+                  <div style={{fontSize:"1.5rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums",lineHeight:1.2,marginBottom:12}}>{fmtMoney(totalSales)}</div>
                   <CustomerOverviewEditor customer={selected} code={custCode} onSave={saveInline} />
                 </div>
 
-                {/* ประวัติการปิดการขาย — ตารางพร้อมรูปแม่แบบ + แถวรวมมูลค่า
+                {/* ประวัติการปิดการขาย — การ์ดต่อใบ + แถวรวมมูลค่า
                     ยังไม่มีโครงการ = ไม่ต้องโชว์การ์ดเปล่า (ดูได้ที่แท็บ "ประวัติการปิดการขาย") */}
                 {purchasedRows.length>0 && <div style={cardStyle}>{purchasedTable}</div>}
                 <div style={cardStyle}>
@@ -1370,7 +1301,6 @@ export default function CustomersPage(){
                             <span className="badge" style={{flexShrink:0,background:"#e5faf0",color:"#059669"}}>ซื้อแล้ว</span>
                           </div>
                           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",fontSize:"0.65rem",color:MUTED}}>
-                            <span>{q.buildingType}</span>
                             <span style={{color:PRIMARY,fontWeight:700}}>{q.total}</span>
                             <span>ใบเสนอราคา: {q.id}</span>
                             <span>ปิดการขาย: {fmtDate(q.date)}</span>
@@ -1388,11 +1318,10 @@ export default function CustomersPage(){
                             onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background="#eef3f8";}}
                             onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background="#f8f9fb";}}>
                             <div style={{display:"flex",alignItems:"center",gap:8}}>
-                              <span style={{fontSize:"0.8rem",fontWeight:800,color:STEEL,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.project||`${d.product} — ${d.company}`}</span>
+                              <span style={{fontSize:"0.8rem",fontWeight:800,color:STEEL,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.project||d.company}</span>
                               <span className="badge" style={{flexShrink:0,background:sc.bg,color:sc.text}}>{leadStatusLabel[d.status]}</span>
                             </div>
                             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",fontSize:"0.65rem",color:MUTED}}>
-                              <span>{d.product}</span>
                               {d.value&&<span style={{color:PRIMARY,fontWeight:700}}>{fmtLeadValue(d.value)}</span>}
                               <span>ใบเสนอราคา: {quoteLabel}</span>
                               <span>ผู้รับผิดชอบ: {d.assigned}</span>
@@ -1463,54 +1392,14 @@ export default function CustomersPage(){
         );
       })()}
 
-      {/* ══ เลือกงาน — เปิดเมื่อกดการ์ดแม่แบบที่มีหลายงาน ══════════════════════ */}
-      {pickGroup && (
-        <>
-          <div onClick={()=>setPickGroup(null)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:240}}/>
-          <div style={{position:"fixed",inset:0,zIndex:241,display:"flex",alignItems:"center",justifyContent:"center",padding:20,pointerEvents:"none"}}>
-            {/* จัดกลางด้วย flex → ต้องใช้ modal-pop-flex (modal-pop มี translate ข้างใน จะเลื่อนออกนอกกลาง) */}
-            <div className="modal-pop-flex" style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:560,pointerEvents:"auto",
-              overflow:"hidden",boxShadow:"0 24px 80px rgba(0,0,0,.22)",display:"flex",flexDirection:"column",maxHeight:"80vh"}}>
-              <div style={{background:PRIMARY,padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                <span style={{minWidth:0}}>
-                  <span style={{display:"block",fontSize:"0.92rem",fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pickGroup.template}</span>
-                  <span style={{display:"block",fontSize:"0.68rem",color:"rgba(255,255,255,.75)",marginTop:2}}>
-                    {pickGroup.projects.length} งาน · รวม {fmtMoney(pickGroup.total)}
-                  </span>
-                </span>
-                <button onClick={()=>setPickGroup(null)} title="ปิด"
-                  style={{width:30,height:30,borderRadius:8,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.12)",
-                    color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><X size={14}/></button>
-              </div>
-              <div style={{padding:16,overflowY:"auto",display:"flex",flexDirection:"column",gap:8}}>
-                {pickGroup.projects.map(q=>(
-                  <button key={q.id}
-                    onClick={()=>{ setViewProject({q,template:pickGroup.template}); setPickGroup(null); }}
-                    style={{display:"flex",alignItems:"center",gap:12,padding:"11px 13px",borderRadius:11,border:`1px solid ${BORDER}`,
-                      background:"#fff",cursor:"pointer",textAlign:"left",fontFamily:"inherit",width:"100%"}}
-                    onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.background="#f4f8fd"; }}
-                    onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.background="#fff"; }}>
-                    <span style={{flex:1,minWidth:0}}>
-                      <span style={{display:"block",fontSize:"0.82rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project}</span>
-                      <span style={{display:"block",fontSize:"0.66rem",color:MUTED,marginTop:3}}>
-                        {q.id} · ปิดการขาย {fmtDate(q.date)}{q.area?` · ${q.area.toLocaleString()} ตร.ม.`:""}
-                      </span>
-                    </span>
-                    <span style={{fontSize:"0.86rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap",flexShrink:0}}>{fmtMoney(q.totalValue)}</span>
-                    <ChevronRight size={15} color={PRIMARY} style={{flexShrink:0}}/>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {/* (ตัวเลือกงานเมื่อการ์ดแม่แบบมีหลายงาน เอาออกแล้ว — การ์ดเป็นใบต่อใบ เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
 
       {/* ══ PROJECT DETAIL — คลิกโครงการในตาราง "ประวัติการปิดการขาย" ══════════
-          ซ้าย = ภาพแม่แบบใหญ่ · ขวา = ข้อมูลทุกอย่างของโครงการนั้น
+          ซ้าย = สรุปสถานะ/วันที่/มูลค่า · ขวา = ข้อมูลทุกอย่างของโครงการนั้น
+          (ภาพ + ชื่อแม่แบบด้านซ้ายเอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
           ทุกอย่างมาจากใบเสนอราคาที่ปิดการขาย + ดีลที่ผูกอยู่ (ไม่มีข้อมูล = "—") */}
       {viewProject && selected && (() => {
-        const { q, template } = viewProject;
+        const { q } = viewProject;
         const cardS: React.CSSProperties = { background:"#fff", border:"1px solid #eef1f5", borderRadius:14, padding:16 };
         const secL: React.CSSProperties = { display:"flex", alignItems:"center", gap:6, fontSize:"0.62rem", fontWeight:800, color:"#8a929c", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:12 };
         const sc = quotationStatusColor[q.status];
@@ -1544,18 +1433,9 @@ export default function CustomersPage(){
                 </button>
               </div>
 
-              {/* ซ้าย: ภาพแม่แบบใหญ่ · ขวา: ข้อมูลทั้งหมด */}
+              {/* ซ้าย: สรุปงาน · ขวา: ข้อมูลทั้งหมด */}
               <div className="proj-shell" style={{flex:1,minHeight:0,display:"grid",gridTemplateColumns:"320px minmax(0,1fr)",background:"#f5f7fa"}}>
                 <div style={{padding:16,borderRight:"1px solid #e9edf2",display:"flex",flexDirection:"column",gap:12,overflowY:"auto"}}>
-                  <div style={{...cardS,padding:0,overflow:"hidden"}}>
-                    <div style={{position:"relative",height:190,background:"#eaf1fb"}}>
-                      <TemplateHero name={template} />
-                    </div>
-                    <div style={{padding:"12px 14px"}}>
-                      <div style={{fontSize:"0.9rem",fontWeight:800,color:STEEL}}>{template}</div>
-                      <div style={{fontSize:"0.72rem",color:MUTED,marginTop:2}}>{selected.company}</div>
-                    </div>
-                  </div>
                   <div style={cardS}>
                     {([
                       ["สถานะ", ""], ["วันที่ซื้อ", fmtDate(q.date)],
@@ -1583,7 +1463,7 @@ export default function CustomersPage(){
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 24px"}}>
                       {([
                         ["จังหวัด", q.province || "—"],
-                        ["ประเภทอาคาร", q.buildingType || "—"],
+                        // แถว "ประเภทอาคาร" (= building_type แม่แบบของใบ) เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
                         ["พื้นที่", q.area ? `${q.area.toLocaleString()} ตร.ม.` : "—"],
                         ["จำนวนรายการ", `${lis.length} รายการ`],
                         ["วันที่ออก", fmtDate(q.date)],
@@ -1696,7 +1576,7 @@ export default function CustomersPage(){
                         ["เลขที่", q.id], ["ลูกค้า", selected.name||"—"],
                         ["บริษัท", selected.company], ["โทร", selected.phone||"—"],
                         ["อีเมล", selected.email||"—"], ["จังหวัด", q.province||selected.province],
-                        ["แม่แบบ", q.buildingType||"—"], ["ผู้รับผิดชอบ", selected.owner||"—"],
+                        ["ผู้รับผิดชอบ", selected.owner||"—"],
                       ] as [string,string][]).map(([k,v])=>(
                         <div key={k} style={{display:"flex",gap:8,padding:"5px 0",fontSize:"0.75rem",minWidth:0}}>
                           <span style={{color:"#8a929c",flex:"0 0 78px"}}>{k}</span>
@@ -1780,8 +1660,7 @@ export default function CustomersPage(){
                   <input className="form-input" value={legacyForm.company} autoFocus onChange={e=>setLegacyForm(f=>({...f,company:e.target.value}))} placeholder="ชื่อบริษัท / ชื่อลูกค้า" /></div>
                 <div><label className="form-label">จังหวัด</label>
                   <input className="form-input" value={legacyForm.province} onChange={e=>setLegacyForm(f=>({...f,province:e.target.value}))} /></div>
-                <div><label className="form-label">แม่แบบ</label>
-                  <TemplateSelect value={legacyForm.category} onChange={v=>setLegacyForm(f=>({...f,category:v}))} className="form-select" /></div>
+                {/* ช่อง "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
                 {/* ช่องเดียวกับการ์ดข้อมูลลูกค้า — ที่อยู่ / เป็นลูกค้าเมื่อ / ผู้รับผิดชอบ (บอสสั่ง 28 ส.ค. 69)
                     เดิมไม่มีให้กรอก ลูกค้าที่คีย์เข้ามาจึงมีช่องว่างค้างไว้ ต้องไปแก้ทีหลังทุกราย */}
                 <div className="col-full"><label className="form-label">ที่อยู่</label>
@@ -1863,7 +1742,7 @@ export default function CustomersPage(){
                   ทำเป็น 3 ขั้นชัด ๆ เพราะของเดิมเป็นปุ่มเรียงกัน ผู้ใช้ไม่รู้ว่าต้องเริ่มตรงไหน */}
               {[
                 { ที่: 1, หัว: "ดาวน์โหลดเทมเพลต", รอง: "เปิดด้วย Excel หรือ Google ชีต แล้วพิมพ์ต่อได้เลย — มีหัวคอลัมน์และแถวตัวอย่างให้พิมพ์ทับ" },
-                { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "บริษัท" ต้องมี ช่องอื่นเว้นว่างได้ · คอลัมน์: ${CSV_HEADERS.join(" · ")} · ในไฟล์มีแผ่น "ค่าที่เลือกได้" บอกแม่แบบ/จังหวัด/ผู้รับผิดชอบที่ระบบมีจริง` },
+                { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "บริษัท" ต้องมี ช่องอื่นเว้นว่างได้ · คอลัมน์: ${CSV_HEADERS.join(" · ")} · ในไฟล์มีแผ่น "ค่าที่เลือกได้" บอกจังหวัด/ผู้รับผิดชอบที่ระบบมีจริง` },
                 { ที่: 3, หัว: "อัปโหลดไฟล์กลับเข้ามา", รอง: `รับไฟล์ ${นามสกุลที่รับได้.map(n=>n.replace(".","")).join(" · ")} · ระบบจะให้ตรวจรายชื่อก่อน แล้วค่อยกดนำเข้า` },
               ].map(ข => (
                 <div key={ข.ที่} style={{display:"flex",gap:11,alignItems:"flex-start"}}>
@@ -1898,14 +1777,13 @@ export default function CustomersPage(){
                   <div style={{fontSize:"0.72rem",color:MUTED,fontWeight:600}}>พบ {importRows.length} รายการ — ตรวจก่อนยืนยัน</div>
                   <div style={{maxHeight:280,overflowY:"auto",border:`1px solid ${BORDER}`,borderRadius:10}}>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.72rem"}}>
-                      <thead><tr style={{background:"#f8f9fb"}}>{["บริษัท","ผู้ติดต่อ","จังหวัด","แม่แบบ","เป็นลูกค้าเมื่อ","ผู้รับผิดชอบ"].map(h=><th key={h} style={{textAlign:"left",padding:"7px 10px",color:MUTED,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+                      <thead><tr style={{background:"#f8f9fb"}}>{["บริษัท","ผู้ติดต่อ","จังหวัด","เป็นลูกค้าเมื่อ","ผู้รับผิดชอบ"].map(h=><th key={h} style={{textAlign:"left",padding:"7px 10px",color:MUTED,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
                       <tbody>
                         {importRows.map((r,i)=>(
                           <tr key={i} style={{borderTop:`1px solid ${BORDER}`}}>
                             <td style={{padding:"7px 10px",fontWeight:700,color:STEEL}}>{r.company}</td>
                             <td style={{padding:"7px 10px",color:MUTED}}>{r.name||"—"}</td>
                             <td style={{padding:"7px 10px",color:MUTED}}>{r.province}</td>
-                            <td style={{padding:"7px 10px",color:MUTED}}>{r.category||"—"}</td>
                             {/* ไม่ได้กรอกมา = ขึ้น "—" แล้วระบบจะลงค่าตั้งต้นให้ตอนบันทึก (วันนี้ / ผู้รับผิดชอบตั้งต้น) */}
                             <td style={{padding:"7px 10px",color:MUTED,whiteSpace:"nowrap"}}>{r.joinDate?fmtDate(r.joinDate):"—"}</td>
                             <td style={{padding:"7px 10px",color:MUTED}}>{r.owner||"—"}</td>
@@ -1987,15 +1865,12 @@ export default function CustomersPage(){
                 <div style={{padding:"9px 12px",borderRadius:9,background:"#f0f4f8",border:`1px solid ${BORDER}`,fontSize:"0.8rem",fontWeight:700,color:STEEL}}>{dealCustomer.company}</div>
               </div>
               <div><label className="form-label">ชื่อโครงการ</label>
-                <input className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder={`เช่น ${dealForm.product} เฟส 2`} /></div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <div><label className="form-label">แม่แบบ</label>
-                  <TemplateSelect value={dealForm.product} onChange={v=>setDealForm(f=>({...f,product:v}))} className="form-select" ariaLabel="แม่แบบ" /></div>
-                {/* ป้ายและตัวอย่างต้องเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย — ช่องเดียวกันห้ามเรียกคนละชื่อ
-                    เดิมที่นี่เขียน "มูลค่าคาดการณ์ · เช่น ฿1.2M" ทำให้ผู้ใช้พิมพ์แบบย่อ แล้วเงินปัดหาย */}
-                <div><label className="form-label">พื้นที่ (ตร.ม.)</label>
-                  <input className="form-input" value={dealForm.area} onChange={e=>setDealForm(f=>({...f,area:e.target.value}))} placeholder="เช่น 1200" /></div>
-              </div>
+                <input className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder="เช่น โกดังเก็บสินค้า เฟส 2" /></div>
+              {/* ช่อง "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · พื้นที่จึงเต็มแถวแทนคู่กับแม่แบบ
+                  ป้ายและตัวอย่างต้องเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย — ช่องเดียวกันห้ามเรียกคนละชื่อ
+                  เดิมที่นี่เขียน "มูลค่าคาดการณ์ · เช่น ฿1.2M" ทำให้ผู้ใช้พิมพ์แบบย่อ แล้วเงินปัดหาย */}
+              <div><label className="form-label">พื้นที่ (ตร.ม.)</label>
+                <input className="form-input" value={dealForm.area} onChange={e=>setDealForm(f=>({...f,area:e.target.value}))} placeholder="เช่น 1200" /></div>
               <div><label className="form-label">ประเมินราคา</label>
                 <input className="form-input" aria-label="ประเมินราคา" value={dealForm.value}
                   onChange={e=>{setDealForm(f=>({...f,value:e.target.value})); if(dealErr) setDealErr("");}}

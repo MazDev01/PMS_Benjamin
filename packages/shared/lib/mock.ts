@@ -240,7 +240,7 @@ export const DEFAULT_LEAD_RULES: LeadRules = { followUpAlertDays: 7, unassignedA
 //   เลือก "งานของสำนักงานใหญ่เอง") → เอาเรื่องงานขายของดีลเลอร์ 6 เรื่องออก (ลูกค้าเป้าหมายไม่มีผู้รับผิดชอบ/ไม่มีการติดต่อ
 //   ใบเสนอราคาใกล้หมดอายุ ดีลเลอร์เงียบ ทำยอดถึงเป้า อัตราปิดไม่สำเร็จ) — ห้ามเติมกลับ งานขายของดีลเลอร์ดูที่หน้าในกลุ่ม "งานขายทั้งเครือ"
 // เกณฑ์ (จำนวนวัน) เก็บใน alerts[เรื่อง].days — ตาราง hq_notif_rules มีคอลัมน์เกณฑ์เก่าตายตัว ไม่ต้องเพิ่มคอลัมน์ใหม่
-export type HQAlertKey = "prospectFollowUpDue" | "prospectIdle" | "proposalAwaiting" | "proposalExpired" | "catalogNoPrice";
+export type HQAlertKey = "prospectFollowUpDue" | "prospectIdle" | "proposalAwaiting" | "proposalExpired";
 export type HQAlertPref = { on: boolean; email: boolean; inapp: boolean; days?: number };
 export const HQ_ALERT_META: { key: HQAlertKey; label: string; desc: string; เกณฑ์?: { ป้าย: string; หน่วย: string; ค่าเริ่มต้น: number } }[] = [
   { key: "prospectFollowUpDue", label: "ลูกค้าเป้าหมาย (HQ) ถึงกำหนดติดตาม", desc: "รายที่ยังติดตามอยู่ และวันนัดติดตามครั้งถัดไปมาถึงแล้ว" },
@@ -249,8 +249,6 @@ export const HQ_ALERT_META: { key: HQAlertKey; label: string; desc: string; เ�
   { key: "proposalAwaiting",    label: "ใบค่าแฟรนไชส์รอคำตอบ",            desc: "ใบที่ส่งแล้ว ยังไม่ตอบรับหรือปฏิเสธ นานเกินจำนวนวันที่กำหนด",
     เกณฑ์: { ป้าย: "ใบค่าแฟรนไชส์รอคำตอบกี่วันถึงเตือน (วัน)", หน่วย: "วันขึ้นไป", ค่าเริ่มต้น: 7 } },
   { key: "proposalExpired",     label: "ใบค่าแฟรนไชส์เลยวันมีผล",          desc: "ใบที่ส่งแล้วยังไม่มีคำตอบ แต่เลยวันที่ข้อเสนอมีผลไปแล้ว" },
-  // เรื่องนี้ปิดกั้นงานขายทั้งเครือ ไม่ใช่แค่เตือนให้รู้ — ดีลเลอร์ออกใบเสนอราคาไม่ได้จนกว่า HQ จะตั้งราคา (งานของ HQ เอง)
-  { key: "catalogNoPrice",      label: "แม่แบบยังไม่ได้ตั้งราคา",          desc: "แม่แบบที่ราคากลางยังเป็น 0 — ดีลเลอร์หยิบไปออกใบเสนอราคาแล้วยอดเป็น ฿0 บันทึกไม่ได้" },
 ];
 /** เกณฑ์วันของเรื่องนั้น — ยังไม่เคยตั้ง = ค่าเริ่มต้น */
 export function เกณฑ์วันแจ้งเตือน(rules: Pick<HQNotifRules, "alerts">, key: HQAlertKey): number {
@@ -282,8 +280,6 @@ export const DEFAULT_HQ_NOTIF_RULES: HQNotifRules = {
     prospectIdle:        { ...alertPref(true, false), days: 14 },
     proposalAwaiting:    { ...alertPref(true, false), days: 7 },
     proposalExpired:     alertPref(true, false),
-    // เปิดทั้งสองช่องเป็นค่าเริ่มต้น — ถ้าไม่มีราคา ดีลเลอร์ทำงานไม่ได้เลย ต้องเห็นทันที
-    catalogNoPrice:      alertPref(true, true),
   },
   leadIdleDays: 30, quoteExpiringDays: 7, dealerIdleDays: 30, targetAchievedPct: 100,
   lostRatePct: 40, lostRateMinClosed: 5,
@@ -357,13 +353,11 @@ export const HQ_NOTIF_KEY = "hq_notifications_v2";
 export const HQ_NOTIF_UPDATED_EVENT = "bpms-hq-notif-updated";
 export const HQ_NOTIF_EVENTS: { key: string; label: string; desc: string }[] = [
   { key: "dealer",  label: "จัดการดีลเลอร์",         desc: "สร้าง แก้ไข หรือปิดใช้งานดีลเลอร์ในเครือ" },
-  { key: "pricing", label: "ราคากลาง",              desc: "ปรับราคากลางของแม่แบบทั้งเครือ" },
   { key: "target",  label: "เป้าหมายและการตั้งค่า", desc: "แก้เป้ายอดขายเครือ หรือการตั้งค่าระบบ" },
-  { key: "catalog", label: "แม่แบบและแคตตาล็อก",    desc: "เพิ่ม แก้ไข หรือลบแม่แบบสินค้า" },
   { key: "users",   label: "ผู้ใช้และสิทธิ์",        desc: "เพิ่มหรือแก้ไขผู้ใช้และสิทธิ์ใน HQ" },
 ];
 export const DEFAULT_HQ_NOTIFS: Record<string, HQNotifChannels> =
-  Object.fromEntries(HQ_NOTIF_EVENTS.map(e => [e.key, { email: e.key === "pricing" || e.key === "dealer", inapp: true }]));
+  Object.fromEntries(HQ_NOTIF_EVENTS.map(e => [e.key, { email: e.key === "dealer", inapp: true }]));
 export function loadHQNotifPrefs(): Record<string, HQNotifChannels> {
   if (typeof window === "undefined") return { ...DEFAULT_HQ_NOTIFS };
   try { const s = localStorage.getItem(HQ_NOTIF_KEY); if (s) return { ...DEFAULT_HQ_NOTIFS, ...JSON.parse(s) }; } catch {}
@@ -508,12 +502,12 @@ export function notifCategoryOf(title: string): NotifCategory | null {
 // ─── Global: คลังไฟล์ของดีลเลอร์ (แหล่งเดียว) ──────────────────────────
 // ไฟล์แนบทั้งหมดรวมศูนย์ที่นี่ — แนบจากหน้าลูกค้า/ลูกค้าเป้าหมาย แล้วปรากฏในหน้าไฟล์กลางอัตโนมัติ
 export type DealerFileExt = "pdf" | "docx" | "xlsx" | "dwg" | "pptx" | "jpg" | "png" | "other";
-// ⚠️ ชื่อโฟลเดอร์ "แบบแปลน" เปลี่ยนเป็น "แม่แบบ" (บอสสั่ง 28 ส.ค. 69)
+// ⚠️ ชื่อโฟลเดอร์: "แบบแปลน" → "แม่แบบ" (28 ส.ค. 69) → กลับเป็น "แบบแปลน" (บอสสั่ง 16 ต.ค. 69 · เอาแม่แบบออกทั้งระบบ)
 //    ข้อมูลเก่าในฐานข้อมูล/เครื่องผู้ใช้ยังเก็บคำเดิมอยู่ — อ่านมาแล้วต้องผ่าน normalizeFileCategory()
 //    ก่อนเสมอ ไม่งั้นแถวเก่าจะตกไปอยู่โฟลเดอร์ที่ไม่มีในรายการ (ป้ายสี/ตัวนับหาไม่เจอ)
-export type DealerFileCategory = "ใบเสนอราคา" | "แม่แบบ" | "รูปภาพ" | "นำเสนอ" | "สัญญา" | "อื่นๆ";
-const FILE_CATEGORIES: readonly DealerFileCategory[] = ["ใบเสนอราคา", "แม่แบบ", "รูปภาพ", "นำเสนอ", "สัญญา", "อื่นๆ"];
-const LEGACY_FILE_CATEGORY: Record<string, DealerFileCategory> = { "แบบแปลน": "แม่แบบ" };
+export type DealerFileCategory = "ใบเสนอราคา" | "แบบแปลน" | "รูปภาพ" | "นำเสนอ" | "สัญญา" | "อื่นๆ";
+const FILE_CATEGORIES: readonly DealerFileCategory[] = ["ใบเสนอราคา", "แบบแปลน", "รูปภาพ", "นำเสนอ", "สัญญา", "อื่นๆ"];
+const LEGACY_FILE_CATEGORY: Record<string, DealerFileCategory> = { "แม่แบบ": "แบบแปลน" }; // แถวในฐานที่บันทึกช่วง 28 ส.ค.–16 ต.ค. 69 (ไฟล์ไม่แตะ แปลงตอนอ่าน)
 /** แปลงชื่อโฟลเดอร์เก่าให้เป็นชื่อปัจจุบัน · ค่าที่ไม่รู้จักถือเป็น "อื่นๆ" (ไม่ทิ้งแถวหาย) */
 export function normalizeFileCategory(c: string | undefined | null): DealerFileCategory {
   const ชื่อ = (c ?? "").trim();
@@ -546,13 +540,13 @@ export const DEALER_FILES_EVENT = "bpms-files-updated";
 export const DEFAULT_DEALER_FILES: DealerFile[] = [
   { id: 1,  name: "ใบเสนอราคา_โกดังสำเร็จรูป_ไทยสตีล_v2.pdf", size: "1.4 MB", ext: "pdf",  category: "ใบเสนอราคา", project: "โกดังสำเร็จรูป บจ. ไทยสตีล", uploadedBy: "วิภา",     uploadedAt: "2026-06-20", source: "customer", recordId: 1, customerId: 1 },
   { id: 2,  name: "สัญญาขาย_ไทยสตีล.pdf",                   size: "2.1 MB", ext: "pdf",  category: "สัญญา",      project: "โกดังสำเร็จรูป บจ. ไทยสตีล", uploadedBy: "สมชาย",   uploadedAt: "2026-06-18", source: "customer", recordId: 1, customerId: 1 },
-  { id: 3,  name: "ผังพื้นที่ลูกค้า_โรงงาน.pdf",             size: "8.3 MB", ext: "pdf",  category: "แม่แบบ",      project: "โรงงาน PEB เชียงใหม่",     uploadedBy: "วิชัย",   uploadedAt: "2026-06-15", source: "customer", recordId: 2, customerId: 2 },
+  { id: 3,  name: "ผังพื้นที่ลูกค้า_โรงงาน.pdf",             size: "8.3 MB", ext: "pdf",  category: "แบบแปลน",      project: "โรงงาน PEB เชียงใหม่",     uploadedBy: "วิชัย",   uploadedAt: "2026-06-15", source: "customer", recordId: 2, customerId: 2 },
   { id: 4,  name: "เอกสารนำเสนอ_VCS_Asia.pdf",              size: "5.7 MB", ext: "pdf",  category: "นำเสนอ",     project: "VCS Asia Expansion",       uploadedBy: "กาญจนา", uploadedAt: "2026-06-12", source: "customer", recordId: 5, customerId: 5 },
   { id: 5,  name: "สรุปราคา_คลังสินค้า_บจ.ซีซีเอส.xlsx",       size: "340 KB", ext: "xlsx", category: "ใบเสนอราคา", project: "คลังสินค้า CCS",           uploadedBy: "สมชาย",   uploadedAt: "2026-06-10", source: "customer", recordId: 2, customerId: 2 },
   { id: 6,  name: "รูปถ่ายพื้นที่_พิษณุโลกฟาร์ม.jpg",         size: "3.2 MB", ext: "jpg",  category: "รูปภาพ",     project: "โกดังเก็บข้าว บจ. พิษณุโลกฟาร์ม", uploadedBy: "สมชาย", uploadedAt: "2026-06-08", source: "lead", recordId: 8 },
   { id: 7,  name: "ใบเสนอราคา_Q-2026-0101_พิษณุโลกฟาร์ม.pdf", size: "1.1 MB", ext: "pdf",  category: "ใบเสนอราคา", project: "โกดังเก็บข้าว บจ. พิษณุโลกฟาร์ม", uploadedBy: "สมชาย", uploadedAt: "2026-06-05", source: "lead", recordId: 8 },
   { id: 8,  name: "ใบเสนอราคา_Q-2026-0102_ลำพูนอิเล็กทรอนิกส์.pdf", size: "1.3 MB", ext: "pdf", category: "ใบเสนอราคา", project: "โรงงานอิเล็กทรอนิกส์ ลำพูน", uploadedBy: "วิภา", uploadedAt: "2026-06-03", source: "lead", recordId: 10 },
-  { id: 9,  name: "รายละเอียดสินค้า_โกดังสำเร็จรูป.xlsx",         size: "512 KB", ext: "xlsx", category: "แม่แบบ",      project: "โรงงานสำเร็จรูป เชียงใหม่",     uploadedBy: "วิชัย",   uploadedAt: "2026-05-30", source: "customer", recordId: 2, customerId: 2 },
+  { id: 9,  name: "รายละเอียดสินค้า_โกดังสำเร็จรูป.xlsx",         size: "512 KB", ext: "xlsx", category: "แบบแปลน",      project: "โรงงานสำเร็จรูป เชียงใหม่",     uploadedBy: "วิชัย",   uploadedAt: "2026-05-30", source: "customer", recordId: 2, customerId: 2 },
   { id: 10, name: "เอกสารนำเสนอ_ลำพูนอิเล็กทรอนิกส์.pdf",       size: "12.4 MB",ext: "pdf",  category: "นำเสนอ",     project: "โรงงานอิเล็กทรอนิกส์ ลำพูน", uploadedBy: "วิภา",   uploadedAt: "2026-05-20", source: "lead", recordId: 10 },
   { id: 11, name: "รูปถ่ายพื้นที่_VCS_Asia.jpg",              size: "3.2 MB", ext: "jpg",  category: "รูปภาพ",     project: "VCS Asia Expansion",       uploadedBy: "กาญจนา", uploadedAt: "2026-06-05", source: "customer", recordId: 5, customerId: 5 },
 ];
@@ -573,7 +567,7 @@ export function guessFileCategory(name: string): DealerFileCategory {
   const n = name.toLowerCase();
   if (name.includes("ใบเสนอราคา") || n.includes("quotation") || n.includes("quote") || name.includes("เสนอราคา")) return "ใบเสนอราคา";
   if (name.includes("สัญญา") || n.includes("contract")) return "สัญญา";
-  if (name.includes("แบบ") || name.includes("ผัง") || n.includes("plan") || n.endsWith(".dwg")) return "แม่แบบ";
+  if (name.includes("แบบ") || name.includes("ผัง") || n.includes("plan") || n.endsWith(".dwg")) return "แบบแปลน";
   if (name.includes("นำเสนอ") || n.includes("present") || n.endsWith(".pptx") || n.endsWith(".ppt")) return "นำเสนอ";
   if (name.includes("รูป") || name.includes("ภาพ") || /\.(jpg|jpeg|png)$/.test(n)) return "รูปภาพ";
   return "อื่นๆ";
@@ -719,7 +713,6 @@ export const LEAD_TASK_TEMPLATE: LeadTaskDef[] = [
   { key: "requirement", label: "สรุปความต้องการ",     stage: "BULLET"   },
   { key: "makeQuote",   label: "จัดทำใบเสนอราคา",     stage: "QUOTED"   },
   { key: "sendQuote",   label: "ส่งใบเสนอราคา",       stage: "QUOTED"   },
-  { key: "catalog",     label: "ส่งแม่แบบให้ลูกค้า",   stage: "QUOTED"   },
   { key: "followup",    label: "ติดตามผล",           stage: "FOLLOWUP" },
   { key: "negotiate",   label: "เจรจาต่อรอง",          stage: "NEGO"     },
   { key: "close",       label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID"   },
@@ -739,6 +732,8 @@ export function normalizeLeadTaskTemplate(raw: unknown): LeadTaskDef[] {
     const label = typeof t?.label === "string" ? t.label.trim() : "";
     const stage = t?.stage as LeadStatus;
     if (!key || !label || !LEAD_STATUS_ORDER.includes(stage) || seen.has(key)) continue;
+    // งาน "ส่งแม่แบบให้ลูกค้า" (key catalog) เลิกใช้แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ชุดงานในฐานที่ยังมีอยู่ไม่แสดง
+    if (key === "catalog") continue;
     seen.add(key);
     clean.push({ key, label, stage });
   }
@@ -861,7 +856,7 @@ export function buildLeadReport(lead: Partial<LeadRow>, dateStr = ""): string {
     `บริษัท : ${lead.company ?? ""}`,
     "",
     "รายละเอียดเบื้องต้น",
-    `- ลูกค้าสนใจ : ${lead.product ?? ""}`,
+    "- ลูกค้าสนใจ : ", // ไม่เติมแม่แบบเก่าของลูกค้าเป้าหมาย (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
     "- ขนาดโครงการ : ",
     `- จังหวัด : ${lead.province ?? ""}`,
     `- งบประมาณ : ${lead.value ?? ""}`,
@@ -984,84 +979,9 @@ export const initialCustomers: CustomerRow[] = [
   { id:13, name:"คุณกิตติ ธ.",          company:"หจก. พะเยาเทรดดิ้ง", email:"kitti@phayaotrading.co.th", phone:"089-555-4433", province:"พะเยา",        category:"โรงงาน", status:"inactive", projects: 1, joinDate:"2025-09-01", owner:"สมชาย เชียงใหม่", initials:"พย", color:"#8fa3b8", totalValue: 1149200 },
 ];
 
-// ─── แม่แบบอาคาร (Building Templates — กำหนดโดย HQ, ดีลเลอร์ดูอย่างเดียว) ───
-// แหล่งข้อมูลกลาง: ใช้ทั้งหน้า "แม่แบบ" (/products) และ dropdown "แม่แบบ" ในฟอร์มลูกค้าเป้าหมาย
-// ── ประวัติราคาแม่แบบ — เก็บ "ราคาที่เคยใช้" ทั้งระดับหลักและระดับย่อย ─────────────
-//   subtypePrices = ราคาย่อยที่ใช้อยู่ ณ ตอนนั้น (ไม่มีคีย์ = ย่อยตัวนั้นใช้ราคาหลัก)
-//   เดิมเก็บแค่ราคาหลัก — ราคาย่อยคือตัวที่ไหลไปเป็น BOQ ตั้งต้นของใบเสนอราคาจริง
-//   เปลี่ยนแล้วสืบย้อนไม่ได้เลยว่าใครเปลี่ยนเมื่อไหร่ (บอสสั่งให้เก็บ 28 ส.ค. 69)
-export type SolutionPriceHistory = { price: number; effectiveDate: string; note?: string; subtypePrices?: Record<string, number> };
-// ── แบบแปลนของแม่แบบ (บอสสั่ง 28 ส.ค. 69) ────────────────────────────────────────
-//   ⚠️ เก็บแค่ "รายการอ้างอิง" ไฟล์จริงอยู่ใน Storage (bucket catalog-images)
-//      ต่างจากรูปแม่แบบที่เก็บเป็น data URL ในคอลัมน์ — เพราะแบบแปลนเป็น PDF/DWG หลัก MB
-//      ยัดลงคอลัมน์ = ทุกหน้าที่อ่านแคตตาล็อกจะลากไฟล์ทั้งก้อนมาด้วย (ดู migration 0166)
-export type CatalogPlan = {
-  name: string;   // ชื่อไฟล์ที่คนอ่านรู้เรื่อง (ภาษาไทยได้ — คนละตัวกับ path ที่ต้องเป็น ASCII)
-  path: string;   // พาธในที่เก็บไฟล์
-  size: number;   // ไบต์ — ไว้บอกผู้ใช้ก่อนกดดาวน์โหลด
-};
+// ─── แม่แบบอาคาร (แคตตาล็อก) ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 ───
+//   ตาราง master_catalog ในฐานยังเก็บข้อมูลไว้ (ห้าม drop) แต่ไม่มีโค้ดแอปไหนใช้ · ตัวตรวจ scripts/check-no-catalog.mjs
 
-export type SolutionProduct = {
-  id: string; name: string; spec: string;
-  price: number; unit: string; effectiveDate: string; priceHistory: SolutionPriceHistory[];
-  subtypes?: string[];   // แม่แบบย่อยภายใต้แม่แบบหลัก (เช่น "โรงงาน" → "โรงงานอาหาร") · เลือกได้ในฟอร์ม
-  // ราคากลางรายแม่แบบย่อย (คีย์ = ชื่อแม่แบบย่อย) — ไม่ใส่ = ใช้ราคาของแม่แบบหลัก
-  // เดิมทั้งกลุ่มใช้ราคาเดียวกันหมด เช่น "สนามกีฬาในร่ม" ราคาเดียวคุมทั้ง สนามแบดมินตัน
-  // และ สระว่ายน้ำในร่ม ซึ่งต้นทุนต่างกันมาก → ใบเสนอราคาตั้งต้นเพี้ยนตั้งแต่แถวแรก
-  subtypePrices?: Record<string, number>;
-  // รูปแม่แบบ — รับได้ 2 แบบ (<img src> รองรับทั้งคู่):
-  //   • path ไฟล์ เช่น "/templates/factory.svg" = ภาพลายเส้นตั้งต้นของระบบ (ยังไม่ใช่ภาพถ่ายผลงานจริง)
-  //   • data URL = รูปที่ HQ อัปโหลดเอง (ย่อขนาดแล้ว) — อัปทับเมื่อไรก็แทนที่ภาพลายเส้นทันที
-  image?: string;
-  subtypeImages?: Record<string, string>; // รูปรายแม่แบบย่อย (คีย์ = ชื่อแม่แบบย่อย) · HQ ใส่ได้รายอัน · fallback = image หลัก
-  plans?: CatalogPlan[];                      // แบบแปลนของแม่แบบหลัก
-  subtypePlans?: Record<string, CatalogPlan[]>; // แบบแปลนรายแม่แบบย่อย · ไม่มีคีย์ = ใช้ของแม่แบบหลัก
-};
-
-// ─── Master Catalog (แหล่งเดียว) ─────────────────────────────────
-// HQ (หน้า /hq/master) เป็นผู้แก้ไขแม่แบบ/ราคากลาง → persist ลง localStorage คีย์นี้
-// Dealer (/products + dropdown ในฟอร์ม) อ่านจากคีย์เดียวกัน — fallback = solutionProducts
-// แจ้งเตือนเมื่อแคตตาล็อกถูกแก้ (HQ กดบันทึกที่ /hq/master) → หน้าอื่นที่เปิดค้างอยู่โหลดใหม่ทันที
-// ⚠️ ข้ามแอปไม่ได้ในโหมด local: ดีลเลอร์(:3001)กับ HQ(:3002) คนละ origin → localStorage แยกกัน
-//    ถ้าต้องการให้ HQ แก้แล้วดีลเลอร์เห็น ต้องใช้ NEXT_PUBLIC_DATA_SOURCE=supabase (ฐานเดียวกัน + Realtime)
-export const MASTER_CATALOG_EVENT = "bpms-catalog-updated";
-export const MASTER_CATALOG_KEY = "master_catalog_v2";   // v2: เพิ่มแม่แบบย่อย (subtypes)
-export function loadMasterCatalog(): SolutionProduct[] {
-  if (typeof window === "undefined") return solutionProducts;
-  try {
-    const s = localStorage.getItem(MASTER_CATALOG_KEY);
-    if (s) {
-      const arr = JSON.parse(s);
-      if (Array.isArray(arr) && arr.length) {
-        // hydrate: เฉพาะ record เก่าที่ persist ไว้ "ก่อนมีฟีเจอร์ subtypes" (field ไม่มีเลย = undefined)
-        // → เติมจาก catalog กลาง. ถ้า HQ ตั้งใจลบจนเหลือ [] ต้องเคารพ (ไม่เด้งกลับ) จึงเช็ก === undefined เท่านั้น
-        const byId = new Map(solutionProducts.map((p) => [p.id, p]));
-        const byName = new Map(solutionProducts.map((p) => [p.name, p]));
-        return arr.map((p: SolutionProduct) => {
-          if (p.subtypes !== undefined) return p;
-          const base = byId.get(p.id) ?? byName.get(p.name);
-          return base?.subtypes?.length ? { ...p, subtypes: base.subtypes } : p;
-        });
-      }
-    }
-  } catch {}
-  return solutionProducts;
-}
-export const solutionProducts: SolutionProduct[] = [
-  { image: "/templates/warehouse.svg", id: "tpl-1", name: "โกดังสำเร็จรูป", spec: "โครงสร้างเหล็กระบบข้อต่อสลักเกลียว ไม่มีเสากลาง เพิ่มพื้นที่ใช้สอย · เหมาะคลังสินค้า โกดังเก็บสินค้าเกษตร และโกดังอุตสาหกรรม", price: 5100, unit: "ตร.ม.", effectiveDate: "1 มิ.ย. 2569", priceHistory: [ { price: 4950, effectiveDate: "1 ม.ค. 2569", note: "ปรับตามราคาเหล็ก" }, { price: 4800, effectiveDate: "1 ก.ค. 2568" } ], subtypes: ["โกดังเก็บสินค้าทั่วไป", "โกดังเก็บสินค้าเกษตร", "โกดังห้องเย็น", "คลังกระจายสินค้า", "โกดังเก็บวัตถุดิบ"] },
-  { image: "/templates/factory.svg", id: "tpl-2", name: "โรงงาน", spec: "รองรับมาตรฐานโรงงานผลิตคุณภาพสูง และโรงงานอัจฉริยะที่เชื่อมต่อระบบอัตโนมัติได้ · ช่วงเสากว้าง รับน้ำหนักเครนได้", price: 6800, unit: "ตร.ม.", effectiveDate: "1 มิ.ย. 2569", priceHistory: [ { price: 6600, effectiveDate: "1 ม.ค. 2569" }, { price: 6400, effectiveDate: "1 ก.ค. 2568" } ], subtypes: ["โรงงานอาหาร", "โรงงานผลิตเหล็ก", "โรงงานพลาสติก", "โรงงานสิ่งทอ", "โรงงานอิเล็กทรอนิกส์", "โรงงานยา", "โรงงานทั่วไป"] },
-  { image: "/templates/building.svg", id: "tpl-3", name: "อาคารสำเร็จรูปทุกประเภท", spec: "ปรับผังใช้งานได้หลายรูปแบบ เช่น สำนักงาน โรงเรียน สถานพยาบาล และอาคารพาณิชย์ · โครงเหล็กมาตรฐาน ติดตั้งเร็ว", price: 6200, unit: "ตร.ม.", effectiveDate: "1 มิ.ย. 2569", priceHistory: [ { price: 6000, effectiveDate: "1 ม.ค. 2569" } ], subtypes: ["อาคารสำนักงาน", "โชว์รูม", "อาคารพาณิชย์", "อาคารเรียน", "สถานพยาบาล"] },
-  { image: "/templates/custom.svg", id: "tpl-4", name: "งานตามแบบของลูกค้า", spec: "ออกแบบผังตามความต้องการเฉพาะโครงการของลูกค้า · ปรับผนัง ประตู และช่องเปิดได้ตามแบบ", price: 7000, unit: "ตร.ม.", effectiveDate: "1 มิ.ย. 2569", priceHistory: [ { price: 6800, effectiveDate: "1 ม.ค. 2569", note: "ราคาเริ่มต้นแบบพิเศษ" } ], subtypes: ["ออกแบบเฉพาะโครงการ", "อาคารผสมผสาน", "งานโครงสร้างพิเศษ"] },
-  { image: "/templates/renovate.svg", id: "tpl-5", name: "งานรีโนเวท", spec: "ปรับปรุงและต่อเติมอาคารระบบสำเร็จรูปเดิมให้ใช้งานได้ดีขึ้น ประหยัดกว่าสร้างใหม่ · ประเมินหน้างานก่อนเสนอราคา", price: 4500, unit: "ตร.ม.", effectiveDate: "1 มิ.ย. 2569", priceHistory: [ { price: 4300, effectiveDate: "1 ม.ค. 2569" } ], subtypes: ["ปรับปรุงโกดังเดิม", "ต่อเติมอาคาร", "เปลี่ยนหลังคา", "เสริมโครงสร้าง"] },
-  { image: "/templates/sports.svg", id: "tpl-6", name: "สนามกีฬาในร่ม", spec: "โครงสร้างช่วงกว้างไม่มีเสากลางขวางกั้น เพดานสูง เหมาะสนามกีฬาในร่มทุกรูปแบบ", price: 7400, unit: "ตร.ม.", effectiveDate: "1 มิ.ย. 2569", priceHistory: [ { price: 7150, effectiveDate: "1 ม.ค. 2569" } ], subtypes: ["โรงยิมอเนกประสงค์", "สนามแบดมินตัน", "สนามบาสเกตบอล", "สระว่ายน้ำในร่ม"] },
-];
-
-// แม่แบบย่อย → แม่แบบหลัก · ใช้ roll-up ตอนจัดกลุ่ม/นับ/กรองตามแม่แบบ (แหล่งเดียวทั้งระบบ)
-const _SUBTYPE_TO_PARENT: Record<string, string> = (() => {
-  const m: Record<string, string> = {};
-  solutionProducts.forEach(p => (p.subtypes ?? []).forEach(s => { m[s] = p.name; }));
-  return m;
-})();
 // ── รหัสลูกค้า — แหล่งเดียวของทั้งระบบ (ฝั่งดีลเลอร์และฝั่ง HQ ต้องได้รหัสเดียวกัน) ──
 // รูปแบบ: {รหัสดีลเลอร์}-{เลขนับ 5 หลัก} เช่น CNX-00001
 // ทำไมต้องมีรหัสดีลเลอร์นำหน้า: id ลูกค้าเป็นเลขนับ "ของแต่ละสาขา" ไม่ใช่ของทั้งเครือ
@@ -1070,27 +990,7 @@ export function customerCode(dealerCode: string, localId: number): string {
   return `${dealerCode}-${String(localId).padStart(5, "0")}`;
 }
 
-/** แม่แบบที่ยังไม่ได้ตั้งราคา (หลักหรือย่อยก็นับ) — ดีลเลอร์หยิบไปออกใบแล้วยอดเป็น ฿0 บันทึกไม่ได้
- *  คืนเป็นรายชื่อ "แม่แบบ · แม่แบบย่อย" เพื่อให้สำนักงานใหญ่รู้ว่าต้องไปตั้งราคาตัวไหน
- *  ⚠️ แม่แบบย่อยที่ไม่ได้ตั้งราคาเอง ถือว่าใช้ราคาแม่แบบหลัก (ตาม catalogRate) — ไม่นับว่าขาด */
-export function templatesMissingPrice(catalog: { name: string; price: number; subtypes?: string[]; subtypePrices?: Record<string, number> }[]): string[] {
-  const out: string[] = [];
-  for (const p of catalog) {
-    const หลักมีราคา = (p.price ?? 0) > 0;
-    if (!หลักมีราคา) out.push(p.name);
-    for (const st of p.subtypes ?? []) {
-      const ราคาย่อย = p.subtypePrices?.[st] ?? 0;
-      // ย่อยไม่มีราคาของตัวเอง แต่หลักมีราคา = ใช้ของหลักได้ ไม่ขาด
-      if (ราคาย่อย <= 0 && !หลักมีราคา) out.push(`${p.name} · ${st}`);
-    }
-  }
-  return out;
-}
 
-export function mainTemplateOf(name: string | undefined | null): string {
-  if (!name) return "";
-  return _SUBTYPE_TO_PARENT[name] ?? name;
-}
 
 // แปลงวันที่ ISO ("2026-06-30") → ไทย พ.ศ. ("30 มิ.ย. 2569") · ใช้แสดงวันนัดหมายทุกจุด
 const _THAI_MO_ABBR = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];

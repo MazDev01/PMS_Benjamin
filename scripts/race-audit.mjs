@@ -1,6 +1,7 @@
 // ทดสอบการยิงพร้อมกันบนข้อมูลชิ้นเดียวกัน (race condition) ผ่าน API จริง
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { วางใบเดิมที่ฐาน } from "./lib/legacyQuoteSeed.mjs";
 const env = (f) => { const m = new Map(); for (const line of readFileSync(f, "utf8").split(String.fromCharCode(10))) { const t = line.trim(); if (!t || t.startsWith("#")) continue; const i = t.indexOf("="); if (i > 0) m.set(t.slice(0, i).trim(), t.slice(i + 1).trim()); } return m; };
 const H = env("apps/hq/.env.local"), T = env("tests/.env.test");
 const db = createClient(H.get("NEXT_PUBLIC_SUPABASE_URL"), H.get("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
@@ -22,9 +23,10 @@ const api = (method, path, body) => fetch(DEALER + path, { method, headers: { co
 const COMPANY = TAG + "-ปิดพร้อมกัน";
 await db.from("leads").insert({ id: "#L-995001", dealer_code: "RYG", num_id: 995001, name: COMPANY, company: COMPANY,
   contact: "x", province: "ระยอง", status: "QUOTED", value: "500000", area: "100", assigned: "ทดสอบ" });
-await db.from("quotations").insert({ id: TAG + "-Q1", dealer_code: "RYG", customer: COMPANY, project: COMPANY,
+// ใบแบบเดิม (ไม่มีใบ HQ) วางที่ฐานในเครื่องตรง — ทางเขียนปกติปิดตั้งแต่ใบ 0201 (ทดสอบการชนกันของสถานะ ไม่ได้ทดสอบ Flow)
+วางใบเดิมที่ฐาน([{ id: TAG + "-Q1", dealer_code: "RYG", customer: COMPANY, project: COMPANY,
   date: "2026-08-19", province: "ระยอง", building_type: "โกดังสำเร็จรูป", area: "1", total: "500000", total_value: 500000,
-  material_cost: 500000, items: 1, line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 500000 }], status: "draft" });
+  material_cost: 500000, items: 1, line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 500000 }], status: "draft" }]);
 const { data: qs } = await db.from("quotations").select("id").eq("customer", COMPANY);
 const qid = qs[0].id;
 await db.from("quotations").update({ status: "sent_to_client" }).eq("id", qid);
@@ -55,9 +57,8 @@ console.log("  ยอดลูกค้าต้องสอดคล้อง�
 console.log("");
 console.log("=== 3) แก้ลีดตัวเดียวกันพร้อมกัน 10 สาย (ค่าต่างกัน) ===");
 const { data: lead } = await db.from("leads").select("*").eq("company", COMPANY).single();
-const camel = { id: lead.id, dealerCode: "RYG", numId: lead.num_id, name: lead.name, company: lead.company,
-  contact: lead.contact, province: lead.province, status: lead.status, area: lead.area, assigned: lead.assigned };
-const res3 = await Promise.all(Array.from({ length: 10 }, (_, i) => api("PUT", "/api/v1/leads", { ...camel, value: String(100000 * (i + 1)) })));
+// ทางเดียวที่แก้ลูกค้าเป้าหมาย = บันทึกส่วนต่าง (ใบ 0211 · PUT ทั้งแถวปิดแล้ว 410)
+const res3 = await Promise.all(Array.from({ length: 10 }, (_, i) => api("POST", "/api/v1/leads?op=apply", { id: lead.id, intent: { fields: { value: String(100000 * (i + 1)) } } })));
 console.log("  สถานะที่ได้: " + JSON.stringify(res3.reduce((a, x) => (a[x.s] = (a[x.s] ?? 0) + 1, a), {})));
 const { data: l2 } = await db.from("leads").select("value").eq("company", COMPANY);
 console.log("  แถวลีดที่เหลือ: " + l2.length + " · ค่าที่บันทึกจริง: " + JSON.stringify(l2.map(x => x.value)));

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { CalendarDays, ChevronDown, Check, X } from "lucide-react";
 import { useRole } from "@pms/shared/context/RoleContext";
-import { useDealerOptions, useProductOptions, useProvinceOptions, usePersonOptions } from "@pms/shared/lib/useFilterOptions";
+import { useDealerOptions, useProvinceOptions, usePersonOptions } from "@pms/shared/lib/useFilterOptions";
 import {
   useFilters, TIME_PRESETS, type TimePreset, type FilterDim,
   ALL, APP_NOW, APP_NOW_ISO,
@@ -231,7 +231,6 @@ export type FilterBarProps = {
   /** dimension ที่จะแสดง (นอกจาก time range) — ถ้าไม่ระบุจะ default ตาม role */
   dims?: FilterDim[];
   statusOptions?: Opt[];
-  productOptions?: Opt[];
   provinceOptions?: Opt[];
   dealerOptions?: Opt[];
   personOptions?: Opt[];
@@ -241,24 +240,23 @@ export type FilterBarProps = {
 };
 
 export function FilterBar({
-  dims, statusOptions, productOptions, provinceOptions, dealerOptions, personOptions, style, time = true,
+  dims, statusOptions, provinceOptions, dealerOptions, personOptions, style, time = true,
 }: FilterBarProps) {
   const { isHQ } = useRole();
   const {
-    dealer, province, product, status, person,
-    setDealer, setProvince, setProduct, setStatus, setPerson,
+    dealer, province, status, person,
+    setDealer, setProvince, setStatus, setPerson,
     activeCount, reset,
   } = useFilters();
 
   // ตัวเลือกจากข้อมูลจริง (repo) — ผู้เรียกยัง override ผ่าน prop ได้เหมือนเดิม
   const liveDealers = useDealerOptions();
-  const liveProducts = useProductOptions();
   const liveProvinces = useProvinceOptions();
   const livePersons = usePersonOptions();
 
   const defaultDims: FilterDim[] = isHQ
-    ? ["dealer", "province", "product", "status"]
-    : ["product", "status"];
+    ? ["dealer", "province", "status"]
+    : ["status"];
   const show = dims ?? defaultDims;
 
   return (
@@ -275,10 +273,6 @@ export function FilterBar({
       {show.includes("province") && (
         <SelectFilter caption="จังหวัด" value={province}
           options={provinceOptions ?? liveProvinces} onChange={setProvince} />
-      )}
-      {show.includes("product") && (
-        <SelectFilter caption="แม่แบบ" value={product}
-          options={productOptions ?? liveProducts} onChange={setProduct} />
       )}
       {show.includes("status") && statusOptions && statusOptions.length > 0 && (
         <SelectFilter caption="สถานะ" value={status}

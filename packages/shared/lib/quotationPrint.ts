@@ -145,7 +145,7 @@ table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical
     <div class="party">
       <div class="lbl">รายละเอียดงาน</div>
       <div class="co" style="font-size:13px">${esc(q.project)}</div>
-      <div class="row">ประเภทอาคาร: ${esc(q.buildingType)}</div>
+      ${q.buildingType ? `<div class="row">ประเภทอาคาร: ${esc(q.buildingType)}</div>` : ""}
       <div class="row">พื้นที่: ${n(q.area)} ตร.ม.</div>
       <div class="row">จำนวนรายการ: ${esc(q.items)} รายการ</div>
     </div>

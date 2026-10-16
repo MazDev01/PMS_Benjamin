@@ -20,7 +20,7 @@ import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { useDealerSettings, useQuoteExpiryWarnDays } from "@pms/shared/lib/useDealerSettings";
 import { useImpersonating } from "@pms/shared/lib/useImpersonating";
 import { dealers as dealersRepo, settings as settingsRepo } from "@pms/shared/lib/data";
-import { Bell, MessageSquare, CheckCircle2, AlertTriangle, UserCircle, Settings, Users, FileText, Sparkles, CalendarClock, LogOut, Menu, Search, Compass, History, Tag } from "lucide-react";
+import { Bell, MessageSquare, CheckCircle2, AlertTriangle, UserCircle, Settings, Users, FileText, Sparkles, CalendarClock, LogOut, Menu, Search, Compass, History } from "lucide-react";
 import { PRIMARY, STEEL } from "@pms/shared/lib/theme";
 import { useAuditEntries, type AuditEntry } from "@pms/shared/lib/useAudit";
 import { confirmDiscard } from "@pms/shared/lib/useUnsavedGuard";
@@ -117,7 +117,7 @@ function buildNotifications(
     push({
       iconEl: <CalendarClock size={14} />, iconBg: "#fff3cd", iconColor: "#d97706",
       title: "เตือนติดตาม",
-      body: `${l.company} — ${l.product} · ${fmtLeadValue(l.value)}`,
+      body: `${l.company} — ${l.contact} · ${fmtLeadValue(l.value)}`, // ไม่โชว์แม่แบบเก่า (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
       time: `ผู้รับผิดชอบ ${l.assigned}`,
       href: `/leads?open=${l.numId}`,
       sortDate: MOCK_TODAY,
@@ -234,8 +234,6 @@ const HQ_ALERT_ICON: Record<HQAlertKey, { el: React.ReactNode; bg: string; color
   prospectIdle:        { el: <AlertTriangle size={14} />, bg: "#fff3cd", color: "#d97706" },
   proposalAwaiting:    { el: <FileText size={14} />,      bg: "#dce5f0", color: "#003366" },
   proposalExpired:     { el: <FileText size={14} />,      bg: "#fdecec", color: "#dc2626" },
-  // แดงเข้ม: เรื่องนี้ไม่ใช่ "ควรดู" แต่เป็น "ดีลเลอร์ทำงานต่อไม่ได้จนกว่าจะแก้"
-  catalogNoPrice:      { el: <Tag size={14} />,           bg: "#fdecec", color: "#dc2626" },
 };
 // "ต้องดูด่วน" แสดงทีละรายการ (บอสสั่ง 22 ก.ย. 69 — เดิมจัดกลุ่มแล้วอัดข้อความยาวบรรทัดเดียว อ่านไม่รู้เรื่อง)
 //   แต่ละแถว: ป้ายเรื่อง (สีตามเรื่อง) → ชื่อสิ่งที่ต้องจัดการ (ตัวหนา) → เกิดอะไรขึ้น · กดแถว = ไปจัดการรายนั้น
@@ -245,7 +243,6 @@ const HQ_ALERT_TAG: Record<HQAlertKey, string> = {
   prospectIdle: "ไม่ได้ติดต่อนาน",
   proposalAwaiting: "ใบค่าแฟรนไชส์รอคำตอบ",
   proposalExpired: "ใบค่าแฟรนไชส์หมดอายุ",
-  catalogNoPrice: "แม่แบบยังไม่ตั้งราคา",
 };
 
 type SearchResult = { type: string; label: string; sub: string; href: string };
@@ -268,7 +265,6 @@ const TITLE_MAP: { match: string; title: string }[] = [
   { match: "/quotations",      title: "ใบเสนอราคา" },
   { match: "/calendar",        title: "ปฏิทิน" },
   { match: "/files",           title: "ไฟล์" },
-  { match: "/products",        title: "แม่แบบ" },
   { match: "/settings",        title: "ตั้งค่า" },
   { match: "/profile",         title: "โปรไฟล์" },
   /* HQ */
@@ -282,7 +278,6 @@ const TITLE_MAP: { match: string; title: string }[] = [
   { match: "/hq/leads",          title: "ลูกค้าเป้าหมายทั้งเครือ" },
   { match: "/hq/customers",      title: "ลูกค้าทั้งเครือ" },
   { match: "/hq/quotations",     title: "ใบเสนอราคาทั้งเครือ" },
-  { match: "/hq/master",         title: "แคตตาล็อกแม่แบบ" },
   { match: "/hq/users",          title: "ผู้ใช้งาน" },
   { match: "/hq/audit",          title: "บันทึกการใช้งาน" },
   { match: "/hq/settings",        title: "ตั้งค่า" },
@@ -300,7 +295,6 @@ const DEALER_PAGES: PageEntry[] = [
   { label: "ลูกค้าเป้าหมาย", href: "/leads",      keywords: "ลูกค้าเป้าหมาย ลีด lead leads ลูกค้าเป้าหมาย โอกาสการขาย" },
   { label: "ลูกค้า",         href: "/customers",  keywords: "ลูกค้า customer customers" },
   { label: "ใบเสนอราคา",     href: "/quotations", keywords: "ใบเสนอราคา quotation quote เสนอราคา" },
-  { label: "แม่แบบ",         href: "/products",   keywords: "แม่แบบ สินค้า product catalog แคตตาล็อก" },
   { label: "ปฏิทิน",         href: "/calendar",   keywords: "ปฏิทิน calendar นัดหมาย นัด appointment" },
   { label: "ไฟล์",           href: "/files",      keywords: "ไฟล์ file files เอกสาร document" },
   { label: "ตั้งค่า",         href: "/settings",   keywords: "ตั้งค่า setting settings config" },
@@ -315,7 +309,6 @@ const HQ_PAGES: PageEntry[] = [
   { label: "ลูกค้าทั้งเครือ",       href: "/hq/customers",  keywords: "ลูกค้า customer customers ทั้งเครือ" },
   { label: "ภาพรวมยอดขาย",        href: "/hq/pipeline",   keywords: "ภาพรวมยอดขาย pipeline ยอดขาย sales funnel" },
   { label: "ใบเสนอราคาทั้งเครือ",   href: "/hq/quotations", keywords: "ใบเสนอราคา quotation quote ทั้งเครือ" },
-  { label: "แคตตาล็อกแม่แบบ",     href: "/hq/master",     keywords: "แคตตาล็อก แม่แบบ master สินค้า product catalog" },
   // หน้า /hq/company ถูกยุบเมื่อ 10 ส.ค. 69 — เนื้อหาซ้ำกับแท็บ "บริษัท" ในหน้าตั้งค่าทุกประการ
   // และไม่มีลิงก์ในเมนู (เข้าได้ด้วยการพิมพ์ที่อยู่เท่านั้น) · ค้นหาคำว่า "บริษัท" ให้ไปที่หน้าตั้งค่าแทน
   { label: "บริษัท",              href: "/hq/settings",   keywords: "บริษัท องค์กร โปรไฟล์บริษัท ข้อมูลบริษัท" },

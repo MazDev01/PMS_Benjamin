@@ -4,7 +4,6 @@ import {
   createContext, useContext, useState, useMemo, useCallback, useEffect,
   type ReactNode,
 } from "react";
-import { mainTemplateOf } from "@pms/shared/lib/mock";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Global Filter / Time Range — ส่วนกลางที่ Dashboard / Reports / Analytics ใช้ร่วมกัน
@@ -102,7 +101,8 @@ function buildTimeRange(preset: TimePreset, customStart?: string, customEnd?: st
 // ทำให้โหมด supabase เห็นดีลเลอร์/จังหวัด/ผู้รับผิดชอบที่ไม่มีอยู่จริง (ห้ามกุข้อมูล)
 
 // ── Filter state ──
-export type FilterDim = "dealer" | "province" | "product" | "status" | "person";
+// มิติ "แม่แบบ" ลบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+export type FilterDim = "dealer" | "province" | "status" | "person";
 export const ALL = "all";
 
 type FilterState = {
@@ -111,7 +111,6 @@ type FilterState = {
   customEnd: string;
   dealer: string;
   province: string;
-  product: string;
   status: string;
   person: string;
 };
@@ -119,7 +118,7 @@ type FilterState = {
 const DEFAULTS: FilterState = {
   // เริ่มต้น "ปีนี้" → เปิดหน้าเห็นข้อมูลครบ (seed กระจายทั้งปี · ไม่ให้ดูเหมือนข้อมูลหาย) แล้วค่อยแคบลงเองได้
   preset: "thisYear", customStart: "", customEnd: "",
-  dealer: ALL, province: ALL, product: ALL, status: ALL, person: ALL,
+  dealer: ALL, province: ALL, status: ALL, person: ALL,
 };
 
 const STORAGE_KEY = "bpms_global_filters";
@@ -129,7 +128,6 @@ export type RecordFields = {
   date?: string | null;       // ISO YYYY-MM-DD เท่านั้น
   dealer?: string | null;
   province?: string | null;
-  product?: string | null;
   status?: string | null;
   person?: string | null;
 };
@@ -138,7 +136,6 @@ type Ctx = {
   timeRange: TimeRange;
   dealer: string;
   province: string;
-  product: string;
   status: string;
   person: string;
   /** วันเริ่ม/วันสิ้นสุดของช่วงที่กำหนดเอง (ISO) — ให้ช่องกรอกวันที่สะท้อนค่าที่ใช้อยู่จริง */
@@ -148,7 +145,6 @@ type Ctx = {
   setCustomRange: (start: string, end: string) => void;
   setDealer: (v: string) => void;
   setProvince: (v: string) => void;
-  setProduct: (v: string) => void;
   setStatus: (v: string) => void;
   setPerson: (v: string) => void;
   setDim: (dim: FilterDim, v: string) => void;
@@ -191,7 +187,6 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
     setState(s => ({ ...s, preset: "custom", customStart: start, customEnd: end })), []);
   const setDealer = useCallback((v: string) => setState(s => ({ ...s, dealer: v })), []);
   const setProvince = useCallback((v: string) => setState(s => ({ ...s, province: v })), []);
-  const setProduct = useCallback((v: string) => setState(s => ({ ...s, product: v })), []);
   const setStatus = useCallback((v: string) => setState(s => ({ ...s, status: v })), []);
   const setPerson = useCallback((v: string) => setState(s => ({ ...s, person: v })), []);
   const setDim = useCallback((dim: FilterDim, v: string) => setState(s => ({ ...s, [dim]: v })), []);
@@ -215,18 +210,12 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
     if (f.date !== undefined && !inRange(f.date)) return false;
     if (state.dealer !== ALL && f.dealer != null && f.dealer !== state.dealer) return false;
     if (state.province !== ALL && f.province != null && f.province !== state.province) return false;
-    if (state.product !== ALL && f.product != null) {
-      // จับคู่ทั้งแม่แบบหลักและแม่แบบย่อย (ย่อย → เทียบด้วยแม่แบบหลักของมัน)
-      const parent = mainTemplateOf(f.product);
-      if (parent.toUpperCase() !== state.product.toUpperCase() &&
-          f.product.toUpperCase() !== state.product.toUpperCase()) return false;
-    }
     if (state.status !== ALL && f.status != null && f.status !== state.status) return false;
     // ผู้รับผิดชอบเก็บได้หลายคน (คั่นด้วย ", ") → เทียบแบบ "มีคนนี้อยู่ในรายชื่อ"
     if (state.person !== ALL && f.person != null &&
         !f.person.split(",").map(s => s.trim()).includes(state.person)) return false;
     return true;
-  }, [inRange, state.dealer, state.province, state.product, state.status, state.person]);
+  }, [inRange, state.dealer, state.province, state.status, state.person]);
 
   // ⚠️ ช่วงเวลาที่ไม่ใช่ค่าตั้งต้น ต้องนับเป็นตัวกรองที่ "เปิดอยู่" ด้วย
   //    ไม่งั้นเลือกช่วงเองแล้วปุ่มล้างไม่โผล่ = ไม่มีทางกลับไปค่าตั้งต้นได้เลยนอกจากไล่กดเอง
@@ -234,7 +223,7 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
   const activeCount =
     (state.preset !== DEFAULTS.preset && state.preset !== "all" ? 1 : 0) +
     (state.dealer !== ALL ? 1 : 0) + (state.province !== ALL ? 1 : 0) +
-    (state.product !== ALL ? 1 : 0) + (state.status !== ALL ? 1 : 0) +
+    (state.status !== ALL ? 1 : 0) +
     (state.person !== ALL ? 1 : 0);
 
   // ใช้แทบทุกหน้าเหมือนกับ SalesContext — ถ้าไม่ memo ทุก consumer เรนเดอร์ซ้ำทุกครั้งที่ provider
@@ -242,14 +231,14 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
   const value: Ctx = useMemo(() => ({
     timeRange,
     customStart: state.customStart, customEnd: state.customEnd,
-    dealer: state.dealer, province: state.province, product: state.product, status: state.status,
+    dealer: state.dealer, province: state.province, status: state.status,
     person: state.person,
-    setPreset, setCustomRange, setDealer, setProvince, setProduct, setStatus, setPerson, setDim, reset,
+    setPreset, setCustomRange, setDealer, setProvince, setStatus, setPerson, setDim, reset,
     activeCount, passes, inRange,
   }), [
     timeRange, state.customStart, state.customEnd,
-    state.dealer, state.province, state.product, state.status, state.person,
-    setPreset, setCustomRange, setDealer, setProvince, setProduct, setStatus, setPerson, setDim, reset,
+    state.dealer, state.province, state.status, state.person,
+    setPreset, setCustomRange, setDealer, setProvince, setStatus, setPerson, setDim, reset,
     activeCount, passes, inRange,
   ]);
 

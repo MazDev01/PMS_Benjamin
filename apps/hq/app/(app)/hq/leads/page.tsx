@@ -6,12 +6,11 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // ใช้ข้อมูลจริงจาก SalesContext (leads) — HQ ดูอย่างเดียว (Sales CRM เท่านั้น)
 import { useMemo, useState, useEffect, useRef } from "react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
-import { TopNRows } from "@pms/shared/components/hq/TopNRows";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
 import {
   Users, PhoneCall, AlarmClock, Percent, X, GitBranch, Eye,
-  User, Phone, Mail, MapPin, Building2, Compass, Wallet, CalendarDays,
+  User, Phone, Mail, MapPin, Compass, Wallet, CalendarDays,
   Store, IdCard, UserCheck, FileText, Activity, CalendarClock, Paperclip, StickyNote, Lock, AlertTriangle,
 } from "lucide-react";
 import { useNetworkLeads, useNetworkQuotations, useLeadSummary, useLeadsPage, useNetworkQuoteRange, useUnassignedLeads, useDashboardQuoteSummary, useLeadAppointments } from "@pms/shared/lib/useNetworkData";
@@ -96,7 +95,6 @@ export default function HQLeadsPage() {
   const [viewLead, setViewLead] = useState<LeadRow | null>(null);  // Drawer — ดูอย่างเดียว
   const [dealerSel, setDealerSel] = useState<string>("ALL");
   const [regionSel, setRegionSel] = useState<string>("ALL");
-  const [btSel, setBtSel] = useState<string>("ALL");
   const [srcSel, setSrcSel] = useState<string>("ALL");
 
   // ลูกค้าเป้าหมายในช่วงเวลาที่เลือก (ตาม createdAt) — แหล่งเดียวของทั้งหน้า
@@ -136,9 +134,6 @@ export default function HQLeadsPage() {
   const regionOpts = useMemo(() => (optsSummary
     ? [...new Set(optsSummary.byDealer.map(d => REGION_OF.get(d.dealerCode)).filter(Boolean))]
     : [...new Set(scoped.map(l => REGION_OF.get(dealerCodeOf(l))).filter(Boolean))]).sort() as string[], [optsSummary, scoped, REGION_OF]);
-  const btOpts = useMemo(() => (optsSummary
-    ? optsSummary.byProduct.map(p => p.product).filter(p => p !== "ไม่ระบุ")
-    : [...new Set(scoped.map(l => l.product).filter(Boolean))]).sort((a, b) => a.localeCompare(b, "th")), [optsSummary, scoped]);
   const srcOpts = useMemo(() => (optsSummary
     ? optsSummary.bySource.map(s => s.source)
     : [...new Set(scoped.map(l => l.source || "ไม่ระบุ"))]).sort((a, b) => a.localeCompare(b, "th")), [optsSummary, scoped]);
@@ -146,7 +141,7 @@ export default function HQLeadsPage() {
     ? optsSummary.byProvince.map(p => p.province)
     : [...new Set(scoped.map(l => l.province).filter(Boolean))]).sort(), [optsSummary, scoped]);
 
-  // ฐานของ KPI = ตัวกรอง "ขอบเขต" ทุกตัว (ดีลเลอร์ · ภูมิภาค · จังหวัด · ประเภทอาคาร · แหล่งที่มา · ค้นหา)
+  // ฐานของ KPI = ตัวกรอง "ขอบเขต" ทุกตัว (ดีลเลอร์ · ภูมิภาค · จังหวัด · แหล่งที่มา · ค้นหา)
   // แต่ยังไม่กรองด้วย "สถานะ" และ "ต้องติดตามด่วน" — สองอันนั้นคือปุ่มของการ์ด KPI เอง
   // ถ้า KPI ตามสองอันนั้นด้วย ตัวเลขจะยุบเหลือค่าเดียวทันทีที่กด การ์ดจะไร้ความหมาย
   const kpiBase = useMemo(() => {
@@ -155,11 +150,10 @@ export default function HQLeadsPage() {
       (province === "ALL" || l.province === province) &&
       (dealerSel === "ALL" || l.dealerCode === dealerSel) &&
       (regionSel === "ALL" || REGION_OF.get(dealerCodeOf(l)) === regionSel) &&
-      (btSel === "ALL" || l.product === btSel) &&
       (srcSel === "ALL" || (l.source || "ไม่ระบุ") === srcSel) &&
-      (!q || (l.company + l.contact + l.province + l.product + l.assigned + (l.id ?? "") + (l.dealerCode ?? "")).toLowerCase().includes(q))
+      (!q || (l.company + l.contact + l.province + l.assigned + (l.id ?? "") + (l.dealerCode ?? "")).toLowerCase().includes(q))
     );
-  }, [scoped, query, province, dealerSel, regionSel, btSel, srcSel, REGION_OF]);
+  }, [scoped, query, province, dealerSel, regionSel, srcSel, REGION_OF]);
 
   const filtered = useMemo(() => kpiBase.filter(l =>
     (status === "ALL" || l.status === status) &&
@@ -175,8 +169,9 @@ export default function HQLeadsPage() {
     return codes;
   }, [dealerSel, regionSel, allDealers, REGION_OF]);
   const baseF: LeadSummaryFilters = {
+    // ไม่ส่ง product แล้ว — ตัวกรองประเภทอาคาร (แม่แบบ) ถูกถอด: เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
     dealerCodes: leadDealerCodes, province: province === "ALL" ? undefined : province,
-    product: btSel === "ALL" ? undefined : btSel, source: srcSel === "ALL" ? undefined : srcSel,
+    source: srcSel === "ALL" ? undefined : srcSel,
     search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
   };
   const sumBase = useLeadSummary(baseF);                                              // KPI (kpiBase — ไม่กรอง status/overdue)
@@ -191,11 +186,11 @@ export default function HQLeadsPage() {
   const leadOpts: LeadListOpts = useMemo(() => ({
     limit: LEADS_PAGE, offset: leadPage * LEADS_PAGE,
     status: status === "ALL" ? undefined : status, dealerCodes: leadDealerCodes,
-    province: province === "ALL" ? undefined : province, product: btSel === "ALL" ? undefined : btSel,
+    province: province === "ALL" ? undefined : province,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
     dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
     overdue: overdueOnly, asOf: isoDateOf(APP_NOW), defaultDays: DEFAULT_LEAD_RULES.followUpAlertDays, perDealer: perDealerDays,
-  }), [leadPage, status, leadDealerCodes, province, btSel, srcSel, query, timeRange.start, timeRange.end, overdueOnly, perDealerDays]);
+  }), [leadPage, status, leadDealerCodes, province, srcSel, query, timeRange.start, timeRange.end, overdueOnly, perDealerDays]);
   const leadsPage = useLeadsPage(leadOpts);
   const leadTableKey = JSON.stringify({ ...leadOpts, offset: 0 });
   useEffect(() => { setLeadPage(0); }, [leadTableKey]); // เปลี่ยนตัวกรอง → หน้า 1
@@ -209,23 +204,23 @@ export default function HQLeadsPage() {
   //   supabase: leads_page.total · local/ยังไม่กลับ: นับจาก kpiBase ฝั่ง client
   const followUpOpts: LeadListOpts = useMemo(() => ({
     limit: 1, offset: 0, dealerCodes: leadDealerCodes,
-    province: province === "ALL" ? undefined : province, product: btSel === "ALL" ? undefined : btSel,
+    province: province === "ALL" ? undefined : province,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
     dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
     overdue: true, asOf: isoDateOf(APP_NOW), defaultDays: DEFAULT_LEAD_RULES.followUpAlertDays, perDealer: perDealerDays,
-  }), [leadDealerCodes, province, btSel, srcSel, query, timeRange.start, timeRange.end, perDealerDays]);
+  }), [leadDealerCodes, province, srcSel, query, timeRange.start, timeRange.end, perDealerDays]);
   const followUpPage = useLeadsPage(followUpOpts);
 
   // ── เตือน: ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบนานเกินเกณฑ์ (กฎธุรกิจ HQ · ค่าเริ่มต้น 48 ชม.) ──
   // ตอนนี้ลูกค้าเป้าหมายทุกใบมีผู้รับผิดชอบ → ขึ้น 0 ซึ่งเป็นความจริง · ตรรกะพร้อมใช้ พอมีลูกค้าเป้าหมาย assigned ว่างเกินเกณฑ์ การ์ดจะเด้ง
-  // อิงขอบเขต kpiBase (ดีลเลอร์/ภาค/จังหวัด/แม่แบบ/แหล่ง/ค้นหา + ช่วงเวลา) — ไม่ผูกสถานะ (เตือนไร้ผู้รับผิดชอบ ไม่เกี่ยวสถานะ)
+  // อิงขอบเขต kpiBase (ดีลเลอร์/ภาค/จังหวัด/แหล่ง/ค้นหา + ช่วงเวลา) — ไม่ผูกสถานะ (เตือนไร้ผู้รับผิดชอบ ไม่เกี่ยวสถานะ)
   const perDealerHours = useMemo(() => Object.fromEntries(allDealers.map(d => [d.code, rulesOf(d.code).unassignedAlertHours])), [allDealers, rulesOf]);
   const unassignedSummary = useUnassignedLeads(useMemo(() => ({
     asOf: isoDateOf(APP_NOW), defaultHours: DEFAULT_LEAD_RULES.unassignedAlertHours, perDealer: perDealerHours,
     dealerCodes: leadDealerCodes, province: province === "ALL" ? undefined : province,
-    product: btSel === "ALL" ? undefined : btSel, source: srcSel === "ALL" ? undefined : srcSel,
+    source: srcSel === "ALL" ? undefined : srcSel,
     search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
-  }), [perDealerHours, leadDealerCodes, province, btSel, srcSel, query, timeRange.start, timeRange.end]));
+  }), [perDealerHours, leadDealerCodes, province, srcSel, query, timeRange.start, timeRange.end]));
   const unassignedClient = useMemo(() => unassignedLeads(kpiBase, rulesOf), [kpiBase, rulesOf]);
   const unassignedCount = unassignedSummary ? unassignedSummary.total : unassignedClient.length;
   // ป้ายบอกเกณฑ์ — หน้านี้รวมหลายสาขาที่ตั้งเกณฑ์ต่างกันได้ จึงสรุปเป็นช่วงเมื่อไม่เท่ากัน
@@ -247,7 +242,7 @@ export default function HQLeadsPage() {
       {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
     </select>
   );
-  const anyFilter = !!query.trim() || [status, province, dealerSel, regionSel, btSel, srcSel].some(v => v !== "ALL");
+  const anyFilter = !!query.trim() || [status, province, dealerSel, regionSel, srcSel].some(v => v !== "ALL");
 
   // KPI — คิดจาก kpiBase (ตามตัวกรองขอบเขต) ไม่ใช่ scoped (ทั้งเครือ)
   // เดิมคิดจาก scoped → กรองเหลือดีลเลอร์เดียว ตารางหด 25→7 แถว แต่ KPI นิ่งที่ 61/24/42% คนอ่านเข้าใจผิด
@@ -312,11 +307,10 @@ export default function HQLeadsPage() {
     if (dealerSel !== "ALL") parts.push(DEALER_NAME.get(dealerSel) ?? dealerSel);
     if (regionSel !== "ALL") parts.push(regionDisplay(regionSel));
     if (province !== "ALL") parts.push(province);
-    if (btSel !== "ALL") parts.push(btSel);
     if (srcSel !== "ALL") parts.push(srcSel);
     if (query.trim()) parts.push(`ค้นหา “${query.trim()}”`);
     return parts.length ? parts.join(" · ") : "ทั้งเครือ";
-  }, [dealerSel, regionSel, province, btSel, srcSel, query, DEALER_NAME]);
+  }, [dealerSel, regionSel, province, srcSel, query, DEALER_NAME]);
 
   const kpiCards = [
     { label: "ลูกค้าเป้าหมายทั้งหมด", value: `${kpis.total}`, sub: scopeLabel, Icon: Users, color: "#2563a8", on: status === "ALL", onClick: () => setStatus("ALL") },
@@ -396,18 +390,6 @@ export default function HQLeadsPage() {
     return order.map(s => ({ status: s, count: count(s), pct: Math.round(count(s) / max * 100) }));
   }, [chartSummary, filtered]);
 
-  // ── Section 3 · ประเภทอาคารที่ลูกค้าสนใจ ──────────────────────────────────
-  // จัดกลุ่มด้วย "แม่แบบ" ของลูกค้าเป้าหมาย (product) — ใช้ค่าจริงในระบบ ไม่ยุบ/ไม่แปลงชื่อ
-  const buildingTypes = useMemo(() => {
-    const base = chartSummary
-      ? chartSummary.byProduct.map(r => ({ label: r.product, count: r.count }))
-      : (() => { const m = new Map<string, number>(); filtered.forEach(l => { const k = l.product || "ไม่ระบุ"; m.set(k, (m.get(k) ?? 0) + 1); }); return [...m.entries()].map(([label, count]) => ({ label, count })); })();
-    const arr = [...base].sort((a, b) => b.count - a.count);
-    const max = Math.max(...arr.map(a => a.count), 1);
-    const total = arr.reduce((s, a) => s + a.count, 0) || 1;
-    return arr.map(a => ({ ...a, pct: Math.round(a.count / max * 100), share: Math.round(a.count / total * 100) }));
-  }, [chartSummary, filtered]);
-
   // ── Section 4 · เหตุผลที่ปิดการขายไม่สำเร็จ ────────────────────────────────
   // นับเฉพาะลูกค้าเป้าหมายที่ปิดไม่สำเร็จ "และบันทึกเหตุผลไว้จริง" — ไม่เดาเหตุผลให้ลูกค้าเป้าหมายที่ไม่ได้ระบุ
   // รายการเหตุผลเป็นของ HQ (ตั้งค่า › เส้นทางการขาย) ใช้ร่วมทุกดีลเลอร์
@@ -444,7 +426,7 @@ export default function HQLeadsPage() {
   // Export — หนึ่งแถวต่อลูกค้าเป้าหมาย (คอลัมน์ตรงกับตาราง) · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด · local: จาก filtered
   const leadToCells = (l: LeadRow) => [
     l.id, l.dealerCode ?? "—", DEALER_NAME.get(l.dealerCode ?? "") ?? "—", l.company, l.contact,
-    l.province, l.product, l.source || "—", มูลค่าอ่านง่าย(l.value),
+    l.province, l.source || "—", มูลค่าอ่านง่าย(l.value),
     QUOTED_UP.includes(l.status) ? "เสนอแล้ว" : "—",
     lastContactLabel(l),
     needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays) ? "ต้องติดตาม" : "—",
@@ -466,7 +448,7 @@ export default function HQLeadsPage() {
           <FilterBar dims={[]} />
           {/* ส่งออก = สิ่งที่เห็นบนจอตอนนี้ (ผ่านตัวกรองทุกตัวแล้ว) · คอลัมน์เรียงตรงกับตาราง */}
           <ExportMenu filename="hq-leads" title="ลูกค้าเป้าหมายทั้งเครือ"
-            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","ประเภทอาคาร","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","สถานะ","เหตุผลที่ปิดไม่สำเร็จ"]}
+            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","สถานะ","เหตุผลที่ปิดไม่สำเร็จ"]}
             rows={filtered.map(leadToCells)} getRows={exportGetRows} />
       </TopbarActions>
 
@@ -506,12 +488,11 @@ export default function HQLeadsPage() {
           {leadSel(dealerSel, setDealerSel, "ทุกดีลเลอร์", dealerOpts.map(o => ({ v: o, l: `${o} – ${DEALER_NAME.get(o) ?? o}` })))}
           {leadSel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(o => ({ v: o, l: regionDisplay(o) })))}
           {leadSel(province, setProvince, "ทุกจังหวัด", provinces.map(p => ({ v: p, l: p })))}
-          {leadSel(btSel, setBtSel, "ทุกประเภทอาคาร (จากลูกค้าเป้าหมาย)", btOpts.map(o => ({ v: o, l: o })))}
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
           {leadSel(status, v => setStatus(v as LeadStatus | "ALL"), "ทุกสถานะ",
             LEAD_STATUS_ORDER.map(s => ({ v: s, l: leadStatusLabel[s] })))}
           {anyFilter && (
-            <button onClick={() => { setQuery(""); setDealerSel("ALL"); setRegionSel("ALL"); setProvince("ALL"); setBtSel("ALL"); setSrcSel("ALL"); setStatus("ALL"); }}
+            <button onClick={() => { setQuery(""); setDealerSel("ALL"); setRegionSel("ALL"); setProvince("ALL"); setSrcSel("ALL"); setStatus("ALL"); }}
               className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>ล้างตัวกรอง</button>
           )}
         </div>
@@ -538,9 +519,10 @@ export default function HQLeadsPage() {
 
       {/* ── แถว 3 · แนวโน้ม (แท่งกลุ่ม) | ตามสถานะ (แท่ง) ──
           เดิมเป็น 3 คอลัมน์ (มีแหล่งที่มาด้วย) — ย้ายแหล่งที่มาไปคู่กับเหตุผลที่แถว 2 เพราะเป็นโดนัทเหมือนกัน */}
-      {/* ── แถว 1 · แนวโน้ม · ตามสถานะ · ประเภทอาคาร ──
-          3 คอลัมน์: แนวโน้มกว้างกว่าเพื่อน (6 เดือน × 4 ชุด = 24 แท่ง ต้องการที่) */}
-      <div className="hq-leads-row" style={{ marginBottom: 12 }}>
+      {/* ── แถว 1 · แนวโน้ม · ตามสถานะ ── คู่ 2 คอลัมน์
+          เดิม 3 คอลัมน์ (มี "ประเภทอาคารที่สนใจ" = จัดกลุ่มตามแม่แบบ) — การ์ดนั้นเอาออก: เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
+          เหลือ 2 ใบจึงใช้กริดคู่ .hq-dealer-charts (ใช้ .hq-leads-row 3 คอลัมน์ต่อจะเว้าขวา) */}
+      <div className="hq-dealer-charts" style={{ marginBottom: 12, alignItems: "stretch" }}>
         {/* กราฟเส้นเป็น SVG ที่ย่อ/ขยายตามความกว้างการ์ด → ความสูงจริงไม่เท่า height ที่ส่งเข้าไป
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
@@ -579,31 +561,6 @@ export default function HQLeadsPage() {
               </div>
             ); })}
           </div>
-        </div>
-      {/* ⚠️ อย่าทำเป็นโดนัท: ลูกค้าเป้าหมายหนึ่งรายนับแม่แบบเดียว แต่ที่นี่ตัดเป็น 11 ชนิดย่อย — เป็นการเทียบค่า ไม่ใช่สัดส่วนก้อนเดียว */}
-      <div className="card chart-l" style={{ marginBottom: 0 }}>
-        <div className="card-header"><div className="card-title">ประเภทอาคารที่สนใจ</div></div>
-        <div className="card-body" style={{ paddingTop: 6, display: "flex", flexDirection: "column" }}>
-          {!buildingTypes.length ? (
-            <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>— ไม่มีข้อมูลในช่วงที่เลือก</div>
-          ) : (
-          <TopNRows topN={6} unit="ประเภท" gap={11}>
-            {buildingTypes.map(r => (
-            <div key={r.label}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.72rem", marginBottom: 4 }}>
-                <span style={{ color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</span>
-                <span style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums", color: "var(--muted-foreground)" }}>
-                  {r.count} ราย <span style={{ fontWeight: 800, color: "#003366" }}>{r.share}%</span>
-                </span>
-              </div>
-              <div style={{ height: 6, background: "var(--muted)", borderRadius: 999, overflow: "hidden" }}>
-                <div className="bar-grow" style={{ height: "100%", width: `${r.pct}%`, background: "#003366", borderRadius: 999 }} />
-              </div>
-            </div>
-            ))}
-          </TopNRows>
-          )}
-        </div>
         </div>
       </div>
 
@@ -723,7 +680,8 @@ export default function HQLeadsPage() {
       <div className="card" style={{ marginBottom: 0, overflow: "hidden" }}>
         <div className="table-wrap">
           <table>
-            {/* 12 คอลัมน์ · รวม minWidth = 1,116px — พอดีพื้นที่จริง 1,128px (วัดที่จอ 1440 · 11 ส.ค. 69)
+            {/* 11 คอลัมน์ · รวม minWidth = 1,056px — ไม่เกินพื้นที่จริง 1,128px (วัดที่จอ 1440 · 11 ส.ค. 69)
+                (16 ต.ค. 69: ถอดคอลัมน์ "ประเภทอาคาร" — เอาแม่แบบออกทั้งระบบ · 9% ยกให้คอลัมน์ "ลูกค้า")
                 ชุดก่อนหน้ารวม 1,214px → เกินไป 86px ตารางจึงยังมีแถบเลื่อนแนวนอนคาอยู่
                 (เดิม 13 คอลัมน์ = 1,440px · ที่ประหยัดมาได้: รวม "รหัสดีลเลอร์" เข้ากับ "ดีลเลอร์" ซึ่งข้อมูลซ้ำกัน)
                 จอกว้างกว่า 1440 คอลัมน์จะยืดตาม % เอง (รวมต้องได้ 100)
@@ -732,9 +690,8 @@ export default function HQLeadsPage() {
             <colgroup>
               <col style={{ width: "7%", minWidth: 88 }} />{/* รหัสลูกค้าเป้าหมาย */}
               <col style={{ width: "12%", minWidth: 140 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
-              <col style={{ width: "11%", minWidth: 120 }} />{/* ลูกค้า */}
+              <col style={{ width: "20%", minWidth: 160 }} />{/* ลูกค้า */}
               <col style={{ width: "7%", minWidth: 84 }} />{/* จังหวัด */}
-              <col style={{ width: "9%", minWidth: 100 }} />{/* ประเภทอาคาร */}
               <col style={{ width: "8%", minWidth: 84 }} />{/* แหล่งที่มา */}
               <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
               <col style={{ width: "8%", minWidth: 88 }} />{/* เสนอราคา */}
@@ -745,7 +702,7 @@ export default function HQLeadsPage() {
             </colgroup>
             <thead><tr>
               <th>รหัส</th><th>ดีลเลอร์</th><th>ลูกค้า</th>
-              <th>จังหวัด</th><th>ประเภทอาคาร</th><th>แหล่งที่มา</th>
+              <th>จังหวัด</th><th>แหล่งที่มา</th>
               {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกตัด (th ตั้ง white-space: nowrap ทั้งระบบ) — ไฟล์ส่งออกยังใช้ชื่อเต็ม */}
               <th className="num">มูลค่า</th><th>เสนอราคา</th><th>ติดต่อล่าสุด</th>
               {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 (26 ส.ค. 69) */}
@@ -753,7 +710,7 @@ export default function HQLeadsPage() {
             </tr></thead>
             <tbody>
               {displayLeads.length === 0 ? (
-                <tr><td colSpan={12} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
+                <tr><td colSpan={11} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
               ) : displayLeads.map(l => {
                 const c = leadStatusColor[l.status];
                 const followUp = needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays);
@@ -779,7 +736,6 @@ export default function HQLeadsPage() {
                       <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.contact}</div>
                     </td>
                     <td style={{ color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{l.province}</td>
-                    <td title={l.product} style={{ color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.product}</td>
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.source || "—"}</td>
                     <td className="num" style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(l.value)}</td>
                     <td>
@@ -877,7 +833,6 @@ export default function HQLeadsPage() {
                   <PanelRow icon={Phone} label="โทรศัพท์" value={เบอร์อ่านง่าย(l.phone)} />
                   <PanelRow icon={Mail} label="อีเมล" value={l.email} />
                   <PanelRow icon={MapPin} label="จังหวัด" value={l.province} />
-                  <PanelRow icon={Building2} label="ประเภทอาคารที่สนใจ" value={l.product} />
                   <PanelRow icon={Compass} label="แหล่งที่มา" value={l.source} />
                   <PanelRow icon={Wallet} label="ประเมินราคา" value={มูลค่าอ่านง่าย(l.value)} strong />
                   <PanelRow icon={CalendarDays} label="สร้างเมื่อ" value={l.createdAt} />

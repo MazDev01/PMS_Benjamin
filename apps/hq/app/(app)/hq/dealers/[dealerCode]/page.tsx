@@ -161,30 +161,7 @@ function OverviewTab({ dealer, detail }: { dealer: DealerRow; detail: DealerDeta
         </div>
       ))}
 
-      {/* Top products */}
-      <div className="card" style={{ padding: "18px 20px", gridColumn: "1 / -1" }}>
-        <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>แม่แบบที่ขาย</p>
-        {(() => {
-          const byProduct: Record<string, number> = {};
-          (detail?.projects ?? []).forEach(p => { byProduct[p.product] = (byProduct[p.product] || 0) + p.valueNum; });
-          const sorted = Object.entries(byProduct).sort((a, b) => b[1] - a[1]);
-          const total = sorted.reduce((s, [, v]) => s + v, 0);
-          const colors = ["#003366", "#0a4f8c", "#1e6fbf", "#4d94d4", "#82b4e3", "#b8d4f0"];
-          // ไม่มีข้อมูล = บอกให้รู้ ไม่ปล่อยกล่องเปล่า (แก้ 10 ส.ค. 69)
-          if (sorted.length === 0) return (
-            <div style={{ padding: "14px 0", fontSize: "0.78rem", color: "#8a94a3" }}>— ยังไม่มีแม่แบบที่ปิดการขายได้</div>
-          );
-          return sorted.map(([product, value], i) => (
-            <div key={product} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <span className="badge" style={BADGE(colors[i % colors.length] + "22", colors[i % colors.length])}>{product}</span>
-              <div style={{ flex: 1, height: 6, background: "#f0f0f5", borderRadius: 99, overflow: "hidden" }}>
-                <div className="top5-bar" style={{ height: "100%", width: `${Math.round(value / total * 100)}%`, background: colors[i % colors.length], borderRadius: 99 }} />
-              </div>
-              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#2D2D2D", minWidth: 60, textAlign: "right" }}>{fmtM(value)}</span>
-            </div>
-          ));
-        })()}
-      </div>
+      {/* การ์ด "แม่แบบที่ขาย" ถอดออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
     </div>
   );
 }
@@ -200,25 +177,25 @@ function LeadsTab({ leads }: { leads: DealerLeadItem[] }) {
       </div>
       <div className="table-wrap">
         <table>
+          {/* ถอดคอลัมน์ "แม่แบบ" (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → 14% ยกให้คอลัมน์ "ลูกค้า" */}
           <colgroup>
             <col style={{ width: "10%" }} />
-            <col style={{ width: "24%" }} />
+            <col style={{ width: "38%" }} />
             <col style={{ width: "13%" }} />
-            <col style={{ width: "14%" }} />
             <col style={{ width: "11%" }} />
             <col style={{ width: "14%" }} />
             <col style={{ width: "14%" }} />
           </colgroup>
           <thead>
             <tr>
-              {["รหัสลูกค้าเป้าหมาย", "ลูกค้า", "จังหวัด", "แม่แบบ", "มูลค่า", "สถานะ", "มอบหมายเมื่อ"].map(h => (
+              {["รหัสลูกค้าเป้าหมาย", "ลูกค้า", "จังหวัด", "มูลค่า", "สถานะ", "มอบหมายเมื่อ"].map(h => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {leads.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีลูกค้าเป้าหมาย</td></tr>
+              <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีลูกค้าเป้าหมาย</td></tr>
             )}
             {rows.map(l => {
               const st = LEAD_STATUS[l.status];
@@ -227,7 +204,6 @@ function LeadsTab({ leads }: { leads: DealerLeadItem[] }) {
                   <td style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>{l.id}</td>
                   <td style={{ fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D" }}>{l.name}</td>
                   <td style={{ fontSize: "0.8rem", color: "#6b7280" }}>{l.province}</td>
-                  <td><span className="badge" style={BADGE("#f0f0f5", "#6b7280")}>{l.product}</span></td>
                   <td className="num" style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(l.valueNum)}</td>
                   <td><span className="badge" style={BADGE(st.bg, st.color)}>{st.label}</span></td>
                   <td style={{ fontSize: "0.72rem", color: "#9ca3af" }}>{l.assignedAt}</td>
@@ -257,7 +233,6 @@ function ProjectsTab({ projects }: { projects: DealerProjectItem[] }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: "0.86rem", fontWeight: 700, color: "#2D2D2D" }}>{p.name}</span>
                   <span className="badge" style={BADGE(st.bg, st.color)}>{st.label}</span>
-                  <span className="badge" style={BADGE("#f0f0f5", "#6b7280")}>{p.product}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                   <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(p.valueNum)}</span>
@@ -282,25 +257,25 @@ function QuotesTab({ quotes }: { quotes: DealerQuoteItem[] }) {
       </div>
       <div className="table-wrap">
         <table>
-          {/* ตัดคอลัมน์ "ส่วนลด" ออก (ระบบไม่มีส่วนลดแล้ว) → เกลี่ย % ใหม่ให้ครบ 100 */}
+          {/* ตัดคอลัมน์ "ส่วนลด" ออก (ระบบไม่มีส่วนลดแล้ว) → เกลี่ย % ใหม่ให้ครบ 100
+              ตัดคอลัมน์ "แม่แบบ" ออก (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → 16% ยกให้คอลัมน์ "ลูกค้า" */}
           <colgroup>
             <col style={{ width: "11%" }} />
-            <col style={{ width: "30%" }} />
-            <col style={{ width: "16%" }} />
+            <col style={{ width: "46%" }} />
             <col style={{ width: "14%" }} />
             <col style={{ width: "15%" }} />
             <col style={{ width: "14%" }} />
           </colgroup>
           <thead>
             <tr>
-              {["เลขที่", "ลูกค้า", "แม่แบบ", "มูลค่า", "สถานะ", "วันที่"].map(h => (
+              {["เลขที่", "ลูกค้า", "มูลค่า", "สถานะ", "วันที่"].map(h => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {quotes.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีใบเสนอ</td></tr>
+              <tr><td colSpan={5} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีใบเสนอ</td></tr>
             )}
             {rows.map(q => {
               const st = quotationStatusColor[q.status];
@@ -308,7 +283,6 @@ function QuotesTab({ quotes }: { quotes: DealerQuoteItem[] }) {
                 <tr key={q.quoteNo}>
                   <td style={{ fontSize: "0.72rem", fontWeight: 700, color: "#003366" }}>{q.quoteNo}</td>
                   <td style={{ fontSize: "0.8rem", fontWeight: 600, color: "#2D2D2D" }}>{q.customer}</td>
-                  <td><span className="badge" style={BADGE("#f0f0f5", "#6b7280")}>{q.product}</span></td>
                   <td className="num" style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(q.valueNum)}</td>
                   <td><span className="badge" style={BADGE(st.bg, st.text)}>{quotationStatusLabel[q.status]}</span></td>
                   <td style={{ fontSize: "0.72rem", color: "#9ca3af" }}>{q.date}</td>
@@ -372,9 +346,9 @@ function CustomerTab({ customers }: { customers: HQCustomer[] }) {
 function ActivityTab({ leads, quotes }: { leads: DealerLeadItem[]; quotes: DealerQuoteItem[] }) {
   const items = [
     ...quotes.map(q => ({ id: `q-${q.quoteNo}`, icon: <ScrollText size={14} />, color: "#003366",
-      title: `ออกใบเสนอราคา ${q.customer}`, sub: `${q.product} · ${fmtM(q.valueNum)} · ${quotationStatusLabel[q.status]}`, date: q.date })),
+      title: `ออกใบเสนอราคา ${q.customer}`, sub: `${fmtM(q.valueNum)} · ${quotationStatusLabel[q.status]}`, date: q.date })),
     ...leads.map(l => ({ id: `l-${l.id}`, icon: <Users size={14} />, color: "#6b7280",
-      title: `รับมอบหมายลูกค้าเป้าหมาย ${l.name}`, sub: `${l.product} · ${fmtM(l.valueNum)}`, date: l.assignedAt })),
+      title: `รับมอบหมายลูกค้าเป้าหมาย ${l.name}`, sub: fmtM(l.valueNum), date: l.assignedAt })),
   ];
   return (
     <div className="card">

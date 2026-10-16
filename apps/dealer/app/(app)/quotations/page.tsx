@@ -11,11 +11,9 @@ import {
   negotiationSummary, OTHER_REASON_OPTION,
   type QuotationStatus, type QuotationMock, type CustomerRow, type IssuerProfile, type QuoteLineItem,
 } from "@pms/shared/lib/mock";
-import { LineItemsEditor } from "@pms/shared/components/ui/LineItemsEditor";
 import { HqMarkupEditor } from "@pms/shared/components/ui/HqMarkupEditor";
 import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
 import type { HqQuote } from "@pms/shared/lib/quoteRequests";
-import { useMasterCatalogState } from "@pms/shared/lib/useMasterCatalog";
 import { boqLineItems, boqSubtotal } from "@pms/shared/lib/boq";
 import { คิดภาษีใบเสนอราคา, ช่องภาษีสำหรับบันทึก } from "@pms/shared/lib/quoteTax";
 import { AssigneeAvatars, PersonPicker } from "@pms/shared/components/ui/PersonPicker";
@@ -71,8 +69,9 @@ const STATUS_ACTIONS: Record<QuotationStatus,{label:string;next:QuotationStatus;
   // สถานะ "viewed" (เปิดอ่านแล้ว) ถูกลบทั้งฟีเจอร์ — เส้นทางเดิม ส่งแล้ว→เปิดอ่าน→ตอบรับ/ปฏิเสธ
   // ตอนนี้ยุบเหลือ ส่งแล้ว→ตอบรับ/ปฏิเสธ/หมดอายุ (อยู่ในบล็อก sent_to_client ข้างบนแล้ว)
   won:      [],
-  lost:     [{label:"เปิดร่างใหม่", next:"draft", bg:"#f0f0f5", color:"#6b7280"}],
-  expired:  [{label:"เปิดร่างใหม่", next:"draft", bg:"#f0f0f5", color:"#6b7280"}],
+  // ปฏิเสธ/หมดอายุ = จบแล้ว · ต้องการราคาใหม่ให้ขอราคาจาก HQ ใหม่ (ลบ "เปิดร่างใหม่" ของ Flow เก่า 16 ต.ค. 69)
+  lost:     [],
+  expired:  [],
 };
 
 // statusOptions สำหรับ FilterBar กลาง — value = enum key, label = ไทยจาก quotationStatusLabel
@@ -81,7 +80,6 @@ const Q_STATUS_OPTIONS = STATUS_ORDER.map(s => ({ value: s, label: quotationStat
 // คอลัมน์ที่ซ่อน/แสดงได้ในตารางรายการ (เลขที่ + ลูกค้า + สถานะ + การกระทำ = คงที่เสมอ)
 const COLS: Col[] = [
   { key: "project", label: "โครงการ" },
-  { key: "type",    label: "ประเภท" },
   { key: "owner",   label: "ผู้รับผิดชอบ" },
   { key: "value",   label: "มูลค่า" },
   { key: "created", label: "วันที่สร้าง" },
@@ -100,7 +98,7 @@ type SortDir = "asc"|"desc";
 type QForm = {
   customerId:number; customer:string;
   project:string; projectId:number;
-  province:string; buildingType:string; area:number;
+  province:string; area:number;
   materialCost:number;
   status:QuotationStatus; date:string; items:number;
   lineItems:QuoteLineItem[];
@@ -142,26 +140,14 @@ const expiryOf = quoteExpiryISO;
 //  ส่วนแผงใบเสนอราคาในหน้าลูกค้าเป้าหมายใช้ newQuoteId() = RPC ของ DB → Q-2026-0001
 //  ออกใบจากคนละหน้าจึงได้เลขคนละชุด และชนกันเองได้ · ตอนนี้เหลือทางเดียวคือ newQuoteId())
 // ── Add / Edit Modal ──────────────────────────────────────────
-const TODAY = APP_NOW_ISO; // "วันนี้ของระบบ" (supabase=จริง / local=ตรึง) — วันหมดอายุใบใหม่นับจากวันนี้จริง
-// วันหมดอายุเริ่มต้น = วันนี้ + อายุใบเสนอราคา (จากกฎการขาย settings) → ISO
-function defaultExpiry(validityDays:number): string {
-  const d = new Date(TODAY); d.setDate(d.getDate() + validityDays);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
-// ชื่อโครงการแนะนำจากลูกค้า — "{แม่แบบ} — {บริษัท}" (เหมือนตอนสร้างใบเสนอจากลูกค้าเป้าหมาย) · แก้ได้
+// ชื่อโครงการแนะนำจากลูกค้า = ชื่อบริษัท · แก้ได้ (ไม่ประกอบจากแม่แบบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 function suggestProject(c?:CustomerRow):string{
-  if(!c) return "";
-  return c.category ? `${c.category} — ${c.company}` : c.company;
-}
-function buildBlank(customers:CustomerRow[], validityDays:number): QForm {
-  // ค่าตั้งต้น: VAT ติ๊กไว้ 7% · หัก ณ ที่จ่าย ไม่ติ๊ก (3% เมื่อเปิด)
-  const c=customers[0];
-  return { vatOn:true, vatPct:"7", whtOn:false, whtPct:"3", customerId:c?.id??0, customer:c?.company??"", project:suggestProject(c), projectId:0, province:c?.province??"", buildingType:c?.category||""   /* ห้ามเดาแม่แบบให้ — เดิมยัด "โกดังสำเร็จรูป" ทั้งที่ยังไม่มีใครเลือก */, area:0, materialCost:0, status:"draft", date:TODAY, items:0, lineItems:[], revision:"V1", expiry:defaultExpiry(validityDays), owner:c?.owner??"" };
+  return c ? c.company : "";
 }
 
 function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, hqQuoteId, locked }:{
   initial:QForm; title:string; onSave:(f:QForm)=>void|Promise<void>; onClose:()=>void; customers:CustomerRow[];
-  /** ใบที่ทำจากใบ HQ (ด่าน 3) — รายการ/จำนวนล็อก แก้ได้เฉพาะ % ที่บวก · ไม่มี = ใบเดิม (แก้แบบเดิม) */
+  /** ใบที่ทำจากใบ HQ (ด่าน 3) — รายการ/จำนวนล็อก แก้ได้เฉพาะ % ที่บวก · ใบเดิมที่ไม่มีใบ HQ แก้ไม่ได้ (ไม่เปิดฟอร์มนี้) */
   hqQuoteId?:number|null;
   /** ลูกค้าตอบรับและสั่งผลิตแล้ว — ราคาถูกล็อกที่ฐานข้อมูล (ใบ 0201) */
   locked?:boolean;
@@ -175,8 +161,6 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
     quoteRequestsRepo.hqQuoteById(hqQuoteId).then(h=>{ if(alive) setใบHQ(h); }).catch(()=>{ /* ขึ้น "กำลังโหลดใบ HQ" ค้างไว้ — บันทึกไม่ได้ */ });
     return ()=>{ alive=false; };
   },[hqQuoteId]);
-  // แคตตาล็อกแม่แบบ — ใช้บอกต้นเหตุตอนบันทึกไม่ได้ · ready กันขึ้นข้อความผิดตอนยังโหลดไม่เสร็จ
-  const { catalog: catalogForForm, ready: catalogReady }=useMasterCatalogState();
   const [busy,setBusy]=useState(false); // กันกดบันทึกซ้ำ + รอออกเลขที่ใบจาก DB (H8)
   const INP:React.CSSProperties={width:"100%",border:`1px solid ${BORDER}`,borderRadius:9,padding:"8px 12px",fontSize:"0.8rem",outline:"none",color:STEEL,boxSizing:"border-box"};
   const LBL:React.CSSProperties={fontSize:"0.65rem",fontWeight:700,color:MUTED,display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em"};
@@ -186,12 +170,8 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
   //   ฐานข้อมูลปฏิเสธใบที่ไม่มีรายการอยู่แล้ว (ใบ 0073) แต่ฟอร์มนี้ไม่ได้กันไว้
   //   ดีลเลอร์จึงกดบันทึกแล้วเจอข้อความของฐานข้อมูลดิบ ๆ แทนที่จะรู้ว่าติดตรงไหน
   //   และต้นเหตุที่พบจริงคือสำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ/ราคา ซึ่งดีลเลอร์แก้เองไม่ได้
-  const แม่แบบว่าง=catalogReady&&catalogForForm.length===0;
-  const ราคาแม่แบบยังไม่ตั้ง=!แม่แบบว่าง&&form.lineItems.length>0&&total<=0
-    &&form.lineItems.every(it=>it.unitPrice<=0);
   const เหตุที่บันทึกไม่ได้=
-    แม่แบบว่าง ? "สำนักงานใหญ่ยังไม่ได้ตั้งแม่แบบ — ออกใบเสนอราคาไม่ได้จนกว่าจะมีแม่แบบพร้อมราคา กรุณาแจ้งสำนักงานใหญ่"
-    : ราคาแม่แบบยังไม่ตั้ง ? "สำนักงานใหญ่ยังไม่ได้ตั้งราคาของแม่แบบนี้ — พิมพ์ราคาต่อหน่วยเองได้ หรือแจ้งสำนักงานใหญ่ให้ตั้งราคากลางก่อน"
+    !ใบHQ ? "กำลังโหลดใบ HQ — รอสักครู่"
     : form.lineItems.length===0 ? "ต้องมีรายการสินค้าอย่างน้อย 1 รายการก่อนบันทึก"
     : total<=0 ? "ยอดรวมเป็น ฿0 — ระบุจำนวนและราคาต่อหน่วยก่อนออกใบ"
     : !form.customer ? "ต้องระบุลูกค้าก่อนบันทึก"
@@ -202,9 +182,9 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
     // เลือก "ยังไม่ระบุลูกค้า" กลับมา ต้องล้างของเดิมออกจริง — เดิม return เฉย ๆ ค่าเก่าจึงค้างอยู่
     // ช่องโชว์ "ยังไม่ระบุ" แต่ในระบบยังผูกกับลูกค้ารายก่อนหน้า = ใบไปออกให้ผิดคนโดยไม่มีใครเห็น
     if(!c){ setForm(p=>({...p,customerId:0,customer:""})); return; }
-    // prefill ทุกช่องที่ดึงจากลูกค้าได้: จังหวัด · แม่แบบ (จาก category) · ชื่อโครงการ (แนะนำ แก้ได้)
+    // prefill ทุกช่องที่ดึงจากลูกค้าได้: จังหวัด · ชื่อโครงการ (แนะนำ แก้ได้) — ไม่หยิบแม่แบบ (category) แล้ว เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
     // ผู้รับผิดชอบตามลูกค้าที่เลือก (ดึงมาโชว์ให้ตรงกับตาราง — แก้ต่อได้)
-    setForm(p=>({...p,customerId:c.id,customer:c.company,province:c.province||p.province,buildingType:c.category||p.buildingType,project:suggestProject(c),owner:c.owner??""}));
+    setForm(p=>({...p,customerId:c.id,customer:c.company,province:c.province||p.province,project:suggestProject(c),owner:c.owner??""}));
   }
   async function submit(){
     if(เหตุที่บันทึกไม่ได้||busy)return;
@@ -271,24 +251,13 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
               <label style={LBL}>พื้นที่ (ตร.ม.)</label>
               <input type="number" value={form.area||""} onChange={e=>set("area",Number(e.target.value))} placeholder="0" style={INP}/>
             </div>
-            {/* ประเภท — โชว์ให้ครบตามตาราง แต่แก้เองไม่ได้ เพราะระบบดึงจากรายการ BOQ แถวแรกอัตโนมัติ
-                (เปลี่ยนรายการแรกใน BOQ ข้างล่าง = ประเภทเปลี่ยนตาม) */}
-            <div className="col-full">
-              <label style={LBL}>ประเภท</label>
-              <div style={{...INP,background:"#f4f6f9",color:form.buildingType?STEEL:MUTED,display:"flex",alignItems:"center",gap:7}}>
-                <Lock size={11} color={MUTED}/> {form.buildingType || "—"}
-                <span style={{marginLeft:"auto",fontSize:"0.62rem",color:MUTED,fontWeight:400}}>มาจากรายการ BOQ แถวแรก</span>
-              </div>
-            </div>
-            {/* รายการสินค้า (BOQ) — เลือกจากแคตตาล็อก → ราคากลาง HQ · แม่แบบ derive จากรายการแรก (ไม่มีช่องแม่แบบซ้ำ) */}
+            {/* ช่อง "ประเภท" (แม่แบบ) เอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
+            {/* รายการสินค้า — มาจากใบ HQ เท่านั้น แก้ได้เฉพาะ % ที่บวก */}
             <div className="form-section">รายการสินค้า</div>
-            <div className="col-full">{hqQuoteId
-              ? (ใบHQ
-                  ? <HqMarkupEditor hqLines={ใบHQ.lineItems} items={form.lineItems} readOnly={locked}
-                      onChange={li=>setForm(p=>({...p,lineItems:li}))} />
-                  : <div style={{color:MUTED,fontSize:"0.78rem",padding:12}}>กำลังโหลดใบ HQ…</div>)
-              : <LineItemsEditor items={form.lineItems} defaultQty={form.area}
-                  onChange={li=>setForm(p=>({...p,lineItems:li,buildingType:li.length?li[0].name.split(" · ")[0]:p.buildingType}))} />}</div>
+            <div className="col-full">{ใบHQ
+              ? <HqMarkupEditor hqLines={ใบHQ.lineItems} items={form.lineItems} readOnly={locked}
+                  onChange={li=>setForm(p=>({...p,lineItems:li}))} />
+              : <div style={{color:MUTED,fontSize:"0.78rem",padding:12}}>กำลังโหลดใบ HQ…</div>}</div>
             {/* ── ภาษีของใบนี้ + ยอดสรุปสด (บอสสั่ง 28 ส.ค. 69) ────────────────────
                  ⚠️ "มูลค่างาน" คือยอดที่บันทึกเป็นยอดขาย — ภาษีไม่ไปแตะตัวนี้ */}
             <div className="col-full" style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -428,7 +397,7 @@ function QuotationsPageInner(){
   const validityDays = useQuoteValidity();
   const {
     quotations: allQuotationsRaw, customers: allCustomersRaw, leads: allLeads,
-    createQuotation, updateQuotation, deleteQuotation: ctxDeleteQuotation, setQuotationStatus,
+    updateQuotation, deleteQuotation: ctxDeleteQuotation, setQuotationStatus,
     updateCustomer, บันทึกลีด,
   } = useSales();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
@@ -443,7 +412,6 @@ function QuotationsPageInner(){
   const [query, setQuery]           = useState("");
   const [filterStatus, setFilterStatus] = useState<QuotationStatus|"ALL">("ALL");
   // ตัวกรองในแถบ FilterRow — ตัวเลือกสร้างจากใบเสนอราคาจริงที่มีอยู่
-  const [typeFilter, setTypeFilter]   = useState("ALL");
   const [ownerFilter, setOwnerFilter] = useState("ALL");
   const [provFilter, setProvFilter]   = useState("ALL");
   const [view, setView]             = useState<"list"|"card">("list");
@@ -505,12 +473,11 @@ function QuotationsPageInner(){
     let rows=data.filter(q=>{
       const matchQ=!query||q.id.toLowerCase().includes(query.toLowerCase())||q.customer.toLowerCase().includes(query.toLowerCase())||q.project.toLowerCase().includes(query.toLowerCase())||q.province?.includes(query);
       const matchS=filterStatus==="ALL"||q.status===filterStatus;
-      const matchType=typeFilter==="ALL"||q.buildingType===typeFilter;
       const matchOwner=ownerFilter==="ALL"||ownerOf(q)===ownerFilter;
       const matchProv=provFilter==="ALL"||q.province===provFilter;
       // FilterBar กลาง: ช่วงเวลา (date) + สถานะ (enum) + จังหวัด
       const matchGlobal=passes({ date:q.date, status:q.status, province:q.province });
-      return matchQ&&matchS&&matchType&&matchOwner&&matchProv&&matchGlobal;
+      return matchQ&&matchS&&matchOwner&&matchProv&&matchGlobal;
     });
     if(sortKey===null) return [...rows].sort(ใหม่ก่อน);
     rows=[...rows].sort((a,b)=>{
@@ -520,10 +487,9 @@ function QuotationsPageInner(){
       return sortDir==="asc"?cmp:-cmp;
     });
     return rows;
-  },[data,query,filterStatus,typeFilter,ownerFilter,provFilter,sortKey,sortDir,passes,ownerOf]);
+  },[data,query,filterStatus,ownerFilter,provFilter,sortKey,sortDir,passes,ownerOf]);
 
   // ตัวเลือกตัวกรอง — ดึงจากใบเสนอราคาจริง ไม่ hardcode
-  const typeOptions  = useMemo(()=>[...new Set(data.map(q=>q.buildingType).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data]);
   const provOptions  = useMemo(()=>[...new Set(data.map(q=>q.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data]);
   const ownerOptions = useMemo(()=>[...new Set(data.map(q=>ownerOf(q)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data,ownerOf]);
 
@@ -542,18 +508,19 @@ function QuotationsPageInner(){
   // ── ฐานของการ์ด KPI = ผ่านตัวกรองของหน้านี้ทั้งหมด ยกเว้น "สถานะ" (บอสสั่ง 20 ส.ค. 69) ──
   //   ยกเว้นสถานะเพราะการ์ด KPI เป็นตัวสลับสถานะเอง — ถ้ารวมเข้าไปด้วย พอกดกรอง "ตอบรับแล้ว"
   //   การ์ด "ปฏิเสธแล้ว" จะกลายเป็น 0 แล้วกดสลับกลับไม่ได้อีก
-  //   ส่วนที่เหลือ (ค้นหา/ประเภทอาคาร/ผู้รับผิดชอบ/จังหวัด/ช่วงเวลา) ต้องคุมการ์ดได้ทั้งหมด
+  //   ส่วนที่เหลือ (ค้นหา/ผู้รับผิดชอบ/จังหวัด/ช่วงเวลา) ต้องคุมการ์ดได้ทั้งหมด
   const scoped = useMemo(()=>data.filter(q=>{
     const matchQ=!query||q.id.toLowerCase().includes(query.toLowerCase())||q.customer.toLowerCase().includes(query.toLowerCase())||q.project.toLowerCase().includes(query.toLowerCase())||q.province?.includes(query);
-    const matchType=typeFilter==="ALL"||q.buildingType===typeFilter;
     const matchOwner=ownerFilter==="ALL"||ownerOf(q)===ownerFilter;
     const matchProv=provFilter==="ALL"||q.province===provFilter;
-    return !!matchQ&&matchType&&matchOwner&&matchProv&&passes({ date:q.date, province:q.province });
-  }),[data,passes,query,typeFilter,ownerFilter,provFilter,ownerOf]);
+    return !!matchQ&&matchOwner&&matchProv&&passes({ date:q.date, province:q.province });
+  }),[data,passes,query,ownerFilter,provFilter,ownerOf]);
 
   // Related data for selected quotation
 
-  function openEdit(q:QuotationMock){ setEditingQ(q); setShowModal(true); }
+  // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว (บอสสั่งลบ Flow เก่า 16 ต.ค. 69) — ไม่มีปุ่มแก้/ส่ง/ลบ/เปลี่ยนสถานะ
+  const แก้ได้=(q:QuotationMock)=>!!q.hqQuoteId;
+  function openEdit(q:QuotationMock){ if(!แก้ได้(q)) return; setEditingQ(q); setShowModal(true); }
 
   async function saveQ(form:QForm){
     if (savingQRef.current) return; // กันกดซ้ำระหว่างรอเลขที่ใบจาก DB (H8)
@@ -569,13 +536,12 @@ function QuotationsPageInner(){
       vatPercent: vatOn ? Number(vatPct) : 0,
       whtPercent: whtOn ? Number(whtPct) : 0,
     });
-    if(editingQ){
+    // หน้านี้แก้ใบอย่างเดียว — ออกใบใหม่ทำจากใบ HQ ที่แผงลูกค้าเป้าหมาย
+    if(!editingQ) return;
+    {
       const updated:QuotationMock={...editingQ,...qf,...ภาษีที่บันทึก,revision:qf.revision,expiry:qf.expiry,total,totalValue:tv};
       updateQuotation(updated);
       setSelected(p=>p?.id===editingQ.id?updated:p);
-    } else {
-      // ออกเลข + insert แบบ atomic (H8) — draft ไม่มี id · DB เป็นคนออกเลขให้ในทรานแซกชันเดียว
-      await createQuotation({...qf,...ภาษีที่บันทึก,revision:qf.revision,expiry:qf.expiry,total,totalValue:tv});
     }
     // ผู้รับผิดชอบ → เขียนกลับที่ "ต้นทาง" ตามที่บอสสั่ง (ใบเสนอราคาไม่มีฟิลด์นี้)
     // ปิดการขายแล้ว → เขียนที่ลูกค้า · ยังเป็นลูกค้าเป้าหมาย → เขียนที่ลูกค้าเป้าหมาย
@@ -633,7 +599,7 @@ function QuotationsPageInner(){
     const updated:QuotationMock={...q,status:"sent_to_client",date:RESENT_DATE};
     updateQuotation(updated);
     setSelected(p=>p?.id===q.id?updated:p);
-    showToast(`ส่งใบเสนอราคา ${q.id} พร้อมแม่แบบ ให้ลูกค้าอีกครั้งแล้ว`);
+    showToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าอีกครั้งแล้ว`);
   }
   // (ทำสำเนา/สร้างเวอร์ชัน ถูกตัดออกตามการรีวิว — ปุ่มไม่ได้ใช้)
   function deleteQ(){
@@ -675,7 +641,7 @@ function QuotationsPageInner(){
     const owner = ownerOf(q);
     // ใบเก่าที่ไม่มี lineItems → สังเคราะห์เป็น 1 รายการจาก แม่แบบ/พื้นที่/มูลค่า (แก้ต่อได้)
     const lineItems:QuoteLineItem[] = boqLineItems(q);
-    return {vatOn:(q.vatPercent ?? 0)>0, vatPct:String(q.vatPercent ?? 7), whtOn:(q.whtRate ?? 0)>0, whtPct:String(q.whtRate ?? dealerWht ?? 3), customerId:q.customerId,customer:q.customer,project:q.project,projectId:q.projectId??0,province:q.province,buildingType:q.buildingType,area:q.area,materialCost:q.materialCost,status:q.status,date:q.date,items:q.items,lineItems,revision:q.revision??"V1",expiry:q.expiry??"",owner};
+    return {vatOn:(q.vatPercent ?? 0)>0, vatPct:String(q.vatPercent ?? 7), whtOn:(q.whtRate ?? 0)>0, whtPct:String(q.whtRate ?? dealerWht ?? 3), customerId:q.customerId,customer:q.customer,project:q.project,projectId:q.projectId??0,province:q.province,area:q.area,materialCost:q.materialCost,status:q.status,date:q.date,items:q.items,lineItems,revision:q.revision??"V1",expiry:q.expiry??"",owner};
   }
 
   return (
@@ -688,8 +654,8 @@ function QuotationsPageInner(){
         <TopbarActions>
           <FilterBar dims={[]} />
           <ExportMenu filename="quotations" title="ใบเสนอราคา" small
-            headers={["เลขที่","ฉบับ","ลูกค้า","ผู้รับผิดชอบ","โครงการ","จังหวัด","ประเภท","พื้นที่","มูลค่ารวม","สถานะ","วันที่"]}
-            rows={filtered.map(q=>[q.id,q.revision ?? "V1",q.customer,ownerOf(q) || "—",q.project,q.province,q.buildingType,q.area,q.totalValue,quotationStatusLabel[q.status],q.date])} />
+            headers={["เลขที่","ฉบับ","ลูกค้า","ผู้รับผิดชอบ","โครงการ","จังหวัด","พื้นที่","มูลค่ารวม","สถานะ","วันที่"]}
+            rows={filtered.map(q=>[q.id,q.revision ?? "V1",q.customer,ownerOf(q) || "—",q.project,q.province,q.area,q.totalValue,quotationStatusLabel[q.status],q.date])} />
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
@@ -748,8 +714,8 @@ function QuotationsPageInner(){
             "ทุกสถานะ" ใช้ state เดียวกับการ์ด KPI ด้านบน → กดที่ไหนก็ตรงกัน */}
         <FilterRow
           query={query} onQuery={setQuery} placeholder="ค้นหาเลขที่ / ลูกค้า / โครงการ..."
-          showClear={filterStatus!=="ALL" || typeFilter!=="ALL" || ownerFilter!=="ALL" || provFilter!=="ALL" || !!query}
-          onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setTypeFilter("ALL"); setOwnerFilter("ALL"); setProvFilter("ALL"); }}
+          showClear={filterStatus!=="ALL" || ownerFilter!=="ALL" || provFilter!=="ALL" || !!query}
+          onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setOwnerFilter("ALL"); setProvFilter("ALL"); }}
           right={
             /* สลับมุมมอง รายการ/การ์ด — อยู่ท้ายแถบตัวกรองเหมือนหน้าลูกค้าเป้าหมาย (ช่อง right ของ FilterRow)
                ขนาดเล็กกว่าช่องกรอง (สูง 30 · ไอคอน 12) เพราะเป็นตัวควบคุมรอง ไม่ใช่ตัวกรอง */
@@ -766,8 +732,6 @@ function QuotationsPageInner(){
         >
           <FilterSelect caption="ทุกสถานะ" value={filterStatus} onChange={v=>setFilterStatus(v as QuotationStatus|"ALL")}
             options={STATUS_ORDER.map(s=>({v:s,l:quotationStatusLabel[s]}))} />
-          <FilterSelect caption="ทุกประเภทอาคาร (จากใบเสนอราคาของสาขา)" value={typeFilter} onChange={setTypeFilter}
-            options={typeOptions.map(t=>({v:t,l:t}))} minWidth={140} />
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={ownerFilter} onChange={setOwnerFilter}
             options={ownerOptions.map(o=>({v:o,l:o}))} minWidth={140} />
           <FilterSelect caption="ทุกจังหวัด" value={provFilter} onChange={setProvFilter}
@@ -791,9 +755,8 @@ function QuotationsPageInner(){
                   <col style={{width:"10.7%",minWidth:110}} />{/* เลขที่ — "Q-2026-0096" 110 ห้ามตัด */}
                   {/* คอลัมน์ข้อความหดลงรวม 32px เพื่อแลกที่ให้ปุ่ม "ลบ" ที่เพิ่มเข้ามา (13 ส.ค. 69)
                       หดได้เพราะยังกว้างกว่าหัวคอลัมน์ของตัวเอง — ข้อมูลยาวยังตัดด้วย … + hover ดูเต็มเหมือนเดิม */}
-                  <col style={{width:"8.2%",minWidth:78}} />{/* ลูกค้า (…) หัว 74 */}
-                  {!hiddenCols.includes("project")&&<col style={{width:"9.1%",minWidth:90}} />}{/* โครงการ (…) หัว 88 */}
-                  {!hiddenCols.includes("type")&&<col style={{width:"7.2%",minWidth:72}} />}{/* ประเภท (…) หัว 67 */}
+                  <col style={{width:"11.8%",minWidth:78}} />{/* ลูกค้า (…) หัว 74 · รับส่วนของคอลัมน์ "ประเภท" ที่ถอดออก 16 ต.ค. 69 */}
+                  {!hiddenCols.includes("project")&&<col style={{width:"12.7%",minWidth:90}} />}{/* โครงการ (…) หัว 88 */}
                   {!hiddenCols.includes("owner")&&<col style={{width:"8.7%",minWidth:88}} />}{/* ผู้รับผิดชอบ (…) หัว 87 */}
                   {!hiddenCols.includes("value")&&<col style={{width:"11.3%",minWidth:116}} />}{/* มูลค่า — ข้อมูล 114 ห้ามตัด */}
                   <col style={{width:"10.9%",minWidth:110}} />{/* สถานะ — ป้ายยาวสุด "ส่งแล้ว"/"ปฏิเสธ" */}
@@ -803,7 +766,7 @@ function QuotationsPageInner(){
                 </colgroup>
                 <thead>
                   <tr>
-                    {([{label:"เลขที่",key:"id",col:null},{label:"ลูกค้า",key:"customer",col:null},{label:"โครงการ",key:"project",col:"project"},{label:"ประเภท",key:null,col:"type"},{label:"ผู้รับผิดชอบ",key:null,col:"owner"},{label:"มูลค่า",key:"totalValue",col:"value"},{label:"สถานะ",key:"status",col:null},
+                    {([{label:"เลขที่",key:"id",col:null},{label:"ลูกค้า",key:"customer",col:null},{label:"โครงการ",key:"project",col:"project"},{label:"ผู้รับผิดชอบ",key:null,col:"owner"},{label:"มูลค่า",key:"totalValue",col:"value"},{label:"สถานะ",key:"status",col:null},
                       /* "วันที่สร้าง" ไม่มีลูกศรเรียงตามที่บอสสั่ง (key:null) — หัวคอลัมน์เหลือแค่ตัวหนังสือ ไม่มี ‹› ไม่มี "..." */
                       {label:"วันที่สร้าง",key:null,col:"created"},{label:"หมดอายุ",key:null,col:"expiry"},{label:"",key:null,col:null}] as {label:string;key:SortKey|null;col:string|null}[])
                       .filter(col=>!col.col||!hiddenCols.includes(col.col))
@@ -819,7 +782,7 @@ function QuotationsPageInner(){
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length===0&&<tr><td colSpan={10-["project","type","owner","value","created","expiry"].filter(c=>hiddenCols.includes(c)).length} style={{padding:0}}>
+                  {filtered.length===0&&<tr><td colSpan={9-["project","owner","value","created","expiry"].filter(c=>hiddenCols.includes(c)).length} style={{padding:0}}>
                     <EmptyState icon={<FileText size={28}/>} title="ไม่พบใบเสนอราคา" description="ใบเสนอราคาออกจากหน้า “ลูกค้าเป้าหมาย” — เปิดรายการแล้วสร้างในแท็บใบเสนอราคา"
                       action={<button className="btn btn-secondary btn-md" style={{color:"#003366"}} onClick={()=>router.push("/leads")}>ไปหน้าลูกค้าเป้าหมาย →</button>} />
                   </td></tr>}
@@ -851,13 +814,6 @@ function QuotationsPageInner(){
                         {!hiddenCols.includes("project")&&(
                         <td title={q.project} style={{fontSize:"0.78rem",color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project||"—"}</td>
                         )}
-                        {!hiddenCols.includes("type")&&(
-                        <td title={q.buildingType} style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                          {q.buildingType
-                            ? <span className="badge" style={{background:"#eef3f8",color:PRIMARY}}>{q.buildingType}</span>
-                            : <span style={{color:"#9ca3af"}}>—</span>}
-                        </td>
-                        )}
                         {!hiddenCols.includes("owner")&&(() => {
                           // ผู้รับผิดชอบ = ผู้รับผิดชอบลูกค้าที่ใบนี้ผูกอยู่ · ใบที่ไม่ได้ผูกลูกค้า (customerId=0) หาไม่เจอ
                           // แสดงเป็นวงกลมย่อ + ชื่อ (AssigneeAvatars) ตามที่บอสสั่ง — ตัวคอมโพเนนต์ขึ้น "—" ให้เองเมื่อไม่มีค่า
@@ -884,7 +840,7 @@ function QuotationsPageInner(){
                         <td onClick={e=>e.stopPropagation()}>
                           <div style={{display:"flex",gap:4,flexWrap:"nowrap",justifyContent:"flex-end"}}>
                             {/* ปุ่มเป็นไอคอนล้วนเพื่อให้ตารางพอดีกรอบ — hover เห็นชื่อปุ่มจาก title */}
-                            {q.status==="draft"&&(
+                            {แก้ได้(q)&&q.status==="draft"&&(
                               <button onClick={()=>changeStatus(q.id,"sent_to_client")} title="ส่งให้ลูกค้า"
                                 style={{width:28,height:28,borderRadius:7,border:"none",background:"#d97706",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Send size={12}/></button>
                             )}
@@ -892,11 +848,14 @@ function QuotationsPageInner(){
                               style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Eye size={13}/></button>
                             <button onClick={()=>printQuotation(q)} title="พิมพ์ใบเสนอราคา"
                               style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Printer size={13}/></button>
+                            {/* ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีแก้/ลบ */}
+                            {แก้ได้(q)&&<>
                             <button onClick={()=>openEdit(q)} title="แก้ไข"
                               style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Edit2 size={13}/></button>
                             {/* ลบได้จากรายการเลย ไม่ต้องเปิดแผงรายละเอียดก่อน — ยังถามยืนยันเหมือนเดิม */}
                             <button onClick={()=>setDelTarget(q)} title="ลบใบเสนอราคา"
                               style={{width:28,height:28,borderRadius:7,border:"1px solid #f3c9c9",background:"#fff",color:"#dc2626",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Trash2 size={13}/></button>
+                            </>}
                           </div>
                         </td>
                       </ClickableRow>
@@ -941,8 +900,8 @@ function QuotationsPageInner(){
                       </button>
                       <div style={{fontSize:"0.72rem",color:MUTED,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project} · {q.province}</div>
                       <div style={{display:"flex",gap:0,borderRadius:9,overflow:"hidden",border:"1px solid #f0f4f8",marginBottom:10}}>
-                        {[{label:"พื้นที่",value:`${q.area?.toLocaleString()} ม²`},{label:"ประเภท",value:q.buildingType}].map((item,i)=>(
-                          <div key={i} style={{flex:1,padding:"6px 8px",background:i%2===0?"#fafafa":"#f3f6fb",borderRight:i<1?"1px solid #f0f4f8":"none",textAlign:"center"}}>
+                        {[{label:"พื้นที่",value:`${q.area?.toLocaleString()} ม²`}].map((item,i)=>(
+                          <div key={i} style={{flex:1,padding:"6px 8px",background:i%2===0?"#fafafa":"#f3f6fb",borderRight:"none",textAlign:"center"}}>
                             <div style={{fontSize:"0.65rem",color:"#9ca3af",fontWeight:600,marginBottom:2}}>{item.label}</div>
                             <div style={{fontSize:"0.65rem",color:STEEL,fontWeight:700}}>{item.value}</div>
                           </div>
@@ -953,16 +912,18 @@ function QuotationsPageInner(){
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderTop:"1px solid #f0f4f8",background:"#fafbfc"}}>
                       <span style={{fontSize:"0.65rem",color:MUTED}}>{fmtDate(q.date)}</span>
                       <div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
-                        {q.status==="draft"&&(
+                        {แก้ได้(q)&&q.status==="draft"&&(
                           <button onClick={()=>changeStatus(q.id,"sent_to_client")} className="btn btn-sm"
                             style={{background:"#d97706",color:"#fff",border:"none",padding:"4px 9px",fontSize:"0.65rem"}}>ส่งลูกค้า</button>
                         )}
                         <button onClick={()=>printQuotation(q)} title="พิมพ์ใบเสนอราคา" className="btn btn-secondary btn-sm"
                           style={{color:PRIMARY,padding:"4px 8px",fontSize:"0.65rem"}}><Printer size={11}/></button>
+                        {แก้ได้(q)&&<>
                         <button onClick={()=>openEdit(q)} className="btn btn-secondary btn-sm"
                           style={{color:PRIMARY,padding:"4px 9px",fontSize:"0.65rem"}}>แก้ไข</button>
                         <button onClick={()=>setDelTarget(q)} title="ลบใบเสนอราคา" className="btn btn-secondary btn-sm"
                           style={{color:"#dc2626",borderColor:"#f3c9c9",padding:"4px 8px",fontSize:"0.65rem"}}><Trash2 size={11}/></button>
+                        </>}
                       </div>
                     </div>
                   </div>
@@ -1025,17 +986,17 @@ function QuotationsPageInner(){
                   <button title={dealerCfg.loaded ? "พิมพ์ / ดาวน์โหลด PDF" : "กำลังโหลดข้อมูลบริษัท…"}
                     disabled={!dealerCfg.loaded} onClick={()=>printQuotation(selected)}
                     style={{...qa, ...(dealerCfg.loaded ? {} : { opacity: .55, cursor: "wait" })}}><Printer size={13}/> พิมพ์ PDF</button>
-                  <button title="แก้ไข" onClick={()=>openEdit(selected)} style={qa}><Edit2 size={13}/> แก้ไข</button>
-                  {selected.status==="sent_to_client" && <button title="ส่งอีกครั้ง" onClick={()=>sendAgain(selected)} style={qa}><Send size={13}/> ส่งอีกครั้ง</button>}
+                  {แก้ได้(selected) && <button title="แก้ไข" onClick={()=>openEdit(selected)} style={qa}><Edit2 size={13}/> แก้ไข</button>}
+                  {แก้ได้(selected) && selected.status==="sent_to_client" && <button title="ส่งอีกครั้ง" onClick={()=>sendAgain(selected)} style={qa}><Send size={13}/> ส่งอีกครั้ง</button>}
                   {selected.customerId ? <button title="ดูลูกค้า" onClick={()=>router.push(`/customers?open=${selected.customerId}`)} style={qa}><ExternalLink size={13}/> ลูกค้า</button> : null}
-                  <button title="ลบใบเสนอราคา" onClick={()=>setDelTarget(selected)} style={{...qa,width:30,padding:0,justifyContent:"center",color:"#fecaca"}}><Trash2 size={14}/></button>
+                  {แก้ได้(selected) && <button title="ลบใบเสนอราคา" onClick={()=>setDelTarget(selected)} style={{...qa,width:30,padding:0,justifyContent:"center",color:"#fecaca"}}><Trash2 size={14}/></button>}
                   <button onClick={()=>setSelected(null)} title="ปิด" style={{...qa,width:30,padding:0,justifyContent:"center"}}><X size={15}/></button>
                 </div>
               </div>
               {/* Badges: status · total · items · area */}
               <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:12}}>
                 <span style={{padding:"2px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:700,background:sc.bg,color:sc.text}}>{quotationStatusLabel[selected.status]}</span>
-                <span style={{display:"flex",alignItems:"center",gap:4,padding:"2px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:700,background:"rgba(255,255,255,.18)",color:"#fff"}}><Package size={11}/> {selected.buildingType}</span>
+                {selected.buildingType && <span style={{display:"flex",alignItems:"center",gap:4,padding:"2px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:700,background:"rgba(255,255,255,.18)",color:"#fff"}}><Package size={11}/> {selected.buildingType}</span>}
                 <span style={{display:"flex",alignItems:"center",gap:4,padding:"2px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:700,background:"rgba(255,255,255,.18)",color:"#fff"}}>{selected.items} รายการ · {selected.area?.toLocaleString()} ตร.ม.</span>
                 <span style={{display:"flex",alignItems:"center",gap:4,padding:"2px 10px",borderRadius:99,fontSize:"0.65rem",fontWeight:800,background:"#fff",color:PRIMARY}}><Coins size={11}/> {selected.total}</span>
               </div>
@@ -1051,7 +1012,7 @@ function QuotationsPageInner(){
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 24px"}}>
                     {([
                       ["จังหวัด", selected.province],
-                      ["ประเภทอาคาร", selected.buildingType],
+                      ...(selected.buildingType ? [["ประเภทอาคาร", selected.buildingType]] : []), // ใบเก่าเท่านั้น
                       ["พื้นที่", `${selected.area?.toLocaleString()} ตร.ม.`],
                       ["จำนวนรายการ", `${selected.items} รายการ`],
                       ["วันที่ออก", fmtDate(selected.date)],
@@ -1173,7 +1134,7 @@ function QuotationsPageInner(){
                 })()}
 
                 {/* Status workflow */}
-                {STATUS_ACTIONS[selected.status].length>0&&(
+                {แก้ได้(selected)&&STATUS_ACTIONS[selected.status].length>0&&(
                   <div style={cardStyle}>
                     <div style={secLabel}><ArrowRight size={13} color={PRIMARY}/> เปลี่ยนสถานะ</div>
                     <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -1284,7 +1245,7 @@ function QuotationsPageInner(){
         </div>
       )}
 
-      {/* Modal — สร้างใหม่ใช้ตัวช่วย 4 ขั้นตอน (Customer→Deal→แม่แบบ→BOQ→ใบเสนอราคา) · แก้ไขใช้ฟอร์มเดิม */}
+      {/* Modal — แก้ไขใบที่ทำจากใบ HQ (ออกใบใหม่ทำที่แผงลูกค้าเป้าหมาย) */}
       {showModal && editingQ && (
         <QuotationModal
           title="แก้ไขใบเสนอราคา"

@@ -2,7 +2,7 @@
 
 // ── Dealer Dashboard — สมุดงานของดีลเลอร์ที่ล็อกอิน ────────────────────────────
 // ขอบเขตข้อมูล: ลูกค้าเป้าหมายของดีลเลอร์รายนี้เท่านั้น (กติกาเดียวกับหน้า /leads และ /calendar)
-// S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + แม่แบบ + ขั้นตอนการขาย
+// S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + ขั้นตอนการขาย
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -25,7 +25,7 @@ import {
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
   leadStatusLabel, leadStatusColor, apptTypeLabel, fmtISOToThai,
-  quotationStatusLabel, quotationStatusColor, mainTemplateOf, LEAD_STATUS_ORDER, DEFAULT_DEALER_CODE, QUOTED_UP,
+  quotationStatusLabel, quotationStatusColor, LEAD_STATUS_ORDER, DEFAULT_DEALER_CODE, QUOTED_UP,
 } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { percentShare } from "@pms/shared/lib/percentShare";
@@ -201,7 +201,7 @@ export default function DealerDashboard() {
     }));
   }, [leadsIn]);
 
-  // ── ผลงานผู้รับผิดชอบ · ยอดขายตามแม่แบบ ───────────────────────────────────
+  // ── ผลงานผู้รับผิดชอบ ───────────────────────────────────
   const teamPerf = useMemo(() => {
     const owner = (l: (typeof leadsIn)[number]) => l.assigned || "ไม่ระบุ";
     const m = new Map<string, { deals: number; won: number; quotes: number; quotesWon: number }>();
@@ -236,17 +236,7 @@ export default function DealerDashboard() {
       .slice(0, 5);
   }, [leadsIn, quotesIn]);
 
-  // ยอดขายตามแม่แบบ = มูลค่า "ใบเสนอราคาที่ปิดการขายได้" แยกตามแม่แบบ
-  // ใช้ใบเสนอราคาชุดเดียวกับ KPI "ยอดขาย" และกราฟยอดขายรายเดือน — ทั้งแดชบอร์ดต้องนิยาม "ยอดขาย" เหมือนกัน
-  // เดิมการ์ดนี้ใบเดียวที่นับจาก "ลูกค้าเป้าหมายสถานะ PAID" ซึ่งเป็นคนละชุด → ขึ้นแค่ 2 แม่แบบ
-  // ทั้งที่ในช่วงเดียวกันปิดการขายได้จริง 4 แม่แบบ (ลูกค้าเป้าหมายที่ปิดผ่านใบเสนอราคาไม่ได้ถูกตีสถานะ PAID ทุกใบ)
-  const salesByProduct = useMemo(() => {
-    const m = new Map<string, number>();
-    quotesIn.filter(q => q.status === "won")
-      .forEach(q => { const k = q.buildingType || "อื่นๆ"; m.set(k, (m.get(k) ?? 0) + q.totalValue); });
-    // 6 อันดับแรก — พอดีกับความสูงการ์ด · รายการครบอยู่ที่หน้าลูกค้า (ปุ่ม "ดูทั้งหมด")
-    return [...m.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
-  }, [quotesIn]);
+  // ตัวย่อยอดเงินของการ์ดผลงาน (฿1.2M · ฿350K)
   const cmpBaht = (v: number) => v >= 1e6 ? `฿${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `฿${Math.round(v / 1e3)}K` : `฿${v}`;
 
   // ── การ์ดรายการ ──────────────────────────────────────────────────────────
@@ -439,8 +429,8 @@ export default function DealerDashboard() {
         </div>
       </div>
 
-      {/* SECTION 3 — ผลงานผู้รับผิดชอบ · ยอดขายตามแม่แบบ · ขั้นตอนการขาย */}
-      <div className="dash-charts" style={{ marginBottom: 24 }}>
+      {/* SECTION 3 — ผลงานผู้รับผิดชอบ · ขั้นตอนการขาย (การ์ด "ยอดขายตามแม่แบบ" ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 → คู่ 2 คอลัมน์) */}
+      <div className="dash-charts-2" style={{ marginBottom: 24 }}>
         {/* ผลงานผู้รับผิดชอบ */}
         <div className="card" style={card}>
           <div style={hd}><span style={title}>ผลงานผู้รับผิดชอบ</span>{more("/leads")}</div>
@@ -454,27 +444,6 @@ export default function DealerDashboard() {
           )}
         </div>
 
-        {/* ยอดขายตามแม่แบบ */}
-        <div className="card" style={card}>
-          {/* ไปหน้าลูกค้า ไม่ใช่หน้าสินค้า — แม่แบบพวกนี้มาจากดีลที่ลูกค้าปิดจริง คำถามถัดไปคือ "ใครซื้อ" ไม่ใช่ "สเปกอะไร" */}
-          <div style={hd}><span style={title}>ยอดขายตามแม่แบบ</span>{more("/customers")}</div>
-          {salesByProduct.length === 0 ? <EmptyState icon={<Trophy size={26} />} title="ยังไม่มีการปิดการขายในช่วงนี้" description="ยอดขายจะขึ้นเมื่อปิดการขายสำเร็จ" compact /> : (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-              {/* กดแถวไหน = ไปหน้าลูกค้าพร้อมกรองแม่แบบนั้นไว้ให้เลย
-                  ตัวกรองของหน้าลูกค้าเทียบด้วย "แม่แบบหลัก" → ต้องแปลงก่อนส่ง ไม่งั้นแถวที่เป็นแม่แบบย่อย
-                  (เช่น "โรงงานอาหาร" ซึ่งอยู่ใต้ "โรงงาน") จะกรองไม่เจอสักราย */}
-              <CategoryRows
-                data={salesByProduct.map(p => ({ label: p.name, value: p.value }))}
-                fmt={cmpBaht} icon={<Building2 size={11} />}
-                onSelect={i => {
-                  const name = salesByProduct[i]?.name ?? "";
-                  const main = mainTemplateOf(name) || name;
-                  router.push(`/customers?template=${encodeURIComponent(main)}`);
-                }}
-                ariaLabel="ยอดปิดการขายแยกตามแม่แบบ" />
-            </div>
-          )}
-        </div>
 
         {/* ขั้นตอนการขาย (โดนัท) */}
         <div className="card" style={card}>
@@ -510,7 +479,7 @@ export default function DealerDashboard() {
                   <Thumb logo={l.logo} />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 700, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.company}</span>
-                    <span style={{ display: "block", fontSize: "0.76rem", color: SUB }}>สนใจ: {l.product}</span>
+                    {/* "สนใจ: <แม่แบบ>" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 (ข้อมูลเก่าเก็บไว้ ไม่แสดง) */}
                     <span style={{ display: "block", fontSize: "0.76rem", color: DANGER, fontWeight: 700 }}>ไม่ได้ติดต่อ {daysSinceContact(l)} วัน</span>
                   </span>
                   <span style={{ textAlign: "right", flexShrink: 0 }}>

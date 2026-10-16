@@ -17,7 +17,7 @@ import { dedupeRead, ttlCacheRead, invalidateCache } from "./dedupe";
 // TTL ของแคชข้อมูลอ้างอิง (ทะเบียนดีลเลอร์/แคตตาล็อก/กฎธุรกิจ/ผู้รับผิดชอบ) — สั้นพอที่ผู้ใช้จะไม่รู้สึกว่า
 // ข้อมูลค้าง (แก้เองก็ invalidate ทันทีอยู่แล้ว) ยาวพอที่จะตัดคำขอซ้ำตอนสลับหน้าไปมาเร็ว ๆ
 const REF_TTL_MS = 30_000;
-import type { DataAdapter, DealersRepo, CatalogRepo, SettingsRepo, MetricsRepo, PersonsRepo, DealerSettingsRepo, AuditRepo, ProfileRepo, LeadsRepo, QuotationsRepo, CustomersRepo } from "./ports";
+import type { DataAdapter, DealersRepo, SettingsRepo, MetricsRepo, PersonsRepo, DealerSettingsRepo, AuditRepo, ProfileRepo, LeadsRepo, QuotationsRepo, CustomersRepo } from "./ports";
 
 // "api" = คุยผ่าน backend ของเราเอง (ครบทุกพอร์ตแล้ว · ดู http/HttpAdapter.ts และ docs/BACKEND-MIGRATION.md)
 const adapter: DataAdapter =
@@ -33,18 +33,12 @@ export const realtime = adapter.realtime; // ฟังการเปลี่�
 // เดิม dedupeRead อย่างเดียว (รวมแค่คำขอที่ค้างพร้อมกัน) — ยังยิงซ้ำทุกครั้งที่เปลี่ยนหน้าเพราะคำขอ
 // ก่อนหน้า "settle" ไปแล้วเสมอกว่าจะเปิดหน้าถัดไป ตอนนี้ใช้ ttlCacheRead แทน (แคชจริง 30s) + invalidate
 // ทันทีที่มีการเขียน ให้ผู้ใช้เห็นข้อมูลใหม่ทันทีแม้ยังไม่ครบ TTL (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
-const _dealers = adapter.dealers, _catalog = adapter.catalog, _settings = adapter.settings;
+const _dealers = adapter.dealers, _settings = adapter.settings;
 export const dealers: DealersRepo = {
   ..._dealers,
   list: () => ttlCacheRead("dealers.list", () => _dealers.list(), REF_TTL_MS),
   save: async (all) => { await _dealers.save(all); invalidateCache("dealers.list"); },
   remove: async (code) => { await _dealers.remove(code); invalidateCache("dealers.list"); },
-};
-export const catalog: CatalogRepo = {
-  ..._catalog,
-  list: () => ttlCacheRead("catalog.list", () => _catalog.list(), REF_TTL_MS),
-  save: async (all) => { await _catalog.save(all); invalidateCache("catalog.list"); },
-  remove: async (id) => { await _catalog.remove(id); invalidateCache("catalog.list"); },
 };
 export const settings: SettingsRepo = {
   ..._settings,
@@ -169,7 +163,6 @@ export const leads: LeadsRepo = {
 export const quotations: QuotationsRepo = {
   ..._quotations,
   listPage: จำยอดรวม("quotations.page", _quotations.listPage.bind(_quotations)),
-  create: ล้างเมื่อเขียน("quotations.page", _quotations.create.bind(_quotations)),
   update: ล้างเมื่อเขียน("quotations.page", _quotations.update.bind(_quotations)),
   remove: ล้างเมื่อเขียน("quotations.page", _quotations.remove.bind(_quotations)),
   setStatus: ล้างเมื่อเขียน("quotations.page", _quotations.setStatus.bind(_quotations)),
@@ -184,7 +177,7 @@ export const customers: CustomersRepo = {
 export const appointments = adapter.appointments;
 
 export type {
-  DataAdapter, StoragePort, DealersRepo, CatalogRepo, FilesRepo, PersonsRepo,
+  DataAdapter, StoragePort, DealersRepo, FilesRepo, PersonsRepo,
   SettingsRepo, AuditRepo, MetricsRepo, DealerRollup, LeadsRepo, QuotationsRepo, CustomersRepo, AppointmentsRepo,
 } from "./ports";
 export type { Scope } from "./types";

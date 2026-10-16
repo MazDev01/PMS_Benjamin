@@ -9,7 +9,7 @@ import { ยืนยัน, แจ้งพลาด } from "@pms/shared/compon
 import {
   leadStatusLabel, leadStatusColor,
   buildLeadReport, applyTaskTemplate, findAppointmentTask,
-  seedLeadTasks, taskProgress, mainTemplateOf, apptTypeLabel, fmtISOToThai,
+  seedLeadTasks, taskProgress, apptTypeLabel, fmtISOToThai,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, MANUAL_LEAD_STATUSES, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
   OTHER_LOST_REASON, OTHER_REASON_OPTION,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile, type LeadTaskDef,
@@ -24,15 +24,11 @@ import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { ป้ายได้ราคาแล้ว } from "@pms/shared/lib/quoteRequests";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
-import { useMasterCatalog } from "@pms/shared/lib/useMasterCatalog";
-import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
-import { estimateLeadValue } from "@pms/shared/lib/boq";
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
-import { TemplateSelect } from "@pms/shared/components/ui/TemplateSelect";
-import { parseBaht, formatPhone , formatMoneyInput } from "@pms/shared/lib/format";
+import { formatPhone , formatMoneyInput } from "@pms/shared/lib/format";
 import { ตรวจมูลค่าลูกค้าเป้าหมาย } from "@pms/shared/lib/leadValue";
 import { fmtLeadValue } from "@pms/shared/lib/format";
 import { useEscapeKey } from "@pms/shared/lib/useModalA11y";
@@ -40,7 +36,7 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import {
   Plus, X,
   CheckCircle2, User, Building2,
-  MessageSquare, Paperclip, Trash2, Eye, XCircle, Coins, Target, TrendingUp, Percent, Package,
+  MessageSquare, Paperclip, Trash2, Eye, XCircle, Coins, Target, TrendingUp, Percent,
   Phone, Mail, Users, FileText, StickyNote, CalendarClock, MapPin, CheckSquare, Calendar,
   Check, ChevronDown,
   ArrowUpDown, ArrowUp, ArrowDown,
@@ -110,7 +106,6 @@ type SortKey = "company"|"value"|"status"|"assigned";
 const COLS: { key: string; label: string }[] = [
   { key: "province", label: "จังหวัด" },
   { key: "source",   label: "ช่องทางที่มา" },
-  { key: "product",  label: "แม่แบบ" },
   { key: "area",     label: "พื้นที่" },
   { key: "activity", label: "กิจกรรมล่าสุด" },
 ];
@@ -227,7 +222,7 @@ function needsFollowUp(l: LeadRow, threshold = 7): boolean {
 // กิจกรรม — เริ่มว่าง (เกิดจากการทำงานจริง ไม่ใส่ข้อมูลกระป๋อง)
 // งานแต่ละอย่าง → ประเภทกิจกรรม (ไอคอน) เพื่อสร้างไทม์ไลน์จากงานที่ทำเสร็จจริง
 const TASK_ACTIVITY_TYPE: Record<string, string> = {
-  contact: "call", collect: "note", requirement: "meeting", catalog: "email",
+  contact: "call", collect: "note", requirement: "meeting",
   appointment: "meeting", makeQuote: "doc", sendQuote: "doc",
   followup: "call", negotiate: "meeting", close: "doc",
 };
@@ -304,7 +299,6 @@ function OvCell({ icon:Ic, label, children }:{ icon: typeof User; label:string; 
 function OverviewEditor({ lead, persons, onSave }: {
   lead: LeadRow; persons: string[]; onSave: (intent: LeadIntent) => void;
 }) {
-  const catalog = useMasterCatalog(); // แม่แบบจากแคตตาล็อกกลาง (HQ แก้ → เห็นตรงกัน)
   const lostReasons = useLostReasons(); // เหตุผลปิดไม่สำเร็จที่ HQ กำหนด (ผ่าน repo)
   const taskTpl = useLeadTaskTemplate(); // งานมาตรฐานที่ HQ ตั้ง — ใช้คิด % ของลูกค้าเป้าหมายที่ยังไม่มี checklist
   const myProvinces = useMyProvinces();  // จังหวัดตามภาคของสาขาที่ล็อกอิน
@@ -312,7 +306,7 @@ function OverviewEditor({ lead, persons, onSave }: {
     company: lead.company ?? "", contact: lead.contact ?? "", phone: lead.phone ?? "",
     email: lead.email ?? "", province: lead.province ?? "", address: lead.address ?? "",
     source: lead.source ?? "",
-    product: lead.product ?? "", status: lead.status,
+    status: lead.status,
     assigned: lead.assigned ?? "", value: lead.value ?? "",
     area: lead.area != null ? String(lead.area) : "",
     project: lead.project ?? "",
@@ -321,17 +315,9 @@ function OverviewEditor({ lead, persons, onSave }: {
   const [f, setF] = useState(seed);
   // ค่าตอนเปิดฟอร์ม — บันทึกส่งเฉพาะช่องที่ต่างจากนี้ (ไม่ใช่ค่าล่าสุดบนจอ: ช่องที่ฐาน/แท็บอื่นเพิ่งเปลี่ยนต้องไม่ถูกส่งทับ)
   const [ต้นฉบับ, setต้นฉบับ] = useState<LeadRow>(lead);
-  // ── ประเมินราคาให้อัตโนมัติ: พื้นที่ × ราคาขายของเรา (บอสสั่ง 20 ส.ค. 69) ──────────
-  // คิดให้เป็นค่าตั้งต้นเท่านั้น · พิมพ์ทับเมื่อไรก็หยุดคิดให้ทันที (ห้ามเขียนทับของที่ผู้ใช้ตั้งใจใส่)
-  // ⚠️ คิดไม่ได้ = ปล่อยว่าง ให้หน้าจอขึ้น "—" ห้ามใส่ 0
-  const { settings: dealerSet } = useDealerSettings();
-  const [กรอกราคาเอง, setกรอกราคาเอง] = useState(parseBaht(lead.value ?? "") > 0);
+  // ── ประเมินราคา = ดีลเลอร์กรอกเอง (ลบการคิดจาก พื้นที่ × ราคาแม่แบบ ของ Flow เก่า 16 ต.ค. 69) ──
+  //   (แม่แบบเอาออกทั้งระบบแล้ว) · มูลค่าจริงมาจากใบเสนอราคาที่ทำจากใบ HQ
   const [พิมพ์ราคาอยู่, setพิมพ์ราคาอยู่] = useState(false);   // กำลังพิมพ์ = โชว์ตัวเลขล้วน (ดู ราคาอ่านง่าย)
-  const ราคาประเมิน = estimateLeadValue(f.product, Number(f.area) > 0 ? Number(f.area) : undefined, catalog, dealerSet.pricing);
-  useEffect(() => {
-    if (กรอกราคาเอง) return;
-    setF(p => (String(ราคาประเมิน || "") === p.value ? p : { ...p, value: ราคาประเมิน > 0 ? String(ราคาประเมิน) : "" }));
-  }, [ราคาประเมิน, กรอกราคาเอง]);
   const logoRef = useRef<HTMLInputElement>(null);
   // reseed เมื่อสลับลูกค้าเป้าหมาย
   // จงใจไม่ใส่ seed ใน dependency — seed ถูกสร้างใหม่ทุก render จะล้างสิ่งที่ผู้ใช้กำลังพิมพ์ทิ้ง
@@ -350,7 +336,7 @@ function OverviewEditor({ lead, persons, onSave }: {
     f.company !== (lead.company ?? "") || f.contact !== (lead.contact ?? "") ||
     f.phone !== (lead.phone ?? "") || f.email !== (lead.email ?? "") ||
     f.province !== (lead.province ?? "") || f.source !== (lead.source ?? "") ||
-    f.product !== (lead.product ?? "") || f.status !== lead.status ||
+    f.status !== lead.status ||
     f.assigned !== (lead.assigned ?? "") || f.value !== (lead.value ?? "") ||
     f.area !== (lead.area != null ? String(lead.area) : "") ||
     f.project !== (lead.project ?? "") ||
@@ -372,7 +358,7 @@ function OverviewEditor({ lead, persons, onSave }: {
     setValueErr("");
     const หลัง: LeadRow = {
       // value: เก็บตามที่พิมพ์ ไม่ย่อเป็น ฿1.2M ตอนบันทึก (จะปัดเงินหายเหมือนฟอร์มเพิ่ม)
-      ...lead, ...f, logo: f.logo || undefined, category: mainTemplateOf(f.product), value: f.value.trim(),
+      ...lead, ...f, logo: f.logo || undefined, value: f.value.trim(),
       address: f.address.trim() || undefined,   // ว่าง = ไม่มีข้อมูล (undefined) — ห้ามเก็บสตริงว่างหลอกว่ากรอกแล้ว
       // เว้นว่าง = ไม่มีข้อมูลพื้นที่ (undefined) ไม่ใช่ 0
       area: f.area.trim() && Number(f.area) > 0 ? Number(f.area) : undefined,
@@ -382,7 +368,7 @@ function OverviewEditor({ lead, persons, onSave }: {
     // ส่วนต่างจากตอนเปิดฟอร์ม · ขั้น/เหตุผลปิด = เจตนาเปลี่ยนขั้น (ฐานเป็นเจ้าของ — ไม่ส่งทาง fields)
     const ขั้นเปลี่ยน = หลัง.status !== ต้นฉบับ.status || (หลัง.status === "CANCELLED" && (หลัง.lostReason ?? "") !== (ต้นฉบับ.lostReason ?? ""));
     onSave({
-      fields: diffLeadFields({ ...ต้นฉบับ, category: mainTemplateOf(ต้นฉบับ.product ?? "") }, หลัง),
+      fields: diffLeadFields(ต้นฉบับ, หลัง),
       ...(ขั้นเปลี่ยน ? { stage: { status: หลัง.status, ...(หลัง.lostReason ? { lostReason: หลัง.lostReason } : {}) } } : {}),
     });
     setต้นฉบับ(หลัง);
@@ -464,11 +450,6 @@ function OverviewEditor({ lead, persons, onSave }: {
           <span style={{ flex:1, minWidth:0 }}><input aria-label="ที่อยู่" value={f.address} onChange={e=>set("address",e.target.value)} placeholder="—" style={inp} /></span>
         </div>
         <div style={OV_GROUP}>รายละเอียดงาน</div>
-        <Cell icon={Package} label="แม่แบบ">
-          {/* ใช้ตัวเดียวกับฟอร์มเพิ่มลูกค้าเป้าหมาย — เดิมที่นี่ลิสต์เฉพาะแม่แบบหลัก ไม่มีแม่แบบย่อย
-              ลูกค้าเป้าหมายที่เลือกแม่แบบย่อยไว้จึงหาค่าตัวเองในลิสต์ไม่เจอ แล้วโชว์ตัวแรกผิด ๆ แบบเดียวกัน */}
-          <TemplateSelect value={f.product} onChange={v=>set("product",v)} style={inp} ariaLabel="แม่แบบ" />
-        </Cell>
         <Cell icon={Ruler}   label="พื้นที่ (ตร.ม.)">
           <input type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
         </Cell>
@@ -477,14 +458,9 @@ function OverviewEditor({ lead, persons, onSave }: {
             value={พิมพ์ราคาอยู่ ? f.value : ราคาอ่านง่าย(f.value)}
             onFocus={()=>setพิมพ์ราคาอยู่(true)}
             onBlur={()=>setพิมพ์ราคาอยู่(false)}
-            onChange={e=>{ setกรอกราคาเอง(true); set("value",e.target.value); }}
-            placeholder={ราคาประเมิน > 0 ? "—" : "เช่น 1200000"} style={{ ...inp, fontWeight:800, color:"#003366" }} />
+            onChange={e=>set("value",e.target.value)}
+            placeholder="เช่น 1200000" style={{ ...inp, fontWeight:800, color:"#003366" }} />
         </Cell>
-        <div style={{ gridColumn:"1/-1", fontSize:"0.66rem", color:"#8a929c", fontWeight:600, margin:"-2px 0 2px 4px" }}>
-          {กรอกราคาเอง ? "กรอกเอง — ระบบจะไม่คิดให้ทับ"
-            : ราคาประเมิน > 0 ? `คิดให้จาก พื้นที่ × ราคาขายของเรา — พิมพ์ทับได้`
-            : "กรอกพื้นที่และแม่แบบแล้วระบบจะคิดให้ — หรือพิมพ์เอง"}
-        </div>
         <div style={OV_GROUP}>การดูแล</div>
         <Cell icon={Target}  label="แหล่งที่มา">
           <select aria-label="ช่องทางที่มา" value={f.source} onChange={e=>set("source",e.target.value)} style={inp}>
@@ -559,7 +535,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
   onClose:()=>void; onSave:(l:LeadRow)=>void; persons:string[]; initial?:LeadRow|null;
 }) {
   const isEdit = !!initial;
-  const catalog = useMasterCatalog(); // แม่แบบจากแคตตาล็อกกลาง
   // สมุดลูกค้า + ลูกค้าเป้าหมายที่มีอยู่ของสาขา — ใช้เตือนว่าบริษัทนี้มีอยู่แล้ว (ดู dupHint ด้านล่าง)
   const { customers, leads: existingLeads } = useSales();
   const myDealer = useCurrentDealer();
@@ -568,7 +543,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     company: initial?.company ?? "", contact: initial?.contact ?? "",
     phone: initial?.phone ?? "", email: initial?.email ?? "",
     province: initial?.province ?? "", address: initial?.address ?? "",
-    product: initial?.product ?? "",
     value: initial?.value ?? "",
     // เก็บเป็นสตริง ให้ปล่อยว่างได้ (= ยังไม่รู้พื้นที่) — ตอนบันทึกค่อยแปลงเป็นตัวเลข
     area: initial?.area != null ? String(initial.area) : "",
@@ -577,15 +551,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     source: initial?.source ?? "", note: initial?.note ?? "",
     logo: initial?.logo ?? "",
   });
-  // ประเมินราคาให้อัตโนมัติ — กติกาเดียวกับแผงแก้ไข (ดูคอมเมนต์ที่ OverviewEditor)
-  const { settings: dealerSetForm } = useDealerSettings();
-  const [กรอกราคาเอง, setกรอกราคาเอง] = useState(parseBaht(initial?.value ?? "") > 0);
+  // ประเมินราคา = ดีลเลอร์กรอกเอง (ดูคอมเมนต์ที่ OverviewEditor)
   const [พิมพ์ราคาอยู่, setพิมพ์ราคาอยู่] = useState(false);
-  const ราคาประเมิน = estimateLeadValue(form.product, Number(form.area) > 0 ? Number(form.area) : undefined, catalog, dealerSetForm.pricing);
-  useEffect(() => {
-    if (กรอกราคาเอง) return;
-    setForm(f => (String(ราคาประเมิน || "") === f.value ? f : { ...f, value: ราคาประเมิน > 0 ? String(ราคาประเมิน) : "" }));
-  }, [ราคาประเมิน, กรอกราคาเอง]);
 
   // ── เติมค่าตั้งต้นเมื่อข้อมูลมาถึงทีหลัง (บั๊กจริง พบ 10 ส.ค. 69) ──────────────────
   //
@@ -684,8 +651,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       company: form.company, contact: form.contact,
       phone: form.phone, email: form.email,
       province: form.province, address: form.address.trim() || undefined,
-      product: form.product,
-      category: mainTemplateOf(form.product), value: form.value,
+      // แม่แบบเอาออกทั้งระบบ (16 ต.ค. 69) — ไม่อ่านช่องแม่แบบ: แก้ของเดิมคงค่าเดิมผ่าน ...initial · ใหม่ใส่ค่าว่างข้างล่าง
+      value: form.value,
       status: form.status, assigned: form.assigned,
       source: form.source, note: form.note,
       logo: form.logo || undefined,
@@ -696,7 +663,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       onSave({ ...initial, ...base });
     } else {
       // id/numId ถูกกำหนดจริงในหน้า (handleAddLead) แบบ max+1 กันชนกัน
-      onSave({ id: "", numId: 0, ...base });
+      onSave({ id: "", numId: 0, ...base, product: "", category: "" });
     }
     onClose();
   }
@@ -826,10 +793,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
               {/* ── รายละเอียดงาน ── */}
               <div className="form-section">รายละเอียดงาน</div>
               <div>
-                <label style={labelStyle}>แม่แบบ</label>
-                <TemplateSelect value={form.product} onChange={v=>set("product",v)} style={inputStyle} ariaLabel="แม่แบบ" />
-              </div>
-              <div>
                 <label style={labelStyle}>พื้นที่ (ตร.ม.)</label>
                 <input type="number" min={0} value={form.area} onChange={e=>set("area",e.target.value)}
                   placeholder="เช่น 1200" style={inputStyle} />
@@ -842,13 +805,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                 <input value={พิมพ์ราคาอยู่ ? form.value : ราคาอ่านง่าย(form.value)}
                   onFocus={()=>setพิมพ์ราคาอยู่(true)}
                   onBlur={()=>setพิมพ์ราคาอยู่(false)}
-                  onChange={e=>{ setกรอกราคาเอง(true); set("value",e.target.value); }}
+                  onChange={e=>set("value",e.target.value)}
                   placeholder="เช่น 1200000 หรือ ฿1.2M" style={inputStyle} />
-                <div style={{ fontSize:"0.66rem", color:"#8a929c", fontWeight:600, marginTop:3 }}>
-                  {กรอกราคาเอง ? "กรอกเอง — ระบบจะไม่คิดให้ทับ"
-                    : ราคาประเมิน > 0 ? "คิดให้จาก พื้นที่ × ราคาขายของเรา — พิมพ์ทับได้"
-                    : "กรอกพื้นที่และแม่แบบแล้วระบบจะคิดให้ — หรือพิมพ์เอง"}
-                </div>
               </div>
               <div>
                 <label style={labelStyle}>ขั้นตอน</label>
@@ -1682,8 +1640,8 @@ export default function LeadsPage() {
           )}
           <FilterBar dims={[]} />
           <ExportMenu filename="leads" title="รายชื่อลูกค้าเป้าหมาย"
-            headers={["รหัส","ชื่อ","ผู้ติดต่อ","จังหวัด","ช่องทางที่มา","แม่แบบ","พื้นที่ (ตร.ม.)","สถานะ","ความคืบหน้า","มูลค่า","ผู้รับผิดชอบ","กิจกรรมล่าสุด"]}
-            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.product,l.area ?? "—",leadStatusLabel[l.status],`${leadProg(l, taskTpl)}%`,fmtVal(l.value),l.assigned,lastActivity(l)])} />
+            headers={["รหัส","ชื่อ","ผู้ติดต่อ","จังหวัด","ช่องทางที่มา","พื้นที่ (ตร.ม.)","สถานะ","ความคืบหน้า","มูลค่า","ผู้รับผิดชอบ","กิจกรรมล่าสุด"]}
+            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.area ?? "—",leadStatusLabel[l.status],`${leadProg(l, taskTpl)}%`,fmtVal(l.value),l.assigned,lastActivity(l)])} />
           <button onClick={() => setShowAddForm(true)} className="btn btn-primary btn-sm">
             <Plus size={15} /> เพิ่มลูกค้าเป้าหมาย
           </button>
@@ -1768,7 +1726,6 @@ export default function LeadsPage() {
                   <col style={{width:"18%", minWidth:180}} />{/* บริษัท / ผู้ติดต่อ */}
                   {!hiddenCols.includes("province") && <col style={{width:"9%", minWidth:90}} />}
                   {!hiddenCols.includes("source")   && <col style={{width:"10%", minWidth:100}} />}
-                  {!hiddenCols.includes("product")  && <col style={{width:"13%", minWidth:110}} />}
                   {!hiddenCols.includes("area")     && <col style={{width:"8%", minWidth:100}} />}
                   <col style={{width:"14%", minWidth:150}} />{/* ขั้นตอน — minWidth ต้องพอให้ชื่อขั้นที่ยาวที่สุด ("รวบรวมความต้องการ") อยู่ได้ */}
                   <col style={{width:"13%", minWidth:110}} />{/* ความคืบหน้า */}
@@ -1783,7 +1740,6 @@ export default function LeadsPage() {
                       ["company","บริษัท / ผู้ติดต่อ",null],
                       [null,"จังหวัด","province"],
                       [null,"ช่องทางที่มา","source"],
-                      [null,"แม่แบบ","product"],
                       [null,"พื้นที่ (ตร.ม.)","area"],
                       ["status","ขั้นตอน",null],
                       [null,"ความคืบหน้า",null],
@@ -1825,9 +1781,6 @@ export default function LeadsPage() {
                         )}
                         {!hiddenCols.includes("source") && (
                           <td style={{ fontSize:"0.72rem", color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.source}>{l.source || "—"}</td>
-                        )}
-                        {!hiddenCols.includes("product") && (
-                          <td style={{ fontSize:"0.72rem", color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.product}>{l.product || "—"}</td>
                         )}
                         {!hiddenCols.includes("area") && (
                           <td className="num" style={{ fontSize:"0.72rem", color:"#374151", whiteSpace:"nowrap", fontVariantNumeric:"tabular-nums" }}>
@@ -2082,20 +2035,14 @@ export default function LeadsPage() {
                       {/* Sales-only — ไม่มีรูปอาคาร/building type (โฟกัสโอกาสการขายอย่างเดียว)
                           ไอคอนตา = แค่บอกใบ้ว่าคลิกการ์ดเปิดรายละเอียดได้ (การ์ดทั้งใบคลิกได้อยู่แล้ว เลยไม่ต้องมี onClick ซ้ำ)
                           เดิมไม่มี affordance เลย ผู้ใช้ที่ไม่คุ้น kanban อาจไม่รู้ว่าคลิกการ์ดได้ */}
-                      {/* ── หัวการ์ด = แม่แบบ · ชื่อลูกค้าอยู่ใต้ (บอสสั่ง 20 ส.ค. 69) ────────────
-                          ยึดตามระบบเดิม: สิ่งที่จะขายเป็นพาดหัว ลูกค้าเป็นบรรทัดรอง
-                          ป้าย "สนใจ: …" เดิมถูกถอด เพราะแม่แบบขึ้นมาเป็นหัวการ์ดแล้ว = บอกซ้ำสองที่
-                          ยังไม่เลือกแม่แบบ = ขึ้น "ยังไม่ระบุแม่แบบ" สีจาง ไม่ใช่หัวการ์ดว่าง ๆ */}
+                      {/* ── หัวการ์ด = ชื่อบริษัท (เดิมเป็นแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) ── */}
                       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:6 }}>
-                        <div style={{ fontSize:"0.86rem", fontWeight:800, color: l.product ? "#2D2D2D" : "#b6bec9", minWidth:0,
+                        <div style={{ fontSize:"0.86rem", fontWeight:800, color:"#2D2D2D", minWidth:0,
                           display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", lineHeight:1.35 }}
-                          title={l.product || undefined}>
-                          {l.product || "ยังไม่ระบุแม่แบบ"}
+                          title={l.company}>
+                          {l.company}
                         </div>
                         <Eye size={13} color="#9ca3af" style={{ flexShrink:0, marginTop:2 }} />
-                      </div>
-                      <div style={{ fontSize:"0.74rem", fontWeight:700, color:"#6b7280", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.company}>
-                        {l.company}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:6, margin:"6px 0" }}>
                         {l.status === "HQ_PRICING" && l.numId != null && ได้ราคาแล้ว.has(l.numId) && (
@@ -2405,7 +2352,7 @@ export default function LeadsPage() {
             leadId: c.numId,
             company: c.company, contact: c.contact ?? "", phone: c.phone ?? "", province: c.province ?? "",
             project: apptForm.title.trim() || apptTypeLabel[apptForm.type as ApptType],
-            buildingType: c.product ?? "",
+            buildingType: "", // ไม่คัดลอกแม่แบบเก่าของลูกค้าเป้าหมาย (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
             // ⚠️ เดิมใส่ 0 ตายตัว ทั้งที่ช่องอื่นคัดลอกจากลูกค้าเป้าหมายหมด (แก้ 10 ส.ค. 69)
             //   นัดหมายจึงบันทึกพื้นที่เป็น 0 เสมอ แม้ลูกค้าเป้าหมายจะระบุไว้ 800 ตร.ม. ก็ตาม
             area: c.area ?? 0,
@@ -2674,7 +2621,6 @@ export default function LeadsPage() {
                 {/* Badges: stage · priority · template · est value */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginTop:12 }}>
                   <span style={{ padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:700, background:sc.bg, color:sc.text }}>{leadStatusLabel[c.status]}</span>
-                  <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:700, background:"rgba(255,255,255,.18)", color:"#fff" }}><Package size={11} /> {c.product}</span>
                   <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:800, background:"#fff", color:"#003366" }}><Coins size={11} /> {fmtLeadValue(c.value)}</span>
                 </div>
               </div>

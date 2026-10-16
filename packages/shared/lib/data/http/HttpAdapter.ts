@@ -21,13 +21,13 @@ import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
 import type {
-  DataAdapter, DealersRepo, CatalogRepo, FilesRepo, PersonsRepo, SettingsRepo,
+  DataAdapter, DealersRepo, FilesRepo, PersonsRepo, SettingsRepo,
   DealerSettingsRepo, ProfileRepo, HQCompanyRepo, NotesRepo, UsersRepo, AuditRepo,
   MetricsRepo, LeadsRepo, QuotationsRepo, CustomersRepo, AppointmentsRepo,
   StoragePort, RealtimePort,
 } from "../ports";
 import type {
-  SolutionProduct, AuditEntry, DealerRow, ResponsiblePerson, UserProfile, HQCompany, DealerSettings,
+  AuditEntry, DealerRow, ResponsiblePerson, UserProfile, HQCompany, DealerSettings,
   HQPolicy, HQTargets, HQNotifRules, LeadRules, DealerLeadRulesMap, CustomerNote, DealerFile, SystemUser,
   LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope,
 } from "../types";
@@ -52,7 +52,6 @@ import { APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 /** กลุ่มงานที่ backend รองรับ — ครบทั้ง 18 กลุ่มแล้ว (ระยะ 1 จบ 17 ส.ค. 69)
  *  ใช้รายงานผ่าน /api/v1/ping เพื่อเช็กว่า backend ที่ deploy อยู่เป็นรุ่นที่ครบจริง */
 export const MIGRATED: readonly string[] = [
-  "catalog",
   "audit",
   "dealers",
   "persons",
@@ -200,11 +199,6 @@ const dealers: DealersRepo = {
   remove: async (code) => { await apiFetch(`/dealers?code=${encodeURIComponent(code)}`, { method: "DELETE" }); },
 };
 // ── ย้ายแล้ว (ระยะ 1) ──
-const catalog: CatalogRepo = {
-  list: () => apiFetch<SolutionProduct[]>("/catalog"),
-  save: async (all) => { await apiFetch("/catalog", { method: "PUT", body: JSON.stringify(all) }); },
-  remove: async (id) => { await apiFetch(`/catalog?id=${encodeURIComponent(id)}`, { method: "DELETE" }); },
-};
 const scopeQ = (scope?: { isHQ?: boolean; dealerCode?: string }) =>
   scope?.isHQ ? "?hq=1" : scope?.dealerCode ? `?dealer=${encodeURIComponent(scope.dealerCode)}` : "";
 const files: FilesRepo = {
@@ -417,7 +411,6 @@ const quotations: QuotationsRepo = {
   listPage: (scope, opts) => post(`/quotations?op=page&${scopeQ(scope).slice(1)}`, opts),
   listForCustomer: (customerId, dealerCode) =>
     apiFetch(`/quotations?op=for-customer&customerId=${customerId}&dealer=${encodeURIComponent(dealerCode)}`),
-  create: (row) => post<QuotationMock>("/quotations", row),
   createNumbered: (dealer, prefix, row) => post("/quotations?op=numbered", { dealer, prefix, row }),
   update: (row) => put<QuotationMock>("/quotations", row),
   setStatus: async (id, status) => { await put("/quotations?op=status", { id, status }); },
@@ -457,14 +450,14 @@ const appointments: AppointmentsRepo = {
 // ── อัปโหลดไฟล์ตรงเข้าที่เก็บไฟล์ (16 ก.ย. 69) ─────────────────────────────────────
 // เดิมส่งตัวไฟล์ผ่าน /api/v1/storage → ติดเพดานคำขอของ Vercel ~4.5 MB (เว็บจริงอัปไฟล์ 6 MB ไม่ได้เลย)
 // ตอนนี้: ขอใบอนุญาตจากเซิร์ฟเวอร์ (ออกด้วยสิทธิ์ผู้ใช้ กฎแยกสาขายังคุม) → ส่งไฟล์ตรงไป Supabase Storage
-async function อัปโหลดตรง(bucket: "files" | "catalog", file: File, dealerCode?: string): Promise<string> {
+async function อัปโหลดตรง(file: File, dealerCode?: string): Promise<string> {
   const { path, token } = await apiFetch<{ path: string; token: string }>("/storage?op=sign", {
     method: "POST",
-    body: JSON.stringify({ bucket: bucket === "catalog" ? "catalog" : undefined, dealerCode, name: file.name, stamp: Date.now() }),
+    body: JSON.stringify({ dealerCode, name: file.name, stamp: Date.now() }),
   });
   const { getSupabase } = await import("@pms/shared/lib/data/supabase/client");
   const { error } = await getSupabase().storage
-    .from(bucket === "catalog" ? "catalog-plans" : "dealer-files")
+    .from("dealer-files")
     .uploadToSignedUrl(path, token, file);
   if (error) {
     const ใหญ่เกิน = /exceeded the maximum allowed size|too large|413/i.test(error.message);
@@ -474,28 +467,22 @@ async function อัปโหลดตรง(bucket: "files" | "catalog", file:
 }
 
 const storage: StoragePort = {
-  upload: (dealerCode, file) => อัปโหลดตรง("files", file, dealerCode),
+  upload: (dealerCode, file) => อัปโหลดตรง(file, dealerCode),
   signedUrl: (path) => apiFetch<string | null>(`/storage?path=${encodeURIComponent(path)}`),
   remove: async (path) => { await apiFetch(`/storage?path=${encodeURIComponent(path)}`, { method: "DELETE" }); },
-  // ── แบบแปลนแม่แบบ → ถังของแคตตาล็อก (ส่ง bucket=catalog ให้เซิร์ฟเวอร์เลือกถังให้) ──
-  uploadCatalog: (file) => อัปโหลดตรง("catalog", file),
-  // ถังของแคตตาล็อกอ่านสาธารณะ — ประกอบลิงก์ตรงได้ ไม่ต้องขอเซิร์ฟเวอร์ทีละครั้ง
-  catalogUrl: (path) => `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/catalog-plans/${path}`,
-  removeCatalog: async (path) => { await apiFetch(`/storage?bucket=catalog&path=${encodeURIComponent(path)}`, { method: "DELETE" }); },
 };
 // ── อัปเดตสด (ระยะ 3) — สายเดียวจาก backend ของเราเอง แล้วแยกแจกตามช่อง ──────────
 // เบราว์เซอร์ไม่ต่อ WebSocket ไปหาฐานข้อมูลเองอีกต่อไป · เซิร์ฟเวอร์ต่อแทนในนามผู้ใช้
 // (ดู server/v1/events.ts และ http/eventStream.ts)
 const realtime: RealtimePort = {
   subscribeSales: (onChange) => onChannel("sales", (c) => { if (c) onChange(c); }),
-  subscribeCatalog: (onChange) => onChannel("catalog", () => onChange()),
   subscribeSettings: (onChange) => onChannel("settings", () => onChange()),
   subscribeNotes: (onChange) => onChannel("notes", () => onChange()),
   subscribeDealerSettings: (onChange) => onChannel("dealerSettings", () => onChange()),
 };
 
 export const HttpAdapter: DataAdapter = {
-  storage, realtime, dealers, catalog, files, persons, settings, dealerSettings,
+  storage, realtime, dealers, files, persons, settings, dealerSettings,
   profile, hqCompany, territories, quoteRequests, notes, users, audit, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,

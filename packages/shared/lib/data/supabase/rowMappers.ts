@@ -18,7 +18,7 @@ export const str = (v: unknown): string => v == null ? "" : String(v);
 // customers/dealers เช่นกัน — คอลัมน์ text nullable ที่ DB แต่ type บังคับ string (เหตุผลเดียวกับ str() ข้างบน)
 export function normalizeCustomer(c: CustomerRow): CustomerRow {
   return { ...c, name: str(c.name), company: str(c.company), email: str(c.email), phone: str(c.phone),
-    province: str(c.province), category: str(c.category), joinDate: str(c.joinDate),
+    province: str(c.province), joinDate: str(c.joinDate), // category (แม่แบบ) ไม่อ่านแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
     owner: str(c.owner), initials: str(c.initials), color: str(c.color) };
 }
 export function normalizeDealer(d: DealerRow): DealerRow {

@@ -18,7 +18,7 @@ import { DATA_SOURCE } from "../config";
 const COOKIE_AUTH = DATA_SOURCE === "api";   // ใบผ่านอยู่ใน cookie (ระยะ 4)
 
 /** ชื่อช่อง — ต้องตรงกับที่เซิร์ฟเวอร์ส่งมา (events.ts) */
-export type EventChannel = "sales" | "catalog" | "settings" | "notes" | "dealerSettings";
+export type EventChannel = "sales" | "settings" | "notes" | "dealerSettings";
 
 type Listener = (payload?: SalesChange) => void;
 const listeners = new Map<EventChannel, Set<Listener>>();

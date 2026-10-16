@@ -52,8 +52,6 @@ const parseThaiDate = (s: string): Date | null => {
   return new Date(y, TH_MONTH[mt[2]], +mt[1]);
 };
 const ALL = "ALL";
-// ตัวกรองว่าง (ทั้งเครือ ทุกช่วง) — อ้างอิงคงที่ ดึง product_line ทั้งหมดครั้งเดียว
-const EMPTY_QF = {};
 
 // ── แท่งแนวนอนคู่ — ใช้ซ้ำใน Section 1 / 2 / 3 (แท่งหลัก + แท่งเทียบ) ──
 // เปิดมาโชว์ครบทุกแถวเลย (บอสสั่ง 17 ก.ค. 69) — ให้อ่านคู่กับตารางข้าง ๆ ที่ก็ลิสต์ครบทุกดีลเลอร์เหมือนกัน
@@ -155,7 +153,6 @@ export default function SalesAnalyticsPage() {
   const [dealerSel, setDealerSel] = useState(ALL);
   const [regionSel, setRegionSel] = useState(ALL);
   const [provSel, setProvSel] = useState(ALL);
-  const [btSel, setBtSel] = useState(ALL);
   const [salesSel, setSalesSel] = useState(ALL);
   const [view, setView] = useState<"dealer" | "region" | "province" | "month">("dealer");
 
@@ -180,40 +177,36 @@ export default function SalesAnalyticsPage() {
   const codes = useMemo(() => new Set(dealers.map(d => d.code)), [dealers]);
 
   const quotes = useMemo(
-    () => netQuotes.filter(x => codes.has(x.dealerCode) && inRange(x.createdAt) && (btSel === ALL || x.productLine === btSel)),
-    [netQuotes, codes, inRange, btSel],
+    () => netQuotes.filter(x => codes.has(x.dealerCode) && inRange(x.createdAt)),
+    [netQuotes, codes, inRange],
   );
   // ⚠️ ต้องกรองช่วงเวลาด้วย (inRange) เหมือน quotes ข้างบน — เดิมไม่กรอง ทำให้ทุกการ์ดที่จับคู่
   //    "ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา" เอาลูกค้าเป้าหมาย "ทั้งหมดตั้งแต่เปิดสาขา" ไปเทียบกับใบ "เฉพาะช่วงที่เลือก"
   //    เลือกช่วงแคบ ๆ แล้วแท่งสองอันจึงไม่มีทางสัมพันธ์กันเลย (บอสแจ้ง 21 ส.ค. 69: "ทำไมมันไม่เท่ากัน")
   const leads = useMemo(
-    () => netLeads.filter(l => codes.has(dealerCodeOf(l)) && inRange(l.createdAt ?? "") && (btSel === ALL || l.product === btSel)),
-    [netLeads, codes, inRange, btSel],
+    () => netLeads.filter(l => codes.has(dealerCodeOf(l)) && inRange(l.createdAt ?? "")),
+    [netLeads, codes, inRange],
   );
 
   // filter(Boolean) จำเป็น ไม่ใช่กันไว้เฉย ๆ — ดีลเลอร์ที่บันทึกไว้ก่อนมีฟิลด์ province/region จะได้ค่า undefined
   // กลายเป็น <option> ที่เลือกแล้วกรองอะไรไม่ได้ + React เตือน "unique key" (key={undefined})
   const regionOpts = useMemo(() => [...new Set(allDealers.map(d => d.region).filter(Boolean))].sort(), [allDealers]);
   const provOpts = useMemo(() => [...new Set(allDealers.map(d => d.province).filter(Boolean))].sort(), [allDealers]);
-  // ตัวเลือกประเภทอาคาร — product_line ทั้งหมดในเครือ · supabase: hq_quotations_summary(ว่าง).byProduct · local: netQuotes
-  const allProdSummary = useHQQuotationsSummary(EMPTY_QF);
-  const btOpts = useMemo(() => (allProdSummary
-    ? allProdSummary.byProduct.map(p => p.product ?? "").filter(Boolean)
-    : [...new Set(netQuotes.map(x => x.productLine).filter(Boolean))]).sort(), [allProdSummary, netQuotes]);
+  // ตัวกรอง "ประเภทอาคาร" (แม่แบบ) ถอดออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
 
   // สถิติใบรายดีลเลอร์ "หลังกรอง" ที่ DB (M9 Phase 2) — supabase · local/ยังไม่กลับ = client จาก quotes
-  // ตัวกรอง = ชุดเดียวกับ quotes: dealerCodes (codes ที่ผ่านตัวกรอง) · productLines (btSel) · ช่วงเวลา
+  // ตัวกรอง = ชุดเดียวกับ quotes: dealerCodes (codes ที่ผ่านตัวกรอง) · ช่วงเวลา
   const qSummary = useHQQuotationsSummary(useMemo(() => ({
-    dealerCodes: [...codes], productLines: btSel !== ALL ? [btSel] : undefined,
+    dealerCodes: [...codes],
     dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end), asOf: isoDateOf(APP_NOW),
-  }), [codes, btSel, timeRange.start, timeRange.end]));
+  }), [codes, timeRange.start, timeRange.end]));
   const byDealer = useMemo(() => qSummary ? new Map(qSummary.byDealer.map(d => [d.dealerCode, d])) : null, [qSummary]);
-  // ลูกค้าเป้าหมายรายสาขา (leads/quoted) ที่ DB — ตัวกรองชุดเดียวกับ leads: codes + product + ช่วงเวลา
+  // ลูกค้าเป้าหมายรายสาขา (leads/quoted) ที่ DB — ตัวกรองชุดเดียวกับ leads: codes + ช่วงเวลา
   // ⚠️ ช่วงเวลาต้องส่งไปด้วย ไม่งั้นได้ยอด "ทั้งหมดตั้งแต่เปิดสาขา" มาเทียบกับใบเสนอราคาเฉพาะช่วงที่เลือก
   const leadSum = useLeadSummary(useMemo(() => ({
-    dealerCodes: [...codes], product: btSel !== ALL ? btSel : undefined,
+    dealerCodes: [...codes],
     dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
-  }), [codes, btSel, timeRange.start, timeRange.end]));
+  }), [codes, timeRange.start, timeRange.end]));
   const leadByDealer = useMemo(() => leadSum ? new Map(leadSum.byDealer.map(d => [d.dealerCode, d])) : null, [leadSum]);
 
   // ── สถิติรายดีลเลอร์ — แหล่งเดียวของทุกกราฟ/ตาราง (คำนวณครั้งเดียว) ──
@@ -398,12 +391,12 @@ export default function SalesAnalyticsPage() {
   const [drawer, setDrawer] = useState<typeof perf[number] | null>(null);
   // ข้อมูลรายสาขาใน drawer — supabase: ดึงตรงจาก repo (M9 Phase 4) · local/ยังไม่กลับ: กรอง array เดิม
   const drawerData = useDealerDrawerData(drawer?.code ?? null);
-  const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, btSel, salesSel].some(v => v !== ALL);
+  const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL);
 
   // ── ตารางผลงานดีลเลอร์: แบ่งหน้า 10 แถวเท่าทุกตารางในระบบ ──
   // เปลี่ยนตัวกรองต้องกลับหน้า 1 เสมอ — ไม่งั้นกรองแล้วค้างอยู่หน้ากลางลิสต์ที่ไม่มีข้อมูลแล้ว
   const [perfPage, setPerfPage] = useState(0);
-  useEffect(() => { setPerfPage(0); }, [q, dealerSel, regionSel, provSel, btSel, salesSel]);
+  useEffect(() => { setPerfPage(0); }, [q, dealerSel, regionSel, provSel, salesSel]);
   const perfPageSafe = Math.min(perfPage, pageCountOf(perf.length) - 1);
   const perfRows = pageSlice(perf, perfPageSafe);
 
@@ -419,7 +412,7 @@ export default function SalesAnalyticsPage() {
 
   // ตัวกรองทุกช่องกว้างเท่ากันและยืด/หดร่วมกันในแถวเดียว (บอสสั่ง 14 ก.ย. 69 "แก้" — ภาพแถบที่ขึ้น 2 แถว)
   //   เดิม width:auto → ช่อง "ทุกดีลเลอร์" กว้างตามชื่อดีลเลอร์ที่ยาวที่สุด ดันช่องอื่นตกไปแถวสอง
-  //   ป้ายยาว (เช่น ที่มาของประเภทอาคาร) ถูกตัดด้วย … ในช่อง — ชี้ค้างอ่านเต็มได้จาก title · ห้ามตัดคำบอกที่มาทิ้ง
+  //   ป้ายยาว ถูกตัดด้วย … ในช่อง — ชี้ค้างอ่านเต็มได้จาก title · ห้ามตัดคำบอกที่มาทิ้ง
   const sel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
     // ตัวเลือกแรกคือทั้งหมด — ป้าย "ทุก…" ของตัวกรองแต่ละช่อง
     <select aria-label={caption} title={caption} value={v} onChange={e => on(e.target.value)} className="form-select"
@@ -480,10 +473,9 @@ export default function SalesAnalyticsPage() {
           {sel(dealerSel, setDealerSel, "ทุกดีลเลอร์", allDealers.map(d => ({ v: d.code, l: `${d.code} – ${d.name}` })))}
           {sel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(r => ({ v: r, l: regionDisplay(r) })))}
           {sel(provSel, setProvSel, "ทุกจังหวัด", provOpts.map(p => ({ v: p, l: p })))}
-          {sel(btSel, setBtSel, "ทุกประเภทอาคาร (จากใบเสนอราคาทั้งเครือ)", btOpts.map(b => ({ v: b, l: b })))}
           {sel(salesSel, setSalesSel, "ทุกช่วงยอดขาย", SALES_BANDS.map(b => ({ v: b.v, l: b.l })))}
           {anyFilter && (
-            <button onClick={() => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setBtSel(ALL); setSalesSel(ALL); }}
+            <button onClick={() => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); }}
               className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>ล้างตัวกรอง</button>
           )}
         </div>

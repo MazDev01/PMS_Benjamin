@@ -70,13 +70,12 @@ export default function HQCustomersPage() {
   const [dealerSel, setDealerSel] = useState("all");
   const [regionSel, setRegionSel] = useState("all");
   const [provinceSel, setProvinceSel] = useState("all");
-  const [typeSel, setTypeSel] = useState("all");
   const [boughtSel, setBoughtSel] = useState<BoughtKey>("all");
   const [page, setPage] = useState(0);
   const [viewId, setViewId] = useState<number | null>(null);
 
   // เปลี่ยนตัวกรอง (ไม่ใช่หน้า) → กลับไปหน้า 1 เสมอ
-  useEffect(() => { setPage(0); }, [search, dealerSel, regionSel, provinceSel, typeSel, boughtSel]);
+  useEffect(() => { setPage(0); }, [search, dealerSel, regionSel, provinceSel, boughtSel]);
 
   // ── fallback ฝั่ง local/demo (ยังไม่กลับ) — ไม่ยิง fetch เลยในโหมด HQ+supabase (ดูคอมเมนต์ที่ hook) ──
   const localSource = useCustomerDbLocal();
@@ -99,11 +98,6 @@ export default function HQCustomersPage() {
     [allProvinces, regionSel],
   );
 
-  const typeOptions = useMemo<string[]>(() => {
-    if (remoteOptions) return remoteOptions.types;
-    return [...new Set(localSource.flatMap(c => c.buildingTypes))].sort((a, b) => a.localeCompare(b, "th"));
-  }, [remoteOptions, localSource]);
-
   // region → provinces[] (resolve ให้ RPC ก่อนส่ง — ตารางไม่มีคอลัมน์ region เก็บตรง ๆ)
   const resolvedProvinces = useMemo<string[] | undefined>(() => {
     if (provinceSel !== "all") return [provinceSel];
@@ -115,11 +109,11 @@ export default function HQCustomersPage() {
     search: search.trim() || undefined,
     dealerCode: dealerSel === "all" ? undefined : dealerSel,
     provinces: resolvedProvinces,
-    buildingType: typeSel === "all" ? undefined : typeSel,
+    // ไม่ส่ง buildingType แล้ว — ตัวกรองประเภทอาคาร (แม่แบบ) ถอดออก: เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
     boughtFrom: boughtRange(boughtSel).from,
     boughtTo: boughtRange(boughtSel).to,
     limit: PAGE_SIZE, offset: page * PAGE_SIZE,
-  }), [search, dealerSel, resolvedProvinces, typeSel, boughtSel, page]);
+  }), [search, dealerSel, resolvedProvinces, boughtSel, page]);
 
   const pageResult = useHQCustomersPage(pageOpts);
 
@@ -132,7 +126,6 @@ export default function HQCustomersPage() {
         if (dealerSel !== "all" && c.dealerCode !== dealerSel) return false;
         if (regionSel !== "all" && c.region !== regionSel) return false;
         if (provinceSel !== "all" && c.province !== provinceSel) return false;
-        if (typeSel !== "all" && !c.buildingTypes.includes(typeSel)) return false;
         // กติกาเดียวกับฐานข้อมูล (ใบ 0159): ไม่มีวันซื้อ = ไม่เข้าเกณฑ์เมื่อเปิดตัวกรองนี้
         const ช่วง = boughtRange(boughtSel);
         if (ช่วง.from || ช่วง.to) {
@@ -144,7 +137,7 @@ export default function HQCustomersPage() {
         return true;
       })
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [localSource, search, dealerSel, regionSel, provinceSel, typeSel, boughtSel]);
+  }, [localSource, search, dealerSel, regionSel, provinceSel, boughtSel]);
 
   const ปีที่แล้ว = useMemo(() => { const d = new Date(APP_NOW); d.setFullYear(d.getFullYear() - 1); return d.getTime(); }, []);
   // kpi/charts/rows — supabase: ตรงจาก RPC · local: derive จาก localFiltered ให้ shape เดียวกัน
@@ -167,9 +160,10 @@ export default function HQCustomersPage() {
       const bd = byDealerMap.get(c.dealerCode) ?? { name: c.dealerName, value: 0 }; bd.value++; byDealerMap.set(c.dealerCode, bd);
       revByDealerMap.set(c.dealerCode, (revByDealerMap.get(c.dealerCode) ?? 0) + c.totalRevenue);
     });
+    // byType/bySubtype (แม่แบบ) ไม่คำนวณแล้ว — ส่งว่างให้ครบ shape ของ HQCustomersCharts (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
     return {
-      byType: countBy(r => r.buildingTypes),
-      bySubtype: countBy(r => r.templates),
+      byType: [],
+      bySubtype: [],
       byProvince: countBy(r => r.province ? [r.province] : []).slice(0, 10),
       byDealer: [...byDealerMap.entries()].map(([code, x]) => ({ code, name: x.name, value: x.value })).sort((a, b) => b.value - a.value),
       revenueByDealer: [...revByDealerMap.entries()].map(([code, revenue]) => ({ code, revenue })).sort((a, b) => b.revenue - a.revenue),
@@ -179,7 +173,7 @@ export default function HQCustomersPage() {
     ? pageResult.rows
     : localFiltered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map(c => ({
         id: c.id, name: c.name, dealerCode: c.dealerCode, dealerName: c.dealerName, province: c.province,
-        totalValue: c.totalRevenue, buildingTypes: c.buildingTypes, templates: c.templates,
+        totalValue: c.totalRevenue, buildingTypes: [], templates: [], // แม่แบบ — ไม่ใช้แล้ว (ช่องยังอยู่ใน type ของ ports)
         lastPurchaseAt: c.lastPurchaseAt ? c.lastPurchaseAt.toISOString().slice(0, 10) : null,
       }));
   const totalCount = pageResult ? pageResult.total : localFiltered.length;
@@ -203,7 +197,7 @@ export default function HQCustomersPage() {
     // buildings ยังไม่มา (กำลังโหลดใบ won แยก) → เปิดแผงไปก่อนด้วย [] ชั่วคราว (โปรไฟล์/ยอดรวมมีอยู่แล้วจาก
     // แถวตารางที่เพิ่งคลิก ไม่ต้องรอ) ไม่งั้นแผงค้างไม่เปิดจนกว่า fetch ที่สองจะเสร็จ — ผู้ใช้กดแล้วไม่มีอะไรเกิดขึ้น
     const buildings = (remoteBuildQuotes ?? [])
-      .map(q => buildingOf({ quoteNo: q.id, productLine: q.buildingType || q.project || "", valueNum: q.totalValue, createdAt: fmtISOToThai(q.date) }))
+      .map(q => buildingOf({ quoteNo: q.id, productLine: q.project || "", valueNum: q.totalValue, createdAt: fmtISOToThai(q.date) }))
       .sort((a, b) => (a.wonAt?.getTime() ?? 0) - (b.wonAt?.getTime() ?? 0));
     const lastBuy = [...buildings].filter(b => b.wonAt).pop() ?? null;
     return {
@@ -211,14 +205,12 @@ export default function HQCustomersPage() {
       dealerCode: remoteRowMeta.dealerCode, dealerName: remoteRowMeta.dealerName, province: remoteRowMeta.province,
       dealsWon: 0, totalRevenue: remoteRowMeta.totalValue, status: "active", lastContact: "—", segment: "sme",
       region: regionOf(remoteRowMeta.province), buildings,
-      buildingTypes: [...new Set(buildings.map(b => b.buildingType).filter(Boolean))],
-      templates: [...new Set(buildings.map(b => b.template).filter((t): t is string => !!t))],
       lastPurchase: lastBuy?.wonDate ?? null, lastPurchaseAt: lastBuy?.wonAt ?? null,
       isRepeat: buildings.length > 1,
     };
   }, [viewId, localDetail, remoteRowMeta, remoteBuildQuotes]);
 
-  // ตัวกรอง 5 ช่อง + ช่องค้นหา ต้องอยู่บรรทัดเดียว (แถวนี้ตั้ง flex-wrap: nowrap)
+  // ตัวกรอง 4 ช่อง + ช่องค้นหา ต้องอยู่บรรทัดเดียว (แถวนี้ตั้ง flex-wrap: nowrap)
   //   maxWidth — select ที่ width:auto จะกว้างตามตัวเลือกที่ยาวที่สุด (เช่น "RYG – ดีลเลอร์ระยอง สตีล") ต้องคุมเพดาน
   //   minWidth: 0 + flexShrink — ให้ยุบตัวลงได้เมื่อจอแคบ แทนที่จะตกบรรทัด (nowrap ทำให้ยุบก่อน ไม่ใช่ wrap)
   // ขนาดตัวอักษร/ระยะขอบ ใช้สเกลเดียวกับแถบกรองหน้า /hq/pipeline
@@ -227,12 +219,10 @@ export default function HQCustomersPage() {
   // Export — หนึ่งแถวต่อลูกค้า · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด (limit=total) · local: จาก localFiltered ทั้งชุดอยู่แล้ว
   const rowToCells = (c: HQCustomerPageRow) => [
     customerCode(c.dealerCode, c.id), c.name, c.dealerCode, c.dealerName, c.province, regionOf(c.province) ?? "—",
-    c.buildingTypes.join(", ") || "—", c.templates.join(", ") || "—",
     c.totalValue, c.lastPurchaseAt ? fmtISOToThai(c.lastPurchaseAt) : "—",
   ];
   const localExportRows = localFiltered.map(c => [
     customerCode(c.dealerCode, c.localId ?? c.id), c.name, c.dealerCode, c.dealerName, c.province, c.region ?? "—",
-    c.buildingTypes.join(", ") || "—", c.templates.join(", ") || "—",
     c.totalRevenue, c.lastPurchase ?? "—",
   ]);
 
@@ -243,7 +233,7 @@ export default function HQCustomersPage() {
           <ExportMenu
             filename="hq-customers"
             title="ลูกค้าทั้งเครือ"
-            headers={["รหัสลูกค้า", "ลูกค้า", "รหัส", "ชื่อดีลเลอร์", "จังหวัด", "ภาค", "ประเภทอาคาร", "แม่แบบ", "ยอดซื้อรวม", "ซื้อล่าสุด"]}
+            headers={["รหัสลูกค้า", "ลูกค้า", "รหัส", "ชื่อดีลเลอร์", "จังหวัด", "ภาค", "ยอดซื้อรวม", "ซื้อล่าสุด"]}
             rows={pageResult ? tableRows.map(rowToCells) : localExportRows}
             getRows={pageResult
               ? async () => {
@@ -256,7 +246,7 @@ export default function HQCustomersPage() {
 
       <CustomerKPICards kpi={kpi} />
 
-      {/* ตัวกรอง — ค้นหา + ดีลเลอร์/ภาค/จังหวัด/ประเภทอาคาร */}
+      {/* ตัวกรอง — ค้นหา + ดีลเลอร์/ภาค/จังหวัด/ช่วงเวลาที่ซื้อ (ประเภทอาคาร/แม่แบบ ถอดออก 16 ต.ค. 69) */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>
         {/* ขนาดช่องค้นหาต้องเท่ากันทุกหน้า (บอสสั่ง 20 ส.ค. 69) — ใช้ .search-bar ตัวมาตรฐาน
             เดิมหน้านี้สั่งให้ยืดกินที่ว่าง จึงกว้างกว่าหน้าอื่นเกือบสามเท่าเวลาจอกว้าง
@@ -296,11 +286,6 @@ export default function HQCustomersPage() {
         {/* ตัวเลือกแรกคือทั้งหมด — BOUGHT_OPTIONS ตัวแรกคือ "ทุกช่วงเวลาที่ซื้อ" */}
         <select aria-label="กรองตามช่วงเวลาที่ซื้อล่าสุด" value={boughtSel} onChange={e => setBoughtSel(e.target.value as BoughtKey)} className="form-select" style={selectStyle}>
           {BOUGHT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-        </select>
-
-        <select aria-label="กรองตามประเภทอาคาร" value={typeSel} onChange={e => setTypeSel(e.target.value)} className="form-select" style={selectStyle}>
-          <option value="all">ทุกประเภทอาคาร (จากอาคารที่ซื้อแล้ว)</option>
-          {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
 
       </div>

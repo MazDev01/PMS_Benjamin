@@ -41,7 +41,6 @@ const SALES_ROW: Record<string, (r: Row) => unknown> = {
 
 /** ตารางที่แค่ต้องรู้ว่า "เปลี่ยนแล้ว" ไม่ต้องรู้ว่าเปลี่ยนอะไร → ช่องไหนของหน้าเว็บ */
 const PING_TABLES: { table: string; ch: string }[] = [
-  { table: "master_catalog",   ch: "catalog" },
   { table: "hq_policy",        ch: "settings" },
   { table: "hq_targets",       ch: "settings" },
   { table: "hq_notif_rules",   ch: "settings" },

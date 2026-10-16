@@ -1,13 +1,14 @@
 // ─── การแจ้งเตือน HQ (hook) ────────────────────────────────────────────────────
 // แหล่งเดียวของ "กฎแจ้งเตือน" ฝั่ง React — คำนวณจริงใน @pms/shared/lib/hqAlerts
-// ขอบเขต = งานของสำนักงานใหญ่เอง (ลูกค้าเป้าหมาย HQ · ใบค่าแฟรนไชส์ · แคตตาล็อก) — ไม่ดึงงานขายของดีลเลอร์อีกแล้ว
+// ขอบเขต = งานของสำนักงานใหญ่เอง (ลูกค้าเป้าหมาย HQ · ใบค่าแฟรนไชส์) — ไม่ดึงงานขายของดีลเลอร์อีกแล้ว
+//   (เรื่อง "แม่แบบยังไม่ได้ตั้งราคา" ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // (ห้าม usePersistentState: มันเขียนกลับ → ค่า seed จะทับของจริงทุกครั้งที่ mount)
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { HQ_NOTIF_UPDATED_EVENT, type HQNotifRules, type SolutionProduct } from "@pms/shared/lib/mock";
+import { HQ_NOTIF_UPDATED_EVENT, type HQNotifRules } from "@pms/shared/lib/mock";
 import {
-  settings as settingsRepo, catalog as catalogRepo,
+  settings as settingsRepo,
   prospects as prospectsRepo, proposals as proposalsRepo,
 } from "@pms/shared/lib/data";
 import type { DealerProspect, DealerPackageProposal } from "@pms/shared/lib/data/types";
@@ -20,7 +21,6 @@ type ข้อมูลแจ้งเตือน = {
   rules: HQNotifRules;
   prospects?: DealerProspect[];
   proposals?: DealerPackageProposal[];
-  catalog?: SolutionProduct[];
 };
 
 /** การแจ้งเตือนของสำนักงานใหญ่ ตามกฎที่เปิดไว้ที่ /hq/settings → การแจ้งเตือน
@@ -52,9 +52,8 @@ export function useHQAlerts(enabled = true, refreshKey: unknown = 0): HQAlert[] 
       settingsRepo.getNotifRules(),
       อ่าน("prospects.list(alerts)", prospectsRepo.list()),
       อ่าน("proposals.list(alerts)", proposalsRepo.list()),
-      อ่าน("catalog.list(alerts)", catalogRepo.list()),
-    ]).then(([rules, prospects, proposals, catalog]) => {
-      if (alive) setData({ rules, prospects, proposals, catalog });
+    ]).then(([rules, prospects, proposals]) => {
+      if (alive) setData({ rules, prospects, proposals });
     }).catch(e => logRepoRead("settings.getNotifRules(alerts)", e));
     return () => { alive = false; };
   }, [ready, enabled, refreshKey, รอบ]);

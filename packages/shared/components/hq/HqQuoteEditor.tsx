@@ -2,19 +2,18 @@
 
 // ─── HQ · ทำ BOQ และส่งใบ HQ ให้ดีลเลอร์ (FLOW.html ขั้น 5–6 · ด่าน 2) ─────────────────────────────────────────
 //
-// ขั้น 5  ทำ BOQ — ใช้ราคาแม่แบบที่ HQ เห็นคนเดียว: เลือกแม่แบบ → ต้นทุนต่อหน่วยตั้งต้นจากราคาแม่แบบ (แก้ได้ · HQ เป็นเจ้าของราคา)
-//         เพิ่มรายการพิมพ์เองได้ (เช่น ค่าขนส่ง) · บันทึกร่างกี่ครั้งก็ได้ ดีลเลอร์ไม่เห็นร่าง
+// ขั้น 5  ทำ BOQ — HQ พิมพ์รายการเอง (ชื่อ · จำนวน · หน่วย · ต้นทุน) · บันทึกร่างกี่ครั้งก็ได้ ดีลเลอร์ไม่เห็นร่าง
+//         (ตัวเลือกจากแม่แบบเอาออกแล้ว — บอสสั่งเอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // ขั้น 6  ส่งใบ HQ — ล็อกเวอร์ชัน · หยุดนับ 14 วัน · อีเมลถึงดีลเลอร์ · ลูกค้าเป้าหมายคงเดิม (ฐานข้อมูลทำทั้งหมด)
 // ส่งแล้วแก้ไม่ได้ (กฎ "ใบ HQ ที่ส่งแล้วแก้ไม่ได้ ต้องออกเวอร์ชันใหม่") — แผงนี้แสดงแบบอ่านอย่างเดียว
 //   เวอร์ชันใหม่เกิดเมื่อดีลเลอร์ "ขอแก้ราคา" → คำขอใหม่ · HQ กด "เริ่มจากใบเวอร์ชันก่อน" แล้วแก้ต่อ
 // ⚠️ แถวรายการเขียนในตัว map ตรง ๆ — ห้ามแยกเป็นคอมโพเนนต์ที่ประกาศในคอมโพเนนต์นี้ (ช่องกรอกโฟกัสหลุดทุกครั้งที่พิมพ์)
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Send, Trash2, X, Copy, Lock } from "lucide-react";
-import { quoteRequests as repo, catalog as catalogRepo } from "@pms/shared/lib/data";
+import { quoteRequests as repo } from "@pms/shared/lib/data";
 import {
   type QuoteRequest, type HqQuote, type HqQuoteLine, hqQuoteStatusLabel, ยอดบรรทัด, ยอดรวมใบ, วันไทยสั้น, เกินกำหนด,
 } from "@pms/shared/lib/quoteRequests";
-import type { SolutionProduct } from "@pms/shared/lib/mock";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
@@ -25,8 +24,6 @@ const NAVY = "#003366";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** วันยืนราคาตั้งต้น = 30 วันจากวันนี้ (เวลาไทย) */
 const วันยืนราคาตั้งต้น = () => new Date(Date.now() + 7 * 3_600_000 + 30 * 86_400_000).toISOString().slice(0, 10);
-/** ราคาแม่แบบ: แม่แบบย่อยที่ตั้งราคาแยกไว้ใช้ราคานั้น ไม่งั้นใช้ราคาแม่แบบหลัก */
-const ราคาแม่แบบ = (p: SolutionProduct, subtype?: string) => (subtype && p.subtypePrices?.[subtype]) || p.price;
 
 export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
   request: QuoteRequest;
@@ -37,12 +34,10 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
 }) {
   const [ใบ, setใบ] = useState<HqQuote | null | undefined>(undefined);
   const [ใบก่อน, setใบก่อน] = useState<HqQuote | null>(null);
-  const [แม่แบบ, setแม่แบบ] = useState<SolutionProduct[]>([]);
   const [lines, setLines] = useState<HqQuoteLine[]>([]);
   const [ยืนราคาถึง, setยืนราคาถึง] = useState(วันยืนราคาตั้งต้น());
   const [หมายเหตุ, setหมายเหตุ] = useState("");
   const [busy, setBusy] = useState(false);
-  const [เลือกแม่แบบ, setเลือกแม่แบบ] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -53,7 +48,6 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
     }).catch(e => { logRepoRead("quoteRequests.hqQuoteFor", e); if (alive) setใบ(null); });
     // ขอแก้ราคา: ใบเวอร์ชันก่อนหน้า (ใช้เป็นจุดเริ่มของเวอร์ชันใหม่)
     if (request.supersedesId) repo.hqQuoteFor(request.supersedesId).then(h => alive && setใบก่อน(h)).catch(e => logRepoRead("quoteRequests.hqQuoteFor(prev)", e));
-    catalogRepo.list().then(c => alive && setแม่แบบ(c)).catch(e => logRepoRead("catalog.list(hq-quote)", e));
     return () => { alive = false; };
   }, [request.id, request.supersedesId]);
 
@@ -70,16 +64,6 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
   }, [lines, รวม, ยืนราคาถึง]);
 
   const แก้บรรทัด = (i: number, patch: Partial<HqQuoteLine>) => setLines(ls => ls.map((l, j) => j === i ? { ...l, ...patch } : l));
-  const เพิ่มจากแม่แบบ = (key: string) => {
-    const [id, subtype] = key.split("|");
-    const p = แม่แบบ.find(x => x.id === id);
-    if (!p) return;
-    setLines(ls => [...ls, {
-      name: subtype ? `${p.name} · ${subtype}` : p.name, qty: Number(request.area) > 0 ? Number(request.area) : 1, unit: p.unit,
-      unitCost: ราคาแม่แบบ(p, subtype), catalogId: p.id, ...(subtype ? { subtype } : {}),
-    }]);
-    setเลือกแม่แบบ("");
-  };
 
   const บันทึก = async (): Promise<HqQuote | null> => {
     const clean = lines.map(l => ({ ...l, name: l.name.trim(), unit: l.unit.trim(), qty: Number(l.qty), unitCost: Number(l.unitCost) }));
@@ -173,7 +157,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
                     <tr><th style={{ minWidth: 220 }}>รายการ</th><th style={{ width: 110 }}>จำนวน</th><th style={{ width: 90 }}>หน่วย</th><th style={{ width: 140 }}>ต้นทุน/หน่วย</th><th style={{ width: 140, textAlign: "right" }}>ยอด</th>{แก้ได้ && <th style={{ width: 44 }}></th>}</tr>
                   </thead>
                   <tbody>
-                    {lines.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#9ca3af", padding: 18 }}>ยังไม่มีรายการ — เลือกแม่แบบด้านล่างเพื่อเริ่ม BOQ</td></tr>}
+                    {lines.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#9ca3af", padding: 18 }}>ยังไม่มีรายการ — กด "เพิ่มรายการอื่น" ด้านล่างเพื่อเริ่ม BOQ</td></tr>}
                     {lines.map((l, i) => (
                       <tr key={i}>
                         <td>{แก้ได้
@@ -201,13 +185,6 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
 
               {แก้ได้ && (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                  <select aria-label="เพิ่มรายการจากแม่แบบ" value={เลือกแม่แบบ} onChange={e => เพิ่มจากแม่แบบ(e.target.value)} style={{ ...ช่อง, width: "auto", minWidth: 260 }}>
-                    <option value="">+ เพิ่มรายการจากแม่แบบ (ราคาแม่แบบ)</option>
-                    {แม่แบบ.flatMap(p => [
-                      <option key={p.id} value={p.id}>{p.name} — {บาท(p.price)}/{p.unit}</option>,
-                      ...(p.subtypes ?? []).map(s => <option key={`${p.id}|${s}`} value={`${p.id}|${s}`}>{"  "}{p.name} · {s} — {บาท(ราคาแม่แบบ(p, s))}/{p.unit}</option>),
-                    ])}
-                  </select>
                   <button type="button" className="btn btn-outline btn-sm" onClick={() => setLines(ls => [...ls, { name: "", qty: 1, unit: "งาน", unitCost: 0 }])}>
                     <Plus size={13} /> เพิ่มรายการอื่น
                   </button>

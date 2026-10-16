@@ -4,6 +4,7 @@
 // ⚠️ ยิงลงฐาน "ชุดทดสอบ" เท่านั้น (อ่านค่าจาก apps/hq/.env.local) ห้ามชี้ไปฐานจริงเด็ดขาด
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { วางใบเดิมที่ฐาน } from "./lib/legacyQuoteSeed.mjs";
 const env = (f) => { const m = new Map(); for (const line of readFileSync(f, "utf8").split(String.fromCharCode(10))) { const t = line.trim(); if (!t || t.startsWith("#")) continue; const i = t.indexOf("="); if (i > 0) m.set(t.slice(0, i).trim(), t.slice(i + 1).trim()); } return m; };
 const H = env("apps/hq/.env.local");
 const URL_ = H.get("NEXT_PUBLIC_SUPABASE_URL");
@@ -112,8 +113,8 @@ for (let i = 0; i < จำนวนใบ; i += ก้อน) {
       ...(มีลูกค้า(n) ? { customer_id: idลูกค้า(n) } : {}),
     });
   }
-  const { error } = await db.from("quotations").insert(rows);
-  if (error) { console.error("insert quotations ล้ม: " + error.message); process.exit(1); }
+  // ใบไม่มีใบ HQ = ใบแบบเดิม · ฐานปฏิเสธทางเขียนปกติตั้งแต่ใบ 0201 → วางที่ฐานในเครื่องตรง (ข้อมูลปริมาณสำหรับวัดความเร็วเท่านั้น)
+  try { วางใบเดิมที่ฐาน(rows); } catch (e) { console.error("วางใบเสนอราคาล้ม: " + (e instanceof Error ? e.message : e)); process.exit(1); }
   if ((i / ก้อน) % 8 === 0) console.log("  ใบเสนอราคา " + (i + rows.length) + "/" + จำนวนใบ + " (" + ((Date.now() - เริ่ม) / 1000).toFixed(0) + "s)");
 }
 console.log("ใบเสนอราคาเสร็จใน " + ((Date.now() - เริ่ม) / 1000).toFixed(1) + " วินาที");

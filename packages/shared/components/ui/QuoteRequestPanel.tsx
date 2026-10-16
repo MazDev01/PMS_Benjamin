@@ -2,7 +2,8 @@
 
 // ── แผงคำขอใบเสนอราคาในหน้าลูกค้าเป้าหมาย (ฝั่งดีลเลอร์ · FLOW.html ขั้น 3 · ด่าน 1) ────────────────────────────
 //
-// ขั้น 3: ดีลเลอร์ส่งคำขอ (แม่แบบ + สเปก) → ลูกค้าเป้าหมาย "รอราคา HQ" — ฐานข้อมูลขยับสถานะเอง
+// ขั้น 3: ดีลเลอร์ส่งคำขอ (งานที่ขอราคา — พิมพ์เอง + สเปก) → ลูกค้าเป้าหมาย "รอราคา HQ" — ฐานข้อมูลขยับสถานะเอง
+//   (เดิมเลือกจากแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ฐานยังบังคับต้องมีชื่องาน product_required)
 // ระหว่างรอ HQ: ยกเลิกได้จนกว่า HQ ส่งใบ ต้องระบุเหตุผล (กลับรวบรวมความต้องการ หรือปิดเป็นไม่สำเร็จ) — แถว 6
 // หลัง HQ ส่งใบ: ขอแก้ราคาได้ (ใบเก่าปิด คำขอใหม่เริ่มนับ 14 วัน) — แถว 7
 // HQ ส่งใบแล้ว (แถว 4 · ด่าน 2): ป้าย "ได้ราคาแล้ว" + ใบ HQ แบบอ่านอย่างเดียว (ต้นทุนของดีลเลอร์ · เลขใบ · เวอร์ชัน · ยืนราคาถึง)
@@ -10,7 +11,7 @@
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
 import { useCallback, useEffect, useState } from "react";
 import { Send } from "lucide-react";
-import { quoteRequests as repo, catalog as catalogRepo } from "@pms/shared/lib/data";
+import { quoteRequests as repo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
@@ -27,7 +28,6 @@ const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d
 
 export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChanged?: () => void }) {
   const [รายการ, setรายการ] = useState<QuoteRequest[] | null>(null);
-  const [แม่แบบ, setแม่แบบ] = useState<string[]>([]);
   const [โหมด, setโหมด] = useState<โหมด>("ดู");
   const [product, setProduct] = useState("");
   const [spec, setSpec] = useState("");
@@ -44,10 +44,6 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
     repo.listForLead(dealerCode, lead.numId).then(setรายการ).catch(e => logRepoRead("quoteRequests.listForLead", e));
   }, [dealerCode, lead.numId]);
   useEffect(โหลด, [โหลด]);
-  useEffect(() => {
-    if (โหมด !== "ขอราคา" || แม่แบบ.length) return;
-    catalogRepo.list().then(l => setแม่แบบ([...new Set(l.map(p => p.name).filter(Boolean))])).catch(e => logRepoRead("catalog.list(quote-request)", e));
-  }, [โหมด, แม่แบบ.length]);
 
   const ล่าสุด = รายการ?.[0];
   const เปิด = ล่าสุด && คำขอเปิดอยู่(ล่าสุด.status) ? ล่าสุด : null;
@@ -64,13 +60,13 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
 
   const ทำ = async (fn: () => Promise<unknown>) => {
     setErr(""); setBusy(true);
-    try { await fn(); setโหมด("ดู"); setเหตุผล(""); setSpec(""); setArea(""); โหลด(); onChanged?.(); }
+    try { await fn(); setโหมด("ดู"); setเหตุผล(""); setProduct(""); setSpec(""); setArea(""); โหลด(); onChanged?.(); }
     catch (e) { setErr(friendlyError(e)); }
     finally { setBusy(false); }
   };
   const ส่งคำขอ = () => {
-    if (!product) { setErr("เลือกแม่แบบก่อน"); return; }
-    void ทำ(() => repo.submit({ leadNumId: lead.numId!, product, spec, area: area ? Number(area) : null, province: lead.province ?? "" }));
+    if (!product.trim()) { setErr("ระบุงานที่ขอราคาก่อน"); return; }
+    void ทำ(() => repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "" }));
   };
   const ยกเลิก = () => {
     if (!เหตุผล.trim()) { setErr("ต้องระบุเหตุผล"); return; }
@@ -98,7 +94,7 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
             {เกินกำหนด(เปิด) && <span className="badge" style={{ marginLeft: 6, background: "#fee2e2", color: "#b91c1c" }}>เกินกำหนด</span>}
             {เปิด.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
           </div>
-          <div>แม่แบบ: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
+          <div>งานที่ขอราคา: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
           {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
           {ใบHQ && (
             <div data-panel="hq-quote" style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", marginTop: 8 }}>
@@ -131,7 +127,7 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
         </div>
       ) : (
         <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>
-          {ขอได้ ? "ยังไม่ได้ขอราคา — ส่งคำขอพร้อมแม่แบบและสเปก สำนักงานใหญ่ทำ BOQ และส่งใบ HQ ภายใน 14 วัน"
+          {ขอได้ ? "ยังไม่ได้ขอราคา — ส่งคำขอพร้อมชื่องานและสเปก สำนักงานใหญ่ทำ BOQ และส่งใบ HQ ภายใน 14 วัน"
                  : lead.status === "HQ_PRICING" ? "กำลังโหลดคำขอ…" : "ขอราคาจาก HQ ได้ในขั้นติดต่อแล้ว หรือรวบรวมความต้องการ"}
           {ขอได้ && โหมด === "ดู" && (
             <div style={{ marginTop: 8 }}>
@@ -143,11 +139,9 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
 
       {โหมด === "ขอราคา" && (
         <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-          <label className="form-label" htmlFor="qr-product">แม่แบบ</label>
-          <select id="qr-product" aria-label="แม่แบบ" style={ช่อง} value={product} onChange={e => setProduct(e.target.value)} disabled={busy}>
-            <option value="">เลือกแม่แบบ</option>
-            {แม่แบบ.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
+          <label className="form-label" htmlFor="qr-product">งานที่ขอราคา</label>
+          <input id="qr-product" aria-label="งานที่ขอราคา" style={ช่อง} value={product} onChange={e => setProduct(e.target.value)} disabled={busy}
+            placeholder="เช่น โกดังเก็บสินค้า 20x40 ม." maxLength={200} />
           <label className="form-label" htmlFor="qr-area">พื้นที่ (ตร.ม.)</label>
           <input id="qr-area" inputMode="decimal" style={ช่อง} value={area} onChange={e => setArea(e.target.value.replace(/[^\d.]/g, ""))} disabled={busy} />
           <label className="form-label" htmlFor="qr-spec">สเปก / รายละเอียด</label>

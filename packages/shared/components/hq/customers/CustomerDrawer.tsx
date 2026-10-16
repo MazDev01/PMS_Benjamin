@@ -1,7 +1,7 @@
 "use client";
 
 // ─── แผงรายละเอียดลูกค้า (HQ ดูอย่างเดียว) ──────────────────────────────────────
-// แท็บทั้งหมดอ่านจากข้อมูลจริง: ใบที่ปิดการขายได้ + รูปแม่แบบจาก Master Catalog
+// แท็บทั้งหมดอ่านจากข้อมูลจริง: ใบที่ปิดการขายได้ (รูปแม่แบบเอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // ไม่มีแท็บสัญญา / ใบส่งมอบ / แบบก่อสร้าง — ระบบไม่มีที่เก็บข้อมูลเหล่านั้น
 import { Building2, IdCard, MapPin, Compass, Store, Repeat, CalendarDays, Wallet, StickyNote, History, Activity } from "lucide-react";
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
@@ -9,7 +9,6 @@ import { SidePanel, type แท็บแผง } from "@pms/shared/components/ui
 import { customerCode, noteCategoryColor } from "@pms/shared/lib/mock";
 import { fmtBaht } from "@pms/shared/lib/format";
 import { toThaiDate } from "@pms/shared/lib/thaiDate";
-import { useMasterCatalog } from "@pms/shared/lib/useMasterCatalog";
 import { useCustomerNotesForDealer } from "@pms/shared/lib/useCustomerNotes";
 import { type CustomerDbRow, type PurchasedBuilding } from "@pms/shared/lib/customerDb";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
@@ -23,33 +22,22 @@ const Empty = ({ text }: { text: string }) => (
   <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)", padding: "8px 2px" }}>{text}</div>
 );
 
-/** รูปแม่แบบจาก Master Catalog — แม่แบบย่อยใช้รูปของตัวเอง ไม่มีก็ใช้รูปแม่แบบหลัก */
-function BuildingThumb({ b }: { b: PurchasedBuilding }) {
-  const catalog = useMasterCatalog();
-  const product = catalog.find(p => p.name === b.buildingType);
-  const src = (b.template && product?.subtypeImages?.[b.template]) || product?.image;
-
-  if (!src) {
-    return (
-      <div style={{ width: 56, height: 56, borderRadius: 8, background: "#eef1f5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Building2 size={20} color="#9ca3af" />
-      </div>
-    );
-  }
-  // รูปเป็น data URL ที่ย่อขนาดแล้วใน Master Catalog — ใช้ <img> ตรง ๆ (next/image ไม่รองรับ data URL แบบนี้)
-   
-  return <img src={src} alt={b.template ?? b.buildingType} style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />;
+/** ไอคอนอาคาร — เดิมใช้รูปจากแม่แบบ (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */
+function BuildingThumb() {
+  return (
+    <div style={{ width: 56, height: 56, borderRadius: 8, background: "#eef1f5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Building2 size={20} color="#9ca3af" />
+    </div>
+  );
 }
 
 function BuildingCard({ b }: { b: PurchasedBuilding }) {
   return (
     <div style={{ display: "flex", gap: 10, padding: 10, border: "1px solid #e9edf2", borderRadius: 10 }}>
-      <BuildingThumb b={b} />
+      <BuildingThumb />
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#2D2D2D" }}>{b.template ?? b.buildingType}</div>
-        <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>
-          {b.buildingType} · {b.quoteNo}
-        </div>
+        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#2D2D2D" }}>{b.quoteNo}</div>
+        <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>ปิดการขาย {b.wonDate}</div>
         <div style={{ fontSize: "0.7rem", fontWeight: 700, color: PRIMARY, marginTop: 4 }}>{fmtBaht(b.value)}</div>
       </div>
     </div>
@@ -135,7 +123,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
               <div key={b.quoteNo} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "9px 11px", border: "1px solid #e9edf2", borderRadius: 9 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#2D2D2D" }}>{b.quoteNo}</div>
-                  <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{b.template ?? b.buildingType} · ปิดการขาย {b.wonDate}</div>
+                  <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>ปิดการขาย {b.wonDate}</div>
                 </div>
                 <div style={{ fontSize: "0.74rem", fontWeight: 700, color: PRIMARY, whiteSpace: "nowrap" }}>{fmtBaht(b.value)}</div>
               </div>
@@ -156,7 +144,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
       content: row.buildings.length ? (
         <PanelSection icon={Activity} title="ไทม์ไลน์" style={{ marginTop: 0 }} bodyStyle={{ padding: "12px 14px" }}>
           {row.buildings.flatMap(b => [
-            { at: b.wonAt, label: `ปิดการขาย ${b.quoteNo}`, sub: `${b.template ?? b.buildingType} · ${fmtBaht(b.value)}`, color: PRIMARY },
+            { at: b.wonAt, label: `ปิดการขาย ${b.quoteNo}`, sub: fmtBaht(b.value), color: PRIMARY },
           ])
             .filter((e): e is { at: Date; label: string; sub: string; color: string } => !!e.at)
             .sort((a, b) => b.at.getTime() - a.at.getTime())

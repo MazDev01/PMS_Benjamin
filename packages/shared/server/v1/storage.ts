@@ -11,18 +11,16 @@ import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 
 const BUCKET = "dealer-files";
-// ── ถังของแคตตาล็อก (แบบแปลนแม่แบบ) — ของกลางทั้งเครือ ──────────────────────────
-//   ⚠️ สิทธิ์ยังคุมที่ Storage RLS เหมือนเดิม (0010: เขียนได้เฉพาะ HQ) เส้นทางนี้ไม่ได้ปลดอะไร
-//      ผู้เรียกเลือกได้แค่ "ถังไหน" ไม่ได้เลือกว่า "จะเป็นใคร" — คำสั่งยังเดินในนามผู้ใช้คนนั้น
-const CATALOG_BUCKET = "catalog-plans";
-/** ผู้เรียกขอถังไหน — รับเฉพาะ "catalog" เท่านั้น ค่าอื่นตกไปที่ถังของดีลเลอร์เสมอ */
-const bucketOf = (v: unknown) => (String(v ?? "") === "catalog" ? CATALOG_BUCKET : BUCKET);
+// ถังแบบแปลนของแม่แบบเลิกใช้แล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) — เส้นทางนี้ใช้ถังของดีลเลอร์ถังเดียว
+//   ผู้เรียกที่ยังส่ง bucket อะไรมาก็ตกที่ถังของดีลเลอร์ (สิทธิ์คุมที่ Storage RLS ตามสาขาเหมือนเดิม)
+const bucketOf = (_v: unknown) => BUCKET;
 export { runtime } from "./_ctx";
 
 /** พาธของไฟล์ในถัง — ใช้ร่วมกันทั้งอัปโหลดผ่านเซิร์ฟเวอร์และออกลิงก์อัปโหลดตรง */
 function pathOf(bucket: string, dealer: string, stamp: number, name: string): string {
   const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_+/g, "_") || "file";
-  return bucket === CATALOG_BUCKET ? `plans/${stamp}-${safe}` : `${dealer}/${stamp}-${safe}`;
+  void bucket;
+  return `${dealer}/${stamp}-${safe}`;
 }
 
 export const POST = handler("storage.upload", async (req: NextRequest, sb) => {

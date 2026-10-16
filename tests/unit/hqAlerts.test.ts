@@ -15,13 +15,13 @@ const สร้าง = (o: { prospects?: DealerProspect[]; proposals?: DealerPa
 
 describe("ขอบเขตการแจ้งเตือน HQ", () => {
   it("มีแต่เรื่องงานของสำนักงานใหญ่ ไม่มีเรื่องงานขายของดีลเลอร์", () => {
-    expect(HQ_ALERT_META.map(m => m.key)).toEqual(["prospectFollowUpDue", "prospectIdle", "proposalAwaiting", "proposalExpired", "catalogNoPrice"]);
+    expect(HQ_ALERT_META.map(m => m.key)).toEqual(["prospectFollowUpDue", "prospectIdle", "proposalAwaiting", "proposalExpired"]);
   });
 
-  it("กฎที่บันทึกไว้ชุดเก่า: คีย์งานขายดีลเลอร์ถูกทิ้ง · เรื่องใหม่ได้ค่าเริ่มต้น", () => {
+  it("กฎที่บันทึกไว้ชุดเก่า: คีย์งานขายดีลเลอร์และคีย์แม่แบบ (ลบแล้ว 16 ต.ค. 69) ถูกทิ้ง · เรื่องใหม่ได้ค่าเริ่มต้น", () => {
     const r = รวมกฎแจ้งเตือน({ alerts: { unassignedLead: { on: true, email: true, inapp: true }, catalogNoPrice: { on: false, email: false, inapp: false } } } as never);
     expect(Object.keys(r.alerts).sort()).toEqual(HQ_ALERT_META.map(m => m.key).sort());
-    expect(r.alerts.catalogNoPrice.on).toBe(false);
+    expect(Object.keys(r.alerts)).not.toContain("catalogNoPrice");
     expect(r.alerts.prospectIdle).toMatchObject({ on: true, inapp: true, days: 14 });
   });
 
