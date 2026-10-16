@@ -42,3 +42,14 @@ export function เลือกบัญชีที่ต้องตั้ง�
   }
   return { ต้องตั้ง, สรุป };
 }
+
+/** อ่านตัวเลือกบรรทัดคำสั่งของ flag-temp-passwords — คืน { ฐานจริง, ลงมือ, only, ผิด } */
+export function อ่านตัวเลือก(args) {
+  const มี = f => args.includes(f);
+  // ไม่มี --only = ทุกสาขา · indexOf ได้ -1 แล้วบวก 1 = อ่านตัวเลือกแรกเป็นรหัสสาขา (บั๊กเดิม: --prod → จำกัดสาขา "--prod")
+  const i = args.indexOf("--only");
+  const ค่า = i >= 0 ? (args[i + 1] ?? "") : "";
+  const only = ค่า.startsWith("--") ? [] : ค่า.split(",").map(s => s.trim()).filter(Boolean);
+  const ผิด = มี("--only") && !only.length ? "--only ต้องตามด้วยรหัสดีลเลอร์ เช่น --only ABC,XYZ" : "";
+  return { ฐานจริง: มี("--prod"), ลงมือ: มี("--apply"), only, ผิด };
+}

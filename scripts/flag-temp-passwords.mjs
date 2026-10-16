@@ -18,13 +18,12 @@
 // ⚠️ พิมพ์เฉพาะจำนวน ไม่พิมพ์ชื่อ อีเมล หรือรหัสดีลเลอร์ลงจอ/บันทึก
 import { createClient } from "@supabase/supabase-js";
 import { readEnvFile, refOf } from "./lib/targetEnv.mjs";
-import { เลือกบัญชีที่ต้องตั้งเครื่องหมาย } from "./lib/tempPasswordAccounts.mjs";
+import { เลือกบัญชีที่ต้องตั้งเครื่องหมาย, อ่านตัวเลือก } from "./lib/tempPasswordAccounts.mjs";
 
 const args = process.argv.slice(2);
 const มี = f => args.includes(f);
-const ฐานจริง = มี("--prod"), ลงมือ = มี("--apply");
-const only = (args[args.indexOf("--only") + 1] ?? "").split(",").map(s => s.trim()).filter(Boolean);
-if (มี("--only") && !only.length) { console.error("❌ --only ต้องตามด้วยรหัสดีลเลอร์ เช่น --only ABC,XYZ"); process.exit(1); }
+const { ฐานจริง, ลงมือ, only, ผิด } = อ่านตัวเลือก(args);
+if (ผิด) { console.error(`❌ ${ผิด}`); process.exit(1); }
 
 const env = readEnvFile(ฐานจริง ? ".env.production.local" : "apps/hq/.env.local");
 // ชุดทดสอบที่สั่งรันกับฐานในเครื่องอีกตัว (NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:… ใน env) → ใช้ฐานนั้นด้วย
