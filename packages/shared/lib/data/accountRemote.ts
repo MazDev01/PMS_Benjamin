@@ -26,6 +26,21 @@ function hqOrigin(): string {
   return "";
 }
 
+/** อ่านเนื้อความคำตอบ — "สำเร็จแต่ว่าง/อ่านไม่จบ" ถือเป็นข้อผิดพลาด ห้ามคืน null ไปเหมือนสำเร็จ (บอสสั่ง 16 ต.ค. 69)
+ *  เจอจริงในรอบเต็ม: เปลี่ยนหน้าระหว่างรับคำตอบ → เบราว์เซอร์ตัดกลางทาง (net::ERR_ABORTED) → เดิมคืน null
+ *  → แถบเตือนอีเมล/ด่านตั้งรหัสอ่าน .contactEmail จาก null = TypeError · ดีลเลอร์กดเปลี่ยนหน้าเร็ว ๆ ก็เจอ
+ *  ถูกตัดกลางทาง = ข้อความขึ้นต้น "ยกเลิกระหว่างโหลด" (ผู้เรียกไม่ต้องบันทึกเป็นข้อผิดพลาด หน้าเดิมถูกทิ้งไปแล้ว) */
+async function อ่านคำตอบ<T>(res: Response): Promise<T> {
+  let text: string;
+  try { text = await res.text(); }
+  catch { throw new Error("ยกเลิกระหว่างโหลด — อ่านคำตอบไม่จบ"); }
+  let body: unknown = null;
+  try { body = text ? JSON.parse(text) : null; } catch { /* ไม่ใช่ JSON = จัดการข้างล่าง */ }
+  if (!res.ok) throw new Error((body as { error?: string } | null)?.error || `คำขอไม่สำเร็จ (${res.status})`);
+  if (body === null || typeof body !== "object") throw new Error(`คำตอบจากเซิร์ฟเวอร์ว่างหรืออ่านไม่ได้ (${res.status})`);
+  return body as T;
+}
+
 async function ยิง<T>(path: string, init?: RequestInit): Promise<T> {
   // ยิงที่เซิร์ฟเวอร์ของแอปตัวเอง แล้วให้มันส่งต่อพร้อมใบผ่านจาก cookie
   if (ผ่านเซิร์ฟเวอร์ตัวเอง) {
@@ -34,9 +49,7 @@ async function ยิง<T>(path: string, init?: RequestInit): Promise<T> {
       headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
       credentials: "same-origin",
     });
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    if (!res.ok) throw new Error(body?.error || `คำขอไม่สำเร็จ (${res.status})`);
-    return body as T;
+    return อ่านคำตอบ<T>(res);
   }
 
   const origin = hqOrigin();
@@ -52,9 +65,7 @@ async function ยิง<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {}),
     },
   });
-  const body = (await res.json().catch(() => null)) as { error?: string } | null;
-  if (!res.ok) throw new Error(body?.error || `คำขอไม่สำเร็จ (${res.status})`);
-  return body as T;
+  return อ่านคำตอบ<T>(res);
 }
 
 export const accountRemote: AccountRepo = {

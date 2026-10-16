@@ -26,7 +26,7 @@ export function ContactEmailBanner() {
       .then(s => { setอีเมล(s.contactEmail ?? ""); setแสดง(!s.contactEmailVerified && !s.mustVerifyEmail && !s.mustChangePassword); })
       .catch(e => {
         // อ่านไม่ได้ = ไม่แสดง ไม่ขวางการใช้งาน · ใบผ่านใช้ไม่ได้แล้ว (สาขาถูกลบ/ปิดใช้งาน) = AuthGuard กำลังพาออกจากระบบอยู่ ไม่ต้องบันทึก
-        if (!/unauthorized|401|403|ปิดการใช้งาน/i.test(String((e as Error)?.message ?? e))) logRepoRead("account.state(contact-email-banner)", e);
+        if (!/unauthorized|401|403|ปิดการใช้งาน|ยกเลิกระหว่างโหลด/i.test(String((e as Error)?.message ?? e))) logRepoRead("account.state(contact-email-banner)", e);
       });
   }, [session.dealerCode]);
   useEffect(ตรวจ, [ตรวจ]);

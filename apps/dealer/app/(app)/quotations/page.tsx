@@ -422,6 +422,9 @@ function QuotationsPageInner(){
   const [sortDir, setSortDir]       = useState<SortDir>("desc");
   const [page, setPage]             = useState(1);
   const [selected, setSelected]     = useState<QuotationMock|null>(null);
+  // เปิดใบตรงจากลิงก์ /quotations?open=<เลขใบ> — ปุ่ม "ขั้นต่อไป" ในแผงลูกค้าเป้าหมายพามา (ส่งให้ลูกค้า / บันทึกผล)
+  //   รอข้อมูลโหลดก่อน · เปิดครั้งเดียวต่อการเข้าหน้า
+  const เปิดจากลิงก์ = useRef(false);
   const [showModal, setShowModal]   = useState(false);
   const [editingQ, setEditingQ]     = useState<QuotationMock|null>(null);
   // ใบที่กำลังจะลบ — เก็บ "ตัวใบ" ไม่ใช่ boolean เพราะลบได้จากรายการโดยไม่ต้องเปิดแผงรายละเอียด
@@ -468,6 +471,14 @@ function QuotationsPageInner(){
       ?? leads.find(l=>l.company===q.customer);
     return lead?.assigned ?? "";
   },[customers,leads]);
+
+  useEffect(()=>{
+    if(เปิดจากลิงก์.current) return;
+    const id=new URLSearchParams(window.location.search).get("open");
+    if(!id){ เปิดจากลิงก์.current=true; return; }
+    const q=data.find(x=>x.id===id);
+    if(q){ setSelected(q); เปิดจากลิงก์.current=true; }
+  },[data]);
 
   const filtered = useMemo(()=>{
     let rows=data.filter(q=>{

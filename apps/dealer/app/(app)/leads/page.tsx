@@ -20,6 +20,7 @@ import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
+import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
 import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { ป้ายได้ราคาแล้ว } from "@pms/shared/lib/quoteRequests";
@@ -1360,6 +1361,8 @@ export default function LeadsPage() {
   }
   // พาไปแท็บใบเสนอราคาของลูกค้าเป้าหมายนี้ — ใช้ทั้งตอนพาไปออกใบใหม่ และตอนพาไปกดส่งใบที่มีอยู่
   const [quoteFormSignal, setQuoteFormSignal] = useState(0);
+  // ปุ่ม "ขั้นต่อไป" สั่งแผงคำขอราคาเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) — n เปลี่ยน = สั่งใหม่
+  const [reqSignal, setReqSignal] = useState<{ mode: "ขอราคา" | "แก้ราคา"; n: number } | undefined>(undefined);
   function focusQuotationTab(l: LeadRow) {
     setSelectedLead(l); setDraft({ ...l });
     setEditingField(null); setShowDeleteConfirm(false);
@@ -2535,7 +2538,7 @@ export default function LeadsPage() {
         const tabQuotation = (
           <DrawerSection title="ใบเสนอราคา">
             {/* ราคาจากสำนักงานใหญ่ (Flow ใหม่ · ขั้น 3) — ส่งคำขอ / ยกเลิก / ขอแก้ราคา · ฐานข้อมูลขยับสถานะเอง */}
-            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} />
+            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} />
             <LeadQuotationsPanel lead={c} onToast={setToast} openCreateSignal={quoteFormSignal} />
           </DrawerSection>
         );
@@ -2624,6 +2627,19 @@ export default function LeadsPage() {
                   <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:800, background:"#fff", color:"#003366" }}><Coins size={11} /> {fmtLeadValue(c.value)}</span>
                 </div>
               </div>
+
+              {/* แถบขั้นตอน + ขั้นต่อไป (UI ตาม flow · หน้า 3 · 16 ต.ค. 69) — ปุ่มพาไปทางเดิมที่มีอยู่ */}
+              <LeadNextStep lead={c} onAction={(kind, quoteId) => {
+                if (kind === "request_quote" || kind === "reprice") {
+                  setActiveTab("quotation"); setDTab("quotation");
+                  setReqSignal(s => ({ mode: kind === "reprice" ? "แก้ราคา" : "ขอราคา", n: (s?.n ?? 0) + 1 }));
+                } else if (kind === "make_quote") {
+                  openQuotationForm(c);
+                } else if (quoteId) {
+                  // ส่งให้ลูกค้า / บันทึกผลจากลูกค้า อยู่ในแผงรายละเอียดของหน้าใบเสนอราคา
+                  closePanel(); router.push(`/quotations?open=${encodeURIComponent(quoteId)}`);
+                }
+              }} />
 
               {/* Tab bar — Overview / Tasks / Quotation / Timeline */}
               <div style={{ display:"flex", gap:0, borderBottom:"1px solid #e5e7eb", background:"#fff", flexShrink:0, padding:"0 8px" }}>

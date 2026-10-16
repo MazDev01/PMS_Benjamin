@@ -53,7 +53,7 @@ export function FirstPasswordGate({ children }: { children: React.ReactNode }) {
       })
       .catch(e => {
         // ใบผ่านใช้ไม่ได้แล้ว (สาขาถูกลบ/ปิดใช้งาน) = AuthGuard กำลังพาออกจากระบบอยู่แล้ว ไม่ใช่ข้อผิดพลาดที่ต้องรายงาน
-        if (!/unauthorized|401|403|ปิดการใช้งาน/i.test(String((e as Error)?.message ?? e))) logRepoRead("account.state(first-password)", e);
+        if (!/unauthorized|401|403|ปิดการใช้งาน|ยกเลิกระหว่างโหลด/i.test(String((e as Error)?.message ?? e))) logRepoRead("account.state(first-password)", e);
         if (alive) setขั้นตอน("ผ่าน");
       });
     return () => { alive = false; };

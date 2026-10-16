@@ -9,7 +9,7 @@
 // HQ ส่งใบแล้ว (แถว 4 · ด่าน 2): ป้าย "ได้ราคาแล้ว" + ใบ HQ แบบอ่านอย่างเดียว (ต้นทุนของดีลเลอร์ · เลขใบ · เวอร์ชัน · ยืนราคาถึง)
 //   ฐานให้ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้วของสาขาตัวเอง — ร่างของ HQ ไม่หลุดมาที่นี่
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
@@ -26,7 +26,8 @@ type โหมด = "ดู" | "ขอราคา" | "ยกเลิก" | "�
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d5dbe4", borderRadius: 9, padding: "9px 11px", fontSize: "0.84rem", fontFamily: "inherit", boxSizing: "border-box" };
 
-export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChanged?: () => void }) {
+/** openSignal = ปุ่ม "ขั้นต่อไป" ในหัวแผงสั่งเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) · n เปลี่ยน = สั่งใหม่ (หน้า 3 UI ตาม flow · 16 ต.ค. 69) */
+export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number } }) {
   const [รายการ, setรายการ] = useState<QuoteRequest[] | null>(null);
   const [โหมด, setโหมด] = useState<โหมด>("ดู");
   const [product, setProduct] = useState("");
@@ -54,6 +55,14 @@ export function QuoteRequestPanel({ lead, onChanged }: { lead: LeadRow; onChange
     repo.hqQuoteFor(ได้ราคา).then(h => alive && setใบHQ(h)).catch(e => logRepoRead("quoteRequests.hqQuoteFor(dealer)", e));
     return () => { alive = false; };
   }, [ได้ราคา]);
+
+  // สั่งเปิดฟอร์มจากปุ่ม "ขั้นต่อไป" — รอให้รายการคำขอโหลดเสร็จก่อน (ต้องรู้ว่ามีคำขอเปิดอยู่ไหม)
+  const สัญญาณล่าสุด = useRef(0);
+  useEffect(() => {
+    if (!openSignal || openSignal.n === สัญญาณล่าสุด.current || รายการ === null) return;
+    สัญญาณล่าสุด.current = openSignal.n;
+    setErr(""); setโหมด(openSignal.mode);
+  }, [openSignal, รายการ]);
 
   if (!REAL_BACKEND) return null;
   const ขอได้ = !เปิด && (lead.status === "WAITING" || lead.status === "BULLET");
