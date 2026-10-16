@@ -12,6 +12,7 @@ const profiles = [
   { id: "u-nosec",  role: "DEALER_ADMIN", dealer_code: "EEE" },
   { id: "u-flag",   role: "DEALER_ADMIN", dealer_code: "FFF" },
   { id: "u-ghost",  role: "DEALER_ADMIN", dealer_code: "GGG" },
+  { id: "u-both",   role: "DEALER_ADMIN", dealer_code: "HHH" },
   { id: "u-hq",     role: "SUPER_ADMIN",  dealer_code: "" },
 ];
 const secrets = [
@@ -21,6 +22,7 @@ const secrets = [
   { dealer_code: "DDD", updated_by: "บจ. ตัวอย่าง (ตั้งตอนเข้าระบบครั้งแรก)" },
   { dealer_code: "FFF", updated_by: "นำเข้าข้อมูลตั้งต้น" },
   { dealer_code: "GGG", updated_by: "นำเข้าข้อมูลตั้งต้น" },
+  { dealer_code: "HHH", updated_by: "นำเข้าข้อมูลตั้งต้น" },
 ];
 const users = [
   { id: "u-import", app_metadata: { provider: "email" } },
@@ -28,7 +30,8 @@ const users = [
   { id: "u-self",   app_metadata: {} },
   { id: "u-first",  app_metadata: {} },
   { id: "u-nosec",  app_metadata: {} },
-  { id: "u-flag",   app_metadata: { must_change_password: true } },
+  { id: "u-flag",   app_metadata: { must_change_password: true } },               // มีแค่เครื่องหมายเปลี่ยนรหัส
+  { id: "u-both",   app_metadata: { must_change_password: true, must_verify_email: true } },
   { id: "u-hq",     app_metadata: {} },
 ];
 
@@ -37,7 +40,14 @@ describe("เลือกบัญชีที่ต้องตั้งเค�
   const ได้ = r.ต้องตั้ง.map((a: { dealerCode: string }) => a.dealerCode).sort();
 
   it("มีสำเนารหัสที่คนอื่นตั้งให้ (นำเข้าจากไฟล์ / สำนักงานใหญ่ตั้ง) → ต้องตั้งเครื่องหมาย", () => {
-    expect(ได้).toEqual(["AAA", "BBB"]);
+    expect(ได้).toEqual(["AAA", "BBB", "FFF"]);
+  });
+  // บอสตัดสิน 16 ต.ค. 69: ทั้ง 155 บัญชีต้องยืนยันอีเมล — บัญชีที่มีเครื่องหมายเปลี่ยนรหัสอยู่แล้ว (150 บัญชีบนระบบจริง)
+  //   แต่ยังไม่มีเครื่องหมายยืนยันอีเมล ต้องถูกเลือกด้วย · เดิมถูกข้ามเพราะดูแค่ must_change_password → ได้แค่ 5
+  it("มีเครื่องหมายเปลี่ยนรหัสแล้ว แต่ยังไม่มีเครื่องหมายยืนยันอีเมล → ต้องเติมให้ (ค่าเดิมคงไว้)", () => {
+    expect(ได้).toContain("FFF");
+    expect(r.ต้องตั้ง.find((a: { dealerCode: string }) => a.dealerCode === "FFF").appMeta).toEqual({ must_change_password: true });
+    expect(r.สรุป.เติมเครื่องหมายยืนยันอีเมล).toBe(1);
   });
   it("ดีลเลอร์ตั้งรหัสเองแล้ว (ทั้งตอนเข้าครั้งแรกและเปลี่ยนเองภายหลัง) → ไม่แตะ แม้ยังมีสำเนารหัส", () => {
     expect(ได้).not.toContain("CCC");
@@ -48,13 +58,14 @@ describe("เลือกบัญชีที่ต้องตั้งเค�
     expect(ได้).not.toContain("EEE");
     expect(r.สรุป.ไม่มีสำเนารหัส).toBe(1);
   });
-  it("มีเครื่องหมายอยู่แล้ว → ไม่ตั้งซ้ำ (รันซ้ำไม่เปลี่ยนผล)", () => {
-    expect(ได้).not.toContain("FFF");
+  it("มีเครื่องหมายครบทั้งสองแล้ว → ไม่ตั้งซ้ำ (รันซ้ำไม่เปลี่ยนผล)", () => {
+    expect(ได้).not.toContain("HHH");
+    expect(r.สรุป.มีเครื่องหมายครบแล้ว).toBe(1);
     const หลังตั้ง = users.map(u => ได้.includes(profiles.find(p => p.id === u.id)?.dealer_code ?? "")
-      ? { ...u, app_metadata: { ...(u.app_metadata ?? {}), must_change_password: true } } : u);
+      ? { ...u, app_metadata: { ...(u.app_metadata ?? {}), must_change_password: true, must_verify_email: true } } : u);
     const รอบสอง = เลือกบัญชีที่ต้องตั้งเครื่องหมาย({ secrets, profiles, users: หลังตั้ง });
     expect(รอบสอง.ต้องตั้ง).toEqual([]);
-    expect(รอบสอง.สรุป.มีเครื่องหมายอยู่แล้ว).toBe(3);
+    expect(รอบสอง.สรุป.มีเครื่องหมายครบแล้ว).toBe(4);
   });
   it("บัญชีสำนักงานใหญ่ และสาขาที่ไม่มีบัญชีเข้าระบบ → ไม่แตะ", () => {
     expect(r.ต้องตั้ง.some((a: { id: string }) => a.id === "u-hq")).toBe(false);

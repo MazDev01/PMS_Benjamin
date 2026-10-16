@@ -23,7 +23,7 @@ export function เลือกบัญชีที่ต้องตั้ง�
   const จำกัด = only?.length ? new Set(only.map(c => c.toUpperCase())) : null;
   const สำเนา = new Map(secrets.map(s => [String(s.dealer_code).toUpperCase(), s]));
   const ผู้ใช้ = new Map(users.map(u => [u.id, u]));
-  const สรุป = { บัญชีดีลเลอร์: 0, ไม่มีสำเนารหัส: 0, ดีลเลอร์ตั้งรหัสเองแล้ว: 0, ไม่พบบัญชีเข้าระบบ: 0, มีเครื่องหมายอยู่แล้ว: 0, ต้องตั้งเครื่องหมาย: 0 };
+  const สรุป = { บัญชีดีลเลอร์: 0, ไม่มีสำเนารหัส: 0, ดีลเลอร์ตั้งรหัสเองแล้ว: 0, ไม่พบบัญชีเข้าระบบ: 0, มีเครื่องหมายครบแล้ว: 0, เติมเครื่องหมายยืนยันอีเมล: 0, ต้องตั้งเครื่องหมาย: 0 };
   const ต้องตั้ง = [];
   for (const p of profiles) {
     if (p.role !== "DEALER_ADMIN" && p.role !== "DEALER_SALES") continue;
@@ -36,7 +36,10 @@ export function เลือกบัญชีที่ต้องตั้ง�
     const u = ผู้ใช้.get(p.id);
     if (!u) { สรุป.ไม่พบบัญชีเข้าระบบ++; continue; }
     const appMeta = { ...(u.app_metadata ?? {}) };
-    if (appMeta.must_change_password === true) { สรุป.มีเครื่องหมายอยู่แล้ว++; continue; }
+    // ครบ = มีทั้ง "เปลี่ยนรหัส" และ "ยืนยันอีเมล" (บอสตัดสิน 16 ต.ค. 69: ทั้ง 155 บัญชีต้องยืนยันอีเมล)
+    //   มีแค่เครื่องหมายเปลี่ยนรหัส (150 บัญชีบนระบบจริง) → ยังต้องเติมเครื่องหมายยืนยันอีเมล
+    if (appMeta.must_change_password === true && appMeta.must_verify_email === true) { สรุป.มีเครื่องหมายครบแล้ว++; continue; }
+    if (appMeta.must_change_password === true) สรุป.เติมเครื่องหมายยืนยันอีเมล++;
     สรุป.ต้องตั้งเครื่องหมาย++;
     ต้องตั้ง.push({ id: u.id, dealerCode: code, appMeta });
   }
