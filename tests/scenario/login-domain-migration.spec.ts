@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { adminClient, ลบสาขาทดสอบตรง } from "./testDealers";
+import { อ่านCSV } from "./csvRead";
 
 // ── สคริปต์ย้ายอีเมลเข้าระบบดีลเลอร์ไปโดเมนของบริษัท — รันแบบแก้จริงบนฐานทดสอบ (บอสสั่ง 19 ต.ค. 69) ─────────────
 //   scripts/migrate-dealer-login-domain.mjs · จำลองระบบจริง: ดีลเลอร์ใช้โดเมนเดิมที่ยังไม่มีใครจด
@@ -17,7 +18,8 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(120_000);
 
 const admin = adminClient();
-const ย้าย = "ZTM", อีเมลตัวเอง = "ZTN";   // รหัสสาขาทดสอบเฉพาะไฟล์นี้
+const ย้าย = "ZTM", อีเมลตัวเอง = "ZTN", สาขาที่สอง = "ZTO";   // รหัสสาขาทดสอบเฉพาะไฟล์นี้
+const รหัสสาขาที่สอง = "Second-Pass-8840";   // ต่างจากสาขาแรก — จับข้อความพร้อมส่งที่สลับแถว
 const รหัส = "Temp-Pass-5521";
 const โดเมนเดิม = ["partner", "agent.co.th"].join("-");   // ประกอบตอนรัน — ตัวตรวจ check-no-old-login-domain ห้ามชื่อนี้ในโค้ด
 const เดิม = (c: string) => `${c.toLowerCase()}@${โดเมนเดิม}`;
@@ -39,29 +41,29 @@ async function ลบบัญชีด้วยอีเมล(email: string) {
   for (const u of data.users.filter(x => x.email === email)) await admin.auth.admin.deleteUser(u.id).catch(() => {});
 }
 async function purge() {
-  for (const c of [ย้าย, อีเมลตัวเอง]) {
+  for (const c of [ย้าย, อีเมลตัวเอง, สาขาที่สอง]) {
     const { data: profs } = await admin.from("profiles").select("id").eq("dealer_code", c);
     for (const p of profs ?? []) await admin.auth.admin.deleteUser(String(p.id)).catch(() => {});
     await admin.from("dealer_login_secrets").delete().eq("dealer_code", c);
     await ลบสาขาทดสอบตรง(c);
     await admin.from("dealers").delete().eq("code", c);
   }
-  for (const e of [อีเมลHQ, เดิม(ย้าย), ใหม่(ย้าย), อีเมลของสาขาเอง]) await ลบบัญชีด้วยอีเมล(e);
+  for (const e of [อีเมลHQ, เดิม(ย้าย), ใหม่(ย้าย), อีเมลของสาขาเอง, ใหม่(สาขาที่สอง)]) await ลบบัญชีด้วยอีเมล(e);
 }
 test.beforeAll(purge);
 test.afterAll(purge);
 
-async function สร้างบัญชี(email: string, role: string, code: string | null) {
-  const { data, error } = await admin.auth.admin.createUser({ email, password: รหัส, email_confirm: true });
+async function สร้างบัญชี(email: string, role: string, code: string | null, password = รหัส) {
+  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   expect(error, `สร้างบัญชี ${role}`).toBeNull();
   const id = data.user!.id;
   expect((await admin.from("profiles").upsert({ id, role, dealer_code: code ?? "", name: `ZZTEST ${code ?? "HQ"}`, status: "active" }, { onConflict: "id" })).error).toBeNull();
   return id;
 }
-async function สร้างสาขา(code: string, email: string) {
+async function สร้างสาขา(code: string, email: string, password = รหัส) {
   expect((await admin.from("dealers").insert({ code, name: `ZZTEST ${code}`, province: "ตราด", region: "ตะวันออก", revenue_target: 0, status: "active" })).error).toBeNull();
-  const id = await สร้างบัญชี(email, "DEALER_ADMIN", code);
-  expect((await admin.from("dealer_login_secrets").upsert({ dealer_code: code, secret: เข้ารหัส(รหัส), updated_by: "ผู้ดูแลระบบ (สร้างบัญชี)" }, { onConflict: "dealer_code" })).error).toBeNull();
+  const id = await สร้างบัญชี(email, "DEALER_ADMIN", code, password);
+  expect((await admin.from("dealer_login_secrets").upsert({ dealer_code: code, secret: เข้ารหัส(password), updated_by: "ผู้ดูแลระบบ (สร้างบัญชี)" }, { onConflict: "dealer_code" })).error).toBeNull();
   return id;
 }
 const รันสคริปต์ = (...extra: string[]) => execFileSync("node", ["scripts/migrate-dealer-login-domain.mjs", ...extra], { encoding: "utf8" });
@@ -123,10 +125,11 @@ test("[script] migrate-dealer-login-domain --apply บนฐานทดสอ�
   expect(ซ้ำ).toContain("ย้ายสำเร็จ 0 · ย้ายไม่สำเร็จ 0");
 });
 
-test("[script] export-dealer-logins บนฐานทดสอบ: CSV นอก repo · ชื่อผู้ใช้ = รหัสสาขา · รหัสถอดได้ · ไม่เขียนใน repo/ไม่ทับไฟล์ · ไม่พิมพ์รหัส", async () => {
+test("[script] export-dealer-logins บนฐานทดสอบ: CSV 4 ช่อง (ข้อความพร้อมส่งของแถวตัวเอง) · นอก repo · ชื่อผู้ใช้ = รหัสสาขา · ไม่ทับไฟล์ · ไม่พิมพ์รหัส", async () => {
   // ข้อก่อนหน้าย้าย ZTM ไปโดเมนใหม่แล้ว (serial) — ถ้ารันข้อนี้เดี่ยว ๆ ให้เตรียมเอง
   const { data: p } = await admin.from("profiles").select("id").eq("dealer_code", ย้าย).maybeSingle();
   if (!p) { await สร้างสาขา(ย้าย, ใหม่(ย้าย)); }
+  await สร้างสาขา(สาขาที่สอง, ใหม่(สาขาที่สอง), รหัสสาขาที่สอง);
   const { mkdtempSync, readFileSync: อ่าน, existsSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
@@ -141,12 +144,30 @@ test("[script] export-dealer-logins บนฐานทดสอบ: CSV นอ�
   const ผล = ส่ง("--out", ที่);
   expect(ผล.ok, ผล.out).toBe(true);
   expect(ผล.out, "ต้องไม่พิมพ์รหัสผ่าน").not.toContain(รหัส);
+  expect(ผล.out, "ต้องไม่พิมพ์รหัสผ่านสาขาที่สอง").not.toContain(รหัสสาขาที่สอง);
   const csv = อ่าน(ที่, "utf8");
   expect(csv.charCodeAt(0), "ต้องมี BOM ให้ Excel อ่านภาษาไทยถูก").toBe(0xfeff);
-  const บรรทัด = csv.slice(1).split("\r\n");
-  expect(บรรทัด[0]).toBe("ชื่อสาขา,ชื่อผู้ใช้,รหัสผ่านชั่วคราว");
-  expect(บรรทัด, "แถวของสาขาที่ย้ายแล้ว: ชื่อผู้ใช้ = รหัสสาขา + รหัสชั่วคราวที่ถอดแล้ว").toContain(`ZZTEST ${ย้าย},${ย้าย},${รหัส}`);
-  expect(บรรทัด.some(l => l.split(",")[1] === อีเมลตัวเอง), "สาขาที่ใช้อีเมลของตัวเอง (พิมพ์รหัสสาขาเข้าไม่ได้) ต้องไม่อยู่ในไฟล์").toBe(false);
+  // เปิดด้วยตัวอ่าน CSV (RFC 4180) — ข้อความพร้อมส่งหลายบรรทัดต้องอยู่ในช่องเดียว ไม่แตกเป็นหลายแถว
+  const [หัว, ...แถว] = อ่านCSV(csv).filter(r => !(r.length === 1 && r[0] === ""));
+  expect(หัว).toEqual(["ชื่อสาขา", "ชื่อผู้ใช้", "รหัสผ่านชั่วคราว", "ข้อความพร้อมส่ง"]);
+  expect(แถว.filter(r => r.length !== 4), "ทุกแถวต้องมี 4 ช่องพอดี").toEqual([]);
+  const ส่งออก = Number(ผล.out.match(/ส่งออก\s+(\d+)/)?.[1] ?? -1);
+  expect(แถว.length, "จำนวนแถวในไฟล์ต้องตรงกับที่สคริปต์บอกว่าส่งออก").toBe(ส่งออก);
+  expect(ผล.out).toContain(`เขียนไฟล์แล้ว ${ส่งออก} แถว`);
+  // ข้อความพร้อมส่งของทุกแถวต้องเป็นของแถวตัวเอง (ชื่อสาขา · รหัสสาขา · รหัสผ่าน) — ไม่สลับแถว
+  for (const [ชื่อ, code, pw, ข้อความ] of แถว) {
+    expect(ข้อความ, `ข้อความของ ${code} ต้องมีรหัสผ่านของแถวตัวเอง`).toContain(`รหัสผ่านชั่วคราว: ${pw}`);
+    expect(ข้อความ).toContain(`รหัสสาขา (ชื่อผู้ใช้): ${code}`);
+    if (ชื่อ) expect(ข้อความ).toContain(ชื่อ);
+    expect(ข้อความ.split("\n").length, "ไม่เกิน 8 บรรทัด").toBeLessThanOrEqual(8);
+  }
+  const แถวแรก = แถว.find(r => r[1] === ย้าย), แถวสอง = แถว.find(r => r[1] === สาขาที่สอง);
+  expect(แถวแรก?.slice(0, 3), "แถวของสาขาที่ย้ายแล้ว: ชื่อผู้ใช้ = รหัสสาขา + รหัสชั่วคราวที่ถอดแล้ว").toEqual([`ZZTEST ${ย้าย}`, ย้าย, รหัส]);
+  expect(แถวสอง?.slice(0, 3)).toEqual([`ZZTEST ${สาขาที่สอง}`, สาขาที่สอง, รหัสสาขาที่สอง]);
+  for (const ต้องมี of ["https://dealerpms.benjaminpebsteel.com", "ตั้งรหัสผ่านใหม่", "เข้าระบบอีกครั้งด้วยรหัสใหม่", "โค้ด 6 หลัก", "15 นาที", "สแปม", "ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่"])
+    expect(แถวแรก?.[3], `ข้อความพร้อมส่งต้องมี "${ต้องมี}"`).toContain(ต้องมี);
+  expect(แถวแรก?.[3], "ข้อความของสาขาแรกต้องไม่มีรหัสของสาขาที่สอง").not.toContain(รหัสสาขาที่สอง);
+  expect(แถว.some(r => r[1] === อีเมลตัวเอง), "สาขาที่ใช้อีเมลของตัวเอง (พิมพ์รหัสสาขาเข้าไม่ได้) ต้องไม่อยู่ในไฟล์").toBe(false);
 
   const ทับ = ส่ง("--out", ที่);
   expect(ทับ.ok, "ต้องไม่เขียนทับไฟล์เดิม").toBe(false);
