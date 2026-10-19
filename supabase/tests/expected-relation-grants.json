@@ -1,5 +1,5 @@
 {
- "migration": "0213",
+ "migration": "0214",
  "relations": [
   {
    "r": "appointments",
@@ -440,14 +440,6 @@
    "anon": "SELECT,UPDATE,USAGE",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
-  },
-  {
-   "r": "territory_overlaps",
-   "kind": "v",
-   "rls": false,
-   "anon": "",
-   "authenticated": "SELECT",
-   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
   {
    "r": "th_provinces",

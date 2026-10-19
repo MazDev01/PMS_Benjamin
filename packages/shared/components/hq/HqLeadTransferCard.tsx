@@ -85,7 +85,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
                     <div style={{ display: "flex", gap: 8 }}>
                       <select aria-label={`โอนจังหวัด${r.province}ให้`} className="form-select" value={เลือก[r.province] ?? ""} disabled={busy}
                         onChange={e => setเลือก(s => ({ ...s, [r.province]: e.target.value }))}>
-                        <option value="">ทับซ้อน — เลือกดีลเลอร์</option>
+                        <option value="">หลายสาขา — เลือกสาขา</option>
                         {r.dealerCodes.map(c => <option key={c} value={c}>{c} {dealerName(c)}</option>)}
                       </select>
                       <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !เลือก[r.province]} onClick={() => void โอนจังหวัด(r)}>โอน</button>

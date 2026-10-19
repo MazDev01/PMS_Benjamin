@@ -1,5 +1,5 @@
 {
- "migration": "0213",
+ "migration": "0214",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -258,13 +258,6 @@
    "anon": false,
    "authenticated": true,
    "service_role": true,
-   "definer": false
-  },
-  {
-   "f": "dealer_territories_guard()",
-   "anon": false,
-   "authenticated": false,
-   "service_role": false,
    "definer": false
   },
   {
@@ -903,13 +896,6 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
-  },
-  {
-   "f": "territory_resolve_overlap(p_province text, p_keep text)",
-   "anon": false,
-   "authenticated": true,
-   "service_role": false,
-   "definer": true
   },
   {
    "f": "territory_unmatched_dealers()",

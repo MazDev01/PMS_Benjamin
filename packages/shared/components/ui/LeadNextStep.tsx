@@ -53,7 +53,25 @@ export function LeadNextStep({ lead, onAction }: {
     return ของดีล.sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.id.localeCompare(a.id, "en", { numeric: true }))[0] ?? null;
   }, [quotations, lead.numId, dealerCode]);
 
-  if (คำขอ === undefined) return null;   // ยังโหลดไม่เสร็จ — ไม่เดาขั้น
+  // ยังโหลดไม่เสร็จ — ไม่เดาขั้น แต่จองพื้นที่ขนาดเท่าของจริงไว้ก่อน
+  //   เดิมคืน null แล้วกล่องโผล่ทีหลัง ดันเนื้อหาข้างล่างลง = กดปุ่มในแท็บพลาดเป้าได้ (เจอในรอบเต็ม 16 ต.ค. 69: กดสร้างใบแล้วไม่เกิดอะไร)
+  if (คำขอ === undefined) {
+    return (
+      <div data-panel="next-step" aria-busy="true" style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "12px 20px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
+          {ขั้นทั้งหมด.map(ชื่อ => (
+            <div key={ชื่อ} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ height: 5, borderRadius: 99, background: "#e5e7eb" }} />
+              <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "#9ca3af", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ชื่อ}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ minHeight: 62, boxSizing: "border-box", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 14px", fontSize: "0.74rem", color: "#9ca3af", display: "flex", alignItems: "center" }}>
+          กำลังโหลดขั้นต่อไป…
+        </div>
+      </div>
+    );
+  }
   const ขั้น = ขั้นต่อไป({
     leadStatus: lead.status,
     request: คำขอ ? { status: คำขอ.status, dueAt: คำขอ.dueAt } : null,
@@ -84,7 +102,7 @@ export function LeadNextStep({ lead, onAction }: {
           );
         })}
       </ol>
-      <div role="status" aria-label="ขั้นต่อไป" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: สีกล่อง.bg, border: `1px solid ${สีกล่อง.line}`, borderRadius: 12, padding: "10px 14px" }}>
+      <div role="status" aria-label="ขั้นต่อไป" style={{ minHeight: 62, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: สีกล่อง.bg, border: `1px solid ${สีกล่อง.line}`, borderRadius: 12, padding: "10px 14px" }}>
         <div style={{ flex: "1 1 260px", minWidth: 0 }}>
           <div style={{ fontSize: "0.66rem", fontWeight: 700, color: สีกล่อง.text, opacity: 0.85 }}>{จบแล้ว ? "สถานะ" : "ขั้นต่อไป"}</div>
           <div style={{ fontSize: "0.92rem", fontWeight: 800, color: สีกล่อง.text }}>{ขั้น.title}</div>

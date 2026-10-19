@@ -14,7 +14,6 @@ test.setTimeout(120_000);   // ข้อเดียวเดินครบ 3 �
 
 const admin = adminClient();
 const ป้าย = "ZZTEST-โอนHQ";
-let สร้างรหัสHQเอง = false;
 async function ล้าง() {
   for (const code of ["HQ", "RYG", "CNX"]) {
     const { data } = await admin.from("leads").select("num_id").eq("dealer_code", code).like("company", `${ป้าย}%`);
@@ -26,13 +25,12 @@ async function ล้าง() {
 }
 test.beforeAll(async () => {
   await ล้าง();
-  const { data } = await admin.from("dealers").select("code").eq("code", "HQ");
-  if (!data?.length) {
-    const r = await admin.from("dealers").insert({ code: "HQ", name: "สำนักงานใหญ่ (ทดสอบ)", province: "กรุงเทพมหานคร", region: "กลาง", status: "active" });
-    if (r.error) throw new Error(r.error.message);
-    สร้างรหัสHQเอง = true;
-  }
-  await admin.from("dealer_territories").insert([{ province: "ลำพูน", dealer_code: "RYG", legacy: true }, { province: "ลำพูน", dealer_code: "CNX", legacy: true }]);
+  // สาขา "HQ" ใช้ร่วมกับ territory-multi-dealer.spec.ts ที่รันขนานกัน — สร้างแบบไม่ชน (มีแล้วข้าม) และไม่ลบตอนจบ
+  const สาขาHQ = await admin.from("dealers").upsert({ code: "HQ", name: "สำนักงานใหญ่ (ทดสอบ)", province: "กรุงเทพมหานคร", region: "กลาง", status: "active" },
+    { onConflict: "code", ignoreDuplicates: true });
+  if (สาขาHQ.error) throw new Error(สาขาHQ.error.message);
+  // ลำพูน = จังหวัดที่มี 2 สาขาดูแล (ใบ 0214: จังหวัดเดียวมีหลายดีลเลอร์ได้ · ป้าย legacy ไม่ใช้แล้ว)
+  await admin.from("dealer_territories").insert([{ province: "ลำพูน", dealer_code: "RYG" }, { province: "ลำพูน", dealer_code: "CNX" }]);
   const lead = (n: number, company: string, province: string) => ({
     id: `#ZZHQ-${n}`, dealer_code: "HQ", num_id: 979_000_000 + n, name: company, company, phone: `081-300-000${n}`, province, status: "WAITING",
     note: n === 1 ? "โน้ตจาก HQ" : "",
@@ -45,7 +43,6 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   await ล้าง();
-  if (สร้างรหัสHQเอง) await admin.from("dealers").delete().eq("code", "HQ");
 });
 
 test("[hq] โอนลูกค้าเป้าหมายของ HQ: ยืนยันเป็นชุด (ดีลเลอร์รายเดียว) · เลือกเองเมื่อทับซ้อน · คิวรอไม่โอน", async ({ page }) => {
@@ -55,6 +52,11 @@ test("[hq] โอนลูกค้าเป้าหมายของ HQ: ย�
   const การ์ด = page.locator(".card").filter({ hasText: "โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์" }).first();
   await expect(การ์ด).toBeVisible({ timeout: 30_000 });
   await expect(การ์ด.getByRole("row", { name: /ระยอง/ })).toContainText("RYG");
+  // จังหวัดสาขาเดียว (ระยอง) = โอนอัตโนมัติ · จังหวัดหลายสาขา (ลำพูน: RYG + CNX · ใบ 0214) = HQ ต้องเลือกเอง ระบบไม่เลือกให้
+  await expect(การ์ด.getByRole("row", { name: /ระยอง/ }).getByText("โอนอัตโนมัติได้")).toBeVisible();
+  const ช่องลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ }).getByLabel("โอนจังหวัดลำพูนให้");
+  await expect(ช่องลำพูน, "หลายสาขา: ระบบต้องไม่เลือกสาขาให้").toHaveValue("");
+  await expect(การ์ด.getByRole("row", { name: /ลำพูน/ }).getByRole("button", { name: "โอน" }), "ยังไม่เลือกสาขา = โอนไม่ได้").toBeDisabled();
   await expect(การ์ด.getByText(/คิวรอ/)).toBeVisible();
 
   // 1) ยืนยันเป็นชุด
@@ -72,7 +74,7 @@ test("[hq] โอนลูกค้าเป้าหมายของ HQ: ย�
   const { data: เห็น } = await (await db(RYG)).from("leads").select("company").eq("company", `${ป้าย}-ระยอง`);
   expect(เห็น?.length, "RYG เห็นลูกค้าเป้าหมายที่รับโอน").toBe(1);
 
-  // 2) ทับซ้อน — HQ เลือก CNX
+  // 2) หลายสาขา — HQ เลือก CNX เอง
   const แถวลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ });
   await แถวลำพูน.getByLabel("โอนจังหวัดลำพูนให้").selectOption("CNX");
   await แถวลำพูน.getByRole("button", { name: "โอน" }).click();

@@ -114,7 +114,10 @@ test("[supabase] หน้าทะเบียนดีลเลอร์แส
   await login(page, HQ, "/hq/login", ADMIN);
   await page.goto(`${HQ}/hq/dealers`, { waitUntil: "domcontentloaded" });
 
-  // รายชื่อจริงจากฐานข้อมูล — อ่านด้วยสิทธิ์ของผู้ดูแลที่ล็อกอินอยู่ (ผ่านกฎความปลอดภัยจริง ไม่ใช่ลัด)
+  // รายชื่อจริงจากฐานข้อมูล — อ่านด้วยสิทธิ์ของผู้ดูแลที่ล็อกอินอยู่
+  //   ⚠️ อ่าน "ก่อน" และ "หลัง" จับข้อมูลหน้าจอ (ไม่นิ่งในรอบเต็ม 16 ต.ค. 69): ข้ออื่นที่รันขนานกัน (test-dealer-cleanup)
+  //   สร้าง/ลบสาขาชั่วคราวระหว่างทาง → อ่านครั้งเดียวตอนต้น หน้าจอเห็นสาขาที่เพิ่งเกิดแต่รายชื่อไม่มี = ตกทั้งที่ระบบถูก
+  //   ทุกแถวบนจอต้องเป็นสาขาที่มีอยู่จริงช่วงใดช่วงหนึ่งระหว่างตรวจ · เทียบจำนวนเฉพาะตอนรายชื่อก่อน-หลังเท่ากัน (ผ่านกฎความปลอดภัยจริง ไม่ใช่ลัด)
   const sb = await db(ADMIN);
   const names = ((await sb.from("dealers_directory").select("name")).data ?? []).map(d => String(d.name));
   expect(names.length, "ต้องมีสาขาอยู่ในฐานข้อมูลอย่างน้อย 1 สาขา").toBeGreaterThan(0);
@@ -132,13 +135,16 @@ test("[supabase] หน้าทะเบียนดีลเลอร์แส
 
   // ⚠️ ตารางแบ่งหน้าละ 10 แถว — มีมากกว่านั้นหน้าแรกจะแสดงแค่ 10 ซึ่งถูกต้องแล้ว
   expect(rows.length, "หน้าแรกต้องแสดงไม่เกิน 10 แถวตามกติกาการแบ่งหน้า").toBeLessThanOrEqual(10);
+  const namesAfter = ((await sb.from("dealers_directory").select("name")).data ?? []).map(d => String(d.name));
+  const ทุกชื่อ = [...new Set([...names, ...namesAfter])];
+  const นิ่ง = names.length === namesAfter.length && names.every(n => namesAfter.includes(n));
   // ทุกแถวบนจอต้องเป็นสาขาที่มีอยู่จริงในฐานข้อมูล = ไม่ได้เอาข้อมูลตัวอย่างที่ฝังในโค้ดมาโชว์
-  const shown = rows.map(cells => cells.find(c => names.includes(c)) ?? "");
+  const shown = rows.map(cells => cells.find(c => ทุกชื่อ.includes(c)) ?? "");
   for (let i = 0; i < rows.length; i++) {
     expect(shown[i], `แถวที่ ${i + 1} ไม่ตรงกับสาขาใดในฐานข้อมูลเลย (${rows[i].join(" | ")})`).not.toBe("");
   }
   // ถ้าสาขาน้อยกว่าหนึ่งหน้า ต้องเห็นครบทุกสาขา ไม่มีหายไปเงียบ ๆ
-  if (names.length <= 10) expect(rows.length, "สาขาไม่ถึงหนึ่งหน้า ต้องแสดงครบทุกสาขา").toBe(names.length);
+  if (นิ่ง && names.length <= 10) expect(rows.length, "สาขาไม่ถึงหนึ่งหน้า ต้องแสดงครบทุกสาขา").toBe(names.length);
   console.log(`ทะเบียนดีลเลอร์แสดง ${rows.length} สาขาจากฐานข้อมูล: ${shown.join(", ")}`);
 });
 

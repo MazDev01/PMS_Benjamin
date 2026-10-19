@@ -18,13 +18,23 @@ const แท็ก = Date.now() % 1_000_000;
 const บริษัท = `ZZTEST-ไม่มีแม่แบบ-${แท็ก}`;
 const เลขลีด = 976_000_000 + แท็ก;
 let pricingเดิม: unknown = null;
+let มีแถวเดิม = false;
+// ⚠️ ห้ามใช้ update เขียนแถวตั้งค่าของ RYG — supabase-rls ลบแถวนี้ทิ้งตอนจบ (รอบเต็ม 19 ต.ค. 69)
+//   update ใส่แถวที่ไม่มี = ไม่เกิดอะไรและไม่แจ้งผิด → หน้าตั้งค่าเห็น 0 แทน 15 · ใช้ upsert + ตรวจว่าเขียนได้จริง
+const ตั้งราคาRYG = async (pricing: unknown) => {
+  const { data, error } = await admin.from("dealer_settings").upsert({ dealer_code: "RYG", pricing }, { onConflict: "dealer_code" }).select("dealer_code");
+  expect(error, "ตั้งค่า % บวกของ RYG ต้องสำเร็จ").toBeNull();
+  expect(data ?? [], "ต้องเขียนลงแถวตั้งค่าของ RYG จริง 1 แถว").toHaveLength(1);
+};
 
 test.beforeAll(async () => {
   const { data } = await admin.from("dealer_settings").select("pricing").eq("dealer_code", "RYG").maybeSingle();
+  มีแถวเดิม = !!data;
   pricingเดิม = data?.pricing ?? {};
 });
 test.afterAll(async () => {
-  await admin.from("dealer_settings").update({ pricing: pricingเดิม ?? {} }).eq("dealer_code", "RYG");
+  if (มีแถวเดิม) await admin.from("dealer_settings").update({ pricing: pricingเดิม ?? {} }).eq("dealer_code", "RYG");
+  else await admin.from("dealer_settings").delete().eq("dealer_code", "RYG");
   ล้างใบHQทดสอบ("RYG", [เลขลีด]);
   await admin.from("leads").delete().eq("dealer_code", "RYG").eq("num_id", เลขลีด);
 });
@@ -128,7 +138,7 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
 
 test("[func·dealer] % บวกตั้งต้นอยู่ที่หน้าตั้งค่า · ค่าเดิมของสาขา (ตั้งรายแม่แบบไว้) ยังอยู่หลังย้าย", async ({ page }) => {
   // ค่าเดิมแบบที่หน้าแม่แบบเคยบันทึก ("ใช้กับทุกแม่แบบ" = ค่าเดียวกันทุกแม่แบบ · ไม่มี defaultPct)
-  await admin.from("dealer_settings").update({ pricing: { byTemplate: { "tpl-1": 15, "tpl-2": 15 } } }).eq("dealer_code", "RYG");
+  await ตั้งราคาRYG({ byTemplate: { "tpl-1": 15, "tpl-2": 15 } });
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/settings`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "ตั้งค่าใบเสนอราคา" }).click();
@@ -198,7 +208,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   await expect.poll(async () => (await admin.from("hq_quotes").select("status").eq("request_id", rid).maybeSingle()).data?.status, { timeout: 20_000 }).toBe("sent");
 
   // 3) ดีลเลอร์ทำใบลูกค้า — % ตั้งต้น = ค่าจากหน้าตั้งค่า (20)
-  await admin.from("dealer_settings").update({ pricing: { defaultPct: 20 } }).eq("dealer_code", "RYG");
+  await ตั้งราคาRYG({ defaultPct: 20 });
   await เปิดแผงใบ();
   await d.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 25_000 });
   const ตาราง = d.locator("[data-editor='hq-markup']");

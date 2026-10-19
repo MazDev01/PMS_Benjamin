@@ -79,22 +79,17 @@ export interface ProfileRepo {
 }
 
 // ── ข้อมูลบริษัทของสำนักงานใหญ่ — อ่านได้ทุกคน เขียนเฉพาะผู้มีสิทธิ์แก้ข้อมูลกลาง ──
-// ── พื้นที่ของดีลเลอร์ (กฎหนึ่งจังหวัด หนึ่งดีลเลอร์ · ใบ 0195) ──
-export type TerritoryOverlap = { province: string; region: string; dealerCodes: string[] };
+// ── พื้นที่ของดีลเลอร์ (ใบ 0195 · จังหวัดเดียวมีหลายดีลเลอร์ได้ตั้งแต่ใบ 0214) ──
 export type UnmatchedDealer = { dealerCode: string; province: string };
 /** เจ้าของพื้นที่รายจังหวัด (ทุกบัญชีอ่านได้ · RLS 0195) — ใช้บอกว่าจังหวัดไหนยังว่างตอนแปลงเป็นดีลเลอร์ */
 export type TerritoryOwner = { province: string; dealerCode: string; legacy: boolean };
 /** แผนโอนลูกค้าเป้าหมายของ HQ ต่อจังหวัด — auto = ดีลเลอร์รายเดียว · choose = ทับซ้อน HQ เลือก · queue = ไม่มีจังหวัด/จังหวัดว่าง */
 export type HqTransferPlanRow = { province: string; mode: "auto" | "choose" | "queue"; leads: number; dealerCodes: string[] };
 export interface TerritoriesRepo {
-  /** จังหวัดที่ดีลเลอร์เดิมทับกันอยู่ (legacy) — HQ เคลียร์ทีละจังหวัด */
-  overlaps(): Promise<TerritoryOverlap[]>;
   /** พื้นที่ทั้งหมด: จังหวัด → ดีลเลอร์ที่ดูแล */
   owners(): Promise<TerritoryOwner[]>;
   /** ดีลเลอร์ที่ไม่ได้พื้นที่ เพราะจังหวัดในทะเบียนไม่ตรงรายชื่อมาตรฐาน (ระบบไม่เดาจับคู่) */
   unmatched(): Promise<UnmatchedDealer[]>;
-  /** เก็บดีลเลอร์ keep ไว้รายเดียวในจังหวัดนั้น ที่เหลือถอดออก — กฎใช้เต็ม */
-  resolveOverlap(province: string, keep: string): Promise<void>;
   /** โอนลูกค้าเป้าหมายของ HQ (ใบ 0197): แผน · โอนทุกจังหวัดที่มีดีลเลอร์รายเดียว · โอนจังหวัดเดียวให้ดีลเลอร์ที่เลือก — คืนจำนวนที่โอน */
   transferPlan(): Promise<HqTransferPlanRow[]>;
   transferAuto(): Promise<number>;

@@ -89,7 +89,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview)\.spec\.ts/,
+      testIgnore: /(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|no-template|func-dealer-settings)\.spec\.ts/,
       dependencies: ["setup"],
     },
     {
@@ -99,7 +99,9 @@ export default defineConfig({
       //   hq-recruit-settings ก็แก้ค่าตั้งต้นใบเสนอแพ็กเกจชุดเดียวกัน · แยกโปรเจกต์ workers: 1 = ไม่มีวันคาบเกี่ยวกัน
       name: "hq-settings",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview)\.spec\.ts/,
+      // no-template · func-dealer-settings แก้แถวตั้งค่าของ RYG (dealer_settings) แถวเดียวกัน — supabase-rls (ช่วง chromium) ลบแถวนั้นทิ้ง
+      //   รันขนานกันแล้วข้อ "% บวกตั้งต้น" เห็น 0 แทน 15 (ไม่นิ่งในรอบเต็ม 16 ต.ค. 69) — ย้ายมารันทีละไฟล์หลังช่วง chromium
+      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|no-template|func-dealer-settings)\.spec\.ts/,
       workers: 1,
       dependencies: ["setup"],
     },

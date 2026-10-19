@@ -1,4 +1,4 @@
--- ── ทดสอบใบ 0195: กฎพื้นที่ หนึ่งจังหวัด หนึ่งดีลเลอร์ (FLOW.html กฎที่ระบบบังคับ) ─────────────────────────
+-- ── ทดสอบใบ 0195 (+0214 ยกเลิกหนึ่งจังหวัดหนึ่งดีลเลอร์): กฎพื้นที่ (FLOW.html กฎที่ระบบบังคับ) ─────────────────────────
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/territories.sql
 -- ทุกอย่างอยู่ในทรานแซกชันเดียวแล้ว rollback ท้ายไฟล์ · ผ่าน = บรรทัดสุดท้ายขึ้น "ALL PASS"
 begin;
@@ -64,9 +64,10 @@ begin
                       and (select dealer_code from territory_unmatched_dealers() limit 1) = 'BKK',
     'รายการดีลเลอร์ที่จับคู่จังหวัดไม่ได้ ให้ HQ เห็นและแก้เอง');
 
-  -- ══ ค. หนึ่งจังหวัด หนึ่งดีลเลอร์ (การกำหนดพื้นที่ใหม่) ══
-  perform flowtest.must_fail('insert into dealer_territories (province, dealer_code) values (''ระยอง'', ''CBI'')',
-    'territory_taken', 'จังหวัดที่มีดีลเลอร์ดูแลแล้ว กำหนดให้อีกรายไม่ได้');
+  -- ══ ค. การกำหนดพื้นที่ — จังหวัดเดียวมีหลายดีลเลอร์ได้ (ใบ 0214 · ยกเลิกหนึ่งจังหวัดหนึ่งดีลเลอร์ 16 ต.ค. 69) ══
+  insert into dealer_territories (province, dealer_code) values ('ระยอง', 'CBI');
+  perform flowtest.ok(true, 'จังหวัดที่มีดีลเลอร์ดูแลแล้ว เพิ่มดีลเลอร์รายที่ 2 ได้');
+  delete from dealer_territories where province = 'ระยอง' and dealer_code = 'CBI';
   insert into dealer_territories (province, dealer_code) values ('ตราด', 'RYG');
   perform flowtest.ok(true, 'จังหวัดว่างกำหนดให้ดีลเลอร์ได้');
   delete from dealer_territories where province = 'ตราด';
@@ -87,32 +88,19 @@ begin
   perform flowtest.new_lead('CNX', '#TT-5', 'บจ. งานอื่นที่ตราด', '081-100-0005', 'ตราด');
   perform flowtest.ok(true, 'จังหวัดว่าง งานคนละงาน → ยื่นได้');
 
-  -- ══ ฉ. พื้นที่ทับซ้อนเดิม (legacy): ดีลเลอร์เดิมทุกรายสร้างได้ตามเดิม ══
+  -- ══ ฉ. จังหวัดที่ดูแลร่วมกัน: ดีลเลอร์ทุกรายที่ดูแลสร้างลีดได้ · รายที่ไม่ได้ดูแลสร้างไม่ได้ ══
   perform flowtest.as_root();
-  insert into dealer_territories (province, dealer_code, legacy) values ('ลำพูน', 'RYG', true), ('ลำพูน', 'CNX', true);
+  insert into dealer_territories (province, dealer_code) values ('ลำพูน', 'RYG'), ('ลำพูน', 'CNX');
   perform flowtest.as_dealer('RYG', c.ryg_uid);
   perform flowtest.new_lead('RYG', '#TT-6', 'บจ. ลำพูนหนึ่ง', '081-100-0006', 'ลำพูน');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.new_lead('CNX', '#TT-7', 'บจ. ลำพูนสอง', '081-100-0007', 'ลำพูน');
-  perform flowtest.ok(true, 'จังหวัดทับซ้อนเดิม → ดีลเลอร์เดิมทั้งสองรายสร้างลูกค้าเป้าหมายได้');
-  perform flowtest.as_hq(c.hq_uid);
-  perform flowtest.ok(exists (select 1 from territory_overlaps where province = 'ลำพูน' and dealer_codes = array['CNX', 'RYG']),
-    'HQ เห็นรายการจังหวัดทับซ้อนพร้อมดีลเลอร์ที่ทับกัน');
-
-  -- ══ ช. HQ เคลียร์ทีละจังหวัด → กฎใช้เต็ม ══
-  perform flowtest.as_dealer('RYG', c.ryg_uid);
-  perform flowtest.must_fail('select territory_resolve_overlap(''ลำพูน'', ''RYG'')', 'forbidden', 'ดีลเลอร์เคลียร์พื้นที่ทับซ้อนเองไม่ได้');
-  perform flowtest.as_hq(c.hq_uid);
-  perform territory_resolve_overlap('ลำพูน', 'RYG');
-  perform flowtest.ok((select count(*) from dealer_territories where province = 'ลำพูน') = 1
-                      and exists (select 1 from dealer_territories where province = 'ลำพูน' and dealer_code = 'RYG' and not legacy),
-    'เคลียร์แล้ว เหลือดีลเลอร์เดียว ไม่ติดป้าย legacy');
-  perform flowtest.ok(not exists (select 1 from territory_overlaps where province = 'ลำพูน'), 'จังหวัดที่เคลียร์แล้วหายจากรายการทับซ้อน');
+  perform flowtest.ok(true, 'จังหวัดที่ดูแลร่วมกัน → ดีลเลอร์ทั้งสองรายสร้างลูกค้าเป้าหมายได้');
+  perform flowtest.as_root();
+  delete from dealer_territories where province = 'ลำพูน' and dealer_code = 'CNX';
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-8'', ''บจ. ลำพูนสาม'', ''081-100-0008'', ''ลำพูน'')',
-    'lead_outside_territory', 'เคลียร์แล้ว ดีลเลอร์ที่ไม่ได้พื้นที่สร้างลูกค้าเป้าหมายในจังหวัดนั้นไม่ได้');
-  perform flowtest.as_hq(c.hq_uid);
-  perform flowtest.must_fail('select territory_resolve_overlap(''ลำพูน'', ''CNX'')', 'territory_not_overlap', 'จังหวัดที่ไม่ได้ทับซ้อนแล้ว เคลียร์ซ้ำไม่ได้');
+    'lead_outside_territory', 'ดีลเลอร์ที่ไม่ได้ดูแลจังหวัด สร้างลูกค้าเป้าหมายในจังหวัดนั้นไม่ได้');
 
   -- ══ ซ. ลูกค้าเป้าหมายเดิมไม่ถูกบล็อกจนกว่าจะแก้จังหวัด ══
   perform flowtest.as_root();

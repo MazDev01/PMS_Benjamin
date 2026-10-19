@@ -15,7 +15,7 @@
 import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal, DealerProposalPayment } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
-import type { TerritoriesRepo, TerritoryOverlap, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo } from "../ports";
+import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo } from "../ports";
 import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
@@ -168,13 +168,24 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     else if (res.status === 401 && typeof window !== "undefined") พาไปเข้าสู่ระบบใหม่();
   }
   // อ่าน body ก่อนเช็ค ok — ข้อความอธิบายเหตุผลอยู่ใน body ไม่ใช่ status
-  const body = (await res.json().catch(() => null)) as { error?: string; code?: string } | T | null;
+  // ⚠️ "สำเร็จแต่อ่านเนื้อความไม่ได้" ต้องเป็นข้อผิดพลาด ห้ามคืน null ไปเหมือนสำเร็จ (16 ต.ค. 69 · errcheck ฝั่ง HQ)
+  //   เปลี่ยนหน้าระหว่างรับคำตอบ → เบราว์เซอร์ตัดกลางทาง → เดิม .json().catch(() => null) คืน null
+  //   → ผู้เรียกวนลูป/อ่านช่องจากค่าว่าง = TypeError ("e is not iterable")
+  //   ถูกตัดกลางทาง = ข้อความมีคำว่า aborted → logRepoRead ไม่นับเป็นข้อผิดพลาด (isAbortedRequest)
+  //   JSON "null" ที่เซิร์ฟเวอร์ตั้งใจตอบ (เช่น ยังไม่มีใบ HQ) ยังเป็นค่าที่ถูกต้อง
+  let ข้อความ: string;
+  try { ข้อความ = await res.text(); }
+  catch { throw new DbError("คำขอถูกยกเลิกระหว่างโหลด (aborted) — อ่านคำตอบไม่จบ"); }
+  let body: { error?: string; code?: string } | T | null = null;
+  let อ่านได้ = ข้อความ !== "";
+  if (อ่านได้) { try { body = JSON.parse(ข้อความ); } catch { อ่านได้ = false; } }
   if (!res.ok) {
     // ต้องเป็น DbError พร้อมรหัสของ Postgres — friendlyError ทั้งแอปอ่านรหัสนี้เพื่อแปลงเป็น
     // ข้อความที่คนอ่านรู้เรื่อง (เช่น 23503 = ยังมีข้อมูลอ้างถึงอยู่) . โยน Error เปล่าจะเสียตรงนั้นไป
     const b = body && typeof body === "object" ? body as { error?: string; code?: string } : null;
     throw new DbError(b?.error ? String(b.error) : `เซิร์ฟเวอร์ตอบกลับ ${res.status}`, b?.code);
   }
+  if (!อ่านได้) throw new DbError(`คำตอบจากเซิร์ฟเวอร์ว่างหรืออ่านไม่ได้ (${res.status})`);
   return body as T;
 }
 
@@ -292,10 +303,8 @@ const quoteRequests: QuoteRequestsRepo = {
 };
 // พื้นที่ของดีลเลอร์ (ใบ 0195)
 const territories: TerritoriesRepo = {
-  overlaps: () => apiFetch<TerritoryOverlap[]>("/territories?view=overlaps"),
   owners: () => apiFetch<{ province: string; dealerCode: string; legacy: boolean }[]>("/territories?view=owners"),
   unmatched: () => apiFetch<UnmatchedDealer[]>("/territories?view=unmatched"),
-  resolveOverlap: async (province, keep) => { await post("/territories", { op: "resolve-overlap", province, keep }); },
   transferPlan: () => apiFetch<HqTransferPlanRow[]>("/territories?view=transfer-plan"),
   transferAuto: async () => (await post<{ moved: number }>("/territories", { op: "transfer-auto" })).moved,
   transfer: async (province, to) => (await post<{ moved: number }>("/territories", { op: "transfer", province, to })).moved,

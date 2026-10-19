@@ -123,7 +123,7 @@ export default function HQProspectsPage() {
   // จังหวัดที่ดูแล (ด่าน 4 · FLOW: แปลงเป็นดีลเลอร์ · HQ กำหนดจังหวัดที่ดูแล · หนึ่งจังหวัด หนึ่งดีลเลอร์ 0195)
   //   เจ้าของพื้นที่ = null ระหว่างโหลด · โหลดไม่ได้ = บอกตรง ๆ ห้ามแสดงว่าทุกจังหวัดว่าง
   const [พื้นที่, setพื้นที่] = useState<string[]>([]);
-  const [เจ้าของพื้นที่, setเจ้าของพื้นที่] = useState<Map<string, string> | null>(null);
+  const [เจ้าของพื้นที่, setเจ้าของพื้นที่] = useState<Map<string, string[]> | null>(null);   // จังหวัด → ดีลเลอร์ที่ดูแลอยู่ (หลายรายได้ · ใบ 0214)
   const [พื้นที่ผิด, setพื้นที่ผิด] = useState("");
   // ตกลง + ชำระ (0208): ฐานข้อมูลตอบว่าพร้อมแปลงไหม — undefined = กำลังตรวจ · null = พร้อม · ข้อความ = ยังไม่พร้อมเพราะอะไร
   const [ยังไม่พร้อมแปลง, setยังไม่พร้อมแปลง] = useState<string | null | undefined>(undefined);
@@ -390,9 +390,10 @@ export default function HQProspectsPage() {
     proposalsRepo.conversionReady(p.id).then(setยังไม่พร้อมแปลง)
       .catch(e => setยังไม่พร้อมแปลง(friendlyError(e, "ตรวจใบค่าแฟรนไชส์ไม่สำเร็จ — ปิดแล้วเปิดใหม่")));
     territoriesRepo.owners().then(list => {
-      const m = new Map(list.map(x => [x.province, x.dealerCode]));
+      const m = new Map<string, string[]>();
+      for (const x of list) m.set(x.province, [...(m.get(x.province) ?? []), x.dealerCode]);
       setเจ้าของพื้นที่(m);
-      // ตั้งต้น = จังหวัดของรายนี้ ถ้ายังว่าง (HQ เลือกเพิ่ม/ถอดได้)
+      // ตั้งต้น = จังหวัดของรายนี้ ถ้ายังไม่มีใครดูแล (HQ เลือกเพิ่ม/ถอดได้ · จังหวัดที่มีคนดูแลแล้วก็เลือกได้ — ใบ 0214)
       if (จังหวัดใช้ได้ && จังหวัดเดิม !== ALL_PROVINCES && !m.has(จังหวัดเดิม)) setพื้นที่([จังหวัดเดิม]);
     }).catch(e => { logRepoRead("territories.owners(convert)", e); setพื้นที่ผิด(friendlyError(e, "โหลดพื้นที่ของดีลเลอร์ไม่สำเร็จ")); });
   }
@@ -1042,7 +1043,7 @@ export default function HQProspectsPage() {
                     </select>
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <div className="form-label" id="cv-territory-label">จังหวัดที่ดูแล * <span style={{ fontWeight: 400, color: MUTED }}>(หนึ่งจังหวัด หนึ่งดีลเลอร์)</span></div>
+                    <div className="form-label" id="cv-territory-label">จังหวัดที่ดูแล * <span style={{ fontWeight: 400, color: MUTED }}>(เลือกได้หลายจังหวัด · จังหวัดที่มีดีลเลอร์ดูแลอยู่แล้วก็เลือกได้)</span></div>
                     {พื้นที่ผิด ? (
                       <div role="alert" style={{ fontSize: "0.75rem", color: "#b91c1c" }}>{พื้นที่ผิด}</div>
                     ) : !เจ้าของพื้นที่ ? (
@@ -1052,12 +1053,12 @@ export default function HQProspectsPage() {
                     ) : (
                       <div role="group" aria-labelledby="cv-territory-label" style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", maxHeight: 150, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px" }}>
                         {[...new Set([...พื้นที่, ...provincesOfRegion(ฟอร์ม.region)])].map(จ => {
-                          const เจ้าของ = เจ้าของพื้นที่.get(จ);
+                          const ดูแลอยู่ = เจ้าของพื้นที่.get(จ) ?? [];
                           return (
-                            <label key={จ} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.76rem", color: เจ้าของ ? "#9ca3af" : "#374151", cursor: เจ้าของ ? "not-allowed" : "pointer" }}>
-                              <input type="checkbox" aria-label={`ดูแลจังหวัด ${จ}`} disabled={!!เจ้าของ} checked={พื้นที่.includes(จ)}
+                            <label key={จ} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.76rem", color: "#374151", cursor: "pointer" }}>
+                              <input type="checkbox" aria-label={`ดูแลจังหวัด ${จ}`} checked={พื้นที่.includes(จ)}
                                 onChange={e => setพื้นที่(l => e.target.checked ? [...l, จ] : l.filter(x => x !== จ))} />
-                              {จ}{เจ้าของ ? ` (${เจ้าของ})` : ""}
+                              {จ}{ดูแลอยู่.length ? <span style={{ color: MUTED }}>{` (มี ${ดูแลอยู่.join(", ")} ดูแลอยู่)`}</span> : ""}
                             </label>
                           );
                         })}

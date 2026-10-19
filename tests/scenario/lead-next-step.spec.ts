@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
@@ -13,7 +13,7 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(240_000);
 
 const แท็ก = Date.now() % 100_000;
-const เลข = { เดิน: เลขลูกค้าเป้าหมายทดสอบ(), หมดอายุ: เลขลูกค้าเป้าหมายทดสอบ(), ปิด: เลขลูกค้าเป้าหมายทดสอบ(), ค้าง: เลขลูกค้าเป้าหมายทดสอบ() };
+const เลข = { เดิน: เลขลูกค้าเป้าหมายทดสอบ(), หมดอายุ: เลขลูกค้าเป้าหมายทดสอบ(), ปิด: เลขลูกค้าเป้าหมายทดสอบ(), ค้าง: เลขลูกค้าเป้าหมายทดสอบ(), ช้า: เลขลูกค้าเป้าหมายทดสอบ() };
 const ชื่อ = (k: keyof typeof เลข) => `ZZTEST-ขั้นต่อไป-${k}-${แท็ก}`;
 
 async function สร้างลีด(k: keyof typeof เลข, status: string) {
@@ -87,6 +87,35 @@ test("[func·dealer] ขั้นต่อไปเดินตามจริ�
     { timeout: 25_000, message: "ตอบรับแล้วลีดต้องเป็นปิดการขายสำเร็จ" }).toBe("PAID");
   // 6) ปิดสำเร็จแล้วลีดย้ายไปเป็นลูกค้า (หน้าลูกค้าเป้าหมายไม่แสดงลีดที่ปิดสำเร็จ — ตั้งใจ)
   //    ข้อความ "ปิดการขายสำเร็จ" ในกล่องตรวจที่ tests/unit/leadNextStep.test.ts
+});
+
+test("[func·dealer] ขั้นต่อไป: ใบ HQ ยังโหลดไม่เสร็จตอนกด \"ทำใบให้ลูกค้า\" → ฟอร์มออกใบต้องเปิดเมื่อโหลดเสร็จ", async ({ page }) => {
+  // รอบเต็ม 19 ต.ค. 69 ไม่นิ่ง: แผงใบเสนอราคาเพิ่งเปิดพร้อมคำสั่ง แต่ยังโหลดใบ HQ ไม่เสร็จ → ขึ้น "กำลังโหลดใบ HQ…" แล้วคำสั่งหาย
+  //   เน็ตช้าในงานจริงเจอเหมือนกัน · แผงขั้นต่อไปกับแผงใบเสนอราคาขอใบ HQ ที่อยู่เดียวกันพร้อมกัน → กักไว้ทั้งหมดแล้วปล่อยทีละคำขอ
+  //   ปล่อยแล้วปุ่มขึ้น = คำขอที่ยังกักอยู่เป็นของแผงใบเสนอราคา → กดตอนแผงนั้นยังโหลดไม่เสร็จได้แน่นอน (ไม่พึ่งจังหวะเครื่อง)
+  await สร้างลีด("ช้า", "BULLET");
+  await ใบHQให้ลูกค้าเป้าหมายเดิม(RYG, "RYG", เลข.ช้า);
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  const ที่อยู่ใบHQ = /\/rest\/v1\/hq_quotes|view=hq-quote/;
+  const กัก: Route[] = [];
+  const ปล่อย = (r: Route) => r.continue().catch(() => {});   // หน้าเปลี่ยนไปแล้ว = คำขอนั้นถูกยกเลิก ไม่ต้องตอบ
+  await page.route(ที่อยู่ใบHQ, route => { กัก.push(route); });
+  for (let รอบ = 1; ; รอบ++) {
+    const กล่อง = await เปิดแผง(page, "ช้า");
+    await expect.poll(() => กัก.length, { message: "แผงขั้นต่อไปและแผงใบเสนอราคาต้องขอใบ HQ ทั้งคู่", timeout: 20_000 }).toBeGreaterThanOrEqual(2);
+    const ปุ่ม = กล่อง.getByRole("button", { name: /ทำใบให้ลูกค้า/ });
+    await ปล่อย(กัก.shift()!);
+    if (await ปุ่ม.waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false)) {
+      await ปุ่ม.click();
+      while (กัก.length) await ปล่อย(กัก.shift()!);
+      await page.unroute(ที่อยู่ใบHQ);
+      await expect(page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last(), "โหลดใบ HQ เสร็จแล้วต้องเปิดฟอร์มออกใบตามที่กด").toBeVisible({ timeout: 15_000 });
+      return;
+    }
+    // คำขอที่ปล่อยไปเป็นของแผงใบเสนอราคา — ลำดับนี้ทำให้เกิดเหตุไม่ได้ เปิดหน้าใหม่แล้วลองอีกรอบ
+    expect(รอบ, "ลองจัดลำดับคำขอ 4 รอบแล้วยังไม่ได้ลำดับที่ต้องการ").toBeLessThan(4);
+    while (กัก.length) await ปล่อย(กัก.shift()!);
+  }
 });
 
 test("[func·dealer] ขั้นต่อไป: ราคา HQ หมดอายุ → ขอราคาใหม่ (กดแล้วเปิดฟอร์มขอแก้ราคา)", async ({ page }) => {

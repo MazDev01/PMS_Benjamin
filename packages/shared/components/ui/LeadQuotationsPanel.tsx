@@ -113,6 +113,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   useEffect(() => {
     if (!REAL_BACKEND || !lead || lead.numId == null || !lead.dealerCode) { setรอใบHQ(false); return; }
     let alive = true;
+    setรอใบHQ(true);   // ถามใหม่ = กำลังโหลด (คำสั่งเปิดฟอร์มที่เข้ามาระหว่างนี้ต้องรอ ไม่ใช่ตอบว่ายังไม่มีใบ HQ)
     quoteRequestsRepo.listForLead(lead.dealerCode, lead.numId)
       .then(async rs => {
         const ได้ราคา = rs.find(r => r.status === "quoted");
@@ -178,14 +179,17 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // 0 = ไม่ได้สั่ง · >0 = สั่ง — ต้องเทียบกับ 0 เสมอ ไม่ใช่ค่าตอน mount:
   //   ลูกค้าเป้าหมายที่ยังไม่เคยเปิดแผงจะ mount แผงนี้ "พร้อมกับ" คำสั่ง ถ้าจำค่าตอน mount ไว้จะไม่มีอะไรเกิดขึ้นเลย
   //   (หน้าแม่รีเซ็ตกลับเป็น 0 ทุกครั้งที่เปิด/ปิดแผงตามปกติ จึงไม่เด้งฟอร์มใส่หน้าโดยไม่ได้สั่ง)
+  //   ⚠️ คำสั่งที่มาตอนใบ HQ ยังโหลดไม่เสร็จ ต้องรอให้โหลดเสร็จก่อนค่อยเปิด (รอบเต็ม 19 ต.ค. 69):
+  //   แผงนี้โหลดพร้อมกล่อง "ขั้นต่อไป" — กล่องนั้นเสร็จก่อนแล้วดีลเลอร์กด "ทำใบให้ลูกค้า" ทันที
+  //   เดิมใช้คำสั่งไปตอนนั้นเลย → ขึ้น "กำลังโหลดใบ HQ…" แล้วคำสั่งหาย ฟอร์มไม่เปิด
   const lastSignal = useRef(0);
   useEffect(() => {
-    if (!openCreateSignal || openCreateSignal === lastSignal.current) return;
+    if (!openCreateSignal || openCreateSignal === lastSignal.current || รอใบHQ) return;
     lastSignal.current = openCreateSignal;
     if (readOnly) return;
     openCreate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openCreateSignal]);
+  }, [openCreateSignal, รอใบHQ]);
   function openEdit(q: QuotationMock) {
     setEditing(q);
     setใบHQของใบที่แก้(null);

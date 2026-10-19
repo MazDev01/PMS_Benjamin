@@ -296,10 +296,8 @@ export const LocalAdapter: DataAdapter = {
   },
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {
-    overlaps: () => ok([]),
     owners: () => ok([]),   // โหมดตัวอย่างไม่มีกฎพื้นที่ — ทุกจังหวัดว่าง
     unmatched: () => ok([]),
-    resolveOverlap: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่")),
     transferPlan: () => ok([]),
     transferAuto: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีการโอนลูกค้าเป้าหมาย")),
     transfer: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีการโอนลูกค้าเป้าหมาย")),
