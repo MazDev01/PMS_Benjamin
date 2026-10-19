@@ -193,10 +193,9 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   // ── 3) สร้างบัญชี auth (ยืนยันอีเมลให้เลย เพราะเป็นบัญชีที่ HQ ออกให้) ──
   const { data: createdUser, error: createErr } = await admin.auth.admin.createUser({
     email, password, email_confirm: true,
-    // เข้าระบบครั้งแรกต้องตั้งรหัสผ่านใหม่ก่อนใช้งาน (บอสสั่ง 15 ก.ย. 69) — ครั้งนี้ไม่นับสิทธิ์แก้เอง 2 ครั้ง
-    //   เก็บที่บัญชีเข้าระบบ (app_metadata ผู้ใช้แก้เองไม่ได้) · ดู FirstPasswordGate + /api/account op=first-password
-    // must_verify_email (ด่าน 1 · 14 ต.ค. 69): หลังตั้งรหัสแล้ว หน้าจอพาไปกรอกและยืนยันอีเมลติดต่อก่อนเข้าใช้งาน
-    app_metadata: { must_change_password: true, must_verify_email: true },
+    // ⛔ ไม่ตั้งเครื่องหมาย must_change_password / must_verify_email แล้ว (บอสตัดสิน 19 ต.ค. 69 · เข้าแล้วเข้าหน้าหลักทันที)
+    //   ฐานยังมีด่าน 0187: บัญชีที่มี must_change_password อ่าน/เขียนข้อมูลไม่ได้ — ตั้งเมื่อไร ดีลเลอร์เห็นทุกหน้าว่าง
+    //   ข้อทดสอบ dealer-no-forced-gate.spec.ts (สร้างดีลเลอร์ผ่านเส้นทางนี้แล้วตรวจว่าไม่มีเครื่องหมาย)
   });
   if (createErr || !createdUser.user) {
     const msg = createErr?.message ?? "สร้างบัญชีเข้าระบบไม่สำเร็จ";
@@ -309,12 +308,9 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
   // อีเมลเดิมไว้ลงประวัติ — ประวัติการเปลี่ยนบัญชีต้องครบทุกทาง (ดีลเลอร์แก้เอง/อนุมัติคำขอ/ลืมรหัส มีอยู่แล้ว ขาดทางนี้ทางเดียว)
   const { data: บัญชีเดิม } = await admin.auth.admin.getUserById(found.id);
   const อีเมลเดิม = บัญชีเดิม?.user?.email ?? null;
-  // บัญชีที่ยังไม่เคยเข้าระบบเลย (เช่น ดีลเลอร์ 154 รายที่เปิดบัญชีจากไฟล์) = ดีลเลอร์ "ได้บัญชีครั้งแรก" ตอนนี้
-  //   ต้องตั้งรหัสของตัวเองก่อนใช้งาน ไม่นับสิทธิ์แก้เอง 2 ครั้ง (บอสสั่ง 15 ก.ย. 69) · เคยเข้าแล้ว = ไม่บังคับซ้ำ
-  const ได้บัญชีครั้งแรก = !!password && !!บัญชีเดิม?.user && !บัญชีเดิม.user.last_sign_in_at;
+  // ⛔ เลิกตั้งเครื่องหมายบังคับตั้งรหัสให้บัญชีที่ยังไม่เคยเข้าระบบ (บอสตัดสิน 19 ต.ค. 69) — เหตุผลดูตอนสร้างบัญชีข้างบน
   const { data: updated, error: updateErr } = await admin.auth.admin.updateUserById(found.id, {
     ...(password ? { password } : {}),
-    ...(ได้บัญชีครั้งแรก ? { app_metadata: { ...(บัญชีเดิม?.user?.app_metadata ?? {}), must_change_password: true, must_verify_email: true } } : {}),
     ...(อีเมลใหม่ ? { email: อีเมลใหม่, email_confirm: true } : {}),
   });
   if (updateErr || !updated.user) {

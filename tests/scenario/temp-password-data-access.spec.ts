@@ -8,7 +8,7 @@ import { ข้ามตั้งรหัสครั้งแรก } from "./
 // ── บัญชีที่ยังถือ "รหัสชั่วคราวจากสำนักงานใหญ่" ต้องแตะข้อมูลไม่ได้ จนกว่าจะตั้งรหัสของตัวเอง ──────
 //
 // ช่องโหว่ที่ปิด (พบ 13 ต.ค. 69 ตอนไล่โหมด api):
-//   การบังคับ "เข้าระบบครั้งแรกต้องตั้งรหัสใหม่" มีอยู่แค่ที่หน้าจอ (FirstPasswordGate)
+//   การบังคับ "เข้าระบบครั้งแรกต้องตั้งรหัสใหม่" มีอยู่แค่ที่หน้าจอ (FirstPasswordGate · ลบแล้ว 19 ต.ค. 69 — บอสตัดสินไม่มีหน้าบังคับ)
 //   กฎสิทธิ์ของฐานข้อมูลและ /api/v1 ไม่เคยดูเครื่องหมาย must_change_password เลย
 //   → ใครถือรหัสชั่วคราว (ดีลเลอร์เอง · คนที่เห็นตอนส่งต่อ · เจ้าหน้าที่ที่เปิดดูสำเนารหัสได้)
 //     ยิงตรงเข้าฐานหรือผ่าน /api/v1 อ่าน-เขียนข้อมูลของสาขานั้นได้เรื่อย ๆ โดยไม่ต้องผ่านหน้าตั้งรหัส
@@ -74,10 +74,18 @@ test.beforeAll(async ({ request }) => {
   const { error } = await admin.from("leads").insert(แถวลูกค้าเป้าหมาย(880_100_001, บริษัท));
   expect(error, `เตรียมลูกค้าเป้าหมายตั้งต้น (${error?.message ?? ""})`).toBeNull();
 
+  // บอสตัดสิน 19 ต.ค. 69: สร้างดีลเลอร์แล้วไม่ตั้งเครื่องหมายบังคับตั้งรหัสอีก (เข้าแล้วเข้าหน้าหลักทันที)
+  const { data: สร้างแล้ว } = await ไคลเอนต์().auth.signInWithPassword({ email: EMAIL, password: รหัสชั่วคราว });
+  expect(สร้างแล้ว.session?.user.app_metadata?.must_change_password, "เส้นทางสร้างดีลเลอร์ต้องไม่ตั้งเครื่องหมายแล้ว").not.toBe(true);
+  expect(สร้างแล้ว.session?.user.app_metadata?.must_verify_email, "เส้นทางสร้างดีลเลอร์ต้องไม่ตั้งเครื่องหมายยืนยันอีเมลแล้ว").not.toBe(true);
+  // ด่านในฐาน (0187) ยังอยู่ — จำลองบัญชีที่ยังมีเครื่องหมายค้าง (เช่น 155 บัญชีบนระบบจริงก่อนล้าง) เพื่อทดสอบด่านต่อ
+  const uid = สร้างแล้ว.session!.user.id;
+  const { error: e1 } = await admin.auth.admin.updateUserById(uid, { app_metadata: { ...(สร้างแล้ว.session!.user.app_metadata ?? {}), must_change_password: true, must_verify_email: true } });
+  expect(e1).toBeNull();
   const { data, error: e2 } = await ไคลเอนต์().auth.signInWithPassword({ email: EMAIL, password: รหัสชั่วคราว });
-  expect(e2, "รหัสชั่วคราวต้องเข้าระบบได้ (ไม่งั้นตั้งรหัสใหม่ไม่ได้)").toBeNull();
+  expect(e2, "รหัสชั่วคราวต้องเข้าระบบได้").toBeNull();
   ใบผ่าน = data.session!;
-  expect(ใบผ่าน.user.app_metadata?.must_change_password, "บัญชีใหม่ต้องถูกทำเครื่องหมายให้ตั้งรหัส").toBe(true);
+  expect(ใบผ่าน.user.app_metadata?.must_change_password, "จำลองบัญชีที่มีเครื่องหมายค้าง").toBe(true);
 });
 test.afterAll(purge);
 
@@ -150,17 +158,17 @@ test("[security] สำนักงานใหญ่เข้าระบบแ
   expect(Array.isArray(leads) ? leads.length : -1, "เข้าระบบแทนก็ต้องอ่านข้อมูลไม่ได้ จนกว่าบัญชีนั้นจะตั้งรหัสของตัวเอง").toBe(0);
 });
 
-test("[หน้าจอ] สำนักงานใหญ่เข้าระบบแทนบัญชีที่ยังไม่ตั้งรหัส → เจอหน้าตั้งรหัส ไม่ใช่หน้าระบบ", async ({ request, page }) => {
-  // ไม่ยกเว้นการเข้าระบบแทน (ข้อตัดสิน 13 ต.ค. 69): ฐานข้อมูลปฏิเสธข้อมูลของบัญชีนี้อยู่แล้ว
-  //   ถ้าหน้าจอปล่อยผ่าน สำนักงานใหญ่จะเห็นหน้าระบบว่างเปล่าโดยไม่รู้ว่าเพราะอะไร
+test("[หน้าจอ] สำนักงานใหญ่เข้าระบบแทนบัญชีที่ยังมีเครื่องหมายค้าง → เข้าหน้าหลักทันที ไม่เจอหน้าตั้งรหัส/ยืนยันอีเมล", async ({ request, page }) => {
+  // บอสตัดสิน 19 ต.ค. 69 (บอสกดเข้าแทนบนเว็บจริงแล้วติดหน้ายืนยันอีเมล): ไม่มีหน้าบังคับแล้ว
+  //   ข้อมูลของบัญชีที่ยังมีเครื่องหมายยังถูกฐานกันอยู่ (ข้อบน) — สคริปต์ flag-temp-passwords --unset ล้างเครื่องหมายให้
   const hq = (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
   const res = await request.post(`${HQ_ORIGIN}/api/admin/dealers/impersonate?code=${CODE}`, { headers: { authorization: `Bearer ${hq}` } });
   test.skip(res.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   expect(res.status(), await res.text()).toBe(200);
   await page.goto(String((await res.json() as { link: string }).link), { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน" }),
-    "เข้าแทนบัญชีที่ยังไม่ตั้งรหัส ต้องเห็นหน้าตั้งรหัส").toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole("link", { name: "ลูกค้าเป้าหมาย" }), "ต้องยังไม่เห็นเมนูของระบบ").toHaveCount(0);
+  await expect(page.getByRole("link", { name: "ลูกค้าเป้าหมาย" }).first(), "เข้าแทนแล้วต้องเห็นเมนูของระบบทันที").toBeVisible({ timeout: 60_000 });
+  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page.getByRole("heading", { name: /ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน|ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน/ }), "ต้องไม่มีหน้าบังคับ").toHaveCount(0);
 });
 
 test("ตั้งรหัสของตัวเองแล้ว → เข้าระบบใหม่ เห็นข้อมูลของสาขาทันที ไม่ว่าง (ด่านไม่กันเกิน)", async ({ request, page }) => {

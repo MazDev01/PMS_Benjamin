@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ShieldCheck, Lock, Eye } from "lucide-react";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { DealerAccountForm } from "@pms/shared/components/ui/DealerAccountCard";
+import { ContactEmailCard } from "@pms/shared/components/ui/ContactEmailCard";
 import { profile as profileRepo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 
@@ -80,6 +81,9 @@ export default function DealerAccountPage() {
           <DealerAccountForm dealerCode={session.dealerCode} currentEmail={email} focus={focus} />
         </div>
       </div>
+
+      {/* อีเมลติดต่อ — ใส่/ยืนยันได้ที่นี่ตามใจดีลเลอร์ ไม่บังคับ (บอสตัดสิน 19 ต.ค. 69 · เดิมบังคับตอนเข้าครั้งแรก) */}
+      <ContactEmailCard dealerCode={session.dealerCode ?? ""} />
     </div>
   );
 }

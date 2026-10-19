@@ -8,12 +8,11 @@ import { db, DEALER_ORIGIN, HQ_ORIGIN, ลูกค้าเป้าหมา�
 import { adminClient, ลบสาขาทดสอบตรง } from "./testDealers";
 import { เข้าระบบผ่านหน้าจอ, MAIL_URL as MAIL, โค้ดยืนยันในกล่อง } from "./helpers";
 
-// ── อีเมลติดต่อของดีลเลอร์: ยืนยันด้วยโค้ดตอนเข้าครั้งแรก · แถบเตือน · HQ ยืนยันแทน (ด่าน 1 · ใบ 0194) ─────────────
+// ── อีเมลติดต่อของดีลเลอร์: ใส่/ยืนยันด้วยโค้ดที่หน้าบัญชี · HQ ยืนยันแทน (ใบ 0194) ─────────────────────────────
 //
-// ข้อตัดสินของบอส 14 ต.ค. 69:
-//   - หน้าตั้งรหัสครั้งแรกมีขั้นกรอกอีเมลติดต่อ + ยืนยันด้วยโค้ดก่อนเข้าใช้งาน (ตั้งรหัสแล้วแต่ไม่ยืนยัน = ยังผ่านด่านไม่ได้)
-//   - ด่านอยู่ที่หน้าจออย่างเดียว · SMTP ล่ม → ดีลเลอร์ไม่ติดค้าง เห็นข้อความ และ HQ ยืนยันแทนได้ (บันทึกว่าใครยืนยัน)
-//   - เปลี่ยนอีเมลติดต่อ → สถานะยืนยันถูกล้าง แถบเตือน (ปิดไม่ได้ ไม่บล็อกการใช้งาน) กลับมา
+// บอสตัดสิน 19 ต.ค. 69 (ทับข้อตัดสิน 14 ต.ค. 69): เข้าระบบแล้วเข้าหน้าหลักทันที ไม่มีหน้าบังคับตั้งรหัส/ยืนยันอีเมล ไม่มีแถบเตือน
+//   ใส่/ยืนยันอีเมลติดต่อ = หน้าบัญชี (/settings/account · การ์ด "อีเมลติดต่อ") ตามใจดีลเลอร์
+//   SMTP ล่ม → เห็นข้อความ + ส่งใหม่ได้ · HQ ยืนยันแทนได้ (บันทึกว่าใครยืนยัน) · เปลี่ยนอีเมลติดต่อ → สถานะยืนยันถูกล้าง (ไม่มีแถบเตือน)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.describe.configure({ mode: "serial" });
 test.setTimeout(240_000);
@@ -49,15 +48,16 @@ async function สร้างสาขา(request: import("@playwright/test").A
 }
 // เข้าระบบผ่านหน้าจอจริงทุกครั้ง (ตัวช่วยกลาง · ไม่จำใบผ่าน เพราะรหัสเปลี่ยนระหว่างข้อทดสอบ)
 const เข้าระบบ = (page: Page, email: string, password: string) => เข้าระบบผ่านหน้าจอ(page, DEALER_ORIGIN, email, password);
-/** เข้าครั้งแรกด้วยรหัสจาก HQ → ตั้งรหัสของตัวเอง → เข้าใหม่ด้วยรหัสใหม่ */
-async function ตั้งรหัสครั้งแรกแล้วเข้าใหม่(page: Page, d: typeof A) {
+/** เข้าระบบแล้วต้องเข้าหน้าหลักทันที (ไม่มีหน้าบังคับ) แล้วเปิดหน้าบัญชี → การ์ดอีเมลติดต่อ */
+async function เปิดการ์ดอีเมลติดต่อ(page: Page, d: typeof A) {
   await เข้าระบบ(page, d.email, d.pw);
-  await expect(page.getByRole("heading", { name: "ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน" })).toBeVisible({ timeout: 30_000 });
-  await page.locator("#fp-new").fill(d.ใหม่);
-  await page.locator("#fp-confirm").fill(d.ใหม่);
-  await page.getByRole("button", { name: "ตั้งรหัสผ่านใหม่", exact: true }).click();
-  await page.waitForURL(/\/login/, { timeout: 30_000 });
-  await เข้าระบบ(page, d.email, d.ใหม่);
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: /ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน|ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน/ }), "ไม่มีหน้าบังคับ").toHaveCount(0);
+  await expect(page.getByRole("alert", { name: "ยังไม่มีอีเมลติดต่อที่ยืนยันแล้ว" }), "ไม่มีแถบเตือน").toHaveCount(0);
+  await page.goto(`${DEALER_ORIGIN}/settings/account`, { waitUntil: "domcontentloaded" });
+  const การ์ด = page.getByRole("region", { name: "อีเมลติดต่อ" });
+  await expect(การ์ด).toBeVisible({ timeout: 30_000 });
+  return การ์ด;
 }
 const สถานะในฐาน = async (code: string) => {
   const { data } = await admin.from("profiles").select("id, contact_email, contact_email_verified_at").eq("dealer_code", code).eq("role", "DEALER_ADMIN").single();
@@ -66,66 +66,52 @@ const สถานะในฐาน = async (code: string) => {
 };
 const โค้ดในกล่อง = โค้ดยืนยันในกล่อง;
 
-test("[email·dealer] เข้าครั้งแรก: ตั้งรหัสแล้วต้องยืนยันอีเมลติดต่อก่อนใช้งาน · ยังไม่ยืนยัน = ยังผ่านด่านไม่ได้", async ({ page, request }) => {
+test("[email·dealer] หน้าบัญชี: ใส่อีเมลติดต่อ → ส่งโค้ด → โค้ดผิดไม่ผ่าน → โค้ดถูก = ยืนยันแล้ว (ไม่บังคับตอนเข้า)", async ({ page, request }) => {
   test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);
   await สร้างสาขา(request, A);
-  await ตั้งรหัสครั้งแรกแล้วเข้าใหม่(page, A);
-
-  const ด่าน = page.getByRole("heading", { name: "ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน" });
-  await expect(ด่าน, "ตั้งรหัสแล้ว ต้องเจอขั้นยืนยันอีเมลต่อ").toBeVisible({ timeout: 30_000 });
-  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await expect(ด่าน, "เปิดหน้าอื่นตรง ๆ ก็ยังติดด่าน").toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" })).toHaveCount(0);
-
-  await page.locator("#ce-email").fill(A.ติดต่อ);
-  await page.getByRole("button", { name: /^ส่งโค้ด/ }).click();
-  await expect(page.getByText(`ส่งโค้ด 6 หลักไปที่ ${A.ติดต่อ} แล้ว`)).toBeVisible({ timeout: 30_000 });
-  await page.locator("#ce-code").fill("000000");
-  await page.getByRole("button", { name: "ยืนยันอีเมล" }).click();
-  await expect(page.getByText("โค้ดไม่ถูกต้อง")).toBeVisible();
+  const การ์ด = await เปิดการ์ดอีเมลติดต่อ(page, A);
+  await การ์ด.locator("#ce-email").fill(A.ติดต่อ);
+  await การ์ด.getByRole("button", { name: /^ส่งโค้ด/ }).click();
+  await expect(การ์ด.getByText(`ส่งโค้ด 6 หลักไปที่ ${A.ติดต่อ} แล้ว`)).toBeVisible({ timeout: 30_000 });
+  await การ์ด.locator("#ce-code").fill("000000");
+  await การ์ด.getByRole("button", { name: "ยืนยันอีเมล" }).click();
+  await expect(การ์ด.getByText("โค้ดไม่ถูกต้อง")).toBeVisible();
   expect((await สถานะในฐาน(A.code)).verified, "โค้ดผิดต้องไม่ยืนยัน").toBe(false);
 
-  await page.locator("#ce-code").fill(await โค้ดในกล่อง(A.ติดต่อ));
-  await page.getByRole("button", { name: "ยืนยันอีเมล" }).click();
-  await expect(ด่าน).toHaveCount(0, { timeout: 30_000 });
-  const s = await สถานะในฐาน(A.code);
-  expect(s, "ยืนยันแล้ว: ฐานจดสถานะ และปลดเครื่องหมายต้องยืนยัน").toEqual({ email: A.ติดต่อ, verified: true, mustVerify: false });
-  await expect(page.getByRole("alert", { name: "ยังไม่มีอีเมลติดต่อที่ยืนยันแล้ว" }), "ยืนยันแล้วต้องไม่มีแถบเตือน").toHaveCount(0);
+  await การ์ด.locator("#ce-code").fill(await โค้ดในกล่อง(A.ติดต่อ));
+  await การ์ด.getByRole("button", { name: "ยืนยันอีเมล" }).click();
+  await expect(การ์ด.getByText(`ยืนยันแล้ว: ${A.ติดต่อ}`)).toBeVisible({ timeout: 30_000 });
+  expect(await สถานะในฐาน(A.code), "ยืนยันแล้ว: ฐานจดสถานะ").toEqual({ email: A.ติดต่อ, verified: true, mustVerify: false });
 });
 
-test("[email·dealer] เปลี่ยนอีเมลติดต่อ → สถานะยืนยันถูกล้าง แถบเตือนกลับมา และยังใช้งานได้ตามปกติ", async ({ page }) => {
-  // แก้อีเมลติดต่อจาก A เป็น B (ทางเดียวกับที่ดีลเลอร์แก้ในหน้าโปรไฟล์ — ตัวดักที่ฐานล้างสถานะ)
+test("[email·dealer] เปลี่ยนอีเมลติดต่อ → สถานะยืนยันถูกล้าง · เข้าระบบได้ตามปกติ ไม่มีแถบเตือน · หน้าบัญชีให้ยืนยันใหม่", async ({ page }) => {
+  // แก้อีเมลติดต่อที่ฐาน — ตัวดักที่ฐานล้างสถานะยืนยัน
   const s = await สถานะในฐาน(A.code);
   test.skip(!s.verified, "ข้อก่อนหน้าไม่ผ่าน");
   const ryg = await admin.from("profiles").update({ contact_email: "zztest-ztv-new@example.test" }).eq("dealer_code", A.code).eq("role", "DEALER_ADMIN");
   expect(ryg.error).toBeNull();
   expect((await สถานะในฐาน(A.code)).verified, "แก้อีเมลแล้วต้องกลับเป็นยังไม่ยืนยัน").toBe(false);
 
-  await เข้าระบบ(page, A.email, A.ใหม่);
-  const แถบ = page.getByRole("alert", { name: "ยังไม่มีอีเมลติดต่อที่ยืนยันแล้ว" });
-  await expect(แถบ, "แถบเตือนต้องกลับมา").toBeVisible({ timeout: 30_000 });
-  await expect(แถบ.getByRole("button", { name: /ปิด/ }), "แถบเตือนปิดไม่ได้").toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน" }), "ไม่บล็อกการใช้งาน (ไม่ใช่ด่าน)").toHaveCount(0);
+  const การ์ด = await เปิดการ์ดอีเมลติดต่อ(page, A);
+  await expect(การ์ด.locator("#ce-email"), "ยังไม่ยืนยัน = หน้าบัญชีมีฟอร์มให้ยืนยันใหม่").toHaveValue("zztest-ztv-new@example.test");
 });
 
-test("[email·dealer] ระบบส่งอีเมลล่ม → ดีลเลอร์ไม่ติดค้าง เห็นข้อความ · HQ ยืนยันแทนได้และมีบันทึกว่าใครยืนยัน", async ({ page, request }) => {
+test("[email·dealer] ระบบส่งอีเมลล่ม → ดีลเลอร์เห็นข้อความ ส่งใหม่ได้ · HQ ยืนยันแทนได้และมีบันทึกว่าใครยืนยัน", async ({ page, request }) => {
   let ชื่อคอนเทนเนอร์ = "";
   try { ชื่อคอนเทนเนอร์ = คอนเทนเนอร์จดหมาย(); } catch { /* ไม่มี docker */ }
   test.skip(!ชื่อคอนเทนเนอร์, "ต้องหยุดกล่องจดหมายทดสอบได้ (docker) เพื่อจำลอง SMTP ล่ม");
   await สร้างสาขา(request, B);
-  await ตั้งรหัสครั้งแรกแล้วเข้าใหม่(page, B);
-  await expect(page.getByRole("heading", { name: "ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน" })).toBeVisible({ timeout: 30_000 });
+  const การ์ด = await เปิดการ์ดอีเมลติดต่อ(page, B);
 
   execFileSync("docker", ["stop", ชื่อคอนเทนเนอร์], { stdio: "ignore" });
   try {
-    await page.locator("#ce-email").fill(B.ติดต่อ);
-    await page.getByRole("button", { name: /^ส่งโค้ด/ }).click();
-    await expect(page.getByText(/ระบบส่งอีเมลขัดข้อง ส่งโค้ดไม่สำเร็จ/), "ต้องบอกชัดว่าส่งไม่สำเร็จและทางออก").toBeVisible({ timeout: 60_000 });
+    await การ์ด.locator("#ce-email").fill(B.ติดต่อ);
+    await การ์ด.getByRole("button", { name: /^ส่งโค้ด/ }).click();
+    await expect(การ์ด.getByText(/ระบบส่งอีเมลขัดข้อง ส่งโค้ดไม่สำเร็จ/), "ต้องบอกชัดว่าส่งไม่สำเร็จและทางออก").toBeVisible({ timeout: 60_000 });
   } finally {
     execFileSync("docker", ["start", ชื่อคอนเทนเนอร์], { stdio: "ignore" });
   }
-  await expect(page.getByRole("button", { name: /^ส่งโค้ด/ }), "มีปุ่มส่งโค้ดใหม่ให้กดได้").toBeVisible();
-  await expect(page.getByRole("button", { name: /ออกจากระบบ/ }), "ไม่ติดค้าง — ออกจากระบบได้").toBeVisible();
+  await expect(การ์ด.getByRole("button", { name: /^ส่งโค้ด/ }), "มีปุ่มส่งโค้ดใหม่ให้กดได้").toBeVisible();
   expect((await สถานะในฐาน(B.code)).email, "อีเมลที่กรอกถูกบันทึกไว้แล้ว รอยืนยัน").toBe(B.ติดต่อ);
 
   // HQ ยืนยันแทน (ไม่พิมพ์อีเมลเอง — ยืนยันอีเมลที่ดีลเลอร์กรอกไว้)
@@ -135,11 +121,11 @@ test("[email·dealer] ระบบส่งอีเมลล่ม → ดี�
   expect(บันทึก?.length, "บันทึกการใช้งานว่าใครยืนยันแทน").toBeGreaterThan(0);
   // ดีลเลอร์ยิงเส้นทางของ HQ เองไม่ได้
   const { data: ses } = await (await import("@supabase/supabase-js")).createClient(SUPABASE_URL, ค่าในไฟล์("NEXT_PUBLIC_SUPABASE_ANON_KEY"), { auth: { persistSession: false } })
-    .auth.signInWithPassword({ email: B.email, password: B.ใหม่ });
+    .auth.signInWithPassword({ email: B.email, password: B.pw });
   const เอง = await request.post(`${HQ_ORIGIN}/api/admin/dealers/contact-email?code=${B.code}`, { headers: { authorization: `Bearer ${ses.session?.access_token ?? ""}` } });
   expect(เอง.status(), "ดีลเลอร์ยืนยันอีเมลตัวเองผ่านเส้นทางของ HQ ไม่ได้").toBe(403);
 
-  await page.getByRole("button", { name: /ตรวจอีกครั้ง/ }).click();
-  await expect(page.getByRole("heading", { name: "ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน" }), "HQ ยืนยันแทนแล้ว กดตรวจอีกครั้งต้องผ่าน").toHaveCount(0, { timeout: 30_000 });
+  await การ์ด.getByRole("button", { name: /ตรวจอีกครั้ง/ }).click();
+  await expect(การ์ด.getByText(`ยืนยันแล้ว: ${B.ติดต่อ}`), "HQ ยืนยันแทนแล้ว กดตรวจอีกครั้งต้องขึ้นยืนยันแล้ว").toBeVisible({ timeout: 30_000 });
   expect(await สถานะในฐาน(B.code)).toEqual({ email: B.ติดต่อ, verified: true, mustVerify: false });
 });

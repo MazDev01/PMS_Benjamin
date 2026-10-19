@@ -54,5 +54,34 @@ export function อ่านตัวเลือก(args) {
   const ค่า = i >= 0 ? (args[i + 1] ?? "") : "";
   const only = ค่า.startsWith("--") ? [] : ค่า.split(",").map(s => s.trim()).filter(Boolean);
   const ผิด = มี("--only") && !only.length ? "--only ต้องตามด้วยรหัสดีลเลอร์ เช่น --only ABC,XYZ" : "";
-  return { ฐานจริง: มี("--prod"), ลงมือ: มี("--apply"), only, ผิด };
+  return { ฐานจริง: มี("--prod"), ลงมือ: มี("--apply"), ล้าง: มี("--unset"), only, ผิด };
+}
+
+/**
+ * ล้างเครื่องหมาย "ต้องเปลี่ยนรหัส" + "ต้องยืนยันอีเมล" (บอสตัดสิน 19 ต.ค. 69: เข้าแล้วเข้าหน้าหลักทันที ไม่บังคับ)
+ *   เลือกเฉพาะบัญชีบทบาทดีลเลอร์ที่ยังมีเครื่องหมายอย่างใดอย่างหนึ่ง · บัญชี HQ ไม่แตะ (นับไว้รายงานอย่างเดียว)
+ *   ต้องล้าง must_change_password ด้วย — ฐานมีด่าน 0187 บัญชีที่มีเครื่องหมายนี้อ่าน/เขียนข้อมูลไม่ได้ (เห็นทุกหน้าว่าง)
+ * @param {{ profiles: {id:string, role:string, dealer_code?:string|null}[],
+ *           users: {id:string, app_metadata?: Record<string, unknown>}[], only?: string[] }} x
+ */
+export function เลือกบัญชีที่ต้องล้างเครื่องหมาย({ profiles, users, only }) {
+  const จำกัด = only?.length ? new Set(only.map(c => c.toUpperCase())) : null;
+  const โปรไฟล์ = new Map(profiles.map(p => [p.id, p]));
+  const สรุป = { บัญชีดีลเลอร์: 0, มีเครื่องหมายเปลี่ยนรหัส: 0, มีเครื่องหมายยืนยันอีเมล: 0, ไม่มีเครื่องหมาย: 0, ต้องล้างเครื่องหมาย: 0, บัญชีHQมีเครื่องหมาย: 0 };
+  const ต้องล้าง = [];
+  for (const u of users) {
+    const m = { ...(u.app_metadata ?? {}) };
+    const เปลี่ยน = m.must_change_password === true, ยืนยัน = m.must_verify_email === true;
+    const p = โปรไฟล์.get(u.id);
+    if (!p || (p.role !== "DEALER_ADMIN" && p.role !== "DEALER_SALES")) { if (เปลี่ยน || ยืนยัน) สรุป.บัญชีHQมีเครื่องหมาย++; continue; }
+    const code = String(p.dealer_code ?? "").toUpperCase();
+    if (จำกัด && !จำกัด.has(code)) continue;
+    สรุป.บัญชีดีลเลอร์++;
+    if (เปลี่ยน) สรุป.มีเครื่องหมายเปลี่ยนรหัส++;
+    if (ยืนยัน) สรุป.มีเครื่องหมายยืนยันอีเมล++;
+    if (!เปลี่ยน && !ยืนยัน) { สรุป.ไม่มีเครื่องหมาย++; continue; }
+    สรุป.ต้องล้างเครื่องหมาย++;
+    ต้องล้าง.push({ id: u.id, dealerCode: code, appMeta: m });
+  }
+  return { ต้องล้าง, สรุป };
 }

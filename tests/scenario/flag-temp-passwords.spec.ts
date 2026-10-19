@@ -5,80 +5,87 @@ import { SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { adminClient, ลบสาขาทดสอบตรง } from "./testDealers";
 
-// ── สคริปต์ตั้งเครื่องหมายบัญชีที่ยังใช้รหัสชั่วคราว — รันแบบแก้จริงบนฐานทดสอบ (ก่อนขึ้นระบบจริง ข้อ 4) ──────────────
-//   scripts/flag-temp-passwords.mjs --apply --only <สาขาทดสอบ> · ค่าเชื่อมต่อจาก apps/hq/.env.local (ฐานทดสอบ)
-//   สคริปต์หยุดเองถ้าไฟล์ค่าเชื่อมต่อชี้ฐานจริงโดยไม่ใส่ --prod (ดูในสคริปต์) — ข้อนี้ไม่ใส่ --prod
-//   ตรวจ: บัญชีรหัสที่คนอื่นตั้งให้ → ได้เครื่องหมาย (ค่าอื่นในบัญชีไม่หาย) · ดีลเลอร์ตั้งเองแล้ว → ไม่ถูกแตะ
-//         รันซ้ำไม่ตั้งซ้ำ · บัญชีที่ได้เครื่องหมาย อ่านข้อมูลสาขาไม่ได้จนกว่าจะตั้งรหัสเอง (ด่าน 0187)
+// ── สคริปต์ล้างเครื่องหมาย "ต้องเปลี่ยนรหัส/ต้องยืนยันอีเมล" (--unset) — รันแบบแก้จริงบนฐานทดสอบ (บอสตัดสิน 19 ต.ค. 69) ─────
+//   scripts/flag-temp-passwords.mjs --unset --apply --only <สาขาทดสอบ> · ค่าเชื่อมต่อจาก apps/hq/.env.local (ฐานทดสอบ)
+//   ตรวจ: นับอย่างเดียวไม่แก้ · ล้างเฉพาะบัญชีดีลเลอร์ที่มีเครื่องหมาย (ค่าอื่นในบัญชีไม่หาย) · บัญชี HQ ไม่ถูกแตะ
+//         รันซ้ำไม่มีอะไรให้ล้าง · โหมดตั้งเครื่องหมายเดิมถูกปฏิเสธ · ล้างแล้วบัญชีอ่าน/เขียนข้อมูลสาขาได้ (ด่าน 0187 ไม่กันแล้ว)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(120_000);
 
 const admin = adminClient();
-const ชั่วคราว = "ZTX", ตั้งเอง = "ZTU", มีแค่เปลี่ยนรหัส = "ZTW";   // รหัสสาขาทดสอบเฉพาะไฟล์นี้
+const ครบ = "ZTX", แค่เปลี่ยนรหัส = "ZTW", ไม่มี = "ZTU";   // รหัสสาขาทดสอบเฉพาะไฟล์นี้
 const รหัส = "Temp-Pass-9182";
 const อีเมล = (c: string) => `${c.toLowerCase()}-flagtest@example.test`;
+const อีเมลHQ = "zztest-hq-flagtest@example.test";
 
 async function purge() {
-  for (const c of [ชั่วคราว, ตั้งเอง, มีแค่เปลี่ยนรหัส]) {
+  for (const c of [ครบ, แค่เปลี่ยนรหัส, ไม่มี]) {
     const { data: profs } = await admin.from("profiles").select("id").eq("dealer_code", c);
     for (const p of profs ?? []) await admin.auth.admin.deleteUser(String(p.id)).catch(() => {});
     await admin.from("dealer_login_secrets").delete().eq("dealer_code", c);
     await ลบสาขาทดสอบตรง(c);
     await admin.from("dealers").delete().eq("code", c);
   }
+  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  for (const u of data.users.filter(x => x.email === อีเมลHQ)) await admin.auth.admin.deleteUser(u.id).catch(() => {});
 }
 test.beforeAll(purge);
 test.afterAll(purge);
 
-async function สร้างสาขา(code: string, ผู้ตั้งรหัส: string, เมตาเดิม: Record<string, unknown> = { คงไว้: "ค่าเดิม" }) {
-  expect((await admin.from("dealers").insert({ code, name: `ZZTEST ${code}`, province: "ตราด", region: "ตะวันออก", revenue_target: 0, status: "active" })).error).toBeNull();
-  const { data, error } = await admin.auth.admin.createUser({ email: อีเมล(code), password: รหัส, email_confirm: true, app_metadata: เมตาเดิม });
+async function สร้างบัญชี(email: string, role: string, code: string, เมตา: Record<string, unknown>) {
+  const { data, error } = await admin.auth.admin.createUser({ email, password: รหัส, email_confirm: true, app_metadata: เมตา });
   expect(error).toBeNull();
   const id = data.user!.id;
-  expect((await admin.from("profiles").upsert({ id, role: "DEALER_ADMIN", dealer_code: code, name: `ZZTEST ${code}`, status: "active" }, { onConflict: "id" })).error).toBeNull();
-  expect((await admin.from("dealer_login_secrets").upsert({ dealer_code: code, secret: "x", updated_by: ผู้ตั้งรหัส }, { onConflict: "dealer_code" })).error).toBeNull();
+  expect((await admin.from("profiles").upsert({ id, role, dealer_code: code, name: `ZZTEST ${code || "HQ"}`, status: "active" }, { onConflict: "id" })).error).toBeNull();
   return id;
 }
-const รันสคริปต์ = (...extra: string[]) => execFileSync("node", ["scripts/flag-temp-passwords.mjs", "--only", `${ชั่วคราว},${ตั้งเอง},${มีแค่เปลี่ยนรหัส}`, ...extra], { encoding: "utf8" });
+async function สร้างสาขา(code: string, เมตา: Record<string, unknown>) {
+  expect((await admin.from("dealers").insert({ code, name: `ZZTEST ${code}`, province: "ตราด", region: "ตะวันออก", revenue_target: 0, status: "active" })).error).toBeNull();
+  return สร้างบัญชี(อีเมล(code), "DEALER_ADMIN", code, เมตา);
+}
+const รันสคริปต์ = (...extra: string[]) => execFileSync("node", ["scripts/flag-temp-passwords.mjs", "--only", `${ครบ},${แค่เปลี่ยนรหัส},${ไม่มี}`, ...extra], { encoding: "utf8" });
 const เมตา = async (id: string) => ((await admin.auth.admin.getUserById(id)).data.user?.app_metadata ?? {}) as Record<string, unknown>;
 
-test("[script] flag-temp-passwords --apply บนฐานทดสอบ: ตั้งเฉพาะบัญชีรหัสชั่วคราว · ไม่ลบค่าเดิม · รันซ้ำไม่ตั้งซ้ำ · ด่านกันข้อมูลจริง", async () => {
-  const idชั่วคราว = await สร้างสาขา(ชั่วคราว, "ผู้ดูแลระบบ (สร้างบัญชี)");
-  const idตั้งเอง = await สร้างสาขา(ตั้งเอง, "ZZTEST (ดีลเลอร์ตั้งเอง)");
-  // บัญชีที่มีเครื่องหมายเปลี่ยนรหัสอยู่แล้วแต่ยังไม่มียืนยันอีเมล (150 บัญชีบนระบบจริง) — บอสตัดสิน 16 ต.ค. 69: ต้องเติมให้
-  const idมีแค่เปลี่ยนรหัส = await สร้างสาขา(มีแค่เปลี่ยนรหัส, "ผู้ดูแลระบบ (สร้างบัญชี)", { must_change_password: true, คงไว้: "ค่าเดิม" });
+test("[script] flag-temp-passwords --unset บนฐานทดสอบ: ล้างเฉพาะดีลเลอร์ที่มีเครื่องหมาย · ไม่ลบค่าเดิม · HQ ไม่ถูกแตะ · โหมดตั้งถูกปฏิเสธ", async () => {
+  const idครบ = await สร้างสาขา(ครบ, { must_change_password: true, must_verify_email: true, คงไว้: "ค่าเดิม" });
+  const idแค่เปลี่ยน = await สร้างสาขา(แค่เปลี่ยนรหัส, { must_change_password: true });
+  const idไม่มี = await สร้างสาขา(ไม่มี, { คงไว้: "ค่าเดิม" });
+  const idHQ = await สร้างบัญชี(อีเมลHQ, "HQ_STAFF", "", { must_change_password: true, must_verify_email: true });
 
-  // ดูอย่างเดียว (ค่าตั้งต้น) — ต้องไม่แก้อะไร
-  const ดู = รันสคริปต์();
+  // โหมดตั้งเครื่องหมายเดิม (ไม่ใส่ --unset) ต้องถูกปฏิเสธ — ตั้งเมื่อไร ด่าน 0187 กันข้อมูลทั้งสาขา
+  let ปฏิเสธ = "";
+  try { execFileSync("node", ["scripts/flag-temp-passwords.mjs", "--apply"], { encoding: "utf8", stdio: "pipe" }); }
+  catch (e) { ปฏิเสธ = String((e as { stderr?: string }).stderr ?? ""); }
+  expect(ปฏิเสธ, "โหมดตั้งเครื่องหมายต้องถูกปฏิเสธ").toContain("โหมดตั้งเครื่องหมายยกเลิกแล้ว");
+
+  // นับอย่างเดียว — ต้องไม่แก้อะไร
+  const ดู = รันสคริปต์("--unset");
   expect(ดู).toContain("ชุดทดสอบ");
-  expect(ดู).toMatch(/ต้องตั้งเครื่องหมาย\s+2/);
-  expect(ดู).toMatch(/เติมเครื่องหมายยืนยันอีเมล\s+1/);
-  expect((await เมตา(idชั่วคราว)).must_change_password, "ดูอย่างเดียวต้องไม่แก้").toBeUndefined();
+  expect(ดู).toMatch(/ต้องล้างเครื่องหมาย\s+2\b/);
+  expect(ดู).toMatch(/ไม่มีเครื่องหมาย\s+1\b/);
+  expect((await เมตา(idครบ)).must_change_password, "นับอย่างเดียวต้องไม่แก้").toBe(true);
 
-  // แก้จริง
-  const ผล = รันสคริปต์("--apply");
-  expect(ผล).toContain("ตั้งเครื่องหมายแล้ว 2 บัญชี");
-  const ม2 = await เมตา(idมีแค่เปลี่ยนรหัส);
-  expect(ม2.must_verify_email, "มีเครื่องหมายเปลี่ยนรหัสอยู่แล้ว → ต้องได้เครื่องหมายยืนยันอีเมลเพิ่ม").toBe(true);
-  expect([ม2.must_change_password, ม2.คงไว้], "เครื่องหมายและค่าเดิมต้องคงอยู่").toEqual([true, "ค่าเดิม"]);
-  const ม = await เมตา(idชั่วคราว);
-  expect(ม.must_change_password, "บัญชีรหัสชั่วคราวต้องได้เครื่องหมาย").toBe(true);
-  expect(ม.must_verify_email, "ต้องยืนยันอีเมลติดต่อด้วย").toBe(true);
-  expect(ม.คงไว้, "ค่าเดิมใน app_metadata ต้องไม่หาย").toBe("ค่าเดิม");
-  expect((await เมตา(idตั้งเอง)).must_change_password, "ดีลเลอร์ตั้งรหัสเองแล้วต้องไม่ถูกแตะ").toBeUndefined();
-  expect(ผล, "สคริปต์ต้องไม่พิมพ์อีเมล/รหัสสาขา").not.toMatch(new RegExp(`${อีเมล(ชั่วคราว)}|${ชั่วคราว}|${ตั้งเอง}|${มีแค่เปลี่ยนรหัส}`));
+  const ผล = รันสคริปต์("--unset", "--apply");
+  expect(ผล).toContain("ล้างเครื่องหมายแล้ว 2 บัญชี");
+  const m = await เมตา(idครบ);
+  expect([m.must_change_password, m.must_verify_email, m.คงไว้], "ล้างทั้งสองเครื่องหมาย ค่าเดิมไม่หาย").toEqual([false, false, "ค่าเดิม"]);
+  expect((await เมตา(idแค่เปลี่ยน)).must_change_password).toBe(false);
+  expect((await เมตา(idไม่มี)).คงไว้, "บัญชีที่ไม่มีเครื่องหมายไม่ถูกแตะ").toBe("ค่าเดิม");
+  const hq = await เมตา(idHQ);
+  expect([hq.must_change_password, hq.must_verify_email], "บัญชี HQ ต้องไม่ถูกแตะ").toEqual([true, true]);
+  expect(ผล, "สคริปต์ต้องไม่พิมพ์อีเมล/รหัสสาขา").not.toMatch(new RegExp(`${อีเมล(ครบ)}|${ครบ}|${แค่เปลี่ยนรหัส}|${ไม่มี}`));
 
-  // รันซ้ำ — ไม่ตั้งซ้ำ
-  const ซ้ำ = รันสคริปต์("--apply");
-  expect(ซ้ำ).toMatch(/มีเครื่องหมายครบแล้ว\s+2/);
-  expect(ซ้ำ).toContain("ตั้งเครื่องหมายแล้ว 0 บัญชี");
+  // รันซ้ำ — ไม่มีอะไรให้ล้าง
+  const ซ้ำ = รันสคริปต์("--unset", "--apply");
+  expect(ซ้ำ).toMatch(/ต้องล้างเครื่องหมาย\s+0\b/);
+  expect(ซ้ำ).toContain("ล้างเครื่องหมายแล้ว 0 บัญชี");
 
-  // ด่าน 0187: ล็อกอินได้ แต่อ่านข้อมูลสาขาไม่ได้จนกว่าจะตั้งรหัสเอง
+  // ด่าน 0187: ล้างแล้ว ใบผ่านใหม่อ่าน/เขียนข้อมูลของสาขาได้
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { error: เข้า } = await sb.auth.signInWithPassword({ email: อีเมล(ชั่วคราว), password: รหัส });
-  expect(เข้า, "ยังล็อกอินได้ (เพื่อไปหน้าตั้งรหัส)").toBeNull();
-  const อ่าน = await sb.from("leads").select("id").eq("dealer_code", ชั่วคราว);
-  expect(อ่าน.error ? 0 : (อ่าน.data?.length ?? 0), "ยังไม่ตั้งรหัสเอง อ่านข้อมูลสาขาไม่ได้").toBe(0);
-  const เขียน = await sb.from("leads").insert({ id: "#L-ZTX-1", num_id: 1, dealer_code: ชั่วคราว, company: "ZZTEST", name: "ZZTEST", phone: "0800000000", province: "ตราด", status: "BULLET" });
-  expect(เขียน.error, "ยังไม่ตั้งรหัสเอง เขียนข้อมูลไม่ได้").not.toBeNull();
+  const { error: เข้า } = await sb.auth.signInWithPassword({ email: อีเมล(ครบ), password: รหัส });
+  expect(เข้า).toBeNull();
+  const เขียน = await sb.from("leads").insert({ id: "#L-ZTX-1", num_id: 1, dealer_code: ครบ, company: "ZZTEST", name: "ZZTEST", phone: "0800000000", province: "ตราด", status: "BULLET" });
+  expect(เขียน.error, "ล้างเครื่องหมายแล้วต้องเขียนข้อมูลของสาขาได้").toBeNull();
+  const อ่าน = await sb.from("leads").select("id").eq("dealer_code", ครบ);
+  expect(อ่าน.data?.length ?? 0, "และอ่านได้").toBe(1);
 });

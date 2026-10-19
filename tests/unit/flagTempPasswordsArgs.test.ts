@@ -18,6 +18,10 @@ describe("flag-temp-passwords · อ่านตัวเลือก", () => {
     expect(อ่านตัวเลือก(["--apply", "--only", "ABC, XYZ"]).only).toEqual(["ABC", "XYZ"]);
     expect(อ่านตัวเลือก(["--only", "ABC", "--apply"]).only).toEqual(["ABC"]);
   });
+  it("--unset = โหมดล้างเครื่องหมาย (บอสตัดสิน 19 ต.ค. 69) · ไม่มี --unset = ไม่ล้าง", () => {
+    expect(อ่านตัวเลือก(["--unset", "--prod"])).toMatchObject({ ฐานจริง: true, ลงมือ: false, ล้าง: true, only: [] });
+    expect(อ่านตัวเลือก(["--prod", "--apply", "--yes-prod"]).ล้าง).toBe(false);
+  });
   it("--only ไม่ตามด้วยรหัส = ผิด", () => {
     expect(อ่านตัวเลือก(["--prod", "--only"]).ผิด).not.toBe("");
     expect(อ่านตัวเลือก(["--only", "--apply"]).ผิด).not.toBe("");

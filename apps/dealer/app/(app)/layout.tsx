@@ -2,8 +2,6 @@
 
 import { AuthGuard } from "@pms/shared/components/layout/AuthGuard";
 import { AppShell } from "@pms/shared/components/layout/AppShell";
-import { FirstPasswordGate } from "@pms/shared/components/ui/FirstPasswordGate";
-import { ContactEmailBanner } from "@pms/shared/components/ui/ContactEmailBanner";
 import { useRole } from "@pms/shared/context/RoleContext";
 
 // กันบัญชี HQ หลงเข้ามาใช้หน้าดีลเลอร์ — ฝั่ง HQ มี HQLayout กันบัญชีดีลเลอร์อยู่แล้ว (apps/hq/app/(app)/hq/layout.tsx)
@@ -30,11 +28,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <AuthGuard>
       {/* FilterProvider ถูกครอบต่อหน้าใน AppShell (แยกอิสระต่อ route) */}
       <DealerRoleGuard>
-        {/* เข้าระบบครั้งแรกต้องตั้งรหัสผ่านใหม่ก่อน (บอสสั่ง 15 ก.ย. 69) — ยังไม่ตั้ง = ไม่เห็นเมนูระบบเลย */}
-        <FirstPasswordGate>
-          {/* ยังไม่มีอีเมลติดต่อที่ยืนยัน = แถบเตือนที่ปิดไม่ได้ แต่ไม่บล็อกการใช้งาน (ด่าน 1 · 14 ต.ค. 69) */}
-          <AppShell notice={<ContactEmailBanner />}>{children}</AppShell>
-        </FirstPasswordGate>
+        {/* เข้าระบบแล้วเข้าหน้าหลักทันที (บอสตัดสิน 19 ต.ค. 69): ไม่มีหน้าบังคับตั้งรหัส/ยืนยันอีเมล ไม่มีแถบเตือน
+            เปลี่ยนรหัสผ่าน + ใส่อีเมลติดต่อ = หน้าบัญชี (/settings/account) ตามใจดีลเลอร์ · ข้อทดสอบ dealer-no-forced-gate.spec.ts */}
+        <AppShell>{children}</AppShell>
       </DealerRoleGuard>
     </AuthGuard>
   );
