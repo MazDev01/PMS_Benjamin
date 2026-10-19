@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
 
 // ── ขายหนึ่งงาน ขั้น 5–6 บนหน้าจอ + ตารางสถานะแถว "HQ ส่งใบ" (FLOW.html · ด่าน 2) ─────────────────────────────
 //   ขั้น 5  HQ ทำ BOQ ด้วยรายการที่พิมพ์เอง (ต้นทุน HQ เห็นคนเดียว · ไม่มีแม่แบบแล้ว 16 ต.ค. 69) → บันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้าย
@@ -52,17 +52,12 @@ const สถานะคำขอ = async () => (await admin.from("quote_request
 const สถานะลูกค้าเป้าหมาย = async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", leadNum).single()).data?.status;
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-async function เปิดใบHQ(page: Page) {
+/** เปิดใบ HQ ของคำขอนี้ในกล่องงาน (หน้า 5 · ใบฝังในหน้า) — ส่งใบแล้วอยู่กลุ่ม "ส่งแล้ว รอดีลเลอร์" */
+async function เปิดใบHQ(page: Page, กลุ่ม?: "ส่งแล้ว รอดีลเลอร์") {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByLabel("ค้นหาคำขอ").fill(COMPANY);
-  const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await expect(row).toBeVisible({ timeout: 20_000 });
-  await row.getByRole("button", { name: /ทำใบ HQ|ดูใบ HQ/ }).click();
-  const กล่อง = page.getByRole("dialog", { name: "ใบ HQ" });
-  await expect(กล่อง).toBeVisible();
-  return กล่อง;
+  return (await เปิดใบHQในกล่องงาน(page, COMPANY, กลุ่ม)).ใบ;
 }
 async function เปิดแผงดีลเลอร์(page: Page) {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
@@ -136,10 +131,11 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
   expect(await สถานะคำขอ(), "คำขอ = ส่งใบแล้ว").toBe("quoted");
   expect(await สถานะลูกค้าเป้าหมาย(), "ลูกค้าเป้าหมายคงเดิม").toBe("HQ_PRICING");
 
-  // เปิดดูซ้ำ: อ่านอย่างเดียว
-  await page.keyboard.press("Escape");
-  await expect(page.locator("tbody tr").filter({ hasText: COMPANY }).first().getByText("ส่งใบแล้ว", { exact: true })).toBeVisible({ timeout: 15_000 });
-  กล่อง = await เปิดใบHQ(page);
+  // ส่งแล้วใบเดิมยังเปิดอยู่ (ไม่เด้งไปคำขออื่น) และล็อกทันที
+  await expect(กล่อง.getByText(/ใบนี้แก้ไม่ได้/), "ส่งแล้วใบที่เปิดอยู่ต้องกลายเป็นอ่านอย่างเดียวทันที").toBeVisible({ timeout: 15_000 });
+  // เปิดดูซ้ำจากกลุ่ม "ส่งแล้ว รอดีลเลอร์": อ่านอย่างเดียว
+  กล่อง = await เปิดใบHQ(page, "ส่งแล้ว รอดีลเลอร์");
+  await expect(page.getByRole("list", { name: "รายการคำขอ" }).getByRole("button", { name: new RegExp(COMPANY) })).toContainText("รอดีลเลอร์");
   await expect(กล่อง.getByText(/ใบนี้แก้ไม่ได้/)).toBeVisible();
   await expect(กล่อง.getByLabel("ชื่อรายการ 1"), "ส่งแล้วไม่มีช่องแก้").toHaveCount(0);
   await expect(กล่อง.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" })).toHaveCount(0);

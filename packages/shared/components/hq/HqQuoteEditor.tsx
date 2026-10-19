@@ -25,10 +25,18 @@ const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigi
 /** วันยืนราคาตั้งต้น = 30 วันจากวันนี้ (เวลาไทย) */
 const วันยืนราคาตั้งต้น = () => new Date(Date.now() + 7 * 3_600_000 + 30 * 86_400_000).toISOString().slice(0, 10);
 
-export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
+export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange }: {
   request: QuoteRequest;
   dealerName: string;
   onClose: () => void;
+  /** ฝังในหน้า (กล่องงานคำขอราคา · หน้า 5) แทนหน้าต่างลอย — ใช้เนื้อหาชุดเดียวกัน · เป็นพื้นที่ชื่อ "ใบ HQ" */
+  inline?: boolean;
+  /** ปุ่มเพิ่มบนหัว (เช่น "รับเรื่อง" ของคำขอใหม่) — แสดงเฉพาะแบบฝังในหน้า */
+  headerExtra?: React.ReactNode;
+  /** มีการแก้ที่ยังไม่บันทึกหรือไม่ — หน้าแม่ใช้ถามก่อนทิ้งเมื่อเปลี่ยนแถว/กลุ่ม (หน้า 5 · บอสสั่ง 19 ต.ค. 69) */
+  onDirtyChange?: (dirty: boolean) => void;
+  /** กำลังบันทึก/ส่งใบ — หน้าแม่ห้ามเปลี่ยนแถวจนกว่าจะเสร็จ (เปลี่ยนระหว่างรอคำตอบ = ต้นเหตุข้อไม่นิ่งรอบก่อน ๆ) */
+  onBusyChange?: (busy: boolean) => void;
   /** สถานะคำขอเปลี่ยน (รับเรื่อง/ส่งใบ) — ให้คิวโหลดใหม่ */
   onChanged: () => void;
 }) {
@@ -38,6 +46,9 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
   const [ยืนราคาถึง, setยืนราคาถึง] = useState(วันยืนราคาตั้งต้น());
   const [หมายเหตุ, setหมายเหตุ] = useState("");
   const [busy, setBusy] = useState(false);
+  // ภาพของใบตอนโหลด/บันทึกล่าสุด — ต่างจากที่อยู่บนจอ = มีการแก้ที่ยังไม่บันทึก
+  const [ภาพที่บันทึก, setภาพที่บันทึก] = useState<string | null>(null);
+  const ภาพ = (ls: HqQuoteLine[], v: string, n: string) => JSON.stringify([ls.map(l => [l.name, Number(l.qty), l.unit, Number(l.unitCost)]), v, n]);
 
   useEffect(() => {
     let alive = true;
@@ -45,7 +56,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
       if (!alive) return;
       setใบ(h);
       if (h) { setLines(h.lineItems); setยืนราคาถึง(h.validUntil ?? วันยืนราคาตั้งต้น()); setหมายเหตุ(h.note); }
-    }).catch(e => { logRepoRead("quoteRequests.hqQuoteFor", e); if (alive) setใบ(null); });
+      setภาพที่บันทึก(h ? ภาพ(h.lineItems, h.validUntil ?? วันยืนราคาตั้งต้น(), h.note) : ภาพ([], วันยืนราคาตั้งต้น(), ""));
+    }).catch(e => { logRepoRead("quoteRequests.hqQuoteFor", e); if (alive) { setใบ(null); setภาพที่บันทึก(ภาพ([], วันยืนราคาตั้งต้น(), "")); } });
     // ขอแก้ราคา: ใบเวอร์ชันก่อนหน้า (ใช้เป็นจุดเริ่มของเวอร์ชันใหม่)
     if (request.supersedesId) repo.hqQuoteFor(request.supersedesId).then(h => alive && setใบก่อน(h)).catch(e => logRepoRead("quoteRequests.hqQuoteFor(prev)", e));
     return () => { alive = false; };
@@ -63,12 +75,17 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
     return "";
   }, [lines, รวม, ยืนราคาถึง]);
 
+  const แก้ค้าง = ภาพที่บันทึก !== null && ภาพ(lines, ยืนราคาถึง, หมายเหตุ) !== ภาพที่บันทึก;
+  useEffect(() => { onDirtyChange?.(แก้ค้าง); }, [แก้ค้าง, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
+  useEffect(() => () => { onDirtyChange?.(false); onBusyChange?.(false); }, [onDirtyChange, onBusyChange]);
   const แก้บรรทัด = (i: number, patch: Partial<HqQuoteLine>) => setLines(ls => ls.map((l, j) => j === i ? { ...l, ...patch } : l));
 
   const บันทึก = async (): Promise<HqQuote | null> => {
     const clean = lines.map(l => ({ ...l, name: l.name.trim(), unit: l.unit.trim(), qty: Number(l.qty), unitCost: Number(l.unitCost) }));
     const h = await repo.saveHqQuote(request.id, clean, ยืนราคาถึง, หมายเหตุ);
     setใบ(h);
+    setภาพที่บันทึก(ภาพ(clean, ยืนราคาถึง, หมายเหตุ));
     return h;
   };
   const กดบันทึก = async () => {
@@ -101,6 +118,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
     try {
       const h = await repo.copyHqQuote(request.id, ใบก่อน.id);
       setใบ(h); setLines(h.lineItems); setยืนราคาถึง(h.validUntil ?? วันยืนราคาตั้งต้น()); setหมายเหตุ(h.note);
+      setภาพที่บันทึก(ภาพ(h.lineItems, h.validUntil ?? วันยืนราคาตั้งต้น(), h.note));
       แจ้งสำเร็จ(`เริ่มเวอร์ชันใหม่จาก ${ใบก่อน.quoteNo} แล้ว — แก้รายการแล้วส่งได้เลย`);
       onChanged();
     } catch (e) { แจ้งพลาด(friendlyError(e)); }
@@ -108,11 +126,9 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
   };
 
   const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 8px", fontSize: "0.84rem" };
-  return (
-    <div onClick={() => !busy && onClose()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <ModalCard onClose={() => !busy && onClose()} label="ใบ HQ" className="modal-fit"
-        style={{ width: 960, maxWidth: "100%", maxHeight: "92vh", overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
-        <div style={{ background: NAVY, color: "#fff", padding: "16px 22px", display: "flex", alignItems: "center", gap: 12 }}>
+  const เนื้อหา = (
+    <>
+        <div style={{ background: NAVY, color: "#fff", padding: "16px 22px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: "1.02rem", fontWeight: 800 }}>
               ใบ HQ · {request.requestNo}{ใบ ? ` · ${ใบ.quoteNo}` : ""}
@@ -122,10 +138,12 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
             </div>
           </div>
           {ใบ && <span className="badge" style={{ background: ล็อก ? "#dcfce7" : "#fef3c7", color: ล็อก ? "#166534" : "#92400e" }}>{hqQuoteStatusLabel[ใบ.status]}</span>}
-          <button type="button" onClick={onClose} disabled={busy} aria-label="ปิด" style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex" }}><X size={18} /></button>
+          {inline && headerExtra}
+          {!inline && <button type="button" onClick={onClose} disabled={busy} aria-label="ปิด" style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex" }}><X size={18} /></button>}
         </div>
 
-        <div style={{ padding: "16px 22px", display: "grid", gap: 14 }}>
+        {/* minmax(0,1fr): ตาราง BOQ กว้างเกินจอแคบ = เลื่อนในกรอบตัวเอง ไม่ดันทั้งแผงล้นขอบ (หน้า 5 แบบฝังในหน้า) */}
+        <div style={{ padding: "16px 22px", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14 }}>
           {/* สิ่งที่ดีลเลอร์ขอ */}
           <div style={{ background: "#f8fafc", borderRadius: 12, padding: "12px 14px", fontSize: "0.82rem", color: "#374151", display: "grid", gap: 4 }}>
             <div><b>งานที่ขอ:</b> {request.product}{request.subtype ? ` · ${request.subtype}` : ""}{request.area ? ` · ${Number(request.area).toLocaleString()} ตร.ม.` : ""} · <b>จังหวัดหน้างาน:</b> {request.province || "—"}</div>
@@ -218,6 +236,16 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged }: {
             </>
           )}
         </div>
+    </>
+  );
+  if (inline) return (
+    <section aria-label="ใบ HQ" style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", overflow: "hidden" }}>{เนื้อหา}</section>
+  );
+  return (
+    <div onClick={() => !busy && onClose()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <ModalCard onClose={() => !busy && onClose()} label="ใบ HQ" className="modal-fit"
+        style={{ width: 960, maxWidth: "100%", maxHeight: "92vh", overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
+        {เนื้อหา}
       </ModalCard>
     </div>
   );

@@ -16,7 +16,7 @@ import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal, DealerProposalPayment } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
 import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo } from "../ports";
-import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
+import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard } from "../../quoteRequests";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
@@ -288,6 +288,7 @@ const profile: ProfileRepo = {
 const quoteRequests: QuoteRequestsRepo = {
   listForLead: (dealerCode, leadNumId) => apiFetch<QuoteRequest[]>(`/quote-requests?dealer=${encodeURIComponent(dealerCode)}&lead=${leadNumId}`),
   listQueue: () => apiFetch<QuoteRequest[]>("/quote-requests?view=queue"),
+  board: (group, q) => apiFetch<QuoteBoard>(`/quote-requests?view=board&group=${encodeURIComponent(group)}&q=${encodeURIComponent(q)}`),
   submit: (i) => post<QuoteRequest>("/quote-requests", { op: "submit", ...i }),
   cancel: async (id, reason, closeLead) => { await post("/quote-requests", { op: "cancel", id, reason, closeLead }); },
   reprice: (id, reason, spec) => post<QuoteRequest>("/quote-requests", { op: "reprice", id, reason, spec }),

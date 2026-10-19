@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
 
 // ── HQ ส่งใบ HQ: หน้าจอบอก "ส่งแล้ว" ได้เฉพาะเมื่อฐานยืนยันแล้ว (บอสสั่ง 15 ต.ค. 69) ───────────────────────────────
 //
@@ -60,12 +60,7 @@ async function เปิดใบHQ(page: Page) {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByLabel("ค้นหาคำขอ").fill(COMPANY);
-  const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await expect(row).toBeVisible({ timeout: 20_000 });
-  await row.getByRole("button", { name: /ทำใบ HQ|ดูใบ HQ/ }).click();
-  const กล่อง = page.getByRole("dialog", { name: "ใบ HQ" });
-  await expect(กล่อง).toBeVisible();
+  const { ใบ: กล่อง, แถว: row } = await เปิดใบHQในกล่องงาน(page, COMPANY);
   return { กล่อง, row };
 }
 /** ข้อความที่บอกผู้ใช้ว่าส่งแล้ว — ต้องไม่มีจนกว่าฐานยืนยัน */

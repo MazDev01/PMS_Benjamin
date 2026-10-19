@@ -1550,3 +1550,6 @@ textarea:focus-visible {
   .topbar-search { flex: 0 0 40px; padding: 0; justify-content: center; }
   .topbar-search span { display: none; }
 }
+
+/* กล่องงานคำขอราคา HQ (หน้า 5 · 19 ต.ค. 69): จอแคบ = กล่องงานบน ใบ HQ ล่าง */
+@media (max-width: 960px) { .hq-qr-board { grid-template-columns: minmax(0, 1fr) !important; } }

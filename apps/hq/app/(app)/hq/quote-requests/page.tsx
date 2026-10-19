@@ -1,116 +1,153 @@
 "use client";
 
-// ─── HQ · คำขอใบเสนอราคา (คิวของสำนักงานใหญ่ · FLOW.html ขั้น 4 · ด่าน 1) ────────────────────────────────────
+// ─── HQ · คำขอใบเสนอราคา แบบกล่องงาน (หน้า 5 · UI ตาม flow · บอสอนุมัติ 16 ต.ค. 69) ─────────────────────────────
 //
-// ขั้น 4: คำขอเข้าคิว HQ (อีเมลแจ้ง · เริ่มนับ 14 วัน) — ตารางสถานะ
-//   แถว 2 "HQ กดรับเรื่อง" → กำลังทำราคา (ผู้รับผิดชอบ = ผู้กด) · ลูกค้าเป้าหมายของดีลเลอร์คงเดิม
-//   แถว 3 "ครบ 14 วันยังไม่ส่งใบ" → ป้ายแดง เกินกำหนด (อีเมลถึงผู้รับของ HQ ส่งจากงานตั้งเวลา)
-// ขั้น 5–6 (ด่าน 2): ปุ่ม "ทำใบ HQ" เปิดแผงทำ BOQ (HQ พิมพ์รายการเอง) → บันทึกร่าง → ส่งใบ (ล็อกเวอร์ชัน · หยุดนับ 14 วัน · อีเมลถึงดีลเลอร์)
-//   คำขอที่ส่งใบแล้วเปิดดูใบได้แบบอ่านอย่างเดียว
-// เรียงตามกำหนดส่งที่ใกล้สุดก่อน — คิวงานคือ "อะไรต้องทำก่อน" ไม่ใช่ "อะไรมาใหม่สุด" (ข้อยกเว้นของกติกาเรียงใหม่สุดก่อน: งานตามขั้น/ด่วน)
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Inbox, Search, X } from "lucide-react";
-import { quoteRequests as repo, dealers as dealersRepo } from "@pms/shared/lib/data";
+// ปัญหาที่แก้: เดิมเป็นตารางยาว + หน้าต่างลอยทำใบ HQ — HQ ดูไม่ออกว่าอะไรต้องทำก่อน และต้องเปิด/ปิดหน้าต่างทีละคำขอ
+// ตอนนี้ 2 ช่อง: ซ้าย = กล่องงาน 4 กลุ่ม (จำนวนคิดที่ฐาน · ใบ 0215 hq_quote_board) · ขวา = ใบ HQ ของคำขอที่เลือก ฝังในหน้า
+//   ต้องตีราคา = ใหม่ + กำลังตีราคา · ส่งแล้ว รอดีลเลอร์ · สั่งผลิต · ปิด/ยกเลิก
+//   ลำดับ + ป้ายของแถว (เกิน 14 วัน · ขอแก้ราคา · ร่างค้าง · ใหม่) มาจากฐาน — หน้านี้ไม่นับ/เรียงเอง
+// บอสตัดสิน 19 ต.ค. 69:
+//   • ไม่มีปุ่ม "รับเรื่อง" — "บันทึกร่าง" รับเรื่องให้เองทางเดียว (ฐานทำใน hq_quote_save)
+//   • เข้าหน้าแล้วเปิดคำขอบนสุดให้ทันที — แค่เปิดดู ไม่เปลี่ยนสถานะ ไม่บันทึกอะไร
+//   • ใบที่เปิดอยู่มีการแก้ค้าง แล้วกดแถวอื่น/ปุ่มกลุ่ม = ถามก่อนทิ้ง · ยกเลิก = อยู่ใบเดิม ข้อมูลที่พิมพ์ยังอยู่ (ไม่ถอดใบออก)
+//   • ระหว่างบันทึก/ส่งใบ ห้ามเปลี่ยนแถวหรือกลุ่ม (เปลี่ยนระหว่างรอคำตอบ = ต้นเหตุข้อไม่นิ่งรอบก่อน ๆ)
+// FLOW.html ขั้น 4–6: รับเรื่อง → ทำ BOQ → บันทึกร่าง → ส่งใบ (ล็อกเวอร์ชัน · หยุดนับ 14 วัน · อีเมลถึงดีลเลอร์)
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Search, X, Inbox } from "lucide-react";
+import { quoteRequests as repo } from "@pms/shared/lib/data";
 import {
-  type QuoteRequest, quoteRequestStatusLabel, quoteRequestStatusColor, เกินกำหนด, วันไทยสั้น,
+  type QuoteBoard, type QuoteBoardGroup, type QuoteBoardRow, quoteBoardGroups, quoteBoardTag, วันไทยสั้น,
 } from "@pms/shared/lib/quoteRequests";
-import type { DealerRow } from "@pms/shared/lib/mock";
-import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { TablePagination, pageSlice } from "@pms/shared/components/ui/TablePagination";
-import { แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { HqQuoteEditor } from "@pms/shared/components/hq/HqQuoteEditor";
 
+const ส้ม = "#b45309";
+const รอ = (r: QuoteBoardRow) => r.waitingDays === 0 ? "วันนี้" : `รอ ${r.waitingDays} วัน`;
+
 export default function HQQuoteRequestsPage() {
-  const [รายการ, setรายการ] = useState<QuoteRequest[] | null>(null);
+  const [กลุ่ม, setกลุ่ม] = useState<QuoteBoardGroup>("todo");
+  const [พิมพ์, setพิมพ์] = useState("");
   const [ค้นหา, setค้นหา] = useState("");
+  const [กล่อง, setกล่อง] = useState<QuoteBoard | null>(null);
+  const [เลือก, setเลือก] = useState<QuoteBoardRow | null>(null);
   const [page, setPage] = useState(0);
-  const [busy, setBusy] = useState(0);
-  const [เปิดใบ, setเปิดใบ] = useState<QuoteRequest | null>(null);
-  const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
-  const ชื่อดีลเลอร์ = (c: string) => dealers.find(d => d.code === c)?.name ?? "";
+  const [กำลังบันทึก, setกำลังบันทึก] = useState(false);
+  const แก้ค้าง = useRef(false);
+  const ล็อก = useRef(false);
+  const ตั้งแก้ค้าง = useCallback((v: boolean) => { แก้ค้าง.current = v; }, []);
+  const ตั้งกำลังบันทึก = useCallback((v: boolean) => { ล็อก.current = v; setกำลังบันทึก(v); }, []);
+
+  // คำค้นส่งไปฐานหลังหยุดพิมพ์ (ฐานกรองทั้งจำนวนและรายการด้วยคำเดียวกัน)
+  useEffect(() => { const t = setTimeout(() => setค้นหา(พิมพ์.trim()), 250); return () => clearTimeout(t); }, [พิมพ์]);
+  useEffect(() => setPage(0), [ค้นหา, กลุ่ม]);
 
   const โหลด = useCallback(() => {
-    repo.listQueue().then(setรายการ).catch(e => { logRepoRead("quoteRequests.listQueue", e); setรายการ([]); });
-  }, []);
-  useEffect(โหลด, [โหลด]);
+    let alive = true;
+    repo.board(กลุ่ม, ค้นหา).then(b => {
+      if (!alive) return;
+      setกล่อง(b);
+      // คงคำขอที่เปิดอยู่ไว้เสมอ (ข้อมูลล่าสุดจากฐานถ้ายังอยู่ในกลุ่ม) — ห้ามสลับใบเงียบ ๆ
+      //   เช่น ส่งใบแล้วคำขอย้ายไปกลุ่ม "รอดีลเลอร์" = ยังเห็นใบที่เพิ่งส่ง (ล็อกแล้ว) ไม่เด้งไปคำขออื่น
+      //   เปิดแถวบนสุดให้เฉพาะตอนยังไม่ได้เปิดอะไร (เข้าหน้า · เปลี่ยนกลุ่ม) — แค่เปิดดู ไม่เปลี่ยนสถานะ
+      setเลือก(prev => b.rows.find(r => r.id === prev?.id) ?? prev ?? b.rows[0] ?? null);
+    }).catch(e => { logRepoRead("quoteRequests.board", e); if (alive) setกล่อง({ counts: { todo: 0, overdue: 0, quoted: 0, won: 0, closed: 0 }, rows: [] }); });
+    return () => { alive = false; };
+  }, [กลุ่ม, ค้นหา]);
+  useEffect(() => โหลด(), [โหลด]);
 
-  const กรอง = useMemo(() => {
-    const q = ค้นหา.trim().toLowerCase();
-    return (รายการ ?? []).filter(r => !q || [r.requestNo, r.dealerCode, r.leadCompany ?? "", r.product, r.province].some(v => v.toLowerCase().includes(q)));
-  }, [รายการ, ค้นหา]);
-  useEffect(() => setPage(0), [ค้นหา]);
-
-  const รับเรื่อง = async (r: QuoteRequest) => {
-    setBusy(r.id);
-    try { await repo.accept(r.id); แจ้งสำเร็จ(`รับเรื่อง ${r.requestNo} แล้ว`); โหลด(); }
-    catch (e) { แจ้งพลาด(friendlyError(e)); }
-    finally { setBusy(0); }
+  /** ออกจากใบที่เปิดอยู่ได้ไหม — กำลังบันทึก = ไม่ได้ · มีการแก้ค้าง = ถามก่อนทิ้ง */
+  const ออกจากใบได้ = async (): Promise<boolean> => {
+    if (ล็อก.current) return false;
+    if (!แก้ค้าง.current) return true;
+    return ยืนยัน({ หัวข้อ: "มีการแก้ที่ยังไม่บันทึก จะทิ้งหรือไม่", รายละเอียด: "ทิ้ง = รายการที่พิมพ์ในใบนี้หายไป · ยกเลิก = อยู่ที่ใบเดิม ข้อมูลยังอยู่ครบ", ปุ่มตกลง: "ทิ้งการแก้", ปุ่มยกเลิก: "ยกเลิก" });
   };
-  const เกิน = (รายการ ?? []).filter(r => เกินกำหนด(r)).length;
+  const เปิดแถว = async (r: QuoteBoardRow) => {
+    if (r.id === เลือก?.id) return;
+    if (await ออกจากใบได้()) { แก้ค้าง.current = false; setเลือก(r); }
+  };
+  const เปลี่ยนกลุ่ม = async (g: QuoteBoardGroup) => {
+    if (g === กลุ่ม) return;
+    if (await ออกจากใบได้()) { แก้ค้าง.current = false; setเลือก(null); setกลุ่ม(g); }
+  };
 
+  const แถว = กล่อง?.rows ?? [];
   return (
     <div className="erp">
-      <div className="card hq-sticky-filter" style={{ marginBottom: 16 }}>
-        <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", paddingTop: 14, paddingBottom: 14 }}>
-          <Inbox size={18} color="#003366" />
-          <div style={{ fontSize: "0.84rem", color: "#374151" }}>
-            คำขอที่ยังเปิดอยู่ <b>{(รายการ ?? []).length.toLocaleString()}</b> รายการ
-            {เกิน > 0 && <span style={{ color: "#b91c1c", fontWeight: 700 }}> · เกินกำหนด {เกิน}</span>}
-          </div>
-          <div className="search-bar" style={{ marginLeft: "auto" }}>
-            <Search size={14} />
-            <input value={ค้นหา} onChange={e => setค้นหา(e.target.value)} placeholder="ค้นหาเลขคำขอ / ดีลเลอร์ / บริษัท / จังหวัด" aria-label="ค้นหาคำขอ" />
-            {ค้นหา && <button type="button" onClick={() => setค้นหา("")} aria-label="ล้างคำค้น"><X size={13} /></button>}
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="table-scroll">
-          <table className="table" style={{ width: "100%" }}>
-            <thead>
-              <tr><th>เลขคำขอ</th><th>ดีลเลอร์</th><th>ลูกค้าเป้าหมาย</th><th>งานที่ขอราคา</th><th>จังหวัด</th><th>สถานะ</th><th>กำหนดส่งใบ HQ</th><th>ผู้รับผิดชอบ</th><th style={{ width: 190 }}></th></tr>
-            </thead>
-            <tbody>
-              {รายการ === null && <tr><td colSpan={9} style={{ textAlign: "center", color: "#9ca3af", padding: 24 }}>กำลังโหลด…</td></tr>}
-              {รายการ !== null && กรอง.length === 0 && <tr><td colSpan={9} style={{ textAlign: "center", color: "#9ca3af", padding: 24 }}>ไม่มีคำขอที่ยังเปิดอยู่</td></tr>}
-              {pageSlice(กรอง, page).map(r => {
-                const c = quoteRequestStatusColor[r.status];
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 440px) minmax(0, 1fr)", gap: 16, alignItems: "start" }} className="hq-qr-board">
+        {/* ── ซ้าย: กล่องงาน ── */}
+        <section aria-label="กล่องคำขอราคา" className="card" style={{ overflow: "hidden" }}>
+          <div style={{ padding: "16px 16px 12px", display: "grid", gap: 12, borderBottom: "1px solid #e5e7eb" }}>
+            <div role="tablist" aria-label="กรองตามสถานะ" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {quoteBoardGroups.map(g => {
+                const on = g.key === กลุ่ม;
+                const n = กล่อง?.counts[g.key];
                 return (
-                  <tr key={`${r.dealerCode}-${r.id}`} aria-label={`${r.requestNo} ${r.leadCompany ?? ""}`}>
-                    <td style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{r.requestNo}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>{r.dealerCode} <span style={{ color: "#6b7280", fontSize: "0.76rem" }}>{ชื่อดีลเลอร์(r.dealerCode)}</span></td>
-                    <td>{r.leadCompany || "—"}</td>
-                    <td>{r.product}{r.subtype ? ` · ${r.subtype}` : ""}</td>
-                    <td>{r.province || "—"}</td>
-                    <td>
-                      <span className="badge" style={{ background: c.bg, color: c.text }}>{quoteRequestStatusLabel[r.status]}</span>
-                      {เกินกำหนด(r) && <span className="badge" style={{ marginLeft: 6, background: "#fee2e2", color: "#b91c1c" }}>เกินกำหนด</span>}
-                    </td>
-                    <td style={{ whiteSpace: "nowrap" }}>{r.status === "quoted" ? "—" : วันไทยสั้น(r.dueAt)}</td>
-                    <td>{r.assigneeName || "—"}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      {r.status === "new" && (
-                        <button type="button" className="btn btn-outline btn-sm" disabled={busy === r.id} onClick={() => void รับเรื่อง(r)} style={{ marginRight: 6 }}>รับเรื่อง</button>
-                      )}
-                      <button type="button" className={r.status === "quoted" ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"} onClick={() => setเปิดใบ(r)}>
-                        {r.status === "quoted" ? "ดูใบ HQ" : "ทำใบ HQ"}
-                      </button>
-                    </td>
-                  </tr>
+                  <button key={g.key} type="button" role="tab" aria-selected={on} disabled={กำลังบันทึก} onClick={() => void เปลี่ยนกลุ่ม(g.key)}
+                    style={{ height: 36, padding: "0 12px", borderRadius: 99, border: on ? "none" : "1px solid #cbd2d9", background: on ? ส้ม : "#fff",
+                      color: on ? "#fff" : "#1f2933", fontFamily: "inherit", fontSize: "0.8rem", fontWeight: on ? 700 : 500, cursor: "pointer" }}>
+                    {g.label} · {n == null ? "…" : n.toLocaleString()}
+                  </button>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-        <TablePagination page={page} total={กรอง.length} onPage={setPage} unit="คำขอ" />
-      </div>
+            </div>
+            {กลุ่ม === "todo" && (กล่อง?.counts.overdue ?? 0) > 0 && (
+              <div style={{ fontSize: "0.78rem", color: "#b91c1c", fontWeight: 700 }}>เกินกำหนด 14 วัน {กล่อง!.counts.overdue.toLocaleString()} คำขอ — อยู่บนสุดของรายการ</div>
+            )}
+            <div className="search-bar">
+              <Search size={14} />
+              <input value={พิมพ์} onChange={e => setพิมพ์(e.target.value)} placeholder="ค้นหาเลขคำขอ / ดีลเลอร์ / ลูกค้าเป้าหมาย / งาน / จังหวัด" aria-label="ค้นหาคำขอ" />
+              {พิมพ์ && <button type="button" onClick={() => setพิมพ์("")} aria-label="ล้างคำค้น"><X size={13} /></button>}
+            </div>
+          </div>
 
-      {เปิดใบ && (
-        <HqQuoteEditor request={เปิดใบ} dealerName={ชื่อดีลเลอร์(เปิดใบ.dealerCode)} onClose={() => setเปิดใบ(null)} onChanged={โหลด} />
-      )}
+          <ul aria-label="รายการคำขอ" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {กล่อง === null && <li style={{ padding: 24, textAlign: "center", color: "#9ca3af", fontSize: "0.84rem" }}>กำลังโหลด…</li>}
+            {กล่อง !== null && แถว.length === 0 && (
+              <li style={{ padding: 28, textAlign: "center", color: "#9ca3af", fontSize: "0.84rem" }}>
+                <Inbox size={22} style={{ display: "block", margin: "0 auto 6px" }} />
+                {ค้นหา ? "ไม่พบคำขอที่ตรงกับคำค้น" : "ไม่มีคำขอในกลุ่มนี้"}
+              </li>
+            )}
+            {pageSlice(แถว, page).map(r => {
+              const t = quoteBoardTag[r.tag];
+              const on = เลือก?.id === r.id;
+              return (
+                <li key={`${r.dealerCode}-${r.id}`} style={{ borderBottom: "1px solid #f0f2f4" }}>
+                  <button type="button" disabled={กำลังบันทึก && !on} onClick={() => void เปิดแถว(r)} aria-current={on ? "true" : undefined} aria-label={`${r.requestNo} ${r.leadCompany}`}
+                    style={{ width: "100%", textAlign: "left", display: "grid", gap: 3, padding: "12px 16px", border: "none", cursor: "pointer", fontFamily: "inherit",
+                      borderLeft: `4px solid ${on ? ส้ม : t.bar}`, background: on ? "#fff4e5" : t.bg }}>
+                    <span style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.88rem", fontWeight: 700, color: "#1f2933" }}>
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.dealerCode} · {r.leadCompany || "—"}</span>
+                      <span style={{ color: t.color, fontSize: "0.76rem", whiteSpace: "nowrap" }}>{t.label}</span>
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "#52606d" }}>
+                      {r.requestNo} · {r.product}{r.subtype ? ` · ${r.subtype}` : ""} · {
+                        กลุ่ม === "todo" ? รอ(r)
+                        : กลุ่ม === "quoted" ? `ยืนราคาถึง ${r.validUntil ? วันไทยสั้น(r.validUntil) : "—"}`
+                        : `ปิดเมื่อ ${r.closedAt ? วันไทยสั้น(r.closedAt) : "—"}`}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <TablePagination page={page} total={แถว.length} onPage={setPage} unit="คำขอ" />
+        </section>
+
+        {/* ── ขวา: ใบ HQ ของคำขอที่เลือก (ฝังในหน้า) ── */}
+        <div style={{ minWidth: 0 }}>
+          {เลือก ? (
+            <HqQuoteEditor key={เลือก.id} inline request={เลือก} dealerName={เลือก.dealerName} onClose={() => setเลือก(null)} onChanged={โหลด}
+              onDirtyChange={ตั้งแก้ค้าง} onBusyChange={ตั้งกำลังบันทึก} />
+          ) : (
+            <div className="card" style={{ padding: 40, textAlign: "center", color: "#9ca3af", fontSize: "0.86rem" }}>
+              เลือกคำขอทางซ้ายเพื่อทำใบ HQ
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

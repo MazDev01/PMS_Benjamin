@@ -1,7 +1,7 @@
 import { test, expect, request as pwRequest } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db } from "./funcHelpers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
 import { adminClient } from "./testDealers";
 import { ล้างใบHQทดสอบ } from "./legacyQuotes";
 
@@ -191,12 +191,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   await loginUI(h, HQ_ORIGIN, "/hq/login", ADMIN);
   await h.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(h);
-  await h.getByLabel("ค้นหาคำขอ").fill(บริษัท);
-  const แถว = h.locator("tbody tr").filter({ hasText: บริษัท }).first();
-  await expect(แถว).toBeVisible({ timeout: 25_000 });
-  await แถว.getByRole("button", { name: /ทำใบ HQ|ดูใบ HQ/ }).click();
-  const กล่อง = h.getByRole("dialog", { name: "ใบ HQ" });
-  await expect(กล่อง).toBeVisible();
+  const { ใบ: กล่อง } = await เปิดใบHQในกล่องงาน(h, บริษัท);
   await expect(กล่อง.getByLabel("เพิ่มรายการจากแม่แบบ"), "BOQ ของ HQ ต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
   if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
   await กล่อง.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็กพร้อมติดตั้ง");

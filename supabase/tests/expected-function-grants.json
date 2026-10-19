@@ -1,5 +1,5 @@
 {
- "migration": "0214",
+ "migration": "0215",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -406,6 +406,13 @@
    "authenticated": true,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "hq_quote_board(p_group text, p_q text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "hq_quote_copy_from(p_request_id bigint, p_source_hq_quote_id bigint)",

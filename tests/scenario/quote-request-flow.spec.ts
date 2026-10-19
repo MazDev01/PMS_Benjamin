@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
 
 // ── ขายหนึ่งงาน ขั้น 2–4 บนหน้าจอ + ตารางสถานะแถว 1–3, 6–7 (FLOW.html · ด่าน 1) ──────────────────────────────
 //   แถว 1 ดีลเลอร์ส่งคำขอ        → คำขอ "ใหม่" · ลูกค้าเป้าหมาย "รอราคา HQ" · อีเมลถึง HQ
@@ -54,7 +54,13 @@ test.afterAll(async () => {
 
 const สถานะลูกค้าเป้าหมาย = async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", leadNum).single()).data?.status;
 const คำขอล่าสุด = async () => (await admin.from("quote_requests").select("id, status, request_no, supersedes_id").eq("dealer_code", "RYG").eq("lead_num_id", leadNum).order("id", { ascending: false }).limit(1).single()).data!;
-const อีเมล = async (kind: string) => (await admin.from("email_outbox").select("id").eq("to_email", ผู้รับ).eq("kind", kind)).data?.length ?? 0;
+// นับเฉพาะอีเมลที่ผูกกับคำขอของลูกค้าเป้าหมายในไฟล์นี้ — ข้ออื่นที่รันพร้อมกันสร้างคำขอได้ (เช่น กล่องงาน HQ ใส่คำขอ "ใหม่")
+//   ตัวดักของฐานก็ส่งอีเมลถึงผู้รับเดียวกัน นับทุกฉบับที่ถึงผู้รับ = ไม่นิ่ง (รอบเต็ม 19 ต.ค. 69 ได้ 2 แทน 1)
+const อีเมล = async (kind: string) => {
+  const ids = ((await admin.from("quote_requests").select("id").eq("dealer_code", "RYG").eq("lead_num_id", leadNum)).data ?? []).map(r => String(r.id));
+  if (!ids.length) return 0;
+  return (await admin.from("email_outbox").select("id").eq("to_email", ผู้รับ).eq("kind", kind).eq("ref_table", "quote_requests").in("ref_id", ids)).data?.length ?? 0;
+};
 
 async function เปิดแท็บใบเสนอราคา(page: Page) {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
@@ -92,24 +98,33 @@ test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอ
   assertNoErrors(errs, "ส่งคำขอราคา");
 });
 
-test("[flow·hq] ขั้น 4: คำขอเข้าคิว HQ → กดรับเรื่อง (แถว 2) · เกินกำหนดขึ้นป้ายแดง (แถว 3)", async ({ page }) => {
+test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงาน HQ → บันทึกร่าง = รับเรื่อง (แถว 2) · เกินกำหนดขึ้นป้ายแดง (แถว 3)", async ({ page }) => {
+  // หน้า 5 (บอสตัดสิน 19 ต.ค. 69): ไม่มีปุ่ม "รับเรื่อง" แล้ว — "บันทึกร่าง" รับเรื่องให้ทางเดียว (ฐานทำใน hq_quote_save)
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
-  const แถว = page.getByRole("row", { name: new RegExp(COMPANY) });
-  await expect(แถว).toBeVisible({ timeout: 30_000 });
+  await settle(page);
+  const { ใบ, แถว } = await เปิดใบHQในกล่องงาน(page, COMPANY);
   await expect(แถว).toContainText("ใหม่");
   await expect(แถว).toContainText("RYG");
-  await แถว.getByRole("button", { name: "รับเรื่อง" }).click();
-  await expect(แถว).toContainText("กำลังทำราคา", { timeout: 20_000 });
-  expect((await คำขอล่าสุด()).status).toBe("pricing");
+  await expect(page.getByRole("button", { name: "รับเรื่อง" }), "ไม่มีปุ่มรับเรื่องแล้ว").toHaveCount(0);
+  expect((await คำขอล่าสุด()).status, "เปิดดูอย่างเดียวต้องไม่เปลี่ยนสถานะ").toBe("new");
+
+  await ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
+  await ใบ.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็ก");
+  await ใบ.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
+  await ใบ.getByRole("button", { name: "บันทึกร่าง" }).click();
+  await expect.poll(async () => (await คำขอล่าสุด()).status, { timeout: 20_000, message: "บันทึกร่าง = รับเรื่อง" }).toBe("pricing");
+  await expect(แถว).toContainText("ร่างค้าง", { timeout: 20_000 });
   expect(await สถานะลูกค้าเป้าหมาย(), "HQ รับเรื่อง ลูกค้าเป้าหมายคงเดิม").toBe("HQ_PRICING");
 
   const { id } = await คำขอล่าสุด();
   await admin.from("quote_requests").update({ due_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", id);
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("row", { name: new RegExp(COMPANY) }).getByText("เกินกำหนด"), "เลยกำหนดส่ง → ป้ายแดง").toBeVisible({ timeout: 30_000 });
-  assertNoErrors(errs, "คิวคำขอของ HQ");
+  await settle(page);
+  const { แถว: แถวใหม่ } = await เปิดใบHQในกล่องงาน(page, COMPANY);
+  await expect(แถวใหม่.getByText("เกิน 14 วัน"), "เลยกำหนดส่ง → ป้ายแดง").toBeVisible({ timeout: 30_000 });
+  assertNoErrors(errs, "กล่องงานคำขอของ HQ");
 });
 
 test("[flow·dealer] ยกเลิกคำขอ ต้องมีเหตุผล → ลูกค้าเป้าหมายกลับรวบรวมความต้องการ · อีเมลถึง HQ (แถว 6)", async ({ page }) => {

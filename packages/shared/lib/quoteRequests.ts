@@ -123,3 +123,30 @@ export type QuoteMargin = {
   hqQuoteNo: string; lines: QuoteMarginLine[];
   costTotal: number; saleTotal: number; markupBaht: number; pctOfCost: number | null; pctOfSale: number | null;
 };
+
+// ── กล่องงานคำขอราคาของ HQ (หน้า 5 · ใบ 0215 hq_quote_board) ─────────────────────────────────────────────
+//   จำนวนทุกกลุ่ม + ลำดับ + ป้ายของแถว คิดที่ฐานที่เดียว — หน้าจอแสดงตามที่ได้ ห้ามนับ/เรียงเอง
+export type QuoteBoardGroup = "todo" | "quoted" | "won" | "closed";
+export const quoteBoardGroups: { key: QuoteBoardGroup; label: string }[] = [
+  { key: "todo", label: "ต้องตีราคา" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" },
+  { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" },
+];
+export type QuoteBoardTag = "overdue" | "reprice" | "draft" | "new" | "pricing" | "quoted" | "won" | "lost" | "cancelled" | "superseded";
+/** ป้ายของแถวในกล่องงาน — ข้อความ + สี (สีแยกด้วยความสว่าง ไม่ใช่สีอย่างเดียว) */
+export const quoteBoardTag: Record<QuoteBoardTag, { label: string; color: string; bar: string; bg: string }> = {
+  overdue:    { label: "เกิน 14 วัน",   color: "#b91c1c", bar: "#b91c1c", bg: "#fff7f7" },
+  reprice:    { label: "ขอแก้ราคา",    color: "#1d4ed8", bar: "#1d4ed8", bg: "#ffffff" },
+  draft:      { label: "ร่างค้าง",      color: "#92400e", bar: "#d97706", bg: "#ffffff" },
+  new:        { label: "ใหม่",          color: "#52606d", bar: "transparent", bg: "#ffffff" },
+  pricing:    { label: "กำลังตีราคา",   color: "#92400e", bar: "transparent", bg: "#ffffff" },
+  quoted:     { label: "รอดีลเลอร์",    color: "#003366", bar: "transparent", bg: "#ffffff" },
+  won:        { label: "สั่งผลิต",       color: "#166534", bar: "transparent", bg: "#ffffff" },
+  lost:       { label: "ไม่ได้งาน",     color: "#52606d", bar: "transparent", bg: "#ffffff" },
+  cancelled:  { label: "ยกเลิก",        color: "#52606d", bar: "transparent", bg: "#ffffff" },
+  superseded: { label: "มีเวอร์ชันใหม่", color: "#52606d", bar: "transparent", bg: "#ffffff" },
+};
+export type QuoteBoardRow = QuoteRequest & {
+  dealerName: string; leadCompany: string; hqStatus: HqQuoteStatus | null; quoteNo: string | null;
+  validUntil: string | null; waitingDays: number; tag: QuoteBoardTag;
+};
+export type QuoteBoard = { counts: Record<QuoteBoardGroup, number> & { overdue: number }; rows: QuoteBoardRow[] };

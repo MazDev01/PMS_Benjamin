@@ -93,11 +93,13 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     await เข้าระบบ(h, HQ, "/hq/login", ผู้ดูแล);
     await h.goto(`${HQ}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
     await รอเงียบ(h);
+    // กล่องงานคำขอราคา (หน้า 5 · 19 ต.ค. 69): แถวเป็นปุ่มใน "รายการคำขอ" · ใบ HQ ฝังในหน้า (พื้นที่ "ใบ HQ")
     await h.getByLabel("ค้นหาคำขอ").fill(บริษัท);
-    const row = h.locator("tbody tr").filter({ hasText: บริษัท }).first();
+    const row = h.getByRole("list", { name: "รายการคำขอ" }).getByRole("button", { name: บริษัท }).first();
     await expect(row).toBeVisible({ timeout: 30_000 });
-    await row.getByRole("button", { name: /ทำใบ HQ|ดูใบ HQ/ }).click();
-    const กล่อง = h.getByRole("dialog", { name: "ใบ HQ" });
+    await row.click();
+    await expect(row).toHaveAttribute("aria-current", "true");
+    const กล่อง = h.getByRole("region", { name: "ใบ HQ" });
     await expect(กล่อง).toBeVisible({ timeout: 20_000 });
     // HQ พิมพ์รายการเอง (ไม่มีแม่แบบแล้ว 16 ต.ค. 69) — ใบใหม่เริ่มว่าง
     if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();

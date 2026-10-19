@@ -103,6 +103,8 @@ export interface QuoteRequestsRepo {
   listForLead(dealerCode: string, leadNumId: number): Promise<import("../quoteRequests").QuoteRequest[]>;
   /** คิวของสำนักงานใหญ่: คำขอที่ยังเปิดอยู่ทั้งเครือ (ใหม่ / กำลังทำราคา / ส่งใบแล้ว) พร้อมชื่อบริษัท */
   listQueue(): Promise<import("../quoteRequests").QuoteRequest[]>;
+  /** กล่องงาน HQ (หน้า 5 · ใบ 0215): จำนวน 4 กลุ่ม + รายการของกลุ่มที่เลือก — คำค้นเดียวกันกรองทั้งคู่ · ฐานนับ/เรียง/ติดป้ายให้ */
+  board(group: import("../quoteRequests").QuoteBoardGroup, q: string): Promise<import("../quoteRequests").QuoteBoard>;
   submit(input: QuoteRequestInput): Promise<import("../quoteRequests").QuoteRequest>;
   /** ยกเลิกได้จนกว่า HQ ส่งใบ · ต้องมีเหตุผล · closeLead = ปิดลูกค้าเป้าหมายเป็นไม่สำเร็จ (ไม่งั้นกลับเป็นรวบรวมความต้องการ) */
   cancel(id: number, reason: string, closeLead: boolean): Promise<void>;

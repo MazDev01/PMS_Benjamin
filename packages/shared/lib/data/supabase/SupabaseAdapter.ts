@@ -12,7 +12,7 @@ import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/type
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
-import type { QuoteRequest, HqQuote, QuoteMargin } from "../../quoteRequests";
+import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard, QuoteBoardRow } from "../../quoteRequests";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
 import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
@@ -556,6 +556,12 @@ export const SupabaseAdapter: DataAdapter = {
       const rows = await pageAll((from, to) => sb().from("quote_requests").select("*")
         .in("status", ["new", "pricing", "quoted"]).order("due_at", { ascending: true }).order("id", { ascending: true }).range(from, to), "quote_requests");
       return เติมชื่อบริษัท(toCamelList<QuoteRequest>(rows as Row[]));
+    },
+    board: async (group, q) => {
+      const { data, error } = await sb().rpc("hq_quote_board", { p_group: group, p_q: q });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      const b = (data ?? {}) as { counts: QuoteBoard["counts"]; rows?: Row[] };
+      return { counts: b.counts, rows: toCamelList<QuoteBoardRow>(b.rows ?? []) };
     },
     submit: async (i) => {
       const { data, error } = await sb().rpc("quote_request_submit", {

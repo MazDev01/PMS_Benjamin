@@ -35,6 +35,13 @@ export const quoteRequestsGET = handler("quoteRequests.list", async (req: NextRe
     }
     return ok(toCamelList<Row>(rows).map(r => ({ ...r, leadCompany: ชื่อ.get(`${r.dealerCode}#${r.leadNumId}`) ?? "" })));
   }
+  if (q.get("view") === "board") {
+    // กล่องงาน HQ (ใบ 0215) — ฐานตรวจว่าเป็น HQ เอง (is_hq) · นับ/เรียง/ติดป้ายที่ฐานที่เดียว
+    const { data, error } = await sb.rpc("hq_quote_board", { p_group: q.get("group") ?? "todo", p_q: q.get("q") ?? "" });
+    if (error) return dbFail("quoteRequests.board", error);
+    const b = (data ?? {}) as { counts: unknown; rows?: Row[] };
+    return ok({ counts: b.counts, rows: toCamelList<Row>(b.rows ?? []) });
+  }
   if (q.get("view") === "hq-quote") {
     // ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้วของสาขาตัวเอง — กฎรายแถวของฐานกรองให้ (ใบผ่านของผู้เรียก)
     const { data, error } = await sb.from("hq_quotes").select("*").eq("request_id", Number(q.get("request"))).maybeSingle();
