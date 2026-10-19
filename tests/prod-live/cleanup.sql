@@ -29,6 +29,8 @@ delete from public.dealer_settings where dealer_code = 'ZZT';
 delete from public.dealer_lead_rules where dealer_code = 'ZZT';
 delete from public.responsible_persons where dealer_code = 'ZZT';
 delete from public.dealer_login_secrets where dealer_code = 'ZZT';
+delete from public.dealer_account_changes where dealer_code = 'ZZT';   -- ตั้งรหัสครั้งแรก (first-login-check.mjs) บันทึกประวัติไว้
+delete from public.dealer_account_requests where dealer_code = 'ZZT';
 delete from public.profiles where id in (select id from auth.users where email like 'live-%@example.test');
 delete from auth.users where email like 'live-%@example.test';
 delete from public.dealers where code = 'ZZT';
