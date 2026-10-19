@@ -1,7 +1,9 @@
 // ── ตัวรันทดสอบ flow ขายบนเว็บจริง (ขั้น 6 วันขึ้นระบบ) ─────────────────────────────────────────────
 //   node tests/prod-live/run.mjs --target local|prod setup     สร้างสาขา ZZT + บัญชีชั่วคราว 2 + ลูกค้าเป้าหมายตั้งต้น
 //   node tests/prod-live/run.mjs --target local|prod test      รัน live-flow.spec.ts (กดผ่านหน้าจอ)
-//   node tests/prod-live/run.mjs --target local|prod files     ลบไฟล์ใน Storage ที่ข้อทดสอบสร้าง (ก่อนรัน cleanup.sql)
+//   node tests/prod-live/run.mjs --target local|prod files     ลบแถวของการทดสอบส่งอีเมลจริง (ถ้ามี · email-send-cleanup.mjs)
+//                                                              แล้วลบไฟล์ใน Storage ที่ข้อทดสอบสร้าง (ก่อนรัน cleanup.sql)
+//   ลำดับล้าง: files → cleanup.sql (cleanup.sql ลบบัญชีทดสอบ — ขั้นล้างอีเมลต้องได้รหัสบัญชีก่อนบัญชีหาย)
 // ไม่พิมพ์รหัสผ่าน · อีเมลชั่วคราวเป็น live-*@example.test · สถานะเก็บที่ไฟล์ใน LIVE_STATE_DIR (ไม่อยู่ในโค้ด)
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -65,6 +67,14 @@ if (phase === "test") {
 }
 
 if (phase === "files") {
+  // การทดสอบส่งอีเมลจริง (email-send-once.mjs) ส่งไปผู้รับแจ้งเตือน HQ — cleanup.sql เลือกด้วยอีเมล live-* จึงไม่ครอบ
+  //   ต้องลบด้วยรหัสบัญชีทดสอบก่อน cleanup.sql ลบบัญชีทิ้ง (บอสสั่ง 19 ต.ค. 69 · ห้ามเลือกด้วยอีเมลผู้รับ)
+  const st = existsSync(STATE) ? JSON.parse(readFileSync(STATE, "utf8")) : null;
+  if (st?.emailTest) {
+    if (target !== "prod") ตาย("การทดสอบส่งอีเมลจริงมีแต่ระบบจริง");
+    const r = spawnSync("node", ["tests/prod-live/email-send-cleanup.mjs", "--yes"], { stdio: "inherit", shell: true, env: process.env });
+    if (r.status !== 0) ตาย("ล้างแถวของการทดสอบส่งอีเมลไม่สำเร็จ — หยุดก่อน cleanup.sql");
+  }
   const { data: rows, error } = await svc.from("files").select("storage_path").eq("dealer_code", CODE);
   if (error) ตาย(error.message);
   const paths = (rows ?? []).map(r => r.storage_path).filter(Boolean);
