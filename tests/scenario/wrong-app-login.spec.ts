@@ -19,7 +19,7 @@ test.setTimeout(120_000);
 async function tryLogin(page: Page, origin: string, path: string, who: { email: string; password: string }) {
   await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const email = page.getByLabel(/อีเมล/i).first();
+  const email = page.locator("#login-email");
   const pass = page.getByLabel(/รหัสผ่าน/i).first();
   // กรอกแล้วต้องอยู่นิ่งก่อนกด — React hydrate อาจมาคั่นแล้วล้างค่าที่กรอกไป
   for (let i = 0; i < 6; i++) {

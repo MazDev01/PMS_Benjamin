@@ -4,6 +4,7 @@
 // ผู้เรียก: tests/prod-live/run.mjs (สร้างสาขา/บัญชีชั่วคราว + ลูกค้าเป้าหมายตั้งต้น · ล้างทิ้งด้วย cleanup.sql)
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { ตรวจโดเมนบัญชีดีลเลอร์, LOGIN_DOMAIN } from "./loginDomainCheck.mjs";
 
 const E = (k: string) => { const v = process.env[k]; if (!v) throw new Error(`ขาด ${k}`); return v; };
 const HQ = E("LIVE_HQ_URL"), DEALER = E("LIVE_DEALER_URL");
@@ -33,7 +34,7 @@ async function เข้าระบบ(page: Page, origin: string, path: string
   //   → กรอกแล้วอ่านค่ากลับจนนิ่ง เหมือน loginUI ของชุดในเครื่อง (tests/scenario/funcHelpers.ts)
   await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
   await รอเงียบ(page);
-  const email = page.getByLabel(/อีเมล/i).first(), pass = page.getByLabel(/รหัสผ่าน/i).first();
+  const email = page.locator("#login-email"), pass = page.getByLabel(/รหัสผ่าน/i).first();
   for (let attempt = 1; attempt <= 3; attempt++) {
     for (let i = 0; i < 6; i++) {
       await email.fill(who.email);
@@ -172,6 +173,23 @@ test("[live] /recover และ /otp ถูก Send Email Hook ปฏิเส�
     const c = JSON.parse(Buffer.from(String(j.access_token).split(".")[1], "base64url").toString());
     expect({ user_role: c.user_role, dealer_code: c.dealer_code, role: c.role }, `${ป้าย}: ค่าใน JWT จาก custom_access_token_hook`).toEqual({ ...คาด, role: "authenticated" });
   }
+});
+
+// ── บัญชีดีลเลอร์ทุกบัญชีเข้าระบบด้วยโดเมนของบริษัท (บอสสั่ง 19 ต.ค. 69) ──
+//   โดเมนเดิมยังไม่มีใครจด — เหลือแม้บัญชีเดียว = คนจดโดเมนนั้นรับลิงก์รีเซ็ตรหัสได้ถ้า Send Email Hook ถูกปิด
+test(`[live] บัญชีดีลเลอร์ทุกบัญชีใช้โดเมน ${LOGIN_DOMAIN} · ไม่มีโดเมนอื่น`, async () => {
+  const users: { id: string; email?: string }[] = [];
+  for (let page = 1; ; page++) {
+    const { data, error } = await svc.auth.admin.listUsers({ page, perPage: 1000 });
+    expect(error).toBeNull();
+    users.push(...data.users.map(u => ({ id: u.id, email: u.email })));
+    if (data.users.length < 1000) break;
+  }
+  const { data: profiles, error } = await svc.from("profiles").select("id, role, dealer_code").range(0, 9999);
+  expect(error).toBeNull();
+  const ผล = ตรวจโดเมนบัญชีดีลเลอร์(users, profiles ?? []);
+  expect(ผล.ดีลเลอร์, "ต้องเจอบัญชีดีลเลอร์").toBeGreaterThan(0);
+  expect(ผล.โดเมนที่เจอ, `บัญชีดีลเลอร์ที่ไม่ใช่ ${LOGIN_DOMAIN} (นับตามโดเมน)`).toEqual({});
 });
 
 // ── ไม่มีหน้า/เมนู/API แม่แบบ (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) ──

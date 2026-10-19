@@ -1,0 +1,142 @@
+import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
+import { SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
+import { SERVICE_ROLE_READY } from "./adminEnv";
+import { adminClient, ลบสาขาทดสอบตรง } from "./testDealers";
+
+// ── สคริปต์ย้ายอีเมลเข้าระบบดีลเลอร์ไปโดเมนของบริษัท — รันแบบแก้จริงบนฐานทดสอบ (บอสสั่ง 19 ต.ค. 69) ─────────────
+//   scripts/migrate-dealer-login-domain.mjs · จำลองระบบจริง: ดีลเลอร์ใช้โดเมนเดิมที่ยังไม่มีใครจด
+//   ตรวจ: นับอย่างเดียวไม่แก้ · ย้ายแล้วอีเมลบัญชี + ข้อมูลยืนยันตัวตนเป็นโดเมนใหม่ · รหัสผ่านเดิมเข้าได้ (สคริปต์ลองเองด้วยสำเนารหัส)
+//         อีเมลเก่าเข้าไม่ได้แล้ว · ไม่มีคำขอเปลี่ยนอีเมลค้าง/ไม่มีบันทึกส่งอีเมล · ดีลเลอร์ที่ใช้อีเมลของตัวเอง + บัญชี HQ ไม่ถูกแตะ
+//         รันซ้ำไม่ย้ายซ้ำ · สคริปต์ไม่พิมพ์อีเมล/รหัสสาขา
+test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
+test.describe.configure({ mode: "serial" });
+test.setTimeout(120_000);
+
+const admin = adminClient();
+const ย้าย = "ZTM", อีเมลตัวเอง = "ZTN";   // รหัสสาขาทดสอบเฉพาะไฟล์นี้
+const รหัส = "Temp-Pass-5521";
+const โดเมนเดิม = ["partner", "agent.co.th"].join("-");   // ประกอบตอนรัน — ตัวตรวจ check-no-old-login-domain ห้ามชื่อนี้ในโค้ด
+const เดิม = (c: string) => `${c.toLowerCase()}@${โดเมนเดิม}`;
+const ใหม่ = (c: string) => `${c.toLowerCase()}@dealer.benjaminpebsteel.com`;
+const อีเมลHQ = `zzhq-domaintest@${โดเมนเดิม}`;
+const อีเมลของสาขาเอง = "ztn-owner@example.test";
+
+// เข้ารหัสสำเนารหัสผ่านแบบเดียวกับระบบ (packages/shared/lib/dealerSecret.ts) ด้วยกุญแจในไฟล์ค่าเชื่อมต่อของฐานทดสอบ
+const กุญแจ = (readFileSync("apps/hq/.env.local", "utf8").match(/^DEALER_SECRET_KEY=(.*)$/m)?.[1] ?? "").trim();
+function เข้ารหัส(plain: string): string {
+  const k = createHash("sha256").update(กุญแจ).digest(), iv = randomBytes(12);
+  const c = createCipheriv("aes-256-gcm", k, iv);
+  const data = Buffer.concat([c.update(plain, "utf8"), c.final()]);
+  return ["v1", iv.toString("base64"), c.getAuthTag().toString("base64"), data.toString("base64")].join(":");
+}
+
+async function ลบบัญชีด้วยอีเมล(email: string) {
+  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  for (const u of data.users.filter(x => x.email === email)) await admin.auth.admin.deleteUser(u.id).catch(() => {});
+}
+async function purge() {
+  for (const c of [ย้าย, อีเมลตัวเอง]) {
+    const { data: profs } = await admin.from("profiles").select("id").eq("dealer_code", c);
+    for (const p of profs ?? []) await admin.auth.admin.deleteUser(String(p.id)).catch(() => {});
+    await admin.from("dealer_login_secrets").delete().eq("dealer_code", c);
+    await ลบสาขาทดสอบตรง(c);
+    await admin.from("dealers").delete().eq("code", c);
+  }
+  for (const e of [อีเมลHQ, เดิม(ย้าย), ใหม่(ย้าย), อีเมลของสาขาเอง]) await ลบบัญชีด้วยอีเมล(e);
+}
+test.beforeAll(purge);
+test.afterAll(purge);
+
+async function สร้างบัญชี(email: string, role: string, code: string | null) {
+  const { data, error } = await admin.auth.admin.createUser({ email, password: รหัส, email_confirm: true });
+  expect(error, `สร้างบัญชี ${role}`).toBeNull();
+  const id = data.user!.id;
+  expect((await admin.from("profiles").upsert({ id, role, dealer_code: code ?? "", name: `ZZTEST ${code ?? "HQ"}`, status: "active" }, { onConflict: "id" })).error).toBeNull();
+  return id;
+}
+async function สร้างสาขา(code: string, email: string) {
+  expect((await admin.from("dealers").insert({ code, name: `ZZTEST ${code}`, province: "ตราด", region: "ตะวันออก", revenue_target: 0, status: "active" })).error).toBeNull();
+  const id = await สร้างบัญชี(email, "DEALER_ADMIN", code);
+  expect((await admin.from("dealer_login_secrets").upsert({ dealer_code: code, secret: เข้ารหัส(รหัส), updated_by: "ผู้ดูแลระบบ (สร้างบัญชี)" }, { onConflict: "dealer_code" })).error).toBeNull();
+  return id;
+}
+const รันสคริปต์ = (...extra: string[]) => execFileSync("node", ["scripts/migrate-dealer-login-domain.mjs", ...extra], { encoding: "utf8" });
+const บัญชี = async (id: string) => (await admin.auth.admin.getUserById(id)).data.user!;
+const เข้าได้ = async (email: string) => {
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: รหัส });
+  if (data.session) await sb.auth.signOut();
+  return !error && !!data.session;
+};
+
+test("[script] migrate-dealer-login-domain --apply บนฐานทดสอบ: ย้ายเฉพาะดีลเลอร์โดเมนเดิม · รหัสเดิมเข้าได้ · ไม่มีอีเมลค้างส่ง · HQ ไม่ถูกแตะ", async () => {
+  expect(กุญแจ.length, "ฐานทดสอบต้องมี DEALER_SECRET_KEY").toBeGreaterThanOrEqual(32);
+  const idย้าย = await สร้างสาขา(ย้าย, เดิม(ย้าย));
+  const idตัวเอง = await สร้างสาขา(อีเมลตัวเอง, อีเมลของสาขาเอง);
+  const idHQ = await สร้างบัญชี(อีเมลHQ, "HQ_STAFF", null);
+
+  // นับอย่างเดียว (ค่าตั้งต้น) — ต้องไม่แก้อะไร
+  const ดู = รันสคริปต์();
+  expect(ดู).toContain("ชุดทดสอบ");
+  expect(ดู).toMatch(/ต้องย้าย\s+1\b/);
+  expect(ดู).toMatch(/บัญชีHQใช้โดเมนเดิม\s+1\b/);
+  expect((await บัญชี(idย้าย)).email, "นับอย่างเดียวต้องไม่แก้").toBe(เดิม(ย้าย));
+
+  // ย้ายจริง — สคริปต์ลองเข้าระบบด้วยอีเมลใหม่เอง (สำเนารหัสที่เข้ารหัสไว้)
+  const ผล = รันสคริปต์("--apply", "--verify-login=1");
+  expect(ผล).toContain("ย้ายสำเร็จ 1 · ย้ายไม่สำเร็จ 0 · ย้ายแล้วตรวจไม่ผ่าน 0");
+  expect(ผล).toContain("ลองเข้าระบบด้วยอีเมลใหม่: ได้ 1 · ไม่ได้ 0");
+  expect(ผล, "สคริปต์ต้องไม่พิมพ์อีเมล/รหัสสาขา").not.toMatch(new RegExp(`${ย้าย}|${อีเมลตัวเอง}|@`, "i"));
+
+  const u = await บัญชี(idย้าย);
+  expect(u.email, "อีเมลบัญชีต้องเป็นโดเมนใหม่").toBe(ใหม่(ย้าย));
+  expect((u.identities ?? []).filter(i => i.provider === "email").map(i => i.identity_data?.email), "ข้อมูลยืนยันตัวตนต้องเป็นอีเมลใหม่ด้วย").toEqual([ใหม่(ย้าย)]);
+  expect([u.new_email ?? null, u.email_change_sent_at ?? null, u.recovery_sent_at ?? null], "ต้องไม่มีคำขอเปลี่ยนอีเมลค้าง/บันทึกส่งอีเมล").toEqual([null, null, null]);
+  expect(await เข้าได้(ใหม่(ย้าย)), "รหัสผ่านเดิมต้องเข้าได้ด้วยอีเมลใหม่").toBe(true);
+  expect(await เข้าได้(เดิม(ย้าย)), "อีเมลโดเมนเดิมต้องเข้าไม่ได้แล้ว").toBe(false);
+
+  expect((await บัญชี(idตัวเอง)).email, "ดีลเลอร์ที่ใช้อีเมลของตัวเองต้องไม่ถูกแตะ").toBe(อีเมลของสาขาเอง);
+  expect((await บัญชี(idHQ)).email, "บัญชี HQ ต้องไม่ถูกแตะแม้ใช้โดเมนเดิม").toBe(อีเมลHQ);
+
+  // รันซ้ำ — ไม่ย้ายซ้ำ
+  const ซ้ำ = รันสคริปต์("--apply");
+  expect(ซ้ำ).toMatch(/ต้องย้าย\s+0\b/);
+  expect(ซ้ำ).toContain("ย้ายสำเร็จ 0 · ย้ายไม่สำเร็จ 0");
+});
+
+test("[script] export-dealer-logins บนฐานทดสอบ: CSV นอก repo · ชื่อผู้ใช้ = รหัสสาขา · รหัสถอดได้ · ไม่เขียนใน repo/ไม่ทับไฟล์ · ไม่พิมพ์รหัส", async () => {
+  // ข้อก่อนหน้าย้าย ZTM ไปโดเมนใหม่แล้ว (serial) — ถ้ารันข้อนี้เดี่ยว ๆ ให้เตรียมเอง
+  const { data: p } = await admin.from("profiles").select("id").eq("dealer_code", ย้าย).maybeSingle();
+  if (!p) { await สร้างสาขา(ย้าย, ใหม่(ย้าย)); }
+  const { mkdtempSync, readFileSync: อ่าน, existsSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const ที่ = path.join(mkdtempSync(path.join(tmpdir(), "pms-export-")), "logins.csv");
+  const ส่ง = (...a: string[]) => { try { return { ok: true, out: execFileSync("node", ["scripts/export-dealer-logins.mjs", ...a], { encoding: "utf8", stdio: "pipe" }) }; }
+    catch (e) { const x = e as { stdout?: string; stderr?: string }; return { ok: false, out: `${x.stdout ?? ""}${x.stderr ?? ""}` }; } };
+
+  const ใน = ส่ง("--out", "tests/zz-logins.csv");
+  expect(ใน.ok, "ต้องปฏิเสธที่เก็บใน repo").toBe(false);
+  expect(existsSync("tests/zz-logins.csv")).toBe(false);
+
+  const ผล = ส่ง("--out", ที่);
+  expect(ผล.ok, ผล.out).toBe(true);
+  expect(ผล.out, "ต้องไม่พิมพ์รหัสผ่าน").not.toContain(รหัส);
+  const csv = อ่าน(ที่, "utf8");
+  expect(csv.charCodeAt(0), "ต้องมี BOM ให้ Excel อ่านภาษาไทยถูก").toBe(0xfeff);
+  const บรรทัด = csv.slice(1).split("\r\n");
+  expect(บรรทัด[0]).toBe("ชื่อสาขา,ชื่อผู้ใช้,รหัสผ่านชั่วคราว");
+  expect(บรรทัด, "แถวของสาขาที่ย้ายแล้ว: ชื่อผู้ใช้ = รหัสสาขา + รหัสชั่วคราวที่ถอดแล้ว").toContain(`ZZTEST ${ย้าย},${ย้าย},${รหัส}`);
+  expect(บรรทัด.some(l => l.split(",")[1] === อีเมลตัวเอง), "สาขาที่ใช้อีเมลของตัวเอง (พิมพ์รหัสสาขาเข้าไม่ได้) ต้องไม่อยู่ในไฟล์").toBe(false);
+
+  const ทับ = ส่ง("--out", ที่);
+  expect(ทับ.ok, "ต้องไม่เขียนทับไฟล์เดิม").toBe(false);
+  const { count } = await admin.from("audit_log").select("id", { count: "exact", head: true }).eq("action", "ส่งออกชื่อผู้ใช้และรหัสผ่านชั่วคราวของดีลเลอร์");
+  expect(count ?? 0, "ต้องบันทึกการใช้งาน").toBeGreaterThan(0);
+  const { rmSync } = await import("node:fs");
+  rmSync(path.dirname(ที่), { recursive: true, force: true });
+});

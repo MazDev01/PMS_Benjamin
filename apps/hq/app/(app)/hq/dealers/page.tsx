@@ -138,7 +138,7 @@ function InputField({ label, children }: { label: string; children: React.ReactN
 const INPUT_STYLE: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: "0.8rem", color: "#2D2D2D", outline: "none", background: "#fafafa", boxSizing: "border-box" };
 
 // ⛔ ห้ามสร้างฟังก์ชัน "เดาอีเมลจากรหัสสาขา" กลับมาอีก
-//   เคยมี dealerLoginEmail(code) = `<code>@partner-agent.co.th` ซึ่งเป็นสูตรของบัญชีที่สร้างผ่านหน้าจอนี้
+//   เคยมี dealerLoginEmail(code) = `<code>@dealer.benjaminpebsteel.com` ซึ่งเป็นสูตรของบัญชีที่สร้างผ่านหน้าจอนี้
 //   เท่านั้น · สาขาที่มีอยู่จริงใช้อีเมลธุรกิจของตัวเอง (CNX = sales@cmsteelbuild.co.th)
 //   → หน้าจอโชว์อีเมลที่ไม่มีอยู่จริงคู่กับรหัสผ่านที่ถูกต้อง HQ คัดลอกไปแล้วเข้าระบบไม่ได้
 //   อีเมลจริงต้องมาจาก /api/admin/dealers/logins เท่านั้น · ไม่รู้ = ขึ้น "—"
@@ -165,7 +165,7 @@ function HQDealersPageInner() {
 
   const [dealers, setDealers, dealersLoaded] = useRepoState<DealerRow[]>(() => dealersRepo.list(), (v) => dealersRepo.save(v), []);
   // อีเมลเข้าระบบจริงของแต่ละสาขา (ถามเซิร์ฟเวอร์ครั้งเดียวตอนเปิดหน้า)
-  //   ห้ามคำนวณจากรหัสสาขาเด็ดขาด — สูตร `<code>@partner-agent.co.th` ใช้ได้เฉพาะบัญชีที่สร้าง
+  //   ห้ามคำนวณจากรหัสสาขาเด็ดขาด — สูตร `<code>@dealer.benjaminpebsteel.com` ใช้ได้เฉพาะบัญชีที่สร้าง
   //   ผ่านหน้าจอนี้ · สาขาที่มีอยู่จริงใช้อีเมลธุรกิจของตัวเอง (CNX = sales@cmsteelbuild.co.th)
   //   เดิมโชว์อีเมลที่เดาไว้ HQ คัดลอกไปใช้คู่กับรหัสผ่านที่ถูกต้อง แล้วเข้าระบบไม่ได้
   const [loginEmails, setLoginEmails] = useState<Record<string, string>>({});

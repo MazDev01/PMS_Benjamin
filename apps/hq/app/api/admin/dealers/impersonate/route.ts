@@ -42,7 +42,7 @@ export const POST = withErrors("impersonate-dealer", async (req: NextRequest) =>
 
   // ⛔ ห้ามประกอบอีเมลจากรหัสสาขาเด็ดขาด — ต้องใช้อีเมลของบัญชีที่ค้นเจอจริงเท่านั้น
   //
-  // เดิมบรรทัดนี้เป็น `${code.toLowerCase()}@partner-agent.co.th` ซึ่งเป็นสูตรของบัญชีที่สร้าง
+  // เดิมบรรทัดนี้เป็น `${code.toLowerCase()}@dealer.benjaminpebsteel.com` ซึ่งเป็นสูตรของบัญชีที่สร้าง
   // ผ่านหน้าจัดการดีลเลอร์เท่านั้น · 7 สาขาที่มีอยู่จริงใช้อีเมลธุรกิจของตัวเอง
   // (CNX = sales@cmsteelbuild.co.th) → อีเมลที่ประกอบขึ้นมา "ไม่มีอยู่จริง"
   // และ generateLink แบบ magiclink จะ *สร้างบัญชีใหม่ให้อัตโนมัติ* เมื่อไม่พบอีเมลนั้น

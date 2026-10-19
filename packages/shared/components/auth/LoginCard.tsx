@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { DEMO_PASSWORD, DEMO_LOGINS } from "@pms/shared/lib/auth";
+import { ชื่อผู้ใช้เป็นอีเมล } from "@pms/shared/lib/dealerLogin";
 
 // ── ทางเข้าเดโมของอีกฝั่ง (ตั้งที่ Vercel ของโปรเจกต์เดโมเท่านั้น) ──
 // ว่าง = ไม่มีปุ่ม · ระบบจริงไม่ตั้งค่านี้
@@ -83,7 +84,8 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
     setError(null);
     setLoading(true);
     // signIn เป็น async แล้ว — โหมด supabase รอ signInWithPassword จริง · โหมด local เร็วทันที
-    const r = await signIn(email.trim(), password.trim());
+    // ดีลเลอร์พิมพ์รหัสสาขา → เติมโดเมนให้ (บอสสั่ง 19 ต.ค. 69 · lib/dealerLogin.ts) · HQ พิมพ์อีเมลเต็มเหมือนเดิม
+    const r = await signIn(isHQ ? email.trim() : ชื่อผู้ใช้เป็นอีเมล(email), password.trim());
     if (r.ok) enter(r.session.scopeAll);
     else { setError(r.error); setLoading(false); }
   }
@@ -139,11 +141,12 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
               {/* ⚠️ ตัดช่องว่างทิ้งตั้งแต่ตอนพิมพ์ (ผู้ใช้แจ้ง 25 ส.ค. 69) — เดิมตัดตอนกดเข้าระบบเท่านั้น
                   ผู้ใช้เห็นช่องว่างนำหน้าค้างอยู่ในช่อง เลยไม่แน่ใจว่าที่เข้าไม่ได้เพราะอะไร
                   อีเมลไม่มีช่องว่างอยู่แล้วโดยธรรมชาติ ตัดทิ้งได้เลยไม่ต้องถาม */}
-              <label htmlFor="login-email" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">อีเมล / Email</label>
+              {/* ดีลเลอร์ = รหัสสาขา (19 ต.ค. 69) — อีเมลเข้าระบบของสาขาไม่มีกล่องจดหมายจริง ดีลเลอร์ไม่ต้องรู้ */}
+              <label htmlFor="login-email" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">{isHQ ? "อีเมล / Email" : "รหัสสาขา"}</label>
               <div className={inputWrap}>
                 <IconMail />
-                <input id="login-email" type="text" inputMode="email" autoComplete="username" value={email}
-                  onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))} placeholder={isHQ ? "name@benjaminpebsteel.com" : "dealer@example.com"} required className={inputEl} style={noOutline} />
+                <input id="login-email" type="text" inputMode={isHQ ? "email" : "text"} autoCapitalize="none" autoComplete="username" value={email}
+                  onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))} placeholder={isHQ ? "name@benjaminpebsteel.com" : "เช่น ZZT"} required className={inputEl} style={noOutline} />
               </div>
             </div>
 

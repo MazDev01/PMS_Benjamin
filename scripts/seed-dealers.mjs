@@ -5,7 +5,7 @@
 //   313 แถว → 154 ราย · รายละเอียดการคัดอยู่ใน C:/.claude/pms-private-data/ตัวแทนจำหน่าย-นำเข้าระบบ.xlsx (นอก repo — มีข้อมูลจริง) แท็บ "ที่มาของแต่ละราย"
 //
 // อีเมล/รหัสผ่าน: ระบบตั้งให้อัตโนมัติ (บอสสั่ง 7 ก.ย. 69) — ดีลเลอร์เข้าไปเปลี่ยนเองภายหลังได้
-//   อีเมล   = <รหัสสาขาตัวเล็ก>@partner-agent.co.th   (โดเมนเดียวกับที่ route ของระบบใช้)
+//   อีเมล   = <รหัสสาขาตัวเล็ก>@dealer.benjaminpebsteel.com   (โดเมนเดียวกับที่ route ของระบบใช้ · lib/dealerLogin.ts)
 //   รหัสผ่าน = สุ่มตามกติกา strongPassword ของ adminRoute.ts
 //
 // ⚠️ รหัสสาขาต้องเป็น A–Z 2–5 ตัวเท่านั้น — ทุก route ของผู้ดูแล (สร้าง/รีเซ็ตรหัส/สวมสิทธิ์/ย้ายสาขา)
@@ -24,7 +24,7 @@ import { loadTarget, readEnvFile } from "./lib/targetEnv.mjs";
 
 const APPLY = process.argv.includes("--apply");
 const REPLACE = process.argv.includes("--replace-codes");
-const DOMAIN = "partner-agent.co.th";
+const DOMAIN = "dealer.benjaminpebsteel.com";
 const SEED = "scripts/data/dealers-seed.json";
 // ⚠️ ตอนทำเฉพาะบางสาขา ต้องเขียนคนละไฟล์ — ไม่งั้นไปทับรายชื่อรหัสผ่านของรอบที่แล้วจนหายทั้งกอง
 const OUT = process.argv.some(a => a.startsWith("--only="))

@@ -318,7 +318,7 @@ export async function เข้าระบบผ่านหน้าจอ(pag
   await settle(page);
   // หน้าเข้าสู่ระบบเด้งออกเอง = ยังมีใบผ่านเดิมค้างอยู่ — ถ้าเดินต่อจะได้ "เข้าระบบแล้ว" ด้วยใบเก่า ไม่ใช่รหัสที่ส่งมา
   if (!page.url().includes("/login")) throw new Error(`เปิดหน้าเข้าสู่ระบบไม่ได้ เพราะยังมีใบผ่านเดิมค้างอยู่ (ถูกพาไป ${page.url()})`);
-  const ช่องอีเมล = page.getByLabel(/อีเมล/i).first(), ช่องรหัส = page.getByLabel(/รหัสผ่าน/i).first();
+  const ช่องอีเมล = page.locator("#login-email"), ช่องรหัส = page.getByLabel(/รหัสผ่าน/i).first();
   // หน้าเข้าสู่ระบบเพิ่งโหลด อาจล้างช่องทิ้งตอนพร้อมใช้งาน — กรอกซ้ำจนค่าอยู่นิ่ง (วิธีเดียวกับ loginUI)
   for (let i = 0; i < 6; i++) {
     await ช่องอีเมล.fill(email); await ช่องรหัส.fill(password);

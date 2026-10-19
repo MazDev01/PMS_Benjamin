@@ -21,6 +21,7 @@ import {
 } from "@pms/shared/lib/adminRoute";
 import { encryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
+import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 
 // รันบน Node เสมอ (ต้องใช้ service_role — ห้าม edge ที่อาจแคช env แปลก ๆ)
 export const runtime = "nodejs";
@@ -29,7 +30,7 @@ export const runtime = "nodejs";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-const DEALER_EMAIL_DOMAIN = "partner-agent.co.th";
+// อีเมลเข้าระบบของสาขาที่ระบบตั้งให้ = <รหัสสาขา>@dealer.benjaminpebsteel.com (lib/dealerLogin.ts · 19 ต.ค. 69)
 
 // ขั้นตอนตรวจ service_role → JWT → บทบาท → สิทธิ์ ย้ายไปอยู่ที่ adminRoute.ts (ใช้ร่วมกับ route อื่น)
 // permission "dealers:manage" ผูกตรงกับ permissions.ts/RLS can_write_master · SSOT
@@ -179,7 +180,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   // กติการหัสผ่านชุดเดียวทั้งระบบ (ยาว ≥ 8 · ห้ามช่องว่าง) — ดู passwordRule.ts
   const ผิดกติกา = รหัสที่กรอก ? ตรวจรหัสผ่านใหม่(รหัสที่กรอก) : null;
   if (ผิดกติกา) return bad(400, ผิดกติกา);
-  const email = อีเมลที่กรอก || `${code.toLowerCase()}@${DEALER_EMAIL_DOMAIN}`;
+  const email = อีเมลที่กรอก || อีเมลเข้าระบบของสาขา(code);
   const password = รหัสที่กรอก || strongPassword("PEB-");
 
   // ถามระบบยืนยันตัวตนก่อนว่าอีเมลนี้ว่างไหม — อีเมลที่เติมมาจากลูกค้าเป้าหมายอาจเป็นของบัญชีอื่นอยู่แล้ว

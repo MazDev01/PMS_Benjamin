@@ -7,7 +7,8 @@ import { test, expect } from "@playwright/test";
 for (const [ชื่อ, url] of [["สำนักงานใหญ่", "http://localhost:3002/hq/login"], ["ดีลเลอร์", "http://localhost:3001/login"]] as const) {
   test(`[func] หน้าเข้าสู่ระบบ${ชื่อ}: พิมพ์เว้นวรรคในช่องอีเมล/รหัสผ่านต้องไม่ติด`, async ({ page }) => {
     await page.goto(url, { waitUntil: "domcontentloaded" });
-    const ช่องอีเมล = page.getByLabel("อีเมล / Email");
+    // ดีลเลอร์พิมพ์รหัสสาขา (ป้าย "รหัสสาขา" · 19 ต.ค. 69) · HQ พิมพ์อีเมล
+    const ช่องอีเมล = page.getByLabel(ชื่อ === "ดีลเลอร์" ? "รหัสสาขา" : "อีเมล / Email", { exact: true });
     await expect(ช่องอีเมล).toBeVisible();
 
     // ⚠️ ต้องรอให้หน้าจอ "รับค่าได้จริง" ก่อน แล้วค่อยตรวจ (แก้ 26 ส.ค. 69)

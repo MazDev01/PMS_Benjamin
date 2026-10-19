@@ -6,6 +6,7 @@
 import { createHash, randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ส่งอีเมลค้างส่ง, คลังบนฐาน, ตัวส่งSMTP } from "./mail/outbox";
+import { เป็นอีเมลเข้าระบบดีลเลอร์ } from "@pms/shared/lib/dealerLogin";
 
 export const อายุโค้ดนาที = 15;
 export const ส่งใหม่ได้หลังวินาที = 60;
@@ -25,7 +26,7 @@ export async function สถานะอีเมลติดต่อ(admin: Su
 export async function ส่งโค้ดยืนยันอีเมล(admin: SupabaseClient, who: { userId: string; dealerCode: string }, อีเมลที่กรอก: string): Promise<ผลส่งโค้ด> {
   const email = อีเมลที่กรอก.trim().toLowerCase();
   if (!รูปแบบอีเมล.test(email)) return { ok: false, status: 400, error: "รูปแบบอีเมลไม่ถูกต้อง" };
-  if (/@partner-agent\.co\.th$/.test(email)) return { ok: false, status: 400, error: "อีเมลนี้เป็นอีเมลเข้าระบบที่ไม่มีกล่องจดหมายจริง — ใช้อีเมลที่ติดต่อได้จริง" };
+  if (เป็นอีเมลเข้าระบบดีลเลอร์(email)) return { ok: false, status: 400, error: "อีเมลนี้เป็นอีเมลเข้าระบบที่ไม่มีกล่องจดหมายจริง — ใช้อีเมลที่ติดต่อได้จริง" };
 
   const { data: เดิม } = await admin.from("contact_email_codes").select("sent_at").eq("user_id", who.userId).maybeSingle();
   if (เดิม?.sent_at) {

@@ -14,7 +14,7 @@ const NOISE = /favicon|hydrat|Download the React DevTools|Fast Refresh|preloaded
 async function login(page: Page, origin: string, path: string, who: Account) {
   await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const email = page.getByLabel(/อีเมล/i).first();
+  const email = page.locator("#login-email");
   const pass = page.getByLabel(/รหัสผ่าน/i).first();
   for (let a = 1; a <= 3; a++) {
     for (let i = 0; i < 6; i++) {

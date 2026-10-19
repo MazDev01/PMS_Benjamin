@@ -27,7 +27,7 @@ async function login(page: Page, origin: string, path: string, who: Account) {
   // รอให้ React hydrate เสร็จก่อนแตะฟอร์ม — กรอกก่อน hydrate แล้ว controlled input จะถูกล้างทิ้ง
   // แล้วฟอร์มถูกส่งไปเปล่า ๆ (Supabase ตอบ "missing email or phone" · โผล่เป็น console error ด้วย)
   await settle(page);
-  const email = page.getByLabel(/อีเมล/i).first();
+  const email = page.locator("#login-email");
   const pass = page.getByLabel(/รหัสผ่าน/i).first();
 
   // ต้องกรอก "หลัง React hydrate" เท่านั้น — ถ้ากรอกก่อน controlled input จะถูกรีเซ็ตเป็นค่าว่าง

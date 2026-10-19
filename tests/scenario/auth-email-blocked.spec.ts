@@ -5,7 +5,7 @@ import { settle } from "./helpers";
 import { adminClient } from "./testDealers";
 
 // ── ปิดอีเมลของระบบล็อกอิน (ลืมรหัสผ่าน + เลขเข้าระบบ) — บอสสั่ง 16 ต.ค. 69 ─────────────────────────────
-//   ที่มา: อีเมลล็อกอินของทุกบัญชีบนระบบจริงเป็นโดเมนที่เราไม่ได้คุม (ดีลเลอร์ 155 = partner-agent.co.th ที่ไม่มีใครจด)
+//   ที่มา: อีเมลล็อกอินของทุกบัญชีบนระบบจริงเป็นโดเมนที่เราไม่ได้คุม (ดีลเลอร์ 155 บัญชีเคยใช้โดเมนที่ยังไม่มีใครจด — ย้ายไป dealer.benjaminpebsteel.com 19 ต.ค. 69)
 //   ใครจดโดเมนนั้นได้ = ขอลิงก์ตั้งรหัสใหม่/เลขเข้าระบบไปที่โดเมนตัวเอง แล้วยึดบัญชีได้
 //   → ซ่อนปุ่มอย่างเดียวไม่พอ: endpoint ของ Supabase (/auth/v1/recover · /auth/v1/otp) เรียกตรงได้โดยไม่ผ่านแอป
 //     ตัวกันจริงคือ Send Email Hook ที่ฐาน (ใบ 0213 · public.hook_send_email) ปฏิเสธทุกคำขอส่งอีเมลของระบบล็อกอิน
@@ -17,7 +17,7 @@ for (const [ชื่อ, origin, path] of [["ดีลเลอร์", DEALER_
   test(`[ui·${ชื่อ}] หน้าเข้าสู่ระบบไม่มีปุ่ม "ลืมรหัสผ่าน?" · ขึ้น "ลืมรหัสผ่าน ติดต่อ HQ"`, async ({ page }) => {
     await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await expect(page.getByLabel(/อีเมล/).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#login-email")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: /ลืมรหัสผ่าน/ }), "ต้องไม่มีปุ่มลืมรหัสผ่าน").toHaveCount(0);
     await expect(page.getByText("ลืมรหัสผ่าน ติดต่อ HQ", { exact: true })).toBeVisible();
   });

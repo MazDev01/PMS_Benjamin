@@ -70,7 +70,7 @@ export async function loginUI(page: Page, origin: string, path: string, who: Acc
 
   await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const email = page.getByLabel(/อีเมล/i).first();
+  const email = page.locator("#login-email");
   const pass = page.getByLabel(/รหัสผ่าน/i).first();
   for (let attempt = 1; attempt <= 3; attempt++) {
     for (let i = 0; i < 6; i++) {

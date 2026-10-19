@@ -58,6 +58,7 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
+import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -461,7 +462,7 @@ export default function HQProspectsPage() {
       try {
         invalidateCache("dealers.list");
         const ทะเบียน = await dealersRepo.list();
-        const อีเมลเดโม = (อีเมล || `${code.toLowerCase()}@partner-agent.co.th`).toLowerCase();
+        const อีเมลเดโม = (อีเมล || อีเมลเข้าระบบของสาขา(code)).toLowerCase();
         if (ทะเบียน.some(d => d.credentials?.email?.toLowerCase() === อีเมลเดโม)) {
           setConvErr(`อีเมล ${อีเมลเดโม} ถูกใช้กับดีลเลอร์รายอื่นแล้ว — ใช้อีเมลอื่น`);
           return;
@@ -1069,7 +1070,7 @@ export default function HQProspectsPage() {
                     <label className="form-label" htmlFor="cv-email">อีเมลเข้าระบบ</label>
                     <input id="cv-email" className="form-input" type="email" value={ฟอร์ม.email}
                       onChange={e => setฟอร์ม(f => ({ ...f, email: e.target.value.replace(/\s/g, "") }))}
-                      placeholder={ฟอร์ม.code ? `${ฟอร์ม.code.toLowerCase()}@partner-agent.co.th` : "เว้นว่าง = ระบบตั้งให้"} />
+                      placeholder={ฟอร์ม.code ? อีเมลเข้าระบบของสาขา(ฟอร์ม.code) : "เว้นว่าง = ระบบตั้งให้"} />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label className="form-label" htmlFor="cv-password">รหัสผ่าน</label>

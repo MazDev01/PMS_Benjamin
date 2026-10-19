@@ -22,7 +22,7 @@ const browser = await chromium.launch();
 const page = await (await browser.newContext()).newPage();
 await page.goto(`${DEALER}/login`, { waitUntil: "domcontentloaded" });
 await page.waitForLoadState("networkidle").catch(() => {});
-const email = page.getByLabel(/อีเมล/i).first(), pass = page.getByLabel(/รหัสผ่าน/i).first();
+const email = page.locator("#login-email"), pass = page.getByLabel(/รหัสผ่าน/i).first();
 let เข้าได้ = false;
 for (let attempt = 1; attempt <= 3 && !เข้าได้; attempt++) {
   for (let i = 0; i < 6; i++) {
