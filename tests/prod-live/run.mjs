@@ -60,7 +60,7 @@ if (phase === "test") {
       LIVE_HQ_URL: WEB.hq, LIVE_DEALER_URL: WEB.dealer, LIVE_PASSWORD: st.password,
       LIVE_HQ_EMAIL: st.users.find(u => u.role === "SUPER_ADMIN").email, LIVE_DEALER_EMAIL: st.users.find(u => u.role === "DEALER_ADMIN").email,
       LIVE_DEALER_CODE: st.code, LIVE_COMPANY: st.company, LIVE_LEAD_NUM: String(st.leadNum),
-      LIVE_SUPABASE_URL: URL_, LIVE_SERVICE_KEY: KEY } });
+      LIVE_SUPABASE_URL: URL_, LIVE_SERVICE_KEY: KEY, LIVE_ANON_KEY: ANON } });
   process.exit(r.status ?? 1);
 }
 

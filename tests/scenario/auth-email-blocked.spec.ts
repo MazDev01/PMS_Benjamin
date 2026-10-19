@@ -24,13 +24,24 @@ for (const [ชื่อ, origin, path] of [["ดีลเลอร์", DEALER_
 }
 
 test("[security] Supabase ปฏิเสธคำขอลืมรหัสผ่าน (/recover) และเลขเข้าระบบ (/otp) ที่เรียกตรงโดยไม่ผ่านแอป", async () => {
+  // ต้องเป็น 403 + ข้อความของ hook_send_email เท่านั้น — เดิมตรวจแค่ ≥ 400 แล้วผ่านทั้งที่ระบบจริงยังไม่เปิด Hook (19 ต.ค. 69):
+  //   ไม่มี Hook = ตัวส่งอีเมลมาตรฐานของ Supabase ส่งไม่ได้แล้วตอบ 500 · ถ้าส่งได้ = อีเมลออกไปจริง
   const api = await pwRequest.newContext();
   const หัว = { apikey: SUPABASE_ANON, "content-type": "application/json" };
+  const svc = adminClient();
   for (const who of [RYG, ADMIN]) {
-    const r1 = await api.post(`${SUPABASE_URL}/auth/v1/recover`, { headers: หัว, data: { email: who.email } });
-    expect(r1.status(), `/recover ของ ${who === ADMIN ? "HQ" : "ดีลเลอร์"} ต้องถูกปฏิเสธ`).toBeGreaterThanOrEqual(400);
-    const r2 = await api.post(`${SUPABASE_URL}/auth/v1/otp`, { headers: หัว, data: { email: who.email, create_user: false } });
-    expect(r2.status(), `/otp ของ ${who === ADMIN ? "HQ" : "ดีลเลอร์"} ต้องถูกปฏิเสธ`).toBeGreaterThanOrEqual(400);
+    const ป้าย = who === ADMIN ? "HQ" : "ดีลเลอร์";
+    for (const [ทาง, data] of [["recover", { email: who.email }], ["otp", { email: who.email, create_user: false }]] as const) {
+      const r = await api.post(`${SUPABASE_URL}/auth/v1/${ทาง}`, { headers: หัว, data });
+      expect(r.status(), `/${ทาง} ของ${ป้าย} ต้องถูก Send Email Hook ปฏิเสธ (403)`).toBe(403);
+      expect(await r.text(), `/${ทาง} ของ${ป้าย} ต้องตอบข้อความของ hook_send_email`).toContain("auth_email_disabled");
+    }
+    // ไม่มีลิงก์/เลขถูกสร้าง และไม่มีบันทึกว่าส่ง (ดูจากบัญชีจริงในระบบล็อกอิน)
+    const { data: list } = await svc.auth.admin.listUsers({ perPage: 1000 });
+    const u = list.users.find(x => x.email === who.email);
+    expect(u, `ต้องเจอบัญชี${ป้าย}`).toBeTruthy();
+    const ส่งล่าสุด = Math.max(Date.parse(u!.recovery_sent_at ?? "") || 0, Date.parse((u as { email_change_sent_at?: string }).email_change_sent_at ?? "") || 0);
+    expect(Date.now() - ส่งล่าสุด > 60_000, `บัญชี${ป้าย}ต้องไม่มีบันทึกส่งอีเมลลืมรหัส/เลขเข้าระบบในนาทีนี้`).toBe(true);
   }
   await api.dispose();
 });

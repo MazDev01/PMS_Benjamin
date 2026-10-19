@@ -153,6 +153,27 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
   await ctxD.close(); await ctxH.close();
 });
 
+// ── ปิดอีเมลของระบบล็อกอิน: Send Email Hook ต้องเปิดบนระบบจริง (ใบ 0213 · 19 ต.ค. 69 เจอว่ายังไม่เปิด) ──
+//   ปิด Hook = Supabase ส่งอีเมลเอง (ตอบ 200 หรือ 500) · ต้องได้ 403 + ข้อความของเราเท่านั้น
+test("[live] /recover และ /otp ถูก Send Email Hook ปฏิเสธ (403) · ไม่มีลิงก์/บันทึกส่ง · ล็อกอินรหัสผ่านยังได้ค่าใน JWT ครบ", async () => {
+  const URL_ = E("LIVE_SUPABASE_URL"), หัว = { apikey: E("LIVE_ANON_KEY"), "Content-Type": "application/json" };
+  for (const [ป้าย, who, คาด] of [["HQ", ผู้ดูแล, { user_role: "SUPER_ADMIN", dealer_code: "" }], ["ดีลเลอร์", ดีลเลอร์, { user_role: "DEALER_ADMIN", dealer_code: สาขา }]] as const) {
+    for (const [ทาง, body] of [["recover", { email: who.email }], ["otp", { email: who.email, create_user: false }]] as const) {
+      const r = await fetch(`${URL_}/auth/v1/${ทาง}`, { method: "POST", headers: หัว, body: JSON.stringify(body) });
+      expect(r.status, `${ป้าย} /${ทาง} ต้องถูก Send Email Hook ปฏิเสธ (403)`).toBe(403);
+      expect(await r.text(), `${ป้าย} /${ทาง} ต้องตอบข้อความของ hook_send_email`).toContain("auth_email_disabled");
+    }
+    const { data: list } = await svc.auth.admin.listUsers({ perPage: 1000 });
+    const u = list.users.find(x => x.email === who.email);
+    expect(u?.recovery_sent_at ?? null, `${ป้าย}: ต้องไม่มีบันทึกส่งลิงก์ลืมรหัส`).toBeNull();
+    const t = await fetch(`${URL_}/auth/v1/token?grant_type=password`, { method: "POST", headers: หัว, body: JSON.stringify(who) });
+    const j = await t.json() as { access_token?: string };
+    expect(t.status, `${ป้าย}: ล็อกอินรหัสผ่านต้องได้`).toBe(200);
+    const c = JSON.parse(Buffer.from(String(j.access_token).split(".")[1], "base64url").toString());
+    expect({ user_role: c.user_role, dealer_code: c.dealer_code, role: c.role }, `${ป้าย}: ค่าใน JWT จาก custom_access_token_hook`).toEqual({ ...คาด, role: "authenticated" });
+  }
+});
+
 // ── ไม่มีหน้า/เมนู/API แม่แบบ (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) ──
 test("[live] ไม่มีหน้า/เมนู/API แม่แบบ", async ({ browser }) => {
   for (const [origin, path, who, หน้าแม่แบบ] of [
