@@ -65,3 +65,15 @@ function describe(env, label, opt) {
   if (!opt.quiet) console.log(`\n🎯 ฐานข้อมูลที่จะแตะ: ${label} · ${ref}`);
   return { url, serviceKey, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "", ref, label, env };
 }
+
+/** ฐานจริงคือที่อยู่นี้หรือไม่ (เทียบรหัสโปรเจกต์กับ .env.production.local) — ไม่มีไฟล์ฐานจริง = ถือว่าไม่ใช่ */
+export function เป็นฐานจริง(url) {
+  const prod = refOf(readEnvFile(".env.production.local").NEXT_PUBLIC_SUPABASE_URL ?? "");
+  return prod !== "(ไม่ทราบ)" && refOf(url) === prod;
+}
+/** เครื่องมือของฐานทดสอบ: ชี้ฐานจริงเมื่อไร หยุดทันที (บอสสั่ง 19 ต.ค. 69 · ตัวนับเลขเอกสารของฐานจริงห้ามถูกตั้ง/กระโดด) */
+export function ห้ามฐานจริง(url, ชื่อเครื่องมือ) {
+  if (!เป็นฐานจริง(url)) return;
+  console.error(`❌ ${ชื่อเครื่องมือ} ชี้ไปที่ฐานจริง — หยุด (เครื่องมือนี้ใช้กับฐานทดสอบเท่านั้น · ไฟล์ค่าเชื่อมต่อถูกสลับไปชี้ฐานจริงหรือเปล่า)`);
+  process.exit(1);
+}

@@ -31,6 +31,7 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { ตรวจระบบเปิดใช้จริง } from "./lib/goLiveGuard.mjs";
 
 const APPLY = process.argv.includes("--apply");
 const YES = process.argv.includes("--yes");
@@ -177,6 +178,13 @@ if (!APPLY) {
   console.log("   สั่งจริง: node scripts/go-live-reset.mjs --apply --yes"
     + (DEALERS.length ? ` --dealers=${DEALERS.join(",")}` : ""));
   process.exit(0);
+}
+
+// ⛔ ระบบเปิดใช้จริงแล้ว = ห้ามล้าง (บอสสั่ง 19 ต.ค. 69) — ตัวนี้ลบงานขายและรีเซ็ตตัวนับเลขเอกสาร (entity_counters · quote_counters)
+//   ใช้ได้ครั้งเดียวก่อนเปิดระบบ (11 ส.ค. 69) · มีคำขอราคาของดีลเลอร์จริงแล้ว = ล้าง/รีเซ็ตแล้วเลขเอกสารซ้ำกับที่ออกไปแล้ว
+{
+  const ผล = await ตรวจระบบเปิดใช้จริง(svc);   // scripts/lib/goLiveGuard.mjs · ข้อทดสอบ tests/unit/goLiveGuard.test.ts
+  if (ผล.หยุด) { console.error(`\n❌ หยุด: ${ผล.เหตุผล}`); process.exit(1); }
 }
 
 // ══ ลงมือจริง ════════════════════════════════════════════════════════════════════

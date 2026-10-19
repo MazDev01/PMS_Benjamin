@@ -25,6 +25,17 @@ const hqVars = readEnvFile(path.join(ROOT, "apps/hq/.env.local"));
 export const ADMIN_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? hqVars.get("NEXT_PUBLIC_SUPABASE_URL") ?? "";
 export const ADMIN_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? hqVars.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+// ⛔ ชุดทดสอบนี้ห้ามแตะฐานจริงเด็ดขาด (บอสสั่ง 19 ต.ค. 69) — มีข้อที่สั่งตั้งตัวนับเลขทั้งฐาน (restore_sync_sequences)
+//    ลบ/สร้างแถวตั้งค่าของสาขา และเก็บกวาดตามป้ายทั่วทุกตาราง · ในเครื่องมีไฟล์ค่าเชื่อมต่อฐานจริงสำรองวางอยู่ (.env.local.prod-backup)
+//    สลับผิดไฟล์เมื่อไร = หยุดตั้งแต่โหลดไฟล์นี้ ก่อนข้อทดสอบไหนได้เขียนอะไร
+{
+  const รหัส = (u: string) => (u.match(/https?:\/\/([a-z0-9]+)\.supabase\./) ?? [])[1] ?? "";
+  const ฐานจริง = รหัส(readEnvFile(path.join(ROOT, ".env.production.local")).get("NEXT_PUBLIC_SUPABASE_URL") ?? "");
+  if (ฐานจริง && รหัส(ADMIN_SUPABASE_URL) === ฐานจริง) {
+    throw new Error("❌ ชุดทดสอบชี้ไปที่ฐานจริง — หยุด (ตรวจ apps/hq/.env.local / NEXT_PUBLIC_SUPABASE_URL) · ชุดทดสอบใช้กับฐานทดสอบเท่านั้น");
+  }
+}
+
 /** เซิร์ฟเวอร์ตั้งค่า service_role ครบหรือยัง
  *
  *  ใช้บังคับให้เทสต์ "เข้มขึ้น" เมื่อเครื่องพร้อม — หลายเทสต์เคยเขียนว่า

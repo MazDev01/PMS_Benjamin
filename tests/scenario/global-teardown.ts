@@ -15,7 +15,8 @@ import { ลบใบทดสอบที่ฐาน, ล้างใบHQท�
 //
 // ตัวกวาดนี้รันตอนจบทั้งชุด ไม่มีอะไรค้างในสายแล้ว จึงเก็บของตกได้หมดจริง
 // เงื่อนไขความปลอดภัย: แตะเฉพาะแถวที่ชื่อมีป้าย ZZTEST/ZZLOAD เท่านั้น — ข้อมูลจริงไม่มีป้ายนี้
-const TEST_MARKS = ["ZZTEST", "ZZLOAD"];
+// ZZE2E: ไฟล์ใบเสนอราคาของ hq-dealer-e2e.spec.ts (ชื่อลูกค้า ZZE2E-…) ค้างสะสม 14 แถว — ตัวตรวจแถวค้างเดิมมองไม่เห็นป้ายนี้ (พบ 19 ต.ค. 69)
+const TEST_MARKS = ["ZZTEST", "ZZLOAD", "ZZE2E"];
 
 async function sweep(admin: SupabaseClient, เก็บชุดตั้งต้นไว้ = false): Promise<string> {
   const removed: string[] = [];

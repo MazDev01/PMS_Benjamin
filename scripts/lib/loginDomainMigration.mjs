@@ -9,9 +9,11 @@ const บทบาทดีลเลอร์ = new Set(["DEALER_ADMIN", "DEALER
 /**
  * @param {{ users: {id:string, email?:string|null}[], profiles: {id:string, role:string, dealer_code?:string|null}[], ย้อน?: boolean }} x
  *   ย้อน = ย้ายกลับ (โดเมนใหม่ → โดเมนเดิม) — ทางถอยถ้าย้ายแล้วมีปัญหา · ชื่อช่องในสรุปคงเดิม ("ใหม่" = ปลายทาง · "เดิม" = ต้นทาง)
+ *   เฉพาะ = จำกัดเฉพาะรหัสสาขาเหล่านี้ (--only) · ว่าง = ทุกสาขา
  * @returns {{ ย้าย: {id:string, dealerCode:string, from:string, to:string}[], สรุป: Record<string, number> }}
  */
-export function วางแผนย้ายโดเมน({ users, profiles, ย้อน = false }) {
+export function วางแผนย้ายโดเมน({ users, profiles, ย้อน = false, เฉพาะ = [] }) {
+  const จำกัด = เฉพาะ.length ? new Set(เฉพาะ.map(c => String(c).trim().toUpperCase())) : null;
   const [ต้นทาง, ปลายทาง] = ย้อน ? [NEW_DOMAIN, OLD_DOMAIN] : [OLD_DOMAIN, NEW_DOMAIN];
   const โปรไฟล์ = new Map(profiles.map(p => [p.id, p]));
   const อีเมลที่มีอยู่ = new Set(users.map(u => String(u.email ?? "").toLowerCase()).filter(Boolean));
@@ -27,6 +29,7 @@ export function วางแผนย้ายโดเมน({ users, profiles,
       if (โดเมนเดิม) สรุป.บัญชีHQใช้โดเมนเดิม++;
       continue;
     }
+    if (จำกัด && !จำกัด.has(String(p.dealer_code ?? "").trim().toUpperCase())) continue;
     สรุป.บัญชีดีลเลอร์++;
     if (email.endsWith(`@${ปลายทาง}`)) { สรุป.ใช้โดเมนใหม่แล้ว++; continue; }
     if (!โดเมนเดิม) { สรุป.อีเมลของตัวเอง++; continue; }   // ดีลเลอร์ย้ายไปอีเมลจริงของตัวเองแล้ว — ไม่แตะ

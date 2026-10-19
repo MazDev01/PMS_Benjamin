@@ -15,12 +15,14 @@
 // รัน: node scripts/load-test.mjs [จำนวนคน]     (ค่าเริ่มต้น 50)
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
+import { ห้ามฐานจริง } from "./lib/targetEnv.mjs";
 
 const N = Number(process.argv[2] ?? 50);
 const TAG = "ZZLOADTEST";
 
 // อ่านจาก apps/hq/.env.local = "ฐานทดสอบ" ตั้งแต่แยกฐานข้อมูล (11 ส.ค. 69) — ถูกต้องแล้ว
 // ⛔ ห้ามเปลี่ยนไปชี้ฐานจริง: ตัวนี้สร้างดีลเลอร์ 10 ราย + ผู้ใช้ 50 คน แล้วเขียนข้อมูลรัว ๆ
+//    และขยับตัวนับเลขใบเสนอราคา (quote_counters) — ตัวกันอยู่หลังอ่านค่าเชื่อมต่อ (19 ต.ค. 69)
 const env = {};
 for (const f of ["apps/hq/.env.local", "tests/.env.test"]) {
   try {
@@ -30,6 +32,7 @@ for (const f of ["apps/hq/.env.local", "tests/.env.test"]) {
     }
   } catch { /* ไม่มีไฟล์ */ }
 }
+ห้ามฐานจริง(env.NEXT_PUBLIC_SUPABASE_URL ?? "", "load-test.mjs");
 const svc = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 // ล็อกอินครั้งเดียวต่อบัญชี แล้วให้ทุก "คน" ใช้สิทธิ์ร่วมกัน

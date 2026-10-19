@@ -27,6 +27,13 @@ describe("ตรวจโดเมนบัญชีดีลเลอร์ (pr
 });
 
 describe("วางแผนย้ายโดเมน (scripts/migrate-dealer-login-domain.mjs)", () => {
+  it("--only จำกัดเฉพาะรหัสสาขาที่ระบุ (ไม่สนตัวพิมพ์) · ทางย้อนก็จำกัดเหมือนกัน", () => {
+    const users = [{ id: "1", email: `abc@${เดิม}` }, { id: "2", email: `def@${เดิม}` }, { id: "3", email: `ghi@${ใหม่}` }];
+    const profiles = [ป("1", "DEALER_ADMIN", "ABC"), ป("2", "DEALER_ADMIN", "DEF"), ป("3", "DEALER_ADMIN", "GHI")];
+    expect(วางแผนย้ายโดเมน({ users, profiles, เฉพาะ: ["abc"] }).ย้าย.map((x: { id: string }) => x.id)).toEqual(["1"]);
+    expect(วางแผนย้ายโดเมน({ users, profiles, ย้อน: true, เฉพาะ: ["ABC"] }).ย้าย).toEqual([]);   // GHI อยู่โดเมนใหม่แต่ไม่อยู่ในรายการ
+    expect(วางแผนย้ายโดเมน({ users, profiles, ย้อน: true }).ย้าย.map((x: { id: string }) => x.id)).toEqual(["3"]);
+  });
   it("ย้ายเฉพาะดีลเลอร์โดเมนเดิม → รหัสสาขาตัวเล็ก@โดเมนใหม่ · ไม่แตะ HQ/อีเมลของตัวเอง · กันชื่อซ้ำ", () => {
     const { ย้าย, สรุป } = วางแผนย้ายโดเมน({
       users: [

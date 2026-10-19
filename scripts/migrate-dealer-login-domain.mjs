@@ -18,6 +18,7 @@
 //   node scripts/migrate-dealer-login-domain.mjs --prod                  นับอย่างเดียว บนฐานจริง
 //   node scripts/migrate-dealer-login-domain.mjs --prod --apply --yes-prod   ย้ายจริง บนฐานจริง
 //   --verify-login=N  ตอน --apply ลองเข้าระบบด้วยอีเมลใหม่ N บัญชี (ค่าตั้งต้น 3 · 0 = ไม่ลอง)
+//   --only=ABC,XYZ    จำกัดเฉพาะรหัสสาขาที่ระบุ (ข้อทดสอบใช้ — กันไปแตะบัญชีของข้ออื่นที่รันพร้อมกัน)
 //   --reverse         ทางถอย: ย้ายกลับ โดเมนใหม่ → โดเมนเดิม (ใช้ร่วมกับตัวเลือกอื่นได้ทุกตัว · ทดสอบใน login-domain-migration.spec.ts)
 // ⚠️ ห้ามแตะบัญชี HQ (เลือกเฉพาะบทบาทดีลเลอร์) · พิมพ์เฉพาะจำนวน ไม่พิมพ์อีเมล รหัสสาขา หรือรหัสผ่าน
 import { createClient } from "@supabase/supabase-js";
@@ -28,9 +29,10 @@ import { ตัวถอดรหัส } from "./lib/dealerSecretNode.mjs";
 const args = process.argv.slice(2);
 const มี = f => args.includes(f);
 const ฐานจริง = มี("--prod"), ลงมือ = มี("--apply"), ย้อน = มี("--reverse");
+const เฉพาะ = (args.find(a => a.startsWith("--only=")) ?? "--only=").slice(7).split(",").map(s => s.trim()).filter(Boolean);
 const ลองเข้า = Number((args.find(a => a.startsWith("--verify-login=")) ?? "--verify-login=3").split("=")[1]);
 const รู้จัก = new Set(["--prod", "--apply", "--yes-prod", "--reverse"]);
-const แปลก = args.filter(a => !รู้จัก.has(a) && !a.startsWith("--verify-login="));
+const แปลก = args.filter(a => !รู้จัก.has(a) && !a.startsWith("--verify-login=") && !a.startsWith("--only="));
 if (แปลก.length || !Number.isInteger(ลองเข้า) || ลองเข้า < 0) { console.error(`❌ ตัวเลือกไม่รู้จัก: ${แปลก.join(" ") || "--verify-login"}`); process.exit(1); }
 
 const env = readEnvFile(ฐานจริง ? ".env.production.local" : "apps/hq/.env.local");
@@ -46,7 +48,7 @@ if (!URL_ || !KEY) { console.error("❌ ไม่พบค่าเชื่อ�
 const เป็นฐานจริง = prodRef !== "(ไม่ทราบ)" && refOf(URL_) === prodRef;
 if (เป็นฐานจริง && !ฐานจริง) { console.error("❌ ไฟล์ค่าเชื่อมต่อของฐานทดสอบชี้ไปที่ฐานจริง — หยุด (จะแตะฐานจริงต้องใส่ --prod เอง)"); process.exit(1); }
 if (เป็นฐานจริง && ลงมือ && !มี("--yes-prod")) { console.error("❌ จะย้ายอีเมลบนฐานจริง ต้องใส่ --yes-prod เพื่อยืนยันว่าตั้งใจ"); process.exit(1); }
-console.log(`\n🎯 ฐานข้อมูล: ${เป็นฐานจริง ? "ชุดจริง" : "ชุดทดสอบ"} · โหมด: ${ลงมือ ? "ย้ายจริง" : "นับอย่างเดียว (ไม่แก้อะไร)"} · ทิศ: ${ย้อน ? "ย้อนกลับ (โดเมนใหม่ → โดเมนเดิม)" : "โดเมนเดิม → โดเมนใหม่"}`);
+console.log(`\n🎯 ฐานข้อมูล: ${เป็นฐานจริง ? "ชุดจริง" : "ชุดทดสอบ"} · โหมด: ${ลงมือ ? "ย้ายจริง" : "นับอย่างเดียว (ไม่แก้อะไร)"}${เฉพาะ.length ? ` · จำกัด ${เฉพาะ.length} รหัส` : ""} · ทิศ: ${ย้อน ? "ย้อนกลับ (โดเมนใหม่ → โดเมนเดิม)" : "โดเมนเดิม → โดเมนใหม่"}`);
 
 const svc = createClient(URL_, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const ทั้งหมด = async (table, cols) => {
@@ -83,7 +85,7 @@ const นับโดเมนเดิม = async () => {
 
 const users = await อ่านบัญชี();
 const profiles = await ทั้งหมด("profiles", "id,role,dealer_code");
-const { ย้าย, สรุป } = วางแผนย้ายโดเมน({ users: users.map(u => ({ id: u.id, email: u.email })), profiles, ย้อน });
+const { ย้าย, สรุป } = วางแผนย้ายโดเมน({ users: users.map(u => ({ id: u.id, email: u.email })), profiles, ย้อน, เฉพาะ });
 for (const [k, v] of Object.entries(สรุป)) console.log(`  ${k.padEnd(24)} ${v}`);
 for (const [k, v] of Object.entries(await นับโดเมนเดิม())) console.log(`  ${k}: ${v}`);
 if (สรุป.บัญชีHQใช้โดเมนเดิม) console.log(`  ⚠️ มีบัญชีที่ไม่ใช่ดีลเลอร์ใช้โดเมนเดิม ${สรุป.บัญชีHQใช้โดเมนเดิม} บัญชี — สคริปต์นี้ไม่แตะ ต้องดูเอง`);
@@ -125,7 +127,7 @@ if (ลองเข้า > 0 && ย้าย.length) {
     console.log(`  ลองเข้าระบบด้วยอีเมลใหม่: ได้ ${เข้าได้} · ไม่ได้ ${เข้าไม่ได้} · ไม่มีสำเนารหัส ${ไม่มีสำเนา}`);
   }
 }
-const หลัง = วางแผนย้ายโดเมน({ users: (await อ่านบัญชี()).map(u => ({ id: u.id, email: u.email })), profiles, ย้อน });
+const หลัง = วางแผนย้ายโดเมน({ users: (await อ่านบัญชี()).map(u => ({ id: u.id, email: u.email })), profiles, ย้อน, เฉพาะ });
 console.log(`  หลังย้าย: ดีลเลอร์ใช้โดเมนปลายทาง ${หลัง.สรุป.ใช้โดเมนใหม่แล้ว} · ยังเหลือโดเมนต้นทาง ${หลัง.สรุป.ต้องย้าย + หลัง.สรุป.ชื่อซ้ำกับบัญชีอื่น + หลัง.สรุป.ไม่มีรหัสสาขา}\n`);
 process.exitCode = พลาด || ตรวจไม่ผ่าน || เข้าไม่ได้ ? 1 : 0;
 }

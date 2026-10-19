@@ -14,6 +14,9 @@ import { createClient } from "@supabase/supabase-js";
 import { readEnvFile, refOf } from "./lib/targetEnv.mjs";
 
 const ป้าย = ["ZZTEST", "ZZLOAD", "ทดสอบอัตโนมัติ"];
+// + "ZZ" ตัวพิมพ์ใหญ่แบบตรงตัว (ไม่สนตัวพิมพ์ไม่ได้ — คำทั่วไปมี zz) — ป้ายอื่นที่ขึ้นต้น ZZ เคยหลุดตัวตรวจ (19 ต.ค. 69):
+//   ข้อทดสอบกล่องงาน HQ ใช้ป้าย ZZBOARD แล้วเก็บกวาดไม่ครบ → ค้างสะสม 14 ชุดโดยไม่มีอะไรเตือน จนตัวนับเลขคำขอกระโดด
+//   ข้อมูลในฐานทดสอบสร้างด้วยสูตร (test-baseline) ไม่มี "ZZ" ในข้อมูลปกติ · รหัสสาขาชั่วคราว ZZxx ก็นับเป็นของค้าง
 const app = readEnvFile("apps/hq/.env.local");
 const prod = readEnvFile(".env.production.local");
 const URL_ = app.NEXT_PUBLIC_SUPABASE_URL, KEY = app.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,11 +43,13 @@ let ตรวจ = 0;
 for (const [table, d] of Object.entries(defs)) {
   // ช่องข้อความล้วน — ไม่รวม uuid/วันที่/ตัวเลข (ilike กับชนิดอื่นจะ error) และไม่รวมบันทึกการใช้งาน (เก็บประวัติถาวรโดยตั้งใจ)
   if (table === "audit_log" || table === "rate_limits") continue;
+  // ตารางแม่แบบที่เลิกใช้แล้ว (ห้าม drop · templates-removed) — แถว ZZFIX เป็นข้อมูลตั้งต้นที่ตั้งใจใส่ (tests/fixtures/test-baseline.sql)
+  if (table === "master_catalog" || table === "master_catalog_public") continue;
   const cols = Object.entries(d.properties ?? {}).filter(([, p]) => p.type === "string" && (!p.format || p.format === "text" || p.format === "character varying")).map(([c]) => c);
   for (const col of cols) {
     ตรวจ++;
     const { count, error } = await svc.from(table).select("*", { count: "exact", head: true })
-      .or(ป้าย.map(t => `${col}.ilike.%${t}%`).join(","));
+      .or([...ป้าย.map(t => `${col}.ilike.%${t}%`), `${col}.like.*ZZ*`].join(","));
     if (error) continue;   // มุมมอง/ช่องที่กรองไม่ได้ — ไม่ใช่ที่เก็บแถวทดสอบ
     if (count) พบ.push({ table, col, count });
   }

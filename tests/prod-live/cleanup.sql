@@ -37,13 +37,7 @@ delete from public.dealers where code = 'ZZT';
 alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
 alter table public.quotations enable trigger quotations_no_delete_won;
 alter table public.quotations enable trigger trg_price_history_append_only;
--- เลขใบ HQ อิงเลขคำขอ (HQ-ปี-ลำดับคำขอ) — ตารางที่ว่างหลังล้าง ตั้งลำดับกลับไปเริ่ม 1 (ใบจริงใบแรกจะได้ 00001)
-do $$ declare t text; n bigint; begin
-  foreach t in array array['quote_requests', 'hq_quotes', 'quote_request_events', 'email_outbox', 'files'] loop
-    execute format('select count(*) from public.%I', t) into n;
-    if n = 0 and pg_get_serial_sequence('public.' || t, 'id') is not null then
-      perform setval(pg_get_serial_sequence('public.' || t, 'id'), 1, false);
-    end if;
-  end loop;
-end $$;
+-- ⛔ ห้ามตั้ง/ย้อนตัวนับลำดับ (setval) ที่นี่ — ไฟล์นี้รันกับฐานจริง (บอสสั่ง 19 ต.ค. 69)
+--   เดิมตั้งลำดับคำขอ/ใบ HQ/อีเมล/ไฟล์กลับไป 1 เมื่อตารางว่าง (ไว้ให้ใบจริงใบแรกได้ 00001 ก่อนเปิดระบบ)
+--   ระบบจริงมีคำขอจริงแล้ว: ย้อนตัวนับ = เลขเอกสารซ้ำกับที่เคยออก · ตัวตรวจ scripts/check-prod-counter-safety.mjs
 commit;

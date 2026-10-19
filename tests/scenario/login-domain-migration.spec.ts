@@ -66,7 +66,8 @@ async function สร้างสาขา(code: string, email: string, password
   expect((await admin.from("dealer_login_secrets").upsert({ dealer_code: code, secret: เข้ารหัส(password), updated_by: "ผู้ดูแลระบบ (สร้างบัญชี)" }, { onConflict: "dealer_code" })).error).toBeNull();
   return id;
 }
-const รันสคริปต์ = (...extra: string[]) => execFileSync("node", ["scripts/migrate-dealer-login-domain.mjs", ...extra], { encoding: "utf8" });
+// --only: จำกัดเฉพาะสาขาของไฟล์นี้ — ไม่งั้นการย้อนทางไปย้ายบัญชีของข้ออื่นที่รันพร้อมกัน (dealer-login-branch-code · รอบเต็ม 19 ต.ค. 69)
+const รันสคริปต์ = (...extra: string[]) => execFileSync("node", ["scripts/migrate-dealer-login-domain.mjs", `--only=${ย้าย},${อีเมลตัวเอง}`, ...extra], { encoding: "utf8" });
 const บัญชี = async (id: string) => (await admin.auth.admin.getUserById(id)).data.user!;
 const เข้าได้ = async (email: string) => {
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
