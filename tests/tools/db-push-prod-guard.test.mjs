@@ -5,14 +5,14 @@
 //   ล็อกค้างของโปรเซสที่ตายแล้ว (ต้องเก็บกวาดแล้วไปต่อ) ตรวจที่ tests/unit/prodLock.test.ts
 // รัน: npm run test:push-guard   (ต้องมี Docker + ฐานทดสอบ pms-dbcheck · ฐานซ้อมกู้ pms-blank ตัวสคริปต์เปิด/ปิดเอง)
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "pms-push-guard-"));
 const LOCK = path.join(tmp, "prod.lock"), MARK = path.join(tmp, "marker.txt"), ROOT = path.join(tmp, "backups");
 const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT };
-delete base.PMS_PROD_LOCK_HELD; delete base.PMS_DRILL_SABOTAGE;
+delete base.PMS_PROD_LOCK_HELD; delete base.PMS_DRILL_SABOTAGE; delete base.PMS_FAKE_EMPTY;
 const รัน = (file, extraEnv = {}, a = []) => {
   const r = spawnSync("node", [file, ...a], { env: { ...base, ...extraEnv }, encoding: "utf8", maxBuffer: 1 << 28 });
   return { code: r.status, out: `${r.stdout}\n${r.stderr}` };
@@ -53,6 +53,33 @@ const ผล = (ok, m, extra = "") => { if (!ok) ตก++; console.log(`${ok ? "
   ผล(p.code === 0 && existsSync(MARK), `C1 สำรอง + ซ้อมกู้ผ่าน → ถึงขั้นลงใบ (exit ${p.code})`, p.out);
   ผล(/✅ ผ่าน — สำรองและซ้อมกู้ครบ/.test(p.out), "C2 บอกว่าสำรองและซ้อมกู้ผ่าน", p.out);
   ผล(!existsSync(LOCK), "C3 ปล่อยล็อกแล้ว");
+}
+
+// ── D) คำสั่ง dump คืนไฟล์ว่าง → หยุดพร้อมข้อความภาษาไทยที่บอกขั้น · ไม่ขึ้น stack trace · ไม่ถึงขั้นลงใบ ──
+//   (เหตุจริง 20 ต.ค. 69 15:59: ผลของคำสั่งภายนอกผิดรูป แล้วถูกส่งต่อเป็น undefined → TypeError ของ Node ขึ้นจอ)
+const ไม่มีstack = (out) => !/TypeError|SyntaxError|ReferenceError|\n\s+at (file:|node:|.*\.m?js:\d+)/.test(out);
+{
+  rmSync(MARK, { force: true });
+  const p = รัน("scripts/db-push-prod.mjs", { PMS_FAKE_EMPTY: "dump" });
+  ผล(p.code !== 0 && !existsSync(MARK), `D1 dump ได้ไฟล์ว่าง → ไม่ลงใบ (exit ${p.code})`, p.out);
+  ผล(/ขั้น "ดึงไฟล์สำรอง 2-data\.sql" ล้ม — ได้ไฟล์ว่างหรือเล็กผิดปกติ/.test(p.out), "D2 บอกเป็นภาษาไทยว่าขั้นไหนล้มและเพราะอะไร", p.out);
+  ผล(ไม่มีstack(p.out), "D3 ไม่มี stack trace ของ Node", p.out);
+  ผล(!existsSync(LOCK), "D4 ปล่อยล็อกแล้ว");
+}
+
+// ── E) คำสั่งนับแถวคืนผลว่าง (จุดที่ล้มจริง) → หยุดพร้อมข้อความภาษาไทย · ไม่มี stack trace ──
+{
+  rmSync(MARK, { force: true });
+  const p = รัน("scripts/db-push-prod.mjs", { PMS_FAKE_EMPTY: "นับแถวทุกตารางของต้นทาง" });
+  ผล(p.code !== 0 && !existsSync(MARK), `E1 นับแถวได้ผลว่าง → ไม่ลงใบ (exit ${p.code})`, p.out);
+  ผล(/ขั้น "นับแถวทุกตารางของต้นทาง" ล้ม — คำสั่งสำเร็จแต่ไม่ได้ผลลัพธ์กลับมาเลย/.test(p.out), "E2 บอกเป็นภาษาไทยว่าขั้นไหนล้มและเพราะอะไร", p.out);
+  ผล(ไม่มีstack(p.out), "E3 ไม่มี stack trace ของ Node", p.out);
+}
+
+// ── F) ชื่อโฟลเดอร์สำรองที่ db-push ตั้งให้ต้องไปถึงตัวสำรอง (ตรวจปลายทางรวม · ต้นเหตุที่ชื่อหายในโหมดฐานจริงพิสูจน์ที่ tests/unit/backupArgs.test.ts) ──
+{
+  const ชื่อ = readdirSync(ROOT);
+  ผล(ชื่อ.some(n => n.endsWith("-ก่อน-db-push")) && !ชื่อ.some(n => /-(local|prod)$/.test(n)), `F1 โฟลเดอร์สำรองชื่อตามที่ db-push ตั้ง (${ชื่อ.join(", ")})`);
 }
 
 rmSync(tmp, { recursive: true, force: true });

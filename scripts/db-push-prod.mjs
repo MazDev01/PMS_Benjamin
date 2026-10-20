@@ -33,7 +33,15 @@ const { ref } = ทดสอบ ? { ref: "" } : loadTarget();   // พิมพ�
 
 const ล็อก = ขอล็อก(dry ? "db:push:prod (ดูอย่างเดียว)" : "db:push:prod");
 const envลูก = { ...process.env, PMS_PROD_LOCK_HELD: ล็อก.token };
-const รัน = (cmd, a) => spawnSync(cmd, a, { stdio: "inherit", shell: true, env: envลูก }).status === 0;
+// node เรียกตรงไม่ผ่าน shell (ไม่ต้องพึ่ง cmd.exe · ไม่มีคำเตือน DEP0190) — ชื่อโฟลเดอร์ภาษาไทยที่หายเคยโทษ shell แต่ต้นเหตุจริงอยู่ที่ตัวอ่านคำสั่ง (lib/backupArgs.mjs)
+//   npx ต้องผ่าน shell บน Windows (เป็นไฟล์ .cmd)
+const รัน = (cmd, a) => {
+  const r = cmd === "node"
+    ? spawnSync(process.execPath, a, { stdio: "inherit", shell: false, env: envลูก })
+    : spawnSync(cmd, a, { stdio: "inherit", shell: true, env: envลูก });
+  if (r.error) console.error(`   เรียกโปรแกรม ${cmd} ไม่ได้ (${r.error.code ?? r.error.message})`);
+  return r.status === 0;
+};
 const ปลดผูก = () => {
   if (ทดสอบ) return;
   for (const f of ["project-ref", "linked-project.json", "pooler-url"]) rmSync(`supabase/.temp/${f}`, { force: true });
@@ -44,7 +52,7 @@ let ok = false;
 try {
   if (!dry) {
     console.log("\n① สำรองเต็ม + ซ้อมกู้ ก่อนลงใบ");
-    const ชื่อ = `${new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 16).replace(/[:T]/g, "-")}-ก่อน-db-push`;
+    const ชื่อ = `${new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 19).replace(/[:T]/g, "-")}-ก่อน-db-push`;   // มีวินาที — สั่งซ้ำในนาทีเดียวกันไม่ชนชื่อเดิม
     if (!รัน("node", ["scripts/prod-backup-verify.mjs", ...(ทดสอบ ? ["--target", "local"] : []), ชื่อ])) {
       throw new Error("สำรองหรือซ้อมกู้ไม่ผ่าน — ไม่ลงใบ (เหตุผลอยู่ข้างบน) · แก้ให้ผ่านก่อนแล้วสั่งใหม่");
     }
@@ -56,7 +64,7 @@ try {
   } else {
     console.log("\n② ผูกฐานจริง → รายชื่อใบ → ลงใบ (ถาม [Y/n] ก่อนลงจริง)");
     if (!รัน("npx", ["supabase", "link", "--project-ref", ref])) throw new Error("ผูกโปรเจกต์ไม่สำเร็จ");
-    รัน("npx", ["supabase", "migration", "list"]);
+    if (!รัน("npx", ["supabase", "migration", "list"])) throw new Error("ดูรายชื่อใบที่จะลงไม่สำเร็จ — ไม่ลงใบ");
     ok = รัน("npx", ["supabase", "db", "push", ...(dry ? ["--dry-run"] : [])]);
   }
 } catch (e) {

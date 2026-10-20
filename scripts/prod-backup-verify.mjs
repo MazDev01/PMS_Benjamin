@@ -11,6 +11,7 @@
 //   PMS_PROD_OPS_DIR       โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (C:/.claude/pms-prod-ops)
 //   PMS_RESTORE_WORKDIR    โฟลเดอร์ supabase ของฐานเปล่าที่ใช้ซ้อมกู้ (C:/.claude/pms-restore-check · project pms-blank)
 //   PMS_BACKUP_ROOT        ที่เก็บไฟล์สำรอง (C:/.claude/pms-prod-backups) — นอก repo เสมอ (มีข้อมูลลูกค้าจริง)
+//   PMS_FAKE_EMPTY=<ขั้น>   ข้อทดสอบเท่านั้น (--target local): จำลองคำสั่งของขั้นนั้นคืนผลว่าง (dump = ไฟล์สำรอง 2-data.sql ว่าง)
 //   PMS_DRILL_SABOTAGE=1   ข้อทดสอบเท่านั้น (ใช้ได้กับ --target local เท่านั้น): ลบ 1 แถวในฐานที่กู้ ก่อนเทียบ → ต้องไม่ผ่าน
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -18,14 +19,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ขอล็อก } from "./lib/prodLock.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { อ่านคำสั่งสำรอง } from "./lib/backupArgs.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const args = process.argv.slice(2);
-const ti = args.indexOf("--target");
-const target = ti >= 0 ? args[ti + 1] : "prod";
-const ชื่อ = args.filter((a, i) => !a.startsWith("--") && i !== ti + 1)[0]
-  ?? `${new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 16).replace(/[:T]/g, "-")}-${target}`;
+const { target, ชื่อ } = อ่านคำสั่งสำรอง(process.argv.slice(2));
 if (!["prod", "local"].includes(target)) { console.error("ใช้: node scripts/prod-backup-verify.mjs [--target prod|local] [ชื่อโฟลเดอร์]"); process.exit(2); }
+if (process.env.PMS_FAKE_EMPTY && target !== "local") { console.error("⛔ PMS_FAKE_EMPTY ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
 if (process.env.PMS_DRILL_SABOTAGE === "1" && target !== "local") { console.error("⛔ PMS_DRILL_SABOTAGE ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
 
 const OPS = process.env.PMS_PROD_OPS_DIR || "C:/.claude/pms-prod-ops";
@@ -43,7 +42,41 @@ const ไม่ผ่าน = (m) => { throw new ไม่ผ่านแล้�
 const รัน = (cmd, a, opt = {}) => spawnSync(cmd, a, { encoding: "utf8", shell: process.platform === "win32", maxBuffer: 1 << 30, ...opt });
 const psql = (container, sqlText, flags = ["-X", "-A", "-t"]) =>
   รัน("docker", ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", ...flags], { input: sqlText, shell: false });
-const ค่าแรก = (out) => { const j = JSON.parse(out); const v = Object.values(j.rows?.[0] ?? {})[0]; return typeof v === "string" ? JSON.parse(v) : v; };
+// ── ทุกคำสั่งภายนอกต้องถูกตรวจก่อนใช้ผล (เหตุจริง 20 ต.ค. 69 15:59: บอสรัน db:push แล้วล้มด้วย TypeError ของ Node
+//    เพราะผลนับแถวที่ได้กลับมาไม่ใช่รูปที่คาด แล้วถูกส่งต่อเป็น undefined) ──────────────────────────────────────
+//   ล้ม / หาโปรแกรมไม่เจอ / ได้ผลว่าง / ได้ผลผิดรูป → หยุดพร้อมบอก "ขั้นไหน · เพราะอะไร" เป็นภาษาไทย และเก็บผลดิบไว้ในโฟลเดอร์สำรอง
+let ขั้นปัจจุบัน = "เริ่มต้น";
+const ขั้น = (ชื่อ) => { ขั้นปัจจุบัน = ชื่อ; };
+const บันทึกผลดิบ = (ไฟล์, r) => {
+  try { if (existsSync(D)) writeFileSync(path.join(D, ไฟล์), `status=${r?.status} error=${r?.error?.message ?? "-"}
+--- stdout ---
+${r?.stdout ?? ""}
+--- stderr ---
+${r?.stderr ?? ""}`); } catch { /* เก็บไม่ได้ก็ไม่ทับข้อความหลัก */ }
+  return existsSync(D) ? ` · ผลดิบ ${path.join(D, ไฟล์)}` : "";
+};
+/** รันแล้วตรวจ: ล้ม/หาโปรแกรมไม่เจอ = หยุด · ต้องการผล (ต้องมีผล) แต่ได้ว่าง = หยุด */
+const รันตรวจ = (ชื่อขั้น, cmd, a, opt = {}, { ต้องมีผล = false, ไฟล์ผลดิบ = ".cmd.log" } = {}) => {
+  const r = รัน(cmd, a, opt);
+  const ปลอมว่าง = process.env.PMS_FAKE_EMPTY === ชื่อขั้น;   // ทดสอบเครื่องมือเท่านั้น (ใช้ได้กับ --target local) — จำลองคำสั่งคืนผลว่าง
+  if (ปลอมว่าง) r.stdout = "";
+  if (r.error) ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — เรียกโปรแกรม ${cmd} ไม่ได้ (${r.error.code ?? r.error.message})${บันทึกผลดิบ(ไฟล์ผลดิบ, r)}`);
+  if (r.status !== 0) ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — คำสั่งจบด้วยรหัส ${r.status}: ${String(r.stderr || r.stdout || "").trim().split(/\r?\n/).slice(-2).join(" | ").slice(0, 300)}${บันทึกผลดิบ(ไฟล์ผลดิบ, r)}`);
+  if (ต้องมีผล && !String(r.stdout ?? "").trim()) ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — คำสั่งสำเร็จแต่ไม่ได้ผลลัพธ์กลับมาเลย (ว่าง)${บันทึกผลดิบ(ไฟล์ผลดิบ, r)}`);
+  return r;
+};
+/** ผลของ supabase db query --output-format json → ค่าแรกของแถวแรก · ผิดรูป = หยุดพร้อมบอกว่าเจออะไร */
+const ค่าแรก = (ชื่อขั้น, r) => {
+  let j;
+  try { j = JSON.parse(r.stdout); }
+  catch { ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — ผลที่ได้ไม่ใช่ JSON (ขึ้นต้นด้วย: ${JSON.stringify(String(r.stdout).trim().slice(0, 60))})${บันทึกผลดิบ(".count.log", r)}`); }
+  const แถว = Array.isArray(j) ? j : j?.rows;
+  if (!Array.isArray(แถว) || !แถว.length) ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — ผลไม่มีแถวข้อมูล (ได้คีย์: ${j && typeof j === "object" ? Object.keys(j).join(", ") || "ไม่มี" : typeof j})${บันทึกผลดิบ(".count.log", r)}`);
+  const v = Object.values(แถว[0] ?? {})[0];
+  const ค่า = typeof v === "string" ? (() => { try { return JSON.parse(v); } catch { return undefined; } })() : v;
+  if (!ค่า || typeof ค่า !== "object") ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — แถวแรกไม่มีผลนับที่ใช้ได้${บันทึกผลดิบ(".count.log", r)}`);
+  return ค่า;
+};
 
 try {
 const ล็อก = ขอล็อก(target === "prod" ? "สำรองฐานจริง + ซ้อมกู้" : "สำรองฐานทดสอบ + ซ้อมกู้ (ทดสอบเครื่องมือ)");
@@ -74,28 +107,33 @@ const ชุด = [
   ["4a-migration-history-schema.sql", ["--schema", "supabase_migrations"]],
 ];
 for (const [f, extra] of ชุด) {
+  ขั้น(`ดึงไฟล์สำรอง ${f}`);
   const r = รัน("npx", ["supabase", "db", "dump", ...ต้นทางเลือก, ...extra, "-f", path.join(D, f)], { cwd: target === "prod" ? OPS : REPO });
+  if (process.env.PMS_FAKE_EMPTY === "dump" && f === "2-data.sql") writeFileSync(path.join(D, f), "");   // ทดสอบเครื่องมือ: จำลองไฟล์สำรองว่าง
+  if (r.error) ไม่ผ่าน(`ขั้น "ดึงไฟล์สำรอง ${f}" ล้ม — เรียกโปรแกรม npx ไม่ได้ (${r.error.code ?? r.error.message})`);
   const ขนาด = existsSync(path.join(D, f)) ? statSync(path.join(D, f)).size : 0;
   if (r.status !== 0 || ขนาด <= 100) {
     const ข้อความ = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
     const ชน = /deadlock detected/i.test(ข้อความ) ? " (ชนกับงานอื่นที่กำลังแก้ฐานพร้อมกัน — deadlock)" : "";
     writeFileSync(path.join(D, ".dump.log"), ข้อความ);
-    ไม่ผ่าน(`ดึงไฟล์สำรอง ${f} ไม่สำเร็จ${ชน} · รายละเอียด ${path.join(D, ".dump.log")}`);
+    ไม่ผ่าน(`ขั้น "ดึงไฟล์สำรอง ${f}" ล้ม — ${r.status !== 0 ? `คำสั่งจบด้วยรหัส ${r.status}` : `ได้ไฟล์ว่างหรือเล็กผิดปกติ (${ขนาด} ไบต์)`}${ชน} · รายละเอียด ${path.join(D, ".dump.log")}`);
   }
 }
 
 // ── 2. นับต้นทาง ──
-const นับต้นทาง = (sqlFile) => {
+const นับต้นทาง = (sqlFile, ชื่อขั้น) => {
+  ขั้น(ชื่อขั้น);
   if (target === "prod") {
-    const r = รัน("npx", ["supabase", "db", "query", "--linked", "-f", sqlFile, "--output-format", "json"], { cwd: OPS });
-    if (r.status !== 0) ไม่ผ่าน(`นับแถวฐานจริงไม่สำเร็จ: ${(r.stderr || r.stdout).slice(-300)}`);
-    return ค่าแรก(r.stdout);
+    const r = รันตรวจ(ชื่อขั้น, "npx", ["supabase", "db", "query", "--linked", "-f", sqlFile, "--output-format", "json"], { cwd: OPS }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
+    return ค่าแรก(ชื่อขั้น, r);
   }
-  const r = psql(LOCAL_CONTAINER, readFileSync(sqlFile, "utf8"));
-  if (r.status !== 0) ไม่ผ่าน(`นับแถวฐานทดสอบไม่สำเร็จ: ${r.stderr.slice(-300)}`);
-  return JSON.parse(r.stdout.trim());
+  const r = รันตรวจ(ชื่อขั้น, "docker", ["exec", "-i", LOCAL_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-X", "-A", "-t"],
+    { input: readFileSync(sqlFile, "utf8"), shell: false }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
+  try { const ค่า = JSON.parse(r.stdout.trim()); if (ค่า && typeof ค่า === "object") return ค่า; } catch { /* ด้านล่าง */ }
+  return ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — ผลนับไม่ใช่ JSON ที่ใช้ได้${บันทึกผลดิบ(".count.log", r)}`);
 };
-const นับก่อน = นับต้นทาง(SQL_COUNT), ตัวนับก่อน = นับต้นทาง(SQL_SEQ);
+const นับก่อน = นับต้นทาง(SQL_COUNT, "นับแถวทุกตารางของต้นทาง"), ตัวนับก่อน = นับต้นทาง(SQL_SEQ, "อ่านตัวนับเลขและที่เก็บไฟล์ของต้นทาง");
+ขั้น("ซ้อมกู้ลงฐานเปล่า");
 writeFileSync(path.join(D, "0-counts.json"), JSON.stringify(นับก่อน));
 writeFileSync(path.join(D, "0-seq.json"), JSON.stringify(ตัวนับก่อน));
 
@@ -104,7 +142,8 @@ const projectId = (readFileSync(path.join(RESTORE, "supabase/config.toml"), "utf
 if (!projectId) ไม่ผ่าน(`อ่าน project_id ของฐานซ้อมกู้ไม่ได้ (${RESTORE})`);
 const BLANK = `supabase_db_${projectId}`;
 if (BLANK === LOCAL_CONTAINER) ไม่ผ่าน("ฐานซ้อมกู้ต้องไม่ใช่ฐานทดสอบตัวเดียวกับต้นทาง");
-const เปิดอยู่ = รัน("docker", ["ps", "--format", "{{.Names}}"], { shell: false }).stdout.split(/\r?\n/).includes(BLANK);
+ขั้น("ตรวจว่าฐานซ้อมกู้เปิดอยู่ไหม");
+const เปิดอยู่ = รันตรวจ("ตรวจว่าฐานซ้อมกู้เปิดอยู่ไหม", "docker", ["ps", "--format", "{{.Names}}"], { shell: false }).stdout.split(/\r?\n/).includes(BLANK);
 if (!เปิดอยู่) {
   console.log(`   เปิดฐานซ้อมกู้ (${projectId}) …`);
   const r = รัน("npx", ["supabase", "start", "--workdir", RESTORE, "-x", "studio,imgproxy,edge-runtime,logflare,vector,inbucket,postgres-meta,pooler"], { cwd: REPO });
@@ -133,8 +172,17 @@ try {
   }
 
   // ── 5. เทียบ ──
-  const นับหลัง = JSON.parse(psql(BLANK, readFileSync(SQL_COUNT, "utf8")).stdout.trim());
-  const ตัวนับหลัง = JSON.parse(psql(BLANK, readFileSync(SQL_SEQ, "utf8")).stdout.trim());
+  // นับฐานที่กู้ — ตรวจผลก่อนใช้เหมือนฝั่งต้นทาง
+  const นับในฐานกู้ = (sqlFile, ชื่อขั้น) => {
+    ขั้น(ชื่อขั้น);
+    const r = รันตรวจ(ชื่อขั้น, "docker", ["exec", "-i", BLANK, "psql", "-U", "postgres", "-d", "postgres", "-X", "-A", "-t"],
+      { input: readFileSync(sqlFile, "utf8"), shell: false }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".restore-count.log" });
+    try { const ค่า = JSON.parse(r.stdout.trim()); if (ค่า && typeof ค่า === "object") return ค่า; } catch { /* ด้านล่าง */ }
+    return ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — ผลนับไม่ใช่ JSON ที่ใช้ได้${บันทึกผลดิบ(".restore-count.log", r)}`);
+  };
+  const นับหลัง = นับในฐานกู้(SQL_COUNT, "นับแถวทุกตารางของฐานที่กู้");
+  const ตัวนับหลัง = นับในฐานกู้(SQL_SEQ, "อ่านตัวนับเลขและที่เก็บไฟล์ของฐานที่กู้");
+  ขั้น("เทียบต้นทางกับฐานที่กู้");
   const ตาราง = [...new Set([...Object.keys(นับก่อน), ...Object.keys(นับหลัง)])];
   const แถวไม่ตรง = ตาราง.filter(k => Number(นับก่อน[k]) !== Number(นับหลัง[k]));
   const ตัวนับไม่ตรง = Object.keys(ตัวนับก่อน.seqs ?? {}).filter(k => String(ตัวนับก่อน.seqs[k]) !== String(ตัวนับหลัง.seqs?.[k]));
@@ -152,15 +200,24 @@ try {
   }
 } finally {
   // ฐานซ้อมกู้มีข้อมูลจริงของลูกค้า — ล้างทิ้งเสมอ ไม่ว่าผ่านหรือไม่
-  const r = รัน("node", ["scripts/reset-test-db.mjs", "--workdir", RESTORE], { cwd: REPO });
-  if (r.status !== 0) console.error("⚠️ คืนฐานซ้อมกู้เป็นข้อมูลตั้งต้นไม่สำเร็จ — ข้อมูลจริงอาจค้างในเครื่อง ตรวจด้วยมือ");
+  //   เดิมใช้ reset-test-db.mjs (ล้าง + เติมข้อมูลตั้งต้นของฐานทดสอบ) — โฟลเดอร์ซ้อมกู้ไม่มีใบปรับฐาน ขั้นเติมจึงล้มทุกครั้ง
+  //   แล้วขึ้นเตือน "ข้อมูลจริงอาจค้าง" ทั้งที่ขั้นล้างทำไปแล้ว (พบ 20 ต.ค. 69) → ล้างอย่างเดียว แล้วตรวจว่าว่างจริง
+  const ล้างทิ้ง = รัน("npx", ["supabase", "db", "reset", "--workdir", RESTORE], { cwd: REPO });
+  const ตรวจว่าง = รัน("docker", ["exec", "-i", BLANK, "psql", "-U", "postgres", "-d", "postgres", "-X", "-A", "-t", "-c",
+    "select (select count(*) from auth.users) + (select count(*) from information_schema.tables where table_schema = 'public')"], { shell: false });
+  const เหลือ = ตรวจว่าง.status === 0 ? Number(String(ตรวจว่าง.stdout).trim()) : NaN;
+  if (ล้างทิ้ง.status !== 0 || เหลือ !== 0) {
+    console.error(`⚠️ ล้างฐานซ้อมกู้ไม่สำเร็จ (ล้าง: รหัส ${ล้างทิ้ง.status} · ตรวจว่าง: ${Number.isNaN(เหลือ) ? "ตรวจไม่ได้" : `เหลือ ${เหลือ}`}) — ข้อมูลจริงอาจค้างในฐาน ${BLANK} ตรวจด้วยมือ`);
+  } else console.log("   ล้างฐานซ้อมกู้แล้ว (ตรวจแล้วว่าง)");
   ปิดฐานซ้อมกู้();
 }
 writeFileSync(path.join(D, "ผ่าน.txt"), new Date().toISOString());
 console.log(`✅ ผ่าน — สำรองและซ้อมกู้ครบ · ${D}`);
 } catch (e) {
-  if (!(e instanceof ไม่ผ่านแล้ว)) throw e;
-  console.error(`❌ ไม่ผ่าน — ${e.message}`);
+  // ข้อผิดพลาดที่ไม่ได้คาดไว้ก็ต้องจบด้วยข้อความภาษาไทยที่บอกขั้น — ห้ามขึ้น stack trace ของ Node ให้ผู้ใช้เห็น (บอสสั่ง 20 ต.ค. 69)
+  console.error(e instanceof ไม่ผ่านแล้ว
+    ? `❌ ไม่ผ่าน — ${e.message}`
+    : `❌ ไม่ผ่าน — เครื่องมือล้มที่ขั้น "${ขั้นปัจจุบัน}" (ข้อผิดพลาดภายใน: ${e?.message ?? e})`);
   console.error("   ห้ามเขียนฐานจริงต่อจนกว่าจะสำรองและซ้อมกู้ผ่าน");
   process.exitCode = 1;
 }
