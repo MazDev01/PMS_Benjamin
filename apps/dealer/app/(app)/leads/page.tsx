@@ -11,7 +11,7 @@ import {
   buildLeadReport, applyTaskTemplate, findAppointmentTask,
   seedLeadTasks, taskProgress, apptTypeLabel, fmtISOToThai,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, MANUAL_LEAD_STATUSES, LEAD_STATUS_META, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
-  OTHER_LOST_REASON, OTHER_REASON_OPTION, มูลค่าลีด,
+  OTHER_LOST_REASON, OTHER_REASON_OPTION, มูลค่าลีด, วันที่สร้างอ่านง่าย,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile, type LeadTaskDef,
 } from "@pms/shared/lib/mock";
 import type { QuotationMock } from "@pms/shared/lib/data/types";
@@ -89,7 +89,6 @@ const VALUE_BANDS = [
   { v:"5to10", l:"5 – 10 ล้าน",     min:"5",  max:"10" },
   { v:"gte10", l:"มากกว่า 10 ล้าน", min:"10", max:""   },
 ];
-const PROVINCES = ["กรุงเทพฯ","เชียงใหม่","ระยอง","เชียงราย","นนทบุรี","สมุทรสาคร","นครสวรรค์","ราชบุรี","ขอนแก่น","อื่นๆ"];
 // เหตุผลปิดการขายไม่สำเร็จมาจากรายการที่ HQ กำหนดเท่านั้น (useLostReasons) — ถ้าเหตุผลจริงไม่ตรงกับ
 // รายการนั้นเลย ต้องมีทางกรอกเอง (บอสสั่ง 31 ก.ค. 69) ใช้ sentinel นี้เฉพาะตอนเลือกใน <select> เพื่อ
 // สลับเป็นช่องพิมพ์เอง — ไม่เคยถูกบันทึกลง DB จริง (lostReason ที่บันทึกคือข้อความที่กรอก)
@@ -425,7 +424,7 @@ function OverviewEditor({ lead, persons, onSave }: {
             แยกกลุ่มไว้ท้ายสุด เพื่อให้เห็นได้ทันทีว่าอันไหนกรอกเองได้ อันไหนระบบใส่ให้ */}
         <div style={OV_GROUP}>ระบบบันทึกให้</div>
         <Cell icon={MessageSquare} label="ติดต่อล่าสุด"><span style={{ display:"block", fontSize:"0.82rem", fontWeight:700, color:"#2D2D2D", textAlign:"right" }}>{lastActivity(lead)}</span></Cell>
-        <Cell icon={CalendarClock} label="สร้างเมื่อ"><span style={{ display:"block", fontSize:"0.82rem", fontWeight:700, color:"#2D2D2D", textAlign:"right" }}>{lead.createdAt || "—"}</span></Cell>
+        <Cell icon={CalendarClock} label="สร้างเมื่อ"><span style={{ display:"block", fontSize:"0.82rem", fontWeight:700, color:"#2D2D2D", textAlign:"right" }}>{วันที่สร้างอ่านง่าย(lead.createdAt)}</span></Cell>
       </div>
 
       {/* หมายเหตุ — ตำแหน่งเดียวกับตอนอ่าน */}
@@ -1076,6 +1075,8 @@ export default function LeadsPage() {
   const [fValueMin, setFValueMin] = useState("");
   const [fValueMax, setFValueMax] = useState("");
   const [fProvince, setFProvince] = useState("");
+  // ตัวกรองจังหวัด = จังหวัดของลีดในสมุดงานของสาขานี้จริง (เดิมเป็นรายชื่อตายตัวของเดโม 10 จังหวัด · ตารางเทียบรอบ 1)
+  const จังหวัดของสาขา = useMemo(() => [...new Set(myAllLeads.map(l => (l.province ?? "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")), [myAllLeads]);
   const [fSource, setFSource] = useState("");
   // ฟีเจอร์ "ความสำคัญ" ถูกลบออกทั้งหมด (ตัวกรอง · ป้าย · การเรียง) — บอสสั่ง 18 ส.ค. 69
 
@@ -1597,7 +1598,7 @@ export default function LeadsPage() {
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={fAssignee} onChange={setFAssignee} all=""
             options={personsList.map(p=>({v:p,l:p}))} />
           <FilterSelect caption="ทุกจังหวัด" value={fProvince} onChange={setFProvince} all=""
-            options={PROVINCES.map(p=>({v:p,l:p}))} />
+            options={จังหวัดของสาขา.map(p=>({v:p,l:p}))} />
           <FilterSelect caption="ทุกช่องทางที่มา" value={fSource} onChange={setFSource} all=""
             options={SOURCES.map(s=>({v:s,l:s}))} />
           <FilterSelect caption="ทุกช่วงมูลค่า" value={valueBand} onChange={pickValueBand}

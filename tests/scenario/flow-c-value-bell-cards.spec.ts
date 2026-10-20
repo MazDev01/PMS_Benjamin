@@ -25,15 +25,22 @@ const แท็ก = `${Date.now() % 100000}`;
 const มีใบ = `ZZTEST-มูลค่ามีใบ-${แท็ก}`;
 const ไม่มีใบ = `ZZTEST-มูลค่าไม่มีใบ-${แท็ก}`;
 const ขอราคา = `ZZTEST-กระดิ่งHQ-${แท็ก}`;
-let ก: ใบHQพร้อมใช้;
+const มีแค่ใบHQ = `ZZTEST-มูลค่ามีแค่ใบHQ-${แท็ก}`;
+let ก: ใบHQพร้อมใช้, ข: ใบHQพร้อมใช้;
 let เลขไม่มีใบ = 0, เลขขอราคา = 0;
 const เลขคำขอของ = async (n: number) =>
   ((await admin.from("quote_requests").select("id, request_no").eq("dealer_code", "RYG").eq("lead_num_id", n).order("id", { ascending: false })).data ?? []) as { id: number; request_no: string }[];
 
 test.beforeAll(async () => {
-  // ลีดมีใบ: HQ ส่งต้นทุน 2,000,000 → ดีลเลอร์ทำใบลูกค้า +10% = 2,200,000 ก่อน VAT
+  // [บอสสั่ง 20 ต.ค. 69 กรณี 2] ลีดมีใบที่ส่งลูกค้าแล้ว (ทุน 2,000,000 +10% = 2,200,000) แล้วตามด้วยใบร่างยอดต่างกัน (+50% = 3,000,000)
+  //   มูลค่าต้องเป็นของใบที่ส่งแล้ว — ใบร่างไม่นับ
   ก = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: มีใบ, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 2_000_000 }] });
-  await ทำใบลูกค้าจากใบHQ(RYG, ก, { customer: มีใบ, markupPercent: 10 });
+  const ส่งแล้ว = await ทำใบลูกค้าจากใบHQ(RYG, ก, { customer: มีใบ, markupPercent: 10 });
+  const ส่ง = await (await db(RYG)).from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", ส่งแล้ว.id);
+  if (ส่ง.error) throw new Error(ส่ง.error.message);
+  await ทำใบลูกค้าจากใบHQ(RYG, ก, { customer: มีใบ, markupPercent: 50 });
+  // [กรณี 1] ลีดมีแค่ใบ HQ (ราคาทุนของดีลเลอร์ 5,000,000) ยังไม่มีใบลูกค้า → "—"
+  ข = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: มีแค่ใบHQ, province: "ระยอง", lines: [{ name: "หลังคาชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 5_000_000 }] });
   // ลีดไม่มีใบ แต่มีช่องประเมินราคาเดิม 9,999,999 ค้างในฐาน — ต้องไม่ถูกแสดง/นับ
   เลขไม่มีใบ = เลขลูกค้าเป้าหมายทดสอบ();
   const ins = await admin.from("leads").insert({ id: `#L-${เลขไม่มีใบ}`, num_id: เลขไม่มีใบ, dealer_code: "RYG", company: ไม่มีใบ, name: ไม่มีใบ,
@@ -42,7 +49,7 @@ test.beforeAll(async () => {
   await สร้างดีลเลอร์รหัสยาว(รหัสยาว);   // ดีลเลอร์ที่ยังไม่ตั้งเป้า แต่มียอดขาย (ข้อ 8)
 });
 test.afterAll(async () => {
-  ล้างใบHQทดสอบ("RYG", [ก?.leadNum, เลขไม่มีใบ, เลขขอราคา]);
+  ล้างใบHQทดสอบ("RYG", [ก?.leadNum, ข?.leadNum, เลขไม่มีใบ, เลขขอราคา]);
   await ล้างดีลเลอร์รหัสยาว(รหัสยาว);
 });
 
@@ -61,13 +68,19 @@ const นับยังไม่อ่าน = async (page: Page) => {
 
 test("[ค·5] ดีลเลอร์: ไม่มีช่องประเมินราคา · มูลค่า = ยอดใบล่าสุด (ไม่มีใบ = \"—\") ทั้งตาราง แผง และฐาน", async ({ page }) => {
   expect(Number((await admin.from("leads").select("quote_value").eq("dealer_code", "RYG").eq("num_id", ก.leadNum).single()).data?.quote_value),
-    "ฐาน: มูลค่าลีด = ยอดใบล่าสุดก่อน VAT").toBe(2_200_000);
+    "ฐาน [กรณี 2]: มูลค่า = ใบที่ส่งแล้ว ไม่ใช่ใบร่างที่ใหม่กว่า (3,000,000)").toBe(2_200_000);
+  expect((await admin.from("leads").select("quote_value").eq("dealer_code", "RYG").eq("num_id", ข.leadNum).single()).data?.quote_value ?? null,
+    "ฐาน [กรณี 1]: มีแค่ใบ HQ = ไม่มีมูลค่า").toBeNull();
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
   const ร1 = await แถว(page, /ค้นหาบริษัท/, มีใบ);
-  await expect(ร1, "ตาราง: มูลค่าจากใบล่าสุด").toContainText("฿2.2M", { timeout: 20_000 });
+  await expect(ร1, "ตาราง [กรณี 2]: มูลค่าจากใบที่ส่งแล้ว").toContainText("฿2.2M", { timeout: 20_000 });
+  await expect(ร1, "ตาราง [กรณี 2]: ไม่ใช่ยอดใบร่าง").not.toContainText("฿3.0M");
+  const รHQ = await แถว(page, /ค้นหาบริษัท/, มีแค่ใบHQ);
+  await expect(รHQ).toBeVisible({ timeout: 20_000 });
+  await expect(รHQ.locator("td.num").last(), "ตาราง [กรณี 1]: มีแค่ใบ HQ = —").toHaveText("—");
   const ร2 = await แถว(page, /ค้นหาบริษัท/, ไม่มีใบ);
   await expect(ร2).toBeVisible({ timeout: 20_000 });
   await expect(ร2, "ตาราง: ไม่มีใบ = ไม่แสดงประเมินราคาเดิม").not.toContainText(/9,999,999|10\.0M|฿10M/);
@@ -98,7 +111,11 @@ test("[ค·5] HQ: ตารางลีดทั้งเครือ + แผ�
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   const ร1 = await แถว(page, /ค้นหา/, มีใบ);
-  await expect(ร1, "ตาราง HQ: ยอดใบล่าสุด").toContainText("2,200,000", { timeout: 20_000 });
+  await expect(ร1, "ตาราง HQ [กรณี 2]: ยอดใบที่ส่งแล้ว").toContainText("2,200,000", { timeout: 20_000 });
+  await expect(ร1, "ตาราง HQ [กรณี 2]: ไม่ใช่ยอดใบร่าง").not.toContainText("3,000,000");
+  const รHQ = await แถว(page, /ค้นหา/, มีแค่ใบHQ);
+  await expect(รHQ).toBeVisible({ timeout: 20_000 });
+  await expect(รHQ, "ตาราง HQ [กรณี 1]: มีแค่ใบ HQ ไม่แสดงราคาทุน").not.toContainText("5,000,000");
   const ร2 = await แถว(page, /ค้นหา/, ไม่มีใบ);
   await expect(ร2).toBeVisible({ timeout: 20_000 });
   await expect(ร2, "ตาราง HQ: ไม่มีใบ ไม่แสดงประเมินราคาเดิม").not.toContainText("9,999,999");

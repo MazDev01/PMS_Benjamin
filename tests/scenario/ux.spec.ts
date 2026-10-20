@@ -82,9 +82,9 @@ test("[ux·dealer] คำนำหน้าเลขที่ใบเสนอ�
   await expect(prefix).toHaveText(/^Q-[A-Z]{3}-\d{4}-$/);
   await expect(page.locator('input[data-testid="quote-prefix"]'), "คำนำหน้าต้องแก้ไม่ได้").toHaveCount(0);
 
-  // เลขลำดับถัดไป = ดีลเลอร์ตั้งเองได้จริง (ต้องเป็นช่องกรอกที่ไม่ถูกปิด)
-  const running = page.locator('input[type="number"]').first();
-  await expect(running).toBeEditable();
+  // ช่อง "เลขลำดับถัดไป" เอาออกแล้ว (บอสตัดสิน 20 ต.ค. 69 — ไม่มีผล · ตัวนับเลขเอกสารห้ามแก้จากหน้าเว็บ)
+  await expect(page.getByLabel("เลขลำดับถัดไป"), "ไม่มีช่องแก้เลขลำดับ").toHaveCount(0);
+  await expect(page.getByText("เลขลำดับถัดไป"), "ไม่มีป้ายเลขลำดับถัดไป").toHaveCount(0);
 
   // VAT ยังกำหนดโดยสำนักงานใหญ่
   await expect(page.getByText("ภาษีมูลค่าเพิ่ม %")).toBeVisible();

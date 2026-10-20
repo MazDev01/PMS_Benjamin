@@ -519,7 +519,7 @@ export default function CustomersPage(){
   // ⚠️ ช่องในฟอร์มนี้ต้องครบเท่ากับ "ข้อมูลที่ลูกค้าหนึ่งรายมี" (บอสสั่ง 1 ก.ย. 69)
   //    ที่เหลือของ CustomerRow เป็นค่าที่ระบบคิดเอง: จำนวนงานขาย/มูลค่ารวมมาจากดีลจริง
   //    ตัวย่อ/สีการ์ดมาจากชื่อบริษัท — กรอกเองไม่ได้และไม่ควรให้กรอก
-  const legacyเปล่า = {company:"",name:"",phone:"",email:"",address:"",province:"กรุงเทพฯ",joinDate:"",owner:"สมชาย เชียงใหม่",status:"" as CustomerStatus | "",logo:""};
+  const legacyเปล่า = {company:"",name:"",phone:"",email:"",address:"",province:"กรุงเทพฯ",joinDate:"",owner:"",status:"" as CustomerStatus | "",logo:""};
   const [legacyForm, setLegacyForm]   = useState(legacyเปล่า);
   const legacyLogoRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -698,7 +698,7 @@ export default function CustomersPage(){
       address:r.address||undefined,
       province:r.province||"กรุงเทพฯ", category:"", status:"active", projects:0,
       // วันที่/ผู้รับผิดชอบจากไฟล์ก่อนเสมอ — ไม่มีค่อยใช้ค่าตั้งต้น (วันนี้ / ผู้รับผิดชอบที่เลือกในฟอร์ม)
-      joinDate:r.joinDate||APP_NOW_ISO, owner:r.owner||legacyForm.owner||"สมชาย เชียงใหม่",
+      joinDate:r.joinDate||APP_NOW_ISO, owner:r.owner||legacyForm.owner||"",   /* ไม่มีผู้รับผิดชอบ = เว้นว่าง ห้ามใส่ชื่อตัวอย่าง (บอสสั่ง 20 ต.ค. 69) */
       initials:initials(r.company), color:PALETTE[id%PALETTE.length], totalValue:0, imported:true };
   }
   /** รวมข้อมูลจากไฟล์เข้ากับลูกค้าที่มีอยู่แล้ว (ชื่อซ้ำ)
@@ -1140,7 +1140,7 @@ export default function CustomersPage(){
                       <span style={{display:"flex",alignItems:"center",gap:3}}><MapPin size={11}/> {selected.province}</span>
                       {selected.phone && <span style={{display:"flex",alignItems:"center",gap:3}}><Phone size={11}/> {selected.phone}</span>}
                       {selected.email && <span style={{display:"flex",alignItems:"center",gap:3}}><Mail size={11}/> {selected.email}</span>}
-                      <span style={{opacity:.8}}>#{selected.id}</span>
+                      <span style={{opacity:.8}}>{custCode}</span>{/* รหัสรูปแบบเดียวกับในแผง (เดิมหัวแผงแสดง #id ดิบ · ตารางเทียบรอบ 1) */}
                       <span style={{opacity:.8}}>เข้าร่วม {fmtDate(selected.joinDate)}</span>
                     </div>
                   </div>

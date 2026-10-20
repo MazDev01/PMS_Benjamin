@@ -1,6 +1,6 @@
 "use client";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
-import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
+import { มูลค่าลีด, วันที่สร้างอ่านง่าย } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ลูกค้าเป้าหมายทั้งเครือ (Network Leads) ──────────────────────────────
@@ -829,7 +829,7 @@ export default function HQLeadsPage() {
                   <PanelRow icon={Mail} label="อีเมล" value={l.email} />
                   <PanelRow icon={MapPin} label="จังหวัด" value={l.province} />
                   <PanelRow icon={Compass} label="แหล่งที่มา" value={l.source} />
-                  <PanelRow icon={CalendarDays} label="สร้างเมื่อ" value={l.createdAt} />
+                  <PanelRow icon={CalendarDays} label="สร้างเมื่อ" value={วันที่สร้างอ่านง่าย(l.createdAt)} />
                 </PanelSection>
 
                 <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">

@@ -68,8 +68,10 @@ test("[auth·hq] เก็บสำเนาได้เฉพาะรหัส
   expect(await เดา.text()).not.toContain(ADMIN.password);
 });
 
-test("[ux·hq] หน้าโปรไฟล์มีปุ่มดูรหัสผ่านของตัวเอง", async ({ page }) => {
+// บอสตัดสิน 20 ต.ค. 69: ปุ่ม "ดูรหัสผ่าน" ที่ส่งเลขทางอีเมลเอาออก (อีเมลล็อกอินปิด ใบ 0213) · ลืมรหัสผ่าน = ติดต่อสำนักงานใหญ่
+test("[ux·hq] หน้าโปรไฟล์ไม่มีปุ่มดูรหัสผ่าน (ส่งเลขทางอีเมล) และไม่ชี้ไปปุ่ม \"ลืมรหัสผ่าน?\"", async ({ page }) => {
   await open(page, "hq", "/profile");
-  // ปุ่มดูรหัสผ่านย้ายไปอยู่ใต้ช่องอีเมล (หน้าโปรไฟล์จัดใหม่ 2 ก.ย. 69) — ยึดที่ตัวปุ่ม ไม่ใช่หัวข้อ
-  await expect(page.getByRole("button", { name: "ดูรหัสผ่าน" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("ข้อมูลส่วนตัว").first(), "หน้าโปรไฟล์โหลดแล้ว").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "ดูรหัสผ่าน" }), "ไม่มีปุ่มดูรหัสผ่าน").toHaveCount(0);
+  await expect(page.getByText("ลืมรหัสผ่าน?"), "ไม่ชี้ไปปุ่มลืมรหัสผ่านที่ไม่มีแล้ว").toHaveCount(0);
 });

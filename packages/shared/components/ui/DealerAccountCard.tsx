@@ -13,7 +13,7 @@
 //    ระหว่างแก้ข้อมูลบริษัท และหน้าจอที่เปิดค้างไว้จะไม่มีช่องรหัสผ่านทิ้งไว้ให้ใครมากรอก
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Mail, Lock, ShieldCheck, Clock, ChevronRight, Eye } from "lucide-react";
+import { KeyRound, Mail, Lock, ShieldCheck, Clock, ChevronRight } from "lucide-react";
 import { account } from "@pms/shared/lib/data";
 import type { AccountState } from "@pms/shared/lib/data/ports";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -186,87 +186,8 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
   const [msgPw, setMsgPw] = useState<{ ok: boolean; text: string } | null>(null);
   const [msgEmail, setMsgEmail] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // ── ดูรหัสผ่านของตัวเอง: ต้องเอาเลขที่ส่งไปทางอีเมลมากรอกก่อน (บอสสั่ง 1 ก.ย. 69) ──
-  // ขั้นตอน: ปิดอยู่ → กดขอเลข (ส่งอีเมล) → กรอกเลข → เห็นรหัส (ปิดเองใน 60 วินาที)
-  const [ขั้นดูรหัส, setขั้นดูรหัส] = useState<"ปิด" | "กรอกเลข" | "เห็นแล้ว" | "ซ่อนอยู่">("ปิด");
-  const [เลขยืนยัน, setเลขยืนยัน] = useState("");
-  const [ส่งไปที่, setส่งไปที่] = useState("");
-  const [รหัสที่เห็น, setรหัสที่เห็น] = useState("");
-  const [msgReveal, setMsgReveal] = useState<{ ok: boolean; text: string } | null>(null);
-  const [กำลังดู, setกำลังดู] = useState(false);
-  const [หมดอายุเมื่อ, setหมดอายุเมื่อ] = useState(0);   // เวลาที่เลขยืนยันหมดอายุ (ms)
-  const [เหลือวินาที, setเหลือวินาที] = useState(0);
-
-  // ── กดรีเฟรชแล้วต้องกรอกเลขเดิมต่อได้ จนกว่าเลขจะหมดอายุ (บอสสั่ง 2 ก.ย. 69) ──────
-  // เดิมพอรีเฟรช ช่องกรอกหายไปหมด ต้องกดขอเลขใหม่ซึ่งติดด่านกันขอถี่ (3 ครั้ง/15 นาที)
-  // แล้วกลายเป็นเข้าไม่ได้เลยทั้งที่เลขในอีเมลยังใช้ได้อยู่ — จำสถานะไว้ในเครื่องผู้ใช้เอง
-  // (เก็บแค่ "ส่งไปที่อีเมลไหน" กับ "หมดอายุกี่โมง" — ไม่มีตัวเลขยืนยันหรือรหัสผ่านใด ๆ)
-  const คีย์จำ = `pms_reveal_${dealerCode}`;
-  const OTP_อายุ = 60 * 60 * 1000;   // เลขจากอีเมลมีอายุ 1 ชั่วโมง (ค่ามาตรฐานของ Supabase)
-  useEffect(() => {
-    try {
-      const เก็บไว้ = JSON.parse(localStorage.getItem(คีย์จำ) || "null") as { sentTo: string; exp: number } | null;
-      if (เก็บไว้ && เก็บไว้.exp > Date.now()) {
-        setส่งไปที่(เก็บไว้.sentTo); setหมดอายุเมื่อ(เก็บไว้.exp); setขั้นดูรหัส("กรอกเลข");
-      } else if (เก็บไว้) localStorage.removeItem(คีย์จำ);
-    } catch { /* อ่านไม่ได้ = เริ่มใหม่ตามปกติ */ }
-  }, [คีย์จำ]);
-
-  // นับถอยหลังให้เห็นว่าเลขในอีเมลยังใช้ได้อีกนานแค่ไหน · หมดแล้วปิดช่องกรอกเอง
-  useEffect(() => {
-    if (ขั้นดูรหัส !== "กรอกเลข" || !หมดอายุเมื่อ) { setเหลือวินาที(0); return; }
-    const นับ = () => {
-      const เหลือ = Math.max(0, Math.round((หมดอายุเมื่อ - Date.now()) / 1000));
-      setเหลือวินาที(เหลือ);
-      if (เหลือ === 0) {
-        ลืมเลขที่ขอไว้();
-        setขั้นดูรหัส("ปิด");
-        setMsgReveal({ ok: false, text: "เลขยืนยันหมดอายุแล้ว — กดขอเลขใหม่อีกครั้ง" });
-      }
-    };
-    นับ();
-    const t = setInterval(นับ, 1000);
-    return () => clearInterval(t);
-  }, [ขั้นดูรหัส, หมดอายุเมื่อ]);   // eslint-disable-line react-hooks/exhaustive-deps
-
-  function ลืมเลขที่ขอไว้() {
-    setหมดอายุเมื่อ(0);
-    try { localStorage.removeItem(คีย์จำ); } catch { /* ไม่มีที่เก็บ = ไม่ต้องล้าง */ }
-  }
-  const นาทีวินาที = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-
-  // รหัสที่โชว์บนจอต้องไม่ค้างไว้ตลอด — ปิดเองหลัง 60 วินาที (จอที่เปิดค้างไว้ในออฟฟิศ)
-  useEffect(() => {
-    if (ขั้นดูรหัส !== "เห็นแล้ว") return;
-    // หมดเวลาแล้วแค่ "ปิดตา" — ยังกดดูซ้ำได้โดยไม่ต้องขอเลขใหม่ (บอสสั่ง 2 ก.ย. 69)
-    const t = setTimeout(() => { setขั้นดูรหัส("ซ่อนอยู่"); setMsgReveal(null); }, 60_000);
-    return () => clearTimeout(t);
-  }, [ขั้นดูรหัส]);
-
-  async function ขอเลขทางอีเมล() {
-    setMsgReveal(null); setกำลังดู(true);
-    try {
-      const r = await account.sendRevealCode(dealerCode);
-      const exp = Date.now() + OTP_อายุ;
-      setส่งไปที่(r.sentTo); setขั้นดูรหัส("กรอกเลข"); setเลขยืนยัน(""); setหมดอายุเมื่อ(exp);
-      try { localStorage.setItem(คีย์จำ, JSON.stringify({ sentTo: r.sentTo, exp })); } catch { /* ไม่มีที่เก็บ = รีเฟรชแล้วต้องขอใหม่ */ }
-    } catch (e) { setMsgReveal({ ok: false, text: friendlyError(e) }); }
-    finally { setกำลังดู(false); }
-  }
-
-  async function ยืนยันเลขแล้วดูรหัส() {
-    setMsgReveal(null);
-    const เป็นลิงก์ = /^https?:\/\//i.test(เลขยืนยัน.trim()) || เลขยืนยัน.includes("token=");
-    if (!เป็นลิงก์ && เลขยืนยัน.replace(/\D/g, "").length < 6) {
-      setMsgReveal({ ok: false, text: "กรอกเลขยืนยันจากอีเมล หรือวางลิงก์ที่ได้จากอีเมล" }); return;
-    }
-    setกำลังดู(true);
-    try {
-      const r = await account.reveal(dealerCode, เลขยืนยัน);
-      setรหัสที่เห็น(r.password); setขั้นดูรหัส("เห็นแล้ว"); setเลขยืนยัน(""); ลืมเลขที่ขอไว้();
-    } catch (e) { setMsgReveal({ ok: false, text: friendlyError(e) }); }
-    finally { setกำลังดู(false); }
-  }
+  // ปุ่ม "ดูรหัสผ่าน" (ขอเลขยืนยันทางอีเมลล็อกอิน) เอาออกแล้ว — ระบบอีเมลล็อกอินปิด (ใบ 0213) · บอสตัดสิน 20 ต.ค. 69
+  //   ลืมรหัสผ่าน = ติดต่อสำนักงานใหญ่ · HQ ดูรหัสให้ได้ที่หน้ารายละเอียดดีลเลอร์ (DealerCredentialsCard)
 
   const เหลือ = state ? Math.max(0, state.selfChangesLimit - state.selfChangesUsed) : null;
   const ต้องขออนุมัติ = เหลือ === 0;
@@ -339,7 +260,7 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
 
   return (
     <>
-      {/* บัญชีที่ใช้อยู่ — อีเมล + ดูรหัสผ่านได้เมื่อยืนยันเลขทางอีเมล */}
+      {/* บัญชีที่ใช้อยู่ — อีเมล + รหัสผ่าน (ซ่อน) */}
       <div style={{ ...กล่อง, marginBottom: 14 }}>
         <div style={{ fontSize: "0.62rem", fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
           บัญชีที่ใช้อยู่ตอนนี้
@@ -350,67 +271,13 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, fontSize: "0.78rem", borderTop: "1px solid #F1F5F9", marginTop: 8, paddingTop: 10 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748B" }}><Lock size={14} color="#94A3B8" /> รหัสผ่าน</span>
-          {ขั้นดูรหัส === "เห็นแล้ว" ? (
-            <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <code style={{ fontWeight: 800, color: "#1F2937", fontSize: "0.82rem", letterSpacing: "0.02em" }}>{รหัสที่เห็น}</code>
-              <button onClick={() => { void navigator.clipboard?.writeText(รหัสที่เห็น).catch(() => {}); }}
-                className="btn btn-secondary btn-sm">คัดลอก</button>
-              {/* กดซ่อนแล้วยังกดดูซ้ำได้ ไม่ต้องขอเลขใหม่ (บอสสั่ง 2 ก.ย. 69) */}
-              <button onClick={() => { setขั้นดูรหัส("ซ่อนอยู่"); }} className="btn btn-secondary btn-sm">ซ่อน</button>
-            </span>
-          ) : ขั้นดูรหัส === "ซ่อนอยู่" ? (
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => { setขั้นดูรหัส("เห็นแล้ว"); }} className="btn btn-secondary btn-sm"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Eye size={13} /> ดูอีกครั้ง
-              </button>
-              <button onClick={() => { setขั้นดูรหัส("ปิด"); setรหัสที่เห็น(""); setMsgReveal(null); }} className="btn btn-secondary btn-sm">เสร็จสิ้น</button>
-            </span>
-          ) : ขั้นดูรหัส === "กรอกเลข" ? (
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* รับทั้งเลข 6 หลักและลิงก์ที่ก๊อปจากอีเมล — อีเมลมาตรฐานของผู้ให้บริการมีแต่ลิงก์
-                  จนกว่าจะแก้แม่แบบอีเมลให้ใส่เลขเข้าไป (ดู /api/account/reveal) */}
-              <input value={เลขยืนยัน} onChange={e => {
-                  const v = e.target.value;
-                  setเลขยืนยัน(/^https?:\/\//i.test(v.trim()) || v.includes("token=") ? v.trim() : v.replace(/\D/g, "").slice(0, 12));
-                }}
-                autoComplete="one-time-code" aria-label="เลขยืนยันจากอีเมล"
-                placeholder="เลขยืนยันจากอีเมล หรือวางลิงก์" className="form-input"
-                style={{ width: 210, textAlign: "center", letterSpacing: "0.04em" }} />
-              <button onClick={() => void ยืนยันเลขแล้วดูรหัส()} disabled={กำลังดู} className="btn btn-primary btn-sm">
-                {กำลังดู ? "กำลังตรวจ…" : "ยืนยัน"}
-              </button>
-              <button onClick={() => { setขั้นดูรหัส("ปิด"); setMsgReveal(null); ลืมเลขที่ขอไว้(); }} className="btn btn-secondary btn-sm">ยกเลิก</button>
-            </span>
-          ) : (
-            <button onClick={() => void ขอเลขทางอีเมล()} disabled={กำลังดู} className="btn btn-secondary btn-sm"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <Eye size={13} /> {กำลังดู ? "กำลังส่งเลข…" : "ดูรหัสผ่าน"}
-            </button>
-          )}
+          {/* ปุ่ม "ดูรหัสผ่าน" (ส่งเลขยืนยันทางอีเมลล็อกอิน) เอาออก — ระบบอีเมลล็อกอินปิดแล้ว (ใบ 0213) · บอสตัดสิน 20 ต.ค. 69
+              ลืมรหัสผ่าน = ติดต่อสำนักงานใหญ่ (HQ ดูรหัสให้ได้ที่หน้ารายละเอียดดีลเลอร์) */}
+          <span style={{ fontWeight: 700, color: "#94A3B8", letterSpacing: "0.12em" }}>••••••••</span>
         </div>
-        {/* บอกให้ชัดว่าเลขไปที่ไหน และทำไมต้องมีขั้นตอนนี้ */}
-        {ขั้นดูรหัส === "กรอกเลข" && !msgReveal && (
-          <div style={{ fontSize: "0.7rem", color: "#64748B", marginTop: 8 }}>
-            ส่งเลขยืนยันไปที่ {ส่งไปที่} แล้ว — เปิดอีเมลแล้วเอาเลขยืนยันมากรอก
-            {เหลือวินาที > 0 && <> · ใช้ได้อีก <b>{นาทีวินาที(เหลือวินาที)}</b> นาที (ปิดหน้านี้แล้วกลับมากรอกต่อได้)</>}
-          </div>
-        )}
-        {ขั้นดูรหัส === "เห็นแล้ว" && (
-          <div style={{ fontSize: "0.7rem", color: "#64748B", marginTop: 8 }}>
-            รหัสนี้จะถูกซ่อนอัตโนมัติใน 1 นาที (กดดูซ้ำได้ ไม่ต้องขอเลขใหม่) · สำนักงานใหญ่เห็นในบันทึกการใช้งานว่ามีการเปิดดู
-          </div>
-        )}
-        {ขั้นดูรหัส === "ซ่อนอยู่" && (
-          <div style={{ fontSize: "0.7rem", color: "#64748B", marginTop: 8 }}>
-            ซ่อนไว้แล้ว — กด “ดูอีกครั้ง” ได้เลยโดยไม่ต้องขอเลขใหม่ · กด “เสร็จสิ้น” เมื่อดูเสร็จแล้ว (หรือออกจากหน้านี้)
-          </div>
-        )}
-        {msgReveal && (
-          <div style={{ fontSize: "0.72rem", fontWeight: 600, marginTop: 8, color: msgReveal.ok ? "#047857" : "#b91c1c" }}>
-            {msgReveal.text}
-          </div>
-        )}
+        <div style={{ fontSize: "0.7rem", color: "#64748B", marginTop: 8 }}>
+          ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่
+        </div>
       </div>
 
       {/* สิทธิ์ที่เหลือ — ใช้ร่วมกันทั้งสองก้อน (โควตานับรวมกัน) */}

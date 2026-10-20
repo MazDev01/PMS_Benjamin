@@ -223,6 +223,10 @@ test("[flow·hq] HQ ย้อนการตอบรับ (won) พร้อ�
   await ถาม.getByLabel("เหตุผลที่ย้อน").fill("ดีลเลอร์กดตอบรับผิดใบ");
   await ถาม.getByRole("button", { name: "ย้อนการตอบรับ" }).click();
   await expect.poll(async () => (await ใบของ(ก.leadNum))?.status, { timeout: 20_000, message: "ย้อนแล้วใบต้องเป็นส่งให้ลูกค้าแล้ว" }).toBe("sent_to_client");
+  // ตารางต้องอัปเดตเองโดยไม่ต้องรีเฟรชหน้า (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง — เดิมยังขึ้น "ตอบรับ" จนกว่าจะรีเฟรช)
+  const แถวหลังย้อน = page.locator("tbody tr").filter({ hasText: q10!.id }).first();
+  await expect(แถวหลังย้อน, "ตารางอัปเดตสถานะเองหลังย้อน").toContainText("ส่งแล้ว", { timeout: 15_000 });
+  await expect(แถวหลังย้อน).not.toContainText("ตอบรับ");
   const { data: ลีด } = await admin.from("leads").select("activities").eq("dealer_code", "RYG").eq("num_id", ก.leadNum).single();
   expect(JSON.stringify(ลีด?.activities ?? []), "ไทม์ไลน์ต้องบอกว่าสำนักงานใหญ่ย้อน พร้อมเหตุผล").toMatch(/สำนักงานใหญ่.*ย้อนการตอบรับ.*ดีลเลอร์กดตอบรับผิดใบ/);
   assertNoErrors(errs, "HQ ย้อนการตอบรับ");

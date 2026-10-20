@@ -213,3 +213,44 @@ test.describe("ช่วง ค", () => {
     await ถ่าย(page, "HQ-ใบเสนอราคา-ไม่มีใบที่ส่ง", ไป("/hq/quotations", `ZZไม่มีจริง-${แท็ก}`));
   });
 });
+test.describe("ช่วง ง", () => {
+  const ลีดใบง = `ZZTEST-ภาพง-ใบ-${แท็ก}`;
+  let ใบง: ใบHQพร้อมใช้ | undefined; let เลขใบง = "";
+  test.beforeAll(async () => {
+    if (ช่วง !== "ง") return;
+    ใบง = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลีดใบง, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 100_000 }] });
+    เลขใบง = (await ทำใบลูกค้าจากใบHQ(RYG, ใบง, { customer: ลีดใบง, markupPercent: 10 })).id;
+  });
+  test.afterAll(async () => { if (ช่วง === "ง" && ใบง) ล้างใบHQทดสอบ("RYG", [ใบง.leadNum]); });
+
+  test("ช่วง ง · ดีลเลอร์", async ({ page }) => {
+    test.skip(ช่วง !== "ง", "ไม่ใช่ช่วง ง");
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    const ไป = (path: string) => async () => { await page.goto(`${DEALER_ORIGIN}${path}`, { waitUntil: "domcontentloaded" }); await settle(page); };
+    await ถ่าย(page, "ดีลเลอร์-แดชบอร์ด", ไป("/dashboard"));
+    await ถ่าย(page, "ดีลเลอร์-ลีด", ไป("/leads"));
+    await ถ่าย(page, "ดีลเลอร์-แก้ใบเสนอราคา", async () => {
+      await ไป("/quotations")(); await page.getByPlaceholder("ค้นหา").first().fill(เลขใบง); await settle(page);
+      await page.locator("tbody tr").filter({ hasText: เลขใบง }).first().getByTitle("แก้ไข").click(); await settle(page);
+    });
+    await ถ่าย(page, "ดีลเลอร์-แผงใบเสนอราคา", async () => {
+      await ไป("/quotations")(); await page.getByPlaceholder("ค้นหา").first().fill(เลขใบง); await settle(page);
+      await page.locator("tbody tr").filter({ hasText: เลขใบง }).first().locator("td").nth(1).click(); await settle(page);
+    });
+    await ถ่าย(page, "ดีลเลอร์-แผงลูกค้า", async () => { await ไป("/customers")(); await page.getByRole("row", { name: /^เปิดรายละเอียดลูกค้า/ }).first().click().catch(() => {}); await settle(page); });
+    await ถ่าย(page, "ดีลเลอร์-ปฏิทิน", ไป("/calendar"));
+    await ถ่าย(page, "ดีลเลอร์-ตั้งค่า", ไป("/settings"));
+    await ถ่าย(page, "ดีลเลอร์-บัญชีเข้าระบบ", ไป("/settings/account"));
+  });
+
+  test("ช่วง ง · HQ", async ({ page }) => {
+    test.skip(ช่วง !== "ง", "ไม่ใช่ช่วง ง");
+    await ถ่าย(page, "HQ-หน้าเข้าระบบ", async () => { await page.goto(`${HQ_ORIGIN}/hq/login`, { waitUntil: "domcontentloaded" }); await page.waitForTimeout(1500); });
+    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+    const ไป = (path: string) => async () => { await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" }); await settle(page); };
+    await ถ่าย(page, "HQ-โปรไฟล์", ไป("/profile"));
+    await ถ่าย(page, "HQ-บันทึกการใช้งาน", ไป("/hq/audit"));
+    await ถ่าย(page, "HQ-ผู้ใช้และสิทธิ์", ไป("/hq/users"));
+    await ถ่าย(page, "HQ-ตั้งค่า-หาดีลเลอร์", async () => { await ไป("/hq/settings")(); await page.getByRole("button", { name: /หาดีลเลอร์/ }).first().click().catch(() => {}); await settle(page); });
+  });
+});

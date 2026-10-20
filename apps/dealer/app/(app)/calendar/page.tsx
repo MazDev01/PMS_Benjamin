@@ -86,7 +86,8 @@ export default function CalendarPage() {
   const [groupFilter, setGroupFilter] = useState<GroupFilter>("all");
   const [view, setView] = useState<ViewMode>("month"); // หน้า "ปฏิทิน" เปิดที่มุมมองเดือนก่อน
   // นัดหมายทั้งหมดมาจาก SalesContext (ใช้ร่วมกับแดชบอร์ด/แจ้งเตือน)
-  const { appointments: allAppts, addAppointment: ctxAddAppt, updateAppointment: ctxUpdateAppt, deleteAppointment: ctxDeleteAppt } = useSales();
+  const { appointments: allAppts, addAppointment: ctxAddAppt, updateAppointment: ctxUpdateAppt, deleteAppointment: ctxDeleteAppt, leads: ลีดทั้งหมด } = useSales();
+  const currentDealerCal = useCurrentDealer();
   const [detail, setDetail] = useState<AppointmentMock | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<AppointmentMock | null>(null);
@@ -392,6 +393,14 @@ export default function CalendarPage() {
           a={detail}
           onClose={() => setDetail(null)}
           onEdit={() => { const a = detail; setDetail(null); setEditAppt(a); }}
+          // ทำเครื่องหมาย "เสร็จแล้ว" / "ยกเลิกนัด" ได้จากแผงนี้ (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง — เดิมไม่มีทางเปลี่ยนสถานะนัด)
+          onStatus={async (status) => {
+            if (status === "cancelled" && !(await ยืนยัน({ หัวข้อ: `ยกเลิกนัด "${detail.company}" ?`, ปุ่มตกลง: "ยกเลิกนัด", อันตราย: true }))) return;
+            editAppointment({ ...detail, status });
+          }}
+          // ลีด/ลูกค้าของนัดนี้ — เปิดรายการนั้นเลย ไม่ใช่แค่ไปหน้ารายการ (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง)
+          leadNum={detail.leadId}
+          customerId={ลีดทั้งหมด.find(l => l.numId === detail.leadId && (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealerCal.code)?.customerId}
           onDelete={async () => {
             if (!(await ยืนยัน({ หัวข้อ: `ลบกิจกรรม "${detail.company}" ?`, ปุ่มตกลง: "ลบกิจกรรม", อันตราย: true }))) return;
             deleteAppointment(detail.id);
@@ -410,7 +419,8 @@ export default function CalendarPage() {
 }
 
 // Appointment detail modal — read-only summary + related-record links
-function ApptDetailModal({ a, onClose, onEdit, onDelete, router }: { a: AppointmentMock; onClose: () => void; onEdit: () => void; onDelete: () => void; router: ReturnType<typeof useRouter> }) {
+function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, customerId, router }: { a: AppointmentMock; onClose: () => void; onEdit: () => void; onDelete: () => void;
+  onStatus: (s: AppointmentMock["status"]) => void; leadNum?: number; customerId?: number; router: ReturnType<typeof useRouter> }) {
   const m = bucketMeta(a);
   const statusLabel = a.status === "upcoming" ? "กำลังจะถึง" : a.status === "done" ? "เสร็จสิ้น" : "ยกเลิก";
   const rows: [ReactNode, string][] = [
@@ -449,7 +459,13 @@ function ApptDetailModal({ a, onClose, onEdit, onDelete, router }: { a: Appointm
             )}
           </div>
           <div style={{ padding: "13px 20px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", background: "#fafafa", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {a.status === "upcoming" && (
+                <>
+                  <button onClick={() => onStatus("done")} className="btn btn-primary btn-md"><CalendarCheck size={13} /> ทำเสร็จแล้ว</button>
+                  <button onClick={() => onStatus("cancelled")} className="btn btn-secondary btn-md" style={{ color: "#b45309" }}><X size={13} /> ยกเลิกนัด</button>
+                </>
+              )}
               <button onClick={onEdit} className="btn btn-secondary btn-md" style={{ color: PRIMARY }}>
                 <Edit2 size={13} /> แก้ไข
               </button>
@@ -458,12 +474,16 @@ function ApptDetailModal({ a, onClose, onEdit, onDelete, router }: { a: Appointm
               </button>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { onClose(); router.push("/customers"); }} className="btn btn-secondary btn-md" style={{ color: PRIMARY }}>
-                <Users size={13} /> ดูลูกค้า
-              </button>
-              <button onClick={() => { onClose(); router.push("/leads"); }} className="btn btn-primary btn-md">
-                <GitBranch size={13} /> ดูลูกค้าเป้าหมาย
-              </button>
+              {customerId ? (
+                <button onClick={() => { onClose(); router.push(`/customers?open=${customerId}`); }} className="btn btn-secondary btn-md" style={{ color: PRIMARY }}>
+                  <Users size={13} /> ดูลูกค้า
+                </button>
+              ) : null}
+              {leadNum ? (
+                <button onClick={() => { onClose(); router.push(`/leads?open=${leadNum}`); }} className="btn btn-secondary btn-md" style={{ color: PRIMARY }}>
+                  <GitBranch size={13} /> ดูลูกค้าเป้าหมาย
+                </button>
+              ) : null}
             </div>
           </div>
         </ModalCard>

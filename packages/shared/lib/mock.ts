@@ -436,7 +436,7 @@ export const HQ_AUDIT_MODULE_LABEL: Record<string, string> = {
   auth: "เข้า–ออกระบบ",
   dealer: "ดีลเลอร์",
   pricing: "ราคากลาง",
-  catalog: "แม่แบบและแคตตาล็อก",
+  catalog: "แม่แบบ (เลิกใช้แล้ว · ประวัติเก่า)",   // เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 — เหลือไว้ให้ประวัติเก่าอ่านออก
   users: "ผู้ใช้และสิทธิ์",
   target: "เป้าหมายและการตั้งค่า",
 };
@@ -851,7 +851,9 @@ export function applyTaskTemplate(
   tasks: LeadTask[] | undefined, tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE, status?: LeadStatus,
 ): LeadTask[] {
   if (!tasks?.length) return buildLeadTasks(tpl);
-  if (status === "PAID" || status === "CANCELLED") return tasks;
+  // ลีดที่ปิดแล้วคงรายการงานเดิม — ยกเว้นงาน "ส่งแม่แบบให้ลูกค้า" (key catalog) ที่เลิกใช้แล้ว ยังติดอยู่ในข้อมูลเก่าทุกลีด
+  //   (ตารางเทียบรอบ 1: ฐานจริงมีงานนี้ในลีดทุกราย · ลีดที่เปิดอยู่ไม่ขึ้นเพราะเดินตามแม่แบบงาน แต่ลีดที่ปิดแล้วเคยขึ้น)
+  if (status === "PAID" || status === "CANCELLED") return tasks.filter(t => t.key !== "catalog");
   const by = new Map(tasks.map(t => [t.key, t]));
   return tpl.map(def => {
     const cur = by.get(def.key);
@@ -1784,18 +1786,31 @@ export function roleLabelOf(role: string, isHQ: boolean): string {
   return ({ DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม" } as Record<string, string>)[role] ?? "สมาชิก";
 }
 
-// ── มูลค่าลีด = ยอดก่อน VAT ของใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · รอบ 2 ช่วง ค ข้อ 5 · ใบ 0223) ──────────
+// ── มูลค่าลีด = ยอดก่อน VAT ของใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) ──────────
+//   นับ ส่งแล้ว/ตอบรับ/ปฏิเสธ/หมดอายุ · ไม่นับใบร่าง · ไม่นับใบ HQ (= ราคาทุนของดีลเลอร์)
 //   ไม่มีใบ = null → หน้าจอขึ้น "—" และไม่นับในยอดรวม · ห้ามถอยไปใช้ช่องประเมินราคา (l.value)
+/** ชื่อกิจกรรมของใบเสนอราคาในการ์ด "กิจกรรมล่าสุด" — ใบร่างยังไม่ได้ส่งลูกค้า ห้ามเรียกว่า "ส่ง" (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง) */
+export function ชื่อกิจกรรมใบ(q: Pick<QuotationMock, "id" | "status">): string {
+  return q.status === "draft" ? `สร้างใบเสนอราคา (ร่าง) ${q.id}` : `ส่งใบเสนอราคา ${q.id}`;
+}
+/** วันที่สร้างลีดสำหรับแสดงผล — ป้ายวันที่ไทยแสดงตามเดิม · ลีดที่ไม่มีป้าย (ใช้เวลาที่ฐานบันทึก ISO) แปลงเป็นวันที่ไทย ไม่โชว์ ISO ดิบ
+ *  (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง) · ไม่มีค่า = "—" */
+export function วันที่สร้างอ่านง่าย(v?: string): string {
+  const s = (v ?? "").trim();
+  if (!s) return "—";
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? fmtISOToThai(s.slice(0, 10)) : s;
+}
 export function มูลค่าลีด(l: Pick<LeadRow, "quoteValue">): number | null {
   return typeof l.quoteValue === "number" && Number.isFinite(l.quoteValue) ? l.quoteValue : null;
 }
-/** ตรรกะเดียวกับ _lead_quote_value ของฐาน (ใบ 0223): ใบของลีดนี้ (สาขาเดียวกัน · dealId = numId) ที่ระบบบันทึกล่าสุด
+/** ตรรกะเดียวกับ _lead_quote_value ของฐาน (ใบ 0223): ใบที่ส่งลูกค้าแล้วของลีดนี้ (ไม่นับใบร่าง · สาขาเดียวกัน · dealId = numId) ที่ระบบบันทึกล่าสุด
  *  ใบที่ยังไม่มีเวลาบันทึก (เพิ่งสร้างในจอ/โหมดตัวอย่าง) ถือว่าใหม่สุด · ไม่มีใบ = undefined (ให้ผู้เรียกใช้ค่าที่ฐานส่งมา) */
 export function ยอดใบล่าสุดของลีด(l: Pick<LeadRow, "numId" | "dealerCode">, quotes: readonly QuotationMock[]): number | undefined {
   const dealer = l.dealerCode ?? DEFAULT_DEALER_CODE;
   let best: QuotationMock | undefined;
   for (const q of quotes) {
     if (!l.numId || q.dealId !== l.numId || (q.dealerCode ?? DEFAULT_DEALER_CODE) !== dealer) continue;
+    if (q.status === "draft") continue;   // นับเฉพาะใบที่ส่งลูกค้าแล้ว — ใบร่างไม่นับ (บอสสั่ง 20 ต.ค. 69)
     if (!best) { best = q; continue; }
     const a = q.savedAt ? Date.parse(q.savedAt) : Infinity, b = best.savedAt ? Date.parse(best.savedAt) : Infinity;
     if (a > b || (a === b && q.id > best.id)) best = q;

@@ -5,7 +5,7 @@
 // S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + ขั้นตอนการขาย
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
 import { useMemo, useState } from "react";
-import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
+import { มูลค่าลีด, ชื่อกิจกรรมใบ } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
 import {
   Target, TrendingUp, PhoneCall, Activity, Building2, User,
@@ -264,7 +264,8 @@ export default function DealerDashboard() {
     // นัดหมายต้องอยู่ในช่วงเวลาที่เลือกด้วย — ไม่งั้นการ์ด "ล่าสุด" โผล่นัดของเดือนหน้าทั้งที่เลือกดูถึงแค่ มิ.ย.
     apptsIn.forEach(a => ev.push({ kind: "appt", icon: CalendarClock, title: "นัดหมาย", customer: a.company, date: a.date, time: a.time, color: "#7C3AED", bg: "#F0EBFB", href: "/calendar" }));
     quotesIn.forEach(q => {
-      ev.push({ kind: "quote", icon: Mail, title: `ส่งใบเสนอราคา ${q.id}`, customer: q.customer, date: q.date, color: "#EA580C", bg: "#FEF0E6", href: "/quotations" });
+      // ใบร่างยังไม่ได้ส่งลูกค้า — เรียกว่า "สร้างใบเสนอราคา (ร่าง)" ไม่ใช่ "ส่ง" (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง)
+      ev.push({ kind: "quote", icon: Mail, title: ชื่อกิจกรรมใบ(q), customer: q.customer, date: q.date, color: "#EA580C", bg: "#FEF0E6", href: "/quotations" });
       if (q.status === "won") ev.push({ kind: "won", icon: CheckCircle2, title: "ปิดการขายสำเร็จ", customer: q.customer, date: q.date, color: SUCCESS, bg: "#E6F7EE", href: "/customers" });
     });
     // แสดง "ล่าสุดของแต่ละประเภท" → ไทม์ไลน์หลากหลาย (ไม่ซ้ำชนิดเดียว) แล้วเรียงตามวัน

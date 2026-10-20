@@ -71,14 +71,9 @@ export default function ProfilePage() {
   //   คนเข้าหน้าโปรไฟล์ส่วนใหญ่มาแก้ชื่อ/รูป ไม่ได้มาเปลี่ยนรหัส · กางค้างไว้ตลอดจึงเป็น
   //   ช่องรหัสผ่านเปล่า 3 ช่องที่กินพื้นที่ครึ่งการ์ดโดยไม่มีใครใช้
   const [เปิดฟอร์มรหัส, setเปิดฟอร์มรหัส] = useState(false);
-  // ── ดูรหัสผ่านของตัวเอง: ต้องเอาเลขที่ส่งไปทางอีเมลมากรอกก่อน (บอสสั่ง 2 ก.ย. 69) ──
-  // ขั้นตอน: ปิดอยู่ → กดขอเลข (ส่งอีเมล) → กรอกเลข → เห็นรหัส (กดซ่อนแล้วกดดูซ้ำได้)
-  const [ขั้นดูรหัส, setขั้นดูรหัส] = useState<"ปิด" | "กรอกเลข" | "เห็นแล้ว" | "ซ่อนอยู่">("ปิด");
-  const [เลขยืนยัน, setเลขยืนยัน] = useState("");
-  const [ส่งไปที่, setส่งไปที่] = useState("");
-  const [รหัสที่เห็น, setรหัสที่เห็น] = useState("");
-  const [msgReveal, setMsgReveal] = useState<{ ok: boolean; text: string } | null>(null);
-  const [กำลังดู, setกำลังดู] = useState(false);
+
+  // ปุ่ม "ดูรหัสผ่าน" (ขอเลขทางอีเมลล็อกอิน) เอาออกแล้ว — ระบบอีเมลล็อกอินปิด (ใบ 0213) · บอสตัดสิน 20 ต.ค. 69
+  //   การเก็บสำเนารหัสตอนเปลี่ยนรหัสยังอยู่ (เก็บสำเนารหัสผ่าน)
 
   /** ยิงคำสั่งไปที่เส้นทางของผู้ดูแล — โหมด cookie ไม่ต้องแนบใบผ่าน (เหมือน adminApi) */
   async function เรียกเส้นทางรหัสผ่าน(payload: Record<string, unknown>): Promise<{ ok: boolean; data: Record<string, unknown> }> {
@@ -99,36 +94,6 @@ export default function ProfilePage() {
       return ok;
     } catch { return false; }
   }
-
-  async function ขอเลขทางอีเมล() {
-    setMsgReveal(null); setกำลังดู(true);
-    try {
-      const { ok, data } = await เรียกเส้นทางรหัสผ่าน({ op: "send" });
-      if (!ok) { setMsgReveal({ ok: false, text: String(data.error ?? "ส่งเลขยืนยันไม่สำเร็จ") }); return; }
-      setส่งไปที่(String(data.sentTo ?? "")); setขั้นดูรหัส("กรอกเลข"); setเลขยืนยัน("");
-    } finally { setกำลังดู(false); }
-  }
-
-  async function ยืนยันเลขแล้วดูรหัส() {
-    setMsgReveal(null);
-    const เป็นลิงก์ = /^https?:\/\//i.test(เลขยืนยัน.trim()) || เลขยืนยัน.includes("token=");
-    if (!เป็นลิงก์ && เลขยืนยัน.replace(/\D/g, "").length < 6) {
-      setMsgReveal({ ok: false, text: "กรอกเลขยืนยันจากอีเมล หรือวางลิงก์ที่ได้จากอีเมล" }); return;
-    }
-    setกำลังดู(true);
-    try {
-      const { ok, data } = await เรียกเส้นทางรหัสผ่าน({ op: "verify", code: เลขยืนยัน });
-      if (!ok) { setMsgReveal({ ok: false, text: String(data.error ?? "ยืนยันไม่สำเร็จ") }); return; }
-      setรหัสที่เห็น(String(data.password ?? "")); setขั้นดูรหัส("เห็นแล้ว"); setเลขยืนยัน("");
-    } finally { setกำลังดู(false); }
-  }
-
-  // รหัสที่โชว์บนจอต้องไม่ค้างไว้ตลอด — ปิดตาเองหลัง 60 วินาที (ยังกดดูซ้ำได้ ไม่ต้องขอเลขใหม่)
-  useEffect(() => {
-    if (ขั้นดูรหัส !== "เห็นแล้ว") return;
-    const t = setTimeout(() => setขั้นดูรหัส("ซ่อนอยู่"), 60_000);
-    return () => clearTimeout(t);
-  }, [ขั้นดูรหัส]);
 
   const roleLabel = ROLE_LABEL[session.role] ?? "สมาชิก";
   const initial = (form.name || session.name).charAt(0).toUpperCase();
@@ -179,8 +144,7 @@ export default function ProfilePage() {
     //   เก็บไม่สำเร็จก็ไม่ถือว่าเปลี่ยนรหัสล้มเหลว (รหัสใหม่ใช้ได้แล้ว) แค่บอกว่าดูย้อนหลังไม่ได้
     const เก็บ = await เก็บสำเนารหัสผ่าน(pw.next);
     setPw({ cur: "", next: "", confirm: "" });
-    setMsgReveal(null);
-    setPwMsg({ ok: true, text: เก็บ ? "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว" : "เปลี่ยนรหัสผ่านแล้ว — แต่เก็บสำเนาไว้ดูย้อนหลังไม่สำเร็จ" });
+    setPwMsg({ ok: true, text: เก็บ ? "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว" : "เปลี่ยนรหัสผ่านแล้ว" });
     setTimeout(() => setPwMsg(null), 2600);
   }
 
@@ -189,47 +153,6 @@ export default function ProfilePage() {
   // ปุ่มลูกตาเปิดดูรหัสที่พิมพ์ (บอสสั่ง 2 ก.ย. 69) — แยกทีละช่อง ไม่ใช่เปิดพร้อมกันทั้งสามช่อง
   //   ช่อง "ยืนยันรหัสผ่านใหม่" มีไว้กันพิมพ์ผิด ถ้าเปิดดูพร้อมกันหมดก็ไม่เหลืออะไรให้ยืนยัน
   const roBox: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, border: `1px solid ${BORDER}`, background: "#f7f8fa", borderRadius: 9, padding: "9px 12px", fontSize: "0.86rem", color: STEEL };
-
-  /* ── แผง "ดูรหัสผ่านของฉัน" (บอสสั่ง 2 ก.ย. 69) ────────────────────────────────
-       ต้องขอเลขทางอีเมลมากรอกก่อนทุกครั้ง — จอที่เปิดค้างไว้จึงเปิดดูไม่ได้
-       รหัสที่เห็นคือ "สำเนาที่ระบบเก็บไว้ตอนเปลี่ยนรหัสครั้งล่าสุดผ่านหน้านี้"
-       บัญชีที่ยังไม่เคยเปลี่ยนผ่านหน้านี้จะยังไม่มีสำเนา (Supabase เก็บเป็น hash อ่านกลับไม่ได้)
-       แยกออกมาเป็นตัวแปรเพราะต้องไปวางรวมแถวเดียวกับปุ่มเปลี่ยนรหัส แต่ตัวมันมีหลายสถานะ */
-  const PANEL_ดูรหัส = ขั้นดูรหัส === "เห็นแล้ว" ? (
-    <>
-      <code style={{ fontWeight: 800, color: STEEL, fontSize: "0.85rem", background: "#f7f8fa",
-        border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 12px" }}>{รหัสที่เห็น}</code>
-      <button className="btn btn-secondary btn-sm" style={{ color: STEEL }}
-        onClick={() => { void navigator.clipboard?.writeText(รหัสที่เห็น).catch(() => {}); }}>คัดลอก</button>
-      {/* กดซ่อนแล้วยังกดดูซ้ำได้ ไม่ต้องขอเลขใหม่ (แพตเทิร์นเดียวกับหน้าบัญชีของดีลเลอร์) */}
-      <button className="btn btn-secondary btn-sm" style={{ color: STEEL }}
-        onClick={() => setขั้นดูรหัส("ซ่อนอยู่")}>ซ่อน</button>
-    </>
-  ) : ขั้นดูรหัส === "ซ่อนอยู่" ? (
-    <>
-      <button className="btn btn-secondary btn-sm" style={{ color: STEEL }}
-        onClick={() => setขั้นดูรหัส("เห็นแล้ว")}><Eye size={13} /> ดูอีกครั้ง</button>
-      <button className="btn btn-secondary btn-sm" style={{ color: STEEL }}
-        onClick={() => { setขั้นดูรหัส("ปิด"); setรหัสที่เห็น(""); setMsgReveal(null); }}>เสร็จสิ้น</button>
-    </>
-  ) : ขั้นดูรหัส === "กรอกเลข" ? (
-    <>
-      <input aria-label="เลขยืนยันจากอีเมล" autoComplete="one-time-code" value={เลขยืนยัน}
-        onChange={e => {
-          const v = e.target.value;
-          setเลขยืนยัน(/^https?:\/\//i.test(v.trim()) || v.includes("token=") ? v.trim() : v.replace(/\D/g, "").slice(0, 12));
-        }}
-        placeholder="เลขยืนยันจากอีเมล หรือวางลิงก์"
-        style={{ ...inp, paddingLeft: 12, width: 240, textAlign: "center" }} />
-      <button className="btn btn-primary btn-sm" disabled={กำลังดู}
-        onClick={() => void ยืนยันเลขแล้วดูรหัส()}>{กำลังดู ? "กำลังตรวจ…" : "ยืนยัน"}</button>
-      <button className="btn btn-secondary btn-sm" style={{ color: STEEL }}
-        onClick={() => { setขั้นดูรหัส("ปิด"); setMsgReveal(null); }}>ยกเลิก</button>
-    </>
-  ) : (
-    <button className="btn btn-secondary btn-md" style={{ color: STEEL }} disabled={กำลังดู}
-      onClick={() => void ขอเลขทางอีเมล()}><Eye size={14} /> {กำลังดู ? "กำลังส่งเลข…" : "ดูรหัสผ่าน"}</button>
-  );
 
   if (!isHQ) return null; // ฝั่งดีลเลอร์ redirect ไป /settings (บัญชีดีลเลอร์) แล้ว — ไม่เรนเดอร์โปรไฟล์เดิม
 
@@ -309,27 +232,7 @@ export default function ProfilePage() {
                 </div>
               </>
             )}
-            {/* ── ปุ่มดูรหัสผ่านอยู่ใต้ช่องอีเมล (บอสสั่ง 2 ก.ย. 69) ──────────────────────
-                เลขยืนยันถูกส่งไปที่อีเมลช่องนี้ — วางไว้ติดกันแล้วเห็นทันทีว่าจะไปโผล่ที่ไหน
-                ไม่ต้องเลื่อนลงไปหาว่า "แล้วเลขส่งไปที่อีเมลไหน" */}
-            {isHQ && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>{PANEL_ดูรหัส}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6, fontSize: "0.65rem", color: "#9ca3af" }}>
-                  <ShieldCheck size={11} /> สำเนารหัสผ่านถูกเข้ารหัสไว้ที่เซิร์ฟเวอร์ ไม่ได้เก็บเป็นข้อความธรรมดา
-                </div>
-                {ขั้นดูรหัส === "กรอกเลข" && !msgReveal && (
-                  <div style={{ fontSize: "0.68rem", color: MUTED, marginTop: 8 }}>
-                    ส่งเลขยืนยันไปที่ {ส่งไปที่} แล้ว — เปิดอีเมลแล้วเอาเลขมากรอก
-                  </div>
-                )}
-                {msgReveal && (
-                  <div style={{ fontSize: "0.7rem", fontWeight: 600, marginTop: 8, color: msgReveal.ok ? "#059669" : "#dc2626" }}>
-                    {msgReveal.text}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* ปุ่ม "ดูรหัสผ่าน" (ส่งเลขยืนยันทางอีเมลล็อกอิน) เอาออก — ระบบอีเมลล็อกอินปิดแล้ว (ใบ 0213) · บอสตัดสิน 20 ต.ค. 69 */}
           </div>
 
           {/* เบอร์โทร */}
@@ -428,7 +331,7 @@ export default function ProfilePage() {
                   {/* ข้อความเดิม "ดีลเลอร์เปลี่ยนรหัสผ่านเองไม่ได้" ขัดกับระบบปัจจุบัน (ดีลเลอร์แก้เองได้ 2 ครั้ง · บอสสั่ง 28 ส.ค. 69) */}
                   <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL, marginBottom: 3 }}>เปลี่ยนอีเมล/รหัสผ่านที่หน้าบัญชีเข้าสู่ระบบ</div>
                   <div style={{ fontSize: "0.72rem", color: MUTED, lineHeight: 1.6 }}>
-                    ไปที่ ตั้งค่า › บัญชีเข้าสู่ระบบ · แก้เองได้ 2 ครั้ง ครั้งต่อไปต้องให้สำนักงานใหญ่อนุมัติ · ลืมรหัสผ่านใช้ปุ่ม “ลืมรหัสผ่าน?” ที่หน้าเข้าสู่ระบบ
+                    ไปที่ ตั้งค่า › บัญชีเข้าสู่ระบบ · แก้เองได้ 2 ครั้ง ครั้งต่อไปต้องให้สำนักงานใหญ่อนุมัติ · ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่
                   </div>
                 </div>
               </div>

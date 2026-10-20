@@ -3,20 +3,22 @@
 -- เดิม: มูลค่าลีดทุกที่ (การ์ดโอกาสการขาย ตาราง/กระดานลีด แดชบอร์ด HQ ไฟล์ส่งออก) มาจากช่อง "ประเมินราคา" (leads.value)
 --   ที่ดีลเลอร์พิมพ์เอง — เป็นตัวเลขเดา ไม่ใช่ราคา (ราคาจริงมาจากใบ HQ + % ของดีลเลอร์)
 -- ใหม่: ช่องประเมินราคาเอาออกจากหน้าเว็บ · คอลัมน์ leads.value คงไว้ห้ามลบ (ข้อมูลเก่า)
---   leads.quote_value = total_value ของใบเสนอราคาล่าสุดของลีดนั้น (ใบที่ deal_id = num_id ของสาขาเดียวกัน
---   เรียงตามเวลาที่ระบบบันทึก ใหม่สุดก่อน) · ยังไม่มีใบ = null (หน้าเว็บขึ้น "—" และไม่นับในยอดรวม)
+--   leads.quote_value = total_value ของใบเสนอราคาล่าสุดที่ดีลเลอร์ "ส่งให้ลูกค้าแล้ว" (ส่งแล้ว/ตอบรับ/ปฏิเสธ/หมดอายุ · ไม่นับใบร่าง)
+--   ของลีดนั้น (ใบที่ deal_id = num_id ของสาขาเดียวกัน เรียงตามเวลาที่ระบบบันทึก ใหม่สุดก่อน)
+--   ใบ HQ (hq_quotes = ราคาทุนของดีลเลอร์) ไม่นับเลย · ยังไม่มีใบที่ส่งแล้ว = null (หน้าเว็บขึ้น "—" และไม่นับในยอดรวม) — บอสสั่ง 20 ต.ค. 69
 --   ฐานเป็นคนเขียนค่าเองทุกครั้งที่ใบเกิด/เปลี่ยนยอด/ย้ายลีด/ถูกลบ — หน้าเว็บอ่านอย่างเดียว (เขียนเองถูกปฏิเสธ)
 --   สรุปยอดของ HQ (lead_summary) เปลี่ยนไปรวมจาก quote_value
 -- ข้อทดสอบ: supabase/tests/lead_quote_value.sql
 alter table public.leads add column if not exists quote_value numeric;
 comment on column public.leads.quote_value is
-  'ยอดก่อน VAT ของใบเสนอราคาล่าสุดของลีด (ฐานเขียนเอง · ใบ 0223) · null = ยังไม่มีใบ · แทนช่องประเมินราคา (leads.value) ที่เลิกใช้บนหน้าเว็บ';
+  'ยอดก่อน VAT ของใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้วของลีด (ไม่นับใบร่าง · ไม่นับใบ HQ · ฐานเขียนเอง · ใบ 0223) · null = ยังไม่มีใบที่ส่งแล้ว · แทนช่องประเมินราคา (leads.value) ที่เลิกใช้บนหน้าเว็บ';
 
 -- ค่าของลีดหนึ่งราย คำนวณจากใบจริงทุกครั้ง (ไม่สะสมจากค่าเดิม — ใบถูกลบ/ย้ายก็ได้ค่าถูกเสมอ)
 create or replace function public._lead_quote_value(p_dealer text, p_num integer) returns numeric
   language sql stable security definer set search_path to 'public' as $$
   select q.total_value from quotations q
    where q.dealer_code = p_dealer and q.deal_id = p_num and coalesce(q.deal_id, 0) <> 0
+     and q.status <> 'draft'   -- เฉพาะใบที่ส่งลูกค้าแล้ว (ส่งแล้ว/ตอบรับ/ปฏิเสธ/หมดอายุ) · ใบร่างไม่นับ (บอสสั่ง 20 ต.ค. 69)
    order by q.created_at desc nulls last, q.id desc
    limit 1
 $$;
@@ -45,7 +47,7 @@ revoke all on function public.quotations_lead_quote_value() from public, anon, a
 
 drop trigger if exists quotations_lead_quote_value on public.quotations;
 create trigger quotations_lead_quote_value
-  after insert or delete or update of total_value, deal_id, dealer_code on public.quotations
+  after insert or delete or update of total_value, deal_id, dealer_code, status on public.quotations
   for each row execute function public.quotations_lead_quote_value();
 
 -- หน้าเว็บ/คนนอกเขียน quote_value เองไม่ได้ (ทั้งตอนสร้างและแก้) — ค่ามาจากใบเท่านั้น

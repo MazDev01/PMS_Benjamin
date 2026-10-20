@@ -114,6 +114,8 @@ export type SalesContextType = {
   //   hook ที่รวมยอดที่ DB (RPC) ผูก refetch กับตัวนี้แทนการจับ array ตรง ๆ
   //   → ก้าวต่อไปตัดการโหลด array เต็มของ HQ ได้ โดย reactivity ไม่พัง (เปลี่ยนต้นทาง bump เป็น realtime)
   salesVersion: number;
+  /** บอกทุกตาราง/สรุปที่อ่านผ่านฐาน (RPC) ให้ดึงใหม่ — ใช้หลังคำสั่งที่ไม่ผ่าน SalesContext เช่น HQ ย้อนการตอบรับ (ตารางเทียบรอบ 1) */
+  refreshSales: () => void;
 };
 
 const SalesContext = createContext<SalesContextType | null>(null);
@@ -394,6 +396,7 @@ export function SalesProvider({
   }, [ready, dealerCode, isHQ, gateHQ, loadFresh]);
   // bump สัญญาณเมื่อข้อมูลขายชุดใดเปลี่ยน (โหลด/เขียน/realtime) — hook RPC ผูก refetch กับ salesVersion
   useEffect(() => { setSalesVersion(v => v + 1); }, [leads, quotations, customers, appointments]);
+  const refreshSales = useCallback(() => setSalesVersion(v => v + 1), []);
   const persistAppt = useRef({
     create: (a: AppointmentMock) => { bumpWrite(); void appointmentsRepo.create(a).catch(onFail("appointments", "สร้างนัดหมาย")); },
     update: (a: AppointmentMock) => { bumpWrite(); void appointmentsRepo.update(a).catch(onFail("appointments", "แก้ไขนัดหมาย")); },
@@ -963,7 +966,7 @@ export function SalesProvider({
     appointments, addAppointment, updateAppointment, deleteAppointment,
     convertLeadToCustomer,
     syncError, clearSyncError,
-    salesVersion,
+    salesVersion, refreshSales,
   }), [
     leadsมีมูลค่า, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
@@ -972,7 +975,7 @@ export function SalesProvider({
     appointments, addAppointment, updateAppointment, deleteAppointment,
     convertLeadToCustomer,
     syncError, clearSyncError,
-    salesVersion,
+    salesVersion, refreshSales,
   ]);
 
   return (

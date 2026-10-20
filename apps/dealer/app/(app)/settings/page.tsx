@@ -355,7 +355,7 @@ function DocumentsTab() {
           <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#003366", letterSpacing: "0.05em", marginBottom: 10, textTransform: "uppercase" }}>
             เลขที่ใบเสนอราคา
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(150px, 180px) minmax(110px, 150px) minmax(84px, 104px) minmax(84px, 104px) minmax(0, 1fr)", gap: 12, alignItems: "end" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(150px, 180px) minmax(84px, 104px) minmax(84px, 104px) minmax(0, 1fr)", gap: 12, alignItems: "end" }}>
             <div>
               <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 คำนำหน้าเลขที่ <Lock size={11} style={{ color: "#9ca3af" }} />
@@ -366,11 +366,8 @@ function DocumentsTab() {
                 {lockedPrefix}
               </div>
             </div>
-            <div>
-              <label className="form-label">เลขลำดับถัดไป</label>
-              <NumberInput min={1} value={doc.runningNumber} onChange={n => set("runningNumber", n)}
-                ariaLabel="เลขลำดับถัดไป" style={{ fontFamily: "monospace" }} />
-            </div>
+            {/* ช่อง "เลขลำดับถัดไป" เอาออก (บอสตัดสิน 20 ต.ค. 69): ไม่มีผล — ฐานออกเลขเอง (next_entity_id)
+                และตัวนับเลขเอกสารไม่ควรให้ใครแก้จากหน้าเว็บ */}
             <div>
               {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69)
                   ใบที่ออกไปแล้วไม่กระทบ — ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง */}

@@ -12,6 +12,7 @@ import { quotationStatusLabel, fmtISOToThai, DEFAULT_DEALER_CODE, QUOTED_UP, typ
 import type { QuotationMock } from "@pms/shared/lib/data/types";
 import { useQuoteValidityDays } from "@pms/shared/lib/useHQConfig";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
+import { useSales } from "@pms/shared/context/SalesContext";
 import { dealers as dealersRepo, quotations as quotationsRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
 import type { QuoteSummaryFilters, QuoteListOpts } from "@pms/shared/lib/data/ports";
@@ -38,6 +39,7 @@ import { QuotationDrawer } from "@pms/shared/components/hq/quotations/QuotationD
 export default function NetworkQuotationPage() {
   const { inRange, timeRange } = useFilters();
   const netQuotes = useNetworkQuotations();
+  const { refreshSales } = useSales();
   const netLeads = useNetworkLeads();
   const [filters, setFilters] = useState<QuotationFilters>(EMPTY_FILTERS);
   const [viewQ, setViewQ] = useState<QuoteRow | null>(null);
@@ -289,7 +291,8 @@ export default function NetworkQuotationPage() {
           supabase = แบ่งหน้าที่ DB (listPage) · local = ทั้งชุด (tableRows) */}
       <QuotationTable rows={displayRows} onView={setViewQ} pagination={pagination} />
 
-      {viewQ && <QuotationDrawer quote={drawerSp ? { ...viewQ, salesperson: drawerSp } : viewQ} onClose={() => setViewQ(null)} />}
+      {/* ย้อนการตอบรับแล้ว ตาราง/การ์ด/กราฟ ต้องดึงใหม่เอง (ตารางเทียบรอบ 1: เดิมต้องรีเฟรชหน้าเอง) */}
+      {viewQ && <QuotationDrawer quote={drawerSp ? { ...viewQ, salesperson: drawerSp } : viewQ} onClose={() => setViewQ(null)} onChanged={refreshSales} />}
     </div>
   );
 }

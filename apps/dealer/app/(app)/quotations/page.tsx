@@ -8,7 +8,7 @@ import { ยืนยัน, แจ้งพลาด, แจ้งสำเร�
 import {
   quotationStatusLabel, quotationStatusColor,
   DEFAULT_ISSUER, DEFAULT_DEALER_CODE,
-  negotiationSummary, OTHER_REASON_OPTION,
+  OTHER_REASON_OPTION,
   type QuotationStatus, type QuotationMock, type CustomerRow, type IssuerProfile, type QuoteLineItem,
 } from "@pms/shared/lib/mock";
 import { HqMarkupEditor } from "@pms/shared/components/ui/HqMarkupEditor";
@@ -309,27 +309,22 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
             })()}
 
             <div className="form-section">สถานะและกำหนดเวลา</div>
+              {/* หน้าแก้ใบแก้ได้เฉพาะ % (FLOW · ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง) — สถานะ/วันที่/วันหมดอายุ แสดงอย่างเดียว
+                  เดิมเลือกสถานะเองได้ → ข้ามหน้าเลือกเหตุผลปฏิเสธ · เปลี่ยนสถานะต้องผ่านปุ่มส่ง/ลูกค้าตอบรับ/ลูกค้าปฏิเสธเท่านั้น */}
               <div className="col-full">
                 <label style={LBL}>สถานะ</label>
-                {/* "ปิดการขายสำเร็จ" ตั้งจากที่นี่ตรงๆ ไม่ได้ — ต้องผ่านปุ่ม "ลูกค้าตอบรับ ✓" เท่านั้น
-                    เพราะขั้นตอนนั้นสร้าง/ผูกลูกค้าให้ก่อนเสมอ · ฟอร์มนี้เขียนแค่ฟิลด์ตรงๆ ไม่ผ่านขั้นตอนนั้น
-                    (พบจากผลตรวจสอบตรรกะระบบ 31 ก.ค. 69 — เดิมตั้ง won ที่นี่ได้ โหมดออฟไลน์จะได้ใบ
-                    "ปิดการขายสำเร็จ" ที่ไม่มีลูกค้าผูกอยู่จริงแบบเงียบๆ) */}
-                {/* ต้องมีค่าเสมอ — ทุกใบต้องมีสถานะ (ร่าง/ส่งแล้ว/…) ว่างไม่ได้ */}
-                <select aria-label="สถานะใบเสนอราคา" value={form.status} onChange={e=>set("status",e.target.value as QuotationStatus)} style={INP}>
-                  {STATUS_ORDER.filter(s=>s!=="won"||form.status==="won").map(s=><option key={s} value={s}>{quotationStatusLabel[s]}</option>)}
-                </select>
-                {form.status!=="won" && <div style={{fontSize:"0.62rem",color:MUTED,marginTop:5,display:"flex",alignItems:"center",gap:4}}>
-                  <Lock size={9}/> ปิดการขายสำเร็จ ให้กดปุ่ม &quot;ลูกค้าตอบรับ ✓&quot; ที่รายการใบเสนอราคาแทน
-                </div>}
+                <input aria-label="สถานะใบเสนอราคา" value={quotationStatusLabel[form.status]} readOnly disabled style={{...INP,background:"#f6f8fa",color:MUTED}}/>
+                <div style={{fontSize:"0.62rem",color:MUTED,marginTop:5,display:"flex",alignItems:"center",gap:4}}>
+                  <Lock size={9}/> เปลี่ยนสถานะด้วยปุ่ม &quot;ส่งให้ลูกค้า&quot; · &quot;ลูกค้าตอบรับ&quot; · &quot;ลูกค้าปฏิเสธ&quot; ที่รายการใบเสนอราคา
+                </div>
               </div>
               <div>
                 <label style={LBL}>วันที่</label>
-                <input type="date" value={form.date} onChange={e=>set("date",e.target.value)} style={INP}/>
+                <input aria-label="วันที่ใบเสนอราคา" value={form.date ? fmtDate(form.date) : "—"} readOnly disabled style={{...INP,background:"#f6f8fa",color:MUTED}}/>
               </div>
               <div>
                 <label style={LBL}>วันหมดอายุ</label>
-                <input type="date" value={form.expiry} onChange={e=>set("expiry",e.target.value)} style={INP}/>
+                <input aria-label="วันหมดอายุใบเสนอราคา" value={form.expiry ? fmtDate(form.expiry) : "—"} readOnly disabled style={{...INP,background:"#f6f8fa",color:MUTED}}/>
               </div>
           </div>
           <div style={{padding:"13px 22px",borderTop:`1px solid ${BORDER}`,display:"flex",gap:8,justifyContent:"flex-end",background:"#fafafa"}}>
@@ -1095,55 +1090,8 @@ function QuotationsPageInner(){
               {/* สรุป/สถานะ/ลูกค้า/ลูกค้าเป้าหมาย — ต่อในคอลัมน์เดียวกัน */}
               <div style={{width:"100%",padding:"0 16px 16px",display:"flex",flexDirection:"column",gap:14}}>
 
-                {/* ประวัติการต่อรองราคา — ฐานข้อมูลบันทึกให้เองทุกครั้งที่ยอดเปลี่ยน (0148)
-                    ไม่เคยต่อรอง = ไม่มีการ์ดนี้ ไม่ขึ้นการ์ดว่างให้รก */}
-                {(() => {
-                  const nego = negotiationSummary(selected);
-                  if (!nego) return null;
-                  const ลด = nego.diff < 0;
-                  return (
-                    <div style={cardStyle}>
-                      <div style={secLabel}><History size={13} color={PRIMARY}/> ประวัติการต่อรองราคา</div>
-                      {/* สรุปหัวการ์ด: ตั้งต้น → ปัจจุบัน · ต่างกันเท่าไร กี่เปอร์เซ็นต์ */}
-                      <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap",marginBottom:12}}>
-                        <span style={{fontSize:"0.78rem",color:MUTED,textDecoration:"line-through"}}>{fmtBaht(nego.first)}</span>
-                        <ArrowRight size={12} color="#8a929c"/>
-                        <span style={{fontSize:"0.9rem",fontWeight:800,color:STEEL}}>{fmtBaht(nego.last)}</span>
-                        <span style={{fontSize:"0.7rem",fontWeight:700,padding:"2px 8px",borderRadius:99,
-                          background: ลด ? "#fef0e6" : "#e5faf0", color: ลด ? "#b45309" : "#059669"}}>
-                          {ลด ? "ลด" : "เพิ่ม"} {fmtBaht(Math.abs(nego.diff))} ({Math.abs(nego.pct).toFixed(1)}%)
-                        </span>
-                        <span style={{fontSize:"0.68rem",color:"#8a929c",marginLeft:"auto"}}>{nego.rounds} รอบ</span>
-                      </div>
-                      {/* ทีละรอบ ใหม่สุดอยู่บน */}
-                      <div style={{display:"flex",flexDirection:"column",gap:0}}>
-                        {[...(selected.priceHistory ?? [])].reverse().map((h, i, arr) => {
-                          const รอบ = arr.length - i;
-                          const ต่าง = h.to - h.from;
-                          return (
-                            <div key={`${h.at}-${รอบ}`} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",
-                              borderTop: i === 0 ? "1px solid #eef1f5" : "1px solid #f6f8fa"}}>
-                              <span style={{flexShrink:0,width:22,height:22,borderRadius:99,background:"#f4f7fb",color:PRIMARY,
-                                fontSize:"0.62rem",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{รอบ}</span>
-                              <div style={{minWidth:0,flex:1}}>
-                                <div style={{fontSize:"0.74rem",color:STEEL,fontVariantNumeric:"tabular-nums"}}>
-                                  {fmtBaht(h.from)} <span style={{color:"#8a929c"}}>→</span> <span style={{fontWeight:700}}>{fmtBaht(h.to)}</span>
-                                </div>
-                                {h.note && <div style={{fontSize:"0.68rem",color:MUTED,marginTop:2}}>{h.note}</div>}
-                              </div>
-                              <div style={{textAlign:"right",flexShrink:0}}>
-                                <div style={{fontSize:"0.7rem",fontWeight:700,color: ต่าง < 0 ? "#b45309" : "#059669",fontVariantNumeric:"tabular-nums"}}>
-                                  {ต่าง < 0 ? "−" : "+"}{fmtBaht(Math.abs(ต่าง))}
-                                </div>
-                                <div style={{fontSize:"0.63rem",color:"#9ca3af"}}>{fmtStamp(h.at)}</div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
+                {/* การ์ด "ประวัติการต่อรองราคา" (ลด/เพิ่ม) เอาออก — ไม่มีส่วนลดแล้ว ราคามาจากใบ HQ + % (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง)
+                    ประวัติในฐาน (price_history · 0148) ยังเก็บอยู่ ไม่ลบ */}
 
                 {/* Status workflow */}
                 {แก้ได้(selected)&&STATUS_ACTIONS[selected.status].length>0&&(

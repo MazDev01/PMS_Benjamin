@@ -9,7 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ShieldCheck, Lock, Eye } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Lock, KeyRound } from "lucide-react";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { DealerAccountForm } from "@pms/shared/components/ui/DealerAccountCard";
 import { ContactEmailCard } from "@pms/shared/components/ui/ContactEmailCard";
@@ -19,8 +19,8 @@ import { logRepoRead } from "@pms/shared/lib/repoLog";
 const กติกา = [
   { ไอคอน: ShieldCheck, ข้อความ: "แก้อีเมล/รหัสผ่านเองได้ 2 ครั้ง — ครั้งที่ 3 เป็นต้นไปต้องให้สำนักงานใหญ่อนุมัติก่อนจึงมีผล" },
   { ไอคอน: Lock, ข้อความ: "ต้องกรอกรหัสผ่านปัจจุบันทุกครั้ง เพื่อยืนยันว่าเป็นเจ้าของบัญชีจริง" },
-  // เดิมเขียนว่า "ดูรหัสผ่านของตัวเองไม่ได้" แต่หน้านี้มีปุ่มดูรหัส (บอสสั่งเพิ่ม 1 ก.ย. 69) — ข้อความขัดกับของจริง
-  { ไอคอน: Eye, ข้อความ: "ดูรหัสผ่านของตัวเองได้ โดยกรอกเลขยืนยันที่ส่งไปทางอีเมลเข้าระบบ · รหัสต้องยาวอย่างน้อย 8 ตัว ห้ามมีช่องว่าง" },
+  // ปุ่มดูรหัสผ่านทางอีเมลเอาออกแล้ว (บอสตัดสิน 20 ต.ค. 69 · อีเมลล็อกอินปิด ใบ 0213)
+  { ไอคอน: KeyRound, ข้อความ: "ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่ · รหัสต้องยาวอย่างน้อย 8 ตัว ห้ามมีช่องว่าง" },
 ];
 
 export default function DealerAccountPage() {
