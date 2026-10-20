@@ -238,9 +238,14 @@ export function LeadTasks({ lead, performedBy, onSave, onRequestQuotation, onReq
                 {lead.status === "CANCELLED" && lead.lostReason && <div style={{ fontSize: "0.72rem", color: "#991b1b" }}>เหตุผล: {lead.lostReason}</div>}
               </div>
             </div>
-            <button type="button" onClick={reopen} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
-              <RotateCcw size={13} /> เปิดใหม่
-            </button>
+            {/* ปิดการขายสำเร็จแล้ว ดีลเลอร์ย้อนเองไม่ได้ — HQ ย้อนการตอบรับได้คนเดียว (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217) */}
+            {lead.status === "PAID" ? (
+              <span style={{ fontSize: "0.72rem", color: "#6b7280", maxWidth: 220, textAlign: "right", lineHeight: 1.5 }}>ย้อนได้เฉพาะสำนักงานใหญ่</span>
+            ) : (
+              <button type="button" onClick={reopen} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
+                <RotateCcw size={13} /> เปิดใหม่
+              </button>
+            )}
           </div>
         ) : lostOpen ? (
           <div style={{ padding: "12px 14px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca" }}>

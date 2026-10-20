@@ -3,20 +3,17 @@ import { createClient, type Session } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
-import { ข้ามตั้งรหัสครั้งแรก } from "./firstLogin";
 
-// ── บัญชีที่ยังถือ "รหัสชั่วคราวจากสำนักงานใหญ่" ต้องแตะข้อมูลไม่ได้ จนกว่าจะตั้งรหัสของตัวเอง ──────
+// ── บัญชีที่ยังมีเครื่องหมาย "ต้องเปลี่ยนรหัส/ยืนยันอีเมล" ค้าง ใช้งานได้ปกติ (ใบ 0216 · บอสตัดสิน 19 ต.ค. 69) ──────
 //
-// ช่องโหว่ที่ปิด (พบ 13 ต.ค. 69 ตอนไล่โหมด api):
-//   การบังคับ "เข้าระบบครั้งแรกต้องตั้งรหัสใหม่" มีอยู่แค่ที่หน้าจอ (FirstPasswordGate · ลบแล้ว 19 ต.ค. 69 — บอสตัดสินไม่มีหน้าบังคับ)
-//   กฎสิทธิ์ของฐานข้อมูลและ /api/v1 ไม่เคยดูเครื่องหมาย must_change_password เลย
-//   → ใครถือรหัสชั่วคราว (ดีลเลอร์เอง · คนที่เห็นตอนส่งต่อ · เจ้าหน้าที่ที่เปิดดูสำเนารหัสได้)
-//     ยิงตรงเข้าฐานหรือผ่าน /api/v1 อ่าน-เขียนข้อมูลของสาขานั้นได้เรื่อย ๆ โดยไม่ต้องผ่านหน้าตั้งรหัส
-//
-// ด่านจริงอยู่ที่ฐานข้อมูล (ใบ 0187): เครื่องหมายอยู่ในใบผ่าน → กฎสิทธิ์ทุกตารางปฏิเสธทั้งอ่านและเขียน
-// ชุดนี้ยิงด้วย "ใบผ่านจริงของบัญชีรหัสชั่วคราว" ทั้งสองทาง ไม่ผ่านหน้าจอ
+// เดิม (ใบ 0187 · 13 ต.ค. 69): เครื่องหมายค้างในใบผ่าน → ฐานปฏิเสธทั้งอ่านและเขียนทุกตาราง จนกว่าจะตั้งรหัสเอง
+// บอสตัดสิน: ไม่มีขั้นบังคับใน flow แล้ว — ถ้ายังมีด่านนี้ บัญชีที่เครื่องหมายค้างแม้บัญชีเดียวจะเห็นข้อมูลว่างโดยไม่มีอะไรบอก
+//   ใบ 0216 เอาด่านออก · ทางลัด "ตั้งรหัสครั้งแรก" (ไม่ต้องใส่รหัสเดิม) ปิดเป็น 410
+// ชุดนี้ยิงด้วยใบผ่านจริงของบัญชีที่มีเครื่องหมายค้าง ทั้งยิงตรงฐานและผ่าน /api/v1:
+//   เห็น/เขียนข้อมูลสาขาตัวเองได้ · ยังไม่เห็นข้อมูลสาขาอื่น (สิทธิ์รายแถวปกติไม่หลวมตาม)
+// ข้อทดสอบระดับฐาน: supabase/tests/no_temp_password_gate.sql
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
-// เรียงลำดับเป็นค่าปกติ (ข้อท้าย ๆ ตั้งรหัสจริง) · PMS_GATE_ALL=1 = รันทุกข้อแม้ข้อก่อนหน้าตก ใช้ตอนพิสูจน์ว่า "ถอดด่านแล้วตกทุกข้อ"
+// เรียงลำดับเป็นค่าปกติ · PMS_GATE_ALL=1 = รันทุกข้อแม้ข้อก่อนหน้าตก (ใช้ตอนพิสูจน์ว่าตกได้จริง)
 test.describe.configure({ mode: process.env.PMS_GATE_ALL === "1" ? "default" : "serial" });
 test.setTimeout(180_000);
 
@@ -50,7 +47,7 @@ async function purge() {
   await admin.from("leads").delete().eq("dealer_code", CODE);
   const { data: profs } = await admin.from("profiles").select("id").eq("dealer_code", CODE);
   for (const p of profs ?? []) await admin.auth.admin.deleteUser(String(p.id)).catch(() => {});
-  for (const t of ["dealer_login_secrets", "dealer_settings", "dealer_account_changes", "dealer_account_requests", "entity_counters"]) {
+  for (const t of ["dealer_login_secrets", "dealer_settings", "dealer_account_changes", "dealer_account_requests", "entity_counters", "dealer_territories"]) {
     await admin.from(t).delete().eq("dealer_code", CODE).then(() => {}, () => {});
   }
   await admin.from("dealers").delete().eq("code", CODE);
@@ -70,6 +67,8 @@ test.beforeAll(async ({ request }) => {
   });
   test.skip(สร้าง.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   expect(สร้าง.status(), await สร้าง.text()).toBe(200);
+  // พื้นที่ระยองให้สาขานี้ด้วย (จังหวัดเดียวหลายสาขาได้ · ใบ 0214) — ข้อเขียนลูกค้าเป้าหมายต้องไม่ติดกฎพื้นที่
+  await admin.from("dealer_territories").insert({ province: "ระยอง", dealer_code: CODE });
   // ของให้อ่าน: ลูกค้าเป้าหมายของสาขานี้ 1 ราย (ใส่ด้วยสิทธิ์ผู้ดูแล) — ไม่งั้น "อ่านไม่ได้" กับ "ไม่มีอะไรให้อ่าน" แยกไม่ออก
   const { error } = await admin.from("leads").insert(แถวลูกค้าเป้าหมาย(880_100_001, บริษัท));
   expect(error, `เตรียมลูกค้าเป้าหมายตั้งต้น (${error?.message ?? ""})`).toBeNull();
@@ -78,7 +77,7 @@ test.beforeAll(async ({ request }) => {
   const { data: สร้างแล้ว } = await ไคลเอนต์().auth.signInWithPassword({ email: EMAIL, password: รหัสชั่วคราว });
   expect(สร้างแล้ว.session?.user.app_metadata?.must_change_password, "เส้นทางสร้างดีลเลอร์ต้องไม่ตั้งเครื่องหมายแล้ว").not.toBe(true);
   expect(สร้างแล้ว.session?.user.app_metadata?.must_verify_email, "เส้นทางสร้างดีลเลอร์ต้องไม่ตั้งเครื่องหมายยืนยันอีเมลแล้ว").not.toBe(true);
-  // ด่านในฐาน (0187) ยังอยู่ — จำลองบัญชีที่ยังมีเครื่องหมายค้าง (เช่น 155 บัญชีบนระบบจริงก่อนล้าง) เพื่อทดสอบด่านต่อ
+  // จำลองบัญชีที่ยังมีเครื่องหมายค้าง (เช่น 155 บัญชีบนระบบจริงก่อนล้าง 19 ต.ค. 69)
   const uid = สร้างแล้ว.session!.user.id;
   const { error: e1 } = await admin.auth.admin.updateUserById(uid, { app_metadata: { ...(สร้างแล้ว.session!.user.app_metadata ?? {}), must_change_password: true, must_verify_email: true } });
   expect(e1).toBeNull();
@@ -89,64 +88,39 @@ test.beforeAll(async ({ request }) => {
 });
 test.afterAll(purge);
 
-test("[security] รหัสชั่วคราว · ยิงตรงฐานข้อมูล: อ่านข้อมูลของสาขาไม่ได้", async ({ request }) => {
-  const leads = await (await ตรง(request, `leads?select=id,company&dealer_code=eq.${CODE}`, ใบผ่าน.access_token)).json();
-  expect(Array.isArray(leads) ? leads.length : -1, `ต้องอ่านลูกค้าเป้าหมายไม่ได้ (ได้ ${JSON.stringify(leads).slice(0, 120)})`).toBe(0);
-  for (const t of ["quotations", "customers", "appointments", "dealer_settings", "master_catalog", "dealers"]) {
-    const rows = await (await ตรง(request, `${t}?select=*&limit=5`, ใบผ่าน.access_token)).json();
-    expect(Array.isArray(rows) ? rows.length : 0, `ต้องอ่านตาราง ${t} ไม่ได้`).toBe(0);
-  }
+test("[0216] เครื่องหมายค้าง · ยิงตรงฐาน: อ่านข้อมูลของสาขาตัวเองได้ · ไม่เห็นสาขาอื่น", async ({ request }) => {
+  const leads = await (await ตรง(request, `leads?select=id,company&dealer_code=eq.${CODE}`, ใบผ่าน.access_token)).json() as { company: string }[];
+  expect(Array.isArray(leads) ? leads.map(l => l.company) : [], "ต้องเห็นลูกค้าเป้าหมายของสาขาตัวเอง").toContain(บริษัท);
+  const อื่น = await (await ตรง(request, "leads?select=id&dealer_code=eq.RYG&limit=5", ใบผ่าน.access_token)).json();
+  expect(Array.isArray(อื่น) ? อื่น.length : -1, "ต้องไม่เห็นลูกค้าเป้าหมายของสาขาอื่น").toBe(0);
+  const สาขา = await (await ตรง(request, `dealers_directory?select=code&code=eq.${CODE}`, ใบผ่าน.access_token)).json();
+  expect(Array.isArray(สาขา) ? สาขา.length : -1, "เห็นแถวสาขาตัวเองในทะเบียน").toBe(1);
 });
 
-test("[security] รหัสชั่วคราว · ยิงตรงฐานข้อมูล: เขียนข้อมูลไม่ได้ และเรียกคำสั่งของระบบไม่ได้", async ({ request }) => {
-  const ชื่อ = "ZZTEST-TEMPPASS-เขียนตรง";
-  const res = await ตรง(request, "leads", ใบผ่าน.access_token, { method: "POST", data: แถวลูกค้าเป้าหมาย(880_100_002, ชื่อ) });
-  expect(res.status(), `เพิ่มลูกค้าเป้าหมายต้องถูกปฏิเสธ (ได้ ${res.status()})`).toBeGreaterThanOrEqual(400);
-  expect(await นับในฐาน(ชื่อ), "ต้องไม่มีแถวหลุดลงฐาน").toBe(0);
-
-  const แก้ = await ตรง(request, `leads?dealer_code=eq.${CODE}&num_id=eq.880100001`, ใบผ่าน.access_token, { method: "PATCH", data: { note: "แก้ด้วยรหัสชั่วคราว" } });
-  const แก้ได้ = แก้.ok() ? ((await แก้.json()) as unknown[]).length : 0;
-  expect(แก้ได้, "แก้ลูกค้าเป้าหมายเดิมต้องไม่ได้สักแถว").toBe(0);
-
-  // คำสั่งของระบบที่ทำงานด้วยสิทธิ์สูงกว่าผู้เรียก (ข้ามกฎรายตาราง) ต้องปฏิเสธเองด้วย
-  const เลข = await ตรง(request, "rpc/next_entity_id", ใบผ่าน.access_token, { method: "POST", data: { p_dealer: CODE, p_entity: "leads" } });
-  expect(เลข.status(), `ขอเลขลูกค้าเป้าหมายต้องถูกปฏิเสธ (ได้ ${เลข.status()} ${await เลข.text()})`).toBeGreaterThanOrEqual(400);
-});
-
-test("[security] รหัสชั่วคราว · ผ่าน /api/v1 ของแอป: อ่านและเขียนไม่ได้", async ({ request }) => {
-  const อ่าน = await ผ่านแอป(request, `leads?dealer=${CODE}`, ใบผ่าน.access_token);
-  const ข้อความ = await อ่าน.text();
-  expect(ข้อความ.includes(บริษัท), `/api/v1/leads ต้องไม่ส่งลูกค้าเป้าหมายของสาขากลับมา (สถานะ ${อ่าน.status()})`).toBe(false);
-  for (const r of ["quotations", "customers", "appointments"]) {   // เดิมมี catalog — ปิดเป็น 410 แล้ว (เอาแม่แบบออก 16 ต.ค. 69)
-    const res = await ผ่านแอป(request, `${r}?dealer=${CODE}`, ใบผ่าน.access_token);
-    const body = await res.text();
-    const จำนวน = res.ok() ? (() => { try { const j = JSON.parse(body); return Array.isArray(j) ? j.length : 0; } catch { return 0; } })() : 0;
-    expect(จำนวน, `/api/v1/${r} ต้องไม่ส่งข้อมูลกลับมา`).toBe(0);
-  }
+test("[0216] เครื่องหมายค้าง · ผ่าน /api/v1: อ่านได้ · เขียนลูกค้าเป้าหมายใหม่ได้", async ({ request }) => {
+  const อ่าน = await (await ผ่านแอป(request, `leads?dealer=${CODE}`, ใบผ่าน.access_token)).text();
+  expect(อ่าน.includes(บริษัท), "/api/v1/leads ต้องส่งลูกค้าเป้าหมายของสาขากลับมา").toBe(true);
   const ชื่อ = "ZZTEST-TEMPPASS-เขียนผ่านแอป";
   const เขียน = await ผ่านแอป(request, "leads", ใบผ่าน.access_token, {
     method: "POST",
     data: { id: "ZZTEST-TEMPPASS-3", numId: 880_100_003, dealerCode: CODE, name: ชื่อ, company: ชื่อ, contact: "ผู้ทดสอบ",
             phone: "081-555-0143", province: "ระยอง", status: "WAITING", value: "", product: "", assigned: "" },
   });
-  expect(เขียน.status(), `เพิ่มผ่าน /api/v1 ต้องถูกปฏิเสธ (ได้ ${เขียน.status()})`).toBeGreaterThanOrEqual(400);
-  expect(await นับในฐาน(ชื่อ), "ต้องไม่มีแถวหลุดลงฐาน").toBe(0);
+  expect(เขียน.status(), `เพิ่มผ่าน /api/v1 ต้องสำเร็จ (ได้ ${เขียน.status()} ${await เขียน.text()})`).toBeLessThan(400);
+  expect(await นับในฐาน(ชื่อ), "แถวต้องลงฐาน").toBe(1);
 });
 
-test("[security] ผู้ใช้ล้างเครื่องหมายเองไม่ได้ — แก้ข้อมูลบัญชีฝั่งตัวเองแล้วยังถูกปฏิเสธ", async ({ request }) => {
-  const sb = ไคลเอนต์();
-  await sb.auth.setSession({ access_token: ใบผ่าน.access_token, refresh_token: ใบผ่าน.refresh_token });
-  // ช่องที่ผู้ใช้แก้เองได้คือ user_metadata เท่านั้น — เครื่องหมายจริงอยู่ที่ app_metadata ซึ่งแก้ได้เฉพาะฝั่งเซิร์ฟเวอร์
-  await sb.auth.updateUser({ data: { must_change_password: false, app_metadata: { must_change_password: false } } });
-  const { data } = await sb.auth.refreshSession();
-  const ใหม่ = data.session ?? ใบผ่าน;
-  expect(ใหม่.user.app_metadata?.must_change_password, "เครื่องหมายจริงต้องยังอยู่").toBe(true);
-  const leads = await (await ตรง(request, `leads?select=id&dealer_code=eq.${CODE}`, ใหม่.access_token)).json();
-  expect(Array.isArray(leads) ? leads.length : -1, "ใบผ่านใบใหม่หลังพยายามล้างเครื่องหมาย ต้องยังอ่านไม่ได้").toBe(0);
-  ใบผ่าน = ใหม่;
+test("[0216] ทางลัด \"ตั้งรหัสครั้งแรก\" (ไม่ต้องใส่รหัสเดิม) ปิดแล้ว — 410 · รหัสเดิมยังเข้าได้", async ({ request }) => {
+  const ตั้ง = await request.post(`${HQ_ORIGIN}/api/account`, {
+    headers: { authorization: `Bearer ${ใบผ่าน.access_token}`, "content-type": "application/json" },
+    data: { op: "first-password", password: รหัสของดีลเลอร์ },
+  });
+  expect(ตั้ง.status(), await ตั้ง.text()).toBe(410);
+  const { error } = await ไคลเอนต์().auth.signInWithPassword({ email: EMAIL, password: รหัสชั่วคราว });
+  expect(error, "รหัสเดิมยังใช้ได้").toBeNull();
 });
 
-test("[security] สำนักงานใหญ่เข้าระบบแทนบัญชีที่ยังไม่ตั้งรหัส: ได้ใบผ่านที่แตะข้อมูลไม่ได้เหมือนกัน", async ({ request }) => {
+test("[0216] สำนักงานใหญ่เข้าระบบแทนบัญชีที่มีเครื่องหมายค้าง: ได้ใบผ่านที่เห็นข้อมูลของสาขานั้น", async ({ request }) => {
   const hq = (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
   const res = await request.post(`${HQ_ORIGIN}/api/admin/dealers/impersonate?code=${CODE}`, { headers: { authorization: `Bearer ${hq}` } });
   test.skip(res.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
@@ -154,13 +128,12 @@ test("[security] สำนักงานใหญ่เข้าระบบแ
   const th = new URLSearchParams(new URL(String((await res.json() as { link: string }).link)).hash.replace(/^#/, "")).get("th") ?? "";
   const { data, error } = await ไคลเอนต์().auth.verifyOtp({ token_hash: th, type: "magiclink" });
   expect(error, `ลิงก์เข้าระบบแทนต้องแลกใบผ่านได้ (${error?.message ?? ""})`).toBeNull();
-  const leads = await (await ตรง(request, `leads?select=id&dealer_code=eq.${CODE}`, data.session!.access_token)).json();
-  expect(Array.isArray(leads) ? leads.length : -1, "เข้าระบบแทนก็ต้องอ่านข้อมูลไม่ได้ จนกว่าบัญชีนั้นจะตั้งรหัสของตัวเอง").toBe(0);
+  const leads = await (await ตรง(request, `leads?select=company&dealer_code=eq.${CODE}`, data.session!.access_token)).json() as { company: string }[];
+  expect(Array.isArray(leads) ? leads.map(l => l.company) : [], "เข้าระบบแทนแล้วต้องเห็นข้อมูลของสาขา").toContain(บริษัท);
 });
 
 test("[หน้าจอ] สำนักงานใหญ่เข้าระบบแทนบัญชีที่ยังมีเครื่องหมายค้าง → เข้าหน้าหลักทันที ไม่เจอหน้าตั้งรหัส/ยืนยันอีเมล", async ({ request, page }) => {
   // บอสตัดสิน 19 ต.ค. 69 (บอสกดเข้าแทนบนเว็บจริงแล้วติดหน้ายืนยันอีเมล): ไม่มีหน้าบังคับแล้ว
-  //   ข้อมูลของบัญชีที่ยังมีเครื่องหมายยังถูกฐานกันอยู่ (ข้อบน) — สคริปต์ flag-temp-passwords --unset ล้างเครื่องหมายให้
   const hq = (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
   const res = await request.post(`${HQ_ORIGIN}/api/admin/dealers/impersonate?code=${CODE}`, { headers: { authorization: `Bearer ${hq}` } });
   test.skip(res.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
@@ -171,29 +144,9 @@ test("[หน้าจอ] สำนักงานใหญ่เข้าร�
   await expect(page.getByRole("heading", { name: /ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน|ยืนยันอีเมลติดต่อก่อนเริ่มใช้งาน/ }), "ต้องไม่มีหน้าบังคับ").toHaveCount(0);
 });
 
-test("ตั้งรหัสของตัวเองแล้ว → เข้าระบบใหม่ เห็นข้อมูลของสาขาทันที ไม่ว่าง (ด่านไม่กันเกิน)", async ({ request, page }) => {
-  // ใบผ่านของรหัสชั่วคราวต้องยังใช้ "ตั้งรหัสใหม่" ได้ — ทางเดียวที่บัญชีนี้ทำได้
-  const เข้าใหม่ก่อน = await ไคลเอนต์().auth.signInWithPassword({ email: EMAIL, password: รหัสชั่วคราว });
-  const ตั้ง = await request.post(`${HQ_ORIGIN}/api/account`, {
-    headers: { authorization: `Bearer ${เข้าใหม่ก่อน.data.session?.access_token ?? ""}`, "content-type": "application/json" },
-    data: { op: "first-password", password: รหัสของดีลเลอร์ },
-  });
-  expect(ตั้ง.status(), `ตั้งรหัสครั้งแรกต้องสำเร็จ (${await ตั้ง.text()})`).toBe(200);
-
-  const { data, error } = await ไคลเอนต์().auth.signInWithPassword({ email: EMAIL, password: รหัสของดีลเลอร์ });
-  expect(error, "รหัสที่ตั้งเองต้องเข้าระบบได้").toBeNull();
-  expect(data.session!.user.app_metadata?.must_change_password, "ตั้งแล้วเครื่องหมายต้องหาย").not.toBe(true);
-  const leads = await (await ตรง(request, `leads?select=company&dealer_code=eq.${CODE}`, data.session!.access_token)).json() as { company: string }[];
-  expect(leads.map(l => l.company), "ตั้งรหัสแล้วต้องอ่านข้อมูลของสาขาตัวเองได้").toContain(บริษัท);
-  const ทางแอป = await (await ผ่านแอป(request, `leads?dealer=${CODE}`, data.session!.access_token)).text();
-  expect(ทางแอป.includes(บริษัท), "และอ่านผ่าน /api/v1 ได้").toBe(true);
-
-  // ขั้นยืนยันอีเมลติดต่อหลังตั้งรหัส (ด่าน 1) ไม่ใช่เรื่องที่ข้อนี้ทดสอบ — ข้ามไป (มีข้อทดสอบของตัวเองที่ contact-email-verify.spec.ts)
-  await ข้ามตั้งรหัสครั้งแรก(EMAIL);
-  // หน้าจอ: เข้าระบบด้วยรหัสใหม่ผ่านหน้าเข้าสู่ระบบจริง → หน้าลูกค้าเป้าหมายต้องมีข้อมูลของสาขา ไม่ว่าง
-  await loginUI(page, DEALER_ORIGIN, "/login", { email: EMAIL, password: รหัสของดีลเลอร์ });
+test("[0216][หน้าจอ] บัญชีที่มีเครื่องหมายค้าง เข้าระบบด้วยรหัสสาขา → หน้าลูกค้าเป้าหมายแสดงข้อมูลของสาขาทันที ไม่ว่าง", async ({ page }) => {
+  await loginUI(page, DEALER_ORIGIN, "/login", { email: EMAIL, password: รหัสชั่วคราว });
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน" }), "ตั้งแล้วต้องไม่เจอหน้าตั้งรหัสอีก").toHaveCount(0);
   await expect(page.getByText(บริษัท).first(), "หน้าลูกค้าเป้าหมายต้องแสดงข้อมูลของสาขาทันที").toBeVisible({ timeout: 30_000 });
 });
 

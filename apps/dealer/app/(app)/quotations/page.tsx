@@ -530,7 +530,8 @@ function QuotationsPageInner(){
   // Related data for selected quotation
 
   // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว (บอสสั่งลบ Flow เก่า 16 ต.ค. 69) — ไม่มีปุ่มแก้/ส่ง/ลบ/เปลี่ยนสถานะ
-  const แก้ได้=(q:QuotationMock)=>!!q.hqQuoteId;
+  // ใบที่ลูกค้าตอบรับแล้ว = ยอดขายที่ปิดแล้ว ไม่มีแก้ไข/ลบ (บอสตัดสิน 19 ต.ค. 69 · ฐานกันลบไว้แล้ว ใบ 0203)
+  const แก้ได้=(q:QuotationMock)=>!!q.hqQuoteId&&q.status!=="won";
   function openEdit(q:QuotationMock){ if(!แก้ได้(q)) return; setEditingQ(q); setShowModal(true); }
 
   async function saveQ(form:QForm){
@@ -1183,15 +1184,8 @@ function QuotationsPageInner(){
                 <span style={{width:38,height:38,borderRadius:"50%",background:"#fee2e2",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Trash2 size={17} color="#dc2626"/></span>
                 <div style={{fontSize:"1rem",fontWeight:800,color:STEEL}}>ลบใบเสนอราคา</div>
               </div>
-              {delTarget.status==="won" ? (
-                // ใบที่ปิดการขายแล้วคือประวัติยอดขายจริง — เตือนแรงกว่าใบร่างทั่วไป กันมือลื่นลบยอดที่ปิดได้แล้ว
-                // (พบจากผลตรวจสอบระบบ 30 ก.ค. 69, Low: ข้อความเดิมเหมือนกันหมดทุกสถานะ ไม่มีสัญญาณเตือนพิเศษ)
-                <p style={{fontSize:"0.8rem",color:"#dc2626",lineHeight:1.6,margin:0,fontWeight:600}}>
-                  ใบนี้ <strong>ปิดการขายแล้ว</strong> (฿{Math.round(delTarget.totalValue).toLocaleString("th-TH")}) — ลบแล้วยอดขายของ {delTarget.customer} จะถูกหักออกด้วย และการลบไม่สามารถย้อนกลับได้
-                </p>
-              ) : (
-                <p style={{fontSize:"0.8rem",color:MUTED,lineHeight:1.6,margin:0}}>ต้องการลบ <strong style={{color:STEEL}}>{delTarget.id}</strong>? การลบไม่สามารถย้อนกลับได้</p>
-              )}
+              {/* ใบที่ลูกค้าตอบรับแล้วไม่มีปุ่มลบแล้ว (ฐานกันไว้ ใบ 0203) — ข้อความเตือนพิเศษของใบ won เดิมเอาออก */}
+              <p style={{fontSize:"0.8rem",color:MUTED,lineHeight:1.6,margin:0}}>ต้องการลบ <strong style={{color:STEEL}}>{delTarget.id}</strong>? การลบไม่สามารถย้อนกลับได้</p>
             </div>
             <div style={{padding:"14px 22px",borderTop:`1px solid ${BORDER}`,background:"#fafafa",display:"flex",justifyContent:"flex-end",gap:8}}>
               <button className="btn btn-secondary btn-md" onClick={()=>setDelTarget(null)}>ยกเลิก</button>

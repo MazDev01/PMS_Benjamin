@@ -1,5 +1,5 @@
 {
- "migration": "0215",
+ "migration": "0217",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -520,6 +520,13 @@
    "definer": false
   },
   {
+   "f": "leads_delete_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "leads_hq_pricing_guard()",
    "anon": false,
    "authenticated": false,
@@ -538,6 +545,13 @@
    "anon": false,
    "authenticated": true,
    "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "leads_paid_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
    "definer": false
   },
   {
@@ -588,13 +602,6 @@
    "authenticated": false,
    "service_role": true,
    "definer": true
-  },
-  {
-   "f": "must_set_password()",
-   "anon": false,
-   "authenticated": true,
-   "service_role": true,
-   "definer": false
   },
   {
    "f": "network_customer_summary(p_dealer_code text, p_date_start date, p_date_end date)",

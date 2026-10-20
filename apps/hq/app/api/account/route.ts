@@ -168,43 +168,6 @@ export const GET = withErrors("dealer-account-state", async (req: NextRequest) =
   }
 });
 
-// ── ตั้งรหัสผ่านใหม่ตอนเข้าระบบครั้งแรก (บอสสั่ง 15 ก.ย. 69: "เปลี่ยนฟรี ไม่รวม 2 ครั้งนั้น") ──
-//   ใช้ได้ครั้งเดียวต่อบัญชีที่ HQ สร้างให้ · ไม่ต้องกรอกรหัสปัจจุบัน (เพิ่งเข้าระบบด้วยรหัสนั้นมา)
-//   บันทึกประวัติแบบ by_self=false (ไม่นับสิทธิ์) · เก็บสำเนาให้ HQ ดูได้ · ปลดเครื่องหมายบังคับ
-async function ตั้งรหัสครั้งแรก(req: NextRequest, who: ผู้เรียก, รหัสใหม่: string): Promise<NextResponse> {
-  const { admin, userId, email, dealerCode, name, appMeta, mustChangePassword } = who;
-  if (!mustChangePassword) {
-    return json(req, { error: "บัญชีนี้ตั้งรหัสผ่านครั้งแรกไปแล้ว — เปลี่ยนรหัสได้ที่ ตั้งค่า › บัญชีเข้าสู่ระบบ" }, 409);
-  }
-  const ผิดกติกา = ตรวจรหัสผ่านใหม่(รหัสใหม่);
-  if (ผิดกติกา) return json(req, { error: ผิดกติกา }, 400);
-  // รหัสใหม่ต้องไม่ใช่รหัสที่ได้รับจาก HQ — ไม่งั้นการบังคับตั้งรหัสไม่มีความหมาย
-  if ((await รหัสผ่านยังเข้าระบบได้(email, รหัสใหม่)) === true) {
-    return json(req, { error: "รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสที่ได้รับจากสำนักงานใหญ่" }, 400);
-  }
-  const { error: upErr } = await admin.auth.admin.updateUserById(userId, {
-    password: รหัสใหม่,
-    app_metadata: { ...appMeta, must_change_password: false },
-  });
-  if (upErr) {
-    console.error(`[account] ตั้งรหัสครั้งแรกของสาขา ${dealerCode} ไม่สำเร็จ`, upErr);
-    return json(req, { error: "ตั้งรหัสผ่านไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503);
-  }
-  if (dealerSecretReady()) {
-    const secret = encryptSecret(รหัสใหม่);
-    if (secret) {
-      const { error } = await admin.from("dealer_login_secrets")
-        .upsert({ dealer_code: dealerCode, secret, updated_at: new Date().toISOString(), updated_by: `${name} (ตั้งตอนเข้าระบบครั้งแรก)` });
-      if (error) console.error(`[account] เก็บสำเนารหัสครั้งแรกของ ${dealerCode} ไม่สำเร็จ`, error);
-    }
-  }
-  const { error: logErr } = await admin.from("dealer_account_changes")
-    .insert({ dealer_code: dealerCode, kind: "password", by_self: false });
-  if (logErr && logErr.code !== "42P01") console.error(`[account] บันทึกการตั้งรหัสครั้งแรกของ ${dealerCode} ไม่สำเร็จ`, logErr);
-  await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์ตั้งรหัสผ่านใหม่ตอนเข้าระบบครั้งแรก", dealerCode);
-  return json(req, { message: "ตั้งรหัสผ่านใหม่แล้ว — กำลังพาไปเข้าสู่ระบบด้วยรหัสใหม่" });
-}
-
 // ── ขอเปลี่ยนอีเมล/รหัสผ่านของตัวเอง ──
 export const POST = withErrors("dealer-account-change", async (req: NextRequest) => {
   const who = await ดีลเลอร์ที่เรียก(req);
@@ -220,7 +183,9 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
     return json(req, { error: อีเมลติดต่อ ? "ส่งคำขอถี่เกินไป — รอสักครู่แล้วลองใหม่" : "เปลี่ยนบัญชีถี่เกินไป — รอสักครู่แล้วลองใหม่" }, 429);
   }
 
-  if (body?.op === "first-password") return ตั้งรหัสครั้งแรก(req, who.who, String(body.password ?? ""));
+  // ตั้งรหัสครั้งแรก (ไม่ต้องใส่รหัสเดิม · ไม่นับโควตา) ยกเลิกแล้ว — ไม่มีขั้นบังคับตั้งรหัส (บอสตัดสิน 19 ต.ค. 69)
+  //   เปลี่ยนรหัสผ่านทางเดียว = ข้างล่าง (ต้องใส่รหัสเดิม · นับโควตา) · ข้อทดสอบ: tests/scenario/flow-a-safety.spec.ts
+  if (body?.op === "first-password") return json(req, { error: "ยกเลิกแล้ว — เปลี่ยนรหัสผ่านได้ที่ ตั้งค่า › บัญชีเข้าสู่ระบบ (ต้องใส่รหัสผ่านปัจจุบัน)" }, 410);
   // ── อีเมลติดต่อ (ด่าน 1 · ใบ 0194): ส่งโค้ด / ยืนยันโค้ด — ไม่ต้องกรอกรหัสผ่านปัจจุบัน (ไม่ใช่อีเมลเข้าระบบ) ──
   if (body?.op === "contact-email-send") {
     const r = await ส่งโค้ดยืนยันอีเมล(admin, who.who, String(body.email ?? ""));

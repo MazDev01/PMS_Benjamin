@@ -68,13 +68,11 @@ import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import {
   Plus, X, ChevronUp, ChevronDown, Upload, Download,
   Phone, Building2,
-  Trash2,
   Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer,
   MapPin, Mail, Coins, Layers, TrendingUp, CalendarClock,
   Users,
 } from "lucide-react";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
-import { customerDeletionImpact } from "@pms/shared/lib/customerDeletion";
 import { แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
 // ── Design tokens ────────────────────────────────────────────
@@ -389,7 +387,7 @@ export default function CustomersPage(){
     customers: allCustomers, quotations: allQuotations, leads: allLeadsRaw,
     appointments,
     addLead, บันทึกลีด, newLeadNumId, addCustomer: ctxAddCustomer,
-    updateCustomer: ctxUpdateCustomer, deleteCustomer: ctxDeleteCustomer,
+    updateCustomer: ctxUpdateCustomer,
   } = useSales();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant) — ใช้ออกรหัสลูกค้า
   const userProfile = useUserProfile();
@@ -482,7 +480,7 @@ export default function CustomersPage(){
 
   const [view] = useState<"card"|"table">("table"); // ตารางอย่างเดียว (เอามุมมองการ์ดออก)
   // ลูกค้าที่กำลังจะลบ — เก็บ "ตัวลูกค้า" ไม่ใช่ boolean เพราะลบได้จากตารางโดยไม่ต้องเปิดแผงรายละเอียด
-  const [delTarget, setDelTarget] = useState<CustomerRow|null>(null);
+  // ปุ่มลบลูกค้าเอาออกแล้ว (บอสตัดสิน 19 ต.ค. 69): ลูกค้าทุกรายเกิดจากใบที่ลูกค้าตอบรับ ซึ่งลบไม่ได้ (ใบ 0203) · ข้อทดสอบ flow-a-safety.spec.ts
   const [detailTab, setDetailTab]     = useState<"info"|"deals"|"quotes"|"appts"|"notes"|"files">("info");
   // โครงการที่กดดู (จากตาราง "ประวัติการปิดการขาย") → เปิดแผงรายละเอียดโครงการซ้อนขึ้นมา
   const [viewProject, setViewProject] = useState<{ q: QuotationMock } | null>(null);
@@ -691,14 +689,6 @@ export default function CustomersPage(){
     const updated: CustomerRow = {...selected,...form,initials:initials(form.company)};
     ctxUpdateCustomer(updated);
     setSelected(updated);
-  }
-  function deleteCustomer(){
-    const target = delTarget;
-    if(!target) return;
-    ctxDeleteCustomer(target.id);
-    // ปิดแผงรายละเอียดเฉพาะเมื่อกำลังเปิดลูกค้าที่เพิ่งลบอยู่ (ลบจากตาราง = แผงไม่ได้เปิด)
-    setSelected(p=>p?.id===target.id?null:p);
-    setDelTarget(null);
   }
   // ── นำเข้าลูกค้าเดิม (ดีลเลอร์) — เพิ่มเข้า SalesContext เดียว · flag imported=true ──
   // รับแถวที่ไม่มี category ก็ได้ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ลูกค้าที่นำเข้าใหม่ได้ category ว่างเสมอ
@@ -1032,7 +1022,7 @@ export default function CustomersPage(){
                     const projects = purchasedFor(c.id, quotations).length;
                     return (
                       <ClickableRow key={c.id} className="clickable"
-                        onActivate={()=>{ setSelected(c); setCustTab("overview"); setDelTarget(null); }}
+                        onActivate={()=>{ setSelected(c); setCustTab("overview"); }}
                         label={`เปิดรายละเอียดลูกค้า ${c.company}`}
                         style={{ background: selected?.id===c.id ? "#f4f8fd" : undefined }}>
                         <td style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={c.company}>
@@ -1053,14 +1043,9 @@ export default function CustomersPage(){
                         <td onClick={e=>e.stopPropagation()}>
                           <div style={{ display:"flex", justifyContent:"flex-end", gap:4 }}>
                             <button title="ดูรายละเอียด"
-                              onClick={()=>{ setSelected(c); setCustTab("overview"); setDelTarget(null); }}
+                              onClick={()=>{ setSelected(c); setCustTab("overview"); }}
                               style={{ width:28, height:28, borderRadius:7, border:"1px solid #dbe3ec", background:"#fff", color:PRIMARY, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                               <Eye size={13} />
-                            </button>
-                            {/* ลบได้จากตารางเลย ไม่ต้องเปิดแผงรายละเอียดก่อน — ยังถามยืนยัน และยังลบไม่ได้ถ้ามีใบเสนอราคา/ลูกค้าเป้าหมายผูกอยู่ */}
-                            <button title="ลบลูกค้า" onClick={()=>setDelTarget(c)}
-                              style={{ width:28, height:28, borderRadius:7, border:"1px solid #f3c9c9", background:"#fff", color:"#dc2626", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>
@@ -1166,7 +1151,6 @@ export default function CustomersPage(){
                 </div>
                 {/* หัว = ลบ · ปิด (ปุ่ม "โทร" เอาออกตามที่บอสสั่ง — เบอร์อยู่ใต้ชื่อแล้ว) */}
                 <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
-                  <button title="ลบลูกค้า" onClick={()=>setDelTarget(selected)} style={{...qa,width:30,padding:0,justifyContent:"center",color:"#fecaca"}}><Trash2 size={14}/></button>
                   <button onClick={()=>setSelected(null)} title="ปิด" style={{...qa,width:30,padding:0,justifyContent:"center"}}><X size={15}/></button>
                 </div>
               </div>
@@ -1903,44 +1887,6 @@ export default function CustomersPage(){
       )}
 
 
-      {/* Delete confirm dialog */}
-      {delTarget && (
-        <div onClick={()=>setDelTarget(null)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:220,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:360,background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}>
-            <div style={{padding:"22px 22px 16px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                <span style={{width:38,height:38,borderRadius:"50%",background:"#fee2e2",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Trash2 size={17} color="#dc2626"/></span>
-                <div style={{fontSize:"1rem",fontWeight:800,color:STEEL}}>ลบลูกค้า</div>
-              </div>
-              <p style={{fontSize:"0.8rem",color:MUTED,lineHeight:1.6,margin:0}}>ต้องการลบ <strong style={{color:STEEL}}>{delTarget.company}</strong>? การลบไม่สามารถย้อนกลับได้</p>
-              {/* บอกให้ครบว่าอะไรจะหายไปด้วย — ประวัติการขายของลูกค้ารายนี้ถูกลบไปพร้อมกัน
-                  ผู้ใช้ต้องรู้ก่อนกด ไม่ใช่มารู้ตอนเปิดหารายงานย้อนหลังแล้วไม่เจอ */}
-              {(() => {
-                const im = customerDeletionImpact(delTarget.id, allLeadsRaw, allQuotations);
-                const parts = [
-                  im.closedLeads.length ? `ประวัติการขาย ${im.closedLeads.length} ดีล` : "",
-                  im.quotations.length ? `ใบเสนอราคา ${im.quotations.length} ใบ` : "",
-                ].filter(Boolean);
-                if (!im.canDelete) return (
-                  <p style={{fontSize:"0.78rem",color:"#b45309",lineHeight:1.6,margin:"8px 0 0",fontWeight:600}}>
-                    ลบไม่ได้ — ยังมีดีลที่ขายอยู่ {im.activeLeads.length} รายการ · ปิดการขายหรือลบดีลเหล่านั้นก่อน
-                  </p>
-                );
-                if (!parts.length) return null;
-                return (
-                  <p style={{fontSize:"0.78rem",color:"#b45309",lineHeight:1.6,margin:"8px 0 0",fontWeight:600}}>
-                    จะลบ{parts.join(" และ ")} ไปพร้อมกันด้วย
-                  </p>
-                );
-              })()}
-            </div>
-            <div style={{padding:"14px 22px",borderTop:`1px solid ${BORDER}`,background:"#fafafa",display:"flex",justifyContent:"flex-end",gap:8}}>
-              <button className="btn btn-secondary btn-md" onClick={()=>setDelTarget(null)}>ยกเลิก</button>
-              <button className="btn btn-md" style={{background:"#dc2626",color:"#fff",border:"none"}} onClick={deleteCustomer}><Trash2 size={13}/> ลบ</button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* ลูกค้าเกิดจาก Lead→Won อัตโนมัติเท่านั้น — ฝั่งดีลเลอร์สร้างลูกค้าเองไม่ได้ (ไม่มีฟอร์มเพิ่ม) */}
       {previewFile && <FilePreviewModal file={previewFile} onClose={()=>setPreviewFile(null)} />}
 

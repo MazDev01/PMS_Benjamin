@@ -154,7 +154,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   const ใบที่ยังแก้ได้ = related.find(q => (q.status === "draft" || q.status === "sent_to_client")
     && ใบHQ != null && q.hqQuoteId === ใบHQ.id);
   // ใบเดิม (ไม่มีใบ HQ) = ดูได้อย่างเดียว · แท็บของลูกค้า = ดูอย่างเดียวทั้งหมด
-  const แก้ได้ = (q: QuotationMock) => !readOnly && !!q.hqQuoteId;
+  // ใบที่ลูกค้าตอบรับแล้ว = ยอดขายที่ปิดแล้ว: ไม่มีแก้ไข / ลบ / ทำสำเนา (บอสตัดสิน 19 ต.ค. 69)
+  //   ทำสำเนาใบ won ไม่ได้ใบร่างใหม่จริง — ใบ HQ ของใบนั้นเป็น "สั่งผลิต" แล้ว ฐานปฏิเสธ (hq_quote_required) · ข้อทดสอบ flow-a-safety.spec.ts
+  const แก้ได้ = (q: QuotationMock) => !readOnly && !!q.hqQuoteId && q.status !== "won";
   function openCreate() {
     if (ใบที่ยังแก้ได้) {
       openEdit(ใบที่ยังแก้ได้);

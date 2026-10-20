@@ -409,7 +409,8 @@ function OverviewEditor({ lead, persons, onSave }: {
           <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
             {/* สถานะลอยเดี่ยวนอกแถว — คงกรอบบางไว้ให้รู้ว่ากดได้ (กรอบที่ถอดคือกรอบซ้อนในแถวข้อมูล) */}
             {/* ต้องมีค่าเสมอ — ทุกรายต้องอยู่ขั้นใดขั้นหนึ่งบนบอร์ด ว่างไม่ได้ */}
-            <select aria-label="สถานะลูกค้าเป้าหมาย" value={f.status} onChange={e=>set("status",e.target.value)} style={{ ...inp, width:"auto", height:"auto", padding:"5px 8px", fontSize:"0.72rem", fontWeight:700, border:"1px solid #eef1f5", background:"#fafbfc" }}>
+            <select aria-label="สถานะลูกค้าเป้าหมาย" value={f.status} onChange={e=>set("status",e.target.value)}
+              disabled={lead.status === "PAID"} title={lead.status === "PAID" ? "ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่" : undefined} style={{ ...inp, width:"auto", height:"auto", padding:"5px 8px", fontSize:"0.72rem", fontWeight:700, border:"1px solid #eef1f5", background:"#fafbfc" }}>
               {(Object.keys(leadStatusLabel) as LeadStatus[]).map(k => <option key={k} value={k}>{leadStatusLabel[k]}</option>)}
             </select>
           </div>
@@ -899,6 +900,10 @@ export default function LeadsPage() {
       .catch(e => logRepoRead("quoteRequests.quotedLeadIds", e));
     return () => { alive = false; };
   }, [รอราคาKey, currentDealer.code, ถามป้ายใหม่]);
+  // ลบลีดได้เฉพาะลีดที่ยังไม่มีคำขอราคาหรือใบเสนอราคาผูกอยู่ — มีแล้วใช้ "เสียโอกาส" แทน (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217 กันที่ฐาน)
+  //   รอราคา HQ / ได้ราคาแล้ว = มีคำขอ · ปิดการขายสำเร็จ = มีใบ · คำขอที่ถูกยกเลิกไปแล้วหน้าจอไม่เห็น — ฐานปฏิเสธพร้อมข้อความบอกทาง
+  const ลบได้ = (l: LeadRow) => l.status !== "HQ_PRICING" && l.status !== "PAID"
+    && !(l.numId != null && ได้ราคาแล้ว.has(l.numId)) && !quotations.some(q => quoteBelongsToLead(q, l));
   const myAllLeads = useMemo(
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
@@ -985,6 +990,8 @@ export default function LeadsPage() {
   }
 
   async function requestStatusChange(id: string, status: LeadStatus) {
+    // ปิดการขายสำเร็จแล้ว ดีลเลอร์ย้อนเองไม่ได้ — HQ ย้อนการตอบรับได้คนเดียว (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217 กันที่ฐานด้วย)
+    if (allLeads.find(l => l.id === id)?.status === "PAID") { setToast("ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่"); return; }
     if (status === "CANCELLED") { setPendingLostId(id); setPendingLostReason(""); return; }
 
     // ── ย้ายขั้นบนกระดาน: ข้ามงานไม่ได้ · ถอยหลังต้องยืนยัน (บอสสั่ง 21 ส.ค. 69) ────────
@@ -1840,6 +1847,10 @@ export default function LeadsPage() {
                                   <div style={{ padding:"10px 14px", fontSize:"0.76rem", color:"#6b21a8", maxWidth:240, lineHeight:1.6 }}>
                                     รอราคาจากสำนักงานใหญ่ — เปลี่ยนขั้นเองไม่ได้ระหว่างรอ · ยกเลิกคำขอได้ที่แท็บใบเสนอราคา
                                   </div>
+                                ) : l.status === "PAID" ? (
+                                  <div style={{ padding:"10px 14px", fontSize:"0.76rem", color:"#065f46", maxWidth:240, lineHeight:1.6 }}>
+                                    ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่
+                                  </div>
                                 ) : MANUAL_LEAD_STATUSES.map(s => {
                                   const c = leadStatusColor[s];
                                   return (
@@ -1911,13 +1922,13 @@ export default function LeadsPage() {
                               style={{ width:28, height:28, borderRadius:7, border:"1px solid #dbe3ec", background:"#fff", color:"#003366", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                               <Eye size={13} />
                             </button>
-                            <button title="ลบลูกค้าเป้าหมาย" onClick={async ()=>{
+                            {ลบได้(l) && <button title="ลบลูกค้าเป้าหมาย" onClick={async ()=>{
                               if (!(await ยืนยัน({ หัวข้อ: `ลบลูกค้าเป้าหมาย "${l.company}" ?`, รายละเอียด: "ย้อนกลับไม่ได้", ปุ่มตกลง: "ลบ", อันตราย: true }))) return;
                               removeLead(l.id); setToast("ลบลูกค้าเป้าหมายแล้ว");
                             }}
                               style={{ width:28, height:28, borderRadius:7, border:"1px solid #fecaca", background:"#fff", color:"#dc2626", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                               <Trash2 size={13} />
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </ClickableRow>
@@ -2617,7 +2628,7 @@ export default function LeadsPage() {
                     {isCustomer && (
                       <button title="ดูโปรไฟล์ลูกค้า" onClick={()=>{ closePanel(); router.push(c.customerId ? `/customers?open=${c.customerId}` : "/customers"); }} style={qa}><CheckCircle2 size={13} /> ลูกค้า</button>
                     )}
-                    <button title="ลบ" onClick={()=>setShowDeleteConfirm(true)} style={{ ...qa, width:30, padding:0, justifyContent:"center", color:"#fecaca" }}><Trash2 size={14} /></button>
+                    {ลบได้(c) && <button title="ลบ" onClick={()=>setShowDeleteConfirm(true)} style={{ ...qa, width:30, padding:0, justifyContent:"center", color:"#fecaca" }}><Trash2 size={14} /></button>}
                     <button onClick={closePanel} title="ปิด" style={{ ...qa, width:30, padding:0, justifyContent:"center" }}><X size={15} /></button>
                   </div>
                 </div>

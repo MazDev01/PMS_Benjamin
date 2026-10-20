@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { กดตกลงในกล่องยืนยัน, ดักข้อความแจ้งเตือน } from "./helpers";
+import { กดตกลงในกล่องยืนยัน, ดักข้อความแจ้งเตือน, settle } from "./helpers";
 import { RYG, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
@@ -23,6 +23,8 @@ test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 async function newLeadOpened(page: import("@playwright/test").Page, company: string) {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  // รอหน้าพร้อมรับการกดก่อน (ไม่ใช่รอเป็นเวลา) — กดตอนหน้ายังไม่พร้อม การกดหาย ฟอร์มไม่เปิด (ไม่นิ่ง 19 ต.ค. 69)
+  await settle(page);
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(company);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณทดสอบ");
@@ -173,6 +175,7 @@ test("[edge] เน็ตหลุดตอนกดบันทึกลูก�
   const company = tg("เน็ตหลุด");
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (เหตุผลเดียวกับ newLeadOpened)
 
   // ตัดเฉพาะ "คำสั่งบันทึกลูกค้าเป้าหมาย" — ส่วนอื่นของหน้ายังทำงานปกติ (จำลองเน็ตสะดุดช่วงสั้น ๆ)
   // ⚠️ ต้องดักทั้งสองโหมด — supabase ยิงเข้า /rest/v1/leads ตรง ๆ · api ยิงเข้า /api/v1/leads
