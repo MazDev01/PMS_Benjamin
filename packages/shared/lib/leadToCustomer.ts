@@ -5,7 +5,7 @@
 // แยกออกมาจาก SalesContext เป็นฟังก์ชันบริสุทธิ์ เพราะเดิมฝังอยู่ใน useCallback
 // ทดสอบไม่ได้เลย — ฟิลด์ที่ลืมส่งต่อจึงหลุดไปได้เงียบ ๆ (ที่อยู่หายมาแล้วจริง)
 import type { LeadRow, CustomerRow } from "./mock";
-import { parseBaht } from "./format";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 
 // สีประจำตัวลูกค้า (วนตามเลขที่ลูกค้าเป้าหมาย) — ใช้ทำวงกลมอักษรย่อบนหน้าจอ
 export const CUSTOMER_PALETTE = ["#003366","#059669","#f59e0b","#dc2626","#002244","#8fa3b8","#2D2D2D","#C0C0C0"];
@@ -37,7 +37,7 @@ export function customerPayloadFromLead(lead: LeadRow, opts: { joinDate: string;
     owner: lead.assigned,
     initials: deriveInitials(lead.company || lead.name),
     color: CUSTOMER_PALETTE[(lead.numId ?? 0) % CUSTOMER_PALETTE.length],
-    totalValue: parseBaht(lead.value),
+    totalValue: มูลค่าลีด(lead) ?? 0,   // ยอดใบเสนอราคาล่าสุด (ใบ 0223) — ไม่ใช้ช่องประเมินราคาที่เลิกใช้แล้ว
     logo: lead.logo,                // รูป/โลโก้ที่อัปโหลดไว้ตอนเป็นลูกค้าเป้าหมาย
     dealerCode: lead.dealerCode ?? opts.defaultDealerCode, // ลูกค้าเป็นของสาขาเดียวกับลูกค้าเป้าหมาย (multi-tenant)
   };

@@ -1,5 +1,6 @@
 "use client";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ลูกค้าเป้าหมายทั้งเครือ (Network Leads) ──────────────────────────────
@@ -44,19 +45,13 @@ import {
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { leadStatusLabel, leadStatusColor, QUOTED_UP, LEAD_STATUS_ORDER, type LeadStatus } from "@pms/shared/lib/mock";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
-import { fmtBaht, pctOrNull, parseBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
+import { fmtBaht, pctOrNull, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
 import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
 
 // ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
-//   มูลค่าเก็บเป็นข้อความอิสระ ("5310000" / "฿1.4M" / เว้นว่าง) — แปลงเป็นตัวเลขก่อนแล้วค่อยใส่ลูกน้ำ
-//   ⚠️ อ่านค่าไม่ออก = คืนข้อความเดิม ห้ามกลายเป็น ฿0 (กติกาเดิมของทั้งระบบ)
-const มูลค่าอ่านง่าย = (v?: string) => {
-  const ดิบ = String(v ?? "").trim();
-  if (!ดิบ) return "—";
-  const n = parseBaht(ดิบ);
-  return n > 0 ? fmtFull(n) : ดิบ;
-};
+//   มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — ยังไม่มีใบ = "—"
+const มูลค่าอ่านง่าย = (n: number | null) => n == null ? "—" : fmtFull(n);
 const เบอร์อ่านง่าย = (v?: string) => formatPhone(String(v ?? "")) || "—";
 
 const PRIMARY = "#003366";
@@ -427,7 +422,7 @@ export default function HQLeadsPage() {
   // Export — หนึ่งแถวต่อลูกค้าเป้าหมาย (คอลัมน์ตรงกับตาราง) · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด · local: จาก filtered
   const leadToCells = (l: LeadRow) => [
     l.id, l.dealerCode ?? "—", DEALER_NAME.get(l.dealerCode ?? "") ?? "—", l.company, l.contact,
-    l.province, l.source || "—", มูลค่าอ่านง่าย(l.value),
+    l.province, l.source || "—", มูลค่าอ่านง่าย(มูลค่าลีด(l)),
     QUOTED_UP.includes(l.status) ? "เสนอแล้ว" : "—",
     lastContactLabel(l),
     needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays) ? "ต้องติดตาม" : "—",
@@ -738,7 +733,7 @@ export default function HQLeadsPage() {
                     </td>
                     <td style={{ color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{l.province}</td>
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.source || "—"}</td>
-                    <td className="num" style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(l.value)}</td>
+                    <td className="num" style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</td>
                     <td>
                       {/* ระบบไม่มี dealId ผูกใบเสนอราคากับลูกค้าเป้าหมาย → นับจำนวนใบไม่ได้
                           ใช้สถานะของลูกค้าเป้าหมายแทน (ไปถึงขั้นเสนอราคา = เคยออกใบแล้วจริง) */}
@@ -811,7 +806,7 @@ export default function HQLeadsPage() {
                     <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,.7)", marginTop: 3 }}>{l.id} · {l.contact}</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 9, flexWrap: "wrap" }}>
                       <span className="badge" style={{ background: c.bg, color: c.text }}>{leadStatusLabel[l.status]}</span>
-                      <span className="badge" style={{ background: "rgba(255,255,255,.15)", color: "#fff" }}>{มูลค่าอ่านง่าย(l.value)}</span>
+                      <span className="badge" style={{ background: "rgba(255,255,255,.15)", color: "#fff" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</span>
                     </div>
                   </div>
                 </div>
@@ -820,10 +815,9 @@ export default function HQLeadsPage() {
               </div>
 
               <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px 20px" }}>
-                {/* แถบสรุปบนสุด — มูลค่าที่ประเมินไว้ กับสถานะใบเสนอราคา อ่านได้ตั้งแต่ยังไม่เลื่อนจอ */}
-                {/* แถบสรุปบนสุด — มูลค่าที่ประเมินไว้ กับสถานะใบเสนอราคา อ่านได้ตั้งแต่ยังไม่เลื่อนจอ */}
+                {/* แถบสรุปบนสุด — ยอดใบเสนอราคาล่าสุด กับสถานะใบเสนอราคา อ่านได้ตั้งแต่ยังไม่เลื่อนจอ (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) */}
                 <PanelStats>
-                  <PanelStat label="ประเมินราคา" value={มูลค่าอ่านง่าย(l.value)} />
+                  <PanelStat label="ใบเสนอราคาล่าสุด" value={มูลค่าอ่านง่าย(มูลค่าลีด(l))} />
                   <PanelStat label="ใบเสนอราคา" tone={quoted ? "good" : "plain"}
                     value={quoted ? "เสนอราคาแล้ว" : "ยังไม่ได้เสนอราคา"}
                     sub={quoted ? "ดูใบได้ที่ ใบเสนอราคาทั้งเครือ" : undefined} />
@@ -835,7 +829,6 @@ export default function HQLeadsPage() {
                   <PanelRow icon={Mail} label="อีเมล" value={l.email} />
                   <PanelRow icon={MapPin} label="จังหวัด" value={l.province} />
                   <PanelRow icon={Compass} label="แหล่งที่มา" value={l.source} />
-                  <PanelRow icon={Wallet} label="ประเมินราคา" value={มูลค่าอ่านง่าย(l.value)} strong />
                   <PanelRow icon={CalendarDays} label="สร้างเมื่อ" value={l.createdAt} />
                 </PanelSection>
 

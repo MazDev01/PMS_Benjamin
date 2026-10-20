@@ -82,7 +82,7 @@ const TIEBREAK_COL = "dealer_code";
 //   ซึ่งฐานข้อมูลคำนวณไว้ให้แล้วที่ last_contact_at (trigger 0046) — ดึงคอลัมน์เดียวแทนทั้งก้อน
 //   report เป็นข้อความยาวที่ใช้เฉพาะในแผงรายละเอียด ดึงมาทั้งชุดคือค่าขนส่งเปล่าๆ
 //   ⚠ เพิ่มคอลัมน์ใหม่ในตาราง leads ต้องเติมชื่อที่นี่ด้วย ไม่งั้นหน้าจอจะไม่เห็นค่านั้นเลย
-const LEAD_LIST_COLS = "id,dealer_code,num_id,name,company,contact,phone,email,province,address,product,category,status,value,area,assigned,source,note,customer_id,lost_reason,tasks,logo,project,created_at,created_label,last_contact_at";
+const LEAD_LIST_COLS = "id,dealer_code,num_id,name,company,contact,phone,email,province,address,product,category,status,value,quote_value,area,assigned,source,note,customer_id,lost_reason,tasks,logo,project,created_at,created_label,last_contact_at";
 
 // ── กันเบราว์เซอร์ค้าง (M8) ──
 // pageAll วนดึงทีละ PAGE_ROWS จน "หมดตาราง" — ที่สเกลใหญ่ (หลายแสนแถว) โหลดทั้งก้อนเข้าหน่วยความจำ

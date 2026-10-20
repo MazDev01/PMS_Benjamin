@@ -158,3 +158,58 @@ test.describe("ช่วง ข", () => {
     await ถ่าย(page, "HQ-ตั้งค่าเป้าหมาย", async () => { await ไป("/hq/settings")(); await page.getByRole("tab", { name: /เป้าหมายยอดขาย/ }).click().catch(() => page.getByRole("button", { name: /เป้าหมายยอดขาย/ }).click().catch(() => {})); await settle(page); });
   });
 });
+test.describe("ช่วง ค", () => {
+  // ลีดที่มีใบ (ยอดใบล่าสุด 2,200,000) + ลีดที่ไม่มีใบแต่มีประเมินราคาเดิมค้าง + ดีลเลอร์ที่ยังไม่ตั้งเป้า (ZZWWW)
+  const มีใบ = `ZZTEST-ภาพค-มีใบ-${แท็ก}`, ไม่มีใบ = `ZZTEST-ภาพค-ไม่มีใบ-${แท็ก}`;
+  let ใบค: ใบHQพร้อมใช้ | undefined; let เลขไม่มีใบ = 0;
+  test.beforeAll(async () => {
+    if (ช่วง !== "ค") return;
+    ใบค = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: มีใบ, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 2_000_000 }] });
+    await ทำใบลูกค้าจากใบHQ(RYG, ใบค, { customer: มีใบ, markupPercent: 10 });
+    เลขไม่มีใบ = 970_000_000 + (Date.now() % 9_000_000);
+    const r = await adminClient().from("leads").insert({ id: `#L-${เลขไม่มีใบ}`, num_id: เลขไม่มีใบ, dealer_code: "RYG", company: ไม่มีใบ, name: ไม่มีใบ,
+      contact: "ผู้ทดสอบ", phone: `08${String(เลขไม่มีใบ).slice(-8)}`, province: "ระยอง", status: "WAITING", value: "฿9,999,999" });
+    if (r.error) throw new Error(r.error.message);
+    await สร้างดีลเลอร์รหัสยาว();
+  });
+  test.afterAll(async () => {
+    if (ช่วง !== "ค") return;
+    ล้างใบHQทดสอบ("RYG", [ใบค?.leadNum ?? 0, เลขไม่มีใบ]);
+    await ล้างดีลเลอร์รหัสยาว();
+  });
+
+  test("ช่วง ค · ดีลเลอร์", async ({ page }) => {
+    test.skip(ช่วง !== "ค", "ไม่ใช่ช่วง ค");
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    await page.evaluate(() => localStorage.setItem("pms_notif_since_RYG", new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)));
+    const ลีด = (ค้น: string) => async () => {
+      await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+      await page.getByPlaceholder(/ค้นหาบริษัท/).first().fill(ค้น); await settle(page);
+    };
+    await ถ่าย(page, "ดีลเลอร์-ลีด-ตาราง", ลีด("ZZTEST-ภาพค"));
+    await ถ่าย(page, "ดีลเลอร์-ลีด-แผงมีใบ", async () => { await ลีด("")(); await page.getByPlaceholder("ค้นหาบริษัท").first().fill(มีใบ); await page.locator("tbody tr").filter({ hasText: มีใบ }).first().locator("td").nth(1).click(); await settle(page); });
+    await ถ่าย(page, "ดีลเลอร์-ลีด-ฟอร์มเพิ่ม", async () => { await ลีด("")(); await page.getByRole("button", { name: /เพิ่มลูกค้าเป้าหมาย/ }).first().click(); await settle(page); });
+    await ถ่าย(page, "ดีลเลอร์-แดชบอร์ด", async () => { await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" }); await settle(page); });
+    await ถ่าย(page, "ดีลเลอร์-กระดิ่ง", async () => {
+      await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByRole("button", { name: "การแจ้งเตือน" }).first().click(); await settle(page);
+    });
+  });
+
+  test("ช่วง ค · HQ", async ({ page }) => {
+    test.skip(ช่วง !== "ค", "ไม่ใช่ช่วง ค");
+    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+    const ไป = (path: string, ค้น?: string) => async () => {
+      await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" }); await settle(page);
+      if (ค้น) { await page.getByPlaceholder(/ค้นหา/).first().fill(ค้น).catch(() => {}); await settle(page); }
+    };
+    await ถ่าย(page, "HQ-ลีดทั้งเครือ", ไป("/hq/leads", "ZZTEST-ภาพค"));
+    await ถ่าย(page, "HQ-ลีดทั้งเครือ-แผง", async () => { await ไป("/hq/leads")(); await page.getByPlaceholder("ค้นหา").first().fill(มีใบ); await page.locator("tbody tr").filter({ hasText: มีใบ }).first().locator("td").nth(2).click(); await settle(page); });
+    await ถ่าย(page, "HQ-กระดิ่ง", async () => { await ไป("/hq/dashboard")(); await page.getByRole("button", { name: "การแจ้งเตือน" }).first().click(); await settle(page); });
+    await ถ่าย(page, "HQ-รายละเอียดดีลเลอร์-ไม่มีเป้า", ไป(`/hq/dealers/${รหัสยาว}`));
+    await ถ่าย(page, "HQ-ทะเบียนดีลเลอร์-ไม่มีเป้า", ไป("/hq/dealers?view=table", รหัสยาว));
+    await ถ่าย(page, "HQ-ภาพรวมยอดขาย-ไม่มีเป้า", ไป("/hq/pipeline", รหัสยาว));
+    await ถ่าย(page, "HQ-ใบเสนอราคา-ไม่มีใบที่ส่ง", ไป("/hq/quotations", `ZZไม่มีจริง-${แท็ก}`));
+  });
+});

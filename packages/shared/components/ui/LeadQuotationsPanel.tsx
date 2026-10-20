@@ -75,14 +75,12 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     kind: "lead" as const, company: lead.company, contact: lead.contact, phone: lead.phone, email: lead.email,
     province: lead.province, assigned: lead.assigned,
     customerId: lead.customerId, dealId: lead.numId as number | undefined,
-    value: lead.value,                       // มูลค่าประเมินจากลูกค้าเป้าหมาย — ใช้ตั้งต้น BOQ
     area: lead.area,                         // พื้นที่ที่กรอกไว้ตอนเพิ่มลูกค้าเป้าหมาย — ใช้เป็นจำนวนตั้งต้นของ BOQ
     project: lead.project,                   // ชื่อโครงการที่ดีลเลอร์ตั้งไว้ตอนสร้างดีล (ถ้ามี)
   } : {
     kind: "customer" as const, company: customer.company, contact: customer.name, phone: customer.phone, email: customer.email,
     province: customer.province, assigned: customer.owner,
     customerId: customer.id, dealId: undefined as number | undefined,
-    value: customer.totalValue ? String(customer.totalValue) : "",
     area: undefined as number | undefined,   // ลูกค้า (ปิดการขายแล้ว) ไม่มีพื้นที่ตั้งต้น — ใบเสนอราคาของลูกค้าดูอย่างเดียวอยู่แล้ว
     project: undefined as string | undefined,
   };

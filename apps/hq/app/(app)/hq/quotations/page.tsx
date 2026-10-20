@@ -1,5 +1,6 @@
 "use client";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ใบเสนอราคาทั้งเครือ (Network Quotations) ────────────────────────────
@@ -21,7 +22,6 @@ import {
   toQuoteRows, aggregate, sumAggs, groupBy, agingBucketOf, regionDisplay, dealerLookups,
   type QuoteRow, type DealerAgg, type AgingBucket,
 } from "@pms/shared/lib/hqQuotations";
-import { parseBaht } from "@pms/shared/lib/format";
 import { groupLostReasons } from "@pms/shared/lib/lostReasons";
 
 const TH_ABBR = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -149,7 +149,7 @@ export default function NetworkQuotationPage() {
   const lostReasons = useMemo(() => {
     const ดิบ = leadSum ? leadSum.byLostReason : (() => {
       const m = new Map<string, { count: number; value: number }>();
-      leadRows.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => { const r = m.get(l.lostReason!) ?? { count: 0, value: 0 }; r.count += 1; r.value += parseBaht(l.value); m.set(l.lostReason!, r); });
+      leadRows.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => { const r = m.get(l.lostReason!) ?? { count: 0, value: 0 }; r.count += 1; r.value += มูลค่าลีด(l) ?? 0; m.set(l.lostReason!, r); });   // มูลค่า = ยอดใบล่าสุด (ใบ 0223)
       return [...m.entries()].map(([reason, x]) => ({ reason, ...x }));
     })();
     return groupLostReasons(ดิบ);

@@ -672,7 +672,11 @@ export type LeadRow = {
   product: string;
   category: string;
   status: LeadStatus;
+  /** ช่อง "ประเมินราคา" เดิมที่ดีลเลอร์พิมพ์เอง — เลิกแสดง/เลิกนับบนหน้าเว็บแล้ว (บอสตัดสิน 19–20 ต.ค. 69 · ข้อ 5)
+   *  คอลัมน์คงไว้ในฐาน ห้ามลบ · ห้ามเอามาโชว์หรือรวมยอด — มูลค่าลีดใช้ quoteValue (มูลค่าลีด()) เท่านั้น */
   value: string;
+  /** ยอดก่อน VAT ของใบเสนอราคาล่าสุดของลีด — ฐานเขียนเอง (ใบ 0223) อ่านอย่างเดียว · null/ไม่มี = ยังไม่มีใบ (หน้าจอขึ้น "—") */
+  quoteValue?: number | null;
   area?: number;         // พื้นที่ใช้สอย (ตร.ม.) — กรอกตอนเพิ่ม/แก้ลูกค้าเป้าหมาย · ส่งต่อเป็นค่าตั้งต้นของใบเสนอราคา
                          // optional: ลูกค้าเป้าหมายเก่า/ลูกค้าเป้าหมายที่ยังไม่รู้พื้นที่ = ไม่มีค่า → หน้าจอขึ้น "—" (ห้ามเดาเป็น 0)
   assigned: string;      // ชื่อผู้รับผิดชอบ (พนักงานขาย) — ไม่ใช่ดีลเลอร์
@@ -878,7 +882,7 @@ export function buildLeadReport(lead: Partial<LeadRow>, dateStr = ""): string {
     "- ลูกค้าสนใจ : ", // ไม่เติมแม่แบบเก่าของลูกค้าเป้าหมาย (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
     "- ขนาดโครงการ : ",
     `- จังหวัด : ${lead.province ?? ""}`,
-    `- งบประมาณ : ${lead.value ?? ""}`,
+    "- งบประมาณ : ", // ไม่เติมช่องประเมินราคาเดิม (เอาออกจากหน้าเว็บ · บอสตัดสิน 19 ต.ค. 69 ข้อ 5)
     "- ระยะเวลาดำเนินการ : ",
     "",
     "ผลการพูดคุย",
@@ -1327,12 +1331,13 @@ export const tags: TagMock[] = [
 // ─── DEALER DRILL-DOWN ────────────────────────────────────────
 export type DealerLeadItem = {
   id: string; name: string; province: string; product: string;
-  valueNum: number; status: "contacted" | "quoted" | "won" | "lost";
+  /** ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) · null = ยังไม่มีใบ */
+  valueNum: number | null; status: "contacted" | "quoted" | "won" | "lost";
   assignedAt: string;
 };
 export type DealerProjectItem = {
   id: string; name: string; product: string;
-  valueNum: number; progress: number;
+  valueNum: number | null; progress: number;   // ยอดใบเสนอราคาล่าสุด · null = ยังไม่มีใบ
   status: "in_progress" | "completed" | "on_hold" | "overdue";
 };
 export type DealerQuoteItem = {
@@ -1777,4 +1782,23 @@ export const notes: NoteMock[] = [
 export function roleLabelOf(role: string, isHQ: boolean): string {
   if (isHQ) return role === "SUPER_ADMIN" ? "ผู้ดูแลระบบ" : "ผู้บริหาร HQ";
   return ({ DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม" } as Record<string, string>)[role] ?? "สมาชิก";
+}
+
+// ── มูลค่าลีด = ยอดก่อน VAT ของใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · รอบ 2 ช่วง ค ข้อ 5 · ใบ 0223) ──────────
+//   ไม่มีใบ = null → หน้าจอขึ้น "—" และไม่นับในยอดรวม · ห้ามถอยไปใช้ช่องประเมินราคา (l.value)
+export function มูลค่าลีด(l: Pick<LeadRow, "quoteValue">): number | null {
+  return typeof l.quoteValue === "number" && Number.isFinite(l.quoteValue) ? l.quoteValue : null;
+}
+/** ตรรกะเดียวกับ _lead_quote_value ของฐาน (ใบ 0223): ใบของลีดนี้ (สาขาเดียวกัน · dealId = numId) ที่ระบบบันทึกล่าสุด
+ *  ใบที่ยังไม่มีเวลาบันทึก (เพิ่งสร้างในจอ/โหมดตัวอย่าง) ถือว่าใหม่สุด · ไม่มีใบ = undefined (ให้ผู้เรียกใช้ค่าที่ฐานส่งมา) */
+export function ยอดใบล่าสุดของลีด(l: Pick<LeadRow, "numId" | "dealerCode">, quotes: readonly QuotationMock[]): number | undefined {
+  const dealer = l.dealerCode ?? DEFAULT_DEALER_CODE;
+  let best: QuotationMock | undefined;
+  for (const q of quotes) {
+    if (!l.numId || q.dealId !== l.numId || (q.dealerCode ?? DEFAULT_DEALER_CODE) !== dealer) continue;
+    if (!best) { best = q; continue; }
+    const a = q.savedAt ? Date.parse(q.savedAt) : Infinity, b = best.savedAt ? Date.parse(best.savedAt) : Infinity;
+    if (a > b || (a === b && q.id > best.id)) best = q;
+  }
+  return best ? best.totalValue : undefined;
 }

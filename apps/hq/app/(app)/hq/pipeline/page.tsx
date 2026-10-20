@@ -246,7 +246,7 @@ export default function SalesAnalyticsPage() {
       //    เป้าที่ HQ ตั้งให้ดีลเลอร์เป็นรายปี — ถ้าหดตามช่วง เลือก "วันนี้" จะได้ 0% ทุกสาขา
       //    ส่วนคอลัมน์ลูกค้าเป้าหมาย/ใบเสนอราคา/มูลค่า ยังเดินตามตัวกรองตามเดิม
       revenueActual: perfOf(d.code).revenue,
-      tpct: d.revenueTarget > 0 ? Math.round(perfOf(d.code).revenue / d.revenueTarget * 100) : 0,
+      tpct: d.revenueTarget > 0 ? Math.round(perfOf(d.code).revenue / d.revenueTarget * 100) : null,   // ยังไม่ตั้งเป้า = "—" (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
       latest: latestStr,
     };
   }).sort((a, b) => b.revenueActual - a.revenueActual), [dealers, quotes, leads, byDealer, leadByDealer]);
@@ -264,7 +264,7 @@ export default function SalesAnalyticsPage() {
       wonVal: perf.reduce((s, d) => s + d.wonVal, 0), wonCount,
       quotes: perf.reduce((s, d) => s + d.quotes, 0), quoteVal: perf.reduce((s, d) => s + d.quoteVal, 0),
       conv: closed ? Math.round(wonCount / closed * 100) : null,
-      actual, target, tpct: target > 0 ? Math.round(actual / target * 100) : 0, filtered,
+      actual, target, tpct: target > 0 ? Math.round(actual / target * 100) : null, filtered,
     };
   }, [perf, dealers, allDealers.length, targets.annualTarget]);
 
@@ -409,7 +409,7 @@ export default function SalesAnalyticsPage() {
     { label: "มูลค่าใบเสนอราคา", value: fmtBaht(kpi.quoteVal), sub: `${kpi.quotes} ใบ · ในช่วงที่เลือก`, Icon: FileText, color: "#0891B2", bg: "#E6F4F9" },
     // ⚠️ หารด้วย "ใบที่รู้ผลแล้ว" เท่านั้น — คนละตัวหารกับการ์ดชื่อคล้ายกันที่หน้าใบเสนอราคาทั้งเครือ
     { label: "อัตราปิดการขาย (จากใบที่รู้ผลแล้ว)", value: kpi.conv === null ? "—" : `${kpi.conv}%`, sub: "ตอบรับ ÷ (ตอบรับ + ปฏิเสธ)", Icon: Percent, color: "#7C3AED", bg: "#F0EBFB" },
-    { label: "เป้าหมายทั้งปี", value: dealerPerf.ready ? `${kpi.tpct}%` : "—", sub: `ยอดสะสม ${money(kpi.actual)} จาก ${fmtBaht(kpi.target)}`, Icon: Target, color: "#2563EB", bg: "#E8F0FE" },
+    { label: "เป้าหมายทั้งปี", value: dealerPerf.ready && kpi.tpct != null ? `${kpi.tpct}%` : "—", sub: kpi.target > 0 ? `ยอดสะสม ${money(kpi.actual)} จาก ${fmtBaht(kpi.target)}` : `ยอดสะสม ${money(kpi.actual)} · ยังไม่ได้ตั้งเป้า`, Icon: Target, color: "#2563EB", bg: "#E8F0FE" },
   ];
 
   // ตัวกรองทุกช่องกว้างเท่ากันและยืด/หดร่วมกันในแถวเดียว (บอสสั่ง 14 ก.ย. 69 "แก้" — ภาพแถบที่ขึ้น 2 แถว)
@@ -442,7 +442,7 @@ export default function SalesAnalyticsPage() {
             headers={["รหัสดีลเลอร์", "ดีลเลอร์", "ภูมิภาค", "จังหวัด", "ลูกค้าเป้าหมาย", "ใบเสนอราคา", "มูลค่าใบเสนอราคา", "ยอดขายสะสมทั้งปี", "อัตราปิดการขาย", "เป้าหมายทั้งปี", "% ของเป้า", "ใบเสนอราคาล่าสุด"]}
             rows={perf.map(d => [
               d.code, d.name, regionDisplay(d.region), d.province, d.leads, d.quotes, d.quoteVal,
-              d.revenueActual, d.conv === null ? "—" : `${d.conv}%`, d.revenueTarget, `${d.tpct}%`, d.latest,
+              d.revenueActual, d.conv === null ? "—" : `${d.conv}%`, d.revenueTarget, d.tpct == null ? "—" : `${d.tpct}%`, d.latest,
             ])} />
       </TopbarActions>
 
@@ -597,7 +597,7 @@ export default function SalesAnalyticsPage() {
                   <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 800, color: "#1F2937" }}>{money(d.revenueActual)}</td>
                   <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{d.conv === null ? "—" : `${d.conv}%`}</td>
                   <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmtBaht(d.revenueTarget)}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: d.tpct >= 100 ? "#059669" : PRIMARY }}>{d.tpct}%</td>
+                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: d.tpct == null ? "#94a3b8" : d.tpct >= 100 ? "#059669" : PRIMARY }}>{d.tpct == null ? "—" : `${d.tpct}%`}</td>
                   <td style={{ color: MUTED, whiteSpace: "nowrap" }}>{d.latest}</td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -629,7 +629,7 @@ export default function SalesAnalyticsPage() {
 // นัดหมาย/ไฟล์ ไม่มี dealerCode ในระบบ → ผูกผ่าน leadId/recordId = numId ของลูกค้าเป้าหมายดีลเลอร์รายนี้
 // ดีลเลอร์ที่ยังไม่มีนัดหมาย/ไฟล์บันทึกไว้จะขึ้น "—" ตามจริง (ไม่เติมข้อมูลปลอม)
 function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, files, onOpenDealer }: {
-  d: { code: string; name: string; region: string; province: string; status: string; revenueActual: number; revenueTarget: number; tpct: number; leads: number; quoted: number; quotes: number; quoteVal: number; wonCount: number; wonVal: number; conv: number | null; latest: string };
+  d: { code: string; name: string; region: string; province: string; status: string; revenueActual: number; revenueTarget: number; tpct: number | null; leads: number; quoted: number; quotes: number; quoteVal: number; wonCount: number; wonVal: number; conv: number | null; latest: string };
   onClose: () => void;
   customers: { id: number; name: string; province: string; dealsWon: number; totalRevenue: number }[];
   leads: { numId: number; company: string; status: string }[];
@@ -720,7 +720,7 @@ function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, file
           {กล่อง(<>
             {row("ยอดขายสะสมทั้งปี", fmtBaht(d.revenueActual))}
             {row("เป้าหมายทั้งปี", fmtBaht(d.revenueTarget))}
-            {row("% ของเป้า", <span style={{ color: d.tpct >= 100 ? "#059669" : PRIMARY }}>{d.tpct}%</span>)}
+            {row("% ของเป้า", <span style={{ color: d.tpct == null ? "#94a3b8" : d.tpct >= 100 ? "#059669" : PRIMARY }}>{d.tpct == null ? "—" : `${d.tpct}%`}</span>)}
           </>)}
 
           <div style={head}>ยอดขายรายเดือน · จากใบเสนอราคาที่ปิดได้</div>

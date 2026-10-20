@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
 import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT } from "@pms/shared/lib/uploadLimits";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
@@ -21,7 +22,6 @@ import { สร้างไฟล์Xlsx } from "@pms/shared/lib/makeXlsx";
 import { สร้างไฟล์Xlsx as สร้างสมุดงานXlsx } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { fmtFull as fmtMoney, formatPhone } from "@pms/shared/lib/format";
-import { ตรวจมูลค่าลูกค้าเป้าหมาย } from "@pms/shared/lib/leadValue";
 import { fmtLeadValue } from "@pms/shared/lib/format";
 
 // กันข้อมูลหายถ้าผู้ใช้รีเฟรช/ปิดแท็บระหว่างกำลังบันทึก (พบจริงจากทดสอบโหลด: รีเฟรชทันทีหลังกดบันทึก
@@ -240,7 +240,7 @@ function activityItemsFor(customerId:number, joinDate:string, qs:QuotationMock[]
   });
   // จากดีล = ลูกค้าเป้าหมายที่ผูกกับลูกค้ารายนี้ (แหล่งเดียว ไม่มีกระดาน pipeline แยกอีกแล้ว)
   ls.filter(l=>l.customerId===customerId).forEach(l=>{
-    items.push({ id:`d-${l.id}`, type:"status", text:`โอกาสการขาย: ${l.project || l.company} · ${fmtLeadValue(l.value)}`, time:l.createdAt ?? "—" });
+    items.push({ id:`d-${l.id}`, type:"status", text:`โอกาสการขาย: ${l.project || l.company} · ${fmtLeadValue(มูลค่าลีด(l))}`, time:l.createdAt ?? "—" });
   });
   // จุดเริ่มต้น: วันที่เพิ่มลูกค้า
   items.push({ id:"joined", type:"note", text:"เพิ่มลูกค้าเข้าระบบ", time:fmtDate(joinDate) });
@@ -817,10 +817,6 @@ export default function CustomersPage(){
   async function createDeal(){
     if(creatingDealRef.current) return;
     const c=dealCustomer; if(!c) return;
-    // กฎเดียวกับฟอร์มเพิ่มลูกค้าเป้าหมายทุกประการ (leadValue.ts) — เดิมที่นี่ไม่ตรวจอะไรเลย
-    // กรอก "abcxyz" แล้วบันทึกผ่านเป็นงานมูลค่า ฿0 เงียบ ๆ แล้วไปโผล่ในรายงานเป็นศูนย์
-    const มูลค่าผิด = ตรวจมูลค่าลูกค้าเป้าหมาย(dealForm.value);
-    if (มูลค่าผิด) { setDealErr(มูลค่าผิด); return; }
     setDealErr("");
     creatingDealRef.current = true;
     try {
@@ -834,7 +830,7 @@ export default function CustomersPage(){
         product:"", category:"",
         // เก็บตามที่พิมพ์ เหมือนฟอร์มลูกค้าเป้าหมาย — เดิมย่อผ่าน fmtDealValue เป็น "฿1.2M"
         // ทำให้ 1,234,567 กลายเป็น 1.2M = เงินหายไปสามหมื่นกว่าบาทตั้งแต่ตอนบันทึก
-        value:dealForm.value.trim(),
+        value:"",   // ช่องประเมินราคาเอาออก (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5) — มูลค่ามาจากใบเสนอราคาล่าสุด
         // เว้นว่าง = ไม่มีข้อมูลพื้นที่ (undefined) ห้ามเก็บ 0 เพราะ 0 แปลว่า "พื้นที่ศูนย์" ซึ่งไม่จริง
         area:dealForm.area.trim() && Number(dealForm.area) > 0 ? Number(dealForm.area) : undefined,
         project:dealForm.project||undefined,
@@ -1306,7 +1302,7 @@ export default function CustomersPage(){
                               <span className="badge" style={{flexShrink:0,background:sc.bg,color:sc.text}}>{leadStatusLabel[d.status]}</span>
                             </div>
                             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",fontSize:"0.65rem",color:MUTED}}>
-                              {d.value&&<span style={{color:PRIMARY,fontWeight:700}}>{fmtLeadValue(d.value)}</span>}
+                              {มูลค่าลีด(d)!=null&&<span style={{color:PRIMARY,fontWeight:700}}>{fmtLeadValue(มูลค่าลีด(d))}</span>}
                               <span>ใบเสนอราคา: {quoteLabel}</span>
                               <span>ผู้รับผิดชอบ: {d.assigned}</span>
                               {d.createdAt&&<span>สร้าง: {d.createdAt}</span>}
@@ -1855,10 +1851,6 @@ export default function CustomersPage(){
                   เดิมที่นี่เขียน "มูลค่าคาดการณ์ · เช่น ฿1.2M" ทำให้ผู้ใช้พิมพ์แบบย่อ แล้วเงินปัดหาย */}
               <div><label className="form-label">พื้นที่ (ตร.ม.)</label>
                 <input className="form-input" value={dealForm.area} onChange={e=>setDealForm(f=>({...f,area:e.target.value}))} placeholder="เช่น 1200" /></div>
-              <div><label className="form-label">ประเมินราคา</label>
-                <input className="form-input" aria-label="ประเมินราคา" value={dealForm.value}
-                  onChange={e=>{setDealForm(f=>({...f,value:e.target.value})); if(dealErr) setDealErr("");}}
-                  placeholder="เช่น 1200000 หรือ ฿1.2M" /></div>
               {/* ขั้นตอน — ชุดตัวเลือกเดียวกับฟอร์มเพิ่มลูกค้าเป้าหมาย: เลือกได้เฉพาะขั้นก่อน "เสนอราคา"
                   เพราะขั้นเสนอราคาขึ้นไปเลื่อนเองเมื่อมีใบเสนอราคาจริง (ห้ามให้ตั้งเองแล้วขัดกับใบที่มี) */}
               <div><label className="form-label">ขั้นตอน</label>

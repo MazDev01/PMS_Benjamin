@@ -1,5 +1,5 @@
 {
- "migration": "0222",
+ "migration": "0224",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -31,6 +31,20 @@
   },
   {
    "f": "_lead_flow_set_status(p_dealer text, p_num_id integer, p_status lead_status, p_lost_reason text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_lead_quote_value(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_lead_refresh_quote_value(p_dealer text, p_num integer)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -583,6 +597,20 @@
    "definer": true
   },
   {
+   "f": "leads_quote_value_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "leads_quote_value_rekey()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "leads_territory_guard()",
    "anon": false,
    "authenticated": false,
@@ -745,6 +773,13 @@
   },
   {
    "f": "quotations_hq_link_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quotations_lead_quote_value()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

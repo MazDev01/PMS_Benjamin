@@ -5,6 +5,7 @@
 // S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + ขั้นตอนการขาย
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
 import { useMemo, useState } from "react";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
 import {
   Target, TrendingUp, PhoneCall, Activity, Building2, User,
@@ -33,7 +34,7 @@ import { dealers as dealersRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import {
-  parseValue, isLeadOpen, needsFollowUp, daysSinceContact,
+  isLeadOpen, needsFollowUp, daysSinceContact,
   MOCK_TODAY, leadCreatedDate, leadEnteredInRange,
 } from "@pms/shared/lib/leadMetrics";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
@@ -109,12 +110,14 @@ export default function DealerDashboard() {
     () => Array.from({ length: CUR_M + 1 }, (_, i) => wonByKey.get(monthKey(CUR_Y, i)) ?? 0).reduce((s, v) => s + v, 0),
     [wonByKey],
   );
-  const achievePct = annualTarget > 0 ? Math.round((ytdSales / annualTarget) * 100) : 0;
+  // ยังไม่ตั้งเป้า = null → วงแหวนขึ้น "—" ไม่ใช่ 0% (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
+  const achievePct = annualTarget > 0 ? Math.round((ytdSales / annualTarget) * 100) : null;
   // ⚠️ "งานที่ยังเปิดอยู่" คือสถานะ ณ ตอนนี้ ไม่ใช่ตัวเลขที่เกิดในช่วงเวลา (บอสสั่ง 26 ส.ค. 69
   //    ให้ตัวกรองคุมแค่บางส่วน · กติกาเดียวกับฝั่งสำนักงานใหญ่)
   //    เดิมกรองด้วยช่วงเวลาด้วย → เลือก "วันนี้" แล้วโอกาสการขายเหลือ ฿0 ทั้งที่งานยังค้างอยู่จริงหลายสิบดีล
   const openLeads = useMemo(() => myLeads.filter(isLeadOpen), [myLeads]);
-  const openValue = useMemo(() => openLeads.reduce((s, l) => s + parseValue(l.value), 0), [openLeads]);
+  // มูลค่า = ยอดใบเสนอราคาล่าสุดของแต่ละงาน (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — งานที่ยังไม่มีใบไม่นับ
+  const openValue = useMemo(() => openLeads.reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0), [openLeads]);
   const followUpToday = useMemo(() => appointments.filter(a => a.date === TODAY_ISO && a.status !== "cancelled").length, [appointments]);
   // ปิดการขายได้ = จำนวนใบเสนอราคาที่ปิดได้ (won) · อัตราปิดการขาย = won / (won + lost)
   //   นิยามเดียวกับฝั่ง HQ (useDealerPerformance / dealer_rollup) และกับ KPI "ยอดขาย" ของแดชบอร์ดเอง (wonByKey)
@@ -321,7 +324,7 @@ export default function DealerDashboard() {
 
   const kpis = [
     { label: "เป้าหมายยอดขาย", tip: "เป้าหมายยอดขายทั้งปีที่สำนักงานใหญ่กำหนด เทียบกับยอดปิดการขายสะสมตั้งแต่ต้นปี · การ์ดนี้เทียบทั้งปีเสมอ ไม่เปลี่ยนตามช่วงเวลาที่เลือก", Icon: Target, color: "#2563EB", bg: "#E8F0FE", href: "/quotations", ring: true },
-    { label: "โอกาสการขาย", tip: "มูลค่ารวมของดีลที่ยังเปิดอยู่ (ยังไม่ปิดการขาย และยังไม่ยกเลิก)", Icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads", value: baht(openValue), sub1: "รวมประเมินราคาของงานที่ยังเปิดอยู่", sub2: `${openLeads.length} ดีล` },
+    { label: "โอกาสการขาย", tip: "มูลค่ารวมของดีลที่ยังเปิดอยู่ (ยังไม่ปิดการขาย และยังไม่ยกเลิก)", Icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads", value: baht(openValue), sub1: "รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่", sub2: `${openLeads.length} ดีล` },
     { label: "ติดตามวันนี้", tip: "งานติดตาม/นัดหมายที่ต้องทำวันนี้", Icon: PhoneCall, color: "#EA580C", bg: "#FEF0E6", href: "/calendar", value: `${followUpToday}`, sub1: "รายการ" },
     // ตัวเลขหลัก = จำนวนดีลที่ปิดสำเร็จ · อัตราปิดการขาย (%) ลงมาเป็นบรรทัดรอง
     // ชื่อการ์ดต้องตรงกับหน่วยของตัวเลขที่โชว์ — "ปิดการขายได้" คู่กับ "50%" จะอ่านว่าปิดได้ 50 ดีล
@@ -359,8 +362,8 @@ export default function DealerDashboard() {
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, width: "100%" }}>
                   <div style={{ minWidth: 0 }}>
                     <KpiLabel label={k.label} tip={k.tip} />
-                    <div style={{ ...num, marginTop: 6 }}>{baht(annualTarget)}</div>
-                    <div style={{ ...sub, marginTop: 2 }}>เป้าหมายทั้งปี</div>
+                    <div style={{ ...num, marginTop: 6 }}>{annualTarget > 0 ? baht(annualTarget) : "—"}</div>
+                    <div style={{ ...sub, marginTop: 2 }}>{annualTarget > 0 ? "เป้าหมายทั้งปี" : "ยังไม่ได้ตั้งเป้า"}</div>
                   </div>
                   <ProgressRing pct={achievePct} size={50} />
                 </div>
@@ -483,8 +486,8 @@ export default function DealerDashboard() {
                     <span style={{ display: "block", fontSize: "0.76rem", color: DANGER, fontWeight: 700 }}>ไม่ได้ติดต่อ {daysSinceContact(l)} วัน</span>
                   </span>
                   <span style={{ textAlign: "right", flexShrink: 0 }}>
-                    <span style={{ display: "block", fontSize: "0.72rem", color: SUB }}>ประเมินราคา</span>
-                    <span style={{ display: "block", fontSize: "0.88rem", fontWeight: 800, color: NAVY }}>{fmtLeadValue(l.value)}</span>
+                    <span style={{ display: "block", fontSize: "0.72rem", color: SUB }}>ใบเสนอราคาล่าสุด</span>
+                    <span style={{ display: "block", fontSize: "0.88rem", fontWeight: 800, color: NAVY }}>{fmtLeadValue(มูลค่าลีด(l))}</span>
                   </span>
                 </button>
               ))}

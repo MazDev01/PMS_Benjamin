@@ -12,11 +12,16 @@ const lead: LeadRow = {
   phone: "081-234-5678", email: "somchai@test.co.th",
   province: "เชียงใหม่", address: "99/1 ถ.นิมมานเหมินท์ ต.สุเทพ อ.เมือง เชียงใหม่ 50200",
   product: "โกดังสำเร็จรูป", category: "โกดังสำเร็จรูป",
-  status: "PAID", value: "฿2.5M", assigned: "วิภา รัตนกุล", dealerCode: "CNX", logo: "data:image/png;base64,zz",
+  // value = ช่องประเมินราคาเดิม (เลิกใช้ · ข้อ 5) ตั้งให้ต่างจากยอดใบ เพื่อพิสูจน์ว่าไม่ถูกหยิบไปใช้
+  status: "PAID", value: "฿9.9M", quoteValue: 2_500_000, assigned: "วิภา รัตนกุล", dealerCode: "CNX", logo: "data:image/png;base64,zz",
 };
 const opts = { joinDate: "2026-08-19", defaultDealerCode: "CNX" };
 
 describe("ลูกค้าเป้าหมาย → ลูกค้า", () => {
+  it("ยอดสะสมตั้งต้น = ยอดใบเสนอราคาล่าสุด · ไม่มีใบ = 0 (ไม่ถอยไปใช้ประเมินราคา) — บอสตัดสิน 20 ต.ค. 69 ข้อ 5", () => {
+    expect(customerPayloadFromLead({ ...lead, quoteValue: null }, opts).totalValue).toBe(0);
+  });
+
   it("ที่อยู่ต้องตามไปด้วย (ช่องที่เคยหาย)", () => {
     expect(customerPayloadFromLead(lead, opts).address).toBe(lead.address);
   });
@@ -33,7 +38,7 @@ describe("ลูกค้าเป้าหมาย → ลูกค้า", ()
     expect(c.owner).toBe("วิภา รัตนกุล");   // ผู้รับผิดชอบเดิมดูแลต่อ
     expect(c.logo).toBe(lead.logo);
     expect(c.dealerCode).toBe("CNX");        // ลูกค้าเป็นของสาขาเดียวกับลูกค้าเป้าหมาย
-    expect(c.totalValue).toBe(2_500_000);
+    expect(c.totalValue).toBe(2_500_000);   // ยอดใบเสนอราคาล่าสุด (ใบ 0223) ไม่ใช่ประเมินราคา 9.9M
     expect(c.joinDate).toBe("2026-08-19");
     expect(c.status).toBe("active");
   });

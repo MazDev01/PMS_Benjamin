@@ -75,9 +75,10 @@ function RevBar({ actual, target }: { actual: number; target: number }) {
   //   เดิมใช้ค่าที่ตัดแล้วทั้งสองที่ → ดีลเลอร์ที่ทำได้ 410% ของเป้าขึ้นว่า "100%"
   //   อ่านแล้วเข้าใจว่าถึงเป้าพอดี ทั้งที่ทำได้เกินเป้าสี่เท่า และหน้าเดียวกัน (แผงเจาะรายสาขา)
   //   กลับโชว์ 410% อยู่ — เลขสองตัวในหน้าเดียวขัดกันเอง
-  const pct = target > 0 ? Math.round(actual / target * 100) : 0;
-  const pctBar = Math.min(100, pct);
-  const color = pct >= 100 ? "#059669" : pct >= 75 ? "#003366" : pct >= 50 ? "#f59e0b" : "#dc2626";
+  // ยังไม่ตั้งเป้า = null → "—" สีเทา ไม่ใช่ 0% สีแดง (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
+  const pct = target > 0 ? Math.round(actual / target * 100) : null;
+  const pctBar = pct == null ? 0 : Math.min(100, pct);
+  const color = pct == null ? "#94a3b8" : pct >= 100 ? "#059669" : pct >= 75 ? "#003366" : pct >= 50 ? "#f59e0b" : "#dc2626";
   return (
     // ⚠️ ห้ามใส่ minWidth ที่กล่องข้างใน (แก้ 10 ส.ค. 69)
     //   ช่องตารางมีระยะขอบซ้ายขวารวม ~32px · กล่องข้างในที่กว้างตายตัวจึงล้นออกนอกช่อง
@@ -87,15 +88,15 @@ function RevBar({ actual, target }: { actual: number; target: number }) {
       {/* ⚠️ ตัวเลขย่อ (฿24.6M) ต้องดูค่าเต็มได้ — ฝั่งดีลเลอร์โชว์เต็ม (฿24,600,000) พอเอามาเทียบกันแล้ว
           ผู้ใช้ไม่แน่ใจว่าเป็นเลขเดียวกันไหม (ผลตรวจภายนอก DL-12 · 24 ส.ค. 69) */}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: "0.72rem", marginBottom: 3 }}
-        title={`ยอดขายสะสม ฿${Math.round(actual).toLocaleString("th-TH")} · เป้า ฿${Math.round(target).toLocaleString("th-TH")}`}>
+        title={`ยอดขายสะสม ฿${Math.round(actual).toLocaleString("th-TH")} · ${target > 0 ? `เป้า ฿${Math.round(target).toLocaleString("th-TH")}` : "ยังไม่ได้ตั้งเป้า"}`}>
         <span style={{ color: "#6b7280" }}>฿{(actual / 1_000_000).toFixed(1)}M</span>
-        <span style={{ fontWeight: 700, color }}>{pct}%</span>
+        <span style={{ fontWeight: 700, color }}>{pct == null ? "—" : `${pct}%`}</span>
       </div>
       <div style={{ height: 6, background: "#f0f0f5", borderRadius: 99, overflow: "hidden" }}>
         <div className="top5-bar" style={{ height: "100%", width: `${pctBar}%`, background: color, borderRadius: 99 }} />
       </div>
       <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>
-        เป้า ฿{(target / 1_000_000).toFixed(1)}M
+        {target > 0 ? `เป้า ฿${(target / 1_000_000).toFixed(1)}M` : "ยังไม่ได้ตั้งเป้า"}
       </div>
     </div>
   );
@@ -222,7 +223,7 @@ function HQDealersPageInner() {
     return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
   };
   const avgOnTime = avgOf(c => perfOf(c).onTimePct);
-  const totalPct = totalTarget > 0 ? Math.round(totalRevenue / totalTarget * 100) : 0;
+  const totalPct = totalTarget > 0 ? Math.round(totalRevenue / totalTarget * 100) : null;   // ยังไม่ตั้งเป้าเลย = "—" (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
 
   // "เข้าระบบแทนดีลเลอร์" — HQ มีสิทธิ์เข้าบัญชีดีลเลอร์ไหนก็ได้ (บอสยืนยัน)
   //
@@ -293,7 +294,7 @@ function HQDealersPageInner() {
       <div className="hq-kpi4" style={{ marginBottom: "1.25rem" }}>
         {([
           { label: "ดีลเลอร์ทั้งหมด", value: dealersLoaded ? `${filtered.length}` : "—", sub: dealersLoaded ? `เปิดใช้งาน ${active.length} ดีลเลอร์` : "กำลังโหลด…", Icon: Store, color: "#003366", bg: "#E8F0FE" },
-          { label: "รายได้รวม", value: dealersLoaded ? `฿${(totalRevenue / 1_000_000).toFixed(1)}M` : "—", sub: `${totalPct}% ของผลรวมเป้ารายดีลเลอร์ ฿${(totalTarget / 1_000_000).toFixed(1)}M${หมายเหตุปิดใช้งาน}`, Icon: Coins, color: "#059669", bg: "#E6F6EF" },
+          { label: "รายได้รวม", value: dealersLoaded ? `฿${(totalRevenue / 1_000_000).toFixed(1)}M` : "—", sub: !dealersLoaded ? "—" : totalPct == null ? `ยังไม่ได้ตั้งเป้า${หมายเหตุปิดใช้งาน}` : `${totalPct}% ของผลรวมเป้ารายดีลเลอร์ ฿${(totalTarget / 1_000_000).toFixed(1)}M${หมายเหตุปิดใช้งาน}`, Icon: Coins, color: "#059669", bg: "#E6F6EF" },
           { label: "โอกาสการขายทั้งหมด", value: dealersLoaded ? `${totalProjects}` : "—", sub: dealersLoaded ? `${active.filter(d => perfOf(d.code).openLeads > 0).length} จาก ${active.length} ดีลเลอร์ที่เปิดใช้งาน มีงานอยู่${มีงานค้างที่ปิดใช้งาน > 0 ? ` · ปิดใช้งานแต่ยังมีงานค้าง ${มีงานค้างที่ปิดใช้งาน} ราย` : ""}` : "กำลังโหลด…", Icon: Briefcase, color: "#0891B2", bg: "#E6F4F9" },
           { label: "ติดตามตรงเวลา", value: avgOnTime === null ? "—" : `${avgOnTime}%`, sub: avgOnTime === null ? "ยังไม่มีข้อมูล" : `${avgOnTime >= 85 ? "ดี" : avgOnTime >= 70 ? "พอใช้" : "ต้องปรับปรุง"} · เฉลี่ยเท่าที่มีข้อมูล`, Icon: Clock, color: "#7C3AED", bg: "#F0EBFB" },
         ] as const).map(t => (

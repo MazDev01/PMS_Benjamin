@@ -26,7 +26,8 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-function fmtM(n: number) {
+function fmtM(n: number | null) {
+  if (n == null) return "—";   // ลีดที่ยังไม่มีใบเสนอราคา (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223)
   return n >= 1_000_000 ? `฿${(n / 1_000_000).toFixed(1)}M` : `฿${(n / 1000).toFixed(0)}K`;
 }
 
@@ -105,16 +106,17 @@ function OverviewTab({ dealer, detail }: { dealer: DealerRow; detail: DealerDeta
   const perf = useDealerPerformance().get(dealer.code) ?? EMPTY_PERF;
   // ⚠️ ตัวเลขที่โชว์ต้องเป็นค่าจริง · ตัดที่ 100 ได้เฉพาะความยาวแท่ง (บอสสั่ง 24 ส.ค. 69)
   //   เดิมสาขาที่ทำได้เกินเป้าขึ้น "100%" เท่ากันหมด แยกไม่ออกว่าใครทำได้ 101% หรือ 410%
-  const targetPct = dealer.revenueTarget > 0 ? Math.round(perf.revenue / dealer.revenueTarget * 100) : 0;
-  const targetBar = Math.min(100, targetPct);
-  const barColor  = targetPct >= 80 ? "#059669" : targetPct >= 50 ? "#003366" : "#dc2626";
+  // ยังไม่ตั้งเป้า = null → "—" ไม่ใช่ 0% และไม่มีป้าย "ล้าหลังเป้า"/แถบเตือน (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
+  const targetPct = dealer.revenueTarget > 0 ? Math.round(perf.revenue / dealer.revenueTarget * 100) : null;
+  const targetBar = targetPct == null ? 0 : Math.min(100, targetPct);
+  const barColor  = targetPct == null ? "#94a3b8" : targetPct >= 80 ? "#059669" : targetPct >= 50 ? "#003366" : "#dc2626";
   // ⚠️ ไม่มีข้อมูลเลย = ยังตัดสินไม่ได้ ห้ามขึ้น "ล้าหลังเป้า" (แก้ 10 ส.ค. 69)
   //   เดิมสาขาที่ยังไม่มีลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้าสักรายการ ถูกขึ้นป้ายแดง "ล้าหลังเป้า"
   //   พร้อมแถบเตือน "ต้องกระตุ้นการปิดการขาย" ทันทีที่เปิดหน้า เพราะยอด 0 ย่อมน้อยกว่า 50%
   //   สาขาที่เพิ่งเปิดจึงถูกตีตราตั้งแต่วันแรก · การ์ด "ติดตามตรงเวลา" ในหน้าเดียวกันทำถูกอยู่แล้ว
   //   (ขึ้น "ยังไม่มีข้อมูล") — ใบนี้แค่ยังไม่ได้ทำตาม
   const hasAnyActivity = perf.revenue > 0 || perf.openLeads > 0 || perf.quotes > 0;
-  const isAtRisk  = hasAnyActivity && targetPct < 50;
+  const isAtRisk  = hasAnyActivity && targetPct != null && targetPct < 50;
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -129,7 +131,7 @@ function OverviewTab({ dealer, detail }: { dealer: DealerRow; detail: DealerDeta
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={{ fontSize: "1.3rem", fontWeight: 800, color: "#2D2D2D" }}>฿{(perf.revenue / 1_000_000).toFixed(1)}M</span>
-              <span style={{ fontSize: "1rem", fontWeight: 700, color: barColor }}>{targetPct}%</span>
+              <span style={{ fontSize: "1rem", fontWeight: 700, color: barColor }}>{targetPct == null ? "—" : `${targetPct}%`}</span>
             </div>
             <div style={{ height: 8, background: "#f0f0f5", borderRadius: 99, overflow: "hidden" }}>
               <div className="top5-bar" style={{ height: "100%", width: `${targetBar}%`, background: barColor, borderRadius: 99 }} />
@@ -137,7 +139,7 @@ function OverviewTab({ dealer, detail }: { dealer: DealerRow; detail: DealerDeta
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
               <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>ยอดจริง</span>
               {/* ทศนิยม 1 ตำแหน่ง — เป้า Standard 1.6 ล้าน เดิมปัดขึ้น "฿2M" ไม่ตรงกับหน้าดีลเลอร์ */}
-              <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>เป้า ฿{(dealer.revenueTarget / 1_000_000).toFixed(1)}M{dealer.package ? ` · ${packageLabel[dealer.package]}` : ""}</span>
+              <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>{dealer.revenueTarget > 0 ? `เป้า ฿${(dealer.revenueTarget / 1_000_000).toFixed(1)}M` : "ยังไม่ได้ตั้งเป้า"}{dealer.package ? ` · ${packageLabel[dealer.package]}` : ""}</span>
             </div>
             {isAtRisk && (
               <div style={{ marginTop: 10, padding: "6px 12px", background: "#fee2e2", borderRadius: 8, fontSize: "0.72rem", color: "#dc2626", fontWeight: 600 }}>
@@ -433,15 +435,16 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
   }
 
   const perf = perfMap.get(code) ?? EMPTY_PERF;
-  const targetPct = dealer.revenueTarget > 0 ? Math.round(perf.revenue / dealer.revenueTarget * 100) : 0;
+  // ยังไม่ตั้งเป้า = null → "—" ไม่ใช่ 0% และไม่มีป้าย "ล้าหลังเป้า"/แถบเตือน (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
+  const targetPct = dealer.revenueTarget > 0 ? Math.round(perf.revenue / dealer.revenueTarget * 100) : null;
   // ⚠️ ไม่มีข้อมูลเลย = ยังตัดสินไม่ได้ ห้ามขึ้น "ล้าหลังเป้า" (แก้ 10 ส.ค. 69)
   //   เดิมสาขาที่ยังไม่มีลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้าสักรายการ ถูกขึ้นป้ายแดง "ล้าหลังเป้า"
   //   พร้อมแถบเตือน "ต้องกระตุ้นการปิดการขาย" ทันทีที่เปิดหน้า เพราะยอด 0 ย่อมน้อยกว่า 50%
   //   สาขาที่เพิ่งเปิดจึงถูกตีตราตั้งแต่วันแรก · การ์ด "ติดตามตรงเวลา" ในหน้าเดียวกันทำถูกอยู่แล้ว
   //   (ขึ้น "ยังไม่มีข้อมูล") — ใบนี้แค่ยังไม่ได้ทำตาม
   const hasAnyActivity = perf.revenue > 0 || perf.openLeads > 0 || perf.quotes > 0;
-  const isAtRisk  = hasAnyActivity && targetPct < 50;
-  const isWarn    = targetPct >= 50 && targetPct < 70;
+  const isAtRisk  = hasAnyActivity && targetPct != null && targetPct < 50;
+  const isWarn    = targetPct != null && targetPct >= 50 && targetPct < 70;
 
   return (
     <div className="erp">

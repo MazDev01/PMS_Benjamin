@@ -32,6 +32,7 @@ export function leadToRow(l: LeadRow): Row {
   const r = toSnake(l as unknown as Row);
   if ("created_at" in r) { r.created_label = r.created_at; delete r.created_at; }
   if (r.area != null) r.area = String(r.area);
+  delete r.quote_value;   // ฐานเขียนเองจากใบเสนอราคา (ใบ 0223) — แอปไม่ส่ง
   return r;
 }
 // แก้แถวลีดทั้งแถว (leadToUpdateRow) ถูกเอาออก 15 ต.ค. 69 — แก้ลูกค้าเป้าหมายด้วยส่วนต่างผ่าน lead_apply เท่านั้น (lib/leadIntent.ts · ใบ 0211)
@@ -44,6 +45,7 @@ export function rowToLead(row: Row): LeadRow {
   l.name = str(l.name); l.company = str(l.company); l.contact = str(l.contact);
   l.province = str(l.province); l.product = str(l.product); l.category = str(l.category);
   l.value = str(l.value); l.assigned = str(l.assigned);
+  l.quoteValue = row.quote_value == null || row.quote_value === "" ? null : Number(row.quote_value);   // ใบ 0223
   return l as unknown as LeadRow;
 }
 

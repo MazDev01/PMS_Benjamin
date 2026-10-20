@@ -5,13 +5,13 @@
 // เข้ากับ seed ของสาขาอื่น (hqAllQuotations/hqAllCustomers)
 // → ดีลเลอร์สร้าง/แก้ใบเสนอราคา แล้ว HQ เห็นทันที (dedup ด้วยเลขที่/ชื่อ · live ทับ seed)
 import { useMemo, useEffect, useState } from "react";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
   dealerDetails, fmtISOToThai, hqAllQuotations, hqAllCustomers,
   type HQQuotation, type HQCustomer, type LeadStatus, type LeadRow,
   type DealerDetail, type DealerLeadItem, type DealerProjectItem, type DealerQuoteItem,
 } from "@pms/shared/lib/mock";
-import { parseBaht } from "@pms/shared/lib/format";
 import { APP_NOW } from "@pms/shared/context/FilterContext";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { dealers as dealersRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
@@ -435,10 +435,10 @@ export function useNetworkDealerDetail(code: string): DealerDetail {
     }));
     const leadItems: DealerLeadItem[] = mine.map(l => ({
       id: l.id, name: l.company || l.name, province: l.province, product: "", // ไม่แสดงแม่แบบของลูกค้าเป้าหมาย
-      valueNum: parseBaht(l.value), status: LEAD_TO_ITEM[l.status], assignedAt: l.createdAt ?? "—",
+      valueNum: มูลค่าลีด(l), status: LEAD_TO_ITEM[l.status], assignedAt: l.createdAt ?? "—",
     }));
     const projects: DealerProjectItem[] = mine.filter(l => l.status !== "CANCELLED").map(l => ({
-      id: l.id, name: l.company || l.name, product: "", valueNum: parseBaht(l.value),
+      id: l.id, name: l.company || l.name, product: "", valueNum: มูลค่าลีด(l),
       progress: LEAD_PROGRESS[l.status], status: l.status === "PAID" ? "completed" : "in_progress",
     }));
     // ยอดขายรายเดือน (พันบาท) จากใบเสนอราคาที่ปิดได้ของสาขานี้ · แสดง ม.ค.–มิ.ย. (mock วันนี้ = มิ.ย.)

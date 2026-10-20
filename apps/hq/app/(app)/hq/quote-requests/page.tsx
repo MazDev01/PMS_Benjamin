@@ -39,6 +39,13 @@ export default function HQQuoteRequestsPage() {
   const ตั้งแก้ค้าง = useCallback((v: boolean) => { แก้ค้าง.current = v; }, []);
   const ตั้งกำลังบันทึก = useCallback((v: boolean) => { ล็อก.current = v; setกำลังบันทึก(v); }, []);
 
+  // มาจากกระดิ่ง (?q=เลขคำขอ · บอสตัดสิน 19 ต.ค. 69 ข้อ 7) — เติมช่องค้นหาให้ แล้วล้างออกจาก URL
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (!q) return;
+    setพิมพ์(q);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
   // คำค้นส่งไปฐานหลังหยุดพิมพ์ (ฐานกรองทั้งจำนวนและรายการด้วยคำเดียวกัน)
   useEffect(() => { const t = setTimeout(() => setค้นหา(พิมพ์.trim()), 250); return () => clearTimeout(t); }, [พิมพ์]);
   useEffect(() => setPage(0), [ค้นหา, กลุ่ม]);

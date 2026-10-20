@@ -19,6 +19,17 @@ import { useCallback, useEffect, useState } from "react";
 const MAX_KEPT = 500;
 
 const storageKey = (scope: string) => `pms_read_notifs_${scope || "guest"}`;
+// วันที่เริ่มใช้กระดิ่งแบบนับเฉพาะที่ยังไม่อ่าน (บอสตัดสิน 19 ต.ค. 69 ข้อ 7) — เรื่องที่เกิดก่อนวันนี้ถือว่าอ่านแล้ว
+//   เดิมประวัติย้อนหลังทั้งหมด (ปิดการขาย/เสียโอกาสทุกใบที่เคยมี) ถูกนับเป็นยังไม่อ่าน กระดิ่งขึ้น "9+" ค้างตลอด
+const sinceKey = (scope: string) => `pms_notif_since_${scope || "guest"}`;
+function วันเริ่ม(scope: string, today: string): string {
+  try {
+    const v = localStorage.getItem(sinceKey(scope));
+    if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    localStorage.setItem(sinceKey(scope), today);
+  } catch { /* ถูกปิด — ใช้วันนี้ (ไม่นับย้อนหลัง) */ }
+  return today;
+}
 
 function โหลด(scope: string): string[] {
   if (typeof window === "undefined") return [];
@@ -36,11 +47,12 @@ function บันทึก(scope: string, keys: string[]) {
 /**
  * @param scope ตัวแยกบัญชี เช่น "hq" หรือรหัสสาขา — สลับบัญชีแล้วต้องไม่ใช้สถานะร่วมกัน
  */
-export function useReadNotifications(scope: string) {
+export function useReadNotifications(scope: string, today: string) {
   const [read, setRead] = useState<Set<string>>(new Set());
+  const [since, setSince] = useState<string | null>(null);
 
   // อ่านค่าที่เคยบันทึกไว้ตอนเปิดหน้า (และเมื่อสลับบัญชี)
-  useEffect(() => { setRead(new Set(โหลด(scope))); }, [scope]);
+  useEffect(() => { setRead(new Set(โหลด(scope))); setSince(วันเริ่ม(scope, today)); }, [scope, today]);
 
   // อีกแท็บกดอ่านแล้ว แท็บนี้ต้องตามด้วย
   useEffect(() => {
@@ -60,7 +72,8 @@ export function useReadNotifications(scope: string) {
     });
   }, [scope]);
 
-  const isRead = useCallback((key: string) => read.has(key), [read]);
+  /** key = กุญแจของเรื่อง · date (YYYY-MM-DD) = วันที่เรื่องเกิด — เกิดก่อนวันเริ่มใช้ = อ่านแล้ว */
+  const isRead = useCallback((key: string, date?: string) => read.has(key) || (!!since && !!date && date < since), [read, since]);
 
   return { isRead, markRead };
 }

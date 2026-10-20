@@ -1,5 +1,6 @@
 "use client";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { fmtLeadValue } from "@pms/shared/lib/format";
@@ -51,10 +52,15 @@ type NotifBucket = "today" | "yesterday" | "older";
 // กุญแจของการแจ้งเตือนสำหรับจำว่า "อ่านแล้ว" — ต้องผูกกับเนื้อหา ไม่ใช่เลขลำดับ
 //   ฝั่งดีลเลอร์ใช้เลขไล่ตอนสร้างรายการ ซึ่งเลื่อนได้ทุกครั้งที่มีของใหม่เข้ามา
 //   เก็บเลขไว้แล้ววันถัดไปเลขนั้นอาจไปตกที่การแจ้งเตือนคนละอัน = ทำเครื่องหมายอ่านผิดตัว
-const notifKey = (n: Notif) => `${n.sortDate}|${n.title}|${n.body}|${n.time}`;
+// กุญแจของเรื่อง — เรื่องที่มีกุญแจของตัวเอง (key) ใช้อันนั้น ไม่งั้นผูกกับเนื้อหา
+//   (มูลค่าลีดในข้อความเปลี่ยนตามใบล่าสุดได้ — เรื่องที่โชว์มูลค่าจึงตั้ง key เอง ไม่งั้นแก้ใบแล้วกลายเป็นยังไม่อ่าน)
+const notifKey = (n: Notif) => n.key ?? `${n.sortDate}|${n.title}|${n.body}|${n.time}`;
+// วันที่ไทยของเวลาที่ฐานจด (ISO) — ตัด 10 ตัวแรกตรง ๆ ได้วันของ UTC (ตี 0–7 ของไทยจะเป็นเมื่อวาน)
+const วันไทย = (at: string) => { const t = Date.parse(at); return Number.isFinite(t) ? new Date(t + 7 * 3_600_000).toISOString().slice(0, 10) : MOCK_TODAY; };
 
 type Notif = {
   id: number;
+  key?: string;
   iconEl: React.ReactNode;
   iconBg: string;
   iconColor: string;
@@ -106,7 +112,8 @@ function buildNotifications(
     push({
       iconEl: <MessageSquare size={14} />, iconBg: "#eef2f7", iconColor: "#475569",
       title: "ลูกค้าเป้าหมายรอดำเนินการ",
-      body: `${l.company} — ${l.contact} · ${l.province} · ${fmtLeadValue(l.value)}`,
+      key: `waiting|${l.id}|${daysSinceContact(l)}`,
+      body: `${l.company} — ${l.contact} · ${l.province} · ${fmtLeadValue(มูลค่าลีด(l))}`,
       time: `ไม่มีความเคลื่อนไหว ${daysSinceContact(l)} วัน · ผู้รับผิดชอบ ${l.assigned}`,
       href: `/leads?open=${l.numId}`,
       sortDate: MOCK_TODAY,
@@ -124,8 +131,25 @@ function buildNotifications(
       body: `ราคา HQ ของลีด ${l.company} หมดอายุ ขอราคาใหม่ได้`,
       time: หมดอายุ.date ?? "",
       href: `/leads?open=${l.numId}`,
-      sortDate: (หมดอายุ.at ?? MOCK_TODAY).slice(0, 10),
+      sortDate: หมดอายุ.at ? วันไทย(หมดอายุ.at) : MOCK_TODAY,
     });
+  }
+
+  // 1ค) HQ ส่งราคาแล้ว (บอสตัดสิน 19 ต.ค. 69 ข้อ 7 · ใบ 0224) — ฐานจดกิจกรรม hq_quoted ทุกครั้งที่ HQ ส่งใบ (รวมรอบขอแก้ราคา)
+  //     เป็นเหตุการณ์ (ไม่ใช่งานค้าง) — ทุกรอบที่ส่งเป็นคนละเรื่อง กุญแจผูกกับเวลาที่ส่ง
+  for (const l of leads) {
+    for (const a of (l.activities ?? []) as { type?: string; at?: string; date?: string; text?: string }[]) {
+      if (a.type !== "hq_quoted") continue;
+      push({
+        iconEl: <FileText size={14} />, iconBg: "#dcfce7", iconColor: "#166534",
+        title: "HQ ส่งราคาแล้ว",
+        key: `hq_quoted|${l.id}|${a.at ?? a.date ?? ""}`,
+        body: `ราคาจาก HQ ของลีด ${l.company} มาแล้ว — ทำใบให้ลูกค้าได้เลย`,
+        time: a.date ?? "",
+        href: `/leads?open=${l.numId}`,
+        sortDate: a.at ? วันไทย(a.at) : MOCK_TODAY,
+      });
+    }
   }
 
   // 2) เตือนติดตาม (Follow-up Reminder) — leads status "FOLLOWUP" + นัดชนิด follow_up
@@ -133,7 +157,8 @@ function buildNotifications(
     push({
       iconEl: <CalendarClock size={14} />, iconBg: "#fff3cd", iconColor: "#d97706",
       title: "เตือนติดตาม",
-      body: `${l.company} — ${l.contact} · ${fmtLeadValue(l.value)}`, // ไม่โชว์แม่แบบเก่า (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+      key: `followup|${l.id}`,
+      body: `${l.company} — ${l.contact} · ${fmtLeadValue(มูลค่าลีด(l))}`, // ไม่โชว์แม่แบบเก่า (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
       time: `ผู้รับผิดชอบ ${l.assigned}`,
       href: `/leads?open=${l.numId}`,
       sortDate: MOCK_TODAY,
@@ -223,8 +248,20 @@ function auditISO(at: string): string {
   if (!m || !(m[2] in TH_MO_NUM)) return "";
   return `${+m[3] - 543}-${String(TH_MO_NUM[m[2]]).padStart(2, "0")}-${String(+m[1]).padStart(2, "0")}`;
 }
+// เรื่องที่ดีลเลอร์ทำแล้วต้องเข้ากระดิ่ง HQ (บอสตัดสิน 19 ต.ค. 69 ข้อ 7) — นอกจากอีเมล · ชื่อเรื่องเป็นภาษาคน ไม่ใช่ชื่อสถานะในฐาน
+//   ชื่อการกระทำมาจากบันทึกการใช้งานที่ฐานจด (quote_requests_log · ใบ 0224 แยก "ขอแก้ราคา")
+function เรื่องดีลเลอร์ถึงHQ(action: string): string | null {
+  switch (action) {
+    case "ส่งคำขอใบเสนอราคา": return "ดีลเลอร์ส่งคำขอราคาใหม่";
+    case "ขอแก้ราคา": return "ดีลเลอร์ขอแก้ราคา";
+    case "คำขอใบเสนอราคา quoted → won": return "ลูกค้าตอบรับใบเสนอราคา";
+    case "คำขอใบเสนอราคา quoted → lost": return "ลูกค้าปฏิเสธใบเสนอราคา";
+    default: return null;
+  }
+}
 function buildHQNotifications(entries: AuditEntry[]): Notif[] {
   return entries.map(e => {
+    const ของดีลเลอร์ = String(e.role ?? "").startsWith("DEALER") ? เรื่องดีลเลอร์ถึงHQ(e.action) : null;
     const iso = auditISO(e.at);
     // ของจริงที่เพิ่งเกิด (วันที่จริง ≥ mock วันนี้) จัดเป็น "วันนี้" · seed จัดตามวันที่
     const bucket: NotifBucket = !iso ? "older" : iso >= MOCK_TODAY ? "today" : iso === MOCK_YESTERDAY ? "yesterday" : "older";
@@ -232,10 +269,12 @@ function buildHQNotifications(entries: AuditEntry[]): Notif[] {
     return {
       id: e.id,
       iconEl: <History size={14} />, iconBg: "#eef2f7", iconColor: PRIMARY,
-      title: e.action,
+      key: `audit|${e.id}`,
+      title: ของดีลเลอร์ ?? e.action,
       body: `${e.user} · ${e.target}`,
       time: `${e.at.split(" · ")[0]} · ${timeOnly}`,
-      href: "/hq/audit",
+      // เรื่องของดีลเลอร์ → กล่องคำขอใบเสนอราคา ค้นด้วยเลขคำขอ (ท้ายข้อความ "CNX · RQ-…")
+      href: ของดีลเลอร์ ? `/hq/quote-requests?q=${encodeURIComponent(e.target.split(" · ").pop() ?? "")}` : "/hq/audit",
       sortDate: iso || MOCK_TODAY,
       bucket,
     };
@@ -403,7 +442,8 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
       // เฉพาะสิ่งที่คนของ HQ ทำ (บอสสั่ง 21 ก.ย. 69) — บันทึกการใช้งานเก็บงานขายของดีลเลอร์ด้วย
       //   (ตัวดักฐานข้อมูล 0150: สร้าง/ลบลูกค้าเป้าหมาย/ใบเสนอราคา ของสาขา) ซึ่งไม่ใช่เรื่องของกระดิ่ง HQ
       //   ดูย้อนหลังทั้งหมดยังทำได้ที่ /hq/audit · แถวที่ไม่มีบทบาท (ระบบ) ยังแสดง
-      const ของHQ = auditEntries.filter(e => !String(e.role ?? "").startsWith("DEALER"));
+      //   ยกเว้นเรื่องที่ดีลเลอร์ทำแล้ว HQ ต้องรู้ (บอสตัดสิน 19 ต.ค. 69 ข้อ 7): คำขอราคาใหม่ · ขอแก้ราคา · ลูกค้าตอบรับ/ปฏิเสธ
+      const ของHQ = auditEntries.filter(e => !String(e.role ?? "").startsWith("DEALER") || เรื่องดีลเลอร์ถึงHQ(e.action) !== null);
       const shown = hqNotifPrefs
         ? ของHQ.filter(e => hqNotifPrefs[hqAuditCategory(e.action)]?.inapp !== false)
         : ของHQ;
@@ -437,7 +477,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   // สถานะ "อ่านแล้ว" ต้องอยู่ข้ามการรีเฟรชหน้า — เดิมเก็บในหน่วยความจำหน้าเว็บอย่างเดียว
   //   กด "อ่านทั้งหมด" แล้วรีเฟรช ทุกอย่างกลับมาเป็นยังไม่อ่านเหมือนเดิม (ผู้ใช้แจ้ง 14 ส.ค. 69)
   //   แยกเก็บตามบัญชี ไม่งั้นสลับบัญชีแล้วเห็นสถานะของอีกคน
-  const { isRead, markRead } = useReadNotifications(isHQ ? "hq" : currentDealer.code);
+  const { isRead, markRead } = useReadNotifications(isHQ ? "hq" : currentDealer.code, MOCK_TODAY);
 
   const notifsRef = useRef<HTMLDivElement>(null);
   const userRef   = useRef<HTMLDivElement>(null);
@@ -490,7 +530,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
             ? `${l.contact} · ${l.phone ?? ""}`
             : has(l.assigned)
             ? `${l.contact} · ผู้รับผิดชอบ ${l.assigned}`
-            : `${l.contact} · ${l.province} · ${fmtLeadValue(l.value)}`;
+            : `${l.contact} · ${l.province} · ${fmtLeadValue(มูลค่าลีด(l))}`;
           return { type: "ลูกค้าเป้าหมาย", label: l.company, sub, href: `/leads?open=${l.numId}` };
         }),
       // ลูกค้า — match company/name/province/phone/ผู้รับผิดชอบ (ผ่านลูกค้าเป้าหมายที่ผูกกัน)
@@ -530,7 +570,8 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   const alertKey = (g: { key: HQAlertKey; items: unknown[] }) => `alert:${g.key}:${g.items.length}`;
   const alertGroupsUnread = alertGroups.filter(g => !isRead(alertKey(g)));
   const alertCount = alertGroupsUnread.reduce((s, g) => s + g.items.length, 0);
-  const unreadCount = notifs.filter(n => !isRead(notifKey(n))).length + alertCount;
+  // นับเฉพาะเรื่องที่ยังไม่อ่าน (บอสตัดสิน 19 ต.ค. 69 ข้อ 7) — เรื่องที่เกิดก่อนวันเริ่มใช้ถือว่าอ่านแล้ว (useReadNotifications)
+  const unreadCount = notifs.filter(n => !isRead(notifKey(n), n.sortDate)).length + alertCount;
   const ซ่อนไปแล้ว = alertGroups.length - alertGroupsUnread.length;
 
   function markAll() { markRead([...notifs.map(notifKey), ...alertGroups.map(alertKey)]); }
@@ -674,7 +715,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
             onClick={() => { setShowNotifs(p => !p); setShowAllNotifs(false); setShowUser(false); }}>
             <Bell size={18} strokeWidth={2} />
             {unreadCount > 0 && (
-              <span style={{
+              <span data-unread-count={unreadCount} style={{
                 position:"absolute", top:-2, right:-2, minWidth:16, height:16, padding:"0 4px",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 borderRadius:99, background:"#dc2626", color:"#fff",
@@ -749,7 +790,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
                   </div>
                 )}
                 {(showAllNotifs ? notifs : notifs.slice(0, 8)).map((n, i, shown) => {
-                  const อ่านแล้ว = isRead(notifKey(n));
+                  const อ่านแล้ว = isRead(notifKey(n), n.sortDate);
                   const isBucketStart = i === 0 || shown[i - 1].bucket !== n.bucket;
                   return (
                     <div key={n.id}>
@@ -769,7 +810,8 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
                           <span style={{ fontSize:"0.8rem", fontWeight:700, color:STEEL }}>{n.title}</span>
-                          {!isRead && <span style={{ width:6, height:6, borderRadius:"50%", background:"#dc2626", flexShrink:0 }}/>}
+                          {/* จุดแดง = ยังไม่อ่าน · เดิมเขียน !isRead (ตัวฟังก์ชัน ไม่ใช่ผลของเรื่องนี้) จุดจึงไม่เคยขึ้น (บอสตัดสิน 19 ต.ค. 69 ข้อ 7) */}
+                          {!อ่านแล้ว && <span data-unread-dot style={{ width:6, height:6, borderRadius:"50%", background:"#dc2626", flexShrink:0 }}/>}
                         </div>
                         <div style={{ fontSize:"0.72rem", color:"#6b7280", lineHeight:1.4 }}>{n.body}</div>
                         <div style={{ fontSize:"0.65rem", color:"#9ca3af", marginTop:3 }}>{n.time}</div>

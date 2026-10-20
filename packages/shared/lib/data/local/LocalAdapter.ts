@@ -12,6 +12,7 @@ import {
   HQ_POLICY_KEY, HQ_TARGETS_KEY, HQ_NOTIF_RULES_KEY, HQ_SETTINGS_EVENT,
   loadDealerLeadRulesMap, saveDealerLeadRules, loadQuoteValidityDays,
   leads as leadSeed, initialCustomers, quotations as quoteSeed, appointments as apptSeed,
+  ยอดใบล่าสุดของลีด,
 } from "@pms/shared/lib/mock";
 // อ่านจาก auditStore (localStorage ล้วน) ไม่ใช่ useAudit — useAudit เป็น React hook ที่ import
 // ชั้นข้อมูลกลับเข้ามา ทำให้เกิดวงจร import จริงตอนรัน (ดูเหตุผลเต็มใน auditStore.ts)
@@ -19,7 +20,6 @@ import { loadAudit, appendAudit } from "@pms/shared/lib/auditStore";
 import { exactKey } from "@pms/shared/lib/customerMatch";
 import { isClosedDeal } from "@pms/shared/lib/customerDeletion";
 import { parseThaiDate as parseThaiDateLocal } from "@pms/shared/lib/leadMetrics";
-import { parseBaht } from "@pms/shared/lib/format";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { profileKey, PROFILE_UPDATED_EVENT, sessions, QUOTED_UP, DEFAULT_DEALER_CODE,
   DEFAULT_LEAD_RULES, DEFAULT_HQ_NOTIF_RULES, DEFAULT_HQ_POLICY, type UserProfile } from "@pms/shared/lib/mock";
@@ -141,6 +141,11 @@ function fireSettings() {
   try { window.dispatchEvent(new Event(HQ_SETTINGS_EVENT)); } catch {}
 }
 
+/** มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223) — โหมดตัวอย่างไม่มีฐาน จึงคิดจากใบในเครื่องตอนอ่าน */
+function ใส่มูลค่าลีด(ls: LeadRow[]): LeadRow[] {
+  const qs = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
+  return ls.map(l => ({ ...l, quoteValue: ยอดใบล่าสุดของลีด(l, qs) ?? null }));
+}
 function scopeByDealer<T extends { dealerCode?: string }>(list: T[], scope?: Scope): T[] {
   if (!scope || scope.isHQ || !scope.dealerCode) return list;
   return list.filter(r => (r.dealerCode ?? DEFAULT_DEALER_CODE) === scope.dealerCode);
@@ -574,7 +579,7 @@ export const LocalAdapter: DataAdapter = {
       return ok(m);
     },
     leadSummary: (f) => {
-      const ls = readKey<LeadRow[]>(SALES.leads, leadSeed);
+      const ls = ใส่มูลค่าลีด(readKey<LeadRow[]>(SALES.leads, leadSeed));
       const search = (f.search ?? "").trim().toLowerCase();
       const isoOf = (l: LeadRow) => { const d = parseThaiDateLocal(l.createdAt ?? ""); return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : null; };
       const rows = ls.filter(l => {
@@ -592,13 +597,13 @@ export const LocalAdapter: DataAdapter = {
       const cnt = <K extends string>(key: (l: LeadRow) => K) => { const m = new Map<K, number>(); rows.forEach(l => m.set(key(l), (m.get(key(l)) ?? 0) + 1)); return m; };
       const statusM = cnt(l => l.status);
       const statusValM = new Map<string, number>();
-      rows.forEach(l => statusValM.set(l.status, (statusValM.get(l.status) ?? 0) + parseBaht(l.value)));
+      rows.forEach(l => statusValM.set(l.status, (statusValM.get(l.status) ?? 0) + (l.quoteValue ?? 0)));   // ยอดใบล่าสุด (ใบ 0223) ไม่ใช่ประเมินราคา
       const sourceM = cnt(l => (l.source || "ไม่ระบุ"));
       const productM = new Map<string, number>(); // ไม่นับตามแม่แบบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
       const provM = new Map<string, number>();
       rows.forEach(l => { const p = (l.province ?? "").trim(); if (p) provM.set(p, (provM.get(p) ?? 0) + 1); });
       const lostM = new Map<string, { count: number; value: number }>();
-      rows.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => { const r = lostM.get(l.lostReason!) ?? { count: 0, value: 0 }; r.count += 1; r.value += parseBaht(l.value); lostM.set(l.lostReason!, r); });
+      rows.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => { const r = lostM.get(l.lostReason!) ?? { count: 0, value: 0 }; r.count += 1; r.value += l.quoteValue ?? 0; lostM.set(l.lostReason!, r); });
       // quoted/won ต้องมีครบเหมือนฝั่งฐานข้อมูล (ใบ 0157) ไม่งั้นโหมด local กับ supabase ให้เลขคนละชุด
       const monthM = new Map<string, { y: number; m: number; created: number; won: number; lost: number; quoted: number }>();
       rows.forEach(l => { const d = parseThaiDateLocal(l.createdAt ?? ""); if (!d) return; const y = d.getFullYear(), m = d.getMonth(), k = `${y}-${m}`; let r = monthM.get(k); if (!r) { r = { y, m, created: 0, won: 0, lost: 0, quoted: 0 }; monthM.set(k, r); } r.created++; if (l.status === "PAID") r.won++; if (l.status === "CANCELLED") r.lost++; if (QUOTED_UP.includes(l.status)) r.quoted++; });
@@ -745,7 +750,7 @@ export const LocalAdapter: DataAdapter = {
         .map(l => ({ l, created: parseThaiDateLocal(l.createdAt ?? "") }))
         .filter((x): x is { l: LeadRow; created: Date } => !!x.created
           && (asOf.getTime() - x.created.getTime()) / 3_600_000 > (f.unassignedPerDealer?.[x.l.dealerCode ?? DEFAULT_DEALER_CODE] ?? f.unassignedDefaultHours ?? DEFAULT_LEAD_RULES.unassignedAlertHours))
-        .map(({ l }) => ({ numId: l.numId, dealerCode: l.dealerCode ?? DEFAULT_DEALER_CODE, company: l.company || l.name, province: l.province, value: l.value }));
+        .map(({ l }) => ({ numId: l.numId, dealerCode: l.dealerCode ?? DEFAULT_DEALER_CODE, company: l.company || l.name, province: l.province, value: l.quoteValue != null ? String(l.quoteValue) : "" }));
       const idle = ls
         .filter(l => isOpen(l.status))
         .map(l => ({ l, lc: lastContactOf(l) }))
@@ -926,10 +931,11 @@ export const LocalAdapter: DataAdapter = {
   },
 
   // งานขาย — list (อ่าน) + CRUD เต็ม (Phase 0) · เขียนลง localStorage คีย์เดียวกับ SalesContext
+  //   มูลค่าลีด (quoteValue) คิดจากใบตอนอ่านทุกครั้ง — ตรรกะเดียวกับฐาน (ใบ 0223)
   leads: {
-    list: (scope) => ok(scopeByDealer(readKey<LeadRow[]>(SALES.leads, leadSeed), scope)),
+    list: (scope) => ok(ใส่มูลค่าลีด(scopeByDealer(readKey<LeadRow[]>(SALES.leads, leadSeed), scope))),
     // โหมดข้อมูลในเครื่องเก็บทุกคอลัมน์อยู่แล้ว — คืนแถวที่ตรง id ตรง ๆ
-    get: (id) => ok(readKey<LeadRow[]>(SALES.leads, leadSeed).find(l => l.id === id) ?? null),
+    get: (id) => ok(ใส่มูลค่าลีด(readKey<LeadRow[]>(SALES.leads, leadSeed).filter(l => l.id === id))[0] ?? null),
     // หน้าเดียว + กรอง (M9 Phase 4) — mirror leads_page ฝั่ง DB
     listPage: (scope, opts) => {
       const search = (opts.search ?? "").trim().toLowerCase();
@@ -957,7 +963,7 @@ export const LocalAdapter: DataAdapter = {
         const am = parseThaiDateLocal(a.createdAt ?? "")?.getTime() ?? -Infinity, bm = parseThaiDateLocal(b.createdAt ?? "")?.getTime() ?? -Infinity;
         return am !== bm ? bm - am : (b.numId ?? 0) - (a.numId ?? 0);
       });
-      return ok({ rows: arr.slice(opts.offset, opts.offset + opts.limit), total: arr.length });
+      return ok({ rows: ใส่มูลค่าลีด(arr.slice(opts.offset, opts.offset + opts.limit)), total: arr.length });
     },
     // num_id ถัดไป — โหมด local เครื่องเดียว → max+1 ของสาขานั้นพอ (supabase ใช้ RPC atomic)
     nextNumId: (dealerCode) => {

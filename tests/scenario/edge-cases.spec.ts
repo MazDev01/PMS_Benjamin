@@ -48,34 +48,8 @@ test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); await purge
 //   ตอนนี้ต้อง "ฟ้องแล้วไม่บันทึก" — เทสต์นี้จึงเปลี่ยนตามพฤติกรรมที่ตั้งใจให้เป็น
 //   (ไม่ได้แก้เทสต์เพื่อให้ผ่าน — แก้เพราะข้อกำหนดเปลี่ยน และมีเทสต์เฉพาะเรื่องนี้เพิ่มไว้ที่
 //    form-shows-what-it-saves.spec.ts ด้วย)
-test("[edge] มูลค่าประเมินติดลบ/ข้อความมั่ว → ต้องฟ้องและไม่บันทึก ไม่ใช่กลายเป็น 0 เงียบ ๆ", async ({ page }) => {
-  const errs = watchErrors(page);
-  const sb = await db(RYG);
-  const COMPANY = tg("ค่าติดลบ");
-
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
-  await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
-  await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
-  await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณทดสอบ");
-  // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
-  await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("-500000");
-  await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").blur();
-  const afterBlur = await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").inputValue();
-  await page.getByRole("button", { name: "บันทึก" }).click();
-
-  // ต้องขึ้นเหตุผลให้ผู้ใช้เห็น ไม่ใช่บันทึกผ่านไปเงียบ ๆ
-  await expect(page.getByText(/มูลค่าอ่านไม่ออก/), `ตอน blur ในฟอร์มเห็น: "${afterBlur}"`).toBeVisible({ timeout: 10_000 });
-  assertNoErrors(errs, "กรอกมูลค่าติดลบ");
-
-  // และต้องไม่มีลูกค้าเป้าหมายลงฐานข้อมูลเลย (เดิมลงเป็น "฿0" ซึ่งผู้ใช้ไม่มีทางรู้ว่ามูลค่าหายไปแล้ว)
-  await page.waitForTimeout(1500);
-  const { data } = await sb.from("leads").select("id,value").eq("dealer_code", "RYG").eq("company", COMPANY);
-  expect(data?.length ?? 0, `ต้องไม่บันทึก แต่พบ ${JSON.stringify(data)}`).toBe(0);
-});
+// ข้อ "มูลค่าประเมินติดลบ/ข้อความมั่ว → ต้องฟ้อง" เลิกแล้ว: ไม่มีช่องให้พิมพ์มูลค่า (บอสตัดสิน 19 ต.ค. 69 ข้อ 5: ช่องประเมินราคาเอาออกจากหน้าเว็บทุกที่ · มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223))
+//   การไม่มีช่องตรวจที่ form-shows-what-it-saves.spec.ts · lead-value-estimate.spec.ts · new-deal-form.spec.ts
 
 test("[edge] ชื่อบริษัทยาวผิดปกติ (2000 ตัวอักษร) → ไม่พัง, เปิดดูได้ปกติ", async ({ page }) => {
   const errs = watchErrors(page);
@@ -91,7 +65,6 @@ test("[edge] ชื่อบริษัทยาวผิดปกติ (2000 
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   const row = await waitRow<{ company: string }>(sb, "leads", { company: LONG });
@@ -122,7 +95,6 @@ test("[edge] อักขระพิเศษ/emoji/แท็ก HTML ในช
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   const row = await waitRow<{ company: string }>(sb, "leads", { company: WEIRD });
@@ -154,7 +126,6 @@ test("[edge] กดปุ่มบันทึกซ้ำเร็ว ๆ (doub
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
 
   const saveBtn = page.getByRole("button", { name: "บันทึก" });
   // ยิง pointerdown ตรง ๆ ผ่าน dispatchEvent 5 ครั้งรัว ๆ ในจังหวะเดียว (เร็วกว่าที่ React จะ re-render
@@ -189,7 +160,6 @@ test("[edge] พื้นที่ (ตร.ม.) ติดลบผ่าน fil
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   // type=number min=0 กัน spinner ได้ แต่ fill() เขียนค่าตรง ๆ ผ่าน DOM (จำลอง paste ค่าติดลบ)
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("-999");
-  await page.getByPlaceholder("เช่น 1200000 หรือ ฿1.2M").fill("500000");
   await page.getByRole("button", { name: "บันทึก" }).click();
 
   const row = await waitRow<{ area: number | null }>(sb, "leads", { company: COMPANY });
@@ -244,76 +214,8 @@ test("[edge] กดปุ่ม 'เพิ่มงานขาย' (ดีล�
   await sb.from("customers").delete().eq("id", cust!.id as number);
 });
 
-test("[edge] แก้ 'มูลค่า' ลูกค้าเป้าหมายเดียวกันพร้อมกัน 2 แท็บ → ไม่พัง, ไม่มีแถวซ้ำ, ได้ค่าใดค่าหนึ่งจริง (ไม่ใช่ค่าผสม/เพี้ยน)", async ({ browser }) => {
-  const sb = await db(RYG);
-  const COMPANY = tg("2แท็บ");
-
-  // สร้างลูกค้าเป้าหมายตั้งต้นตรงผ่าน DB (เร็วกว่าเปิดฟอร์ม + ตัดตัวแปรของฟอร์มออกไป เหลือแค่ประเด็น concurrent write)
-  const { data: created, error: cErr } = await sb.from("leads").insert({ phone: "081-999-0101",
-    id: `${COMPANY}`, dealer_code: "RYG", company: COMPANY, contact: "คุณสองแท็บ",
-    province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING", value: "฿1,000,000",
-    assigned: "—", source: "เว็บไซต์",
-  }).select("id").single();
-  if (cErr) throw new Error(`สร้างลูกค้าเป้าหมายตั้งต้นไม่สำเร็จ: ${cErr.message}`);
-
-  const ctxA = await browser.newContext();
-  const ctxB = await browser.newContext();
-  const pageA = await ctxA.newPage();
-  const pageB = await ctxB.newPage();
-  const errsA = watchErrors(pageA), errsB = watchErrors(pageB);
-  try {
-    await Promise.all([loginUI(pageA, DEALER_ORIGIN, "/login", RYG), loginUI(pageB, DEALER_ORIGIN, "/login", RYG)]);
-    await Promise.all([
-      pageA.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }),
-      pageB.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }),
-    ]);
-    await Promise.all([pageA.getByRole("button", { name: "ตาราง" }).click(), pageB.getByRole("button", { name: "ตาราง" }).click()]);
-
-    // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
-    //
-    // ⚠️ ต้องค้นหา "ทั้งสองแท็บ" — เดิมใส่ให้แท็บ A แท็บเดียว (พบ 10 ส.ค. 69)
-    //   แท็บ B จึงเห็นตารางที่ไม่ได้กรอง พอมีลูกค้าเป้าหมายของสาขา RYG เกิน 10 รายการ
-    //   แถวเป้าหมายก็ตกไปอยู่หน้าถัดไป → หาไม่เจอ แล้วตกที่บรรทัด "รอให้แถว B ขึ้น"
-    //   อาการคือ "ตกบ้างไม่ตกบ้าง" ขึ้นกับว่าสเปกอื่นสร้างข้อมูลค้างไว้เท่าไหร่ตอนนั้น
-    //   ซึ่งเป็นกับดักเดียวกับที่เคยไล่เก็บไปแล้ว 13 จุด แต่จุดนี้รอดมาเพราะ "มีคำสั่งค้นหาอยู่จริง" หนึ่งอัน
-    await Promise.all([
-      pageA.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY),
-      pageB.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY),
-    ]);
-    const rowA = pageA.locator("tbody tr").filter({ hasText: COMPANY }).first();
-    const rowB = pageB.locator("tbody tr").filter({ hasText: COMPANY }).first();
-    await expect(rowA).toBeVisible({ timeout: 15_000 });
-    await expect(rowB).toBeVisible({ timeout: 15_000 });
-
-    // คลิกช่อง "มูลค่า" ทั้งสองแท็บพร้อมกัน แล้วพิมพ์คนละค่า แล้วกด Enter บันทึกพร้อมกัน
-    await Promise.all([
-      rowA.locator("td.num").last().click(),
-      rowB.locator("td.num").last().click(),
-    ]);
-    // ช่องมูลค่าเป็น text แล้ว (26 ส.ค. 69 ใส่ลูกน้ำระหว่างพิมพ์) — ชี้ด้วยป้ายกำกับแทนชนิดช่อง
-    const inputA = pageA.getByLabel("ประเมินราคา").first();
-    const inputB = pageB.getByLabel("ประเมินราคา").first();
-    await Promise.all([inputA.fill("2000000"), inputB.fill("3000000")]);
-    await Promise.all([inputA.press("Enter"), inputB.press("Enter")]);
-    await pageA.waitForTimeout(2500); // เผื่อเวลาให้ทั้งสองคำขอ propagate ถึง DB
-
-    assertNoErrors(errsA, "แท็บ A แก้มูลค่าพร้อมกัน");
-    assertNoErrors(errsB, "แท็บ B แก้มูลค่าพร้อมกัน");
-
-    const { data: finalRows, error: fErr } = await sb.from("leads").select("id,value").eq("dealer_code", "RYG").eq("company", COMPANY);
-    if (fErr) throw new Error(fErr.message);
-    expect(finalRows?.length, "ต้องไม่มีลูกค้าเป้าหมายซ้ำแถวจากการแก้พร้อมกัน").toBe(1);
-    const finalValue = finalRows![0].value as string; // เก็บเป็นรูปย่อ เช่น "฿2.0M" ไม่ใช่ตัวเลขดิบ
-    const m = /([\d.]+)\s*M/.exec(finalValue);
-    const finalNum = m ? Math.round(parseFloat(m[1]) * 1e6) : NaN;
-    expect([2_000_000, 3_000_000].includes(finalNum),
-      `ค่าสุดท้ายต้องเป็นหนึ่งในสองค่าที่พิมพ์จริง (2,000,000 หรือ 3,000,000) ไม่ใช่ค่าผสม/เพี้ยน — ได้: "${finalValue}" (=${finalNum})`).toBe(true);
-  } finally {
-    await ctxA.close();
-    await ctxB.close();
-    await sb.from("leads").delete().eq("id", created!.id as string);
-  }
-});
+// ข้อ "แก้ 'มูลค่า' ลีดเดียวกันพร้อมกัน 2 แท็บ" เลิกแล้ว: ช่องมูลค่าในตารางแก้เองไม่ได้ (บอสตัดสิน 19 ต.ค. 69 ข้อ 5: ช่องประเมินราคาเอาออกจากหน้าเว็บทุกที่ · มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223))
+//   มูลค่าฐานคิดเองจากใบล่าสุดทุกครั้ง (คำนวณใหม่จากใบจริง ไม่สะสม) — ตรวจที่ supabase/tests/lead_quote_value.sql
 
 test("[edge·hq] กดปุ่ม 'สร้างดีลเลอร์' ซ้ำเร็ว ๆ → สร้างดีลเลอร์แค่ 1 ราย ไม่ซ้ำ (ไม่มีบัญชี auth กำพร้า)", async ({ page }) => {
   const errs = watchErrors(page);

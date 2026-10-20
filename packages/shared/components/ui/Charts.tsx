@@ -219,24 +219,25 @@ export function PlanVsActualBars({
  *  เริ่มที่ 0 เท่ากันทั้งเซิร์ฟเวอร์และเบราว์เซอร์ → ไม่เกิด hydration mismatch
  *  (เคยเขียนซ้ำ 2 ที่ · ตัวแก้ถูกใส่ให้ฝั่งดีลเลอร์อย่างเดียว ฝั่ง HQ เลยนิ่งอยู่นาน — จึงรวมเหลือตัวเดียว)
  */
-export function ProgressRing({ pct, size = 50, color = NAVY }: { pct: number; size?: number; color?: string }) {
+/** pct = null → ยังไม่มีข้อมูล (เช่นยังไม่ตั้งเป้า) ขึ้น "—" สีเทา ไม่ใช่ 0% (บอสตัดสิน 19 ต.ค. 69 ข้อ 8) */
+export function ProgressRing({ pct, size = 50, color = NAVY }: { pct: number | null; size?: number; color?: string }) {
   const r = (size - 11) / 2, c = 2 * Math.PI * r;
   const [shown, setShown] = useState(0);
   useEffect(() => {
     // สองเฟรม: เฟรมแรกให้เบราว์เซอร์ commit ค่า 0 ลง DOM จริง เฟรมสองค่อยเปลี่ยน — transition ถึงจะจับความต่างได้
     let id2 = 0;
-    const id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => setShown(pct)); });
+    const id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => setShown(pct ?? 0)); });
     return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2); };
   }, [pct]);
   // เส้นโค้งวาดได้สูงสุด 1 รอบ (เกิน 100% วาดเพิ่มไม่ได้) — แต่ "ตัวเลขเก็บค่าจริง" ไม่ถูกตัด
   const arc = Math.max(0, Math.min(100, shown));
   return (
-    <svg width={size} height={size} style={{ flexShrink: 0 }} role="img" aria-label={`${pct}%`}>
+    <svg width={size} height={size} style={{ flexShrink: 0 }} role="img" aria-label={pct == null ? "ยังไม่มีข้อมูล" : `${pct}%`}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EEF2F7" strokeWidth={9} />
       <circle className="ring-arc" cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={9} strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - arc / 100)}
         transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central" fontSize={size * 0.24} fontWeight={800} fill={color}>{pct}%</text>
+      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central" fontSize={size * 0.24} fontWeight={800} fill={pct == null ? "#94a3b8" : color}>{pct == null ? "—" : `${pct}%`}</text>
     </svg>
   );
 }

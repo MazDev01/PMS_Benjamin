@@ -19,7 +19,7 @@ export function QuotationKPICards({ agg }: { agg: QuoteAgg }) {
     //    ที่นี่หารด้วย "ใบที่ส่งแล้วทั้งหมด" (รวมใบที่ลูกค้ายังไม่ตอบ) → ได้ตัวเลขต่ำกว่า
     //    ส่วนหน้าภาพรวมยอดขายหารด้วย "ใบที่รู้ผลแล้ว" (ตอบรับ+ปฏิเสธ) → ได้ตัวเลขสูงกว่า
     //    ทั้งสองถูกต้องในตัวเอง แต่ถ้าใช้ชื่อเดียวกันจะอ่านเหมือนระบบให้เลขขัดกัน
-    { label: "อัตราตอบรับ (จากใบที่ส่งแล้ว)", value: `${conversionRate(agg)}%`, sub: `${agg.accepted}/${agg.sent} ใบที่ส่งแล้ว`, Icon: Percent, color: "#7C3AED", bg: "#F1EBFD" },
+    { label: "อัตราตอบรับ (จากใบที่ส่งแล้ว)", value: agg.sent ? `${conversionRate(agg)}%` : "—", sub: agg.sent ? `${agg.accepted}/${agg.sent} ใบที่ส่งแล้ว` : "ยังไม่มีใบที่ส่งแล้ว", Icon: Percent, color: "#7C3AED", bg: "#F1EBFD" },   // ไม่มีตัวหาร = "—" (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
   ];
 
   return (

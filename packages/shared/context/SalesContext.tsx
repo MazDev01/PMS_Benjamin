@@ -12,7 +12,7 @@ import {
   quotations as seedQuotations, initialCustomers, DEFAULT_ISSUER, QUOTE_PREFIX,
   type IssuerProfile,
   appointments as seedAppointments, buildLeadTasks, stageFromTasks, syncTasksToStage, findAppointmentTask,
-  quotationToFile, AUTO_FILE_BY, fmtISOToThai, DEFAULT_DEALER_CODE, leadStatusLabel, nowStampTH,
+  quotationToFile, AUTO_FILE_BY, fmtISOToThai, DEFAULT_DEALER_CODE, leadStatusLabel, nowStampTH, ยอดใบล่าสุดของลีด,
   type LeadRow,
   type CustomerRow, type QuotationMock, type QuotationStatus,
   type AppointmentMock, type DealerFile,
@@ -949,8 +949,14 @@ export function SalesProvider({
   }, []);
   // โหลดเสร็จแล้ว = คืนของในมือทันที · ยังไม่เสร็จ = รอคำขอรอบล่าสุดให้จบก่อนค่อยตอบ
   // (ล้มเหลว = คืนเท่าที่มี ดีกว่าค้างรอตลอดกาล — ผู้เรียกจะเห็นว่าไม่มีใบแล้วบอกผู้ใช้ตามจริง)
+  // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ใบ 0223): ฐานส่ง quoteValue มากับแถวลีด
+  //   ใบที่อยู่ในมือ (รวมใบที่เพิ่งทำ/แก้ในจอนี้) ทับให้ทันที ไม่ต้องรอฐานส่งแถวลีดกลับ · ไม่มีใบในมือ = ใช้ค่าจากฐาน
+  const leadsมีมูลค่า = useMemo(() => !quotations.length ? leads : leads.map(l => {
+    const v = ยอดใบล่าสุดของลีด(l, quotations);
+    return v === undefined || v === l.quoteValue ? l : { ...l, quoteValue: v };
+  }), [leads, quotations]);
   const value = useMemo(() => ({
-    leads, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
+    leads: leadsมีมูลค่า, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
@@ -959,7 +965,7 @@ export function SalesProvider({
     syncError, clearSyncError,
     salesVersion,
   }), [
-    leads, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
+    leadsมีมูลค่า, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,

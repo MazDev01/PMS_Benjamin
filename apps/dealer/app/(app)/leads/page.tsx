@@ -11,7 +11,7 @@ import {
   buildLeadReport, applyTaskTemplate, findAppointmentTask,
   seedLeadTasks, taskProgress, apptTypeLabel, fmtISOToThai,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, MANUAL_LEAD_STATUSES, LEAD_STATUS_META, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
-  OTHER_LOST_REASON, OTHER_REASON_OPTION,
+  OTHER_LOST_REASON, OTHER_REASON_OPTION, มูลค่าลีด,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile, type LeadTaskDef,
 } from "@pms/shared/lib/mock";
 import type { QuotationMock } from "@pms/shared/lib/data/types";
@@ -26,8 +26,7 @@ import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
-import { formatPhone , formatMoneyInput } from "@pms/shared/lib/format";
-import { ตรวจมูลค่าลูกค้าเป้าหมาย } from "@pms/shared/lib/leadValue";
+import { formatPhone } from "@pms/shared/lib/format";
 import { fmtLeadValue } from "@pms/shared/lib/format";
 import { useEscapeKey } from "@pms/shared/lib/useModalA11y";
 import { useRole } from "@pms/shared/context/RoleContext";
@@ -108,15 +107,6 @@ const COLS: { key: string; label: string }[] = [
   { key: "activity", label: "กิจกรรมล่าสุด" },
 ];
 // ─── Helpers ─────────────────────────────────────────────────────────────
-function parseValue(v: string) {
-  const n = parseFloat(String(v).replace(/[฿,\s]/g,""));
-  if (!isFinite(n)) return 0;
-  if (/T/i.test(v)) return n*1e12;
-  if (/B/i.test(v)) return n*1e9;
-  if (/M/i.test(v)) return n*1e6;
-  if (/K/i.test(v)) return n*1e3;
-  return n;
-}
 function fmtM(n: number) {
   if (!isFinite(n) || n <= 0) return "฿0";
   if (n >= 1e12) return "฿"+(n/1e12).toFixed(1)+"T";
@@ -125,45 +115,13 @@ function fmtM(n: number) {
   if (n >= 1e3) return "฿"+Math.round(n/1e3)+"K";
   return "฿"+n.toLocaleString();
 }
-// ฟอร์แมตมูลค่าจากสตริงดิบ/มีหน่วย → ดูง่าย (฿1.2B / ฿1.2M / ฿480K)
-// ⚠️ อ่านค่าไม่ออก = คืนข้อความเดิมไว้ ห้ามแปลงเป็น "฿0" (บั๊กจริง พบ 10 ส.ค. 69)
-//   เดิมพิมพ์อะไรที่อ่านไม่ออกลงไป พอคลิกออกจากช่อง ข้อความจะถูกเขียนทับเป็น "฿0" ทันที
-//   ผู้ใช้เห็นเป็นศูนย์แล้วนึกว่าระบบคิดให้ ทั้งที่จริงคือของที่พิมพ์หายไปแล้ว
-//   คงข้อความเดิมไว้ให้เห็นว่า "ยังผิดอยู่นะ" แล้วให้ตอนกดบันทึกเป็นคนฟ้อง
-// ── เพดาน/การตรวจมูลค่า ย้ายไปไว้ที่ leadValue.ts แล้ว (25 ส.ค. 69) ──────────────────────
-// เพราะฟอร์ม "เพิ่มงานขายใหม่" ที่หน้าลูกค้าเป็นคนละไฟล์ และไม่มีกฎนี้เลย — กรอกอะไรก็บันทึกผ่าน
-// ทุกฟอร์มต้องเรียก ตรวจมูลค่าลูกค้าเป้าหมาย() ตัวเดียวกัน ห้ามเขียนกฎเอง
-
-function fmtVal(v: string) { const n = parseValue(v); return n > 0 ? fmtM(n) : v; }
-
-// ราคาเต็มจำนวน ไม่ย่อ (บอสสั่ง 20 ส.ค. 69: "แสดงราคาด้วย" — อ้างอิงระบบเดิม ฿10,000,000.00)
-// ป้ายบนการ์ดกระดานใช้ตัวนี้ ไม่ใช่ ฿10.0M: ราคาย่อดูเร็วก็จริง แต่เทียบดีลกันไม่ได้
-//   (฿10.4M กับ ฿10.5M ต่างกันแสนหนึ่งแต่ปัดมาชนกันได้) และผู้ใช้ยังต้องเปิดดูตัวเต็มอยู่ดี
-// ⚠️ อ่านค่าไม่ออก = คืนข้อความเดิมเหมือน fmtVal ห้ามกลายเป็น "฿0"
-// ── ราคาในช่องกรอก: ใส่ลูกน้ำอย่างเดียว (บอสสั่ง 21 ส.ค. 69 · ตัดคำว่า "บาท" ออก 28 ส.ค. 69) ──
-//
-// "5310000" อ่านยากมาก ต้องนับหลักเอง — ลูกน้ำแก้ตรงนั้น
-// กติกา: ตอนไม่ได้พิมพ์ = โชว์ "5,310,000" · ตอนคลิกเข้าไปพิมพ์ = โชว์ตัวเลขล้วน
-//   ถ้าใส่ลูกน้ำระหว่างพิมพ์ ตำแหน่งเคอร์เซอร์จะกระโดดทุกครั้งที่พิมพ์ (พิมพ์ต่อไม่ได้)
-// ⚠️ ห้ามเติมหน่วยต่อท้าย — หัวข้อช่องบอกอยู่แล้วว่าเป็นราคา และคำว่า "บาท" ในช่องกรอก
-//    ทำให้ดูเหมือนเป็นตัวหนังสือที่ต้องพิมพ์เองด้วย (บอสทัก 28 ส.ค. 69)
-// ⚠️ ค่าที่ "อ่านไม่ออก" ต้องโชว์ตามที่พิมพ์ไว้ ห้ามแปลงเป็น 0 หรือลบทิ้ง (กติกาเดิมของไฟล์นี้)
-function ราคาอ่านง่าย(v: string): string {
-  const ดิบ = String(v ?? "").trim();
-  if (!ดิบ) return "";
-  const n = parseValue(ดิบ);
-  return n > 0 ? n.toLocaleString("th-TH") : ดิบ;
+// ── มูลค่าลีด = ยอดก่อน VAT ของใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — ไม่มีใบ = "—" ──
+//   ช่องประเมินราคา (l.value) ที่ดีลเลอร์พิมพ์เองเอาออกจากหน้าเว็บแล้ว ห้ามอ่านมาโชว์/รวมยอด
+function fmtมูลค่าย่อ(n: number | null) { return n == null ? "—" : fmtM(n); }
+function fmtมูลค่าเต็ม(n: number | null) {
+  return n == null ? "—" : "฿" + n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function fmtBahtFull(v: string) {
-  const ดิบ = String(v ?? "").trim();
-  if (!ดิบ) return "—";                  // ยังไม่กรอกมูลค่า — ห้ามเดาเป็น ฿0
-  const n = parseValue(ดิบ);
-  if (n > 0) return "฿" + n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  // เหลือสองกรณีที่ parseValue คืน 0 เท่ากัน แต่คนละความหมาย:
-  //   กรอกศูนย์จริง → แสดง ฿0.00   ·   พิมพ์อะไรที่อ่านไม่ออก → คงข้อความเดิมไว้ให้เห็นว่ายังผิดอยู่
-  return /\d/.test(ดิบ) ? "฿0.00" : ดิบ;
-}
 
 // ความคืบหน้าของลูกค้าเป้าหมาย (%) — จากงานที่เช็ก (แหล่งเดียวกับ LeadTasks) · PAID=100 · CANCELLED=0
 // tpl = งานมาตรฐานที่ HQ ตั้งไว้ (ส่งมาจากคอมโพเนนต์ที่เรียก useLeadTaskTemplate)
@@ -305,7 +263,7 @@ function OverviewEditor({ lead, persons, onSave }: {
     email: lead.email ?? "", province: lead.province ?? "", address: lead.address ?? "",
     source: lead.source ?? "",
     status: lead.status,
-    assigned: lead.assigned ?? "", value: lead.value ?? "",
+    assigned: lead.assigned ?? "",
     area: lead.area != null ? String(lead.area) : "",
     project: lead.project ?? "",
     note: lead.note ?? "", lostReason: lead.lostReason ?? "", logo: lead.logo ?? "",
@@ -313,9 +271,7 @@ function OverviewEditor({ lead, persons, onSave }: {
   const [f, setF] = useState(seed);
   // ค่าตอนเปิดฟอร์ม — บันทึกส่งเฉพาะช่องที่ต่างจากนี้ (ไม่ใช่ค่าล่าสุดบนจอ: ช่องที่ฐาน/แท็บอื่นเพิ่งเปลี่ยนต้องไม่ถูกส่งทับ)
   const [ต้นฉบับ, setต้นฉบับ] = useState<LeadRow>(lead);
-  // ── ประเมินราคา = ดีลเลอร์กรอกเอง (ลบการคิดจาก พื้นที่ × ราคาแม่แบบ ของ Flow เก่า 16 ต.ค. 69) ──
-  //   (แม่แบบเอาออกทั้งระบบแล้ว) · มูลค่าจริงมาจากใบเสนอราคาที่ทำจากใบ HQ
-  const [พิมพ์ราคาอยู่, setพิมพ์ราคาอยู่] = useState(false);   // กำลังพิมพ์ = โชว์ตัวเลขล้วน (ดู ราคาอ่านง่าย)
+  // ช่องประเมินราคาเอาออก (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5) — มูลค่าลีดมาจากใบเสนอราคาล่าสุด (แท็บใบเสนอราคา)
   const logoRef = useRef<HTMLInputElement>(null);
   // reseed เมื่อสลับลูกค้าเป้าหมาย
   // จงใจไม่ใส่ seed ใน dependency — seed ถูกสร้างใหม่ทุก render จะล้างสิ่งที่ผู้ใช้กำลังพิมพ์ทิ้ง
@@ -335,28 +291,19 @@ function OverviewEditor({ lead, persons, onSave }: {
     f.phone !== (lead.phone ?? "") || f.email !== (lead.email ?? "") ||
     f.province !== (lead.province ?? "") || f.source !== (lead.source ?? "") ||
     f.status !== lead.status ||
-    f.assigned !== (lead.assigned ?? "") || f.value !== (lead.value ?? "") ||
+    f.assigned !== (lead.assigned ?? "") ||
     f.area !== (lead.area != null ? String(lead.area) : "") ||
     f.project !== (lead.project ?? "") ||
     f.note !== (lead.note ?? "") || f.lostReason !== (lead.lostReason ?? "") || f.logo !== (lead.logo ?? "");
   // ความคืบหน้า = แหล่งเดียวกับแท็บ "งาน/ความคืบหน้า" (LeadTasks) → เลขตรงกันทุกแท็บ
   const pct = leadProg(lead, taskTpl);
 
-  const [valueErr, setValueErr] = useState("");
   const inp = OV_INP;
 
-  // ⚠️ ต้องตรวจมูลค่าเหมือนฟอร์มเพิ่มลูกค้าเป้าหมายทุกประการ (แก้ 10 ส.ค. 69 รอบสอง)
-  //   เดิมเส้นทางนี้ไม่ตรวจอะไรเลย · แย่ลงกว่าเดิมหลังผมแก้ fmtVal ให้คืนข้อความเดิม
-  //   (ก่อนหน้านั้นค่าเสียถูกแปลงเป็น "฿0" เงียบ ๆ ตอนนี้ค่าขยะลงฐานข้อมูลได้จริง)
-  //   ผลที่เอเจนต์ยืนยัน: พิมพ์ "abcxyz" แล้วบันทึก → ตารางลูกค้าเป้าหมายและหน้าสำนักงานใหญ่โชว์ "abcxyz" ดิบ ๆ
-  //   บทเรียน: แก้ตัวช่วยกลางแล้วต้องไล่ดูผู้เรียกทุกทาง ไม่ใช่แค่ทางที่กำลังแก้อยู่
   function save() {
-    const ผิดตรงไหน = ตรวจมูลค่าลูกค้าเป้าหมาย(f.value);
-    if (ผิดตรงไหน) { setValueErr(ผิดตรงไหน); return; }
-    setValueErr("");
     const หลัง: LeadRow = {
-      // value: เก็บตามที่พิมพ์ ไม่ย่อเป็น ฿1.2M ตอนบันทึก (จะปัดเงินหายเหมือนฟอร์มเพิ่ม)
-      ...lead, ...f, logo: f.logo || undefined, value: f.value.trim(),
+      // value (ประเมินราคาเดิม) ไม่แก้จากหน้าเว็บแล้ว — ไม่อยู่ในฟอร์ม จึงคงค่าเดิมในฐาน
+      ...lead, ...f, logo: f.logo || undefined,
       address: f.address.trim() || undefined,   // ว่าง = ไม่มีข้อมูล (undefined) — ห้ามเก็บสตริงว่างหลอกว่ากรอกแล้ว
       // เว้นว่าง = ไม่มีข้อมูลพื้นที่ (undefined) ไม่ใช่ 0
       area: f.area.trim() && Number(f.area) > 0 ? Number(f.area) : undefined,
@@ -400,9 +347,6 @@ function OverviewEditor({ lead, persons, onSave }: {
         )}
       </div>
 
-      {/* ประเมินราคาย้ายไปอยู่ในกลุ่ม "รายละเอียดงาน" ให้ตรงกับฟอร์มเพิ่มลูกค้าเป้าหมาย
-              (บอสแจ้ง 20 ส.ค. 69: "ข้อมูลที่กรอกและที่แก้ไม่ตรงกัน") — เดิมอยู่ลอยบนหัวการ์ด
-              ผู้ใช้ที่ไปหาในกลุ่มเดียวกับ แม่แบบ/พื้นที่ จึงหาไม่เจอ นึกว่าแก้ไม่ได้ */}
           {/* ช่องเลือกสถานะเอาออก (บอสสั่ง 19 ต.ค. 69 "สถานะเหลือที่เดียว"): สถานะแสดงที่ป้ายหัวแผง + แถบขั้น
               เปลี่ยนขั้นได้ทางปุ่ม "ขั้นต่อไป" และแท็บงานเท่านั้น — เดิมเลือกได้ทุกสถานะ ข้ามหน้ายืนยัน/เหตุผล */}
         </div>
@@ -445,14 +389,6 @@ function OverviewEditor({ lead, persons, onSave }: {
         <div style={OV_GROUP}>รายละเอียดงาน</div>
         <Cell icon={Ruler}   label="พื้นที่ (ตร.ม.)">
           <input type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
-        </Cell>
-        <Cell icon={Coins}   label="ประเมินราคา">
-          <input aria-label="ประเมินราคา"
-            value={พิมพ์ราคาอยู่ ? f.value : ราคาอ่านง่าย(f.value)}
-            onFocus={()=>setพิมพ์ราคาอยู่(true)}
-            onBlur={()=>setพิมพ์ราคาอยู่(false)}
-            onChange={e=>set("value",e.target.value)}
-            placeholder="เช่น 1200000" style={{ ...inp, fontWeight:800, color:"#003366" }} />
         </Cell>
         <div style={OV_GROUP}>การดูแล</div>
         <Cell icon={Target}  label="แหล่งที่มา">
@@ -502,7 +438,6 @@ function OverviewEditor({ lead, persons, onSave }: {
       {/* แถวล่าง: ข้อความเตือน + ปุ่มบันทึก (รูปย้ายขึ้นไปบนสุดแล้ว — บอสสั่ง 21 ส.ค. 69) */}
       <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12, paddingTop:10, borderTop:"1px solid #f4f6f9", flexWrap:"wrap" }}>
         <span style={{ flex:1 }} />
-        {valueErr && <span role="alert" style={{ fontSize:"0.72rem", color:"#b91c1c", background:"#fef2f2", border:"1px solid #fecaca", borderRadius:8, padding:"5px 9px" }}>{valueErr}</span>}
         {dirty && <button onClick={()=>setF(seed())} className="btn btn-secondary btn-sm" style={{ color:"#374151" }}>ยกเลิก</button>}
         {(() => {
           // ปิดการขายไม่สำเร็จ ต้องเลือกเหตุผลก่อนถึงจะบันทึกได้ — ให้ตรงกับปุ่ม "ปิดการขายไม่สำเร็จ"
@@ -536,7 +471,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     company: initial?.company ?? "", contact: initial?.contact ?? "",
     phone: initial?.phone ?? "", email: initial?.email ?? "",
     province: initial?.province ?? "", address: initial?.address ?? "",
-    value: initial?.value ?? "",
     // เก็บเป็นสตริง ให้ปล่อยว่างได้ (= ยังไม่รู้พื้นที่) — ตอนบันทึกค่อยแปลงเป็นตัวเลข
     area: initial?.area != null ? String(initial.area) : "",
     status: (initial?.status ?? "WAITING") as LeadStatus,
@@ -544,8 +478,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     source: initial?.source ?? "", note: initial?.note ?? "",
     logo: initial?.logo ?? "",
   });
-  // ประเมินราคา = ดีลเลอร์กรอกเอง (ดูคอมเมนต์ที่ OverviewEditor)
-  const [พิมพ์ราคาอยู่, setพิมพ์ราคาอยู่] = useState(false);
 
   // ── เติมค่าตั้งต้นเมื่อข้อมูลมาถึงทีหลัง (บั๊กจริง พบ 10 ส.ค. 69) ──────────────────
   //
@@ -631,12 +563,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       setSubmitError(`กรอกให้ครบก่อนบันทึก: ${missing.join(" · ")}`);
       return;
     }
-    // ⚠️ มูลค่าที่กรอกแล้วอ่านไม่ออก ต้องฟ้อง ห้ามเงียบ (บั๊กจริง พบ 10 ส.ค. 69)
-    //   ช่องนี้รับข้อความอิสระ (เขียน "1.4M" หรือ "฿1,400,000" ก็ได้) ตัวแปลงค่าจึงคืน 0
-    //   เมื่ออ่านไม่ออก · เดิมกรอก "abcxyz" หรือ "-5000000" แล้วบันทึกผ่านเป็น ฿0 เงียบ ๆ
-    //   เซลส์ไม่รู้ว่ามูลค่าหาย แล้วลูกค้าเป้าหมายนั้นก็ไปโผล่ในรายงานยอดขายเป็นศูนย์
-    const มูลค่าผิด = ตรวจมูลค่าลูกค้าเป้าหมาย(form.value);
-    if (มูลค่าผิด) { setSubmitError(มูลค่าผิด); return; }
     savingRef.current = true;
     setSubmitError("");
     const base = {
@@ -645,7 +571,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       phone: form.phone, email: form.email,
       province: form.province, address: form.address.trim() || undefined,
       // แม่แบบเอาออกทั้งระบบ (16 ต.ค. 69) — ไม่อ่านช่องแม่แบบ: แก้ของเดิมคงค่าเดิมผ่าน ...initial · ใหม่ใส่ค่าว่างข้างล่าง
-      value: form.value,
       status: form.status, assigned: form.assigned,
       source: form.source, note: form.note,
       logo: form.logo || undefined,
@@ -656,7 +581,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       onSave({ ...initial, ...base });
     } else {
       // id/numId ถูกกำหนดจริงในหน้า (handleAddLead) แบบ max+1 กันชนกัน
-      onSave({ id: "", numId: 0, ...base, product: "", category: "" });
+      // value = ช่องประเมินราคาเดิม (เอาออกจากหน้าเว็บ · ข้อ 5) — ลีดใหม่ว่างเสมอ · แก้ของเดิมคงค่าเดิมผ่าน ...initial
+      onSave({ id: "", numId: 0, ...base, value: "", product: "", category: "" });
     }
     onClose();
   }
@@ -789,17 +715,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                 <label style={labelStyle}>พื้นที่ (ตร.ม.)</label>
                 <input type="number" min={0} value={form.area} onChange={e=>set("area",e.target.value)}
                   placeholder="เช่น 1200" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>ประเมินราคา</label>
-                {/* ⚠️ เดิมพอออกจากช่องจะย่อค่าที่พิมพ์เป็น "฿1.2M" แล้วเก็บแบบนั้นจริง ๆ
-                    → พิมพ์ 1,234,567 กลายเป็น 1,200,000 เงียบ ๆ (ปัดทิ้งสามหมื่นกว่าบาท)
-                    ตอนนี้เก็บตัวเลขที่พิมพ์ไว้ครบ ส่วนการย่อเป็นเรื่องของ "ตอนแสดงผล" เท่านั้น */}
-                <input value={พิมพ์ราคาอยู่ ? form.value : ราคาอ่านง่าย(form.value)}
-                  onFocus={()=>setพิมพ์ราคาอยู่(true)}
-                  onBlur={()=>setพิมพ์ราคาอยู่(false)}
-                  onChange={e=>set("value",e.target.value)}
-                  placeholder="เช่น 1200000 หรือ ฿1.2M" style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>ขั้นตอน</label>
@@ -1226,14 +1141,7 @@ export default function LeadsPage() {
   // Inline status dropdown (table view)
   // เมนูเลือกขั้น — ต้องเก็บพิกัดปุ่มด้วย เพราะเมนูวางแบบ "ลอย" (fixed) ให้พ้นกล่องตาราง
   const [statusMenu, setStatusMenu] = useState<{ id: string; x: number; y: number } | null>(null);
-  // แก้ไข "มูลค่า" ในตารางโดยตรง (inline) — persist ผ่าน updateLead → ข้อมูลเดียวกับ Kanban
-  const [editValueId, setEditValueId] = useState<string|null>(null);
-  const [valueDraft, setValueDraft] = useState("");
-  function commitValue(l: LeadRow) {
-    const v = valueDraft.trim();
-    if (v) บันทึกลีด(l.id, { fields: { value: fmtVal(v) } });
-    setEditValueId(null);
-  }
+  // ช่อง "มูลค่า" ในตารางแก้เองไม่ได้แล้ว — มาจากใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5)
 
   // success toast
   const [toast, setToast] = useState<string|null>(null);
@@ -1270,7 +1178,7 @@ export default function LeadsPage() {
     const matchA = !fAssignee || assignedHas(l.assigned, fAssignee);
     const matchP = !fProvince || l.province === fProvince;
     const matchSrc = !fSource || (l.source ?? "") === fSource;
-    const val = parseValue(l.value);
+    const val = มูลค่าลีด(l) ?? 0;   // ยอดใบล่าสุด (ไม่มีใบ = 0 → ไม่ผ่านตัวกรองขั้นต่ำ)
     const matchMin = !fValueMin || val >= parseFloat(fValueMin.replace(/[฿,M]/g,""))*1e6;
     const matchMax = !fValueMax || val <= parseFloat(fValueMax.replace(/[฿,M]/g,""))*1e6;
     return matchQ && matchPerson && matchTime && matchA && matchP && matchSrc && matchMin && matchMax;
@@ -1288,7 +1196,7 @@ export default function LeadsPage() {
     arr = [...arr].sort((a,b) => {
       if (sortKey === null) return b.numId - a.numId;
       let av: string|number = 0, bv: string|number = 0;
-      if (sortKey === "value") { av = parseValue(a.value); bv = parseValue(b.value); }
+      if (sortKey === "value") { av = มูลค่าลีด(a) ?? -1; bv = มูลค่าลีด(b) ?? -1; }
       else { av = (a[sortKey] as string) ?? ""; bv = (b[sortKey] as string) ?? ""; }
       // เรียงข้อความไทยตามพยัญชนะ (locale "th") — เรียงด้วย < > ตรงๆ จะได้ลำดับ Unicode ที่ไม่ตรงตามตัวอักษรไทย
       if (typeof av === "string" && typeof bv === "string") {
@@ -1550,14 +1458,14 @@ export default function LeadsPage() {
   const newWaiting = useMemo(() => ฐานสรุป.filter(l => l.status === "WAITING").length, [ฐานสรุป]);
   // Sales Opportunity = มูลค่ารวมของลูกค้าเป้าหมายที่ยังเปิดอยู่ (Expected Revenue)
   const openValue = useMemo(
-    () => ฐานสรุป.filter(l => l.status !== "PAID" && l.status !== "CANCELLED").reduce((s, l) => s + parseValue(l.value), 0),
+    () => ฐานสรุป.filter(l => l.status !== "PAID" && l.status !== "CANCELLED").reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0),
     [ฐานสรุป]);
   // Conversion Rate = ปิดได้ / (ปิดได้ + ปิดไม่ได้) — ต้องนับจากฐานที่ "รวมที่ปิดการขายแล้ว" ด้วย
   // (ตารางตัด PAID ออก) และต้องเป็นของสาขาตัวเองเท่านั้น
   const convRate = useMemo(() => {
     const นับ = (st: string) => ฐานสรุปรวมปิดแล้ว.filter(l => l.status === st).length;
     const won = นับ("PAID"), lost = นับ("CANCELLED");
-    return won + lost ? Math.round((won / (won + lost)) * 1000) / 10 : 0;
+    return won + lost ? Math.round((won / (won + lost)) * 1000) / 10 : null;   // ยังไม่มีดีลที่ปิด = "—" ไม่ใช่ 0% (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
   }, [ฐานสรุปรวมปิดแล้ว]);
   const fmtCompact = (v:number) => v>=1e6 ? `฿${(v/1e6).toFixed(1)}M` : v>=1e3 ? `฿${Math.round(v/1e3)}K` : `฿${v}`;
 
@@ -1577,7 +1485,7 @@ export default function LeadsPage() {
     { label:`เกิน ${followUpAlertDays} วัน`, value:`${overdue7}`,     sub:"รายการ",       Icon:AlarmClock, color:"#EA580C", bg:"#FEF0E6", on: followUpDays === followUpAlertDays, onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(followUpDays === followUpAlertDays ? 0 : followUpAlertDays); } },
     /* ⚠️ การ์ดนี้นับ "ดีล" (ลูกค้าเป้าหมายที่ปิดแล้ว) ส่วนแดชบอร์ดนับ "ใบเสนอราคา" — คนละหน่วย เลขจึงต่างกันได้
        ถ้าใช้ชื่อเดียวกันทั้งสองที่ ผู้ใช้จะเห็นเลขขัดกันในแอปเดียว (ผลตรวจภายนอก DL-03 · 24 ส.ค. 69) */
-    { label:"อัตราปิดดีล",       value:`${convRate}%`,           sub:"ปิดได้ ÷ ดีลที่ปิดแล้วทั้งหมด", Icon:Percent,   color:"#0D9488", bg:"#E6F7F5", on: false,                   onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(0); } },
+    { label:"อัตราปิดดีล",       value: convRate == null ? "—" : `${convRate}%`,           sub:"ปิดได้ ÷ ดีลที่ปิดแล้วทั้งหมด", Icon:Percent,   color:"#0D9488", bg:"#E6F7F5", on: false,                   onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(0); } },
   ];
 
   // แนวโน้ม 12 เดือน — ลูกค้าเป้าหมายใหม่ เทียบ ปิดการขาย · ปีปัจจุบันเท่านั้น
@@ -1628,7 +1536,7 @@ export default function LeadsPage() {
           <FilterBar dims={[]} />
           <ExportMenu filename="leads" title="รายชื่อลูกค้าเป้าหมาย"
             headers={["รหัส","ชื่อ","ผู้ติดต่อ","จังหวัด","ช่องทางที่มา","พื้นที่ (ตร.ม.)","สถานะ","ความคืบหน้า","มูลค่า","ผู้รับผิดชอบ","กิจกรรมล่าสุด"]}
-            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.area ?? "—",leadStatusLabel[l.status],`${leadProg(l, taskTpl)}%`,fmtVal(l.value),l.assigned,lastActivity(l)])} />
+            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.area ?? "—",leadStatusLabel[l.status],`${leadProg(l, taskTpl)}%`,fmtมูลค่าย่อ(มูลค่าลีด(l)),l.assigned,lastActivity(l)])} />
           <button onClick={() => setShowAddForm(true)} className="btn btn-primary btn-sm">
             <Plus size={15} /> เพิ่มลูกค้าเป้าหมาย
           </button>
@@ -1872,21 +1780,9 @@ export default function LeadsPage() {
                           })()}
                         </td>
                         {(
-                          <td className="num" style={{ fontSize:"0.8rem", fontWeight:700, color:"#2D2D2D" }}
-                            onClick={e => { e.stopPropagation(); setEditValueId(l.id); setValueDraft(String(parseValue(l.value) || "")); }}>
-                            {editValueId === l.id ? (
-                              <input autoFocus aria-label="ประเมินราคา" type="text" inputMode="numeric" value={formatMoneyInput(valueDraft)}
-                                onChange={e => setValueDraft(e.target.value.replace(/,/g, ""))}
-                                onClick={e => e.stopPropagation()}
-                                onBlur={() => commitValue(l)}
-                                onKeyDown={e => { if (e.key === "Enter") commitValue(l); if (e.key === "Escape") setEditValueId(null); }}
-                                style={{ width:"100%", textAlign:"right", border:"1px solid #003366", borderRadius:7, padding:"4px 7px", fontSize:"0.8rem", fontWeight:700, outline:"none", fontFamily:"inherit" }} />
-                            ) : (
-                              // ยังไม่มีมูลค่า = "—" ไม่ใช่ช่องว่าง ๆ (ผู้ใช้แยกไม่ออกว่าไม่มีข้อมูลหรือจอเพี้ยน)
-                              <span title="คลิกเพื่อแก้ไขมูลค่า" style={{ cursor:"text", color: l.value.trim() ? undefined : "#cbd5e1" }}>
-                                {l.value.trim() ? fmtVal(l.value) : "—"}
-                              </span>
-                            )}
+                          <td className="num" style={{ fontSize:"0.8rem", fontWeight:700, color: มูลค่าลีด(l) == null ? "#cbd5e1" : "#2D2D2D" }}
+                            title="ยอดใบเสนอราคาล่าสุด (ก่อน VAT)">
+                            {fmtมูลค่าย่อ(มูลค่าลีด(l))}
                           </td>
                         )}
                         <td>
@@ -1978,7 +1874,7 @@ export default function LeadsPage() {
             if (hideEmpty && col.length === 0) return null;
             const sc = leadStatusColor[status];
             const isOver = dragOver === status;
-            const total = col.reduce((s, l) => s + parseValue(l.value), 0);
+            const total = col.reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0);
             const w = wide ? 300 : 264;
             return (
               <div key={status}
@@ -2050,7 +1946,7 @@ export default function LeadsPage() {
                         </span>
                         <span style={{ display:"inline-flex", alignItems:"center", fontSize:"0.72rem", fontWeight:800, color:"#003366",
                           background:"#e3f0fb", borderRadius:6, padding:"2px 8px", fontVariantNumeric:"tabular-nums" }}>
-                          {fmtBahtFull(l.value)}
+                          {fmtมูลค่าเต็ม(มูลค่าลีด(l))}
                         </span>
                       </div>
 
@@ -2617,7 +2513,7 @@ export default function LeadsPage() {
                 {/* Badges: stage · priority · template · est value */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginTop:12 }}>
                   <span style={{ padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:700, background:sc.bg, color:sc.text }}>{leadStatusLabel[c.status]}</span>
-                  <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:800, background:"#fff", color:"#003366" }}><Coins size={11} /> {fmtLeadValue(c.value)}</span>
+                  <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:800, background:"#fff", color:"#003366" }}><Coins size={11} /> {fmtLeadValue(มูลค่าลีด(c))}</span>
                 </div>
               </div>
 

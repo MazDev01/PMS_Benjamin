@@ -1,5 +1,6 @@
 "use client";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 import { useMemo, useState } from "react";
@@ -34,7 +35,7 @@ import { regionDisplay } from "@pms/shared/lib/hqQuotations";
 
 import { useSales } from "@pms/shared/context/SalesContext";
 import { useAuditEntries } from "@pms/shared/lib/useAudit";
-import { fmtBaht, parseBaht } from "@pms/shared/lib/format";
+import { fmtBaht } from "@pms/shared/lib/format";
 import { HqOverviewBoxes } from "@pms/shared/components/hq/HqOverviewBoxes";
 
 const PRIMARY = "#003366";
@@ -241,7 +242,7 @@ export default function HQDashboard() {
     const st = dealerStats.get(d.code) ?? { revenue: 0, total: 0, won: 0, lost: 0 };
     const closed = st.won + st.lost;
     const annual = annualWonByDealer.get(d.code) ?? 0;
-    const tpct = d.revenueTarget > 0 ? Math.round((annual / d.revenueTarget) * 100) : 0;
+    const tpct = d.revenueTarget > 0 ? Math.round((annual / d.revenueTarget) * 100) : null;   // ยังไม่ตั้งเป้า = "—" (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
     return {
       ...d, revenueW: st.revenue, quotesW: st.total, wonW: st.won, tpct,
       convW: closed ? Math.round((st.won / closed) * 100) : null,
@@ -383,7 +384,7 @@ export default function HQDashboard() {
         label: d.label,
         count: arr.length,
         pct: total ? Math.round((arr.length / total) * 100) : 0,
-        value: arr.reduce((s, l) => s + parseBaht(l.value), 0),
+        value: arr.reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0),   // ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223)
       };
     });
   }, [dashLeadSum, allNetLeads]);
@@ -730,10 +731,10 @@ export default function HQDashboard() {
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                   <div style={{ minWidth: 0 }}>
                     <KLabel label={k.label} tip={k.tip} />
-                    <div style={{ ...kNum, marginTop: 6 }}>{fmtBaht(เป้าที่ใช้)}</div>
-                    <div style={{ ...kSub, marginTop: 2 }}>{เต็มปี ? "เป้าหมายทั้งปี" : `เป้าเฉลี่ยของช่วงที่เลือก (${periodDays} วัน)`}</div>
+                    <div style={{ ...kNum, marginTop: 6 }}>{เป้าที่ใช้ > 0 ? fmtBaht(เป้าที่ใช้) : "—"}</div>
+                    <div style={{ ...kSub, marginTop: 2 }}>{เป้าที่ใช้ > 0 ? (เต็มปี ? "เป้าหมายทั้งปี" : `เป้าเฉลี่ยของช่วงที่เลือก (${periodDays} วัน)`) : "ยังไม่ได้ตั้งเป้า"}</div>
                   </div>
-                  <ProgressRing pct={Math.round(ยอดที่ใช้ / (เป้าที่ใช้ || 1) * 100)} size={50} />
+                  <ProgressRing pct={เป้าที่ใช้ > 0 ? Math.round(ยอดที่ใช้ / เป้าที่ใช้ * 100) : null} size={50} />
                 </div>
                 <div>
                   <div style={{ fontSize: "1.25rem", fontWeight: 800, color: PRIMARY, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{fmtBaht(ยอดที่ใช้)}</div>
@@ -895,7 +896,7 @@ export default function HQDashboard() {
                   <div className="bar-grow" style={{ height: "100%", width: `${Math.round(d.revenueW / maxRev * 100)}%`, background: PRIMARY, borderRadius: 999 }} />
                 </div>
                 <span style={{ flex: "0 0 44px", fontSize: "0.76rem", fontWeight: 800, color: "#1F2937", textAlign: "right" }}>฿{(d.revenueW / 1e6).toFixed(1)}M</span>
-                <span style={{ flex: "0 0 34px", fontSize: "0.74rem", fontWeight: 700, color: PRIMARY, textAlign: "right" }}>{d.tpct}%</span>
+                <span style={{ flex: "0 0 34px", fontSize: "0.74rem", fontWeight: 700, color: PRIMARY, textAlign: "right" }}>{d.tpct == null ? "—" : `${d.tpct}%`}</span>
                 <span style={{ flex: "0 0 44px", fontSize: "0.74rem", fontWeight: 700, color: "var(--muted-foreground)", textAlign: "right" }}>{d.convW === null ? "—" : `${d.convW}%`}</span>
               </div>
             )); })()}
