@@ -5,11 +5,11 @@ import { open } from "./helpers";
 // ⚠️ <input type="number"> ใส่ลูกน้ำไม่ได้ (เบราว์เซอร์ถือว่าค่าไม่ใช่ตัวเลข แล้วล้างทิ้ง)
 //    ช่องเงินทุกช่องจึงต้องเป็น type="text" + จัดรูปเอง — เทสต์นี้กันการเผลอเปลี่ยนกลับ
 test("[ui·hq] เป้ายอดขายดีลเลอร์ พิมพ์แล้วขึ้นลูกน้ำ", async ({ page }) => {
-  await open(page, "hq", "/hq/dealers?view=table");   // หน้าเริ่มเป็นการ์ด — ปุ่มแก้ไขในแถวตาราง
+  await open(page, "hq", "/hq/dealers/RYG");   // ปุ่มแก้ไขอยู่หน้ารายละเอียดดีลเลอร์ (รอบ 2 ช่วง ข)
   const ช่อง = page.getByLabel("เป้ายอดขายทั้งปี");
   // ฟอร์มเพิ่มดีลเลอร์ถูกถอดแล้ว (บอสสั่ง 14 ก.ย. 69) — ช่องเป้ายอดขายเหลืออยู่ในฟอร์มแก้ไข
   //   พิมพ์ดูแล้วกดยกเลิก ไม่บันทึกทับเป้าของสาขาจริง
-  await page.locator("tbody").getByRole("button", { name: "แก้ไข" }).first().click();
+  await page.getByRole("button", { name: "แก้ไขข้อมูลดีลเลอร์" }).click();
   await expect(ช่อง).toBeVisible();
   await ช่อง.fill("");
   await ช่อง.pressSequentially("12000000", { delay: 20 });

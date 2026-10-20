@@ -7,7 +7,8 @@ import { adminClient, ลบสาขาทดสอบตรง } from "./testD
 // ── ลบดีลเลอร์ / ย้ายข้อมูลดีลเลอร์ ต้องรู้จัก "คำขอราคา" และ "ใบ HQ" ของ Flow ใหม่ (ใบ 0189) ─────────
 //
 // สองคำสั่งนี้เขียนไว้ก่อนมีตารางคำขอราคา (0183) — รายชื่อตารางในตัวคำสั่งจึงไม่มีคำขอราคา
-//   ลบ: สาขาที่มีคำขอราคาต้องถูกปฏิเสธด้วยข้อความ "ยังมีข้อมูล" (409) ไม่ใช่ "ไม่สำเร็จชั่วคราว" (503)
+//   ลบ: สาขาที่มีคำขอราคาต้องถูกปฏิเสธด้วยเหตุผล "มีคำขอราคา" ไม่ใช่ล้มชั่วคราว
+//   (รอบ 2 ช่วง ข · 19 ต.ค. 69: หน้าเว็บเลิกลบ/ย้ายดีลเลอร์แล้ว เส้นทางตอบ 410 — คำสั่งของฐานยังอยู่สำหรับงานดูแลระบบ จึงทดสอบที่คำสั่งตรง)
 //   ย้าย: คำขอราคาและใบ HQ ต้องตามลูกค้าเป้าหมายไปสาขาปลายทาง และยังชี้ไปที่ลูกค้าเป้าหมายรายเดิม
 //         (ยืนยันด้วยชื่อบริษัทที่ไม่ซ้ำ ไม่ใช่ด้วยเลข — เลขเป็นสิ่งที่อาจเพี้ยนได้)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
@@ -49,25 +50,22 @@ async function สร้างคำขอราคา(code: string, leadNum: nu
   return (r.data as { id: number }).id;
 }
 
-test("[admin] สาขาที่มีคำขอราคาค้าง ลบไม่ได้ และต้องบอกว่ายังมีข้อมูล (409) ไม่ใช่ไม่สำเร็จชั่วคราว (503)", async ({ request }) => {
+test("[admin] สาขาที่มีคำขอราคาค้าง ลบไม่ได้ และต้องบอกว่าค้างที่คำขอราคา · เส้นทางลบปิดแล้ว (410)", async ({ request }) => {
   await สร้างสาขา(DEL, "ZZTEST-สาขามีคำขอราคา");
   await สร้างลูกค้าเป้าหมาย(DEL, 1, "ZZTEST-ลูกค้าขอราคา-ลบสาขา");
   await สร้างคำขอราคา(DEL, 1, "ZZTEST-RQ-DEL-1");
 
   const ลบ = await request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=${DEL}`, { headers: { authorization: `Bearer ${await adminToken()}` } });
-  const body = await ลบ.text();
-  expect(ลบ.status(), `ต้องได้ 409 (ได้ ${ลบ.status()} · ${body})`).toBe(409);
-  expect(body, "ข้อความต้องบอกว่ายังมีข้อมูล").toContain("ยังมีข้อมูล");
-  const { data } = await admin.from("quote_requests").select("id").eq("dealer_code", DEL);
-  expect(data?.length, "คำขอราคาต้องยังอยู่ครบ").toBe(1);
+  expect(ลบ.status(), `เส้นทางลบดีลเลอร์ปิดแล้ว (ได้ ${ลบ.status()} · ${await ลบ.text()})`).toBe(410);
 
   // ต้องบอกว่าสิ่งที่ค้างคือ "คำขอราคา" — ตัวคำสั่งนับคำขอราคาเป็นข้อมูลของสาขาเอง ไม่ใช่รอดเพราะตารางลูกค้าเป้าหมายกันให้
-  expect(body, "ข้อความต้องบอกว่าค้างที่คำขอราคา").toContain("คำขอราคา 1 รายการ");
   const ตรง = await admin.rpc("delete_dealer_atomic", { p_code: DEL });
   expect(ตรง.error?.message ?? "", "ตัวคำสั่งต้องปฏิเสธด้วยเหตุผลว่ามีคำขอราคา").toContain("dealer_has_data:quote_requests:1");
+  const { data } = await admin.from("quote_requests").select("id").eq("dealer_code", DEL);
+  expect(data?.length, "คำขอราคาต้องยังอยู่ครบ").toBe(1);
 });
 
-test("[admin] ย้ายข้อมูลสาขา — คำขอราคาและใบ HQ ย้ายตาม และยังชี้ไปที่ลูกค้าเป้าหมายรายเดิม", async ({ request }) => {
+test("[admin] ย้ายข้อมูลสาขา (คำสั่งของฐาน) — คำขอราคาและใบ HQ ย้ายตาม และยังชี้ไปที่ลูกค้าเป้าหมายรายเดิม", async ({ request }) => {
   await สร้างสาขา(FROM, "ZZTEST-สาขาต้นทางมีคำขอราคา");
   await สร้างสาขา(TO, "ZZTEST-สาขาปลายทางรับคำขอราคา");
   // ลูกค้าเป้าหมาย 3 ราย เลขไม่เรียงกัน · 2 รายมีคำขอราคา (รายหนึ่งมีใบ HQ) · 1 รายไม่มี
@@ -105,9 +103,11 @@ test("[admin] ย้ายข้อมูลสาขา — คำขอรา�
   const ประวัติก่อน = await ประวัติ();
   expect(ประวัติก่อน, "ต้องมีประวัติของคำขอราคาให้ตรวจว่าไม่หาย").toBeGreaterThan(0);
 
-  const ย้าย = await request.post(`${HQ_ORIGIN}/api/admin/dealers/move`, { headers: { authorization: `Bearer ${await adminToken()}` }, data: { from: FROM, to: TO } });
-  const body = await ย้าย.text();
-  expect(ย้าย.status(), `ย้ายข้อมูลต้องผ่าน (ได้ ${ย้าย.status()} · ${body})`).toBe(200);
+  const ทางเว็บ = await request.post(`${HQ_ORIGIN}/api/admin/dealers/move`, { headers: { authorization: `Bearer ${await adminToken()}` }, data: { from: FROM, to: TO } });
+  expect(ทางเว็บ.status(), "เส้นทางย้ายข้อมูลปิดแล้ว").toBe(410);
+  expect((await ใครเป็นเจ้าของ())["ZZTEST-RQ-MOVE-A"], "เส้นทางที่ปิดแล้วต้องไม่ย้ายอะไร").toBe(`${FROM} · ${ก} · quoted`);
+  const ย้าย = await admin.rpc("move_dealer_data_atomic", { p_from: FROM, p_to: TO });
+  ต้องผ่าน(ย้าย, "ย้ายข้อมูล");
 
   // 1) ทุกใบไปอยู่สาขาปลายทาง และยังเป็นของลูกค้าเป้าหมายรายเดิม สถานะและราคาไม่เปลี่ยน
   expect(await ใครเป็นเจ้าของ(), "หลังย้าย").toEqual({
@@ -126,12 +126,11 @@ test("[admin] ย้ายข้อมูลสาขา — คำขอรา�
   const { count: ของค } = await admin.from("quote_requests").select("*", { count: "exact", head: true }).eq("dealer_code", TO).eq("lead_num_id", leadค!.num_id);
   expect(ของค, "ลูกค้าเป้าหมายที่ไม่เคยขอราคา ต้องไม่มีคำขอราคาหลังย้าย").toBe(0);
   // 4) ผลที่ระบบรายงานกลับ (และลงบันทึกการใช้งาน) ต้องนับคำขอราคาและใบ HQ ที่ย้ายด้วย
-  const moved = (JSON.parse(body) as { moved: { entity: string; moved: number }[] }).moved;
+  const moved = (ย้าย.data ?? []) as { entity: string; moved: number }[];
   const จำนวน = (e: string) => Number(moved.find(m => m.entity === e)?.moved ?? -1);
   expect(จำนวน("quote_requests"), "รายงานจำนวนคำขอราคาที่ย้าย").toBe(2);
   expect(จำนวน("hq_quotes"), "รายงานจำนวนใบ HQ ที่ย้าย").toBe(1);
 
   // 5) ย้ายออกหมดแล้ว ลบสาขาต้นทางได้
-  const ลบ = await request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=${FROM}`, { headers: { authorization: `Bearer ${await adminToken()}` } });
-  expect(ลบ.status(), `ย้ายออกหมดแล้วต้องลบสาขาต้นทางได้ (ได้ ${ลบ.status()} · ${await ลบ.text()})`).toBe(200);
+  ต้องผ่าน(await admin.rpc("delete_dealer_atomic", { p_code: FROM }), "ย้ายออกหมดแล้วต้องลบสาขาต้นทางได้");
 });

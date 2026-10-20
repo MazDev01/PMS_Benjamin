@@ -1,4 +1,5 @@
 "use client";
+import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ใบเสนอราคาทั้งเครือ (Network Quotations) ────────────────────────────
@@ -45,7 +46,8 @@ export default function NetworkQuotationPage() {
   // โหมด supabase เลยได้ค่า default 30 วันเสมอ ไม่ใช่ค่าจริงที่ HQ ตั้งไว้ → วันหมดอายุบนหน้าเพี้ยน)
   const validityDays = useQuoteValidityDays();
   // รายชื่อดีลเลอร์จากทะเบียนจริง (เดิมถอดจากใบเสนอราคา mock → เห็นสาขาที่ไม่มีอยู่จริง)
-  const ALL_DEALERS_FULL = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
+  // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
+  const ALL_DEALERS_FULL = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
   const ALL_DEALERS = useMemo(
     () => ALL_DEALERS_FULL.map(d => ({ code: d.code, name: d.name })).sort((a, b) => a.code.localeCompare(b.code)),
     [ALL_DEALERS_FULL],

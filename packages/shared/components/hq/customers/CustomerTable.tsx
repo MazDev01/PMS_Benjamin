@@ -36,7 +36,7 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
         <colgroup>
           <col style={{ width: "7%", minWidth: 92 }} />{/* รหัสลูกค้า */}
           <col style={{ width: "34%", minWidth: 200 }} />{/* ลูกค้า — ยาวเกินตัด + tooltip */}
-          <col style={{ width: "5%", minWidth: 60 }} />{/* รหัสดีลเลอร์ */}
+          <col style={{ width: 96 }} />{/* รหัสดีลเลอร์ — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
           <col style={{ width: "12%", minWidth: 130 }} />{/* ชื่อดีลเลอร์ */}
           <col style={{ width: "8%", minWidth: 84 }} />{/* จังหวัด */}
           <col style={{ width: "7%", minWidth: 76 }} />{/* ภาค */}
@@ -74,7 +74,7 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
                   {customerCode(c.dealerCode, c.id)}
                 </td>
                 <td style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={c.name}>{c.name}</td>
-                <td style={{ whiteSpace: "nowrap", fontWeight: 700, color: PRIMARY, paddingRight: 0 }}>{c.dealerCode}</td>
+                <td data-col="code" style={{ overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap", fontWeight: 700, color: PRIMARY, paddingRight: 0 }}>{c.dealerCode}</td>
                 <td style={{ whiteSpace: "nowrap", paddingLeft: 8, overflow: "hidden", textOverflow: "ellipsis" }} title={c.dealerName}>{c.dealerName}</td>
                 <td style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>
                 <td style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ?? DASH}</td>

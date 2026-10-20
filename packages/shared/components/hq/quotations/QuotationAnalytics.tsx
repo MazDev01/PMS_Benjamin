@@ -89,7 +89,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
           {/* ความกว้างคุมที่ colgroup เท่านั้น (ตาราง table-layout:fixed — ใส่ที่ th ไม่มีผล) */}
           <colgroup>
             <col style={{ width: "6%" }} />
-            <col style={{ width: "8%" }} />
+            <col style={{ width: 96 }} />{/* รหัส — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
             <col style={{ width: "24%" }} />
             <col style={{ width: "14%" }} />
             <col style={{ width: "11%" }} />
@@ -117,7 +117,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
             ) : ranked.map((d, i) => (
               <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าดีลเลอร์ ${d.name}`}>
                 <td style={{ fontWeight: 700, color: "var(--muted-foreground)" }}>{i + 1}</td>
-                <td style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }}>{d.code}</td>
+                <td data-col="code" style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY, overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>{d.code}</td>
                 <td style={{ fontWeight: 600, color: "#1F2937" }}>{d.name}</td>
                 <td style={{ color: "#374151" }}>{regionDisplay(d.region)}</td>
                 <td className="num" style={{ fontVariantNumeric: "tabular-nums" }}>{d.count}</td>

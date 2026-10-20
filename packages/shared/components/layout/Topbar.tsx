@@ -1,4 +1,5 @@
 "use client";
+import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { fmtLeadValue } from "@pms/shared/lib/format";
@@ -511,7 +512,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
         .slice(0, 5)
         .map((qt: QuotationMock) => ({ type: "ใบเสนอราคา", label: qt.id, sub: `${qt.customer} · ${qt.total}`, href: "/quotations" })),
       // ดีลเลอร์ — เฉพาะ role HQ (dealer ไม่มีสิทธิ์เข้าหน้า /hq)
-      ...(isHQ ? dealers
+      ...(isHQ ? dealers.filter(ไม่ใช่แถวHQ)
         .filter((d: DealerRow) => has(d.name) || has(d.code) || has(d.region))
         .slice(0, 5)
         .map((d: DealerRow) => ({ type: "ดีลเลอร์", label: d.name, sub: `${d.code} · ${d.region}`, href: `/hq/dealers/${d.code}` })) : []),

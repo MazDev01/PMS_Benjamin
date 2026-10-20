@@ -1,5 +1,5 @@
 {
- "migration": "0221",
+ "migration": "0222",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -273,6 +273,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "dealers_hq_row_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "delete_customer_cascade(p_customer_id bigint)",

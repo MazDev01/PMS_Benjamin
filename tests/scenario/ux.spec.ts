@@ -168,7 +168,7 @@ test("[ux·hq] หัวข้อบริษัทมีปุ่มบัน�
 // Dealer Detail = read-only workspace + มีแท็บ ลูกค้า/กิจกรรม
 test("[ux·hq] Dealer Detail อ่านอย่างเดียว + แท็บกิจกรรม", async ({ page }) => {
   await open(page, "hq", "/hq/dealers/CNX");
-  await expect(page.getByText("โหมดดูอย่างเดียว")).toBeVisible();
+  await expect(page.getByText("ข้อมูลงานขายดูอย่างเดียว")).toBeVisible();
   await page.getByRole("button", { name: /^กิจกรรม/ }).click();
   await expect(page.getByText("กิจกรรมล่าสุด")).toBeVisible();
 });

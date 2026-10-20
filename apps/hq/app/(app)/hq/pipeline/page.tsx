@@ -1,4 +1,5 @@
 "use client";
+import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ภาพรวมยอดขายทั้งเครือ (Sales Analytics) ──────────────────────────────
@@ -121,7 +122,8 @@ function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt
 export default function SalesAnalyticsPage() {
   const router = useRouter();
   const { timeRange, inRange } = useFilters();
-  const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
+  // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
+  const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
   // ยอดขายจริงรายสาขา — จากใบที่ปิดการขายได้ ไม่ใช่คอลัมน์ revenue_actual ที่ seed ไว้
   const dealerPerf = useDealerPerformance();
   const perfOf = (code: string) => dealerPerf.get(code) ?? EMPTY_PERF;
@@ -549,7 +551,7 @@ export default function SalesAnalyticsPage() {
               {/* รวม minWidth = 1,102px — พอดีพื้นที่จริง 1,128px (วัดที่จอ 1440 · 11 ส.ค. 69)
                   ชุดเดิมรวม 996px แต่แบ่งผิดสัดส่วน: ช่องภูมิภาคแคบกว่าป้ายชื่อภาคเต็ม
                   ("ภาคตะวันออกเฉียงเหนือ") และหัวคอลัมน์ยาวหลายอันถูกเฉือน ทั้งที่ยังเหลือที่ว่าง */}
-              <col style={{ width: "5%", minWidth: 58 }} />{/* รหัส */}
+              <col style={{ width: 96 }} />{/* รหัส — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
               <col style={{ width: "12%", minWidth: 136 }} />{/* ดีลเลอร์ */}
               <col style={{ width: "13%", minWidth: 148 }} />{/* ภูมิภาค — ป้ายชื่อภาคเต็ม ห้ามตัด */}
               <col style={{ width: "5%", minWidth: 58 }} />{/* ลูกค้าเป้าหมาย */}
@@ -583,7 +585,7 @@ export default function SalesAnalyticsPage() {
               {!perf.length && <tr><td colSpan={12} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {perfRows.map(d => (
                 <ClickableRow key={d.code} className="clickable" onActivate={() => setDrawer(d)} label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}>
-                  <td style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }}>{d.code}</td>
+                  <td data-col="code" style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY, overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>{d.code}</td>
                   <td style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {d.name}
                     {d.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}

@@ -1,4 +1,5 @@
 "use client";
+import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 
 // ตัวเลือกของแถบตัวกรอง — ต้องมาจากข้อมูลจริงเสมอ
 //
@@ -19,7 +20,7 @@ const byThai = (a: string, b: string) => a.localeCompare(b, "th");
 /** ดีลเลอร์ทั้งเครือ — จากทะเบียนดีลเลอร์จริง */
 export function useDealerOptions(): Option[] {
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
-  return useMemo(() => dealers.map(d => ({ value: d.code, label: d.name })), [dealers]);
+  return useMemo(() => dealers.filter(ไม่ใช่แถวHQ).map(d => ({ value: d.code, label: d.name })), [dealers]);   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
 }
 
 /** จังหวัด — เก็บจากจังหวัดที่ "มีอยู่จริง" ในลูกค้า/ใบเสนอราคา/ลูกค้าเป้าหมาย ไม่ใช่รายชื่อจังหวัดทั้งประเทศ */

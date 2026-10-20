@@ -2,39 +2,31 @@
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 import { useEffect, useState } from "react";
-import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
-import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
-import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { AdminGate } from "@pms/shared/components/layout/AdminGate";
 import {
-  DEFAULT_HQ_TARGETS, dealerStatusLabel, dealerStatusColor, fmtISOToThai,
-  type DealerRow, type HQTargets, type DealerStatus,
+  dealerStatusLabel, dealerStatusColor,
+  type DealerRow, type DealerStatus,
 } from "@pms/shared/lib/mock";
-import { useRepoState, useRepoValue } from "@pms/shared/lib/useRepoState";
-import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { useRepoState } from "@pms/shared/lib/useRepoState";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
-import { dealers as dealersRepo, settings as settingsRepo, dealerSettings as dealerSettingsRepo, prospects as prospectsRepo } from "@pms/shared/lib/data";
-import { provincesOfRegion, ALL_REGIONS, ALL_PROVINCES } from "@pms/shared/lib/provinces";
+import { dealers as dealersRepo, dealerSettings as dealerSettingsRepo, prospects as prospectsRepo } from "@pms/shared/lib/data";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
-import { deleteDealerAccount, impersonateDealer, listDealerLoginEmails, moveDealerData } from "@pms/shared/lib/adminApi";
-import { CopyField, DealerPasswordField } from "@pms/shared/components/hq/DealerCredentialsCard";
+import { impersonateDealer, listDealerLoginEmails } from "@pms/shared/lib/adminApi";
 import { useDealerPerformance, EMPTY_PERF } from "@pms/shared/lib/useDealerPerformance";
 import { useRole } from "@pms/shared/context/RoleContext";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useRouter } from "next/navigation";
-import { Search, X, LogIn, Pencil, Trash2, EyeOff, Eye, AlertTriangle, BarChart2, Trophy, Target, Clock, Store, Coins, Briefcase, LayoutGrid, List, MapPin, Package, CalendarDays } from "lucide-react";
+import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { Search, LogIn, Clock, Store, Coins, Briefcase, LayoutGrid, List } from "lucide-react";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
 import { TerritoryUnmatchedCard } from "@pms/shared/components/hq/TerritoryUnmatchedCard";
-import { PACKAGE_ORDER, packageLabel } from "@pms/shared/lib/dealerProposals";
+import { packageLabel } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackage } from "@pms/shared/lib/data/types";
 
-const CARD: React.CSSProperties = { background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)" };
 const REGIONS = ["เหนือ", "กลาง", "ตะวันออก", "ตะวันตก", "ใต้", "อีสาน"];
-/** รหัสของ "สำนักงานใหญ่" ในทะเบียนดีลเลอร์ — ดูแลทุกภาคทุกจังหวัด และตรึงไว้บนสุดของตารางเสมอ */
-const HQ_CODE = "HQ";
 // เวลาที่เพิ่มดีลเลอร์ (ms) — ไม่มีค่า (ข้อมูลตัวอย่างเดิม) = 0 ไปอยู่ท้าย
 const เวลาเพิ่ม = (d: DealerRow) => { const t = d.createdAt ? Date.parse(d.createdAt) : NaN; return Number.isFinite(t) ? t : 0; };
 /** การ์ดต่อหน้า — 12 ใบ = แถวละ 4 ใบ 3 แถวเต็ม (จอเล็ก 2 ใบ / มือถือ 1 ใบ ก็ยังเต็มแถว) */
@@ -126,16 +118,7 @@ function OnTimeBadge({ pct }: { pct: number | null }) {
 // (โมดัลตอนสร้าง/รีเซ็ตยังโชว์เต็มโดยตั้งใจ — เป็นจังหวะเดียวที่ HQ ต้องอ่านไปแจ้งดีลเลอร์)
 // CopyField / DealerPasswordField ย้ายไปเป็นของกลางที่ DealerCredentialsCard.tsx แล้ว (13 ส.ค. 69)
 
-function InputField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <label className="form-label" style={{ textTransform: "none", letterSpacing: "normal", fontSize: "0.72rem" }}>{label}</label>
-      {children}
-    </div>
-  );
-}
 
-const INPUT_STYLE: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: "0.8rem", color: "#2D2D2D", outline: "none", background: "#fafafa", boxSizing: "border-box" };
 
 // ⛔ ห้ามสร้างฟังก์ชัน "เดาอีเมลจากรหัสสาขา" กลับมาอีก
 //   เคยมี dealerLoginEmail(code) = `<code>@dealer.benjaminpebsteel.com` ซึ่งเป็นสูตรของบัญชีที่สร้างผ่านหน้าจอนี้
@@ -146,10 +129,6 @@ const INPUT_STYLE: React.CSSProperties = { width: "100%", padding: "9px 12px", b
 // รหัสผ่านใหม่ตอนรีเซ็ต — deterministic (ไม่สุ่ม) เดโมจึงทวนซ้ำได้
 // nonce = ความยาวรหัสเดิม → กดรีเซ็ตซ้ำได้รหัสใหม่เรื่อย ๆ ไม่วนกลับมาซ้ำของเดิม
 // ฟอร์แมต: PEB-{รหัส}-{4 หลัก}
-function genResetPassword(code: string, nonce: number): string {
-  const sum = code.split("").reduce((s, c) => s + c.charCodeAt(0), 0) + nonce * 7;
-  return `PEB-${code}-${1000 + (sum % 9000)}`;
-}
 
 // ── Main page ───────────────────────────────────────────────────
 
@@ -160,10 +139,9 @@ export default function HQDealersPage() {
 }
 function HQDealersPageInner() {
   const { login } = useRole();
-  const logAudit = useAuditLogger(); // บันทึกการกระทำของ admin
   const router = useRouter();
 
-  const [dealers, setDealers, dealersLoaded] = useRepoState<DealerRow[]>(() => dealersRepo.list(), (v) => dealersRepo.save(v), []);
+  const [dealers, , dealersLoaded] = useRepoState<DealerRow[]>(() => dealersRepo.list(), (v) => dealersRepo.save(v), []);
   // อีเมลเข้าระบบจริงของแต่ละสาขา (ถามเซิร์ฟเวอร์ครั้งเดียวตอนเปิดหน้า)
   //   ห้ามคำนวณจากรหัสสาขาเด็ดขาด — สูตร `<code>@dealer.benjaminpebsteel.com` ใช้ได้เฉพาะบัญชีที่สร้าง
   //   ผ่านหน้าจอนี้ · สาขาที่มีอยู่จริงใช้อีเมลธุรกิจของตัวเอง (CNX = sales@cmsteelbuild.co.th)
@@ -176,8 +154,6 @@ function HQDealersPageInner() {
   }, []);
   // อีเมลที่ "ยืนยันแล้วว่ามีจริง" เท่านั้น — ไม่รู้ ให้ขึ้น "—" ไม่เดาให้ผู้ใช้เข้าใจผิด
   const loginEmailOf = (code: string) => loginEmails[code] ?? "—";
-  // เกณฑ์สี Win rate / ตรงเวลา = เป้าที่ HQ ตั้งไว้ (แหล่งเดียว) ไม่ hardcode
-  const targets = useRepoValue<HQTargets>(() => settingsRepo.getTargets(), DEFAULT_HQ_TARGETS);
   const [q, setQ] = useState("");
   const [regionFilter, setRegionFilter] = useState("ทั้งหมด");
   const [statusFilter, setStatusFilter] = useState<DealerStatus | "all">("all");
@@ -208,20 +184,7 @@ function HQDealersPageInner() {
     return () => { alive = false; };
   }, []);
 
-  // Modals
-  const [showForm, setShowForm] = useState(false);
-  const [editTarget, setEditTarget] = useState<DealerRow | null>(null);
-  const [form, setForm] = useState({ code: "", name: "", province: "", region: "", revenueTarget: 0, package: "" as DealerPackage | "", status: "active" as "active" | "inactive" });
-  // เป้ายอดขายเป็นของดีลเลอร์รายนั้น — ตั้งจากเป้าในใบค่าแฟรนไชส์ตอนแปลงเป็นดีลเลอร์ (บอสตัดสิน 15 ต.ค. 69 · ใบ 0206)
-  //   เป้าของแพ็กเกจ (ตั้งค่า › หาดีลเลอร์) = ค่าตั้งต้นตอนออกใบใหม่เท่านั้น ไม่ผูกกับดีลเลอร์แล้ว (เดิม 0178–0180)
-  const [formErr, setFormErr] = useState("");
-  // สาขาที่ลบไม่ได้เพราะยังมีข้อมูล → เปิดกล่อง "ย้ายข้อมูลไปสาขาอื่น" ให้แทนที่จะจบแค่แจ้งเตือน
-  const [moveFrom, setMoveFrom] = useState<DealerRow | null>(null);
-  const [moveTo, setMoveTo] = useState("");
-  const [moving, setMoving] = useState(false);
-  const [moveErr, setMoveErr] = useState("");
   const [entering, setEntering] = useState<string | null>(null);
-  const [selectedDealer, setSelectedDealer] = useState<DealerRow | null>(null);
 
   // ผลงานจริงจากใบเสนอราคา/ลูกค้าเป้าหมาย — ห้ามอ่าน d.revenueActual / d.winRate / d.activeProjects อีก
   // (คอลัมน์พวกนั้นเป็นค่าเดโมที่ seed ไว้ ไม่ขยับตามข้อมูลจริง และขัดกับหน้าแดชบอร์ด)
@@ -230,15 +193,14 @@ function HQDealersPageInner() {
 
   // Filter + sort — กรองจริงด้วยสถานะ/ภาค/ค้นหา (local ในหน้านี้ทั้งหมด)
   const filtered = dealers.filter(d => {
+    // แถว HQ ไม่ใช่ดีลเลอร์ — ซ่อนจากทะเบียนและไม่นับในตัวเลขดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · ยกเลิกตรึงบนสุด 7 ก.ย. 69)
+    if (!ไม่ใช่แถวHQ(d)) return false;
     if (statusFilter !== "all" && dealerStatus(d) !== statusFilter) return false;
     if (regionFilter !== "ทั้งหมด" && d.region !== regionFilter) return false;
     if (q && !`${d.code} ${d.name} ${d.province} ${d.region}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
-    // สำนักงานใหญ่อยู่บนสุดเสมอ (บอสสั่ง 7 ก.ย. 69) — ไม่ใช่สาขาขาย จึงไม่ควรถูกยอดขายดันตกไปหน้าอื่น
-    //   ตรึงก่อนเรียงยอด ไม่งั้นพอมี 155 ราย HQ (ยอด 0) จะไปโผล่หน้าสุดท้าย
-  }).sort((a, b) => (b.code === HQ_CODE ? 1 : 0) - (a.code === HQ_CODE ? 1 : 0)
-    // ถัดจาก HQ = ดีลเลอร์ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
-    || เวลาเพิ่ม(b) - เวลาเพิ่ม(a)
+    // ดีลเลอร์ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
+  }).sort((a, b) => เวลาเพิ่ม(b) - เวลาเพิ่ม(a)
     || perfOf(b.code).revenue - perfOf(a.code).revenue);
 
   // Stats — คำนวณจากชุดที่กรองแล้ว (ตัวเลขสะสมจริง ไม่สเกลตามช่วงเวลา)
@@ -261,90 +223,6 @@ function HQDealersPageInner() {
   };
   const avgOnTime = avgOf(c => perfOf(c).onTimePct);
   const totalPct = totalTarget > 0 ? Math.round(totalRevenue / totalTarget * 100) : 0;
-
-  function openEdit(d: DealerRow) { setEditTarget(d); setForm({ code: d.code, name: d.name, province: d.province, region: d.region, revenueTarget: d.revenueTarget, package: d.package ?? "", status: d.status }); setFormErr(""); setShowForm(true); }
-
-  // เปลี่ยนภาค: อัปเดตภาค
-  //   และล้างจังหวัดทิ้งถ้ามันไม่ได้อยู่ในภาคใหม่ — กันข้อมูลขัดกันเอง (เช่น ภาค "ใต้" + จังหวัด "เชียงใหม่")
-  //   ซึ่งเคยเกิดได้เพราะจังหวัดเป็นช่องพิมพ์อิสระ ไม่ผูกกับภาคเลย
-  //   เลือก "ทุกภาค" (สำนักงานใหญ่ ดูแลทั่วประเทศ) = เติมจังหวัดให้เป็น "ทุกจังหวัด" ทันที
-  //   ไม่งั้นผู้ใช้ต้องไปเลือกจังหวัดอีกช่องทั้งที่ความหมายคือ "ไม่จำกัดจังหวัด" อยู่แล้ว
-  function changeRegion(region: string) {
-    setForm(f => ({
-      ...f,
-      region,
-      province: region === ALL_REGIONS ? ALL_PROVINCES
-        : provincesOfRegion(region).includes(f.province) ? f.province : "",
-    }));
-  }
-
-  async function save() {
-    // หน้านี้แก้ไขดีลเลอร์ที่มีอยู่ได้อย่างเดียว — สร้างดีลเลอร์ใหม่ต้องผ่านลูกค้าเป้าหมาย (/hq/prospects)
-    if (!editTarget) return;
-    const code = form.code.trim().toUpperCase();
-    if (!code) { setFormErr("ต้องระบุรหัสดีลเลอร์"); return; }
-    if (!form.name.trim()) { setFormErr("ต้องระบุชื่อดีลเลอร์"); return; }
-    if (!form.region.trim()) { setFormErr("ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก"); return; }
-    if (!form.province.trim()) { setFormErr("ต้องระบุจังหวัด"); return; }
-    const dupe = dealers.find(d => d.code === code && d.id !== editTarget?.id);
-    if (dupe) { setFormErr(`รหัส "${code}" มีอยู่แล้ว`); return; }
-
-    if (editTarget) {
-      setDealers(prev => prev.map(d => d.id === editTarget.id ? {
-        ...d, name: form.name.trim(), province: form.province.trim(), region: form.region,
-        revenueTarget: form.revenueTarget,
-        package: form.package || null, status: form.status,
-      } : d));
-      logAudit("แก้ไขดีลเลอร์", `${code} · ${form.name.trim()}`);
-      setShowForm(false);
-      return;
-    }
-
-    // ⛔ ไม่มีการสร้างดีลเลอร์ตรง ๆ ที่หน้านี้แล้ว (บอสสั่ง 14 ก.ย. 69)
-    //   ดีลเลอร์ต้องมาจากลูกค้าเป้าหมายที่สำเร็จแล้ว — /hq/prospects › ตั้งเป็นดีลเลอร์
-    //   route สร้างดีลเลอร์ก็ปฏิเสธคำขอที่ไม่ผูกลูกค้าเป้าหมายด้วย (กันคนยิง API ตรง)
-  }
-
-  async function remove(d: DealerRow) {
-    if (!(await ยืนยัน({
-      หัวข้อ: `ลบ "${d.name}" ออกจากระบบ ?`,
-      รายละเอียด: "การกระทำนี้ไม่สามารถย้อนกลับได้",
-      ปุ่มตกลง: "ลบดีลเลอร์", อันตราย: true,
-    }))) return;
-    // โหมดจริง (supabase): ลบผ่าน route เซิร์ฟเวอร์ (service_role) → ลบบัญชี auth ของสาขาด้วย
-    //   ไม่ทิ้งบัญชีกำพร้า · เดิม dealersRepo.remove ลบได้แค่แถว dealers (RLS) บัญชียังค้าง
-    if (REAL_BACKEND) {
-      void deleteDealerAccount(d.code).then(res => {
-        if (!res.ok) {
-          // สาขาที่ยังมีข้อมูลงานขายลบไม่ได้โดยตั้งใจ (409) — เดิมจบแค่แจ้งว่าลบไม่ได้
-          // แล้วผู้ดูแลไม่มีทางไปต่อ นอกจากลบข้อมูลลูกค้าจริงทิ้ง ซึ่งไม่มีใครกล้าทำ
-          // → เสนอทางที่สาม: ยกงานทั้งหมดให้สาขาที่รับช่วงต่อ แล้วค่อยลบสาขาที่ว่างแล้ว
-          if (/ยังมีข้อมูล/.test(res.error)) { setMoveFrom(d); return; }
-          แจ้งพลาด("ลบดีลเลอร์ไม่สำเร็จ: " + res.error); return;
-        }
-        // ลบสำเร็จ (หรือสำเร็จบางส่วน) = ทะเบียนสาขาหายไปจากระบบจริงแล้ว ต้องเอาออกจากหน้าจอเสมอ
-        //   เดิมกรณี "สำเร็จบางส่วน" ถูกตีความเป็นล้มเหลว แล้วคงสาขาไว้บนจอ ทั้งที่ในระบบไม่มีแล้ว
-        //   ผู้ดูแลจึงเห็นเหมือนสาขาฟื้นกลับมา และไม่รู้ว่ายังมีบัญชีค้างต้องเคลียร์
-        setDealers(prev => prev.filter(x => x.id !== d.id));
-        if (res.warning) แจ้งพลาด(res.warning);
-        // audit บันทึกที่ route (server-side · การันตี) แล้ว — ไม่ลง client ซ้ำ
-      });
-      return;
-    }
-    // โหมดเดโม (local): ลบตรง ๆ — เดิมแค่เอาออกจากอาร์เรย์แล้วให้ชั้นข้อมูลเดาว่าต้องลบอะไร
-    // การเดาแบบนั้นทำให้ "โหลดยังไม่เสร็จแล้วผู้ใช้แก้" กลายเป็นคำสั่งลบทั้งตาราง
-    void dealersRepo.remove(d.code)
-      .then(() => setDealers(prev => prev.filter(x => x.id !== d.id)))
-      .catch(e => แจ้งพลาด("ลบดีลเลอร์ไม่สำเร็จ: " + friendlyError(e)));
-    logAudit("ลบดีลเลอร์", `${d.code} · ${d.name}`);
-  }
-
-  function toggleStatus(d: DealerRow) {
-    const next = d.status === "active" ? "inactive" : "active";
-    setDealers(prev => prev.map(x => x.id === d.id ? { ...x, status: next } : x));
-    // บันทึกให้ตรงกับสิ่งที่เกิดขึ้นจริง — เดิมเขียน "ระงับดีลเลอร์" ทั้งที่สั่ง "ปิดใช้งาน" (คนละคำกับที่ผู้ใช้กด)
-    logAudit(next === "active" ? "เปิดใช้งานดีลเลอร์" : "ปิดใช้งานดีลเลอร์", `${d.code} · ${d.name}`);
-  }
 
   // "เข้าระบบแทนดีลเลอร์" — HQ มีสิทธิ์เข้าบัญชีดีลเลอร์ไหนก็ได้ (บอสยืนยัน)
   //
@@ -478,8 +356,8 @@ function HQDealersPageInner() {
                     // การ์ดตามภาพตัวอย่างล่าสุด (บอสสั่ง 14 ก.ย. 69 "เอาแบบนี้"):
                     //   ป้ายรหัสมุมซ้ายบน · รูปวงกลมพื้นฟ้าจาง · ชื่อ · จังหวัด/ภาค · สถานะมีจุด · ปุ่มเข้าระบบเต็มความกว้าง + ปุ่มไอคอน 2 ปุ่ม
                     <div key={d.id} className="dealer-card" role="button" tabIndex={0} aria-label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}
-                      onClick={() => setSelectedDealer(d)}
-                      onKeyDown={ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelectedDealer(d); } }}
+                      onClick={() => router.push(`/hq/dealers/${d.code}`)}
+                      onKeyDown={ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); router.push(`/hq/dealers/${d.code}`); } }}
                       style={{
                         background: `linear-gradient(165deg, #ffffff 58%, ${สีจาง} 100%)`, border: "1px solid #e3ebf5", borderRadius: 16,
                         padding: "14px 14px 14px", textAlign: "center", cursor: "pointer", position: "relative",
@@ -501,21 +379,13 @@ function HQDealersPageInner() {
                         </span>
                         {d.package && <ป้ายแพ็กเกจ p={d.package} />}
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: canImpersonate ? "1fr auto auto" : "1fr 1fr", gap: 8, marginTop: 12 }} onClick={ev => ev.stopPropagation()}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginTop: 12 }} onClick={ev => ev.stopPropagation()}>
                         {canImpersonate && (
                           <button onClick={() => enterDealer(d)} disabled={entering === d.id} title="เข้าระบบแทนดีลเลอร์"
                             style={{ height: 36, borderRadius: 9, border: "none", background: "linear-gradient(180deg, #0a4a8a 0%, #003366 100%)", color: "#fff", fontSize: "0.78rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", opacity: entering === d.id ? 0.6 : 1, fontFamily: "inherit", boxShadow: "0 3px 8px rgba(0,51,102,.22)" }}>
                             <LogIn size={13} /> {entering === d.id ? "..." : "เข้าระบบ"}
                           </button>
                         )}
-                        <button onClick={() => router.push(`/hq/dealers/${d.code}`)} title="ดูรายละเอียดดีลเลอร์" aria-label={`ดูรายละเอียดดีลเลอร์ ${d.name}`}
-                          style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #e3ebf5", borderRadius: 9, color: "#003366", cursor: "pointer" }}>
-                          <BarChart2 size={14} />
-                        </button>
-                        <button onClick={() => openEdit(d)} title="แก้ไข" aria-label={`แก้ไขดีลเลอร์ ${d.name}`}
-                          style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #e3ebf5", borderRadius: 9, color: "#003366", cursor: "pointer" }}>
-                          <Pencil size={14} />
-                        </button>
                       </div>
                     </div>
                   );
@@ -553,7 +423,7 @@ function HQDealersPageInner() {
                   เดิม 42px พอแค่เลขหลักเดียว พอขึ้นหน้า 2 เลข 21–40 เลยโดนตัดเหลือ "2…" ทุกแถว
                   จนดูเหมือนลำดับไม่เรียง (บอสทัก 7 ก.ย. 69) */}
               <col style={{ width: "6%", minWidth: 68 }} />{/* ลำดับ */}
-              <col style={{ width: "6%", minWidth: 68 }} />{/* รหัส — ต้องอ่านครบ 3 ตัวอักษร ห้ามตัด */}
+              <col style={{ width: 96 }} />{/* รหัส — ต้องอ่านครบ 5 ตัวอักษร (เช่น ZZWWW) ห้ามตัด · กว้างเป็นพิกเซล (minWidth ที่ col ไม่มีผล) */}
               <col style={{ width: "9%", minWidth: 90 }} />{/* ชื่อดีลเลอร์ — ยาวเกินตัดด้วยจุดไข่ปลา + tooltip (ยอมให้ตัดได้) */}
               <col style={{ width: "8%", minWidth: 78 }} />{/* จังหวัด — ยาวเกินตัด + tooltip เช่นกัน */}
               <col style={{ width: "8%", minWidth: 104 }} />{/* ภาค — ป้ายชื่อ ห้ามตัด (ยาวสุด "ตะวันออก" + ระยะขอบของป้าย) */}
@@ -566,7 +436,7 @@ function HQDealersPageInner() {
               {/* คอลัมน์ปุ่ม: เข้าระบบ (~99px) + ไอคอน 5 ปุ่ม (28px × 5) + gap 4px × 5 ช่อง ≈ 259px
                   บวกระยะขอบช่อง 32px = 291px · ตั้ง 292px คือพอดีเนื้อหาจริงโดยไม่เผื่อทิ้งเปล่า
                   (เดิม 300px เผื่อไว้เกินจำเป็น ซึ่งไปเบียดพื้นที่คอลัมน์อื่นจนตารางล้นจอ) */}
-              <col style={{ width: "23%", minWidth: 292 }} />
+              <col style={{ width: 140 }} />{/* ปุ่มเข้าระบบปุ่มเดียว (~99px + ระยะขอบ 32px) */}
             </colgroup>
             <thead>
               <tr>
@@ -586,10 +456,10 @@ function HQDealersPageInner() {
                 <tr><td colSpan={11} style={{ padding: "32px", textAlign: "center", fontSize: "0.8rem", color: "#6b7280" }}>{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
               ) : pageSlice(filtered, Math.min(page, pageCountOf(filtered.length) - 1)).map((d, i) => (
                 <ClickableRow key={d.id} className="clickable" style={{ opacity: dealerStatus(d) === "active" ? 1 : 0.55 }}
-                  onActivate={() => setSelectedDealer(d)} label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}>
+                  onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}>
                   <td style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>{Math.min(page, pageCountOf(filtered.length) - 1) * ROWS_PER_PAGE + i + 1}</td>
-                  <td>
-                    <span style={{ fontWeight: 800, color: "#003366", fontSize: "0.8rem", letterSpacing: "0.05em" }}>{d.code}</span>
+                  <td data-col="code" style={{ overflow: "visible", textOverflow: "clip" }}>
+                    <span style={{ fontWeight: 800, color: "#003366", fontSize: "0.8rem", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{d.code}</span>
                   </td>
                   <td style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.name}>
                     <span style={{ fontSize: "0.86rem", fontWeight: 700, color: "#2D2D2D" }}>{d.name}</span>
@@ -619,25 +489,7 @@ function HQDealersPageInner() {
                           <LogIn size={12} /> {entering === d.id ? "..." : "เข้าระบบ"}
                         </button>
                       )}
-                      <button onClick={e => { e.stopPropagation(); router.push(`/hq/dealers/${d.code}`); }} title="ดูรายละเอียดดีลเลอร์"
-                        style={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f4f8", border: "1px solid #e5e7eb", borderRadius: 7, color: "#003366", cursor: "pointer" }}>
-                        <BarChart2 size={12} />
-                      </button>
-                      {/* ปุ่มรูปกุญแจ (ดูรหัสเข้าระบบ/รีเซ็ตรหัสผ่าน) ย้ายไปหน้ารายละเอียดดีลเลอร์แล้ว (บอสสั่ง 13 ส.ค. 69)
-                          เป็นงานราย "สาขา" ไม่ใช่งานที่ต้องทำรัวจากลิสต์ · ตารางนี้เคยมีปุ่มต่อแถวถึง 6 ปุ่มจนแน่น
-                          เข้าถึงได้ที่ปุ่มรูปกราฟข้างบน → การ์ด "ข้อมูลเข้าระบบของดีลเลอร์" ในแท็บภาพรวม */}
-                      <button onClick={e => { e.stopPropagation(); openEdit(d); }} title="แก้ไข" aria-label={`แก้ไขดีลเลอร์ ${d.name}`}
-                        style={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 7, color: "#6b7280", cursor: "pointer" }}>
-                        <Pencil size={12} />
-                      </button>
-                      <button onClick={e => { e.stopPropagation(); toggleStatus(d); }} title={d.status === "active" ? "ปิดใช้งาน" : "เปิดใช้งาน"}
-                        style={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 7, color: "#6b7280", cursor: "pointer" }}>
-                        {d.status === "active" ? <EyeOff size={12} /> : <Eye size={12} />}
-                      </button>
-                      <button onClick={e => { e.stopPropagation(); remove(d); }} title="ลบ"
-                        style={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", border: "1px solid #fee2e2", borderRadius: 7, color: "#dc2626", cursor: "pointer" }}>
-                        <Trash2 size={12} />
-                      </button>
+                      {/* แถวเหลือ "เข้าระบบแทน" ปุ่มเดียว · กดแถวเปิดหน้ารายละเอียด (แก้ไข/ปิดใช้งาน/สถิติอยู่ที่นั่น) · ไม่มีลบดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69) */}
                     </div>
                   </td>
                 </ClickableRow>
@@ -649,306 +501,8 @@ function HQDealersPageInner() {
       </div>
       )}
 
-      {/* ── Add / Edit Modal ── */}
-      {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => setShowForm(false)} label="ฟอร์มข้อมูลดีลเลอร์" className="modal-fit" style={{ ...CARD, width: 460, maxWidth: '100%' }}>
-            <div style={{ padding: "18px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "#2D2D2D" }}>แก้ไขข้อมูลดีลเลอร์</h2>
-              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex" }}><X size={18} /></button>
-            </div>
-            <div className="modal-fit-body" style={{ padding: "18px 20px" }}>
-              {formErr && <div style={{ background: "#fee2e2", border: "1px solid #dc262630", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: "0.8rem", color: "#dc2626", fontWeight: 600 }}>{formErr}</div>}
-
-              <div className="form-grid" style={{ gridTemplateColumns: "1fr 2fr" }}>
-                <div className="form-section">ข้อมูลดีลเลอร์</div>
-                <InputField label="รหัสดีลเลอร์ *">
-                  <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase().slice(0, 6) }))} placeholder="เช่น BKK" disabled={!!editTarget}
-                    style={{ ...INPUT_STYLE, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em", opacity: editTarget ? 0.6 : 1 }} />
-                  {editTarget && <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 3 }}>แก้ไขรหัสไม่ได้</div>}
-                </InputField>
-                <InputField label="ชื่อดีลเลอร์ *">
-                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="บจ. ตัวอย่างสตีล..." style={INPUT_STYLE} />
-                </InputField>
-              </div>
-
-              <div className="form-grid">
-                <div className="form-section">พื้นที่รับผิดชอบ</div>
-                {/* ภาคมาก่อนจังหวัด — เพราะจังหวัดที่เลือกได้ขึ้นกับภาคที่เลือกไว้ */}
-                <InputField label="ภาค *">
-                  {/* ต้องมี "ยังไม่ระบุ" เหมือนช่องอื่น — เดิมเด้งเป็น "กลาง" ให้เองทั้งที่ไม่มีใครเลือก
-                      และติดดาว * เพราะ "จังหวัด" ขึ้นกับภาค — ไม่เลือกภาคก็เลือกจังหวัดไม่ได้เลย (ผู้ใช้แจ้ง 18 ส.ค. 69) */}
-                  <select aria-label="ภูมิภาค" value={form.region} onChange={e => changeRegion(e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
-                    <option value="">— ยังไม่ระบุ —</option>
-                    {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                    {/* สำนักงานใหญ่ดูแลทั้งประเทศ — เลือกอันนี้แล้วจังหวัดจะเป็น "ทุกจังหวัด" ให้เอง */}
-                    <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
-                  </select>
-                </InputField>
-                <InputField label="จังหวัดที่ตั้ง *">
-                  {/* จังหวัดของดีลเลอร์เดิมที่ไม่อยู่ในรายการของภาคนั้น (สะกดต่าง/ข้อมูลเก่า) ต้องยังเห็นค่าเดิมอยู่
-                      ไม่งั้นแค่เปิดฟอร์มมาแก้ชื่อ จังหวัดก็หายไปเงียบ ๆ แล้วถูกบันทึกทับเป็นค่าว่าง */}
-                  <select aria-label="จังหวัดที่ตั้ง" value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))}
-                    style={{ ...INPUT_STYLE, cursor: "pointer" }}>
-                    <option value="">{form.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}</option>
-                    {/* ภาค = ทุกภาค → เลือก "ทุกจังหวัด" ได้ และยังเจาะจงจังหวัดเดียวได้ถ้าต้องการ */}
-                    {form.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
-                    {provincesOfRegion(form.region).map(p => <option key={p} value={p}>{p}</option>)}
-                    {form.province && form.province !== ALL_PROVINCES && !provincesOfRegion(form.region).includes(form.province) && (
-                      <option value={form.province}>{form.province} (นอกภาค {form.region})</option>
-                    )}
-                  </select>
-                </InputField>
-                <div className="form-section">เป้าหมายและสถานะ</div>
-                <InputField label="แพ็กเกจ">
-                  <select aria-label="แพ็กเกจดีลเลอร์" value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value as DealerPackage | "" }))}
-                    style={{ ...INPUT_STYLE, cursor: "pointer" }}>
-                    <option value="">— ยังไม่ระบุ —</option>
-                    {PACKAGE_ORDER.map(k => <option key={k} value={k}>{packageLabel[k]}</option>)}
-                  </select>
-                </InputField>
-                <InputField label="เป้ายอดขาย (บาท/ปี)">
-                  {/* เป้ายอดขายติดลบไม่มีอยู่จริงในทางธุรกิจ และทำให้ตัวเลขอื่นเพี้ยนตามเป็นทอด ๆ:
-                      เปอร์เซ็นต์ความสำเร็จของสาขา · เป้ารวมทั้งเครือบนหัวตาราง · กราฟเทียบเป้า
-                      เดิมรับค่าติดลบตรง ๆ (พิมพ์ -5000000 แล้วบันทึกลงระบบได้จริง · พบ 6 ส.ค. 69) */}
-                  {/* ช่องเงินใช้ text + ใส่ลูกน้ำเอง — type="number" ใส่ลูกน้ำไม่ได้ และหลักล้านอ่านยากมาก (บอสสั่ง 26 ส.ค. 69) */}
-                  {/* เป้าเป็นของดีลเลอร์รายนี้ — ตั้งจากเป้าในใบค่าแฟรนไชส์ตอนแปลงเป็นดีลเลอร์ แก้เองได้ทีหลัง
-                      แก้เป้าของแพ็กเกจที่ตั้งค่าไม่ทับเป้าของดีลเลอร์ที่มีอยู่ (บอสตัดสิน 15 ต.ค. 69 · ใบ 0206) */}
-                  <input type="text" inputMode="numeric" aria-label="เป้ายอดขายทั้งปี"
-                    value={form.revenueTarget ? formatMoneyInput(String(form.revenueTarget)) : ""}
-                    onChange={e => setForm(f => ({ ...f, revenueTarget: parseMoneyInput(e.target.value) }))}
-                    placeholder="0" style={INPUT_STYLE} />
-                </InputField>
-                <InputField label="สถานะ">
-                  {/* ต้องมีค่าเสมอ — ดีลเลอร์ต้องเป็นเปิดหรือปิดใช้งานอย่างใดอย่างหนึ่ง ว่างไม่ได้ */}
-                  <select aria-label="สถานะดีลเลอร์" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as DealerStatus }))} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
-                    <option value="active">{dealerStatusLabel.active}</option>
-                    <option value="inactive">{dealerStatusLabel.inactive}</option>
-                  </select>
-                </InputField>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-                <button onClick={() => setShowForm(false)} className="btn btn-secondary btn-md">ยกเลิก</button>
-                <button onClick={() => void save()} className="btn btn-primary btn-md">บันทึกการแก้ไข</button>
-              </div>
-            </div>
-          </ModalCard>
-        </div>
-      )}
-
-      {/* ── ย้ายข้อมูลไปสาขาอื่น (ทางออกของสาขาที่ลบไม่ได้เพราะยังมีข้อมูล) ── */}
-      {moveFrom && (
-        <div onClick={() => !moving && setMoveFrom(null)}
-          style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(45,45,45,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <ModalCard onClose={() => !moving && setMoveFrom(null)} label="ย้ายข้อมูลดีลเลอร์"
-            style={{ width: "100%", maxWidth: 520, background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
-            <div style={{ background: "#003366", color: "#fff", padding: "16px 22px", fontWeight: 800 }}>
-              ลบ &quot;{moveFrom.name}&quot; ไม่ได้ — ยังมีข้อมูลอยู่
-            </div>
-            <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: "0.84rem", color: "#2D2D2D", lineHeight: 1.7 }}>
-                สาขานี้ยังมีลูกค้า/ลูกค้าเป้าหมาย/ใบเสนอราคาอยู่ ระบบจึงไม่ยอมให้ลบ (กันข้อมูลการขายหายถาวร)
-                <br />ยกงานทั้งหมดให้สาขาที่รับช่วงต่อก่อน แล้วค่อยลบสาขานี้ได้
-              </div>
-              <div>
-                <label className="form-label">ย้ายไปที่สาขา</label>
-                <select className="form-input" value={moveTo} onChange={e => { setMoveTo(e.target.value); setMoveErr(""); }} disabled={moving}>
-                  <option value="">— เลือกสาขาปลายทาง —</option>
-                  {dealers.filter(x => x.code !== moveFrom.code).map(x => (
-                    <option key={x.code} value={x.code}>{x.code} · {x.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 14px", fontSize: "0.76rem", color: "#9a3412", lineHeight: 1.6 }}>
-                <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2 }} />
-                <span>
-                  ย้ายได้เฉพาะเข้าสาขาที่ <b>ยังไม่มีข้อมูล</b> — ระบบนับเลขที่รายการแยกรายสาขา
-                  ถ้าปลายทางมีข้อมูลอยู่แล้วเลขจะชนกัน ระบบจะปฏิเสธและไม่แก้อะไรเลย
-                  <br />ย้ายแล้ว<b>ย้อนกลับอัตโนมัติไม่ได้</b> · ตั้งค่าสาขา (โลโก้/หัวกระดาษ) ไม่ย้ายตามไป
-                </span>
-              </div>
-              {moveErr && <div style={{ fontSize: "0.8rem", color: "#dc2626", fontWeight: 600, lineHeight: 1.6 }}>{moveErr}</div>}
-            </div>
-            <div style={{ padding: "14px 22px", borderTop: "1px solid #e5e7eb", background: "#fafafa", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="btn btn-secondary btn-md" disabled={moving} onClick={() => setMoveFrom(null)}>ยกเลิก</button>
-              <button className="btn btn-primary btn-md" disabled={!moveTo || moving}
-                style={!moveTo || moving ? { opacity: .5, cursor: "not-allowed" } : undefined}
-                onClick={async () => {
-                  if (!moveTo) return;
-                  setMoving(true); setMoveErr("");
-                  const res = await moveDealerData(moveFrom.code, moveTo);
-                  setMoving(false);
-                  if (!res.ok) { setMoveErr(res.error); return; }
-                  setMoveFrom(null); setMoveTo("");
-                  แจ้งสำเร็จ(`ย้ายข้อมูล ${res.total} รายการจาก "${moveFrom.code}" ไป "${moveTo}" เรียบร้อย — ลบสาขา "${moveFrom.code}" ได้แล้ว`);
-                }}>
-                {moving ? "กำลังย้าย…" : "ย้ายข้อมูล"}
-              </button>
-            </div>
-          </ModalCard>
-        </div>
-      )}
-
-      {/* ── Dealer Detail Drawer ──
-          ออกแบบใหม่ 22 ก.ย. 69 (บอสสั่ง "ให้เข้ากับการทำงานและการแสดงค่าปัจจุบัน"):
-          • แสดงค่าที่ระบบใช้จริงตอนนี้: แพ็กเกจ · ที่มาของเป้า (ตามแพ็กเกจ/กำหนดเอง/กรอกเอง) · จังหวัด+ภาค · วันเข้าระบบ
-          • ตัดข้อความคาดเดา ("คาดว่าปิดได้ครบก่อนสิ้นไตรมาส" — เป้าเป็นรายปี ระบบไม่ได้พยากรณ์) เหลือเฉพาะข้อเท็จจริง
-          • หัว/ท้ายแผงไม่หดตาม เนื้อหาเลื่อนอยู่ระหว่างกลาง (เดิมหัวแผงบังการ์ดยอดขาย) */}
-      {selectedDealer && (() => {
-        const d = selectedDealer;
-        const dPerf = perfOf(d.code);
-        const มีเป้า = d.revenueTarget > 0;
-        const revPct = มีเป้า ? Math.round(dPerf.revenue / d.revenueTarget * 100) : 0;
-        const revColor = !มีเป้า ? "#6b7280" : revPct >= 100 ? "#059669" : revPct >= 75 ? "#003366" : revPct >= 50 ? "#f59e0b" : "#dc2626";
-        // ระดับผลงานตัดสินจาก % เป้า + อัตราปิดการขาย (ข้อมูลที่ระบบมีจริง) · ไม่มีเป้า = ไม่ติดป้าย
-        const wr = dPerf.winRate ?? 0;
-        const tier = !มีเป้า ? null : revPct >= 90 && wr >= 50
-          ? { label: "ดีลเลอร์ดีเด่น", color: "#059669", bg: "#e5faf0" }
-          : revPct >= 70 && wr >= 35
-          ? { label: "ผลงานดี", color: "#003366", bg: "#dce5f0" }
-          : revPct >= 50
-          ? { label: "กำลังพัฒนา", color: "#f59e0b", bg: "#fef3cd" }
-          : { label: "ต้องปรับปรุง", color: "#dc2626", bg: "#fee2e2" };
-        const ที่มาเป้า = มีเป้า ? "" : "ยังไม่ได้ตั้งเป้า";
-        const ขาดอีก = Math.max(0, d.revenueTarget - dPerf.revenue);
-        const บาท = (n: number) => n >= 1_000_000 ? `฿${(n / 1_000_000).toFixed(1)}M` : `฿${Math.round(n).toLocaleString("th-TH")}`;
-        const เข้าระบบเมื่อ = d.createdAt ? fmtISOToThai(d.createdAt.slice(0, 10)) : "—";
-        // เรื่องที่ควรดู — ข้อเท็จจริงจากตัวเลขเท่านั้น ไม่พยากรณ์
-        const ควรดู: { tone: "bad" | "warn" | "good"; text: string }[] = [];
-        if (dealerStatus(d) === "inactive") ควรดู.push({ tone: "warn", text: "ปิดใช้งานอยู่ — ดีลเลอร์เข้าระบบไม่ได้" });
-        if (!มีเป้า) ควรดู.push({ tone: "warn", text: d.package ? `แพ็กเกจ ${packageLabel[d.package]} ยังไม่ได้ตั้งเป้า — ตั้งที่ ตั้งค่า › หาดีลเลอร์` : "ยังไม่มีเป้ายอดขาย — กำหนดได้ที่ปุ่มแก้ไข" });
-        if (มีเป้า && revPct >= 100) ควรดู.push({ tone: "good", text: `ถึงเป้าทั้งปีแล้ว${revPct > 100 ? ` · เกินเป้า ${revPct - 100}%` : ""}` });
-        if (dPerf.winRate !== null && wr < targets.winRateTarget) ควรดู.push({ tone: wr < targets.winRateTarget - 15 ? "bad" : "warn", text: `อัตราปิดการขาย ${wr}% ต่ำกว่าเป้าเครือ ${targets.winRateTarget}%` });
-        if (dPerf.onTimePct !== null && dPerf.onTimePct < targets.onTimeTarget) ควรดู.push({ tone: dPerf.onTimePct < targets.onTimeTarget - 15 ? "bad" : "warn", text: `ติดตามตรงเวลา ${dPerf.onTimePct}% ต่ำกว่าเป้าเครือ ${targets.onTimeTarget}%` });
-        const สีโทน = { bad: "#dc2626", warn: "#b45309", good: "#059669" } as const;
-        const หัวข้อ: React.CSSProperties = { fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 };
-        const แถว = (ไอคอน: React.ReactNode, ป้าย: string, ค่า: React.ReactNode) => (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: "1px solid #f1f5f9", fontSize: "0.8rem" }}>
-            <span style={{ color: "#9ca3af", display: "flex" }}>{ไอคอน}</span>
-            <span style={{ color: "#6b7280", width: 92, flexShrink: 0 }}>{ป้าย}</span>
-            <span style={{ color: "#1f2937", fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{ค่า}</span>
-          </div>
-        );
-        const ตัวเลข = [
-          { v: dPerf.winRate === null ? "—" : `${wr}%`, l: "อัตราปิดการขาย", c: dPerf.winRate === null ? "#C0C0C0" : wr >= targets.winRateTarget ? "#059669" : wr >= targets.winRateTarget - 15 ? "#f59e0b" : "#dc2626" },
-          { v: dPerf.onTimePct === null ? "—" : `${dPerf.onTimePct}%`, l: "ติดตามตรงเวลา", c: dPerf.onTimePct === null ? "#C0C0C0" : dPerf.onTimePct >= targets.onTimeTarget ? "#059669" : dPerf.onTimePct >= targets.onTimeTarget - 15 ? "#f59e0b" : "#dc2626" },
-          { v: String(dPerf.openLeads), l: "โอกาสการขาย", c: "#003366" },
-        ];
-        return (
-          <>
-            <div onClick={() => setSelectedDealer(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.3)", zIndex: 1040 }} />
-            <div className="modal-pop" role="dialog" aria-label={`รายละเอียดดีลเลอร์ ${d.name}`} style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 920, maxWidth: "calc(100vw - 32px)", maxHeight: "calc(100vh - 48px)", background: "#fff", zIndex: 1050, borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {/* Header */}
-              <div style={{ padding: "18px 20px 16px", borderBottom: "1px solid #e5e7eb", background: "#f8f9fb", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 900, fontSize: "0.8rem", color: "#003366", background: "#dce5f0", padding: "3px 10px", borderRadius: 8, letterSpacing: "0.06em" }}>{d.code}</span>
-                    <StatusBadge status={dealerStatus(d)} />
-                    {d.package && <ป้ายแพ็กเกจ p={d.package} />}
-                    {tier && <span className="badge" style={{ background: tier.bg, color: tier.color }}>{tier.label}</span>}
-                  </div>
-                  <button onClick={() => setSelectedDealer(null)} aria-label="ปิด" style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex" }}><X size={18} /></button>
-                </div>
-                <div style={{ fontSize: "1.02rem", fontWeight: 800, color: "#2D2D2D", marginBottom: 2 }}>{d.name}</div>
-                <div style={{ fontSize: "0.74rem", color: "#6b7280", display: "flex", alignItems: "center", gap: 5 }}>
-                  <MapPin size={12} /> {[d.province, d.region && `ภาค${d.region}`].filter(Boolean).join(" · ") || "—"}
-                </div>
-              </div>
-
-              {/* Scrollable content */}
-              <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 12, alignItems: "start" }}>
-                {/* แนวกว้าง (บอสสั่ง 22 ก.ย. 69): ซ้าย = ผลงาน · ขวา = ข้อมูลดีลเลอร์/เข้าระบบ · จอแคบเรียงเป็นคอลัมน์เดียว */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-
-                {/* ยอดขายเทียบเป้าทั้งปี + ที่มาของเป้า */}
-                <div style={{ background: "#f8f9fb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", flexShrink: 0 }}>
-                  <div style={{ ...หัวข้อ, display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span>ยอดขายเทียบเป้าทั้งปี</span>
-                    <span style={{ textTransform: "none", letterSpacing: 0, color: "#003366" }}>{ที่มาเป้า}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: "1.5rem", fontWeight: 800, color: revColor, fontVariantNumeric: "tabular-nums" }}>{บาท(dPerf.revenue)}</span>
-                    <span style={{ fontSize: "0.74rem", color: "#6b7280" }}>เป้า {มีเป้า ? บาท(d.revenueTarget) : "—"}</span>
-                  </div>
-                  <div style={{ height: 8, background: "#e5e7eb", borderRadius: 99, overflow: "hidden", marginBottom: 6 }}>
-                    <div className="bar-grow" style={{ height: "100%", width: `${Math.min(revPct, 100)}%`, background: revColor, borderRadius: 99 }} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.74rem" }}>
-                    <span style={{ fontWeight: 700, color: revColor }}>{มีเป้า ? `${revPct}% ของเป้า` : "ยังไม่ได้ตั้งเป้า"}</span>
-                    {มีเป้า && <span style={{ color: "#6b7280" }}>{ขาดอีก > 0 ? `ขาดอีก ${บาท(ขาดอีก)}` : "ถึงเป้าแล้ว"}</span>}
-                  </div>
-                </div>
-
-                {/* 3 ตัวเลขหลัก */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flexShrink: 0 }}>
-                  {ตัวเลข.map(m => (
-                    <div key={m.l} style={{ background: "#f8f9fb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 8px", textAlign: "center" }}>
-                      <div style={{ fontSize: "1.15rem", fontWeight: 800, color: m.c, fontVariantNumeric: "tabular-nums" }}>{m.v}</div>
-                      <div style={{ fontSize: "0.65rem", color: "#6b7280", fontWeight: 600, marginTop: 3 }}>{m.l}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* ควรดู */}
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", flexShrink: 0 }}>
-                  <div style={หัวข้อ}>ควรดู</div>
-                  {ควรดู.length === 0 ? (
-                    <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>ไม่มีเรื่องที่ต้องดูตอนนี้</div>
-                  ) : ควรดู.map((x, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: i ? 8 : 0, fontSize: "0.8rem", color: สีโทน[x.tone] }}>
-                      {x.tone === "good" ? <Trophy size={14} style={{ flexShrink: 0, marginTop: 1 }} /> : <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />}
-                      <span>{x.text}</span>
-                    </div>
-                  ))}
-                </div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-                {/* ข้อมูลดีลเลอร์ — ค่าปัจจุบันในทะเบียน */}
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px 8px", flexShrink: 0 }}>
-                  <div style={หัวข้อ}>ข้อมูลดีลเลอร์</div>
-                  {แถว(<Package size={14} />, "แพ็กเกจ", d.package ? packageLabel[d.package] : "—")}
-                  {แถว(<Target size={14} />, "เป้าทั้งปี", มีเป้า ? `฿${d.revenueTarget.toLocaleString("th-TH")}` : "—")}
-                  {แถว(<MapPin size={14} />, "จังหวัด", d.province || "—")}
-                  {แถว(<Store size={14} />, "ภาค", d.region || "—")}
-                  {แถว(<CalendarDays size={14} />, "เข้าระบบเมื่อ", เข้าระบบเมื่อ)}
-                </div>
-
-                {/* Credentials */}
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", flexShrink: 0 }}>
-                  <div style={หัวข้อ}>ข้อมูลเข้าสู่ระบบ</div>
-                  <CopyField label="อีเมล" value={loginEmailOf(d.code)} />
-                  {/* ช่องเดียวกับในหน้าต่าง "รหัสเข้าระบบ" — ต้องใช้ตัวเดียวกันทั้งสองที่ (เดิมค้างเป็น "—" เสมอ) */}
-                  <DealerPasswordField code={d.code} fallback={d.credentials?.password} />
-                </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div style={{ padding: "14px 20px", borderTop: "1px solid #e5e7eb", display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
-                {/* แผงแนวกว้าง: ปุ่มชิดขวาขนาดตามข้อความ — เดิม flex:1 ยืดเต็มแถบ 920px ยาวเกินไป (บอสทัก 22 ก.ย. 69) */}
-                <button onClick={e => { e.stopPropagation(); router.push(`/hq/dealers/${d.code}`); }}
-                  className="btn btn-primary btn-md" style={{ justifyContent: "center", minWidth: 170 }}>
-                  <BarChart2 size={14} /> ดูรายละเอียดเต็ม
-                </button>
-                {canImpersonate && (
-                  <button onClick={e => { e.stopPropagation(); enterDealer(d); }} disabled={entering === d.id}
-                    className="btn btn-tint btn-md" style={{ cursor: entering === d.id ? "not-allowed" : "pointer", opacity: entering === d.id ? 0.7 : 1 }}>
-                    <LogIn size={14} /> {entering === d.id ? "กำลังเข้า..." : "เข้าระบบ"}
-                  </button>
-                )}
-                <button onClick={e => { e.stopPropagation(); setSelectedDealer(null); openEdit(d); }}
-                  className="btn btn-tint btn-md">
-                  <Pencil size={14} /> แก้ไข
-                </button>
-              </div>
-            </div>
-          </>
-        );
-      })()}
-
-      {/* โมดัล "รหัสเข้าระบบ/รีเซ็ตรหัสผ่าน" ย้ายไปเป็นการ์ดในหน้ารายละเอียดดีลเลอร์แล้ว (13 ส.ค. 69)
+      {/* แก้ไขข้อมูล / ปิดใช้งาน / สถิติ ย้ายไปหน้ารายละเอียดดีลเลอร์ · ลบดีลเลอร์และย้ายข้อมูลเอาออกทั้งระบบ (บอสตัดสิน 19 ต.ค. 69)
+          โมดัล "รหัสเข้าระบบ/รีเซ็ตรหัสผ่าน" ย้ายไปเป็นการ์ดในหน้ารายละเอียดดีลเลอร์แล้ว (13 ส.ค. 69)
           ดู DealerCredentialsCard — ความสามารถเท่าเดิมทุกอย่าง */}
     </div>
   );

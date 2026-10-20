@@ -1,4 +1,5 @@
 ﻿"use client";
+import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 
 // ─── HQ · ตั้งค่า (Enterprise Administration) ──────────────────────────────────
 // แท็บแนวนอน 6 หัวข้อ (เลย์เอาต์เดียวกับหน้าตั้งค่าดีลเลอร์ /settings):
@@ -608,7 +609,8 @@ function TargetsTab() {
   // "ทำได้จริง" = ยอดจากใบที่ปิดการขายได้ ไม่ใช่คอลัมน์ revenue_actual ที่ seed ไว้
   const perf = useDealerPerformance();
   const actualOf = (code: string) => (perf.get(code) ?? EMPTY_PERF).revenue;
-  useEffect(() => { dealersRepo.list().then(setDealers).catch(e => logRepoRead("dealers.list", e)); }, []);
+  // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
+  useEffect(() => { dealersRepo.list().then(l => setDealers(l.filter(ไม่ใช่แถวHQ))).catch(e => logRepoRead("dealers.list", e)); }, []);
   useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
 
   // รวมเป้า/ผลจริงตามพื้นที่ — มาจากเป้ารายดีลเลอร์ที่ตั้งไว้จริง ไม่ได้กุตัวเลข

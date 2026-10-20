@@ -34,7 +34,7 @@ export function QuotationTable({ rows, onView, pagination }: {
               เพิ่ม/ลบคอลัมน์เมื่อไร ต้องมาวัดใหม่และแก้ colgroup ด้วยเสมอ */}
           <colgroup>
             <col style={{ width: "10%", minWidth: 120 }} />{/* เลขที่ — "Q-2026-0089" ต้องการ 111px */}
-            <col style={{ width: "6%", minWidth: 72 }} />{/* รหัส */}
+            <col style={{ width: 96 }} />{/* รหัส — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
             <col style={{ width: "9%", minWidth: 88 }} />{/* ดีลเลอร์ — ชื่อยาวตัด … ได้ */}
             <col style={{ width: "19%", minWidth: 120 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ (รับความกว้างของคอลัมน์ประเภทอาคารที่ลบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
             <col style={{ width: "12%", minWidth: 128 }} />{/* จังหวัดดีลเลอร์ — "พระนครศรีอยุธยา" ต้องการ 125px */}
@@ -70,7 +70,7 @@ export function QuotationTable({ rows, onView, pagination }: {
               return (
                 <ClickableRow key={`${q.dealerCode ?? ""}-${q.id}`} onActivate={() => onView(q)} label={`เปิดรายละเอียดใบเสนอราคา ${q.quoteNo}`}>
                   <td style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
-                  <td>
+                  <td data-col="code" style={{ overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>
                     <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{q.dealerCode}</span>
                   </td>
                   {/* ชื่อยาวตัด … — ใส่ title ให้ hover อ่านเต็มได้ (ชื่อเต็มอยู่ในลิ้นชักด้วย) */}

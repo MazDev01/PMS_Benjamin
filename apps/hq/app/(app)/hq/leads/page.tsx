@@ -1,4 +1,5 @@
 "use client";
+import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ลูกค้าเป้าหมายทั้งเครือ (Network Leads) ──────────────────────────────
@@ -130,7 +131,7 @@ export default function HQLeadsPage() {
   const optsSummary = useLeadSummary(useMemo(() => ({ dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]));
   const dealerOpts = useMemo(() => (optsSummary
     ? [...new Set(optsSummary.byDealer.map(d => d.dealerCode))]
-    : [...new Set(scoped.map(l => l.dealerCode).filter(Boolean))] as string[]).sort(), [optsSummary, scoped]);
+    : [...new Set(scoped.map(l => l.dealerCode).filter(Boolean))] as string[]).filter(c => ไม่ใช่แถวHQ({ code: c })).sort(), [optsSummary, scoped]);   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
   const regionOpts = useMemo(() => (optsSummary
     ? [...new Set(optsSummary.byDealer.map(d => REGION_OF.get(d.dealerCode)).filter(Boolean))]
     : [...new Set(scoped.map(l => REGION_OF.get(dealerCodeOf(l))).filter(Boolean))]).sort() as string[], [optsSummary, scoped, REGION_OF]);

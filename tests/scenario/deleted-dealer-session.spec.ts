@@ -66,14 +66,10 @@ test("[auth] ลบสาขาแล้ว หน้าที่เปิดค
   await loginUI(page, DEALER_ORIGIN, "/login", cred);
   expect(new URL(page.url()).pathname, "ล็อกอินแล้วต้องเข้าถึงหน้าในระบบได้ก่อน").not.toContain("/login");
 
-  // สำนักงานใหญ่ลบสาขาทิ้ง (route ลบบัญชีเข้าระบบให้ด้วย)
-  const del = await request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=${CODE}`, {
-    headers: { authorization: `Bearer ${await adminToken()}` },
-  });
-  expect(del.status(), `ลบสาขาต้องผ่าน (ได้ ${del.status()} · ${await del.text()})`).toBe(200);
-  // ลูกค้าเป้าหมายที่สร้างสาขานี้ขึ้นมาต้องหายไปด้วย ไม่ค้าง "เป็นดีลเลอร์แล้ว" แบบไม่มีสาขา (บอสสั่ง 15 ก.ย. 69)
-  const { data: ค้าง } = await admin.from("dealer_prospects").select("id").like("name", `%ผู้สนใจ-${CODE}`);
-  expect(ค้าง ?? [], "ลบสาขาแล้ว ลูกค้าเป้าหมายต้นทางต้องถูกลบตาม").toEqual([]);
+  // ผู้ดูแลระบบลบสาขาทิ้งด้วยคำสั่งของฐาน + ลบบัญชีเข้าระบบ (รอบ 2 ช่วง ข (19 ต.ค. 69): หน้าเว็บเลิกลบดีลเลอร์ เส้นทางลบตอบ 410 — คำสั่งของฐาน delete_dealer_atomic ยังอยู่สำหรับงานดูแลระบบ)
+  const del = await admin.rpc("delete_dealer_atomic", { p_code: CODE });
+  expect(del.error?.message ?? "", "ลบสาขาต้องผ่าน").toBe("");
+  for (const m of (del.data ?? []) as { member_id: string }[]) await admin.auth.admin.deleteUser(m.member_id);
 
   // เบราว์เซอร์ที่ยังถือใบผ่านใบเดิม — เปิดหน้าในระบบต้องถูกเด้งออก ไม่ใช่เข้าไปเจอหน้าจอเปล่า
   await page.goto(`${DEALER_ORIGIN}/settings`, { waitUntil: "domcontentloaded" });

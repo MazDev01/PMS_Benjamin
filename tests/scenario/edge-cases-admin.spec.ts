@@ -54,11 +54,9 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await purge(); });
 
 test("[edge·hq] ตั้งเป้ายอดขายติดลบ → ต้องไม่ถูกบันทึกเป็นค่าติดลบ", async ({ page }) => {
-  await open(page, "hq", "/hq/dealers?view=table");   // หน้าเริ่มเป็นการ์ด — เทสต์นี้ใช้แถวตาราง
-
-  const row = page.locator("tbody tr").filter({ hasText: CODE }).first();
-  await expect(row, "สาขาทดสอบต้องโผล่ในตาราง").toBeVisible({ timeout: 30_000 });
-  await row.getByRole("button", { name: "แก้ไข" }).first().click();
+  // ปุ่มแก้ไขย้ายจากแถวทะเบียนมาหน้ารายละเอียดดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · รอบ 2 ช่วง ข)
+  await open(page, "hq", `/hq/dealers/${CODE}`);
+  await page.getByRole("button", { name: "แก้ไขข้อมูลดีลเลอร์" }).click({ timeout: 30_000 });
 
   // fill() พิมพ์ค่าลงช่องตรง ๆ — จำลองการพิมพ์เครื่องหมายลบโดยไม่ตั้งใจ (หรือจงใจ)
   // ช่องเป้าเป็น text แล้ว (26 ส.ค. 69 ใส่ลูกน้ำระหว่างพิมพ์) — ตัวช่องเองก็กรองเครื่องหมายลบทิ้ง
@@ -100,16 +98,15 @@ test("[edge·hq] ลบสาขาที่ยังมีข้อมูลค
   });
   expect(rpcErr?.message ?? "", "ต้องสร้างลูกค้าค้างไว้ได้ก่อนทดสอบการลบ").toBe("");
 
-  // 1) ลบทั้งที่ยังมีข้อมูล → ต้องถูกปฏิเสธ
-  const blocked = await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${CODE}`, {
+  // 1) เส้นทางลบของหน้าเว็บปิดแล้ว (410) · คำสั่งของฐานลบทั้งที่ยังมีข้อมูล → ต้องถูกปฏิเสธพร้อมเหตุผล
+  //    รอบ 2 ช่วง ข (19 ต.ค. 69): หน้าเว็บเลิกลบดีลเลอร์ เส้นทางลบตอบ 410 — คำสั่งของฐาน delete_dealer_atomic ยังอยู่สำหรับงานดูแลระบบ
+  const ทางเว็บ = await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${CODE}`, {
     method: "DELETE", headers: { authorization: `Bearer ${adminTok}` },
   });
-  // อ่าน body ครั้งเดียวเก็บไว้ — ข้อความอธิบายผลใน expect() ถูกประเมินทุกครั้งแม้เทสต์จะผ่าน
-  // เคยเขียน await blocked.text() ไว้ในข้อความ แล้วบรรทัดถัดมาอ่าน .json() ไม่ได้อีก (body ถูกใช้ไปแล้ว)
-  const blockedBody = await blocked.text();
-  expect(blocked.status, `สาขาที่ยังมีข้อมูลต้องลบไม่ได้ (ได้ ${blocked.status} · ${blockedBody})`).toBe(409);
-  const msg = String((JSON.parse(blockedBody || "{}") as { error?: string }).error ?? "");
-  expect(msg, "ต้องบอกเหตุผลให้ผู้ดูแลรู้ว่าติดอะไร ไม่ใช่แค่ 'ลบไม่ได้'").toMatch(/ยังมีข้อมูล/);
+  expect(ทางเว็บ.status, "เส้นทางลบดีลเลอร์ปิดแล้ว").toBe(410);
+  const svc0 = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  const blocked = await svc0.rpc("delete_dealer_atomic", { p_code: CODE });
+  expect(blocked.error?.message ?? "", "ต้องบอกเหตุผลว่าติดข้อมูลอะไร ไม่ใช่แค่ 'ลบไม่ได้'").toMatch(/dealer_has_data:customers:/);
 
   // 2) สาขาต้องยังอยู่ครบ — ห้ามลบครึ่งทาง (บัญชีหายแต่สาขาค้าง หรือกลับกัน)
   const svc = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -121,11 +118,9 @@ test("[edge·hq] ลบสาขาที่ยังมีข้อมูลค
 
   // 3) เคลียร์ข้อมูลออกแล้วลบใหม่ → ต้องลบได้จริง (กฎต้องไม่เข้มจนลบสาขาไม่ได้เลย)
   await dealerSb.from("customers").delete().eq("dealer_code", CODE).eq("company", COMPANY);
-  const ok = await fetch(`${HQ_ORIGIN}/api/admin/dealers?code=${CODE}`, {
-    method: "DELETE", headers: { authorization: `Bearer ${adminTok}` },
-  });
-  const okBody = await ok.text();
-  expect(ok.status, `เคลียร์ข้อมูลแล้วต้องลบสาขาได้ — ได้ ${ok.status} ${okBody}`).toBe(200);
+  const ok = await svc.rpc("delete_dealer_atomic", { p_code: CODE });
+  expect(ok.error?.message ?? "", "เคลียร์ข้อมูลแล้วต้องลบสาขาได้").toBe("");
+  for (const m of (ok.data ?? []) as { member_id: string }[]) await svc.auth.admin.deleteUser(m.member_id).catch(() => {});
   const { data: gone } = await svc.from("dealers").select("code").eq("code", CODE);
   expect(gone ?? [], "สาขาต้องหายไปจริงหลังลบสำเร็จ").toEqual([]);
 });

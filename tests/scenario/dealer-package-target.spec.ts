@@ -95,10 +95,9 @@ test("[ui·hq] หน้าดีลเลอร์: เลือกแพ็ก
   const ชื่อ = "ZZTEST ฟอร์มแพ็กเกจ";
   expect((await admin.from("dealers").insert({ code: STD, name: ชื่อ, province: "ระยอง", region: "ตะวันออก", revenue_target: 500_000, status: "active" })).error).toBeNull();
 
-  // ── หน้าดีลเลอร์ › แก้ไข ──
-  await loginUI(page, HQ_ORIGIN, "/hq/dealers", ADMIN);
-  await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill(STD);
-  await page.getByRole("button", { name: `แก้ไขดีลเลอร์ ${ชื่อ}` }).first().click({ timeout: 30_000 });
+  // ── หน้ารายละเอียดดีลเลอร์ › แก้ไข (ปุ่มแก้ไขย้ายจากแถวทะเบียนมาที่นี่ · รอบ 2 ช่วง ข) ──
+  await loginUI(page, HQ_ORIGIN, `/hq/dealers/${STD}`, ADMIN);
+  await page.getByRole("button", { name: "แก้ไขข้อมูลดีลเลอร์" }).click({ timeout: 30_000 });
   const เป้า = page.getByLabel("เป้ายอดขายทั้งปี");
   await expect(เป้า).toHaveValue("500,000");
   await page.getByLabel("แพ็กเกจดีลเลอร์").selectOption("standard");

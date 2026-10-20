@@ -158,7 +158,7 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   await settle(page);
 
   // ป้าย "โหมดดูอย่างเดียว" ต้องไม่บอกคลุมว่าแก้อะไรไม่ได้เลย — หน้านี้แก้บัญชีเข้าระบบได้จริง
-  await expect(page.getByText("โหมดดูอย่างเดียว").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("ข้อมูลงานขายดูอย่างเดียว").first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("บัญชีเข้าระบบแก้ได้ที่การ์ด"),
     "ป้ายต้องชี้ทางว่าบัญชีเข้าระบบแก้ได้ที่ไหน").toBeVisible();
 

@@ -16,7 +16,13 @@ import { CountUp } from "@pms/shared/components/ui/CountUp";
 import { packageLabel } from "@pms/shared/lib/dealerProposals";
 import { DealerCredentialsCard } from "@pms/shared/components/hq/DealerCredentialsCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { ArrowLeft, TrendingUp, TrendingDown, Users, Lock, ScrollText } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Users, Lock, ScrollText, Pencil, EyeOff, Eye } from "lucide-react";
+import { DealerEditModal, type DealerEdit } from "@pms/shared/components/hq/DealerEditModal";
+import { HQ_DEALER_CODE } from "@pms/shared/lib/hqDealerRow";
+import { useRole } from "@pms/shared/context/RoleContext";
+import { useAuditLogger } from "@pms/shared/lib/useAudit";
+import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { friendlyError } from "@pms/shared/lib/friendlyError";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -379,7 +385,28 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
   const perfMap = useDealerPerformance();
   const [tab, setTab] = useState<TabKey>("overview");
   const code = dealerCode.toUpperCase();
-  const dealer = dealers.find(d => d.code === code);
+  // แก้ไข/ปิดใช้งาน ย้ายมาอยู่หน้านี้ (บอสตัดสิน 19 ต.ค. 69 · รอบ 2 ช่วง ข) — ผลที่บันทึกแล้วทับค่าที่โหลดมา
+  const [แก้แล้ว, setแก้แล้ว] = useState<DealerRow | null>(null);
+  const [เปิดแก้, setเปิดแก้] = useState(false);
+  const { can } = useRole();
+  const logAudit = useAuditLogger();
+  // แถว HQ ไม่ใช่ดีลเลอร์ (ใบ 0222 · ซ่อนจากทะเบียน) — เปิดตรงด้วย URL ก็ไม่แสดงเป็นดีลเลอร์
+  const dealer = code === HQ_DEALER_CODE ? undefined : (แก้แล้ว ?? dealers.find(d => d.code === code));
+  async function บันทึก(next: DealerRow, ทำอะไร: string) {
+    await dealersRepo.save([next]);
+    setแก้แล้ว(next);
+    logAudit(ทำอะไร, `${next.code} · ${next.name}`);
+  }
+  async function สลับสถานะ(d: DealerRow) {
+    const ปิด = d.status === "active";
+    if (!(await ยืนยัน({ หัวข้อ: ปิด ? `ปิดใช้งาน "${d.name}" ?` : `เปิดใช้งาน "${d.name}" ?`,
+      รายละเอียด: ปิด ? "ดีลเลอร์รายนี้จะเข้าระบบไม่ได้จนกว่าจะเปิดใช้งานอีกครั้ง · ข้อมูลงานขายยังอยู่ครบ" : "ดีลเลอร์รายนี้จะเข้าระบบได้ตามปกติ",
+      ปุ่มตกลง: ปิด ? "ปิดใช้งาน" : "เปิดใช้งาน", อันตราย: ปิด }))) return;
+    try {
+      await บันทึก({ ...d, status: ปิด ? "inactive" : "active" }, ปิด ? "ปิดใช้งานดีลเลอร์" : "เปิดใช้งานดีลเลอร์");
+      แจ้งสำเร็จ(ปิด ? "ปิดใช้งานดีลเลอร์แล้ว" : "เปิดใช้งานดีลเลอร์แล้ว");
+    } catch (e) { แจ้งพลาด(friendlyError(e)); }
+  }
   // รายละเอียดดีลเลอร์แบบเชื่อมต่อ: CNX = ข้อมูลสด (leads/projects/quotes/ยอดรายเดือน) · สาขาอื่น = seed
   const detail = useNetworkDealerDetail(code);
   const custs = useNetworkCustomersForDealer(code); // ลูกค้าของดีลเลอร์นี้ (กรองที่ repo ตรง ๆ — ไม่ดึงทั้งเครือ)
@@ -444,6 +471,14 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
               </span>
             )}
           </div>
+          {can("dealers:manage") && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0 6px" }}>
+              <button className="btn btn-primary btn-sm" onClick={() => setเปิดแก้(true)}><Pencil size={13} /> แก้ไขข้อมูลดีลเลอร์</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => void สลับสถานะ(dealer)}>
+                {dealer.status === "active" ? <><EyeOff size={13} /> ปิดใช้งาน</> : <><Eye size={13} /> เปิดใช้งาน</>}
+              </button>
+            </div>
+          )}
           <p>
             ภาค{dealer.region} · {perf.openLeads} โอกาสการขาย · อัตราปิดการขาย {perf.winRate === null ? "—" : `${perf.winRate}%`} · ติดตามตรงเวลา {perf.onTimePct === null ? "—" : `${perf.onTimePct}%`}
           </p>
@@ -458,17 +493,22 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
           {/* ⚠️ ข้อความเดิมพูดคลุมเกินจริง (บอสแจ้ง 20 ส.ค. 69: กำลังจะแก้อีเมล/รหัสผ่านแล้วมาเจอป้ายนี้)
               หน้านี้แก้ "บัญชีเข้าระบบ" ได้จริงที่การ์ดด้านล่าง — ป้ายที่บอกว่าแก้อะไรไม่ได้เลย
               ทำให้ผู้ดูแลไม่กล้ากดต่อ หรือนึกว่าปุ่มที่เห็นเป็นปุ่มที่กดไม่ได้ */}
-          <strong style={{ color: "#003366" }}>โหมดดูอย่างเดียว</strong> — ข้อมูลงานขายของดีลเลอร์ (ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า) แก้จากหน้านี้ไม่ได้
-          {" · "}บัญชีเข้าระบบแก้ได้ที่การ์ด “ข้อมูลเข้าระบบของดีลเลอร์” ด้านล่าง
+          <strong style={{ color: "#003366" }}>ข้อมูลงานขายดูอย่างเดียว</strong> — ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า แก้จากหน้านี้ไม่ได้
+          {" · "}ข้อมูลดีลเลอร์แก้ที่ปุ่ม “แก้ไขข้อมูลดีลเลอร์” · บัญชีเข้าระบบแก้ได้ที่การ์ด “ข้อมูลเข้าระบบของดีลเลอร์” ด้านล่าง
         </span>
         {/* ⚠️ ปุ่ม "เข้าสู่โหมดจัดการ" ถูกลบเมื่อ 10 ส.ค. 69 — เดิมเขียน disabled ตายตัวในโค้ด
             ทดสอบด้วยบัญชีผู้ดูแลระบบจริงก็ยังกดไม่ได้ พร้อมคำอธิบายว่า "เฉพาะ Super Admin"
             ซึ่งผู้ใช้เข้าเงื่อนไขอยู่แล้ว = ปุ่มที่ไม่มีวันกดได้และบอกเหตุผลผิด
             การจัดการดีลเลอร์ทำที่หน้าทะเบียนดีลเลอร์อยู่แล้ว จึงชี้ทางไปที่นั่นแทน */}
-        <Link href="/hq/dealers" className="btn btn-secondary btn-sm">
-          <Lock size={12} /> จัดการที่หน้าทะเบียนดีลเลอร์
-        </Link>
       </div>
+
+      {เปิดแก้ && (
+        <DealerEditModal dealer={dealer} onClose={() => setเปิดแก้(false)}
+          onSave={async (e: DealerEdit) => {
+            try { await บันทึก({ ...dealer, ...e }, "แก้ไขดีลเลอร์"); แจ้งสำเร็จ("บันทึกข้อมูลดีลเลอร์แล้ว"); }
+            catch (err) { throw new Error(friendlyError(err)); }
+          }} />
+      )}
 
       {/* Tabs */}
       <div className="tab-bar" style={{ marginBottom: 20, overflowX: "auto" }}>

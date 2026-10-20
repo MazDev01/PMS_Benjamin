@@ -14,6 +14,7 @@ import { วางใบเดิมที่ฐาน, ลบใบทดสอ
 //   ชี้ไปหาลูกค้าที่ยังอยู่สาขาเดิม → ผิดกฎความสัมพันธ์ ธุรกรรมย้อนกลับทั้งหมด กดกี่ทีก็ไม่ผ่าน
 //   (แก้ที่ 0139 — ย้าย "แม่ก่อนลูก": customers → leads → quotations → appointments)
 // เทสต์นี้จึงต้องมีข้อมูลที่ผูกกันจริงทั้งสามชั้น ไม่ใช่แค่แถวลอย ๆ
+// รอบ 2 ช่วง ข (19 ต.ค. 69): หน้าเว็บเลิกลบ/ย้ายดีลเลอร์ (เส้นทางตอบ 410) — คำสั่งของฐานยังอยู่สำหรับงานดูแลระบบ จึงทดสอบที่คำสั่งตรง
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
 
@@ -68,17 +69,12 @@ test("[admin] ย้ายข้อมูลไปสาขาที่รับ
     total_value: 500000, status: "won", date: "2026-08-01", items: 1, area: "100" }]);
 
   // 3) ลบสาขาต้นทางตอนที่ยังมีข้อมูล — ต้องถูกปฏิเสธ (นี่คือเหตุผลที่ต้องมีฟีเจอร์ย้าย)
-  const blocked = await request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=${FROM}`, {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  expect(blocked.status(), "สาขาที่ยังมีข้อมูลต้องลบไม่ได้").toBe(409);
+  const blocked = await admin.rpc("delete_dealer_atomic", { p_code: FROM });
+  expect(blocked.error?.message ?? "", "สาขาที่ยังมีข้อมูลต้องลบไม่ได้").toMatch(/dealer_has_data:/);
 
   // 4) ย้ายข้อมูลไปสาขาปลายทาง
-  const moved = await request.post(`${HQ_ORIGIN}/api/admin/dealers/move`, {
-    headers: { authorization: `Bearer ${token}` },
-    data: { from: FROM, to: TO },
-  });
-  expect(moved.status(), `ย้ายข้อมูลต้องผ่าน (ได้ ${moved.status()} · ${await moved.text()})`).toBe(200);
+  const moved = await admin.rpc("move_dealer_data_atomic", { p_from: FROM, p_to: TO });
+  expect(moved.error?.message ?? "", "ย้ายข้อมูลต้องผ่าน").toBe("");
 
   // 5) ข้อมูลต้องไปอยู่ที่ปลายทางครบ และไม่เหลือค้างที่ต้นทาง
   for (const table of ["customers", "leads", "quotations"] as const) {
@@ -89,10 +85,9 @@ test("[admin] ย้ายข้อมูลไปสาขาที่รับ
   }
 
   // 6) ตอนนี้สาขาต้นทางว่างแล้ว → ลบได้
-  const del = await request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=${FROM}`, {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  expect(del.status(), `ย้ายข้อมูลออกหมดแล้วต้องลบสาขาได้ (ได้ ${del.status()} · ${await del.text()})`).toBe(200);
+  const del = await admin.rpc("delete_dealer_atomic", { p_code: FROM });
+  expect(del.error?.message ?? "", "ย้ายข้อมูลออกหมดแล้วต้องลบสาขาได้").toBe("");
+  for (const m of (del.data ?? []) as { member_id: string }[]) await admin.auth.admin.deleteUser(m.member_id).catch(() => {});
   const { data: gone } = await admin.from("dealers").select("code").eq("code", FROM);
   expect(gone ?? [], "สาขาต้นทางต้องหายจากทะเบียนจริง").toEqual([]);
 });

@@ -282,55 +282,6 @@ export async function impersonateDealer(code: string): Promise<{ ok: true; link:
   }
 }
 
-/** ลบดีลเลอร์จริง (auth ของผู้ใช้สังกัดสาขา + แถว dealers) ผ่าน Route Handler ฝั่งเซิร์ฟเวอร์
- *  เดิมลบผ่าน repo ตรง ๆ ได้แค่แถว dealers → บัญชี auth ของสาขายังค้างเป็นบัญชีกำพร้า */
-export async function deleteDealerAccount(code: string): Promise<
-  { ok: true; warning?: string } | { ok: false; error: string }
-> {
-  if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: ลบบัญชีจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
-  }
-  const token = await callerToken();
-  if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
-  try {
-    const res = await fetch(`/api/admin/dealers?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
-      method: "DELETE",
-      headers: authHeaders(token),
-    });
-    const json = (await res.json().catch(() => ({}))) as { error?: string; warning?: string };
-    if (!res.ok) return { ok: false, error: json.error ?? `เซิร์ฟเวอร์ตอบกลับ ${res.status}` };
-    // warning = ลบสาขาสำเร็จแล้ว แต่มีของค้างที่ผู้ดูแลต้องตามเก็บ (เช่น บัญชีเข้าระบบลบไม่ออก)
-    // หน้าจอต้องเอาสาขาออกจากรายการ แล้วแจ้งเตือนต่างหาก — ห้ามตีความเป็น "ลบไม่สำเร็จ"
-    return json.warning ? { ok: true, warning: json.warning } : { ok: true };
-  } catch (e) {
-    return { ok: false, error: friendlyError(e, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้") };
-  }
-}
-
-// ย้ายข้อมูลงานขายทั้งหมดของสาขาหนึ่งไปอีกสาขาหนึ่ง — ใช้ก่อนลบสาขาที่ยังมีข้อมูล
-// (สาขาที่มีข้อมูลลบไม่ได้โดยตั้งใจ · ดู DELETE /api/admin/dealers)
-export async function moveDealerData(from: string, to: string): Promise<
-  { ok: true; total: number } | { ok: false; error: string }
-> {
-  if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: ย้ายข้อมูลจริงไม่ได้" };
-  }
-  const token = await callerToken();
-  if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
-  try {
-    const res = await fetch("/api/admin/dealers/move", { credentials: "same-origin",
-      method: "POST",
-      headers: authHeaders(token, true),
-      body: JSON.stringify({ from, to }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { error?: string; total?: number };
-    if (!res.ok) return { ok: false, error: json.error ?? `เซิร์ฟเวอร์ตอบกลับ ${res.status}` };
-    return { ok: true, total: json.total ?? 0 };
-  } catch (e) {
-    return { ok: false, error: friendlyError(e, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้") };
-  }
-}
-
 // ล้างบันทึกการใช้งานทั้งหมด — เฉพาะผู้ดูแลสูงสุด (เซิร์ฟเวอร์บังคับอีกชั้น)
 // ⚠️ ปกติ audit_log ลบไม่ได้ (append-only) — เส้นทางนี้เป็นข้อยกเว้นเดียวที่บอสสั่งให้มี
 //    การล้างจะถูกบันทึกกลับเป็นรายการแรกเสมอ (ใครล้าง เมื่อไหร่ ไปกี่แถว)

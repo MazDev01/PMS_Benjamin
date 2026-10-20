@@ -116,7 +116,8 @@ test("[func·hq] สาขาที่เพิ่งเพิ่ม โผล�
   assertNoErrors(errs, "สาขาใหม่ในหน้าอื่น");
 });
 
-test("[func·hq] ลบดีลเลอร์ผ่านหน้าจอ → หายจาก DB จริง", async ({ page }) => {
+// ลบดีลเลอร์เอาออกทั้งระบบ (บอสตัดสิน 19 ต.ค. 69 · รอบ 2 ช่วง ข) — ปิดใช้งานที่หน้ารายละเอียดแทน
+test("[func·hq] ไม่มีปุ่มลบดีลเลอร์ · ปิดใช้งานที่หน้ารายละเอียด → ลง DB จริง", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
 
@@ -126,16 +127,16 @@ test("[func·hq] ลบดีลเลอร์ผ่านหน้าจอ �
   const row = page.locator("tbody tr").filter({ hasText: DEALER_NAME }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
 
-  // ข้อความแจ้งเตือนเป็นของระบบ (sonner) ทั้งหมดแล้ว — เก็บไว้ดูสาเหตุถ้าลบไม่ผ่าน
+  await expect(row.getByTitle("ลบ"), "แถวไม่มีปุ่มลบ").toHaveCount(0);
   const ข้อความแจ้ง = ดักข้อความแจ้งเตือน(page);
-  const dialogs: string[] = [];
-  await row.getByTitle("ลบ").first().click();
-  dialogs.push(await กดตกลงในกล่องยืนยัน(page));   // กล่องยืนยันของระบบ (sonner)
-  await page.waitForTimeout(2500);
-  console.log("กล่องโต้ตอบ:", JSON.stringify([...dialogs, ...ข้อความแจ้ง()]));
-
-  await waitGone(sb, "dealers_directory", { code: CODE }, 20_000);   // อ่านผ่านมุมมอง: ผู้ใช้อ่านตาราง dealers ได้เฉพาะบางคอลัมน์ (ใบ 0091) select * ถูกปฏิเสธ
-  assertNoErrors(errs, "ลบดีลเลอร์");
+  await row.locator("td").nth(2).click();
+  await expect(page).toHaveURL(new RegExp(`/hq/dealers/${CODE}$`), { timeout: 15_000 });
+  await expect(page.getByTitle("ลบ"), "หน้ารายละเอียดก็ไม่มีปุ่มลบ").toHaveCount(0);
+  await page.getByRole("button", { name: /ปิดใช้งาน/ }).click();
+  await กดตกลงในกล่องยืนยัน(page);   // กล่องยืนยันของระบบ (sonner)
+  await expect.poll(async () => (await sb.from("dealers_directory").select("status").eq("code", CODE).single()).data?.status,
+    { timeout: 20_000, message: `ปิดใช้งานแล้วต้องลง DB · ข้อความแจ้ง ${JSON.stringify(ข้อความแจ้ง())}` }).toBe("inactive");
+  assertNoErrors(errs, "ปิดใช้งานดีลเลอร์");
 });
 
 // ── VAT เป็นของสาขา ไม่ใช่ของสำนักงานใหญ่ ────────────────────────────────────

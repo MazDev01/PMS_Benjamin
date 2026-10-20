@@ -420,7 +420,7 @@ test("[audit] cross-role: ดีลเลอร์ปิดการขาย �
   // ตรวจแค่ว่าโหลดได้ไม่พัง + ยังอยู่ในโหมดดูอย่างเดียว
   await page.goto(`${HQ_ORIGIN}/hq/dealers/RYG`, { waitUntil: "domcontentloaded" });
   await expect.poll(async () => page.evaluate(() => document.body.innerText),
-    { timeout: 20_000, message: "HQ /hq/dealers/RYG ต้องโหลดสำเร็จ" }).toContain("โหมดดูอย่างเดียว");
+    { timeout: 20_000, message: "HQ /hq/dealers/RYG ต้องโหลดสำเร็จ" }).toContain("ข้อมูลงานขายดูอย่างเดียว");
 
   assertNoErrors(errs, "cross-role visibility");
 });

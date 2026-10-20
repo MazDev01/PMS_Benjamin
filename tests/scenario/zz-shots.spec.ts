@@ -7,6 +7,7 @@ import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { adminClient } from "./testDealers";
 import { รันSQLในฐาน } from "./localDb";
+import { สร้างดีลเลอร์รหัสยาว, ล้างดีลเลอร์รหัสยาว, รหัสยาว } from "./longCodeDealer";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── ถ่ายรูปหน้าจอ "ก่อน/หลัง" ของหน้าที่แก้ในรอบ 2 (บอสสั่ง 19 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────
@@ -131,5 +132,29 @@ test.describe("ช่วง ก2", () => {
       await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" }); await settle(page);
       await page.getByRole("button", { name: "การแจ้งเตือน" }).click();
     });
+  });
+});
+
+// ── ช่วง ข: หน้าดีลเลอร์ของ HQ · แถว HQ · ปุ่มในแถว · รหัสโดนตัด (4 หน้า) ──
+test.describe("ช่วง ข", () => {
+  test.beforeAll(async () => { if (ช่วง === "ข") await สร้างดีลเลอร์รหัสยาว(); });
+  test.afterAll(async () => { if (ช่วง === "ข") await ล้างดีลเลอร์รหัสยาว(); });
+
+  test("ช่วง ข · หน้าของ HQ", async ({ page }) => {
+    test.skip(ช่วง !== "ข", "ไม่ใช่ช่วง ข");
+    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+    const ไป = (path: string, ค้น?: string) => async () => {
+      await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" }); await settle(page);
+      if (ค้น) { await page.getByPlaceholder(/ค้นหา/).first().fill(ค้น).catch(() => {}); await settle(page); }
+    };
+    await ถ่าย(page, "HQ-ทะเบียนดีลเลอร์-ตาราง", ไป("/hq/dealers?view=table"));
+    await ถ่าย(page, "HQ-ทะเบียนดีลเลอร์-ค้นรหัสยาว", ไป("/hq/dealers?view=table", รหัสยาว));
+    await ถ่าย(page, "HQ-ทะเบียนดีลเลอร์-การ์ด", async () => { await ไป("/hq/dealers")(); await page.getByRole("button", { name: /แสดงแบบการ์ด/ }).click().catch(() => {}); });
+    await ถ่าย(page, "HQ-รายละเอียดดีลเลอร์", ไป(`/hq/dealers/${รหัสยาว}`));
+    await ถ่าย(page, "HQ-แดชบอร์ด", ไป("/hq/dashboard"));
+    await ถ่าย(page, "HQ-ภาพรวมยอดขาย", ไป("/hq/pipeline", รหัสยาว));
+    await ถ่าย(page, "HQ-ลูกค้าทั้งเครือ", ไป("/hq/customers", "ZZTEST-ลูกค้ารหัสยาว"));
+    await ถ่าย(page, "HQ-ใบเสนอราคาทั้งเครือ", ไป("/hq/quotations", "ZZTEST-ลูกค้ารหัสยาว"));
+    await ถ่าย(page, "HQ-ตั้งค่าเป้าหมาย", async () => { await ไป("/hq/settings")(); await page.getByRole("tab", { name: /เป้าหมายยอดขาย/ }).click().catch(() => page.getByRole("button", { name: /เป้าหมายยอดขาย/ }).click().catch(() => {})); await settle(page); });
   });
 });
