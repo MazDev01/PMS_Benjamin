@@ -205,7 +205,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   // 3) ดีลเลอร์ทำใบลูกค้า — % ตั้งต้น = ค่าจากหน้าตั้งค่า (20)
   await ตั้งราคาRYG({ defaultPct: 20 });
   await เปิดแผงใบ();
-  await d.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 25_000 });
+  await d.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click({ timeout: 25_000 });
   const ตาราง = d.locator("[data-editor='hq-markup']");
   await expect(ตาราง.getByLabel("% ที่บวก 1"), "% ตั้งต้นต้องมาจากหน้าตั้งค่า").toHaveValue("20", { timeout: 20_000 });
   await d.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();

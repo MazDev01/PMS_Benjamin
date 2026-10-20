@@ -139,7 +139,7 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     const r = await sb.rpc("create_quotation", { p_dealer: "RYG", p_prefix: "Q-", p_payload: {
       customer: บริษัท, project: บริษัท, total: "0", status: "draft", line_items: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitPrice: 0, markupPct: 10 }],
       items: 1, hq_quote_id: ใบ.hqQuoteId, deal_id: ใบ.leadNum } });
-    expect(r.error?.message ?? "", "สำเนาของใบ won ต้องถูกปฏิเสธ").toMatch(/hq_quote_required|ใบ HQ/);
+    expect(r.error?.message ?? "", "สำเนาของใบ won ต้องถูกปฏิเสธ").toMatch(/hq_quote_required|ใบ HQ|lead_closed/);
   });
 
   test("[ก·4] HQ ย้อนการตอบรับ → ลีดกลับเป็น \"เจรจาต่อรอง\" (สถานะก่อนปิดการขาย)", async ({ page }) => {

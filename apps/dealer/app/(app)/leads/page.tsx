@@ -10,7 +10,7 @@ import {
   leadStatusLabel, leadStatusColor,
   buildLeadReport, applyTaskTemplate, findAppointmentTask,
   seedLeadTasks, taskProgress, apptTypeLabel, fmtISOToThai,
-  DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, MANUAL_LEAD_STATUSES, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
+  DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, MANUAL_LEAD_STATUSES, LEAD_STATUS_META, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
   OTHER_LOST_REASON, OTHER_REASON_OPTION,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile, type LeadTaskDef,
 } from "@pms/shared/lib/mock";
@@ -21,9 +21,6 @@ import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
-import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
-import { REAL_BACKEND } from "@pms/shared/lib/data/config";
-import { ป้ายได้ราคาแล้ว } from "@pms/shared/lib/quoteRequests";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
@@ -406,14 +403,8 @@ function OverviewEditor({ lead, persons, onSave }: {
       {/* ประเมินราคาย้ายไปอยู่ในกลุ่ม "รายละเอียดงาน" ให้ตรงกับฟอร์มเพิ่มลูกค้าเป้าหมาย
               (บอสแจ้ง 20 ส.ค. 69: "ข้อมูลที่กรอกและที่แก้ไม่ตรงกัน") — เดิมอยู่ลอยบนหัวการ์ด
               ผู้ใช้ที่ไปหาในกลุ่มเดียวกับ แม่แบบ/พื้นที่ จึงหาไม่เจอ นึกว่าแก้ไม่ได้ */}
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-            {/* สถานะลอยเดี่ยวนอกแถว — คงกรอบบางไว้ให้รู้ว่ากดได้ (กรอบที่ถอดคือกรอบซ้อนในแถวข้อมูล) */}
-            {/* ต้องมีค่าเสมอ — ทุกรายต้องอยู่ขั้นใดขั้นหนึ่งบนบอร์ด ว่างไม่ได้ */}
-            <select aria-label="สถานะลูกค้าเป้าหมาย" value={f.status} onChange={e=>set("status",e.target.value)}
-              disabled={lead.status === "PAID"} title={lead.status === "PAID" ? "ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่" : undefined} style={{ ...inp, width:"auto", height:"auto", padding:"5px 8px", fontSize:"0.72rem", fontWeight:700, border:"1px solid #eef1f5", background:"#fafbfc" }}>
-              {(Object.keys(leadStatusLabel) as LeadStatus[]).map(k => <option key={k} value={k}>{leadStatusLabel[k]}</option>)}
-            </select>
-          </div>
+          {/* ช่องเลือกสถานะเอาออก (บอสสั่ง 19 ต.ค. 69 "สถานะเหลือที่เดียว"): สถานะแสดงที่ป้ายหัวแผง + แถบขั้น
+              เปลี่ยนขั้นได้ทางปุ่ม "ขั้นต่อไป" และแท็บงานเท่านั้น — เดิมเลือกได้ทุกสถานะ ข้ามหน้ายืนยัน/เหตุผล */}
         </div>
       </div>
 
@@ -816,8 +807,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                     aria-label: ชื่อเดียวกับ label — กันสับสนกับ dropdown "ทุกสถานะ" บนแถบเครื่องมือที่มีครบทุกขั้น */}
                 {/* ต้องมีค่าเสมอ — งานขายต้องเริ่มที่ขั้นใดขั้นหนึ่งเสมอ */}
                 {/* "รอราคา HQ" ฐานข้อมูลขยับให้เองตามคำขอราคา (FLOW.html) — ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ ยกเลิกคำขอได้ที่แท็บใบเสนอราคา */}
-                <select aria-label="ขั้นตอน" value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={form.status==="HQ_PRICING"}>
-                  {(form.status==="HQ_PRICING" ? (["HQ_PRICING"] as LeadStatus[]) : isEdit ? MANUAL_LEAD_STATUSES : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
+                <select aria-label="ขั้นตอน" value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={!LEAD_STATUS_META[form.status].manual}>
+                  {(!LEAD_STATUS_META[form.status].manual ? ([form.status] as LeadStatus[]) : isEdit ? MANUAL_LEAD_STATUSES : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
                 </select>
               </div>
 
@@ -881,29 +872,11 @@ export default function LeadsPage() {
   // จำเป็นตั้งแต่มีลูกค้าเป้าหมายของสาขาอื่นในระบบ (ก่อนหน้านี้มีสาขาเดียวเลยไม่กรองก็ไม่มีใครเห็นความต่าง)
   // ลูกค้าเป้าหมายที่ดีลเลอร์สร้างเองไม่มี dealerCode → ถือเป็นของสาขาตัวเอง
   // สมุดงานของสาขาตัวเอง "ทุกสถานะ" (รวมที่ปิดการขายสำเร็จแล้ว) — ใช้คิดอัตราปิดการขาย
-  // ป้าย "ได้ราคาแล้ว" (FLOW ตารางสถานะแถว "HQ ส่งใบ" · ด่าน 2): ลูกค้าเป้าหมายคงขั้น "รอราคา HQ" แต่ HQ ส่งใบแล้ว
-  //   ถามฐานใหม่เมื่อชุดลูกค้าเป้าหมายที่รอราคาเปลี่ยน และทุกครั้งที่กลับมาที่แท็บนี้
-  //   (HQ ส่งใบไม่ได้เปลี่ยนขั้นของลูกค้าเป้าหมาย — สายอัปเดตสดของลูกค้าเป้าหมายจึงไม่พาป้ายนี้มา)
-  const [ได้ราคาแล้ว, setได้ราคาแล้ว] = useState<Set<number>>(new Set());
-  const [ถามป้ายใหม่, setถามป้ายใหม่] = useState(0);
-  useEffect(() => {
-    const กลับมา = () => { if (document.visibilityState === "visible") setถามป้ายใหม่(n => n + 1); };
-    document.addEventListener("visibilitychange", กลับมา);
-    return () => document.removeEventListener("visibilitychange", กลับมา);
-  }, []);
-  const รอราคาKey = allLeads.filter(l => l.status === "HQ_PRICING" && (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code)
-    .map(l => l.numId).join(",");
-  useEffect(() => {
-    if (!REAL_BACKEND || !รอราคาKey) { setได้ราคาแล้ว(new Set()); return; }
-    let alive = true;
-    quoteRequestsRepo.quotedLeadIds(currentDealer.code).then(ids => alive && setได้ราคาแล้ว(new Set(ids)))
-      .catch(e => logRepoRead("quoteRequests.quotedLeadIds", e));
-    return () => { alive = false; };
-  }, [รอราคาKey, currentDealer.code, ถามป้ายใหม่]);
+  // ป้าย "ได้ราคาแล้ว" แบบเดิม (ลีดค้างรอราคา HQ + ถามฐานว่าได้ใบแล้วหรือยัง) เอาออก — สถานะจริง "ได้ราคา HQ" อยู่ในฐานแล้ว (ใบ 0219)
   // ลบลีดได้เฉพาะลีดที่ยังไม่มีคำขอราคาหรือใบเสนอราคาผูกอยู่ — มีแล้วใช้ "เสียโอกาส" แทน (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217 กันที่ฐาน)
   //   รอราคา HQ / ได้ราคาแล้ว = มีคำขอ · ปิดการขายสำเร็จ = มีใบ · คำขอที่ถูกยกเลิกไปแล้วหน้าจอไม่เห็น — ฐานปฏิเสธพร้อมข้อความบอกทาง
-  const ลบได้ = (l: LeadRow) => l.status !== "HQ_PRICING" && l.status !== "PAID"
-    && !(l.numId != null && ได้ราคาแล้ว.has(l.numId)) && !quotations.some(q => quoteBelongsToLead(q, l));
+  //   สถานะที่ฐานขยับเอง (รอราคา HQ · ได้ราคา HQ) = มีคำขอแล้ว · ปิดการขายสำเร็จ = มีใบแล้ว
+  const ลบได้ = (l: LeadRow) => LEAD_STATUS_META[l.status].manual && l.status !== "PAID" && !quotations.some(q => quoteBelongsToLead(q, l));
   const myAllLeads = useMemo(
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
@@ -992,6 +965,10 @@ export default function LeadsPage() {
   async function requestStatusChange(id: string, status: LeadStatus) {
     // ปิดการขายสำเร็จแล้ว ดีลเลอร์ย้อนเองไม่ได้ — HQ ย้อนการตอบรับได้คนเดียว (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217 กันที่ฐานด้วย)
     if (allLeads.find(l => l.id === id)?.status === "PAID") { setToast("ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่"); return; }
+    // สถานะที่ฐานขยับเอง (ใบ 0219): รอราคา HQ เปลี่ยนเองไม่ได้ · ได้ราคา HQ ออกเองได้แค่ปิดไม่สำเร็จ (ลากการ์ดบนบอร์ดก็เช่นกัน)
+    const ตอนนี้ = allLeads.find(l => l.id === id)?.status;
+    if (ตอนนี้ === "HQ_PRICING") { setToast("รอราคาจากสำนักงานใหญ่ — เปลี่ยนขั้นเองไม่ได้ระหว่างรอ"); return; }
+    if (ตอนนี้ === "HQ_QUOTED" && status !== "CANCELLED") { setToast("ได้ราคาจาก HQ แล้ว — ขั้นต่อไปคือทำใบและส่งให้ลูกค้า"); return; }
     if (status === "CANCELLED") { setPendingLostId(id); setPendingLostReason(""); return; }
 
     // ── ย้ายขั้นบนกระดาน: ข้ามงานไม่ได้ · ถอยหลังต้องยืนยัน (บอสสั่ง 21 ส.ค. 69) ────────
@@ -1825,9 +1802,6 @@ export default function LeadsPage() {
                               maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex" }}>
                             <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{leadStatusLabel[l.status]}</span> ▾
                           </button>
-                          {l.status === "HQ_PRICING" && l.numId != null && ได้ราคาแล้ว.has(l.numId) && (
-                            <div><span className="badge" data-badge="hq-quoted" style={{ background:"#dcfce7", color:"#166534", marginTop:4 }}>{ป้ายได้ราคาแล้ว}</span></div>
-                          )}
                           {statusMenu?.id === l.id && (
                             <>
                               {/* ⛔ ห้ามเอา portal ออก — ถ้าเมนูอยู่ในเซลล์ตาราง ตัวเลือกจะไปโผล่ใต้ขอบจอกดไม่ได้ */}
@@ -1847,6 +1821,17 @@ export default function LeadsPage() {
                                   <div style={{ padding:"10px 14px", fontSize:"0.76rem", color:"#6b21a8", maxWidth:240, lineHeight:1.6 }}>
                                     รอราคาจากสำนักงานใหญ่ — เปลี่ยนขั้นเองไม่ได้ระหว่างรอ · ยกเลิกคำขอได้ที่แท็บใบเสนอราคา
                                   </div>
+                                ) : l.status === "HQ_QUOTED" ? (
+                                  <>
+                                    <div style={{ padding:"10px 14px 4px", fontSize:"0.76rem", color:"#166534", maxWidth:240, lineHeight:1.6 }}>
+                                      ได้ราคาจากสำนักงานใหญ่แล้ว — ขั้นต่อไปคือทำใบและส่งให้ลูกค้า
+                                    </div>
+                                    <button onClick={e => { e.stopPropagation(); void requestStatusChange(l.id, "CANCELLED"); setStatusMenu(null); }}
+                                      style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"9px 14px", border:"none", background:"transparent", cursor:"pointer", textAlign:"left" }}>
+                                      <span style={{ width:8, height:8, borderRadius:"50%", background:leadStatusColor.CANCELLED.text, flexShrink:0 }}/>
+                                      <span style={{ fontSize:"0.8rem", color:"#2D2D2D" }}>{leadStatusLabel.CANCELLED}</span>
+                                    </button>
+                                  </>
                                 ) : l.status === "PAID" ? (
                                   <div style={{ padding:"10px 14px", fontSize:"0.76rem", color:"#065f46", maxWidth:240, lineHeight:1.6 }}>
                                     ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่
@@ -2059,9 +2044,6 @@ export default function LeadsPage() {
                         <Eye size={13} color="#9ca3af" style={{ flexShrink:0, marginTop:2 }} />
                       </div>
                       <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:6, margin:"6px 0" }}>
-                        {l.status === "HQ_PRICING" && l.numId != null && ได้ราคาแล้ว.has(l.numId) && (
-                          <span className="badge" data-badge="hq-quoted" style={{ background:"#dcfce7", color:"#166534", fontSize:"0.68rem" }}>{ป้ายได้ราคาแล้ว}</span>
-                        )}
                         <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:"0.68rem", fontWeight:600, color:"#64748b",
                           background:"#f1f5f9", borderRadius:6, padding:"2px 8px", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.contact}>
                           <User size={10} /> {l.contact}

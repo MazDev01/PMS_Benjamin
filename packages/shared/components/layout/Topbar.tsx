@@ -112,6 +112,21 @@ function buildNotifications(
     });
   }
 
+  // 1ข) ราคา HQ หมดอายุ (บอสสั่ง 20 ต.ค. 69 · ใบ 0219) — ฐานจดกิจกรรม hq_expired ตอนงานตั้งเวลาพาลีดกลับเป็นรวบรวมความต้องการ
+  //     เตือนเฉพาะลีดที่ยังไม่ได้ขอราคาใหม่ (ยังอยู่รวบรวมความต้องการ) · ขอแก้ราคาแล้ว = ลีดเป็นรอราคา HQ → เตือนหายเอง
+  for (const l of leads.filter(l => l.status === "BULLET")) {
+    const หมดอายุ = [...(l.activities ?? [])].reverse().find(a => (a as { type?: string }).type === "hq_expired") as { at?: string; date?: string } | undefined;
+    if (!หมดอายุ) continue;
+    push({
+      iconEl: <AlertTriangle size={14} />, iconBg: "#fef3c7", iconColor: "#b45309",
+      title: "ราคา HQ หมดอายุ",
+      body: `ราคา HQ ของลีด ${l.company} หมดอายุ ขอราคาใหม่ได้`,
+      time: หมดอายุ.date ?? "",
+      href: `/leads?open=${l.numId}`,
+      sortDate: (หมดอายุ.at ?? MOCK_TODAY).slice(0, 10),
+    });
+  }
+
   // 2) เตือนติดตาม (Follow-up Reminder) — leads status "FOLLOWUP" + นัดชนิด follow_up
   for (const l of leads.filter(l => l.status === "FOLLOWUP")) {
     push({

@@ -5,6 +5,7 @@
 // ตอนนี้: เพิ่มรายการในใบเดิมได้ · และปุ่มบนหัวแผงพาไปแก้ใบเดิม ไม่ออกใบใหม่
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
+import { settle } from "./helpers";
 import {
   DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 
@@ -26,6 +27,7 @@ test("[func] ทำใบจากใบ HQ ที่มี 2 รายการ
 
   // 1) ลูกค้าเป้าหมายใหม่ (มีพื้นที่)
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณใบเดียว");
@@ -63,10 +65,12 @@ test("[func] มีใบที่ยังแก้ได้อยู่ → �
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
 
-  // ป้ายปุ่มต้องบอกตรง ๆ ว่าจะไปเพิ่มรายการ ไม่ใช่ออกใบใหม่
-  //   ด่าน 3 (ระบบจริง): ใบจากใบ HQ เพิ่มรายการไม่ได้ ป้ายจึงเป็น "แก้ใบเสนอราคา" (ไปแก้ % ในใบเดิม)
-  const ปุ่ม = page.getByRole("button", { name: /^(แก้ใบเสนอราคา|เพิ่มรายการในใบเสนอราคา)$/ }).first();
-  await expect(ปุ่ม, "มีใบที่ยังแก้ได้ ปุ่มต้องพาไปใบเดิม ไม่ใช่ออกใบใหม่").toBeVisible({ timeout: 20_000 });
+  // มีใบที่ยังแก้ได้ = ไม่มีทางออกใบใหม่ (บอสสั่ง 19 ต.ค. 69: ปุ่มทำใบอยู่ที่แถบขั้นต่อไปที่เดียว)
+  //   แถบขั้นต่อไปชวนส่งใบเดิม ไม่ใช่ทำใบใหม่ · แก้ใบเดิมจากปุ่ม "แก้ไข" ในรายการใบ
+  await expect(page.getByRole("button", { name: /ส่งให้ลูกค้า/ }).first(), "แถบขั้นต่อไปชวนส่งใบเดิม").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }), "มีใบที่ยังแก้ได้ ต้องไม่มีปุ่มทำใบใหม่").toHaveCount(0);
+  const ปุ่ม = page.getByRole("button", { name: "แก้ไข", exact: true }).first();
+  await expect(ปุ่ม, "แก้ใบเดิมได้จากรายการใบ").toBeVisible({ timeout: 20_000 });
   await ปุ่ม.click();
 
   // เข้าโหมดแก้ใบเดิม (หัวฟอร์มขึ้น "แก้ไข <เลขที่ใบ>")

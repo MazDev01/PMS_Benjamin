@@ -9,7 +9,7 @@ import { settle, กดตกลงในกล่องยืนยัน, เ�
 // ── ขายหนึ่งงาน ขั้น 5–6 บนหน้าจอ + ตารางสถานะแถว "HQ ส่งใบ" (FLOW.html · ด่าน 2) ─────────────────────────────
 //   ขั้น 5  HQ ทำ BOQ ด้วยรายการที่พิมพ์เอง (ต้นทุน HQ เห็นคนเดียว · ไม่มีแม่แบบแล้ว 16 ต.ค. 69) → บันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้าย
 //   ขั้น 6  HQ ส่งใบ → ล็อกเวอร์ชัน (เปิดดูซ้ำแก้ไม่ได้) · คำขอ "ส่งใบแล้ว" · หยุดนับ 14 วัน
-//   แถว "HQ ส่งใบ": ลูกค้าเป้าหมายคงเดิม (รอราคา HQ) + ป้าย "ได้ราคาแล้ว" · ดีลเลอร์เห็นใบ HQ (ต้นทุนของตัวเอง)
+//   แถว "HQ ส่งใบ" (เปลี่ยน 19 ต.ค. 69 · ใบ 0219): ลูกค้าเป้าหมาย → ได้ราคา HQ · เดิม: คงเดิม (รอราคา HQ) + ป้าย "ได้ราคาแล้ว" · ดีลเลอร์เห็นใบ HQ (ต้นทุนของตัวเอง)
 //   (อีเมลถึงดีลเลอร์ · กฎแก้ไม่ได้แม้ยิงตรง · การมองเห็นทุกแถว — ข้อทดสอบยิงตรงฐาน hq_quote_send.sql / visibility.sql)
 // ขั้น 3 (ส่งคำขอ) มีข้อทดสอบหน้าจอของด่าน 1 แล้ว — ที่นี่เตรียมคำขอด้วยคำสั่งของฐานในนามดีลเลอร์
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
@@ -104,7 +104,7 @@ test("[flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายการท
   const ryg = await db(RYG);
   expect((await ryg.from("hq_quotes").select("id").eq("request_id", requestId)).data ?? [], "ดีลเลอร์อ่านร่างตรงที่ฐานไม่ได้").toEqual([]);
   const row = await เปิดแผงดีลเลอร์(page);
-  await expect(row.locator("[data-badge='hq-quoted']"), "ยังไม่ส่ง = ไม่มีป้ายได้ราคาแล้ว").toHaveCount(0);
+  await expect(row.getByText("ได้ราคา HQ", { exact: true }), "ยังไม่ส่ง = ยังไม่ได้ราคา").toHaveCount(0);
   await row.locator("td").first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await expect(page.locator("[data-panel='quote-request']").getByText("กำลังทำราคา", { exact: true })).toBeVisible({ timeout: 20_000 });
@@ -129,7 +129,8 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
 ข้อความบนจอตอนนั้น: ${JSON.stringify(บนจอ)}`);
   });
   expect(await สถานะคำขอ(), "คำขอ = ส่งใบแล้ว").toBe("quoted");
-  expect(await สถานะลูกค้าเป้าหมาย(), "ลูกค้าเป้าหมายคงเดิม").toBe("HQ_PRICING");
+  // ใบ 0219 (บอสสั่ง 19 ต.ค. 69): HQ ส่งใบ → ฐานขยับลูกค้าเป้าหมายเป็น "ได้ราคา HQ" เอง (เดิมคงรอราคา HQ + ป้ายบนจอ)
+  expect(await สถานะลูกค้าเป้าหมาย(), "HQ ส่งใบ → ได้ราคา HQ").toBe("HQ_QUOTED");
 
   // ส่งแล้วใบเดิมยังเปิดอยู่ (ไม่เด้งไปคำขออื่น) และล็อกทันที
   await expect(กล่อง.getByText(/ใบนี้แก้ไม่ได้/), "ส่งแล้วใบที่เปิดอยู่ต้องกลายเป็นอ่านอย่างเดียวทันที").toBeVisible({ timeout: 15_000 });
@@ -142,8 +143,8 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
 
   // ฝั่งดีลเลอร์: ป้าย + ใบ HQ
   const row = await เปิดแผงดีลเลอร์(page);
-  await expect(row.getByText("รอราคา HQ").first(), "ขั้นของลูกค้าเป้าหมายคงเดิม").toBeVisible();
-  await expect(row.locator("[data-badge='hq-quoted']"), "มีป้ายได้ราคาแล้ว").toHaveText("ได้ราคาแล้ว", { timeout: 20_000 });
+  await expect(row.getByText("ได้ราคา HQ", { exact: true }).first(), "ป้ายสถานะ = ได้ราคา HQ (สถานะจริงในฐาน)").toBeVisible({ timeout: 20_000 });
+  await expect(row.getByText("รอราคา HQ", { exact: true }), "ไม่มีป้ายรอราคาค้าง").toHaveCount(0);
   await row.locator("td").first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   const ใบ = page.locator("[data-panel='hq-quote']");

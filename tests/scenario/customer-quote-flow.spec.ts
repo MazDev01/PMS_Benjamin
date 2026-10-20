@@ -56,9 +56,9 @@ async function เปิดแท็บใบเสนอราคา(page: Page
 
 test("[flow·dealer] ปิดทางเดิม: ไม่มีใบ HQ = ทำใบไม่ได้ ทั้งหน้าจอและ API", async ({ page, request }) => {
   await เปิดแท็บใบเสนอราคา(page, ไม่มีใบ);
-  const ปุ่ม = page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ });
-  await expect(ปุ่ม, "ยังไม่ได้ใบ HQ ปุ่มทำใบต้องกดไม่ได้").toBeDisabled({ timeout: 20_000 });
-  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first()).toBeVisible();
+  // ปุ่มทำใบมีที่แถบขั้นต่อไปที่เดียว (บอสสั่ง 19 ต.ค. 69) — ยังไม่ได้ใบ HQ = แถบชวนขอราคา ไม่มีปุ่มทำใบเลย
+  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }), "ยังไม่ได้ใบ HQ ต้องไม่มีปุ่มทำใบ").toHaveCount(0);
 
   // ทาง API เดิมทั้งสองทาง + ยิงตรงฐาน — ต้องถูกปฏิเสธทั้งหมด
   const sb = await db(RYG);
@@ -82,7 +82,7 @@ test("[flow·dealer] ขั้น 7: ทำใบให้ลูกค้าจ�
   const errs = watchErrors(page);
   for (const [บริษัท, pct] of [[สิบ, "50"], [ลับ, "37"]] as const) {
     await เปิดแท็บใบเสนอราคา(page, บริษัท);
-    await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click();
+    await page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click();
     const ตาราง = page.locator("[data-editor='hq-markup']");
     await expect(ตาราง).toBeVisible({ timeout: 20_000 });
     await expect(ตาราง.getByRole("textbox", { name: /ชื่อรายการ/ }), "ชื่อรายการแก้ไม่ได้").toHaveCount(0);

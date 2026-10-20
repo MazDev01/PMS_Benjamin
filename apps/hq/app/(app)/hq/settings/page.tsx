@@ -49,7 +49,7 @@ import {
   DEFAULT_HQ_TARGETS,
   HQ_NOTIF_EVENTS, DEFAULT_HQ_NOTIFS, HQ_NOTIF_UPDATED_EVENT,
   DEFAULT_HQ_NOTIF_RULES,
-  HQ_ALERT_META, เกณฑ์วันแจ้งเตือน, leadStatusLabel, leadStatusColor, LEAD_TASK_TEMPLATE, LEAD_STATUS_ORDER,
+  HQ_ALERT_META, เกณฑ์วันแจ้งเตือน, leadStatusLabel, leadStatusColor, LEAD_TASK_TEMPLATE, LEAD_STATUS_ORDER, LEAD_STATUS_META,
   LOST_REASONS,
   type HQPolicy, type HQTargets, type HQNotifChannels, type HQNotifRules,
   type HQAlertKey, type DealerRow, type LeadStatus, type LeadTaskDef,
@@ -161,7 +161,8 @@ const numInput = (value: number, onChange: (n: number) => void, unit: string, st
 // สิ่งที่ HQ แก้ได้จริงคือ "งานมาตรฐาน" ในแต่ละขั้น (13 ส.ค. 69) — เก็บที่ hq_sales_journey.tasks
 // งานพวกนี้คือของจริงที่ดีลเลอร์เช็ก และเป็นตัวเลื่อนขั้นให้ลูกค้าเป้าหมาย ไม่ใช่ข้อความประดับ
 // ไม่รวม "รอราคา HQ": ขั้นนี้ไม่มีงานให้ดีลเลอร์ติ๊ก ฐานข้อมูลขยับให้เองตามคำขอราคา (Flow ใหม่)
-const STAGE_ORDER: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => s !== "HQ_PRICING");
+// ไม่รวม "ได้ราคา HQ" ด้วยเหตุผลเดียวกัน (ใบ 0219) — ใช้ manual ของตารางกลาง ไม่เขียนชื่อสถานะซ้ำ
+const STAGE_ORDER: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => LEAD_STATUS_META[s].manual);
 // เหตุผลปิดการขายไม่สำเร็จ — ขั้น "ปิดไม่สำเร็จ" เป็นปลายทางหนึ่งของเส้นทางการขาย จึงอยู่แท็บนี้
 // (เดิมอยู่แท็บ "กฎธุรกิจ" ซึ่งยุบไปแล้ว — คีย์ hq_sales_journey เหมือนเดิม ค่าที่ตั้งไว้ไม่หาย)
 // เก็บผ่าน repository — เดิมเขียนลง localStorage ของ origin ฝั่ง HQ ซึ่งดีลเลอร์ (คนละ origin)

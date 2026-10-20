@@ -6,7 +6,7 @@
 // applyLeadIntent = สำเนาตรรกะเดียวกับ lead_apply สำหรับโหมดตัวอย่าง (ไม่มีฐาน) และแสดงผลทันทีบนจอ
 //   ⚠️ แก้ตรรกะที่นี่ต้องแก้ supabase/migrations/0211_lead_apply.sql ด้วย (และกลับกัน) — tests/unit/leadIntent.test.ts
 import { stageFromTasks, buildLeadTasks, leadStatusLabel, CLOSE_TASK_KEY,
-  type LeadRow, type LeadStatus, type LeadTask, type LeadTaskDef, type LeadActivity } from "./mock";
+  type LeadRow, type LeadStatus, type LeadTask, type LeadTaskDef, type LeadActivity, LEAD_STATUS_META } from "./mock";
 
 /** ช่องที่ผู้ใช้แก้ได้ผ่าน fields — ตรงกับรายการใน lead_apply */
 export const LEAD_EDITABLE_FIELDS = ["name", "company", "contact", "phone", "email", "province", "product", "category", "value", "area",
@@ -30,7 +30,7 @@ export type LeadIntent = {
   id?: never; numId?: never; status?: never; company?: never;
 };
 
-const RANK: Record<LeadStatus, number> = { WAITING: 0, BULLET: 1, HQ_PRICING: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4, PAID: 5, CANCELLED: 2 };
+const RANK: Record<LeadStatus, number> = { WAITING: 0, BULLET: 1, HQ_PRICING: 1, HQ_QUOTED: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4, PAID: 5, CANCELLED: 2 };
 
 /** ส่วนต่างของช่องที่แก้ได้: after เทียบกับค่าที่หน้าจอเปิดแก้ (before) — ช่องที่ไม่เปลี่ยนไม่ส่ง */
 export function diffLeadFields(before: Partial<LeadRow>, after: Partial<LeadRow>): LeadFields {
@@ -88,7 +88,8 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
   if (intent.stage) {
     status = intent.stage.status;
     if (status === "CANCELLED" && (intent.stage.lostReason ?? "").trim()) lostReason = intent.stage.lostReason!.trim();
-  } else if (intent.deriveStage && !["HQ_PRICING", "PAID", "CANCELLED"].includes(lead.status)) {
+  } else if (intent.deriveStage && LEAD_STATUS_META[lead.status].manual && LEAD_STATUS_META[lead.status].active) {
+    // ไม่เลื่อนขั้นจากงาน: สถานะที่ฐานขยับเอง (รอราคา HQ · ได้ราคา HQ) และปลายทาง — ตรงกับ lead_apply (ใบ 0219)
     const ตามงาน = stageFromTasks(tasks, ctx.tpl.filter(d => d.key !== CLOSE_TASK_KEY));
     status = intent.deriveStage === "up" && RANK[ตามงาน] <= RANK[lead.status] ? lead.status : ตามงาน;
   }

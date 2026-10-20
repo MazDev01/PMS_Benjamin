@@ -101,6 +101,7 @@ export type LeadStatus =
   | "WAITING"    // Contacted (ขั้นเริ่มต้น)
   | "BULLET"     // Requirement
   | "HQ_PRICING" // รอราคา HQ (Flow ใหม่ · ใบ 0182) — ฐานข้อมูลขยับเองเมื่อส่ง/ยกเลิกคำขอราคา ดีลเลอร์เลือกเองไม่ได้
+  | "HQ_QUOTED"  // ได้ราคา HQ (ใบ 0218/0219 · 20 ต.ค. 69) — ฐานขยับเองเมื่อ HQ ส่งใบ · ดีลเลอร์เลือกเองไม่ได้
   | "QUOTED"     // Quotation
   | "FOLLOWUP"   // Follow-up
   | "NEGO"       // Negotiation
@@ -111,19 +112,36 @@ export type LeadStatus =
 // ใช้เป็น fallback เมื่อ dealerCode ว่าง (เช่น HQ ดูภาพรวม, เรคคอร์ดเก่าที่ไม่มี dealer_code ผูกไว้)
 export const DEFAULT_DEALER_CODE = "CNX";
 
-// ลำดับขั้นเต็ม (ใช้จัดเรียง/ตัวเลือกดรอปดาวน์/บอร์ด) — แหล่งเดียว เดิมก๊อปเป็น literal array ซ้ำ ๆ หลายไฟล์
-export const LEAD_STATUS_ORDER: LeadStatus[] = ["WAITING", "BULLET", "HQ_PRICING", "QUOTED", "FOLLOWUP", "NEGO", "PAID", "CANCELLED"];
-// สถานะที่ดีลเลอร์ "เลือกเอง" ได้จากเมนูขั้น — ไม่รวมรอราคา HQ (ฐานข้อมูลขยับให้เองตามคำขอราคา · FLOW.html ตารางสถานะ)
-export const MANUAL_LEAD_STATUSES: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => s !== "HQ_PRICING");
-// สถานะที่ "ถึงขั้นเสนอราคาแล้ว" (มีใบเสนอราคาออกไปแล้ว) — เดิมก๊อป literal ["QUOTED","FOLLOWUP","NEGO","PAID"] ซ้ำหลายไฟล์
-export const QUOTED_UP: LeadStatus[] = ["QUOTED", "FOLLOWUP", "NEGO", "PAID"];
-// สถานะที่ "ยังเปิดอยู่ ไม่ใช่ปลายทาง" (ตัด PAID/CANCELLED) เรียงตามลำดับขั้น — ใช้ทำคอลัมน์ Kanban/คำนวณ % ความคืบหน้า
-export const ACTIVE_LEAD_STATUSES: LeadStatus[] = ["WAITING", "BULLET", "HQ_PRICING", "QUOTED", "FOLLOWUP", "NEGO"];
+// ── ข้อมูลประจำสถานะ: แหล่งเดียว และต้องมีครบทุกสถานะ (Record<LeadStatus,…> — เพิ่มสถานะแล้วลืมใส่ = typecheck ตก) ──
+//   บอสสั่ง 20 ต.ค. 69 (เพิ่ม "ได้ราคา HQ"): ทุกที่ที่แปลงสถานะเป็นป้าย สี ตัวกรอง ลำดับขั้น ต้องให้ระบบบังคับครบเอง
+//   ลำดับ/รายการที่ดีลเลอร์เลือกได้/คอลัมน์บอร์ด/ถึงขั้นเสนอราคา คำนวณจากตารางนี้ทั้งหมด ไม่เขียนรายการซ้ำที่อื่น
+//   manual  = ดีลเลอร์เลือกเองได้จากเมนูขั้น (สถานะที่ฐานขยับให้เองตามคำขอราคา = false)
+//   active  = ยังเปิดอยู่ (คอลัมน์บอร์ด · % ความคืบหน้า) · quotedUp = มีใบเสนอราคาถึงลูกค้าแล้ว
+export const LEAD_STATUS_META: Record<LeadStatus, { order: number; manual: boolean; active: boolean; quotedUp: boolean }> = {
+  WAITING:    { order: 0, manual: true,  active: true,  quotedUp: false },
+  BULLET:     { order: 1, manual: true,  active: true,  quotedUp: false },
+  HQ_PRICING: { order: 2, manual: false, active: true,  quotedUp: false },
+  HQ_QUOTED:  { order: 3, manual: false, active: true,  quotedUp: false },
+  QUOTED:     { order: 4, manual: true,  active: true,  quotedUp: true },
+  FOLLOWUP:   { order: 5, manual: true,  active: true,  quotedUp: true },
+  NEGO:       { order: 6, manual: true,  active: true,  quotedUp: true },
+  PAID:       { order: 7, manual: true,  active: false, quotedUp: true },
+  CANCELLED:  { order: 8, manual: true,  active: false, quotedUp: false },
+};
+// ลำดับขั้นเต็ม (ใช้จัดเรียง/ตัวเลือกดรอปดาวน์/บอร์ด)
+export const LEAD_STATUS_ORDER: LeadStatus[] = (Object.keys(LEAD_STATUS_META) as LeadStatus[]).sort((a, b) => LEAD_STATUS_META[a].order - LEAD_STATUS_META[b].order);
+// สถานะที่ดีลเลอร์ "เลือกเอง" ได้จากเมนูขั้น — ไม่รวมรอราคา HQ / ได้ราคา HQ (ฐานข้อมูลขยับให้เองตามคำขอราคา · FLOW.html ตารางสถานะ)
+export const MANUAL_LEAD_STATUSES: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => LEAD_STATUS_META[s].manual);
+// สถานะที่ "ถึงขั้นเสนอราคาแล้ว" (มีใบเสนอราคาออกไปแล้ว)
+export const QUOTED_UP: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => LEAD_STATUS_META[s].quotedUp);
+// สถานะที่ "ยังเปิดอยู่ ไม่ใช่ปลายทาง" เรียงตามลำดับขั้น — ใช้ทำคอลัมน์ Kanban/คำนวณ % ความคืบหน้า
+export const ACTIVE_LEAD_STATUSES: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => LEAD_STATUS_META[s].active);
 
 export const leadStatusLabel: Record<LeadStatus, string> = {
   WAITING:   "ติดต่อแล้ว",
   BULLET:    "รวบรวมความต้องการ",
   HQ_PRICING: "รอราคา HQ",
+  HQ_QUOTED: "ได้ราคา HQ",
   QUOTED:    "เสนอราคา",
   FOLLOWUP:  "ติดตามผล",
   NEGO:      "เจรจาต่อรอง",
@@ -136,6 +154,7 @@ export const leadStatusColor: Record<LeadStatus, { bg: string; text: string }> =
   WAITING:   { bg: "#eef2f7",  text: "#475569" },
   BULLET:    { bg: "#dce5f0",  text: "#003366" },
   HQ_PRICING: { bg: "#f3e8ff", text: "#6b21a8" },   // ม่วง = ลูกบอลอยู่ที่สำนักงานใหญ่
+  HQ_QUOTED:  { bg: "#dcfce7", text: "#166534" },   // เขียว = ได้ราคาแล้ว ลูกบอลกลับมาที่ดีลเลอร์ (ทำใบให้ลูกค้า)
   QUOTED:    { bg: "#e0e7ff",  text: "#4338ca" },
   // text เข้มขึ้นจาก #d97706 (contrast ~2.9:1 บนพื้นเดิม ต่ำกว่า WCAG AA มาก อ่านยาก
   // — พบจาก /scenario 31 ก.ค. 69) เป็น #92400e (amber-800) ให้ผ่านมาตรฐาน 4.5:1
@@ -750,7 +769,7 @@ export function buildLeadTasks(tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTas
 
 // seed งานของลูกค้าเป้าหมายตัวอย่างให้ "ตรงสถานะจริง" — เช็กงานครบถึงขั้นของสถานะ พร้อมผู้ทำ/เวลา (deterministic)
 // ให้ % ความคืบหน้า/แถบ Kanban/stageFromTasks ของข้อมูลตัวอย่างสอดคล้องกับกลไก Task-driven ปัจจุบัน
-const STAGE_RANK: Record<LeadStatus, number> = { WAITING: 0, BULLET: 1, HQ_PRICING: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4, PAID: 5, CANCELLED: 2 };
+const STAGE_RANK: Record<LeadStatus, number> = { WAITING: 0, BULLET: 1, HQ_PRICING: 1, HQ_QUOTED: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4, PAID: 5, CANCELLED: 2 };
 export function seedLeadTasks(status: LeadStatus, doneBy: string, baseDay: number, tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTask[] {
   const rank = STAGE_RANK[status];
   let day = baseDay;

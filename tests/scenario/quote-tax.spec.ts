@@ -54,9 +54,11 @@ async function เปิดฟอร์มออกใบ(page: import("@playwri
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   // ด่าน 3: ใบใหม่ทำจากใบ HQ — ลูกค้าเป้าหมายนี้ได้ใบ HQ ครั้งแรกที่เปิดฟอร์ม · ครั้งต่อไปปุ่มพาไปแก้ใบเดิม
-  const ทำใหม่ = page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ });
-  const แก้เดิม = page.getByRole("button", { name: /^(แก้ใบเสนอราคา|เพิ่มรายการในใบเสนอราคา)$/ });
-  await expect(ทำใหม่.or(แก้เดิม).first()).toBeVisible({ timeout: 20_000 });
+  const ทำใหม่ = page.getByRole("button", { name: /ทำใบให้ลูกค้า/ });
+  // มีใบร่างอยู่แล้ว = แก้จากปุ่ม "แก้ไข" ในรายการใบ (ปุ่มทำใบอยู่ที่แถบขั้นต่อไปที่เดียว · บอสสั่ง 19 ต.ค. 69)
+  const แก้เดิม = page.getByRole("button", { name: "แก้ไข", exact: true });
+  // ยังไม่ได้ใบ HQ = ไม่มีปุ่มทำใบให้รอ (แถบชวนขอราคา) — รอแผงคำขอราคาโหลดเสร็จก่อน แล้วถามฐานข้างล่าง
+  await expect(page.locator("[data-panel='quote-request']")).toBeVisible({ timeout: 20_000 });
   // ได้ใบ HQ แล้วหรือยัง — ถามฐาน ไม่เดาจากสถานะปุ่มในจังหวะเดียว (15 ต.ค. 69 · ไม่นิ่งครั้งที่ 4 · trace รอบปิดด่าน):
   //   ข้อก่อนหน้าขอราคาไปแล้ว (ลีด = รอราคา HQ) · แผงยังโหลดใบ HQ อยู่ตอนเช็ก isEnabled → ได้ false
   //   → ไปทางขอราคาใหม่ซึ่งรอลีด "ยังขอราคาได้" ที่ไม่มีวันเกิด (หมดเวลา 20 วิ) · รันซ้ำผ่านเพราะ worker ใหม่สร้างลีดใหม่

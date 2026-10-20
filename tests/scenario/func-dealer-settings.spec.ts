@@ -130,6 +130,7 @@ test("[func] ทะเบียนพนักงานขายจาก DB →
 
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+    await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
     await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
 
     await expect.poll(async () => page.evaluate(() => document.body.innerText),

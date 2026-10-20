@@ -210,7 +210,7 @@ export async function openLeadQuotationForm(page: Page, opts?: { ใบใหม
     await expect(แถว).toBeVisible({ timeout: 20_000 });
     await แถว.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
     await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-    await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 20_000 });
+    await page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click({ timeout: 20_000 });
     await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible();
     await expect(page.locator("[data-editor='hq-markup']")).toBeVisible({ timeout: 20_000 });
     return ชื่อ;

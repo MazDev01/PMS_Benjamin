@@ -303,16 +303,16 @@ test("[schema] ตาราง dealers ไม่มีคอลัมน์ KPI 
   expect(Object.keys(row), "revenue_target ต้องไม่อยู่ในตารางฐานอีกต่อไป (อ่านผ่าน dealers_directory เท่านั้น — 0090)").not.toContain("revenue_target");
 });
 
-test("[schema] dealers_directory มาสก์ revenue_target ข้ามสาขา · HQ เห็นครบ (0077/0090)", async () => {
+test("[schema] dealers_directory: ดีลเลอร์เห็นแถวตัวเองแถวเดียว (0220) · HQ เห็นครบพร้อมเป้า (0077/0090)", async () => {
   const ryg = await signIn(RYG);
   const hq  = await signIn(ADMIN);
 
   const byDealer = await ryg.from("dealers_directory").select("code, revenue_target");
   expect(byDealer.error).toBeNull();
   const mine = byDealer.data?.find(d => d.code === "RYG");
-  const other = byDealer.data?.find(d => d.code !== "RYG");
   expect(mine?.revenue_target, "ดีลเลอร์ต้องเห็น revenue_target ของสาขาตัวเอง").not.toBeNull();
-  expect(other?.revenue_target, "ดีลเลอร์ต้องไม่เห็น revenue_target ของสาขาอื่น (ต้องเป็น null)").toBeNull();
+  // ใบ 0220 (บอสสั่ง 20 ต.ค. 69): เดิมเห็นแถวสาขาอื่นแต่เป้าเป็น null · ตอนนี้ไม่เห็นแถวสาขาอื่นเลย
+  expect((byDealer.data ?? []).filter(d => d.code !== "RYG"), "ดีลเลอร์ต้องไม่เห็นแถวของสาขาอื่น").toEqual([]);
 
   const byHQ = await hq.from("dealers_directory").select("code, revenue_target");
   expect(byHQ.error).toBeNull();

@@ -75,8 +75,16 @@ export function LeadTasks({ lead, performedBy, onSave, onRequestQuotation, onReq
     return groups;
   }, [normalTasks, taskTpl]);
 
+  // งานที่ระบบติ๊กให้เอง กดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69 "ปุ่มทำใบมีที่เดียว") — ทำของจริงที่แถบขั้นต่อไป แล้วระบบติ๊กให้
+  //   ออกใบ/ส่งใบ = ฐานติ๊ก (ใบ 0210) · นัดหมาย = ติ๊กเมื่อบันทึกนัด
+  const งานนัด = findAppointmentTask(tasks.map(t => ({ key: t.key, label: t.label, stage: "BULLET" as const })))?.key;
+  const ระบบติ๊กเมื่อ = (key: string): string =>
+    key === QUOTE_TASK_KEY ? "ระบบติ๊กให้เมื่อทำใบเสนอราคา" : key === SEND_QUOTE_TASK_KEY ? "ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า"
+      : key === งานนัด ? "ระบบติ๊กให้เมื่อบันทึกนัดหมาย" : "";
+
   function toggle(key: string) {
     if (closed) return;
+    if (ระบบติ๊กเมื่อ(key)) return;
     const i = orderIndex(key);
     if (i < 0) return;
     const cur = normalTasks[i];
@@ -191,8 +199,9 @@ export function LeadTasks({ lead, performedBy, onSave, onRequestQuotation, onReq
             // ปุ่มงานคือ "ช่องติ๊ก" ในสายตาผู้ใช้ — ต้องบอกสถานะให้โปรแกรมอ่านหน้าจอ (และเทสต์) รู้ด้วย
             // เดิมเป็นปุ่มเปล่า ๆ ที่วาดสี่เหลี่ยมเขียวเอง คนใช้เครื่องอ่านหน้าจอจึงไม่รู้ว่างานไหนเสร็จแล้ว
             // และเทสต์ที่นับ input[type=checkbox] ก็ได้ 0 เสมอ = ผ่านทั้งที่ไม่ได้ตรวจอะไรเลย (3 ก.ย. 69)
-            <button key={t.key} type="button" role="checkbox" aria-checked={t.done} onClick={() => toggle(t.key)} disabled={closed}
-              title={lockedCheck ? "ทำงานก่อนหน้าให้ครบก่อน" : lockedUncheck ? "ยกเลิกได้เฉพาะงานล่าสุด" : undefined}
+            <button key={t.key} type="button" role="checkbox" aria-checked={t.done} onClick={() => toggle(t.key)} disabled={closed || !!ระบบติ๊กเมื่อ(t.key)}
+              data-auto-task={ระบบติ๊กเมื่อ(t.key) ? "1" : undefined}
+              title={ระบบติ๊กเมื่อ(t.key) || (lockedCheck ? "ทำงานก่อนหน้าให้ครบก่อน" : lockedUncheck ? "ยกเลิกได้เฉพาะงานล่าสุด" : undefined)}
               style={{
                 display: "flex", alignItems: "flex-start", gap: 11, width: "100%", textAlign: "left",
                 padding: "10px 12px", borderRadius: 10, border: `1px solid ${t.done ? "#bbf7d0" : lockedCheck ? "#eceff3" : "#e5e7eb"}`,
@@ -209,6 +218,9 @@ export function LeadTasks({ lead, performedBy, onSave, onRequestQuotation, onReq
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ fontSize: "0.86rem", fontWeight: 600, color: t.done ? "#065f46" : lockedCheck ? "#9aa4b0" : "#2D2D2D", textDecoration: t.done ? "line-through" : "none" }}>{t.label}</span>
+                {!t.done && ระบบติ๊กเมื่อ(t.key) && (
+                  <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{ระบบติ๊กเมื่อ(t.key)}</span>
+                )}
                 {t.done && (t.doneBy || t.doneAt) && (
                   <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>
                     ✓ {t.doneBy ?? "—"}{t.doneAt ? ` · ${t.doneAt}` : ""}

@@ -130,7 +130,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           {โหมด === "ดู" && (
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("ยกเลิก"); }}>ยกเลิกคำขอ</button>}
-              {เปิด.status === "quoted" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("แก้ราคา"); }}>ขอแก้ราคา</button>}
+              {/* ลีดปิดการขายแล้ว = ขอแก้ราคาไม่ได้ (ใบ 0221 กันที่ฐาน) */}
+              {เปิด.status === "quoted" && lead.status !== "PAID" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("แก้ราคา"); }}>ขอแก้ราคา</button>}
             </div>
           )}
         </div>

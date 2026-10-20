@@ -6,6 +6,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { adminClient } from "./testDealers";
+import { รันSQLในฐาน } from "./localDb";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── ถ่ายรูปหน้าจอ "ก่อน/หลัง" ของหน้าที่แก้ในรอบ 2 (บอสสั่ง 19 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────
@@ -91,4 +92,44 @@ test("ช่วง ก · HQ: ใบเสนอราคาทั้งเค�
   test.skip(ช่วง !== "ก", "ไม่ใช่ช่วง ก");
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await ถ่าย(page, "HQ-ใบเสนอราคาทั้งเครือ", async () => { await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" }); await settle(page); });
+});
+
+// ── ช่วง ก2: ได้ราคา HQ · แผงลีดไม่มีของซ้ำ · กระดิ่งราคาหมดอายุ ──
+test.describe("ช่วง ก2", () => {
+  const ได้ราคา = `ZZTEST-ภาพก2-ได้ราคา-${แท็ก}`, หมด = `ZZTEST-ภาพก2-หมดอายุ-${แท็ก}`;
+  let ก: ใบHQพร้อมใช้, ข: ใบHQพร้อมใช้;
+  test.beforeAll(async () => {
+    if (ช่วง !== "ก2") return;
+    ก = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ได้ราคา, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 50000 }] });
+    ข = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: หมด, province: "ระยอง", lines: [{ name: "หลังคาชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 50000 }] });
+    รันSQLในฐาน(`alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
+      update public.hq_quotes set valid_until = (now() at time zone 'Asia/Bangkok')::date - 1 where id = ${ข.hqQuoteId};
+      alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
+      select public.expire_hq_linked_quotations();`);
+  });
+  test.afterAll(async () => { if (ก) ล้างใบHQทดสอบ("RYG", [ก.leadNum, ข.leadNum]); });
+
+  test("ช่วง ก2 · ลีด · แผง · แดชบอร์ด · กระดิ่ง", async ({ page }) => {
+    test.skip(ช่วง !== "ก2", "ไม่ใช่ช่วง ก2");
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    const ไปหน้าลีด = async () => {
+      await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+      await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill("ZZTEST-ภาพก2");
+    };
+    await ถ่าย(page, "ดีลเลอร์-ลีด-ป้ายได้ราคาHQ", ไปหน้าลีด);
+    await ไปหน้าลีด();
+    await page.locator("tbody tr").filter({ hasText: ได้ราคา }).first().locator("td").first().click();
+    const ไม่ต้องทำ = async () => { await settle(page); };
+    await ถ่าย(page, "ดีลเลอร์-แผงลีด-ภาพรวม", ไม่ต้องทำ);
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+    await ถ่าย(page, "ดีลเลอร์-แผงลีด-ใบเสนอราคา", ไม่ต้องทำ);
+    await page.getByRole("button", { name: "งาน", exact: true }).first().click();
+    await ถ่าย(page, "ดีลเลอร์-แผงลีด-งาน", ไม่ต้องทำ);
+    await ถ่าย(page, "ดีลเลอร์-แดชบอร์ด", async () => { await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" }); await settle(page); });
+    await ถ่าย(page, "ดีลเลอร์-กระดิ่งราคาหมดอายุ", async () => {
+      await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByRole("button", { name: "การแจ้งเตือน" }).click();
+    });
+  });
 });

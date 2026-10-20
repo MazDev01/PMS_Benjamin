@@ -342,7 +342,7 @@ export async function เปิดฟอร์มทำใบจากใบHQ(p
   await expect(row).toBeVisible({ timeout: 20_000 });
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 20_000 });
+  await page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click({ timeout: 20_000 });
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 10_000 });
   return ใบ;
 }

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { กดตกลงในกล่องยืนยัน } from "./helpers";
+import { กดตกลงในกล่องยืนยัน, settle } from "./helpers";
 import { RYG, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
@@ -27,6 +27,7 @@ test("[func] ออกใบเสนอราคาจากลูกค้า�
 
   // 1) สร้างลูกค้าเป้าหมายต้นทาง
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณโซ่");
@@ -126,6 +127,7 @@ test("[func] ปิดการขายจากหน้าใบเสนอ�
 
   // 1) ลูกค้าเป้าหมายใหม่ + ออกใบเสนอราคาจากลูกค้าเป้าหมาย (ใบผูก dealId ของลูกค้าเป้าหมาย · customerId = 0)
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMP);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณตอบรับ");

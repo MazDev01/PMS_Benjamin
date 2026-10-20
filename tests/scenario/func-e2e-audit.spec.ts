@@ -40,6 +40,7 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
 
   // 1) สร้างลูกค้าเป้าหมาย + ออกใบเสนอราคา (คงสถานะ "ร่าง" — ไม่ส่ง ไม่ตอบรับ)
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณลัดคิว");
@@ -73,7 +74,8 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
   await expect(row2).toBeVisible({ timeout: 15_000 });
   await row2.getByRole("button", { name: /▾/ }).first().click();
   // (ก) ด่านต้องกันไว้ — ใบยังเป็นร่าง ลูกค้าเป้าหมายยังอยู่ขั้น "รอราคา HQ" (Flow ใบ HQ) เมนูจึงไม่มีให้เปลี่ยนขั้นเอง
-  await expect(page.getByText(/เปลี่ยนขั้นเองไม่ได้ระหว่างรอ/), "รอราคา HQ = เมนูขั้นต้องบอกว่าเปลี่ยนเองไม่ได้").toBeVisible({ timeout: 10_000 });
+  //   ใบ 0219: ได้ใบ HQ แล้ว ลูกค้าเป้าหมายเป็น "ได้ราคา HQ" — เมนูบอกขั้นต่อไป และเลือกได้แค่ปิดไม่สำเร็จ
+  await expect(page.getByText(/เปลี่ยนขั้นเองไม่ได้ระหว่างรอ|ได้ราคาจากสำนักงานใหญ่แล้ว/).first(), "เมนูขั้นต้องบอกว่าเปลี่ยนขั้นเองไม่ได้").toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: "ปิดการขายสำเร็จ", exact: true }), "ไม่มีปุ่มปิดการขายลัดคิว").toHaveCount(0);
   await page.keyboard.press("Escape");
   expect(await มีกล่องยืนยัน(page), "ถูกกันตั้งแต่ก่อนถาม — ต้องไม่มีกล่องยืนยันขึ้นมาเลย").toBe(false);
@@ -117,6 +119,7 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
 
   async function winFullFlow(company: string, contact: string, knownTotal: number) {
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+    await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
     await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
     await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(company);
     await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill(contact);
@@ -240,6 +243,7 @@ test("[audit] ลบใบเสนอราคาที่ won แล้ว —
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณลบวอน");
@@ -315,6 +319,7 @@ test("[audit] เปิดฟอร์มสร้างใบเสนอรา
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณค้างฟอร์ม");
@@ -357,6 +362,7 @@ test("[audit] cross-role: ดีลเลอร์ปิดการขาย �
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณครอสโรล");

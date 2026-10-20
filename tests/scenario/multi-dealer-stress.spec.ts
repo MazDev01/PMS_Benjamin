@@ -166,7 +166,7 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   await expect(แถวดีล, `${code}: งานขายต้องอยู่ในตาราง`).toBeVisible({ timeout: 45_000 });
   await แถวดีล.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 45_000 });
+  await page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click({ timeout: 45_000 });
   await expect(page.getByText("สร้างใบเสนอราคาใหม่")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   await expect.poll(async () => (await sb.from("quotations").select("id").eq("customer", COMPANY)).data?.length ?? 0,

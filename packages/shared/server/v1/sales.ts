@@ -23,6 +23,7 @@ import {
 } from "@pms/shared/lib/data/supabase/rowMappers";
 import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock } from "@pms/shared/lib/data/types";
 import { leadIntentToWire, type LeadIntent } from "@pms/shared/lib/leadIntent";
+import { LEAD_STATUS_ORDER, type LeadStatus } from "@pms/shared/lib/mock";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Row = Record<string, unknown>;
@@ -50,7 +51,9 @@ const MAX_PAGE = 20000;
  *     ถูกปฏิเสธ 400 "perDealer มีได้ไม่เกิน 100 รายการ" → ตารางลูกค้าเป้าหมายโหลดไม่ขึ้น + แถบ "โหลดข้อมูลบางส่วนไม่สำเร็จ"
  *  ตั้งเผื่อการขยายเครือไว้มาก แต่ยังกันคำขอขนาดผิดปกติ */
 export const MAX_DEALERS = 5000;
-const LEAD_STATUS = ["WAITING", "BULLET", "QUOTED", "FOLLOWUP", "NEGO", "PAID", "CANCELLED"] as const;
+// ทุกสถานะจากตารางกลาง (LEAD_STATUS_META · Record ครบทุกค่า) — เดิมเขียนรายการแยกไว้และขาด "รอราคา HQ"
+//   → กรองลีดด้วยสถานะนี้ผ่านเส้นทางของเว็บจริงได้ 400 (พบ 20 ต.ค. 69 ตอนเพิ่ม "ได้ราคา HQ")
+const LEAD_STATUS = LEAD_STATUS_ORDER as readonly LeadStatus[];
 const QUOTE_STATUS = ["draft", "sent_to_client", "won", "lost", "expired"] as const;
 
 /** คอลัมน์ที่ยอมให้ใช้เรียงลำดับใบเสนอราคา — ชื่อคอลัมน์จากผู้เรียกวิ่งเข้า .order() ตรง ๆ

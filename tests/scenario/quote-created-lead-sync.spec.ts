@@ -46,7 +46,7 @@ test("[flow·db] สร้างใบให้ลูกค้า: ตัดค�
   await expect(row).toBeVisible({ timeout: 20_000 });
   await row.locator("td").first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click();
+  await page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click();
   const ตาราง = page.locator("[data-editor='hq-markup']");
   await expect(ตาราง).toBeVisible({ timeout: 20_000 });
   await ตาราง.getByLabel("% ที่บวก 1").fill("20");
@@ -69,5 +69,5 @@ test("[flow·db] สร้างใบให้ลูกค้า: ตัดค�
   expect(กิจกรรม.filter(a => (a.text ?? "").startsWith(`ออกใบเสนอราคา ${เลขใบ} `)), "ต้องมีกิจกรรมออกใบหนึ่งบรรทัด").toHaveLength(1);
   expect(ไฟล์ ?? [], "ต้องมีแถวไฟล์ของใบหนึ่งแถว").toHaveLength(1);
   expect(ไฟล์![0]).toMatchObject({ category: "ใบเสนอราคา", source: "lead", record_id: ใบHQ.leadNum, uploaded_by: "ระบบ · จากใบเสนอราคา" });
-  expect(ลีด!.status, "สถานะยังเป็นของเส้นทางใบ HQ (ฐานขยับเองตอนส่งใบ)").toBe("HQ_PRICING");
+  expect(ลีด!.status, "สถานะยังเป็นของเส้นทางใบ HQ (ได้ราคา HQ · ฐานขยับเองตอนส่งใบให้ลูกค้า)").toBe("HQ_QUOTED");
 });

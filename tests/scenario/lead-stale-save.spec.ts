@@ -51,7 +51,7 @@ test("[flow·dealer] หน้าเปิดค้าง: ฐานติ๊ก
   const b = await แท็บใหม่(browser);
   await เปิดลูกค้าเป้าหมาย(b);
   await b.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await b.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click();
+  await b.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click();
   const ตาราง = b.locator("[data-editor='hq-markup']");
   await expect(ตาราง).toBeVisible({ timeout: 20_000 });
   await ตาราง.getByLabel("% ที่บวก 1").fill("20");

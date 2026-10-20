@@ -74,19 +74,18 @@ async function openTestLead(page: import("@playwright/test").Page) {
   await expect(page.locator("tbody tr").filter({ hasText: COMPANY }).first()).toBeVisible({ timeout: 20_000 });
 }
 
-test("[func] ติ๊กงาน 'จัดทำใบเสนอราคา' ทั้งที่ยังไม่มีใบ → พาไปออกใบ ขั้นไม่ขยับ", async ({ page }) => {
+test("[func] งาน 'จัดทำใบเสนอราคา' ระบบติ๊กให้เอง กดเองไม่ได้ · ยังไม่มีใบ = ไม่ติ๊ก ขั้นไม่ขยับ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await openTestLead(page);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
 
   await page.getByRole("button", { name: "งาน", exact: true }).first().click();
-  await page.getByText("จัดทำใบเสนอราคา").first().click();
-
-  // ด่าน 3: ใบใหม่ต้องทำจากใบ HQ — ลูกค้าเป้าหมายนี้ยังไม่ได้ขอราคา ระบบต้องบอกให้ขอราคาจาก HQ ก่อน
-  //   (เจตนาเดิมยังอยู่: "ต้องพาผู้ใช้ไปทำสิ่งที่ถูก ไม่ใช่ติ๊กงานให้เฉย ๆ")
-  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first(),
-    "ยังไม่มีใบ HQ → ต้องบอกให้ขอราคาก่อน ไม่ใช่ติ๊กงานให้เฉย ๆ").toBeVisible({ timeout: 15_000 });
+  // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69 "ปุ่มทำใบมีที่เดียว")
+  //   เจตนาเดิมยังอยู่: "ติ๊กงานเฉย ๆ โดยไม่มีใบจริงไม่ได้" — ทำใบได้ทางเดียวคือปุ่มที่แถบขั้นต่อไป
+  const งานออกใบ = page.getByRole("checkbox", { name: /จัดทำใบเสนอราคา/ }).first();
+  await expect(งานออกใบ, "งาน 'จัดทำใบเสนอราคา' ระบบติ๊กให้เอง — กดเองไม่ได้").toBeDisabled({ timeout: 15_000 });
+  await expect(page.getByText("ระบบติ๊กให้เมื่อทำใบเสนอราคา").first(), "บอกว่าระบบติ๊กให้เมื่อไร").toBeVisible();
 
   const sb = await db(RYG);
   const lead = (await sb.from("leads").select("tasks,status").eq("company", COMPANY).single())
@@ -134,7 +133,7 @@ test("[func] ออกใบจากใบ HQ → ระบบติ๊กง�
     return l.tasks?.find(t => t.key === "makeQuote")?.done;
   }, { timeout: 20_000, message: "ออกใบแล้วระบบต้องติ๊กงานให้เอง" }).toBe(true);
   expect((await sb.from("leads").select("status").eq("company", COMPANY).single()).data?.status,
-    "ยังไม่ส่งใบให้ลูกค้า → ขั้นคงเป็นรอราคา HQ").toBe("HQ_PRICING");
+    "ยังไม่ส่งใบให้ลูกค้า → ขั้นคงเป็นได้ราคา HQ (ใบ 0219)").toBe("HQ_QUOTED");
   const quotes = (await sb.from("quotations").select("id,status").eq("customer", COMPANY)).data ?? [];
   expect(quotes.length, "ต้องมีใบเสนอราคาจริงใน DB").toBeGreaterThan(0);
   expect(quotes[0].status, "ใบที่เพิ่งออกต้องเป็นร่าง — ยังไม่ได้ส่งถึงลูกค้า").toBe("draft");
@@ -143,18 +142,16 @@ test("[func] ออกใบจากใบ HQ → ระบบติ๊กง�
 });
 
 // รันต่อจากข้อบน (serial) — ตอนนี้ลูกค้าเป้าหมายมีใบแล้ว 1 ใบ สถานะ "ร่าง"
-test("[func] ติ๊กงาน 'ส่งใบเสนอราคา' ทั้งที่ใบยังเป็นร่าง → พาไปรายการใบ งานไม่ถูกติ๊ก", async ({ page }) => {
+test("[func] งาน 'ส่งใบเสนอราคา' ระบบติ๊กให้เอง กดเองไม่ได้ · ใบยังเป็นร่าง = งานไม่ถูกติ๊ก", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await openTestLead(page);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
 
   await page.getByRole("button", { name: "งาน", exact: true }).first().click();
-  await page.getByText("ส่งใบเสนอราคา").first().click();
-
-  // พาไปแท็บใบเสนอราคา (รายการ) ไม่ใช่เปิดฟอร์มออกใบใหม่ — ใบมีอยู่แล้ว แค่ยังไม่ได้ส่ง
-  await expect(page.getByText("สร้างใบเสนอราคาใหม่"),
-    "ต้องไม่เปิดฟอร์มออกใบใหม่ — ใบมีอยู่แล้ว").toHaveCount(0, { timeout: 10_000 });
+  // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69) — ส่งใบได้ทางเดียวคือปุ่ม "ส่งให้ลูกค้า" (แถบขั้นต่อไป/รายการใบ)
+  await expect(page.getByRole("checkbox", { name: /ส่งใบเสนอราคา/ }).first(), "งาน 'ส่งใบเสนอราคา' กดเองไม่ได้").toBeDisabled({ timeout: 15_000 });
+  await expect(page.getByText("ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า").first()).toBeVisible();
 
   const sb = await db(RYG);
   const lead = (await sb.from("leads").select("tasks").eq("company", COMPANY).single())

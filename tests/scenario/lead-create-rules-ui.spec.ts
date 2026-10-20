@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, loginUI } from "./funcHelpers";
+import { settle } from "./helpers";
 import { adminClient } from "./testDealers";
 
 // ── ขายหนึ่งงาน ขั้น 2 บนหน้าจอ: สร้าง Lead — กันชื่อ+เบอร์ซ้ำ · เช็คพื้นที่ (FLOW.html · ด่าน 1) ─────────────────────
@@ -27,6 +28,7 @@ test.afterAll(ล้าง);
 async function เพิ่มลูกค้าเป้าหมาย(page: Page, company: string, phone: string, province: string) {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   const กล่อง = page.getByRole("dialog", { name: "เพิ่มลูกค้าเป้าหมาย" });
   await expect(กล่อง).toBeVisible();

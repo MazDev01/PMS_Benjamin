@@ -74,6 +74,7 @@ test("[func] แนบไฟล์ที่ลูกค้าเป้าหม�
 
   // ต้องมีลูกค้าเป้าหมายก่อน — การแนบไฟล์อยู่ในลิ้นชักรายละเอียดลูกค้าเป้าหมาย ไม่ใช่หน้าคลังไฟล์
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณไฟล์");
@@ -116,6 +117,7 @@ test("[func] แนบไฟล์ที่ลูกค้าเป้าหม�
 // เปิดลิ้นชักลูกค้าเป้าหมายที่ชื่อ company แล้วคืน locator ช่องแนบไฟล์ (ใช้ซ้ำในเทสต์ไฟล์ล้มเหลว)
 async function openLeadFileInput(page: Page, sb: SupabaseClient, company: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(company);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณไฟล์ล้ม");

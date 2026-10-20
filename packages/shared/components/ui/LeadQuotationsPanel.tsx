@@ -553,18 +553,12 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
         <div style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 700 }}>ใบเสนอราคา · {related.length} ฉบับ{readOnly && " · ดูอย่างเดียว"}</div>
         {/* มีใบที่ยังแก้ได้ = ปุ่มนี้พาไปเพิ่มรายการในใบเดิม ไม่ออกใบใหม่ — ป้ายต้องบอกตรง ๆ
             ไม่งั้นกดคำว่า "สร้าง" แล้วได้หน้าแก้ไขใบเก่า ผู้ใช้จะงงว่ากดผิดหรือระบบพัง */}
-        {!readOnly && (
-          <button onClick={openCreate} className="btn btn-primary btn-sm"
-            disabled={!ใบHQ && !ใบที่ยังแก้ได้}
-            title={!ใบHQ && !ใบที่ยังแก้ได้ ? (REAL_BACKEND ? "ต้องได้ราคาจากสำนักงานใหญ่ก่อน" : "ข้อมูลตัวอย่างออกใบใหม่ไม่ได้") : undefined}>
-            <FilePlus size={13} /> {ใบที่ยังแก้ได้ ? "แก้ใบเสนอราคา" : "ทำใบเสนอราคาจากใบ HQ"}
-          </button>
-        )}
+        {/* ปุ่มทำใบอยู่ที่แถบ "ขั้นต่อไป" ที่เดียว (บอสสั่ง 19 ต.ค. 69) — แท็บนี้เหลือรายการใบอย่างเดียว */}
       </div>
 
       {related.length === 0 ? (
         <div style={{ textAlign: "center", padding: "28px 0", color: "#9aa2ad", fontSize: "0.8rem" }}>ยังไม่มีใบเสนอราคา{!readOnly && (REAL_BACKEND
-          ? (ใบHQ ? " — กด “ทำใบเสนอราคาจากใบ HQ” เพื่อเริ่ม" : " — ต้องได้ราคาจากสำนักงานใหญ่ก่อน (ส่งคำขอที่แผงด้านบน)")
+          ? (ใบHQ ? " — กด “ทำใบให้ลูกค้า” ที่แถบขั้นต่อไปด้านบน" : " — ต้องได้ราคาจากสำนักงานใหญ่ก่อน (ส่งคำขอที่แผงด้านบน)")
           : " — กด “สร้างใบเสนอราคา” เพื่อเริ่ม")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

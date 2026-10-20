@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db, specNS, nsTag, cleanup, waitRow } from "./funcHelpers";
-import { open, ดักข้อความแจ้งเตือน } from "./helpers";
+import { open, ดักข้อความแจ้งเตือน, settle } from "./helpers";
 
 // ── ความปลอดภัยรอง: ไฟล์รูปที่รับเข้าระบบ + การสร้างข้อมูลซ้ำ (ตรวจสอบระบบ 5 ส.ค. 69) ──
 //
@@ -88,6 +88,7 @@ test("กดบันทึกรัวในแท็บเดียว ต้�
   const company = tg("กดรัว");
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   // บรรทัดคำอธิบายใต้หัวข้อถูกเอาออกแล้ว (28 ส.ค. 69) — ยึดกล่องแทน ชี้ชัดกว่าข้อความในกล่องอยู่แล้ว
   await expect(page.getByRole("dialog", { name: "เพิ่มลูกค้าเป้าหมาย" })).toBeVisible();
@@ -133,6 +134,7 @@ test("กรอกบริษัทที่มีลูกค้าเป้�
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   // บรรทัดคำอธิบายใต้หัวข้อถูกเอาออกแล้ว (28 ส.ค. 69) — ยึดกล่องแทน ชี้ชัดกว่าข้อความในกล่องอยู่แล้ว
   await expect(page.getByRole("dialog", { name: "เพิ่มลูกค้าเป้าหมาย" })).toBeVisible();
@@ -151,6 +153,7 @@ test("กรอกบริษัทที่มีลูกค้าเป้�
 test("บริษัทใหม่ที่ไม่ซ้ำ ต้องไม่มีคำเตือน (กันเตือนพร่ำเพรื่อ)", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(tg("ไม่ซ้ำแน่นอน-xyz"));
   await page.waitForTimeout(1_500);

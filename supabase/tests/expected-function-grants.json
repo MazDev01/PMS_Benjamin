@@ -1,5 +1,5 @@
 {
- "migration": "0217",
+ "migration": "0221",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -119,6 +119,13 @@
    "authenticated": true,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "closed_lead_no_new_quote()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "create_quotation(p_dealer text, p_prefix text, p_payload jsonb)",
@@ -520,6 +527,13 @@
    "definer": false
   },
   {
+   "f": "leads_close_open_request()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "leads_delete_guard()",
    "anon": false,
    "authenticated": false,
@@ -801,6 +815,13 @@
   },
   {
    "f": "quote_requests_email()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_requests_lead_quoted()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
