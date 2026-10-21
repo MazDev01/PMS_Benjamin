@@ -5,14 +5,18 @@
 //   ล็อกค้างของโปรเซสที่ตายแล้ว (ต้องเก็บกวาดแล้วไปต่อ) ตรวจที่ tests/unit/prodLock.test.ts
 // รัน: npm run test:push-guard   (ต้องมี Docker + ฐานทดสอบ pms-dbcheck · ฐานซ้อมกู้ pms-blank ตัวสคริปต์เปิด/ปิดเอง)
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { บันทึกเมื่อผ่าน } from "../../scripts/lib/migrationGate.mjs";
 import os from "node:os";
 import path from "node:path";
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "pms-push-guard-"));
 const LOCK = path.join(tmp, "prod.lock"), MARK = path.join(tmp, "marker.txt"), ROOT = path.join(tmp, "backups");
-const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT };
-delete base.PMS_PROD_LOCK_HELD; delete base.PMS_DRILL_SABOTAGE; delete base.PMS_FAKE_EMPTY;
+// บันทึก "ผ่านรอบตรวจเต็ม" ของใบปัจจุบันทุกใบ (แทนผลรอบตรวจจริง) — ข้อ A–F วัดเรื่องอื่น ต้องผ่านด่านใบก่อน (G–H วัดด่านนี้)
+const RECORD = path.join(tmp, "gate-passed.json");
+บันทึกเมื่อผ่าน({ ตก: 0, ตัวตรวจ: 0, dir: "supabase/migrations", record: RECORD, ป้าย: "ทดสอบเครื่องมือ" });
+const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT, PMS_GATE_RECORD: RECORD };
+delete base.PMS_PROD_LOCK_HELD; delete base.PMS_DRILL_SABOTAGE; delete base.PMS_FAKE_EMPTY; delete base.PMS_MIGRATIONS_DIR;
 const รัน = (file, extraEnv = {}, a = []) => {
   const r = spawnSync("node", [file, ...a], { env: { ...base, ...extraEnv }, encoding: "utf8", maxBuffer: 1 << 28 });
   return { code: r.status, out: `${r.stdout}\n${r.stderr}` };
@@ -80,6 +84,28 @@ const ไม่มีstack = (out) => !/TypeError|SyntaxError|ReferenceError|\n\
 {
   const ชื่อ = readdirSync(ROOT);
   ผล(ชื่อ.some(n => n.endsWith("-ก่อน-db-push")) && !ชื่อ.some(n => /-(local|prod)$/.test(n)), `F1 โฟลเดอร์สำรองชื่อตามที่ db-push ตั้ง (${ชื่อ.join(", ")})`);
+}
+
+// ── G–H) ใบปรับฐานต้องผ่านรอบตรวจเต็มก่อนลง (บอสสั่ง 21 ต.ค. 69 · เหตุครั้งที่ 2: ใบ 0230 ลงฐานจริงก่อนรอบตรวจเต็มผ่าน) ──
+//   หยุดก่อนสำรอง/ก่อนแตะฐาน · ไม่ถึงขั้นลงใบ · บอกเป็นภาษาไทยว่าใบไหนยังไม่ผ่าน · กรณีผ่านครบ = ข้อ C (ไปถึงขั้นลงใบ)
+const ใบชุดทดลอง = (แก้) => {
+  const d = path.join(tmp, `migrations-${Math.random().toString(36).slice(2, 8)}`);
+  cpSync("supabase/migrations", d, { recursive: true });
+  แก้(d);
+  return d;
+};
+const ล่าสุด = readdirSync("supabase/migrations").filter(n => n.endsWith(".sql")).sort().at(-1);
+for (const [ป้าย, แก้, ใบ, ข้อความ] of [
+  ["G ใบใหม่ที่ยังไม่ผ่านรอบตรวจ", d => writeFileSync(path.join(d, "9999_zz_new.sql"), "select 1;\n"), "9999", /ใบ 9999 ยังไม่ผ่านรอบตรวจเต็ม รอให้ผ่านก่อน/],
+  ["H แก้ใบหลังรอบตรวจผ่าน", d => appendFileSync(path.join(d, ล่าสุด), "\n-- แก้ทีหลัง\n"), ล่าสุด.split("_")[0],
+    new RegExp(`ใบ ${ล่าสุด.split("_")[0]} ยังไม่ผ่านรอบตรวจเต็ม รอให้ผ่านก่อน \\(แก้ไฟล์หลังรอบตรวจผ่าน\\)`)],
+]) {
+  rmSync(MARK, { force: true });
+  const ก่อน = existsSync(ROOT) ? readdirSync(ROOT).length : 0;
+  const p = รัน("scripts/db-push-prod.mjs", { PMS_MIGRATIONS_DIR: ใบชุดทดลอง(แก้) });
+  ผล(p.code === 4 && !existsSync(MARK), `${ป้าย[0]}1 ${ป้าย.slice(2)} → หยุด ไม่ลงใบ (exit ${p.code})`, p.out);
+  ผล(ข้อความ.test(p.out), `${ป้าย[0]}2 บอกบนจอว่า "ใบ ${ใบ} ยังไม่ผ่านรอบตรวจเต็ม รอให้ผ่านก่อน"`, p.out);
+  ผล((existsSync(ROOT) ? readdirSync(ROOT).length : 0) === ก่อน && !existsSync(LOCK), `${ป้าย[0]}3 หยุดก่อนเริ่มสำรอง · ไม่ค้างล็อก`);
 }
 
 rmSync(tmp, { recursive: true, force: true });

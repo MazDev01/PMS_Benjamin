@@ -20,6 +20,7 @@ import { spawnSync } from "node:child_process";
 import { rmSync, writeFileSync } from "node:fs";
 import { loadTarget } from "./lib/targetEnv.mjs";
 import { ขอล็อก } from "./lib/prodLock.mjs";
+import { ตรวจใบก่อนลง, ข้อความไม่ผ่าน } from "./lib/migrationGate.mjs";
 
 const args = process.argv.slice(2);
 const ทดสอบ = process.env.PMS_PUSH_TEST === "1";
@@ -29,6 +30,19 @@ if (!ทดสอบ && !args.includes("--yes-prod")) {
 }
 if (ทดสอบ) console.log("🧪 โหมดทดสอบเครื่องมือ — ไม่แตะฐานจริง (สำรอง/ซ้อมกู้ใช้ฐานทดสอบในเครื่อง · ไม่ลงใบจริง)");
 const dry = args.includes("--dry-run");
+
+// ⓪ ใบปรับฐานทุกใบต้องผ่านรอบตรวจเต็มแล้ว และไม่ถูกแก้หลังรอบตรวจ (บอสสั่ง 21 ต.ค. 69 · scripts/lib/migrationGate.mjs)
+//    ตรวจก่อนขอล็อก/ก่อนแตะฐานจริง — ไม่ผ่าน = หยุดทันที ไม่สำรอง ไม่ลงใบ
+{
+  const { ผ่าน, ไม่ผ่าน } = ตรวจใบก่อนลง();
+  if (!ผ่าน) {
+    console.error("\n❌ หยุด ไม่ลงใบ — มีใบปรับฐานที่ยังไม่ผ่านรอบตรวจเต็ม:");
+    for (const บรรทัด of ข้อความไม่ผ่าน(ไม่ผ่าน)) console.error(`   ${บรรทัด}`);
+    console.error("   รันรอบตรวจเต็ม (npm run test:prodbuild) ให้ผ่าน ตก 0 แล้วสั่ง db:push:prod ใหม่");
+    process.exit(4);
+  }
+  console.log("✓ ใบปรับฐานทุกใบผ่านรอบตรวจเต็มแล้ว และไม่ถูกแก้หลังรอบตรวจ");
+}
 const { ref } = ทดสอบ ? { ref: "" } : loadTarget();   // พิมพ์ "🎯 ฐานข้อมูลที่จะแตะ" ให้เห็นก่อน
 
 const ล็อก = ขอล็อก(dry ? "db:push:prod (ดูอย่างเดียว)" : "db:push:prod");

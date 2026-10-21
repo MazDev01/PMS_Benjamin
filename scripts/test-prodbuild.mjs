@@ -11,6 +11,7 @@ import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { บันทึกเมื่อผ่าน, ไฟล์บันทึก } from "./lib/migrationGate.mjs";
 
 const MODE = process.env.NEXT_PUBLIC_DATA_SOURCE ?? "api";   // ค่าตั้งต้น = โหมดเดียวกับเว็บจริง
 // รหัสรอบเดียวให้ทุกช่วง — หลักฐานข้อที่ตกของรอบนี้อยู่โฟลเดอร์เดียวกัน (playwright.config.ts)
@@ -59,7 +60,8 @@ process.on("SIGINT", () => { ปิดทั้งหมด(); process.exit(130)
 //   เดิมตัวตรวจกับดักแดงค้างมาตั้งแต่ด่าน 1–2 โดยไม่มีใครเห็น เพราะรอบปิดด่านไม่ได้รันมัน
 //   ไม่มีตัวเลือกข้าม · เจาะไฟล์เดียว (ระบุอาร์กิวเมนต์เอง) ไม่ใช่รอบปิดด่าน จึงไม่บังคับ
 if (!process.argv.slice(2).length) {
-  for (const [ชื่อ, สคริปต์] of [["typecheck", "typecheck"], ["ตัวตรวจกับดัก (pnpm checks)", "checks"]]) {
+  // ข้อทดสอบหน่วย (vitest) อยู่ในขั้นแรกด้วย (21 ต.ค. 69) — เดิมไม่ได้รันในรอบปิดด่านเลย ข้อทดสอบของตัวกัน db:push จึงไม่ถูกตรวจก่อนขึ้นระบบ
+  for (const [ชื่อ, สคริปต์] of [["typecheck", "typecheck"], ["ตัวตรวจกับดัก (pnpm checks)", "checks"], ["ข้อทดสอบหน่วย (vitest)", "test:unit"]]) {
     console.log(`▶ ขั้นแรก: ${ชื่อ}`);
     const r = spawnSync("npm", ["run", "-s", สคริปต์], { env: process.env, stdio: "inherit", shell: true });
     if (r.status !== 0) { console.error(`❌ ${ชื่อ} ไม่ผ่าน — ไม่เริ่มรอบปิดด่าน`); process.exit(r.status ?? 1); }
@@ -149,4 +151,9 @@ for (const โปรเจกต์ of ช่วง) {
 console.log(`▶ หลักฐานข้อที่ตก (trace + ภาพหน้าจอ): node_modules/.cache/playwright-results/${PMS_RUN_ID}`);
 console.log("▶ ตัวตรวจรอบปิดด่าน: ทุกข้อต้องได้รันจริง");
 const ตรวจ = spawnSync("node", ["scripts/check-e2e-ran.mjs", ...รายงาน], { stdio: "inherit", shell: true });
+// ผ่านครบ (ตก 0 + ตัวตรวจท้ายรอบผ่าน) → บันทึกลายนิ้วมือใบปรับฐานทุกใบ · db:push:prod ลงได้เฉพาะใบที่ตรงกับบันทึกนี้
+//   (บอสสั่ง 21 ต.ค. 69 · scripts/lib/migrationGate.mjs) · ต้อง commit ไฟล์บันทึกพร้อมงาน
+if (บันทึกเมื่อผ่าน({ ตก, ตัวตรวจ: ตรวจ.status ?? 1, ป้าย: PMS_RUN_ID })) {
+  console.log(`▶ บันทึกใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว → ${ไฟล์บันทึก()} (commit ไฟล์นี้พร้อมงาน)`);
+}
 process.exit(ตก || ตรวจ.status || 0);
