@@ -1,5 +1,5 @@
 {
- "migration": "0225",
+ "migration": "0226",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -49,6 +49,20 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "_quote_lock_area(v text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_quote_lock_text(v text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "_quote_request_mail_lines(r quote_requests)",
@@ -798,6 +812,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "quotations_sent_lock()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "quotations_won_lock()",

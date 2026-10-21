@@ -103,7 +103,10 @@ begin
   perform qvtest.eq(qvtest.v(n), 420000, '4) ใบใหม่สุดชนะ แม้ยอดต่ำกว่า');
   perform qvtest.quote('Q-ZZQV-0', n, 900000, now() - interval '5 days', 'expired');
   perform qvtest.eq(qvtest.v(n), 420000, '4) ใบเก่าที่บันทึกทีหลังไม่ทับใบใหม่สุด');
+  -- ใบส่งแล้วแก้ยอดไม่ได้ (0226) — ปิดตัวล็อกเฉพาะคำสั่งนี้ เพื่อวัดว่าตัวคำนวณตามยอดที่เปลี่ยน (เช่นงานดูแลระบบ)
+  alter table public.quotations disable trigger quotations_zz_sent_lock;
   update public.quotations set total_value = 410000 where dealer_code = 'CNX' and id = 'Q-ZZQV-2';
+  alter table public.quotations enable trigger quotations_zz_sent_lock;
   perform qvtest.eq(qvtest.v(n), 410000, '4) แก้ยอดใบล่าสุด');
 
   -- 4ข) ใบที่ปิดแล้วก็นับ: ตอบรับ / ปฏิเสธ / หมดอายุ (ใบเดียวของลีดนั้น)

@@ -149,16 +149,23 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // ⚠️ ใบที่ปิดไปแล้ว (ตอบรับ/ปฏิเสธ/หมดอายุ) ห้ามแก้ — เป็นบันทึกของการขายที่จบแล้ว
   //    ยอดขายและยอดสะสมของลูกค้าอ้างอิงใบพวกนี้อยู่ · ถ้าลูกค้าซื้อรอบใหม่ก็ต้องเป็นใบใหม่จริง ๆ
   //   ระบบจริง: นับเฉพาะใบที่ทำจากใบ HQ เวอร์ชันปัจจุบัน — ใบเดิมที่ไม่มีใบ HQ ไม่ใช่ที่ "เพิ่มรายการ" ได้อีก
-  const ใบที่ยังแก้ได้ = related.find(q => (q.status === "draft" || q.status === "sent_to_client")
-    && ใบHQ != null && q.hqQuoteId === ใบHQ.id);
+  //   ใบที่ส่งให้ลูกค้าแล้ว ล็อกทั้งใบ (รอบ 3 · บอสสั่ง 20 ต.ค. 69 · กันที่ฐาน ใบ 0226) — เพิ่มรายการได้เฉพาะใบร่าง
+  const ใบที่ยังแก้ได้ = related.find(q => q.status === "draft" && ใบHQ != null && q.hqQuoteId === ใบHQ.id);
+  const ใบที่ส่งแล้วของใบHQนี้ = related.find(q => q.status === "sent_to_client" && ใบHQ != null && q.hqQuoteId === ใบHQ.id);
   // ใบเดิม (ไม่มีใบ HQ) = ดูได้อย่างเดียว · แท็บของลูกค้า = ดูอย่างเดียวทั้งหมด
   // ใบที่ลูกค้าตอบรับแล้ว = ยอดขายที่ปิดแล้ว: ไม่มีแก้ไข / ลบ / ทำสำเนา (บอสตัดสิน 19 ต.ค. 69)
   //   ทำสำเนาใบ won ไม่ได้ใบร่างใหม่จริง — ใบ HQ ของใบนั้นเป็น "สั่งผลิต" แล้ว ฐานปฏิเสธ (hq_quote_required) · ข้อทดสอบ flow-a-safety.spec.ts
   const แก้ได้ = (q: QuotationMock) => !readOnly && !!q.hqQuoteId && q.status !== "won";
+  // แก้เนื้อหาใบ (ลูกค้า โครงการ จังหวัด พื้นที่ %) ได้เฉพาะใบร่าง — ส่งแล้วเปลี่ยนสถานะ/ส่งอีกครั้งได้ แต่แก้ไม่ได้
+  const แก้เนื้อหาได้ = (q: QuotationMock) => แก้ได้(q) && q.status === "draft";
   function openCreate() {
     if (ใบที่ยังแก้ได้) {
       openEdit(ใบที่ยังแก้ได้);
       onToast?.(`เพิ่มรายการในใบ ${ใบที่ยังแก้ได้.id} ที่มีอยู่แล้ว — ไม่ออกใบใหม่`);
+      return;
+    }
+    if (ใบที่ส่งแล้วของใบHQนี้) {
+      onToast?.(`ใบ ${ใบที่ส่งแล้วของใบHQนี้.id} ส่งให้ลูกค้าแล้ว แก้ไม่ได้ — ถ้าต้องเปลี่ยนราคา ให้ขอแก้ราคาจากสำนักงานใหญ่`);
       return;
     }
     if (!REAL_BACKEND) { onToast?.("ข้อมูลตัวอย่างไม่มีขั้นขอราคาจากสำนักงานใหญ่ — ออกใบเสนอราคาได้ในระบบจริงเท่านั้น"); return; }
@@ -191,6 +198,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openCreateSignal, รอใบHQ]);
   function openEdit(q: QuotationMock) {
+    if (!แก้เนื้อหาได้(q)) return;   // ใบที่ส่งแล้วล็อก (ฐานปฏิเสธอยู่แล้ว · ใบ 0226) — ไม่เปิดฟอร์มให้แก้เสียเปล่า
     setEditing(q);
     setใบHQของใบที่แก้(null);
     if (REAL_BACKEND && q.hqQuoteId) {
@@ -533,7 +541,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
           <button onClick={() => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
-          {แก้ได้(q) && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
+          {แก้เนื้อหาได้(q) && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
           {แก้ได้(q) && (q.status === "draft" || q.status === "sent_to_client") && (
             <button onClick={() => { sendQuote(q); setMode("list"); }} className="btn btn-primary btn-sm">
               <Send size={13} /> {q.status === "draft" ? "ส่งใบเสนอราคา" : "ส่งอีกครั้ง"}
@@ -586,7 +594,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
                     )}
                     {([
                       { ic: <Eye size={13} />, t: "ดู", fn: () => { setEditing(q); setMode("view"); } },
-                      ...(แก้ได้(q) ? [{ ic: <Pencil size={13} />, t: "แก้ไข", fn: () => openEdit(q) }] : []),
+                      ...(แก้เนื้อหาได้(q) ? [{ ic: <Pencil size={13} />, t: "แก้ไข", fn: () => openEdit(q) }] : []),
                       { ic: <Printer size={13} />, t: "พิมพ์", fn: () => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg) },
                       // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีทำสำเนา/ลบ (บอสสั่งเก็บไว้เป็นประวัติ 16 ต.ค. 69)
                       ...(แก้ได้(q) ? [

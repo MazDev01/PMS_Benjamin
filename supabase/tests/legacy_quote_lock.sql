@@ -62,10 +62,11 @@ begin
   perform flowtest.must_fail(format($q$update quotations set customer_id = %s where id = 'ZZL-OPEN' and dealer_code = 'CNX'$q$, c2), 'legacy_quote_locked', 'ใบเก่า: เปลี่ยนลูกค้าที่ผูกอยู่ไม่ได้');
   perform flowtest.must_fail($q$update quotations set customer_id = null where id = 'ZZL-OPEN' and dealer_code = 'CNX'$q$, 'legacy_quote_locked', 'ใบเก่า: ถอดลูกค้าที่ผูกอยู่ออกไม่ได้');
 
-  -- ══ ใบเก่าที่ยังไม่ปิด ยังแก้แบบเดิมได้ ══
-  update quotations set note = 'แก้หมายเหตุ', line_items = '[{"name":"ของเดิม","qty":3,"unit":"ชุด","unitPrice":500}]', total_value = 1500
-   where id = 'ZZL-OPEN' and dealer_code = 'CNX';
-  perform flowtest.ok((select total_value from quotations where id = 'ZZL-OPEN') = 1500, 'ใบเก่าที่ยังไม่ปิด: แก้รายการ/ยอด/หมายเหตุได้ (ไม่ขึ้นเวอร์ชัน)');
+  -- ══ ใบเก่าที่ส่งลูกค้าแล้ว: แก้รายการ/ยอดไม่ได้แล้ว (ใบ 0226 · รอบ 3 บอสสั่ง 20 ต.ค. 69 "ส่งลูกค้าแล้วล็อกทั้งหมด") · หมายเหตุยังแก้ได้ ══
+  perform flowtest.must_fail($q$update quotations set line_items = '[{"name":"ของเดิม","qty":3,"unit":"ชุด","unitPrice":500}]', total_value = 1500
+   where id = 'ZZL-OPEN' and dealer_code = 'CNX'$q$, 'quote_sent_locked', 'ใบเก่าที่ส่งแล้ว: แก้รายการ/ยอดไม่ได้ (0226)');
+  update quotations set note = 'แก้หมายเหตุ' where id = 'ZZL-OPEN' and dealer_code = 'CNX';
+  perform flowtest.ok((select note from quotations where id = 'ZZL-OPEN') = 'แก้หมายเหตุ', 'ใบเก่าที่ยังไม่ปิด: แก้หมายเหตุได้');
   update quotations set status = 'sent_to_client' where id = 'ZZL-DRAFT' and dealer_code = 'CNX';
   perform flowtest.ok((select status from quotations where id = 'ZZL-DRAFT') = 'sent_to_client', 'ใบเก่าที่ยังไม่ปิด: ส่งให้ลูกค้าได้');
 

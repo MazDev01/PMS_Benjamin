@@ -264,9 +264,11 @@ export default function HQProposalsPage() {
                           <button onClick={() => void กดเปลี่ยนสถานะ(p, "sent")} title="เปลี่ยนเป็นส่งแล้ว" aria-label={`ส่งใบ ${p.proposalNo ?? ""}`}
                             style={{ ...ปุ่มไอคอน(), border: "none", background: "#d97706", color: "#fff" }}><Send size={12} /></button>
                         )}
-                        <button onClick={() => setดูรหัส(p.id)} title="ดูรายละเอียด" aria-label={`ดูใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()}><Eye size={13} /></button>
+                        {/* แถวใบร่างมีไม่เกิน 2 ปุ่ม: ส่ง + พิมพ์ (ขั้นที่พาใบร่างเดินต่อ) — ดู/แก้ไข/ลบ อยู่ในแผงรายละเอียด (กดแถว)
+                            รอบ 3 · บอสสั่ง 20 ต.ค. 69 · ข้อทดสอบ hq-proposals.spec.ts */}
+                        {p.status !== "draft" && <button onClick={() => setดูรหัส(p.id)} title="ดูรายละเอียด" aria-label={`ดูใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()}><Eye size={13} /></button>}
                         <button onClick={() => กดพิมพ์(p)} title="พิมพ์ใบค่าแฟรนไชส์" aria-label={`พิมพ์ใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()} disabled={!r}><Printer size={13} /></button>
-                        {จัดการได้ && (
+                        {จัดการได้ && p.status !== "draft" && (
                           <>
                             <button onClick={() => !ล็อก && กดแก้ไข(p)} disabled={ล็อก} aria-label={`แก้ไขใบ ${p.proposalNo ?? ""}`}
                               title={ล็อก ? "ใบที่ส่งแล้วแก้ไม่ได้ — ถ้าเงื่อนไขเปลี่ยนให้ออกใบใหม่" : "แก้ไข"}

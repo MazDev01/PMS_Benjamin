@@ -254,3 +254,67 @@ test.describe("ช่วง ง", () => {
     await ถ่าย(page, "HQ-ตั้งค่า-หาดีลเลอร์", async () => { await ไป("/hq/settings")(); await page.getByRole("button", { name: /หาดีลเลอร์/ }).first().click().catch(() => {}); await settle(page); });
   });
 });
+
+// ── รอบ 3 ข้อ 1–2 (บอสสั่ง 20 ต.ค. 69): หน้าแก้ใบเสนอราคา (ใบร่าง/ใบส่งแล้ว) · แถวใบร่างใน /hq/proposals ──
+test.describe("รอบ 3", () => {
+  const ลีดร่าง = `ZZTEST-ภาพรอบ3-ร่าง-${แท็ก}`, ลีดส่ง = `ZZTEST-ภาพรอบ3-ส่ง-${แท็ก}`, ผู้สนใจ = `ZZTEST-ภาพรอบ3-ผู้สนใจ-${แท็ก}`;
+  let ใบร่าง: ใบHQพร้อมใช้ | undefined, ใบส่ง: ใบHQพร้อมใช้ | undefined;
+  let เลขร่าง = "", เลขส่ง = "", เลขใบค่าแฟรนไชส์ = "", ผู้สนใจId = 0;
+  test.beforeAll(async () => {
+    if (ช่วง !== "รอบ3") return;
+    const บรรทัด = [{ name: "โครงเหล็กชุดทดสอบ", qty: 2, unit: "ชุด", unitCost: 100_000 }, { name: "หลังคาชุดทดสอบ", qty: 1, unit: "งาน", unitCost: 50_000 }];
+    ใบร่าง = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลีดร่าง, province: "ระยอง", lines: บรรทัด });
+    เลขร่าง = (await ทำใบลูกค้าจากใบHQ(RYG, ใบร่าง, { customer: ลีดร่าง, markupPercent: 10 })).id;
+    ใบส่ง = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลีดส่ง, province: "ระยอง", lines: บรรทัด });
+    เลขส่ง = (await ทำใบลูกค้าจากใบHQ(RYG, ใบส่ง, { customer: ลีดส่ง, markupPercent: 10 })).id;
+    const sb = await db(RYG);
+    const r = await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", เลขส่ง);
+    if (r.error) throw new Error(`ส่งใบไม่สำเร็จ: ${r.error.message}`);
+    const hq = await db(ADMIN);
+    const p = await hq.from("dealer_prospects").insert({ name: ผู้สนใจ, status: "contacted" }).select("id").single();
+    if (p.error) throw new Error(p.error.message);
+    ผู้สนใจId = (p.data as { id: number }).id;
+    const ใบ = await hq.from("dealer_package_proposals").insert({ prospect_id: ผู้สนใจId, package: "standard", proposed_date: "2026-10-20", amount: 100_000 })
+      .select("proposal_no").single();
+    if (ใบ.error) throw new Error(ใบ.error.message);
+    เลขใบค่าแฟรนไชส์ = (ใบ.data as { proposal_no: string }).proposal_no;
+  });
+  test.afterAll(async () => {
+    if (ช่วง !== "รอบ3") return;
+    ล้างใบHQทดสอบ("RYG", [ใบร่าง?.leadNum, ใบส่ง?.leadNum].filter((n): n is number => !!n));
+    const admin = adminClient();
+    if (ผู้สนใจId) {
+      await admin.from("dealer_package_proposals").delete().eq("prospect_id", ผู้สนใจId);
+      await admin.from("dealer_prospects").delete().eq("id", ผู้สนใจId);
+    }
+  });
+
+  test("รอบ 3 · ดีลเลอร์: ใบร่าง (แก้ได้) · ใบส่งแล้ว (ล็อก)", async ({ page }) => {
+    test.skip(ช่วง !== "รอบ3", "ไม่ใช่รอบ 3");
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    const หาใบ = async (เลข: string) => {
+      await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByPlaceholder("ค้นหา").first().fill(เลข); await settle(page);
+      return page.locator("tbody tr").filter({ hasText: เลข }).first();
+    };
+    await ถ่าย(page, "ดีลเลอร์-แถวใบร่างและใบส่งแล้ว", async () => {
+      await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByPlaceholder("ค้นหา").first().fill(`ZZTEST-ภาพรอบ3`); await settle(page);
+    });
+    await ถ่าย(page, "ดีลเลอร์-แก้ใบร่าง", async () => { await (await หาใบ(เลขร่าง)).getByTitle("แก้ไข").click(); await settle(page); });
+    await ถ่าย(page, "ดีลเลอร์-แผงใบส่งแล้ว", async () => { await (await หาใบ(เลขส่ง)).locator("td").nth(1).click(); await settle(page); });
+  });
+
+  test("รอบ 3 · HQ: แถวใบร่างใบค่าแฟรนไชส์ · แผงรายละเอียด", async ({ page }) => {
+    test.skip(ช่วง !== "รอบ3", "ไม่ใช่รอบ 3");
+    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+    const ค้น = async () => {
+      await page.goto(`${HQ_ORIGIN}/hq/proposals`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(ผู้สนใจ); await settle(page);
+    };
+    await ถ่าย(page, "HQ-แถวใบร่างใบค่าแฟรนไชส์", ค้น);
+    await ถ่าย(page, "HQ-แผงใบร่างใบค่าแฟรนไชส์", async () => {
+      await ค้น(); await page.getByRole("row", { name: new RegExp(เลขใบค่าแฟรนไชส์) }).locator("td").first().click(); await settle(page);
+    });
+  });
+});

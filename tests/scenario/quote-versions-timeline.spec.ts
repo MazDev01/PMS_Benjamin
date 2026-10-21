@@ -1,7 +1,8 @@
 // ── ใบเสนอราคาเก็บเป็นเวอร์ชัน + ทุกการกระทำลงไทม์ไลน์ (บอสสั่ง 21 ส.ค. 69) ──────
 //
 // สามเรื่องที่ต้องจริง:
-//   1. ใบที่ส่งให้ลูกค้าแล้ว พอแก้ → ขึ้นเป็นฉบับใหม่ V2 (ใบร่างแก้กี่รอบก็ยัง V1)
+//   1. ใบร่างแก้กี่รอบก็ยัง V1 · ส่งให้ลูกค้าแล้วล็อกทั้งใบ ไม่มีปุ่มแก้ไข
+//      (เดิม 21 ส.ค. 69: แก้ใบที่ส่งแล้ว → ขึ้น V2 · รอบ 3 บอสสั่ง 20 ต.ค. 69 "ส่งลูกค้าแล้วล็อกทั้งหมด" กันที่ฐาน ใบ 0226)
 //   2. ออกใบ/ส่งใบ/แก้ใบ ต้องไปโผล่ในไทม์ไลน์ของดีล ไม่ใช่หายไปเฉย ๆ
 //   3. ไทม์ไลน์เรียงเก่า→ใหม่ (บนสุดคือเหตุการณ์แรก)
 import { test, expect } from "@playwright/test";
@@ -45,7 +46,7 @@ async function เปิดแท็บใบเสนอราคา(page: impo
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
 }
 
-test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V2 · ทุกขั้นลงไทม์ไลน์ · เรียงเก่าไปใหม่", async ({ page }) => {
+test("[func] ใบร่างแก้แล้วยัง V1 · ส่งแล้วไม่มีปุ่มแก้ไข · ทุกขั้นลงไทม์ไลน์ · เรียงเก่าไปใหม่", async ({ page }) => {
   const sb = await db(RYG);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
@@ -57,6 +58,15 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
     (await sb.from("quotations").select("id,revision,status").eq("customer", COMPANY)).data?.length ?? 0,
     { timeout: 30_000, message: "ต้องมีใบเสนอราคาใน DB" }).toBeGreaterThan(0);
 
+  // ใบร่าง: แก้ % ได้ ยังเป็น V1
+  await page.getByRole("button", { name: "แก้ไข", exact: true }).first().click();
+  await page.locator("[data-editor='hq-markup']").getByLabel("% ที่บวก 1").fill("15");
+  await page.getByRole("button", { name: /^(บันทึก|สร้างใบเสนอราคา)$/ }).last().click();
+  await expect.poll(async () =>
+    (await sb.from("quotations").select("markup_percent, line_items").eq("customer", COMPANY).limit(1).single()).data?.line_items?.[0]?.markupPct,
+    { timeout: 30_000, message: "ใบร่าง: แก้ % ลงฐาน" }).toBe(15);
+  expect((await sb.from("quotations").select("revision").eq("customer", COMPANY).limit(1).single()).data?.revision, "ใบร่างแก้แล้วยัง V1").toBe("V1");
+
   // ส่งให้ลูกค้า — กดแล้วส่งทันที (ไม่มีกล่องถามแนบแม่แบบแล้ว · เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   await page.getByTitle("ส่งใบเสนอราคา").first().click();
   await expect.poll(async () =>
@@ -64,8 +74,7 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
     { timeout: 30_000, message: "ใบต้องถูกส่งจริง" }).toBe("sent_to_client");
 
   // ⚠️ ต้องรอให้ "หน้าจอ" เห็นว่าใบถูกส่งแล้วด้วย ไม่ใช่รอแค่ฐานข้อมูล (เจอเคสวูบ 7 ก.ย. 69)
-  //    การตัดสินว่าแก้แล้วขึ้นฉบับใหม่หรือไม่ ดูจากสถานะใบที่หน้าจอถืออยู่ — ถ้ากดแก้ก่อนหน้าจอรีเฟรช
-  //    ระบบยังเห็นเป็น "ร่าง" จึงแก้ทับใบเดิมโดยไม่ขึ้น V2 (คนใช้จริงไม่ทัน แต่เทสต์กดเร็วกว่านั้นมาก)
+  //    ปุ่มแก้ไขซ่อนตามสถานะใบที่หน้าจอถืออยู่ — ตรวจก่อนหน้าจอรีเฟรชจะยังเห็นปุ่มของใบร่าง
   await expect(page.getByText("ส่งแล้ว").first()).toBeVisible({ timeout: 20_000 });
   // และรอให้ "ร่องรอยการส่ง" ลงไทม์ไลน์จริงก่อนไปขั้นถัดไป — การเขียนกิจกรรมเป็นงานเบื้องหลัง
   //   ถ้าไปกดแก้ทับระหว่างที่ยังเขียนไม่เสร็จ บรรทัดนี้จะหายไปเลย (คนละเรื่องกับที่เทสต์ตั้งใจตรวจ)
@@ -75,15 +84,9 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
     return (l.activities ?? []).map(a => a.text).join(" | ");
   }, { timeout: 30_000, message: "ร่องรอย 'ส่งใบให้ลูกค้า' ต้องลงไทม์ไลน์ก่อน" }).toMatch(/ส่งใบเสนอราคา \S+ \(V1\) ให้ลูกค้า/);
 
-  // แก้ใบที่ส่งไปแล้ว → ต้องขึ้นเป็น V2
-  // ⚠️ getByTitle("แก้ไข") ไปโดนช่องมูลค่าในตาราง ("คลิกเพื่อแก้ไขมูลค่า") — ต้องเจาะจงในแผงใบเสนอราคา
-  await page.getByRole("button", { name: "แก้ไข", exact: true }).first().click();
-  // ด่าน 3: ใบจากใบ HQ แก้ได้เฉพาะ % ที่บวก — เปลี่ยน % = เปลี่ยนราคา → ใบที่ส่งแล้วต้องขึ้นฉบับใหม่
-  await page.locator("[data-editor='hq-markup']").getByLabel("% ที่บวก 1").fill("15");
-  await page.getByRole("button", { name: /^(บันทึก|สร้างใบเสนอราคา)$/ }).last().click();
-  await expect.poll(async () =>
-    (await sb.from("quotations").select("revision").eq("customer", COMPANY).limit(1).single()).data?.revision,
-    { timeout: 30_000, message: "แก้ใบที่ส่งแล้วต้องขึ้นเป็นฉบับ V2" }).toBe("V2");
+  // ส่งแล้ว = ล็อกทั้งใบ: ไม่มีปุ่มแก้ไขในแผงใบเสนอราคา · ยังเป็น V1
+  await expect(page.getByRole("button", { name: "แก้ไข", exact: true }), "ใบที่ส่งแล้วไม่มีปุ่มแก้ไข").toHaveCount(0);
+  expect((await sb.from("quotations").select("revision").eq("customer", COMPANY).limit(1).single()).data?.revision, "ส่งแล้วยัง V1").toBe("V1");
 
   // ไทม์ไลน์: ต้องมีร่องรอยครบ และเรียงเก่า→ใหม่
   // ⚠️ การบันทึกกิจกรรมเป็นการเขียนเบื้องหลัง (ไม่บล็อกหน้าจอ) — ต้องรอให้ลงจริง ไม่ใช่อ่านครั้งเดียวแล้วตัดสิน
@@ -92,8 +95,8 @@ test("[func] ส่งใบแล้วแก้ → ขึ้นฉบับ V
     const l = (await sb.from("leads").select("activities").eq("company", COMPANY).single())
       .data as { activities?: { text: string }[] };
     return (l.activities ?? []).map(a => a.text).join(" | ");
-  }, { timeout: 30_000, message: "ต้องมีร่องรอยครบทั้งออกใบ/ส่งใบ/แก้เป็น V2" })
-    .toMatch(/ออกใบเสนอราคา[\s\S]*ส่งใบเสนอราคา \S+ \(V1\) ให้ลูกค้า[\s\S]*ฉบับ V2/);
+  }, { timeout: 30_000, message: "ต้องมีร่องรอยครบทั้งออกใบ/ส่งใบ" })
+    .toMatch(/ออกใบเสนอราคา[\s\S]*ส่งใบเสนอราคา \S+ \(V1\) ให้ลูกค้า/);
 
   const lead = (await sb.from("leads").select("activities").eq("company", COMPANY).single())
     .data as { activities?: { id: number; text: string; date?: string }[] };
@@ -118,8 +121,8 @@ test("[ui] หน้าใบเสนอราคาแสดงเลขฉบ
     bs.map(b => (b.textContent ?? "").trim()).filter(t => /^V\d+$/.test(t)));
   expect(ฉบับ.length, "ทุกแถวต้องมีป้ายฉบับ (V1/V2/…)").toBeGreaterThan(0);
 
-  // ใบที่เพิ่งแก้ในเทสต์ก่อนหน้าเป็น V2 — ต้องเห็นเลขฉบับที่มากกว่า V1 ได้จริง
-  const มีV2 = await page.locator("tbody tr").filter({ hasText: COMPANY }).first()
+  // ใบของเทสต์ก่อนหน้า (แก้ตอนเป็นใบร่าง แล้วส่ง) ต้องโชว์ V1 — ส่งแล้วแก้ไม่ได้ จึงไม่มีฉบับใหม่ (รอบ 3 · ใบ 0226)
+  const ฉบับใบนี้ = await page.locator("tbody tr").filter({ hasText: COMPANY }).first()
     .locator(".badge").filter({ hasText: /^V\d+$/ }).first().textContent();
-  expect((มีV2 ?? "").trim(), "ใบที่แก้ไปแล้วต้องโชว์ฉบับล่าสุด").toBe("V2");
+  expect((ฉบับใบนี้ ?? "").trim(), "ใบนี้โชว์ฉบับ V1").toBe("V1");
 });

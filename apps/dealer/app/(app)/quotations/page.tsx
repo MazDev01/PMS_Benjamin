@@ -527,7 +527,9 @@ function QuotationsPageInner(){
   // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว (บอสสั่งลบ Flow เก่า 16 ต.ค. 69) — ไม่มีปุ่มแก้/ส่ง/ลบ/เปลี่ยนสถานะ
   // ใบที่ลูกค้าตอบรับแล้ว = ยอดขายที่ปิดแล้ว ไม่มีแก้ไข/ลบ (บอสตัดสิน 19 ต.ค. 69 · ฐานกันลบไว้แล้ว ใบ 0203)
   const แก้ได้=(q:QuotationMock)=>!!q.hqQuoteId&&q.status!=="won";
-  function openEdit(q:QuotationMock){ if(!แก้ได้(q)) return; setEditingQ(q); setShowModal(true); }
+  // แก้เนื้อหาใบ (ลูกค้า โครงการ จังหวัด พื้นที่ %) ได้เฉพาะใบร่าง — ส่งให้ลูกค้าแล้วล็อกทั้งใบ (รอบ 3 · บอสสั่ง 20 ต.ค. 69 · กันที่ฐาน ใบ 0226)
+  const แก้เนื้อหาได้=(q:QuotationMock)=>แก้ได้(q)&&q.status==="draft";
+  function openEdit(q:QuotationMock){ if(!แก้เนื้อหาได้(q)) return; setEditingQ(q); setShowModal(true); }
 
   async function saveQ(form:QForm){
     if (savingQRef.current) return; // กันกดซ้ำระหว่างรอเลขที่ใบจาก DB (H8)
@@ -856,9 +858,9 @@ function QuotationsPageInner(){
                             <button onClick={()=>printQuotation(q)} title="พิมพ์ใบเสนอราคา"
                               style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Printer size={13}/></button>
                             {/* ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีแก้/ลบ */}
+                            {แก้เนื้อหาได้(q)&&<button onClick={()=>openEdit(q)} title="แก้ไข"
+                              style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Edit2 size={13}/></button>}
                             {แก้ได้(q)&&<>
-                            <button onClick={()=>openEdit(q)} title="แก้ไข"
-                              style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Edit2 size={13}/></button>
                             {/* ลบได้จากรายการเลย ไม่ต้องเปิดแผงรายละเอียดก่อน — ยังถามยืนยันเหมือนเดิม */}
                             <button onClick={()=>setDelTarget(q)} title="ลบใบเสนอราคา"
                               style={{width:28,height:28,borderRadius:7,border:"1px solid #f3c9c9",background:"#fff",color:"#dc2626",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Trash2 size={13}/></button>
@@ -925,9 +927,9 @@ function QuotationsPageInner(){
                         )}
                         <button onClick={()=>printQuotation(q)} title="พิมพ์ใบเสนอราคา" className="btn btn-secondary btn-sm"
                           style={{color:PRIMARY,padding:"4px 8px",fontSize:"0.65rem"}}><Printer size={11}/></button>
+                        {แก้เนื้อหาได้(q)&&<button onClick={()=>openEdit(q)} className="btn btn-secondary btn-sm"
+                          style={{color:PRIMARY,padding:"4px 9px",fontSize:"0.65rem"}}>แก้ไข</button>}
                         {แก้ได้(q)&&<>
-                        <button onClick={()=>openEdit(q)} className="btn btn-secondary btn-sm"
-                          style={{color:PRIMARY,padding:"4px 9px",fontSize:"0.65rem"}}>แก้ไข</button>
                         <button onClick={()=>setDelTarget(q)} title="ลบใบเสนอราคา" className="btn btn-secondary btn-sm"
                           style={{color:"#dc2626",borderColor:"#f3c9c9",padding:"4px 8px",fontSize:"0.65rem"}}><Trash2 size={11}/></button>
                         </>}
@@ -993,7 +995,8 @@ function QuotationsPageInner(){
                   <button title={dealerCfg.loaded ? "พิมพ์ / ดาวน์โหลด PDF" : "กำลังโหลดข้อมูลบริษัท…"}
                     disabled={!dealerCfg.loaded} onClick={()=>printQuotation(selected)}
                     style={{...qa, ...(dealerCfg.loaded ? {} : { opacity: .55, cursor: "wait" })}}><Printer size={13}/> พิมพ์ PDF</button>
-                  {แก้ได้(selected) && <button title="แก้ไข" onClick={()=>openEdit(selected)} style={qa}><Edit2 size={13}/> แก้ไข</button>}
+                  {แก้เนื้อหาได้(selected) && <button title="แก้ไข" onClick={()=>openEdit(selected)} style={qa}><Edit2 size={13}/> แก้ไข</button>}
+                  {แก้ได้(selected) && selected.status!=="draft" && <span data-quote-locked title="ส่งให้ลูกค้าแล้ว แก้ไม่ได้ — ถ้าต้องเปลี่ยนราคา ให้ขอแก้ราคาจากสำนักงานใหญ่แล้วทำใบใหม่" style={{...qa,cursor:"default"}}><Lock size={13}/> ส่งแล้ว แก้ไม่ได้</span>}
                   {แก้ได้(selected) && selected.status==="sent_to_client" && <button title="ส่งอีกครั้ง" onClick={()=>sendAgain(selected)} style={qa}><Send size={13}/> ส่งอีกครั้ง</button>}
                   {selected.customerId ? <button title="ดูลูกค้า" onClick={()=>router.push(`/customers?open=${selected.customerId}`)} style={qa}><ExternalLink size={13}/> ลูกค้า</button> : null}
                   {แก้ได้(selected) && <button title="ลบใบเสนอราคา" onClick={()=>setDelTarget(selected)} style={{...qa,width:30,padding:0,justifyContent:"center",color:"#fecaca"}}><Trash2 size={14}/></button>}
@@ -1206,7 +1209,7 @@ function QuotationsPageInner(){
           customers={customers}
           quoteId={editingQ.id}
           hqQuoteId={editingQ.hqQuoteId}
-          locked={editingQ.status==="won"&&!!editingQ.hqQuoteId}
+          locked={editingQ.status!=="draft"}
           onSave={saveQ} onClose={()=>setShowModal(false)}/>
       )}
 

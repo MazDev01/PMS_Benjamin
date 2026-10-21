@@ -119,7 +119,8 @@ test("[func·hq] ออกใบในฟอร์มเดียว (เลื�
   assertNoErrors(errs, "ออกใบค่าแฟรนไชส์จากหน้ารวม");
 });
 
-test("[func·hq] ปุ่มในแถว: แก้ไขใบร่าง · ลบใบร่าง", async ({ page }) => {
+// รอบ 3 ข้อ 2 (บอสสั่ง 20 ต.ค. 69): แถวใบร่างมีไม่เกิน 2 ปุ่ม (ส่ง · พิมพ์) — ดู/แก้ไข/ลบ ย้ายไปแผงรายละเอียด (กดแถว)
+test("[func·hq] แถวใบร่าง 2 ปุ่ม (ส่ง · พิมพ์) · แก้ไข/ลบใบร่างจากแผงรายละเอียด", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-แก้ลบในแถว`;
@@ -133,18 +134,22 @@ test("[func·hq] ปุ่มในแถว: แก้ไขใบร่าง 
 
   await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
   await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
-  await expect(page.getByRole("row", { name: new RegExp(เลขที่) })).toBeVisible({ timeout: 25_000 });
+  const แถว = page.getByRole("row", { name: new RegExp(เลขที่) });
+  await expect(แถว).toBeVisible({ timeout: 25_000 });
+  const ปุ่มในแถว = แถว.locator("td").last().getByRole("button");
+  await expect(ปุ่มในแถว, "แถวใบร่างมีไม่เกิน 2 ปุ่ม").toHaveCount(2);
+  await expect(แถว.getByRole("button", { name: `ส่งใบ ${เลขที่}` })).toBeVisible();
+  await expect(แถว.getByRole("button", { name: `พิมพ์ใบ ${เลขที่}` })).toBeVisible();
 
-  await page.getByRole("button", { name: `แก้ไขใบ ${เลขที่}` }).click();
+  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
+  await แถว.locator("td").first().click();
+  await แผง.getByRole("button", { name: "แก้ไข", exact: true }).click();
   const ฟอร์ม = page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์", exact: true });
   await expect(ฟอร์ม.locator("#pp-amount"), "ฟอร์มแก้ต้องมีค่าเดิม").toHaveValue("100,000");
   await ฟอร์ม.locator("#pp-amount").fill("120000");
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
   await waitRow(sb, "dealer_package_proposals", { id: ใบId, amount: 120_000 });
-  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
-  await แผง.getByRole("button", { name: "ปิด" }).click();
-
-  await page.getByRole("button", { name: `ลบใบ ${เลขที่}` }).click();
+  await แผง.getByRole("button", { name: "ลบใบร่าง" }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("dealer_package_proposals").select("id").eq("id", ใบId)).data?.length ?? -1,
     { timeout: 15_000 }).toBe(0);
