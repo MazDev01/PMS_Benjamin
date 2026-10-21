@@ -784,7 +784,7 @@ function QuotationsPageInner(){
                       ของจริงต้องการรวม 1284px แต่กรอบมีแค่ 1012px (กรอบกว้างเท่านี้ตายตัว ขยายจอไม่ช่วย)
                       → คอลัมน์ห้ามตัด (เลขที่/มูลค่า/สถานะ/วันที่/ปุ่ม) ให้เต็มตามที่วัดได้ รวมหัวตารางด้วย
                         คอลัมน์ข้อความยาว (ลูกค้า/โครงการ/ประเภท/ผู้รับผิดชอบ) รับส่วนที่เหลือ → "..." + hover ดูเต็ม */}
-                  <col style={{width:"10.7%",minWidth:110}} />{/* เลขที่ — "Q-2026-0096" 110 ห้ามตัด */}
+                  <col style={{width:170}} />{/* เลขที่ — ฉบับใหม่ "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69) · ป้ายฉบับขึ้นบรรทัดล่างได้ */}
                   {/* คอลัมน์ข้อความหดลงรวม 32px เพื่อแลกที่ให้ปุ่ม "ลบ" ที่เพิ่มเข้ามา (13 ส.ค. 69)
                       หดได้เพราะยังกว้างกว่าหัวคอลัมน์ของตัวเอง — ข้อมูลยาวยังตัดด้วย … + hover ดูเต็มเหมือนเดิม */}
                   <col style={{width:"11.8%",minWidth:78}} />{/* ลูกค้า (…) หัว 74 · รับส่วนของคอลัมน์ "ประเภท" ที่ถอดออก 16 ต.ค. 69 */}
@@ -827,8 +827,8 @@ function QuotationsPageInner(){
                         {/* ไอคอนเอกสารหน้าเลขที่เอาออก — ซ้ำกันทุกแถว ไม่ได้บอกอะไร แลกที่ให้คอลัมน์อื่น */}
                         <td>
                           {/* เลขที่ + ฉบับ (บอสสั่ง 21 ส.ค. 69) — ต้องรู้จากตารางเลยว่าใบนี้แก้มากี่รอบแล้ว */}
-                          <span style={{display:"flex",alignItems:"center",gap:6}}>
-                            <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace",whiteSpace:"nowrap"}}>{q.id}</span>
+                          <span style={{display:"flex",alignItems:"center",gap:"2px 6px",flexWrap:"wrap"}}>
+                            <span data-quote-no style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace",whiteSpace:"nowrap"}}>{q.id}</span>
                             <span className="badge" style={{background:"#eef3f8",color:PRIMARY,fontSize:"0.62rem",fontWeight:800}}
                             title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{q.revision ?? "V1"}</span>
                           </span>

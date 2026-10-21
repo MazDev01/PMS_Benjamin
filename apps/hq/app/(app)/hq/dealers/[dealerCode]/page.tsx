@@ -268,7 +268,7 @@ function QuotesTab({ quotes }: { quotes: DealerQuoteItem[] }) {
           {/* ตัดคอลัมน์ "ส่วนลด" ออก (ระบบไม่มีส่วนลดแล้ว) → เกลี่ย % ใหม่ให้ครบ 100
               ตัดคอลัมน์ "แม่แบบ" ออก (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → 16% ยกให้คอลัมน์ "ลูกค้า" */}
           <colgroup>
-            <col style={{ width: "11%" }} />
+            <col style={{ width: 170 }} />{/* เลขที่ — ฉบับใหม่ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69) */}
             <col style={{ width: "46%" }} />
             <col style={{ width: "14%" }} />
             <col style={{ width: "15%" }} />
@@ -289,7 +289,7 @@ function QuotesTab({ quotes }: { quotes: DealerQuoteItem[] }) {
               const st = quotationStatusColor[q.status];
               return (
                 <tr key={q.quoteNo}>
-                  <td style={{ fontSize: "0.72rem", fontWeight: 700, color: "#003366" }}>{q.quoteNo}</td>
+                  <td data-quote-no style={{ fontSize: "0.72rem", fontWeight: 700, color: "#003366", whiteSpace: "nowrap" }}>{q.quoteNo}</td>
                   <td style={{ fontSize: "0.8rem", fontWeight: 600, color: "#2D2D2D" }}>{q.customer}</td>
                   <td className="num" style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(q.valueNum)}</td>
                   <td><span className="badge" style={BADGE(st.bg, st.text)}>{quotationStatusLabel[q.status]}</span></td>

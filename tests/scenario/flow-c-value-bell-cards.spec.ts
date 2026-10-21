@@ -38,7 +38,13 @@ test.beforeAll(async () => {
   const ส่งแล้ว = await ทำใบลูกค้าจากใบHQ(RYG, ก, { customer: มีใบ, markupPercent: 10 });
   const ส่ง = await (await db(RYG)).from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", ส่งแล้ว.id);
   if (ส่ง.error) throw new Error(ส่ง.error.message);
-  await ทำใบลูกค้าจากใบHQ(RYG, ก, { customer: มีใบ, markupPercent: 50 });
+  // ใบร่างที่ตามมาต้องเป็นฉบับใหม่ (V2) ของใบที่ส่งแล้ว — ใบ HQ หนึ่งใบมีใบลูกค้าได้สายเดียว (ใบ 0230 · บอสสั่ง 21 ต.ค. 69)
+  const sbR = await db(RYG);
+  const v2 = await sbR.rpc("quotation_new_version", { p_dealer: "RYG", p_id: ส่งแล้ว.id });
+  if (v2.error) throw new Error(v2.error.message);
+  const แก้ = await sbR.from("quotations").update({ line_items: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitPrice: 0, markupPct: 50 }], markup_percent: 50 })
+    .eq("dealer_code", "RYG").eq("id", (v2.data as { id: string }).id);
+  if (แก้.error) throw new Error(แก้.error.message);
   // [กรณี 1] ลีดมีแค่ใบ HQ (ราคาทุนของดีลเลอร์ 5,000,000) ยังไม่มีใบลูกค้า → "—"
   ข = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: มีแค่ใบHQ, province: "ระยอง", lines: [{ name: "หลังคาชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 5_000_000 }] });
   // ลีดไม่มีใบ แต่มีช่องประเมินราคาเดิม 9,999,999 ค้างในฐาน — ต้องไม่ถูกแสดง/นับ

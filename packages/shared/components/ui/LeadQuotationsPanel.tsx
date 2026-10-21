@@ -613,7 +613,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
                       ...(ทำฉบับใหม่ได้(q) ? [{ ic: <CopyPlus size={13} />, t: "ทำฉบับใหม่", fn: () => void ทำฉบับใหม่(q) }] : []),
                       { ic: <Printer size={13} />, t: "พิมพ์", fn: () => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg) },
                       // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีทำสำเนา/ลบ (บอสสั่งเก็บไว้เป็นประวัติ 16 ต.ค. 69)
-                      ...(แก้ได้(q) ? [
+                      // ทำสำเนาได้เฉพาะใบร่าง — ใบที่ส่งแล้ว/ถูกแทนที่/ตอบรับแล้ว ลูกค้าต่อรองให้ทำฉบับใหม่ (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0230)
+                      ...(ลบได้(q) ? [
                         { ic: <Copy size={13} />, t: "ทำสำเนา", fn: () => duplicate(q) },
                       ] : []),
                       ...(ลบได้(q) ? [{ ic: <Trash2 size={13} />, t: "ลบ", fn: () => setConfirmDel(q.id), danger: true }] : []),

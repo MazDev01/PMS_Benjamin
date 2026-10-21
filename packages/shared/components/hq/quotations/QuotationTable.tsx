@@ -33,7 +33,7 @@ export function QuotationTable({ rows, onView, pagination }: {
               จอแคบกว่านั้น (1280/1366) เลื่อนแนวนอนใน .table-wrap — 11 คอลัมน์ยังไงก็ไม่พอ
               เพิ่ม/ลบคอลัมน์เมื่อไร ต้องมาวัดใหม่และแก้ colgroup ด้วยเสมอ */}
           <colgroup>
-            <col style={{ width: "10%", minWidth: 120 }} />{/* เลขที่ — "Q-2026-0089" ต้องการ 111px */}
+            <col style={{ width: 170 }} />{/* เลขที่ — ฉบับใหม่ "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69) · ตารางแบบตายตัวไม่สน minWidth ของ col จึงใช้ px */}
             <col style={{ width: 96 }} />{/* รหัส — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
             <col style={{ width: "9%", minWidth: 88 }} />{/* ดีลเลอร์ — ชื่อยาวตัด … ได้ */}
             <col style={{ width: "19%", minWidth: 120 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ (รับความกว้างของคอลัมน์ประเภทอาคารที่ลบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
@@ -69,7 +69,7 @@ export function QuotationTable({ rows, onView, pagination }: {
               // ตารางนี้รวมใบของทุกสาขา เลขเดียวกันจากคนละสาขาจึงชนกันได้ (กับดักเดียวกับหน้าลูกค้าเป้าหมาย 7 ส.ค. 69)
               return (
                 <ClickableRow key={`${q.dealerCode ?? ""}-${q.id}`} onActivate={() => onView(q)} label={`เปิดรายละเอียดใบเสนอราคา ${q.quoteNo}`}>
-                  <td style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
+                  <td data-quote-no style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
                   <td data-col="code" style={{ overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>
                     <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{q.dealerCode}</span>
                   </td>

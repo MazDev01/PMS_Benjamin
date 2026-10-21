@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { RYG, skipReason } from "./supabaseEnv";
+import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
-import { db, DEALER_ORIGIN, loginUI } from "./funcHelpers";
+import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
@@ -133,6 +133,15 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
   expect((await ใบ_(เลขใบ))?.status, "V2 ยังร่าง ใบเดิมยังส่งแล้ว").toBe("sent_to_client");
   expect(await มูลค่าลีด(), "V2 ยังร่าง มูลค่าลีดยังเป็นยอด V1").toBe(2950);
 
+  // แผงลีด: ทำสำเนาได้เฉพาะใบร่าง (V2 ร่าง) — V1 ที่ส่งแล้วไม่มีปุ่มทำสำเนา (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0230)
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ลูกค้า);
+  await page.locator("tbody tr").filter({ hasText: ลูกค้า }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await expect(page.getByRole("button", { name: "ทำฉบับใหม่" }).first(), "แผงลีด: V1 ที่ส่งแล้วมีปุ่มทำฉบับใหม่").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "ทำสำเนา" }), "แผงลีด: ทำสำเนามีเฉพาะใบร่าง (V2) ใบเดียว").toHaveCount(1);
+
   // ส่ง V2 → V1 ถูกแทนที่ · มูลค่าลีด = ยอด V2
   await เปิดรายการ();
   await แถวV2().getByTitle("ส่งให้ลูกค้า").click();
@@ -166,4 +175,40 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
     { timeout: 30_000, message: "ลีดปิดการขายสำเร็จ" }).toBe("PAID");
   expect(await มูลค่าลีด(), "มูลค่าลีด = ยอด V2").toBe(3150);
   expect((await ใบ_(เลขใบ))?.status, "V1 ยังถูกแทนที่").toBe("superseded");
+});
+
+// ── รอบ 3 (บอสสั่ง 21 ต.ค. 69): เลขที่ V1 กับ V2 ต้องแสดงเต็ม ไม่เหมือนกัน ทุกตารางทั้งสองฝั่ง ─────────────────────────
+//   ดีลเลอร์: หน้าใบเสนอราคา · HQ: ใบเสนอราคาทั้งเครือ + แท็บใบเสนอราคาในหน้าดีลเลอร์
+//   "เต็ม" = ตัวอักษรไม่ถูกตัด (ความกว้างเนื้อหาไม่เกินช่อง) · ใช้ใบของข้อก่อนหน้า (V1 ถูกแทนที่ · V2 ตอบรับแล้ว)
+async function เลขที่ในตาราง(page: import("@playwright/test").Page, คำ: string) {
+  const แถว = page.locator("tbody tr").filter({ hasText: คำ });
+  await expect(แถว, `ต้องเห็นทั้ง V1 และ V2 (${คำ})`).toHaveCount(2, { timeout: 20_000 });
+  return แถว.locator("[data-quote-no]").evaluateAll(els => els.map(el => {
+    const td = el.closest("td")!;
+    return { text: (el.textContent ?? "").trim(), ตัด: el.scrollWidth > el.clientWidth + 1 || el.getBoundingClientRect().right > td.getBoundingClientRect().right + 1 };
+  }));
+}
+test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสดงเต็ม ไม่เหมือนกัน — ตารางดีลเลอร์และ HQ", async ({ page, browser }) => {
+  const คาด = [เลขใบ, `${เลขใบ}-V2`].sort();
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
+  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
+  const ดีลเลอร์ = await เลขที่ในตาราง(page, เลขใบ);
+  expect(ดีลเลอร์.map(x => x.text).sort(), "ดีลเลอร์: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
+  expect(ดีลเลอร์.filter(x => x.ตัด), "ดีลเลอร์: เลขที่ไม่ถูกตัด").toEqual([]);
+
+  const ctx = await browser.newContext(); const hq = await ctx.newPage();
+  await loginUI(hq, HQ_ORIGIN, "/hq/login", ADMIN);
+  await hq.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" }); await settle(hq);
+  await hq.getByPlaceholder(/ค้นหาเลขที่/).fill(เลขใบ);
+  const ทั้งเครือ = await เลขที่ในตาราง(hq, เลขใบ);
+  expect(ทั้งเครือ.map(x => x.text).sort(), "HQ ทั้งเครือ: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
+  expect(ทั้งเครือ.filter(x => x.ตัด), "HQ ทั้งเครือ: เลขที่ไม่ถูกตัด").toEqual([]);
+
+  await hq.goto(`${HQ_ORIGIN}/hq/dealers/RYG`, { waitUntil: "domcontentloaded" }); await settle(hq);
+  await hq.locator("button.tab-item").filter({ hasText: /^ใบเสนอ\s*\d*$/ }).first().click();
+  const หน้าดีลเลอร์ = await เลขที่ในตาราง(hq, เลขใบ);
+  expect(หน้าดีลเลอร์.map(x => x.text).sort(), "HQ หน้าดีลเลอร์: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
+  expect(หน้าดีลเลอร์.filter(x => x.ตัด), "HQ หน้าดีลเลอร์: เลขที่ไม่ถูกตัด").toEqual([]);
+  await ctx.close();
 });
