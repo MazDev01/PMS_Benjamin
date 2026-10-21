@@ -117,7 +117,8 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
 
   await test.step("3 ดีลเลอร์ทำใบลูกค้าจากใบ HQ (บวก 20%)", async () => {
     await เปิดแท็บใบเสนอราคาของลีด(d);
-    await d.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ/ }).click({ timeout: 30_000 });
+    // ปุ่มทำใบอยู่ที่แถบขั้นต่อไปที่เดียว ชื่อ "ทำใบให้ลูกค้า" (ช่วง ก2 · 19 ต.ค. 69 · ทดสอบในเครื่องที่ flow-a2-hq-quoted.spec.ts)
+    await d.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).click({ timeout: 30_000 });
     const ตาราง = d.locator("[data-editor='hq-markup']");
     await expect(ตาราง).toBeVisible({ timeout: 20_000 });
     await ตาราง.getByLabel("% ที่บวก 1").fill("20");
@@ -180,6 +181,8 @@ test("[live] /recover และ /otp ถูก Send Email Hook ปฏิเส�
 // ── บัญชีดีลเลอร์ทุกบัญชีเข้าระบบด้วยโดเมนของบริษัท (บอสสั่ง 19 ต.ค. 69) ──
 //   โดเมนเดิมยังไม่มีใครจด — เหลือแม้บัญชีเดียว = คนจดโดเมนนั้นรับลิงก์รีเซ็ตรหัสได้ถ้า Send Email Hook ถูกปิด
 test(`[live] บัญชีดีลเลอร์ทุกบัญชีใช้โดเมน ${LOGIN_DOMAIN} · ไม่มีโดเมนอื่น`, async () => {
+  // ตรวจข้อมูลบัญชีของฐานจริง — ฐานทดสอบในเครื่องใช้บัญชีทดสอบชุดเดิม (supabase/seed.mjs · tests/.env.test) ไม่ได้ย้ายโดเมน
+  test.skip(process.env.LIVE_TARGET !== "prod", "ตรวจข้อมูลบัญชีของฐานจริงเท่านั้น");
   const users: { id: string; email?: string }[] = [];
   for (let page = 1; ; page++) {
     const { data, error } = await svc.auth.admin.listUsers({ page, perPage: 1000 });

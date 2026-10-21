@@ -58,7 +58,7 @@ if (phase === "setup") {
 if (phase === "test") {
   const st = JSON.parse(readFileSync(STATE, "utf8"));
   const r = spawnSync("npx", ["playwright", "test", "-c", "tests/prod-live/playwright.config.ts", "--reporter=line"], {
-    stdio: "inherit", shell: true, env: { ...process.env,
+    stdio: "inherit", shell: true, env: { ...process.env, LIVE_TARGET: target,
       LIVE_HQ_URL: WEB.hq, LIVE_DEALER_URL: WEB.dealer, LIVE_PASSWORD: st.password,
       LIVE_HQ_EMAIL: st.users.find(u => u.role === "SUPER_ADMIN").email, LIVE_DEALER_EMAIL: st.users.find(u => u.role === "DEALER_ADMIN").email,
       LIVE_DEALER_CODE: st.code, LIVE_COMPANY: st.company, LIVE_LEAD_NUM: String(st.leadNum),

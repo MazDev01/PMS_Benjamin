@@ -7,7 +7,10 @@
 //      npm run test:prodbuild -- tests/scenario/ui.spec.ts     (เจาะไฟล์เดียว)
 //      SKIP_BUILD=1 npm run test:prodbuild                      (ใช้ของที่ build ไว้แล้ว)
 import { spawn, spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import net from "node:net";
+import os from "node:os";
+import path from "node:path";
 
 const MODE = process.env.NEXT_PUBLIC_DATA_SOURCE ?? "api";   // ค่าตั้งต้น = โหมดเดียวกับเว็บจริง
 // รหัสรอบเดียวให้ทุกช่วง — หลักฐานข้อที่ตกของรอบนี้อยู่โฟลเดอร์เดียวกัน (playwright.config.ts)
@@ -101,6 +104,35 @@ if (!เป็นรอบเต็ม) {
   const code = await รัน(อาร์กิวเมนต์);
   ปิดทั้งหมด(); process.exit(code);
 }
+// ── ช่วงสุดท้าย: ชุด prod-live กับระบบในเครื่อง (บอสสั่ง 20 ต.ค. 69 · รอบ 3 ข้อแรก) ─────────────────────────────
+//   เหตุ: ช่วง ก2 เปลี่ยนปุ่ม "ทำใบเสนอราคาจากใบ HQ" เป็น "ทำใบให้ลูกค้า" — ข้อทดสอบในเครื่องตามไปแล้ว แต่ชุด prod-live ไม่ได้ตาม
+//         ไปตกบนเว็บจริงหลังขึ้นระบบ · ต่อจากนี้ prod-live ล้าหลังหน้าเว็บเมื่อไร รอบปิดด่านในเครื่องต้องตกก่อน
+//   ใช้สาขา/บัญชีชั่วคราวชุดเดียวกับเว็บจริง (run.mjs --target local · สาขา ZZT) แล้วล้างด้วย cleanup.sql ตัวเดียวกันเสมอ
+//   ข้อที่ต้องมีของระบบจริงเท่านั้น (Send Email Hook ฯลฯ) ข้ามในเครื่องพร้อมเหตุผลในตัวข้อ
+const รันprodLive = async () => {
+  console.log("▶ ช่วง prod-live (ชุดเดียวกับเว็บจริง · รันกับระบบในเครื่อง)");
+  const สถานะ = path.join(os.tmpdir(), `pms-live-local-${PMS_RUN_ID}`);
+  mkdirSync(สถานะ, { recursive: true });
+  const ขั้น = (phase) => spawnSync("node", ["tests/prod-live/run.mjs", "--target", "local", phase],
+    { stdio: "inherit", env: { ...env, LIVE_STATE_DIR: สถานะ } }).status ?? 1;
+  let code = 0;
+  try {
+    code = ขั้น("setup");
+    if (code === 0) code = ขั้น("test");
+  } finally {
+    ขั้น("files");
+    const ล้าง = spawnSync("docker", ["exec", "-i", "supabase_db_pms-dbcheck", "psql", "-U", "postgres", "-d", "postgres", "-X", "-q", "-v", "ON_ERROR_STOP=1"],
+      { input: readFileSync("tests/prod-live/cleanup.sql", "utf8"), encoding: "utf8" });
+    if (ล้าง.status !== 0) { console.error(`✗ ล้างข้อมูล prod-live ในเครื่องไม่สำเร็จ: ${ล้าง.stderr}`); code = code || 1; }
+    rmSync(สถานะ, { recursive: true, force: true });
+  }
+  if (code !== 0) console.error("✗ ช่วง prod-live ตก — ชุดทดสอบของเว็บจริงล้าหลังหน้าเว็บ หรือ flow บนเว็บพัง (แก้ก่อนขึ้นระบบจริง)");
+  return code;
+};
+if (process.env.PMS_GATE_ONLY_LIVE === "1") {   // เจาะช่วง prod-live อย่างเดียว (ใช้ตอนแก้ชุด prod-live)
+  const code = await รันprodLive();
+  ปิดทั้งหมด(); process.exit(code);
+}
 const ช่วง = ["chromium", "hq-settings", "safari", "stress"];
 const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json";
 const รายงาน = [];
@@ -112,6 +144,7 @@ for (const โปรเจกต์ of ช่วง) {
   const code = await รัน([`--project=${โปรเจกต์}`, รีพอร์ตเตอร์], { PLAYWRIGHT_JSON_OUTPUT_NAME: ไฟล์รายงาน, PMS_RUN_STAGE: โปรเจกต์ });
   if (code !== 0) ตก = code;
 }
+{ const code = await รันprodLive(); if (code !== 0) ตก = code; }
 ปิดทั้งหมด();
 console.log(`▶ หลักฐานข้อที่ตก (trace + ภาพหน้าจอ): node_modules/.cache/playwright-results/${PMS_RUN_ID}`);
 console.log("▶ ตัวตรวจรอบปิดด่าน: ทุกข้อต้องได้รันจริง");
