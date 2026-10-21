@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FilePlus, Eye, Pencil, Printer, Copy, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, AlertTriangle } from "lucide-react";
+import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, AlertTriangle } from "lucide-react";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
   quotationStatusLabel, quotationStatusColor, fmtISOToThai,
@@ -51,9 +51,10 @@ type LeadQuotationsPanelProps =
   | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined };
 
 export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal }: LeadQuotationsPanelProps) {
-  const { quotations, createQuotation, updateQuotation, deleteQuotation } = useSales();
+  const { quotations, createQuotation, updateQuotation, deleteQuotation, newQuotationVersion } = useSales();
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
   const [editing, setEditing] = useState<QuotationMock | null>(null);
+  const ฉบับใหม่ = !!editing?.supersedesId;   // ฉบับใหม่ (V2 …): ลูกค้า โครงการ ภาษี คัดลอกจากใบเดิม แก้ไม่ได้ (0228)
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const savingRef = useRef(false); // กันกดออกใบซ้ำระหว่างรอเลขที่ใบจาก DB (H8 · guard synchronous)
   const [saving, setSaving] = useState(false); // ไว้ disable ปุ่ม (visual)
@@ -155,7 +156,19 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
   // ใบเดิม (ไม่มีใบ HQ) = ดูได้อย่างเดียว · แท็บของลูกค้า = ดูอย่างเดียวทั้งหมด
   // ใบที่ลูกค้าตอบรับแล้ว = ยอดขายที่ปิดแล้ว: ไม่มีแก้ไข / ลบ / ทำสำเนา (บอสตัดสิน 19 ต.ค. 69)
   //   ทำสำเนาใบ won ไม่ได้ใบร่างใหม่จริง — ใบ HQ ของใบนั้นเป็น "สั่งผลิต" แล้ว ฐานปฏิเสธ (hq_quote_required) · ข้อทดสอบ flow-a-safety.spec.ts
-  const แก้ได้ = (q: QuotationMock) => !readOnly && !!q.hqQuoteId && q.status !== "won";
+  const แก้ได้ = (q: QuotationMock) => !readOnly && !!q.hqQuoteId && q.status !== "won" && q.status !== "superseded";
+  // ลบได้เฉพาะใบร่าง (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0228) · ใบที่ส่งแล้ว ลูกค้าต่อรอง → ทำฉบับใหม่ (ใบร่าง V2 จากใบเดิม)
+  const ลบได้ = (q: QuotationMock) => แก้ได้(q) && q.status === "draft";
+  const ทำฉบับใหม่ได้ = (q: QuotationMock) => แก้ได้(q) && q.status === "sent_to_client";
+  async function ทำฉบับใหม่(q: QuotationMock) {
+    try {
+      const ใหม่ = await newQuotationVersion(q);
+      openEdit(ใหม่);
+      onToast?.(`ทำฉบับใหม่ ${ใหม่.id} (${ใหม่.revision ?? ""}) แล้ว — แก้ % แล้วส่งให้ลูกค้า ใบเดิมจะเป็น "ถูกแทนที่"`);
+    } catch (e) {
+      onToast?.(e instanceof Error ? e.message : String(e));
+    }
+  }
   // แก้เนื้อหาใบ (ลูกค้า โครงการ จังหวัด พื้นที่ %) ได้เฉพาะใบร่าง — ส่งแล้วเปลี่ยนสถานะ/ส่งอีกครั้งได้ แต่แก้ไม่ได้
   const แก้เนื้อหาได้ = (q: QuotationMock) => แก้ได้(q) && q.status === "draft";
   function openCreate() {
@@ -165,7 +178,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
       return;
     }
     if (ใบที่ส่งแล้วของใบHQนี้) {
-      onToast?.(`ใบ ${ใบที่ส่งแล้วของใบHQนี้.id} ส่งให้ลูกค้าแล้ว แก้ไม่ได้ — ถ้าต้องเปลี่ยนราคา ให้ขอแก้ราคาจากสำนักงานใหญ่`);
+      onToast?.(`ใบ ${ใบที่ส่งแล้วของใบHQนี้.id} ส่งให้ลูกค้าแล้ว แก้ทับไม่ได้ — ลูกค้าต่อรองให้กด "ทำฉบับใหม่" ที่ใบนั้น`);
       return;
     }
     if (!REAL_BACKEND) { onToast?.("ข้อมูลตัวอย่างไม่มีขั้นขอราคาจากสำนักงานใหญ่ — ออกใบเสนอราคาได้ในระบบจริงเท่านั้น"); return; }
@@ -266,7 +279,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     savingRef.current = true; setSaving(true);
     try {
       // ทำสำเนา = ออกใบใหม่แบบ atomic (ไม่พก id เดิม — DB ออกเลขใหม่ให้)
-      const { id: _drop, ...rest } = q;
+      const { id: _drop, supersedesId: _ฉบับเดิม, ...rest } = q;   // สำเนา = ใบใหม่ฉบับแรก ไม่ผูกฉบับเดิม
       await createQuotation({ ...rest, status: "draft", revision: "V1", date: MOCK_TODAY });
       onToast?.("ทำสำเนาใบเสนอราคาแล้ว");
     } finally { savingRef.current = false; setSaving(false); }
@@ -342,7 +355,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
         <div style={secLabel}><FileText size={12} color="#003366" /> รายการใบเสนอราคา</div>
         <div style={{ marginBottom: 14 }}>
           <label style={lbl}>ชื่อโครงการ / เอกสาร</label>
-          <input value={form.project} onChange={e => set("project", e.target.value)} style={inp} placeholder="เช่น โกดังเก็บสินค้าเกษตร — บจ. ..." />
+          <input value={form.project} onChange={e => set("project", e.target.value)} readOnly={ฉบับใหม่} style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} placeholder="เช่น โกดังเก็บสินค้าเกษตร — บจ. ..." />
+          {ฉบับใหม่ && <div data-version-copied style={{ fontSize: "0.68rem", color: "#6b7280", marginTop: 4 }}>ฉบับใหม่: ลูกค้า โครงการ จังหวัด พื้นที่ และภาษี คัดลอกจากใบเดิม แก้ไม่ได้ — แก้ได้เฉพาะ % ที่บวก</div>}
         </div>
         {ใบHQของฟอร์ม ? (
           <>
@@ -388,13 +402,13 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
             return (
               <label key={t.on} style={{ flex: "1 1 240px", display: "flex", alignItems: "center", gap: 9, padding: "10px 12px",
                 border: `1px solid ${เปิด ? "#003366" : "#e5e7eb"}`, borderRadius: 10, background: เปิด ? "#f4f8fc" : "#fff", cursor: "pointer" }}>
-                <input type="checkbox" checked={เปิด} onChange={e => set(t.on, e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                <input type="checkbox" checked={เปิด} disabled={ฉบับใหม่} onChange={e => set(t.on, e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} />
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#2D2D2D" }}>{t.ป้าย}</span>
                   <span style={{ display: "block", fontSize: "0.62rem", color: "#8a929c" }}>{t.ท้าย}</span>
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <input type="text" inputMode="decimal" aria-label={`อัตรา${t.ป้าย}`} disabled={!เปิด}
+                  <input type="text" inputMode="decimal" aria-label={`อัตรา${t.ป้าย}`} disabled={!เปิด || ฉบับใหม่}
                     value={form[t.pct] as string}
                     onChange={e => set(t.pct, e.target.value.replace(/[^0-9.]/g, ""))}
                     onClick={e => e.stopPropagation()}
@@ -542,6 +556,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
           <button onClick={() => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
           {แก้เนื้อหาได้(q) && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
+          {ทำฉบับใหม่ได้(q) && <button onClick={() => void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><CopyPlus size={13} /> ทำฉบับใหม่</button>}
           {แก้ได้(q) && (q.status === "draft" || q.status === "sent_to_client") && (
             <button onClick={() => { sendQuote(q); setMode("list"); }} className="btn btn-primary btn-sm">
               <Send size={13} /> {q.status === "draft" ? "ส่งใบเสนอราคา" : "ส่งอีกครั้ง"}
@@ -595,12 +610,13 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
                     {([
                       { ic: <Eye size={13} />, t: "ดู", fn: () => { setEditing(q); setMode("view"); } },
                       ...(แก้เนื้อหาได้(q) ? [{ ic: <Pencil size={13} />, t: "แก้ไข", fn: () => openEdit(q) }] : []),
+                      ...(ทำฉบับใหม่ได้(q) ? [{ ic: <CopyPlus size={13} />, t: "ทำฉบับใหม่", fn: () => void ทำฉบับใหม่(q) }] : []),
                       { ic: <Printer size={13} />, t: "พิมพ์", fn: () => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg) },
                       // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีทำสำเนา/ลบ (บอสสั่งเก็บไว้เป็นประวัติ 16 ต.ค. 69)
                       ...(แก้ได้(q) ? [
                         { ic: <Copy size={13} />, t: "ทำสำเนา", fn: () => duplicate(q) },
-                        { ic: <Trash2 size={13} />, t: "ลบ", fn: () => setConfirmDel(q.id), danger: true },
                       ] : []),
+                      ...(ลบได้(q) ? [{ ic: <Trash2 size={13} />, t: "ลบ", fn: () => setConfirmDel(q.id), danger: true }] : []),
                     ] as { ic: React.ReactNode; t: string; fn: () => void; danger?: boolean }[]).map((b, i) => (
                       <button key={i} onClick={b.fn} title={b.t} aria-label={b.t}
                         style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #e5e7eb", background: "#fff",

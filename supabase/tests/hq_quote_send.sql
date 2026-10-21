@@ -1,7 +1,7 @@
 -- ── ด่าน 2: ขั้น 5–6 · ตารางสถานะแถว "HQ ส่งใบ" · กฎ "ใบ HQ ที่ส่งแล้วแก้ไม่ได้" (FLOW.html) ─────────────────────
 --   ขั้น 5  ทำ BOQ — ใช้ราคาแม่แบบที่ HQ เห็นคนเดียว
 --   ขั้น 6  ส่งใบ HQ ให้ดีลเลอร์ — ล็อกเวอร์ชัน · หยุดนับ 14 วัน
---   แถว "HQ ส่งใบ": คำขอ → ส่งใบแล้ว · Lead คงเดิม (+ ป้าย "ได้ราคาแล้ว" ที่หน้าจอ) · อีเมลถึงดีลเลอร์
+--   แถว "HQ ส่งใบ": คำขอ → ส่งใบแล้ว · ลีดเป็น "ได้ราคา HQ" (ใบ 0219 · เดิมคงเดิม) · อีเมลถึงดีลเลอร์
 --   กฎ: ใบ HQ ที่ส่งแล้วแก้ไม่ได้ ต้องออกเวอร์ชันใหม่ · ใบลูกค้าเดิมยังผูกกับเวอร์ชันที่ใช้
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/hq_quote_send.sql
 -- ทุกอย่างอยู่ในทรานแซกชันเดียวแล้ว rollback ท้ายไฟล์ · ผ่าน = "ALL PASS"
@@ -77,7 +77,7 @@ begin
   select status into st from quote_requests where id = r.id;
   perform flowtest.ok(h.status = 'sent' and st = 'quoted', 'แถว HQ ส่งใบ: ใบ HQ = ส่งแล้ว · คำขอ = ส่งใบแล้ว');
   select status into st from leads where dealer_code = 'CNX' and num_id = c.lead_ids[1];
-  perform flowtest.ok(st = 'HQ_PRICING', 'แถว HQ ส่งใบ: ลูกค้าเป้าหมายคงเดิม (รอราคา HQ) จนกว่าดีลเลอร์ส่งใบให้ลูกค้า — ได้ ' || st);
+  perform flowtest.ok(st = 'HQ_QUOTED', 'แถว HQ ส่งใบ: ลีดเป็นได้ราคา HQ (ใบ 0219) — ได้ ' || st);
 
   select count(*), max(o.body) into n, mailbody from email_outbox o where kind = 'hq_quote_sent' and ref_id = r.id::text and to_email = 'zz-cnx-contact@example.test';
   perform flowtest.ok(n = 1, 'แถว HQ ส่งใบ: อีเมลถึงดีลเลอร์ที่ยืนยันอีเมลติดต่อแล้ว 1 ฉบับ (ได้ ' || n || ')');

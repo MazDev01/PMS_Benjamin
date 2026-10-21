@@ -87,6 +87,8 @@ export type SalesContextType = {
   ensureQuotations: () => Promise<QuotationMock[]>;
   /** สร้างใบใหม่ = ออกเลข + insert แบบ atomic (H8) · รับ draft ที่ยังไม่มี id · คืนใบที่บันทึกจริง */
   createQuotation: (draft: Omit<QuotationMock, "id">) => Promise<QuotationMock>;
+  /** ทำฉบับใหม่ (V2 …) จากใบที่ส่งให้ลูกค้าแล้ว — คืนใบร่างฉบับใหม่ (มีอยู่แล้ว = ใบเดิมนั้น) · รอบ 3 ใบ 0228 */
+  newQuotationVersion: (quotation: QuotationMock) => Promise<QuotationMock>;
   /** แก้ใบเสนอราคา (รวมส่งให้ลูกค้า) */
   updateQuotation: (quotation: QuotationMock) => void;
   deleteQuotation: (id: string) => void;
@@ -744,6 +746,19 @@ export function SalesProvider({
     if (before) logLeadActivity(after.dealId, `แก้ไขรายละเอียดใบเสนอราคา ${after.id}`, "doc");
   }, [logLeadActivity]);
 
+  // ส่งฉบับใหม่ให้ลูกค้าแล้ว ฐานเปลี่ยนใบเดิมเป็น "ถูกแทนที่" เอง (0228) — จอตามให้ทันโดยไม่ต้องโหลดใหม่
+  const แทนที่ใบเดิมบนจอ = useCallback((q: Pick<QuotationMock, "supersedesId" | "status">) => {
+    if (!q.supersedesId || q.status !== "sent_to_client") return;
+    setQuotations(prev => prev.map(x => x.id === q.supersedesId && x.status === "sent_to_client" ? { ...x, status: "superseded" } : x));
+  }, []);
+
+  const newQuotationVersion = useCallback(async (q: QuotationMock): Promise<QuotationMock> => {
+    const created = await quotationsRepo.newVersion(q.dealerCode ?? myDealerCode, q.id);
+    bumpWrite(); // ออกใบผ่าน RPC — กันผลโหลดเก่าทับใบที่เพิ่งสร้าง
+    setQuotations(prev => prev.some(x => x.id === created.id) ? prev.map(x => x.id === created.id ? created : x) : [created, ...prev]);
+    return created;
+  }, [myDealerCode, bumpWrite]);
+
   const updateQuotation = useCallback((ที่แก้มา: QuotationMock) => {
     // งานที่ระบบติ๊กให้เมื่อใบถูกส่งจริง
     const งานที่ติ๊ก = ["makeQuote", "sendQuote"];
@@ -754,6 +769,7 @@ export function SalesProvider({
     // เหตุผลเต็มและกับดักที่เคยเจอ: ดู lib/quoteRevision.ts
     const quotation: QuotationMock = { ...ที่แก้มา, revision: ฉบับถัดไป(before, ที่แก้มา) };
     setQuotations(prev => prev.map(q => q.id !== quotation.id ? q : quotation));
+    if (before?.status === "draft") แทนที่ใบเดิมบนจอ(quotation);
     // แก้ใบที่ won (หรือเคย won) ที่ผูกลูกค้า → ยอดลูกค้าต้องตาม (แก้ totalValue/สถานะ) · H2
     const needsReconcile = quotation.customerId && quotation.customerId > 0 && (quotation.status === "won" || before?.status === "won");
     const ปล่อยลีด = before?.status !== quotation.status ? กั้นลีดระหว่างฐานขยับ(quotation) : () => {};
@@ -779,7 +795,7 @@ export function SalesProvider({
         onFail("customers", "คำนวณยอดลูกค้าใหม่")(e);
       }
     })();
-  }, [completeLeadQuoteTasks, persistQuote, reconcileCustomerTotal]);
+  }, [completeLeadQuoteTasks, persistQuote, reconcileCustomerTotal, แทนที่ใบเดิมบนจอ]);
 
   const deleteQuotation = useCallback((id: string) => {
     const removed = quotationsRef.current.find(q => q.id === id);
@@ -810,6 +826,7 @@ export function SalesProvider({
     const target = quotationsRef.current.find(q => q.id === id);
     const prevStatus = target?.status;
     setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status })); // optimistic UI
+    if (target && prevStatus === "draft") แทนที่ใบเดิมบนจอ({ supersedesId: target.supersedesId, status });
     if (!target || status === "draft") { persistQuote.setStatus(id, status); return; }
     // ใบที่ทำจากใบ HQ: ฐานขยับขั้นลูกค้าเป้าหมายเอง — กั้นงานเขียนลูกค้าเป้าหมายไว้จนฐานทำเสร็จ (ดู กั้นลีดระหว่างฐานขยับ)
     const ปล่อยลีด = กั้นลีดระหว่างฐานขยับ(target);
@@ -877,7 +894,7 @@ export function SalesProvider({
       return;
     }
     ทำสถานะตามปกติ();
-  }, [completeLeadQuoteTasks, convertLeadToCustomer, persistQuote, ensureLeads]);
+  }, [completeLeadQuoteTasks, convertLeadToCustomer, persistQuote, ensureLeads, แทนที่ใบเดิมบนจอ]);
 
   // เลขที่ใบเสนอราคาถัดไป — ผ่าน repo (supabase: RPC next_quote_no atomic · local: max+1)
   // คำนำหน้าเป็นค่าคงที่ของระบบ (QUOTE_PREFIX) — รูปแบบเต็ม Q-{รหัสสาขา}-{ปีปัจจุบัน}-{เลขรัน}
@@ -961,7 +978,7 @@ export function SalesProvider({
   const value = useMemo(() => ({
     leads: leadsมีมูลค่า, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
-    quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
+    quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
     appointments, addAppointment, updateAppointment, deleteAppointment,
     convertLeadToCustomer,
@@ -970,7 +987,7 @@ export function SalesProvider({
   }), [
     leadsมีมูลค่า, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
-    quotations, quotationsReady, ensureQuotations, createQuotation, updateQuotation, deleteQuotation, setQuotationStatus,
+    quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
     appointments, addAppointment, updateAppointment, deleteAppointment,
     convertLeadToCustomer,

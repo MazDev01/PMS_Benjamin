@@ -1,6 +1,6 @@
 -- ── ด่าน 3: ใบที่ลูกค้าตอบรับแล้ว (won) ห้ามลบ — ทั้งใบเก่าและใบที่มาจากใบ HQ (ข้อตัดสินของบอส 14 ต.ค. 69) ──────────
 --   ใบ won คือยอดขายที่ปิดแล้ว (ใบจากใบ HQ = คำสั่งผลิต) ลบทิ้งได้ = ยอดขาย/ยอดลูกค้าหายเงียบ ๆ
---   ใบ lost / หมดอายุ ลบได้เหมือนเดิม
+--   ใบ lost / หมดอายุ / ส่งแล้ว ก็ลบไม่ได้แล้ว (ใบ 0228 · 21 ต.ค. 69) — ลบได้เฉพาะใบร่าง
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/won_quote_no_delete.sql
 begin;
 create schema flowtest;
@@ -76,12 +76,11 @@ begin
   perform flowtest.must_fail($q$delete from quotations where id = 'ZZW-OLD-WON'$q$, 'quote_won_locked', 'ใบเก่าที่ won: สิทธิ์สูงสุดก็ลบไม่ได้');
   perform flowtest.must_fail(format($q$delete from quotations where id = %L$q$, q.id), 'quote_won_locked', 'ใบจากใบ HQ ที่ won: สิทธิ์สูงสุดก็ลบไม่ได้');
 
-  -- ══ lost / หมดอายุ ลบได้เหมือนเดิม ══
+  -- ══ lost / หมดอายุ ลบไม่ได้แล้ว (ใบ 0228 · บอสสั่ง 21 ต.ค. 69 "ใบที่ส่งแล้วห้ามลบ ลบได้เฉพาะใบร่าง") ══
   perform flowtest.as_dealer(cnx);
-  delete from quotations where id in ('ZZW-OLD-LOST', 'ZZW-OLD-EXP') and dealer_code = 'CNX';
-  perform flowtest.ok((select count(*) from quotations where id in ('ZZW-OLD-LOST', 'ZZW-OLD-EXP')) = 0, 'ใบเก่าที่ lost / หมดอายุ ลบได้');
-  delete from quotations where id = q2.id and dealer_code = 'CNX';
-  perform flowtest.ok((select count(*) from quotations where id = q2.id) = 0, 'ใบจากใบ HQ ที่ lost ลบได้');
+  perform flowtest.must_fail($q$delete from quotations where id = 'ZZW-OLD-LOST' and dealer_code = 'CNX'$q$, 'quote_sent_no_delete', 'ใบเก่าที่ lost: ลบไม่ได้ (0228)');
+  perform flowtest.must_fail($q$delete from quotations where id = 'ZZW-OLD-EXP' and dealer_code = 'CNX'$q$, 'quote_sent_no_delete', 'ใบเก่าที่หมดอายุ: ลบไม่ได้ (0228)');
+  perform flowtest.must_fail(format($q$delete from quotations where id = %L and dealer_code = 'CNX'$q$, q2.id), 'quote_sent_no_delete', 'ใบจากใบ HQ ที่ lost: ลบไม่ได้ (0228)');
   perform flowtest.ok((select count(*) from quotations where id in ('ZZW-OLD-WON', q.id)) = 2, 'ใบ won ยังอยู่ครบ');
 
   raise notice 'ALL PASS';

@@ -125,7 +125,10 @@ begin
   alter table public.quotations enable trigger quotations_legacy_lock;
   perform qvtest.eq(qvtest.v(n), 500000, '5) ลีดเดิมใช้ใบที่ส่งแล้วก่อนหน้า');
   perform qvtest.eq(qvtest.v(m), 410000, '5) ลีดปลายทางได้ยอดใบ');
+  -- ใบที่ส่งแล้วลบไม่ได้ (0228) — ปิดตัวดักเฉพาะคำสั่งนี้ เพื่อวัดว่าตัวคำนวณรับการลบได้ (เช่นงานดูแลระบบ)
+  alter table public.quotations disable trigger quotations_no_delete_won;
   delete from public.quotations where dealer_code = 'CNX' and id in ('Q-ZZQV-1', 'Q-ZZQV-0');
+  alter table public.quotations enable trigger quotations_no_delete_won;
   perform qvtest.eq(qvtest.v(n), null, '5) ลบใบหมด = ไม่มีมูลค่า');
 
   -- 6) หน้าเว็บ (ดีลเลอร์) เขียนทับมูลค่าเองไม่ได้ — คำสั่งไม่ล้ม แต่ค่าคงเดิม

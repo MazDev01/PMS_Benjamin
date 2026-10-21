@@ -318,3 +318,46 @@ test.describe("รอบ 3", () => {
     });
   });
 });
+
+// ── รอบ 3 · ทำฉบับใหม่ / ห้ามลบใบที่ส่งแล้ว (บอสสั่ง 21 ต.ค. 69) ──
+//   ก: ใบส่งแล้ว (ทุกรอบ) · ข: ส่งฉบับใหม่ V2 แล้ว ใบเดิมถูกแทนที่ (เฉพาะรอบ "หลัง" — โค้ดเดิมไม่มีฉบับใหม่)
+test.describe("รอบ 3 ข", () => {
+  const ลีดก = `ZZTEST-ภาพรอบ3ข-ส่งแล้ว-${แท็ก}`, ลีดข = `ZZTEST-ภาพรอบ3ข-ฉบับใหม่-${แท็ก}`;
+  let ใบก: ใบHQพร้อมใช้ | undefined, ใบข: ใบHQพร้อมใช้ | undefined;
+  let เลขก = "", เลขข = "";
+  test.beforeAll(async () => {
+    if (ช่วง !== "รอบ3ข") return;
+    const บรรทัด = [{ name: "โครงเหล็กชุดทดสอบ", qty: 2, unit: "ชุด", unitCost: 100_000 }, { name: "หลังคาชุดทดสอบ", qty: 1, unit: "งาน", unitCost: 50_000 }];
+    const sb = await db(RYG);
+    ใบก = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลีดก, province: "ระยอง", lines: บรรทัด });
+    เลขก = (await ทำใบลูกค้าจากใบHQ(RYG, ใบก, { customer: ลีดก, markupPercent: 10 })).id;
+    await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", เลขก);
+    if (รอบ !== "หลัง") return;
+    ใบข = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลีดข, province: "ระยอง", lines: บรรทัด });
+    เลขข = (await ทำใบลูกค้าจากใบHQ(RYG, ใบข, { customer: ลีดข, markupPercent: 10 })).id;
+    await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", เลขข);
+    const v2 = await sb.rpc("quotation_new_version", { p_dealer: "RYG", p_id: เลขข });
+    if (v2.error) throw new Error(v2.error.message);
+    const id2 = (v2.data as { id: string }).id;
+    await sb.from("quotations").update({ line_items: [{ name: "โครงเหล็กชุดทดสอบ", qty: 2, unit: "ชุด", unitPrice: 0, markupPct: 5 }, { name: "หลังคาชุดทดสอบ", qty: 1, unit: "งาน", unitPrice: 0, markupPct: 5 }] }).eq("dealer_code", "RYG").eq("id", id2);
+    const ส่ง = await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", id2);
+    if (ส่ง.error) throw new Error(ส่ง.error.message);
+  });
+  test.afterAll(async () => { if (ช่วง === "รอบ3ข") ล้างใบHQทดสอบ("RYG", [ใบก?.leadNum, ใบข?.leadNum].filter((n): n is number => !!n)); });
+
+  test("รอบ 3 ข · ดีลเลอร์", async ({ page }) => {
+    test.skip(ช่วง !== "รอบ3ข", "ไม่ใช่รอบ 3 ข");
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    const ค้น = async (คำ: string) => {
+      await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
+      await page.getByPlaceholder("ค้นหา").first().fill(คำ); await settle(page);
+    };
+    await ถ่าย(page, "ดีลเลอร์-แถวใบส่งแล้ว", () => ค้น(เลขก));
+    await ถ่าย(page, "ดีลเลอร์-แผงใบส่งแล้ว", async () => { await ค้น(เลขก); await page.locator("tbody tr").filter({ hasText: เลขก }).first().locator("td").nth(1).click(); await settle(page); });
+    if (รอบ !== "หลัง") return;
+    // จอที่สองเจอฉบับใหม่ (ร่าง) ที่จอแรกทำไว้แล้ว — เลือกแถวใบเดิม (กดซ้ำได้ใบร่างเดิม ไม่เกิดใบใหม่)
+    await ถ่าย(page, "ดีลเลอร์-ฟอร์มฉบับใหม่", async () => { await ค้น(เลขก); await page.locator("tbody tr").filter({ hasText: เลขก }).filter({ hasNotText: `${เลขก}-V2` }).first().getByTitle("ทำฉบับใหม่").click(); await settle(page); });
+    await ถ่าย(page, "ดีลเลอร์-แถวใบเดิมถูกแทนที่และฉบับใหม่", () => ค้น(เลขข));
+    await ถ่าย(page, "ดีลเลอร์-แผงใบถูกแทนที่", async () => { await ค้น(เลขข); await page.locator("tbody tr").filter({ hasText: เลขข }).filter({ hasNotText: `${เลขข}-V2` }).first().locator("td").nth(1).click(); await settle(page); });
+  });
+});

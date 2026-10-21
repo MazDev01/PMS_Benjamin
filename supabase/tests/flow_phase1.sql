@@ -99,7 +99,7 @@ begin
   perform flowtest.ok(h.status = 'sent' and r.status = 'quoted' and r.quoted_at is not null, 'ส่งใบ HQ → คำขอ ส่งใบแล้ว หยุดนับ');
   perform flowtest.ok(h.sent_by = c.hq_uid and h.sent_by_name <> '' and h.sent_at is not null, 'ใบ HQ บันทึกผู้ส่งและเวลาส่ง');
   select status::text into s from leads where dealer_code = 'CNX' and num_id = l1;
-  perform flowtest.ok(s = 'HQ_PRICING', 'HQ ส่งใบแล้ว ลูกค้าเป้าหมายคงเดิม');
+  perform flowtest.ok(s = 'HQ_QUOTED', 'HQ ส่งใบแล้ว ลูกค้าเป้าหมายเป็นได้ราคา HQ (ใบ 0219)');
   perform flowtest.must_fail(format('select hq_quote_save(%s, ''[{"name":"x","qty":1,"unitCost":1}]''::jsonb)', r.id), 'request_stage', 'ใบ HQ ที่ส่งแล้วแก้ผ่านคำสั่งไม่ได้');
   perform flowtest.as_root();
   perform flowtest.must_fail(format('update hq_quotes set total_cost = 1 where id = %s', h.id), 'hq_quote_locked', 'ใบ HQ ที่ส่งแล้ว แก้ตรงด้วยสิทธิ์ผู้ดูแลก็ไม่ได้');
@@ -166,7 +166,7 @@ begin
   perform flowtest.ok(n = 0, 'ไม่เหลือใบดีลเลอร์ที่ยังเปิดอยู่กับเวอร์ชันเก่า');
   select count(*) into n from quotations where status = 'lost';
   select status::text into s from leads where dealer_code = 'CNX' and num_id = l2;
-  perform flowtest.ok(n = n_lost and s = 'HQ_PRICING' and (select status from quote_requests where id = r.id) = 'quoted',
+  perform flowtest.ok(n = n_lost and s = 'HQ_QUOTED' and (select status from quote_requests where id = r.id) = 'quoted',   -- HQ ส่งเวอร์ชันใหม่แล้ว ลีดเป็นได้ราคา HQ (ใบ 0219)
                      'ปิดเพราะเปลี่ยนเวอร์ชันไม่นับเป็นงานที่แพ้ — จำนวนใบที่ลูกค้าปฏิเสธเท่าเดิม · ลูกค้าเป้าหมายไม่ถูกปิด');
   insert into quotations (id, dealer_code, customer, hq_quote_id, status) values ('T-CNX-3', 'CNX', 'ทดสอบ 2', h.id, 'sent_to_client');
   update quotations set status = 'lost', lost_reason = 'ราคาสูงเกินงบประมาณ' where dealer_code = 'CNX' and id = 'T-CNX-3';

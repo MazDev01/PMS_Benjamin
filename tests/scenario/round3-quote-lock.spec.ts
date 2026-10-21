@@ -3,7 +3,7 @@ import { RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── รอบ 3 ข้อ 1: หน้าแก้ไขใบเสนอราคา (บอสสั่ง 20 ต.ค. 69) ───────────────────────────────────────────────────────────
@@ -30,7 +30,11 @@ test.beforeAll(async () => {
   // วันที่ย้อนหลัง — "ส่งอีกครั้ง" ประทับวันนี้ ใช้วัดว่าบันทึกทั้งแถวผ่านจริง
   เลขใบ = (await ทำใบลูกค้าจากใบHQ(RYG, ใบ, { customer: ลูกค้า, markupPercent: 10, extra: { date: "2026-01-05" } })).id;
 });
-test.afterAll(async () => { ล้างใบHQทดสอบ("RYG", [ใบ?.leadNum]); });
+test.afterAll(async () => {
+  const { data: cs } = await admin.from("customers").select("id").eq("dealer_code", "RYG").eq("company", ลูกค้า);
+  ล้างใบHQทดสอบ("RYG", [ใบ?.leadNum]);
+  for (const c of cs ?? []) await admin.from("customers").delete().eq("dealer_code", "RYG").eq("id", c.id);
+});
 
 test("[รอบ3·1] ใบร่าง: แก้โครงการ/จังหวัด/พื้นที่ได้ · รายการแก้ได้เฉพาะ %", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
@@ -57,7 +61,7 @@ test("[รอบ3·1] ใบร่าง: แก้โครงการ/จั�
     .toEqual({ province: "ชลบุรี", area: "320", total: 2950 });
 });
 
-test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก้ไข · ป้ายล็อก · ส่งอีกครั้งยังได้ · ฐานปฏิเสธการแก้ทุกช่อง", async ({ page }) => {
+test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก้ไข/ลบ มีปุ่มทำฉบับใหม่ · ส่งอีกครั้งยังได้ · ฐานปฏิเสธการแก้ทุกช่อง", async ({ page }) => {
   // ล้างพื้นที่/จังหวัดให้ว่างในฐานตอนยังเป็นใบร่าง — วัดว่าบันทึกทั้งแถวจากหน้าเว็บ (ว่าง → "0"/"") ไม่ถูกนับว่าแก้
   const sb = await db(RYG);
   const ล้าง = await sb.from("quotations").update({ area: null, province: null, date: "2026-01-05" }).eq("dealer_code", "RYG").eq("id", เลขใบ);
@@ -72,9 +76,12 @@ test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก�
   const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   await expect(แถว.getByTitle("แก้ไข"), "แถวใบที่ส่งแล้ว: ไม่มีปุ่มแก้ไข").toHaveCount(0);
+  await expect(แถว.getByTitle("ลบใบเสนอราคา"), "แถวใบที่ส่งแล้ว: ไม่มีปุ่มลบ (บอสสั่ง 21 ต.ค. 69)").toHaveCount(0);
+  await expect(แถว.getByTitle("ทำฉบับใหม่"), "แถวใบที่ส่งแล้ว: ปุ่มแก้ไขเปลี่ยนเป็นทำฉบับใหม่").toBeVisible();
   await แถว.locator("td").nth(1).click();
-  await expect(page.locator("[data-quote-locked]"), "แผงรายละเอียด: ป้ายส่งแล้วแก้ไม่ได้").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTitle("ทำฉบับใหม่").last(), "แผงรายละเอียด: ปุ่มทำฉบับใหม่").toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: "แก้ไข", exact: true }), "แผงรายละเอียด: ไม่มีปุ่มแก้ไข").toHaveCount(0);
+  await expect(page.getByTitle("ลบใบเสนอราคา"), "แผงรายละเอียด: ไม่มีปุ่มลบ").toHaveCount(0);
 
   // ส่งอีกครั้ง = บันทึกทั้งแถว (rowMappers) — ต้องผ่านแม้ค่าว่างถูกส่งกลับคนละรูปแบบ
   await page.getByTitle("ส่งอีกครั้ง").click();
@@ -89,4 +96,74 @@ test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก�
   const สุดท้าย = await แถวฐาน();
   expect({ project: สุดท้าย?.project, province: สุดท้าย?.province || "", total: Number(สุดท้าย?.total_value) }, "ค่าในฐานไม่เปลี่ยน")
     .toEqual({ project: `${ลูกค้า}-โครงการใหม่`, province: "", total: 2950 });
+});
+
+// ── รอบ 3 · ทำฉบับใหม่ (บอสสั่ง 21 ต.ค. 69): ส่ง V1 → ทำฉบับใหม่ → แก้ % → ส่ง V2 → V1 ถูกแทนที่ ─────────────────────────────
+//   ตอบรับ V1 ไม่ได้ · ตอบรับ V2 ได้ · มูลค่าลีดเปลี่ยนตาม V2 · ลบใบที่ส่งแล้วไม่ได้ (ข้อทดสอบระดับฐาน quote_new_version.sql)
+test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → แก้ % → ส่ง V2 → V1 ถูกแทนที่ · ตอบรับ V2 · มูลค่าลีดตาม V2", async ({ page }) => {
+  const sb = await db(RYG);
+  const เลขV2 = `${เลขใบ}-V2`;
+  const ใบ_ = async (id: string) => (await admin.from("quotations").select("status, total_value, revision, supersedes_id, project")
+    .eq("dealer_code", "RYG").eq("id", id).maybeSingle()).data;
+  const มูลค่าลีด = async () => Number((await admin.from("leads").select("quote_value").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.quote_value ?? 0);
+  expect((await ใบ_(เลขใบ))?.status, "ตั้งต้น: V1 ส่งแล้ว (ข้อก่อนหน้า)").toBe("sent_to_client");
+  expect(await มูลค่าลีด(), "ตั้งต้น: มูลค่าลีด = ยอด V1").toBe(2950);
+
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  const เปิดรายการ = async () => {
+    await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
+    await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
+    await expect(page.locator("tbody tr").filter({ hasText: เลขใบ }).first()).toBeVisible({ timeout: 20_000 });
+  };
+  const แถวV1 = () => page.locator("tbody tr").filter({ hasText: เลขใบ }).filter({ hasNotText: เลขV2 }).first();
+  const แถวV2 = () => page.locator("tbody tr").filter({ hasText: เลขV2 }).first();
+
+  // ทำฉบับใหม่ → ฟอร์มของ V2 · ลูกค้า/โครงการ/จังหวัด/พื้นที่ แก้ไม่ได้ · แก้ % ได้
+  await เปิดรายการ();
+  await แถวV1().getByTitle("ทำฉบับใหม่").click();
+  await expect(page.locator("[data-version-copied]"), "ฟอร์มฉบับใหม่บอกว่าคัดลอกจากใบเดิม").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByPlaceholder("เช่น โกดังสินค้า ABC"), "โครงการแก้ไม่ได้").toHaveAttribute("readonly", "");
+  await expect(page.getByPlaceholder("จังหวัด"), "จังหวัดแก้ไม่ได้").toHaveAttribute("readonly", "");
+  await expect(page.getByLabel("ลูกค้า", { exact: true }), "ลูกค้าแก้ไม่ได้").toBeDisabled();
+  await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 15_000 });
+  await page.getByRole("table", { name: "รายการในใบเสนอราคา (จากใบ HQ)" }).getByLabel("% ที่บวก 1").fill("30");
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+  await expect.poll(async () => Number((await ใบ_(เลขV2))?.total_value ?? 0), { timeout: 20_000, message: "V2 บันทึก % ใหม่: 2×1,300 + 550" }).toBe(3150);
+  expect(await ใบ_(เลขV2), "V2 = ใบร่างฉบับ V2 ผูกใบเดิม · โครงการเดิม").toMatchObject({ status: "draft", revision: "V2", supersedes_id: เลขใบ, project: `${ลูกค้า}-โครงการใหม่` });
+  expect((await ใบ_(เลขใบ))?.status, "V2 ยังร่าง ใบเดิมยังส่งแล้ว").toBe("sent_to_client");
+  expect(await มูลค่าลีด(), "V2 ยังร่าง มูลค่าลีดยังเป็นยอด V1").toBe(2950);
+
+  // ส่ง V2 → V1 ถูกแทนที่ · มูลค่าลีด = ยอด V2
+  await เปิดรายการ();
+  await แถวV2().getByTitle("ส่งให้ลูกค้า").click();
+  await expect.poll(async () => (await ใบ_(เลขใบ))?.status, { timeout: 20_000, message: "ส่ง V2 แล้ว V1 ถูกแทนที่" }).toBe("superseded");
+  expect((await ใบ_(เลขV2))?.status).toBe("sent_to_client");
+  await expect.poll(มูลค่าลีด, { timeout: 20_000, message: "มูลค่าลีดเปลี่ยนตาม V2" }).toBe(3150);
+
+  // V1 อ่านอย่างเดียว: ป้ายถูกแทนที่ · ไม่มีปุ่มทำฉบับใหม่/ลบ/แก้ไข · แผงไม่มีปุ่มตอบรับ
+  await เปิดรายการ();
+  await expect(แถวV1().getByText("ถูกแทนที่", { exact: true }), "แถว V1 ขึ้นถูกแทนที่").toBeVisible({ timeout: 15_000 });
+  for (const t of ["ทำฉบับใหม่", "ลบใบเสนอราคา", "แก้ไข", "ส่งให้ลูกค้า"]) await expect(แถวV1().getByTitle(t), `แถว V1 ไม่มีปุ่ม ${t}`).toHaveCount(0);
+  await แถวV1().locator("td").nth(1).click();
+  await expect(page.locator("[data-quote-superseded]"), "แผง V1: ถูกแทนที่ อ่านอย่างเดียว").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: /ลูกค้าตอบรับ/ }), "แผง V1: ไม่มีปุ่มลูกค้าตอบรับ").toHaveCount(0);
+
+  // ฐาน: ตอบรับ V1 ไม่ได้ · ลบใบที่ส่งแล้ว/ถูกแทนที่ไม่ได้
+  const ตอบรับV1 = await sb.from("quotations").update({ status: "won" }).eq("dealer_code", "RYG").eq("id", เลขใบ);
+  expect(ตอบรับV1.error?.message ?? "", "ฐานไม่ให้ตอบรับ V1").toMatch(/quote_superseded/);
+  for (const id of [เลขใบ, เลขV2]) {
+    const ลบ = await sb.from("quotations").delete().eq("dealer_code", "RYG").eq("id", id);
+    expect(ลบ.error?.message ?? "", `ฐานไม่ให้ลบใบที่ส่งแล้ว ${id}`).toMatch(/quote_sent_no_delete/);
+  }
+
+  // ตอบรับ V2 ผ่านหน้าเว็บ → ลีดปิดการขาย · มูลค่าคงเป็นยอด V2
+  await เปิดรายการ();
+  await แถวV2().locator("td").nth(1).click();
+  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).click();
+  await กดตกลงในกล่องยืนยัน(page);
+  await expect.poll(async () => (await ใบ_(เลขV2))?.status, { timeout: 30_000, message: "ตอบรับ V2 ได้" }).toBe("won");
+  await expect.poll(async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.status,
+    { timeout: 30_000, message: "ลีดปิดการขายสำเร็จ" }).toBe("PAID");
+  expect(await มูลค่าลีด(), "มูลค่าลีด = ยอด V2").toBe(3150);
+  expect((await ใบ_(เลขใบ))?.status, "V1 ยังถูกแทนที่").toBe("superseded");
 });

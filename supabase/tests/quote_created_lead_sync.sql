@@ -52,9 +52,10 @@ begin
   select count(*) into n from files where dealer_code = 'RYG' and position('ZZ-QS-4' in name) > 0;
   if n <> 1 then raise exception 'FAIL: ไฟล์ของใบต้องไม่ซ้ำ (%)', n; end if;
 
-  -- ⑤ ผู้ใช้เรียกตัวช่วยตรงไม่ได้
+  -- ⑤ ผู้ใช้เรียกตัวดักตรงไม่ได้ · ตัวจัดรูปแบบวันไทยเปิดให้ผู้ใช้โดยตั้งใจ (ใบ 0211: lead_apply ทำงานด้วยสิทธิ์ผู้เรียก
+  --    และต้องเรียกตัวจัดรูปแบบวัน — ฟังก์ชันล้วน ไม่อ่านข้อมูล) · คนที่ยังไม่เข้าระบบยังเรียกไม่ได้
   if has_function_privilege('authenticated', 'public.quotations_created_lead_sync()', 'execute')
-     or has_function_privilege('authenticated', 'public._thai_date(timestamptz, boolean)', 'execute') then raise exception 'FAIL: สิทธิ์เรียกฟังก์ชัน'; end if;
+     or has_function_privilege('anon', 'public._thai_date(timestamptz, boolean)', 'execute') then raise exception 'FAIL: สิทธิ์เรียกฟังก์ชัน'; end if;
   raise notice 'ALL PASS';
 end $$;
 rollback;

@@ -1027,7 +1027,9 @@ export function fmtISOToThai(iso: string): string {
 
 // ─── QUOTATIONS ───────────────────────────────────────────────
 // สถานะ "viewed" (เปิดอ่านแล้ว) ถูกลบทั้งฟีเจอร์ตามที่บอสสั่ง — ระบบไม่มีการติดตามการเปิดอ่านจริงอยู่แล้ว
-export type QuotationStatus = "draft" | "sent_to_client" | "won" | "lost" | "expired";
+// "superseded" = ถูกแทนที่ด้วยฉบับใหม่ที่ส่งแล้ว — อ่านอย่างเดียว ตอบรับ/ปฏิเสธไม่ได้ (รอบ 3 · บอสสั่ง 21 ต.ค. 69 · ใบ 0227–0228)
+//   ⚠️ ยอดรวม/นับใบที่ "ยังมีผล" ต้องไม่นับใบที่ถูกแทนที่ — ใบเดียวกันมี V1 และ V2 นับซ้ำ = ยอดเกินจริง (ใช้ ใบที่มีผล())
+export type QuotationStatus = "draft" | "sent_to_client" | "won" | "lost" | "expired" | "superseded";
 
 // รายการสินค้าในใบเสนอราคา (BOQ) — ราคา/หน่วยดึงจากราคากลาง HQ (แคตตาล็อกแม่แบบ) แก้ได้
 export type QuoteLineItem = {
@@ -1096,12 +1098,17 @@ export type QuotationMock = {
   markupPercent?: number | null;
   /** เหตุที่หมดอายุ (เช่น ใบ HQ หมดอายุ / มีเวอร์ชันใหม่) — ฐานข้อมูลเขียนให้ */
   expiredReason?: string | null;
+  /** ใบฉบับก่อนหน้าที่ใบนี้มาแทน (ทำฉบับใหม่ · 0228) — ฐานตั้งให้ ห้ามแก้ · null = ฉบับแรก */
+  supersedesId?: string | null;
 };
+
+/** ใบที่ยังมีผล = ไม่ใช่ใบที่ถูกแทนที่ด้วยฉบับใหม่ — ใช้ทุกที่ที่รวมยอด/นับใบ ไม่งั้นใบเดียวกันนับสองครั้ง (V1 + V2) */
+export const ใบที่มีผล = (q: { status: QuotationStatus }) => q.status !== "superseded";
 
 // สถานะใบเสนอราคาตามสเปก: Draft / Sent / Viewed / Accepted / Rejected / Expired
 export const quotationStatusLabel: Record<QuotationStatus, string> = {
   draft: "ร่าง", sent_to_client: "ส่งแล้ว",
-  won: "ตอบรับ", lost: "ปฏิเสธ", expired: "หมดอายุ",
+  won: "ตอบรับ", lost: "ปฏิเสธ", expired: "หมดอายุ", superseded: "ถูกแทนที่",
 };
 export const quotationStatusColor: Record<QuotationStatus, { bg: string; text: string }> = {
   draft:          { bg: "#f0f0f5", text: "#6b7280" },
@@ -1109,6 +1116,7 @@ export const quotationStatusColor: Record<QuotationStatus, { bg: string; text: s
   won:            { bg: "#e5faf0", text: "#059669" },
   lost:           { bg: "#f5f5f5", text: "#9ca3af" },
   expired:        { bg: "#f5f5f5", text: "#9ca3af" },
+  superseded:     { bg: "#f5f5f5", text: "#9ca3af" },
 };
 
 export const quotations: QuotationMock[] = [

@@ -6,7 +6,7 @@ import { SortableTh } from "@pms/shared/components/ui/SortableTh";
 import { useRouter } from "next/navigation";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import {
-  quotationStatusLabel, quotationStatusColor,
+  quotationStatusLabel, quotationStatusColor, ใบที่มีผล,
   DEFAULT_ISSUER, DEFAULT_DEALER_CODE,
   OTHER_REASON_OPTION,
   type QuotationStatus, type QuotationMock, type CustomerRow, type IssuerProfile, type QuoteLineItem,
@@ -36,7 +36,7 @@ import {
   X, FileText, LayoutList, LayoutGrid,
   Edit2, Trash2, ChevronUp, ChevronDown, Printer, Eye,
   ExternalLink, ArrowRight, ChevronLeft, ChevronRight,
-  Send, Coins, MapPin, Package, Layers, Check, Lock, History,
+  Send, Coins, MapPin, Package, Layers, Check, Lock, History, CopyPlus,
 } from "lucide-react";
 
 // ── Tokens ────────────────────────────────────────────────────
@@ -72,6 +72,8 @@ const STATUS_ACTIONS: Record<QuotationStatus,{label:string;next:QuotationStatus;
   // ปฏิเสธ/หมดอายุ = จบแล้ว · ต้องการราคาใหม่ให้ขอราคาจาก HQ ใหม่ (ลบ "เปิดร่างใหม่" ของ Flow เก่า 16 ต.ค. 69)
   lost:     [],
   expired:  [],
+  // ถูกแทนที่ด้วยฉบับใหม่ที่ส่งแล้ว — อ่านอย่างเดียว ตอบรับ/ปฏิเสธที่ฉบับล่าสุด (ฐานกันด้วย · ใบ 0228)
+  superseded: [],
 };
 
 // statusOptions สำหรับ FilterBar กลาง — value = enum key, label = ไทยจาก quotationStatusLabel
@@ -145,13 +147,15 @@ function suggestProject(c?:CustomerRow):string{
   return c ? c.company : "";
 }
 
-function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, hqQuoteId, locked }:{
+function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, hqQuoteId, locked, ฉบับใหม่ }:{
   initial:QForm; title:string; onSave:(f:QForm)=>void|Promise<void>; onClose:()=>void; customers:CustomerRow[];
   /** ใบที่ทำจากใบ HQ (ด่าน 3) — รายการ/จำนวนล็อก แก้ได้เฉพาะ % ที่บวก · ใบเดิมที่ไม่มีใบ HQ แก้ไม่ได้ (ไม่เปิดฟอร์มนี้) */
   hqQuoteId?:number|null;
   /** ลูกค้าตอบรับและสั่งผลิตแล้ว — ราคาถูกล็อกที่ฐานข้อมูล (ใบ 0201) */
   locked?:boolean;
   quoteId?:string; // เลขที่ใบ — โชว์อย่างเดียว แก้ไม่ได้ (HQ กำหนดรูปแบบ/เลขรัน)
+  /** ฉบับใหม่ (V2 …) — ลูกค้า โครงการ จังหวัด พื้นที่ ภาษี คัดลอกจากใบเดิม แก้ไม่ได้ · แก้ได้เฉพาะ % (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0228) */
+  ฉบับใหม่?:boolean;
 }){
   const [form,setForm]=useState<QForm>(initial);
   const [ใบHQ,setใบHQ]=useState<HqQuote|null>(null);
@@ -220,11 +224,14 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
               {/* ตัวเลือก "ยังไม่ระบุ" ต้องอยู่บนสุดเสมอ — เดิมอยู่ล่างสุด ช่องจึงโชว์ลูกค้ารายแรกในทะเบียน
                   ทั้งที่ยังไม่มีใครเลือก เผลอกดผ่านแล้วใบเสนอราคาไปผูกกับลูกค้าผิดคน */}
               {/* ตัวเลือกแรกคือทั้งหมด — value={0} คือ "ยังไม่ระบุลูกค้า (พิมพ์เอง)" */}
-              <select aria-label="ลูกค้า" value={form.customerId} onChange={e=>pickCustomer(Number(e.target.value))} style={INP}>
+              <select aria-label="ลูกค้า" value={form.customerId} onChange={e=>pickCustomer(Number(e.target.value))} disabled={ฉบับใหม่} style={ฉบับใหม่?{...INP,background:"#f6f8fa",color:MUTED}:INP}>
                 <option value={0}>— ยังไม่ระบุลูกค้า (พิมพ์เอง) —</option>
                 {customers.map(c=><option key={c.id} value={c.id}>{c.company}</option>)}
               </select>
-              {form.customerId===0&&<input value={form.customer} onChange={e=>set("customer",e.target.value)} placeholder="ชื่อบริษัท..." style={{...INP,marginTop:6}}/>}
+              {form.customerId===0&&<input value={form.customer} onChange={e=>set("customer",e.target.value)} placeholder="ชื่อบริษัท..." readOnly={ฉบับใหม่} style={{...INP,marginTop:6,...(ฉบับใหม่?{background:"#f6f8fa",color:MUTED}:{})}}/>}
+              {ฉบับใหม่&&<div data-version-copied style={{fontSize:"0.62rem",color:MUTED,marginTop:5,display:"flex",alignItems:"center",gap:4}}>
+                <Lock size={9}/> ฉบับใหม่: ลูกค้า โครงการ จังหวัด พื้นที่ และภาษี คัดลอกจากใบเดิม แก้ไม่ได้ — แก้ได้เฉพาะ % ที่บวก
+              </div>}
             </div>
             {/* ผู้รับผิดชอบ — เป็นข้อมูลของ "ลูกค้า" ไม่ใช่ของใบเสนอราคา
                 บอสสั่งให้แก้ที่นี่ได้ → บันทึกแล้วจะไปเปลี่ยนที่ตัวลูกค้า (มีผลกับใบอื่นของลูกค้าคนนี้ด้วย) */}
@@ -241,15 +248,15 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
             <div className="form-section">โครงการ</div>
             <div className="col-full">
               <label style={LBL}>ชื่อโครงการ *</label>
-              <input value={form.project} onChange={e=>set("project",e.target.value)} placeholder="เช่น โกดังสินค้า ABC" style={INP}/>
+              <input value={form.project} onChange={e=>set("project",e.target.value)} placeholder="เช่น โกดังสินค้า ABC" readOnly={ฉบับใหม่} style={ฉบับใหม่?{...INP,background:"#f6f8fa",color:MUTED}:INP}/>
             </div>
             <div>
               <label style={LBL}>จังหวัด</label>
-              <input value={form.province} onChange={e=>set("province",e.target.value)} placeholder="จังหวัด" style={INP}/>
+              <input value={form.province} onChange={e=>set("province",e.target.value)} placeholder="จังหวัด" readOnly={ฉบับใหม่} style={ฉบับใหม่?{...INP,background:"#f6f8fa",color:MUTED}:INP}/>
             </div>
             <div>
               <label style={LBL}>พื้นที่ (ตร.ม.)</label>
-              <input type="number" value={form.area||""} onChange={e=>set("area",Number(e.target.value))} placeholder="0" style={INP}/>
+              <input type="number" value={form.area||""} onChange={e=>set("area",Number(e.target.value))} placeholder="0" readOnly={ฉบับใหม่} style={ฉบับใหม่?{...INP,background:"#f6f8fa",color:MUTED}:INP}/>
             </div>
             {/* ช่อง "ประเภท" (แม่แบบ) เอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
             {/* รายการสินค้า — มาจากใบ HQ เท่านั้น แก้ได้เฉพาะ % ที่บวก */}
@@ -269,9 +276,9 @@ function QuotationModal({ initial, title, onSave, onClose, customers, quoteId, h
                 return (
                   <label key={t.on} style={{flex:"1 1 220px",display:"flex",alignItems:"center",gap:9,padding:"9px 11px",
                     border:`1px solid ${เปิด?PRIMARY:"#e5e7eb"}`,borderRadius:10,background:เปิด?"#f4f8fc":"#fff",cursor:"pointer"}}>
-                    <input type="checkbox" checked={เปิด} onChange={e=>set(t.on,e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
+                    <input type="checkbox" checked={เปิด} disabled={ฉบับใหม่} onChange={e=>set(t.on,e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
                     <span style={{flex:1,fontSize:"0.78rem",fontWeight:700,color:"#2D2D2D"}}>{t.ป้าย}</span>
-                    <input type="text" inputMode="decimal" aria-label={`อัตรา${t.ป้าย}`} disabled={!เปิด}
+                    <input type="text" inputMode="decimal" aria-label={`อัตรา${t.ป้าย}`} disabled={!เปิด||ฉบับใหม่}
                       value={form[t.pct] as string} onClick={e=>e.stopPropagation()}
                       onChange={e=>set(t.pct,e.target.value.replace(/[^0-9.]/g,""))}
                       style={{width:50,textAlign:"right",padding:"5px 7px",borderRadius:8,border:"1px solid #e5e7eb",
@@ -392,7 +399,7 @@ function QuotationsPageInner(){
   const validityDays = useQuoteValidity();
   const {
     quotations: allQuotationsRaw, customers: allCustomersRaw, leads: allLeads,
-    updateQuotation, deleteQuotation: ctxDeleteQuotation, setQuotationStatus,
+    updateQuotation, deleteQuotation: ctxDeleteQuotation, setQuotationStatus, newQuotationVersion,
     updateCustomer, บันทึกลีด,
   } = useSales();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
@@ -526,7 +533,21 @@ function QuotationsPageInner(){
 
   // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว (บอสสั่งลบ Flow เก่า 16 ต.ค. 69) — ไม่มีปุ่มแก้/ส่ง/ลบ/เปลี่ยนสถานะ
   // ใบที่ลูกค้าตอบรับแล้ว = ยอดขายที่ปิดแล้ว ไม่มีแก้ไข/ลบ (บอสตัดสิน 19 ต.ค. 69 · ฐานกันลบไว้แล้ว ใบ 0203)
-  const แก้ได้=(q:QuotationMock)=>!!q.hqQuoteId&&q.status!=="won";
+  const แก้ได้=(q:QuotationMock)=>!!q.hqQuoteId&&q.status!=="won"&&q.status!=="superseded";
+  // ลบได้เฉพาะใบร่าง — ใบที่ส่งแล้วห้ามลบ (บอสสั่ง 21 ต.ค. 69 · ฐานกัน ใบ 0228)
+  const ลบได้=(q:QuotationMock)=>แก้ได้(q)&&q.status==="draft";
+  // ใบที่ส่งแล้ว ลูกค้าต่อรอง → ทำฉบับใหม่ (ใบร่าง V2 จากใบเดิม) แทนการแก้ทับ (บอสสั่ง 21 ต.ค. 69 · ใบ 0228)
+  const ทำฉบับใหม่ได้=(q:QuotationMock)=>แก้ได้(q)&&q.status==="sent_to_client";
+  async function ทำฉบับใหม่(q:QuotationMock){
+    try {
+      const ใหม่ = await newQuotationVersion(q);
+      setSelected(null);
+      setEditingQ(ใหม่); setShowModal(true);
+      showToast(`ทำฉบับใหม่ ${ใหม่.id} (${ใหม่.revision ?? ""}) แล้ว — แก้ % แล้วส่งให้ลูกค้า ใบเดิมจะเป็น "ถูกแทนที่"`);
+    } catch (e) {
+      แจ้งพลาด(e instanceof Error ? e.message : String(e));
+    }
+  }
   // แก้เนื้อหาใบ (ลูกค้า โครงการ จังหวัด พื้นที่ %) ได้เฉพาะใบร่าง — ส่งให้ลูกค้าแล้วล็อกทั้งใบ (รอบ 3 · บอสสั่ง 20 ต.ค. 69 · กันที่ฐาน ใบ 0226)
   const แก้เนื้อหาได้=(q:QuotationMock)=>แก้ได้(q)&&q.status==="draft";
   function openEdit(q:QuotationMock){ if(!แก้เนื้อหาได้(q)) return; setEditingQ(q); setShowModal(true); }
@@ -678,13 +699,15 @@ function QuotationsPageInner(){
           //   ของทั้งหน้า → อ่านแล้วเข้าใจว่าที่ตอบรับมีมูลค่าเท่านั้น ทั้งที่ไม่ใช่
           //   ตอนนี้รวมเฉพาะใบที่ตรงสถานะที่เลือก และเขียนกำกับไว้ว่ากำลังรวมของสถานะไหน
           //   ⚠️ ไม่ผูกกับช่องค้นหา — การ์ด KPI เป็นภาพรวมของสถานะ ไม่ใช่ผลค้นหารายใบ
-          const ตามสถานะ = filterStatus === "ALL" ? scoped : scoped.filter(q => q.status === filterStatus);
+          // ใบที่ถูกแทนที่ (V1) กับฉบับใหม่ (V2) คือข้อเสนอเดียวกัน — "ทั้งหมด" นับเฉพาะใบที่ยังมีผล (รอบ 3 · 0229 ฝั่งฐานก็ไม่นับ)
+          const มีผล = scoped.filter(ใบที่มีผล);
+          const ตามสถานะ = filterStatus === "ALL" ? มีผล : scoped.filter(q => q.status === filterStatus);
           const totalVal = valOf(ตามสถานะ); // สรุปตามช่วงเวลา + สถานะที่กรอง
           const wonList  = scoped.filter(q=>q.status==="won");
           const lostList = scoped.filter(q=>q.status==="lost");
           const clear    = () => setFilterStatus("ALL");
           const kpis = [
-            { label:"ใบเสนอราคาทั้งหมด", value:`${scoped.length}`,      sub:"รายการ",            Icon:FileText, color:"#2563EB", bg:"#E8F0FE", on: filterStatus==="ALL", onClick: clear },
+            { label:"ใบเสนอราคาทั้งหมด", value:`${มีผล.length}`,      sub:"รายการ",            Icon:FileText, color:"#2563EB", bg:"#E8F0FE", on: filterStatus==="ALL", onClick: clear },
             { label:"มูลค่ารวม",         value:fmtC(totalVal),          sub: filterStatus==="ALL" ? "ทุกสถานะ" : quotationStatusLabel[filterStatus], Icon:Coins, color:"#16A34A", bg:"#E6F7EE", on: false, onClick: clear },
             { label:"ตอบรับแล้ว",        value:`${wonList.length}`,     sub:fmtC(valOf(wonList)), Icon:Check,    color:"#0D9488", bg:"#E6F7F5", on: filterStatus==="won",  onClick:()=>setFilterStatus(filterStatus==="won"?"ALL":"won") },
             { label:"ปฏิเสธแล้ว",        value:`${lostList.length}`,    sub:fmtC(valOf(lostList)), Icon:X,       color:"#DC2626", bg:"#FEE2E2", on: filterStatus==="lost", onClick:()=>setFilterStatus(filterStatus==="lost"?"ALL":"lost") },
@@ -860,7 +883,9 @@ function QuotationsPageInner(){
                             {/* ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีแก้/ลบ */}
                             {แก้เนื้อหาได้(q)&&<button onClick={()=>openEdit(q)} title="แก้ไข"
                               style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Edit2 size={13}/></button>}
-                            {แก้ได้(q)&&<>
+                            {ทำฉบับใหม่ได้(q)&&<button onClick={()=>void ทำฉบับใหม่(q)} title="ทำฉบับใหม่"
+                              style={{width:28,height:28,borderRadius:7,border:`1px solid ${BORDER}`,background:"#fff",color:PRIMARY,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><CopyPlus size={13}/></button>}
+                            {ลบได้(q)&&<>
                             {/* ลบได้จากรายการเลย ไม่ต้องเปิดแผงรายละเอียดก่อน — ยังถามยืนยันเหมือนเดิม */}
                             <button onClick={()=>setDelTarget(q)} title="ลบใบเสนอราคา"
                               style={{width:28,height:28,borderRadius:7,border:"1px solid #f3c9c9",background:"#fff",color:"#dc2626",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Trash2 size={13}/></button>
@@ -929,7 +954,9 @@ function QuotationsPageInner(){
                           style={{color:PRIMARY,padding:"4px 8px",fontSize:"0.65rem"}}><Printer size={11}/></button>
                         {แก้เนื้อหาได้(q)&&<button onClick={()=>openEdit(q)} className="btn btn-secondary btn-sm"
                           style={{color:PRIMARY,padding:"4px 9px",fontSize:"0.65rem"}}>แก้ไข</button>}
-                        {แก้ได้(q)&&<>
+                        {ทำฉบับใหม่ได้(q)&&<button onClick={()=>void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm"
+                          style={{color:PRIMARY,padding:"4px 9px",fontSize:"0.65rem"}}>ทำฉบับใหม่</button>}
+                        {ลบได้(q)&&<>
                         <button onClick={()=>setDelTarget(q)} title="ลบใบเสนอราคา" className="btn btn-secondary btn-sm"
                           style={{color:"#dc2626",borderColor:"#f3c9c9",padding:"4px 8px",fontSize:"0.65rem"}}><Trash2 size={11}/></button>
                         </>}
@@ -996,10 +1023,11 @@ function QuotationsPageInner(){
                     disabled={!dealerCfg.loaded} onClick={()=>printQuotation(selected)}
                     style={{...qa, ...(dealerCfg.loaded ? {} : { opacity: .55, cursor: "wait" })}}><Printer size={13}/> พิมพ์ PDF</button>
                   {แก้เนื้อหาได้(selected) && <button title="แก้ไข" onClick={()=>openEdit(selected)} style={qa}><Edit2 size={13}/> แก้ไข</button>}
-                  {แก้ได้(selected) && selected.status!=="draft" && <span data-quote-locked title="ส่งให้ลูกค้าแล้ว แก้ไม่ได้ — ถ้าต้องเปลี่ยนราคา ให้ขอแก้ราคาจากสำนักงานใหญ่แล้วทำใบใหม่" style={{...qa,cursor:"default"}}><Lock size={13}/> ส่งแล้ว แก้ไม่ได้</span>}
+                  {ทำฉบับใหม่ได้(selected) && <button title="ทำฉบับใหม่" onClick={()=>void ทำฉบับใหม่(selected)} style={qa}><CopyPlus size={13}/> ทำฉบับใหม่</button>}
+                  {selected.status==="superseded" && <span data-quote-superseded title="ส่งฉบับใหม่ให้ลูกค้าแล้ว — ใบนี้อ่านได้อย่างเดียว ตอบรับ/ปฏิเสธที่ฉบับล่าสุด" style={{...qa,cursor:"default"}}><Lock size={13}/> ถูกแทนที่ · อ่านอย่างเดียว</span>}
                   {แก้ได้(selected) && selected.status==="sent_to_client" && <button title="ส่งอีกครั้ง" onClick={()=>sendAgain(selected)} style={qa}><Send size={13}/> ส่งอีกครั้ง</button>}
                   {selected.customerId ? <button title="ดูลูกค้า" onClick={()=>router.push(`/customers?open=${selected.customerId}`)} style={qa}><ExternalLink size={13}/> ลูกค้า</button> : null}
-                  {แก้ได้(selected) && <button title="ลบใบเสนอราคา" onClick={()=>setDelTarget(selected)} style={{...qa,width:30,padding:0,justifyContent:"center",color:"#fecaca"}}><Trash2 size={14}/></button>}
+                  {ลบได้(selected) && <button title="ลบใบเสนอราคา" onClick={()=>setDelTarget(selected)} style={{...qa,width:30,padding:0,justifyContent:"center",color:"#fecaca"}}><Trash2 size={14}/></button>}
                   <button onClick={()=>setSelected(null)} title="ปิด" style={{...qa,width:30,padding:0,justifyContent:"center"}}><X size={15}/></button>
                 </div>
               </div>
@@ -1210,6 +1238,7 @@ function QuotationsPageInner(){
           quoteId={editingQ.id}
           hqQuoteId={editingQ.hqQuoteId}
           locked={editingQ.status!=="draft"}
+          ฉบับใหม่={!!editingQ.supersedesId}
           onSave={saveQ} onClose={()=>setShowModal(false)}/>
       )}
 

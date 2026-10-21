@@ -30,8 +30,9 @@ begin
   perform set_config('role', 'authenticated', true);
 
   -- อ่านได้ตามเดิม
+  -- ทะเบียนดีลเลอร์: ดีลเลอร์เห็นแถวตัวเองแถวเดียว (ใบ 0220 · ข้อทดสอบเต็มที่ dealers_directory_own_row.sql)
   select count(*) into n from dealers_directory;
-  perform flowtest.ok(n > 1, 'ดีลเลอร์ยังอ่านรายชื่อดีลเลอร์ได้ (' || n || ' แถว)');
+  perform flowtest.ok(n = 1, 'ดีลเลอร์ยังอ่านทะเบียนดีลเลอร์ได้ เฉพาะแถวตัวเอง (' || n || ' แถว)');
   select count(*) into n from master_catalog_public;
   perform flowtest.ok(n > 0, 'ดีลเลอร์ยังอ่านแม่แบบสินค้าได้ (' || n || ' แถว)');
 

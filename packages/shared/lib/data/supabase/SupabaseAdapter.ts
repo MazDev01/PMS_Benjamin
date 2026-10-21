@@ -1146,6 +1146,11 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return rowToQuote(data as Row);
     },
+    newVersion: async (dealer, id) => {
+      const { data, error } = await sb().rpc("quotation_new_version", { p_dealer: dealer, p_id: id });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return rowToQuote(data as Row);
+    },
   },
   customers: {
     list: async (scope) => (await selectScoped<CustomerRow>("customers", scope)).map(normalizeCustomer),

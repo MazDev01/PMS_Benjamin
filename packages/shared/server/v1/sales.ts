@@ -284,6 +284,13 @@ export const quotesPOST = handler("quotations.write", async (req, sb) => {
     if (error) return dbFail("quotations.createNumbered", error);
     return ok(rowToQuote(data as Row));
   }
+  if (o === "new-version") {
+    // ทำฉบับใหม่จากใบที่ส่งแล้ว (RPC 0228 · ฐานตรวจสิทธิ์สาขา/สถานะเอง)
+    const b = parse({ dealer: str({ max: 20 }), id: str({ max: 60 }) }, await body<unknown>(req));
+    const { data, error } = await sb.rpc("quotation_new_version", { p_dealer: b.dealer, p_id: b.id });
+    if (error) return dbFail("quotations.newVersion", error);
+    return ok(rowToQuote(data as Row));
+  }
   if (o === "expire") {
     const b = parse({ asOf: isoDate({ optional: true }), validityDays: num({ int: true, min: 1, max: 3650, optional: true }) },
       await body<unknown>(req));

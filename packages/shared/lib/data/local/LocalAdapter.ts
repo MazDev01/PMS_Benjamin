@@ -1128,6 +1128,21 @@ export const LocalAdapter: DataAdapter = {
       writeKey(SALES.quotations, [created, ...list]);
       return ok(created);
     },
+    // ทำฉบับใหม่ — กติกาเดียวกับ quotation_new_version (0228) แบบย่อ สำหรับโหมดข้อมูลตัวอย่าง
+    newVersion: (dealer, id) => {
+      const list = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
+      const ของสาขา = (q: QuotationMock) => (q.dealerCode ?? DEFAULT_DEALER_CODE) === dealer;
+      const v1 = list.find(q => ของสาขา(q) && q.id === id);
+      if (!v1) return Promise.reject(new Error(`ไม่พบใบเสนอราคา ${id}`));
+      const มีแล้ว = list.find(q => ของสาขา(q) && q.supersedesId === id);
+      if (มีแล้ว) return มีแล้ว.status === "draft" ? ok(มีแล้ว) : Promise.reject(new Error(`ใบ ${id} มีฉบับใหม่ (${มีแล้ว.id}) แล้ว`));
+      if (v1.status !== "sent_to_client") return Promise.reject(new Error("ทำฉบับใหม่ได้เฉพาะใบที่ส่งให้ลูกค้าแล้วและลูกค้ายังไม่ตอบ"));
+      const n = (Number(String(v1.revision ?? "V1").replace(/[^0-9]/g, "")) || 1) + 1;
+      const created: QuotationMock = { ...v1, id: `${v1.id.replace(/-V\d+$/, "")}-V${n}`, status: "draft", revision: `V${n}`,
+        supersedesId: v1.id, lostReason: undefined, expiredReason: null, priceHistory: [], date: new Date().toISOString().slice(0, 10) };
+      writeKey(SALES.quotations, [created, ...list]);
+      return ok(created);
+    },
   },
   customers: {
     list: (scope) => ok(scopeByDealer(readKey<CustomerRow[]>(SALES.customers, initialCustomers), scope)),

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, RYG, CNX, ADMIN, skipReason, type Account } from "./supabaseEnv";
-import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 import { adminClient } from "./testDealers";
 
 // กฎความปลอดภัยที่ "มีจริงเฉพาะโหมด supabase" — RLS / สิทธิ์เขียน / FK / ตัวนับเลขที่ (M5)
@@ -176,7 +176,8 @@ test("[rpc] ใบที่ส่งแล้วและเลยกำหน�
     expect((await ryg.from("quotations").select("status").eq("id", id)).data?.[0]?.status,
       "ใบที่เลยกำหนดต้องกลายเป็นหมดอายุ").toBe("expired");
   } finally {
-    await ryg.from("quotations").delete().eq("id", id);
+    // ใบที่ส่งแล้ว/หมดอายุลบด้วยกุญแจไม่ได้แล้ว (ใบ 0228) — ล้างที่ฐานทดสอบตรง ๆ ไม่งั้นค้างแล้วรอบหน้าวางใบเลขเดิมไม่ได้
+    ลบใบทดสอบที่ฐาน(`id = '${id}'`);
   }
 });
 

@@ -14,7 +14,9 @@
       // → เทสต์ที่ตั้งใจวัดโหมด api จะวัดโหมด supabase แทน โดยไม่มีอะไรเตือน
       "passThroughEnv": ["NEXT_PUBLIC_DATA_SOURCE"]
     },
-    "typecheck": {},
+    // ไม่แคช (21 ต.ค. 69): แอป dealer/hq ตรวจชนิดโค้ดของ packages/shared ด้วย แต่กุญแจแคชของแอปไม่รวมไฟล์ของ shared
+    //   แก้ mock.ts แล้ว typecheck ตอบ "cache hit" ผ่าน ทั้งที่หน้าใบเสนอราคาของ dealer ตรวจไม่ผ่านจริง — ขั้นแรกของรอบปิดด่านพลาดได้
+    "typecheck": { "cache": false },
     "lint": {}
   }
 }

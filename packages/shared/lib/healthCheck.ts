@@ -54,6 +54,9 @@ export function healthHandler(appName: string, requiredEnv: string[]) {
         app: appName,
         status: ok ? "ok" : "degraded",
         checks: checks.map(c => ({ name: c.name, ok: c.ok, ms: c.ms })),
+        // commit ที่เว็บนี้รันอยู่ (Vercel ใส่ให้ตอน build) — ใช้ยืนยันหลังขึ้นระบบว่าเว็บจริงเป็น commit ใหม่แล้ว
+        //   โดยไม่ต้องล็อกอิน Vercel (บอสสั่ง 21 ต.ค. 69) · repo เป็นสาธารณะ เลข commit จึงไม่ใช่ข้อมูลลับ · ในเครื่อง = null
+        commit: process.env.VERCEL_GIT_COMMIT_SHA ? process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7) : null,
         at: new Date().toISOString(),
       },
       { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },

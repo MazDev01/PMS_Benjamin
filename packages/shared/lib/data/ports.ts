@@ -544,6 +544,9 @@ export interface QuotationsRepo {
    *  รับ row ที่ "ยังไม่มี id" (DB เป็นคนออกเลขให้) · คืนใบที่บันทึกจริงพร้อมเลขที่
    *  supabase: RPC create_quotation (ออกเลข+insert รวด) · local: max+1 แล้ว insert (เธรดเดียว = atomic) */
   createNumbered(dealer: string, prefix: string | undefined, row: Omit<QuotationMock, "id">): Promise<QuotationMock>;
+  /** ทำฉบับใหม่ (V2, V3 …) จากใบที่ส่งให้ลูกค้าแล้ว — ใบร่างแถวใหม่ เลขที่เดิมต่อท้าย -Vn (รอบ 3 · ใบ 0228)
+   *  มีฉบับใหม่ที่ยังเป็นร่างอยู่แล้ว = คืนใบนั้น · supabase/api: RPC quotation_new_version · local: ทำในเครื่อง */
+  newVersion(dealer: string, id: string): Promise<QuotationMock>;
   /** ปิดใบที่ "ส่งแล้ว" และเลยวันหมดอายุ → สถานะ expired · asOf = วันนี้ของระบบ (YYYY-MM-DD) · คืนจำนวนใบที่ปิด */
   // validityDays: อายุใบเสนอราคาเริ่มต้น (นโยบาย HQ) — ใช้เป็น "หมดอายุ" ของใบที่ไม่ได้กรอก expiry เอง
   //   (นิยามเดียวกับที่ hq_alerts ใช้เตือน "ใกล้หมดอายุ" — ไม่งั้นสองจุดเห็นวันหมดอายุคนละวัน)
