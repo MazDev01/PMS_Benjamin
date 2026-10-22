@@ -71,6 +71,7 @@ test("[dealer] ปิดการขายลูกค้าเป้าหม�
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
     await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(EXISTING);   // ตารางแบ่งหน้า — ค้นหาก่อนหาแถว
     // ตารางเรียงใหม่สุดก่อน — แถวแรกที่เป็นบริษัทนี้ + ผู้ติดต่อทดสอบ = ลีดที่เพิ่งเพิ่ม
     await page.locator("tbody tr").filter({ hasText: EXISTING }).filter({ hasText: "ผู้ติดต่อทดสอบ" }).first()
       .getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
