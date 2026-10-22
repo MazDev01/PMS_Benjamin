@@ -13,8 +13,8 @@ import { createClient } from "@supabase/supabase-js";
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
 const phase = args.at(-1);
-if (!["local", "prod"].includes(target) || !["setup", "test", "files"].includes(phase)) {
-  console.error("ใช้: node tests/prod-live/run.mjs --target local|prod setup|test|files"); process.exit(2);
+if (!["local", "prod"].includes(target) || !["setup", "test", "files", "trial"].includes(phase)) {
+  console.error("ใช้: node tests/prod-live/run.mjs --target local|prod setup|test|files|trial"); process.exit(2);
 }
 const envFile = target === "prod" ? ".env.production.local" : "apps/hq/.env.local";
 const env = Object.fromEntries(readFileSync(envFile, "utf8").split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));
@@ -35,8 +35,12 @@ if (phase === "setup") {
   const t = Date.now();
   const st = { code: CODE, password: รหัส, users: [], leadNum: 979_000_000 + (t % 999_999), company: `ZZTEST-ทดสอบระบบ-${t % 100000}` };
   writeFileSync(STATE, JSON.stringify(st));
-  const d = await svc.from("dealers").insert({ code: CODE, name: "สาขาทดสอบชั่วคราว (ลบทิ้ง)", status: "active", province: "ระยอง" });
+  const d = await svc.from("dealers").insert({ code: CODE, name: "สาขาทดสอบชั่วคราว (ลบทิ้ง)", status: "active", province: "ระยอง", region: "ตะวันออก" });
   if (d.error) ตาย(`สร้างสาขาไม่สำเร็จ: ${d.error.message}`);
+  // จังหวัดที่ดูแล — ดีลเลอร์สร้างลีดได้เฉพาะในพื้นที่ตัวเอง · หน้าแก้ไขดีลเลอร์ของ HQ ไม่มีช่องนี้ (กำหนดได้ตอนตั้งเป็นดีลเลอร์เท่านั้น)
+  //   ลบตามสาขาอัตโนมัติ (FK ON DELETE CASCADE) — cleanup.sql ไม่ต้องลบเอง
+  const พื้นที่ = await svc.from("dealer_territories").insert({ dealer_code: CODE, province: "ระยอง" });
+  if (พื้นที่.error) ตาย(`ตั้งจังหวัดที่ดูแลไม่สำเร็จ: ${พื้นที่.error.message}`);
   for (const [role, code] of [["SUPER_ADMIN", ""], ["DEALER_ADMIN", CODE]]) {
     const email = `live-${role === "SUPER_ADMIN" ? "hq" : "dealer"}-${t}@example.test`;
     const { data, error } = await svc.auth.admin.createUser({ email, password: รหัส, email_confirm: true,
@@ -55,10 +59,13 @@ if (phase === "setup") {
   console.log(`✓ setup: สาขา ${CODE} · บัญชี ${st.users.length} · ลูกค้าเป้าหมาย #L-${st.leadNum}`);
 }
 
-if (phase === "test") {
+if (phase === "test" || phase === "trial") {
+  // trial = ทดลองใช้เว็บแทนบอส (tests/prod-live/trial/trial.ts · บอสสั่ง 21 ต.ค. 69) — ใช้สาขา/บัญชีชั่วคราวชุดเดียวกัน
   const st = JSON.parse(readFileSync(STATE, "utf8"));
-  const r = spawnSync("npx", ["playwright", "test", "-c", "tests/prod-live/playwright.config.ts", "--reporter=line"], {
+  const config = phase === "trial" ? "tests/prod-live/trial/playwright.config.ts" : "tests/prod-live/playwright.config.ts";
+  const r = spawnSync("npx", ["playwright", "test", "-c", config, "--reporter=line"], {
     stdio: "inherit", shell: true, env: { ...process.env, LIVE_TARGET: target,
+      LIVE_SHOTS_DIR: process.env.LIVE_SHOTS_DIR ?? `C:/.claude/pms-shots/trial/${target}`,
       LIVE_HQ_URL: WEB.hq, LIVE_DEALER_URL: WEB.dealer, LIVE_PASSWORD: st.password,
       LIVE_HQ_EMAIL: st.users.find(u => u.role === "SUPER_ADMIN").email, LIVE_DEALER_EMAIL: st.users.find(u => u.role === "DEALER_ADMIN").email,
       LIVE_DEALER_CODE: st.code, LIVE_COMPANY: st.company, LIVE_LEAD_NUM: String(st.leadNum),

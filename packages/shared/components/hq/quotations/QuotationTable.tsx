@@ -36,10 +36,10 @@ export function QuotationTable({ rows, onView, pagination }: {
             <col style={{ width: 170 }} />{/* เลขที่ — ฉบับใหม่ "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69) · ตารางแบบตายตัวไม่สน minWidth ของ col จึงใช้ px */}
             <col style={{ width: 96 }} />{/* รหัส — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
             <col style={{ width: "9%", minWidth: 88 }} />{/* ดีลเลอร์ — ชื่อยาวตัด … ได้ */}
-            <col style={{ width: "19%", minWidth: 120 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ (รับความกว้างของคอลัมน์ประเภทอาคารที่ลบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
+            <col style={{ width: "16%", minWidth: 120 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ (รับความกว้างของคอลัมน์ประเภทอาคารที่ลบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
             <col style={{ width: "12%", minWidth: 128 }} />{/* จังหวัดดีลเลอร์ — "พระนครศรีอยุธยา" ต้องการ 125px */}
             <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
-            <col style={{ width: "8%", minWidth: 94 }} />{/* สถานะ */}
+            <col style={{ width: 112 }} />{/* สถานะ — ป้ายยาวสุด "ถูกแทนที่" ต้องเห็นเต็ม (ทดลองใช้เว็บ 21 ต.ค. 69 · เดิม 8% ป้ายถูกตัด) · ตารางตายตัวไม่สน minWidth จึงใช้ px */}
             <col style={{ width: "10%", minWidth: 116 }} />{/* วันที่สร้าง — "27 มิ.ย. 2569" ต้องการ 107px */}
             <col style={{ width: "10%", minWidth: 116 }} />{/* ใช้ได้ถึง */}
             <col style={{ width: "5%", minWidth: 52 }} />{/* ปุ่มดู — ไอคอนล้วน ไม่ต้องเผื่อที่ให้ข้อความ */}
@@ -79,7 +79,7 @@ export function QuotationTable({ rows, onView, pagination }: {
                   <td title={`จังหวัดของดีลเลอร์ ${q.dealerName}`} style={{ color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerProvince}</td>
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>
                   <td>
-                    <span className="badge" style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{quotationStatusLabel[q.status]}</span>
+                    <span className="badge" data-quote-status style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{quotationStatusLabel[q.status]}</span>
                   </td>
                   {/* คอลัมน์ "เปิดอ่าน" ถูกลบพร้อมสถานะเปิดอ่านแล้ว */}
                   <td style={{ color: MUTED, fontSize: "0.78rem", whiteSpace: "nowrap" }}>{q.createdAt}</td>

@@ -18,6 +18,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { sbChangeOwnPassword } from "@pms/shared/lib/supabaseAuth";
 import { REAL_BACKEND, DATA_SOURCE } from "@pms/shared/lib/data/config";
 import { getSupabase } from "@pms/shared/lib/data/supabase/client";
+import { adminFetch } from "@pms/shared/lib/adminApi";
 
 /** ใบผ่านของผู้ใช้ที่กำลังล็อกอิน — โหมด api เก็บใน cookie httpOnly หน้าเว็บอ่านไม่ได้ (และไม่ต้อง)
  *  คืนค่าว่างในโหมดนั้น แล้วให้ fetch ส่ง cookie ไปเอง (credentials: same-origin) */
@@ -78,7 +79,7 @@ export default function ProfilePage() {
   /** ยิงคำสั่งไปที่เส้นทางของผู้ดูแล — โหมด cookie ไม่ต้องแนบใบผ่าน (เหมือน adminApi) */
   async function เรียกเส้นทางรหัสผ่าน(payload: Record<string, unknown>): Promise<{ ok: boolean; data: Record<string, unknown> }> {
     const token = await ใบผ่านของฉัน();
-    const res = await fetch("/api/account/hq-secret", {
+    const res = await adminFetch("/api/account/hq-secret", {   // ใบผ่านหมดอายุ ต่ออายุแล้วยิงซ้ำ (adminApi.ts)
       method: "POST", credentials: "same-origin",
       headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify(payload),

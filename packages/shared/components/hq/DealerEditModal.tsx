@@ -33,8 +33,10 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
   /** บันทึก — โยน error = แสดงในหน้าต่าง ไม่ปิด */
   onSave: (edit: DealerEdit) => Promise<void>;
 }) {
+  // ช่องที่ฐานเก็บเป็นค่าว่าง (null) ต้องเป็น "" ในฟอร์ม — เดิมกดบันทึกแล้วหน้าเว็บพัง (null.trim) แทนที่จะบอกว่าต้องเลือกภาค
+  //   (ทดลองใช้เว็บแทนบอส 21 ต.ค. 69 · สาขาที่ไม่มีภาค · ข้อทดสอบ dealer-edit-null-fields.spec.ts)
   const [form, setForm] = useState({
-    name: dealer.name, province: dealer.province, region: dealer.region, revenueTarget: dealer.revenueTarget,
+    name: dealer.name ?? "", province: dealer.province ?? "", region: dealer.region ?? "", revenueTarget: dealer.revenueTarget,
     package: (dealer.package ?? "") as DealerPackage | "", status: dealer.status as DealerStatus,
   });
   const [err, setErr] = useState("");

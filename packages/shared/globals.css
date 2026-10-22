@@ -782,6 +782,11 @@ body {
 .row-2-eq { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.75rem; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
 
+/* กล่องเลื่อนตารางในแผง/ลิ้นชัก (ใบ HQ · % ที่บวก · แผงคำขอราคา · ลิ้นชักใบเสนอราคา · การ์ดโอนลีด)
+   เดิมใช้ชื่อคลาสนี้แต่ไม่มีกฎ CSS เลย — บนมือถือตารางกว้างกว่าจอจึงดันทั้งหน้าให้ล้นจนตัวหนังสือซ้ายถูกตัด
+   (ทดลองใช้เว็บจริงแทนบอส 21 ต.ค. 69 · ข้อทดสอบ table-scroll-mobile.spec.ts) */
+.table-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 /* ─── Table (scoped to .table-wrap so other pages stay untouched) ─── */
 /* scroll shadow — บอกใบ้ว่ายังปัดขวาได้อีก (จอแคบ/ตารางกว้างกว่าจอ) เดิมไม่มีสัญญาณอะไรเลย
    ผู้ใช้ไม่รู้ว่าคอลัมน์ท้ายๆ (เช่นปุ่มดูรายละเอียด) หลุดจอไปแล้ว ต้องปัดถึงจะเห็น

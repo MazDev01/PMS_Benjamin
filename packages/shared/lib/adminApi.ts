@@ -21,6 +21,19 @@ async function adminToken(): Promise<string> {
   } catch { return ""; }
 }
 
+/** ยิงคำขอฝั่งผู้ดูแล — ใบผ่านหมดอายุ (401) ต่ออายุหนึ่งครั้งแล้วยิงซ้ำ แบบเดียวกับ apiFetch ของคำขอทั่วไป
+ *  เดิมยิงตรง ๆ: ใช้หน้า HQ นานจนใบผ่านหมดอายุ แล้วกด "เข้าระบบแทน" / สร้างดีลเลอร์ / ดูรหัสผ่าน ได้ 401 ใช้งานไม่ได้จนรีเฟรชหน้า
+ *  (ทดลองใช้เว็บจริงแทนบอส 21 ต.ค. 69 · ข้อทดสอบ tests/unit/adminFetchRefresh.test.ts) */
+export async function adminFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const ยิง = () => fetch(url, { credentials: "same-origin", ...init });
+  let res = await ยิง();
+  if (res.status === 401 && COOKIE_AUTH) {
+    const { caRefresh } = await import("./cookieAuth");
+    if (await caRefresh()) res = await ยิง();
+  }
+  return res;
+}
+
 /** header สำหรับเรียก /api/admin/* — โหมด cookie ไม่แนบ authorization เลย */
 const authHeaders = (token: string, json = false): Record<string, string> => ({
   ...(json ? { "content-type": "application/json" } : {}),
@@ -51,7 +64,7 @@ export async function createDealerAccount(input: CreateDealerInput): Promise<Cre
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
 
   try {
-    const res = await fetch("/api/admin/dealers", { credentials: "same-origin",
+    const res = await adminFetch("/api/admin/dealers", { credentials: "same-origin",
       method: "POST",
       headers: authHeaders(token, true),
       body: JSON.stringify(input),
@@ -76,7 +89,7 @@ export async function linkProspectToDealer(prospectId: number, dealerCode: strin
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch("/api/admin/dealers/link-prospect", { credentials: "same-origin",
+    const res = await adminFetch("/api/admin/dealers/link-prospect", { credentials: "same-origin",
       method: "POST",
       headers: authHeaders(token, true),
       body: JSON.stringify({ prospectId, dealerCode }),
@@ -101,7 +114,7 @@ export async function getDealerSelfQuota(code: string): Promise<
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch(`/api/admin/dealers/self-quota?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
+    const res = await adminFetch(`/api/admin/dealers/self-quota?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
       headers: authHeaders(token),
     });
     const json = (await res.json().catch(() => ({}))) as { error?: string; used?: number; limit?: number };
@@ -123,7 +136,7 @@ export async function resetDealerSelfQuota(code: string): Promise<
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch(`/api/admin/dealers/self-quota?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
+    const res = await adminFetch(`/api/admin/dealers/self-quota?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
       method: "POST",
       headers: authHeaders(token),
     });
@@ -154,7 +167,7 @@ export async function createHQUser(input: CreateHQUserInput): Promise<CreateHQUs
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch("/api/admin/users", { credentials: "same-origin",
+    const res = await adminFetch("/api/admin/users", { credentials: "same-origin",
       method: "POST",
       headers: authHeaders(token, true),
       body: JSON.stringify(input),
@@ -175,7 +188,7 @@ export async function deleteHQUser(id: string): Promise<{ ok: true } | { ok: fal
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { credentials: "same-origin",
+    const res = await adminFetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { credentials: "same-origin",
       method: "DELETE",
       headers: authHeaders(token),
     });
@@ -201,7 +214,7 @@ export async function resetDealerPassword(
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch(`/api/admin/dealers?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
+    const res = await adminFetch(`/api/admin/dealers?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
       method: "PATCH",
       headers: authHeaders(token, true),
       body: JSON.stringify({ email: แก้?.email?.trim() || undefined, password: แก้?.password || undefined }),
@@ -231,7 +244,7 @@ export async function listDealerLoginEmails(): Promise<Record<string, string>> {
   const token = await callerToken();
   if (!token) return {};
   try {
-    const res = await fetch("/api/admin/dealers/logins", { credentials: "same-origin", headers: authHeaders(token) });
+    const res = await adminFetch("/api/admin/dealers/logins", { credentials: "same-origin", headers: authHeaders(token) });
     const json = (await res.json().catch(() => ({}))) as { logins?: Record<string, string> };
     return res.ok ? (json.logins ?? {}) : {};
   } catch { return {}; }
@@ -249,7 +262,7 @@ export async function viewDealerPassword(code: string): Promise<
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch(`/api/admin/dealers/secret?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
+    const res = await adminFetch(`/api/admin/dealers/secret?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
       headers: authHeaders(token),
     });
     const json = (await res.json().catch(() => ({}))) as
@@ -270,7 +283,7 @@ export async function impersonateDealer(code: string): Promise<{ ok: true; link:
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch(`/api/admin/dealers/impersonate?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
+    const res = await adminFetch(`/api/admin/dealers/impersonate?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
       method: "POST",
       headers: authHeaders(token),
     });
@@ -292,7 +305,7 @@ export async function clearAuditLog(): Promise<
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch("/api/admin/audit/clear", { credentials: "same-origin",
+    const res = await adminFetch("/api/admin/audit/clear", { credentials: "same-origin",
       method: "POST", headers: authHeaders(token),
     });
     const json = (await res.json().catch(() => ({}))) as { error?: string; removed?: number };
@@ -315,7 +328,7 @@ export async function resetHQUserPassword(id: string, password?: string): Promis
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
-    const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { credentials: "same-origin",
+    const res = await adminFetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { credentials: "same-origin",
       method: "PATCH",
       headers: authHeaders(token, true),
       body: JSON.stringify(password ? { password } : {}),
