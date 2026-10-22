@@ -22,6 +22,7 @@ import { TablePagination, pageSlice } from "@pms/shared/components/ui/TablePagin
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { HqQuoteEditor } from "@pms/shared/components/hq/HqQuoteEditor";
+import { QuoteRequestStats } from "@pms/shared/components/hq/HqOverviewParts";
 
 const ส้ม = "#b45309";
 const รอ = (r: QuoteBoardRow) => r.waitingDays === 0 ? "วันนี้" : `รอ ${r.waitingDays} วัน`;
@@ -103,6 +104,8 @@ export default function HQQuoteRequestsPage() {
   const แถว = กล่อง?.rows ?? [];
   return (
     <div className="erp">
+      {/* ผลงานของ HQ เอง: เวลาตอบเฉลี่ย · อัตรายกเลิก (ย้ายมาจากแดชบอร์ด · บอสตัดสิน 22 ต.ค. 69) */}
+      <QuoteRequestStats />
       <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 440px) minmax(0, 1fr)", gap: 16, alignItems: "start" }} className="hq-qr-board">
         {/* ── ซ้าย: กล่องงาน ── */}
         <section aria-label="กล่องคำขอราคา" className="card" style={{ overflow: "hidden" }}>

@@ -21,7 +21,7 @@ export const เป็นรหัสสาขาทดสอบ = (code: string
 export const adminClient = (): SupabaseClient =>
   createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
-/** ลบสาขาทดสอบหนึ่งรายให้หมด: ข้อมูลงานขาย · ค่าตั้งของสาขา · ลูกค้าเป้าหมาย (HQ) ต้นทาง · บัญชีเข้าระบบ · แถวสาขา
+/** ลบสาขาทดสอบหนึ่งรายให้หมด: ข้อมูลงานขาย · ค่าตั้งของสาขา · ผู้สนใจเป็นดีลเลอร์ ต้นทาง · บัญชีเข้าระบบ · แถวสาขา
  *  คืนรายการที่ลบไม่สำเร็จ (ว่าง = หมดจด) — ผู้เรียกตัดสินเองว่าจะเตือนหรือให้ตก */
 export async function ลบสาขาทดสอบตรง(code: string, client?: SupabaseClient): Promise<string[]> {
   if (!เป็นรหัสสาขาทดสอบ(code)) throw new Error(`ลบสาขาทดสอบตรง: "${code}" ไม่ใช่รหัสสาขาทดสอบ (ต้องขึ้นต้น ZZ หรือ ZT) — ไม่ลบ`);
@@ -48,7 +48,7 @@ export async function ลบสาขาทดสอบตรง(code: string, c
   for (const t of ["appointments", "customer_notes", "files", "leads", "customers",
                    "responsible_persons", "dealer_lead_rules", "dealer_account_changes", "dealer_account_requests",
                    "notifications"]) await ลบ(t);   // แจ้งเตือนของสาขา (ใบ 0231) — ไม่มีกุญแจนอกถึงสาขา ไม่หายตาม
-  // ลูกค้าเป้าหมาย (HQ) ที่กลายมาเป็นสาขานี้ — ระบบลบทิ้งพร้อมสาขา (บอสสั่ง 15 ก.ย. 69) ตัวเก็บกวาดจึงทำแบบเดียวกัน
+  // ผู้สนใจเป็นดีลเลอร์ ที่กลายมาเป็นสาขานี้ — ระบบลบทิ้งพร้อมสาขา (บอสสั่ง 15 ก.ย. 69) ตัวเก็บกวาดจึงทำแบบเดียวกัน
   await ลบ("dealer_prospects");
   // และรายที่ตัวช่วย ลูกค้าเป้าหมายรองรับสาขา() สร้างไว้ให้รหัสนี้แต่ไม่ได้ผูกกับสาขาแล้ว
   //   (สร้างสาขาไม่สำเร็จ หรือสาขาถูกลบตรงที่ตารางจนกุญแจนอกล้างรหัสสาขาเป็นว่าง) — เคยค้างสะสม 12 แถว

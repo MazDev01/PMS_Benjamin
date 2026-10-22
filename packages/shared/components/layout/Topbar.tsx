@@ -59,7 +59,7 @@ const TITLE_MAP: { match: string; title: string }[] = [
   { match: "/hq/pipeline",       title: "ภาพรวมยอดขาย" },
   // ต้องตรงกับชื่อในเมนูข้าง — เดิมเมนูเรียก "ดีลเลอร์" แต่หัวหน้าเพจเรียก "ดีลเลอร์"
   { match: "/hq/dealers",        title: "ดีลเลอร์" },
-  { match: "/hq/prospects",      title: "ลูกค้าเป้าหมาย (HQ)" },
+  { match: "/hq/prospects",      title: "ผู้สนใจเป็นดีลเลอร์" },
   { match: "/hq/proposals",      title: "ใบค่าแฟรนไชส์" },
   { match: "/hq/quote-requests", title: "คำขอใบเสนอราคา" },
   { match: "/hq/leads",          title: "ลูกค้าเป้าหมายทั้งเครือ" },
@@ -90,7 +90,7 @@ const DEALER_PAGES: PageEntry[] = [
 const HQ_PAGES: PageEntry[] = [
   { label: "แดชบอร์ดสำนักงานใหญ่", href: "/hq/dashboard",  keywords: "แดชบอร์ด dashboard สำนักงานใหญ่ hq ภาพรวม สรุป หน้าแรก" },
   { label: "ดีลเลอร์",              href: "/hq/dealers",    keywords: "ดีลเลอร์ dealer dealers จำหน่าย" },
-  { label: "ลูกค้าเป้าหมาย (HQ)", href: "/hq/prospects", keywords: "ลูกค้าเป้าหมาย ผู้สนใจ สมัครดีลเลอร์ prospect prospects dealer ใหม่ hq" },
+  { label: "ผู้สนใจเป็นดีลเลอร์", href: "/hq/prospects", keywords: "ลูกค้าเป้าหมาย ผู้สนใจ สมัครดีลเลอร์ prospect prospects dealer ใหม่ hq" },
   { label: "ใบค่าแฟรนไชส์", href: "/hq/proposals", keywords: "ใบค่าแฟรนไชส์ แพ็กเกจดีลเลอร์ ค่าแรกเข้า ระยะสัญญา proposal package dp hq" },
   { label: "ลูกค้าเป้าหมายทั้งเครือ", href: "/hq/leads",   keywords: "ลูกค้าเป้าหมาย lead leads ลีด ทั้งเครือ" },
   { label: "ลูกค้าทั้งเครือ",       href: "/hq/customers",  keywords: "ลูกค้า customer customers ทั้งเครือ" },

@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { FileText, Percent, Target, Trophy, Eye, X, Coins, Search } from "lucide-react";
 import { DealerQuotationPerformance, DealerQuotationTable } from "@pms/shared/components/hq/pipeline/DealerQuotationPerformance";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
+import { DealerMarginCard } from "@pms/shared/components/hq/HqOverviewParts";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { DEFAULT_HQ_TARGETS, QUOTED_UP, type DealerRow, type HQTargets } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -589,6 +590,9 @@ export default function SalesAnalyticsPage() {
         </div>
         <TablePagination page={perfPageSafe} total={perf.length} onPage={setPerfPage} unit="ดีลเลอร์" />
       </div>
+
+      {/* ส่วนบวกรายดีลเลอร์ (บอสตัดสิน 22 ต.ค. 69) — แอป HQ เท่านั้น · ไม่อยู่ในไฟล์ส่งออกของหน้านี้ */}
+      <DealerMarginCard />
 
       {/* แผงดีลเลอร์ซ้อนเอาออก (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — กดดีลเลอร์แล้วไปหน้ารายละเอียดดีลเลอร์ · ผลงานอยู่หน้านี้ที่เดียว */}
     </div>

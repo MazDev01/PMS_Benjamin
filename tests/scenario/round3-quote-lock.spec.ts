@@ -39,7 +39,7 @@ test.afterAll(async () => {
 // รอบ 4 (บอสสั่ง 21 ต.ค. 69): หน้าใบเสนอราคาเหลือรายการ+ค้นหา กดแถวพาไปแผงลีดของใบนั้น
 //   ปุ่มของใบ (แก้ไข · ทำฉบับใหม่ · ทำสำเนา · ลบ · ส่งอีกครั้ง · ลูกค้าตอบรับ/ปฏิเสธ) อยู่ที่แท็บใบเสนอราคาในแผงลีด
 //   ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว
-//   ฟอร์มในแผงลีดแก้ชื่อโครงการ + % ได้ · จังหวัด/พื้นที่ของใบไม่มีช่องแก้ (ส่งให้บอสตัดสิน)
+//   ฟอร์มในแผงลีดแก้ชื่อโครงการ จังหวัด พื้นที่ + % ได้เฉพาะใบร่าง V1 · ฉบับใหม่ V2 ล็อก (บอสตัดสิน 22 ต.ค. 69)
 const ใบในแผง = (page: import("@playwright/test").Page, id: string) => page.locator(`[data-quote-item="${id}"]`);
 async function เปิดแผงใบ(page: import("@playwright/test").Page) {
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
@@ -54,19 +54,23 @@ async function เปิดแผงใบ(page: import("@playwright/test").Page
   await expect(ใบในแผง(page, เลขใบ), "แผงลีดของใบนี้เปิดที่แท็บใบเสนอราคา").toBeVisible({ timeout: 20_000 });
 }
 
-test("[รอบ3·1] ใบร่าง: แก้โครงการได้ · รายการแก้ได้เฉพาะ %", async ({ page }) => {
+test("[รอบ3·1] ใบร่าง: แก้โครงการ/จังหวัด/พื้นที่ได้ · รายการแก้ได้เฉพาะ %", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await เปิดแผงใบ(page);
   await ใบในแผง(page, เลขใบ).getByTitle("แก้ไข").click();
   await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 15_000 });
   await page.getByPlaceholder("เช่น โกดังเก็บสินค้าเกษตร — บจ. ...").fill(`${ลูกค้า}-โครงการใหม่`);
+  await page.locator("#q-province").fill("ชลบุรี");
+  await page.locator("#q-area").fill("320");
   // รายการ: ช่องที่พิมพ์ได้มีแต่ % ที่บวก (บรรทัดละ 1 ช่อง) — ไม่มีช่องราคา/จำนวน/ชื่อรายการ
   const ตาราง = page.getByRole("table", { name: "รายการในใบเสนอราคา (จากใบ HQ)" });
   await expect(ตาราง.locator("input"), "ช่องที่แก้ได้ในรายการ = ช่อง % บรรทัดละ 1 ช่อง").toHaveCount(2);
   await ตาราง.getByLabel("% ที่บวก 1").fill("20");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await expect.poll(async () => (await แถวฐาน())?.project, { timeout: 20_000 }).toBe(`${ลูกค้า}-โครงการใหม่`);
-  expect(Number((await แถวฐาน())?.total_value), "ฐาน: ยอด = บรรทัด 1 +20% (2×1,200) + บรรทัด 2 +10% (550)").toBe(2950);
+  const r = await แถวฐาน();
+  expect({ province: r?.province, area: r?.area, total: Number(r?.total_value) }, "ฐาน: จังหวัด/พื้นที่บันทึก · ยอด = บรรทัด 1 +20% (2×1,200) + บรรทัด 2 +10% (550)")
+    .toEqual({ province: "ชลบุรี", area: "320", total: 2950 });
 });
 
 test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก้ไข/ลบ มีปุ่มทำฉบับใหม่ · ส่งอีกครั้งยังได้ · ฐานปฏิเสธการแก้ทุกช่อง", async ({ page }) => {
@@ -118,11 +122,13 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
   const ใบV1 = () => ใบในแผง(page, เลขใบ);
   const ใบV2 = () => ใบในแผง(page, เลขV2);
 
-  // ทำฉบับใหม่ → ฟอร์มของ V2 · โครงการแก้ไม่ได้ (ลูกค้า/จังหวัดในฟอร์มเป็นข้อความอ่านอย่างเดียว) · แก้ % ได้
+  // ทำฉบับใหม่ → ฟอร์มของ V2 · โครงการ/จังหวัด/พื้นที่แก้ไม่ได้ · แก้ % ได้
   await เปิดแผงใบ(page);
   await ใบV1().getByTitle("ทำฉบับใหม่").click();
   await expect(page.locator("[data-version-copied]"), "ฟอร์มฉบับใหม่บอกว่าคัดลอกจากใบเดิม").toBeVisible({ timeout: 15_000 });
   await expect(page.getByPlaceholder("เช่น โกดังเก็บสินค้าเกษตร — บจ. ..."), "โครงการแก้ไม่ได้").toHaveAttribute("readonly", "");
+  await expect(page.locator("#q-province"), "V2: จังหวัดแก้ไม่ได้").toHaveAttribute("readonly", "");
+  await expect(page.locator("#q-area"), "V2: พื้นที่แก้ไม่ได้").toHaveAttribute("readonly", "");
   await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 15_000 });
   await page.getByRole("table", { name: "รายการในใบเสนอราคา (จากใบ HQ)" }).getByLabel("% ที่บวก 1").fill("30");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();

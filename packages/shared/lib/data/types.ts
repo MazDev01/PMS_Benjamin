@@ -114,7 +114,7 @@ export type DealerProspect = {
   updatedAt?: string;
 };
 
-// ── ประวัติลูกค้าเป้าหมาย (HQ) — ระบบบันทึกเอง + บันทึกการติดต่อ · แก้/ลบไม่ได้ (migration 0174) ──
+// ── ประวัติผู้สนใจเป็นดีลเลอร์ — ระบบบันทึกเอง + บันทึกการติดต่อ · แก้/ลบไม่ได้ (migration 0174) ──
 export type ProspectActivityKind = "created" | "status" | "contact" | "proposal";
 export type ProspectActivity = {
   id: number;

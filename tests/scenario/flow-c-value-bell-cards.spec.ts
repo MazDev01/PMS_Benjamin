@@ -236,6 +236,17 @@ test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใ
   await expect(page.getByRole("link", { name: /ดูผลงานที่ภาพรวมยอดขาย/ }), "หน้ารายละเอียดพาไปภาพรวมยอดขาย").toBeVisible({ timeout: 20_000 });
   for (const ห้าม of ["ความคืบหน้าเทียบเป้าทั้งปี", "ล้าหลังเป้า", "อัตราปิดการขาย"])
     await expect(page.getByText(ห้าม, { exact: true }), `หน้ารายละเอียดดีลเลอร์ไม่มี "${ห้าม}"`).toHaveCount(0);
+  // บอสตัดสิน 22 ต.ค. 69: หน้านี้ "ข้อมูลสาขา + รายการงาน ไม่มียอดเงิน" ทุกแท็บ — ดีลเลอร์ทดสอบมีใบตอบรับ ฿123,456 อยู่จริง
+  //   ถ้าแท็บไหนหลุดยอดเงิน/การ์ดเป้ากลับมา ข้อความ ฿/123,456/% เป้า จะโผล่ในเนื้อหน้า
+  const แท็บ = page.locator("button.tab-item");
+  await expect(แท็บ.first()).toBeVisible({ timeout: 15_000 });
+  for (let i = 0; i < await แท็บ.count(); i++) {
+    const ชื่อ = ((await แท็บ.nth(i).textContent()) ?? "").trim();
+    await แท็บ.nth(i).click();
+    await page.waitForTimeout(600);
+    const เนื้อ = await page.locator("body").innerText();
+    expect(เนื้อ, `แท็บ "${ชื่อ}": ไม่มีตัวเลขเงิน`).not.toMatch(/฿\s?[\d,.]+|123,456|123456|% เป้า|เป้ายอดขาย/);
+  }
 
   await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
   await settle(page);
@@ -256,7 +267,7 @@ test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใ
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
     await page.getByPlaceholder(/ค้นหาบริษัท/).first().fill(`ZZไม่มีจริง-${แท็ก}`);
-    const การ์ด = page.getByTitle("กรอง: อัตราปิดดีล");
+    const การ์ด = page.getByTitle("กรอง: อัตราปิดการขาย");   // รอบ 4: ชื่อเดียวทุกหน้า (lib/winRate.ts)
     await expect(การ์ด, "อัตราปิดดีล: ไม่มีดีลที่ปิด = —").toContainText("—", { timeout: 15_000 });
     await expect(การ์ด, "อัตราปิดดีล: ไม่ใช่ 0%").not.toContainText("%");
     await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });

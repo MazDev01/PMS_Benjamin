@@ -40,7 +40,9 @@ function วันหมดอายุจาก(วันออกใบ: strin
 
 // vatOn/whtOn = "ใบนี้คิดภาษีตัวนั้นไหม" · vatPct/whtPct = อัตราที่ดีลเลอร์แก้เองได้ในฟอร์ม
 // ค่าตั้งต้น (บอสสั่ง 28 ส.ค. 69): VAT ติ๊กไว้ · หัก ณ ที่จ่าย ไม่ติ๊ก
-type FormState = { project: string; items: string; price: string; expiry: string; note: string;
+// province/area: แก้ได้เฉพาะใบร่าง V1 · ฉบับใหม่ (V2…) คัดลอกจากใบเดิมแก้ไม่ได้ (บอสตัดสิน 22 ต.ค. 69 · ฐานล็อกใบที่ส่งแล้ว 0226)
+const พื้นที่ = (v: string) => { const n = Number(String(v).replace(/,/g, "")); return Number.isFinite(n) && n > 0 ? n : 0; };
+type FormState = { project: string; province: string; area: string; items: string; price: string; expiry: string; note: string;
   lineItems: QuoteLineItem[]; vatOn: boolean; vatPct: string; whtOn: boolean; whtPct: string };
 
 // ต้องส่งมาอย่างใดอย่างหนึ่งเท่านั้น (lead หรือ customer) — เดิม prop เป็น optional ทั้งคู่แยกกัน
@@ -99,6 +101,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   const emptyForm = (): FormState => {
     return {
       project: defProject(),
+      province: subj.province ?? "", area: "",
       items: "0", price: "",
       expiry: "", note: "", lineItems: [],
       vatOn: true, vatPct: String(dealerVat ?? 7), whtOn: false, whtPct: String(dealerWht ?? 3),
@@ -195,6 +198,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     {
       const li = รายการจากใบHQ(ใบHQ);
       f.lineItems = li; f.items = String(li.length);
+      // พื้นที่ตั้งต้น = จำนวนของรายการที่คิดเป็น ตร.ม. (เดิมคิดตอนบันทึก) — ดีลเลอร์แก้ได้ในช่อง
+      const ตรม = li.filter(it => it.unit === "ตร.ม.").reduce((s, it) => s + it.qty, 0);
+      f.area = ตรม > 0 ? String(ตรม) : "";
       f.price = String(li.reduce((s, it) => s + it.qty * it.unitPrice, 0));
     }
     setEditing(null); setForm(f); setMode("create");
@@ -266,7 +272,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
       quoteRequestsRepo.hqQuoteById(q.hqQuoteId).then(setใบHQของใบที่แก้).catch(e => logRepoRead("quoteRequests.hqQuoteById", e));
     }
     const lineItems: QuoteLineItem[] = boqLineItems(q);
-    setForm({ project: q.project, items: String(lineItems.length),
+    setForm({ project: q.project, province: q.province ?? "", area: q.area ? String(q.area) : "", items: String(lineItems.length),
       price: String(q.materialCost || q.totalValue), expiry: q.expiry ?? "", note: q.note ?? "", lineItems,
       // อัตราที่ตรึงไว้กับใบเป็นตัวจริงเสมอ — ใบเก่าที่ไม่มีค่า ให้ตกไปใช้ค่าที่สาขาตั้งไว้
       vatOn: (q.vatPercent ?? dealerVat ?? 0) > 0, vatPct: String(q.vatPercent ?? dealerVat ?? 7),
@@ -291,7 +297,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
       // ⚠️ ต้องเทียบกับ "ใบล่าสุดในระบบ" ไม่ใช่สำเนาที่ค้างอยู่ในฟอร์ม (แก้ 27 ส.ค. 69)
       //    ผู้ใช้กดส่งใบ แล้วกดแก้ไขต่อทันที — สำเนาในฟอร์มอาจยังเป็น "ร่าง" อยู่
       const ใบล่าสุด = quotations.find(q => q.id === editing.id) ?? editing;
-      const ใบหลังแก้ = { ...ใบล่าสุด, project: form.project, items: form.lineItems.length,
+      // ฉบับใหม่ไม่ส่งจังหวัด/พื้นที่ที่แก้ — คงค่าที่คัดลอกจากใบเดิม (ช่องเป็นอ่านอย่างเดียวอยู่แล้ว)
+      const ที่ตั้ง = ฉบับใหม่ ? {} : { province: form.province.trim(), area: พื้นที่(form.area) };
+      const ใบหลังแก้ = { ...ใบล่าสุด, project: form.project, ...ที่ตั้ง, items: form.lineItems.length,
         lineItems: form.lineItems, materialCost: parseBaht(form.price), totalValue: net, total: "฿" + net.toLocaleString("th-TH"),
         expiry: วันหมดอายุ, note: form.note || undefined, ...ภาษีที่บันทึก };
       const เวอร์ชันใหม่ = ฉบับถัดไป(ใบล่าสุด, ใบหลังแก้);
@@ -306,8 +314,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         customer: subj.company, project: form.project || defProject(),
         total: "฿" + net.toLocaleString("th-TH"), totalValue: net, materialCost: parseBaht(form.price),
         // พื้นที่ = จำนวนของรายการ BOQ ที่คิดเป็น ตร.ม. (เดิม hardcode 0 → พื้นที่หายไปจากใบ)
-        province: subj.province, buildingType: "", // ใบใหม่ไม่มีประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
-        area: form.lineItems.filter(it => it.unit === "ตร.ม.").reduce((s, it) => s + it.qty, 0),
+        province: form.province.trim() || subj.province, buildingType: "", // ใบใหม่ไม่มีประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
+        area: พื้นที่(form.area),
         status: "draft", date: MOCK_TODAY, items: form.lineItems.length, lineItems: form.lineItems,
         customerId: subj.customerId ?? 0, projectId: 0, dealId: subj.dealId, revision: "V1", expiry: วันหมดอายุ,
         note: form.note || undefined,
@@ -404,6 +412,14 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         <div style={{ marginBottom: 14 }}>
           <label style={lbl}>ชื่อโครงการ / เอกสาร</label>
           <input value={form.project} onChange={e => set("project", e.target.value)} readOnly={ฉบับใหม่} style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} placeholder="เช่น โกดังเก็บสินค้าเกษตร — บจ. ..." />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+            <div><label style={lbl} htmlFor="q-province">จังหวัด</label>
+              <input id="q-province" value={form.province} onChange={e => set("province", e.target.value)} readOnly={ฉบับใหม่} placeholder="จังหวัด"
+                style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} /></div>
+            <div><label style={lbl} htmlFor="q-area">พื้นที่ (ตร.ม.)</label>
+              <input id="q-area" inputMode="decimal" value={form.area} onChange={e => set("area", e.target.value.replace(/[^\d.]/g, ""))} readOnly={ฉบับใหม่} placeholder="0"
+                style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} /></div>
+          </div>
           {ฉบับใหม่ && <div data-version-copied style={{ fontSize: "0.68rem", color: "#6b7280", marginTop: 4 }}>ฉบับใหม่: ลูกค้า โครงการ จังหวัด พื้นที่ และภาษี คัดลอกจากใบเดิม แก้ไม่ได้ — แก้ได้เฉพาะ % ที่บวก</div>}
         </div>
         {ใบHQของฟอร์ม ? (
