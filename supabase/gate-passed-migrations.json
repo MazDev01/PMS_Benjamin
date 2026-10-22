@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-21 13:51:22",
- "รอบ": "2026-10-21-13-33-04",
- "จำนวน": 229,
+ "บันทึกเมื่อ": "2026-10-22 14:07:09",
+ "รอบ": "2026-10-22-13-46-32",
+ "จำนวน": 236,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -232,6 +232,13 @@
   "0227_quote_superseded_status.sql": "cf156eb17b247ef825c7bf12ee87025fa3741e430ae9910beb5ff6b4fab0f3ed",
   "0228_quote_new_version.sql": "e4910fc36d56e412fb375dfba43ed802c7f1b2cf6818daeca8af4080a6a659db",
   "0229_quote_summaries_skip_superseded.sql": "30b4c494fd6203e0fa1895c1f2bf1d2e296d017d4dc6c90820f9af2862e7f73d",
-  "0230_quote_one_chain_per_hq_quote.sql": "59aba67efb5b179ffcaf6eda301bc220a911a58550f4f35f5379fb8af91595c3"
+  "0230_quote_one_chain_per_hq_quote.sql": "59aba67efb5b179ffcaf6eda301bc220a911a58550f4f35f5379fb8af91595c3",
+  "0231_notification_catalog.sql": "a4b0b725610b2e6c7f6d2b39193b413c47ccdf4c9d763586f50edd99f128126f",
+  "0232_lead_status_one_path.sql": "2b6744e362ddd3acfdac61a4b6b1db0908f876d07441fa673f812ca9d1f417f5",
+  "0233_file_delete_rules.sql": "ed2ff2a9db1b98b48b59329270fa6f444ad523a6d41b92f2d0f5329e2e19fd75",
+  "0234_lead_summary_dealer_lost.sql": "810475e29c240c02ef64142adde51850079f15dec04cdd211267b7251b11c756",
+  "0235_hq_dashboard.sql": "a585054aaf721e6e31f12b78a0d2e73d6cebd7054242062b44fa1700e841e3e6",
+  "0236_notification_flow_restore.sql": "80048c7b8402d1317c65f2fb6a7b4fe5c29e30e3c761b7364d6901e7d3868019",
+  "0237_quote_vat_required.sql": "04a293087f4a7e007789fe3cbbcacec4884609d5fbfb7789eb1b1461ad9fbb72"
  }
 }
