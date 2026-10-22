@@ -74,10 +74,14 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     const sb = await db(RYG);
     const s = await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", ใบลูกค้า);
     if (s.error) throw new Error(s.error.message);
-    // ลีดเดินไปถึง "เจรจาต่อรอง" ก่อนปิด — ใช้พิสูจน์ว่า HQ ย้อนแล้วกลับไปที่นี่ (ไม่ใช่ค่าตั้งต้น "เสนอราคา")
+    // ลีดอยู่ขั้นที่ไม่ใช่ค่าตั้งต้นก่อนปิด — ใช้พิสูจน์ว่า HQ ย้อนแล้วกลับไปที่ขั้นเดิม (ไม่ใช่ค่าตั้งต้น "เสนอราคา")
+    //   ใบ 0232: ดีลเลอร์ตั้งสถานะเองไม่ได้แล้ว และ "เจรจาต่อรอง" เป็นป้ายเดิมที่เลิกใช้ (ข้อมูลเก่ายังมีอยู่ได้)
+    //   จึงวางสถานะนี้ด้วยกุญแจฝั่งเซิร์ฟเวอร์เป็นข้อมูลตั้งต้น — ตัวกันของดีลเลอร์ตรวจแยกท้ายข้อแรก
     const { data: l } = await admin.from("leads").select("id").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single();
-    const n = await sb.rpc("lead_apply", { p_id: l!.id, p_intent: { stage: { status: "NEGO" } } });
-    if (n.error) throw new Error(`ตั้งเจรจาต่อรองไม่สำเร็จ: ${n.error.message}`);
+    const n = await admin.from("leads").update({ status: "NEGO" }).eq("dealer_code", "RYG").eq("id", l!.id).select("status").single();
+    if (n.error) throw new Error(`วางสถานะเจรจาต่อรอง (ข้อมูลตั้งต้น) ไม่สำเร็จ: ${n.error.message}`);
+    const ตั้งเอง = await sb.rpc("lead_apply", { p_id: l!.id, p_intent: { stage: { status: "QUOTED" } } });
+    if (!/lead_status_one_path/.test(ตั้งเอง.error?.message ?? "")) throw new Error(`ฐานต้องไม่ให้ดีลเลอร์ตั้งสถานะเอง: ${ตั้งเอง.error?.message ?? "ผ่าน"}`);
   });
   test.afterAll(async () => {
     if (!ใบ) return;
@@ -114,16 +118,16 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
 
   test("[ก·2] หน้าใบเสนอราคา: ใบที่ตอบรับแล้วไม่มีแก้ไข/ลบ ทั้งในรายการและแผงรายละเอียด", async ({ page }) => {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    // รอบ 4: หน้าใบเสนอราคาไม่มีแผงรายละเอียดของตัวเองแล้ว — ลิงก์ ?open=<เลขใบ> / กดแถว พาไปแผงลีดของใบนั้น
+    //   ตรวจปุ่มของใบที่ตอบรับแล้วในแผงลีด (ที่เดียวที่มีปุ่มของใบ) + ในแถวของหน้ารายการ
     await page.goto(`${DEALER_ORIGIN}/quotations?open=${encodeURIComponent(ใบลูกค้า)}`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    // แถวปุ่มบนหัวแผงรายละเอียด (พิมพ์ PDF · แก้ไข · ส่งอีกครั้ง · ลูกค้า · ลบ · ปิด)
-    const ปุ่มพิมพ์ = page.getByTitle(/พิมพ์ \/ ดาวน์โหลด PDF|กำลังโหลดข้อมูลบริษัท/);
-    await expect(ปุ่มพิมพ์).toBeVisible({ timeout: 20_000 });
-    const หัวแผง = ปุ่มพิมพ์.locator("..");
-    await expect(หัวแผง.getByTitle("ปิด"), "หาแถวปุ่มบนหัวแผงเจอ").toBeVisible();
-    await expect(หัวแผง.getByTitle("แก้ไข"), "แผงใบ won ไม่มีแก้ไข").toHaveCount(0);
-    await expect(หัวแผง.getByTitle("ลบใบเสนอราคา"), "แผงใบ won ไม่มีลบ").toHaveCount(0);
-    await page.keyboard.press("Escape");
+    // ใบที่ตอบรับแล้ว = งานของลูกค้าแล้ว → พาไปแผงลูกค้า (รอบ 4) · แผงนั้นต้องไม่มีปุ่มแก้ไข/ลบใบ
+    //   (ปุ่มของใบ won ในแผงลีดตรวจแล้วในข้อก่อนหน้า)
+    await page.waitForURL(/\/customers/, { timeout: 25_000 });
+    await expect(page.getByRole("button", { name: /พิมพ์ข้อมูล/ }), "แผงลูกค้าเปิด").toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTitle("ลบใบเสนอราคา"), "แผงลูกค้า: ไม่มีปุ่มลบใบ").toHaveCount(0);
+    await expect(page.getByRole("button", { name: "แก้ไข", exact: true }), "แผงลูกค้า: ไม่มีปุ่มแก้ไขใบ").toHaveCount(0);
+    await expect(page.getByRole("button", { name: "ทำสำเนา", exact: true }), "แผงลูกค้า: ไม่มีปุ่มทำสำเนาใบ").toHaveCount(0);
     await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
     await page.getByPlaceholder(/ค้นหา/).first().fill(บริษัท);
@@ -193,8 +197,11 @@ test.describe("ลบลีด / ลบลูกค้า", () => {
   test("[ก·6] ลีดที่ยังไม่มีคำขอ/ใบ: มีปุ่มลบ และลบได้จริง", async ({ page }) => {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     const แถว = await เปิดแผงลีด(page, เปล่า);
-    await แถว.getByTitle("ลบลูกค้าเป้าหมาย").click();
-    await กดตกลงในกล่องยืนยัน(page);
+    // รอบ 4: ปุ่มลบอยู่ที่หัวแผงลีดที่เดียว (ไม่มีในแถวตารางแล้ว)
+    await expect(แถว.getByTitle("ลบลูกค้าเป้าหมาย"), "แถวไม่มีปุ่มลบ").toHaveCount(0);
+    await แถว.locator("td").first().click();
+    await page.getByTitle("ลบ", { exact: true }).click({ timeout: 20_000 });
+    await page.getByText(/ต้องการลบ/).locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ลบ", exact: true }).click();
     await expect.poll(async () => (await admin.from("leads").select("id").eq("dealer_code", "RYG").eq("num_id", เลขเปล่า)).data?.length ?? -1,
       { timeout: 20_000, message: "ลีดเปล่าต้องถูกลบ" }).toBe(0);
   });

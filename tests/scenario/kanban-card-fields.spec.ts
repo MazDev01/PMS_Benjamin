@@ -14,8 +14,11 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
   await settle(page);
   await page.getByRole("button", { name: "บอร์ด" }).click();
 
-  const การ์ด = page.locator('[draggable="true"]').first();
+  // รอบ 4: การ์ดบนบอร์ดลากไม่ได้แล้ว (ดูอย่างเดียว · เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผง) — หาการ์ดจากโครงหัวการ์ด (ชื่อบริษัท)
+  const การ์ดทั้งหมด = page.locator("div.card:has(> div > div[title])");
+  const การ์ด = การ์ดทั้งหมด.first();
   await expect(การ์ด, "ต้องมีการ์ดอย่างน้อยหนึ่งใบ").toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[draggable="true"]'), "การ์ดบนบอร์ดลากไม่ได้แล้ว").toHaveCount(0);
 
   for (const ป้าย of ["โทรศัพท์:", "อีเมล:", "จังหวัด:", "สร้าง:", "ติดต่อล่าสุด:"]) {
     await expect(การ์ด.getByText(ป้าย, { exact: true }), `การ์ดต้องมีบรรทัด "${ป้าย}"`).toBeVisible();
@@ -44,7 +47,7 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
 
   // ราคาต้องเป็นตัวเต็ม ฿10,000,000.00 ไม่ใช่ตัวย่อ ฿10.0M (บอสสั่ง "แสดงราคาด้วย")
   // ลูกค้าเป้าหมายที่ยังไม่กรอกมูลค่าต้องขึ้น "—" ไม่ใช่ป้ายว่างเปล่า
-  const ป้ายราคา = await page.locator('[draggable="true"]').evaluateAll(cards =>
+  const ป้ายราคา = await การ์ดทั้งหมด.evaluateAll(cards =>
     cards.map(c => {
       const chip = c.querySelector('span[style*="rgb(227, 240, 251)"]');
       return (chip?.textContent ?? "").trim();

@@ -69,7 +69,7 @@ test("[a11y] ฟอร์มข้อมูลดีลเลอร์ (HQ) — 
 //    ตอนนี้กดปุ่ม "เปิดอ่าน" แล้วไฟล์เปิดในแท็บใหม่ด้วยตัวอ่านของเบราว์เซอร์เอง — ไม่มีหน้าต่างในระบบให้ปิด
 //    กติกาที่ต้องกันไว้เหมือนเดิมคือ "หน้าต่างของหน้าไฟล์ต้องปิดด้วย Esc ได้" จึงย้ายมาตรวจที่หน้าต่างแก้ไขไฟล์
 //    (เทสต์เปลี่ยนตามข้อกำหนดใหม่ ไม่ใช่แก้เพื่อให้ผ่าน)
-test("[a11y] หน้าต่างแก้ไขไฟล์ (ดีลเลอร์) — Esc ปิดได้", async ({ page }) => {
+test("[a11y] หน้าไฟล์ (ดีลเลอร์) ดูอย่างเดียว — ไม่มีหน้าต่างแก้ไขไฟล์ค้าง", async ({ page }) => {
   // เทสต์สร้างไฟล์ของตัวเอง — เดิมยืมไฟล์จากข้อมูลตั้งต้น พอฐานไม่มีไฟล์ก็ตกทั้งที่ระบบไม่ได้พัง
   // (เจอตอนย้ายมารันฐานในเครื่อง 1 ก.ย. 69 ซึ่งข้อมูลตั้งต้นไม่มีทะเบียนไฟล์)
   const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -82,16 +82,15 @@ test("[a11y] หน้าต่างแก้ไขไฟล์ (ดีลเ�
   expect(fileErr, `สร้างไฟล์สำหรับทดสอบไม่สำเร็จ: ${fileErr?.message ?? ""}`).toBeNull();
 
   try {
+  // รอบ 4 (บอสสั่ง 21 ต.ค. 69 ข้อ 6): หน้าไฟล์ดูอย่างเดียว — ไม่มีปุ่มแก้ไข/อัปโหลด/ลบ และไม่มีหน้าต่างของหน้าไฟล์ให้ค้างอีก
+  //   (ไฟล์เปิดอ่านในแท็บใหม่ · แก้/ลบไฟล์ที่แผงลีด/ลูกค้า) — ตรวจว่าไฟล์ยังโผล่ให้ดู และไม่มีทางเปิดหน้าต่างแก้ไขค้างไว้
   await open(page, "dealer", "/files");
-  const editBtn = page.getByRole("button", { name: "แก้ไข" }).first();
-  await expect(editBtn, "หน้าไฟล์ต้องมีไฟล์อย่างน้อย 1 รายการ").toBeVisible({ timeout: 15_000 });
-  await editBtn.click();
-
-  const dialog = page.getByRole("dialog", { name: "แก้ไขข้อมูลไฟล์" });
-  await expect(dialog).toBeVisible({ timeout: 15_000 });
-  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await page.getByPlaceholder("ค้นหาไฟล์ / โอกาสการขาย...").fill(ชื่อไฟล์);
+  await expect(page.getByText(ชื่อไฟล์).first(), "ไฟล์ยังแสดงให้ดูในหน้าไฟล์").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "แก้ไข", exact: true }), "หน้าไฟล์ไม่มีปุ่มแก้ไขแล้ว").toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "แก้ไขข้อมูลไฟล์" }), "ไม่มีหน้าต่างแก้ไขไฟล์").toHaveCount(0);
   await page.keyboard.press("Escape");
-  await expect(dialog, "กด Escape ต้องปิดหน้าต่างแก้ไขไฟล์ได้").toBeHidden({ timeout: 10_000 });
+  await expect(page.getByRole("dialog"), "ไม่มีหน้าต่างค้างบนหน้าไฟล์").toHaveCount(0);
   } finally {
     await admin.from("files").delete().eq("name", ชื่อไฟล์);
   }

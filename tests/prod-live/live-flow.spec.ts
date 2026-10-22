@@ -77,8 +77,9 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
   await test.step("1 ดีลเลอร์ขอราคาจาก HQ", async () => {
     await เข้าระบบ(d, DEALER, "/login", ดีลเลอร์);
     await เปิดแท็บใบเสนอราคาของลีด(d);
+    // รอบ 4: ปุ่มขอราคาอยู่ที่กล่องขั้นต่อไปในแผงลีดที่เดียว → เปิดฟอร์มขอราคา
+    await d.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click({ timeout: 30_000 });
     const แผง = d.locator("[data-panel='quote-request']");
-    await แผง.getByRole("button", { name: "ขอราคาจาก HQ" }).click();
     await แผง.getByLabel("งานที่ขอราคา").fill("ทดสอบระบบ — โกดัง");   // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69)
     await แผง.getByLabel("สเปก / รายละเอียด").fill("ทดสอบระบบ — โกดัง 10x10 ม.");
     await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
@@ -130,11 +131,15 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
   });
 
   await test.step("4 ดีลเลอร์ส่งใบให้ลูกค้า", async () => {
+    // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — ใบต้องโผล่ในรายการ แล้วกดแถว → แผงลีด › ส่งที่กล่องขั้นต่อไป
     await d.goto(`${DEALER}/quotations`, { waitUntil: "domcontentloaded" });
     await รอเงียบ(d);
     const แถว = d.locator("tbody tr").filter({ hasText: บริษัท }).first();
     await expect(แถว).toBeVisible({ timeout: 30_000 });
-    await แถว.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+    await แถว.locator("td").first().click();
+    await d.waitForURL(/\/leads/, { timeout: 30_000 });
+    await d.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 30_000 });
+    await ตกลงในกล่องยืนยัน(d);
     await expect.poll(async () => (await ใบลูกค้า())?.status, { timeout: 30_000 }).toBe("sent_to_client");
     await expect.poll(ลีด, { timeout: 30_000, message: "ลูกค้าเป้าหมาย → QUOTED" }).toBe("QUOTED");
   });
@@ -142,8 +147,12 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
   await test.step("5 ลูกค้าตอบรับ (won)", async () => {
     await d.goto(`${DEALER}/quotations`, { waitUntil: "domcontentloaded" });
     await รอเงียบ(d);
-    await d.locator("tbody tr").filter({ hasText: บริษัท }).first().click();
-    await d.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+    // รอบ 4: ลูกค้าตอบรับ = ปุ่มที่ใบในแท็บใบเสนอราคาของแผงลีด (กดแถวในหน้ารายการ → แผงลีด)
+    await d.locator("tbody tr").filter({ hasText: บริษัท }).first().locator("td").first().click();
+    await d.waitForURL(/\/leads/, { timeout: 30_000 });
+    await d.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 30_000 });
+    const เลขใบ = (await ใบลูกค้า())!.id;
+    await d.locator(`[data-quote-item="${เลขใบ}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 30_000 });
     await ตกลงในกล่องยืนยัน(d);
     await expect.poll(ลีด, { timeout: 30_000, message: "won → ลูกค้าเป้าหมาย PAID" }).toBe("PAID");
     expect((await ใบลูกค้า())?.status).toBe("won");

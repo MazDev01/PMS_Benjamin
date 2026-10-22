@@ -44,11 +44,15 @@ test("ชื่อการ์ดอัตราปิดการขายต�
   await openAs(page, ADMIN, "hq", "/hq/pipeline");
   await settle(page); await page.waitForTimeout(1500);
   const a = await page.locator("body").innerText();
-  expect(a).toContain("อัตราปิดการขาย (จากใบที่รู้ผลแล้ว)");
+  // รอบ 4 (บอสตัดสิน 21 ต.ค. 69): ชื่อเดียว "อัตราปิดการขาย" + คำอธิบายตัวหาร (นับจากลีด · lib/winRate.ts)
+  expect(a).toContain("อัตราปิดการขาย");
+  expect(a, "บอกตัวหาร").toContain("ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ)");
+  expect(a, "ไม่มีชื่อเก่าที่คิดจากใบ").not.toContain("อัตราปิดการขาย (จากใบที่รู้ผลแล้ว)");
   await openAs(page, ADMIN, "hq", "/hq/quotations");
   await settle(page); await page.waitForTimeout(1500);
   const b = await page.locator("body").innerText();
   expect(b).toContain("อัตราตอบรับ (จากใบที่ส่งแล้ว)");
+  expect(b, "หน้าใบเสนอราคาไม่ใช้ชื่อ \"อัตราปิดการขาย\" กับอัตราที่คิดจากใบ").not.toContain("อัตราปิดการขาย");
   console.log("ชื่อการ์ดสองหน้าแยกกันแล้ว ✓");
 });
 

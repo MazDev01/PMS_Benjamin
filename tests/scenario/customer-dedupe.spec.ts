@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { ถ้ามีกล่องยืนยันให้กดตกลง } from "./helpers";
+import { กดตกลงในกล่องยืนยัน, settle } from "./helpers";
 import { open } from "./helpers";
 import { EXISTING_CUSTOMER_NAME } from "./global-setup";
-import { db } from "./funcHelpers";
+import { db, DEALER_ORIGIN } from "./funcHelpers";
+import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
 import { RYG } from "./supabaseEnv";
 
 // ลูกค้าซ้ำ (M3) — ลูกค้าเกิดได้ทางเดียวคือลูกค้าเป้าหมายที่ปิดการขายได้
@@ -57,15 +58,27 @@ test("[dealer] ปิดการขายลูกค้าเป้าหม�
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByRole("button", { name: "บันทึก" }).click();
 
-  // เลื่อนสถานะลูกค้าเป้าหมายใหม่ → ปิดการขายสำเร็จ (ทริกเกอร์การสร้างลูกค้า)
-  await page.getByRole("button", { name: "ตาราง" }).click();
-  const row = page.locator("tbody tr").filter({ hasText: "ผู้ติดต่อทดสอบ" }).first();
-  await expect(row).toBeVisible();
-  await row.getByRole("button", { name: /▾/ }).first().click();
-  // ปิดการขาย = ย้อนกลับไม่ได้ → แอปขึ้น confirm() ก่อนเสมอ (เพิ่มหลังผลตรวจสอบ /scenario 31 ก.ค. 69)
-  await page.getByRole("button", { name: "ปิดการขายสำเร็จ", exact: true }).first().click();
-  // อาจไม่ถามก็ได้ — ถ้ายังไม่มีใบที่ส่งให้ลูกค้า ด่านจะกันไว้ตั้งแต่ก่อนถาม (เทียบเท่าตัวดักเดิม)
-  await ถ้ามีกล่องยืนยันให้กดตกลง(page);
+  // ปิดการขายสำเร็จ (ทริกเกอร์การสร้าง/ผูกลูกค้า) — รอบ 4: ทางเดียว = "ลูกค้าตอบรับ" ที่ใบในแผงลีด (เมนู ▾ เปลี่ยนสถานะเอาออกแล้ว)
+  //   เดินทางจริง: ขอราคา → HQ ส่งใบ HQ → ทำใบให้ลูกค้า (ส่งแล้ว) → กดลูกค้าตอบรับบนหน้าจอ
+  await expect.poll(async () => (await sb.from("leads").select("num_id").eq("dealer_code", "RYG").eq("company", EXISTING)
+    .eq("contact", "ผู้ติดต่อทดสอบ").order("num_id", { ascending: false }).limit(1)).data?.[0]?.num_id ?? 0,
+    { timeout: 20_000, message: "ลีดใหม่ต้องลงฐาน" }).toBeGreaterThan(0);
+  const เลขลีด = Number((await sb.from("leads").select("num_id").eq("dealer_code", "RYG").eq("company", EXISTING)
+    .eq("contact", "ผู้ติดต่อทดสอบ").order("num_id", { ascending: false }).limit(1)).data![0].num_id);
+  try {
+    const ใบHQ = await ใบHQให้ลูกค้าเป้าหมายเดิม(RYG, "RYG", เลขลีด);
+    const ใบ = await ทำใบลูกค้าจากใบHQ(RYG, ใบHQ, { customer: EXISTING, markupPercent: 10, status: "sent_to_client" });
+    await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    // ตารางเรียงใหม่สุดก่อน — แถวแรกที่เป็นบริษัทนี้ + ผู้ติดต่อทดสอบ = ลีดที่เพิ่งเพิ่ม
+    await page.locator("tbody tr").filter({ hasText: EXISTING }).filter({ hasText: "ผู้ติดต่อทดสอบ" }).first()
+      .getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
+    await page.locator(`[data-quote-item="${ใบ.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 20_000 });
+    await กดตกลงในกล่องยืนยัน(page);
+    await expect.poll(async () => (await sb.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", เลขลีด).single()).data?.status,
+      { timeout: 30_000, message: "ลีดต้องปิดการขายสำเร็จจริง" }).toBe("PAID");
 
   // สมุดลูกค้าต้องยังมีรายนี้เท่าเดิม (ผูกเข้ากับรายเดิม ไม่สร้างใหม่)
   await expect.poll(นับในฐาน,
@@ -83,4 +96,7 @@ test("[dealer] ปิดการขายลูกค้าเป้าหม�
   await page.getByPlaceholder("ค้นหาลูกค้า, เบอร์โทร, อีเมล...").fill(EXISTING);
   await expect(page.locator("tbody tr").filter({ hasText: EXISTING }).first(),
     "ลูกค้ารายเดิมต้องยังอยู่บนหน้าจอ").toBeVisible({ timeout: 20_000 });
+  } finally {
+    ล้างใบHQทดสอบ("RYG", [เลขลีด]);
+  }
 });

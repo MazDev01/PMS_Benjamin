@@ -71,22 +71,27 @@ test("[ง] ใบเสนอราคา: หน้าแก้ใบแก้
   await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบลูกค้า);
   const แถว = page.locator("tbody tr").filter({ hasText: เลขใบลูกค้า }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
-  // แผงรายละเอียด: ไม่มีการ์ดประวัติต่อรองราคา
+  // รอบ 4: กดแถวในหน้าใบเสนอราคา → แผงลีดของใบนั้น (ที่เดียวที่ดู/แก้ใบได้)
   await แถว.locator("td").nth(1).click();
+  await page.waitForURL(/\/leads/, { timeout: 25_000 });
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 25_000 });
+  const ใบ = page.locator(`[data-quote-item="${เลขใบลูกค้า}"]`);
+  await expect(ใบ).toBeVisible({ timeout: 20_000 });
+  // หน้าดูใบ: ไม่มีการ์ดประวัติต่อรองราคา
+  await ใบ.getByTitle("ดู", { exact: true }).click();
   await expect(page.getByText(เลขใบลูกค้า).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("ประวัติการต่อรองราคา"), "ไม่มีการ์ดประวัติต่อรองราคา (ไม่มีส่วนลดแล้ว)").toHaveCount(0);
-  // หน้าแก้ใบ: เปิดจากปุ่มในแถว (โหลดหน้าใหม่ให้แผงปิดก่อน — แผงบังปุ่มในแถว)
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบลูกค้า);
-  await page.locator("tbody tr").filter({ hasText: เลขใบลูกค้า }).first().getByTitle("แก้ไข").click();
-  const สถานะ = page.getByLabel("สถานะใบเสนอราคา");
-  await expect(สถานะ).toBeVisible({ timeout: 15_000 });
-  await expect(สถานะ, "สถานะแก้เองไม่ได้").toBeDisabled();
-  expect(await สถานะ.evaluate(el => el.tagName), "สถานะไม่ใช่ช่องเลือก").not.toBe("SELECT");
-  await expect(page.getByLabel("วันที่ใบเสนอราคา"), "วันที่แก้เองไม่ได้").toBeDisabled();
-  await expect(page.getByLabel("วันหมดอายุใบเสนอราคา"), "วันหมดอายุแก้เองไม่ได้").toBeDisabled();
+  await page.getByRole("button", { name: "กลับ" }).click();
+  // หน้าแก้ใบ (ฟอร์มในแผงลีด): สถานะ/วันที่ไม่มีช่องให้แก้ · วันหมดอายุแสดงอย่างเดียว · รายการแก้ได้เฉพาะ %
+  await ใบ.getByTitle("แก้ไข").click();
+  await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 15_000 });
+  const ตาราง = page.getByRole("table", { name: "รายการในใบเสนอราคา (จากใบ HQ)" });
+  await expect(ตาราง.getByLabel("% ที่บวก 1"), "แก้ % ได้").toBeEditable({ timeout: 15_000 });
+  await expect(page.getByLabel("สถานะใบเสนอราคา"), "ไม่มีช่องแก้สถานะ").toHaveCount(0);
+  await expect(page.locator("select").filter({ has: page.locator("option", { hasText: /ร่าง|ส่งแล้ว/ }) }), "สถานะไม่ใช่ช่องเลือก").toHaveCount(0);
+  await expect(page.getByLabel("วันที่ใบเสนอราคา"), "ไม่มีช่องแก้วันที่").toHaveCount(0);
   await expect(page.locator('input[type="date"]'), "ไม่มีช่องเลือกวันที่ในหน้าแก้ใบ").toHaveCount(0);
+  await expect(page.getByText(/อายุใบ \d+ วันนับจากวันที่ออกใบ|ตามที่ระบุไว้ในใบนี้/), "วันหมดอายุแสดงอย่างเดียว (ระบบกำหนด)").toBeVisible();
 });
 
 test("[ง] ลูกค้า: หัวแผงใช้รหัสรูปแบบเดียวกับในแผง · นำเข้าแถวที่ไม่มีผู้รับผิดชอบ = เว้นว่าง (ห้ามชื่อตัวอย่าง)", async ({ page }) => {

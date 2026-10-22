@@ -84,6 +84,10 @@ test("[func] แก้ลูกค้าเป้าหมายผ่านห�
   assertNoErrors(errs, "แก้ลูกค้าเป้าหมาย");
 });
 
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69 · ใบ 0232): เปลี่ยนสถานะเองจากเมนูในตาราง/บอร์ดเอาออก — ลีดเลื่อนตามงานจริงทางเดียว
+//   ข้อนี้ตรวจทั้งสองด้าน: (ก) ป้ายสถานะในตารางกดไม่ได้ · ฐานปฏิเสธการตั้งสถานะเอง
+//   (ข) เลื่อนผ่านกล่องขั้นต่อไป (ขอราคาจาก HQ) → สถานะใหม่ลงฐานข้อมูลจริง (ใช้ลีดแยก — ลีดที่มีคำขอลบไม่ได้ ข้อลบด้านล่างใช้ลีดหลัก)
+const ADV_COMPANY = tg("เลื่อนผ่านคำขอ");
 test("[func] เลื่อนสถานะลูกค้าเป้าหมาย → สถานะใหม่ลงฐานข้อมูล", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(RYG);
@@ -95,13 +99,29 @@ test("[func] เลื่อนสถานะลูกค้าเป้าห�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY); // ตารางแบ่งหน้า — ต้องค้นหาก่อน
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
-  await row.getByRole("button", { name: /▾/ }).first().click();
-  await page.getByRole("button", { name: "รวบรวมความต้องการ", exact: true }).first().click();
+  await expect(row.getByRole("button", { name: /▾/ }), "ไม่มีเมนูเปลี่ยนสถานะในตารางแล้ว").toHaveCount(0);
+  await expect(row.locator("button.badge"), "ป้ายสถานะเป็นข้อความ กดไม่ได้").toHaveCount(0);
+  const { data: หลัก } = await sb.from("leads").select("id").eq("dealer_code", "RYG").eq("company", COMPANY).limit(1);
+  const ตั้งเอง = await sb.rpc("lead_apply", { p_id: หลัก![0].id, p_intent: { stage: { status: "BULLET" } } });
+  expect(ตั้งเอง.error?.message ?? "", "ฐานปฏิเสธการตั้งสถานะเอง").toMatch(/lead_status_one_path/);
+  expect((await sb.from("leads").select("status").eq("dealer_code", "RYG").eq("company", COMPANY).single()).data?.status, "สถานะเดิมไม่เปลี่ยน").toBe("WAITING");
+
+  // เลื่อนตามงานจริง: ขอราคาจาก HQ ที่กล่องขั้นต่อไป → รอราคา HQ ลงฐาน
+  const เลข = 940000 + (Date.now() % 9000);
+  const ins = await sb.from("leads").insert({ phone: "081-999-0102", id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG",
+    company: ADV_COMPANY, name: ADV_COMPANY, province: "ระยอง", status: "WAITING" });
+  expect(ins.error).toBeNull();
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ADV_COMPANY);
+  await page.locator("tbody tr").filter({ hasText: ADV_COMPANY }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click({ timeout: 20_000 });
+  const แผง = page.locator("[data-panel='quote-request']");
+  await แผง.getByLabel("งานที่ขอราคา").fill("โกดังเก็บสินค้า");
+  await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
 
   await expect.poll(async () => {
-    const { data } = await sb.from("leads").select("status").eq("company", COMPANY).limit(1);
+    const { data } = await sb.from("leads").select("status").eq("company", ADV_COMPANY).limit(1);
     return data?.[0]?.status;
-  }, { timeout: 15_000, message: "สถานะต้องถูกบันทึกลง DB" }).toBe("BULLET");
+  }, { timeout: 15_000, message: "สถานะต้องถูกบันทึกลง DB" }).toBe("HQ_PRICING");
 
   assertNoErrors(errs, "เลื่อนสถานะ");
 });
@@ -118,8 +138,12 @@ test("[func] ลบลูกค้าเป้าหมายผ่านหน�
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
 
-  await row.getByTitle("ลบลูกค้าเป้าหมาย").first().click();
-  await กดตกลงในกล่องยืนยัน(page); // ยืนยันการลบ
+  // รอบ 4: ปุ่มลบลีดอยู่ที่หัวแผงลีดที่เดียว (ลีดที่ยังไม่มีคำขอ/ใบ) · ไม่มีปุ่มลบในแถวตารางแล้ว
+  await expect(row.getByTitle("ลบลูกค้าเป้าหมาย"), "ไม่มีปุ่มลบในแถวตาราง").toHaveCount(0);
+  await row.getByTitle("ดูรายละเอียด").first().click();
+  await page.getByTitle("ลบ", { exact: true }).click({ timeout: 20_000 });
+  await expect(page.getByText(/ต้องการลบ/)).toBeVisible({ timeout: 10_000 });
+  await page.getByText(/ต้องการลบ/).locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ลบ", exact: true }).click(); // ยืนยันการลบ
 
   await waitGone(sb, "leads", { company: COMPANY });
   assertNoErrors(errs, "ลบลูกค้าเป้าหมาย");

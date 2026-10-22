@@ -45,7 +45,9 @@ test("[ux·hq] วิเคราะห์การปิดการขาย�
   await open(page, "hq", "/hq/pipeline");
   const card = page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }).first();
   await expect(card).toBeVisible();
-  for (const l of ["ปิดได้", "ปิดไม่ได้", "อัตราปิด"]) {
+  // รอบ 4: คอลัมน์อัตราใช้ชื่อกลาง "อัตราปิดการขาย" (สูตรเดียวทุกหน้า · lib/winRate.ts)
+  await expect(card.getByText("อัตราปิด", { exact: true }), "ไม่มีชื่อเก่า \"อัตราปิด\"").toHaveCount(0);
+  for (const l of ["ปิดได้", "ปิดไม่ได้", "อัตราปิดการขาย"]) {
     await expect(card.getByText(l, { exact: true }).first(), `ต้องมีคอลัมน์ "${l}"`).toBeVisible();
   }
 });

@@ -256,9 +256,9 @@ export async function เปิดกล่องตั้งดีลเลอ�
   await ลูกค้าเป้าหมายรองรับสาขา(code);
   await page.goto(`${HQ_ORIGIN}/hq/prospects`, { waitUntil: "domcontentloaded" });
   // ค้นก่อนเสมอ — ตารางแบ่งหน้าละ 10 ราย เทสต์อื่นที่รันขนานกันอาจดันรายนี้ตกไปหน้าถัดไป
-  await page.getByLabel("ค้นหาลูกค้าเป้าหมาย").fill(`ผู้สนใจ-${code}`);
+  await page.getByLabel("ค้นหาผู้สนใจ").fill(`ผู้สนใจ-${code}`);
   await page.getByRole("row", { name: new RegExp(`ผู้สนใจ-${code}`) }).click({ timeout: 30_000 });
-  await page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" }).getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
+  await page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" }).getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
   return page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
 }
 

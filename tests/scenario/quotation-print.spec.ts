@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { open, ดักข้อความแจ้งเตือน, รอข้อความแจ้งเตือน } from "./helpers";
+import { open, ดักข้อความแจ้งเตือน, รอข้อความแจ้งเตือน, settle } from "./helpers";
+import { RYG } from "./supabaseEnv";
+import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ─── ปุ่มพิมพ์ใบเสนอราคา (E2E) ────────────────────────────────────────────────
 // เอกสารนี้คือกระดาษแผ่นเดียวที่หลุดออกไปถึงมือลูกค้า แต่เดิมไม่มีเทสต์เลยสักข้อ
@@ -7,6 +9,26 @@ import { open, ดักข้อความแจ้งเตือน, รอ
 //
 // ตรรกะของตัวเอกสาร (ยอดเงิน/วันยืนราคา/เงื่อนไข) อยู่ที่ tests/unit/quotationPrint.test.ts
 // ไฟล์นี้วัดคนละเรื่อง: กดปุ่มบนหน้าจอจริงแล้วได้เอกสารออกมาไหม และด่านกันพิมพ์ทำงานไหม
+
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69 ข้อ 7): หน้าใบเสนอราคาเป็นรายการอย่างเดียว — ดู/พิมพ์ใบที่แผงลีด › แท็บใบเสนอราคา
+//   ข้อทดสอบวางใบของตัวเอง (ทางเดียวกับของจริง: ใบ HQ → ใบลูกค้า) แล้วพิมพ์จากหน้าดูใบในแผงลีด
+const บริษัท = `ZZTEST-พิมพ์ใบ-${Date.now() % 100000}`;
+let ใบHQ: ใบHQพร้อมใช้ | undefined;
+let เลขใบ = "";
+test.beforeAll(async () => {
+  ใบHQ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: บริษัท, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดพิมพ์", qty: 2, unit: "ชุด", unitCost: 1000 }] });
+  เลขใบ = (await ทำใบลูกค้าจากใบHQ(RYG, ใบHQ, { customer: บริษัท, markupPercent: 10 })).id;
+});
+test.afterAll(() => { if (ใบHQ) ล้างใบHQทดสอบ("RYG", [ใบHQ.leadNum]); });
+async function เปิดหน้าดูใบ(page: import("@playwright/test").Page) {
+  await open(page, "dealer", "/leads");
+  await settle(page);
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท);
+  await page.locator("tbody tr").filter({ hasText: บริษัท }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await page.locator(`[data-quote-item="${เลขใบ}"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
+}
 
 test("[func·dealer] ยังไม่ตั้งชื่อบริษัท → ห้ามพิมพ์ ต้องบอกเหตุผลและพาไปหน้าตั้งค่า", async ({ page, context }) => {
   await context.addInitScript(() => { window.print = () => {}; });
@@ -18,8 +40,7 @@ test("[func·dealer] ยังไม่ตั้งชื่อบริษั�
   const เดิม = (await ชื่อบริษัท.inputValue()).trim();
   test.skip(!!เดิม, "สาขานี้ตั้งชื่อบริษัทไว้แล้ว — ด่านนี้ทดสอบไม่ได้โดยไม่ลบข้อมูลจริง");
 
-  await open(page, "dealer", "/quotations");
-  await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await เปิดหน้าดูใบ(page);
   await page.getByRole("button", { name: "พิมพ์ PDF", exact: true }).click();
 
   // ต้องไม่มีเอกสารเปิดออกมา — เอกสารที่ไม่มีชื่อผู้เสนอราคาส่งให้ลูกค้าไม่ได้
@@ -51,13 +72,10 @@ test("[func·dealer] ตั้งชื่อบริษัทแล้ว → 
       await expect.poll(async () => (await ชื่อบริษัท.inputValue()).trim(), { timeout: 8000 }).toBe(ชื่อทดสอบ);
     }
 
-    await open(page, "dealer", "/quotations");
-    await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-    // ⚠️ ต้องอ่านเลขที่ใบ "จากในแผงที่เปิดอยู่" เท่านั้น (แก้ 2 ก.ย. 69)
-    //    เดิมอ่านจากทั้งหน้า → ไปเจอเลขของแถวแรกในตารางที่ยังอยู่หลังแผง ซึ่งคนละใบกับที่เปิด
-    //    แล้วฟ้องว่า "เอกสารพิมพ์ผิดใบ" ทั้งที่แอปพิมพ์ถูก (ฐานข้อมูลมีใบมากกว่าใบเดียวเมื่อไหร่ก็พลาด)
-    const แผง = page.locator(".modal-pop").first();
-    const เลขที่ใบ = (await แผง.getByText(/Q-[A-Z0-9]+-\d+/).first().innerText()).trim();
+    await เปิดหน้าดูใบ(page);
+    // เลขที่ใบที่เปิดอยู่ = ใบของข้อทดสอบนี้ (เปิดจากรายการใบของลีดนี้ตรง ๆ)
+    const เลขที่ใบ = เลขใบ;
+    await expect(page.getByText(เลขที่ใบ, { exact: true }).first(), "หน้าดูใบเปิดที่ใบนี้").toBeVisible({ timeout: 15_000 });
 
     const [เอกสาร] = await Promise.all([
       context.waitForEvent("page"),

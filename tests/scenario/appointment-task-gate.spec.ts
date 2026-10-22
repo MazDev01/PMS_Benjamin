@@ -18,7 +18,7 @@ async function กดแท็บ(page: Page, ชื่อ: string, สิ่ง
 // ติ๊กเองไม่ได้ถ้ายังไม่มีนัดจริง — ต้องพาไปลงนัดก่อน แล้วระบบค่อยติ๊กให้เอง
 // (บอสทัก 25 ส.ค. 69: กดติ๊กแล้วไม่มีอะไรเกิดขึ้น เพราะฟอร์มไปเปิดในแท็บที่ยังไม่ได้เปิดดู)
 
-test("[func·dealer] ติ๊กงานนัดหมายทั้งที่ยังไม่มีนัด → ต้องพาไปฟอร์มลงนัด และช่องต้องไม่ติ๊ก", async ({ page }) => {
+test("[func·dealer] งานนัดหมายติ๊กเองไม่ได้ (ระบบติ๊กให้เมื่อบันทึกนัด) · ยังไม่มีนัด = ไม่ติ๊กทั้งจอและฐาน", async ({ page }) => {
   test.setTimeout(120_000);   // ต้องไล่เปิดลูกค้าเป้าหมายหลายรายกว่าจะเจอรายที่มีงานนัดหมายให้กด
   // ── เลือกลูกค้าเป้าหมายที่ "ยังไม่มีนัด" จากฐานข้อมูลตรง ๆ ────────────────────────
   //
@@ -52,19 +52,23 @@ test("[func·dealer] ติ๊กงานนัดหมายทั้งท�
     await page.getByPlaceholder(/ค้นหา/).first().fill("ZZTEST-APPT");
     await page.waitForTimeout(800);
     await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-    // ⚠️ ต้องกด "ปุ่มงาน" ในรายการสิ่งที่ต้องทำ ไม่ใช่แท็บที่ชื่อ "นัดหมาย" เหมือนกันเป๊ะ
-    //    (กดผิดตัวแล้วฟอร์มก็โผล่เหมือนกัน เทสต์จะผ่านทั้งที่ไม่ได้วัดอะไรเลย)
-    await กดแท็บ(page, "งาน", /นัดหมาย/);
-    const งานนัด = page.getByRole("button", { name: "นัดหมาย", exact: true }).last();
-    await expect(งานนัด, "ขั้นนี้ต้องมีงานนัดหมายในรายการสิ่งที่ต้องทำ").toBeVisible({ timeout: 20_000 });
-    await งานนัด.click();
-
-    // ★ ของจริงที่ต้องกันไว้: กดแล้วต้อง "พาไปลงนัด" ไม่ใช่เงียบ ๆ ไม่มีอะไรเกิดขึ้น
-    //   (แถบเตือนเป็นของแถม — มันหายเองใน 2-3 วิ จึงไม่เอามาเป็นเงื่อนไขตัดสิน เคยทำให้ตกแบบสุ่ม)
-    await expect(page.getByLabel("ประเภทนัดหมาย"), "ต้องพาไปที่ฟอร์มลงนัดจริง").toBeVisible({ timeout: 15_000 });
+    // รอบ 4 (บอสสั่ง 21 ต.ค. 69): รายการงานเป็นรายการเตือนในแท็บ "ประวัติ" · งานนัดหมาย = ช่องที่ระบบติ๊กให้เมื่อบันทึกนัดจริง
+    //   กดติ๊กเองไม่ได้อีกต่อไป (ไม่ต้องพาไปฟอร์มแล้ว) — ช่องบอกวิธีไว้ในตัว · ตรวจว่ากดแล้วไม่ติ๊กทั้งบนจอและในฐาน
+    await กดแท็บ(page, "ประวัติ", /รายการเตือน/);
+    const งานนัด = page.locator('[role="checkbox"]').filter({ hasText: "นัดหมาย" }).first();
+    await expect(งานนัด, "ขั้นนี้ต้องมีงานนัดหมายในรายการเตือน").toBeVisible({ timeout: 20_000 });
+    await expect(งานนัด, "งานนัดหมายเป็นช่องที่ระบบติ๊กให้").toHaveAttribute("data-auto-task", "1");
+    await expect(งานนัด, "ติ๊กเองไม่ได้").toBeDisabled();
+    await expect(งานนัด, "บอกวิธีให้ติ๊ก: บันทึกนัดหมาย").toContainText("ระบบติ๊กให้เมื่อบันทึกนัดหมาย");
+    await งานนัด.click({ force: true });
+    await page.waitForTimeout(800);
     // ช่องงานนัดหมายต้องยังไม่ถูกติ๊ก — ติ๊กได้ต่อเมื่อมีนัดจริงเท่านั้น
-    const ติ๊กแล้ว = await page.locator('[role="checkbox"][aria-checked="true"]').count();
-    expect(ติ๊กแล้ว, "ยังไม่มีนัดจริง ห้ามติ๊กงานให้").toBe(0);
+    await expect(งานนัด, "ยังไม่มีนัดจริง ห้ามติ๊กงานให้").toHaveAttribute("aria-checked", "false");
+    const { data } = await admin.from("leads").select("tasks").eq("id", ID).single();
+    const งาน = (data?.tasks ?? []) as { key: string; label: string; done: boolean }[];
+    expect(งาน.some(t => (t.key === "appointment" || t.label.includes("นัด")) && t.done), "ฐาน: งานนัดหมายยังไม่เสร็จ").toBe(false);
+    // ลงนัดได้ที่กล่องนัดหมายในแท็บเดียวกัน (ทางเดียว)
+    await expect(page.getByRole("button", { name: /เพิ่มนัดหมาย/ }), "ทางลงนัดอยู่ในแท็บประวัติ").toBeVisible();
   } finally {
     await admin.from("appointments").delete().eq("lead_id", NUM);
     await admin.from("leads").delete().eq("id", ID);

@@ -4,7 +4,7 @@ import { RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
 import { settle } from "./helpers";
-import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
 // ── ภาษีมูลค่าเพิ่ม + ภาษีหัก ณ ที่จ่าย บนใบเสนอราคา (บอสสั่ง 28 ส.ค. 69) ──────
 //
@@ -126,20 +126,34 @@ test("[tax] บันทึกใบ → ฐานข้อมูลเก็บ
 test("[tax] ใบเก่าที่ยังไม่มีข้อมูลภาษี ต้องเปิดดู/พิมพ์ได้ตามปกติ (ไม่พัง)", async ({ page }) => {
   const เก่า = `${NS}-ใบเก่าไม่มีภาษี`;
   // ใบเก่า (ก่อนปิดทางเดิม · ด่าน 3) สร้างผ่านแอปไม่ได้แล้ว — วางที่ฐานทดสอบตรง ๆ
+  // ใบเดิมบนระบบจริงผูกลูกค้าเป้าหมายทุกใบ — วางลีดคู่กัน (รอบ 4: ดู/พิมพ์ใบที่แผงลีด หน้าใบเสนอราคาเป็นรายการ)
+  const เลข = 979_800_000 + (Date.now() % 90_000);
+  const ลีด = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: เก่า, name: เก่า,
+    phone: "0810000996", province: "ระยอง", status: "QUOTED" });
+  expect(ลีด.error, `วางลีดไม่สำเร็จ: ${ลีด.error?.message}`).toBeNull();
   วางใบเดิมที่ฐาน([{
-    id: `${NS}-OLD`, dealer_code: "RYG", customer: เก่า, project: เก่า, date: "2026-08-20",
+    id: `${NS}-OLD`, dealer_code: "RYG", customer: เก่า, project: เก่า, date: "2026-08-20", deal_id: เลข,
     province: "ระยอง", building_type: "โกดังสำเร็จรูป", area: "1", total: "400000",
     total_value: 400_000, material_cost: 400_000, items: 1, status: "sent_to_client",
     line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 400_000 }],
   }]);
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เก่า);
-  const แถว = page.locator("tbody tr").filter({ hasText: เก่า }).first();
-  await expect(แถว).toBeVisible({ timeout: 20_000 });
-  await แถว.click();
-  // ลิ้นชักต้องเปิดได้และมียอดชำระสุทธิ (ใบไม่มีภาษี = เท่ากับยอดรวม)
-  await expect(page.getByText("ยอดชำระสุทธิ").first()).toBeVisible({ timeout: 15_000 });
-  await admin.from("quotations").delete().eq("id", `${NS}-OLD`);
+  try {
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    await page.getByPlaceholder(/ค้นหา/).first().fill(เก่า);
+    const แถว = page.locator("tbody tr").filter({ hasText: เก่า }).first();
+    await expect(แถว).toBeVisible({ timeout: 20_000 });
+    await แถว.locator("td").nth(1).click();
+    await page.waitForURL(/\/leads/, { timeout: 25_000 });
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
+    await page.locator(`[data-quote-item="${NS}-OLD"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
+    // หน้าดูใบต้องเปิดได้และมียอดสุทธิ (ใบไม่มีภาษี = เท่ากับยอดรวม) · มีปุ่มพิมพ์
+    await expect(page.getByText("ยอดสุทธิ", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("฿400,000").first(), "ยอดสุทธิ = ยอดรวม").toBeVisible();
+    await expect(page.getByRole("button", { name: /พิมพ์ PDF/ }), "ยังพิมพ์ได้").toBeVisible();
+  } finally {
+    ลบใบทดสอบที่ฐาน(`id = '${NS}-OLD'`);
+    await admin.from("leads").delete().eq("dealer_code", "RYG").eq("num_id", เลข);
+  }
 });

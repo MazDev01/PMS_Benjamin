@@ -43,15 +43,15 @@ test("[flow·hq] หาดีลเลอร์ใหม่ครบเส้น
 
   // ── 1) ผู้สนใจ ───────────────────────────────────────────────────────────────────────────────
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
-  await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
-  const แผง = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
+  await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click();
+  const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await แผง.locator("#pr-name").fill(ชื่อ);
   await แผง.locator("#pr-phone").fill("089 111 2233");
   await แผง.locator("#pr-region").selectOption("ตะวันออก");
   await แผง.locator("#pr-province").selectOption(จังหวัด);
   await แผง.locator("#pr-channel").selectOption({ index: 1 });
   await แผง.locator("#pr-assigned").selectOption({ index: 1 });
-  await แผง.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).click();
+  await แผง.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
   const ราย = await waitRow<{ id: number; status: string; province: string; channel: string | null; assigned: string | null }>(sb, "dealer_prospects", { name: ชื่อ });
   expect(ราย.status).toBe("new");
   expect(ราย.province).toBe(จังหวัด);
@@ -134,12 +134,21 @@ test("[flow·hq] หาดีลเลอร์ใหม่ครบเส้น
   await แผง.getByLabel(`สถานะใบ ${v3no}`).selectOption("accepted");
   await กดตกลงในกล่องยืนยัน(page);
   await waitRow(sb, "dealer_package_proposals", { id: v3.id, status: "accepted" });
-  const ชำระ = แผง.getByRole("region", { name: `การชำระ ${v3no}` });
+  // รอบ 4 (บอสตัดสิน ข้อ 7): บันทึกการชำระที่หน้า "ใบค่าแฟรนไชส์" ที่เดียว — แผงผู้สนใจดูการชำระอย่างเดียว
+  await expect(แผง.getByRole("region", { name: `การชำระ ${v3no}` }).getByRole("button", { name: "บันทึกการชำระ" }),
+    "แผงผู้สนใจ: ไม่มีปุ่มบันทึกการชำระ").toHaveCount(0);
+  await page.goto(`${HQ_ORIGIN}/hq/proposals?q=${encodeURIComponent(v3no)}`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("row", { name: new RegExp(`เปิดใบค่าแฟรนไชส์ ${v3no} `) }).first().click({ timeout: 25_000 });
+  const ชำระ = page.getByRole("region", { name: `การชำระ ${v3no}` });
   await ชำระ.getByLabel("ยอดชำระ").fill("200000");
   await ชำระ.getByLabel("เลขอ้างอิง").fill("TR-RECRUIT-1");
   await ชำระ.getByRole("button", { name: "บันทึกการชำระ" }).click();
   await waitRow(sb, "dealer_proposal_payments", { proposal_id: v3.id, reference: "TR-RECRUIT-1" });
   await expect(ชำระ.getByTestId(`ยอดชำระ-${v3no}`)).toContainText("ครบแล้ว");
+  // กลับแผงผู้สนใจ — เห็นยอดชำระครบเหมือนกัน (ข้อมูลชุดเดียว)
+  await page.goto(`${HQ_ORIGIN}/hq/prospects?open=${ราย.id}`, { waitUntil: "domcontentloaded" });
+  await แผง.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click({ timeout: 25_000 });
+  await expect(แผง.getByTestId(`ยอดชำระ-${v3no}`), "แผงผู้สนใจเห็นยอดชำระครบ").toContainText("ครบแล้ว", { timeout: 25_000 });
 
   // ── 5) แปลงเป็นดีลเลอร์ + จังหวัดที่ดูแล ───────────────────────────────────────────────────────────
   await แผง.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click();

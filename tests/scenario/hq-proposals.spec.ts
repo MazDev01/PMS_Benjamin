@@ -25,7 +25,17 @@ async function cleanup() {
 test.beforeAll(cleanup);
 test.afterAll(cleanup);
 
-test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาราง · ค้นหา/กรอง · แผงรายละเอียด · ตอบรับในแผง · ลิงก์ไปลูกค้าเป้าหมาย", async ({ page }) => {
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69 ข้อ 13): หน้าใบค่าแฟรนไชส์ = รายการ · ติดตามชำระ · พิมพ์
+//   ออก/แก้/ลบ/ส่ง/ตอบรับใบ ทำที่แผงผู้สนใจที่เดียว (H3 · H4) — ข้อทดสอบตรวจทั้ง "หน้ารวมไม่มีปุ่มแล้ว" และ "ทำได้ที่แผงผู้สนใจ"
+const แผงผู้สนใจ = async (page: import("@playwright/test").Page, prospectId: number) => {
+  await page.goto(`${HQ_ORIGIN}/hq/prospects?open=${prospectId}`, { waitUntil: "domcontentloaded" });
+  const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
+  await expect(แผง).toBeVisible({ timeout: 25_000 });
+  await แผง.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click();
+  return แผง;
+};
+
+test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาราง · ค้นหา/กรอง · แผงรายละเอียด (ดูอย่างเดียว) · ตอบรับที่แผงผู้สนใจ · ลิงก์ไปผู้สนใจ", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-มีใบส่งแล้ว`;
@@ -50,36 +60,44 @@ test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาร�
   await expect(แถว).toContainText("Exclusive");
   await expect(แถว).toContainText("250,000");
   await expect(แถว).toContainText("ส่งแล้ว");
-  // ใบที่ส่งแล้ว: ปุ่มแก้/ลบในแถวต้องกดไม่ได้ (ฐานข้อมูลก็ล็อก)
-  await expect(page.getByRole("button", { name: `แก้ไขใบ ${เลขที่}` })).toBeDisabled();
-  await expect(page.getByRole("button", { name: `ลบใบ ${เลขที่}` })).toBeDisabled();
+  // หน้ารวม: ไม่มีปุ่มแก้/ลบ/ส่ง/ออกใบแล้ว (ทำที่แผงผู้สนใจ) — ฐานก็ล็อกใบที่ส่งแล้ว
+  for (const ปุ่ม of [`แก้ไขใบ ${เลขที่}`, `ลบใบ ${เลขที่}`, `ส่งใบ ${เลขที่}`])
+    await expect(page.getByRole("button", { name: ปุ่ม }), `หน้ารวมไม่มีปุ่ม ${ปุ่ม}`).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }), "หน้ารวมไม่มีปุ่มออกใบ").toHaveCount(0);
 
   await page.getByLabel("กรองตามสถานะใบ").selectOption("accepted");
   await expect(แถว, "กรอง “ตอบรับ” ต้องไม่เห็นใบที่ส่งแล้ว").toHaveCount(0);
   await page.getByLabel("กรองตามสถานะใบ").selectOption("all");
   await expect(แถว).toBeVisible();
 
-  // ปุ่มดู → แผงรายละเอียดกลางจอ · ข้อมูลครบ · ตอบรับได้ในแผงเลย
+  // ปุ่มดู → แผงรายละเอียดกลางจอ · ข้อมูลครบ · ไม่มีปุ่มเปลี่ยนสถานะ
   await page.getByRole("button", { name: `ดูใบ ${เลขที่}` }).click();
   const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
   await expect(แผง.getByText(เลขที่)).toBeVisible();
   await expect(แผง).toContainText("24 เดือน (2 ปี)");
   await expect(แผง).toContainText("฿3,000,000");
-  await แผง.getByRole("button", { name: "ตอบรับ" }).click();
-  await กดตกลงในกล่องยืนยัน(page);
-  await waitRow(sb, "dealer_package_proposals", { id: ใบId, status: "accepted" });
-  await expect(แผง).toContainText("จบขั้นตอนของใบนี้", { timeout: 15_000 });
+  for (const ปุ่ม of ["ตอบรับ", "ปฏิเสธ", "ส่งแล้ว", "แก้ไข", "ลบใบร่าง"])
+    await expect(แผง.getByRole("button", { name: ปุ่ม, exact: true }), `แผงรายละเอียดไม่มีปุ่ม ${ปุ่ม}`).toHaveCount(0);
 
-  // ลิงก์ไปลูกค้าเป้าหมาย → แผงรายนั้นต้องเปิดเอง
-  await แผง.getByRole("link", { name: "ลูกค้าเป้าหมาย" }).click();
+  // ลิงก์ไปผู้สนใจ → แผงรายนั้นต้องเปิดเอง · ตอบรับใบที่แผงผู้สนใจ
+  await แผง.getByRole("link", { name: "ผู้สนใจ" }).click();
   await expect(page).toHaveURL(/\/hq\/prospects/, { timeout: 25_000 });
-  const รายละเอียด = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
+  const รายละเอียด = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await expect(รายละเอียด.locator("#pr-name"), "ต้องเปิดแผงของรายที่กดมา").toHaveValue(name, { timeout: 25_000 });
   await expect(page, "ล้างพารามิเตอร์แล้ว รีเฟรชไม่เปิดซ้ำ").not.toHaveURL(/open=/);
+  await รายละเอียด.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click();
+  await รายละเอียด.getByLabel(`สถานะใบ ${เลขที่}`).selectOption("accepted");
+  await กดตกลงในกล่องยืนยัน(page);
+  await waitRow(sb, "dealer_package_proposals", { id: ใบId, status: "accepted" });
+
+  // กลับหน้ารวม: สถานะใหม่ขึ้นในตาราง (ข้อมูลชุดเดียว)
+  await page.goto(`${HQ_ORIGIN}/hq/proposals`, { waitUntil: "domcontentloaded" });
+  await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
+  await expect(page.getByRole("row", { name: new RegExp(เลขที่) })).toContainText("ตอบรับ", { timeout: 15_000 });
   assertNoErrors(errs, "หน้าใบค่าแฟรนไชส์");
 });
 
-test("[func·hq] ออกใบในฟอร์มเดียว (เลือกลูกค้าเป้าหมายในฟอร์ม) → ใบร่าง → กดส่งแล้วในแผง → ขั้นลูกค้าเป้าหมายเลื่อนเอง", async ({ page }) => {
+test("[func·hq] ออกใบในแผงผู้สนใจ → ใบร่าง → ส่งแล้ว → ขั้นผู้สนใจเลื่อนเอง · หน้ารวมเห็นใบ", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-ออกใบจากหน้ารวม`;
@@ -88,14 +106,16 @@ test("[func·hq] ออกใบในฟอร์มเดียว (เลื�
   const prospectId = (pr as { id: number }).id;
 
   await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
-  await page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).first().click({ timeout: 25_000 });
-  const ฟอร์ม = page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์", exact: true });
-  await expect(ฟอร์ม, "กดปุ่มเดียวได้ฟอร์มเลย ไม่มีกล่องเลือกรายก่อน").toBeVisible();
-  await ฟอร์ม.locator("#pp-package").selectOption("standard");
+  await expect(page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }), "หน้ารวมไม่มีปุ่มออกใบ (ออกได้ที่แผงผู้สนใจที่เดียว)").toHaveCount(0);
+  const แผง = await แผงผู้สนใจ(page, prospectId);
+  await แผง.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).click();
+  const ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
+  await expect(ฟอร์ม, "กดปุ่มเดียวได้ฟอร์มในแผงเลย").toBeVisible();
+  await expect(ฟอร์ม.locator("#pp-prospect"), "ผู้สนใจกำหนดจากแผงแล้ว ไม่มีช่องเลือกราย").toHaveCount(0);
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
-  await expect(ฟอร์ม.getByText(/ต้องเลือกลูกค้าเป้าหมาย/), "ไม่เลือกราย = บันทึกไม่ได้").toBeVisible();
-  await ฟอร์ม.locator("#pp-prospect").selectOption(String(prospectId));
-  await expect(ฟอร์ม.locator("#pp-province"), "จังหวัดเติมจากลูกค้าเป้าหมายให้").toHaveValue("ลำปาง");
+  await expect(ฟอร์ม.getByText(/ต้องเลือกแพ็กเกจ/), "ไม่เลือกแพ็กเกจ = บันทึกไม่ได้").toBeVisible();
+  await ฟอร์ม.locator("#pp-package").selectOption("standard");
+  await expect(ฟอร์ม.locator("#pp-province"), "จังหวัดเติมจากผู้สนใจให้").toHaveValue("ลำปาง");
   await ฟอร์ม.locator("#pp-amount").fill("90000");
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
 
@@ -103,24 +123,21 @@ test("[func·hq] ออกใบในฟอร์มเดียว (เลื�
   expect(แถวใบ.status).toBe("draft");
   expect(Number(แถวใบ.amount)).toBe(90_000);
 
-  // บันทึกเสร็จ แผงของใบเปิดให้เลย → กดส่งแล้วต่อได้ทันที
-  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
-  await expect(แผง.getByText(แถวใบ.proposal_no)).toBeVisible({ timeout: 15_000 });
-  await แผง.getByRole("button", { name: "ส่งแล้ว" }).click();
+  // ส่งแล้ว (ในแผงผู้สนใจ) → ขั้นผู้สนใจ "นัดคุยแล้ว" → "รอตัดสินใจ" ให้เอง (ตัวดัก 0174)
+  await แผง.getByLabel(`สถานะใบ ${แถวใบ.proposal_no}`).selectOption("sent");
   await กดตกลงในกล่องยืนยัน(page);
   await waitRow(sb, "dealer_package_proposals", { id: แถวใบ.id, status: "sent" });
-  // ส่งใบแล้ว ขั้นลูกค้าเป้าหมาย "นัดคุยแล้ว" → "รอตัดสินใจ" ให้เอง (ตัวดัก 0174)
   await waitRow(sb, "dealer_prospects", { id: prospectId, status: "considering" });
-  await แผง.getByRole("button", { name: "ปิด" }).click();
 
+  await page.goto(`${HQ_ORIGIN}/hq/proposals`, { waitUntil: "domcontentloaded" });
   await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
   const แถว = page.getByRole("row", { name: new RegExp(แถวใบ.proposal_no) });
   await expect(แถว).toContainText("ส่งแล้ว", { timeout: 15_000 });
-  assertNoErrors(errs, "ออกใบค่าแฟรนไชส์จากหน้ารวม");
+  assertNoErrors(errs, "ออกใบค่าแฟรนไชส์จากแผงผู้สนใจ");
 });
 
-// รอบ 3 ข้อ 2 (บอสสั่ง 20 ต.ค. 69): แถวใบร่างมีไม่เกิน 2 ปุ่ม (ส่ง · พิมพ์) — ดู/แก้ไข/ลบ ย้ายไปแผงรายละเอียด (กดแถว)
-test("[func·hq] แถวใบร่าง 2 ปุ่ม (ส่ง · พิมพ์) · แก้ไข/ลบใบร่างจากแผงรายละเอียด", async ({ page }) => {
+// รอบ 4: แถวในหน้ารวมเหลือ ดู + พิมพ์ (2 ปุ่ม) — แก้ไข/ลบใบร่างทำที่แผงผู้สนใจ
+test("[func·hq] แถวใบร่าง 2 ปุ่ม (ดู · พิมพ์) · แก้ไข/ลบใบร่างที่แผงผู้สนใจ", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-แก้ลบในแถว`;
@@ -137,21 +154,21 @@ test("[func·hq] แถวใบร่าง 2 ปุ่ม (ส่ง · พิ
   const แถว = page.getByRole("row", { name: new RegExp(เลขที่) });
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   const ปุ่มในแถว = แถว.locator("td").last().getByRole("button");
-  await expect(ปุ่มในแถว, "แถวใบร่างมีไม่เกิน 2 ปุ่ม").toHaveCount(2);
-  await expect(แถว.getByRole("button", { name: `ส่งใบ ${เลขที่}` })).toBeVisible();
+  await expect(ปุ่มในแถว, "แถวมี 2 ปุ่ม (ดู · พิมพ์)").toHaveCount(2);
+  await expect(แถว.getByRole("button", { name: `ดูใบ ${เลขที่}` })).toBeVisible();
   await expect(แถว.getByRole("button", { name: `พิมพ์ใบ ${เลขที่}` })).toBeVisible();
+  await expect(แถว.getByRole("button", { name: `ส่งใบ ${เลขที่}` }), "ไม่มีปุ่มส่งในแถว").toHaveCount(0);
 
-  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
-  await แถว.locator("td").first().click();
-  await แผง.getByRole("button", { name: "แก้ไข", exact: true }).click();
-  const ฟอร์ม = page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์", exact: true });
+  const แผง = await แผงผู้สนใจ(page, prospectId);
+  await แผง.getByRole("button", { name: `แก้ไขใบ ${เลขที่}` }).click();
+  const ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await expect(ฟอร์ม.locator("#pp-amount"), "ฟอร์มแก้ต้องมีค่าเดิม").toHaveValue("100,000");
   await ฟอร์ม.locator("#pp-amount").fill("120000");
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
   await waitRow(sb, "dealer_package_proposals", { id: ใบId, amount: 120_000 });
-  await แผง.getByRole("button", { name: "ลบใบร่าง" }).click();
+  await แผง.getByRole("button", { name: `ลบใบ ${เลขที่}` }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("dealer_package_proposals").select("id").eq("id", ใบId)).data?.length ?? -1,
     { timeout: 15_000 }).toBe(0);
-  assertNoErrors(errs, "ปุ่มแก้ไข/ลบในแถวใบค่าแฟรนไชส์");
+  assertNoErrors(errs, "แก้ไข/ลบใบร่างที่แผงผู้สนใจ");
 });

@@ -3,7 +3,7 @@ import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
 import { adminClient } from "./testDealers";
-import { ล้างใบHQทดสอบ } from "./legacyQuotes";
+import { ล้างใบHQทดสอบ, วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
 // ── เอาแม่แบบออกทั้งระบบ (บอสสั่ง 16 ต.ค. 69) ─────────────────────────────────────────────────────────
 //   ฐานเก็บตาราง/ข้อมูลแม่แบบไว้ (ไม่ drop) แต่ไม่มีหน้า/API/ช่องใดของแอปใช้อีก
@@ -98,8 +98,8 @@ test("[ui·dealer] หน้าใบเสนอราคาไม่มีต�
 test("[func·dealer] ลูกค้าเป้าหมายที่มีแม่แบบเก่า → ข้อความแจ้งเตือนและนัดหมายใหม่ต้องไม่มีชื่อแม่แบบ", async ({ page }) => {
   // ข้อมูลเก่าในฐาน (เก็บไว้ ไม่แสดง): ลูกค้าเป้าหมายสถานะ "ติดตาม" ที่เคยเลือกแม่แบบไว้
   const เลข = เลขลีด + 1, ชื่อ = `${บริษัท}-นัด`, แม่แบบเก่า = "ZZ-แม่แบบเก่า-แจ้งเตือน";
-  const sb = await db(RYG);
-  const l = await sb.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อ, name: ชื่อ,
+  // ใบ 0232: ดีลเลอร์เพิ่มลีดได้เฉพาะขั้นรอติดต่อ/ลูกค้าเป้าหมาย — ข้อมูลเก่าขั้น "ติดตาม" วางที่ฐานด้วยบัญชีผู้ดูแล (ตัวช่วยทดสอบ)
+  const l = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อ, name: ชื่อ,
     contact: "ผู้ทดสอบ", phone: "000-000-0002", province: "ระยอง", status: "FOLLOWUP", product: แม่แบบเก่า });
   expect(l.error).toBeNull();
   try {
@@ -123,8 +123,9 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
     const row = page.locator("tbody tr").filter({ hasText: ชื่อ }).first();
     await expect(row).toBeVisible({ timeout: 25_000 });
     await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-    // ปุ่ม "นัดหมาย" บนหัวแผง เปิดฟอร์มนัดหมายใหม่ให้เลย (แท็บไทม์ไลน์)
-    await page.getByRole("button", { name: "นัดหมาย", exact: true }).first().click();
+    // รอบ 4: นัดหมายอยู่ที่แท็บประวัติ → "เพิ่มนัดหมาย" เปิดฟอร์มนัดหมายใหม่
+    await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
+    await page.getByRole("button", { name: "เพิ่มนัดหมาย" }).first().click();
     await expect(page.getByRole("button", { name: "บันทึกนัดหมาย" })).toBeVisible({ timeout: 15_000 });
     await page.getByLabel("ประเภทนัดหมาย").selectOption({ index: 1 });
     await page.getByRole("button", { name: "บันทึกนัดหมาย" }).click();
@@ -179,8 +180,9 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   // 1) ดีลเลอร์ขอราคา — พิมพ์ชื่องานเอง (ไม่มีตัวเลือกแม่แบบ)
   await loginUI(d, DEALER_ORIGIN, "/login", RYG);
   await เปิดแผงใบ();
+  // รอบ 4: ปุ่มขอราคาอยู่ที่กล่องขั้นต่อไปในแผงลีดที่เดียว → เปิดฟอร์มขอราคา
+  await d.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click({ timeout: 20_000 });
   const แผง = d.locator("[data-panel='quote-request']");
-  await แผง.getByRole("button", { name: "ขอราคาจาก HQ" }).click();
   await expect(แผง.getByLabel("แม่แบบ", { exact: true }), "คำขอราคาต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
   await แผง.getByLabel("งานที่ขอราคา").fill("โกดังเก็บสินค้า 20x40 ม.");
   await แผง.getByLabel("สเปก / รายละเอียด").fill("สูง 8 ม. · ประตูม้วน 2 บาน");
@@ -218,15 +220,21 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   await settle(d);
 
   // 4) ส่งให้ลูกค้า → ลูกค้าตอบรับ → ใบ HQ = สั่งผลิต
+  //    รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — ใบต้องโผล่ในรายการ · กดแถว → แผงลีด
+  //    ส่ง = กล่องขั้นต่อไป · ลูกค้าตอบรับ = ปุ่มที่ใบในแท็บใบเสนอราคา
+  const เลขใบ = (await ใบ())!.id;
   await d.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(d);
-  await d.getByPlaceholder(/ค้นหา/).first().fill((await ใบ())!.id);
+  await d.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
   const qrow = d.locator("tbody tr").filter({ hasText: บริษัท }).first();
   await expect(qrow).toBeVisible({ timeout: 25_000 });
-  await qrow.getByTitle("ส่งให้ลูกค้า").click();
+  await qrow.locator("td").first().click();
+  await d.waitForURL(/\/leads/, { timeout: 25_000 });
+  await d.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
+  await กดตกลงในกล่องยืนยัน(d);
   await expect.poll(async () => (await ใบ())?.status, { timeout: 25_000 }).toBe("sent_to_client");
-  await qrow.click();
-  await d.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await d.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await d.locator(`[data-quote-item="${เลขใบ}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 25_000 });
   await กดตกลงในกล่องยืนยัน(d);
   await expect.poll(ลีด, { timeout: 25_000, message: "won → PAID" }).toBe("PAID");
   expect((await admin.from("hq_quotes").select("status").eq("request_id", rid).single()).data?.status, "ใบ HQ = สั่งผลิต").toBe("ordered");
@@ -239,14 +247,34 @@ test("[func·dealer] ใบเก่าที่เคยใช้แม่แ�
     .like("id", "ZZTEST-BASE-Q-%").neq("building_type", "").limit(1);
   const ใบ = data?.[0];
   expect(ใบ, "ข้อมูลตั้งต้นต้องมีใบเก่าที่ระบุแม่แบบ").toBeTruthy();
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(ใบ!.id);
-  const แถว = page.locator("tbody tr").filter({ hasText: ใบ!.id }).first();
-  await expect(แถว).toBeVisible({ timeout: 25_000 });
-  await แถว.getByTitle("ดูรายละเอียด").click();
-  await expect(page.getByTitle("พิมพ์ / ดาวน์โหลด PDF")).toBeVisible({ timeout: 15_000 });
-  const ยอด = Number(ใบ!.total_value).toLocaleString("th-TH");
-  await expect(page.getByText(new RegExp(ยอด.replace(/,/g, ",?"))).first(), "ยอดของใบเก่าต้องแสดง").toBeVisible();
+  // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — ดูใบได้ที่แผงลีดของใบนั้นที่เดียว
+  //   ใบเก่าในข้อมูลตั้งต้นไม่ผูกลีด (ฐานจริง: ใบไม่ผูกดีล 0 ใบ · ตรวจ 22 ต.ค. 69) → วางใบเก่าแบบเดียวกัน (แม่แบบ + ยอดเดิม) ผูกลีดของข้อนี้
+  const แท็ก = `${Date.now() % 100000}`;
+  const บริษัทเก่า = `ZZTEST-ใบแม่แบบเก่า-${แท็ก}`, เลขใบ = `ZZTEST-LEGACY-TPL-${แท็ก}`;
+  const เลขลีดเก่า = 979_800_000 + (Date.now() % 90_000);
+  const ลีด = await admin.from("leads").insert({ id: `#L-${เลขลีดเก่า}`, num_id: เลขลีดเก่า, dealer_code: "RYG", company: บริษัทเก่า, name: บริษัทเก่า,
+    phone: "000-000-0003", province: "ระยอง", status: "QUOTED" });
+  expect(ลีด.error, `วางลีดไม่สำเร็จ: ${ลีด.error?.message}`).toBeNull();
+  วางใบเดิมที่ฐาน([{ id: เลขใบ, dealer_code: "RYG", customer: บริษัทเก่า, deal_id: เลขลีดเก่า, status: "draft", building_type: ใบ!.building_type,
+    total_value: ใบ!.total_value, line_items: [{ name: "งานเดิม", qty: 1, unit: "งาน", unitPrice: Number(ใบ!.total_value) }],
+    date: new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10) }]);
+  try {
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
+    const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
+    await expect(แถว).toBeVisible({ timeout: 25_000 });
+    await แถว.locator("td").first().click();
+    await page.waitForURL(/\/leads|\/customers/, { timeout: 25_000 });
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 25_000 });
+    await page.locator(`[data-quote-item="${เลขใบ}"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /พิมพ์ PDF/ })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("งานเดิม").first(), "รายการของใบเก่าต้องแสดง").toBeVisible();
+    const ยอด = Number(ใบ!.total_value).toLocaleString("th-TH");
+    await expect(page.getByText(new RegExp(ยอด.replace(/,/g, ",?"))).first(), "ยอดของใบเก่าต้องแสดง").toBeVisible();
+  } finally {
+    ลบใบทดสอบที่ฐาน(`id = '${เลขใบ}'`);
+    await admin.from("leads").delete().eq("dealer_code", "RYG").eq("num_id", เลขลีดเก่า);
+  }
 });

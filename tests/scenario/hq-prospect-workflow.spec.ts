@@ -163,9 +163,9 @@ test("[func·hq] รูปประจำตัว: อัปโหลดตั�
   const name = `${NS}-มีรูป`;
 
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
-  await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
-  const ฟอร์ม = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
-  await ฟอร์ม.getByLabel("อัปโหลดรูปลูกค้าเป้าหมาย").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: รูปทดสอบ });
+  await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click();
+  const ฟอร์ม = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
+  await ฟอร์ม.getByLabel("อัปโหลดรูปผู้สนใจ").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: รูปทดสอบ });
   await expect(ฟอร์ม.getByRole("img", { name: "รูปประจำตัว" }), "เลือกรูปแล้วต้องเห็นตัวอย่างในฟอร์ม").toBeVisible({ timeout: 10_000 });
   await ฟอร์ม.locator("#pr-name").fill(name);
   // ผู้ดูแล = ดรอปดาวน์จากผู้ใช้งานสำนักงานใหญ่ (บอสสั่ง 14 ก.ย. 69) — ต้องไม่ใช่ช่องพิมพ์เองแล้ว
@@ -175,12 +175,12 @@ test("[func·hq] รูปประจำตัว: อัปโหลดตั�
   expect(ชื่อผู้ใช้HQ.length, "ต้องมีรายชื่อผู้ใช้งานสำนักงานใหญ่ให้เลือก").toBeGreaterThan(0);
   const ค่าแรก = await ผู้ดูแล.locator("option").nth(1).getAttribute("value");
   await ผู้ดูแล.selectOption(ค่าแรก ?? "");
-  await ฟอร์ม.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).click();
+  await ฟอร์ม.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
 
   const แถว = await waitRow<{ id: number; logo: string | null; assigned: string | null }>(sb, "dealer_prospects", { name });
   expect(แถว.assigned, "ผู้ดูแลที่เลือกต้องบันทึกจริง").toBe(ค่าแรก);
   expect(แถว.logo ?? "", "รูปต้องถูกบันทึกเป็นรูปที่ย่อแล้ว").toMatch(/^data:image\//);
-  const แผง = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
+  const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await expect(แผง.getByRole("img", { name: "รูปประจำตัว" }).first(), "หัวแผงต้องขึ้นรูปแทนตัวย่อ").toBeVisible({ timeout: 15_000 });
 
   const ลิงก์ภายนอก = await sb.from("dealer_prospects").update({ logo: "https://evil.example/x.png" }).eq("id", แถว.id).select();
@@ -198,7 +198,7 @@ test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/
   const id = (pr as { id: number }).id;
 
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
-  await page.getByLabel("ค้นหาลูกค้าเป้าหมาย").fill(name);
+  await page.getByLabel("ค้นหาผู้สนใจ").fill(name);
   const แถว = page.getByRole("row", { name: new RegExp(name) });
   await expect(แถว).toContainText("ยังไม่เคยติดต่อ", { timeout: 25_000 });
 
@@ -211,7 +211,7 @@ test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/
   // บันทึกการติดต่อในแท็บ → ติดต่อล่าสุดเป็น "วันนี้" · ประวัติขึ้นในแท็บ
   //   ปุ่มลัดบนหัวแผงบอสสั่งเอาออก (14 ก.ย. 69) — ต้องไม่มีปุ่มนั้นบนหัวแผงแล้ว
   await แถว.click();
-  const แผง = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
+  const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await expect(แผง.getByRole("button", { name: /บันทึกการติดต่อ|ออกใบค่าแฟรนไชส์/ }), "หัวแผงต้องไม่มีปุ่มลัดสองปุ่มนี้").toHaveCount(0);
   await แผง.getByRole("tab", { name: "บันทึกการติดต่อ" }).click();
   await แผง.getByRole("button", { name: "บันทึกการติดต่อ" }).first().click();

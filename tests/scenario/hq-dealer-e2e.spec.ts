@@ -212,16 +212,19 @@ test("[11] ปิดการขายไม่สำเร็จ: ไม่ใ�
   await เข้าระบบ(request, DEALER_ORIGIN, RYG);
   const numId = await (await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=next`, { data: { dealerCode: "RYG" } })).json();
   const id = `#L-${numId}`;
-  await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
+  // ใบ 0232: ดีลเลอร์สร้างลีดได้เฉพาะขั้น รอติดต่อ/ติดต่อแล้ว (เดิมสร้างที่ "เจรจาต่อรอง" ตรง ๆ — ฐานไม่ยอมแล้ว)
+  //   กฎที่ข้อนี้วัด (ปิดไม่สำเร็จต้องมีเหตุผล) ใช้ได้กับลีดทุกขั้นที่ยังเปิดอยู่
+  const สร้าง = await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id, dealerCode: "RYG", numId, name: บริษัท("ดีลแพ้"), company: บริษัท("ดีลแพ้"), contact: "x",
-    phone: "081-000-0002", province: "ระยอง", status: "NEGO", value: "500000", area: "100", assigned: "ทดสอบระบบ" } });
+    phone: "081-000-0002", province: "ระยอง", status: "WAITING", value: "500000", area: "100", assigned: "ทดสอบระบบ" } });
+  expect(สร้าง.ok(), `สร้างลีดตั้งต้นต้องสำเร็จ: ${await สร้าง.text()}`).toBe(true);
 
   // ทางแก้ลูกค้าเป้าหมายทางเดียว: op=apply (ส่วนต่าง · ใบ 0211) — กฎปิดการขายบังคับในฐาน (เดิมตรวจที่เซิร์ฟเวอร์แอป ตอบ 422)
   const ไม่มีเหตุผล = await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=apply`, { data: { id, intent: { stage: { status: "CANCELLED" } } } });
   expect(ไม่มีเหตุผล.status(), "ปิดไม่สำเร็จโดยไม่ใส่เหตุผล ต้องถูกปฏิเสธ").toBe(400);
   expect(await ไม่มีเหตุผล.text(), "ต้องบอกเหตุผล").toContain("ต้องระบุเหตุผล");
   const { data: ยังไม่เปลี่ยน } = await db.from("leads").select("status").eq("id", id).single();
-  expect(ยังไม่เปลี่ยน?.status, "สถานะต้องไม่ถูกเปลี่ยนเมื่อถูกปฏิเสธ").toBe("NEGO");
+  expect(ยังไม่เปลี่ยน?.status, "สถานะต้องไม่ถูกเปลี่ยนเมื่อถูกปฏิเสธ").toBe("WAITING");
 
   const มีเหตุผล = await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=apply`, { data: {
     id, intent: { stage: { status: "CANCELLED", lostReason: "ราคาสูงกว่าคู่แข่ง" } } } });

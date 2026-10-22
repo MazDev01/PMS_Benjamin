@@ -93,19 +93,30 @@ test("[edge] กด 'ปิดการขายสำเร็จ' รัว �
   // กฎ 19 ส.ค. 69: ต้องมีใบที่ "ส่งแล้ว" ถึงจะปิดการขายได้ — เทสต์นี้ตรวจเรื่องกดรัว ไม่ใช่เรื่องด่าน
   await markQuotationSent(sb, "RYG", company);
 
+  const { data: ใบส่ง } = await sb.from("quotations").select("id").eq("dealer_code", "RYG").eq("customer", company).eq("status", "sent_to_client").limit(1);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "ตาราง" }).click();
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row2 = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(row2).toBeVisible({ timeout: 30_000 });
-  await row2.getByRole("button", { name: /▾/ }).first().click();
+  // รอบ 4: ปิดการขายสำเร็จทางเดียว = "ลูกค้าตอบรับ" ที่ใบในแผงลีด (เมนู ▾ เปลี่ยนสถานะเอาออกแล้ว) — กดรัวที่ปุ่มนั้นแทน
+  await row2.getByTitle("ดูรายละเอียด").first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
 
   // ปิดการขายมีกล่องยืนยันทุกครั้ง — กดรัว 3 ที แล้วตอบ "ตกลง" ที่ใบที่ค้างอยู่
   //   กล่องยืนยันของระบบเปิดได้ทีละใบ (ใบใหม่มาปิดใบเก่าแล้วถือว่ายกเลิก) — เจตนาของเทสต์
   //   ยังเหมือนเดิม: กดรัวแล้วต้องได้ลูกค้ารายเดียว ยอดไม่บวกซ้ำ
-  const winBtn = page.getByRole("button", { name: "ปิดการขายสำเร็จ", exact: true }).first();
+  const winBtn = page.locator(`[data-quote-item="${ใบส่ง?.[0]?.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ });
+  await expect(winBtn).toBeVisible({ timeout: 20_000 });
   await Promise.all([0, 1, 2].map(() => winBtn.click({ force: true, timeout: 5_000 }).catch(() => {})));
-  await กดตกลงในกล่องยืนยัน(page);
+  // กล่องยืนยันอาจซ้อนขึ้นมาได้หลายใบจากการกดรัว — กรณีแย่สุดคือผู้ใช้กด "ตกลง" ครบทุกใบ (หนักกว่าตอบใบเดียว)
+  const กล่อง = page.locator(".pms-confirm[role='alertdialog']");
+  await expect(กล่อง.first(), "ต้องมีกล่องยืนยันขึ้นมาก่อน").toBeVisible({ timeout: 15_000 });
+  for (let i = 0; i < 5 && (await กล่อง.count()) > 0; i++) {
+    await กล่อง.last().locator(".pms-confirm-actions button").last().click();
+    await page.waitForTimeout(300);
+  }
+  await expect(กล่อง).toHaveCount(0, { timeout: 10_000 });
 
   const cust = await waitRow<{ id: number }>(sb, "customers", { company }, 60_000);
   await page.waitForTimeout(6_000); // เผื่อรายการซ้ำ/ยอดบวกซ้ำตามมาทีหลัง
@@ -297,16 +308,14 @@ test("[edge] ปิดการขายสำเร็จแล้ว — ย�
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   const q = await waitRow<{ id: string }>(sb, "quotations", { customer: company }, 60_000);
 
-  // ส่งใบ → ปิดการขายสำเร็จจากหน้าใบเสนอราคา
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  const qrow = page.locator("tbody tr").filter({ hasText: company }).first();
-  await expect(qrow).toBeVisible({ timeout: 45_000 });
-  await qrow.click();
-  await page.getByRole("button", { name: "ส่งใบเสนอราคา", exact: true }).click();
+  // ส่งใบ → ปิดการขายสำเร็จ — รอบ 4: ทั้งสองอย่างอยู่ในแผงลีด (ส่ง = กล่องขั้นต่อไป · ปิด = "ลูกค้าตอบรับ" ที่ใบ)
+  //   หน้าใบเสนอราคาเหลือรายการอย่างเดียว ไม่มีปุ่มส่ง/ตอบรับแล้ว
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 30_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
     { timeout: 45_000, message: "ใบต้องเป็น 'ส่งแล้ว'" }).toBe("sent_to_client");
 
-  await page.getByRole("button", { name: "ลูกค้าตอบรับ", exact: false }).click();
+  await page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 30_000 });
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
     { timeout: 60_000, message: "ใบต้องเป็น 'ชนะ'" }).toBe("won");

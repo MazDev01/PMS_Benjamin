@@ -175,29 +175,34 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   const { data: qrows } = await sb.from("quotations").select("id").eq("customer", COMPANY);
   const quoteId = qrows![0].id as string;
 
-  // 7) ไปหน้าใบเสนอราคา → เปิดใบ → เปลี่ยนสถานะ (ส่ง → ตอบรับ/ปฏิเสธ)
+  // 7) ส่งใบ → ตอบรับ/ปฏิเสธ — รอบ 4: ส่งที่กล่องขั้นต่อไปในแผงลีด · ผลลูกค้าที่ใบในแท็บใบเสนอราคา
+  //    เริ่มจากหน้าใบเสนอราคา: ใบต้องโผล่ในตาราง แล้วกดแถว → พาไปแผงลีดของใบนั้น
   await settle(page);   // รอคำขอบันทึกที่ค้าง (งาน/ไทม์ไลน์ของลูกค้าเป้าหมาย) จบก่อนเปลี่ยนหน้า — ไม่งั้นถูกตัดกลางทาง
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   const qrow = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(qrow, `${code}: ใบเสนอราคาต้องโผล่ในตาราง`).toBeVisible({ timeout: 45_000 });
-  await qrow.click();
-  await page.getByRole("button", { name: "ส่งใบเสนอราคา", exact: true }).click();
+  await qrow.locator("td").first().click();
+  await page.waitForURL(/\/leads/, { timeout: 45_000 });
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 45_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("quotations").select("status").eq("id", quoteId)).data?.[0]?.status,
     { timeout: 45_000, message: `${code}: ใบต้องเป็น 'ส่งแล้ว'` }).toBe("sent_to_client");
   mark("quotation_sent");
 
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  const ผลลูกค้า = page.locator(`[data-quote-item="${quoteId}"] [data-customer-result]`);
   if (willWin) {
-    await page.getByRole("button", { name: "ลูกค้าตอบรับ", exact: false }).click();
+    await ผลลูกค้า.getByRole("button", { name: /ลูกค้าตอบรับ/ }).click();
     await กดตกลงในกล่องยืนยัน(page);
     await expect.poll(async () => (await sb.from("quotations").select("status").eq("id", quoteId)).data?.[0]?.status,
       { timeout: 60_000, message: `${code}: ใบต้องเป็น 'won'` }).toBe("won");
     mark("closed_won");
   } else {
-    await page.getByRole("button", { name: "ลูกค้าปฏิเสธ", exact: true }).click();
-    const reasonPicker = page.getByText("เลือกเหตุผลที่ลูกค้าปฏิเสธใบเสนอราคานี้");
+    await ผลลูกค้า.getByRole("button", { name: "ลูกค้าปฏิเสธ", exact: true }).click();
+    const reasonPicker = page.locator("[data-lost-picker]");
     await expect(reasonPicker).toBeVisible({ timeout: 30_000 });
-    await reasonPicker.locator("xpath=following-sibling::div[1]//button").first().click();
-    await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
+    await reasonPicker.getByRole("button").first().click();
+    await reasonPicker.getByRole("button", { name: "ยืนยันลูกค้าปฏิเสธ" }).click();
     await expect.poll(async () => (await sb.from("quotations").select("status").eq("id", quoteId)).data?.[0]?.status,
       { timeout: 60_000, message: `${code}: ใบต้องเป็น 'lost'` }).toBe("lost");
     mark("closed_lost");

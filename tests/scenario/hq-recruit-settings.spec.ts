@@ -94,20 +94,20 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await settle(page);   // ไม่ใช้ networkidle — โหมด api เปิดสายอัปเดตสดค้างไว้ ไม่มีวัน "เงียบ" (ดู helpers.settle)
   const name = `${NS}-ใช้รายการที่ตั้ง`;
   await page.goto(`${HQ_ORIGIN}/hq/prospects`);
-  await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click({ timeout: 25_000 });
-  const ฟอร์ม = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
+  await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click({ timeout: 25_000 });
+  const ฟอร์ม = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await expect(ฟอร์ม.locator("select#pr-type"), "ตั้งรายการแล้ว ประเภทธุรกิจต้องเป็นดรอปดาวน์").toBeVisible();
   await ฟอร์ม.locator("#pr-name").fill(name);
   await ฟอร์ม.locator("#pr-type").selectOption("ผู้รับเหมาทดสอบ");
   await ฟอร์ม.locator("#pr-channel").selectOption("TikTok ทดสอบ");
-  await ฟอร์ม.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).click();
+  await ฟอร์ม.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
   await waitRow(sb, "dealer_prospects", { name, business_type: "ผู้รับเหมาทดสอบ", channel: "TikTok ทดสอบ" });
 
   // ── ชื่องาน + เหตุผลที่ไม่สำเร็จ ──
   await page.goto(`${HQ_ORIGIN}/hq/prospects`);
-  await page.getByLabel("ค้นหาลูกค้าเป้าหมาย").fill(name);
+  await page.getByLabel("ค้นหาผู้สนใจ").fill(name);
   await page.getByRole("row", { name: new RegExp(name) }).click({ timeout: 25_000 });
-  const แผง = page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย" });
+  const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
   await expect(แผง.getByRole("checkbox", { name: "ส่งโบรชัวร์ทดสอบ" }), "ชื่องานต้องเป็นชื่อที่ตั้งไว้").toBeVisible({ timeout: 15_000 });
   await แผง.getByRole("button", { name: "ไม่สำเร็จ" }).click();
@@ -127,14 +127,19 @@ test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติม
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
 
+  // รอบ 4 (บอสสั่ง 21 ต.ค. 69 ข้อ 13): ออกใบค่าแฟรนไชส์ได้จากแผงผู้สนใจที่เดียว — หน้ารวมใบเป็นรายการ/ติดตามชำระ/พิมพ์
   await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
-  await page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).first().click({ timeout: 25_000 });
-  const ฟอร์ม = page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์", exact: true });
+  await expect(page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }), "หน้ารวมใบไม่มีปุ่มออกใบแล้ว").toHaveCount(0);
+  await page.goto(`${HQ_ORIGIN}/hq/prospects?open=${prospectId}`, { waitUntil: "domcontentloaded" });
+  const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
+  await แผง.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click({ timeout: 25_000 });
+  await แผง.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).click({ timeout: 25_000 });
+  const ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await expect(ฟอร์ม.locator("#pp-terms"), "เงื่อนไขมาตรฐานเติมให้").toHaveValue("ข้อทดสอบหนึ่ง", { timeout: 15_000 });
   const วันเสนอ = await ฟอร์ม.locator("#pp-date").inputValue();
   await expect(ฟอร์ม.locator("#pp-valid"), "วันมีผล = วันที่เสนอ + 30 วัน").toHaveValue(บวกวัน(วันเสนอ, 30)!);
 
-  await ฟอร์ม.locator("#pp-prospect").selectOption(String(prospectId));
+  // ผู้สนใจถูกกำหนดจากแผงแล้ว (ไม่มีช่องเลือกผู้สนใจในฟอร์มของแผง)
   await ฟอร์ม.locator("#pp-package").selectOption("standard");
   await expect(ฟอร์ม.locator("#pp-amount")).toHaveValue("150,000");
   await expect(ฟอร์ม.locator("#pp-months")).toHaveValue("12");

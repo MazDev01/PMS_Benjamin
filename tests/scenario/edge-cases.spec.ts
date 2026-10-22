@@ -299,7 +299,8 @@ test("[edge] พิมพ์เหตุผลปิดไม่สำเร็�
   const COMPANY = tg("วรรคหาย");
   const CUSTOM_REASON = "ราคา สูง เกินไป";
 
-  const { error: insErr } = await sb.from("leads").insert({ phone: "081-999-0101",
+  // ลีดจริงมีเลขลีดเสมอ (ระบบออกให้ตอนสร้าง) — ลีดไม่มีเลขจะถูกจับคู่กับใบที่ไม่ผูกดีล (ข้อมูลที่ไม่มีในระบบจริง)
+  const { error: insErr } = await sb.from("leads").insert({ phone: "081-999-0101", num_id: 979_400_000 + (Date.now() % 90_000),
     id: `${COMPANY}`, dealer_code: "RYG", company: COMPANY, contact: "คุณวรรคหาย",
     province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING", value: "฿1,000,000",
     assigned: "—", source: "เว็บไซต์",
@@ -313,8 +314,10 @@ test("[edge] พิมพ์เหตุผลปิดไม่สำเร็�
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY); // กันเคสตกหน้าอื่นของ pagination
     const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
     await expect(row).toBeVisible({ timeout: 15_000 });
-    await row.locator("button.badge").click();
-    await page.getByRole("button", { name: "ปิดการขายไม่สำเร็จ", exact: true }).click();
+    // รอบ 4: ปิดไม่สำเร็จที่กล่องขั้นต่อไปในแผงลีดที่เดียว (ป้ายสถานะในตารางเป็นข้อความ กดไม่ได้แล้ว)
+    await expect(row.locator("button.badge"), "ป้ายสถานะในตารางกดไม่ได้").toHaveCount(0);
+    await row.getByTitle("ดูรายละเอียด").click();
+    await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: "ปิดไม่สำเร็จ", exact: true }).click({ timeout: 20_000 });
 
     const otherBtn = page.getByRole("button", { name: "อื่นๆ (ระบุเอง)" });
     await expect(otherBtn).toBeVisible({ timeout: 10_000 });

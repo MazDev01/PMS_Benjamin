@@ -104,13 +104,17 @@ test("[flow·dealer] ขั้น 7: ทำใบให้ลูกค้าจ�
 test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า → QUOTED · หน้าพิมพ์และไฟล์ส่งออกไม่มีต้นทุนหรือ % (ตรวจที่ไฟล์จริง)", async ({ page }) => {
   const qลับ = await ใบของ(ข.leadNum);
   test.skip(!qลับ, "ข้อก่อนหน้าไม่ผ่าน");
+  // รอบ 4: ส่งใบให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปของแผงลีดที่เดียว (หน้าใบเสนอราคาไม่มีปุ่มในแถวแล้ว)
+  //   ใบร่างทั้งสองยังต้องโผล่ในหน้ารายการใบเสนอราคา (ตรวจเดิมคงไว้)
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
+  for (const บริษัท of [สิบ, ลับ])
+    await expect(page.locator("tbody tr").filter({ hasText: บริษัท }).first(), `ใบของ ${บริษัท} ต้องอยู่ในหน้ารายการ`).toBeVisible({ timeout: 25_000 });
   for (const บริษัท of [สิบ, ลับ]) {
-    const แถว = page.locator("tbody tr").filter({ hasText: บริษัท }).first();
-    await expect(แถว).toBeVisible({ timeout: 25_000 });
-    await แถว.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+    await เปิดแท็บใบเสนอราคา(page, บริษัท);
+    await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
+    await กดตกลงในกล่องยืนยัน(page);
   }
   await expect.poll(async () => (await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.status, { timeout: 25_000, message: "ส่งใบแล้วลูกค้าเป้าหมายต้องเป็น QUOTED" }).toBe("QUOTED");
   expect((await สถานะลูกค้าเป้าหมาย(ก.leadNum))?.status).toBe("QUOTED");
@@ -165,30 +169,24 @@ test("[flow·hq] margin: HQ เห็นต้นทุน · % · ราคา�
 test("[flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเสธ: won → PAID · ใบ HQ สั่งผลิต · ราคาล็อก | lost → CANCELLED + เหตุผล", async ({ page }) => {
   const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
   test.skip(!q10 || q10.status !== "sent_to_client", "ข้อก่อนหน้าไม่ผ่าน");
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-
+  // รอบ 4: ลูกค้าตอบรับ/ปฏิเสธ = ปุ่มที่ใบในแท็บใบเสนอราคาของแผงลีดที่เดียว (หน้าใบเสนอราคาเหลือรายการอย่างเดียว)
   // won
-  await page.locator("tbody tr").filter({ hasText: สิบ }).first().click();
-  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await เปิดแท็บใบเสนอราคา(page, สิบ);
+  await page.locator(`[data-quote-item="${q10!.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 25_000 });
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await สถานะลูกค้าเป้าหมาย(ก.leadNum))?.status, { timeout: 25_000, message: "won → ลูกค้าเป้าหมาย PAID" }).toBe("PAID");
   expect((await admin.from("hq_quotes").select("status").eq("id", ก.hqQuoteId).single()).data?.status, "ใบ HQ = สั่งผลิต").toBe("ordered");
   expect((await admin.from("quote_requests").select("status").eq("id", ก.requestId).single()).data?.status, "คำขอปิด won").toBe("won");
   const แก้ = await (await db(RYG)).from("quotations").update({ markup_percent: 80 }).eq("dealer_code", "RYG").eq("id", q10!.id);
   expect(แก้.error?.message ?? "", "สั่งผลิตแล้วแก้ % ไม่ได้").toContain("quote_locked");
-  await page.keyboard.press("Escape");
 
   // lost
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  await page.locator("tbody tr").filter({ hasText: ลับ }).first().click();
-  await page.getByRole("button", { name: "ลูกค้าปฏิเสธ", exact: true }).click();
-  const ตัวเลือก = page.getByText("เลือกเหตุผลที่ลูกค้าปฏิเสธใบเสนอราคานี้");
+  await เปิดแท็บใบเสนอราคา(page, ลับ);
+  await page.locator(`[data-quote-item="${qลับ!.id}"] [data-customer-result]`).getByRole("button", { name: "ลูกค้าปฏิเสธ", exact: true }).click({ timeout: 25_000 });
+  const ตัวเลือก = page.locator("[data-lost-picker]");
   await expect(ตัวเลือก).toBeVisible({ timeout: 30_000 });
-  await ตัวเลือก.locator("xpath=following-sibling::div[1]//button").first().click();
-  await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
+  await ตัวเลือก.getByRole("button").first().click();
+  await ตัวเลือก.getByRole("button", { name: "ยืนยันลูกค้าปฏิเสธ" }).click();
   await expect.poll(async () => (await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.status, { timeout: 25_000, message: "lost → ลูกค้าเป้าหมาย CANCELLED" }).toBe("CANCELLED");
   expect((await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.lost_reason, "ต้องมีเหตุผล").toBeTruthy();
   expect((await admin.from("quote_requests").select("status").eq("id", ข.requestId).single()).data?.status, "คำขอปิด lost").toBe("lost");

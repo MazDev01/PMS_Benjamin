@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { RYG, skipReason } from "./supabaseEnv";
-import { settle } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import {
   DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
   db, waitRow, cleanup, specNS, nsTag,
@@ -35,19 +35,30 @@ test("[func] สร้างนัดหมายผ่านหน้าจอ 
   const errs = watchErrors(page);
   const sb = await db(RYG);
 
+  // รอบ 4 (บอสสั่ง 21 ต.ค. 69 ข้อ 6): ลงนัดได้จากแผงลีดที่เดียว — ปฏิทินดู/ทำเสร็จ/ยกเลิกอย่างเดียว
+  const ลีดนัด = tg("ลีดลงนัด");
+  const เลข = 979_600_000 + (Date.now() % 90_000);
+  const ins = await sb.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ลีดนัด, name: ลีดนัด,
+    phone: "0810000998", province: "ระยอง", status: "WAITING" });
+  expect(ins.error).toBeNull();
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/calendar`, { waitUntil: "domcontentloaded" });
   await settle(page);
+  await expect(page.getByRole("button", { name: "เพิ่มกิจกรรม" }), "ปฏิทินไม่มีปุ่มลงนัดแล้ว").toHaveCount(0);
 
-  await page.getByRole("button", { name: "เพิ่มกิจกรรม" }).first().click();
-  const note = page.getByPlaceholder("รายละเอียดกิจกรรม");
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ลีดนัด);
+  await page.locator("tbody tr").filter({ hasText: ลีดนัด }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
+  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
+  await page.getByRole("button", { name: /เพิ่มนัดหมาย/ }).click();
+  // ประเภทนัดหมาย = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — เริ่มที่ "ยังไม่ระบุ" · จังหวัดมาจากลีด (ไม่มีช่องพิมพ์)
+  await page.getByLabel("ประเภทนัดหมาย").selectOption({ index: 1 });
+  const note = page.getByPlaceholder("บันทึกเพิ่มเติม");
   await expect(note, "ฟอร์มนัดหมายต้องเปิด").toBeVisible({ timeout: 10_000 });
-  // ประเภทกิจกรรม = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — เริ่มที่ "ยังไม่ระบุ"
-  await page.getByLabel("ประเภท").selectOption({ index: 1 });
-  // ช่องจังหวัดเป็น "ตัวเลือกตามเขตของสาขา" แล้ว (บอสสั่ง 20 ส.ค. 69) พิมพ์เองไม่ได้อีก
-  await page.getByLabel("จังหวัด").selectOption({ index: 1 });
   await note.fill(NOTE);
-  await page.getByRole("button", { name: "เพิ่มกิจกรรม" }).last().click();
+  await page.getByRole("button", { name: /บันทึกนัดหมาย/ }).click();
 
   // ตามหาแถวด้วย "หมายเหตุ" แทนจังหวัด (จังหวัดเลือกจากรายการแล้ว ใส่ป้ายทดสอบไม่ได้)
   const row = await waitRow<{ dealer_code: string; id: number }>(
@@ -181,14 +192,21 @@ test("[func] ลบไฟล์แต่ลบไบต์ไม่สำเร�
   const f = await waitRow<{ id: number; storage_path: string | null }>(sb, "files", { name: FILENAME }, 20_000);
   expect(f.storage_path, "ต้องอัปโหลดไบต์สำเร็จก่อน").toBeTruthy();
 
-  // ไปหน้าคลังไฟล์ → ค้นหาก่อนแล้วค่อยรอไฟล์โผล่
-  // ⚠️ ตารางไฟล์แบ่งหน้า — พอสาขามีไฟล์เกินหนึ่งหน้า ไฟล์ที่เพิ่งอัปอาจไปอยู่หน้าถัดไป
-  //    เทสต์ที่มองแค่หน้าแรกจะตกทั้งที่ระบบทำงานถูก (เจอจริง 24 ส.ค. 69 ตอนไฟล์ตัวอย่างเยอะขึ้น)
-  //    กติกาเดียวกับตัวดัก check-paginated-lookup: จะหาแถวในตารางแบ่งหน้า ต้องค้นหาก่อนเสมอ
+  // รอบ 4 (บอสตัดสิน ข้อ 4): ลบไฟล์ได้ที่แผงลีด/แผงลูกค้าเท่านั้น (หน้าไฟล์ดูอย่างเดียว) และต้องยืนยันก่อน
+  //   ไฟล์ยังโผล่ในหน้าคลังไฟล์ (ดู) แต่ไม่มีปุ่มลบที่นั่น
   await page.goto(`${DEALER_ORIGIN}/files`, { waitUntil: "domcontentloaded" });
+  // ⚠️ ตารางไฟล์แบ่งหน้า — ค้นหาก่อนเสมอ (กติกา check-paginated-lookup)
   await page.getByPlaceholder("ค้นหาไฟล์ / โอกาสการขาย...").fill(FILENAME);
   await expect.poll(async () => page.evaluate(() => document.body.innerText),
     { timeout: 20_000, message: "ไฟล์ต้องโผล่ในคลัง" }).toContain(FILENAME);
+  await expect(page.getByRole("button", { name: "ลบ", exact: true }), "หน้าคลังไฟล์ไม่มีปุ่มลบ").toHaveCount(0);
+  // กลับแผงลีดเดิม → แท็บประวัติ (รายการไฟล์อยู่ที่นั่น)
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
+  await page.locator("tbody tr").filter({ hasText: COMPANY }).first().getByTitle("ดูรายละเอียด").click({ timeout: 25_000 });
+  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
 
   // บังคับให้ Storage ปฏิเสธการลบไบต์ (DELETE) — การลบ metadata ต้องไม่เกิดขึ้นตาม
   await page.route(/\/storage\/v1\/object\/|\/api\/v1\/storage(\?|$)/, (r) =>
@@ -196,9 +214,8 @@ test("[func] ลบไฟล์แต่ลบไบต์ไม่สำเร�
       ? r.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ message: "forced delete fail" }) })
       : r.continue());
 
-  const card = page.locator("*", { hasText: FILENAME }).filter({ has: page.getByRole("button", { name: "ลบ" }) }).last();
-  await card.getByRole("button", { name: "ลบ" }).first().click();
-  await page.getByRole("button", { name: "ลบไฟล์" }).click();
+  await page.getByRole("button", { name: `ลบไฟล์ ${FILENAME}`, exact: true }).click({ timeout: 20_000 });
+  await กดตกลงในกล่องยืนยัน(page);
 
   // 1) ล้มเหลวต้องดัง (กรอง hasText เลี่ยง __next-route-announcer__ ที่ก็เป็น role=alert)
   await expect(page.getByRole("alert").filter({ hasText: "บันทึกไม่สำเร็จ" }),

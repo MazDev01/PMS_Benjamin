@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { open, assertHealthyPage, openLeadQuotationForm } from "./helpers";
+import { open, assertHealthyPage, openLeadQuotationForm, settle } from "./helpers";
+import { RYG } from "./supabaseEnv";
+import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { REAL_BACKEND } from "./supabaseEnv";
 
 // "วันนี้ของระบบ" (APP_NOW) เดินตามแหล่งข้อมูล: supabase = วันจริง · local = ตรึง 30 มิ.ย. 2569
@@ -10,14 +12,35 @@ function appNowThaiShort(): string {
   return `${d.getDate()} ${TH_MO_ABBR[d.getMonth()]}`;           // เช่น "30 มิ.ย." (ตรงกับ fmtISOToThai แบบไม่รวมปี)
 }
 
-// รายละเอียดใบเสนอราคา = drawer คอลัมน์เดียว (หัวแผง = สรุป/สถานะ/ยอด · เนื้อ = เอกสาร + BOQ + เปลี่ยนสถานะ)
-test("[ui·dealer] Drawer ใบเสนอราคา (BOQ + สรุป + สถานะ) ไม่ล้นแนวนอน", async ({ page }) => {
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69 ข้อ 7): หน้าใบเสนอราคาเป็นรายการอย่างเดียว — ดูใบที่แผงลีด › แท็บใบเสนอราคา › ดู
+//   ข้อทดสอบวางใบของตัวเอง (ใบ HQ → ใบลูกค้า ทางเดียวกับของจริง) แล้วเปิดหน้าดูใบจากหน้ารายการ (กดแถว → แผงลีด)
+const บริษัทดูใบ = `ZZTEST-ดูใบ-${Date.now() % 100000}`;
+let ใบHQดู: ใบHQพร้อมใช้ | undefined;
+let เลขใบดู = "";
+test.beforeAll(async () => {
+  if (!REAL_BACKEND) return;
+  ใบHQดู = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: บริษัทดูใบ, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดดู", qty: 2, unit: "ชุด", unitCost: 1000 }] });
+  เลขใบดู = (await ทำใบลูกค้าจากใบHQ(RYG, ใบHQดู, { customer: บริษัทดูใบ, markupPercent: 10 })).id;
+});
+test.afterAll(() => { if (ใบHQดู) ล้างใบHQทดสอบ("RYG", [ใบHQดู.leadNum]); });
+async function เปิดหน้าดูใบ(page: import("@playwright/test").Page) {
   await open(page, "dealer", "/quotations");
   await assertHealthyPage(page, "ใบเสนอราคา");
-  await page.locator("tbody tr").first().click();
-  // เอกสาร + BOQ + ยอดสรุป + เปลี่ยนสถานะ
-  await expect(page.getByText("รายการสินค้า (BOQ)")).toBeVisible();
-  await expect(page.getByText("รายละเอียดเอกสาร")).toBeVisible();
+  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบดู);
+  await page.locator("tbody tr").filter({ hasText: เลขใบดู }).first().locator("td").nth(1).click({ timeout: 20_000 });
+  await page.waitForURL(/\/leads/, { timeout: 25_000 });
+  await settle(page);
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
+  await page.locator(`[data-quote-item="${เลขใบดู}"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
+}
+
+// หน้าดูใบ (แผงลีด) = เอกสาร + BOQ + ยอดสรุป ไม่ล้นแนวนอน
+test("[ui·dealer] หน้าดูใบเสนอราคา (BOQ + สรุป + สถานะ) ไม่ล้นแนวนอน", async ({ page }) => {
+  test.skip(!REAL_BACKEND, "ต้องมีฐานจริงสำหรับวางใบ HQ");
+  await เปิดหน้าดูใบ(page);
+  // เอกสาร + BOQ + ยอดสรุป
+  await expect(page.getByText("รายการสินค้า (BOQ)")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("ชื่อโครงการ / เอกสาร")).toBeVisible();
   // สรุปยอด = ยอดชำระสุทธิท้าย BOQ (หัวข้อ "สรุปใบเสนอราคา" ถูกยุบไปเป็นป้ายบนหัวแผงแล้ว)
   // (ไม่เช็ค "เปลี่ยนสถานะ" — โผล่เฉพาะใบที่ลูกค้ายังไม่ตอบ ส่วนแถวแรกเป็นใบที่ตอบรับแล้ว)
   // คำบนจอเปลี่ยนตอนเพิ่มภาษีหัก ณ ที่จ่าย (28 ส.ค. 69): "ยอดรวมสุทธิ (รวม VAT)" → "รวมเป็นเงิน" + "ยอดชำระสุทธิ"
@@ -55,9 +78,9 @@ test("[ux·dealer] ฟอร์มใบเสนอราคาแยก 'ก�
   await expect(page.getByText(/Grand Total/), "เลิกใช้คำกำกวม Grand Total").toHaveCount(0);
 });
 
-test("[ux·dealer] โมดัลดูใบเสนอราคาแสดง VAT ครบ (ก่อนภาษี + VAT% + ยอดชำระสุทธิ)", async ({ page }) => {
-  await open(page, "dealer", "/quotations");
-  await page.locator("tbody tr").first().click();
+test("[ux·dealer] หน้าดูใบเสนอราคาแสดง VAT ครบ (ก่อนภาษี + VAT% + ยอดชำระสุทธิ)", async ({ page }) => {
+  test.skip(!REAL_BACKEND, "ต้องมีฐานจริงสำหรับวางใบ HQ");
+  await เปิดหน้าดูใบ(page);
   // ลำดับยอดในแผง: ยอดรวมย่อย → ภาษีมูลค่าเพิ่ม X% → รวมเป็นเงิน → (หัก ณ ที่จ่าย) → ยอดชำระสุทธิ
   await expect(page.getByText("ยอดรวมย่อย").first()).toBeVisible();
   await expect(page.getByText(/^ภาษีมูลค่าเพิ่ม \d+(\.\d+)?%$/).first()).toBeVisible();
@@ -167,16 +190,18 @@ test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วั�
   expect(Math.min(overdue, PAGE_SIZE), "กรองแล้วต้องเหลือไม่มากกว่าก่อนกรอง").toBeLessThanOrEqual(before);
 });
 
-// รายละเอียดลูกค้าเป้าหมาย = แผงกลางจอ 4 แท็บ ครอบเส้นทางการขายทั้งเส้น (งาน → ใบเสนอราคา → ไทม์ไลน์)
-// เปิดด้วยปุ่ม "ดูรายละเอียด" ในแถว (คลิกเซลล์เปล่าไม่เปิดแล้ว — เซลล์มี dropdown สถานะ/ปุ่มลัดของตัวเอง)
-test("[ui·dealer] แผงลูกค้าเป้าหมายมีครบ 4 แท็บ ไม่ล้นแนวนอน", async ({ page }) => {
+// รายละเอียดลูกค้าเป้าหมาย = แผงกลางจอ 3 แท็บ (รอบ 4 · บอสสั่ง 21 ต.ค. 69 ข้อ 4): ภาพรวม · ใบเสนอราคา · ประวัติ
+//   แท็บ "งาน" และ "ไทม์ไลน์" รวมเข้าแท็บประวัติแล้ว (ไทม์ไลน์ + นัดหมาย + ไฟล์ + โน้ต + รายการเตือน)
+test("[ui·dealer] แผงลูกค้าเป้าหมายมีครบ 3 แท็บ (ภาพรวม · ใบเสนอราคา · ประวัติ) ไม่ล้นแนวนอน", async ({ page }) => {
   await open(page, "dealer", "/leads");
   await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
   await page.getByRole("button", { name: "ตาราง" }).click(); // ค่าเริ่มต้น=บอร์ด → สลับเป็นตาราง
   await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-  for (const tab of ["ภาพรวม", "งาน", "ใบเสนอราคา", "ไทม์ไลน์"]) {
+  for (const tab of ["ภาพรวม", "ใบเสนอราคา", "ประวัติ"]) {
     await expect(page.getByRole("button", { name: tab, exact: true }).first(), `ต้องมีแท็บ "${tab}"`).toBeVisible();
   }
+  for (const tab of ["งาน", "ไทม์ไลน์"])
+    await expect(page.getByRole("button", { name: tab, exact: true }), `แท็บ "${tab}" รวมเข้าประวัติแล้ว`).toHaveCount(0);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, "แผงลูกค้าเป้าหมายไม่ควรมี horizontal scroll").toBeLessThanOrEqual(3);
 });
@@ -186,11 +211,15 @@ test("[ui·dealer] แผงลูกค้าเป้าหมายมีค�
 // อาการที่เจอ: ชื่อขั้นที่ยาว ("ปิดการขายไม่สำเร็จ" / "รวบรวมความต้องการ") ล้นไปทับช่อง "ความคืบหน้า"
 // ช่องที่อยู่ถัดไปถูกวาดทีหลัง จึงมาทับส่วนที่ล้น → คลิกตรงนั้นไม่โดนป้าย = "กดไม่ได้"
 // วัดขอบจริงบนหน้าจอ ไม่เชื่อสายตา · พิสูจน์แล้วว่าโค้ดก่อนแก้ ล้น 24px จริง
-test("[ui·dealer] ป้ายขั้นตอนต้องอยู่ในช่องของตัวเอง และกดที่ปลายขวาแล้วเมนูต้องเปิด", async ({ page }) => {
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69 ข้อ 2): ป้ายขั้นในตาราง/บอร์ดดูอย่างเดียว — เปลี่ยนขั้นได้ที่กล่องขั้นต่อไปในแผงที่เดียว
+//   ป้ายยังต้องอยู่ในช่องของตัวเอง (กติกาเดิมเรื่องล้น) และกดแล้วต้องไม่มีเมนูเลือกขั้นโผล่
+test("[ui·dealer] ป้ายขั้นตอนต้องอยู่ในช่องของตัวเอง และกดแล้วไม่มีเมนูเลือกขั้น (ดูอย่างเดียว)", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "dealer", "/leads");
   await page.waitForTimeout(2000);
-  const chip = page.locator("tbody tr").first().locator("button.badge").first();
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await expect(page.locator("tbody tr").first().locator("button.badge"), "ป้ายขั้นไม่ใช่ปุ่มแล้ว").toHaveCount(0);
+  const chip = page.locator("tbody tr").first().locator("span.badge").first();
   await expect(chip).toBeVisible({ timeout: 15_000 });
 
   const m = await chip.evaluate(el => {
@@ -199,16 +228,14 @@ test("[ui·dealer] ป้ายขั้นตอนต้องอยู่ใ�
   });
   expect(m.chip, `ป้ายล้นออกนอกช่อง ${m.chip - m.cell}px — จะไปทับช่องข้างๆ แล้วกดไม่โดน`).toBeLessThanOrEqual(m.cell);
 
-  // จุดที่เคยกดไม่โดน: ปลายขวาสุดของป้าย
+  // กดที่ป้าย (ปลายขวาสุด = จุดที่เคยกดไม่โดน) → ต้องไม่มีเมนูเลือกขั้นโผล่ (เปลี่ยนขั้นเองจากตารางไม่ได้แล้ว)
   const box = (await chip.boundingBox())!;
   await page.mouse.click(box.x + box.width - 6, box.y + box.height / 2);
-  // ⛔ ต้องเล็งด้วย [data-menu="stage"] เท่านั้น — คำว่า "เสนอราคา" มีปุ่มอื่นในตารางชื่อซ้ำ
-  //   (เคยหลง 19 ส.ค. 69: เทสต์เขียวเพราะไปจับปุ่มในแถว ทั้งที่เมนูจริงโดนตัด)
-  const menu = page.locator('[data-menu="stage"]');
-  await expect(menu, "กดปลายขวาของป้ายแล้วเมนูเลือกขั้นต้องเปิด").toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await expect(page.locator('[data-menu="stage"]'), "ไม่มีเมนูเลือกขั้นในตารางแล้ว").toHaveCount(0);
 });
 
-test("[ui·dealer] ตารางเหลือแถวเดียว — เมนูเปลี่ยนขั้นต้องเห็นครบและกดโดนทุกตัวเลือก", async ({ page }) => {
+test("[ui·dealer] ตารางเหลือไม่กี่แถว — ไม่มีเมนูเปลี่ยนขั้นในตาราง · ปุ่มในกล่องขั้นต่อไปเห็นครบและกดโดน", async ({ page }) => {
   // เคสจริงของผู้ใช้: กรองจนเหลือแถวเดียว → กล่องตารางเตี้ยมาก
   //   เมนูเคยถูก .table-wrap { overflow-x: auto } ตัดจนเหลือแถบเดียว → เลือกขั้นไม่ได้
   //   → เมนูจึงต้องเป็น position: fixed และพลิกขึ้นด้านบนเองเมื่อที่ด้านล่างไม่พอ
@@ -227,11 +254,15 @@ test("[ui·dealer] ตารางเหลือแถวเดียว — �
   expect(เหลือ, "ต้องกรองให้ตารางสั้นลงจริง").toBeGreaterThan(0);
   expect(เหลือ, "ต้องกรองให้เหลือไม่กี่แถว").toBeLessThanOrEqual(5);
 
-  await rows.first().locator("button.badge").first().click();
-  const menu = page.locator('[data-menu="stage"]');
+  // รอบ 4: เมนูเปลี่ยนขั้นในตารางเอาออกแล้ว (ป้ายเป็นข้อความ) — เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผงลีดที่เดียว
+  //   ตารางสั้นแล้วทางเปลี่ยนขั้นต้องยังกดโดนครบ: เปิดแผงจากแถว แล้วทุกปุ่มในกล่องขั้นต่อไปต้องอยู่ในจอและไม่ถูกบัง
+  await expect(rows.first().locator("button.badge"), "ป้ายขั้นในตารางไม่ใช่ปุ่ม").toHaveCount(0);
+  await expect(page.locator('[data-menu="stage"]'), "ไม่มีเมนูเลือกขั้นในตาราง").toHaveCount(0);
+  await rows.first().getByTitle("ดูรายละเอียด").click();
+  const menu = page.getByRole("status", { name: "ขั้นต่อไป" });
   await expect(menu).toBeVisible({ timeout: 10_000 });
 
-  // วัดของจริง: ทุกตัวเลือกต้องอยู่ในจอ และจิ้มกลางตัวมันต้องโดนตัวมันเอง (ไม่ถูกบัง)
+  // วัดของจริง: ทุกปุ่มในกล่องต้องอยู่ในจอ และจิ้มกลางตัวมันต้องโดนตัวมันเอง (ไม่ถูกบัง)
   const bad = await menu.evaluate(el => {
     const out: string[] = [];
     for (const it of Array.from(el.querySelectorAll("button"))) {
@@ -242,5 +273,5 @@ test("[ui·dealer] ตารางเหลือแถวเดียว — �
     }
     return out;
   });
-  expect(bad, "ตัวเลือกขั้นที่กดไม่ได้").toEqual([]);
+  expect(bad, "ปุ่มในกล่องขั้นต่อไปที่กดไม่ได้").toEqual([]);
 });

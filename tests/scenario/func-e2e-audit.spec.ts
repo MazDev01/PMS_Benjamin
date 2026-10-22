@@ -72,12 +72,18 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row2 = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row2).toBeVisible({ timeout: 15_000 });
-  await row2.getByRole("button", { name: /▾/ }).first().click();
-  // (ก) ด่านต้องกันไว้ — ใบยังเป็นร่าง ลูกค้าเป้าหมายยังอยู่ขั้น "รอราคา HQ" (Flow ใบ HQ) เมนูจึงไม่มีให้เปลี่ยนขั้นเอง
-  //   ใบ 0219: ได้ใบ HQ แล้ว ลูกค้าเป้าหมายเป็น "ได้ราคา HQ" — เมนูบอกขั้นต่อไป และเลือกได้แค่ปิดไม่สำเร็จ
-  await expect(page.getByText(/เปลี่ยนขั้นเองไม่ได้ระหว่างรอ|ได้ราคาจากสำนักงานใหญ่แล้ว/).first(), "เมนูขั้นต้องบอกว่าเปลี่ยนขั้นเองไม่ได้").toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole("button", { name: "ปิดการขายสำเร็จ", exact: true }), "ไม่มีปุ่มปิดการขายลัดคิว").toHaveCount(0);
-  await page.keyboard.press("Escape");
+  // รอบ 4: ไม่มีเมนูเปลี่ยนขั้นในตารางแล้ว · ปิดการขายสำเร็จทางเดียว = "ลูกค้าตอบรับ" ที่ใบที่ส่งแล้วในแผงลีด
+  // (ก) ด่านต้องกันไว้ — ใบยังเป็นร่าง: ไม่มีทางกดปิดการขาย ทั้งในตารางและในแผง · ฐานปฏิเสธการตั้งปิดการขายเอง
+  await expect(row2.getByRole("button", { name: /▾/ }), "ไม่มีเมนูเปลี่ยนขั้นในตาราง").toHaveCount(0);
+  await row2.getByTitle("ดูรายละเอียด").first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await expect(page.locator(`[data-quote-item="${q.id}"]`), "ใบร่างแสดงในแผงลีด").toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`), "ใบร่าง: ไม่มีปุ่มลูกค้าตอบรับ (ปิดลัดคิวไม่ได้)").toHaveCount(0);
+  await expect(page.getByRole("button", { name: /ลูกค้าตอบรับ|ปิดการขายสำเร็จ/ }), "ไม่มีปุ่มปิดการขายลัดคิวที่ไหนในแผง").toHaveCount(0);
+  const { data: ลีดนี้ } = await sb.from("leads").select("id").eq("dealer_code", "RYG").eq("company", COMPANY).single();
+  const ลัด = await sb.rpc("lead_apply", { p_id: ลีดนี้!.id, p_intent: { stage: { status: "PAID" } } });
+  expect(ลัด.error?.message ?? "", "ฐานปฏิเสธการตั้งปิดการขายเอง (ตัวกันใดตัวหนึ่ง)").toMatch(/lead_status_one_path|lead_won_needs_accepted_quote|hq_quoted_locked/);
+  expect((await sb.from("leads").select("status").eq("dealer_code", "RYG").eq("company", COMPANY).single()).data?.status, "สถานะในฐานไม่ใช่ปิดการขาย").not.toBe("PAID");
   expect(await มีกล่องยืนยัน(page), "ถูกกันตั้งแต่ก่อนถาม — ต้องไม่มีกล่องยืนยันขึ้นมาเลย").toBe(false);
   const { data: ลัดคิว } = await sb.from("customers").select("id").eq("company", COMPANY);
   expect(ลัดคิว?.length ?? 0, "ยังไม่ส่งใบให้ลูกค้า = ปิดการขายไม่ได้ ต้องไม่มีลูกค้าถูกสร้าง").toBe(0);
@@ -89,8 +95,9 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row3 = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row3).toBeVisible({ timeout: 15_000 });
-  await row3.getByRole("button", { name: /▾/ }).first().click();
-  await page.getByRole("button", { name: "ปิดการขายสำเร็จ", exact: true }).first().click();
+  await row3.getByTitle("ดูรายละเอียด").first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 20_000 });
   await กดตกลงในกล่องยืนยัน(page);
 
   const cust = await waitRow<{ id: number; total_value: number; company: string }>(sb, "customers", { company: COMPANY }, 20_000);
@@ -147,16 +154,13 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
 
     // รอคำขอที่แอปยังวิ่งอยู่ (อ่านลูกค้าเป้าหมายกลับหลังสร้างใบ) ให้จบก่อนเปลี่ยนหน้า — trace 15 ต.ค. 69: เปลี่ยนหน้าทับ = Failed to fetch
     await settle(page);
-    // ส่ง → ตอบรับ (won) ผ่านหน้าใบเสนอราคาโดยตรง (เส้นทางที่ตั้งใจให้ผูก won จริง)
-    await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-    const qrow = page.locator("tbody tr").filter({ hasText: company }).first();
-    await expect(qrow).toBeVisible({ timeout: 25_000 });
-    await qrow.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+    // ส่ง → ตอบรับ (won) — รอบ 4: ทำในแผงลีดที่เดียว (ส่ง = กล่องขั้นต่อไป · ตอบรับ = ปุ่มที่ใบ) หน้าใบเสนอราคาเหลือรายการอย่างเดียว
+    await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
+    await กดตกลงในกล่องยืนยัน(page);
     await expect.poll(async () =>
       (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
       { timeout: 25_000 }).toBe("sent_to_client");
-    await qrow.click();
-    await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+    await page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 25_000 });
     await กดตกลงในกล่องยืนยัน(page); // ปิดการขาย = ถามยืนยันก่อนเสมอ (/scenario 31 ก.ค. 69)
     await expect.poll(async () =>
       (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
@@ -213,15 +217,13 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
   // ใบใหม่ของดีลที่สอง — customer ชื่อเดียวกัน แต่ id ใหม่ (ต่างจากใบดีลแรก)
   const q2 = await waitRow<{ id: string; total_value: number }>(sb, "quotations", { customer: COMPANY, status: "draft" });
   expect(Number((await sb.from("quotations").select("total_value").eq("id", q2.id).single()).data?.total_value), "ยอดใบ = ต้นทุนจากใบ HQ").toBe(560_000);
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  const qrow2 = page.locator("tbody tr").filter({ hasText: q2.id }).first();
-  await expect(qrow2).toBeVisible({ timeout: 25_000 });
-  await qrow2.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+  // ส่ง → ตอบรับ ในแผงลีดของดีลที่สอง (รอบ 4: กล่องขั้นต่อไป + ปุ่มที่ใบ)
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("id", q2.id)).data?.[0]?.status,
     { timeout: 25_000 }).toBe("sent_to_client");
-  await qrow2.click();
-  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await page.locator(`[data-quote-item="${q2.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 25_000 });
   await กดตกลงในกล่องยืนยัน(page); // ปิดการขาย = ถามยืนยันก่อนเสมอ (/scenario 31 ก.ค. 69)
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("id", q2.id)).data?.[0]?.status,
@@ -269,15 +271,13 @@ test("[audit] ลบใบเสนอราคาที่ won แล้ว —
   const q = await waitRow<{ id: string }>(sb, "quotations", { customer: COMPANY });
   expect(Number((await sb.from("quotations").select("total_value").eq("id", q.id).single()).data?.total_value), "ยอดใบ = ต้นทุนจากใบ HQ").toBe(890_000);
 
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  const qrow = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await expect(qrow).toBeVisible({ timeout: 25_000 });
-  await qrow.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+  // ส่ง → ตอบรับ ในแผงลีด (รอบ 4: กล่องขั้นต่อไป + ปุ่มที่ใบ)
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
     { timeout: 25_000 }).toBe("sent_to_client");
-  await qrow.click();
-  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 25_000 });
   await กดตกลงในกล่องยืนยัน(page); // ปิดการขาย = ถามยืนยันก่อนเสมอ (/scenario 31 ก.ค. 69)
 
   await waitRow<{ id: number }>(sb, "customers", { company: COMPANY }, 20_000);
@@ -289,24 +289,20 @@ test("[audit] ลบใบเสนอราคาที่ won แล้ว —
   const cust = (await sb.from("customers").select("id,total_value").eq("company", COMPANY).single()).data as { id: number; total_value: number };
   console.log(`[audit] ก่อนลบใบ: ยอดลูกค้า=${cust.total_value}`);
 
-  // เปิดใบที่ won แล้ว → ลบ (ปุ่มลบไม่มี guard สถานะในโค้ด — ทดสอบว่าอนุญาตจริงไหม + ผลลัพธ์)
+  // ใบที่ won แล้ว: ไม่มีปุ่มลบที่ไหนเลย (รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว · แผงลีดลบได้เฉพาะใบร่าง)
+  //   และฐานปฏิเสธการลบตรง (quote_won_locked · ใบ 0203) — ใบยังอยู่ ยอดลูกค้าไม่หาย (ตรวจทุกครั้ง ไม่ขึ้นกับว่ามีปุ่มหรือไม่)
+  await expect(page.locator(`[data-quote-item="${q.id}"]`).getByTitle("ลบ", { exact: true }), "แผงลีด: ใบที่ won ไม่มีปุ่มลบ").toHaveCount(0);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   const qrowWon = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(qrowWon).toBeVisible({ timeout: 15_000 });
-  // ลบจากปุ่มในแถวได้เลย (13 ส.ค. 69 — เดิมต้องเปิดแผงรายละเอียดก่อน)
-  // ต้องผูกกับ "แถวนั้น" เสมอ: ตอนนี้ปุ่มลบมีทุกแถว + อีกตัวในแผงรายละเอียด ถ้าเลือกทั้งหน้าจะได้หลายตัว
-  const delBtn = qrowWon.getByTitle("ลบใบเสนอราคา");
-  const delAllowed = await delBtn.count() > 0;
-  console.log(`[audit] ปุ่มลบใบที่ won แล้วโผล่ให้กดไหม: ${delAllowed}`);
-  if (delAllowed) {
-    await delBtn.click();
-    await page.getByRole("button", { name: "ลบ", exact: false }).last().click();
-    // ฐานปฏิเสธ (quote_won_locked) — รอให้หน้าจอได้คำตอบแล้วยืนยันว่าใบยังอยู่ ยอดลูกค้าไม่ขยับ
-    await expect(page.getByText(/ลบไม่ได้|ตอบรับแล้ว|quote_won_locked/).first(), "ต้องบอกผู้ใช้ว่าลบไม่ได้").toBeVisible({ timeout: 15_000 });
-    expect((await sb.from("quotations").select("id,status").eq("id", q.id)).data?.[0]?.status, "ใบ won ต้องยังอยู่").toBe("won");
-    const custAfter = (await sb.from("customers").select("total_value").eq("id", cust.id).single()).data as { total_value: number };
-    expect(custAfter.total_value, "ยอดลูกค้าต้องไม่หาย").toBe(cust.total_value);
-  }
+  // ชื่อบริษัททดสอบมีคำว่า "ลบ" — ตรวจเฉพาะปุ่มลบ (ชื่อปุ่มเดิม "ลบใบเสนอราคา" / "ลบ")
+  await expect(qrowWon.getByTitle("ลบใบเสนอราคา"), "หน้าใบเสนอราคา: ไม่มีปุ่มลบในแถว").toHaveCount(0);
+  await expect(qrowWon.getByRole("button", { name: "ลบ", exact: true }), "หน้าใบเสนอราคา: ไม่มีปุ่มลบในแถว").toHaveCount(0);
+  const ลบตรง = await sb.from("quotations").delete().eq("dealer_code", "RYG").eq("id", q.id);
+  expect(ลบตรง.error?.message ?? "", "ฐานปฏิเสธการลบใบที่ won").toMatch(/quote_won_locked/);
+  expect((await sb.from("quotations").select("id,status").eq("id", q.id)).data?.[0]?.status, "ใบ won ต้องยังอยู่").toBe("won");
+  const custAfter = (await sb.from("customers").select("total_value").eq("id", cust.id).single()).data as { total_value: number };
+  expect(custAfter.total_value, "ยอดลูกค้าต้องไม่หาย").toBe(cust.total_value);
 
   // คำขอลบที่ถูกฐานปฏิเสธ = สิ่งที่ข้อนี้ตั้งใจให้เกิด ไม่ใช่ข้อผิดพลาดของระบบ
   assertNoErrors(errs.filter(e => !/quote_won_locked|ลบใบเสนอราคา|409|400|403/.test(e)), "ลบใบที่ won แล้ว");
@@ -385,15 +381,13 @@ test("[audit] cross-role: ดีลเลอร์ปิดการขาย �
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   const q = await waitRow<{ id: string; total_value: number }>(sb, "quotations", { customer: COMPANY });
 
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  const qrow = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await expect(qrow).toBeVisible({ timeout: 25_000 });
-  await qrow.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+  // ส่ง → ตอบรับ ในแผงลีด (รอบ 4: กล่องขั้นต่อไป + ปุ่มที่ใบ)
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
     { timeout: 25_000 }).toBe("sent_to_client");
-  await qrow.click();
-  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 25_000 });
   await กดตกลงในกล่องยืนยัน(page); // ปิดการขาย = ถามยืนยันก่อนเสมอ (/scenario 31 ก.ค. 69)
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,

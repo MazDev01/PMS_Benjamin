@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, RYG, skipReason, type Account } from "./supabaseEnv";
-import { วางใบเดิมที่ฐาน } from "./legacyQuotes";
+import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
+import { adminClient } from "./testDealers";
 
 // ── ระยะ 2 · กฎธุรกิจต้องบังคับที่ฐานข้อมูล ไม่ใช่แค่ที่หน้าจอ ─────────────────────
 //
@@ -24,6 +25,7 @@ async function signIn(who: Account): Promise<SupabaseClient> {
 
 /** เก็บกวาดของที่ชุดนี้สร้าง — ต้องลบตามลำดับ FK (ใบ → ดีล → ลูกค้า) */
 async function purge() {
+  ลบใบทดสอบที่ฐาน(`customer like '%${TAG}%'`);   // ใบที่ลูกค้าตอบรับแล้วลบด้วยกุญแจไม่ได้ (0203)
   await ryg.from("quotations").delete().like("customer", `%${TAG}%`);
   await ryg.from("leads").delete().like("company", `%${TAG}%`);
   await ryg.from("customers").delete().like("company", `%${TAG}%`);
@@ -41,8 +43,12 @@ async function makeSet(label: string, leadStatus: string, withQuote: boolean) {
 
   const numId = Number((await ryg.rpc("next_entity_id", { p_dealer: "RYG", p_entity: "leads" })).data);
   const leadId = `${TAG}-L-${numId}`;
-  const insLead = await ryg.from("leads").insert({ phone: "081-999-0101", province: "ระยอง",
-    id: leadId, dealer_code: "RYG", num_id: numId, company, status: leadStatus, customer_id: cid,
+  // ใบ 0232: ดีลเลอร์สร้างลีดได้เฉพาะ รอติดต่อ/ติดต่อแล้ว · ปิดการขายสำเร็จได้ทางเดียว = ใบที่ลูกค้าตอบรับ
+  //   ลีดขั้นอื่นจึงวางด้วยกุญแจฝั่งเซิร์ฟเวอร์ (ข้อมูลตั้งต้น) · ลีดปิดสำเร็จ = วางที่ขั้นเสนอราคา + ใบตอบรับ แล้วค่อยปิด
+  //   กฎที่วัดในไฟล์นี้ (การลบ) ยังยิงด้วยกุญแจของดีลเลอร์เหมือนเดิม
+  const ปิดสำเร็จ = leadStatus === "PAID";
+  const insLead = await adminClient().from("leads").insert({ phone: "081-999-0101", province: "ระยอง",
+    id: leadId, dealer_code: "RYG", num_id: numId, company, status: ปิดสำเร็จ ? "QUOTED" : leadStatus, customer_id: cid,
   }).select();
   expect(insLead.error, `สร้างดีลทดสอบไม่ได้: ${JSON.stringify(insLead.error)}`).toBeNull();
 
@@ -51,7 +57,11 @@ async function makeSet(label: string, leadStatus: string, withQuote: boolean) {
     quoteId = `${TAG}-Q-${numId}`;
     // ใบที่ไม่มีใบ HQ สร้างใหม่ไม่ได้แล้ว (ด่าน 3 · 0201) — กฎที่วัดที่นี่เป็นกฎการลบ จึงวางใบเดิมที่ฐานตรง ๆ
     วางใบเดิมที่ฐาน([{ id: quoteId, dealer_code: "RYG", customer: company, customer_id: cid, deal_id: numId,
-      status: "draft", total_value: 1000 }]);
+      status: ปิดสำเร็จ ? "won" : "draft", total_value: 1000 }]);
+  }
+  if (ปิดสำเร็จ) {
+    const ปิด = await adminClient().from("leads").update({ status: "PAID" }).eq("dealer_code", "RYG").eq("id", leadId).select("status");
+    expect(ปิด.error, `ปิดการขายดีลทดสอบ (มีใบตอบรับแล้ว) ไม่ได้: ${JSON.stringify(ปิด.error)}`).toBeNull();
   }
   return { cid, numId, leadId, quoteId, company };
 }
@@ -75,7 +85,9 @@ test("[กฎที่ DB] ยังมีดีลที่ขายอยู�
 
 // ── กฎที่ 2: ดีลที่จบแล้ว = ประวัติของลูกค้า ลบไปพร้อมกันในคำสั่งเดียว ──────────────
 test("[กฎที่ DB] ดีลที่ปิดการขายแล้ว → ลบลูกค้าได้ และประวัติหายไปพร้อมกันทั้งก้อน", async () => {
-  const { cid, leadId, quoteId } = await makeSet("ดีลจบแล้ว", "PAID", true);
+  // ดีลที่จบแล้ว = ปิดไม่สำเร็จ มีใบร่างผูก (ใบที่ส่งแล้วลบไม่ได้ 0228) — ลบลูกค้าได้ทั้งก้อน
+  //   ดีลปิดสำเร็จต้องมีใบที่ลูกค้าตอบรับเสมอ (0232) และใบตอบรับลบไม่ได้ (0203) → ตรวจแยกท้ายข้อนี้ว่าถูกปฏิเสธ
+  const { cid, leadId, quoteId } = await makeSet("ดีลจบแล้ว", "CANCELLED", true);
 
   const res = await ryg.rpc("delete_customer_cascade", { p_customer_id: cid });
   expect(res.error, `ต้องลบได้: ${JSON.stringify(res.error)}`).toBeNull();
@@ -86,6 +98,13 @@ test("[กฎที่ DB] ดีลที่ปิดการขายแล�
   expect((await ryg.from("customers").select("id").eq("id", cid).eq("dealer_code", "RYG")).data?.length, "ลูกค้าต้องหาย").toBe(0);
   expect((await ryg.from("leads").select("id").eq("id", leadId)).data?.length, "ดีลที่จบแล้วต้องหายตาม").toBe(0);
   expect((await ryg.from("quotations").select("id").eq("id", quoteId!)).data?.length, "ใบของดีลนั้นต้องหายตาม").toBe(0);
+
+  // ดีลปิดสำเร็จ (มีใบตอบรับ = ยอดขายที่ปิดแล้ว) → ลบลูกค้าไม่ได้ ไม่หายเงียบ ๆ
+  const ขาย = await makeSet("ดีลปิดสำเร็จ", "PAID", true);
+  const ลบขาย = await ryg.rpc("delete_customer_cascade", { p_customer_id: ขาย.cid });
+  expect(String(ลบขาย.error?.message ?? ""), "ลูกค้าที่มีใบตอบรับลบไม่ได้").toMatch(/quote_won_locked/);
+  expect((await ryg.from("customers").select("id").eq("id", ขาย.cid).eq("dealer_code", "RYG")).data?.length, "ลูกค้าต้องยังอยู่").toBe(1);
+  expect((await ryg.from("quotations").select("id").eq("id", ขาย.quoteId!)).data?.length, "ใบตอบรับต้องยังอยู่").toBe(1);
 });
 
 // ── กฎที่ 4: ยอดในใบ ต้องตรงกับรายการ BOQ ─────────────────────────────────────

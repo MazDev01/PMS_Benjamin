@@ -79,9 +79,12 @@ test("[func] ปิดการขายสำเร็จ → ลูกค้�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
-  await row.getByRole("button", { name: /▾/ }).first().click();
+  // รอบ 4: ปิดการขายสำเร็จทางเดียว = "ลูกค้าตอบรับ" ที่ใบที่ส่งแล้วในแผงลีด (เมนู ▾ เปลี่ยนสถานะเอาออกแล้ว)
+  const { data: ใบส่ง } = await sb.from("quotations").select("id").eq("dealer_code", "RYG").eq("customer", COMPANY).eq("status", "sent_to_client").limit(1);
+  await row.getByTitle("ดูรายละเอียด").first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   // ปิดการขาย = ย้อนกลับไม่ได้ → แอปขึ้น confirm() ก่อนเสมอ (เพิ่มหลังผลตรวจสอบ /scenario 31 ก.ค. 69)
-  await page.getByRole("button", { name: "ปิดการขายสำเร็จ", exact: true }).first().click();
+  await page.locator(`[data-quote-item="${ใบส่ง?.[0]?.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 20_000 });
   await กดตกลงในกล่องยืนยัน(page);
 
   // ลูกค้าต้องถูกสร้างจากลูกค้าเป้าหมาย — นี่คือจุดที่ระบบ "แปลงลูกค้าเป้าหมายเป็นลูกค้า"
@@ -150,19 +153,22 @@ test("[func] ปิดการขายจากหน้าใบเสนอ�
   await page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last().click();
   const q = await waitRow<{ id: string }>(sb, "quotations", { customer: COMP });
 
-  // 2) ไปหน้าใบเสนอราคา → ส่งใบ (ร่าง → ส่งแล้ว) เพื่อให้ปุ่ม "ลูกค้าตอบรับ" โผล่
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  const qrow = page.locator("tbody tr").filter({ hasText: COMP }).first();
-  await expect(qrow).toBeVisible({ timeout: 25_000 });
-  await qrow.getByRole("button", { name: "ส่งให้ลูกค้า" }).first().click();
+  // 2) ส่งใบ (ร่าง → ส่งแล้ว) — รอบ 4: ปุ่มส่งอยู่ที่กล่องขั้นต่อไปในแผงลีดที่เดียว
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
     { timeout: 25_000, message: "ใบต้องเป็น 'ส่งแล้ว'" }).toBe("sent_to_client");
 
-  // 3) เปิดลิ้นชักใบ → กด "ลูกค้าตอบรับ ✓"
-  await qrow.click();
+  // 3) เริ่มจากหน้าใบเสนอราคา: กดแถวใบ → พาไปแผงลีดของใบนั้น (รอบ 4) → กด "ลูกค้าตอบรับ" ที่ใบ
+  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+  const qrow = page.locator("tbody tr").filter({ hasText: COMP }).first();
+  await expect(qrow).toBeVisible({ timeout: 25_000 });
+  await qrow.locator("td").nth(1).click();
+  await page.waitForURL(/\/leads/, { timeout: 20_000 });
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
   // ปิดการขาย = ย้อนกลับไม่ได้ → แอปขึ้น confirm() ก่อนเสมอ (เพิ่มหลังผลตรวจสอบ /scenario 31 ก.ค. 69)
-  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 25_000 });
   await กดตกลงในกล่องยืนยัน(page);
 
   // 4) ลูกค้าต้องถูกสร้างด้วย id จริง (> 0) ไม่ใช่ 0 — และไม่มีลูกค้าผี id=0 โผล่

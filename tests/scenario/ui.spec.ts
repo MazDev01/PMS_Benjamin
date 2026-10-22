@@ -26,12 +26,16 @@ for (const [role, path, label] of PAGES) {
 
 // (ข้อ "KPI หน้าแม่แบบแสดงค่าครบ" ลบแล้ว 16 ต.ค. 69 — หน้า /hq/master ลบไปพร้อมการเอาแม่แบบออกทั้งระบบ)
 
-// KPI ของ /hq/dealers ต้องเป็นดีไซน์เดียวกับหน้า HQ อื่น: .hq-kpi4 · 4 ใบ · ตัวเลขเข้ม (ไม่ใส่สี) + ไอคอน
-test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐาน .hq-kpi4 เหมือนหน้าอื่น", async ({ page }) => {
+// KPI ของ /hq/dealers ต้องเป็นดีไซน์เดียวกับหน้า HQ อื่น: .hq-kpi4 · ตัวเลขเข้ม (ไม่ใส่สี) + ไอคอน
+// รอบ 4 (บอสสั่ง 22 ต.ค. 69 ข้อ 3): หน้านี้ไม่มีตัวเลขเงิน/ผลงานขายแล้ว — เหลือใบ "ดีลเลอร์ทั้งหมด" ใบเดียว
+//   รายได้รวม · โอกาสการขายทั้งหมด · ติดตามตรงเวลา ย้ายไปดูที่ภาพรวมยอดขาย → ตรวจว่า "ไม่มีแล้ว"
+test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐาน .hq-kpi4 เหมือนหน้าอื่น (เหลือใบดีลเลอร์ทั้งหมด ไม่มีใบผลงานขาย)", async ({ page }) => {
   await open(page, "hq", "/hq/dealers");
   const tiles = page.locator(".hq-kpi4 > .card");
-  await expect(tiles).toHaveCount(4);
+  await expect(tiles).toHaveCount(1);
   await expect(page.locator(".hq-kpi4").getByText("ดีลเลอร์ทั้งหมด")).toBeVisible();
+  for (const เอาออก of ["รายได้รวม", "โอกาสการขายทั้งหมด", "ติดตามตรงเวลา"])
+    await expect(page.locator(".hq-kpi4").getByText(เอาออก), `ใบ "${เอาออก}" เอาออกแล้ว (รอบ 4)`).toHaveCount(0);
   await expect(tiles.first().locator("svg")).toBeVisible();          // ไอคอนในกล่องสีจาง
   await expect(page.locator(".stat-card")).toHaveCount(0);            // ต้องไม่เหลือการ์ดแบบเก่า
 });
@@ -68,8 +72,10 @@ test("[ui·desktop] modal ลูกค้า HQ ครอบเต็มจอ (
 // ที่ globals.css เขียนกำกับไว้ว่า no rise, no stagger) ส่วน "cardIn" (เลื่อนขึ้น+จาง) ยังใช้กับการ์ดอื่นอยู่
 // สิ่งที่ต้องกันคือ "ไม่มีแอนิเมชันเข้าเลย" (none)
 const ENTRANCE_ANIMS = ["cardIn", "chart-fade-in"];
+// รอบ 4: หน้ารายละเอียดดีลเลอร์ไม่มีการ์ดผลงาน (.stat-card) แล้ว → ตรวจว่าไม่มีแล้วในข้อแยกด้านล่าง
+//   และเพิ่มหน้ารายการดีลเลอร์ (.hq-kpi4) เข้ามาตรวจแอนิเมชันแทน
 for (const [path, selector, label] of [
-  ["/hq/dealers/CNX", ".stat-card", "หน้ารายละเอียดดีลเลอร์ (.stat-card)"],
+  ["/hq/dealers", ".hq-kpi4 > .card", "หน้ารายการดีลเลอร์ (.hq-kpi4)"],
   ["/hq/quotations", ".hq-kpi4 > .card", "หน้าใบเสนอราคาทั้งเครือ (.hq-kpi4)"],
 ] as const) {
   test(`[ui·hq] KPI cards ${label} มีแอนิเมชันเข้า`, async ({ page }) => {
@@ -80,6 +86,13 @@ for (const [path, selector, label] of [
     expect(ENTRANCE_ANIMS, `${label}: ต้องมี entrance animation (ได้: ${anim})`).toContain(anim);
   });
 }
+
+test("[ui·hq] หน้ารายละเอียดดีลเลอร์ไม่มีการ์ดผลงานขาย (.stat-card) แล้ว — รอบ 4", async ({ page }) => {
+  await open(page, "hq", "/hq/dealers/CNX");
+  await expect(page.locator("h1, h2").first()).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(1500);
+  await expect(page.locator(".stat-card"), "การ์ดผลงานเอาออกจากหน้านี้แล้ว").toHaveCount(0);
+});
 
 // แท็บเล็ต (768) : เลย์เอาต์ต้องไม่ล้น
 for (const [role, path, label] of PAGES.slice(0, 5)) {

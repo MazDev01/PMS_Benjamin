@@ -78,8 +78,15 @@ test("[live·รอบ3] ส่ง V1 → ทำฉบับใหม่ → ส
     await page.getByPlaceholder(/ค้นหา/).first().fill(v1);
     await expect(page.locator("tbody tr").filter({ hasText: v1 }).first()).toBeVisible({ timeout: 30_000 });
   };
-  await เปิดรายการ();
-  await page.locator("tbody tr").filter({ hasText: v1 }).first().getByTitle("ทำฉบับใหม่").click({ timeout: 30_000 });
+  // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — กดแถว V1 → แผงลีด › แท็บใบเสนอราคา › ปุ่มของใบ V1
+  const เปิดแผงใบ = async () => {
+    await เปิดรายการ();
+    await page.locator("tbody tr").filter({ hasText: v1 }).first().locator("td").first().click();
+    await page.waitForURL(/\/leads/, { timeout: 30_000 });
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 30_000 });
+  };
+  await เปิดแผงใบ();
+  await page.locator(`[data-quote-item="${v1}"]`).getByTitle("ทำฉบับใหม่").click({ timeout: 30_000 });
   await expect(page.locator("[data-version-copied]"), "ฟอร์มฉบับใหม่").toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 30_000 });
   await page.getByRole("table", { name: "รายการในใบเสนอราคา (จากใบ HQ)" }).getByLabel("% ที่บวก 1").fill("5");
@@ -88,8 +95,13 @@ test("[live·รอบ3] ส่ง V1 → ทำฉบับใหม่ → ส
   expect(await ใบ(v2), "V2 = ใบร่างฉบับ V2 ผูกใบเดิม").toMatchObject({ status: "draft", revision: "V2", supersedes_id: v1 });
 
   // หน้าเว็บ: ส่ง V2 → V1 ถูกแทนที่ · มูลค่าลีด = V2
-  await เปิดรายการ();
-  await page.locator("tbody tr").filter({ hasText: v2 }).first().getByTitle("ส่งให้ลูกค้า").click({ timeout: 30_000 });
+  // รอบ 4: ส่ง = กล่องขั้นต่อไปในแผงลีดที่เดียว
+  await เปิดแผงใบ();
+  await expect(page.locator(`[data-quote-item="${v2}"]`), "แผงลีดเห็น V2").toBeVisible({ timeout: 30_000 });
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 30_000 });
+  const กล่องยืนยัน = page.locator(".pms-confirm[role='alertdialog']");
+  await expect(กล่องยืนยัน, "ต้องมีกล่องยืนยันก่อนส่ง").toBeVisible({ timeout: 15_000 });
+  await กล่องยืนยัน.locator(".pms-confirm-actions button").last().click();
   await expect.poll(async () => (await ใบ(v1))?.status, { timeout: 30_000, message: "ส่ง V2 แล้ว V1 ถูกแทนที่" }).toBe("superseded");
   expect((await ใบ(v2))?.status).toBe("sent_to_client");
   await expect.poll(มูลค่าลีด, { timeout: 30_000, message: "มูลค่าลีดตาม V2" }).toBe(1_050_000);

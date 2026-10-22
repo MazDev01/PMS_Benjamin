@@ -36,13 +36,14 @@ test("[func·dealer] บันทึกนัดหมาย → ระบบต
     await page.waitForTimeout(900);
     await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
 
+    // รอบ 4: รายการเตือน (งาน) + นัดหมาย อยู่ในแท็บ "ประวัติ" แท็บเดียว — งานนัดหมายเป็นช่องที่ระบบติ๊กให้
+    const งานนัด = page.locator('[role="checkbox"][data-auto-task]').filter({ hasText: "นัดหมาย" }).first();
     // ก่อนลงนัด: งานนัดหมายต้องยังไม่ถูกติ๊ก
-    await กดแท็บ(page, "งาน", /นัดหมาย/);
-    await expect(page.getByRole("button", { name: "นัดหมาย", exact: true }).last()).toBeVisible({ timeout: 20_000 });
-    expect(await page.locator('[role="checkbox"][aria-checked="true"]').count(), "ยังไม่มีนัด ห้ามติ๊กมาก่อน").toBe(0);
+    await กดแท็บ(page, "ประวัติ", /รายการเตือน/);
+    await expect(งานนัด).toBeVisible({ timeout: 20_000 });
+    await expect(งานนัด, "ยังไม่มีนัด ห้ามติ๊กมาก่อน").toHaveAttribute("aria-checked", "false");
 
-    // ลงนัดจริงจากแท็บนัดหมาย
-    await กดแท็บ(page, "นัดหมาย", /ประเภทนัดหมาย|ยังไม่มีนัดหมาย|เพิ่มนัดหมาย/);
+    // ลงนัดจริงจากกล่องนัดหมายในแท็บประวัติ
     await page.getByRole("button", { name: /เพิ่มนัดหมาย|\+ ลงนัด|ลงนัด/ }).first().click().catch(() => {});
     await expect(page.getByLabel("ประเภทนัดหมาย")).toBeVisible({ timeout: 15_000 });
     // ต้องเลือกประเภทก่อน — ช่องเริ่มที่ "ยังไม่ระบุ" ตามกติกาของทั้งระบบ
@@ -51,9 +52,7 @@ test("[func·dealer] บันทึกนัดหมาย → ระบบต
 
     // ช่องในรายการงานต้องขึ้นเป็นติ๊กแล้ว (หลักฐานบนหน้าจอที่อยู่ถาวร
     //  — แถบข้อความแจ้งเตือนหายเองใน ~2 วินาที จึงไม่เอามาเป็นตัวชี้ขาด)
-    await กดแท็บ(page, "งาน", /นัดหมาย/);
-    await expect.poll(async () => page.locator('[role="checkbox"][aria-checked="true"]').count(),
-      { timeout: 20_000, message: "งานนัดหมายต้องขึ้นเป็นติ๊กแล้วบนหน้าจอ" }).toBeGreaterThan(0);
+    await expect(งานนัด, "งานนัดหมายต้องขึ้นเป็นติ๊กแล้วบนหน้าจอ").toHaveAttribute("aria-checked", "true", { timeout: 20_000 });
 
     // และงานในรายการต้องขึ้นเป็นเสร็จจริง (อ่านจากฐานข้อมูล ไม่ใช่แค่หน้าจอ)
     await expect.poll(async () => {
