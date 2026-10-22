@@ -1,0 +1,3 @@
+#!/bin/sh
+# git pre-push — กัน push ขึ้น monorepo ก่อนพร้อม (scripts/git-hooks/pre-push.mjs) · ติดตั้ง: npm run hooks:install
+exec node scripts/git-hooks/pre-push.mjs "$@"

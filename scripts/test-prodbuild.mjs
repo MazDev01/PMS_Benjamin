@@ -12,6 +12,10 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { บันทึกเมื่อผ่าน, ไฟล์บันทึก } from "./lib/migrationGate.mjs";
+import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน } from "./lib/commitGate.mjs";
+
+// commit ที่กำลังตรวจ + ไฟล์ค้างตอนเริ่ม — ผลผ่านผูกกับ commit นี้ (ตัวกัน push ขึ้น monorepo · 22 ต.ค. 69)
+const ตอนเริ่ม = สภาพตอนเริ่ม();
 
 const MODE = process.env.NEXT_PUBLIC_DATA_SOURCE ?? "api";   // ค่าตั้งต้น = โหมดเดียวกับเว็บจริง
 // รหัสรอบเดียวให้ทุกช่วง — หลักฐานข้อที่ตกของรอบนี้อยู่โฟลเดอร์เดียวกัน (playwright.config.ts)
@@ -155,5 +159,10 @@ const ตรวจ = spawnSync("node", ["scripts/check-e2e-ran.mjs", ...รา�
 //   (บอสสั่ง 21 ต.ค. 69 · scripts/lib/migrationGate.mjs) · ต้อง commit ไฟล์บันทึกพร้อมงาน
 if (บันทึกเมื่อผ่าน({ ตก, ตัวตรวจ: ตรวจ.status ?? 1, ป้าย: PMS_RUN_ID })) {
   console.log(`▶ บันทึกใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว → ${ไฟล์บันทึก()} (commit ไฟล์นี้พร้อมงาน)`);
+  // ผลผ่านของ commit นี้ (scripts/lib/commitGate.mjs) — git pre-push ให้ขึ้น monorepo ได้เฉพาะ commit ที่มีผลนี้
+  //   SKIP_BUILD = ทดสอบของที่ build ไว้ก่อน อาจไม่ใช่ commit นี้ → ไม่บันทึก
+  const ไม่บันทึก = process.env.SKIP_BUILD ? "รอบนี้ข้าม build (SKIP_BUILD) — ของที่ทดสอบอาจไม่ใช่ commit นี้ จึงไม่บันทึกผลผูก commit"
+    : บันทึกcommitที่ผ่าน({ ...ตอนเริ่ม, ป้าย: PMS_RUN_ID });
+  console.log(ไม่บันทึก ? `⚠️ ${ไม่บันทึก}` : `▶ บันทึกผลผ่านของ commit ${ตอนเริ่ม.sha.slice(0, 7)} แล้ว (push ขึ้น monorepo ได้หลังใบปรับฐานลงฐานจริงครบ)`);
 }
 process.exit(ตก || ตรวจ.status || 0);
