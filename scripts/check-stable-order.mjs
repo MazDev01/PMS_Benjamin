@@ -15,28 +15,19 @@
 //   ตารางอื่น (profiles/audit_log/แคตตาล็อกกลาง) id ไม่ซ้ำทั้งระบบอยู่แล้ว — ไม่บังคับ
 //
 // รัน: node scripts/check-stable-order.mjs
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOTS = ["apps", "packages"];
-const SKIP = new Set(["node_modules", ".next", "dist", ".turbo"]);
 // ตารางที่เลขที่เดินแยกรายสาขา — คีย์จริงคือ dealer_code + id (ดู 0022 เป็นต้นมา)
 const PER_DEALER_TABLES = ["customers", "leads", "quotations", "appointments", "files", "customer_notes"];
 // คอลัมน์ที่ยอมรับว่า "ไม่มีวันซ้ำ" เมื่ออยู่ท้ายสุดของการเรียงในตารางเหล่านั้น
 const UNIQUE_TAIL = ["dealer_code", "TIEBREAK_COL"];
 
-function walk(dir, out = []) {
-  for (const name of readdirSync(dir)) {
-    if (SKIP.has(name)) continue;
-    const p = path.join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (name.endsWith(".ts") || name.endsWith(".tsx")) out.push(p);
-  }
-  return out;
-}
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
 
 const bad = [];
-for (const file of ROOTS.flatMap(r => walk(r))) {
+for (const file of ไฟล์ที่gitเก็บ(ROOTS, { ext: /\.tsx?$/ })) {
   const src = readFileSync(file, "utf8");
   if (!src.includes(".range(")) continue;
   const lines = src.split(/\r?\n/);

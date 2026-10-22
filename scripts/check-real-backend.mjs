@@ -12,12 +12,12 @@
 //           (hook ทั้ง 18 จุดใน useNetworkData.ts bail out เงียบ ๆ)
 //
 // ที่ยกเว้นได้มีแค่จุดที่ถามว่า "ใช้อะแดปเตอร์ตัวไหน" จริง ๆ เท่านั้น
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOT = process.cwd();
 const SCAN = ["packages/shared", "apps/hq/app", "apps/dealer/app"];
-const SKIP_DIR = new Set(["node_modules", ".next", ".turbo", "dist"]);
 /** ไฟล์ที่ถามว่า "ใช้อะแดปเตอร์ตัวไหน" จริง ๆ — อันเดียวที่เทียบกับ "supabase" ตรง ๆ ได้ */
 const ALLOWED = new Set([
   "packages/shared/lib/data/config.ts",
@@ -25,21 +25,13 @@ const ALLOWED = new Set([
 ]);
 const RE = /DATA_SOURCE\s*[!=]==\s*["']supabase["']/;
 
-function walk(dir, out = []) {
-  for (const name of readdirSync(dir)) {
-    if (SKIP_DIR.has(name)) continue;
-    const full = path.join(dir, name);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.tsx?$/.test(name)) out.push(full);
-  }
-  return out;
-}
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
 
 const hits = [];
 for (const base of SCAN) {
   const dir = path.join(ROOT, base);
   try { statSync(dir); } catch { continue; }
-  for (const file of walk(dir)) {
+  for (const file of ไฟล์ที่gitเก็บ([dir], { ext: /\.tsx?$/ })) {
     const rel = path.relative(ROOT, file).split(path.sep).join("/");
     if (ALLOWED.has(rel)) continue;
     const lines = readFileSync(file, "utf8").split(/\r?\n/);

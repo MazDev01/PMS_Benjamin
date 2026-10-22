@@ -3,6 +3,7 @@ node_modules/
 
 # build output / cache (ทุกชั้น)
 .next/
+.next-*/
 .turbo/
 out/
 build/

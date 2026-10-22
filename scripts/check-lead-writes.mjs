@@ -10,8 +10,9 @@
 //   • PUT /leads (ไม่ใช่ op=apply)                     — ทางเว็บเดิม (ปิดแล้ว ตอบ 410)
 //
 // ใช้: node scripts/check-lead-writes.mjs   (อยู่ใน pnpm checks)
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ราก = ["apps", "packages"];
 const ข้าม = /node_modules|[\\/]\.next[\\/]|[\\/]dist[\\/]|[\\/]\.turbo[\\/]/;
@@ -25,19 +26,15 @@ const กฎ = [
 ];
 
 const เจอ = [];
-const เดิน = (d) => {
-  for (const n of readdirSync(d)) {
-    const p = path.join(d, n);
-    if (ข้าม.test(p + path.sep)) continue;
-    if (statSync(p).isDirectory()) { เดิน(p); continue; }
-    if (!/\.(ts|tsx|mjs|js)$/.test(n)) continue;
-    readFileSync(p, "utf8").split(/\r?\n/).forEach((บรรทัด, i) => {
-      const ตัด = บรรทัด.replace(/\/\/.*$/, "");   // ไม่นับคำอธิบายในบรรทัด
-      for (const [re, เหตุ] of กฎ) if (re.test(ตัด)) เจอ.push(`${p.replace(/\\/g, "/")}:${i + 1}  ${เหตุ}\n      ${บรรทัด.trim().slice(0, 110)}`);
-    });
-  }
-};
-for (const r of ราก) เดิน(r);
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
+for (const p of ไฟล์ที่gitเก็บ(ราก)) {
+  if (ข้าม.test(p + path.sep)) continue;
+  readFileSync(p, "utf8").split(/\r?\n/).forEach((บรรทัด, i) => {
+    const ตัด = บรรทัด.replace(/\/\/.*$/, "");   // ไม่นับคำอธิบายในบรรทัด
+    for (const [re, เหตุ] of กฎ) if (re.test(ตัด)) เจอ.push(`${p.replace(/\\/g, "/")}:${i + 1}  ${เหตุ}\n      ${บรรทัด.trim().slice(0, 110)}`);
+  });
+}
+
 if (เจอ.length) {
   console.error(`❌ check-lead-writes: เขียนลูกค้าเป้าหมายนอกตัวกลาง ${เจอ.length} จุด (ต้องส่งเฉพาะส่วนต่างผ่าน บันทึกลีด/lead_apply)`);
   for (const x of เจอ) console.error(`  ${x}`);

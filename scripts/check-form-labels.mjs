@@ -14,28 +14,18 @@
 //
 // รัน: node scripts/check-form-labels.mjs          (สรุปรายไฟล์)
 //      node scripts/check-form-labels.mjs --list   (ไล่ทีละจุด)
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOTS = ["apps", "packages"];
-const SKIP = new Set(["node_modules", ".next", "dist", ".turbo"]);
 
-function walk(dir, out = []) {
-  for (const name of readdirSync(dir)) {
-    if (SKIP.has(name)) continue;
-    const p = path.join(dir, name);
-    const st = statSync(p);
-    if (st.isDirectory()) walk(p, out);
-    else if (name.endsWith(".tsx")) out.push(p);
-  }
-  return out;
-}
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
 
 const NAMED = /\b(aria-label|aria-labelledby|placeholder|title)\s*=/;
 // ช่องที่ไม่ต้องมีชื่อ: checkbox/radio ที่อยู่ในป้ายอยู่แล้ว · hidden · file ที่ซ่อนไว้ให้ปุ่มสั่ง
 const EXEMPT = /type\s*=\s*["'{]?(hidden|checkbox|radio)/;
 
-const files = ROOTS.flatMap(r => walk(r));
+const files = ไฟล์ที่gitเก็บ(ROOTS, { ext: /\.tsx$/ });
 const rows = [];
 for (const file of files) {
   const src = readFileSync(file, "utf8");

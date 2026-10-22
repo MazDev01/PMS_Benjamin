@@ -9,8 +9,9 @@
 //   • TemplateSelect / solutionProducts / loadMasterCatalog — ตัวเลือก/ข้อมูลแม่แบบในแอป
 //
 // ใช้: node scripts/check-no-catalog.mjs   (อยู่ใน pnpm checks)
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ราก = ["apps", "packages"];
 const ข้าม = /node_modules|[\\/]\.next[\\/]|[\\/]dist[\\/]|[\\/]\.turbo[\\/]/;
@@ -22,24 +23,20 @@ const กฎ = [
 ];
 
 const เจอ = [];
-const เดิน = (d) => {
-  for (const n of readdirSync(d)) {
-    const p = path.join(d, n);
-    if (ข้าม.test(p + path.sep)) continue;
-    if (statSync(p).isDirectory()) { เดิน(p); continue; }
-    if (!/\.(ts|tsx|mjs|js)$/.test(n)) continue;
-    let ในคำอธิบาย = false;
-    readFileSync(p, "utf8").split(/\r?\n/).forEach((บรรทัด, i) => {
-      let ตัด = บรรทัด;
-      if (ในคำอธิบาย) { const จบ = ตัด.indexOf("*/"); if (จบ < 0) return; ตัด = ตัด.slice(จบ + 2); ในคำอธิบาย = false; }
-      ตัด = ตัด.replace(/\/\*.*?\*\//g, "");
-      const เริ่ม = ตัด.indexOf("/*"); if (เริ่ม >= 0) { ตัด = ตัด.slice(0, เริ่ม); ในคำอธิบาย = true; }
-      ตัด = ตัด.replace(/(^|[^:"'`])\/\/.*$/, "$1");   // ไม่นับคำอธิบายในบรรทัด (ไม่ตัด https://)
-      for (const [re, เหตุ] of กฎ) if (re.test(ตัด)) เจอ.push(`${p.replace(/\\/g, "/")}:${i + 1}  ${เหตุ}\n      ${บรรทัด.trim().slice(0, 110)}`);
-    });
-  }
-};
-for (const r of ราก) เดิน(r);
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
+for (const p of ไฟล์ที่gitเก็บ(ราก)) {
+  if (ข้าม.test(p + path.sep)) continue;
+  let ในคำอธิบาย = false;
+  readFileSync(p, "utf8").split(/\r?\n/).forEach((บรรทัด, i) => {
+    let ตัด = บรรทัด;
+    if (ในคำอธิบาย) { const จบ = ตัด.indexOf("*/"); if (จบ < 0) return; ตัด = ตัด.slice(จบ + 2); ในคำอธิบาย = false; }
+    ตัด = ตัด.replace(/\/\*.*?\*\//g, "");
+    const เริ่ม = ตัด.indexOf("/*"); if (เริ่ม >= 0) { ตัด = ตัด.slice(0, เริ่ม); ในคำอธิบาย = true; }
+    ตัด = ตัด.replace(/(^|[^:"'`])\/\/.*$/, "$1");   // ไม่นับคำอธิบายในบรรทัด (ไม่ตัด https://)
+    for (const [re, เหตุ] of กฎ) if (re.test(ตัด)) เจอ.push(`${p.replace(/\\/g, "/")}:${i + 1}  ${เหตุ}\n      ${บรรทัด.trim().slice(0, 110)}`);
+  });
+}
+
 if (เจอ.length) {
   console.error(`❌ check-no-catalog: โค้ดแอปยังใช้แม่แบบ ${เจอ.length} จุด (เอาแม่แบบออกทั้งระบบแล้ว — ฐานเก็บข้อมูลไว้เฉย ๆ)`);
   for (const x of เจอ.slice(0, 60)) console.error(`  ${x}`);

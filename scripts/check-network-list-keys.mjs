@@ -15,26 +15,15 @@
 //   (ถ้าแถวไม่มี dealerCode แปลว่าไม่ใช่ข้อมูลรายสาขา เช่น ผู้ใช้ HQ / แคตตาล็อกกลาง → ไม่บังคับ)
 //
 // รัน: node scripts/check-network-list-keys.mjs
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOTS = ["apps/hq", "packages/shared/components/hq"];
-const SKIP = new Set(["node_modules", ".next", "dist", ".turbo"]);
 
-function walk(dir, out = []) {
-  let entries;
-  try { entries = readdirSync(dir); } catch { return out; }
-  for (const name of entries) {
-    if (SKIP.has(name)) continue;
-    const p = path.join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (name.endsWith(".tsx")) out.push(p);
-  }
-  return out;
-}
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
 
 const bad = [];
-for (const file of ROOTS.flatMap(r => walk(r))) {
+for (const file of ไฟล์ที่gitเก็บ(ROOTS, { ext: /\.tsx$/ })) {
   const lines = readFileSync(file, "utf8").split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const m = /key=\{([a-z])\.(id|numId|quoteNo)\}/.exec(lines[i]);

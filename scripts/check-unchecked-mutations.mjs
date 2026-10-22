@@ -18,25 +18,16 @@
 //   ถ้าตั้งใจไม่ตรวจจริง ๆ (เก็บกวาดแบบ best-effort) ให้เขียน `void` นำหน้าเพื่อประกาศเจตนา
 //
 // รัน: node scripts/check-unchecked-mutations.mjs
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOTS = ["apps", "packages"];          // โค้ดจริงเท่านั้น — สคริปต์ทดสอบมีกติกาของตัวเอง
-const SKIP = new Set(["node_modules", ".next", "dist", ".turbo"]);
 const MUTATIONS = /\.(insert|update|upsert|delete)\s*\(/;
 
-function walk(dir, out = []) {
-  for (const name of readdirSync(dir)) {
-    if (SKIP.has(name)) continue;
-    const p = path.join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (name.endsWith(".ts") || name.endsWith(".tsx")) out.push(p);
-  }
-  return out;
-}
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
 
 const bad = [];
-for (const file of ROOTS.flatMap(r => walk(r))) {
+for (const file of ไฟล์ที่gitเก็บ(ROOTS, { ext: /\.tsx?$/ })) {
   const src = readFileSync(file, "utf8");
   if (!MUTATIONS.test(src)) continue;
   const lines = src.split(/\r?\n/);

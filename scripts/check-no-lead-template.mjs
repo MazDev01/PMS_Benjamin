@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOT = process.cwd();
 const ห้าม = {
@@ -28,16 +29,8 @@ const ห้าม = {
 const ข้อยกเว้น = JSON.parse(fs.readFileSync(path.join(ROOT, "scripts/no-lead-template-allow.json"), "utf8")).allow;
 
 const ไฟล์ทั้งหมด = [];
-const เดิน = (d) => {
-  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-    if (["node_modules", ".next", ".turbo", "dist"].includes(e.name)) continue;
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) เดิน(p);
-    else if (/\.(ts|tsx)$/.test(e.name) && !e.name.endsWith(".d.ts")) ไฟล์ทั้งหมด.push(p);
-  }
-};
-เดิน(path.join(ROOT, "apps"));
-เดิน(path.join(ROOT, "packages"));
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
+ไฟล์ทั้งหมด.push(...ไฟล์ที่gitเก็บ(["apps", "packages"], { ext: /\.(ts|tsx)$/, absolute: true }).filter(p => !p.endsWith(".d.ts")));
 
 const cfgPath = path.join(ROOT, "apps/dealer/tsconfig.json");
 const cfg = ts.parseJsonConfigFileContent(ts.readConfigFile(cfgPath, ts.sys.readFile).config, ts.sys, path.dirname(cfgPath));

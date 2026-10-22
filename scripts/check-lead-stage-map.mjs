@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOT = process.cwd();
 const ตัวกลาง = new Set(["packages/shared/lib/leadStage.ts"]);
@@ -17,16 +18,8 @@ const สถานะ = new Set(["WAITING", "BULLET", "HQ_PRICING", "HQ_QUOTED",
 const ชื่อขั้น = ["ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"];
 
 const ไฟล์ = [];
-const เดิน = (d) => {
-  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-    if (["node_modules", ".next", ".turbo", "dist"].includes(e.name)) continue;
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) เดิน(p);
-    else if (/\.(ts|tsx)$/.test(e.name) && !e.name.endsWith(".d.ts")) ไฟล์.push(p);
-  }
-};
-เดิน(path.join(ROOT, "apps"));
-เดิน(path.join(ROOT, "packages"));
+// อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
+ไฟล์.push(...ไฟล์ที่gitเก็บ(["apps", "packages"], { ext: /\.(ts|tsx)$/, absolute: true }).filter(p => !p.endsWith(".d.ts")));
 
 const ชื่อคีย์ = (n) => n && (ts.isIdentifier(n) || ts.isStringLiteral(n)) ? n.text : null;
 const เจอ = [];
