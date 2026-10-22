@@ -19,7 +19,7 @@ describe("คุกกี้ใบผ่าน · Secure", () => {
     expect(clearCookie(ACCESS_COOKIE, r).secure).toBe(true);
   });
   it("http://localhost → ไม่มี Secure (แม้ NODE_ENV=production แบบรอบทดสอบ production build)", () => {
-    const r = คำขอ("http://localhost:3001/api/v1/auth?op=login");
+    const r = คำขอ("http://localhost/api/v1/auth?op=login");
     expect(accessCookie("t", 60, r).secure).toBe(false);
     expect(refreshCookie("r", r).secure).toBe(false);
     expect(clearCookie(ACCESS_COOKIE, r).secure).toBe(false);
@@ -29,9 +29,9 @@ describe("คุกกี้ใบผ่าน · Secure", () => {
   });
   it("บน Vercel → Secure เสมอ แม้คำขอดูเป็น http และตั้ง PMS_LOCAL_HTTP_TEST ไว้ผิดที่", () => {
     process.env.VERCEL_ENV = "production"; process.env.PMS_LOCAL_HTTP_TEST = "1";
-    expect(accessCookie("t", 60, คำขอ("http://localhost:3001/")).secure).toBe(true);
+    expect(accessCookie("t", 60, คำขอ("http://localhost/")).secure).toBe(true);
   });
   it("ค่าอื่นของคุกกี้คงเดิม: httpOnly · sameSite lax · path /", () => {
-    expect(accessCookie("t", 60, คำขอ("http://localhost:3001/"))).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 });
+    expect(accessCookie("t", 60, คำขอ("http://localhost/"))).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 });
   });
 });

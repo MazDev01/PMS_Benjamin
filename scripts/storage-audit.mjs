@@ -1,8 +1,10 @@
 // ตรวจไฟล์แนบ: สาขาอื่นดึงไฟล์ของสาขาเราได้ไหม (IDOR) + อัปโหลดข้ามสาขาได้ไหม
 import { readFileSync } from "node:fs";
+import { ต้นทาง as ต้นทางเว็บ } from "./lib/session.mjs";
+const เว็บ = ต้นทางเว็บ("dev");   // ที่อยู่เว็บในเครื่องของโฟลเดอร์นี้ — ห้ามเขียนพอร์ตเอง (check-hardcoded-ports)
 const env = (f) => { const m = new Map(); for (const line of readFileSync(f, "utf8").split(String.fromCharCode(10))) { const t = line.trim(); if (!t || t.startsWith("#")) continue; const i = t.indexOf("="); if (i > 0) m.set(t.slice(0, i).trim(), t.slice(i + 1).trim()); } return m; };
 const T = env("tests/.env.test");
-const D = "http://localhost:3001";
+const D = เว็บ.dealer;
 const jar = {};
 async function login(who, acc) {
   const r = await fetch(D + "/api/v1/auth?op=login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(acc) });

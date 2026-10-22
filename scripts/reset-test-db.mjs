@@ -17,6 +17,10 @@ import { createCipheriv, randomBytes, createHash } from "node:crypto";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { readEnvFile } from "./lib/targetEnv.mjs";
+import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+
+// เขียนฐานทดสอบ = ถือล็อกฐานทดสอบ — เซสชันอื่นใช้ฐานอยู่ (เช่นรอบตรวจเต็ม) = หยุด บอกว่าใคร (scripts/lib/testDbLock.mjs · 22 ต.ค. 69)
+ขอล็อกฐานทดสอบ("reset-test-db");
 
 const arg = k => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
 const workdir = path.resolve(arg("--workdir") ?? ".");

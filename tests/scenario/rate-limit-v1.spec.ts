@@ -4,6 +4,7 @@ import { getSession } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
 // ── ด่านจำกัดจำนวนคำขอบนเส้นทางงานขาย (ผลตรวจระบบ 19 ส.ค. 69) ──────────────────
 // เดิมด่านนี้มีเฉพาะ /api/admin/* งานขายทั้งหมดยิงได้ไม่จำกัด
@@ -13,7 +14,7 @@ import { เตรียมใบHQ, ล้างใบHQทดสอบ } from 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
 
-const DEALER = "http://localhost:3001";
+const DEALER = ที่อยู่เว็บ.dealer;
 const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
 const WRITE_QUOTA = 300;   // ต้องตรงกับ LIMIT_WRITE ใน packages/shared/server/v1/_ctx.ts (ขยับ 27 ส.ค. 69)
 

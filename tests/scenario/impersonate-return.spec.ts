@@ -5,6 +5,7 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -28,7 +29,7 @@ test("[auth] HQ กดเข้าระบบแทนดีลเลอร์ 
   // ต้องเข้าแอปดีลเลอร์ได้จริง ไม่ใช่หน้าเปล่า/หน้า error
   await expect(แท็บดีลเลอร์.getByRole("link", { name: "ลูกค้าเป้าหมาย" }).first(),
     "ต้องเข้าแอปดีลเลอร์ได้จริง").toBeVisible({ timeout: 45_000 });
-  expect(แท็บดีลเลอร์.url(), "ต้องอยู่ที่แอปดีลเลอร์ ไม่ใช่ปลายทางอื่น").toContain("localhost:3001");
+  expect(แท็บดีลเลอร์.url(), "ต้องอยู่ที่แอปดีลเลอร์ ไม่ใช่ปลายทางอื่น").toContain(new URL(ที่อยู่เว็บ.dealer).host);
 
   // แถบเมนูข้าง: ต้องเป็น "กลับสู่ HQ" ไม่ใช่ "ออกจากระบบ"
   await expect(แท็บดีลเลอร์.getByRole("button", { name: "กลับสู่ HQ" }).first(),

@@ -5,6 +5,10 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { วางใบเดิมที่ฐาน } from "./lib/legacyQuoteSeed.mjs";
+import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+
+// เขียนฐานทดสอบ = ถือล็อกฐานทดสอบ — เซสชันอื่นใช้ฐานอยู่ (เช่นรอบตรวจเต็ม) = หยุด บอกว่าใคร (scripts/lib/testDbLock.mjs · 22 ต.ค. 69)
+ขอล็อกฐานทดสอบ("seed-volume");
 const env = (f) => { const m = new Map(); for (const line of readFileSync(f, "utf8").split(String.fromCharCode(10))) { const t = line.trim(); if (!t || t.startsWith("#")) continue; const i = t.indexOf("="); if (i > 0) m.set(t.slice(0, i).trim(), t.slice(i + 1).trim()); } return m; };
 const H = env("apps/hq/.env.local");
 const URL_ = H.get("NEXT_PUBLIC_SUPABASE_URL");

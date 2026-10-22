@@ -72,3 +72,6 @@ scripts/data/hq-leads-bot-seed.json
 !docs/แบบฟอร์มกรอกข้อมูลตั้งต้น.xlsx
 !apps/dealer/public/demo-files/sample-sheet.xlsx
 !docs/templates/*.csv
+
+# ข้อมูลเซสชันของโฟลเดอร์แยก (ชื่อ · พอร์ต) — npm run session:new เขียนให้ · ไม่ commit
+.pms-session.json

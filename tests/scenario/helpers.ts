@@ -1,6 +1,7 @@
 import { Page, expect } from "@playwright/test";
 import { createClient, type Session } from "@supabase/supabase-js";
 import { RYG, CNX, ADMIN, SUPABASE_URL, SUPABASE_ANON, REAL_BACKEND, type Account, appEnv } from "./supabaseEnv";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
 // สลับ role ก่อนโหลดหน้า (RoleProvider อ่านจาก localStorage ตอน mount) — ใช้ได้เฉพาะโหมด local mock data
 export async function loginAs(page: Page, role: "hq" | "dealer") {
@@ -42,13 +43,9 @@ export async function getSession(who: Account): Promise<Session> {
   return p;
 }
 
-// โมโนเรโป: แอปดีลเลอร์ (dealer) รันที่ :3001 · แอปสำนักงานใหญ่ (hq) รันที่ :3002
-// ⚠️ ตั้งทับด้วย PMS_HQ_ORIGIN / PMS_DEALER_ORIGIN ได้ — ใช้ตอนต้องรันเซิร์ฟเวอร์คนละพอร์ต
-//    (เช่น มีอีกหน้าต่างใช้ 3001/3002 อยู่) ค่าตั้งต้นเหมือนเดิมทุกประการ
-const APP_ORIGIN = {
-  hq: process.env.PMS_HQ_ORIGIN ?? "http://localhost:3002",
-  dealer: process.env.PMS_DEALER_ORIGIN ?? "http://localhost:3001",
-} as const;
+// โมโนเรโป: แอปดีลเลอร์ (dealer) กับแอปสำนักงานใหญ่ (hq) คนละพอร์ต — พอร์ตของโฟลเดอร์นี้มาจาก sessionPorts.ts
+//   (โฟลเดอร์หลัก = scripts/lib/ports.json · เซสชันลูก = .pms-session.json) · ตั้งทับด้วย PMS_HQ_ORIGIN / PMS_DEALER_ORIGIN ได้
+const APP_ORIGIN = ที่อยู่เว็บ;
 // โหมด api เก็บใบผ่านใน cookie httpOnly (ระยะ 4) — เทสต์ต้องล็อกอินผ่าน backend ไม่ใช่ยัด localStorage
 const COOKIE_AUTH = appEnv("NEXT_PUBLIC_DATA_SOURCE") === "api";
 // role ทั่วไปแมปกับบัญชีจริงบัญชีเดียว (RYG/ADMIN) — เทสต์ที่ต้องเจาะจงบัญชีอื่น (เช่น CNX สำหรับ

@@ -3,6 +3,7 @@ import { open, assertHealthyPage, openLeadQuotationForm, settle } from "./helper
 import { RYG } from "./supabaseEnv";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { REAL_BACKEND } from "./supabaseEnv";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
 // "วันนี้ของระบบ" (APP_NOW) เดินตามแหล่งข้อมูล: supabase = วันจริง · local = ตรึง 30 มิ.ย. 2569
 // เทสต์ประทับวันใบใหม่จึงต้องคำนวณวันคาดหวังแบบเดียวกัน (ไม่ hardcode "30 มิ.ย.")
@@ -127,7 +128,7 @@ test("[ux·dealer] ใบเสนอราคาที่สร้างให�
   await expect(page.getByText(/สร้างใบเสนอราคาใหม่|^แก้ไข /)).toHaveCount(0, { timeout: 30_000 });
 
   // ใบสร้างบนแอปดีลเลอร์ (:3001) → localStorage อยู่ origin นั้น ต้องเปิด /quotations ของ :3001 (ไม่ใช่ baseURL :3002 = HQ)
-  await page.goto("http://localhost:3001/quotations", { waitUntil: "domcontentloaded" });
+  await page.goto(`${ที่อยู่เว็บ.dealer}/quotations`, { waitUntil: "domcontentloaded" });
   // รอจนตารางมีใบจริง ไม่ใช่แถว "ไม่พบใบเสนอราคา" (รายการโหลดช้าได้ตอนรันชุดเต็ม)
   await expect(page.locator("tbody tr").filter({ hasText: "฿" }).first(),
     "ต้องมีใบเสนอราคาขึ้นในตาราง").toBeVisible({ timeout: 30_000 });
@@ -168,7 +169,7 @@ test("[ux·dealer] ใบเสนอราคาที่สร้างให�
   await page.waitForTimeout(800);
 
   // ใบสร้างบนแอปดีลเลอร์ (:3001) → localStorage อยู่ origin นั้น ต้องเปิด /quotations ของ :3001 (ไม่ใช่ baseURL :3002 = HQ)
-  await page.goto("http://localhost:3001/quotations", { waitUntil: "domcontentloaded" });
+  await page.goto(`${ที่อยู่เว็บ.dealer}/quotations`, { waitUntil: "domcontentloaded" });
   // การสร้างใบเป็น async (ขอเลขที่ผ่าน repo + บันทึก) → รอแบบ poll ไม่ใช่ timeout ตายตัว (กันเทสต์วูบ)
   // ตารางเรียงใบใหม่สุดไว้บน → แถวแรกต้องลงวันที่ของ "วันนี้" ระบบ
   const expectedDate = appNowThaiShort();

@@ -18,6 +18,10 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { readEnvFile, refOf } from "./lib/targetEnv.mjs";
+import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+
+// เขียนฐานทดสอบ = ถือล็อกฐานทดสอบ — เซสชันอื่นใช้ฐานอยู่ (เช่นรอบตรวจเต็ม) = หยุด บอกว่าใคร (scripts/lib/testDbLock.mjs · 22 ต.ค. 69)
+ขอล็อกฐานทดสอบ("seed-test-db");
 
 const srcDir = process.argv.slice(2).find(a => !a.startsWith("--"));
 if (!srcDir || !existsSync(path.join(srcDir, "manifest.json"))) {

@@ -1,12 +1,13 @@
 import { test, expect, type Page } from "@playwright/test";
 import { RYG, ADMIN, skipReason, type Account } from "./supabaseEnv";
 import { settle } from "./helpers";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000); // เดินหลายหน้าในเทสต์เดียว — เวลาเริ่มต้น 30 วิไม่พอ
 
-const DEALER = "http://localhost:3001";
-const HQ = "http://localhost:3002";
+const DEALER = ที่อยู่เว็บ.dealer;
+const HQ = ที่อยู่เว็บ.hq;
 
 // เสียงรบกวนที่ไม่ใช่ error ของแอป
 const NOISE = /favicon|hydrat|Download the React DevTools|Fast Refresh|preloaded using link preload/i;

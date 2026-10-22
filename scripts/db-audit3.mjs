@@ -2,11 +2,13 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { วางใบเดิมที่ฐาน } from "./lib/legacyQuoteSeed.mjs";
+import { ต้นทาง as ต้นทางเว็บ } from "./lib/session.mjs";
+const เว็บ = ต้นทางเว็บ("dev");   // ที่อยู่เว็บในเครื่องของโฟลเดอร์นี้ — ห้ามเขียนพอร์ตเอง (check-hardcoded-ports)
 const env = (f) => { const m = new Map(); for (const line of readFileSync(f, "utf8").split(String.fromCharCode(10))) { const t = line.trim(); if (!t || t.startsWith("#")) continue; const i = t.indexOf("="); if (i > 0) m.set(t.slice(0, i).trim(), t.slice(i + 1).trim()); } return m; };
 const H = env("apps/hq/.env.local"), T = env("tests/.env.test");
 const db = createClient(H.get("NEXT_PUBLIC_SUPABASE_URL"), H.get("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
 const TAG = "ZZAUDIT3";
-const DEALER = "http://localhost:3001";
+const DEALER = เว็บ.dealer;
 
 await db.from("quotations").delete().like("customer", TAG + "%");
 const base = { dealer_code: "RYG", customer: TAG + "-A", project: TAG + "-A", date: "2026-08-19",

@@ -26,6 +26,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import net from "node:net";
 import { createClient } from "@supabase/supabase-js";
+import { ต้นทาง as ต้นทางเว็บ, พอร์ต as พอร์ตเว็บ } from "./lib/session.mjs";
+const เว็บ = ต้นทางเว็บ("test");   // ที่อยู่เว็บในเครื่องของโฟลเดอร์นี้ — ห้ามเขียนพอร์ตเอง (check-hardcoded-ports)
+const พอร์ตทดสอบ = พอร์ตเว็บ("test");
 
 const args = process.argv.slice(2);
 const ค่าของ = f => (args.includes(f) ? args[args.indexOf(f) + 1] : null);
@@ -152,11 +155,11 @@ if (ทำ("smoke") && !process.exitCode) {
       SUPABASE_SERVICE_ROLE_KEY: KEY, SMTP_HOST: "", SMTP_USER: "", SMTP_PASS: "", PMS_LOCAL_HTTP_TEST: "1" };
     console.log("\n⑤ smoke: build ที่ชี้สำเนา (ราว 1–2 นาที)");
     if (spawnSync("npm", ["run", "build"], { env: appEnv, stdio: "ignore", shell: true }).status !== 0) throw new Error("build ไม่ผ่าน");
-    const เซิร์ฟเวอร์ = [["apps/hq", 3002], ["apps/dealer", 3001]].map(([cwd, port]) => spawn("npx", ["next", "start", "-p", String(port)], { cwd, env: appEnv, stdio: "ignore", shell: true }));
+    const เซิร์ฟเวอร์ = [["apps/hq", พอร์ตทดสอบ.hq], ["apps/dealer", พอร์ตทดสอบ.dealer]].map(([cwd, port]) => spawn("npx", ["next", "start", "-p", String(port)], { cwd, env: appEnv, stdio: "ignore", shell: true }));
     try {
-      for (const port of [3002, 3001]) await รอเซิร์ฟเวอร์(port);
+      for (const port of [พอร์ตทดสอบ.hq, พอร์ตทดสอบ.dealer]) await รอเซิร์ฟเวอร์(port);
       const r = spawnSync("npx", ["playwright", "test", "-c", "playwright.prod.config.ts", "--reporter=line"], {
-        env: { ...process.env, PROD_HQ_URL: "http://localhost:3002", PROD_DEALER_URL: "http://localhost:3001" }, encoding: "utf8", shell: true, maxBuffer: 64 * 1024 * 1024 });
+        env: { ...process.env, PROD_HQ_URL: เว็บ.hq, PROD_DEALER_URL: เว็บ.dealer }, encoding: "utf8", shell: true, maxBuffer: 64 * 1024 * 1024 });
       const นับผล = k => Number(new RegExp(`(\\d+) ${k}`).exec(r.stdout ?? "")?.[1] ?? 0);
       const สรุป = `ผ่าน ${นับผล("passed")} · ตก ${นับผล("failed")} · ไม่นิ่ง ${นับผล("flaky")} · ข้าม ${นับผล("skipped")}`;
       console.log(`   smoke: ${สรุป}`);
@@ -179,7 +182,7 @@ if (ทำ("smoke-old") && !process.exitCode) {
   try {
     const sha = execFileSync("git", ["rev-parse", "--short", อ้างอิง], { encoding: "utf8" }).trim();
     console.log(`\n⑥ smoke-old: โค้ดรุ่น ${อ้างอิง} (${sha}) — ต้องตรงกับที่อยู่บน Vercel ตอนนี้ (บอสยืนยันก่อนรันจริง)`);
-    for (const port of [3001, 3002]) if (!await พอร์ตว่าง(port)) throw new Error(`พอร์ต ${port} ไม่ว่าง (มีเซิร์ฟเวอร์ค้าง)`);
+    for (const port of [พอร์ตทดสอบ.dealer, พอร์ตทดสอบ.hq]) if (!await พอร์ตว่าง(port)) throw new Error(`พอร์ต ${port} ไม่ว่าง (มีเซิร์ฟเวอร์ค้าง)`);
     ที่ = mkdtempSync(path.join(tmpdir(), "pms-old-"));
     execFileSync("git", ["worktree", "add", "--detach", ที่, sha], { stdio: "ignore" });
     if (spawnSync("pnpm", ["install", "--frozen-lockfile"], { cwd: ที่, stdio: "ignore", shell: true }).status !== 0) throw new Error("ติดตั้งแพ็กเกจของโค้ดรุ่นเก่าไม่สำเร็จ");
@@ -187,9 +190,9 @@ if (ทำ("smoke-old") && !process.exitCode) {
       SUPABASE_SERVICE_ROLE_KEY: KEY, SMTP_HOST: "", SMTP_USER: "", SMTP_PASS: "" };
     console.log("   build โค้ดรุ่นเก่าที่ชี้สำเนา (ราว 1–2 นาที)");
     if (spawnSync("npm", ["run", "build"], { cwd: ที่, env: appEnv, stdio: "ignore", shell: true }).status !== 0) throw new Error("build โค้ดรุ่นเก่าไม่ผ่าน");
-    เซิร์ฟเวอร์ = [["apps/hq", 3002], ["apps/dealer", 3001]].map(([cwd, port]) =>
+    เซิร์ฟเวอร์ = [["apps/hq", พอร์ตทดสอบ.hq], ["apps/dealer", พอร์ตทดสอบ.dealer]].map(([cwd, port]) =>
       spawn("npx", ["next", "start", "-p", String(port)], { cwd: path.join(ที่, cwd), env: appEnv, stdio: "ignore", shell: true }));
-    for (const port of [3002, 3001]) await รอเซิร์ฟเวอร์(port);
+    for (const port of [พอร์ตทดสอบ.hq, พอร์ตทดสอบ.dealer]) await รอเซิร์ฟเวอร์(port);
 
     // บัญชีดีลเลอร์ชั่วคราวของสาขาที่มีลูกค้าเป้าหมายที่ยังเปิดอยู่ — ลบทิ้งหลังจบเสมอ
     const { data: แถว } = await svc.from("leads").select("dealer_code").not("status", "in", "(PAID,CANCELLED,HQ_PRICING)").limit(1);
@@ -202,7 +205,7 @@ if (ทำ("smoke-old") && !process.exitCode) {
     await svc.from("profiles").upsert({ id: ชั่วคราว, role: "DEALER_ADMIN", dealer_code: สาขา, name: "บัญชีซ้อม (ชั่วคราว)", status: "active",
       contact_email_verified_at: new Date().toISOString() }, { onConflict: "id" });
 
-    const D = "http://localhost:3001";
+    const D = เว็บ.dealer;
     // รายงานแค่รหัสข้อผิดพลาด (เช่น hq_quote_required) — ไม่พิมพ์ข้อความเต็มที่อาจมีชื่อลูกค้า
     // ป้ายเหตุผลของเรา (เช่น hq_quote_required) ก่อน — รหัส Postgres (P0001) ไม่บอกว่าพังเพราะอะไร
     const รหัสผิด = t => String(t).match(/\b([a-z]+(?:_[a-z]+)+):/)?.[1] ?? String(t).match(/"code"\s*:\s*"([^"]+)"/)?.[1] ?? "";

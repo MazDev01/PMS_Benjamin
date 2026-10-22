@@ -10,6 +10,10 @@
 // ⚠️ ไม่แตะตารางสาขา (dealers) และบัญชีผู้ใช้ — สองอย่างนี้เป็นของตั้งต้นที่ชุดทดสอบต้องใช้
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+
+// เขียนฐานทดสอบ = ถือล็อกฐานทดสอบ — เซสชันอื่นใช้ฐานอยู่ (เช่นรอบตรวจเต็ม) = หยุด บอกว่าใคร (scripts/lib/testDbLock.mjs · 22 ต.ค. 69)
+ขอล็อกฐานทดสอบ("local-db-reset");
 
 const อ่าน = (p) => Object.fromEntries(fs.readFileSync(p, "utf8").split(/\r?\n/)
   .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
