@@ -17,8 +17,8 @@ export type NextStepInput = {
   request: { status: QuoteRequestStatus; dueAt: string } | null;
   /** ใบ HQ ของคำขอล่าสุด (ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้ว) */
   hqQuote: { status: HqQuoteStatus; validUntil: string | null } | null;
-  /** ใบลูกค้าล่าสุดของดีลนี้ */
-  quote: { status: QuotationStatus } | null;
+  /** ใบลูกค้าล่าสุดของดีลนี้ · เดิม = ใบแบบเดิมที่ไม่มีใบ HQ (ดูได้อย่างเดียว · ลบ Flow เก่า 16 ต.ค. 69) */
+  quote: { status: QuotationStatus; เดิม?: boolean } | null;
   /** มีใบของดีลนี้ที่ส่งให้ลูกค้าอยู่ (รอลูกค้าตอบ) — ไม่ว่าจะเป็นใบล่าสุดหรือไม่ */
   มีใบส่งให้ลูกค้า?: boolean;
   /** วันนี้ (YYYY-MM-DD เวลาไทย) — ราคา HQ หมดอายุเมื่อ validUntil < วันนี้ (เกณฑ์เดียวกับฐาน hq_quote_send) */
@@ -51,7 +51,8 @@ export function ขั้นต่อไป(x: NextStepInput): NextStep {
   if (คำขอรอHQ(req?.status)) {
     return ผล({ key: "waiting_hq", title: "รอราคาจาก HQ", detail: "HQ กำลังตีราคา — ยังไม่ต้องทำอะไร ระบบแจ้งเมื่อได้ราคา · ยกเลิกคำขอได้ที่แท็บใบเสนอราคา", action: null });
   }
-  if (q?.status === "draft") {
+  // ใบร่างแบบเดิม (ไม่มีใบ HQ) ดูได้อย่างเดียว — ไม่ชวนส่งให้ลูกค้า ไล่ไปขั้นถัดไปตามคำขอ/ลีด (บอสอนุมัติ 22 ต.ค. 69)
+  if (q?.status === "draft" && !q.เดิม) {
     return ผล({ key: "send_quote", title: "ใบเสนอราคายังเป็นร่าง — ส่งให้ลูกค้า", detail: "ตรวจรายการและ % ที่บวก แล้วส่งให้ลูกค้า", action: { kind: "send_quote", label: "ส่งให้ลูกค้า" } });
   }
   if (q?.status === "sent_to_client") {

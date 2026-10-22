@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, AlertTriangle, Check, XCircle } from "lucide-react";
-import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
+import { useRouter } from "next/navigation";
+import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { LostReasonPicker } from "@pms/shared/components/ui/LostReasonPicker";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
@@ -77,6 +78,14 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   const dealerVat = useDealerVat();
   const dealerWht = useDealerWht();   // อัตราหัก ณ ที่จ่ายตั้งต้นของสาขา (ตั้งค่า › ใบเสนอราคา)      // % VAT ที่สาขาตั้งเอง — ใช้ตอนออกใบใหม่และเป็นค่าสำรองของใบเก่า
   const printCfg = { issuer: dealerCfg.settings.issuer, doc: dealerCfg.settings.document };
+  const router = useRouter();
+  // พิมพ์ = ต้องตั้งชื่อบริษัทผู้ออกก่อน (ด่านเดียวกับหน้าใบเสนอราคาเดิม · แผงลีดเป็นทางพิมพ์ทางเดียวตั้งแต่รอบ 4 · บอสอนุมัติ 22 ต.ค. 69)
+  //   ⚠️ "ยังโหลดข้อมูลบริษัทไม่เสร็จ" ไม่เท่ากับ "ยังไม่ได้ตั้งชื่อบริษัท" (เจอจริง 27 ส.ค. 69) — ให้รอแล้วกดใหม่ ไม่ไล่ไปหน้าตั้งค่า
+  const พิมพ์ใบ = (q: QuotationMock) => {
+    if (!dealerCfg.loaded) { แจ้งสำเร็จ("กำลังโหลดข้อมูลบริษัท — รอสักครู่แล้วกดพิมพ์อีกครั้ง"); return; }
+    if (!dealerCfg.settings.issuer?.company?.trim()) { แจ้งพลาด("กรุณาตั้งชื่อบริษัทที่ ตั้งค่า → โปรไฟล์บริษัท ก่อนพิมพ์ใบเสนอราคา"); router.push("/settings"); return; }
+    printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg);
+  };
 
   // subject รวม — รองรับทั้ง "ลูกค้าเป้าหมาย" (lead) และ "ลูกค้า" (customer)
   const subj = lead ? {
@@ -274,7 +283,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     const lineItems: QuoteLineItem[] = boqLineItems(q);
     setForm({ project: q.project, province: q.province ?? "", area: q.area ? String(q.area) : "", items: String(lineItems.length),
       price: String(q.materialCost || q.totalValue), expiry: q.expiry ?? "", note: q.note ?? "", lineItems,
-      // อัตราที่ตรึงไว้กับใบเป็นตัวจริงเสมอ — ใบเก่าที่ไม่มีค่า ให้ตกไปใช้ค่าที่สาขาตั้งไว้
+      // อัตราที่ตรึงไว้กับใบเป็นตัวจริงเสมอ — ฉบับใหม่ (V2…) คัดลอก VAT จากใบเดิม (ช่องล็อก 0228)
+      //   ใบที่ VAT ว่างถูกเติมค่าที่แสดงจริงที่ฐานแล้ว และฐานห้ามว่างต่อจากนี้ (ใบ 0237 · บอสสั่ง 22 ต.ค. 69) — ค่าตกไปใช้ของสาขาเหลือไว้กันข้อมูลเก่าเท่านั้น
       vatOn: (q.vatPercent ?? dealerVat ?? 0) > 0, vatPct: String(q.vatPercent ?? dealerVat ?? 7),
       whtOn: (q.whtRate ?? 0) > 0, whtPct: String(q.whtRate ?? dealerWht ?? 3) });
     setMode("edit");
@@ -546,6 +556,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     const q = editing; const c = quotationStatusColor[q.status];
     const lis = boqLineItems(q);
     const subtotal = lis.reduce((s, it) => s + it.qty * it.unitPrice, 0) || q.materialCost || q.totalValue;
+    // ยอดแยก VAT — สูตรกลางเดียวกับฟอร์มและเอกสารที่พิมพ์ (lib/quoteTax.ts) · อัตราที่ตรึงกับใบก่อน ไม่มีค่อยใช้ของสาขา (เหมือนตอนพิมพ์)
+    //   (บอสอนุมัติ 22 ต.ค. 69: หน้าดูใบในแผงลีดต้องแยก ยอดรวมก่อน VAT · VAT % · ยอดชำระสุทธิ เหมือนหน้าเดิม)
+    const ภาษีใบ = คิดภาษีใบเสนอราคา(subtotal, { vatPercent: q.vatPercent ?? dealerVat, whtPercent: q.whtRate });
     const th: React.CSSProperties = { textAlign: "left", fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", padding: "8px 10px", background: "#f7f9fc", whiteSpace: "nowrap" };
     const td: React.CSSProperties = { fontSize: "0.78rem", color: "#2D2D2D", padding: "9px 10px", borderTop: "1px solid #eef0f4" };
     return (
@@ -561,7 +574,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         </div>
 
         {/* ข้อมูลลูกค้า/ผู้ติดต่อ */}
-        <div style={{ background: "#f0f4fa", border: "1px solid #dce5f0", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: "0.72rem", color: "#475569", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 14px" }}>
+        <div style={{ background: "#f0f4fa", border: "1px solid #dce5f0", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: "0.72rem", color: "#475569", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "3px 14px", overflowWrap: "anywhere" }}>
           <div><b>ลูกค้า:</b> {subj.contact}</div><div><b>บริษัท:</b> {q.customer || subj.company}</div>
           <div><b>โทร:</b> {subj.phone || "—"}</div><div><b>อีเมล:</b> {subj.email || "—"}</div>
           <div><b>จังหวัด:</b> {q.province || subj.province}</div><div><b>ผู้รับผิดชอบ:</b> {subj.assigned}</div>
@@ -580,8 +593,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
 
         {/* ตารางรายการสินค้า (BOQ) — อ่านอย่างเดียว */}
         <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>รายการสินค้า (BOQ)</div>
-        <div style={{ border: "1px solid #eef0f4", borderRadius: 10, overflow: "hidden", marginBottom: 4 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        {/* จอแคบ: ตารางเลื่อนในกล่องตัวเอง — หน้าไม่เลื่อนแนวนอน (บอสอนุมัติ 22 ต.ค. 69) */}
+        <div data-boq-scroll style={{ border: "1px solid #eef0f4", borderRadius: 10, overflowX: "auto", marginBottom: 4, maxWidth: "100%" }}>
+          <table style={{ width: "100%", minWidth: 460, borderCollapse: "collapse" }}>
             <thead><tr>
               <th style={th}>รายการ</th><th style={{ ...th, textAlign: "right" }}>จำนวน</th>
               <th style={th}>หน่วย</th><th style={{ ...th, textAlign: "right" }}>ราคา/หน่วย</th>
@@ -611,15 +625,31 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
           <div><div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>วันหมดอายุ</div>
             <div style={{ fontSize: "0.85rem", color: "#2D2D2D" }}>{q.expiry || "—"}</div></div>
-          <div style={{ gridColumn: "1/-1" }}><div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>ยอดสุทธิ</div>
-            <div style={{ fontSize: "1rem", fontWeight: 800, color: "#003366" }}>{fmtBaht(q.totalValue)}</div></div>
+          <div data-quote-totals style={{ gridColumn: "1/-1", display: "flex", flexDirection: "column", gap: 6, background: "#f7f9fc", border: "1px solid #eef0f4", borderRadius: 10, padding: "10px 12px" }}>
+            {([
+              ["ยอดรวมย่อย (ก่อน VAT)", fmtFull(ภาษีใบ.subtotal), {}],
+              [`ภาษีมูลค่าเพิ่ม ${ภาษีใบ.vatRate}%`, fmtFull(ภาษีใบ.vatAmount), {}],
+              ["รวมเป็นเงิน", fmtFull(ภาษีใบ.totalAmount), { หนา: true }],
+              ...(ภาษีใบ.whtRate > 0 ? [[`หัก ณ ที่จ่าย ${ภาษีใบ.whtRate}%`, `−${fmtFull(ภาษีใบ.whtAmount)}`, { สี: "#b45309" }] as const] : []),
+              ["ยอดชำระสุทธิ", fmtFull(ภาษีใบ.netPayable), { หนา: true, เด่น: true }],
+            ] as const).map(([ป้าย, ค่า, o]) => {
+              const ตั้ง = o as { หนา?: boolean; เด่น?: boolean; สี?: string };
+              return (
+                <div key={ป้าย} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: ตั้ง.เด่น ? "0.9rem" : "0.78rem",
+                  fontWeight: ตั้ง.หนา ? 800 : 600, color: ตั้ง.สี ?? (ตั้ง.หนา ? "#003366" : "#4b5563"),
+                  ...(ตั้ง.หนา ? { borderTop: "1px solid #e6eaf0", paddingTop: 6 } : {}) }}>
+                  <span>{ป้าย}</span><span style={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{ค่า}</span>
+                </div>
+              );
+            })}
+          </div>
           {q.note && (<div style={{ gridColumn: "1/-1" }}><div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>หมายเหตุ</div>
             <div style={{ fontSize: "0.82rem", color: "#2D2D2D", lineHeight: 1.6 }}>{q.note}</div></div>)}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
           {ปุ่มผลลูกค้า(q)}
-          <button onClick={() => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
+          <button onClick={() => พิมพ์ใบ(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
           {แก้เนื้อหาได้(q) && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
           {ทำฉบับใหม่ได้(q) && <button onClick={() => void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><CopyPlus size={13} /> ทำฉบับใหม่</button>}
           {/* ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง (ใบที่ส่งแล้ว) */}
@@ -680,7 +710,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                       { ic: <Eye size={13} />, t: "ดู", fn: () => { setEditing(q); setMode("view"); } },
                       ...(แก้เนื้อหาได้(q) ? [{ ic: <Pencil size={13} />, t: "แก้ไข", fn: () => openEdit(q) }] : []),
                       ...(ทำฉบับใหม่ได้(q) ? [{ ic: <CopyPlus size={13} />, t: "ทำฉบับใหม่", fn: () => void ทำฉบับใหม่(q) }] : []),
-                      { ic: <Printer size={13} />, t: "พิมพ์", fn: () => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg) },
+                      { ic: <Printer size={13} />, t: "พิมพ์", fn: () => พิมพ์ใบ(q) },
                       // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีทำสำเนา/ลบ (บอสสั่งเก็บไว้เป็นประวัติ 16 ต.ค. 69)
                       // ทำสำเนาได้เฉพาะใบร่าง — ใบที่ส่งแล้ว/ถูกแทนที่/ตอบรับแล้ว ลูกค้าต่อรองให้ทำฉบับใหม่ (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0230)
                       ...(ลบได้(q) ? [

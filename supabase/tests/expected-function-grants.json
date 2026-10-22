@@ -1,8 +1,15 @@
 {
- "migration": "0236",
+ "migration": "0237",
  "functions": [
   {
    "f": "_cron_send_email()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_dealer_display_vat(p_dealer text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -94,6 +101,13 @@
   },
   {
    "f": "_quote_request_vars(r quote_requests)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_quote_vat_backfill()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -899,6 +913,13 @@
   },
   {
    "f": "quotations_sent_lock()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quotations_vat_fill()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

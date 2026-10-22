@@ -42,6 +42,21 @@ test("[ui·hq] ทุกหน้าของสำนักงานใหญ�
   }
 });
 
+// แดชบอร์ด HQ: ลิงก์ "ดูรายละเอียด" และแถวอันดับ 10 อันดับ ต้องสูงอย่างน้อย 44px บนมือถือ (บอสอนุมัติ 22 ต.ค. 69 — เกณฑ์ปลายนิ้วเต็ม)
+test("[ui·hq] แดชบอร์ด HQ บนมือถือ: ลิงก์ดูรายละเอียด + แถวอันดับ สูงอย่างน้อย 44px", async ({ page }) => {
+  await open(page, "hq", "/hq/dashboard");
+  const ลิงก์ = page.getByRole("link", { name: /ดูรายละเอียด/ });
+  await expect(ลิงก์.first()).toBeVisible({ timeout: 25_000 });
+  const แถว = page.locator("[data-top-row]");
+  await expect(แถว.first(), "ข้อมูลตั้งต้นต้องมีดีลเลอร์ในอันดับ").toBeVisible({ timeout: 25_000 });
+  const ความสูง = async (l: import("@playwright/test").Locator) =>
+    (await l.evaluateAll(els => els.map(el => Math.round(el.getBoundingClientRect().height))));
+  const สูงลิงก์ = await ความสูง(ลิงก์), สูงแถว = await ความสูง(แถว);
+  expect(สูงลิงก์.length, "ต้องมีลิงก์ดูรายละเอียดครบ 4 การ์ด").toBe(4);
+  expect(สูงลิงก์.filter(h => h < 44), `ลิงก์ดูรายละเอียดเตี้ยกว่า 44px: ${สูงลิงก์.join(",")}`).toEqual([]);
+  expect(สูงแถว.filter(h => h < 44), `แถวอันดับเตี้ยกว่า 44px: ${สูงแถว.join(",")}`).toEqual([]);
+});
+
 test("[ui·dealer] เมนูหลักบนมือถือ — เปิดจากปุ่มขีดสามขีดแล้วกดไปหน้าอื่นได้", async ({ page }) => {
   await open(page, "dealer", "/dashboard");
   // บนมือถือเมนูด้านข้างถูกยุบ ต้องมีปุ่มเปิดเมนู

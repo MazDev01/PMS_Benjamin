@@ -148,9 +148,19 @@ test("[tax] ใบเก่าที่ยังไม่มีข้อมู�
     await page.waitForURL(/\/leads/, { timeout: 25_000 });
     await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
     await page.locator(`[data-quote-item="${NS}-OLD"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
-    // หน้าดูใบต้องเปิดได้และมียอดสุทธิ (ใบไม่มีภาษี = เท่ากับยอดรวม) · มีปุ่มพิมพ์
-    await expect(page.getByText("ยอดสุทธิ", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("฿400,000").first(), "ยอดสุทธิ = ยอดรวม").toBeVisible();
+    // หน้าดูใบต้องเปิดได้ · มูลค่างานเท่าเดิม · มีปุ่มพิมพ์
+    //   หน้าดูใบแยกยอด VAT แล้ว (บอสอนุมัติ 22 ต.ค. 69 · เดิมมีแค่ "ยอดสุทธิ" = มูลค่างาน)
+    //   ใบที่ไม่ส่งภาษีมา: ฐานบันทึก VAT ที่หน้าเว็บของสาขาแสดงอยู่ (ใบ 0237) — ยอดที่แสดงเท่ากับตอนก่อนลงใบ
+    const doc = (await admin.from("dealer_settings").select("document").eq("dealer_code", "RYG").maybeSingle()).data?.document as { vatPercent?: unknown } | undefined;
+    const vat = typeof doc?.vatPercent === "number" && doc.vatPercent >= 0 ? Math.min(doc.vatPercent, 100) : 7;
+    expect(Number((await admin.from("quotations").select("vat_percent").eq("dealer_code", "RYG").eq("id", `${NS}-OLD`).single()).data?.vat_percent),
+      "ใบที่ไม่ส่งภาษี: ฐานบันทึก VAT ที่สาขาแสดง (ไม่ว่าง)").toBe(vat);
+    const ยอด = page.locator("[data-quote-totals]");
+    await expect(ยอด.getByText("ยอดรวมย่อย (ก่อน VAT)")).toBeVisible({ timeout: 15_000 });
+    await expect(ยอด.getByText("฿400,000", { exact: true }).first(), "มูลค่างาน (ก่อน VAT) = ยอดเดิมของใบ").toBeVisible();
+    await expect(ยอด.getByText(`ภาษีมูลค่าเพิ่ม ${vat}%`, { exact: true })).toBeVisible();
+    await expect(ยอด.getByText(`฿${(400_000 * (1 + vat / 100)).toLocaleString()}`).first(), "ยอดชำระสุทธิ = มูลค่างาน + VAT").toBeVisible();
+    await expect(ยอด.getByText("ยอดชำระสุทธิ")).toBeVisible();
     await expect(page.getByRole("button", { name: /พิมพ์ PDF/ }), "ยังพิมพ์ได้").toBeVisible();
   } finally {
     ลบใบทดสอบที่ฐาน(`id = '${NS}-OLD'`);

@@ -122,13 +122,25 @@ test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า 
   // หน้าพิมพ์ที่ลูกค้าได้รับ — อ่านเอกสารจริงที่เปิดออกมา
   const ห้าม = ["12,345.67", "12345.67", "24,691.34", "ต้นทุน", "37%", "37 %", "markup", "unitCost", "HQ-"];
   //   พิมพ์จากแผงใบเสนอราคาของลูกค้าเป้าหมาย (ตัวสร้างเอกสารชุดเดียวกับหน้ารายการใบ — buildQuotationHTML)
-  await เปิดแท็บใบเสนอราคา(page, ลับ);
-  const [หน้าพิมพ์] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "พิมพ์", exact: true }).first().click()]);
-  await หน้าพิมพ์.waitForLoadState("domcontentloaded");
-  const html = await หน้าพิมพ์.content();
-  expect(html, "หน้าพิมพ์ต้องมีราคาขาย").toContain("16,913.57");
-  for (const คำ of ห้าม) expect(html, `หน้าพิมพ์ต้องไม่มี "${คำ}"`).not.toContain(คำ);
-  await หน้าพิมพ์.close();
+  //   พิมพ์ต้องตั้งชื่อบริษัทผู้ออกก่อน (ด่านในแผงลีด · บอสอนุมัติ 22 ต.ค. 69) — ตั้งชื่อทดสอบให้สาขาชั่วคราว แล้วคืนค่าเดิม
+  const ตั้งค่าเดิม = (await admin.from("dealer_settings").select("issuer").eq("dealer_code", "RYG").maybeSingle()).data;
+  const ชื่อผู้ออก = "ZZTEST บริษัทผู้ออกใบ จำกัด";
+  if (!String((ตั้งค่าเดิม?.issuer as { company?: string } | null)?.company ?? "").trim()) {
+    const ตั้ง = await admin.from("dealer_settings").upsert({ dealer_code: "RYG", issuer: { ...((ตั้งค่าเดิม?.issuer as object) ?? {}), company: ชื่อผู้ออก } }, { onConflict: "dealer_code" });
+    expect(ตั้ง.error, `ตั้งชื่อบริษัททดสอบไม่สำเร็จ: ${ตั้ง.error?.message}`).toBeNull();
+  }
+  try {
+    await เปิดแท็บใบเสนอราคา(page, ลับ);
+    const [หน้าพิมพ์] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "พิมพ์", exact: true }).first().click()]);
+    await หน้าพิมพ์.waitForLoadState("domcontentloaded");
+    const html = await หน้าพิมพ์.content();
+    expect(html, "หน้าพิมพ์ต้องมีราคาขาย").toContain("16,913.57");
+    for (const คำ of ห้าม) expect(html, `หน้าพิมพ์ต้องไม่มี "${คำ}"`).not.toContain(คำ);
+    await หน้าพิมพ์.close();
+  } finally {
+    if (!ตั้งค่าเดิม) await admin.from("dealer_settings").delete().eq("dealer_code", "RYG");   // เดิมไม่มีแถวตั้งค่า
+    else await admin.from("dealer_settings").update({ issuer: ตั้งค่าเดิม.issuer }).eq("dealer_code", "RYG");
+  }
 
   // ไฟล์ส่งออกจากหน้าใบเสนอราคา (CSV และ Excel) — อ่านไฟล์ที่ดาวน์โหลดจริง
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });

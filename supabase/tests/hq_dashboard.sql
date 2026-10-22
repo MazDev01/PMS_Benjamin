@@ -195,6 +195,7 @@ end $$;
 set local session_replication_role = origin;
 alter table quotations disable trigger user;
 alter table quotations enable trigger quotations_won_at_sync;
+alter table quotations enable always trigger quotations_vat_fill;   -- ใบ 0237: ตัวเติม VAT ทำงานเสมอ (ช่องห้ามว่าง)
 insert into quotations (dealer_code, id, customer, project, status, total_value, date) values ('RYG', 'ZZHD-T1', 'ZZHD ต', 'ZZHD', 'sent_to_client', 500, '2026-10-01');
 update quotations set status = 'won', customer_id = (select min(id) from customers where dealer_code = 'RYG') where dealer_code = 'RYG' and id = 'ZZHD-T1';
 do $$ begin

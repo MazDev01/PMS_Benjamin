@@ -37,6 +37,7 @@ async function เปิดหน้าดูใบ(page: import("@playwright/te
 // หน้าดูใบ (แผงลีด) = เอกสาร + BOQ + ยอดสรุป ไม่ล้นแนวนอน
 test("[ui·dealer] หน้าดูใบเสนอราคา (BOQ + สรุป + สถานะ) ไม่ล้นแนวนอน", async ({ page }) => {
   test.skip(!REAL_BACKEND, "ต้องมีฐานจริงสำหรับวางใบ HQ");
+  test.setTimeout(90_000);   // เปิดหน้าดูใบผ่าน 3 หน้า (รายการ → แผงลีด → ใบ) — ตอนรันชุดยาวเกิน 30 วินาทีได้
   await เปิดหน้าดูใบ(page);
   // เอกสาร + BOQ + ยอดสรุป
   await expect(page.getByText("รายการสินค้า (BOQ)")).toBeVisible({ timeout: 15_000 });
@@ -49,6 +50,22 @@ test("[ui·dealer] หน้าดูใบเสนอราคา (BOQ + ส�
   // โมดัลใหญ่ต้องไม่ทำให้หน้าเลื่อนแนวนอน
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, "โมดัลใบเสนอราคาไม่ควรมี horizontal scroll").toBeLessThanOrEqual(3);
+});
+
+// จอแคบ (มือถือ 390px): หน้าดูใบในแผงลีดต้องไม่เลื่อนแนวนอน — ตาราง BOQ เลื่อนในกล่องตัวเอง (บอสอนุมัติ 22 ต.ค. 69)
+test("[ui·dealer] หน้าดูใบเสนอราคาบนจอแคบ ไม่เลื่อนแนวนอน · ยอดแยก VAT ยังเห็นครบ", async ({ page }) => {
+  test.skip(!REAL_BACKEND, "ต้องมีฐานจริงสำหรับวางใบ HQ");
+  test.setTimeout(90_000);   // เปิดหน้าดูใบผ่าน 3 หน้า (รายการ → แผงลีด → ใบ) — ตอนรันชุดยาวเกิน 30 วินาทีได้
+  await page.setViewportSize({ width: 390, height: 844 });
+  await เปิดหน้าดูใบ(page);
+  await expect(page.getByText("รายการสินค้า (BOQ)")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("ยอดชำระสุทธิ").first()).toBeVisible();
+  await page.waitForTimeout(500);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow, `หน้าดูใบบนจอแคบเลื่อนแนวนอน ${overflow}px`).toBeLessThanOrEqual(3);
+  // ยอดในกล่องสรุปต้องอยู่ในจอทั้งหมด (ไม่ถูกตัดออกนอกขอบขวา)
+  const ขวาสุด = await page.locator("[data-quote-totals]").evaluate(el => el.getBoundingClientRect().right);
+  expect(ขวาสุด, "กล่องยอดสรุปต้องอยู่ในจอ").toBeLessThanOrEqual(390);
 });
 
 // รายละเอียดลูกค้า = โมดัลกลางจอ 2 แท็บ (ข้อมูลลูกค้า · เพิ่มงานขายใหม่)
@@ -80,6 +97,7 @@ test("[ux·dealer] ฟอร์มใบเสนอราคาแยก 'ก�
 
 test("[ux·dealer] หน้าดูใบเสนอราคาแสดง VAT ครบ (ก่อนภาษี + VAT% + ยอดชำระสุทธิ)", async ({ page }) => {
   test.skip(!REAL_BACKEND, "ต้องมีฐานจริงสำหรับวางใบ HQ");
+  test.setTimeout(90_000);   // เปิดหน้าดูใบผ่าน 3 หน้า (รายการ → แผงลีด → ใบ) — ตอนรันชุดยาวเกิน 30 วินาทีได้
   await เปิดหน้าดูใบ(page);
   // ลำดับยอดในแผง: ยอดรวมย่อย → ภาษีมูลค่าเพิ่ม X% → รวมเป็นเงิน → (หัก ณ ที่จ่าย) → ยอดชำระสุทธิ
   await expect(page.getByText("ยอดรวมย่อย").first()).toBeVisible();

@@ -9,6 +9,15 @@ const วันนี้ = "2026-10-16";
 const ใส่ = (x: Partial<NextStepInput> & { leadStatus: LeadStatus }): NextStepInput => ({ request: null, hqQuote: null, quote: null, today: วันนี้, ...x });
 
 describe("ขั้นต่อไปของลูกค้าเป้าหมาย", () => {
+  it("ใบร่างแบบเดิม (ไม่มีใบ HQ) ดูได้อย่างเดียว → ไม่มีปุ่มส่งให้ลูกค้า · ใบร่างจากใบ HQ ยังส่งได้ (บอสอนุมัติ 22 ต.ค. 69)", () => {
+    const เดิม = ขั้นต่อไป(ใส่({ leadStatus: "QUOTED", quote: { status: "draft", เดิม: true } }));
+    expect(เดิม.key).not.toBe("send_quote");
+    expect(เดิม.action?.kind).not.toBe("send_quote");
+    const เดิมลีดต้น = ขั้นต่อไป(ใส่({ leadStatus: "BULLET", quote: { status: "draft", เดิม: true } }));
+    expect(เดิมลีดต้น).toMatchObject({ key: "request", action: { kind: "request_quote" } });
+    const ใหม่ = ขั้นต่อไป(ใส่({ leadStatus: "HQ_QUOTED", request: { status: "quoted", dueAt: "" }, quote: { status: "draft", เดิม: false } }));
+    expect(ใหม่).toMatchObject({ key: "send_quote", action: { kind: "send_quote", label: "ส่งให้ลูกค้า" } });
+  });
   it("ติดต่อแล้ว / รวบรวมความต้องการ · ยังไม่มีคำขอ → ขอราคาจาก HQ ", () => {
     for (const s of ["WAITING", "BULLET"] as const) {
       const r = ขั้นต่อไป(ใส่({ leadStatus: s }));

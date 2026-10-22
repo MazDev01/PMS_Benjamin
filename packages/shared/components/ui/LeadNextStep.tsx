@@ -94,7 +94,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
     leadStatus: lead.status,
     request: คำขอ ? { status: คำขอ.status, dueAt: คำขอ.dueAt } : null,
     hqQuote: ใบHQ ? { status: ใบHQ.status, validUntil: ใบHQ.validUntil } : null,
-    quote: ใบล่าสุด ? { status: ใบล่าสุด.status } : null,
+    quote: ใบล่าสุด ? { status: ใบล่าสุด.status, เดิม: !ใบล่าสุด.hqQuoteId } : null,
     มีใบส่งให้ลูกค้า: !!ใบที่ส่งอยู่,
     today: วันนี้ไทย(),
   });

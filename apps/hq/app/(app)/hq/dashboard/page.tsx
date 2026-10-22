@@ -119,7 +119,7 @@ export default function HQDashboard() {
     </span>
   );
   const ดูรายละเอียด = (href: string) => (
-    <Link href={href} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.8rem", fontWeight: 700, color: PRIMARY, marginTop: "auto", textDecoration: "none" }}>
+    <Link href={href} className="hq-tap" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.8rem", fontWeight: 700, color: PRIMARY, marginTop: "auto", textDecoration: "none" }}>
       ดูรายละเอียด <ChevronRight size={13} />
     </Link>
   );
@@ -340,7 +340,7 @@ export default function HQDashboard() {
               {(() => { const max = Math.max(...ข้อมูล.top.map(d => d.sales), 1); return ข้อมูล.top.map((d, i) => {
                 const อัตราสาขา = อัตราปิดการขาย(d.closedWon, d.closedLost);
                 return (
-                  <Link key={d.code} href={`/hq/dealers/${d.code}`} data-top-row={d.code} className="clickable"
+                  <Link key={d.code} href={`/hq/dealers/${d.code}`} data-top-row={d.code} className="clickable hq-tap"
                     aria-label={`เปิดหน้าดีลเลอร์ ${d.name}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
                     <span style={{ width: 16, textAlign: "center", fontSize: "0.74rem", fontWeight: 700, color: "#6b7280", flexShrink: 0 }}>{i + 1}</span>
                     <span style={{ flex: "0 0 84px", fontSize: "0.76rem", fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name.replace("Benjamin ", "")}</span>
