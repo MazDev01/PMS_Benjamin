@@ -1,2 +1,4 @@
 # ตัวกัน git (sh) ต้องขึ้นบรรทัดแบบ LF เสมอ — CRLF ทำให้ sh อ่านคำสั่งผิด ตัวกัน push ไม่ทำงาน (22 ต.ค. 69)
 .githooks/* text eol=lf
+# ไฟล์บันทึกลายนิ้วมือโค้ดที่ผ่านรอบตรวจเต็ม — หลายเซสชัน merge แล้วรวมบรรทัด ไม่ชนกัน (scripts/lib/commitGate.mjs · 22 ต.ค. 69)
+supabase/gate-passed-code.txt merge=union

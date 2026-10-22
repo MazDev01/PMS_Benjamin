@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "node ../../scripts/next-port.mjs dev dealer",
     "build": "next build",
-    "start": "next start -p 3001",
+    "start": "node ../../scripts/next-port.mjs start dealer",
     "typecheck": "tsc --noEmit",
     "lint": "next lint"
   },

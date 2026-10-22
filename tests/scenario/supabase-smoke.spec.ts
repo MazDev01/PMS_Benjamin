@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { RYG, ADMIN, skipReason, type Account } from "./supabaseEnv";
 import { db } from "./funcHelpers";
 import { settle } from "./helpers";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 
@@ -9,8 +10,8 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 // ต่างจากเทสต์ชุดอื่นที่รันโหมด local (mock): ชุดนี้ล็อกอินด้วยบัญชีจริงผ่านหน้าจอ
 // แล้วดูว่า auth (JWT+RLS) / การโหลดข้อมูลผ่าน repo / ค่าคุมจาก HQ ทำงานครบ
 // รันเมื่อ NEXT_PUBLIC_DATA_SOURCE=supabase เท่านั้น — ถ้าเป็น local ให้ข้าม
-const DEALER = "http://localhost:3001";
-const HQ = "http://localhost:3002";
+const DEALER = ที่อยู่เว็บ.dealer;
+const HQ = ที่อยู่เว็บ.hq;
 
 // เก็บ error ของหน้า (crash/exception) เพื่อฟ้องว่าแอปพังเงียบ ๆ ไหม
 function trackErrors(page: Page): string[] {

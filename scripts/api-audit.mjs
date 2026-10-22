@@ -2,6 +2,8 @@
 // ใช้: node scripts/api-audit.mjs
 // อ่านบัญชีทดสอบจาก tests/.env.test · ต้องมีเซิร์ฟเวอร์โหมด api รันที่ :3001 (ดีลเลอร์) และ :3002 (HQ)
 import { readFileSync, writeFileSync } from "node:fs";
+import { ต้นทาง as ต้นทางเว็บ } from "./lib/session.mjs";
+const เว็บ = ต้นทางเว็บ("dev");   // ที่อยู่เว็บในเครื่องของโฟลเดอร์นี้ — ห้ามเขียนพอร์ตเอง (check-hardcoded-ports)
 
 const env = (file) => {
   const m = new Map();
@@ -19,7 +21,7 @@ const ACC = {
   CNX:   { email: T.get("TEST_CNX_EMAIL"),   password: T.get("TEST_CNX_PASSWORD") },
   ADMIN: { email: T.get("TEST_ADMIN_EMAIL"), password: T.get("TEST_ADMIN_PASSWORD") },
 };
-const DEALER = "http://localhost:3001", HQ = "http://localhost:3002";
+const DEALER = เว็บ.dealer, HQ = เว็บ.hq;
 
 const jars = new Map();          // ชื่อบัญชี → cookie string
 async function login(who, origin) {

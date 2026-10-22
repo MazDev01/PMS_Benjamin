@@ -1,7 +1,8 @@
 // ── git pre-push: กัน push ขึ้น monorepo (= ขึ้นเว็บจริงทันทีผ่าน Vercel) ก่อนพร้อม (บอสสั่ง 22 ต.ค. 69) ─────────────────
 //
-// push ไป monorepo ได้เมื่อ (scripts/lib/commitGate.mjs)
-//   1) commit ที่จะ push มีผลรอบตรวจเต็มผ่าน (หรือต่อจาก commit ที่ผ่านโดยเพิ่มแค่ไฟล์บันทึกของรอบตรวจ)
+// เซสชันลูก (มี .pms-session.json): push ได้เฉพาะ session/<ชื่อ> ของตัวเอง — wip/* · monorepo · main = คนรวมงานเท่านั้น
+// คนรวมงาน (โฟลเดอร์หลัก): push ไป monorepo ได้เมื่อ (scripts/lib/commitGate.mjs)
+//   1) commit ที่จะ push มีผลรอบตรวจเต็มผ่าน (ลายนิ้วมือโค้ดอยู่ใน supabase/gate-passed-code.txt ของ commit นั้น)
 //   2) ฐานจริงมีใบปรับฐานครบทุกใบใน commit นั้น — ถามฐานจริงแบบอ่านอย่างเดียว · ถามไม่ได้ = ไม่ให้ push
 // ลบ monorepo บนเครื่องปลายทางก็ไม่ให้ · branch อื่น (wip/* ฯลฯ) push ได้ตามปกติ
 // ติดตั้ง: npm run hooks:install (ตั้ง core.hooksPath = .githooks) · ห้ามข้ามด้วย --no-verify
@@ -11,15 +12,30 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ตรวจcommitผ่าน, ใบในcommit } from "../lib/commitGate.mjs";
+import { อ่านเซสชัน } from "../lib/session.mjs";
 
 const [, , remoteName = "", remoteUrl = ""] = process.argv;
 const สาขาที่ขึ้นเว็บจริง = "refs/heads/monorepo";
 const ศูนย์ = /^0+$/;
 const ของจริง = /github\.com/i.test(remoteUrl);
 
-const คำขอ = readFileSync(0, "utf8").split(/\r?\n/).filter(Boolean)
-  .map(l => { const [localRef, localSha, remoteRef, remoteSha] = l.split(" "); return { localRef, localSha, remoteRef, remoteSha }; })
-  .filter(x => x.remoteRef === สาขาที่ขึ้นเว็บจริง);
+const ทั้งหมด = readFileSync(0, "utf8").split(/\r?\n/).filter(Boolean)
+  .map(l => { const [localRef, localSha, remoteRef, remoteSha] = l.split(" "); return { localRef, localSha, remoteRef, remoteSha }; });
+
+// เซสชันลูก: push ได้เฉพาะ branch ของตัวเอง
+const เซสชัน = อ่านเซสชัน(process.cwd());
+if (เซสชัน) {
+  const ของตัวเอง = `refs/heads/session/${เซสชัน.ชื่อ}`;
+  const ผิดที่ = ทั้งหมด.filter(x => x.remoteRef !== ของตัวเอง);
+  if (ผิดที่.length) {
+    console.error(`\n⛔ เซสชัน ${เซสชัน.ชื่อ} push ได้เฉพาะ session/${เซสชัน.ชื่อ} — ไม่ให้ push ไป ${ผิดที่.map(x => x.remoteRef.replace("refs/heads/", "")).join(", ")}`);
+    console.error("   รวมงานเข้า wip/integration / monorepo = งานของคนรวมงานเท่านั้น (npm run session:merge) · ห้ามข้ามด้วย --no-verify\n");
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+const คำขอ = ทั้งหมด.filter(x => x.remoteRef === สาขาที่ขึ้นเว็บจริง);
 if (!คำขอ.length) process.exit(0);   // ไม่ได้แตะ monorepo — push ได้ตามปกติ
 
 const ปฏิเสธ = (บรรทัด) => {

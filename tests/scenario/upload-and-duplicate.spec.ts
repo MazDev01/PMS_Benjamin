@@ -160,5 +160,5 @@ test("บริษัทใหม่ที่ไม่ซ้ำ ต้องไ�
   await expect(page.getByText(/มีลูกค้าเป้าหมายชื่อ|เป็นลูกค้าอยู่แล้ว|ชื่อใกล้เคียง/),
     "บริษัทใหม่ต้องไม่ขึ้นคำเตือน",
   ).toHaveCount(0);
-  expect(HQ_ORIGIN).toContain("3002"); // กันตั้ง origin ผิดจนเทสต์ผ่านแบบไม่ได้วัดอะไร
+  expect(HQ_ORIGIN, "กันตั้ง origin ผิดจนเทสต์ผ่านแบบไม่ได้วัดอะไร").not.toBe(DEALER_ORIGIN);
 });

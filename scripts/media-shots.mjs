@@ -2,6 +2,8 @@
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "@playwright/test";
+import { ต้นทาง as ต้นทางเว็บ } from "./lib/session.mjs";
+const เว็บ = ต้นทางเว็บ("dev");   // ที่อยู่เว็บในเครื่องของโฟลเดอร์นี้ — ห้ามเขียนพอร์ตเอง (check-hardcoded-ports)
 
 const read = p => Object.fromEntries(fs.readFileSync(p, "utf8").split(/\r?\n/)
   .filter(l => l.includes("=") && !l.trim().startsWith("#"))
@@ -13,7 +15,7 @@ const anon = () => createClient(H.NEXT_PUBLIC_SUPABASE_URL, H.NEXT_PUBLIC_SUPABA
 const KEY = `sb-${new URL(H.NEXT_PUBLIC_SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 
 // เช็กก่อนว่าเซิร์ฟเวอร์เปิดอยู่ไหม — ไม่งั้นจะพังด้วยข้อความ ERR_CONNECTION_REFUSED ที่อ่านไม่รู้เรื่อง
-for (const origin of ["http://localhost:3001", "http://localhost:3002"]) {
+for (const origin of [เว็บ.dealer, เว็บ.hq]) {
   const ok = await fetch(origin, { method: "HEAD" }).then(() => true, () => false);
   if (!ok) {
     console.error(`เปิดเซิร์ฟเวอร์ก่อน: npm run dev  (ยังต่อ ${origin} ไม่ได้)`);
@@ -22,20 +24,20 @@ for (const origin of ["http://localhost:3001", "http://localhost:3002"]) {
 }
 
 const หน้าที่ถ่าย = [
-  { ไฟล์: "hq-dashboard.png",  ผู้ใช้: "admin", url: "http://localhost:3002/hq/dashboard", รอ: 9000 },
-  { ไฟล์: "hq-dealers.png",    ผู้ใช้: "admin", url: "http://localhost:3002/hq/dealers",   รอ: 8000 },
-  { ไฟล์: "hq-master.png",     ผู้ใช้: "admin", url: "http://localhost:3002/hq/master",    รอ: 8000 },
-  { ไฟล์: "dealer-dashboard.png", ผู้ใช้: "ryg", url: "http://localhost:3001/dashboard",   รอ: 9000 },
-  { ไฟล์: "dealer-leads.png",  ผู้ใช้: "ryg",  url: "http://localhost:3001/leads",         รอ: 8000 },
-  { ไฟล์: "dealer-quotations.png", ผู้ใช้: "ryg", url: "http://localhost:3001/quotations", รอ: 8000 },
-  { ไฟล์: "dealer-account.png", ผู้ใช้: "ryg", url: "http://localhost:3001/settings/account", รอ: 7000 },
-  { ไฟล์: "dealer-customers.png", ผู้ใช้: "ryg", url: "http://localhost:3001/customers", รอ: 8000 },
-  { ไฟล์: "dealer-calendar.png", ผู้ใช้: "ryg", url: "http://localhost:3001/calendar", รอ: 8000 },
-  { ไฟล์: "hq-pipeline.png", ผู้ใช้: "admin", url: "http://localhost:3002/hq/pipeline", รอ: 8000 },
-  { ไฟล์: "hq-quotations.png", ผู้ใช้: "admin", url: "http://localhost:3002/hq/quotations", รอ: 8000 },
-  { ไฟล์: "hq-customers.png", ผู้ใช้: "admin", url: "http://localhost:3002/hq/customers", รอ: 8000 },
-  { ไฟล์: "hq-audit.png", ผู้ใช้: "admin", url: "http://localhost:3002/hq/audit", รอ: 7000 },
-  { ไฟล์: "login-dealer.png", ผู้ใช้: null, url: "http://localhost:3001/login", รอ: 5000 },
+  { ไฟล์: "hq-dashboard.png",  ผู้ใช้: "admin", url: `${เว็บ.hq}/hq/dashboard`, รอ: 9000 },
+  { ไฟล์: "hq-dealers.png",    ผู้ใช้: "admin", url: `${เว็บ.hq}/hq/dealers`,   รอ: 8000 },
+  { ไฟล์: "hq-master.png",     ผู้ใช้: "admin", url: `${เว็บ.hq}/hq/master`,    รอ: 8000 },
+  { ไฟล์: "dealer-dashboard.png", ผู้ใช้: "ryg", url: `${เว็บ.dealer}/dashboard`,   รอ: 9000 },
+  { ไฟล์: "dealer-leads.png",  ผู้ใช้: "ryg",  url: `${เว็บ.dealer}/leads`,         รอ: 8000 },
+  { ไฟล์: "dealer-quotations.png", ผู้ใช้: "ryg", url: `${เว็บ.dealer}/quotations`, รอ: 8000 },
+  { ไฟล์: "dealer-account.png", ผู้ใช้: "ryg", url: `${เว็บ.dealer}/settings/account`, รอ: 7000 },
+  { ไฟล์: "dealer-customers.png", ผู้ใช้: "ryg", url: `${เว็บ.dealer}/customers`, รอ: 8000 },
+  { ไฟล์: "dealer-calendar.png", ผู้ใช้: "ryg", url: `${เว็บ.dealer}/calendar`, รอ: 8000 },
+  { ไฟล์: "hq-pipeline.png", ผู้ใช้: "admin", url: `${เว็บ.hq}/hq/pipeline`, รอ: 8000 },
+  { ไฟล์: "hq-quotations.png", ผู้ใช้: "admin", url: `${เว็บ.hq}/hq/quotations`, รอ: 8000 },
+  { ไฟล์: "hq-customers.png", ผู้ใช้: "admin", url: `${เว็บ.hq}/hq/customers`, รอ: 8000 },
+  { ไฟล์: "hq-audit.png", ผู้ใช้: "admin", url: `${เว็บ.hq}/hq/audit`, รอ: 7000 },
+  { ไฟล์: "login-dealer.png", ผู้ใช้: null, url: `${เว็บ.dealer}/login`, รอ: 5000 },
 ];
 
 const s = {
@@ -47,7 +49,7 @@ for (const ห of หน้าที่ถ่าย) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
   const origin = new URL(ห.url).origin;
-  await page.goto(`${origin}${origin.endsWith("3002") ? "/hq/login" : "/login"}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${origin}${origin === เว็บ.hq ? "/hq/login" : "/login"}`, { waitUntil: "domcontentloaded" });
   // หน้าที่ถ่ายตอนยังไม่เข้าระบบ (หน้าเข้าสู่ระบบ) = ไม่ต้องยัด session
   if (ห.ผู้ใช้) await page.evaluate(([k, v]) => localStorage.setItem(k, v), [KEY, JSON.stringify(s[ห.ผู้ใช้])]);
   await page.goto(ห.url, { waitUntil: "domcontentloaded" });

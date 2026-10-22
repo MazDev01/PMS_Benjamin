@@ -5,6 +5,8 @@ import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { กวาดสาขาทดสอบค้าง } from "./testDealers";
 import { วางใบเดิมที่ฐาน, ล้างใบHQทดสอบ, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
+import { ขอล็อกฐานทดสอบก่อนรัน } from "./testDbLockSetup";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
 // snapshot ของ hq_notif_rules.alerts เดิม (singleton row จริง ไม่ใช่ข้อมูลแท็กที่ลบทิ้งได้เฉยๆ)
 // ต้องคืนค่าเดิมใน teardown เสมอ — ไม่ใช่ตั้งเป็นค่า test แล้วปล่อยทิ้งไว้
@@ -117,6 +119,8 @@ const QUOTES: QuoteSeed[] = [
 ];
 
 export default async function globalSetup() {
+  // ถือล็อกฐานทดสอบก่อนแตะฐาน — เซสชันอื่นใช้อยู่ = หยุด บอกว่าใคร (scripts/lib/testDbLock.mjs · 22 ต.ค. 69)
+  await ขอล็อกฐานทดสอบก่อนรัน();
   if (!REAL_BACKEND || !ADMIN_SUPABASE_URL || !ADMIN_SERVICE_ROLE_KEY) {
     console.log("[global-setup] ข้ามการ seed — ไม่ใช่โหมด supabase หรือยังไม่มี service role key");
     return;
@@ -256,9 +260,9 @@ async function ขยับตัวนับให้พ้นข้อมู�
 
 async function อุ่นเครื่องทุกหน้า() {
   const หน้า = [
-    ["http://localhost:3002", ["/hq/login", "/hq/dashboard", "/hq/dealers", "/hq/pipeline", "/hq/leads",
+    [ที่อยู่เว็บ.hq, ["/hq/login", "/hq/dashboard", "/hq/dealers", "/hq/pipeline", "/hq/leads",
       "/hq/quotations", "/hq/customers", "/hq/audit", "/hq/settings"]],
-    ["http://localhost:3001", ["/login", "/dashboard", "/leads", "/quotations", "/customers",
+    [ที่อยู่เว็บ.dealer, ["/login", "/dashboard", "/leads", "/quotations", "/customers",
       "/calendar", "/files", "/settings"]],
   ] as const;
   const เริ่ม = Date.now();

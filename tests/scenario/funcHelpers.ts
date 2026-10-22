@@ -2,9 +2,11 @@ import { expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, ADMIN, RYG, CNX, type Account, appEnv } from "./supabaseEnv";
 import { SESSION_KEY, getSession, settle, ติดตามคำขอ, เข้าระบบด้วยคุกกี้, ล็อกอินใหม่ } from "./helpers";
+import { ที่อยู่เว็บ } from "./sessionPorts";
 
-export const DEALER_ORIGIN = process.env.PMS_DEALER_ORIGIN ?? "http://localhost:3001";
-export const HQ_ORIGIN = process.env.PMS_HQ_ORIGIN ?? "http://localhost:3002";
+// ที่อยู่เว็บของโฟลเดอร์นี้ (พอร์ตจาก sessionPorts.ts · ตั้งทับด้วย PMS_*_ORIGIN)
+export const DEALER_ORIGIN = ที่อยู่เว็บ.dealer;
+export const HQ_ORIGIN = ที่อยู่เว็บ.hq;
 
 // เสียงรบกวนที่ไม่ใช่ error ของแอป
 const NOISE = /favicon|hydrat|Download the React DevTools|Fast Refresh|preloaded using link preload/i;

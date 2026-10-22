@@ -52,4 +52,10 @@ scripts/*
 # ยกเว้น "ด่านตรวจก่อนขึ้นเว็บจริง" — Vercel ต้องรันไฟล์นี้ก่อน build
 #   ไม่ยกเว้นไว้ = คำสั่งหาไฟล์ไม่เจอ แล้ว **build ผ่านฉลุยทุกครั้ง** (ด่านไม่ได้กันอะไรเลย)
 !scripts/vercel-should-build.mjs
+# ด่านตรวจใช้ scripts/lib/commitGate.mjs (ผลรอบตรวจเต็ม · 22 ต.ค. 69) — ขาดไฟล์นี้ = ด่านตรวจไม่ได้ = ไม่ build ทุกครั้ง
+#   ต้องคืนโฟลเดอร์ lib ก่อน แล้วกันไฟล์อื่นในนั้น แล้วค่อยคืนไฟล์เดียว (กฎ .gitignore คืนไฟล์ในโฟลเดอร์ที่ถูกกันไม่ได้)
+#   ข้อทดสอบ: tests/tools/vercel-gate.test.mjs
+!scripts/lib/
+scripts/lib/*
+!scripts/lib/commitGate.mjs
 supabase/migrations/

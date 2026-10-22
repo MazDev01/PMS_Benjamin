@@ -1,0 +1,3 @@
+#!/bin/sh
+# git pre-commit — เซสชันลูก commit ได้เฉพาะ branch ของตัวเอง (scripts/git-hooks/pre-commit.mjs) · ติดตั้ง: npm run hooks:install
+exec node scripts/git-hooks/pre-commit.mjs "$@"

@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { ที่อยู่เว็บ } from "./tests/scenario/sessionPorts";
 
 // /scenario harness — ทดสอบเบราว์เซอร์จริง หลาย persona พร้อมกัน (user / UX / UI)
-// โมโนเรโป: `npm run dev` (turbo) สตาร์ท dealer(:3001) + hq(:3002) · baseURL ตั้งเป็น HQ (:3002)
-// เพราะเทสต์ส่วนใหญ่ยิง route /hq/* · เทสต์ dealer-only ให้ใช้ URL เต็ม http://localhost:3001/...
+// โมโนเรโป: `npm run dev` (turbo) สตาร์ท dealer + hq ที่พอร์ตของโฟลเดอร์นี้ (tests/scenario/sessionPorts.ts) · baseURL = HQ
+// เพราะเทสต์ส่วนใหญ่ยิง route /hq/* · เทสต์ dealer-only ใช้ DEALER_ORIGIN (funcHelpers.ts)
 // reuseExistingServer=true → ถ้ามี dev server รันอยู่แล้วใช้ตัวนั้น ไม่สตาร์ทซ้ำ (กัน .next เขียนทับกัน)
 // ── หลักฐานของข้อที่ตก แยกโฟลเดอร์ตามรอบ (บอสสั่ง 15 ต.ค. 69) ─────────────────────────────────────────────
 //   เดิมทุกรอบเขียนทับโฟลเดอร์เดียวกัน — hq-quote-flow:120 ตกครั้งแรกในรอบปิดด่าน 3 แล้วหลักฐานถูกรอบหลังลบทิ้ง
@@ -52,7 +53,7 @@ export default defineConfig({
   expect: { timeout: 12_000 },
   reporter: [["list"]],
   use: {
-    baseURL: "http://localhost:3002",
+    baseURL: ที่อยู่เว็บ.hq,
     headless: true,
     viewport: { width: 1280, height: 900 },
     trace: "retain-on-failure",          // เก็บเฉพาะครั้งที่ตก (รวมครั้งแรกของข้อที่ไม่นิ่ง) — ผ่านแล้วลบทิ้ง
@@ -126,8 +127,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",       // turbo dev — สตาร์ท dealer(:3001)+hq(:3002)
-    url: "http://localhost:3002",  // รอ HQ app พร้อม
+    command: "npm run dev",       // turbo dev — สตาร์ท dealer + hq ที่พอร์ตของโฟลเดอร์นี้ (scripts/next-port.mjs)
+    url: ที่อยู่เว็บ.hq,            // รอ HQ app พร้อม
     // ⚠️ ห้ามเปิด reuseExistingServer — เคยทำให้ผลเทสต์หลอกมาแล้ว
     //
     // NEXT_PUBLIC_* ถูกฝังลงบันเดิลตอนสตาร์ตเซิร์ฟเวอร์ ไม่ได้อ่านใหม่ตอนรัน

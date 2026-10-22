@@ -9,6 +9,8 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { ต้นทาง } from "../../scripts/lib/session.mjs";
+import { ขอล็อกฐานทดสอบ } from "../../scripts/lib/testDbLock.mjs";
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
@@ -19,9 +21,11 @@ if (!["local", "prod"].includes(target) || !["setup", "test", "files", "trial"].
 const envFile = target === "prod" ? ".env.production.local" : "apps/hq/.env.local";
 const env = Object.fromEntries(readFileSync(envFile, "utf8").split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));
 const URL_ = env.NEXT_PUBLIC_SUPABASE_URL, ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY, KEY = env.SUPABASE_SERVICE_ROLE_KEY;
+// ในเครื่อง: ที่อยู่ที่รอบตรวจเต็มส่งมา หรือพอร์ตทดสอบของโฟลเดอร์นี้ (scripts/lib/session.mjs) · เขียนฐานทดสอบ = ถือล็อกฐานทดสอบ
 const WEB = target === "prod"
   ? { hq: "https://pms.benjaminpebsteel.com", dealer: "https://dealerpms.benjaminpebsteel.com" }
-  : { hq: "http://localhost:3002", dealer: "http://localhost:3001" };
+  : { hq: process.env.PMS_HQ_ORIGIN ?? ต้นทาง("test").hq, dealer: process.env.PMS_DEALER_ORIGIN ?? ต้นทาง("test").dealer };
+if (target === "local") ขอล็อกฐานทดสอบ(`prod-live ในเครื่อง (${phase})`);
 const STATE = path.join(process.env.LIVE_STATE_DIR ?? ".", `live-state-${target}.json`);
 const CODE = "ZZT";
 const svc = createClient(URL_, KEY, { auth: { persistSession: false } });

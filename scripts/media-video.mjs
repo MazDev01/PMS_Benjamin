@@ -4,6 +4,8 @@
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "@playwright/test";
+import { ต้นทาง as ต้นทางเว็บ } from "./lib/session.mjs";
+const เว็บ = ต้นทางเว็บ("dev");   // ที่อยู่เว็บในเครื่องของโฟลเดอร์นี้ — ห้ามเขียนพอร์ตเอง (check-hardcoded-ports)
 
 const อ่านenv = p => Object.fromEntries(fs.readFileSync(p, "utf8").split(/\r?\n/)
   .filter(l => l.includes("=") && !l.trim().startsWith("#"))
@@ -21,7 +23,7 @@ const session = {
 };
 
 // เช็กก่อนว่าเซิร์ฟเวอร์เปิดอยู่ไหม — ไม่งั้นจะพังด้วยข้อความ ERR_CONNECTION_REFUSED ที่อ่านไม่รู้เรื่อง
-for (const origin of ["http://localhost:3001", "http://localhost:3002"]) {
+for (const origin of [เว็บ.dealer, เว็บ.hq]) {
   const ok = await fetch(origin, { method: "HEAD" }).then(() => true, () => false);
   if (!ok) {
     console.error(`เปิดเซิร์ฟเวอร์ก่อน: npm run dev  (ยังต่อ ${origin} ไม่ได้)`);
@@ -31,11 +33,11 @@ for (const origin of ["http://localhost:3001", "http://localhost:3002"]) {
 
 // แต่ละคลิป = เดินหน้าจอตามลำดับที่คนดูควรเห็น (หยุดค้างให้อ่านทันด้วย)
 const คลิป = [
-  { ชื่อ: "1-ดีลเลอร์-ขายตั้งแต่ลีดถึงใบเสนอราคา", ผู้ใช้: "ryg", ฐาน: "http://localhost:3001",
+  { ชื่อ: "1-ดีลเลอร์-ขายตั้งแต่ลีดถึงใบเสนอราคา", ผู้ใช้: "ryg", ฐาน: เว็บ.dealer,
     ทาง: ["/dashboard", "/leads", "/quotations", "/customers", "/calendar"] },
-  { ชื่อ: "2-สำนักงานใหญ่-ภาพรวมทั้งเครือ", ผู้ใช้: "admin", ฐาน: "http://localhost:3002",
+  { ชื่อ: "2-สำนักงานใหญ่-ภาพรวมทั้งเครือ", ผู้ใช้: "admin", ฐาน: เว็บ.hq,
     ทาง: ["/hq/dashboard", "/hq/pipeline", "/hq/quotations", "/hq/dealers", "/hq/master"] },
-  { ชื่อ: "3-ความปลอดภัยบัญชี", ผู้ใช้: "ryg", ฐาน: "http://localhost:3001",
+  { ชื่อ: "3-ความปลอดภัยบัญชี", ผู้ใช้: "ryg", ฐาน: เว็บ.dealer,
     ทาง: ["/settings/account", "/settings"] },
 ];
 
@@ -44,7 +46,7 @@ for (const c of คลิป) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 },
     recordVideo: { dir: `${OUT}/${c.ชื่อ}`, size: { width: 1440, height: 900 } } });
   const page = await ctx.newPage();
-  const หน้าเข้าระบบ = c.ฐาน.endsWith("3002") ? "/hq/login" : "/login";
+  const หน้าเข้าระบบ = c.ฐาน === เว็บ.hq ? "/hq/login" : "/login";
   await page.goto(c.ฐาน + หน้าเข้าระบบ, { waitUntil: "domcontentloaded" });
   await page.evaluate(([k, v]) => localStorage.setItem(k, v), [KEY, JSON.stringify(session[c.ผู้ใช้])]);
   for (const ทาง of c.ทาง) {
