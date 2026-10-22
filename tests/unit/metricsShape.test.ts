@@ -33,10 +33,10 @@ describe("เส้นทาง api · สรุปลูกค้าเป้�
 
   it("ส่งต่อ won รายสาขา และ quoted รายเดือน เป็นตัวเลขเสมอ", () => {
     const out = shape({
-      byDealer: [{ dealer_code: "HQ", leads: 155, quoted: 1, won: 0 }],
+      byDealer: [{ dealer_code: "HQ", leads: 155, quoted: 1, won: 0, lost: 2 }],
       byMonth: [{ y: 2026, m: 5, new: 34, won: 0, lost: 1, quoted: 1 }],
     });
-    expect(out.byDealer).toEqual([{ dealerCode: "HQ", leads: 155, quoted: 1, won: 0 }]);
+    expect(out.byDealer).toEqual([{ dealerCode: "HQ", leads: 155, quoted: 1, won: 0, lost: 2 }]);   // lost: ใบ 0234 (อัตราปิดการขายรายดีลเลอร์)
     expect(out.byMonth).toEqual([{ y: 2026, m: 5, created: 34, won: 0, lost: 1, quoted: 1 }]);
   });
 

@@ -12,6 +12,7 @@ import {
   CalendarClock, FileText, Trophy, AlarmClock, ChevronRight,
   UserPlus, CheckCircle2, Mail,
 } from "lucide-react";
+import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { fmtLeadValue } from "@pms/shared/lib/format";
 import { useFilters, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
@@ -118,16 +119,11 @@ export default function DealerDashboard() {
   const openLeads = useMemo(() => myLeads.filter(isLeadOpen), [myLeads]);
   // มูลค่า = ยอดใบเสนอราคาล่าสุดของแต่ละงาน (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — งานที่ยังไม่มีใบไม่นับ
   const openValue = useMemo(() => openLeads.reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0), [openLeads]);
-  const followUpToday = useMemo(() => appointments.filter(a => a.date === TODAY_ISO && a.status !== "cancelled").length, [appointments]);
-  // ปิดการขายได้ = จำนวนใบเสนอราคาที่ปิดได้ (won) · อัตราปิดการขาย = won / (won + lost)
-  //   นิยามเดียวกับฝั่ง HQ (useDealerPerformance / dealer_rollup) และกับ KPI "ยอดขาย" ของแดชบอร์ดเอง (wonByKey)
-  //   เดิมนับจากลูกค้าเป้าหมาย PAID/CANCELLED → ตัวเลข win-rate ของสาขาไม่ตรงกับที่ HQ เห็น (ลูกค้าเป้าหมาย PAID ≠ ใบ won) · H3
-  const wonCount = useMemo(() => quotations.filter(q => q.status === "won").length, [quotations]);
-  const lostCount = useMemo(() => quotations.filter(q => q.status === "lost").length, [quotations]);
-  const winRate = useMemo(
-    () => (wonCount + lostCount ? Math.round((wonCount / (wonCount + lostCount)) * 1000) / 10 : 0),
-    [wonCount, lostCount],
-  );
+  // ปิดการขายได้ = ลูกค้าเป้าหมายที่ปิดสำเร็จ (ในช่วงที่เลือก · นับตามวันที่ลีดเข้ามา) · อัตราปิดการขาย = สูตรกลาง lib/winRate.ts
+  //   รอบ 4 (บอสตัดสิน 21 ต.ค. 69): นับจากลีด ไม่ใช่จากใบ — สูตรเดียวกับหน้าลูกค้าเป้าหมายและภาพรวมยอดขายของ HQ
+  const wonCount = useMemo(() => leadsIn.filter(l => l.status === "PAID").length, [leadsIn]);
+  const lostCount = useMemo(() => leadsIn.filter(l => l.status === "CANCELLED").length, [leadsIn]);
+  const winRate = อัตราปิดการขาย(wonCount, lostCount);
 
   // ── กราฟใหญ่ 2 ใบ ── แต่ละใบมีปุ่มช่วงย้อนหลังของตัวเอง (3/6/12 เดือน) เป็นอิสระจากกัน
   // ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
@@ -326,10 +322,10 @@ export default function DealerDashboard() {
   const kpis = [
     { label: "เป้าหมายยอดขาย", tip: "เป้าหมายยอดขายทั้งปีที่สำนักงานใหญ่กำหนด เทียบกับยอดปิดการขายสะสมตั้งแต่ต้นปี · การ์ดนี้เทียบทั้งปีเสมอ ไม่เปลี่ยนตามช่วงเวลาที่เลือก", Icon: Target, color: "#2563EB", bg: "#E8F0FE", href: "/quotations", ring: true },
     { label: "โอกาสการขาย", tip: "มูลค่ารวมของดีลที่ยังเปิดอยู่ (ยังไม่ปิดการขาย และยังไม่ยกเลิก)", Icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads", value: baht(openValue), sub1: "รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่", sub2: `${openLeads.length} ดีล` },
-    { label: "ติดตามวันนี้", tip: "งานติดตาม/นัดหมายที่ต้องทำวันนี้", Icon: PhoneCall, color: "#EA580C", bg: "#FEF0E6", href: "/calendar", value: `${followUpToday}`, sub1: "รายการ" },
+    // การ์ด "ติดตามวันนี้" เอาออก (รอบ 4 · บอสตัดสิน 21 ต.ค. 69) — ซ้ำกับการ์ดรายการ "งานที่ต้องทำวันนี้" ด้านล่าง (นับนัดวันนี้ชุดเดียวกัน)
     // ตัวเลขหลัก = จำนวนดีลที่ปิดสำเร็จ · อัตราปิดการขาย (%) ลงมาเป็นบรรทัดรอง
     // ชื่อการ์ดต้องตรงกับหน่วยของตัวเลขที่โชว์ — "ปิดการขายได้" คู่กับ "50%" จะอ่านว่าปิดได้ 50 ดีล
-    { label: "ปิดการขายได้", tip: `จำนวนใบเสนอราคาที่ปิดการขายได้ (won) · อัตราปิดการขาย = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้) = ${wonCount} ÷ ${wonCount + lostCount} · นิยามเดียวกับที่สำนักงานใหญ่เห็น`, Icon: Activity, color: "#0D9488", bg: "#E6F7F5", href: "/quotations", value: `${wonCount} ดีล`, sub1: wonCount + lostCount ? `อัตราปิดการขาย ${winRate}%` : "ยังไม่มีดีลที่ปิด" },
+    { label: "ปิดการขายได้", tip: `จำนวนลูกค้าเป้าหมายที่ปิดการขายสำเร็จ · ${ชื่ออัตราปิดการขาย} = ${คำอธิบายอัตราปิดการขาย} = ${wonCount} ÷ ${wonCount + lostCount}`, Icon: Activity, color: "#0D9488", bg: "#E6F7F5", href: "/customers", value: `${wonCount} ดีล`, sub1: winRate == null ? "ยังไม่มีดีลที่ปิด" : `${ชื่ออัตราปิดการขาย} ${winRate}%` },
   ];
   // ไอคอน (i) ท้ายชื่อการ์ดถูกเอาออกตามที่บอสสั่ง (25 ส.ค. 69) — เหตุผลเดียวกับแดชบอร์ดสำนักงานใหญ่
   const KpiLabel = ({ label }: { label: string; tip?: string }) => (
@@ -353,7 +349,7 @@ export default function DealerDashboard() {
       {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้าทั้ง HQ และดีลเลอร์ (บอสสั่ง 14 ส.ค. 69)
           ชื่อสาขาและช่วงเวลายังอ่านได้จากแถบบน/ตัวกรอง — ไม่ต้องเขียนซ้ำใต้ชื่อหน้า */}
 
-      {/* SECTION 1 — 4 KPI (ทั้งใบกดได้) */}
+      {/* SECTION 1 — 3 KPI (ทั้งใบกดได้) · ตะแกรง 4 ช่องเดิม การ์ดขนาดเท่าทุกหน้า */}
       <div className="dash-kpis" style={{ marginBottom: 24 }}>
         {kpis.map(k => (
           <button key={k.label} onClick={() => router.push(k.href)} className="card clickable dash-tile"

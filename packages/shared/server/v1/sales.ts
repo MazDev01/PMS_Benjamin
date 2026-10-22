@@ -148,7 +148,7 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
       : i.tasks != null && (!Array.isArray(i.tasks) || i.tasks.length > 50) ? "tasks ต้องเป็นรายการ (ไม่เกิน 50)"
       : i.activities != null && (!Array.isArray(i.activities) || i.activities.length > 20) ? "activities ต้องเป็นรายการ (ไม่เกิน 20)"
       : i.stage != null && (typeof i.stage !== "object" || !(LEAD_STATUS as readonly string[]).includes(String((i.stage as { status?: unknown }).status))) ? "ขั้นไม่ถูกต้อง"
-      : i.deriveStage != null && i.deriveStage !== "any" && i.deriveStage !== "up" ? "deriveStage ไม่ถูกต้อง"
+      : i.deriveStage != null && i.deriveStage !== "any" && i.deriveStage !== "up" ? "deriveStage ไม่ถูกต้อง"   // แอปรุ่นเก่ายังส่ง — ฐานเมินแล้ว (ใบ 0232)
       : JSON.stringify(i).length > 400_000 ? "ข้อมูลใหญ่เกิน" : "";
     if (ผิด) return fail(400, ผิด);
     const { data, error } = await sb.rpc("lead_apply", { p_id: id, p_intent: leadIntentToWire(i as LeadIntent) });

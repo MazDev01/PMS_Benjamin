@@ -1,5 +1,6 @@
 import type { LeadIntent } from "../leadIntent";
 import type { HqOverview } from "../hqOverview";
+import type { HqDashboard } from "../hqDashboard";
 // Ports — สัญญา (interface) ที่ทุก adapter ต้องมี
 // context/hook เรียกผ่าน repository เหล่านี้เท่านั้น · เบื้องหลังสลับ adapter ได้
 // ทุกเมธอดเป็น async ตั้งแต่แรก → ต่อ network (เฟส B) ไม่ต้องแก้ signature
@@ -172,7 +173,7 @@ export interface ProposalsRepo {
   conversionReady(prospectId: number): Promise<string | null>;
 }
 
-// ── ประวัติลูกค้าเป้าหมาย (HQ) — อ่าน = HQ · เพิ่มได้แค่บันทึกการติดต่อ · ไม่มีแก้/ลบ (0174) ──
+// ── ประวัติผู้สนใจเป็นดีลเลอร์ — อ่าน = HQ · เพิ่มได้แค่บันทึกการติดต่อ · ไม่มีแก้/ลบ (0174) ──
 //   บันทึกการติดต่อแล้ว ฐานข้อมูลตั้ง ติดต่อล่าสุด/นัดติดตาม/ขั้น ให้เอง → หน้าจอต้องโหลดลูกค้าเป้าหมายรายนั้นใหม่
 export interface ProspectActivitiesRepo {
   list(prospectId: number): Promise<ProspectActivity[]>;
@@ -372,8 +373,8 @@ export interface LeadSummary {
   byProvince: { province: string; count: number }[];
   byMonth: LeadMonthRow[];
   /** รายสาขา — leads=จำนวนลูกค้าเป้าหมาย · quoted=ถึงขั้นเสนอราคาขึ้นไป (QUOTED_UP)
-   *  won=ปิดการขายได้แล้ว (เป็นลูกค้าแล้ว) · ป้อน leadVsQuote/dealerPerf */
-  byDealer: { dealerCode: string; leads: number; quoted: number; won: number }[];
+   *  won=ปิดการขายได้แล้ว (เป็นลูกค้าแล้ว) · lost=ปิดไม่สำเร็จ (ใบ 0234 · อัตราปิดการขาย lib/winRate.ts) · ป้อน leadVsQuote/dealerPerf */
+  byDealer: { dealerCode: string; leads: number; quoted: number; won: number; lost: number }[];
 }
 export interface LeadSummaryFilters {
   dealerCodes?: string[]; province?: string; product?: string; source?: string;
@@ -468,6 +469,8 @@ export interface MetricsRepo {
   hqCustomersFilterOptions(): Promise<HQCustomersFilterOptions>;
   /** ภาพรวม HQ 3 กล่องตาม FLOW (ด่าน 5 · ใบ 0209) — ตัวเลข ณ ตอนนี้ ไม่ขึ้นกับตัวกรอง · HQ เท่านั้น */
   hqOverview(): Promise<HqOverview>;
+  /** แดชบอร์ด HQ (ใบ 0235) — ตัวเลขทุกตัวคิดที่ฐาน · start/end = ช่วงที่เลือก · dealer = เลือกดีลเลอร์ · today = วันนี้ของระบบ · HQ เท่านั้น */
+  hqDashboard(start: string, end: string, dealer?: string | null, today?: string): Promise<HqDashboard>;
 }
 
 // ── โดเมนงานขาย — list (อ่าน) + CRUD เต็ม (Phase 0) ──

@@ -95,7 +95,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
             <col style={{ width: "11%" }} />
             <col style={{ width: "13%" }} />
             <col style={{ width: "8%" }} />
-            <col style={{ width: "11%" }} />{/* อัตราปิดการขาย */}
+            <col style={{ width: "11%" }} />{/* อัตราตอบรับ (ไม่ใช่อัตราปิดการขาย — รอบ 4 สูตรเดียว lib/winRate.ts) */}
             <col style={{ width: "5%", minWidth: 64 }} />{/* ปุ่มดูรายละเอียด */}
           </colgroup>
           <thead>
@@ -107,7 +107,7 @@ function TopDealerRanking({ dealerAgg }: { dealerAgg: DealerAgg[] }) {
               <th className="num">ใบเสนอราคา</th>
               <th className="num">มูลค่า</th>
               <th className="num">ตอบรับ</th>
-              <th className="num" title="ตอบรับ ÷ ใบที่ส่งถึงลูกค้าแล้ว (รวมใบที่ยังรอตอบในตัวหาร) — คนละสูตรกับ “อัตราปิด” ที่หน้าภาพรวมยอดขาย ซึ่งนับเฉพาะใบที่รู้ผลแล้ว">อัตราปิดการขาย<br /><span style={{ fontWeight: 500, fontSize: "0.9em", textTransform: "none", letterSpacing: 0 }}>ตอบรับ ÷ ที่ส่งแล้ว</span></th>
+              <th className="num" title="ตอบรับ ÷ ใบที่ส่งถึงลูกค้าแล้ว (รวมใบที่ยังรอตอบในตัวหาร) — คนละสูตรกับ “อัตราปิด” ที่หน้าภาพรวมยอดขาย ซึ่งนับเฉพาะใบที่รู้ผลแล้ว">อัตราตอบรับ<br /><span style={{ fontWeight: 500, fontSize: "0.9em", textTransform: "none", letterSpacing: 0 }}>ตอบรับ ÷ ที่ส่งแล้ว</span></th>
               <th></th>{/* คอลัมน์ปุ่มดู — ไม่ต้องมีหัวคอลัมน์ */}
             </tr>
           </thead>

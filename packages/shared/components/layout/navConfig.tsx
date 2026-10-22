@@ -42,13 +42,13 @@ export const DEALER_NAV: NavGroup[] = [
 ];
 
 // HQ — ลำดับ "ภาพรวมยอดขาย" มาก่อน "ลูกค้าเป้าหมายทั้งเครือ" (บอสสั่ง 16 ก.ค. 69)
-//      "ลูกค้าเป้าหมาย (HQ)" + "ใบค่าแฟรนไชส์" มาก่อน "ดีลเลอร์" (บอสสั่ง 14 ก.ย. 69)
+//      "ผู้สนใจเป็นดีลเลอร์" + "ใบค่าแฟรนไชส์" มาก่อน "ดีลเลอร์" (บอสสั่ง 14 ก.ย. 69)
 export const HQ_NAV: NavGroup[] = [
   { key: "overview", group: "ภาพรวมทั้งเครือ", flat: true, items: [
     { label: "แดชบอร์ดสำนักงานใหญ่", href: "/hq/dashboard", icon: <LayoutDashboard size={17} /> },
   ] },
   { key: "recruit", group: "หาดีลเลอร์", icon: <UserPlus size={15} />, items: [
-    { label: "ลูกค้าเป้าหมาย (HQ)",  href: "/hq/prospects", icon: <UserPlus size={16} /> },
+    { label: "ผู้สนใจเป็นดีลเลอร์",  href: "/hq/prospects", icon: <UserPlus size={16} /> },
     { label: "ใบค่าแฟรนไชส์", href: "/hq/proposals", icon: <FileText size={16} /> },
     { label: "ดีลเลอร์",       href: "/hq/dealers",   icon: <Store size={16} /> },
   ] },

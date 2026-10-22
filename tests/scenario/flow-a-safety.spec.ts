@@ -90,12 +90,13 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     const แถว = await เปิดแผงลีด(page, บริษัท);
     await แถว.locator("td").first().click();
-    await page.getByRole("button", { name: "งาน", exact: true }).first().click();
-    await page.getByRole("button", { name: /ได้งาน/ }).first().click();
+    // รอบ 4: ปิดสำเร็จทางเดียว = ลูกค้าตอบรับที่ใบในแท็บใบเสนอราคาของแผงลีด
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+    await page.locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click({ timeout: 20_000 });
     await กดตกลงในกล่องยืนยัน(page).catch(() => "");
     await expect.poll(async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.status,
       { timeout: 20_000, message: "ลีดต้องเป็นปิดการขายสำเร็จ" }).toBe("PAID");
-    await expect(page.getByText("ย้อนได้เฉพาะสำนักงานใหญ่").first(), "บอกว่าย้อนได้เฉพาะ HQ").toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("status", { name: "ขั้นต่อไป" }).getByText("ปิดการขายสำเร็จ").first(), "กล่องขั้นต่อไปบอกว่าปิดสำเร็จแล้ว").toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: /เปิดใหม่/ }), "ไม่มีปุ่มเปิดใหม่บนลีดที่ปิดการขายแล้ว").toHaveCount(0);
 
     await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
@@ -183,7 +184,7 @@ test.describe("ลบลีด / ลบลูกค้า", () => {
     const แถว = await เปิดแผงลีด(page, มีคำขอ);
     await expect(แถว.getByTitle("ลบลูกค้าเป้าหมาย"), "แถวไม่มีปุ่มลบ").toHaveCount(0);
     await แถว.locator("td").first().click();
-    await expect(page.getByRole("button", { name: "งาน", exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "ประวัติ", exact: true }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTitle("ลบ", { exact: true }), "แผงไม่มีปุ่มลบ").toHaveCount(0);
     const { error } = await (await db(RYG)).from("leads").delete().eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum);
     expect(error?.message ?? "", "ฐานต้องปฏิเสธ").toContain("เสียโอกาส");

@@ -9,7 +9,8 @@
 //    ห้ามคิดว่า ปิดไม่ได้ = ใบทั้งหมด − ปิดได้ เพราะจะเหมาใบที่ "ยังรอลูกค้าตอบ / หมดอายุ / ร่าง"
 //    เป็นความล้มเหลวของดีลเลอร์ (ข้อมูลจริงทั้งเครือ: ปฏิเสธจริงแค่ 4 ใบ แต่ยังรอตอบ 14 ใบ)
 //    (เดิมมีใบแฝด DealerClosingChart ที่ /hq/quotations ถามคำถามเดียวกัน — ยุบมาเหลือใบนี้ใบเดียว)
-// อัตราปิด = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้) — ตัวหารนับเฉพาะใบที่รู้ผลแล้ว
+// อัตราปิดการขาย (รอบ 4 · บอสตัดสิน 21 ต.ค. 69) = สูตรกลาง lib/winRate.ts นับจากลีด (ปิดสำเร็จ ÷ สำเร็จ+ไม่สำเร็จ) — ไม่ใช่จากใบ
+//    คอลัมน์ ปิดได้/ปิดไม่ได้/ยังไม่รู้ผล ยังเป็นจำนวน "ใบ" ตามเดิม · เดิมคอลัมน์ "อัตราปิด" คิดจากใบ = คนละสูตรกับหน้าอื่น
 //    นิยามเดียวกับคอลัมน์ "อัตราปิด" ในตารางผลงาน และ KPI ของหน้านี้ (ห้ามใช้คนละสูตรในหน้าเดียวกัน)
 //
 // สเปกจากบอส: ไม่มี gradient · ไม่มี 3D · พื้นหลังขาว
@@ -29,7 +30,7 @@ export type DealerQuotePerf = {
   won: number;      // ลูกค้าตอบรับ
   lost: number;     // ลูกค้าปฏิเสธจริง
   pending: number;  // ยังไม่รู้ผล = ร่าง + ส่งแล้วรอตอบ + หมดอายุ  (quotes − won − lost)
-  conv: number | null; // null = ยังไม่มีใบไหนรู้ผล จึงคำนวณไม่ได้ (ไม่ใช่ 0%)
+  conv: number | null; // อัตราปิดการขายของดีลเลอร์ (สูตรกลาง · จากลีด) · null = ยังไม่มีลีดที่ปิด (ไม่ใช่ 0%)
 };
 
 const pctText = (c: number | null) => c === null ? "—" : `${c}%`;
@@ -146,9 +147,9 @@ export function DealerQuotationPerformance({ rows }: {
                 {line("ปิดไม่ได้", `${d.lost}`, 70, "#f87171")}
                 {line("ยังไม่รู้ผล", `${d.pending}`, 85, "#9ca3af")}
                 <line x1={x + 10} y1={pT + 93} x2={x + bwx - 10} y2={pT + 93} stroke="#4b5563" strokeWidth="1" />
-                <text x={x + 10} y={pT + 107} fontSize="9.5" fill="#c4cbd4">อัตราปิด</text>
+                <text x={x + 10} y={pT + 107} fontSize="9.5" fill="#c4cbd4">อัตราปิดการขาย</text>
                 <text x={x + bwx - 10} y={pT + 107} textAnchor="end" fontSize="10" fill="#fff" fontWeight={800}>
-                  {pctText(d.conv)}{d.conv !== null && ` (${d.won}/${d.won + d.lost})`}
+                  {pctText(d.conv)}
                 </text>
               </g>
             );
@@ -193,7 +194,7 @@ export function DealerQuotationTable({ rows, avgConv }: {
             <col style={{ width: "11%" }} />{/* ปิดได้ */}
             <col style={{ width: "12%" }} />{/* ปิดไม่ได้ */}
             <col style={{ width: "12%" }} />{/* ยังไม่รู้ผล */}
-            <col style={{ width: "14%" }} />{/* อัตราปิด */}
+            <col style={{ width: "14%" }} />{/* อัตราปิดการขาย (สูตรกลาง) */}
           </colgroup>
           <thead>
             <tr>
@@ -203,7 +204,7 @@ export function DealerQuotationTable({ rows, avgConv }: {
               <th style={{ textAlign: "right" }}>ปิดได้</th>
               <th style={{ textAlign: "right" }}>ปิดไม่ได้</th>
               <th style={{ textAlign: "right" }}>ยังไม่รู้ผล</th>
-              <th style={{ textAlign: "right" }}>อัตราปิด</th>
+              <th style={{ textAlign: "right" }} title="ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ)">อัตราปิดการขาย</th>
             </tr>
           </thead>
           <tbody>

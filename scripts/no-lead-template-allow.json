@@ -25,16 +25,6 @@
       "file": "packages/shared/components/ui/LeadQuotationsPanel.tsx",
       "line": "<FileText size={10} /> {q.buildingType}",
       "reason": "แผงรายละเอียดใบ — ใบเก่าที่มีประเภทอาคาร (แม่แบบ) ยังดูได้ครบ · ใบใหม่ช่องนี้ว่างเสมอ จึงไม่ขึ้น (แผงดูใบในแท็บใบเสนอราคาของลูกค้าเป้าหมาย)"
-    },
-    {
-      "file": "apps/dealer/app/(app)/quotations/page.tsx",
-      "line": "{selected.buildingType && <span",
-      "reason": "แผงรายละเอียดใบ — ใบเก่าที่มีประเภทอาคาร (แม่แบบ) ยังดูได้ครบ · ใบใหม่ช่องนี้ว่างเสมอ จึงไม่ขึ้น (ป้ายบนหัวแผงรายละเอียด หน้าใบเสนอราคา)"
-    },
-    {
-      "file": "apps/dealer/app/(app)/quotations/page.tsx",
-      "line": "...(selected.buildingType ? [[\"ประเภทอาคาร\", selected.buildingType]] : [])",
-      "reason": "แผงรายละเอียดใบ — ใบเก่าที่มีประเภทอาคาร (แม่แบบ) ยังดูได้ครบ · ใบใหม่ช่องนี้ว่างเสมอ จึงไม่ขึ้น (แถวในรายละเอียดเอกสาร หน้าใบเสนอราคา)"
     }
   ]
 }

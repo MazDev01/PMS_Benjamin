@@ -17,31 +17,30 @@ describe("applyLeadIntent", () => {
     expect(() => applyLeadIntent(ลีด(), { fields: { status: "PAID" } as never }, { tpl, now })).toThrow(/lead_field_not_allowed/);
     expect(() => applyLeadIntent(ลีด(), { fields: { tasks: [] } as never }, { tpl, now })).toThrow(/lead_field_not_allowed/);
   });
-  it("ติ๊กงานทีละงาน · งานมาจากแม่แบบ · ไทม์ไลน์ 'ทำงาน:' · ขั้นตามงาน", () => {
-    let r = applyLeadIntent(ลีด(), { tasks: [{ key: "contact", done: true, doneBy: "คนติ๊ก" }], deriveStage: "any" }, { tpl, now });
+  it("ติ๊กงานทีละงาน · งานมาจากแม่แบบ · ไทม์ไลน์ 'ทำงาน:' · งานไม่เลื่อนขั้น (รอบ 4 · ใบ 0232)", () => {
+    let r = applyLeadIntent(ลีด(), { tasks: [{ key: "contact", done: true, doneBy: "คนติ๊ก" }] }, { tpl, now });
     expect(r.tasks).toHaveLength(tpl.length);
     expect(r.tasks!.find(t => t.key === "contact")).toMatchObject({ done: true, doneBy: "คนติ๊ก", doneAt: now });
     expect(r.activities![0].text).toBe("ทำงาน: ติดต่อแล้ว");
-    r = applyLeadIntent(r, { tasks: [{ key: "collect", done: true }, { key: "requirement", done: true }], deriveStage: "any" }, { tpl, now });
-    expect(r.status).toBe("BULLET");
-    expect(r.activities!.some(a => a.text === 'เปลี่ยนขั้นเป็น "รวบรวมความต้องการ"')).toBe(true);
+    r = applyLeadIntent(r, { tasks: [{ key: "collect", done: true }, { key: "requirement", done: true }] }, { tpl, now });
+    expect(r.status).toBe("WAITING");
+    expect(r.activities!.some(a => a.text.startsWith("เปลี่ยนขั้นเป็น"))).toBe(false);
   });
   it("หัวใจ: งานที่ไม่อยู่ในเจตนา (ฐาน/แท็บอื่นติ๊กไว้) ไม่ถูกแตะ", () => {
     const tasks = tpl.map(d => ({ key: d.key, label: d.label, done: d.key === "makeQuote" }));
     const r = applyLeadIntent(ลีด({ tasks }), { fields: { phone: "099" } }, { tpl, now });
     expect(r.tasks!.find(t => t.key === "makeQuote")!.done).toBe(true);
-    const r2 = applyLeadIntent(ลีด({ tasks }), { tasks: [{ key: "contact", done: true }], deriveStage: "up" }, { tpl, now });
+    const r2 = applyLeadIntent(ลีด({ tasks }), { tasks: [{ key: "contact", done: true }] }, { tpl, now });
     expect(r2.tasks!.find(t => t.key === "makeQuote")!.done).toBe(true);
-    expect(r2.status).toBe("QUOTED");
+    expect(r2.status).toBe("WAITING");
   });
-  it("รอราคา HQ / ปิดแล้ว: ไม่คิดขั้นจากงาน · โหมด up ไม่ลดขั้น", () => {
-    const r = applyLeadIntent(ลีด({ status: "HQ_PRICING" }), { tasks: [{ key: "contact", done: true }], deriveStage: "any" }, { tpl, now });
-    expect(r.status).toBe("HQ_PRICING");
-    expect(applyLeadIntent(ลีด({ status: "NEGO" }), { deriveStage: "up" }, { tpl, now }).status).toBe("NEGO");
+  it("เปลี่ยนสถานะเองได้เฉพาะปิดไม่สำเร็จ (ตรงกับตัวดัก leads_status_one_path)", () => {
+    for (const s of ["BULLET", "QUOTED", "FOLLOWUP", "NEGO", "PAID"] as const)
+      expect(() => applyLeadIntent(ลีด(), { stage: { status: s } }, { tpl, now })).toThrow(/lead_status_one_path/);
+    expect(applyLeadIntent(ลีด({ status: "NEGO" }), { stage: { status: "NEGO" } }, { tpl, now }).status).toBe("NEGO");
   });
-  it("กฎปิดการขาย: ปิดไม่สำเร็จต้องมีเหตุผล · ปิดสำเร็จต้องมีใบที่ส่งแล้ว", () => {
+  it("กฎปิดไม่สำเร็จ: ต้องมีเหตุผล", () => {
     expect(() => applyLeadIntent(ลีด(), { stage: { status: "CANCELLED" } }, { tpl, now })).toThrow(/lead_lost_needs_reason/);
-    expect(() => applyLeadIntent(ลีด(), { stage: { status: "PAID" } }, { tpl, now, hasSentQuote: () => false })).toThrow(/lead_close_needs_sent_quote/);
     const r = applyLeadIntent(ลีด(), { stage: { status: "CANCELLED", lostReason: "งบไม่พอ" }, log: false }, { tpl, now });
     expect(r).toMatchObject({ status: "CANCELLED", lostReason: "งบไม่พอ" }); expect(r.activities).toEqual([]);
   });

@@ -15,7 +15,7 @@ const tg = nsTag(NS);
 test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 
-test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเลขลูกค้าทั้งเครือขยับเองโดยไม่ต้องรีเฟรช เมื่อดีลเลอร์เพิ่มลูกค้าใหม่", async ({ page }) => {
+test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเลขลีดใหม่ทั้งเครือขยับเองโดยไม่ต้องรีเฟรช เมื่อดีลเลอร์เพิ่มลีดใหม่", async ({ page }) => {
   // บันทึกอายุการเชื่อมต่อ realtime ไว้ — ถ้าจอไม่อัปเดต ต้องรู้ว่า "ต่อไม่ติด/ถูกตัด" หรือ "ต่อติดแต่ไม่มีสัญญาณมา"
   const wsLog: string[] = [];
   const joinReplies: string[] = [];
@@ -42,11 +42,11 @@ test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเ
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
 
-  // ⚠️ จับด้วยรูปแบบ ไม่ใช่ข้อความตายตัว — ป้ายการ์ดถูกเปลี่ยนเป็น "ลูกค้าใหม่ทั้งเครือ" (24 ส.ค. 69)
-  //    เพราะค่าที่นับคือลูกค้าที่เริ่มเป็นลูกค้าในช่วงที่เลือก · ถ้าล็อกข้อความไว้ เทสต์จะพังทุกครั้งที่ปรับคำ
-  const kpiLocator = page.locator(".card").filter({ hasText: /ลูกค้า(ใหม่)?ทั้งเครือ/ }).first();
-  await expect(kpiLocator).toBeVisible({ timeout: 15_000 });
-  const before = (await kpiLocator.innerText()).trim();
+  // การ์ด "ลีดใหม่ทั้งเครือ" (แดชบอร์ดแบบเดิม + ตัวคำนวณที่ฐาน hq_dashboard · 21 ต.ค. 69) — ค่าเต็มอยู่ที่ data-value
+  //   เดิมวัดการ์ดลูกค้าทั้งเครือ ซึ่งเอาออกแล้ว (นับลูกค้าที่เกิดหลังปิดการขาย ได้ 0 ทั้งที่กราฟมีลีดหลายสิบ)
+  const kpiLocator = page.locator("[data-kpi='leads'] [data-value]");
+  await expect(kpiLocator).not.toHaveAttribute("data-value", "", { timeout: 30_000 });
+  const before = ((await kpiLocator.getAttribute("data-value")) ?? "");
   console.log(`[realtime] ตัวเลขก่อนดีลเลอร์เพิ่มลูกค้า: "${before.replace(/\n/g, " | ")}"`);
 
   // ให้ RYG เพิ่มลูกค้าใหม่จริงผ่านช่องทางที่แอปใช้จริง (RPC atomic เดียวกับที่ฟอร์มเรียก) —
@@ -55,18 +55,15 @@ test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเ
   // เพิ่มทีละ 3 ราย ไม่ใช่ 1: การ์ดนี้นับ "ลูกค้าทั้งเครือ" = ยอดรวมทั้งระบบ ซึ่งสเปกอื่นที่รันขนานกัน
   // ก็ลบลูกค้าทดสอบของตัวเองอยู่เหมือนกัน · ถ้าเราเพิ่ม 1 แล้วบังเอิญมีคนลบ 1 พร้อมกัน ตัวเลขจะเท่าเดิม
   // → เทสต์สรุปว่า "realtime ไม่ทำงาน" ทั้งที่ทำงานปกติ (เจอจริงตอนรันชุดเต็ม 6 ส.ค. 69)
+  // เพิ่มลีด 3 ราย (ไม่ใช่ 1) — ข้อทดสอบอื่นที่รันขนานกันลบลีดของตัวเองอยู่ ยอดรวมทั้งเครืออาจวนกลับมาเท่าเดิมพอดี
   const sb = await db(RYG);
   for (let n = 1; n <= 3; n++) {
-    const { error } = await sb.rpc("upsert_customer_for_company", {
-      p_dealer: "RYG",
-      p_payload: {
-        name: `คุณเรียลไทม์ ${n}`, company: tg(`ลูกค้าเรียลไทม์-${n}`), email: "", phone: "",
-        province: "ระยอง", category: "โกดังสำเร็จรูป", status: "active",
-        projects: 0, join_date: new Date().toISOString().slice(0, 10), owner: "ทดสอบ",
-        initials: "RT", color: "#003366",
-      },
+    const เลข = 979_300_000 + (Date.now() % 90_000) * 10 + n;
+    const { error } = await sb.from("leads").insert({
+      id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: tg(`ลีดเรียลไทม์-${n}`), name: `คุณเรียลไทม์ ${n}`,
+      phone: `000000${String(n).padStart(4, "0")}`, province: "ระยอง", status: "WAITING",
     });
-    if (error) throw new Error(`สร้างลูกค้าทดสอบรายที่ ${n} ไม่สำเร็จ: ${error.message}`);
+    if (error) throw new Error(`สร้างลีดทดสอบรายที่ ${n} ไม่สำเร็จ: ${error.message}`);
   }
   const insertedAt = Date.now();
 
@@ -77,7 +74,7 @@ test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเ
   // จึงรอได้ถึง 45 วินาที เพื่อครอบคลุมทั้งสองทาง (ถ้าเลยนี้ = ค้างจริง ผู้ใช้ต้องรีเฟรชเอง)
   let changedAfterMs: number | null = null;
   for (let i = 0; i < 90; i++) {
-    const now = (await kpiLocator.innerText()).trim();
+    const now = ((await kpiLocator.getAttribute("data-value")) ?? "");
     if (now !== before) { changedAfterMs = Date.now() - insertedAt; break; }
     await page.waitForTimeout(500);
   }
@@ -89,12 +86,14 @@ test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเ
   }
 
   // ── ตัวเลขไม่ขยับ: ต้องแยกให้ออกว่า "หน้าจอค้าง" หรือ "ตัวเลขบังเอิญกลับมาเท่าเดิม" ──
-  // การ์ดนี้นับลูกค้าทั้งเครือ = ยอดรวมทั้งระบบ · ตอนรันชุดเต็ม สเปกอื่นทั้งเพิ่มและลบลูกค้าทดสอบพร้อมกัน
+  // การ์ดนี้นับลีดใหม่ทั้งเครือ = ยอดรวมทั้งระบบ · ตอนรันชุดเต็ม สเปกอื่นทั้งเพิ่มและลบลูกค้าทดสอบพร้อมกัน
   // ยอดรวมจึงกลับมาเท่าค่าเดิมได้จริง ๆ ทั้งที่หน้าจออัปเดตปกติ — ถ้าไม่แยก จะสรุปผิดว่า realtime พัง
   const hqSb = await db(ADMIN);
-  const { count: dbNow } = await hqSb.from("customers").select("id", { count: "exact", head: true });
-  const uiNow = (await kpiLocator.innerText()).trim();
-  const uiNum = Number((uiNow.match(/\d[\d,]*/)?.[0] ?? "").replace(/,/g, ""));
+  const ปีนี้ = `${new Date().getFullYear()}-01-01`, วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const { count: dbNow } = await hqSb.from("leads").select("id", { count: "exact", head: true })
+    .neq("dealer_code", "HQ").gte("created_date", ปีนี้).lte("created_date", วันนี้);
+  const uiNow = ((await kpiLocator.getAttribute("data-value")) ?? "");
+  const uiNum = Number(uiNow);
   console.log(`[realtime] ตัวเลขไม่ขยับใน 45 วินาที · บนจอ=${uiNum} · ในฐานข้อมูลจริง=${dbNow} · การเชื่อมต่อ=[${wsLog.join(",") || "ไม่มีการเชื่อมต่อเลย"}] · คำตอบตอนสมัคร=[${joinReplies.join(",") || "ไม่มี"}] · สัญญาณข้อมูลใหม่ที่ได้รับ=${changeFrames} · ข้อความการ์ด="${uiNow.replace(/\n/g, " | ")}"`);
 
   // จอตรงกับฐานข้อมูล = หน้าจอไม่ได้ค้าง แค่ยอดรวมวนกลับมาเท่าเดิมพอดีจากสเปกอื่นที่ลบข้อมูลพร้อมกัน

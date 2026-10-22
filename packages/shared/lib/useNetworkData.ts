@@ -6,6 +6,7 @@
 // → ดีลเลอร์สร้าง/แก้ใบเสนอราคา แล้ว HQ เห็นทันที (dedup ด้วยเลขที่/ชื่อ · live ทับ seed)
 import { useMemo, useEffect, useState } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
+import { ขั้นของลีด } from "./leadStage";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
   dealerDetails, fmtISOToThai, hqAllQuotations, hqAllCustomers,
@@ -395,10 +396,7 @@ export function useNetworkCustomersForDealer(code: string): HQCustomer[] {
 }
 
 // ─── รายละเอียดดีลเลอร์ (เจาะรายสาขา) — CNX = ข้อมูลสด · สาขาอื่น = seed ────────────
-const LEAD_TO_ITEM: Record<LeadStatus, DealerLeadItem["status"]> = {
-  WAITING: "contacted", BULLET: "contacted", HQ_PRICING: "contacted", HQ_QUOTED: "contacted", QUOTED: "quoted", FOLLOWUP: "quoted", NEGO: "quoted", PAID: "won", CANCELLED: "lost",
-};
-const LEAD_PROGRESS: Record<LeadStatus, number> = { WAITING: 15, BULLET: 30, HQ_PRICING: 40, HQ_QUOTED: 45, QUOTED: 50, FOLLOWUP: 65, NEGO: 80, PAID: 100, CANCELLED: 0 };
+// ขั้นของลีดมาจากตัวแปลงกลาง lib/leadStage.ts (รอบ 4) — ตาราง LEAD_TO_ITEM / LEAD_PROGRESS ที่เขียนเองเอาออก
 const TH_MO = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 export function useNetworkDealerDetail(code: string): DealerDetail {
@@ -435,12 +433,11 @@ export function useNetworkDealerDetail(code: string): DealerDetail {
     }));
     const leadItems: DealerLeadItem[] = mine.map(l => ({
       id: l.id, name: l.company || l.name, province: l.province, product: "", // ไม่แสดงแม่แบบของลูกค้าเป้าหมาย
-      valueNum: มูลค่าลีด(l), status: LEAD_TO_ITEM[l.status], assignedAt: l.createdAt ?? "—",
+      valueNum: มูลค่าลีด(l), assignedAt: l.createdAt ?? "—",
+      stage: ขั้นของลีด(l.status, myQuotes.some(q => q.dealId === l.numId && q.status === "draft")),
     }));
-    const projects: DealerProjectItem[] = mine.filter(l => l.status !== "CANCELLED").map(l => ({
-      id: l.id, name: l.company || l.name, product: "", valueNum: มูลค่าลีด(l),
-      progress: LEAD_PROGRESS[l.status], status: l.status === "PAID" ? "completed" : "in_progress",
-    }));
+    // แท็บ "โอกาสการขาย" (มูลค่า + % ความคืบหน้า) เอาออกจากหน้ารายละเอียดดีลเลอร์ (รอบ 4 · ไม่มีตัวเลขยอดขาย)
+    const projects: DealerProjectItem[] = [];
     // ยอดขายรายเดือน (พันบาท) จากใบเสนอราคาที่ปิดได้ของสาขานี้ · แสดง ม.ค.–มิ.ย. (mock วันนี้ = มิ.ย.)
     const byMonth = new Map<number, number>();
     myQuotes.forEach(q => {

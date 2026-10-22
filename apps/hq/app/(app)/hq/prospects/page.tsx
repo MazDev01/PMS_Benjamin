@@ -1,10 +1,10 @@
 "use client";
 
-// ─── HQ · ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นดีลเลอร์) ────────────────────
+// ─── HQ · ผู้สนใจของสำนักงานใหญ่ (ผู้สนใจเป็นดีลเลอร์) ────────────────────
 //
 // บอสสั่ง 14 ก.ย. 69:
-//   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นดีลเลอร์"
-//   "ทำให้ ลูกค้าเป้าหมาย ออกแบบการทำออกมาใช้งานให้เสร็จ" · "ให้มันทำงานแบบเดียวกับดีลเลอร์"
+//   "เพิ่มโมดูลผู้สนใจของทางฝั่ง HQ และเมื่อสำเร็จจากผู้สนใจจะกลายเป็นดีลเลอร์"
+//   "ทำให้ ผู้สนใจ ออกแบบการทำออกมาใช้งานให้เสร็จ" · "ให้มันทำงานแบบเดียวกับดีลเลอร์"
 //
 // ทำงานแบบเดียวกับลูกค้าเป้าหมายของดีลเลอร์:
 //   กดแถว → แผงกลางจอ 820px หัวน้ำเงิน + ปุ่มลัด + แท็บ
@@ -24,8 +24,9 @@ import {
 } from "lucide-react";
 import {
   prospects as prospectsRepo, dealers as dealersRepo, proposals as proposalsRepo, prospectActivities as activitiesRepo,
-  users as usersRepo, territories as territoriesRepo,
+  users as usersRepo, territories as territoriesRepo, metrics as metricsRepo,
 } from "@pms/shared/lib/data";
+import type { HqOverview } from "@pms/shared/lib/hqOverview";
 import { invalidateCache } from "@pms/shared/lib/data/dedupe";
 import type { DealerPackageProposal, DealerProspect, DealerProspectStatus, DealerRow, ProspectActivity, SystemUser } from "@pms/shared/lib/data/types";
 import {
@@ -94,6 +95,14 @@ export default function HQProspectsPage() {
   const [ผู้ใช้HQ, setผู้ใช้HQ] = useState<SystemUser[]>([]);
 
   const [q, setQ] = useState("");
+  // แถบสรุปย้ายมาจากแดชบอร์ด (บอสสั่ง 21 ต.ค. 69) — ผู้สนใจกำลังคุย · จังหวัดที่มีลูกค้าเป้าหมายแต่ยังไม่มีดีลเลอร์ (hq_overview · ใบ 0209)
+  const [ภาพรวม, setภาพรวม] = useState<HqOverview["recruit"] | null>(null);
+  useEffect(() => {
+    metricsRepo.hqOverview().then(o => setภาพรวม(o.recruit)).catch(e => logRepoRead("metrics.hqOverview", e));
+    // ?q= (กิจกรรมล่าสุดของแดชบอร์ด) = ค้นชื่อผู้สนใจ
+    const คำ = new URLSearchParams(window.location.search).get("q");
+    if (คำ) { setQ(คำ); window.history.replaceState(null, "", "/hq/prospects"); }
+  }, []);
   const [statusFilter, setStatusFilter] = useState<ตัวกรองสถานะ>("all");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [page, setPage] = useState(0);
@@ -142,7 +151,7 @@ export default function HQProspectsPage() {
       setLoadErr("");
     } catch (e) {
       // ห้ามปล่อยตารางว่างเงียบ ๆ — ผู้ใช้จะนึกว่ายังไม่มีข้อมูล แล้วกรอกซ้ำ
-      setLoadErr(friendlyError(e, "โหลดลูกค้าเป้าหมายไม่สำเร็จ"));
+      setLoadErr(friendlyError(e, "โหลดผู้สนใจไม่สำเร็จ"));
     } finally {
       setLoaded(true);
     }
@@ -248,7 +257,7 @@ export default function HQProspectsPage() {
       else แจ้งพลาด(`“${ราย.name}” เป็นดีลเลอร์แล้ว แต่ไม่พบดีลเลอร์ที่ผูกไว้ (อาจถูกลบไปแล้ว)`);
     }
     else if (ราย) เปิดแผง(ราย);
-    else if (!loadErr) แจ้งพลาด("ไม่พบลูกค้าเป้าหมายรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
+    else if (!loadErr) แจ้งพลาด("ไม่พบผู้สนใจรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำครั้งเดียวตอนโหลดเสร็จ ไม่ต้องทำซ้ำเมื่อรายการเปลี่ยน
   }, [loaded]);
 
@@ -314,7 +323,7 @@ export default function HQProspectsPage() {
       if (เพิ่มใหม่) {
         const saved = await prospectsRepo.create(row);
         setList(l => [saved, ...l]);
-        logAudit("เพิ่มลูกค้าเป้าหมาย (HQ)", saved.name);
+        logAudit("เพิ่มผู้สนใจเป็นดีลเลอร์", saved.name);
         แจ้งสำเร็จ(`เพิ่ม “${saved.name}” แล้ว — เริ่มจากบันทึกการติดต่อครั้งแรก`);
         setเพิ่มใหม่(false);
         เปิดแผง(saved, "tasks");   // เพิ่มเสร็จพาเข้างานทันที แบบเดียวกับฝั่งดีลเลอร์
@@ -322,7 +331,7 @@ export default function HQProspectsPage() {
         const saved = await prospectsRepo.update({ ...row, id: รายที่เปิด.id, createdAt: รายที่เปิด.createdAt });
         setList(l => l.map(x => x.id === saved.id ? saved : x));
         setรายที่เปิด(saved);
-        logAudit("แก้ไขลูกค้าเป้าหมาย (HQ)", saved.name);
+        logAudit("แก้ไขผู้สนใจเป็นดีลเลอร์", saved.name);
         แจ้งสำเร็จ("บันทึกข้อมูลแล้ว");
       }
     } catch (e) {
@@ -342,7 +351,7 @@ export default function HQProspectsPage() {
       const saved = await prospectsRepo.update({ ...row, id: ราย.id, createdAt: ราย.createdAt });
       setList(l => l.map(x => x.id === saved.id ? saved : x));
       if (เปิดอยู่Ref.current === saved.id) setรายที่เปิด(saved);
-      logAudit("เปลี่ยนขั้นลูกค้าเป้าหมาย (HQ)", `${saved.name} · ${prospectStatusLabel[ราย.status]} → ${prospectStatusLabel[saved.status]}`);
+      logAudit("เปลี่ยนขั้นผู้สนใจเป็นดีลเลอร์", `${saved.name} · ${prospectStatusLabel[ราย.status]} → ${prospectStatusLabel[saved.status]}`);
       void โหลดของราย(saved.id);
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "เปลี่ยนขั้นไม่สำเร็จ"));
@@ -353,17 +362,17 @@ export default function HQProspectsPage() {
 
   async function ลบ(p: DealerProspect) {
     if (!(await ยืนยัน({
-      หัวข้อ: `ลบ “${p.name}” ออกจากลูกค้าเป้าหมาย ?`,
+      หัวข้อ: `ลบ “${p.name}” ออกจากผู้สนใจ ?`,
       // ลบรายที่เป็นดีลเลอร์แล้ว = ลบแค่ประวัติการติดตาม ดีลเลอร์และบัญชีเข้าระบบยังอยู่ครบ — ต้องบอกให้ชัด
       รายละเอียด: p.status === "won" && p.dealerCode
         ? `ดีลเลอร์ ${p.dealerCode} ที่สร้างไปแล้วจะยังอยู่ครบ — ลบเฉพาะประวัติการติดตามรายนี้ · ย้อนกลับไม่ได้`
         : "ใบค่าแฟรนไชส์และประวัติของรายนี้จะหายไปด้วย · ย้อนกลับไม่ได้",
-      ปุ่มตกลง: "ลบลูกค้าเป้าหมาย", อันตราย: true,
+      ปุ่มตกลง: "ลบผู้สนใจ", อันตราย: true,
     }))) return;
     try {
       await prospectsRepo.remove(p.id);
       setList(l => l.filter(x => x.id !== p.id));
-      logAudit("ลบลูกค้าเป้าหมาย (HQ)", p.name);
+      logAudit("ลบผู้สนใจเป็นดีลเลอร์", p.name);
       ปิดแผงทันที();
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "ลบไม่สำเร็จ"));
@@ -430,7 +439,7 @@ export default function HQProspectsPage() {
         } else {
           const saved = await prospectsRepo.update({ ...row, id: converting.id, createdAt: converting.createdAt });
           setList(l => l.map(x => x.id === saved.id ? saved : x));
-          logAudit("ลูกค้าเป้าหมายเป็นดีลเลอร์แล้ว", `#${saved.id} → ${code} · ${saved.name}`);
+          logAudit("ผู้สนใจเป็นดีลเลอร์แล้ว", `#${saved.id} → ${code} · ${saved.name}`);
         }
         แจ้งสำเร็จ(`ผูก “${converting.name}” กับดีลเลอร์ ${code} แล้ว — ย้ายไปอยู่หน้าดีลเลอร์`);
         setConverting(null); ปิดแผงทันที();
@@ -482,7 +491,7 @@ export default function HQProspectsPage() {
         setList(l => l.map(x => x.id === saved.id ? saved : x));
         invalidateCache("dealers.list");
         โหลดดีลเลอร์();
-        logAudit("สร้างดีลเลอร์", `${code} · ${แถวใหม่.name} (จากลูกค้าเป้าหมาย #${saved.id})`);
+        logAudit("สร้างดีลเลอร์", `${code} · ${แถวใหม่.name} (จากผู้สนใจ #${saved.id})`);
         setCreds({ name: แถวใหม่.name, code, email: อีเมลเดโม, password: DEMO_PASSWORD });
         setConverting(null); ปิดแผงทันที();
       } catch (e) {
@@ -511,7 +520,7 @@ export default function HQProspectsPage() {
     await โหลด();
     if (res.prospectLinked === false) {
       // สาขาถูกสร้างแล้วจริง (บัญชีใช้ได้) แต่ผูกกลับมาที่รายนี้ไม่สำเร็จ — บอกทางแก้ที่ทำได้เอง
-      แจ้งพลาด(`สร้างดีลเลอร์ ${code} แล้ว แต่ผูกกับลูกค้าเป้าหมายรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
+      แจ้งพลาด(`สร้างดีลเลอร์ ${code} แล้ว แต่ผูกกับผู้สนใจรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
     }
     setCreds({ name: ฟอร์ม.name.trim(), code, email: res.email, password: res.password });
     setConverting(null); ปิดแผงทันที();
@@ -541,7 +550,7 @@ export default function HQProspectsPage() {
           border: `1px ${ร่าง.logo ? "solid" : "dashed"} #e5e7eb`, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {ร่าง.logo ? <img src={ร่าง.logo} alt="รูปประจำตัว" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <User size={22} color="#9ca3af" />}
         </span>
-        <input ref={รูปRef} type="file" accept="image/*" aria-label="อัปโหลดรูปลูกค้าเป้าหมาย" style={{ display: "none" }} onChange={e => void อัปโหลดรูป(e)} />
+        <input ref={รูปRef} type="file" accept="image/*" aria-label="อัปโหลดรูปผู้สนใจ" style={{ display: "none" }} onChange={e => void อัปโหลดรูป(e)} />
         <button type="button" onClick={() => รูปRef.current?.click()} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
           <Paperclip size={12} /> {ร่าง.logo ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
         </button>
@@ -650,7 +659,7 @@ export default function HQProspectsPage() {
       <TopbarActions>
         <ExportMenu
           filename="hq-prospects"
-          title="ลูกค้าเป้าหมาย (HQ)"
+          title="ผู้สนใจเป็นดีลเลอร์"
           headers={["ชื่อ", "ชื่อบนโซเชียล", "เบอร์โทร", "อีเมล", "ภาค", "จังหวัด", "ประเภทธุรกิจ", "ช่องทาง", "เริ่มติดต่อ", "ติดตามครั้งถัดไป", "สถานะ", "เหตุผลที่ไม่สำเร็จ", "ผู้ดูแล", "รหัสดีลเลอร์", "หมายเหตุ"]}
           rows={filtered.map(p => [
             p.name, p.social ?? "", p.phone ?? "", p.email ?? "", p.region ?? "", p.province ?? "", p.businessType ?? "", p.channel ?? "",
@@ -660,14 +669,14 @@ export default function HQProspectsPage() {
         />
         {จัดการได้ && (
           <button className="btn btn-primary btn-sm" onClick={เปิดเพิ่ม}>
-            <UserPlus size={14} /> เพิ่มลูกค้าเป้าหมาย
+            <UserPlus size={14} /> เพิ่มผู้สนใจ
           </button>
         )}
       </TopbarActions>
 
       {/* สรุป — 4 ใบตามกติกากลาง (globals.css: ทุกหน้าใช้ KPI 4 ใบเท่ากัน ห้ามเพิ่มเป็น 5+) */}
       <div className="kpi-bar">
-        <div className="kpi"><div className="kpi-icon kpi-navy"><Users size={16} /></div><div><div className="kpi-val">{สรุป.ทั้งหมด.toLocaleString()}</div><div className="kpi-label">ลูกค้าเป้าหมายที่แสดงอยู่</div></div></div>
+        <div className="kpi"><div className="kpi-icon kpi-navy"><Users size={16} /></div><div><div className="kpi-val">{สรุป.ทั้งหมด.toLocaleString()}</div><div className="kpi-label">ผู้สนใจที่แสดงอยู่</div></div></div>
         <div className="kpi"><div className="kpi-icon kpi-navy"><AlarmClock size={16} /></div><div><div className="kpi-val">{สรุป.ถึงกำหนด.toLocaleString()}</div><div className="kpi-label">ถึงกำหนดติดตาม</div></div></div>
         {/* "เป็นดีลเลอร์แล้ว" ไม่อยู่หน้านี้แล้ว (บอสสั่ง 15 ก.ย. 69) → การ์ดใบที่ 3 นับรายที่ยังติดตามอยู่แทน */}
         <div className="kpi"><div className="kpi-icon kpi-navy"><Store size={16} /></div><div><div className="kpi-val">{สรุป.กำลังติดตาม.toLocaleString()}</div><div className="kpi-label">กำลังติดตาม</div></div></div>
@@ -675,11 +684,27 @@ export default function HQProspectsPage() {
         <div className="kpi"><div className="kpi-icon kpi-green"><Percent size={16} /></div><div><div className="kpi-val">{อัตราสำเร็จ === null ? "—" : `${อัตราสำเร็จ}%`}</div><div className="kpi-label">อัตราสำเร็จ (จากรายที่จบแล้ว)</div></div></div>
       </div>
 
+      {ภาพรวม && (() => {
+        const st = ภาพรวม.stages;
+        const กำลังคุย = st.new + st.contacted + st.profile_sent + st.meeting + st.considering;
+        return (
+          <div className="card" data-testid="prospect-overview" style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 12, fontSize: "0.8rem", color: "#374151" }}>
+            <span>ผู้สนใจกำลังคุย <b data-testid="prospect-talking" data-value={กำลังคุย} style={{ color: "#003366" }}>{กำลังคุย.toLocaleString("th-TH")}</b> ราย <span style={{ color: "#8a929c" }}>(ทั้งหมด ไม่ขึ้นกับตัวกรอง)</span></span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <MapPin size={13} color="#b45309" /> จังหวัดที่มีลูกค้าเป้าหมายแต่ยังไม่มีดีลเลอร์:
+              {ภาพรวม.provincesNoDealer.length === 0
+                ? <b data-testid="provinces-no-dealer" style={{ color: "#059669" }}>ไม่มี</b>
+                : <b data-testid="provinces-no-dealer" style={{ color: "#b45309" }}>{ภาพรวม.provincesNoDealer.map(x => `${x.province} (${x.leads})`).join(" · ")}</b>}
+            </span>
+          </div>
+        );
+      })()}
+
       {/* Toolbar */}
       <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 16 }}>
         <div className="search-bar">
           <Search size={14} color="#9ca3af" />
-          <input aria-label="ค้นหาลูกค้าเป้าหมาย" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาชื่อ / เบอร์โทร / จังหวัด / ประเภทธุรกิจ..." />
+          <input aria-label="ค้นหาผู้สนใจ" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาชื่อ / เบอร์โทร / จังหวัด / ประเภทธุรกิจ..." />
           {q && <button aria-label="ล้างคำค้น" onClick={() => { setQ(""); setPage(0); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
         <div style={{ flex: 1 }} />
@@ -732,7 +757,7 @@ export default function HQProspectsPage() {
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={10} style={{ textAlign: "center", padding: "36px 14px", color: "#9ca3af", fontSize: "0.8rem" }}>
-                  {!loaded ? "กำลังโหลด…" : list.length === 0 ? "ยังไม่มีลูกค้าเป้าหมาย" : "ไม่พบลูกค้าเป้าหมายตามตัวกรองที่เลือก"}
+                  {!loaded ? "กำลังโหลด…" : list.length === 0 ? "ยังไม่มีผู้สนใจ" : "ไม่พบผู้สนใจตามตัวกรองที่เลือก"}
                 </td></tr>
               )}
               {pageSlice(filtered, page).map((p, i) => {
@@ -742,7 +767,7 @@ export default function HQProspectsPage() {
                 const pct = ความคืบหน้า(p.status);
                 // คีย์ใช้ p.id ได้: id ไม่ซ้ำทั้งระบบ (identity เดียวทั้งตาราง · dealerCode ในแถวนี้คือดีลเลอร์ที่รายนั้นกลายมาเป็น ไม่ใช่สาขาเจ้าของ)
                 return (
-                  <ClickableRow key={p.id} onActivate={() => เปิดแผง(p)} label={`เปิดรายละเอียดลูกค้าเป้าหมาย ${p.name}`}
+                  <ClickableRow key={p.id} onActivate={() => เปิดแผง(p)} label={`เปิดรายละเอียดผู้สนใจ ${p.name}`}
                     style={{ background: รายที่เปิด?.id === p.id ? "#f0f6ff" : undefined }}>
                     {/* ลำดับต่อเนื่องข้ามหน้า — สูตรเดียวกับตารางดีลเลอร์ */}
                     <td style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>{Math.min(page, pageCountOf(filtered.length) - 1) * ROWS_PER_PAGE + i + 1}</td>
@@ -789,13 +814,13 @@ export default function HQProspectsPage() {
         <TablePagination page={page} total={filtered.length} onPage={setPage} unit="ราย" />
       </div>
 
-      {/* ── เพิ่มลูกค้าเป้าหมาย (หน้าต่างเล็ก) — เพิ่มเสร็จเปิดแผงงานของรายนั้นให้ต่อเลย ── */}
+      {/* ── เพิ่มผู้สนใจ (หน้าต่างเล็ก) — เพิ่มเสร็จเปิดแผงงานของรายนั้นให้ต่อเลย ── */}
       {เพิ่มใหม่ && (
         <div onClick={() => !saving && setเพิ่มใหม่(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <ModalCard onClose={() => !saving && setเพิ่มใหม่(false)} label="ข้อมูลลูกค้าเป้าหมาย" className="modal-fit"
+          <ModalCard onClose={() => !saving && setเพิ่มใหม่(false)} label="ข้อมูลผู้สนใจ" className="modal-fit"
             style={{ background: "#fff", borderRadius: 16, width: 620, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "#2D2D2D" }}>เพิ่มลูกค้าเป้าหมาย</h2>
+              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "#2D2D2D" }}>เพิ่มผู้สนใจ</h2>
               <button aria-label="ปิด" onClick={() => !saving && setเพิ่มใหม่(false)} style={{ background: "none", border: "none", cursor: "pointer", color: MUTED, display: "flex" }}><X size={18} /></button>
             </div>
             <div className="modal-fit-body" style={{ padding: "16px 20px" }}>
@@ -805,7 +830,7 @@ export default function HQProspectsPage() {
                 <button className="btn btn-secondary btn-md" disabled={saving} onClick={() => setเพิ่มใหม่(false)}>ยกเลิก</button>
                 <button className="btn btn-primary btn-md" disabled={saving} onClick={() => void บันทึก()}
                   style={saving ? { opacity: .6, cursor: "not-allowed" } : undefined}>
-                  {saving ? "กำลังบันทึก…" : "เพิ่มลูกค้าเป้าหมาย"}
+                  {saving ? "กำลังบันทึก…" : "เพิ่มผู้สนใจ"}
                 </button>
               </div>
             </div>
@@ -825,7 +850,7 @@ export default function HQProspectsPage() {
         const อักษรย่อ = ราย.name.replace(/บจ\.|หจก\.|บริษัท|คุณ/g, "").trim().slice(0, 2) || "—";
         return (
           <div onClick={ปิดแผง} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
-            <ModalCard onClose={ปิดแผง} label="ข้อมูลลูกค้าเป้าหมาย"
+            <ModalCard onClose={ปิดแผง} label="ข้อมูลผู้สนใจ"
               style={{ width: 820, maxWidth: "100%", height: "min(920px, calc(100vh - 24px))", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {/* หัวน้ำเงิน + ปุ่มลัด */}
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>
@@ -852,7 +877,7 @@ export default function HQProspectsPage() {
                       <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ดีลเลอร์ {ราย.dealerCode}</Link>
                     )}
                     {จัดการได้ && (
-                      <button onClick={() => void ลบ(ราย)} title="ลบลูกค้าเป้าหมาย" aria-label="ลบลูกค้าเป้าหมาย" style={{ ...qa, width: 30, padding: 0, justifyContent: "center", color: "#fecaca" }}><Trash2 size={14} /></button>
+                      <button onClick={() => void ลบ(ราย)} title="ลบผู้สนใจ" aria-label="ลบผู้สนใจ" style={{ ...qa, width: 30, padding: 0, justifyContent: "center", color: "#fecaca" }}><Trash2 size={14} /></button>
                     )}
                     <button onClick={ปิดแผง} title="ปิด" aria-label="ปิด" style={{ ...qa, width: 30, padding: 0, justifyContent: "center" }}><X size={15} /></button>
                   </div>
@@ -870,7 +895,7 @@ export default function HQProspectsPage() {
               </div>
 
               {/* แท็บ */}
-              <div className="tab-bar" role="tablist" aria-label="ส่วนของลูกค้าเป้าหมาย" style={{ padding: "0 12px", flexShrink: 0, background: "#fff" }}>
+              <div className="tab-bar" role="tablist" aria-label="ส่วนของผู้สนใจ" style={{ padding: "0 12px", flexShrink: 0, background: "#fff" }}>
                 {แท็บทั้งหมด.map(t => (
                   <button key={t.key} type="button" role="tab" aria-selected={แท็บที่เปิด === t.key}
                     className={`tab-item${แท็บที่เปิด === t.key ? " active" : ""}`} onClick={() => setแท็บที่เปิด(t.key)}>

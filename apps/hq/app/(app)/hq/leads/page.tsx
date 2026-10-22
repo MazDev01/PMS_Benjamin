@@ -45,9 +45,10 @@ import {
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { leadStatusLabel, leadStatusColor, QUOTED_UP, LEAD_STATUS_ORDER, type LeadStatus } from "@pms/shared/lib/mock";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
-import { fmtBaht, pctOrNull, fmtFull, formatPhone } from "@pms/shared/lib/format";
+import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
 import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
+import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 
 // ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
 //   มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — ยังไม่มีใบ = "—"
@@ -248,16 +249,15 @@ export default function HQLeadsPage() {
     if (sumBase) { // supabase: total/won/lost/newThis จาก DB
       const byS = new Map(sumBase.byStatus.map(r => [r.status, r.count]));
       const total = sumBase.byStatus.reduce((s, r) => s + r.count, 0);
-      const won = byS.get("PAID") ?? 0, lost = byS.get("CANCELLED") ?? 0, closed = won + lost;
+      const won = byS.get("PAID") ?? 0, lost = byS.get("CANCELLED") ?? 0;
       const newThis = sumBase.byMonth.filter(r => r.m === lastM).reduce((s, r) => s + r.created, 0);
-      return { total, followUp, newThis, conv: pctOrNull(won, closed) };
+      return { total, followUp, newThis, conv: อัตราปิดการขาย(won, lost) };
     }
     const total = kpiBase.length;
     const won = kpiBase.filter(l => l.status === "PAID").length;
     const lost = kpiBase.filter(l => l.status === "CANCELLED").length;
-    const closed = won + lost;
     const newThis = kpiBase.filter(l => { const d = parseThaiDate(l.createdAt ?? ""); return d && d.getMonth() === lastM; }).length;
-    return { total, followUp, newThis, conv: pctOrNull(won, closed) };
+    return { total, followUp, newThis, conv: อัตราปิดการขาย(won, lost) };
   }, [sumBase, followUpPage, kpiBase, timeRange.end, rulesOf]);
 
   // ── Section 1 · ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา รายดีลเลอร์ ─────────────────────────────
@@ -312,7 +312,7 @@ export default function HQLeadsPage() {
     { label: "ลูกค้าเป้าหมายทั้งหมด", value: `${kpis.total}`, sub: scopeLabel, Icon: Users, color: "#2563a8", on: status === "ALL", onClick: () => setStatus("ALL") },
     { label: "ลูกค้าเป้าหมายใหม่ (เดือนนี้)", value: `${kpis.newThis}`, sub: "รายการ", Icon: PhoneCall, color: "#7c3aed", on: false, onClick: () => setStatus("ALL") },
     { label: "ต้องติดตามด่วน", value: `${kpis.followUp}`, sub: followUpSub, Icon: AlarmClock, color: "#EA580C", on: overdueOnly, onClick: () => { setStatus("ALL"); setOverdueOnly(v => !v); } },
-    { label: "อัตราแปลงเป็นลูกค้า", value: kpis.conv === null ? "—" : `${kpis.conv}%`, sub: "ปิดได้ / ปิดทั้งหมด", Icon: Percent, color: "#059669", on: false, onClick: () => setStatus("ALL") },
+    { label: ชื่ออัตราปิดการขาย, value: kpis.conv === null ? "—" : `${kpis.conv}%`, sub: คำอธิบายอัตราปิดการขาย, Icon: Percent, color: "#059669", on: false, onClick: () => setStatus("ALL") },
   ];
 
   // ── Section 7 · แนวโน้มรายเดือน — 4 เส้น: ลูกค้าเป้าหมายใหม่ · ใบเสนอราคา · ปิดได้ · ปิดไม่สำเร็จ ──

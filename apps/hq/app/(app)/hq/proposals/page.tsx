@@ -1,28 +1,21 @@
 "use client";
 
-// ─── HQ · ใบค่าแฟรนไชส์ (หน้ารวมทุกลูกค้าเป้าหมาย) ─────────────────────────────
+// ─── HQ · ใบค่าแฟรนไชส์ (หน้ารวมทุกผู้สนใจ) ─────────────────────────────
 //
 // บอสสั่ง 14 ก.ย. 69:
 //   "ทำหน้า ใบค่าแฟรนไชส์ ด้วย"
 //   "ให้มีการแสดงในหน้าเดียวแบบดีลเลอร์" · "ใบค่าแฟรนไชส์มันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
 //   → แบบเดียวกับหน้าใบเสนอราคาของดีลเลอร์: ทุกแถวมีปุ่ม ส่ง/ดู/พิมพ์/แก้ไข/ลบ · ดูรายละเอียดเป็นแผงกลางจอ
-//     เปลี่ยนสถานะได้ในแผงเลย · ออกใบใหม่เลือกลูกค้าเป้าหมายในฟอร์มเดียว (ไม่ต้องเปิดต่อหลายชั้น)
+//     เปลี่ยนสถานะได้ในแผงเลย · ออกใบใหม่เลือกผู้สนใจในฟอร์มเดียว (ไม่ต้องเปิดต่อหลายชั้น)
 //
-// ⚠️ ห้ามเขียนฟอร์ม/คำสั่งซ้ำในหน้านี้ — ใช้ ProposalFormModal + useProposalActions ชุดเดียวกับหน้าลูกค้าเป้าหมาย
+// ⚠️ รอบ 4: หน้านี้ไม่มีฟอร์ม/คำสั่งเปลี่ยนสถานะแล้ว (อยู่แผงผู้สนใจ) · เดิม: ห้ามเขียนฟอร์ม/คำสั่งซ้ำในหน้านี้ — ใช้ ProposalFormModal + useProposalActions ชุดเดียวกับหน้าผู้สนใจ
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · ออกใบ/เปลี่ยนสถานะ = ผู้มีสิทธิ์จัดการดีลเลอร์ (RLS 0172 บังคับซ้ำ)
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  FileText, Send, CheckCircle2, Percent, Search, X, Plus, Eye, Printer, Pencil, Trash2, MapPin, ExternalLink, Coins, XCircle, CopyPlus,
-} from "lucide-react";
-import { proposals as proposalsRepo, prospects as prospectsRepo } from "@pms/shared/lib/data";
+import { FileText, Send, CheckCircle2, Percent, Search, X, Eye, Printer, MapPin, ExternalLink, Coins } from "lucide-react";
+import { proposals as proposalsRepo, prospects as prospectsRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
 import type { DealerPackage, DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
-import {
-  PACKAGE_ORDER, PROPOSAL_STATUS_ORDER, packageLabel, proposalStatusLabel, proposalStatusColor,
-  มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, ทำเวอร์ชันใหม่ได้,
-} from "@pms/shared/lib/dealerProposals";
-import { ยังติดตามอยู่ } from "@pms/shared/lib/dealerProspects";
-import { ProposalFormModal } from "@pms/shared/components/hq/ProposalFormModal";
+import { PACKAGE_ORDER, PROPOSAL_STATUS_ORDER, packageLabel, proposalStatusLabel, proposalStatusColor, มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว } from "@pms/shared/lib/dealerProposals";
 import { ProposalPaymentsBox } from "@pms/shared/components/hq/ProposalPaymentsBox";
 import { useProposalActions } from "@pms/shared/components/hq/useProposalActions";
 import { useRole } from "@pms/shared/context/RoleContext";
@@ -56,7 +49,7 @@ const ปุ่มปิดใช้: React.CSSProperties = { opacity: .35, curs
 export default function HQProposalsPage() {
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
-  const { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ } = useProposalActions();
+  const { พิมพ์ } = useProposalActions();
 
   const [ใบ, setใบ] = useState<DealerPackageProposal[]>([]);
   const [ราย, setราย] = useState<DealerProspect[]>([]);
@@ -66,10 +59,11 @@ export default function HQProposalsPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "expired" | DealerProposalStatus>("all");
   const [packageFilter, setPackageFilter] = useState<"all" | DealerPackage>("all");
+  // ?overdue=1 (แถว "วันนี้ต้องทำ" ของแดชบอร์ด) = เฉพาะใบค้างชำระ — รายการเลขใบมาจากตัวคำนวณเดียวกับแดชบอร์ด (hq_dashboard · ใบ 0235)
+  const [ค้างชำระ, setค้างชำระ] = useState<Set<number> | null>(null);
   const [page, setPage] = useState(0);
 
   const [ดูรหัส, setดูรหัส] = useState<number | null>(null);
-  const [ฟอร์ม, setฟอร์ม] = useState<{ editing: DealerPackageProposal | null; prospect: DealerProspect | null } | null>(null);
 
   const โหลด = useCallback(async () => {
     try {
@@ -88,7 +82,17 @@ export default function HQProposalsPage() {
   // มาจากกระดิ่ง "ใบค่าแฟรนไชส์เกินกำหนดชำระ" (ใบ 0231): ?open=เลขใบ = เปิดแผงของใบนั้น · อยู่หน้านี้อยู่แล้ว = ฟัง bpms:open-record
   useEffect(() => {
     const เปิด = (search: string) => {
-      const id = Number(new URLSearchParams(search).get("open"));
+      const u = new URLSearchParams(search);
+      // ?q= (กิจกรรมล่าสุดของแดชบอร์ด) = ค้นเลขที่ใบ · ?overdue=1 = เฉพาะใบค้างชำระ
+      if (u.get("q") || u.get("overdue")) {
+        window.history.replaceState(null, "", window.location.pathname);
+        if (u.get("q")) { setQ(u.get("q") ?? ""); setPage(0); }
+        if (u.get("overdue")) void metricsRepo.hqDashboard(APP_NOW_ISO, APP_NOW_ISO, null, APP_NOW_ISO)
+          .then(d => { setค้างชำระ(new Set(d.today.franchiseOverdue.ids)); setPage(0); })
+          .catch(e => setLoadErr(friendlyError(e, "โหลดรายการใบค้างชำระไม่สำเร็จ")));
+        return;
+      }
+      const id = Number(u.get("open"));
       if (!id) return;
       window.history.replaceState(null, "", window.location.pathname);
       setดูรหัส(id);
@@ -107,6 +111,7 @@ export default function HQProposalsPage() {
   const filtered = useMemo(() => {
     const คำ = q.trim().toLowerCase();
     return ใบ.filter(p => {
+      if (ค้างชำระ && !ค้างชำระ.has(p.id)) return false;
       if (statusFilter === "expired" ? !หมดอายุแล้ว(p, APP_NOW_ISO) : statusFilter !== "all" && p.status !== statusFilter) return false;
       if (packageFilter !== "all" && p.package !== packageFilter) return false;
       if (!คำ) return true;
@@ -114,7 +119,7 @@ export default function HQProposalsPage() {
       return [p.proposalNo, r?.name, r?.social, p.province, p.region, packageLabel[p.package]]
         .some(v => String(v ?? "").toLowerCase().includes(คำ));
     });
-  }, [ใบ, statusFilter, packageFilter, q, รายตามรหัส]);
+  }, [ใบ, statusFilter, packageFilter, q, รายตามรหัส, ค้างชำระ]);
 
   // การ์ดคิดจาก "ผลที่กรองอยู่" — ตรงกับตาราง · อัตราตอบรับคิดจากใบที่ได้คำตอบแล้วเท่านั้น (ยังไม่มี = "—")
   const สรุป = useMemo(() => {
@@ -128,69 +133,30 @@ export default function HQProposalsPage() {
     };
   }, [filtered]);
 
-  // ออกใบได้เฉพาะรายที่ยังติดตามอยู่ — รายที่เป็นดีลเลอร์แล้วหรือจบว่าไม่สำเร็จ ไม่มีเหตุให้เสนอแพ็กเกจอีก
-  const รายที่ออกใบได้ = useMemo(
-    () => ราย.filter(r => ยังติดตามอยู่(r.status)).sort((a, b) => a.name.localeCompare(b.name, "th")),
-    [ราย],
-  );
-
   const ใบที่ดู = ดูรหัส == null ? null : ใบ.find(p => p.id === ดูรหัส) ?? null;
   const รายของใบที่ดู = ใบที่ดู ? รายตามรหัส.get(ใบที่ดู.prospectId) ?? null : null;
 
   // ── คำสั่งในแถว / ในแผง ──
-  function แทนใบ(saved: DealerPackageProposal) {
-    setใบ(l => l.map(x => x.id === saved.id ? saved : x));
-  }
-  async function กดเปลี่ยนสถานะ(p: DealerPackageProposal, status: DealerProposalStatus) {
-    const r = รายตามรหัส.get(p.prospectId);
-    const saved = await เปลี่ยนสถานะ(p, status, r?.name ?? "");
-    if (saved) {
-      แทนใบ(saved);
-      // ส่งใบแล้ว ฐานข้อมูลอาจเลื่อนขั้นลูกค้าเป้าหมายให้ (นัดคุยแล้ว → รอตัดสินใจ) — ดึงรายชื่อใหม่ให้ตรงของจริง
-      prospectsRepo.list().then(setราย).catch(() => { /* ตารางใบยังถูกต้อง — ขั้นของรายค่อยตรงตอนโหลดหน้าครั้งถัดไป */ });
-    }
-  }
-  async function กดทำเวอร์ชันใหม่(p: DealerPackageProposal) {
-    const r = รายตามรหัส.get(p.prospectId);
-    const ใหม่ = await ทำเวอร์ชันใหม่(p, r?.name ?? "");
-    if (!ใหม่) return;
-    setใบ(l => [ใหม่, ...l]);
-    setดูรหัส(null);
-    กดแก้ไข(ใหม่);   // เปิดร่างเวอร์ชันใหม่ให้แก้ทันที
-  }
-  async function กดลบ(p: DealerPackageProposal) {
-    const r = รายตามรหัส.get(p.prospectId);
-    if (await ลบใบ(p, r?.name ?? "")) {
-      setใบ(l => l.filter(x => x.id !== p.id));
-      if (ดูรหัส === p.id) setดูรหัส(null);
-    }
-  }
+  // ส่ง/ตอบรับ/ปฏิเสธ/แก้/ทำเวอร์ชันใหม่/ลบ ย้ายไปแผงผู้สนใจที่เดียว (รอบ 4) — หน้านี้เหลือพิมพ์ + บันทึกการชำระ
   function กดพิมพ์(p: DealerPackageProposal) {
     const r = รายตามรหัส.get(p.prospectId);
     if (r) void พิมพ์(p, r);
   }
-  function กดแก้ไข(p: DealerPackageProposal) {
-    setฟอร์ม({ editing: p, prospect: รายตามรหัส.get(p.prospectId) ?? null });
-  }
-
   return (
     <div className="erp">
       <TopbarActions>
         <ExportMenu
           filename="hq-dealer-package-proposals"
           title="ใบค่าแฟรนไชส์"
-          headers={["เลขที่", "ลูกค้าเป้าหมาย", "แพ็กเกจ", "ภาค", "จังหวัด", "ค่าแรกเข้า (บาท)", "ระยะสัญญา (เดือน)", "เป้ายอดซื้อต่อปี (บาท)", "สถานะ", "วันที่เสนอ", "มีผลถึง", "เงื่อนไข"]}
+          headers={["เลขที่", "ผู้สนใจ", "แพ็กเกจ", "ภาค", "จังหวัด", "ค่าแรกเข้า (บาท)", "ระยะสัญญา (เดือน)", "เป้ายอดซื้อต่อปี (บาท)", "สถานะ", "วันที่เสนอ", "มีผลถึง", "เงื่อนไข"]}
           rows={filtered.map(p => [
             p.proposalNo ?? "", รายตามรหัส.get(p.prospectId)?.name ?? "", packageLabel[p.package], p.region ?? "", p.province ?? "",
             p.amount ?? "", p.contractMonths ?? "", p.annualTarget ?? "", proposalStatusLabel[p.status],
             p.proposedDate ?? "", p.validUntil ?? "", p.terms ?? "",
           ])}
         />
-        {จัดการได้ && (
-          <button className="btn btn-primary btn-sm" onClick={() => setฟอร์ม({ editing: null, prospect: null })}>
-            <Plus size={14} /> ออกใบค่าแฟรนไชส์
-          </button>
-        )}
+        {/* ปุ่มออกใบค่าแฟรนไชส์เอาออก (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — ออกใบได้จากแผงผู้สนใจเป็นดีลเลอร์ที่เดียว
+            หน้านี้ = รายการ · ติดตามชำระ · พิมพ์ */}
       </TopbarActions>
 
       {/* สรุป — 4 ใบตามกติกากลาง (globals.css: ทุกหน้าใช้ KPI 4 ใบเท่ากัน) */}
@@ -205,9 +171,15 @@ export default function HQProposalsPage() {
       <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 16 }}>
         <div className="search-bar">
           <Search size={14} color="#9ca3af" />
-          <input aria-label="ค้นหาใบค่าแฟรนไชส์" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาเลขที่ / ลูกค้าเป้าหมาย / จังหวัด..." />
+          <input aria-label="ค้นหาใบค่าแฟรนไชส์" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="ค้นหาเลขที่ / ผู้สนใจ / จังหวัด..." />
           {q && <button aria-label="ล้างคำค้น" onClick={() => { setQ(""); setPage(0); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
+        {ค้างชำระ && (
+          <span data-testid="filter-overdue" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, background: "#fef2f2", color: "#b91c1c", fontSize: "0.76rem", fontWeight: 700 }}>
+            เฉพาะใบค้างชำระ ({ค้างชำระ.size})
+            <button aria-label="ล้างตัวกรองค้างชำระ" onClick={() => { setค้างชำระ(null); setPage(0); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b91c1c", display: "flex", padding: 0 }}><X size={12} /></button>
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         <select aria-label="กรองตามสถานะใบ" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as typeof statusFilter); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
           <option value="all">ทุกสถานะ</option>
@@ -246,21 +218,20 @@ export default function HQProposalsPage() {
             </colgroup>
             <thead>
               <tr>
-                <th>เลขที่</th><th>ลูกค้าเป้าหมาย</th><th>แพ็กเกจ</th><th className="num">ค่าแรกเข้า</th><th>สถานะ</th><th>วันที่เสนอ</th><th>มีผลถึง</th>
+                <th>เลขที่</th><th>ผู้สนใจ</th><th>แพ็กเกจ</th><th className="num">ค่าแรกเข้า</th><th>สถานะ</th><th>วันที่เสนอ</th><th>มีผลถึง</th>
                 <th style={{ ...ตรึงคอลัมน์ปุ่ม(true), textAlign: "right" }}>จัดการ</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={8} style={{ textAlign: "center", padding: "36px 14px", color: "#9ca3af", fontSize: "0.8rem" }}>
-                  {!loaded ? "กำลังโหลด…" : ใบ.length === 0 ? "ยังไม่มีใบค่าแฟรนไชส์ — กด “ออกใบค่าแฟรนไชส์” มุมขวาบน" : "ไม่พบใบค่าแฟรนไชส์ตามตัวกรองที่เลือก"}
+                  {!loaded ? "กำลังโหลด…" : ใบ.length === 0 ? "ยังไม่มีใบค่าแฟรนไชส์ — ออกใบได้ที่แผงผู้สนใจเป็นดีลเลอร์ (แท็บใบค่าแฟรนไชส์)" : "ไม่พบใบค่าแฟรนไชส์ตามตัวกรองที่เลือก"}
                 </td></tr>
               )}
               {pageSlice(filtered, page).map(p => {
                 const r = รายตามรหัส.get(p.prospectId);
                 const สี = proposalStatusColor[p.status];
                 const เลยกำหนด = หมดอายุแล้ว(p, APP_NOW_ISO);
-                const ล็อก = ใบล็อกแล้ว(p.status);
                 // คีย์ใช้ p.id ได้: id ไม่ซ้ำทั้งระบบ (identity เดียวทั้งตาราง dealer_package_proposals)
                 return (
                   <ClickableRow key={p.id} onActivate={() => setดูรหัส(p.id)} label={`เปิดใบค่าแฟรนไชส์ ${p.proposalNo ?? ""} ของ ${r?.name ?? ""}`}
@@ -277,24 +248,9 @@ export default function HQProposalsPage() {
                     <td style={ตรึงคอลัมน์ปุ่ม()} onClick={e => e.stopPropagation()}>
                       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                         {/* ปุ่มไอคอนล้วนแบบหน้าใบเสนอราคาของดีลเลอร์ — ชี้ค้างเห็นชื่อปุ่ม */}
-                        {จัดการได้ && p.status === "draft" && (
-                          <button onClick={() => void กดเปลี่ยนสถานะ(p, "sent")} title="เปลี่ยนเป็นส่งแล้ว" aria-label={`ส่งใบ ${p.proposalNo ?? ""}`}
-                            style={{ ...ปุ่มไอคอน(), border: "none", background: "#d97706", color: "#fff" }}><Send size={12} /></button>
-                        )}
-                        {/* แถวใบร่างมีไม่เกิน 2 ปุ่ม: ส่ง + พิมพ์ (ขั้นที่พาใบร่างเดินต่อ) — ดู/แก้ไข/ลบ อยู่ในแผงรายละเอียด (กดแถว)
-                            รอบ 3 · บอสสั่ง 20 ต.ค. 69 · ข้อทดสอบ hq-proposals.spec.ts */}
-                        {p.status !== "draft" && <button onClick={() => setดูรหัส(p.id)} title="ดูรายละเอียด" aria-label={`ดูใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()}><Eye size={13} /></button>}
+                        {/* รอบ 4: แถวเหลือ ดู + พิมพ์ — ส่ง/แก้/ลบ ทำที่แผงผู้สนใจ */}
+                        {<button onClick={() => setดูรหัส(p.id)} title="ดูรายละเอียด" aria-label={`ดูใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()}><Eye size={13} /></button>}
                         <button onClick={() => กดพิมพ์(p)} title="พิมพ์ใบค่าแฟรนไชส์" aria-label={`พิมพ์ใบ ${p.proposalNo ?? ""}`} style={ปุ่มไอคอน()} disabled={!r}><Printer size={13} /></button>
-                        {จัดการได้ && p.status !== "draft" && (
-                          <>
-                            <button onClick={() => !ล็อก && กดแก้ไข(p)} disabled={ล็อก} aria-label={`แก้ไขใบ ${p.proposalNo ?? ""}`}
-                              title={ล็อก ? "ใบที่ส่งแล้วแก้ไม่ได้ — ถ้าเงื่อนไขเปลี่ยนให้ออกใบใหม่" : "แก้ไข"}
-                              style={{ ...ปุ่มไอคอน(), ...(ล็อก ? ปุ่มปิดใช้ : {}) }}><Pencil size={13} /></button>
-                            <button onClick={() => !ล็อก && void กดลบ(p)} disabled={ล็อก} aria-label={`ลบใบ ${p.proposalNo ?? ""}`}
-                              title={ล็อก ? "ใบที่ส่งแล้วลบไม่ได้ — ต้องเก็บไว้เป็นหลักฐาน" : "ลบใบร่าง"}
-                              style={{ ...ปุ่มไอคอน(true), ...(ล็อก ? ปุ่มปิดใช้ : {}) }}><Trash2 size={13} /></button>
-                          </>
-                        )}
                       </div>
                     </td>
                   </ClickableRow>
@@ -311,8 +267,6 @@ export default function HQProposalsPage() {
         const p = ใบที่ดู;
         const r = รายของใบที่ดู;
         const sc = proposalStatusColor[p.status];
-        const ล็อก = ใบล็อกแล้ว(p.status);
-        const ไปต่อได้ = สถานะที่เปลี่ยนไปได้(p.status).filter(s => s !== p.status);
         const qa: React.CSSProperties = { background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, height: 30, padding: "0 11px", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap", textDecoration: "none" };
         const การ์ด: React.CSSProperties = { background: "#fff", border: "1px solid #eef1f5", borderRadius: 14, padding: 16 };
         const หัวการ์ด: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: "0.62rem", fontWeight: 800, color: "#8a929c", letterSpacing: "0.06em", marginBottom: 12 };
@@ -338,13 +292,11 @@ export default function HQProposalsPage() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                     {r && <button onClick={() => กดพิมพ์(p)} style={qa}><Printer size={13} /> พิมพ์ PDF</button>}
-                    {จัดการได้ && !ล็อก && <button onClick={() => กดแก้ไข(p)} style={qa}><Pencil size={13} /> แก้ไข</button>}
-                    {จัดการได้ && ทำเวอร์ชันใหม่ได้(p, ใบ) && <button onClick={() => void กดทำเวอร์ชันใหม่(p)} style={qa}><CopyPlus size={13} /> ทำเวอร์ชันใหม่</button>}
-                    {/* เป็นดีลเลอร์แล้ว = ไม่อยู่หน้าลูกค้าเป้าหมายแล้ว (บอสสั่ง 15 ก.ย. 69) → ลิงก์ไปหน้าดีลเลอร์นั้นแทน */}
+                    {/* แก้ไข · ทำเวอร์ชันใหม่ · ลบ · เปลี่ยนสถานะ ย้ายไปแผงผู้สนใจที่เดียว (รอบ 4) — ปุ่มลิงก์ "ผู้สนใจ" ด้านขวาพาไป */}
+                    {/* เป็นดีลเลอร์แล้ว = ไม่อยู่หน้าผู้สนใจแล้ว (บอสสั่ง 15 ก.ย. 69) → ลิงก์ไปหน้าดีลเลอร์นั้นแทน */}
                     {r && r.status === "won"
                       ? r.dealerCode && <Link href={`/hq/dealers/${r.dealerCode}`} style={qa}><ExternalLink size={13} /> ดีลเลอร์ {r.dealerCode}</Link>
-                      : r && <Link href={`/hq/prospects?open=${r.id}`} style={qa}><ExternalLink size={13} /> ลูกค้าเป้าหมาย</Link>}
-                    {จัดการได้ && !ล็อก && <button onClick={() => void กดลบ(p)} title="ลบใบร่าง" aria-label="ลบใบร่าง" style={{ ...qa, width: 30, padding: 0, justifyContent: "center", color: "#fecaca" }}><Trash2 size={14} /></button>}
+                      : r && <Link href={`/hq/prospects?open=${r.id}`} style={qa}><ExternalLink size={13} /> ผู้สนใจ</Link>}
                     <button onClick={() => setดูรหัส(null)} title="ปิด" aria-label="ปิด" style={{ ...qa, width: 30, padding: 0, justifyContent: "center" }}><X size={15} /></button>
                   </div>
                 </div>
@@ -358,29 +310,10 @@ export default function HQProposalsPage() {
               </div>
 
               <div style={{ flex: 1, overflowY: "auto", background: "#f5f7fa", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-                {/* สถานะใบ — ขั้นถัดไปกดได้ในแผงเลย ไม่ต้องไปหาที่อื่น */}
+                {/* สถานะใบ = ดูอย่างเดียว (รอบ 4) — ส่ง/ตอบรับ/ปฏิเสธ ทำที่แผงผู้สนใจที่เดียว */}
                 <div style={การ์ด}>
                   <div style={หัวการ์ด}><Send size={13} color={PRIMARY} /> สถานะใบ</div>
-                  {ไปต่อได้.length === 0 ? (
-                    <div style={{ fontSize: "0.78rem", color: MUTED }}>ใบนี้{proposalStatusLabel[p.status]}แล้ว — จบขั้นตอนของใบนี้</div>
-                  ) : !จัดการได้ ? (
-                    <div style={{ fontSize: "0.78rem", color: MUTED }}>ตอนนี้: {proposalStatusLabel[p.status]}</div>
-                  ) : (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "0.78rem", color: STEEL, flex: "1 1 200px" }}>
-                        {p.status === "draft" ? "พิมพ์ส่งให้ผู้สนใจแล้ว กด “ส่งแล้ว” — หลังจากนั้นแก้เนื้อหาในใบไม่ได้" : "ผู้สนใจตอบกลับแล้ว บันทึกคำตอบ"}
-                      </span>
-                      {ไปต่อได้.map(s => (
-                        <button key={s} className="btn btn-sm" onClick={() => void กดเปลี่ยนสถานะ(p, s)}
-                          style={s === "rejected"
-                            ? { background: "#fff", color: "#dc2626", border: "1px solid #fecaca" }
-                            : { background: s === "accepted" ? "#059669" : "#d97706", color: "#fff" }}>
-                          {s === "sent" ? <Send size={13} /> : s === "accepted" ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-                          {" "}{s === "sent" ? "ส่งแล้ว" : proposalStatusLabel[s]}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div style={{ fontSize: "0.78rem", color: STEEL }}>ตอนนี้: {proposalStatusLabel[p.status]}</div>
                 </div>
 
                 <div style={การ์ด}>
@@ -426,21 +359,6 @@ export default function HQProposalsPage() {
         );
       })()}
 
-      {/* ── ฟอร์มออก/แก้ใบ — ออกใหม่เลือกลูกค้าเป้าหมายในฟอร์มเดียว ── */}
-      {ฟอร์ม && (
-        <ProposalFormModal
-          prospect={ฟอร์ม.prospect}
-          choices={ฟอร์ม.prospect ? undefined : รายที่ออกใบได้}
-          editing={ฟอร์ม.editing}
-          onClose={() => setฟอร์ม(null)}
-          onSaved={saved => {
-            if (ฟอร์ม.editing) แทนใบ(saved); else setใบ(l => [saved, ...l]);
-            setฟอร์ม(null);
-            // ออกใบเสร็จ เปิดแผงของใบนั้นให้เลย — ขั้นต่อไป (พิมพ์ / ส่งแล้ว) กดต่อได้ทันที
-            setดูรหัส(saved.id);
-          }}
-        />
-      )}
     </div>
   );
 }

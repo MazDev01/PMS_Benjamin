@@ -8,7 +8,7 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 
 const NS = specNS("QVER");
 const tg = nsTag(NS);
@@ -67,8 +67,9 @@ test("[func] ใบร่างแก้แล้วยัง V1 · ส่งแ
     { timeout: 30_000, message: "ใบร่าง: แก้ % ลงฐาน" }).toBe(15);
   expect((await sb.from("quotations").select("revision").eq("customer", COMPANY).limit(1).single()).data?.revision, "ใบร่างแก้แล้วยัง V1").toBe("V1");
 
-  // ส่งให้ลูกค้า — กดแล้วส่งทันที (ไม่มีกล่องถามแนบแม่แบบแล้ว · เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
-  await page.getByTitle("ส่งใบเสนอราคา").first().click();
+  // ส่งให้ลูกค้า — รอบ 4: ปุ่มในกล่องขั้นต่อไปที่เดียว (ยืนยันก่อนส่ง)
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 20_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () =>
     (await sb.from("quotations").select("status").eq("customer", COMPANY).limit(1).single()).data?.status,
     { timeout: 30_000, message: "ใบต้องถูกส่งจริง" }).toBe("sent_to_client");

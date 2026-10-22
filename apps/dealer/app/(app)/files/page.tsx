@@ -1,29 +1,19 @@
 "use client";
 
-import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { SortableTh } from "@pms/shared/components/ui/SortableTh";
 import { ChevronUp, ChevronDown } from "lucide-react";
-import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT, UPLOAD_MAX_BYTES } from "@pms/shared/lib/uploadLimits";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import {
-  DEALER_FILES_EVENT, normalizeFileCategory, type DealerFile,
-} from "@pms/shared/lib/mock";
+import { DEALER_FILES_EVENT, normalizeFileCategory, type DealerFile } from "@pms/shared/lib/mock";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { files as filesRepo, storage as fileStorage } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { reportRepoSaveError } from "@pms/shared/lib/useRepoState";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
-import {
-  FolderOpen, Search, X, Upload, Trash2, File,
-  FileText, FileSpreadsheet, Image as ImageIcon, Plus,
-  Pencil, Download, ExternalLink,
-} from "lucide-react";
+import { FolderOpen, Search, X, File, FileText, FileSpreadsheet, Image as ImageIcon, Download, ExternalLink } from "lucide-react";
 import { FilterSelect } from "@pms/shared/components/filters/FilterRow";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { Skeleton } from "@pms/shared/components/ui/Skeleton";
-import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 
 type FileSortKey = "name" | "category" | "project" | "size" | "uploadedBy" | "uploadedAt";
 /** "2.4 MB" → ไบต์ · อ่านไม่ออก/"—" = -1 (ไปอยู่ท้ายเมื่อเรียงมากไปน้อย) */
@@ -174,177 +164,7 @@ async function openStoredFile(f: FileMock, mode: "open" | "download") {
   }
 }
 
-function UploadModal({ onUpload, onClose }: { onUpload: (f: FileMock, blob: File | null) => void; onClose: () => void }) {
-  const [name, setName]     = useState("");
-  const [size, setSize]     = useState("");
-  // เริ่มที่ "ยังไม่ระบุ" เสมอ (บอสสั่ง 20 ส.ค. 69) — เดิมตั้งต้นเป็น "อื่นๆ" ไว้
-  //   ช่องจึงโชว์คำตอบมาให้แล้วทั้งที่ผู้ใช้ยังไม่ได้เลือก และคนส่วนใหญ่ก็กดอัปโหลดผ่านไปเลย
-  //   ไฟล์เลยไปกองรวมกันในโฟลเดอร์เดียว · ไม่เลือกจริง ๆ ค่อยลงเป็น "อื่นๆ" ตอนบันทึก
-  const [cat, setCat]       = useState<FileCategory | "">("");
-  const [project, setProj]  = useState("");
-  const [blob, setBlob]     = useState<File | null>(null); // ไฟล์จริง → อัปโหลดเข้า Storage (โหมด supabase)
-  const [fileError, setFileError] = useState<string | null>(null);
-
-  function pick(f: File | undefined) {
-    if (!f) return;
-    const problem = validateUpload(f);
-    if (problem) { setFileError(problem); return; }
-    setFileError(null);
-    setBlob(f);
-    setName(f.name);
-    setSize(humanFileSize(f.size));
-  }
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    pick(e.dataTransfer.files[0]);
-  }
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    pick(e.target.files?.[0]);
-  }
-
-  function save() {
-    if (fileError) return; // ปุ่มถูก disable ไว้แล้ว แต่กันเผื่อ event ค้าง
-    const fileName = name.trim() || "ไฟล์ใหม่.pdf";
-    onUpload({
-      id: Date.now(), name: fileName,
-      size: size || "—",
-      ext: guessExt(fileName),
-      category: (cat || "อื่นๆ") as FileCategory,   // ไม่เลือก = โฟลเดอร์รวม ไม่ใช่ค่าว่างที่ไม่มีจริง
-      project: project.trim() || "—",
-      uploadedBy: "คุณ",
-      uploadedAt: APP_NOW_ISO,
-      source: "upload",
-    }, blob);
-    onClose();
-  }
-
-  return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 200 }} />
-      <div style={{ position: "fixed", inset: 0, zIndex: 210, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, pointerEvents: "none" }}>
-        <ModalCard onClose={onClose} label="อัปโหลดไฟล์" className="card" style={{ width: "100%", maxWidth: 460, pointerEvents: "auto", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,51,102,.22)" }}>
-          <div style={{ background: PRIMARY, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontWeight: 800, color: "#fff", fontSize: "0.92rem" }}>อัปโหลดไฟล์</span>
-            <button onClick={onClose} style={{ background: "rgba(255,255,255,.15)", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
-          </div>
-          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Drop zone */}
-            <div onDragOver={e => e.preventDefault()} onDrop={handleDrop}
-              style={{ border: `2px dashed ${name ? PRIMARY : BORDER}`, borderRadius: 12, padding: "24px 20px", textAlign: "center", background: name ? "#f0f4fa" : "var(--muted)", cursor: "pointer" }}>
-              <label style={{ cursor: "pointer" }}>
-                <input type="file" accept={UPLOAD_ACCEPTED_EXT.join(",")} style={{ display: "none" }} onChange={handleFile} />
-                {name && !fileError ? (
-                  <div>
-                    <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL }}>{name}</div>
-                    <div style={{ fontSize: "0.72rem", color: MUTED, marginTop: 4 }}>{size}</div>
-                  </div>
-                ) : (
-                  <div>
-                    <Upload size={28} color={MUTED} style={{ margin: "0 auto 10px" }} />
-                    <div style={{ fontSize: "0.8rem", color: MUTED }}>ลากไฟล์มาวาง หรือ <span style={{ color: PRIMARY, fontWeight: 700 }}>คลิกเลือกไฟล์</span></div>
-                    <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: 4 }}>PDF, Word, Excel, PowerPoint, CAD, รูปภาพ · ไม่เกิน {humanFileSize(UPLOAD_MAX_BYTES)}</div>
-                  </div>
-                )}
-              </label>
-            </div>
-            {fileError && (
-              <div style={{ fontSize: "0.72rem", color: "#dc2626", fontWeight: 600 }}>{fileError}</div>
-            )}
-            {/* Manual name override */}
-            <div className="form-grid">
-              <div className="form-section">รายละเอียดไฟล์</div>
-              <div className="col-full">
-                <label className="form-label">ชื่อไฟล์</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="ชื่อไฟล์.pdf" className="form-input" />
-              </div>
-              <div>
-                <label className="form-label">โฟลเดอร์</label>
-                <select aria-label="โฟลเดอร์" value={cat} onChange={e => setCat(e.target.value as FileCategory | "")} className="form-select">
-                  {/* ⚠️ ต้องมี "ยังไม่ระบุ" เสมอ (บอสสั่ง 17 ส.ค. 69) — ไม่งั้นเบราว์เซอร์เลือกตัวแรกให้เอง
-                      แล้วไฟล์จะถูกยัดเข้าโฟลเดอร์ที่ไม่มีใครเลือก หาไม่เจอทีหลัง */}
-                  <option value="">— ยังไม่ระบุ —</option>
-                  {ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="form-label">ชื่อโครงการ/ชื่อบริษัท</label>
-                <input value={project} onChange={e => setProj(e.target.value)} placeholder="เช่น โกดังเก็บสินค้า — บจ. เอบีซี" className="form-input" />
-              </div>
-            </div>
-          </div>
-          <div style={{ padding: "13px 20px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, justifyContent: "flex-end", background: "#fafafa" }}>
-            <button onClick={onClose} className="btn btn-secondary btn-md">ยกเลิก</button>
-            <button onClick={save} disabled={!!fileError} className="btn btn-primary btn-md">
-              <Upload size={13} /> อัปโหลด
-            </button>
-          </div>
-        </ModalCard>
-      </div>
-    </>
-  );
-}
-
-// แก้ไข/เปลี่ยนชื่อไฟล์ (local/mock) — ปรับชื่อ โฟลเดอร์ และโอกาสการขาย
-function EditFileModal({ file, onSave, onClose }: { file: FileMock; onSave: (f: FileMock) => void; onClose: () => void }) {
-  const [name, setName]    = useState(file.name);
-  const [cat, setCat]      = useState<FileCategory>(file.category);
-  const [project, setProj] = useState(file.project === "—" ? "" : file.project);
-
-  function save() {
-    const fileName = name.trim() || file.name;
-    onSave({
-      ...file,
-      name: fileName,
-      ext: guessExt(fileName),
-      category: cat,
-      project: project.trim() || "—",
-    });
-    onClose();
-  }
-
-  return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 200 }} />
-      <div style={{ position: "fixed", inset: 0, zIndex: 210, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, pointerEvents: "none" }}>
-        <ModalCard onClose={onClose} label="แก้ไขข้อมูลไฟล์" className="card" style={{ width: "100%", maxWidth: 460, pointerEvents: "auto", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,51,102,.22)" }}>
-          <div style={{ background: PRIMARY, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontWeight: 800, color: "#fff", fontSize: "0.92rem" }}>แก้ไขไฟล์</span>
-            <button onClick={onClose} style={{ background: "rgba(255,255,255,.15)", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
-          </div>
-          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
-            <div className="form-grid">
-              <div className="form-section">รายละเอียดไฟล์</div>
-              <div className="col-full">
-                <label className="form-label">ชื่อไฟล์</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="ชื่อไฟล์.pdf" className="form-input" />
-              </div>
-              <div>
-                <label className="form-label">โฟลเดอร์</label>
-                <select aria-label="โฟลเดอร์" value={cat} onChange={e => setCat(e.target.value as FileCategory)} className="form-select">
-                  {/* ⚠️ ต้องมี "ยังไม่ระบุ" เสมอ (บอสสั่ง 17 ส.ค. 69) — ไม่งั้นเบราว์เซอร์เลือกตัวแรกให้เอง
-                      แล้วไฟล์จะถูกยัดเข้าโฟลเดอร์ที่ไม่มีใครเลือก หาไม่เจอทีหลัง */}
-                  <option value="">— ยังไม่ระบุ —</option>
-                  {ALL_CATS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="form-label">ชื่อโครงการ/ชื่อบริษัท</label>
-                <input value={project} onChange={e => setProj(e.target.value)} placeholder="เช่น โกดังเก็บสินค้า — บจ. เอบีซี" className="form-input" />
-              </div>
-            </div>
-          </div>
-          <div style={{ padding: "13px 20px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, justifyContent: "flex-end", background: "#fafafa" }}>
-            <button onClick={onClose} className="btn btn-secondary btn-md">ยกเลิก</button>
-            <button onClick={save} className="btn btn-primary btn-md">
-              <Pencil size={13} /> บันทึก
-            </button>
-          </div>
-        </ModalCard>
-      </div>
-    </>
-  );
-}
-
+// หน้าต่างอัปโหลด/แก้ไขไฟล์เอาออก (รอบ 4 · หน้าไฟล์ดูอย่างเดียว) — แนบ/ลบที่แผงลีด/แผงลูกค้า
 function PaginationBar({
   from, to, total, page, totalPages, onPrev, onNext,
 }: {
@@ -416,9 +236,6 @@ export default function FilesPage() {
   const [projFilter,   setProj]   = useState<string>("ALL");
   // extFilter ถูกลบพร้อมชิปสรุป + select "ทุกประเภท" — ไม่เหลือ UI ที่ตั้งค่าได้ จึงเป็นโค้ดตาย
   const [view,    setView]    = useState<"grid" | "list">("list");
-  const [upload,  setUpload]  = useState(false);
-  const [delId,   setDelId]   = useState<number | null>(null);
-  const [editId,  setEditId]  = useState<number | null>(null);
   const [page,    setPage]    = useState(1);
   const PAGE_SIZE = 10;
 
@@ -510,34 +327,11 @@ export default function FilesPage() {
     return c;
   }, [files]);
 
-  function deleteFile(id: number) {
-    const target = files.find(f => f.id === id);
-    setDelId(null);
-    void (async () => {
-      try {
-        // ลบไบต์ใน Storage ก่อน — ล้มเหลวต้อง "หยุด" ไม่ลบ metadata ทิ้ง (H2)
-        // เดิม .catch(()=>{}) กลืน error แล้วลบ metadata ต่อเสมอ → แถวหาย แต่ไบต์ยังค้างใน bucket
-        // กลายเป็นไฟล์กำพร้าที่อ้างไม่ถึงอีก · และผู้ใช้เข้าใจว่าลบเอกสารลูกค้าแล้วทั้งที่ยังดึงได้
-        if (target?.storagePath) await fileStorage.remove(target.storagePath);
-        await filesRepo.remove(id);
-        await reloadFiles();
-      } catch (e) {
-        reportRepoSaveError(e); // ล้มเหลวต้องดัง — AppShell ขึ้นแถบเตือนกลาง
-        await reloadFiles();    // ดึงสถานะจริงมาแสดง (ไฟล์ยังอยู่)
-      }
-    })();
-  }
-  function updateFile(updated: FileMock) { void filesRepo.update(updated).then(reloadFiles); }
-
   return (
     <div className="erp">
       {/* Header */}
       {/* หัวหน้า/ปุ่ม → ไปอยู่บนแถบบน (ชื่อหน้ามาจาก Topbar) */}
-      <TopbarActions>
-        <button onClick={() => setUpload(true)} className="btn btn-primary btn-sm">
-          <Plus size={14} /> อัปโหลดไฟล์
-        </button>
-      </TopbarActions>
+      {/* หน้าไฟล์ดูอย่างเดียว (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — แนบ/ลบไฟล์ที่แผงลีดหรือแผงลูกค้า · ปุ่มอัปโหลด/แก้ไข/ลบเอาออก */}
       {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
       {/* ชิปสรุป (ไฟล์ทั้งหมด/ขนาดรวม/PDF/Excel/Word/PowerPoint) เอาออกตามที่บอสสั่ง */}
@@ -680,14 +474,6 @@ export default function FilesPage() {
                             </button>
                           </>
                         )}
-                        <button title="แก้ไข" onClick={e => { e.stopPropagation(); setEditId(f.id); }}
-                          style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${BORDER}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: PRIMARY }}>
-                          <Pencil size={12} />
-                        </button>
-                        <button onClick={e => { e.stopPropagation(); setDelId(f.id); }} title="ลบ"
-                          style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #fee2e2", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626" }}>
-                          <Trash2 size={12} />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -734,12 +520,6 @@ export default function FilesPage() {
                           <Download size={11} />
                         </button>
                       )}
-                      <button title="แก้ไข" onClick={e => { e.stopPropagation(); setEditId(f.id); }} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${BORDER}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: PRIMARY }}>
-                        <Pencil size={11} />
-                      </button>
-                      <button onClick={e => { e.stopPropagation(); setDelId(f.id); }} title="ลบ" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid #fee2e2", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626" }}>
-                        <Trash2 size={11} />
-                      </button>
                     </div>
                   </div>
                   <div>
@@ -767,57 +547,6 @@ export default function FilesPage() {
         </div>
       )}
 
-      {/* Upload modal */}
-      {upload && <UploadModal onUpload={(f, blob) => {
-        void (async () => {
-          // upload คืน path (supabase) หรือ null (local ไม่มี Storage — เก็บแค่ metadata)
-          // และ "โยน error" ถ้าอัปโหลดจริงไม่สำเร็จ (RLS/quota/เน็ต) — ห้ามกลืนเป็น null (H1)
-          // เดิม .catch(()=>null) กลืน error แล้วบันทึก metadata ต่อโดยไม่มี storagePath
-          // → ไฟล์โผล่ในรายการเหมือนสำเร็จ แต่ไบต์ไม่เคยถูกเก็บ ปุ่มดาวน์โหลดหายเฉย ๆ
-          let storagePath: string | null = null;
-          try {
-            storagePath = blob ? await fileStorage.upload(currentDealer.code, blob) : null;
-            await filesRepo.add({
-              name: f.name, size: f.size, ext: f.ext, category: f.category, project: f.project,
-              uploadedBy: f.uploadedBy, uploadedAt: f.uploadedAt, source: "upload",
-              dealerCode: currentDealer.code, ...(storagePath ? { storagePath } : {}),
-            });
-            await reloadFiles();
-          } catch (e) {
-            // อัปโหลดสำเร็จแต่บันทึก metadata ไม่ผ่าน → เก็บไบต์กำพร้าออกด้วย
-            if (storagePath) await fileStorage.remove(storagePath).catch(() => {});
-            reportRepoSaveError(e);
-          }
-        })();
-      }} onClose={() => setUpload(false)} />}
-
-      {/* Edit modal */}
-      {editId !== null && (() => {
-        const ef = files.find(f => f.id === editId);
-        return ef ? <EditFileModal file={ef} onSave={updateFile} onClose={() => setEditId(null)} /> : null;
-      })()}
-
-      {/* Delete confirm */}
-      {delId !== null && (
-        <>
-          <div onClick={() => setDelId(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 200 }} />
-          <div style={{ position: "fixed", inset: 0, zIndex: 210, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            {/* ป้ายกำกับต้องตรงกับสิ่งที่กล่องนี้ทำจริง — เดิมเป็น "เมนูไฟล์" ซึ่งไม่บอกเลยว่ากำลังจะลบ */}
-            <ModalCard onClose={() => setDelId(null)} label="ยืนยันการลบไฟล์" className="card" style={{ width: 300, pointerEvents: "auto", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,.15)" }}>
-              <div style={{ padding: "16px 20px 14px", borderBottom: `1px solid ${BORDER}` }}>
-                <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL }}>ยืนยันการลบไฟล์</div>
-                <div style={{ fontSize: "0.72rem", color: MUTED, marginTop: 4 }}>
-                  {files.find(f => f.id === delId)?.name}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8, padding: "14px 20px" }}>
-                <button onClick={() => setDelId(null)} className="btn btn-secondary btn-md" style={{ flex: 1, justifyContent: "center" }}>ยกเลิก</button>
-                <button onClick={() => deleteFile(delId)} className="btn btn-md" style={{ flex: 1, justifyContent: "center", background: "#dc2626", color: "#fff", border: "none" }}>ลบไฟล์</button>
-              </div>
-            </ModalCard>
-          </div>
-        </>
-      )}
     </div>
   );
 }

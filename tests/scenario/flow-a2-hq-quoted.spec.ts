@@ -99,7 +99,8 @@ test("[ก2·2] แผงลีด: ไม่มีช่องเลือก�
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await expect(page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ|แก้ใบเสนอราคา/ }), "แท็บใบเสนอราคาไม่มีปุ่มทำใบซ้ำ").toHaveCount(0);
   await expect(page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }), "ปุ่มทำใบยังมีที่เดียว").toHaveCount(1);
-  await page.getByRole("button", { name: "งาน", exact: true }).first().click();
+  // รอบ 4: แท็บงานยุบเข้า "ประวัติ" (รายการเตือน)
+  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
   const งานระบบ = page.locator("[data-auto-task='1']");
   await expect(งานระบบ.first(), "มีงานที่ระบบติ๊กเอง").toBeVisible({ timeout: 10_000 });
   for (const b of await งานระบบ.all()) await expect(b, "งานที่ระบบติ๊กเองกดไม่ได้").toBeDisabled();
@@ -114,8 +115,9 @@ test("[ก2·3] ลีดปิดการขายแล้ว: ไม่ม�
   await settle(page);
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
   await (await แถวลีด(page, ปิดแล้ว)).locator("td").first().click();
-  await page.getByRole("button", { name: "งาน", exact: true }).first().click();
-  await page.getByRole("button", { name: /ได้งาน/ }).first().click();
+  // รอบ 4: ปิดสำเร็จได้ทางเดียว = ลูกค้าตอบรับที่ใบในแท็บใบเสนอราคาของแผงลีด (ปุ่ม "ได้งาน" เอาออก)
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await page.locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click({ timeout: 20_000 });
   await กดตกลงในกล่องยืนยัน(page).catch(() => "");
   await expect.poll(() => สถานะ(ง.leadNum), { timeout: 20_000 }).toBe("PAID");
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();

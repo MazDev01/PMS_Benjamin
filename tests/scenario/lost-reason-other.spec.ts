@@ -39,8 +39,9 @@ test("[func] ตัวเลือก 'อื่นๆ (ระบุเอง)' 
   let เปิดได้ = false;
   for (let i = 0; i < จำนวน; i++) {
     await แถว.nth(i).locator("td").first().click();
-    await page.getByRole("button", { name: "งาน", exact: true }).first().click();
-    const ปุ่ม = page.getByRole("button", { name: "ไม่ได้งาน" }).first();
+    // รอบ 4: ปิดไม่สำเร็จอยู่ที่กล่อง "ขั้นต่อไป" ที่เดียว (แท็บงาน/ปุ่มไม่ได้งานเอาออก)
+    await page.locator("[data-panel='next-step']:not([aria-busy])").waitFor({ timeout: 15_000 }).catch(() => {});
+    const ปุ่ม = page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ปิดไม่สำเร็จ/ }).first();
     if (await ปุ่ม.count() && await ปุ่ม.isEnabled().catch(() => false)) { await ปุ่ม.click(); เปิดได้ = true; break; }
     await page.keyboard.press("Escape");
   }

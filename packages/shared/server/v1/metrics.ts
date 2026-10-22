@@ -8,6 +8,7 @@
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
+import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 
 type Row = Record<string, unknown>;
 type Args = Record<string, unknown>;
@@ -21,6 +22,12 @@ const S = (v: unknown) => String(v ?? "");
 export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape: (d: unknown) => unknown }> = {
   // ภาพรวม HQ 3 กล่อง (ด่าน 5 · 0209) — ตัวคำนวณตรวจว่าเป็น HQ เอง · จัดรูปด้วยตัวเดียวกับฝั่งต่อฐานตรง
   hqOverview: { rpc: "hq_overview", args: () => ({}), shape: d => จัดรูปภาพรวมHQ(d) },
+  // แดชบอร์ด HQ (0235) — ตัวคำนวณตรวจว่าเป็น HQ เอง · จัดรูปด้วยตัวเดียวกับฝั่งต่อฐานตรง
+  hqDashboard: {
+    rpc: "hq_dashboard",
+    args: a => ({ p_start: a.start, p_end: a.end, p_dealer: a.dealer ?? null, p_today: a.today ?? null }),
+    shape: d => จัดรูปแดชบอร์ดHQ(d),
+  },
   dealerRollup: {
     rpc: "dealer_rollup",
     args: a => ({ p_year: a.year, p_as_of: a.asOf, p_default_days: a.defaultDays, p_follow_up_days: a.perDealer ?? null }),
@@ -56,7 +63,7 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
         //   บั๊กจริงบนเว็บจริง 15 ก.ย. 69: ลืมสองช่องนี้ → /hq/pipeline คิด leads - undefined = NaN
         //   การ์ด "ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว" ขึ้น "NaN ราย / NaN ราย"
         byMonth: (x.byMonth ?? []).map(r => ({ y: N(r.y), m: N(r.m), created: N(r.new), won: N(r.won), lost: N(r.lost), quoted: N(r.quoted) })),
-        byDealer: (x.byDealer ?? []).map(r => ({ dealerCode: S(r.dealer_code), leads: N(r.leads), quoted: N(r.quoted), won: N(r.won) })),
+        byDealer: (x.byDealer ?? []).map(r => ({ dealerCode: S(r.dealer_code), leads: N(r.leads), quoted: N(r.quoted), won: N(r.won), lost: N(r.lost) })),   // lost: ใบ 0234 · ต้องตรงกับ SupabaseAdapter
       };
     },
   },

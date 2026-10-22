@@ -8,8 +8,8 @@ import { เตรียมใบHQ, ทำใบลูกค้าจากใ�
 
 // ── รอบ 3 ข้อ 1: หน้าแก้ไขใบเสนอราคา (บอสสั่ง 20 ต.ค. 69) ───────────────────────────────────────────────────────────
 //   ราคาแต่ละรายการแก้ได้เฉพาะ % · ชื่อลูกค้า โครงการ จังหวัด พื้นที่ แก้ได้เฉพาะใบร่าง · ส่งลูกค้าแล้วล็อกทั้งหมด (กันที่ฐาน ใบ 0226)
-//   1) ใบร่าง: มีปุ่มแก้ไข · แก้โครงการ/จังหวัด/พื้นที่แล้วบันทึกลงฐาน · รายการมีแต่ช่อง % (ไม่มีช่องพิมพ์ราคา)
-//   2) ส่งแล้ว: ไม่มีปุ่มแก้ไขทั้งแถวและแผงรายละเอียด (ขึ้นป้าย "ส่งแล้ว แก้ไม่ได้") · "ส่งอีกครั้ง" (บันทึกทั้งแถว) ยังผ่าน
+//   1) ใบร่าง: มีปุ่มแก้ไข · แก้โครงการแล้วบันทึกลงฐาน · รายการมีแต่ช่อง % (ไม่มีช่องพิมพ์ราคา)
+//   2) ส่งแล้ว: ไม่มีปุ่มแก้ไขทั้งในรายการและหน้าดูใบ · "ส่งอีกครั้ง" (บันทึกทั้งแถว) ยังผ่าน
 //      ใบนี้ไม่มีพื้นที่/จังหวัด/ประเภทงาน (ว่างในฐาน) — หน้าเว็บส่งกลับเป็น "0"/"" ต้องไม่ถูกนับว่าแก้
 //   3) ฐาน: ดีลเลอร์ยิงตรงแก้ใบที่ส่งแล้วไม่ได้ทุกช่อง (ข้อทดสอบเต็มระดับฐาน supabase/tests/quote_sent_lock.sql)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
@@ -36,29 +36,37 @@ test.afterAll(async () => {
   for (const c of cs ?? []) await admin.from("customers").delete().eq("dealer_code", "RYG").eq("id", c.id);
 });
 
-test("[รอบ3·1] ใบร่าง: แก้โครงการ/จังหวัด/พื้นที่ได้ · รายการแก้ได้เฉพาะ %", async ({ page }) => {
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69): หน้าใบเสนอราคาเหลือรายการ+ค้นหา กดแถวพาไปแผงลีดของใบนั้น
+//   ปุ่มของใบ (แก้ไข · ทำฉบับใหม่ · ทำสำเนา · ลบ · ส่งอีกครั้ง · ลูกค้าตอบรับ/ปฏิเสธ) อยู่ที่แท็บใบเสนอราคาในแผงลีด
+//   ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว
+//   ฟอร์มในแผงลีดแก้ชื่อโครงการ + % ได้ · จังหวัด/พื้นที่ของใบไม่มีช่องแก้ (ส่งให้บอสตัดสิน)
+const ใบในแผง = (page: import("@playwright/test").Page, id: string) => page.locator(`[data-quote-item="${id}"]`);
+async function เปิดแผงใบ(page: import("@playwright/test").Page) {
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
   const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
-  await แถว.getByTitle("แก้ไข").click();
-  await expect(page.getByText("แก้ไขใบเสนอราคา").first()).toBeVisible({ timeout: 15_000 });
+  await expect(แถว.getByTitle(/แก้ไข|ทำฉบับใหม่|ส่งให้ลูกค้า|ลบใบเสนอราคา/), "รอบ 4: แถวในหน้ารายการไม่มีปุ่มทำงานของใบ").toHaveCount(0);
+  await แถว.locator("td").nth(1).click();
+  await page.waitForURL(/\/leads/, { timeout: 20_000 });
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
+  await expect(ใบในแผง(page, เลขใบ), "แผงลีดของใบนี้เปิดที่แท็บใบเสนอราคา").toBeVisible({ timeout: 20_000 });
+}
+
+test("[รอบ3·1] ใบร่าง: แก้โครงการได้ · รายการแก้ได้เฉพาะ %", async ({ page }) => {
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await เปิดแผงใบ(page);
+  await ใบในแผง(page, เลขใบ).getByTitle("แก้ไข").click();
   await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 15_000 });
-  await page.getByPlaceholder("เช่น โกดังสินค้า ABC").fill(`${ลูกค้า}-โครงการใหม่`);
-  await page.getByPlaceholder("จังหวัด").fill("ชลบุรี");
-  await page.getByPlaceholder("0", { exact: true }).fill("320");
+  await page.getByPlaceholder("เช่น โกดังเก็บสินค้าเกษตร — บจ. ...").fill(`${ลูกค้า}-โครงการใหม่`);
   // รายการ: ช่องที่พิมพ์ได้มีแต่ % ที่บวก (บรรทัดละ 1 ช่อง) — ไม่มีช่องราคา/จำนวน/ชื่อรายการ
   const ตาราง = page.getByRole("table", { name: "รายการในใบเสนอราคา (จากใบ HQ)" });
   await expect(ตาราง.locator("input"), "ช่องที่แก้ได้ในรายการ = ช่อง % บรรทัดละ 1 ช่อง").toHaveCount(2);
-  await expect(ตาราง.getByLabel("% ที่บวก 1")).toBeVisible();
   await ตาราง.getByLabel("% ที่บวก 1").fill("20");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await expect.poll(async () => (await แถวฐาน())?.project, { timeout: 20_000 }).toBe(`${ลูกค้า}-โครงการใหม่`);
-  const r = await แถวฐาน();
-  expect({ province: r?.province, area: r?.area, total: Number(r?.total_value) }, "ฐาน: จังหวัด/พื้นที่บันทึก · ยอด = บรรทัด 1 +20% (2×1,200) + บรรทัด 2 +10% (550)")
-    .toEqual({ province: "ชลบุรี", area: "320", total: 2950 });
+  expect(Number((await แถวฐาน())?.total_value), "ฐาน: ยอด = บรรทัด 1 +20% (2×1,200) + บรรทัด 2 +10% (550)").toBe(2950);
 });
 
 test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก้ไข/ลบ มีปุ่มทำฉบับใหม่ · ส่งอีกครั้งยังได้ · ฐานปฏิเสธการแก้ทุกช่อง", async ({ page }) => {
@@ -70,21 +78,18 @@ test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก�
   expect(ส่ง.error?.message ?? "", "ส่งให้ลูกค้า").toBe("");
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
-  const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
-  await expect(แถว).toBeVisible({ timeout: 20_000 });
-  await expect(แถว.getByTitle("แก้ไข"), "แถวใบที่ส่งแล้ว: ไม่มีปุ่มแก้ไข").toHaveCount(0);
-  await expect(แถว.getByTitle("ลบใบเสนอราคา"), "แถวใบที่ส่งแล้ว: ไม่มีปุ่มลบ (บอสสั่ง 21 ต.ค. 69)").toHaveCount(0);
-  await expect(แถว.getByTitle("ทำฉบับใหม่"), "แถวใบที่ส่งแล้ว: ปุ่มแก้ไขเปลี่ยนเป็นทำฉบับใหม่").toBeVisible();
-  await แถว.locator("td").nth(1).click();
-  await expect(page.getByTitle("ทำฉบับใหม่").last(), "แผงรายละเอียด: ปุ่มทำฉบับใหม่").toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("button", { name: "แก้ไข", exact: true }), "แผงรายละเอียด: ไม่มีปุ่มแก้ไข").toHaveCount(0);
-  await expect(page.getByTitle("ลบใบเสนอราคา"), "แผงรายละเอียด: ไม่มีปุ่มลบ").toHaveCount(0);
+  await เปิดแผงใบ(page);
+  const ใบ1 = ใบในแผง(page, เลขใบ);
+  await expect(ใบ1.getByTitle("แก้ไข"), "ใบที่ส่งแล้ว: ไม่มีปุ่มแก้ไข").toHaveCount(0);
+  await expect(ใบ1.getByTitle("ลบ", { exact: true }), "ใบที่ส่งแล้ว: ไม่มีปุ่มลบ (บอสสั่ง 21 ต.ค. 69)").toHaveCount(0);
+  await expect(ใบ1.getByTitle("ทำฉบับใหม่"), "ใบที่ส่งแล้ว: ปุ่มแก้ไขเปลี่ยนเป็นทำฉบับใหม่").toBeVisible();
+  await ใบ1.getByTitle("ดู", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "ทำฉบับใหม่" }), "หน้าดูใบ: ปุ่มทำฉบับใหม่").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "แก้ไข", exact: true }), "หน้าดูใบ: ไม่มีปุ่มแก้ไข").toHaveCount(0);
+  await expect(page.getByRole("button", { name: "ลบ", exact: true }), "หน้าดูใบ: ไม่มีปุ่มลบ").toHaveCount(0);
 
   // ส่งอีกครั้ง = บันทึกทั้งแถว (rowMappers) — ต้องผ่านแม้ค่าว่างถูกส่งกลับคนละรูปแบบ
-  await page.getByTitle("ส่งอีกครั้ง").click();
+  await page.getByRole("button", { name: /ส่งอีกครั้ง/ }).click();
   await expect.poll(async () => (await แถวฐาน())?.date, { timeout: 20_000, message: "ส่งอีกครั้งบันทึกลงฐาน (วันที่เปลี่ยนเป็นวันนี้)" }).not.toBe("2026-01-05");
   await expect(page.getByText(/quote_sent_locked|ส่งให้ลูกค้าแล้ว แก้ไม่ได้ \(/), "ไม่มีข้อความฐานปฏิเสธ").toHaveCount(0);
 
@@ -110,21 +115,14 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
   expect(await มูลค่าลีด(), "ตั้งต้น: มูลค่าลีด = ยอด V1").toBe(2950);
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  const เปิดรายการ = async () => {
-    await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
-    await expect(page.locator("tbody tr").filter({ hasText: เลขใบ }).first()).toBeVisible({ timeout: 20_000 });
-  };
-  const แถวV1 = () => page.locator("tbody tr").filter({ hasText: เลขใบ }).filter({ hasNotText: เลขV2 }).first();
-  const แถวV2 = () => page.locator("tbody tr").filter({ hasText: เลขV2 }).first();
+  const ใบV1 = () => ใบในแผง(page, เลขใบ);
+  const ใบV2 = () => ใบในแผง(page, เลขV2);
 
-  // ทำฉบับใหม่ → ฟอร์มของ V2 · ลูกค้า/โครงการ/จังหวัด/พื้นที่ แก้ไม่ได้ · แก้ % ได้
-  await เปิดรายการ();
-  await แถวV1().getByTitle("ทำฉบับใหม่").click();
+  // ทำฉบับใหม่ → ฟอร์มของ V2 · โครงการแก้ไม่ได้ (ลูกค้า/จังหวัดในฟอร์มเป็นข้อความอ่านอย่างเดียว) · แก้ % ได้
+  await เปิดแผงใบ(page);
+  await ใบV1().getByTitle("ทำฉบับใหม่").click();
   await expect(page.locator("[data-version-copied]"), "ฟอร์มฉบับใหม่บอกว่าคัดลอกจากใบเดิม").toBeVisible({ timeout: 15_000 });
-  await expect(page.getByPlaceholder("เช่น โกดังสินค้า ABC"), "โครงการแก้ไม่ได้").toHaveAttribute("readonly", "");
-  await expect(page.getByPlaceholder("จังหวัด"), "จังหวัดแก้ไม่ได้").toHaveAttribute("readonly", "");
-  await expect(page.getByLabel("ลูกค้า", { exact: true }), "ลูกค้าแก้ไม่ได้").toBeDisabled();
+  await expect(page.getByPlaceholder("เช่น โกดังเก็บสินค้าเกษตร — บจ. ..."), "โครงการแก้ไม่ได้").toHaveAttribute("readonly", "");
   await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 15_000 });
   await page.getByRole("table", { name: "รายการในใบเสนอราคา (จากใบ HQ)" }).getByLabel("% ที่บวก 1").fill("30");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
@@ -133,29 +131,28 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
   expect((await ใบ_(เลขใบ))?.status, "V2 ยังร่าง ใบเดิมยังส่งแล้ว").toBe("sent_to_client");
   expect(await มูลค่าลีด(), "V2 ยังร่าง มูลค่าลีดยังเป็นยอด V1").toBe(2950);
 
-  // แผงลีด: ทำสำเนาได้เฉพาะใบร่าง (V2 ร่าง) — V1 ที่ส่งแล้วไม่มีปุ่มทำสำเนา (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0230)
-  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
-  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ลูกค้า);
-  await page.locator("tbody tr").filter({ hasText: ลูกค้า }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click();
-  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await expect(page.getByRole("button", { name: "ทำฉบับใหม่" }).first(), "แผงลีด: V1 ที่ส่งแล้วมีปุ่มทำฉบับใหม่").toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("button", { name: "ทำสำเนา" }), "แผงลีด: ทำสำเนามีเฉพาะใบร่าง (V2) ใบเดียว").toHaveCount(1);
+  // ทำสำเนาได้เฉพาะใบร่าง (V2 ร่าง) — V1 ที่ส่งแล้วไม่มีปุ่มทำสำเนา (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0230)
+  await expect(ใบV2(), "แผงลีดเห็น V2").toBeVisible({ timeout: 20_000 });
+  await expect(ใบV1().getByRole("button", { name: "ทำฉบับใหม่" }), "V1 ที่ส่งแล้วมีปุ่มทำฉบับใหม่").toBeVisible();
+  await expect(ใบV1().getByRole("button", { name: "ทำสำเนา" }), "V1 ที่ส่งแล้วไม่มีทำสำเนา").toHaveCount(0);
+  await expect(ใบV2().getByRole("button", { name: "ทำสำเนา" }), "V2 ใบร่างทำสำเนาได้").toHaveCount(1);
 
-  // ส่ง V2 → V1 ถูกแทนที่ · มูลค่าลีด = ยอด V2
-  await เปิดรายการ();
-  await แถวV2().getByTitle("ส่งให้ลูกค้า").click();
+  // ส่ง V2 (กล่องขั้นต่อไป) → V1 ถูกแทนที่ · มูลค่าลีด = ยอด V2
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 20_000 });
+  await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await ใบ_(เลขใบ))?.status, { timeout: 20_000, message: "ส่ง V2 แล้ว V1 ถูกแทนที่" }).toBe("superseded");
   expect((await ใบ_(เลขV2))?.status).toBe("sent_to_client");
   await expect.poll(มูลค่าลีด, { timeout: 20_000, message: "มูลค่าลีดเปลี่ยนตาม V2" }).toBe(3150);
 
-  // V1 อ่านอย่างเดียว: ป้ายถูกแทนที่ · ไม่มีปุ่มทำฉบับใหม่/ลบ/แก้ไข · แผงไม่มีปุ่มตอบรับ
-  await เปิดรายการ();
-  await expect(แถวV1().getByText("ถูกแทนที่", { exact: true }), "แถว V1 ขึ้นถูกแทนที่").toBeVisible({ timeout: 15_000 });
-  for (const t of ["ทำฉบับใหม่", "ลบใบเสนอราคา", "แก้ไข", "ส่งให้ลูกค้า"]) await expect(แถวV1().getByTitle(t), `แถว V1 ไม่มีปุ่ม ${t}`).toHaveCount(0);
-  await แถวV1().locator("td").nth(1).click();
-  await expect(page.locator("[data-quote-superseded]"), "แผง V1: ถูกแทนที่ อ่านอย่างเดียว").toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("button", { name: /ลูกค้าตอบรับ/ }), "แผง V1: ไม่มีปุ่มลูกค้าตอบรับ").toHaveCount(0);
+  // V1 อ่านอย่างเดียว: ป้ายถูกแทนที่ · ไม่มีปุ่มทำฉบับใหม่/ลบ/แก้ไข/ส่ง · หน้าดูใบไม่มีปุ่มตอบรับ
+  await เปิดแผงใบ(page);
+  await expect(ใบV1().getByText("ถูกแทนที่", { exact: true }), "V1 ขึ้นถูกแทนที่").toBeVisible({ timeout: 15_000 });
+  for (const t of ["ทำฉบับใหม่", "ลบ", "แก้ไข", "ส่งอีกครั้ง", "ทำสำเนา"]) await expect(ใบV1().getByTitle(t, { exact: true }), `V1 ไม่มีปุ่ม ${t}`).toHaveCount(0);
+  await expect(ใบV1().locator("[data-customer-result]"), "V1 ไม่มีปุ่มบันทึกผลลูกค้า").toHaveCount(0);
+  await ใบV1().getByTitle("ดู", { exact: true }).click();
+  await expect(page.getByText("ถูกแทนที่", { exact: true }).first(), "หน้าดู V1: ถูกแทนที่").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: /ลูกค้าตอบรับ/ }), "หน้าดู V1: ไม่มีปุ่มลูกค้าตอบรับ").toHaveCount(0);
+  await page.getByRole("button", { name: "กลับ" }).click();
 
   // ฐาน: ตอบรับ V1 ไม่ได้ · ลบใบที่ส่งแล้ว/ถูกแทนที่ไม่ได้
   const ตอบรับV1 = await sb.from("quotations").update({ status: "won" }).eq("dealer_code", "RYG").eq("id", เลขใบ);
@@ -165,10 +162,8 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
     expect(ลบ.error?.message ?? "", `ฐานไม่ให้ลบใบที่ส่งแล้ว ${id}`).toMatch(/quote_sent_no_delete/);
   }
 
-  // ตอบรับ V2 ผ่านหน้าเว็บ → ลีดปิดการขาย · มูลค่าคงเป็นยอด V2
-  await เปิดรายการ();
-  await แถวV2().locator("td").nth(1).click();
-  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).click();
+  // ตอบรับ V2 ที่ใบในแผงลีด (ทางเดียวของการปิดการขาย) → ลีดปิดการขาย · มูลค่าคงเป็นยอด V2
+  await ใบV2().locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await ใบ_(เลขV2))?.status, { timeout: 30_000, message: "ตอบรับ V2 ได้" }).toBe("won");
   await expect.poll(async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.status,
@@ -204,6 +199,13 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
   const ทั้งเครือ = await เลขที่ในตาราง(hq, เลขใบ);
   expect(ทั้งเครือ.map(x => x.text).sort(), "HQ ทั้งเครือ: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
   expect(ทั้งเครือ.filter(x => x.ตัด), "HQ ทั้งเครือ: เลขที่ไม่ถูกตัด").toEqual([]);
+  // ป้ายสถานะ "ถูกแทนที่" ต้องเห็นเต็ม (ทดลองใช้เว็บจริงแทนบอส 21 ต.ค. 69 · เดิมถูกตัดเป็น "ถูกแทนที่ …")
+  const ป้าย = await hq.locator("tbody tr").filter({ hasText: เลขใบ }).locator("[data-quote-status]").evaluateAll(els => els.map(el => {
+    const td = el.closest("td")!;
+    return { text: (el.textContent ?? "").trim(), ตัด: el.getBoundingClientRect().right > td.getBoundingClientRect().right + 1 };
+  }));
+  expect(ป้าย.map(x => x.text).sort(), "HQ ทั้งเครือ: ป้ายสถานะ V1/V2").toEqual(["ตอบรับ", "ถูกแทนที่"]);
+  expect(ป้าย.filter(x => x.ตัด), "HQ ทั้งเครือ: ป้ายสถานะไม่ถูกตัด").toEqual([]);
 
   await hq.goto(`${HQ_ORIGIN}/hq/dealers/RYG`, { waitUntil: "domcontentloaded" }); await settle(hq);
   await hq.locator("button.tab-item").filter({ hasText: /^ใบเสนอ\s*\d*$/ }).first().click();

@@ -6,7 +6,7 @@ import {
 } from "../../packages/shared/lib/prospectJourney";
 import type { ProspectActivity } from "../../packages/shared/lib/data/types";
 
-// เส้นทางการทำงานของลูกค้าเป้าหมาย (HQ) — บอสสั่ง 14 ก.ย. 69 "ออกแบบการทำออกมาใช้งานให้เสร็จ"
+// เส้นทางการทำงานของผู้สนใจเป็นดีลเลอร์ — บอสสั่ง 14 ก.ย. 69 "ออกแบบการทำออกมาใช้งานให้เสร็จ"
 const มีครบ = { มีบันทึกการติดต่อ: true, มีใบส่งแล้ว: true };
 const ประวัติ = (x: Partial<ProspectActivity>): ProspectActivity =>
   ({ id: 1, prospectId: 1, kind: "status", body: "-", actor: "a", createdAt: "2026-09-14T03:00:00Z", ...x });
@@ -143,7 +143,7 @@ describe("บันทึกการติดต่อ", () => {
     expect(ตรวจบันทึกการติดต่อ({ ...ok, channel: "" })).toMatch(/ช่องทาง/);
     expect(ตรวจบันทึกการติดต่อ({ ...ok, body: "" })).toMatch(/คุยอะไร/);
     expect(ตรวจบันทึกการติดต่อ({ ...ok, nextFollowUp: "2026-09-01" }, "2026-09-14")).toMatch(/ย้อนหลัง/);
-    expect(ตรวจบันทึกการติดต่อ({ ...ok, prospectId: 0 })).toMatch(/ลูกค้าเป้าหมาย/);
+    expect(ตรวจบันทึกการติดต่อ({ ...ok, prospectId: 0 })).toMatch(/ผู้สนใจ/);
   });
   it("มีบันทึกการติดต่อ นับเฉพาะชนิดติดต่อ", () => {
     expect(มีบันทึกการติดต่อ([{ kind: "created" }, { kind: "status" }])).toBe(false);

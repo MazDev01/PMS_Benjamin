@@ -133,7 +133,7 @@ export function เตรียมบันทึกใบ(p: Partial<DealerPack
 
 /** ตรวจความถูกต้อง — คืนข้อความที่ผู้ใช้อ่านเข้าใจ หรือ null ถ้าผ่าน */
 export function ตรวจใบเสนอ(p: ใบเสนอที่จะบันทึก): string | null {
-  if (!Number.isInteger(p.prospectId) || p.prospectId <= 0) return "ไม่ได้ระบุว่าเป็นใบของลูกค้าเป้าหมายรายไหน";
+  if (!Number.isInteger(p.prospectId) || p.prospectId <= 0) return "ไม่ได้ระบุว่าเป็นใบของผู้สนใจรายไหน";
   if (!เป็นแพ็กเกจ(p.package)) return "ต้องเลือกแพ็กเกจ (Standard หรือ Exclusive)";
   if (!p.proposedDate) return "ต้องระบุวันที่เสนอ";
   if (p.validUntil && p.validUntil < p.proposedDate) return "วันที่ข้อเสนอมีผลถึง ต้องไม่ก่อนวันที่เสนอ";

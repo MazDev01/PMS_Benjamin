@@ -5,8 +5,8 @@
 //   ฐานรวมกับค่าล่าสุดของตัวเอง → หน้าที่เปิดค้างไว้ถือสำเนาเก่า ก็ไม่ทับงานที่ฐาน/แท็บอื่นเพิ่งติ๊ก
 // applyLeadIntent = สำเนาตรรกะเดียวกับ lead_apply สำหรับโหมดตัวอย่าง (ไม่มีฐาน) และแสดงผลทันทีบนจอ
 //   ⚠️ แก้ตรรกะที่นี่ต้องแก้ supabase/migrations/0211_lead_apply.sql ด้วย (และกลับกัน) — tests/unit/leadIntent.test.ts
-import { stageFromTasks, buildLeadTasks, leadStatusLabel, CLOSE_TASK_KEY,
-  type LeadRow, type LeadStatus, type LeadTask, type LeadTaskDef, type LeadActivity, LEAD_STATUS_META } from "./mock";
+import { buildLeadTasks, leadStatusLabel,
+  type LeadRow, type LeadStatus, type LeadTask, type LeadTaskDef, type LeadActivity } from "./mock";
 
 /** ช่องที่ผู้ใช้แก้ได้ผ่าน fields — ตรงกับรายการใน lead_apply */
 export const LEAD_EDITABLE_FIELDS = ["name", "company", "contact", "phone", "email", "province", "product", "category", "value", "area",
@@ -18,8 +18,6 @@ export type LeadTaskChange = { key: string; done: boolean; label?: string; doneA
 export type LeadIntent = {
   fields?: LeadFields;
   tasks?: LeadTaskChange[];
-  /** "any" = ขั้นตามงานล่าสุด (ขึ้น/ลง) · "up" = เลื่อนขึ้นเท่านั้น — ฐานคิดจากงานในฐาน */
-  deriveStage?: "any" | "up";
   /** ขั้นที่ผู้ใช้ตั้งใจเปลี่ยนเอง (ลากการ์ด · ปิดการขาย · เปิดใหม่) */
   stage?: { status: LeadStatus; lostReason?: string };
   activities?: { text: string; type: string }[];
@@ -30,7 +28,6 @@ export type LeadIntent = {
   id?: never; numId?: never; status?: never; company?: never;
 };
 
-const RANK: Record<LeadStatus, number> = { WAITING: 0, BULLET: 1, HQ_PRICING: 1, HQ_QUOTED: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4, PAID: 5, CANCELLED: 2 };
 
 /** ส่วนต่างของช่องที่แก้ได้: after เทียบกับค่าที่หน้าจอเปิดแก้ (before) — ช่องที่ไม่เปลี่ยนไม่ส่ง */
 export function diffLeadFields(before: Partial<LeadRow>, after: Partial<LeadRow>): LeadFields {
@@ -53,12 +50,12 @@ export function diffLeadTasks(before: LeadTask[] | undefined, after: LeadTask[] 
 }
 
 export function intentIsEmpty(i: LeadIntent): boolean {
-  return !Object.keys(i.fields ?? {}).length && !(i.tasks ?? []).length && !i.stage && !i.deriveStage && !(i.activities ?? []).length;
+  return !Object.keys(i.fields ?? {}).length && !(i.tasks ?? []).length && !i.stage && !(i.activities ?? []).length;
 }
 
 /** แบบเดียวกับ lead_apply — โยน Error ข้อความเดียวกับฐานเมื่อผิดกฎ */
 export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
-  tpl: LeadTaskDef[]; now: string; hasSentQuote?: () => boolean;
+  tpl: LeadTaskDef[]; now: string;
 }): LeadRow {
   const f = (intent.fields ?? {}) as Record<string, unknown>;
   const ผิดช่อง = Object.keys(f).find(k => !(LEAD_EDITABLE_FIELDS as readonly string[]).includes(k));
@@ -88,14 +85,11 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
   if (intent.stage) {
     status = intent.stage.status;
     if (status === "CANCELLED" && (intent.stage.lostReason ?? "").trim()) lostReason = intent.stage.lostReason!.trim();
-  } else if (intent.deriveStage && LEAD_STATUS_META[lead.status].manual && LEAD_STATUS_META[lead.status].active) {
-    // ไม่เลื่อนขั้นจากงาน: สถานะที่ฐานขยับเอง (รอราคา HQ · ได้ราคา HQ) และปลายทาง — ตรงกับ lead_apply (ใบ 0219)
-    const ตามงาน = stageFromTasks(tasks, ctx.tpl.filter(d => d.key !== CLOSE_TASK_KEY));
-    status = intent.deriveStage === "up" && RANK[ตามงาน] <= RANK[lead.status] ? lead.status : ตามงาน;
   }
+  // งานไม่เลื่อนขั้นแล้ว (รอบ 4 · ใบ 0232) · ดีลเลอร์เปลี่ยนเองได้เฉพาะ "ปิดไม่สำเร็จ" — ตรงกับตัวดัก leads_status_one_path
+  if (status !== lead.status && status !== "CANCELLED")
+    throw new Error('lead_status_one_path: เปลี่ยนสถานะเองได้เฉพาะ "ปิดไม่สำเร็จ" ที่กล่องขั้นต่อไป — ขั้นอื่นระบบเลื่อนให้เองตามคำขอราคาและใบเสนอราคา');
   if (status !== lead.status) {
-    if (status === "PAID" && ctx.hasSentQuote && !ctx.hasSentQuote())
-      throw new Error("lead_close_needs_sent_quote: ปิดการขายสำเร็จไม่ได้ — ต้องมีใบเสนอราคาที่ส่งให้ลูกค้าแล้วอย่างน้อยหนึ่งใบ");
     if (status === "CANCELLED" && !(lostReason ?? "").trim())
       throw new Error("lead_lost_needs_reason: ปิดการขายไม่สำเร็จต้องระบุเหตุผลเสมอ");
     if (จด) logs.push({ date: ctx.now, icon: "task", type: "task", text: `เปลี่ยนขั้นเป็น "${leadStatusLabel[status]}"` });

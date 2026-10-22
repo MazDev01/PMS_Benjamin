@@ -12,29 +12,22 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // • ย้อนหลังฟิกซ์ 12 เดือน — ดีลเลอร์ 9/10 รายมีข้อมูลแค่ 3 เดือน · กราฟตัดตามตัวกรองเวลา "เท่าที่มีข้อมูล"
 // • Last Updated รายดีลเลอร์ — DealerRow ไม่มีฟิลด์นี้ · ใช้ "ใบเสนอราคาล่าสุด" ที่หาได้จริงแทน (ชื่อคอลัมน์ตรงกับสิ่งที่มันเป็น)
 // • Refresh — ระบบไม่มี backend ให้ refresh (ข้อมูลสดจาก SalesContext อยู่แล้ว)
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
+import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { useRouter } from "next/navigation";
-import {
-  FileText, Percent, Target, Trophy, Eye, X, Building2, Users, Coins, CalendarDays, FolderOpen, Search,
-} from "lucide-react";
+import { FileText, Percent, Target, Trophy, Eye, X, Coins, Search } from "lucide-react";
 import { DealerQuotationPerformance, DealerQuotationTable } from "@pms/shared/components/hq/pipeline/DealerQuotationPerformance";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
-import {
-  DEFAULT_HQ_TARGETS,
-  DEALER_FILES_EVENT, fmtISOToThai, QUOTED_UP,
-  type DealerRow, type HQTargets, type DealerFile,
-} from "@pms/shared/lib/mock";
+import { DEFAULT_HQ_TARGETS, QUOTED_UP, type DealerRow, type HQTargets } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { useDealerPerformance, EMPTY_PERF } from "@pms/shared/lib/useDealerPerformance";
-import { dealers as dealersRepo, settings as settingsRepo, files as filesRepo } from "@pms/shared/lib/data";
-import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { dealers as dealersRepo, settings as settingsRepo } from "@pms/shared/lib/data";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
-import { useSales } from "@pms/shared/context/SalesContext";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
-import { useNetworkQuotations, useNetworkLeads, useNetworkCustomers, useHQQuotationsSummary, useLeadSummary, useDealerDrawerData } from "@pms/shared/lib/useNetworkData";
+import { useNetworkQuotations, useNetworkLeads, useHQQuotationsSummary, useLeadSummary } from "@pms/shared/lib/useNetworkData";
 import { regionDisplay } from "@pms/shared/lib/hqQuotations";
 import { fmtBaht } from "@pms/shared/lib/format";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
@@ -133,22 +126,6 @@ export default function SalesAnalyticsPage() {
 
   const netQuotes = useNetworkQuotations();
   const netLeads = useNetworkLeads();
-  const netCustomers = useNetworkCustomers();
-  const { appointments } = useSales();
-
-  // ไฟล์แนบ — ใช้เฉพาะใน Drawer (ผูกกับลูกค้าเป้าหมายด้วย recordId = numId)
-  const [dealerFiles, setDealerFiles] = useState<DealerFile[]>([]);
-  // request token กันผลลัพธ์เก่าทับใหม่ — read ถูกยิงซ้ำได้ทุกครั้งที่มีการอัปโหลด/ลบไฟล์ทั้งเครือ
-  const dealerFilesReqRef = useRef(0);
-  useEffect(() => {
-    const read = () => {
-      const myReq = ++dealerFilesReqRef.current;
-      filesRepo.list({ isHQ: true }).then(r => { if (dealerFilesReqRef.current === myReq) setDealerFiles(r); }).catch(e => logRepoRead("files.list", e)); // HQ เห็นไฟล์ทั้งเครือ
-    };
-    read();
-    window.addEventListener(DEALER_FILES_EVENT, read);
-    return () => window.removeEventListener(DEALER_FILES_EVENT, read);
-  }, []);
 
   // ── Smart Filter — ทุกตัวเลือกสร้างจากข้อมูลจริง ไม่ฮาร์ดโค้ด ──
   const [q, setQ] = useState("");
@@ -231,7 +208,9 @@ export default function SalesAnalyticsPage() {
     const wonCount = a ? a.won : dq.filter(x => x.status === "won").length;
     const lostCount = a ? a.lost : dq.filter(x => x.status === "lost").length;
     const wonVal = a ? a.wonVal : dq.filter(x => x.status === "won").reduce((s, x) => s + x.valueNum, 0);
-    const closed = wonCount + lostCount;
+    // อัตราปิดการขาย = ลีดปิดสำเร็จ ÷ (สำเร็จ + ไม่สำเร็จ) สูตรกลาง (รอบ 4 · lib/winRate.ts) — ไม่ใช่จากใบอีกแล้ว
+    const leadWon = lbd ? lbd.won : dl.filter(l => l.status === "PAID").length;
+    const leadLost = lbd ? lbd.lost : dl.filter(l => l.status === "CANCELLED").length;
     return {
       ...d,
       leads: lbd ? lbd.leads : dl.length,
@@ -241,7 +220,8 @@ export default function SalesAnalyticsPage() {
       wonCount,
       lostCount,   // ปฏิเสธจริงเท่านั้น — ไม่ใช่ "ใบทั้งหมด − ปิดได้"
       wonVal,
-      conv: closed ? Math.round(wonCount / closed * 100) : null,
+      leadWon, leadLost,
+      conv: อัตราปิดการขาย(leadWon, leadLost),
       // ⚠️ ยอดสะสม/เป้า = ตัวเลข "ทั้งปี" ไม่ขึ้นกับตัวกรอง (บอสสั่งกลับ 26 ส.ค. 69)
       //    เป้าที่ HQ ตั้งให้ดีลเลอร์เป็นรายปี — ถ้าหดตามช่วง เลือก "วันนี้" จะได้ 0% ทุกสาขา
       //    ส่วนคอลัมน์ลูกค้าเป้าหมาย/ใบเสนอราคา/มูลค่า ยังเดินตามตัวกรองตามเดิม
@@ -254,8 +234,7 @@ export default function SalesAnalyticsPage() {
   // ── Executive KPI (4 การ์ด — ตัด Forecast ออก ไม่มีข้อมูล · ตัด "ดีลเลอร์ยอดขายสูงสุด" ตามคำสั่ง) ──
   const kpi = useMemo(() => {
     // รวมจาก perf (มาจาก byDealer ที่ DB เมื่อพร้อม · client เมื่อ fallback) — ชุดเดียวกับตาราง/กราฟ
-    const wonCount = perf.reduce((s, d) => s + d.wonCount, 0), lostCount = perf.reduce((s, d) => s + d.lostCount, 0);
-    const closed = wonCount + lostCount;
+    const wonCount = perf.reduce((s, d) => s + d.wonCount, 0);
     const actual = dealers.reduce((s, d) => s + perfOf(d.code).revenue, 0);   // ยอดสะสมทั้งปี
     // เป้าทั้งเครือใช้ค่าที่ HQ ตั้งไว้ · แต่ถ้ากรองเหลือบางดีลเลอร์ ต้องรวมเป้าเฉพาะรายนั้น ไม่งั้น % ผิด
     const filtered = dealers.length !== allDealers.length;
@@ -263,7 +242,7 @@ export default function SalesAnalyticsPage() {
     return {
       wonVal: perf.reduce((s, d) => s + d.wonVal, 0), wonCount,
       quotes: perf.reduce((s, d) => s + d.quotes, 0), quoteVal: perf.reduce((s, d) => s + d.quoteVal, 0),
-      conv: closed ? Math.round(wonCount / closed * 100) : null,
+      conv: อัตราปิดการขาย(perf.reduce((s, d) => s + d.leadWon, 0), perf.reduce((s, d) => s + d.leadLost, 0)),
       actual, target, tpct: target > 0 ? Math.round(actual / target * 100) : null, filtered,
     };
   }, [perf, dealers, allDealers.length, targets.annualTarget]);
@@ -339,7 +318,7 @@ export default function SalesAnalyticsPage() {
   // ── Section 2 · มูลค่าใบเสนอราคา เทียบ ยอดขายจริง (รายดีลเลอร์) ──
   const quoteVsSales = useMemo(() => perf.map(d => ({
     key: d.code, label: `${d.code} – ${d.name}`, a: d.quoteVal, b: d.wonVal,
-    // สัดส่วน "มูลค่า" ไม่ใช่ "จำนวนใบ" — คนละตัวกับ "อัตราปิดการขาย" ที่นับใบ ต้องกำกับหน่วยไว้ ไม่งั้นอ่านว่าขัดกัน
+    // สัดส่วน "มูลค่า" ไม่ใช่อัตราปิดการขาย (สูตรกลางนับจากลีด) — ต้องกำกับหน่วยไว้ ไม่งั้นอ่านว่าขัดกัน
     note: d.quoteVal ? `ปิดได้ ${Math.round(d.wonVal / d.quoteVal * 100)}% ของมูลค่า` : undefined,
     onClick: () => router.push(`/hq/dealers/${d.code}`),
   })).sort((a, b) => b.a - a.a), [perf, router]);
@@ -389,10 +368,6 @@ export default function SalesAnalyticsPage() {
 
   // เดิมมี regional / lostReasons / trend สำหรับกราฟ 4 ใบที่ถูกตัดออก (ข้อมูลซ้ำกับหน้าอื่น) — ลบทิ้งพร้อมกัน
 
-  // ── Drawer (View) — เจาะรายดีลเลอร์ ไม่เปลี่ยนหน้า ──
-  const [drawer, setDrawer] = useState<typeof perf[number] | null>(null);
-  // ข้อมูลรายสาขาใน drawer — supabase: ดึงตรงจาก repo (M9 Phase 4) · local/ยังไม่กลับ: กรอง array เดิม
-  const drawerData = useDealerDrawerData(drawer?.code ?? null);
   const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL);
 
   // ── ตารางผลงานดีลเลอร์: แบ่งหน้า 10 แถวเท่าทุกตารางในระบบ ──
@@ -408,7 +383,7 @@ export default function SalesAnalyticsPage() {
     { label: "ยอดขายจริง (ในช่วง)", value: fmtBaht(kpi.wonVal), sub: `${kpi.wonCount} ดีล · จากใบเสนอราคาที่ปิดได้`, Icon: Trophy, color: "#059669", bg: "#E6F6EF" },
     { label: "มูลค่าใบเสนอราคา", value: fmtBaht(kpi.quoteVal), sub: `${kpi.quotes} ใบ · ในช่วงที่เลือก`, Icon: FileText, color: "#0891B2", bg: "#E6F4F9" },
     // ⚠️ หารด้วย "ใบที่รู้ผลแล้ว" เท่านั้น — คนละตัวหารกับการ์ดชื่อคล้ายกันที่หน้าใบเสนอราคาทั้งเครือ
-    { label: "อัตราปิดการขาย (จากใบที่รู้ผลแล้ว)", value: kpi.conv === null ? "—" : `${kpi.conv}%`, sub: "ตอบรับ ÷ (ตอบรับ + ปฏิเสธ)", Icon: Percent, color: "#7C3AED", bg: "#F0EBFB" },
+    { label: ชื่ออัตราปิดการขาย, value: kpi.conv === null ? "—" : `${kpi.conv}%`, sub: คำอธิบายอัตราปิดการขาย, Icon: Percent, color: "#7C3AED", bg: "#F0EBFB" },
     { label: "เป้าหมายทั้งปี", value: dealerPerf.ready && kpi.tpct != null ? `${kpi.tpct}%` : "—", sub: kpi.target > 0 ? `ยอดสะสม ${money(kpi.actual)} จาก ${fmtBaht(kpi.target)}` : `ยอดสะสม ${money(kpi.actual)} · ยังไม่ได้ตั้งเป้า`, Icon: Target, color: "#2563EB", bg: "#E8F0FE" },
   ];
 
@@ -574,7 +549,7 @@ export default function SalesAnalyticsPage() {
                 {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกเฉือน (th ตั้ง white-space: nowrap ทั้งระบบ) */}
                 <th style={{ textAlign: "right" }} title="มูลค่ารวมของใบเสนอราคาทั้งหมด">มูลค่าเสนอ</th>
                 <th style={{ textAlign: "right" }}>ยอดขายสะสม</th>
-                <th style={{ textAlign: "right" }} title="ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้) — นับเฉพาะใบที่รู้ผลแล้ว · คนละสูตรกับ “อัตราปิดการขาย” ที่หน้าใบเสนอราคาทั้งเครือ">อัตราปิด</th>
+                <th style={{ textAlign: "right" }} title="ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรเดียวทุกหน้า">อัตราปิดการขาย</th>
                 <th style={{ textAlign: "right" }}>เป้าทั้งปี</th>
                 <th style={{ textAlign: "right" }}>% เป้า</th>
                 <th title="วันที่ออกใบเสนอราคาล่าสุด">เสนอล่าสุด</th>
@@ -584,7 +559,7 @@ export default function SalesAnalyticsPage() {
             <tbody>
               {!perf.length && <tr><td colSpan={12} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {perfRows.map(d => (
-                <ClickableRow key={d.code} className="clickable" onActivate={() => setDrawer(d)} label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}>
+                <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าดีลเลอร์ ${d.name}`}>
                   <td data-col="code" style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY, overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>{d.code}</td>
                   <td style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {d.name}
@@ -601,7 +576,7 @@ export default function SalesAnalyticsPage() {
                   <td style={{ color: MUTED, whiteSpace: "nowrap" }}>{d.latest}</td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <button title="ดูรายละเอียด" onClick={() => setDrawer(d)}
+                      <button title="เปิดหน้าดีลเลอร์" onClick={() => router.push(`/hq/dealers/${d.code}`)}
                         style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Eye size={13} />
                       </button>
@@ -615,162 +590,7 @@ export default function SalesAnalyticsPage() {
         <TablePagination page={perfPageSafe} total={perf.length} onPage={setPerfPage} unit="ดีลเลอร์" />
       </div>
 
-      {/* ── DRAWER — เจาะรายดีลเลอร์ (อ่านอย่างเดียว ไม่มีแก้/ลบ) ── */}
-      {drawer && <DealerDrawer d={drawer} onClose={() => setDrawer(null)}
-        customers={drawerData ? drawerData.customers : netCustomers.filter(c => c.dealerCode === drawer.code)}
-        leads={drawerData ? drawerData.leads : netLeads.filter(l => l.dealerCode === drawer.code)}
-        quotes={drawerData ? drawerData.quotes : netQuotes.filter(x => x.dealerCode === drawer.code)}
-        appointments={drawerData ? drawerData.appointments : appointments} files={dealerFiles} onOpenDealer={() => router.push(`/hq/dealers/${drawer.code}`)} />}
+      {/* แผงดีลเลอร์ซ้อนเอาออก (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — กดดีลเลอร์แล้วไปหน้ารายละเอียดดีลเลอร์ · ผลงานอยู่หน้านี้ที่เดียว */}
     </div>
-  );
-}
-
-// ── Drawer ────────────────────────────────────────────────────────────────────
-// นัดหมาย/ไฟล์ ไม่มี dealerCode ในระบบ → ผูกผ่าน leadId/recordId = numId ของลูกค้าเป้าหมายดีลเลอร์รายนี้
-// ดีลเลอร์ที่ยังไม่มีนัดหมาย/ไฟล์บันทึกไว้จะขึ้น "—" ตามจริง (ไม่เติมข้อมูลปลอม)
-function DealerDrawer({ d, onClose, customers, leads, quotes, appointments, files, onOpenDealer }: {
-  d: { code: string; name: string; region: string; province: string; status: string; revenueActual: number; revenueTarget: number; tpct: number | null; leads: number; quoted: number; quotes: number; quoteVal: number; wonCount: number; wonVal: number; conv: number | null; latest: string };
-  onClose: () => void;
-  customers: { id: number; name: string; province: string; dealsWon: number; totalRevenue: number }[];
-  leads: { numId: number; company: string; status: string }[];
-  quotes: { quoteNo: string; customer: string; valueNum: number; status: string; createdAt: string }[];
-  appointments: { id: number; leadId?: number; company: string; project: string; date: string; time: string; assigned: string }[];
-  files: DealerFile[];
-  onOpenDealer: () => void;
-}) {
-  const leadIds = new Set(leads.map(l => l.numId));
-  const appts = appointments.filter(a => a.leadId != null && leadIds.has(a.leadId));
-  const docs = files.filter(f => f.source === "lead" && f.recordId != null && leadIds.has(f.recordId));
-
-  // ยอดขายรายเดือนของดีลเลอร์รายนี้ — จากใบเสนอราคาที่ปิดได้จริง
-  const monthly = (() => {
-    const m = Array(12).fill(0);
-    quotes.forEach(x => { if (x.status !== "won") return; const dt = parseThaiDate(x.createdAt); if (dt) m[dt.getMonth()] += x.valueNum; });
-    const last = m.reduce((acc, v, i) => v > 0 ? i : acc, -1);
-    return last < 0 ? [] : m.slice(0, last + 1).map((v, i) => ({ month: TH_ABBR[i], value: v }));
-  })();
-  const maxM = Math.max(...monthly.map(x => x.value), 1);
-
-  const head: React.CSSProperties = { display: "flex", alignItems: "center", gap: 7, fontSize: "0.62rem", fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 14, marginBottom: 8 };
-  // เนื้อหาแต่ละหัวข้ออยู่ในการ์ดขอบมน — มาตรฐานเดียวกับแผงลูกค้าเป้าหมายฝั่ง HQ
-  const กล่อง = (children: React.ReactNode) => (
-    <div style={{ background: "#fff", border: "1px solid #E7EDF4", borderRadius: 14, padding: "6px 14px", boxShadow: "0 1px 2px rgba(15,23,42,.04)" }}>{children}</div>
-  );
-  const row = (l: string, v: React.ReactNode) => (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 0", fontSize: "0.76rem", borderBottom: "1px solid #F1F5F9" }}>
-      <span style={{ color: "#64748B" }}>{l}</span>
-      <span style={{ fontWeight: 700, color: STEEL, textAlign: "right" }}>{v}</span>
-    </div>
-  );
-  const empty = (t: string) => <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "8px 0" }}>— {t}</div>;
-
-  return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.35)", zIndex: 300 }} />
-      {/* แผงลอยจากขอบจอแล้วมนทุกมุม เหมือนแผงรายละเอียดหน้าอื่น (บอสสั่ง 28 ส.ค. 69) */}
-      <div className="side-drawer" style={{ position: "fixed", top: 12, right: 12, bottom: 12, width: 460, maxWidth: "calc(100vw - 24px)", background: "#f8fafc", zIndex: 310, display: "flex", flexDirection: "column", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,51,102,.22)" }}>
-        {/* Dealer Profile */}
-        <div style={{ background: PRIMARY, padding: "18px 20px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: "1rem", fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
-              <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,.72)", marginTop: 3 }}>
-                {d.code} · {regionDisplay(d.region)} · {d.province}{d.status === "inactive" ? " · ปิดใช้งาน" : ""}
-              </div>
-            </div>
-            <button onClick={onClose} style={{ background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={14} /></button>
-          </div>
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px 18px" }}>
-          <div style={head}><Users size={11} /> สรุปลูกค้าเป้าหมาย</div>
-          {กล่อง(<>
-            {row("ลูกค้าเป้าหมายทั้งหมด", `${d.leads} ราย`)}
-            {row("เสนอราคาแล้ว", `${d.quoted} ราย`)}
-            {row("อัตราแปลงเป็นใบเสนอราคา", d.leads ? `${Math.round(d.quoted / d.leads * 100)}%` : "—")}
-          </>)}
-
-          <div style={head}><FileText size={11} /> สรุปใบเสนอราคา</div>
-          {กล่อง(<>
-            {row("ใบเสนอราคา (ในช่วง)", `${d.quotes} ใบ`)}
-            {row("มูลค่ารวม", fmtBaht(d.quoteVal))}
-            {row("ปิดได้", `${d.wonCount} ใบ · ${fmtBaht(d.wonVal)}`)}
-            {row("อัตราปิดการขาย", d.conv === null ? "—" : `${d.conv}%`)}
-            {row("ใบเสนอราคาล่าสุด", d.latest)}
-          </>)}
-
-          <div style={head}><Building2 size={11} /> สรุปลูกค้า</div>
-          {กล่อง(<>
-            {row("ลูกค้าทั้งหมด", `${customers.length} ราย`)}
-            {row("มูลค่ารวมจากลูกค้า", fmtBaht(customers.reduce((s, c) => s + c.totalRevenue, 0)))}
-            {!customers.length ? empty("ยังไม่มีลูกค้า") : (
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                {[...customers].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5).map((c, i, ทั้งหมด) => (
-                  <div key={c.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 0", fontSize: "0.74rem", borderBottom: i === ทั้งหมด.length - 1 ? "none" : "1px solid #F1F5F9" }}>
-                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700, color: STEEL, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                    <span style={{ color: "#64748B", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{fmtBaht(c.totalRevenue)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>)}
-
-          <div style={head}><Coins size={11} /> สรุปยอดขาย</div>
-          <div style={{ fontSize: "0.66rem", color: "#94A3B8", marginBottom: 6 }}>ยอดสะสม/เป้า = ตัวเลขทางการของดีลเลอร์ · ไม่ใช่ผลรวมใบเสนอราคาด้านบน</div>
-          {กล่อง(<>
-            {row("ยอดขายสะสมทั้งปี", fmtBaht(d.revenueActual))}
-            {row("เป้าหมายทั้งปี", fmtBaht(d.revenueTarget))}
-            {row("% ของเป้า", <span style={{ color: d.tpct == null ? "#94a3b8" : d.tpct >= 100 ? "#059669" : PRIMARY }}>{d.tpct == null ? "—" : `${d.tpct}%`}</span>)}
-          </>)}
-
-          <div style={head}>ยอดขายรายเดือน · จากใบเสนอราคาที่ปิดได้</div>
-          {!monthly.length ? กล่อง(empty("ยังไม่มียอดปิดการขาย")) : กล่อง(
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "8px 0" }}>
-              {monthly.map(m => (
-                <div key={m.month} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 34, fontSize: "0.66rem", color: MUTED, fontWeight: 700, flexShrink: 0 }}>{m.month}</span>
-                  <div style={{ flex: 1, height: 7, background: "var(--muted)", borderRadius: 999, overflow: "hidden" }}>
-                    <div className="bar-grow" style={{ height: "100%", width: `${Math.round(m.value / maxM * 100)}%`, background: PRIMARY, borderRadius: 999 }} />
-                  </div>
-                  <span style={{ width: 58, textAlign: "right", fontSize: "0.66rem", fontWeight: 700, color: STEEL, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{m.value ? fmtBaht(m.value) : "—"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={head}><CalendarDays size={11} /> ไทม์ไลน์นัดหมาย</div>
-          {กล่อง(!appts.length ? empty("ไม่มีนัดหมายที่ผูกกับลูกค้าเป้าหมายของดีลเลอร์รายนี้") : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {appts.map((a, i) => (
-                <div key={a.id} style={{ padding: "9px 0", borderBottom: i === appts.length - 1 ? "none" : "1px solid #F1F5F9" }}>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: STEEL, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.project || a.company}</div>
-                  <div style={{ fontSize: "0.65rem", color: "#64748B", marginTop: 3 }}>{fmtISOToThai(a.date)} · {a.time} · {a.assigned}</div>
-                </div>
-              ))}
-            </div>
-          ))}
-
-          <div style={head}><FolderOpen size={11} /> เอกสาร</div>
-          {กล่อง(!docs.length ? empty("ไม่มีเอกสารที่ผูกกับลูกค้าเป้าหมายของดีลเลอร์รายนี้") : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {docs.map((f, i) => (
-                <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 0", borderBottom: i === docs.length - 1 ? "none" : "1px solid #F1F5F9" }}>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: "0.74rem", fontWeight: 700, color: STEEL, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                  <span style={{ fontSize: "0.65rem", color: "#94A3B8", flexShrink: 0 }}>{f.size}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        <div style={{ borderTop: "1px solid #e6ebf2", background: "#fff", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexShrink: 0 }}>
-          <span style={{ fontSize: "0.68rem", color: MUTED }}>สำนักงานใหญ่ดูอย่างเดียว</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onOpenDealer} className="btn btn-secondary btn-sm">เปิดหน้าดีลเลอร์</button>
-            <button onClick={onClose} className="btn btn-primary btn-sm">ปิด</button>
-          </div>
-        </div>
-      </div>
-    </>
   );
 }

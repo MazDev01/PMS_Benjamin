@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, AlertTriangle } from "lucide-react";
+import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, AlertTriangle, Check, XCircle } from "lucide-react";
+import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
+import { LostReasonPicker } from "@pms/shared/components/ui/LostReasonPicker";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
   quotationStatusLabel, quotationStatusColor, fmtISOToThai,
@@ -46,12 +48,15 @@ type FormState = { project: string; items: string; price: string; expiry: string
 //   ตอนนี้เป็น discriminated union — เรียกไม่ครบ/เรียกทั้งคู่ = TS error ตั้งแต่คอมไพล์ ไม่ต้องพึ่ง !
 // openCreateSignal = ตัวนับจากหน้าแม่ — ค่าเปลี่ยนเมื่อไร แปลว่า "เปิดฟอร์มออกใบให้เลย"
 // ใช้ตอนดีลเลอร์ลากลูกค้าเป้าหมายไปขั้นเสนอราคา / กดติ๊กงาน "จัดทำใบเสนอราคา" (ต้องมีใบจริงถึงจะขยับขั้นได้)
+// openViewSignal = กล่อง "ขั้นต่อไป" สั่งเปิดใบที่รอลูกค้าตอบ (บันทึกผลจากลูกค้า · รอบ 4 ทำงานในแผง ไม่พาไปหน้าใบเสนอราคา)
+// onWon = ลูกค้าตอบรับแล้ว (ผู้เรียกแจ้ง/พาไปลูกค้าใหม่)
 type LeadQuotationsPanelProps =
-  | { lead: LeadRow; customer?: undefined; onToast?: (m: string) => void; openCreateSignal?: number }
-  | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined };
+  | { lead: LeadRow; customer?: undefined; onToast?: (m: string) => void; openCreateSignal?: number; openViewSignal?: { id: string; n: number }; onWon?: (company: string) => void }
+  | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined; openViewSignal?: undefined; onWon?: undefined };
 
-export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal }: LeadQuotationsPanelProps) {
-  const { quotations, createQuotation, updateQuotation, deleteQuotation, newQuotationVersion } = useSales();
+export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon }: LeadQuotationsPanelProps) {
+  const { quotations, createQuotation, updateQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus } = useSales();
+  const [ปฏิเสธใบ, setปฏิเสธใบ] = useState<string | null>(null);   // ใบที่กำลังเลือกเหตุผล "ลูกค้าปฏิเสธ"
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
   const [editing, setEditing] = useState<QuotationMock | null>(null);
   const ฉบับใหม่ = !!editing?.supersedesId;   // ฉบับใหม่ (V2 …): ลูกค้า โครงการ ภาษี คัดลอกจากใบเดิม แก้ไม่ได้ (0228)
@@ -210,6 +215,49 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
     openCreate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openCreateSignal, รอใบHQ]);
+  // กล่องขั้นต่อไปสั่งเปิดใบ (บันทึกผลจากลูกค้า) — เทียบเลขรอบ ไม่ใช่ค่าตอน mount (เหตุผลเดียวกับ openCreateSignal)
+  const lastView = useRef(0);
+  useEffect(() => {
+    if (!openViewSignal || openViewSignal.n === lastView.current) return;
+    const q = quotations.find(x => x.id === openViewSignal.id);
+    if (!q) return;
+    lastView.current = openViewSignal.n;
+    setEditing(q); setMode("view");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openViewSignal, quotations]);
+
+  // ── ผลจากลูกค้า (รอบ 4): ตอบรับ = ทางเดียวที่ปิดการขายสำเร็จ (ฐานกัน ใบ 0232) · ปฏิเสธ = ฐานปิดลีดเป็นไม่สำเร็จให้เอง ──
+  const บันทึกผลได้ = (q: QuotationMock) => แก้ได้(q) && q.status === "sent_to_client";
+  async function ลูกค้าตอบรับ(q: QuotationMock) {
+    if (!(await ยืนยัน({
+      หัวข้อ: `ลูกค้าตอบรับใบ ${q.id} ?`,
+      รายละเอียด: "ปิดการขายสำเร็จ — ระบบสร้าง/ผูกลูกค้าให้อัตโนมัติ และใบ HQ เปลี่ยนเป็นสั่งผลิต · ย้อนได้เฉพาะสำนักงานใหญ่",
+      ปุ่มตกลง: "ลูกค้าตอบรับ", อันตราย: true,
+    }))) return;
+    setQuotationStatus(q.id, "won");
+    setEditing(e => e?.id === q.id ? { ...e, status: "won" } : e);
+    onToast?.("ปิดการขายสำเร็จ — ระบบสร้าง/ผูกลูกค้าให้อัตโนมัติ");
+    onWon?.(q.customer);
+  }
+  function ลูกค้าปฏิเสธ(q: QuotationMock, reason: string) {
+    updateQuotation({ ...q, status: "lost", lostReason: reason });
+    setEditing(e => e?.id === q.id ? { ...e, status: "lost", lostReason: reason } : e);
+    setปฏิเสธใบ(null);
+    onToast?.(`บันทึกลูกค้าปฏิเสธใบ ${q.id} แล้ว — ลูกค้าเป้าหมายปิดไม่สำเร็จ`);
+  }
+  const ปุ่มผลลูกค้า = (q: QuotationMock) => บันทึกผลได้(q) && (
+    ปฏิเสธใบ === q.id ? (
+      <div style={{ flexBasis: "100%", marginTop: 8 }}>
+        <LostReasonPicker หัวข้อ="ลูกค้าปฏิเสธ — เลือกเหตุผล" ปุ่มยืนยัน="ยืนยันลูกค้าปฏิเสธ" onConfirm={r => ลูกค้าปฏิเสธ(q, r)} onCancel={() => setปฏิเสธใบ(null)} />
+      </div>
+    ) : (
+      <div data-customer-result style={{ display: "flex", gap: 6 }}>
+        <button type="button" onClick={() => void ลูกค้าตอบรับ(q)} className="btn btn-sm" style={{ background: "#059669", color: "#fff", height: 28, padding: "0 11px" }}><Check size={12} /> ลูกค้าตอบรับ</button>
+        <button type="button" onClick={() => setปฏิเสธใบ(q.id)} className="btn btn-sm" style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca", height: 28, padding: "0 11px" }}><XCircle size={12} /> ลูกค้าปฏิเสธ</button>
+      </div>
+    )
+  );
+
   function openEdit(q: QuotationMock) {
     if (!แก้เนื้อหาได้(q)) return;   // ใบที่ส่งแล้วล็อก (ฐานปฏิเสธอยู่แล้ว · ใบ 0226) — ไม่เปิดฟอร์มให้แก้เสียเปล่า
     setEditing(q);
@@ -553,13 +601,15 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
             <div style={{ fontSize: "0.82rem", color: "#2D2D2D", lineHeight: 1.6 }}>{q.note}</div></div>)}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
+          {ปุ่มผลลูกค้า(q)}
           <button onClick={() => printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
           {แก้เนื้อหาได้(q) && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
           {ทำฉบับใหม่ได้(q) && <button onClick={() => void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><CopyPlus size={13} /> ทำฉบับใหม่</button>}
-          {แก้ได้(q) && (q.status === "draft" || q.status === "sent_to_client") && (
-            <button onClick={() => { sendQuote(q); setMode("list"); }} className="btn btn-primary btn-sm">
-              <Send size={13} /> {q.status === "draft" ? "ส่งใบเสนอราคา" : "ส่งอีกครั้ง"}
+          {/* ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง (ใบที่ส่งแล้ว) */}
+          {แก้ได้(q) && q.status === "sent_to_client" && (
+            <button onClick={() => { sendQuote(q); setMode("list"); }} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
+              <Send size={13} /> ส่งอีกครั้ง
             </button>
           )}
         </div>
@@ -579,14 +629,16 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
 
       {related.length === 0 ? (
         <div style={{ textAlign: "center", padding: "28px 0", color: "#9aa2ad", fontSize: "0.8rem" }}>ยังไม่มีใบเสนอราคา{!readOnly && (REAL_BACKEND
-          ? (ใบHQ ? " — กด “ทำใบให้ลูกค้า” ที่แถบขั้นต่อไปด้านบน" : " — ต้องได้ราคาจากสำนักงานใหญ่ก่อน (ส่งคำขอที่แผงด้านบน)")
+          ? (ใบHQ ? " — กด “ทำใบให้ลูกค้า” ที่กล่องขั้นต่อไปด้านบน"
+            : lead?.status === "HQ_PRICING" ? " — รอราคาจากสำนักงานใหญ่ (ได้ราคาแล้วระบบแจ้ง)"
+            : " — ต้องได้ราคาจากสำนักงานใหญ่ก่อน (กด “ขอราคาจาก HQ” ที่กล่องขั้นต่อไปด้านบน)")
           : " — กด “สร้างใบเสนอราคา” เพื่อเริ่ม")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {related.map(q => {
             const c = quotationStatusColor[q.status];
             return (
-              <div key={q.id} style={{ padding: "10px 12px", borderRadius: 10, background: "#f8f9fb", border: "1px solid #f0f4f8" }}>
+              <div key={q.id} data-quote-item={q.id} style={{ padding: "10px 12px", borderRadius: 10, background: "#f8f9fb", border: "1px solid #f0f4f8" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -601,10 +653,11 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {/* ส่งใบเสนอราคา — เด่นเป็นปุ่ม navy · แสดงเฉพาะใบที่ยังส่งได้ (ร่าง/ส่งแล้ว) · ซ่อนเมื่อดูอย่างเดียว */}
-                    {แก้ได้(q) && (q.status === "draft" || q.status === "sent_to_client") && (
-                      <button onClick={() => sendQuote(q)} title={q.status === "draft" ? "ส่งใบเสนอราคา" : "ส่งอีกครั้ง"}
-                        className="btn btn-primary btn-sm" style={{ height: 28, padding: "0 11px" }}>
-                        <Send size={12} /> {q.status === "draft" ? "ส่ง" : "ส่งอีกครั้ง"}
+                    {/* ส่งใบร่าง = กล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง */}
+                    {แก้ได้(q) && q.status === "sent_to_client" && (
+                      <button onClick={() => sendQuote(q)} title="ส่งอีกครั้ง"
+                        className="btn btn-secondary btn-sm" style={{ height: 28, padding: "0 11px", color: "#374151" }}>
+                        <Send size={12} /> ส่งอีกครั้ง
                       </button>
                     )}
                     {([
@@ -625,6 +678,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal 
                     ))}
                   </div>
                 </div>
+                {บันทึกผลได้(q) && <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", marginTop: 8 }}>{ปุ่มผลลูกค้า(q)}</div>}
                 {confirmDel === q.id && (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid #eef0f4" }}>
                     <span style={{ fontSize: "0.72rem", color: "#dc2626", marginRight: "auto" }}>ลบใบเสนอราคานี้?</span>

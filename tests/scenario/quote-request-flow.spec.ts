@@ -78,7 +78,8 @@ async function เปิดแท็บใบเสนอราคา(page: Page
 test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอราคาจากหน้าลูกค้าเป้าหมาย → รอราคา HQ · อีเมลถึง HQ (แถว 1)", async ({ page }) => {
   const errs = watchErrors(page);
   const แผง = await เปิดแท็บใบเสนอราคา(page);
-  await แผง.getByRole("button", { name: "ขอราคาจาก HQ" }).click();
+  // รอบ 4: ปุ่ม "ขอราคาจาก HQ" อยู่ที่กล่องขั้นต่อไปที่เดียว — กดแล้วฟอร์มเปิดในแผงคำขอราคา (แท็บใบเสนอราคา)
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
   // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69) — ดีลเลอร์พิมพ์ "งานที่ขอราคา" เอง และเป็นช่องบังคับ
   await expect(แผง.getByLabel("แม่แบบ", { exact: true }), "คำขอราคาต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
   await แผง.getByLabel("สเปก / รายละเอียด").fill("โกดัง 20x40 ม. สูง 8 ม.");
@@ -138,7 +139,8 @@ test("[flow·dealer] ยกเลิกคำขอ ต้องมีเหต�
   await expect.poll(async () => (await คำขอล่าสุด()).status, { timeout: 20_000 }).toBe("cancelled");
   expect(await สถานะลูกค้าเป้าหมาย(), "ยกเลิกแล้วกลับรวบรวมความต้องการ").toBe("BULLET");
   expect(await อีเมล("request_cancelled"), "อีเมลยกเลิกถึง HQ (ตารางกลาง H6 · คืนตาม FLOW D3x · ใบ 0236)").toBe(1);
-  await expect(แผง.getByRole("button", { name: "ขอราคาจาก HQ" }), "ยกเลิกแล้วขอราคาใหม่ได้").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }), "ยกเลิกแล้วขอราคาใหม่ได้ (ปุ่มที่กล่องขั้นต่อไป · รอบ 4)").toBeVisible({ timeout: 20_000 });
+  await expect(แผง.getByRole("checkbox"), "ยกเลิกคำขอไม่มีตัวเลือกปิดลีด — ปิดไม่สำเร็จอยู่ที่กล่องขั้นต่อไปที่เดียว (รอบ 4)").toHaveCount(0);
   assertNoErrors(errs, "ยกเลิกคำขอ");
 });
 

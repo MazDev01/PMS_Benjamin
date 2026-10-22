@@ -1,5 +1,5 @@
 {
- "migration": "0230",
+ "migration": "0236",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -30,6 +30,13 @@
    "definer": true
   },
   {
+   "f": "_hd_won(p_dealer text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_lead_flow_set_status(p_dealer text, p_num_id integer, p_status lead_status, p_lost_reason text)",
    "anon": false,
    "authenticated": false,
@@ -51,6 +58,20 @@
    "definer": true
   },
   {
+   "f": "_notify(p_kind text, p_dealer text, p_once text, p_vars jsonb, p_ref_table text, p_ref_id text, p_detail text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_notify_render(p_text text, p_vars jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_quote_lock_area(v text)",
    "anon": false,
    "authenticated": false,
@@ -66,6 +87,13 @@
   },
   {
    "f": "_quote_request_mail_lines(r quote_requests)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_quote_request_vars(r quote_requests)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -247,6 +275,13 @@
    "definer": true
   },
   {
+   "f": "dealer_proposals_expired_notify()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealer_prospect_activities_after_contact()",
    "anon": false,
    "authenticated": false,
@@ -345,6 +380,13 @@
    "definer": false
   },
   {
+   "f": "files_delete_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "fill_price_history()",
    "anon": false,
    "authenticated": false,
@@ -416,6 +458,13 @@
   },
   {
    "f": "hq_customers_page(p_search text, p_dealer_code text, p_provinces text[], p_building_type text, p_bought_from date, p_bought_to date, p_limit integer, p_offset integer)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_dashboard(p_start date, p_end date, p_dealer text, p_today date)",
    "anon": false,
    "authenticated": true,
    "service_role": false,
@@ -576,6 +625,13 @@
    "definer": false
   },
   {
+   "f": "leads_from_hq_notify()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "leads_hq_pricing_guard()",
    "anon": false,
    "authenticated": false,
@@ -623,6 +679,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "leads_status_one_path()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "leads_territory_guard()",
@@ -692,6 +755,13 @@
    "anon": false,
    "authenticated": true,
    "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "notifications_scan(p_now timestamp with time zone)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
    "definer": true
   },
   {
@@ -849,6 +919,13 @@
    "definer": true
   },
   {
+   "f": "quotations_won_at_sync()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotations_won_lock()",
    "anon": false,
    "authenticated": false,
@@ -905,13 +982,6 @@
    "definer": true
   },
   {
-   "f": "quote_requests_email()",
-   "anon": false,
-   "authenticated": false,
-   "service_role": false,
-   "definer": true
-  },
-  {
    "f": "quote_requests_lead_quoted()",
    "anon": false,
    "authenticated": false,
@@ -920,6 +990,13 @@
   },
   {
    "f": "quote_requests_log()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_requests_notify()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  normalizeLeadTaskTemplate, buildLeadTasks, applyTaskTemplate, findAppointmentTask, completeTask, stageFromTasks, syncTasksToStage,
+  normalizeLeadTaskTemplate, buildLeadTasks, applyTaskTemplate, findAppointmentTask, completeTask,
   LEAD_TASK_TEMPLATE, CLOSE_TASK_KEY,
   type LeadTaskDef,
 } from "../../packages/shared/lib/mock";
@@ -52,19 +52,6 @@ describe("ลูกค้าเป้าหมายใช้ชุดงาน�
 
   it("สร้าง checklist จากชุดที่ส่งมา", () => {
     expect(buildLeadTasks(tpl).map(t => t.label)).toEqual(["โทรหาลูกค้า", "ถามความต้องการ", "ปิดการขาย"]);
-  });
-
-  it("เช็กงานของขั้นไหน สถานะเลื่อนไปขั้นนั้น", () => {
-    const tasks = buildLeadTasks(tpl).map(t => t.key === "w1" ? { ...t, done: true } : t);
-    expect(stageFromTasks(tasks, tpl)).toBe("WAITING");
-    const more = tasks.map(t => t.key === "b1" ? { ...t, done: true } : t);
-    expect(stageFromTasks(more, tpl)).toBe("BULLET");
-  });
-
-  it("ย้ายสถานะ → ติ๊กงานให้ถึงขั้นนั้น ตามชุดของ HQ", () => {
-    const out = syncTasksToStage(undefined, "BULLET", "ผู้ทดสอบ", tpl);
-    expect(out.map(t => `${t.label}:${t.done}`))
-      .toEqual(["โทรหาลูกค้า:true", "ถามความต้องการ:true", "ปิดการขาย:false"]);
   });
 
   it("ไม่ส่งชุดมา → ยังใช้ชุดเริ่มต้นเหมือนเดิม (ของเก่าไม่พัง)", () => {

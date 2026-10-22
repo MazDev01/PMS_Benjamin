@@ -230,19 +230,12 @@ test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอ
 test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใช่ 0% · ไม่มีป้ายล้าหลังเป้า (รายละเอียด · ทะเบียน · ภาพรวมยอดขาย · อัตราตอบรับ · อัตราปิดดีล · แดชบอร์ดดีลเลอร์)", async ({ page }) => {
   expect(Number((await admin.from("dealers").select("revenue_target").eq("code", รหัสยาว).single()).data?.revenue_target ?? -1), "ดีลเลอร์ทดสอบยังไม่ตั้งเป้า").toBe(0);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  // รอบ 4 (บอสตัดสิน 21 ต.ค. 69): หน้าดีลเลอร์ (รายละเอียด + ทะเบียน) ไม่มีตัวเลขยอดขาย/เป้าแล้ว — ผลงานอยู่ภาพรวมยอดขายที่เดียว
   await page.goto(`${HQ_ORIGIN}/hq/dealers/${รหัสยาว}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(page.getByText("ความคืบหน้าเทียบเป้าทั้งปี")).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText("ล้าหลังเป้า"), "ไม่ตั้งเป้า = ไม่มีป้ายล้าหลังเป้า (มียอดขายแล้วก็ตาม)").toHaveCount(0);
-  await expect(page.getByText(/ยอดขายต่ำกว่า 50% ของเป้า/), "ไม่มีแถบเตือนต่ำกว่าเป้า").toHaveCount(0);
-  await expect(page.getByText("ยังไม่ได้ตั้งเป้า").first(), "บอกว่ายังไม่ตั้งเป้า").toBeVisible();
-  await expect(page.getByText("0%", { exact: true }), "ไม่มี 0%").toHaveCount(0);
-
-  await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  const ร = await แถว(page, /ค้นหา/, รหัสยาว);
-  await expect(ร.getByText("ยังไม่ได้ตั้งเป้า"), "ทะเบียน: แถบยอด/เป้า").toBeVisible({ timeout: 20_000 });
-  await expect(ร.getByText("0%", { exact: true }), "ทะเบียน: ไม่มี 0% สีแดง").toHaveCount(0);
+  await expect(page.getByRole("link", { name: /ดูผลงานที่ภาพรวมยอดขาย/ }), "หน้ารายละเอียดพาไปภาพรวมยอดขาย").toBeVisible({ timeout: 20_000 });
+  for (const ห้าม of ["ความคืบหน้าเทียบเป้าทั้งปี", "ล้าหลังเป้า", "อัตราปิดการขาย"])
+    await expect(page.getByText(ห้าม, { exact: true }), `หน้ารายละเอียดดีลเลอร์ไม่มี "${ห้าม}"`).toHaveCount(0);
 
   await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
   await settle(page);

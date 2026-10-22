@@ -124,6 +124,7 @@ export const metrics: MetricsRepo = {
   hqCustomersPage: (opts) => dedupeRead(`metrics.hqCustomersPage:${JSON.stringify(opts)}`, () => _metrics.hqCustomersPage(opts)),
   hqCustomersFilterOptions: () => dedupeRead("metrics.hqCustomersFilterOptions", () => _metrics.hqCustomersFilterOptions()),
   hqOverview: () => dedupeRead("metrics.hqOverview", () => _metrics.hqOverview()),
+  hqDashboard: (start, end, dealer, today) => dedupeRead(`metrics.hqDashboard:${start}:${end}:${dealer ?? ""}:${today ?? ""}`, () => _metrics.hqDashboard(start, end, dealer, today)),
 };
 // ── นับยอดรวมของตารางแบ่งหน้า "ครั้งเดียวต่อชุดตัวกรอง" แล้วใช้ซ้ำตอนกดเปลี่ยนหน้า ──
 //

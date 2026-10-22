@@ -2,6 +2,7 @@
 
 // LocalAdapter — ห่อ loader / localStorage เดิม (mock.ts, useAudit.ts) โดยไม่แก้ของเดิม
 // เป็น adapter เริ่มต้น (NEXT_PUBLIC_DATA_SOURCE=local) · พฤติกรรมเท่าเดิม แค่รวมเข้าท่อเดียว
+import { แดชบอร์ดHQว่าง } from "../../hqDashboard";
 import { applyLeadIntent } from "@pms/shared/lib/leadIntent";
 import {
   loadHQDealers, HQ_DEALERS_KEY,
@@ -102,7 +103,7 @@ function ถอยเพราะใบถูกปฏิเสธเดโม(p
   บันทึกประวัติเดโม({ prospectId, kind: "status", body: ข้อความถอยเพราะใบถูกปฏิเสธ(เลขที่), fromStatus: "considering", toStatus: "meeting" });
 }
 
-// ลูกค้าเป้าหมาย (HQ) ของเดโม — เครื่องที่ยังไม่เคยมีข้อมูล เริ่มจากรายชื่อตามเอกสาร Dealer BJM PEB (บอสสั่ง 22 ก.ย. 69)
+// ผู้สนใจเป็นดีลเลอร์ ของเดโม — เครื่องที่ยังไม่เคยมีข้อมูล เริ่มจากรายชื่อตามเอกสาร Dealer BJM PEB (บอสสั่ง 22 ก.ย. 69)
 //   มีคีย์อยู่แล้ว (แม้เป็น [] เพราะลบหมดเอง) = ใช้ของเครื่องนั้น ไม่เติมกลับ
 function อ่านผู้สนใจเดโม(): DealerProspect[] {
   if (typeof window === "undefined") return [];
@@ -617,8 +618,8 @@ export const LocalAdapter: DataAdapter = {
       // quoted/won ต้องมีครบเหมือนฝั่งฐานข้อมูล (ใบ 0157) ไม่งั้นโหมด local กับ supabase ให้เลขคนละชุด
       const monthM = new Map<string, { y: number; m: number; created: number; won: number; lost: number; quoted: number }>();
       rows.forEach(l => { const d = parseThaiDateLocal(l.createdAt ?? ""); if (!d) return; const y = d.getFullYear(), m = d.getMonth(), k = `${y}-${m}`; let r = monthM.get(k); if (!r) { r = { y, m, created: 0, won: 0, lost: 0, quoted: 0 }; monthM.set(k, r); } r.created++; if (l.status === "PAID") r.won++; if (l.status === "CANCELLED") r.lost++; if (QUOTED_UP.includes(l.status)) r.quoted++; });
-      const dealerM = new Map<string, { leads: number; quoted: number; won: number }>();
-      rows.forEach(l => { const code = l.dealerCode ?? DEFAULT_DEALER_CODE; let r = dealerM.get(code); if (!r) { r = { leads: 0, quoted: 0, won: 0 }; dealerM.set(code, r); } r.leads++; if (QUOTED_UP.includes(l.status)) r.quoted++; if (l.status === "PAID") r.won++; });
+      const dealerM = new Map<string, { leads: number; quoted: number; won: number; lost: number }>();
+      rows.forEach(l => { const code = l.dealerCode ?? DEFAULT_DEALER_CODE; let r = dealerM.get(code); if (!r) { r = { leads: 0, quoted: 0, won: 0, lost: 0 }; dealerM.set(code, r); } r.leads++; if (QUOTED_UP.includes(l.status)) r.quoted++; if (l.status === "PAID") r.won++; if (l.status === "CANCELLED") r.lost++; });
       return ok({
         byStatus: [...statusM.entries()].map(([status, count]) => ({ status, count, value: statusValM.get(status) ?? 0 })),
         bySource: [...sourceM.entries()].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count),
@@ -917,6 +918,8 @@ export const LocalAdapter: DataAdapter = {
         sales: { hqOrdered: 0, dealerWon: quotes.reduce((s, q) => s + Number(q.totalValue ?? 0), 0), marginByDealer: [] },
       });
     },
+    // แดชบอร์ด HQ: ตัวเลขคิดที่ฐานเท่านั้น (บอสสั่ง 21 ต.ค. 69) — โหมดตัวอย่างไม่มีตัวคำนวณ ส่งผลว่าง (หน้าจอขึ้นกรอบว่าง) ห้ามคิดเองในเครื่อง
+    hqDashboard: () => ok(แดชบอร์ดHQว่าง()),
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);
       const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
@@ -991,9 +994,8 @@ export const LocalAdapter: DataAdapter = {
       const lead = list.find((l) => l.id === id);
       if (!lead) return Promise.reject(new Error("not_found: ไม่พบลูกค้าเป้าหมายนี้ (อาจถูกลบ หรือไม่มีสิทธิ์)"));
       try {
-        const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
-        const next = applyLeadIntent(lead, intent, { tpl: loadLeadTaskTemplate(), now: nowStampTH(),
-          hasSentQuote: () => quotes.some((q) => q.status !== "draft" && (q.dealId === lead.numId || q.customer === lead.company)) });
+        // ปิดสำเร็จทางลีดไม่มีแล้ว (รอบ 4 · ใบ 0232) — ได้ทางเดียวคือลูกค้าตอบรับที่ใบ จึงไม่ต้องเช็กใบที่ส่งแล้ว
+        const next = applyLeadIntent(lead, intent, { tpl: loadLeadTaskTemplate(), now: nowStampTH() });
         writeKey(SALES.leads, list.map((l) => (l.id === id ? next : l)));
         return ok(next);
       } catch (e) { return Promise.reject(e); }

@@ -1,7 +1,6 @@
 // ── ตัวเลขบนการ์ดต้องตรงกับชื่อการ์ด และแท่งคู่ต้องเป็นหน่วยเดียวกัน (ตรวจพบ 24 ส.ค. 69) ──
 //
-// 1) การ์ดบนแดชบอร์ดสำนักงานใหญ่เดินตามตัวกรองช่วงเวลา = นับ "ลูกค้าใหม่ในช่วงนั้น"
-//    แต่ป้ายเดิมเขียนว่า "ลูกค้าทั้งเครือ / จำนวนลูกค้าทั้งหมดในเครือ" → ขึ้น 11 ขณะที่หน้าลูกค้าขึ้น 51
+// 1) การ์ดบนแดชบอร์ดสำนักงานใหญ่เดินตามตัวกรองช่วงเวลา — ชื่อการ์ดต้องบอกตรงกับที่นับ (ปัจจุบัน: ลีดใหม่ทั้งเครือ)
 // 2) แดชบอร์ดดีลเลอร์เทียบ "ราย" กับ "ใบ" ในกราฟเดียวกัน แท่งหลังจึงยาวเกินแท่งหน้าได้
 import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
@@ -13,29 +12,25 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 test.setTimeout(240_000);
 const dir = "C:/Users/boomb/AppData/Local/Temp/claude/c---claude-Benjamin-HQ-main/bd7e01dd-bc43-471f-943d-554aa158563a/scratchpad/";
 
-test("การ์ดลูกค้าบนแดชบอร์ด ต้องบอกว่าเป็นลูกค้าใหม่ในช่วงที่เลือก", async ({ page }) => {
+// 21 ต.ค. 69 (บอสสั่ง): การ์ด "ลูกค้าใหม่ทั้งเครือ" ได้ 0 ทั้งที่กราฟมีลีดหลายสิบ — เพราะนับ "ลูกค้า" (เกิดหลังปิดการขายเท่านั้น)
+//   เปลี่ยนเป็น "ลีดใหม่ทั้งเครือ" = ลีดที่เข้ามาในช่วงที่เลือก (created_date · ไม่นับแถว HQ) — ตัวเลขคิดที่ฐาน hq_dashboard
+test("การ์ดลีดใหม่บนแดชบอร์ด HQ ต้องเท่ากับลีดที่เข้ามาในช่วงที่เลือก", async ({ page }) => {
   await openAs(page, ADMIN, "hq", "/hq/dashboard");
-  await settle(page); await page.waitForTimeout(2000);
-  const t = await page.locator("body").innerText();
-  console.log("ป้ายการ์ด:", t.includes("ลูกค้าใหม่ทั้งเครือ") ? "ลูกค้าใหม่ทั้งเครือ ✓" : "ยังเป็นของเดิม");
-  expect(t).toContain("ลูกค้าใหม่ทั้งเครือ");
-  // ค่าที่ขึ้นต้องเท่ากับจำนวนลูกค้าที่ join ในปีนี้จริง
-  // ⚠️ อย่าฝังเลขปีไว้ — ค่าตั้งต้นของตัวกรองคือ "ปีนี้" ซึ่งเลื่อนไปเองทุกปี
-  // ช่วง "ปีนี้" ของตัวกรอง = 1 ม.ค. ถึง "วันนี้" (FilterContext: start = 1 ม.ค. · end = now)
-  //   ไม่ใช่ทั้งปีปฏิทิน — ลูกค้าที่ลงวันที่เป็นลูกค้าไว้ล่วงหน้า (เดือนหน้า) จึงยังไม่ถูกนับ ถูกต้องแล้ว
-  //   เดิมเทสต์นับ "ทุกแถวที่ขึ้นต้นด้วยปีนี้" เลยมากกว่าการ์ดตอนฐานมีวันที่ล่วงหน้าค้างอยู่
-  const วันนี้ = new Date();
-  const ต้นปี = `${วันนี้.getFullYear()}-01-01`;
-  const ถึงวันนี้ = `${วันนี้.getFullYear()}-${String(วันนี้.getMonth() + 1).padStart(2, "0")}-${String(วันนี้.getDate()).padStart(2, "0")}`;
-  const { data: c } = await db.from("customers").select("join_date");
-  const ปีนี้ = (c ?? []).filter(x => {
-    const d = String(x.join_date ?? "").slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= ต้นปี && d <= ถึงวันนี้;
-  }).length;
-  const การ์ด = page.locator("[class*=kpi]").filter({ hasText: "ลูกค้าใหม่ทั้งเครือ" }).first();
-  const เลข = (await การ์ด.innerText()).match(/(\d+)\s*\n?\s*ราย/)?.[1];
-  console.log(`ค่าบนการ์ด ${เลข} · ลูกค้าที่เริ่มปีนี้จริง ${ปีนี้}`);
-  expect(Number(เลข)).toBe(ปีนี้);
+  await settle(page);
+  const การ์ด = page.locator("[data-kpi='leads']");
+  await expect(การ์ด).toContainText("ลีดใหม่ทั้งเครือ", { timeout: 30_000 });
+  await expect(page.locator("[data-kpi]").filter({ hasText: "ลูกค้าใหม่ทั้งเครือ" }), "การ์ดลูกค้าใหม่เอาออกแล้ว").toHaveCount(0);
+  // ⚠️ อย่าฝังเลขปีไว้ — ค่าตั้งต้นของตัวกรองคือ "ปีนี้" = 1 ม.ค. ถึงวันนี้
+  const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
+  const นับ = async () => (await db.from("leads").select("id", { count: "exact", head: true })
+    .neq("dealer_code", "HQ").gte("created_date", ต้นปี).lte("created_date", วันนี้)).count ?? -1;
+  // ข้อทดสอบอื่นเพิ่ม/ลบลีดพร้อมกัน — อ่านจอกับตารางซ้ำจนตรงกัน
+  await expect.poll(async () => {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(การ์ด.locator("[data-value]")).not.toHaveAttribute("data-value", "", { timeout: 30_000 });
+    return Number(await การ์ด.locator("[data-value]").getAttribute("data-value")) === await นับ();
+  }, { timeout: 90_000, intervals: [1000, 3000, 5000], message: "ลีดใหม่บนการ์ด = นับจากตาราง" }).toBe(true);
 });
 
 test("แดชบอร์ดดีลเลอร์: แท่งคู่ต้องเป็นหน่วยราย และแท่งหลังไม่เกินแท่งหน้า", async ({ page }) => {

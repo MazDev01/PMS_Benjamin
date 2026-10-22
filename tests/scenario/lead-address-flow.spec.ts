@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { settle } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors, db, cleanup, specNS, nsTag, ensureSentQuotation } from "./funcHelpers";
 
 // ── ที่อยู่ที่กรอกตอนเป็นลูกค้าเป้าหมาย ต้องตามไปเป็นที่อยู่ของลูกค้าเมื่อปิดการขาย ──
@@ -57,8 +57,10 @@ test("[func] ปิดการขายสำเร็จ → ที่อย�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
 
-  await page.getByRole("button", { name: "งาน", exact: true }).first().click();
-  await page.getByRole("button", { name: /ได้งาน/ }).first().click();
+  // รอบ 4: ปิดสำเร็จทางเดียว = ลูกค้าตอบรับที่ใบในแท็บใบเสนอราคาของแผงลีด
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await page.locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click({ timeout: 20_000 });
+  await กดตกลงในกล่องยืนยัน(page).catch(() => "");
 
   await expect.poll(async () => {
     const { data } = await sb.from("customers").select("address").eq("company", COMPANY).limit(1);

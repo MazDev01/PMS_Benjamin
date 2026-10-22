@@ -3,173 +3,50 @@
 import { useState } from "react";
 import Link from "next/link";
 import { use } from "react";
-import {
-  DEFAULT_HQ_TARGETS, dealerStatusLabel, dealerStatusColor,
-  quotationStatusColor, quotationStatusLabel,
-  type DealerRow, type DealerDetail, type DealerLeadItem, type DealerProjectItem, type DealerQuoteItem, type HQTargets, type HQCustomer,
-} from "@pms/shared/lib/mock";
-import { useRepoValue, useRepoValueLoaded } from "@pms/shared/lib/useRepoState";
-import { useDealerPerformance, EMPTY_PERF } from "@pms/shared/lib/useDealerPerformance";
-import { dealers as dealersRepo, settings as settingsRepo } from "@pms/shared/lib/data";
+import { dealerStatusLabel, dealerStatusColor, quotationStatusColor, quotationStatusLabel, type DealerRow, type DealerLeadItem, type DealerQuoteItem, type HQCustomer } from "@pms/shared/lib/mock";
+import { useRepoValueLoaded } from "@pms/shared/lib/useRepoState";
+import { dealers as dealersRepo } from "@pms/shared/lib/data";
 import { useNetworkDealerDetail, useNetworkCustomersForDealer } from "@pms/shared/lib/useNetworkData";
-import { CountUp } from "@pms/shared/components/ui/CountUp";
 import { packageLabel } from "@pms/shared/lib/dealerProposals";
 import { DealerCredentialsCard } from "@pms/shared/components/hq/DealerCredentialsCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { ArrowLeft, TrendingUp, TrendingDown, Users, Lock, ScrollText, Pencil, EyeOff, Eye } from "lucide-react";
+import { ArrowLeft, Users, Lock, ScrollText, Pencil, EyeOff, Eye } from "lucide-react";
 import { DealerEditModal, type DealerEdit } from "@pms/shared/components/hq/DealerEditModal";
 import { HQ_DEALER_CODE } from "@pms/shared/lib/hqDealerRow";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useAuditLogger } from "@pms/shared/lib/useAudit";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { ชื่อขั้นการขาย, type ผลขั้น } from "@pms/shared/lib/leadStage";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-function fmtM(n: number | null) {
-  if (n == null) return "—";   // ลีดที่ยังไม่มีใบเสนอราคา (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223)
-  return n >= 1_000_000 ? `฿${(n / 1_000_000).toFixed(1)}M` : `฿${(n / 1000).toFixed(0)}K`;
-}
 
 const BADGE = (bg: string, color: string): React.CSSProperties => ({ background: bg, color });
 
-const LEAD_STATUS: Record<DealerLeadItem["status"], { label: string; bg: string; color: string }> = {
-  contacted: { label: "ติดต่อแล้ว", bg: "#eef2f7", color: "#475569" },
-  quoted:    { label: "ส่งใบเสนอ", bg: "#dce5f0", color: "#003366" },
-  won:       { label: "ปิดการขายสำเร็จ",     bg: "#e5faf0", color: "#059669" },
-  lost:      { label: "ปิดการขายไม่สำเร็จ",  bg: "#fee2e2", color: "#dc2626" },
-};
-
-const PROJ_STATUS: Record<DealerProjectItem["status"], { label: string; bg: string; color: string; bar: string }> = {
-  in_progress: { label: "กำลังดำเนินการ", bg: "#dce5f0", color: "#003366", bar: "#003366" },
-  completed:   { label: "ปิดได้",         bg: "#e5faf0", color: "#059669", bar: "#059669" },
-  on_hold:     { label: "พักโอกาสการขาย",         bg: "#fef3cd", color: "#d97706", bar: "#f59e0b" },
-  overdue:     { label: "เกินกำหนด",      bg: "#fee2e2", color: "#dc2626", bar: "#dc2626" },
-};
-
-// สี/ป้ายสถานะใบเสนอราคา = ใช้ของกลาง (mock.ts) แหล่งเดียว — เดิม map ในไฟล์นี้ลอกไว้แล้วเพี้ยน
-// (lost เป็นแดงที่นี่ แต่เทาที่อื่น) → ใบเดียวกันสีต่างกันคนละหน้า · 1.3
-
-// ── Mini bar chart ───────────────────────────────────────────────
-
-function MiniBarChart({ data }: { data: { month: string; value: number }[] }) {
-  const max = Math.max(...data.map(d => d.value));
-  const last = data[data.length - 1];
-  const prev = data[data.length - 2];
-  // prev.value === 0 → หารศูนย์ได้ Infinity/NaN → โชว์ "—" แทน (ห้ามเรนเดอร์ +Infinity%/NaN%)
-  const delta = prev && prev.value > 0 ? Math.round(((last.value - prev.value) / prev.value) * 100) : null;
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 72, marginBottom: 6 }}>
-        {data.map((d, i) => {
-          const pct = max > 0 ? Math.round((d.value / max) * 100) : 0;
-          const isLast = i === data.length - 1;
-          return (
-            <div key={d.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%", justifyContent: "flex-end" }}>
-              <div title={`${d.month}: ฿${(d.value / 1000).toFixed(1)}M`} className="vbar-grow"
-                style={{ width: "100%", height: `${pct}%`, minHeight: 4, borderRadius: "4px 4px 0 0", background: isLast ? "#003366" : "#dce5f0", animationDelay: `${i * 60}ms` }} />
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        {data.map(d => (
-          <span key={d.month} style={{ flex: 1, textAlign: "center", fontSize: "0.65rem", color: "#9ca3af" }}>{d.month}</span>
-        ))}
-      </div>
-      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
-        {delta === null ? (
-          // เดือนก่อนหน้ายังไม่มียอด → คิดเปอร์เซ็นต์ไม่ได้ ต้องเขียนให้อ่านออก ไม่ใช่ขีดเปล่า (บอสสั่ง 26 ส.ค. 69)
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af" }} title="เดือนก่อนหน้ายังไม่มียอด จึงคิดเป็นเปอร์เซ็นต์ไม่ได้">เทียบเดือนก่อนไม่ได้</span>
-        ) : (
-          <>
-            {delta >= 0
-              ? <TrendingUp size={12} color="#059669" />
-              : <TrendingDown size={12} color="#dc2626" />}
-            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: delta >= 0 ? "#059669" : "#dc2626" }}>
-              {delta >= 0 ? "+" : ""}{delta}% เทียบเดือนก่อน
-            </span>
-          </>
-        )}
-      </div>
-    </div>
-  );
+// ขั้นของลีด — ชื่อชุดเดียวกับแผงลีดฝั่งดีลเลอร์ (ตัวแปลงกลาง lib/leadStage.ts · รอบ 4)
+//   เดิมเขียนกลุ่มเอง 4 ป้าย (ติดต่อแล้ว / ส่งใบเสนอ / ปิดสำเร็จ / ปิดไม่สำเร็จ) ไม่ตรงกับแถบ 5 ขั้นของดีลเลอร์
+function ป้ายขั้น({ stage }: { stage: ผลขั้น }) {
+  const [ข้อความ, bg, color] = stage.kind === "won" ? ["ปิดการขายสำเร็จ", "#e5faf0", "#059669"]
+    : stage.kind === "lost" ? ["ปิดการขายไม่สำเร็จ", "#fee2e2", "#dc2626"]
+    : [`${stage.step} · ${ชื่อขั้นการขาย[stage.step - 1]}`, "#dce5f0", "#003366"];
+  return <span className="badge" style={BADGE(bg, color)}>{ข้อความ}</span>;
 }
 
-// ── Tab components ───────────────────────────────────────────────
-
-function OverviewTab({ dealer, detail }: { dealer: DealerRow; detail: DealerDetail }) {
-  // เกณฑ์ Win rate / ตรงเวลา = เป้าที่ HQ ตั้งไว้ (แหล่งเดียว) ไม่ hardcode
-  const targets = useRepoValue<HQTargets>(() => settingsRepo.getTargets(), DEFAULT_HQ_TARGETS);
-  // ผลงานจริงจากใบเสนอราคา/ลูกค้าเป้าหมาย — คอลัมน์ revenue_actual/win_rate/… ในตาราง dealers เป็นค่าเดโม
-  const perf = useDealerPerformance().get(dealer.code) ?? EMPTY_PERF;
-  // ⚠️ ตัวเลขที่โชว์ต้องเป็นค่าจริง · ตัดที่ 100 ได้เฉพาะความยาวแท่ง (บอสสั่ง 24 ส.ค. 69)
-  //   เดิมสาขาที่ทำได้เกินเป้าขึ้น "100%" เท่ากันหมด แยกไม่ออกว่าใครทำได้ 101% หรือ 410%
-  // ยังไม่ตั้งเป้า = null → "—" ไม่ใช่ 0% และไม่มีป้าย "ล้าหลังเป้า"/แถบเตือน (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
-  const targetPct = dealer.revenueTarget > 0 ? Math.round(perf.revenue / dealer.revenueTarget * 100) : null;
-  const targetBar = targetPct == null ? 0 : Math.min(100, targetPct);
-  const barColor  = targetPct == null ? "#94a3b8" : targetPct >= 80 ? "#059669" : targetPct >= 50 ? "#003366" : "#dc2626";
-  // ⚠️ ไม่มีข้อมูลเลย = ยังตัดสินไม่ได้ ห้ามขึ้น "ล้าหลังเป้า" (แก้ 10 ส.ค. 69)
-  //   เดิมสาขาที่ยังไม่มีลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้าสักรายการ ถูกขึ้นป้ายแดง "ล้าหลังเป้า"
-  //   พร้อมแถบเตือน "ต้องกระตุ้นการปิดการขาย" ทันทีที่เปิดหน้า เพราะยอด 0 ย่อมน้อยกว่า 50%
-  //   สาขาที่เพิ่งเปิดจึงถูกตีตราตั้งแต่วันแรก · การ์ด "ติดตามตรงเวลา" ในหน้าเดียวกันทำถูกอยู่แล้ว
-  //   (ขึ้น "ยังไม่มีข้อมูล") — ใบนี้แค่ยังไม่ได้ทำตาม
-  const hasAnyActivity = perf.revenue > 0 || perf.openLeads > 0 || perf.quotes > 0;
-  const isAtRisk  = hasAnyActivity && targetPct != null && targetPct < 50;
-
+// ── หน้ารายละเอียดดีลเลอร์ = งานดูแล (รอบ 4 · บอสตัดสิน 21 ต.ค. 69) ───────────────────────────────────────────
+//   ไม่มีตัวเลขยอดขาย/เป้า/อัตราปิด/กราฟ — ผลงานดีลเลอร์อยู่ที่ "ภาพรวมยอดขาย" ที่เดียว (ปุ่มลิงก์ในแท็บภาพรวม)
+function OverviewTab({ dealer }: { dealer: DealerRow }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      {/* ข้อมูลเข้าระบบของสาขานี้ — ย้ายมาจากปุ่มรูปกุญแจในตารางหน้ารายชื่อดีลเลอร์ (13 ส.ค. 69)
-          แสดงเฉพาะผู้มีสิทธิ์จัดการดีลเลอร์ (การ์ดเช็คสิทธิ์ในตัวเอง) */}
+      {/* ข้อมูลเข้าระบบของสาขานี้ — แสดงเฉพาะผู้มีสิทธิ์จัดการดีลเลอร์ (การ์ดเช็คสิทธิ์เอง) */}
       <DealerCredentialsCard dealer={dealer} />
-
-      {/* Revenue progress */}
-      <div className="card" style={{ padding: "18px 20px", gridColumn: "1 / -1" }}>
-        <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>ความคืบหน้าเทียบเป้าทั้งปี</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontSize: "1.3rem", fontWeight: 800, color: "#2D2D2D" }}>฿{(perf.revenue / 1_000_000).toFixed(1)}M</span>
-              <span style={{ fontSize: "1rem", fontWeight: 700, color: barColor }}>{targetPct == null ? "—" : `${targetPct}%`}</span>
-            </div>
-            <div style={{ height: 8, background: "#f0f0f5", borderRadius: 99, overflow: "hidden" }}>
-              <div className="top5-bar" style={{ height: "100%", width: `${targetBar}%`, background: barColor, borderRadius: 99 }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-              <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>ยอดจริง</span>
-              {/* ทศนิยม 1 ตำแหน่ง — เป้า Standard 1.6 ล้าน เดิมปัดขึ้น "฿2M" ไม่ตรงกับหน้าดีลเลอร์ */}
-              <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>{dealer.revenueTarget > 0 ? `เป้า ฿${(dealer.revenueTarget / 1_000_000).toFixed(1)}M` : "ยังไม่ได้ตั้งเป้า"}{dealer.package ? ` · ${packageLabel[dealer.package]}` : ""}</span>
-            </div>
-            {isAtRisk && (
-              <div style={{ marginTop: 10, padding: "6px 12px", background: "#fee2e2", borderRadius: 8, fontSize: "0.72rem", color: "#dc2626", fontWeight: 600 }}>
-                ⚠ ยอดขายต่ำกว่า 50% ของเป้า — ต้องกระตุ้นการปิดการขาย
-              </div>
-            )}
-          </div>
-          <div style={{ minWidth: 180 }}>
-            {detail && <MiniBarChart data={detail.monthlySales} />}
-          </div>
-        </div>
+      <div className="card" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
+        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>ผลงานดีลเลอร์</div>
+        <div style={{ fontSize: "0.82rem", color: "#374151", lineHeight: 1.6 }}>ยอดขาย เป้า และอัตราปิดการขายของดีลเลอร์ทุกราย ดูที่หน้า ภาพรวมยอดขาย ที่เดียว</div>
+        <Link href="/hq/pipeline" className="btn btn-secondary btn-sm" style={{ color: "#003366", textDecoration: "none" }}>
+          ดูผลงานที่ภาพรวมยอดขาย
+        </Link>
       </div>
-
-      {/* Stats */}
-      {[
-        // ยังไม่มีข้อมูลให้วัด = "—" ไม่ใช่ 0% (0% แปลว่าวัดแล้วได้ศูนย์ ซึ่งคนละความหมาย)
-        { label: "โอกาสการขายที่กำลังดำเนินการ", value: String(perf.openLeads),  unit: "โอกาสการขาย",     color: "#003366" },
-        { label: "อัตราปิดการขาย",     value: perf.winRate === null ? "—" : String(perf.winRate),   unit: perf.winRate === null ? "" : "%", color: (perf.winRate ?? 0) >= targets.winRateTarget ? "#059669" : "#dc2626" },
-        { label: "ติดตามตรงเวลา",         value: perf.onTimePct === null ? "—" : String(perf.onTimePct), unit: perf.onTimePct === null ? "" : "%", color: perf.onTimePct === null ? "#C0C0C0" : perf.onTimePct >= targets.onTimeTarget ? "#059669" : perf.onTimePct >= targets.onTimeTarget - 20 ? "#f59e0b" : "#dc2626" },
-        { label: "ใบเสนอราคา",         value: String(detail?.quotes.length ?? 0),   unit: "ใบ",      color: "#2D2D2D" },
-      ].map(s => (
-        <div key={s.label} className="stat-card">
-          <div className="stat-label">{s.label}</div>
-          <div className="stat-value" style={{ color: s.color }}>
-            <CountUp value={s.value} /><span style={{ fontSize: "0.8rem", fontWeight: 500, color: "#6b7280", marginLeft: 4 }}>{s.unit}</span>
-          </div>
-        </div>
-      ))}
-
-      {/* การ์ด "แม่แบบที่ขาย" ถอดออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
     </div>
   );
 }
@@ -187,33 +64,30 @@ function LeadsTab({ leads }: { leads: DealerLeadItem[] }) {
         <table>
           {/* ถอดคอลัมน์ "แม่แบบ" (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → 14% ยกให้คอลัมน์ "ลูกค้า" */}
           <colgroup>
-            <col style={{ width: "10%" }} />
+            <col style={{ width: "12%" }} />
             <col style={{ width: "38%" }} />
-            <col style={{ width: "13%" }} />
-            <col style={{ width: "11%" }} />
             <col style={{ width: "14%" }} />
-            <col style={{ width: "14%" }} />
+            <col style={{ width: "20%" }} />
+            <col style={{ width: "16%" }} />
           </colgroup>
           <thead>
             <tr>
-              {["รหัสลูกค้าเป้าหมาย", "ลูกค้า", "จังหวัด", "มูลค่า", "สถานะ", "มอบหมายเมื่อ"].map(h => (
+              {["รหัสลูกค้าเป้าหมาย", "ลูกค้า", "จังหวัด", "ขั้น", "มอบหมายเมื่อ"].map(h => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {leads.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีลูกค้าเป้าหมาย</td></tr>
+              <tr><td colSpan={5} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีลูกค้าเป้าหมาย</td></tr>
             )}
             {rows.map(l => {
-              const st = LEAD_STATUS[l.status];
               return (
                 <tr key={l.id}>
                   <td style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>{l.id}</td>
                   <td style={{ fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D" }}>{l.name}</td>
                   <td style={{ fontSize: "0.8rem", color: "#6b7280" }}>{l.province}</td>
-                  <td className="num" style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(l.valueNum)}</td>
-                  <td><span className="badge" style={BADGE(st.bg, st.color)}>{st.label}</span></td>
+                  <td><ป้ายขั้น stage={l.stage} /></td>
                   <td style={{ fontSize: "0.72rem", color: "#9ca3af" }}>{l.assignedAt}</td>
                 </tr>
               );
@@ -222,34 +96,6 @@ function LeadsTab({ leads }: { leads: DealerLeadItem[] }) {
         </table>
       </div>
       <TablePagination page={cur} total={leads.length} onPage={setPage} unit="ราย" />
-    </div>
-  );
-}
-
-function ProjectsTab({ projects }: { projects: DealerProjectItem[] }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {projects.length === 0 && (
-        <div className="card" style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีโอกาสการขาย</div>
-      )}
-      {projects.map(p => {
-        const st = PROJ_STATUS[p.status];
-        return (
-          <div key={p.id} className="card" style={{ padding: "14px 18px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: "0.86rem", fontWeight: 700, color: "#2D2D2D" }}>{p.name}</span>
-                  <span className="badge" style={BADGE(st.bg, st.color)}>{st.label}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(p.valueNum)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -276,14 +122,14 @@ function QuotesTab({ quotes }: { quotes: DealerQuoteItem[] }) {
           </colgroup>
           <thead>
             <tr>
-              {["เลขที่", "ลูกค้า", "มูลค่า", "สถานะ", "วันที่"].map(h => (
+              {["เลขที่", "ลูกค้า", "สถานะ", "วันที่"].map(h => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {quotes.length === 0 && (
-              <tr><td colSpan={5} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีใบเสนอ</td></tr>
+              <tr><td colSpan={4} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่มีใบเสนอ</td></tr>
             )}
             {rows.map(q => {
               const st = quotationStatusColor[q.status];
@@ -291,7 +137,6 @@ function QuotesTab({ quotes }: { quotes: DealerQuoteItem[] }) {
                 <tr key={q.quoteNo}>
                   <td data-quote-no style={{ fontSize: "0.72rem", fontWeight: 700, color: "#003366", whiteSpace: "nowrap" }}>{q.quoteNo}</td>
                   <td style={{ fontSize: "0.8rem", fontWeight: 600, color: "#2D2D2D" }}>{q.customer}</td>
-                  <td className="num" style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(q.valueNum)}</td>
                   <td><span className="badge" style={BADGE(st.bg, st.text)}>{quotationStatusLabel[q.status]}</span></td>
                   <td style={{ fontSize: "0.72rem", color: "#9ca3af" }}>{q.date}</td>
                 </tr>
@@ -310,7 +155,6 @@ function QuotesTab({ quotes }: { quotes: DealerQuoteItem[] }) {
 const TABS = [
   { key: "overview",  label: "ภาพรวม" },
   { key: "leads",     label: "ลูกค้าเป้าหมาย" },
-  { key: "projects",  label: "โอกาสการขาย" },
   { key: "quotes",    label: "ใบเสนอ" },
   { key: "customers", label: "ลูกค้า" },
   { key: "activity",  label: "กิจกรรม" },
@@ -327,18 +171,17 @@ function CustomerTab({ customers }: { customers: HQCustomer[] }) {
       <div className="table-wrap">
         <table>
           <thead>
-            <tr>{["ลูกค้า", "จังหวัด", "ดีลที่ปิด", "มูลค่ารวม", "สถานะ"].map(h => <th key={h}>{h}</th>)}</tr>
+            <tr>{["ลูกค้า", "จังหวัด", "ดีลที่ปิด", "สถานะ"].map(h => <th key={h}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {customers.length === 0 && (
-              <tr><td colSpan={5} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ยังไม่มีลูกค้า</td></tr>
+              <tr><td colSpan={4} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ยังไม่มีลูกค้า</td></tr>
             )}
             {rows.map(c => (
               <tr key={c.id}>
                 <td style={{ fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D" }}>{c.name}</td>
                 <td style={{ fontSize: "0.8rem", color: "#6b7280" }}>{c.province}</td>
                 <td className="num" style={{ fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D" }}>{c.dealsWon}</td>
-                <td className="num" style={{ fontSize: "0.8rem", fontWeight: 700, color: "#003366" }}>{fmtM(c.totalRevenue)}</td>
                 <td><span className="badge" style={c.status === "active" ? BADGE("#e5faf0", "#059669") : BADGE("#f0f0f5", "#9ca3af")}>{c.status === "active" ? "ใช้งาน" : "ไม่ใช้งาน"}</span></td>
               </tr>
             ))}
@@ -354,9 +197,9 @@ function CustomerTab({ customers }: { customers: HQCustomer[] }) {
 function ActivityTab({ leads, quotes }: { leads: DealerLeadItem[]; quotes: DealerQuoteItem[] }) {
   const items = [
     ...quotes.map(q => ({ id: `q-${q.quoteNo}`, icon: <ScrollText size={14} />, color: "#003366",
-      title: `ออกใบเสนอราคา ${q.customer}`, sub: `${fmtM(q.valueNum)} · ${quotationStatusLabel[q.status]}`, date: q.date })),
+      title: `ออกใบเสนอราคา ${q.customer}`, sub: quotationStatusLabel[q.status], date: q.date })),
     ...leads.map(l => ({ id: `l-${l.id}`, icon: <Users size={14} />, color: "#6b7280",
-      title: `รับมอบหมายลูกค้าเป้าหมาย ${l.name}`, sub: fmtM(l.valueNum), date: l.assignedAt })),
+      title: `รับมอบหมายลูกค้าเป้าหมาย ${l.name}`, sub: l.province, date: l.assignedAt })),
   ];
   return (
     <div className="card">
@@ -384,7 +227,6 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
   const { dealerCode } = use(params);
   // อ่านจากชุดที่ persist (HQ_DEALERS_KEY) — ดีลเลอร์ที่ HQ เพิ่มใหม่ต้องเปิดหน้านี้ได้ ไม่ใช่ 404
   const { value: dealers, loaded } = useRepoValueLoaded<DealerRow[]>(() => dealersRepo.list(), []);
-  const perfMap = useDealerPerformance();
   const [tab, setTab] = useState<TabKey>("overview");
   const code = dealerCode.toUpperCase();
   // แก้ไข/ปิดใช้งาน ย้ายมาอยู่หน้านี้ (บอสตัดสิน 19 ต.ค. 69 · รอบ 2 ช่วง ข) — ผลที่บันทึกแล้วทับค่าที่โหลดมา
@@ -434,18 +276,6 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
     );
   }
 
-  const perf = perfMap.get(code) ?? EMPTY_PERF;
-  // ยังไม่ตั้งเป้า = null → "—" ไม่ใช่ 0% และไม่มีป้าย "ล้าหลังเป้า"/แถบเตือน (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
-  const targetPct = dealer.revenueTarget > 0 ? Math.round(perf.revenue / dealer.revenueTarget * 100) : null;
-  // ⚠️ ไม่มีข้อมูลเลย = ยังตัดสินไม่ได้ ห้ามขึ้น "ล้าหลังเป้า" (แก้ 10 ส.ค. 69)
-  //   เดิมสาขาที่ยังไม่มีลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้าสักรายการ ถูกขึ้นป้ายแดง "ล้าหลังเป้า"
-  //   พร้อมแถบเตือน "ต้องกระตุ้นการปิดการขาย" ทันทีที่เปิดหน้า เพราะยอด 0 ย่อมน้อยกว่า 50%
-  //   สาขาที่เพิ่งเปิดจึงถูกตีตราตั้งแต่วันแรก · การ์ด "ติดตามตรงเวลา" ในหน้าเดียวกันทำถูกอยู่แล้ว
-  //   (ขึ้น "ยังไม่มีข้อมูล") — ใบนี้แค่ยังไม่ได้ทำตาม
-  const hasAnyActivity = perf.revenue > 0 || perf.openLeads > 0 || perf.quotes > 0;
-  const isAtRisk  = hasAnyActivity && targetPct != null && targetPct < 50;
-  const isWarn    = targetPct != null && targetPct >= 50 && targetPct < 70;
-
   return (
     <div className="erp">
       {/* Back link */}
@@ -465,8 +295,6 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
                 แพ็กเกจ {packageLabel[dealer.package]}
               </span>
             )}
-            {isAtRisk && <span className="badge" style={BADGE("#fee2e2", "#dc2626")}>🔴 ล้าหลังเป้า</span>}
-            {isWarn   && <span className="badge" style={BADGE("#fef3cd", "#d97706")}>⚠ ระวัง</span>}
             {/* ป้าย/สี มาจาก @pms/shared/lib/mock แหล่งเดียว — ให้ตรงกับตารางหน้า /hq/dealers เป๊ะ */}
             {dealer.status === "inactive" && (
               <span className="badge" style={BADGE(dealerStatusColor.inactive.bg, dealerStatusColor.inactive.color)}>
@@ -483,7 +311,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
             </div>
           )}
           <p>
-            ภาค{dealer.region} · {perf.openLeads} โอกาสการขาย · อัตราปิดการขาย {perf.winRate === null ? "—" : `${perf.winRate}%`} · ติดตามตรงเวลา {perf.onTimePct === null ? "—" : `${perf.onTimePct}%`}
+            ภาค{dealer.region || "—"} · จังหวัด{dealer.province || "—"}
           </p>
         </div>
       </div>
@@ -517,7 +345,6 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
       <div className="tab-bar" style={{ marginBottom: 20, overflowX: "auto" }}>
         {TABS.map(t => {
           const count = t.key === "leads" ? detail.leads.length
-            : t.key === "projects" ? detail.projects.length
             : t.key === "quotes" ? detail.quotes.length
             : t.key === "customers" ? custs.length
             : null;
@@ -537,9 +364,8 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
       </div>
 
       {/* Tab content — เชื่อมต่อ: CNX = ข้อมูลสด · สาขาอื่น = seed (แต่ละแท็บมี empty state ในตัว) */}
-      {tab === "overview"  && <OverviewTab dealer={dealer} detail={detail} />}
+      {tab === "overview"  && <OverviewTab dealer={dealer} />}
       {tab === "leads"     && <LeadsTab    leads={detail.leads} />}
-      {tab === "projects"  && <ProjectsTab projects={detail.projects} />}
       {tab === "quotes"    && <QuotesTab   quotes={detail.quotes} />}
       {tab === "customers" && <CustomerTab customers={custs} />}
       {tab === "activity"  && <ActivityTab leads={detail.leads} quotes={detail.quotes} />}

@@ -5,20 +5,10 @@ import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มู�
 import { useRouter } from "next/navigation";
 import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT } from "@pms/shared/lib/uploadLimits";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
-import {
-  buildLeadTasks, leadStatusLabel, leadStatusColor, QUOTED_UP, DEFAULT_DEALER_CODE,
-  quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode,
-  DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel,
-  type QuotationMock, type QuoteLineItem, type LeadRow,
-  type CustomerRow, type DealerFile, type LeadStatus,
-  type AppointmentMock,
-  type LeadActivity, type CustomerStatus,
-} from "@pms/shared/lib/mock";
+import { buildLeadTasks, leadStatusLabel, leadStatusColor, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
 import { useCustomerNotes } from "@pms/shared/lib/useCustomerNotes";
 import { อ่านตารางจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
-import { CSV_HEADERS, จับคู่คอลัมน์, แถวตัวอย่าง, แผ่นค่าที่เลือกได้, เนื้อไฟล์Csv,
-  type ImportRow, type ค่าที่ระบบมี as ค่าที่เลือกได้ในระบบ } from "@pms/shared/lib/customerImportTemplate";
-import { สร้างไฟล์Xlsx } from "@pms/shared/lib/makeXlsx";
+import { CSV_HEADERS, จับคู่คอลัมน์, แถวตัวอย่าง, แผ่นค่าที่เลือกได้, เนื้อไฟล์Csv, type ImportRow, type ค่าที่ระบบมี as ค่าที่เลือกได้ในระบบ } from "@pms/shared/lib/customerImportTemplate";
 import { สร้างไฟล์Xlsx as สร้างสมุดงานXlsx } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { fmtFull as fmtMoney, formatPhone } from "@pms/shared/lib/format";
@@ -39,13 +29,11 @@ const noteColorOf = (cat: string) =>
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
 import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
 import type { CustomerNote } from "@pms/shared/lib/data/types";
-import { DATA_SOURCE } from "@pms/shared/lib/data/config";
 import { boqLineItems, boqSubtotal } from "@pms/shared/lib/boq";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
 import { useTableLayout, type Col } from "@pms/shared/components/ui/TableTools";
-import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
 import { PersonPicker } from "@pms/shared/components/ui/PersonPicker";
 import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
@@ -57,23 +45,16 @@ import { useDealerVat } from "@pms/shared/lib/useDealerSettings";
 import { files as filesRepo, storage as fileStorage } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
-import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
-import { Donut } from "@pms/shared/components/ui/Charts";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useFilters, APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
-import {
-  Plus, X, ChevronUp, ChevronDown, Upload, Download,
-  Phone, Building2,
-  Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer,
-  MapPin, Mail, Coins, Layers, TrendingUp, CalendarClock,
-  Users,
-} from "lucide-react";
+import { Plus, X, ChevronUp, ChevronDown, Upload, Download, Phone, Building2, Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer, MapPin, Mail, Coins, Layers, CalendarClock, Users, Trash2 } from "lucide-react";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
-import { แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { แจ้งพลาด, แจ้งสำเร็จ, ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
+import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 
 // ── Design tokens ────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -231,21 +212,6 @@ function purchasedFor(customerId:number, qs:QuotationMock[]): QuotationMock[] {
 
 // ── Deterministic drawer feeds (จากลูกค้า + quotations + leads) ──
 // ไทม์ไลน์กิจกรรม — สร้างจากใบเสนอราคาและลูกค้าเป้าหมายที่ผูกกับลูกค้ารายนี้ (deterministic)
-function activityItemsFor(customerId:number, joinDate:string, qs:QuotationMock[], ls:LeadRow[]): ActivityTimelineItem[] {
-  const items: ActivityTimelineItem[] = [];
-  // จากใบเสนอราคา
-  qs.filter(q=>q.customerId===customerId).forEach(q=>{
-    items.push({ id:`q-${q.id}`, type:"quote", text:`ใบเสนอราคา ${q.id} — ${q.project} (${quotationStatusLabel[q.status]})`, time:fmtDate(q.date) });
-    if(q.status==="won") items.push({ id:`w-${q.id}`, type:"status", text:`ปิดการขายสำเร็จ — ${q.project}`, time:fmtDate(q.date) });
-  });
-  // จากดีล = ลูกค้าเป้าหมายที่ผูกกับลูกค้ารายนี้ (แหล่งเดียว ไม่มีกระดาน pipeline แยกอีกแล้ว)
-  ls.filter(l=>l.customerId===customerId).forEach(l=>{
-    items.push({ id:`d-${l.id}`, type:"status", text:`โอกาสการขาย: ${l.project || l.company} · ${fmtLeadValue(มูลค่าลีด(l))}`, time:l.createdAt ?? "—" });
-  });
-  // จุดเริ่มต้น: วันที่เพิ่มลูกค้า
-  items.push({ id:"joined", type:"note", text:"เพิ่มลูกค้าเข้าระบบ", time:fmtDate(joinDate) });
-  return items;
-}
 
 // ── ลูกค้าใหม่ / ลูกค้าเดิม ───────────────
 // เกณฑ์ (deterministic): มีใบเสนอราคาปิดการขาย ≥1 หรือ joinDate เก่ากว่า ~6 เดือน → ลูกค้าเดิม, มิฉะนั้น → ลูกค้าใหม่
@@ -432,7 +398,7 @@ export default function CustomersPage(){
   const [sortKey, setSortKey]         = useState<SortKey|null>(null);
   const [sortDir, setSortDir]         = useState<SortDir>("asc");
   const [selected, setSelected]       = useState<CustomerRow|null>(null);
-  const [custTab, setCustTab]         = useState<"overview"|"deals"|"quotation"|"timeline">("overview"); // แท็บ detail
+  const [custTab, setCustTab]         = useState<"overview"|"deals">("overview"); // แท็บ detail
   // (โหมดอ่าน/แก้ไขถูกถอดแล้ว — การ์ดข้อมูลลูกค้าแก้ในที่เดิมได้ตลอด · CustomerOverviewEditor reseed เองเมื่อสลับลูกค้า)
   useEffect(() => { setCustTab("overview"); }, [selected?.id]);
   const [page, setPage]               = useState(1);
@@ -548,7 +514,6 @@ export default function CustomersPage(){
     return () => { window.removeEventListener(DEALER_FILES_EVENT, sync); window.removeEventListener("storage", sync); };
   }, [currentDealer.code]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const rightQuoteRef = useRef<HTMLDivElement|null>(null);
   const rightApptRef  = useRef<HTMLDivElement|null>(null);
   const scrollTo = (r: React.RefObject<HTMLDivElement|null>) => r.current?.scrollIntoView({ behavior:"smooth", block:"nearest" });
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -574,6 +539,15 @@ export default function CustomersPage(){
       .then(() => filesRepo.list({ dealerCode: currentDealer.code, isHQ: false }).then(setDealerFiles))
       .catch(e => logRepoRead("files.add/list", e));
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+  // ลบไฟล์ที่แนบผิด (รอบ 4 · ย้ายมาจากหน้าไฟล์) — ถามยืนยัน · ไฟล์ของใบที่ส่งลูกค้าแล้วลบไม่ได้ (ฐานกัน ใบ 0233)
+  async function ลบไฟล์นี้(f: DealerFile) {
+    if (!(await ยืนยัน({ หัวข้อ: `ลบไฟล์ "${f.name}" ?`, รายละเอียด: "ย้อนกลับไม่ได้", ปุ่มตกลง: "ลบไฟล์", อันตราย: true }))) return;
+    try {
+      await ลบไฟล์(f);
+      setDealerFiles(await filesRepo.list({ dealerCode: currentDealer.code, isHQ: false }));
+      แจ้งสำเร็จ("ลบไฟล์แล้ว");
+    } catch (e) { แจ้งพลาด("ลบไฟล์ไม่สำเร็จ: " + friendlyError(e)); }
   }
   // ไฟล์ของลูกค้าที่เลือก — ผูกด้วย customerId หรือแนบตรงกับลูกค้า
   const selectedFiles: DealerFile[] = selected
@@ -673,9 +647,8 @@ export default function CustomersPage(){
   // "งานขายทั้งหมด" = ประวัติการปิดการขาย (ใบเสนอราคาที่ปิดการขาย) + โครงการที่กำลังทำ (ลูกค้าเป้าหมายที่ยังไม่ปิด)
   // เดิมทั้งสองการ์ดอ่านจากลูกค้าเป้าหมายชุดเดียวกัน → โชว์ตัวที่กำลังทำซ้ำบน-ล่าง ส่วนที่ซื้อแล้วไม่โผล่เลย (บอสทัก)
   // รายการในแผงรายละเอียด: ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69)
-  const wonProjects   = selected ? quotations.filter(q=>q.customerId===selected.id && q.status==="won").sort((a,b)=>b.id.localeCompare(a.id,"en",{numeric:true})) : [];
   const activeDeals   = selected ? leads.filter(l=>(l.customerId===selected.id||l.company===selected.company) && l.status!=="PAID").sort((a,b)=>b.numId-a.numId) : [];
-  const projectCount  = wonProjects.length + activeDeals.length;
+  const projectCount  = activeDeals.length;   // ที่ปิดการขายแล้วอยู่การ์ดประวัติการปิดการขายที่เดียว (รอบ 4)
   // ลูกค้าเป้าหมายทุกสถานะของลูกค้ารายนี้ — ใช้ผูกใบเสนอราคากลับไปหาลูกค้าเป้าหมาย (คนละชุดกับการ์ด "งานขายทั้งหมด")
   const customerDeals = selected ? leads.filter(l=>l.customerId===selected.id||l.company===selected.company) : [];
   const relatedAppointments = selected ? appointments.filter(a=>a.company===selected.company).sort((a,b)=>b.id-a.id) : [];
@@ -1114,7 +1087,6 @@ export default function CustomersPage(){
             )}
           </>
         );
-        const timelineItems = activityItemsFor(selected.id, selected.joinDate, quotations, allLeadsRaw);
 
         return (
         <>
@@ -1265,28 +1237,14 @@ export default function CustomersPage(){
                     แท็บนี้ = ดีลทั้งหมดของลูกค้า รวมที่ยังไม่ปิดการขาย */}
                 <div style={cardStyle}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                    <div style={{...secLabel,marginBottom:0}}><Layers size={13} color={PRIMARY}/> งานขายทั้งหมด ({projectCount})</div>
+                    <div style={{...secLabel,marginBottom:0}}><Layers size={13} color={PRIMARY}/> งานขายที่กำลังทำ ({projectCount})</div>
                     <button onClick={()=>openNewDeal(selected)} className="btn btn-primary btn-sm"><Plus size={13}/> เพิ่มงานขายใหม่</button>
                   </div>
                   {projectCount===0?(
                     <div style={{fontSize:"0.8rem",color:MUTED,textAlign:"center",padding:"24px 0"}}>ยังไม่มีงานขาย — กด &ldquo;เพิ่มงานขายใหม่&rdquo; เพื่อเริ่มงานขายแรก</div>
                   ):(
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      {/* ── ประวัติการปิดการขาย (ใบเสนอราคาที่ปิดการขาย) ── */}
-                      {wonProjects.map(q=>(
-                        <div key={q.id}
-                          style={{display:"flex",flexDirection:"column",gap:6,padding:"10px 12px",borderRadius:10,background:"#f8f9fb",border:"1px solid #eef0f4",width:"100%"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            <span style={{fontSize:"0.8rem",fontWeight:800,color:STEEL,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project}</span>
-                            <span className="badge" style={{flexShrink:0,background:"#e5faf0",color:"#059669"}}>ซื้อแล้ว</span>
-                          </div>
-                          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",fontSize:"0.65rem",color:MUTED}}>
-                            <span style={{color:PRIMARY,fontWeight:700}}>{q.total}</span>
-                            <span>ใบเสนอราคา: {q.id}</span>
-                            <span>ปิดการขาย: {fmtDate(q.date)}</span>
-                          </div>
-                        </div>
-                      ))}
+                      {/* ประวัติการปิดการขายเหลือที่เดียว = การ์ด "ประวัติการปิดการขาย" แท็บข้อมูลลูกค้า (กดเปิดรายละเอียดได้) · รอบ 4 */}
                       {/* ── โครงการที่กำลังทำ (ลูกค้าเป้าหมายที่ยังไม่ปิดการขาย) ── */}
                       {activeDeals.map(d=>{
                         const sc=leadStatusColor[d.status];
@@ -1319,43 +1277,7 @@ export default function CustomersPage(){
                     (ซื้อแล้ว = ใบที่ปิดการขาย · กำลังทำ = ลูกค้าเป้าหมายที่ยังไม่ปิด) */}
               </div>
 
-              {/* ── ใบเสนอราคา ── */}
-              <div style={{ padding:16, display:custTab==="quotation"?"flex":"none", flexDirection:"column", gap:14 }}>
-                <div ref={rightQuoteRef} style={cardStyle}>
-                  <div style={secLabel}><FileText size={13} color={PRIMARY}/> ใบเสนอราคา</div>
-                  <LeadQuotationsPanel customer={selected} />
-                </div>
-              </div>
-
-              {/* ── ไทม์ไลน์ + โน้ต + นัดหมาย + ไฟล์ ── */}
-              <div style={{ padding:16, display:custTab==="timeline"?"flex":"none", flexDirection:"column", gap:14 }}>
-                <div style={cardStyle}>
-                  <div style={secLabel}><TrendingUp size={13} color={PRIMARY}/> ไทม์ไลน์กิจกรรม</div>
-                  {timelineItems.length===0
-                    ? <div style={{fontSize:"0.8rem",color:MUTED,textAlign:"center",padding:"18px 0"}}>ยังไม่มีกิจกรรม</div>
-                    : <ActivityTimeline items={timelineItems} />}
-                </div>
-                <div style={cardStyle}>
-                  <div style={secLabel}><Paperclip size={13} color={PRIMARY}/> ไฟล์</div>
-                  {selectedFiles.length===0?(
-                    <div style={{color:"#9aa2ad",fontSize:"0.8rem",padding:"14px 0",textAlign:"center"}}>ยังไม่มีไฟล์แนบ</div>
-                  ):(
-                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                      {selectedFiles.map(file=>(
-                        <button key={file.id} type="button" onClick={()=>setPreviewFile(file)} title="กดเพื่อดูไฟล์"
-                          style={{display:"flex",alignItems:"center",gap:8,textAlign:"left",width:"100%",cursor:"pointer",padding:"8px 10px",borderRadius:8,background:"#fafafa",border:"1px solid #f0f4f8"}}>
-                          <Paperclip size={13} color="#C0C0C0"/>
-                          <span style={{flex:1,fontSize:"0.8rem",color:"#2D2D2D",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{file.name}</span>
-                          <Eye size={13} color="#003366"/>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={()=>fileInputRef.current?.click()} className="btn btn-primary btn-sm" style={{ marginTop:12 }}>
-                    <Plus size={13} /> เพิ่มไฟล์แนบ
-                  </button>
-                </div>
-              </div>
+              {/* แท็บ ใบเสนอราคา/ไทม์ไลน์ ของแผงลูกค้าเอาออก (รอบ 4) — ไม่มีปุ่มเปิดถึงอยู่แล้ว · ใบของลูกค้าดูที่การ์ดประวัติการปิดการขาย */}
             </div>
 
             {/* แถบปุ่มล่าง — พิมพ์ข้อมูล · ปิด (ปุ่มแก้ไข/สร้างดีล เอาออกตามที่บอสสั่ง
@@ -1476,6 +1398,13 @@ export default function CustomersPage(){
                             <Paperclip size={12} color={MUTED} style={{flexShrink:0}}/>
                             <span style={{flex:1,minWidth:0,fontSize:"0.74rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
                             <span style={{fontSize:"0.65rem",color:MUTED,flexShrink:0}}>{f.size}</span>
+                            {/* ลบไฟล์ที่นี่ (หน้าไฟล์ดูอย่างเดียว · รอบ 4) — ไฟล์ของใบที่ส่งลูกค้าแล้วไม่มีปุ่ม (ฐานกัน ใบ 0233) */}
+                            {ลบไฟล์ได้(f, quotations, currentDealer.code) && (
+                              <span role="button" tabIndex={0} title="ลบไฟล์" aria-label={`ลบไฟล์ ${f.name}`}
+                                onClick={e=>{ e.stopPropagation(); void ลบไฟล์นี้(f); }}
+                                onKeyDown={e=>{ if(e.key==="Enter"){ e.stopPropagation(); void ลบไฟล์นี้(f); } }}
+                                style={{display:"flex",padding:3,borderRadius:6,color:"#dc2626",flexShrink:0}}><Trash2 size={12}/></span>
+                            )}
                           </button>
                         ))}
                       </div>

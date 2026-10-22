@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 
-// ── เส้นทางการทำงานของลูกค้าเป้าหมาย (HQ) — migration 0174 ──
+// ── เส้นทางการทำงานของผู้สนใจเป็นดีลเลอร์ — migration 0174 ──
 //   บอสสั่ง 14 ก.ย. 69: "ทำให้ ลูกค้าเป้าหมาย ออกแบบการทำออกมาใช้งานให้เสร็จ" · "ให้มันทำงานแบบเดียวกับดีลเลอร์"
 //
 // สิ่งที่ต้องพิสูจน์ที่ฐานข้อมูล (ด่านจริง — ใครยิงตรงก็โดน):
@@ -185,7 +185,7 @@ test("[func·hq] รูปประจำตัว: อัปโหลดตั�
 
   const ลิงก์ภายนอก = await sb.from("dealer_prospects").update({ logo: "https://evil.example/x.png" }).eq("id", แถว.id).select();
   expect(ลิงก์ภายนอก.error, "ฐานข้อมูลต้องไม่รับลิงก์รูปภายนอก").not.toBeNull();
-  assertNoErrors(errs, "รูปประจำตัวลูกค้าเป้าหมาย (HQ)");
+  assertNoErrors(errs, "รูปประจำตัวผู้สนใจเป็นดีลเลอร์");
 });
 
 test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/30 วัน · ติดต่อล่าสุดในตาราง · แท็บประวัติ", async ({ page }) => {
@@ -224,5 +224,5 @@ test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/
   await expect(แผง.getByText("ทักกลับมาถามค่าแรกเข้า")).toBeVisible({ timeout: 15_000 });
   await expect(แผง.getByText("ติดต่อทาง Facebook")).toBeVisible();
   await expect(แผง.getByText("ติดต่อล่าสุด: วันนี้")).toBeVisible({ timeout: 15_000 });
-  assertNoErrors(errs, "บันทึกการติดต่อลูกค้าเป้าหมาย (HQ)");
+  assertNoErrors(errs, "บันทึกการติดต่อผู้สนใจเป็นดีลเลอร์");
 });

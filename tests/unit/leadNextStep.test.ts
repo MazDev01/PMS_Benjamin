@@ -9,38 +9,38 @@ const วันนี้ = "2026-10-16";
 const ใส่ = (x: Partial<NextStepInput> & { leadStatus: LeadStatus }): NextStepInput => ({ request: null, hqQuote: null, quote: null, today: วันนี้, ...x });
 
 describe("ขั้นต่อไปของลูกค้าเป้าหมาย", () => {
-  it("ติดต่อแล้ว / รวบรวมความต้องการ · ยังไม่มีคำขอ → ขอราคาจาก HQ (ขั้น 2)", () => {
+  it("ติดต่อแล้ว / รวบรวมความต้องการ · ยังไม่มีคำขอ → ขอราคาจาก HQ ", () => {
     for (const s of ["WAITING", "BULLET"] as const) {
       const r = ขั้นต่อไป(ใส่({ leadStatus: s }));
-      expect(r).toMatchObject({ step: 2, key: "request", action: { kind: "request_quote", label: "ขอราคาจาก HQ" } });
+      expect(r).toMatchObject({ key: "request", action: { kind: "request_quote", label: "ขอราคาจาก HQ" } });
     }
   });
-  it("คำขอใหม่ / HQ กำลังตีราคา → รอราคา HQ ไม่มีปุ่ม (ขั้น 3)", () => {
+  it("คำขอใหม่ / HQ กำลังตีราคา → รอราคา HQ ไม่มีปุ่ม ", () => {
     for (const st of ["new", "pricing"] as const) {
       const r = ขั้นต่อไป(ใส่({ leadStatus: "HQ_PRICING", request: { status: st, dueAt: "2026-10-30T00:00:00Z" } }));
-      expect(r).toMatchObject({ step: 3, key: "waiting_hq", action: null });
+      expect(r).toMatchObject({ key: "waiting_hq", action: null });
     }
   });
-  it("HQ ส่งใบแล้ว ราคายังไม่หมดอายุ · ยังไม่มีใบลูกค้า → ทำใบให้ลูกค้า (ขั้น 4)", () => {
+  it("HQ ส่งใบแล้ว ราคายังไม่หมดอายุ · ยังไม่มีใบลูกค้า → ทำใบให้ลูกค้า ", () => {
     const r = ขั้นต่อไป(ใส่({ leadStatus: "HQ_PRICING", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: "2026-10-20" } }));
-    expect(r).toMatchObject({ step: 4, key: "make_quote", action: { kind: "make_quote", label: "ทำใบให้ลูกค้า" } });
+    expect(r).toMatchObject({ key: "make_quote", action: { kind: "make_quote", label: "ทำใบให้ลูกค้า" } });
   });
   it("ราคา HQ ใช้ได้ถึงวันนี้ = ยังไม่หมดอายุ (ฐานใช้ valid_until < วันนี้)", () => {
     const r = ขั้นต่อไป(ใส่({ leadStatus: "HQ_PRICING", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: วันนี้ } }));
     expect(r.key).toBe("make_quote");
   });
-  it("HQ ส่งใบแล้วแต่ราคาหมดอายุ → ขอราคาใหม่ (ขั้น 3)", () => {
+  it("HQ ส่งใบแล้วแต่ราคาหมดอายุ → ขอราคาใหม่ ", () => {
     const r = ขั้นต่อไป(ใส่({ leadStatus: "HQ_PRICING", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: "2026-10-15" } }));
-    expect(r).toMatchObject({ step: 3, key: "requote", action: { kind: "reprice", label: "ขอราคาใหม่" } });
+    expect(r).toMatchObject({ key: "requote", action: { kind: "reprice", label: "ขอราคาใหม่" } });
   });
-  it("ใบลูกค้ายังเป็นร่าง → ส่งให้ลูกค้า (ขั้น 4)", () => {
+  it("ใบลูกค้ายังเป็นร่าง → ส่งให้ลูกค้า ", () => {
     const r = ขั้นต่อไป(ใส่({ leadStatus: "HQ_PRICING", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: "2026-10-20" }, quote: { status: "draft" } }));
-    expect(r).toMatchObject({ step: 4, key: "send_quote", action: { kind: "send_quote", label: "ส่งให้ลูกค้า" } });
+    expect(r).toMatchObject({ key: "send_quote", action: { kind: "send_quote", label: "ส่งให้ลูกค้า" } });
   });
-  it("ส่งใบให้ลูกค้าแล้ว (เสนอราคา / ติดตามผล / เจรจา) → บันทึกผลจากลูกค้า (ขั้น 5)", () => {
+  it("ส่งใบให้ลูกค้าแล้ว (เสนอราคา / ติดตามผล / เจรจา) → บันทึกผลจากลูกค้า ", () => {
     for (const s of ["QUOTED", "FOLLOWUP", "NEGO"] as const) {
       const r = ขั้นต่อไป(ใส่({ leadStatus: s, request: { status: "quoted", dueAt: "" }, quote: { status: "sent_to_client" } }));
-      expect(r).toMatchObject({ step: 5, key: "await_customer", action: { kind: "customer_result", label: "บันทึกผลจากลูกค้า" } });
+      expect(r).toMatchObject({ key: "await_customer", action: { kind: "customer_result", label: "บันทึกผลจากลูกค้า" } });
     }
   });
   it("ขอราคาใหม่ระหว่างที่ใบเดิมส่งลูกค้าไปแล้ว → รอราคา HQ มาก่อน", () => {
@@ -53,8 +53,8 @@ describe("ขั้นต่อไปของลูกค้าเป้าห�
       expect(r.key).toBe("make_quote");
     }
   });
-  it("ปิดการขายสำเร็จ → ไม่มีปุ่ม (ขั้น 5 เสร็จ)", () => {
-    expect(ขั้นต่อไป(ใส่({ leadStatus: "PAID" }))).toMatchObject({ step: 5, key: "won", action: null });
+  it("ปิดการขายสำเร็จ → ไม่มีปุ่ม ", () => {
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "PAID" }))).toMatchObject({ key: "won", action: null });
     // ใบลูกค้าตอบรับแล้วก็ถือว่าสำเร็จ แม้ขั้นของลีดยังตามไม่ทัน
     expect(ขั้นต่อไป(ใส่({ leadStatus: "NEGO", quote: { status: "won" } })).key).toBe("won");
   });
@@ -75,8 +75,22 @@ describe("ขั้นต่อไปของลูกค้าเป้าห�
   it("ครบทุกขั้นของลีด — ทุกค่าตัดสินได้ ไม่มีค่าไหนหลุด", () => {
     for (const s of LEAD_STATUS_ORDER) {
       const r = ขั้นต่อไป(ใส่({ leadStatus: s }));
-      expect(r.step).toBeGreaterThanOrEqual(1);
       expect(r.title.length).toBeGreaterThan(0);
     }
+  });
+  // ── รอบ 4: ปุ่ม "ปิดไม่สำเร็จ" อยู่ในกล่องนี้ที่เดียว · มีใบส่งลูกค้าอยู่ = ไม่มีปุ่ม (ใช้ "ลูกค้าปฏิเสธ" ที่ใบ · ข้อตัดสินบอส 2) ──
+  it("ขั้น 1–4 มีปุ่มปิดไม่สำเร็จ", () => {
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "BULLET" })).ปิดไม่สำเร็จได้).toBe(true);
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "HQ_PRICING", request: { status: "new", dueAt: "" } })).ปิดไม่สำเร็จได้).toBe(true);
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "HQ_QUOTED", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: "2026-10-20" } })).ปิดไม่สำเร็จได้).toBe(true);
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "HQ_QUOTED", request: { status: "quoted", dueAt: "" }, quote: { status: "draft" } })).ปิดไม่สำเร็จได้).toBe(true);
+  });
+  it("มีใบที่ส่งให้ลูกค้าอยู่ → ไม่มีปุ่มปิดไม่สำเร็จ (รวมตอนใบล่าสุดเป็นฉบับใหม่ที่ยังร่าง)", () => {
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "QUOTED", request: { status: "quoted", dueAt: "" }, quote: { status: "sent_to_client" } })).ปิดไม่สำเร็จได้).toBe(false);
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "QUOTED", request: { status: "quoted", dueAt: "" }, quote: { status: "draft" }, มีใบส่งให้ลูกค้า: true })).ปิดไม่สำเร็จได้).toBe(false);
+  });
+  it("ปิดแล้ว (สำเร็จ/ไม่สำเร็จ) ไม่มีปุ่มปิดไม่สำเร็จ", () => {
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "PAID" })).ปิดไม่สำเร็จได้).toBe(false);
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "CANCELLED" })).ปิดไม่สำเร็จได้).toBe(false);
   });
 });

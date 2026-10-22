@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type React from "react";
 import {
   Phone, FileText, Users, GitCommit, StickyNote,
   type LucideIcon,
@@ -19,6 +21,8 @@ export type ActivityTimelineItem = {
    *  (เช่น บันทึกการใช้งาน: ป้ายต้องเป็นชื่อการกระทำจริง "แก้ราคากลาง" ไม่ใช่คำว่า "บันทึก")
    *  ไม่ใส่ = ใช้ชื่อประเภทตาม ACTIVITY_META เหมือนเดิม */
   label?: string;
+  /** กดแล้วไปที่เรื่องนั้น (แดชบอร์ด HQ · บอสสั่ง 21 ต.ค. 69) — ไม่ใส่ = อ่านอย่างเดียวเหมือนเดิม */
+  href?: string;
 };
 
 // แต่ละประเภทกิจกรรม — ไอคอน + สีเน้น (CI) + คำอธิบายภาษาไทย
@@ -67,8 +71,8 @@ export function ActivityTimeline({ items }: { items: ActivityTimelineItem[] }) {
               )}
             </div>
 
-            {/* Body */}
-            <div style={{ paddingBottom: isLast ? 0 : 16, minWidth: 0, flex: 1 }}>
+            {/* Body — มีลิงก์ = ทั้งก้อนกดได้ */}
+            <Body href={item.href} style={{ paddingBottom: isLast ? 0 : 16, minWidth: 0, flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <span style={{
                   fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase",
@@ -82,12 +86,17 @@ export function ActivityTimeline({ items }: { items: ActivityTimelineItem[] }) {
               <div style={{ fontSize: "0.8rem", fontWeight: 500, color: STEEL, marginTop: 4, lineHeight: 1.4 }}>
                 {item.text}
               </div>
-            </div>
+            </Body>
           </div>
         );
       })}
     </div>
   );
+}
+
+function Body({ href, style, children }: { href?: string; style: React.CSSProperties; children: React.ReactNode }) {
+  if (!href) return <div style={style}>{children}</div>;
+  return <Link href={href} className="clickable" data-activity-link style={{ ...style, display: "block", color: "inherit", textDecoration: "none", borderRadius: 8 }}>{children}</Link>;
 }
 
 export default ActivityTimeline;

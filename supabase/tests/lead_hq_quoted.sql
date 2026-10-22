@@ -119,9 +119,10 @@ begin
   perform qtest.ok(v_st = 'HQ_PRICING', '4) ขอแก้ราคาหลังหมดอายุ → รอราคา HQ — ได้ ' || v_st);
 
   -- ── 5 ──
-  perform set_config('pms.flow_sync', '1', true);   -- ตั้งฉากทดสอบผ่านทางของระบบ (เหมือนลูกค้าตอบรับ)
+  -- ตั้งฉาก "ปิดสำเร็จแล้ว" ตรง ๆ (ปิดตัวดักชั่วคราว) — ทางของระบบตอนนี้ต้องมีใบที่ตอบรับ (ใบ 0232) ซึ่งไม่ใช่สิ่งที่ข้อนี้ทดสอบ
+  set local session_replication_role = replica;
   update leads set status = 'PAID' where dealer_code = 'CNX' and num_id = d;
-  perform set_config('pms.flow_sync', '', true);
+  set local session_replication_role = origin;
   perform qtest.as_dealer();
   perform qtest.must_fail(format($s$select create_quotation('CNX', 'Q-', jsonb_build_object('customer','x','project','x','total','0','status','draft',
       'line_items','[{"name":"โครงเหล็ก","qty":1,"unit":"ชุด","unitPrice":0,"markupPct":0}]'::jsonb,'items',1,

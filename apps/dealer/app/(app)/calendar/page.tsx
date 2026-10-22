@@ -86,10 +86,9 @@ export default function CalendarPage() {
   const [groupFilter, setGroupFilter] = useState<GroupFilter>("all");
   const [view, setView] = useState<ViewMode>("month"); // หน้า "ปฏิทิน" เปิดที่มุมมองเดือนก่อน
   // นัดหมายทั้งหมดมาจาก SalesContext (ใช้ร่วมกับแดชบอร์ด/แจ้งเตือน)
-  const { appointments: allAppts, addAppointment: ctxAddAppt, updateAppointment: ctxUpdateAppt, deleteAppointment: ctxDeleteAppt, leads: ลีดทั้งหมด } = useSales();
+  const { appointments: allAppts, updateAppointment: ctxUpdateAppt, deleteAppointment: ctxDeleteAppt, leads: ลีดทั้งหมด } = useSales();
   const currentDealerCal = useCurrentDealer();
   const [detail, setDetail] = useState<AppointmentMock | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<AppointmentMock | null>(null);
 
   // นัดหมายทั้งหมดจาก context (allAppts มาจาก useSales ด้านบน)
@@ -170,11 +169,6 @@ export default function CalendarPage() {
   }, [allAppts, year, month]);
 
   // เพิ่ม/แก้ไข/ลบ นัดหมาย ผ่าน SalesContext (สะท้อนแดชบอร์ด/แจ้งเตือนทันที)
-  function addAppointment(a: AppointmentMock) {
-    ctxAddAppt(a);
-    selectDate(a.date);
-    setAddOpen(false);
-  }
   function editAppointment(a: AppointmentMock) {
     ctxUpdateAppt(a);
     setEditAppt(null);
@@ -355,10 +349,7 @@ export default function CalendarPage() {
               <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.92rem" }}>
                 <CalendarDays size={15} color={PRIMARY} /> {selectedDate === TODAY ? "วันนี้" : `${parseInt(selectedDate.split("-")[2])} ${THAI_MONTHS[parseYmd(selectedDate).getMonth()]}`}
               </div>
-              {/* ปุ่มไอคอนล้วนต้องมีชื่อกำกับ — นี่เป็นทางเดียวที่สร้างนัดหมายได้
-                  ถ้าไม่มี คนที่ใช้โปรแกรมอ่านหน้าจอจะไม่รู้ว่าปุ่มนี้ทำอะไร */}
-              <button onClick={() => setAddOpen(true)} title="เพิ่มกิจกรรม" aria-label="เพิ่มกิจกรรม"
-                className="btn btn-secondary btn-sm" style={{ color: PRIMARY, padding: "5px 9px" }}><Plus size={13} /></button>
+              {/* ปุ่มเพิ่มนัดเอาออก (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — สร้างนัดได้จากแผงลีดที่เดียว · หน้านี้ดู/ทำเสร็จ/ยกเลิก */}
             </div>
             {selectedAppts.length === 0 ? (
               <div className="card-body" style={{ fontSize: "0.8rem", color: MUTED, textAlign: "center", padding: "18px 0 22px" }}>ไม่มีนัดหมายวันนี้</div>
@@ -429,8 +420,6 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* Add appointment modal */}
-      {addOpen && <AddApptModal defaultDate={selectedDate} onSave={addAppointment} onClose={() => setAddOpen(false)} />}
 
       {/* Edit appointment modal */}
       {editAppt && <AddApptModal initial={editAppt} defaultDate={editAppt.date} onSave={editAppointment} onClose={() => setEditAppt(null)} />}

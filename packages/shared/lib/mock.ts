@@ -262,9 +262,9 @@ export const DEFAULT_LEAD_RULES: LeadRules = { followUpAlertDays: 7, unassignedA
 export type HQAlertKey = "prospectFollowUpDue" | "prospectIdle" | "proposalAwaiting" | "proposalExpired";
 export type HQAlertPref = { on: boolean; email: boolean; inapp: boolean; days?: number };
 export const HQ_ALERT_META: { key: HQAlertKey; label: string; desc: string; เกณฑ์?: { ป้าย: string; หน่วย: string; ค่าเริ่มต้น: number } }[] = [
-  { key: "prospectFollowUpDue", label: "ลูกค้าเป้าหมาย (HQ) ถึงกำหนดติดตาม", desc: "รายที่ยังติดตามอยู่ และวันนัดติดตามครั้งถัดไปมาถึงแล้ว" },
-  { key: "prospectIdle",        label: "ลูกค้าเป้าหมาย (HQ) ไม่ได้ติดต่อนาน", desc: "รายที่ยังติดตามอยู่ แต่ไม่มีบันทึกการติดต่อตั้งแต่จำนวนวันที่กำหนด",
-    เกณฑ์: { ป้าย: "ลูกค้าเป้าหมาย (HQ) ไม่ได้ติดต่อกี่วันถึงเตือน (วัน)", หน่วย: "วันขึ้นไป", ค่าเริ่มต้น: 14 } },
+  { key: "prospectFollowUpDue", label: "ผู้สนใจเป็นดีลเลอร์ ถึงกำหนดติดตาม", desc: "รายที่ยังติดตามอยู่ และวันนัดติดตามครั้งถัดไปมาถึงแล้ว" },
+  { key: "prospectIdle",        label: "ผู้สนใจเป็นดีลเลอร์ ไม่ได้ติดต่อนาน", desc: "รายที่ยังติดตามอยู่ แต่ไม่มีบันทึกการติดต่อตั้งแต่จำนวนวันที่กำหนด",
+    เกณฑ์: { ป้าย: "ผู้สนใจเป็นดีลเลอร์ ไม่ได้ติดต่อกี่วันถึงเตือน (วัน)", หน่วย: "วันขึ้นไป", ค่าเริ่มต้น: 14 } },
   { key: "proposalAwaiting",    label: "ใบค่าแฟรนไชส์รอคำตอบ",            desc: "ใบที่ส่งแล้ว ยังไม่ตอบรับหรือปฏิเสธ นานเกินจำนวนวันที่กำหนด",
     เกณฑ์: { ป้าย: "ใบค่าแฟรนไชส์รอคำตอบกี่วันถึงเตือน (วัน)", หน่วย: "วันขึ้นไป", ค่าเริ่มต้น: 7 } },
   { key: "proposalExpired",     label: "ใบค่าแฟรนไชส์เลยวันมีผล",          desc: "ใบที่ส่งแล้วยังไม่มีคำตอบ แต่เลยวันที่ข้อเสนอมีผลไปแล้ว" },
@@ -752,12 +752,13 @@ export function buildLeadTasks(tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTas
 
 // seed งานของลูกค้าเป้าหมายตัวอย่างให้ "ตรงสถานะจริง" — เช็กงานครบถึงขั้นของสถานะ พร้อมผู้ทำ/เวลา (deterministic)
 // ให้ % ความคืบหน้า/แถบ Kanban/stageFromTasks ของข้อมูลตัวอย่างสอดคล้องกับกลไก Task-driven ปัจจุบัน
-const STAGE_RANK: Record<LeadStatus, number> = { WAITING: 0, BULLET: 1, HQ_PRICING: 1, HQ_QUOTED: 1, QUOTED: 2, FOLLOWUP: 3, NEGO: 4, PAID: 5, CANCELLED: 2 };
+// ใช้ตอนสร้างลีดใหม่เท่านั้น (ติดต่อแล้ว/รวบรวมความต้องการ) — ลำดับจากตารางสถานะกลาง ไม่เขียนตารางลำดับซ้ำ (รอบ 4)
+const ลำดับสถานะ = (s: LeadStatus) => LEAD_STATUS_META[s].order;
 export function seedLeadTasks(status: LeadStatus, doneBy: string, baseDay: number, tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTask[] {
-  const rank = STAGE_RANK[status];
+  const rank = status === "CANCELLED" ? -1 : ลำดับสถานะ(status);
   let day = baseDay;
   return tpl.map(t => {
-    const done = t.key === CLOSE_TASK_KEY ? status === "PAID" : STAGE_RANK[t.stage] <= rank;
+    const done = t.key === CLOSE_TASK_KEY ? status === "PAID" : ลำดับสถานะ(t.stage) <= rank;
     const entry: LeadTask = done
       ? { key: t.key, label: t.label, done: true, doneAt: `${Math.min(day, 29)} มิ.ย. 2569 · 10:30`, doneBy }
       : { key: t.key, label: t.label, done: false };
@@ -772,34 +773,13 @@ export function taskProgress(tasks: LeadTask[] = []): number {
   return Math.round((tasks.filter(t => t.done).length / tasks.length) * 100);
 }
 
-// สถานะจาก task ที่ทำล่าสุด (ไม่รวม "ปิดการขาย" ซึ่งแยกเป็น Won/Lost) — ฐานเริ่มที่ "ติดต่อแล้ว"
-// ปรับ Checklist ให้ "ตรงกับสเตจเป๊ะ" — ไปข้างหน้าติ๊กงานถึงสเตจนั้น · ย้อนกลับเอาติ๊กที่เกินสเตจออก
-// (คง doneAt/doneBy ของงานที่ยังอยู่ในสเตจไว้) ใช้ตอนลากการ์ดเปลี่ยนสถานะบนบอร์ด
+// (stageFromTasks / syncTasksToStage เอาออก รอบ 4 — งานเป็นรายการเตือน ไม่เลื่อนขั้น · ลากการ์ดเปลี่ยนสถานะไม่มีแล้ว)
 // วันเวลาปัจจุบันแบบไทย ใช้ประทับบนงานที่เพิ่งถูกติ๊ก — ต้องเป็นเวลาจริง ห้ามฝังตายตัว
 // เวลาไทยเสมอ ไม่ขึ้นกับโซนเวลาของเครื่อง (ดู วันเวลาไทย ใน thaiDate.ts)
 export function nowStampTH(d: Date = new Date()): string {
   return วันเวลาไทย(d);
 }
 
-export function syncTasksToStage(tasks: LeadTask[] | undefined, status: LeadStatus, doneBy: string, tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTask[] {
-  const base = (tasks && tasks.length) ? tasks : buildLeadTasks(tpl);
-  if (status === "CANCELLED") return base; // ปิดการขายไม่สำเร็จ — ไม่แตะ Checklist
-  const rank = STAGE_RANK[status];
-  // ⚠️ เดิมฝังวันที่ "30 มิ.ย. 2569" ไว้ตายตัว — ของเก่าจากยุคข้อมูลตัวอย่าง (แก้ 10 ส.ค. 69)
-  //   ตอนนี้ระบบต่อฐานข้อมูลจริงแล้ว ลูกค้าเป้าหมายที่สร้างวันนี้จึงมีงาน "ทำเสร็จแล้ว" ลงวันที่ย้อนหลัง 6 สัปดาห์
-  //   และค่านี้ถูกเขียนลงฐานข้อมูลจริง ไม่ใช่แค่แสดงผล = ประวัติการทำงานที่ไม่เคยเกิดขึ้น
-  const stamp = nowStampTH();
-  return tpl.map(def => {
-    const existing = base.find(t => t.key === def.key);
-    const shouldDone = def.key === CLOSE_TASK_KEY ? status === "PAID" : STAGE_RANK[def.stage] <= rank;
-    if (shouldDone) {
-      // อยู่ในสเตจ → ติ๊ก (ถ้าติ๊กแล้วเก็บ doneAt/doneBy เดิม)
-      return existing?.done ? existing : { key: def.key, label: def.label, done: true, doneAt: stamp, doneBy };
-    }
-    // เกินสเตจ → เอาติ๊กออก
-    return { key: def.key, label: def.label, done: false };
-  });
-}
 /** ปรับรายการงานของลูกค้าเป้าหมายให้ตรงกับ "งานมาตรฐาน" ล่าสุดที่ HQ ตั้งไว้
  *
  *  บอสแจ้ง (19 ส.ค. 69): "แก้ใน hq แล้ว ดีลเลอร์ยังไม่เปลี่ยน"
@@ -840,14 +820,6 @@ export function applyTaskTemplate(
   });
 }
 
-export function stageFromTasks(tasks: LeadTask[] = [], tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadStatus {
-  let stage: LeadStatus = "WAITING";
-  for (const def of tpl) {
-    if (def.key === CLOSE_TASK_KEY) continue;
-    if (tasks.find(t => t.key === def.key && t.done)) stage = def.stage;
-  }
-  return stage;
-}
 
 // เทมเพลต "รายงานการติดตามลูกค้า" เริ่มต้น (พรีฟิลจากข้อมูล Lead · ผู้ใช้แก้ไข/เพิ่ม/ลบได้ทั้งหมด)
 export function buildLeadReport(lead: Partial<LeadRow>, dateStr = ""): string {
@@ -1321,7 +1293,9 @@ export const tags: TagMock[] = [
 export type DealerLeadItem = {
   id: string; name: string; province: string; product: string;
   /** ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) · null = ยังไม่มีใบ */
-  valueNum: number | null; status: "contacted" | "quoted" | "won" | "lost";
+  valueNum: number | null;
+  /** ขั้นการขาย — จากตัวแปลงกลาง lib/leadStage.ts (รอบ 4 · เดิมเป็นกลุ่ม contacted/quoted/won/lost ที่เขียนเองในหน้า) */
+  stage: import("./leadStage").ผลขั้น;
   assignedAt: string;
 };
 export type DealerProjectItem = {
@@ -1351,10 +1325,10 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 5600 }, { month: "พ.ค.", value: 7100 }, { month: "มิ.ย.", value: 5400 },
     ],
     leads: [
-      { id: "LD-R01", name: "บจ. แหลมฉบัง อุตสาหกรรม", province: "ชลบุรี",    product: "โรงงาน",  valueNum: 4200000, status: "quoted",    assignedAt: "3 วันก่อน" },
-      { id: "LD-R02", name: "หจก. มาบตาพุดโลหะ",       province: "ระยอง",     product: "โกดังสำเร็จรูป", valueNum: 1800000, status: "contacted", assignedAt: "1 สัปดาห์" },
-      { id: "LD-R03", name: "บจ. ชลอุตสาหกรรม",        province: "ชลบุรี",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 2600000, status: "contacted", assignedAt: "2 วันก่อน" },
-      { id: "LD-R04", name: "นาย อนันต์ ศ.",            province: "จันทบุรี",  product: "โกดังสำเร็จรูป", valueNum: 850000,  status: "won",       assignedAt: "2 สัปดาห์" },
+      { id: "LD-R01", name: "บจ. แหลมฉบัง อุตสาหกรรม", province: "ชลบุรี",    product: "โรงงาน",  valueNum: 4200000, stage: { kind: "open", step: 5 },    assignedAt: "3 วันก่อน" },
+      { id: "LD-R02", name: "หจก. มาบตาพุดโลหะ",       province: "ระยอง",     product: "โกดังสำเร็จรูป", valueNum: 1800000, stage: { kind: "open", step: 1 }, assignedAt: "1 สัปดาห์" },
+      { id: "LD-R03", name: "บจ. ชลอุตสาหกรรม",        province: "ชลบุรี",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 2600000, stage: { kind: "open", step: 1 }, assignedAt: "2 วันก่อน" },
+      { id: "LD-R04", name: "นาย อนันต์ ศ.",            province: "จันทบุรี",  product: "โกดังสำเร็จรูป", valueNum: 850000,  stage: { kind: "won" },       assignedAt: "2 สัปดาห์" },
     ],
     projects: [
       { id: "PRJ-R01", name: "โกดัง VCS Asia ระยอง",        product: "โรงงาน",  valueNum: 6200000, progress: 100, status: "completed" },
@@ -1378,9 +1352,9 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 4100 }, { month: "พ.ค.", value: 2600 }, { month: "มิ.ย.", value: 4200 },
     ],
     leads: [
-      { id: "LD-C01", name: "บจ. ไทยสตีล",          province: "เชียงใหม่",  product: "โกดังสำเร็จรูป", valueNum: 3200000, status: "quoted",    assignedAt: "5 วันก่อน" },
-      { id: "LD-C02", name: "หจก. สันทรายเมทัล",  province: "เชียงใหม่",  product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 1200000, status: "contacted", assignedAt: "1 สัปดาห์" },
-      { id: "LD-C03", name: "บจ. ลำพูนโลหะ",         province: "ลำพูน",      product: "โรงงาน",  valueNum: 2800000, status: "contacted", assignedAt: "1 วันก่อน" },
+      { id: "LD-C01", name: "บจ. ไทยสตีล",          province: "เชียงใหม่",  product: "โกดังสำเร็จรูป", valueNum: 3200000, stage: { kind: "open", step: 5 },    assignedAt: "5 วันก่อน" },
+      { id: "LD-C02", name: "หจก. สันทรายเมทัล",  province: "เชียงใหม่",  product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 1200000, stage: { kind: "open", step: 1 }, assignedAt: "1 สัปดาห์" },
+      { id: "LD-C03", name: "บจ. ลำพูนโลหะ",         province: "ลำพูน",      product: "โรงงาน",  valueNum: 2800000, stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-C01", name: "โกดัง บจ. ไทยสตีล เชียงใหม่",  product: "โกดังสำเร็จรูป", valueNum: 3200000, progress: 45, status: "in_progress" },
@@ -1402,9 +1376,9 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 4200 }, { month: "พ.ค.", value: 3600 }, { month: "มิ.ย.", value: 3800 },
     ],
     leads: [
-      { id: "LD-M01", name: "บจ. แม่สอดโลหะ",        province: "ตาก",    product: "โกดังสำเร็จรูป", valueNum: 4100000, status: "quoted",    assignedAt: "3 วันก่อน" },
-      { id: "LD-M02", name: "หจก. กาญจน์อุตฯ",       province: "กาญจนบุรี", product: "โรงงาน", valueNum: 2200000, status: "contacted", assignedAt: "5 วันก่อน" },
-      { id: "LD-M03", name: "นาย ธนกร ป.",            province: "ตาก",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 980000,  status: "contacted", assignedAt: "2 วันก่อน" },
+      { id: "LD-M01", name: "บจ. แม่สอดโลหะ",        province: "ตาก",    product: "โกดังสำเร็จรูป", valueNum: 4100000, stage: { kind: "open", step: 5 },    assignedAt: "3 วันก่อน" },
+      { id: "LD-M02", name: "หจก. กาญจน์อุตฯ",       province: "กาญจนบุรี", product: "โรงงาน", valueNum: 2200000, stage: { kind: "open", step: 1 }, assignedAt: "5 วันก่อน" },
+      { id: "LD-M03", name: "นาย ธนกร ป.",            province: "ตาก",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 980000,  stage: { kind: "open", step: 1 }, assignedAt: "2 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-M01", name: "โกดังสำเร็จรูป แม่สอด บจ. แม่สอดโลหะ", product: "โกดังสำเร็จรูป", valueNum: 4100000, progress: 82, status: "in_progress" },
@@ -1425,8 +1399,8 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 3100 }, { month: "พ.ค.", value: 2800 }, { month: "มิ.ย.", value: 3100 },
     ],
     leads: [
-      { id: "LD-CR01", name: "บจ. เชียงรายอุตสาหกรรม", province: "เชียงราย", product: "โรงงาน",  valueNum: 3600000, status: "quoted",    assignedAt: "4 วันก่อน" },
-      { id: "LD-CR02", name: "หจก. พะเยาสตีล",    province: "พะเยา",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 1100000, status: "contacted", assignedAt: "1 วันก่อน" },
+      { id: "LD-CR01", name: "บจ. เชียงรายอุตสาหกรรม", province: "เชียงราย", product: "โรงงาน",  valueNum: 3600000, stage: { kind: "open", step: 5 },    assignedAt: "4 วันก่อน" },
+      { id: "LD-CR02", name: "หจก. พะเยาสตีล",    province: "พะเยา",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 1100000, stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-CR01", name: "โรงงาน โรงงานสำเร็จรูป เชียงราย",     product: "โรงงาน",  valueNum: 3600000, progress: 40, status: "in_progress" },
@@ -1446,8 +1420,8 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 400 }, { month: "พ.ค.", value: 500 }, { month: "มิ.ย.", value: 1900 },
     ],
     leads: [
-      { id: "LD-N01", name: "บจ. นครสวรรค์โกดัง", province: "นครสวรรค์", product: "โกดังสำเร็จรูป", valueNum: 2400000, status: "contacted", assignedAt: "6 วันก่อน" },
-      { id: "LD-N02", name: "หจก. สุโขทัยอุตฯ",  province: "สุโขทัย",   product: "โรงงาน",  valueNum: 1800000, status: "contacted", assignedAt: "2 วันก่อน" },
+      { id: "LD-N01", name: "บจ. นครสวรรค์โกดัง", province: "นครสวรรค์", product: "โกดังสำเร็จรูป", valueNum: 2400000, stage: { kind: "open", step: 1 }, assignedAt: "6 วันก่อน" },
+      { id: "LD-N02", name: "หจก. สุโขทัยอุตฯ",  province: "สุโขทัย",   product: "โรงงาน",  valueNum: 1800000, stage: { kind: "open", step: 1 }, assignedAt: "2 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-N01", name: "โรงงาน โรงงานสำเร็จรูป นครสวรรค์",    product: "โรงงาน",  valueNum: 5400000, progress: 100, status: "completed" },
@@ -1465,7 +1439,7 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 120 }, { month: "พ.ค.", value: 80 }, { month: "มิ.ย.", value: 50 },
     ],
     leads: [
-      { id: "LD-H01", name: "บ.สงขลาแคนนิ่ง", province: "สงขลา", product: "โรงงาน", valueNum: 2600000, status: "contacted", assignedAt: "2 เดือนก่อน" },
+      { id: "LD-H01", name: "บ.สงขลาแคนนิ่ง", province: "สงขลา", product: "โรงงาน", valueNum: 2600000, stage: { kind: "open", step: 1 }, assignedAt: "2 เดือนก่อน" },
     ],
     projects: [
       { id: "PRJ-H01", name: "โกดัง หาดใหญ่ เฟส 1", product: "โกดังสำเร็จรูป", valueNum: 920000, progress: 100, status: "completed" },
@@ -1481,9 +1455,9 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 4400 }, { month: "พ.ค.", value: 5300 }, { month: "มิ.ย.", value: 4650 },
     ],
     leads: [
-      { id: "LD-A01", name: "บ.โรจนะอินดัสทรี",       province: "พระนครศรีอยุธยา", product: "โรงงาน",  valueNum: 6400000, status: "quoted",    assignedAt: "2 วันก่อน" },
-      { id: "LD-A02", name: "หจก. บางปะอินโลจิสติกส์", province: "พระนครศรีอยุธยา", product: "โกดังสำเร็จรูป", valueNum: 2700000, status: "quoted",    assignedAt: "5 วันก่อน" },
-      { id: "LD-A03", name: "บ.สระบุรีคอนกรีต",        province: "สระบุรี",          product: "งานตามแบบของลูกค้า",      valueNum: 3100000, status: "contacted", assignedAt: "1 วันก่อน" },
+      { id: "LD-A01", name: "บ.โรจนะอินดัสทรี",       province: "พระนครศรีอยุธยา", product: "โรงงาน",  valueNum: 6400000, stage: { kind: "open", step: 5 },    assignedAt: "2 วันก่อน" },
+      { id: "LD-A02", name: "หจก. บางปะอินโลจิสติกส์", province: "พระนครศรีอยุธยา", product: "โกดังสำเร็จรูป", valueNum: 2700000, stage: { kind: "open", step: 5 },    assignedAt: "5 วันก่อน" },
+      { id: "LD-A03", name: "บ.สระบุรีคอนกรีต",        province: "สระบุรี",          product: "งานตามแบบของลูกค้า",      valueNum: 3100000, stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-A01", name: "โรงงาน วังน้อยฟู้ดส์",     product: "โรงงาน",  valueNum: 4100000, progress: 35, status: "in_progress" },
@@ -1503,9 +1477,9 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 3600 }, { month: "พ.ค.", value: 3200 }, { month: "มิ.ย.", value: 3450 },
     ],
     leads: [
-      { id: "LD-K01", name: "บ.อีสานแดรี่",        province: "ขอนแก่น",   product: "โรงงาน",  valueNum: 3900000, status: "quoted",    assignedAt: "3 วันก่อน" },
-      { id: "LD-K02", name: "เทศบาลนครขอนแก่น",   province: "ขอนแก่น",   product: "อาคารสำเร็จรูปทุกประเภท",   valueNum: 1750000, status: "quoted",    assignedAt: "1 สัปดาห์" },
-      { id: "LD-K03", name: "หจก. ชุมแพเกษตรภัณฑ์", province: "ขอนแก่น",   product: "โกดังสำเร็จรูป", valueNum: 1300000, status: "contacted", assignedAt: "2 วันก่อน" },
+      { id: "LD-K01", name: "บ.อีสานแดรี่",        province: "ขอนแก่น",   product: "โรงงาน",  valueNum: 3900000, stage: { kind: "open", step: 5 },    assignedAt: "3 วันก่อน" },
+      { id: "LD-K02", name: "เทศบาลนครขอนแก่น",   province: "ขอนแก่น",   product: "อาคารสำเร็จรูปทุกประเภท",   valueNum: 1750000, stage: { kind: "open", step: 5 },    assignedAt: "1 สัปดาห์" },
+      { id: "LD-K03", name: "หจก. ชุมแพเกษตรภัณฑ์", province: "ขอนแก่น",   product: "โกดังสำเร็จรูป", valueNum: 1300000, stage: { kind: "open", step: 1 }, assignedAt: "2 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-K01", name: "โกดัง สหกรณ์โคนมขอนแก่น",  product: "โกดังสำเร็จรูป", valueNum: 2150000, progress: 55, status: "in_progress" },
@@ -1523,8 +1497,8 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 2600 }, { month: "พ.ค.", value: 2400 }, { month: "มิ.ย.", value: 2750 },
     ],
     leads: [
-      { id: "LD-U01", name: "บ.อุบลไรซ์มิลล์",  province: "อุบลราชธานี", product: "โกดังสำเร็จรูป", valueNum: 2900000, status: "quoted",    assignedAt: "4 วันก่อน" },
-      { id: "LD-U02", name: "หจก. เดชอุดมค้าวัสดุ", province: "อุบลราชธานี", product: "อาคารสำเร็จรูปทุกประเภท",  valueNum: 950000,  status: "contacted", assignedAt: "1 วันก่อน" },
+      { id: "LD-U01", name: "บ.อุบลไรซ์มิลล์",  province: "อุบลราชธานี", product: "โกดังสำเร็จรูป", valueNum: 2900000, stage: { kind: "open", step: 5 },    assignedAt: "4 วันก่อน" },
+      { id: "LD-U02", name: "หจก. เดชอุดมค้าวัสดุ", province: "อุบลราชธานี", product: "อาคารสำเร็จรูปทุกประเภท",  valueNum: 950000,  stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-U01", name: "โกดังข้าว วารินฟาร์ม",   product: "โกดังสำเร็จรูป", valueNum: 1450000, progress: 80, status: "in_progress" },
@@ -1543,8 +1517,8 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 1900 }, { month: "พ.ค.", value: 2100 }, { month: "มิ.ย.", value: 2300 },
     ],
     leads: [
-      { id: "LD-P01", name: "บ.อันดามันมารีน่า",     province: "ภูเก็ต", product: "งานตามแบบของลูกค้า",      valueNum: 5200000, status: "quoted",    assignedAt: "2 วันก่อน" },
-      { id: "LD-P02", name: "บ.กะตะบีชรีสอร์ท",      province: "ภูเก็ต", product: "อาคารสำเร็จรูปทุกประเภท",  valueNum: 2800000, status: "contacted", assignedAt: "6 วันก่อน" },
+      { id: "LD-P01", name: "บ.อันดามันมารีน่า",     province: "ภูเก็ต", product: "งานตามแบบของลูกค้า",      valueNum: 5200000, stage: { kind: "open", step: 5 },    assignedAt: "2 วันก่อน" },
+      { id: "LD-P02", name: "บ.กะตะบีชรีสอร์ท",      province: "ภูเก็ต", product: "อาคารสำเร็จรูปทุกประเภท",  valueNum: 2800000, stage: { kind: "open", step: 1 }, assignedAt: "6 วันก่อน" },
     ],
     projects: [
       { id: "PRJ-P01", name: "คลังสินค้า ถลางแวร์เฮาส์", product: "โกดังสำเร็จรูป", valueNum: 1850000, progress: 45, status: "in_progress" },

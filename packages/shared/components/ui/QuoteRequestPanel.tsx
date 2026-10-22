@@ -34,7 +34,6 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const [spec, setSpec] = useState("");
   const [area, setArea] = useState("");
   const [เหตุผล, setเหตุผล] = useState("");
-  const [ปิดงาน, setปิดงาน] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
@@ -79,7 +78,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   };
   const ยกเลิก = () => {
     if (!เหตุผล.trim()) { setErr("ต้องระบุเหตุผล"); return; }
-    void ทำ(() => repo.cancel(เปิด!.id, เหตุผล.trim(), ปิดงาน));
+    void ทำ(() => repo.cancel(เปิด!.id, เหตุผล.trim(), false));   // ปิดไม่สำเร็จ = กล่องขั้นต่อไปที่เดียว (รอบ 4) — ที่นี่กลับไปรวบรวมความต้องการเสมอ
   };
   const แก้ราคา = () => {
     if (!เหตุผล.trim()) { setErr("ต้องระบุเหตุผล"); return; }
@@ -131,7 +130,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("ยกเลิก"); }}>ยกเลิกคำขอ</button>}
               {/* ลีดปิดการขายแล้ว = ขอแก้ราคาไม่ได้ (ใบ 0221 กันที่ฐาน) */}
-              {เปิด.status === "quoted" && lead.status !== "PAID" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("แก้ราคา"); }}>ขอแก้ราคา</button>}
+              {/* ราคาหมดอายุ = ปุ่ม "ขอราคาใหม่" ในกล่องขั้นต่อไป (ไม่ซ้ำสองปุ่ม · รอบ 4) */}
+              {เปิด.status === "quoted" && lead.status !== "PAID" && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("แก้ราคา"); }}>ขอแก้ราคา</button>}
             </div>
           )}
         </div>
@@ -139,11 +139,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
         <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>
           {ขอได้ ? "ยังไม่ได้ขอราคา — ส่งคำขอพร้อมชื่องานและสเปก สำนักงานใหญ่ทำ BOQ และส่งใบ HQ ภายใน 14 วัน"
                  : lead.status === "HQ_PRICING" ? "กำลังโหลดคำขอ…" : "ขอราคาจาก HQ ได้ในขั้นติดต่อแล้ว หรือรวบรวมความต้องการ"}
-          {ขอได้ && โหมด === "ดู" && (
-            <div style={{ marginTop: 8 }}>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => { setErr(""); setโหมด("ขอราคา"); }}>ขอราคาจาก HQ</button>
-            </div>
-          )}
+          {/* ปุ่ม "ขอราคาจาก HQ" อยู่ในกล่องขั้นต่อไปที่เดียว (รอบ 4) — กดแล้วฟอร์มเปิดที่นี่ */}
+          {ขอได้ && โหมด === "ดู" && " · กด “ขอราคาจาก HQ” ที่กล่องขั้นต่อไปด้านบน"}
         </div>
       )}
 
@@ -168,10 +165,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
         <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
           <label className="form-label" htmlFor="qr-cancel-reason">เหตุผลที่ยกเลิก</label>
           <textarea id="qr-cancel-reason" aria-label="เหตุผลที่ยกเลิก" rows={2} style={ช่อง} value={เหตุผล} onChange={e => setเหตุผล(e.target.value)} disabled={busy} />
-          <label style={{ fontSize: "0.78rem", display: "flex", gap: 6, alignItems: "center" }}>
-            <input type="checkbox" checked={ปิดงาน} onChange={e => setปิดงาน(e.target.checked)} disabled={busy} />
-            ปิดลูกค้าเป้าหมายรายนี้เป็น "ปิดการขายไม่สำเร็จ" ด้วย (ไม่ติ๊ก = กลับไปรวบรวมความต้องการ)
-          </label>
+          <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>ยกเลิกแล้วลูกค้าเป้าหมายกลับไปขั้น "ข้อมูลลูกค้า" · ลูกค้าไม่สนใจแล้ว ใช้ "ปิดไม่สำเร็จ" ที่กล่องขั้นต่อไป</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={ยกเลิก}>ยืนยันยกเลิก</button>
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ไม่ยกเลิก</button>

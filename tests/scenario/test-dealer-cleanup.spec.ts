@@ -49,7 +49,7 @@ test("[cleanup] คำสั่งลบของระบบล้ม — ต�
   expect(await นับ("leads", "dealer_code", CODE), "ลูกค้าเป้าหมายของสาขา").toBe(0);
   expect(await นับ("profiles", "dealer_code", CODE), "โปรไฟล์ของสาขา").toBe(0);
   expect(await นับ("dealer_login_secrets", "dealer_code", CODE), "สำเนารหัสผ่านของสาขา").toBe(0);
-  expect(await นับ("dealer_prospects", "name", `ZZTEST-ผู้สนใจ-${CODE}`), "ลูกค้าเป้าหมาย (HQ) ต้นทางของสาขา").toBe(0);
+  expect(await นับ("dealer_prospects", "name", `ZZTEST-ผู้สนใจ-${CODE}`), "ผู้สนใจเป็นดีลเลอร์ ต้นทางของสาขา").toBe(0);
   const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   expect((users?.users ?? []).filter(u => u.email === email).length, "บัญชีเข้าระบบของสาขา").toBe(0);
 

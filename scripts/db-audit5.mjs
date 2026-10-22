@@ -29,9 +29,9 @@ const ยกเว้น = [
   { table: "entity_counters", fn: "ลบ", reason: "ตัวนับเลขของสาขา หายตามแถวสาขา", fk: { to: "dealers", del: "CASCADE" } },
   { table: "dealer_settings", fn: "ลบ", reason: "ค่าตั้งของสาขา หายตามแถวสาขา", fk: { to: "dealers", del: "CASCADE" } },
   { table: "dealer_login_secrets", fn: "ลบ", reason: "สำเนารหัสผ่านของสาขา หายตามแถวสาขา", fk: { to: "dealers", del: "CASCADE" } },
-  { table: "dealer_prospects", fn: "ลบ", reason: "ลูกค้าเป้าหมาย (HQ) ต้นทางของสาขา: เส้นทางของ HQ ลบให้หลังลบสาขาสำเร็จ (บอสสั่ง 15 ก.ย. 69) · ฐานแค่ล้างรหัสสาขา", fk: { to: "dealers", del: "SET NULL" } },
-  { table: "dealer_package_proposals", fn: "ลบ", reason: "ใบค่าแฟรนไชส์ หายตามลูกค้าเป้าหมาย (HQ) ต้นทาง", fk: { to: "dealer_prospects", del: "CASCADE" } },
-  { table: "dealer_prospect_activities", fn: "ลบ", reason: "บันทึกการติดต่อ หายตามลูกค้าเป้าหมาย (HQ) ต้นทาง", fk: { to: "dealer_prospects", del: "CASCADE" } },
+  { table: "dealer_prospects", fn: "ลบ", reason: "ผู้สนใจเป็นดีลเลอร์ ต้นทางของสาขา: เส้นทางของ HQ ลบให้หลังลบสาขาสำเร็จ (บอสสั่ง 15 ก.ย. 69) · ฐานแค่ล้างรหัสสาขา", fk: { to: "dealers", del: "SET NULL" } },
+  { table: "dealer_package_proposals", fn: "ลบ", reason: "ใบค่าแฟรนไชส์ หายตามผู้สนใจเป็นดีลเลอร์ ต้นทาง", fk: { to: "dealer_prospects", del: "CASCADE" } },
+  { table: "dealer_prospect_activities", fn: "ลบ", reason: "บันทึกการติดต่อ หายตามผู้สนใจเป็นดีลเลอร์ ต้นทาง", fk: { to: "dealer_prospects", del: "CASCADE" } },
   { table: "quote_request_events", fn: "ลบ", reason: "ประวัติคำขอราคา — เหตุผลเดียวกับใบ HQ: สาขาที่มีคำขอราคาลบไม่ได้", fk: { to: "quote_requests", del: "CASCADE" } },
 
   // ── ย้ายข้อมูลดีลเลอร์ (ย้ายเฉพาะข้อมูลงานขาย · ตัวตน บัญชี และค่าตั้งของสาขาต้นทางอยู่กับต้นทาง) ──
@@ -43,9 +43,9 @@ const ยกเว้น = [
   { table: "dealer_territories", fn: "ย้าย", reason: "พื้นที่ของสาขาต้นทางไม่ย้ายตามข้อมูลงานขาย — HQ กำหนดพื้นที่ของสาขาปลายทางเองตามกฎหนึ่งจังหวัดหนึ่งดีลเลอร์ (ใบ 0195)" },
   { table: "dealer_lead_rules", fn: "ย้าย", reason: "กฎติดตามลูกค้าเป้าหมายของสาขาต้นทาง — สาขาปลายทางใช้กฎของตัวเอง" },
   { table: "quote_counters", fn: "ย้าย", reason: "ตัวนับเลขใบเสนอราคาของสาขาต้นทาง — ใบที่ย้ายถือเลขเดิมซึ่งมีรหัสสาขาต้นทางอยู่ในเลข จึงไม่ชนกับเลขของปลายทาง" },
-  { table: "dealer_prospects", fn: "ย้าย", reason: "ลูกค้าเป้าหมาย (HQ) ที่กลายมาเป็นสาขาต้นทาง — เป็นประวัติของตัวสาขา ไม่ใช่งานขาย" },
-  { table: "dealer_package_proposals", fn: "ย้าย", reason: "ใบค่าแฟรนไชส์ของสาขาต้นทาง — ผูกกับลูกค้าเป้าหมาย (HQ) ต้นทาง", fk: { to: "dealer_prospects" } },
-  { table: "dealer_prospect_activities", fn: "ย้าย", reason: "บันทึกการติดต่อของลูกค้าเป้าหมาย (HQ) ต้นทาง", fk: { to: "dealer_prospects" } },
+  { table: "dealer_prospects", fn: "ย้าย", reason: "ผู้สนใจเป็นดีลเลอร์ ที่กลายมาเป็นสาขาต้นทาง — เป็นประวัติของตัวสาขา ไม่ใช่งานขาย" },
+  { table: "dealer_package_proposals", fn: "ย้าย", reason: "ใบค่าแฟรนไชส์ของสาขาต้นทาง — ผูกกับผู้สนใจเป็นดีลเลอร์ ต้นทาง", fk: { to: "dealer_prospects" } },
+  { table: "dealer_prospect_activities", fn: "ย้าย", reason: "บันทึกการติดต่อของผู้สนใจเป็นดีลเลอร์ ต้นทาง", fk: { to: "dealer_prospects" } },
   { table: "quote_request_events", fn: "ย้าย", reason: "ประวัติคำขอราคา ไม่มีรหัสสาขาของตัวเอง — ผูกกับคำขอราคาด้วยเลขคำขอ ซึ่งไม่เปลี่ยนตอนย้าย", fk: { to: "quote_requests" } },
 ];
 

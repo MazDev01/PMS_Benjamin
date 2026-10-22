@@ -11,7 +11,7 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import {
   quotations as seedQuotations, initialCustomers, DEFAULT_ISSUER, QUOTE_PREFIX,
   type IssuerProfile,
-  appointments as seedAppointments, buildLeadTasks, stageFromTasks, syncTasksToStage, findAppointmentTask,
+  appointments as seedAppointments, buildLeadTasks, findAppointmentTask,
   quotationToFile, AUTO_FILE_BY, fmtISOToThai, DEFAULT_DEALER_CODE, leadStatusLabel, nowStampTH, ยอดใบล่าสุดของลีด,
   type LeadRow,
   type CustomerRow, type QuotationMock, type QuotationStatus,
@@ -56,7 +56,6 @@ export type SyncEntity = "leads" | "quotations" | "customers" | "appointments";
 export type SalesContextType = {
   // Leads (lifted state so both pages share it)
   leads: LeadRow[];
-  updateLeadStatus: (leadId: string, status: LeadRow["status"]) => void;
   /** เลข num_id ถัดไปของสาขาแบบ atomic (M7) — id ที่แสดง (#L-…) derive จากค่านี้
    *  เดิมหน้าจอใช้ Math.max+1 ฝั่ง client → สร้างลูกค้าเป้าหมายพร้อมกันในสาขาเดียว num_id/id ชนกันได้ */
   newLeadNumId: () => Promise<number>;
@@ -530,15 +529,6 @@ export function SalesProvider({
   ปิดการขายRef.current = lead => { void convertLeadToCustomer(lead, false).catch(() => { /* onFail แจ้งแล้ว */ }); };
 
   // ── Lead mutations ───────────────────────────────────────────────
-  const updateLeadStatus = useCallback((leadId: string, status: LeadRow["status"]) => {
-    const lead = leadsRef.current.find(l => l.id === leadId);
-    if (!lead) return;
-    // ย้ายสถานะ → ติ๊กงานใน Checklist ให้ถึงสเตจนั้นอัตโนมัติ (ผู้ทำ = ผู้รับผิดชอบของลูกค้าเป้าหมาย)
-    //   ส่งเฉพาะงานที่เปลี่ยน + ขั้นที่ตั้งใจ (ไม่ส่งรายการงานทั้งชุด) · ไม่จดไทม์ไลน์ (แบบเดิมของการลากการ์ด)
-    const ก่อน = lead.tasks && lead.tasks.length ? lead.tasks : buildLeadTasks(taskTplRef.current);
-    const หลัง = syncTasksToStage(lead.tasks, status, lead.assigned || "—", taskTplRef.current);
-    บันทึกลีด(leadId, { stage: { status }, tasks: diffLeadTasks(ก่อน, หลัง), log: false });
-  }, [บันทึกลีด]);
 
   const addLead = useCallback((lead: LeadRow) => {
     // ติด dealerCode ของสาขาที่ล็อกอิน (multi-tenant) — ลูกค้าเป้าหมายใหม่เป็นของสาขานั้น (RLS with-check ฝั่ง supabase)
@@ -657,7 +647,7 @@ export function SalesProvider({
   // ── Quotation → เช็กงานของลูกค้าเป้าหมายอัตโนมัติ ─────────────────────────────
   // สร้างใบเสนอราคา = ติ๊ก "จัดทำใบเสนอราคา" · ส่งใบเสนอราคา = ติ๊ก "ส่งใบเสนอราคา"
   // (งาน "ส่งแม่แบบให้ลูกค้า" เลิกใช้แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
-  // แล้วเลื่อนสถานะลูกค้าเป้าหมายตาม stageFromTasks (เลื่อนขึ้นเท่านั้น ไม่ดึงถอยหลัง)
+  // (งานไม่เลื่อนสถานะแล้ว — รอบ 4 · ใบ 0232)
   const completeLeadQuoteTasks = useCallback((quotation: QuotationMock, keys: string[]) => {
     for (const l of leadsRef.current) {
       // กันเขียนข้ามสาขา: แตะเฉพาะลูกค้าเป้าหมายของสาขาที่ล็อกอิน (ลูกค้าเป้าหมายไม่ระบุ dealerCode = CNX) — ดู branch-isolation.spec.ts
@@ -670,7 +660,7 @@ export function SalesProvider({
       if (!งาน.length) continue;
       // ติ๊กโดยระบบ: ผู้ทำ = ผู้รับผิดชอบ · ขั้นเลื่อนขึ้นเท่านั้น (ฐานคิดจากงานในฐาน · ไม่แตะ "รอราคา HQ") · ไม่จดไทม์ไลน์
       บันทึกลีด(l.id, { tasks: งาน.map(key => ({ key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" })),
-        deriveStage: "up", log: false });
+        log: false });
     }
   }, [myDealerCode, บันทึกลีด]);
 
@@ -936,7 +926,7 @@ export function SalesProvider({
     if (!l || l.status === "PAID" || l.status === "CANCELLED") return;
     if ((l.tasks ?? []).find(t => t.key === def.key)?.done) return;
     บันทึกลีด(l.id, { tasks: [{ key: def.key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" }],
-      deriveStage: "up", log: false });
+      log: false });
   }, [myDealerCode, บันทึกลีด]);
 
 
@@ -976,7 +966,7 @@ export function SalesProvider({
     return v === undefined || v === l.quoteValue ? l : { ...l, quoteValue: v };
   }), [leads, quotations]);
   const value = useMemo(() => ({
-    leads: leadsมีมูลค่า, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
+    leads: leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
@@ -985,7 +975,7 @@ export function SalesProvider({
     syncError, clearSyncError,
     salesVersion, refreshSales,
   }), [
-    leadsมีมูลค่า, updateLeadStatus, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
+    leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,

@@ -1,0 +1,59 @@
+import { describe, it, expect } from "vitest";
+import { ขั้นของลีด, สภาพแถบขั้น, ชื่อขั้นการขาย } from "../../packages/shared/lib/leadStage";
+import { LEAD_STATUS_ORDER } from "../../packages/shared/lib/mock";
+
+// ── สถานะลีด → ขั้นการขาย (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — ตารางเดียวกับ docs/FLOW.html "สถานะ ↔ ขั้น" ──
+const ว่าง = { คำขอ: [], ใบลูกค้า: [] };
+
+describe("ขั้นของลีด", () => {
+  it("ชื่อขั้นชุดเดียว 5 ขั้น", () => {
+    expect([...ชื่อขั้นการขาย]).toEqual(["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"]);
+  });
+  it("ตารางสถานะ ↔ ขั้น ตามที่บอสตัดสิน", () => {
+    expect(ขั้นของลีด("WAITING", false)).toEqual({ kind: "open", step: 1 });
+    expect(ขั้นของลีด("BULLET", false)).toEqual({ kind: "open", step: 1 });
+    expect(ขั้นของลีด("HQ_PRICING", false)).toEqual({ kind: "open", step: 2 });
+    expect(ขั้นของลีด("HQ_QUOTED", false)).toEqual({ kind: "open", step: 3 });
+    expect(ขั้นของลีด("HQ_QUOTED", true)).toEqual({ kind: "open", step: 4 });
+    for (const s of ["QUOTED", "FOLLOWUP", "NEGO"] as const) expect(ขั้นของลีด(s, false)).toEqual({ kind: "open", step: 5 });
+    expect(ขั้นของลีด("PAID", false)).toEqual({ kind: "won" });
+    expect(ขั้นของลีด("CANCELLED", false)).toEqual({ kind: "lost" });
+  });
+  it("ใบร่างแยกขั้นเฉพาะตอนได้ราคา HQ — ขั้นอื่นไม่เปลี่ยนตามใบร่าง", () => {
+    for (const s of LEAD_STATUS_ORDER) if (s !== "HQ_QUOTED") expect(ขั้นของลีด(s, true)).toEqual(ขั้นของลีด(s, false));
+  });
+});
+
+describe("แถบขั้น — ไฮไลต์ขั้นที่อยู่ตอนนี้", () => {
+  it("ลีดเปิดอยู่: ขั้นก่อนหน้า = ผ่าน · ขั้นนี้ = ตอนนี้ · ขั้นหลัง = ยังไม่ถึง", () => {
+    expect(สภาพแถบขั้น("HQ_PRICING", false, ว่าง)).toEqual(["ผ่าน", "ตอนนี้", "ยังไม่ถึง", "ยังไม่ถึง", "ยังไม่ถึง"]);
+    expect(สภาพแถบขั้น("WAITING", false, ว่าง)).toEqual(["ตอนนี้", "ยังไม่ถึง", "ยังไม่ถึง", "ยังไม่ถึง", "ยังไม่ถึง"]);
+    expect(สภาพแถบขั้น("NEGO", false, ว่าง)).toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน", "ตอนนี้"]);
+  });
+  it("ปิดสำเร็จ = ผ่านครบ 5 ขั้น", () => {
+    expect(สภาพแถบขั้น("PAID", false, ว่าง)).toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน"]);
+  });
+  it("ปิดไม่สำเร็จก่อนขอราคา → ติ๊กแค่ขั้น 1 (เดิมติ๊ก 1–4 หมด)", () => {
+    expect(สภาพแถบขั้น("CANCELLED", false, ว่าง)).toEqual(["ผ่าน", "ไม่ได้ทำ", "ไม่ได้ทำ", "ไม่ได้ทำ", "ไม่ได้ทำ"]);
+  });
+  it("ยกเลิกคำขอก่อน HQ ส่งใบ → ขั้น 2 ผ่าน ขั้น 3 ไม่ได้ทำ", () => {
+    expect(สภาพแถบขั้น("CANCELLED", false, { คำขอ: ["cancelled"], ใบลูกค้า: [] }))
+      .toEqual(["ผ่าน", "ผ่าน", "ไม่ได้ทำ", "ไม่ได้ทำ", "ไม่ได้ทำ"]);
+  });
+  it("ได้ใบ HQ แล้วปิดไม่สำเร็จโดยไม่ทำใบ → ผ่าน 1–3", () => {
+    expect(สภาพแถบขั้น("CANCELLED", false, { คำขอ: ["lost"], ใบลูกค้า: [] }))
+      .toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ไม่ได้ทำ", "ไม่ได้ทำ"]);
+  });
+  it("ทำใบร่างแต่ไม่ได้ส่ง → ผ่าน 1–4 · ใบหมดอายุไม่นับว่าส่งแล้ว", () => {
+    expect(สภาพแถบขั้น("CANCELLED", false, { คำขอ: ["lost"], ใบลูกค้า: ["draft"] }))
+      .toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน", "ไม่ได้ทำ"]);
+    expect(สภาพแถบขั้น("CANCELLED", false, { คำขอ: ["lost"], ใบลูกค้า: ["expired"] })[4]).toBe("ไม่ได้ทำ");
+  });
+  it("ลูกค้าปฏิเสธใบที่ส่งแล้ว → ผ่านครบ 5 ขั้น (ปิดไม่สำเร็จหลังลูกค้าตอบ)", () => {
+    expect(สภาพแถบขั้น("CANCELLED", false, { คำขอ: ["lost"], ใบลูกค้า: ["lost"] }))
+      .toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน"]);
+  });
+  it("ทุกสถานะได้แถบ 5 ช่อง", () => {
+    for (const s of LEAD_STATUS_ORDER) expect(สภาพแถบขั้น(s, false, ว่าง)).toHaveLength(5);
+  });
+});

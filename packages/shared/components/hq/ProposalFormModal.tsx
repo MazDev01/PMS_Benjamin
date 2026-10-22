@@ -1,9 +1,9 @@
 "use client";
 
-// ── ฟอร์มออก/แก้ "ใบค่าแฟรนไชส์" — ตัวเดียวใช้ทั้งหน้ารวมใบเสนอ และหน้าต่างลูกค้าเป้าหมาย ──
+// ── ฟอร์มออก/แก้ "ใบค่าแฟรนไชส์" — ตัวเดียวใช้ทั้งหน้ารวมใบเสนอ และหน้าต่างผู้สนใจ ──
 //
 // บอสสั่ง 14 ก.ย. 69: "ใบค่าแฟรนไชส์มันไม่จบแบบหน้าเดียว ให้แบบใช้งานง่าย"
-//   → หน้ารวมใบเสนอออกใบได้เลยในฟอร์มเดียว (เลือกลูกค้าเป้าหมายในฟอร์ม) ไม่ต้องเปิดต่อหลายชั้น
+//   → หน้ารวมใบเสนอออกใบได้เลยในฟอร์มเดียว (เลือกผู้สนใจในฟอร์ม) ไม่ต้องเปิดต่อหลายชั้น
 //
 // ⚠️ ห้ามแยกเขียนฟอร์มนี้ซ้ำที่อื่น — กติกา (ช่องบังคับ/ช่องเงินมีลูกน้ำ/ภาคก่อนจังหวัด) ต้องเหมือนกันทุกหน้า
 //    วางที่ body (portal) เพราะบางหน้าเปิดจากในหน้าต่างอีกชั้น — คลิกฉากหลังต้องหยุดไม่ให้หน้าต่างแม่ปิดตาม
@@ -40,7 +40,7 @@ function ร่างเริ่มต้น(editing: DealerPackageProposal | n
   }
   return {
     prospectId: prospect?.id,
-    // พื้นที่เติมจากลูกค้าเป้าหมายให้ก่อน — แก้ได้
+    // พื้นที่เติมจากผู้สนใจให้ก่อน — แก้ได้
     region: prospect ? prospect.region || regionOf(prospect.province ?? "") || null : null,
     province: prospect?.province ?? null,
     proposedDate: APP_NOW_ISO,
@@ -50,7 +50,7 @@ function ร่างเริ่มต้น(editing: DealerPackageProposal | n
 }
 
 export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved, แบบ = "popup" }: {
-  /** popup = หน้าต่างเด้ง (หน้ารวมใบเสนอ) · inline = เปิดในหน้าเดิม (แท็บใบเสนอของลูกค้าเป้าหมาย · บอสสั่ง 15 ก.ย. 69) */
+  /** popup = หน้าต่างเด้ง (หน้ารวมใบเสนอ) · inline = เปิดในหน้าเดิม (แท็บใบเสนอของผู้สนใจ · บอสสั่ง 15 ก.ย. 69) */
   แบบ?: "popup" | "inline";
   /** ออกใบให้รายนี้ (ล็อกไว้) — ไม่ส่ง = ให้เลือกในฟอร์มจาก choices */
   prospect?: DealerProspect | null;
@@ -130,7 +130,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
       เป้าที่พิมพ์: !r.id && (!r.เป้าที่พิมพ์ || r.เป้าที่พิมพ์ === เป้าเดิม) ? เป้าใหม่ : r.เป้าที่พิมพ์,
     };
   });
-  // เลือกลูกค้าเป้าหมาย → เติมพื้นที่ของรายนั้นให้ (เฉพาะช่องที่ยังว่าง ไม่ทับที่กรอกไว้)
+  // เลือกผู้สนใจ → เติมพื้นที่ของรายนั้นให้ (เฉพาะช่องที่ยังว่าง ไม่ทับที่กรอกไว้)
   const เลือกราย = (id: string) => setร่าง(r => {
     const ราย = choices?.find(c => String(c.id) === id);
     return {
@@ -142,7 +142,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
   });
 
   async function บันทึก() {
-    if (!รายของใบ) { setFormErr("ต้องเลือกลูกค้าเป้าหมาย"); return; }
+    if (!รายของใบ) { setFormErr("ต้องเลือกผู้สนใจ"); return; }
     const { มูลค่าที่พิมพ์, ระยะที่พิมพ์, เป้าที่พิมพ์, ...ค่าอื่น } = ร่าง;
     const row = เตรียมบันทึกใบ({
       ...ค่าอื่น,
@@ -206,13 +206,13 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
           <fieldset disabled={busy} style={{ border: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
             {เลือกในฟอร์ม && (
               <div style={{ gridColumn: "1 / -1" }}>
-                <label className="form-label" htmlFor="pp-prospect">ลูกค้าเป้าหมาย *</label>
+                <label className="form-label" htmlFor="pp-prospect">ผู้สนใจ *</label>
                 <select id="pp-prospect" className="form-select" value={ร่าง.prospectId != null ? String(ร่าง.prospectId) : ""} onChange={e => เลือกราย(e.target.value)} style={{ cursor: "pointer" }}>
                   <option value="">— ยังไม่ระบุ —</option>
                   {(choices ?? []).map(c => <option key={c.id} value={String(c.id)}>{c.name}{c.province ? ` · ${c.province}` : ""}</option>)}
                 </select>
                 {(choices ?? []).length === 0 && (
-                  <div style={{ fontSize: "0.7rem", color: "#92400e", marginTop: 4 }}>ยังไม่มีลูกค้าเป้าหมายที่ติดตามอยู่ — เพิ่มที่หน้าลูกค้าเป้าหมาย (HQ) ก่อน</div>
+                  <div style={{ fontSize: "0.7rem", color: "#92400e", marginTop: 4 }}>ยังไม่มีผู้สนใจที่ติดตามอยู่ — เพิ่มที่หน้าผู้สนใจเป็นดีลเลอร์ ก่อน</div>
                 )}
               </div>
             )}
@@ -240,7 +240,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
                 onChange={e => ตั้งค่า("เป้าที่พิมพ์", formatMoneyInput(e.target.value))} placeholder="เว้นว่างได้" />
               <div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 3 }}>ตั้งเป็นดีลเลอร์แล้ว ใช้เป็นเป้ายอดขายรายปีของสาขา</div>
             </div>
-            {/* ภาคมาก่อนจังหวัด — กติกาเดียวกับฟอร์มลูกค้าเป้าหมาย · "ทุกภาค" = ทุกจังหวัด */}
+            {/* ภาคมาก่อนจังหวัด — กติกาเดียวกับฟอร์มผู้สนใจ · "ทุกภาค" = ทุกจังหวัด */}
             <div>
               <label className="form-label" htmlFor="pp-region">ภาค (พื้นที่ที่ได้สิทธิ์)</label>
               <select id="pp-region" className="form-select" value={ร่าง.region ?? ""} onChange={e => เปลี่ยนภาค(e.target.value)} style={{ cursor: "pointer" }}>

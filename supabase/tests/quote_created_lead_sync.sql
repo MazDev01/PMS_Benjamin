@@ -10,8 +10,11 @@ values ('#L-ZQS1', 979000001, 'RYG', 'ZZTEST-QSYNC บริษัท', 'ZZTEST-
 -- สถานะ "รอราคา HQ"/ปิดแล้ว ฐานเป็นคนตั้ง (ตัวดักกันการตั้งเอง) — ตั้งผ่านทางเดียวกับฐาน
 select set_config('pms.flow_sync', '1', true);
 update public.leads set status = 'HQ_PRICING' where dealer_code = 'RYG' and num_id = 979000001;
-update public.leads set status = 'PAID' where dealer_code = 'RYG' and num_id = 979000002;
 select set_config('pms.flow_sync', '', true);
+-- ปิดสำเร็จต้องมีใบที่ตอบรับ (ใบ 0232) — ข้อนี้ทดสอบแค่ "ลีดปิดแล้วไม่ถูกแตะ" จึงตั้งฉากตรง ๆ โดยปิดตัวดักชั่วคราว
+set local session_replication_role = replica;
+update public.leads set status = 'PAID' where dealer_code = 'RYG' and num_id = 979000002;
+set local session_replication_role = origin;
 
 do $$
 declare l leads; n int; f files;

@@ -6,21 +6,17 @@ import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { AdminGate } from "@pms/shared/components/layout/AdminGate";
-import {
-  dealerStatusLabel, dealerStatusColor,
-  type DealerRow, type DealerStatus,
-} from "@pms/shared/lib/mock";
+import { dealerStatusLabel, dealerStatusColor, type DealerRow, type DealerStatus } from "@pms/shared/lib/mock";
 import { useRepoState } from "@pms/shared/lib/useRepoState";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { dealers as dealersRepo, dealerSettings as dealerSettingsRepo, prospects as prospectsRepo } from "@pms/shared/lib/data";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { impersonateDealer, listDealerLoginEmails } from "@pms/shared/lib/adminApi";
-import { useDealerPerformance, EMPTY_PERF } from "@pms/shared/lib/useDealerPerformance";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useRouter } from "next/navigation";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
-import { Search, LogIn, Clock, Store, Coins, Briefcase, LayoutGrid, List } from "lucide-react";
+import { Search, LogIn, Store, LayoutGrid, List } from "lucide-react";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
 import { TerritoryUnmatchedCard } from "@pms/shared/components/hq/TerritoryUnmatchedCard";
 import { packageLabel } from "@pms/shared/lib/dealerProposals";
@@ -70,71 +66,8 @@ function StatusBadge({ status }: { status: DealerStatus }) {
 
 // ── Sub-components ──────────────────────────────────────────────
 
-function RevBar({ actual, target }: { actual: number; target: number }) {
-  // ⚠️ ตัวเลขที่โชว์ต้องเป็นค่าจริง · ตัดที่ 100 ได้เฉพาะ "ความยาวแท่ง" (บอสสั่ง 24 ส.ค. 69)
-  //   เดิมใช้ค่าที่ตัดแล้วทั้งสองที่ → ดีลเลอร์ที่ทำได้ 410% ของเป้าขึ้นว่า "100%"
-  //   อ่านแล้วเข้าใจว่าถึงเป้าพอดี ทั้งที่ทำได้เกินเป้าสี่เท่า และหน้าเดียวกัน (แผงเจาะรายสาขา)
-  //   กลับโชว์ 410% อยู่ — เลขสองตัวในหน้าเดียวขัดกันเอง
-  // ยังไม่ตั้งเป้า = null → "—" สีเทา ไม่ใช่ 0% สีแดง (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
-  const pct = target > 0 ? Math.round(actual / target * 100) : null;
-  const pctBar = pct == null ? 0 : Math.min(100, pct);
-  const color = pct == null ? "#94a3b8" : pct >= 100 ? "#059669" : pct >= 75 ? "#003366" : pct >= 50 ? "#f59e0b" : "#dc2626";
-  return (
-    // ⚠️ ห้ามใส่ minWidth ที่กล่องข้างใน (แก้ 10 ส.ค. 69)
-    //   ช่องตารางมีระยะขอบซ้ายขวารวม ~32px · กล่องข้างในที่กว้างตายตัวจึงล้นออกนอกช่อง
-    //   แล้วโดน overflow:hidden ตัดทิ้ง → ป้าย "100%" ถูกเฉือนเหลือ "10" อ่านเป็นสิบเปอร์เซ็นต์
-    //   ดีลเลอร์ที่ทำได้เต็มเป้าถูกอ่านว่าทำได้แค่ 10% · ความกว้างคุมที่ colgroup แทน (table-layout:fixed)
-    <div>
-      {/* ⚠️ ตัวเลขย่อ (฿24.6M) ต้องดูค่าเต็มได้ — ฝั่งดีลเลอร์โชว์เต็ม (฿24,600,000) พอเอามาเทียบกันแล้ว
-          ผู้ใช้ไม่แน่ใจว่าเป็นเลขเดียวกันไหม (ผลตรวจภายนอก DL-12 · 24 ส.ค. 69) */}
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: "0.72rem", marginBottom: 3 }}
-        title={`ยอดขายสะสม ฿${Math.round(actual).toLocaleString("th-TH")} · ${target > 0 ? `เป้า ฿${Math.round(target).toLocaleString("th-TH")}` : "ยังไม่ได้ตั้งเป้า"}`}>
-        <span style={{ color: "#6b7280" }}>฿{(actual / 1_000_000).toFixed(1)}M</span>
-        <span style={{ fontWeight: 700, color }}>{pct == null ? "—" : `${pct}%`}</span>
-      </div>
-      <div style={{ height: 6, background: "#f0f0f5", borderRadius: 99, overflow: "hidden" }}>
-        <div className="top5-bar" style={{ height: "100%", width: `${pctBar}%`, background: color, borderRadius: 99 }} />
-      </div>
-      <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>
-        {target > 0 ? `เป้า ฿${(target / 1_000_000).toFixed(1)}M` : "ยังไม่ได้ตั้งเป้า"}
-      </div>
-    </div>
-  );
-}
-
-// ยังไม่มีข้อมูลให้วัด = "—" (null) · ห้ามแสดง 0% เพราะ 0% แปลว่า "วัดแล้วได้ศูนย์"
-function OnTimeBadge({ pct }: { pct: number | null }) {
-  if (pct === null) return <span style={{ color: "#C0C0C0", fontSize: "0.8rem" }}>—</span>;
-  const color = pct >= 85 ? "#059669" : pct >= 70 ? "#f59e0b" : "#dc2626";
-  return (
-    <span className="badge" style={{ background: color + "22", color }}>
-      {pct}%
-    </span>
-  );
-}
-
-// secret = ปิดบังค่าไว้ก่อน ต้องกดตาถึงเห็น (ยังคัดลอกได้โดยไม่ต้องเปิดดู)
-// ใช้กับรหัสผ่านในแผงรายละเอียดดีลเลอร์ — เดิมโชว์รหัสจริงเต็ม ๆ ทันทีที่เปิดแถว
-// ใครเดินผ่านหลังจอ/แชร์หน้าจอ/ถ่ายภาพหน้าจอ ก็ได้รหัสเข้าระบบของดีลเลอร์ไปเลย
-// (โมดัลตอนสร้าง/รีเซ็ตยังโชว์เต็มโดยตั้งใจ — เป็นจังหวะเดียวที่ HQ ต้องอ่านไปแจ้งดีลเลอร์)
-// CopyField / DealerPasswordField ย้ายไปเป็นของกลางที่ DealerCredentialsCard.tsx แล้ว (13 ส.ค. 69)
-
-
-
-// ⛔ ห้ามสร้างฟังก์ชัน "เดาอีเมลจากรหัสสาขา" กลับมาอีก
-//   เคยมี dealerLoginEmail(code) = `<code>@dealer.benjaminpebsteel.com` ซึ่งเป็นสูตรของบัญชีที่สร้างผ่านหน้าจอนี้
-//   เท่านั้น · สาขาที่มีอยู่จริงใช้อีเมลธุรกิจของตัวเอง (CNX = sales@cmsteelbuild.co.th)
-//   → หน้าจอโชว์อีเมลที่ไม่มีอยู่จริงคู่กับรหัสผ่านที่ถูกต้อง HQ คัดลอกไปแล้วเข้าระบบไม่ได้
-//   อีเมลจริงต้องมาจาก /api/admin/dealers/logins เท่านั้น · ไม่รู้ = ขึ้น "—"
-
-// รหัสผ่านใหม่ตอนรีเซ็ต — deterministic (ไม่สุ่ม) เดโมจึงทวนซ้ำได้
-// nonce = ความยาวรหัสเดิม → กดรีเซ็ตซ้ำได้รหัสใหม่เรื่อย ๆ ไม่วนกลับมาซ้ำของเดิม
-// ฟอร์แมต: PEB-{รหัส}-{4 หลัก}
-
-// ── Main page ───────────────────────────────────────────────────
-
-// จัดการดีลเลอร์ (แก้ไข/รีเซ็ตรหัส/ลบ) = ต้องมีสิทธิ์ dealers:manage — HQ_STAFF เข้าไม่ได้
-
+// ── Main page ────────────────────────────────────────
+// จัดการดีลเลอร์ (แก้ไข/รีเซ็ตรหัส/ลบ) = ต้องมีสิทธิ์ · รอบ 4: หน้านี้เหลืองานดูแล ไม่มีตัวเลขยอดขาย (RevBar/OnTimeBadge เอาออก)
 export default function HQDealersPage() {
   return <AdminGate perm="dealers:manage"><HQDealersPageInner /></AdminGate>;
 }
@@ -171,7 +104,7 @@ function HQDealersPageInner() {
     if (v === "card" || v === "table") setมุมมอง(v);
   }, []);
   // รูปของแต่ละสาขา — ใช้เฉพาะรูปที่มีจริง ไม่มี = ตัวย่อชื่อ (ห้ามเอารูปอื่นมาใส่แทน)
-  //   1) โลโก้ที่ดีลเลอร์ตั้งเองในหน้าตั้งค่าของสาขา  2) รูปประจำตัวตอนเป็นลูกค้าเป้าหมาย (HQ) ของสาขานั้น
+  //   1) โลโก้ที่ดีลเลอร์ตั้งเองในหน้าตั้งค่าของสาขา  2) รูปประจำตัวตอนเป็นผู้สนใจเป็นดีลเลอร์ ของสาขานั้น
   const [รูปสาขา, setรูปสาขา] = useState<Record<string, string>>({});
   useEffect(() => {
     let alive = true;
@@ -187,11 +120,6 @@ function HQDealersPageInner() {
 
   const [entering, setEntering] = useState<string | null>(null);
 
-  // ผลงานจริงจากใบเสนอราคา/ลูกค้าเป้าหมาย — ห้ามอ่าน d.revenueActual / d.winRate / d.activeProjects อีก
-  // (คอลัมน์พวกนั้นเป็นค่าเดโมที่ seed ไว้ ไม่ขยับตามข้อมูลจริง และขัดกับหน้าแดชบอร์ด)
-  const perf = useDealerPerformance();
-  const perfOf = (code: string) => perf.get(code) ?? EMPTY_PERF;
-
   // Filter + sort — กรองจริงด้วยสถานะ/ภาค/ค้นหา (local ในหน้านี้ทั้งหมด)
   const filtered = dealers.filter(d => {
     // แถว HQ ไม่ใช่ดีลเลอร์ — ซ่อนจากทะเบียนและไม่นับในตัวเลขดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · ยกเลิกตรึงบนสุด 7 ก.ย. 69)
@@ -201,30 +129,10 @@ function HQDealersPageInner() {
     if (q && !`${d.code} ${d.name} ${d.province} ${d.region}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
     // ดีลเลอร์ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
-  }).sort((a, b) => เวลาเพิ่ม(b) - เวลาเพิ่ม(a)
-    || perfOf(b.code).revenue - perfOf(a.code).revenue);
+  }).sort((a, b) => เวลาเพิ่ม(b) - เวลาเพิ่ม(a) || a.code.localeCompare(b.code));
 
   // Stats — คำนวณจากชุดที่กรองแล้ว (ตัวเลขสะสมจริง ไม่สเกลตามช่วงเวลา)
   const active = filtered.filter(d => dealerStatus(d) === "active");
-  const totalRevenue = filtered.reduce((s, d) => s + perfOf(d.code).revenue, 0);
-  const totalTarget = filtered.reduce((s, d) => s + d.revenueTarget, 0);
-  const totalProjects = filtered.reduce((s, d) => s + perfOf(d.code).openLeads, 0);
-  // ── ดีลเลอร์ที่ปิดใช้งาน ยังถูกนับรวมในการ์ดยอดรวม (บอสตัดสิน 24 ส.ค. 69) ──
-  // เหตุผล: ยอดขายที่เคยทำไว้ยังเป็นของเครือ ตัดออกแล้วยอดรวมทั้งเครือจะหด ทั้งที่เงินเข้าจริง
-  // แต่ต้องเขียนบอกไว้ ไม่งั้นอ่านแล้วขัดกับ "เปิดใช้งาน N ดีลเลอร์" บนการ์ดใบแรก (ผลตรวจภายนอก HQ-11)
-  const ปิดใช้งาน = filtered.filter(d => dealerStatus(d) !== "active");
-  const มีงานค้างที่ปิดใช้งาน = ปิดใช้งาน.filter(d => perfOf(d.code).openLeads > 0).length;
-  const หมายเหตุปิดใช้งาน = ปิดใช้งาน.length > 0 ? ` · รวมดีลเลอร์ที่ปิดใช้งาน ${ปิดใช้งาน.length} ราย` : "";
-  // เฉลี่ยเฉพาะดีลเลอร์ที่ "มีข้อมูล" (onTimePct > 0) — ตัวที่เป็น 0 = ยังไม่มีข้อมูล (ตารางแสดง "—")
-  // เอามาเฉลี่ยเป็น 0 ไม่ได้ = เอา 0 สวมรอย "—" · ไม่มีใครมีข้อมูล → null → การ์ดแสดง "—"
-  // เฉลี่ยเฉพาะสาขาที่ "มีข้อมูลให้วัด" — สาขาที่ยังไม่มีลูกค้าเป้าหมาย/ใบ ไม่เอา 0 มาถ่วงค่าเฉลี่ย
-  const avgOf = (pick: (c: string) => number | null): number | null => {
-    const vals = active.map(d => pick(d.code)).filter((v): v is number => v !== null);
-    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-  };
-  const avgOnTime = avgOf(c => perfOf(c).onTimePct);
-  const totalPct = totalTarget > 0 ? Math.round(totalRevenue / totalTarget * 100) : null;   // ยังไม่ตั้งเป้าเลย = "—" (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
-
   // "เข้าระบบแทนดีลเลอร์" — HQ มีสิทธิ์เข้าบัญชีดีลเลอร์ไหนก็ได้ (บอสยืนยัน)
   //
   // โหมดเดโม (local): เดิมปุ่มนี้เรียก login("dealer") ซึ่งเข้าด้วยบัญชีเดโมตัวเดียวเสมอ (CNX)
@@ -273,10 +181,10 @@ function HQDealersPageInner() {
       {/* ปุ่ม/ตัวกรองของหน้าอยู่ขวาหัวหน้าเพจ (UI รอบใหม่ 14 ก.ย. 69) — ชื่อหน้า/ป้ายกลุ่มมาจากแถบบนแล้ว */}
       <TopbarActions>
           <ExportMenu filename="dealers" title="ดีลเลอร์ (ทั้งเครือ)"
-            headers={["รหัส","ดีลเลอร์","จังหวัด","ภาค","อีเมล","รายได้จริง","เป้า","อัตราปิดการขาย %","โอกาสการขาย","สถานะ"]}
-            rows={filtered.map(d=>[d.code,d.name,d.province,d.region,loginEmailOf(d.code),perfOf(d.code).revenue,d.revenueTarget,perfOf(d.code).winRate ?? "—",perfOf(d.code).openLeads,dealerStatusLabel[d.status]])} />
+            headers={["รหัส","ดีลเลอร์","จังหวัด","ภาค","อีเมล","สถานะ"]}
+            rows={filtered.map(d=>[d.code,d.name,d.province,d.region,loginEmailOf(d.code),dealerStatusLabel[d.status]])} />
           {/* ⛔ ไม่มีปุ่มสร้าง/เพิ่มดีลเลอร์ที่หน้านี้ (บอสสั่ง 14 ก.ย. 69)
-              ดีลเลอร์ต้องมาจาก "ลูกค้าเป้าหมาย (HQ)" ที่สำเร็จแล้วเท่านั้น — เข้าจากเมนูข้างได้เลย
+              ดีลเลอร์ต้องมาจาก "ผู้สนใจเป็นดีลเลอร์" ที่สำเร็จแล้วเท่านั้น — เข้าจากเมนูข้างได้เลย
               เคยมีปุ่ม "เพิ่มผ่านลูกค้าเป้าหมาย" ลัดไปหน้านั้น บอสสั่งเอาออก ("เอาออกเลย") — ห้ามใส่กลับ */}
       </TopbarActions>
 
@@ -294,9 +202,7 @@ function HQDealersPageInner() {
       <div className="hq-kpi4" style={{ marginBottom: "1.25rem" }}>
         {([
           { label: "ดีลเลอร์ทั้งหมด", value: dealersLoaded ? `${filtered.length}` : "—", sub: dealersLoaded ? `เปิดใช้งาน ${active.length} ดีลเลอร์` : "กำลังโหลด…", Icon: Store, color: "#003366", bg: "#E8F0FE" },
-          { label: "รายได้รวม", value: dealersLoaded ? `฿${(totalRevenue / 1_000_000).toFixed(1)}M` : "—", sub: !dealersLoaded ? "—" : totalPct == null ? `ยังไม่ได้ตั้งเป้า${หมายเหตุปิดใช้งาน}` : `${totalPct}% ของผลรวมเป้ารายดีลเลอร์ ฿${(totalTarget / 1_000_000).toFixed(1)}M${หมายเหตุปิดใช้งาน}`, Icon: Coins, color: "#059669", bg: "#E6F6EF" },
-          { label: "โอกาสการขายทั้งหมด", value: dealersLoaded ? `${totalProjects}` : "—", sub: dealersLoaded ? `${active.filter(d => perfOf(d.code).openLeads > 0).length} จาก ${active.length} ดีลเลอร์ที่เปิดใช้งาน มีงานอยู่${มีงานค้างที่ปิดใช้งาน > 0 ? ` · ปิดใช้งานแต่ยังมีงานค้าง ${มีงานค้างที่ปิดใช้งาน} ราย` : ""}` : "กำลังโหลด…", Icon: Briefcase, color: "#0891B2", bg: "#E6F4F9" },
-          { label: "ติดตามตรงเวลา", value: avgOnTime === null ? "—" : `${avgOnTime}%`, sub: avgOnTime === null ? "ยังไม่มีข้อมูล" : `${avgOnTime >= 85 ? "ดี" : avgOnTime >= 70 ? "พอใช้" : "ต้องปรับปรุง"} · เฉลี่ยเท่าที่มีข้อมูล`, Icon: Clock, color: "#7C3AED", bg: "#F0EBFB" },
+          // รายได้รวม · โอกาสการขาย · ติดตามตรงเวลา เอาออก (รอบ 4) — ผลงานดีลเลอร์อยู่ที่ภาพรวมยอดขายที่เดียว
         ] as const).map(t => (
           <div key={t.label} className="card" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
             <div style={{ minWidth: 0 }}>
@@ -425,14 +331,13 @@ function HQDealersPageInner() {
                   จนดูเหมือนลำดับไม่เรียง (บอสทัก 7 ก.ย. 69) */}
               <col style={{ width: "6%", minWidth: 68 }} />{/* ลำดับ */}
               <col style={{ width: 96 }} />{/* รหัส — ต้องอ่านครบ 5 ตัวอักษร (เช่น ZZWWW) ห้ามตัด · กว้างเป็นพิกเซล (minWidth ที่ col ไม่มีผล) */}
-              <col style={{ width: "9%", minWidth: 90 }} />{/* ชื่อดีลเลอร์ — ยาวเกินตัดด้วยจุดไข่ปลา + tooltip (ยอมให้ตัดได้) */}
+              <col style={{ width: "35%", minWidth: 200 }} />{/* ชื่อดีลเลอร์ — ยาวเกินตัดด้วยจุดไข่ปลา + tooltip (ยอมให้ตัดได้) */}
               <col style={{ width: "8%", minWidth: 78 }} />{/* จังหวัด — ยาวเกินตัด + tooltip เช่นกัน */}
               <col style={{ width: "8%", minWidth: 104 }} />{/* ภาค — ป้ายชื่อ ห้ามตัด (ยาวสุด "ตะวันออก" + ระยะขอบของป้าย) */}
               {/* แพ็กเกจ (บอสสั่ง 15 ก.ย. 69) — ป้าย "Exclusive" + ระยะขอบของป้าย ห้ามตัด · minWidth รวมทั้งตาราง 1,228px */}
               <col style={{ width: "7%", minWidth: 100 }} />
-              <col style={{ width: "12%", minWidth: 148 }} />{/* ยอด / เป้า — เผื่อระยะขอบช่อง ไม่งั้นป้าย % โดนตัด */}
-              <col style={{ width: "7%", minWidth: 92 }} />{/* โอกาสขาย */}
-              <col style={{ width: "7%", minWidth: 80 }} />{/* ตรงเวลา — เนื้อหาเป็นป้าย % สั้น ๆ */}
+              {/* คอลัมน์ ยอด/เป้า · โอกาสขาย · ตรงเวลา เอาออก (รอบ 4 · บอสตัดสิน 21 ต.ค. 69) — ผลงานดีลเลอร์อยู่ที่ภาพรวมยอดขายที่เดียว
+                  ส่วนที่หายไป (26% · 320px) ยกให้ชื่อดีลเลอร์ */}
               <col style={{ width: "7%", minWidth: 108 }} />{/* สถานะ — ป้ายชื่อ ห้ามตัด ("เปิดใช้งาน" + ระยะขอบของป้ายเอง) */}
               {/* คอลัมน์ปุ่ม: เข้าระบบ (~99px) + ไอคอน 5 ปุ่ม (28px × 5) + gap 4px × 5 ช่อง ≈ 259px
                   บวกระยะขอบช่อง 32px = 291px · ตั้ง 292px คือพอดีเนื้อหาจริงโดยไม่เผื่อทิ้งเปล่า
@@ -447,14 +352,14 @@ function HQDealersPageInner() {
                     ที่จอ 1280 ตารางกว้าง 1120 แต่พื้นที่มีแค่ ~968 จึงต้องเลื่อนแนวนอน
                     เดิมปุ่มเลยหลุดออกนอกกรอบ ต้องเลื่อนก่อนถึงจะกดได้ (คนเห็นแล้วคิดว่าระบบพัง)
                     ตรึงไว้แบบนี้ ปุ่มอยู่ให้กดตลอดทุกความกว้างจอ โดยไม่ต้องตัดคอลัมน์ไหนทิ้ง */}
-                {["ลำดับ", "รหัส", "ชื่อดีลเลอร์", "จังหวัด", "ภาค", "แพ็กเกจ", "ยอด / เป้า", "โอกาสขาย", "ตรงเวลา", "สถานะ", ""].map((h, i, arr) => (
+                {["ลำดับ", "รหัส", "ชื่อดีลเลอร์", "จังหวัด", "ภาค", "แพ็กเกจ", "สถานะ", ""].map((h, i, arr) => (
                   <th key={i} style={i === arr.length - 1 ? ตรึงคอลัมน์ปุ่ม(true) : undefined}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={11} style={{ padding: "32px", textAlign: "center", fontSize: "0.8rem", color: "#6b7280" }}>{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
+                <tr><td colSpan={8} style={{ padding: "32px", textAlign: "center", fontSize: "0.8rem", color: "#6b7280" }}>{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
               ) : pageSlice(filtered, Math.min(page, pageCountOf(filtered.length) - 1)).map((d, i) => (
                 <ClickableRow key={d.id} className="clickable" style={{ opacity: dealerStatus(d) === "active" ? 1 : 0.55 }}
                   onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดรายละเอียดดีลเลอร์ ${d.name}`}>
@@ -472,13 +377,6 @@ function HQDealersPageInner() {
                     <span className="badge" style={{ background: "#f0f0f5", color: "#6b7280" }}>{d.region}</span>
                   </td>
                   <td><ป้ายแพ็กเกจ p={d.package} /></td>
-                  <td><RevBar actual={perfOf(d.code).revenue} target={d.revenueTarget} /></td>
-                  <td>
-                    {perfOf(d.code).openLeads > 0
-                      ? <span style={{ fontWeight: 700, color: "#2D2D2D", fontSize: "0.86rem" }}>{perfOf(d.code).openLeads}<span style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 500 }}> โอกาสการขาย</span></span>
-                      : <span style={{ color: "#C0C0C0", fontSize: "0.8rem" }}>—</span>}
-                  </td>
-                  <td><OnTimeBadge pct={perfOf(d.code).onTimePct} /></td>
                   <td>
                     <StatusBadge status={dealerStatus(d)} />
                   </td>

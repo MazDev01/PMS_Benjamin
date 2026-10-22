@@ -2,25 +2,27 @@
 
 import { diffLeadFields, type LeadIntent, type LeadFields } from "@pms/shared/lib/leadIntent";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { validateUpload, humanFileSize } from "@pms/shared/lib/uploadLimits";
 import { useRouter } from "next/navigation";
 import { ยืนยัน, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import {
   leadStatusLabel, leadStatusColor,
   buildLeadReport, applyTaskTemplate, findAppointmentTask,
-  seedLeadTasks, taskProgress, apptTypeLabel, fmtISOToThai,
-  DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, MANUAL_LEAD_STATUSES, LEAD_STATUS_META, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES, CLOSE_TASK_KEY, QUOTE_TASK_KEY, SEND_QUOTE_TASK_KEY,
-  OTHER_LOST_REASON, OTHER_REASON_OPTION, มูลค่าลีด, วันที่สร้างอ่านง่าย,
-  type LeadStatus, type LeadRow, type ApptType, type DealerFile, type LeadTaskDef,
+  seedLeadTasks, apptTypeLabel, fmtISOToThai,
+  DEALER_FILES_EVENT, extOfName, guessFileCategory, LEAD_STATUS_ORDER, DEFAULT_DEALER_CODE, ACTIVE_LEAD_STATUSES,
+  OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย,
+  type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
-import type { QuotationMock } from "@pms/shared/lib/data/types";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
+import { ขั้นของลีด, ชื่อขั้นการขาย } from "@pms/shared/lib/leadStage";
+import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
+import { อัตราปิดการขายจากลีด, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
+import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
@@ -34,7 +36,7 @@ import {
   Plus, X,
   CheckCircle2, User, Building2,
   MessageSquare, Paperclip, Trash2, Eye, XCircle, Coins, Target, TrendingUp, Percent,
-  Phone, Mail, Users, FileText, StickyNote, CalendarClock, MapPin, CheckSquare, Calendar,
+  Phone, Mail, Users, FileText, StickyNote, CalendarClock, MapPin, Calendar,
   Check, ChevronDown,
   ArrowUpDown, ArrowUp, ArrowDown,
   LayoutList, Columns3, AlarmClock, Ruler,
@@ -65,7 +67,6 @@ import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
 // ─── Design tokens ────────────────────────────────────────────────────────
 
 const ALL_STATUSES: LeadStatus[] = LEAD_STATUS_ORDER;
-// ความคืบหน้าตามขั้นตอน (module-level เพื่อใช้ใน OverviewEditor) — PAID=100, CANCELLED=0
 // (DEFAULT_PERSONS ถูกลบ — เดิมเป็นพนักงาน 5 คนจากชุดตัวอย่าง
 //  ตาราง responsible_persons ว่าง = ไม่มีวันถูกแทนที่ → ดีลเลอร์เลือกชื่อคนที่ไม่มีอยู่จริง
 //  แล้วชื่อนั้นถูกบันทึกลงลูกค้าเป้าหมายใน DB จริง)
@@ -122,18 +123,20 @@ function fmtมูลค่าเต็ม(n: number | null) {
 }
 
 
-// ความคืบหน้าของลูกค้าเป้าหมาย (%) — จากงานที่เช็ก (แหล่งเดียวกับ LeadTasks) · PAID=100 · CANCELLED=0
-// tpl = งานมาตรฐานที่ HQ ตั้งไว้ (ส่งมาจากคอมโพเนนต์ที่เรียก useLeadTaskTemplate)
-// ลูกค้าเป้าหมายที่ยังไม่มี checklist ต้องนับจากชุดของ HQ ไม่ใช่ชุดเริ่มต้นในโค้ด — ไม่งั้น "0/10" ทั้งที่ HQ ตั้งไว้ 12 งาน
-function leadProg(l: LeadRow, tpl?: LeadTaskDef[]): number {
-  if (l.status === "PAID") return 100;
-  if (l.status === "CANCELLED") return 0;
-  return taskProgress(applyTaskTemplate(l.tasks, tpl, l.status));
-}
-// จำนวนงานที่ทำเสร็จ / ทั้งหมด (ไว้แสดงบนการ์ดบอร์ด)
-function leadTaskCount(l: LeadRow, tpl?: LeadTaskDef[]): { done: number; total: number } {
-  const t = applyTaskTemplate(l.tasks, tpl, l.status);
-  return { done: t.filter(x => x.done).length, total: t.length };
+// ขั้นของลีด (1–5) สำหรับตาราง/บอร์ด — มาจากตัวแปลงกลาง lib/leadStage.ts ที่เดียว (รอบ 4 · แทน % ความคืบหน้าจากงาน)
+function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
+  const ผล = ขั้นของลีด(l.status, มีใบร่าง);
+  const ข้อความ = ผล.kind === "won" ? "ปิดสำเร็จ" : ผล.kind === "lost" ? "ปิดไม่สำเร็จ" : `${ผล.step}/5 · ${ชื่อขั้นการขาย[ผล.step - 1]}`;
+  const เต็ม = ผล.kind === "won" ? 5 : ผล.kind === "lost" ? 0 : ผล.step;
+  const สี = ผล.kind === "lost" ? "#dc2626" : ผล.kind === "won" ? "#059669" : "#003366";
+  return (
+    <div data-mini-stage title={ข้อความ} style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:2 }}>
+        {[1,2,3,4,5].map(n => <span key={n} style={{ height:5, borderRadius:99, background: n <= เต็ม ? สี : "#e5e7eb" }} />)}
+      </div>
+      <span style={{ fontSize:"0.66rem", fontWeight:700, color:สี, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ข้อความ}</span>
+    </div>
+  );
 }
 // กิจกรรมล่าสุดของลูกค้าเป้าหมาย (activities เรียงใหม่สุดอยู่บน) — ไม่มีกิจกรรม/ไม่มีวันที่สร้าง = "—"
 // ห้าม fallback ไป leadCreatedDate(): มันสังเคราะห์วันจาก numId (numId × 17 % 150 วันก่อนวันนี้)
@@ -255,7 +258,6 @@ function OverviewEditor({ lead, persons, onSave }: {
   lead: LeadRow; persons: string[]; onSave: (intent: LeadIntent) => void;
 }) {
   const lostReasons = useLostReasons(); // เหตุผลปิดไม่สำเร็จที่ HQ กำหนด (ผ่าน repo)
-  const taskTpl = useLeadTaskTemplate(); // งานมาตรฐานที่ HQ ตั้ง — ใช้คิด % ของลูกค้าเป้าหมายที่ยังไม่มี checklist
   const myProvinces = useMyProvinces();  // จังหวัดตามภาคของสาขาที่ล็อกอิน
   const seed = () => ({
     company: lead.company ?? "", contact: lead.contact ?? "", phone: lead.phone ?? "",
@@ -294,8 +296,6 @@ function OverviewEditor({ lead, persons, onSave }: {
     f.area !== (lead.area != null ? String(lead.area) : "") ||
     f.project !== (lead.project ?? "") ||
     f.note !== (lead.note ?? "") || f.lostReason !== (lead.lostReason ?? "") || f.logo !== (lead.logo ?? "");
-  // ความคืบหน้า = แหล่งเดียวกับแท็บ "งาน/ความคืบหน้า" (LeadTasks) → เลขตรงกันทุกแท็บ
-  const pct = leadProg(lead, taskTpl);
 
   const inp = OV_INP;
 
@@ -346,8 +346,7 @@ function OverviewEditor({ lead, persons, onSave }: {
         )}
       </div>
 
-          {/* ช่องเลือกสถานะเอาออก (บอสสั่ง 19 ต.ค. 69 "สถานะเหลือที่เดียว"): สถานะแสดงที่ป้ายหัวแผง + แถบขั้น
-              เปลี่ยนขั้นได้ทางปุ่ม "ขั้นต่อไป" และแท็บงานเท่านั้น — เดิมเลือกได้ทุกสถานะ ข้ามหน้ายืนยัน/เหตุผล */}
+          {/* ช่องเลือกสถานะเอาออก (19 ต.ค. 69) · รอบ 4: สถานะอยู่ที่แถบ 5 ขั้นที่เดียว เปลี่ยนได้ทางกล่องขั้นต่อไปเท่านั้น */}
         </div>
       </div>
 
@@ -721,8 +720,9 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                     aria-label: ชื่อเดียวกับ label — กันสับสนกับ dropdown "ทุกสถานะ" บนแถบเครื่องมือที่มีครบทุกขั้น */}
                 {/* ต้องมีค่าเสมอ — งานขายต้องเริ่มที่ขั้นใดขั้นหนึ่งเสมอ */}
                 {/* "รอราคา HQ" ฐานข้อมูลขยับให้เองตามคำขอราคา (FLOW.html) — ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ ยกเลิกคำขอได้ที่แท็บใบเสนอราคา */}
-                <select aria-label="ขั้นตอน" value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={!LEAD_STATUS_META[form.status].manual}>
-                  {(!LEAD_STATUS_META[form.status].manual ? ([form.status] as LeadStatus[]) : isEdit ? MANUAL_LEAD_STATUSES : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
+                {/* ลีดใหม่เริ่มได้ 2 ขั้นนี้เท่านั้น — ขั้นอื่นระบบเลื่อนให้เอง (ฐานกัน ใบ 0232) */}
+                <select aria-label="ขั้นตอน" value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={isEdit}>
+                  {(isEdit ? [form.status] : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
                 </select>
               </div>
 
@@ -772,14 +772,13 @@ export default function LeadsPage() {
   const { session } = useRole(); // ผู้ดำเนินการ (บันทึกลง task ที่เช็ก)
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant) — scope ข้อมูล/กฎด้วย code นี้
   const { followUpAlertDays } = useLeadRules(currentDealer.code); // กฎของสาขานี้ — ตั้งเองที่ ตั้งค่า › การแจ้งเตือน
-  const lostReasons = useLostReasons(); // เหตุผลปิดไม่สำเร็จที่ HQ กำหนด (ผ่าน repo)
   const taskTpl = useLeadTaskTemplate(); // งานมาตรฐานรายขั้นที่ HQ ตั้ง (ผ่าน repo — ไม่ใช่ค่าคงที่ในโค้ด)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // List state
   const {
-    leads: allLeads, addLead, บันทึกลีด, deleteLead: removeLead, updateLeadStatus, newLeadNumId, syncLeadFromServer,
-    appointments, addAppointment, newAppointmentId, quotations, quotationsReady, ensureQuotations,
+    leads: allLeads, addLead, บันทึกลีด, deleteLead: removeLead, newLeadNumId, syncLeadFromServer,
+    appointments, addAppointment, newAppointmentId, quotations, updateQuotation,
   } = useSales();
   // ปิดการขายสำเร็จ = เป็น "ลูกค้า" แล้ว → ไม่แสดงในหน้าลูกค้าเป้าหมาย (ไปอยู่ที่ /customers)
   // สมุดงานของ "ดีลเลอร์ที่ล็อกอิน" เท่านั้น — กรองด้วย dealerCode
@@ -787,10 +786,17 @@ export default function LeadsPage() {
   // ลูกค้าเป้าหมายที่ดีลเลอร์สร้างเองไม่มี dealerCode → ถือเป็นของสาขาตัวเอง
   // สมุดงานของสาขาตัวเอง "ทุกสถานะ" (รวมที่ปิดการขายสำเร็จแล้ว) — ใช้คิดอัตราปิดการขาย
   // ป้าย "ได้ราคาแล้ว" แบบเดิม (ลีดค้างรอราคา HQ + ถามฐานว่าได้ใบแล้วหรือยัง) เอาออก — สถานะจริง "ได้ราคา HQ" อยู่ในฐานแล้ว (ใบ 0219)
-  // ลบลีดได้เฉพาะลีดที่ยังไม่มีคำขอราคาหรือใบเสนอราคาผูกอยู่ — มีแล้วใช้ "เสียโอกาส" แทน (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217 กันที่ฐาน)
-  //   รอราคา HQ / ได้ราคาแล้ว = มีคำขอ · ปิดการขายสำเร็จ = มีใบ · คำขอที่ถูกยกเลิกไปแล้วหน้าจอไม่เห็น — ฐานปฏิเสธพร้อมข้อความบอกทาง
-  //   สถานะที่ฐานขยับเอง (รอราคา HQ · ได้ราคา HQ) = มีคำขอแล้ว · ปิดการขายสำเร็จ = มีใบแล้ว
-  const ลบได้ = (l: LeadRow) => LEAD_STATUS_META[l.status].manual && l.status !== "PAID" && !quotations.some(q => quoteBelongsToLead(q, l));
+  // ลบลีดได้เฉพาะลีดที่ยังไม่มีคำขอราคาหรือใบเสนอราคาผูกอยู่ — มีแล้วใช้ "ปิดไม่สำเร็จ" แทน (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217 กันที่ฐาน)
+  //   รอบ 4 (บอสเห็นปุ่มถังขยะตอนลีดมีคำขอแล้ว): เดิมเช็กแค่ใบเสนอราคา ไม่เช็กคำขอราคา (คำขอที่ยกเลิกแล้วลีดกลับเป็นรวบรวมความต้องการ
+  //   หรือปิดไม่สำเร็จ → ปุ่มขึ้น กดแล้วฐานปฏิเสธ) · ตอนนี้ปุ่มลบอยู่หัวแผงที่เดียว และขึ้นเมื่อแผงโหลดคำขอแล้วว่าไม่มีเลยเท่านั้น
+  const [คำขอของแผง, setคำขอของแผง] = useState<{ leadId: string; มี: boolean } | null>(null);
+  const มีใบร่างของ = (l: LeadRow) => quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l));
+  const ข้อความขั้น = (l: LeadRow) => {
+    const ผล = ขั้นของลีด(l.status, มีใบร่างของ(l));
+    return ผล.kind === "won" ? "ปิดสำเร็จ" : ผล.kind === "lost" ? "ปิดไม่สำเร็จ" : `${ผล.step}/5 ${ชื่อขั้นการขาย[ผล.step - 1]}`;
+  };
+  const ลบได้ = (l: LeadRow) => l.status !== "PAID" && คำขอของแผง?.leadId === l.id && !คำขอของแผง.มี
+    && !quotations.some(q => quoteBelongsToLead(q, l));
   const myAllLeads = useMemo(
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
@@ -838,154 +844,9 @@ export default function LeadsPage() {
   // Table toolbar: density + column show/hide (localStorage-backed)
   const { density, setDensity, hiddenCols, toggleCol } = useTableLayout("leads");
   const [view, setView] = useState<"list"|"kanban">("list"); // ค่าเริ่มต้น = ตาราง (สลับไปบอร์ดได้ที่ปุ่มมุมขวา)
-  const [dragId, setDragId] = useState<string|null>(null); // การ์ดที่กำลังลากในมุมมอง Kanban
-  // ลูกค้าเป้าหมายที่กำลังจะปิดการขายไม่สำเร็จ (จากตาราง/Kanban) — รอเลือกเหตุผลก่อนค่อยเปลี่ยนสถานะจริง
-  // (พบจากผลตรวจสอบตรรกะระบบ 31 ก.ค. 69: เดิมสองช่องทางนี้ปิดได้โดยไม่ต้องกรอกเหตุผลเลย
-  //  ต่างจากปุ่ม "ปิดการขายไม่สำเร็จ" ในแผงลูกค้าเป้าหมายที่บังคับอยู่แล้ว — ทำให้ตรงกันทุกช่องทาง)
-  const [pendingLostId, setPendingLostId] = useState<string|null>(null);
-  const [pendingLostReason, setPendingLostReason] = useState("");
-  /** พาไปแท็บ "งาน" ของลูกค้าเป้าหมายรายนี้ — ใช้ตอนบล็อกการย้ายขั้นเพราะงานยังไม่ครบ */
-  function openLeadTasks(l: LeadRow) {
-    setSelectedLead(l); setDraft({ ...l });
-    setEditingField(null); setShowDeleteConfirm(false);
-    setPopupField(null); setEditPopupPos(null); setShowStatusDropdown(false);
-    setActiveTab("tasks"); setDTab("tasks");
-  }
+  // รอบ 4: ตาราง/บอร์ดดูอย่างเดียว — ป้ายขั้นเลือกไม่ได้ การ์ดลากไม่ได้ · เปลี่ยนสถานะได้ทางกล่องขั้นต่อไปในแผงที่เดียว
+  //   (เมนูเลือกขั้น · ลากการ์ด · หน้าต่างเลือกเหตุผลปิดไม่สำเร็จจากตาราง · ด่านติ๊กงานก่อนย้ายขั้น เอาออกทั้งหมด)
 
-  /** ── พาไป "ลงมือทำงานนั้น" จริง ๆ ไม่ใช่แค่บอกว่าเหลืองานอะไร (บอสสั่ง 21 ส.ค. 69) ──
-   *
-   *  ลากการ์ดข้ามขั้นแล้วโดนบล็อก ผู้ใช้ต้องได้ไปอยู่หน้าที่ "ทำงานนั้นได้ทันที"
-   *  งานที่ต้องมีของจริงจึงพาไปที่ฟอร์มของจริง (ลงนัด/ออกใบ/กดส่งใบ)
-   *  งานอื่นที่ติ๊กได้เอง พาไปแท็บงาน แล้วผู้ใช้ติ๊กต่อได้ทีละงานตามลำดับ
-   */
-  function พาไปทำงาน(l: LeadRow, taskKey: string) {
-    const ของลูกค้าเป้าหมาย = quotations.filter(q => quoteBelongsToLead(q, l));
-    if (taskKey === findAppointmentTask(taskTpl)?.key) {
-      const มีนัดแล้ว = appointments.some(a => a.leadId === l.numId && a.status !== "cancelled");
-      if (!มีนัดแล้ว) {
-        setSelectedLead(l); setDraft({ ...l });
-        setActiveTab("appts"); setDTab("timeline"); setApptAdding(true);
-        return;
-      }
-    }
-    if (taskKey === QUOTE_TASK_KEY && !ของลูกค้าเป้าหมาย.length) { openQuotationForm(l); return; }
-    if (taskKey === SEND_QUOTE_TASK_KEY) {
-      if (!ของลูกค้าเป้าหมาย.length) { openQuotationForm(l); return; }
-      if (ของลูกค้าเป้าหมาย.every(q => q.status === "draft")) { openQuotationList(l); return; }
-    }
-    openLeadTasks(l);
-  }
-
-  async function requestStatusChange(id: string, status: LeadStatus) {
-    // ปิดการขายสำเร็จแล้ว ดีลเลอร์ย้อนเองไม่ได้ — HQ ย้อนการตอบรับได้คนเดียว (บอสตัดสิน 19 ต.ค. 69 · ใบ 0217 กันที่ฐานด้วย)
-    if (allLeads.find(l => l.id === id)?.status === "PAID") { setToast("ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่"); return; }
-    // สถานะที่ฐานขยับเอง (ใบ 0219): รอราคา HQ เปลี่ยนเองไม่ได้ · ได้ราคา HQ ออกเองได้แค่ปิดไม่สำเร็จ (ลากการ์ดบนบอร์ดก็เช่นกัน)
-    const ตอนนี้ = allLeads.find(l => l.id === id)?.status;
-    if (ตอนนี้ === "HQ_PRICING") { setToast("รอราคาจากสำนักงานใหญ่ — เปลี่ยนขั้นเองไม่ได้ระหว่างรอ"); return; }
-    if (ตอนนี้ === "HQ_QUOTED" && status !== "CANCELLED") { setToast("ได้ราคาจาก HQ แล้ว — ขั้นต่อไปคือทำใบและส่งให้ลูกค้า"); return; }
-    if (status === "CANCELLED") { setPendingLostId(id); setPendingLostReason(""); return; }
-
-    // ── ย้ายขั้นบนกระดาน: ข้ามงานไม่ได้ · ถอยหลังต้องยืนยัน (บอสสั่ง 21 ส.ค. 69) ────────
-    //
-    // ทำไมต้องกั้น: ลากการ์ดข้ามไปขั้นท้าย ๆ ได้เลย = ขั้นของดีลบอกว่าทำงานถึงตรงนั้นแล้ว
-    //   ทั้งที่งานจริง (นัดหมาย/สรุปความต้องการ/ออกใบ) ยังไม่ได้ทำ — รายงานของสำนักงานใหญ่
-    //   จะอ่านว่า "ดีลนี้ถึงขั้นเจรจาแล้ว" ทั้งที่ยังไม่เคยคุยราคากับลูกค้าเลยสักครั้ง
-    // วิธีกั้น: ต้องติ๊กงานของขั้นก่อนหน้าให้ครบก่อน — พาไปทำทีละงานตามลำดับที่สำนักงานใหญ่ตั้งไว้
-    const เป้าหมาย = allLeads.find(l => l.id === id);
-    if (เป้าหมาย && status !== "PAID") {
-      const ลำดับ = (st: LeadStatus) => LEAD_STATUS_ORDER.indexOf(st);
-      const ขั้นเดิม = ลำดับ(เป้าหมาย.status), ขั้นใหม่ = ลำดับ(status);
-
-      // ถอยกลับ = ต้องยืนยันเสมอ (ความคืบหน้าที่บันทึกไว้จะดูขัดกับขั้นที่ถอยไป)
-      if (ขั้นใหม่ < ขั้นเดิม && เป้าหมาย.status !== "CANCELLED") {
-        const ตกลง = await ยืนยัน({
-          หัวข้อ: `ย้อนขั้นของ "${เป้าหมาย.company || เป้าหมาย.name}" ?`,
-          รายละเอียด: `จาก "${leadStatusLabel[เป้าหมาย.status]}" กลับไป "${leadStatusLabel[status]}"\n`
-            + "งานที่ติ๊กไว้แล้วจะไม่ถูกล้าง — ขั้นกับงานจะไม่ตรงกันชั่วคราว",
-          ปุ่มตกลง: "ย้อนขั้น",
-        });
-        if (!ตกลง) return;
-      }
-
-      // เดินหน้า = งานของทุกขั้นก่อนหน้าต้องครบ (ไม่รวมงานปิดการขาย ซึ่งเป็นงานของขั้นสุดท้าย)
-      if (ขั้นใหม่ > ขั้นเดิม) {
-        const ทำแล้ว = new Set((เป้าหมาย.tasks ?? []).filter(t => t.done).map(t => t.key));
-        const ค้าง = taskTpl.filter(t =>
-          t.key !== CLOSE_TASK_KEY && ลำดับ(t.stage) < ขั้นใหม่ && !ทำแล้ว.has(t.key));
-        if (ค้าง.length) {
-          // พาไปลงมือทำงานที่ค้างอยู่ "งานแรก" ทันที — ทำเสร็จแล้วค่อยลากใหม่ ระบบจะไล่งานถัดไปให้เอง
-          พาไปทำงาน(เป้าหมาย, ค้าง[0].key);
-          setToast(ค้าง.length === 1
-            ? `ย้ายขั้นไม่ได้ — เหลืองาน "${ค้าง[0].label}" อีก 1 งาน · พามาทำให้แล้ว`
-            : `ย้ายขั้นไม่ได้ — เหลืออีก ${ค้าง.length} งาน · เริ่มที่ "${ค้าง[0].label}"`);
-          return;
-        }
-      }
-    }
-    // ── ขั้น "เสนอราคา" ต้องมีใบเสนอราคาจริง (บอสสั่ง 14 ส.ค. 69) ──
-    // ลาก/เลือกสถานะไปขั้นนี้ทั้งที่ยังไม่เคยออกใบ = ขั้นขยับแต่ไม่มีเอกสารถึงลูกค้า
-    // → พาไปออกใบแทน · พอบันทึกใบเสร็จ ระบบติ๊กงาน "จัดทำใบเสนอราคา" แล้วเลื่อนขั้นให้เอง
-    // ⚠️ "ยังโหลดใบไม่เสร็จ" ไม่เท่ากับ "ไม่มีใบ" — ตัดสินตอนนี้คือกล่าวหาผิด แล้วผู้ใช้กดไม่ติดโดยไม่รู้สาเหตุ
-    //    (เจอจริง 27 ส.ค. 69 บนโหมดเดียวกับเว็บจริง: ใบเสนอราคาเดินทางมาถึงช้ากว่าลูกค้าเป้าหมายเสมอ
-    //     กดปิดการขายในจังหวะนั้นแล้วระบบตอบว่า "ต้องออกใบก่อน" ทั้งที่ใบมีอยู่จริง แล้วเงียบไปเฉย ๆ)
-    //    จึงรอให้ใบมาถึงก่อนแล้วค่อยตัดสิน — ไม่ใช่ไล่ให้ผู้ใช้กดใหม่
-    const ใบทั้งหมด = await ensureQuotations();
-    if (status === "QUOTED") {
-      const target = allLeads.find(l => l.id === id);
-      if (target && !ใบทั้งหมด.some(q => quoteBelongsToLead(q, target))) {
-        openQuotationForm(target);
-        setToast("ขั้นเสนอราคาต้องมีใบเสนอราคา — ออกใบให้ลูกค้าก่อน แล้วขั้นจะเลื่อนให้เอง");
-        return;
-      }
-    }
-    // ปิดการขายสำเร็จ = สร้างลูกค้าอัตโนมัติทันที ย้อนกลับไม่ได้ — ต้องยืนยันก่อนเสมอ (ทุกช่องทาง
-    // ไม่ใช่แค่ปุ่มลัดในแผงลูกค้าเป้าหมาย) ยืนยันจาก scenario test 31 ก.ค. 69: เดิมกดครั้งเดียวสร้างลูกค้าทันที
-    if (status === "PAID") {
-      const target = allLeads.find(l => l.id === id);
-      if (!target) return;
-      // ด่านเดียวกับปุ่ม "ได้งาน" ในแท็บงาน — ปิดการขายสำเร็จต้องมีใบที่ส่งถึงลูกค้าแล้ว
-      //   ปิดได้โดยไม่มีใบ = ได้ลูกค้ายอดสะสม ฿0 ปนในฐาน ยอดขาย/อัตราปิดการขายเพี้ยน (พบจากทดสอบหาบั๊ก 19 ส.ค. 69)
-      const ของลูกค้าเป้าหมาย = ใบทั้งหมด.filter(q => quoteBelongsToLead(q, target));
-      if (!ของลูกค้าเป้าหมาย.length) {
-        openQuotationForm(target);
-        setToast("ปิดการขายสำเร็จต้องมีใบเสนอราคา — ออกใบแล้วส่งให้ลูกค้าก่อน");
-        return;
-      }
-      if (ของลูกค้าเป้าหมาย.every(q => q.status === "draft")) {
-        openQuotationList(target);
-        setToast("ใบเสนอราคายังเป็นร่าง — กดส่งให้ลูกค้าก่อน จึงจะปิดการขายสำเร็จได้");
-        return;
-      }
-      if (!(await ยืนยัน({
-        หัวข้อ: `ปิดการขายสำเร็จสำหรับ "${target.company || target.name}" ?`,
-        รายละเอียด: "ระบบจะสร้างลูกค้าใหม่ให้อัตโนมัติทันที — ย้อนกลับไม่ได้",
-        ปุ่มตกลง: "ปิดการขายสำเร็จ", อันตราย: true,
-      }))) return;
-      updateLeadStatus(id, status);
-      setToast("ปิดการขายสำเร็จ — ระบบสร้างลูกค้าให้อัตโนมัติ");
-      setJustWonCompany(target.company || target.name);
-      return;
-    }
-    updateLeadStatus(id, status);
-  }
-  function confirmPendingLost() {
-    const reason = pendingLostReason.trim();
-    if (!pendingLostId || !reason || reason === OTHER_LOST_REASON) return;
-    const target = allLeads.find(l => l.id === pendingLostId);
-    if (!target) { setPendingLostId(null); return; }
-    บันทึกลีด(target.id, { stage: { status: "CANCELLED", lostReason: reason } });
-    setPendingLostId(null); setPendingLostReason("");
-  }
-  const [dragOver, setDragOver] = useState<LeadStatus|null>(null); // คอลัมน์ที่กำลังลากค้างอยู่ (ไฮไลต์)
-
-  // ── ลากการ์ดไปชิดขอบ = กระดานเลื่อนตามให้เอง (บอสสั่ง 20 ส.ค. 69) ─────────────
-  //
-  // คอลัมน์รวมกันกว้างเกินจอ ต้องเลื่อนแนวนอนถึงจะเห็นคอลัมน์ท้าย ๆ
-  // แต่ระหว่างลากการ์ดอยู่ ผู้ใช้ปล่อยเมาส์ไปเลื่อนแถบเลื่อนไม่ได้ (ปล่อย = วางการ์ด)
-  // จึงย้ายการ์ดข้ามไปคอลัมน์ที่มองไม่เห็นไม่ได้เลย — ต้องให้กระดานเลื่อนเองเมื่อลากไปชิดขอบ
-  //
-  // ใช้ตัวจับเวลาแทนการเลื่อนใน onDragOver ตรง ๆ เพราะ onDragOver จะหยุดยิงเมื่อเมาส์หยุดนิ่ง
-  // (ผู้ใช้ที่ค้างเมาส์ไว้ที่ขอบจะเห็นกระดานหยุดเลื่อนทั้งที่ยังลากอยู่)
   const กระดานRef = useRef<HTMLDivElement>(null);
   // ── ความสูงกระดาน: ยืดลงไปจนสุดขอบล่างจอ (บอสสั่ง 20 ส.ค. 69) ─────────────────
   //
@@ -1008,53 +869,6 @@ export default function LeadsPage() {
     if (กระดานRef.current?.parentElement) ro.observe(กระดานRef.current.parentElement);
     return () => { window.removeEventListener("resize", วัด); ro.disconnect(); };
   }, [view]);
-  const ทิศเลื่อนRef = useRef(0);
-  const ตัวเลื่อนRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const หยุดเลื่อนกระดาน = useCallback(() => {
-    ทิศเลื่อนRef.current = 0;
-    if (ตัวเลื่อนRef.current) { clearInterval(ตัวเลื่อนRef.current); ตัวเลื่อนRef.current = null; }
-  }, []);
-  const เลื่อนกระดานตามเมาส์ = useCallback((clientX: number) => {
-    const el = กระดานRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const ระยะขอบ = 100;   // เข้าใกล้ขอบเท่านี้ถึงเริ่มเลื่อน — แคบกว่านี้จะเล็งยาก
-    const ทิศ = clientX > r.right - ระยะขอบ ? 1 : clientX < r.left + ระยะขอบ ? -1 : 0;
-    ทิศเลื่อนRef.current = ทิศ;
-    if (ทิศ === 0) { หยุดเลื่อนกระดาน(); return; }
-    if (!ตัวเลื่อนRef.current) {
-      ตัวเลื่อนRef.current = setInterval(() => {
-        const box = กระดานRef.current;
-        if (!box || ทิศเลื่อนRef.current === 0) return;
-        box.scrollLeft += ทิศเลื่อนRef.current * 18;
-      }, 16);
-    }
-  }, [หยุดเลื่อนกระดาน]);
-  // ── ต้องดักที่ทั้งหน้า ไม่ใช่แค่บนกระดาน (บอสแจ้ง 20 ส.ค. 69: "ขยับออกมันไม่เลื่อนตาม") ──
-  //
-  // เดิมดัก dragover ไว้ที่กล่องกระดานอย่างเดียว ซึ่งพังในกรณีที่ผู้ใช้ทำจริงที่สุด:
-  //   ลากการ์ดออกไปทางซ้าย/ขวาจนพ้นกระดาน (ไปทับแถบเมนูข้าง หรือขอบจอ)
-  //   → เบราว์เซอร์ยิง dragover ให้เฉพาะสิ่งที่อยู่ใต้เมาส์ กระดานจึงไม่ได้ยินอะไรเลย
-  //   ซ้ำร้าย onDragLeave ยังสั่งหยุดเลื่อนทันทีที่เมาส์พ้นขอบ — ตรงข้ามกับที่ควรเป็น
-  // ตอนนี้ฟังที่ document ตลอดช่วงที่ยังลากอยู่ และถ้าเมาส์เลยขอบกระดานออกไปแล้ว
-  //   ให้ถือว่า "เลื่อนเต็มที่" ไปทางนั้น ไม่ใช่หยุด
-  //
-  // ไม่ผูกกับสถานะ "กำลังลาก" ของหน้าจอ: dragover เกิดได้เฉพาะตอนมีการลากอยู่จริงอยู่แล้ว
-  //   ผูกเพิ่มมีแต่จะพลาดกรณีขอบ ๆ (เช่นลากจากที่อื่นเข้ามา)
-  useEffect(() => {
-    const ขยับ = (e: DragEvent) => เลื่อนกระดานตามเมาส์(e.clientX);
-    document.addEventListener("dragover", ขยับ);
-    document.addEventListener("dragend", หยุดเลื่อนกระดาน);
-    document.addEventListener("drop", หยุดเลื่อนกระดาน);
-    return () => {
-      document.removeEventListener("dragover", ขยับ);
-      document.removeEventListener("dragend", หยุดเลื่อนกระดาน);
-      document.removeEventListener("drop", หยุดเลื่อนกระดาน);
-      หยุดเลื่อนกระดาน();
-    };
-  }, [เลื่อนกระดานตามเมาส์, หยุดเลื่อนกระดาน]);
-  // ลากค้างไว้แล้วออกจากหน้า/ปล่อยนอกกระดาน — ต้องหยุดเลื่อนเสมอ ไม่งั้นกระดานไหลต่อเอง
-  useEffect(() => () => หยุดเลื่อนกระดาน(), [หยุดเลื่อนกระดาน]);
   const [hideEmpty, setHideEmpty] = useState(false); // ซ่อนคอลัมน์ที่ไม่มีการ์ด
   const [query, setQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<LeadStatus|"ALL">("ALL");
@@ -1063,7 +877,7 @@ export default function LeadsPage() {
   const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
   const [followUpDays, setFollowUpDays] = useState(0); // Smart filter: 0=off · 7/14/30 = ขาดติดต่อเกินกี่วัน
   // quick filter chips ถูกลบตามที่บอสสั่ง — state นี้ไม่มีใครตั้งค่าได้แล้ว จึงลบทิ้ง
-  const [dTab, setDTab] = useState<"overview"|"tasks"|"quotation"|"timeline">("overview"); // แท็บใน drawer รายละเอียด
+  const [dTab, setDTab] = useState<"overview"|"quotation"|"history">("overview"); // แท็บในแผงลีด — รอบ 4 เหลือ 3 แท็บ
   const [showAddForm, setShowAddForm] = useState(false);
 
   // List pagination (LIST view only)
@@ -1083,11 +897,8 @@ export default function LeadsPage() {
   // Panel state
   const [selectedLead, setSelectedLead] = useState<LeadRow|null>(null);
   // (โหมดแก้ไข/อ่านถูกถอดแล้ว — OverviewEditor reseed เองเมื่อสลับลูกค้าเป้าหมายผ่าน useEffect ของมัน)
-  const [activeTab, setActiveTab] = useState<"overview"|"tasks"|"report"|"activities"|"appts"|"quotation"|"files">("overview");
   const [editingField, setEditingField] = useState<string|null>(null);
-  // Lead Detail (split layout) — refs สำหรับ quick action เลื่อนไปการ์ด + ปิดการขายไม่สำเร็จ (เลือกเหตุผล)
-  const journeyRef = useRef<HTMLDivElement>(null);
-  const rightQuoteRef = useRef<HTMLDivElement>(null);
+  // ref ฟอร์มนัดหมาย (ปุ่มนัดหมายบนหัวแผงเลื่อนไปที่ฟอร์ม)
   const rightApptRef = useRef<HTMLDivElement>(null);
   // ฟอร์มนัดหมายในแท็บนัดหมายของลูกค้าเป้าหมาย (นัดก่อนปิดการขาย)
   const [apptAdding, setApptAdding] = useState(false);
@@ -1139,9 +950,6 @@ export default function LeadsPage() {
     return () => { alive = false; };
   }, [currentDealer.code]);
 
-  // Inline status dropdown (table view)
-  // เมนูเลือกขั้น — ต้องเก็บพิกัดปุ่มด้วย เพราะเมนูวางแบบ "ลอย" (fixed) ให้พ้นกล่องตาราง
-  const [statusMenu, setStatusMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   // ช่อง "มูลค่า" ในตารางแก้เองไม่ได้แล้ว — มาจากใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5)
 
   // success toast
@@ -1245,23 +1053,17 @@ export default function LeadsPage() {
   const lid = current?.id ?? "";
 
   function resetApptForm() { setApptAdding(false); setApptForm({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" }); }
-  // ใบเสนอราคาใบนี้เป็นของลูกค้าเป้าหมายนี้ไหม — กติกาเดียวกับที่แท็บใบเสนอราคาใช้กรองรายการ
-  // (ใบใหม่ผูกด้วย dealId · ใบเก่าก่อนมี dealId ผูกด้วยรหัสลูกค้า/ชื่อบริษัท)
-  function quoteBelongsToLead(q: QuotationMock, l: LeadRow): boolean {
-    if (q.dealId != null) return q.dealId === l.numId;
-    if (l.customerId && q.customerId === l.customerId) return true;
-    return q.customer === l.company;
-  }
   // พาไปแท็บใบเสนอราคาของลูกค้าเป้าหมายนี้ — ใช้ทั้งตอนพาไปออกใบใหม่ และตอนพาไปกดส่งใบที่มีอยู่
   const [quoteFormSignal, setQuoteFormSignal] = useState(0);
   // ปุ่ม "ขั้นต่อไป" สั่งแผงคำขอราคาเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) — n เปลี่ยน = สั่งใหม่
   const [reqSignal, setReqSignal] = useState<{ mode: "ขอราคา" | "แก้ราคา"; n: number } | undefined>(undefined);
+  // ปุ่ม "บันทึกผลจากลูกค้า" สั่งแท็บใบเสนอราคาเปิดใบที่รอลูกค้าตอบ (ทำในแผง · รอบ 4)
+  const [quoteViewSignal, setQuoteViewSignal] = useState<{ id: string; n: number } | undefined>(undefined);
   function focusQuotationTab(l: LeadRow) {
     setSelectedLead(l); setDraft({ ...l });
     setEditingField(null); setShowDeleteConfirm(false);
     setPopupField(null); setEditPopupPos(null);
-    setShowStatusDropdown(false);
-    setActiveTab("quotation"); setDTab("quotation");
+    setDTab("quotation");
   }
   /** พาไปดูรายการใบของลูกค้าเป้าหมายนี้ (ไม่เปิดฟอร์ม) — ใช้ตอนพาไปกดส่งใบที่ออกไว้แล้ว */
   function openQuotationList(l: LeadRow) { focusQuotationTab(l); setQuoteFormSignal(0); }
@@ -1272,10 +1074,9 @@ export default function LeadsPage() {
     if (selectedLead?.id === l.id) return closePanel();
     setSelectedLead(l); setDraft({...l});
     setEditingField(null); setShowDeleteConfirm(false);
-    setActiveTab("overview"); setDTab("overview");
+    setDTab("overview");
     setQuoteFormSignal(0); // เปิดแผงตามปกติ = ไม่ได้สั่งออกใบ (กันฟอร์มค้างจากลูกค้าเป้าหมายก่อนหน้า)
     setPopupField(null); setEditPopupPos(null);
-    setShowStatusDropdown(false);
     resetApptForm(); // กันฟอร์มนัดหมายค้างข้ามลูกค้าเป้าหมาย
     // รายงานติดตาม (report) กับไทม์ไลน์ (activities) ไม่ได้มากับรายการ
     //   ทั้งสองกินขนส่งมากแต่ใช้เฉพาะในแผงนี้ — จึงมาเติมตอนเปิดแทน
@@ -1293,7 +1094,6 @@ export default function LeadsPage() {
     setSelectedLead(null); setDraft(null); setQuoteFormSignal(0);
     setEditingField(null); setShowDeleteConfirm(false);
     setPopupField(null); setEditPopupPos(null);
-    setShowStatusDropdown(false);
     resetApptForm();
   }
 
@@ -1331,27 +1131,15 @@ export default function LeadsPage() {
     return () => window.removeEventListener("bpms:open-record", onOpen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  async function ลบไฟล์นี้(f: DealerFile) {
+    if (!(await ยืนยัน({ หัวข้อ: `ลบไฟล์ "${f.name}" ?`, รายละเอียด: "ย้อนกลับไม่ได้", ปุ่มตกลง: "ลบไฟล์", อันตราย: true }))) return;
+    try { await ลบไฟล์(f); setToast("ลบไฟล์แล้ว"); }
+    catch (e) { reportRepoSaveError(e); }
+  }
   function deleteLead() {
     removeLead(selectedLead!.id);
     closePanel();
   }
-  function handleStatusChange(val: string) {
-    if (!draft) return;
-    saveLead({ stage: { status: val as LeadStatus } });
-  }
-
-  // หมายเหตุ: ลูกค้าถูกสร้างอัตโนมัติเมื่อปิดการขายสำเร็จ (WON) ผ่าน context — ไม่มีปุ่มสร้างเองแล้ว
-  // (ระบบ "ดีล" แยกถูกตัดออก — Kanban ลูกค้าเป้าหมายคือบอร์ดการขายเดียว)
-
-  // ความคืบหน้า (Progress) จากลำดับขั้นตอน — PAID=100%, CANCELLED=0% (ใช้ใน drawer)
-  function leadProgress(status: LeadStatus): number {
-    if (status === "PAID") return 100;
-    if (status === "CANCELLED") return 0;
-    const idx = ACTIVE_LEAD_STATUSES.indexOf(status);
-    if (idx < 0) return 0;
-    return Math.round(((idx + 1) / (ACTIVE_LEAD_STATUSES.length + 1)) * 100);
-  }
-
   // Files — ของลูกค้าเป้าหมายรายนี้ (ผูกด้วย numId) จากคลังไฟล์รวม
   const myFiles: DealerFile[] = current
     ? dealerFiles.filter(f => f.source === "lead" && f.recordId === current.numId).sort((a, b) => b.id - a.id)
@@ -1389,8 +1177,6 @@ export default function LeadsPage() {
     })();
   }
 
-  // Status dropdown
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   // Field popup (right sidebar detail rows)
   const [popupField, setPopupField] = useState<string|null>(null);
@@ -1463,11 +1249,8 @@ export default function LeadsPage() {
     [ฐานสรุป]);
   // Conversion Rate = ปิดได้ / (ปิดได้ + ปิดไม่ได้) — ต้องนับจากฐานที่ "รวมที่ปิดการขายแล้ว" ด้วย
   // (ตารางตัด PAID ออก) และต้องเป็นของสาขาตัวเองเท่านั้น
-  const convRate = useMemo(() => {
-    const นับ = (st: string) => ฐานสรุปรวมปิดแล้ว.filter(l => l.status === st).length;
-    const won = นับ("PAID"), lost = นับ("CANCELLED");
-    return won + lost ? Math.round((won / (won + lost)) * 1000) / 10 : null;   // ยังไม่มีดีลที่ปิด = "—" ไม่ใช่ 0% (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
-  }, [ฐานสรุปรวมปิดแล้ว]);
+  // อัตราปิดการขาย สูตรกลาง (รอบ 4 · lib/winRate.ts) — ยังไม่มีดีลที่ปิด = "—" ไม่ใช่ 0% (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
+  const convRate = useMemo(() => อัตราปิดการขายจากลีด(ฐานสรุปรวมปิดแล้ว), [ฐานสรุปรวมปิดแล้ว]);
   const fmtCompact = (v:number) => v>=1e6 ? `฿${(v/1e6).toFixed(1)}M` : v>=1e3 ? `฿${Math.round(v/1e3)}K` : `฿${v}`;
 
   // การ์ด = ปุ่มกรอง · on = กำลังกรองด้วยเงื่อนไขนี้อยู่ (กดซ้ำ = ล้าง)
@@ -1486,7 +1269,7 @@ export default function LeadsPage() {
     { label:`เกิน ${followUpAlertDays} วัน`, value:`${overdue7}`,     sub:"รายการ",       Icon:AlarmClock, color:"#EA580C", bg:"#FEF0E6", on: followUpDays === followUpAlertDays, onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(followUpDays === followUpAlertDays ? 0 : followUpAlertDays); } },
     /* ⚠️ การ์ดนี้นับ "ดีล" (ลูกค้าเป้าหมายที่ปิดแล้ว) ส่วนแดชบอร์ดนับ "ใบเสนอราคา" — คนละหน่วย เลขจึงต่างกันได้
        ถ้าใช้ชื่อเดียวกันทั้งสองที่ ผู้ใช้จะเห็นเลขขัดกันในแอปเดียว (ผลตรวจภายนอก DL-03 · 24 ส.ค. 69) */
-    { label:"อัตราปิดดีล",       value: convRate == null ? "—" : `${convRate}%`,           sub:"ปิดได้ ÷ ดีลที่ปิดแล้วทั้งหมด", Icon:Percent,   color:"#0D9488", bg:"#E6F7F5", on: false,                   onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(0); } },
+    { label:ชื่ออัตราปิดการขาย,   value: convRate == null ? "—" : `${convRate}%`,           sub:คำอธิบายอัตราปิดการขาย, Icon:Percent,   color:"#0D9488", bg:"#E6F7F5", on: false,                   onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(0); } },
   ];
 
   // แนวโน้ม 12 เดือน — ลูกค้าเป้าหมายใหม่ เทียบ ปิดการขาย · ปีปัจจุบันเท่านั้น
@@ -1536,8 +1319,8 @@ export default function LeadsPage() {
           )}
           <FilterBar dims={[]} />
           <ExportMenu filename="leads" title="รายชื่อลูกค้าเป้าหมาย"
-            headers={["รหัส","ชื่อ","ผู้ติดต่อ","จังหวัด","ช่องทางที่มา","พื้นที่ (ตร.ม.)","สถานะ","ความคืบหน้า","มูลค่า","ผู้รับผิดชอบ","กิจกรรมล่าสุด"]}
-            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.area ?? "—",leadStatusLabel[l.status],`${leadProg(l, taskTpl)}%`,fmtมูลค่าย่อ(มูลค่าลีด(l)),l.assigned,lastActivity(l)])} />
+            headers={["รหัส","ชื่อ","ผู้ติดต่อ","จังหวัด","ช่องทางที่มา","พื้นที่ (ตร.ม.)","สถานะ","ขั้น","มูลค่า","ผู้รับผิดชอบ","กิจกรรมล่าสุด"]}
+            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.area ?? "—",leadStatusLabel[l.status],ข้อความขั้น(l),fmtมูลค่าย่อ(มูลค่าลีด(l)),l.assigned,lastActivity(l)])} />
           <button onClick={() => setShowAddForm(true)} className="btn btn-primary btn-sm">
             <Plus size={15} /> เพิ่มลูกค้าเป้าหมาย
           </button>
@@ -1624,11 +1407,11 @@ export default function LeadsPage() {
                   {!hiddenCols.includes("source")   && <col style={{width:"10%", minWidth:100}} />}
                   {!hiddenCols.includes("area")     && <col style={{width:"8%", minWidth:100}} />}
                   <col style={{width:"14%", minWidth:150}} />{/* ขั้นตอน — minWidth ต้องพอให้ชื่อขั้นที่ยาวที่สุด ("รวบรวมความต้องการ") อยู่ได้ */}
-                  <col style={{width:"13%", minWidth:110}} />{/* ความคืบหน้า */}
+                  <col style={{width:"13%", minWidth:110}} />{/* ขั้น (1–5 จากตัวแปลงกลาง) */}
                   <col style={{width:"11%", minWidth:90}} />{/* มูลค่า */}
                   <col style={{width:"12%", minWidth:110}} />{/* ผู้รับผิดชอบ */}
                   {!hiddenCols.includes("activity") && <col style={{width:"9%", minWidth:100}} />}
-                  <col style={{width:"12%", minWidth:48}} />{/* ปุ่มลบ */}
+                  <col style={{width:"12%", minWidth:48}} />{/* ปุ่มดู */}
                 </colgroup>
                 <thead>
                   <tr>
@@ -1638,11 +1421,11 @@ export default function LeadsPage() {
                       [null,"ช่องทางที่มา","source"],
                       [null,"พื้นที่ (ตร.ม.)","area"],
                       ["status","ขั้นตอน",null],
-                      [null,"ความคืบหน้า",null],
+                      [null,"ขั้น",null],
                       ["value","มูลค่า",null],
                       ["assigned","ผู้รับผิดชอบ",null],
                       [null,"กิจกรรมล่าสุด","activity"],
-                      [null,"",null], // คอลัมน์ปุ่มลบ — ไม่ต้องมีหัวคอลัมน์ (มาตรฐานเดียวกับตารางใบเสนอราคา)
+                      [null,"",null], // คอลัมน์ปุ่มดู — ไม่ต้องมีหัวคอลัมน์ (มาตรฐานเดียวกับตารางใบเสนอราคา)
                     ] as [SortKey|null,string,string|null][])
                       .filter(([,,colKey]) => !colKey || !hiddenCols.includes(colKey))
                       .map(([key,label])=>{
@@ -1683,102 +1466,15 @@ export default function LeadsPage() {
                             {l.area != null ? l.area.toLocaleString() : "—"}
                           </td>
                         )}
-                        {/* ⚠️ เมนูเลือกขั้นต้องวางแบบ "ลอย" (position:fixed ตามพิกัดปุ่ม) — ผู้ใช้แจ้ง 19 ส.ค. 69
-                            กล่องตาราง (.table-wrap) ตั้ง overflow-x:auto → เบราว์เซอร์ตัดแนวตั้งด้วย
-                            เมนูที่วางแบบ absolute จึงโดนตัดหาย — เห็นแค่ขอบขาว ๆ โผล่ใต้แถว เลือกสถานะไม่ได้เลย
-                            ท่านี้เป็นท่าเดียวกับเมนูจัดการผู้ใช้ที่ HQ (UsersPanel ActionMenu) ที่เจอปัญหาเดียวกันมาก่อน
-                            ⛔ ห้ามใส่ z-index ที่ <td> นี้เด็ดขาด — เคยใส่แล้วเมนูกดไม่ได้ทันที (18 ส.ค. 69)
-                            ⛔ ห้ามใส่ z-index ที่ <td> นี้เด็ดขาด — เคยใส่แล้วเมนูเลือกขั้นกดไม่ได้ทันที (18 ส.ค. 69)
-                            เพราะ z-index สร้าง stacking context ใหม่ → เมนูข้างในถูกขังอยู่ใต้แถวถัดไป กดไม่โดน
-                            การแก้ที่ถูกคือ "ล็อกป้ายไม่ให้ล้น" อย่างเดียว — ไม่ต้องมี z-index
-                            ช่องนี้ต้องเปิด overflow ไว้ให้เมนูเลือกขั้นกางออกมาได้ แต่ผลข้างเคียงคือป้ายที่ชื่อยาวก็ล้นไปด้วย
-                            ช่อง "ความคืบหน้า" อยู่ถัดไปและวาดทีหลัง จึงมาทับส่วนที่ล้น → คลิกโดนช่องข้างแทน */}
-                        <td style={{ position:"relative" }}
-                          onClick={e => { e.stopPropagation(); }}>
-                          <button className="badge" title={leadStatusLabel[l.status]}
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (statusMenu?.id === l.id) { setStatusMenu(null); return; }
-                              const r = e.currentTarget.getBoundingClientRect();
-                              // ความสูงเมนูคำนวณได้แน่นอน (จำนวนขั้น × สูงแถว + ขอบ) — ไม่ต้องรอวัดหลังเรนเดอร์
-                              //   ถ้าเพิ่ม/ลดขั้น หรือเปลี่ยนความสูงแถว ต้องอัปเดตเลข 38 ด้วย
-                              const H = MANUAL_LEAD_STATUSES.length * 38 + 12;
-                              const below = r.bottom + 4;
-                              const y = below + H <= window.innerHeight - 8 ? below : Math.max(8, r.top - 4 - H);
-                              setStatusMenu({ id: l.id, x: r.left, y });
-                            }}
-                            style={{ background:sc.bg, color:sc.text, border:"none", cursor:"pointer",
-                              maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex" }}>
-                            <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{leadStatusLabel[l.status]}</span> ▾
-                          </button>
-                          {statusMenu?.id === l.id && (
-                            <>
-                              {/* ⛔ ห้ามเอา portal ออก — ถ้าเมนูอยู่ในเซลล์ตาราง ตัวเลือกจะไปโผล่ใต้ขอบจอกดไม่ได้ */}
-                              {/* (วัดจริง 19 ส.ค. 69: ตัวเลือก 7 ตัวหลุดจอทั้งหมด) มีเทสต์คุมใน redesign.spec.ts */}
-                              {/* ⬆ ฉากคลิกปิดก็ต้องอยู่ใน portal เดียวกัน (ผู้ใช้แจ้ง 19 ส.ค. 69 "กดนอกตารางช้อยไม่หาย")
-                                  เดิมวางไว้ในเซลล์ตาราง — ถึงจะเป็น fixed ก็โดน .table-wrap (overflow) ตัดเหลือแค่พื้นที่ตาราง
-                                  คลิกพื้นที่นอกตารางจึงไม่โดนอะไรเลย เมนูค้างคาอยู่อย่างนั้น */}
-                              {createPortal(
-                              <>
-                              <div onClick={e => { e.stopPropagation(); setStatusMenu(null); }}
-                                style={{ position:"fixed", inset:0, zIndex:299 }}/>
-                              <div data-menu="stage" style={{ position:"fixed", top:statusMenu.y, left:statusMenu.x, zIndex:300,
-                                background:"#fff", border:"1px solid #e5e7eb", borderRadius:12,
-                                boxShadow:"0 8px 24px rgba(0,0,0,.14)", minWidth:168, overflow:"hidden" }}>
-                                {/* เมนูเปลี่ยนขั้นเอง: ไม่มี "รอราคา HQ" (ฐานข้อมูลขยับให้ตามคำขอราคา) · ระหว่างรอราคา HQ ฐานข้อมูลไม่ให้เปลี่ยนขั้นเอง */}
-                                {l.status === "HQ_PRICING" ? (
-                                  <div style={{ padding:"10px 14px", fontSize:"0.76rem", color:"#6b21a8", maxWidth:240, lineHeight:1.6 }}>
-                                    รอราคาจากสำนักงานใหญ่ — เปลี่ยนขั้นเองไม่ได้ระหว่างรอ · ยกเลิกคำขอได้ที่แท็บใบเสนอราคา
-                                  </div>
-                                ) : l.status === "HQ_QUOTED" ? (
-                                  <>
-                                    <div style={{ padding:"10px 14px 4px", fontSize:"0.76rem", color:"#166534", maxWidth:240, lineHeight:1.6 }}>
-                                      ได้ราคาจากสำนักงานใหญ่แล้ว — ขั้นต่อไปคือทำใบและส่งให้ลูกค้า
-                                    </div>
-                                    <button onClick={e => { e.stopPropagation(); void requestStatusChange(l.id, "CANCELLED"); setStatusMenu(null); }}
-                                      style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"9px 14px", border:"none", background:"transparent", cursor:"pointer", textAlign:"left" }}>
-                                      <span style={{ width:8, height:8, borderRadius:"50%", background:leadStatusColor.CANCELLED.text, flexShrink:0 }}/>
-                                      <span style={{ fontSize:"0.8rem", color:"#2D2D2D" }}>{leadStatusLabel.CANCELLED}</span>
-                                    </button>
-                                  </>
-                                ) : l.status === "PAID" ? (
-                                  <div style={{ padding:"10px 14px", fontSize:"0.76rem", color:"#065f46", maxWidth:240, lineHeight:1.6 }}>
-                                    ปิดการขายสำเร็จแล้ว — ย้อนได้เฉพาะสำนักงานใหญ่
-                                  </div>
-                                ) : MANUAL_LEAD_STATUSES.map(s => {
-                                  const c = leadStatusColor[s];
-                                  return (
-                                    <button key={s}
-                                      onClick={e => { e.stopPropagation(); void requestStatusChange(l.id, s); setStatusMenu(null); }}
-                                      style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"9px 14px",
-                                        border:"none", background:s===l.status?"#f0f4f8":"transparent",
-                                        cursor:"pointer", textAlign:"left" }}>
-                                      <span style={{ width:8, height:8, borderRadius:"50%", background:c.text, flexShrink:0 }}/>
-                                      <span style={{ fontSize:"0.8rem", color:s===l.status?"#003366":"#2D2D2D", fontWeight:s===l.status?700:400 }}>
-                                        {leadStatusLabel[s]}
-                                      </span>
-                                      {s===l.status && <span style={{ marginLeft:"auto", fontSize:"0.65rem", color:"#003366" }}>✓</span>}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              </>, document.body)}
-                            </>
-                          )}
+                        {/* ป้ายสถานะ = ดูอย่างเดียว (รอบ 4) — เดิมกดแล้วมีเมนูเลือกขั้น · เปลี่ยนขั้นได้ทางกล่องขั้นต่อไปในแผงที่เดียว */}
+                        <td>
+                          <span className="badge" title={leadStatusLabel[l.status]}
+                            style={{ background:sc.bg, color:sc.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap" }}>
+                            {leadStatusLabel[l.status]}
+                          </span>
                         </td>
                         <td>
-                          {(() => {
-                            const p = leadProg(l, taskTpl);
-                            const col = l.status==="CANCELLED" ? "#dc2626" : p>=100 ? "#059669" : "#003366";
-                            return (
-                              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                                <div style={{ flex:1, height:6, background:"#eef2f7", borderRadius:99, overflow:"hidden", minWidth:44 }}>
-                                  <div className="bar-grow" style={{ height:"100%", width:`${p}%`, background:col, borderRadius:99 }} />
-                                </div>
-                                <span style={{ fontSize:"0.72rem", fontWeight:800, color:col, fontVariantNumeric:"tabular-nums", minWidth:30, textAlign:"right" }}>{p}%</span>
-                              </div>
-                            );
-                          })()}
+                          <MiniStage l={l} มีใบร่าง={มีใบร่างของ(l)} />
                         </td>
                         {(
                           <td className="num" style={{ fontSize:"0.8rem", fontWeight:700, color: มูลค่าลีด(l) == null ? "#cbd5e1" : "#2D2D2D" }}
@@ -1804,13 +1500,7 @@ export default function LeadsPage() {
                               style={{ width:28, height:28, borderRadius:7, border:"1px solid #dbe3ec", background:"#fff", color:"#003366", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                               <Eye size={13} />
                             </button>
-                            {ลบได้(l) && <button title="ลบลูกค้าเป้าหมาย" onClick={async ()=>{
-                              if (!(await ยืนยัน({ หัวข้อ: `ลบลูกค้าเป้าหมาย "${l.company}" ?`, รายละเอียด: "ย้อนกลับไม่ได้", ปุ่มตกลง: "ลบ", อันตราย: true }))) return;
-                              removeLead(l.id); setToast("ลบลูกค้าเป้าหมายแล้ว");
-                            }}
-                              style={{ width:28, height:28, borderRadius:7, border:"1px solid #fecaca", background:"#fff", color:"#dc2626", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                              <Trash2 size={13} />
-                            </button>}
+                            {/* ปุ่มลบลีดอยู่หัวแผงที่เดียว (รอบ 4) — แถวตารางไม่รู้ว่าลีดมีคำขอราคาหรือยัง */}
                           </div>
                         </td>
                       </ClickableRow>
@@ -1865,29 +1555,26 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {/* ── KANBAN VIEW — คอลัมน์ตามสถานะ · ลากการ์ดเพื่อเปลี่ยนสถานะ (รวม "เส้นทางการขาย") ── */}
+        {/* ── KANBAN VIEW — คอลัมน์ตามสถานะ · ดูอย่างเดียว ลากการ์ดไม่ได้ (รอบ 4 · เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผง) ── */}
         {view === "kanban" && (() => {
           const ACTIVE = ACTIVE_LEAD_STATUSES;
           // PAID ไม่มีคอลัมน์แล้ว — ปิดการขายสำเร็จจะย้ายไปหน้า "ลูกค้า" อัตโนมัติ
           const TERMINAL: LeadStatus[] = ["CANCELLED"];
           const renderColumn = (status: LeadStatus, wide: boolean) => {
             const col = filtered.filter(l => l.status === status);
-            if (hideEmpty && col.length === 0) return null;
+            // "ติดตามผล" "เจรจาต่อรอง" เลิกใช้ (ข้อตัดสินบอส 21 ต.ค. 69) — คอลัมน์โผล่เฉพาะตอนมีลีดเก่าค้างอยู่
+            if ((hideEmpty || status === "FOLLOWUP" || status === "NEGO") && col.length === 0) return null;
             const sc = leadStatusColor[status];
-            const isOver = dragOver === status;
             const total = col.reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0);
             const w = wide ? 300 : 264;
             return (
               <div key={status}
-                onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragOver !== status) setDragOver(status); }}
-                onDragLeave={() => setDragOver(o => o === status ? null : o)}
-                onDrop={() => { หยุดเลื่อนกระดาน(); if (dragId) { void requestStatusChange(dragId, status); setDragId(null); } setDragOver(null); }}
                 style={{ minWidth:w, width:w, flexShrink:0, display:"flex", flexDirection:"column",
                   // คอลัมน์ยาวลงมาเต็มพื้นที่จอเสมอ ไม่หดตามจำนวนการ์ด — คอลัมน์ว่างจึงยังเป็นเป้าให้ลากมาวางได้ชัด ๆ
                   // (เดิม alignSelf:"flex-start" ทำให้สูงพอดีเนื้อหา คอลัมน์ที่ยังไม่มีลูกค้าเป้าหมายเลยเหลือแค่แถบเตี้ย ๆ)
                   minHeight: ความสูงกระดาน ?? "max(360px, calc(100vh - 330px))",
-                  background: isOver ? "#eaf1fb" : "#f6f7f9", borderRadius:12, padding:10,
-                  border: isOver ? "1.5px dashed #003366" : "1.5px solid transparent", transition:"background .12s, border-color .12s" }}>
+                  background: "#f6f7f9", borderRadius:12, padding:10,
+                  border: "1.5px solid transparent" }}>
                 {/* header */}
                 <div style={{ padding:"7px 6px 11px", borderTop:`3px solid ${sc.text}`, marginBottom:2 }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
@@ -1902,32 +1589,13 @@ export default function LeadsPage() {
                 {/* cards */}
                 <div style={{ display:"flex", flexDirection:"column", gap:10, minHeight:44, flex:1 }}>
                   {col.map(l => (
-                    <div key={l.id} draggable
-                      onDragStart={e => {
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", l.id);
-                        // drag image เอง — ทึบ มีขอบกรม+เงา+เอียงเล็กน้อย ไม่ให้กลืนพื้นหลัง
-                        const node = e.currentTarget as HTMLElement;
-                        const ghost = node.cloneNode(true) as HTMLElement;
-                        Object.assign(ghost.style, {
-                          width: `${node.offsetWidth}px`, position:"absolute", top:"-9999px", left:"-9999px",
-                          opacity:"1", background:"#fff", border:"2px solid #003366", borderRadius:"10px",
-                          boxShadow:"0 14px 32px rgba(0,51,102,.32)", transform:"rotate(-2deg)", pointerEvents:"none",
-                        } as CSSStyleDeclaration);
-                        document.body.appendChild(ghost);
-                        e.dataTransfer.setDragImage(ghost, 24, 22);
-                        setTimeout(() => ghost.remove(), 0);
-                        setDragId(l.id);
-                      }}
-                      onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                    <div key={l.id}
                       onClick={() => openPanel(l)}
                       className="card"
-                      style={{ padding:"12px 14px", cursor: dragId===l.id ? "grabbing" : "pointer", userSelect:"none", borderRadius:10,
-                        opacity: dragId===l.id ? 0.5 : 1,
-                        outline: dragId===l.id ? "2px dashed #94a9c9" : "none", outlineOffset: dragId===l.id ? "-1px" : 0,
-                        boxShadow: dragId===l.id ? "none" : "0 1px 4px rgba(0,0,0,.05)", transition:"box-shadow .12s, transform .12s" }}
-                      onMouseEnter={e => { if (dragId!==l.id) (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,51,102,.12)"; }}
-                      onMouseLeave={e => { if (dragId!==l.id) (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(0,0,0,.05)"; }}>
+                      style={{ padding:"12px 14px", cursor:"pointer", userSelect:"none", borderRadius:10,
+                        boxShadow:"0 1px 4px rgba(0,0,0,.05)", transition:"box-shadow .12s" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,51,102,.12)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(0,0,0,.05)"; }}>
                       {/* Sales-only — ไม่มีรูปอาคาร/building type (โฟกัสโอกาสการขายอย่างเดียว)
                           ไอคอนตา = แค่บอกใบ้ว่าคลิกการ์ดเปิดรายละเอียดได้ (การ์ดทั้งใบคลิกได้อยู่แล้ว เลยไม่ต้องมี onClick ซ้ำ)
                           เดิมไม่มี affordance เลย ผู้ใช้ที่ไม่คุ้น kanban อาจไม่รู้ว่าคลิกการ์ดได้ */}
@@ -1972,37 +1640,17 @@ export default function LeadsPage() {
                         <AssigneeAvatars value={l.assigned} size={24} showName={false} />
                       </div>
 
-                      {/* Progress + จำนวนงาน + กิจกรรมล่าสุด */}
-                      <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:5 }}>
-                        <div style={{ flex:1, height:5, background:"#eef2f7", borderRadius:99, overflow:"hidden" }}>
-                          <div className="bar-grow" style={{ height:"100%", width:`${leadProg(l, taskTpl)}%`, background:"#003366", borderRadius:99 }} />
+                      {/* ขั้น 1–5 (ตัวแปลงกลาง) + กิจกรรมล่าสุด — % ความคืบหน้าจากงานเอาออก (รอบ 4) */}
+                      <MiniStage l={l} มีใบร่าง={มีใบร่างของ(l)} />
+                      {lastActivity(l) !== "—" && (
+                        <div style={{ display:"flex", alignItems:"center", gap:3, fontSize:"0.65rem", color:"#9ca3af", fontWeight:600, marginTop:5 }}>
+                          <CalendarClock size={10} /> {lastActivity(l)}
                         </div>
-                        <span style={{ fontSize:"0.65rem", fontWeight:700, color:"#6b7280", fontVariantNumeric:"tabular-nums" }}>{leadProg(l, taskTpl)}%</span>
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:"0.65rem", color:"#9ca3af", fontWeight:600 }}>
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
-                          <CheckSquare size={10} /> {leadTaskCount(l, taskTpl).done}/{leadTaskCount(l, taskTpl).total} งาน
-                        </span>
-                        {lastActivity(l) !== "—" && (
-                          <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
-                            <CalendarClock size={10} /> {lastActivity(l)}
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
                   ))}
-                  {/* ── ช่องวางการ์ด ───────────────────────────────────────────────
-                      ลากการ์ดมาค้างไว้เหนือคอลัมน์ = โชว์ช่องวาง "ท้ายรายการ" ให้เห็นชัดว่าการ์ดจะไปอยู่ตรงไหน
-                      (บอสสั่ง 20 ส.ค. 69 — เดิมคอลัมน์ที่มีการ์ดอยู่แล้วไม่มีช่องวางเลย
-                       ส่วนคอลัมน์ว่างก็ลอยอยู่กลางช่อง ไม่ตรงกับตำแหน่งที่การ์ดจะตกจริง) */}
-                  {isOver && col.length > 0 && (
-                    <div style={{ height:60, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:"0.65rem", color:"#003366", border:"1.5px dashed #003366", borderRadius:10, background:"#eaf1fb" }}>
-                      วางการ์ดที่นี่
-                    </div>
-                  )}
                   {col.length === 0 && (
-                    <div style={{ flex:1, display:"flex", alignItems:"flex-end", justifyContent:"center", padding: isOver ? "16px 6px 28px" : "16px 6px", fontSize:"0.65rem", color: isOver ? "#003366" : "#c7ccd3", border:`1.5px dashed ${isOver ? "#003366" : "#e5e7eb"}`, borderRadius:10, background: isOver ? "#eaf1fb" : undefined, transition:"padding .12s" }}>วางการ์ดที่นี่</div>
+                    <div style={{ flex:1, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:"16px 6px", fontSize:"0.65rem", color:"#c7ccd3", border:"1.5px dashed #e5e7eb", borderRadius:10 }}>ไม่มีลูกค้าเป้าหมาย</div>
                   )}
                 </div>
               </div>
@@ -2010,7 +1658,6 @@ export default function LeadsPage() {
           };
           return (
             <div ref={กระดานRef}
-              onDrop={หยุดเลื่อนกระดาน}
               style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:10, alignItems:"stretch" }}>
               {ACTIVE.map(s => renderColumn(s, true))}
               {/* เส้นคั่นก่อนกลุ่มปิดการขาย (ปิดการขายสำเร็จ/ปิดการขายไม่สำเร็จ) — หัวคอลัมน์ตรงแนวเดียวกัน */}
@@ -2097,63 +1744,6 @@ export default function LeadsPage() {
         />
       )}
 
-      {/* เลือกเหตุผลก่อนปิดการขายไม่สำเร็จ — จากตาราง/Kanban (บังคับเลือกเหมือนปุ่มในแผงลูกค้าเป้าหมาย) */}
-      {pendingLostId && (
-        <>
-          <div onClick={()=>setPendingLostId(null)} style={{ position:"fixed", inset:0, background:"rgba(45,45,45,.5)", zIndex:230 }} />
-          <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:240, width:420, maxWidth:"calc(100vw - 32px)", background:"#fff", borderRadius:16, overflow:"hidden", boxShadow:"0 24px 80px rgba(0,0,0,.3)" }}>
-            <div style={{ padding:"14px 18px", borderBottom:"1px solid #f0f4f8", display:"flex", alignItems:"center", gap:9 }}>
-              <XCircle size={17} color="#dc2626" /><span style={{ fontSize:"0.9rem", fontWeight:800, color:"#dc2626" }}>ปิดการขายไม่สำเร็จ</span>
-            </div>
-            <div style={{ padding:"16px 18px" }}>
-              {lostReasons.includes(pendingLostReason) || pendingLostReason === "" ? (
-                <>
-                  <div style={{ fontSize:"0.75rem", color:"#6b7280", marginBottom:10 }}>เลือกเหตุผลที่ปิดการขายไม่ได้</div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
-                    {/* ⚠️ "อื่นๆ (ระบุเอง)" อยู่ในรายการที่สำนักงานใหญ่ตั้งไว้แล้ว (บอสสั่ง 21 ส.ค. 69)
-                        กดตัวนี้ = เปิดโหมดพิมพ์เอง ไม่ใช่บันทึกคำว่า "อื่นๆ" ลงไปตรง ๆ
-                        กติกาเดียวกับแท็บงาน (LeadTasks) — ห้ามมีปุ่มซ้ำสองอันในจอเดียว */}
-                    {lostReasons.map(r => (
-                      <button key={r} onClick={()=>setPendingLostReason(r === OTHER_REASON_OPTION ? OTHER_LOST_REASON : r)}
-                        style={{ padding:"8px 10px", borderRadius:9, border:`1px solid ${pendingLostReason===r?"#dc2626":"#e5e7eb"}`,
-                          background:pendingLostReason===r?"#fef2f2":"#fff", color:pendingLostReason===r?"#dc2626":"#374151",
-                          fontSize:"0.76rem", fontWeight:700, cursor:"pointer", textAlign:"left" }}>
-                        {r}
-                      </button>
-                    ))}
-                    {/* เหตุผลจริงไม่ตรงกับรายการที่ HQ กำหนดเลย → กรอกเองได้ (บอสสั่ง 31 ก.ค. 69)
-                        โผล่เฉพาะตอนที่รายการยังไม่มีตัวเลือกนี้ ไม่งั้นจะมีปุ่มชื่อเดียวกันสองอัน */}
-                    {!lostReasons.includes(OTHER_REASON_OPTION) && (
-                      <button onClick={()=>setPendingLostReason(OTHER_LOST_REASON)}
-                        style={{ padding:"8px 10px", borderRadius:9, border:"1px dashed #9ca3af",
-                          background:"#fafafa", color:"#6b7280", fontSize:"0.76rem", fontWeight:700, cursor:"pointer", textAlign:"left" }}>
-                        {OTHER_REASON_OPTION}
-                      </button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize:"0.75rem", color:"#6b7280", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                    <span>ระบุเหตุผลที่ปิดการขายไม่ได้</span>
-                    <button type="button" onClick={()=>setPendingLostReason("")} style={{ background:"none", border:"none", cursor:"pointer", color:"#003366", fontSize:"0.72rem", fontWeight:700 }}>← กลับไปเลือกจากรายการ</button>
-                  </div>
-                  <input autoFocus value={pendingLostReason === OTHER_LOST_REASON ? "" : pendingLostReason} onChange={e=>setPendingLostReason(e.target.value)} placeholder="พิมพ์เหตุผล…"
-                    style={{ width:"100%", border:"1px solid #e5e7eb", borderRadius:9, padding:"9px 12px", fontSize:"0.82rem", color:"#2D2D2D", outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
-                </>
-              )}
-            </div>
-            <div style={{ padding:"12px 18px", borderTop:"1px solid #f0f4f8", display:"flex", justifyContent:"flex-end", gap:8, background:"#fafafa" }}>
-              <button onClick={()=>setPendingLostId(null)} className="btn btn-secondary btn-md">ยกเลิก</button>
-              <button onClick={confirmPendingLost} disabled={!pendingLostReason.trim() || pendingLostReason===OTHER_LOST_REASON} className="btn btn-md"
-                style={{ background:"#dc2626", color:"#fff", opacity:pendingLostReason.trim() && pendingLostReason!==OTHER_LOST_REASON ?1:0.5, cursor:pendingLostReason.trim() && pendingLostReason!==OTHER_LOST_REASON ?"pointer":"not-allowed" }}>
-                ยืนยันปิดการขาย
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Delete confirm dialog */}
       {showDeleteConfirm && selectedLead && (
         <>
@@ -2220,16 +1810,6 @@ export default function LeadsPage() {
         const drawerFiles = myFiles;
         // เป็นลูกค้าเมื่อปิดการขายสำเร็จ (WON) เท่านั้น — mock บางลูกค้าเป้าหมายมี customerId ผูกไว้แต่ยังไม่ WON จึงไม่นับ
         const isCustomer = c.status === "PAID";
-
-        const detailTabs = [
-          { key: "overview",   label: "ภาพรวม" },
-          { key: "tasks",      label: "งาน/ความคืบหน้า" },
-          { key: "report",     label: "รายงานติดตาม" },
-          { key: "activities", label: "กิจกรรม" },
-          { key: "appts",      label: "นัดหมาย" },
-          { key: "quotation",  label: "ใบเสนอราคา" },
-          { key: "files",      label: "ไฟล์" },
-        ] as const;
 
         // ── Tab: นัดหมาย — นัดกับลูกค้าเป้าหมายก่อนปิดการขาย (แสดงในปฏิทิน+แจ้งเตือนด้วย) ──
         const leadAppts = appointments.filter(a => a.leadId === c.numId)
@@ -2320,53 +1900,9 @@ export default function LeadsPage() {
           </DrawerSection>
         );
 
-        // ── Tab: งาน/ความคืบหน้า (Task-driven) — เช็กแล้วเลื่อน Stage อัตโนมัติ ──
+        // ── รายการเตือน (รอบ 4): อยู่ในแท็บประวัติ · ติ๊กไว้กันลืม ไม่ขยับสถานะ ไม่มี % · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
         const tabTasks = (
-          // ผู้ทำงาน = ผู้รับผิดชอบของลูกค้าเป้าหมายนั้น (ไม่ใช่บัญชีดีลเลอร์ที่ล็อกอิน)
-          // งาน "จัดทำใบเสนอราคา" ติ๊กเองไม่ได้ถ้ายังไม่มีใบ — ส่ง onRequestQuotation ไปพาออกใบแทน
-          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead}
-            // งาน "นัดหมาย" ก็ต้องมีของจริงเหมือนงานที่ต้องมีใบเสนอราคา (บอสสั่ง 20 ส.ค. 69)
-            //   ยังไม่เคยลงนัดกับลูกค้าเป้าหมายรายนี้ = ติ๊กเองไม่ได้ → พาไปลงนัดจริง
-            //   พอบันทึกนัดเสร็จ ระบบติ๊กงานให้เอง (ดูตัวติ๊กอัตโนมัติในแท็บนัดหมาย)
-            onRequestAppointment={() => {
-              const มีนัดแล้ว = appointments.some(a => a.leadId === c.numId && a.status !== "cancelled");
-              if (มีนัดแล้ว) return false;   // มีนัดจริงแล้ว → ติ๊กได้ตามปกติ
-              // ⚠️ ต้องสลับทั้งสองแท็บ (แก้ 25 ส.ค. 69) — เดิมสั่งแค่ setDTab
-              //    ผู้ใช้จึงกดติ๊กแล้ว "ไม่มีอะไรเกิดขึ้น" เพราะฟอร์มไปเปิดอยู่ในแท็บที่ยังไม่ได้เปิดดู
-              //    (ทางที่ถูกอยู่ในฟังก์ชัน พาไปทำงาน() อยู่แล้ว — ตรงนี้ลอกมาไม่ครบ)
-              setActiveTab("appts"); setDTab("timeline"); setApptAdding(true);
-              // เลื่อนจอไปที่ฟอร์มให้เห็นเลย ไม่ต้องหาเอง
-              setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
-              setToast("ติ๊กงานนี้เองไม่ได้ — ลงนัดหมายจริงก่อน แล้วระบบจะติ๊กให้เอง");
-              return true;
-            }}
-            onRequestQuotation={taskKey => {
-              if (!quotationsReady) { setToast("กำลังโหลดใบเสนอราคาอยู่ — รอสักครู่แล้วกดใหม่อีกครั้ง"); return true; }
-              const mine = quotations.filter(q => quoteBelongsToLead(q, c));
-              // ยังไม่มีใบเลย → พาไปออกใบ (ทั้งงาน "จัดทำ" และ "ส่ง" ต้องมีใบก่อนทั้งคู่)
-              if (!mine.length) {
-                openQuotationForm(c);
-                setToast("ติ๊กงานนี้เองไม่ได้ — ออกใบเสนอราคาจริงแล้วระบบจะติ๊กให้เอง");
-                return true;
-              }
-              // มีใบแล้วแต่ยังไม่เคยส่งถึงลูกค้า → พาไปที่รายการใบ ให้กดปุ่มส่งของใบนั้น
-              if (taskKey === "sendQuote" && mine.every(q => q.status === "draft")) {
-                openQuotationList(c);
-                setToast("ติ๊กงานนี้เองไม่ได้ — กดปุ่มส่งใบเสนอราคาในรายการ แล้วระบบจะติ๊กให้เอง");
-                return true;
-              }
-              return false; // ของจริงมีแล้ว → ติ๊กได้ตามปกติ
-            }}
-            // ปิดการขายสำเร็จต้องมีใบที่ส่งถึงลูกค้าแล้วเสมอ (บอสสั่ง 19 ส.ค. 69)
-            //   เดิมกดได้งานได้ตั้งแต่ขั้นแรก → ได้ลูกค้ายอดสะสม ฿0 ปนในฐาน อัตราปิดการขายก็เพี้ยน
-            //   กติกาเดียวกับด่านของขั้น "เสนอราคา" ที่บังคับว่าต้องมีใบจริงก่อน
-            whyCannotWin={() => {
-              if (!quotationsReady) return "กำลังโหลดใบเสนอราคา — รอสักครู่";
-              const mine = quotations.filter(q => quoteBelongsToLead(q, c));
-              if (!mine.length) return "ยังปิดการขายไม่ได้ — ต้องออกใบเสนอราคาและส่งให้ลูกค้าก่อน";
-              if (mine.every(q => q.status === "draft")) return "ยังปิดการขายไม่ได้ — ใบเสนอราคายังเป็นร่าง กดส่งให้ลูกค้าก่อน";
-              return "";
-            }} />
+          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} />
         );
 
         // ── Tab: รายงานการติดตาม (Lead Report) — แก้ไข/เพิ่ม/ลบได้ทั้งหมด ──
@@ -2392,7 +1928,7 @@ export default function LeadsPage() {
               <div style={{ color:"#9aa2ad", fontSize:"0.8rem", padding:"22px 0", textAlign:"center" }}>
                 <MessageSquare size={26} color="#C0C0C0" style={{ marginBottom:8 }} />
                 <div>ยังไม่มีกิจกรรม</div>
-                <div style={{ fontSize:"0.72rem", marginTop:3 }}>กิจกรรมจะถูกบันทึกอัตโนมัติเมื่อทำงานในแท็บ “งาน/ความคืบหน้า”</div>
+                <div style={{ fontSize:"0.72rem", marginTop:3 }}>ระบบบันทึกให้อัตโนมัติเมื่อขอราคา ทำใบ ส่งใบ หรือลงนัดหมาย</div>
               </div>
             ) : (
               <div style={{ position:"relative", display:"flex", flexDirection:"column", gap:2 }}>
@@ -2429,7 +1965,8 @@ export default function LeadsPage() {
           <DrawerSection title="ใบเสนอราคา">
             {/* ราคาจากสำนักงานใหญ่ (Flow ใหม่ · ขั้น 3) — ส่งคำขอ / ยกเลิก / ขอแก้ราคา · ฐานข้อมูลขยับสถานะเอง */}
             <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} />
-            <LeadQuotationsPanel lead={c} onToast={setToast} openCreateSignal={quoteFormSignal} />
+            <LeadQuotationsPanel lead={c} onToast={setToast} openCreateSignal={quoteFormSignal} openViewSignal={quoteViewSignal}
+              onWon={company => setJustWonCompany(company)} />
           </DrawerSection>
         );
 
@@ -2449,6 +1986,13 @@ export default function LeadsPage() {
                     <Paperclip size={13} color="#C0C0C0" />
                     <span style={{ flex:1, fontSize:"0.8rem", color:"#2D2D2D", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{file.name}</span>
                     <Eye size={13} color="#003366" />
+                    {/* ลบไฟล์ที่นี่ (หน้าไฟล์ดูอย่างเดียว · รอบ 4) — ไฟล์ของใบที่ส่งลูกค้าแล้วไม่มีปุ่ม (ฐานกัน ใบ 0233) */}
+                    {ลบไฟล์ได้(file, quotations, currentDealer.code) && (
+                      <span role="button" tabIndex={0} title="ลบไฟล์" aria-label={`ลบไฟล์ ${file.name}`}
+                        onClick={e => { e.stopPropagation(); void ลบไฟล์นี้(file); }}
+                        onKeyDown={e => { if (e.key === "Enter") { e.stopPropagation(); void ลบไฟล์นี้(file); } }}
+                        style={{ display:"flex", padding:3, borderRadius:6, color:"#dc2626" }}><Trash2 size={13} /></span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -2463,10 +2007,6 @@ export default function LeadsPage() {
         const cardStyle: React.CSSProperties = { background:"#fff", border:"1px solid #eef1f5", borderRadius:14, padding:16 };
         const secLabel: React.CSSProperties = { display:"flex", alignItems:"center", gap:6, fontSize:"0.62rem", fontWeight:800, color:"#8a929c", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:12 };
         const qa: React.CSSProperties = { background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, height:30, padding:"0 11px", cursor:"pointer", color:"#fff", display:"flex", alignItems:"center", gap:6, fontSize:"0.72rem", fontWeight:600, fontFamily:"inherit", whiteSpace:"nowrap" };
-        const progressPct = leadProg(c, taskTpl);
-        const scrollTo = (r: React.RefObject<HTMLDivElement|null>) => r.current?.scrollIntoView({ behavior:"smooth", block:"nearest" });
-        // ย้อนกลับไม่ได้ (สร้างลูกค้าทันที) — ต้องยืนยันก่อนเสมอ เหมือนช่องทางอื่น (ดรอปดาวน์สถานะ)
-
         return (
           <>
             {/* Backdrop */}
@@ -2503,7 +2043,7 @@ export default function LeadsPage() {
                   <div style={{ display:"flex", alignItems:"center", gap:7, flexShrink:0, flexWrap:"wrap" }}>
                     {/* หัว = การกระทำด่วนเท่านั้น · Won/Lost/ใบเสนอราคา อยู่แถบล่าง (ไม่ซ้ำ)
                         ปุ่ม "โทร" (tel: ลิงก์) ถูกเอาออก (บอสสั่ง 17 ก.ค. 69) — เบอร์โทรยังอยู่ในการ์ดข้อมูลลูกค้า แท็บภาพรวม */}
-                    <button title="สร้างนัดหมาย" onClick={()=>{ setActiveTab("appts"); setDTab("timeline"); setApptAdding(true); setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }} style={qa}><CalendarClock size={13} /> นัดหมาย</button>
+                    <button title="สร้างนัดหมาย" onClick={()=>{ setDTab("history"); setApptAdding(true); setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }} style={qa}><CalendarClock size={13} /> นัดหมาย</button>
                     {isCustomer && (
                       <button title="ดูโปรไฟล์ลูกค้า" onClick={()=>{ closePanel(); router.push(c.customerId ? `/customers?open=${c.customerId}` : "/customers"); }} style={qa}><CheckCircle2 size={13} /> ลูกค้า</button>
                     )}
@@ -2511,29 +2051,43 @@ export default function LeadsPage() {
                     <button onClick={closePanel} title="ปิด" style={{ ...qa, width:30, padding:0, justifyContent:"center" }}><X size={15} /></button>
                   </div>
                 </div>
-                {/* Badges: stage · priority · template · est value */}
+                {/* ป้ายมูลค่า (ใบเสนอราคาล่าสุด) */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginTop:12 }}>
-                  <span style={{ padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:700, background:sc.bg, color:sc.text }}>{leadStatusLabel[c.status]}</span>
+                  {/* ป้ายสถานะบนหัวแผงเอาออก (รอบ 4) — สถานะเหลือที่เดียว = แถบ 5 ขั้นด้านล่าง */}
                   <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:800, background:"#fff", color:"#003366" }}><Coins size={11} /> {fmtLeadValue(มูลค่าลีด(c))}</span>
                 </div>
               </div>
 
               {/* แถบขั้นตอน + ขั้นต่อไป (UI ตาม flow · หน้า 3 · 16 ต.ค. 69) — ปุ่มพาไปทางเดิมที่มีอยู่ */}
-              <LeadNextStep lead={c} onAction={(kind, quoteId) => {
-                if (kind === "request_quote" || kind === "reprice") {
-                  setActiveTab("quotation"); setDTab("quotation");
-                  setReqSignal(s => ({ mode: kind === "reprice" ? "แก้ราคา" : "ขอราคา", n: (s?.n ?? 0) + 1 }));
-                } else if (kind === "make_quote") {
-                  openQuotationForm(c);
-                } else if (quoteId) {
-                  // ส่งให้ลูกค้า / บันทึกผลจากลูกค้า อยู่ในแผงรายละเอียดของหน้าใบเสนอราคา
-                  closePanel(); router.push(`/quotations?open=${encodeURIComponent(quoteId)}`);
-                }
-              }} />
+              <LeadNextStep lead={c}
+                onRequests={rs => setคำขอของแผง({ leadId: c.id, มี: rs.length > 0 })}
+                onLost={async (reason, ยกเลิกคำขอแล้ว) => {
+                  if (ยกเลิกคำขอแล้ว) await syncLeadFromServer(c.id);
+                  else saveLead({ stage: { status: "CANCELLED", lostReason: reason } });
+                  setToast("บันทึกปิดการขายไม่สำเร็จแล้ว");
+                }}
+                onAction={async (kind, quoteId) => {
+                  // ทุกปุ่มทำงานในแผงนี้ ไม่พาไปหน้าอื่น (รอบ 4 · เดิม ส่ง/บันทึกผล พาไปหน้าใบเสนอราคา)
+                  if (kind === "request_quote" || kind === "reprice") {
+                    setDTab("quotation");
+                    setReqSignal(s => ({ mode: kind === "reprice" ? "แก้ราคา" : "ขอราคา", n: (s?.n ?? 0) + 1 }));
+                  } else if (kind === "make_quote") {
+                    openQuotationForm(c);
+                  } else if (kind === "send_quote" && quoteId) {
+                    const q = quotations.find(x => x.id === quoteId);
+                    if (!q) return;
+                    if (!(await ยืนยัน({ หัวข้อ: `ส่งใบ ${q.id} ให้ลูกค้า ?`, รายละเอียด: "ส่งแล้วแก้ใบนี้ไม่ได้ — ลูกค้าต่อรองให้ทำฉบับใหม่", ปุ่มตกลง: "ส่งให้ลูกค้า" }))) return;
+                    updateQuotation({ ...q, status: "sent_to_client", date: APP_NOW_ISO });
+                    setToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าแล้ว`);
+                  } else if (kind === "customer_result" && quoteId) {
+                    setDTab("quotation");
+                    setQuoteViewSignal(s => ({ id: quoteId, n: (s?.n ?? 0) + 1 }));
+                  }
+                }} />
 
-              {/* Tab bar — Overview / Tasks / Quotation / Timeline */}
+              {/* แท็บ 3 ตัว (รอบ 4): ภาพรวม · ใบเสนอราคา (คำขอราคา HQ + ใบลูกค้า + ผลจากลูกค้า) · ประวัติ (เตือน + ไทม์ไลน์ + นัดหมาย + ไฟล์ + โน้ต) */}
               <div style={{ display:"flex", gap:0, borderBottom:"1px solid #e5e7eb", background:"#fff", flexShrink:0, padding:"0 8px" }}>
-                {([["overview","ภาพรวม"],["tasks","งาน"],["quotation","ใบเสนอราคา"],["timeline","ไทม์ไลน์"]] as ["overview"|"tasks"|"quotation"|"timeline",string][]).map(([k,label])=>(
+                {([["overview","ภาพรวม"],["quotation","ใบเสนอราคา"],["history","ประวัติ"]] as ["overview"|"quotation"|"history",string][]).map(([k,label])=>(
                   <button key={k} onClick={()=>setDTab(k)}
                     style={{ padding:"11px 14px", border:"none", borderBottom:`2px solid ${dTab===k?"#003366":"transparent"}`, background:"transparent",
                       cursor:"pointer", fontFamily:"inherit", fontSize:"0.8rem", fontWeight:dTab===k?800:600, color:dTab===k?"#003366":"#6b7280", marginBottom:-1 }}>
@@ -2556,18 +2110,14 @@ export default function LeadsPage() {
                   </div>
                 </div>
 
-                {/* ── TAB: งาน ── */}
-                <div style={{ padding:16, display:dTab==="tasks"?"flex":"none", flexDirection:"column", gap:14 }}>
-                  <div ref={journeyRef} style={cardStyle}>{tabTasks}</div>
-                </div>
-
                 {/* ── TAB: ใบเสนอราคา ── */}
                 <div style={{ padding:16, display:dTab==="quotation"?"flex":"none", flexDirection:"column", gap:14 }}>
-                  <div ref={rightQuoteRef} style={cardStyle}>{tabQuotation}</div>
+                  <div style={cardStyle}>{tabQuotation}</div>
                 </div>
 
-                {/* ── TAB: ไทม์ไลน์ + นัดหมาย + ไฟล์ + โน้ต ── */}
-                <div style={{ padding:16, display:dTab==="timeline"?"flex":"none", flexDirection:"column", gap:14 }}>
+                {/* ── TAB: ประวัติ = รายการเตือน + ไทม์ไลน์ + นัดหมาย + ไฟล์ + โน้ต ── */}
+                <div style={{ padding:16, display:dTab==="history"?"flex":"none", flexDirection:"column", gap:14 }}>
+                  <div style={cardStyle}>{tabTasks}</div>
                   <div style={cardStyle}>{tabActivities}</div>
                   <div ref={rightApptRef} style={cardStyle}>{tabAppts}</div>
                   <div style={cardStyle}>{tabFiles}</div>

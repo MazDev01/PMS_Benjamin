@@ -4,6 +4,7 @@ import { DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 import { รันSQLในฐาน } from "./localDb";
+import { adminClient } from "./testDealers";
 
 // ── แผงลูกค้าเป้าหมาย: แถบขั้นตอน + ปุ่ม "ขั้นต่อไป" ต้องตรงกับสถานะจริงทุกขั้น (UI ตาม flow · หน้า 3 · 16 ต.ค. 69) ─────
 //   พาลีดเดินทีละขั้นด้วยทางจริงของฐาน (ขอราคา · HQ ส่งใบ · ทำใบลูกค้า · ส่ง · ตอบรับ) แล้วเปิดแผงดูทุกครั้ง
@@ -17,7 +18,8 @@ const เลข = { เดิน: เลขลูกค้าเป้าหม�
 const ชื่อ = (k: keyof typeof เลข) => `ZZTEST-ขั้นต่อไป-${k}-${แท็ก}`;
 
 async function สร้างลีด(k: keyof typeof เลข, status: string) {
-  const sb = await db(RYG);
+  // ดีลเลอร์สร้างลีดได้แค่ ติดต่อแล้ว/รวบรวมความต้องการ (ใบ 0232) — ฉากขั้นอื่นตั้งด้วยกุญแจฝั่งเซิร์ฟเวอร์
+  const sb = status === "WAITING" || status === "BULLET" ? await db(RYG) : adminClient();
   const r = await sb.from("leads").insert({ id: `#L-${เลข[k]}`, num_id: เลข[k], dealer_code: "RYG", company: ชื่อ(k), name: ชื่อ(k),
     contact: "ผู้ทดสอบ", phone: `08${String(เลข[k]).slice(-8)}`, province: "ระยอง", status });
   expect(r.error, `สร้างลีด ${k}`).toBeNull();
@@ -52,7 +54,8 @@ test("[func·dealer] ขั้นต่อไปเดินตามจริ�
   const requestId = Number((r.data as { id: number }).id);
   กล่อง = await เปิดแผง(page, "เดิน");
   await expect(กล่อง).toContainText("รอราคาจาก HQ", { timeout: 20_000 });
-  await expect(กล่อง.getByRole("button"), "รอ HQ = ไม่มีปุ่ม").toHaveCount(0);
+  await expect(กล่อง.locator("[data-next-step]"), "รอ HQ = ไม่มีปุ่มหลัก").toHaveCount(0);
+  await expect(กล่อง.getByRole("button", { name: /ปิดไม่สำเร็จ/ }), "ปิดไม่สำเร็จอยู่ที่กล่องนี้ที่เดียว (รอบ 4)").toHaveCount(1);
 
   // 3) HQ ส่งใบ → ทำใบให้ลูกค้า · กดแล้วเปิดฟอร์มออกใบ
   const hq = await db(ADMIN);
@@ -70,18 +73,20 @@ test("[func·dealer] ขั้นต่อไปเดินตามจริ�
   const ร่าง = await ทำใบลูกค้าจากใบHQ(RYG, ใบ, { customer: ชื่อ("เดิน"), markupPercent: 10, status: "draft" });
   กล่อง = await เปิดแผง(page, "เดิน");
   await expect(กล่อง).toContainText("ส่งให้ลูกค้า", { timeout: 20_000 });
+  // รอบ 4: ส่งในแผงเลย (ยืนยัน) ไม่พาไปหน้าใบเสนอราคา
   await กล่อง.getByRole("button", { name: /ส่งให้ลูกค้า/ }).click();
-  await expect(page).toHaveURL(new RegExp(`/quotations\\?open=${encodeURIComponent(ร่าง.id)}`), { timeout: 15_000 });
-  await expect(page.getByText(ร่าง.id).first(), "ต้องเปิดแผงของใบนั้นให้").toBeVisible({ timeout: 20_000 });
+  await กดตกลงในกล่องยืนยัน(page);
+  await expect.poll(async () => (await sb.from("quotations").select("status").eq("id", ร่าง.id).eq("dealer_code", "RYG").single()).data?.status,
+    { timeout: 20_000, message: "กดส่งในกล่องแล้วใบต้องเป็นส่งให้ลูกค้าแล้ว" }).toBe("sent_to_client");
+  await expect(page, "ไม่พาไปหน้าอื่น").toHaveURL(/\/leads/);
 
-  // 5) ส่งให้ลูกค้าแล้ว → บันทึกผลจากลูกค้า
-  expect((await sb.from("quotations").update({ status: "sent_to_client" }).eq("id", ร่าง.id).eq("dealer_code", "RYG")).error).toBeNull();
+  // 5) ส่งให้ลูกค้าแล้ว → บันทึกผลจากลูกค้า (เปิดใบในแท็บใบเสนอราคาของแผงเดิม)
   กล่อง = await เปิดแผง(page, "เดิน");
   await expect(กล่อง).toContainText("รอลูกค้าตอบ", { timeout: 20_000 });
   // กดแล้วไปแผงของใบนั้นในหน้าใบเสนอราคา → บันทึกว่าลูกค้าตอบรับ (ทางเดียวกับดีลเลอร์ใช้จริง · ฐานสร้าง/ผูกลูกค้าให้)
   await กล่อง.getByRole("button", { name: /บันทึกผลจากลูกค้า/ }).click();
-  await expect(page).toHaveURL(new RegExp(`/quotations\\?open=${encodeURIComponent(ร่าง.id)}`), { timeout: 15_000 });
-  await page.getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click({ timeout: 20_000 });
+  await expect(page, "ไม่พาไปหน้าอื่น").toHaveURL(/\/leads/);
+  await page.locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click({ timeout: 20_000 });
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", เลข.เดิน).single()).data?.status,
     { timeout: 25_000, message: "ตอบรับแล้วลีดต้องเป็นปิดการขายสำเร็จ" }).toBe("PAID");
@@ -140,6 +145,6 @@ test("[func·dealer] ขั้นต่อไป: ปิดไม่สำเร
   await expect(กล่อง).toContainText("ปิดการขายไม่สำเร็จ", { timeout: 20_000 });
   await expect(กล่อง.getByRole("button")).toHaveCount(0);
   กล่อง = await เปิดแผง(page, "ค้าง");
-  await expect(กล่อง).toContainText("ไม่มีคำขอราคาที่เปิดอยู่", { timeout: 20_000 });
-  await expect(กล่อง.getByRole("button"), "ฐานไม่ยอมให้ขอราคาจากขั้นนี้ — ห้ามเสนอปุ่ม").toHaveCount(0);
+  await expect(กล่อง).toContainText("ไม่มีคำขอราคาหรือใบที่ใช้ได้", { timeout: 20_000 });
+  await expect(กล่อง.locator("[data-next-step]"), "ฐานไม่ยอมให้ขอราคาจากขั้นนี้ — ห้ามเสนอปุ่มหลัก").toHaveCount(0);
 });

@@ -31,7 +31,14 @@ test("[ui·hq] เลือกวันนี้ → แดชบอร์ดต
   await page.waitForTimeout(3000);
   await เลือกวันนี้(page);
   await expect(page.getByText("เกิดข้อผิดพลาดในหน้านี้"), "แดชบอร์ดต้องไม่พังเมื่อเลือกวันนี้").toHaveCount(0);
-  const การ์ด = page.locator(".card").filter({ hasText: "ยอดขายรวมทั้งเครือ" }).first();
+  const การ์ด = page.locator("[data-card='trend']");
+  await expect(การ์ด).toContainText("ยอดขายรวมทั้งเครือ รายชั่วโมง", { timeout: 20_000 });
+  // วันนี้ยังไม่มียอดขาย = กรอบว่าง "ยังไม่มียอดขาย" (บอสสั่ง 21 ต.ค. 69 ทับ "ต้องเห็นแกน 24 ชม. เสมอ" ของ 26 ส.ค. 69)
+  if (await การ์ด.locator("[data-empty]").count()) {
+    await expect(การ์ด.locator("[data-empty]")).toHaveText("ยังไม่มียอดขาย");
+    await expect(การ์ด.locator("svg"), "ไม่มียอด = ไม่วาดเส้น 0").toHaveCount(0);
+    return;
+  }
   // ⚠️ innerText ใช้กับ <text> ใน SVG ไม่ได้ (ได้ null) ต้องอ่าน textContent
   const ป้าย = await การ์ด.locator("svg text").evaluateAll(els => els.map(e => e.textContent ?? ""));
   expect(ป้าย.some(t => /^\d{2}:00$/.test(String(t ?? "").trim())), `แกนต้องเป็นเวลา: ${JSON.stringify(ป้าย.slice(0, 8))}`).toBe(true);

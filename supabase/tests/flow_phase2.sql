@@ -158,11 +158,12 @@ begin
   insert into leads (id, dealer_code, num_id, name, company, phone, province) values ('#T2-5', 'CNX', 880000005, 'ก', 'บจ. ทดสอบซ้ำ', '081-234-5678', 'เชียงใหม่');
   perform flowtest.ok(true, 'รายเดิมปิดไปแล้ว สร้างรายใหม่ชื่อ + เบอร์เดิมได้');
   perform flowtest.must_fail('update leads set status = ''WAITING'' where dealer_code = ''CNX'' and id = ''#T2-1''', 'lead_duplicate', 'เปิดรายที่ปิดแล้วกลับมาชนกับรายที่เปิดอยู่ไม่ได้');
+  -- รอบ 4 (ใบ 0232): ไม่ชนรายอื่นก็เปิดกลับไม่ได้ — ดีลเลอร์ไม่มี "เปิดใหม่" แล้ว (ทดสอบใน lead_one_path.sql)
   perform flowtest.as_root();
   update leads set phone = '' where dealer_code = 'CNX' and id = '#T2-3';
   perform flowtest.as_dealer('CNX', c.cnx_uid);
-  update leads set note = 'แก้รายเก่าที่ไม่มีเบอร์', status = 'BULLET' where dealer_code = 'CNX' and id = '#T2-3';
-  perform flowtest.ok(found, 'รายเดิมที่ไม่มีเบอร์โทร (ข้อมูลเก่า) ยังแก้และเลื่อนขั้นได้');
+  update leads set note = 'แก้รายเก่าที่ไม่มีเบอร์' where dealer_code = 'CNX' and id = '#T2-3';
+  perform flowtest.ok(found, 'รายเดิมที่ไม่มีเบอร์โทร (ข้อมูลเก่า) ยังแก้ได้ (เลื่อนขั้นเองไม่ได้แล้ว · ใบ 0232)');
 
   -- ══ ฉ. งานซ้ำข้ามดีลเลอร์ → HQ เห็น และใช้ BOQ เดิมได้ ══
   r := quote_request_submit(880000005, 'โรงงาน');

@@ -50,14 +50,14 @@ begin
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"fields":{"activities":[]}}')$q$, 'lead_field_not_allowed', 'ส่งไทม์ไลน์ทาง fields');
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"fields":{"lost_reason":"x"}}')$q$, 'lead_field_not_allowed', 'ส่งเหตุผลปิดทาง fields');
 
-  -- ③ ติ๊กงานทีละงาน + คิดขั้นจากงาน + จดไทม์ไลน์
+  -- ③ ติ๊กงานทีละงาน + จดไทม์ไลน์ · รอบ 4 (ใบ 0232): งานไม่เลื่อนขั้น deriveStage ถูกเมิน
   r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"contact","done":true,"doneBy":"คนติ๊ก"}],"deriveStage":"any"}');
   perform latest.ok(latest.done('#L-ZLA1', 'contact') and jsonb_array_length(r.tasks) = (select jsonb_array_length(tasks) from hq_sales_journey order by id limit 1), 'ติ๊กงาน · งานมาจากแม่แบบ');
   perform latest.ok((select t ->> 'doneBy' from jsonb_array_elements(r.tasks) t where t ->> 'key' = 'contact') = 'คนติ๊ก', 'ผู้ทำตามที่ส่ง');
   perform latest.ok(r.activities -> 0 ->> 'text' = 'ทำงาน: ติดต่อแล้ว', 'ไทม์ไลน์ "ทำงาน: …" ฐานจดเอง');
   r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"collect","done":true},{"key":"requirement","done":true}],"deriveStage":"any"}');
-  perform latest.ok(r.status = 'BULLET', 'ขั้นตามงานล่าสุด = BULLET');
-  perform latest.ok(r.activities @> '[{"text":"เปลี่ยนขั้นเป็น \"รวบรวมความต้องการ\""}]', 'ไทม์ไลน์เปลี่ยนขั้น');
+  perform latest.ok(r.status = 'WAITING', 'ติ๊กงานแล้วขั้นไม่ขยับ (ใบ 0232)');
+  perform latest.ok(not (r.activities @> '[{"text":"เปลี่ยนขั้นเป็น \"รวบรวมความต้องการ\""}]'), 'ไม่มีไทม์ไลน์เปลี่ยนขั้นจากงาน');
 
   -- ④ หัวใจ: ฐานติ๊กงานเพิ่ม (ระบบ/อีกแท็บ) → แอปส่งส่วนต่างจากหน้าค้าง → งานที่ฐานติ๊กยังอยู่
   perform latest.as_root();
@@ -68,16 +68,14 @@ begin
   perform latest.ok(latest.done('#L-ZLA1', 'makeQuote') and r.phone = '0810000099', 'แก้ช่องจากหน้าค้าง: งานที่ฐานติ๊กยังอยู่');
   r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"task_bullet_1","done":true}],"deriveStage":"up"}');
   perform latest.ok(latest.done('#L-ZLA1', 'makeQuote') and latest.done('#L-ZLA1', 'task_bullet_1'), 'ติ๊กงานจากหน้าค้าง: งานที่ฐานติ๊กยังอยู่');
-  perform latest.ok(r.status = 'QUOTED', 'คิดขั้นจากงานในฐาน (makeQuote = เสนอราคา) ไม่ใช่สำเนาในเครื่อง');
+  perform latest.ok(r.status = 'WAITING', 'งานในฐานไม่เลื่อนขั้น (ใบ 0232)');
 
-  -- ⑤ เลิกติ๊ก + ขั้นลงตามงาน (โหมด any) · โหมด up ไม่ลด
-  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"makeQuote","done":false}],"deriveStage":"up"}');
-  perform latest.ok(not latest.done('#L-ZLA1', 'makeQuote') and r.status = 'QUOTED', 'โหมด up ไม่ลดขั้น');
-  r := lead_apply('#L-ZLA1', '{"deriveStage":"any"}');
-  perform latest.ok(r.status = 'BULLET', 'โหมด any ลดขั้นตามงาน');
+  -- ⑤ เลิกติ๊กงานได้ · ขั้นคงเดิม
+  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"makeQuote","done":false}],"deriveStage":"any"}');
+  perform latest.ok(not latest.done('#L-ZLA1', 'makeQuote') and r.status = 'WAITING', 'เลิกติ๊กงาน ขั้นคงเดิม');
 
   -- ⑥ กฎปิดการขาย (เดิมอยู่ที่เซิร์ฟเวอร์แอปเท่านั้น)
-  perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"stage":{"status":"PAID"}}')$q$, 'lead_close_needs_sent_quote', 'ปิดสำเร็จโดยไม่มีใบที่ส่งแล้ว');
+  perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"stage":{"status":"PAID"}}')$q$, 'lead_won_needs_accepted_quote', 'ปิดสำเร็จที่ลีด (ไม่มีใบที่ตอบรับ · ใบ 0232)');
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"stage":{"status":"CANCELLED"}}')$q$, 'lead_lost_needs_reason', 'ปิดไม่สำเร็จโดยไม่มีเหตุผล');
   r := lead_apply('#L-ZLA1', '{"stage":{"status":"CANCELLED","lostReason":"งบไม่พอ"},"log":false}');
   perform latest.ok(r.status = 'CANCELLED' and r.lost_reason = 'งบไม่พอ', 'ปิดไม่สำเร็จพร้อมเหตุผล');

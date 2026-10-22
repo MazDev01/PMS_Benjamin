@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { settle } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import {
   DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
   db, cleanup, specNS, nsTag, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
@@ -80,7 +80,7 @@ test("[func] งาน 'จัดทำใบเสนอราคา' ระบ
   await openTestLead(page);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
 
-  await page.getByRole("button", { name: "งาน", exact: true }).first().click();
+  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();   // รอบ 4: แท็บงานยุบเข้าประวัติ (รายการเตือน)
   // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69 "ปุ่มทำใบมีที่เดียว")
   //   เจตนาเดิมยังอยู่: "ติ๊กงานเฉย ๆ โดยไม่มีใบจริงไม่ได้" — ทำใบได้ทางเดียวคือปุ่มที่แถบขั้นต่อไป
   const งานออกใบ = page.getByRole("checkbox", { name: /จัดทำใบเสนอราคา/ }).first();
@@ -101,14 +101,12 @@ test("[func] ย้ายลูกค้าเป้าหมายไปขั�
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await openTestLead(page);
 
-  // ช่องทางเดียวกับที่บอร์ดคัมบังใช้ตอนลากการ์ดข้ามคอลัมน์ (requestStatusChange)
+  // รอบ 4: ป้ายสถานะในตาราง/บอร์ดดูอย่างเดียว (เมนูเลือกขั้น · ลากการ์ด เอาออก) · ฐานกันดีลเลอร์ตั้งขั้นเองอีกชั้น (ใบ 0232)
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await row.getByRole("button", { name: /ติดต่อแล้ว|รวบรวม/ }).first().click();
-  await page.getByRole("button", { name: "เสนอราคา", exact: true }).first().click();
-
-  // ด่าน 3: ยังไม่มีใบ HQ → บอกให้ขอราคาก่อน (เดิม: พาไปฟอร์มออกใบ) · ขั้นยังต้องไม่ขยับ
-  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first(),
-    "ต้องบอกให้ขอราคาจาก HQ ก่อน ไม่ใช่เลื่อนขั้นให้เฉย ๆ").toBeVisible({ timeout: 15_000 });
+  await expect(row.locator("button.badge"), "ป้ายขั้นในตารางไม่ใช่ปุ่ม").toHaveCount(0);
+  const { data: ลีด } = await (await db(RYG)).from("leads").select("id").eq("company", COMPANY).single();
+  const r = await (await db(RYG)).rpc("lead_apply", { p_id: (ลีด as { id: string }).id, p_intent: { stage: { status: "QUOTED" } } });
+  expect(r.error?.message ?? "", "ฐานไม่ให้ดีลเลอร์ตั้งขั้นเสนอราคาเอง").toMatch(/lead_status_one_path/);
 
   const sb = await db(RYG);
   const lead = (await sb.from("leads").select("status").eq("company", COMPANY).single()).data as { status: string };
@@ -148,7 +146,7 @@ test("[func] งาน 'ส่งใบเสนอราคา' ระบบต
   await openTestLead(page);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
 
-  await page.getByRole("button", { name: "งาน", exact: true }).first().click();
+  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();   // รอบ 4: แท็บงานยุบเข้าประวัติ (รายการเตือน)
   // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69) — ส่งใบได้ทางเดียวคือปุ่ม "ส่งให้ลูกค้า" (แถบขั้นต่อไป/รายการใบ)
   await expect(page.getByRole("checkbox", { name: /ส่งใบเสนอราคา/ }).first(), "งาน 'ส่งใบเสนอราคา' กดเองไม่ได้").toBeDisabled({ timeout: 15_000 });
   await expect(page.getByText("ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า").first()).toBeVisible();
@@ -166,9 +164,9 @@ test("[func] กดส่งใบจริง → ระบบติ๊กง�
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await openTestLead(page);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
-  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-
-  await page.getByTitle("ส่งใบเสนอราคา").first().click();
+  // รอบ 4: ส่งใบให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว (ยืนยันก่อนส่ง)
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 20_000 });
+  await กดตกลงในกล่องยืนยัน(page);
 
   // ── กดส่ง = ส่งทันที ไม่มีกล่องถาม "แนบแม่แบบไปด้วยไหม" แล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) ─────────
   //   ⚠️ ข้อความแจ้งโผล่ ~2.6 วินาทีแล้วหายเอง — ต้องเฝ้าดูแบบถี่ ๆ ไม่งั้นจับไม่ทันเป็นบางครั้ง

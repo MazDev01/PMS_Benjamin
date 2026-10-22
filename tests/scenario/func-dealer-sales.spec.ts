@@ -144,9 +144,8 @@ test("[func] ปิดการขายไม่สำเร็จ: เลื�
   await row.locator("td").first().click();
   await page.waitForTimeout(1200);
 
-  await page.getByRole("button", { name: "งาน", exact: true }).first().click();
-  await page.waitForTimeout(600);
-  await page.getByRole("button", { name: /ไม่ได้งาน/ }).first().click();
+  // รอบ 4: ปิดไม่สำเร็จที่กล่องขั้นต่อไปที่เดียว (แท็บงาน/ปุ่มไม่ได้งานเอาออก)
+  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ปิดไม่สำเร็จ/ }).click();
   await page.waitForTimeout(500);
 
   const other = page.getByRole("button", { name: /อื่นๆ \(ระบุเอง\)/ });

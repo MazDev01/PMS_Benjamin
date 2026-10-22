@@ -7,6 +7,7 @@ import { leadIntentToWire } from "@pms/shared/lib/leadIntent";
 import { เตรียมบันทึกใบ } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
+import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import type { DealerProspect, ProspectActivity, AppNotification } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
@@ -863,7 +864,7 @@ export const SupabaseAdapter: DataAdapter = {
         byProvince: (d.byProvince ?? []).map(r => ({ province: String(r.province), count: Number(r.count) })),
         byLostReason: (d.byLostReason ?? []).map(r => ({ reason: String(r.reason), count: Number(r.count), value: Number(r.value) })),
         byMonth: (d.byMonth ?? []).map(r => ({ y: Number(r.y), m: Number(r.m), created: Number(r.new), won: Number(r.won), lost: Number(r.lost), quoted: Number(r.quoted ?? 0) })),
-        byDealer: (d.byDealer ?? []).map(r => ({ dealerCode: String(r.dealer_code), leads: Number(r.leads), quoted: Number(r.quoted), won: Number(r.won ?? 0) })),
+        byDealer: (d.byDealer ?? []).map(r => ({ dealerCode: String(r.dealer_code), leads: Number(r.leads), quoted: Number(r.quoted), won: Number(r.won ?? 0), lost: Number(r.lost ?? 0) })),
       };
     },
     networkQuoteRange: async (start, end, dealer) => {
@@ -981,6 +982,11 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("hq_overview");
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return จัดรูปภาพรวมHQ(data);
+    },
+    hqDashboard: async (start, end, dealer, today) => {
+      const { data, error } = await sb().rpc("hq_dashboard", { p_start: start, p_end: end, p_dealer: dealer ?? null, p_today: today ?? null });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return จัดรูปแดชบอร์ดHQ(data);
     },
     hqCustomersFilterOptions: async () => {
       const { data, error } = await sb().rpc("hq_customers_filter_options");
