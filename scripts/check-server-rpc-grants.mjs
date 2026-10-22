@@ -19,7 +19,7 @@
 //   ไฟล์ใหม่ที่ยังไม่ git add จึงไม่ถูกตรวจ — รอบตรวจเต็มรันหลัง commit ครบทุกงานอยู่แล้ว
 // รัน: node scripts/check-server-rpc-grants.mjs [ไฟล์ค่าที่ถ่ายไว้]
 import { readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";   // ตัวช่วยกลางของตัวตรวจทุกตัว (807b79c)
 
 const ไฟล์ค่าที่ถ่ายไว้ = process.argv[2] ?? "supabase/tests/expected-function-grants.json";
 const ที่มีโค้ด = ["apps", "packages", "scripts"];
@@ -29,17 +29,12 @@ const ยกเว้นคนนอก = [
   // { name: "ชื่อคำสั่ง", reason: "ทำไมคนที่ยังไม่เข้าระบบต้องเรียกได้" },
 ];
 
-/** ไฟล์โค้ดที่ git เก็บไว้ใต้โฟลเดอร์ที่กำหนด (ไม่รวมผล build / ไฟล์ที่ยังไม่ git add) */
-const ไฟล์ที่gitเก็บ = root => execFileSync("git", ["ls-files", "-z", "--", root], { encoding: "utf8", maxBuffer: 64 << 20 })
-  .split("\0").filter(f => /\.(ts|tsx|mjs|js)$/.test(f));
-
 const เซิร์ฟเวอร์ = new Map(), ผู้ใช้ = new Map();   // ชื่อคำสั่ง → ที่เรียก
 const จด = (m, name, ที่) => { if (!m.has(name)) m.set(name, []); m.get(name).push(ที่); };
 for (const root of ที่มีโค้ด) {
-  for (const f of ไฟล์ที่gitเก็บ(root)) {
+  for (const f of ไฟล์ที่gitเก็บ([root])) {
     if (/check-server-rpc-grants\.mjs$/.test(f)) continue;
-    let src; try { src = readFileSync(f, "utf8"); } catch { continue; }   // ลบในโฟลเดอร์แล้วแต่ยังไม่ commit
-    const ไฟล์ = f;
+    const src = readFileSync(f, "utf8"), ไฟล์ = f.replaceAll("\\", "/");
     const บรรทัด = i => src.slice(0, i).split("\n").length;
     const ตัวแปรเซิร์ฟเวอร์ = new Set(["admin", "svc"]);
     for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*createClient\([^;]*?SERVICE_ROLE/gs)) ตัวแปรเซิร์ฟเวอร์.add(m[1]);
