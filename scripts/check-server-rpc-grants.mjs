@@ -13,9 +13,13 @@
 //   2) เทียบกับค่าที่ถ่ายจากฐานเปล่าที่สร้างจากใบแก้ฐานข้อมูลล้วน ๆ (supabase/tests/expected-function-grants.json)
 //      ฝั่งเซิร์ฟเวอร์เรียก → ต้องมีสิทธิ์ service_role · ผู้ใช้เรียก → ต้องมีสิทธิ์ authenticated
 //   3) คนที่ยังไม่เข้าระบบ (anon) ต้องเรียกคำสั่งไหนไม่ได้เลย เว้นแต่อยู่ในรายการยกเว้นพร้อมเหตุผล
+// อ่านเฉพาะไฟล์ที่ git เก็บ (git ls-files) — เดิมไล่ทั้งโฟลเดอร์ ข้ามแค่ node_modules/.next
+//   แล้วไปเจอผล build ที่ตั้งชื่อโฟลเดอร์อื่น (apps/dealer/.next-r4 จาก PMS_DIST_DIR) ไฟล์ 9MB ทำให้ regex เดินย้อนกลับ
+//   แบบกำลังสองจนตัวตรวจค้างไม่จบ ขั้นแรกของรอบตรวจเต็มค้างตาม (22 ต.ค. 69 · บอสสั่งแก้แบบนี้)
+//   ไฟล์ใหม่ที่ยังไม่ git add จึงไม่ถูกตรวจ — รอบตรวจเต็มรันหลัง commit ครบทุกงานอยู่แล้ว
 // รัน: node scripts/check-server-rpc-grants.mjs [ไฟล์ค่าที่ถ่ายไว้]
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const ไฟล์ค่าที่ถ่ายไว้ = process.argv[2] ?? "supabase/tests/expected-function-grants.json";
 const ที่มีโค้ด = ["apps", "packages", "scripts"];
@@ -25,19 +29,17 @@ const ยกเว้นคนนอก = [
   // { name: "ชื่อคำสั่ง", reason: "ทำไมคนที่ยังไม่เข้าระบบต้องเรียกได้" },
 ];
 
-function ไล่ไฟล์(p, out = []) {
-  let st; try { st = statSync(p); } catch { return out; }
-  if (st.isFile()) { if (/\.(ts|tsx|mjs|js)$/.test(p)) out.push(p); return out; }
-  for (const f of readdirSync(p)) if (f !== "node_modules" && f !== ".next") ไล่ไฟล์(path.join(p, f), out);
-  return out;
-}
+/** ไฟล์โค้ดที่ git เก็บไว้ใต้โฟลเดอร์ที่กำหนด (ไม่รวมผล build / ไฟล์ที่ยังไม่ git add) */
+const ไฟล์ที่gitเก็บ = root => execFileSync("git", ["ls-files", "-z", "--", root], { encoding: "utf8", maxBuffer: 64 << 20 })
+  .split("\0").filter(f => /\.(ts|tsx|mjs|js)$/.test(f));
 
 const เซิร์ฟเวอร์ = new Map(), ผู้ใช้ = new Map();   // ชื่อคำสั่ง → ที่เรียก
 const จด = (m, name, ที่) => { if (!m.has(name)) m.set(name, []); m.get(name).push(ที่); };
 for (const root of ที่มีโค้ด) {
-  for (const f of ไล่ไฟล์(root)) {
+  for (const f of ไฟล์ที่gitเก็บ(root)) {
     if (/check-server-rpc-grants\.mjs$/.test(f)) continue;
-    const src = readFileSync(f, "utf8"), ไฟล์ = f.replaceAll("\\", "/");
+    let src; try { src = readFileSync(f, "utf8"); } catch { continue; }   // ลบในโฟลเดอร์แล้วแต่ยังไม่ commit
+    const ไฟล์ = f;
     const บรรทัด = i => src.slice(0, i).split("\n").length;
     const ตัวแปรเซิร์ฟเวอร์ = new Set(["admin", "svc"]);
     for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*createClient\([^;]*?SERVICE_ROLE/gs)) ตัวแปรเซิร์ฟเวอร์.add(m[1]);
