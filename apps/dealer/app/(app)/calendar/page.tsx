@@ -3,7 +3,7 @@
 import { CountUp } from "@pms/shared/components/ui/CountUp";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { useState, useMemo, useRef, type ReactNode } from "react";
+import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { apptTypeLabel, fmtISOToThai, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
@@ -143,6 +143,26 @@ export default function CalendarPage() {
   function nextDay() { selectDate(addDays(selectedDate, 1)); }
 
   const selectedAppts = (byDate[selectedDate] ?? []).sort((a, b) => a.time.localeCompare(b.time));
+
+  // ?open=เลขนัด (กระดิ่ง "นัดหมายวันนี้" · ใบ 0231) — ไปวันนั้นแล้วเปิดรายละเอียดนัด · ล้างออกจาก URL
+  //   อยู่หน้านี้อยู่แล้วกดกระดิ่งอีก = ฟัง bpms:open-record
+  const [ขอเปิด, setขอเปิด] = useState<number | null>(null);
+  useEffect(() => {
+    setขอเปิด(Number(new URLSearchParams(window.location.search).get("open")) || null);
+    const on = (e: Event) => {
+      const href = String((e as CustomEvent).detail ?? "");
+      if (href.startsWith("/calendar?")) setขอเปิด(Number(new URLSearchParams(href.slice(href.indexOf("?"))).get("open")) || null);
+    };
+    window.addEventListener("bpms:open-record", on);
+    return () => window.removeEventListener("bpms:open-record", on);
+  }, []);
+  useEffect(() => {
+    if (ขอเปิด == null) return;
+    const a = allAppts.find(x => x.id === ขอเปิด);
+    if (!a) return;
+    selectDate(a.date); setView("day"); setDetail(a); setขอเปิด(null);
+    window.history.replaceState(null, "", "/calendar");
+  }, [allAppts, ขอเปิด]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const monthAppts = useMemo(() => {
     const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;

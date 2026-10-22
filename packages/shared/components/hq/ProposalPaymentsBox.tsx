@@ -30,6 +30,17 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
   const [ยอด, setยอด] = useState(0);
   const [อ้างอิง, setอ้างอิง] = useState("");
   const [busy, setBusy] = useState(false);
+  // วันครบกำหนดชำระ (ใบ 0231 · บอสตัดสิน 21 ต.ค. 69) — เลยแล้วยังชำระไม่ครบ = กระดิ่ง HQ "ใบค่าแฟรนไชส์เกินกำหนดชำระ"
+  const [กำหนด, setกำหนด] = useState(proposal.paymentDueOn ?? "");
+  useEffect(() => { setกำหนด(proposal.paymentDueOn ?? ""); }, [proposal.paymentDueOn]);
+  async function ตั้งกำหนด(v: string) {
+    setกำหนด(v);
+    try {
+      await proposalsRepo.setPaymentDue(proposal.id, v || null);
+      logAudit("ตั้งวันครบกำหนดชำระค่าแฟรนไชส์", `${proposal.proposalNo ?? ""} · ${v ? fmtISOToThai(v) : "ล้างวัน"}`);
+      onChanged?.();
+    } catch (e) { setกำหนด(proposal.paymentDueOn ?? ""); แจ้งพลาด(friendlyError(e, "บันทึกวันครบกำหนดชำระไม่สำเร็จ")); }
+  }
 
   const โหลด = useCallback(async () => {
     try { setList(await proposalsRepo.payments(proposal.id)); setLoadErr(""); }
@@ -80,6 +91,13 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
         <span data-testid={`ยอดชำระ-${proposal.proposalNo ?? ""}`} style={{ fontWeight: 600, color: ครบ ? "#15803d" : "#92400e" }}>
           {list == null ? "…" : `ชำระแล้ว ${บาท(ชำระแล้ว)} / ${บาท(ยอดในใบ)} บาท${ครบ ? " · ครบแล้ว" : ` · ค้าง ${บาท(ยอดในใบ - ชำระแล้ว)}`}`}
         </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", color: "#374151", marginTop: 4 }}>
+        ครบกำหนดชำระ
+        {editable
+          ? <input type="date" aria-label="วันครบกำหนดชำระ" value={กำหนด} onChange={e => void ตั้งกำหนด(e.target.value)} style={ช่อง} />
+          : <span>{กำหนด ? fmtISOToThai(กำหนด) : "—"}</span>}
+        {กำหนด && !ครบ && list != null && กำหนด < APP_NOW_ISO.slice(0, 10) && <span style={{ color: "#b91c1c", fontWeight: 700 }}>เกินกำหนดแล้ว</span>}
       </div>
       {loadErr && <div role="alert" style={{ fontSize: "0.72rem", color: "#b91c1c" }}>{loadErr}</div>}
       {(list ?? []).map(x => (

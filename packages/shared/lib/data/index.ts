@@ -17,7 +17,7 @@ import { dedupeRead, ttlCacheRead, invalidateCache } from "./dedupe";
 // TTL ของแคชข้อมูลอ้างอิง (ทะเบียนดีลเลอร์/แคตตาล็อก/กฎธุรกิจ/ผู้รับผิดชอบ) — สั้นพอที่ผู้ใช้จะไม่รู้สึกว่า
 // ข้อมูลค้าง (แก้เองก็ invalidate ทันทีอยู่แล้ว) ยาวพอที่จะตัดคำขอซ้ำตอนสลับหน้าไปมาเร็ว ๆ
 const REF_TTL_MS = 30_000;
-import type { DataAdapter, DealersRepo, SettingsRepo, MetricsRepo, PersonsRepo, DealerSettingsRepo, AuditRepo, ProfileRepo, LeadsRepo, QuotationsRepo, CustomersRepo } from "./ports";
+import type { DataAdapter, DealersRepo, SettingsRepo, MetricsRepo, PersonsRepo, DealerSettingsRepo, AuditRepo, NotificationsRepo, ProfileRepo, LeadsRepo, QuotationsRepo, CustomersRepo } from "./ports";
 
 // "api" = คุยผ่าน backend ของเราเอง (ครบทุกพอร์ตแล้ว · ดู http/HttpAdapter.ts และ docs/BACKEND-MIGRATION.md)
 const adapter: DataAdapter =
@@ -96,6 +96,11 @@ export const prospectActivities = adapter.prospectActivities;
 export const users = adapter.users;
 // บัญชีเข้าระบบของดีลเลอร์ (แก้อีเมล/รหัสผ่านเอง · โควตา 2 ครั้ง · เกินนั้นขออนุมัติ)
 export const account = adapter.account;
+// แจ้งเตือน (ใบ 0231) — กระดิ่งของ Topbar อยู่ทุกหน้า · รวมคำขอที่ยิงพร้อมกัน
+const _notifications = adapter.notifications;
+export const notifications: NotificationsRepo = {
+  list: (limit) => dedupeRead(`notifications.list:${limit ?? ""}`, () => _notifications.list(limit)),
+};
 export const audit: AuditRepo = {
   ..._audit,
   list: (limit) => dedupeRead(`audit.list:${limit ?? ""}`, () => _audit.list(limit)),
@@ -178,6 +183,6 @@ export const appointments = adapter.appointments;
 
 export type {
   DataAdapter, StoragePort, DealersRepo, FilesRepo, PersonsRepo,
-  SettingsRepo, AuditRepo, MetricsRepo, DealerRollup, LeadsRepo, QuotationsRepo, CustomersRepo, AppointmentsRepo,
+  SettingsRepo, AuditRepo, NotificationsRepo, MetricsRepo, DealerRollup, LeadsRepo, QuotationsRepo, CustomersRepo, AppointmentsRepo,
 } from "./ports";
 export type { Scope } from "./types";

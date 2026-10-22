@@ -372,14 +372,14 @@ footer { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--lin
         <tbody>
           <tr><td>D1</td><td>เข้าระบบ</td><td>เข้าสู่ระบบ</td><td>พิมพ์รหัสสาขา + รหัสผ่าน → "เข้าสู่ระบบ"</td><td>— (ไปแดชบอร์ดทันที)</td><td>—</td></tr>
           <tr><td>D2</td><td>สร้างลูกค้าเป้าหมาย</td><td>ลูกค้าเป้าหมาย</td><td>"เพิ่มลูกค้าเป้าหมาย" → "บันทึก"</td><td>Lead: ติดต่อแล้ว / รวบรวมความต้องการ</td><td>—</td></tr>
-          <tr><td>D3</td><td>ขอราคาจาก HQ</td><td>ลูกค้าเป้าหมาย › แผงลีด › แท็บใบเสนอราคา</td><td>"ขอราคาจาก HQ" → "ส่งคำขอ"</td><td>Lead → รอราคา HQ · คำขอ → ใหม่ (เริ่มนับ 14 วัน)</td><td><span class="pill h">HQ (อีเมล)</span></td></tr>
-          <tr><td>D3x</td><td>ยกเลิกคำขอ (ก่อน HQ ส่งใบ)</td><td>แผงลีด › แท็บใบเสนอราคา</td><td>"ยกเลิกคำขอ" → เหตุผล → "ยืนยันยกเลิก"</td><td>คำขอ → ยกเลิก · Lead → รวบรวมความต้องการ หรือ ปิดไม่สำเร็จ</td><td><span class="pill h">HQ (อีเมล)</span></td></tr>
-          <tr><td>D4</td><td>ได้ใบ HQ</td><td>ลูกค้าเป้าหมาย (ป้าย "ได้ราคาแล้ว")</td><td>—</td><td>Lead คงรอราคา HQ</td><td><span class="pill d">ดีลเลอร์ (อีเมล)</span></td></tr>
+          <tr><td>D3</td><td>ขอราคาจาก HQ</td><td>ลูกค้าเป้าหมาย › แผงลีด › แท็บใบเสนอราคา</td><td>"ขอราคาจาก HQ" → "ส่งคำขอ"</td><td>Lead → รอราคา HQ · คำขอ → ใหม่ (เริ่มนับ 14 วัน)</td><td><span class="pill h">HQ (กระดิ่ง + อีเมล)</span></td></tr>
+          <tr><td>D3x</td><td>ยกเลิกคำขอ (ก่อน HQ ส่งใบ)</td><td>แผงลีด › แท็บใบเสนอราคา</td><td>"ยกเลิกคำขอ" → เหตุผล → "ยืนยันยกเลิก"</td><td>คำขอ → ยกเลิก · Lead → รวบรวมความต้องการ หรือ ปิดไม่สำเร็จ</td><td><span class="pill h">HQ (กระดิ่ง + อีเมล · พร้อมเหตุผล)</span></td></tr>
+          <tr><td>D4</td><td>ได้ใบ HQ</td><td>ลูกค้าเป้าหมาย (ป้าย "ได้ราคาแล้ว")</td><td>—</td><td>Lead คงรอราคา HQ</td><td><span class="pill d">ดีลเลอร์ (กระดิ่ง + อีเมล) · ราคา HQ เหลือ 3 วัน (กระดิ่ง + อีเมล) · หมดอายุ (กระดิ่ง)</span></td></tr>
           <tr><td>D5</td><td>ทำใบให้ลูกค้า</td><td>แผงลีด › แท็บใบเสนอราคา</td><td>"ทำใบเสนอราคาจากใบ HQ" → ใส่ % → "สร้างใบเสนอราคา"</td><td>ใบลูกค้า: ร่าง</td><td>—</td></tr>
-          <tr><td>D5x</td><td>ขอแก้ราคา</td><td>แผงลีด › แท็บใบเสนอราคา</td><td>"ขอแก้ราคา" → "ส่งขอแก้ราคา"</td><td>คำขอเดิม → แทนที่ · คำขอใหม่ → ใหม่ · Lead → รอราคา HQ</td><td><span class="pill h">HQ (อีเมล)</span></td></tr>
-          <tr><td>D6</td><td>ส่งใบให้ลูกค้า</td><td>ใบเสนอราคา หรือ แผงลีด</td><td>"ส่งใบเสนอราคา"</td><td>ใบลูกค้า → ส่งให้ลูกค้าแล้ว · Lead → เสนอราคา</td><td>—</td></tr>
-          <tr><td>D7</td><td>ติดตาม / ต่อรอง</td><td>แผงลีด › งาน</td><td>ติ๊กงาน · "นัดหมาย"</td><td>Lead → ติดตามผล → เจรจาต่อรอง</td><td><span class="pill d">กระดิ่งดีลเลอร์ (เตือนติดตาม)</span></td></tr>
-          <tr><td>D8</td><td>ลูกค้าตอบรับ</td><td>ใบเสนอราคา › เปิดใบ</td><td>"ลูกค้าตอบรับ ✓" → ยืนยัน</td><td>ใบลูกค้า → ตอบรับ · Lead → ปิดการขายสำเร็จ + สร้างลูกค้า · คำขอ + ใบ HQ → สั่งผลิต</td><td><span class="pill h">HQ (อีเมล)</span></td></tr>
+          <tr><td>D5x</td><td>ขอแก้ราคา</td><td>แผงลีด › แท็บใบเสนอราคา</td><td>"ขอแก้ราคา" → "ส่งขอแก้ราคา"</td><td>คำขอเดิม → แทนที่ · คำขอใหม่ → ใหม่ · Lead → รอราคา HQ</td><td><span class="pill h">HQ (กระดิ่ง + อีเมล)</span></td></tr>
+          <tr><td>D6</td><td>ส่งใบให้ลูกค้า</td><td>ใบเสนอราคา หรือ แผงลีด</td><td>"ส่งใบเสนอราคา"</td><td>ใบลูกค้า → ส่งให้ลูกค้าแล้ว · Lead → เสนอราคา</td><td><span class="pill d">ดีลเลอร์ (กระดิ่ง · ใบที่ส่งลูกค้าเหลือ 3 วัน)</span></td></tr>
+          <tr><td>D7</td><td>ติดตาม / ต่อรอง</td><td>แผงลีด › งาน</td><td>ติ๊กงาน · "นัดหมาย"</td><td>Lead → ติดตามผล → เจรจาต่อรอง</td><td><span class="pill d">กระดิ่งดีลเลอร์ (นัดหมาย/ติดตามถึงกำหนดวันนี้)</span></td></tr>
+          <tr><td>D8</td><td>ลูกค้าตอบรับ</td><td>ใบเสนอราคา › เปิดใบ</td><td>"ลูกค้าตอบรับ ✓" → ยืนยัน</td><td>ใบลูกค้า → ตอบรับ · Lead → ปิดการขายสำเร็จ + สร้างลูกค้า · คำขอ + ใบ HQ → สั่งผลิต</td><td><span class="pill h">HQ (กระดิ่ง + อีเมล)</span></td></tr>
           <tr><td>D8x</td><td>ลูกค้าปฏิเสธ</td><td>ใบเสนอราคา › เปิดใบ</td><td>"ลูกค้าปฏิเสธ" → เหตุผล → "ยืนยัน"</td><td>ใบ → ปฏิเสธ · Lead → ปิดไม่สำเร็จ · คำขอ → ปิด (lost)</td><td>—</td></tr>
           <tr><td>D9</td><td>บัญชี (ตามใจ)</td><td>ตั้งค่า › บัญชีดีลเลอร์ › บัญชีเข้าสู่ระบบ</td><td>เปลี่ยนรหัสผ่าน · "ส่งโค้ด" → "ยืนยันอีเมล"</td><td>—</td><td>—</td></tr>
         </tbody>
@@ -397,16 +397,16 @@ footer { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--lin
         <thead><tr><th>#</th><th>ทำอะไร</th><th>หน้า</th><th>ปุ่ม</th><th>สถานะเปลี่ยนเป็น</th><th>ใครได้แจ้งเตือน</th></tr></thead>
         <tbody>
           <tr><td>H1</td><td>เข้าระบบ</td><td>เข้าสู่ระบบ HQ</td><td>อีเมล + รหัสผ่าน → "เข้าสู่ระบบ"</td><td>— (ไปแดชบอร์ดสำนักงานใหญ่)</td><td>—</td></tr>
-          <tr><td>H2</td><td>หาผู้สนใจเป็นดีลเลอร์</td><td>ลูกค้าเป้าหมาย (HQ)</td><td>"เพิ่มลูกค้าเป้าหมาย" · บันทึกการติดต่อ · ติ๊กงาน</td><td>รอติดต่อ → ติดต่อแล้ว → ส่งข้อมูลบริษัทแล้ว → นัดคุยแล้ว</td><td><span class="pill h">กระดิ่ง HQ (ถึงกำหนดติดตาม · ไม่ได้ติดต่อนาน)</span></td></tr>
-          <tr><td>H3</td><td>ออกใบค่าแฟรนไชส์</td><td>ใบค่าแฟรนไชส์ (หรือแท็บในแผงผู้สนใจ)</td><td>"ออกใบค่าแฟรนไชส์" → "ส่ง"</td><td>ใบ: ร่าง → ส่งแล้ว · ผู้สนใจ → รอตัดสินใจ</td><td><span class="pill h">กระดิ่ง HQ (รอคำตอบ · เลยวันมีผล)</span></td></tr>
-          <tr><td>H4</td><td>ตอบรับ + ชำระ</td><td>แผงใบค่าแฟรนไชส์</td><td>"ตอบรับ" · "บันทึกการชำระ" (ปฏิเสธ/หมดอายุ ต้องมีเหตุผล)</td><td>ใบ → ตอบรับ · ชำระครบ</td><td>—</td></tr>
+          <tr><td>H2</td><td>หาผู้สนใจเป็นดีลเลอร์</td><td>ลูกค้าเป้าหมาย (HQ)</td><td>"เพิ่มลูกค้าเป้าหมาย" · บันทึกการติดต่อ · ติ๊กงาน</td><td>รอติดต่อ → ติดต่อแล้ว → ส่งข้อมูลบริษัทแล้ว → นัดคุยแล้ว</td><td><span class="pill h">HQ (กระดิ่ง · ถึงกำหนดติดตาม · ไม่ได้ติดต่อ 14 วัน)</span></td></tr>
+          <tr><td>H3</td><td>ออกใบค่าแฟรนไชส์</td><td>ใบค่าแฟรนไชส์ (หรือแท็บในแผงผู้สนใจ)</td><td>"ออกใบค่าแฟรนไชส์" → "ส่ง"</td><td>ใบ: ร่าง → ส่งแล้ว · ผู้สนใจ → รอตัดสินใจ</td><td><span class="pill h">HQ (กระดิ่ง · รอคำตอบ 7 วัน · เลยวันมีผล)</span></td></tr>
+          <tr><td>H4</td><td>ตอบรับ + ชำระ</td><td>แผงใบค่าแฟรนไชส์</td><td>"ตอบรับ" · "บันทึกการชำระ" (ปฏิเสธ/หมดอายุ ต้องมีเหตุผล)</td><td>ใบ → ตอบรับ · ชำระครบ</td><td><span class="pill h">HQ (กระดิ่ง · เลยวันครบกำหนดชำระ)</span></td></tr>
           <tr><td>H5</td><td>ตั้งเป็นดีลเลอร์</td><td>ลูกค้าเป้าหมาย (HQ) › แผง</td><td>"ตั้งเป็นดีลเลอร์" (ต้องตอบรับ + ชำระครบ)</td><td>ผู้สนใจ → เป็นดีลเลอร์แล้ว · สร้างดีลเลอร์ + บัญชี + จังหวัด</td><td>— (HQ ส่งชื่อผู้ใช้/รหัสผ่านให้ดีลเลอร์เอง)</td></tr>
-          <tr><td>H6</td><td>โอนลีดของ HQ ให้ดีลเลอร์</td><td>ลูกค้าเป้าหมายทั้งเครือ</td><td>"โอนอัตโนมัติทั้งหมด" (จังหวัดสาขาเดียว) · "โอน" + เลือกสาขา (จังหวัดหลายสาขา)</td><td>Lead เปลี่ยนสาขา</td><td>—</td></tr>
+          <tr><td>H6</td><td>โอนลีดของ HQ ให้ดีลเลอร์</td><td>ลูกค้าเป้าหมายทั้งเครือ</td><td>"โอนอัตโนมัติทั้งหมด" (จังหวัดสาขาเดียว) · "โอน" + เลือกสาขา (จังหวัดหลายสาขา)</td><td>Lead เปลี่ยนสาขา</td><td><span class="pill d">ดีลเลอร์ (กระดิ่ง + อีเมล)</span></td></tr>
           <tr><td>H7</td><td>รับคำขอราคา</td><td>คำขอใบเสนอราคา › กลุ่ม "ต้องตีราคา"</td><td>เลือกคำขอ (เปิดดูอย่างเดียว ไม่เปลี่ยนสถานะ)</td><td>—</td><td>—</td></tr>
           <tr><td>H8</td><td>ตีราคา</td><td>คำขอใบเสนอราคา › ใบ HQ ในหน้า</td><td>ใส่รายการ → "บันทึกร่าง"</td><td>คำขอ ใหม่ → กำลังตีราคา (รับเรื่องอัตโนมัติ)</td><td>—</td></tr>
-          <tr><td>H9</td><td>ส่งใบ HQ</td><td>คำขอใบเสนอราคา › ใบ HQ ในหน้า</td><td>"ส่งใบ HQ ให้ดีลเลอร์"</td><td>ใบ HQ → ส่งแล้ว (ล็อก) · คำขอ → ส่งแล้ว รอดีลเลอร์</td><td><span class="pill d">ดีลเลอร์ (อีเมล)</span></td></tr>
-          <tr><td>H9x</td><td>เกิน 14 วันยังไม่ส่ง</td><td>คำขอใบเสนอราคา (ป้าย "เกินกำหนด")</td><td>—</td><td>—</td><td><span class="pill a">HQ (อีเมล ครั้งเดียว)</span></td></tr>
-          <tr><td>H10</td><td>ย้อนการตอบรับ (เฉพาะ HQ)</td><td>ใบเสนอราคาทั้งเครือ › เปิดใบ</td><td>"ย้อนเป็นส่งให้ลูกค้าแล้ว" / "ย้อนเป็นลูกค้าปฏิเสธ" + เหตุผล</td><td>ใบลูกค้าออกจากตอบรับ · คำขอ → ส่งแล้ว · ใบ HQ → ส่งแล้ว</td><td>— (บันทึกการใช้งาน)</td></tr>
+          <tr><td>H9</td><td>ส่งใบ HQ</td><td>คำขอใบเสนอราคา › ใบ HQ ในหน้า</td><td>"ส่งใบ HQ ให้ดีลเลอร์"</td><td>ใบ HQ → ส่งแล้ว (ล็อก) · คำขอ → ส่งแล้ว รอดีลเลอร์</td><td><span class="pill d">ดีลเลอร์ (กระดิ่ง + อีเมล)</span></td></tr>
+          <tr><td>H9x</td><td>เกิน 14 วันยังไม่ส่ง</td><td>คำขอใบเสนอราคา (ป้าย "เกินกำหนด")</td><td>—</td><td>—</td><td><span class="pill a">HQ (กระดิ่ง + อีเมล · สรุปรวมวันละครั้ง เฉพาะวันที่มีคำขอเกินกำหนดอย่างน้อย 1 ใบ)</span></td></tr>
+          <tr><td>H10</td><td>ย้อนการตอบรับ (เฉพาะ HQ)</td><td>ใบเสนอราคาทั้งเครือ › เปิดใบ</td><td>"ย้อนเป็นส่งให้ลูกค้าแล้ว" / "ย้อนเป็นลูกค้าปฏิเสธ" + เหตุผล</td><td>ใบลูกค้าออกจากตอบรับ · คำขอ → ส่งแล้ว · ใบ HQ → ส่งแล้ว</td><td><span class="pill d">ดีลเลอร์ (กระดิ่ง + อีเมล · พร้อมเหตุผล)</span></td></tr>
           <tr><td>H11</td><td>ดูแลดีลเลอร์</td><td>ดีลเลอร์</td><td>"เข้าระบบ" (แทนดีลเลอร์) · "แก้ไข" · ปิด/เปิดใช้งาน · ดูรหัสผ่าน</td><td>—</td><td>— (บันทึกการใช้งาน)</td></tr>
           <tr><td>H12</td><td>ดูภาพรวม</td><td>แดชบอร์ดสำนักงานใหญ่ · ภาพรวมยอดขาย</td><td>—</td><td>—</td><td>—</td></tr>
         </tbody>
@@ -448,17 +448,49 @@ footer { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--lin
         <tbody>
           <tr><td>ดีลเลอร์ส่งคำขอ</td><td>ใหม่</td><td>→ รอราคา HQ</td><td><span class="pill h">HQ</span></td></tr>
           <tr><td>HQ บันทึกร่างใบ HQ ครั้งแรก (รับเรื่องอัตโนมัติ ไม่มีปุ่มรับเรื่อง)</td><td>กำลังทำราคา</td><td>คงเดิม</td><td>—</td></tr>
-          <tr><td>ครบ 14 วันยังไม่ส่งใบ</td><td>ป้ายแดง เกินกำหนด</td><td>คงเดิม</td><td><span class="pill a">ผู้รับผิดชอบ + ผู้บริหาร</span></td></tr>
+          <tr><td>ครบ 14 วันยังไม่ส่งใบ</td><td>ป้ายแดง เกินกำหนด</td><td>คงเดิม</td><td><span class="pill a">HQ (สรุปรวมวันละครั้ง)</span></td></tr>
           <tr><td>HQ ส่งใบ</td><td>ส่งใบแล้ว</td><td>คงเดิม + ป้าย "ได้ราคาแล้ว"</td><td><span class="pill d">ดีลเลอร์ (อีเมลติดต่อที่ยืนยันแล้ว)</span></td></tr>
           <tr><td>ดีลเลอร์ส่งใบให้ลูกค้า</td><td>คงเดิม</td><td>→ QUOTED</td><td>—</td></tr>
           <tr><td>ดีลเลอร์ยกเลิกคำขอ</td><td>ยกเลิก</td><td>→ BULLET หรือ CANCELLED</td><td><span class="pill h">HQ</span></td></tr>
           <tr><td>ขอแก้ราคา</td><td>ใบเก่าปิด · คำขอใหม่เริ่มนับ 14 วัน</td><td>→ รอราคา HQ</td><td><span class="pill h">HQ</span></td></tr>
           <tr><td>ลูกค้าตอบรับ (won)</td><td>ปิด (won) · ใบ HQ = สั่งผลิต</td><td>→ PAID + สร้างลูกค้า</td><td><span class="pill h">HQ</span></td></tr>
           <tr><td>ลูกค้าปฏิเสธ</td><td>ปิด (lost)</td><td>→ CANCELLED + เหตุผล</td><td>—</td></tr>
-          <tr><td>HQ ย้อนการตอบรับ (เฉพาะ HQ · ต้องมีเหตุผล)</td><td>ปิด (won) → ส่งใบแล้ว · ใบ HQ สั่งผลิต → ส่งแล้ว</td><td>ต้องตัดสิน (ตอนนี้คง PAID)</td><td>— (บันทึกการใช้งาน)</td></tr>
+          <tr><td>HQ ย้อนการตอบรับ (เฉพาะ HQ · ต้องมีเหตุผล)</td><td>ปิด (won) → ส่งใบแล้ว · ใบ HQ สั่งผลิต → ส่งแล้ว</td><td>ต้องตัดสิน (ตอนนี้คง PAID)</td><td><span class="pill d">ดีลเลอร์</span></td></tr>
         </tbody>
       </table>
     </div>
+  </section>
+
+  <!-- 4b แจ้งเตือน (รอบ 4 · บอสสั่ง 21 ต.ค. 69 · ใบ 0231 + 0236 คืน H6–H8 ตาม flow) — ตารางเดียวของแจ้งเตือนทั้งระบบ 14 แถว
+       scripts/check-notification-catalog.mjs: ตารางนี้ ↔ ตารางกลางในฐาน · ทุกแถวอ้างขั้นที่ช่อง "ใครได้แจ้งเตือน" ไม่ใช่ "—" · ทุกขั้นแบบนั้นต้องมีแถว -->
+  <section id="notifications">
+    <div class="sec-head">
+      <div class="eyebrow">แจ้งเตือน</div>
+      <h2>แจ้งเตือนเฉพาะเรื่องที่คนรับต้องทำอะไรต่อ</h2>
+      <p class="lede">กระดิ่งทั้งสองแอปและอีเมลอ่านจากตารางกลางที่เดียว · กดแล้วเปิดตรงเรื่องนั้น · เรื่องเดียวกันแจ้งครั้งเดียว · อีเมลถึงดีลเลอร์ส่งเฉพาะคนที่ยืนยันอีเมลติดต่อแล้ว · อีเมลถึง HQ ส่งตามรายชื่อในตั้งค่า › การแจ้งเตือน</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>#</th><th>เรื่อง</th><th>ใครได้</th><th>กระดิ่ง</th><th>อีเมล</th><th>กดแล้วไปไหน</th><th>ขั้นใน FLOW</th></tr></thead>
+        <tbody>
+          <tr data-notif-row="D1" data-flow-steps="D4 H9" data-notif-kinds="hq_quote_sent" data-bell="1" data-email="1"><td>D1</td><td>HQ ส่งราคาแล้ว รวมราคาที่ขอแก้</td><td><span class="pill d">ดีลเลอร์</span></td><td>✓</td><td>✓</td><td>แผงลีดนั้น</td><td>D4 · H9</td></tr>
+          <tr data-notif-row="D2" data-flow-steps="D4 H9" data-notif-kinds="hq_quote_expiring" data-bell="1" data-email="1"><td>D2</td><td>ราคา HQ ใกล้หมดอายุ เหลือ 3 วัน</td><td><span class="pill d">ดีลเลอร์</span></td><td>✓</td><td>✓</td><td>แผงลีดนั้น</td><td>D4 · H9</td></tr>
+          <tr data-notif-row="D3" data-flow-steps="D4 H9" data-notif-kinds="hq_quote_expired" data-bell="1" data-email="0"><td>D3</td><td>ราคา HQ หมดอายุแล้ว ลีดกลับเป็นรวบรวมความต้องการ</td><td><span class="pill d">ดีลเลอร์</span></td><td>✓</td><td>—</td><td>แผงลีดนั้น</td><td>D4 · H9</td></tr>
+          <tr data-notif-row="D4" data-flow-steps="D6" data-notif-kinds="quote_expiring" data-bell="1" data-email="0"><td>D4</td><td>ใบที่ส่งลูกค้าใกล้หมดอายุ เหลือ 3 วัน</td><td><span class="pill d">ดีลเลอร์</span></td><td>✓</td><td>—</td><td>ใบเสนอราคานั้น</td><td>D6</td></tr>
+          <tr data-notif-row="D5" data-flow-steps="D7" data-notif-kinds="appointment_due" data-bell="1" data-email="0"><td>D5</td><td>นัดหมาย/ติดตามถึงกำหนดวันนี้</td><td><span class="pill d">ดีลเลอร์</span></td><td>✓</td><td>—</td><td>นัดนั้นในปฏิทิน</td><td>D7</td></tr>
+          <tr data-notif-row="D6" data-flow-steps="H6 H10" data-notif-kinds="lead_from_hq won_reverted" data-bell="1" data-email="1"><td>D6</td><td>HQ ส่งลีดใหม่ให้ หรือ HQ ย้อนการปิดการขาย</td><td><span class="pill d">ดีลเลอร์</span></td><td>✓</td><td>✓</td><td>แผงลีดนั้น</td><td>H6 · H10</td></tr>
+          <tr data-notif-row="H1" data-flow-steps="D3" data-notif-kinds="request_new" data-bell="1" data-email="1"><td>H1</td><td>คำขอราคาใหม่</td><td><span class="pill h">HQ</span></td><td>✓</td><td>✓</td><td>ใบ HQ ของคำขอนั้น</td><td>D3</td></tr>
+          <tr data-notif-row="H2" data-flow-steps="D5x" data-notif-kinds="request_reprice" data-bell="1" data-email="1"><td>H2</td><td>ดีลเลอร์ขอแก้ราคา</td><td><span class="pill h">HQ</span></td><td>✓</td><td>✓</td><td>ใบ HQ ของคำขอนั้น</td><td>D5x</td></tr>
+          <tr data-notif-row="H3" data-flow-steps="H9x" data-notif-kinds="requests_overdue" data-bell="1" data-email="1"><td>H3</td><td>คำขอค้างเกิน 14 วัน — สรุปรวมวันละครั้ง ไม่แจ้งทีละคำขอ · ส่งเฉพาะวันที่มีคำขอเกินกำหนดอย่างน้อย 1 ใบ</td><td><span class="pill h">HQ</span></td><td>✓</td><td>✓</td><td>กล่องงาน "ต้องตีราคา" (เกินกำหนดอยู่บนสุด)</td><td>H9x</td></tr>
+          <tr data-notif-row="H4" data-flow-steps="D8" data-notif-kinds="customer_accepted" data-bell="1" data-email="1"><td>H4</td><td>ลูกค้าตอบรับ (ปิดการขายได้)</td><td><span class="pill h">HQ</span></td><td>✓</td><td>✓</td><td>ใบ HQ ของคำขอนั้น (สั่งผลิต)</td><td>D8</td></tr>
+          <tr data-notif-row="H5" data-flow-steps="H4" data-notif-kinds="franchise_payment_overdue" data-bell="1" data-email="0"><td>H5</td><td>ใบค่าแฟรนไชส์เกินกำหนดชำระ (HQ กรอกวันครบกำหนดชำระในใบที่ตอบรับ · ไม่กรอก = ไม่แจ้ง)</td><td><span class="pill h">HQ</span></td><td>✓</td><td>—</td><td>ใบค่าแฟรนไชส์นั้น</td><td>H4</td></tr>
+          <tr data-notif-row="H6" data-flow-steps="D3x" data-notif-kinds="request_cancelled" data-bell="1" data-email="1"><td>H6</td><td>ดีลเลอร์ยกเลิกคำขอราคา (บอกเหตุผลที่ดีลเลอร์ใส่)</td><td><span class="pill h">HQ</span></td><td>✓</td><td>✓</td><td>คำขอนั้นในกล่องงาน (กลุ่ม ปิด/ยกเลิก)</td><td>D3x</td></tr>
+          <tr data-notif-row="H7" data-flow-steps="H2" data-notif-kinds="prospect_followup_due prospect_idle" data-bell="1" data-email="0"><td>H7</td><td>ผู้สนใจเป็นดีลเลอร์ถึงกำหนดติดตาม / ไม่ได้ติดต่อนาน (14 วันขึ้นไป)</td><td><span class="pill h">HQ</span></td><td>✓</td><td>—</td><td>แผงผู้สนใจนั้น</td><td>H2</td></tr>
+          <tr data-notif-row="H8" data-flow-steps="H3" data-notif-kinds="proposal_awaiting proposal_expired" data-bell="1" data-email="0"><td>H8</td><td>ใบค่าแฟรนไชส์รอคำตอบนาน (7 วันขึ้นไป) / เลยวันมีผล</td><td><span class="pill h">HQ</span></td><td>✓</td><td>—</td><td>ใบค่าแฟรนไชส์นั้น</td><td>H3</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rule"><b>ห้ามแจ้ง</b><small>สิ่งที่ผู้ใช้ทำเอง · สถานะที่ขยับจากสิ่งที่ตัวเองเพิ่งทำ · ลูกค้าปฏิเสธ · เรื่องที่ไม่อยู่ในตารางนี้ · ไม่มีสวิตช์เปิด/ปิดรายหมวดในหน้าตั้งค่า</small></div>
   </section>
 
   <!-- 5 ใครเห็นอะไร -->
@@ -524,7 +556,7 @@ footer { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--lin
           <tr><td><code>/customers/[id]</code></td><td data-menu=""></td><td>ลิงก์เดิม — เปิดแผงลูกค้า</td></tr>
           <tr><td><code>/calendar</code></td><td data-menu="ปฏิทิน">ปฏิทิน</td><td>D7 นัดหมาย</td></tr>
           <tr><td><code>/files</code></td><td data-menu="ไฟล์">ไฟล์</td><td>ไฟล์ที่แนบกับลีด/ลูกค้า</td></tr>
-          <tr><td><code>/settings</code></td><td data-menu="ตั้งค่า">ตั้งค่า</td><td>% บวกตั้งต้น · ผู้รับผิดชอบ · การแจ้งเตือน</td></tr>
+          <tr><td><code>/settings</code></td><td data-menu="ตั้งค่า">ตั้งค่า</td><td>% บวกตั้งต้น · ผู้รับผิดชอบ · กฎดูแลลูกค้าเป้าหมาย (ไม่มีสวิตช์แจ้งเตือน)</td></tr>
           <tr><td><code>/settings/account</code></td><td data-menu=""></td><td>D9 บัญชี (ตามใจ)</td></tr>
           <tr><td><code>/profile</code></td><td data-menu=""></td><td>พาไปตั้งค่า</td></tr>
         </tbody>

@@ -6,7 +6,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, HQ_ORIGIN } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 
-// ── คำขอเกิน 14 วัน → อีเมลจริงหนึ่งฉบับ (เงื่อนไขปิดด่าน 1 · FLOW.html ตารางสถานะแถว "ครบ 14 วันยังไม่ส่งใบ") ──────
+// ── คำขอเกิน 14 วัน → อีเมลสรุปจริงหนึ่งฉบับต่อวัน (เงื่อนไขปิดด่าน 1 · รอบ 4 ใบ 0231: สรุปรวมวันละครั้ง ไม่แจ้งทีละคำขอ) ──────
 //
 // เส้นทางจริงทั้งเส้น: คำขอเลยกำหนด → งานตั้งเวลา /api/cron/send-email → ตรวจคำขอเกินกำหนด → วางจดหมายในกล่องขาออก
 //   → ส่งทาง SMTP → ถึงกล่องจดหมายทดสอบของฐานในเครื่อง (Mailpit) · ไม่ใช่แค่แจ้งในระบบ
@@ -33,8 +33,11 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   await admin.from("hq_notif_rules").update({ email_recipients: เดิม }).eq("id", 1);
+  // สรุปคำขอค้างรายวัน (ใบ 0231) อ้างคำขอด้วยข้อความ ไม่ใช่ ref_id — ลบตามผู้รับทดสอบ (check-test-leftovers จับได้ 21 ต.ค. 69)
+  await admin.from("email_outbox").delete().eq("to_email", ผู้รับ);
   if (คำขอ) {
     await admin.from("email_outbox").delete().eq("ref_table", "quote_requests").eq("ref_id", String(คำขอ));
+    await admin.from("notifications").delete().like("dedupe_key", `%:${คำขอ}`);
     await admin.from("quote_requests").delete().eq("id", คำขอ);
   }
 });
@@ -44,8 +47,10 @@ test("[email] งานตั้งเวลาต้องมีกุญแจ
   expect((await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: "Bearer wrong-secret" } })).status()).toBe(401);
 });
 
-test("[email] คำขอเกิน 14 วัน → อีเมลถึงผู้รับของ HQ หนึ่งฉบับจริง และไม่ส่งซ้ำ", async ({ request }) => {
+test("[email] คำขอเกิน 14 วัน → อีเมลสรุปถึงผู้รับของ HQ หนึ่งฉบับจริง และไม่ส่งซ้ำ", async ({ request }) => {
   test.skip(!CRON_SECRET, "ยังไม่ได้ตั้ง CRON_SECRET ใน apps/hq/.env.local");
+  // สรุปรายวันเริ่มแจ้ง 07:00 น. เวลาไทย (ไม่ปลุกตอนดึก · notifications_scan) — ก่อนนั้นไม่มีอะไรให้ตรวจ
+  test.skip(new Date(Date.now() + 7 * 3_600_000).getUTCHours() < 7, "ก่อน 07:00 น. เวลาไทย งานตั้งเวลายังไม่สรุปคำขอค้าง");
   test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);
   expect((await admin.from("hq_notif_rules").update({ email_recipients: [ผู้รับ] }).eq("id", 1)).error).toBeNull();
 
@@ -60,6 +65,9 @@ test("[email] คำขอเกิน 14 วัน → อีเมลถึง
   // เลื่อนกำหนดส่งให้เลยมาแล้ว (จำลองเวลาผ่านไป 14 วัน)
   await admin.from("quote_requests").update({ due_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", r.id);
   await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
+  // สรุปวันนี้อาจถูกสร้างไปแล้วจากรอบทดสอบก่อนหน้า (กันซ้ำวันละครั้ง) — ล้างของวันนี้ก่อน ให้รอบนี้ได้สรุปใหม่ที่มีคำขอนี้
+  await admin.from("notifications").delete().eq("kind", "requests_overdue");
+  await admin.from("email_outbox").delete().eq("kind", "requests_overdue");
 
   const รอบ1 = await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: `Bearer ${CRON_SECRET}` }, timeout: 60_000 });
   expect(รอบ1.status(), await รอบ1.text()).toBe(200);
@@ -69,14 +77,15 @@ test("[email] คำขอเกิน 14 วัน → อีเมลถึง
     const j = await (await fetch(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:${ผู้รับ}`)}`)).json() as { messages?: { Subject: string }[] };
     return (j.messages ?? []).map(m => m.Subject);
   };
-  await expect.poll(ในกล่อง, { timeout: 20_000, message: "อีเมลเกินกำหนดต้องถึงกล่องจดหมาย" }).toContain(`คำขอเกินกำหนด 14 วัน ${r.request_no}`);
+  const สรุป = async () => (await ในกล่อง()).filter(s => s.startsWith("คำขอค้างเกิน 14 วัน"));
+  await expect.poll(async () => (await สรุป()).length, { timeout: 20_000, message: "อีเมลสรุปคำขอค้างต้องถึงกล่องจดหมาย" }).toBe(1);
 
-  const { data: แถว } = await admin.from("email_outbox").select("kind, status").eq("ref_id", String(r.id)).eq("to_email", ผู้รับ);
-  expect(แถว?.filter(x => x.kind === "quote_request_overdue").map(x => x.status), "กล่องขาออกบันทึกว่าส่งแล้ว").toEqual(["sent"]);
+  const { data: แถว } = await admin.from("email_outbox").select("kind, status, body").eq("kind", "requests_overdue").eq("to_email", ผู้รับ);
+  expect(แถว?.map(x => x.status), "กล่องขาออกบันทึกว่าส่งแล้ว").toEqual(["sent"]);
+  expect(แถว?.[0]?.body ?? "", "สรุปมีเลขคำขอที่ค้าง").toContain(r.request_no);
 
-  // รอบถัดไป: ไม่มีฉบับเกินกำหนดซ้ำ
+  // รอบถัดไปวันเดียวกัน: ไม่มีสรุปซ้ำ
   await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: `Bearer ${CRON_SECRET}` } });
-  const หัวเรื่อง = await ในกล่อง();
-  expect(หัวเรื่อง.filter(s => s.startsWith("คำขอเกินกำหนด")).length, "เกินกำหนดแจ้งครั้งเดียวต่อคำขอ").toBe(1);
-  expect(หัวเรื่อง, "คำขอใหม่ก็ถูกส่งถึง HQ ด้วย (แถว 1)").toContain(`คำขอใบเสนอราคาใหม่ ${r.request_no}`);
+  expect((await สรุป()).length, "สรุปคำขอค้างแจ้งวันละครั้ง").toBe(1);
+  expect((await ในกล่อง()).some(s => s.startsWith("คำขอราคาใหม่") && s.includes(r.request_no)), "คำขอใหม่ก็ถูกส่งถึง HQ ด้วย (H1)").toBe(true);
 });

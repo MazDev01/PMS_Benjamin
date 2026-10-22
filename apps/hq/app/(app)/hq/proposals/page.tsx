@@ -23,6 +23,7 @@ import {
 } from "@pms/shared/lib/dealerProposals";
 import { ยังติดตามอยู่ } from "@pms/shared/lib/dealerProspects";
 import { ProposalFormModal } from "@pms/shared/components/hq/ProposalFormModal";
+import { ProposalPaymentsBox } from "@pms/shared/components/hq/ProposalPaymentsBox";
 import { useProposalActions } from "@pms/shared/components/hq/useProposalActions";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
@@ -84,6 +85,22 @@ export default function HQProposalsPage() {
     }
   }, []);
   useEffect(() => { void โหลด(); }, [โหลด]);
+  // มาจากกระดิ่ง "ใบค่าแฟรนไชส์เกินกำหนดชำระ" (ใบ 0231): ?open=เลขใบ = เปิดแผงของใบนั้น · อยู่หน้านี้อยู่แล้ว = ฟัง bpms:open-record
+  useEffect(() => {
+    const เปิด = (search: string) => {
+      const id = Number(new URLSearchParams(search).get("open"));
+      if (!id) return;
+      window.history.replaceState(null, "", window.location.pathname);
+      setดูรหัส(id);
+    };
+    เปิด(window.location.search);
+    const on = (e: Event) => {
+      const href = String((e as CustomEvent).detail ?? "");
+      if (href.startsWith("/hq/proposals?")) { เปิด(href.slice(href.indexOf("?"))); void โหลด(); }
+    };
+    window.addEventListener("bpms:open-record", on);
+    return () => window.removeEventListener("bpms:open-record", on);
+  }, [โหลด]);
 
   const รายตามรหัส = useMemo(() => new Map(ราย.map(r => [r.id, r])), [ราย]);
 
@@ -384,6 +401,13 @@ export default function HQProposalsPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* ใบที่ตอบรับแล้ว: บันทึกการชำระ + วันครบกำหนดชำระ (ปลายทางของกระดิ่ง "เกินกำหนดชำระ" · ใบ 0231) */}
+                {p.status === "accepted" && (
+                  <div style={การ์ด}>
+                    <ProposalPaymentsBox proposal={p} editable={จัดการได้} onChanged={() => void โหลด()} />
+                  </div>
+                )}
 
                 <div style={การ์ด}>
                   <div style={หัวการ์ด}>เงื่อนไข</div>

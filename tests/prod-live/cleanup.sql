@@ -13,6 +13,16 @@ alter table public.quotations disable trigger trg_price_history_append_only;
 delete from public.email_outbox
  where (ref_table = 'quote_requests' and ref_id in (select id::text from public.quote_requests where dealer_code = 'ZZT'))
     or to_email like 'live-%@example.test';
+-- แจ้งเตือน (ใบ 0231): ของสาขา ZZT หายตามกุญแจนอกตอนลบสาขา · ของ HQ ที่เกิดจากงานของ ZZT (ไม่มีรหัสสาขา) ต้องลบเอง
+--   ใบ 0231 ยังไม่ขึ้นฐานจริง = ไม่มีตาราง → ข้าม (to_regclass)
+do $$ begin
+  if to_regclass('public.notifications') is not null then
+    execute $q$delete from public.notifications
+      where dealer_code = 'ZZT'
+         or (audience = 'hq' and (body like 'ZZT %' or body like '%· ZZT %'
+             or dedupe_key ~ ('^(request_new|request_reprice|customer_accepted):(' || coalesce((select string_agg(id::text, '|') from public.quote_requests where dealer_code = 'ZZT'), '-1') || ')(:|$)')))$q$;
+  end if;
+end $$;
 delete from public.quotations where dealer_code = 'ZZT';
 delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = 'ZZT');
 update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'ZZT';

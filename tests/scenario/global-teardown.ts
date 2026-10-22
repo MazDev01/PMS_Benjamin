@@ -53,6 +53,9 @@ async function sweep(admin: SupabaseClient, เก็บชุดตั้งต
     // อีเมลแจ้ง "ได้ราคาจากสำนักงานใหญ่แล้ว" ของคำขอที่ข้อทดสอบลบไปแล้ว — ไม่หายตามคำขอ (อ้างด้วย ref_id ไม่ใช่กุญแจนอก)
     //   พบ 15 ต.ค. 69 จาก check-test-leftovers: ค้าง 9 แถว
     await del("email_outbox", "body", mark);
+    // แจ้งเตือน (ใบ 0231) ของงานขายทดสอบ — อ้างลีด/คำขอด้วยข้อความและลิงก์ ไม่มีกุญแจนอก จึงไม่หายตาม
+    await del("notifications", "body", mark);
+    await del("notifications", "dealer_code", mark);
     await del("leads", "company", mark);
     await del("leads", "id", mark);
     await del("customers", "company", mark);

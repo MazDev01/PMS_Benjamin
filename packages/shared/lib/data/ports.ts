@@ -9,7 +9,7 @@ import type { HQRecruitSettings } from "../recruitSettings";
 import type {
   DealerRow, DealerFile, ResponsiblePerson,
   HQPolicy, HQTargets, HQNotifRules, LeadRules, DealerLeadRulesMap, LeadTaskDef,
-  AuditEntry, LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope,
+  AuditEntry, AppNotification, LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope,
   DealerSettings, UserProfile, HQCompany, CustomerNote, SystemUser,
 } from "./types";
 
@@ -166,6 +166,8 @@ export interface ProposalsRepo {
   payments(proposalId: number): Promise<DealerProposalPayment[]>;
   addPayment(input: DealerProposalPaymentInput): Promise<DealerProposalPayment>;
   cancelPayment(id: number, reason: string): Promise<DealerProposalPayment>;
+  /** วันครบกำหนดชำระของใบที่ตอบรับ (ใบ 0231) — null = ล้าง (ไม่แจ้งเตือนเกินกำหนด) · แก้เฉพาะช่องนี้ */
+  setPaymentDue(id: number, date: string | null): Promise<DealerPackageProposal>;
   /** พร้อมแปลงเป็นดีลเลอร์ไหม — null = พร้อม · ข้อความ = ยังไม่พร้อมเพราะอะไร (ฐานข้อมูลตอบ) */
   conversionReady(prospectId: number): Promise<string | null>;
 }
@@ -279,6 +281,12 @@ export interface AccountRepo {
   sendRevealCode(dealerCode: string): Promise<{ sentTo: string }>;
   /** ส่งเลขที่ได้จากอีเมลกลับมา — ถูกต้องจึงคืนรหัสผ่านปัจจุบัน */
   reveal(dealerCode: string, code: string): Promise<{ password: string }>;
+}
+
+/** แจ้งเตือนของผู้ใช้ที่ล็อกอิน (ใบ 0231) — ฐานกรองผู้รับเอง (ดีลเลอร์ = สาขาตัวเอง · HQ = ของ HQ) · อ่านอย่างเดียว */
+export interface NotificationsRepo {
+  /** ล่าสุดก่อน สูงสุด `limit` เรื่อง */
+  list(limit?: number): Promise<AppNotification[]>;
 }
 
 export interface AuditRepo {
@@ -665,6 +673,7 @@ export interface DataAdapter {
   notes: NotesRepo;
   users: UsersRepo;
   audit: AuditRepo;
+  notifications: NotificationsRepo;
   account: AccountRepo;
   metrics: MetricsRepo;
   leads: LeadsRepo;

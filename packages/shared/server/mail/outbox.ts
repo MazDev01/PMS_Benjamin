@@ -75,7 +75,8 @@ export function คลังบนฐาน(admin: SupabaseClient, เฉพา�
   return {
     async สแกนเกินกำหนด() {
       if (เฉพาะ != null) return 0;
-      const { data, error } = await admin.rpc("quote_requests_overdue_scan");
+      // งานตั้งเวลาของแจ้งเตือน (ใบ 0231 · ใกล้หมดอายุ · นัดวันนี้ · สรุปคำขอค้าง · เกินกำหนดชำระ) — รันซ้ำได้ แจ้งเรื่องละครั้ง
+      const { data, error } = await admin.rpc("notifications_scan");
       if (error) throw new Error(error.message);
       return Number(data ?? 0);
     },

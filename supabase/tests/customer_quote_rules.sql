@@ -124,7 +124,7 @@ begin
                   and (select r.status from quote_requests r join hq_quotes h on h.request_id = r.id where h.id = h1) = 'won',
     'ขั้น 10–11: won → ลูกค้าเป้าหมาย PAID · ใบ HQ สั่งผลิต · คำขอปิด won');
   select count(*) into n from email_outbox o join hq_quotes h on o.ref_id = h.request_id::text
-   where h.id = h1 and o.kind = 'quote_request_won' and o.to_email = 'zz-hq-gate3@example.test';
+   where h.id = h1 and o.kind = 'customer_accepted' and o.to_email = 'zz-hq-gate3@example.test';
   perform flowtest.ok(n = 1, 'แถว won: อีเมลถึงผู้รับของ HQ 1 ฉบับ (ได้ ' || n || ')');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.must_fail(format($q$update quotations set markup_percent = 80 where id = %L and dealer_code = 'CNX'$q$, q.id), 'quote_locked', 'ขั้น 11: สั่งผลิตแล้วแก้ % ไม่ได้');
@@ -143,7 +143,7 @@ begin
                   and (select lost_reason from leads where dealer_code = 'CNX' and num_id = c.lead_ids[2]) = 'ราคาสูงกว่าคู่แข่ง'
                   and (select r.status from quote_requests r join hq_quotes h on h.request_id = r.id where h.id = h2) = 'lost',
     'ลูกค้าปฏิเสธ → ลูกค้าเป้าหมาย CANCELLED + เหตุผล · คำขอปิด lost');
-  select count(*) into n from email_outbox o join hq_quotes h on o.ref_id = h.request_id::text where h.id = h2 and o.kind like 'quote_request_%' and o.kind <> 'quote_request_new';
+  select count(*) into n from email_outbox o join hq_quotes h on o.ref_id = h.request_id::text where h.id = h2 and o.kind not in ('request_new', 'hq_quote_sent');
   perform flowtest.ok(n = 0, 'ลูกค้าปฏิเสธ: ไม่มีอีเมล (ตามตารางสถานะ)');
 
   -- ══ ใบ HQ หมดอายุ → ใบลูกค้าที่ผูกอยู่หมดตาม (ทั้งร่างและที่ส่งให้ลูกค้าแล้ว) ══

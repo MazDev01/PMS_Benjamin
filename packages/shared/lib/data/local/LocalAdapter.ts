@@ -452,6 +452,14 @@ export const LocalAdapter: DataAdapter = {
       writeKey(PAYMENTS_KEY, [...all, row]);
       return ok(row);
     },
+    setPaymentDue: (id, date) => {
+      const all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);
+      const เดิม = all.find(x => x.id === id);
+      if (!เดิม) return Promise.reject(new Error("ไม่พบใบค่าแฟรนไชส์นี้แล้ว"));
+      const row = { ...เดิม, paymentDueOn: date, updatedAt: new Date().toISOString() };
+      writeKey(PROPOSALS_KEY, all.map(x => x.id === id ? row : x));
+      return ok(row);
+    },
     cancelPayment: (id, reason) => {
       const all = readKey<DealerProposalPayment[]>(PAYMENTS_KEY, []);
       const เดิม = all.find(x => x.id === id);
@@ -530,6 +538,8 @@ export const LocalAdapter: DataAdapter = {
   },
   // บัญชีเข้าระบบของดีลเลอร์ (แก้เอง 2 ครั้ง · ครั้งที่ 3 ขอ HQ อนุมัติ) — จำลองครบในเครื่อง
   account: accountLocal,
+  // แจ้งเตือนเกิดจากเหตุการณ์ในฐานข้อมูลเท่านั้น (ใบ 0231) — โหมดตัวอย่างไม่มีฐาน จึงไม่มีแจ้งเตือน (ไม่ประกอบเองในหน้าเว็บ)
+  notifications: { list: () => ok([]) },
   audit: {
     // local: loadAudit เพดาน MAX=300 อยู่แล้ว · เคารพ limit เพื่อพฤติกรรมตรงกับ supabase (M8)
     list: (limit) => ok(limit ? loadAudit().slice(0, limit) : loadAudit()),

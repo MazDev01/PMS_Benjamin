@@ -92,7 +92,7 @@ test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอ
   expect(await สถานะลูกค้าเป้าหมาย(), "ลูกค้าเป้าหมาย → รอราคา HQ").toBe("HQ_PRICING");
   const { id: ridใหม่ } = await คำขอล่าสุด();
   expect((await admin.from("quote_requests").select("product").eq("id", ridใหม่).single()).data?.product, "งานที่พิมพ์ต้องลงฐาน").toBe("โกดังเก็บสินค้า");
-  expect(await อีเมล("quote_request_new"), "อีเมลคำขอใหม่ถึง HQ").toBe(1);
+  expect(await อีเมล("request_new"), "อีเมลคำขอใหม่ถึง HQ (ตารางกลาง H1 · ใบ 0231)").toBe(1);
   // ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ (เมนูขั้นบอกเหตุผล)
   await expect(page.locator("text=รอราคา HQ >> visible=true").first(), "หน้าจอแสดงขั้น รอราคา HQ ทันที (ไม่ต้องรีเฟรช)").toBeVisible({ timeout: 15_000 });
   assertNoErrors(errs, "ส่งคำขอราคา");
@@ -137,7 +137,7 @@ test("[flow·dealer] ยกเลิกคำขอ ต้องมีเหต�
   await แผง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();
   await expect.poll(async () => (await คำขอล่าสุด()).status, { timeout: 20_000 }).toBe("cancelled");
   expect(await สถานะลูกค้าเป้าหมาย(), "ยกเลิกแล้วกลับรวบรวมความต้องการ").toBe("BULLET");
-  expect(await อีเมล("quote_request_cancelled"), "อีเมลยกเลิกถึง HQ").toBe(1);
+  expect(await อีเมล("request_cancelled"), "อีเมลยกเลิกถึง HQ (ตารางกลาง H6 · คืนตาม FLOW D3x · ใบ 0236)").toBe(1);
   await expect(แผง.getByRole("button", { name: "ขอราคาจาก HQ" }), "ยกเลิกแล้วขอราคาใหม่ได้").toBeVisible({ timeout: 20_000 });
   assertNoErrors(errs, "ยกเลิกคำขอ");
 });
@@ -162,7 +162,7 @@ test("[flow·dealer] ขอแก้ราคาหลัง HQ ส่งใบ 
   await expect.poll(async () => (await คำขอล่าสุด()).supersedes_id, { timeout: 20_000 }).toBe(rid);
   expect((await คำขอล่าสุด()).status, "คำขอใหม่เริ่มที่ ใหม่").toBe("new");
   expect(await สถานะลูกค้าเป้าหมาย(), "ขอแก้ราคา → รอราคา HQ").toBe("HQ_PRICING");
-  expect(await อีเมล("quote_request_reprice"), "อีเมลขอแก้ราคาถึง HQ").toBe(1);
+  expect(await อีเมล("request_reprice"), "อีเมลขอแก้ราคาถึง HQ (ตารางกลาง H2)").toBe(1);
   await expect(แผง.getByText("ใหม่", { exact: true })).toBeVisible({ timeout: 20_000 });
   assertNoErrors(errs, "ขอแก้ราคา");
 });

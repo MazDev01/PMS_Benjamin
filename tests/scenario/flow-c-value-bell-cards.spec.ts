@@ -148,7 +148,7 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
   await expect.poll(() => นับยังไม่อ่าน(page), { timeout: 20_000, message: "เรื่องวันนี้ต้องนับ" }).toBeGreaterThan(0);
   // ⚠️ ห้ามเทียบตัวเลขรวมก่อน/หลังกด — ในรอบเต็ม ข้อทดสอบอื่นสร้างเรื่องใหม่ให้ RYG ตลอด (ไม่นิ่ง 20 ต.ค. 69: คาด 5 ได้ 6)
   //   ตรวจที่ "เรื่องนี้เรื่องเดียว": จุดแดงก่อนกด → หายหลังกด → ยังหายหลังรีเฟรช
-  const ดูทั้งหมด = page.getByRole("button", { name: /ดูการแจ้งเตือนทั้งหมด|ดูทั้งหมด/ });
+  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
   const เรื่องนี้ = () => page.getByRole("button").filter({ hasText: "HQ ส่งราคาแล้ว" }).filter({ hasText: มีใบ }).first();
   const เปิดดูเรื่องนี้ = async () => {
     await เปิดกระดิ่ง(page);
@@ -173,7 +173,9 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
   await expect(เรื่องนี้().locator("[data-unread-dot]"), "อ่านแล้วค้างหลังรีเฟรช").toHaveCount(0);
 });
 
-test("[ค·7] HQ: คำขอราคาใหม่ · ขอแก้ราคา · ลูกค้าปฏิเสธ เข้ากระดิ่ง HQ · กดแล้วไปกล่องคำขอพร้อมค้นเลขคำขอ", async ({ page }) => {
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69 · ใบ 0231): กระดิ่งอ่านจากตารางกลาง · ชื่อเรื่องตามตาราง · กดแล้วเปิดใบของคำขอนั้นตรง ๆ
+//   ลูกค้าปฏิเสธ "ไม่" เข้ากระดิ่ง HQ แล้ว (เปลี่ยนจาก 20 ต.ค. — HQ ไม่ต้องทำอะไรต่อ)
+test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอแก้ราคา เข้ากระดิ่ง · ลูกค้าปฏิเสธไม่เข้า · กดแล้วเปิดใบของคำขอนั้น", async ({ page }) => {
   const sb = await db(RYG);
   เลขขอราคา = เลขลูกค้าเป้าหมายทดสอบ();
   const l = await sb.from("leads").insert({ id: `#L-${เลขขอราคา}`, num_id: เลขขอราคา, dealer_code: "RYG", company: ขอราคา, name: ขอราคา,
@@ -187,12 +189,13 @@ test("[ค·7] HQ: คำขอราคาใหม่ · ขอแก้รา
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await เปิดกระดิ่ง(page);
-  const ใหม่ = page.getByRole("button").filter({ hasText: "ดีลเลอร์ส่งคำขอราคาใหม่" }).filter({ hasText: คำขอแรก.request_no }).first();
+  const ใหม่ = page.locator('[data-notif-kind="request_new"]').filter({ hasText: "คำขอราคาใหม่" }).filter({ hasText: คำขอแรก.request_no }).first();
   await expect(ใหม่, "HQ ได้เรื่องคำขอราคาใหม่").toBeVisible({ timeout: 20_000 });
   await expect(ใหม่.locator("[data-unread-dot]"), "จุดแดงขึ้นจริง").toHaveCount(1);
   await ใหม่.click();
   await expect(page).toHaveURL(/\/hq\/quote-requests/, { timeout: 15_000 });
-  await expect(page.getByLabel("ค้นหาคำขอ"), "กล่องคำขอค้นเลขคำขอให้").toHaveValue(คำขอแรก.request_no, { timeout: 15_000 });
+  await expect(page.locator('[aria-current="true"]').first(), "กดแล้วเปิดคำขอนั้นตรง ๆ (ไม่ใช่แค่ไปหน้ารายการ)")
+    .toHaveAttribute("aria-label", new RegExp(`^${คำขอแรก.request_no} `), { timeout: 20_000 });
 
   // HQ ส่งราคา → ดีลเลอร์ขอแก้ราคา → HQ ส่งอีก → ดีลเลอร์ทำใบ ส่งลูกค้า → ลูกค้าปฏิเสธ
   const hq = await db(ADMIN);
@@ -215,11 +218,13 @@ test("[ค·7] HQ: คำขอราคาใหม่ · ขอแก้รา
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await เปิดกระดิ่ง(page);
-  await expect(page.getByRole("button").filter({ hasText: "ดีลเลอร์ขอแก้ราคา" }).filter({ hasText: คำขอสอง.request_no }).first(),
+  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
+  if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+  await expect(page.locator('[data-notif-kind="request_reprice"]').filter({ hasText: คำขอสอง.request_no }).first(),
     "HQ ได้เรื่องขอแก้ราคา (แยกจากคำขอใหม่)").toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("button").filter({ hasText: "ดีลเลอร์ส่งคำขอราคาใหม่" }).filter({ hasText: คำขอสอง.request_no }), "ขอแก้ราคาไม่ซ้ำเป็นคำขอใหม่").toHaveCount(0);
-  await expect(page.getByRole("button").filter({ hasText: "ลูกค้าปฏิเสธใบเสนอราคา" }).filter({ hasText: คำขอสอง.request_no }).first(),
-    "HQ ได้เรื่องลูกค้าปฏิเสธ").toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-notif-kind="request_new"]').filter({ hasText: คำขอสอง.request_no }), "ขอแก้ราคาไม่ซ้ำเป็นคำขอใหม่").toHaveCount(0);
+  await expect(page.locator("[data-notif-kind]").filter({ hasText: /ปฏิเสธ/ }).filter({ hasText: ขอราคา }),
+    "ลูกค้าปฏิเสธไม่เข้ากระดิ่ง HQ (รอบ 4)").toHaveCount(0);
 });
 
 test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใช่ 0% · ไม่มีป้ายล้าหลังเป้า (รายละเอียด · ทะเบียน · ภาพรวมยอดขาย · อัตราตอบรับ · อัตราปิดดีล · แดชบอร์ดดีลเลอร์)", async ({ page }) => {

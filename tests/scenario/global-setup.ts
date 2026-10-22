@@ -137,29 +137,8 @@ export default async function globalSetup() {
     .in("dealer_code", ["RYG", "CNX"]).eq("role", "DEALER_ADMIN").neq("contact_email", "").is("contact_email_verified_at", null);
   await ขยับตัวนับให้พ้นข้อมูลที่มี(admin);
 
-  // ── hq_notif_rules.alerts เดิมเป็น {} (ยังไม่มีใครเปิดกฎแจ้งเตือนเลย) → การ์ด "ต้องดูด่วน"
-  // ไม่มีทางโผล่ได้เลยไม่ว่าจะ seed ข้อมูลลูกค้าเป้าหมาย/ใบเสนอราคาแบบไหน (ui/ux/hq-quotations spec ต้องการให้โผล่)
-  // snapshot ค่าเดิมไว้ก่อน แล้วเปิดครบทุกกฎชั่วคราว — คืนค่าเดิมที่ global-teardown.ts เสมอ
-  // (กฎ = งานของสำนักงานใหญ่เอง ตั้งแต่ 14 ก.ย. 69 · คีย์งานขายดีลเลอร์ชุดเก่าไม่มีผลแล้ว)
-  const before = await admin.from("hq_notif_rules").select("alerts").eq("id", 1).single();
-  // node_modules/.cache ยังไม่มีบนเครื่องที่เพิ่งติดตั้งใหม่ (ตัวอื่นเป็นคนสร้างให้โดยบังเอิญ)
-  //   ไม่สร้างเองก่อน = ชุดทดสอบล้มตั้งแต่ setup ด้วย ENOENT ทั้งชุด (เจอจริง 7 ก.ย. 69 หลังลง dependency ใหม่)
-  mkdirSync(path.dirname(ALERTS_SNAPSHOT_PATH), { recursive: true });
-  writeFileSync(ALERTS_SNAPSHOT_PATH, JSON.stringify(before.data?.alerts ?? {}));
-  const allOn = { on: true, inapp: true };
-  await admin.from("hq_notif_rules").update({
-    alerts: {
-      prospectFollowUpDue: allOn, prospectIdle: allOn, proposalAwaiting: allOn,
-      proposalExpired: allOn,
-    },
-  }).eq("id", 1);
-
-  // ลูกค้าเป้าหมาย (HQ) ที่เลยวันนัดติดตาม 3 วัน → กระดิ่ง HQ มีเรื่อง "ต้องดูด่วน" ให้ ux.spec ตรวจได้เสมอ
-  const { error: prospectErr } = await admin.from("dealer_prospects").insert({
-    name: tag("ผู้สนใจถึงกำหนดติดตาม"), province: "ระยอง", region: "ตะวันออก", status: "new",
-    first_contact: isoDate(10), follow_up: isoDate(3), assigned: "ทดสอบระบบ",
-  });
-  if (prospectErr) throw new Error(`[global-setup] insert dealer_prospects ล้มเหลว: ${prospectErr.message}`);
+  // (เดิม: เปิดกฎแจ้งเตือนงาน HQ ทุกข้อชั่วคราว + ใส่ผู้สนใจที่เลยวันนัด ให้กระดิ่ง HQ มีกลุ่ม "ต้องดูด่วน"
+  //  รอบ 4 · ใบ 0231 กฎชุดนั้นออกจากกระดิ่งแล้ว ไม่ต้องเตรียม · restoreAlertsIfPending ยังคืนค่าที่ค้างจากรอบเก่าได้)
 
   const leadRows = LEADS.map(l => ({
     id: ID_BASE + l.idOffset,

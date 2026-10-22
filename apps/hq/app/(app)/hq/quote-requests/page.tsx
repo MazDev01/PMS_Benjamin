@@ -39,13 +39,34 @@ export default function HQQuoteRequestsPage() {
   const ตั้งแก้ค้าง = useCallback((v: boolean) => { แก้ค้าง.current = v; }, []);
   const ตั้งกำลังบันทึก = useCallback((v: boolean) => { ล็อก.current = v; setกำลังบันทึก(v); }, []);
 
-  // มาจากกระดิ่ง (?q=เลขคำขอ · บอสตัดสิน 19 ต.ค. 69 ข้อ 7) — เติมช่องค้นหาให้ แล้วล้างออกจาก URL
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (!q) return;
-    setพิมพ์(q);
+  // มาจากกระดิ่ง (ใบ 0231): ?open=เลขคำขอ = เปิดใบของคำขอนั้นตรง ๆ (หากลุ่มที่คำขออยู่ให้เอง)
+  //   ?overdue=1 (สรุปคำขอค้างเกิน 14 วัน) = กลุ่ม "ต้องตีราคา" ซึ่งเรียงคำขอเกินกำหนดไว้บนสุด
+  //   ?q=คำค้น (ลิงก์รุ่นก่อน) = เติมช่องค้นหา · อยู่หน้านี้อยู่แล้วกดกระดิ่งอีก = ฟัง bpms:open-record
+  const เปิดจากลิงก์ = useCallback(async (search: string) => {
+    const u = new URLSearchParams(search);
+    const q = u.get("q"), open = Number(u.get("open")), overdue = u.get("overdue");
+    if (!q && !open && !overdue) return;
     window.history.replaceState(null, "", window.location.pathname);
-  }, []);
+    if (q) { setพิมพ์(q); return; }
+    if (!(await ออกจากใบได้())) return;
+    แก้ค้าง.current = false;
+    setพิมพ์("");
+    if (overdue) { setเลือก(null); setกลุ่ม("todo"); return; }
+    for (const g of quoteBoardGroups) {
+      const b = await repo.board(g.key, "").catch(e => { logRepoRead("quoteRequests.board", e); return null; });
+      const r = b?.rows.find(x => x.id === open);
+      if (r) { setเลือก(r); setกลุ่ม(g.key); return; }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void เปิดจากลิงก์(window.location.search); }, [เปิดจากลิงก์]);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const href = String((e as CustomEvent).detail ?? "");
+      if (href.startsWith("/hq/quote-requests?")) void เปิดจากลิงก์(href.slice(href.indexOf("?")));
+    };
+    window.addEventListener("bpms:open-record", on);
+    return () => window.removeEventListener("bpms:open-record", on);
+  }, [เปิดจากลิงก์]);
   // คำค้นส่งไปฐานหลังหยุดพิมพ์ (ฐานกรองทั้งจำนวนและรายการด้วยคำเดียวกัน)
   useEffect(() => { const t = setTimeout(() => setค้นหา(พิมพ์.trim()), 250); return () => clearTimeout(t); }, [พิมพ์]);
   useEffect(() => setPage(0), [ค้นหา, กลุ่ม]);

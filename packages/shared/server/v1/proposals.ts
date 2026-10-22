@@ -75,6 +75,16 @@ export const proposalsPOST = handler("proposals.create", async (req: NextRequest
     if (error) return dbFail("proposals.cancelPayment", error);
     return ok({ ...toCamel<Row>(data as Row), amount: Number((data as Row).amount) });
   }
+  if (op === "payment-due") {
+    // วันครบกำหนดชำระ (ใบ 0231) — แก้ช่องเดียว · ว่าง = ล้าง
+    const b = (await req.json().catch(() => null)) as { id?: unknown; date?: unknown } | null;
+    const id = Number(b?.id), date = b?.date == null || b.date === "" ? null : String(b.date);
+    if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุใบค่าแฟรนไชส์");
+    if (date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail(400, "วันครบกำหนดชำระไม่ถูกต้อง");
+    const { data, error } = await sb.from("dealer_package_proposals").update({ payment_due_on: date }).eq("id", id).select().single();
+    if (error) return dbFail("proposals.setPaymentDue", error);
+    return ok(toCamel<Row>(data as Row));
+  }
   if (op === "new-version") {
     const b = (await req.json().catch(() => null)) as { id?: number } | null;
     const id = Number(b?.id);

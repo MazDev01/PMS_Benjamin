@@ -85,14 +85,7 @@ export function useDealerVat(): number {
   return typeof v === "number" && v >= 0 ? v : DEFAULT_DOC.vatPercent;
 }
 
-/** เตือน "ใบเสนอราคาใกล้หมดอายุ" เมื่อเหลือไม่เกินกี่วัน — สาขาตั้งเองที่ ตั้งค่า › ใบเสนอราคา (บอสสั่ง 21 ก.ย. 69)
- *  เก็บใน document (jsonb) ข้างอายุใบ · ไม่ได้ตั้ง/ค่าเพี้ยน = 7 วัน */
-export const DEFAULT_QUOTE_EXPIRY_WARN_DAYS = 7;
-export function useQuoteExpiryWarnDays(): number {
-  const { settings } = useDealerSettings();
-  const v = Number((settings.document as { expiryWarnDays?: unknown } | undefined)?.expiryWarnDays);
-  return Number.isFinite(v) && v >= 1 ? Math.round(v) : DEFAULT_QUOTE_EXPIRY_WARN_DAYS;
-}
+// จำนวนวันเตือนใบใกล้หมดอายุของสาขา (document.expiryWarnDays) เอาออก 21 ต.ค. 69 — กระดิ่งเตือนเหลือ 3 วันตายตัวที่ฐาน (ใบ 0231)
 
 /** อัตราภาษีหัก ณ ที่จ่ายตั้งต้นของสาขา (%) — ตั้งที่ ตั้งค่า › ใบเสนอราคา (บอสสั่ง 28 ส.ค. 69)
  *  ใช้เป็น "ค่าเริ่มต้น" ตอนเปิดฟอร์มออกใบเท่านั้น — ตอนออกใบยังติ๊กเปิด/ปิดและแก้อัตราได้

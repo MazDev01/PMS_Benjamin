@@ -173,51 +173,47 @@ test("[ux·hq] Dealer Detail อ่านอย่างเดียว + แท
   await expect(page.getByText("กิจกรรมล่าสุด")).toBeVisible();
 });
 
-// หัวข้อแจ้งเตือน HQ ต้องเป็นเรื่องที่ HQ คุม (กฎแจ้งเตือน + บันทึกการใช้งาน) ไม่ใช่งานขายของดีลเลอร์
-test("[ux·hq] หัวข้อแจ้งเตือน HQ ใช้ event ของ HQ ไม่ใช่งานขายดีลเลอร์", async ({ page }) => {
+// รอบ 4 (บอสสั่ง 21 ต.ค. 69 · ใบ 0231): แจ้งเตือนมาจากตารางกลางที่ฐาน กระดิ่ง/อีเมลตายตัวตามเรื่อง
+//   หน้าตั้งค่า HQ › การแจ้งเตือน เหลือรายชื่อผู้รับอีเมลอย่างเดียว — สวิตช์รายหมวด/กฎแจ้งเตือนงาน HQ/หมวดบันทึกการใช้งาน เอาออก
+const ชนิดของHQ = ["request_new", "request_reprice", "requests_overdue", "customer_accepted", "franchise_payment_overdue",
+  "request_cancelled", "prospect_followup_due", "prospect_idle", "proposal_awaiting", "proposal_expired"];
+const ชนิดของดีลเลอร์ = ["hq_quote_sent", "hq_quote_expiring", "hq_quote_expired", "quote_expiring", "appointment_due", "lead_from_hq", "won_reverted"];
+
+test("[ux·hq] ตั้งค่า › การแจ้งเตือน เหลือรายชื่อผู้รับอีเมล ไม่มีสวิตช์รายหมวด", async ({ page }) => {
   await open(page, "hq", "/hq/settings");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /การแจ้งเตือน/ }).click();
-  // เรื่องที่ HQ อยากเห็นจากบันทึกการใช้งาน
-  await expect(page.getByText("จัดการดีลเลอร์")).toBeVisible();
-  // หัวข้อ "ราคากลาง" ถูกลบไปพร้อมแม่แบบ (16 ต.ค. 69) · "ส่วนลด" ถูกลบทั้งฟีเจอร์แล้ว
-  await expect(page.getByText("ราคากลาง", { exact: true }), "หัวข้อราคากลางลบไปพร้อมแม่แบบ").toHaveCount(0);
-  await expect(page.getByText(/แม่แบบและแคตตาล็อก/), "หัวข้อแม่แบบและแคตตาล็อกลบแล้ว").toHaveCount(0);
-  await expect(page.getByText(/ส่วนลด/), "ส่วนลดถูกลบทั้งฟีเจอร์แล้ว").toHaveCount(0);
-  // ต้องไม่มี event งานขายของดีลเลอร์หลงมา
-  await expect(page.getByText("มีลูกค้าเป้าหมายเข้ามาใหม่")).toHaveCount(0);
-  await expect(page.getByText("ดีลเลอร์ออกใบเสนอราคา")).toHaveCount(0);
-});
-
-// การแจ้งเตือนแยกตาม role: HQ = งานของสำนักงานใหญ่เอง + บันทึกการใช้งาน (บอสสั่ง 14 ก.ย. 69)
-// (บันทึกการใช้งานมีหน้าของตัวเองที่ /hq/audit แล้ว — เหตุการณ์ audit จะโผล่ที่กระดิ่งด้วยเมื่อมีคนแก้จริง
-//  จึงไม่ยึดข้อความ audit เป็นหมุด) · global-setup ใส่ลูกค้าเป้าหมาย (HQ) ที่เลยวันนัดติดตามไว้ 1 ราย
-test("[ux·hq] กระดิ่งแจ้งเตือนฝั่ง HQ เป็นงานของสำนักงานใหญ่ ไม่ใช่งานขายของดีลเลอร์", async ({ page }) => {
-  await open(page, "hq", "/hq/dashboard");
-  await page.getByRole("button", { name: "การแจ้งเตือน" }).click();
-  await expect(page.getByText("การแจ้งเตือน", { exact: true })).toBeVisible();
-  // HQ ต้องไม่เห็น "งานที่ดีลเลอร์ต้องทำ" (นั่นเป็นกระดิ่งของฝั่งดีลเลอร์)
-  await expect(page.getByText("ลูกค้าเป้าหมายรอดำเนินการ")).toHaveCount(0);
-  // เรื่องที่ขึ้นต้องมาจากกฎแจ้งเตือนงานของ HQ — จัดกลุ่มใต้หัวข้อ "ต้องดูด่วน"
-  await expect(page.getByText("ต้องดูด่วน").first()).toBeVisible();
-  // "ต้องดูด่วน" แสดงทีละรายการ (บอสสั่ง 22 ก.ย. 69 "แจ้งเตือนทีละอันแบบเข้าใจง่าย" · commit 1f55c94)
-  //   แต่ละแถว = ป้ายเรื่องสั้น → ชื่อรายที่ต้องจัดการ → เกิดอะไรขึ้น · เดิมข้อนี้ตรวจหัวข้อกลุ่มยาวซึ่งไม่มีแล้ว
-  const แผง = page.locator("div").filter({ hasText: "ต้องดูด่วน" }).last();
-  await expect(page.getByText("ถึงกำหนดติดตาม", { exact: true }).first(), "ต้องมีป้ายเรื่องสั้นของรายที่ถึงกำหนดติดตาม").toBeVisible();
-  await expect(page.getByText(/เลยนัดมา \d+ วัน|นัดไว้วันนี้/).first(), "แต่ละรายการต้องบอกว่าเกิดอะไรขึ้น (เลยนัดมากี่วัน)").toBeVisible();
-  await expect(page.getByText("ลูกค้าเป้าหมาย (HQ) ถึงกำหนดติดตาม"), "หัวข้อกลุ่มแบบยาวต้องไม่มีแล้ว — แสดงทีละรายการ").toHaveCount(0);
-  await expect(แผง).toBeVisible();
-  // เรื่องงานขายของดีลเลอร์ชุดเดิมต้องไม่มีแล้ว
-  for (const เดิม of ["ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบ", "ดีลเลอร์ไม่มีความเคลื่อนไหว", "ใบเสนอราคาใกล้หมดอายุ", "อัตราปิดการขายไม่สำเร็จสูง"]) {
-    await expect(page.getByText(เดิม), `ห้ามมี “${เดิม}” ในกระดิ่ง HQ`).toHaveCount(0);
+  await expect(page.getByLabel("อีเมลผู้รับแจ้งเตือน")).toBeVisible();
+  await expect(page.getByRole("switch"), "ไม่มีสวิตช์เปิด/ปิดรายหมวด").toHaveCount(0);
+  for (const เดิม of ["การแจ้งเตือนของสำนักงานใหญ่", "บันทึกการใช้งานที่อยากรู้", "จัดการดีลเลอร์", "ถึงกำหนดติดตาม"]) {
+    await expect(page.getByText(เดิม, { exact: true }), `หัวข้อเดิม “${เดิม}” ต้องไม่มีแล้ว`).toHaveCount(0);
   }
 });
 
-// การแจ้งเตือนแยกตาม role: Dealer = งานขาย (ลูกค้าเป้าหมายรอดำเนินการ) ไม่ใช่ audit
-test("[ux·dealer] กระดิ่งแจ้งเตือนฝั่งดีลเลอร์เป็นงานขาย", async ({ page }) => {
+// กระดิ่ง HQ = เฉพาะเรื่องในตารางกลางฝั่ง HQ · ไม่มีกลุ่ม "ต้องดูด่วน" (กฎแจ้งเตือนงาน HQ เดิม) และไม่มีฟีดบันทึกการใช้งาน
+test("[ux·hq] กระดิ่ง HQ มีแต่เรื่องในตารางกลางของ HQ", async ({ page }) => {
+  await open(page, "hq", "/hq/dashboard");
+  await page.getByRole("button", { name: "การแจ้งเตือน" }).click();
+  await expect(page.getByText("การแจ้งเตือน", { exact: true })).toBeVisible();
+  await expect(page.getByText("ต้องดูด่วน"), "กฎแจ้งเตือนงาน HQ เดิมออกจากกระดิ่งแล้ว").toHaveCount(0);
+  await expect(page.getByText("ดูบันทึกการใช้งานทั้งหมด"), "ไม่มีฟีดบันทึกการใช้งานในกระดิ่ง").toHaveCount(0);
+  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
+  if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+  for (const k of await page.locator("[data-notif-kind]").evaluateAll(es => es.map(e => e.getAttribute("data-notif-kind")))) {
+    expect(ชนิดของHQ, `เรื่อง ${k} ไม่อยู่ในตารางกลางฝั่ง HQ`).toContain(k);
+  }
+});
+
+// กระดิ่งดีลเลอร์ = เฉพาะเรื่องในตารางกลางฝั่งดีลเลอร์ (ไม่ใช่บันทึกการใช้งาน · ไม่มีเรื่องที่ดีลเลอร์ทำเอง)
+test("[ux·dealer] กระดิ่งดีลเลอร์มีแต่เรื่องในตารางกลางของดีลเลอร์", async ({ page }) => {
   await open(page, "dealer", "/dashboard");
   await page.getByRole("button", { name: "การแจ้งเตือน" }).first().click();
   await expect(page.getByText("การแจ้งเตือน", { exact: true })).toBeVisible();
   await expect(page.getByText("ดูบันทึกการใช้งานทั้งหมด")).toHaveCount(0); // ต้องไม่ใช่ audit
+  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
+  if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+  for (const k of await page.locator("[data-notif-kind]").evaluateAll(es => es.map(e => e.getAttribute("data-notif-kind")))) {
+    expect(ชนิดของดีลเลอร์, `เรื่อง ${k} ไม่อยู่ในตารางกลางฝั่งดีลเลอร์`).toContain(k);
+  }
 });
 
 // สถานะว่างชัดเจน: ลูกค้าทั้งเครือ ค้นหาที่ไม่เจอ

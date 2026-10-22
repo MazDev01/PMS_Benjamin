@@ -7,10 +7,10 @@ import { ยืนยัน, แจ้งพลาด } from "@pms/shared/compon
 import { useState, useRef, useEffect, createContext, useContext, useCallback, useMemo } from "react";
 import {
   Building2, Plus, Pencil, Trash2, X, Check, Save, RotateCcw,
-  Upload, UserCheck, FileText, ShieldCheck, Lock, ImagePlus, Bell,
+  Upload, UserCheck, FileText, ShieldCheck, Lock, ImagePlus,
   Camera, Scale,
 } from "lucide-react";
-import { NOTIF_META, NOTIF_PREFS_EVENT, DEFAULT_NOTIF_PREFS, defaultProfileEmail, PROFILE_UPDATED_EVENT, leadRulesOf, DEFAULT_LEAD_RULES, QUOTE_PREFIX, quoteNoPrefix, type UserProfile, type NotifPrefs, type ResponsiblePerson, type LeadRules } from "@pms/shared/lib/mock";
+import { defaultProfileEmail, PROFILE_UPDATED_EVENT, leadRulesOf, DEFAULT_LEAD_RULES, QUOTE_PREFIX, quoteNoPrefix, type UserProfile, type ResponsiblePerson, type LeadRules } from "@pms/shared/lib/mock";
 import { formatPhone, formatTaxId } from "@pms/shared/lib/format";
 import { useHQPolicy } from "@pms/shared/lib/useHQConfig";
 import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
@@ -33,7 +33,7 @@ const ROLE_LABEL: Record<string, string> = {
   HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม",
 };
 
-type SettingTab = "company" | "documents" | "persons" | "notifications";
+type SettingTab = "company" | "documents" | "persons" | "leadRules";
 
 // ── shared save bus — แท็บที่มีฟอร์มรายงาน {dirty,save,reset} ให้ปุ่มบันทึกกลางบนหัว
 // (แนวเดียวกับหน้าตั้งค่า HQ · แท็บที่บันทึกทันที เช่น ผู้รับผิดชอบ ไม่ต้องรายงาน)
@@ -49,7 +49,8 @@ const TABS: { key: SettingTab; label: string; icon: React.ReactNode }[] = [
   { key: "company",   label: "บัญชีดีลเลอร์",     icon: <Building2 size={15} /> },
   { key: "documents", label: "ตั้งค่าใบเสนอราคา", icon: <FileText  size={15} /> },
   { key: "persons",   label: "ผู้รับผิดชอบ",       icon: <UserCheck size={15} /> },
-  { key: "notifications", label: "การแจ้งเตือน",   icon: <Bell size={15} /> },
+  // แท็บ "การแจ้งเตือน" (สวิตช์รายหมวด) เอาออก 21 ต.ค. 69 — แจ้งเตือนมาจากตารางกลางตายตัว (ใบ 0231) · เหลือกฎดูแลลูกค้าเป้าหมาย
+  { key: "leadRules", label: "กฎดูแลลูกค้าเป้าหมาย", icon: <Scale size={15} /> },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,7 +233,6 @@ type DocumentSettings = {
    *  ดีลเลอร์ยังเปิด/ปิดและแก้อัตรารายใบได้เสมอ (บอสสั่ง 28 ส.ค. 69) */
   whtPercent: number;
   validityDays: number;    // อายุใบเสนอราคา (วัน) → วันหมดอายุเริ่มต้น
-  expiryWarnDays: number;  // เตือน "ใกล้หมดอายุ" ในกระดิ่ง เมื่อเหลือไม่เกินกี่วัน (บอสสั่ง 21 ก.ย. 69)
   termsAndConditions: string;
   header: string;
   footer: string;
@@ -246,7 +246,6 @@ const DOC_DEFAULT: DocumentSettings = {
   vatPercent:          7,
   whtPercent:          3,
   validityDays:        30,
-  expiryWarnDays:      7,
   termsAndConditions:
     "ราคานี้มีผลภายใน 30 วัน นับจากวันที่ออกใบเสนอราคา\n" +
     "บริษัทขอสงวนสิทธิ์เปลี่ยนแปลงราคาโดยไม่แจ้งล่วงหน้า\n" +
@@ -408,13 +407,7 @@ function DocumentsTab() {
                 onChange={n => set("validityDays", n)}
                 style={{ fontFamily: "monospace" }} />
             </div>
-            {/* ใบเก่าที่บันทึกก่อนมีช่องนี้ไม่มีค่า → ขึ้นค่าเริ่มต้น 7 (ตรงกับที่กระดิ่งใช้) */}
-            <div>
-              <label className="form-label">เตือนก่อนหมดอายุ (วัน)</label>
-              <NumberInput ariaLabel="เตือนก่อนหมดอายุ (วัน)" min={1} value={doc.expiryWarnDays ?? 7}
-                onChange={n => set("expiryWarnDays", n)}
-                style={{ fontFamily: "monospace" }} />
-            </div>
+            {/* ช่อง "เตือนก่อนหมดอายุ (วัน)" เอาออก 21 ต.ค. 69 — กระดิ่งเตือนใบส่งลูกค้าเหลือ 3 วันตายตัว (ใบ 0231) */}
           </div>
         </div>
 
@@ -751,113 +744,45 @@ function PersonsTab() {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTIFICATIONS TAB — เปิด/ปิดการแจ้งเตือนแต่ละชนิด (มีผลกับกระดิ่งบน Topbar)
-// เลย์เอาต์เดียวกับ /hq/settings → การแจ้งเตือน: หัวข้อมีไอคอน · ตารางแถวมีขอบ ·
-// คอลัมน์ "เปิด" ชิดขวา · แถบบอกว่าค่านี้ถูกใช้ที่ไหน · บันทึกด้วยปุ่มกลางบนหัว (ไม่ auto-save)
-// ดีลเลอร์มีช่องทางเดียวคือกระดิ่งในระบบ — ไม่มีคอลัมน์ "อีเมล" แบบ HQ เพราะไม่มีระบบส่งอีเมลให้ดีลเลอร์
+// กฎดูแลลูกค้าเป้าหมาย — เดิมอยู่ในแท็บ "การแจ้งเตือน" คู่กับสวิตช์เปิด/ปิดแจ้งเตือนรายหมวด
+// 21 ต.ค. 69 (รอบ 4) สวิตช์เอาออก: แจ้งเตือนมาจากตารางกลางที่ฐาน กระดิ่ง/อีเมลตายตัวตามเรื่อง (ใบ 0231)
+// การ์ดนี้ยังใช้อยู่ (การ์ด "ต้องติดตามด่วน" ของดีลเลอร์ + เกณฑ์รายสาขาที่ HQ อ่าน) จึงย้ายมาเป็นแท็บของตัวเอง
 // ─────────────────────────────────────────────────────────────────────────────
-function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} onClick={onChange}
-      style={{ width: 42, height: 24, borderRadius: 99, border: "none", cursor: "pointer", flexShrink: 0,
-        background: on ? "#003366" : "#d1d5db", position: "relative", transition: "background .15s" }}>
-      <span style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.25)", transition: "left .15s" }} />
-    </button>
-  );
-}
-
-// แท็บนี้มี 2 การ์ด (สวิตช์แจ้งเตือน + กฎการดูแลลูกค้าเป้าหมาย) แต่ bus รับ api ได้ทีละตัว
-// จึงต้องถือ state ทั้งสองก้อนที่นี่แล้วรายงานรวมเป็นตัวเดียว — ถ้าแยกกัน useReport
-// ตัวหลังจะทับตัวแรก แล้วปุ่มบันทึกกลางจะเซฟได้แค่การ์ดเดียว (อีกการ์ดกดบันทึกแล้วค่าหาย)
-function NotificationsTab() {
-  const [savedPrefs, setSavedPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
-  const [draft, setDraft] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
+function LeadRulesTab() {
   const [savedRules, setSavedRules] = useState<LeadRules>(DEFAULT_LEAD_RULES);
   const [rulesDraft, setRulesDraft] = useState<LeadRules>(DEFAULT_LEAD_RULES);
   const editedRef = useRef(false);
-  const draftRef = useRef(draft); draftRef.current = draft;
-  const savedRef = useRef(savedPrefs); savedRef.current = savedPrefs;
   const rulesDraftRef = useRef(rulesDraft); rulesDraftRef.current = rulesDraft;
   const savedRulesRef = useRef(savedRules); savedRulesRef.current = savedRules;
-  const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน — กฎแจ้งเตือนเป็นของสาขานี้
-  const notifCfg = useDealerSettings();
-  // โหลดค่าที่บันทึกไว้หลัง mount — ถ้าผู้ใช้เริ่มแก้แล้ว อย่าทับ draft
+  const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน — กฎเป็นของสาขานี้
   useEffect(() => {
-    // การแจ้งเตือนของสาขา — ผ่าน repo เช่นกัน (เดิม localStorage เครื่องเดียว)
-    if (notifCfg.loaded) {
-      const p = notifCfg.settings.notifPrefs;
-      setSavedPrefs(p);
-      if (!editedRef.current) setDraft(p);
-    }
-    // กฎดูแลลูกค้าเป้าหมาย — อ่านผ่าน repository (local: localStorage · supabase: DB)
+    // กฎดูแลลูกค้าเป้าหมาย — อ่านผ่าน repository (local: localStorage · supabase: DB) · ผู้ใช้เริ่มแก้แล้ว อย่าทับ
     settingsRepo.getLeadRulesMap().then(map => {
       const r = leadRulesOf(map, currentDealer.code);
       setSavedRules(r);
       if (!editedRef.current) setRulesDraft(r);
     }).catch(e => logRepoRead("settings.getLeadRulesMap", e));
-  }, [currentDealer.code, notifCfg.loaded, notifCfg.settings]);
+  }, [currentDealer.code]);
 
-  const dirty = JSON.stringify(draft) !== JSON.stringify(savedPrefs)
-    || JSON.stringify(rulesDraft) !== JSON.stringify(savedRules);
+  const dirty = JSON.stringify(rulesDraft) !== JSON.stringify(savedRules);
   const save = useCallback(() => {
-    const next = draftRef.current;
-    void notifCfg.save({ notifPrefs: next })
-      .catch(e => แจ้งพลาด("บันทึกการแจ้งเตือนไม่สำเร็จ: " + friendlyError(e)));
-    window.dispatchEvent(new Event(NOTIF_PREFS_EVENT)); // ให้กระดิ่งบน Topbar อัปเดตทันที
     const nextRules = rulesDraftRef.current;
     void settingsRepo.saveLeadRules(currentDealer.code, nextRules); // local: ยิง event ให้หน้าอื่นอัปเดตทันที · supabase: RLS dealer-own
     editedRef.current = false;
-    setSavedPrefs(next);
     setSavedRules(nextRules);
   }, [currentDealer.code]);
   const reset = useCallback(() => {
     editedRef.current = false;
-    setDraft(savedRef.current);
     setRulesDraft(savedRulesRef.current);
   }, []);
   useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
 
-  function toggle(k: keyof NotifPrefs) {
-    editedRef.current = true;
-    setDraft(p => ({ ...p, [k]: !p[k] }));
-  }
   const setRule = useCallback((k: keyof LeadRules, n: number) => {
     editedRef.current = true;
     setRulesDraft(p => ({ ...p, [k]: n }));
   }, []);
 
-  return (
-    <>
-      <div className="card-header">
-        <div>
-          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "var(--primary)", display: "flex" }}><Bell size={19} /></span>การแจ้งเตือนของดีลเลอร์
-          </div>
-          {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}
-        </div>
-      </div>
-      <div className="card-body">
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px 8px", fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af" }}>
-          <span style={{ width: 42, textAlign: "center" }}>เปิด</span>
-        </div>
-        <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden" }}>
-          {NOTIF_META.map((n, i) => (
-            <div key={n.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #f1f5f9" : "none" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "0.84rem", fontWeight: 700, color: "#2D2D2D" }}>{n.label}</div>
-                <div style={{ fontSize: "0.72rem", color: "#6b7280", marginTop: 2 }}>{n.desc}</div>
-              </div>
-              <div style={{ width: 42, display: "flex", justifyContent: "center" }}>
-                <Toggle on={draft[n.key]} onChange={() => toggle(n.key)} />
-              </div>
-            </div>
-          ))}
-        </div>
-        {/* แถบบอกว่าค่านี้ถูกใช้ที่ไหน — แนวเดียวกับ UsedAt ของหน้าตั้งค่า HQ */}
-      </div>
-      <LeadRulesCard draft={rulesDraft} set={setRule} />
-    </>
-  );
+  return <LeadRulesCard draft={rulesDraft} set={setRule} />;
 }
 
 // ─── กฎการดูแลลูกค้าเป้าหมายของสาขานี้ ────────────────────────────────────────
@@ -884,7 +809,7 @@ function LeadRulesCard({ draft, set }: { draft: LeadRules; set: (k: keyof LeadRu
   );
 
   return (
-    <div className="card" style={{ marginTop: 16 }}>
+    <div>
       <div className="card-header">
         <div>
           <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -977,7 +902,7 @@ export default function SettingsPage() {
           {activeTab === "company"   && <CompanyTab />}
           {activeTab === "documents" && <DocumentsTab />}
           {activeTab === "persons"   && <PersonsTab />}
-          {activeTab === "notifications" && <NotificationsTab />}
+          {activeTab === "leadRules" && <LeadRulesTab />}
         </div>
 
         {/* Toast */}

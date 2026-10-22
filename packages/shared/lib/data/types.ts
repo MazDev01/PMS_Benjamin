@@ -39,6 +39,15 @@ export type AuditEntry = {
   id: number; user: string; role: string; action: string; target: string; at: string;
 };
 
+// แจ้งเตือนหนึ่งเรื่อง (ตาราง notifications · ใบ 0231) — ฐานสร้างจากตารางกลาง notification_kinds ที่เดียว
+//   หน้าเว็บแสดงตามนี้อย่างเดียว ห้ามประกอบแจ้งเตือนเองจากลีด/ใบ/บันทึกการใช้งาน (ตัวตรวจ check-notification-catalog)
+export type AppNotification = {
+  id: number; kind: string; title: string; body: string;
+  /** กดแล้วเปิดตรงเรื่องนั้น (ลีด/คำขอ/ใบ) */
+  href: string;
+  createdAt: string;
+};
+
 // ข้อมูลบริษัทของสำนักงานใหญ่ (แถวเดียวทั้งระบบ)
 export type HQCompany = {
   name: string; address: string; taxId: string;
@@ -159,6 +168,8 @@ export type DealerPackageProposal = {
   supersedesId?: number | null;  // ใบเวอร์ชันก่อนหน้า
   closeReason?: string | null;   // เหตุผลที่ปิด (ปฏิเสธ/หมดอายุ/ถูกแทน)
   closedAt?: string | null;
+  /** วันครบกำหนดชำระ (YYYY-MM-DD · ใบ 0231) — เลยแล้วยังชำระไม่ครบ = แจ้งเตือน HQ · คนละเรื่องกับ validUntil */
+  paymentDueOn?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

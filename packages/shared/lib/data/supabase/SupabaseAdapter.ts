@@ -8,7 +8,7 @@ import { เตรียมบันทึกใบ } from "@pms/shared/lib/deal
 import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
-import type { DealerProspect, ProspectActivity } from "@pms/shared/lib/data/types";
+import type { DealerProspect, ProspectActivity, AppNotification } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
@@ -726,6 +726,12 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, error.code);
       return { ...toCamel<DealerProposalPayment>(data as Row), amount: Number((data as Row).amount) };
     },
+    // แก้เฉพาะวันครบกำหนดชำระ — ไม่ส่งทั้งแถว (ใบที่ส่งแล้วถูกล็อกเนื้อหา · ช่องนี้ไม่อยู่ในรายการล็อก 0207)
+    setPaymentDue: async (id, date) => {
+      const { data, error } = await sb().from("dealer_package_proposals").update({ payment_due_on: date }).eq("id", id).select().single();
+      if (error) throw new DbError(error.message, error.code);
+      return toCamel<DealerPackageProposal>(data as Row);
+    },
     cancelPayment: async (id, reason) => {
       const { data, error } = await sb().from("dealer_proposal_payments").update({ cancel_reason: reason }).eq("id", id).select().single();
       if (error) throw new DbError(error.message, error.code);
@@ -789,6 +795,15 @@ export const SupabaseAdapter: DataAdapter = {
   },
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
+  // แจ้งเตือน (ใบ 0231) — กฎรายแถวของฐานให้เห็นเฉพาะของผู้รับ · ไม่กรองเพิ่มที่นี่
+  notifications: {
+    list: async (limit = 100) => {
+      const { data, error } = await sb().from("notifications").select("id, kind, title, body, href, created_at")
+        .order("id", { ascending: false }).limit(limit);
+      if (error) throw new DbError(error.message, error.code);
+      return ((data ?? []) as Row[]).map(r => toCamel<AppNotification>(r));
+    },
+  },
   audit: {
     // อ่านล่าสุดสูงสุด limit รายการ (id desc) + แปลง at (timestamptz) → สตริงไทยที่ /hq/audit (parseDate) เข้าใจ
     // audit_log เป็นตาราง append-only ที่โตไม่จำกัด (ทุก action ของ HQ ตลอดกาล) — เดิม pageAll ดึงทั้งหมด

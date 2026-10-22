@@ -95,8 +95,8 @@ begin
   perform flowtest.as_root();
   update quote_requests set due_at = now() - interval '1 day' where id = r.id;
   update hq_notif_rules set email_recipients = array['zz-hq@example.test'] where id = 1;
-  perform quote_requests_overdue_scan();
-  select count(*) into n from email_outbox where kind = 'quote_request_overdue' and ref_id = r.id::text;
+  perform notifications_scan((((now() at time zone 'Asia/Bangkok')::date)::text || ' 09:00:00+07')::timestamptz);
+  select count(*) into n from email_outbox where kind = 'requests_overdue' and body like '%' || r.request_no || '%';
   perform flowtest.ok(n = 0, 'ขั้น 6: ส่งใบแล้วหยุดนับ 14 วัน — งานตรวจเกินกำหนดไม่แจ้งคำขอนี้');
 
   -- ══ กฎ: ใบ HQ ที่ส่งแล้วแก้ไม่ได้ ══

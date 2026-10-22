@@ -10,295 +10,27 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
-  apptTypeLabel, fmtISOToThai,
-  notifCategoryOf,
-  DEFAULT_HQ_NOTIFS, DEFAULT_HQ_NOTIF_RULES, hqAuditCategory, HQ_ALERT_META, DEFAULT_DEALER_CODE,
-  type HQNotifRules,
-  type LeadRow, type CustomerRow, type QuotationMock, type DealerRow, type AppointmentMock, type NotifPrefs, type HQNotifChannels,
-  type HQAlertKey,
+  DEFAULT_DEALER_CODE,
+  type LeadRow, type CustomerRow, type QuotationMock, type DealerRow,
   roleLabelOf,
 } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
-import { useDealerSettings, useQuoteExpiryWarnDays } from "@pms/shared/lib/useDealerSettings";
 import { useImpersonating } from "@pms/shared/lib/useImpersonating";
-import { dealers as dealersRepo, settings as settingsRepo } from "@pms/shared/lib/data";
-import { Bell, MessageSquare, CheckCircle2, AlertTriangle, UserCircle, Settings, Users, FileText, Sparkles, CalendarClock, LogOut, Menu, Search, Compass, History } from "lucide-react";
+import { dealers as dealersRepo } from "@pms/shared/lib/data";
+import { MessageSquare, UserCircle, Settings, Users, FileText, Sparkles, LogOut, Menu, Search, Compass } from "lucide-react";
 import { PRIMARY, STEEL } from "@pms/shared/lib/theme";
-import { useAuditEntries, type AuditEntry } from "@pms/shared/lib/useAudit";
 import { confirmDiscard } from "@pms/shared/lib/useUnsavedGuard";
-import { useHQAlerts } from "@pms/shared/lib/useHQAlerts";
 import { useHQSearch } from "@pms/shared/lib/useNetworkData";
-import { type HQAlert } from "@pms/shared/lib/hqAlerts";
 import { useCurrentDealer, useDealerDisplayName } from "@pms/shared/lib/useCurrentDealer";
-import { useReadNotifications } from "@pms/shared/lib/useReadNotifications";
-import { APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { NotificationBell } from "./NotificationBell";
+import { APP_NOW } from "@pms/shared/context/FilterContext";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
-import { quoteExpiryISO, daysUntilISO } from "@pms/shared/lib/quoteExpiry";
-import { useQuoteValidity } from "@pms/shared/lib/useQuoteValidity";
-import { useLeadRules } from "@pms/shared/lib/useHQRules";
-import { needsFollowUp, daysSinceContact } from "@pms/shared/lib/leadMetrics";
 
-// ── "วันนี้ของระบบ" (APP_NOW) — supabase=จริง / local=ตรึง · จัดกลุ่มการแจ้งเตือน วันนี้/เมื่อวาน ──
-const MOCK_TODAY = APP_NOW_ISO;
 // วันที่ของชุดข้อมูลตัวอย่าง แบบอ่านง่าย (ใช้บนป้ายเตือนโหมดตัวอย่าง)
 const APP_NOW_TH = `${APP_NOW.getDate()} ${["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."][APP_NOW.getMonth()]} ${APP_NOW.getFullYear() + 543}`;
 
 const BORDER   = "#e5e7eb";
 const BG       = "#fafafa";
-
-// ── notification shape ───────────────────────────────────────────
-type NotifBucket = "today" | "yesterday" | "older";
-
-// กุญแจของการแจ้งเตือนสำหรับจำว่า "อ่านแล้ว" — ต้องผูกกับเนื้อหา ไม่ใช่เลขลำดับ
-//   ฝั่งดีลเลอร์ใช้เลขไล่ตอนสร้างรายการ ซึ่งเลื่อนได้ทุกครั้งที่มีของใหม่เข้ามา
-//   เก็บเลขไว้แล้ววันถัดไปเลขนั้นอาจไปตกที่การแจ้งเตือนคนละอัน = ทำเครื่องหมายอ่านผิดตัว
-// กุญแจของเรื่อง — เรื่องที่มีกุญแจของตัวเอง (key) ใช้อันนั้น ไม่งั้นผูกกับเนื้อหา
-//   (มูลค่าลีดในข้อความเปลี่ยนตามใบล่าสุดได้ — เรื่องที่โชว์มูลค่าจึงตั้ง key เอง ไม่งั้นแก้ใบแล้วกลายเป็นยังไม่อ่าน)
-const notifKey = (n: Notif) => n.key ?? `${n.sortDate}|${n.title}|${n.body}|${n.time}`;
-// วันที่ไทยของเวลาที่ฐานจด (ISO) — ตัด 10 ตัวแรกตรง ๆ ได้วันของ UTC (ตี 0–7 ของไทยจะเป็นเมื่อวาน)
-const วันไทย = (at: string) => { const t = Date.parse(at); return Number.isFinite(t) ? new Date(t + 7 * 3_600_000).toISOString().slice(0, 10) : MOCK_TODAY; };
-
-type Notif = {
-  id: number;
-  key?: string;
-  iconEl: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  body: string;
-  time: string;
-  href: string;
-  sortDate: string;   // YYYY-MM-DD ใช้จัดกลุ่ม/เรียงลำดับ (deterministic)
-  bucket: NotifBucket;
-};
-
-// เมื่อวาน = วันนี้ของระบบ ลบ 1 วัน (ISO) — bucket "เมื่อวาน" เดินตาม APP_NOW
-const MOCK_YESTERDAY = (() => {
-  const d = new Date(APP_NOW); d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-})();
-function bucketOf(date: string): NotifBucket {
-  if (date === MOCK_TODAY) return "today";
-  if (date === MOCK_YESTERDAY) return "yesterday";
-  return "older"; // ก่อนหน้า (วันที่อื่น/ไม่มีวันที่จริง)
-}
-const BUCKET_LABEL: Record<NotifBucket, string> = {
-  today: "วันนี้",
-  yesterday: "เมื่อวาน",
-  older: "ก่อนหน้า",
-};
-const BUCKET_ORDER: NotifBucket[] = ["today", "yesterday", "older"];
-
-// ── สร้างการแจ้งเตือนจาก mock (deterministic, mock วันนี้ = 2026-06-30) ──
-// ประเภท: ลูกค้าเป้าหมายใหม่ · เตือนติดตาม · เตือนประชุม · ใบเสนอราคาใกล้หมดอายุ · ปิดการขายสำเร็จ · เสียโอกาส
-// รับ leads/quotations/appointments จาก SalesContext (ข้อมูลสดทั้งหมด)
-function buildNotifications(
-  leads: LeadRow[], quotations: QuotationMock[], appointments: AppointmentMock[],
-  validityDays: number, followUpDays: number, expiryWarnDays: number,
-): Notif[] {
-  const out: Notif[] = [];
-  let id = 1;
-
-  const push = (
-    n: Omit<Notif, "id" | "bucket"> & { sortDate: string },
-  ) => {
-    out.push({ ...n, id: id++, bucket: bucketOf(n.sortDate) });
-  };
-
-  // 1) ลูกค้าเป้าหมายรอดำเนินการ — ขั้น "ติดต่อแล้ว" (WAITING) ที่ไม่มีความเคลื่อนไหวเกินเกณฑ์ของสาขา
-  //    (ตั้งค่า › การแจ้งเตือน · ตัวเดียวกับ "ต้องรีบติดตาม" หน้าลูกค้าเป้าหมาย)
-  //    เดิมเตือนทุกรายในขั้นนี้ รวมรายที่เพิ่งคุยเมื่อวาน — แก้ 21 ก.ย. 69 ให้ตรงกับชื่อ "ยังไม่คืบหน้า"
-  for (const l of leads.filter(l => l.status === "WAITING" && needsFollowUp(l, followUpDays))) {
-    push({
-      iconEl: <MessageSquare size={14} />, iconBg: "#eef2f7", iconColor: "#475569",
-      title: "ลูกค้าเป้าหมายรอดำเนินการ",
-      key: `waiting|${l.id}|${daysSinceContact(l)}`,
-      body: `${l.company} — ${l.contact} · ${l.province} · ${fmtLeadValue(มูลค่าลีด(l))}`,
-      time: `ไม่มีความเคลื่อนไหว ${daysSinceContact(l)} วัน · ผู้รับผิดชอบ ${l.assigned}`,
-      href: `/leads?open=${l.numId}`,
-      sortDate: MOCK_TODAY,
-    });
-  }
-
-  // 1ข) ราคา HQ หมดอายุ (บอสสั่ง 20 ต.ค. 69 · ใบ 0219) — ฐานจดกิจกรรม hq_expired ตอนงานตั้งเวลาพาลีดกลับเป็นรวบรวมความต้องการ
-  //     เตือนเฉพาะลีดที่ยังไม่ได้ขอราคาใหม่ (ยังอยู่รวบรวมความต้องการ) · ขอแก้ราคาแล้ว = ลีดเป็นรอราคา HQ → เตือนหายเอง
-  for (const l of leads.filter(l => l.status === "BULLET")) {
-    const หมดอายุ = [...(l.activities ?? [])].reverse().find(a => (a as { type?: string }).type === "hq_expired") as { at?: string; date?: string } | undefined;
-    if (!หมดอายุ) continue;
-    push({
-      iconEl: <AlertTriangle size={14} />, iconBg: "#fef3c7", iconColor: "#b45309",
-      title: "ราคา HQ หมดอายุ",
-      body: `ราคา HQ ของลีด ${l.company} หมดอายุ ขอราคาใหม่ได้`,
-      time: หมดอายุ.date ?? "",
-      href: `/leads?open=${l.numId}`,
-      sortDate: หมดอายุ.at ? วันไทย(หมดอายุ.at) : MOCK_TODAY,
-    });
-  }
-
-  // 1ค) HQ ส่งราคาแล้ว (บอสตัดสิน 19 ต.ค. 69 ข้อ 7 · ใบ 0224) — ฐานจดกิจกรรม hq_quoted ทุกครั้งที่ HQ ส่งใบ (รวมรอบขอแก้ราคา)
-  //     เป็นเหตุการณ์ (ไม่ใช่งานค้าง) — ทุกรอบที่ส่งเป็นคนละเรื่อง กุญแจผูกกับเวลาที่ส่ง
-  for (const l of leads) {
-    for (const a of (l.activities ?? []) as { type?: string; at?: string; date?: string; text?: string }[]) {
-      if (a.type !== "hq_quoted") continue;
-      push({
-        iconEl: <FileText size={14} />, iconBg: "#dcfce7", iconColor: "#166534",
-        title: "HQ ส่งราคาแล้ว",
-        key: `hq_quoted|${l.id}|${a.at ?? a.date ?? ""}`,
-        body: `ราคาจาก HQ ของลีด ${l.company} มาแล้ว — ทำใบให้ลูกค้าได้เลย`,
-        time: a.date ?? "",
-        href: `/leads?open=${l.numId}`,
-        sortDate: a.at ? วันไทย(a.at) : MOCK_TODAY,
-      });
-    }
-  }
-
-  // 2) เตือนติดตาม (Follow-up Reminder) — leads status "FOLLOWUP" + นัดชนิด follow_up
-  for (const l of leads.filter(l => l.status === "FOLLOWUP")) {
-    push({
-      iconEl: <CalendarClock size={14} />, iconBg: "#fff3cd", iconColor: "#d97706",
-      title: "เตือนติดตาม",
-      key: `followup|${l.id}`,
-      body: `${l.company} — ${l.contact} · ${fmtLeadValue(มูลค่าลีด(l))}`, // ไม่โชว์แม่แบบเก่า (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
-      time: `ผู้รับผิดชอบ ${l.assigned}`,
-      href: `/leads?open=${l.numId}`,
-      sortDate: MOCK_TODAY,
-    });
-  }
-  for (const a of appointments.filter(a => a.type === "follow_up" && a.status === "upcoming")) {
-    push({
-      iconEl: <CalendarClock size={14} />, iconBg: "#fff3cd", iconColor: "#d97706",
-      title: "เตือนติดตาม",
-      body: `${a.company} — ${a.note}`,
-      time: `${a.date} ${a.time} น. · ${a.assigned}`,
-      href: "/calendar",
-      sortDate: a.date,
-    });
-  }
-
-  // 3) เตือนประชุม (Meeting Reminder) — นัดชนิดพบ/นำเสนอที่ยัง upcoming
-  const meetTypes: AppointmentMock["type"][] = ["visit", "design_meet", "presentation", "contract_sign"];
-  for (const a of appointments.filter(a => meetTypes.includes(a.type) && a.status === "upcoming")) {
-    push({
-      iconEl: <CalendarClock size={14} />, iconBg: "#dce5f0", iconColor: "#003366",
-      title: "เตือนประชุม",
-      body: `${apptTypeLabel[a.type]} — ${a.company} · ${a.province}`,
-      time: `${a.date} ${a.time} น. · ${a.assigned}`,
-      href: "/calendar",
-      sortDate: a.date,
-    });
-  }
-
-  // 4) ใบเสนอราคาใกล้หมดอายุ — ใบที่ส่งแล้วรอลูกค้าตอบ และเหลือไม่เกิน expiryWarnDays วัน (สาขาตั้งเองที่ ตั้งค่า › ใบเสนอราคา)
-  //    เลยวันหมดอายุแล้วแต่ยังรอตอบ = "หมดอายุแล้ว" (ต้องตามลูกค้า/ออกใบใหม่)
-  //    เดิมเตือนทุกใบที่ส่งแล้ว + ทุกใบที่หมดอายุไปแล้ว ไม่ดูวันหมดอายุเลย (แก้ 21 ก.ย. 69)
-  //    วันหมดอายุใช้ตัวคำนวณเดียวกับหน้าใบเสนอราคา (quoteExpiryISO) จะได้ตรงกัน
-  for (const qt of quotations.filter(qt => qt.status === "sent_to_client")) {
-    const exp = quoteExpiryISO(qt, validityDays);
-    const left = exp ? daysUntilISO(exp, MOCK_TODAY) : null;
-    if (left === null || left > expiryWarnDays) continue;
-    push({
-      iconEl: <AlertTriangle size={14} />, iconBg: left < 0 ? "#fee2e2" : "#fef3cd", iconColor: left < 0 ? "#dc2626" : "#d97706",
-      title: left < 0 ? "ใบเสนอราคาหมดอายุแล้ว" : "ใบเสนอราคาใกล้หมดอายุ",
-      body: `${qt.id} · ${qt.customer} — ${qt.total}`,
-      time: left < 0 ? `หมดอายุเมื่อ ${fmtISOToThai(exp)} · ลูกค้ายังไม่ตอบ`
-        : left === 0 ? "หมดอายุวันนี้" : `หมดอายุ ${fmtISOToThai(exp)} (อีก ${left} วัน)`,
-      href: "/quotations",
-      sortDate: MOCK_TODAY,
-    });
-  }
-
-  // 5) ปิดการขายสำเร็จ (Deal Won) — quotations status "won"
-  for (const qt of quotations.filter(qt => qt.status === "won")) {
-    push({
-      iconEl: <CheckCircle2 size={14} />, iconBg: "#d1fae5", iconColor: "#059669",
-      title: "ปิดการขายสำเร็จ",
-      body: `${qt.customer} — ${qt.id} มูลค่า ${qt.total}`,
-      time: `ปิดเมื่อ ${qt.date}`,
-      href: "/quotations",
-      sortDate: qt.date,
-    });
-  }
-
-  // 6) เสียโอกาส (Deal Lost) — quotations status "lost"
-  for (const qt of quotations.filter(qt => qt.status === "lost")) {
-    push({
-      iconEl: <AlertTriangle size={14} />, iconBg: "#fee2e2", iconColor: "#dc2626",
-      title: "เสียโอกาส",
-      body: `${qt.customer} — ${qt.id} มูลค่า ${qt.total}`,
-      time: `เมื่อ ${qt.date}`,
-      href: "/quotations",
-      sortDate: qt.date,
-    });
-  }
-
-  // เรียงตามกลุ่มวันนี้ → เมื่อวาน → ก่อนหน้า แล้ววันที่ใหม่สุดก่อนในแต่ละกลุ่ม (deterministic)
-  return out.sort((a, b) => {
-    const ba = BUCKET_ORDER.indexOf(a.bucket);
-    const bb = BUCKET_ORDER.indexOf(b.bucket);
-    if (ba !== bb) return ba - bb;
-    if (a.sortDate !== b.sortDate) return a.sortDate < b.sortDate ? 1 : -1;
-    return a.id - b.id;
-  });
-}
-
-// ── การแจ้งเตือนฝั่ง HQ = บันทึกการใช้งาน (Audit Log) — HQ เห็นว่าใครทำอะไร ──
-const TH_MO_NUM: Record<string, number> = { "ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12 };
-function auditISO(at: string): string {
-  const m = /(\d{1,2})\s+(\S+)\s+(\d{4})/.exec(at);
-  if (!m || !(m[2] in TH_MO_NUM)) return "";
-  return `${+m[3] - 543}-${String(TH_MO_NUM[m[2]]).padStart(2, "0")}-${String(+m[1]).padStart(2, "0")}`;
-}
-// เรื่องที่ดีลเลอร์ทำแล้วต้องเข้ากระดิ่ง HQ (บอสตัดสิน 19 ต.ค. 69 ข้อ 7) — นอกจากอีเมล · ชื่อเรื่องเป็นภาษาคน ไม่ใช่ชื่อสถานะในฐาน
-//   ชื่อการกระทำมาจากบันทึกการใช้งานที่ฐานจด (quote_requests_log · ใบ 0224 แยก "ขอแก้ราคา")
-function เรื่องดีลเลอร์ถึงHQ(action: string): string | null {
-  switch (action) {
-    case "ส่งคำขอใบเสนอราคา": return "ดีลเลอร์ส่งคำขอราคาใหม่";
-    case "ขอแก้ราคา": return "ดีลเลอร์ขอแก้ราคา";
-    case "คำขอใบเสนอราคา quoted → won": return "ลูกค้าตอบรับใบเสนอราคา";
-    case "คำขอใบเสนอราคา quoted → lost": return "ลูกค้าปฏิเสธใบเสนอราคา";
-    default: return null;
-  }
-}
-function buildHQNotifications(entries: AuditEntry[]): Notif[] {
-  return entries.map(e => {
-    const ของดีลเลอร์ = String(e.role ?? "").startsWith("DEALER") ? เรื่องดีลเลอร์ถึงHQ(e.action) : null;
-    const iso = auditISO(e.at);
-    // ของจริงที่เพิ่งเกิด (วันที่จริง ≥ mock วันนี้) จัดเป็น "วันนี้" · seed จัดตามวันที่
-    const bucket: NotifBucket = !iso ? "older" : iso >= MOCK_TODAY ? "today" : iso === MOCK_YESTERDAY ? "yesterday" : "older";
-    const timeOnly = e.at.split(" · ")[1] ?? e.at;
-    return {
-      id: e.id,
-      iconEl: <History size={14} />, iconBg: "#eef2f7", iconColor: PRIMARY,
-      key: `audit|${e.id}`,
-      title: ของดีลเลอร์ ?? e.action,
-      body: `${e.user} · ${e.target}`,
-      time: `${e.at.split(" · ")[0]} · ${timeOnly}`,
-      // เรื่องของดีลเลอร์ → กล่องคำขอใบเสนอราคา ค้นด้วยเลขคำขอ (ท้ายข้อความ "CNX · RQ-…")
-      href: ของดีลเลอร์ ? `/hq/quote-requests?q=${encodeURIComponent(e.target.split(" · ").pop() ?? "")}` : "/hq/audit",
-      sortDate: iso || MOCK_TODAY,
-      bucket,
-    };
-  });
-}
-
-// ── การแจ้งเตือนตามกฎของ HQ (ตั้งที่ /hq/settings → การแจ้งเตือน) ──
-// เนื้อหาคำนวณจากข้อมูลจริงใน @pms/shared/lib/hqAlerts — ที่นี่แค่ใส่ไอคอน/สี
-// ขอบเขต = งานของสำนักงานใหญ่เอง (บอสสั่ง 14 ก.ย. 69) — ไม่มีเรื่องงานขายของดีลเลอร์
-const HQ_ALERT_ICON: Record<HQAlertKey, { el: React.ReactNode; bg: string; color: string }> = {
-  prospectFollowUpDue: { el: <CalendarClock size={14} />, bg: "#fff3cd", color: "#d97706" },
-  prospectIdle:        { el: <AlertTriangle size={14} />, bg: "#fff3cd", color: "#d97706" },
-  proposalAwaiting:    { el: <FileText size={14} />,      bg: "#dce5f0", color: "#003366" },
-  proposalExpired:     { el: <FileText size={14} />,      bg: "#fdecec", color: "#dc2626" },
-};
-// "ต้องดูด่วน" แสดงทีละรายการ (บอสสั่ง 22 ก.ย. 69 — เดิมจัดกลุ่มแล้วอัดข้อความยาวบรรทัดเดียว อ่านไม่รู้เรื่อง)
-//   แต่ละแถว: ป้ายเรื่อง (สีตามเรื่อง) → ชื่อสิ่งที่ต้องจัดการ (ตัวหนา) → เกิดอะไรขึ้น · กดแถว = ไปจัดการรายนั้น
-const ALERT_PREVIEW = 10;
-const HQ_ALERT_TAG: Record<HQAlertKey, string> = {
-  prospectFollowUpDue: "ถึงกำหนดติดตาม",
-  prospectIdle: "ไม่ได้ติดต่อนาน",
-  proposalAwaiting: "ใบค่าแฟรนไชส์รอคำตอบ",
-  proposalExpired: "ใบค่าแฟรนไชส์หมดอายุ",
-};
 
 type SearchResult = { type: string; label: string; sub: string; href: string };
 
@@ -385,26 +117,6 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   const { profile } = useUserProfile();
 
 
-  // ตั้งค่าการแจ้งเตือน (เปิด/ปิดแต่ละชนิด) — อัปเดตทันทีเมื่อบันทึกในหน้าตั้งค่า
-  // อ่านผ่าน repo — เดิม loadNotifPrefs() อ่าน localStorage ตรง ๆ
-  // (ยังฟัง NOTIF_PREFS_EVENT อยู่ เพราะหน้าตั้งค่ายิง event นี้ตอนกดบันทึก → กระดิ่งอัปเดตทันที)
-  const dealerCfg = useDealerSettings();
-  // เกณฑ์ของกระดิ่งฝั่งดีลเลอร์ — ตัวเดียวกับหน้าใบเสนอราคา/ลูกค้าเป้าหมาย (อายุใบ · ขาดการติดต่อเกินกี่วัน)
-  const quoteValidity = useQuoteValidity();
-  const { followUpAlertDays } = useLeadRules(currentDealer.code);
-  const expiryWarnDays = useQuoteExpiryWarnDays();
-  const notifPrefs: NotifPrefs | null = dealerCfg.loaded ? dealerCfg.settings.notifPrefs : null;
-
-  // ตั้งค่าการแจ้งเตือนของ HQ (หมวดจาก Audit Log) — กรองกระดิ่งฝั่ง HQ ตาม toggle "ในระบบ"
-  // อ่านผ่าน repo — เดิม loadHQNotifPrefs() อ่าน localStorage ของเครื่องที่ใช้
-  const hqRules = useRepoValue<HQNotifRules>(() => settingsRepo.getNotifRules(), DEFAULT_HQ_NOTIF_RULES);
-  // ต้อง memo ไว้ — เดิมสร้างอ็อบเจกต์ใหม่ทุกครั้งที่ render แล้วถูกใช้เป็นตัวเฝ้าดูของ useMemo ข้างล่าง
-  // ผลคือรายการแจ้งเตือนถูกคำนวณใหม่ทุก render ทั้งที่ค่าไม่ได้เปลี่ยน (การ memo ไม่ได้ทำงานเลย)
-  const hqNotifPrefs: Record<string, HQNotifChannels> = useMemo(
-    () => ({ ...DEFAULT_HQ_NOTIFS, ...(hqRules.channels ?? {}) }),
-    [hqRules],
-  );
-
   const displayName = profile?.name || session.name;
   // ชื่อบัญชี = ชื่อเดียวทั้งแอป · ดีลเลอร์ใช้ชื่อบริษัทของสาขา (ไม่ใช่ชื่อคน/รหัสสาขา) · HQ ใช้ชื่อผู้ใช้
   const dealerDisplayName = useDealerDisplayName(); // ชื่อบริษัทที่สาขากรอก → ทะเบียน HQ → รหัสสาขา
@@ -413,8 +125,8 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   const avatarUrl = profile?.avatar;
   const initial = acctName.charAt(0).toUpperCase();
   const roleLabel = roleLabelOf(session.role, isHQ);   // แหล่งเดียวกับแถบข้าง — ห้ามเขียนชื่อบทบาทซ้ำที่นี่
-  // ข้อมูลสดจาก SalesContext → การแจ้งเตือนอัปเดตทันทีเมื่อเพิ่มลูกค้าเป้าหมาย/ออกใบเสนอราคา/ปิดการขาย
-  const { leads: allLeads, quotations: liveQuotations, appointments: liveAppointments, customers: liveCustomers } = useSales();
+  // ข้อมูลสดจาก SalesContext → ใช้กับช่องค้นหา (กระดิ่งไม่อ่านจากที่นี่แล้ว · ใบ 0231)
+  const { leads: allLeads, quotations: liveQuotations, customers: liveCustomers } = useSales();
 
   // ── ขอบเขตข้อมูลของลูกค้าเป้าหมาย (สำคัญ) ────────────────────────────────────────────
   // SalesContext ถือลูกค้าเป้าหมายของ "ทั้งเครือ" 10 สาขา — ดีลเลอร์ต้องเห็นเฉพาะสมุดงานตัวเอง
@@ -427,65 +139,18 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
     () => isHQ ? allLeads : allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, isHQ, currentDealer.code],
   );
-  // Topbar mount อยู่ทุกหน้าของ HQ — เดิมดึงเต็มเพดาน 5000 แถวทุกครั้ง (~180KB) ทั้งที่กระดิ่งแจ้งเตือน
-  // แสดงจริงแค่ไม่กี่รายการล่าสุด ลดเหลือ 200 (พอสำหรับฟีดกิจกรรมล่าสุด) — เบราส์ประวัติเต็มยังทำที่ /hq/audit
-  // (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
-  const auditEntries = useAuditEntries(200); // สำหรับ HQ — บันทึกการใช้งาน
   const [showNotifs, setShowNotifs]     = useState(false);
-  // กฎแจ้งเตือนงานของสำนักงานใหญ่เอง — ดึงเฉพาะบัญชี HQ · เปิดกระดิ่งทีไรดึงใหม่
-  const hqAlerts = useHQAlerts(isHQ, showNotifs);
-  // HQ → บันทึกการใช้งาน (ใครทำอะไร) · Dealer → งานขายของตัวเอง
-  // กฎแจ้งเตือนของ HQ ไม่ได้อยู่ในลิสต์นี้ — เป็น "สถานะปัจจุบันของเครือ" ไม่ใช่เหตุการณ์ในอดีต
-  // จึงแสดงแยกเป็นกลุ่มไว้บนสุดของแผง (ดู alertGroups) ไม่ปนกับไทม์ไลน์วันนี้/เมื่อวาน
-  const notifs = useMemo(() => {
-    if (isHQ) {
-      // เฉพาะสิ่งที่คนของ HQ ทำ (บอสสั่ง 21 ก.ย. 69) — บันทึกการใช้งานเก็บงานขายของดีลเลอร์ด้วย
-      //   (ตัวดักฐานข้อมูล 0150: สร้าง/ลบลูกค้าเป้าหมาย/ใบเสนอราคา ของสาขา) ซึ่งไม่ใช่เรื่องของกระดิ่ง HQ
-      //   ดูย้อนหลังทั้งหมดยังทำได้ที่ /hq/audit · แถวที่ไม่มีบทบาท (ระบบ) ยังแสดง
-      //   ยกเว้นเรื่องที่ดีลเลอร์ทำแล้ว HQ ต้องรู้ (บอสตัดสิน 19 ต.ค. 69 ข้อ 7): คำขอราคาใหม่ · ขอแก้ราคา · ลูกค้าตอบรับ/ปฏิเสธ
-      const ของHQ = auditEntries.filter(e => !String(e.role ?? "").startsWith("DEALER") || เรื่องดีลเลอร์ถึงHQ(e.action) !== null);
-      const shown = hqNotifPrefs
-        ? ของHQ.filter(e => hqNotifPrefs[hqAuditCategory(e.action)]?.inapp !== false)
-        : ของHQ;
-      return buildHQNotifications(shown);
-    }
-    const all = buildNotifications(liveLeads, liveQuotations, liveAppointments, quoteValidity, followUpAlertDays, expiryWarnDays);
-    if (!notifPrefs) return all;
-    return all.filter(n => { const c = notifCategoryOf(n.title); return c ? notifPrefs[c] : true; });
-  }, [isHQ, auditEntries, liveLeads, liveQuotations, liveAppointments, notifPrefs, hqNotifPrefs, quoteValidity, followUpAlertDays, expiryWarnDays]);
-
-  // จัดกลุ่มกฎแจ้งเตือนตามเรื่อง — 28 แถวรวดอ่านไม่ไหว · เรียงตามลำดับใน HQ_ALERT_META
-  const alertGroups = useMemo(() => {
-    if (!isHQ) return [];
-    const m = new Map<HQAlertKey, HQAlert[]>();
-    for (const a of hqAlerts) {
-      const arr = m.get(a.key);
-      if (arr) arr.push(a); else m.set(a.key, [a]);
-    }
-    return HQ_ALERT_META.filter(meta => m.has(meta.key))
-      .map(meta => ({ key: meta.key, title: meta.label, items: m.get(meta.key)! }));
-  }, [isHQ, hqAlerts]);
 
   // ── states ──
   const [showSearch, setShowSearch]     = useState(false);
-  const [showAllNotifs, setShowAllNotifs] = useState(false); // ขยายดูการแจ้งเตือนทั้งหมดในแผงเดียวกัน
-  const [showAllAlerts, setShowAllAlerts] = useState(false); // "ต้องดูด่วน" เกิน ALERT_PREVIEW รายการ → กดดูที่เหลือ
   const [showUser,   setShowUser]       = useState(false);
   const [searchQ,    setSearchQ]        = useState("");
   // ค้นหาฝั่ง HQ — ดึงตรงจาก repo ตามคำค้น (M9 Phase 4) · dealer/local ใช้ array ของ SalesContext เหมือนเดิม
   const hqSearch = useHQSearch(isHQ ? searchQ : "");
-  // สถานะ "อ่านแล้ว" ต้องอยู่ข้ามการรีเฟรชหน้า — เดิมเก็บในหน่วยความจำหน้าเว็บอย่างเดียว
-  //   กด "อ่านทั้งหมด" แล้วรีเฟรช ทุกอย่างกลับมาเป็นยังไม่อ่านเหมือนเดิม (ผู้ใช้แจ้ง 14 ส.ค. 69)
-  //   แยกเก็บตามบัญชี ไม่งั้นสลับบัญชีแล้วเห็นสถานะของอีกคน
-  const { isRead, markRead } = useReadNotifications(isHQ ? "hq" : currentDealer.code, MOCK_TODAY);
-
-  const notifsRef = useRef<HTMLDivElement>(null);
   const userRef   = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const closeNotifs = useCallback(() => { setShowNotifs(false); setShowAllNotifs(false); setShowAllAlerts(false); }, []);
   const closeUser   = useCallback(() => setShowUser(false),   []);
-  useClickOutside(notifsRef, closeNotifs);
   useClickOutside(userRef,   closeUser);
 
   // open search overlay
@@ -558,24 +223,6 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
         .map((d: DealerRow) => ({ type: "ดีลเลอร์", label: d.name, sub: `${d.code} · ${d.region}`, href: `/hq/dealers/${d.code}` })) : []),
     ];
   }, [q, dealers, liveLeads, liveCustomers, liveQuotations, isHQ, hqSearch]);
-
-  // ── งานค้างของเครือ ("ต้องดูด่วน") กด "อ่านทั้งหมด" แล้วต้องหายด้วย ───────────────
-  //
-  // เดิมตั้งใจให้กดปิดไม่ได้ ด้วยเหตุผลว่า "งานยังไม่ได้ถูกจัดการจริง"
-  // แต่ของจริงคือกระดิ่งขึ้นเลขแดงค้างตลอดจนไม่มีใครอ่านมันอีกเลย (บอสแจ้ง 1 ก.ย. 69)
-  //
-  // กติกาใหม่: กดอ่านแล้ว = "รับทราบจำนวนนี้แล้ว" → ซ่อนกลุ่มนั้นและหยุดนับ
-  //   กุญแจของการอ่านผูกกับ "จำนวนในกลุ่ม" ด้วย — พอจำนวนเปลี่ยน (มีของใหม่โผล่/แก้ไปบางส่วน)
-  //   เรื่องจะกลับมาเตือนใหม่เอง ข้อมูลจึงไม่หายไปเงียบ ๆ แค่ไม่ตะโกนซ้ำเรื่องเดิม
-  const alertKey = (g: { key: HQAlertKey; items: unknown[] }) => `alert:${g.key}:${g.items.length}`;
-  const alertGroupsUnread = alertGroups.filter(g => !isRead(alertKey(g)));
-  const alertCount = alertGroupsUnread.reduce((s, g) => s + g.items.length, 0);
-  // นับเฉพาะเรื่องที่ยังไม่อ่าน (บอสตัดสิน 19 ต.ค. 69 ข้อ 7) — เรื่องที่เกิดก่อนวันเริ่มใช้ถือว่าอ่านแล้ว (useReadNotifications)
-  const unreadCount = notifs.filter(n => !isRead(notifKey(n), n.sortDate)).length + alertCount;
-  const ซ่อนไปแล้ว = alertGroups.length - alertGroupsUnread.length;
-
-  function markAll() { markRead([...notifs.map(notifKey), ...alertGroups.map(alertKey)]); }
-  function markOne(n: Notif) { markRead([notifKey(n)]); }
 
   // ทุกทางที่พาออกจากหน้าปัจจุบันต้องผ่าน confirmDiscard() ก่อน — หน้าที่มีฟอร์มค้าง (ตั้งค่า)
   // จะได้เตือนครบทุกทาง ไม่ใช่เตือนเฉพาะตอนสลับแท็บ (ดู @pms/shared/lib/useUnsavedGuard)
@@ -709,136 +356,9 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
 
         <div className="topbar-right">
 
-        {/* Bell + dropdown */}
-        <div ref={notifsRef} style={{ position:"relative" }}>
-          <button className="icon-btn" aria-label="การแจ้งเตือน"
-            onClick={() => { setShowNotifs(p => !p); setShowAllNotifs(false); setShowUser(false); }}>
-            <Bell size={18} strokeWidth={2} />
-            {unreadCount > 0 && (
-              <span data-unread-count={unreadCount} style={{
-                position:"absolute", top:-2, right:-2, minWidth:16, height:16, padding:"0 4px",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                borderRadius:99, background:"#dc2626", color:"#fff",
-                fontSize:"0.65rem", fontWeight:800, lineHeight:1, border:"2px solid #fff",
-              }}>
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </button>
-
-          {/* Notifications panel */}
-          {/* แผงการแจ้งเตือน — 380px: รายการใน "ต้องดูด่วน" ยาว (ชื่อลูกค้า + จำนวนวัน + ผู้รับผิดชอบ)
-              340px เดิมตัดบรรทัดเกือบทุกใบ · maxWidth กันล้นจอแคบ */}
-          {showNotifs && (
-            <div style={{ position:"absolute", top:"calc(100% + 10px)", right:0, width:380, maxWidth:"calc(100vw - 24px)", background:"#fff", borderRadius:14, border:`1px solid ${BORDER}`, boxShadow:"0 16px 48px rgba(0,0,0,.16)", zIndex:300, overflow:"hidden" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 16px", borderBottom:`1px solid ${BORDER}` }}>
-                <span style={{ fontSize:"0.86rem", fontWeight:800, color:STEEL }}>การแจ้งเตือน</span>
-                <button onClick={markAll} style={{ fontSize:"0.72rem", color:PRIMARY, background:"none", border:"none", cursor:"pointer", fontWeight:600 }}>อ่านทั้งหมด</button>
-              </div>
-              <div style={{ maxHeight:400, overflowY:"auto" }}>
-                {/* ── ต้องดูด่วน — กฎแจ้งเตือนของ HQ จัดกลุ่มตามเรื่อง ──
-                    สถานะปัจจุบันของเครือ ไม่ใช่เหตุการณ์ในอดีต จึงไม่มีจุด "อ่านแล้ว" และไม่เข้าบัคเก็ตวันนี้/เมื่อวาน
-                    (เรื่องจะหายเองเมื่อดีลเลอร์ไปจัดการจริง — กด "อ่านแล้ว" ไม่ได้ทำให้งานเสร็จ) */}
-                {alertGroupsUnread.length > 0 && (
-                  <div style={{ borderBottom:`1px solid ${BORDER}` }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 16px 5px", background:"#fafafa", borderBottom:`1px solid ${BG}` }}>
-                      <span style={{ fontSize:"0.65rem", fontWeight:800, color:"#9ca3af", letterSpacing:"0.05em" }}>ต้องดูด่วน</span>
-                      <span style={{ fontSize:"0.6rem", fontWeight:800, color:"#dc2626", background:"#fdecec", borderRadius:99, padding:"1px 6px", fontVariantNumeric:"tabular-nums" }}>{alertCount}</span>
-                    </div>
-                    {(() => {
-                      // เรียงตามเรื่อง (ลำดับใน HQ_ALERT_META) แล้วตามความเร่งด่วนในเรื่องนั้น — แสดงทีละรายการ
-                      const ทั้งหมด = alertGroupsUnread.flatMap(g => g.items);
-                      const แสดง = showAllAlerts ? ทั้งหมด : ทั้งหมด.slice(0, ALERT_PREVIEW);
-                      return (<>
-                        {แสดง.map((a, i) => {
-                          const ic = HQ_ALERT_ICON[a.key];
-                          return (
-                            <button key={`${a.key}-${a.href}-${i}`}
-                              onClick={async () => { if (!(await confirmDiscard())) return; setShowNotifs(false); router.push(a.href); }}
-                              style={{ display:"flex", alignItems:"flex-start", gap:10, width:"100%", padding:"10px 16px", border:"none",
-                                borderBottom:`1px solid ${BG}`, background:"#fff", cursor:"pointer", textAlign:"left" }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = BG; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#fff"; }}>
-                              <span style={{ display:"flex", alignItems:"center", justifyContent:"center", width:32, height:32, borderRadius:"50%", background:ic.bg, color:ic.color, flexShrink:0 }}>{ic.el}</span>
-                              <div style={{ flex:1, minWidth:0 }}>
-                                <div style={{ fontSize:"0.64rem", fontWeight:800, color:ic.color, marginBottom:1 }}>{HQ_ALERT_TAG[a.key]}</div>
-                                <div style={{ fontSize:"0.8rem", fontWeight:700, color:STEEL, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.subject ?? a.title}</div>
-                                <div style={{ fontSize:"0.7rem", color:"#6b7280", lineHeight:1.4, marginTop:1 }}>{a.detail ?? a.body}</div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                        {ทั้งหมด.length > ALERT_PREVIEW && (
-                          <button onClick={() => setShowAllAlerts(v => !v)}
-                            style={{ display:"block", width:"100%", padding:"8px 16px", border:"none", borderBottom:`1px solid ${BG}`, background:"#fafafa", cursor:"pointer", fontSize:"0.7rem", fontWeight:700, color:PRIMARY, textAlign:"center" }}>
-                            {showAllAlerts ? "แสดงน้อยลง" : `ดูอีก ${ทั้งหมด.length - ALERT_PREVIEW} รายการ`}
-                          </button>
-                        )}
-                      </>);
-                    })()}
-                  </div>
-                )}
-                {notifs.length === 0 && alertGroupsUnread.length === 0 && (
-                  <div style={{ padding:"28px 16px", textAlign:"center", fontSize:"0.8rem", color:"#9ca3af" }}>
-                    ไม่มีการแจ้งเตือน
-                    {/* บอกให้รู้ว่างานค้างยังอยู่ แค่รับทราบไปแล้ว — ไม่ใช่หายไปเฉย ๆ */}
-                    {ซ่อนไปแล้ว > 0 && (
-                      <div style={{ marginTop:6, fontSize:"0.7rem", color:"#9ca3af" }}>
-                        (รับทราบงานค้าง {ซ่อนไปแล้ว} เรื่องไปแล้ว — จะเตือนอีกครั้งเมื่อจำนวนเปลี่ยน)
-                      </div>
-                    )}
-                  </div>
-                )}
-                {(showAllNotifs ? notifs : notifs.slice(0, 8)).map((n, i, shown) => {
-                  const อ่านแล้ว = isRead(notifKey(n), n.sortDate);
-                  const isBucketStart = i === 0 || shown[i - 1].bucket !== n.bucket;
-                  return (
-                    <div key={n.id}>
-                    {isBucketStart && (
-                      <div style={{ padding:"9px 16px 4px", fontSize:"0.65rem", fontWeight:800, color:"#9ca3af", letterSpacing:"0.05em", background:"#fafafa", borderBottom:`1px solid ${BG}` }}>
-                        {BUCKET_LABEL[n.bucket]}
-                      </div>
-                    )}
-                    <button
-                      onClick={async () => { if (!(await confirmDiscard())) return; markOne(n); setShowNotifs(false); router.push(n.href); }}
-                      style={{ display:"flex", alignItems:"flex-start", gap:10, width:"100%", padding:"11px 16px", border:"none",
-                        borderBottom:`1px solid ${BG}`, background:อ่านแล้ว ? "#fff" : "#f6f9ff",
-                        cursor:"pointer", textAlign:"left" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = BG; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = อ่านแล้ว ? "#fff" : "#f6f9ff"; }}>
-                      <span style={{ display:"flex", alignItems:"center", justifyContent:"center", width:32, height:32, borderRadius:"50%", background:n.iconBg, color:n.iconColor, flexShrink:0 }}>{n.iconEl}</span>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
-                          <span style={{ fontSize:"0.8rem", fontWeight:700, color:STEEL }}>{n.title}</span>
-                          {/* จุดแดง = ยังไม่อ่าน · เดิมเขียน !isRead (ตัวฟังก์ชัน ไม่ใช่ผลของเรื่องนี้) จุดจึงไม่เคยขึ้น (บอสตัดสิน 19 ต.ค. 69 ข้อ 7) */}
-                          {!อ่านแล้ว && <span data-unread-dot style={{ width:6, height:6, borderRadius:"50%", background:"#dc2626", flexShrink:0 }}/>}
-                        </div>
-                        <div style={{ fontSize:"0.72rem", color:"#6b7280", lineHeight:1.4 }}>{n.body}</div>
-                        <div style={{ fontSize:"0.65rem", color:"#9ca3af", marginTop:3 }}>{n.time}</div>
-                      </div>
-                    </button>
-                    </div>
-                  );
-                })}
-              </div>
-              {notifs.length > 8 && (
-                <div style={{ padding:"10px 16px", borderTop:`1px solid ${BORDER}` }}>
-                  {isHQ ? (
-                    <button onClick={async () => { if (!(await confirmDiscard())) return; setShowNotifs(false); router.push("/hq/audit"); }}
-                      style={{ width:"100%", padding:"7px", border:`1px solid ${BORDER}`, borderRadius:9, background:"#fff", color:PRIMARY, fontSize:"0.72rem", fontWeight:700, cursor:"pointer" }}>
-                      ดูบันทึกการใช้งานทั้งหมด →
-                    </button>
-                  ) : (
-                    <button onClick={() => setShowAllNotifs(v => !v)}
-                      style={{ width:"100%", padding:"7px", border:`1px solid ${BORDER}`, borderRadius:9, background:"#fff", color:STEEL, fontSize:"0.72rem", fontWeight:600, cursor:"pointer" }}>
-                      {showAllNotifs ? "แสดงน้อยลง" : `ดูทั้งหมด (${notifs.length})`}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* กระดิ่ง — อ่านจากตารางกลางของแจ้งเตือนอย่างเดียว (ใบ 0231 · NotificationBell) */}
+        <NotificationBell scope={isHQ ? "hq" : currentDealer.code} open={showNotifs}
+          onOpenChange={v => { setShowNotifs(v); if (v) setShowUser(false); }} />
 
         {/* User pill + dropdown */}
         <div ref={userRef} style={{ position:"relative" }}>

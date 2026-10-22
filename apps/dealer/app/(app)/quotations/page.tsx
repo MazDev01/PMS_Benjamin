@@ -474,13 +474,23 @@ function QuotationsPageInner(){
     return lead?.assigned ?? "";
   },[customers,leads]);
 
+  // ?open=เลขใบ (กระดิ่ง "ใบเสนอราคาใกล้หมดอายุ" · ใบ 0231) — เปิดใบนั้นเมื่อข้อมูลมาถึง แล้วล้างออกจาก URL
+  //   อยู่หน้านี้อยู่แล้วกดกระดิ่งอีก (เปลี่ยนแค่ ?open=) หน้าไม่โหลดใหม่ → ฟัง bpms:open-record
+  const [ขอเปิด,setขอเปิด]=useState<string|null>(null);
   useEffect(()=>{
-    if(เปิดจากลิงก์.current) return;
-    const id=new URLSearchParams(window.location.search).get("open");
-    if(!id){ เปิดจากลิงก์.current=true; return; }
-    const q=data.find(x=>x.id===id);
-    if(q){ setSelected(q); เปิดจากลิงก์.current=true; }
-  },[data]);
+    if(!เปิดจากลิงก์.current){ เปิดจากลิงก์.current=true; setขอเปิด(new URLSearchParams(window.location.search).get("open")); }
+    const on=(e:Event)=>{
+      const href=String((e as CustomEvent).detail??"");
+      if(href.startsWith("/quotations?")) setขอเปิด(new URLSearchParams(href.slice(href.indexOf("?"))).get("open"));
+    };
+    window.addEventListener("bpms:open-record",on);
+    return ()=>window.removeEventListener("bpms:open-record",on);
+  },[]);
+  useEffect(()=>{
+    if(!ขอเปิด) return;
+    const q=data.find(x=>x.id===ขอเปิด);
+    if(q){ setSelected(q); setขอเปิด(null); window.history.replaceState(null,"","/quotations"); }
+  },[data,ขอเปิด]);
 
   const filtered = useMemo(()=>{
     let rows=data.filter(q=>{

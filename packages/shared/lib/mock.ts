@@ -486,7 +486,7 @@ export function loadQuoteValidityDays(): number {
   return 30;
 }
 
-// ── ตั้งค่าการแจ้งเตือน (ดีลเลอร์เลือกเปิด/ปิดแต่ละชนิดได้) ──
+// ── ค่าตั้งแจ้งเตือนชุดเดิมของดีลเลอร์ (เก็บในฐาน ไม่ได้ใช้แล้ว · ใบ 0231) ──
 export type NotifCategory = "newLead" | "followUp" | "meeting" | "quoteExpiry" | "won" | "lost";
 export type NotifPrefs = Record<NotifCategory, boolean>;
 export const NOTIF_PREFS_KEY = "dealer_notif_prefs";
@@ -494,29 +494,8 @@ export const NOTIF_PREFS_KEY = "dealer_notif_prefs";
 export const DEALER_PRICING_KEY = "dealer_pricing";
 export const NOTIF_PREFS_EVENT = "bpms-notif-prefs-updated";
 export const DEFAULT_NOTIF_PREFS: NotifPrefs = { newLead: true, followUp: true, meeting: true, quoteExpiry: true, won: true, lost: true };
-export const NOTIF_META: { key: NotifCategory; label: string; desc: string }[] = [
-  { key: "newLead",     label: "ลูกค้าเป้าหมายรอดำเนินการ", desc: "ลูกค้าเป้าหมายขั้นติดต่อแล้ว ที่ไม่มีความเคลื่อนไหวเกินจำนวนวันที่ตั้งไว้" },
-  { key: "followUp",    label: "เตือนติดตาม",              desc: "งานติดตาม/นัดติดตามที่ถึงกำหนด" },
-  { key: "meeting",     label: "เตือนประชุม/นัดหมาย",       desc: "นัดพบ/นำเสนอที่กำลังจะถึง" },
-  { key: "quoteExpiry", label: "ใบเสนอราคาใกล้หมดอายุ",     desc: "ใบที่ส่งแล้วรอลูกค้าตอบ และใกล้หมดอายุตามจำนวนวันที่ตั้งไว้ใน ตั้งค่า › ใบเสนอราคา (หรือเลยวันหมดอายุแล้ว)" },
-  { key: "won",         label: "ปิดการขายสำเร็จ",             desc: "เมื่อปิดการขายสำเร็จ" },
-  { key: "lost",        label: "เสียโอกาส",                desc: "เมื่อปิดการขายไม่สำเร็จ" },
-];
-export function loadNotifPrefs(): NotifPrefs {
-  if (typeof window === "undefined") return { ...DEFAULT_NOTIF_PREFS };
-  try { const s = localStorage.getItem(NOTIF_PREFS_KEY); if (s) return { ...DEFAULT_NOTIF_PREFS, ...JSON.parse(s) }; } catch {}
-  return { ...DEFAULT_NOTIF_PREFS };
-}
-// map หัวข้อแจ้งเตือน → หมวด (ใช้กรองตาม prefs)
-export function notifCategoryOf(title: string): NotifCategory | null {
-  if (title.includes("รอดำเนินการ")) return "newLead";
-  if (title.includes("ติดตาม")) return "followUp";
-  if (title.includes("ประชุม")) return "meeting";
-  if (title.includes("หมดอายุ")) return "quoteExpiry";
-  if (title.includes("ปิดการขายสำเร็จ")) return "won";
-  if (title.includes("เสียโอกาส")) return "lost";
-  return null;
-}
+// สวิตช์รายหมวด (NOTIF_META) + ตัวจับหมวดจากชื่อเรื่องเอาออก 21 ต.ค. 69 (รอบ 4) — แจ้งเตือนมาจากตารางกลางที่ฐาน (ใบ 0231)
+//   ชนิด NotifPrefs ยังอยู่เพราะคอลัมน์ dealer_settings.notif_prefs ยังมีในฐาน (ไม่มีใครอ่านไปใช้แล้ว)
 
 // ─── Global: คลังไฟล์ของดีลเลอร์ (แหล่งเดียว) ──────────────────────────
 // ไฟล์แนบทั้งหมดรวมศูนย์ที่นี่ — แนบจากหน้าลูกค้า/ลูกค้าเป้าหมาย แล้วปรากฏในหน้าไฟล์กลางอัตโนมัติ

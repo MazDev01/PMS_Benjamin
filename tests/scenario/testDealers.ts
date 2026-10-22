@@ -46,7 +46,8 @@ export async function ลบสาขาทดสอบตรง(code: string, c
   }
   await ลบ("quote_requests");
   for (const t of ["appointments", "customer_notes", "files", "leads", "customers",
-                   "responsible_persons", "dealer_lead_rules", "dealer_account_changes", "dealer_account_requests"]) await ลบ(t);
+                   "responsible_persons", "dealer_lead_rules", "dealer_account_changes", "dealer_account_requests",
+                   "notifications"]) await ลบ(t);   // แจ้งเตือนของสาขา (ใบ 0231) — ไม่มีกุญแจนอกถึงสาขา ไม่หายตาม
   // ลูกค้าเป้าหมาย (HQ) ที่กลายมาเป็นสาขานี้ — ระบบลบทิ้งพร้อมสาขา (บอสสั่ง 15 ก.ย. 69) ตัวเก็บกวาดจึงทำแบบเดียวกัน
   await ลบ("dealer_prospects");
   // และรายที่ตัวช่วย ลูกค้าเป้าหมายรองรับสาขา() สร้างไว้ให้รหัสนี้แต่ไม่ได้ผูกกับสาขาแล้ว

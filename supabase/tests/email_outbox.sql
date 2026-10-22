@@ -48,19 +48,21 @@ do $$
 declare
   c record; r quote_requests; r2 quote_requests; r3 quote_requests; h hq_quotes; n int; m record;
   lines jsonb := '[{"name":"โครงเหล็ก","qty":100,"unit":"ตร.ม.","unitCost":2500}]';
+  เช้านี้ timestamptz := (((now() at time zone 'Asia/Bangkok')::date)::text || ' 09:00:00+07')::timestamptz;
 begin
   select * into c from flowtest.t_ctx;
   delete from email_outbox;
+  delete from notifications;
   update hq_notif_rules set email_recipients = array['boss@example.test', 'sales-admin@example.test'] where id = 1;
 
   -- ══ แถว 1: ดีลเลอร์ส่งคำขอ → อีเมลถึง HQ ทุกคนในรายชื่อผู้รับ ══
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   r := quote_request_submit(c.lead_ids[1], 'โกดังและคลังสินค้า');
-  perform flowtest.ok(flowtest.mails('quote_request_new', r.id::text) = 2, 'ส่งคำขอ → อีเมล "คำขอใหม่" ถึงผู้รับของ HQ ครบ 2 คน');
+  perform flowtest.ok(flowtest.mails('request_new', r.id::text) = 2, 'ส่งคำขอ → อีเมล "คำขอใหม่" ถึงผู้รับของ HQ ครบ 2 คน');
   perform flowtest.must_fail('select count(*) from email_outbox', 'permission denied', 'ดีลเลอร์อ่านกล่องขาออกอีเมลไม่ได้');
   perform flowtest.must_fail('insert into email_outbox (kind, to_email, subject, body) values (''x'', ''a@b.c'', ''s'', ''b'')', 'permission denied', 'ดีลเลอร์เขียนกล่องขาออกอีเมลเองไม่ได้');
   perform flowtest.as_root();
-  select * into m from email_outbox where kind = 'quote_request_new' and ref_id = r.id::text order by to_email limit 1;
+  select * into m from email_outbox where kind = 'request_new' and ref_id = r.id::text order by to_email limit 1;
   perform flowtest.ok(m.to_email = 'boss@example.test' and m.status = 'pending' and m.subject like '%' || r.request_no || '%'
                       and m.body like '%CNX%' and m.body like '%โกดังและคลังสินค้า%',
     'อีเมลมีเลขคำขอในหัวเรื่อง · เนื้อความบอกดีลเลอร์และงานที่ขอ · สถานะรอส่ง');
@@ -72,39 +74,43 @@ begin
   perform flowtest.as_root();
   perform flowtest.ok((select count(*) from email_outbox) = n, 'HQ กดรับเรื่อง → ไม่มีอีเมลเพิ่ม');
 
-  -- ══ แถว 3: ครบ 14 วันยังไม่ส่งใบ → อีเมลครั้งเดียว ══
-  perform flowtest.ok(quote_requests_overdue_scan() = 0, 'ยังไม่เกินกำหนด → งานตรวจไม่ส่งอะไร');
-  update quote_requests set due_at = now() - interval '1 hour' where id = r.id;
-  perform flowtest.ok(quote_requests_overdue_scan() = 1, 'เกินกำหนดแล้ว → งานตรวจนับได้ 1 คำขอ');
-  perform flowtest.ok(flowtest.mails('quote_request_overdue', r.id::text) = 2, 'คำขอเกิน 14 วัน → อีเมล "เกินกำหนด" ในกล่องขาออกถึงผู้รับครบ');
-  perform flowtest.ok((select overdue_notified_at is not null from quote_requests where id = r.id), 'จดเวลาที่แจ้งเกินกำหนดไว้บนคำขอ');
-  perform flowtest.ok(quote_requests_overdue_scan() = 0 and flowtest.mails('quote_request_overdue', r.id::text) = 2, 'งานตรวจรันซ้ำ → ไม่ส่งซ้ำ');
+  -- ══ แถว 3: ครบ 14 วันยังไม่ส่งใบ → สรุปรวมวันละครั้ง (ใบ 0231 · ไม่แจ้งทีละคำขอ) ══
+  update quote_requests set due_at = now() - interval '1 day' where id = r.id;   -- เลยกำหนดก่อน 09:00 ของวันนี้แน่นอน
+  perform notifications_scan(เช้านี้);
+  perform flowtest.ok(flowtest.mails('requests_overdue') = 2, 'คำขอเกิน 14 วัน → อีเมลสรุปในกล่องขาออกถึงผู้รับครบ (ได้ ' || flowtest.mails('requests_overdue') || ' · กระดิ่ง ' || (select count(*) from notifications where kind = 'requests_overdue') || ')');
+  perform flowtest.ok((select body like '%' || r.request_no || '%' from email_outbox where kind = 'requests_overdue' limit 1), 'อีเมลสรุปมีเลขคำขอที่ค้าง');
+  perform notifications_scan(เช้านี้ + interval '2 hours');
+  perform flowtest.ok(flowtest.mails('requests_overdue') = 2, 'งานตรวจรันซ้ำวันเดียวกัน → ไม่ส่งซ้ำ');
 
-  -- ══ แถว 6: ดีลเลอร์ยกเลิกคำขอ → อีเมลถึง HQ ══
+  -- ══ แถว 6: ดีลเลอร์ยกเลิกคำขอ → อีเมลถึง HQ พร้อมเหตุผล (คืนตาม FLOW D3x · ใบ 0236) ══
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   r2 := quote_request_submit(c.lead_ids[2], 'โรงงาน');
+  perform flowtest.as_root(); select count(*) into n from email_outbox;
+  perform flowtest.as_dealer('CNX', c.cnx_uid);
   r2 := quote_request_cancel(r2.id, 'ลูกค้าขอเลื่อน');
-  perform flowtest.ok(flowtest.mails('quote_request_cancelled', r2.id::text) = 2, 'ยกเลิกคำขอ → อีเมล "ยกเลิก" ถึง HQ');
   perform flowtest.as_root();
-  perform flowtest.ok((select body like '%ลูกค้าขอเลื่อน%' from email_outbox where kind = 'quote_request_cancelled' and ref_id = r2.id::text limit 1), 'อีเมลยกเลิกมีเหตุผลที่ดีลเลอร์ระบุ');
+  perform flowtest.ok(flowtest.mails('request_cancelled', r2.id::text) = 2, 'ยกเลิกคำขอ → อีเมล "ยกเลิก" ถึง HQ ครบ 2 คน');
+  perform flowtest.ok((select body like '%ลูกค้าขอเลื่อน%' from email_outbox where kind = 'request_cancelled' and ref_id = r2.id::text limit 1), 'อีเมลยกเลิกมีเหตุผลที่ดีลเลอร์ระบุ');
 
   -- ══ แถว 7: ขอแก้ราคา → อีเมลถึง HQ (คำขอใหม่ที่มาแทน) ══
   perform flowtest.as_hq(c.hq_uid);
   perform hq_quote_save(r.id, lines, current_date + 10); h := hq_quote_send(r.id);
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   r3 := quote_request_reprice(r.id, 'ลูกค้าลดพื้นที่');
-  perform flowtest.ok(flowtest.mails('quote_request_reprice', r3.id::text) = 2, 'ขอแก้ราคา → อีเมล "ขอแก้ราคา" ถึง HQ');
-  perform flowtest.ok(flowtest.mails('quote_request_new', r3.id::text) = 0, 'คำขอที่มาจากการขอแก้ราคา ไม่ส่งอีเมล "คำขอใหม่" ซ้ำอีกฉบับ');
+  perform flowtest.ok(flowtest.mails('request_reprice', r3.id::text) = 2, 'ขอแก้ราคา → อีเมล "ขอแก้ราคา" ถึง HQ');
+  perform flowtest.ok(flowtest.mails('request_new', r3.id::text) = 0, 'คำขอที่มาจากการขอแก้ราคา ไม่ส่งอีเมล "คำขอใหม่" ซ้ำอีกฉบับ');
 
-  -- ══ ไม่มีผู้รับของ HQ → ไม่มีอีเมล และไม่ถือว่าแจ้งเกินกำหนดแล้ว (ตั้งผู้รับทีหลังต้องได้แจ้ง) ══
+  -- ══ ไม่มีผู้รับของ HQ → ไม่มีอีเมล · ตั้งผู้รับทีหลัง สรุปวันถัดไปได้อีเมล ══
   perform flowtest.as_root();
   update hq_notif_rules set email_recipients = '{}' where id = 1;
   update quote_requests set due_at = now() - interval '1 hour' where id = r3.id;
   select count(*) into n from email_outbox;
-  perform flowtest.ok(quote_requests_overdue_scan() = 0 and (select count(*) from email_outbox) = n, 'ไม่มีผู้รับ → ไม่มีอีเมล');
-  perform flowtest.ok((select overdue_notified_at is null from quote_requests where id = r3.id), 'ไม่มีผู้รับ → ยังไม่ถือว่าแจ้งแล้ว');
+  perform notifications_scan(เช้านี้ + interval '1 day');
+  perform flowtest.ok((select count(*) from email_outbox) = n, 'ไม่มีผู้รับ → ไม่มีอีเมล');
   update hq_notif_rules set email_recipients = array['boss@example.test'] where id = 1;
-  perform flowtest.ok(quote_requests_overdue_scan() = 1 and flowtest.mails('quote_request_overdue', r3.id::text) = 1, 'ตั้งผู้รับทีหลัง → รอบถัดไปแจ้งคำขอที่เกินกำหนดอยู่');
+  perform notifications_scan(เช้านี้ + interval '2 days');
+  perform flowtest.ok((select count(*) from email_outbox where kind = 'requests_overdue' and body like '%' || r3.request_no || '%') = 1,
+    'ตั้งผู้รับทีหลัง → สรุปวันถัดไปแจ้งคำขอที่เกินกำหนดอยู่');
 
   -- ══ รายชื่อผู้รับ: ที่อยู่ซ้ำ/ว่าง/ผิดรูปแบบถูกปฏิเสธตั้งแต่ตอนตั้งค่า ══
   perform flowtest.must_fail('update hq_notif_rules set email_recipients = array[''ไม่ใช่อีเมล''] where id = 1', 'email_recipients', 'ผู้รับที่ไม่ใช่รูปแบบอีเมลถูกปฏิเสธ');

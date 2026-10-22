@@ -22,12 +22,12 @@ import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
 import type {
   DataAdapter, DealersRepo, FilesRepo, PersonsRepo, SettingsRepo,
-  DealerSettingsRepo, ProfileRepo, HQCompanyRepo, NotesRepo, UsersRepo, AuditRepo,
+  DealerSettingsRepo, ProfileRepo, HQCompanyRepo, NotesRepo, UsersRepo, AuditRepo, NotificationsRepo,
   MetricsRepo, LeadsRepo, QuotationsRepo, CustomersRepo, AppointmentsRepo,
   StoragePort, RealtimePort,
 } from "../ports";
 import type {
-  AuditEntry, DealerRow, ResponsiblePerson, UserProfile, HQCompany, DealerSettings,
+  AuditEntry, AppNotification, DealerRow, ResponsiblePerson, UserProfile, HQCompany, DealerSettings,
   HQPolicy, HQTargets, HQNotifRules, LeadRules, DealerLeadRulesMap, CustomerNote, DealerFile, SystemUser,
   LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope,
 } from "../types";
@@ -53,6 +53,7 @@ import { APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
  *  ใช้รายงานผ่าน /api/v1/ping เพื่อเช็กว่า backend ที่ deploy อยู่เป็นรุ่นที่ครบจริง */
 export const MIGRATED: readonly string[] = [
   "audit",
+  "notifications",
   "dealers",
   "persons",
   "profile",
@@ -338,6 +339,7 @@ const proposals: ProposalsRepo = {
   payments: (proposalId) => apiFetch<DealerProposalPayment[]>(`/proposals?view=payments&proposal=${proposalId}`),
   addPayment: (x) => post<DealerProposalPayment>("/proposals?op=payment", x),
   cancelPayment: (id, reason) => post<DealerProposalPayment>("/proposals?op=cancel-payment", { id, reason }),
+  setPaymentDue: (id, date) => post<DealerPackageProposal>("/proposals?op=payment-due", { id, date }),
   conversionReady: async (prospectId) => (await apiFetch<{ reason: string | null }>(`/proposals?view=ready&prospect=${prospectId}`)).reason,
   remove: async (id) => { await apiFetch(`/proposals?id=${id}`, { method: "DELETE" }); },
 };
@@ -352,6 +354,9 @@ const users: UsersRepo = {
   // canCreate เป็น sync — ตอบตามความจริงของโหมดนี้ได้เลย ไม่ต้องรอ backend
   // backend ถือ service_role อยู่แล้ว จึงสร้างบัญชีได้ (ต่างจากโหมด supabase ที่ client ทำไม่ได้)
   canCreate: () => true,
+};
+const notifications: NotificationsRepo = {
+  list: (limit) => apiFetch<AppNotification[]>(`/notifications${limit ? `?limit=${limit}` : ""}`),
 };
 const audit: AuditRepo = {
   list: (limit) => apiFetch<AuditEntry[]>(`/audit${limit ? `?limit=${limit}` : ""}`),
@@ -494,7 +499,7 @@ const realtime: RealtimePort = {
 
 export const HttpAdapter: DataAdapter = {
   storage, realtime, dealers, files, persons, settings, dealerSettings,
-  profile, hqCompany, territories, quoteRequests, notes, users, audit, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
+  profile, hqCompany, territories, quoteRequests, notes, users, audit, notifications, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
 };

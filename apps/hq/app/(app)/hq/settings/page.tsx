@@ -13,7 +13,7 @@ import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 //
 // กติกาของหน้านี้: ทุกช่องตั้งค่าต้องมีโค้ดอ่านไปใช้จริง — ห้ามมีช่องที่กดแล้วไม่เกิดอะไร
 //   (เกณฑ์ 48 ชม. / 7 วัน ย้ายไปหน้าตั้งค่าของดีลเลอร์แล้ว — ดีลเลอร์ตั้งเอง แยกรายสาขา)
-//   กฎแจ้งเตือนงาน HQ    → กระดิ่ง HQ (ผ่าน @pms/shared/lib/hqAlerts)
+//   อีเมลผู้รับแจ้งเตือน  → ตัววางจดหมายของฐาน (_email_enqueue_hq · ใบ 0231)
 //   เหตุผลปิดไม่สำเร็จ     → ตัวเลือกตอนปิดดีลของดีลเลอร์ (loadLostReasons)
 //   เป้าทั้งปี            → แดชบอร์ด HQ + แดชบอร์ดดีลเลอร์
 import {
@@ -48,12 +48,11 @@ import { AdminGate } from "@pms/shared/components/layout/AdminGate";
 import {
   DEFAULT_HQ_POLICY,
   DEFAULT_HQ_TARGETS,
-  HQ_NOTIF_EVENTS, DEFAULT_HQ_NOTIFS, HQ_NOTIF_UPDATED_EVENT,
   DEFAULT_HQ_NOTIF_RULES,
-  HQ_ALERT_META, เกณฑ์วันแจ้งเตือน, leadStatusLabel, leadStatusColor, LEAD_TASK_TEMPLATE, LEAD_STATUS_ORDER, LEAD_STATUS_META,
+  leadStatusLabel, leadStatusColor, LEAD_TASK_TEMPLATE, LEAD_STATUS_ORDER, LEAD_STATUS_META,
   LOST_REASONS,
-  type HQPolicy, type HQTargets, type HQNotifChannels, type HQNotifRules,
-  type HQAlertKey, type DealerRow, type LeadStatus, type LeadTaskDef,
+  type HQPolicy, type HQTargets, type HQNotifRules,
+  type DealerRow, type LeadStatus, type LeadTaskDef,
   OTHER_REASON_OPTION,
 } from "@pms/shared/lib/mock";
 // แท็บ "บริษัท" / "ผู้ใช้งาน" ฝังหน้าจัดการจริงเต็ม
@@ -67,7 +66,6 @@ import {
   Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, MessageSquare, ArrowUp, ArrowDown,
   Save, RotateCcw, Plus, Trash2, Check, X,
   Download, Upload, RefreshCw, AlertCircle,
-  ShieldCheck,
   Mail,
 } from "lucide-react";
 
@@ -136,14 +134,6 @@ function Row({ label, desc, children, error }: { label: string; desc?: string; c
         {error && <div style={{ fontSize: "0.68rem", color: "#dc2626", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={11} /> {error}</div>}
       </div>
     </div>
-  );
-}
-function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
-  return (
-    <button role="switch" aria-checked={on} onClick={onChange}
-      style={{ width: 42, height: 24, borderRadius: 99, border: "none", cursor: "pointer", flexShrink: 0, background: on ? NAVY : "#d1d5db", position: "relative", transition: "background .15s" }}>
-      <span style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.25)", transition: "left .15s" }} />
-    </button>
   );
 }
 const numInput = (value: number, onChange: (n: number) => void, unit: string, step?: number) => (
@@ -703,23 +693,11 @@ function TargetsTab() {
 }
 
 // ═══════════════════════ 7 · การแจ้งเตือน ═════════════════════════════════════
-// 2 การ์ด:
-//  1) กฎแจ้งเตือนงานของสำนักงานใหญ่เอง (ลูกค้าเป้าหมาย HQ · ใบค่าแฟรนไชส์) — ขึ้นกระดิ่ง HQ (ดู @pms/shared/lib/hqAlerts)
-//     งานขายของดีลเลอร์ไม่อยู่ในนี้แล้ว (บอสสั่ง 14 ก.ย. 69 "ตั้งค่าในขอบเขต hq")
-//  2) บันทึกการใช้งาน — หมวดจาก Audit Log ที่กรองกระดิ่ง HQ (Topbar อ่าน hqAuditCategory + inapp)
-// ช่องทาง = "ในระบบ" (กระดิ่ง) อย่างเดียว
-// ⚠️ ช่อง "อีเมล" ถูกเอาออกตามที่บอสสั่ง 3 ก.ย. 69 — ระบบยังไม่มีตัวส่งอีเมลแจ้งเตือนจริง
-//    ค่าที่ตั้งไว้ถูกบันทึกเฉย ๆ ไม่มีอะไรอ่านไปใช้ → เปิดไว้แล้วไม่มีเมลออก ซึ่งหลอกผู้ใช้
-//    (คนละเรื่องกับอีเมลเลขยืนยันตอนลืมรหัสผ่าน/ดูรหัสผ่าน ซึ่งส่งจริง)
-//    ถ้าวันหน้าทำตัวส่งอีเมลแจ้งเตือนจริงแล้ว ค่อยเพิ่มช่องนี้กลับมาพร้อมกัน
-type Notifs = Record<string, HQNotifChannels>;
-const CHANNELS: { k: keyof HQNotifChannels; label: string }[] = [
-  { k: "inapp", label: "ในระบบ" },
-];
-// เกณฑ์ (จำนวนวัน) ของแต่ละกฎอยู่ใน HQ_ALERT_META[].เกณฑ์ · ค่าที่ตั้งเก็บใน alerts[เรื่อง].days
-
+// 21 ต.ค. 69 (รอบ 4 · บอสสั่ง): แจ้งเตือนเหลือเฉพาะเรื่องที่คนรับต้องทำอะไรต่อ จากตารางกลางที่ฐาน (ใบ 0231)
+//   กระดิ่ง/อีเมลของแต่ละเรื่องตายตัวตามตาราง — สวิตช์เปิด/ปิดรายหมวด กฎแจ้งเตือนงาน HQ และหมวดบันทึกการใช้งาน เอาออกหมด
+//   เหลือรายชื่อผู้รับอีเมลของ HQ อย่างเดียว
 // ── อีเมลผู้รับแจ้งเตือนของสำนักงานใหญ่ (ด่าน 1 · ใบ 0193) ─────────────────────────────────────
-// ผู้รับของอีเมล "คำขอใบเสนอราคาใหม่ · เกิน 14 วัน · ดีลเลอร์ยกเลิก · ขอแก้ราคา" — ทุกฉบับส่งถึงทุกคนในรายชื่อ
+// ผู้รับอีเมลแจ้งเตือนของ HQ (คำขอใหม่ · ขอแก้ราคา · สรุปคำขอค้างเกิน 14 วัน · ลูกค้าตอบรับ · ใบ 0231) — ทุกฉบับส่งถึงทุกคนในรายชื่อ
 // พิมพ์ทีละบรรทัด (หรือคั่นด้วยจุลภาค) · บรรทัดที่ไม่ใช่อีเมลไม่ถูกนำไปบันทึก และบอกชัดว่าบรรทัดไหนผิด
 const รูปแบบอีเมล = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
 function EmailRecipientsCard({ value, onChange }: { value: string[]; onChange: (list: string[]) => void }) {
@@ -737,7 +715,7 @@ function EmailRecipientsCard({ value, onChange }: { value: string[]; onChange: (
   };
   return (
     <SectionCard icon={<Mail size={19} />} title="อีเมลผู้รับแจ้งเตือน"
-      desc="อีเมลของคำขอใบเสนอราคาใหม่ · คำขอเกิน 14 วัน · ดีลเลอร์ยกเลิกคำขอ · ดีลเลอร์ขอแก้ราคา ส่งถึงทุกคนในรายชื่อนี้ · บรรทัดละหนึ่งอีเมล">
+      desc="อีเมลของคำขอราคาใหม่ · ดีลเลอร์ขอแก้ราคา · สรุปคำขอค้างเกิน 14 วัน (วันละครั้ง) · ลูกค้าตอบรับ ส่งถึงทุกคนในรายชื่อนี้ · บรรทัดละหนึ่งอีเมล">
       <textarea aria-label="อีเมลผู้รับแจ้งเตือน" value={text} onChange={e => เปลี่ยน(e.target.value)} rows={4}
         placeholder={"เช่น\nsales@benjaminpebsteel.com"}
         style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${ผิด.length ? "#fca5a5" : "var(--border,#e5e7eb)"}`, borderRadius: 10, padding: "10px 12px", fontSize: "0.84rem", fontFamily: "inherit", resize: "vertical" }} />
@@ -748,7 +726,7 @@ function EmailRecipientsCard({ value, onChange }: { value: string[]; onChange: (
       )}
       {!ผิด.length && value.length === 0 && (
         <div style={{ marginTop: 6, fontSize: "0.74rem", color: "#b45309" }}>
-          ยังไม่มีผู้รับ — คำขอใหม่และคำขอเกิน 14 วันจะไม่มีอีเมลถึงใครเลย
+          ยังไม่มีผู้รับ — อีเมลแจ้งเตือนของสำนักงานใหญ่จะไม่ถึงใครเลย (กระดิ่งยังขึ้นตามปกติ)
         </div>
       )}
     </SectionCard>
@@ -756,89 +734,13 @@ function EmailRecipientsCard({ value, onChange }: { value: string[]; onChange: (
 }
 
 function NotificationsTab() {
-  // ช่องทางแจ้งเตือน (อีเมล/ในระบบ) เก็บรวมกับ hq_notif_rules ใน DB แล้ว
-  // เดิมอยู่ใน localStorage คีย์ hq_notifications_v2 → ผู้ดูแลคนหนึ่งตั้งไว้ อีกคนไม่เห็น
+  // รายชื่อผู้รับเก็บใน hq_notif_rules.email_recipients (ตัววางจดหมายของฐานอ่านจากที่นี่)
   const rules = useRepoDraft<HQNotifRules>(() => settingsRepo.getNotifRules(), (v) => settingsRepo.saveNotifRules(v), DEFAULT_HQ_NOTIF_RULES);
-  const chDraft: Notifs = { ...DEFAULT_HQ_NOTIFS, ...(rules.draft.channels ?? {}) };
-  const setCh = (key: string, patch: Partial<HQNotifChannels>) =>
-    rules.set(p => ({ ...p, channels: { ...DEFAULT_HQ_NOTIFS, ...(p.channels ?? {}), [key]: { ...DEFAULT_HQ_NOTIFS[key], ...(p.channels?.[key] ?? {}), ...patch } } }));
-  // บันทึกแล้วยิง event → กระดิ่ง HQ อัปเดตทันที (Topbar ฟัง HQ_NOTIF_UPDATED_EVENT)
-  // dep ต้องเป็น "ฟังก์ชันข้างใน" ไม่ใช่ตัวกล่องที่ usePersistentDraft คืนมา
-  // กล่องเป็น object literal ใหม่ทุกเรนเดอร์ → ถ้า dep เป็น rules/ch ทั้งก้อน saveAndBroadcast
-  // จะใหม่ทุกเรนเดอร์ → useMemo ของ api ใหม่ → useReport ยิง setApi → เรนเดอร์ใหม่ = วนไม่จบ
-  const saveAndBroadcast = useCallback(() => {
-    rules.save();
-    window.dispatchEvent(new Event(HQ_NOTIF_UPDATED_EVENT));
-  }, [rules.save]);
-  useReport(useMemo(() => ({
-    dirty: rules.dirty,
-    save: saveAndBroadcast,
-    reset: () => rules.reset(),
-  }), [rules.dirty, saveAndBroadcast, rules.reset]));
-
-  const setAlert = (k: HQAlertKey, patch: Partial<HQNotifRules["alerts"][HQAlertKey]>) =>
-    rules.set(p => ({ ...p, alerts: { ...p.alerts, [k]: { ...p.alerts[k], ...patch } } }));
+  const { dirty, save, reset } = rules;
+  useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
 
   return (
-    <>
-      <EmailRecipientsCard value={rules.draft.emailRecipients ?? []} onChange={list => rules.set(p => ({ ...p, emailRecipients: list }))} />
-      <SectionCard icon={<Bell size={19} />} title="การแจ้งเตือนของสำนักงานใหญ่"
-        desc="งานของสำนักงานใหญ่เอง — ลูกค้าเป้าหมาย (HQ) · ใบค่าแฟรนไชส์ คำนวณจากข้อมูลจริง แล้วขึ้นที่กระดิ่ง">
-        {/* สวิตช์เดียว "เปิด" (บอสสั่ง 3 ก.ย. 69) — เดิมมีช่อง "ในระบบ" แยกไว้เลือกช่องทาง
-            แต่พอเหลือช่องทางเดียว (กระดิ่ง) สองสวิตช์ให้ผลเหมือนกันทุกกรณี = ซ้ำซ้อนและชวนสับสน */}
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px 8px", fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af" }}>
-          <span style={{ width: 42, textAlign: "center" }}>เปิด</span>
-        </div>
-        <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden" }}>
-          {HQ_ALERT_META.map((a, i) => {
-            // กฎที่ยังไม่เคยถูกบันทึกลงฐานข้อมูล (หรือกฎใหม่ที่เพิ่มทีหลัง) จะไม่มีค่าในกล่องนี้
-            // ต้องตกไปใช้ค่าเริ่มต้นเสมอ ไม่ใช่ปล่อยให้เป็นของว่างแล้วอ่านค่าจากมันจนหน้าพังทั้งหน้า
-            const pref = rules.draft.alerts?.[a.key] ?? DEFAULT_HQ_NOTIF_RULES.alerts[a.key];
-            return (
-              <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>
-                <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-                  <div style={{ fontSize: "0.84rem", fontWeight: 700, color: STEEL }}>{a.label}</div>
-                  <div style={{ fontSize: "0.72rem", color: "#6b7280", marginTop: 2 }}>{a.desc}</div>
-                </div>
-                {/* ช่องเกณฑ์ — ปิดกฎแล้วจาง สื่อว่าไม่ถูกใช้ · กฎที่ไม่มีเกณฑ์เว้นที่ไว้ให้สวิตช์ตรงแนวกัน */}
-                <div style={{ flex: "0 0 176px", display: "flex", flexDirection: "column", gap: 6, opacity: pref.on ? 1 : .4, pointerEvents: pref.on ? "auto" : "none", transition: "opacity .15s" }}>
-                  {a.เกณฑ์ && numInput(เกณฑ์วันแจ้งเตือน(rules.draft, a.key), n => setAlert(a.key, { days: n > 0 ? n : a.เกณฑ์!.ค่าเริ่มต้น }), a.เกณฑ์.หน่วย)}
-                </div>
-                {/* กดทีเดียวตั้งทั้งสองค่า — ตัวคำนวณเตือน (hqAlerts) เช็ก on && inapp
-                    ถ้าตั้งแค่ on ค่าเก่าที่เคยปิด inapp ไว้จะทำให้กดเปิดแล้วไม่เตือน โดยไม่มีอะไรบอก */}
-                <div style={{ width: 42, display: "flex", justifyContent: "center" }}>
-                  <Toggle on={pref.on && pref.inapp !== false}
-                    onChange={() => { const เปิดอยู่ = pref.on && pref.inapp !== false; setAlert(a.key, { on: !เปิดอยู่, inapp: !เปิดอยู่ }); }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={<ShieldCheck size={19} />} title="บันทึกการใช้งานที่อยากรู้"
-        desc="เรื่องที่สำนักงานใหญ่อยากเห็นจากบันทึกการใช้งาน · ปิด “ในระบบ” เพื่อซ่อนจากกระดิ่ง">
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px 8px", fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af" }}>
-          {CHANNELS.map(c => <span key={c.k} style={{ width: 42, textAlign: "center" }}>เปิด</span>)}
-        </div>
-        <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden" }}>
-          {HQ_NOTIF_EVENTS.map((ev, i) => (
-            <div key={ev.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #f1f5f9" : "none" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "0.84rem", fontWeight: 700, color: STEEL }}>{ev.label}</div>
-                <div style={{ fontSize: "0.72rem", color: "#6b7280", marginTop: 1 }}>{ev.desc}</div>
-              </div>
-              {CHANNELS.map(c => (
-                <div key={c.k} style={{ width: 42, display: "flex", justifyContent: "center" }}>
-                  <Toggle on={chDraft[ev.key]?.[c.k] ?? false}
-                    onChange={() => setCh(ev.key, { [c.k]: !chDraft[ev.key]?.[c.k] })} />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-    </>
+    <EmailRecipientsCard value={rules.draft.emailRecipients ?? []} onChange={list => rules.set(p => ({ ...p, emailRecipients: list }))} />
   );
 }
 

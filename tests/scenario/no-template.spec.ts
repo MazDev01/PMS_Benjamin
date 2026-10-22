@@ -107,11 +107,13 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
 
-    // 1) กระดิ่งแจ้งเตือน — รายการ "เตือนติดตาม" ของลูกค้าเป้าหมายนี้ต้องขึ้น แต่ไม่มีชื่อแม่แบบ
+    // 1) กระดิ่งแจ้งเตือน — รอบ 4 (ใบ 0231): สถานะ "ติดตาม" เฉย ๆ ไม่ใช่เรื่องในตารางกลาง (ติดตาม = นัดหมายถึงกำหนดวันนี้)
+    //    กระดิ่งจึงไม่มีเรื่องของลูกค้าเป้าหมายนี้เลย และไม่มีชื่อแม่แบบเก่าแน่นอน
     await page.getByRole("button", { name: "การแจ้งเตือน" }).click();
-    const ดูทั้งหมด = page.getByRole("button", { name: /^ดูทั้งหมด \(/ });
+    const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
     if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
-    await expect(page.getByText(new RegExp(`^${ชื่อ} — `)).first(), "ต้องมีแจ้งเตือนติดตามของลูกค้าเป้าหมายนี้").toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("span").filter({ hasText: /^การแจ้งเตือน$/ }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("[data-notif-kind]").filter({ hasText: ชื่อ }), "สถานะติดตามอย่างเดียวไม่สร้างแจ้งเตือน").toHaveCount(0);
     await expect(page.getByText(แม่แบบเก่า, { exact: false }), "ข้อความแจ้งเตือนต้องไม่มีชื่อแม่แบบเก่า").toHaveCount(0);
     await page.keyboard.press("Escape");
 
