@@ -24,6 +24,7 @@ import { shouldCloseWon } from "@pms/shared/lib/closeWon";
 import { ฉบับถัดไป } from "@pms/shared/lib/quoteRevision";
 import { customerDeletionImpact, blockReason } from "@pms/shared/lib/customerDeletion";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { รับแถวใบ } from "@pms/shared/lib/quoteMerge";
 import { toThaiDate, ชั่วโมงนาทีไทย } from "@pms/shared/lib/thaiDate";
 import { useQuoteValidityDays, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { dealerSettings as dealerSettingsRepo, leads as leadsRepo, customers as customersRepo, quotations as quotationsRepo, appointments as appointmentsRepo, files as filesRepo, storage as fileStorage, realtime } from "@pms/shared/lib/data";
@@ -88,8 +89,11 @@ export type SalesContextType = {
   createQuotation: (draft: Omit<QuotationMock, "id">) => Promise<QuotationMock>;
   /** ทำฉบับใหม่ (V2 …) จากใบที่ส่งให้ลูกค้าแล้ว — คืนใบร่างฉบับใหม่ (มีอยู่แล้ว = ใบเดิมนั้น) · รอบ 3 ใบ 0228 */
   newQuotationVersion: (quotation: QuotationMock) => Promise<QuotationMock>;
-  /** แก้ใบเสนอราคา (รวมส่งให้ลูกค้า) */
+  /** แก้ใบเสนอราคา (ห้ามใช้ส่งให้ลูกค้า — ใช้ sendQuotation) */
   updateQuotation: (quotation: QuotationMock) => void;
+  /** ส่งใบให้ลูกค้า / ส่งอีกครั้ง — เปลี่ยนแค่สถานะที่ฐาน ราคาเป็นของในฐาน แล้วเอาแถวจากฐานแทนของบนจอ (ใบ 0238)
+   *  คืน true = ส่งสำเร็จ · false = ไม่สำเร็จ (แจ้งผู้ใช้ + โหลดรายการใหม่แล้ว) */
+  sendQuotation: (id: string) => Promise<boolean>;
   deleteQuotation: (id: string) => void;
   setQuotationStatus: (id: string, status: QuotationStatus) => void;
   /** เลขนัดหมายถัดไปของสาขา — ออกจาก DB แบบ atomic เหมือนเลขลูกค้า/เลขที่ใบ
@@ -361,7 +365,8 @@ export function SalesProvider({
     return () => { alive = false; };
   }, [ready, dealerCode, myDealerCode, isHQ, isLoggedIn, gateHQ, quoteValidityDays, loadFresh]);
   const persistQuote = useRef({
-    update: (q: QuotationMock) => { bumpWrite(); return quotationsRepo.update(q).catch(onFail("quotations", "แก้ไขใบเสนอราคา")); },
+    // ผลตอบกลับ = แถวจากฐาน (เวลาแก้ล่าสุดใหม่ · 0238) → เอาแทนของบนจอ ข่าวอัปเดตสดที่เก่ากว่าจะทับไม่ได้อีก
+    update: (q: QuotationMock) => { bumpWrite(); return quotationsRepo.update(q).then(บันทึกแล้ว => { if (บันทึกแล้ว?.id) setQuotations(prev => รับแถวใบ(prev, บันทึกแล้ว)); return บันทึกแล้ว; }).catch(onFail("quotations", "แก้ไขใบเสนอราคา")); },
     remove: (id: string) => { bumpWrite(); void quotationsRepo.remove(id).catch(onFail("quotations", "ลบใบเสนอราคา")); },
     setStatus: (id: string, status: QuotationStatus) => { bumpWrite(); void quotationsRepo.setStatus(id, status).catch(onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")); },
   }).current;
@@ -480,7 +485,8 @@ export function SalesProvider({
         return;
       }
       if (ch.table === "leads") setLeads(prev => upsert(prev, ch.row));
-      else if (ch.table === "quotations") setQuotations(prev => upsert(prev, ch.row));
+      // ใบเสนอราคา: ข่าวที่เวลาแก้ล่าสุดเก่ากว่าหรือเท่ากับของบนจอ = ทิ้ง (ใบ 0238 · ข่าวแถวเก่ามาช้าเคยทับ % ที่เพิ่งบันทึก)
+      else if (ch.table === "quotations") setQuotations(prev => รับแถวใบ(prev, ch.row as QuotationMock));
       else if (ch.table === "customers") setCustomers(prev => upsert(prev, ch.row));
       else setAppointments(prev => upsert(prev, ch.row));
     });
@@ -772,7 +778,8 @@ export function SalesProvider({
     // ต้อง await การเขียนใบให้ commit จริงก่อนค่อย reconcile — RPC คำนวณผลรวมจาก DB สด (กัน race, 0078)
     void (async () => {
       try {
-        await quotationsRepo.update(quotation);
+        const บันทึกแล้ว = await quotationsRepo.update(quotation);
+        if (บันทึกแล้ว?.id) setQuotations(prev => รับแถวใบ(prev, บันทึกแล้ว));
       } catch (e) {
         onFail("quotations", "แก้ไขใบเสนอราคา")(e);
         return;
@@ -786,6 +793,33 @@ export function SalesProvider({
       }
     })();
   }, [completeLeadQuoteTasks, persistQuote, reconcileCustomerTotal, แทนที่ใบเดิมบนจอ]);
+
+  // ── ส่งใบให้ลูกค้า (ใบ 0238 · บอสสั่ง 22 ต.ค. 69) ──────────────────────────────────────────────────────
+  // เดิมส่ง = updateQuotation({ ...ใบบนจอ, status }) เขียน "ทั้งแถว" จากหน้าจอ → หน้าจอค้างรุ่นเก่า (ข่าวอัปเดตสดมาช้า) = ลูกค้าได้ยอดเก่า
+  // ตอนนี้: ฐานเปลี่ยนแค่สถานะ + ประทับวันที่ส่ง (RPC quotation_send) แล้วคืนแถวจริง → เอาแทนของบนจอ
+  //   งานที่ติ๊ก/บรรทัดกิจกรรม/ใบเดิมถูกแทนที่บนจอ ทำเหมือนทางเดิมทุกอย่าง แต่ใช้แถวที่ฐานคืนมา
+  const sendQuotation = useCallback(async (id: string): Promise<boolean> => {
+    const before = quotationsRef.current.find(q => q.id === id);
+    if (!before) return false;
+    const คาด: QuotationMock = { ...before, status: "sent_to_client", date: APP_NOW_ISO };
+    setQuotations(prev => prev.map(q => (q.id === id ? คาด : q)));   // optimistic เฉพาะสถานะ/วันที่
+    if (before.status === "draft") แทนที่ใบเดิมบนจอ(คาด);
+    const ปล่อยลีด = before.status !== "sent_to_client" ? กั้นลีดระหว่างฐานขยับ(before) : () => {};
+    bumpWrite();
+    // ติ๊กงาน + บรรทัดไทม์ไลน์ ทำทันทีตอนกดเหมือนทางเดิม — ถ้ารอคำตอบก่อน ผู้ใช้กดส่งแล้วเปลี่ยนหน้าเร็ว ๆ คำขอบันทึกไทม์ไลน์ถูกตัดกลางทาง
+    //   (เจอจากการรัน func-quote-win คู่กับชุดอื่น 22 ต.ค. 69: "แก้ไขลูกค้าเป้าหมาย Failed to fetch") · ข้อมูลที่ใช้ไม่มีราคา
+    completeLeadQuoteTasks(คาด, ["makeQuote", "sendQuote"]);
+    จดกิจกรรมของใบ(before, คาด);
+    try {
+      const ส่งแล้ว = await quotationsRepo.send(before.dealerCode ?? myDealerCode, id);
+      setQuotations(prev => prev.map(q => (q.id === id ? ส่งแล้ว : q)));   // แถวจากฐาน = ราคาที่ลูกค้าได้จริง
+      return true;
+    } catch (e) {
+      onFail("quotations", "ส่งใบเสนอราคา")(e);   // แจ้งผู้ใช้ + โหลดรายการจากฐานกลับมา (สถานะบนจอย้อนเอง)
+      return false;
+    } finally { ปล่อยลีด(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completeLeadQuoteTasks, จดกิจกรรมของใบ, แทนที่ใบเดิมบนจอ, myDealerCode, bumpWrite]);
 
   const deleteQuotation = useCallback((id: string) => {
     const removed = quotationsRef.current.find(q => q.id === id);
@@ -968,7 +1002,7 @@ export function SalesProvider({
   const value = useMemo(() => ({
     leads: leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
-    quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, deleteQuotation, setQuotationStatus,
+    quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, sendQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
     appointments, addAppointment, updateAppointment, deleteAppointment,
     convertLeadToCustomer,
@@ -977,7 +1011,7 @@ export function SalesProvider({
   }), [
     leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
-    quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, deleteQuotation, setQuotationStatus,
+    quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, sendQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
     appointments, addAppointment, updateAppointment, deleteAppointment,
     convertLeadToCustomer,

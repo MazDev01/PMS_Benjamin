@@ -558,6 +558,9 @@ export interface QuotationsRepo {
   /** ทำฉบับใหม่ (V2, V3 …) จากใบที่ส่งให้ลูกค้าแล้ว — ใบร่างแถวใหม่ เลขที่เดิมต่อท้าย -Vn (รอบ 3 · ใบ 0228)
    *  มีฉบับใหม่ที่ยังเป็นร่างอยู่แล้ว = คืนใบนั้น · supabase/api: RPC quotation_new_version · local: ทำในเครื่อง */
   newVersion(dealer: string, id: string): Promise<QuotationMock>;
+  /** ส่งใบให้ลูกค้า / ส่งอีกครั้ง — เปลี่ยนแค่สถานะ + ประทับวันที่ส่ง ราคาเป็นของในฐาน (ใบ 0238 · ห้ามส่งทั้งแถวจากหน้าจอ)
+   *  คืนแถวจากฐาน (มี updatedAt ใหม่) · supabase/api: RPC quotation_send · local: ทำในเครื่อง */
+  send(dealer: string, id: string): Promise<QuotationMock>;
   /** ปิดใบที่ "ส่งแล้ว" และเลยวันหมดอายุ → สถานะ expired · asOf = วันนี้ของระบบ (YYYY-MM-DD) · คืนจำนวนใบที่ปิด */
   // validityDays: อายุใบเสนอราคาเริ่มต้น (นโยบาย HQ) — ใช้เป็น "หมดอายุ" ของใบที่ไม่ได้กรอก expiry เอง
   //   (นิยามเดียวกับที่ hq_alerts ใช้เตือน "ใกล้หมดอายุ" — ไม่งั้นสองจุดเห็นวันหมดอายุคนละวัน)

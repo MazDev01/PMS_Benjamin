@@ -778,7 +778,7 @@ export default function LeadsPage() {
   // List state
   const {
     leads: allLeads, addLead, บันทึกลีด, deleteLead: removeLead, newLeadNumId, syncLeadFromServer,
-    appointments, addAppointment, newAppointmentId, quotations, updateQuotation,
+    appointments, addAppointment, newAppointmentId, quotations, sendQuotation,
   } = useSales();
   // ปิดการขายสำเร็จ = เป็น "ลูกค้า" แล้ว → ไม่แสดงในหน้าลูกค้าเป้าหมาย (ไปอยู่ที่ /customers)
   // สมุดงานของ "ดีลเลอร์ที่ล็อกอิน" เท่านั้น — กรองด้วย dealerCode
@@ -2077,8 +2077,8 @@ export default function LeadsPage() {
                     const q = quotations.find(x => x.id === quoteId);
                     if (!q) return;
                     if (!(await ยืนยัน({ หัวข้อ: `ส่งใบ ${q.id} ให้ลูกค้า ?`, รายละเอียด: "ส่งแล้วแก้ใบนี้ไม่ได้ — ลูกค้าต่อรองให้ทำฉบับใหม่", ปุ่มตกลง: "ส่งให้ลูกค้า" }))) return;
-                    updateQuotation({ ...q, status: "sent_to_client", date: APP_NOW_ISO });
-                    setToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าแล้ว`);
+                    // ส่ง = เปลี่ยนแค่สถานะที่ฐาน ราคาเป็นของในฐาน (ใบ 0238 · เดิมส่งทั้งแถวจากหน้าจอ → หน้าจอค้างรุ่นเก่า = ลูกค้าได้ยอดเก่า)
+                    if (await sendQuotation(q.id)) setToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าแล้ว`);
                   } else if (kind === "customer_result" && quoteId) {
                     setDTab("quotation");
                     setQuoteViewSignal(s => ({ id: quoteId, n: (s?.n ?? 0) + 1 }));

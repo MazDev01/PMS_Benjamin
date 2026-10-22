@@ -316,6 +316,13 @@ export const quotesPOST = handler("quotations.write", async (req, sb) => {
 
 export const quotesPUT = handler("quotations.update", async (req, sb) => {
   const o = op(req);
+  if (o === "send") {
+    // ส่งใบให้ลูกค้า / ส่งอีกครั้ง — เปลี่ยนแค่สถานะ + วันที่ส่ง ราคาเป็นของในฐาน (RPC 0238 · ห้ามรับทั้งแถวจากหน้าจอ)
+    const b = parse({ dealer: str({ max: 20 }), id: str({ max: 60 }) }, await body<unknown>(req));
+    const { data, error } = await sb.rpc("quotation_send", { p_dealer: b.dealer, p_id: b.id });
+    if (error) return dbFail("quotations.send", error);
+    return ok(rowToQuote(data as Row));
+  }
   if (o === "status" || o === "status-reconciled") {
     const b = parse({ id: str({ max: 40 }), status: oneOf(QUOTE_STATUS) }, await body<unknown>(req));
     if (o === "status") {

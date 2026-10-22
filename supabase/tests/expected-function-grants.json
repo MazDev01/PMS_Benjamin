@@ -1,5 +1,5 @@
 {
- "migration": "0237",
+ "migration": "0238",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -849,6 +849,13 @@
    "definer": false
   },
   {
+   "f": "quotation_send(p_dealer text, p_id text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "quotations_created_lead_sync()",
    "anon": false,
    "authenticated": false,
@@ -917,6 +924,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "quotations_updated_at()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "quotations_vat_fill()",

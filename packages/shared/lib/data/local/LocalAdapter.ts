@@ -1155,6 +1155,17 @@ export const LocalAdapter: DataAdapter = {
       writeKey(SALES.quotations, [created, ...list]);
       return ok(created);
     },
+    // ส่งใบ = เปลี่ยนแค่สถานะ + วันที่ส่ง (กติกาเดียวกับ RPC quotation_send · 0238)
+    send: (dealer, id) => {
+      const list = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
+      const i = list.findIndex(q => (q.dealerCode ?? DEFAULT_DEALER_CODE) === dealer && q.id === id);
+      if (i < 0) return Promise.reject(new Error(`ไม่พบใบเสนอราคา ${id}`));
+      if (list[i].status !== "draft" && list[i].status !== "sent_to_client")
+        return Promise.reject(new Error(`ส่งได้เฉพาะใบร่างหรือใบที่ส่งให้ลูกค้าแล้ว (ใบ ${id} · สถานะ ${list[i].status})`));
+      const sent: QuotationMock = { ...list[i], status: "sent_to_client", date: new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10), updatedAt: new Date().toISOString() };
+      writeKey(SALES.quotations, list.map((q, j) => (j === i ? sent : q)));
+      return ok(sent);
+    },
   },
   customers: {
     list: (scope) => ok(scopeByDealer(readKey<CustomerRow[]>(SALES.customers, initialCustomers), scope)),

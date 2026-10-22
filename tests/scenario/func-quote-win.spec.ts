@@ -161,6 +161,9 @@ test("[func] ปิดการขายจากหน้าใบเสนอ�
     { timeout: 25_000, message: "ใบต้องเป็น 'ส่งแล้ว'" }).toBe("sent_to_client");
 
   // 3) เริ่มจากหน้าใบเสนอราคา: กดแถวใบ → พาไปแผงลีดของใบนั้น (รอบ 4) → กด "ลูกค้าตอบรับ" ที่ใบ
+  //   รอคำขอบันทึกที่ค้าง (ติ๊กงาน/ไทม์ไลน์ของการส่งใบ — รอฐานขยับลีดก่อนจึงเขียน) จบก่อนโหลดหน้าใหม่ทั้งหน้า
+  //   ไม่งั้นถูกตัดกลางทาง = "แก้ไขลูกค้าเป้าหมาย Failed to fetch" (เจอตอนรันคู่ชุดอื่น 22 ต.ค. 69 · ผู้ใช้จริงเปลี่ยนหน้าในแอปไม่ตัดคำขอ)
+  await settle(page);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   const qrow = page.locator("tbody tr").filter({ hasText: COMP }).first();
   await expect(qrow).toBeVisible({ timeout: 25_000 });

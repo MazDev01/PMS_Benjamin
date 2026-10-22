@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { RYG, skipReason } from "./supabaseEnv";
+import { skipReason } from "./supabaseEnv";
+import { สร้างสาขาของชุด, ลบสาขาของชุด, type บัญชีสาขาของชุด } from "./ownBranch";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
-import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
+import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── ทำฉบับใหม่: VAT เท่าใบเดิมเสมอ (บอสสั่ง 22 ต.ค. 69 · รอบตรวจเต็มรอบ 3 ข้อ 6 · ใบ 0237) ─────────────────────────────
 //   ต้นเหตุเดิม: ใบที่ช่อง VAT ว่าง หน้าเว็บแสดง/พิมพ์ด้วย VAT ของสาขา แต่ฉบับใหม่ล็อกภาษีให้เท่าใบเดิม (0228) → ฐานปฏิเสธ
@@ -16,26 +17,30 @@ test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต
 test.setTimeout(180_000);
 
 const admin = adminClient();
+// สาขาของชุดนี้เอง (ZZQV) — ถังโควตาคำขอแยกจาก RYG ที่ชุดอื่นใช้พร้อมกัน (ตกแบบไม่นิ่งเพราะ 429 ในรอบตรวจรอบ 4 · ดู ownBranch.ts)
+const รหัสสาขา = "ZZQV";
+let สาขา: บัญชีสาขาของชุด;
 const แท็ก = `${Date.now() % 100000}`;
 const ลูกค้า = `ZZTEST-ฉบับใหม่VAT-${แท็ก}`;
 let ใบ: ใบHQพร้อมใช้;
 let เลขV1 = "";
 const ใบของ = async (id: string) => (await admin.from("quotations")
   .select("status, total_value, vat_percent, revision, supersedes_id")
-  .eq("dealer_code", "RYG").eq("id", id).maybeSingle()).data;
+  .eq("dealer_code", รหัสสาขา).eq("id", id).maybeSingle()).data;
 /** VAT ที่หน้าเว็บของสาขาใช้ (ตั้งค่า › ใบเสนอราคา · ไม่ได้ตั้ง = 7 · กติกาเดียวกับ useDealerVat) */
 const VATของสาขา = async () => {
-  const v = ((await admin.from("dealer_settings").select("document").eq("dealer_code", "RYG").maybeSingle()).data?.document as { vatPercent?: unknown } | undefined)?.vatPercent;
+  const v = ((await admin.from("dealer_settings").select("document").eq("dealer_code", รหัสสาขา).maybeSingle()).data?.document as { vatPercent?: unknown } | undefined)?.vatPercent;
   return typeof v === "number" && v >= 0 ? Math.min(v, 100) : 7;
 };
 
 test.beforeAll(async () => {
-  ใบ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลูกค้า, province: "ระยอง",
+  สาขา = await สร้างสาขาของชุด(รหัสสาขา, "ระยอง");
+  ใบ = await เตรียมใบHQ(สาขา, { dealerCode: รหัสสาขา, company: ลูกค้า, province: "ระยอง",
     lines: [{ name: "โครงเหล็กชุดVAT", qty: 2, unit: "ชุด", unitCost: 1000 }, { name: "หลังคาชุดVAT", qty: 1, unit: "งาน", unitCost: 500 }] });
   // ไม่ส่งภาษีมาเลย — ก่อนใบ 0237 ใบแบบนี้ VAT ว่างในฐาน
-  เลขV1 = (await ทำใบลูกค้าจากใบHQ(RYG, ใบ, { customer: ลูกค้า, markupPercent: 10, status: "sent_to_client" })).id;
+  เลขV1 = (await ทำใบลูกค้าจากใบHQ(สาขา, ใบ, { customer: ลูกค้า, markupPercent: 10, status: "sent_to_client" })).id;
 });
-test.afterAll(() => { if (ใบ) ล้างใบHQทดสอบ("RYG", [ใบ.leadNum]); });
+test.afterAll(async () => { expect(await ลบสาขาของชุด(รหัสสาขา, ใบ ? [ใบ.leadNum] : []), `เก็บกวาดสาขา ${รหัสสาขา}`).toEqual([]); });
 
 test("[func·dealer] สร้างใบไม่ส่งภาษี → VAT ไม่ว่าง (ค่าของสาขา) · ทำฉบับใหม่ แก้แค่ % บันทึกได้ · V2 VAT เท่า V1 · ส่ง V2 แล้ว V1 ถูกแทนที่", async ({ page }) => {
   const V1 = await ใบของ(เลขV1);
@@ -48,7 +53,7 @@ test("[func·dealer] สร้างใบไม่ส่งภาษี → VAT
 
   const ข้อความ: string[] = [];
   page.on("console", m => { if (m.type() === "error") ข้อความ.push(m.text()); });
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await loginUI(page, DEALER_ORIGIN, "/login", สาขา);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByPlaceholder(/ค้นหา/).first().fill(เลขV1);

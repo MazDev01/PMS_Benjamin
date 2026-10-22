@@ -58,7 +58,7 @@ type LeadQuotationsPanelProps =
   | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined; openViewSignal?: undefined; onWon?: undefined };
 
 export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon }: LeadQuotationsPanelProps) {
-  const { quotations, createQuotation, updateQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus } = useSales();
+  const { quotations, createQuotation, updateQuotation, sendQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus } = useSales();
   const [ปฏิเสธใบ, setปฏิเสธใบ] = useState<string | null>(null);   // ใบที่กำลังเลือกเหตุผล "ลูกค้าปฏิเสธ"
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
   const [editing, setEditing] = useState<QuotationMock | null>(null);
@@ -352,10 +352,10 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   }
 
   // กดส่ง = ส่งเลย (เดิมถาม "แนบแม่แบบไปด้วยไหม" — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
-  function sendQuote(q: QuotationMock) {
+  // ส่ง/ส่งอีกครั้ง = เปลี่ยนแค่สถานะที่ฐาน ราคาเป็นของในฐาน (ใบ 0238 · ไม่ส่งทั้งแถวจากหน้าจอ)
+  async function sendQuote(q: QuotationMock) {
     const resend = q.status !== "draft";
-    updateQuotation({ ...q, status: "sent_to_client", date: MOCK_TODAY });
-    onToast?.(`ส่งใบเสนอราคา ${q.id} ${resend ? "ให้ลูกค้าอีกครั้งแล้ว" : "ให้ลูกค้าแล้ว"}`);
+    if (await sendQuotation(q.id)) onToast?.(`ส่งใบเสนอราคา ${q.id} ${resend ? "ให้ลูกค้าอีกครั้งแล้ว" : "ให้ลูกค้าแล้ว"}`);
   }
 
   const lbl: React.CSSProperties = { display: "block", fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 };
@@ -654,7 +654,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
           {ทำฉบับใหม่ได้(q) && <button onClick={() => void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><CopyPlus size={13} /> ทำฉบับใหม่</button>}
           {/* ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง (ใบที่ส่งแล้ว) */}
           {แก้ได้(q) && q.status === "sent_to_client" && (
-            <button onClick={() => { sendQuote(q); setMode("list"); }} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
+            <button onClick={() => { void sendQuote(q); setMode("list"); }} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
               <Send size={13} /> ส่งอีกครั้ง
             </button>
           )}
@@ -701,7 +701,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                     {/* ส่งใบเสนอราคา — เด่นเป็นปุ่ม navy · แสดงเฉพาะใบที่ยังส่งได้ (ร่าง/ส่งแล้ว) · ซ่อนเมื่อดูอย่างเดียว */}
                     {/* ส่งใบร่าง = กล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง */}
                     {แก้ได้(q) && q.status === "sent_to_client" && (
-                      <button onClick={() => sendQuote(q)} title="ส่งอีกครั้ง"
+                      <button onClick={() => void sendQuote(q)} title="ส่งอีกครั้ง"
                         className="btn btn-secondary btn-sm" style={{ height: 28, padding: "0 11px", color: "#374151" }}>
                         <Send size={12} /> ส่งอีกครั้ง
                       </button>
