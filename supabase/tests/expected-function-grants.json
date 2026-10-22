@@ -1,5 +1,5 @@
 {
- "migration": "0238",
+ "migration": "0239",
  "functions": [
   {
    "f": "_cron_send_email()",
@@ -1137,6 +1137,20 @@
   },
   {
    "f": "territory_unmatched_dealers()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "th_date(d date)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "th_datetime(t timestamp with time zone)",
    "anon": false,
    "authenticated": true,
    "service_role": true,
