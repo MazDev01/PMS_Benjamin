@@ -81,6 +81,8 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
       const { data, error } = await sb.rpc("quote_request_submit", {
         p_lead_num_id: Number(b.leadNumId), p_product: String(b.product ?? ""), p_subtype: String(b.subtype ?? ""),
         p_area: b.area == null || b.area === "" ? null : Number(b.area), p_spec: String(b.spec ?? ""), p_province: String(b.province ?? ""),
+        // วัสดุจากแม่แบบ (ใบ 0244) — ส่งต่อแค่ วัสดุ + จำนวน ฐานคิดราคาจากแม่แบบเอง (ไม่รับราคาจากหน้าเว็บ)
+        p_estimate: Array.isArray(b.estimate) ? (b.estimate as { templateId?: unknown; qty?: unknown }[]).slice(0, 200).map(e => ({ templateId: Number(e?.templateId), qty: Number(e?.qty) })) : [],
       });
       if (error) return dbFail("quoteRequests.submit", error);
       return ok(toCamel(data as Row));

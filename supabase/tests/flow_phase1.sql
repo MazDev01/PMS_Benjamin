@@ -177,12 +177,15 @@ begin
 
   -- ══ ฉ. เกินกำหนด 14 วัน + ประวัติ ══
   perform flowtest.as_root();
-  select count(*) into n from quote_requests q where quote_request_overdue(q);
+  -- นับเฉพาะคำขอของข้อทดสอบนี้ (ลูกค้าเป้าหมาย l1 · l2 · RQ-TEST-OVERDUE) — ข้อทดสอบหน้าเว็บที่รันพร้อมกันสร้างคำขอเกินกำหนดชั่วคราวได้
+  --   (26 ต.ค. 69 เคยนับทั้งฐานแล้วตกเพราะเจอคำขอของข้อทดสอบอื่น 3 รายการ — ไม่ใช่บั๊กของฐาน)
+  select count(*) into n from quote_requests q where quote_request_overdue(q) and q.dealer_code = 'CNX' and q.lead_num_id in (l1, l2);
   perform flowtest.ok(n = 0, 'ยังไม่มีคำขอเกินกำหนด');
   insert into quote_requests (request_no, dealer_code, lead_num_id, product, due_at, status, submitted_at)
   select 'RQ-TEST-OVERDUE', 'CNX', num_id, 'x', now() - interval '1 day', 'pricing', now() - interval '15 days'
     from leads where dealer_code = 'CNX' and num_id not in (l1, l2) limit 1;
-  select count(*) into n from quote_requests q where quote_request_overdue(q);
+  select count(*) into n from quote_requests q where quote_request_overdue(q)
+     and ((q.dealer_code = 'CNX' and q.lead_num_id in (l1, l2)) or q.request_no = 'RQ-TEST-OVERDUE');
   perform flowtest.ok(n = 1, 'คำขอที่ค้างเกิน 14 วันและยังไม่ส่งใบ = เกินกำหนด');
 
   -- ══ ช. ใครตีราคาได้ — เอาบทบาทออกจากจุดตั้งค่าเดียว บทบาทนั้นทำ/ส่งใบไม่ได้ ══

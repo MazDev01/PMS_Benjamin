@@ -65,6 +65,20 @@
    "definer": true
   },
   {
+   "f": "_estimate_snapshot(p_items jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_estimate_total(p_items jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_hd_won(p_dealer text)",
    "anon": false,
    "authenticated": false,
@@ -870,6 +884,27 @@
    "definer": true
   },
   {
+   "f": "material_estimate_accuracy()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "material_templates_save(p_rows jsonb, p_delete_ids bigint[])",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "material_templates_touch()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "move_dealer_data_atomic(p_from text, p_to text)",
    "anon": false,
    "authenticated": false,
@@ -1150,7 +1185,7 @@
    "definer": false
   },
   {
-   "f": "quote_request_submit(p_lead_num_id integer, p_product text, p_subtype text, p_area numeric, p_spec text, p_province text)",
+   "f": "quote_request_submit(p_lead_num_id integer, p_product text, p_subtype text, p_area numeric, p_spec text, p_province text, p_estimate jsonb)",
    "anon": false,
    "authenticated": true,
    "service_role": false,
