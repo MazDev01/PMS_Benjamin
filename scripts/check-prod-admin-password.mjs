@@ -17,6 +17,7 @@
 // ต้องมี Docker (ใช้ psql จากอิมเมจ Postgres ของ Supabase ที่มีในเครื่อง)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 
 const ทดสอบตัวเอง = process.argv.includes("--test");
 const อ่านไฟล์ = (f) => { try { return readFileSync(f, "utf8"); } catch { return ""; } };
@@ -55,7 +56,7 @@ function รัน() {
     const c = execFileSync("docker", ["ps", "--filter", "name=supabase_db_", "--format", "{{.Names}}"], { encoding: "utf8" })
       .split(String.fromCharCode(10)).map(s => s.trim()).find(s => s.includes("dbcheck"));
     if (!c) { console.error("❌ ไม่พบฐานทดสอบในเครื่อง (docker)"); process.exit(2); }
-    return execFileSync("docker", ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres", ...psqlArgs], { input: คำสั่ง, encoding: "utf8" });
+    return execFileSync("docker", [...อาร์กิวเมนต์psql(c, { เขียน: false }), ...psqlArgs], { input: คำสั่ง, encoding: "utf8" });
   }
   const url = process.env.PMS_PROD_DB_URL ?? "";
   if (!/^postgres(ql)?:\/\//.test(url)) { console.error("❌ ตั้ง PMS_PROD_DB_URL เป็นที่อยู่ฐานข้อมูล (postgresql://…) ตอนรัน — สคริปต์ไม่เก็บค่านี้"); process.exit(2); }

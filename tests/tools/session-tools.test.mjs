@@ -39,7 +39,7 @@ const ไฟล์ที่ใช้ = [
   "scripts/check-migration-numbers.mjs", "scripts/check-hardcoded-ports.mjs",
   "scripts/git-hooks/pre-commit.mjs", "scripts/git-hooks/pre-push.mjs",
   "scripts/lib/fileLock.mjs", "scripts/lib/session.mjs", "scripts/lib/sessions.mjs", "scripts/lib/commitGate.mjs",
-  "scripts/lib/gitFiles.mjs", "scripts/lib/testDbLock.mjs", "scripts/lib/ports.json",
+  "scripts/lib/gitFiles.mjs", "scripts/lib/testDbLock.mjs", "scripts/lib/testDbGuard.mjs", "scripts/lib/testDbFetchKey.mjs", "scripts/lib/ports.json",
 ];
 
 try {

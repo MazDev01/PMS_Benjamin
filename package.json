@@ -3,9 +3,9 @@
   "private": true,
   "packageManager": "pnpm@11.15.1",
   "scripts": {
-    "dev": "turbo dev",
-    "dev:hq": "turbo dev --filter=hq",
-    "dev:dealer": "turbo dev --filter=dealer",
+    "dev": "node scripts/dev-db.mjs",
+    "dev:hq": "node scripts/dev-db.mjs --filter=hq",
+    "dev:dealer": "node scripts/dev-db.mjs --filter=dealer",
     "build": "turbo build",
     "typecheck": "turbo typecheck && tsc -p tests/tsconfig.json --noEmit",
     "lint": "turbo lint",
