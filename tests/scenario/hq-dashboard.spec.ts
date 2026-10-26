@@ -40,7 +40,10 @@ function ล้าง() {
     delete from public.customers where dealer_code in ('${สาขา}', '${สาขาว่าง}');
     delete from public.files where dealer_code in ('${สาขา}', '${สาขาว่าง}');
     delete from public.dealers where code in ('${สาขา}', '${สาขาว่าง}');
-    delete from public.audit_log where target like '%แดชบอร์ด-${ป้าย}%';`);
+    -- บันทึกการใช้งานลบได้เฉพาะแถวทดสอบ ผ่านสวิตช์ล้างข้อมูลทดสอบ (ใบ 0241) — แถวที่หน้าตาเหมือนจริงติดป้าย ZZTEST ที่การกระทำ
+    select set_config('pms.audit_delete', 'test', false);
+    delete from public.audit_log where target like '%แดชบอร์ด-${ป้าย}%';
+    select set_config('pms.audit_delete', '', false);`);
 }
 
 test.beforeAll(() => {
@@ -73,11 +76,11 @@ test.beforeAll(() => {
     insert into public.dealer_package_proposals (id, prospect_id, proposal_no, package, amount, status, payment_due_on) values
       (979200811, 979200801, 'DP-${สาขา}-1', 'standard', 1000, 'accepted', current_date - 3);
     insert into public.audit_log ("user", role, action, target, at) values
-      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · ${กิจกรรมจริง}', now()),
+      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ZZTEST แก้ไขดีลเลอร์', 'RYG · ${กิจกรรมจริง}', now()),   -- ป้าย ZZTEST ที่การกระทำ: ลบได้ (ใบ 0241) แต่จอยังเห็นเป็นกิจกรรมจริง
       ('บัญชีทดสอบชั่วคราว', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · ชั่วคราว-แดชบอร์ด-${ป้าย}', now()),
       ('live-hq-1@example.test', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · อีเมลทดสอบ-แดชบอร์ด-${ป้าย}', now()),
       ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ปิดใช้งานดีลเลอร์', 'ZZT · สาขาทดสอบ-แดชบอร์ด-${ป้าย}', now()),
-      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ออกใบค่าแฟรนไชส์', 'DP-1 · ZZTEST-ป้าย-แดชบอร์ด-${ป้าย}', now());
+      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ZZTEST ออกใบค่าแฟรนไชส์', 'DP-1 · ZZTEST-ป้าย-แดชบอร์ด-${ป้าย}', now());
     select 'ok';`);
   if (!out?.includes("ok")) throw new Error("วางข้อมูลแดชบอร์ดไม่สำเร็จ");
 });

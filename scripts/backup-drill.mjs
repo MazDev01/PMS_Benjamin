@@ -115,10 +115,11 @@ let before;   // แถวตามที่ "ฐานข้อมูลเก�
 // ตารางที่ใช้เลขรันอัตโนมัติ ถ้าตัวนับไม่ถูกปรับหลังกู้ จะขอเลขที่มีอยู่แล้ว → บันทึกใหม่ไม่ผ่าน
 {
   const { data, error } = await svc.from("audit_log")
-    .insert({ user: "ZZ-DRILL", role: "SUPER_ADMIN", action: "backup_drill", target: "ซ้อมกู้คืน", at: new Date().toISOString() })
+    .insert({ user: "ZZT-DRILL", role: "SUPER_ADMIN", action: "backup_drill", target: "ZZT · ซ้อมกู้คืน", at: new Date().toISOString() })
     .select("id");
   const newId = data?.[0]?.id;
-  if (newId) await svc.from("audit_log").delete().eq("id", newId);
+  // บันทึกการใช้งานลบตรงไม่ได้ (ใบ 0241) — แถวซ้อมติดป้าย ZZT แล้วลบผ่านทางของสคริปต์ล้างข้อมูลทดสอบ
+  if (newId) await svc.rpc("audit_test_cleanup", { p_ids: [newId] });
   step(!error && !!newId, "หลังกู้คืนแล้วยังบันทึกรายการใหม่ได้",
     error ? `⚠ ${error.message.slice(0, 55)}` : `ได้เลขใหม่ ${newId} (ไม่ชนของเดิม)`);
 }

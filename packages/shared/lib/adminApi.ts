@@ -295,26 +295,8 @@ export async function impersonateDealer(code: string): Promise<{ ok: true; link:
   }
 }
 
-// ล้างบันทึกการใช้งานทั้งหมด — เฉพาะผู้ดูแลสูงสุด (เซิร์ฟเวอร์บังคับอีกชั้น)
-// ⚠️ ปกติ audit_log ลบไม่ได้ (append-only) — เส้นทางนี้เป็นข้อยกเว้นเดียวที่บอสสั่งให้มี
-//    การล้างจะถูกบันทึกกลับเป็นรายการแรกเสมอ (ใครล้าง เมื่อไหร่ ไปกี่แถว)
-export async function clearAuditLog(): Promise<
-  { ok: true; removed: number } | { ok: false; error: string }
-> {
-  if (!REAL_BACKEND) return { ok: false, error: "โหมดเดโม: ล้างบันทึกจริงไม่ได้" };
-  const token = await callerToken();
-  if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
-  try {
-    const res = await adminFetch("/api/admin/audit/clear", { credentials: "same-origin",
-      method: "POST", headers: authHeaders(token),
-    });
-    const json = (await res.json().catch(() => ({}))) as { error?: string; removed?: number };
-    if (!res.ok) return { ok: false, error: json.error ?? `เซิร์ฟเวอร์ตอบกลับ ${res.status}` };
-    return { ok: true, removed: json.removed ?? 0 };
-  } catch (e) {
-    return { ok: false, error: friendlyError(e, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้") };
-  }
-}
+// ล้างบันทึกการใช้งาน (clearAuditLog) ยกเลิกแล้ว — บอสสั่ง 26 ต.ค. 69 · บันทึกแก้/ลบไม่ได้ทุกบทบาท (ใบ 0241)
+
 
 // ตั้งรหัสผ่านใหม่ให้ผู้ใช้สำนักงานใหญ่ — เฉพาะผู้ดูแลสูงสุด (เซิร์ฟเวอร์บังคับอีกชั้น)
 // คืนรหัสใหม่มาโชว์ครั้งเดียว ให้ผู้ดูแลคัดลอกไปแจ้งเจ้าตัว (แนวเดียวกับรีเซ็ตรหัสของดีลเลอร์)

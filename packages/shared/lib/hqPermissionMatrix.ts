@@ -33,7 +33,7 @@ export const MODULE_PERMS: Record<string, { read: Permission; create?: Permissio
   "ลูกค้าเป้าหมายทั้งเครือ": { read: "leads:read", create: "leads:create", update: "leads:update", del: "leads:delete" },
   "ใบเสนอราคาทั้งเครือ":    { read: "quotations:read", create: "quotations:create", update: "quotations:update", del: "quotations:delete" },
   "ลูกค้าทั้งเครือ":        { read: "customers:read", create: "customers:create", update: "customers:update", del: "customers:delete" },
-  // ล้างบันทึกได้เฉพาะผู้ดูแลระบบ (audit/page.tsx) — ผูกกับ hq:all_data ซึ่งมีเฉพาะบทบาทนั้นกับผู้บริหาร
-  "บันทึกการใช้งาน":        { read: "reports:view", del: "hq:all_data" },
+  // ไม่มีสิทธิ์ลบ — บันทึกแก้/ลบไม่ได้ทุกบทบาท (บอสสั่ง 26 ต.ค. 69 · ใบ 0241 · ปุ่มล้างบันทึกยกเลิก)
+  "บันทึกการใช้งาน":        { read: "reports:view" },
   "ตั้งค่า":               { read: "hq:all_data", create: "settings:edit", update: "settings:edit", del: "settings:edit" },
 };

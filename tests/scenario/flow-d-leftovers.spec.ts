@@ -145,6 +145,6 @@ test("[ง] HQ: หน้าเข้าระบบไม่พูดถึง�
     await expect(แถว, "บทบาทเป็นภาษาไทย").toContainText("เจ้าหน้าที่ HQ");
     await expect(แถว, "ไม่มีรหัสบทบาทดิบ").not.toContainText("HQ_STAFF");
   } finally {
-    if (แถวบันทึก.data) await admin.from("audit_log").delete().eq("id", แถวบันทึก.data.id);
+    if (แถวบันทึก.data) await admin.rpc("audit_test_cleanup", { p_ids: [แถวบันทึก.data.id] });   // ลบตรงไม่ได้ (ใบ 0241)
   }
 });
