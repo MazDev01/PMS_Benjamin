@@ -1,5 +1,5 @@
 {
- "migration": "0240",
+ "migration": "0241",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -21,6 +21,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "_audit_is_test_row(p_user text, p_target text, p_action text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "_cron_send_email()",
@@ -181,6 +188,20 @@
    "anon": false,
    "authenticated": true,
    "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "audit_log_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "audit_test_cleanup(p_ids bigint[], p_action_like text, p_target_like text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
    "definer": true
   },
   {

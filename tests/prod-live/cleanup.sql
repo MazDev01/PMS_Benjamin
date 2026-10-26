@@ -13,6 +13,23 @@ alter table public.quotations disable trigger trg_price_history_append_only;
 delete from public.email_outbox
  where (ref_table = 'quote_requests' and ref_id in (select id::text from public.quote_requests where dealer_code = 'ZZT'))
     or to_email like 'live-%@example.test';
+-- ═══ บันทึกการใช้งาน (ใบ 0240 ให้ฐานบันทึกเอง · ใบ 0241 กันแก้/ลบ · บอสสั่ง 26 ต.ค. 69) ═══
+--   ลบเฉพาะแถวของสาขาทดสอบ ZZT และบัญชีชั่วคราว live-* (ชื่อแสดง 'บัญชีทดสอบชั่วคราว' = บัญชี live-* ที่ run.mjs สร้าง)
+--   นับก่อนลบ: tests/prod-live/cleanup-audit-count.sql (เงื่อนไขชุดเดียวกัน — แก้ที่หนึ่งต้องแก้อีกที่ · ข้อทดสอบ audit-cleanup.test.mjs)
+--   ด่านกันพลาด: เงื่อนไขนี้จับแถวที่ไม่ใช่แถวทดสอบได้แม้แถวเดียว → ยกเลิกทั้งชุด (ตัวดักใบ 0241 ก็ปฏิเสธซ้ำอีกชั้น)
+do $$ begin
+  if to_regprocedure('public._audit_is_test_row(text,text,text)') is not null and exists (
+       select 1 from public.audit_log
+        where ("user" like 'live-%@example.test' or "user" = 'บัญชีทดสอบชั่วคราว' or target like 'ZZT · %' or target = 'ZZT')
+          and not public._audit_is_test_row("user", target, action)) then
+    raise exception 'เงื่อนไขลบบันทึกการใช้งานจับแถวที่ไม่ใช่แถวทดสอบ — ยกเลิกทั้งชุด';
+  end if;
+end $$;
+set local pms.audit_delete = 'test';
+delete from public.audit_log
+ where "user" like 'live-%@example.test' or "user" = 'บัญชีทดสอบชั่วคราว' or target like 'ZZT · %' or target = 'ZZT';
+set local pms.audit_delete = '';
+-- ═══ จบบันทึกการใช้งาน ═══
 -- แจ้งเตือน (ใบ 0231): ของสาขา ZZT หายตามกุญแจนอกตอนลบสาขา · ของ HQ ที่เกิดจากงานของ ZZT (ไม่มีรหัสสาขา) ต้องลบเอง
 --   ใบ 0231 ยังไม่ขึ้นฐานจริง = ไม่มีตาราง → ข้าม (to_regclass)
 do $$ begin
