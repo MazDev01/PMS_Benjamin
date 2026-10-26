@@ -2,3 +2,4 @@
 .githooks/* text eol=lf
 # ไฟล์บันทึกลายนิ้วมือโค้ดที่ผ่านรอบตรวจเต็ม — หลายเซสชัน merge แล้วรวมบรรทัด ไม่ชนกัน (scripts/lib/commitGate.mjs · 22 ต.ค. 69)
 supabase/gate-passed-code.txt merge=union
+tests/flaky-log.txt merge=union

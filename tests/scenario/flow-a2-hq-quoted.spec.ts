@@ -76,14 +76,24 @@ test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้รา�
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กรองได้ราคา HQ: ไม่เห็นลีดที่ยังรอ").toHaveCount(0);
 
   // ตัวเลขแดชบอร์ด (โดนัทขั้นตอนการขาย) = นับจากฐาน
+  //   ลีด RYG ถูกข้ออื่นที่รันขนานเพิ่ม/ลบได้ตลอด (ตก 26 ต.ค. 69: 8 กับ 7 · ไม่นิ่ง 21 ต.ค. 69) — นับฐานก่อนเปิดหน้า + หลังอ่านจอ
+  //   เท่ากัน = ไม่มีใครแตะระหว่างนั้น → จอต้องตรงเป๊ะ · ไม่เท่า = เปิดหน้าใหม่แล้วอ่านใหม่ (ไม่ใช่รอเวลา · เทียบไม่ผ่อน)
   const นับ = async (s: string) => (await admin.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", "RYG").eq("status", s)).count ?? 0;
-  await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
-  await settle(page);
   for (const [ป้าย, s] of [["ได้ราคา HQ", "HQ_QUOTED"], ["รอราคา HQ", "HQ_PRICING"]] as const) {
-    const ปุ่ม = page.getByTitle(`ดูลูกค้าเป้าหมายขั้นตอน ${ป้าย}`);
-    await expect(ปุ่ม, `แดชบอร์ดมีแถว ${ป้าย}`).toBeVisible({ timeout: 20_000 });
-    const เลขบนจอ = Number((await ปุ่ม.locator("span").nth(2).innerText()).replace(/[^\d]/g, ""));
-    expect(เลขบนจอ, `แดชบอร์ด ${ป้าย} = นับจากฐาน`).toBe(await นับ(s));
+    let ได้ = false;
+    for (let รอบ = 0; รอบ < 5 && !ได้; รอบ++) {
+      const ก่อน = await นับ(s);
+      await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      const ปุ่ม = page.getByTitle(`ดูลูกค้าเป้าหมายขั้นตอน ${ป้าย}`);
+      await expect(ปุ่ม, `แดชบอร์ดมีแถว ${ป้าย}`).toBeVisible({ timeout: 20_000 });
+      const เลขบนจอ = Number((await ปุ่ม.locator("span").nth(2).innerText()).replace(/[^\d]/g, ""));
+      const หลัง = await นับ(s);
+      if (ก่อน !== หลัง) continue;   // ข้ออื่นแตะลีด RYG ระหว่างอ่าน — อ่านใหม่
+      expect(เลขบนจอ, `แดชบอร์ด ${ป้าย} = นับจากฐาน`).toBe(หลัง);
+      ได้ = true;
+    }
+    expect(ได้, `แดชบอร์ด ${ป้าย}: ฐานไม่นิ่งเลยตลอด 5 รอบ (ข้ออื่นเพิ่ม/ลบลีด RYG ตลอดเวลา)`).toBe(true);
   }
 });
 

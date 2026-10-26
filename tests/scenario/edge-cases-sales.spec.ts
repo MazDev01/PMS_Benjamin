@@ -109,14 +109,14 @@ test("[edge] กด 'ปิดการขายสำเร็จ' รัว �
   const winBtn = page.locator(`[data-quote-item="${ใบส่ง?.[0]?.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ });
   await expect(winBtn).toBeVisible({ timeout: 20_000 });
   await Promise.all([0, 1, 2].map(() => winBtn.click({ force: true, timeout: 5_000 }).catch(() => {})));
-  // กล่องยืนยันอาจซ้อนขึ้นมาได้หลายใบจากการกดรัว — กรณีแย่สุดคือผู้ใช้กด "ตกลง" ครบทุกใบ (หนักกว่าตอบใบเดียว)
-  const กล่อง = page.locator(".pms-confirm[role='alertdialog']");
-  await expect(กล่อง.first(), "ต้องมีกล่องยืนยันขึ้นมาก่อน").toBeVisible({ timeout: 15_000 });
-  for (let i = 0; i < 5 && (await กล่อง.count()) > 0; i++) {
-    await กล่อง.last().locator(".pms-confirm-actions button").last().click();
-    await page.waitForTimeout(300);
-  }
-  await expect(กล่อง).toHaveCount(0, { timeout: 10_000 });
+  // ระบบเปิดกล่องได้ทีละใบ: กดรัว 3 ที = กล่องเก่าถูกยกเลิก เหลือใบที่เปิดอยู่จริงใบเดียว
+  //   กล่องที่ถูกยกเลิกยังค้างบนจอระหว่างเลื่อนหาย (data-removed="true" ของ sonner) — ไม่นับใบนั้น
+  //   (ไม่นิ่ง 26 ต.ค. 69: ตก 4/10 รอบ ไม่เคยตกที่ข้อลูกค้าซ้ำ/ยอดซ้ำ — ต้นเหตุจริง = ใบเก่าค้างจอเมื่อเครื่องหน่วง
+  //    บั๊กของกล่องยืนยัน แก้แล้วใน ConfirmToast.tsx · ข้อทดสอบเฉพาะ: confirm-toast-race.spec.ts)
+  const กล่องที่เปิดอยู่ = page.locator("[data-sonner-toast][data-removed='false'] .pms-confirm[role='alertdialog']");
+  await expect(กล่องที่เปิดอยู่, "กดรัวแล้วต้องเหลือกล่องยืนยันที่เปิดอยู่ใบเดียว").toHaveCount(1, { timeout: 15_000 });
+  await กล่องที่เปิดอยู่.locator(".pms-confirm-actions button").last().click();
+  await expect(page.locator(".pms-confirm[role='alertdialog']")).toHaveCount(0, { timeout: 10_000 });
 
   const cust = await waitRow<{ id: number }>(sb, "customers", { company }, 60_000);
   await page.waitForTimeout(6_000); // เผื่อรายการซ้ำ/ยอดบวกซ้ำตามมาทีหลัง
