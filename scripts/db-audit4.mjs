@@ -15,6 +15,7 @@
 // รัน: node scripts/db-audit4.mjs
 import { execFileSync } from "node:child_process";
 import { localDbContainer } from "./lib/localDbContainer.mjs";
+import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 
 const คอนเทนเนอร์ = localDbContainer();
 const ตัวช่วยตรวจสิทธิ์ = "(auth_dealer|auth_role|is_hq|can_write_|can_price_quotes|is_account_active|is_own_identity|auth\\.uid\\(\\)|auth\\.role\\(\\))";
@@ -27,7 +28,7 @@ const ยกเว้น = [
 
 let rows;
 try {
-  const out = execFileSync("docker", ["exec", "-i", คอนเทนเนอร์, "psql", "-U", "postgres", "-d", "postgres", "-At", "-F", "\t", "-c", `
+  const out = execFileSync("docker", [...อาร์กิวเมนต์psql(คอนเทนเนอร์, { เขียน: false }), "-At", "-F", "\t", "-c", `
     select p.proname,
            pg_get_function_identity_arguments(p.oid),
            has_function_privilege('anon', p.oid, 'execute'),

@@ -6,6 +6,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+// กุญแจเขียนของผู้ถือล็อกฐานทดสอบ (scripts/lib/testDbGuard.mjs · 26 ต.ค. 69) — มีเฉพาะเว็บที่ชุดทดสอบเปิดขณะถือล็อก
+//   ฐานทดสอบรับเขียนเฉพาะคำขอที่มีกุญแจของรอบ (แม้ล็อกอินเป็นผู้ใช้) · เว็บจริง/ฐาน dev ไม่มีค่านี้ = ไม่ส่งอะไรเพิ่ม
+const กุญแจฐานทดสอบ = process.env.NEXT_PUBLIC_PMS_TESTDB_LOCK ?? "";
 
 /** ตั้งค่า Supabase ครบหรือยัง (มี URL + anon key) */
 export function isSupabaseConfigured(): boolean {
@@ -50,6 +53,7 @@ export function getSupabase(): SupabaseClient {
       // ⚠️ ลองใหม่ครั้งเดียวเท่านั้น — ถ้านาฬิกาเพี้ยนเป็นนาที ต้องปล่อยให้ล้มและฟ้อง
       //    ไม่งั้นจะกลายเป็นวนลูปยิงซ้ำไม่รู้จบโดยไม่มีใครรู้ว่าต้นเหตุคือนาฬิกา
       global: {
+        ...(กุญแจฐานทดสอบ ? { headers: { "x-pms-lock": กุญแจฐานทดสอบ } } : {}),
         fetch: async (input, init) => {
           // ── ต่อฐานข้อมูลไม่ติดเลย ต้องบอกว่า "ต่อไม่ติด" ไม่ใช่ "Failed to fetch" ────────
           //    เจอจริง 2 ก.ย. 69: ฐานข้อมูลในเครื่องดับ (Docker ปิด) แล้วหน้าจอขึ้นกล่องแดง

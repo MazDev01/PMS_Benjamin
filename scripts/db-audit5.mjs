@@ -17,6 +17,7 @@
 // รัน: node scripts/db-audit5.mjs
 import { execFileSync } from "node:child_process";
 import { localDbContainer } from "./lib/localDbContainer.mjs";
+import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 
 const คำสั่ง = { ลบ: "delete_dealer_atomic", ย้าย: "move_dealer_data_atomic" };
 
@@ -49,7 +50,7 @@ const ยกเว้น = [
   { table: "quote_request_events", fn: "ย้าย", reason: "ประวัติคำขอราคา ไม่มีรหัสสาขาของตัวเอง — ผูกกับคำขอราคาด้วยเลขคำขอ ซึ่งไม่เปลี่ยนตอนย้าย", fk: { to: "quote_requests" } },
 ];
 
-const psql = sql => execFileSync("docker", ["exec", "-i", localDbContainer(), "psql", "-U", "postgres", "-d", "postgres", "-At", "-F", "\t", "-c", sql.replace(/\s+/g, " ")],
+const psql = sql => execFileSync("docker", [...อาร์กิวเมนต์psql(localDbContainer(), { เขียน: false }), "-At", "-F", "\t", "-c", sql.replace(/\s+/g, " ")],
   { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 });
 
 let ตาราง, กุญแจนอก, เนื้อ;
@@ -87,7 +88,7 @@ for (const [k, fn] of Object.entries(คำสั่ง)) if (!เนื้อ[k
 
 // ตัดหมายเหตุ (-- …) ออกก่อนหาชื่อตาราง — ชื่อที่อยู่ในหมายเหตุไม่นับว่าคำสั่งจัดการ
 //   (เนื้อคำสั่งถูกยุบเป็นบรรทัดเดียวไปแล้ว จึงอ่านเนื้อดิบอีกรอบแบบคงบรรทัดไว้)
-const เนื้อดิบ = k => execFileSync("docker", ["exec", "-i", localDbContainer(), "psql", "-U", "postgres", "-d", "postgres", "-At", "-c",
+const เนื้อดิบ = k => execFileSync("docker", [...อาร์กิวเมนต์psql(localDbContainer(), { เขียน: false }), "-At", "-c",
   `select prosrc from pg_proc where pronamespace = 'public'::regnamespace and proname = '${คำสั่ง[k]}'`], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
   .split(/\r?\n/).map(l => l.replace(/--.*$/, "")).join("\n");
 const จัดการเอง = (k, table) => new RegExp(`(^|[^a-z_0-9])${table}([^a-z_0-9]|$)`).test(เนื้อดิบ(k));

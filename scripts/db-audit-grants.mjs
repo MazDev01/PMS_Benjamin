@@ -23,6 +23,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { localDbContainer } from "./lib/localDbContainer.mjs";
+import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 
 const ไฟล์คำสั่ง = "supabase/tests/expected-function-grants.json";
 const ไฟล์ตาราง = "supabase/tests/expected-relation-grants.json";
@@ -64,7 +65,7 @@ const SQL = `select json_build_object(
 const args = process.argv.slice(2);
 const ค่าของ = f => (args.includes(f) ? args[args.indexOf(f) + 1] : null);
 const ใบล่าสุด = () => readdirSync("supabase/migrations").filter(f => /^\d{4}_.*\.sql$/.test(f)).sort().pop()?.slice(0, 4) ?? "";
-const psql = (c, sql) => execFileSync("docker", ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres", "-At", "-c", sql.replace(/\s+/g, " ")],
+const psql = (c, sql) => execFileSync("docker", [...อาร์กิวเมนต์psql(c, { เขียน: false }), "-At", "-c", sql.replace(/\s+/g, " ")],
   { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
 const อ่านจากคอนเทนเนอร์ = c => JSON.parse(psql(c, SQL));
 

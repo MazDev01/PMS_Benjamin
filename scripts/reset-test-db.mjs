@@ -18,9 +18,10 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { readEnvFile } from "./lib/targetEnv.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+import { อาร์กิวเมนต์psql, ระหว่างล้างฐาน, คอนเทนเนอร์ as คอนเทนเนอร์ฐานทดสอบ } from "./lib/testDbGuard.mjs";
 
 // เขียนฐานทดสอบ = ถือล็อกฐานทดสอบ — เซสชันอื่นใช้ฐานอยู่ (เช่นรอบตรวจเต็ม) = หยุด บอกว่าใคร (scripts/lib/testDbLock.mjs · 22 ต.ค. 69)
-ขอล็อกฐานทดสอบ("reset-test-db");
+//   (ถือล็อกเฉพาะเมื่อเป็นฐานทดสอบ pms-dbcheck — ฐาน dev ไม่ต้องรอคิวรอบตรวจ · ดูด้านล่าง)
 
 const arg = k => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
 const workdir = path.resolve(arg("--workdir") ?? ".");
@@ -29,26 +30,30 @@ const sh = (cmd, args, opt = {}) => execFileSync(cmd, args, { encoding: "utf8", 
 // ── ค่าเชื่อมต่อจากตัวฐานเอง (ไม่อ่าน .env.local ของแอป — กันชี้ผิดฐาน) ───────────────────────────────
 const st = Object.fromEntries(sh("npx", ["supabase", "status", "-o", "env", "--workdir", workdir]).split(/\r?\n/)
   .map(l => l.match(/^([A-Z_]+)="?(.*?)"?$/)).filter(Boolean).map(m => [m[1], m[2]]));
-const API = st.API_URL ?? "", SERVICE = st.SERVICE_ROLE_KEY ?? "", ANON = st.ANON_KEY ?? "";
+const API = st.API_URL ?? "";
+const ฐานมีตัวกัน = () => container === คอนเทนเนอร์ฐานทดสอบ;
+const SERVICE = st.SERVICE_ROLE_KEY ?? "", ANON = st.ANON_KEY ?? "";   // ฐานทดสอบ: ตัวสลับกุญแจ (testDbFetchKey.mjs) ใส่กุญแจของรอบให้เอง
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(API) || !SERVICE) {
   console.error(`❌ ไม่ใช่ฐานในเครื่อง หรืออ่านค่าจาก supabase status ไม่ได้ (${API || "ไม่มีที่อยู่"}) — หยุด`);
   process.exit(1);
 }
 const projectId = readFileSync(path.join(workdir, "supabase/config.toml"), "utf8").match(/^project_id\s*=\s*"([^"]+)"/m)?.[1];
 const container = `supabase_db_${projectId}`;
+if (ฐานมีตัวกัน()) ขอล็อกฐานทดสอบ("reset-test-db");
 console.log(`\n🎯 ฐานทดสอบในเครื่อง: ${projectId} · ${API}`);
 
 // ── ① ลงใบทั้งหมดใหม่ ─────────────────────────────────────────────────────────────────────────────
 if (!process.argv.includes("--skip-reset")) {
   console.log("① ล้างฐาน + ลงใบทั้งหมด …");
   // NOTICE หลายร้อยบรรทัด — พิมพ์เฉพาะตอนล้มเหลว
-  try { sh("npx", ["supabase", "db", "reset", "--workdir", workdir], { stdio: "pipe" }); }
+  const ล้าง = () => sh("npx", ["supabase", "db", "reset", "--workdir", workdir], { stdio: "pipe" });
+  try { ฐานมีตัวกัน() ? ระหว่างล้างฐาน(ล้าง) : ล้าง(); }
   catch (e) { console.error(String(e.stderr ?? e.message).split(/\r?\n/).filter(l => !/^NOTICE|^Applying/.test(l)).join("\n")); process.exit(1); }
 }
 
 // ── ② ข้อมูลตั้งต้น ───────────────────────────────────────────────────────────────────────────────
 console.log("② ใส่ข้อมูลตั้งต้น (tests/fixtures/test-baseline.sql) …");
-sh("docker", ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", "-X", "-q", "-v", "ON_ERROR_STOP=1"],
+sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"],
   { input: readFileSync("tests/fixtures/test-baseline.sql", "utf8"), stdio: ["pipe", "ignore", "inherit"], shell: false });
 
 // ── ③ บัญชีทดสอบ ──────────────────────────────────────────────────────────────────────────────────

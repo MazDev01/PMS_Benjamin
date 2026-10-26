@@ -27,9 +27,11 @@ export function ตัวล็อก({ path, envHeld, เรื่อง, เ�
   /**
    * ขอล็อก — ได้: คืน { token, release } · ไม่ได้: พิมพ์เหตุผลแล้ว process.exit(3)
    * @param {string} งาน ชื่องานที่โชว์ให้ตัวที่มาทีหลังเห็น
-   * @param {{ รอ?: number }} [opt] รอได้นานสุดกี่มิลลิวินาที (0 = ไม่รอ หยุดทันที)
+   * @param {{ รอ?: number, เจ้าของ?: number }} [opt] รอได้นานสุดกี่มิลลิวินาที (0 = ไม่รอ หยุดทันที)
+   *   เจ้าของ = pid ของโปรเซสที่ถือล็อกจริง (ค่าตั้งต้น = โปรเซสนี้) — คำสั่งช่วยขอล็อกแทนตัวแม่ (scripts/testdb-lock-cli.mjs)
+   *   เจ้าของเป็นโปรเซสอื่น = ไม่ปล่อยเองตอนจบ (ตัวแม่ปล่อย · ตัวแม่ตายก่อน = ล็อกค้างที่คนถัดไปเก็บกวาดเอง)
    */
-  return function ขอล็อก(งาน, { รอ = 0 } = {}) {
+  return function ขอล็อก(งาน, { รอ = 0, เจ้าของ = process.pid } = {}) {
     const held = process.env[envHeld];
     if (held && อ่านล็อก(path)?.token === held) return { token: held, release: () => {} };   // ตัวแม่ถือไว้ให้แล้ว
     const หมดเวลา = Date.now() + รอ;
@@ -38,15 +40,17 @@ export function ตัวล็อก({ path, envHeld, เรื่อง, เ�
       try {
         const fd = openSync(path, "wx");
         const token = `${process.pid}-${Date.now()}`;
-        writeSync(fd, JSON.stringify({ token, pid: process.pid, งาน, เซสชัน, เริ่ม: new Date().toISOString(), เครื่อง: os.hostname() }));
+        writeSync(fd, JSON.stringify({ token, pid: เจ้าของ, งาน, เซสชัน, เริ่ม: new Date().toISOString(), เครื่อง: os.hostname() }));
         closeSync(fd);
         let ปล่อยแล้ว = false;
         const release = () => {
           if (ปล่อยแล้ว) return; ปล่อยแล้ว = true;
           if (อ่านล็อก(path)?.token === token) rmSync(path, { force: true });
         };
-        process.on("exit", release);
-        for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => { release(); process.exit(130); });
+        if (เจ้าของ === process.pid) {
+          process.on("exit", release);
+          for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => { release(); process.exit(130); });
+        }
         return { token, release };
       } catch (e) {
         if (e.code !== "EEXIST") throw e;
