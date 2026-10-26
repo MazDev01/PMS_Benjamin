@@ -59,8 +59,11 @@ for (const [table, d] of Object.entries(defs)) {
   if (table === "audit_log" || table === "rate_limits") continue;
   // ตารางแม่แบบที่เลิกใช้แล้ว (ห้าม drop · templates-removed) — แถว ZZFIX เป็นข้อมูลตั้งต้นที่ตั้งใจใส่ (tests/fixtures/test-baseline.sql)
   if (table === "master_catalog" || table === "master_catalog_public") continue;
+  // ช่องที่เก็บข้อความเข้ารหัส (v1:… base64 สุ่มทุกครั้ง) — มีตัวอักษร "ZZ" ได้โดยบังเอิญ ไม่ใช่ป้ายทดสอบ
+  //   (เจอ 26 ต.ค. 69 หลังสร้างฐานทดสอบใหม่จากไฟล์: สำเนารหัสสาขา CNX ที่เข้ารหัสใหม่มี "ZZ" ในเนื้อ)
+  const ช่องเข้ารหัส = new Set(["dealer_login_secrets.secret"]);
   const cols = Object.entries(d.properties ?? {}).filter(([, p]) => p.type === "string" && (!p.format || p.format === "text" || p.format === "character varying")).map(([c]) => c);
-  for (const col of cols) {
+  for (const col of cols.filter(c => !ช่องเข้ารหัส.has(`${table}.${c}`))) {
     ตรวจ++;
     const { count, error } = await svc.from(table).select("*", { count: "exact", head: true })
       .or([...ป้าย.map(t => `${col}.ilike.%${t}%`), `${col}.like.*ZZ*`].join(","));

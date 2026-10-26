@@ -14,7 +14,8 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 test.setTimeout(180_000);
 
 test("[func·hq] หน้าตั้งค่าเป้าหมาย ต้องบอกผลรวมเป้าที่แจกให้ดีลเลอร์ตามจริง", async ({ page }) => {
-  const { data } = await db.from("dealers").select("revenue_target");
+  // แถว HQ (สำนักงานใหญ่ · เจ้าของลีดของ HQ) ไม่ใช่ดีลเลอร์ — ไม่นับในตัวเลขดีลเลอร์ทุกที่ (รอบ 2 ช่วง ข · flow-b-hq-dealers [ข·1])
+  const { data } = await db.from("dealers").select("revenue_target").neq("code", "HQ");
   const แจก = (data ?? []).reduce((s, d) => s + Number(d.revenue_target || 0), 0);
   const ที่คาด = `฿${(แจก / 1e6).toFixed(1)}M`;
 

@@ -77,7 +77,9 @@ test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายก�
   await expect(page.getByTestId("request-stats")).toBeVisible({ timeout: 25_000 });
   expect(await page.getByTestId("request-avg-days").getAttribute("data-value"), "เวลาตอบเฉลี่ย = ฐาน").toBe(o.requests.avgResponseDays == null ? "" : String(o.requests.avgResponseDays));
   expect(await page.getByTestId("request-cancel-pct").getAttribute("data-value"), "อัตรายกเลิก = ฐาน").toBe(o.requests.cancel.pct == null ? "" : String(o.requests.cancel.pct));
-  await expect(page.getByTestId("request-stats")).toContainText(`(${o.requests.cancel.cancelled.toLocaleString()} จาก ${o.requests.cancel.total.toLocaleString()})`);
+  // ยังไม่มีคำขอเลย (ฐานที่สร้างใหม่จากไฟล์) = หน้าเว็บบอก "ยังไม่มีคำขอ" แทนตัวเลข (0 จาก 0) — ตรวจข้อความตามกรณีจริงของฐาน
+  await expect(page.getByTestId("request-stats")).toContainText(o.requests.cancel.total === 0 ? "ยังไม่มีคำขอ"
+    : `(${o.requests.cancel.cancelled.toLocaleString()} จาก ${o.requests.cancel.total.toLocaleString()})`);
 
   await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
   await settle(page);
