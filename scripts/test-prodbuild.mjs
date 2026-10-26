@@ -140,7 +140,7 @@ const รันprodLive = async () => {
   } finally {
     ขั้น("files");
     const ล้าง = spawnSync("docker", [...อาร์กิวเมนต์psql(คอนเทนเนอร์ฐานทดสอบ), "-X", "-q", "-v", "ON_ERROR_STOP=1"],
-      { input: readFileSync("tests/prod-live/cleanup.sql", "utf8"), encoding: "utf8" });
+      { input: readFileSync("tests/prod-live/cleanup.sql", "utf8").replaceAll("__ชุดสำรองก่อนลบ__", "ฐานทดสอบในเครื่อง (รอบตรวจเต็ม · ไม่มีชุดสำรอง)"), encoding: "utf8" });   // ใบ 0245
     if (ล้าง.status !== 0) { console.error(`✗ ล้างข้อมูล prod-live ในเครื่องไม่สำเร็จ: ${ล้าง.stderr}`); code = code || 1; }
     rmSync(สถานะ, { recursive: true, force: true });
   }

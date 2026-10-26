@@ -20,7 +20,7 @@ async function as(who: { email: string; password: string }) {
   return sb;
 }
 // บันทึกการใช้งานลบตรงไม่ได้ (ใบ 0241) — ล้างแถวทดสอบผ่าน audit_test_cleanup (service_role) เท่านั้น
-test.afterAll(async () => { await svc.rpc("audit_test_cleanup", { p_action_like: "ZZTEST%" }); });
+test.afterAll(async () => { await svc.rpc("audit_test_cleanup", { p_action_like: "ZZTEST%", p_backup: "ฐานทดสอบ (ข้อทดสอบ audit-integrity)" }); });
 
 test("ลงบันทึกในนามคนอื่นไม่ได้", async () => {
   const hq = await as(ADMIN);

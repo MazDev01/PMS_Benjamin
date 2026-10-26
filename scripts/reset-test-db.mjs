@@ -12,7 +12,7 @@
 // ใช้: node scripts/reset-test-db.mjs [--workdir <โฟลเดอร์ที่มี supabase/config.toml>]   ค่าตั้งต้น = โฟลเดอร์นี้ (พอร์ต 54321 · CI)
 //      node scripts/reset-test-db.mjs --skip-reset …   ข้าม ① (ฐานเพิ่งลงใบมาแล้ว)
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createCipheriv, randomBytes, createHash } from "node:crypto";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -43,6 +43,15 @@ if (ฐานมีตัวกัน()) ขอล็อกฐานทดสอ
 console.log(`\n🎯 ฐานทดสอบในเครื่อง: ${projectId} · ${API}`);
 
 // ── ① ลงใบทั้งหมดใหม่ ─────────────────────────────────────────────────────────────────────────────
+//   --migrations-from <โฟลเดอร์>: ใบชุดของโฟลเดอร์นั้น (ฐานทดสอบตรงกับไฟล์ของผู้ถือล็อก · scripts/lib/testDbSchema.mjs) — คัดทับทั้งชุดก่อนล้าง
+const ใบจาก = arg("--migrations-from");
+if (ใบจาก) {
+  const ต้น = path.join(path.resolve(ใบจาก), "supabase/migrations"), ปลาย = path.join(workdir, "supabase/migrations");
+  const ใบ = readdirSync(ต้น).filter(f => f.endsWith(".sql"));
+  for (const f of readdirSync(ปลาย)) if (f.endsWith(".sql") && !ใบ.includes(f)) rmSync(path.join(ปลาย, f));
+  for (const f of ใบ) copyFileSync(path.join(ต้น, f), path.join(ปลาย, f));
+  console.log(`① ใบปรับฐาน ${ใบ.length} ใบ จาก ${ใบจาก}`);
+}
 if (!process.argv.includes("--skip-reset")) {
   console.log("① ล้างฐาน + ลงใบทั้งหมด …");
   // NOTICE หลายร้อยบรรทัด — พิมพ์เฉพาะตอนล้มเหลว
