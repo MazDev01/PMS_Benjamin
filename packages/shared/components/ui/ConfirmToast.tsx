@@ -13,7 +13,7 @@
 //
 // การใช้งาน (ต้อง await เสมอ — ต่างจาก confirm() เดิมที่คืนค่าทันที):
 //   if (!(await ยืนยัน({ หัวข้อ: "ลบรายการนี้?", รายละเอียด: "ย้อนกลับไม่ได้", อันตราย: true }))) return;
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Toaster, toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 
@@ -32,6 +32,15 @@ export type ตัวเลือกยืนยัน = {
  *  (ไม่งั้นผู้เรียกเดิมจะรอ Promise ที่ไม่มีวันตอบ — งานค้างแบบไม่มีใครเห็น) */
 let ใบที่ค้าง: { id: string | number; ยกเลิก: () => void } | null = null;
 
+/** ใบที่ถูกยกเลิกก่อนขึ้นจอ ต้องปิดตัวเองตอนขึ้นจอ (ไม่นิ่ง → บั๊กจริง 26 ต.ค. 69)
+ *  sonner ส่งคำสั่งปิดผ่าน requestAnimationFrame 2 ชั้น แต่เพิ่มใบผ่าน setTimeout — เครื่องทำงานหนัก (timer ช้ากว่าเฟรม)
+ *  คำสั่งปิดถึงก่อนใบถูกเพิ่ม = หาใบไม่เจอ คำสั่งหาย → ใบเก่าค้างจอตลอด (duration Infinity) ซ้อนกับใบใหม่
+ *  และปุ่มตกลงของใบเก่าไม่ทำอะไรเลย (ตอบไปแล้วว่ายกเลิก) · ข้อทดสอบ: tests/scenario/confirm-toast-race.spec.ts */
+function ปิดเองถ้ายกเลิกแล้ว({ t, ตอบแล้ว, children }: { t: string | number; ตอบแล้ว: () => boolean; children: ReactNode }) {
+  useEffect(() => { if (ตอบแล้ว()) toast.dismiss(t); }, [t, ตอบแล้ว]);
+  return <>{children}</>;
+}
+
 /** ถามผู้ใช้แบบ "ต้องได้คำตอบ" — true = ตกลง · false = ยกเลิก/ปัดทิ้ง */
 export function ยืนยัน(o: ตัวเลือกยืนยัน): Promise<boolean> {
   if (ใบที่ค้าง) { const เก่า = ใบที่ค้าง; ใบที่ค้าง = null; เก่า.ยกเลิก(); toast.dismiss(เก่า.id); }
@@ -46,6 +55,7 @@ export function ยืนยัน(o: ตัวเลือกยืนยัน
     };
 
     const id = toast.custom((t) => (
+      <ปิดเองถ้ายกเลิกแล้ว t={t} ตอบแล้ว={() => ตอบแล้ว}>
       <div className="pms-confirm" role="alertdialog" aria-modal="false" aria-label={o.หัวข้อ}>
         <div className="pms-confirm-head">
           {o.อันตราย && <AlertTriangle size={16} className="pms-confirm-icon" aria-hidden />}
@@ -65,6 +75,7 @@ export function ยืนยัน(o: ตัวเลือกยืนยัน
           </button>
         </div>
       </div>
+      </ปิดเองถ้ายกเลิกแล้ว>
     ), {
       duration: Infinity,        // คำถามต้องรอคำตอบ ห้ามหายเอง
       onDismiss: () => ตอบ(false),
@@ -114,7 +125,11 @@ export function ถามเหตุผล(o: ตัวเลือกยืน
       if (ใบที่ค้าง?.id === id) ใบที่ค้าง = null;
       resolve(ผล);
     };
-    const id = toast.custom((t) => <กล่องเหตุผล o={o} ตอบ={ผล => { ตอบ(ผล); toast.dismiss(t); }} />, {
+    const id = toast.custom((t) => (
+      <ปิดเองถ้ายกเลิกแล้ว t={t} ตอบแล้ว={() => ตอบแล้ว}>
+        <กล่องเหตุผล o={o} ตอบ={ผล => { ตอบ(ผล); toast.dismiss(t); }} />
+      </ปิดเองถ้ายกเลิกแล้ว>
+    ), {
       duration: Infinity,
       onDismiss: () => ตอบ(null),
       onAutoClose: () => ตอบ(null),
