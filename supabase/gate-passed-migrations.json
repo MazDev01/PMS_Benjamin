@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-26 12:09:31",
- "รอบ": "2026-10-26-11-48-08",
- "จำนวน": 241,
+ "บันทึกเมื่อ": "2026-10-26 13:09:25",
+ "รอบ": "2026-10-26-12-47-52",
+ "จำนวน": 242,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -244,6 +244,7 @@
   "0239_thai_year_display.sql": "ebcf6e3d2a8b31107bb2d7bdaa31005961584dffef352bcefca372187ddd8c0b",
   "0240_audit_in_db.sql": "015c16c4524338245a92339ed062b76d3fa1a1dcf1213b79bbd2b7413e3f5843",
   "0241_audit_log_append_only.sql": "4089a31aebdc812d13be55bd55004ff9f9d5fde2517093ba4b1e9fd9e7b74ea0",
-  "0242_quote_board_customer_info.sql": "5227424215cd609da423a720937d94a2204e2d416a0a56dd21b6d5cbafb1d097"
+  "0242_quote_board_customer_info.sql": "5227424215cd609da423a720937d94a2204e2d416a0a56dd21b6d5cbafb1d097",
+  "0243_close_won_links_lead.sql": "c0e6e0244abfb8b85b210a233bb123e79230cc41a4730c20028a2724e1c2212a"
  }
 }

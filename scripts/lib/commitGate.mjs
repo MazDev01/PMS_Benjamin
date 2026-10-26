@@ -16,7 +16,8 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 
 export const ไฟล์บันทึกโค้ด = "supabase/gate-passed-code.txt";
-export const ไฟล์ของรอบตรวจ = [ไฟล์บันทึกโค้ด, "supabase/gate-passed-migrations.json"];
+// tests/flaky-log.txt: ตัวนับข้อไม่นิ่ง (รอบตรวจเขียนเอง · คนเพิ่มบรรทัดต้นเหตุ) — ไม่นับในลายนิ้วมือ (scripts/lib/flakyLog.mjs)
+export const ไฟล์ของรอบตรวจ = [ไฟล์บันทึกโค้ด, "supabase/gate-passed-migrations.json", "tests/flaky-log.txt"];
 
 const git = (args, cwd) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 << 20 }).trim();
 

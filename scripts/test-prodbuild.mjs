@@ -14,7 +14,8 @@ import path from "node:path";
 import { บันทึกเมื่อผ่าน, ไฟล์บันทึก } from "./lib/migrationGate.mjs";
 import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน } from "./lib/commitGate.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
-import { พอร์ต, ต้นทาง } from "./lib/session.mjs";
+import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
+import { ตรวจไม่นิ่งท้ายรอบ } from "./lib/flakyLog.mjs";
 
 // commit ที่กำลังตรวจ + ไฟล์ค้างตอนเริ่ม — ผลผ่านผูกกับ commit นี้ (ตัวกัน push ขึ้น monorepo · 22 ต.ค. 69)
 const ตอนเริ่ม = สภาพตอนเริ่ม();
@@ -165,6 +166,10 @@ for (const โปรเจกต์ of ช่วง) {
 console.log(`▶ หลักฐานข้อที่ตก (trace + ภาพหน้าจอ): node_modules/.cache/playwright-results/${PMS_RUN_ID}`);
 console.log("▶ ตัวตรวจรอบปิดด่าน: ทุกข้อต้องได้รันจริง");
 const ตรวจ = spawnSync("node", ["scripts/check-e2e-ran.mjs", ...รายงาน], { stdio: "inherit", shell: true });
+// ── ตัวนับข้อไม่นิ่ง (บอสสั่ง 26 ต.ค. 69 · scripts/lib/flakyLog.mjs) ──────────────────────────────────────────────────
+//   ทุกข้อที่ตกแล้วผ่านตอนรันซ้ำ → บรรทัด "ไม่นิ่ง" ใน tests/flaky-log.txt (commit พร้อมงาน · ไม่นับในลายนิ้วมือโค้ด)
+//   ข้อไหนครบ 3 ครั้งโดยยังไม่มีบรรทัด "ต้นเหตุ" → รอบนี้ไม่ผ่าน (ไม่บันทึกผลผ่าน = ขึ้นเว็บไม่ได้)
+if (ตรวจไม่นิ่งท้ายรอบ(รายงาน, { รอบ: `${ชื่อเซสชัน()}·${PMS_RUN_ID}` })) ตก = ตก || 1;
 // ผ่านครบ (ตก 0 + ตัวตรวจท้ายรอบผ่าน) → บันทึกลายนิ้วมือใบปรับฐานทุกใบ · db:push:prod ลงได้เฉพาะใบที่ตรงกับบันทึกนี้
 //   (บอสสั่ง 21 ต.ค. 69 · scripts/lib/migrationGate.mjs) · ต้อง commit ไฟล์บันทึกพร้อมงาน
 if (บันทึกเมื่อผ่าน({ ตก, ตัวตรวจ: ตรวจ.status ?? 1, ป้าย: PMS_RUN_ID })) {
