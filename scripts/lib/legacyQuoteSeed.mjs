@@ -5,7 +5,7 @@
 // ⚠️ ใช้กับฐานทดสอบในเครื่องเท่านั้น (docker) — ไม่มีทางยิงถึงระบบจริง
 import { execFileSync } from "node:child_process";
 import { localDbContainer } from "./localDbContainer.mjs";
-import { อาร์กิวเมนต์psql } from "./testDbGuard.mjs";
+import { psqlArgs } from "./testDbPsql.mjs";
 
 export function วางใบเดิมที่ฐาน(rows) {
   if (!rows.length) return;
@@ -16,6 +16,6 @@ export function วางใบเดิมที่ฐาน(rows) {
     insert into public.quotations (${cols}) select ${cols} from jsonb_populate_recordset(null::public.quotations, $json$${json}$json$::jsonb);
     alter table public.quotations enable trigger quotations_hq_link_guard;
     commit;`;
-  execFileSync("docker", [...อาร์กิวเมนต์psql(localDbContainer()), "-q", "-v", "ON_ERROR_STOP=1"],
+  execFileSync("docker", [...psqlArgs(localDbContainer()), "-q", "-v", "ON_ERROR_STOP=1"],
     { input: sql, stdio: ["pipe", "ignore", "pipe"] });
 }

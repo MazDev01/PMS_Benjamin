@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { คอนเทนเนอร์ฐาน } from "./localDb";
-import { อาร์กิวเมนต์psql } from "../../scripts/lib/testDbGuard.mjs";
+import { psqlArgs } from "../../scripts/lib/testDbPsql.mjs";
 
 // ── ข้อทดสอบกติกาที่ฐานข้อมูล (supabase/tests/*.sql) ที่ต้องรันทุกรอบปิดด่าน ──────────────────────────────────
 //   แต่ละไฟล์เป็นทรานแซกชันเดียวแล้ว rollback (ไม่ทิ้งข้อมูล) · ผ่าน = มีบรรทัด "ALL PASS" และไม่มี ERROR
@@ -36,7 +36,7 @@ for (const f of ไฟล์) {
   test(`[db] ${f.ชื่อ} — ${f.อะไร}`, () => {
     const sql = readFileSync(`supabase/tests/${f.ชื่อ}.sql`, "utf8");
     // NOTICE ("ok …" / "ALL PASS") ออกทาง stderr · ผลลัพธ์ปกติออกทาง stdout — เก็บทั้งสองทาง
-    const r = spawnSync("docker", [...อาร์กิวเมนต์psql(คอนเทนเนอร์ฐาน()), "-X", "-q", "-v", "ON_ERROR_STOP=1"],
+    const r = spawnSync("docker", [...psqlArgs(คอนเทนเนอร์ฐาน()), "-X", "-q", "-v", "ON_ERROR_STOP=1"],
       { input: sql, encoding: "utf8" });
     const ข้อความ = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
     expect(r.status, `psql ต้องจบปกติ — ${ข้อความ.match(/ERROR:.*$/m)?.[0] ?? ""}`).toBe(0);

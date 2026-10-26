@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { SUPABASE_URL } from "./supabaseEnv";
-import { อาร์กิวเมนต์psql } from "../../scripts/lib/testDbGuard.mjs";
+import { psqlArgs } from "../../scripts/lib/testDbPsql.mjs";
 
 /** ชื่อคอนเทนเนอร์ของ "ฐานในเครื่องที่ชุดทดสอบใช้อยู่" — หาจากพอร์ตของ NEXT_PUBLIC_SUPABASE_URL (process.env ก่อนไฟล์)
  *  เดิมแต่ละไฟล์หาคอนเทนเนอร์ชื่อมีคำว่า "dbcheck" → สั่งรันกับฐานอีกตัว แอปไปฐานใหม่ แต่คำสั่งตรงยังยิงฐานเดิม
@@ -27,7 +27,7 @@ export function รันSQLในฐาน(sql: string, opts: { ครั้ง
   let ล่าสุด = "";
   for (let i = 1; i <= ครั้ง; i++) {
     try {
-      return execFileSync("docker", [...อาร์กิวเมนต์psql(c), "-q", "-At", "-v", "ON_ERROR_STOP=1"],
+      return execFileSync("docker", [...psqlArgs(c), "-q", "-At", "-v", "ON_ERROR_STOP=1"],
         { input: `begin;\n${sql}\ncommit;`, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] });
     } catch (e) {
       ล่าสุด = String((e as { stderr?: string }).stderr ?? (e as Error).message);

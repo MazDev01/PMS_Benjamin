@@ -22,6 +22,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+// ⚠️ ห้าม import testDbPsql.mjs — ไฟล์นั้นถูกตัวรัน playwright โหลดแบบ CommonJS แล้วตัวนี้ (ESM แท้) ดึงชื่อส่งออกไม่ได้ · ตรรกะเดียวกัน ข้อทดสอบหน่วยเทียบให้ (tests/unit/testDbPsql.test.ts)
 export const คอนเทนเนอร์ = process.env.PMS_TESTDB_CONTAINER || "supabase_db_pms-dbcheck";
 const โปรเจกต์ = คอนเทนเนอร์.replace(/^supabase_db_/, "");
 export const ไฟล์รหัสผู้ดูแล = () => process.env.PMS_TESTDB_ADMIN_FILE || path.join(os.homedir(), ".pms-testdb-admin.json");
@@ -102,6 +103,8 @@ alter role pms_reader set default_transaction_read_only = on;
 alter role pms_reader bypassrls;
 grant pg_read_all_data to pms_reader;
 alter role pms_lockadmin password '${รหัสแอดมิน}';
+-- บัญชีเขียนทำงานในฐานะ postgres ตั้งแต่ต่อเข้า (เหมือน docker exec psql -U postgres เดิม) — ของที่สร้างเป็นของ postgres · ข้อทดสอบฐานที่สลับบทบาทกลับ postgres ใช้ต่อได้
+alter role pms_writer set role = 'postgres';
 create schema if not exists pms_lock;
 revoke all on schema pms_lock from public;
 create table if not exists pms_lock.current (id int primary key default 1 check (id = 1), key text not null, held boolean not null default false);
@@ -155,17 +158,19 @@ ${เนื้อhba()}`);
 }
 
 /** เปิดการเขียนให้ผู้ถือล็อกรอบนี้ → คืนค่า env ที่ส่งให้ตัวลูก */
-export function เปิดการเขียน(key = สุ่ม()) {
+/** @param {string} [key] @param {{ ตัวแนบ?: string }} [opt] ตัวแนบ = ที่อยู่ไฟล์ testDbFetchKey.mjs (file URL) ให้ตัวลูกโหลดทาง NODE_OPTIONS
+ *  (ไฟล์นี้ห้ามใช้ import.meta — ข้อทดสอบ TypeScript ดึงไปใช้ตรง ๆ แล้วตัวรัน playwright โหลดแบบ CommonJS) */
+export function เปิดการเขียน(key = สุ่ม(), { ตัวแนบ = "" } = {}) {
   ติดตั้งการกัน();
   const r = sqlผู้ดูแล(`update pms_lock.current set key = '${key}', held = true where id = 1; alter role pms_writer password '${key}';`);
   if (!r.ok) throw new Error(`เปิดการเขียนฐานทดสอบไม่ได้: ${r.err}`);
   // ตัวลูกทุกตัวโหลดตัวสลับกุญแจ API (testDbFetchKey.mjs) ผ่าน NODE_OPTIONS
-  const โหลด = `--import=${new URL("./testDbFetchKey.mjs", import.meta.url).href}`;
+  const โหลด = ตัวแนบ ? `--import=${ตัวแนบ}` : "";
   const เดิม = process.env.NODE_OPTIONS ?? "";
   return {
     PMS_TESTDB_PG_PASSWORD: key,
     NEXT_PUBLIC_PMS_TESTDB_LOCK: key,   // เว็บที่เปิดขณะถือล็อกแนบกุญแจไปกับคำขอจากเบราว์เซอร์ (packages/shared/lib/data/supabase/client.ts)
-    NODE_OPTIONS: เดิม.includes("testDbFetchKey.mjs") ? เดิม : `${เดิม} ${โหลด}`.trim(),
+    NODE_OPTIONS: !โหลด || เดิม.includes("testDbFetchKey.mjs") ? เดิม : `${เดิม} ${โหลด}`.trim(),
   };
 }
 
@@ -178,9 +183,7 @@ export function ปิดการเขียน(ของเรา) {
   end $$;`).ok;
 }
 
-/** อาร์กิวเมนต์ของ docker สำหรับ psql — ใช้แทน ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres"] ทุกที่
- *  ฐานทดสอบ + เขียน = บัญชี pms_writer รหัสจาก env ที่ได้ตอนขอล็อก (ไม่ถือล็อก = หยุดพร้อมบอก) · อ่าน = pms_reader (ไม่ต้องถือล็อก)
- *  คอนเทนเนอร์อื่น (ฐาน dev · ฐานเปล่า · ฐานซ้อมกู้) = แบบเดิม */
+/** อาร์กิวเมนต์ของ docker สำหรับ psql — ใช้แทน ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres"] ทุกที่ (ข้อทดสอบ TypeScript ใช้ testDbPsql.mjs ตรรกะเดียวกัน) */
 export function อาร์กิวเมนต์psql(container, { เขียน = true } = {}) {
   if (container !== คอนเทนเนอร์) return ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres"];
   if (!เขียน) return ["exec", "-i", "-e", "PGPASSWORD=pms_reader", container, "psql", "-h", "127.0.0.1", "-U", "pms_reader", "-d", "postgres"];

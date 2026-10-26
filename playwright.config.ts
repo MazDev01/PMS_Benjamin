@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { ที่อยู่เว็บ } from "./tests/scenario/sessionPorts";
+import path from "node:path";
+import { ส่งตัวแนบให้ลูก } from "./tests/scenario/testDbFetchKey";   // โหลด = แนบกุญแจของรอบในคำขอที่ไปฐานทดสอบ (โปรเซสหลัก + ทุก worker)
 
 // /scenario harness — ทดสอบเบราว์เซอร์จริง หลาย persona พร้อมกัน (user / UX / UI)
 // โมโนเรโป: `npm run dev` (turbo) สตาร์ท dealer + hq ที่พอร์ตของโฟลเดอร์นี้ (tests/scenario/sessionPorts.ts) · baseURL = HQ
@@ -20,10 +22,24 @@ if (process.env.PMS_DB_TARGET === "dev" || /:57321/.test(process.env.NEXT_PUBLI
   throw new Error("⛔ ชุดทดสอบชี้ฐาน dev — ข้อทดสอบใช้ฐานทดสอบเท่านั้น (เปิดหน้าต่างใหม่ที่ไม่ได้รัน npm run dev)");
 }
 if (!process.env.TEST_WORKER_INDEX && !process.env.PMS_TESTDB_LOCK_HELD && process.argv.includes("test") && !process.argv.includes("--list")) {
-  // ตั้งค่าโหลดแบบ CommonJS (ไม่มี await ชั้นบนสุด) — Node รุ่นนี้ require ไฟล์ ESM ได้
-  const { ขอล็อกฐานทดสอบ } = require("./scripts/lib/testDbLock.mjs") as typeof import("./scripts/lib/testDbLock.mjs");
-  ขอล็อกฐานทดสอบ("playwright (ข้อทดสอบ)");
+  // ตัวตั้งค่าโหลดแบบ CommonJS ดึงไฟล์ล็อก (ESM ใช้ import.meta) ตรง ๆ ไม่ได้ → คำสั่งช่วยขอล็อกในนามโปรเซสนี้ (pid ในไฟล์ล็อก = โปรเซสนี้)
+  //   แล้วเอากุญแจของรอบมาใส่ env · จบ = ปล่อยด้วยคำสั่งช่วย (ตายกลางทาง = ล็อกค้างที่คนถัดไปเก็บกวาดเอง แล้วกุญแจถูกสุ่มใหม่)
+  const { spawnSync } = require("node:child_process") as typeof import("node:child_process");
+  const คำสั่งล็อก = path.join(__dirname, "scripts/testdb-lock-cli.mjs");
+  const ได้ = spawnSync(process.execPath, [คำสั่งล็อก, "acquire", "--pid", String(process.pid), "--job", "playwright (ข้อทดสอบ)",
+    "--wait", process.env.PMS_TESTDB_LOCK_WAIT ?? "0"], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+  if (ได้.status !== 0) process.exit(ได้.status ?? 1);
+  const กุญแจ = JSON.parse(ได้.stdout) as Record<string, string>;
+  Object.assign(process.env, กุญแจ);
+  let ปล่อยแล้ว = false;
+  const ปล่อย = () => {
+    if (ปล่อยแล้ว) return; ปล่อยแล้ว = true;
+    spawnSync(process.execPath, [คำสั่งล็อก, "release", "--token", กุญแจ.PMS_TESTDB_LOCK_HELD, "--key", กุญแจ.PMS_TESTDB_PG_PASSWORD], { stdio: "ignore" });
+  };
+  process.on("exit", ปล่อย);
+  for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => { ปล่อย(); process.exit(130); });
 }
+ส่งตัวแนบให้ลูก();   // worker: NODE_OPTIONS ถูก playwright ตั้งทับ — ใส่ตัวแนบกลับให้โปรแกรมลูกที่ข้อทดสอบเปิด
 
 export default defineConfig({
   testDir: "./tests/scenario",

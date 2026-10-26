@@ -57,7 +57,7 @@ const ยิง = (env, k, { key = แอป.SUPABASE_SERVICE_ROLE_KEY, jwt = ke
   const r = await fetch(${JSON.stringify(API)} + "/rest/v1/notifications", { method: "POST",
     headers: { apikey: ${JSON.stringify(key)}, Authorization: "Bearer " + ${JSON.stringify(jwt)}, "Content-Type": "application/json", Prefer: "return=minimal", ...${JSON.stringify(หัว)} },
     body: JSON.stringify(${JSON.stringify(แถวJSON(k))}) });
-  console.log(r.status, await r.text());`], { encoding: "utf8", env });
+  process.stdout.write(String(r.status) + " " + await r.text());`], { encoding: "utf8", env });   // ไม่ใช้ console.log — ใน worker ของ playwright ตัวเลขถูกพิมพ์เป็นสี
 const อ่านอย่างเดียว = (r) => /25006|read-only/i.test(r.stdout);
 {
   const r = ยิง(envนอกล็อก, "api-service");
