@@ -79,4 +79,6 @@ begin
   perform flowtest.ok((select customer_id from leads where dealer_code = 'CNX' and num_id = l2) = c_other,
     'ลีดที่ผูกลูกค้าอยู่แล้วไม่ถูกเปลี่ยนเป็นลูกค้ารายอื่น');
 end $$;
+
+select 'ALL PASS' as result;
 rollback;
