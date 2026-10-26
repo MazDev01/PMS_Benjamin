@@ -65,6 +65,25 @@ console.log("② ใส่ข้อมูลตั้งต้น (tests/fixture
 sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"],
   { input: readFileSync("tests/fixtures/test-baseline.sql", "utf8"), stdio: ["pipe", "ignore", "inherit"], shell: false });
 
+// ── ②ข แถว "สำนักงานใหญ่ (HQ)" ในทะเบียนดีลเลอร์ — เจ้าของลูกค้าเป้าหมายของ HQ (ใบ 0197) ห้ามลบ (ใบ 0222) ───────────────
+//   ฐานจริงมีแถวนี้ (สร้างตอนนำเข้าลูกค้าเป้าหมายของ HQ) แต่ไม่อยู่ในใบปรับฐานและไฟล์ข้อมูลตั้งต้น → ฐานที่สร้างใหม่จากไฟล์ขาดแถวนี้
+//   (เจอ 26 ต.ค. 69: รอบตรวจบนฐานที่สร้างใหม่ตก 5 ข้อที่ต้องใช้แถว HQ) · ค่าเดียวกับฐานจริง (ไม่ใช่ข้อมูลส่วนบุคคล)
+console.log("②ข แถว HQ ในทะเบียนดีลเลอร์ …");
+sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"], { shell: false, stdio: ["pipe", "ignore", "inherit"],
+  input: "insert into public.dealers (code, name, province, region, revenue_target, status, package, target_manual) values ('HQ', 'สำนักงานใหญ่', 'ทุกจังหวัด', 'ทุกภาค', 3200000, 'active', 'exclusive', false) on conflict (code) do nothing;" });
+
+// ── ②ค ข้อมูลที่ใบปรับฐานเติมให้ตอนลงใบ แต่ข้อมูลตั้งต้นลงทีหลัง (ปิดตัวดักระหว่างใส่) จึงไม่ได้ ───────────────────────
+//   quotation_won_at (ใบ 0235 · แดชบอร์ดนับยอดตามวันตอบรับ): ใบตอบรับในข้อมูลตั้งต้นไม่มีวันตอบรับ → หัวการ์ดยอดขายไม่นับ
+//   ใช้สูตรเดียวกับขั้นเติมของใบ 0235 · ทำซ้ำได้ (on conflict do nothing) · เจอ 26 ต.ค. 69 ตอนรอบตรวจรันบนฐานที่สร้างใหม่
+console.log("②ค วันตอบรับของใบในข้อมูลตั้งต้น (ใบ 0235) …");
+sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"], { shell: false, stdio: ["pipe", "ignore", "inherit"],
+  input: `insert into public.quotation_won_at (dealer_code, quote_id, won_at)
+select q.dealer_code, q.id, coalesce(h.ordered_at,
+         case when q.date ~ '^\\d{4}-\\d{2}-\\d{2}' then (substring(q.date, 1, 10)::date)::timestamp at time zone 'Asia/Bangkok' end, q.created_at, now())
+  from public.quotations q left join public.hq_quotes h on h.id = q.hq_quote_id
+ where q.status = 'won'
+on conflict (dealer_code, quote_id) do nothing;` });
+
 // ── ③ บัญชีทดสอบ ──────────────────────────────────────────────────────────────────────────────────
 const ไฟล์ = readEnvFile("tests/.env.test");
 const ค่า = k => process.env[k] ?? ไฟล์[k] ?? "";

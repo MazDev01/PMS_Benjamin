@@ -40,7 +40,8 @@ create function flowtest.mark() returns bigint language sql security definer set
   select coalesce(max(id), 0) from audit_log;
 $$;
 create function flowtest.who(p_from bigint) returns text language sql security definer set search_path = public as $$
-  select string_agg(distinct "user", ',') from audit_log where id > p_from;
+  -- เฉพาะแถวที่เกิดในธุรกรรมของข้อนี้ (xmin) — ข้อทดสอบอื่นที่รันพร้อมกันเขียนบันทึกได้ตลอด (เช่นบันทึกสรุปของชุดล้าง · ใบ 0245)
+  select string_agg(distinct "user", ',') from audit_log where id > p_from and xmin::text = (pg_current_xact_id()::text::bigint % 4294967296)::text;
 $$;
 grant usage on schema flowtest to authenticated;
 grant execute on all functions in schema flowtest to authenticated;
