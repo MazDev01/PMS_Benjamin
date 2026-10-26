@@ -3,7 +3,8 @@
 // ─── HQ · ทำ BOQ และส่งใบ HQ ให้ดีลเลอร์ (FLOW.html ขั้น 5–6 · ด่าน 2) ─────────────────────────────────────────
 //
 // ขั้น 5  ทำ BOQ — HQ พิมพ์รายการเอง (ชื่อ · จำนวน · หน่วย · ต้นทุน) · บันทึกร่างกี่ครั้งก็ได้ ดีลเลอร์ไม่เห็นร่าง
-//         (ตัวเลือกจากแม่แบบเอาออกแล้ว — บอสสั่งเอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
+//         แม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244): ใบเปิดมามีรายการวัสดุที่ดีลเลอร์เลือกในคำขอ · เพิ่มจากแม่แบบได้ (ค้นได้)
+//         แม่แบบอาคารแบบเดิมยังเอาออก (16 ต.ค. 69) · หัวใบแสดงราคาประเมินของดีลเลอร์ + % คลาดหลังส่ง
 // ขั้น 6  ส่งใบ HQ — ล็อกเวอร์ชัน · หยุดนับ 14 วัน · อีเมลถึงดีลเลอร์ · ลูกค้าเป้าหมายคงเดิม (ฐานข้อมูลทำทั้งหมด)
 // ส่งแล้วแก้ไม่ได้ (กฎ "ใบ HQ ที่ส่งแล้วแก้ไม่ได้ ต้องออกเวอร์ชันใหม่") — แผงนี้แสดงแบบอ่านอย่างเดียว
 //   เวอร์ชันใหม่เกิดเมื่อดีลเลอร์ "ขอแก้ราคา" → คำขอใหม่ · HQ กด "เริ่มจากใบเวอร์ชันก่อน" แล้วแก้ต่อ
@@ -16,14 +17,16 @@
 //   • ยืนราคาถึงแสดง พ.ศ. (ThaiDateInput · ตัวจัดรูปกลาง fmtISOToThai)
 //   • ร่างที่พิมพ์ค้างไม่หายเมื่อสลับไปคำขออื่น — เก็บไว้ในที่เก็บร่างของหน้า (ร่างค้าง) แล้วคืนให้เมื่อกลับมา
 import { useEffect, useMemo, useState } from "react";
-import { Send, X, Copy, Lock } from "lucide-react";
+import { Send, X, Copy, Lock, Boxes, ClipboardList } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
 import {
   type QuoteRequest, type HqQuote, type HqQuoteLine, type แถววาง, hqQuoteStatusLabel, ยอดรวมใบ, วันไทยสั้น, เกินกำหนด,
   แถวว่าง, แถวเปล่าใหม่, เหลือหรือเกิน,
 } from "@pms/shared/lib/quoteRequests";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { BoqTable } from "@pms/shared/components/hq/BoqTable";
+import { BoqTable, type แหล่งรายการ } from "@pms/shared/components/hq/BoqTable";
+import { MaterialTemplatePicker } from "@pms/shared/components/hq/MaterialTemplatePicker";
+import { รายการประเมินเป็นแถวHQ, ป้ายราคาประเมิน, ป้ายเปอร์เซ็นต์คลาด } from "@pms/shared/lib/materialTemplates";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
 import { ช่อง as ป้ายช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
@@ -66,6 +69,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const [busy, setBusy] = useState(false);
   const [กู้ร่าง, setกู้ร่าง] = useState(false);
   const [สเปกเต็ม, setสเปกเต็ม] = useState(false);
+  // หน้าต่างเลือกจากแม่แบบวัสดุ — เก็บตัวแทรกของตาราง (BoqTable แหล่ง) ไว้ส่งรายการกลับ
+  const [แทรกแม่แบบ, setแทรกแม่แบบ] = useState<((rows: แถววาง[]) => void) | null>(null);
   // ภาพของใบตอนโหลด/บันทึกล่าสุด — ต่างจากที่อยู่บนจอ = มีการแก้ที่ยังไม่บันทึก (แถวว่างไม่นับ)
   const [ภาพที่บันทึก, setภาพที่บันทึก] = useState<string | null>(null);
   const ภาพ = (ls: HqQuoteLine[], v: string, n: string) =>
@@ -84,8 +89,12 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       if (ร่าง) {
         setLines(ร่าง.lines); setยืนราคาถึง(ร่าง.validUntil); setหมายเหตุ(ร่าง.note); setกู้ร่าง(true);
       } else {
-        // ใบที่แก้ได้เปิดมามีแถวว่างพร้อมพิมพ์ 1 แถว (ไม่นับเป็นรายการ จนกว่าจะพิมพ์)
-        setLines(แก้ได้ตอนโหลด && บันทึกแล้ว.length === 0 ? [แถวเปล่าใหม่()] : บันทึกแล้ว);
+        // ใบที่แก้ได้และยังไม่มีรายการ: มีวัสดุจากคำขอ = เปิดมามีรายการนั้น (H8 · ใบ 0244) · ไม่มี = แถวว่างพร้อมพิมพ์ 1 แถว
+        //   รายการจากคำขอนับเป็นจุดเริ่ม (ไม่ถือว่าแก้ค้าง) — ออกไปแล้วกลับมาก็เปิดมาเหมือนเดิม
+        const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
+        const เริ่ม = แก้ได้ตอนโหลด && บันทึกแล้ว.length === 0 ? (จากคำขอ.length ? จากคำขอ : [แถวเปล่าใหม่()]) : บันทึกแล้ว;
+        if (แก้ได้ตอนโหลด && บันทึกแล้ว.length === 0 && จากคำขอ.length) setภาพที่บันทึก(ภาพ(จากคำขอ, ยืน, h?.note ?? ""));
+        setLines(เริ่ม);
         setยืนราคาถึง(ยืน); setหมายเหตุ(h?.note ?? "");
       }
     }).catch(e => {
@@ -185,7 +194,17 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
     [ป้ายช่อง.จังหวัด, request.province || "—", "province"],
     [ป้ายช่อง.งาน, `${request.product || "—"}${request.subtype ? ` · ${request.subtype}` : ""}`, "job"],
     [ป้ายช่อง.พื้นที่, พื้นที่ ? พื้นที่.toLocaleString() : "—", "area"],
+    ...(request.estimateTotal != null ? [["ราคาประเมินของดีลเลอร์", (
+      <>{บาท(Number(request.estimateTotal))} บาท <span style={{ fontWeight: 500, color: "#6b7280" }}>({(request.estimateItems ?? []).length} วัสดุ · {ป้ายราคาประเมิน}
+        {request.estimateDeviationPct != null ? ` · คลาดจากใบ HQ ${ป้ายเปอร์เซ็นต์คลาด(request.estimateDeviationPct)}` : ""})</span></>
+    ), "estimate"] as [string, React.ReactNode, string]] : []),
     ["ดีลเลอร์", `${request.dealerCode} ${dealerName}`.trim(), "dealer"],
+  ];
+  // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
+  const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
+  const แหล่ง: แหล่งรายการ[] = [
+    { key: "material-templates", label: "เลือกจากแม่แบบวัสดุ", icon: Boxes, เปิด: แทรก => setแทรกแม่แบบ(() => แทรก) },
+    { key: "request-items", label: "รายการจากคำขอดีลเลอร์", icon: ClipboardList, disabled: จากคำขอ.length === 0, เปิด: แทรก => แทรก(จากคำขอ) },
   ];
   const เนื้อหา = (
     <>
@@ -270,7 +289,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                 </div>
               )}
               {/* ตาราง BOQ กลาง (BoqTable) — แหล่งรายการเพิ่ม (แม่แบบวัสดุ · รายการจากคำขอดีลเลอร์) ส่งเข้ามาทาง แหล่ง โดยไม่รื้อตาราง */}
-              <BoqTable lines={lines} onChange={setLines} editable={แก้ได้} area={พื้นที่} />
+              <BoqTable lines={lines} onChange={setLines} editable={แก้ได้} area={พื้นที่} แหล่ง={แหล่ง} />
+              {แทรกแม่แบบ && <MaterialTemplatePicker onAdd={rows => แทรกแม่แบบ(rows)} onClose={() => setแทรกแม่แบบ(null)} />}
 
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                 <div style={{ display: "grid", gap: 4, fontSize: "0.8rem", fontWeight: 600, color: "#374151" }}>

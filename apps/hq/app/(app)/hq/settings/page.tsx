@@ -58,6 +58,7 @@ import {
 // แท็บ "บริษัท" / "ผู้ใช้งาน" ฝังหน้าจัดการจริงเต็ม
 import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
 import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
+import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
@@ -65,7 +66,7 @@ import {
   Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, MessageSquare, ArrowUp, ArrowDown,
   Save, RotateCcw, Plus, Trash2, Check, X,
   Download, Upload, RefreshCw, AlertCircle,
-  Mail,
+  Mail, Boxes,
 } from "lucide-react";
 
 // ── tokens (Benjamin CI) ────────────────────────────────────────────────────
@@ -861,7 +862,7 @@ function CompanyTab() {
 // แท็บ "ดีลเลอร์" ถูกยุบตามคำสั่ง — ทั้งใบซ้ำกับหน้า /hq/dealers (ตารางบัญชี · สลับสถานะ · เข้าระบบแทน)
 //   "รีเซ็ตรหัสผ่าน" ย้ายไปอยู่ในโมดัล "รหัสเข้าระบบ" ของหน้า /hq/dealers แล้ว (ไม่มีที่อื่นมาก่อน)
 //   "ค่ามาตรฐานดีลเลอร์" (defaultQuota) ถูกลบ — ไม่มีใครอ่านค่านั้นเลย ค่าจริงตอนสร้างดีลเลอร์อยู่ที่ /hq/dealers
-type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "notifications";
+type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "materials" | "notifications";
 const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNode }[] = [
   { key: "company", label: "บริษัท", icon: <Building2 size={15} />, render: () => <CompanyTab /> },
   { key: "users", label: "ผู้ใช้งานและสิทธิ์", icon: <Users size={15} />, render: () => <UsersPanel embedded /> },
@@ -869,6 +870,8 @@ const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNo
   // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
   { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
   { key: "targets", label: "เป้าหมายยอดขาย", icon: <Target size={15} />, render: () => <TargetsTab /> },
+  // แม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) — วัสดุ/ส่วนประกอบ + ราคาต่อหน่วย ดีลเลอร์เลือกตอนขอราคา (ไม่ใช่แม่แบบอาคารแบบเดิม)
+  { key: "materials", label: "แม่แบบวัสดุ", icon: <Boxes size={15} />, render: () => <MaterialTemplatesPanel /> },
   { key: "notifications", label: "การแจ้งเตือน", icon: <Bell size={15} />, render: () => <NotificationsTab /> },
 ];
 

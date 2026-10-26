@@ -99,7 +99,17 @@ export interface TerritoriesRepo {
 }
 
 // ── คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183) — ทุกคำสั่งเรียกคำสั่งของฐาน ฐานขยับสถานะทั้งสองฝั่งเอง ──
-export type QuoteRequestInput = { leadNumId: number; product: string; subtype?: string; area?: number | null; spec?: string; province?: string };
+export type QuoteRequestInput = { leadNumId: number; product: string; subtype?: string; area?: number | null; spec?: string; province?: string;
+  /** วัสดุจากแม่แบบที่ดีลเลอร์เลือก (ไม่บังคับ · ใบ 0244) — ส่งแค่ วัสดุ + จำนวน ฐานคิดราคาและเก็บสำเนาเอง */
+  estimate?: { templateId: number; qty: number }[] };
+// ── แม่แบบวัสดุ (ใบ 0244) — HQ เห็นทุกแถว ดีลเลอร์เห็นเฉพาะที่เปิดใช้ (ฐานกรอง) · บันทึกได้เฉพาะผู้ดูแล/ผู้บริหาร HQ ──
+export interface MaterialTemplatesRepo {
+  list(): Promise<import("../materialTemplates").MaterialTemplate[]>;
+  /** บันทึกทั้งชุดในคำสั่งเดียว (ไม่มี id = เพิ่ม · deleteIds = ลบ) — คืนรายการทั้งหมดหลังบันทึก */
+  save(rows: import("../materialTemplates").MaterialTemplateDraft[], deleteIds: number[]): Promise<import("../materialTemplates").MaterialTemplate[]>;
+  /** ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ (HQ เท่านั้น) */
+  accuracy(): Promise<import("../materialTemplates").EstimateAccuracy>;
+}
 export interface QuoteRequestsRepo {
   /** คำขอทั้งหมดของลูกค้าเป้าหมายหนึ่งราย (ใหม่→เก่า) */
   listForLead(dealerCode: string, leadNumId: number): Promise<import("../quoteRequests").QuoteRequest[]>;
@@ -683,6 +693,7 @@ export interface DataAdapter {
   hqCompany: HQCompanyRepo;
   territories: TerritoriesRepo;
   quoteRequests: QuoteRequestsRepo;
+  materialTemplates: MaterialTemplatesRepo;
   notes: NotesRepo;
   users: UsersRepo;
   audit: AuditRepo;

@@ -34,6 +34,12 @@ export type QuoteRequest = {
   leadPhone?: string;
   leadEmail?: string;
   leadAddress?: string;
+  /** วัสดุจากแม่แบบที่ดีลเลอร์เลือกตอนขอราคา — สำเนา ณ ตอนส่ง (ใบ 0244 · ไม่เลือก = []) · ใบ HQ (H8) เปิดมามีรายการนี้ */
+  estimateItems?: import("./materialTemplates").EstimateItem[];
+  /** ราคาประเมินเบื้องต้น (ไม่ใช่ใบเสนอราคา · ไม่นับในมูลค่าโอกาสการขาย) — ไม่เลือกวัสดุ = null */
+  estimateTotal?: number | null;
+  /** % ราคาประเมินคลาดจากยอดใบ HQ — ฐานเก็บตอน HQ ส่งใบ · ยังไม่ส่ง/ไม่มีราคาประเมิน = null */
+  estimateDeviationPct?: number | null;
 };
 
 export const quoteRequestStatusLabel: Record<QuoteRequestStatus, string> = {
