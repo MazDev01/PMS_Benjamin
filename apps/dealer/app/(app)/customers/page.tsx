@@ -50,7 +50,7 @@ import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useFilters, APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
-import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
+import { ช่อง, ตัวอย่างช่อง, ป้ายบังคับ, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { Plus, X, ChevronUp, ChevronDown, Upload, Download, Phone, Building2, Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer, MapPin, Mail, Coins, Layers, CalendarClock, Users, Trash2 } from "lucide-react";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { แจ้งพลาด, แจ้งสำเร็จ, ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
@@ -123,7 +123,7 @@ const PAGE_SIZE = 10;
 // ── Optional table columns (แสดง/ซ่อนได้ผ่าน TableTools) ──────
 // key ต้องตรงกับที่ใช้ hide/show ทั้ง <col>/<th>/<td>
 const COLS: Col[] = [
-  { key: "owner",          label: "ผู้รับผิดชอบ" },
+  { key: "owner",          label: ช่อง.ผู้รับผิดชอบ },
   { key: "lastActivity",   label: "กิจกรรมล่าสุด" },
   { key: "quotationCount", label: "จำนวนใบเสนอราคา" },
   { key: "totalSales",     label: "ยอดขายรวม" },
@@ -161,11 +161,11 @@ function printCustomer(c:CustomerRow, rows:QuotationMock[], code:string){
   // (เดิม esc() แค่ String(s??"—") ไม่กันเลย — ชื่อบริษัท/ที่อยู่/ชื่องาน ที่มี <script> จะรันจริงตอนพิมพ์)
   const esc = (s:unknown)=>String(s??"—").replace(/[&<>"]/g, c => (({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" } as Record<string,string>)[c]));
   const info: [string,string][] = [
-    ["รหัสลูกค้า", code], ["ชื่อ-สกุล", esc(c.name)],
-    ["เบอร์โทรศัพท์", esc(c.phone)], ["อีเมล", esc(c.email)], ["ที่อยู่", esc(c.address)],
+    ["รหัสลูกค้า", code], [ช่อง.ผู้ติดต่อ, esc(c.name)],
+    [ช่อง.โทรศัพท์, esc(c.phone)], [ช่อง.อีเมล, esc(c.email)], [ช่อง.ที่อยู่, esc(c.address)],
     // แถว "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
-    ["จังหวัด", esc(c.province)],
-    ["เป็นลูกค้าเมื่อ", fmtDate(c.joinDate)], ["ผู้รับผิดชอบ", esc(c.owner)],
+    [ช่อง.จังหวัด, esc(c.province)],
+    ["เป็นลูกค้าเมื่อ", fmtDate(c.joinDate)], [ช่อง.ผู้รับผิดชอบ, esc(c.owner)],
     ["สถานะ", c.status==="active"?"ใช้งาน":"ไม่ใช้งาน"],
   ];
   const total = rows.reduce((s,q)=>s+q.totalValue,0);
@@ -262,20 +262,13 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
     logo: customer.logo ?? "",
   });
   const [f, setF] = useState<CustomerForm>(seed);
-  const logoRef = useRef<HTMLInputElement>(null);
   const myProvinces = useMyProvinces();  // จังหวัดตามภาคของสาขาที่ล็อกอิน
   // ตั้งค่าฟอร์มใหม่เฉพาะตอน "สลับไปลูกค้าคนอื่น" เท่านั้น — จงใจไม่ใส่ seed ใน dependency
   // (seed ถูกสร้างใหม่ทุก render จะทำให้ล้างสิ่งที่ผู้ใช้กำลังพิมพ์อยู่ทิ้งทุกครั้ง)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(seed()); }, [customer.id]);
   const set = <K extends keyof CustomerForm>(k:K,v:CustomerForm[K])=>setF(p=>({...p,[k]:v}));
-  async function uploadLogo(e: React.ChangeEvent<HTMLInputElement>){
-    const file = e.target.files?.[0];
-    e.target.value = ""; // ให้เลือกไฟล์เดิมซ้ำได้หลังถูกปฏิเสธ
-    if(!file) return;
-    try { set("logo", await fileToResizedDataURL(file, 256)); } // ย่อก่อนเก็บ กัน quota เต็ม
-    catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นโลโก้ไม่ได้"); }
-  }
+  // อัปโหลดโลโก้เอาออกจากฟอร์ม (บอสสั่ง 26 ต.ค. 69 · ชุดช่องมาตรฐาน) — คอลัมน์ logo ในฐานคงไว้ ค่าเดิมไม่ถูกแตะ
   const dirty = (Object.keys(f) as (keyof CustomerForm)[]).some(k => (f[k] ?? "") !== ((customer as unknown as CustomerForm)[k] ?? ""));
 
   // แก้ไข "ในฟอร์มเดิม" — ตาราง ป้าย : ค่า 2 คอลัมน์ ตำแหน่งเดียวกับตอนอ่าน (ค่ากลายเป็นช่องกรอก)
@@ -284,40 +277,22 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
 
   return (
     <>
-      {/* ── รูปลูกค้า/โลโก้ อยู่บนสุด (บอสสั่ง 21 ส.ค. 69) — ให้ตรงกับการ์ดลูกค้าเป้าหมาย ─── */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10, flexWrap:"wrap" }}>
-        <span style={{ ...keyS, flex:"0 0 96px" }}>รูป / โลโก้</span><span style={colonS}>:</span>
-        <span style={{ width:28, height:28, borderRadius:8, flexShrink:0, overflow:"hidden", background:f.logo?"#fff":"#f8fafc",
-          border:`1px ${f.logo?"solid":"dashed"} #e5e7eb`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          {f.logo ? <img src={f.logo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <User size={13} color="#9ca3af" />}
-        </span>
-        <input ref={logoRef} type="file" accept="image/*" aria-label="อัปโหลดโลโก้ลูกค้า" style={{ display:"none" }} onChange={uploadLogo} />
-        <button type="button" onClick={()=>logoRef.current?.click()} className="btn btn-secondary btn-sm" style={{ color:"#374151" }}>
-          <Paperclip size={12} /> {f.logo ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
-        </button>
-        {f.logo && (
-          <button type="button" onClick={()=>set("logo","")} className="btn btn-secondary btn-sm" style={{ color:"#dc2626" }}>
-            <X size={12} /> ลบรูป
-          </button>
-        )}
-      </div>
-
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 28px", borderTop:"1px solid #eef1f5", paddingTop:12 }}>
         <div style={{ display:"flex", flexDirection:"column" }}>
           <Row label="รหัสลูกค้า"><span style={{ fontSize:"0.8rem", fontWeight:700, color:"#9ca3af" }}>{code}</span></Row>
-          <Row label="บริษัท"><input aria-label="ชื่อบริษัท" value={f.company} onChange={e=>set("company",e.target.value)} style={inp} /></Row>
-          <Row label="ชื่อ-สกุล"><input aria-label="ชื่อ-สกุลผู้ติดต่อ" value={f.name} onChange={e=>set("name",e.target.value)} style={inp} /></Row>
-          <Row label="เบอร์โทรศัพท์"><input inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Row>
-          <Row label="อีเมล"><input value={f.email} onChange={e=>set("email",e.target.value)} type="email" placeholder="email@company.com" style={inp} /></Row>
+          <Row label={ช่อง.บริษัท}><input aria-label={ช่อง.บริษัท} value={f.company} onChange={e=>set("company",e.target.value)} style={inp} /></Row>
+          <Row label={ช่อง.ผู้ติดต่อ}><input aria-label={ช่อง.ผู้ติดต่อ} value={f.name} onChange={e=>set("name",e.target.value)} style={inp} /></Row>
+          <Row label={ช่อง.โทรศัพท์}><input aria-label={ช่อง.โทรศัพท์} inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Row>
+          <Row label={ช่อง.อีเมล}><input aria-label={ช่อง.อีเมล} value={f.email} onChange={e=>set("email",e.target.value)} type="email" placeholder="email@company.com" style={inp} /></Row>
         </div>
         <div style={{ display:"flex", flexDirection:"column" }}>
-          <Row label="ที่อยู่">
-            <textarea value={f.address ?? ""} onChange={e=>set("address",e.target.value)} rows={2}
-              placeholder="เลขที่ ถนน แขวง/ตำบล เขต/อำเภอ รหัสไปรษณีย์"
+          <Row label={ช่อง.ที่อยู่}>
+            <textarea aria-label={ช่อง.ที่อยู่} value={f.address ?? ""} onChange={e=>set("address",e.target.value)} rows={2}
+              placeholder={ตัวอย่างช่อง.ที่อยู่}
               style={{ ...inp, height:"auto", padding:"5px 8px", resize:"vertical", lineHeight:1.4, fontWeight:400 }} />
           </Row>
-          <Row label="จังหวัด">
-            <select aria-label="จังหวัด" value={f.province} onChange={e=>set("province",e.target.value)} style={{ ...inp, cursor:"pointer" }}>
+          <Row label={ช่อง.จังหวัด}>
+            <select aria-label={ช่อง.จังหวัด} value={f.province} onChange={e=>set("province",e.target.value)} style={{ ...inp, cursor:"pointer" }}>
               <option value="">— ยังไม่ระบุ —</option>
               {myProvinces.map(p=><option key={p}>{p}</option>)}
               {f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>}
@@ -327,7 +302,7 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
               บันทึกแล้วส่งค่าเดิมกลับไปตรง ๆ ไม่มีใครแก้ได้ ข้อมูลในฐานจึงไม่เปลี่ยน */}
           {/* joinDate = วันที่เข้าระบบเป็นลูกค้า — ป้าย "วันที่สมัคร" เดิมชวนเข้าใจผิด (บอสสั่งเปลี่ยน 17 ก.ค. 69) */}
           <Row label="เป็นลูกค้าเมื่อ"><input type="date" aria-label="วันที่เป็นลูกค้า" value={f.joinDate} onChange={e=>set("joinDate",e.target.value)} style={inp} /></Row>
-          <Row label="ผู้รับผิดชอบ"><PersonPicker value={f.owner} onChange={v=>set("owner",v)} multiple /></Row>
+          <Row label={ช่อง.ผู้รับผิดชอบ}><PersonPicker value={f.owner} onChange={v=>set("owner",v)} multiple /></Row>
           {/* แถว "สถานะ" ถูกถอดออกจากการ์ด (บอสสั่ง 17 ก.ค. 69) — สถานะกลับเป็นข้อมูลแสดงผลอย่างเดียว
               (เหมือนก่อนมีตัวแก้ในที่เดิม: ไม่เคยมี UI แก้สถานะมาก่อน ดรอปดาวน์นี้เพิ่งถูกเพิ่มแล้วถูกสั่งถอด) */}
         </div>
@@ -470,7 +445,7 @@ export default function CustomersPage(){
   // สร้างดีลใหม่ (ลูกค้าเดิมซื้อโครงการใหม่) — Deal = ลูกค้าเป้าหมายที่ผูก customerId
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [dealCustomer, setDealCustomer] = useState<CustomerRow|null>(null);
-  const [dealForm, setDealForm] = useState({project:"",value:"",area:"",status:"WAITING" as LeadStatus,assigned:"",note:""});
+  const [dealForm, setDealForm] = useState({project:"",value:"",area:"",province:"",status:"WAITING" as LeadStatus,assigned:"",note:""});
   // ข้อความฟ้องตอนกดบันทึก — ต้องมีเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย ไม่ใช่กดแล้วเงียบ
   const [dealErr, setDealErr] = useState("");
   // นำเข้าลูกค้าเดิม (ดีลเลอร์) — ลูกค้าก่อนมีระบบ / ไม่ได้ผ่าน Lead→Won · CSV + คีย์มือ
@@ -478,20 +453,10 @@ export default function CustomersPage(){
   const [importRows, setImportRows]   = useState<ImportRow[]>([]);
   const [importErr, setImportErr]     = useState("");
   const [importFile, setImportFile]   = useState("");   // ชื่อไฟล์ที่เลือก — ให้ผู้ใช้เห็นว่ากำลังดูไฟล์ไหน
-  const [showManual, setShowManual]   = useState(false);
   // ชื่อซ้ำตอนนำเข้า (บอสสั่ง 2 ก.ย. 69) — ห้ามเงียบ ๆ สร้างลูกค้าชื่อเดียวกันซ้อนอีกราย
   //   ต้องถามก่อนว่าจะ "อัปเดตข้อมูล" (เติมเฉพาะช่องที่ว่างอยู่) หรือ "แทนที่" (เอาของในไฟล์ทับ)
   const [ซ้ำที่ต้องถาม, setซ้ำที่ต้องถาม] = useState<{ row: ImportRow; เดิม: CustomerRow }[] | null>(null);
-  // ⚠️ ช่องในฟอร์มนี้ต้องครบเท่ากับ "ข้อมูลที่ลูกค้าหนึ่งรายมี" (บอสสั่ง 1 ก.ย. 69)
-  //    ที่เหลือของ CustomerRow เป็นค่าที่ระบบคิดเอง: จำนวนงานขาย/มูลค่ารวมมาจากดีลจริง
-  //    ตัวย่อ/สีการ์ดมาจากชื่อบริษัท — กรอกเองไม่ได้และไม่ควรให้กรอก
-  const legacyเปล่า = {company:"",name:"",phone:"",email:"",address:"",province:"กรุงเทพฯ",joinDate:"",owner:"",status:"" as CustomerStatus | "",logo:""};
-  const [legacyForm, setLegacyForm]   = useState(legacyเปล่า);
-  const legacyLogoRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
-  // กันกดบันทึกซ้ำ (H8 · guard synchronous) — เดิม createLegacy() ไม่มี guard เลย กดรัว ๆ เร็วกว่า React
-  // จะปิดโมดัล/re-render ทัน สร้างลูกค้าซ้ำหลายแถวได้จริง (แพทเทิร์นเดียวกับที่พบในฟอร์มเพิ่มลูกค้าเป้าหมาย — Edge Case, 3 ส.ค. 69)
-  const savingLegacyRef = useRef(false);
   const savingImportRef = useRef(false); // กันกดนำเข้า CSV ซ้ำ — ดู commitImport()
   // ไฟล์แนบต่อลูกค้า — คลังไฟล์รวม (แหล่งเดียว) ปรากฏในหน้าไฟล์กลางด้วย
   const [dealerFiles, setDealerFiles] = useState<DealerFile[]>([]);
@@ -671,7 +636,7 @@ export default function CustomersPage(){
       address:r.address||undefined,
       province:r.province||"กรุงเทพฯ", category:"", status:"active", projects:0,
       // วันที่/ผู้รับผิดชอบจากไฟล์ก่อนเสมอ — ไม่มีค่อยใช้ค่าตั้งต้น (วันนี้ / ผู้รับผิดชอบที่เลือกในฟอร์ม)
-      joinDate:r.joinDate||APP_NOW_ISO, owner:r.owner||legacyForm.owner||"",   /* ไม่มีผู้รับผิดชอบ = เว้นว่าง ห้ามใส่ชื่อตัวอย่าง (บอสสั่ง 20 ต.ค. 69) */
+      joinDate:r.joinDate||APP_NOW_ISO, owner:r.owner||"",   /* ไม่มีผู้รับผิดชอบ = เว้นว่าง ห้ามใส่ชื่อตัวอย่าง (บอสสั่ง 20 ต.ค. 69) */
       initials:initials(r.company), color:PALETTE[id%PALETTE.length], totalValue:0, imported:true };
   }
   /** รวมข้อมูลจากไฟล์เข้ากับลูกค้าที่มีอยู่แล้ว (ชื่อซ้ำ)
@@ -698,7 +663,7 @@ export default function CustomersPage(){
     try{
       const rows=จับคู่คอลัมน์(await อ่านตารางจากไฟล์(f));
       setImportRows(rows);
-      setImportErr(rows.length?"":'ไม่พบข้อมูลในไฟล์ — ต้องมีคอลัมน์ "บริษัท" และมีอย่างน้อย 1 แถว');
+      setImportErr(rows.length?"":`ไม่พบข้อมูลในไฟล์ — ต้องมีคอลัมน์ "${ช่อง.บริษัท}" และมีอย่างน้อย 1 แถว`);
     }catch(err){ setImportErr(friendlyError(err)); }
   }
   // เทียบชื่อบริษัทแบบ "คนอ่านแล้วถือว่าเป็นรายเดียวกัน" — ตัดช่องว่างหัวท้าย/ช่องว่างซ้ำ + ไม่สนตัวพิมพ์
@@ -757,29 +722,12 @@ export default function CustomersPage(){
     } catch(e){ แจ้งพลาด("นำเข้าลูกค้าไม่สำเร็จ: " + friendlyError(e)); }
     finally { savingImportRef.current = false; }
   }
-  async function createLegacy(){
-    if(savingLegacyRef.current) return;
-    if(!legacyForm.company.trim()) return;
-    savingLegacyRef.current = true;
-    try {
-      const base=Math.max(0,...data.map(c=>c.id)); // seed สีเท่านั้น — id จริงจาก counter
-      await warnBeforeUnloadDuring(() =>
-        ctxAddCustomer({...makeImported({company:legacyForm.company.trim(),name:legacyForm.name.trim(),phone:legacyForm.phone,
-          email:legacyForm.email,address:legacyForm.address.trim(),province:legacyForm.province,
-          joinDate:legacyForm.joinDate,owner:legacyForm.owner}, base+1),
-          // สองช่องนี้มีเฉพาะตอนคีย์เอง (ไฟล์นำเข้าไม่มีคอลัมน์รูป/สถานะ)
-          status:legacyForm.status || "active", ...(legacyForm.logo ? {logo:legacyForm.logo} : {})})
-      );
-      setShowManual(false);
-      setLegacyForm(legacyเปล่า);
-    } catch(e){ แจ้งพลาด("เพิ่มลูกค้าไม่สำเร็จ: " + friendlyError(e)); }
-    finally { savingLegacyRef.current = false; }
-  }
   // เปิด dialog สร้างดีลใหม่ — prefill ผู้รับผิดชอบจากลูกค้า (เรียกจากการ์ด/หัวโมดัล/แท็บดีล)
   //   ช่อง "แม่แบบ" ไม่มีแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
   function openNewDeal(c: CustomerRow){
     setDealCustomer(c);
-    setDealForm({project:"",value:"",area:"",status:"WAITING",assigned:c.owner,note:""}); setDealErr("");
+    // จังหวัดหน้างาน: ตั้งต้นเป็นจังหวัดในระเบียนลูกค้า (ข้อมูลจริงของลูกค้ารายนี้) แก้ได้ถ้างานนี้อยู่จังหวัดอื่น
+    setDealForm({project:"",value:"",area:"",province:c.province ?? "",status:"WAITING",assigned:c.owner,note:""}); setDealErr("");
     setShowNewDeal(true);
   }
   // กันกดสร้างดีลซ้ำ (H8 · guard synchronous) — เดิมไม่มี guard: กดรัว ๆ ระหว่างรอ newLeadNumId() (async)
@@ -791,13 +739,15 @@ export default function CustomersPage(){
     if(creatingDealRef.current) return;
     const c=dealCustomer; if(!c) return;
     setDealErr("");
+    if(!dealForm.province.trim()){ setDealErr(`กรอกให้ครบก่อนบันทึก: ${ช่อง.จังหวัด}`); return; }
     creatingDealRef.current = true;
     try {
       const nid = await newLeadNumId(); // num_id atomic ต่อสาขา (M7) — เลิก Math.max+1 ที่ชนได้
       const newDeal: LeadRow={
         id:`#L-${40321+nid}`, numId:nid,
         name:c.company, company:c.company,                              // ── ข้อมูลลูกค้าเดิม ──
-        contact:c.name, phone:c.phone, email:c.email, province:c.province, address:c.address,
+        contact:c.name, phone:c.phone, email:c.email, address:c.address,
+        province:dealForm.province,                                   // ── ข้อมูลงาน ── จังหวัดหน้างาน
         assigned:dealForm.assigned||c.owner, logo:c.logo, customerId:c.id,
         // ── รายละเอียดดีล ── ไม่มีช่องแม่แบบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → product/category ว่าง
         product:"", category:"",
@@ -970,7 +920,7 @@ export default function CustomersPage(){
                     {/* หัวคอลัมน์ครอบด้วย flex + nowrap ทุกช่อง — ไม่งั้นลูกศรเรียงตกไปบรรทัดล่างเวลาคอลัมน์แคบ
                         (มาตรฐานเดียวกับตารางลูกค้าเป้าหมาย/ใบเสนอราคา) · คอลัมน์ตัวเลขจัดชิดขวาให้ตรงกับค่าในเซลล์ */}
                     {([
-                      ["company","บริษัท",false],["name","ผู้ติดต่อ",false],["phone","โทรศัพท์",false],["province","จังหวัด",false],
+                      ["company",ช่อง.บริษัท,false],["name",ช่อง.ผู้ติดต่อ,false],["phone",ช่อง.โทรศัพท์,false],["province",ช่อง.จังหวัด,false],
                       [null,"ยอดขายรวม",true],[null,"โครงการ",true],["lastActivity","ติดต่อล่าสุด",false],
                     ] as [SortKey|null,string,boolean][]).map(([k,label,isNum])=>(
                       <th key={label} className={isNum?"num":(k?"clickable":undefined)}
@@ -1364,7 +1314,7 @@ export default function CustomersPage(){
                     <div style={secL}><FileText size={13} color={PRIMARY}/> รายละเอียดเอกสาร</div>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 24px"}}>
                       {([
-                        ["จังหวัด", q.province || "—"],
+                        [ช่อง.จังหวัด, q.province || "—"],
                         // แถว "ประเภทอาคาร" (= building_type แม่แบบของใบ) เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
                         ["พื้นที่", q.area ? `${q.area.toLocaleString()} ตร.ม.` : "—"],
                         ["จำนวนรายการ", `${lis.length} รายการ`],
@@ -1483,9 +1433,9 @@ export default function CustomersPage(){
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 20px",marginBottom:12}}>
                       {([
                         ["เลขที่", q.id], ["ลูกค้า", selected.name||"—"],
-                        ["บริษัท", selected.company], ["โทร", selected.phone||"—"],
-                        ["อีเมล", selected.email||"—"], ["จังหวัด", q.province||selected.province],
-                        ["ผู้รับผิดชอบ", selected.owner||"—"],
+                        [ช่อง.บริษัท, selected.company], ["โทร", selected.phone||"—"],
+                        [ช่อง.อีเมล, selected.email||"—"], [ช่อง.จังหวัด, q.province||selected.province],
+                        [ช่อง.ผู้รับผิดชอบ, selected.owner||"—"],
                       ] as [string,string][]).map(([k,v])=>(
                         <div key={k} style={{display:"flex",gap:8,padding:"5px 0",fontSize:"0.75rem",minWidth:0}}>
                           <span style={{color:"#8a929c",flex:"0 0 78px"}}>{k}</span>
@@ -1551,89 +1501,6 @@ export default function CustomersPage(){
       <input ref={fileInputRef} type="file" aria-label="แนบไฟล์เข้าลูกค้า" accept={UPLOAD_ACCEPTED_EXT.join(",")} style={{display:"none"}} onChange={handleFileSelect} />
       <input ref={csvInputRef} type="file" aria-label="นำเข้าลูกค้าจากไฟล์" accept={นามสกุลที่รับได้.join(",")} style={{display:"none"}} onChange={onCsvFile} />
 
-      {/* คีย์ลูกค้าเดิมทีละราย (legacy manual) */}
-      {showManual && (
-        <div onClick={()=>setShowManual(false)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:230,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:480,background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}>
-            <div style={{background:PRIMARY,color:"#fff",padding:"15px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                {/* ⚠️ ห้ามใส่คำอธิบายกำกับใต้หัวข้อ (บอสสั่ง 28 ส.ค. 69 · แนวเดียวกับที่เอาออกจากการ์ดทุกหน้า) */}
-                <div style={{fontSize:"0.92rem",fontWeight:800}}>เพิ่มลูกค้าเดิม</div>
-              </div>
-              <button onClick={()=>setShowManual(false)} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,width:28,height:28,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><X size={14}/></button>
-            </div>
-            <div style={{padding:20,overflow:"visible"}}>
-              <div className="form-grid">
-                <div className="form-section">ข้อมูลบริษัท</div>
-                <div className="col-full"><label className="form-label">บริษัท / ชื่อลูกค้า *</label>
-                  <input className="form-input" value={legacyForm.company} autoFocus onChange={e=>setLegacyForm(f=>({...f,company:e.target.value}))} placeholder="ชื่อบริษัท / ชื่อลูกค้า" /></div>
-                <div><label className="form-label">จังหวัด</label>
-                  <input className="form-input" value={legacyForm.province} onChange={e=>setLegacyForm(f=>({...f,province:e.target.value}))} /></div>
-                {/* ช่อง "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
-                {/* ช่องเดียวกับการ์ดข้อมูลลูกค้า — ที่อยู่ / เป็นลูกค้าเมื่อ / ผู้รับผิดชอบ (บอสสั่ง 28 ส.ค. 69)
-                    เดิมไม่มีให้กรอก ลูกค้าที่คีย์เข้ามาจึงมีช่องว่างค้างไว้ ต้องไปแก้ทีหลังทุกราย */}
-                <div className="col-full"><label className="form-label">ที่อยู่</label>
-                  <textarea className="form-input" rows={2} value={legacyForm.address}
-                    onChange={e=>setLegacyForm(f=>({...f,address:e.target.value}))}
-                    placeholder="บ้านเลขที่ หมู่ ตำบล อำเภอ จังหวัด รหัสไปรษณีย์" /></div>
-                <div><label className="form-label">เป็นลูกค้าเมื่อ</label>
-                  {/* ไม่กรอก = ระบบลงวันที่วันนี้ให้ (ลูกค้าเดิมส่วนใหญ่เข้าระบบมาก่อน ควรใส่วันที่จริง) */}
-                  <input type="date" className="form-input" value={legacyForm.joinDate}
-                    onChange={e=>setLegacyForm(f=>({...f,joinDate:e.target.value}))} /></div>
-                <div><label className="form-label">ผู้รับผิดชอบ</label>
-                  <PersonPicker value={legacyForm.owner} onChange={v=>setLegacyForm(f=>({...f,owner:v}))} /></div>
-                {/* สถานะ + โลโก้ = อีกสองช่องที่การ์ดลูกค้ามี (บอสสั่ง 1 ก.ย. 69 ให้กรอกได้ครบตั้งแต่ตอนคีย์)
-                    เดิมคีย์เองแล้วได้ "ใช้งาน" เสมอและไม่มีรูป ต้องไปแก้ทีหลังทุกราย */}
-                <div><label className="form-label">สถานะ</label>
-                  {/* ต้องเริ่มที่ "ยังไม่ระบุ" เหมือนช่องเลือกอื่นทั้งระบบ — ไม่งั้นหน้าจอโชว์คำตอบให้แล้ว
-                      ทั้งที่ผู้ใช้ยังไม่ได้เลือก · ไม่เลือก = ลงเป็น "ใช้งาน" ตอนบันทึก (ลูกค้าที่เพิ่งคีย์เข้ามา) */}
-                  <select aria-label="สถานะ" className="form-select" value={legacyForm.status}
-                    onChange={e=>setLegacyForm(f=>({...f,status:e.target.value as CustomerStatus | ""}))}>
-                    <option value="">— ยังไม่ระบุ —</option>
-                    <option value="active">ใช้งาน</option>
-                    <option value="inactive">พักงาน</option>
-                  </select></div>
-                <div><label className="form-label">โลโก้ / รูปลูกค้า</label>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{width:30,height:30,borderRadius:8,flexShrink:0,overflow:"hidden",background:legacyForm.logo?"#fff":"#f8fafc",
-                      border:`1px ${legacyForm.logo?"solid":"dashed"} ${BORDER}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      {legacyForm.logo
-                        ? <img src={legacyForm.logo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                        : <User size={13} color="#9ca3af" />}
-                    </span>
-                    <input ref={legacyLogoRef} type="file" accept="image/*" aria-label="อัปโหลดโลโก้ลูกค้า" style={{display:"none"}}
-                      onChange={async e=>{
-                        const file=e.target.files?.[0]; e.target.value="";
-                        if(!file) return;
-                        try{
-                          const รูป=await fileToResizedDataURL(file,256);  // ย่อก่อนเก็บ กัน quota เต็ม
-                          setLegacyForm(f=>({...f,logo:รูป}));
-                        } catch(err){ แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นโลโก้ไม่ได้"); }
-                      }} />
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={()=>legacyLogoRef.current?.click()}>เลือกรูป</button>
-                    {legacyForm.logo && (
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={()=>setLegacyForm(f=>({...f,logo:""}))}>ลบรูป</button>
-                    )}
-                  </div></div>
-
-                <div className="form-section">ผู้ติดต่อ</div>
-                <div><label className="form-label">ผู้ติดต่อ</label>
-                  <input className="form-input" value={legacyForm.name} onChange={e=>setLegacyForm(f=>({...f,name:e.target.value}))} placeholder="ชื่อผู้ติดต่อ" /></div>
-                <div><label className="form-label">โทรศัพท์</label>
-                  <input className="form-input" inputMode="tel" value={legacyForm.phone} onChange={e=>setLegacyForm(f=>({...f,phone:formatPhone(e.target.value)}))} placeholder="0XX-XXX-XXXX" /></div>
-                <div className="col-full"><label className="form-label">อีเมล</label>
-                  <input className="form-input" value={legacyForm.email} onChange={e=>setLegacyForm(f=>({...f,email:e.target.value}))} placeholder="email@company.com" /></div>
-              </div>
-              <div style={{fontSize:"0.65rem",color:"#9ca3af",marginTop:12}}>ลูกค้านำเข้าจะติดป้าย &ldquo;นำเข้า&rdquo; · ลูกค้าใหม่ปกติเกิดจากปิดการขาย (Lead→Won)</div>
-            </div>
-            <div style={{padding:"14px 20px",borderTop:`1px solid ${BORDER}`,background:"#fafafa",display:"flex",justifyContent:"flex-end",gap:8}}>
-              <button className="btn btn-secondary btn-md" onClick={()=>setShowManual(false)}>ยกเลิก</button>
-              <button className="btn btn-primary btn-md" onClick={createLegacy} disabled={!legacyForm.company.trim()}><Plus size={14}/> เพิ่มลูกค้า</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* นำเข้าลูกค้าเดิมจาก CSV */}
       {showImport && (
         <div onClick={()=>setShowImport(false)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:230,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -1651,7 +1518,7 @@ export default function CustomersPage(){
                   ทำเป็น 3 ขั้นชัด ๆ เพราะของเดิมเป็นปุ่มเรียงกัน ผู้ใช้ไม่รู้ว่าต้องเริ่มตรงไหน */}
               {[
                 { ที่: 1, หัว: "ดาวน์โหลดเทมเพลต", รอง: "เปิดด้วย Excel หรือ Google ชีต แล้วพิมพ์ต่อได้เลย — มีหัวคอลัมน์และแถวตัวอย่างให้พิมพ์ทับ" },
-                { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "บริษัท" ต้องมี ช่องอื่นเว้นว่างได้ · คอลัมน์: ${CSV_HEADERS.join(" · ")} · ในไฟล์มีแผ่น "ค่าที่เลือกได้" บอกจังหวัด/ผู้รับผิดชอบที่ระบบมีจริง` },
+                { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "${ช่อง.บริษัท}" ต้องมี ช่องอื่นเว้นว่างได้ · คอลัมน์: ${CSV_HEADERS.join(" · ")} · ในไฟล์มีแผ่น "ค่าที่เลือกได้" บอกจังหวัด/ผู้รับผิดชอบที่ระบบมีจริง` },
                 { ที่: 3, หัว: "อัปโหลดไฟล์กลับเข้ามา", รอง: `รับไฟล์ ${นามสกุลที่รับได้.map(n=>n.replace(".","")).join(" · ")} · ระบบจะให้ตรวจรายชื่อก่อน แล้วค่อยกดนำเข้า` },
               ].map(ข => (
                 <div key={ข.ที่} style={{display:"flex",gap:11,alignItems:"flex-start"}}>
@@ -1686,7 +1553,7 @@ export default function CustomersPage(){
                   <div style={{fontSize:"0.72rem",color:MUTED,fontWeight:600}}>พบ {importRows.length} รายการ — ตรวจก่อนยืนยัน</div>
                   <div style={{maxHeight:280,overflowY:"auto",border:`1px solid ${BORDER}`,borderRadius:10}}>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.72rem"}}>
-                      <thead><tr style={{background:"#f8f9fb"}}>{["บริษัท","ผู้ติดต่อ","จังหวัด","เป็นลูกค้าเมื่อ","ผู้รับผิดชอบ"].map(h=><th key={h} style={{textAlign:"left",padding:"7px 10px",color:MUTED,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+                      <thead><tr style={{background:"#f8f9fb"}}>{[ช่อง.บริษัท,ช่อง.ผู้ติดต่อ,ช่อง.จังหวัด,"เป็นลูกค้าเมื่อ",ช่อง.ผู้รับผิดชอบ].map(h=><th key={h} style={{textAlign:"left",padding:"7px 10px",color:MUTED,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
                       <tbody>
                         {importRows.map((r,i)=>(
                           <tr key={i} style={{borderTop:`1px solid ${BORDER}`}}>
@@ -1732,7 +1599,7 @@ export default function CustomersPage(){
               </div>
               <div style={{maxHeight:200,overflowY:"auto",border:`1px solid ${BORDER}`,borderRadius:10}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.72rem"}}>
-                  <thead><tr style={{background:"#f8f9fb"}}>{["บริษัท","ในระบบตอนนี้","ในไฟล์"].map(h=><th key={h} style={{textAlign:"left",padding:"7px 10px",color:MUTED,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{background:"#f8f9fb"}}>{[ช่อง.บริษัท,"ในระบบตอนนี้","ในไฟล์"].map(h=><th key={h} style={{textAlign:"left",padding:"7px 10px",color:MUTED,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {ซ้ำที่ต้องถาม.map(({row,เดิม},i)=>(
                       <tr key={i} style={{borderTop:`1px solid ${BORDER}`}}>
@@ -1761,37 +1628,50 @@ export default function CustomersPage(){
       {/* สร้างดีลใหม่ dialog — ลูกค้าเดิมซื้อโครงการใหม่ (ข้อมูลลูกค้าคงเดิม) */}
       {showNewDeal && dealCustomer && (
         <div onClick={()=>setShowNewDeal(false)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:230,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:460,background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}>
+          {/* สูงไม่เกินจอ: เนื้อหาเลื่อนในกล่อง ปุ่มบันทึกอยู่ท้ายเสมอ (26 ต.ค. 69 · เพิ่มกล่องข้อมูลลูกค้าแล้วปุ่มตกขอบจอเตี้ย) */}
+          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:460,maxHeight:"calc(100vh - 32px)",display:"flex",flexDirection:"column",background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}>
             <div style={{background:PRIMARY,color:"#fff",padding:"15px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontSize:"0.92rem",fontWeight:800}}>เพิ่มงานขายใหม่</div>
               </div>
               <button onClick={()=>setShowNewDeal(false)} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,width:28,height:28,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><X size={14}/></button>
             </div>
-            <div style={{padding:20,display:"flex",flexDirection:"column",gap:13,overflow:"visible"}}>
-              <div>
-                <label className="form-label">ลูกค้า</label>
-                <div style={{padding:"9px 12px",borderRadius:9,background:"#f0f4f8",border:`1px solid ${BORDER}`,fontSize:"0.8rem",fontWeight:700,color:STEEL}}>{dealCustomer.company}</div>
+            <div style={{padding:20,display:"flex",flexDirection:"column",gap:13,overflowY:"auto",flex:"1 1 auto",minHeight:0}}>
+              {/* ข้อมูลลูกค้า — ดึงจากระเบียนลูกค้า ไม่ถามซ้ำ (บอสสั่ง 26 ต.ค. 69 · ชุดช่องมาตรฐาน) · แก้ได้ที่แท็บข้อมูลลูกค้า */}
+              <div data-box="deal-customer" style={{padding:"10px 12px",borderRadius:9,background:"#f0f4f8",border:`1px solid ${BORDER}`,display:"grid",gridTemplateColumns:"auto 1fr",gap:"3px 10px",fontSize:"0.78rem",color:STEEL}}>
+                <div style={{gridColumn:"1/-1",fontSize:"0.7rem",fontWeight:800,color:MUTED}}>{กลุ่มช่อง.ลูกค้า}</div>
+                {([["company",ช่อง.บริษัท,dealCustomer.company],["contact",ช่อง.ผู้ติดต่อ,dealCustomer.name],["phone",ช่อง.โทรศัพท์,dealCustomer.phone],["email",ช่อง.อีเมล,dealCustomer.email],["address",ช่อง.ที่อยู่,dealCustomer.address]] as const).map(([k,ป้าย,v])=>(
+                  <React.Fragment key={k}><span style={{color:MUTED}}>{ป้าย}</span><b data-field={k} style={{fontWeight:700,overflowWrap:"anywhere"}}>{v||"—"}</b></React.Fragment>
+                ))}
               </div>
-              <div><label className="form-label">ชื่อโครงการ</label>
-                <input className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder="เช่น โกดังเก็บสินค้า เฟส 2" /></div>
+              <div style={{fontSize:"0.7rem",fontWeight:800,color:MUTED,marginBottom:-6}}>{กลุ่มช่อง.งาน}</div>
+              <div><label className="form-label" htmlFor="nd-province">{ป้ายบังคับ("จังหวัด")}</label>
+                <select id="nd-province" className="form-select" value={dealForm.province} onChange={e=>setDealForm(f=>({...f,province:e.target.value}))}>
+                  <option value="">— ยังไม่ระบุ —</option>
+                  {จังหวัดของสาขา.map(p=><option key={p}>{p}</option>)}
+                  {dealForm.province && !จังหวัดของสาขา.includes(dealForm.province) && <option value={dealForm.province}>{dealForm.province} (นอกภาค)</option>}
+                </select></div>
+              {/* ชื่อ + ตัวอย่างเดียวกับฟอร์มลูกค้าเป้าหมาย (บอสสั่ง 26 ต.ค. 69 · เดิม "ชื่อโครงการ") — ฟอร์มขอราคาดึงช่องนี้ไปกรอกให้ */}
+              <div><label className="form-label" htmlFor="nd-project">{ช่อง.งาน}</label>
+                <input id="nd-project" className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} /></div>
               {/* ช่อง "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · พื้นที่จึงเต็มแถวแทนคู่กับแม่แบบ
                   ป้ายและตัวอย่างต้องเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย — ช่องเดียวกันห้ามเรียกคนละชื่อ
                   เดิมที่นี่เขียน "มูลค่าคาดการณ์ · เช่น ฿1.2M" ทำให้ผู้ใช้พิมพ์แบบย่อ แล้วเงินปัดหาย */}
-              <div><label className="form-label">พื้นที่ (ตร.ม.)</label>
-                <input className="form-input" value={dealForm.area} onChange={e=>setDealForm(f=>({...f,area:e.target.value}))} placeholder="เช่น 1200" /></div>
+              <div><label className="form-label" htmlFor="nd-area">{ช่อง.พื้นที่}</label>
+                <input id="nd-area" className="form-input" value={dealForm.area} onChange={e=>setDealForm(f=>({...f,area:e.target.value}))} placeholder="เช่น 1200" /></div>
               {/* ขั้นตอน — ชุดตัวเลือกเดียวกับฟอร์มเพิ่มลูกค้าเป้าหมาย: เลือกได้เฉพาะขั้นก่อน "เสนอราคา"
                   เพราะขั้นเสนอราคาขึ้นไปเลื่อนเองเมื่อมีใบเสนอราคาจริง (ห้ามให้ตั้งเองแล้วขัดกับใบที่มี) */}
-              <div><label className="form-label">ขั้นตอน</label>
+              <div><label className="form-label">{ช่อง.ขั้นตอน}</label>
                 {/* ต้องมีค่าเสมอ — งานขายต้องเริ่มที่ขั้นใดขั้นหนึ่งเสมอ */}
-                <select aria-label="ขั้นตอน" className="form-select" value={dealForm.status}
+                <select aria-label={ช่อง.ขั้นตอน} className="form-select" value={dealForm.status}
                   onChange={e=>setDealForm(f=>({...f,status:e.target.value as LeadStatus}))}>
                   {(["WAITING","BULLET"] as LeadStatus[]).map(st=><option key={st} value={st}>{leadStatusLabel[st]}</option>)}
                 </select></div>
-              <div><label className="form-label">ผู้รับผิดชอบ</label>
+              <div style={{fontSize:"0.7rem",fontWeight:800,color:MUTED,marginBottom:-6}}>{กลุ่มช่อง.การดูแล}</div>
+              <div><label className="form-label">{ช่อง.ผู้รับผิดชอบ}</label>
                 <PersonPicker value={dealForm.assigned} onChange={v=>setDealForm(f=>({...f,assigned:v}))} multiple /></div>
-              <div><label className="form-label">หมายเหตุ</label>
-                <textarea className="form-input" rows={2} style={{resize:"vertical"}} value={dealForm.note} onChange={e=>setDealForm(f=>({...f,note:e.target.value}))} placeholder="รายละเอียดเพิ่มเติม..." /></div>
+              <div><label className="form-label" htmlFor="nd-spec">{ช่อง.สเปก}</label>
+                <textarea id="nd-spec" className="form-input" rows={2} style={{resize:"vertical"}} value={dealForm.note} onChange={e=>setDealForm(f=>({...f,note:e.target.value}))} placeholder={ตัวอย่างช่อง.สเปก} /></div>
               {dealErr && (
                 <div role="alert" style={{fontSize:"0.72rem",color:"#B91C1C",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"8px 10px"}}>{dealErr}</div>
               )}
@@ -1828,11 +1708,11 @@ export default function CustomersPage(){
                 ["ประเภท", apptTypeLabel[viewAppt.type]],
                 ["วันที่", `${fmtISOToThai(viewAppt.date)} · ${viewAppt.time} น.`],
                 ["สถานะ", viewAppt.status==="upcoming"?"กำลังจะมาถึง":viewAppt.status==="done"?"เสร็จแล้ว":"ยกเลิก"],
-                ["ผู้รับผิดชอบ", viewAppt.assigned||"—"],
-                ["ผู้ติดต่อ", viewAppt.contact||"—"],
-                ["โทรศัพท์", viewAppt.phone||"—"],
-                ["จังหวัด", viewAppt.province||"—"],
-                ["หมายเหตุ", viewAppt.note||"—"],
+                [ช่อง.ผู้รับผิดชอบ, viewAppt.assigned||"—"],
+                [ช่อง.ผู้ติดต่อ, viewAppt.contact||"—"],
+                [ช่อง.โทรศัพท์, viewAppt.phone||"—"],
+                [ช่อง.จังหวัด, viewAppt.province||"—"],
+                ["หมายเหตุนัด", viewAppt.note||"—"],
               ].map(([k,v])=>(
                 <div key={k} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:`1px solid #f0f4f8`}}>
                   <span style={{fontSize:"0.72rem",color:MUTED,flexShrink:0}}>{k}</span>

@@ -25,6 +25,7 @@ import { useHQPolicy } from "@pms/shared/lib/useHQConfig";
 import { useQuoteValidity } from "@pms/shared/lib/useQuoteValidity";
 import { useDealerSettings, useDealerVat, useDealerWht } from "@pms/shared/lib/useDealerSettings";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { ช่อง } from "@pms/shared/lib/fieldLabels";
 
 // "วันนี้ของระบบ" (ISO) — โหมด supabase = วันจริง · โหมด local = 30 มิ.ย. 2569 (ดู APP_NOW ใน FilterContext)
 // ใบเสนอราคาที่สร้าง/ส่งใหม่ลงวันที่นี้ → ตรงกับตัวกรอง/รายงานที่อิง APP_NOW เสมอ
@@ -423,10 +424,10 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
           <label style={lbl}>ชื่อโครงการ / เอกสาร</label>
           <input value={form.project} onChange={e => set("project", e.target.value)} readOnly={ฉบับใหม่} style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} placeholder="เช่น โกดังเก็บสินค้าเกษตร — บจ. ..." />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
-            <div><label style={lbl} htmlFor="q-province">จังหวัด</label>
+            <div><label style={lbl} htmlFor="q-province">{ช่อง.จังหวัด}</label>
               <input id="q-province" value={form.province} onChange={e => set("province", e.target.value)} readOnly={ฉบับใหม่} placeholder="จังหวัด"
                 style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} /></div>
-            <div><label style={lbl} htmlFor="q-area">พื้นที่ (ตร.ม.)</label>
+            <div><label style={lbl} htmlFor="q-area">{ช่อง.พื้นที่}</label>
               <input id="q-area" inputMode="decimal" value={form.area} onChange={e => set("area", e.target.value.replace(/[^\d.]/g, ""))} readOnly={ฉบับใหม่} placeholder="0"
                 style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} /></div>
           </div>

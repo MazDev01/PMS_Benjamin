@@ -27,7 +27,7 @@ import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonP
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
-import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
+import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง, ป้ายบังคับ, ช่องบังคับลีด } from "@pms/shared/lib/fieldLabels";
 import { formatPhone } from "@pms/shared/lib/format";
 import { fmtLeadValue } from "@pms/shared/lib/format";
 import { useEscapeKey } from "@pms/shared/lib/useModalA11y";
@@ -101,8 +101,8 @@ type SortKey = "company"|"value"|"status"|"assigned";
 
 // คอลัมน์ที่ซ่อน/แสดงได้ (optional) สำหรับ TableTools — key ตรงกับ th/td/col ในตาราง
 const COLS: { key: string; label: string }[] = [
-  { key: "province", label: "จังหวัด" },
-  { key: "source",   label: "ช่องทางที่มา" },
+  { key: "province", label: ช่อง.จังหวัด },
+  { key: "source",   label: ช่อง.ช่องทาง },
   { key: "area",     label: "พื้นที่" },
   { key: "activity", label: "กิจกรรมล่าสุด" },
 ];
@@ -273,19 +273,12 @@ function OverviewEditor({ lead, persons, onSave }: {
   // ค่าตอนเปิดฟอร์ม — บันทึกส่งเฉพาะช่องที่ต่างจากนี้ (ไม่ใช่ค่าล่าสุดบนจอ: ช่องที่ฐาน/แท็บอื่นเพิ่งเปลี่ยนต้องไม่ถูกส่งทับ)
   const [ต้นฉบับ, setต้นฉบับ] = useState<LeadRow>(lead);
   // ช่องประเมินราคาเอาออก (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5) — มูลค่าลีดมาจากใบเสนอราคาล่าสุด (แท็บใบเสนอราคา)
-  const logoRef = useRef<HTMLInputElement>(null);
   // reseed เมื่อสลับลูกค้าเป้าหมาย
   // จงใจไม่ใส่ seed ใน dependency — seed ถูกสร้างใหม่ทุก render จะล้างสิ่งที่ผู้ใช้กำลังพิมพ์ทิ้ง
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(seed()); setต้นฉบับ(lead); }, [lead.id]);
   const set = (k: keyof ReturnType<typeof seed>, v: string) => setF(p => ({ ...p, [k]: v }));
-  async function uploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // ให้เลือกไฟล์เดิมซ้ำได้หลังถูกปฏิเสธ
-    if (!file) return;
-    try { set("logo", await fileToResizedDataURL(file, 256)); } // ย่อก่อนเก็บ กัน quota เต็ม
-    catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นโลโก้ไม่ได้"); }
-  }
+  // อัปโหลดโลโก้เอาออกจากฟอร์ม (บอสสั่ง 26 ต.ค. 69 · ชุดช่องมาตรฐาน) — คอลัมน์ logo ในฐานคงไว้ ค่าเดิมไม่ถูกแตะ
 
   const dirty =
     f.company !== (lead.company ?? "") || f.contact !== (lead.contact ?? "") ||
@@ -327,76 +320,61 @@ function OverviewEditor({ lead, persons, onSave }: {
       {/* มูลค่า + ป้ายสถานะ — ตำแหน่งเดียวกับตอนอ่าน */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:12 }}>
         <div style={{ minWidth:0 }}>
-          {/* ── รูปลูกค้า/โลโก้ อยู่บนสุด (บอสสั่ง 21 ส.ค. 69) ─────────────────────────
-          เดิมอยู่ท้ายการ์ดปนกับปุ่มบันทึก ต้องเลื่อนจอลงไปสุดถึงจะเจอ
-          รูปเป็น "หน้าตาของลูกค้ารายนี้" ควรเห็นตั้งแต่เปิดการ์ด เหมือนหน้าลูกค้า */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, flexWrap:"wrap" }}>
-        <span style={{ width:28, height:28, borderRadius:8, flexShrink:0, overflow:"hidden", background:f.logo?"#fff":"#f8fafc",
-          border:`1px ${f.logo?"solid":"dashed"} #e5e7eb`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          {f.logo ? <img src={f.logo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <User size={13} color="#9ca3af" />}
-        </span>
-        <input ref={logoRef} type="file" accept="image/*" aria-label="อัปโหลดโลโก้ลูกค้า" style={{ display:"none" }} onChange={uploadLogo} />
-        <button type="button" onClick={()=>logoRef.current?.click()} className="btn btn-secondary btn-sm" style={{ color:"#374151" }}>
-          <Paperclip size={12} /> {f.logo ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
-        </button>
-        {f.logo && (
-          <button type="button" onClick={()=>set("logo","")} className="btn btn-secondary btn-sm" style={{ color:"#dc2626" }}>
-            <X size={12} /> ลบรูป
-          </button>
-        )}
-      </div>
-
           {/* ช่องเลือกสถานะเอาออก (19 ต.ค. 69) · รอบ 4: สถานะอยู่ที่แถบ 5 ขั้นที่เดียว เปลี่ยนได้ทางกล่องขั้นต่อไปเท่านั้น */}
         </div>
       </div>
 
       {/* รายละเอียด — แถวเดียวกับตอนอ่าน แต่ค่าแก้ได้ */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, borderTop:"1px solid #eef1f5", paddingTop:14 }}>
-        <div style={OV_GROUP_FIRST}>ข้อมูลติดต่อ</div>
+        {/* ชุดช่องมาตรฐาน (บอสสั่ง 26 ต.ค. 69 · lib/fieldLabels.ts): ข้อมูลลูกค้า · ข้อมูลงาน (จังหวัดหน้างาน + งาน + พื้นที่ + สเปก) · การดูแล */}
+        <div style={OV_GROUP_FIRST}>{กลุ่มช่อง.ลูกค้า}</div>
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <Building2 size={14} color="#94a3b8" style={{ flexShrink:0 }} />
-          <span style={cellLbl}>บริษัท</span>
+          <span style={cellLbl}>{ช่อง.บริษัท}</span>
           <span style={{ flex:1, minWidth:0 }}><input aria-label="ชื่อบริษัท" value={f.company} onChange={e=>set("company",e.target.value)} style={inp} /></span>
         </div>
-        {/* ชื่อโครงการมีเฉพาะดีลที่สร้างจากลูกค้าเดิม — โชว์ให้แก้เมื่อมีจริงเท่านั้น (ลูกค้าเป้าหมายทั่วไปไม่มีฟิลด์นี้) */}
-        {(lead.project ?? "") !== "" && (
-          <div style={{ gridColumn:"1/-1", ...cell }}>
-            <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
-            <span style={cellLbl}>ชื่อโครงการ</span>
-            <span style={{ flex:1, minWidth:0 }}><input aria-label="ชื่อโครงการ" value={f.project} onChange={e=>set("project",e.target.value)} style={inp} /></span>
-          </div>
-        )}
-        <Cell icon={User}    label="ผู้ติดต่อ"><input aria-label="ชื่อผู้ติดต่อ" value={f.contact} onChange={e=>set("contact",e.target.value)} style={inp} /></Cell>
-        <Cell icon={Phone}   label="โทรศัพท์"><input inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Cell>
-        <Cell icon={Mail}    label="อีเมล"><input aria-label="อีเมล" value={f.email} onChange={e=>set("email",e.target.value)} type="email" style={inp} /></Cell>
+        <Cell icon={User}    label={ช่อง.ผู้ติดต่อ}><input aria-label="ชื่อผู้ติดต่อ" value={f.contact} onChange={e=>set("contact",e.target.value)} style={inp} /></Cell>
+        <Cell icon={Phone}   label={ช่อง.โทรศัพท์}><input inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Cell>
+        <Cell icon={Mail}    label={ช่อง.อีเมล}><input aria-label={ช่อง.อีเมล} value={f.email} onChange={e=>set("email",e.target.value)} type="email" style={inp} /></Cell>
         {/* ⚠️ ทุกช่องเลือกในแผงนี้ต้องมีตัวเลือก "ยังไม่ระบุ" (บั๊กจริง พบ 10 ส.ค. 69)
             ค่าจริงเป็นว่างได้ทุกช่อง แต่ถ้าไม่มีตัวเลือกว่างให้ตรง เบราว์เซอร์จะโชว์ตัวเลือกแรกแทน
             → หน้าจอบอกว่ากรอกแล้ว ทั้งที่ในระบบยังว่าง แล้วผู้ใช้ก็หาสาเหตุไม่เจอ */}
-        <Cell icon={MapPin}  label="จังหวัด">
-          <select aria-label="จังหวัด" value={f.province} onChange={e=>set("province",e.target.value)} style={inp}>
+        <div style={{ gridColumn:"1/-1", ...cell }}>
+          <MapPin size={14} color="#94a3b8" style={{ flexShrink:0 }} />
+          <span style={cellLbl}>{ช่อง.ที่อยู่}</span>
+          <span style={{ flex:1, minWidth:0 }}><input aria-label={ช่อง.ที่อยู่} value={f.address} onChange={e=>set("address",e.target.value)} placeholder="—" style={inp} /></span>
+        </div>
+        {/* งาน — ฟอร์มขอราคาจาก HQ ดึงสามช่องนี้ไปกรอกให้ (แก้ได้ก่อนส่ง) · เดิม "ชื่อโครงการ" โชว์เฉพาะดีลที่มีค่า → ตอนนี้ทุกลีด */}
+        <div style={OV_GROUP}>{กลุ่มช่อง.งาน}</div>
+        <Cell icon={MapPin}  label={ป้ายบังคับ("จังหวัด")}>
+          <select aria-label={ช่อง.จังหวัด} value={f.province} onChange={e=>set("province",e.target.value)} style={inp}>
             <option value="">— ยังไม่ระบุ —</option>
             {myProvinces.map(x=><option key={x}>{x}</option>)}
             {f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>}
           </select>
         </Cell>
         <div style={{ gridColumn:"1/-1", ...cell }}>
-          <MapPin size={14} color="#94a3b8" style={{ flexShrink:0 }} />
-          <span style={cellLbl}>ที่อยู่</span>
-          <span style={{ flex:1, minWidth:0 }}><input aria-label="ที่อยู่" value={f.address} onChange={e=>set("address",e.target.value)} placeholder="—" style={inp} /></span>
+          <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
+          <span style={cellLbl}>{ช่อง.งาน}</span>
+          <span style={{ flex:1, minWidth:0 }}><input aria-label={ช่อง.งาน} value={f.project} onChange={e=>set("project",e.target.value)} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} style={inp} /></span>
         </div>
-        <div style={OV_GROUP}>รายละเอียดงาน</div>
-        <Cell icon={Ruler}   label="พื้นที่ (ตร.ม.)">
+        <Cell icon={Ruler}   label={ช่อง.พื้นที่}>
           <input type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
         </Cell>
-        <div style={OV_GROUP}>การดูแล</div>
-        <Cell icon={Target}  label="แหล่งที่มา">
-          <select aria-label="ช่องทางที่มา" value={f.source} onChange={e=>set("source",e.target.value)} style={inp}>
+        <div style={{ gridColumn:"1/-1", background:"#f7f9fc", border:"1px solid #eef1f5", borderRadius:10, padding:"10px 12px" }}>
+          <div style={{ fontSize:"0.62rem", color:"#9ca3af", fontWeight:700, marginBottom:4 }}>{ช่อง.สเปก}</div>
+          <textarea aria-label={ช่อง.สเปก} value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder={ตัวอย่างช่อง.สเปก}
+            style={{ ...inp, height:"auto", resize:"vertical", lineHeight:1.6 }} />
+        </div>
+        <div style={OV_GROUP}>{กลุ่มช่อง.การดูแล}</div>
+        <Cell icon={Target}  label={ช่อง.ช่องทาง}>
+          <select aria-label={ช่อง.ช่องทาง} value={f.source} onChange={e=>set("source",e.target.value)} style={inp}>
             <option value="">— ยังไม่ระบุ —</option>
             {[...legacySource(f.source), ...SOURCES].map(x=><option key={x}>{x}</option>)}
           </select>
         </Cell>
-        <Cell icon={Users}   label="ผู้รับผิดชอบ">
-          <select aria-label="ผู้รับผิดชอบ" value={f.assigned} onChange={e=>set("assigned",e.target.value)} style={inp}>
+        <Cell icon={Users}   label={ช่อง.ผู้รับผิดชอบ}>
+          <select aria-label={ช่อง.ผู้รับผิดชอบ} value={f.assigned} onChange={e=>set("assigned",e.target.value)} style={inp}>
             <option value="">— ยังไม่มอบหมาย —</option>
             {persons.map(x=><option key={x}>{x}</option>)}
           </select>
@@ -424,13 +402,6 @@ function OverviewEditor({ lead, persons, onSave }: {
         <div style={OV_GROUP}>ระบบบันทึกให้</div>
         <Cell icon={MessageSquare} label="ติดต่อล่าสุด"><span style={{ display:"block", fontSize:"0.82rem", fontWeight:700, color:"#2D2D2D", textAlign:"right" }}>{lastActivity(lead)}</span></Cell>
         <Cell icon={CalendarClock} label="สร้างเมื่อ"><span style={{ display:"block", fontSize:"0.82rem", fontWeight:700, color:"#2D2D2D", textAlign:"right" }}>{วันที่สร้างอ่านง่าย(lead.createdAt)}</span></Cell>
-      </div>
-
-      {/* หมายเหตุ — ตำแหน่งเดียวกับตอนอ่าน */}
-      <div style={{ background:"#f7f9fc", border:"1px solid #eef1f5", borderRadius:10, padding:"10px 12px", marginTop:12 }}>
-        <div style={{ fontSize:"0.62rem", color:"#9ca3af", fontWeight:700, marginBottom:4 }}>หมายเหตุ</div>
-        <textarea value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder="รายละเอียดเพิ่มเติม…"
-          style={{ ...inp, height:"auto", resize:"vertical", lineHeight:1.6 }} />
       </div>
 
       {/* แถวล่าง: ข้อความเตือน + ปุ่มบันทึก (รูปย้ายขึ้นไปบนสุดแล้ว — บอสสั่ง 21 ส.ค. 69) */}
@@ -474,6 +445,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     status: (initial?.status ?? "WAITING") as LeadStatus,
     assigned: initial?.assigned ?? "",  // เริ่มที่ "ยังไม่ระบุ" — ห้ามยัดคนแรกในทะเบียนให้เอง
     source: initial?.source ?? "", note: initial?.note ?? "",
+    project: initial?.project ?? "",   // งานที่ต้องการ (FLOW ขั้น 3 "งาน + พื้นที่ + สเปก") — ฟอร์มขอราคาดึงไปกรอกให้
     logo: initial?.logo ?? "",
   });
 
@@ -513,7 +485,6 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
   // สแนปช็อตค่าฟอร์ม ณ วินาทีที่เปิด — ใช้เทียบว่าผู้ใช้แตะอะไรไปจริงหรือยัง
   const openedSnapshot = useRef(JSON.stringify(form));
   useEscapeKey(closeGuarded);   // กด Esc = เหมือนกดยกเลิก (ถามก่อนถ้ากรอกค้างไว้)
-  const logoInputRef = useRef<HTMLInputElement>(null);
   // เดิมกด "บันทึก" แล้วขาดชื่อบริษัท/ผู้ติดต่อ = ออกเงียบๆ ไม่มีอะไรบอกผู้ใช้เลยว่าทำไมไม่บันทึก (QA เคส 6)
   const [submitError, setSubmitError] = useState("");
   // กันกดบันทึกซ้ำ (H8 · guard synchronous) — เดิมไม่มี guard เลย: กดรัว ๆ เร็วกว่า React จะ re-render
@@ -534,29 +505,24 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     const { exact, similar } = matchCustomers(customers, form.company, myDealer.code);
     if (exact)        return `"${exact.company}" เป็นลูกค้าอยู่แล้ว — ปิดการขายได้ ระบบจะผูกเข้ากับลูกค้ารายเดิมให้ ไม่สร้างซ้ำ`;
     const dupLead = matchCustomers(existingLeads, form.company, myDealer.code);
+    // ชื่อ + เบอร์ซ้ำกับลีดที่ยังเปิดอยู่ = ฐานไม่ให้บันทึก (lead_duplicate · ใบ 0186) — บอกก่อนกดบันทึก
+    const ตัวเลข = (s?: string) => (s ?? "").replace(/\D/g, "");
+    const ชื่อเบอร์ซ้ำ = ตัวเลข(form.phone) && existingLeads.find(l => (l.dealerCode ?? myDealer.code) === myDealer.code
+      && l.status !== "PAID" && l.status !== "CANCELLED" && l.customerId == null
+      && matchCustomers([l], form.company, myDealer.code).exact && ตัวเลข(l.phone) === ตัวเลข(form.phone));
+    if (ชื่อเบอร์ซ้ำ) return `มีลูกค้าเป้าหมาย "${ชื่อเบอร์ซ้ำ.company}" เบอร์ ${ชื่อเบอร์ซ้ำ.phone} เปิดอยู่แล้ว — ชื่อและเบอร์ซ้ำ บันทึกไม่ได้ ให้เปิดรายการเดิมแทน`;
     if (dupLead.exact) return `มีลูกค้าเป้าหมายชื่อ "${dupLead.exact.company}" อยู่แล้ว — ถ้าเพิ่งกดบันทึกไปในหน้าอื่น อาจกลายเป็นรายการซ้ำ`;
     if (similar[0])   return `ชื่อใกล้เคียงกับลูกค้าเดิม "${similar[0].company}" — ถ้าเป็นบริษัทเดียวกัน ควรกด "สร้างดีลใหม่" จากหน้าลูกค้าแทน`;
     if (dupLead.similar[0]) return `ชื่อใกล้เคียงกับลูกค้าเป้าหมายที่มีอยู่ "${dupLead.similar[0].company}" — ตรวจก่อนว่าไม่ใช่รายการเดียวกัน`;
     return "";
-  }, [isEdit, form.company, customers, existingLeads, myDealer.code]);
+  }, [isEdit, form.company, form.phone, customers, existingLeads, myDealer.code]);
   function set(k: keyof typeof form, v: string) { setForm(p=>({...p,[k]:v})); if (submitError) setSubmitError(""); }
-  async function uploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // ให้เลือกไฟล์เดิมซ้ำได้หลังถูกปฏิเสธ
-    if (!file) return;
-    try { set("logo", await fileToResizedDataURL(file, 256)); } // ย่อก่อนเก็บ กัน quota เต็ม
-    catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นโลโก้ไม่ได้"); }
-  }
   function submit() {
     if (savingRef.current) return;
     // ช่องบังคับ (บอสสั่ง 17 ส.ค. 69 เพิ่มโทรศัพท์+จังหวัด) — ดาว * บนป้ายกำกับต้องตรงกับที่ตรวจจริงตรงนี้เสมอ
     //   โทรศัพท์: ไม่มีเบอร์ = ตามงานต่อไม่ได้เลย · จังหวัด: ใช้แบ่งเขต/ทำรายงานรายภาค ถ้าว่างตัวเลขจะเพี้ยน
-    const missing = [
-      !form.company.trim() && "บริษัท",
-      !form.contact.trim() && "ผู้ติดต่อ",
-      !form.phone.trim() && "โทรศัพท์",
-      !form.province.trim() && "จังหวัด",
-    ].filter(Boolean) as string[];
+    const ค่าของ = { บริษัท: form.company, ผู้ติดต่อ: form.contact, โทรศัพท์: form.phone, จังหวัด: form.province } as Record<string, string>;
+    const missing = ช่องบังคับลีด.filter(k => !(ค่าของ[k] ?? "").trim()).map(k => ช่อง[k]);
     if (missing.length) {
       setSubmitError(`กรอกให้ครบก่อนบันทึก: ${missing.join(" · ")}`);
       return;
@@ -571,6 +537,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       // แม่แบบเอาออกทั้งระบบ (16 ต.ค. 69) — ไม่อ่านช่องแม่แบบ: แก้ของเดิมคงค่าเดิมผ่าน ...initial · ใหม่ใส่ค่าว่างข้างล่าง
       status: form.status, assigned: form.assigned,
       source: form.source, note: form.note,
+      project: form.project.trim() || undefined,   // ไม่กรอก = ไม่มีข้อมูล (หน้าจอขึ้น "—") ห้ามเติมค่าเดา
       logo: form.logo || undefined,
       // เว้นว่าง/ไม่ใช่ตัวเลข = ไม่มีข้อมูลพื้นที่ (undefined) — ห้ามบันทึกเป็น 0 เพราะ 0 แปลว่า "พื้นที่ศูนย์" ซึ่งไม่จริง
       area: form.area.trim() && Number(form.area) > 0 ? Number(form.area) : undefined,
@@ -635,108 +602,88 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
             {/* .form-grid / .form-section / .col-full = มาตรฐานกลาง (globals.css) — ห้ามเขียน grid เอง */}
             <div className="form-grid">
 
-              {/* ── ข้อมูลบริษัท ── */}
-              <div className="form-section">ข้อมูลบริษัท</div>
-              <div className="col-full" style={{ display:"flex", alignItems:"center", gap:14 }}>
-                <div style={{ width:56, height:56, borderRadius:14, flexShrink:0, overflow:"hidden",
-                  border:`2px dashed ${form.logo ? "transparent" : "#e5e7eb"}`, background:form.logo ? "#fff" : "#f8fafc",
-                  display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  {form.logo
-                    ? <img src={form.logo} alt="โลโก้" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                    : <User size={24} color="#9ca3af" />}
-                </div>
-                <div style={{ minWidth:0 }}>
-                  <label style={labelStyle}>รูป / โลโก้ลูกค้า</label>
-                  <input ref={logoInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={uploadLogo} />
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                    <button type="button" onClick={()=>logoInputRef.current?.click()} className="btn btn-secondary btn-sm" style={{ color:"#374151" }}>
-                      <Paperclip size={13} /> {form.logo ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
-                    </button>
-                    {form.logo && (
-                      <button type="button" onClick={()=>set("logo","")} className="btn btn-secondary btn-sm" style={{ color:"#dc2626" }}>
-                        <X size={13} /> ลบรูป
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              {/* ชุดช่องมาตรฐาน (บอสสั่ง 26 ต.ค. 69 · lib/fieldLabels.ts): ข้อมูลลูกค้า · ข้อมูลงาน (จังหวัดหน้างาน + งาน + พื้นที่ + สเปก = สิ่งที่ส่งไปขอราคา HQ) · การดูแล */}
+              {/* ── ข้อมูลลูกค้า ── */}
+              <div className="form-section">{กลุ่มช่อง.ลูกค้า}</div>
               <div className="col-full">
-                <label style={labelStyle}>บริษัท *</label>
+                <label style={labelStyle}>{ป้ายบังคับ("บริษัท")}</label>
                 <input value={form.company} onChange={e=>set("company",e.target.value)}
-                  placeholder="เช่น บริษัท ตัวอย่าง จำกัด" style={inputStyle} autoFocus />
+                  placeholder={ตัวอย่างช่อง.บริษัท} style={inputStyle} autoFocus />
                 {dupHint && <div style={dupHintStyle}>{dupHint}</div>}
               </div>
               <div>
-                <label style={labelStyle}>จังหวัด *</label>
-                <select aria-label="จังหวัด" value={form.province} onChange={e=>set("province",e.target.value)} style={inputStyle}>
+                <label style={labelStyle}>{ป้ายบังคับ("ผู้ติดต่อ")}</label>
+                <input value={form.contact} onChange={e=>set("contact",e.target.value)}
+                  placeholder="ชื่อผู้ติดต่อ" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>{ป้ายบังคับ("โทรศัพท์")}</label>
+                <input inputMode="tel" value={form.phone} onChange={e=>set("phone",formatPhone(e.target.value))}
+                  placeholder="0XX-XXX-XXXX" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>{ช่อง.อีเมล}</label>
+                <input value={form.email} onChange={e=>set("email",e.target.value)}
+                  placeholder="email@company.com" type="email" style={inputStyle} />
+              </div>
+              {/* ที่อยู่ — กรอกตั้งแต่ตอนเป็นลูกค้าเป้าหมาย แล้วส่งต่อเป็นที่อยู่ลูกค้าตอนปิดการขายสำเร็จ
+                  เดิมช่องนี้มีเฉพาะฝั่งลูกค้า เซลส์จึงต้องไปตามถามซ้ำหลังปิดการขาย (บอสแจ้ง 19 ส.ค. 69) */}
+              <div className="col-full">
+                <label style={labelStyle}>{ช่อง.ที่อยู่}</label>
+                <input value={form.address} onChange={e=>set("address",e.target.value)}
+                  placeholder={ตัวอย่างช่อง.ที่อยู่} style={inputStyle} />
+              </div>
+
+              {/* ── งาน — ฟอร์มขอราคาจาก HQ ดึงสามช่องนี้ไปกรอกให้ (แก้ได้ก่อนส่ง) ── */}
+              <div className="form-section">{กลุ่มช่อง.งาน}</div>
+              <div>
+                <label style={labelStyle} htmlFor="lf-province">{ป้ายบังคับ("จังหวัด")}</label>
+                <select id="lf-province" aria-label={ช่อง.จังหวัด} value={form.province} onChange={e=>set("province",e.target.value)} style={inputStyle}>
                   <option value="">— ยังไม่ระบุ —</option>
                   {myProvinces.map(p=><option key={p}>{p}</option>)}
                   {form.province && !myProvinces.includes(form.province) && <option value={form.province}>{form.province} (นอกภาค)</option>}
                 </select>
               </div>
-              <div>
-                <label style={labelStyle}>แหล่งที่มา</label>
-                <select aria-label="แหล่งที่มา" value={form.source} onChange={e=>set("source",e.target.value)} style={inputStyle}>
-                  <option value="">— ยังไม่ระบุ —</option>
-                  {[...legacySource(form.source), ...SOURCES].map(s=><option key={s}>{s}</option>)}
-                </select>
-              </div>
-              {/* ที่อยู่ — กรอกตั้งแต่ตอนเป็นลูกค้าเป้าหมาย แล้วส่งต่อเป็นที่อยู่ลูกค้าตอนปิดการขายสำเร็จ
-                  เดิมช่องนี้มีเฉพาะฝั่งลูกค้า เซลส์จึงต้องไปตามถามซ้ำหลังปิดการขาย (บอสแจ้ง 19 ส.ค. 69) */}
               <div className="col-full">
-                <label style={labelStyle}>ที่อยู่</label>
-                <input value={form.address} onChange={e=>set("address",e.target.value)}
-                  placeholder="เลขที่ ถนน ตำบล/แขวง อำเภอ/เขต รหัสไปรษณีย์" style={inputStyle} />
-              </div>
-
-              {/* ── ผู้ติดต่อ ── */}
-              <div className="form-section">ผู้ติดต่อ</div>
-              <div>
-                <label style={labelStyle}>ผู้ติดต่อ *</label>
-                <input value={form.contact} onChange={e=>set("contact",e.target.value)}
-                  placeholder="ชื่อผู้ติดต่อ" style={inputStyle} />
+                <label style={labelStyle} htmlFor="lf-project">{ช่อง.งาน}</label>
+                <input id="lf-project" value={form.project} onChange={e=>set("project",e.target.value)}
+                  placeholder={ตัวอย่างช่อง.งาน} maxLength={200} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>โทรศัพท์ *</label>
-                <input inputMode="tel" value={form.phone} onChange={e=>set("phone",formatPhone(e.target.value))}
-                  placeholder="0XX-XXX-XXXX" style={inputStyle} />
-              </div>
-              <div className="col-full">
-                <label style={labelStyle}>อีเมล</label>
-                <input value={form.email} onChange={e=>set("email",e.target.value)}
-                  placeholder="email@company.com" type="email" style={inputStyle} />
-              </div>
-
-              {/* ── รายละเอียดงาน ── */}
-              <div className="form-section">รายละเอียดงาน</div>
-              <div>
-                <label style={labelStyle}>พื้นที่ (ตร.ม.)</label>
+                <label style={labelStyle}>{ช่อง.พื้นที่}</label>
                 <input type="number" min={0} value={form.area} onChange={e=>set("area",e.target.value)}
                   placeholder="เช่น 1200" style={inputStyle} />
               </div>
+              <div className="col-full">
+                <label style={labelStyle} htmlFor="lf-spec">{ช่อง.สเปก}</label>
+                <textarea id="lf-spec" value={form.note} onChange={e=>set("note",e.target.value)}
+                  rows={3} placeholder={ตัวอย่างช่อง.สเปก}
+                  style={{ ...inputStyle, resize:"vertical", fontFamily:"inherit", lineHeight:1.6 }} />
+              </div>
+
+              {/* ── การดูแล ── */}
+              <div className="form-section">{กลุ่มช่อง.การดูแล}</div>
               <div>
-                <label style={labelStyle}>ขั้นตอน</label>
+                <label style={labelStyle}>{ช่อง.ขั้นตอน}</label>
                 {/* เลือกได้เฉพาะขั้นก่อน "เสนอราคา" — ขั้นเสนอราคาขึ้นไปเลื่อนอัตโนมัติเมื่อมีใบเสนอราคา
                     aria-label: ชื่อเดียวกับ label — กันสับสนกับ dropdown "ทุกสถานะ" บนแถบเครื่องมือที่มีครบทุกขั้น */}
                 {/* ต้องมีค่าเสมอ — งานขายต้องเริ่มที่ขั้นใดขั้นหนึ่งเสมอ */}
                 {/* "รอราคา HQ" ฐานข้อมูลขยับให้เองตามคำขอราคา (FLOW.html) — ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ ยกเลิกคำขอได้ที่แท็บใบเสนอราคา */}
                 {/* ลีดใหม่เริ่มได้ 2 ขั้นนี้เท่านั้น — ขั้นอื่นระบบเลื่อนให้เอง (ฐานกัน ใบ 0232) */}
-                <select aria-label="ขั้นตอน" value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={isEdit}>
+                <select aria-label={ช่อง.ขั้นตอน} value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={isEdit}>
                   {(isEdit ? [form.status] : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
                 </select>
               </div>
-
-              {/* ── การดูแล ── */}
-              <div className="form-section">การดูแล</div>
-              <div className="col-full">
-                <label style={labelStyle}>ผู้รับผิดชอบ</label>
-                <PersonPicker value={form.assigned} onChange={v=>set("assigned",v)} multiple />
+              <div>
+                <label style={labelStyle}>{ช่อง.ช่องทาง}</label>
+                <select aria-label={ช่อง.ช่องทาง} value={form.source} onChange={e=>set("source",e.target.value)} style={inputStyle}>
+                  <option value="">— ยังไม่ระบุ —</option>
+                  {[...legacySource(form.source), ...SOURCES].map(s=><option key={s}>{s}</option>)}
+                </select>
               </div>
               <div className="col-full">
-                <label style={labelStyle}>หมายเหตุ</label>
-                <textarea value={form.note} onChange={e=>set("note",e.target.value)}
-                  rows={3} placeholder="รายละเอียดเพิ่มเติม..."
-                  style={{ ...inputStyle, resize:"vertical", fontFamily:"inherit", lineHeight:1.6 }} />
+                <label style={labelStyle}>{ช่อง.ผู้รับผิดชอบ}</label>
+                <PersonPicker value={form.assigned} onChange={v=>set("assigned",v)} multiple />
               </div>
             </div>
           </div>
@@ -1319,7 +1266,7 @@ export default function LeadsPage() {
           )}
           <FilterBar dims={[]} />
           <ExportMenu filename="leads" title="รายชื่อลูกค้าเป้าหมาย"
-            headers={["รหัส","ชื่อ","ผู้ติดต่อ","จังหวัด","ช่องทางที่มา","พื้นที่ (ตร.ม.)","สถานะ","ขั้น","มูลค่า","ผู้รับผิดชอบ","กิจกรรมล่าสุด"]}
+            headers={["รหัส","ชื่อ",ช่อง.ผู้ติดต่อ,ช่อง.จังหวัด,ช่อง.ช่องทาง,ช่อง.พื้นที่,"สถานะ","ขั้น","มูลค่า",ช่อง.ผู้รับผิดชอบ,"กิจกรรมล่าสุด"]}
             rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.area ?? "—",leadStatusLabel[l.status],ข้อความขั้น(l),fmtมูลค่าย่อ(มูลค่าลีด(l)),l.assigned,lastActivity(l)])} />
           <button onClick={() => setShowAddForm(true)} className="btn btn-primary btn-sm">
             <Plus size={15} /> เพิ่มลูกค้าเป้าหมาย
@@ -1417,19 +1364,19 @@ export default function LeadsPage() {
                   <tr>
                     {([
                       ["company","บริษัท / ผู้ติดต่อ",null],
-                      [null,"จังหวัด","province"],
-                      [null,"ช่องทางที่มา","source"],
-                      [null,"พื้นที่ (ตร.ม.)","area"],
-                      ["status","ขั้นตอน",null],
+                      [null,ช่อง.จังหวัด,"province"],
+                      [null,ช่อง.ช่องทาง,"source"],
+                      [null,ช่อง.พื้นที่,"area"],
+                      ["status",ช่อง.ขั้นตอน,null],
                       [null,"ขั้น",null],
                       ["value","มูลค่า",null],
-                      ["assigned","ผู้รับผิดชอบ",null],
+                      ["assigned",ช่อง.ผู้รับผิดชอบ,null],
                       [null,"กิจกรรมล่าสุด","activity"],
                       [null,"",null], // คอลัมน์ปุ่มดู — ไม่ต้องมีหัวคอลัมน์ (มาตรฐานเดียวกับตารางใบเสนอราคา)
                     ] as [SortKey|null,string,string|null][])
                       .filter(([,,colKey]) => !colKey || !hiddenCols.includes(colKey))
                       .map(([key,label])=>{
-                      const isNum = key === "value" || label === "พื้นที่ (ตร.ม.)"; // คอลัมน์ตัวเลข — จัดหัวคอลัมน์ชิดขวาให้ตรงกับค่าในเซลล์ (.num)
+                      const isNum = key === "value" || label === ช่อง.พื้นที่; // คอลัมน์ตัวเลข — จัดหัวคอลัมน์ชิดขวาให้ตรงกับค่าในเซลล์ (.num)
                       return (
                       <th key={label || "actions"}
                         className={isNum ? "num" : undefined}
@@ -1622,9 +1569,9 @@ export default function LeadsPage() {
                       {/* ข้อมูลติดต่อแบบแถวป้ายกำกับ + เตือนขาดการติดต่อ */}
                       <div style={{ display:"flex", flexDirection:"column", gap:3, fontSize:"0.68rem",
                         borderTop:"1px solid #f1f5f9", borderBottom:"1px solid #f1f5f9", padding:"7px 0", marginBottom:9 }}>
-                        <CardField icon={Phone} label="โทรศัพท์" value={l.phone} />
-                        <CardField icon={Mail} label="อีเมล" value={l.email} />
-                        <CardField icon={MapPin} label="จังหวัด" value={l.province} />
+                        <CardField icon={Phone} label={ช่อง.โทรศัพท์} value={l.phone} />
+                        <CardField icon={Mail} label={ช่อง.อีเมล} value={l.email} />
+                        <CardField icon={MapPin} label={ช่อง.จังหวัด} value={l.province} />
                         <CardField icon={Calendar} label="สร้าง" value={l.createdAt} />
                         {(() => {
                           const d = daysSinceContact(l);

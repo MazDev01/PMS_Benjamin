@@ -5,6 +5,7 @@ import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
 import { db } from "./funcHelpers";
+import { ช่อง } from "../../packages/shared/lib/fieldLabels";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -20,15 +21,17 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
   await expect(การ์ด, "ต้องมีการ์ดอย่างน้อยหนึ่งใบ").toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[draggable="true"]'), "การ์ดบนบอร์ดลากไม่ได้แล้ว").toHaveCount(0);
 
-  for (const ป้าย of ["โทรศัพท์:", "อีเมล:", "จังหวัด:", "สร้าง:", "ติดต่อล่าสุด:"]) {
+  // ชื่อป้ายมาจากชุดช่องมาตรฐาน (lib/fieldLabels.ts · 26 ต.ค. 69 "จังหวัด" → "จังหวัดหน้างาน")
+  const ป้ายการ์ด = [`${ช่อง.โทรศัพท์}:`, `${ช่อง.อีเมล}:`, `${ช่อง.จังหวัด}:`, "สร้าง:", "ติดต่อล่าสุด:"];
+  for (const ป้าย of ป้ายการ์ด) {
     await expect(การ์ด.getByText(ป้าย, { exact: true }), `การ์ดต้องมีบรรทัด "${ป้าย}"`).toBeVisible();
   }
 
   // ทุกบรรทัดต้องมีค่าต่อท้ายเสมอ — ถ้ายังไม่มีข้อมูลต้องเป็น "—" (ห้ามปล่อยว่าง)
-  const บรรทัด = await การ์ด.evaluate(el =>
+  const บรรทัด = await การ์ด.evaluate((el, ป้าย) =>
     Array.from(el.querySelectorAll("span"))
-      .filter(s => /^(โทรศัพท์|อีเมล|จังหวัด|สร้าง|ติดต่อล่าสุด):$/.test(s.textContent ?? ""))
-      .map(s => ({ ป้าย: s.textContent, ค่า: (s.nextElementSibling?.textContent ?? "").trim() })));
+      .filter(s => ป้าย.includes(s.textContent ?? ""))
+      .map(s => ({ ป้าย: s.textContent, ค่า: (s.nextElementSibling?.textContent ?? "").trim() })), ป้ายการ์ด);
   expect(บรรทัด.length, "ต้องเจอครบ 5 บรรทัด").toBe(5);
   for (const b of บรรทัด) expect(b.ค่า, `บรรทัด ${b.ป้าย} ต้องมีค่าหรือขีด`).not.toBe("");
 

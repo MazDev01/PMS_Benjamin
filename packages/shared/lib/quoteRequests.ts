@@ -29,6 +29,11 @@ export type QuoteRequest = {
   cancelReason: string;
   /** สำหรับคิวของ HQ — ชื่อบริษัทของลูกค้าเป้าหมาย (ไม่มีในตารางคำขอ เติมตอนอ่าน) */
   leadCompany?: string;
+  /** ข้อมูลลูกค้าของลีด (กล่องงาน HQ · ใบ 0242 · ชุดช่องมาตรฐาน) — ไม่มี = "" */
+  leadContact?: string;
+  leadPhone?: string;
+  leadEmail?: string;
+  leadAddress?: string;
 };
 
 export const quoteRequestStatusLabel: Record<QuoteRequestStatus, string> = {
@@ -101,6 +106,69 @@ export const hqQuoteStatusLabel: Record<HqQuoteStatus, string> = {
 /** ยอดรายบรรทัด — ปัดสองตำแหน่งแบบเดียวกับฐานข้อมูล (hq_quote_save) */
 export const ยอดบรรทัด = (l: Pick<HqQuoteLine, "qty" | "unitCost">) => Math.round(Number(l.qty) * Number(l.unitCost) * 100) / 100;
 export const ยอดรวมใบ = (lines: Pick<HqQuoteLine, "qty" | "unitCost">[]) => Math.round(lines.reduce((s, l) => s + ยอดบรรทัด(l), 0) * 100) / 100;
+// ── ตาราง BOQ ของ HQ (หน้าคำขอใบเสนอราคา · บอสสั่ง 26 ต.ค. 69) ──────────────────────────────────────────────
+/** หน่วยที่เลือกได้ในตาราง BOQ — พิมพ์หน่วยอื่นเองได้ */
+export const หน่วยBOQ = ["ตร.ม.", "ตัน", "เมตร", "ชุด", "งาน"] as const;
+/** แถวที่ยังไม่ได้กรอกอะไร (ไม่มีชื่อ ไม่มีต้นทุน) — ไม่นับเป็นรายการ ไม่ส่งเข้าฐาน ไม่ถือว่า "แก้ค้าง" */
+export const แถวว่าง = (l: Pick<HqQuoteLine, "name" | "unitCost">) => !l.name.trim() && !(Number(l.unitCost) > 0);
+export const แถวเปล่าใหม่ = (): HqQuoteLine => ({ name: "", qty: 1, unit: "", unitCost: 0 });
+
+/** แถวที่วางมาจาก Excel — เตือน = อ่านช่องไหนไม่ได้ (แถวยังอยู่ให้แก้ต่อ ไม่ทิ้งเงียบ ๆ) */
+export type แถววาง = HqQuoteLine & { เตือน?: string };
+const ตัวเลข = (s: string | undefined): number | null => {
+  const t = (s ?? "").replace(/[,\s฿]/g, "").replace(/บาท$/, "");
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+};
+/** แทรกรายการเข้าตาราง BOQ — ทางเดียวของทุกแหล่ง (วางจาก Excel · แม่แบบวัสดุ · รายการจากคำขอดีลเลอร์ ฯลฯ · บอสสั่ง 26 ต.ค. 69)
+ *  at = แถวที่ผู้ใช้อยู่ (วางที่ช่อง): แถวนั้นว่าง = แทนที่ · มีของ = แทรกต่อท้ายแถวนั้น
+ *  ไม่ระบุ at (กดปุ่มแหล่ง): ตัดแถวว่างท้ายตารางทิ้ง แล้วต่อท้าย — ไม่ทับแถวที่มีของ · ผลว่างเปล่า = คงแถวว่าง 1 แถว */
+export function แทรกรายการ(lines: แถววาง[], rows: แถววาง[], at?: number): แถววาง[] {
+  if (!rows.length) return lines;
+  if (at != null && at >= 0 && at < lines.length)
+    return [...lines.slice(0, at), ...(แถวว่าง(lines[at]) ? [] : [lines[at]]), ...rows, ...lines.slice(at + 1)];
+  let ท้าย = lines.length;
+  while (ท้าย > 0 && แถวว่าง(lines[ท้าย - 1])) ท้าย--;
+  return [...lines.slice(0, ท้าย), ...rows];
+}
+/** ข้อความที่วางจาก Excel/Google Sheets (แถวคั่นบรรทัด · ช่องคั่น Tab) → รายการ BOQ
+ *  คอลัมน์: รายการ · จำนวน · หน่วย · ต้นทุนต่อหน่วย · แถวหัวตาราง (ช่องตัวเลขอ่านไม่ได้ทั้งคู่ + มีคำว่า รายการ/ชื่อ) ข้ามให้
+ *  คืน null = ไม่ใช่ข้อมูลตาราง (วางข้อความธรรมดาในช่องตามปกติ) */
+export function แยกแถววางจากExcel(text: string): แถววาง[] | null {
+  const บรรทัด = text.replace(/\r\n?/g, "\n").split("\n");
+  while (บรรทัด.length && !บรรทัด[บรรทัด.length - 1].trim()) บรรทัด.pop();
+  if (!บรรทัด.length || (บรรทัด.length === 1 && !บรรทัด[0].includes("\t"))) return null;
+  const ผล: แถววาง[] = [];
+  บรรทัด.forEach((b, i) => {
+    if (!b.trim()) return;
+    const [ชื่อ = "", จำนวน, หน่วย = "", ต้นทุน] = b.split("\t").map(c => c.trim());
+    const qty = ตัวเลข(จำนวน), cost = ตัวเลข(ต้นทุน);
+    if (i === 0 && qty === null && cost === null && /รายการ|ชื่อ/.test(ชื่อ)) return;   // หัวตาราง
+    const ผิด = [
+      !ชื่อ && "ไม่มีชื่อรายการ",
+      !(qty !== null && qty > 0) && `อ่านจำนวนไม่ได้ (${จำนวน ?? "ว่าง"})`,
+      !(cost !== null && cost >= 0) && `อ่านต้นทุนไม่ได้ (${ต้นทุน ?? "ว่าง"})`,
+    ].filter(Boolean) as string[];
+    ผล.push({ name: ชื่อ, qty: qty !== null && qty > 0 ? qty : 1, unit: หน่วย, unitCost: cost !== null && cost >= 0 ? cost : 0,
+      ...(ผิด.length ? { เตือน: ผิด.join(" · ") } : {}) });
+  });
+  return ผล.length ? ผล : null;
+}
+
+/** "เหลือ X วัน" / "เกิน X วัน" / "ครบกำหนดวันนี้" / "เกินกำหนดวันนี้" — นับวันตามปฏิทินเวลาไทย
+ *  เกิน = เลยเวลาจริงแล้ว (ตรงกับป้ายเกินกำหนดของฐาน due_at < now()) */
+export function เหลือหรือเกิน(iso: string | null | undefined, now = Date.now()): string {
+  if (!iso) return "—";
+  const t = new Date(iso.length === 10 ? `${iso}T23:59:59+07:00` : iso).getTime();
+  if (Number.isNaN(t)) return "—";
+  const วัน = (ms: number) => Math.floor((ms + 7 * 3_600_000) / 86_400_000);
+  const ห่าง = วัน(t) - วัน(now);
+  if (ห่าง > 0) return t < now ? "เกินกำหนดวันนี้" : `เหลือ ${ห่าง} วัน`;
+  if (ห่าง === 0) return t < now ? "เกินกำหนดวันนี้" : "ครบกำหนดวันนี้";
+  return `เกิน ${-ห่าง} วัน`;
+}
+
 /** ป้ายฝั่งดีลเลอร์ (ตารางสถานะแถว "HQ ส่งใบ": Lead คงเดิม + ป้าย "ได้ราคาแล้ว") */
 export const ป้ายได้ราคาแล้ว = "ได้ราคาแล้ว";
 
