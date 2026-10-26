@@ -12,7 +12,10 @@
       // turbo 2 กรอง env ทิ้งทุกตัวที่ไม่ประกาศไว้ (envMode ค่าตั้งต้น = strict)
       // ไม่ประกาศ = สั่ง NEXT_PUBLIC_DATA_SOURCE=api แล้วเซิร์ฟเวอร์ยังอ่านค่าจาก .env.local เหมือนเดิม
       // → เทสต์ที่ตั้งใจวัดโหมด api จะวัดโหมด supabase แทน โดยไม่มีอะไรเตือน
-      "passThroughEnv": ["NEXT_PUBLIC_DATA_SOURCE"]
+      "passThroughEnv": ["NEXT_PUBLIC_DATA_SOURCE",
+        // ฐาน dev (scripts/dev-db.mjs) · กุญแจเขียนฐานทดสอบของผู้ถือล็อก + ตัวสลับกุญแจ (scripts/lib/testDbGuard.mjs · 26 ต.ค. 69)
+        "PMS_DB_TARGET", "NEXT_PUBLIC_SUPABASE_URL", "SMTP_PORT",
+        "PMS_TESTDB_LOCK_HELD", "PMS_TESTDB_PG_PASSWORD", "NEXT_PUBLIC_PMS_TESTDB_LOCK", "NODE_OPTIONS"]
     },
     // ไม่แคช (21 ต.ค. 69): แอป dealer/hq ตรวจชนิดโค้ดของ packages/shared ด้วย แต่กุญแจแคชของแอปไม่รวมไฟล์ของ shared
     //   แก้ mock.ts แล้ว typecheck ตอบ "cache hit" ผ่าน ทั้งที่หน้าใบเสนอราคาของ dealer ตรวจไม่ผ่านจริง — ขั้นแรกของรอบปิดด่านพลาดได้

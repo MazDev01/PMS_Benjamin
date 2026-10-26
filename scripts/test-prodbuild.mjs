@@ -16,6 +16,7 @@ import { สภาพตอนเริ่ม, บันทึกcommitที่
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
 import { ตรวจไม่นิ่งท้ายรอบ } from "./lib/flakyLog.mjs";
+import { อาร์กิวเมนต์psql, คอนเทนเนอร์ as คอนเทนเนอร์ฐานทดสอบ } from "./lib/testDbGuard.mjs";
 
 // commit ที่กำลังตรวจ + ไฟล์ค้างตอนเริ่ม — ผลผ่านผูกกับ commit นี้ (ตัวกัน push ขึ้น monorepo · 22 ต.ค. 69)
 const ตอนเริ่ม = สภาพตอนเริ่ม();
@@ -138,7 +139,7 @@ const รันprodLive = async () => {
     if (code === 0) code = ขั้น("test");
   } finally {
     ขั้น("files");
-    const ล้าง = spawnSync("docker", ["exec", "-i", "supabase_db_pms-dbcheck", "psql", "-U", "postgres", "-d", "postgres", "-X", "-q", "-v", "ON_ERROR_STOP=1"],
+    const ล้าง = spawnSync("docker", [...อาร์กิวเมนต์psql(คอนเทนเนอร์ฐานทดสอบ), "-X", "-q", "-v", "ON_ERROR_STOP=1"],
       { input: readFileSync("tests/prod-live/cleanup.sql", "utf8"), encoding: "utf8" });
     if (ล้าง.status !== 0) { console.error(`✗ ล้างข้อมูล prod-live ในเครื่องไม่สำเร็จ: ${ล้าง.stderr}`); code = code || 1; }
     rmSync(สถานะ, { recursive: true, force: true });

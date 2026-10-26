@@ -14,9 +14,10 @@
 // ใช้ (ฐานในเครื่องเท่านั้น): node scripts/export-test-baseline.mjs [ชื่อคอนเทนเนอร์ · ค่าตั้งต้น supabase_db_pms-dbcheck]
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
+import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 
 const c = process.argv[2] ?? "supabase_db_pms-dbcheck";
-const psql = sql => execFileSync("docker", ["exec", "-i", c, "psql", "-U", "postgres", "-d", "postgres", "-X", "-q", "-A", "-t"],
+const psql = sql => execFileSync("docker", [...อาร์กิวเมนต์psql(c, { เขียน: false }), "-X", "-q", "-A", "-t"],
   { input: sql, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
 const คอลัมน์ = t => psql(`select string_agg(quote_ident(column_name), ',' order by ordinal_position) from information_schema.columns
   where table_schema = 'public' and table_name = '${t}' and is_generated = 'NEVER' and coalesce(identity_generation, '') <> 'ALWAYS';`).trim();

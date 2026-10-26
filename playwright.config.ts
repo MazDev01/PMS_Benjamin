@@ -12,6 +12,19 @@ import { ที่อยู่เว็บ } from "./tests/scenario/sessionPorts
 //   ดู trace: npx playwright show-trace <โฟลเดอร์ของข้อ>/trace.zip
 process.env.PMS_RUN_ID ??= new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 19).replace(/[:T]/g, "-");
 
+// ── ถือล็อกฐานทดสอบก่อนเปิดเซิร์ฟเวอร์ทดสอบ (26 ต.ค. 69 · ฐานทดสอบเขียนได้เฉพาะผู้ถือล็อก) ─────────────────────────────
+//   ได้ล็อก = ได้กุญแจเขียนของรอบใน env → เซิร์ฟเวอร์ (webServer) และ worker ที่เปิดหลังจากนี้ได้กุญแจด้วย
+//   global-setup ขอเร็วไม่ทัน (เซิร์ฟเวอร์เปิดก่อน global-setup) · เฉพาะตอนรันข้อทดสอบจริง — แสดงรายการ/ตัวขยายของ VS Code ไม่ขอล็อก
+// ข้อทดสอบห้ามแตะฐาน dev (บอสสั่ง 26 ต.ค. 69) — สั่งรันจากหน้าต่างที่เปิด npm run dev ค้างไว้ env อาจชี้ฐาน dev
+if (process.env.PMS_DB_TARGET === "dev" || /:57321/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")) {
+  throw new Error("⛔ ชุดทดสอบชี้ฐาน dev — ข้อทดสอบใช้ฐานทดสอบเท่านั้น (เปิดหน้าต่างใหม่ที่ไม่ได้รัน npm run dev)");
+}
+if (!process.env.TEST_WORKER_INDEX && !process.env.PMS_TESTDB_LOCK_HELD && process.argv.includes("test") && !process.argv.includes("--list")) {
+  // ตั้งค่าโหลดแบบ CommonJS (ไม่มี await ชั้นบนสุด) — Node รุ่นนี้ require ไฟล์ ESM ได้
+  const { ขอล็อกฐานทดสอบ } = require("./scripts/lib/testDbLock.mjs") as typeof import("./scripts/lib/testDbLock.mjs");
+  ขอล็อกฐานทดสอบ("playwright (ข้อทดสอบ)");
+}
+
 export default defineConfig({
   testDir: "./tests/scenario",
   // ข้อมูลตั้งต้น (ลีด/ใบเสนอราคา/ลูกค้า ติดแท็ก ZZTEST-BASE) สำหรับกลุ่มเทสต์ที่แค่ "เปิดหน้าไปดู"
@@ -127,7 +140,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",       // turbo dev — สตาร์ท dealer + hq ที่พอร์ตของโฟลเดอร์นี้ (scripts/next-port.mjs)
+    // turbo dev ตรง (ไม่ใช่ npm run dev ซึ่งชี้ฐาน dev · scripts/dev-db.mjs) — สตาร์ท dealer + hq ที่พอร์ตของโฟลเดอร์นี้ ชี้ฐานทดสอบ (.env.local)
+    command: "npx turbo dev",
     url: ที่อยู่เว็บ.hq,            // รอ HQ app พร้อม
     // ⚠️ ห้ามเปิด reuseExistingServer — เคยทำให้ผลเทสต์หลอกมาแล้ว
     //

@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
 import { ขอล็อก } from "./lib/prodLock.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
 import { อ่านคำสั่งสำรอง } from "./lib/backupArgs.mjs";
+import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { target, ชื่อ } = อ่านคำสั่งสำรอง(process.argv.slice(2));
@@ -30,7 +32,8 @@ if (process.env.PMS_DRILL_SABOTAGE === "1" && target !== "local") { console.erro
 const OPS = process.env.PMS_PROD_OPS_DIR || "C:/.claude/pms-prod-ops";
 const RESTORE = process.env.PMS_RESTORE_WORKDIR || "C:/.claude/pms-restore-check";
 const ROOT = process.env.PMS_BACKUP_ROOT || "C:/.claude/pms-prod-backups";
-const LOCAL_DB = "postgresql://postgres:postgres@127.0.0.1:55322/postgres";   // ฐานทดสอบ pms-dbcheck
+// ฐานทดสอบ pms-dbcheck — ต้นทางของ --target local · บัญชีเขียนของผู้ถือล็อก (ฐานทดสอบปิดบัญชีอื่นแล้ว · testDbGuard.mjs)
+const LOCAL_DB = () => `postgresql://pms_writer:${encodeURIComponent(process.env.PMS_TESTDB_PG_PASSWORD ?? "")}@127.0.0.1:55322/postgres`;
 const LOCAL_CONTAINER = "supabase_db_pms-dbcheck";
 const SQL_COUNT = path.join(REPO, "scripts/sql/prod-count-all.sql");
 const SQL_SEQ = path.join(REPO, "scripts/sql/prod-seq-check.sql");
@@ -90,7 +93,8 @@ if (target === "prod") {
   if (!ref || ผูก !== ref) ไม่ผ่าน(`โฟลเดอร์ ${OPS} ไม่ได้ผูกฐานจริง (ผูกอยู่: ${ผูก || "ไม่มี"})`);
   ต้นทางเลือก = ["--linked"];
 } else {
-  ต้นทางเลือก = ["--db-url", LOCAL_DB];
+  ขอล็อกฐานทดสอบ("สำรองฐานทดสอบ + ซ้อมกู้ (ทดสอบเครื่องมือ)", { รอนาที: Number(process.env.PMS_TESTDB_LOCK_WAIT || 0) });
+  ต้นทางเลือก = ["--db-url", LOCAL_DB()];
 }
 if (existsSync(D)) ไม่ผ่าน(`มีโฟลเดอร์อยู่แล้ว: ${D}`);
 mkdirSync(D, { recursive: true });
@@ -127,7 +131,7 @@ const นับต้นทาง = (sqlFile, ชื่อขั้น) => {
     const r = รันตรวจ(ชื่อขั้น, "npx", ["supabase", "db", "query", "--linked", "-f", sqlFile, "--output-format", "json"], { cwd: OPS }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
     return ค่าแรก(ชื่อขั้น, r);
   }
-  const r = รันตรวจ(ชื่อขั้น, "docker", ["exec", "-i", LOCAL_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-X", "-A", "-t"],
+  const r = รันตรวจ(ชื่อขั้น, "docker", [...อาร์กิวเมนต์psql(LOCAL_CONTAINER, { เขียน: false }), "-X", "-A", "-t"],
     { input: readFileSync(sqlFile, "utf8"), shell: false }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
   try { const ค่า = JSON.parse(r.stdout.trim()); if (ค่า && typeof ค่า === "object") return ค่า; } catch { /* ด้านล่าง */ }
   return ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" ล้ม — ผลนับไม่ใช่ JSON ที่ใช้ได้${บันทึกผลดิบ(".count.log", r)}`);

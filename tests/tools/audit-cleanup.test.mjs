@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { ขอล็อกฐานทดสอบ } from "../../scripts/lib/testDbLock.mjs";
+import { อาร์กิวเมนต์psql, คอนเทนเนอร์ } from "../../scripts/lib/testDbGuard.mjs";
 
 let ตก = 0;
 const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถูก) ตก++; console.log(`${ถูก ? "✓" : "✗"} ${ชื่อ}${ถูก ? "" : `\n${String(เพิ่ม).slice(0, 1500)}`}`); };
@@ -52,7 +53,7 @@ select 'หลัง=' ||
   (select count(*) from public.audit_log where target = 'RYG · ทดสอบล้าง-ZZTEST');
 rollback;
 `;
-const r = spawnSync("docker", ["exec", "-i", "supabase_db_pms-dbcheck", "psql", "-U", "postgres", "-d", "postgres", "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"], { input: sql, encoding: "utf8" });
+const r = spawnSync("docker", [...อาร์กิวเมนต์psql(คอนเทนเนอร์), "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"], { input: sql, encoding: "utf8" });
 ล็อก.release();
 const ออก = (r.stdout ?? "") + (r.stderr ?? "");
 const ข้อผิดพลาด = /ERROR:.*$/m.exec(ออก)?.[0];
