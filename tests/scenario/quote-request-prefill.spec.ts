@@ -10,7 +10,7 @@ import { ล้างใบHQทดสอบ, เลขลูกค้าเป�
 //   ขอแก้ราคา (D5x) = สเปกจากคำขอล่าสุด
 //   เดิมฟอร์มเปิดมาว่างทุกช่อง (ข้อ 1 ตกบนโค้ดก่อนแก้)
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: process.env.PMS_GATE_ALL === "1" ? "default" : "serial" });   // PMS_GATE_ALL=1 = รันทุกข้อแม้ข้อก่อนตก
 test.setTimeout(180_000);
 
 const แท็ก = Date.now() % 100_000;

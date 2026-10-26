@@ -121,7 +121,7 @@ test("[ui·hq] ยืนราคาถึงแสดงปี พ.ศ. · ห�
 
   const กล่อง = ใบ.locator("[data-box='request-info']");
   await expect(กล่อง.locator("[data-info='job']")).toContainText("โกดังเก็บสินค้า 20x40 ม.");
-  await expect(กล่อง.locator("[data-info='area']")).toContainText("800 ตร.ม.");
+  await expect(กล่อง.locator("[data-info='area']")).toContainText("800");   // หน่วยอยู่ที่ป้าย "พื้นที่ (ตร.ม.)" (ชุดช่องมาตรฐาน)
   await expect(กล่อง.locator("[data-info='province']")).toContainText("ระยอง");
   await expect(กล่อง.locator("[data-info='dealer']")).toContainText("RYG");
   await expect(กล่อง.getByTestId("due-countdown"), "กำหนดส่งบอกเหลือกี่วัน").toHaveText(/\((เหลือ 1[34] วัน)\)/);

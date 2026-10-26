@@ -21,6 +21,7 @@ import {
   ยอดบรรทัด, ป้ายได้ราคาแล้ว,
 } from "@pms/shared/lib/quoteRequests";
 import type { LeadRow } from "@pms/shared/lib/mock";
+import { ช่องขอราคา, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
 
 type โหมด = "ดู" | "ขอราคา" | "ยกเลิก" | "แก้ราคา";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -162,14 +163,14 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
 
       {โหมด === "ขอราคา" && (
         <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-          <label className="form-label" htmlFor="qr-product">งานที่ขอราคา</label>
-          <input id="qr-product" aria-label="งานที่ขอราคา" style={ช่อง} value={product} onChange={e => setProduct(e.target.value)} disabled={busy}
-            placeholder="เช่น โกดังเก็บสินค้า 20x40 ม." maxLength={200} />
-          <label className="form-label" htmlFor="qr-area">พื้นที่ (ตร.ม.)</label>
+          <label className="form-label" htmlFor="qr-product">{ช่องขอราคา.งาน} *</label>
+          <input id="qr-product" aria-label={ช่องขอราคา.งาน} style={ช่อง} value={product} onChange={e => setProduct(e.target.value)} disabled={busy}
+            placeholder={ตัวอย่างช่อง.งาน} maxLength={200} required />
+          <label className="form-label" htmlFor="qr-area">{ช่องขอราคา.พื้นที่}</label>
           <input id="qr-area" inputMode="decimal" style={ช่อง} value={area} onChange={e => setArea(e.target.value.replace(/[^\d.]/g, ""))} disabled={busy} />
-          <label className="form-label" htmlFor="qr-spec">สเปก / รายละเอียด</label>
-          <textarea id="qr-spec" aria-label="สเปก / รายละเอียด" rows={3} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
-          <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>จังหวัดหน้างาน: {lead.province || "—"}</div>
+          <label className="form-label" htmlFor="qr-spec">{ช่องขอราคา.สเปก}</label>
+          <textarea id="qr-spec" aria-label={ช่องขอราคา.สเปก} rows={3} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
+          <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>{ช่องขอราคา.จังหวัด}: {lead.province || "—"}</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={ส่งคำขอ}>{busy ? "กำลังส่ง…" : "ส่งคำขอ"}</button>
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ยกเลิก</button>

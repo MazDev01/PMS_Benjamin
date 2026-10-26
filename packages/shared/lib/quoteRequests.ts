@@ -29,6 +29,11 @@ export type QuoteRequest = {
   cancelReason: string;
   /** สำหรับคิวของ HQ — ชื่อบริษัทของลูกค้าเป้าหมาย (ไม่มีในตารางคำขอ เติมตอนอ่าน) */
   leadCompany?: string;
+  /** ข้อมูลลูกค้าของลีด (กล่องงาน HQ · ใบ 0242 · ชุดช่องมาตรฐาน) — ไม่มี = "" */
+  leadContact?: string;
+  leadPhone?: string;
+  leadEmail?: string;
+  leadAddress?: string;
 };
 
 export const quoteRequestStatusLabel: Record<QuoteRequestStatus, string> = {
@@ -116,6 +121,17 @@ const ตัวเลข = (s: string | undefined): number | null => {
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
 };
+/** แทรกรายการเข้าตาราง BOQ — ทางเดียวของทุกแหล่ง (วางจาก Excel · แม่แบบวัสดุ · รายการจากคำขอดีลเลอร์ ฯลฯ · บอสสั่ง 26 ต.ค. 69)
+ *  at = แถวที่ผู้ใช้อยู่ (วางที่ช่อง): แถวนั้นว่าง = แทนที่ · มีของ = แทรกต่อท้ายแถวนั้น
+ *  ไม่ระบุ at (กดปุ่มแหล่ง): ตัดแถวว่างท้ายตารางทิ้ง แล้วต่อท้าย — ไม่ทับแถวที่มีของ · ผลว่างเปล่า = คงแถวว่าง 1 แถว */
+export function แทรกรายการ(lines: แถววาง[], rows: แถววาง[], at?: number): แถววาง[] {
+  if (!rows.length) return lines;
+  if (at != null && at >= 0 && at < lines.length)
+    return [...lines.slice(0, at), ...(แถวว่าง(lines[at]) ? [] : [lines[at]]), ...rows, ...lines.slice(at + 1)];
+  let ท้าย = lines.length;
+  while (ท้าย > 0 && แถวว่าง(lines[ท้าย - 1])) ท้าย--;
+  return [...lines.slice(0, ท้าย), ...rows];
+}
 /** ข้อความที่วางจาก Excel/Google Sheets (แถวคั่นบรรทัด · ช่องคั่น Tab) → รายการ BOQ
  *  คอลัมน์: รายการ · จำนวน · หน่วย · ต้นทุนต่อหน่วย · แถวหัวตาราง (ช่องตัวเลขอ่านไม่ได้ทั้งคู่ + มีคำว่า รายการ/ชื่อ) ข้ามให้
  *  คืน null = ไม่ใช่ข้อมูลตาราง (วางข้อความธรรมดาในช่องตามปกติ) */
