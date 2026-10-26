@@ -17,7 +17,7 @@ import {
 } from "@pms/shared/lib/mock";
 // อ่านจาก auditStore (localStorage ล้วน) ไม่ใช่ useAudit — useAudit เป็น React hook ที่ import
 // ชั้นข้อมูลกลับเข้ามา ทำให้เกิดวงจร import จริงตอนรัน (ดูเหตุผลเต็มใน auditStore.ts)
-import { loadAudit, appendAudit } from "@pms/shared/lib/auditStore";
+import { loadAudit } from "@pms/shared/lib/auditStore";
 import { exactKey } from "@pms/shared/lib/customerMatch";
 import { isClosedDeal } from "@pms/shared/lib/customerDeletion";
 import { parseThaiDate as parseThaiDateLocal } from "@pms/shared/lib/leadMetrics";
@@ -246,7 +246,7 @@ export const LocalAdapter: DataAdapter = {
     saveNotifRules: (r) => { writeKey(HQ_NOTIF_RULES_KEY, r); fireSettings(); return done(); },
     // mirror restore_hq_settings ฝั่ง supabase (0093) — เธรดเดียวในเบราว์เซอร์ = เขียนทีละกลุ่มได้โดยไม่มี
     // ทางเสี่ยง partial-write จริง (ไม่มี network round-trip คั่นระหว่างแต่ละคีย์)
-    restoreSettings: (patch) => {
+    restoreSettings: (_kind, _file, patch) => {
       if (patch.policy)      writeKey(HQ_POLICY_KEY, patch.policy);
       if (patch.targets)     writeKey(HQ_TARGETS_KEY, patch.targets);
       if (patch.notifRules)  writeKey(HQ_NOTIF_RULES_KEY, patch.notifRules);
@@ -544,7 +544,10 @@ export const LocalAdapter: DataAdapter = {
   audit: {
     // local: loadAudit เพดาน MAX=300 อยู่แล้ว · เคารพ limit เพื่อพฤติกรรมตรงกับ supabase (M8)
     list: (limit) => ok(limit ? loadAudit().slice(0, limit) : loadAudit()),
-    append: (e) => { appendAudit(e); return done(); },
+    // บันทึกการใช้งานเกิดจากฐานข้อมูลเท่านั้น (ใบ 0240) — โหมดตัวอย่างไม่มีฐาน จึงไม่ลงเรื่องใหม่
+    //   (กติกาเดียวกับแจ้งเตือนข้างบน: ไม่ประกอบเองในหน้าเว็บ) · อ่านของเดิมในเครื่องได้ตามเดิม
+    authEvent: () => done(),
+    settingsExported: () => done(),
   },
 
   // rollup รายสาขา (M9 Phase 1) — คำนวณจาก array ใน localStorage (live-only, ทั้งหมด = มุมมอง HQ)

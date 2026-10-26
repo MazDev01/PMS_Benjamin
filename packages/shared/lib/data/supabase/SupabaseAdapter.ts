@@ -21,7 +21,7 @@ import { DEFAULT_HQ_POLICY, DEFAULT_HQ_TARGETS, DEFAULT_HQ_NOTIF_RULES, รว�
   LEAD_TASK_TEMPLATE, normalizeLeadTaskTemplate,
   DEFAULT_ISSUER, DEFAULT_NOTIF_PREFS } from "@pms/shared/lib/mock";
 import { DEFAULT_DOC } from "@pms/shared/lib/quotationPrint";
-import { APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { captureError } from "@pms/shared/lib/observability";
 import { DbError } from "@pms/shared/lib/friendlyError";
 import { reportPartialData } from "@pms/shared/lib/repoLog";
@@ -435,7 +435,10 @@ export const SupabaseAdapter: DataAdapter = {
     saveTargets: (t) => must(sb().from("hq_targets").upsert({ id: 1, ...toSnake(t as unknown as Row) })),
     saveNotifRules: (r) => must(sb().from("hq_notif_rules").upsert({ id: 1, ...toSnake(r as unknown as Row) })),
     // all-or-nothing (RPC, 0093) — แทน Promise.all ของ upsert แยกทีละตาราง (Phase 4 transaction)
-    restoreSettings: (patch) => must(sb().rpc("restore_hq_settings", {
+    // ผ่าน hq_settings_restore (0240) — ลงบันทึกการใช้งานในคำสั่งเดียวกัน (ชนิด + ชื่อไฟล์)
+    restoreSettings: (kind, file, patch) => must(sb().rpc("hq_settings_restore", {
+      p_kind:         kind,
+      p_file:         file,
       p_policy:       patch.policy      ? toSnake(patch.policy as unknown as Row)      : null,
       p_targets:      patch.targets     ? toSnake(patch.targets as unknown as Row)     : null,
       p_notif_rules:  patch.notifRules  ? toSnake(patch.notifRules as unknown as Row)  : null,
@@ -822,12 +825,9 @@ export const SupabaseAdapter: DataAdapter = {
       );
       return rows.map(r => ({ ...toCamel<AuditEntry>(r), at: fmtAuditAt(String(r.at)) }));
     },
-    // ประทับ at ด้วย "วันนี้ของระบบ" (APP_NOW) + เวลาจริง → รายการอยู่ในช่วงตัวกรอง /hq/audit (แช่แข็งเวลา)
-    append: (e) => {
-      const t = new Date();
-      const at = new Date(APP_NOW.getFullYear(), APP_NOW.getMonth(), APP_NOW.getDate(), t.getHours(), t.getMinutes(), t.getSeconds());
-      return must(sb().from("audit_log").insert({ ...toSnake(e as unknown as Row), at: at.toISOString() }));
-    },
+    // หน้าเว็บเขียนบันทึกเองไม่ได้ (ใบ 0240) — ส่งแค่ชนิดเรื่อง ฐานคิดผู้ทำ/เวลา/ข้อความเอง
+    authEvent: (action) => must(sb().rpc("audit_auth_event", { p_action: action })),
+    settingsExported: (file) => must(sb().rpc("hq_settings_audit_export", { p_file: file })),
   },
 
   // rollup รายสาขา (M9 Phase 1) — รวมยอดที่ DB ผ่าน RPC dealer_rollup · RLS คุม scope (ดีลเลอร์=สาขาตน · HQ=ทั้งเครือ)

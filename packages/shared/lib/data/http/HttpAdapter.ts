@@ -47,7 +47,7 @@ import { DEFAULT_DOC } from "@pms/shared/lib/quotationPrint";
 
 // ยังไม่เคยตั้งข้อมูลบริษัท = คืนฟอร์มเปล่า (ค่าเดียวกับ SupabaseAdapter — ห้ามใส่ข้อมูลตัวอย่าง)
 const EMPTY_HQ_COMPANY: HQCompany = { name: "", address: "", taxId: "", phone: "", email: "", website: "" };
-import { APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 
 /** กลุ่มงานที่ backend รองรับ — ครบทั้ง 18 กลุ่มแล้ว (ระยะ 1 จบ 17 ส.ค. 69)
  *  ใช้รายงานผ่าน /api/v1/ping เพื่อเช็กว่า backend ที่ deploy อยู่เป็นรุ่นที่ครบจริง */
@@ -262,7 +262,7 @@ const settings: SettingsRepo = {
   savePolicy: (p) => putOne("policy", p),
   saveTargets: (t) => putOne("targets", t),
   saveNotifRules: (r) => putOne("notifRules", r),
-  restoreSettings: (patch) => putOne("restore", patch),
+  restoreSettings: (kind, file, patch) => putOne("restore", { kind, file, ...patch }),
 };
 const dealerSettings: DealerSettingsRepo = {
   // เติมค่ากลางที่ฝั่งนี้ — ค่ากลางอยู่ใน mock.ts ซึ่งเป็นของฝั่งแอป ไม่ต้องลากเข้าเซิร์ฟเวอร์
@@ -360,12 +360,13 @@ const notifications: NotificationsRepo = {
 };
 const audit: AuditRepo = {
   list: (limit) => apiFetch<AuditEntry[]>(`/audit${limit ? `?limit=${limit}` : ""}`),
-  // ส่ง "วันนี้ของระบบ" ไปด้วย — โหมด local ตรึงวันไว้ ถ้าปล่อยให้เซิร์ฟเวอร์ใช้เวลาจริง
-  // รายการใหม่จะหลุดออกนอกช่วงตัวกรองของหน้า /hq/audit ทันที
-  append: async (e) => {
-    const t = new Date();
-    const at = new Date(APP_NOW.getFullYear(), APP_NOW.getMonth(), APP_NOW.getDate(), t.getHours(), t.getMinutes(), t.getSeconds());
-    await apiFetch(`/audit?at=${encodeURIComponent(at.toISOString())}`, { method: "POST", body: JSON.stringify(e) });
+  // ส่งแค่ชนิดเรื่อง — ชื่อผู้ทำ/เวลา/ข้อความ ฐานคิดเอง (ใบ 0240)
+  // keepalive: เข้าระบบแล้วแอปพาไปหน้าใหม่ทันที · ออกจากระบบแล้วหน้าเปลี่ยน → คำขอต้องรอดข้ามการเปลี่ยนหน้า
+  authEvent: async (action) => {
+    await apiFetch(`/audit?op=auth`, { method: "POST", body: JSON.stringify({ action }), keepalive: true });
+  },
+  settingsExported: async (file) => {
+    await apiFetch(`/audit?op=export`, { method: "POST", body: JSON.stringify({ file }), keepalive: true });
   },
 };
 // ── ตัวสรุปตัวเลข — RPC ทั้งหมด ส่งอาร์กิวเมนต์เป็นก้อน JSON ไปที่ /metrics?k=… ──

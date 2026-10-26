@@ -4,7 +4,6 @@ import { formatPhone, formatTaxId } from "@pms/shared/lib/format";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 import { hqCompany as hqCompanyRepo } from "@pms/shared/lib/data";
 import { Building2, Check, Save, Image as ImageIcon } from "lucide-react";
 import { useReportSection } from "@pms/shared/lib/settingsBus";
@@ -37,7 +36,6 @@ const PROFILE_DEFAULT: CompanyProfile = {
 };
 
 export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
-  const logAudit = useAuditLogger();
   const [form,  setForm]  = useState<CompanyProfile>(PROFILE_DEFAULT);
   const [saved, setSaved] = useState(false);
   const [baseline, setBaseline] = useState(""); // สแนปช็อตค่าที่บันทึกล่าสุด → ใช้เทียบ dirty (โหมดฝัง)
@@ -69,7 +67,6 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
     //   เดิมแก้ข้อมูลบริษัทจากหน้า /hq/company แล้ว "ไม่มีร่องรอยเลยสักแถว"
     //   ทั้งที่ทำแบบเดียวกันผ่านหน้าตั้งค่า → แท็บบริษัท มีบันทึกปกติ
     //   (โหมดฝังในหน้าตั้งค่าใช้ปุ่มบันทึกกลางซึ่งบันทึกให้อยู่แล้ว — จดที่นี่ซ้ำจะได้ 2 แถว)
-    if (!embedded) logAudit("บันทึกข้อมูลบริษัท", form.name || "(ยังไม่ระบุชื่อบริษัท)");
     // ⛔ เคยส่งสัญญาณ "bpms-company-updated" ตรงนี้ พร้อมคำอธิบายว่า "ให้แถบเมนูอัปเดตชื่อทันที"
     //    ซึ่งไม่จริงเลย — ไม่มีใครรับฟังสัญญาณนี้ทั้งโปรเจกต์ และแถบเมนูใช้คำว่า BENJAMIN
     //    เป็นแบรนด์ตายตัวอยู่แล้ว ไม่ได้ดึงจากช่องชื่อบริษัท (ตรวจแล้ว 11 ส.ค. 69)
@@ -77,7 +74,7 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
     setBaseline(JSON.stringify({ form }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
-  }, [form, embedded, logAudit]);
+  }, [form, embedded]);
   // โหมดฝังในหน้าตั้งค่า → รายงาน {dirty,save,reset} ให้ปุ่มบันทึกกลาง (ไม่มีปุ่มของตัวเอง = ไม่ซ้ำ)
   const dirty = baseline !== "" && JSON.stringify({ form }) !== baseline;
   const reset = useCallback(() => {

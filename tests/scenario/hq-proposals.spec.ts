@@ -136,6 +136,48 @@ test("[func·hq] ออกใบในแผงผู้สนใจ → ใบ�
   assertNoErrors(errs, "ออกใบค่าแฟรนไชส์จากแผงผู้สนใจ");
 });
 
+// ── เปลี่ยนสถานะแล้วกดไปหน้าอื่นทันที บันทึกการใช้งานต้องไม่หาย (พบ 22 ต.ค. 69 · รอบตรวจเต็มใบ 0239) ──
+// อาการ: บันทึกการใช้งานยิงหลังฐานรับสถานะแล้ว ถ้าผู้ใช้เปลี่ยนหน้าก่อนคำขอนั้นตอบ เบราว์เซอร์ตัดทิ้ง (net::ERR_ABORTED)
+//   → ใบเปลี่ยนสถานะจริง แต่ไม่มีบันทึกว่าใครเปลี่ยน · หน้าเว็บขึ้น "[audit.append] TypeError: Failed to fetch"
+// ข้อนี้ไม่พึ่งจังหวะเวลา: กักคำขอบันทึกจากหน้าเว็บ (ถ้ามี) ไว้จนเปลี่ยนหน้าเสร็จ แล้วค่อยปล่อย — โค้ดเดิมตกทุกครั้ง (ได้ 0 แถว)
+// ทางแก้ (ใบ 0240): ฐานลงบันทึกในคำสั่งเดียวกับการเปลี่ยนสถานะ → หน้าเว็บไม่ยิงคำขอบันทึกเลย (ข้อนี้ตรวจด้วย)
+test("[func·hq] เปลี่ยนสถานะใบแล้วไปหน้าอื่นทันที → บันทึกการใช้งานยังลงฐาน", async ({ page }) => {
+  const sb = await db(ADMIN);
+  const name = `${NS}-เปลี่ยนหน้าทันที`;
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ลำปาง", status: "meeting" }).select("id").single();
+  expect(error).toBeNull();
+  const prospectId = (pr as { id: number }).id;
+  const ใบ = await sb.from("dealer_package_proposals").insert({ prospect_id: prospectId, package: "standard", amount: 90_000 }).select("id, proposal_no").single();
+  expect(ใบ.error?.message ?? "").toBe("");
+  const { id: ใบId, proposal_no: เลขที่ } = ใบ.data as { id: number; proposal_no: string };
+
+  await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
+  const แผง = await แผงผู้สนใจ(page, prospectId);
+
+  let ปล่อย!: () => void;
+  const เปลี่ยนหน้าเสร็จ = new Promise<void>(r => { ปล่อย = r; });
+  let หน้าเว็บยิงบันทึก = 0;
+  await page.route("**/api/v1/audit?*", async route => {
+    if (route.request().method() !== "POST") return route.fallback();
+    หน้าเว็บยิงบันทึก++;
+    await เปลี่ยนหน้าเสร็จ;
+    await route.continue().catch(() => { /* เบราว์เซอร์ตัดคำขอทิ้งไปแล้ว = บันทึกหาย (ข้อนี้จะตกที่ด้านล่าง) */ });
+  });
+
+  await แผง.getByLabel(`สถานะใบ ${เลขที่}`).selectOption("sent");
+  await กดตกลงในกล่องยืนยัน(page);
+  await waitRow(sb, "dealer_package_proposals", { id: ใบId, status: "sent" });
+  await page.goto(`${HQ_ORIGIN}/hq/audit`, { waitUntil: "domcontentloaded" });
+  ปล่อย();
+
+  await expect.poll(async () => {
+    const { data } = await sb.from("audit_log").select("id").eq("action", "เปลี่ยนสถานะใบค่าแฟรนไชส์").like("target", `${เลขที่} · ${name}%`);
+    return (data ?? []).length;
+  }, { message: "เปลี่ยนหน้าระหว่างบันทึก → บันทึกการใช้งานต้องยังลงฐาน (ไม่ถูกตัดทิ้ง)", timeout: 15_000 }).toBe(1);
+  expect(หน้าเว็บยิงบันทึก, "หน้าเว็บไม่ยิงคำขอบันทึกเอง (ฐานลงในคำสั่งเดียวกับการเปลี่ยน)").toBe(0);
+  await page.unroute("**/api/v1/audit?*");
+});
+
 // รอบ 4: แถวในหน้ารวมเหลือ ดู + พิมพ์ (2 ปุ่ม) — แก้ไข/ลบใบร่างทำที่แผงผู้สนใจ
 test("[func·hq] แถวใบร่าง 2 ปุ่ม (ดู · พิมพ์) · แก้ไข/ลบใบร่างที่แผงผู้สนใจ", async ({ page }) => {
   const errs = watchErrors(page);

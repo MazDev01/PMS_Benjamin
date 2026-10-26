@@ -14,7 +14,6 @@ import { ArrowLeft, Users, Lock, ScrollText, Pencil, EyeOff, Eye } from "lucide-
 import { DealerEditModal, type DealerEdit } from "@pms/shared/components/hq/DealerEditModal";
 import { HQ_DEALER_CODE } from "@pms/shared/lib/hqDealerRow";
 import { useRole } from "@pms/shared/context/RoleContext";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ชื่อขั้นการขาย, type ผลขั้น } from "@pms/shared/lib/leadStage";
@@ -233,13 +232,11 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
   const [แก้แล้ว, setแก้แล้ว] = useState<DealerRow | null>(null);
   const [เปิดแก้, setเปิดแก้] = useState(false);
   const { can } = useRole();
-  const logAudit = useAuditLogger();
   // แถว HQ ไม่ใช่ดีลเลอร์ (ใบ 0222 · ซ่อนจากทะเบียน) — เปิดตรงด้วย URL ก็ไม่แสดงเป็นดีลเลอร์
   const dealer = code === HQ_DEALER_CODE ? undefined : (แก้แล้ว ?? dealers.find(d => d.code === code));
-  async function บันทึก(next: DealerRow, ทำอะไร: string) {
+  async function บันทึก(next: DealerRow) {
     await dealersRepo.save([next]);
     setแก้แล้ว(next);
-    logAudit(ทำอะไร, `${next.code} · ${next.name}`);
   }
   async function สลับสถานะ(d: DealerRow) {
     const ปิด = d.status === "active";
@@ -247,7 +244,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
       รายละเอียด: ปิด ? "ดีลเลอร์รายนี้จะเข้าระบบไม่ได้จนกว่าจะเปิดใช้งานอีกครั้ง · ข้อมูลงานขายยังอยู่ครบ" : "ดีลเลอร์รายนี้จะเข้าระบบได้ตามปกติ",
       ปุ่มตกลง: ปิด ? "ปิดใช้งาน" : "เปิดใช้งาน", อันตราย: ปิด }))) return;
     try {
-      await บันทึก({ ...d, status: ปิด ? "inactive" : "active" }, ปิด ? "ปิดใช้งานดีลเลอร์" : "เปิดใช้งานดีลเลอร์");
+      await บันทึก({ ...d, status: ปิด ? "inactive" : "active" });
       แจ้งสำเร็จ(ปิด ? "ปิดใช้งานดีลเลอร์แล้ว" : "เปิดใช้งานดีลเลอร์แล้ว");
     } catch (e) { แจ้งพลาด(friendlyError(e)); }
   }
@@ -336,7 +333,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
       {เปิดแก้ && (
         <DealerEditModal dealer={dealer} onClose={() => setเปิดแก้(false)}
           onSave={async (e: DealerEdit) => {
-            try { await บันทึก({ ...dealer, ...e }, "แก้ไขดีลเลอร์"); แจ้งสำเร็จ("บันทึกข้อมูลดีลเลอร์แล้ว"); }
+            try { await บันทึก({ ...dealer, ...e }); แจ้งสำเร็จ("บันทึกข้อมูลดีลเลอร์แล้ว"); }
             catch (err) { throw new Error(friendlyError(err)); }
           }} />
       )}

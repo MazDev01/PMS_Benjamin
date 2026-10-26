@@ -1,5 +1,5 @@
 {
- "migration": "0238",
+ "migration": "0240",
  "relations": [
   {
    "r": "appointments",
@@ -13,8 +13,8 @@
    "r": "audit_log",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
-   "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "REFERENCES,SELECT,TRIGGER",
+   "authenticated": "REFERENCES,SELECT,TRIGGER",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
   {

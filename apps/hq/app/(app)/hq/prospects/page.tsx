@@ -45,7 +45,6 @@ import { ProspectJourney } from "@pms/shared/components/hq/ProspectJourney";
 import { ProspectActivityPanel } from "@pms/shared/components/hq/ProspectActivityPanel";
 import { มีใบเสนอที่ส่งแล้ว, ใบหลักสำหรับตั้งดีลเลอร์, มูลค่าอ่านง่าย } from "@pms/shared/lib/dealerProposals";
 import { useRole } from "@pms/shared/context/RoleContext";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -83,7 +82,6 @@ const แท็บทั้งหมด: { key: แท็บ; label: string }[] 
 export default function HQProspectsPage() {
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
-  const logAudit = useAuditLogger();
   const ค่าตั้ง = useRecruitSettings();
   // "อื่น ๆ" ต่อท้ายให้เสมอ — ช่องทางที่ไม่อยู่ในรายการยังเลือกได้
   const ตัวเลือกช่องทาง = ค่าตั้ง.channels.includes("อื่น ๆ") ? ค่าตั้ง.channels : [...ค่าตั้ง.channels, "อื่น ๆ"];
@@ -323,7 +321,6 @@ export default function HQProspectsPage() {
       if (เพิ่มใหม่) {
         const saved = await prospectsRepo.create(row);
         setList(l => [saved, ...l]);
-        logAudit("เพิ่มผู้สนใจเป็นดีลเลอร์", saved.name);
         แจ้งสำเร็จ(`เพิ่ม “${saved.name}” แล้ว — เริ่มจากบันทึกการติดต่อครั้งแรก`);
         setเพิ่มใหม่(false);
         เปิดแผง(saved, "tasks");   // เพิ่มเสร็จพาเข้างานทันที แบบเดียวกับฝั่งดีลเลอร์
@@ -331,7 +328,6 @@ export default function HQProspectsPage() {
         const saved = await prospectsRepo.update({ ...row, id: รายที่เปิด.id, createdAt: รายที่เปิด.createdAt });
         setList(l => l.map(x => x.id === saved.id ? saved : x));
         setรายที่เปิด(saved);
-        logAudit("แก้ไขผู้สนใจเป็นดีลเลอร์", saved.name);
         แจ้งสำเร็จ("บันทึกข้อมูลแล้ว");
       }
     } catch (e) {
@@ -351,7 +347,6 @@ export default function HQProspectsPage() {
       const saved = await prospectsRepo.update({ ...row, id: ราย.id, createdAt: ราย.createdAt });
       setList(l => l.map(x => x.id === saved.id ? saved : x));
       if (เปิดอยู่Ref.current === saved.id) setรายที่เปิด(saved);
-      logAudit("เปลี่ยนขั้นผู้สนใจเป็นดีลเลอร์", `${saved.name} · ${prospectStatusLabel[ราย.status]} → ${prospectStatusLabel[saved.status]}`);
       void โหลดของราย(saved.id);
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "เปลี่ยนขั้นไม่สำเร็จ"));
@@ -372,7 +367,6 @@ export default function HQProspectsPage() {
     try {
       await prospectsRepo.remove(p.id);
       setList(l => l.filter(x => x.id !== p.id));
-      logAudit("ลบผู้สนใจเป็นดีลเลอร์", p.name);
       ปิดแผงทันที();
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "ลบไม่สำเร็จ"));
@@ -439,7 +433,6 @@ export default function HQProspectsPage() {
         } else {
           const saved = await prospectsRepo.update({ ...row, id: converting.id, createdAt: converting.createdAt });
           setList(l => l.map(x => x.id === saved.id ? saved : x));
-          logAudit("ผู้สนใจเป็นดีลเลอร์แล้ว", `#${saved.id} → ${code} · ${saved.name}`);
         }
         แจ้งสำเร็จ(`ผูก “${converting.name}” กับดีลเลอร์ ${code} แล้ว — ย้ายไปอยู่หน้าดีลเลอร์`);
         setConverting(null); ปิดแผงทันที();
@@ -491,7 +484,6 @@ export default function HQProspectsPage() {
         setList(l => l.map(x => x.id === saved.id ? saved : x));
         invalidateCache("dealers.list");
         โหลดดีลเลอร์();
-        logAudit("สร้างดีลเลอร์", `${code} · ${แถวใหม่.name} (จากผู้สนใจ #${saved.id})`);
         setCreds({ name: แถวใหม่.name, code, email: อีเมลเดโม, password: DEMO_PASSWORD });
         setConverting(null); ปิดแผงทันที();
       } catch (e) {

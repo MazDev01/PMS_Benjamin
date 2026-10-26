@@ -56,9 +56,12 @@ export const PUT = handler("settings.save", async (req: NextRequest, sb) => {
   }
 
   // กู้คืนหลายกลุ่มพร้อมกันแบบ all-or-nothing (RPC 0093) — เน็ตหลุดกลางทางแล้วได้ครึ่ง ๆ ไม่ได้
+  // ผ่าน hq_settings_restore (0240): ลงบันทึกการใช้งานในคำสั่งเดียวกัน (นำเข้า+ชื่อไฟล์ / คืนค่าเริ่มต้น) · ชนิดผิด = ฐานปฏิเสธ
   if (k === "restore") {
-    const p = body as { policy?: Row; targets?: Row; notifRules?: Row; lostReasons?: string[]; company?: Row };
-    const { error } = await sb.rpc("restore_hq_settings", {
+    const p = body as { kind?: string; file?: string | null; policy?: Row; targets?: Row; notifRules?: Row; lostReasons?: string[]; company?: Row };
+    const { error } = await sb.rpc("hq_settings_restore", {
+      p_kind:         p.kind ?? null,
+      p_file:         p.file ?? null,
       p_policy:       p.policy      ? toSnake(p.policy)      : null,
       p_targets:      p.targets     ? toSnake(p.targets)     : null,
       p_notif_rules:  p.notifRules  ? toSnake(p.notifRules)  : null,
