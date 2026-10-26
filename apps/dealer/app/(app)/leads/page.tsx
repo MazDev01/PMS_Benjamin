@@ -352,20 +352,13 @@ function OverviewEditor({ lead, persons, onSave }: {
 
       {/* รายละเอียด — แถวเดียวกับตอนอ่าน แต่ค่าแก้ได้ */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, borderTop:"1px solid #eef1f5", paddingTop:14 }}>
-        <div style={OV_GROUP_FIRST}>ข้อมูลติดต่อ</div>
+        {/* 3 กลุ่มตาม FLOW ขั้น 1–3 (บอสสั่ง 26 ต.ค. 69): ข้อมูลลูกค้า · งาน (งาน + พื้นที่ + สเปก) · การดูแล */}
+        <div style={OV_GROUP_FIRST}>ข้อมูลลูกค้า</div>
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <Building2 size={14} color="#94a3b8" style={{ flexShrink:0 }} />
           <span style={cellLbl}>บริษัท</span>
           <span style={{ flex:1, minWidth:0 }}><input aria-label="ชื่อบริษัท" value={f.company} onChange={e=>set("company",e.target.value)} style={inp} /></span>
         </div>
-        {/* ชื่อโครงการมีเฉพาะดีลที่สร้างจากลูกค้าเดิม — โชว์ให้แก้เมื่อมีจริงเท่านั้น (ลูกค้าเป้าหมายทั่วไปไม่มีฟิลด์นี้) */}
-        {(lead.project ?? "") !== "" && (
-          <div style={{ gridColumn:"1/-1", ...cell }}>
-            <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
-            <span style={cellLbl}>ชื่อโครงการ</span>
-            <span style={{ flex:1, minWidth:0 }}><input aria-label="ชื่อโครงการ" value={f.project} onChange={e=>set("project",e.target.value)} style={inp} /></span>
-          </div>
-        )}
         <Cell icon={User}    label="ผู้ติดต่อ"><input aria-label="ชื่อผู้ติดต่อ" value={f.contact} onChange={e=>set("contact",e.target.value)} style={inp} /></Cell>
         <Cell icon={Phone}   label="โทรศัพท์"><input inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Cell>
         <Cell icon={Mail}    label="อีเมล"><input aria-label="อีเมล" value={f.email} onChange={e=>set("email",e.target.value)} type="email" style={inp} /></Cell>
@@ -384,10 +377,21 @@ function OverviewEditor({ lead, persons, onSave }: {
           <span style={cellLbl}>ที่อยู่</span>
           <span style={{ flex:1, minWidth:0 }}><input aria-label="ที่อยู่" value={f.address} onChange={e=>set("address",e.target.value)} placeholder="—" style={inp} /></span>
         </div>
-        <div style={OV_GROUP}>รายละเอียดงาน</div>
+        {/* งาน — ฟอร์มขอราคาจาก HQ ดึงสามช่องนี้ไปกรอกให้ (แก้ได้ก่อนส่ง) · เดิม "ชื่อโครงการ" โชว์เฉพาะดีลที่มีค่า → ตอนนี้ทุกลีด */}
+        <div style={OV_GROUP}>งาน</div>
+        <div style={{ gridColumn:"1/-1", ...cell }}>
+          <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
+          <span style={cellLbl}>งานที่ต้องการ</span>
+          <span style={{ flex:1, minWidth:0 }}><input aria-label="งานที่ต้องการ" value={f.project} onChange={e=>set("project",e.target.value)} placeholder="เช่น โกดังเก็บสินค้า 20x40 ม." maxLength={200} style={inp} /></span>
+        </div>
         <Cell icon={Ruler}   label="พื้นที่ (ตร.ม.)">
           <input type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
         </Cell>
+        <div style={{ gridColumn:"1/-1", background:"#f7f9fc", border:"1px solid #eef1f5", borderRadius:10, padding:"10px 12px" }}>
+          <div style={{ fontSize:"0.62rem", color:"#9ca3af", fontWeight:700, marginBottom:4 }}>สเปก / รายละเอียดงาน</div>
+          <textarea aria-label="สเปก / รายละเอียดงาน" value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder="สิ่งที่ลูกค้าต้องการ เช่น ความสูง หลังคา ผนัง ประตู"
+            style={{ ...inp, height:"auto", resize:"vertical", lineHeight:1.6 }} />
+        </div>
         <div style={OV_GROUP}>การดูแล</div>
         <Cell icon={Target}  label="แหล่งที่มา">
           <select aria-label="ช่องทางที่มา" value={f.source} onChange={e=>set("source",e.target.value)} style={inp}>
@@ -424,13 +428,6 @@ function OverviewEditor({ lead, persons, onSave }: {
         <div style={OV_GROUP}>ระบบบันทึกให้</div>
         <Cell icon={MessageSquare} label="ติดต่อล่าสุด"><span style={{ display:"block", fontSize:"0.82rem", fontWeight:700, color:"#2D2D2D", textAlign:"right" }}>{lastActivity(lead)}</span></Cell>
         <Cell icon={CalendarClock} label="สร้างเมื่อ"><span style={{ display:"block", fontSize:"0.82rem", fontWeight:700, color:"#2D2D2D", textAlign:"right" }}>{วันที่สร้างอ่านง่าย(lead.createdAt)}</span></Cell>
-      </div>
-
-      {/* หมายเหตุ — ตำแหน่งเดียวกับตอนอ่าน */}
-      <div style={{ background:"#f7f9fc", border:"1px solid #eef1f5", borderRadius:10, padding:"10px 12px", marginTop:12 }}>
-        <div style={{ fontSize:"0.62rem", color:"#9ca3af", fontWeight:700, marginBottom:4 }}>หมายเหตุ</div>
-        <textarea value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder="รายละเอียดเพิ่มเติม…"
-          style={{ ...inp, height:"auto", resize:"vertical", lineHeight:1.6 }} />
       </div>
 
       {/* แถวล่าง: ข้อความเตือน + ปุ่มบันทึก (รูปย้ายขึ้นไปบนสุดแล้ว — บอสสั่ง 21 ส.ค. 69) */}
@@ -474,6 +471,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     status: (initial?.status ?? "WAITING") as LeadStatus,
     assigned: initial?.assigned ?? "",  // เริ่มที่ "ยังไม่ระบุ" — ห้ามยัดคนแรกในทะเบียนให้เอง
     source: initial?.source ?? "", note: initial?.note ?? "",
+    project: initial?.project ?? "",   // งานที่ต้องการ (FLOW ขั้น 3 "งาน + พื้นที่ + สเปก") — ฟอร์มขอราคาดึงไปกรอกให้
     logo: initial?.logo ?? "",
   });
 
@@ -571,6 +569,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       // แม่แบบเอาออกทั้งระบบ (16 ต.ค. 69) — ไม่อ่านช่องแม่แบบ: แก้ของเดิมคงค่าเดิมผ่าน ...initial · ใหม่ใส่ค่าว่างข้างล่าง
       status: form.status, assigned: form.assigned,
       source: form.source, note: form.note,
+      project: form.project.trim() || undefined,   // ไม่กรอก = ไม่มีข้อมูล (หน้าจอขึ้น "—") ห้ามเติมค่าเดา
       logo: form.logo || undefined,
       // เว้นว่าง/ไม่ใช่ตัวเลข = ไม่มีข้อมูลพื้นที่ (undefined) — ห้ามบันทึกเป็น 0 เพราะ 0 แปลว่า "พื้นที่ศูนย์" ซึ่งไม่จริง
       area: form.area.trim() && Number(form.area) > 0 ? Number(form.area) : undefined,
@@ -635,8 +634,9 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
             {/* .form-grid / .form-section / .col-full = มาตรฐานกลาง (globals.css) — ห้ามเขียน grid เอง */}
             <div className="form-grid">
 
-              {/* ── ข้อมูลบริษัท ── */}
-              <div className="form-section">ข้อมูลบริษัท</div>
+              {/* 3 กลุ่มตาม FLOW ขั้น 1–3 (บอสสั่ง 26 ต.ค. 69): ข้อมูลลูกค้า · งาน (งาน + พื้นที่ + สเปก = สิ่งที่ส่งไปขอราคา HQ) · การดูแล */}
+              {/* ── ข้อมูลลูกค้า ── */}
+              <div className="form-section">ข้อมูลลูกค้า</div>
               <div className="col-full" style={{ display:"flex", alignItems:"center", gap:14 }}>
                 <div style={{ width:56, height:56, borderRadius:14, flexShrink:0, overflow:"hidden",
                   border:`2px dashed ${form.logo ? "transparent" : "#e5e7eb"}`, background:form.logo ? "#fff" : "#f8fafc",
@@ -667,18 +667,26 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                 {dupHint && <div style={dupHintStyle}>{dupHint}</div>}
               </div>
               <div>
+                <label style={labelStyle}>ผู้ติดต่อ *</label>
+                <input value={form.contact} onChange={e=>set("contact",e.target.value)}
+                  placeholder="ชื่อผู้ติดต่อ" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>โทรศัพท์ *</label>
+                <input inputMode="tel" value={form.phone} onChange={e=>set("phone",formatPhone(e.target.value))}
+                  placeholder="0XX-XXX-XXXX" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>อีเมล</label>
+                <input value={form.email} onChange={e=>set("email",e.target.value)}
+                  placeholder="email@company.com" type="email" style={inputStyle} />
+              </div>
+              <div>
                 <label style={labelStyle}>จังหวัด *</label>
                 <select aria-label="จังหวัด" value={form.province} onChange={e=>set("province",e.target.value)} style={inputStyle}>
                   <option value="">— ยังไม่ระบุ —</option>
                   {myProvinces.map(p=><option key={p}>{p}</option>)}
                   {form.province && !myProvinces.includes(form.province) && <option value={form.province}>{form.province} (นอกภาค)</option>}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>แหล่งที่มา</label>
-                <select aria-label="แหล่งที่มา" value={form.source} onChange={e=>set("source",e.target.value)} style={inputStyle}>
-                  <option value="">— ยังไม่ระบุ —</option>
-                  {[...legacySource(form.source), ...SOURCES].map(s=><option key={s}>{s}</option>)}
                 </select>
               </div>
               {/* ที่อยู่ — กรอกตั้งแต่ตอนเป็นลูกค้าเป้าหมาย แล้วส่งต่อเป็นที่อยู่ลูกค้าตอนปิดการขายสำเร็จ
@@ -689,31 +697,27 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                   placeholder="เลขที่ ถนน ตำบล/แขวง อำเภอ/เขต รหัสไปรษณีย์" style={inputStyle} />
               </div>
 
-              {/* ── ผู้ติดต่อ ── */}
-              <div className="form-section">ผู้ติดต่อ</div>
-              <div>
-                <label style={labelStyle}>ผู้ติดต่อ *</label>
-                <input value={form.contact} onChange={e=>set("contact",e.target.value)}
-                  placeholder="ชื่อผู้ติดต่อ" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>โทรศัพท์ *</label>
-                <input inputMode="tel" value={form.phone} onChange={e=>set("phone",formatPhone(e.target.value))}
-                  placeholder="0XX-XXX-XXXX" style={inputStyle} />
-              </div>
+              {/* ── งาน — ฟอร์มขอราคาจาก HQ ดึงสามช่องนี้ไปกรอกให้ (แก้ได้ก่อนส่ง) ── */}
+              <div className="form-section">งาน</div>
               <div className="col-full">
-                <label style={labelStyle}>อีเมล</label>
-                <input value={form.email} onChange={e=>set("email",e.target.value)}
-                  placeholder="email@company.com" type="email" style={inputStyle} />
+                <label style={labelStyle} htmlFor="lf-project">งานที่ต้องการ</label>
+                <input id="lf-project" value={form.project} onChange={e=>set("project",e.target.value)}
+                  placeholder="เช่น โกดังเก็บสินค้า 20x40 ม." maxLength={200} style={inputStyle} />
               </div>
-
-              {/* ── รายละเอียดงาน ── */}
-              <div className="form-section">รายละเอียดงาน</div>
               <div>
                 <label style={labelStyle}>พื้นที่ (ตร.ม.)</label>
                 <input type="number" min={0} value={form.area} onChange={e=>set("area",e.target.value)}
                   placeholder="เช่น 1200" style={inputStyle} />
               </div>
+              <div className="col-full">
+                <label style={labelStyle} htmlFor="lf-spec">สเปก / รายละเอียดงาน</label>
+                <textarea id="lf-spec" value={form.note} onChange={e=>set("note",e.target.value)}
+                  rows={3} placeholder="สิ่งที่ลูกค้าต้องการ เช่น ความสูง หลังคา ผนัง ประตู"
+                  style={{ ...inputStyle, resize:"vertical", fontFamily:"inherit", lineHeight:1.6 }} />
+              </div>
+
+              {/* ── การดูแล ── */}
+              <div className="form-section">การดูแล</div>
               <div>
                 <label style={labelStyle}>ขั้นตอน</label>
                 {/* เลือกได้เฉพาะขั้นก่อน "เสนอราคา" — ขั้นเสนอราคาขึ้นไปเลื่อนอัตโนมัติเมื่อมีใบเสนอราคา
@@ -725,18 +729,16 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                   {(isEdit ? [form.status] : (["WAITING","BULLET"] as LeadStatus[])).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
                 </select>
               </div>
-
-              {/* ── การดูแล ── */}
-              <div className="form-section">การดูแล</div>
+              <div>
+                <label style={labelStyle}>แหล่งที่มา</label>
+                <select aria-label="แหล่งที่มา" value={form.source} onChange={e=>set("source",e.target.value)} style={inputStyle}>
+                  <option value="">— ยังไม่ระบุ —</option>
+                  {[...legacySource(form.source), ...SOURCES].map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
               <div className="col-full">
                 <label style={labelStyle}>ผู้รับผิดชอบ</label>
                 <PersonPicker value={form.assigned} onChange={v=>set("assigned",v)} multiple />
-              </div>
-              <div className="col-full">
-                <label style={labelStyle}>หมายเหตุ</label>
-                <textarea value={form.note} onChange={e=>set("note",e.target.value)}
-                  rows={3} placeholder="รายละเอียดเพิ่มเติม..."
-                  style={{ ...inputStyle, resize:"vertical", fontFamily:"inherit", lineHeight:1.6 }} />
               </div>
             </div>
           </div>

@@ -1773,8 +1773,9 @@ export default function CustomersPage(){
                 <label className="form-label">ลูกค้า</label>
                 <div style={{padding:"9px 12px",borderRadius:9,background:"#f0f4f8",border:`1px solid ${BORDER}`,fontSize:"0.8rem",fontWeight:700,color:STEEL}}>{dealCustomer.company}</div>
               </div>
-              <div><label className="form-label">ชื่อโครงการ</label>
-                <input className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder="เช่น โกดังเก็บสินค้า เฟส 2" /></div>
+              {/* ชื่อ + ตัวอย่างเดียวกับฟอร์มลูกค้าเป้าหมาย (บอสสั่ง 26 ต.ค. 69 · เดิม "ชื่อโครงการ") — ฟอร์มขอราคาดึงช่องนี้ไปกรอกให้ */}
+              <div><label className="form-label" htmlFor="nd-project">งานที่ต้องการ</label>
+                <input id="nd-project" className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder="เช่น โกดังเก็บสินค้า 20x40 ม." maxLength={200} /></div>
               {/* ช่อง "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · พื้นที่จึงเต็มแถวแทนคู่กับแม่แบบ
                   ป้ายและตัวอย่างต้องเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย — ช่องเดียวกันห้ามเรียกคนละชื่อ
                   เดิมที่นี่เขียน "มูลค่าคาดการณ์ · เช่น ฿1.2M" ทำให้ผู้ใช้พิมพ์แบบย่อ แล้วเงินปัดหาย */}

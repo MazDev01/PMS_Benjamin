@@ -2,7 +2,7 @@
 
 // ── แผงคำขอใบเสนอราคาในหน้าลูกค้าเป้าหมาย (ฝั่งดีลเลอร์ · FLOW.html ขั้น 3 · ด่าน 1) ────────────────────────────
 //
-// ขั้น 3: ดีลเลอร์ส่งคำขอ (งานที่ขอราคา — พิมพ์เอง + สเปก) → ลูกค้าเป้าหมาย "รอราคา HQ" — ฐานข้อมูลขยับสถานะเอง
+// ขั้น 3: ดีลเลอร์ส่งคำขอ (งาน + พื้นที่ + สเปก — กรอกให้จากลีด แก้ได้ก่อนส่ง) → ลูกค้าเป้าหมาย "รอราคา HQ" — ฐานข้อมูลขยับสถานะเอง
 //   (เดิมเลือกจากแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ฐานยังบังคับต้องมีชื่องาน product_required)
 // ระหว่างรอ HQ: ยกเลิกได้จนกว่า HQ ส่งใบ ต้องระบุเหตุผล (กลับรวบรวมความต้องการ หรือปิดเป็นไม่สำเร็จ) — แถว 6
 // หลัง HQ ส่งใบ: ขอแก้ราคาได้ (ใบเก่าปิด คำขอใหม่เริ่มนับ 14 วัน) — แถว 7
@@ -55,13 +55,29 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
     return () => { alive = false; };
   }, [ได้ราคา]);
 
+  // ── เปิดฟอร์ม = กรอกให้จากข้อมูลล่าสุดทุกครั้ง (บอสสั่ง 26 ต.ค. 69 · FLOW ขั้น 3 "งาน + พื้นที่ + สเปก") ──
+  //   ขอราคา: งานที่ขอราคา ← งานที่ต้องการ · พื้นที่ ← พื้นที่ · สเปก ← สเปก / รายละเอียดงาน ของลีด ณ ตอนเปิด (แก้ได้ก่อนส่ง)
+  //   ขอแก้ราคา (D5x): สเปก ← คำขอล่าสุด · ลีด/คำขอไม่มีค่าช่องไหน = ช่องนั้นว่าง ห้ามเดา
+  //   เดิมเปิดมาว่างทุกช่อง ดีลเลอร์ต้องพิมพ์ซ้ำสิ่งที่กรอกไว้ในลีดแล้ว · ยกเลิก/ส่งแล้วเปิดใหม่ = ดึงใหม่ ไม่ค้างค่าที่พิมพ์รอบก่อน
+  const เข้าโหมด = useCallback((m: โหมด) => {
+    setErr(""); setเหตุผล("");
+    if (m === "ขอราคา") {
+      setProduct(lead.project ?? "");
+      setArea(lead.area != null && lead.area > 0 ? String(lead.area) : "");
+      setSpec(lead.note ?? "");
+    } else if (m === "แก้ราคา") {
+      setSpec(รายการ?.[0]?.spec ?? "");
+    }
+    setโหมด(m);
+  }, [lead.project, lead.area, lead.note, รายการ]);
+
   // สั่งเปิดฟอร์มจากปุ่ม "ขั้นต่อไป" — รอให้รายการคำขอโหลดเสร็จก่อน (ต้องรู้ว่ามีคำขอเปิดอยู่ไหม)
   const สัญญาณล่าสุด = useRef(0);
   useEffect(() => {
     if (!openSignal || openSignal.n === สัญญาณล่าสุด.current || รายการ === null) return;
     สัญญาณล่าสุด.current = openSignal.n;
-    setErr(""); setโหมด(openSignal.mode);
-  }, [openSignal, รายการ]);
+    เข้าโหมด(openSignal.mode);
+  }, [openSignal, รายการ, เข้าโหมด]);
 
   if (!REAL_BACKEND) return null;
   const ขอได้ = !เปิด && (lead.status === "WAITING" || lead.status === "BULLET");
@@ -128,10 +144,10 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           )}
           {โหมด === "ดู" && (
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("ยกเลิก"); }}>ยกเลิกคำขอ</button>}
+              {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => เข้าโหมด("ยกเลิก")}>ยกเลิกคำขอ</button>}
               {/* ลีดปิดการขายแล้ว = ขอแก้ราคาไม่ได้ (ใบ 0221 กันที่ฐาน) */}
               {/* ราคาหมดอายุ = ปุ่ม "ขอราคาใหม่" ในกล่องขั้นต่อไป (ไม่ซ้ำสองปุ่ม · รอบ 4) */}
-              {เปิด.status === "quoted" && lead.status !== "PAID" && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setErr(""); setโหมด("แก้ราคา"); }}>ขอแก้ราคา</button>}
+              {เปิด.status === "quoted" && lead.status !== "PAID" && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => เข้าโหมด("แก้ราคา")}>ขอแก้ราคา</button>}
             </div>
           )}
         </div>
@@ -177,8 +193,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
         <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
           <label className="form-label" htmlFor="qr-reprice-reason">เหตุผลที่ขอแก้ราคา</label>
           <textarea id="qr-reprice-reason" aria-label="เหตุผลที่ขอแก้ราคา" rows={2} style={ช่อง} value={เหตุผล} onChange={e => setเหตุผล(e.target.value)} disabled={busy} />
-          <label className="form-label" htmlFor="qr-reprice-spec">สเปกใหม่ (ถ้าเปลี่ยน)</label>
-          <textarea id="qr-reprice-spec" rows={2} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
+          <label className="form-label" htmlFor="qr-reprice-spec">สเปก (กรอกจากคำขอล่าสุด · แก้ได้ถ้าเปลี่ยน)</label>
+          <textarea id="qr-reprice-spec" aria-label="สเปกที่ขอแก้ราคา" rows={2} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={แก้ราคา}>ส่งขอแก้ราคา</button>
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ยกเลิก</button>
