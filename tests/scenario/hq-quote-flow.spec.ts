@@ -76,12 +76,13 @@ test("[flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายการท
 
   // ไม่มีตัวเลือกแม่แบบแล้ว (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) — ใบเริ่มว่าง HQ พิมพ์รายการเอง
   await expect(กล่อง.getByLabel("เพิ่มรายการจากแม่แบบ"), "BOQ ของ HQ ต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
-  await expect(กล่อง.getByLabel("ชื่อรายการ 1"), "ใบใหม่เริ่มว่าง").toHaveCount(0);
-  await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
-  // บรรทัดใหม่ตั้งต้น: จำนวน 1 · หน่วย "งาน" · ต้นทุน 0
+  // ใบใหม่เปิดมามีแถวว่างพร้อมพิมพ์ 1 แถว (บอสสั่ง 26 ต.ค. 69) — ว่างจริง: ไม่มีชื่อ · จำนวน 1 · หน่วยยังไม่เลือก (ไม่เดาให้) · ต้นทุน 0
+  await expect(กล่อง.getByLabel(/^ชื่อรายการ \d+$/), "ใบใหม่มีแถวว่าง 1 แถว").toHaveCount(1);
+  await expect(กล่อง.getByLabel("ชื่อรายการ 1")).toHaveValue("");
   await expect(กล่อง.getByLabel("จำนวน 1")).toHaveValue("1");
-  await expect(กล่อง.getByLabel("หน่วย 1", { exact: true })).toHaveValue("งาน");
+  await expect(กล่อง.getByLabel("หน่วย 1", { exact: true })).toHaveValue("");
   await expect(กล่อง.getByLabel("ต้นทุนต่อหน่วย 1")).toHaveValue("0");
+  await expect(กล่อง.getByTestId("hq-quote-total"), "แถวว่างไม่นับเป็นรายการ").toHaveText(บาท(0));
   await กล่อง.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็กพร้อมติดตั้ง");
   await กล่อง.getByLabel("จำนวน 1").fill("100");
   await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");

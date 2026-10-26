@@ -9,7 +9,7 @@ import { เลขลูกค้าเป้าหมายทดสอบ, ล
 // ── หน้า 5: กล่องงานคำขอราคาของ HQ (ใบ 0215 · บอสตัดสิน 19 ต.ค. 69) ─────────────────────────────────────────────
 //   1 ตัวเลขบนปุ่มกลุ่มตรงกับฐาน (hq_quote_board) และตรงค่าที่รู้ล่วงหน้า · คำค้นเดียวกันกรองทั้งจำนวนและรายการ
 //   2 เข้าหน้าแล้วเปิดคำขอบนสุดให้ทันที "แค่เปิดดู" — ไม่มีคำสั่งเขียนออกไปเลย · กดแถวแล้วใบฝั่งขวาเปลี่ยนตาม
-//   3 ใบมีการแก้ค้าง → กดแถวอื่น/ปุ่มกลุ่มต้องถามก่อนทิ้ง · ยกเลิก = อยู่ใบเดิม ข้อมูลที่พิมพ์ยังอยู่ครบ
+//   3 ใบมีการแก้ค้าง → สลับแถว/กลุ่มได้ไม่ต้องถาม ร่างไม่หาย (บอสสั่ง 26 ต.ค. 69 · ทับ "ถามก่อนทิ้ง" ของ 19 ต.ค. 69)
 //   4 ระหว่างบันทึก/ส่งใบ ห้ามเปลี่ยนแถวหรือกลุ่มจนกว่าจะเสร็จ (เปลี่ยนระหว่างรอคำตอบ = ต้นเหตุข้อไม่นิ่งรอบก่อน ๆ)
 //   ไม่มีปุ่ม "รับเรื่อง" — บันทึกร่างรับเรื่องให้ทางเดียว (quote-request-flow.spec.ts)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
@@ -110,34 +110,38 @@ test("[ui·hq] เข้าหน้าแล้วเปิดคำขอบ�
   expect((await admin.from("quote_requests").select("status").eq("id", ของ("B").id).single()).data?.status, "B ยังเป็นคำขอใหม่").toBe("new");
 });
 
-test("[ui·hq] ใบมีการแก้ค้าง → กดแถวอื่น/ปุ่มกลุ่มต้องถามก่อนทิ้ง · ยกเลิก = อยู่ใบเดิม ข้อมูลยังอยู่ · ทิ้ง = เปลี่ยนได้", async ({ page }) => {
+// บอสสั่ง 26 ต.ค. 69 (ทับข้อตัดสิน 19 ต.ค. 69 "ถามก่อนทิ้ง"): ร่างที่พิมพ์ค้างห้ามหายเมื่อสลับไปคำขออื่น
+//   สลับแถว/กลุ่มได้ทันทีไม่ต้องถาม · กลับมาแล้วร่างยังอยู่ครบ · ไม่ได้บันทึกเข้าฐานเอง (ร่างค้างเก็บที่หน้า)
+//   โค้ดเดิม: กดแถวอื่นแล้วเด้งกล่องถาม "ทิ้งการแก้" → ข้อนี้ตก
+test("[ui·hq] ใบมีการแก้ค้าง → สลับแถว/กลุ่มได้ไม่ต้องถาม · กลับมาร่างยังอยู่ · ไม่บันทึกเข้าฐานเอง", async ({ page }) => {
   await เข้าหน้า(page);
   const { ใบ } = await เปิดใบHQในกล่องงาน(page, ของ("B").บริษัท);
   await page.getByLabel("ค้นหาคำขอ").fill(แท็ก);
   await expect(แถวของ(page, "A")).toBeVisible();
-  await ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
+  // ใบโหลดเสร็จ · ไม่มีแถวว่างให้พิมพ์ (โค้ดก่อน 26 ต.ค. 69) = กดเพิ่มก่อน — ข้อนี้ตรวจเรื่องร่าง ไม่ใช่เรื่องแถวว่าง
+  await expect(ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" })).toBeVisible({ timeout: 20_000 });
+  if (await ใบ.getByLabel("ชื่อรายการ 1").count() === 0) await ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
   await ใบ.getByLabel("ชื่อรายการ 1").fill("รายการที่ยังไม่บันทึก");
+  await ใบ.getByLabel("ต้นทุนต่อหน่วย 1").fill("2500");
 
-  for (const กด of [() => แถวของ(page, "A").click(), () => page.getByRole("tab", { name: "ส่งแล้ว รอดีลเลอร์ ·" }).click()]) {
-    await กด();
-    await expect(กล่องยืนยัน(page), "ต้องถามก่อนทิ้ง").toContainText("มีการแก้ที่ยังไม่บันทึก จะทิ้งหรือไม่", { timeout: 10_000 });
-    await กล่องยืนยัน(page).locator(".pms-confirm-actions button").first().click();   // ยกเลิก
-    await expect(กล่องยืนยัน(page)).toBeHidden();
-    await expect(แถวของ(page, "B"), "ยกเลิกแล้วต้องอยู่ใบเดิม").toHaveAttribute("aria-current", "true");
-    await expect(page.getByRole("tab", { name: "ต้องตีราคา ·" })).toHaveAttribute("aria-selected", "true");
-    await expect(ใบ.getByLabel("ชื่อรายการ 1"), "ข้อมูลที่พิมพ์ต้องยังอยู่ครบ").toHaveValue("รายการที่ยังไม่บันทึก");
-  }
-  // ทิ้ง → เปลี่ยนไปแถวที่กด · ไม่มีอะไรถูกบันทึก
+  // สลับไปคำขอ A → ไม่ถาม · ใบเป็นของ A
   await แถวของ(page, "A").click();
-  await expect(กล่องยืนยัน(page)).toBeVisible();
-  await กล่องยืนยัน(page).locator(".pms-confirm-actions button").last().click();   // ทิ้งการแก้
-  await expect(แถวของ(page, "A")).toHaveAttribute("aria-current", "true");
+  await expect(แถวของ(page, "A"), "สลับได้ทันที").toHaveAttribute("aria-current", "true", { timeout: 10_000 });
+  await expect(กล่องยืนยัน(page), "ไม่ต้องถามก่อนทิ้ง (ร่างเก็บไว้ให้)").toHaveCount(0);
   await expect(ใบ.getByRole("heading")).toContainText(ของ("A").no);
-  expect((await admin.from("hq_quotes").select("id").eq("request_id", ของ("B").id)).data ?? [], "ทิ้งแล้วต้องไม่มีใบ HQ ถูกบันทึก").toEqual([]);
-  // ไม่ได้แก้อะไร = เปลี่ยนแถวได้เลยไม่ถาม
+  await expect(แถวของ(page, "B"), "แถวที่มีร่างค้างบอกไว้").toContainText("ร่างยังไม่บันทึก");
+  // สลับกลุ่มแล้วกลับ → ไม่ถาม
+  await page.getByRole("tab", { name: "ส่งแล้ว รอดีลเลอร์ ·" }).click();
+  await expect(page.getByRole("tab", { name: "ส่งแล้ว รอดีลเลอร์ ·" })).toHaveAttribute("aria-selected", "true");
+  await expect(กล่องยืนยัน(page)).toHaveCount(0);
+  await page.getByRole("tab", { name: "ต้องตีราคา ·" }).click();
+  // กลับมาที่ B → ร่างยังอยู่ครบ
   await แถวของ(page, "B").click();
   await expect(แถวของ(page, "B")).toHaveAttribute("aria-current", "true");
-  await expect(กล่องยืนยัน(page)).toHaveCount(0);
+  await expect(ใบ.getByLabel("ชื่อรายการ 1"), "ร่างที่พิมพ์ไว้ต้องยังอยู่").toHaveValue("รายการที่ยังไม่บันทึก", { timeout: 15_000 });
+  await expect(ใบ.getByTestId("draft-restored"), "บอกว่าเป็นร่างที่ยังไม่บันทึก").toBeVisible();
+  expect((await admin.from("hq_quotes").select("id").eq("request_id", ของ("B").id)).data ?? [], "สลับไปมาไม่บันทึกเข้าฐานเอง").toEqual([]);
+  expect((await admin.from("quote_requests").select("status").eq("id", ของ("B").id).single()).data?.status, "ยังไม่รับเรื่อง (ไม่ได้บันทึก)").toBe("new");
 });
 
 test("[ui·hq] ระหว่างบันทึกร่าง แถวอื่นและปุ่มกลุ่มกดไม่ได้จนกว่าจะเสร็จ · เสร็จแล้วกดได้ตามปกติ", async ({ page }) => {
@@ -145,8 +149,7 @@ test("[ui·hq] ระหว่างบันทึกร่าง แถวอ�
   const { ใบ } = await เปิดใบHQในกล่องงาน(page, ของ("B").บริษัท);
   await page.getByLabel("ค้นหาคำขอ").fill(แท็ก);
   await expect(แถวของ(page, "A")).toBeVisible();
-  await ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
-  await ใบ.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็ก");
+  await ใบ.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็ก");   // เปิดมามีแถวว่างพร้อมพิมพ์ 1 แถว (26 ต.ค. 69)
   await ใบ.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
 
   // กักคำสั่งบันทึกไว้ (ทั้งเส้นทาง api และต่อฐานตรง) จนกว่าจะตรวจเสร็จ

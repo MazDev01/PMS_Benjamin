@@ -1,7 +1,7 @@
 "use client";
 
 // ── ตัวเลขจากภาพรวม HQ (hq_overview · ใบ 0209) ที่ย้ายมาอยู่หน้าเจ้าของเรื่อง (บอสตัดสิน 22 ต.ค. 69) ───────────────────
-//   เวลาตอบเฉลี่ย + อัตรายกเลิกคำขอ = ผลงานของ HQ เอง → หัวหน้า "คำขอใบเสนอราคา"
+//   เวลาตอบเฉลี่ย + อัตรายกเลิกคำขอ = ผลงานของ HQ เอง → การ์ด 4 ใบของหน้า "คำขอใบเสนอราคา" (KpiCard · 26 ต.ค. 69)
 //   ส่วนบวก (margin) รายดีลเลอร์ → หน้า "ภาพรวมยอดขาย" — แอป HQ เท่านั้น (ห้ามใส่ในไฟล์ส่งออก/หน้าพิมพ์/ฝั่งดีลเลอร์)
 //   ตัวเลขทั้งหมดคิดที่ฐาน — ที่นี่แสดงอย่างเดียว · ตัวเลข ณ ตอนนี้ทั้งหมด ไม่ขึ้นกับตัวกรองของหน้า (บอกไว้บนป้าย)
 //   ข้อทดสอบ: tests/scenario/hq-overview.spec.ts
@@ -18,28 +18,6 @@ function useOverview() {
   const [o, setO] = useState<HqOverview | null>(null);
   useEffect(() => { metricsRepo.hqOverview().then(setO).catch(e => logRepoRead("metrics.hqOverview", e)); }, []);
   return o;
-}
-
-/** หัวหน้าคำขอใบเสนอราคา: เวลาตอบเฉลี่ย · อัตรายกเลิก + เหตุผล */
-export function QuoteRequestStats() {
-  const o = useOverview();
-  if (!o) return null;
-  const { avgResponseDays: เฉลี่ย, cancel: ยก } = o.requests;
-  return (
-    <div className="card" data-testid="request-stats" style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 12, fontSize: "0.8rem", color: "#374151" }}>
-      <span>เวลาตอบเฉลี่ย (ส่งคำขอ → ส่งใบ HQ){" "}
-        <b data-testid="request-avg-days" data-value={เฉลี่ย ?? ""} style={{ color: PRIMARY }}>{เฉลี่ย == null ? "—" : `${เฉลี่ย.toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} วัน`}</b>
-      </span>
-      <span>อัตรายกเลิกคำขอ{" "}
-        <b data-testid="request-cancel-pct" data-value={ยก.pct ?? ""} style={{ color: PRIMARY }}>{ร้อยละ(ยก.pct)}</b>
-        <span style={{ color: "#8a929c" }}> ({ยก.cancelled.toLocaleString()} จาก {ยก.total.toLocaleString()})</span>
-      </span>
-      {ยก.reasons.length > 0 && (
-        <span data-testid="request-cancel-reasons" style={{ color: "#6b7280" }}>เหตุผล: {ยก.reasons.map(r => `${r.reason} ${r.count}`).join(" · ")}</span>
-      )}
-      <span style={{ color: "#8a929c", marginLeft: "auto" }}>ทั้งหมด ไม่ขึ้นกับตัวกรอง</span>
-    </div>
-  );
 }
 
 /** ภาพรวมยอดขาย: ส่วนบวกรายดีลเลอร์ (ใบลูกค้าที่ตอบรับและผูกใบ HQ) — เห็นเฉพาะ HQ */
