@@ -3,16 +3,12 @@
 // ─── HQ · บันทึกการใช้งาน (Audit Log) — ตรวจว่า admin ของ HQ ทำอะไรไปบ้าง ──────
 import { useMemo, useState } from "react";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { ScrollText, Search, X, User, Activity, Trash2, AlertTriangle } from "lucide-react";
-import { useAuditEntries, AUDIT_READ_CAP, AUDIT_EVENT } from "@pms/shared/lib/useAudit";
+import { ScrollText, Search, X, User, Activity } from "lucide-react";
+import { useAuditEntries, AUDIT_READ_CAP } from "@pms/shared/lib/useAudit";
 import { hqAuditModule, HQ_AUDIT_MODULE_LABEL } from "@pms/shared/lib/mock";
 import { APP_NOW, parseDate } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
-import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { clearAuditLog } from "@pms/shared/lib/adminApi";
-import { useRole } from "@pms/shared/context/RoleContext";
-import { แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
 const PRIMARY = "#003366";
 // ⚠️ ห้ามกลับไปใช้ hqAuditCategory ของกระดิ่งแจ้งเตือน (บั๊กจริง 10 ส.ค. 69)
@@ -41,14 +37,6 @@ export default function HQAuditPage() {
   //   กดไปหน้า 9 แล้วเปลี่ยนตัวกรอง เดิมค้างอยู่หน้า 9 กลางลิสต์ทั้งที่ผลลัพธ์เปลี่ยนไปแล้ว
   //   ตารางเดิมของระบบ (ผู้ใช้/ไฟล์) ทำถูกอยู่ก่อนแล้ว — ผมไม่ได้ดูของเดิมก่อนเขียน
   const [page, setPage] = useState(0);
-  // ── ล้างบันทึก (บอสสั่ง 14 ส.ค. 69) ──
-  // ปกติบันทึกนี้ลบไม่ได้ (append-only) — ปุ่มนี้เป็นข้อยกเว้นเดียว จึงเปิดให้เฉพาะผู้ดูแลสูงสุด
-  // และเซิร์ฟเวอร์ตรวจซ้ำอีกชั้น (ซ่อนปุ่มอย่างเดียวไม่ใช่การป้องกัน)
-  const { role: myRole } = useRole();
-  const canClear = String(myRole) === "SUPER_ADMIN";
-  const [clearOpen, setClearOpen] = useState(false);
-  const [clearing, setClearing] = useState(false);
-  const [clearErr, setClearErr] = useState("");
 
   const users = useMemo(() => [...new Set(entries.map(e => e.user))], [entries]);
   // โมดูลที่มีจริงในบันทึกเท่านั้น — ไม่ขึ้นตัวเลือกที่กรองแล้วไม่เจออะไร
@@ -96,12 +84,8 @@ export default function HQAuditPage() {
             e.action, e.target, e.at,
           ])}
         />
-        {canClear && (
-          <button className="btn btn-sm" onClick={() => { setClearErr(""); setClearOpen(true); }}
-            style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }}>
-            <Trash2 size={14} /> ล้างบันทึก
-          </button>
-        )}
+        {/* ⛔ ปุ่ม "ล้างบันทึก" ยกเลิกแล้ว (บอสสั่ง 26 ต.ค. 69 แทนคำสั่ง 14 ส.ค. 69) — บันทึกแก้/ลบไม่ได้ทุกบทบาท กันที่ฐาน (ใบ 0241)
+              ห้ามใส่กลับ · ทางลบที่เหลือ: ลบอัตโนมัติเกิน 2 ปี · สคริปต์ล้างข้อมูลทดสอบ (scripts/check-audit-delete-paths.mjs) */}
       </TopbarActions>
       {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
       {/* ⛔ ห้ามใส่ตัวกรองช่วงเวลากลับมา (เอาออก 14 ส.ค. 69)
@@ -186,53 +170,6 @@ export default function HQAuditPage() {
         <TablePagination page={page} total={filtered.length} onPage={setPage} unit="รายการ" />
       </div>
 
-      {/* ── ยืนยันล้างบันทึก ── ต้องบอกให้ครบว่าแลกอะไรไป ไม่ใช่ถามลอย ๆ ว่า "แน่ใจไหม" */}
-      {clearOpen && (
-        <div onClick={() => !clearing && setClearOpen(false)}
-          style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(45,45,45,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <ModalCard onClose={() => !clearing && setClearOpen(false)} label="ยืนยันล้างบันทึกการใช้งาน"
-            style={{ width: "100%", maxWidth: 540, background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
-            <div style={{ background: "#dc2626", color: "#fff", padding: "17px 24px", fontWeight: 800, fontSize: "1.05rem", display: "flex", alignItems: "center", gap: 9 }}>
-              <AlertTriangle size={19} /> ล้างบันทึกการใช้งานทั้งหมด
-            </div>
-            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: "0.9rem", color: "#2D2D2D", lineHeight: 1.75 }}>
-                จะลบบันทึกทั้งหมด <b>{entries.length.toLocaleString()} รายการ</b> ออกจากระบบถาวร
-                <br />ย้อนกลับไม่ได้ และไม่มีสำเนาเก็บไว้ที่อื่น
-              </div>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "12px 15px", fontSize: "0.82rem", color: "#9a3412", lineHeight: 1.7 }}>
-                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
-                <span>
-                  บันทึกนี้คือหลักฐานว่า &quot;ใครทำอะไรเมื่อไหร่&quot; — ล้างแล้วจะตรวจสอบย้อนหลังไม่ได้อีก
-                  <br />ระบบจะบันทึกการล้างครั้งนี้ไว้เป็นรายการแรกเสมอ (ชื่อผู้ล้าง เวลา และจำนวนที่ลบ)
-                </span>
-              </div>
-              {clearErr && <div style={{ fontSize: "0.84rem", color: "#dc2626", fontWeight: 600, lineHeight: 1.6 }}>{clearErr}</div>}
-            </div>
-            <div style={{ padding: "14px 24px", borderTop: "1px solid #e5e7eb", background: "#fafafa", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="btn btn-secondary btn-md" disabled={clearing} onClick={() => setClearOpen(false)}>ยกเลิก</button>
-              <button className="btn btn-md" disabled={clearing}
-                style={{ background: "#dc2626", color: "#fff", border: "none", ...(clearing ? { opacity: .6, cursor: "not-allowed" } : {}) }}
-                onClick={async () => {
-                  setClearing(true); setClearErr("");
-                  const res = await clearAuditLog();
-                  setClearing(false);
-                  if (!res.ok) { setClearErr(res.error); return; }
-                  setClearOpen(false);
-                  // ล้างเสร็จต้องเห็นผลทันที ไม่ต้องให้ผู้ใช้กดโหลดหน้าใหม่เอง (บอสสั่ง 14 ส.ค. 69)
-                  //   ยิง AUDIT_EVENT = ทุกจุดที่อ่านบันทึก (ตารางนี้ + กระดิ่ง) โหลดรายการใหม่พร้อมกัน
-                  //   ตัวกรองต้องรีเซ็ตด้วย — ตัวเลือกที่ค้างอยู่เป็นของข้อมูลชุดที่เพิ่งถูกลบไปแล้ว
-                  //   กรองค้างไว้จะได้ตารางว่างทั้งที่มีรายการ "การล้างบันทึก" ที่ระบบเพิ่งเขียนไว้
-                  setPage(0); setQ(""); setUserFilter("all"); setModuleFilter("all");
-                  try { window.dispatchEvent(new Event(AUDIT_EVENT)); } catch { /* เบราว์เซอร์เก่า — ผู้ใช้กดโหลดใหม่เองได้ */ }
-                  แจ้งสำเร็จ(`ล้างบันทึกแล้ว ${res.removed.toLocaleString()} รายการ`);
-                }}>
-                <Trash2 size={14} /> {clearing ? "กำลังล้าง…" : "ล้างบันทึกทั้งหมด"}
-              </button>
-            </div>
-          </ModalCard>
-        </div>
-      )}
     </div>
   );
 }

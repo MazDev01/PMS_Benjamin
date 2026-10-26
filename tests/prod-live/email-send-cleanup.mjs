@@ -24,7 +24,7 @@ const ชุด = [
   ["แถวโค้ดยืนยัน", () => svc.from("contact_email_codes").select("user_id", { count: "exact", head: true }).eq("user_id", userId),
                  () => svc.from("contact_email_codes").delete().eq("user_id", userId)],
   ["บันทึกการใช้งาน", () => svc.from("audit_log").select("id", { count: "exact", head: true }).eq("action", "ดีลเลอร์ขอโค้ดยืนยันอีเมลติดต่อ").like("target", "ZZT · %"),
-                 () => svc.from("audit_log").delete().eq("action", "ดีลเลอร์ขอโค้ดยืนยันอีเมลติดต่อ").like("target", "ZZT · %")],
+                 () => svc.rpc("audit_test_cleanup", { p_action_like: "ดีลเลอร์ขอโค้ดยืนยันอีเมลติดต่อ", p_target_like: "ZZT · %" })],   // ลบตรงไม่ได้ (ใบ 0241)
 ];
 const { count: ทั้งกล่องก่อน } = await svc.from("email_outbox").select("id", { count: "exact", head: true });
 for (const [ชื่อ, นับ, ลบ] of ชุด) {
