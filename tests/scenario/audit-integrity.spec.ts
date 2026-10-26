@@ -26,11 +26,21 @@ test("ลงบันทึกในนามคนอื่นไม่ได�
   expect(error, "เขียนบันทึกโดยใส่ชื่อคนอื่นต้องถูกปฏิเสธ").not.toBeNull();
 });
 
-test("ลงบันทึกในนามตัวเองได้ตามปกติ (กฎต้องไม่เข้มจนใช้งานจริงไม่ได้)", async () => {
+// ใบ 0240 (บอสสั่ง 22 ต.ค. 69): บันทึกให้ฐานลงเท่านั้น — เดิมข้อนี้ตรวจว่า "ผู้ดูแลเขียนบันทึกของตัวเองได้"
+//   ตอนนี้ต้องถูกปฏิเสธแม้ชื่อ/บทบาทตรงบัญชีทุกอย่าง (ถอนสิทธิ์เขียนตาราง) · การใช้งานจริงยังลงครบผ่านตัวดัก (audit_in_db.sql)
+test("ลงบันทึกเองตรง ๆ ไม่ได้ แม้ในนามตัวเอง (ฐานลงบันทึกเท่านั้น)", async () => {
   const hq = await as(ADMIN);
   const { error } = await hq.from("audit_log")
     .insert({ user: ADMIN.email, role: "SUPER_ADMIN", action: "ZZTEST-ของตัวเอง", target: "x" }).select();
-  expect(error?.message ?? "", "ผู้ดูแลต้องเขียนบันทึกของตัวเองได้").toBe("");
+  expect(error?.message ?? "", "ผู้ดูแลเขียนตารางบันทึกเองต้องถูกปฏิเสธ (ไม่มีสิทธิ์เขียนตาราง)").toMatch(/permission denied/i);
+});
+
+test("คำสั่งบันทึกเข้า/ออกระบบรับได้แค่ 2 เรื่อง (หน้าเว็บกำหนดข้อความเองไม่ได้)", async () => {
+  const hq = await as(ADMIN);
+  const r = await hq.rpc("audit_auth_event", { p_action: "ZZTEST-เรื่องอื่น" });
+  expect(r.error?.message ?? "", "ชนิดเรื่องอื่นต้องถูกปฏิเสธ").toMatch(/invalid auth event/);
+  const ok = await hq.rpc("audit_auth_event", { p_action: "เข้าสู่ระบบ" });
+  expect(ok.error?.message ?? "", "HQ ลงเข้าสู่ระบบผ่านคำสั่งฐานได้").toBe("");
 });
 
 test("สวมบทบาทอื่นไม่ได้", async () => {

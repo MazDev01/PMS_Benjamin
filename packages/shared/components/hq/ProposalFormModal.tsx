@@ -22,7 +22,6 @@ import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 
 const MUTED = "#6b7280";
 
@@ -61,7 +60,6 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
   onClose: () => void;
   onSaved: (p: DealerPackageProposal, prospect: DealerProspect) => void;
 }) {
-  const logAudit = useAuditLogger();
   const [ร่าง, setร่าง] = useState<ร่างใบ>(() => ร่างเริ่มต้น(editing, prospect));
   // เปิดในหน้าเดิม: เลื่อนให้เห็นฟอร์มทันที (ปุ่มที่กดอาจอยู่ท้ายรายการยาว ๆ)
   const ในหน้าRef = useRef<HTMLElement>(null);
@@ -157,12 +155,10 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
     try {
       if (ร่าง.id) {
         const saved = await proposalsRepo.update({ ...row, id: ร่าง.id, proposalNo: ร่าง.proposalNo, createdAt: ร่าง.createdAt });
-        logAudit("แก้ไขใบค่าแฟรนไชส์", `${saved.proposalNo ?? ""} · ${รายของใบ.name}`);
         แจ้งสำเร็จ(`บันทึกใบ ${saved.proposalNo ?? ""} แล้ว`);
         onSaved(saved, รายของใบ);
       } else {
         const saved = await proposalsRepo.create(row);
-        logAudit("ออกใบค่าแฟรนไชส์", `${saved.proposalNo ?? ""} · ${รายของใบ.name} · ${packageLabel[saved.package]}`);
         แจ้งสำเร็จ(`ออกใบ ${saved.proposalNo ?? ""} แล้ว (ร่าง)`);
         onSaved(saved, รายของใบ);
       }

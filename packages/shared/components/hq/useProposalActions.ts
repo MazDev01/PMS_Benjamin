@@ -11,10 +11,8 @@ import { proposalStatusLabel, ต้องมีเหตุผล } from "@pms/
 import { เขียนใบเสนอลงหน้าต่าง } from "@pms/shared/lib/dealerProposalPrint";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 
 export function useProposalActions() {
-  const logAudit = useAuditLogger();
 
   const พิมพ์ = useCallback(async (p: DealerPackageProposal, prospect: DealerProspect) => {
     // เปิดหน้าต่างทันทีตอนกด — เปิดหลังรอโหลดข้อมูลบริษัท เบราว์เซอร์จะบล็อกเป็นป๊อปอัป
@@ -56,13 +54,12 @@ export function useProposalActions() {
     }))) return null;
     try {
       const saved = await proposalsRepo.setStatus(p.id, status, เหตุผล);
-      logAudit("เปลี่ยนสถานะใบค่าแฟรนไชส์", `${p.proposalNo ?? ""} · ${ชื่อราย} → ${proposalStatusLabel[status]}${เหตุผล ? ` · ${เหตุผล}` : ""}`);
       return saved;
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "เปลี่ยนสถานะไม่สำเร็จ"));
       return null;
     }
-  }, [logAudit]);
+  }, []);
 
   /** ส่งแล้วแก้ไม่ได้ → ทำเวอร์ชันใหม่ (ร่าง) · คืนใบใหม่ · ยกเลิก/ไม่สำเร็จ = null */
   const ทำเวอร์ชันใหม่ = useCallback(async (p: DealerPackageProposal, ชื่อราย: string) => {
@@ -73,14 +70,13 @@ export function useProposalActions() {
     }))) return null;
     try {
       const ใหม่ = await proposalsRepo.newVersion(p.id);
-      logAudit("ทำเวอร์ชันใหม่ใบค่าแฟรนไชส์", `${p.proposalNo ?? ""} → ${ใหม่.proposalNo ?? ""} · ${ชื่อราย}`);
       แจ้งสำเร็จ(`สร้างร่าง ${ใหม่.proposalNo ?? ""} แล้ว — แก้แล้วเปลี่ยนเป็น “ส่งแล้ว”`);
       return ใหม่;
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "ทำเวอร์ชันใหม่ไม่สำเร็จ"));
       return null;
     }
-  }, [logAudit]);
+  }, []);
 
   /** คืน true เมื่อลบแล้วจริง */
   const ลบใบ = useCallback(async (p: DealerPackageProposal, ชื่อราย: string) => {
@@ -91,13 +87,12 @@ export function useProposalActions() {
     }))) return false;
     try {
       await proposalsRepo.remove(p.id);
-      logAudit("ลบใบค่าแฟรนไชส์ (ร่าง)", `${p.proposalNo ?? ""} · ${ชื่อราย}`);
       return true;
     } catch (e) {
       แจ้งพลาด(friendlyError(e, "ลบใบไม่สำเร็จ"));
       return false;
     }
-  }, [logAudit]);
+  }, []);
 
   return { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ };
 }

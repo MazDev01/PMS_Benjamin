@@ -12,7 +12,6 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -23,7 +22,6 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
   /** ยอดชำระเปลี่ยน — ให้หน้าแม่ตรวจความพร้อมแปลงใหม่ */
   onChanged?: () => void;
 }) {
-  const logAudit = useAuditLogger();
   const [list, setList] = useState<DealerProposalPayment[] | null>(null);
   const [loadErr, setLoadErr] = useState("");
   const [วันที่, setวันที่] = useState(APP_NOW_ISO.slice(0, 10));
@@ -37,7 +35,6 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
     setกำหนด(v);
     try {
       await proposalsRepo.setPaymentDue(proposal.id, v || null);
-      logAudit("ตั้งวันครบกำหนดชำระค่าแฟรนไชส์", `${proposal.proposalNo ?? ""} · ${v ? fmtISOToThai(v) : "ล้างวัน"}`);
       onChanged?.();
     } catch (e) { setกำหนด(proposal.paymentDueOn ?? ""); แจ้งพลาด(friendlyError(e, "บันทึกวันครบกำหนดชำระไม่สำเร็จ")); }
   }
@@ -61,7 +58,6 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
       const row = await proposalsRepo.addPayment({ proposalId: proposal.id, paidOn: วันที่, amount: ยอด, reference: อ้างอิง.trim() });
       setList(l => [...(l ?? []), row]);
       setยอด(0); setอ้างอิง("");
-      logAudit("บันทึกการชำระค่าแฟรนไชส์", `${proposal.proposalNo ?? ""} · ${บาท(row.amount)} บาท · ${row.reference}`);
       แจ้งสำเร็จ(`บันทึกการชำระ ${บาท(row.amount)} บาท แล้ว`);
       onChanged?.();
     } catch (e) { แจ้งพลาด(friendlyError(e, "บันทึกการชำระไม่สำเร็จ")); }
@@ -78,7 +74,6 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
     try {
       const row = await proposalsRepo.cancelPayment(x.id, เหตุผล);
       setList(l => (l ?? []).map(y => y.id === row.id ? row : y));
-      logAudit("ยกเลิกการชำระค่าแฟรนไชส์", `${proposal.proposalNo ?? ""} · ${บาท(x.amount)} บาท · ${เหตุผล}`);
       onChanged?.();
     } catch (e) { แจ้งพลาด(friendlyError(e, "ยกเลิกการชำระไม่สำเร็จ")); }
   }

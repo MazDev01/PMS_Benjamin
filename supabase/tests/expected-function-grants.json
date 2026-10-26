@@ -1,6 +1,27 @@
 {
- "migration": "0239",
+ "migration": "0240",
  "functions": [
+  {
+   "f": "_audit_baht(n numeric)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_audit_direct()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_audit_hq(p_action text, p_target text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
   {
    "f": "_cron_send_email()",
    "anon": false,
@@ -79,6 +100,20 @@
    "definer": false
   },
   {
+   "f": "_proposal_status_th(s text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_prospect_status_th(s text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_quote_lock_area(v text)",
    "anon": false,
    "authenticated": false,
@@ -114,6 +149,13 @@
    "definer": true
   },
   {
+   "f": "_role_th(r text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_thai_date(p timestamp with time zone, p_with_time boolean)",
    "anon": false,
    "authenticated": true,
@@ -126,6 +168,20 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "audit_actor_name()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "audit_auth_event(p_action text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "auth_dealer()",
@@ -233,6 +289,13 @@
    "definer": true
   },
   {
+   "f": "dealer_package_proposals_audit()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealer_package_proposals_before_delete()",
    "anon": false,
    "authenticated": false,
@@ -275,6 +338,13 @@
    "definer": false
   },
   {
+   "f": "dealer_proposal_payments_audit()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealer_proposal_payments_guard()",
    "anon": false,
    "authenticated": false,
@@ -310,6 +380,13 @@
    "definer": false
   },
   {
+   "f": "dealer_prospects_audit()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealer_prospects_insert_clean()",
    "anon": false,
    "authenticated": false,
@@ -343,6 +420,13 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "dealers_audit()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "dealers_conversion_gate()",
@@ -560,6 +644,27 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "hq_settings_audit()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_settings_audit_export(p_file text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_settings_restore(p_kind text, p_file text, p_policy jsonb, p_targets jsonb, p_notif_rules jsonb, p_lost_reasons jsonb, p_company jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "hq_version_expired_reason()",
@@ -798,6 +903,13 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "profiles_audit()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "profiles_contact_email_verify_guard()",
@@ -1068,7 +1180,7 @@
   {
    "f": "restore_hq_settings(p_policy jsonb, p_targets jsonb, p_notif_rules jsonb, p_lost_reasons jsonb, p_company jsonb)",
    "anon": false,
-   "authenticated": true,
+   "authenticated": false,
    "service_role": false,
    "definer": true
   },

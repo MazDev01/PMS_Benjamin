@@ -55,8 +55,9 @@ export interface SettingsRepo {
   saveNotifRules(rules: HQNotifRules): Promise<void>;
   /** กู้คืน/นำเข้าค่าตั้งหลายกลุ่มพร้อมกันแบบ all-or-nothing (Phase 4 transaction, 0093) — undefined = ไม่แตะ
    *  กลุ่มนั้น · ใช้กับปุ่ม "นำเข้า (กู้คืน)"/"คืนค่าเริ่มต้น" หน้า HQ ตั้งค่า (เดิมยิงแยกทีละกลุ่ม เน็ตหลุด
-   *  กลางทาง = กู้คืนได้แค่บางส่วน) · supabase: RPC restore_hq_settings · local: เขียนทีละกลุ่มในเครื่อง */
-  restoreSettings(patch: {
+   *  กลางทาง = กู้คืนได้แค่บางส่วน) · supabase: RPC hq_settings_restore (0240 · ลงบันทึกการใช้งานในคำสั่งเดียวกัน
+   *  พร้อมชนิด import/reset + ชื่อไฟล์) · local: เขียนทีละกลุ่มในเครื่อง */
+  restoreSettings(kind: "import" | "reset", file: string | null, patch: {
     policy?: HQPolicy; targets?: HQTargets; notifRules?: HQNotifRules; lostReasons?: string[]; company?: HQCompany;
   }): Promise<void>;
 }
@@ -294,7 +295,13 @@ export interface AuditRepo {
   /** อ่านบันทึกล่าสุดสูงสุด `limit` รายการ (ใหม่→เก่า) — audit_log โตไม่จำกัด จึงมีเพดานอ่านเสมอ (M8)
    *  ไม่ส่ง limit = ใช้ค่า default ของ adapter · หน้า /hq/audit แจ้งเมื่อชนเพดาน (ไม่ตัดเงียบ) */
   list(limit?: number): Promise<AuditEntry[]>;
-  append(e: Omit<AuditEntry, "id" | "at">): Promise<void>;
+  // ── หน้าเว็บเขียนบันทึกเองไม่ได้ (ใบ 0240 · บอสสั่ง 22 ต.ค. 69) ──
+  //   การเปลี่ยนข้อมูลทุกอย่าง ฐานลงบันทึกเองในคำสั่งเดียวกัน (ตัวดัก) · ที่เหลือคือเรื่องที่ไม่มีการเปลี่ยนข้อมูลให้ผูก
+  //   ซึ่งเรียกคำสั่งฐานที่บันทึกเอง — ชื่อผู้ทำ/เวลา/ข้อความ ฐานคิดเอง หน้าเว็บส่งได้แค่ชนิดเรื่อง (ตัวตรวจ check-audit-from-db)
+  /** เข้า/ออกระบบของ HQ (ดีลเลอร์ = ฐานไม่ลง) · supabase: RPC audit_auth_event */
+  authEvent(action: "เข้าสู่ระบบ" | "ออกจากระบบ"): Promise<void>;
+  /** ส่งออกการตั้งค่าเป็นไฟล์ · supabase: RPC hq_settings_audit_export */
+  settingsExported(file: string): Promise<void>;
 }
 
 // ── ตัวชี้วัดที่รวมยอดที่ DB (M9 Phase 1) — client ไม่ต้องดึงทุกแถวมารวมเอง ──

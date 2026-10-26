@@ -10,7 +10,7 @@ import { TablePagination } from "@pms/shared/components/ui/TablePagination";
 import { useModalA11y } from "@pms/shared/lib/useModalA11y";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
-import { useAuditLogger, useAuditEntries } from "@pms/shared/lib/useAudit";
+import { useAuditEntries } from "@pms/shared/lib/useAudit";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { RightDrawer } from "@pms/shared/components/ui/RightDrawer";
@@ -268,7 +268,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
       .catch(e => logRepoRead("users.list", e));
   }, []);
   useEffect(() => { reload(); }, [reload]);
-  const logAudit = useAuditLogger();
 
   const [q, setQ] = useState("");
   const [roleF, setRoleF] = useState<RoleKey | "all">("all");
@@ -333,14 +332,8 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
   };
   function saveUser(id: string | null, data: Omit<AppUser, "id" | "createdAt">, tempPassword?: string) {
     if (id !== null) {
-      // เปลี่ยนบทบาท = ยกระดับ/ลดสิทธิ์ผู้ใช้ — เหตุการณ์อ่อนไหว ต้องบันทึกแยกให้เห็นการเปลี่ยนแปลงชัดเจน
-      // (ไม่ปนกับ "แก้ไขผู้ใช้" ทั่วไปที่อาจแค่แก้ชื่อ/แผนก) — Phase 9 (Logging/Audit)
-      const cur = users.find(u => u.id === id);
-      if (cur && cur.role !== data.role) {
-        logAudit("เปลี่ยนบทบาทผู้ใช้", `${data.email}: ${ROLE_BY_KEY[cur.role]?.th ?? cur.role} → ${ROLE_BY_KEY[data.role]?.th ?? data.role}`);
-      }
+      // เปลี่ยนบทบาท = ยกระดับ/ลดสิทธิ์ผู้ใช้ — ฐานลงบันทึก "เปลี่ยนบทบาทผู้ใช้" แยกจาก "แก้ไขผู้ใช้" เอง (ใบ 0240 · ตัวดัก profiles)
       update(id, data);
-      logAudit("แก้ไขผู้ใช้", data.email);
       return;
     }
     // โหมดจริง (supabase): สร้างบัญชีเข้าระบบจริงผ่าน Route Handler ฝั่งเซิร์ฟเวอร์ (service_role)
@@ -352,7 +345,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
     }
     const nid = String(Date.now());
     setUsers(prev => [{ id: nid, ...data, createdAt: MOCK_TODAY }, ...prev]);
-    logAudit("เพิ่มผู้ใช้ HQ", data.email);
   }
   // สร้างบัญชีเข้าระบบจริง — ใช้รหัสชั่วคราวที่กรอกในฟอร์ม (เว้นว่าง = เซิร์ฟเวอร์สุ่มให้) กลับมาโชว์ครั้งเดียวใน modal
   //   เดิมช่อง "รหัสผ่านชั่วคราว" แสดงอยู่แต่ไม่ถูกส่งไป ผู้ใช้ได้รหัสคนละตัวกับที่เห็นในฟอร์ม (แก้ 15 ก.ย. 69)
@@ -375,10 +367,9 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
       reload(); return { ok: true }; // audit บันทึกที่ route (server-side · การันตี) แล้ว
     }
     setUsers(prev => prev.filter(x => x.id !== u.id));
-    logAudit("ลบผู้ใช้ HQ", u.email);
     return { ok: true };
   }
-  function toggleStatus(u: AppUser) { update(u.id, { status: u.status === "active" ? "inactive" : "active" }); logAudit(u.status === "active" ? "ปิดใช้งานผู้ใช้" : "เปิดใช้งานผู้ใช้", u.email); }
+  function toggleStatus(u: AppUser) { update(u.id, { status: u.status === "active" ? "inactive" : "active" }); }
   // "รีเซ็ตรหัสผ่าน (ส่งลิงก์ทางอีเมล)" เอาออกแล้ว — ปิดอีเมลของระบบล็อกอิน (บอสสั่ง 16 ต.ค. 69 · ใบ 0213) · ใช้ "ตั้งรหัสผ่านใหม่ทันที" แทน
   // ── ตั้งรหัสผ่านใหม่ให้ทันที (บอสสั่ง 14 ส.ค. 69) ──
   // ต่างจาก "ส่งลิงก์ทางอีเมล" ตรงที่ไม่พึ่งอีเมลเลย — ใช้ได้แม้ยังไม่ได้ตั้ง SMTP

@@ -37,7 +37,7 @@ import { งานมาตรฐาน } from "@pms/shared/lib/prospectJourney"
 import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealerProspects";
 import { PACKAGE_ORDER, packageLabel } from "@pms/shared/lib/dealerProposals";
 import { REGIONS, type Region } from "@pms/shared/lib/provinces";
-import { settings as settingsRepo, dealers as dealersRepo, hqCompany as hqCompanyRepo } from "@pms/shared/lib/data";
+import { settings as settingsRepo, dealers as dealersRepo, hqCompany as hqCompanyRepo, audit as auditRepo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { สร้างแผ่นงานสำรอง, อ่านแผ่นงานสำรอง, type ชุดการตั้งค่า } from "@pms/shared/lib/settingsBackup";
@@ -59,7 +59,6 @@ import {
 import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
 import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
-import { useAuditLogger } from "@pms/shared/lib/useAudit";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
 import {
@@ -750,7 +749,7 @@ function BackupCard() {
   const toast = useToast();
   // นำเข้า/คืนค่าเริ่มต้น เขียนทับนโยบายทั้งเครือได้ในคลิกเดียว ต้องบันทึกประวัติเหมือนการแก้ค่าตั้งปกติ
   // (พบจากผลตรวจสอบตรรกะระบบ 31 ก.ค. 69 — เดิมสองปุ่มนี้ไม่บันทึกอะไรเลย ต่างจากปุ่มบันทึกค่าตั้งทั่วไป)
-  const logAudit = useAuditLogger();
+  // ใบ 0240: ฐานลงบันทึกเองในคำสั่งกู้คืน (ชนิด + ชื่อไฟล์) · ส่งออกเรียกคำสั่งฐานที่บันทึกเอง — หน้าเว็บไม่เขียนบันทึก
 
   // สำรอง/กู้คืน "ค่าจริงที่ระบบใช้อยู่" — อ่านผ่าน repo ทั้งหมด
   // เดิมอ่าน/เขียน localStorage ตรง ๆ ซึ่งพังไปแล้วตั้งแต่ค่าพวกนี้ย้ายเข้า DB:
@@ -765,8 +764,9 @@ function BackupCard() {
       // (เดิมเป็น .json ซึ่งเปิดแล้วอ่านไม่รู้เรื่อง และเอาไปทำอะไรต่อไม่ได้)
       const แผ่นงาน = สร้างแผ่นงานสำรอง({ policy, targets, notifRules, lostReasons, company, dealers });
       const ชื่อไฟล์ = `การตั้งค่าเบญจมิน-${APP_NOW_ISO.slice(0, 10)}.xlsx`;
+      // ลงบันทึกที่ฐานก่อนให้ไฟล์ — ลงไม่สำเร็จ = ไม่ให้ไฟล์ (ส่งออกข้อมูลทั้งเครือต้องมีร่องรอยเสมอ)
+      await auditRepo.settingsExported(ชื่อไฟล์);
       ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx(แผ่นงาน), ชื่อไฟล์);
-      logAudit("ส่งออกการตั้งค่า", ชื่อไฟล์);
       toast(`ส่งออกแล้ว — ${แผ่นงาน.length} แท็บ · ดีลเลอร์ ${dealers.length} ราย`);
     } catch (e) {
       toast("ส่งออกไม่สำเร็จ: " + friendlyError(e));
@@ -804,14 +804,13 @@ function BackupCard() {
       // ค่าตั้งเครือ 5 กลุ่ม (policy/targets/notifRules/lostReasons/company) เขียนแบบ all-or-nothing
       // ในคำสั่งเดียว (RPC, 0093 — Phase 4 transaction) — เดิมยิงแยกกัน เน็ตหลุดกลางทาง = กู้คืนได้แค่
       // บางส่วน · ทะเบียนดีลเลอร์/แคตตาล็อก เป็นชุดข้อมูลแยก ยังคงเขียนแยกเหมือนเดิม (คนละความเสี่ยง)
-      await settingsRepo.restoreSettings({
+      await settingsRepo.restoreSettings("import", file.name, {
         policy: ที่จะเขียน.policy, targets: ที่จะเขียน.targets, notifRules: ที่จะเขียน.notifRules,
         lostReasons: ที่จะเขียน.lostReasons, company: ที่จะเขียน.company,
       });
       const jobs: Promise<unknown>[] = [];
       if (ที่จะเขียน.dealers?.length) jobs.push(dealersRepo.save(ที่จะเขียน.dealers));
       await Promise.all(jobs);
-      logAudit("นำเข้าการตั้งค่า (กู้คืน)", file.name);
       toast("นำเข้าสำเร็จ — กำลังโหลดใหม่");
       setTimeout(() => location.reload(), 900);
     } catch (err) {
@@ -827,11 +826,10 @@ function BackupCard() {
     }))) return;
     try {
       // all-or-nothing (RPC, 0093 — Phase 4 transaction) — เดิมยิงแยก 4 คำขอ
-      await settingsRepo.restoreSettings({
+      await settingsRepo.restoreSettings("reset", null, {
         policy: DEFAULT_HQ_POLICY, targets: DEFAULT_HQ_TARGETS,
         notifRules: DEFAULT_HQ_NOTIF_RULES, lostReasons: [...LOST_REASONS],
       });
-      logAudit("คืนค่าเริ่มต้น", "นโยบาย/เป้าหมาย/กฎแจ้งเตือน/เหตุผลปิดการขาย");
       toast("คืนค่าเริ่มต้นแล้ว — กำลังโหลดใหม่");
       setTimeout(() => location.reload(), 900);
     } catch (e) {
@@ -884,7 +882,6 @@ function HQSettingsPageInner() {
   const [toast, setToastMsg] = useState<string | null>(null);
   const report = useCallback((a: SectionApi | null) => setApi(a), []);
   const showToast = useCallback((m: string) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 2400); }, []);
-  const logAudit = useAuditLogger();
   const dirty = !!api?.dirty;
   // เตือนตอนออกจากหน้า/ปิดแท็บด้วย — switchTab ข้างล่างเตือนแค่ตอนสลับแท็บในหน้าเดียวกัน
   useUnsavedGuard(dirty);
@@ -899,7 +896,8 @@ function HQSettingsPageInner() {
     setTab(next);
   }
   const active = TABS.find(t => t.key === tab)!;
-  function saveAll() { if (dirty && api) { api.save(); logAudit("บันทึกการตั้งค่า", active.label); showToast("บันทึกการตั้งค่าแล้ว"); } }
+  // บันทึกการใช้งาน: ฐานลงเองตอนตารางตั้งค่าเปลี่ยนจริง (ใบ 0240 · ตัวดักต่อตาราง) — ไม่ลงตอนกดแล้วบันทึกไม่สำเร็จเหมือนเดิม
+  function saveAll() { if (dirty && api) { api.save(); showToast("บันทึกการตั้งค่าแล้ว"); } }
   function resetAll() { if (dirty && api) api.reset(); }
 
   return (
