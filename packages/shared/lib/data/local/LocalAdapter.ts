@@ -301,6 +301,12 @@ export const LocalAdapter: DataAdapter = {
     hqQuoteById: () => ok(null),
     margin: () => ok(null),
   },
+  // แม่แบบวัสดุ — โหมดข้อมูลตัวอย่างไม่มี (ต้องมีฐานข้อมูล · ใบ 0244)
+  materialTemplates: {
+    list: () => ok([]),
+    save: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างบันทึกแม่แบบวัสดุไม่ได้")),
+    accuracy: () => ok({ n: 0, avgAbsPct: null, avgPct: null }),
+  },
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {
     owners: () => ok([]),   // โหมดตัวอย่างไม่มีกฎพื้นที่ — ทุกจังหวัดว่าง

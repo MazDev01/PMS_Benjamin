@@ -1,5 +1,5 @@
 {
- "migration": "0242",
+ "migration": "0244",
  "relations": [
   {
    "r": "appointments",
@@ -352,6 +352,22 @@
    "anon": "",
    "authenticated": "SELECT",
    "service_role": "SELECT"
+  },
+  {
+   "r": "material_templates",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "SELECT",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "material_templates_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "SELECT,USAGE"
   },
   {
    "r": "notification_kinds",

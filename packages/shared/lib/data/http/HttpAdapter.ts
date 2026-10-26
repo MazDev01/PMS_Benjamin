@@ -15,7 +15,8 @@
 import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal, DealerProposalPayment } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
-import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo } from "../ports";
+import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo, MaterialTemplatesRepo } from "../ports";
+import type { MaterialTemplate, EstimateAccuracy } from "../../materialTemplates";
 import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard } from "../../quoteRequests";
 import type { DealerProspect, ProspectActivity } from "../types";
 import { accountRemote } from "../accountRemote";
@@ -60,6 +61,7 @@ export const MIGRATED: readonly string[] = [
   "hqCompany",
   "territories",
   "quoteRequests",
+  "materialTemplates",
   "dealerSettings",
   "settings",
   "notes",
@@ -303,6 +305,12 @@ const quoteRequests: QuoteRequestsRepo = {
   margin: (dealerCode, quotationId) => apiFetch<QuoteMargin | null>(`/quote-requests?view=margin&dealer=${encodeURIComponent(dealerCode)}&quote=${encodeURIComponent(quotationId)}`),
   quotedLeadIds: (dealerCode) => apiFetch<number[]>(`/quote-requests?view=quoted-leads&dealer=${encodeURIComponent(dealerCode)}`),
 };
+// แม่แบบวัสดุ (ใบ 0244)
+const materialTemplates: MaterialTemplatesRepo = {
+  list: () => apiFetch<MaterialTemplate[]>("/material-templates"),
+  save: (rows, deleteIds) => post<MaterialTemplate[]>("/material-templates", { rows, deleteIds }),
+  accuracy: () => apiFetch<EstimateAccuracy>("/material-templates?view=accuracy"),
+};
 // พื้นที่ของดีลเลอร์ (ใบ 0195)
 const territories: TerritoriesRepo = {
   owners: () => apiFetch<{ province: string; dealerCode: string; legacy: boolean }[]>("/territories?view=owners"),
@@ -502,7 +510,7 @@ const realtime: RealtimePort = {
 
 export const HttpAdapter: DataAdapter = {
   storage, realtime, dealers, files, persons, settings, dealerSettings,
-  profile, hqCompany, territories, quoteRequests, notes, users, audit, notifications, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
+  profile, hqCompany, territories, quoteRequests, materialTemplates, notes, users, audit, notifications, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
 };

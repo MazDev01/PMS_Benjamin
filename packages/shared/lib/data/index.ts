@@ -86,6 +86,8 @@ export const profile: ProfileRepo = {
 export const hqCompany = adapter.hqCompany;
 export const territories = adapter.territories;
 export const quoteRequests = adapter.quoteRequests;
+// แม่แบบวัสดุ (ใบ 0244) — หน้าตั้งค่า HQ + ฟอร์มขอราคา + ใบ HQ · ต้องสดหลังบันทึก ไม่แคช
+export const materialTemplates = adapter.materialTemplates;
 export const notes = adapter.notes;
 // ลูกค้าเป้าหมายของสำนักงานใหญ่ (ผู้สนใจเป็นดีลเลอร์) — หน้าเดียวใช้ ไม่ต้องแคช
 export const prospects = adapter.prospects;

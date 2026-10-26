@@ -22,6 +22,8 @@ import {
 } from "@pms/shared/lib/quoteRequests";
 import type { LeadRow } from "@pms/shared/lib/mock";
 import { ช่องขอราคา, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
+import { MaterialEstimatePicker, type วัสดุที่เลือก } from "@pms/shared/components/ui/MaterialEstimatePicker";
+import { ป้ายราคาประเมิน } from "@pms/shared/lib/materialTemplates";
 
 type โหมด = "ดู" | "ขอราคา" | "ยกเลิก" | "แก้ราคา";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,6 +36,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const [product, setProduct] = useState("");
   const [spec, setSpec] = useState("");
   const [area, setArea] = useState("");
+  // วัสดุจากแม่แบบ (ไม่บังคับ · ใบ 0244) — ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา
+  const [วัสดุ, setวัสดุ] = useState<วัสดุที่เลือก[]>([]);
   const [เหตุผล, setเหตุผล] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,6 +70,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
       setProduct(lead.project ?? "");
       setArea(lead.area != null && lead.area > 0 ? String(lead.area) : "");
       setSpec(lead.note ?? "");
+      setวัสดุ([]);
     } else if (m === "แก้ราคา") {
       setSpec(รายการ?.[0]?.spec ?? "");
     }
@@ -85,13 +90,14 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
 
   const ทำ = async (fn: () => Promise<unknown>) => {
     setErr(""); setBusy(true);
-    try { await fn(); setโหมด("ดู"); setเหตุผล(""); setProduct(""); setSpec(""); setArea(""); โหลด(); onChanged?.(); }
+    try { await fn(); setโหมด("ดู"); setเหตุผล(""); setProduct(""); setSpec(""); setArea(""); setวัสดุ([]); โหลด(); onChanged?.(); }
     catch (e) { setErr(friendlyError(e)); }
     finally { setBusy(false); }
   };
   const ส่งคำขอ = () => {
     if (!product.trim()) { setErr("ระบุงานที่ขอราคาก่อน"); return; }
-    void ทำ(() => repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "" }));
+    if (วัสดุ.some(v => !(v.qty > 0))) { setErr("จำนวนวัสดุต้องมากกว่า 0 — แก้หรือเอาออกก่อนส่ง"); return; }
+    void ทำ(() => repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: วัสดุ }));
   };
   const ยกเลิก = () => {
     if (!เหตุผล.trim()) { setErr("ต้องระบุเหตุผล"); return; }
@@ -120,6 +126,12 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
             {เปิด.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
           </div>
           <div>งานที่ขอราคา: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
+          {เปิด.estimateTotal != null && (
+            <div className="no-print" data-testid="request-estimate">
+              ราคาประเมินจากวัสดุ {(เปิด.estimateItems ?? []).length} รายการ: <b>{บาท(Number(เปิด.estimateTotal))} บาท</b>{" "}
+              <span className="badge" style={{ background: "#fef3c7", color: "#92400e" }}>{ป้ายราคาประเมิน}</span>
+            </div>
+          )}
           {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
           {ใบHQ && (
             <div data-panel="hq-quote" style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", marginTop: 8 }}>
@@ -171,6 +183,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           <label className="form-label" htmlFor="qr-spec">{ช่องขอราคา.สเปก}</label>
           <textarea id="qr-spec" aria-label={ช่องขอราคา.สเปก} rows={3} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
           <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>{ช่องขอราคา.จังหวัด}: {lead.province || "—"}</div>
+          <MaterialEstimatePicker value={วัสดุ} onChange={setวัสดุ} disabled={busy} />
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={ส่งคำขอ}>{busy ? "กำลังส่ง…" : "ส่งคำขอ"}</button>
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ยกเลิก</button>

@@ -1567,3 +1567,6 @@ textarea:focus-visible {
 
 /* กล่องงานคำขอราคา HQ (หน้า 5 · 19 ต.ค. 69): จอแคบ = กล่องงานบน ใบ HQ ล่าง */
 @media (max-width: 960px) { .hq-qr-board { grid-template-columns: minmax(0, 1fr) !important; } }
+
+/* ราคาประเมินจากแม่แบบวัสดุ (ใบ 0244 · บอสสั่ง 26 ต.ค. 69): ไม่ใช่ใบเสนอราคา — สั่งพิมพ์หน้าจอแล้วไม่ออกกระดาษ */
+@media print { .no-print { display: none !important; } }

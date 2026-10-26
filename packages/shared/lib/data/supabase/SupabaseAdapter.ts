@@ -14,6 +14,7 @@ import { เตรียมบันทึกการติดต่อ } from 
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
 import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard, QuoteBoardRow } from "../../quoteRequests";
+import type { MaterialTemplate } from "../../materialTemplates";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
 import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
@@ -548,6 +549,25 @@ export const SupabaseAdapter: DataAdapter = {
         .eq("id", id));
     },
   },
+  // แม่แบบวัสดุ (ใบ 0244) — กฎรายแถวของฐานกรอง (ดีลเลอร์เห็นเฉพาะที่เปิดใช้) · บันทึกผ่านคำสั่งของฐานเท่านั้น
+  materialTemplates: {
+    list: async () => {
+      const { data, error } = await sb().from("material_templates").select("*").order("category").order("name").order("id").limit(2000);
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamelList<MaterialTemplate>((data ?? []) as Row[]);
+    },
+    save: async (rows, deleteIds) => {
+      const { data, error } = await sb().rpc("material_templates_save", { p_rows: rows, p_delete_ids: deleteIds });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return toCamelList<MaterialTemplate>((data ?? []) as Row[]);
+    },
+    accuracy: async () => {
+      const { data, error } = await sb().rpc("material_estimate_accuracy");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      const a = (data ?? {}) as { n?: number; avg_abs_pct?: number | null; avg_pct?: number | null };
+      return { n: Number(a.n ?? 0), avgAbsPct: a.avg_abs_pct ?? null, avgPct: a.avg_pct ?? null };
+    },
+  },
   // คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183)
   quoteRequests: {
     listForLead: async (dealerCode, leadNumId) => {
@@ -570,6 +590,7 @@ export const SupabaseAdapter: DataAdapter = {
     submit: async (i) => {
       const { data, error } = await sb().rpc("quote_request_submit", {
         p_lead_num_id: i.leadNumId, p_product: i.product, p_subtype: i.subtype ?? "", p_area: i.area ?? null, p_spec: i.spec ?? "", p_province: i.province ?? "",
+        p_estimate: i.estimate ?? [],
       });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return toCamel<QuoteRequest>(data as Row);
