@@ -19,7 +19,7 @@ const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? "C:/.claude/pms-sh
 const จอ = [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }, { ชื่อ: "มือถือ", w: 390, h: 844 }];
 const แท็ก = Date.now() % 100_000;
 const เลข = { ฟอร์ม: เลขลูกค้าเป้าหมายทดสอบ(), ใบ: เลขลูกค้าเป้าหมายทดสอบ() };
-const บริษัท = (k: keyof typeof เลข) => `ZZTEST-ถ่ายรูปแม่แบบ-${k}-${แท็ก}`;
+const บริษัท = (k: keyof typeof เลข) => `ZZTEST-ถ่ายรูปวัสดุ-${k}-${แท็ก}`;
 
 async function ถ่าย(page: Page, ฉาก: string, เตรียม: () => Promise<void>) {
   mkdirSync(โฟลเดอร์, { recursive: true });

@@ -20,7 +20,7 @@ const แท็ก = Date.now() % 100_000;
 const หมวด = `ZZTEST-หมวด-${แท็ก}`;
 const ผนัง = `ZZTEST-ผนังเมทัลชีท-${แท็ก}`, ประตู = `ZZTEST-ประตูม้วน-${แท็ก}`;
 const เลข = { ขอ: เลขลูกค้าเป้าหมายทดสอบ() };
-const บริษัท = (k: keyof typeof เลข) => `ZZTEST-แม่แบบวัสดุ-${k}-${แท็ก}`;
+const บริษัท = (k: keyof typeof เลข) => `ZZTEST-วัสดุ-${k}-${แท็ก}`;
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const เดือน = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const วันนี้พศ = () => { const d = new Date(Date.now() + 7 * 3_600_000); return `${d.getUTCDate()} ${เดือน[d.getUTCMonth()]} ${d.getUTCFullYear() + 543}`; };

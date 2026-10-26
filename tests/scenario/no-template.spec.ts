@@ -65,7 +65,11 @@ test("[ui] ดีลเลอร์และ HQ ไม่มีเมนูแ�
   expect(ด?.status(), "/products ของดีลเลอร์ต้องไม่พบหน้า").toBe(404);
 
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-  await expect(page.getByRole("link", { name: /แม่แบบ/ }), "เมนู HQ ต้องไม่มีแม่แบบ").toHaveCount(0);
+  // ตรวจในเมนูหลัก (26 ต.ค. 69): แม่แบบวัสดุ (ใบ 0244) ทำให้บันทึกการใช้งาน "บันทึกแม่แบบวัสดุ" ขึ้นเป็นลิงก์ในรายการความเคลื่อนไหวได้ — ไม่ใช่เมนู
+  //   แม่แบบวัสดุอยู่ในแท็บของหน้าตั้งค่า ไม่ใช่เมนู → เมนูหลักยังต้องไม่มีคำว่าแม่แบบเลย (ทั้งแม่แบบอาคารเดิมและแม่แบบวัสดุ)
+  const เมนูHQ = page.getByRole("navigation", { name: "เมนูหลัก" });
+  await expect(เมนูHQ.getByRole("link").first(), "เมนูหลักของ HQ แสดงอยู่ (ไม่ใช่นับในที่ว่าง)").toBeVisible();
+  await expect(เมนูHQ.getByRole("link", { name: /แม่แบบ/ }), "เมนู HQ ต้องไม่มีแม่แบบ").toHaveCount(0);
   const ห = await page.goto(`${HQ_ORIGIN}/hq/master`, { waitUntil: "domcontentloaded" });
   expect(ห?.status(), "/hq/master ต้องไม่พบหน้า").toBe(404);
 
