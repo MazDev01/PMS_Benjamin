@@ -5,6 +5,7 @@ import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
 import { db } from "./funcHelpers";
+import { ช่อง } from "../../packages/shared/lib/fieldLabels";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -20,7 +21,8 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
   await expect(การ์ด, "ต้องมีการ์ดอย่างน้อยหนึ่งใบ").toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[draggable="true"]'), "การ์ดบนบอร์ดลากไม่ได้แล้ว").toHaveCount(0);
 
-  for (const ป้าย of ["โทรศัพท์:", "อีเมล:", "จังหวัด:", "สร้าง:", "ติดต่อล่าสุด:"]) {
+  // ชื่อป้ายมาจากชุดช่องมาตรฐาน (lib/fieldLabels.ts · 26 ต.ค. 69 "จังหวัด" → "จังหวัดหน้างาน")
+  for (const ป้าย of [`${ช่อง.โทรศัพท์}:`, `${ช่อง.อีเมล}:`, `${ช่อง.จังหวัด}:`, "สร้าง:", "ติดต่อล่าสุด:"]) {
     await expect(การ์ด.getByText(ป้าย, { exact: true }), `การ์ดต้องมีบรรทัด "${ป้าย}"`).toBeVisible();
   }
 
