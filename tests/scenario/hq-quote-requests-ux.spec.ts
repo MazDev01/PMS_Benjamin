@@ -150,11 +150,14 @@ test("[ui·hq] การ์ด 4 ใบตรงฐาน · แถวขึ้�
     return `จอ ${จอ.join("/")} · ฐาน ${ฐาน.join("/")}`;
   }, { timeout: 30_000, message: "การ์ด 4 ใบ = ฐาน (hq_quote_board · hq_overview)" }).toBe("ตรง");
 
-  // ปุ่มกรองแถวเดียว (ทุกปุ่มอยู่บรรทัดเดียวกัน · จอแคบเลื่อนแนวนอน)
+  // ช่องเลือกสถานะ + ช่องค้นหา บรรทัดเดียวกัน (แทนแถวปุ่มกรอง 27 ต.ค. 69) · ไม่มีแถวปุ่มกรองเหลือ
+  await expect(page.getByRole("tablist", { name: "กรองตามสถานะ" }), "ไม่มีแถวปุ่มกรองแล้ว").toHaveCount(0);
   for (const w of [1440, 390]) {
     await page.setViewportSize({ width: w, height: 900 });
-    const บน = await page.getByRole("tab").evaluateAll(es => es.map(e => Math.round(e.getBoundingClientRect().top)));
-    expect(new Set(บน).size, `จอ ${w}px: ปุ่มกรองต้องอยู่แถวเดียว`).toBe(1);
+    const บน = await Promise.all([page.getByLabel("สถานะคำขอ"), page.getByLabel("ค้นหาคำขอ")].map(async l => {
+      const b = await l.boundingBox(); return b ? Math.round(b.y + b.height / 2) : -999;
+    }));
+    expect(Math.abs(บน[0] - บน[1]), `จอ ${w}px: ช่องเลือกสถานะกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   // ค้นหาเจอคำขอเดียว = หน้าเดียว ไม่มีแถบเปลี่ยนหน้า · แถวขึ้นเหลือกี่วันแทนวันที่
