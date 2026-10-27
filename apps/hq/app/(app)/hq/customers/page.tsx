@@ -31,6 +31,7 @@ import { metrics as metricsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import type { HQCustomerPageRow, HQCustomersKPI, HQCustomersCharts } from "@pms/shared/lib/data/ports";
 import { CustomerKPICards } from "@pms/shared/components/hq/customers/CustomerKPICards";
+import { เดือนนี้ } from "@pms/shared/lib/kpiCards";
 import { CustomerAnalytics } from "@pms/shared/components/hq/customers/CustomerAnalytics";
 import { CustomerTable } from "@pms/shared/components/hq/customers/CustomerTable";
 import { CustomerDrawer } from "@pms/shared/components/hq/customers/CustomerDrawer";
@@ -73,6 +74,8 @@ export default function HQCustomersPage() {
   const [boughtSel, setBoughtSel] = useState<BoughtKey>("all");
   const [page, setPage] = useState(0);
   const [viewId, setViewId] = useState<number | null>(null);
+  // การ์ด KPI (ใบ 0246): หน้านี้ไม่มีตัวกรองช่วงเวลา → การ์ด "ในช่วงนี้" = เดือนนี้ (บอสตัดสิน 27 ต.ค. 69)
+  const ช่วงเดือนนี้ = useMemo(() => เดือนนี้(APP_NOW.getTime()), []);
 
   // เปลี่ยนตัวกรอง (ไม่ใช่หน้า) → กลับไปหน้า 1 เสมอ
   useEffect(() => { setPage(0); }, [search, dealerSel, regionSel, provinceSel, boughtSel]);
@@ -116,6 +119,12 @@ export default function HQCustomersPage() {
   }), [search, dealerSel, resolvedProvinces, boughtSel, page]);
 
   const pageResult = useHQCustomersPage(pageOpts);
+  // การ์ด KPI เดินตามตัวกรองของตาราง (บอสตัดสิน 27 ต.ค. 69) — ชุดเดียวกับที่ส่งให้ hq_customers_page
+  const ตัวกรองการ์ด = useMemo(() => {
+    const f = { dealerCodes: dealerSel === "all" ? undefined : [dealerSel], provinces: resolvedProvinces, search: search.trim() || undefined,
+                boughtFrom: boughtRange(boughtSel).from, boughtTo: boughtRange(boughtSel).to };
+    return Object.values(f).some(v => v != null) ? f : null;
+  }, [dealerSel, resolvedProvinces, search, boughtSel]);
 
   // ── fallback ฝั่ง client (local/demo) — ตรรกะกรอง/เรียงเดิมเป๊ะ ──
   const localFiltered = useMemo(() => {
@@ -244,7 +253,8 @@ export default function HQCustomersPage() {
           />
       </TopbarActions>
 
-      <CustomerKPICards kpi={kpi} />
+      <CustomerKPICards ช่วง={ช่วงเดือนนี้} today={ช่วงเดือนนี้.end} ตัวกรอง={ตัวกรองการ์ด} รุ่น={tableRows.length} onOpen={id => setViewId(id)}
+        onClear={() => { setSearch(""); setDealerSel("all"); setRegionSel("all"); setProvinceSel("all"); setBoughtSel("all"); setPage(0); }} />
 
       {/* ตัวกรอง — ค้นหา + ดีลเลอร์/ภาค/จังหวัด/ช่วงเวลาที่ซื้อ (ประเภทอาคาร/แม่แบบ ถอดออก 16 ต.ค. 69) */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>

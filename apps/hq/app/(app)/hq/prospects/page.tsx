@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
-import { ค่า, นับ, เดือนนี้ } from "@pms/shared/lib/kpiCards";
+import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
   UserPlus, Users, AlarmClock, Store, FileClock, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip,
 } from "lucide-react";
@@ -110,7 +110,6 @@ export default function HQProspectsPage() {
   const ช่วงเดือนนี้ = useMemo(() => เดือนนี้(APP_NOW.getTime()), []);
   // ข้อมูลในหน้าเปลี่ยน (เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์) = โหลดการ์ดใหม่
   const รุ่นการ์ด = useMemo(() => list.map(p => `${p.id}:${p.status}:${p.followUp ?? ""}`).join(","), [list]);
-  const kpi = useKpiCards("hq.prospects", { ...ช่วงเดือนนี้, today: ช่วงเดือนนี้.end, รุ่น: รุ่นการ์ด });
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [page, setPage] = useState(0);
 
@@ -287,6 +286,11 @@ export default function HQProspectsPage() {
       : p.status === statusFilter;
     return ผ่านสถานะ && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q);
   }), [รายที่แสดงได้, statusFilter, provinceFilter, q]);
+  // การ์ดเดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ชุดจากทุกราย รวมที่เป็นดีลเลอร์แล้ว (การ์ด "เป็นดีลเลอร์แล้วเดือนนี้")
+  //   ตัวกรองสถานะ = ปุ่มเดียวกับการ์ด "ถึงกำหนดติดตาม" → ไม่ใช่ตัวกรองของการ์ด (กดการ์ดแล้วใบอื่นต้องไม่เปลี่ยน)
+  const ชุดการ์ด = useMemo(() => ชุดที่กรอง(list, p => (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q), p => p.id),
+    [list, provinceFilter, q]);
+  const kpi = useKpiCards("hq.prospects", { ...ช่วงเดือนนี้, today: ช่วงเดือนนี้.end, filters: ชุดการ์ด, รุ่น: รุ่นการ์ด });
 
 
   // ── เพิ่มรายใหม่ ──
@@ -668,7 +672,7 @@ export default function HQProspectsPage() {
         )}
       </TopbarActions>
 
-      {/* การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ทั้งหมด ไม่ขึ้นกับตัวกรองของตาราง
+      {/* การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · เดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69)
             หน้านี้ไม่มีตัวกรองช่วงเวลา → "เป็นดีลเลอร์แล้ว" นับเดือนนี้ (บอสตัดสิน 27 ต.ค. 69) · กดการ์ด = ไปรายการที่ตรงเรื่อง */}
       <KpiRow label="สรุปผู้สนใจเป็นดีลเลอร์" range={ช่วงเดือนนี้}>
         <KpiCard kpi="talking" testId="prospect-talking" label="กำลังคุย" value={นับ(ค่า(kpi, "talking"))} rawValue={ค่า(kpi, "talking")} unit="ราย · ทุกขั้นที่ยังไม่จบ"

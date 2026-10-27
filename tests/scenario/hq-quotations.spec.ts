@@ -10,14 +10,14 @@ import { open, assertHealthyPage } from "./helpers";
 test("[ux·hq] KPI 4 ตัว คำนวณสอดคล้องกัน (ไม่มี 'ลูกค้าเปิดอ่าน')", async ({ page }) => {
   await open(page, "hq", "/hq/quotations");
   await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
-  const tiles = page.locator(".hq-kpi4 > div");
+  // การ์ด 4 ใบตามชุดที่บอสสั่ง (22 ต.ค. 69 · ใบ 0246) — ตัวเลขตรงฐาน ตรวจใน kpi-cards.spec.ts
+  const tiles = page.locator("[data-kpi-row] [data-kpi]");
   await expect(tiles).toHaveCount(4);
-  // ชื่อการ์ดที่ 4 บอกตัวหารไว้ในชื่อเลย (24 ส.ค. 69) เพราะหน้าภาพรวมยอดขายใช้ตัวหารคนละตัว
-  for (const label of ["ใบเสนอราคาทั้งหมด", "มูลค่ารวม", "ตอบรับ", "อัตราตอบรับ (จากใบที่ส่งแล้ว)"]) {
-    await expect(page.locator(".hq-kpi4").getByText(label, { exact: true })).toBeVisible();
+  for (const label of ["ส่งลูกค้าในช่วงนี้", "รอลูกค้าตอบ", "ตอบรับ (มูลค่า)", "อัตราตอบรับใบเสนอราคา"]) {
+    await expect(page.locator("[data-kpi-row]").getByText(label, { exact: true })).toBeVisible();
   }
-  // อัตราตอบรับ = ตอบรับ ÷ ใบที่ส่งแล้ว → ต้องกำกับตัวหารไว้ให้ตรวจสอบได้
-  await expect(page.locator(".hq-kpi4").getByText(/\d+\/\d+ ใบที่ส่งแล้ว/)).toBeVisible();
+  // อัตราตอบรับต้องกำกับตัวหารไว้ให้ตรวจสอบได้ (ต่างจากอัตราปิดการขายที่นับจากลีด)
+  await expect(page.locator("[data-kpi='acceptRate']")).toContainText("ตอบรับ ÷ ใบที่ส่งในช่วงนี้");
 });
 
 test("[ux·hq] มีกราฟครบตามที่ข้อมูลจริงรองรับ", async ({ page }) => {

@@ -381,10 +381,12 @@ export default function SalesAnalyticsPage() {
   useEffect(() => { setPerfPage(0); }, [q, dealerSel, regionSel, provSel, salesSel]);
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ช่วงเวลา + ดีลเลอร์ที่เลือก (กติกาเดียวกับแดชบอร์ด HQ)
   //   ยอดขาย = ตามวันลูกค้าตอบรับ เทียบเป้าเฉลี่ยตามช่วง · อัตราปิด = ลีดเข้ามาในช่วง · margin = ใบ won ที่ผูกใบ HQ (ตอบรับในช่วง)
-  //   ดีลเลอร์ที่ถึงเป้า = ณ ตอนนี้ (ยอดตั้งแต่ต้นปี ≥ เป้าทั้งปี) · ตัวกรองภาค/จังหวัด/ช่วงยอดขาย คุมตารางกับกราฟ ไม่คุมการ์ด
+  //   ดีลเลอร์ที่ถึงเป้า = ณ ตอนนี้ (ยอดตั้งแต่ต้นปี ≥ เป้าทั้งปี)
+  //   การ์ดเดินตามตัวกรองภาค/จังหวัด/ช่วงยอดขาย/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ส่งสาขาที่ผ่านตัวกรอง (ชุดเดียวกับตารางและกราฟ) · เป้า = ผลรวมเป้าของสาขาที่เหลือ
   const { salesVersion } = useSales();
   const ช่วงการ์ด = { start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) };
-  const การ์ด = useKpiCards("hq.pipeline", { ...ช่วงการ์ด, dealer: dealerSel === ALL ? null : dealerSel, today: isoDateOf(APP_NOW), รุ่น: salesVersion });
+  const สาขาการ์ด = useMemo(() => dealers.length === allDealers.length ? null : { dealerCodes: dealers.map(d => d.code) }, [dealers, allDealers]);
+  const การ์ด = useKpiCards("hq.pipeline", { ...ช่วงการ์ด, dealer: dealerSel === ALL ? null : dealerSel, today: isoDateOf(APP_NOW), filters: สาขาการ์ด, รุ่น: salesVersion });
   const ยอดการ์ด = ค่า(การ์ด, "sales.value"), เป้าการ์ด = ค่า(การ์ด, "sales.target");
   // การ์ด "ดีลเลอร์ที่ถึงเป้า" กดแล้ว = ตารางผลงานเหลือเฉพาะสาขาที่ฐานนับว่าถึงเป้า (รหัสสาขาจาก kpi_cards · ตัวเลขกับตารางตรงกัน)
   const [ถึงเป้าเท่านั้น, setถึงเป้าเท่านั้น] = useState(false);

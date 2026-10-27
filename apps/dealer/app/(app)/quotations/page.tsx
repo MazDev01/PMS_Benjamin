@@ -3,7 +3,7 @@
 import { quoteExpiryISO, daysUntilISO } from "@pms/shared/lib/quoteExpiry";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
-import { ค่า, นับ, บาทเต็ม, วันที่ISO } from "@pms/shared/lib/kpiCards";
+import { ค่า, นับ, บาทเต็ม, วันที่ISO, ชุดที่กรอง, type KpiFilters } from "@pms/shared/lib/kpiCards";
 import { APP_NOW } from "@pms/shared/context/FilterContext";
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { SortableTh } from "@pms/shared/components/ui/SortableTh";
@@ -220,15 +220,20 @@ function QuotationsPageInner(){
     if(q){ setขอเปิด(null); window.history.replaceState(null,"","/quotations"); selectRow(q); }
   },[data,ขอเปิด]);
 
+  // ตัวกรองอื่นของหน้า (ค้นหา/ผู้รับผิดชอบ/จังหวัด/สถานะของแถบกลาง · ไม่รวมช่วงเวลาและการ์ดที่กด) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน
+  //   (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  const ตรงตัวกรองอื่น = useCallback((q: QuotationMock)=>{
+    const matchQ=!query||q.id.toLowerCase().includes(query.toLowerCase())||q.customer.toLowerCase().includes(query.toLowerCase())||q.project.toLowerCase().includes(query.toLowerCase())||q.province?.includes(query);
+    const matchOwner=ownerFilter==="ALL"||ownerOf(q)===ownerFilter;
+    const matchProv=provFilter==="ALL"||q.province===provFilter;
+    return matchQ&&matchOwner&&matchProv&&passes({ status:q.status, province:q.province });
+  },[query,ownerFilter,provFilter,passes,ownerOf]);
+  const ชุดการ์ด = useMemo(()=>ชุดที่กรอง(data, ตรงตัวกรองอื่น, q=>q.id),[data,ตรงตัวกรองอื่น]);
   const filtered = useMemo(()=>{
     let rows=data.filter(q=>{
-      const matchQ=!query||q.id.toLowerCase().includes(query.toLowerCase())||q.customer.toLowerCase().includes(query.toLowerCase())||q.project.toLowerCase().includes(query.toLowerCase())||q.province?.includes(query);
       const matchS=(filterStatus==="ALL"||q.status===filterStatus)&&(!ใกล้หมดอายุ||หมดใน3วัน(q));
-      const matchOwner=ownerFilter==="ALL"||ownerOf(q)===ownerFilter;
-      const matchProv=provFilter==="ALL"||q.province===provFilter;
-      // FilterBar กลาง: ช่วงเวลา (date) + สถานะ (enum) + จังหวัด
-      const matchGlobal=passes({ date:q.date, status:q.status, province:q.province });
-      return matchQ&&matchS&&matchOwner&&matchProv&&matchGlobal;
+      // FilterBar กลาง: ช่วงเวลา (date) — สถานะ/จังหวัดอยู่ใน ตรงตัวกรองอื่น
+      return ตรงตัวกรองอื่น(q)&&matchS&&passes({ date:q.date });
     });
     if(sortKey===null) return [...rows].sort(ใหม่ก่อน);
     rows=[...rows].sort((a,b)=>{
@@ -238,7 +243,7 @@ function QuotationsPageInner(){
       return sortDir==="asc"?cmp:-cmp;
     });
     return rows;
-  },[data,query,filterStatus,ownerFilter,provFilter,sortKey,sortDir,passes,ownerOf]);
+  },[data,ตรงตัวกรองอื่น,filterStatus,ใกล้หมดอายุ,sortKey,sortDir,passes]);
 
   // ตัวเลือกตัวกรอง — ดึงจากใบเสนอราคาจริง ไม่ hardcode
   const provOptions  = useMemo(()=>[...new Set(data.map(q=>q.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data]);
@@ -284,7 +289,7 @@ function QuotationsPageInner(){
               ใบร่าง/รอลูกค้าตอบ/ใกล้หมดอายุ = ณ ตอนนี้ · ตอบรับ = ตามวันลูกค้าตอบรับในช่วงที่เลือก (ยอดก่อน VAT) */}
         {(() => {
           const ช่วง = { start: วันที่ISO(timeRange.start), end: วันที่ISO(timeRange.end) };
-          return <KpiCardsRow ช่วง={ช่วง} วันนี้={วันนี้} รุ่น={salesVersion} filterStatus={filterStatus} ใกล้หมดอายุ={ใกล้หมดอายุ}
+          return <KpiCardsRow ช่วง={ช่วง} วันนี้={วันนี้} ตัวกรอง={ชุดการ์ด} รุ่น={salesVersion} filterStatus={filterStatus} ใกล้หมดอายุ={ใกล้หมดอายุ}
             กด={(s, หมด) => { const ซ้ำ = หมด ? ใกล้หมดอายุ : filterStatus === s && !ใกล้หมดอายุ; setใกล้หมดอายุ(!ซ้ำ && หมด); setFilterStatus(ซ้ำ ? "ALL" : s); }} />;
         })()}
 
@@ -507,11 +512,11 @@ function QuotationsPageInner(){
 }
 
 // แถวการ์ด KPI ของหน้าใบเสนอราคา — แยกเป็นคอมโพเนนต์ระดับไฟล์ (ห้ามประกาศซ้อนในคอมโพเนนต์หลัก)
-function KpiCardsRow({ ช่วง, วันนี้, รุ่น, filterStatus, ใกล้หมดอายุ, กด }: {
-  ช่วง: { start: string; end: string }; วันนี้: string; รุ่น: unknown; filterStatus: QuotationStatus | "ALL"; ใกล้หมดอายุ: boolean;
+function KpiCardsRow({ ช่วง, วันนี้, ตัวกรอง, รุ่น, filterStatus, ใกล้หมดอายุ, กด }: {
+  ช่วง: { start: string; end: string }; วันนี้: string; ตัวกรอง: KpiFilters | null; รุ่น: unknown; filterStatus: QuotationStatus | "ALL"; ใกล้หมดอายุ: boolean;
   กด: (s: QuotationStatus, ใกล้หมด: boolean) => void;
 }) {
-  const kpi = useKpiCards("dealer.quotations", { ...ช่วง, today: วันนี้, รุ่น });
+  const kpi = useKpiCards("dealer.quotations", { ...ช่วง, today: วันนี้, filters: ตัวกรอง, รุ่น });
   const cards = [
     { kpi: "drafts", label: "ใบร่าง", value: ค่า(kpi, "drafts"), unit: "ใบ · ยังไม่ส่งลูกค้า", icon: FileText, color: "#2563EB", bg: "#E8F0FE", on: filterStatus === "draft" && !ใกล้หมดอายุ, s: "draft" as const, หมด: false },
     { kpi: "awaiting", label: "รอลูกค้าตอบ", value: ค่า(kpi, "awaiting"), unit: "ใบ · ส่งลูกค้าแล้ว", icon: Hourglass, color: "#EA580C", bg: "#FEF0E6", on: filterStatus === "sent_to_client" && !ใกล้หมดอายุ, s: "sent_to_client" as const, หมด: false },

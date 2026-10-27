@@ -9,6 +9,28 @@ export type KpiPage =
   | "dealer.dashboard" | "dealer.leads" | "dealer.quotations" | "dealer.customers" | "dealer.calendar"
   | "hq.prospects" | "hq.proposals" | "hq.dealers" | "hq.pipeline" | "hq.leads" | "hq.quotations" | "hq.customers" | "hq.audit" | "hq.users";
 
+/** ตัวกรองอื่นของหน้า (บอสตัดสิน 27 ต.ค. 69 "การ์ดเดินตามตัวกรองด้วย") — ฐานคิดตัวเลขเฉพาะในชุดนี้ · ไม่ส่ง = ทั้งหมด
+ *  ids = รหัสแถวที่ผ่านตัวกรองของหน้า (ตารางที่โหลดมาครบ) · dealerCodes/province/source/search/provinces = ตัวกรองของตารางที่แบ่งหน้าที่ฐาน
+ *  ช่วงเวลาไม่อยู่ในนี้ (ส่งแยก) · การ์ดที่กดอยู่ไม่ใช่ตัวกรอง (กดการ์ดแล้วการ์ดใบอื่นต้องไม่เปลี่ยน) */
+export type KpiFilters = {
+  ids?: (string | number)[];
+  dealerCodes?: string[];
+  provinces?: string[];
+  province?: string | null;
+  source?: string | null;
+  search?: string | null;
+  searchDealers?: string[];
+  boughtFrom?: string | null;
+  boughtTo?: string | null;
+};
+
+/** ชุดรหัสของแถวที่ผ่านตัวกรองอื่นของหน้า (ทั้งหมด → ผ่านตัวกรอง) — ไม่มีแถวถูกตัดออก = null (ทั้งหมด · ไม่ส่งรายการยาวโดยเปล่าประโยชน์)
+ *  ตัวกรองที่ไม่ตัดแถวใดออก ให้ตัวเลขเท่ากับไม่กรองอยู่แล้ว จึงไม่ต้องไล่ดูว่าตัวกรองไหนเปิด */
+export function ชุดที่กรอง<T>(ทั้งหมด: readonly T[], ผ่าน: (r: T) => boolean, id: (r: T) => string | number): KpiFilters | null {
+  const เหลือ = ทั้งหมด.filter(ผ่าน);
+  return เหลือ.length === ทั้งหมด.length ? null : { ids: เหลือ.map(id) };
+}
+
 /** ผลดิบจากฐาน (คีย์การ์ด → ตัวเลข หรือก้อนย่อย) — โหลดไม่สำเร็จ/โหมดตัวอย่าง = {} (ทุกใบขึ้น "—") */
 export type KpiCardsData = Record<string, unknown>;
 

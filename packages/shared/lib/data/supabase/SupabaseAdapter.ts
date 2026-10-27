@@ -1009,8 +1009,8 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return จัดรูปแดชบอร์ดHQ(data);
     },
-    kpiCards: async (page, start, end, dealer, today) => {
-      const { data, error } = await sb().rpc("kpi_cards", { p_page: page, p_start: start ?? null, p_end: end ?? null, p_dealer: dealer ?? null, p_today: today ?? null });
+    kpiCards: async (page, start, end, dealer, today, filters) => {
+      const { data, error } = await sb().rpc("kpi_cards", { p_page: page, p_start: start ?? null, p_end: end ?? null, p_dealer: dealer ?? null, p_today: today ?? null, p_filters: filters ?? null });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return (data ?? {}) as Record<string, unknown>;
     },

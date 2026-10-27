@@ -265,10 +265,16 @@ export default function HQLeadsPage() {
 
 
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ช่วงเวลา + ดีลเลอร์ที่เลือก · ไม่นับแถว HQ
-  //   เปิดอยู่ / ไม่เคลื่อนไหว / ลีดของ HQ รอโอน = ณ ตอนนี้ · ลีดใหม่ = เข้ามาในช่วงที่เลือก · ตัวกรองภาค/จังหวัด/ช่องทาง คุมตาราง ไม่คุมการ์ด
+  //   เปิดอยู่ / ไม่เคลื่อนไหว / ลีดของ HQ รอโอน = ณ ตอนนี้ · ลีดใหม่ = เข้ามาในช่วงที่เลือก
+  //   การ์ดเดินตามตัวกรองภาค/จังหวัด/ช่องทาง/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ส่งตัวกรองชุดเดียวกับที่ส่งให้รายการ (leads_page) ฐานกรองกติกาเดียวกัน
+  //   ลีดของ HQ รอโอน = คิวของ HQ เอง ไม่ขึ้นกับตัวกรองสาขา
   const { salesVersion } = useSales();
   const ช่วงการ์ด = { start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) };
-  const การ์ด = useKpiCards("hq.leads", { ...ช่วงการ์ด, dealer: dealerSel === "ALL" ? null : dealerSel, today: isoDateOf(APP_NOW), รุ่น: salesVersion });
+  const ตัวกรองการ์ด = useMemo(() => {
+    const f = { dealerCodes: leadDealerCodes, province: baseF.province, source: baseF.source, search: baseF.search };
+    return Object.values(f).some(v => v !== undefined) ? f : null;
+  }, [leadDealerCodes, baseF.province, baseF.source, baseF.search]);
+  const การ์ด = useKpiCards("hq.leads", { ...ช่วงการ์ด, dealer: dealerSel === "ALL" ? null : dealerSel, today: isoDateOf(APP_NOW), filters: ตัวกรองการ์ด, รุ่น: salesVersion });
   const kpiCards = [
     { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(การ์ด, "open"), unit: "ราย · ยังไม่ปิดการขาย", Icon: Users, color: "#2563a8", on: status === "ALL" && !overdueOnly,
       onClick: () => { setStatus("ALL"); setOverdueOnly(false); } },

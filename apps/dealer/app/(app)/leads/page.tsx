@@ -55,7 +55,7 @@ import { provincesOfRegion } from "@pms/shared/lib/provinces";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
-import { ค่า, นับ } from "@pms/shared/lib/kpiCards";
+import { ค่า, นับ, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import { useMyProvinces } from "@pms/shared/lib/useMyProvinces";
 import { dealers as dealersRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
@@ -925,7 +925,8 @@ export default function LeadsPage() {
   //
   // ⚠️ จงใจไม่รวม "สถานะ" กับ "ค้างติดต่อ" ไว้ในฐานนี้ เพราะการ์ด KPI เป็นตัวสลับสองอย่างนั้นเอง
   //    ถ้ารวมเข้าไปด้วย พอกดกรองสถานะหนึ่ง การ์ดอื่นจะกลายเป็น 0 แล้วกดสลับกลับไม่ได้อีก
-  const ตรงตัวกรองพื้นฐาน = useCallback((l: LeadRow) => {
+  // ตัวกรองอื่นของหน้า (ไม่รวมช่วงเวลา) — ใช้ทั้งตาราง และส่งชุดลีดที่ผ่านให้การ์ด KPI (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  const ตรงตัวกรองอื่น = useCallback((l: LeadRow) => {
     const q = query.toLowerCase();
     const matchQ = !query
       || l.company.toLowerCase().includes(q)
@@ -933,16 +934,17 @@ export default function LeadsPage() {
       || l.province.toLowerCase().includes(q)
       || l.id.toLowerCase().includes(q);
     const matchPerson = person === "all" || assignedHas(l.assigned, person);
-    // ช่วงเวลา = วันที่ลูกค้าเข้ามา เกณฑ์เดียวกับหน้าสำนักงานใหญ่ (บอสเลือก 15 ก.ย. 69 · เดิมใช้วันติดต่อล่าสุด)
-    const matchTime = leadEnteredInRange(l, timeRange.start, timeRange.end);
     const matchA = !fAssignee || assignedHas(l.assigned, fAssignee);
     const matchP = !fProvince || l.province === fProvince;
     const matchSrc = !fSource || (l.source ?? "") === fSource;
     const val = มูลค่าลีด(l) ?? 0;   // ยอดใบล่าสุด (ไม่มีใบ = 0 → ไม่ผ่านตัวกรองขั้นต่ำ)
     const matchMin = !fValueMin || val >= parseFloat(fValueMin.replace(/[฿,M]/g,""))*1e6;
     const matchMax = !fValueMax || val <= parseFloat(fValueMax.replace(/[฿,M]/g,""))*1e6;
-    return matchQ && matchPerson && matchTime && matchA && matchP && matchSrc && matchMin && matchMax;
-  }, [query, person, timeRange, fAssignee, fProvince, fSource, fValueMin, fValueMax]);
+    return matchQ && matchPerson && matchA && matchP && matchSrc && matchMin && matchMax;
+  }, [query, person, fAssignee, fProvince, fSource, fValueMin, fValueMax]);
+  // ช่วงเวลา = วันที่ลูกค้าเข้ามา เกณฑ์เดียวกับหน้าสำนักงานใหญ่ (บอสเลือก 15 ก.ย. 69 · เดิมใช้วันติดต่อล่าสุด)
+  const ตรงตัวกรองพื้นฐาน = useCallback((l: LeadRow) => ตรงตัวกรองอื่น(l) && leadEnteredInRange(l, timeRange.start, timeRange.end),
+    [ตรงตัวกรองอื่น, timeRange]);
 
   const filtered = useMemo(() => {
     let arr = leadsData.filter(l => {
@@ -1192,9 +1194,11 @@ export default function LeadsPage() {
     () => [...new Set([followUpAlertDays, 7, 14, 30])].sort((a, b) => a - b),
     [followUpAlertDays],
   );
-  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ฐานคิด ณ ตอนนี้ของทั้งสาขา (ไม่ขึ้นกับตัวกรองอื่นของหน้า · กติกาการ์ด "ณ ตอนนี้")
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ฐานคิด ณ ตอนนี้ (ไม่ขึ้นกับช่วงเวลา) ในชุดลีดที่ผ่านตัวกรองอื่นของหน้า
+  //   (จังหวัด/ผู้รับผิดชอบ/ช่องทาง/ค้นหา/มูลค่า · บอสตัดสิน 27 ต.ค. 69) · การ์ดที่กดอยู่/สถานะ ไม่ใช่ตัวกรองของการ์ด
   //   ขั้น 2/3/5 = ตัวแปลงกลาง lib/leadStage.ts (ฐานใช้กติกาเดียวกัน) · กดการ์ด = กรองตารางตามขั้นนั้น · กดซ้ำ = ล้าง
-  const kpi = useKpiCards("dealer.leads", { รุ่น: [myAllLeads.map(l => `${l.id}:${l.status}`).join(","), quotations.filter(q => q.status === "draft").length] });
+  const ชุดการ์ด = useMemo(() => ชุดที่กรอง(myAllLeads, ตรงตัวกรองอื่น, l => l.id), [myAllLeads, ตรงตัวกรองอื่น]);
+  const kpi = useKpiCards("dealer.leads", { filters: ชุดการ์ด, รุ่น: [myAllLeads.map(l => `${l.id}:${l.status}`).join(","), quotations.filter(q => q.status === "draft").length] });
   const กดขั้น = (s: 2 | 3 | 5 | null) => { setFilterStatus("ALL"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
   const kpiCards = [
     { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",

@@ -5,7 +5,7 @@ import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มู�
 import { useRouter } from "next/navigation";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
-import { ค่า, นับ, บาทเต็ม, วันที่ISO } from "@pms/shared/lib/kpiCards";
+import { ค่า, นับ, บาทเต็ม, วันที่ISO, ชุดที่กรอง, type KpiFilters } from "@pms/shared/lib/kpiCards";
 import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT } from "@pms/shared/lib/uploadLimits";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
 import { buildLeadTasks, leadStatusLabel, leadStatusColor, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
@@ -538,16 +538,22 @@ export default function CustomersPage(){
     if (การ์ดที่กด === "new") { const d = /^\d{4}-\d{2}-\d{2}/.test(c.joinDate ?? "") ? c.joinDate.slice(0, 10) : ""; return !!d && d >= วันที่ISO(timeRange.start) && d <= วันที่ISO(timeRange.end); }
     return true;
   }, [การ์ดที่กด, ลูกค้ามีงานเปิด, timeRange]);
+  // ตัวกรองอื่นของหน้า (ค้นหา/จังหวัด/ผู้ดูแล · ไม่รวมช่วงเวลาและการ์ดที่กด) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน
+  //   (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  const ตรงตัวกรองอื่น = useCallback((c: CustomerRow)=>{
+    const q=query.toLowerCase();
+    const matchQ=!q||c.company.toLowerCase().includes(q)||c.name.toLowerCase().includes(q)||c.province.toLowerCase().includes(q)||c.phone.includes(q);
+    // ตัวกรอง "สถานะ" + "ลูกค้าใหม่/เดิม" ถูกลบตามที่บอสสั่ง — ไม่มี UI ให้ตั้งค่าแล้ว
+    const matchP=provFilter==="ALL"||c.province===provFilter;
+    const matchO=ownerFilter==="ALL"||(c.owner||"")===ownerFilter;
+    return matchQ&&matchP&&matchO;
+  },[query,provFilter,ownerFilter]);
+  const ชุดการ์ด = useMemo(()=>ชุดที่กรอง(data, ตรงตัวกรองอื่น, c=>c.id),[data,ตรงตัวกรองอื่น]);
   const filtered = useMemo(()=>{
     let rows=data.filter(c=>{
-      const q=query.toLowerCase();
-      const matchQ=!q||c.company.toLowerCase().includes(q)||c.name.toLowerCase().includes(q)||c.province.toLowerCase().includes(q)||c.phone.includes(q);
-      // ตัวกรอง "สถานะ" + "ลูกค้าใหม่/เดิม" ถูกลบตามที่บอสสั่ง — ไม่มี UI ให้ตั้งค่าแล้ว
-      const matchP=provFilter==="ALL"||c.province===provFilter;
-      const matchO=ownerFilter==="ALL"||(c.owner||"")===ownerFilter;
       // กรองตามช่วงเวลา — ใช้ "กิจกรรมล่าสุด" ของลูกค้า (โชว์ลูกค้าที่มีความเคลื่อนไหวในช่วงที่เลือก)
       const matchT=passes({date:lastActivityFor(c.id,c.joinDate,quotations)});
-      return matchQ&&matchP&&matchO&&matchT&&ตรงการ์ด(c);
+      return ตรงตัวกรองอื่น(c)&&matchT&&ตรงการ์ด(c);
     });
     if(sortKey===null) return [...rows].sort((a,b)=>b.id-a.id);
     const sortVal=(c:CustomerRow):string|number=>{
@@ -570,7 +576,7 @@ export default function CustomersPage(){
       return 0;
     });
     return rows;
-  },[data,quotations,query,provFilter,ownerFilter,sortKey,sortDir,timeRange,passes,ตรงการ์ด]);
+  },[data,quotations,ตรงตัวกรองอื่น,sortKey,sortDir,timeRange,passes,ตรงการ์ด]);
 
   // ตัวเลือกตัวกรอง — ดึงจากข้อมูลลูกค้าจริงที่มีอยู่ (ไม่ hardcode รายการจังหวัด/พนักงาน)
   const provOptions  = useMemo(()=>[...new Set(data.map(c=>c.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data]);
@@ -849,7 +855,7 @@ export default function CustomersPage(){
 
         {/* ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246 · ทับความจำ "2 ใบตั้งใจ") — ตัวเลขคิดที่ฐาน (kpi_cards · สาขาของผู้ล็อกอิน)
               ทั้งหมด / มีงานขายใหม่เปิดอยู่ = ณ ตอนนี้ · ใหม่ / ยอดขาย = ในช่วงที่เลือก · กดการ์ด = กรองตาราง (ยอดขาย → ใบที่ตอบรับ) */}
-        <CustomerKpiRow ช่วง={{ start: วันที่ISO(timeRange.start), end: วันที่ISO(timeRange.end) }} รุ่น={salesVersion} การ์ดที่กด={การ์ดที่กด}
+        <CustomerKpiRow ช่วง={{ start: วันที่ISO(timeRange.start), end: วันที่ISO(timeRange.end) }} ตัวกรอง={ชุดการ์ด} รุ่น={salesVersion} การ์ดที่กด={การ์ดที่กด}
           กด={k => k === "sales" ? router.push("/quotations?kpi=won") : setการ์ดที่กด(การ์ดที่กด === k || k === "total" ? null : k)} />
 
 
@@ -1757,10 +1763,10 @@ export default function CustomersPage(){
 }
 
 // แถวการ์ด KPI ของหน้าลูกค้า — คอมโพเนนต์ระดับไฟล์ (ห้ามประกาศซ้อนในคอมโพเนนต์หลัก)
-function CustomerKpiRow({ ช่วง, รุ่น, การ์ดที่กด, กด }: {
-  ช่วง: { start: string; end: string }; รุ่น: unknown; การ์ดที่กด: "new" | "openDeal" | null; กด: (k: "total" | "new" | "sales" | "openDeal") => void;
+function CustomerKpiRow({ ช่วง, ตัวกรอง, รุ่น, การ์ดที่กด, กด }: {
+  ช่วง: { start: string; end: string }; ตัวกรอง: KpiFilters | null; รุ่น: unknown; การ์ดที่กด: "new" | "openDeal" | null; กด: (k: "total" | "new" | "sales" | "openDeal") => void;
 }) {
-  const kpi = useKpiCards("dealer.customers", { ...ช่วง, today: วันที่ISO(APP_NOW), รุ่น });
+  const kpi = useKpiCards("dealer.customers", { ...ช่วง, today: วันที่ISO(APP_NOW), filters: ตัวกรอง, รุ่น });
   const cards = [
     { kpi: "total" as const, label: "ลูกค้าทั้งหมด", value: นับ(ค่า(kpi, "total")), raw: ค่า(kpi, "total"), unit: "ราย", icon: Users, color: "#2563EB", bg: "#E8F0FE", on: การ์ดที่กด == null },
     { kpi: "new" as const, label: "ลูกค้าใหม่ในช่วงนี้", value: นับ(ค่า(kpi, "new")), raw: ค่า(kpi, "new"), unit: "ราย · ตามวันที่เป็นลูกค้า", icon: UserPlus, color: "#7C3AED", bg: "#F3E8FF", on: การ์ดที่กด === "new" },

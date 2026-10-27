@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
-import { ค่า, นับ, บาทเต็ม, เดือนนี้ } from "@pms/shared/lib/kpiCards";
+import { ค่า, นับ, บาทเต็ม, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import { FileText, Send, AlarmClock, Search, X, Eye, Printer, MapPin, ExternalLink, Coins, Wallet } from "lucide-react";
 import { proposals as proposalsRepo, prospects as prospectsRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
 import type { DealerPackage, DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
@@ -115,22 +115,25 @@ export default function HQProposalsPage() {
 
   const รายตามรหัส = useMemo(() => new Map(ราย.map(r => [r.id, r])), [ราย]);
 
-  const filtered = useMemo(() => {
+  // ตัวกรองอื่นของหน้า (แพ็กเกจ/คำค้น · ไม่รวมสถานะกับชุดที่กดจากการ์ด) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน (บอสตัดสิน 27 ต.ค. 69)
+  const ตรงตัวกรองอื่น = useCallback((p: DealerPackageProposal) => {
+    if (packageFilter !== "all" && p.package !== packageFilter) return false;
     const คำ = q.trim().toLowerCase();
-    return ใบ.filter(p => {
-      if (ค้างชำระ && !ค้างชำระ.has(p.id)) return false;
-      if (statusFilter === "expired" ? !หมดอายุแล้ว(p, APP_NOW_ISO) : statusFilter !== "all" && p.status !== statusFilter) return false;
-      if (packageFilter !== "all" && p.package !== packageFilter) return false;
-      if (!คำ) return true;
-      const r = รายตามรหัส.get(p.prospectId);
-      return [p.proposalNo, r?.name, r?.social, p.province, p.region, packageLabel[p.package]]
-        .some(v => String(v ?? "").toLowerCase().includes(คำ));
-    });
-  }, [ใบ, statusFilter, packageFilter, q, รายตามรหัส, ค้างชำระ]);
+    if (!คำ) return true;
+    const r = รายตามรหัส.get(p.prospectId);
+    return [p.proposalNo, r?.name, r?.social, p.province, p.region, packageLabel[p.package]]
+      .some(v => String(v ?? "").toLowerCase().includes(คำ));
+  }, [packageFilter, q, รายตามรหัส]);
+  const filtered = useMemo(() => ใบ.filter(p => {
+    if (ค้างชำระ && !ค้างชำระ.has(p.id)) return false;
+    if (statusFilter === "expired" ? !หมดอายุแล้ว(p, APP_NOW_ISO) : statusFilter !== "all" && p.status !== statusFilter) return false;
+    return ตรงตัวกรองอื่น(p);
+  }), [ใบ, statusFilter, ตรงตัวกรองอื่น, ค้างชำระ]);
+  const ชุดการ์ด = useMemo(() => ชุดที่กรอง(ใบ, ตรงตัวกรองอื่น, p => p.id), [ใบ, ตรงตัวกรองอื่น]);
 
-  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ทั้งหมด ไม่ขึ้นกับตัวกรองของตาราง
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ในชุดใบที่ผ่านตัวกรองแพ็กเกจ/คำค้น (บอสตัดสิน 27 ต.ค. 69)
   //   ไม่มีตัวกรองช่วงเวลา → รับชำระ = เดือนนี้ (บอสตัดสิน 27 ต.ค. 69) · ค้าง/เกินกำหนด/รับชำระ: ฐานส่งเลขใบมาให้กรองตารางตรงกับตัวเลข
-  const kpi = useKpiCards("hq.proposals", { ...ช่วงเดือนนี้, today: APP_NOW_ISO, รุ่น: ใบ.map(p => `${p.id}:${p.status}`).join(",") });
+  const kpi = useKpiCards("hq.proposals", { ...ช่วงเดือนนี้, today: APP_NOW_ISO, filters: ชุดการ์ด, รุ่น: ใบ.map(p => `${p.id}:${p.status}`).join(",") });
   const กรองชุด = (คีย์: "unpaid" | "overdue" | "paid", ป้าย: string) => {
     const ids = ((kpi?.[คีย์] as { ids?: number[] } | undefined)?.ids ?? []).map(Number);
     const ซ้ำ = !!ค้างชำระ && ป้ายชุด === ป้าย;

@@ -19,7 +19,7 @@ import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { Search, LogIn, Store, LayoutGrid, List, CheckCircle2, Activity, MoonStar } from "lucide-react";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
-import { ค่า, นับ } from "@pms/shared/lib/kpiCards";
+import { ค่า, นับ, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
 import { TerritoryUnmatchedCard } from "@pms/shared/components/hq/TerritoryUnmatchedCard";
@@ -128,7 +128,11 @@ function HQDealersPageInner() {
 
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) ณ ตอนนี้ · ไม่นับแถว HQ · หน้านี้ไม่มียอดเงิน (บอสตัดสิน)
   //   ความเคลื่อนไหว = งานขายของสาขาใน 30 วัน (เพิ่ม/ติดต่อลีด · ทำ/แก้ใบ · ขอราคา) ไม่ใช่การเข้าระบบ (บอสตัดสิน 22 ต.ค. 69)
-  const kpi = useKpiCards("hq.dealers", { today: APP_NOW_ISO, รุ่น: dealers.map(d => `${d.code}:${d.status}`).join(",") });
+  //   การ์ดเดินตามตัวกรองภาค/คำค้น (บอสตัดสิน 27 ต.ค. 69) · สถานะ/กลุ่มเคลื่อนไหว = ปุ่มเดียวกับการ์ด ไม่ใช่ตัวกรองของการ์ด
+  const ตรงตัวกรองอื่น = (d: DealerRow) => (regionFilter === "ทั้งหมด" || d.region === regionFilter)
+    && (!q || `${d.code} ${d.name} ${d.province} ${d.region}`.toLowerCase().includes(q.toLowerCase()));
+  const ชุดการ์ด = ชุดที่กรอง(dealers.filter(ไม่ใช่แถวHQ), ตรงตัวกรองอื่น, d => d.code);
+  const kpi = useKpiCards("hq.dealers", { today: APP_NOW_ISO, filters: ชุดการ์ด, รุ่น: dealers.map(d => `${d.code}:${d.status}`).join(",") });
   const รหัสกลุ่ม = new Set(((กลุ่มเคลื่อนไหว ? kpi?.[กลุ่มเคลื่อนไหว === "moving" ? "movingCodes" : "idleCodes"] : []) as string[] | undefined) ?? []);
   const กดกลุ่ม = (g: "moving" | "idle" | null, s: DealerStatus | "all") => { setกลุ่มเคลื่อนไหว(กลุ่มเคลื่อนไหว === g && statusFilter === s ? null : g); setStatusFilter(s); setPage(0); };
 
@@ -138,9 +142,7 @@ function HQDealersPageInner() {
     if (!ไม่ใช่แถวHQ(d)) return false;
     if (statusFilter !== "all" && dealerStatus(d) !== statusFilter) return false;
     if (กลุ่มเคลื่อนไหว && !รหัสกลุ่ม.has(d.code)) return false;
-    if (regionFilter !== "ทั้งหมด" && d.region !== regionFilter) return false;
-    if (q && !`${d.code} ${d.name} ${d.province} ${d.region}`.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
+    return ตรงตัวกรองอื่น(d);
     // ดีลเลอร์ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
   }).sort((a, b) => เวลาเพิ่ม(b) - เวลาเพิ่ม(a) || a.code.localeCompare(b.code));
 

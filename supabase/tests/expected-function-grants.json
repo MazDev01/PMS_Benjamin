@@ -1,5 +1,5 @@
 {
- "migration": "0245",
+ "migration": "0246",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -35,6 +35,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "_dealer_active_since(p_dealer text, p_since date)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "_dealer_display_vat(p_dealer text)",
@@ -80,6 +87,13 @@
   },
   {
    "f": "_hd_won(p_dealer text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_kpi_won(p_dealer text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -161,6 +175,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "_quote_valid_until(q quotations)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "_quote_vat_backfill()",
@@ -734,6 +755,13 @@
    "anon": false,
    "authenticated": true,
    "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "kpi_cards(p_page text, p_start date, p_end date, p_dealer text, p_today date, p_filters jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
    "definer": true
   },
   {

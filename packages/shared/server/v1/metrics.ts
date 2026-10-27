@@ -31,7 +31,9 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
   // การ์ด KPI 4 ใบ (ใบ 0246) — ฐานตรวจสิทธิ์เอง (หน้าดีลเลอร์ = สาขาของผู้เรียก · หน้า HQ = is_hq) · ส่งก้อนตรง ๆ
   kpiCards: {
     rpc: "kpi_cards",
-    args: a => ({ p_page: S(a.page), p_start: a.start ?? null, p_end: a.end ?? null, p_dealer: a.dealer ?? null, p_today: a.today ?? null }),
+    // filters = ตัวกรองอื่นของหน้า (ชุดรหัส/สาขา/จังหวัด/คำค้น) — ฐานตรวจรูปเอง ส่งต่อเฉพาะก้อนข้อมูล
+    args: a => ({ p_page: S(a.page), p_start: a.start ?? null, p_end: a.end ?? null, p_dealer: a.dealer ?? null, p_today: a.today ?? null,
+                  p_filters: a.filters && typeof a.filters === "object" && !Array.isArray(a.filters) ? a.filters : null }),
     shape: d => (d ?? {}),
   },
   dealerRollup: {
