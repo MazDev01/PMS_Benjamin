@@ -1,5 +1,5 @@
 {
- "migration": "0246",
+ "migration": "0248",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -51,6 +51,13 @@
    "definer": true
   },
   {
+   "f": "_dealer_issuer(p_dealer text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_dealer_notify_emails(p_dealer text)",
    "anon": false,
    "authenticated": false,
@@ -93,6 +100,20 @@
    "definer": true
   },
   {
+   "f": "_issuer_complete(p jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_issuer_missing(p jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_kpi_won(p_dealer text)",
    "anon": false,
    "authenticated": false,
@@ -115,6 +136,13 @@
   },
   {
    "f": "_lead_refresh_quote_value(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_lead_sync_append(p_dealer text, p_num integer, p_keys text[], p_text text, p_type text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -203,6 +231,13 @@
    "authenticated": true,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "appointments_insert_lead_sync()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "audit_actor()",
@@ -1038,6 +1073,13 @@
    "definer": true
   },
   {
+   "f": "quotation_print_data(p_dealer text, p_id text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotation_revert_won(p_dealer text, p_id text, p_reason text, p_to quotation_status)",
    "anon": false,
    "authenticated": true,
@@ -1094,6 +1136,13 @@
    "definer": true
   },
   {
+   "f": "quotations_issuer_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotations_lead_quote_value()",
    "anon": false,
    "authenticated": false,
@@ -1123,6 +1172,13 @@
   },
   {
    "f": "quotations_sent_lock()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quotations_update_lead_sync()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

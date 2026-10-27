@@ -1,7 +1,7 @@
 // ── ใบเสนอราคา: เทมเพลตพิมพ์ + การตั้งค่าเอกสาร (แหล่งเดียว) ──────────────────
 // ใช้ร่วมกันทั้งหน้า /quotations และใบเสนอราคา inline ในหน้า Lead (LeadQuotationsPanel)
 // เพื่อให้เอกสารที่พิมพ์ออกมา "เหมือนกัน 100%" ทุกจุด — VAT / ตราประทับ / ลายเซ็น / หัวกระดาษ
-import { DEFAULT_ISSUER, ISSUER_KEY, loadHQPolicy, fmtISOToThai, type IssuerProfile, type QuotationMock } from "./mock";
+import { loadHQPolicy, fmtISOToThai, type IssuerProfile, type QuotationMock } from "./mock";
 
 // การตั้งค่าเอกสาร (จาก Settings → ตั้งค่าใบเสนอราคา) — คนละคีย์กับโปรไฟล์บริษัท
 // termsAndConditions / validityDays มาจากหน้าตั้งค่าดีลเลอร์ (คีย์ dealer_document_settings เดียวกัน)
@@ -14,13 +14,6 @@ export const DEFAULT_DOC: DocProfile = { stamp: "", signature: "", vatPercent: 7
 export const DOC_KEY = "dealer_document_settings";
 
 export type PrintCustomer = { company?: string; name?: string; phone?: string; province?: string; email?: string };
-
-// อ่านโปรไฟล์ผู้ออก (บริษัทดีลเลอร์) จาก localStorage — fallback = DEFAULT_ISSUER
-export function loadIssuer(): IssuerProfile {
-  if (typeof window === "undefined") return { ...DEFAULT_ISSUER };
-  try { const s = localStorage.getItem(ISSUER_KEY); if (s) return { ...DEFAULT_ISSUER, ...JSON.parse(s) }; } catch {}
-  return { ...DEFAULT_ISSUER };
-}
 
 // อ่านการตั้งค่าเอกสาร (ตรา/ลายเซ็น/prefix/เลขรัน) — fallback = DEFAULT_DOC
 // VAT บังคับมาจากนโยบาย HQ เสมอ (HQ คุมอัตราภาษีทั้งเครือ · ดีลเลอร์แก้ไม่ได้)
@@ -178,24 +171,32 @@ table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical
 </body></html>`;
 }
 
-// พิมพ์ใบเสนอราคา — โหลด issuer + doc จาก localStorage เอง แล้วเปิดหน้าต่างพิมพ์
-// ใช้ตัวนี้เพื่อความสม่ำเสมอ (VAT/ตรา/ลายเซ็น มาจากการตั้งค่าจริงเสมอ)
-// vatPercent: ส่ง VAT จาก useHQPolicy() มาด้วยเสมอ (ค่าจริงของ HQ) — ดู loadDoc
+// พิมพ์ใบเสนอราคา — ตรา/ลายเซ็น/เงื่อนไข (doc) จากการตั้งค่าของสาขา · หัวกระดาษ (issuer) จากฐานเท่านั้น (ใบ 0247)
+// vatPercent: VAT ของใบ (ไม่มีค่อยใช้ของสาขา) — ดู loadDoc
 /** ตั้งค่าของสาขาที่ใช้ประกอบเอกสาร — ผู้เรียกต้องส่งมาจาก useDealerSettings()
- *  ไม่ส่งมา = ตกไปอ่าน localStorage ซึ่งถูกเฉพาะโหมด local (โหมดจริงค่าอยู่ใน DB) */
+ *  ไม่ส่งมา = ตกไปอ่าน localStorage ซึ่งถูกเฉพาะโหมด local (โหมดจริงค่าอยู่ใน DB)
+ *  issuer ในนี้ไม่ใช้พิมพ์แล้ว (หัวกระดาษมาจาก ขอข้อมูลพิมพ์) — คงช่องไว้ให้ผู้เรียกส่งก้อนตั้งค่าเดิมได้ */
 export type PrintSettings = { issuer?: IssuerProfile; doc?: DocProfile };
 
-export function printQuotation(q: QuotationMock, cust?: PrintCustomer, vatPercent?: number, settings?: PrintSettings) {
-  // ใช้สแนปช็อตผู้ออกที่ตรึงไว้กับใบ (ถ้ามี) — ใบเก่าคงชื่อเดิม; ไม่มีค่อย fallback โปรไฟล์ปัจจุบัน
-  //
-  // settings ต้องส่งมาจากหน้าจอเสมอในโหมดจริง — เดิมฟังก์ชันนี้อ่าน localStorage เอง
-  // ทำให้ "ใบเดียวกัน" พิมพ์จากหน้าลูกค้า/แผงลูกค้าเป้าหมาย ได้หัวกระดาษคนละชุดกับพิมพ์จากหน้าใบเสนอราคา
-  // (หน้าใบเสนอราคาส่งค่าจาก DB มาแล้ว · อีกสองที่ยังได้ค่าเริ่มต้นของโปรเจกต์)
-  const issuer = q.issuer ?? settings?.issuer ?? loadIssuer();
-  const doc = settings?.doc
-    ? { ...settings.doc, vatPercent: typeof vatPercent === "number" && vatPercent >= 0 ? vatPercent : settings.doc.vatPercent }
-    : loadDoc(vatPercent);
-  const html = buildQuotationHTML(q, issuer, cust, doc);
-  const w = window.open("", "_blank"); if (!w) return;
-  w.document.write(html); w.document.close();
+/** ขอข้อมูลพิมพ์จากฐาน (quotations.printData · ใบ 0247) — ฐานตรวจข้อมูลบริษัทครบ + จดเวลาพิมพ์ · คืนหัวกระดาษที่ต้องพิมพ์ */
+export type ขอข้อมูลพิมพ์ = () => Promise<{ issuer: IssuerProfile }>;
+
+// ⚠️ พิมพ์ทุกครั้งต้องผ่านฐาน (บอสสั่ง: ดีลเลอร์พิมพ์ใบให้ลูกค้าไม่ได้จนกว่ากรอกข้อมูลบริษัทครบ · กันที่ฐาน)
+//   หัวกระดาษมาจากฐานเท่านั้น (ข้อมูลที่ตรึงไว้กับใบถ้าครบ ไม่งั้นข้อมูลปัจจุบันของสาขา) — ไม่ใช้ค่าในหน้าจอ
+//   เปิดหน้าต่างก่อนรอฐาน: เบราว์เซอร์บล็อกหน้าต่างที่เปิดหลังรอ (ไม่ใช่จังหวะกดของผู้ใช้) · ฐานปฏิเสธ = ปิดหน้าต่าง แล้วโยนข้อผิดพลาดให้ผู้เรียกแจ้ง
+export async function printQuotation(q: QuotationMock, cust: PrintCustomer | undefined, vatPercent: number | undefined, settings: PrintSettings | undefined, ขอ: ขอข้อมูลพิมพ์) {
+  const w = window.open("", "_blank");
+  w?.document.write('<p style="font-family:sans-serif;color:#6b7280;padding:24px">กำลังเตรียมเอกสาร…</p>');
+  try {
+    const { issuer } = await ขอ();
+    const doc = settings?.doc
+      ? { ...settings.doc, vatPercent: typeof vatPercent === "number" && vatPercent >= 0 ? vatPercent : settings.doc.vatPercent }
+      : loadDoc(vatPercent);
+    const html = buildQuotationHTML(q, issuer, cust, doc);
+    if (!w) return;
+    w.document.open(); w.document.write(html); w.document.close();
+  } catch (e) {
+    w?.close();
+    throw e;
+  }
 }

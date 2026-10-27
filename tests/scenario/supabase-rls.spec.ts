@@ -325,6 +325,9 @@ test("[dealer-settings] หัวกระดาษ/เอกสารของ�
   const cnx = await signIn(CNX);
   const hq  = await signIn(ADMIN);
   const issuer = { company: "บจ. ทดสอบอัตโนมัติ", address: "ที่อยู่ทดสอบ", phone: "000", taxId: "0000000000000" };
+  // คืนแถวตั้งค่าเดิมของ RYG ตอนจบ — เดิมลบทิ้งทั้งแถว ข้อมูลบริษัทของ RYG (ข้อมูลตั้งต้น) หายกลางรอบ
+  //   แล้วชุดอื่นที่ส่ง/พิมพ์ใบของ RYG ตกตาม (ใบ 0247 · รอบตรวจรวม 27 ต.ค. 69)
+  const เดิม = (await ryg.from("dealer_settings").select("*").eq("dealer_code", "RYG").maybeSingle()).data;
   try {
     // สาขาบันทึกหัวกระดาษของตัวเองได้
     const up = await ryg.from("dealer_settings")
@@ -347,7 +350,8 @@ test("[dealer-settings] หัวกระดาษ/เอกสารของ�
     const byHQ = await hq.from("dealer_settings").update({ issuer: { company: "HQ แก้" } }).eq("dealer_code", "RYG").select();
     expect(wasBlocked(byHQ), "HQ ต้องแก้หัวกระดาษของดีลเลอร์ไม่ได้").toBe(true);
   } finally {
-    await ryg.from("dealer_settings").delete().eq("dealer_code", "RYG");
+    if (เดิม) await ryg.from("dealer_settings").upsert(เดิม, { onConflict: "dealer_code" });
+    else await ryg.from("dealer_settings").delete().eq("dealer_code", "RYG");
   }
 });
 

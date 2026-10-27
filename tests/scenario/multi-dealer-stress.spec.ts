@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason, appEnv } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, cleanup, watchErrors, assertNoErrors, นำเข้าลูกค้าหนึ่งราย, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
 import { settle, ติดตามคำขอ } from "./helpers";
-import { ลบสาขาทดสอบตรง } from "./testDealers";
+import { ลบสาขาทดสอบตรง, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 
 // ── Multi-Dealer Load / Stress Test ──────────────────────────────────────────
@@ -48,6 +48,7 @@ async function provisionDealer(token: string, code: string): Promise<Provisioned
   if (!res.ok) { console.log(`[setup] สร้างดีลเลอร์ ${code} ไม่สำเร็จ: ${JSON.stringify(json)}`); return null; }
   // เทสต์นี้ไม่ได้ทดสอบหน้าตั้งรหัสครั้งแรก — ปลดไว้ ไม่งั้นทุกหน้าติดอยู่ที่หน้านั้น
   await (await import("./firstLogin")).ข้ามตั้งรหัสครั้งแรก(json.email);
+  await กรอกข้อมูลบริษัททดสอบ(code);   // ส่งใบให้ลูกค้าต้องมีข้อมูลบริษัทครบ (ใบ 0247)
   return { code, email: json.email, password: json.password };
 }
 

@@ -6,11 +6,12 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
 import { settle, เปิดใบHQในกล่องงาน } from "./helpers";
 import { ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
+import { adminClient } from "./testDealers";
 
 // ── ถ่ายรูปก่อน/หลัง งานแม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────────────────────────────
 //   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง npm run test:prodbuild -- tests/scenario/zz-shots-material-templates.spec.ts
 //   รูปลง C:/.claude/pms-shots/material-templates/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ
-//   ฉาก: ตั้งค่า HQ (แท็บแม่แบบวัสดุ) · ฟอร์มขอราคาของดีลเลอร์ (D3) · ใบ HQ ของคำขอ (H8)
+//   ฉาก: ตั้งค่า HQ (แท็บแม่แบบวัสดุ) · ฟอร์มขอราคาของดีลเลอร์ (D3) · ตารางเลือกวัสดุที่เลือกแล้ว 2 รายการ · ใบ HQ ของคำขอ (H8)
 test.skip(() => !process.env.PMS_SHOTS, "ถ่ายรูปก่อน/หลังงานแม่แบบวัสดุ — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง (ไม่ใช่ข้อทดสอบ)");
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(600_000);
@@ -32,7 +33,16 @@ async function ถ่าย(page: Page, ฉาก: string, เตรียม: (
   }
 }
 
+// วัสดุทดสอบ 2 รายการ (ชื่อยาว/หน่วยยาว = กรณีที่ตารางเบียดที่สุด) — ให้ฉากตารางเลือกวัสดุมีแถวจริง
+const วัสดุ = [
+  { category: "ZZTEST", name: `ZZTEST ผนังเมทัลชีท 0.35 มม. สีขาวนวล พร้อมฉนวนกันความร้อน ${แท็ก}`, unit: "ตร.ม. (ตารางเมตร)", unit_price: 1234567.89 },
+  { category: "ZZTEST", name: `ZZTEST ประตูม้วน ${แท็ก}`, unit: "ชุด", unit_price: 45000 },
+];
+let ไอดีวัสดุ: number[] = [];
 test.beforeAll(async () => {
+  const ม = await adminClient().from("material_templates").insert(วัสดุ).select("id");
+  expect(ม.error).toBeNull();
+  ไอดีวัสดุ = (ม.data ?? []).map(x => Number(x.id));
   const sb = await db(RYG);
   for (const k of ["ฟอร์ม", "ใบ"] as const) {
     const l = await sb.from("leads").insert({ id: `#L-${เลข[k]}`, num_id: เลข[k], dealer_code: "RYG", company: บริษัท(k), name: บริษัท(k),
@@ -42,7 +52,10 @@ test.beforeAll(async () => {
   const r = await sb.rpc("quote_request_submit", { p_lead_num_id: เลข.ใบ, p_product: "โกดังเก็บสินค้า 20x40 ม.", p_area: 800, p_spec: "หลังคาเมทัลชีท ผนังสูง 8 ม.", p_province: "ระยอง" });
   expect(r.error).toBeNull();
 });
-test.afterAll(() => { ล้างใบHQทดสอบ("RYG", Object.values(เลข)); });
+test.afterAll(async () => {
+  ล้างใบHQทดสอบ("RYG", Object.values(เลข));
+  await adminClient().from("material_templates").delete().in("id", ไอดีวัสดุ);
+});
 
 test("ถ่ายรูป: ตั้งค่า HQ · ฟอร์มขอราคา · ใบ HQ", async ({ page, browser }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/settings", ADMIN);
@@ -69,5 +82,17 @@ test("ถ่ายรูป: ตั้งค่า HQ · ฟอร์มขอ�
     await ดีลเลอร์.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
     await ดีลเลอร์.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
     await ดีลเลอร์.locator("#qr-product").waitFor({ timeout: 15_000 });
+  });
+  await ถ่าย(ดีลเลอร์, "ตารางเลือกวัสดุ-ดีลเลอร์", async () => {
+    await ดีลเลอร์.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+    await settle(ดีลเลอร์);
+    await ดีลเลอร์.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await ดีลเลอร์.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท("ฟอร์ม"));
+    await ดีลเลอร์.locator("tbody tr").filter({ hasText: บริษัท("ฟอร์ม") }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+    await ดีลเลอร์.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+    await ดีลเลอร์.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
+    const กล่อง = ดีลเลอร์.locator("[data-box='material-estimate']");
+    for (const id of ไอดีวัสดุ) await กล่อง.getByLabel("เลือกวัสดุ").selectOption(String(id));
+    await กล่อง.scrollIntoViewIfNeeded();
   });
 });

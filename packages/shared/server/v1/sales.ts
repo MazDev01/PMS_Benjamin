@@ -323,6 +323,13 @@ export const quotesPUT = handler("quotations.update", async (req, sb) => {
     if (error) return dbFail("quotations.send", error);
     return ok(rowToQuote(data as Row));
   }
+  if (o === "print") {
+    // ข้อมูลพิมพ์ใบให้ลูกค้า (RPC 0247) — ฐานตรวจข้อมูลบริษัทครบ + จดเวลาพิมพ์ · คืนหัวกระดาษที่ต้องพิมพ์
+    const b = parse({ dealer: str({ max: 20 }), id: str({ max: 60 }) }, await body<unknown>(req));
+    const { data, error } = await sb.rpc("quotation_print_data", { p_dealer: b.dealer, p_id: b.id });
+    if (error) return dbFail("quotations.printData", error);
+    return ok(data);
+  }
   if (o === "status" || o === "status-reconciled") {
     const b = parse({ id: str({ max: 40 }), status: oneOf(QUOTE_STATUS) }, await body<unknown>(req));
     if (o === "status") {

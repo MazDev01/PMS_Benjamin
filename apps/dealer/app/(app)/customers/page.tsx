@@ -45,7 +45,10 @@ import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { leads as leadsRepo, dealers as dealersRepo, persons as personsRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
 import { useDealerVat } from "@pms/shared/lib/useDealerSettings";
-import { files as filesRepo, storage as fileStorage } from "@pms/shared/lib/data";
+import { files as filesRepo, storage as fileStorage, quotations as quotationsRepo } from "@pms/shared/lib/data";
+import { ช่องที่ขาดตอนพิมพ์ } from "@pms/shared/lib/issuerComplete";
+import { IssuerGuardNote } from "@pms/shared/components/ui/IssuerGuardNote";
+import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
@@ -337,6 +340,7 @@ export default function CustomersPage(){
   const userProfile = useUserProfile();
   const dealerCfg = useDealerSettings(); // หัวกระดาษ/ตราประทับของสาขา — ต้องส่งเข้าเอกสารพิมพ์
   const printCfg = { issuer: dealerCfg.settings.issuer, doc: dealerCfg.settings.document };
+  const ขาดตอนพิมพ์ = (q: QuotationMock) => (dealerCfg.loaded ? ช่องที่ขาดตอนพิมพ์(q.issuer, dealerCfg.settings.issuer) : []);
   const dealerVat = useDealerVat();  // % VAT ที่สาขาตั้งเอง (ตั้งค่า › ใบเสนอราคา) — ใบที่มีสแนปช็อตใช้ของใบเสมอ
   const customerNotes = useCustomerNotes(userProfile.profile.name);
   const [addingNote, setAddingNote] = useState(false);
@@ -1424,9 +1428,14 @@ export default function CustomersPage(){
                   <div style={cardS}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                       <div style={{...secL,marginBottom:0}}><FileText size={13} color={PRIMARY}/> ใบเสนอราคา</div>
-                      <button onClick={()=>printQuotation(q,{ company:selected.company, name:selected.name, phone:selected.phone, province:selected.province }, q.vatPercent??dealerVat, printCfg)}
+                      {/* พิมพ์ = ขอหัวกระดาษจากฐาน ข้อมูลบริษัทต้องครบ (ใบ 0247) · ไม่ครบ = ปุ่มปิด + ป้ายบอกเหตุผลด้านล่าง */}
+                      <button data-print-quote disabled={ขาดตอนพิมพ์(q).length>0}
+                        title={ขาดตอนพิมพ์(q).length ? `พิมพ์ไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาดตอนพิมพ์(q).join(" · ")})` : undefined}
+                        onClick={()=>void printQuotation(q,{ company:selected.company, name:selected.name, phone:selected.phone, province:selected.province }, q.vatPercent??dealerVat, printCfg,
+                          ()=>quotationsRepo.printData(dealerCodeOf(q), q.id)).catch(e=>แจ้งพลาด("พิมพ์ใบเสนอราคาไม่สำเร็จ: "+friendlyError(e)))}
                         className="btn btn-secondary btn-sm" style={{color:PRIMARY}}><Printer size={12}/> พิมพ์ PDF</button>
                     </div>
+                    <IssuerGuardNote ขาด={ขาดตอนพิมพ์(q)} การกระทำ="พิมพ์ใบให้ลูกค้า" style={{marginBottom:12}} />
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 20px",marginBottom:12}}>
                       {([
                         ["เลขที่", q.id], ["ลูกค้า", selected.name||"—"],

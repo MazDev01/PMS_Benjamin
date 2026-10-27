@@ -20,7 +20,7 @@ import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
 import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
 import { DEFAULT_HQ_POLICY, DEFAULT_HQ_TARGETS, DEFAULT_HQ_NOTIF_RULES, รวมกฎแจ้งเตือน, DEFAULT_LEAD_RULES, LOST_REASONS,
   LEAD_TASK_TEMPLATE, normalizeLeadTaskTemplate,
-  DEFAULT_ISSUER, DEFAULT_NOTIF_PREFS } from "@pms/shared/lib/mock";
+  DEFAULT_ISSUER, DEFAULT_NOTIF_PREFS, type IssuerProfile } from "@pms/shared/lib/mock";
 import { DEFAULT_DOC } from "@pms/shared/lib/quotationPrint";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { captureError } from "@pms/shared/lib/observability";
@@ -1202,6 +1202,11 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("quotation_send", { p_dealer: dealer, p_id: id });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return rowToQuote(data as Row);
+    },
+    printData: async (dealer, id) => {
+      const { data, error } = await sb().rpc("quotation_print_data", { p_dealer: dealer, p_id: id });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return data as { issuer: IssuerProfile; printedAt: string };
     },
   },
   customers: {

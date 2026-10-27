@@ -60,6 +60,7 @@ const HQ_USERS_KEY = "hq_users_v4";
 const RECRUIT_KEY = "hq_recruit_settings_v1";
 const EMPTY_HQ_COMPANY: HQCompany = { name: "", address: "", taxId: "", phone: "", email: "", website: "" };
 import { DEFAULT_ISSUER, DEFAULT_NOTIF_PREFS, ISSUER_KEY, NOTIF_PREFS_KEY, DEALER_PRICING_KEY } from "@pms/shared/lib/mock";
+import { ข้อมูลบริษัทที่ขาด, ช่องที่ขาดตอนพิมพ์ } from "@pms/shared/lib/issuerComplete";
 import { DEFAULT_DOC, DOC_KEY } from "@pms/shared/lib/quotationPrint";
 
 // โลโก้ไอคอนบนแถบเมนู — คีย์เดิมของหน้าตั้งค่าดีลเลอร์
@@ -1173,9 +1174,22 @@ export const LocalAdapter: DataAdapter = {
       if (i < 0) return Promise.reject(new Error(`ไม่พบใบเสนอราคา ${id}`));
       if (list[i].status !== "draft" && list[i].status !== "sent_to_client")
         return Promise.reject(new Error(`ส่งได้เฉพาะใบร่างหรือใบที่ส่งให้ลูกค้าแล้ว (ใบ ${id} · สถานะ ${list[i].status})`));
+      // ข้อมูลบริษัทต้องครบก่อนส่งครั้งแรก (กติกาเดียวกับตัวดักฐาน 0247 · ส่งซ้ำไม่กระทบ)
+      const ขาด = ข้อมูลบริษัทที่ขาด(readKey(ISSUER_KEY, DEFAULT_ISSUER));
+      if (list[i].status === "draft" && ขาด.length)
+        return Promise.reject(new Error(`issuer_incomplete: กรอกข้อมูลบริษัทให้ครบก่อนส่งใบเสนอราคาให้ลูกค้า (ยังขาด: ${ขาด.join(" · ")})`));
       const sent: QuotationMock = { ...list[i], status: "sent_to_client", date: new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10), updatedAt: new Date().toISOString() };
       writeKey(SALES.quotations, list.map((q, j) => (j === i ? sent : q)));
       return ok(sent);
+    },
+    // ข้อมูลพิมพ์ (กติกาเดียวกับ quotation_print_data · 0247) — โหมดในเครื่องไม่มีที่จดเวลาพิมพ์ คืนเวลาตอนนี้
+    printData: (dealer, id) => {
+      const q = readKey<QuotationMock[]>(SALES.quotations, quoteSeed).find(x => (x.dealerCode ?? DEFAULT_DEALER_CODE) === dealer && x.id === id);
+      if (!q) return Promise.reject(new Error(`quote_not_found: ไม่พบใบเสนอราคา ${id}`));
+      const ปัจจุบัน = readKey(ISSUER_KEY, DEFAULT_ISSUER);
+      const ขาด = ช่องที่ขาดตอนพิมพ์(q.issuer, ปัจจุบัน);
+      if (ขาด.length) return Promise.reject(new Error(`issuer_incomplete: กรอกข้อมูลบริษัทให้ครบก่อนพิมพ์ใบเสนอราคา (ยังขาด: ${ขาด.join(" · ")})`));
+      return ok({ issuer: ข้อมูลบริษัทที่ขาด(q.issuer).length === 0 ? q.issuer! : ปัจจุบัน, printedAt: new Date().toISOString() });
     },
   },
   customers: {

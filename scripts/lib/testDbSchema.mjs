@@ -20,12 +20,16 @@ export const ไฟล์ลาย = () => process.env.PMS_TESTDB_SCHEMA_CACHE |
 export const ที่ฐานทดสอบ = () => process.env.PMS_TEST_DB_DIR || "C:/.claude/pms-dbcheck";
 const คอนเทนเนอร์ = process.env.PMS_TESTDB_CONTAINER || "supabase_db_pms-dbcheck";
 
-/** แฮชของไฟล์ใบปรับฐานทั้งหมดในโฟลเดอร์ (ชื่อ + เนื้อ · ไม่สนการขึ้นบรรทัดของ Windows) */
+/** แฮชของไฟล์ใบปรับฐานทั้งหมดในโฟลเดอร์ + ข้อมูลตั้งต้น (ชื่อ + เนื้อ · ไม่สนการขึ้นบรรทัดของ Windows) */
 export function ชุดใบ(ราก) {
   const d = path.join(ราก, "supabase/migrations");
   if (!existsSync(d)) throw new Error(`ไม่พบโฟลเดอร์ใบปรับฐาน ${d}`);
   const h = createHash("sha256");
   for (const f of readdirSync(d).filter(f => f.endsWith(".sql")).sort()) h.update(f + "\0" + readFileSync(path.join(d, f), "utf8").replace(/\r\n/g, "\n") + "\0");
+  // ข้อมูลตั้งต้น (tests/fixtures/test-baseline.sql) นับด้วย — ขั้นสร้างฐานใส่ไฟล์นี้หลังลงใบ · เดิมแก้ไฟล์นี้แล้วฐานไม่ถูกสร้างใหม่
+  //   ข้อทดสอบรันบนข้อมูลรุ่นเก่าเงียบ ๆ (เจอ 27 ต.ค. 69: เติมข้อมูลบริษัทให้ RYG ในไฟล์ แต่ฐานทดสอบยังไม่มี → ส่งใบของ RYG ไม่ได้ทั้งชุด)
+  const ตั้งต้น = path.join(ราก, "tests/fixtures/test-baseline.sql");
+  if (existsSync(ตั้งต้น)) h.update("test-baseline.sql\0" + readFileSync(ตั้งต้น, "utf8").replace(/\r\n/g, "\n"));
   return h.digest("hex").slice(0, 16);
 }
 

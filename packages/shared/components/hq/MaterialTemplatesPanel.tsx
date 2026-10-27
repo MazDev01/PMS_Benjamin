@@ -93,7 +93,8 @@ export function MaterialTemplatesPanel() {
             <input aria-label="ค้นแม่แบบวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => { setค้น(e.target.value); setหน้า(0); }} />
           </div>
           <span className="note">เปิดใช้ {เปิดใช้} จาก {rows.length} รายการ</span>
-          <button type="button" className="btn btn-primary btn-sm" onClick={เพิ่ม}><Plus size={14} /> เพิ่มวัสดุ</button>
+          {/* ปิดไว้จนรายการโหลดเสร็จ — เดิมกดเพิ่มก่อนโหลดเสร็จ รายการจากฐานมาทับ แถวที่เพิ่มหายเงียบ ๆ (เจอจากรอบตรวจ 27 ต.ค. 69) */}
+          <button type="button" className="btn btn-primary btn-sm" onClick={เพิ่ม} disabled={บันทึกแล้ว === null}><Plus size={14} /> เพิ่มวัสดุ</button>
         </div>
       }>
         <datalist id="mt-categories">{หมวด.map(h => <option key={h} value={h} />)}</datalist>

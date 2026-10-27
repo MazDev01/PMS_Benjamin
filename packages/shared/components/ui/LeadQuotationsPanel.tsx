@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, AlertTriangle, Check, XCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, Check, XCircle } from "lucide-react";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { LostReasonPicker } from "@pms/shared/components/ui/LostReasonPicker";
 import { useSales } from "@pms/shared/context/SalesContext";
@@ -18,6 +17,11 @@ import { markupPctOf } from "@pms/shared/lib/boq";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { boqLineItems } from "@pms/shared/lib/boq";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
+import { quotations as quotationsRepo } from "@pms/shared/lib/data";
+import { ข้อมูลบริษัทที่ขาด, ช่องที่ขาดตอนพิมพ์ } from "@pms/shared/lib/issuerComplete";
+import { IssuerGuardNote } from "@pms/shared/components/ui/IssuerGuardNote";
+import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
+import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ฉบับถัดไป, จะขึ้นฉบับใหม่ } from "@pms/shared/lib/quoteRevision";
 import { parseBaht, fmtBaht, fmtFull } from "@pms/shared/lib/format";
 import { คิดภาษีใบเสนอราคา, ช่องภาษีสำหรับบันทึก } from "@pms/shared/lib/quoteTax";
@@ -79,13 +83,19 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   const dealerVat = useDealerVat();
   const dealerWht = useDealerWht();   // อัตราหัก ณ ที่จ่ายตั้งต้นของสาขา (ตั้งค่า › ใบเสนอราคา)      // % VAT ที่สาขาตั้งเอง — ใช้ตอนออกใบใหม่และเป็นค่าสำรองของใบเก่า
   const printCfg = { issuer: dealerCfg.settings.issuer, doc: dealerCfg.settings.document };
-  const router = useRouter();
-  // พิมพ์ = ต้องตั้งชื่อบริษัทผู้ออกก่อน (ด่านเดียวกับหน้าใบเสนอราคาเดิม · แผงลีดเป็นทางพิมพ์ทางเดียวตั้งแต่รอบ 4 · บอสอนุมัติ 22 ต.ค. 69)
-  //   ⚠️ "ยังโหลดข้อมูลบริษัทไม่เสร็จ" ไม่เท่ากับ "ยังไม่ได้ตั้งชื่อบริษัท" (เจอจริง 27 ส.ค. 69) — ให้รอแล้วกดใหม่ ไม่ไล่ไปหน้าตั้งค่า
-  const พิมพ์ใบ = (q: QuotationMock) => {
+  // พิมพ์/ส่งให้ลูกค้า = ข้อมูลบริษัทต้องครบ (ชื่อบริษัท · ที่อยู่ · เลขผู้เสียภาษี · บอสสั่ง · ฐานกัน ใบ 0247)
+  //   ปุ่มปิดไว้พร้อมป้ายบอกเหตุผล + ลิงก์ไปกรอก · ฐานเป็นคนตัดสินจริง (พิมพ์ = ขอหัวกระดาษจากฐานทุกครั้ง)
+  //   ⚠️ "ยังโหลดข้อมูลบริษัทไม่เสร็จ" ไม่เท่ากับ "ยังไม่ได้กรอก" (เจอจริง 27 ส.ค. 69) — ยังไม่โหลด = ไม่ปิดปุ่ม ไม่ขึ้นป้าย
+  const ขาดตอนส่ง = dealerCfg.loaded ? ข้อมูลบริษัทที่ขาด(dealerCfg.settings.issuer) : [];
+  const ขาดตอนพิมพ์ = (q: QuotationMock) => (dealerCfg.loaded ? ช่องที่ขาดตอนพิมพ์(q.issuer, dealerCfg.settings.issuer) : []);
+  const พิมพ์ใบ = async (q: QuotationMock) => {
     if (!dealerCfg.loaded) { แจ้งสำเร็จ("กำลังโหลดข้อมูลบริษัท — รอสักครู่แล้วกดพิมพ์อีกครั้ง"); return; }
-    if (!dealerCfg.settings.issuer?.company?.trim()) { แจ้งพลาด("กรุณาตั้งชื่อบริษัทที่ ตั้งค่า → โปรไฟล์บริษัท ก่อนพิมพ์ใบเสนอราคา"); router.push("/settings"); return; }
-    printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg);
+    try {
+      await printQuotation(q, { company: subj.company, name: subj.contact, phone: subj.phone, province: subj.province }, q.vatPercent ?? dealerVat, printCfg,
+        () => quotationsRepo.printData(dealerCodeOf(q), q.id));
+    } catch (e) {
+      แจ้งพลาด("พิมพ์ใบเสนอราคาไม่สำเร็จ: " + friendlyError(e));
+    }
   };
 
   // subject รวม — รองรับทั้ง "ลูกค้าเป้าหมาย" (lead) และ "ลูกค้า" (customer)
@@ -395,21 +405,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
           </div>
         </div>
 
-        {/* ── เตือนเมื่อสาขายังไม่ได้กรอกข้อมูลบริษัทของตัวเอง (11 ส.ค. 69) ──────────────
-            หัวกระดาษของใบเสนอราคามาจากข้อมูลบริษัทของสาขาเท่านั้น — ไม่มีค่าเริ่มต้นให้ยืมใช้แล้ว
-            (เดิมเคยยืมข้อมูลของสาขาอื่นมาแสดง ซึ่งเป็นบั๊กที่แก้ไปแล้ว)
-            ถ้ายังไม่กรอก เอกสารที่ส่งถึงลูกค้าจะไม่มีชื่อบริษัท ที่อยู่ เลขผู้เสียภาษี และช่องลงนามผู้เสนอราคาว่างเปล่า
-            เตือนตรงนี้เพราะเป็นจังหวะที่ยังแก้ทัน — ไม่ได้ห้ามออกใบ (บางสาขาอาจตั้งใจร่างไว้ก่อน) */}
-        {dealerCfg.loaded && !dealerCfg.settings.issuer?.company?.trim() && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 9, background: "#fff8e6", border: "1px solid #f5d78e",
-            borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: "0.74rem", color: "#7a5b12", lineHeight: 1.55 }}>
-            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <b>ยังไม่ได้กรอกข้อมูลบริษัทของสาขา</b> — ใบที่ออกจะไม่มีชื่อบริษัท ที่อยู่ และเลขประจำตัวผู้เสียภาษีบนหัวกระดาษ
-              {" "}<a href="/settings" style={{ color: "#003366", fontWeight: 700, textDecoration: "underline" }}>ไปกรอกที่ตั้งค่า › บัญชีดีลเลอร์</a>
-            </div>
-          </div>
-        )}
+        {/* ── ข้อมูลบริษัทยังไม่ครบ: บันทึกใบร่างได้ แต่ส่ง/พิมพ์ให้ลูกค้าไม่ได้ (บอสสั่ง · ฐานกัน ใบ 0247) ──
+            หัวกระดาษมาจากข้อมูลบริษัทของสาขาเท่านั้น (ไม่มีค่าเริ่มต้นให้ยืม) — เตือนตอนทำใบเพราะยังแก้ทัน */}
+        <IssuerGuardNote ขาด={ขาดตอนส่ง} การกระทำ="ส่งหรือพิมพ์ใบให้ลูกค้า" หมายเหตุ="บันทึกใบร่างได้ตามปกติ" style={{ marginBottom: 12 }} />
 
         {/* ข้อมูลจาก subject — เติมอัตโนมัติ (อ่านอย่างเดียว) */}
         <div style={{ background: "#f7f9fc", border: "1px solid #eef1f5", borderRadius: 12, padding: "11px 13px", fontSize: "0.72rem", color: "#475569", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px" }}>
@@ -650,7 +648,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
 
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
           {ปุ่มผลลูกค้า(q)}
-          <button onClick={() => พิมพ์ใบ(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
+          <button onClick={() => void พิมพ์ใบ(q)} disabled={ขาดตอนพิมพ์(q).length > 0} data-print-quote
+            title={ขาดตอนพิมพ์(q).length ? `พิมพ์ไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาดตอนพิมพ์(q).join(" · ")})` : undefined}
+            className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Printer size={13} /> พิมพ์ PDF</button>
           {แก้เนื้อหาได้(q) && <button onClick={() => openEdit(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><Pencil size={13} /> แก้ไข</button>}
           {ทำฉบับใหม่ได้(q) && <button onClick={() => void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><CopyPlus size={13} /> ทำฉบับใหม่</button>}
           {/* ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง (ใบที่ส่งแล้ว) */}
@@ -660,6 +660,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
             </button>
           )}
         </div>
+        <IssuerGuardNote ขาด={ขาดตอนพิมพ์(q)} การกระทำ="พิมพ์ใบให้ลูกค้า" style={{ marginTop: 12 }} />
       </div>
     );
   }
@@ -673,6 +674,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
             ไม่งั้นกดคำว่า "สร้าง" แล้วได้หน้าแก้ไขใบเก่า ผู้ใช้จะงงว่ากดผิดหรือระบบพัง */}
         {/* ปุ่มทำใบอยู่ที่แถบ "ขั้นต่อไป" ที่เดียว (บอสสั่ง 19 ต.ค. 69) — แท็บนี้เหลือรายการใบอย่างเดียว */}
       </div>
+      {/* ข้อมูลบริษัทไม่ครบ = ส่ง/พิมพ์ใบให้ลูกค้าไม่ได้ (ใบ 0247) — ปุ่มพิมพ์ในรายการถูกซ่อน ป้ายนี้บอกเหตุผล */}
+      {related.length > 0 && !readOnly && <IssuerGuardNote ขาด={ขาดตอนส่ง} การกระทำ="ส่งหรือพิมพ์ใบให้ลูกค้า" style={{ marginBottom: 12 }} />}
 
       {related.length === 0 ? (
         <div style={{ textAlign: "center", padding: "28px 0", color: "#9aa2ad", fontSize: "0.8rem" }}>ยังไม่มีใบเสนอราคา{!readOnly && (REAL_BACKEND
@@ -711,7 +714,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                       { ic: <Eye size={13} />, t: "ดู", fn: () => { setEditing(q); setMode("view"); } },
                       ...(แก้เนื้อหาได้(q) ? [{ ic: <Pencil size={13} />, t: "แก้ไข", fn: () => openEdit(q) }] : []),
                       ...(ทำฉบับใหม่ได้(q) ? [{ ic: <CopyPlus size={13} />, t: "ทำฉบับใหม่", fn: () => void ทำฉบับใหม่(q) }] : []),
-                      { ic: <Printer size={13} />, t: "พิมพ์", fn: () => พิมพ์ใบ(q) },
+                      ...(ขาดตอนพิมพ์(q).length ? [] : [{ ic: <Printer size={13} />, t: "พิมพ์", fn: () => void พิมพ์ใบ(q) }]),
                       // ใบเดิมที่ไม่มีใบ HQ = ดูได้อย่างเดียว ไม่มีทำสำเนา/ลบ (บอสสั่งเก็บไว้เป็นประวัติ 16 ต.ค. 69)
                       // ทำสำเนาได้เฉพาะใบร่าง — ใบที่ส่งแล้ว/ถูกแทนที่/ตอบรับแล้ว ลูกค้าต่อรองให้ทำฉบับใหม่ (บอสสั่ง 21 ต.ค. 69 · ฐานกัน 0230)
                       ...(ลบได้(q) ? [
