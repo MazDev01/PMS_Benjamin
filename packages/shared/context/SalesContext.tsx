@@ -526,6 +526,12 @@ export function SalesProvider({
       // ปิดการขาย/แปลงเป็นลูกค้า → ลูกค้าเป้าหมายกลายเป็นลูกค้าเต็มตัว จึงเอาออกจากรายการลูกค้าเป้าหมาย
       setLeads(prev => prev.filter(l => l.id !== lead.id));
       persistLead.remove(lead.id);
+    } else if (targetQuoteId != null && lead.customerId == null
+      && result.quotations.some(q => q.id === targetQuoteId && q.dealId != null && q.dealId === lead.numId)) {
+      // ฐานผูกลีดเจ้าของใบเป้าหมายให้แล้วในคำสั่งเดียวกัน (ใบ 0243) → อัปเดตจออย่างเดียว ไม่ส่งคำสั่งซ้ำตามหลัง
+      //   (เจอจากตัวนับข้อไม่นิ่ง 27 ต.ค. 69: คำสั่งซ้ำนี้วิ่งค้างตอนผู้ใช้เปลี่ยนหน้าทันทีหลังตอบรับ → "แก้ไขลูกค้าเป้าหมาย Failed to fetch")
+      leadsRef.current = leadsRef.current.map(l => l.id !== lead.id ? l : { ...l, customerId: saved.id });
+      setLeads(prev => prev.map(l => l.id !== lead.id ? l : { ...l, customerId: saved.id }));
     } else {
       // แค่ผูกลูกค้าให้ลูกค้าเป้าหมาย (ยังเป็นลูกค้าเป้าหมายอยู่)
       บันทึกลีด(lead.id, { fields: { customerId: saved.id }, log: false });

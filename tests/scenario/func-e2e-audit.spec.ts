@@ -393,6 +393,13 @@ test("[audit] cross-role: ดีลเลอร์ปิดการขาย �
     (await sb.from("quotations").select("status").eq("id", q.id)).data?.[0]?.status,
     { timeout: 25_000, message: "ใบต้องเป็น won" }).toBe("won");
   const cust = await waitRow<{ id: number; total_value: number }>(sb, "customers", { company: COMPANY }, 20_000);
+  // ปิดการขาย "เสร็จ" = งานตามหลังของแอป (ติ๊กงาน + บรรทัดไทม์ไลน์ "ลูกค้าตอบรับ" ซึ่งเป็นคำสั่งสุดท้าย) ลงฐานแล้ว
+  //   ไม่นิ่ง 3 ครั้ง (21/22/27 ต.ค. 69): ใบเป็น won แล้วข้อทดสอบเปลี่ยนไปหน้า HQ ทันที → คำสั่งเขียนลีดที่ยังวิ่งถูกตัด "Failed to fetch"
+  //   รอเงื่อนไขในฐาน ไม่ใช่รอเวลา · คำสั่งผูกลูกค้าซ้ำตามหลังเอาออกจากแอปแล้ว (ฐานผูกเองใบ 0243)
+  const บรรทัดตอบรับ = new RegExp(`${q.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^"]*ลูกค้าตอบรับ`);
+  await expect.poll(async () =>
+    JSON.stringify((await sb.from("leads").select("activities").eq("dealer_code", "RYG").eq("company", COMPANY)).data?.[0]?.activities ?? []),
+    { timeout: 20_000, message: "ไทม์ไลน์ลีดต้องมีบรรทัดลูกค้าตอบรับของใบนี้" }).toMatch(บรรทัดตอบรับ);
 
   // ── ฝั่ง HQ (บัญชี ADMIN) — เปิดทันทีหลังปิดการขาย ──
   await loginUI(page, HQ_ORIGIN, "/login", ADMIN);

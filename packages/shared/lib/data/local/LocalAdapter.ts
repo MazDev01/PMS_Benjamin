@@ -1260,6 +1260,13 @@ export const LocalAdapter: DataAdapter = {
         return q;
       });
       writeKey(SALES.quotations, nextQ);
+      // ใบ 0243: ลีดเจ้าของใบเป้าหมาย (deal_id = num_id สาขาเดียวกัน) ที่ยังไม่ผูกลูกค้า → ผูกในคำสั่งเดียวกัน
+      const ใบเป้าหมาย = targetQuoteId ? nextQ.find(q => q.id === targetQuoteId && (q.dealerCode ?? DEFAULT_DEALER_CODE) === dealer) : undefined;
+      if (ใบเป้าหมาย?.dealId != null) {
+        const leads = readKey<LeadRow[]>(SALES.leads, leadSeed);
+        writeKey(SALES.leads, leads.map(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === dealer && l.numId === ใบเป้าหมาย.dealId && l.customerId == null
+          ? { ...l, customerId: custId } : l));
+      }
       const wonTotal = nextQ.filter(q => q.customerId === custId && q.status === "won").reduce((s, q) => s + (q.totalValue ?? 0), 0);
       const finalCustList = readKey<CustomerRow[]>(SALES.customers, initialCustomers).map(c => c.id === custId ? { ...c, totalValue: wonTotal } : c);
       writeKey(SALES.customers, finalCustList);
