@@ -44,14 +44,19 @@ export function sqlผู้ดูแล(sql) {
   return { ok: r.status === 0, out: (r.stdout ?? "").trim(), err: (r.stderr ?? "").trim() };
 }
 
-/** ที่อยู่ในเครือข่าย docker ของคอนเทนเนอร์บริการ (สำหรับ pg_hba) */
-function ที่อยู่บริการ(ชื่อ) {
-  const r = docker(["inspect", `supabase_${ชื่อ}_${โปรเจกต์}`, "--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}"]);
-  return (r.stdout ?? "").trim().split(/\s+/).filter(Boolean);
+/** วงเครือข่าย docker ของชุดฐานทดสอบ + ประตูออกสู่เครื่อง (สำหรับ pg_hba)
+ *  ⚠️ เดิมอนุญาตบริการทีละเลขที่อยู่ (/32) — เปิดเครื่องใหม่ docker แจกเลขใหม่ บริการ (auth/storage) ถูกปฏิเสธจนรีสตาร์ตวน (27 ต.ค. 69)
+ *     จึงอนุญาตทั้งวงของเครือข่ายนี้ (มีแต่คอนเทนเนอร์ของชุดฐานทดสอบ) และปฏิเสธประตูออก (= การต่อจากเครื่องผ่านพอร์ตฐาน) ก่อนเสมอ */
+function เครือข่ายบริการ() {
+  const r = docker(["network", "inspect", `supabase_network_${โปรเจกต์}`, "--format", "{{range .IPAM.Config}}{{.Subnet}} {{.Gateway}} {{end}}"]);
+  const [วง, ประตู] = (r.stdout ?? "").trim().split(/\s+/);
+  if (!วง || !ประตู) throw new Error(`อ่านวงเครือข่ายของฐานทดสอบไม่ได้ (supabase_network_${โปรเจกต์}): ${r.stderr ?? ""}`);
+  return { วง, ประตู };
 }
 
 export function เนื้อhba() {
-  const บรรทัด = (ผู้ใช้, บริการ) => ที่อยู่บริการ(บริการ).map(ip => `host  all  ${ผู้ใช้}  ${ip}/32  scram-sha-256`);
+  const { วง, ประตู } = เครือข่ายบริการ();
+  const บรรทัด = (ผู้ใช้) => `host  all  ${ผู้ใช้}  ${วง}  scram-sha-256`;
   return [
     ป้ายhba,
     "local all  pms_lockadmin  scram-sha-256",
@@ -60,13 +65,10 @@ export function เนื้อhba() {
     "host  all  pms_writer  all  scram-sha-256",
     "local all  pms_reader  scram-sha-256",
     "host  all  pms_reader  all  scram-sha-256",
-    ...บรรทัด("authenticator", "rest"),
-    ...บรรทัด("supabase_auth_admin", "auth"),
-    ...บรรทัด("supabase_storage_admin", "storage"),
-    ...บรรทัด("supabase_admin", "realtime"),
-    ...บรรทัด("supabase_admin", "analytics"), ...บรรทัด("postgres", "analytics"),
-    ...บรรทัด("supabase_admin", "pg_meta"), ...บรรทัด("postgres", "pg_meta"),
-    ...บรรทัด("supabase_admin", "studio"), ...บรรทัด("postgres", "studio"),
+    // ต่อจากเครื่อง (พอร์ตฐาน) มาทางประตูออกของวง — บัญชีบริการห้ามเข้าทางนี้ (ปฏิเสธก่อนบรรทัดอนุญาตทั้งวง)
+    `host  all  all  ${ประตู}/32  reject`,
+    บรรทัด("authenticator"), บรรทัด("supabase_auth_admin"), บรรทัด("supabase_storage_admin"),
+    บรรทัด("supabase_admin"), บรรทัด("postgres"),
     "local all  all  reject",
     "host  all  all  all  reject",
     "",

@@ -651,14 +651,14 @@ export default function HQLeadsPage() {
             <colgroup>
               <col style={{ width: "7%", minWidth: 88 }} />{/* รหัสลูกค้าเป้าหมาย */}
               <col style={{ width: "12%", minWidth: 140 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
-              <col style={{ width: "20%", minWidth: 160 }} />{/* ลูกค้า */}
+              <col style={{ width: "16%", minWidth: 160 }} />{/* ลูกค้า */}
               <col style={{ width: "7%", minWidth: 84 }} />{/* จังหวัด */}
               <col style={{ width: "8%", minWidth: 84 }} />{/* แหล่งที่มา */}
               <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
               <col style={{ width: "8%", minWidth: 88 }} />{/* เสนอราคา */}
               <col style={{ width: "8%", minWidth: 88 }} />{/* ติดต่อล่าสุด */}
               <col style={{ width: "8%", minWidth: 100 }} />{/* ต้องติดตาม — ในช่องเป็นป้ายชื่อ ห้ามตัด */}
-              <col style={{ width: "8%", minWidth: 92 }} />{/* สถานะ */}
+              <col style={{ width: "12%", minWidth: 128 }} />{/* ขั้นตอน — พอให้ "4 ทำใบให้ลูกค้า" ไม่ถูกตัด */}
               <col style={{ width: "5%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน (ปุ่ม 28px + padding ของ td) */}
             </colgroup>
             <thead><tr>
@@ -667,7 +667,7 @@ export default function HQLeadsPage() {
               {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกตัด (th ตั้ง white-space: nowrap ทั้งระบบ) — ไฟล์ส่งออกยังใช้ชื่อเต็ม */}
               <th className="num">มูลค่า</th><th>เสนอราคา</th><th>ติดต่อล่าสุด</th>
               {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 (26 ส.ค. 69) */}
-              <th>ต้องติดตาม</th><th>สถานะ</th><th style={ตรึงคอลัมน์ปุ่ม(true)}></th>
+              <th>ต้องติดตาม</th><th>ขั้นตอน</th><th style={ตรึงคอลัมน์ปุ่ม(true)}></th>
             </tr></thead>
             <tbody>
               {displayLeads.length === 0 ? (
