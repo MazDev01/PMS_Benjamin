@@ -58,7 +58,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
   };
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
+    <div className="card" data-card="hq-lead-transfer" style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
         <ArrowRightLeft size={18} color="#003366" />
         <div style={{ flex: "1 1 260px" }}>

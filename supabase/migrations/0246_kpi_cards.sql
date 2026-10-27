@@ -181,7 +181,8 @@ begin
                    where q.status = 'won' and q.dealer_code <> 'HQ' and (p_dealer is null or q.dealer_code = p_dealer)
                      and (w.won_at at time zone 'Asia/Bangkok')::date between ช่วงต้น and ช่วงท้าย),
       -- ถึงเป้า = ณ ตอนนี้: ยอดตั้งแต่ต้นปี ≥ เป้าทั้งปีของสาขา · นับเฉพาะสาขาที่ตั้งเป้าแล้ว
-      'onTarget', (select jsonb_build_object('reached', count(*) filter (where t.ytd >= t.revenue_target), 'of', count(*))
+      'onTarget', (select jsonb_build_object('reached', count(*) filter (where t.ytd >= t.revenue_target), 'of', count(*),
+                                             'codes', coalesce(jsonb_agg(t.code order by t.code) filter (where t.ytd >= t.revenue_target), '[]'::jsonb))
                      from (select x.code, x.revenue_target,
                                   (select coalesce(sum(w.value), 0) from _hd_won(x.code) w where w.d between ต้นปี and วันนี้) as ytd
                              from dealers x where x.code <> 'HQ' and coalesce(x.revenue_target, 0) > 0
@@ -192,8 +193,10 @@ begin
       'open',      count(*) filter (where l.dealer_code <> 'HQ' and l.status not in ('PAID', 'CANCELLED')),
       'new',       count(*) filter (where l.dealer_code <> 'HQ' and l.created_date between ช่วงต้น and ช่วงท้าย),
       'hqWaiting', (select count(*) from leads h where h.dealer_code = 'HQ' and h.status not in ('PAID', 'CANCELLED')),
-      'idle',      count(*) filter (where l.dealer_code <> 'HQ' and l.status not in ('PAID', 'CANCELLED')
-                                     and coalesce(l.last_contact_at, l.created_date) < วันนี้ - 30))
+      -- ไม่เคลื่อนไหวเกิน 30 วัน = กติกาเดียวกับตัวกรอง "ค้างติดตาม" ของรายการลีด (leads_page p_overdue) ที่ 30 วัน:
+      --   ยังเปิด ไม่ใช่รอราคา HQ (รอฝั่ง HQ ไม่ใช่ดีลเลอร์เงียบ) · มีวันติดต่อล่าสุด และห่างจากวันนี้เกิน 30 วัน
+      'idle',      count(*) filter (where l.dealer_code <> 'HQ' and l.status not in ('PAID', 'CANCELLED', 'HQ_PRICING')
+                                     and l.last_contact_at is not null and วันนี้ - l.last_contact_at > 30))
       from leads l where (p_dealer is null or l.dealer_code = p_dealer));
 
   elsif p_page = 'hq.quotations' then

@@ -55,7 +55,7 @@ insert into leads (id, num_id, dealer_code, company, name, phone, province, stat
   ('#L-ZZK3', 3, 'ZZK', 'ZZK ล3', 'ZZK ล3', '000-000-0003', 'ระยอง', 'HQ_QUOTED',  '2026-10-07', null, null, '2026-10-20'),
   ('#L-ZZK4', 4, 'ZZK', 'ZZK ล4', 'ZZK ล4', '000-000-0004', 'ระยอง', 'HQ_QUOTED',  '2026-10-08', null, null, '2026-10-20'),
   ('#L-ZZK5', 5, 'ZZK', 'ZZK ล5', 'ZZK ล5', '000-000-0005', 'ระยอง', 'QUOTED',     '2026-10-09', 200000, null, '2026-10-20'),
-  ('#L-ZZK6', 6, 'ZZK', 'ZZK ล6', 'ZZK ล6', '000-000-0006', 'ระยอง', 'NEGO',       '2026-08-01', null, null, null),
+  ('#L-ZZK6', 6, 'ZZK', 'ZZK ล6', 'ZZK ล6', '000-000-0006', 'ระยอง', 'NEGO',       '2026-08-01', null, null, '2026-08-05'),
   ('#L-ZZK7', 7, 'ZZK', 'ZZK ล7', 'ZZK ล7', '000-000-0007', 'ระยอง', 'PAID',       '2026-10-09', null, null, null),
   ('#L-ZZK8', 8, 'ZZK', 'ZZK ล8', 'ZZK ล8', '000-000-0008', 'ระยอง', 'PAID',       '2026-09-01', null, null, null),
   ('#L-ZZK9', 9, 'ZZK', 'ZZK ล9', 'ZZK ล9', '000-000-0009', 'ระยอง', 'CANCELLED',  '2026-10-10', null, null, null),
