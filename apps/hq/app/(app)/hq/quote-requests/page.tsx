@@ -158,7 +158,8 @@ export default function HQQuoteRequestsPage() {
         {/* ── ซ้าย: กล่องงาน ── */}
         <section aria-label="กล่องคำขอราคา" className="card" style={{ overflow: "hidden" }}>
           <div style={{ padding: "16px 16px 12px", display: "grid", gap: 12, borderBottom: "1px solid #e5e7eb" }}>
-            {/* ช่องเลือกสถานะช่องเดียวข้างช่องค้นหา (บอสสั่ง 27 ต.ค. 69) — แทนแถวปุ่มกรองที่มีตัวเลขซ้ำกับการ์ด · ตัวเลขอยู่บนการ์ดที่เดียว */}
+            {/* ช่องเลือกสถานะช่องเดียวข้างช่องค้นหา (บอสสั่ง 27 ต.ค. 69) — แทนแถวปุ่มกรองที่มีตัวเลขซ้ำกับการ์ด · ตัวเลขอยู่บนการ์ดที่เดียว
+                ต้องมีค่าเสมอ: ค่ามาจากสถานะของหน้า (ค่าเริ่มต้น ต้องตีราคา · การ์ดเปลี่ยนค่า) ไม่มีจังหวะว่าง · "ทั้งหมด" เป็นตัวเลือกหนึ่ง */}
             <div className="hq-qr-filter">
               <select aria-label="สถานะคำขอ" className="form-select" value={กลุ่ม} disabled={กำลังบันทึก} onChange={e => เปลี่ยนกลุ่ม(e.target.value as QuoteBoardFilter)}>
                 {quoteBoardFilters.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
