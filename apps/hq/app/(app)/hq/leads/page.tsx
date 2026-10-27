@@ -46,7 +46,9 @@ import {
   type MonthRange,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
-import { leadStatusLabel, leadStatusColor, QUOTED_UP, LEAD_STATUS_ORDER, type LeadStatus } from "@pms/shared/lib/mock";
+import { QUOTED_UP } from "@pms/shared/lib/mock";
+import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น, สีกราฟขั้น, ตัวเลือกขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
@@ -89,7 +91,11 @@ export default function HQLeadsPage() {
   const rulesOf = useLeadRulesOf();
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<LeadStatus | "ALL">("ALL");
+  // ตัวกรองขั้น = เลขขั้น 1–7 จากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมกรองตามชื่อสถานะภายใน) · ALL = ทุกขั้น
+  const [status, setStatus] = useState<string>("ALL");
+  // เลขขั้นของแถว: แถวจากฐาน (leads_page ใบ 0251) มี stageNo · โหมดตัวอย่าง/ค้างติดตาม คิดจากใบร่างที่มีในเครื่อง
+  const เลขขั้นแถว = (l: LeadRow): เลขขั้น => (l.stageNo as เลขขั้น | undefined)
+    ?? เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
   const [province, setProvince] = useState<string>("ALL");
   const [viewLead, setViewLead] = useState<LeadRow | null>(null);  // Drawer — ดูอย่างเดียว
   const [dealerSel, setDealerSel] = useState<string>("ALL");
@@ -104,7 +110,7 @@ export default function HQLeadsPage() {
 
   // นัดหมาย + ไฟล์ — ใช้แสดงใน Drawer เท่านั้น (HQ ดูอย่างเดียว)
   // นัดหมายผูกด้วย leadId · ไฟล์ผูกด้วย source="lead" + recordId — ทั้งคู่คือ numId ของลูกค้าเป้าหมาย
-  const { appointments } = useSales();
+  const { appointments, quotations } = useSales();
   // นัดหมายของลูกค้าเป้าหมายที่กำลังเปิด drawer — supabase: ดึงตรง (M9 Phase 4) · local/ยังไม่กลับ: กรอง appointments array เดิม
   // เลขลูกค้าเป้าหมาย (numId) ซ้ำกันได้ข้ามสาขา — ต้องระบุสาขาของลูกค้าเป้าหมายที่เปิดอยู่ ไม่งั้นนัดหมายของสาขาอื่นจะปนเข้ามา
   const drawerAppts = useLeadAppointments(viewLead?.numId ?? null, viewLead?.dealerCode ?? null);
@@ -155,9 +161,9 @@ export default function HQLeadsPage() {
   }, [scoped, query, province, dealerSel, regionSel, srcSel, REGION_OF]);
 
   const filtered = useMemo(() => kpiBase.filter(l =>
-    (status === "ALL" || l.status === status) &&
+    (status === "ALL" || เลขขั้นแถว(l) === Number(status)) &&
     (!overdueOnly || needsFollowUp(l, 30))
-  ), [kpiBase, status, overdueOnly]);
+  ), [kpiBase, status, overdueOnly, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── M9 Phase 2: สรุปลูกค้าเป้าหมายหลังกรองที่ DB (supabase) · local/overdue/ระหว่างโหลด = client fallback ──
   const leadDealerCodes = useMemo<string[] | undefined>(() => {
@@ -173,7 +179,7 @@ export default function HQLeadsPage() {
     source: srcSel === "ALL" ? undefined : srcSel,
     search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
   };
-  const sumCharts = useLeadSummary({ ...baseF, status: status === "ALL" ? undefined : status }); // กราฟ (filtered)
+  const sumCharts = useLeadSummary({ ...baseF, stage: status === "ALL" ? undefined : Number(status) }); // กราฟ (filtered)
   const chartSummary = overdueOnly ? null : sumCharts;                               // overdue → client (พึ่ง last_contact + เกณฑ์)
 
   // ── ตารางลูกค้าเป้าหมาย: แบ่งหน้าที่ DB (M9 Phase 4) · local/ยังไม่กลับ = filtered (client) ──
@@ -182,7 +188,7 @@ export default function HQLeadsPage() {
   const [leadPage, setLeadPage] = useState(0);
   const leadOpts: LeadListOpts = useMemo(() => ({
     limit: LEADS_PAGE, offset: leadPage * LEADS_PAGE,
-    status: status === "ALL" ? undefined : status, dealerCodes: leadDealerCodes,
+    stage: status === "ALL" ? undefined : Number(status), dealerCodes: leadDealerCodes,
     province: province === "ALL" ? undefined : province,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
     dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
@@ -349,13 +355,13 @@ export default function HQLeadsPage() {
     return arr.map(a => ({ ...a, pct: Math.round(a.count / max * 100), share: Math.round(a.count / total * 100) }));
   }, [chartSummary, filtered]);
 
+  // ตามขั้น — เลขขั้นจากฐาน (lead_summary.byStage ใบ 0251) · ชื่อขั้นจากตัวกลาง leadStage.ts
   const byStatus = useMemo(() => {
-    const order: LeadStatus[] = LEAD_STATUS_ORDER;
-    const byS = chartSummary ? new Map(chartSummary.byStatus.map(r => [r.status, r.count])) : null;
-    const count = (s: LeadStatus) => byS ? (byS.get(s) ?? 0) : filtered.filter(l => l.status === s).length;
-    const max = Math.max(...order.map(count), 1);
-    return order.map(s => ({ status: s, count: count(s), pct: Math.round(count(s) / max * 100) }));
-  }, [chartSummary, filtered]);
+    const byS = chartSummary ? new Map((chartSummary.byStage ?? []).map(r => [r.stage, r.count])) : null;
+    const count = (n: เลขขั้น) => byS ? (byS.get(n) ?? 0) : filtered.filter(l => เลขขั้นแถว(l) === n).length;
+    const max = Math.max(...เลขขั้นทั้งหมด.map(count), 1);
+    return เลขขั้นทั้งหมด.map(n => ({ stage: n, count: count(n), pct: Math.round(count(n) / max * 100) }));
+  }, [chartSummary, filtered]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Section 4 · เหตุผลที่ปิดการขายไม่สำเร็จ ────────────────────────────────
   // นับเฉพาะลูกค้าเป้าหมายที่ปิดไม่สำเร็จ "และบันทึกเหตุผลไว้จริง" — ไม่เดาเหตุผลให้ลูกค้าเป้าหมายที่ไม่ได้ระบุ
@@ -397,7 +403,7 @@ export default function HQLeadsPage() {
     QUOTED_UP.includes(l.status) ? "เสนอแล้ว" : "—",
     lastContactLabel(l),
     needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays) ? "ต้องติดตาม" : "—",
-    l.assigned || "—", leadStatusLabel[l.status],
+    l.assigned || "—", ชื่อขั้น(เลขขั้นแถว(l)),
     // เหตุผลที่ปิดไม่สำเร็จ — มีเฉพาะดีลที่ปิดไม่สำเร็จ (บอสสั่ง 21 ส.ค. 69)
     l.status === "CANCELLED" ? (l.lostReason || "ไม่ได้ระบุเหตุผล") : "—",
   ];
@@ -415,7 +421,7 @@ export default function HQLeadsPage() {
           <FilterBar dims={[]} />
           {/* ส่งออก = สิ่งที่เห็นบนจอตอนนี้ (ผ่านตัวกรองทุกตัวแล้ว) · คอลัมน์เรียงตรงกับตาราง */}
           <ExportMenu filename="hq-leads" title="ลูกค้าเป้าหมายทั้งเครือ"
-            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","สถานะ","เหตุผลที่ปิดไม่สำเร็จ"]}
+            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","ขั้นตอน","เหตุผลที่ปิดไม่สำเร็จ"]}
             rows={filtered.map(leadToCells)} getRows={exportGetRows} />
       </TopbarActions>
 
@@ -445,8 +451,7 @@ export default function HQLeadsPage() {
           {leadSel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(o => ({ v: o, l: regionDisplay(o) })))}
           {leadSel(province, setProvince, "ทุกจังหวัด", provinces.map(p => ({ v: p, l: p })))}
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
-          {leadSel(status, v => setStatus(v as LeadStatus | "ALL"), "ทุกสถานะ",
-            LEAD_STATUS_ORDER.map(s => ({ v: s, l: leadStatusLabel[s] })))}
+          {leadSel(status, setStatus, "ทุกขั้นตอน", ตัวเลือกขั้น)}
           {anyFilter && (
             <button onClick={() => { setQuery(""); setDealerSel("ALL"); setRegionSel("ALL"); setProvince("ALL"); setSrcSel("ALL"); setStatus("ALL"); }}
               className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>ล้างตัวกรอง</button>
@@ -504,15 +509,15 @@ export default function HQLeadsPage() {
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header"><div className="card-title">ตามสถานะ</div></div>
+          <div className="card-header"><div className="card-title">ตามขั้นตอน</div></div>
           <div className="card-body" style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
-            {byStatus.map(s => { const c = leadStatusColor[s.status]; return (
-              <div key={s.status}>
+            {byStatus.map(s => { const c = สีกราฟขั้น[s.stage]; return (
+              <div key={s.stage}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", marginBottom: 3 }}>
-                  <span style={{ color: "#374151", fontWeight: 600 }}>{leadStatusLabel[s.status]}</span><span style={{ fontWeight: 800, color: c.text }}>{s.count}</span>
+                  <span style={{ color: "#374151", fontWeight: 600 }}>{ชื่อขั้น(s.stage)}</span><span style={{ fontWeight: 800, color: c }}>{s.count}</span>
                 </div>
                 <div style={{ height: 6, background: "var(--muted)", borderRadius: 999, overflow: "hidden" }}>
-                  <div className="bar-grow" style={{ height: "100%", width: `${s.pct}%`, background: c.text, borderRadius: 999 }} />
+                  <div className="bar-grow" style={{ height: "100%", width: `${s.pct}%`, background: c, borderRadius: 999 }} />
                 </div>
               </div>
             ); })}
@@ -668,7 +673,7 @@ export default function HQLeadsPage() {
               {displayLeads.length === 0 ? (
                 <tr><td colSpan={11} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
               ) : displayLeads.map(l => {
-                const c = leadStatusColor[l.status];
+                const c = สีขั้น(เลขขั้นแถว(l));
                 const followUp = needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays);
                 const quoted = QUOTED_UP.includes(l.status);
                 // ติดต่อล่าสุด = กิจกรรมล่าสุดของลูกค้าเป้าหมาย · ลูกค้าเป้าหมายที่ไม่มีบันทึกกิจกรรม = "—" (ไม่เดาวันให้)
@@ -711,7 +716,7 @@ export default function HQLeadsPage() {
                         ⚠️ ใส่ไว้ใต้ป้ายสถานะ ไม่เพิ่มคอลัมน์ใหม่ — ตารางนี้เต็มความกว้างพอดีแล้ว
                            (ดูหมายเหตุที่ colgroup: เพิ่มคอลัมน์แล้วจะกลับมามีแถบเลื่อนแนวนอนอีก) */}
                     <td>
-                      <span className="badge" style={{ background: c.bg, color: c.text, whiteSpace: "nowrap" }}>{leadStatusLabel[l.status]}</span>
+                      <span className="badge" data-stage-label style={{ background: c.bg, color: c.text, whiteSpace: "nowrap" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</span>
                       {l.status === "CANCELLED" && (
                         <span title={l.lostReason || "ไม่ได้ระบุเหตุผล"}
                           style={{ display: "block", fontSize: "0.65rem", color: l.lostReason ? "#dc2626" : "#9ca3af", marginTop: 3,
@@ -744,7 +749,7 @@ export default function HQLeadsPage() {
           เปิดทับหน้าเดิม ไม่เปลี่ยนหน้า ตามสเปก · ไม่มีข้อมูล = "—" ไม่เดาให้ */}
       {viewLead && (() => {
         const l = viewLead;
-        const c = leadStatusColor[l.status];
+        const c = สีขั้น(เลขขั้นแถว(l));
         const quoted = QUOTED_UP.includes(l.status);
         return (
           <>
@@ -765,7 +770,7 @@ export default function HQLeadsPage() {
                     <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.company}</div>
                     <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,.7)", marginTop: 3 }}>{l.id} · {l.contact}</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 9, flexWrap: "wrap" }}>
-                      <span className="badge" style={{ background: c.bg, color: c.text }}>{leadStatusLabel[l.status]}</span>
+                      <span className="badge" data-stage-label style={{ background: c.bg, color: c.text }}>{ชื่อขั้น(เลขขั้นแถว(l))}</span>
                       <span className="badge" style={{ background: "rgba(255,255,255,.15)", color: "#fff" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</span>
                     </div>
                   </div>

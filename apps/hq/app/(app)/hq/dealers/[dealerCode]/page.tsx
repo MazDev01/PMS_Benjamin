@@ -16,7 +16,7 @@ import { HQ_DEALER_CODE } from "@pms/shared/lib/hqDealerRow";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
-import { ชื่อขั้นการขาย, type ผลขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, สีขั้น, เลขขั้นจากผล, type ผลขั้น } from "@pms/shared/lib/leadStage";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -25,11 +25,11 @@ const BADGE = (bg: string, color: string): React.CSSProperties => ({ background:
 
 // ขั้นของลีด — ชื่อชุดเดียวกับแผงลีดฝั่งดีลเลอร์ (ตัวแปลงกลาง lib/leadStage.ts · รอบ 4)
 //   เดิมเขียนกลุ่มเอง 4 ป้าย (ติดต่อแล้ว / ส่งใบเสนอ / ปิดสำเร็จ / ปิดไม่สำเร็จ) ไม่ตรงกับแถบ 5 ขั้นของดีลเลอร์
+//   ชื่อ/สีจากตัวกลางชุดเดียวกับตารางลีดและแถบในแผงลีด (บอสสั่ง 27 ต.ค. 69)
 function ป้ายขั้น({ stage }: { stage: ผลขั้น }) {
-  const [ข้อความ, bg, color] = stage.kind === "won" ? ["ปิดการขายสำเร็จ", "#e5faf0", "#059669"]
-    : stage.kind === "lost" ? ["ปิดการขายไม่สำเร็จ", "#fee2e2", "#dc2626"]
-    : [`${stage.step} · ${ชื่อขั้นการขาย[stage.step - 1]}`, "#dce5f0", "#003366"];
-  return <span className="badge" style={BADGE(bg, color)}>{ข้อความ}</span>;
+  const n = เลขขั้นจากผล(stage);
+  const สี = สีขั้น(n);
+  return <span className="badge" data-stage-label style={BADGE(สี.bg, สี.text)}>{ชื่อขั้น(n)}</span>;
 }
 
 // ── หน้ารายละเอียดดีลเลอร์ = งานดูแล (รอบ 4 · บอสตัดสิน 21 ต.ค. 69) ───────────────────────────────────────────

@@ -874,12 +874,13 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("lead_summary", {
         p_dealer_codes: f.dealerCodes ?? null, p_province: f.province ?? null, p_product: f.product ?? null,
         p_source: f.source ?? null, p_search: (f.search ?? "").trim() || null, p_status: f.status ?? null,
-        p_date_start: f.dateStart ?? null, p_date_end: f.dateEnd ?? null,
+        p_date_start: f.dateStart ?? null, p_date_end: f.dateEnd ?? null, p_stage: f.stage ?? null,
       });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
-      const d = (data ?? {}) as { byStatus?: Row[]; bySource?: Row[]; byProduct?: Row[]; byProvince?: Row[]; byLostReason?: Row[]; byMonth?: Row[]; byDealer?: Row[] };
+      const d = (data ?? {}) as { byStatus?: Row[]; byStage?: Row[]; bySource?: Row[]; byProduct?: Row[]; byProvince?: Row[]; byLostReason?: Row[]; byMonth?: Row[]; byDealer?: Row[] };
       return {
         byStatus: (d.byStatus ?? []).map(r => ({ status: String(r.status), count: Number(r.count), value: Number(r.value) })),
+        byStage: (d.byStage ?? []).map(r => ({ stage: Number(r.stage), count: Number(r.count), value: Number(r.value) })),
         bySource: (d.bySource ?? []).map(r => ({ source: String(r.source), count: Number(r.count) })),
         byProduct: (d.byProduct ?? []).map(r => ({ product: String(r.product), count: Number(r.count) })),
         byProvince: (d.byProvince ?? []).map(r => ({ province: String(r.province), count: Number(r.count) })),
@@ -1067,7 +1068,7 @@ export const SupabaseAdapter: DataAdapter = {
     listPage: async (scope, opts) => {
       const args: Record<string, unknown> = {
         p_limit: opts.limit, p_offset: opts.offset,
-        p_status: opts.status ?? null,
+        p_status: opts.status ?? null, p_stage: opts.stage ?? null,
         p_dealer_codes: opts.dealerCodes ?? (scope && !scope.isHQ && scope.dealerCode ? [scope.dealerCode] : null),
         p_province: opts.province ?? null, p_product: opts.product ?? null, p_source: opts.source ?? null,
         p_search: (opts.search ?? "").trim() || null,

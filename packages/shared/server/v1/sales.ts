@@ -65,6 +65,7 @@ export const LEAD_PAGE_SHAPE = {
   limit:       num({ int: true, min: 1, max: MAX_PAGE, def: 50 }),
   offset:      num({ int: true, min: 0, max: 1_000_000, def: 0 }),
   status:      oneOf(LEAD_STATUS, { optional: true }),
+  stage:       num({ int: true, min: 1, max: 7, optional: true }),   // เลขขั้น (leadStage.ts · ใบ 0251)
   dealerCodes: arrOf(str({ max: 20 }), { optional: true, max: MAX_DEALERS }),
   province:    str({ max: 100, optional: true }),
   product:     str({ max: 200, optional: true }),
@@ -167,7 +168,7 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
     const รู้จำนวนแล้ว = f.knownTotal >= 0;
     const args: Record<string, unknown> = {
       p_limit: f.limit, p_offset: f.offset,
-      p_status: orNull(f.status), p_dealer_codes: f.dealerCodes,
+      p_status: orNull(f.status), p_stage: f.stage ?? null, p_dealer_codes: f.dealerCodes,
       p_province: orNull(f.province), p_product: orNull(f.product), p_source: orNull(f.source),
       p_search: orNull(f.search), p_date_start: f.dateStart, p_date_end: f.dateEnd,
       p_overdue: f.overdue, p_as_of: f.asOf,

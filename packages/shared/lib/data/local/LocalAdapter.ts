@@ -22,6 +22,7 @@ import { exactKey } from "@pms/shared/lib/customerMatch";
 import { isClosedDeal } from "@pms/shared/lib/customerDeletion";
 import { parseThaiDate as parseThaiDateLocal } from "@pms/shared/lib/leadMetrics";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
+import { เลขขั้นของลีด } from "@pms/shared/lib/leadStage";
 import { profileKey, PROFILE_UPDATED_EVENT, sessions, QUOTED_UP, DEFAULT_DEALER_CODE,
   DEFAULT_LEAD_RULES, DEFAULT_HQ_NOTIF_RULES, DEFAULT_HQ_POLICY, type UserProfile } from "@pms/shared/lib/mock";
 
@@ -49,6 +50,13 @@ import {
   เตรียมบันทึกการติดต่อ, ตรวจบันทึกการติดต่อ, วันไทยของเวลา,
 } from "@pms/shared/lib/prospectJourney";
 
+// เลขขั้นของลีดในโหมดตัวอย่าง — กติกาเดียวกับ lead_stage_no (ใบ 0251) · มีใบร่าง = ใบของดีลนี้ (deal_id = num_id สาขาเดียวกัน) ที่ยังเป็นร่าง
+function เลขขั้นโหมดตัวอย่าง(l: LeadRow): number {
+  const สาขา = l.dealerCode ?? DEFAULT_DEALER_CODE;
+  const มีใบร่าง = readKey<QuotationMock[]>(SALES.quotations, quoteSeed)
+    .some(q => (q.dealerCode ?? DEFAULT_DEALER_CODE) === สาขา && q.dealId === l.numId && q.status === "draft");
+  return เลขขั้นของลีด(l.status, มีใบร่าง);
+}
 const HQ_COMPANY_KEY = "hq_company_profile";
 const NOTES_KEY = "customer_notes_v1";
 const PROSPECTS_KEY = "hq_dealer_prospects_v1";
@@ -612,6 +620,7 @@ export const LocalAdapter: DataAdapter = {
         // ตัวกรอง/ค้นตามแม่แบบ (l.product) ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         if (f.source && (l.source || "ไม่ระบุ") !== f.source) return false;
         if (f.status && l.status !== f.status) return false;
+        if (f.stage && เลขขั้นโหมดตัวอย่าง(l) !== f.stage) return false;
         if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.assigned ?? ""} ${l.id ?? ""} ${l.dealerCode ?? ""}`.toLowerCase().includes(search)) return false;
         return true;
       });
@@ -632,6 +641,7 @@ export const LocalAdapter: DataAdapter = {
       rows.forEach(l => { const code = l.dealerCode ?? DEFAULT_DEALER_CODE; let r = dealerM.get(code); if (!r) { r = { leads: 0, quoted: 0, won: 0, lost: 0 }; dealerM.set(code, r); } r.leads++; if (QUOTED_UP.includes(l.status)) r.quoted++; if (l.status === "PAID") r.won++; if (l.status === "CANCELLED") r.lost++; });
       return ok({
         byStatus: [...statusM.entries()].map(([status, count]) => ({ status, count, value: statusValM.get(status) ?? 0 })),
+        byStage: [...cnt(l => String(เลขขั้นโหมดตัวอย่าง(l))).entries()].map(([stage, count]) => ({ stage: Number(stage), count, value: rows.filter(l => เลขขั้นโหมดตัวอย่าง(l) === Number(stage)).reduce((t, l) => t + (l.quoteValue ?? 0), 0) })).sort((a, b) => a.stage - b.stage),
         bySource: [...sourceM.entries()].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count),
         byProduct: [...productM.entries()].map(([product, count]) => ({ product, count })).sort((a, b) => b.count - a.count),
         byProvince: [...provM.entries()].map(([province, count]) => ({ province, count })).sort((a, b) => a.province.localeCompare(b.province)),
@@ -972,6 +982,7 @@ export const LocalAdapter: DataAdapter = {
         if (iso && opts.dateStart && iso < opts.dateStart) return false;
         if (iso && opts.dateEnd && iso > opts.dateEnd) return false;
         if (opts.status && l.status !== opts.status) return false;
+        if (opts.stage && เลขขั้นโหมดตัวอย่าง(l) !== opts.stage) return false;
         if (opts.dealerCodes?.length && !opts.dealerCodes.includes(l.dealerCode ?? DEFAULT_DEALER_CODE)) return false;
         if (opts.province && l.province !== opts.province) return false;
         if (opts.source && (l.source || "ไม่ระบุ") !== opts.source) return false;
