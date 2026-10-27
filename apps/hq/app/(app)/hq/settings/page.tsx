@@ -49,10 +49,10 @@ import {
   DEFAULT_HQ_POLICY,
   DEFAULT_HQ_TARGETS,
   DEFAULT_HQ_NOTIF_RULES,
-  leadStatusLabel, leadStatusColor, LEAD_TASK_TEMPLATE, LEAD_STATUS_ORDER, LEAD_STATUS_META,
+  LEAD_TASK_TEMPLATE, ระบบติ๊กเมื่อ,
   LOST_REASONS,
   type HQPolicy, type HQTargets, type HQNotifRules,
-  type DealerRow, type LeadStatus, type LeadTaskDef,
+  type DealerRow, type LeadTaskDef, type ขั้นรายการ,
   OTHER_REASON_OPTION,
 } from "@pms/shared/lib/mock";
 // แท็บ "บริษัท" / "ผู้ใช้งาน" ฝังหน้าจัดการจริงเต็ม
@@ -60,6 +60,7 @@ import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
 import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
 import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
+import { ชื่อขั้น, ชื่อขั้นการขาย, สีขั้น } from "@pms/shared/lib/leadStage";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
@@ -127,14 +128,10 @@ const numInput = (value: number, onChange: (n: number) => void, unit: string, st
 // regionDisplay = ใช้ของกลาง (hqQuotations.ts) แหล่งเดียว — เดิม copy ในไฟล์นี้ไม่มี guard "ไม่ระบุ" (1.4)
 
 // ═══════════════════════ 3 · เส้นทางการขาย ════════════════════════════════════
-// ขั้นการขาย = สถานะลูกค้าเป้าหมายจริงของระบบ (LeadStatus 7 ขั้น) — ชื่อ/สี/ลำดับของ "ขั้น" แก้ที่นี่ไม่ได้
-// เพราะคัมบัง/ตาราง/แดชบอร์ด และชนิดข้อมูลใน DB (enum lead_status) ผูกกับ 7 ขั้นนี้
-//
-// สิ่งที่ HQ แก้ได้จริงคือ "งานมาตรฐาน" ในแต่ละขั้น (13 ส.ค. 69) — เก็บที่ hq_sales_journey.tasks
-// งานพวกนี้คือของจริงที่ดีลเลอร์เช็ก และเป็นตัวเลื่อนขั้นให้ลูกค้าเป้าหมาย ไม่ใช่ข้อความประดับ
-// ไม่รวม "รอราคา HQ": ขั้นนี้ไม่มีงานให้ดีลเลอร์ติ๊ก ฐานข้อมูลขยับให้เองตามคำขอราคา (Flow ใหม่)
-// ไม่รวม "ได้ราคา HQ" ด้วยเหตุผลเดียวกัน (ใบ 0219) — ใช้ manual ของตารางกลาง ไม่เขียนชื่อสถานะซ้ำ
-const STAGE_ORDER: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => LEAD_STATUS_META[s].manual);
+// ขั้น = 5 ขั้นของ FLOW ใหม่ (leadStage.ts · บอสสั่ง 27 ต.ค. 69 · FLOW D7) — ชื่อ/สี/ลำดับของขั้นแก้ที่นี่ไม่ได้
+// สิ่งที่ HQ แก้ได้คือ "รายการเตือน" ในแต่ละขั้น (hq_sales_journey.tasks) — ติ๊กไว้กันลืม ไม่เลื่อนขั้นของลีด
+//   รายการของระบบ (นัดหมาย · ส่งคำขอราคา · ได้ใบ HQ · จัดทำใบ · ส่งใบ) ฐานติ๊กเมื่อทำจริง → แก้/ลบไม่ได้ (ฐานกัน ใบ 0250)
+//   รายการติ๊กเอง → แก้ชื่อ/เพิ่ม/ลบได้
 // เหตุผลปิดการขายไม่สำเร็จ — ขั้น "ปิดไม่สำเร็จ" เป็นปลายทางหนึ่งของเส้นทางการขาย จึงอยู่แท็บนี้
 // (เดิมอยู่แท็บ "กฎธุรกิจ" ซึ่งยุบไปแล้ว — คีย์ hq_sales_journey เหมือนเดิม ค่าที่ตั้งไว้ไม่หาย)
 // เก็บผ่าน repository — เดิมเขียนลง localStorage ของ origin ฝั่ง HQ ซึ่งดีลเลอร์ (คนละ origin)
@@ -145,8 +142,8 @@ const DEFAULT_JOURNEY: Journey = { lost: [...LOST_REASONS] };
 // ── ตัวช่วยของการ์ด "ขั้นตอนการขายมาตรฐาน" ────────────────────────────────────
 // รหัสงาน (key) ผูกกับ checklist ที่บันทึกไว้ในลูกค้าเป้าหมายทุกใบ — งานใหม่ต้องได้ key ที่ไม่ซ้ำของเดิม
 // และห้ามเปลี่ยน key ของงานที่มีอยู่ (ลูกค้าเป้าหมายเก่าจะหาไม่เจอ = ประวัติการเช็กงานหาย) จึงแก้ได้แค่ "ชื่อ"
-function newTaskKey(existing: LeadTaskDef[], stage: LeadStatus): string {
-  const base = `task_${stage.toLowerCase()}`;
+function newTaskKey(existing: LeadTaskDef[], step: ขั้นรายการ): string {
+  const base = `task_step${step}`;
   const used = new Set(existing.map(t => t.key));
   for (let i = 1; ; i++) if (!used.has(`${base}_${i}`)) return `${base}_${i}`;
 }
@@ -178,15 +175,16 @@ function JourneyTab() {
   }), [pol.dirty, jn.dirty, tk.dirty, saveAll, pol.reset, jn.reset, tk.reset]));
 
   const addLost = () => { if (newLost.trim()) { jn.set(p => ({ ...p, lost: [...p.lost, newLost.trim()] })); setNewLost(""); } };
-  const active = STAGE_ORDER.filter(s => s !== "PAID" && s !== "CANCELLED");
-  const tasksOf = (s: LeadStatus) => tk.draft.filter(t => t.stage === s);
+  const ขั้นทั้งหมด = [1, 2, 3, 4, 5] as const;
+  const tasksOf = (n: ขั้นรายการ) => tk.draft.filter(t => t.step === n);
   // แก้ได้แค่ชื่อ — key คงเดิมเสมอ (ผูกกับ checklist ของลูกค้าเป้าหมายที่บันทึกไว้แล้ว)
-  const renameTask = (key: string, label: string) => tk.set(p => p.map(t => t.key === key ? { ...t, label } : t));
-  const removeTask = (key: string) => tk.set(p => p.filter(t => t.key !== key));
-  const addTask = (stage: LeadStatus) => tk.set(p => {
-    const def: LeadTaskDef = { key: newTaskKey(p, stage), label: "", stage };
-    // แทรกต่อท้ายงานของขั้นเดียวกัน — ลำดับงานคือลำดับที่ดีลเลอร์ต้องเช็ก ห้ามไปโผล่ท้ายสุดข้ามขั้น
-    const last = p.map(t => t.stage).lastIndexOf(stage);
+  //   รายการของระบบแก้ชื่อ/ลบไม่ได้ (ฐานปฏิเสธ system_task_locked)
+  const renameTask = (key: string, label: string) => tk.set(p => p.map(t => t.key === key && !t.auto ? { ...t, label } : t));
+  const removeTask = (key: string) => tk.set(p => p.filter(t => t.key !== key || t.auto));
+  const addTask = (step: ขั้นรายการ) => tk.set(p => {
+    const def: LeadTaskDef = { key: newTaskKey(p, step), label: "", step };
+    // แทรกต่อท้ายรายการของขั้นเดียวกัน — ห้ามไปโผล่ท้ายสุดข้ามขั้น
+    const last = p.map(t => t.step).lastIndexOf(step);
     if (last < 0) return [...p, def];
     return [...p.slice(0, last + 1), def, ...p.slice(last + 1)];
   });
@@ -194,18 +192,23 @@ function JourneyTab() {
   return (
     <>
       <SectionCard icon={<GitMerge size={19} />} title="ขั้นตอนการขายมาตรฐาน"
-        desc="เส้นทางเดียวกันทุกดีลเลอร์ — สำนักงานใหญ่กำหนดงานของแต่ละขั้น ดีลเลอร์แก้ไขไม่ได้">
+        desc="5 ขั้นเดียวกันทุกดีลเลอร์ — สำนักงานใหญ่กำหนดรายการเตือนของแต่ละขั้น ดีลเลอร์แก้ไขไม่ได้">
         <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden", marginTop: 6 }}>
-          {active.map((s, idx) => (
-            <div key={s} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderBottom: idx < active.length - 1 ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>
-              <span style={{ width: 24, height: 24, borderRadius: "50%", background: leadStatusColor[s].bg, color: leadStatusColor[s].text, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, flexShrink: 0, marginTop: 4 }}>{idx + 1}</span>
-              <span style={{ flex: "1 1 140px", fontSize: "0.84rem", fontWeight: 700, color: STEEL, marginTop: 5 }}>{leadStatusLabel[s]}</span>
-              {/* งานมาตรฐานของขั้นนี้ = ตัวขับความคืบหน้าจริง (เช็กงาน → เลื่อนขั้นเอง) · แก้ชื่อ/เพิ่ม/ลบได้ */}
+          {ขั้นทั้งหมด.map((n, idx) => (
+            <div key={n} data-journey-step={n} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderBottom: idx < ขั้นทั้งหมด.length - 1 ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>
+              <span style={{ width: 24, height: 24, borderRadius: "50%", background: สีขั้น(n).bg, color: สีขั้น(n).text, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, flexShrink: 0, marginTop: 4 }}>{n}</span>
+              <span style={{ flex: "1 1 140px", fontSize: "0.84rem", fontWeight: 700, color: STEEL, marginTop: 5 }}>{ชื่อขั้นการขาย[n - 1]}</span>
+              {/* รายการเตือนของขั้นนี้ — ติ๊กกันลืม ไม่เลื่อนขั้น · รายการของระบบล็อก (ฐานติ๊กเมื่อทำจริง) */}
               <span style={{ flex: "2 1 300px", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                {tasksOf(s).map(t => (
+                {tasksOf(n).map(t => t.auto ? (
+                  <span key={t.key} data-system-task={t.key} title={ระบบติ๊กเมื่อ(t.key)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#eef3f8", border: "1px dashed #b6c4d4", borderRadius: 8, padding: "4px 9px", fontSize: "0.74rem", fontWeight: 600, color: "#334155" }}>
+                    {t.label} <span style={{ fontSize: "0.64rem", color: "#64748b", fontWeight: 500 }}>· ระบบติ๊ก</span>
+                  </span>
+                ) : (
                   <span key={t.key} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#f1f5f9", borderRadius: 8, padding: "3px 4px 3px 9px" }}>
                     <input
-                      aria-label={`ชื่องานของขั้น ${leadStatusLabel[s]}`}
+                      aria-label={`ชื่องานของขั้น ${ชื่อขั้น(n)}`}
                       value={t.label} placeholder="ชื่องาน…" autoFocus={!t.label}
                       onChange={e => renameTask(t.key, e.target.value)}
                       style={{ border: "none", background: "transparent", outline: "none", fontFamily: "inherit", fontSize: "0.74rem", fontWeight: 600, color: "#374151", width: `${Math.max(7, (t.label.length || 7) + 1)}ch` }}
@@ -214,12 +217,9 @@ function JourneyTab() {
                       style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", display: "flex", padding: 2 }}><X size={12} /></button>
                   </span>
                 ))}
-                <button onClick={() => addTask(s)} className="btn btn-secondary btn-sm"
-                  title={`เพิ่มงานในขั้น ${leadStatusLabel[s]}`}
+                <button onClick={() => addTask(n)} className="btn btn-secondary btn-sm"
+                  title={`เพิ่มงานในขั้น ${ชื่อขั้น(n)}`}
                   style={{ padding: "2px 9px", fontSize: "0.7rem", color: NAVY }}><Plus size={12} /> เพิ่มงาน</button>
-                {!tasksOf(s).length && (
-                  <span style={{ fontSize: "0.7rem", color: "#b45309" }}>ยังไม่มีงาน — ลูกค้าเป้าหมายจะข้ามขั้นนี้ไปเลย</span>
-                )}
               </span>
             </div>
           ))}
@@ -230,11 +230,11 @@ function JourneyTab() {
           </div>
         )}
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-          {(["PAID", "CANCELLED"] as LeadStatus[]).map(s => (
-            <div key={s} style={{ flex: "1 1 220px", display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: s === "PAID" ? "#f0fdf4" : "#fff5f5", border: `1px solid ${s === "PAID" ? "#bbf7d0" : "#fecaca"}` }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: leadStatusColor[s].text }} />
-              <span style={{ flex: 1, fontSize: "0.8rem", fontWeight: 700, color: leadStatusColor[s].text }}>{leadStatusLabel[s]}</span>
-              <span className="badge" style={{ background: leadStatusColor[s].bg, color: leadStatusColor[s].text, border: "none" }}>ขั้นปิด</span>
+          {([6, 7] as const).map(n => (
+            <div key={n} style={{ flex: "1 1 220px", display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: สีขั้น(n).bg, border: `1px solid ${สีขั้น(n).bar}` }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: สีขั้น(n).text }} />
+              <span style={{ flex: 1, fontSize: "0.8rem", fontWeight: 700, color: สีขั้น(n).text }}>{ชื่อขั้น(n)}</span>
+              <span className="badge" style={{ background: "#fff", color: สีขั้น(n).text, border: "none" }}>ขั้นปิด</span>
             </div>
           ))}
         </div>

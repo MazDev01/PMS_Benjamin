@@ -676,7 +676,7 @@ export function SalesProvider({
       if (!งาน.length) continue;
       // ติ๊กโดยระบบ: ผู้ทำ = ผู้รับผิดชอบ · ขั้นเลื่อนขึ้นเท่านั้น (ฐานคิดจากงานในฐาน · ไม่แตะ "รอราคา HQ") · ไม่จดไทม์ไลน์
       บันทึกลีด(l.id, { tasks: งาน.map(key => ({ key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" })),
-        log: false });
+        log: false, ระบบ: true });
     }
   }, [myDealerCode, บันทึกลีด]);
 
@@ -977,7 +977,7 @@ export function SalesProvider({
     if (!l || l.status === "PAID" || l.status === "CANCELLED") return;
     if ((l.tasks ?? []).find(t => t.key === def.key)?.done) return;
     บันทึกลีด(l.id, { tasks: [{ key: def.key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" }],
-      log: false });
+      log: false, ระบบ: true });
   }, [myDealerCode, บันทึกลีด]);
 
 

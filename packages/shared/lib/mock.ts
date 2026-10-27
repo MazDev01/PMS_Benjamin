@@ -1,6 +1,7 @@
 ﻿// Mock data สำหรับ frontend (ยังไม่เชื่อม backend)
 // ─── ROLE / SESSION ───────────────────────────────────────────
 import { วันเวลาไทย } from "./thaiDate";
+import { ขั้นของลีด } from "./leadStage";
 
 export type UserRole =
   | "SUPER_ADMIN"
@@ -681,86 +682,88 @@ export type LeadRow = {
 // กิจกรรมของลูกค้าเป้าหมาย — บันทึกการโทร/ประชุม/โน้ต ฯลฯ ที่เกิดขึ้นจริง
 export type LeadActivity = { id: number; date: string; icon: string; text: string; type: string };
 
-// ─── Task-driven Sales Journey ─────────────────────────────────────
-// เช็ก Task → บันทึกเวลา/ผู้ทำ → คำนวณ % (Completed/Total) → เลื่อน Stage อัตโนมัติ
+// ─── รายการเตือนของลีด (FLOW ใหม่ 5 ขั้น · บอสสั่ง 27 ต.ค. 69 · ใบ 0250 · FLOW D7) ─────────────────────────────────
+// ติ๊กไว้กันลืม ไม่เปลี่ยนขั้นของลีด (ขั้นมาจากสถานะ/คำขอ/ใบ · leadStage.ts) — แต่ละรายการผูกกับขั้น 1–5 ของ leadStage.ts
+//   รายการของระบบ (auto) ฐานติ๊กในคำสั่งเดียวกับเหตุการณ์ ดีลเลอร์ติ๊กเองไม่ได้ (ฐานกัน: leads_system_tasks_guard)
+//   ⚠️ รายการของระบบต้องตรงกับฐาน _lead_system_tasks (ใบ 0250) — แก้ที่เดียวไม่ได้
 export type LeadTask = { key: string; label: string; done: boolean; doneAt?: string; doneBy?: string };
 
-export type LeadTaskDef = { key: string; label: string; stage: LeadStatus };
+/** ขั้น 1–5 ของ leadStage.ts (1 ข้อมูลลูกค้า · 2 ขอราคา HQ · 3 ได้ใบ HQ · 4 ทำใบให้ลูกค้า · 5 รอลูกค้าตอบ) */
+export type ขั้นรายการ = 1 | 2 | 3 | 4 | 5;
+export type LeadTaskDef = { key: string; label: string; step: ขั้นรายการ; auto?: boolean };
 
-/** งานสุดท้ายของเส้นทาง — ปิดการขาย · ห้ามลบ/ห้ามย้ายขั้น (ปุ่มปิดดีลทั้งระบบผูกกับ key นี้) */
-export const CLOSE_TASK_KEY = "close";
-/** งาน "จัดทำใบเสนอราคา" — ติ๊กเองไม่ได้ ต้องออกใบจริง แล้วระบบติ๊กให้ (ดู completeLeadQuoteTasks) */
+/** งาน "จัดทำใบเสนอราคา" — ฐานติ๊กเมื่อทำใบจริง (0210) */
 export const QUOTE_TASK_KEY = "makeQuote";
-/** งาน "ส่งใบเสนอราคา" — ติ๊กเองไม่ได้เช่นกัน ต้องกดส่งใบจริงถึงจะติ๊กให้ */
+/** งาน "ส่งใบเสนอราคา" — ฐานติ๊กเมื่อส่งใบจริง (0210/0248) */
 export const SEND_QUOTE_TASK_KEY = "sendQuote";
+/** งาน "นัดหมาย" — ฐานติ๊กเมื่อบันทึกนัดหมายจริง (0248) */
+export const APPOINTMENT_TASK_KEY = "appointment";
 
-// เทมเพลต Checklist มาตรฐาน (สร้างอัตโนมัติทุก Lead) + stage ที่แต่ละ task พาไปถึง
-// ⚠️ นี่คือ "ค่าเริ่มต้น" เท่านั้น — ของจริง HQ แก้ได้ที่ /hq/settings › เส้นทางการขาย (เก็บใน hq_sales_journey.tasks)
-//    ทุกหน้าจอต้องอ่านผ่าน useLeadTaskTemplate() ไม่ใช่ค่านี้ตรง ๆ (คนละ origin = ค่าที่ HQ ตั้งไม่ข้ามมาเอง)
-// ⚠️ ลำดับนี้บอสสั่งเอง (17 ส.ค. 69) — เปลี่ยนจากของเดิม 2 อย่าง:
-//    · "ติดต่อครั้งแรก" → "ติดต่อแล้ว"
-//    · ย้าย "ส่งแม่แบบให้ลูกค้า" ไปไว้ "หลัง" ส่งใบเสนอราคา (ยืนยันแล้วว่าตั้งใจ ไม่ใช่พิมพ์สลับ)
-//      → stage ต้องเป็น QUOTED ไม่ใช่ BULLET ไม่งั้น normalize เรียงตามขั้นแล้วเด้งกลับไปอยู่ก่อนออกใบ
-//    · ตัด "รวบรวมความต้องการ" ออก (ชื่อ "ขั้น" BULLET ยังเป็นคำนี้อยู่ ไม่ได้เปลี่ยน)
-//    · งานสุดท้าย "ปิดการขาย" → "ปิดการขาย / ไม่สำเร็จ" (บอสส่งรายการมายืนยันซ้ำแบบนี้)
-//      ⚠️ ติ๊กงานนี้ = ปิดการขาย "สำเร็จ" (ไปขั้น PAID) เสมอ · ปิดไม่สำเร็จใช้ปุ่มแยก (CANCELLED)
-//      ชื่อเป็นแค่ป้ายบนหน้าจอ กลไกผูกกับ key "close" ไม่ใช่ชื่อ — เปลี่ยนชื่อไม่กระทบการทำงาน
-// ⚠ แก้ต่อ (19 ส.ค. 69) — บอสสั่ง "แบ่งงานให้เหมาะสมกับเส้นทางการขาย":
-//    · ขั้น "รวบรวมความต้องการ" เหลืองานเดียวคือ "นัดหมาย" ชื่อขั้นกับงานจึงไม่สัมพันธ์กัน
-//      → เติมงาน "สรุปความต้องการ" ต่อจากนัดหมาย (นัดเจอ → ได้ความต้องการ → ออกใบ)
-//      คนละตัวกับงานเก่าชื่อ "รวบรวมความต้องการ" ที่สั่งตัดไป — งานนี้คือ "สรุปหลังคุย" ไม่ใช่ขั้นตอนซ้ำ
-//    · "เจรจา" → "เจรจาต่อรอง" ให้ตรงชื่อขั้น (key เดิม — ประวัติการติ๊กของลูกค้าเก่าไม่หาย)
+/** รายการของระบบ + ข้อความบอกว่าระบบติ๊กเมื่อไร (ลำดับ = ลำดับในแม่แบบ · ตรงกับฐาน _lead_system_tasks) */
+export const SYSTEM_LEAD_TASKS: (LeadTaskDef & { auto: true; เมื่อ: string })[] = [
+  { key: APPOINTMENT_TASK_KEY, label: "นัดหมาย",         step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อบันทึกนัดหมาย" },
+  { key: "requestQuote",       label: "ส่งคำขอราคา",      step: 2, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งคำขอราคาให้ HQ" },
+  { key: "hqQuote",            label: "ได้ใบ HQ",         step: 3, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อ HQ ส่งใบ" },
+  { key: QUOTE_TASK_KEY,       label: "จัดทำใบเสนอราคา",  step: 4, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อทำใบเสนอราคา" },
+  { key: SEND_QUOTE_TASK_KEY,  label: "ส่งใบเสนอราคา",    step: 5, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า" },
+];
+const รหัสระบบ = new Set(SYSTEM_LEAD_TASKS.map(t => t.key));
+/** รายการนี้ระบบติ๊กให้เองไหม (ดีลเลอร์/HQ ติ๊ก แก้ ลบเองไม่ได้) */
+export const เป็นรายการระบบ = (key: string) => รหัสระบบ.has(key);
+/** ข้อความบอกว่าระบบติ๊กเมื่อไร · ไม่ใช่รายการของระบบ = "" */
+export const ระบบติ๊กเมื่อ = (key: string) => SYSTEM_LEAD_TASKS.find(t => t.key === key)?.เมื่อ ?? "";
+
+/** แม่แบบตั้งต้น (บอสสั่ง 27 ต.ค. 69) — ของจริง HQ แก้รายการติ๊กเองได้ที่ /hq/settings › เส้นทางการขาย (hq_sales_journey.tasks)
+ *  ทุกหน้าจออ่านผ่าน useLeadTaskTemplate() · "ติดตามผล" "เจรจาต่อรอง" "ปิดการขาย" แบบเดิมเอาออก (FLOW เลิกใช้ 21 ต.ค. 69 · ต่อรองใช้ "ทำฉบับใหม่") */
+const ระบบ = (key: string): LeadTaskDef => { const s = SYSTEM_LEAD_TASKS.find(t => t.key === key)!; return { key: s.key, label: s.label, step: s.step, auto: true }; };
 export const LEAD_TASK_TEMPLATE: LeadTaskDef[] = [
-  { key: "contact",     label: "ติดต่อแล้ว",          stage: "WAITING"  },
-  { key: "collect",     label: "เก็บข้อมูลลูกค้า",     stage: "WAITING"  },
-  { key: "appointment", label: "นัดหมาย",            stage: "BULLET"   },
-  { key: "requirement", label: "สรุปความต้องการ",     stage: "BULLET"   },
-  { key: "makeQuote",   label: "จัดทำใบเสนอราคา",     stage: "QUOTED"   },
-  { key: "sendQuote",   label: "ส่งใบเสนอราคา",       stage: "QUOTED"   },
-  { key: "followup",    label: "ติดตามผล",           stage: "FOLLOWUP" },
-  { key: "negotiate",   label: "เจรจาต่อรอง",          stage: "NEGO"     },
-  { key: "close",       label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID"   },
+  { key: "contact",        label: "ติดต่อแล้ว",       step: 1 },
+  { key: "collect",        label: "เก็บข้อมูลลูกค้า",  step: 1 },
+  { key: "requirement",    label: "สรุปความต้องการ",  step: 1 },
+  ระบบ(APPOINTMENT_TASK_KEY), ระบบ("requestQuote"), ระบบ("hqQuote"), ระบบ(QUOTE_TASK_KEY), ระบบ(SEND_QUOTE_TASK_KEY),
+  { key: "followCustomer", label: "ติดตามลูกค้า",     step: 5 },
 ];
 
+/** รายการ flow เก่าที่เลิกใช้ — ชุดงานในฐาน/ลีดเดิมที่ยังมีอยู่ไม่แสดง (ใบ 0250 ย้ายออกแล้ว · กันค่าค้างในเครื่อง) */
+const เลิกใช้ = new Set(["followup", "negotiate", "close", "catalog"]);
+/** ขั้นเดิม (สถานะลีดแบบเก่า) → ขั้นใหม่ — อ่านแม่แบบรุ่นก่อนใบ 0250 ที่ยังค้าง (กติกาเดียวกับใบ 0250) */
+const ขั้นจากสถานะเดิม = (s: unknown): ขั้นรายการ =>
+  s === "HQ_PRICING" ? 2 : s === "HQ_QUOTED" ? 3 : s === "QUOTED" || s === "FOLLOWUP" || s === "NEGO" ? 5 : 1;
+
 /** ตรวจ/ซ่อมชุดงานที่ HQ ตั้งไว้ก่อนเอาไปใช้จริง — กันข้อมูลเพี้ยนจาก DB/หน้าจอ
- *  · ทิ้งแถวที่ไม่มีชื่อ/ขั้นไม่ถูกต้อง · คีย์ซ้ำเก็บตัวแรก
- *  · เรียงตามลำดับขั้นเสมอ (กลไกเลื่อนขั้นอ่านจากบนลงล่าง สลับลำดับ = เลื่อนขั้นเพี้ยน)
- *  · งาน "ปิดการขาย" ต้องมีเสมอ — หายไปเมื่อไรเติมกลับให้ (ไม่งั้นปิดดีลไม่ได้ทั้งระบบ) */
+ *  · ทิ้งแถวที่ไม่มีชื่อ/ขั้นไม่ถูกต้อง · คีย์ซ้ำเก็บตัวแรก · ทิ้งรายการ flow เก่า
+ *  · รายการของระบบต้องมีครบเสมอ ชื่อ/ขั้นตามที่กำหนด (ฐานกันอยู่แล้ว · ตรงนี้ซ่อมค่าค้าง)
+ *  · เรียงตามขั้น 1→5 (ภายในขั้นคงลำดับเดิม) */
 export function normalizeLeadTaskTemplate(raw: unknown): LeadTaskDef[] {
   const list = Array.isArray(raw) ? raw : [];
   const seen = new Set<string>();
   const clean: LeadTaskDef[] = [];
   for (const item of list) {
-    const t = item as Partial<LeadTaskDef>;
+    const t = item as Partial<LeadTaskDef> & { stage?: unknown };
     const key = typeof t?.key === "string" ? t.key.trim() : "";
     const label = typeof t?.label === "string" ? t.label.trim() : "";
-    const stage = t?.stage as LeadStatus;
-    if (!key || !label || !LEAD_STATUS_ORDER.includes(stage) || seen.has(key)) continue;
-    // งาน "ส่งแม่แบบให้ลูกค้า" (key catalog) เลิกใช้แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · ชุดงานในฐานที่ยังมีอยู่ไม่แสดง
-    if (key === "catalog") continue;
+    const step = (typeof t?.step === "number" ? t.step : t?.stage !== undefined ? ขั้นจากสถานะเดิม(t.stage) : NaN) as ขั้นรายการ;
+    if (!key || !label || ![1, 2, 3, 4, 5].includes(step) || seen.has(key) || เลิกใช้.has(key)) continue;
     seen.add(key);
-    clean.push({ key, label, stage });
+    const ระบบ = SYSTEM_LEAD_TASKS.find(s => s.key === key);
+    clean.push(ระบบ ? { key, label: ระบบ.label, step: ระบบ.step, auto: true } : { key, label, step });
   }
-  if (!clean.length) return [...LEAD_TASK_TEMPLATE];
-  const closeDef = LEAD_TASK_TEMPLATE.find(t => t.key === CLOSE_TASK_KEY)!;
-  if (!seen.has(CLOSE_TASK_KEY)) clean.push({ ...closeDef });
-  const rank = (s: LeadStatus) => LEAD_STATUS_ORDER.indexOf(s);
-  return clean.sort((a, b) => rank(a.stage) - rank(b.stage));
+  if (!clean.length) return LEAD_TASK_TEMPLATE.map(t => ({ ...t }));
+  for (const s of SYSTEM_LEAD_TASKS) if (!seen.has(s.key)) clean.push({ key: s.key, label: s.label, step: s.step, auto: true });
+  return clean.map((t, i) => ({ t, i })).sort((a, b) => a.t.step - b.t.step || a.i - b.i).map(x => x.t);
 }
 
 export function buildLeadTasks(tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTask[] {
   return tpl.map(t => ({ key: t.key, label: t.label, done: false }));
 }
 
-// seed งานของลูกค้าเป้าหมายตัวอย่างให้ "ตรงสถานะจริง" — เช็กงานครบถึงขั้นของสถานะ พร้อมผู้ทำ/เวลา (deterministic)
-// ให้ % ความคืบหน้า/แถบ Kanban/stageFromTasks ของข้อมูลตัวอย่างสอดคล้องกับกลไก Task-driven ปัจจุบัน
-// ใช้ตอนสร้างลีดใหม่เท่านั้น (ติดต่อแล้ว/รวบรวมความต้องการ) — ลำดับจากตารางสถานะกลาง ไม่เขียนตารางลำดับซ้ำ (รอบ 4)
-const ลำดับสถานะ = (s: LeadStatus) => LEAD_STATUS_META[s].order;
+// seed งานของลูกค้าเป้าหมายตัวอย่าง (โหมดในเครื่อง) — ติ๊กรายการของขั้นที่ผ่านมาแล้ว (ขั้นจาก leadStage.ts ตัวกลาง · ห้ามเขียนตาราง สถานะ→ขั้น ซ้ำ)
 export function seedLeadTasks(status: LeadStatus, doneBy: string, baseDay: number, tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTask[] {
-  const rank = status === "CANCELLED" ? -1 : ลำดับสถานะ(status);
+  const ผล = ขั้นของลีด(status, false);
+  const ถึง = ผล.kind === "won" ? 6 : ผล.kind === "lost" ? 0 : ผล.step;
   let day = baseDay;
   return tpl.map(t => {
-    const done = t.key === CLOSE_TASK_KEY ? status === "PAID" : ลำดับสถานะ(t.stage) <= rank;
+    const done = t.step < ถึง;
     const entry: LeadTask = done
       ? { key: t.key, label: t.label, done: true, doneAt: `${Math.min(day, 29)} มิ.ย. 2569 · 10:30`, doneBy }
       : { key: t.key, label: t.label, done: false };
@@ -782,6 +785,16 @@ export function nowStampTH(d: Date = new Date()): string {
   return วันเวลาไทย(d);
 }
 
+/** หา "งานนัดหมาย" ในชุดที่ HQ ตั้งไว้ — รายการของระบบ (รหัส appointment) มีเสมอหลังใบ 0250 · เผื่อชื่อมีคำว่า "นัด" สำหรับค่าค้างรุ่นเก่า */
+export function findAppointmentTask(tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTaskDef | undefined {
+  return tpl.find(t => t.key === APPOINTMENT_TASK_KEY) ?? tpl.find(t => t.label.includes("นัด"));
+}
+
+/** ติ๊กงานหนึ่งงานให้เสร็จ (ที่ติ๊กแล้วคงเดิม) — คืน checklist ชุดใหม่ ไม่แตะงานอื่น */
+export function completeTask(tasks: LeadTask[], key: string, doneBy: string, stamp: string = nowStampTH()): LeadTask[] {
+  return tasks.map(t => t.key === key && !t.done ? { ...t, done: true, doneAt: stamp, doneBy } : t);
+}
+
 /** ปรับรายการงานของลูกค้าเป้าหมายให้ตรงกับ "งานมาตรฐาน" ล่าสุดที่ HQ ตั้งไว้
  *
  *  บอสแจ้ง (19 ส.ค. 69): "แก้ใน hq แล้ว ดีลเลอร์ยังไม่เปลี่ยน"
@@ -793,21 +806,6 @@ export function nowStampTH(d: Date = new Date()): string {
  *    ⚠ ลบงานแล้วเพิ่มใหม่ชื่อเดิม = คนละงาน (รหัสใหม่) ประวัตการติ๊กของงานเก่าจึงหาย — อยากเก็บประวัติไว้ให้แก้ชื่อแทน
  *  · ลูกค้าเป้าหมายที่ปิดแล้ว (สำเร็จ/ไม่สำเร็จ) ไม่แตะเลย — ประวัติที่ปิดไปแล้วต้องคงที่
  */
-/** งาน "นัดหมาย" — ระบบติ๊กให้เองเมื่อบันทึกนัดหมายจริง (กติกาเดียวกับงานใบเสนอราคา) */
-export const APPOINTMENT_TASK_KEY = "appointment";
-
-/** หา "งานนัดหมาย" ในชุดที่ HQ ตั้งไว้
- *  ยึดรหัสมาตรฐานก่อน · ถ้า HQ ลบงานนั้นแล้วสร้างใหม่ รหัสจะเปลี่ยน (เช่น task_bullet_1)
- *  จึงเผื่อหาจากชื่อไว้ด้วย — ไม่งั้นการติ๊กอัตโนมัติจะเงียบหายทันทีที่ HQ แก้รายการงาน โดยไม่มีอะไรฟ้อง */
-export function findAppointmentTask(tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE): LeadTaskDef | undefined {
-  return tpl.find(t => t.key === APPOINTMENT_TASK_KEY) ?? tpl.find(t => t.label.includes("นัด"));
-}
-
-/** ติ๊กงานหนึ่งงานให้เสร็จ (ที่ติ๊กแล้วคงเดิม) — คืน checklist ชุดใหม่ ไม่แตะงานอื่น */
-export function completeTask(tasks: LeadTask[], key: string, doneBy: string, stamp: string = nowStampTH()): LeadTask[] {
-  return tasks.map(t => t.key === key && !t.done ? { ...t, done: true, doneAt: stamp, doneBy } : t);
-}
-
 export function applyTaskTemplate(
   tasks: LeadTask[] | undefined, tpl: LeadTaskDef[] = LEAD_TASK_TEMPLATE, status?: LeadStatus,
 ): LeadTask[] {

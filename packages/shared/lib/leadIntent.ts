@@ -5,7 +5,7 @@
 //   ฐานรวมกับค่าล่าสุดของตัวเอง → หน้าที่เปิดค้างไว้ถือสำเนาเก่า ก็ไม่ทับงานที่ฐาน/แท็บอื่นเพิ่งติ๊ก
 // applyLeadIntent = สำเนาตรรกะเดียวกับ lead_apply สำหรับโหมดตัวอย่าง (ไม่มีฐาน) และแสดงผลทันทีบนจอ
 //   ⚠️ แก้ตรรกะที่นี่ต้องแก้ supabase/migrations/0211_lead_apply.sql ด้วย (และกลับกัน) — tests/unit/leadIntent.test.ts
-import { buildLeadTasks, leadStatusLabel,
+import { buildLeadTasks, leadStatusLabel, เป็นรายการระบบ, ระบบติ๊กเมื่อ,
   type LeadRow, type LeadStatus, type LeadTask, type LeadTaskDef, type LeadActivity } from "./mock";
 
 /** ช่องที่ผู้ใช้แก้ได้ผ่าน fields — ตรงกับรายการใน lead_apply */
@@ -23,6 +23,9 @@ export type LeadIntent = {
   activities?: { text: string; type: string }[];
   /** false = ไม่จดไทม์ไลน์อัตโนมัติ */
   log?: boolean;
+  /** โหมดในเครื่องเท่านั้น: ระบบติ๊กรายการของระบบตามเหตุการณ์ (เทียบเท่าตัวดักของฐาน · ใบ 0250)
+   *  ฐานจริงไม่อ่านช่องนี้ — กันด้วยตัวดัก leads_system_tasks_guard (ผู้ใช้สั่งตรง = ปฏิเสธเสมอ) */
+  ระบบ?: true;
   // กันส่งลูกค้าเป้าหมายทั้งก้อนมาแทนเจตนา: LeadRow มี tasks ชนิดเข้ากันได้ TypeScript จึงยอมให้ส่งทั้งแถวเงียบ ๆ
   //   ประกาศช่องของแถวเป็น never → ส่งทั้งแถวมา = คอมไพล์ไม่ผ่าน
   id?: never; numId?: never; status?: never; company?: never;
@@ -67,6 +70,12 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
   let งานเปลี่ยน = false;
   for (const c of intent.tasks ?? []) {
     if (!c.key) continue;
+    // รายการของระบบ ติ๊ก/ยกเลิกติ๊กเองไม่ได้ — กติกาเดียวกับตัวดักฐาน leads_system_tasks_guard (ใบ 0250)
+    const ทำอยู่ = !!(lead.tasks ?? []).find(t => t.key === c.key)?.done;
+    if (เป็นรายการระบบ(c.key) && !intent.ระบบ && !!c.done !== ทำอยู่) {
+      const ชื่อ = ระบบติ๊กเมื่อ(c.key) ? (c.label ?? (lead.tasks ?? []).find(t => t.key === c.key)?.label ?? c.key) : c.key;
+      throw new Error(`system_task_locked: รายการ "${ชื่อ}" ระบบติ๊กให้เมื่อทำจริง — ติ๊กเองไม่ได้`);
+    }
     if (!tasks.some(t => t.key === c.key)) tasks = [...tasks, { key: c.key, label: c.label ?? c.key, done: false }];
     const เดิม = tasks.find(t => t.key === c.key)!;
     if (c.done && !เดิม.done) {
