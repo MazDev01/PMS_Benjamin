@@ -332,7 +332,7 @@ export default function DealerDashboard() {
     { kpi: "target", label: "เป้าหมายยอดขาย", value: บาทเต็ม(เป้าปี), rawValue: เป้าปี, unit: "เป้าหมายทั้งปี", empty: kpi ? "ยังไม่ได้ตั้งเป้า" : "กำลังโหลด…",
       sub: ยอดปี == null ? undefined : `ยอดขายสะสมทั้งปี ${บาทเต็ม(ยอดปี)}`, ring: ค่า(kpi, "target.pct"), icon: Target, href: "/quotations" },
     { kpi: "pipeline", label: "โอกาสการขาย", value: บาทเต็ม(ค่า(kpi, "pipeline.value")), rawValue: ค่า(kpi, "pipeline.value"),
-      unit: `${นับ(ค่า(kpi, "pipeline.count")) ?? "—"} ดีล · ยอดใบล่าสุดของงานที่เปิดอยู่`, icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads" },
+      unit: `${นับ(ค่า(kpi, "pipeline.count")) ?? "—"} ดีล · รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่`, icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads" },
     { kpi: "awaiting", label: "รอลูกค้าตอบ", value: นับ(ค่า(kpi, "awaiting.count")), rawValue: ค่า(kpi, "awaiting.count"),
       unit: "ใบ · ส่งให้ลูกค้าแล้ว", sub: ค่า(kpi, "awaiting.value") == null ? undefined : `มูลค่า ${บาทเต็ม(ค่า(kpi, "awaiting.value"))}`, icon: Hourglass, color: "#EA580C", bg: "#FEF0E6", href: "/quotations?kpi=awaiting" },
     // ชื่อการ์ดต้องตรงกับหน่วยของตัวเลข — ตัวเลขหลัก = จำนวนดีล · อัตราปิด (%) เป็นบรรทัดรอง

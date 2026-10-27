@@ -1,7 +1,7 @@
 "use client";
 
 // ─── การ์ด KPI ใบเสนอราคาทั้งเครือ 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards hq.quotations) ───────
-//   ส่งลูกค้าในช่วงนี้ · รอลูกค้าตอบ (ณ ตอนนี้) · ตอบรับ (มูลค่า · ตามวันลูกค้าตอบรับ) · อัตราตอบรับใบเสนอราคา (ตอบรับ ÷ ใบที่ส่งในช่วง)
+//   ส่งลูกค้าในช่วงนี้ · รอลูกค้าตอบ (ณ ตอนนี้) · ตอบรับ (มูลค่า · ตามวันลูกค้าตอบรับ) · อัตราตอบรับ (จากใบที่ส่งแล้ว · ตอบรับ ÷ ใบที่ส่งในช่วง)
 //   ช่วงเวลา + ดีลเลอร์ + ภาค/จังหวัด/ค้นหา คุมการ์ด (บอสตัดสิน 27 ต.ค. 69 เดินตามตัวกรอง) · ไม่นับแถว HQ · ใบถูกแทนที่ไม่นับ
 //   กดการ์ด = ตารางกรองสถานะที่ตรงเรื่อง (กดซ้ำ = ล้าง)
 import { Send, Hourglass, CheckCircle2, Percent } from "lucide-react";
@@ -33,8 +33,8 @@ export function QuotationKPICards({ ช่วง, dealer, today, ตัวกร
         unit={`${นับ(ค่า(kpi, "won.count")) ?? "—"} ใบ · ตามวันลูกค้าตอบรับ ก่อน VAT`} icon={CheckCircle2} color="#059669" bg="#E6F6EF"
         actionLabel={ป้ายกด("won")} onClick={() => กด("won")} />
       {/* ⚠️ ชื่อการ์ดบอกตัวหารให้ชัด — หารด้วยใบที่ส่งในช่วง (รวมที่ยังไม่ตอบ) ต่างจาก "อัตราปิดการขาย" ที่นับจากลีด */}
-      <KpiCard kpi="acceptRate" label="อัตราตอบรับใบเสนอราคา" value={ค่า(kpi, "acceptRate") == null ? null : `${Number(ค่า(kpi, "acceptRate")).toFixed(1)}%`}
-        rawValue={ค่า(kpi, "acceptRate")} unit="ตอบรับ ÷ ใบที่ส่งในช่วงนี้" empty={kpi ? "ยังไม่มีใบที่ส่งในช่วงนี้" : "กำลังโหลด…"}
+      <KpiCard kpi="acceptRate" label="อัตราตอบรับ (จากใบที่ส่งแล้ว)" value={ค่า(kpi, "acceptRate") == null ? null : `${Number(ค่า(kpi, "acceptRate")).toFixed(1)}%`}
+        rawValue={ค่า(kpi, "acceptRate")} unit="ตอบรับ ÷ ใบที่ส่งในช่วงนี้" empty={kpi ? "ยังไม่มีใบที่ส่งแล้วในช่วงนี้" : "กำลังโหลด…"}
         icon={Percent} color="#7C3AED" bg="#F1EBFD" onClick={() => onStatus("all")} />
     </KpiRow>
   );

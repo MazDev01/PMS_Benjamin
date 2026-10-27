@@ -253,23 +253,24 @@ test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใ
   const รp = await แถว(page, /ค้นหา/, รหัสยาว);
   await expect(รp).toBeVisible({ timeout: 20_000 });
   await expect(รp.getByText("0%", { exact: true }), "ภาพรวมยอดขาย: % เป้า ไม่ใช่ 0%").toHaveCount(0);
+  // อัตราปิดการขาย: ไม่มีดีลที่ปิด = "—" ไม่ใช่ 0% — การ์ดอัตราปิดย้ายจากหน้าลีดของดีลเลอร์มาที่นี่ (ชุดการ์ด 4 ใบ บอสสั่ง 22 ต.ค. 69)
+  //   การ์ดเดินตามคำค้น (บอสตัดสิน 27 ต.ค. 69) → ค้นสาขาที่ไม่มีจริง = ไม่มีดีลให้หาร
+  await page.getByPlaceholder(/ค้นหา/).first().fill(`ZZไม่มีจริง-${แท็ก}`);
+  const อัตราปิด = page.locator('[data-kpi-row] [data-kpi="winRate"]');
+  await expect(อัตราปิด.locator("[data-value]"), "อัตราปิดการขาย: ไม่มีดีลที่ปิด = ไม่มีค่า").toHaveAttribute("data-value", "", { timeout: 15_000 });
+  await expect(อัตราปิด, "อัตราปิดการขาย: ขึ้น —").toContainText("—");
+  await expect(อัตราปิด, "อัตราปิดการขาย: ไม่ใช่ 0%").not.toContainText("%");
 
   await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByPlaceholder(/ค้นหา/).first().fill(`ZZไม่มีจริง-${แท็ก}`);
   await expect(page.getByText("ยังไม่มีใบที่ส่งแล้ว"), "อัตราตอบรับ: ไม่มีตัวหาร = —").toBeVisible({ timeout: 20_000 });
 
-  // ฝั่งดีลเลอร์: อัตราปิดดีล (ไม่มีดีลที่ปิดในผลค้น) + แดชบอร์ดเมื่อยังไม่ตั้งเป้า
+  // ฝั่งดีลเลอร์: แดชบอร์ดเมื่อยังไม่ตั้งเป้า (อัตราปิดไม่มีตัวหารตรวจที่ภาพรวมยอดขายข้างบน)
   const เป้าเดิม = (await admin.from("dealers").select("revenue_target").eq("code", "RYG").single()).data?.revenue_target;
   await admin.from("dealers").update({ revenue_target: 0 }).eq("code", "RYG");
   try {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-    await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    await page.getByPlaceholder(/ค้นหาบริษัท/).first().fill(`ZZไม่มีจริง-${แท็ก}`);
-    const การ์ด = page.getByTitle("กรอง: อัตราปิดการขาย");   // รอบ 4: ชื่อเดียวทุกหน้า (lib/winRate.ts)
-    await expect(การ์ด, "อัตราปิดดีล: ไม่มีดีลที่ปิด = —").toContainText("—", { timeout: 15_000 });
-    await expect(การ์ด, "อัตราปิดดีล: ไม่ใช่ 0%").not.toContainText("%");
     await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
     await settle(page);
     await expect(page.getByText("ยังไม่ได้ตั้งเป้า").first(), "แดชบอร์ดดีลเลอร์: ยังไม่ตั้งเป้า").toBeVisible({ timeout: 20_000 });

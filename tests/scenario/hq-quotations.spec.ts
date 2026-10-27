@@ -13,7 +13,7 @@ test("[ux·hq] KPI 4 ตัว คำนวณสอดคล้องกัน 
   // การ์ด 4 ใบตามชุดที่บอสสั่ง (22 ต.ค. 69 · ใบ 0246) — ตัวเลขตรงฐาน ตรวจใน kpi-cards.spec.ts
   const tiles = page.locator("[data-kpi-row] [data-kpi]");
   await expect(tiles).toHaveCount(4);
-  for (const label of ["ส่งลูกค้าในช่วงนี้", "รอลูกค้าตอบ", "ตอบรับ (มูลค่า)", "อัตราตอบรับใบเสนอราคา"]) {
+  for (const label of ["ส่งลูกค้าในช่วงนี้", "รอลูกค้าตอบ", "ตอบรับ (มูลค่า)", "อัตราตอบรับ (จากใบที่ส่งแล้ว)"]) {
     await expect(page.locator("[data-kpi-row]").getByText(label, { exact: true })).toBeVisible();
   }
   // อัตราตอบรับต้องกำกับตัวหารไว้ให้ตรวจสอบได้ (ต่างจากอัตราปิดการขายที่นับจากลีด)
