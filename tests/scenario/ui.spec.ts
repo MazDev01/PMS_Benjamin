@@ -38,7 +38,7 @@ test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐ�
   await expect(page.locator(".hq-kpi4"), "ไม่มียอดเงินในการ์ดหน้านี้").not.toContainText(/฿|บาท/);
   for (const เอาออก of ["รายได้รวม", "โอกาสการขายทั้งหมด", "ติดตามตรงเวลา"])
     await expect(page.locator(".hq-kpi4").getByText(เอาออก), `ใบ "${เอาออก}" เอาออกแล้ว (รอบ 4)`).toHaveCount(0);
-  await expect(tiles.first().locator("svg")).toBeVisible();          // ไอคอนในกล่องสีจาง
+  await expect(tiles.first().locator("svg").first()).toBeVisible();          // ไอคอนในกล่องสีจาง
   await expect(page.locator(".stat-card")).toHaveCount(0);            // ต้องไม่เหลือการ์ดแบบเก่า
 });
 

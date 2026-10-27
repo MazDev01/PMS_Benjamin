@@ -59,6 +59,7 @@ import {
 import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
 import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
 import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
+import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
@@ -102,26 +103,6 @@ function useRepoDraft<T>(load: () => Promise<T>, save: (v: T) => void, initial: 
 }
 
 // ── reusable UI ───────────────────────────────────────────────────────────────
-function SectionCard({ icon, title, desc, children, action, fill }: {
-  icon?: ReactNode; title: string; desc?: string; children: ReactNode; action?: ReactNode;
-  /** การ์ดที่วางคู่กันในแถวเดียว — ยืดสูงเท่ากัน และให้เนื้อหาข้างในดันส่วนท้ายลงล่างได้ (แถวตรงกัน) */
-  fill?: boolean;
-}) {
-  return (
-    <div className="card" style={fill ? { display: "flex", flexDirection: "column" } : undefined}>
-      <div className="card-header">
-        <div>
-          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {icon && <span style={{ color: "var(--primary)", display: "flex" }}>{icon}</span>}{title}
-          </div>
-          {/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}
-        </div>
-        {action}
-      </div>
-      <div className="card-body" style={fill ? { flex: 1, display: "flex", flexDirection: "column" } : undefined}>{children}</div>
-    </div>
-  );
-}
 function Row({ label, desc, children, error }: { label: string; desc?: string; children: ReactNode; error?: string }) {
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", padding: "13px 0", borderTop: "1px solid var(--border,#f1f5f9)" }}>
@@ -558,7 +539,7 @@ function RollupTable({ title, hint, rows, countryTarget, ready = true }: {
           </thead>
           <tbody>
             {!sorted.length ? (
-              <tr><td colSpan={5} style={{ textAlign: "center", padding: "24px", color: "#6b7280", fontSize: "0.8rem" }}>—</td></tr>
+              <tr><td colSpan={5} className="empty-row">—</td></tr>
             ) : shown.map(r => {
               const pct = r.target > 0 ? Math.round(r.actual / r.target * 100) : 0;
               return (

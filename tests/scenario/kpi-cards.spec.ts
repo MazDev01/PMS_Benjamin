@@ -19,8 +19,13 @@ const ดีลเลอร์: { ที่: string; หน้า: string; ก�
   { ที่: "/customers", หน้า: "dealer.customers", การ์ด: [["total", "total"], ["new", "new"], ["sales", "sales"], ["openDeal", "openDeal"]] },
   { ที่: "/calendar", หน้า: "dealer.calendar", การ์ด: [["today", "today"], ["week", "week"], ["overdue", "overdue"], ["doneWeek", "doneWeek"]] },
 ];
+// หน้า: null = ตัวเลขมาจากคำสั่งฐานอื่นที่มีข้อทดสอบของตัวเองแล้ว (แดชบอร์ด hq_dashboard · คำขอใบเสนอราคา hq_quote_board/hq_overview) — ตรวจแค่ 4 ใบพอดี
 const HQ: { ที่: string; หน้า: string | null; การ์ด: [string, string][] }[] = [
+  { ที่: "/hq/dashboard", หน้า: null, การ์ด: [] },
   { ที่: "/hq/quote-requests", หน้า: null, การ์ด: [] },
+  { ที่: "/hq/prospects", หน้า: "hq.prospects", การ์ด: [["talking", "talking"], ["followDue", "followDue"], ["proposalWaiting", "proposalWaiting"], ["converted", "converted"]] },
+  { ที่: "/hq/proposals", หน้า: "hq.proposals", การ์ด: [["waiting", "waiting"], ["unpaid", "unpaid.count"], ["overdue", "overdue.count"], ["paid", "paid.amount"]] },
+  { ที่: "/hq/dealers", หน้า: "hq.dealers", การ์ด: [["total", "total"], ["active", "active"], ["moving", "moving"], ["idle", "idle"]] },
 ];
 
 const เลขจาก = (d: unknown, path: string) => {

@@ -16,6 +16,7 @@ import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
+import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { หน่วยBOQ, วันไทยสั้น } from "@pms/shared/lib/quoteRequests";
 import {
   type MaterialTemplate, type EstimateAccuracy, หมวดที่มี, ค้นแม่แบบ, ป้ายเปอร์เซ็นต์คลาด,
@@ -68,8 +69,8 @@ export function MaterialTemplatesPanel() {
   const หน้าจริง = Math.min(หน้า, pageCountOf(แสดง.length) - 1);
   const ในหน้า = pageSlice(แสดง, หน้าจริง);
 
-  // เลย์เอาต์เดียวกับแท็บอื่นของหน้าตั้งค่า: แถวการ์ด KPI ด้านบน (นอกกรอบ) → การ์ดหัวข้อ (.card-header) + ตาราง .table-wrap + แถบเปลี่ยนหน้า
-  //   ไม่มีคำบรรยายใต้หัวข้อ (บอสสั่ง 27 ส.ค. 69 ทั้งระบบ) · ความกว้างคอลัมน์คงที่ด้วย colgroup
+  // เลย์เอาต์ประกอบจากตัวกลางทั้งหมด ไม่เขียนระยะห่างเอง (บอสสั่ง 27 ต.ค. 69): แถวการ์ด KPI (KpiRow) 
+  //   → กรอบหัวข้อเดียวกับแท็บอื่น (SectionCard: .card-header/.card-body) + ตารางกลาง (.table-wrap · colgroup) + แถบเปลี่ยนหน้า (TablePagination)
   return (
     <div data-panel="material-templates">
       <KpiRow label="สรุปแม่แบบวัสดุ">
@@ -84,21 +85,17 @@ export function MaterialTemplatesPanel() {
           rawValue={บันทึกแล้ว ? หมวดที่มี(บันทึกแล้ว).length : null} unit="หมวด" empty="กำลังโหลด…" />
       </KpiRow>
 
-      <div className="card">
-        <div className="card-header" style={{ gap: 12, flexWrap: "wrap" }}>
-          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "var(--primary)", display: "flex" }}><Boxes size={19} /></span>แม่แบบวัสดุ
+      {/* ค้นหา · จำนวน · ปุ่มเพิ่ม อยู่ในส่วนหัวของกรอบหัวข้อกลาง (.card-header-actions) */}
+      <SectionCard icon={<Boxes size={19} />} title="แม่แบบวัสดุ" action={
+        <div className="card-header-actions">
+          <div className="search-bar">
+            <Search size={14} color="#9ca3af" />
+            <input aria-label="ค้นแม่แบบวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => { setค้น(e.target.value); setหน้า(0); }} />
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flex: "1 1 320px", justifyContent: "flex-end" }}>
-            <div className="search-bar" style={{ flex: "1 1 220px", maxWidth: 360, minWidth: 0 }}>
-              <Search size={14} color="#9ca3af" />
-              <input aria-label="ค้นแม่แบบวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => { setค้น(e.target.value); setหน้า(0); }} />
-            </div>
-            <span style={{ fontSize: "0.76rem", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>เปิดใช้ {เปิดใช้} จาก {rows.length} รายการ</span>
-            <button type="button" className="btn btn-primary btn-sm" onClick={เพิ่ม}><Plus size={14} /> เพิ่มวัสดุ</button>
-          </div>
+          <span className="note">เปิดใช้ {เปิดใช้} จาก {rows.length} รายการ</span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={เพิ่ม}><Plus size={14} /> เพิ่มวัสดุ</button>
         </div>
-
+      }>
         <datalist id="mt-categories">{หมวด.map(h => <option key={h} value={h} />)}</datalist>
         <datalist id="mt-units">{หน่วยBOQ.map(u => <option key={u} value={u} />)}</datalist>
 
@@ -112,9 +109,9 @@ export function MaterialTemplatesPanel() {
               <tr><th>หมวด</th><th>ชื่อวัสดุ</th><th>หน่วย</th><th className="num">ราคาต่อหน่วย (ก่อน VAT)</th><th>เปิดใช้</th><th>อัปเดตราคา</th><th aria-label="ลบ" /></tr>
             </thead>
             <tbody>
-              {บันทึกแล้ว === null && <tr><td colSpan={7} style={{ color: "var(--muted-foreground)", textAlign: "center", padding: 28 }}>กำลังโหลด…</td></tr>}
+              {บันทึกแล้ว === null && <tr><td colSpan={7} className="empty-row">กำลังโหลด…</td></tr>}
               {บันทึกแล้ว !== null && แสดง.length === 0 && (
-                <tr><td colSpan={7} style={{ color: "var(--muted-foreground)", textAlign: "center", padding: 28 }}>{rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีแม่แบบวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}</td></tr>
+                <tr><td colSpan={7} className="empty-row">{rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีแม่แบบวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}</td></tr>
               )}
               {ในหน้า.map((r, i) => (
                 <tr key={r.key} data-mt-row={r.id ?? "new"} style={r.active ? undefined : { opacity: 0.6 }}>
@@ -134,7 +131,7 @@ export function MaterialTemplatesPanel() {
           </table>
         </div>
         <TablePagination page={หน้าจริง} total={แสดง.length} onPage={setหน้า} />
-      </div>
+      </SectionCard>
     </div>
   );
 }
