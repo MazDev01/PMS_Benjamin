@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, บาทเต็ม, วันที่ISO, ชุดที่กรอง, type KpiFilters } from "@pms/shared/lib/kpiCards";
 import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT } from "@pms/shared/lib/uploadLimits";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
 import { buildLeadTasks, leadStatusLabel, leadStatusColor, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
@@ -51,7 +54,7 @@ import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRo
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useFilters, APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { ช่อง, ตัวอย่างช่อง, ป้ายบังคับ, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
-import { Plus, X, ChevronUp, ChevronDown, Upload, Download, Phone, Building2, Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer, MapPin, Mail, Coins, Layers, CalendarClock, Users, Trash2 } from "lucide-react";
+import { Plus, X, ChevronUp, ChevronDown, Upload, Download, Phone, Building2, Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer, MapPin, Mail, Coins, Layers, CalendarClock, Users, Trash2, UserPlus, Briefcase } from "lucide-react";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { แจ้งพลาด, แจ้งสำเร็จ, ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
@@ -328,7 +331,7 @@ export default function CustomersPage(){
     customers: allCustomers, quotations: allQuotations, leads: allLeadsRaw,
     appointments,
     addLead, บันทึกลีด, newLeadNumId, addCustomer: ctxAddCustomer,
-    updateCustomer: ctxUpdateCustomer,
+    updateCustomer: ctxUpdateCustomer, salesVersion,
   } = useSales();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant) — ใช้ออกรหัสลูกค้า
   const userProfile = useUserProfile();
@@ -527,16 +530,30 @@ export default function CustomersPage(){
 
   // มีตัวกรองถูกตั้งไว้จริงไหม — ใช้เลือกข้อความตอนไม่มีผลลัพธ์ (ดูหมายเหตุที่ตารางด้านล่าง)
   const hasActiveFilter = query.trim() !== "" || provFilter !== "ALL" || ownerFilter !== "ALL";
+  // การ์ด KPI ที่กดอยู่ (ใบ 0246) — กติกาเดียวกับฐาน: ลูกค้าใหม่ = วันที่เป็นลูกค้าอยู่ในช่วง · มีงานขายใหม่ = มีลีดที่ยังเปิดผูกลูกค้ารายนี้
+  const [การ์ดที่กด, setการ์ดที่กด] = useState<"new" | "openDeal" | null>(null);
+  const ลูกค้ามีงานเปิด = useMemo(() => new Set(leads.filter(l => l.customerId != null && l.status !== "PAID" && l.status !== "CANCELLED").map(l => l.customerId!)), [leads]);
+  const ตรงการ์ด = useCallback((c: CustomerRow) => {
+    if (การ์ดที่กด === "openDeal") return ลูกค้ามีงานเปิด.has(c.id);
+    if (การ์ดที่กด === "new") { const d = /^\d{4}-\d{2}-\d{2}/.test(c.joinDate ?? "") ? c.joinDate.slice(0, 10) : ""; return !!d && d >= วันที่ISO(timeRange.start) && d <= วันที่ISO(timeRange.end); }
+    return true;
+  }, [การ์ดที่กด, ลูกค้ามีงานเปิด, timeRange]);
+  // ตัวกรองอื่นของหน้า (ค้นหา/จังหวัด/ผู้ดูแล · ไม่รวมช่วงเวลาและการ์ดที่กด) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน
+  //   (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  const ตรงตัวกรองอื่น = useCallback((c: CustomerRow)=>{
+    const q=query.toLowerCase();
+    const matchQ=!q||c.company.toLowerCase().includes(q)||c.name.toLowerCase().includes(q)||c.province.toLowerCase().includes(q)||c.phone.includes(q);
+    // ตัวกรอง "สถานะ" + "ลูกค้าใหม่/เดิม" ถูกลบตามที่บอสสั่ง — ไม่มี UI ให้ตั้งค่าแล้ว
+    const matchP=provFilter==="ALL"||c.province===provFilter;
+    const matchO=ownerFilter==="ALL"||(c.owner||"")===ownerFilter;
+    return matchQ&&matchP&&matchO;
+  },[query,provFilter,ownerFilter]);
+  const ชุดการ์ด = useMemo(()=>ชุดที่กรอง(data, ตรงตัวกรองอื่น, c=>c.id),[data,ตรงตัวกรองอื่น]);
   const filtered = useMemo(()=>{
     let rows=data.filter(c=>{
-      const q=query.toLowerCase();
-      const matchQ=!q||c.company.toLowerCase().includes(q)||c.name.toLowerCase().includes(q)||c.province.toLowerCase().includes(q)||c.phone.includes(q);
-      // ตัวกรอง "สถานะ" + "ลูกค้าใหม่/เดิม" ถูกลบตามที่บอสสั่ง — ไม่มี UI ให้ตั้งค่าแล้ว
-      const matchP=provFilter==="ALL"||c.province===provFilter;
-      const matchO=ownerFilter==="ALL"||(c.owner||"")===ownerFilter;
       // กรองตามช่วงเวลา — ใช้ "กิจกรรมล่าสุด" ของลูกค้า (โชว์ลูกค้าที่มีความเคลื่อนไหวในช่วงที่เลือก)
       const matchT=passes({date:lastActivityFor(c.id,c.joinDate,quotations)});
-      return matchQ&&matchP&&matchO&&matchT;
+      return ตรงตัวกรองอื่น(c)&&matchT&&ตรงการ์ด(c);
     });
     if(sortKey===null) return [...rows].sort((a,b)=>b.id-a.id);
     const sortVal=(c:CustomerRow):string|number=>{
@@ -559,7 +576,7 @@ export default function CustomersPage(){
       return 0;
     });
     return rows;
-  },[data,quotations,query,provFilter,ownerFilter,sortKey,sortDir,timeRange,passes]);
+  },[data,quotations,ตรงตัวกรองอื่น,sortKey,sortDir,timeRange,passes,ตรงการ์ด]);
 
   // ตัวเลือกตัวกรอง — ดึงจากข้อมูลลูกค้าจริงที่มีอยู่ (ไม่ hardcode รายการจังหวัด/พนักงาน)
   const provOptions  = useMemo(()=>[...new Set(data.map(c=>c.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data]);
@@ -836,30 +853,10 @@ export default function CustomersPage(){
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
-        {/* ── KPI 4 ใบ (ภาษาเดียวกับแดชบอร์ด) ── */}
-        {(() => {
-          const fmtC = (v:number) => v>=1e6 ? `฿${(v/1e6).toFixed(1)}M` : v>=1e3 ? `฿${Math.round(v/1e3)}K` : `฿${v}`;
-          const kpis = [
-            { label:"ลูกค้าทั้งหมด",     value:`${totalAll}`,        sub:"ราย",     Icon:Users,       color:"#2563EB", bg:"#E8F0FE" },
-            { label:"ยอดขายรวม",         value:fmtC(totalValue),     sub:"ทุกโครงการ", Icon:Coins,    color:"#EA580C", bg:"#FEF0E6" },
-          ];
-          return (
-            <div className="dash-kpis" style={{ marginBottom:16 }}>
-              {kpis.map(k => (
-                <div key={k.label} className="card" style={{ padding:"16px 14px", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10 }}>
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:"0.72rem", color:"#6B7280" }}>{k.label}</div>
-                    <div style={{ fontSize:"1.42rem", fontWeight:800, color:"#1F2937", marginTop:6, fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap" }}>{k.value}</div>
-                    <div style={{ fontSize:"0.72rem", color:"#6B7280", marginTop:2 }}>{k.sub}</div>
-                  </div>
-                  <span style={{ width:42, height:42, borderRadius:12, background:k.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                    <k.Icon size={20} color={k.color} strokeWidth={2.1} />
-                  </span>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+        {/* ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246 · ทับความจำ "2 ใบตั้งใจ") — ตัวเลขคิดที่ฐาน (kpi_cards · สาขาของผู้ล็อกอิน)
+              ทั้งหมด / มีงานขายใหม่เปิดอยู่ = ณ ตอนนี้ · ใหม่ / ยอดขาย = ในช่วงที่เลือก · กดการ์ด = กรองตาราง (ยอดขาย → ใบที่ตอบรับ) */}
+        <CustomerKpiRow ช่วง={{ start: วันที่ISO(timeRange.start), end: วันที่ISO(timeRange.end) }} ตัวกรอง={ชุดการ์ด} รุ่น={salesVersion} การ์ดที่กด={การ์ดที่กด}
+          กด={k => k === "sales" ? router.push("/quotations?kpi=won") : setการ์ดที่กด(การ์ดที่กด === k || k === "total" ? null : k)} />
 
 
         {/* ── แถบตัวกรองแถวเดียว (มาตรฐานเดียวกับหน้า /hq/pipeline) ──
@@ -1762,5 +1759,26 @@ export default function CustomersPage(){
         </div>
       )}
     </div>
+  );
+}
+
+// แถวการ์ด KPI ของหน้าลูกค้า — คอมโพเนนต์ระดับไฟล์ (ห้ามประกาศซ้อนในคอมโพเนนต์หลัก)
+function CustomerKpiRow({ ช่วง, ตัวกรอง, รุ่น, การ์ดที่กด, กด }: {
+  ช่วง: { start: string; end: string }; ตัวกรอง: KpiFilters | null; รุ่น: unknown; การ์ดที่กด: "new" | "openDeal" | null; กด: (k: "total" | "new" | "sales" | "openDeal") => void;
+}) {
+  const kpi = useKpiCards("dealer.customers", { ...ช่วง, today: วันที่ISO(APP_NOW), filters: ตัวกรอง, รุ่น });
+  const cards = [
+    { kpi: "total" as const, label: "ลูกค้าทั้งหมด", value: นับ(ค่า(kpi, "total")), raw: ค่า(kpi, "total"), unit: "ราย", icon: Users, color: "#2563EB", bg: "#E8F0FE", on: การ์ดที่กด == null },
+    { kpi: "new" as const, label: "ลูกค้าใหม่ในช่วงนี้", value: นับ(ค่า(kpi, "new")), raw: ค่า(kpi, "new"), unit: "ราย · ตามวันที่เป็นลูกค้า", icon: UserPlus, color: "#7C3AED", bg: "#F3E8FF", on: การ์ดที่กด === "new" },
+    { kpi: "sales" as const, label: "ยอดขายจากลูกค้าในช่วงนี้", value: บาทเต็ม(ค่า(kpi, "sales")), raw: ค่า(kpi, "sales"), unit: "ใบที่ตอบรับ · ก่อน VAT", icon: Coins, color: "#EA580C", bg: "#FEF0E6", on: false },
+    { kpi: "openDeal" as const, label: "ลูกค้าที่มีงานขายใหม่เปิดอยู่", value: นับ(ค่า(kpi, "openDeal")), raw: ค่า(kpi, "openDeal"), unit: "ราย · มีลูกค้าเป้าหมายที่ยังไม่ปิด", icon: Briefcase, color: "#0D9488", bg: "#E6F7F5", on: การ์ดที่กด === "openDeal" },
+  ];
+  return (
+    <KpiRow label="สรุปลูกค้า" range={ช่วง} style={{ marginBottom: 16 }}>
+      {cards.map(k => (
+        <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={k.value} rawValue={k.raw} unit={k.unit} icon={k.icon} color={k.color} bg={k.bg}
+          actionLabel={k.kpi === "sales" ? "ดูใบที่ตอบรับ" : k.on && k.kpi !== "total" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กด(k.kpi)} />
+      ))}
+    </KpiRow>
   );
 }

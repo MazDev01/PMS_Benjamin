@@ -12,7 +12,7 @@ test.setTimeout(180_000);
 test("[ui·dealer] การ์ด KPI หน้าปฏิทินมีทั้งแอนิเมชันตอนเปิด และยกตัวตอนชี้เมาส์", async ({ page }) => {
   await openAs(page, RYG, "dealer", "/calendar");
   await settle(page);
-  const การ์ด = page.locator(".kpi-bar > .kpi").first();
+  const การ์ด = page.locator("[data-kpi-row] > [data-kpi]").first();   // การ์ดกลาง (ใบ 0246) แทน .kpi-bar > .kpi
   await expect(การ์ด).toBeVisible({ timeout: 30_000 });
 
   const st = await การ์ด.evaluate(el => {

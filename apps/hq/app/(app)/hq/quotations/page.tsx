@@ -20,7 +20,7 @@ import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { useNetworkQuotations, useNetworkLeads, useHQQuotationsSummary, useQuotationsPage, useLeadSummary, useQuotationSalesperson } from "@pms/shared/lib/useNetworkData";
 import {
-  toQuoteRows, aggregate, sumAggs, groupBy, agingBucketOf, regionDisplay, dealerLookups,
+  toQuoteRows, aggregate, groupBy, agingBucketOf, regionDisplay, dealerLookups,
   type QuoteRow, type DealerAgg, type AgingBucket,
 } from "@pms/shared/lib/hqQuotations";
 import { groupLostReasons } from "@pms/shared/lib/lostReasons";
@@ -60,7 +60,9 @@ export default function NetworkQuotationPage() {
   // (ทะเบียนมาจาก repo = ยังว่างตอนเรนเดอร์แรก · ถ้าเช็คทันทีแล้วล้าง URL ทิ้ง ตัวกรองจะไม่ติดเลย)
   const [pendingDealer, setPendingDealer] = useState<string | null>(null);
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("dealer");
+    const u = new URLSearchParams(window.location.search), code = u.get("dealer");
+    // ?kpi=won (การ์ดยอดขายของภาพรวมยอดขาย · ใบ 0246) = กรองใบที่ตอบรับ
+    if (u.get("kpi") === "won") { setFilters(f => ({ ...f, status: "won" })); window.history.replaceState(null, "", "/hq/quotations"); }
     if (code) { setPendingDealer(code); window.history.replaceState(null, "", "/hq/quotations"); }
   }, []);
   useEffect(() => {
@@ -127,6 +129,9 @@ export default function NetworkQuotationPage() {
 
   const status = filters.status === "all" ? undefined : filters.status;
   const baseFilters: QuoteSummaryFilters = { status, dealerCodes: resolvedDealerCodes, search: search || undefined, searchDealers, asOf: isoDateOf(APP_NOW) };
+  // การ์ด KPI เดินตามตัวกรองภาค/จังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ชุดเดียวกับที่ส่งให้ตาราง (สถานะ = ปุ่มเดียวกับการ์ด ไม่ส่ง)
+  const ตัวกรองการ์ด = useMemo(() => (resolvedDealerCodes || search
+    ? { dealerCodes: resolvedDealerCodes, search: search || undefined, searchDealers } : null), [resolvedDealerCodes, search, searchDealers]);
   const qFilters: QuoteSummaryFilters = { ...baseFilters, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) };
   const summary = useHQQuotationsSummary(qFilters);       // มีเวลา → analytics/KPI/ตาราง
   const trendSummary = useHQQuotationsSummary(baseFilters); // ไม่มีเวลา → กราฟแนวโน้ม 12 เดือน
@@ -173,7 +178,6 @@ export default function NetworkQuotationPage() {
     }));
     return [...groupBy(rows, r => r.dealerCode).entries()].map(([code, list]) => ({ code, name: list[0].dealerName, region: list[0].region, ...aggregate(list) }));
   }, [summary, rows, nameOf, look]);
-  const agg = useMemo(() => sumAggs(dealerAgg), [dealerAgg]);
 
   const aging = useMemo(() => {
     if (summary) return summary.aging.map(a => ({ key: a.bucket as AgingBucket, count: a.count, value: a.value }));
@@ -274,7 +278,8 @@ export default function NetworkQuotationPage() {
           />
       </TopbarActions>
 
-      <QuotationKPICards agg={agg} />
+      <QuotationKPICards ช่วง={{ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }} dealer={filters.dealer === "all" ? null : filters.dealer}
+        today={isoDateOf(APP_NOW)} ตัวกรอง={ตัวกรองการ์ด} รุ่น={netQuotes.length} status={filters.status} onStatus={s => setFilters(f => ({ ...f, status: s }))} />
 
       <QuotationFilterBar
         filters={filters}

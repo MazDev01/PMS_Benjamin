@@ -16,7 +16,11 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useRouter } from "next/navigation";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
-import { Search, LogIn, Store, LayoutGrid, List } from "lucide-react";
+import { Search, LogIn, Store, LayoutGrid, List, CheckCircle2, Activity, MoonStar } from "lucide-react";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
+import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
 import { TerritoryUnmatchedCard } from "@pms/shared/components/hq/TerritoryUnmatchedCard";
 import { packageLabel } from "@pms/shared/lib/dealerProposals";
@@ -91,6 +95,8 @@ function HQDealersPageInner() {
   const [q, setQ] = useState("");
   const [regionFilter, setRegionFilter] = useState("ทั้งหมด");
   const [statusFilter, setStatusFilter] = useState<DealerStatus | "all">("all");
+  // การ์ด "มี/ไม่มีความเคลื่อนไหว 30 วัน" (ใบ 0246) — ฐานส่งรหัสสาขามา · กดการ์ด = ตารางเหลือเฉพาะสาขาเหล่านั้น
+  const [กลุ่มเคลื่อนไหว, setกลุ่มเคลื่อนไหว] = useState<"moving" | "idle" | null>(null);
   // แบ่งหน้า 10 แถวเท่ากับทุกตารางในระบบ (สั่งโดยผู้บริหาร 7 ส.ค. 69)
   // ⚠️ ทุกตัวกรองต้องพากลับหน้า 1 — ไม่งั้นกรองแล้วค้างอยู่หน้ากลางลิสต์ที่ไม่มีข้อมูลแล้ว
   const [page, setPage] = useState(0);
@@ -120,19 +126,26 @@ function HQDealersPageInner() {
 
   const [entering, setEntering] = useState<string | null>(null);
 
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) ณ ตอนนี้ · ไม่นับแถว HQ · หน้านี้ไม่มียอดเงิน (บอสตัดสิน)
+  //   ความเคลื่อนไหว = งานขายของสาขาใน 30 วัน (เพิ่ม/ติดต่อลีด · ทำ/แก้ใบ · ขอราคา) ไม่ใช่การเข้าระบบ (บอสตัดสิน 22 ต.ค. 69)
+  //   การ์ดเดินตามตัวกรองภาค/คำค้น (บอสตัดสิน 27 ต.ค. 69) · สถานะ/กลุ่มเคลื่อนไหว = ปุ่มเดียวกับการ์ด ไม่ใช่ตัวกรองของการ์ด
+  const ตรงตัวกรองอื่น = (d: DealerRow) => (regionFilter === "ทั้งหมด" || d.region === regionFilter)
+    && (!q || `${d.code} ${d.name} ${d.province} ${d.region}`.toLowerCase().includes(q.toLowerCase()));
+  const ชุดการ์ด = ชุดที่กรอง(dealers.filter(ไม่ใช่แถวHQ), ตรงตัวกรองอื่น, d => d.code);
+  const kpi = useKpiCards("hq.dealers", { today: APP_NOW_ISO, filters: ชุดการ์ด, รุ่น: dealers.map(d => `${d.code}:${d.status}`).join(",") });
+  const รหัสกลุ่ม = new Set(((กลุ่มเคลื่อนไหว ? kpi?.[กลุ่มเคลื่อนไหว === "moving" ? "movingCodes" : "idleCodes"] : []) as string[] | undefined) ?? []);
+  const กดกลุ่ม = (g: "moving" | "idle" | null, s: DealerStatus | "all") => { setกลุ่มเคลื่อนไหว(กลุ่มเคลื่อนไหว === g && statusFilter === s ? null : g); setStatusFilter(s); setPage(0); };
+
   // Filter + sort — กรองจริงด้วยสถานะ/ภาค/ค้นหา (local ในหน้านี้ทั้งหมด)
   const filtered = dealers.filter(d => {
     // แถว HQ ไม่ใช่ดีลเลอร์ — ซ่อนจากทะเบียนและไม่นับในตัวเลขดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · ยกเลิกตรึงบนสุด 7 ก.ย. 69)
     if (!ไม่ใช่แถวHQ(d)) return false;
     if (statusFilter !== "all" && dealerStatus(d) !== statusFilter) return false;
-    if (regionFilter !== "ทั้งหมด" && d.region !== regionFilter) return false;
-    if (q && !`${d.code} ${d.name} ${d.province} ${d.region}`.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
+    if (กลุ่มเคลื่อนไหว && !รหัสกลุ่ม.has(d.code)) return false;
+    return ตรงตัวกรองอื่น(d);
     // ดีลเลอร์ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
   }).sort((a, b) => เวลาเพิ่ม(b) - เวลาเพิ่ม(a) || a.code.localeCompare(b.code));
 
-  // Stats — คำนวณจากชุดที่กรองแล้ว (ตัวเลขสะสมจริง ไม่สเกลตามช่วงเวลา)
-  const active = filtered.filter(d => dealerStatus(d) === "active");
   // "เข้าระบบแทนดีลเลอร์" — HQ มีสิทธิ์เข้าบัญชีดีลเลอร์ไหนก็ได้ (บอสยืนยัน)
   //
   // โหมดเดโม (local): เดิมปุ่มนี้เรียก login("dealer") ซึ่งเข้าด้วยบัญชีเดโมตัวเดียวเสมอ (CNX)
@@ -193,29 +206,19 @@ function HQDealersPageInner() {
       {/* จังหวัดทับซ้อน + ดีลเลอร์ที่จับคู่จังหวัดไม่ได้ (กฎพื้นที่ · ด่าน 1) — หน้านี้กั้นด้วยสิทธิ์ dealers:manage อยู่แล้ว */}
       <TerritoryUnmatchedCard />
 
-      {/* ── KPI 4 ใบ — มาตรฐานเดียวกับหน้า HQ อื่นทั้งหมด (แดชบอร์ด · ภาพรวมยอดขาย · ใบเสนอราคา · ลูกค้า) ──
-          เดิมหน้านี้ใช้ .stat-card ของเก่า: แถบสีซ้าย + ตัวเลขสีใหญ่ + หน่วยติดในตัวเลข ("10 ดีลเลอร์")
-          ซึ่งเป็นที่เดียวในระบบที่ทำแบบนั้น · .stat-grid ยังไม่มี breakpoint ด้วย (จอแคบบีบ 4 ใบค้าง)
-          กติกาของ .hq-kpi4: ป้าย → ตัวเลข (เข้ม ไม่ใส่สี) → หน่วย/บริบท · ไอคอนในกล่องสีจางมุมขวา */}
-      {/* ⚠️ ทุกใบต้องรอข้อมูลก่อนประกาศตัวเลข — เลข 0 ระหว่างโหลดคือ "ข้อมูลผิด" ไม่ใช่ "ยังว่าง"
-          รอบก่อนแก้เฉพาะใบแรก อีก 3 ใบยังประกาศ 0 อยู่ (พบจากผลตรวจรอบสุดท้าย 10 ส.ค. 69) */}
-      <div className="hq-kpi4" style={{ marginBottom: "1.25rem" }}>
-        {([
-          { label: "ดีลเลอร์ทั้งหมด", value: dealersLoaded ? `${filtered.length}` : "—", sub: dealersLoaded ? `เปิดใช้งาน ${active.length} ดีลเลอร์` : "กำลังโหลด…", Icon: Store, color: "#003366", bg: "#E8F0FE" },
-          // รายได้รวม · โอกาสการขาย · ติดตามตรงเวลา เอาออก (รอบ 4) — ผลงานดีลเลอร์อยู่ที่ภาพรวมยอดขายที่เดียว
-        ] as const).map(t => (
-          <div key={t.label} className="card" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.label}</div>
-              <div style={{ fontSize: "1.7rem", fontWeight: 800, color: "#1F2937", marginTop: 7, lineHeight: 1, letterSpacing: "-0.015em", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{t.value}</div>
-              <div style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", marginTop: 7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.sub}</div>
-            </div>
-            <span style={{ width: 36, height: 36, borderRadius: 10, background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <t.Icon size={18} color={t.color} strokeWidth={2.1} />
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* ── การ์ด KPI 4 ใบ (ใบ 0246) — กดการ์ด = กรองตาราง (กดซ้ำ = ล้าง) · ห้ามมียอดเงินในหน้านี้ ── */}
+      <KpiRow label="สรุปดีลเลอร์">
+        <KpiCard kpi="total" label="ดีลเลอร์ทั้งหมด" value={นับ(ค่า(kpi, "total"))} rawValue={ค่า(kpi, "total")} unit="ราย · ไม่นับสำนักงานใหญ่" icon={Store}
+          onClick={() => { setกลุ่มเคลื่อนไหว(null); setStatusFilter("all"); setPage(0); }} />
+        <KpiCard kpi="active" label="เปิดใช้งาน" value={นับ(ค่า(kpi, "active"))} rawValue={ค่า(kpi, "active")} unit="ราย · เข้าระบบได้" icon={CheckCircle2} color="#16A34A" bg="#E6F7EE"
+          actionLabel={statusFilter === "active" && !กลุ่มเคลื่อนไหว ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"}
+          onClick={() => { setกลุ่มเคลื่อนไหว(null); setStatusFilter(statusFilter === "active" ? "all" : "active"); setPage(0); }} />
+        <KpiCard kpi="moving" label="มีความเคลื่อนไหวใน 30 วัน" value={นับ(ค่า(kpi, "moving"))} rawValue={ค่า(kpi, "moving")} unit="ราย · มีงานขายใน 30 วัน" icon={Activity} color="#0891B2" bg="#E6F4F9"
+          actionLabel={กลุ่มเคลื่อนไหว === "moving" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดกลุ่ม("moving", "all")} />
+        <KpiCard kpi="idle" label="ไม่เคลื่อนไหวเกิน 30 วัน" value={นับ(ค่า(kpi, "idle"))} rawValue={ค่า(kpi, "idle")} unit="ราย · ไม่มีงานขายเกิน 30 วัน"
+          danger={(ค่า(kpi, "idle") ?? 0) > 0} icon={MoonStar} color="#DC2626" bg="#FEE2E2"
+          actionLabel={กลุ่มเคลื่อนไหว === "idle" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดกลุ่ม("idle", "all")} />
+      </KpiRow>
 
       {/* Toolbar — ค้นหา + ดีลเลอร์/ภาค/สถานะ รวมแถวเดียว (เหมือนหน้าอื่นทั้งระบบ) */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap", padding: "10px 14px" }}>

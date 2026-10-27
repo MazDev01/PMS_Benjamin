@@ -284,6 +284,8 @@ body {
     display: flex;
     border-bottom: 1px solid #e5e7eb;
     overflow-x: auto;
+    /* แท็บ margin-bottom:-1px ล้นลงล่าง 1px → overflow-x:auto ทำให้เกิดแถบเลื่อนแนวตั้งโผล่ข้างแถบแท็บ (ตั้งค่า HQ 8 แท็บ · 27 ต.ค. 69) */
+    overflow-y: hidden;
     gap: 0;
   }
   .tab-item {
@@ -636,6 +638,11 @@ body {
 .tpl-hero { transition: transform .25s ease; }
 .tpl-clamp2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .card-header { padding: 1.05rem 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+/* ตัวควบคุมชิดขวาของหัวการ์ด (ค้นหา · จำนวน · ปุ่มเพิ่ม) — ระยะเดียวกันทุกการ์ด (27 ต.ค. 69 · แทน style ที่แต่ละหน้าเขียนเอง) */
+.card-header:has(> .card-header-actions) { flex-wrap: wrap; gap: 10px; }
+.card-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.card-header-actions .search-bar { width: 260px; max-width: 100%; }
+.card-header-actions .note { font-size: 0.76rem; color: var(--muted-foreground); white-space: nowrap; }
 .card-title { font-size: 1rem; font-weight: 700; color: var(--foreground); }
 .card-desc { font-size: 0.74rem; color: var(--muted-foreground); margin-top: 0.1rem; }
 .card-body { padding: 0 1.2rem 1.2rem; }
@@ -836,6 +843,8 @@ body {
 .table-wrap th, .table-wrap td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* เซลล์ที่ตั้งใจให้ขึ้นบรรทัดใหม่ได้ (เช่น กล่องข้อความหลายบรรทัด) ให้ยกเลิก nowrap เฉพาะจุด */
 .table-wrap td.wrap { white-space: normal; }
+/* แถวว่างของตาราง (ไม่มีข้อมูล/ไม่พบที่ค้น) — กลางตาราง ระยะเดียวกันทุกตาราง (27 ต.ค. 69 · แทน style ที่แต่ละหน้าเขียนเอง) */
+.table-wrap td.empty-row { text-align: center; padding: 24px; color: var(--muted-foreground); font-size: 0.8rem; white-space: normal; }
 /* เซลล์ที่มีเมนู/ป็อปอัปลอย ต้องไม่ถูก clip */
 .table-wrap th.ovf-visible, .table-wrap td.ovf-visible { overflow: visible; }
 .table-wrap tbody tr { transition: background 0.12s; }
@@ -1147,6 +1156,9 @@ textarea:focus-visible {
   outline: 2px solid var(--primary, #003366);
   outline-offset: 2px;
 }
+/* แท็บ: วงโฟกัสต้องอยู่ "ใน" ตัวแท็บ (27 ต.ค. 69) — แถบแท็บตัดขอบบน/ล่าง (overflow) วงที่ยื่นออก 2px จึงเหลือแค่เส้นซ้าย-ขวา
+   ดูเหมือนแท็บที่เลือกมีกรอบต่างจากแท็บอื่น (บอสแจ้ง ตั้งค่า › แม่แบบวัสดุ) · ไม่ใส่ border-radius (ดูคำเตือนข้างล่าง) */
+.tab-item:focus-visible { outline-offset: -2px; }
 /* ⚠️ ห้ามบังคับ border-radius ตรงนี้ (ถอดออก 20 ส.ค. 69 — บอสถามว่า "ทำไมเส้นมันซ้อนกัน 2 ชั้น")
    เดิมสั่ง border-radius: 6px ทับของเดิมตอนโฟกัส กล่องพื้นหลังของเมนูที่เลือกอยู่ (มุมมนกว่า)
    กับวงโฟกัสจึงมีมุมคนละองศา + เว้นช่องว่าง 2px กลายเป็นเส้นสองชั้นซ้อนกัน

@@ -15,7 +15,9 @@ import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { RightDrawer } from "@pms/shared/components/ui/RightDrawer";
 import { PanelSection, PanelRow } from "@pms/shared/components/ui/DetailPanel";
-import { CountUp } from "@pms/shared/components/ui/CountUp";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, วันนี้ISO, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { resetHQUserPassword } from "@pms/shared/lib/adminApi";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
@@ -27,7 +29,7 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import type { UserRole } from "@pms/shared/lib/mock";
 import {
   Users, Shield, Check, X, Plus, Search, KeyRound, Copy, MoreHorizontal,
-  Eye, EyeOff, Pencil, Power, Clock, UserPlus, Phone, ImagePlus, Trash2, AlertTriangle, Mail, Building2,
+  Eye, EyeOff, Pencil, Power, Clock, UserPlus, Phone, ImagePlus, Trash2, AlertTriangle, Mail, Building2, UserCheck, UserX, LogIn,
 } from "lucide-react";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 
@@ -294,21 +296,20 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
   const แผนกที่มีจริง = useMemo(
     () => [...new Set(users.map(u => u.department).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")),
     [users]);
-  const stats = useMemo(() => ({
-    total: users.length,
-    active: users.filter(u => u.status === "active").length,
-    inactive: users.filter(u => u.status === "inactive").length,
-  }), [users]);
-
-  const filtered = useMemo(() => {
+  // ตัวกรองของตาราง (คำค้น/บทบาท/แผนก) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  //   สถานะ = ปุ่มเดียวกับการ์ด "ใช้งานอยู่/ปิดใช้งาน" → ไม่ใช่ตัวกรองของการ์ด
+  const ตรงตัวกรอง = useCallback((u: AppUser) => {
     const kw = q.trim().toLowerCase();
-    return [...users.filter(u =>
-      (!kw || u.name.toLowerCase().includes(kw) || u.email.toLowerCase().includes(kw)) &&
-      (roleF === "all" || u.role === roleF) &&
-      (deptF === "all" || u.department === deptF) &&
-      (statusF === "all" || u.status === statusF))]
-      .sort((a, b) => { const av = a[sort.key], bv = b[sort.key]; return (av < bv ? -1 : av > bv ? 1 : 0) * (sort.dir === "asc" ? 1 : -1); });
-  }, [users, q, roleF, deptF, statusF, sort]);
+    return (!kw || u.name.toLowerCase().includes(kw) || u.email.toLowerCase().includes(kw)) &&
+      (roleF === "all" || u.role === roleF) && (deptF === "all" || u.department === deptF);
+  }, [q, roleF, deptF]);
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards hq.users) ณ ตอนนี้ · เข้าระบบใน 30 วัน = เวลาเข้าระบบล่าสุดของบัญชี
+  const ชุดการ์ด = useMemo(() => ชุดที่กรอง(users, ตรงตัวกรอง, u => u.id), [users, ตรงตัวกรอง]);
+  const kpi = useKpiCards("hq.users", { today: วันนี้ISO(), filters: ชุดการ์ด, รุ่น: users.map(u => `${u.id}:${u.status}`).join(",") });
+
+  const filtered = useMemo(() => [...users.filter(u => ตรงตัวกรอง(u) && (statusF === "all" || u.status === statusF))]
+    .sort((a, b) => { const av = a[sort.key], bv = b[sort.key]; return (av < bv ? -1 : av > bv ? 1 : 0) * (sort.dir === "asc" ? 1 : -1); }),
+  [users, ตรงตัวกรอง, statusF, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const curPage = Math.min(page, pageCount);
@@ -396,20 +397,22 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
     </SortableTh>
   );
   const selCls: React.CSSProperties = { padding: "8px 10px", borderRadius: 9, border: `1px solid ${BORDER}`, fontSize: "0.78rem", color: STEEL, background: "#fff", outline: "none", cursor: "pointer" };
-  const STAT = [
-    { label: "ผู้ใช้ทั้งหมด", value: stats.total, color: PRIMARY },
-    { label: "ผู้ใช้งานอยู่", value: stats.active, color: "#059669" },
-    { label: "ปิดใช้งาน", value: stats.inactive, color: "#9ca3af" },
-  ];
+  const กดสถานะ = (s: UserStatus | "all") => { setStatusF(v => (v === s ? "all" : s)); setPage(1); };
 
   return (
     <div className="erp">
       {!embedded && <div className="page-head"><div><p>บริหารผู้ใช้ของสำนักงานใหญ่ (HQ) — ผู้ใช้ของดีลเลอร์จัดการที่เมนู “ดีลเลอร์”</p></div></div>}
 
-      {/* Summary cards (4) */}
-      <div className="stat-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-        {STAT.map(s => <div key={s.label} className="stat-card"><div className="stat-label">{s.label}</div><div className="stat-value" style={{ color: s.color }}><CountUp value={`${s.value}`} /></div></div>)}
-      </div>
+      <KpiRow label="สรุปผู้ใช้งานสำนักงานใหญ่">
+        <KpiCard kpi="total" label="ผู้ใช้ทั้งหมด" value={นับ(ค่า(kpi, "total"))} rawValue={ค่า(kpi, "total")} unit="บัญชี · เฉพาะสำนักงานใหญ่" icon={Users}
+          onClick={() => { setStatusF("all"); setPage(1); }} />
+        <KpiCard kpi="active" label="ใช้งานอยู่" value={นับ(ค่า(kpi, "active"))} rawValue={ค่า(kpi, "active")} unit="บัญชี" icon={UserCheck} color="#059669" bg="#E6F6EF"
+          actionLabel={statusF === "active" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดสถานะ("active")} />
+        <KpiCard kpi="inactive" label="ปิดใช้งาน" value={นับ(ค่า(kpi, "inactive"))} rawValue={ค่า(kpi, "inactive")} unit="บัญชี" icon={UserX} color="#6B7280" bg="#F3F4F6"
+          actionLabel={statusF === "inactive" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดสถานะ("inactive")} />
+        <KpiCard kpi="signedIn30" label="เข้าระบบใน 30 วัน" value={นับ(ค่า(kpi, "signedIn30"))} rawValue={ค่า(kpi, "signedIn30")} unit="บัญชี · ตามเวลาเข้าระบบล่าสุด"
+          icon={LogIn} color="#0891B2" bg="#E6F4F9" />
+      </KpiRow>
 
       {/* Table card */}
       <div className="card" style={{ marginBottom: 18 }}>

@@ -1,9 +1,13 @@
 "use client";
 
 // ─── HQ · บันทึกการใช้งาน (Audit Log) — ตรวจว่า admin ของ HQ ทำอะไรไปบ้าง ──────
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { ScrollText, Search, X, User, Activity } from "lucide-react";
+import { Search, X, User, Activity, LogIn, Undo2 } from "lucide-react";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, เดือนนี้, วันนี้ISO, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
+import type { AuditEntry } from "@pms/shared/lib/data/types";
 import { useAuditEntries, AUDIT_READ_CAP } from "@pms/shared/lib/useAudit";
 import { hqAuditModule, HQ_AUDIT_MODULE_LABEL } from "@pms/shared/lib/mock";
 import { APP_NOW, parseDate } from "@pms/shared/context/FilterContext";
@@ -45,29 +49,33 @@ export default function HQAuditPage() {
     [entries],
   );
 
-  const filtered = useMemo(() => entries.filter(e => {
+  // ตัวกรองของหน้า (ผู้ใช้/โมดูล/คำค้น) — ตาราง ส่งออก และการ์ด KPI ใช้ตัวเดียวกัน (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  const ตรงตัวกรอง = useCallback((e: AuditEntry) => {
     if (userFilter !== "all" && e.user !== userFilter) return false;
     if (moduleFilter !== "all" && hqAuditModule(e.action) !== moduleFilter) return false;
     const s = q.trim().toLowerCase();
     return !s || `${e.user} ${e.action} ${e.target}`.toLowerCase().includes(s);
-  }), [entries, userFilter, moduleFilter, q]);
+  }, [userFilter, moduleFilter, q]);
 
-  // "วันนี้" = วันนี้ของระบบ (30 มิ.ย. 2569) ไม่ใช่นาฬิกาเครื่อง
-  // ของเดิมเทียบสตริงด้วย new Date().getDate() → เลขเปลี่ยนไปเรื่อยตามวันจริง และ "17 ก.ค." กับ "17 มิ.ย." ก็ชนกัน
-  const stats = useMemo(() => {
-    const sameDay = (s: string) => {
-      const d = parseDate(s);
-      return !!d && d.getDate() === APP_NOW.getDate() && d.getMonth() === APP_NOW.getMonth() && d.getFullYear() === APP_NOW.getFullYear();
-    };
-    // ⚠️ การ์ดตัวเลขต้องคิดจาก "ผลที่กรองอยู่" ไม่ใช่ข้อมูลทั้งกอง (แก้ 10 ส.ค. 69)
-    //   เดิมเลือกโมดูลแล้วตารางเหลือ 128 รายการ แต่การ์ดยังค้างที่ 5,000 · 6 ผู้ใช้ · 177 วันนี้
-    //   ผู้ใช้จึงอ่านตัวเลขที่ไม่เกี่ยวกับสิ่งที่กำลังดูอยู่ตรงหน้า แล้วสรุปผิด
-    return {
-      total: filtered.length,
-      users: new Set(filtered.map(e => e.user)).size,
-      today: filtered.filter(e => sameDay(e.at)).length,
-    };
-  }, [filtered]);
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards hq.audit) · ไม่นับแถวทดสอบ (นิยามเดียวกับตัวล้าง 0241)
+  //   หน้านี้ไม่มีตัวกรองช่วงเวลา (ห้ามใส่กลับ) → "ในช่วงนี้" = เดือนนี้ เขียนบนการ์ด (บอสตัดสิน 27 ต.ค. 69)
+  //   ย้อน/ยกเลิก = นับจากบันทึกการใช้งานเท่านั้น (บอสตัดสิน 26 ต.ค. 69) · กดการ์ด = ตารางเหลือเฉพาะเรื่องนั้น (กดซ้ำ = ล้าง)
+  const ช่วงเดือนนี้ = useMemo(() => เดือนนี้(APP_NOW.getTime()), []);
+  const ชุดการ์ด = useMemo(() => ชุดที่กรอง(entries, ตรงตัวกรอง, e => e.id), [entries, ตรงตัวกรอง]);
+  const kpi = useKpiCards("hq.audit", { ...ช่วงเดือนนี้, today: วันนี้ISO(APP_NOW.getTime()), filters: ชุดการ์ด, รุ่น: entries.length });
+  const [การ์ดที่กด, setการ์ดที่กด] = useState<"today" | "impersonations" | "reversals" | null>(null);
+  const ตรงการ์ด = useCallback((e: AuditEntry) => {
+    if (!การ์ดที่กด) return true;
+    const d = parseDate(e.at);
+    const วัน = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
+    if (การ์ดที่กด === "today") return วัน === วันนี้ISO(APP_NOW.getTime());
+    if (วัน < ช่วงเดือนนี้.start || วัน > ช่วงเดือนนี้.end) return false;
+    return การ์ดที่กด === "impersonations" ? e.action === "เข้าระบบแทนดีลเลอร์" : e.action.startsWith("ย้อน") || e.action.startsWith("ยกเลิก");
+  }, [การ์ดที่กด, ช่วงเดือนนี้]);
+  const กดการ์ด = (k: "today" | "impersonations" | "reversals") => { setการ์ดที่กด(v => (v === k ? null : k)); setPage(0); };
+  const ป้ายกด = (k: "today" | "impersonations" | "reversals") => (การ์ดที่กด === k ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ");
+
+  const filtered = useMemo(() => entries.filter(e => ตรงตัวกรอง(e) && ตรงการ์ด(e)), [entries, ตรงตัวกรอง, ตรงการ์ด]);
 
   return (
     <div className="erp">
@@ -93,12 +101,16 @@ export default function HQAuditPage() {
             แปลว่าเปิดหน้ามาเห็นแค่วันเดียว ประวัติที่เหลือถูกซ่อนโดยที่ผู้ใช้ไม่รู้ตัว
             หาของเมื่อวานไม่เจอแล้วนึกว่าไม่มี · ค้นหา/ผู้ใช้/โมดูล ยังกรองได้ตามเดิม */}
 
-      {/* สรุป */}
-      <div className="kpi-bar">
-        <div className="kpi"><div className="kpi-icon kpi-navy"><Activity size={16} /></div><div><div className="kpi-val">{stats.total.toLocaleString()}</div><div className="kpi-label">รายการที่แสดงอยู่</div></div></div>
-        <div className="kpi"><div className="kpi-icon kpi-navy"><User size={16} /></div><div><div className="kpi-val">{stats.users}</div><div className="kpi-label">ผู้ใช้ที่มีกิจกรรม</div></div></div>
-        <div className="kpi"><div className="kpi-icon kpi-green"><ScrollText size={16} /></div><div><div className="kpi-val">{stats.today}</div><div className="kpi-label">กิจกรรมวันนี้</div></div></div>
-      </div>
+      <KpiRow label="สรุปบันทึกการใช้งาน" range={ช่วงเดือนนี้}>
+        <KpiCard kpi="actionsToday" label="กิจกรรมวันนี้" value={นับ(ค่า(kpi, "actionsToday"))} rawValue={ค่า(kpi, "actionsToday")} unit="รายการ · ไม่นับแถวทดสอบ"
+          icon={Activity} actionLabel={ป้ายกด("today")} onClick={() => กดการ์ด("today")} />
+        <KpiCard kpi="usersToday" label="ผู้ใช้ที่มีกิจกรรมวันนี้" value={นับ(ค่า(kpi, "usersToday"))} rawValue={ค่า(kpi, "usersToday")} unit="คน"
+          icon={User} color="#7C3AED" bg="#F3E8FF" actionLabel={ป้ายกด("today")} onClick={() => กดการ์ด("today")} />
+        <KpiCard kpi="impersonations" label="เข้าระบบแทนดีลเลอร์เดือนนี้" value={นับ(ค่า(kpi, "impersonations"))} rawValue={ค่า(kpi, "impersonations")} unit="ครั้ง"
+          icon={LogIn} color="#0891B2" bg="#E6F4F9" actionLabel={ป้ายกด("impersonations")} onClick={() => กดการ์ด("impersonations")} />
+        <KpiCard kpi="reversals" label="ย้อน/ยกเลิกเดือนนี้" value={นับ(ค่า(kpi, "reversals"))} rawValue={ค่า(kpi, "reversals")} unit="ครั้ง · จากบันทึกการใช้งาน"
+          icon={Undo2} color="#EA580C" bg="#FEF0E6" actionLabel={ป้ายกด("reversals")} onClick={() => กดการ์ด("reversals")} />
+      </KpiRow>
 
       {/* Toolbar */}
       <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 16 }}>

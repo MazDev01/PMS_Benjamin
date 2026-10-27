@@ -28,6 +28,14 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
     args: a => ({ p_start: a.start, p_end: a.end, p_dealer: a.dealer ?? null, p_today: a.today ?? null }),
     shape: d => จัดรูปแดชบอร์ดHQ(d),
   },
+  // การ์ด KPI 4 ใบ (ใบ 0246) — ฐานตรวจสิทธิ์เอง (หน้าดีลเลอร์ = สาขาของผู้เรียก · หน้า HQ = is_hq) · ส่งก้อนตรง ๆ
+  kpiCards: {
+    rpc: "kpi_cards",
+    // filters = ตัวกรองอื่นของหน้า (ชุดรหัส/สาขา/จังหวัด/คำค้น) — ฐานตรวจรูปเอง ส่งต่อเฉพาะก้อนข้อมูล
+    args: a => ({ p_page: S(a.page), p_start: a.start ?? null, p_end: a.end ?? null, p_dealer: a.dealer ?? null, p_today: a.today ?? null,
+                  p_filters: a.filters && typeof a.filters === "object" && !Array.isArray(a.filters) ? a.filters : null }),
+    shape: d => (d ?? {}),
+  },
   dealerRollup: {
     rpc: "dealer_rollup",
     args: a => ({ p_year: a.year, p_as_of: a.asOf, p_default_days: a.defaultDays, p_follow_up_days: a.perDealer ?? null }),

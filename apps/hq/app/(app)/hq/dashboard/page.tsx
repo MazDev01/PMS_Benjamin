@@ -12,11 +12,13 @@
 // ข้อทดสอบ: tests/scenario/hq-dashboard.spec.ts · supabase/tests/hq_dashboard.sql
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { ChevronRight, CheckCircle2, ClipboardList, Receipt, Target, Users2, FileText, Percent } from "lucide-react";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { FilterBar, SelectFilter } from "@pms/shared/components/filters/FilterBar";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
-import { PlanVsActualBars, GroupedBarChart, Donut, ProgressRing } from "@pms/shared/components/ui/Charts";
+import { PlanVsActualBars, GroupedBarChart, Donut } from "@pms/shared/components/ui/Charts";
 import { SalesTrendChart } from "@pms/shared/components/ui/SalesTrendChart";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
 import { MonthRangeToggle, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
@@ -52,6 +54,7 @@ function กรอบว่าง({ text, h = 260 }: { text: string; h?: number 
 
 export default function HQDashboard() {
   const { timeRange } = useFilters();
+  const router = useRouter();
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
   const [dealerSel, setDealerSel] = useState<string>("all");
   const selDealer = dealerSel === "all" ? null : allDealers.find(d => d.code === dealerSel) ?? null;
@@ -111,19 +114,6 @@ export default function HQDashboard() {
   const c = ข้อมูล?.cards;
   const อัตรา = c ? อัตราปิดการขาย(c.closedWon, c.closedLost) : null;
   const ช่วงคำ = `${c?.days ?? 0} วัน`;
-  const kSub: React.CSSProperties = { fontSize: "0.8rem", color: "var(--muted-foreground)" };
-  const kNum: React.CSSProperties = { fontSize: "1.25rem", fontWeight: 800, color: "#1F2937", lineHeight: 1.15, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };
-  const ไอคอน = ({ Icon, color, bg }: { Icon: typeof Target; color: string; bg: string }) => (
-    <span style={{ width: 42, height: 42, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      <Icon size={20} color={color} strokeWidth={2.1} />
-    </span>
-  );
-  const ดูรายละเอียด = (href: string) => (
-    <Link href={href} className="hq-tap" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.8rem", fontWeight: 700, color: PRIMARY, marginTop: "auto", textDecoration: "none" }}>
-      ดูรายละเอียด <ChevronRight size={13} />
-    </Link>
-  );
-
   const td = ข้อมูล?.today;
   const มีงานค้าง = !!td && (td.requestsOpen > 0 || td.franchiseOverdue.count > 0);
 
@@ -146,7 +136,7 @@ export default function HQDashboard() {
       <section aria-label="วันนี้ต้องทำ" className="card" style={{ marginBottom: "1.25rem", padding: "14px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#1F2937", minWidth: 110 }}>วันนี้ต้องทำ</div>
-          {!td ? <span style={kSub}>กำลังโหลด…</span>
+          {!td ? <span style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>กำลังโหลด…</span>
             : !มีงานค้าง ? (
               <span data-testid="today-clear" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#059669", fontWeight: 700, fontSize: "0.86rem" }}>
                 ไม่มีงานค้าง <CheckCircle2 size={16} />
@@ -178,55 +168,19 @@ export default function HQDashboard() {
         </div>
       </section>
 
-      {/* ── การ์ด 4 ใบ (ขึ้นกับตัวกรองช่วงเวลา/ดีลเลอร์) ── */}
-      <div className="hq-kpi4" style={{ marginBottom: "1.5rem" }}>
-        <div className="card" data-kpi="sales" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={kSub}>ยอดขาย (ใบที่ลูกค้าตอบรับ ก่อน VAT)</div>
-              <div data-value={c?.sales ?? ""} style={{ ...kNum, marginTop: 6, color: PRIMARY }}>{c ? fmtBaht(c.sales) : "—"}</div>
-              <div data-target={c?.target ?? ""} style={{ ...kSub, marginTop: 2 }}>
-                {!c ? " " : c.target == null ? "ยังไม่ได้ตั้งเป้า" : `เป้า ${fmtBaht(c.target)} (เฉลี่ยตามช่วง ${ช่วงคำ})`}
-              </div>
-            </div>
-            <ProgressRing pct={c && c.target ? Math.round(c.sales / c.target * 100) : null} size={50} />
-          </div>
-          {ดูรายละเอียด("/hq/pipeline")}
-        </div>
-        <div className="card" data-kpi="leads" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={kSub}>{selDealer ? `ลีดใหม่ของ ${selDealer.code}` : "ลีดใหม่ทั้งเครือ"}</div>
-              <div data-value={c?.leadsNew ?? ""} style={{ ...kNum, marginTop: 6 }}>{c ? c.leadsNew.toLocaleString("th-TH") : "—"}</div>
-              <div style={{ ...kSub, marginTop: 2 }}>ราย · เข้ามาในช่วงที่เลือก</div>
-            </div>
-            {ไอคอน({ Icon: Users2, color: "#7C3AED", bg: "#F0EBFB" })}
-          </div>
-          {ดูรายละเอียด("/hq/leads")}
-        </div>
-        <div className="card" data-kpi="quotes" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={kSub}>ใบเสนอราคาที่ส่งลูกค้า</div>
-              <div data-value={c?.quotesSent ?? ""} style={{ ...kNum, marginTop: 6 }}>{c ? c.quotesSent.toLocaleString("th-TH") : "—"}</div>
-              <div style={{ ...kSub, marginTop: 2 }}>ใบ · ออกในช่วงที่เลือก (ไม่นับร่าง/ถูกแทนที่)</div>
-            </div>
-            {ไอคอน({ Icon: FileText, color: "#0891B2", bg: "#E6F4F9" })}
-          </div>
-          {ดูรายละเอียด("/hq/quotations")}
-        </div>
-        <div className="card" data-kpi="winrate" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={kSub}>{ชื่ออัตราปิดการขาย}</div>
-              <div data-value={อัตรา ?? ""} style={{ ...kNum, marginTop: 6 }}>{อัตรา == null ? "—" : `${อัตรา}%`}</div>
-              <div style={{ ...kSub, marginTop: 2 }}>{c ? `ลีดปิดสำเร็จ ${c.closedWon} · ไม่สำเร็จ ${c.closedLost}` : " "}</div>
-            </div>
-            {ไอคอน({ Icon: Percent, color: "#D97706", bg: "#FEF0E6" })}
-          </div>
-          {ดูรายละเอียด("/hq/pipeline")}
-        </div>
-      </div>
+      {/* ── การ์ด 4 ใบ (ขึ้นกับตัวกรองช่วงเวลา/ดีลเลอร์) — ตัวเลขคิดที่ฐาน (hq_dashboard 0235) · คอมโพเนนต์กลาง KpiCard (ใบ 0246) ── */}
+      <KpiRow label="สรุปแดชบอร์ดสำนักงานใหญ่" range={{ start: เริ่ม, end: จบ }} style={{ marginBottom: "1.5rem" }}>
+        <KpiCard kpi="sales" label="ยอดขาย (ใบที่ลูกค้าตอบรับ ก่อน VAT)" value={c ? fmtBaht(c.sales) : null} rawValue={c?.sales ?? null} empty="กำลังโหลด…"
+          sub={<span data-target={c?.target ?? ""}>{!c ? " " : c.target == null ? "ยังไม่ได้ตั้งเป้า" : `เป้า ${fmtBaht(c.target)} (เฉลี่ยตามช่วง ${ช่วงคำ})`}</span>}
+          ring={c && c.target ? Math.round(c.sales / c.target * 100) : null} icon={Target} actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/pipeline")} />
+        <KpiCard kpi="leads" label={selDealer ? `ลีดใหม่ของ ${selDealer.code}` : "ลีดใหม่ทั้งเครือ"} value={c ? c.leadsNew.toLocaleString("th-TH") : null} rawValue={c?.leadsNew ?? null}
+          unit="ราย · เข้ามาในช่วงที่เลือก" empty="กำลังโหลด…" icon={Users2} color="#7C3AED" bg="#F0EBFB" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/leads")} />
+        <KpiCard kpi="quotes" label="ใบเสนอราคาที่ส่งลูกค้า" value={c ? c.quotesSent.toLocaleString("th-TH") : null} rawValue={c?.quotesSent ?? null}
+          unit="ใบ · ออกในช่วงที่เลือก (ไม่นับร่าง/ถูกแทนที่)" empty="กำลังโหลด…" icon={FileText} color="#0891B2" bg="#E6F4F9" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/quotations")} />
+        <KpiCard kpi="winrate" label={ชื่ออัตราปิดการขาย} value={อัตรา == null ? null : `${อัตรา}%`} rawValue={อัตรา}
+          unit={c ? `ลีดปิดสำเร็จ ${c.closedWon} · ไม่สำเร็จ ${c.closedLost}` : " "} empty={c ? "ยังไม่มีลีดที่ปิด" : "กำลังโหลด…"}
+          icon={Percent} color="#D97706" bg="#FEF0E6" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/pipeline")} />
+      </KpiRow>
 
       {/* แถว 1: แนวโน้มยอดขาย · สัดส่วนดีลเลอร์ตามภาค */}
       <div className="hq-row2a" style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem" }}>

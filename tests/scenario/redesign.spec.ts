@@ -179,43 +179,55 @@ test("[ux·dealer] ใบเสนอราคาที่สร้างให�
   ).toContain(expectedDate);
 });
 
-// Smart filter: ลูกค้าเป้าหมายขาดติดต่อ >7/14/30 วัน — จำนวนอยู่บนการ์ด KPI "เกิน 7 วัน" (ไม่ซ้ำ)
-// ตัวกรองเกณฑ์วันเป็น dropdown บนแถบเครื่องมือ (เดิมเป็นชิป >7/>14/>30 — เปลี่ยนแล้ว)
+// Smart filter: ลูกค้าเป้าหมายขาดติดต่อ >7/14/30 วัน — ตัวกรองเกณฑ์วันเป็น dropdown บนแถบเครื่องมือ (เดิมเป็นชิป >7/>14/>30)
+//   การ์ด "เกิน 7 วัน" ถูกแทนด้วยชุดการ์ด 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — จึงตรวจตัวกรองกับข้อมูลในตารางตรง ๆ แทนการเทียบกับการ์ด:
+//   ทุกแถวที่ผ่าน "ค้างติดต่อ >N วัน" ต้องมีกิจกรรมล่าสุดเก่ากว่า N วันจริง · เกณฑ์ยาวขึ้นต้องได้ไม่มากกว่าเกณฑ์สั้น · ล้างแล้วกลับเท่าเดิม
 test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วัน) + กรองได้", async ({ page }) => {
   await open(page, "dealer", "/leads");
   await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
-
-  // ต้องรอให้รายการลูกค้าเป้าหมายโหลดเสร็จก่อน แล้วค่อยอ่านตัวเลขบนการ์ด
-  // เทสต์นี้เอา "ตัวเลขบนการ์ด" ไปเทียบกับ "จำนวนแถวในตาราง" ซึ่งอ่านคนละจังหวะกัน
-  // ถ้าอ่านการ์ดตอนข้อมูลยังมาไม่ถึง จะได้เลขของหน้าว่าง แล้วไปเทียบกับแถวที่โผล่มาทีหลัง = ไม่มีทางตรง
-  // (ตกเป็นครั้งคราวเฉพาะตอนรันทั้งชุดพร้อมกัน ซึ่งทุกอย่างช้าลง — ได้ 0 เทียบกับ 3 แถว)
   await page.getByRole("button", { name: "ตาราง" }).click();
   await expect.poll(() => page.locator("tbody tr").count(), { timeout: 20_000 }).toBeGreaterThan(0);
 
-  // การ์ด KPI บอกจำนวนลูกค้าเป้าหมายที่ค้างเกิน 7 วัน
-  const kpi = page.getByRole("button", { name: /^เกิน 7 วัน/ });
-  await expect(kpi).toBeVisible();
-  const overdue = parseInt((await kpi.innerText()).split("\n")[1], 10);
-
-  // ตัวกรองค้างติดต่อ = dropdown เกณฑ์วัน (aria-label มาจาก caption ของ FilterSelect)
   const idle = page.getByLabel("ค้างติดต่อทุกช่วง");
   await expect(idle).toBeVisible();
   for (const d of [7, 14, 30]) {
     await expect(idle.getByRole("option", { name: `ค้างติดต่อ >${d} วัน`, exact: true }), `ต้องมีเกณฑ์ >${d} วัน`).toHaveCount(1);
   }
 
-  const rows = page.locator("tbody tr"); // สลับเป็นตารางไปแล้วข้างบนตอนรอข้อมูลโหลด
-  const before = await rows.count();
+  // ยอดรวมจากแถบแบ่งหน้า ("แสดง 1–10 จาก N ...") — ตารางแบ่งหน้า หน้าละ 10 แถว
+  const ยอด = async () => {
+    const txt = await page.getByText(/แสดง .* จาก .*/).first().innerText();
+    const m = txt.replace(/,/g, "").match(/จาก\s+(\d+)/);
+    return m ? Number(m[1]) : 0;
+  };
+  const คอลัมน์ = await page.locator("thead th").evaluateAll(ths => ths.findIndex(th => (th.textContent ?? "").includes("กิจกรรมล่าสุด")));
+  expect(คอลัมน์, "ตารางมีคอลัมน์กิจกรรมล่าสุด").toBeGreaterThanOrEqual(0);
+  const เดือน = TH_MO_ABBR;
+  const อายุวัน = (s: string) => {   // "5 ต.ค. 2569" → จำนวนวันจากวันนี้ (เวลาไทย) · อ่านไม่ออก = null
+    const m = s.trim().match(/^(\d{1,2}) (\S+) (\d{4})$/);
+    if (!m || เดือน.indexOf(m[2]) < 0) return null;
+    const d = Date.UTC(Number(m[3]) - 543, เดือน.indexOf(m[2]), Number(m[1]));
+    const ไทย = new Date(Date.now() + 7 * 3600_000);
+    return Math.floor((Date.UTC(ไทย.getUTCFullYear(), ไทย.getUTCMonth(), ไทย.getUTCDate()) - d) / 86400000);
+  };
+  await expect.poll(ยอด, { timeout: 15_000 }).toBeGreaterThan(0);
+  const ก่อน = await ยอด();
 
-  // กรอง >7 วัน → จำนวนแถวต้องตรงกับตัวเลขบนการ์ด KPI (เช็คว่าการ์ดกับตัวกรองนับด้วยเกณฑ์เดียวกันจริง)
-  // ⚠️ ตารางแบ่งหน้า หน้าละ 10 แถว — ถ้าค้างเกิน 10 ราย หน้าแรกย่อมมีแค่ 10
-  //    เดิมบังคับว่า "ต้องไม่เกินหนึ่งหน้า" แล้วตกทันทีที่ข้อมูลตัวอย่างเยอะขึ้น (เจอจริง 21 ส.ค. 69: 12 ราย)
-  //    ทั้งที่การ์ดกับตัวกรองยังนับด้วยเกณฑ์เดียวกันถูกต้อง — เทียบกับ "เท่าที่หน้าแรกใส่ได้" แทน
-  const PAGE_SIZE = 10;
-  await idle.selectOption("7");
-  await expect.poll(() => rows.count(), { timeout: 5_000 }).toBe(Math.min(overdue, PAGE_SIZE));
-  // เทียบ "แถวที่เห็นจริง" กับ "แถวที่เห็นก่อนกรอง" — ทั้งคู่ถูกจำกัดด้วยขนาดหน้าเท่ากัน จึงเทียบกันได้ตรง ๆ
-  expect(Math.min(overdue, PAGE_SIZE), "กรองแล้วต้องเหลือไม่มากกว่าก่อนกรอง").toBeLessThanOrEqual(before);
+  let ก่อนหน้า = ก่อน;
+  for (const d of [7, 14, 30]) {
+    await idle.selectOption(String(d));
+    await expect.poll(async () => (await page.locator("tbody tr td").first().count()) > 0 && await ยอด() <= ก่อนหน้า,
+      { timeout: 15_000, message: `ค้างติดต่อ >${d} วัน: ต้องได้ไม่มากกว่าเกณฑ์ก่อนหน้า (${ก่อนหน้า})` }).toBe(true);
+    const จำนวน = await ยอด();
+    const ข้อความ = await page.locator("tbody tr").filter({ hasNot: page.locator("td[colspan]") })
+      .evaluateAll((trs, i) => trs.map(tr => (tr.children[i as number]?.textContent ?? "").trim()), คอลัมน์);
+    expect(ข้อความ.length, `ค้างติดต่อ >${d} วัน: แถวในหน้าแรก = ยอดรวมเท่าที่หน้าแรกใส่ได้`).toBe(Math.min(จำนวน, 10));
+    const ผิด = ข้อความ.filter(s => { const a = อายุวัน(s); return a !== null && a <= d; });
+    expect(ผิด, `ค้างติดต่อ >${d} วัน: ทุกแถวต้องติดต่อล่าสุดเก่ากว่า ${d} วัน`).toEqual([]);
+    ก่อนหน้า = จำนวน;
+  }
+  await idle.selectOption({ index: 0 });
+  await expect.poll(ยอด, { timeout: 15_000, message: "ล้างตัวกรองแล้วต้องกลับเท่าเดิม" }).toBe(ก่อน);
 });
 
 // รายละเอียดลูกค้าเป้าหมาย = แผงกลางจอ 3 แท็บ (รอบ 4 · บอสสั่ง 21 ต.ค. 69 ข้อ 4): ภาพรวม · ใบเสนอราคา · ประวัติ

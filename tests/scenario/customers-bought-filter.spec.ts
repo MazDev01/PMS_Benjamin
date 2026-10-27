@@ -5,10 +5,10 @@ import { open } from "./helpers";
 // หน้านี้เป็น "ฐานข้อมูล" ไม่ใช่รายงานรายงวด → ค่าเริ่มต้นต้องไม่กรองเวลา
 // ไม่งั้นเปิดหน้ามาแล้วลูกค้าเก่าหายไปเงียบ ๆ ซึ่งเป็นเหตุผลเดิมที่หน้านี้ไม่เคยมีตัวกรองเวลา
 
-/** เลขบนการ์ด "ลูกค้าทั้งหมด" (ใบแรกของ .hq-kpi4) */
+/** เลขบนการ์ด "ลูกค้าทั้งหมด" (การ์ดกลาง · ค่าดิบ data-value) — การ์ดเดินตามตัวกรองของตาราง (บอสตัดสิน 27 ต.ค. 69 · ใบ 0246) */
 async function ลูกค้าทั้งหมด(page: import("@playwright/test").Page): Promise<number> {
-  const t = await page.locator(".hq-kpi4 > div").first().locator("> div > div").nth(1).innerText();
-  return Number(t.replace(/[^\d]/g, ""));
+  const v = await page.locator('[data-kpi-row] [data-kpi="total"] [data-value]').first().getAttribute("data-value", { timeout: 8_000 });
+  return Number(v || 0);
 }
 
 test("[func·hq] ตัวกรองซื้อล่าสุด: เริ่มต้นไม่กรอง · แคบช่วงแล้วลูกค้าต้องไม่เพิ่มขึ้น", async ({ page }) => {

@@ -27,16 +27,18 @@ for (const [role, path, label] of PAGES) {
 // (ข้อ "KPI หน้าแม่แบบแสดงค่าครบ" ลบแล้ว 16 ต.ค. 69 — หน้า /hq/master ลบไปพร้อมการเอาแม่แบบออกทั้งระบบ)
 
 // KPI ของ /hq/dealers ต้องเป็นดีไซน์เดียวกับหน้า HQ อื่น: .hq-kpi4 · ตัวเลขเข้ม (ไม่ใส่สี) + ไอคอน
-// รอบ 4 (บอสสั่ง 22 ต.ค. 69 ข้อ 3): หน้านี้ไม่มีตัวเลขเงิน/ผลงานขายแล้ว — เหลือใบ "ดีลเลอร์ทั้งหมด" ใบเดียว
-//   รายได้รวม · โอกาสการขายทั้งหมด · ติดตามตรงเวลา ย้ายไปดูที่ภาพรวมยอดขาย → ตรวจว่า "ไม่มีแล้ว"
-test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐาน .hq-kpi4 เหมือนหน้าอื่น (เหลือใบดีลเลอร์ทั้งหมด ไม่มีใบผลงานขาย)", async ({ page }) => {
+// รอบ 4 (บอสสั่ง 22 ต.ค. 69 ข้อ 3): หน้านี้ไม่มีตัวเลขเงิน/ผลงานขาย — รายได้รวม · โอกาสการขายทั้งหมด · ติดตามตรงเวลา ต้องไม่มี
+// การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246 · ทับ "เหลือใบเดียว"): ดีลเลอร์ทั้งหมด · เปิดใช้งาน · มี/ไม่มีความเคลื่อนไหว 30 วัน — ไม่มียอดเงินสักใบ
+test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐาน .hq-kpi4 เหมือนหน้าอื่น (4 ใบ ไม่มีใบผลงานขาย ไม่มียอดเงิน)", async ({ page }) => {
   await open(page, "hq", "/hq/dealers");
   const tiles = page.locator(".hq-kpi4 > .card");
-  await expect(tiles).toHaveCount(1);
-  await expect(page.locator(".hq-kpi4").getByText("ดีลเลอร์ทั้งหมด")).toBeVisible();
+  await expect(tiles).toHaveCount(4);
+  for (const ป้าย of ["ดีลเลอร์ทั้งหมด", "เปิดใช้งาน", "มีความเคลื่อนไหวใน 30 วัน", "ไม่เคลื่อนไหวเกิน 30 วัน"])
+    await expect(page.locator(".hq-kpi4").getByText(ป้าย, { exact: true }), `มีการ์ด "${ป้าย}"`).toBeVisible();
+  await expect(page.locator(".hq-kpi4"), "ไม่มียอดเงินในการ์ดหน้านี้").not.toContainText(/฿|บาท/);
   for (const เอาออก of ["รายได้รวม", "โอกาสการขายทั้งหมด", "ติดตามตรงเวลา"])
     await expect(page.locator(".hq-kpi4").getByText(เอาออก), `ใบ "${เอาออก}" เอาออกแล้ว (รอบ 4)`).toHaveCount(0);
-  await expect(tiles.first().locator("svg")).toBeVisible();          // ไอคอนในกล่องสีจาง
+  await expect(tiles.first().locator("svg").first()).toBeVisible();          // ไอคอนในกล่องสีจาง
   await expect(page.locator(".stat-card")).toHaveCount(0);            // ต้องไม่เหลือการ์ดแบบเก่า
 });
 

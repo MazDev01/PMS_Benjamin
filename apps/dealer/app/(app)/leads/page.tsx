@@ -21,7 +21,6 @@ import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
 import { ขั้นของลีด, ชื่อขั้นการขาย } from "@pms/shared/lib/leadStage";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
-import { อัตราปิดการขายจากลีด, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
@@ -35,11 +34,11 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import {
   Plus, X,
   CheckCircle2, User, Building2,
-  MessageSquare, Paperclip, Trash2, Eye, XCircle, Coins, Target, TrendingUp, Percent,
+  MessageSquare, Paperclip, Trash2, Eye, XCircle, Coins, Target,
   Phone, Mail, Users, FileText, StickyNote, CalendarClock, MapPin, Calendar,
   Check, ChevronDown,
   ArrowUpDown, ArrowUp, ArrowDown,
-  LayoutList, Columns3, AlarmClock, Ruler,
+  LayoutList, Columns3, AlarmClock, Ruler, Send, Inbox,
 } from "lucide-react";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useSales } from "@pms/shared/context/SalesContext";
@@ -54,6 +53,9 @@ import { leadCreatedDate } from "@pms/shared/lib/leadMetrics";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { provincesOfRegion } from "@pms/shared/lib/provinces";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import { useMyProvinces } from "@pms/shared/lib/useMyProvinces";
 import { dealers as dealersRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
@@ -822,6 +824,8 @@ export default function LeadsPage() {
   // ค่าเริ่มต้น = ไม่เลือกคอลัมน์ → ลูกค้าเป้าหมายที่เพิ่มล่าสุดขึ้นก่อน (numId มากสุด) · บอสสั่ง 21 ก.ย. 69 ทุกตาราง
   const [sortKey, setSortKey] = useState<SortKey|null>(null);
   const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
+  // การ์ด KPI ที่กดอยู่ (ใบ 0246) — กรองตารางตามขั้นการขาย (ตัวแปลงกลาง lib/leadStage.ts) · null = ไม่กรอง
+  const [ขั้นจากการ์ด, setขั้นจากการ์ด] = useState<2 | 3 | 5 | null>(null);
   const [followUpDays, setFollowUpDays] = useState(0); // Smart filter: 0=off · 7/14/30 = ขาดติดต่อเกินกี่วัน
   // quick filter chips ถูกลบตามที่บอสสั่ง — state นี้ไม่มีใครตั้งค่าได้แล้ว จึงลบทิ้ง
   const [dTab, setDTab] = useState<"overview"|"quotation"|"history">("overview"); // แท็บในแผงลีด — รอบ 4 เหลือ 3 แท็บ
@@ -921,7 +925,8 @@ export default function LeadsPage() {
   //
   // ⚠️ จงใจไม่รวม "สถานะ" กับ "ค้างติดต่อ" ไว้ในฐานนี้ เพราะการ์ด KPI เป็นตัวสลับสองอย่างนั้นเอง
   //    ถ้ารวมเข้าไปด้วย พอกดกรองสถานะหนึ่ง การ์ดอื่นจะกลายเป็น 0 แล้วกดสลับกลับไม่ได้อีก
-  const ตรงตัวกรองพื้นฐาน = useCallback((l: LeadRow) => {
+  // ตัวกรองอื่นของหน้า (ไม่รวมช่วงเวลา) — ใช้ทั้งตาราง และส่งชุดลีดที่ผ่านให้การ์ด KPI (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  const ตรงตัวกรองอื่น = useCallback((l: LeadRow) => {
     const q = query.toLowerCase();
     const matchQ = !query
       || l.company.toLowerCase().includes(q)
@@ -929,24 +934,27 @@ export default function LeadsPage() {
       || l.province.toLowerCase().includes(q)
       || l.id.toLowerCase().includes(q);
     const matchPerson = person === "all" || assignedHas(l.assigned, person);
-    // ช่วงเวลา = วันที่ลูกค้าเข้ามา เกณฑ์เดียวกับหน้าสำนักงานใหญ่ (บอสเลือก 15 ก.ย. 69 · เดิมใช้วันติดต่อล่าสุด)
-    const matchTime = leadEnteredInRange(l, timeRange.start, timeRange.end);
     const matchA = !fAssignee || assignedHas(l.assigned, fAssignee);
     const matchP = !fProvince || l.province === fProvince;
     const matchSrc = !fSource || (l.source ?? "") === fSource;
     const val = มูลค่าลีด(l) ?? 0;   // ยอดใบล่าสุด (ไม่มีใบ = 0 → ไม่ผ่านตัวกรองขั้นต่ำ)
     const matchMin = !fValueMin || val >= parseFloat(fValueMin.replace(/[฿,M]/g,""))*1e6;
     const matchMax = !fValueMax || val <= parseFloat(fValueMax.replace(/[฿,M]/g,""))*1e6;
-    return matchQ && matchPerson && matchTime && matchA && matchP && matchSrc && matchMin && matchMax;
-  }, [query, person, timeRange, fAssignee, fProvince, fSource, fValueMin, fValueMax]);
+    return matchQ && matchPerson && matchA && matchP && matchSrc && matchMin && matchMax;
+  }, [query, person, fAssignee, fProvince, fSource, fValueMin, fValueMax]);
+  // ช่วงเวลา = วันที่ลูกค้าเข้ามา เกณฑ์เดียวกับหน้าสำนักงานใหญ่ (บอสเลือก 15 ก.ย. 69 · เดิมใช้วันติดต่อล่าสุด)
+  const ตรงตัวกรองพื้นฐาน = useCallback((l: LeadRow) => ตรงตัวกรองอื่น(l) && leadEnteredInRange(l, timeRange.start, timeRange.end),
+    [ตรงตัวกรองอื่น, timeRange]);
 
   const filtered = useMemo(() => {
     let arr = leadsData.filter(l => {
       // ตัวกรองพื้นฐาน (ค้นหา/ผู้รับผิดชอบ/ช่วงเวลา/จังหวัด/ช่องทาง/ช่วงมูลค่า) ใช้ตัวเดียวกับการ์ด KPI
       const matchS = filterStatus === "ALL" || l.status === filterStatus;
       const matchFollow = followUpDays === 0 || needsFollowUp(l, followUpDays);
+      const ขั้น = ขั้นจากการ์ด == null ? null : ขั้นของลีด(l.status, มีใบร่างของ(l));
+      const matchKpi = ขั้นจากการ์ด == null || (ขั้น?.kind === "open" && ขั้น.step === ขั้นจากการ์ด);
       // ตัวกรอง quick (วันนี้/สัปดาห์นี้/ของฉัน/ค้างเกิน 7 วัน/ปิดไม่สำเร็จ) ถูกลบพร้อมชิปกรองด่วน
-      return ตรงตัวกรองพื้นฐาน(l) && matchS && matchFollow;
+      return ตรงตัวกรองพื้นฐาน(l) && matchS && matchFollow && matchKpi;
     });
 
     arr = [...arr].sort((a,b) => {
@@ -964,7 +972,7 @@ export default function LeadsPage() {
       return 0;
     });
     return arr;
-  }, [leadsData, ตรงตัวกรองพื้นฐาน, filterStatus, sortKey, sortDir, followUpDays]);
+  }, [leadsData, ตรงตัวกรองพื้นฐาน, filterStatus, sortKey, sortDir, followUpDays, ขั้นจากการ์ด, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // จำนวนลูกค้าเป้าหมายที่ต้องรีบติดตาม (ขาดการติดต่อเกินเกณฑ์กฎธุรกิจ) — สำหรับแจ้งเตือน "ด่วน"
   const followUpCount = useMemo(() => leadsData.filter(l => needsFollowUp(l, followUpAlertDays)).length, [leadsData, followUpAlertDays]);
@@ -981,7 +989,6 @@ export default function LeadsPage() {
 
   // totalValue / wonLeads / nonLost / winRate ถูกลบ — คำนวณไว้แต่ไม่มีใครแสดง
   // และทั้งสามคิดจาก allLeads (ทั้งเครือ) ซึ่งผิดขอบเขตของหน้าดีลเลอร์อยู่แล้ว
-  // อัตราปิดการขายที่แสดงจริงคือ convRate ด้านล่าง (คิดจาก myAllLeads)
   const hasActiveFilters = !!(fAssignee || fProvince || fSource || fValueMin || fValueMax);
   // ช่วงมูลค่าใน FilterRow ↔ fValueMin/fValueMax ที่ตัวกรองจริงใช้ (แหล่งความจริงเดียวยังเป็นสองค่านี้)
   const valueBand = VALUE_BANDS.find(b => b.min === fValueMin && b.max === fValueMax)?.v ?? "ALL";
@@ -1178,27 +1185,7 @@ export default function LeadsPage() {
   const ฐานสรุป = useMemo(() => leadsData.filter(ตรงตัวกรองพื้นฐาน), [leadsData, ตรงตัวกรองพื้นฐาน]);
   const ฐานสรุปรวมปิดแล้ว = useMemo(() => myAllLeads.filter(ตรงตัวกรองพื้นฐาน), [myAllLeads, ตรงตัวกรองพื้นฐาน]);
 
-  // ─── สรุปด้านบน: 5 ตัวชี้วัด + กราฟแนวโน้ม + แหล่งที่มา ────────────────
-  // นับจาก leadsData (ชุดที่ผ่านตัวกรองหลักแล้ว) — คลิกการ์ดเพื่อกรองต่อ
-  const newThisMonth = useMemo(
-    () => leadsData.filter(l => { const d = leadCreatedDate(l); return d.getMonth() === MOCK_TODAY_LEAD.getMonth() && d.getFullYear() === MOCK_TODAY_LEAD.getFullYear(); }).length,
-    [leadsData]);
-  // ⚠️ ต้องนับจากฐานที่ผ่านตัวกรองของหน้านี้ ไม่ใช่ยอดทั้งสาขาจากฐานข้อมูล (overduePage)
-  //    ไม่งั้นกรองจังหวัดแล้วการ์ด "เกิน N วัน" ยังนับของทั้งสาขาอยู่ = ขัดกับตารางตรงหน้า
-  const overdue7 = useMemo(
-    () => ฐานสรุป.filter(l => needsFollowUp(l, followUpAlertDays)).length,
-    [ฐานสรุป, followUpAlertDays]);
-  const meetingToday = useMemo(() => appointments.filter(a => a.date === APP_NOW_ISO && a.status !== "cancelled" && a.type !== "follow_up").length, [appointments]);
-  const newWaiting = useMemo(() => ฐานสรุป.filter(l => l.status === "WAITING").length, [ฐานสรุป]);
-  // Sales Opportunity = มูลค่ารวมของลูกค้าเป้าหมายที่ยังเปิดอยู่ (Expected Revenue)
-  const openValue = useMemo(
-    () => ฐานสรุป.filter(l => l.status !== "PAID" && l.status !== "CANCELLED").reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0),
-    [ฐานสรุป]);
-  // Conversion Rate = ปิดได้ / (ปิดได้ + ปิดไม่ได้) — ต้องนับจากฐานที่ "รวมที่ปิดการขายแล้ว" ด้วย
-  // (ตารางตัด PAID ออก) และต้องเป็นของสาขาตัวเองเท่านั้น
-  // อัตราปิดการขาย สูตรกลาง (รอบ 4 · lib/winRate.ts) — ยังไม่มีดีลที่ปิด = "—" ไม่ใช่ 0% (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
-  const convRate = useMemo(() => อัตราปิดการขายจากลีด(ฐานสรุปรวมปิดแล้ว), [ฐานสรุปรวมปิดแล้ว]);
-  const fmtCompact = (v:number) => v>=1e6 ? `฿${(v/1e6).toFixed(1)}M` : v>=1e3 ? `฿${Math.round(v/1e3)}K` : `฿${v}`;
+  // การ์ดสรุปด้านบนคิดที่ฐานแล้ว (kpiCards ด้านล่าง · ใบ 0246) — ฐานสรุป* ยังใช้กับกราฟแนวโน้มของหน้านี้
 
   // การ์ด = ปุ่มกรอง · on = กำลังกรองด้วยเงื่อนไขนี้อยู่ (กดซ้ำ = ล้าง)
   // ช่วงวันในดรอปดาวน์ — เกณฑ์ของสาขาต้องเป็นตัวเลือกแรกเสมอ (การ์ด "เกิน N วัน" กดแล้วเซ็ตค่านี้)
@@ -1207,16 +1194,21 @@ export default function LeadsPage() {
     () => [...new Set([followUpAlertDays, 7, 14, 30])].sort((a, b) => a - b),
     [followUpAlertDays],
   );
-  const noFilter = filterStatus === "ALL" && followUpDays === 0;
-  const leadKpis = [
-    /* ⚠️ นับจากชุดเดียวกับตาราง ซึ่ง "ไม่รวมรายที่ปิดการขายแล้ว" — ต้องเขียนบอก ไม่งั้นเทียบกับหน้าสำนักงานใหญ่
-       (ที่รวมทุกสถานะ) แล้วเห็นเลขต่างกันโดยไม่รู้สาเหตุ (ผลตรวจภายนอก DL-11 · 24 ส.ค. 69: 14 vs 16) */
-    { label:"ลูกค้าเป้าหมายทั้งหมด", value:`${ฐานสรุป.length}`,   sub:"ไม่รวมรายที่ปิดแล้ว",       Icon:Users,      color:"#2563EB", bg:"#E8F0FE", on: noFilter,                 onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(0); } },
-    { label:"โอกาสการขาย",          value:fmtCompact(openValue),    sub:"มูลค่าที่เปิดอยู่", Icon:TrendingUp, color:"#16A34A", bg:"#E6F7EE", on: false,                   onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(0); } },
-    { label:`เกิน ${followUpAlertDays} วัน`, value:`${overdue7}`,     sub:"รายการ",       Icon:AlarmClock, color:"#EA580C", bg:"#FEF0E6", on: followUpDays === followUpAlertDays, onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(followUpDays === followUpAlertDays ? 0 : followUpAlertDays); } },
-    /* ⚠️ การ์ดนี้นับ "ดีล" (ลูกค้าเป้าหมายที่ปิดแล้ว) ส่วนแดชบอร์ดนับ "ใบเสนอราคา" — คนละหน่วย เลขจึงต่างกันได้
-       ถ้าใช้ชื่อเดียวกันทั้งสองที่ ผู้ใช้จะเห็นเลขขัดกันในแอปเดียว (ผลตรวจภายนอก DL-03 · 24 ส.ค. 69) */
-    { label:ชื่ออัตราปิดการขาย,   value: convRate == null ? "—" : `${convRate}%`,           sub:คำอธิบายอัตราปิดการขาย, Icon:Percent,   color:"#0D9488", bg:"#E6F7F5", on: false,                   onClick:()=>{ setFilterStatus("ALL"); setFollowUpDays(0); } },
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ฐานคิด ณ ตอนนี้ (ไม่ขึ้นกับช่วงเวลา) ในชุดลีดที่ผ่านตัวกรองอื่นของหน้า
+  //   (จังหวัด/ผู้รับผิดชอบ/ช่องทาง/ค้นหา/มูลค่า · บอสตัดสิน 27 ต.ค. 69) · การ์ดที่กดอยู่/สถานะ ไม่ใช่ตัวกรองของการ์ด
+  //   ขั้น 2/3/5 = ตัวแปลงกลาง lib/leadStage.ts (ฐานใช้กติกาเดียวกัน) · กดการ์ด = กรองตารางตามขั้นนั้น · กดซ้ำ = ล้าง
+  const ชุดการ์ด = useMemo(() => ชุดที่กรอง(myAllLeads, ตรงตัวกรองอื่น, l => l.id), [myAllLeads, ตรงตัวกรองอื่น]);
+  const kpi = useKpiCards("dealer.leads", { filters: ชุดการ์ด, รุ่น: [myAllLeads.map(l => `${l.id}:${l.status}`).join(","), quotations.filter(q => q.status === "draft").length] });
+  const กดขั้น = (s: 2 | 3 | 5 | null) => { setFilterStatus("ALL"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
+  const kpiCards = [
+    { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
+      on: ขั้นจากการ์ด == null && filterStatus === "ALL" && followUpDays === 0, onClick: () => กดขั้น(null) },
+    { kpi: "hq-pricing", label: "รอราคา HQ", value: ค่า(kpi, "hqPricing"), unit: `ราย · ขั้น 2 ${ชื่อขั้นการขาย[1]}`, icon: Send, color: "#7C3AED", bg: "#F3E8FF",
+      on: ขั้นจากการ์ด === 2, onClick: () => กดขั้น(2) },
+    { kpi: "hq-quoted", label: "ได้ราคาแล้ว รอทำใบ", value: ค่า(kpi, "hqQuotedNoDraft"), unit: `ราย · ขั้น 3 ${ชื่อขั้นการขาย[2]}`, icon: Inbox, color: "#16A34A", bg: "#E6F7EE",
+      on: ขั้นจากการ์ด === 3, onClick: () => กดขั้น(3) },
+    { kpi: "awaiting-client", label: ชื่อขั้นการขาย[4], value: ค่า(kpi, "awaitingClient"), unit: "ราย · ขั้น 5 ส่งใบให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
+      on: ขั้นจากการ์ด === 5, onClick: () => กดขั้น(5) },
   ];
 
   // แนวโน้ม 12 เดือน — ลูกค้าเป้าหมายใหม่ เทียบ ปิดการขาย · ปีปัจจุบันเท่านั้น
@@ -1275,27 +1267,13 @@ export default function LeadsPage() {
         {/* จำนวน/อัตราปิดการขาย อยู่บนการ์ด KPI แล้ว — บรรทัดนี้บอกแค่ช่วงเวลาที่กำลังดู */}
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
-        {/* ── สรุป 4 ตัวชี้วัด — ทั้งการ์ดคือปุ่มกรอง (กดซ้ำ = ล้าง) · ไม่มีลิงก์ซ้ำในการ์ด ── */}
-        <div className="dash-kpis" style={{ marginBottom: 16 }}>
-          {/* สถานะ "ถูกเลือก" คุมด้วย .kpi-toggle + aria-pressed ใน globals.css — ห้ามใส่ border/boxShadow เป็น inline */}
-          {leadKpis.map(k => (
-            <button key={k.label} onClick={k.onClick} aria-pressed={k.on} title={k.on ? "กดอีกครั้งเพื่อล้างตัวกรอง" : `กรอง: ${k.label}`}
-              className="card clickable kpi-toggle" style={{ padding:"16px 14px", display:"flex", flexDirection:"column", gap:6, textAlign:"left",
-                cursor:"pointer", fontFamily:"inherit", width:"100%" }}>
-              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10, width:"100%" }}>
-                <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:"0.72rem", color:"#6B7280" }}>{k.label}</div>
-                  <div style={{ fontSize:"1.42rem", fontWeight:800, color:"#1F2937", marginTop:6, fontVariantNumeric:"tabular-nums" }}>{k.value}</div>
-                  <div style={{ fontSize:"0.72rem", color:"#6B7280", marginTop:2 }}>{k.sub}</div>
-                </div>
-                <span style={{ width:42, height:42, borderRadius:12, background:k.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                  <k.Icon size={20} color={k.color} strokeWidth={2.1} />
-                </span>
-              </div>
-            </button>
+        {/* ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) ณ ตอนนี้ · กดแล้วตารางกรองตามขั้น (กดซ้ำ = ล้าง) ── */}
+        <KpiRow label="สรุปลูกค้าเป้าหมาย">
+          {kpiCards.map(k => (
+            <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={นับ(k.value)} rawValue={k.value} unit={k.unit} icon={k.icon} color={k.color} bg={k.bg}
+              actionLabel={k.on ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={k.onClick} />
           ))}
-        </div>
-
+        </KpiRow>
 
         {/* ชิปกรองด่วน (ทั้งหมด/วันนี้/สัปดาห์นี้/ของฉัน/ค้างเกิน 7 วัน/ปิดไม่สำเร็จ) เอาออกตามที่บอสสั่ง */}
 
@@ -1306,7 +1284,7 @@ export default function LeadsPage() {
         <FilterRow
           query={query} onQuery={setQuery} placeholder="ค้นหาบริษัท ผู้ติดต่อ..."
           showClear={hasActiveFilters || filterStatus!=="ALL" || followUpDays!==0 || !!query}
-          onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setFollowUpDays(0); setFAssignee(""); setFProvince(""); setFSource(""); setFValueMin(""); setFValueMax(""); }}
+          onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setFollowUpDays(0); setขั้นจากการ์ด(null); setFAssignee(""); setFProvince(""); setFSource(""); setFValueMin(""); setFValueMax(""); }}
           right={
             /* สลับมุมมอง ตาราง/บอร์ด — กลับมาอยู่ท้ายแถบตัวกรองเหมือนเดิม (ช่อง right ของ FilterRow เตรียมไว้ให้พอดี)
                ขนาดเล็กกว่าช่องกรอง (สูง 30 · ไอคอน 12) เพราะเป็นตัวควบคุมรอง ไม่ใช่ตัวกรอง */

@@ -16,7 +16,11 @@ import { useMemo, useState, useEffect } from "react";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { useRouter } from "next/navigation";
-import { FileText, Percent, Target, Trophy, Eye, X, Coins, Search } from "lucide-react";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, บาทเต็ม } from "@pms/shared/lib/kpiCards";
+import { useSales } from "@pms/shared/context/SalesContext";
+import { Percent, Target, Trophy, Eye, X, Coins, Search, Award } from "lucide-react";
 import { DealerQuotationPerformance, DealerQuotationTable } from "@pms/shared/components/hq/pipeline/DealerQuotationPerformance";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { DealerMarginCard } from "@pms/shared/components/hq/HqOverviewParts";
@@ -375,18 +379,22 @@ export default function SalesAnalyticsPage() {
   // เปลี่ยนตัวกรองต้องกลับหน้า 1 เสมอ — ไม่งั้นกรองแล้วค้างอยู่หน้ากลางลิสต์ที่ไม่มีข้อมูลแล้ว
   const [perfPage, setPerfPage] = useState(0);
   useEffect(() => { setPerfPage(0); }, [q, dealerSel, regionSel, provSel, salesSel]);
-  const perfPageSafe = Math.min(perfPage, pageCountOf(perf.length) - 1);
-  const perfRows = pageSlice(perf, perfPageSafe);
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ช่วงเวลา + ดีลเลอร์ที่เลือก (กติกาเดียวกับแดชบอร์ด HQ)
+  //   ยอดขาย = ตามวันลูกค้าตอบรับ เทียบเป้าเฉลี่ยตามช่วง · อัตราปิด = ลีดเข้ามาในช่วง · margin = ใบ won ที่ผูกใบ HQ (ตอบรับในช่วง)
+  //   ดีลเลอร์ที่ถึงเป้า = ณ ตอนนี้ (ยอดตั้งแต่ต้นปี ≥ เป้าทั้งปี)
+  //   การ์ดเดินตามตัวกรองภาค/จังหวัด/ช่วงยอดขาย/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ส่งสาขาที่ผ่านตัวกรอง (ชุดเดียวกับตารางและกราฟ) · เป้า = ผลรวมเป้าของสาขาที่เหลือ
+  const { salesVersion } = useSales();
+  const ช่วงการ์ด = { start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) };
+  const สาขาการ์ด = useMemo(() => dealers.length === allDealers.length ? null : { dealerCodes: dealers.map(d => d.code) }, [dealers, allDealers]);
+  const การ์ด = useKpiCards("hq.pipeline", { ...ช่วงการ์ด, dealer: dealerSel === ALL ? null : dealerSel, today: isoDateOf(APP_NOW), filters: สาขาการ์ด, รุ่น: salesVersion });
+  const ยอดการ์ด = ค่า(การ์ด, "sales.value"), เป้าการ์ด = ค่า(การ์ด, "sales.target");
+  // การ์ด "ดีลเลอร์ที่ถึงเป้า" กดแล้ว = ตารางผลงานเหลือเฉพาะสาขาที่ฐานนับว่าถึงเป้า (รหัสสาขาจาก kpi_cards · ตัวเลขกับตารางตรงกัน)
+  const [ถึงเป้าเท่านั้น, setถึงเป้าเท่านั้น] = useState(false);
+  const รหัสถึงเป้า = useMemo(() => new Set(((การ์ด?.onTarget as { codes?: string[] } | undefined)?.codes) ?? []), [การ์ด]);
+  const perfShown = useMemo(() => ถึงเป้าเท่านั้น ? perf.filter(d => รหัสถึงเป้า.has(d.code)) : perf, [perf, ถึงเป้าเท่านั้น, รหัสถึงเป้า]);
+  const perfPageSafe = Math.min(perfPage, pageCountOf(perfShown.length) - 1);
+  const perfRows = pageSlice(perfShown, perfPageSafe);
 
-  const kNum: React.CSSProperties = { fontSize: "1.15rem", fontWeight: 800, color: "#1F2937", lineHeight: 1.15, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.015em", whiteSpace: "nowrap" };
-  const kSub: React.CSSProperties = { fontSize: "0.72rem", color: MUTED };
-  const kpiCards = [
-    { label: "ยอดขายจริง (ในช่วง)", value: fmtBaht(kpi.wonVal), sub: `${kpi.wonCount} ดีล · จากใบเสนอราคาที่ปิดได้`, Icon: Trophy, color: "#059669", bg: "#E6F6EF" },
-    { label: "มูลค่าใบเสนอราคา", value: fmtBaht(kpi.quoteVal), sub: `${kpi.quotes} ใบ · ในช่วงที่เลือก`, Icon: FileText, color: "#0891B2", bg: "#E6F4F9" },
-    // ⚠️ หารด้วย "ใบที่รู้ผลแล้ว" เท่านั้น — คนละตัวหารกับการ์ดชื่อคล้ายกันที่หน้าใบเสนอราคาทั้งเครือ
-    { label: ชื่ออัตราปิดการขาย, value: kpi.conv === null ? "—" : `${kpi.conv}%`, sub: คำอธิบายอัตราปิดการขาย, Icon: Percent, color: "#7C3AED", bg: "#F0EBFB" },
-    { label: "เป้าหมายทั้งปี", value: dealerPerf.ready && kpi.tpct != null ? `${kpi.tpct}%` : "—", sub: kpi.target > 0 ? `ยอดสะสม ${money(kpi.actual)} จาก ${fmtBaht(kpi.target)}` : `ยอดสะสม ${money(kpi.actual)} · ยังไม่ได้ตั้งเป้า`, Icon: Target, color: "#2563EB", bg: "#E8F0FE" },
-  ];
 
   // ตัวกรองทุกช่องกว้างเท่ากันและยืด/หดร่วมกันในแถวเดียว (บอสสั่ง 14 ก.ย. 69 "แก้" — ภาพแถบที่ขึ้น 2 แถว)
   //   เดิม width:auto → ช่อง "ทุกดีลเลอร์" กว้างตามชื่อดีลเลอร์ที่ยาวที่สุด ดันช่องอื่นตกไปแถวสอง
@@ -422,21 +430,23 @@ export default function SalesAnalyticsPage() {
             ])} />
       </TopbarActions>
 
-      {/* ── EXECUTIVE KPI ── */}
-      <div className="hq-kpi4" style={{ marginBottom: "1.25rem" }}>
-        {kpiCards.map(k => (
-          <div key={k.label} className="card" style={{ marginBottom: 0, padding: "18px 18px 15px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ ...kSub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.label}</div>
-              <div style={{ ...kNum, marginTop: 6 }}>{k.value}</div>
-              <div style={{ ...kSub, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.sub}</div>
-            </div>
-            <span style={{ width: 42, height: 42, borderRadius: 12, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <k.Icon size={20} color={k.color} strokeWidth={2.1} />
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* ── การ์ด KPI 4 ใบ (คอมโพเนนต์กลาง · ใบ 0246) ── */}
+      <KpiRow label="สรุปภาพรวมยอดขาย" range={ช่วงการ์ด}>
+        <KpiCard kpi="sales" label="ยอดขาย (เทียบเป้า)" value={บาทเต็ม(ยอดการ์ด)} rawValue={ยอดการ์ด} empty="กำลังโหลด…"
+          unit={เป้าการ์ด == null ? "ยังไม่ได้ตั้งเป้า" : `เป้าในช่วง ${บาทเต็ม(เป้าการ์ด)} · ตามวันลูกค้าตอบรับ`}
+          ring={ยอดการ์ด != null && เป้าการ์ด ? Math.round(ยอดการ์ด / เป้าการ์ด * 100) : null} icon={Trophy}
+          onClick={() => router.push("/hq/quotations?kpi=won")} />
+        <KpiCard kpi="winRate" label={ชื่ออัตราปิดการขาย} value={ค่า(การ์ด, "winRate.rate") == null ? null : `${ค่า(การ์ด, "winRate.rate")}%`} rawValue={ค่า(การ์ด, "winRate.rate")}
+          unit={คำอธิบายอัตราปิดการขาย} empty={การ์ด ? "ยังไม่มีลีดที่ปิดในช่วงนี้" : "กำลังโหลด…"} icon={Percent} color="#7C3AED" bg="#F0EBFB"
+          sub={การ์ด ? `ปิดสำเร็จ ${ค่า(การ์ด, "winRate.won") ?? 0} · ไม่สำเร็จ ${ค่า(การ์ด, "winRate.lost") ?? 0}` : undefined} onClick={() => router.push("/hq/leads")} />
+        <KpiCard kpi="margin" label="margin เฉลี่ย" value={ค่า(การ์ด, "margin.pct") == null ? null : `${Number(ค่า(การ์ด, "margin.pct")).toFixed(1)}%`} rawValue={ค่า(การ์ด, "margin.pct")}
+          unit={`ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับและผูกใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
+          icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="ดูรายดีลเลอร์"
+          onClick={() => document.querySelector("[data-testid='dealer-margin']")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+        <KpiCard kpi="onTarget" label="ดีลเลอร์ที่ถึงเป้า" value={ค่า(การ์ด, "onTarget.reached") == null ? null : `${ค่า(การ์ด, "onTarget.reached")} จาก ${ค่า(การ์ด, "onTarget.of")}`}
+          rawValue={ค่า(การ์ด, "onTarget.reached")} unit="ราย · ยอดตั้งแต่ต้นปีถึงเป้าทั้งปี" empty="กำลังโหลด…" icon={Award} color="#2563EB" bg="#E8F0FE"
+          actionLabel={ถึงเป้าเท่านั้น ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => { setถึงเป้าเท่านั้น(v => !v); setPerfPage(0); }} />
+      </KpiRow>
 
       {/* ── SMART FILTER ── อยู่ใต้ KPI เหมือนหน้า HQ อื่น (ใบเสนอราคา/ลูกค้า/ดีลเลอร์)
           เดิมหน้านี้หน้าเดียวที่เอาตัวกรองไว้เหนือ KPI */}
@@ -558,7 +568,7 @@ export default function SalesAnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {!perf.length && <tr><td colSpan={12} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
+              {!perfShown.length && <tr><td colSpan={12} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {perfRows.map(d => (
                 <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าดีลเลอร์ ${d.name}`}>
                   <td data-col="code" style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY, overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>{d.code}</td>
@@ -588,7 +598,7 @@ export default function SalesAnalyticsPage() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={perfPageSafe} total={perf.length} onPage={setPerfPage} unit="ดีลเลอร์" />
+        <TablePagination page={perfPageSafe} total={perfShown.length} onPage={setPerfPage} unit="ดีลเลอร์" />
       </div>
 
       {/* ส่วนบวกรายดีลเลอร์ (บอสตัดสิน 22 ต.ค. 69) — แอป HQ เท่านั้น · ไม่อยู่ในไฟล์ส่งออกของหน้านี้ */}

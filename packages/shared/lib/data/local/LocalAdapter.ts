@@ -929,6 +929,8 @@ export const LocalAdapter: DataAdapter = {
     },
     // แดชบอร์ด HQ: ตัวเลขคิดที่ฐานเท่านั้น (บอสสั่ง 21 ต.ค. 69) — โหมดตัวอย่างไม่มีตัวคำนวณ ส่งผลว่าง (หน้าจอขึ้นกรอบว่าง) ห้ามคิดเองในเครื่อง
     hqDashboard: () => ok(แดชบอร์ดHQว่าง()),
+    // การ์ด KPI คิดที่ฐานเท่านั้น (ใบ 0246) — โหมดข้อมูลตัวอย่างไม่มีฐาน = ทุกใบขึ้น "—"
+    kpiCards: () => ok({}),
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);
       const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);

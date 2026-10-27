@@ -59,7 +59,7 @@ test("[flow·hq] ตั้งค่า › แม่แบบวัสดุ: �
   await expect(แผง.getByTestId("estimate-accuracy"), "การ์ด % คลาดเฉลี่ยอยู่บนหัว").toBeVisible({ timeout: 20_000 });
   for (const [ชื่อ, หน่วย, ราคา] of [[ผนัง, "ตร.ม.", 285.5], [ประตู, "ชุด", 42000]] as const) {
     await แผง.getByRole("button", { name: "เพิ่มวัสดุ" }).click();
-    const แถว = แผง.locator("tbody tr[data-mt-row='new']").last();
+    const แถว = แผง.locator("tbody tr[data-mt-row='new']").first();   // แถวใหม่ขึ้นบนสุด (ตารางเรียงใหม่สุดก่อน)
     await แถว.getByLabel(/^หมวด \d+$/).fill(หมวด);
     await แถว.getByLabel(/^ชื่อวัสดุ \d+$/).fill(ชื่อ);
     await แถว.getByLabel(/^หน่วย \d+$/).fill(หน่วย);
