@@ -105,7 +105,7 @@ test("[flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายการท
   const ryg = await db(RYG);
   expect((await ryg.from("hq_quotes").select("id").eq("request_id", requestId)).data ?? [], "ดีลเลอร์อ่านร่างตรงที่ฐานไม่ได้").toEqual([]);
   const row = await เปิดแผงดีลเลอร์(page);
-  await expect(row.getByText("ได้ราคา HQ", { exact: true }), "ยังไม่ส่ง = ยังไม่ได้ราคา").toHaveCount(0);
+  await expect(row.getByText("3 ได้ใบ HQ", { exact: true }), "ยังไม่ส่ง = ยังไม่ถึงขั้น 3 ได้ใบ HQ").toHaveCount(0);
   await row.locator("td").first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await expect(page.locator("[data-panel='quote-request']").getByText("กำลังทำราคา", { exact: true })).toBeVisible({ timeout: 20_000 });
@@ -144,8 +144,9 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
 
   // ฝั่งดีลเลอร์: ป้าย + ใบ HQ
   const row = await เปิดแผงดีลเลอร์(page);
-  await expect(row.getByText("ได้ราคา HQ", { exact: true }).first(), "ป้ายสถานะ = ได้ราคา HQ (สถานะจริงในฐาน)").toBeVisible({ timeout: 20_000 });
-  await expect(row.getByText("รอราคา HQ", { exact: true }), "ไม่มีป้ายรอราคาค้าง").toHaveCount(0);
+  // ป้ายในตาราง = ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · สถานะในฐาน = ได้ราคา HQ ยังไม่มีใบร่าง → ขั้น 3)
+  await expect(row.getByText("3 ได้ใบ HQ", { exact: true }).first(), "ป้ายขั้น = 3 ได้ใบ HQ (ตามสถานะจริงในฐาน)").toBeVisible({ timeout: 20_000 });
+  await expect(row.getByText("2 ขอราคา HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
   await row.locator("td").first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   const ใบ = page.locator("[data-panel='hq-quote']");
