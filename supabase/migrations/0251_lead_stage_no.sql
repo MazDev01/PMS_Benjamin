@@ -21,7 +21,7 @@ create or replace function public.lead_stage_no(p_dealer text, p_num integer, p_
     when 'CANCELLED' then 7
   end
 $$;
-revoke all on function public.lead_stage_no(text, integer, lead_status) from public, anon;
+revoke all on function public.lead_stage_no(text, integer, lead_status) from public, anon, authenticated, service_role;
 grant execute on function public.lead_stage_no(text, integer, lead_status) to authenticated, service_role;
 
 drop function if exists public.leads_page(integer,integer,text,text[],text,text,text,text,date,date,boolean,date,integer,jsonb,boolean);
@@ -67,7 +67,7 @@ AS $function$
     ), '[]'::jsonb)
   )
 $function$;
-revoke all on function public.leads_page(integer,integer,text,text[],text,text,text,text,date,date,boolean,date,integer,jsonb,boolean,integer) from public, anon;
+revoke all on function public.leads_page(integer,integer,text,text[],text,text,text,text,date,date,boolean,date,integer,jsonb,boolean,integer) from public, anon, authenticated, service_role;
 grant execute on function public.leads_page(integer,integer,text,text[],text,text,text,text,date,date,boolean,date,integer,jsonb,boolean,integer) to authenticated, service_role;
 
 drop function if exists public.lead_summary(text[],text,text,text,text,text,date,date);
@@ -144,5 +144,5 @@ AS $function$
         from f group by dealer_code) x), '[]'::jsonb)
   );
 $function$;
-revoke all on function public.lead_summary(text[],text,text,text,text,text,date,date,integer) from public, anon;
+revoke all on function public.lead_summary(text[],text,text,text,text,text,date,date,integer) from public, anon, authenticated, service_role;
 grant execute on function public.lead_summary(text[],text,text,text,text,text,date,date,integer) to authenticated;
