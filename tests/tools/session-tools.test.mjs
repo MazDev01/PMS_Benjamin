@@ -5,6 +5,8 @@
 //   session:new: ช่องพอร์ตไม่ซ้ำ · ไฟล์ค่าตั้งเปลี่ยนพอร์ต · session:close: ถอดทางลัดก่อนลบ ไฟล์นอกโฟลเดอร์ไม่หาย · ยังไม่ merge = ไม่ปิด
 //   git hook: เซสชันลูก commit/push เข้า wip/monorepo → ถูกปฏิเสธ · branch ตัวเอง → ได้ · โฟลเดอร์หลัก → ไม่ถูกจำกัด
 //   session:merge: commit ล่าสุดไม่มีผลรอบตรวจ → ไม่ merge · มี → merge · merge แล้วเลขใบขาดช่วง → ไม่ merge (บอกว่าใครจอง)
+//     หลัง merge (บอสสั่ง 27 ต.ค. 69): ลายนิ้วมือตรงกับที่เซสชันตรวจผ่าน → ใช้ผลเดิม (commit ผ่านรอบตรวจโดยไม่รันซ้ำ)
+//     ไม่ตรง → บอกให้รันรอบตรวจรวม + บอกงานที่ตรวจผ่านแล้วรอรวม · ห้ามข้าม (commit ไม่มีผลผ่าน)
 //   ตัวตรวจ: พอร์ตที่เขียนเอง → ตก · เลขใบซ้ำ/ข้าม → ตก (0051 ยกเว้น · เซสชันลูกข้ามเลขที่คนอื่นจองได้)
 // mutation proof: PMS_SESSION_MUTATE=<แบบ> ทำสคริปต์ในสำเนาให้พังทีละแบบ → ข้อทดสอบต้องตก (ดูรายการ "พัง" ข้างล่าง)
 // รัน: node tests/tools/session-tools.test.mjs
@@ -64,6 +66,8 @@ try {
   if (พัง === "commit") แก้("scripts/git-hooks/pre-commit.mjs", "if (branch !== ของตัวเอง) {", "if (false) {");
   if (พัง === "push") แก้("scripts/git-hooks/pre-push.mjs", "if (ผิดที่.length) {", "if (false) {");
   if (พัง === "merge") แก้("scripts/session-merge.mjs", "if (!ผล.ผ่าน) ตาย(", "if (false) ตาย(");
+  if (พัง === "reuse") แก้("scripts/session-merge.mjs", 'if (ใช้ผลเดิมได้(ปลาย, "HEAD", cwd)) {', "if (true) {");
+  if (พัง === "noreuse") แก้("scripts/session-merge.mjs", 'if (ใช้ผลเดิมได้(ปลาย, "HEAD", cwd)) {', "if (false) {");
   if (พัง === "mergegap") แก้("scripts/session-merge.mjs", "if (ตรวจเลข.status !== 0) {", "if (false) {");
   if (พัง === "ports") แก้("scripts/check-hardcoded-ports.mjs", "if (เจอ.length) {", "if (false) {");
   if (พัง === "dup") แก้("scripts/check-migration-numbers.mjs", "if (fs.length > 1) ผิด.push", "if (false) ผิด.push");
@@ -199,6 +203,15 @@ try {
   ผ่านใน(B);
   m = รัน(repo, "scripts/session-merge.mjs", ["bb"]);
   ผล(m.ได้ && git("log", "-1", "--format=%s").startsWith("merge: session/bb"), "session:merge: ผ่านรอบตรวจ + เลขต่อกัน → merge ได้", m.ข้อความ);
+  // สาขาหลักมีงานที่ bb ไม่ได้ตรวจด้วย (apps/หลัก.ts) → ลายนิ้วมือไม่ตรง: ต้องรันรอบตรวจรวม · บอกงานที่รอรวม (aa ตรวจผ่านแล้ว) · ห้ามข้าม
+  ผล(/ต้องรันรอบตรวจรวม ห้ามข้าม/.test(m.ข้อความ) && /รอรวม: session\/aa/.test(m.ข้อความ) && !globalThis.__cg.ตรวจcommitผ่าน("HEAD", repo).ผ่าน,
+    "session:merge: ลายนิ้วมือหลังรวมไม่ตรง → บอกให้รันรอบตรวจรวม + งานที่รอรวม · commit ยังไม่มีผลผ่าน (ข้ามไม่ได้)", m.ข้อความ);
+  // bb ดึงสาขาหลักไปรวมแล้วตรวจผ่านอีกรอบ → รวมแล้วโค้ดตรงกันทุกไฟล์ = ใช้ผลเดิม ไม่ต้องรันซ้ำ
+  gitIn(B, "merge", "-q", "--no-edit", "monorepo"); เขียน(B, "apps/bb-รอบสอง.ts", "export const two = 2;\n");
+  gitIn(B, "add", "-A"); gitIn(B, "commit", "-qm", "bb รอบสอง"); ผ่านใน(B);
+  m = รัน(repo, "scripts/session-merge.mjs", ["bb"]);
+  ผล(m.ได้ && /ใช้ผลเดิม ไม่ต้องรันรอบตรวจซ้ำ/.test(m.ข้อความ) && globalThis.__cg.ตรวจcommitผ่าน("HEAD", repo).ผ่าน,
+    "session:merge: ลายนิ้วมือหลังรวมตรงกับที่เซสชันตรวจผ่าน → ใช้ผลเดิม · commit สาขาหลักผ่านรอบตรวจโดยไม่รันซ้ำ", m.ข้อความ);
 
   // ═══ 7) session:close — ยังไม่ merge = ไม่ปิด · ถอดทางลัดก่อนลบ ไฟล์นอกโฟลเดอร์ไม่หาย ═══
   let c = รัน(repo, "scripts/session-close.mjs", ["aa"]);

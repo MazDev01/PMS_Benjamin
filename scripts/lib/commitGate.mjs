@@ -54,6 +54,22 @@ export function ตรวจcommitผ่าน(sha = "HEAD", cwd = process.cwd()
     เหตุ: `commit ${git(["rev-parse", "--short", sha], cwd)} ยังไม่มีผลรอบตรวจเต็มผ่าน — รัน npm run test:prodbuild ให้ผ่าน (ตก 0) แล้ว commit ${ไฟล์บันทึกโค้ด}` };
 }
 
+/** หลังรวมงานเซสชัน: โค้ดสาขาหลักตรงกับ commit ที่เซสชันตรวจผ่านทุกไฟล์ไหม (บอสสั่ง 27 ต.ค. 69)
+ *  ตรง = ใช้ผลเดิม ไม่ต้องรันรอบตรวจซ้ำ · ไม่ตรง = ต้องรันรอบตรวจรวม (ห้ามข้าม — pre-push/Vercel ปฏิเสธ commit ที่ไม่มีผลผ่าน) */
+export function ใช้ผลเดิมได้(ปลายเซสชัน, sha = "HEAD", cwd = process.cwd()) {
+  const ผล = ตรวจcommitผ่าน(ปลายเซสชัน, cwd);
+  return ผล.ผ่าน && ลายนิ้วมือโค้ด(sha, cwd) === ผล.ลายนิ้วมือ;
+}
+
+/** branch เซสชันที่ตรวจผ่านแล้วแต่ยังไม่ได้รวมเข้า sha — ให้รวมให้ครบก่อนรันรอบตรวจรวมทีเดียว */
+export function งานรอรวม(sha = "HEAD", cwd = process.cwd()) {
+  return git(["for-each-ref", "--format=%(refname:short)", "refs/heads/session/"], cwd).split("\n").filter(Boolean)
+    .filter(b => {
+      try { execFileSync("git", ["merge-base", "--is-ancestor", b, sha], { cwd, stdio: "ignore" }); return false; } catch { /* ยังไม่ได้รวม */ }
+      return ตรวจcommitผ่าน(b, cwd).ผ่าน;
+    });
+}
+
 /** เลขใบปรับฐานทุกใบใน commit (จากชื่อไฟล์ NNNN_*.sql) */
 export function ใบในcommit(sha, cwd = process.cwd()) {
   return git(["ls-tree", "--name-only", sha, "supabase/migrations/"], cwd).split("\n")

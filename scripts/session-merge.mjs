@@ -6,13 +6,17 @@
 //   · โฟลเดอร์หลักมีไฟล์ค้าง · merge แล้วชนกันในไฟล์งาน
 //   · merge แล้วเลขใบปรับฐานซ้ำ/ข้ามเลข (ต้อง merge ตามลำดับเลข — เลขที่ขาดจองโดยเซสชันไหนจะบอกให้)
 // ไฟล์บันทึกของรอบตรวจชนกันได้ตามธรรมชาติ (ต่างคนต่างรัน) → ใช้ของฝั่งรวมงาน แล้วรอบตรวจเต็มหลัง merge เขียนใหม่
-// หลัง merge: รันรอบตรวจเต็มในโฟลเดอร์หลัก (npm run test:prodbuild) ผ่านแล้วค่อย push
+// หลัง merge (บอสสั่ง 27 ต.ค. 69):
+//   โค้ดตรงกับ commit ที่เซสชันตรวจผ่านทุกไฟล์ (ลายนิ้วมือตรง) → ใช้ผลเดิม ไม่ต้องรันรอบตรวจซ้ำ (เติมบรรทัดผลของเซสชันให้ commit ถ้าขาด)
+//   ไม่ตรง → บอกงานที่รอรวมของทุกเซสชัน · รวมให้ครบก่อนแล้วรันรอบตรวจรวมทีเดียว · ห้ามข้าม (pre-push/Vercel ปฏิเสธ commit ที่ไม่มีผลผ่าน)
+// ข้อทดสอบ: tests/tools/session-merge-reuse.test.mjs
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { เป็นโฟลเดอร์หลัก } from "./lib/session.mjs";
 import { gitใน, ชื่อถูกแบบ } from "./lib/sessions.mjs";
-import { ตรวจcommitผ่าน, ไฟล์ของรอบตรวจ } from "./lib/commitGate.mjs";
+import { ตรวจcommitผ่าน, ไฟล์ของรอบตรวจ, ไฟล์บันทึกโค้ด, ใช้ผลเดิมได้, งานรอรวม } from "./lib/commitGate.mjs";
+import { writeFileSync } from "node:fs";
 
 const cwd = process.cwd();
 const git = gitใน(cwd);
@@ -48,5 +52,23 @@ if (ตรวจเลข.status !== 0) {
 }
 
 git("commit", "-q", "--no-edit", "-m", `merge: ${branch} (${ปลาย.slice(0, 7)} ผ่านรอบตรวจเต็มในโฟลเดอร์เซสชัน)`);
-console.log(`✓ merge ${branch} เข้าแล้ว (${git("rev-parse", "--short", "HEAD")})
-   ต่อไป: รันรอบตรวจเต็มในโฟลเดอร์หลัก (npm run test:prodbuild) → ผ่าน → commit ไฟล์บันทึก → push wip/integration`);
+console.log(`✓ merge ${branch} เข้าแล้ว (${git("rev-parse", "--short", "HEAD")})`);
+
+if (ใช้ผลเดิมได้(ปลาย, "HEAD", cwd)) {
+  // ไฟล์บันทึกชนกันแล้วเลือกฝั่งรวมงาน → บรรทัดผลของเซสชันอาจหาย: เติมกลับ (ไฟล์ใบที่ผ่าน = ของเซสชัน เพราะโค้ดตรงกันทุกไฟล์)
+  if (!ตรวจcommitผ่าน("HEAD", cwd).ผ่าน) {
+    const แถว = (sha) => git("show", `${sha}:${ไฟล์บันทึกโค้ด}`).split("\n");
+    const รวม = [...new Set([...แถว("HEAD"), ...แถว(ปลาย)].filter(Boolean))];
+    writeFileSync(path.join(cwd, ไฟล์บันทึกโค้ด), รวม.join("\n") + "\n");
+    writeFileSync(path.join(cwd, "supabase/gate-passed-migrations.json"), git("show", `${ปลาย}:supabase/gate-passed-migrations.json`) + "\n");
+    git("add", "--", ไฟล์บันทึกโค้ด, "supabase/gate-passed-migrations.json");
+    git("commit", "-q", "-m", `chore(gate): ใช้ผลรอบตรวจของ ${branch} (ลายนิ้วมือตรงกันทุกไฟล์)`);
+  }
+  if (!ตรวจcommitผ่าน("HEAD", cwd).ผ่าน) ตาย("ลายนิ้วมือตรงแต่บันทึกผลไม่ครบ — รันรอบตรวจเต็มในโฟลเดอร์หลัก");
+  console.log(`✓ ลายนิ้วมือโค้ดหลังรวมตรงกับที่ ${branch} ตรวจผ่าน — ใช้ผลเดิม ไม่ต้องรันรอบตรวจซ้ำ
+   ต่อไป: push ได้ (ตัวกั้น pre-push/Vercel ตรวจลายนิ้วมือซ้ำเอง)`);
+} else {
+  const รอ = งานรอรวม("HEAD", cwd);
+  console.log(`⚠️ ลายนิ้วมือโค้ดหลังรวมไม่ตรงกับที่ ${branch} ตรวจ (สาขาหลักมีงานอื่นปน) — ต้องรันรอบตรวจรวม ห้ามข้าม
+   ${รอ.length ? `งานที่ตรวจผ่านแล้วรอรวม: ${รอ.join(", ")} → รวมให้ครบก่อน แล้ว` : ""}รันรอบตรวจเต็มทีเดียว (npm run test:prodbuild) → ผ่าน → commit ไฟล์บันทึก → push`);
+}

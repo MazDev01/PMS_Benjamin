@@ -19,6 +19,18 @@ const ลบ = readFileSync("tests/prod-live/cleanup.sql", "utf8").replace(/\r\n
 const นับ = readFileSync("tests/prod-live/cleanup-audit-count.sql", "utf8").replace(/\r\n/g, "\n");
 const ขั้น = /-- ═══ บันทึกการใช้งาน[^\n]*\n([\s\S]*?)-- ═══ จบบันทึกการใช้งาน ═══/.exec(ลบ)?.[1] ?? "";
 ผล(!!ขั้น, "cleanup.sql มีขั้นล้างบันทึกการใช้งาน (หัว/ท้ายขั้นครบ)");
+// ลำดับ: ลบแถวสาขา ZZT ทำให้ฐานจดบันทึกการใช้งานใหม่ (ใบ 0240) → ขั้นล้างบันทึกต้องอยู่หลังคำสั่งลบ/แก้ตารางอื่นทั้งหมด
+//   (27 ต.ค. 69: ขั้นนี้อยู่ก่อน → ฐานจริงเหลือแถวทดสอบค้าง 6 แถว) · mutation: PMS_AUDIT_MUTATE=order ย้ายขั้นกลับไปไว้ก่อน
+let ไฟล์ตามลำดับ = ลบ;
+if (process.env.PMS_AUDIT_MUTATE === "order") {
+  const ทั้งขั้น = /-- ═══ บันทึกการใช้งาน[\s\S]*?-- ═══ จบบันทึกการใช้งาน ═══\n/.exec(ลบ)?.[0] ?? "";
+  ไฟล์ตามลำดับ = ลบ.replace(ทั้งขั้น, "").replace("delete from public.email_outbox", ทั้งขั้น + "delete from public.email_outbox");
+}
+const หลังขั้น = ไฟล์ตามลำดับ.split("-- ═══ จบบันทึกการใช้งาน ═══")[1] ?? "";
+const ก่อนขั้น = ไฟล์ตามลำดับ.split("-- ═══ บันทึกการใช้งาน")[0] ?? "";
+const เขียนหลังขั้น = หลังขั้น.split("\n").filter(บรรทัด => !บรรทัด.trimStart().startsWith("--") && /\b(delete from|update|insert into)\b/i.test(บรรทัด));
+ผล(เขียนหลังขั้น.length === 0 && /delete from public\.dealers where code = 'ZZT'/.test(ก่อนขั้น),
+  "ขั้นล้างบันทึกการใช้งานอยู่หลังการลบแถวสาขา ZZT ทั้งหมด (ไม่มีคำสั่งเขียนตามหลังที่ทำให้ฐานจดบันทึกใหม่)", เขียนหลังขั้น.join("\n") || "ไม่พบการลบสาขา ZZT ก่อนขั้น");
 const เงื่อนไขลบ = /delete from public\.audit_log\s+where ([^;]+);/.exec(ขั้น)?.[1]?.trim() ?? "";
 const เงื่อนไขนับ = /count\(\*\) filter \(where \((.+?)\)\) as จะลบ/.exec(นับ)?.[1]?.trim() ?? "";
 ผล(!!เงื่อนไขลบ && เงื่อนไขลบ === เงื่อนไขนับ, "เงื่อนไขในไฟล์นับตรงกับไฟล์ลบทุกตัวอักษร", `ลบ: ${เงื่อนไขลบ}\nนับ: ${เงื่อนไขนับ}`);
