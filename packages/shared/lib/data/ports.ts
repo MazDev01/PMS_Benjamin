@@ -488,6 +488,8 @@ export interface MetricsRepo {
   hqOverview(): Promise<HqOverview>;
   /** แดชบอร์ด HQ (ใบ 0235) — ตัวเลขทุกตัวคิดที่ฐาน · start/end = ช่วงที่เลือก · dealer = เลือกดีลเลอร์ · today = วันนี้ของระบบ · HQ เท่านั้น */
   hqDashboard(start: string, end: string, dealer?: string | null, today?: string): Promise<HqDashboard>;
+  /** การ์ด KPI 4 ใบของหน้า (ใบ 0246 · kpi_cards) — ฐานคิดทุกตัว · หน้าดีลเลอร์ = สาขาของผู้เรียก · start/end = ช่วง (ไม่มี = ทุกช่วง/ณ ตอนนี้) */
+  kpiCards(page: import("../kpiCards").KpiPage, start?: string | null, end?: string | null, dealer?: string | null, today?: string | null): Promise<import("../kpiCards").KpiCardsData>;
 }
 
 // ── โดเมนงานขาย — list (อ่าน) + CRUD เต็ม (Phase 0) ──
