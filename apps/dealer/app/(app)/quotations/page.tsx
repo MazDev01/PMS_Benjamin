@@ -1,10 +1,14 @@
 ﻿"use client";
 
-import { quoteExpiryISO } from "@pms/shared/lib/quoteExpiry";
+import { quoteExpiryISO, daysUntilISO } from "@pms/shared/lib/quoteExpiry";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, บาทเต็ม, วันที่ISO } from "@pms/shared/lib/kpiCards";
+import { APP_NOW } from "@pms/shared/context/FilterContext";
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { SortableTh } from "@pms/shared/components/ui/SortableTh";
 import { useRouter } from "next/navigation";
-import { quotationStatusLabel, quotationStatusColor, ใบที่มีผล, DEFAULT_ISSUER, DEFAULT_DEALER_CODE, type QuotationStatus, type QuotationMock, type IssuerProfile } from "@pms/shared/lib/mock";
+import { quotationStatusLabel, quotationStatusColor, DEFAULT_ISSUER, DEFAULT_DEALER_CODE, type QuotationStatus, type QuotationMock, type IssuerProfile } from "@pms/shared/lib/mock";
 import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { DEFAULT_DOC, type DocProfile } from "@pms/shared/lib/quotationPrint";
 import { useSales } from "@pms/shared/context/SalesContext";
@@ -18,7 +22,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useTableLayout, type Col } from "@pms/shared/components/ui/TableTools";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
-import { X, FileText, LayoutList, LayoutGrid, ChevronUp, ChevronDown, Eye, ChevronLeft, ChevronRight, Coins, Check } from "lucide-react";
+import { X, FileText, LayoutList, LayoutGrid, ChevronUp, ChevronDown, Eye, ChevronLeft, ChevronRight, Check, Hourglass, AlarmClock } from "lucide-react";
 
 // ── Tokens ────────────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -123,12 +127,12 @@ export default function QuotationsPage(){
 
 function QuotationsPageInner(){
   const router = useRouter();
-  const { passes } = useFilters(); // timeRange ใช้แค่ในคำโปรยหัวหน้า ซึ่งถูกเอาออกแล้ว
+  const { passes, timeRange } = useFilters(); // timeRange = ช่วงของการ์ด "ตอบรับในช่วงนี้" (ใบ 0246)
   // ค่าคุมจาก HQ (อ่านผ่าน repo · อัปเดตตามเมื่อ HQ แก้) — อายุใบมีผลกับการคิดวันหมดอายุ
   // อายุใบของ "สาขา" มาก่อนนโยบายเครือ (บอสสั่ง 20 ส.ค. 69) — สาขาตั้งไว้เท่าไรต้องใช้ค่านั้นจริง
   const validityDays = useQuoteValidity();
   const {
-    quotations: allQuotationsRaw, customers: allCustomersRaw, leads: allLeads,
+    quotations: allQuotationsRaw, customers: allCustomersRaw, leads: allLeads, salesVersion,
   } = useSales();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
   // scope ทุกอย่างเป็นของสาขาที่ล็อกอิน — RYG ไม่เห็นใบ/ลูกค้า/ลูกค้าเป้าหมายของ CNX (undefined = ของ CNX)
@@ -141,6 +145,16 @@ function QuotationsPageInner(){
   );
   const [query, setQuery]           = useState("");
   const [filterStatus, setFilterStatus] = useState<QuotationStatus|"ALL">("ALL");
+  // การ์ด "ใกล้หมดอายุ 3 วัน" (ใบ 0246) — ส่งลูกค้าแล้ว และวันยืนราคาในใบเหลือ 0–3 วัน (กติกาเดียวกับฐาน _quote_valid_until)
+  const [ใกล้หมดอายุ, setใกล้หมดอายุ] = useState(false);
+  const วันนี้ = วันที่ISO(APP_NOW);
+  const หมดใน3วัน = useCallback((q: QuotationMock) => { const n = daysUntilISO(quoteExpiryISO(q, validityDays), วันนี้); return q.status === "sent_to_client" && n != null && n >= 0 && n <= 3; }, [validityDays, วันนี้]);
+  // ?kpi= จากการ์ดหน้าอื่น — awaiting (แดชบอร์ด "รอลูกค้าตอบ") · won (หน้าลูกค้า "ยอดขายจากลูกค้าในช่วงนี้") — เปิดหน้ามากรองตามนั้น
+  useEffect(() => {
+    const k = new URLSearchParams(window.location.search).get("kpi");
+    if (k === "awaiting") setFilterStatus("sent_to_client");
+    else if (k === "won") setFilterStatus("won");
+  }, []);
   // ตัวกรองในแถบ FilterRow — ตัวเลือกสร้างจากใบเสนอราคาจริงที่มีอยู่
   const [ownerFilter, setOwnerFilter] = useState("ALL");
   const [provFilter, setProvFilter]   = useState("ALL");
@@ -209,7 +223,7 @@ function QuotationsPageInner(){
   const filtered = useMemo(()=>{
     let rows=data.filter(q=>{
       const matchQ=!query||q.id.toLowerCase().includes(query.toLowerCase())||q.customer.toLowerCase().includes(query.toLowerCase())||q.project.toLowerCase().includes(query.toLowerCase())||q.province?.includes(query);
-      const matchS=filterStatus==="ALL"||q.status===filterStatus;
+      const matchS=(filterStatus==="ALL"||q.status===filterStatus)&&(!ใกล้หมดอายุ||หมดใน3วัน(q));
       const matchOwner=ownerFilter==="ALL"||ownerOf(q)===ownerFilter;
       const matchProv=provFilter==="ALL"||q.province===provFilter;
       // FilterBar กลาง: ช่วงเวลา (date) + สถานะ (enum) + จังหวัด
@@ -241,17 +255,6 @@ function QuotationsPageInner(){
   const rangeFrom = filtered.length===0 ? 0 : pageStart+1;
   const rangeTo   = Math.min(pageStart+PAGE_SIZE, filtered.length);
 
-  // สรุปด้านบนนับจากชุดที่อยู่ในช่วงเวลา/จังหวัดของ FilterBar (ไม่ผูกกับ pill สถานะในเครื่อง)
-  // ── ฐานของการ์ด KPI = ผ่านตัวกรองของหน้านี้ทั้งหมด ยกเว้น "สถานะ" (บอสสั่ง 20 ส.ค. 69) ──
-  //   ยกเว้นสถานะเพราะการ์ด KPI เป็นตัวสลับสถานะเอง — ถ้ารวมเข้าไปด้วย พอกดกรอง "ตอบรับแล้ว"
-  //   การ์ด "ปฏิเสธแล้ว" จะกลายเป็น 0 แล้วกดสลับกลับไม่ได้อีก
-  //   ส่วนที่เหลือ (ค้นหา/ผู้รับผิดชอบ/จังหวัด/ช่วงเวลา) ต้องคุมการ์ดได้ทั้งหมด
-  const scoped = useMemo(()=>data.filter(q=>{
-    const matchQ=!query||q.id.toLowerCase().includes(query.toLowerCase())||q.customer.toLowerCase().includes(query.toLowerCase())||q.project.toLowerCase().includes(query.toLowerCase())||q.province?.includes(query);
-    const matchOwner=ownerFilter==="ALL"||ownerOf(q)===ownerFilter;
-    const matchProv=provFilter==="ALL"||q.province===provFilter;
-    return !!matchQ&&matchOwner&&matchProv&&passes({ date:q.date, province:q.province });
-  }),[data,passes,query,ownerFilter,provFilter,ownerOf]);
 
   // ── กดแถว = เปิดแผงลีดของใบนั้น (รอบ 4 · บอสสั่ง 21 ต.ค. 69) ───────────────────────────────────────────────
   //   ส่ง ตอบรับ ปฏิเสธ แก้ ทำฉบับใหม่ พิมพ์ ทำที่แผงลีด › แท็บใบเสนอราคาที่เดียว · ลีดที่ปิดสำเร็จแล้ว แผงลีดพาไปหน้าลูกค้าเอง
@@ -277,55 +280,12 @@ function QuotationsPageInner(){
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
-        {/* ── สรุป 5 ตัวชี้วัด — การ์ด KPI คลิกกรองได้ (มาตรฐานเดียวกับหน้าลูกค้าเป้าหมาย/ลูกค้า) ── */}
+        {/* ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards · สาขาของผู้ล็อกอิน) · กดการ์ด = กรองตาราง (กดซ้ำ = ล้าง) ──
+              ใบร่าง/รอลูกค้าตอบ/ใกล้หมดอายุ = ณ ตอนนี้ · ตอบรับ = ตามวันลูกค้าตอบรับในช่วงที่เลือก (ยอดก่อน VAT) */}
         {(() => {
-          const fmtC = (v:number) => v>=1e6 ? `฿${(v/1e6).toFixed(1)}M` : v>=1e3 ? `฿${Math.round(v/1e3)}K` : `฿${v}`;
-          // STATUS_LIST ถูกลบพร้อมชิปกรองสถานะ — ไม่มีใครอ่านแล้ว
-          const valOf = (list: QuotationMock[]) => list.reduce((a,q)=>a+q.totalValue,0);
-          // ── มูลค่ารวมต้องเดินตามสถานะที่กรองอยู่ (บอสสั่ง 20 ส.ค. 69) ──────────────
-          //   เดิมรวมทุกสถานะเสมอ กดกรอง "ตอบรับแล้ว" ตารางเหลือ 2 ใบ แต่การ์ดยังโชว์ ฿8.7M
-          //   ของทั้งหน้า → อ่านแล้วเข้าใจว่าที่ตอบรับมีมูลค่าเท่านั้น ทั้งที่ไม่ใช่
-          //   ตอนนี้รวมเฉพาะใบที่ตรงสถานะที่เลือก และเขียนกำกับไว้ว่ากำลังรวมของสถานะไหน
-          //   ⚠️ ไม่ผูกกับช่องค้นหา — การ์ด KPI เป็นภาพรวมของสถานะ ไม่ใช่ผลค้นหารายใบ
-          // ใบที่ถูกแทนที่ (V1) กับฉบับใหม่ (V2) คือข้อเสนอเดียวกัน — "ทั้งหมด" นับเฉพาะใบที่ยังมีผล (รอบ 3 · 0229 ฝั่งฐานก็ไม่นับ)
-          const มีผล = scoped.filter(ใบที่มีผล);
-          const ตามสถานะ = filterStatus === "ALL" ? มีผล : scoped.filter(q => q.status === filterStatus);
-          const totalVal = valOf(ตามสถานะ); // สรุปตามช่วงเวลา + สถานะที่กรอง
-          const wonList  = scoped.filter(q=>q.status==="won");
-          const lostList = scoped.filter(q=>q.status==="lost");
-          const clear    = () => setFilterStatus("ALL");
-          const kpis = [
-            { label:"ใบเสนอราคาทั้งหมด", value:`${มีผล.length}`,      sub:"รายการ",            Icon:FileText, color:"#2563EB", bg:"#E8F0FE", on: filterStatus==="ALL", onClick: clear },
-            { label:"มูลค่ารวม",         value:fmtC(totalVal),          sub: filterStatus==="ALL" ? "ทุกสถานะ" : quotationStatusLabel[filterStatus], Icon:Coins, color:"#16A34A", bg:"#E6F7EE", on: false, onClick: clear },
-            { label:"ตอบรับแล้ว",        value:`${wonList.length}`,     sub:fmtC(valOf(wonList)), Icon:Check,    color:"#0D9488", bg:"#E6F7F5", on: filterStatus==="won",  onClick:()=>setFilterStatus(filterStatus==="won"?"ALL":"won") },
-            { label:"ปฏิเสธแล้ว",        value:`${lostList.length}`,    sub:fmtC(valOf(lostList)), Icon:X,       color:"#DC2626", bg:"#FEE2E2", on: filterStatus==="lost", onClick:()=>setFilterStatus(filterStatus==="lost"?"ALL":"lost") },
-          ];
-          return (
-            <>
-              <div className="dash-kpis" style={{ marginBottom:16 }}>
-                {/* สถานะ "ถูกเลือก" คุมด้วย .kpi-toggle + aria-pressed ใน globals.css — ห้ามใส่ border/boxShadow เป็น inline */}
-                {kpis.map(k=>(
-                  <button key={k.label} onClick={k.onClick} aria-pressed={k.on} title={k.on?"กดอีกครั้งเพื่อล้างตัวกรอง":`กรอง: ${k.label}`}
-                    className="card clickable kpi-toggle" style={{ padding:"16px 14px", display:"flex", flexDirection:"column", gap:6, textAlign:"left",
-                      cursor:"pointer", fontFamily:"inherit", width:"100%" }}>
-                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10, width:"100%" }}>
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ fontSize:"0.72rem", color:"#6B7280" }}>{k.label}</div>
-                        <div style={{ fontSize:"1.42rem", fontWeight:800, color:"#1F2937", marginTop:6, fontVariantNumeric:"tabular-nums" }}>{k.value}</div>
-                        <div style={{ fontSize:"0.72rem", color:"#6B7280", marginTop:2 }}>{k.sub}</div>
-                      </div>
-                      <span style={{ width:42, height:42, borderRadius:12, background:k.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                        <k.Icon size={20} color={k.color} strokeWidth={2.1} />
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {/* ชิปกรองสถานะ (ทั้งหมด/ร่าง/ส่งแล้ว/...) เอาออกตามที่บอสสั่ง
-                  กรองสถานะยังทำได้ที่การ์ด KPI ด้านบน (กดการ์ดแล้วกรอง) */}
-            </>
-          );
+          const ช่วง = { start: วันที่ISO(timeRange.start), end: วันที่ISO(timeRange.end) };
+          return <KpiCardsRow ช่วง={ช่วง} วันนี้={วันนี้} รุ่น={salesVersion} filterStatus={filterStatus} ใกล้หมดอายุ={ใกล้หมดอายุ}
+            กด={(s, หมด) => { const ซ้ำ = หมด ? ใกล้หมดอายุ : filterStatus === s && !ใกล้หมดอายุ; setใกล้หมดอายุ(!ซ้ำ && หมด); setFilterStatus(ซ้ำ ? "ALL" : s); }} />;
         })()}
 
         {/* ── แถบตัวกรองแถวเดียว (มาตรฐานเดียวกับหน้า /hq/pipeline) ──
@@ -543,5 +503,29 @@ function QuotationsPageInner(){
         </div>
       )}
     </div>
+  );
+}
+
+// แถวการ์ด KPI ของหน้าใบเสนอราคา — แยกเป็นคอมโพเนนต์ระดับไฟล์ (ห้ามประกาศซ้อนในคอมโพเนนต์หลัก)
+function KpiCardsRow({ ช่วง, วันนี้, รุ่น, filterStatus, ใกล้หมดอายุ, กด }: {
+  ช่วง: { start: string; end: string }; วันนี้: string; รุ่น: unknown; filterStatus: QuotationStatus | "ALL"; ใกล้หมดอายุ: boolean;
+  กด: (s: QuotationStatus, ใกล้หมด: boolean) => void;
+}) {
+  const kpi = useKpiCards("dealer.quotations", { ...ช่วง, today: วันนี้, รุ่น });
+  const cards = [
+    { kpi: "drafts", label: "ใบร่าง", value: ค่า(kpi, "drafts"), unit: "ใบ · ยังไม่ส่งลูกค้า", icon: FileText, color: "#2563EB", bg: "#E8F0FE", on: filterStatus === "draft" && !ใกล้หมดอายุ, s: "draft" as const, หมด: false },
+    { kpi: "awaiting", label: "รอลูกค้าตอบ", value: ค่า(kpi, "awaiting"), unit: "ใบ · ส่งลูกค้าแล้ว", icon: Hourglass, color: "#EA580C", bg: "#FEF0E6", on: filterStatus === "sent_to_client" && !ใกล้หมดอายุ, s: "sent_to_client" as const, หมด: false },
+    { kpi: "won", label: "ตอบรับในช่วงนี้", value: ค่า(kpi, "won.count"), unit: "ใบ · ตามวันลูกค้าตอบรับ", sub: ค่า(kpi, "won.value") == null ? undefined : `มูลค่า ${บาทเต็ม(ค่า(kpi, "won.value"))} (ก่อน VAT)`,
+      icon: Check, color: "#0D9488", bg: "#E6F7F5", on: filterStatus === "won", s: "won" as const, หมด: false },
+    { kpi: "expiring", label: "ใกล้หมดอายุ 3 วัน", value: ค่า(kpi, "expiring"), unit: "ใบ · ตามวันยืนราคาในใบ", icon: AlarmClock, color: "#DC2626", bg: "#FEE2E2", danger: (ค่า(kpi, "expiring") ?? 0) > 0,
+      on: ใกล้หมดอายุ, s: "sent_to_client" as const, หมด: true },
+  ];
+  return (
+    <KpiRow label="สรุปใบเสนอราคา" range={ช่วง} style={{ marginBottom: 16 }}>
+      {cards.map(k => (
+        <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={นับ(k.value)} rawValue={k.value} unit={k.unit} sub={k.sub} danger={k.danger}
+          icon={k.icon} color={k.color} bg={k.bg} actionLabel={k.on ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กด(k.s, k.หมด)} />
+      ))}
+    </KpiRow>
   );
 }

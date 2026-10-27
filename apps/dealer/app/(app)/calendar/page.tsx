@@ -1,6 +1,5 @@
 "use client";
 
-import { CountUp } from "@pms/shared/components/ui/CountUp";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
@@ -8,11 +7,14 @@ import { useRouter } from "next/navigation";
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { apptTypeLabel, fmtISOToThai, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ } from "@pms/shared/lib/kpiCards";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { useMyProvinces } from "@pms/shared/lib/useMyProvinces";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useSales } from "@pms/shared/context/SalesContext";
-import { ChevronLeft, ChevronRight, Clock, MapPin, CalendarDays, CalendarCheck, Plus, X, User, Phone, Building2, GitBranch, Users, Edit2, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, MapPin, CalendarDays, CalendarCheck, Plus, X, User, Phone, Building2, GitBranch, Users, Edit2, Trash2, AlarmClock, CheckCircle2 } from "lucide-react";
 
 // ── Tokens (CI) ───────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -86,7 +88,7 @@ export default function CalendarPage() {
   const [groupFilter, setGroupFilter] = useState<GroupFilter>("all");
   const [view, setView] = useState<ViewMode>("month"); // หน้า "ปฏิทิน" เปิดที่มุมมองเดือนก่อน
   // นัดหมายทั้งหมดมาจาก SalesContext (ใช้ร่วมกับแดชบอร์ด/แจ้งเตือน)
-  const { appointments: allAppts, updateAppointment: ctxUpdateAppt, deleteAppointment: ctxDeleteAppt, leads: ลีดทั้งหมด } = useSales();
+  const { appointments: allAppts, updateAppointment: ctxUpdateAppt, deleteAppointment: ctxDeleteAppt, leads: ลีดทั้งหมด, salesVersion } = useSales();
   const currentDealerCal = useCurrentDealer();
   const [detail, setDetail] = useState<AppointmentMock | null>(null);
   const [editAppt, setEditAppt] = useState<AppointmentMock | null>(null);
@@ -163,11 +165,6 @@ export default function CalendarPage() {
     window.history.replaceState(null, "", "/calendar");
   }, [allAppts, ขอเปิด]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const monthAppts = useMemo(() => {
-    const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
-    return allAppts.filter(a => a.date.startsWith(prefix));
-  }, [allAppts, year, month]);
-
   // เพิ่ม/แก้ไข/ลบ นัดหมาย ผ่าน SalesContext (สะท้อนแดชบอร์ด/แจ้งเตือนทันที)
   function editAppointment(a: AppointmentMock) {
     ctxUpdateAppt(a);
@@ -179,8 +176,26 @@ export default function CalendarPage() {
     ctxDeleteAppt(id);
     setDetail(null);
   }
-  const monthUpcoming = monthAppts.filter(a => a.status === "upcoming").length;
-  const monthDays = new Set(monthAppts.map(a => a.date)).size;
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards · สาขาของผู้ล็อกอิน) ──
+  //   สัปดาห์ = จันทร์–อาทิตย์ที่มีวันนี้ · ทำเสร็จสัปดาห์นี้ = นัดของสัปดาห์นี้ที่สถานะเสร็จสิ้น (บอสตัดสิน 22 ต.ค. 69)
+  //   กดการ์ด = แสดงรายการนัดที่ตรงเรื่องใต้แถวการ์ด (กติกาเดียวกับฐาน) · กดซ้ำ = ปิด
+  const kpi = useKpiCards("dealer.calendar", { today: APP_NOW_ISO, รุ่น: salesVersion });
+  const [การ์ดนัด, setการ์ดนัด] = useState<"today" | "week" | "overdue" | "doneWeek" | null>(null);
+  const ต้นสัปดาห์ = (() => { const d = new Date(`${APP_NOW_ISO}T00:00:00`); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; })();
+  const วันISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const สัปดาห์ = [วันISO(ต้นสัปดาห์), วันISO(new Date(ต้นสัปดาห์.getTime() + 6 * 86_400_000))] as const;
+  const ตรงการ์ดนัด = (a: AppointmentMock, k: NonNullable<typeof การ์ดนัด>) =>
+    k === "today" ? a.date === APP_NOW_ISO
+    : k === "week" ? a.date >= สัปดาห์[0] && a.date <= สัปดาห์[1]
+    : k === "overdue" ? a.date < APP_NOW_ISO && a.status !== "done"
+    : a.date >= สัปดาห์[0] && a.date <= สัปดาห์[1] && a.status === "done";
+  const นัดตามการ์ด = การ์ดนัด ? allAppts.filter(a => ตรงการ์ดนัด(a, การ์ดนัด)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)) : [];
+  const การ์ดปฏิทิน = [
+    { kpi: "today" as const, label: "นัดวันนี้", unit: "นัด", icon: CalendarDays, color: "#003366", bg: "#E8F0FE" },
+    { kpi: "week" as const, label: "นัดสัปดาห์นี้", unit: "นัด · จันทร์–อาทิตย์", icon: CalendarCheck, color: "#7C3AED", bg: "#F3E8FF" },
+    { kpi: "overdue" as const, label: "เลยกำหนดยังไม่ปิด", unit: "นัด · ยังไม่ได้บันทึกว่าเสร็จ", icon: AlarmClock, color: "#DC2626", bg: "#FEE2E2" },
+    { kpi: "doneWeek" as const, label: "ทำเสร็จสัปดาห์นี้", unit: "นัด · สถานะเสร็จสิ้น", icon: CheckCircle2, color: "#16A34A", bg: "#E6F7EE" },
+  ];
 
   return (
     <div className="erp">
@@ -193,25 +208,32 @@ export default function CalendarPage() {
       </TopbarActions>
       {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
-      {/* Summary KPI bar */}
-      <div className="kpi-bar">
-        <div className="kpi">
-          <div className="kpi-icon kpi-navy"><CalendarDays size={18} /></div>
-          <div><div className="kpi-val"><CountUp value={`${monthAppts.length}`} /></div><div className="kpi-label">นัดหมายเดือนนี้</div></div>
+      {/* การ์ด KPI 4 ใบ (ใบ 0246) — กดแล้วรายการนัดที่ตรงเรื่องแสดงใต้แถว */}
+      <KpiRow label="สรุปนัดหมาย" style={{ marginBottom: การ์ดนัด ? 10 : undefined }}>
+        {การ์ดปฏิทิน.map(k => (
+          <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={นับ(ค่า(kpi, k.kpi))} rawValue={ค่า(kpi, k.kpi)} unit={k.unit}
+            danger={k.kpi === "overdue" && (ค่า(kpi, k.kpi) ?? 0) > 0} icon={k.icon} color={k.color} bg={k.bg}
+            actionLabel={การ์ดนัด === k.kpi ? "กดอีกครั้งเพื่อปิดรายการ" : "ดูรายการ"} onClick={() => setการ์ดนัด(การ์ดนัด === k.kpi ? null : k.kpi)} />
+        ))}
+      </KpiRow>
+      {การ์ดนัด && (
+        <div className="card" data-panel="kpi-appointments" style={{ marginBottom: "1.25rem", padding: "12px 16px" }}>
+          <div style={{ fontSize: "0.84rem", fontWeight: 800, color: "#003366", marginBottom: 8 }}>
+            {การ์ดปฏิทิน.find(k => k.kpi === การ์ดนัด)!.label} · {นัดตามการ์ด.length} นัด
+          </div>
+          {นัดตามการ์ด.length === 0
+            ? <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>ไม่มีนัดในกลุ่มนี้</div>
+            : <div className="table-scroll"><table className="table" style={{ width: "100%" }} aria-label="นัดหมายตามการ์ด">
+                <thead><tr><th>วันที่</th><th>เวลา</th><th>ลูกค้า</th><th>ประเภท</th><th>สถานะ</th></tr></thead>
+                <tbody>{นัดตามการ์ด.map(a => (
+                  <tr key={a.id} data-appt-row={a.id} onClick={() => { selectDate(a.date); setView("day"); setDetail(a); }} style={{ cursor: "pointer" }}>
+                    <td>{fmtISOToThai(a.date)}</td><td>{a.time || "—"}</td><td>{a.company || "—"}</td><td>{apptTypeLabel[a.type as ApptType] ?? a.type}</td>
+                    <td>{a.status === "done" ? "เสร็จสิ้น" : a.status === "upcoming" ? "กำลังจะถึง" : "นัดไว้"}</td>
+                  </tr>
+                ))}</tbody>
+              </table></div>}
         </div>
-        <div className="kpi">
-          <div className="kpi-icon kpi-amber"><CalendarCheck size={18} /></div>
-          <div><div className="kpi-val"><CountUp value={`${monthUpcoming}`} /></div><div className="kpi-label">กำลังจะถึง</div></div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-icon kpi-green"><CalendarDays size={18} /></div>
-          <div><div className="kpi-val"><CountUp value={`${monthDays}`} /></div><div className="kpi-label">วันที่มีนัด</div></div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-icon kpi-steel"><Clock size={18} /></div>
-          <div><div className="kpi-val"><CountUp value={`${selectedAppts.length}`} /></div><div className="kpi-label">นัดวันที่เลือก</div></div>
-        </div>
-      </div>
+      )}
 
       {/* จอแคบ (768px) แผงปฏิทิน+agenda บีบเข้าคอลัมน์เดียวจนช่องวันเหลือ ~36px — เวลานัดหมาย "10:00" (27px)
           ไม่พอที่จะแสดงในกล่องแคบขนาดนั้นเลย ไม่ว่าจะลด padding/font แค่ไหนก็ยังโดนตัด

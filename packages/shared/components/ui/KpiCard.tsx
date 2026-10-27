@@ -8,16 +8,19 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronRight } from "lucide-react";
+import { ProgressRing } from "@pms/shared/components/ui/Charts";
 
 const NAVY = "#003366";
 const ป้าย: React.CSSProperties = { fontSize: "0.8rem", color: "var(--muted-foreground)" };
 const ตัวเลข: React.CSSProperties = { fontSize: "1.25rem", fontWeight: 800, color: "#1F2937", lineHeight: 1.15, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };
 
-export function KpiRow({ label, children, style }: { label: string; children: ReactNode; style?: React.CSSProperties }) {
-  return <div className="hq-kpi4" role="group" aria-label={label} data-kpi-row style={{ marginBottom: "1.25rem", ...style }}>{children}</div>;
+/** range = ช่วงที่การ์ด "ในช่วงนี้" ใช้ (ข้อทดสอบอ่าน data-range-* แล้วเทียบกับ kpi_cards ช่วงเดียวกัน) · ไม่ส่ง = ณ ตอนนี้/ทุกช่วง */
+export function KpiRow({ label, children, style, range }: { label: string; children: ReactNode; style?: React.CSSProperties; range?: { start: string; end: string } | null }) {
+  return <div className="hq-kpi4" role="group" aria-label={label} data-kpi-row data-range-start={range?.start ?? ""} data-range-end={range?.end ?? ""}
+    style={{ marginBottom: "1.25rem", ...style }}>{children}</div>;
 }
 
-export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger, icon: Icon, color = NAVY, bg = "#E8F0FE", onClick, actionLabel = "ดูรายการ", testId }: {
+export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger, icon: Icon, color = NAVY, bg = "#E8F0FE", onClick, actionLabel = "ดูรายการ", testId, ring }: {
   /** ชื่อการ์ด (data-kpi) */
   kpi: string;
   label: string;
@@ -39,6 +42,8 @@ export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger,
   onClick?: () => void;
   actionLabel?: string;
   testId?: string;
+  /** วงแหวนความคืบหน้า (%) แทนไอคอน — เช่น ยอดขายเทียบเป้า · null = ยังไม่ตั้งเป้า (วงแหวนขึ้น "—") · ไม่ส่ง = ไอคอนตามปกติ */
+  ring?: number | null;
 }) {
   const ว่าง = value == null;
   const เนื้อ = (
@@ -50,9 +55,11 @@ export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger,
           <span style={{ ...ป้าย, fontSize: "0.76rem" }}>{ว่าง ? (empty ?? "ยังไม่มีข้อมูล") : unit}</span>
           {sub && !ว่าง && <span style={{ ...ป้าย, fontSize: "0.74rem" }}>{sub}</span>}
         </span>
-        <span aria-hidden style={{ width: 42, height: 42, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Icon size={20} color={danger && !ว่าง ? "#dc2626" : color} strokeWidth={2.1} />
-        </span>
+        {ring !== undefined
+          ? <span data-kpi-ring={ring ?? ""} style={{ flexShrink: 0 }}><ProgressRing pct={ring} size={50} /></span>
+          : <span aria-hidden style={{ width: 42, height: 42, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon size={20} color={danger && !ว่าง ? "#dc2626" : color} strokeWidth={2.1} />
+            </span>}
       </span>
       {onClick && (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.8rem", fontWeight: 700, color: NAVY, marginTop: "auto" }}>
