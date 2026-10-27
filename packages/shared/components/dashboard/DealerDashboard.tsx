@@ -29,8 +29,8 @@ import {
   type MonthRange,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
-  leadStatusLabel, leadStatusColor, apptTypeLabel, fmtISOToThai,
-  quotationStatusLabel, quotationStatusColor, LEAD_STATUS_ORDER, DEFAULT_DEALER_CODE, QUOTED_UP,
+  apptTypeLabel, fmtISOToThai,
+  quotationStatusLabel, quotationStatusColor, DEFAULT_DEALER_CODE, QUOTED_UP,
 } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { percentShare } from "@pms/shared/lib/percentShare";
@@ -42,6 +42,8 @@ import {
   MOCK_TODAY, leadCreatedDate, leadEnteredInRange,
 } from "@pms/shared/lib/leadMetrics";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
+import { เลขขั้นของลีด, ชื่อขั้น, สีกราฟขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { useHQTargets } from "@pms/shared/lib/useHQConfig";
 
 const NAVY = "#003366", SUCCESS = "#16A34A", DANGER = "#DC2626";
@@ -190,18 +192,22 @@ export default function DealerDashboard() {
     return lastNMonths(lqRange, MOCK_TODAY).map(b => ({ label: b.label, actual: lC.get(b.key) ?? 0, plan: qC.get(b.key) ?? 0 }));
   }, [myLeads, lqRange]);
 
+  // สัดส่วนดีลตามขั้น — ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมแยกตามชื่อสถานะภายใน)
   const dealStatus = useMemo(() => {
-    const m = new Map<string, number>();
-    leadsIn.forEach(l => m.set(l.status, (m.get(l.status) ?? 0) + 1));
+    const m = new Map<เลขขั้น, number>();
+    leadsIn.forEach(l => {
+      const n = เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
+      m.set(n, (m.get(n) ?? 0) + 1);
+    });
     // ⚠️ ปัด % ทีละขั้นแล้วบวกกัน = รวมเกิน 100 (เจอจริง 103% · ผลตรวจภายนอก DL-08)
     //    ใช้ percentShare ที่แจกเศษให้รวมได้ 100 พอดีเสมอ
-    const ขั้นที่มี = LEAD_STATUS_ORDER.filter(s => m.get(s));
-    const เปอร์เซ็นต์ = percentShare(ขั้นที่มี.map(s => m.get(s)!));
-    return ขั้นที่มี.map((s, i) => ({
-      label: leadStatusLabel[s], value: m.get(s)!, color: leadStatusColor[s].text,
+    const ขั้นที่มี = เลขขั้นทั้งหมด.filter(n => m.get(n));
+    const เปอร์เซ็นต์ = percentShare(ขั้นที่มี.map(n => m.get(n)!));
+    return ขั้นที่มี.map((n, i) => ({
+      label: ชื่อขั้น(n), value: m.get(n)!, color: สีกราฟขั้น[n],
       pct: เปอร์เซ็นต์[i],
     }));
-  }, [leadsIn]);
+  }, [leadsIn, quotations]);
 
   // ── ผลงานผู้รับผิดชอบ ───────────────────────────────────
   const teamPerf = useMemo(() => {

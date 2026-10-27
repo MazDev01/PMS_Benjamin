@@ -70,9 +70,11 @@ begin
   perform latest.ok(latest.done('#L-ZLA1', 'makeQuote') and latest.done('#L-ZLA1', 'task_bullet_1'), 'ติ๊กงานจากหน้าค้าง: งานที่ฐานติ๊กยังอยู่');
   perform latest.ok(r.status = 'WAITING', 'งานในฐานไม่เลื่อนขั้น (ใบ 0232)');
 
-  -- ⑤ เลิกติ๊กงานได้ · ขั้นคงเดิม
-  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"makeQuote","done":false}],"deriveStage":"any"}');
-  perform latest.ok(not latest.done('#L-ZLA1', 'makeQuote') and r.status = 'WAITING', 'เลิกติ๊กงาน ขั้นคงเดิม');
+  -- ⑤ เลิกติ๊กงานได้ · ขั้นคงเดิม — เฉพาะรายการติ๊กเอง · รายการของระบบ (makeQuote) ดีลเลอร์เลิกติ๊กไม่ได้ (ใบ 0250)
+  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"contact","done":false}],"deriveStage":"any"}');
+  perform latest.ok(not latest.done('#L-ZLA1', 'contact') and r.status = 'WAITING', 'เลิกติ๊กงาน ขั้นคงเดิม');
+  perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"tasks":[{"key":"makeQuote","done":false}],"deriveStage":"any"}')$q$, 'system_task_locked', 'เลิกติ๊กรายการของระบบไม่ได้ (ใบ 0250)');
+  perform latest.ok(latest.done('#L-ZLA1', 'makeQuote'), 'รายการของระบบยังติ๊กอยู่หลังถูกปฏิเสธ');
 
   -- ⑥ กฎปิดการขาย (เดิมอยู่ที่เซิร์ฟเวอร์แอปเท่านั้น)
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"stage":{"status":"PAID"}}')$q$, 'lead_won_needs_accepted_quote', 'ปิดสำเร็จที่ลีด (ไม่มีใบที่ตอบรับ · ใบ 0232)');

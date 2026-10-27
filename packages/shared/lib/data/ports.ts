@@ -116,7 +116,7 @@ export interface QuoteRequestsRepo {
   /** คิวของสำนักงานใหญ่: คำขอที่ยังเปิดอยู่ทั้งเครือ (ใหม่ / กำลังทำราคา / ส่งใบแล้ว) พร้อมชื่อบริษัท */
   listQueue(): Promise<import("../quoteRequests").QuoteRequest[]>;
   /** กล่องงาน HQ (หน้า 5 · ใบ 0215): จำนวน 4 กลุ่ม + รายการของกลุ่มที่เลือก — คำค้นเดียวกันกรองทั้งคู่ · ฐานนับ/เรียง/ติดป้ายให้ */
-  board(group: import("../quoteRequests").QuoteBoardGroup, q: string): Promise<import("../quoteRequests").QuoteBoard>;
+  board(group: import("../quoteRequests").QuoteBoardFilter, q: string): Promise<import("../quoteRequests").QuoteBoard>;
   submit(input: QuoteRequestInput): Promise<import("../quoteRequests").QuoteRequest>;
   /** ยกเลิกได้จนกว่า HQ ส่งใบ · ต้องมีเหตุผล · closeLead = ปิดลูกค้าเป้าหมายเป็นไม่สำเร็จ (ไม่งั้นกลับเป็นรวบรวมความต้องการ) */
   cancel(id: number, reason: string, closeLead: boolean): Promise<void>;
@@ -383,6 +383,8 @@ export interface QuoteSummaryFilters {
 export interface LeadMonthRow { y: number; m: number; created: number; won: number; lost: number; quoted: number; }
 export interface LeadSummary {
   byStatus: { status: string; count: number; value: number }[];
+  /** รายขั้น (1–5 · 6 ปิดสำเร็จ · 7 ปิดไม่สำเร็จ · ฐานคิดใบ 0251 กติกาเดียวกับ leadStage.ts) — ป้อนกราฟ/ตัวเลือกขั้นหน้า /hq/leads */
+  byStage: { stage: number; count: number; value: number }[];
   bySource: { source: string; count: number }[];
   byProduct: { product: string; count: number }[];
   byLostReason: { reason: string; count: number; value: number }[];
@@ -396,6 +398,8 @@ export interface LeadSummary {
 export interface LeadSummaryFilters {
   dealerCodes?: string[]; province?: string; product?: string; source?: string;
   search?: string; status?: string; dateStart?: string; dateEnd?: string;
+  /** เลขขั้น 1–7 (leadStage.ts · ใบ 0251) */
+  stage?: number;
 }
 /** สรุปลูกค้าทั้งเครือ — total (จำนวนลูกค้า) + ยอดขายรายจังหวัด · ป้อน KPI ลูกค้า + provinceTop6 (M9 Phase 4) */
 export interface NetworkCustomerSummary {
@@ -502,6 +506,8 @@ export interface LeadListOpts {
   limit: number;
   offset: number;
   status?: string;
+  /** เลขขั้น 1–7 (leadStage.ts · ฐานคิดที่ leads_page ใบ 0251) */
+  stage?: number;
   dealerCodes?: string[];
   province?: string;
   product?: string;

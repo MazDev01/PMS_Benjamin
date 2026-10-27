@@ -62,24 +62,32 @@ test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้รา�
   // ป้ายบนจอ
   const แถว = await แถวลีด(page, ได้ราคา);
   await expect(แถว).toBeVisible({ timeout: 20_000 });
-  await expect(แถว.getByText("ได้ราคา HQ", { exact: true }), "ป้ายในแถว = ได้ราคา HQ").toBeVisible();
-  await expect(แถว.getByText("รอราคา HQ", { exact: true }), "ไม่มีป้ายรอราคาค้าง").toHaveCount(0);
+  // ป้ายในตาราง = ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมชื่อสถานะ "ได้ราคา HQ")
+  await expect(แถว.getByText("3 ได้ใบ HQ", { exact: true }), "ป้ายในแถว = ขั้น 3 ได้ใบ HQ").toBeVisible();
+  await expect(แถว.getByText("2 ขอราคา HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
 
   // ตัวกรอง
-  const ตัวกรอง = page.getByRole("combobox", { name: "ทุกสถานะ" });
+  const ตัวกรอง = page.getByRole("combobox", { name: "ทุกขั้นตอน" });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill("ZZTEST-");
-  await ตัวกรอง.selectOption({ label: "รอราคา HQ" });
+  await ตัวกรอง.selectOption({ label: "2 ขอราคา HQ" });
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กรองรอราคา HQ: เห็นลีดที่ยังรอ").toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กรองรอราคา HQ: ไม่เห็นลีดที่ได้ราคาแล้ว").toHaveCount(0);
-  await ตัวกรอง.selectOption({ label: "ได้ราคา HQ" });
+  await ตัวกรอง.selectOption({ label: "3 ได้ใบ HQ" });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กรองได้ราคา HQ: เห็น").toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กรองได้ราคา HQ: ไม่เห็นลีดที่ยังรอ").toHaveCount(0);
 
   // ตัวเลขแดชบอร์ด (โดนัทขั้นตอนการขาย) = นับจากฐาน
   //   ลีด RYG ถูกข้ออื่นที่รันขนานเพิ่ม/ลบได้ตลอด (ตก 26 ต.ค. 69: 8 กับ 7 · ไม่นิ่ง 21 ต.ค. 69) — นับฐานก่อนเปิดหน้า + หลังอ่านจอ
   //   เท่ากัน = ไม่มีใครแตะระหว่างนั้น → จอต้องตรงเป๊ะ · ไม่เท่า = เปิดหน้าใหม่แล้วอ่านใหม่ (ไม่ใช่รอเวลา · เทียบไม่ผ่อน)
-  const นับ = async (s: string) => (await admin.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", "RYG").eq("status", s)).count ?? 0;
-  for (const [ป้าย, s] of [["ได้ราคา HQ", "HQ_QUOTED"], ["รอราคา HQ", "HQ_PRICING"]] as const) {
+  // โดนัทแยกตามขั้น (ชื่อขั้นจากตัวกลาง) — ขั้น 2 = รอราคา HQ · ขั้น 3 = ได้ราคา HQ ที่ยังไม่มีใบร่าง (มีใบร่าง = ขั้น 4)
+  const นับ = async (s: string) => {
+    const { data: ลีด } = await admin.from("leads").select("num_id").eq("dealer_code", "RYG").eq("status", s);
+    if (s !== "HQ_QUOTED") return (ลีด ?? []).length;
+    const { data: ร่าง } = await admin.from("quotations").select("deal_id").eq("dealer_code", "RYG").eq("status", "draft");
+    const มีร่าง = new Set((ร่าง ?? []).map(q => Number(q.deal_id)));
+    return (ลีด ?? []).filter(l => !มีร่าง.has(Number(l.num_id))).length;
+  };
+  for (const [ป้าย, s] of [["3 ได้ใบ HQ", "HQ_QUOTED"], ["2 ขอราคา HQ", "HQ_PRICING"]] as const) {
     let ได้ = false;
     for (let รอบ = 0; รอบ < 5 && !ได้; รอบ++) {
       const ก่อน = await นับ(s);

@@ -6,20 +6,28 @@
 //      (ตารางลำดับขั้น / % ความคืบหน้า / กลุ่ม contacted-quoted-won-lost) — ป้ายไทย สี และตารางสถานะกลาง (ค่าเป็นออบเจ็กต์) ไม่นับ
 //   2) switch ที่มี case สถานะลีด ≥ 3 ตัว
 //   3) ข้อความชื่อขั้น (ขอราคา HQ · ได้ใบ HQ · ทำใบให้ลูกค้า · รอลูกค้าตอบ) ≥ 2 ชื่อในคำสั่งเดียว — รายชื่อขั้นที่เขียนเอง
+//   4) (บอสสั่ง 27 ต.ค. 69) หน้าจอแสดงชื่อ/สีสถานะภายใน (leadStatusLabel[…] · leadStatusColor[…]) แทนชื่อขั้น — ใช้ ชื่อขั้น() / สีขั้น()
+//      ยกเว้น: บรรทัดตัวเลือกฟอร์มเพิ่มลีดตาม FLOW D2 (มี "WAITING","BULLET" ในบรรทัด) · ไฟล์ข้อมูล/ตรรกะที่ไม่ใช่หน้าจอ (ดู ไม่ใช่หน้าจอ)
 // ยกเว้นเฉพาะไฟล์ตัวกลาง · ใบปรับฐาน (SQL) ไม่ตรวจ (ใบเก่าแก้ไม่ได้)
+// ข้อทดสอบ: tests/tools/lead-stage-map.test.mjs (PMS_STAGE_CHECK_ROOT = โฟลเดอร์จำลอง)
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
-const ROOT = process.cwd();
+const ROOT = process.env.PMS_STAGE_CHECK_ROOT || process.cwd();
 const ตัวกลาง = new Set(["packages/shared/lib/leadStage.ts"]);
 const สถานะ = new Set(["WAITING", "BULLET", "HQ_PRICING", "HQ_QUOTED", "QUOTED", "FOLLOWUP", "NEGO", "PAID", "CANCELLED"]);
 const ชื่อขั้น = ["ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"];
 
 const ไฟล์ = [];
 // อ่านเฉพาะไฟล์ที่ git เก็บ (scripts/lib/gitFiles.mjs) — ไม่อ่านผล build ทุกชื่อโฟลเดอร์ (.next-r4 ฯลฯ · 22 ต.ค. 69)
-ไฟล์.push(...ไฟล์ที่gitเก็บ(["apps", "packages"], { ext: /\.(ts|tsx)$/, absolute: true }).filter(p => !p.endsWith(".d.ts")));
+ไฟล์.push(...(process.env.PMS_STAGE_CHECK_ROOT
+  ? (await import("node:fs")).readdirSync(ROOT, { recursive: true }).map(String).filter(p => /\.(ts|tsx)$/.test(p)).map(p => path.join(ROOT, p))
+  : ไฟล์ที่gitเก็บ(["apps", "packages"], { ext: /\.(ts|tsx)$/, absolute: true })).filter(p => !p.endsWith(".d.ts")));
+// ไม่ใช่หน้าจอ: ตารางกลาง · ตัวบันทึกลีด (ข้อความไทม์ไลน์ตรงกับฐาน) · เส้นทางเซิร์ฟเวอร์
+const ไม่ใช่หน้าจอ = (rel) => rel === "packages/shared/lib/mock.ts" || rel === "packages/shared/lib/leadIntent.ts"
+  || rel === "packages/shared/context/SalesContext.tsx" || rel.startsWith("packages/shared/server/") || rel.startsWith("packages/shared/lib/data/");
 
 const ชื่อคีย์ = (n) => n && (ts.isIdentifier(n) || ts.isStringLiteral(n)) ? n.text : null;
 const เจอ = [];
@@ -49,6 +57,11 @@ for (const f of ไฟล์) {
       const s = node.getText(sf);
       const พบ = ชื่อขั้น.filter(c => s.includes(`"${c}"`));
       if (พบ.length >= 2) จด(node, `รายชื่อขั้นเขียนเอง (${พบ.join(" · ")})`);
+    }
+    if (ts.isElementAccessExpression(node) && ts.isIdentifier(node.expression)
+        && (node.expression.text === "leadStatusLabel" || node.expression.text === "leadStatusColor") && !ไม่ใช่หน้าจอ(rel)) {
+      const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+      if (!/"WAITING"\s*,\s*"BULLET"/.test(text.split(/\r?\n/)[line])) จด(node, `หน้าจอแสดงชื่อ/สีสถานะภายใน (${node.expression.text}) แทนชื่อขั้น — ใช้ ชื่อขั้น()/สีขั้น() จาก leadStage.ts`);
     }
     ts.forEachChild(node, ดู);
   };

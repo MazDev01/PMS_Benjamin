@@ -58,11 +58,14 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
       p_dealer_codes: a.dealerCodes ?? null, p_province: a.province ?? null, p_product: a.product ?? null,
       p_source: a.source ?? null, p_search: a.search ?? null, p_status: a.status ?? null,
       p_date_start: a.dateStart ?? null, p_date_end: a.dateEnd ?? null,
+      // เลขขั้น (ใบ 0251) — รับเฉพาะ 1–7 นอกนั้น = ไม่กรอง
+      p_stage: Number.isInteger(a.stage) && (a.stage as number) >= 1 && (a.stage as number) <= 7 ? a.stage : null,
     }),
     shape: (d) => {
       const x = (d ?? {}) as Record<string, Row[] | undefined>;
       return {
         byStatus: (x.byStatus ?? []).map(r => ({ status: S(r.status), count: N(r.count), value: N(r.value) })),
+        byStage: (x.byStage ?? []).map(r => ({ stage: N(r.stage), count: N(r.count), value: N(r.value) })),
         bySource: (x.bySource ?? []).map(r => ({ source: S(r.source), count: N(r.count) })),
         byProduct: (x.byProduct ?? []).map(r => ({ product: S(r.product), count: N(r.count) })),
         byProvince: (x.byProvince ?? []).map(r => ({ province: S(r.province), count: N(r.count) })),

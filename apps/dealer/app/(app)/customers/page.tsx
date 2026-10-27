@@ -8,7 +8,7 @@ import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, บาทเต็ม, วันที่ISO, ชุดที่กรอง, type KpiFilters } from "@pms/shared/lib/kpiCards";
 import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT } from "@pms/shared/lib/uploadLimits";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
-import { buildLeadTasks, leadStatusLabel, leadStatusColor, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
+import { buildLeadTasks, leadStatusLabel, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
 import { useCustomerNotes } from "@pms/shared/lib/useCustomerNotes";
 import { อ่านตารางจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
 import { CSV_HEADERS, จับคู่คอลัมน์, แถวตัวอย่าง, แผ่นค่าที่เลือกได้, เนื้อไฟล์Csv, type ImportRow, type ค่าที่ระบบมี as ค่าที่เลือกได้ในระบบ } from "@pms/shared/lib/customerImportTemplate";
@@ -46,6 +46,8 @@ import { leads as leadsRepo, dealers as dealersRepo, persons as personsRepo } fr
 import type { DealerRow } from "@pms/shared/lib/data/types";
 import { useDealerVat } from "@pms/shared/lib/useDealerSettings";
 import { files as filesRepo, storage as fileStorage, quotations as quotationsRepo } from "@pms/shared/lib/data";
+import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น } from "@pms/shared/lib/leadStage";
+import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { ช่องที่ขาดตอนพิมพ์ } from "@pms/shared/lib/issuerComplete";
 import { IssuerGuardNote } from "@pms/shared/components/ui/IssuerGuardNote";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
@@ -1198,7 +1200,9 @@ export default function CustomersPage(){
                       {/* ประวัติการปิดการขายเหลือที่เดียว = การ์ด "ประวัติการปิดการขาย" แท็บข้อมูลลูกค้า (กดเปิดรายละเอียดได้) · รอบ 4 */}
                       {/* ── โครงการที่กำลังทำ (ลูกค้าเป้าหมายที่ยังไม่ปิดการขาย) ── */}
                       {activeDeals.map(d=>{
-                        const sc=leadStatusColor[d.status];
+                        // ป้ายขั้น = ชื่อ/สีจากตัวกลาง leadStage.ts (ตรงกับแถบ 5 ขั้นในแผงลีด · บอสสั่ง 27 ต.ค. 69)
+                        const ขั้น=เลขขั้นของลีด(d.status,quotations.some(q=>q.status==="draft"&&quoteBelongsToLead(q,d)));
+                        const sc=สีขั้น(ขั้น);
                         const dealQuoteCount=quotations.filter(q=>q.dealId===d.numId).length;
                         const quoteLabel=dealQuoteCount>0?`${dealQuoteCount} ใบ`:(QUOTED_UP.includes(d.status)?"มี":"—");
                         return (
@@ -1208,7 +1212,7 @@ export default function CustomersPage(){
                             onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background="#f8f9fb";}}>
                             <div style={{display:"flex",alignItems:"center",gap:8}}>
                               <span style={{fontSize:"0.8rem",fontWeight:800,color:STEEL,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.project||d.company}</span>
-                              <span className="badge" style={{flexShrink:0,background:sc.bg,color:sc.text}}>{leadStatusLabel[d.status]}</span>
+                              <span className="badge" data-stage-label style={{flexShrink:0,background:sc.bg,color:sc.text}}>{ชื่อขั้น(ขั้น)}</span>
                             </div>
                             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",fontSize:"0.65rem",color:MUTED}}>
                               {มูลค่าลีด(d)!=null&&<span style={{color:PRIMARY,fontWeight:700}}>{fmtLeadValue(มูลค่าลีด(d))}</span>}

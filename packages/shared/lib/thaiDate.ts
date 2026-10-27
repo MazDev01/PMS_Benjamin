@@ -38,3 +38,20 @@ export function วันเวลาไทย(d: Date): string {
   const t = new Date(d.getTime() + ห่างจากUTC);
   return `${t.getUTCDate()} ${TH_ABBR[t.getUTCMonth()]} ${t.getUTCFullYear() + 543} · ${สองหลัก(t.getUTCHours())}:${สองหลัก(t.getUTCMinutes())}`;
 }
+
+/** วันที่ที่เก็บไว้หลายรูปแบบ → แสดงแบบไทย พ.ศ. เสมอ (รายการเตือนของลีด · บอสสั่ง 27 ต.ค. 69)
+ *  · "2026-06-02" (ข้อมูลเดิม) → "2 มิ.ย. 2569" · "2026-06-02T03:00:00Z" → "2 มิ.ย. 2569 · 10:00" (เวลาไทย)
+ *  · "2 มิ.ย. 2026 · 10:30" (ปี ค.ศ. ในรูปแบบไทย) → ปี +543 · รูปแบบไทย พ.ศ. อยู่แล้ว = คงเดิม · อ่านไม่ออก = คงข้อความเดิม · ว่าง = "" */
+export function วันที่แสดงไทย(s?: string | null): string {
+  const v = (s ?? "").trim();
+  if (!v) return "";
+  const iso = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(v);
+  if (iso) {
+    if (!iso[4]) return `${+iso[3]} ${TH_ABBR[+iso[2] - 1]} ${+iso[1] + 543}`;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? v : วันเวลาไทย(d);
+  }
+  const ไทย = /^(\d{1,2})\s+(\S+)\s+(\d{4})(.*)$/.exec(v);
+  if (ไทย && ไทย[2] in TH_MONTH && +ไทย[3] < 2400) return `${ไทย[1]} ${ไทย[2]} ${+ไทย[3] + 543}${ไทย[4]}`;
+  return v;
+}

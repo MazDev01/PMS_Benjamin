@@ -1,196 +1,189 @@
 import { describe, it, expect } from "vitest";
 import {
   normalizeLeadTaskTemplate, buildLeadTasks, applyTaskTemplate, findAppointmentTask, completeTask,
-  LEAD_TASK_TEMPLATE, CLOSE_TASK_KEY,
+  LEAD_TASK_TEMPLATE, SYSTEM_LEAD_TASKS, เป็นรายการระบบ,
   type LeadTaskDef,
 } from "../../packages/shared/lib/mock";
+import { วันที่แสดงไทย } from "../../packages/shared/lib/thaiDate";
+import { applyLeadIntent } from "../../packages/shared/lib/leadIntent";
+import type { LeadRow } from "../../packages/shared/lib/mock";
 
-// ── งานมาตรฐานรายขั้นที่ HQ ตั้งเองได้ (13 ส.ค. 69) ───────────────────────────────
-//
-// ชุดงานนี้ไม่ใช่ข้อความประดับ: มันคือตัวขับสถานะของลูกค้าเป้าหมายทุกใบ (เช็กงาน → เลื่อนขั้นเอง)
-// ค่าที่ HQ ตั้งจึงต้องผ่านการตรวจก่อนใช้เสมอ — ของเพี้ยนจาก DB/หน้าจอห้ามทำให้ระบบขายพัง
-describe("ตรวจ/ซ่อมชุดงานมาตรฐานก่อนใช้", () => {
+// ── รายการเตือนรายขั้นที่ HQ ตั้งเองได้ (13 ส.ค. 69 · FLOW ใหม่ 5 ขั้น 27 ต.ค. 69 · ใบ 0250) ─────────────────────────────
+// ค่าที่ HQ ตั้งต้องผ่านการตรวจก่อนใช้เสมอ — ของเพี้ยนจาก DB/หน้าจอห้ามทำให้ระบบขายพัง
+const ระบบครบ = SYSTEM_LEAD_TASKS.map(t => t.key);
+describe("ตรวจ/ซ่อมชุดรายการก่อนใช้", () => {
   it("ข้อมูลว่าง/ไม่ใช่รายการ → ใช้ชุดเริ่มต้นในโค้ด", () => {
     expect(normalizeLeadTaskTemplate(null)).toEqual(LEAD_TASK_TEMPLATE);
     expect(normalizeLeadTaskTemplate([])).toEqual(LEAD_TASK_TEMPLATE);
     expect(normalizeLeadTaskTemplate("ไม่ใช่รายการ")).toEqual(LEAD_TASK_TEMPLATE);
   });
 
-  it("ทิ้งงานที่ไม่มีชื่อ / ขั้นไม่ถูกต้อง / คีย์ซ้ำ", () => {
+  it("ทิ้งรายการที่ไม่มีชื่อ / ขั้นไม่ถูกต้อง / คีย์ซ้ำ", () => {
     const out = normalizeLeadTaskTemplate([
-      { key: "a", label: "ติดต่อ", stage: "WAITING" },
-      { key: "b", label: "   ", stage: "WAITING" },      // ไม่มีชื่อ
-      { key: "c", label: "งาน", stage: "ไม่มีขั้นนี้" },   // ขั้นไม่ถูกต้อง
-      { key: "a", label: "ซ้ำ", stage: "BULLET" },        // คีย์ซ้ำ — เก็บตัวแรก
+      { key: "a", label: "ติดต่อ", step: 1 },
+      { key: "b", label: "   ", step: 1 },        // ไม่มีชื่อ
+      { key: "c", label: "งาน", step: 9 },         // ขั้นไม่ถูกต้อง
+      { key: "a", label: "ซ้ำ", step: 2 },         // คีย์ซ้ำ — เก็บตัวแรก
     ]);
-    expect(out.map(t => t.key)).toEqual(["a", CLOSE_TASK_KEY]);
+    expect(out.filter(t => !เป็นรายการระบบ(t.key)).map(t => t.key)).toEqual(["a"]);
     expect(out[0].label).toBe("ติดต่อ");
   });
 
-  it("งาน “ปิดการขาย” หายไป → เติมกลับให้เสมอ (ไม่งั้นปิดดีลไม่ได้ทั้งระบบ)", () => {
-    const out = normalizeLeadTaskTemplate([{ key: "x", label: "งานเดียว", stage: "WAITING" }]);
-    expect(out.some(t => t.key === CLOSE_TASK_KEY)).toBe(true);
-    expect(out[out.length - 1].key).toBe(CLOSE_TASK_KEY); // อยู่ท้ายสุดเสมอ (ขั้น PAID)
+  it("รายการของระบบหายไป → เติมกลับให้ครบเสมอ (ชื่อ/ขั้นตามที่กำหนด · ติ๊กโดยระบบ)", () => {
+    const out = normalizeLeadTaskTemplate([{ key: "x", label: "งานเดียว", step: 1 }]);
+    for (const k of ระบบครบ) expect(out.some(t => t.key === k && t.auto), `ต้องมี ${k}`).toBe(true);
   });
 
-  it("เรียงตามลำดับขั้นเสมอ แม้ HQ บันทึกมาสลับ", () => {
+  it("รายการของระบบถูกแก้ชื่อ/ย้ายขั้นมา → ซ่อมกลับเป็นค่าที่กำหนด", () => {
+    const out = normalizeLeadTaskTemplate([{ key: "requestQuote", label: "แก้ชื่อเอง", step: 5 }]);
+    expect(out.find(t => t.key === "requestQuote")).toEqual({ key: "requestQuote", label: "ส่งคำขอราคา", step: 2, auto: true });
+  });
+
+  it("เรียงตามขั้น 1→5 เสมอ แม้ HQ บันทึกมาสลับ (คงลำดับเดิมภายในขั้นเดียวกัน)", () => {
     const out = normalizeLeadTaskTemplate([
-      { key: "n", label: "เจรจา", stage: "NEGO" },
-      { key: "w", label: "ติดต่อ", stage: "WAITING" },
-      { key: "q", label: "ออกใบ", stage: "QUOTED" },
+      { key: "z", label: "ติดตาม", step: 5 },
+      { key: "w", label: "ติดต่อ", step: 1 },
+      { key: "w2", label: "ติดต่อ 2", step: 1 },
     ]);
-    expect(out.map(t => t.stage)).toEqual(["WAITING", "QUOTED", "NEGO", "PAID"]);
+    const ขั้น = out.map(t => t.step);
+    expect([...ขั้น].sort((a, b) => a - b)).toEqual(ขั้น);
+    expect(out.filter(t => t.step === 1 && !t.auto).map(t => t.key)).toEqual(["w", "w2"]);
+  });
+
+  it("แม่แบบรุ่นเก่า (ผูกสถานะลีด stage) อ่านได้ — แปลงเป็นขั้นใหม่ · ทิ้งรายการ flow เก่า", () => {
+    const out = normalizeLeadTaskTemplate([
+      { key: "contact", label: "ติดต่อแล้ว", stage: "WAITING" },
+      { key: "followup", label: "ติดตามผล", stage: "FOLLOWUP" },
+      { key: "negotiate", label: "เจรจาต่อรอง", stage: "NEGO" },
+      { key: "close", label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID" },
+      { key: "catalog", label: "ส่งแม่แบบให้ลูกค้า", stage: "QUOTED" },
+      { key: "task_quoted_1", label: "งานที่ HQ เพิ่มเอง", stage: "QUOTED" },
+    ]);
+    expect(out.find(t => t.key === "contact")?.step).toBe(1);
+    expect(out.find(t => t.key === "task_quoted_1")?.step).toBe(5);
+    for (const k of ["followup", "negotiate", "close", "catalog"]) expect(out.some(t => t.key === k), `ไม่มี ${k}`).toBe(false);
   });
 });
 
-describe("ลูกค้าเป้าหมายใช้ชุดงานที่ HQ ตั้ง ไม่ใช่ชุดเริ่มต้นในโค้ด", () => {
+describe("ลูกค้าเป้าหมายใช้ชุดที่ HQ ตั้ง ไม่ใช่ชุดเริ่มต้นในโค้ด", () => {
   const tpl: LeadTaskDef[] = [
-    { key: "w1", label: "โทรหาลูกค้า", stage: "WAITING" },
-    { key: "b1", label: "ถามความต้องการ", stage: "BULLET" },
-    { key: CLOSE_TASK_KEY, label: "ปิดการขาย", stage: "PAID" },
+    { key: "w1", label: "โทรหาลูกค้า", step: 1 },
+    { key: "b1", label: "ถามความต้องการ", step: 1 },
+    { key: "requestQuote", label: "ส่งคำขอราคา", step: 2, auto: true },
   ];
-
   it("สร้าง checklist จากชุดที่ส่งมา", () => {
-    expect(buildLeadTasks(tpl).map(t => t.label)).toEqual(["โทรหาลูกค้า", "ถามความต้องการ", "ปิดการขาย"]);
+    expect(buildLeadTasks(tpl).map(t => t.label)).toEqual(["โทรหาลูกค้า", "ถามความต้องการ", "ส่งคำขอราคา"]);
   });
-
   it("ไม่ส่งชุดมา → ยังใช้ชุดเริ่มต้นเหมือนเดิม (ของเก่าไม่พัง)", () => {
     expect(buildLeadTasks().length).toBe(LEAD_TASK_TEMPLATE.length);
   });
 });
 
-// ── ลำดับงานมาตรฐานที่บอสสั่งเอง (17 ส.ค. 69) ───────────────────────────────────
-// ล็อกไว้ทั้งชื่อและลำดับ — เคยมีคนเข้าใจว่า "ส่งแม่แบบให้ลูกค้า" ควรอยู่ก่อนออกใบ
-// แต่บอสยืนยันว่าให้อยู่หลัง "ส่งใบเสนอราคา" · ถ้าตั้ง stage ผิดเป็น BULLET
-// normalize จะเรียงตามขั้นแล้วเด้งกลับไปอยู่ก่อนออกใบเอง = ผิดคำสั่งโดยไม่มีใครรู้
-describe("ลำดับงานมาตรฐานตามที่บอสสั่ง", () => {
-  it("ชื่อและลำดับต้องตรงเป๊ะ 9 งาน (ตัด 'ส่งแม่แบบให้ลูกค้า' — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)", () => {
-    expect(buildLeadTasks().map(t => t.label)).toEqual([
-      "ติดต่อแล้ว",
-      "เก็บข้อมูลลูกค้า",
-      "นัดหมาย",
-      "สรุปความต้องการ",
-      "จัดทำใบเสนอราคา",
-      "ส่งใบเสนอราคา",
-      "ติดตามผล",
-      "เจรจาต่อรอง",
-      "ปิดการขาย / ไม่สำเร็จ",
+// ── รายการตั้งต้นที่บอสสั่ง (27 ต.ค. 69 · FLOW D7) — ล็อกทั้งชื่อ ลำดับ ขั้น และรายการที่ระบบติ๊ก ──────────────────────
+describe("รายการตั้งต้นตาม FLOW ใหม่ 5 ขั้น", () => {
+  it("ชื่อ/ขั้น/ระบบติ๊ก ตรงเป๊ะ 9 รายการ", () => {
+    expect(LEAD_TASK_TEMPLATE.map(t => [t.label, t.step, !!t.auto])).toEqual([
+      ["ติดต่อแล้ว", 1, false], ["เก็บข้อมูลลูกค้า", 1, false], ["สรุปความต้องการ", 1, false], ["นัดหมาย", 1, true],
+      ["ส่งคำขอราคา", 2, true], ["ได้ใบ HQ", 3, true], ["จัดทำใบเสนอราคา", 4, true],
+      ["ส่งใบเสนอราคา", 5, true], ["ติดตามลูกค้า", 5, false],
     ]);
   });
-
-  it("ผ่าน normalize แล้วลำดับต้องไม่สลับ (เรียงตามขั้นแต่คงลำดับในขั้นเดียวกัน)", () => {
-    expect(normalizeLeadTaskTemplate(LEAD_TASK_TEMPLATE).map(t => t.key)).toEqual([
-      "contact", "collect", "appointment", "requirement", "makeQuote", "sendQuote", "followup", "negotiate", "close",
-    ]);
+  it("ไม่มี 'ติดตามผล' 'เจรจาต่อรอง' 'ปิดการขาย' แบบเดิม (FLOW เลิกใช้ 21 ต.ค. 69)", () => {
+    const ชื่อ = buildLeadTasks().map(t => t.label);
+    for (const เก่า of ["ติดตามผล", "เจรจาต่อรอง", "ปิดการขาย / ไม่สำเร็จ"]) expect(ชื่อ).not.toContain(เก่า);
   });
-
-  it("ชุดงานที่ HQ บันทึกไว้ในฐานซึ่งยังมีงาน 'ส่งแม่แบบให้ลูกค้า' (key catalog) — ไม่แสดงอีก", () => {
-    const out = normalizeLeadTaskTemplate([
-      { key: "sendQuote", label: "ส่งใบเสนอราคา", stage: "QUOTED" },
-      { key: "catalog", label: "ส่งแม่แบบให้ลูกค้า", stage: "QUOTED" },
-    ]);
-    expect(out.map(t => t.key)).toEqual(["sendQuote", CLOSE_TASK_KEY]);
+  it("ผ่าน normalize แล้วลำดับไม่สลับ", () => {
+    expect(normalizeLeadTaskTemplate(LEAD_TASK_TEMPLATE)).toEqual(LEAD_TASK_TEMPLATE);
   });
-
-  it("ไม่มีงานชื่อ 'รวบรวมความต้องการ' (บอสสั่งตัด 17 ส.ค. — งานขั้นนี้ใช้ชื่อ 'สรุปความต้องการ' แทน)", () => {
-    expect(buildLeadTasks().some(t => t.label === "รวบรวมความต้องการ")).toBe(false);
-  });
-
-  // ขั้นที่ไม่มีงานเลย = ลูกค้าเป้าหมายจะข้ามขั้นนั้นไปเลย คอลัมน์บนกระดานก็จะว่างตลอดกาล
-  // (บอสสั่ง 19 ส.ค. 69 "แบ่งงานให้เหมาะสมกับเส้นทางการขาย")
-  it("ทุกขั้นที่ยังขายอยู่ต้องมีงานอย่างน้อย 1 งาน", () => {
-    const ขั้นที่มีงาน = new Set(LEAD_TASK_TEMPLATE.map(t => t.stage));
-    for (const s of ["WAITING", "BULLET", "QUOTED", "FOLLOWUP", "NEGO"] as const) {
-      expect(ขั้นที่มีงาน.has(s), `ขั้น ${s} ไม่มีงานเลย — ลูกค้าเป้าหมายจะข้ามขั้นนี้ไป`).toBe(true);
-    }
+  it("ทุกขั้น 1–5 มีรายการอย่างน้อย 1 รายการ", () => {
+    for (const n of [1, 2, 3, 4, 5]) expect(LEAD_TASK_TEMPLATE.some(t => t.step === n), `ขั้น ${n}`).toBe(true);
   });
 });
 
-
-// ── งานของลูกค้าเป้าหมายต้องเดินตามแม่แบบล่าสุดที่ HQ ตั้ง ────────────────────────
-// บอสแจ้ง (19 ส.ค. 69): "แก้ใน hq แล้ว ดีลเลอร์ยังไม่เปลี่ยน"
-// เดิมหน้าจออ่าน lead.tasks ที่ฝังอยู่กับลูกค้าเป้าหมายตรง ๆ รายที่มีอยู่ก่อนจึงค้างชุดเก่าตลอดไป
+// ── งานของลูกค้าเป้าหมายต้องเดินตามแม่แบบล่าสุดที่ HQ ตั้ง (บอสแจ้ง 19 ส.ค. 69) ───────────────────────────────────────
 describe("ปรับงานของลูกค้าเป้าหมายตามแม่แบบล่าสุด", () => {
   const tpl: LeadTaskDef[] = [
-    { key: "contact", label: "ติดต่อแล้ว", stage: "WAITING" },
-    { key: "req", label: "สรุปความต้องการ", stage: "BULLET" },
-    { key: "close", label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID" },
+    { key: "contact", label: "ติดต่อแล้ว", step: 1 },
+    { key: "req", label: "สรุปความต้องการ", step: 1 },
+    { key: "requestQuote", label: "ส่งคำขอราคา", step: 2, auto: true },
   ];
-
   it("งานใหม่ที่ HQ เพิ่มต้องโผล่ที่ดีลเลอร์ (ยังไม่ติ๊ก)", () => {
     const out = applyTaskTemplate([{ key: "contact", label: "ติดต่อแล้ว", done: true }], tpl);
-    expect(out.map(t => t.key)).toEqual(["contact", "req", "close"]);
+    expect(out.map(t => t.key)).toEqual(["contact", "req", "requestQuote"]);
     expect(out.find(t => t.key === "req")?.done).toBe(false);
   });
-
   it("งานที่ติ๊กไว้แล้วต้องคงติ๊ก + ผู้ทำ/เวลาเดิม", () => {
     const เดิม = { key: "contact", label: "ติดต่อครั้งแรก", done: true, doneAt: "1 ส.ค. 2569 · 10:00", doneBy: "สมชาย" };
-    const out = applyTaskTemplate([เดิม], tpl);
-    expect(out[0]).toMatchObject({ done: true, doneAt: เดิม.doneAt, doneBy: "สมชาย" });
+    expect(applyTaskTemplate([เดิม], tpl)[0]).toMatchObject({ done: true, doneAt: เดิม.doneAt, doneBy: "สมชาย" });
   });
-
   it("HQ เปลี่ยนชื่องาน → ดีลเลอร์เห็นชื่อใหม่ทันที", () => {
-    const out = applyTaskTemplate([{ key: "contact", label: "ติดต่อครั้งแรก", done: true }], tpl);
-    expect(out[0].label).toBe("ติดต่อแล้ว");
+    expect(applyTaskTemplate([{ key: "contact", label: "ติดต่อครั้งแรก", done: true }], tpl)[0].label).toBe("ติดต่อแล้ว");
   });
-
   it("งานที่ HQ ลบทิ้งต้องหลุดจากรายการ", () => {
-    const out = applyTaskTemplate([
-      { key: "contact", label: "ติดต่อแล้ว", done: true },
-      { key: "เก่า", label: "งานที่ถูกยกเลิก", done: true },
-    ], tpl);
+    const out = applyTaskTemplate([{ key: "contact", label: "ติดต่อแล้ว", done: true }, { key: "เก่า", label: "งานที่ถูกยกเลิก", done: true }], tpl);
     expect(out.some(t => t.key === "เก่า")).toBe(false);
   });
-
   it("ลูกค้าเป้าหมายที่ปิดแล้วห้ามแตะ — ประวัติต้องคงเดิม", () => {
     const เก่า = [{ key: "อะไรก็ตาม", label: "งานเก่า", done: true }];
     expect(applyTaskTemplate(เก่า, tpl, "PAID")).toEqual(เก่า);
     expect(applyTaskTemplate(เก่า, tpl, "CANCELLED")).toEqual(เก่า);
   });
-
   it("ยังไม่มี checklist เลย → สร้างจากแม่แบบทั้งชุด", () => {
-    expect(applyTaskTemplate(undefined, tpl).map(t => t.key)).toEqual(["contact", "req", "close"]);
+    expect(applyTaskTemplate(undefined, tpl).map(t => t.key)).toEqual(["contact", "req", "requestQuote"]);
   });
 });
 
-// ── บันทึกนัดหมายจริง → งาน "นัดหมาย" ต้องถูกติ๊กให้เอง (บอสสั่ง 19 ส.ค. 69) ────────
-// กติกาเดียวกับงานใบเสนอราคา: งานที่มี "ของจริง" รองรับ ระบบติ๊กเอง ไม่ให้เซลส์มานั่งติ๊กซ้ำ
 describe("หางานนัดหมายจากชุดที่ HQ ตั้ง", () => {
-  it("เจอจากรหัสมาตรฐาน", () => {
-    expect(findAppointmentTask(LEAD_TASK_TEMPLATE)?.label).toBe("นัดหมาย");
+  it("เจอจากรหัสมาตรฐาน", () => { expect(findAppointmentTask(LEAD_TASK_TEMPLATE)?.label).toBe("นัดหมาย"); });
+  it("รหัสเปลี่ยน (ค่าค้างรุ่นเก่า) ก็ยังต้องเจอจากชื่อ", () => {
+    expect(findAppointmentTask([{ key: "contact", label: "ติดต่อแล้ว", step: 1 }, { key: "task_bullet_1", label: "นัดหมาย", step: 1 }])?.key).toBe("task_bullet_1");
   });
-
-  it("HQ ลบแล้วสร้างใหม่ (รหัสเปลี่ยน) ก็ยังต้องเจอจากชื่อ", () => {
-    const tpl: LeadTaskDef[] = [
-      { key: "contact", label: "ติดต่อแล้ว", stage: "WAITING" },
-      { key: "task_bullet_1", label: "นัดหมาย", stage: "BULLET" },
-      { key: "close", label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID" },
-    ];
-    expect(findAppointmentTask(tpl)?.key).toBe("task_bullet_1");
-  });
-
   it("ไม่มีงานนัดหมายเลย → คืน undefined (ห้ามเดาไปติ๊กงานอื่น)", () => {
-    const tpl: LeadTaskDef[] = [
-      { key: "contact", label: "ติดต่อแล้ว", stage: "WAITING" },
-      { key: "close", label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID" },
-    ];
-    expect(findAppointmentTask(tpl)).toBeUndefined();
+    expect(findAppointmentTask([{ key: "contact", label: "ติดต่อแล้ว", step: 1 }])).toBeUndefined();
   });
-
   it("ติ๊กงานแล้วต้องแตะเฉพาะงานนั้น และคงเวลาเดิมของงานที่ติ๊กไว้แล้ว", () => {
     const tasks = [
       { key: "contact", label: "ติดต่อแล้ว", done: true, doneAt: "1 ส.ค. 2569 · 09:00", doneBy: "สมชาย" },
       { key: "appointment", label: "นัดหมาย", done: false },
-      { key: "followup", label: "ติดตามผล", done: false },
+      { key: "followCustomer", label: "ติดตามลูกค้า", done: false },
     ];
     const out = completeTask(tasks, "appointment", "วิภา", "19 ส.ค. 2569 · 10:00");
-    expect(out[0]).toEqual(tasks[0]);                                   // ของเดิมไม่ถูกแตะ
+    expect(out[0]).toEqual(tasks[0]);
     expect(out[1]).toMatchObject({ done: true, doneBy: "วิภา", doneAt: "19 ส.ค. 2569 · 10:00" });
-    expect(out[2].done).toBe(false);                                    // งานถัดไปไม่ถูกติ๊กข้ามขั้น
+    expect(out[2].done).toBe(false);
   });
-
   it("ติ๊กงานที่เสร็จอยู่แล้วซ้ำ ต้องไม่ทับเวลา/ผู้ทำเดิม", () => {
     const tasks = [{ key: "appointment", label: "นัดหมาย", done: true, doneAt: "1 ส.ค. 2569 · 09:00", doneBy: "สมชาย" }];
     expect(completeTask(tasks, "appointment", "วิภา", "19 ส.ค. 2569 · 10:00")).toEqual(tasks);
+  });
+});
+
+// ── ดีลเลอร์ติ๊กรายการของระบบเองไม่ได้ (กติกาเดียวกับตัวดักฐาน leads_system_tasks_guard · ใบ 0250) ──────────────────────
+describe("รายการของระบบ ติ๊กเองไม่ได้", () => {
+  const ลีด = { id: "#L-1", numId: 1, status: "BULLET", tasks: [{ key: "collect", label: "เก็บข้อมูลลูกค้า", done: false },
+    { key: "requestQuote", label: "ส่งคำขอราคา", done: false }], activities: [] } as unknown as LeadRow;
+  const ctx = { tpl: LEAD_TASK_TEMPLATE, now: "27 ต.ค. 2569 · 10:00" };
+  it("ผู้ใช้สั่งติ๊ก 'ส่งคำขอราคา' → ปฏิเสธ system_task_locked", () => {
+    expect(() => applyLeadIntent(ลีด, { tasks: [{ key: "requestQuote", done: true }] }, ctx)).toThrow(/system_task_locked/);
+  });
+  it("รายการติ๊กเองยังติ๊กได้ และไม่เปลี่ยนขั้น", () => {
+    const r = applyLeadIntent(ลีด, { tasks: [{ key: "collect", done: true }] }, ctx);
+    expect(r.tasks?.find(t => t.key === "collect")?.done).toBe(true);
+    expect(r.status).toBe("BULLET");
+  });
+  it("ระบบติ๊กตามเหตุการณ์ (โหมดในเครื่อง) ผ่าน", () => {
+    const r = applyLeadIntent(ลีด, { tasks: [{ key: "requestQuote", done: true }], ระบบ: true }, ctx);
+    expect(r.tasks?.find(t => t.key === "requestQuote")?.done).toBe(true);
+  });
+});
+
+// ── วันที่ในรายการเป็น พ.ศ. เสมอ (ตัวจัดรูปวันที่กลาง) ─────────────────────────────────────────────────────────────
+describe("วันที่แสดงไทย", () => {
+  it("วันที่ ค.ศ. แบบ ISO (ข้อมูลเดิม) → พ.ศ.", () => { expect(วันที่แสดงไทย("2026-06-02")).toBe("2 มิ.ย. 2569"); });
+  it("เวลาแบบ ISO → เวลาไทย", () => { expect(วันที่แสดงไทย("2026-06-02T03:05:00Z")).toBe("2 มิ.ย. 2569 · 10:05"); });
+  it("รูปแบบไทยแต่ปี ค.ศ. → +543", () => { expect(วันที่แสดงไทย("2 มิ.ย. 2026 · 10:30")).toBe("2 มิ.ย. 2569 · 10:30"); });
+  it("พ.ศ. อยู่แล้ว = คงเดิม · ว่าง = ''", () => {
+    expect(วันที่แสดงไทย("27 ต.ค. 2569 · 10:00")).toBe("27 ต.ค. 2569 · 10:00");
+    expect(วันที่แสดงไทย(undefined)).toBe("");
   });
 });

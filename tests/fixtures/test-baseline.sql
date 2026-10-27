@@ -502,4 +502,10 @@ insert into public.hq_targets (id,annual_target,win_rate_target,on_time_target) 
 {"id":1,"annual_target":100000000,"win_rate_target":40,"on_time_target":85}
 ]$fx$::jsonb);
 
+-- สภาพหลังใบ 0250 (รายการเตือน 5 ขั้น · 27 ต.ค. 69): ข้อมูลข้างบนส่งออกก่อนใบนี้ → แปลงแม่แบบ + รายการของลีดด้วยคำสั่งเดียวกับใบ 0250
+--   (งานนัดหมายของแม่แบบเดิมรหัส task_bullet_1 — HQ เคยลบแล้วสร้างใหม่) · ส่งออกรอบหน้าได้รูปแบบใหม่ตรง ๆ คำสั่งนี้ไม่เปลี่ยนอะไร
+update public.hq_sales_journey set tasks = public._lead_task_template_default() where id = 1;
+update public.leads set tasks = public._lead_tasks_five_steps(tasks, dealer_code, num_id, 'task_bullet_1')
+ where jsonb_typeof(tasks) = 'array' and jsonb_array_length(tasks) > 0;
+
 set session_replication_role = origin;
