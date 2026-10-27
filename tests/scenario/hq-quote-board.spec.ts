@@ -68,7 +68,7 @@ const รายการ = (page: Page) => page.getByRole("list", { name: "ร�
 const แถวของ = (page: Page, k: string) => รายการ(page).getByRole("button", { name: ของ(k).บริษัท });
 const กล่องยืนยัน = (page: Page) => page.locator(".pms-confirm[role='alertdialog']");
 
-test("[ui·hq] ตัวเลขบนปุ่มกลุ่มตรงกับฐาน (hq_quote_board) และตรงค่าที่รู้ล่วงหน้า · คำค้นกรองทั้งจำนวนและรายการ", async ({ page }) => {
+test("[ui·hq] แต่ละสถานะในช่องเลือกได้แถวตรงกับฐาน (hq_quote_board) และตรงค่าที่รู้ล่วงหน้า · คำค้นกรองทั้งจำนวนและรายการ", async ({ page }) => {
   await เข้าหน้า(page);
   await page.getByLabel("ค้นหาคำขอ").fill(แท็ก);
   const hq = await db(ADMIN);
@@ -76,15 +76,22 @@ test("[ui·hq] ตัวเลขบนปุ่มกลุ่มตรงก�
   expect(error).toBeNull();
   const ฐาน = (data as { counts: Record<string, number> }).counts;
   expect(ฐาน, "ชุดข้อมูลที่รู้ค่าล่วงหน้า").toEqual({ todo: 2, overdue: 1, quoted: 1, won: 1, closed: 1 });
-  for (const [label, key] of [["ต้องตีราคา", "todo"], ["ส่งแล้ว รอดีลเลอร์", "quoted"], ["สั่งผลิต", "won"], ["ปิด/ยกเลิก", "closed"]] as const)
-    await expect(page.getByRole("tab", { name: `${label} ·` }), `ปุ่ม ${label} ต้องเท่ากับฐาน`).toHaveText(`${label} · ${ฐาน[key]}`, { timeout: 20_000 });
-  await expect(page.getByText(`เกินกำหนด 14 วัน ${ฐาน.overdue} คำขอ`)).toBeVisible();
+  // ช่องเลือกสถานะแทนแถวปุ่มกรอง (27 ต.ค. 69 · ตัวเลขอยู่บนการ์ดที่เดียว) — เลือกแต่ละสถานะแล้วจำนวนแถว (ผ่านคำค้น) = ตัวนับของฐาน
+  //   รวม "เกิน 14 วัน" (เดิมเป็นบรรทัด "เกินกำหนด 14 วัน N คำขอ") และ "ทั้งหมด"
+  for (const [key, n] of [["quoted", ฐาน.quoted], ["won", ฐาน.won], ["closed", ฐาน.closed], ["overdue", ฐาน.overdue],
+                          ["all", ฐาน.todo + ฐาน.quoted + ฐาน.won + ฐาน.closed], ["todo", ฐาน.todo]] as const) {
+    await page.getByLabel("สถานะคำขอ").selectOption(key);
+    await expect(รายการ(page).getByRole("button"), `เลือก ${key}: แถว = ฐาน ${n}`).toHaveCount(n, { timeout: 20_000 });
+  }
+  await page.getByLabel("สถานะคำขอ").selectOption("overdue");
+  await expect(รายการ(page).getByRole("button").first(), "เกิน 14 วัน = คำขอที่เลยกำหนด").toContainText(ของ("A").บริษัท);
+  await page.getByLabel("สถานะคำขอ").selectOption("todo");
   // ลำดับ + ป้ายจากฐาน: เกินกำหนดบนสุด
   await expect(รายการ(page).getByRole("button")).toHaveCount(2);
   await expect(รายการ(page).getByRole("button").first()).toContainText(ของ("A").บริษัท);
   await expect(แถวของ(page, "A")).toContainText("เกิน 14 วัน");
   await expect(แถวของ(page, "B")).toContainText("ใหม่");
-  await page.getByRole("tab", { name: "ปิด/ยกเลิก ·" }).click();
+  await page.getByLabel("สถานะคำขอ").selectOption("closed");
   await expect(แถวของ(page, "E")).toContainText("ยกเลิก");
 });
 
@@ -131,10 +138,10 @@ test("[ui·hq] ใบมีการแก้ค้าง → สลับแถ
   await expect(ใบ.getByRole("heading")).toContainText(ของ("A").no);
   await expect(แถวของ(page, "B"), "แถวที่มีร่างค้างบอกไว้").toContainText("ร่างยังไม่บันทึก");
   // สลับกลุ่มแล้วกลับ → ไม่ถาม
-  await page.getByRole("tab", { name: "ส่งแล้ว รอดีลเลอร์ ·" }).click();
-  await expect(page.getByRole("tab", { name: "ส่งแล้ว รอดีลเลอร์ ·" })).toHaveAttribute("aria-selected", "true");
+  await page.getByLabel("สถานะคำขอ").selectOption("quoted");
+  await expect(page.getByLabel("สถานะคำขอ")).toHaveValue("quoted");
   await expect(กล่องยืนยัน(page)).toHaveCount(0);
-  await page.getByRole("tab", { name: "ต้องตีราคา ·" }).click();
+  await page.getByLabel("สถานะคำขอ").selectOption("todo");
   // กลับมาที่ B → ร่างยังอยู่ครบ
   await แถวของ(page, "B").click();
   await expect(แถวของ(page, "B")).toHaveAttribute("aria-current", "true");
@@ -164,7 +171,7 @@ test("[ui·hq] ระหว่างบันทึกร่าง แถวอ�
   await ใบ.getByRole("button", { name: "บันทึกร่าง" }).click();
   await expect.poll(() => กัก, { message: "คำสั่งบันทึกต้องออกไป (แล้วค้างอยู่)" }).toBe(1);
   await expect(แถวของ(page, "A"), "ระหว่างบันทึก ห้ามเปลี่ยนแถว").toBeDisabled();
-  await expect(page.getByRole("tab", { name: "ส่งแล้ว รอดีลเลอร์ ·" }), "ระหว่างบันทึก ห้ามเปลี่ยนกลุ่ม").toBeDisabled();
+  await expect(page.getByLabel("สถานะคำขอ"), "ระหว่างบันทึก ห้ามเปลี่ยนสถานะที่เลือก").toBeDisabled();
   await expect(แถวของ(page, "B")).toHaveAttribute("aria-current", "true");
 
   ปล่อย();

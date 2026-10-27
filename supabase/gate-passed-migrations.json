@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-27 16:41:43",
- "รอบ": "2026-10-27-16-16-17",
- "จำนวน": 247,
+ "บันทึกเมื่อ": "2026-10-27 17:33:28",
+ "รอบ": "2026-10-27-17-06-20",
+ "จำนวน": 248,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -250,6 +250,7 @@
   "0245_audit_cleanup_summary.sql": "54bd373ad5d0080bc97739df6b8a9a92208d77b4b6bd5895fc55ce82aaa456f5",
   "0246_kpi_cards.sql": "f745e1d43e6495ec47643910475a7ce4e403d8c8d68e9a329e6de0409185f2a9",
   "0247_issuer_required_send_print.sql": "dd3aa991bfcf9a3c22970603bf6cacb38094f8516ae062385eddd2d1d627bc89",
-  "0248_quote_events_timeline_in_db.sql": "526940fc4cde34a8fc2f8f7d2d9c43a282e05999b684f27db410876ab47aee88"
+  "0248_quote_events_timeline_in_db.sql": "526940fc4cde34a8fc2f8f7d2d9c43a282e05999b684f27db410876ab47aee88",
+  "0249_quote_board_status_select.sql": "c5acfcd0ddbfbce43f45cbfa588682cc100fdfa104d774adaa6d20a97011a248"
  }
 }

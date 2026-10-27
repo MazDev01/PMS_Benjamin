@@ -1,5 +1,5 @@
 {
- "migration": "0248",
+ "migration": "0249",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",

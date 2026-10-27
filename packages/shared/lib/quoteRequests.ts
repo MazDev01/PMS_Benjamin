@@ -201,10 +201,20 @@ export type QuoteMargin = {
 // ── กล่องงานคำขอราคาของ HQ (หน้า 5 · ใบ 0215 hq_quote_board) ─────────────────────────────────────────────
 //   จำนวนทุกกลุ่ม + ลำดับ + ป้ายของแถว คิดที่ฐานที่เดียว — หน้าจอแสดงตามที่ได้ ห้ามนับ/เรียงเอง
 export type QuoteBoardGroup = "todo" | "quoted" | "won" | "closed";
+/** ตัวเลือกของช่องเลือกสถานะ (ใบ 0249 · บอสสั่ง 27 ต.ค. 69 แทนแถวปุ่มกรอง) — overdue = ต้องตีราคาเฉพาะที่เกิน 14 วัน · all = ทุกกลุ่ม
+ *  ฐานคัดแถวเอง (เงื่อนไขเดียวกับตัวนับ) — หน้าจอห้ามกรองแถวเอง */
+export type QuoteBoardFilter = QuoteBoardGroup | "overdue" | "all";
 export const quoteBoardGroups: { key: QuoteBoardGroup; label: string }[] = [
   { key: "todo", label: "ต้องตีราคา" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" },
   { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" },
 ];
+export const quoteBoardFilters: { key: QuoteBoardFilter; label: string }[] = [
+  { key: "todo", label: "ต้องตีราคา" }, { key: "overdue", label: "ต้องตีราคา — เกิน 14 วัน" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" },
+  { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" }, { key: "all", label: "ทั้งหมด" },
+];
+/** กลุ่มของแถวตามสถานะคำขอ (กติกาเดียวกับฐาน hq_quote_board) — ใช้เลือกข้อความนับวันของแถวในมุมมอง "ทั้งหมด" */
+export const กลุ่มของคำขอ = (status: string): QuoteBoardGroup =>
+  status === "new" || status === "pricing" ? "todo" : status === "quoted" ? "quoted" : status === "won" ? "won" : "closed";
 export type QuoteBoardTag = "overdue" | "reprice" | "draft" | "new" | "pricing" | "quoted" | "won" | "lost" | "cancelled" | "superseded";
 /** ป้ายของแถวในกล่องงาน — ข้อความ + สี (สีแยกด้วยความสว่าง ไม่ใช่สีอย่างเดียว) */
 export const quoteBoardTag: Record<QuoteBoardTag, { label: string; color: string; bar: string; bg: string }> = {
