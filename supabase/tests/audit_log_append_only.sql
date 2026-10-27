@@ -71,6 +71,7 @@ begin
 
   -- ═══ 2. ทาง 2 สวิตช์ 'test': ลบได้เฉพาะแถวทดสอบ · ปนแถวจริง = ทั้งคำสั่งถูกปฏิเสธ ═══
   perform set_config('pms.audit_delete', 'test', true);
+  perform set_config('pms.audit_backup', 'ฐานทดสอบ (audit_log_append_only)', true);   -- ใบ 0245
   perform flowtest.must_fail(format('delete from audit_log where id = any(%L::bigint[])', ทดสอบ || จริง[3]), 'ปิดแล้ว', 'สวิตช์ test: เงื่อนไขกว้างจนปนแถวจริง 1 แถว → ทั้งคำสั่งถูกปฏิเสธ');
   perform flowtest.ok((select count(*) from audit_log where id = any(ทดสอบ)) = 4, 'ปนแถวจริงแล้วถูกปฏิเสธ → แถวทดสอบก็ไม่ถูกลบ (ทั้งคำสั่งย้อนกลับ)');
   perform flowtest.must_fail(format('update audit_log set action = %L where id = %s', 'แก้', ทดสอบ[1]), 'ปิดแล้ว', 'สวิตช์ test ก็แก้บันทึกไม่ได้');
@@ -95,7 +96,7 @@ begin
   perform flowtest.as_role('service_role', 'SUPER_ADMIN');
   perform flowtest.must_fail('select audit_test_cleanup()', 'ต้องระบุเงื่อนไข', 'คำสั่งล้างไม่มีเงื่อนไข (ลบทั้งตาราง) → ถูกปฏิเสธ');
   perform flowtest.must_fail('select audit_test_cleanup(null, null, ''%'')', 'ปิดแล้ว', 'คำสั่งล้างเงื่อนไขกว้าง (ปนแถวจริง) → ถูกปฏิเสธทั้งคำสั่ง');
-  perform flowtest.ok(audit_test_cleanup(null, null, 'ZZT · ล้าง') = 1, 'คำสั่งล้าง: ลบแถวทดสอบได้ (คืนจำนวนที่ลบ)');
+  perform flowtest.ok(audit_test_cleanup(null, null, 'ZZT · ล้าง', 'ฐานทดสอบ (audit_log_append_only)') = 1, 'คำสั่งล้าง: ลบแถวทดสอบได้ (คืนจำนวนที่ลบ)');
   perform flowtest.must_fail(format('delete from audit_log where id = %s', จริง[1]), 'ปิดแล้ว', 'หลังเรียกคำสั่งล้าง สวิตช์ไม่ค้าง — ลบตรงยังไม่ได้');
   perform flowtest.as_root();
 

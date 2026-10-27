@@ -12,6 +12,7 @@ import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 const อนุญาต = new Map([
   ["supabase/migrations/0062_audit_log_retention.sql", "ทางที่ 1: ลบอัตโนมัติเกิน 2 ปี (ใบเดิม)"],
   ["supabase/migrations/0241_audit_log_append_only.sql", "นิยามตัวดัก + ทางที่ 1 (สวิตช์ retention) + ทางที่ 2 (audit_test_cleanup)"],
+  ["supabase/migrations/0245_audit_cleanup_summary.sql", "บอสสั่ง 26 ต.ค. 69: ลบแถวทดสอบ = ฐานเขียนบันทึกสรุป + ต้องมีชื่อชุดสำรอง · audit_test_cleanup รับชื่อชุดสำรอง (ไม่ได้เพิ่มทางลบ)"],
   ["tests/prod-live/cleanup.sql", "ทางที่ 2: สคริปต์ล้างข้อมูลทดสอบของ prod-live (ZZT/live-*)"],
   ["tests/prod-live/email-send-cleanup.mjs", "ทางที่ 2: ล้างแถวทดสอบส่งอีเมลจริง (ZZT)"],
   ["scripts/backup-drill.mjs", "ทางที่ 2: ลบแถวซ้อมกู้ (ติดป้าย ZZT)"],

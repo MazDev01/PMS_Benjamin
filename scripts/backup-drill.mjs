@@ -119,7 +119,7 @@ let before;   // แถวตามที่ "ฐานข้อมูลเก�
     .select("id");
   const newId = data?.[0]?.id;
   // บันทึกการใช้งานลบตรงไม่ได้ (ใบ 0241) — แถวซ้อมติดป้าย ZZT แล้วลบผ่านทางของสคริปต์ล้างข้อมูลทดสอบ
-  if (newId) await svc.rpc("audit_test_cleanup", { p_ids: [newId] });
+  if (newId) await svc.rpc("audit_test_cleanup", { p_ids: [newId], p_backup: `ซ้อมกู้คืน (${DRILL_DIR})` });   // ใบ 0245: ฐานเขียนบันทึกสรุปการลบ
   step(!error && !!newId, "หลังกู้คืนแล้วยังบันทึกรายการใหม่ได้",
     error ? `⚠ ${error.message.slice(0, 55)}` : `ได้เลขใหม่ ${newId} (ไม่ชนของเดิม)`);
 }
