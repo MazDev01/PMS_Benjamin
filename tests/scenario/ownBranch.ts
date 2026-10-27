@@ -9,7 +9,7 @@
 // เก็บกวาด: ลบใบ HQ/ใบลูกค้าของลีดที่ชุดสร้าง แล้วลบสาขาทั้งสาขา · ค้างจากรอบที่ล้ม → ลบก่อนสร้างใหม่ + global-teardown กวาดซ้ำ
 import { ADMIN, type Account } from "./supabaseEnv";
 import { HQ_ORIGIN, db, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
-import { adminClient, เป็นรหัสสาขาทดสอบ, ลบสาขาทดสอบตรง } from "./testDealers";
+import { adminClient, เป็นรหัสสาขาทดสอบ, ลบสาขาทดสอบตรง, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
 import { ล้างใบHQทดสอบ } from "./legacyQuotes";
 
 export type บัญชีสาขาของชุด = Account & { code: string };
@@ -39,10 +39,7 @@ export async function สร้างสาขาของชุด(code: string
   }
   // ข้อมูลบริษัทครบ — สร้างดีลเลอร์ตั้งให้แค่ชื่อบริษัท · ส่ง/พิมพ์ใบให้ลูกค้าต้องมีที่อยู่ + เลขผู้เสียภาษีด้วย (ใบ 0247)
   //   ข้อทดสอบที่ต้องการสาขาที่ข้อมูลไม่ครบ ตั้งเองหลังสร้าง (issuer-required.spec.ts) · ลบตามสาขาตอนเก็บกวาด
-  const ตั้งค่า = await admin.from("dealer_settings").upsert({ dealer_code: code,
-    issuer: { company: `ZZTEST-สาขาของชุด-${code}`, address: `ZZTEST ที่อยู่ทดสอบ ${code}`, phone: "000-000-0000", taxId: "0000000000000" } },
-    { onConflict: "dealer_code" });
-  if (ตั้งค่า.error) throw new Error(`ตั้งข้อมูลบริษัทของ ${code} ไม่สำเร็จ: ${ตั้งค่า.error.message}`);
+  await กรอกข้อมูลบริษัททดสอบ(code, admin);
   return { code, email: json.email, password: json.password };
 }
 

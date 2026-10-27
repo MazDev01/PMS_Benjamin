@@ -21,6 +21,16 @@ export const เป็นรหัสสาขาทดสอบ = (code: string
 export const adminClient = (): SupabaseClient =>
   createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
+/** ข้อมูลบริษัททดสอบครบ (ชื่อบริษัท · ที่อยู่ · เลขผู้เสียภาษี) ให้สาขาทดสอบ — ส่ง/พิมพ์ใบให้ลูกค้าต้องครบ (ใบ 0247)
+ *  สร้างดีลเลอร์ผ่านคำสั่งของ HQ ตั้งให้แค่ชื่อบริษัท · ทุกข้อทดสอบที่สร้างสาขาแล้วส่งใบต้องเรียกตัวนี้ · ลบตามสาขาตอนเก็บกวาด */
+export async function กรอกข้อมูลบริษัททดสอบ(code: string, client?: SupabaseClient): Promise<void> {
+  if (!เป็นรหัสสาขาทดสอบ(code)) throw new Error(`กรอกข้อมูลบริษัททดสอบ: "${code}" ไม่ใช่รหัสสาขาทดสอบ`);
+  const { error } = await (client ?? adminClient()).from("dealer_settings").upsert({ dealer_code: code,
+    issuer: { company: `ZZTEST-บริษัทสาขา-${code}`, address: `ZZTEST ที่อยู่ทดสอบ ${code}`, phone: "000-000-0000", taxId: "0000000000000" } },
+    { onConflict: "dealer_code" });
+  if (error) throw new Error(`ตั้งข้อมูลบริษัทของ ${code} ไม่สำเร็จ: ${error.message}`);
+}
+
 /** ลบสาขาทดสอบหนึ่งรายให้หมด: ข้อมูลงานขาย · ค่าตั้งของสาขา · ผู้สนใจเป็นดีลเลอร์ ต้นทาง · บัญชีเข้าระบบ · แถวสาขา
  *  คืนรายการที่ลบไม่สำเร็จ (ว่าง = หมดจด) — ผู้เรียกตัดสินเองว่าจะเตือนหรือให้ตก */
 export async function ลบสาขาทดสอบตรง(code: string, client?: SupabaseClient): Promise<string[]> {
