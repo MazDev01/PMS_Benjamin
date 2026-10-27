@@ -121,8 +121,11 @@ test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า 
 
   // หน้าพิมพ์ที่ลูกค้าได้รับ — อ่านเอกสารจริงที่เปิดออกมา
   const ห้าม = ["12,345.67", "12345.67", "24,691.34", "ต้นทุน", "37%", "37 %", "markup", "unitCost", "HQ-"];
+  // เลขใบ HQ (HQ-…) ห้ามหลุด — ยกเว้นคำนำหน้าชื่อลูกค้าเป้าหมายทดสอบ "ZZTEST-BASE-ใบHQ-…" (helpers.ts) ที่ชุดอื่นสร้างใบของสาขาเดียวกันไว้
+  //   ไฟล์ส่งออกมีใบทั้งสาขา → เดิมจับชื่อลูกค้าทดสอบนั้นแล้วตกแบบสุ่มตามลำดับที่ชุดอื่นรัน · คำอื่นตรวจเหมือนเดิม
+  const เจอ = (เนื้อ: string, คำ: string) => คำ === "HQ-" ? /(?<!ใบ)HQ-/.test(เนื้อ) : เนื้อ.includes(คำ);
   //   พิมพ์จากแผงใบเสนอราคาของลูกค้าเป้าหมาย (ตัวสร้างเอกสารชุดเดียวกับหน้ารายการใบ — buildQuotationHTML)
-  //   พิมพ์ต้องตั้งชื่อบริษัทผู้ออกก่อน (ด่านในแผงลีด · บอสอนุมัติ 22 ต.ค. 69) — ตั้งชื่อทดสอบให้สาขาชั่วคราว แล้วคืนค่าเดิม
+  //   พิมพ์ต้องมีข้อมูลบริษัทครบ (ใบ 0247 · ข้อมูลตั้งต้นของ RYG ครบแล้ว) — ถ้าไม่มีชื่อบริษัท ตั้งชื่อทดสอบให้ชั่วคราว แล้วคืนค่าเดิม
   const ตั้งค่าเดิม = (await admin.from("dealer_settings").select("issuer").eq("dealer_code", "RYG").maybeSingle()).data;
   const ชื่อผู้ออก = "ZZTEST บริษัทผู้ออกใบ จำกัด";
   if (!String((ตั้งค่าเดิม?.issuer as { company?: string } | null)?.company ?? "").trim()) {
@@ -132,10 +135,11 @@ test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า 
   try {
     await เปิดแท็บใบเสนอราคา(page, ลับ);
     const [หน้าพิมพ์] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "พิมพ์", exact: true }).first().click()]);
-    await หน้าพิมพ์.waitForLoadState("domcontentloaded");
+    // หน้าพิมพ์เปิดก่อน (ขึ้น "กำลังเตรียมเอกสาร…") แล้วเติมเอกสารเมื่อฐานคืนหัวกระดาษ (ใบ 0247) — รอเอกสารจริง ไม่อ่านหน้ารอ
+    await expect.poll(() => หน้าพิมพ์.content(), { timeout: 20_000, message: "หน้าพิมพ์ได้เอกสารจริงจากฐาน" }).not.toContain("กำลังเตรียมเอกสาร");
     const html = await หน้าพิมพ์.content();
     expect(html, "หน้าพิมพ์ต้องมีราคาขาย").toContain("16,913.57");
-    for (const คำ of ห้าม) expect(html, `หน้าพิมพ์ต้องไม่มี "${คำ}"`).not.toContain(คำ);
+    for (const คำ of ห้าม) expect(เจอ(html, คำ), `หน้าพิมพ์ต้องไม่มี "${คำ}"`).toBe(false);
     await หน้าพิมพ์.close();
   } finally {
     if (!ตั้งค่าเดิม) await admin.from("dealer_settings").delete().eq("dealer_code", "RYG");   // เดิมไม่มีแถวตั้งค่า
@@ -150,7 +154,7 @@ test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า 
     const [ไฟล์] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: new RegExp(`^${แบบ}`) }).first().click()]);
     const เนื้อ = readFileSync(await ไฟล์.path()).toString("utf8");
     expect(เนื้อ, `ไฟล์ ${แบบ} ต้องมีใบของข้อทดสอบ`).toContain(ลับ);
-    for (const คำ of ห้าม) expect(เนื้อ, `ไฟล์ ${แบบ} ต้องไม่มี "${คำ}"`).not.toContain(คำ);
+    for (const คำ of ห้าม) expect(เจอ(เนื้อ, คำ), `ไฟล์ ${แบบ} ต้องไม่มี "${คำ}"`).toBe(false);
   }
 });
 

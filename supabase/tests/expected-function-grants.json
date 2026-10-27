@@ -1,5 +1,5 @@
 {
- "migration": "0246",
+ "migration": "0247",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -51,6 +51,13 @@
    "definer": true
   },
   {
+   "f": "_dealer_issuer(p_dealer text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_dealer_notify_emails(p_dealer text)",
    "anon": false,
    "authenticated": false,
@@ -91,6 +98,20 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "_issuer_complete(p jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_issuer_missing(p jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "_kpi_won(p_dealer text)",
@@ -1038,6 +1059,13 @@
    "definer": true
   },
   {
+   "f": "quotation_print_data(p_dealer text, p_id text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotation_revert_won(p_dealer text, p_id text, p_reason text, p_to quotation_status)",
    "anon": false,
    "authenticated": true,
@@ -1088,6 +1116,13 @@
   },
   {
    "f": "quotations_hq_link_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quotations_issuer_required()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

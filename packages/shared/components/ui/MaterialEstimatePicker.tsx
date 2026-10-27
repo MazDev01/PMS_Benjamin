@@ -47,19 +47,27 @@ export function MaterialEstimatePicker({ value, onChange, disabled }: { value: �
         </select>
       </div>
       {แถว.length > 0 && (
-        <div className="table-scroll">
-          <table className="table" aria-label="วัสดุที่เลือก" style={{ width: "100%", fontSize: "0.78rem" }}>
-            <thead><tr><th>วัสดุ</th><th style={{ textAlign: "right", width: 110 }}>จำนวน</th><th>หน่วย</th><th style={{ textAlign: "right" }}>ราคาต่อหน่วย</th><th style={{ textAlign: "right" }}>ยอด</th><th aria-label="ลบ" /></tr></thead>
+        // ตารางกลาง (.table-wrap · colgroup · table-layout: fixed) แบบเดียวกับตารางอื่นในระบบ (บอสสั่ง 27 ต.ค. 69)
+        //   เดิมเขียนตารางเอง ความกว้างช่องลอยตามเนื้อหา → ช่องจำนวนล้นทับหน่วย · ถังขยะชิดยอด (ข้อทดสอบ material-picker-layout.spec.ts)
+        //   ความกว้างแก้ที่ colgroup เท่านั้น · ชื่อ/หน่วยยาวตัดด้วย … (ชี้ดูชื่อเต็ม) · จอแคบเลื่อนในกรอบตาราง ไม่ดันหน้า
+        <div className="table-wrap dense" style={{ border: "1px solid var(--border)", borderRadius: 8 }}>
+          {/* ช่องเงินกว้างพอยอดหลักล้าน (ห้ามถูกตัดเป็น …) · ช่องลบกว้างคงที่ 48px ให้ปุ่มอยู่ในช่องเสมอ */}
+          <table aria-label="วัสดุที่เลือก" style={{ minWidth: 640 }}>
+            <colgroup>
+              <col style={{ width: "30%" }} /><col style={{ width: "14%" }} /><col style={{ width: "12%" }} />
+              <col style={{ width: "19%" }} /><col style={{ width: "19%" }} /><col style={{ width: 48 }} />
+            </colgroup>
+            <thead><tr><th>วัสดุ</th><th className="num">จำนวน</th><th>หน่วย</th><th className="num">ราคาต่อหน่วย</th><th className="num">ยอด</th><th aria-label="ลบ" /></tr></thead>
             <tbody>
               {แถว.map((r, i) => (
                 <tr key={r.templateId} data-estimate-row={r.templateId}>
-                  <td>{r.t!.name}</td>
-                  <td><NumberInput ariaLabel={`จำนวนวัสดุ ${i + 1}`} value={r.qty} min={0} onChange={n => onChange(value.map(v => v.templateId === r.templateId ? { ...v, qty: n } : v))} style={{ ...ช่อง, textAlign: "right" }} /></td>
-                  <td>{r.t!.unit}</td>
-                  <td style={{ textAlign: "right" }}>{บาท(Number(r.t!.unitPrice))}</td>
-                  <td style={{ textAlign: "right" }}>{บาท(Math.round(r.qty * Number(r.t!.unitPrice) * 100) / 100)}</td>
+                  <td title={r.t!.name}>{r.t!.name}</td>
+                  <td className="num"><NumberInput ariaLabel={`จำนวนวัสดุ ${i + 1}`} value={r.qty} min={0} onChange={n => onChange(value.map(v => v.templateId === r.templateId ? { ...v, qty: n } : v))} style={{ ...ช่อง, textAlign: "right" }} /></td>
+                  <td title={r.t!.unit}>{r.t!.unit || "—"}</td>
+                  <td className="num">{บาท(Number(r.t!.unitPrice))}</td>
+                  <td className="num">{บาท(Math.round(r.qty * Number(r.t!.unitPrice) * 100) / 100)}</td>
                   <td><button type="button" aria-label={`เอา ${r.t!.name} ออก`} disabled={disabled} onClick={() => onChange(value.filter(v => v.templateId !== r.templateId))}
-                    style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "flex" }}><Trash2 size={14} /></button></td>
+                    style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "flex", padding: 4 }}><Trash2 size={14} /></button></td>
                 </tr>
               ))}
             </tbody>

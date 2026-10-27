@@ -440,6 +440,7 @@ const quotations: QuotationsRepo = {
   createNumbered: (dealer, prefix, row) => post("/quotations?op=numbered", { dealer, prefix, row }),
   newVersion: (dealer, id) => post("/quotations?op=new-version", { dealer, id }),
   send: (dealer, id) => put<QuotationMock>("/quotations?op=send", { dealer, id }),
+  printData: (dealer, id) => put("/quotations?op=print", { dealer, id }),
   update: (row) => put<QuotationMock>("/quotations", row),
   setStatus: async (id, status) => { await put("/quotations?op=status", { id, status }); },
   setStatusReconciled: (id, status) => put("/quotations?op=status-reconciled", { id, status }),

@@ -37,6 +37,12 @@ export async function สร้างสาขาของชุด(code: string
     const t = await admin.from("dealer_territories").insert({ dealer_code: code, province });
     if (t.error) throw new Error(`ตั้งจังหวัดที่ดูแลของ ${code} ไม่สำเร็จ: ${t.error.message}`);
   }
+  // ข้อมูลบริษัทครบ — สร้างดีลเลอร์ตั้งให้แค่ชื่อบริษัท · ส่ง/พิมพ์ใบให้ลูกค้าต้องมีที่อยู่ + เลขผู้เสียภาษีด้วย (ใบ 0247)
+  //   ข้อทดสอบที่ต้องการสาขาที่ข้อมูลไม่ครบ ตั้งเองหลังสร้าง (issuer-required.spec.ts) · ลบตามสาขาตอนเก็บกวาด
+  const ตั้งค่า = await admin.from("dealer_settings").upsert({ dealer_code: code,
+    issuer: { company: `ZZTEST-สาขาของชุด-${code}`, address: `ZZTEST ที่อยู่ทดสอบ ${code}`, phone: "000-000-0000", taxId: "0000000000000" } },
+    { onConflict: "dealer_code" });
+  if (ตั้งค่า.error) throw new Error(`ตั้งข้อมูลบริษัทของ ${code} ไม่สำเร็จ: ${ตั้งค่า.error.message}`);
   return { code, email: json.email, password: json.password };
 }
 

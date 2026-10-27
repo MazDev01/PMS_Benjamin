@@ -31,8 +31,8 @@ export async function ลบสาขาทดสอบตรง(code: string, c
   const พลาด: string[] = [];
   const ลบ = async (table: string, column = "dealer_code") => {
     const { error } = await admin.from(table).delete().eq(column, code);
-    // 42P01 = ฐานนี้ยังไม่มีตารางนั้น (ใบแก้ฐานข้อมูลรุ่นเก่า) — ไม่มีอะไรต้องลบ
-    if (error && error.code !== "42P01") พลาด.push(`${table}: ${error.message}`);
+    // 42P01 / PGRST205 = ฐานนี้ยังไม่มีตารางนั้น (ใบแก้ฐานข้อมูลรุ่นเก่า · ผ่านเส้น REST ได้รหัส PGRST205) — ไม่มีอะไรต้องลบ
+    if (error && error.code !== "42P01" && error.code !== "PGRST205") พลาด.push(`${table}: ${error.message}`);
   };
 
   // ลำดับ = ลูกก่อนแม่ ตามกุญแจนอกที่ห้ามลบแม่ขณะยังมีลูก
@@ -47,7 +47,7 @@ export async function ลบสาขาทดสอบตรง(code: string, c
   await ลบ("quote_requests");
   for (const t of ["appointments", "customer_notes", "files", "leads", "customers",
                    "responsible_persons", "dealer_lead_rules", "dealer_account_changes", "dealer_account_requests",
-                   "notifications"]) await ลบ(t);   // แจ้งเตือนของสาขา (ใบ 0231) — ไม่มีกุญแจนอกถึงสาขา ไม่หายตาม
+                   "notifications", "quotation_prints"]) await ลบ(t);   // แจ้งเตือน (0231) · บันทึกการพิมพ์ (0247) — ไม่มีกุญแจนอกถึงสาขา ไม่หายตาม
   // ผู้สนใจเป็นดีลเลอร์ ที่กลายมาเป็นสาขานี้ — ระบบลบทิ้งพร้อมสาขา (บอสสั่ง 15 ก.ย. 69) ตัวเก็บกวาดจึงทำแบบเดียวกัน
   await ลบ("dealer_prospects");
   // และรายที่ตัวช่วย ลูกค้าเป้าหมายรองรับสาขา() สร้างไว้ให้รหัสนี้แต่ไม่ได้ผูกกับสาขาแล้ว

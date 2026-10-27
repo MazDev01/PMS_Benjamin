@@ -1,5 +1,5 @@
 {
- "migration": "0246",
+ "migration": "0247",
  "relations": [
   {
    "r": "appointments",
@@ -400,6 +400,22 @@
    "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "quotation_prints",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,SELECT"
+  },
+  {
+   "r": "quotation_prints_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
   },
   {
    "r": "quotation_won_at",

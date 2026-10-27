@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { open, ดักข้อความแจ้งเตือน, รอข้อความแจ้งเตือน, settle } from "./helpers";
+import { open, settle } from "./helpers";
 import { RYG } from "./supabaseEnv";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
@@ -30,23 +30,37 @@ async function เปิดหน้าดูใบ(page: import("@playwright/te
   await page.locator(`[data-quote-item="${เลขใบ}"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
 }
 
+// ข้อมูลตั้งต้นของ RYG มีข้อมูลบริษัทครบแล้ว (ใบ 0247 · ข้อทดสอบส่งใบทั้งชุดต้องใช้) และห้ามแก้ข้อมูล RYG ที่ชุดอื่นใช้พร้อมกัน
+//   → ข้อนี้ดักคำขออ่านตั้งค่าของสาขา (โหมด api) ให้หน้าจอเห็นข้อมูลบริษัทว่าง แล้วตรวจด่านบนหน้าจอ
+//   ด่านที่ฐาน (ขอข้อมูลพิมพ์ถูกปฏิเสธ) ตรวจด้วยสาขาของชุดเองที่ issuer-required.spec.ts + supabase/tests/issuer_required.sql
 test("[func·dealer] ยังไม่ตั้งชื่อบริษัท → ห้ามพิมพ์ ต้องบอกเหตุผลและพาไปหน้าตั้งค่า", async ({ page, context }) => {
+  test.skip(process.env.NEXT_PUBLIC_DATA_SOURCE !== "api", "ดักคำขออ่านตั้งค่าได้เฉพาะโหมด api (/api/v1/dealer-settings)");
   await context.addInitScript(() => { window.print = () => {}; });
-  // คำเตือนเป็นข้อความของระบบ (sonner) แล้ว — กล่องเบราว์เซอร์ไม่ขึ้นอีก (บอสสั่ง 2 ก.ย. 69)
-  const แจ้งเตือน = ดักข้อความแจ้งเตือน(page);
-
-  await open(page, "dealer", "/settings");
-  const ชื่อบริษัท = page.getByLabel("ชื่อบริษัท").or(page.locator('input[placeholder="บริษัท ตัวอย่าง จำกัด"]')).first();
-  const เดิม = (await ชื่อบริษัท.inputValue()).trim();
-  test.skip(!!เดิม, "สาขานี้ตั้งชื่อบริษัทไว้แล้ว — ด่านนี้ทดสอบไม่ได้โดยไม่ลบข้อมูลจริง");
+  const ว่าง = { company: "", address: "", phone: "", taxId: "" };
+  let ดักแล้ว = 0;
+  await page.route("**/dealer-settings?dealer=*", async route => {
+    const res = await route.fetch();
+    const j = await res.json() as unknown;
+    const ล้าง = (o: unknown): void => {
+      if (!o || typeof o !== "object") return;
+      if ("issuer" in o) { (o as Record<string, unknown>).issuer = ว่าง; ดักแล้ว++; }
+      Object.values(o).forEach(ล้าง);
+    };
+    ล้าง(j);
+    await route.fulfill({ response: res, json: j });
+  });
 
   await เปิดหน้าดูใบ(page);
-  await page.getByRole("button", { name: "พิมพ์ PDF", exact: true }).click();
-
-  // ต้องไม่มีเอกสารเปิดออกมา — เอกสารที่ไม่มีชื่อผู้เสนอราคาส่งให้ลูกค้าไม่ได้
+  expect(ดักแล้ว, "หน้าจออ่านข้อมูลบริษัทผ่านคำขอที่ดักไว้").toBeGreaterThan(0);
+  const ปุ่ม = page.getByRole("button", { name: "พิมพ์ PDF", exact: true });
+  // ปุ่มถูกปิด — เอกสารที่ไม่มีชื่อผู้เสนอราคาส่งให้ลูกค้าไม่ได้ · กดไม่ได้ = ไม่มีเอกสารเปิดออกมา
+  await expect(ปุ่ม, "ปุ่มพิมพ์ถูกปิด").toBeDisabled({ timeout: 20_000 });
+  await ปุ่ม.click({ force: true });
   await expect.poll(() => context.pages().length, { timeout: 3000 }).toBe(1);
-  expect(await รอข้อความแจ้งเตือน(page, /ชื่อบริษัท/),
-    `ต้องบอกด้วยว่าติดที่อะไร ไม่ใช่กดแล้วเงียบ (ข้อความที่ขึ้น: ${JSON.stringify(แจ้งเตือน())})`).toContain("ชื่อบริษัท");
+  // ต้องบอกด้วยว่าติดที่อะไร ไม่ใช่กดแล้วเงียบ + พาไปหน้าตั้งค่า
+  const ป้าย = page.locator("[data-issuer-guard]").filter({ hasText: "พิมพ์ใบให้ลูกค้าไม่ได้" });
+  await expect(ป้าย, "บอกเหตุผลว่าติดที่ชื่อบริษัท").toContainText("ชื่อบริษัท");
+  await ป้าย.getByRole("link", { name: "ไปกรอกข้อมูลบริษัท" }).click();
   await expect(page).toHaveURL(/\/settings/);
 });
 
@@ -81,7 +95,8 @@ test("[func·dealer] ตั้งชื่อบริษัทแล้ว → 
       context.waitForEvent("page"),
       page.getByRole("button", { name: "พิมพ์ PDF", exact: true }).click(),
     ]);
-    await เอกสาร.waitForLoadState("domcontentloaded");
+    // หน้าพิมพ์เปิดก่อน (ขึ้น "กำลังเตรียมเอกสาร…") แล้วเติมเอกสารเมื่อฐานคืนหัวกระดาษ (ใบ 0247) — รอเอกสารจริง ไม่อ่านหน้ารอ
+    await expect.poll(() => เอกสาร.content(), { timeout: 20_000, message: "หน้าพิมพ์ได้เอกสารจริงจากฐาน" }).not.toContain("กำลังเตรียมเอกสาร");
     const html = await เอกสาร.content();
 
     expect(html).toContain("ใบเสนอราคา");

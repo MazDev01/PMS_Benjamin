@@ -19,6 +19,9 @@ import { LostReasonPicker } from "@pms/shared/components/ui/LostReasonPicker";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import type { HqQuote, QuoteRequest } from "@pms/shared/lib/quoteRequests";
 import type { LeadRow, QuotationMock } from "@pms/shared/lib/mock";
+import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
+import { ข้อมูลบริษัทที่ขาด } from "@pms/shared/lib/issuerComplete";
+import { IssuerGuardNote } from "@pms/shared/components/ui/IssuerGuardNote";
 
 /** วันนี้ตามเวลาไทย (YYYY-MM-DD) — เกณฑ์เดียวกับฐานตอนตรวจราคา HQ หมดอายุ */
 const วันนี้ไทย = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
@@ -33,6 +36,8 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
   onRequests?: (rs: QuoteRequest[]) => void;
 }) {
   const { quotations } = useSales();
+  // ข้อมูลบริษัทของสาขา — ส่งใบให้ลูกค้าต้องครบ (ใบ 0247 · ฐานกัน) · ยังโหลดไม่เสร็จ = ไม่ปิดปุ่ม
+  const ตั้งค่าสาขา = useDealerSettings();
   const [คำขอทั้งหมด, setคำขอทั้งหมด] = useState<QuoteRequest[] | undefined>(undefined);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
   const [เลือกเหตุผล, setเลือกเหตุผล] = useState(false);
@@ -99,6 +104,8 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
     today: วันนี้ไทย(),
   });
   const จบแล้ว = ขั้น.key === "won" || ขั้น.key === "lost";
+  const ขาดตอนส่ง = ตั้งค่าสาขา.loaded ? ข้อมูลบริษัทที่ขาด(ตั้งค่าสาขา.settings.issuer) : [];
+  const กันส่ง = ขั้น.action?.kind === "send_quote" && ขาดตอนส่ง.length > 0;
   const สีกล่อง = ขั้น.key === "lost" ? { bg: "#f3f4f6", line: "#d1d5db", text: "#374151" }
     : ขั้น.key === "won" ? { bg: "#ecfdf5", line: "#059669", text: "#065f46" }
     : ขั้น.action ? { bg: "#fff4e5", line: "#b45309", text: "#7c3d06" }
@@ -155,12 +162,14 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
             </button>
           )}
           {ขั้น.action && (
-            <button type="button" data-next-step={ขั้น.key}
+            <button type="button" data-next-step={ขั้น.key} disabled={กันส่ง}
+              title={กันส่ง ? `ส่งไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาดตอนส่ง.join(" · ")})` : undefined}
               onClick={() => onAction(ขั้น.action!.kind, ขั้น.key === "await_customer" ? ใบที่ส่งอยู่?.id : ใบล่าสุด?.id)}
-              style={{ height: 40, padding: "0 16px", border: "none", borderRadius: 10, background: "#b45309", color: "#fff", fontFamily: "inherit", fontSize: "0.84rem", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              style={{ height: 40, padding: "0 16px", border: "none", borderRadius: 10, background: กันส่ง ? "#d6b48c" : "#b45309", color: "#fff", fontFamily: "inherit", fontSize: "0.84rem", fontWeight: 800, cursor: กันส่ง ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
               {ขั้น.action.label} <ArrowRight size={14} />
             </button>
           )}
+          {กันส่ง && <IssuerGuardNote ขาด={ขาดตอนส่ง} การกระทำ="ส่งใบให้ลูกค้า" หมายเหตุ="ใบร่างยังแก้ได้ตามปกติ" style={{ flex: "1 1 100%" }} />}
         </div>
       )}
     </div>

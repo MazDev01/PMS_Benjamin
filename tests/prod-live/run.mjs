@@ -45,6 +45,11 @@ if (phase === "setup") {
   //   ลบตามสาขาอัตโนมัติ (FK ON DELETE CASCADE) — cleanup.sql ไม่ต้องลบเอง
   const พื้นที่ = await svc.from("dealer_territories").insert({ dealer_code: CODE, province: "ระยอง" });
   if (พื้นที่.error) ตาย(`ตั้งจังหวัดที่ดูแลไม่สำเร็จ: ${พื้นที่.error.message}`);
+  // ข้อมูลบริษัทครบ — ส่ง/พิมพ์ใบให้ลูกค้าได้เฉพาะสาขาที่กรอกชื่อบริษัท · ที่อยู่ · เลขผู้เสียภาษีครบ (ใบ 0247) · cleanup.sql ลบแถวนี้
+  const ตั้งค่า = await svc.from("dealer_settings").upsert({ dealer_code: CODE,
+    issuer: { company: "ZZTEST บริษัทสาขาทดสอบชั่วคราว", address: "ZZTEST ที่อยู่ทดสอบ", phone: "000-000-0000", taxId: "0000000000000" } },
+    { onConflict: "dealer_code" });
+  if (ตั้งค่า.error) ตาย(`ตั้งข้อมูลบริษัทไม่สำเร็จ: ${ตั้งค่า.error.message}`);
   for (const [role, code] of [["SUPER_ADMIN", ""], ["DEALER_ADMIN", CODE]]) {
     const email = `live-${role === "SUPER_ADMIN" ? "hq" : "dealer"}-${t}@example.test`;
     const { data, error } = await svc.auth.admin.createUser({ email, password: รหัส, email_confirm: true,

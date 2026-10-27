@@ -581,6 +581,9 @@ export interface QuotationsRepo {
   /** ส่งใบให้ลูกค้า / ส่งอีกครั้ง — เปลี่ยนแค่สถานะ + ประทับวันที่ส่ง ราคาเป็นของในฐาน (ใบ 0238 · ห้ามส่งทั้งแถวจากหน้าจอ)
    *  คืนแถวจากฐาน (มี updatedAt ใหม่) · supabase/api: RPC quotation_send · local: ทำในเครื่อง */
   send(dealer: string, id: string): Promise<QuotationMock>;
+  /** ข้อมูลพิมพ์ใบให้ลูกค้า (ใบ 0247 · quotation_print_data) — ฐานตรวจข้อมูลบริษัทครบ (ไม่ครบ = ปฏิเสธ issuer_incomplete)
+   *  คืนหัวกระดาษที่ต้องพิมพ์ + เวลาที่ฐานจดการพิมพ์ · ปุ่มพิมพ์ต้องเรียกตัวนี้ก่อนเปิดเอกสารทุกครั้ง */
+  printData(dealer: string, id: string): Promise<{ issuer: import("../mock").IssuerProfile; printedAt: string }>;
   /** ปิดใบที่ "ส่งแล้ว" และเลยวันหมดอายุ → สถานะ expired · asOf = วันนี้ของระบบ (YYYY-MM-DD) · คืนจำนวนใบที่ปิด */
   // validityDays: อายุใบเสนอราคาเริ่มต้น (นโยบาย HQ) — ใช้เป็น "หมดอายุ" ของใบที่ไม่ได้กรอก expiry เอง
   //   (นิยามเดียวกับที่ hq_alerts ใช้เตือน "ใกล้หมดอายุ" — ไม่งั้นสองจุดเห็นวันหมดอายุคนละวัน)
