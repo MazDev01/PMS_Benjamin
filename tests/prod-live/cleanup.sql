@@ -13,27 +13,6 @@ alter table public.quotations disable trigger trg_price_history_append_only;
 delete from public.email_outbox
  where (ref_table = 'quote_requests' and ref_id in (select id::text from public.quote_requests where dealer_code = 'ZZT'))
     or to_email like 'live-%@example.test';
--- ═══ บันทึกการใช้งาน (ใบ 0240 ให้ฐานบันทึกเอง · ใบ 0241 กันแก้/ลบ · บอสสั่ง 26 ต.ค. 69) ═══
---   ลบเฉพาะแถวของสาขาทดสอบ ZZT และบัญชีชั่วคราว live-* (ชื่อแสดง 'บัญชีทดสอบชั่วคราว' = บัญชี live-* ที่ run.mjs สร้าง)
---   นับก่อนลบ: tests/prod-live/cleanup-audit-count.sql (เงื่อนไขชุดเดียวกัน — แก้ที่หนึ่งต้องแก้อีกที่ · ข้อทดสอบ audit-cleanup.test.mjs)
---   ด่านกันพลาด: เงื่อนไขนี้จับแถวที่ไม่ใช่แถวทดสอบได้แม้แถวเดียว → ยกเลิกทั้งชุด (ตัวดักใบ 0241 ก็ปฏิเสธซ้ำอีกชั้น)
-do $$ begin
-  if to_regprocedure('public._audit_is_test_row(text,text,text)') is not null and exists (
-       select 1 from public.audit_log
-        where ("user" like 'live-%@example.test' or "user" = 'บัญชีทดสอบชั่วคราว' or target like 'ZZT · %' or target = 'ZZT')
-          and not public._audit_is_test_row("user", target, action)) then
-    raise exception 'เงื่อนไขลบบันทึกการใช้งานจับแถวที่ไม่ใช่แถวทดสอบ — ยกเลิกทั้งชุด';
-  end if;
-end $$;
-set local pms.audit_delete = 'test';
--- ใบ 0245: ฐานเขียนบันทึกสรุปการลบเอง ต้องมีชื่อชุดสำรองก่อนลบ — ค่าตัวอย่างนี้ถูกแทนตอนรัน (ไม่แทน = ฐานปฏิเสธ ไม่ลบ)
---   ฐานจริง: ชื่อโฟลเดอร์สำรองที่ซ้อมกู้ผ่านแล้ว · รอบตรวจในเครื่อง: scripts/test-prodbuild.mjs แทนให้
-set local pms.audit_backup = '__ชุดสำรองก่อนลบ__';
-delete from public.audit_log
- where "user" like 'live-%@example.test' or "user" = 'บัญชีทดสอบชั่วคราว' or target like 'ZZT · %' or target = 'ZZT';
-set local pms.audit_delete = '';
-set local pms.audit_backup = '';
--- ═══ จบบันทึกการใช้งาน ═══
 -- แจ้งเตือน (ใบ 0231): ของสาขา ZZT หายตามกุญแจนอกตอนลบสาขา · ของ HQ ที่เกิดจากงานของ ZZT (ไม่มีรหัสสาขา) ต้องลบเอง
 --   ใบ 0231 ยังไม่ขึ้นฐานจริง = ไม่มีตาราง → ข้าม (to_regclass)
 do $$ begin
@@ -65,6 +44,29 @@ delete from public.dealer_account_requests where dealer_code = 'ZZT';
 delete from public.profiles where id in (select id from auth.users where email like 'live-%@example.test');
 delete from auth.users where email like 'live-%@example.test';
 delete from public.dealers where code = 'ZZT';
+-- ⚠️ ต้องอยู่หลังลบแถวสาขา ZZT ทั้งหมด: ลบแถวสาขาทำให้ฐานจดบันทึกการใช้งานใหม่ (ใบ 0240) — เดิมอยู่ก่อน → เหลือแถวทดสอบค้าง 6 แถวบนฐานจริง 27 ต.ค. 69
+--   ข้อทดสอบลำดับ: tests/tools/audit-cleanup.test.mjs
+-- ═══ บันทึกการใช้งาน (ใบ 0240 ให้ฐานบันทึกเอง · ใบ 0241 กันแก้/ลบ · บอสสั่ง 26 ต.ค. 69) ═══
+--   ลบเฉพาะแถวของสาขาทดสอบ ZZT และบัญชีชั่วคราว live-* (ชื่อแสดง 'บัญชีทดสอบชั่วคราว' = บัญชี live-* ที่ run.mjs สร้าง)
+--   นับก่อนลบ: tests/prod-live/cleanup-audit-count.sql (เงื่อนไขชุดเดียวกัน — แก้ที่หนึ่งต้องแก้อีกที่ · ข้อทดสอบ audit-cleanup.test.mjs)
+--   ด่านกันพลาด: เงื่อนไขนี้จับแถวที่ไม่ใช่แถวทดสอบได้แม้แถวเดียว → ยกเลิกทั้งชุด (ตัวดักใบ 0241 ก็ปฏิเสธซ้ำอีกชั้น)
+do $$ begin
+  if to_regprocedure('public._audit_is_test_row(text,text,text)') is not null and exists (
+       select 1 from public.audit_log
+        where ("user" like 'live-%@example.test' or "user" = 'บัญชีทดสอบชั่วคราว' or target like 'ZZT · %' or target = 'ZZT')
+          and not public._audit_is_test_row("user", target, action)) then
+    raise exception 'เงื่อนไขลบบันทึกการใช้งานจับแถวที่ไม่ใช่แถวทดสอบ — ยกเลิกทั้งชุด';
+  end if;
+end $$;
+set local pms.audit_delete = 'test';
+-- ใบ 0245: ฐานเขียนบันทึกสรุปการลบเอง ต้องมีชื่อชุดสำรองก่อนลบ — ค่าตัวอย่างนี้ถูกแทนตอนรัน (ไม่แทน = ฐานปฏิเสธ ไม่ลบ)
+--   ฐานจริง: ชื่อโฟลเดอร์สำรองที่ซ้อมกู้ผ่านแล้ว · รอบตรวจในเครื่อง: scripts/test-prodbuild.mjs แทนให้
+set local pms.audit_backup = '__ชุดสำรองก่อนลบ__';
+delete from public.audit_log
+ where "user" like 'live-%@example.test' or "user" = 'บัญชีทดสอบชั่วคราว' or target like 'ZZT · %' or target = 'ZZT';
+set local pms.audit_delete = '';
+set local pms.audit_backup = '';
+-- ═══ จบบันทึกการใช้งาน ═══
 alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
 alter table public.quotations enable trigger quotations_no_delete_won;
 alter table public.quotations enable trigger trg_price_history_append_only;
