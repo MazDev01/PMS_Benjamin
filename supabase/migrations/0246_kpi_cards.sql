@@ -17,13 +17,16 @@
 -- สิทธิ์: หน้าดีลเลอร์ = สาขาของผู้เรียกเท่านั้น (auth_dealer · ส่งรหัสสาขาอื่นมาไม่มีผล) · หน้า HQ = is_hq()
 -- ข้อทดสอบ: supabase/tests/kpi_cards.sql
 
-/** ใบเสนอราคาหมดอายุวันไหน — ตามที่พิมพ์บนใบ (lib/quotationPrint.ts): expiry ก่อน ไม่มี = วันที่ใบ + อายุใบของสาขา (ตั้งต้น 30) */
+/** ใบเสนอราคาหมดอายุวันไหน — กติกาเดียวกับหน้าเว็บ (lib/quoteExpiry.ts quoteExpiryISO + useQuoteValidity):
+ *  วันหมดอายุที่กรอกในใบก่อน · ไม่มี = วันที่ใบ + อายุใบของสาขา (ตั้งไว้ > 0) · สาขาไม่ตั้ง = อายุใบของ HQ (hq_policy) · ไม่มีทั้งคู่ = 30 */
 create or replace function public._quote_valid_until(q public.quotations) returns date
 language sql stable set search_path = public as $$
   select case
     when q.expiry ~ '^\d{4}-\d{2}-\d{2}' then substring(q.expiry, 1, 10)::date
     when q.date ~ '^\d{4}-\d{2}-\d{2}' then substring(q.date, 1, 10)::date
-      + coalesce((select nullif(s.document ->> 'validityDays', '')::int from dealer_settings s where s.dealer_code = q.dealer_code), 30)
+      + coalesce((select round(nullif(s.document ->> 'validityDays', '')::numeric)::int from dealer_settings s
+                   where s.dealer_code = q.dealer_code and nullif(s.document ->> 'validityDays', '')::numeric > 0),
+                 (select nullif(quote_validity_days, 0) from hq_policy where id = 1), 30)
   end
 $$;
 revoke all on function public._quote_valid_until(public.quotations) from public, anon, authenticated, service_role;
@@ -97,8 +100,9 @@ begin
     elsif p_page = 'dealer.customers' then
       return jsonb_build_object(
         'total',    (select count(*) from customers where dealer_code = สาขา),
-        'new',      (select count(*) from customers where dealer_code = สาขา
-                       and (ช่วงต้น is null or (created_at at time zone 'Asia/Bangkok')::date between ช่วงต้น and ช่วงท้าย)),
+        -- ลูกค้าใหม่ = วันที่เป็นลูกค้า (join_date · ช่องเดียวกับที่หน้าเว็บแสดง/กรอง) อยู่ในช่วง
+        'new',      (select count(*) from customers where dealer_code = สาขา and join_date ~ '^\d{4}-\d{2}-\d{2}'
+                       and (ช่วงต้น is null or substring(join_date, 1, 10)::date between ช่วงต้น and ช่วงท้าย)),
         'sales',    (select coalesce(sum(w.value), 0) from _hd_won(สาขา) w where ช่วงต้น is null or w.d between ช่วงต้น and ช่วงท้าย),
         'openDeal', (select count(distinct customer_id) from leads where dealer_code = สาขา and customer_id is not null
                        and status not in ('PAID', 'CANCELLED')));
@@ -199,7 +203,8 @@ begin
   elsif p_page = 'hq.customers' then
     return jsonb_build_object(
       'total',   (select count(*) from customers where dealer_code <> 'HQ'),
-      'new',     (select count(*) from customers where dealer_code <> 'HQ' and (created_at at time zone 'Asia/Bangkok')::date between ช่วงต้น and ช่วงท้าย),
+      'new',     (select count(*) from customers where dealer_code <> 'HQ' and join_date ~ '^\d{4}-\d{2}-\d{2}'
+                    and substring(join_date, 1, 10)::date between ช่วงต้น and ช่วงท้าย),
       'sales',   (select coalesce(sum(w.value), 0) from _hd_won(null) w where w.d between ช่วงต้น and ช่วงท้าย),
       'dealers', jsonb_build_object('with', (select count(distinct c.dealer_code) from customers c join dealers x on x.code = c.dealer_code where c.dealer_code <> 'HQ'),
                                     'of',   (select count(*) from dealers where code <> 'HQ')));

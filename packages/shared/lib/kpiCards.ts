@@ -42,3 +42,6 @@ export const นับ = (n: number | null) => (n == null ? null : n.toLocaleStr
 export const บาทเต็ม = (n: number | null) => (n == null ? null : `฿${Math.round(n).toLocaleString("th-TH")}`);
 /** ร้อยละ (ไม่มีค่า = null) */
 export const ร้อยละ = (n: number | null, ตำแหน่ง = 0) => (n == null ? null : `${n.toFixed(ตำแหน่ง)}%`);
+
+/** Date → YYYY-MM-DD ตามเวลาเครื่อง (ช่วงจากตัวกรองของหน้า · แบบเดียวกับแดชบอร์ด HQ) */
+export const วันที่ISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

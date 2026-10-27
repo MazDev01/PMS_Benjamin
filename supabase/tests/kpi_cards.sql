@@ -47,8 +47,8 @@ select flowtest.as_root();
 set local session_replication_role = replica;
 insert into dealers (code, name, province, revenue_target, status) values ('ZZK', 'ZZK สาขาทดสอบ KPI', 'ระยอง', 1000000, 'active'),
                                                                          ('ZZI', 'ZZI สาขาเงียบ', 'ตราด', 0, 'active');
-insert into customers (id, dealer_code, name, company, created_at) values
-  (990001, 'ZZK', 'ZZK ลูกค้า 1', 'ZZK ลูกค้า 1', '2026-10-03 10:00+07'), (990002, 'ZZK', 'ZZK ลูกค้า 2', 'ZZK ลูกค้า 2', '2026-01-01 10:00+07');
+insert into customers (id, dealer_code, name, company, join_date) values
+  (990001, 'ZZK', 'ZZK ลูกค้า 1', 'ZZK ลูกค้า 1', '2026-10-03'), (990002, 'ZZK', 'ZZK ลูกค้า 2', 'ZZK ลูกค้า 2', '2026-01-01');
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status, created_date, quote_value, customer_id, last_contact_at) values
   ('#L-ZZK1', 1, 'ZZK', 'ZZK ล1', 'ZZK ล1', '000-000-0001', 'ระยอง', 'WAITING',    '2026-10-05', 100000, 990001, '2026-10-20'),
   ('#L-ZZK2', 2, 'ZZK', 'ZZK ล2', 'ZZK ล2', '000-000-0002', 'ระยอง', 'HQ_PRICING', '2026-10-06', null, null, '2026-10-20'),
@@ -72,6 +72,9 @@ insert into quotations (id, dealer_code, customer, status, total_value, date, ex
   ('ZZK-Q5', 'ZZK', 'ZZK ล7', 'won',            300000, '2026-10-12', null,         7, 990501, 990001),
   ('ZZK-Q6', 'ZZK', 'ZZK ล8', 'won',            200000, '2026-03-01', null,         8, null, 990002),
   ('ZZK-Q7', 'ZZK', 'ZZK ล5', 'superseded',     999999, '2026-10-01', null,         5, null, null);
+-- อายุใบของสาขา 30 วัน (ใบ ZZK-Q4 ไม่มีวันหมดอายุในใบ → 30 ก.ย. + 30 = 30 ต.ค. = ใกล้หมดอายุ)
+insert into dealer_settings (dealer_code, document) values ('ZZK', '{"validityDays": 30}')
+  on conflict (dealer_code) do update set document = excluded.document;
 insert into quotation_won_at (dealer_code, quote_id, won_at) values ('ZZK', 'ZZK-Q5', '2026-10-15 10:00+07'), ('ZZK', 'ZZK-Q6', '2026-03-01 10:00+07');
 insert into appointments (id, dealer_code, company, date, status) values
   (990701, 'ZZK', 'ZZK นัด1', '2026-10-27', 'scheduled'), (990702, 'ZZK', 'ZZK นัด2', '2026-10-28', 'done'),

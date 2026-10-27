@@ -10,12 +10,15 @@ import { useRouter } from "next/navigation";
 import {
   Target, TrendingUp, PhoneCall, Activity, Building2, User,
   CalendarClock, FileText, Trophy, AlarmClock, ChevronRight,
-  UserPlus, CheckCircle2, Mail,
+  UserPlus, CheckCircle2, Mail, Hourglass,
 } from "lucide-react";
 import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { fmtLeadValue } from "@pms/shared/lib/format";
-import { useFilters, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { useFilters, APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, บาทเต็ม, วันที่ISO } from "@pms/shared/lib/kpiCards";
 import { ความละเอียดของช่วง, ช่องเวลาในช่วง, คีย์ช่อง, ยอดรายชั่วโมง } from "@pms/shared/lib/trendBuckets";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -64,7 +67,7 @@ function localISO(d: Date): string {
 
 export default function DealerDashboard() {
   const router = useRouter();
-  const { leads: allLeads, quotations, appointments } = useSales();
+  const { leads: allLeads, quotations, appointments, salesVersion } = useSales();
   const { timeRange, passes } = useFilters();
   const targets = useHQTargets(); // เป้าจาก HQ ผ่าน repo (โหมด supabase = ค่าจริงใน DB ไม่ใช่ default)
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
@@ -319,13 +322,22 @@ export default function DealerDashboard() {
     </span>
   );
 
-  const kpis = [
-    { label: "เป้าหมายยอดขาย", tip: "เป้าหมายยอดขายทั้งปีที่สำนักงานใหญ่กำหนด เทียบกับยอดปิดการขายสะสมตั้งแต่ต้นปี · การ์ดนี้เทียบทั้งปีเสมอ ไม่เปลี่ยนตามช่วงเวลาที่เลือก", Icon: Target, color: "#2563EB", bg: "#E8F0FE", href: "/quotations", ring: true },
-    { label: "โอกาสการขาย", tip: "มูลค่ารวมของดีลที่ยังเปิดอยู่ (ยังไม่ปิดการขาย และยังไม่ยกเลิก)", Icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads", value: baht(openValue), sub1: "รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่", sub2: `${openLeads.length} ดีล` },
-    // การ์ด "ติดตามวันนี้" เอาออก (รอบ 4 · บอสตัดสิน 21 ต.ค. 69) — ซ้ำกับการ์ดรายการ "งานที่ต้องทำวันนี้" ด้านล่าง (นับนัดวันนี้ชุดเดียวกัน)
-    // ตัวเลขหลัก = จำนวนดีลที่ปิดสำเร็จ · อัตราปิดการขาย (%) ลงมาเป็นบรรทัดรอง
-    // ชื่อการ์ดต้องตรงกับหน่วยของตัวเลขที่โชว์ — "ปิดการขายได้" คู่กับ "50%" จะอ่านว่าปิดได้ 50 ดีล
-    { label: "ปิดการขายได้", tip: `จำนวนลูกค้าเป้าหมายที่ปิดการขายสำเร็จ · ${ชื่ออัตราปิดการขาย} = ${คำอธิบายอัตราปิดการขาย} = ${wonCount} ÷ ${wonCount + lostCount}`, Icon: Activity, color: "#0D9488", bg: "#E6F7F5", href: "/customers", value: `${wonCount} ดีล`, sub1: winRate == null ? "ยังไม่มีดีลที่ปิด" : `${ชื่ออัตราปิดการขาย} ${winRate}%` },
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขทุกใบคิดที่ฐาน (kpi_cards · สาขาของผู้ล็อกอิน) ──
+  //   เป้าหมายยอดขาย = เป้าทั้งปีเทียบยอดตั้งแต่ต้นปี (ไม่ขึ้นกับตัวกรอง · ความจำ sales-goal-annual-ytd) · โอกาสการขาย/รอลูกค้าตอบ = ณ ตอนนี้
+  //   ปิดการขายได้ + อัตราปิด = ลีดที่เข้ามาในช่วงที่เลือก (สูตรกลาง lib/winRate.ts เดียวกับฐาน)
+  const ช่วงการ์ด = { start: วันที่ISO(timeRange.start), end: วันที่ISO(timeRange.end) };
+  const kpi = useKpiCards("dealer.dashboard", { ...ช่วงการ์ด, today: วันที่ISO(APP_NOW), รุ่น: salesVersion });
+  const เป้าปี = ค่า(kpi, "target.annual"), ยอดปี = ค่า(kpi, "target.ytd"), อัตราปิด = ค่า(kpi, "won.rate");
+  const kpiCards = [
+    { kpi: "target", label: "เป้าหมายยอดขาย", value: บาทเต็ม(เป้าปี), rawValue: เป้าปี, unit: "เป้าหมายทั้งปี", empty: kpi ? "ยังไม่ได้ตั้งเป้า" : "กำลังโหลด…",
+      sub: ยอดปี == null ? undefined : `ยอดขายสะสมทั้งปี ${บาทเต็ม(ยอดปี)}`, ring: ค่า(kpi, "target.pct"), icon: Target, href: "/quotations" },
+    { kpi: "pipeline", label: "โอกาสการขาย", value: บาทเต็ม(ค่า(kpi, "pipeline.value")), rawValue: ค่า(kpi, "pipeline.value"),
+      unit: `${นับ(ค่า(kpi, "pipeline.count")) ?? "—"} ดีล · ยอดใบล่าสุดของงานที่เปิดอยู่`, icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads" },
+    { kpi: "awaiting", label: "รอลูกค้าตอบ", value: นับ(ค่า(kpi, "awaiting.count")), rawValue: ค่า(kpi, "awaiting.count"),
+      unit: "ใบ · ส่งให้ลูกค้าแล้ว", sub: ค่า(kpi, "awaiting.value") == null ? undefined : `มูลค่า ${บาทเต็ม(ค่า(kpi, "awaiting.value"))}`, icon: Hourglass, color: "#EA580C", bg: "#FEF0E6", href: "/quotations?kpi=awaiting" },
+    // ชื่อการ์ดต้องตรงกับหน่วยของตัวเลข — ตัวเลขหลัก = จำนวนดีล · อัตราปิด (%) เป็นบรรทัดรอง
+    { kpi: "won", label: "ปิดการขายได้", value: นับ(ค่า(kpi, "won.count")), rawValue: ค่า(kpi, "won.count"), unit: "ดีล · ลีดที่เข้ามาในช่วงที่เลือก",
+      sub: อัตราปิด == null ? "ยังไม่มีดีลที่ปิด" : `${ชื่ออัตราปิดการขาย} ${อัตราปิด}% (${คำอธิบายอัตราปิดการขาย})`, icon: Activity, color: "#0D9488", bg: "#E6F7F5", href: "/customers" },
   ];
   // ไอคอน (i) ท้ายชื่อการ์ดถูกเอาออกตามที่บอสสั่ง (25 ส.ค. 69) — เหตุผลเดียวกับแดชบอร์ดสำนักงานใหญ่
   const KpiLabel = ({ label }: { label: string; tip?: string }) => (
@@ -349,44 +361,13 @@ export default function DealerDashboard() {
       {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้าทั้ง HQ และดีลเลอร์ (บอสสั่ง 14 ส.ค. 69)
           ชื่อสาขาและช่วงเวลายังอ่านได้จากแถบบน/ตัวกรอง — ไม่ต้องเขียนซ้ำใต้ชื่อหน้า */}
 
-      {/* SECTION 1 — 3 KPI (ทั้งใบกดได้) · ตะแกรง 4 ช่องเดิม การ์ดขนาดเท่าทุกหน้า */}
-      <div className="dash-kpis" style={{ marginBottom: 24 }}>
-        {kpis.map(k => (
-          <button key={k.label} onClick={() => router.push(k.href)} className="card clickable dash-tile"
-            title={`ไปที่ ${k.label}`} style={kpiCard}>
-            {k.ring ? (
-              <>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, width: "100%" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <KpiLabel label={k.label} tip={k.tip} />
-                    <div style={{ ...num, marginTop: 6 }}>{annualTarget > 0 ? baht(annualTarget) : "—"}</div>
-                    <div style={{ ...sub, marginTop: 2 }}>{annualTarget > 0 ? "เป้าหมายทั้งปี" : "ยังไม่ได้ตั้งเป้า"}</div>
-                  </div>
-                  <ProgressRing pct={achievePct} size={50} />
-                </div>
-                <div>
-                  <div style={{ fontSize: "1.15rem", fontWeight: 800, color: NAVY, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{baht(ytdSales)}</div>
-                  <div style={sub}>ยอดขายสะสมทั้งปี</div>
-                </div>
-                {detailHint}
-              </>
-            ) : (
-              <>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, width: "100%" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <KpiLabel label={k.label} tip={k.tip} />
-                    <div style={{ ...num, marginTop: 6 }}>{k.value}</div>
-                    <div style={{ ...sub, marginTop: 2 }}>{k.sub1}</div>
-                    {k.sub2 && <div style={{ fontSize: "1.15rem", fontWeight: 800, color: TEXT, marginTop: 6, fontVariantNumeric: "tabular-nums" }}>{k.sub2}</div>}
-                  </div>
-                  <IconBox Icon={k.Icon} color={k.color} bg={k.bg} />
-                </div>
-                {detailHint}
-              </>
-            )}
-          </button>
+      {/* SECTION 1 — การ์ด KPI 4 ใบ (คอมโพเนนต์กลาง · ทั้งใบกดได้ ไปรายการที่ตรงเรื่อง) */}
+      <KpiRow label="สรุปงานขายของสาขา" range={ช่วงการ์ด} style={{ marginBottom: 24 }}>
+        {kpiCards.map(k => (
+          <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={k.value} rawValue={k.rawValue} unit={k.unit} empty={k.empty} sub={k.sub}
+            ring={"ring" in k ? k.ring : undefined} icon={k.icon} color={k.color} bg={k.bg} actionLabel="ดูรายละเอียด" onClick={() => router.push(k.href)} />
         ))}
-      </div>
+      </KpiRow>
 
       {/* SECTION 2 — 2 กราฟใหญ่ · แต่ละใบมีปุ่มช่วงย้อนหลังของตัวเอง (3/6/12 เดือน) เป็นอิสระจากกัน
           ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
