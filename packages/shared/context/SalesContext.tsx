@@ -404,7 +404,7 @@ export function SalesProvider({
   useEffect(() => { setSalesVersion(v => v + 1); }, [leads, quotations, customers, appointments]);
   const refreshSales = useCallback(() => setSalesVersion(v => v + 1), []);
   const persistAppt = useRef({
-    create: (a: AppointmentMock) => { bumpWrite(); void appointmentsRepo.create(a).catch(onFail("appointments", "สร้างนัดหมาย")); },
+    create: (a: AppointmentMock): Promise<unknown> => { bumpWrite(); return appointmentsRepo.create(a).catch(onFail("appointments", "สร้างนัดหมาย")); },
     update: (a: AppointmentMock) => { bumpWrite(); void appointmentsRepo.update(a).catch(onFail("appointments", "แก้ไขนัดหมาย")); },
     remove: (id: number) => { bumpWrite(); void appointmentsRepo.remove(id).catch(onFail("appointments", "ลบนัดหมาย")); },
   }).current;
@@ -557,7 +557,10 @@ export function SalesProvider({
   //
   // ⚠️ ต่อท้ายเสมอ (เก่าอยู่บน ใหม่อยู่ล่าง) ให้ตรงกับลำดับที่หน้าจอแสดง
   // ⚠️ best-effort: บันทึกไม่ลงต้องไม่ทำให้การกระทำหลักล้ม (ออกใบสำเร็จแล้วแต่จดประวัติไม่ได้ = ยังดีกว่าออกใบไม่ได้)
+  // ⛔ โหมดฐาน: ไทม์ไลน์ของขั้นใบ/นัดหมาย ฐานจดเองในคำสั่งเดียวกัน (ใบ 0210 · 0248) — หน้าเว็บห้ามส่งคำสั่งตามหลัง
+  //   (ปิดหน้าทันทีหลังกด = บรรทัดหาย · ตัวตรวจ scripts/check-no-client-timeline.mjs) · เหลือไว้ให้โหมดตัวอย่าง (ไม่มีฐาน)
   const logLeadActivity = useCallback((dealId: number | undefined, text: string, type = "task") => {
+    if (USE_SUPABASE) return;
     if (dealId == null) return;
     const lead = leadsRef.current.find(l => l.numId === dealId);
     if (!lead) return;
@@ -661,6 +664,7 @@ export function SalesProvider({
   // (งาน "ส่งแม่แบบให้ลูกค้า" เลิกใช้แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   // (งานไม่เลื่อนสถานะแล้ว — รอบ 4 · ใบ 0232)
   const completeLeadQuoteTasks = useCallback((quotation: QuotationMock, keys: string[]) => {
+    if (USE_SUPABASE) return;   // โหมดฐาน: ฐานติ๊กเอง (ใบ 0210 · 0248) — ดู logLeadActivity
     for (const l of leadsRef.current) {
       // กันเขียนข้ามสาขา: แตะเฉพาะลูกค้าเป้าหมายของสาขาที่ล็อกอิน (ลูกค้าเป้าหมายไม่ระบุ dealerCode = CNX) — ดู branch-isolation.spec.ts
       if ((l.dealerCode ?? DEFAULT_DEALER_CODE) !== myDealerCode) continue;
@@ -694,6 +698,18 @@ export function SalesProvider({
   // สร้างใบใหม่ = ออกเลข + insert แบบ atomic (H8) — รับ draft ที่ "ยังไม่มี id" · DB เป็นคนออกเลข
   // เดิมแยกเป็น newQuoteId() แล้ว addQuotation(withId) → insert ล้มหลังออกเลข = เลขหาย
   // ตอนนี้เดินผ่าน createNumbered ทางเดียว: await ให้บันทึกจริงก่อน แล้วค่อยอัปเดตจอ (ไม่ optimistic แต่ถูกต้อง)
+  // โหมดฐาน: ฐานเขียนลีดเองหลังขั้นของใบ/นัดหมาย (ใบ 0210 · 0248) → อ่านแถวจริงกลับมาโชว์ · อ่านไม่ได้ไม่เสียอะไร (ข้อมูลอยู่ในฐานแล้ว)
+  const ดึงลีดของดีลกลับ = useCallback((dealId: number | undefined, ที่มา: string) => {
+    if (!USE_SUPABASE || dealId == null) return;
+    const ลีด = leadsRef.current.find(l => l.numId === dealId && (l.dealerCode ?? DEFAULT_DEALER_CODE) === myDealerCode);
+    if (!ลีด) return;
+    void leadsRepo.get(ลีด.id).then(fresh => {
+      if (!fresh) return;
+      leadsRef.current = leadsRef.current.map(l => l.id !== ลีด.id ? l : { ...l, ...fresh });
+      setLeads(prev => prev.map(l => l.id !== ลีด.id ? l : { ...l, ...fresh }));
+    }).catch(e => logRepoRead(`leads.get(${ที่มา})`, e));
+  }, [myDealerCode]);
+
   const createQuotation = useCallback(async (draft: Omit<QuotationMock, "id">): Promise<QuotationMock> => {
     // สแนปช็อตโปรไฟล์บริษัท ณ ตอนสร้าง + ติด dealerCode สาขาที่ล็อกอิน (multi-tenant)
     const base = { ...draft, issuer: draft.issuer ?? issuerRef.current, dealerCode: draft.dealerCode ?? myDealerCode };
@@ -704,14 +720,7 @@ export function SalesProvider({
       // ฐานจริง: ติ๊กงาน · จดกิจกรรม · แถวไฟล์ของใบ ฐานทำเองในธุรกรรมเดียวกับการสร้างใบ (ใบ 0210 · 15 ต.ค. 69)
       //   เดิมยิงคำสั่งเขียนตามหลัง 3 คำสั่ง (เขียนลูกค้าเป้าหมายทั้งแถวทับ) — เปลี่ยนหน้าเร็ว = ลูกค้าเป้าหมายไม่ครบ
       //   ตรงนี้แค่อ่านกลับมาโชว์ · อ่านไม่สำเร็จไม่เสียอะไร (ข้อมูลอยู่ในฐานแล้ว)
-      const ลีด = created.dealId != null ? leadsRef.current.find(l => l.numId === created.dealId && (l.dealerCode ?? DEFAULT_DEALER_CODE) === myDealerCode) : undefined;
-      if (ลีด) {
-        void leadsRepo.get(ลีด.id).then(fresh => {
-          if (!fresh) return;
-          leadsRef.current = leadsRef.current.map(l => l.id !== ลีด.id ? l : { ...l, ...fresh });
-          setLeads(prev => prev.map(l => l.id !== ลีด.id ? l : { ...l, ...fresh }));
-        }).catch(e => logRepoRead("leads.get(หลังสร้างใบ)", e));
-      }
+      ดึงลีดของดีลกลับ(created.dealId, "หลังสร้างใบ");
       return created;
     }
     // โหมดตัวอย่าง (ไม่มีฐาน): ทำที่แอปเหมือนเดิม
@@ -720,7 +729,7 @@ export function SalesProvider({
       logLeadActivity(created.dealId, `ออกใบเสนอราคา ${created.id} (${created.revision ?? "V1"}) · ยอด ${created.total}`, "doc");
     syncQuoteFile.add(created); // auto-link → ไฟล์ (หมวดใบเสนอราคา) ผูกกับลูกค้าเป้าหมาย/ลูกค้า
     return created;
-  }, [completeLeadQuoteTasks, myDealerCode, syncQuoteFile, bumpWrite]);
+  }, [completeLeadQuoteTasks, myDealerCode, syncQuoteFile, bumpWrite, ดึงลีดของดีลกลับ]);
 
   /** แปลง "ใบก่อน → ใบหลัง" เป็นบรรทัดกิจกรรมที่คนอ่านรู้เรื่อง
    *  ส่งใบ / ขึ้นเวอร์ชันใหม่ / แก้ยอด — เขียนคนละแบบ ไม่เหมารวมเป็น "แก้ไขใบ" เฉย ๆ */
@@ -776,7 +785,7 @@ export function SalesProvider({
     const needsReconcile = quotation.customerId && quotation.customerId > 0 && (quotation.status === "won" || before?.status === "won");
     const ปล่อยลีด = before?.status !== quotation.status ? กั้นลีดระหว่างฐานขยับ(quotation) : () => {};
     if (!needsReconcile) {
-      void Promise.resolve(persistQuote.update(quotation)).finally(ปล่อยลีด);
+      void Promise.resolve(persistQuote.update(quotation)).finally(() => { ปล่อยลีด(); ดึงลีดของดีลกลับ(quotation.dealId, "หลังแก้ใบ"); });
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
       จดกิจกรรมของใบ(before, quotation);
       return;
@@ -789,7 +798,7 @@ export function SalesProvider({
       } catch (e) {
         onFail("quotations", "แก้ไขใบเสนอราคา")(e);
         return;
-      } finally { ปล่อยลีด(); }
+      } finally { ปล่อยลีด(); ดึงลีดของดีลกลับ(quotation.dealId, "หลังแก้ใบ"); }
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
       จดกิจกรรมของใบ(before, quotation);
       try {
@@ -798,7 +807,7 @@ export function SalesProvider({
         onFail("customers", "คำนวณยอดลูกค้าใหม่")(e);
       }
     })();
-  }, [completeLeadQuoteTasks, persistQuote, reconcileCustomerTotal, แทนที่ใบเดิมบนจอ]);
+  }, [completeLeadQuoteTasks, persistQuote, reconcileCustomerTotal, แทนที่ใบเดิมบนจอ, ดึงลีดของดีลกลับ]);
 
   // ── ส่งใบให้ลูกค้า (ใบ 0238 · บอสสั่ง 22 ต.ค. 69) ──────────────────────────────────────────────────────
   // เดิมส่ง = updateQuotation({ ...ใบบนจอ, status }) เขียน "ทั้งแถว" จากหน้าจอ → หน้าจอค้างรุ่นเก่า (ข่าวอัปเดตสดมาช้า) = ลูกค้าได้ยอดเก่า
@@ -823,9 +832,9 @@ export function SalesProvider({
     } catch (e) {
       onFail("quotations", "ส่งใบเสนอราคา")(e);   // แจ้งผู้ใช้ + โหลดรายการจากฐานกลับมา (สถานะบนจอย้อนเอง)
       return false;
-    } finally { ปล่อยลีด(); }
+    } finally { ปล่อยลีด(); ดึงลีดของดีลกลับ(before.dealId, "หลังส่งใบ"); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completeLeadQuoteTasks, จดกิจกรรมของใบ, แทนที่ใบเดิมบนจอ, myDealerCode, bumpWrite]);
+  }, [completeLeadQuoteTasks, จดกิจกรรมของใบ, แทนที่ใบเดิมบนจอ, myDealerCode, bumpWrite, ดึงลีดของดีลกลับ]);
 
   const deleteQuotation = useCallback((id: string) => {
     const removed = quotationsRef.current.find(q => q.id === id);
@@ -886,7 +895,8 @@ export function SalesProvider({
       const needsReconcile = target.customerId && target.customerId > 0 && (status === "won" || prevStatus === "won");
       if (!needsReconcile) {
         bumpWrite();
-        void quotationsRepo.setStatus(id, status).catch(onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")).finally(ปล่อยลีด);
+        void quotationsRepo.setStatus(id, status).catch(onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา"))
+          .finally(() => { ปล่อยลีด(); ดึงลีดของดีลกลับ(target.dealId, "หลังเปลี่ยนสถานะใบ"); });
         return;
       }
       // เปลี่ยนสถานะ + รวมยอดลูกค้าใหม่ในทรานแซกชันเดียว (0102) — เดิมเรียก setStatus แล้วค่อย reconcile
@@ -899,7 +909,7 @@ export function SalesProvider({
         } catch (e) {
           onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")(e);
           setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status: prevStatus ?? q.status }));
-        } finally { ปล่อยลีด(); }
+        } finally { ปล่อยลีด(); ดึงลีดของดีลกลับ(target.dealId, "หลังเปลี่ยนสถานะใบ"); }
       })();
     };
     const linkable = status === "won" && !(target.customerId && target.customerId > 0);
@@ -919,12 +929,12 @@ export function SalesProvider({
         } catch {
           // ล้มเหลว (error ถูกแจ้งแล้วในตัว convertLeadToCustomer) → ย้อนสถานะใบใน UI
           setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status: prevStatus ?? "sent_to_client" }));
-        } finally { ปล่อยลีด(); }
+        } finally { ปล่อยลีด(); ดึงลีดของดีลกลับ(target.dealId, "หลังตอบรับ"); }
       })();
       return;
     }
     ทำสถานะตามปกติ();
-  }, [completeLeadQuoteTasks, convertLeadToCustomer, persistQuote, ensureLeads, แทนที่ใบเดิมบนจอ]);
+  }, [completeLeadQuoteTasks, convertLeadToCustomer, persistQuote, ensureLeads, แทนที่ใบเดิมบนจอ, ดึงลีดของดีลกลับ]);
 
   // เลขที่ใบเสนอราคาถัดไป — ผ่าน repo (supabase: RPC next_quote_no atomic · local: max+1)
   // คำนำหน้าเป็นค่าคงที่ของระบบ (QUOTE_PREFIX) — รูปแบบเต็ม Q-{รหัสสาขา}-{ปีปัจจุบัน}-{เลขรัน}
@@ -959,6 +969,7 @@ export function SalesProvider({
    *     ทั้งที่เป็นงานเดียวกัน (บอสสั่งแก้ 3 ก.ย. 69) · กติกาเดียวกับงานใบเสนอราคา
    *  ลูกค้าเป้าหมายที่ปิดแล้ว (สำเร็จ/ไม่สำเร็จ) ไม่แตะ — ประวัติที่ปิดไปแล้วต้องคงที่ */
   const completeAppointmentTask = useCallback((leadNumId: number | undefined) => {
+    if (USE_SUPABASE) return;   // โหมดฐาน: ฐานติ๊กเอง (ใบ 0248 · appointments_insert_lead_sync)
     const def = findAppointmentTask(taskTplRef.current);
     // นัดที่ไม่ได้ผูกกับลูกค้าเป้าหมาย (เช่นนัดภายใน) ไม่มีงานให้ติ๊ก
     if (!def || !leadNumId) return;
@@ -974,11 +985,11 @@ export function SalesProvider({
     // ติด dealerCode ของสาขาที่ล็อกอิน (multi-tenant) — นัดใหม่เป็นของสาขานั้น (RLS with-check ฝั่ง supabase)
     const tagged: AppointmentMock = { ...appt, dealerCode: appt.dealerCode ?? myDealerCode };
     setAppointments(prev => [...prev, tagged]);
-    persistAppt.create(tagged);
+    void persistAppt.create(tagged).then(() => ดึงลีดของดีลกลับ(tagged.leadId, "หลังลงนัด"));   // โหมดฐาน: ฐานติ๊กงาน+จดไทม์ไลน์เอง (ใบ 0248)
     completeAppointmentTask(tagged.leadId);   // ลงนัดแล้ว = ติ๊กงาน "นัดหมาย" ให้เอง
     // นัดหมายเป็นการกระทำกับดีลโดยตรง — ต้องอยู่ในไทม์ไลน์ด้วย (บอสสั่ง 21 ส.ค. 69)
     logLeadActivity(tagged.leadId, `นัดหมาย ${tagged.date}${tagged.time ? ` ${tagged.time} น.` : ""}${tagged.note ? ` · ${tagged.note}` : ""}`, "meeting");
-  }, [myDealerCode, persistAppt, logLeadActivity, completeAppointmentTask]);
+  }, [myDealerCode, persistAppt, logLeadActivity, completeAppointmentTask, ดึงลีดของดีลกลับ]);
   const updateAppointment = useCallback((appt: AppointmentMock) => {
     setAppointments(prev => prev.map(a => a.id !== appt.id ? a : appt));
     persistAppt.update(appt);
