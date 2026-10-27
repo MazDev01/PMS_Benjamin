@@ -1,5 +1,5 @@
 {
- "migration": "0244",
+ "migration": "0245",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -205,6 +205,13 @@
    "definer": true
   },
   {
+   "f": "audit_log_cleanup_summary()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "audit_log_guard()",
    "anon": false,
    "authenticated": false,
@@ -212,7 +219,7 @@
    "definer": true
   },
   {
-   "f": "audit_test_cleanup(p_ids bigint[], p_action_like text, p_target_like text)",
+   "f": "audit_test_cleanup(p_ids bigint[], p_action_like text, p_target_like text, p_backup text)",
    "anon": false,
    "authenticated": false,
    "service_role": true,

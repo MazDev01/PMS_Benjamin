@@ -26,9 +26,13 @@ do $$ begin
   end if;
 end $$;
 set local pms.audit_delete = 'test';
+-- ใบ 0245: ฐานเขียนบันทึกสรุปการลบเอง ต้องมีชื่อชุดสำรองก่อนลบ — ค่าตัวอย่างนี้ถูกแทนตอนรัน (ไม่แทน = ฐานปฏิเสธ ไม่ลบ)
+--   ฐานจริง: ชื่อโฟลเดอร์สำรองที่ซ้อมกู้ผ่านแล้ว · รอบตรวจในเครื่อง: scripts/test-prodbuild.mjs แทนให้
+set local pms.audit_backup = '__ชุดสำรองก่อนลบ__';
 delete from public.audit_log
  where "user" like 'live-%@example.test' or "user" = 'บัญชีทดสอบชั่วคราว' or target like 'ZZT · %' or target = 'ZZT';
 set local pms.audit_delete = '';
+set local pms.audit_backup = '';
 -- ═══ จบบันทึกการใช้งาน ═══
 -- แจ้งเตือน (ใบ 0231): ของสาขา ZZT หายตามกุญแจนอกตอนลบสาขา · ของ HQ ที่เกิดจากงานของ ZZT (ไม่มีรหัสสาขา) ต้องลบเอง
 --   ใบ 0231 ยังไม่ขึ้นฐานจริง = ไม่มีตาราง → ข้าม (to_regclass)

@@ -42,8 +42,10 @@ function ล้าง() {
     delete from public.dealers where code in ('${สาขา}', '${สาขาว่าง}');
     -- บันทึกการใช้งานลบได้เฉพาะแถวทดสอบ ผ่านสวิตช์ล้างข้อมูลทดสอบ (ใบ 0241) — แถวที่หน้าตาเหมือนจริงติดป้าย ZZTEST ที่การกระทำ
     select set_config('pms.audit_delete', 'test', false);
+    select set_config('pms.audit_backup', 'ฐานทดสอบ (ข้อทดสอบแดชบอร์ด)', false);   -- ใบ 0245
     delete from public.audit_log where target like '%แดชบอร์ด-${ป้าย}%';
-    select set_config('pms.audit_delete', '', false);`);
+    select set_config('pms.audit_delete', '', false);
+    select set_config('pms.audit_backup', '', false);`);
 }
 
 test.beforeAll(() => {

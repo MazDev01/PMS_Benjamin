@@ -14,7 +14,8 @@ import { อาร์กิวเมนต์psql, คอนเทนเนอ�
 let ตก = 0;
 const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถูก) ตก++; console.log(`${ถูก ? "✓" : "✗"} ${ชื่อ}${ถูก ? "" : `\n${String(เพิ่ม).slice(0, 1500)}`}`); };
 
-const ลบ = readFileSync("tests/prod-live/cleanup.sql", "utf8").replace(/\r\n/g, "\n");
+const ลบ = readFileSync("tests/prod-live/cleanup.sql", "utf8").replace(/\r\n/g, "\n")
+  .replaceAll("__ชุดสำรองก่อนลบ__", "ฐานทดสอบ (ข้อทดสอบ audit-cleanup)");   // ใบ 0245: ต้องมีชื่อชุดสำรอง
 const นับ = readFileSync("tests/prod-live/cleanup-audit-count.sql", "utf8").replace(/\r\n/g, "\n");
 const ขั้น = /-- ═══ บันทึกการใช้งาน[^\n]*\n([\s\S]*?)-- ═══ จบบันทึกการใช้งาน ═══/.exec(ลบ)?.[1] ?? "";
 ผล(!!ขั้น, "cleanup.sql มีขั้นล้างบันทึกการใช้งาน (หัว/ท้ายขั้นครบ)");
