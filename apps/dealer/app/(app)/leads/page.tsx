@@ -970,7 +970,7 @@ export default function LeadsPage() {
       return 0;
     });
     return arr;
-  }, [leadsData, ตรงตัวกรองพื้นฐาน, filterStatus, sortKey, sortDir, followUpDays]);
+  }, [leadsData, ตรงตัวกรองพื้นฐาน, filterStatus, sortKey, sortDir, followUpDays, ขั้นจากการ์ด, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // จำนวนลูกค้าเป้าหมายที่ต้องรีบติดตาม (ขาดการติดต่อเกินเกณฑ์กฎธุรกิจ) — สำหรับแจ้งเตือน "ด่วน"
   const followUpCount = useMemo(() => leadsData.filter(l => needsFollowUp(l, followUpAlertDays)).length, [leadsData, followUpAlertDays]);

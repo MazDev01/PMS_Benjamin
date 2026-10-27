@@ -139,22 +139,29 @@ begin
   elsif p_page = 'hq.proposals' then
     return (select jsonb_build_object(
       'waiting',  (select count(*) from dealer_package_proposals where status = 'sent'),
-      'unpaid',   jsonb_build_object('count', count(*) filter (where ค้าง > 0), 'amount', coalesce(sum(ค้าง) filter (where ค้าง > 0), 0)),
+      -- ids = เลขใบ ให้หน้าเว็บกรองตารางตรงกับตัวเลข (กดการ์ด) — ฐานตัดสินว่าใบไหนค้าง/เกินกำหนด ไม่คิดซ้ำในเบราว์เซอร์
+      'unpaid',   jsonb_build_object('count', count(*) filter (where ค้าง > 0), 'amount', coalesce(sum(ค้าง) filter (where ค้าง > 0), 0),
+                                     'ids', coalesce(jsonb_agg(id order by id) filter (where ค้าง > 0), '[]'::jsonb)),
       'overdue',  jsonb_build_object('count', count(*) filter (where ค้าง > 0 and payment_due_on < วันนี้),
-                                     'amount', coalesce(sum(ค้าง) filter (where ค้าง > 0 and payment_due_on < วันนี้), 0)),
-      'paid',     (select jsonb_build_object('count', count(*), 'amount', coalesce(sum(x.amount), 0)) from dealer_proposal_payments x
+                                     'amount', coalesce(sum(ค้าง) filter (where ค้าง > 0 and payment_due_on < วันนี้), 0),
+                                     'ids', coalesce(jsonb_agg(id order by id) filter (where ค้าง > 0 and payment_due_on < วันนี้), '[]'::jsonb)),
+      'paid',     (select jsonb_build_object('count', count(*), 'amount', coalesce(sum(x.amount), 0),
+                                             'ids', coalesce(jsonb_agg(distinct x.proposal_id), '[]'::jsonb)) from dealer_proposal_payments x
                     where x.cancelled_at is null and x.paid_on between ช่วงต้น and ช่วงท้าย))
-      from (select p.payment_due_on, coalesce(p.amount, 0) - coalesce((select sum(x.amount) from dealer_proposal_payments x
-                                                                        where x.proposal_id = p.id and x.cancelled_at is null), 0) as ค้าง
+      from (select p.id, p.payment_due_on, coalesce(p.amount, 0) - coalesce((select sum(x.amount) from dealer_proposal_payments x
+                                                                              where x.proposal_id = p.id and x.cancelled_at is null), 0) as ค้าง
               from dealer_package_proposals p where p.status = 'accepted') y);
 
   elsif p_page = 'hq.dealers' then
     return (select jsonb_build_object(
       'total',    count(*),
       'active',   count(*) filter (where status = 'active'),
-      'moving',   count(*) filter (where _dealer_active_since(code, วันนี้ - 30)),
-      'idle',     count(*) filter (where not _dealer_active_since(code, วันนี้ - 30)))
-      from dealers where code <> 'HQ');
+      'moving',   count(*) filter (where เคลื่อนไหว),
+      'idle',     count(*) filter (where not เคลื่อนไหว),
+      -- รหัสสาขา ให้หน้าเว็บกรองตารางตรงกับตัวเลข (กดการ์ด) — ฐานตัดสินว่าสาขาไหนเคลื่อนไหว
+      'movingCodes', coalesce(jsonb_agg(code order by code) filter (where เคลื่อนไหว), '[]'::jsonb),
+      'idleCodes',   coalesce(jsonb_agg(code order by code) filter (where not เคลื่อนไหว), '[]'::jsonb))
+      from (select code, status, _dealer_active_since(code, วันนี้ - 30) as เคลื่อนไหว from dealers where code <> 'HQ') x);
 
   elsif p_page = 'hq.pipeline' then
     if p_dealer is null then select annual_target into เป้า from hq_targets where id = 1;

@@ -12,14 +12,17 @@
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · ออกใบ/เปลี่ยนสถานะ = ผู้มีสิทธิ์จัดการดีลเลอร์ (RLS 0172 บังคับซ้ำ)
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Send, CheckCircle2, Percent, Search, X, Eye, Printer, MapPin, ExternalLink, Coins } from "lucide-react";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, บาทเต็ม, เดือนนี้ } from "@pms/shared/lib/kpiCards";
+import { FileText, Send, AlarmClock, Search, X, Eye, Printer, MapPin, ExternalLink, Coins, Wallet } from "lucide-react";
 import { proposals as proposalsRepo, prospects as prospectsRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
 import type { DealerPackage, DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
 import { PACKAGE_ORDER, PROPOSAL_STATUS_ORDER, packageLabel, proposalStatusLabel, proposalStatusColor, มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว } from "@pms/shared/lib/dealerProposals";
 import { ProposalPaymentsBox } from "@pms/shared/components/hq/ProposalPaymentsBox";
 import { useProposalActions } from "@pms/shared/components/hq/useProposalActions";
 import { useRole } from "@pms/shared/context/RoleContext";
-import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
@@ -61,6 +64,9 @@ export default function HQProposalsPage() {
   const [packageFilter, setPackageFilter] = useState<"all" | DealerPackage>("all");
   // ?overdue=1 (แถว "วันนี้ต้องทำ" ของแดชบอร์ด) = เฉพาะใบค้างชำระ — รายการเลขใบมาจากตัวคำนวณเดียวกับแดชบอร์ด (hq_dashboard · ใบ 0235)
   const [ค้างชำระ, setค้างชำระ] = useState<Set<number> | null>(null);
+  // ชุดเลขใบที่กรองอยู่มาจากไหน (การ์ด KPI · ใบ 0246 / ลิงก์แดชบอร์ด) — ป้ายบนชิปกรอง
+  const [ป้ายชุด, setป้ายชุด] = useState("เฉพาะใบค้างชำระ");
+  const ช่วงเดือนนี้ = useMemo(() => เดือนนี้(APP_NOW.getTime()), []);
   const [page, setPage] = useState(0);
 
   const [ดูรหัส, setดูรหัส] = useState<number | null>(null);
@@ -84,11 +90,12 @@ export default function HQProposalsPage() {
     const เปิด = (search: string) => {
       const u = new URLSearchParams(search);
       // ?q= (กิจกรรมล่าสุดของแดชบอร์ด) = ค้นเลขที่ใบ · ?overdue=1 = เฉพาะใบค้างชำระ
+      if (u.get("kpi") === "waiting") { window.history.replaceState(null, "", window.location.pathname); setStatusFilter("sent"); setPage(0); return; }
       if (u.get("q") || u.get("overdue")) {
         window.history.replaceState(null, "", window.location.pathname);
         if (u.get("q")) { setQ(u.get("q") ?? ""); setPage(0); }
         if (u.get("overdue")) void metricsRepo.hqDashboard(APP_NOW_ISO, APP_NOW_ISO, null, APP_NOW_ISO)
-          .then(d => { setค้างชำระ(new Set(d.today.franchiseOverdue.ids)); setPage(0); })
+          .then(d => { setป้ายชุด("เฉพาะใบค้างชำระ"); setค้างชำระ(new Set(d.today.franchiseOverdue.ids)); setPage(0); })
           .catch(e => setLoadErr(friendlyError(e, "โหลดรายการใบค้างชำระไม่สำเร็จ")));
         return;
       }
@@ -121,17 +128,14 @@ export default function HQProposalsPage() {
     });
   }, [ใบ, statusFilter, packageFilter, q, รายตามรหัส, ค้างชำระ]);
 
-  // การ์ดคิดจาก "ผลที่กรองอยู่" — ตรงกับตาราง · อัตราตอบรับคิดจากใบที่ได้คำตอบแล้วเท่านั้น (ยังไม่มี = "—")
-  const สรุป = useMemo(() => {
-    const ตอบรับ = filtered.filter(p => p.status === "accepted").length;
-    const ปฏิเสธ = filtered.filter(p => p.status === "rejected").length;
-    return {
-      ทั้งหมด: filtered.length,
-      รอคำตอบ: filtered.filter(p => p.status === "sent").length,
-      ตอบรับ,
-      อัตราตอบรับ: ตอบรับ + ปฏิเสธ > 0 ? Math.round((ตอบรับ / (ตอบรับ + ปฏิเสธ)) * 100) : null,
-    };
-  }, [filtered]);
+  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ทั้งหมด ไม่ขึ้นกับตัวกรองของตาราง
+  //   ไม่มีตัวกรองช่วงเวลา → รับชำระ = เดือนนี้ (บอสตัดสิน 27 ต.ค. 69) · ค้าง/เกินกำหนด/รับชำระ: ฐานส่งเลขใบมาให้กรองตารางตรงกับตัวเลข
+  const kpi = useKpiCards("hq.proposals", { ...ช่วงเดือนนี้, today: APP_NOW_ISO, รุ่น: ใบ.map(p => `${p.id}:${p.status}`).join(",") });
+  const กรองชุด = (คีย์: "unpaid" | "overdue" | "paid", ป้าย: string) => {
+    const ids = ((kpi?.[คีย์] as { ids?: number[] } | undefined)?.ids ?? []).map(Number);
+    const ซ้ำ = !!ค้างชำระ && ป้ายชุด === ป้าย;
+    setStatusFilter("all"); setป้ายชุด(ป้าย); setค้างชำระ(ซ้ำ ? null : new Set(ids)); setPage(0);
+  };
 
   const ใบที่ดู = ดูรหัส == null ? null : ใบ.find(p => p.id === ดูรหัส) ?? null;
   const รายของใบที่ดู = ใบที่ดู ? รายตามรหัส.get(ใบที่ดู.prospectId) ?? null : null;
@@ -159,13 +163,20 @@ export default function HQProposalsPage() {
             หน้านี้ = รายการ · ติดตามชำระ · พิมพ์ */}
       </TopbarActions>
 
-      {/* สรุป — 4 ใบตามกติกากลาง (globals.css: ทุกหน้าใช้ KPI 4 ใบเท่ากัน) */}
-      <div className="kpi-bar">
-        <div className="kpi"><div className="kpi-icon kpi-navy"><FileText size={16} /></div><div><div className="kpi-val">{สรุป.ทั้งหมด.toLocaleString()}</div><div className="kpi-label">ใบที่แสดงอยู่</div></div></div>
-        <div className="kpi"><div className="kpi-icon kpi-navy"><Send size={16} /></div><div><div className="kpi-val">{สรุป.รอคำตอบ.toLocaleString()}</div><div className="kpi-label">ส่งแล้ว รอคำตอบ</div></div></div>
-        <div className="kpi"><div className="kpi-icon kpi-green"><CheckCircle2 size={16} /></div><div><div className="kpi-val">{สรุป.ตอบรับ.toLocaleString()}</div><div className="kpi-label">ตอบรับ</div></div></div>
-        <div className="kpi"><div className="kpi-icon kpi-green"><Percent size={16} /></div><div><div className="kpi-val">{สรุป.อัตราตอบรับ === null ? "—" : `${สรุป.อัตราตอบรับ}%`}</div><div className="kpi-label">อัตราตอบรับ (จากใบที่ได้คำตอบแล้ว)</div></div></div>
-      </div>
+      <KpiRow label="สรุปใบค่าแฟรนไชส์" range={ช่วงเดือนนี้}>
+        <KpiCard kpi="waiting" label="รอคำตอบ" value={นับ(ค่า(kpi, "waiting"))} rawValue={ค่า(kpi, "waiting")} unit="ใบ · ส่งแล้ว ยังไม่ตอบ" icon={Send}
+          actionLabel={statusFilter === "sent" && !ค้างชำระ ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"}
+          onClick={() => { setค้างชำระ(null); setStatusFilter(statusFilter === "sent" ? "all" : "sent"); setPage(0); }} />
+        <KpiCard kpi="unpaid" label="ค้างชำระ" value={นับ(ค่า(kpi, "unpaid.count"))} rawValue={ค่า(kpi, "unpaid.count")} unit="ใบ · ตอบรับแล้ว ยังจ่ายไม่ครบ"
+          sub={ค่า(kpi, "unpaid.amount") ? `คงค้าง ${บาทเต็ม(ค่า(kpi, "unpaid.amount"))}` : undefined} icon={Wallet} color="#EA580C" bg="#FEF0E6"
+          actionLabel={ค้างชำระ && ป้ายชุด === "ค้างชำระ" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กรองชุด("unpaid", "ค้างชำระ")} />
+        <KpiCard kpi="overdue" label="เกินกำหนดชำระ" value={นับ(ค่า(kpi, "overdue.count"))} rawValue={ค่า(kpi, "overdue.count")} unit="ใบ · เลยวันครบกำหนดชำระ"
+          sub={ค่า(kpi, "overdue.amount") ? `คงค้าง ${บาทเต็ม(ค่า(kpi, "overdue.amount"))}` : undefined} danger={(ค่า(kpi, "overdue.count") ?? 0) > 0} icon={AlarmClock} color="#DC2626" bg="#FEE2E2"
+          actionLabel={ค้างชำระ && ป้ายชุด === "เกินกำหนดชำระ" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กรองชุด("overdue", "เกินกำหนดชำระ")} />
+        <KpiCard kpi="paid" label="รับชำระแล้วเดือนนี้" value={บาทเต็ม(ค่า(kpi, "paid.amount"))} rawValue={ค่า(kpi, "paid.amount")}
+          unit={`${นับ(ค่า(kpi, "paid.count")) ?? "—"} รายการรับชำระ`} icon={Coins} color="#16A34A" bg="#E6F7EE"
+          actionLabel={ค้างชำระ && ป้ายชุด === "รับชำระเดือนนี้" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กรองชุด("paid", "รับชำระเดือนนี้")} />
+      </KpiRow>
 
       {/* Toolbar */}
       <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 16 }}>
@@ -176,7 +187,7 @@ export default function HQProposalsPage() {
         </div>
         {ค้างชำระ && (
           <span data-testid="filter-overdue" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, background: "#fef2f2", color: "#b91c1c", fontSize: "0.76rem", fontWeight: 700 }}>
-            เฉพาะใบค้างชำระ ({ค้างชำระ.size})
+            {ป้ายชุด} ({ค้างชำระ.size})
             <button aria-label="ล้างตัวกรองค้างชำระ" onClick={() => { setค้างชำระ(null); setPage(0); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b91c1c", display: "flex", padding: 0 }}><X size={12} /></button>
           </span>
         )}

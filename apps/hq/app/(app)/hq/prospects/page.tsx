@@ -19,8 +19,12 @@
 //   RLS บังคับซ้ำที่ฐานข้อมูล — การซ่อนปุ่มตรงนี้เป็นแค่ความสะดวก ไม่ใช่ด่านจริง
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
+import { useKpiCards } from "@pms/shared/lib/useKpiCards";
+import { ค่า, นับ, เดือนนี้ } from "@pms/shared/lib/kpiCards";
 import {
-  UserPlus, Users, AlarmClock, Store, Percent, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip,
+  UserPlus, Users, AlarmClock, Store, FileClock, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip,
 } from "lucide-react";
 import {
   prospects as prospectsRepo, dealers as dealersRepo, proposals as proposalsRepo, prospectActivities as activitiesRepo,
@@ -31,7 +35,7 @@ import { invalidateCache } from "@pms/shared/lib/data/dedupe";
 import type { DealerPackageProposal, DealerProspect, DealerProspectStatus, DealerRow, ProspectActivity, SystemUser } from "@pms/shared/lib/data/types";
 import {
   PROSPECT_STATUS_ORDER, prospectStatusLabel, prospectStatusColor, ยังติดตามอยู่,
-  เตรียมบันทึก, ตรวจผู้สนใจ, ถึงกำหนดติดตาม, สรุปผู้สนใจ, ตรงกับคำค้น,
+  เตรียมบันทึก, ตรวจผู้สนใจ, ถึงกำหนดติดตาม, ตรงกับคำค้น,
 } from "@pms/shared/lib/dealerProspects";
 import {
   ความคืบหน้า, ขั้นก่อนไม่สำเร็จ, มีบันทึกการติดต่อ, เกณฑ์ไม่ได้ติดต่อ, ไม่ได้ติดต่อเกิน, ติดต่อล่าสุดอ่านง่าย,
@@ -45,7 +49,7 @@ import { ProspectJourney } from "@pms/shared/components/hq/ProspectJourney";
 import { ProspectActivityPanel } from "@pms/shared/components/hq/ProspectActivityPanel";
 import { มีใบเสนอที่ส่งแล้ว, ใบหลักสำหรับตั้งดีลเลอร์, มูลค่าอ่านง่าย } from "@pms/shared/lib/dealerProposals";
 import { useRole } from "@pms/shared/context/RoleContext";
-import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
+import { APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
@@ -102,6 +106,11 @@ export default function HQProspectsPage() {
     if (คำ) { setQ(คำ); window.history.replaceState(null, "", "/hq/prospects"); }
   }, []);
   const [statusFilter, setStatusFilter] = useState<ตัวกรองสถานะ>("all");
+  const router = useRouter();
+  const ช่วงเดือนนี้ = useMemo(() => เดือนนี้(APP_NOW.getTime()), []);
+  // ข้อมูลในหน้าเปลี่ยน (เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์) = โหลดการ์ดใหม่
+  const รุ่นการ์ด = useMemo(() => list.map(p => `${p.id}:${p.status}:${p.followUp ?? ""}`).join(","), [list]);
+  const kpi = useKpiCards("hq.prospects", { ...ช่วงเดือนนี้, today: ช่วงเดือนนี้.end, รุ่น: รุ่นการ์ด });
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [page, setPage] = useState(0);
 
@@ -279,13 +288,6 @@ export default function HQProspectsPage() {
     return ผ่านสถานะ && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q);
   }), [รายที่แสดงได้, statusFilter, provinceFilter, q]);
 
-  // การ์ดตัวเลขคิดจาก "ผลที่กรองอยู่" — ตรงกับสิ่งที่ตารางแสดง (กติกาเดียวกับทุกหน้า HQ)
-  const สรุป = useMemo(() => สรุปผู้สนใจ(filtered, APP_NOW_ISO), [filtered]);
-  // อัตราสำเร็จต้องนับรายที่เป็นดีลเลอร์แล้วด้วย — ซ่อนจากตาราง แต่ยังเป็นผลงานจริง (ตามจังหวัด/คำค้นที่เลือกอยู่)
-  const อัตราสำเร็จ = useMemo(() => สรุปผู้สนใจ(
-    list.filter(p => (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q)),
-    APP_NOW_ISO,
-  ).อัตราสำเร็จ, [list, provinceFilter, q]);
 
   // ── เพิ่มรายใหม่ ──
   function เปิดเพิ่ม() {
@@ -666,22 +668,23 @@ export default function HQProspectsPage() {
         )}
       </TopbarActions>
 
-      {/* สรุป — 4 ใบตามกติกากลาง (globals.css: ทุกหน้าใช้ KPI 4 ใบเท่ากัน ห้ามเพิ่มเป็น 5+) */}
-      <div className="kpi-bar">
-        <div className="kpi"><div className="kpi-icon kpi-navy"><Users size={16} /></div><div><div className="kpi-val">{สรุป.ทั้งหมด.toLocaleString()}</div><div className="kpi-label">ผู้สนใจที่แสดงอยู่</div></div></div>
-        <div className="kpi"><div className="kpi-icon kpi-navy"><AlarmClock size={16} /></div><div><div className="kpi-val">{สรุป.ถึงกำหนด.toLocaleString()}</div><div className="kpi-label">ถึงกำหนดติดตาม</div></div></div>
-        {/* "เป็นดีลเลอร์แล้ว" ไม่อยู่หน้านี้แล้ว (บอสสั่ง 15 ก.ย. 69) → การ์ดใบที่ 3 นับรายที่ยังติดตามอยู่แทน */}
-        <div className="kpi"><div className="kpi-icon kpi-navy"><Store size={16} /></div><div><div className="kpi-val">{สรุป.กำลังติดตาม.toLocaleString()}</div><div className="kpi-label">กำลังติดตาม</div></div></div>
-        {/* อัตราสำเร็จคิดจากรายที่จบแล้วเท่านั้น (รวมรายที่เป็นดีลเลอร์แล้วซึ่งซ่อนจากตาราง) · ยังไม่มีรายที่จบ = "—" ไม่ใช่ 0% */}
-        <div className="kpi"><div className="kpi-icon kpi-green"><Percent size={16} /></div><div><div className="kpi-val">{อัตราสำเร็จ === null ? "—" : `${อัตราสำเร็จ}%`}</div><div className="kpi-label">อัตราสำเร็จ (จากรายที่จบแล้ว)</div></div></div>
-      </div>
+      {/* การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ทั้งหมด ไม่ขึ้นกับตัวกรองของตาราง
+            หน้านี้ไม่มีตัวกรองช่วงเวลา → "เป็นดีลเลอร์แล้ว" นับเดือนนี้ (บอสตัดสิน 27 ต.ค. 69) · กดการ์ด = ไปรายการที่ตรงเรื่อง */}
+      <KpiRow label="สรุปผู้สนใจเป็นดีลเลอร์" range={ช่วงเดือนนี้}>
+        <KpiCard kpi="talking" testId="prospect-talking" label="กำลังคุย" value={นับ(ค่า(kpi, "talking"))} rawValue={ค่า(kpi, "talking")} unit="ราย · ทุกขั้นที่ยังไม่จบ"
+          icon={Users} actionLabel={statusFilter === "all" ? "ดูรายการ" : "ดูทั้งหมด"} onClick={() => { setStatusFilter("all"); setPage(0); }} />
+        <KpiCard kpi="followDue" label="ถึงกำหนดติดตาม" value={นับ(ค่า(kpi, "followDue"))} rawValue={ค่า(kpi, "followDue")} unit="ราย · วันนัดติดตามถึงแล้ว"
+          danger={(ค่า(kpi, "followDue") ?? 0) > 0} icon={AlarmClock} color="#EA580C" bg="#FEF0E6"
+          actionLabel={statusFilter === "due" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "due" ? "all" : "due"); setPage(0); }} />
+        <KpiCard kpi="proposalWaiting" label="รอตอบใบค่าแฟรนไชส์" value={นับ(ค่า(kpi, "proposalWaiting"))} rawValue={ค่า(kpi, "proposalWaiting")} unit="ใบ · ส่งแล้ว รอคำตอบ"
+          icon={FileClock} color="#7C3AED" bg="#F3E8FF" onClick={() => router.push("/hq/proposals?kpi=waiting")} />
+        <KpiCard kpi="converted" label="เป็นดีลเลอร์แล้วเดือนนี้" value={นับ(ค่า(kpi, "converted"))} rawValue={ค่า(kpi, "converted")} unit="ราย · ตั้งเป็นดีลเลอร์ในเดือนนี้"
+          icon={Store} color="#16A34A" bg="#E6F7EE" onClick={() => router.push("/hq/dealers")} />
+      </KpiRow>
 
       {ภาพรวม && (() => {
-        const st = ภาพรวม.stages;
-        const กำลังคุย = st.new + st.contacted + st.profile_sent + st.meeting + st.considering;
         return (
           <div className="card" data-testid="prospect-overview" style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 12, fontSize: "0.8rem", color: "#374151" }}>
-            <span>ผู้สนใจกำลังคุย <b data-testid="prospect-talking" data-value={กำลังคุย} style={{ color: "#003366" }}>{กำลังคุย.toLocaleString("th-TH")}</b> ราย <span style={{ color: "#8a929c" }}>(ทั้งหมด ไม่ขึ้นกับตัวกรอง)</span></span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               <MapPin size={13} color="#b45309" /> จังหวัดที่มีลูกค้าเป้าหมายแต่ยังไม่มีดีลเลอร์:
               {ภาพรวม.provincesNoDealer.length === 0

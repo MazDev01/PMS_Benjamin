@@ -284,6 +284,8 @@ body {
     display: flex;
     border-bottom: 1px solid #e5e7eb;
     overflow-x: auto;
+    /* แท็บ margin-bottom:-1px ล้นลงล่าง 1px → overflow-x:auto ทำให้เกิดแถบเลื่อนแนวตั้งโผล่ข้างแถบแท็บ (ตั้งค่า HQ 8 แท็บ · 27 ต.ค. 69) */
+    overflow-y: hidden;
     gap: 0;
   }
   .tab-item {
