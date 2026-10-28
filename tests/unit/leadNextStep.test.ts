@@ -46,8 +46,8 @@ describe("ขั้นต่อไปของลูกค้าเป้าห�
     const r = ขั้นต่อไป(ใส่({ leadStatus: "HQ_PRICING", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: "2026-10-20" }, quote: { status: "draft" } }));
     expect(r).toMatchObject({ key: "send_quote", action: { kind: "send_quote", label: "ส่งให้ลูกค้า" } });
   });
-  it("ส่งใบให้ลูกค้าแล้ว (เสนอราคา / ติดตามผล / เจรจา) → บันทึกผลจากลูกค้า ", () => {
-    for (const s of ["QUOTED", "FOLLOWUP", "NEGO"] as const) {
+  it("ส่งใบให้ลูกค้าแล้ว (เสนอราคา) → บันทึกผลจากลูกค้า ", () => {
+    for (const s of ["QUOTED"] as const) {
       const r = ขั้นต่อไป(ใส่({ leadStatus: s, request: { status: "quoted", dueAt: "" }, quote: { status: "sent_to_client" } }));
       expect(r).toMatchObject({ key: "await_customer", action: { kind: "customer_result", label: "บันทึกผลจากลูกค้า" } });
     }
@@ -58,20 +58,20 @@ describe("ขั้นต่อไปของลูกค้าเป้าห�
   });
   it("ใบลูกค้าถูกปฏิเสธ/หมดอายุ แต่ลีดยังเปิด และราคา HQ ยังใช้ได้ → ทำใบให้ลูกค้าใหม่", () => {
     for (const q of ["lost", "expired"] as const) {
-      const r = ขั้นต่อไป(ใส่({ leadStatus: "NEGO", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: "2026-10-20" }, quote: { status: q } }));
+      const r = ขั้นต่อไป(ใส่({ leadStatus: "QUOTED", request: { status: "quoted", dueAt: "" }, hqQuote: { status: "sent", validUntil: "2026-10-20" }, quote: { status: q } }));
       expect(r.key).toBe("make_quote");
     }
   });
   it("ปิดการขายสำเร็จ → ไม่มีปุ่ม ", () => {
     expect(ขั้นต่อไป(ใส่({ leadStatus: "PAID" }))).toMatchObject({ key: "won", action: null });
     // ใบลูกค้าตอบรับแล้วก็ถือว่าสำเร็จ แม้ขั้นของลีดยังตามไม่ทัน
-    expect(ขั้นต่อไป(ใส่({ leadStatus: "NEGO", quote: { status: "won" } })).key).toBe("won");
+    expect(ขั้นต่อไป(ใส่({ leadStatus: "QUOTED", quote: { status: "won" } })).key).toBe("won");
   });
   it("ปิดการขายไม่สำเร็จ → ไม่มีปุ่ม", () => {
     expect(ขั้นต่อไป(ใส่({ leadStatus: "CANCELLED", request: { status: "pricing", dueAt: "" } }))).toMatchObject({ key: "lost", action: null });
   });
-  it("ลีดอยู่ขั้นเสนอราคา/ติดตาม/เจรจา แต่ไม่มีคำขอเปิดและไม่มีใบที่ใช้ได้ → ไม่เสนอปุ่มขอราคา (ฐานไม่ยอมให้ขอจากขั้นนี้)", () => {
-    for (const s of ["QUOTED", "FOLLOWUP", "NEGO"] as const) {
+  it("ลีดอยู่ขั้นเสนอราคา แต่ไม่มีคำขอเปิดและไม่มีใบที่ใช้ได้ → ไม่เสนอปุ่มขอราคา (ฐานไม่ยอมให้ขอจากขั้นนี้)", () => {
+    for (const s of ["QUOTED"] as const) {
       const r = ขั้นต่อไป(ใส่({ leadStatus: s }));
       expect(r).toMatchObject({ key: "stuck", action: null });
     }

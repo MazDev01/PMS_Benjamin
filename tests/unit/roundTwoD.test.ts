@@ -22,11 +22,12 @@ describe("วันที่สร้างลีด: ไม่โชว์ ISO 
   });
 });
 
-describe("งาน \"ส่งแม่แบบให้ลูกค้า\" (catalog) ไม่ขึ้น แม้ในลีดที่ปิดแล้ว", () => {
-  const งานเก่า = [{ key: "catalog", label: "ส่งแม่แบบให้ลูกค้า", done: true }, { key: "close", label: "ปิดการขาย", done: true }];
-  for (const st of ["PAID", "CANCELLED", "WAITING"] as const) {
-    it(st, () => expect(applyTaskTemplate(งานเก่า, LEAD_TASK_TEMPLATE, st).map(t => t.key)).not.toContain("catalog"));
-  }
+// งาน "ส่งแม่แบบให้ลูกค้า" (catalog) / "ปิดการขาย" (close) แบบเก่า: ย้ายออกจากฐานหมดแล้ว และฐานไม่รับอีก (ใบ 0250 · 0257
+//   ข้อทดสอบ supabase/tests/lead_old_status_retired.sql) — หน้าจอจึงไม่ต้องกรองเอง · ลีดที่ปิดแล้วคงรายการเดิมทุกรายการ
+describe("ลีดที่ปิดแล้วคงรายการงานเดิม · ลีดที่เปิดอยู่เดินตามแม่แบบ", () => {
+  const งาน = [{ key: "contact", label: "ติดต่อแล้ว", done: true }, { key: "zz_own", label: "งานเฉพาะของลีด", done: true }];
+  for (const st of ["PAID", "CANCELLED"] as const) it(st, () => expect(applyTaskTemplate(งาน, LEAD_TASK_TEMPLATE, st)).toEqual(งาน));
+  it("WAITING", () => expect(applyTaskTemplate(งาน, LEAD_TASK_TEMPLATE, "WAITING").map(t => t.key)).toEqual(LEAD_TASK_TEMPLATE.map(t => t.key)));
 });
 
 describe("มูลค่าลีดฝั่งหน้าจอ (ตรงกับฐาน ใบ 0223): ใบที่ส่งแล้วล่าสุด · ไม่นับใบร่าง", () => {

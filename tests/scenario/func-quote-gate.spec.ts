@@ -37,15 +37,15 @@ async function seedLead() {
   //   งาน "จัดทำใบเสนอราคา" เลยถูกล็อกด้วยกฎ "ทำงานก่อนหน้าให้ครบก่อน" แล้วเทสต์ล้ม
   //   ทั้งที่ไม่เกี่ยวกับสิ่งที่เทสต์นี้ตรวจเลย · อ่านเส้นทางจริงมาใช้ = ไม่ผูกกับคีย์ตายตัวอีก
   const { data: journey } = await sb.from("hq_sales_journey").select("tasks").eq("id", 1).maybeSingle();
-  // งาน "ส่งแม่แบบให้ลูกค้า" (key catalog) เลิกใช้แล้ว 16 ต.ค. 69 — แอปไม่แสดง (normalizeLeadTaskTemplate) จึงไม่ seed ด้วย
+  // แม่แบบว่าง = ชุดตั้งต้น 5 ขั้น (ใบ 0250 · ไม่มีรายการ flow เก่า — ฐานไม่รับแล้ว ใบ 0257)
   const tpl = (journey?.tasks as { key: string; label: string }[] | null)?.length
-    ? (journey!.tasks as { key: string; label: string }[]).filter(t => t.key !== "catalog")
+    ? (journey!.tasks as { key: string; label: string }[])
     : [
         { key: "contact", label: "ติดต่อแล้ว" }, { key: "collect", label: "เก็บข้อมูลลูกค้า" },
-        { key: "appointment", label: "นัดหมาย" }, { key: "requirement", label: "สรุปความต้องการ" },
+        { key: "requirement", label: "สรุปความต้องการ" }, { key: "appointment", label: "นัดหมาย" },
+        { key: "requestQuote", label: "ส่งคำขอราคา" }, { key: "hqQuote", label: "ได้ใบ HQ" },
         { key: "makeQuote", label: "จัดทำใบเสนอราคา" }, { key: "sendQuote", label: "ส่งใบเสนอราคา" },
-        { key: "followup", label: "ติดตามผล" },
-        { key: "negotiate", label: "เจรจาต่อรอง" }, { key: "close", label: "ปิดการขาย / ไม่สำเร็จ" },
+        { key: "followCustomer", label: "ติดตามลูกค้า" },
       ];
   const เริ่มขั้นเสนอราคา = tpl.findIndex(t => t.key === "makeQuote");
   const tasks = tpl.map((t, idx) => ({

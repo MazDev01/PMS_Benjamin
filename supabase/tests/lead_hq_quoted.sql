@@ -72,7 +72,7 @@ begin
 
   -- ── 2 ──
   perform qtest.as_dealer();
-  perform qtest.must_fail(format($s$select lead_apply(%L, '{"stage":{"status":"NEGO"}}'::jsonb)$s$, v_id), 'hq_quoted_locked', '2) ดีลเลอร์พาออกจากได้ราคา HQ ไปเจรจาต่อรองเอง');
+  perform qtest.must_fail(format($s$select lead_apply(%L, '{"stage":{"status":"QUOTED"}}'::jsonb)$s$, v_id), 'hq_quoted_locked', '2) ดีลเลอร์พาออกจากได้ราคา HQ ไปเสนอราคาเอง');
   perform qtest.must_fail(format('update leads set status = %L where dealer_code = %L and num_id = %s', 'HQ_QUOTED', 'CNX',
     (select num_id from leads where dealer_code = 'CNX' and status = 'WAITING' limit 1)), 'hq_quoted_locked', '2) ดีลเลอร์ตั้ง "ได้ราคา HQ" เอง');
   perform lead_apply(v_id, '{"deriveStage":"any","tasks":[]}'::jsonb);

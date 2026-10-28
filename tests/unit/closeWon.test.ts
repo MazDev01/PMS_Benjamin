@@ -13,7 +13,7 @@ describe("ปิดการขายสำเร็จ → ต้องเด�
     expect(shouldCloseWon("PAID")).toBe(true);
   });
 
-  it.each(["WAITING", "BULLET", "QUOTED", "FOLLOWUP", "NEGO", "CANCELLED"] as const)(
+  it.each(["WAITING", "BULLET", "HQ_PRICING", "HQ_QUOTED", "QUOTED", "CANCELLED"] as const)(
     "สถานะ %s → ยังไม่ต้องเดิน", (s) => {
       expect(shouldCloseWon(s)).toBe(false);
     });

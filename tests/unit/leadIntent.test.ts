@@ -35,9 +35,9 @@ describe("applyLeadIntent", () => {
     expect(r2.status).toBe("WAITING");
   });
   it("เปลี่ยนสถานะเองได้เฉพาะปิดไม่สำเร็จ (ตรงกับตัวดัก leads_status_one_path)", () => {
-    for (const s of ["BULLET", "QUOTED", "FOLLOWUP", "NEGO", "PAID"] as const)
+    for (const s of ["BULLET", "QUOTED", "PAID"] as const)
       expect(() => applyLeadIntent(ลีด(), { stage: { status: s } }, { tpl, now })).toThrow(/lead_status_one_path/);
-    expect(applyLeadIntent(ลีด({ status: "NEGO" }), { stage: { status: "NEGO" } }, { tpl, now }).status).toBe("NEGO");
+    expect(applyLeadIntent(ลีด({ status: "QUOTED" }), { stage: { status: "QUOTED" } }, { tpl, now }).status).toBe("QUOTED");
   });
   it("กฎปิดไม่สำเร็จ: ต้องมีเหตุผล", () => {
     expect(() => applyLeadIntent(ลีด(), { stage: { status: "CANCELLED" } }, { tpl, now })).toThrow(/lead_lost_needs_reason/);

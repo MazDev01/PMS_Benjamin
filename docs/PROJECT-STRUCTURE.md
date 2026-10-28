@@ -7,7 +7,7 @@ pms-benjamin/
 ├── docs/                          # เอกสารออกแบบ (ปัจจุบัน)
 │   ├── PMS-PLAN.md                # แผนภาพรวม
 │   ├── ARCHITECTURE.md            # สถาปัตยกรรม
-│   ├── DATABASE-SCHEMA.md         # คำอธิบาย schema
+│   ├── archive/DATABASE-SCHEMA.md # เอกสารเก่า (ไม่ใช่ข้อกำหนดปัจจุบัน)
 │   └── PERMISSIONS.md             # RBAC matrix
 │
 ├── prisma/

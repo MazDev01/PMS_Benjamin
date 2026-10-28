@@ -1,3 +1,5 @@
+> **เอกสารเก่า ไม่ใช่ข้อกำหนดปัจจุบัน — ดู docs/FLOW.html**
+
 # Benjamin PMS — Full Module Reference (Frontend + Backend)
 
 > อัปเดต: มิถุนายน 2026  

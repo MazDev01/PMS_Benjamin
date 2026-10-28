@@ -140,4 +140,4 @@ appointments · commission · expenses · invoices · payments · hq/{finance, p
 ```
 > ขอบเขต Sales-only: จบที่ Won/Lost — ไม่มี construction/production/installation
 
-> เอกสารเพิ่มเติมในโฟลเดอร์นี้: `ARCHITECTURE.md` · `MODULE-REFERENCE-FULL.md` · `DASHBOARD-DEALER.md` · `DASHBOARD-HQ.md` · `DEALER-MANAGEMENT.md` · `PERMISSIONS.md` · `DESIGN-SYSTEM.md` · `DATABASE-SCHEMA.md`
+> เอกสารเพิ่มเติมในโฟลเดอร์นี้: `ARCHITECTURE.md` · `archive/MODULE-REFERENCE-FULL.md` (เอกสารเก่า) · `DASHBOARD-DEALER.md` · `DASHBOARD-HQ.md` · `DEALER-MANAGEMENT.md` · `PERMISSIONS.md` · `DESIGN-SYSTEM.md` · `DATABASE-SCHEMA.md`

@@ -12,6 +12,8 @@ import { เตรียมใบHQ, ล้างใบHQทดสอบ, เล
 //   3) ส่งคำขอราคา → "ส่งคำขอราคา" ถูกติ๊ก · HQ ส่งใบ → "ได้ใบ HQ" ถูกติ๊ก (ฐานติ๊กในคำสั่งเดียวกับเหตุการณ์)
 //   4) ดีลเลอร์ติ๊กรายการของระบบเองไม่ได้ (ทั้งปุ่มบนจอ และสั่งที่ฐานตรง ๆ) · รายการติ๊กเองยังติ๊กได้
 //   5) หน้า HQ เส้นทางการขาย: 5 ขั้นใหม่ · ลบได้เฉพาะรายการติ๊กเอง · ฐานไม่รับแม่แบบที่ตัดรายการของระบบ
+//   6) ใบ 0257 (28 ต.ค. 69): รายการเตือน/แม่แบบแบบเก่า (ติดตามผล · เจรจาต่อรอง · ผูกสถานะลีด stage) ใส่ไม่ได้แล้ว — ฐานปฏิเสธทุกทาง
+//      (เดิมข้อนี้วางลีดที่มีรายการแบบเก่าเป็นข้อมูลตั้งต้นแล้วดูว่าหน้าจอซ่อน · ข้อมูลเก่าย้ายครบแล้ว)
 //   ต้องตกบนโค้ดก่อนแก้: ไม่มีกลุ่ม 5 ขั้น · มี "เจรจาต่อรอง" · วันที่ ค.ศ. · ไม่มี "ส่งคำขอราคา" · ฐานยอมให้ติ๊กงานของระบบ
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(240_000);
@@ -23,14 +25,12 @@ const เลข = เลขลูกค้าเป้าหมายทดส�
 let ใบ: ใบHQพร้อมใช้ | undefined;
 
 test.beforeAll(async () => {
-  // ลีดที่มีรายการแบบเดิม (ติดต่อแล้ว ติ๊ก "2026-06-02" · ติดตามผล · เจรจาต่อรอง) — เหมือนข้อมูลที่มีอยู่ก่อนใบ 0250
+  // ลีดที่มีรายการแบบเดิม (ติดต่อแล้ว ติ๊ก "2026-06-02" แบบ ค.ศ.) — รายการ flow เก่าใส่ไม่ได้แล้ว (ใบ 0257 · ตรวจในข้อ 6)
   const r = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อลีด, name: ชื่อลีด,
     contact: "ผู้ทดสอบ", phone: `08${String(เลข).slice(-8)}`, province: "ระยอง", status: "BULLET", assigned: "ทดสอบระบบ",
     tasks: [
       { key: "contact", label: "ติดต่อแล้ว", done: true, doneAt: "2026-06-02", doneBy: "ทดสอบระบบ" },
       { key: "collect", label: "เก็บข้อมูลลูกค้า", done: false },
-      { key: "followup", label: "ติดตามผล", done: false },
-      { key: "negotiate", label: "เจรจาต่อรอง", done: false },
     ] });
   expect(r.error, "ลีดทดสอบ").toBeNull();
 });
@@ -96,6 +96,24 @@ test("[func·dealer] รายการเตือน 5 ขั้น · ไม�
   expect.soft(ติ๊ก("requestQuote")?.doneAt ?? "", "วันที่ที่ฐานติ๊กเป็น พ.ศ.").toMatch(/25\d\d/);
   const ช่องคำขอ = (await เปิดรายการเตือน(page, `${ชื่อลีด}-ใบ`), page.getByRole("checkbox", { name: /^ส่งคำขอราคา/ }).first());
   await expect.soft(ช่องคำขอ, "หน้าจอเห็นติ๊กแล้ว").toHaveAttribute("aria-checked", "true", { timeout: 15_000 });
+});
+
+test("[func·db] รายการเตือน/แม่แบบงานแบบเก่า ใส่ไม่ได้แล้ว (ติดตามผล · เจรจาต่อรอง · ผูกสถานะลีด) — ฐานปฏิเสธทุกทาง", async () => {
+  const sb = await db(RYG), hq = await db(ADMIN);
+  // ดีลเลอร์ใช้คำสั่งบันทึกลีดเพิ่มรายการเก่า
+  for (const key of ["followup", "negotiate"]) {
+    const r = await sb.rpc("lead_apply", { p_id: `#L-${เลข}`, p_intent: { tasks: [{ key, label: key, done: true }] } });
+    expect.soft(r.error?.message ?? "", `ดีลเลอร์เพิ่มรายการ ${key} ไม่ได้`).toMatch(/lead_task_retired/);
+  }
+  // กุญแจฝั่งเซิร์ฟเวอร์เขียนรายการแบบเก่าตรง ๆ (ทางที่ข้อมูลตั้งต้นเดิมเคยใช้)
+  const ตรง = await admin.from("leads").update({ tasks: [{ key: "contact", label: "ติดต่อแล้ว", done: false, stage: "WAITING" }] })
+    .eq("dealer_code", "RYG").eq("num_id", เลข);
+  expect.soft(ตรง.error?.message ?? "", "กุญแจเซิร์ฟเวอร์ใส่รายการผูกสถานะลีดแบบเก่าไม่ได้").toMatch(/lead_task_retired/);
+  // HQ เพิ่ม "ติดตามผล" ในแม่แบบงาน
+  const เดิม = (await admin.from("hq_sales_journey").select("tasks").eq("id", 1).single()).data?.tasks as { key: string }[];
+  const เพิ่ม = await hq.from("hq_sales_journey").update({ tasks: [...(เดิม ?? []), { key: "followup", label: "ติดตามผล", step: 5 }] }).eq("id", 1);
+  if (!เพิ่ม.error) await admin.from("hq_sales_journey").update({ tasks: เดิม }).eq("id", 1);   // ฐานยอม (ผิด) = คืนค่าทันที
+  expect.soft(เพิ่ม.error?.message ?? "", "HQ เพิ่ม ติดตามผล ในแม่แบบไม่ได้").toMatch(/lead_task_retired/);
 });
 
 test("[func·hq] ตั้งค่า › เส้นทางการขาย: 5 ขั้นใหม่ · ลบได้เฉพาะรายการติ๊กเอง · ฐานไม่รับแม่แบบที่ตัดรายการของระบบ", async ({ page }) => {
