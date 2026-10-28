@@ -852,8 +852,11 @@ export const LocalAdapter: DataAdapter = {
 
       type Agg = { buildingTypes: Set<string>; templates: Set<string>; lastPurchaseAt: string | null; count: number };
       const aggByCustomer = new Map<number, Agg>();
+      // ยอดซื้อรวม = ผลรวมใบที่ลูกค้าตอบรับ (won) ทุกใบ — กติกาเดียวกับแท็บประวัติการซื้อ (ใบ 0254 · ไม่อ่าน c.totalValue)
+      const ยอดจากใบ = new Map<number, number>();
       for (const q of quotes) {
         if (q.status !== "won" || !q.customerId) continue;
+        ยอดจากใบ.set(q.customerId, (ยอดจากใบ.get(q.customerId) ?? 0) + (q.totalValue ?? 0));
         const wonDate = /^\d{4}-\d{2}-\d{2}/.exec(q.date || "")?.[0];
         if (!wonDate) continue;
         // ไม่จัดกลุ่มลูกค้าตามประเภทอาคาร (แม่แบบ) แล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · buildingTypes ว่างเสมอ
@@ -869,7 +872,8 @@ export const LocalAdapter: DataAdapter = {
         return {
           id: c.id, name: c.company, dealerCode: c.dealerCode ?? DEFAULT_DEALER_CODE,
           dealerName: dealerNameOf.get(c.dealerCode ?? DEFAULT_DEALER_CODE) ?? (c.dealerCode ?? DEFAULT_DEALER_CODE),
-          province: c.province ?? "", totalValue: c.totalValue ?? 0,
+          province: c.province ?? "", totalValue: ยอดจากใบ.get(c.id) ?? 0,
+          contact: c.name ?? "", phone: c.phone ?? "", email: c.email ?? "", address: c.address ?? "",
           buildingTypes: a ? [...a.buildingTypes] : [], templates: a ? [...a.templates] : [],
           lastPurchaseAt: a?.lastPurchaseAt ?? null,
           isRepeat: (a?.count ?? 0) > 1,
@@ -917,6 +921,7 @@ export const LocalAdapter: DataAdapter = {
         id: c.id, name: c.name, dealerCode: c.dealerCode, dealerName: c.dealerName, province: c.province,
         totalValue: c.totalValue, buildingTypes: c.buildingTypes, templates: c.templates,
         lastPurchaseAt: c.lastPurchaseAt,
+        contact: c.contact, phone: c.phone, email: c.email, address: c.address,
       }));
       return ok({ total, kpi, charts, rows });
     },
