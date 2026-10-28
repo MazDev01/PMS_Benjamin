@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-29 01:07:43",
- "รอบ": "2026-10-29-00-41-35",
- "จำนวน": 256,
+ "บันทึกเมื่อ": "2026-10-29 02:25:08",
+ "รอบ": "2026-10-29-02-02-07",
+ "จำนวน": 257,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -259,6 +259,7 @@
   "0254_hq_customer_total_from_won_quotes.sql": "403d34d26f67bfe61171d267753d8f8188961f883704f366cbe2181b9e105b8f",
   "0255_territory_on_province_fix.sql": "9425ed6d93108c3077a86d413ae43b5ea287264390d545e0f4739492a66d4b72",
   "0256_lead_new_step1_open_filter.sql": "c7094387b0d4934a69ee24ddefba3b6ca55fddb6a4a0f5a94ac1f2c414e4948d",
-  "0257_lead_old_status_retired.sql": "f4500053974253474d70d07e68537dbbdeaa0cd99902dc3891afa084bf531d81"
+  "0257_lead_old_status_retired.sql": "f4500053974253474d70d07e68537dbbdeaa0cd99902dc3891afa084bf531d81",
+  "0258_lead_has_quotes.sql": "f1f83b229ec60245094bb9dcfe9719ca9053715de4ba9fea4d153c5c866f1d57"
  }
 }
