@@ -68,9 +68,10 @@ export function ต้องหาต้นเหตุ(cwd = process.cwd()) {
   return [...สรุป(cwd)].filter(([, x]) => x.ครั้ง >= เกณฑ์ && !x.ต้นเหตุ.length).map(([k, x]) => ({ ข้อ: k, ...x }));
 }
 
-/** ท้ายรอบตรวจเต็ม (scripts/test-prodbuild.mjs): จดข้อไม่นิ่งของรอบนี้ แล้วตัดสิน · คืน true = รอบนี้ต้องไม่ผ่าน */
-export function ตรวจไม่นิ่งท้ายรอบ(ไฟล์รายงาน, { รอบ, วันที่, cwd = process.cwd(), log = console.log, err = console.error } = {}) {
-  const ไม่นิ่ง = ข้อไม่นิ่งจากรายงาน(ไฟล์รายงาน);
+/** ท้ายรอบตรวจเต็ม (scripts/test-prodbuild.mjs): จดข้อไม่นิ่งของรอบนี้ แล้วตัดสิน · คืน true = รอบนี้ต้องไม่ผ่าน
+ *  เพิ่ม = ข้อที่ตกในรอบหลักแล้วผ่านตอนรันซ้ำทั้งไฟล์ (scripts/lib/gateRerun.mjs · 28 ต.ค. 69) — นับเป็นไม่นิ่งเหมือนกัน */
+export function ตรวจไม่นิ่งท้ายรอบ(ไฟล์รายงาน, { รอบ, วันที่, cwd = process.cwd(), log = console.log, err = console.error, เพิ่ม = [] } = {}) {
+  const ไม่นิ่ง = [...new Set([...ข้อไม่นิ่งจากรายงาน(ไฟล์รายงาน), ...เพิ่ม])];
   บันทึกไม่นิ่ง(ไม่นิ่ง, { รอบ, วันที่, cwd });
   if (ไม่นิ่ง.length) {
     const นับ = สรุป(cwd);

@@ -152,7 +152,8 @@ if (ทำ("smoke") && !process.exitCode) {
     }
     // build + start ที่ชี้สำเนา · ปิดอีเมล · โหมด api เหมือนเว็บจริง
     const appEnv = { ...process.env, NEXT_PUBLIC_DATA_SOURCE: "api", NEXT_PUBLIC_SUPABASE_URL: URL_, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON,
-      SUPABASE_SERVICE_ROLE_KEY: KEY, SMTP_HOST: "", SMTP_USER: "", SMTP_PASS: "", PMS_LOCAL_HTTP_TEST: "1" };
+      SUPABASE_SERVICE_ROLE_KEY: KEY, SMTP_HOST: "", SMTP_USER: "", SMTP_PASS: "", PMS_LOCAL_HTTP_TEST: "1",
+      PMS_DIST_DIR: process.env.PMS_TEST_DIST_DIR || ".next-test" };   // ไม่ทับ .next ของ npm run dev (28 ต.ค. 69 · เหมือน test-prodbuild)
     console.log("\n⑤ smoke: build ที่ชี้สำเนา (ราว 1–2 นาที)");
     if (spawnSync("npm", ["run", "build"], { env: appEnv, stdio: "ignore", shell: true }).status !== 0) throw new Error("build ไม่ผ่าน");
     const เซิร์ฟเวอร์ = [["apps/hq", พอร์ตทดสอบ.hq], ["apps/dealer", พอร์ตทดสอบ.dealer]].map(([cwd, port]) => spawn("npx", ["next", "start", "-p", String(port)], { cwd, env: appEnv, stdio: "ignore", shell: true }));
