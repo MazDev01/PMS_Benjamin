@@ -79,7 +79,7 @@ test("[ง] ใบเสนอราคา: หน้าแก้ใบแก้
   await expect(ใบ).toBeVisible({ timeout: 20_000 });
   // หน้าดูใบ: ไม่มีการ์ดประวัติต่อรองราคา
   await ใบ.getByTitle("ดู", { exact: true }).click();
-  await expect(page.getByText(เลขใบลูกค้า).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(เลขใบลูกค้า).filter({ visible: true }).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("ประวัติการต่อรองราคา"), "ไม่มีการ์ดประวัติต่อรองราคา (ไม่มีส่วนลดแล้ว)").toHaveCount(0);
   await page.getByRole("button", { name: "กลับ" }).click();
   // หน้าแก้ใบ (ฟอร์มในแผงลีด): สถานะ/วันที่ไม่มีช่องให้แก้ · วันหมดอายุแสดงอย่างเดียว · รายการแก้ได้เฉพาะ %

@@ -22,10 +22,12 @@ test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 const ปกติ = (s: string) => s.replace(/[·✓]/g, " ").replace(/\s+/g, " ").trim();
 
 /** ข้อความช่อง "ขั้นตอน" ของแถวลีด company ในตาราง และข้อความขั้นที่ไฮไลต์ในแผงลีด (null = ลีดปิดแล้ว ไม่มีขั้นปัจจุบัน) */
-async function ขั้นในตารางและแผง(page: Page, company: string) {
+async function ขั้นในตารางและแผง(page: Page, company: string, ทั้งหมด = false) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  // ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ · 28 ต.ค. 69) — ลีดปิดแล้วต้องเลือก "ทั้งหมด"
+  if (ทั้งหมด) await page.getByRole("combobox", { name: "ขั้นตอน", exact: true }).selectOption({ label: "ทั้งหมด" });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
@@ -98,7 +100,7 @@ test("[ui·dealer] ชื่อในช่องขั้นตอนของ�
   // ปิดไม่สำเร็จ (ข้อมูลตั้งต้น) — แผงไม่มีขั้นปัจจุบัน ตารางต้องบอก "ปิดไม่สำเร็จ" ไม่ใช่ชื่อสถานะภายใน
   const { data: ปิด } = await sb.from("leads").select("company").eq("dealer_code", "RYG").eq("status", "CANCELLED").limit(1);
   if (ปิด?.[0]) {
-    const { ในตาราง, คืบหน้า } = await ขั้นในตารางและแผง(page, ปิด[0].company as string);
+    const { ในตาราง, คืบหน้า } = await ขั้นในตารางและแผง(page, ปิด[0].company as string, true);
     expect(ในตาราง, "ลีดปิดไม่สำเร็จ: ตารางแสดงชื่อขั้นกลาง").toBe("ปิดไม่สำเร็จ");
     expect(คืบหน้า, "ลีดปิดไม่สำเร็จ: แถบความคืบหน้าว่าง").toBe(0);
   }
