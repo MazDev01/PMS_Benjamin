@@ -1,6 +1,6 @@
 import { test, expect, request as pwRequest } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
-import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db } from "./funcHelpers";
+import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
 import { adminClient } from "./testDealers";
 import { ล้างใบHQทดสอบ, วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
@@ -232,7 +232,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   await d.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
   const qrow = d.locator("tbody tr").filter({ hasText: บริษัท }).first();
   await expect(qrow).toBeVisible({ timeout: 25_000 });
-  await qrow.locator("td").first().click();
+  await ไปแผงลีดจากแถวใบ(qrow);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await d.waitForURL(/\/leads/, { timeout: 25_000 });
   await d.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 25_000 });
   await กดตกลงในกล่องยืนยัน(d);
@@ -269,7 +269,7 @@ test("[func·dealer] ใบเก่าที่เคยใช้แม่แ�
     await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
     const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
     await expect(แถว).toBeVisible({ timeout: 25_000 });
-    await แถว.locator("td").first().click();
+    await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
     await page.waitForURL(/\/leads|\/customers/, { timeout: 25_000 });
     await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 25_000 });
     await page.locator(`[data-quote-item="${เลขใบ}"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });

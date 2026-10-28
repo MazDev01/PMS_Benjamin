@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type Locator } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, ADMIN, RYG, CNX, type Account, appEnv } from "./supabaseEnv";
 import { SESSION_KEY, getSession, settle, ติดตามคำขอ, เข้าระบบด้วยคุกกี้, ล็อกอินใหม่ } from "./helpers";
@@ -402,4 +402,14 @@ export async function นำเข้าลูกค้าหนึ่งรา�
   if (await ป๊อปอัพซ้ำ.isVisible().catch(() => false)) {
     await ป๊อปอัพซ้ำ.getByRole("button", { name: "อัปเดตข้อมูล" }).click();
   }
+}
+
+/** หน้าใบเสนอราคาดีลเลอร์: กดแถว = เปิดแผงดูใบในหน้าเดิม (บอสสั่ง 28 ต.ค. 69) → กด "ไปแผงลีด" ในแผง
+ *  ใช้แทนการกดแถวแล้วรอไป /leads แบบเดิม (รอบ 4) — ข้อทดสอบที่ต้องทำงานของใบ (D6/D8/D8x) ไปทำต่อที่แผงลีด */
+export async function ไปแผงลีดจากแถวใบ(แถว: Locator) {
+  const page = แถว.page();
+  await แถว.locator("td").first().click();
+  const แผง = page.locator("[data-quote-view]");
+  await expect(แผง, "กดแถวแล้วแผงดูใบต้องเปิด").toBeVisible({ timeout: 20_000 });
+  await แผง.locator("[data-goto-lead]").click();
 }

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { skipReason } from "./supabaseEnv";
 import { สร้างสาขาของชุด, ลบสาขาของชุด, type บัญชีสาขาของชุด } from "./ownBranch";
 import { SERVICE_ROLE_READY } from "./adminEnv";
-import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
@@ -59,7 +59,7 @@ test("[func·dealer] สร้างใบไม่ส่งภาษี → VAT
   await page.getByPlaceholder(/ค้นหา/).first().fill(เลขV1);
   const แถว = page.locator("tbody tr").filter({ hasText: เลขV1 }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
-  await แถว.locator("td").first().click();
+  await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads/, { timeout: 25_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
 

@@ -131,7 +131,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
       <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-sm">
           {/* Heading */}
-          <h2 className="text-[2rem] font-extrabold tracking-tight text-[#0e2a5c]">Login</h2>
+          <h2 className="text-[2rem] font-extrabold tracking-tight text-[#0e2a5c]">เข้าสู่ระบบ</h2>
           <p className="mt-1.5 text-sm text-slate-500">{isHQ ? "เข้าสู่ระบบสำนักงานใหญ่" : "เข้าสู่ระบบเพื่อใช้งานระบบ"}</p>
 
           {/* Form */}
@@ -142,7 +142,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
                   ผู้ใช้เห็นช่องว่างนำหน้าค้างอยู่ในช่อง เลยไม่แน่ใจว่าที่เข้าไม่ได้เพราะอะไร
                   อีเมลไม่มีช่องว่างอยู่แล้วโดยธรรมชาติ ตัดทิ้งได้เลยไม่ต้องถาม */}
               {/* ดีลเลอร์ = รหัสสาขา (19 ต.ค. 69) — อีเมลเข้าระบบของสาขาไม่มีกล่องจดหมายจริง ดีลเลอร์ไม่ต้องรู้ */}
-              <label htmlFor="login-email" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">{isHQ ? "อีเมล / Email" : "รหัสสาขา"}</label>
+              <label htmlFor="login-email" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">{isHQ ? "อีเมล" : "รหัสสาขา"}</label>
               <div className={inputWrap}>
                 <IconMail />
                 <input id="login-email" type="text" inputMode={isHQ ? "email" : "text"} autoCapitalize="none" autoComplete="username" value={email}
@@ -156,7 +156,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
                   เพราะไฟล์นี้เป็นหน้าเข้าสู่ระบบตัวเดียวกันของทั้งสองแอป (variant hq/dealer)
                   ⚠️ ผลข้างเคียงที่ต้องรู้: ถ้าวันหนึ่งมีรหัสผ่านที่ตั้งใจให้มีเว้นวรรคจริง จะพิมพ์ไม่ได้
                   ตอนนี้ไม่มีบัญชีแบบนั้น และช่องว่างติดมากับการ copy-paste เป็นปัญหาที่เจอจริงมากกว่า */}
-              <label htmlFor="login-password" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">รหัสผ่าน / Password</label>
+              <label htmlFor="login-password" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">รหัสผ่าน</label>
               <div className={inputWrap}>
                 <IconLock />
                 <input id="login-password" type={showPass ? "text" : "password"} autoComplete="current-password" value={password}
@@ -170,7 +170,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
             </div>
 
             {/* ลืมรหัสผ่าน = ติดต่อ HQ (ปุ่มส่งอีเมลปิดแล้ว 16 ต.ค. 69 — ดูหมายเหตุบนสุดของคอมโพเนนต์) */}
-            <p className="text-right text-[0.85rem] font-bold text-slate-500">ลืมรหัสผ่าน ติดต่อ HQ</p>
+            <p className="text-right text-[0.85rem] font-bold text-slate-500">ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่</p>
 
             {error && (
               <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-600">{error}</p>
@@ -219,7 +219,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
 
       {/* Footer — ล่างสุดของคอลัมน์ */}
       <footer className="pt-5 text-center text-[0.7rem] text-slate-400">
-        © 2569 Benjamin PEB Steel Co., Ltd. All rights reserved.
+        © 2569 Benjamin PEB Steel สงวนลิขสิทธิ์
       </footer>
     </div>
   );

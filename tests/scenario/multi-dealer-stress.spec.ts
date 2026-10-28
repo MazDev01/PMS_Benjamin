@@ -1,7 +1,7 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason, appEnv } from "./supabaseEnv";
-import { DEALER_ORIGIN, HQ_ORIGIN, cleanup, watchErrors, assertNoErrors, นำเข้าลูกค้าหนึ่งราย, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
+import { DEALER_ORIGIN, HQ_ORIGIN, cleanup, watchErrors, assertNoErrors, นำเข้าลูกค้าหนึ่งราย, ลูกค้าเป้าหมายรองรับสาขา, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { settle, ติดตามคำขอ } from "./helpers";
 import { ลบสาขาทดสอบตรง, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
@@ -182,7 +182,7 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   const qrow = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(qrow, `${code}: ใบเสนอราคาต้องโผล่ในตาราง`).toBeVisible({ timeout: 45_000 });
-  await qrow.locator("td").first().click();
+  await ไปแผงลีดจากแถวใบ(qrow);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads/, { timeout: 45_000 });
   await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 45_000 });
   await กดตกลงในกล่องยืนยัน(page);

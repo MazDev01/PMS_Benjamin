@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
-import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
+import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
@@ -48,7 +48,7 @@ async function เปิดแผงใบ(page: import("@playwright/test").Page
   const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   await expect(แถว.getByTitle(/แก้ไข|ทำฉบับใหม่|ส่งให้ลูกค้า|ลบใบเสนอราคา/), "รอบ 4: แถวในหน้ารายการไม่มีปุ่มทำงานของใบ").toHaveCount(0);
-  await แถว.locator("td").nth(1).click();
+  await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads/, { timeout: 20_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
   await expect(ใบในแผง(page, เลขใบ), "แผงลีดของใบนี้เปิดที่แท็บใบเสนอราคา").toBeVisible({ timeout: 20_000 });
