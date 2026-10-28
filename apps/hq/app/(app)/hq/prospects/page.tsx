@@ -59,6 +59,7 @@ import { ยืนยัน, แจ้งพลาด, แจ้งสำเร�
 import { formatPhone } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
+import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
@@ -578,7 +579,8 @@ export default function HQProspectsPage() {
           <input id="pr-email" className="form-input" type="email" value={ร่าง.email ?? ""} onChange={e => ตั้งค่า("email", e.target.value)} placeholder="name@example.com" />
         </div>
         <div>
-          <label className="form-label" htmlFor="pr-channel">ช่องทางที่เข้ามา</label>
+          {/* ชื่อตาม FLOW ("ผู้สนใจ เก็บข้อมูลติดต่อ จังหวัด แหล่งที่มา ผู้ดูแลฝั่ง HQ") — เดิม "ช่องทางที่เข้ามา" */}
+          <label className="form-label" htmlFor="pr-channel">แหล่งที่มา</label>
           {/* ดรอปดาวน์ (บอสสั่ง 14 ก.ย. 69: "ทำเป็นดรอปดาวน์ด้วย") — ค่าเดิมที่ไม่อยู่ในรายการ (พิมพ์เองสมัยก่อน/นำเข้า) ต้องยังเห็น ไม่หายเงียบ */}
           <select id="pr-channel" className="form-select" value={ร่าง.channel ?? ""} onChange={e => ตั้งค่า("channel", e.target.value || null)} style={{ cursor: "pointer" }}>
             <option value="">— ยังไม่ระบุ —</option>
@@ -637,12 +639,14 @@ export default function HQProspectsPage() {
           </select>
         </div>
         <div>
+          {/* แสดงปี พ.ศ. (ผลตรวจเทียบ FLOW รอบ 5 แถว 5) — ช่อง type="date" ของเบราว์เซอร์ขึ้น 28/10/2026 · dd/mm/yyyy
+              ใช้ช่องกลาง ThaiDateInput ตัวเดียวกับ "ยืนราคาถึง" · ค่าที่เก็บยังเป็น YYYY-MM-DD เหมือนเดิม */}
           <label className="form-label" htmlFor="pr-first">เริ่มติดต่อ</label>
-          <input id="pr-first" className="form-input" type="date" value={ร่าง.firstContact ?? ""} onChange={e => ตั้งค่า("firstContact", e.target.value || null)} />
+          <ThaiDateInput id="pr-first" ariaLabel="เริ่มติดต่อ" width="100%" value={ร่าง.firstContact ?? ""} onChange={v => ตั้งค่า("firstContact", v || null)} />
         </div>
         <div>
           <label className="form-label" htmlFor="pr-follow">ติดตามครั้งถัดไป</label>
-          <input id="pr-follow" className="form-input" type="date" value={ร่าง.followUp ?? ""} onChange={e => ตั้งค่า("followUp", e.target.value || null)} />
+          <ThaiDateInput id="pr-follow" ariaLabel="ติดตามครั้งถัดไป" width="100%" value={ร่าง.followUp ?? ""} onChange={v => ตั้งค่า("followUp", v || null)} />
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
           <label className="form-label" htmlFor="pr-note">หมายเหตุ</label>
@@ -658,7 +662,7 @@ export default function HQProspectsPage() {
         <ExportMenu
           filename="hq-prospects"
           title="ผู้สนใจเป็นดีลเลอร์"
-          headers={["ชื่อ", "ชื่อบนโซเชียล", "เบอร์โทร", "อีเมล", "ภาค", "จังหวัด", "ประเภทธุรกิจ", "ช่องทาง", "เริ่มติดต่อ", "ติดตามครั้งถัดไป", "สถานะ", "เหตุผลที่ไม่สำเร็จ", "ผู้ดูแล", "รหัสดีลเลอร์", "หมายเหตุ"]}
+          headers={["ชื่อ", "ชื่อบนโซเชียล", "เบอร์โทร", "อีเมล", "ภาค", "จังหวัด", "ประเภทธุรกิจ", "แหล่งที่มา", "เริ่มติดต่อ", "ติดตามครั้งถัดไป", "สถานะ", "เหตุผลที่ไม่สำเร็จ", "ผู้ดูแล", "รหัสดีลเลอร์", "หมายเหตุ"]}
           rows={filtered.map(p => [
             p.name, p.social ?? "", p.phone ?? "", p.email ?? "", p.region ?? "", p.province ?? "", p.businessType ?? "", p.channel ?? "",
             p.firstContact ?? "", p.followUp ?? "", prospectStatusLabel[p.status], p.lostReason ?? "", p.assigned ?? "",
@@ -751,7 +755,7 @@ export default function HQProspectsPage() {
               <col style={{ width: "7%", minWidth: 60 }} />
             </colgroup>
             <thead>
-              <tr><th>ลำดับ</th><th>ชื่อ</th><th>ชื่อบนโซเชียล</th><th>เบอร์โทร</th><th>จังหวัด</th><th>ช่องทาง</th><th>ขั้น · ความคืบหน้า</th><th>ติดต่อล่าสุด</th><th>นัดติดตาม</th><th>ดีลเลอร์</th></tr>
+              <tr><th>ลำดับ</th><th>ชื่อ</th><th>ชื่อบนโซเชียล</th><th>เบอร์โทร</th><th>จังหวัด</th><th>แหล่งที่มา</th><th>ขั้น · ความคืบหน้า</th><th>ติดต่อล่าสุด</th><th>นัดติดตาม</th><th>ดีลเลอร์</th></tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (

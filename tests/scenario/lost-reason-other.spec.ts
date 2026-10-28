@@ -16,7 +16,7 @@ test.setTimeout(180_000);
 test("[ui·hq] หน้าตั้งค่ามี 'อื่นๆ (ระบุเอง)' อยู่ในรายการเหตุผลจริง", async ({ page }) => {
   await openAs(page, ADMIN, "hq", "/hq/settings");
   await settle(page);
-  await page.getByRole("button", { name: "เส้นทางการขาย" }).first().click();
+  await page.getByRole("button", { name: "ขั้นตอนการขายมาตรฐาน" }).first().click();
   await page.waitForTimeout(800);
 
   const การ์ด = page.locator(".card", { hasText: "เหตุผลปิดการขายไม่สำเร็จ" }).first();

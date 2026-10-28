@@ -32,3 +32,43 @@ test("[func·hq] หน้าตั้งค่าเป้าหมาย ต�
   console.log("ผลรวมจริงจากฐานข้อมูล:", ที่คาด);
   expect(ข้อความ, "ตัวเลขบนจอต้องตรงกับผลรวมเป้าดีลเลอร์จริง").toContain(ที่คาด);
 });
+
+// ── "ทำได้จริง" รายภูมิภาค ต้องตามยอดจริง แม้ยอดผลงานมาถึงหลังทะเบียนดีลเลอร์ (ผลตรวจเทียบ FLOW รอบ 5 แถว 33 · 28 ต.ค. 69) ──
+//   เจอ: ตาราง "เป้าหมายรายภูมิภาค" ทำได้จริง ฿0 / 0% ทุกภาค ขณะที่ "ความคืบหน้าทั้งเครือ" ทำได้จริง ฿182.8M
+//   ต้นเหตุ: ตัวรวมรายภูมิภาคคิดครั้งเดียวตอนทะเบียนดีลเลอร์มาถึง ไม่คิดใหม่ตอนยอดผลงานมาถึงทีหลัง
+//   ข้อนี้หน่วงคำตอบยอดผลงานไว้ให้มาทีหลังเสมอ (บนเว็บจริงลำดับนี้เกิดเองแทบทุกครั้ง) แล้วเทียบผลรวมทุกภาคกับทั้งเครือ
+const เป็นบาท = (t: string): number => {
+  const m = /฿([\d.,]+)(M?)/.exec(t);
+  if (!m) return NaN;
+  const n = Number(m[1].replace(/,/g, ""));
+  return m[2] ? n * 1e6 : n;
+};
+test("[func·hq] เป้าหมายรายภูมิภาค: ทำได้จริงรวมทุกภาค = ทั้งเครือ แม้ยอดมาถึงหลังทะเบียนดีลเลอร์", async ({ page }) => {
+  await page.route(/\/api\/v1\/metrics\?k=dealerRollup|\/rest\/v1\/rpc\/dealer_rollup/, async route => {
+    await new Promise(r => setTimeout(r, 2500));
+    await route.continue();
+  });
+  await openAs(page, ADMIN, "hq", "/hq/settings");
+  await settle(page);
+  await page.getByRole("button", { name: /เป้าหมายยอดขาย/ }).first().click();
+
+  const การ์ด = (ชื่อ: string) => page.locator("[data-section-card]").filter({ has: page.locator(".card-title", { hasText: ชื่อ }) });
+  // ทั้งเครือ: รอจนยอดมาถึง (ก่อนมาขึ้น "—")
+  let ทั้งเครือ = NaN;
+  await expect.poll(async () => {
+    const t = (await การ์ด("ความคืบหน้าทั้งเครือ").innerText()).replace(/\s+/g, " ");
+    ทั้งเครือ = เป็นบาท(/ทำได้จริง ?(฿[\d.,]+M?)/.exec(t)?.[1] ?? "");
+    return ทั้งเครือ;
+  }, { message: "ยอดทั้งเครือต้องมาถึง", timeout: 30_000 }).toBeGreaterThan(0);
+
+  // รายภูมิภาค: คอลัมน์ที่ 4 = ทำได้จริง · ผลรวมทุกภาคต้องเท่าทั้งเครือ (คลาดได้แค่จากการปัดเศษ ฿x.xM ต่อแถว)
+  const ตาราง = การ์ด("เป้าหมายรายภูมิภาค").locator("tbody tr");
+  let ผลรวม = 0, แถว = 0;
+  await expect.poll(async () => {
+    const ค่า = await ตาราง.locator("td:nth-child(4)").allInnerTexts();
+    แถว = ค่า.length;
+    ผลรวม = ค่า.reduce((s, t) => s + (เป็นบาท(t) || 0), 0);
+    return Math.abs(ผลรวม - ทั้งเครือ) <= 0.06e6 * Math.max(1, แถว) + 0.06e6;
+  }, { message: "ทำได้จริงรวมทุกภาคต้องเท่าทั้งเครือ (เดิมค้าง ฿0 ทุกภาค)", timeout: 20_000 }).toBe(true);
+  console.log(`ทั้งเครือ ${ทั้งเครือ} · รวม ${แถว} ภาค ${ผลรวม}`);
+});

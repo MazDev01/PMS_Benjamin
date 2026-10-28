@@ -58,6 +58,6 @@ test("ถ่ายรูป: แท็บประวัติ (รายกา�
   await ถ่าย(hq, "HQ-เส้นทางการขาย", async () => {
     await hq.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
     await settle(hq);
-    await hq.getByRole("button", { name: "เส้นทางการขาย" }).first().click();
+    await hq.getByRole("button", { name: "ขั้นตอนการขายมาตรฐาน" }).first().click();
   });
 });
