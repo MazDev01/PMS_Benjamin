@@ -154,7 +154,10 @@ function fireSettings() {
 /** มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223) — โหมดตัวอย่างไม่มีฐาน จึงคิดจากใบในเครื่องตอนอ่าน */
 function ใส่มูลค่าลีด(ls: LeadRow[]): LeadRow[] {
   const qs = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
-  return ls.map(l => ({ ...l, quoteValue: ยอดใบล่าสุดของลีด(l, qs) ?? null }));
+  // มีใบผูกลีด = ลบไม่ได้ (ใบ 0258) · โหมดตัวอย่างส่งคำขอราคาไม่ได้ จึงดูจากใบอย่างเดียว
+  return ls.map(l => ({ ...l, quoteValue: ยอดใบล่าสุดของลีด(l, qs) ?? null,
+    ...(() => { const ของลีด = qs.filter(q => !!l.numId && q.dealId === l.numId && (q.dealerCode ?? DEFAULT_DEALER_CODE) === (l.dealerCode ?? DEFAULT_DEALER_CODE));
+      return { hasQuotes: ของลีด.length > 0, reachedStep: ของลีด.some(q => q.status !== "draft" && q.status !== "expired") ? 5 : ของลีด.length ? 4 : 1 }; })() }));
 }
 function scopeByDealer<T extends { dealerCode?: string }>(list: T[], scope?: Scope): T[] {
   if (!scope || scope.isHQ || !scope.dealerCode) return list;
