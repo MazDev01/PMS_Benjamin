@@ -76,8 +76,9 @@ end $$;
 set local session_replication_role = origin;
 
 -- ═══ 2. ฐานไม่รับของเก่าอีก ══════════════════════════════════════════════════════════════════════════════════
+-- ตัวดักทั้งสองเป็น security definer: เรียกฟังก์ชันช่วยที่ถอนสิทธิ์จากทุกบทบาท (ไม่งั้นเพิ่ม/แก้ลีดล้ม permission denied)
 create or replace function public.leads_old_flow_retired() returns trigger
-  language plpgsql set search_path to 'public' as $$
+  language plpgsql security definer set search_path to 'public' as $$
 declare เก่า jsonb := '{"FOLLOWUP":"ติดตามผล","NEGO":"เจรจาต่อรอง"}';
 begin
   if new.status::text in ('FOLLOWUP', 'NEGO') then
@@ -103,7 +104,7 @@ alter table public.leads add constraint leads_status_retired
   check (status::text not in ('FOLLOWUP', 'NEGO') and coalesce(status_before_paid::text, '') not in ('FOLLOWUP', 'NEGO'));
 
 create or replace function public.hq_sales_journey_old_tasks_retired() returns trigger
-  language plpgsql set search_path to 'public' as $$
+  language plpgsql security definer set search_path to 'public' as $$
 begin
   if _lead_tasks_has_old_flow(new.tasks) then
     raise exception 'lead_task_retired: แม่แบบงานแบบเก่า (ติดตามผล/เจรจาต่อรอง/ปิดการขาย/ส่งแม่แบบ หรือผูกสถานะลีดแบบเก่า) เลิกใช้แล้ว — ทุกรายการผูกกับขั้น 1–5';

@@ -19,6 +19,8 @@ create function ostest.ผู้ใช้(p_role text, p_dealer text) returns uu
   select id from profiles where role::text = p_role and coalesce(dealer_code, '') = p_dealer and status::text = 'active' order by id limit 1 $$;
 create function ostest.as_user(p_role text, p_dealer text) returns void language plpgsql as $$
 begin
+  -- คืนสิทธิ์ก่อนหาบัญชี: ถ้ายังสวมสิทธิ์ดีลเลอร์อยู่ กฎรายแถวซ่อนโปรไฟล์ HQ → sub ว่าง → คำสั่งของ HQ ไม่โดนแถวไหนเลย
+  perform set_config('role', 'none', true); perform set_config('request.jwt.claims', '', true);
   perform set_config('request.jwt.claims', json_build_object('sub', ostest.ผู้ใช้(p_role, p_dealer), 'role', 'authenticated',
     'user_role', p_role, 'dealer_code', p_dealer, 'email', 'zzos@example.test')::text, true);
   perform set_config('role', 'authenticated', true);
@@ -85,7 +87,7 @@ begin
   perform ostest.must_fail($q$update leads set tasks = '[{"key":"contact","label":"ติดต่อแล้ว","stage":"WAITING","done":false}]' where id = '#L-ZZOS1'$q$,
     'lead_task_retired', 'งานในฐานใส่รายการเตือนแบบผูกสถานะเก่า = ปฏิเสธ');
   -- ปิดตัวดัก (กู้ข้อมูล) ก็ไม่ได้ — ข้อบังคับของตาราง
-  perform ostest.must_fail($q$do $x$ begin set local session_replication_role = replica; update leads set status = 'NEGO' where id = '#L-ZZOS1'; end $x$$q$,
+  perform ostest.must_fail($q$do $x$ begin set local session_replication_role = replica; update leads set status = 'NEGO' where id = '#L-ZZOS1'; end $x$ $q$,
     'leads_status_retired', 'ปิดตัวดักแล้วตั้ง "เจรจาต่อรอง" = ข้อบังคับปฏิเสธ');
   set local session_replication_role = origin;
 
