@@ -36,7 +36,7 @@ async function purge() {
 test.beforeAll(purge);
 test.afterAll(purge);
 
-test("[flow·hq] หาดีลเลอร์ใหม่ครบเส้น: ผู้สนใจ → นัดคุย → ใบค่าแฟรนไชส์ (เวอร์ชันใหม่ · ปฏิเสธพร้อมเหตุผล) → แปลงเป็นดีลเลอร์ + จังหวัดที่ดูแล", async ({ page }) => {
+test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่ครบเส้น: ผู้สนใจ → นัดคุย → ใบค่าแฟรนไชส์ (เวอร์ชันใหม่ · ปฏิเสธพร้อมเหตุผล) → แปลงเป็นดีลเลอร์ + จังหวัดที่ดูแล", async ({ page }) => {
   test.skip(!ADMIN_SERVICE_ROLE_KEY, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   const errs = watchErrors(page);
   const sb = await db(ADMIN);

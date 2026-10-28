@@ -299,9 +299,10 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
               </span>
             )}
           </div>
+          {/* ชื่อปุ่มตาม FLOW H11 ("เข้าระบบ" · "แก้ไข" · ปิด/เปิดใช้งาน) — เดิม "แก้ไขข้อมูลดีลเลอร์" (หัวหน้าต่างแก้ไขยังชื่อเดิม) */}
           {can("dealers:manage") && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0 6px" }}>
-              <button className="btn btn-primary btn-sm" onClick={() => setเปิดแก้(true)}><Pencil size={13} /> แก้ไขข้อมูลดีลเลอร์</button>
+              <button className="btn btn-primary btn-sm" onClick={() => setเปิดแก้(true)}><Pencil size={13} /> แก้ไข</button>
               <button className="btn btn-secondary btn-sm" onClick={() => void สลับสถานะ(dealer)}>
                 {dealer.status === "active" ? <><EyeOff size={13} /> ปิดใช้งาน</> : <><Eye size={13} /> เปิดใช้งาน</>}
               </button>
@@ -322,7 +323,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
               หน้านี้แก้ "บัญชีเข้าระบบ" ได้จริงที่การ์ดด้านล่าง — ป้ายที่บอกว่าแก้อะไรไม่ได้เลย
               ทำให้ผู้ดูแลไม่กล้ากดต่อ หรือนึกว่าปุ่มที่เห็นเป็นปุ่มที่กดไม่ได้ */}
           <strong style={{ color: "#003366" }}>ข้อมูลงานขายดูอย่างเดียว</strong> — ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า แก้จากหน้านี้ไม่ได้
-          {" · "}ข้อมูลดีลเลอร์แก้ที่ปุ่ม “แก้ไขข้อมูลดีลเลอร์” · บัญชีเข้าระบบแก้ได้ที่การ์ด “ข้อมูลเข้าระบบของดีลเลอร์” ด้านล่าง
+          {" · "}ข้อมูลดีลเลอร์แก้ที่ปุ่ม “แก้ไข” · บัญชีเข้าระบบแก้ได้ที่การ์ด “ข้อมูลเข้าระบบของดีลเลอร์” ด้านล่าง
         </span>
         {/* ⚠️ ปุ่ม "เข้าสู่โหมดจัดการ" ถูกลบเมื่อ 10 ส.ค. 69 — เดิมเขียน disabled ตายตัวในโค้ด
             ทดสอบด้วยบัญชีผู้ดูแลระบบจริงก็ยังกดไม่ได้ พร้อมคำอธิบายว่า "เฉพาะ Super Admin"

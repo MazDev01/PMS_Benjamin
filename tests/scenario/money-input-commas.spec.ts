@@ -9,7 +9,7 @@ test("[ui·hq] เป้ายอดขายดีลเลอร์ พิม�
   const ช่อง = page.getByLabel("เป้ายอดขายทั้งปี");
   // ฟอร์มเพิ่มดีลเลอร์ถูกถอดแล้ว (บอสสั่ง 14 ก.ย. 69) — ช่องเป้ายอดขายเหลืออยู่ในฟอร์มแก้ไข
   //   พิมพ์ดูแล้วกดยกเลิก ไม่บันทึกทับเป้าของสาขาจริง
-  await page.getByRole("button", { name: "แก้ไขข้อมูลดีลเลอร์" }).click();
+  await page.getByRole("button", { name: "แก้ไข", exact: true }).click();
   await expect(ช่อง).toBeVisible();
   await ช่อง.fill("");
   await ช่อง.pressSequentially("12000000", { delay: 20 });
