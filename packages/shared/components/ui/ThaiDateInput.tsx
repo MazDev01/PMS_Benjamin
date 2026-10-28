@@ -5,10 +5,11 @@
 //   ทางแก้: แสดงวันที่ด้วยตัวจัดรูปกลางตัวเดียวกับทั้งระบบ (fmtISOToThai · "25 พ.ย. 2569") แล้ววางช่องเลือกวันที่จริง
 //   ของเบราว์เซอร์ทับไว้แบบโปร่งใส — กดที่ช่องได้ปฏิทินเดิม · ค่าที่เก็บ/ส่ง = YYYY-MM-DD เหมือนเดิม
 //   ช่องจริงมีป้าย (ariaLabel) ให้โปรแกรมอ่านหน้าจอและข้อทดสอบ · กรอบโฟกัสอยู่ที่ .thai-date:focus-within
+import type React from "react";
 import { CalendarDays } from "lucide-react";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 
-export function ThaiDateInput({ id, value, onChange, ariaLabel, min, disabled, width = 180 }: {
+export function ThaiDateInput({ id, value, onChange, ariaLabel, min, disabled, width = 180, style }: {
   /** ให้ <label htmlFor> ของฟอร์มชี้มาที่ช่องจริงได้ (ฟอร์มผู้สนใจเป็นดีลเลอร์) */
   id?: string;
   value: string;
@@ -18,10 +19,12 @@ export function ThaiDateInput({ id, value, onChange, ariaLabel, min, disabled, w
   disabled?: boolean;
   /** ตัวเลข = พิกเซล · ข้อความ เช่น "100%" = เต็มช่องของฟอร์ม */
   width?: number | string;
+  /** ทับสไตล์กรอบนอก — เช่นช่องแก้ในที่เดิมแบบไร้กรอบ (แผงลูกค้า "เป็นลูกค้าเมื่อ" · ตรวจเทียบ FLOW รอบ 5) */
+  style?: React.CSSProperties;
 }) {
   return (
     <span className="thai-date" style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8, width, height: 36, padding: "0 10px",
-      border: "1px solid #e5e7eb", borderRadius: 8, background: disabled ? "#f8fafc" : "#fff", fontSize: "0.84rem", color: "#1f2937", boxSizing: "border-box" }}>
+      border: "1px solid #e5e7eb", borderRadius: 8, background: disabled ? "#f8fafc" : "#fff", fontSize: "0.84rem", color: "#1f2937", boxSizing: "border-box", ...style }}>
       <span data-thai-date style={{ flex: 1, whiteSpace: "nowrap" }}>{value ? fmtISOToThai(value) : "เลือกวันที่"}</span>
       <CalendarDays size={15} color="#6b7280" aria-hidden />
       <input id={id} type="date" aria-label={ariaLabel} value={value} min={min} disabled={disabled}

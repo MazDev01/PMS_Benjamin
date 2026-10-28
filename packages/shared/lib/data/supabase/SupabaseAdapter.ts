@@ -997,6 +997,8 @@ export const SupabaseAdapter: DataAdapter = {
           province: String(r.province ?? ""), totalValue: Number(r.total_value ?? 0),
           buildingTypes: (r.building_types as string[] | null) ?? [], templates: (r.templates as string[] | null) ?? [],
           lastPurchaseAt: (r.last_purchase_at as string | null) ?? null,
+          // ข้อมูลติดต่อ (ใบ 0254) — ต้องเพิ่มคู่กับ server/v1/metrics.ts เสมอ (เว็บจริงวิ่งทางนั้น)
+          contact: String(r.contact ?? ""), phone: String(r.phone ?? ""), email: String(r.email ?? ""), address: String(r.address ?? ""),
         })),
       };
     },

@@ -1560,6 +1560,8 @@ export type HQCustomer = {
   status: "active" | "inactive";
   lastContact: string;
   segment: "enterprise" | "sme" | "government";
+  /** ชุดช่องมาตรฐานข้อมูลลูกค้า (fieldLabels.ts) — แผงลูกค้า HQ แสดง (ตรวจเทียบ FLOW รอบ 5) · ไม่มีข้อมูล = ไม่ใส่ (แผงขึ้น "—") */
+  contact?: string; phone?: string; email?: string; address?: string;
 };
 
 // ไม่มีลูกค้าของ CNX ที่นี่โดยตั้งใจ — CNX คือสาขาที่เล่นได้ ลูกค้าจึงมาจากสมุดสด (useNetworkCustomers)
