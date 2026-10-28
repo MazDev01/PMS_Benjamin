@@ -38,17 +38,18 @@ if (process.argv.includes("--build-only")) {
 //   PMS_GATE_PARALLEL=0 = เรียงทีละขั้นแบบเดิม (ใช้วัดเวลาก่อน/หลัง) · ผลเวลาอยู่ test-results/gate-timing.json
 const พร้อมกัน = process.env.PMS_GATE_PARALLEL !== "0";
 const เริ่มรอบ = Date.now();
+let รอคิววินาที = 0;   // เวลารอล็อกฐานทดสอบ (เซสชันอื่นใช้อยู่) — ไม่นับเป็นเวลาทำงานของรอบ
 const เวลา = [];
 const จับเวลา = async (ช่วง, fn) => {
   const s = Date.now();
   try { return await fn(); } finally { เวลา.push({ ช่วง, วินาที: Math.round((Date.now() - s) / 1000) }); }
 };
 const สรุปเวลา = () => {
-  const รวม = Math.round((Date.now() - เริ่มรอบ) / 1000);
-  console.log(`▶ เวลาแต่ละช่วง (${พร้อมกัน ? "รันพร้อมกัน" : "เรียงทีละขั้น"} · รวม ${(รวม / 60).toFixed(1)} นาที):`);
+  const รวม = Math.round((Date.now() - เริ่มรอบ) / 1000) - รอคิววินาที;
+  console.log(`▶ เวลาแต่ละช่วง (${พร้อมกัน ? "รันพร้อมกัน" : "เรียงทีละขั้น"} · รวม ${(รวม / 60).toFixed(1)} นาที ไม่นับรอคิวฐานทดสอบ ${รอคิววินาที} วิ):`);
   for (const x of เวลา) console.log(`   ${String(x.วินาที).padStart(5)} วิ  ${x.ช่วง}`);
   mkdirSync("test-results", { recursive: true });
-  writeFileSync("test-results/gate-timing.json", JSON.stringify({ รอบ: process.env.PMS_RUN_ID ?? "", โหมด: พร้อมกัน ? "พร้อมกัน" : "เรียง", รวมวินาที: รวม, ช่วง: เวลา }, null, 2) + "\n");
+  writeFileSync("test-results/gate-timing.json", JSON.stringify({ รอบ: PMS_RUN_ID, รอคิววินาที, โหมด: พร้อมกัน ? "พร้อมกัน" : "เรียง", รวมวินาที: รวม, ช่วง: เวลา }, null, 2) + "\n");
 };
 // รันคำสั่งเบื้องหลัง เก็บข้อความลงไฟล์ (หลายตัวพร้อมกัน = ข้อความไม่ปนกันบนจอ) · ตกแล้วพิมพ์ท้ายไฟล์ให้เห็น
 const รันเก็บข้อความ = (ชื่อ, cmd, args, opt) => new Promise(ok => {
@@ -69,7 +70,9 @@ const MODE = process.env.NEXT_PUBLIC_DATA_SOURCE ?? "api";   // ค่าตั�
 const PMS_RUN_ID = process.env.PMS_RUN_ID ?? new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 19).replace(/[:T]/g, "-");
 // ── ถือล็อกฐานทดสอบตลอดรอบ (scripts/lib/testDbLock.mjs · 22 ต.ค. 69) — เซสชันอื่นใช้ฐานอยู่ = รอคิว (บอกว่าใคร) ─────────
 //   ทุกขั้นย่อย (playwright · prod-live ในเครื่อง · สคริปต์ล้าง) ได้รหัสล็อกทาง env จึงไม่ล็อกซ้ำ/ไม่รอตัวเอง
+const ก่อนล็อก = Date.now();
 const ล็อกฐาน = ขอล็อกฐานทดสอบ(`รอบตรวจเต็ม (${ตอนเริ่ม.sha.slice(0, 7)})`, { รอนาที: Number(process.env.PMS_TESTDB_LOCK_WAIT || 180) });
+รอคิววินาที = Math.round((Date.now() - ก่อนล็อก) / 1000);
 // พอร์ตทดสอบของโฟลเดอร์นี้ (โฟลเดอร์หลัก = ค่าใน scripts/lib/ports.json · เซสชันลูก = .pms-session.json)
 const พอร์ตทดสอบ = พอร์ต("test"), ที่อยู่ = ต้นทาง("test");
 // PMS_LOCAL_HTTP_TEST: เซิร์ฟเวอร์ในเครื่องรันบน http — ให้คุกกี้ใบผ่านไม่ติด Secure (WebKit ทิ้งคุกกี้ Secure บน http · ดู _cookie.ts)
