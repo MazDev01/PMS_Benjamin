@@ -38,7 +38,7 @@ async function purge() {
 test.beforeAll(purge);
 test.afterAll(purge);
 
-test("[auth·dealer] เปลี่ยนรหัสผ่านตัวเองสำเร็จ → ถูกพาไปเข้าสู่ระบบใหม่ ไม่ค้างแบบล็อกอินผี", async ({ page, request }) => {
+test("[D9] [auth·dealer] เปลี่ยนรหัสผ่านตัวเองสำเร็จ → ถูกพาไปเข้าสู่ระบบใหม่ ไม่ค้างแบบล็อกอินผี", async ({ page, request }) => {
   const token = (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
   const สร้าง = await request.post(`${HQ_ORIGIN}/api/admin/dealers`, {
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },

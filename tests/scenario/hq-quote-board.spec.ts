@@ -68,7 +68,7 @@ const รายการ = (page: Page) => page.getByRole("list", { name: "ร�
 const แถวของ = (page: Page, k: string) => รายการ(page).getByRole("button", { name: ของ(k).บริษัท });
 const กล่องยืนยัน = (page: Page) => page.locator(".pms-confirm[role='alertdialog']");
 
-test("[ui·hq] แต่ละสถานะในช่องเลือกได้แถวตรงกับฐาน (hq_quote_board) และตรงค่าที่รู้ล่วงหน้า · คำค้นกรองทั้งจำนวนและรายการ", async ({ page }) => {
+test("[H9x] [ui·hq] แต่ละสถานะในช่องเลือกได้แถวตรงกับฐาน (hq_quote_board) และตรงค่าที่รู้ล่วงหน้า · คำค้นกรองทั้งจำนวนและรายการ", async ({ page }) => {
   await เข้าหน้า(page);
   await page.getByLabel("ค้นหาคำขอ").fill(แท็ก);
   const hq = await db(ADMIN);
@@ -95,7 +95,7 @@ test("[ui·hq] แต่ละสถานะในช่องเลือก�
   await expect(แถวของ(page, "E")).toContainText("ยกเลิก");
 });
 
-test("[ui·hq] เข้าหน้าแล้วเปิดคำขอบนสุดให้ทันที แค่เปิดดู (ไม่มีคำสั่งเขียน) · กดแถวแล้วใบฝั่งขวาเปลี่ยนตาม", async ({ page }) => {
+test("[H7] [ui·hq] เข้าหน้าแล้วเปิดคำขอบนสุดให้ทันที แค่เปิดดู (ไม่มีคำสั่งเขียน) · กดแถวแล้วใบฝั่งขวาเปลี่ยนตาม", async ({ page }) => {
   const เขียน: string[] = [];
   page.on("request", r => { if (r.method() !== "GET" && /\/api\/v1\/quote-requests|\/rest\/v1\/(quote_requests|hq_quotes)|\/rest\/v1\/rpc\/(hq_quote|quote_request)/.test(r.url())) เขียน.push(`${r.method()} ${r.url()}`); });
   await เข้าหน้า(page);

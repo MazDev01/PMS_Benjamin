@@ -70,7 +70,7 @@ async function เปิดแผงดีลเลอร์(page: Page) {
   return row;
 }
 
-test("[flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายการที่พิมพ์เองแล้วบันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้ายได้ราคา", async ({ page }) => {
+test("[H8] [flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายการที่พิมพ์เองแล้วบันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้ายได้ราคา", async ({ page }) => {
   const errs = watchErrors(page);
   const กล่อง = await เปิดใบHQ(page);
 

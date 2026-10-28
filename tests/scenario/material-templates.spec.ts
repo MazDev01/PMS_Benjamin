@@ -84,7 +84,7 @@ test("[db] ดีลเลอร์แก้ราคาแม่แบบไม
   expect(Number((await svc.from("material_templates").select("unit_price").eq("id", id.ผนัง).single()).data?.unit_price), "ราคาไม่เปลี่ยน").toBe(285.5);
 });
 
-test("[flow·dealer] ขอราคา: เลือกวัสดุ 2 รายการ → ราคาประเมินถูก + ป้ายไม่ใช่ใบเสนอราคา · พิมพ์ไม่ออก · คำขอเก็บสำเนา", async ({ page }) => {
+test("[D3] [flow·dealer] ขอราคา: เลือกวัสดุ 2 รายการ → ราคาประเมินถูก + ป้ายไม่ใช่ใบเสนอราคา · พิมพ์ไม่ออก · คำขอเก็บสำเนา", async ({ page }) => {
   const errs = watchErrors(page);
   await สร้างลีด("ขอ");
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);

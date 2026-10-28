@@ -1236,6 +1236,11 @@ export const dealerLeaderboard: DealerRow[] = [
 // ─── APPOINTMENTS ─────────────────────────────────────────────
 export type ApptType = "visit" | "design_meet" | "presentation" | "contract_sign" | "close" | "follow_up";
 export type ApptStatus = "upcoming" | "done" | "cancelled";
+/** นัดยังเปิดอยู่ (ทำเสร็จ/ยกเลิกได้ · นับเลยกำหนดได้) = ไม่ใช่เสร็จสิ้นและไม่ใช่ยกเลิก (ตารางเทียบ FLOW รอบ 5 แถว D19 · 28 ต.ค. 69)
+ *  ฐานเก็บสถานะเป็นข้อความอิสระ — ค่าอื่น (เช่น "scheduled" ของข้อมูลนำเข้า) ถือว่ายังเปิด
+ *  เดิมแผงนัดเช็กแค่ "upcoming" → นัดค่าอื่นขึ้นป้าย "ยกเลิก" และไม่มีปุ่มทำเสร็จ · การ์ดเลยกำหนดนับนัดที่ยกเลิกแล้วด้วย */
+export const นัดยังเปิด = (s: string | null | undefined) => s !== "done" && s !== "cancelled";
+export const ป้ายสถานะนัด = (s: string | null | undefined) => s === "done" ? "เสร็จสิ้น" : s === "cancelled" ? "ยกเลิก" : "นัดไว้";
 
 export const apptTypeLabel: Record<ApptType, string> = {
   visit: "นัดพบลูกค้า",
