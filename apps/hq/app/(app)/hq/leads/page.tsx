@@ -658,7 +658,7 @@ export default function HQLeadsPage() {
               <col style={{ width: "8%", minWidth: 88 }} />{/* เสนอราคา */}
               <col style={{ width: "8%", minWidth: 88 }} />{/* ติดต่อล่าสุด */}
               <col style={{ width: "8%", minWidth: 100 }} />{/* ต้องติดตาม — ในช่องเป็นป้ายชื่อ ห้ามตัด */}
-              <col style={{ width: "12%", minWidth: 128 }} />{/* ขั้นตอน — พอให้ "4 ทำใบให้ลูกค้า" ไม่ถูกตัด */}
+              <col style={{ width: "12%", minWidth: 128 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
               <col style={{ width: "5%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน (ปุ่ม 28px + padding ของ td) */}
             </colgroup>
             <thead><tr>

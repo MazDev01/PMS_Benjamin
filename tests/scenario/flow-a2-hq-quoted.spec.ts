@@ -63,16 +63,16 @@ test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้รา�
   const แถว = await แถวลีด(page, ได้ราคา);
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   // ป้ายในตาราง = ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมชื่อสถานะ "ได้ราคา HQ")
-  await expect(แถว.getByText("3 ได้ใบ HQ", { exact: true }), "ป้ายในแถว = ขั้น 3 ได้ใบ HQ").toBeVisible();
-  await expect(แถว.getByText("2 ขอราคา HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
+  await expect(แถว.getByText("ได้ใบ HQ", { exact: true }), "ป้ายในแถว = ขั้น 3 ได้ใบ HQ").toBeVisible();
+  await expect(แถว.getByText("ขอราคา HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
 
   // ตัวกรอง
   const ตัวกรอง = page.getByRole("combobox", { name: "ทุกขั้นตอน" });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill("ZZTEST-");
-  await ตัวกรอง.selectOption({ label: "2 ขอราคา HQ" });
+  await ตัวกรอง.selectOption({ label: "ขอราคา HQ" });
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กรองรอราคา HQ: เห็นลีดที่ยังรอ").toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กรองรอราคา HQ: ไม่เห็นลีดที่ได้ราคาแล้ว").toHaveCount(0);
-  await ตัวกรอง.selectOption({ label: "3 ได้ใบ HQ" });
+  await ตัวกรอง.selectOption({ label: "ได้ใบ HQ" });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กรองได้ราคา HQ: เห็น").toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กรองได้ราคา HQ: ไม่เห็นลีดที่ยังรอ").toHaveCount(0);
 
@@ -87,7 +87,7 @@ test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้รา�
     const มีร่าง = new Set((ร่าง ?? []).map(q => Number(q.deal_id)));
     return (ลีด ?? []).filter(l => !มีร่าง.has(Number(l.num_id))).length;
   };
-  for (const [ป้าย, s] of [["3 ได้ใบ HQ", "HQ_QUOTED"], ["2 ขอราคา HQ", "HQ_PRICING"]] as const) {
+  for (const [ป้าย, s] of [["ได้ใบ HQ", "HQ_QUOTED"], ["ขอราคา HQ", "HQ_PRICING"]] as const) {
     let ได้ = false;
     for (let รอบ = 0; รอบ < 5 && !ได้; รอบ++) {
       const ก่อน = await นับ(s);

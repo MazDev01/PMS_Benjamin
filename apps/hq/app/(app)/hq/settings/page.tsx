@@ -60,7 +60,7 @@ import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
 import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
 import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
-import { ชื่อขั้น, ชื่อขั้นการขาย, สีขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, สีขั้น } from "@pms/shared/lib/leadStage";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
@@ -196,8 +196,9 @@ function JourneyTab() {
         <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden", marginTop: 6 }}>
           {ขั้นทั้งหมด.map((n, idx) => (
             <div key={n} data-journey-step={n} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderBottom: idx < ขั้นทั้งหมด.length - 1 ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>
-              <span style={{ width: 24, height: 24, borderRadius: "50%", background: สีขั้น(n).bg, color: สีขั้น(n).text, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, flexShrink: 0, marginTop: 4 }}>{n}</span>
-              <span style={{ flex: "1 1 140px", fontSize: "0.84rem", fontWeight: 700, color: STEEL, marginTop: 5 }}>{ชื่อขั้นการขาย[n - 1]}</span>
+              {/* ไม่มีเลขลำดับ (บอสสั่ง 28 ต.ค. 69) — จุดสีของขั้น + ชื่อจาก ชื่อขั้น() ตัวกลาง · ลำดับดูจากแถวบนลงล่าง */}
+              <span aria-hidden style={{ width: 10, height: 10, borderRadius: "50%", background: สีขั้น(n).bar, flexShrink: 0, marginTop: 10 }} />
+              <span style={{ flex: "1 1 140px", fontSize: "0.84rem", fontWeight: 700, color: STEEL, marginTop: 5 }}>{ชื่อขั้น(n)}</span>
               {/* รายการเตือนของขั้นนี้ — ติ๊กกันลืม ไม่เลื่อนขั้น · รายการของระบบล็อก (ฐานติ๊กเมื่อทำจริง) */}
               <span style={{ flex: "2 1 300px", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                 {tasksOf(n).map(t => t.auto ? (
