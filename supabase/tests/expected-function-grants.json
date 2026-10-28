@@ -1,5 +1,5 @@
 {
- "migration": "0256",
+ "migration": "0258",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -128,7 +128,28 @@
    "definer": true
   },
   {
+   "f": "_lead_has_quotes(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_lead_quote_value(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_lead_reached_step(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_lead_refresh_has_quotes(p_dealer text, p_num integer)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -170,7 +191,21 @@
    "definer": false
   },
   {
+   "f": "_lead_tasks_drop_old_flow(p_tasks jsonb, p_template boolean)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_lead_tasks_five_steps(p_tasks jsonb, p_dealer text, p_num integer, p_appt text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_lead_tasks_has_old_flow(p_tasks jsonb)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -793,6 +828,13 @@
    "definer": false
   },
   {
+   "f": "hq_sales_journey_old_tasks_retired()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "hq_sales_journey_tasks_guard()",
    "anon": false,
    "authenticated": false,
@@ -919,6 +961,20 @@
    "definer": true
   },
   {
+   "f": "leads_has_quotes_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "leads_has_quotes_rekey()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "leads_hq_pricing_guard()",
    "anon": false,
    "authenticated": false,
@@ -931,6 +987,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "leads_old_flow_retired()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "leads_page(p_limit integer, p_offset integer, p_status text, p_dealer_codes text[], p_province text, p_product text, p_source text, p_search text, p_date_start date, p_date_end date, p_overdue boolean, p_as_of date, p_default_days integer, p_follow_up_days jsonb, p_skip_count boolean, p_stage integer)",
@@ -1220,6 +1283,13 @@
    "definer": true
   },
   {
+   "f": "quotations_lead_has_quotes()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotations_lead_quote_value()",
    "anon": false,
    "authenticated": false,
@@ -1363,6 +1433,13 @@
    "f": "quote_request_submit(p_lead_num_id integer, p_product text, p_subtype text, p_area numeric, p_spec text, p_province text, p_estimate jsonb)",
    "anon": false,
    "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_requests_lead_has_quotes()",
+   "anon": false,
+   "authenticated": false,
    "service_role": false,
    "definer": true
   },
