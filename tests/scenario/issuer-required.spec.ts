@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { สร้างสาขาของชุด, ลบสาขาของชุด, type บัญชีสาขาของชุด } from "./ownBranch";
-import { DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
+import { DEALER_ORIGIN, db, loginUI, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
@@ -39,7 +39,7 @@ async function เปิดแผงของใบ(page: Page, id: string) {
   await page.getByPlaceholder(/ค้นหา/).first().fill(id);
   const แถว = page.locator("tbody tr").filter({ hasText: id }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
-  await แถว.locator("td").first().click();
+  await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads/, { timeout: 25_000 });
 }
 

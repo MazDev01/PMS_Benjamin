@@ -8,7 +8,7 @@ import { APP_NOW } from "@pms/shared/context/FilterContext";
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { SortableTh } from "@pms/shared/components/ui/SortableTh";
 import { useRouter } from "next/navigation";
-import { quotationStatusLabel, quotationStatusColor, DEFAULT_ISSUER, DEFAULT_DEALER_CODE, type QuotationStatus, type QuotationMock, type IssuerProfile } from "@pms/shared/lib/mock";
+import { quotationStatusLabel, quotationStatusColor, fmtISOToThai, DEFAULT_ISSUER, DEFAULT_DEALER_CODE, type QuotationStatus, type QuotationMock, type IssuerProfile } from "@pms/shared/lib/mock";
 import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { DEFAULT_DOC, type DocProfile } from "@pms/shared/lib/quotationPrint";
 import { useSales } from "@pms/shared/context/SalesContext";
@@ -22,6 +22,9 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useTableLayout, type Col } from "@pms/shared/components/ui/TableTools";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
+import { QuotationViewPanel } from "@pms/shared/components/ui/QuotationViewPanel";
+import { ป้ายฉบับ } from "@pms/shared/lib/quoteRevision";
+import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { X, FileText, LayoutList, LayoutGrid, ChevronUp, ChevronDown, Eye, ChevronLeft, ChevronRight, Check, Hourglass, AlarmClock } from "lucide-react";
 
 // ── Tokens ────────────────────────────────────────────────────
@@ -40,10 +43,13 @@ const PAGE_SIZE = 10;
 
 // statusOptions สำหรับ FilterBar กลาง — value = enum key, label = ไทยจาก quotationStatusLabel
 const Q_STATUS_OPTIONS = STATUS_ORDER.map(s => ({ value: s, label: quotationStatusLabel[s] }));
+// ป้ายในช่องกรองสถานะของหน้านี้ — "ส่งแล้ว" ห้วนไป ไม่รู้ว่าส่งให้ใคร (บอสสั่ง 28 ต.ค. 69)
+//   แก้เฉพาะช่องกรองหน้านี้ · ป้ายสถานะทั้งระบบ (quotationStatusLabel) คงเดิม
+const ป้ายตัวกรองสถานะ = (s: QuotationStatus) => s === "sent_to_client" ? "ส่งให้ลูกค้าแล้ว" : quotationStatusLabel[s];
 
 // คอลัมน์ที่ซ่อน/แสดงได้ในตารางรายการ (เลขที่ + ลูกค้า + สถานะ + การกระทำ = คงที่เสมอ)
 const COLS: Col[] = [
-  { key: "project", label: "โครงการ" },
+  { key: "project", label: ช่อง.งาน },
   { key: "owner",   label: "ผู้รับผิดชอบ" },
   { key: "value",   label: "มูลค่า" },
   { key: "created", label: "วันที่สร้าง" },
@@ -67,10 +73,9 @@ type Issuer = IssuerProfile;
 // ตรา/ลายเซ็น/VAT/prefix มาจาก quotationPrint (DocProfile/DEFAULT_DOC/DOC_KEY) — แหล่งเดียวร่วมกับใบเสนอ inline
 
 // ── Helpers ───────────────────────────────────────────────────
-function fmtDate(d:string){ if(!d||d==="—") return "—"; const [y,m,day]=d.split("-"); const mo=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."]; return `${parseInt(day)} ${mo[parseInt(m)-1]} ${parseInt(y)+543}`; }
-// วันที่แบบสั้น (ไม่มีปี พ.ศ.) — ใช้เฉพาะในตาราง ตามรูปแบบที่บอสกำหนดมา ("28 มิ.ย." / "28 ก.ค.")
-// ทำให้ 9 คอลัมน์พอดีกรอบโดยไม่ต้องเลื่อนแนวนอน · แผงรายละเอียด/เอกสารพิมพ์ยังใช้วันที่เต็มมีปี
-function fmtDateShort(d:string){ if(!d||d==="—") return "—"; const [,m,day]=d.split("-"); const mo=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."]; return `${parseInt(day)} ${mo[parseInt(m)-1]}`; }
+// วันที่ในตาราง/การ์ด = ตัวแปลงกลาง (fmtISOToThai) มีปี พ.ศ. เสมอ (บอสสั่ง 28 ต.ค. 69)
+//   เดิมตารางตัดปีออก ("28 มิ.ย.") ให้พอดีกรอบ — ใบข้ามปีแยกไม่ออกว่าปีไหน · ที่ว่างได้คืนจากคอลัมน์ปุ่มที่เหลือไอคอนเดียว
+const fmtDate = (d: string) => (!d || d === "—" ? "—" : fmtISOToThai(d));
 // วันหมดอายุที่ใช้แสดงผล — ใบที่กรอกวันเองใช้ค่านั้น · ใบที่ไม่ได้กรอก (11 จาก 17 ใบใน seed)
 // คำนวณจาก วันที่สร้าง + อายุใบเสนอราคา (ของสาขา ถ้าไม่ได้ตั้งค่อยใช้ของ HQ — ดู useQuoteValidity)
 // ไม่ใช่การเดา — "อายุใบเสนอราคา" เป็นนโยบายจริงในหน้าตั้งค่า และเป็นกฎที่ใช้ตอนสร้างใบใหม่อยู่แล้ว
@@ -82,7 +87,7 @@ const expiryOf = quoteExpiryISO;
 //  หน้านี้นับจากแถวที่โหลดมา + ค่าตั้งต้นใน localStorage → Q-2026-1101
 //  ส่วนแผงใบเสนอราคาในหน้าลูกค้าเป้าหมายใช้ newQuoteId() = RPC ของ DB → Q-2026-0001
 //  ออกใบจากคนละหน้าจึงได้เลขคนละชุด และชนกันเองได้ · ตอนนี้เหลือทางเดียวคือ newQuoteId())
-// ฟอร์มแก้ไขใบ/ส่ง/ตอบรับ/ปฏิเสธ ย้ายไปแผงลีด › แท็บใบเสนอราคาที่เดียว (รอบ 4 · LeadQuotationsPanel)
+// ฟอร์มแก้ไขใบ/ส่ง/ตอบรับ/ปฏิเสธ ย้ายไปแผงลีด › แท็บใบเสนอราคาที่เดียว (รอบ 4 · LeadQuotationsPanel) · หน้านี้มีแผงดูใบอย่างเดียว (QuotationViewPanel)
 
 function PaginationBar({ from, to, total, page, totalPages, onPrev, onNext }:{
   from:number; to:number; total:number; page:number; totalPages:number;
@@ -204,6 +209,18 @@ function QuotationsPageInner(){
   // ?open=เลขใบ (กระดิ่ง "ใบเสนอราคาใกล้หมดอายุ" · ใบ 0231) — เปิดใบนั้นเมื่อข้อมูลมาถึง แล้วล้างออกจาก URL
   //   อยู่หน้านี้อยู่แล้วกดกระดิ่งอีก (เปลี่ยนแค่ ?open=) หน้าไม่โหลดใหม่ → ฟัง bpms:open-record
   const [ขอเปิด,setขอเปิด]=useState<string|null>(null);
+  // ใบที่เปิดดูอยู่ในแผงดูใบ (เลขที่ใบ · null = ปิด)
+  const [ดูใบ, setดูใบ] = useState<string|null>(null);
+  const ใบที่ดู = ดูใบ ? data.find(x=>x.id===ดูใบ) ?? null : null;
+  // ผู้ติดต่อ/เบอร์/จังหวัดของใบที่ดู — หัวเอกสารตอนพิมพ์ (ลีดก่อน ไม่มีค่อยใช้ลูกค้า · ไม่มีทั้งคู่ = ว่าง ไม่เดา)
+  const ลูกค้าของใบ = useMemo(()=>{
+    if(!ใบที่ดู) return undefined;
+    const l = ใบที่ดู.dealId!=null ? leads.find(x=>x.numId===ใบที่ดู.dealId) : undefined;
+    if(l) return { company: ใบที่ดู.customer || l.company, name: l.contact, phone: l.phone, province: l.province, email: l.email };
+    const c = ใบที่ดู.customerId ? customers.find(x=>x.id===ใบที่ดู.customerId) : undefined;
+    if(c) return { company: ใบที่ดู.customer || c.company, name: c.name, phone: c.phone, province: c.province, email: c.email };
+    return undefined;
+  },[ใบที่ดู,leads,customers]);
   useEffect(()=>{
     if(!เปิดจากลิงก์.current){ เปิดจากลิงก์.current=true; setขอเปิด(new URLSearchParams(window.location.search).get("open")); }
     const on=(e:Event)=>{
@@ -216,7 +233,7 @@ function QuotationsPageInner(){
   useEffect(()=>{
     if(!ขอเปิด) return;
     const q=data.find(x=>x.id===ขอเปิด);
-    // รอบ 4: ใบเปิดดู/ทำงานที่แผงลีด — ลิงก์ ?open=<เลขใบ> (กระดิ่ง/ค้นหา) พาไปแผงลีดของใบนั้นแทน
+    // ลิงก์ ?open=<เลขใบ> (กระดิ่ง/ค้นหา) = เปิดแผงดูใบบนหน้านี้ เหมือนกดแถว (บอสสั่ง 28 ต.ค. 69 · เดิมรอบ 4 พาไปแผงลีด)
     if(q){ setขอเปิด(null); window.history.replaceState(null,"","/quotations"); selectRow(q); }
   },[data,ขอเปิด]);
 
@@ -261,13 +278,15 @@ function QuotationsPageInner(){
   const rangeTo   = Math.min(pageStart+PAGE_SIZE, filtered.length);
 
 
-  // ── กดแถว = เปิดแผงลีดของใบนั้น (รอบ 4 · บอสสั่ง 21 ต.ค. 69) ───────────────────────────────────────────────
+  // ── กดแถว = เปิดแผงดูใบ · ปุ่ม "ไปแผงลีด" ในแผง = เดิมของรอบ 4 (บอสสั่ง 21 ต.ค. 69) ───────────────────────────────────────────────
   //   ส่ง ตอบรับ ปฏิเสธ แก้ ทำฉบับใหม่ พิมพ์ ทำที่แผงลีด › แท็บใบเสนอราคาที่เดียว · ลีดที่ปิดสำเร็จแล้ว แผงลีดพาไปหน้าลูกค้าเอง
-  //   ใบเดิมที่ไม่ผูกลีด (ก่อนมี dealId) → แผงลูกค้า · ไม่มีทั้งคู่ = บอกตรง ๆ ว่าเปิดไม่ได้
-  function selectRow(q:QuotationMock){
+  //   ใบเดิมที่ไม่ผูกลีด (ก่อนมี dealId) → แผงลูกค้า · ไม่มีทั้งคู่ = แผงดูใบไม่มีปุ่มนี้ (ดูได้อย่างเดียว)
+  //   บอสสั่ง 28 ต.ค. 69 "กดแล้วเปิดดูใบได้เลย": กดแถว = เปิดแผงดูใบบนหน้านี้ (URL ยังเป็น /quotations · ตัวกรอง/ค้นหา/หน้า คงเดิม)
+  //   งานของใบ (ส่ง D6 · ผลจากลูกค้า D8 · ทำฉบับใหม่ D8x) ยังทำที่แผงลีดที่เดียว → ปุ่ม "ไปแผงลีด" ในแผงดูใบ
+  function selectRow(q:QuotationMock){ setดูใบ(q.id); }
+  function ไปแผงลีด(q:QuotationMock){
     if(q.dealId!=null) router.push(`/leads?open=${q.dealId}`);
     else if(q.customerId) router.push(`/customers?open=${q.customerId}`);
-    else showToast(`ใบ ${q.id} เป็นใบเดิมที่ไม่ผูกลูกค้าเป้าหมาย — เปิดดูได้จากหน้าลูกค้า`);
   }
 
   return (
@@ -280,8 +299,8 @@ function QuotationsPageInner(){
         <TopbarActions>
           <FilterBar dims={[]} />
           <ExportMenu filename="quotations" title="ใบเสนอราคา" small
-            headers={["เลขที่","ฉบับ","ลูกค้า","ผู้รับผิดชอบ","โครงการ","จังหวัด","พื้นที่","มูลค่ารวม","สถานะ","วันที่"]}
-            rows={filtered.map(q=>[q.id,q.revision ?? "V1",q.customer,ownerOf(q) || "—",q.project,q.province,q.area,q.totalValue,quotationStatusLabel[q.status],q.date])} />
+            headers={["เลขที่","ฉบับ","ลูกค้า","ผู้รับผิดชอบ",ช่อง.งาน,"จังหวัด","พื้นที่","มูลค่ารวม","สถานะ","วันที่"]}
+            rows={filtered.map(q=>[q.id,ป้ายฉบับ(q.revision),q.customer,ownerOf(q) || "—",q.project,q.province,q.area,q.totalValue,quotationStatusLabel[q.status],q.date])} />
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
@@ -298,7 +317,7 @@ function QuotationsPageInner(){
             ตัวเลือกทุกตัวสร้างจากใบเสนอราคาจริงที่มีอยู่ ไม่ hardcode
             "ทุกสถานะ" ใช้ state เดียวกับการ์ด KPI ด้านบน → กดที่ไหนก็ตรงกัน */}
         <FilterRow
-          query={query} onQuery={setQuery} placeholder="ค้นหาเลขที่ / ลูกค้า / โครงการ..."
+          query={query} onQuery={setQuery} placeholder={`ค้นหาเลขที่ / ลูกค้า / ${ช่อง.งาน}...`}
           showClear={filterStatus!=="ALL" || ownerFilter!=="ALL" || provFilter!=="ALL" || !!query}
           onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setOwnerFilter("ALL"); setProvFilter("ALL"); }}
           right={
@@ -316,7 +335,7 @@ function QuotationsPageInner(){
           }
         >
           <FilterSelect caption="ทุกสถานะ" value={filterStatus} onChange={v=>setFilterStatus(v as QuotationStatus|"ALL")}
-            options={STATUS_ORDER.map(s=>({v:s,l:quotationStatusLabel[s]}))} />
+            options={STATUS_ORDER.map(s=>({v:s,l:ป้ายตัวกรองสถานะ(s)}))} />
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={ownerFilter} onChange={setOwnerFilter}
             options={ownerOptions.map(o=>({v:o,l:o}))} minWidth={140} />
           <FilterSelect caption="ทุกจังหวัด" value={provFilter} onChange={setProvFilter}
@@ -340,18 +359,19 @@ function QuotationsPageInner(){
                   <col style={{width:170}} />{/* เลขที่ — ฉบับใหม่ "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69) · ป้ายฉบับขึ้นบรรทัดล่างได้ */}
                   {/* คอลัมน์ข้อความหดลงรวม 32px เพื่อแลกที่ให้ปุ่ม "ลบ" ที่เพิ่มเข้ามา (13 ส.ค. 69)
                       หดได้เพราะยังกว้างกว่าหัวคอลัมน์ของตัวเอง — ข้อมูลยาวยังตัดด้วย … + hover ดูเต็มเหมือนเดิม */}
-                  <col style={{width:"11.8%",minWidth:78}} />{/* ลูกค้า (…) หัว 74 · รับส่วนของคอลัมน์ "ประเภท" ที่ถอดออก 16 ต.ค. 69 */}
-                  {!hiddenCols.includes("project")&&<col style={{width:"12.7%",minWidth:90}} />}{/* โครงการ (…) หัว 88 */}
-                  {!hiddenCols.includes("owner")&&<col style={{width:"8.7%",minWidth:88}} />}{/* ผู้รับผิดชอบ (…) หัว 87 */}
+                  {/* 28 ต.ค. 69: คอลัมน์ปุ่มเหลือไอคอนดูใบอันเดียว (เดิม 5 ปุ่ม 190px) → คืนที่ให้ ผู้รับผิดชอบ (ชื่อเต็มไม่ตัด) + วันที่มีปี พ.ศ. */}
+                  <col style={{width:"12.5%",minWidth:78}} />{/* ลูกค้า (…) หัว 74 · รับส่วนของคอลัมน์ "ประเภท" ที่ถอดออก 16 ต.ค. 69 */}
+                  {!hiddenCols.includes("project")&&<col style={{width:"13%",minWidth:100}} />}{/* งานที่ต้องการ (…) */}
+                  {!hiddenCols.includes("owner")&&<col style={{width:"14%",minWidth:120}} />}{/* ผู้รับผิดชอบ — วงย่อชื่อ + ชื่อเต็ม (ตกบรรทัดได้ ไม่ตัด) */}
                   {!hiddenCols.includes("value")&&<col style={{width:"11.3%",minWidth:116}} />}{/* มูลค่า — ข้อมูล 114 ห้ามตัด */}
                   <col style={{width:"10.9%",minWidth:110}} />{/* สถานะ — ป้ายยาวสุด "ส่งแล้ว"/"ปฏิเสธ" */}
-                  {!hiddenCols.includes("created")&&<col style={{width:"7.7%",minWidth:78}} />}{/* วันที่สร้าง — หัว 75 (ไม่มีลูกศร) */}
-                  {!hiddenCols.includes("expiry")&&<col style={{width:"7.5%",minWidth:74}} />}{/* หมดอายุ — หัว 71 */}
-                  <col style={{width:"18.7%",minWidth:190}} />{/* ปุ่ม 5 ไอคอน (ส่ง·ดู·พิมพ์·แก้ไข·ลบ) — 5×28 + 4×4 gap + padding */}
+                  {!hiddenCols.includes("created")&&<col style={{width:"9.6%",minWidth:92}} />}{/* วันที่สร้าง — "28 ต.ค. 2569" */}
+                  {!hiddenCols.includes("expiry")&&<col style={{width:"9.6%",minWidth:92}} />}{/* หมดอายุ — "28 ต.ค. 2569" */}
+                  <col style={{width:44}} />{/* ปุ่มดูใบ (ไอคอนเดียว) */}
                 </colgroup>
                 <thead>
                   <tr>
-                    {([{label:"เลขที่",key:"id",col:null},{label:"ลูกค้า",key:"customer",col:null},{label:"โครงการ",key:"project",col:"project"},{label:"ผู้รับผิดชอบ",key:null,col:"owner"},{label:"มูลค่า",key:"totalValue",col:"value"},{label:"สถานะ",key:"status",col:null},
+                    {([{label:"เลขที่",key:"id",col:null},{label:"ลูกค้า",key:"customer",col:null},{label:ช่อง.งาน,key:"project",col:"project"},{label:"ผู้รับผิดชอบ",key:null,col:"owner"},{label:"มูลค่า",key:"totalValue",col:"value"},{label:"สถานะ",key:"status",col:null},
                       /* "วันที่สร้าง" ไม่มีลูกศรเรียงตามที่บอสสั่ง (key:null) — หัวคอลัมน์เหลือแค่ตัวหนังสือ ไม่มี ‹› ไม่มี "..." */
                       {label:"วันที่สร้าง",key:null,col:"created"},{label:"หมดอายุ",key:null,col:"expiry"},{label:"",key:null,col:null}] as {label:string;key:SortKey|null;col:string|null}[])
                       .filter(col=>!col.col||!hiddenCols.includes(col.col))
@@ -383,7 +403,7 @@ function QuotationsPageInner(){
                           <span style={{display:"flex",alignItems:"center",gap:"2px 6px",flexWrap:"wrap"}}>
                             <span data-quote-no style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace",whiteSpace:"nowrap"}}>{q.id}</span>
                             <span className="badge" style={{background:"#eef3f8",color:PRIMARY,fontSize:"0.62rem",fontWeight:800}}
-                            title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{q.revision ?? "V1"}</span>
+                            title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{ป้ายฉบับ(q.revision)}</span>
                           </span>
                         </td>
                         <td>
@@ -402,10 +422,16 @@ function QuotationsPageInner(){
                         {!hiddenCols.includes("owner")&&(() => {
                           // ผู้รับผิดชอบ = ผู้รับผิดชอบลูกค้าที่ใบนี้ผูกอยู่ · ใบที่ไม่ได้ผูกลูกค้า (customerId=0) หาไม่เจอ
                           // แสดงเป็นวงกลมย่อ + ชื่อ (AssigneeAvatars) ตามที่บอสสั่ง — ตัวคอมโพเนนต์ขึ้น "—" ให้เองเมื่อไม่มีค่า
+                          //   ชื่อเต็มไม่ตัด (บอสสั่ง 28 ต.ค. 69) — วงย่อชื่อ + ชื่อเต็มที่ตกบรรทัดได้ · ชี้ค้างเห็นชื่อเต็มใน title
                           const owner = ownerOf(q);
                           return (
-                            <td title={owner||undefined} style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                              <AssigneeAvatars value={owner} size={26} />
+                            <td title={owner||undefined} data-owner-cell>
+                              {owner ? (
+                                <span style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                                  <AssigneeAvatars value={owner} size={24} showName={false} />
+                                  <span style={{fontSize:"0.72rem",color:"#374151",lineHeight:1.3,overflowWrap:"anywhere"}}>{owner}</span>
+                                </span>
+                              ) : <AssigneeAvatars value="" />}
                             </td>
                           );
                         })()}
@@ -416,14 +442,17 @@ function QuotationsPageInner(){
                           <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span>
                         </td>
                         {!hiddenCols.includes("created")&&(
-                        <td title={fmtDate(q.date)} style={{fontSize:"0.72rem",color:MUTED,whiteSpace:"nowrap"}}>{fmtDateShort(q.date)}</td>
+                        <td data-date-cell style={{fontSize:"0.72rem",color:MUTED,whiteSpace:"nowrap"}}>{fmtDate(q.date)}</td>
                         )}
                         {!hiddenCols.includes("expiry")&&(() => {
                           const ex = expiryOf(q, validityDays);
-                          return <td title={ex?fmtDate(ex):undefined} style={{fontSize:"0.72rem",color:MUTED,whiteSpace:"nowrap"}}>{ex?fmtDateShort(ex):"—"}</td>;
+                          return <td data-date-cell style={{fontSize:"0.72rem",color:MUTED,whiteSpace:"nowrap"}}>{ex?fmtDate(ex):"—"}</td>;
                         })()}
-                        {/* ปุ่มทำงานรายใบเอาออก (รอบ 4) — กดแถวแล้วเปิดแผงลีดของใบนั้น ทำทุกอย่างที่นั่น */}
-                        <td style={{textAlign:"right"}}><Eye size={13} color={MUTED} aria-hidden /></td>
+                        {/* ปุ่มทำงานรายใบเอาออก (รอบ 4) · ไอคอนตา = เปิดแผงดูใบ (เหมือนกดแถว · 28 ต.ค. 69) */}
+                        <td style={{textAlign:"right"}}>
+                          <button title="ดูใบ" aria-label={`ดูใบ ${q.id}`} onClick={e=>{e.stopPropagation();selectRow(q);}}
+                            style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"inline-flex",color:MUTED}}><Eye size={14} aria-hidden /></button>
+                        </td>
                       </ClickableRow>
                     );
                   })}
@@ -455,7 +484,7 @@ function QuotationsPageInner(){
                         <div style={{width:28,height:28,borderRadius:8,background:"#dce5f0",display:"flex",alignItems:"center",justifyContent:"center"}}><FileText size={12} color={PRIMARY}/></div>
                         <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace"}}>{q.id}</span>
                         <span className="badge" style={{background:"#eef3f8",color:PRIMARY,fontSize:"0.62rem",fontWeight:800}}
-                        title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{q.revision ?? "V1"}</span>
+                        title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{ป้ายฉบับ(q.revision)}</span>
                       </div>
                       <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span>
                     </div>
@@ -489,6 +518,13 @@ function QuotationsPageInner(){
           </div>
         )}
       </div>
+
+      {/* แผงดูใบ — ปิดแล้วโฟกัสกลับแถวเดิม (useModalA11y) · state ตัวกรอง/หน้าไม่ถูกแตะ */}
+      {ใบที่ดู && (
+        <QuotationViewPanel q={ใบที่ดู} ทั้งหมด={data} ผู้รับผิดชอบ={ownerOf(ใบที่ดู)} ลูกค้า={ลูกค้าของใบ} validityDays={validityDays}
+          onClose={()=>setดูใบ(null)} onPick={setดูใบ}
+          onGoLead={ใบที่ดู.dealId!=null||ใบที่ดู.customerId ? ()=>ไปแผงลีด(ใบที่ดู) : undefined} />
+      )}
 
       {/* Toast — การแจ้งเตือนสั้นๆ */}
       {toast&&(

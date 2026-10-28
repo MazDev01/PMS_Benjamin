@@ -14,12 +14,12 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 test.setTimeout(120_000);
 
 for (const [ชื่อ, origin, path] of [["ดีลเลอร์", DEALER_ORIGIN, "/login"], ["HQ", HQ_ORIGIN, "/hq/login"]] as const) {
-  test(`[ui·${ชื่อ}] หน้าเข้าสู่ระบบไม่มีปุ่ม "ลืมรหัสผ่าน?" · ขึ้น "ลืมรหัสผ่าน ติดต่อ HQ"`, async ({ page }) => {
+  test(`[ui·${ชื่อ}] หน้าเข้าสู่ระบบไม่มีปุ่ม "ลืมรหัสผ่าน?" · ขึ้น "ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่"`, async ({ page }) => {
     await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
     await settle(page);
     await expect(page.locator("#login-email")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: /ลืมรหัสผ่าน/ }), "ต้องไม่มีปุ่มลืมรหัสผ่าน").toHaveCount(0);
-    await expect(page.getByText("ลืมรหัสผ่าน ติดต่อ HQ", { exact: true })).toBeVisible();
+    await expect(page.getByText("ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่", { exact: true })).toBeVisible();
   });
 }
 

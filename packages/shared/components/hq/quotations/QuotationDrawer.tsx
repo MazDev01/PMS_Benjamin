@@ -19,7 +19,7 @@
 //   ตัวเลขคิดที่ฐานข้อมูล (quotation_margin · ใบ 0201) ไม่คิดซ้ำที่หน้าจอ · ราคาก่อนภาษี
 //   ใบเดิมที่ไม่ได้ทำจากใบ HQ = ไม่มีต้นทุนให้เทียบ → ขึ้นว่าไม่มีข้อมูล (ห้ามกุ)
 import { useEffect, useState } from "react";
-import { FileText, User, Store, Wallet, Package, CalendarDays, CalendarClock, Clock, MapPin, IdCard, UserCheck, Building2, TrendingUp } from "lucide-react";
+import { FileText, User, Store, Wallet, Package, CalendarDays, CalendarClock, Clock, MapPin, IdCard, UserCheck, TrendingUp } from "lucide-react";
 import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
 import type { QuoteMargin } from "@pms/shared/lib/quoteRequests";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
@@ -29,6 +29,7 @@ import { regionDisplay, type QuoteRow } from "@pms/shared/lib/hqQuotations";
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
 import { SidePanel } from "@pms/shared/components/ui/SidePanel";
 import { ถามเหตุผล, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { ช่อง } from "@pms/shared/lib/fieldLabels";
 
 const PRIMARY = "#003366";
 const บาท2 = (n: number) => Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -116,7 +117,9 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
 
       <PanelSection icon={User} title="ข้อมูลลูกค้า">
         <PanelRow icon={User} label="ชื่อลูกค้า" value={quote.customer} />
-        <PanelRow icon={Building2} label="ประเภทอาคาร" value={quote.productLine} />
+        {/* ช่องนี้เดิมป้าย "ประเภทอาคาร" แต่ค่าจริงคือชื่องานของใบ (productLine = project · แม่แบบอาคารเอาออกแล้ว 16 ต.ค. 69)
+            FLOW ไม่มีแม่แบบอาคาร → เอาป้ายประเภทอาคารออก ใช้คำของ FLOW "งานที่ต้องการ" (บอสสั่ง 28 ต.ค. 69) */}
+        <PanelRow icon={FileText} label={ช่อง.งาน} value={quote.productLine} />
         <PanelRow icon={Wallet} label="มูลค่างาน (ก่อน VAT)" value={fmtBaht(quote.valueNum)} strong />
       </PanelSection>
 
@@ -128,7 +131,7 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
         <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={quote.salesperson} />
       </PanelSection>
 
-      <PanelSection icon={TrendingUp} title="Margin ของดีลเลอร์ (เทียบใบ HQ)" bodyStyle={margin ? { padding: 0 } : undefined}>
+      <PanelSection icon={TrendingUp} title="ส่วนต่างกำไรของดีลเลอร์ (เทียบใบ HQ)" bodyStyle={margin ? { padding: 0 } : undefined}>
         {margin === undefined ? (
           <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>กำลังโหลด…</div>
         ) : !margin ? (
@@ -137,7 +140,7 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
           <div data-panel="quote-margin">
             <div style={{ fontSize: "0.68rem", color: "#64748B", padding: "8px 12px 0" }}>จากใบ HQ {margin.hqQuoteNo} · ราคาก่อนภาษี</div>
             <div className="table-scroll">
-              <table className="table" style={{ width: "100%", fontSize: "0.72rem" }} aria-label="margin รายบรรทัด">
+              <table className="table" style={{ width: "100%", fontSize: "0.72rem" }} aria-label="ส่วนต่างกำไรรายบรรทัด">
                 <thead><tr><th>รายการ</th><th style={{ textAlign: "right" }}>ต้นทุน/หน่วย</th><th style={{ textAlign: "right" }}>% ที่บวก</th><th style={{ textAlign: "right" }}>ราคาขาย/หน่วย</th><th style={{ textAlign: "right" }}>บวก (บาท)</th></tr></thead>
                 <tbody>
                   {margin.lines.map((l, i) => (

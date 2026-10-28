@@ -9,7 +9,7 @@ for (const [ชื่อ, url] of [["สำนักงานใหญ่", `${�
   test(`[func] หน้าเข้าสู่ระบบ${ชื่อ}: พิมพ์เว้นวรรคในช่องอีเมล/รหัสผ่านต้องไม่ติด`, async ({ page }) => {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     // ดีลเลอร์พิมพ์รหัสสาขา (ป้าย "รหัสสาขา" · 19 ต.ค. 69) · HQ พิมพ์อีเมล
-    const ช่องอีเมล = page.getByLabel(ชื่อ === "ดีลเลอร์" ? "รหัสสาขา" : "อีเมล / Email", { exact: true });
+    const ช่องอีเมล = page.getByLabel(ชื่อ === "ดีลเลอร์" ? "รหัสสาขา" : "อีเมล", { exact: true });
     await expect(ช่องอีเมล).toBeVisible();
 
     // ⚠️ ต้องรอให้หน้าจอ "รับค่าได้จริง" ก่อน แล้วค่อยตรวจ (แก้ 26 ส.ค. 69)
@@ -35,7 +35,7 @@ for (const [ชื่อ, url] of [["สำนักงานใหญ่", `${�
     await expect(ช่องอีเมล).toHaveValue("admin@benjamin.com");
 
     // ช่องรหัสผ่านต้องกันช่องว่างเหมือนกัน (บอสสั่ง 25 ส.ค. 69)
-    const ช่องรหัส = page.getByLabel("รหัสผ่าน / Password");
+    const ช่องรหัส = page.getByLabel("รหัสผ่าน", { exact: true });
     await พิมพ์ให้ติด(ช่องรหัส, " ab cd ", "abcd", true);
     await expect(ช่องรหัส).toHaveValue("abcd");
     await พิมพ์ให้ติด(ช่องรหัส, "  P@ss w0rd  ", "P@ssw0rd");
