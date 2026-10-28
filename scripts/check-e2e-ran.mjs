@@ -11,26 +11,33 @@
 // ไม่ตัดสินเรื่องข้อที่ตก (ตัวรันตัดสินเอง) — ตัวนี้ตอบคำถามเดียว: "มีข้อไหนไม่ได้ทดสอบโดยไม่มีเหตุผลไหม"
 //
 // ใช้: node scripts/check-e2e-ran.mjs <report.json> [<report2.json> ...]
+// รายงานที่มาทีหลังทับผลข้อเดียวกัน (ไฟล์ · บรรทัด · ชื่อ · โปรเจกต์) ของรายงานก่อนหน้า — รายงานรันซ้ำไฟล์ที่ตก (scripts/lib/gateRerun.mjs · 28 ต.ค. 69)
+//   ส่งต่อท้ายรายงานหลัก → ข้อที่ตก/ไม่ได้รันในรอบหลักแต่ได้รันในรอบซ้ำ ใช้ผลรอบซ้ำ (ข้อที่ไม่อยู่ในรอบซ้ำ คงผลรอบหลัก)
 import { readFileSync, existsSync } from "node:fs";
 
 const ไฟล์ = process.argv.slice(2);
 if (!ไฟล์.length) { console.error("ใช้: node scripts/check-e2e-ran.mjs <report.json> [...]"); process.exit(2); }
 
-const แถว = [];
+const แถวตาม = new Map();
 // ช่วงที่ตัวเตรียมข้อมูล (global setup) ล้ม = ไม่มีข้อไหนได้รัน แต่รายงานก็ยังเป็น "ผ่าน 0 · ตก 0" — เดิมตัวตรวจปล่อยผ่าน
 //   (พบ 15 ต.ค. 69 ตอนรันกับฐานที่สร้างใหม่: ทุกช่วงล้มที่ตัวเตรียม แต่ตัวตรวจบอก "ผ่าน — ทุกข้อได้รันจริง")
 const ช่วงที่ล้ม = [];
 for (const f of ไฟล์) {
   if (!existsSync(f)) { console.error(`❌ ไม่พบรายงาน ${f} — ช่วงนั้นไม่ได้รันเลย`); process.exit(1); }
   const j = JSON.parse(readFileSync(f, "utf8"));
-  const ก่อน = แถว.length;
+  let ในรายงานนี้ = 0;
   (function เดิน(s, file) {
     for (const x of s.suites ?? []) เดิน(x, x.file ?? file);
-    for (const sp of s.specs ?? []) for (const t of sp.tests) แถว.push({ ไฟล์: sp.file ?? file, บรรทัด: sp.line, ชื่อ: sp.title, โปรเจกต์: t.projectName, t });
+    for (const sp of s.specs ?? []) for (const t of sp.tests) {
+      const r = { ไฟล์: sp.file ?? file, บรรทัด: sp.line, ชื่อ: sp.title, โปรเจกต์: t.projectName, t };
+      แถวตาม.set(`${r.ไฟล์}|${r.บรรทัด}|${r.ชื่อ}|${r.โปรเจกต์}`, r);
+      ในรายงานนี้++;
+    }
   })(j);
   const ข้อผิดพลาด = (j.errors ?? []).map(e => String(e.message ?? e.value ?? "").split(/\r?\n/)[0]).filter(Boolean);
-  if (ข้อผิดพลาด.length || แถว.length === ก่อน) ช่วงที่ล้ม.push(`${f}: ${ข้อผิดพลาด[0] ?? "ไม่มีข้อทดสอบในรายงานเลย"}`);
+  if (ข้อผิดพลาด.length || !ในรายงานนี้) ช่วงที่ล้ม.push(`${f}: ${ข้อผิดพลาด[0] ?? "ไม่มีข้อทดสอบในรายงานเลย"}`);
 }
+const แถว = [...แถวตาม.values()];
 
 const นับ = { ผ่าน: 0, ตก: 0, ไม่นิ่ง: 0, ถูกข้าม: 0 };
 const ตั้งใจ = [], ไม่ได้รัน = [];

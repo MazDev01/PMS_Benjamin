@@ -3,7 +3,10 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      // PMS_DIST_DIR = โฟลเดอร์ผล build (รอบตรวจใช้ .next-test แยกจาก .next ของ npm run dev · 28 ต.ค. 69)
+      //   ต้องประกาศ ไม่งั้นโหมด strict กรองทิ้ง → build ลง .next ทับ dev · อยู่ในกุญแจแคชด้วย (แคชของ .next กับ .next-test ไม่ปนกัน)
+      "env": ["PMS_DIST_DIR"],
+      "outputs": [".next/**", "!.next/cache/**", ".next-*/**", "!.next-*/cache/**"]
     },
     "dev": {
       "cache": false,

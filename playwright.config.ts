@@ -119,8 +119,17 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings)\.spec\.ts/,
+      testIgnore: [/(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings)\.spec\.ts/, /-tool\.spec\.ts$/],
       dependencies: ["setup"],
+    },
+    {
+      // ── ข้อทดสอบเครื่องมือ (*-tool.spec.ts) — ไม่ใช้เว็บ/ฐานทดสอบ (โฟลเดอร์จำลอง · ฐานจำลองแยก · build ลงโฟลเดอร์ของตัวเอง) ──
+      //   รอบตรวจเต็มรันช่วงนี้ "พร้อมกับ" ช่วง chromium (บอสสั่งเร่ง 28 ต.ค. 69 · scripts/test-prodbuild.mjs)
+      //   ⚠️ ข้อที่ใช้ฐานทดสอบหรือเว็บของรอบตรวจ ห้ามตั้งชื่อ *-tool.spec.ts (จะรันชนกับ chromium)
+      name: "tools",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /-tool\.spec\.ts$/,
+      workers: 1,
     },
     {
       // ── ไฟล์ที่แก้ค่าตั้งค่ากลางของ HQ ชุดเดียวกัน — รันทีละไฟล์ ─────────────────────────────────
