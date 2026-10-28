@@ -45,7 +45,7 @@ test("[ui·dealer] หน้าดูใบเสนอราคา (BOQ + ส�
   await เปิดหน้าดูใบ(page);
   // เอกสาร + BOQ + ยอดสรุป
   await expect(page.getByText("รายการสินค้า (BOQ)")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("ชื่อโครงการ / เอกสาร")).toBeVisible();
+  await expect(page.locator("label").filter({ hasText: /^งานที่ต้องการ$/ }).first()).toBeVisible();   // ชุดช่องมาตรฐาน (เดิม "ชื่อโครงการ / เอกสาร" · ตารางเทียบ FLOW รอบ 5)
   // สรุปยอด = ยอดชำระสุทธิท้าย BOQ (หัวข้อ "สรุปใบเสนอราคา" ถูกยุบไปเป็นป้ายบนหัวแผงแล้ว)
   // (ไม่เช็ค "เปลี่ยนสถานะ" — โผล่เฉพาะใบที่ลูกค้ายังไม่ตอบ ส่วนแถวแรกเป็นใบที่ตอบรับแล้ว)
   // คำบนจอเปลี่ยนตอนเพิ่มภาษีหัก ณ ที่จ่าย (28 ส.ค. 69): "ยอดรวมสุทธิ (รวม VAT)" → "รวมเป็นเงิน" + "ยอดชำระสุทธิ"
@@ -149,7 +149,7 @@ test("[ui·dealer] ฟอร์มใบเสนอราคา inline ใน�
   await openLeadQuotationForm(page);
   // รายการรวมเป็นก้อนเดียว "รายการใบเสนอราคา" (มาจากใบ HQ · ไม่มีช่องแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
   await expect(page.getByText("รายการใบเสนอราคา")).toBeVisible();
-  await expect(page.getByText("ชื่อโครงการ / เอกสาร")).toBeVisible();
+  await expect(page.locator("label").filter({ hasText: /^งานที่ต้องการ$/ }).first()).toBeVisible();   // ชุดช่องมาตรฐาน (เดิม "ชื่อโครงการ / เอกสาร" · ตารางเทียบ FLOW รอบ 5)
   await expect(page.getByText("แม่แบบที่เสนอ"), "ช่องแม่แบบซ้ำถูกตัดออกแล้ว").toHaveCount(0);
   await expect(page.getByLabel("แม่แบบ", { exact: true }), "ไม่มีช่องแม่แบบในฟอร์มใบ").toHaveCount(0);
   await expect(page.locator("[data-editor='hq-markup']"), "รายการมาจากใบ HQ (แก้ได้เฉพาะ %)").toBeVisible();
