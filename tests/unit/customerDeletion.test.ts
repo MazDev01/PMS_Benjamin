@@ -34,7 +34,7 @@ describe("ลบลูกค้า — ดีลที่จบแล้วต�
 });
 
 describe("ลบลูกค้า — ดีลที่ยังขายอยู่ต้องบล็อกไว้เหมือนเดิม", () => {
-  it.each(["WAITING", "BULLET", "QUOTED", "FOLLOWUP", "NEGO"] as const)(
+  it.each(["WAITING", "BULLET", "HQ_PRICING", "HQ_QUOTED", "QUOTED"] as const)(
     "ดีลสถานะ %s → ลบไม่ได้", (st) => {
       const im = customerDeletionImpact(1, [lead("#L-1", 1, st, 1)], []);
       expect(im.canDelete).toBe(false);
@@ -43,13 +43,13 @@ describe("ลบลูกค้า — ดีลที่ยังขายอ�
 
   it("ปนกัน: จบแล้ว 2 + ยังขายอยู่ 1 → ลบไม่ได้ และนับเฉพาะอันที่ยังขายอยู่", () => {
     const im = customerDeletionImpact(1,
-      [lead("#L-1", 1, "PAID", 1), lead("#L-2", 2, "PAID", 1), lead("#L-3", 3, "NEGO", 1)], []);
+      [lead("#L-1", 1, "PAID", 1), lead("#L-2", 2, "PAID", 1), lead("#L-3", 3, "QUOTED", 1)], []);
     expect(im.canDelete).toBe(false);
     expect(im.activeLeads.length).toBe(1);
   });
 
   it("ดีลของลูกค้ารายอื่น ต้องไม่ถูกนับ", () => {
-    const im = customerDeletionImpact(1, [lead("#L-9", 9, "NEGO", 2)], []);
+    const im = customerDeletionImpact(1, [lead("#L-9", 9, "QUOTED", 2)], []);
     expect(im.canDelete).toBe(true);
     expect(im.closedLeads.length + im.activeLeads.length).toBe(0);
   });

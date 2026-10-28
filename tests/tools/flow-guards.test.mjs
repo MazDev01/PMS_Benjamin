@@ -12,11 +12,15 @@ const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถู�
 const เขียน = (root, rel, s) => { mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); writeFileSync(path.join(root, rel), s); };
 
 // ── คำของ flow เก่า ──
+// หมวดสถานะ (28 ต.ค. 69 · ใบ 0257): ตั้งค่าเดียวกับไฟล์จริง (ที่ตรวจ/ไม่ตรวจ) — ต่อรหัสเป็นชิ้น ไม่ให้ไฟล์นี้มีรหัสเต็ม
+const รหัสเก่า = ["FOLLOW" + "UP", "NE" + "GO"];
 const คำ = (ไฟล์, ยกเว้น = []) => {
   const root = mkdtempSync(path.join(tmpdir(), "old-words-"));
   เขียน(root, "scripts/old-flow-words.json", JSON.stringify({
     คำ: [{ คำ: "ติดตามผล", เหตุ: "เลิกใช้" }, { คำ: "ประเมินราคา", เหตุ: "เลิกใช้" }],
-    แบบ: [{ แบบ: "^[1-5]\\s*[·.]?\\s*(ข้อมูลลูกค้า|ขอราคา HQ)$", เหตุ: "ไม่มีเลข" }], ยกเว้น }));
+    แบบ: [{ แบบ: "^[1-5]\\s*[·.]?\\s*(ข้อมูลลูกค้า|ขอราคา HQ)$", เหตุ: "ไม่มีเลข" }], ยกเว้น,
+    สถานะ: { รหัส: รหัสเก่า.map(รหัส => ({ รหัส, เหตุ: "เลิกใช้" })),
+      ที่ตรวจ: ["apps", "packages", "scripts", "tests/fixtures", "tests/scenario/global-setup.ts"], ไม่ตรวจ: ["scripts/old-flow-words.json"] } }));
   for (const [rel, s] of Object.entries(ไฟล์)) เขียน(root, rel, s);
   const r = spawnSync(process.execPath, [path.join(ราก, "scripts/check-old-flow-words.mjs")], { encoding: "utf8", env: { ...process.env, PMS_OLD_WORDS_ROOT: root } });
   rmSync(root, { recursive: true, force: true });
@@ -29,10 +33,36 @@ const หน้า = "apps/dealer/app/(app)/x/page.tsx";
 ผล(!คำ({ [หน้า]: `export default () => <span>2 · ขอราคา HQ</span>;` }).ผ่าน, "ชื่อขั้นมีเลขลำดับนำหน้า → ตก");
 ผล(คำ({ [หน้า]: `// เดิมมีขั้นติดตามผล\nexport default () => <div>นัดหมาย</div>;` }).ผ่าน, "คำเก่าในคอมเมนต์ → ผ่าน (ไม่ขึ้นจอ)");
 ผล(คำ({ [หน้า]: `export default () => <div>ราคาประเมินจากวัสดุ</div>;` }).ผ่าน, "คำที่คล้ายแต่เป็นของ flow ใหม่ (ราคาประเมินจากวัสดุ) → ผ่าน");
-ผล(คำ({ "packages/shared/lib/mock.ts": `export const l = { FOLLOWUP: "ติดตามผล" };` }).ผ่าน, "ตารางสถานะภายใน (ไม่ขึ้นจอ) → ผ่าน");
+ผล(คำ({ "packages/shared/lib/mock.ts": `export const l = { WAITING: "ติดตามผล" };` }).ผ่าน, "ตารางสถานะภายใน (ไม่ขึ้นจอ) → ผ่านหมวดคำ");
 ผล(คำ({ [หน้า]: `export default () => <div>ติดตามผลประกอบการ</div>;` }, [{ ไฟล์: หน้า, คำ: "ติดตามผล", เหตุ: "ผลประกอบการ" }]).ผ่าน, "ยกเว้นพร้อมเหตุผล → ผ่าน");
 ผล(!คำ({ [หน้า]: `export default () => <div>ติดตามผลประกอบการ</div>;` }, [{ ไฟล์: หน้า, คำ: "ติดตามผล", เหตุ: "" }]).ผ่าน, "ยกเว้นไม่มีเหตุผล → ตก");
 ผล(คำ({ [หน้า]: `export default () => <div>ข้อมูลลูกค้า</div>;` }).ผ่าน, "ชื่อขั้นไม่มีเลข → ผ่าน");
+
+// ── หมวดสถานะ: รหัสสถานะลีดเก่า ──
+const [ตาม, เจรจา] = รหัสเก่า;
+for (const [rel, s, ชื่อ] of [
+  ["packages/shared/lib/mock.ts", `export type LeadStatus = "QUOTED" | "${ตาม}";`, "ตารางสถานะใน mock.ts (ไม่ขึ้นจอ แต่เป็นโค้ด)"],
+  ["packages/shared/lib/leadStage.ts", `// เดิม case "${เจรจา}"\nexport const x = 1;`, "แม้อยู่ในคอมเมนต์"],
+  ["apps/hq/app/x/page.tsx", `const s = "${เจรจา}";`, "หน้าเว็บ"],
+  ["scripts/seed-volume.mjs", `const สถานะ = ["QUOTED", "${ตาม}"];`, "สคริปต์ใส่ข้อมูล"],
+  ["scripts/dev-sample/leads.mjs", `export const l = [{ status: "${เจรจา}" }];`, "ข้อมูลตัวอย่างฐาน dev"],
+  ["tests/fixtures/test-baseline.sql", `insert into leads (status) values ('${ตาม}');`, "ข้อมูลตั้งต้น SQL"],
+  ["tests/fixtures/rows.json", `[{"status":"${เจรจา}"}]`, "ข้อมูลตั้งต้น JSON"],
+  ["tests/scenario/global-setup.ts", `const LEADS = [{ status: "${ตาม}" }];`, "global-setup"],
+]) {
+  const r = คำ({ [rel]: s });
+  ผล(!r.ผ่าน && r.ออก.includes(rel), `สถานะเก่าใน ${ชื่อ} → ตก บอกไฟล์`, r.ออก);
+}
+for (const [rel, s, ชื่อ] of [
+  ["supabase/migrations/0250_x.sql", `when '${ตาม}' then 5`, "ใบปรับฐานเก่า (แก้ไม่ได้)"],
+  ["supabase/tests/x.sql", `perform must_fail('update leads set status = ''${เจรจา}''');`, "ข้อทดสอบฐานที่ยืนยันว่าปฏิเสธ"],
+  ["tests/scenario/x.spec.ts", `await admin.from("leads").update({ status: "${เจรจา}" });`, "ข้อทดสอบหน้าเว็บที่ยืนยันว่าปฏิเสธ"],
+  ["tests/unit/x.test.ts", `const s = "${ตาม}";`, "ข้อทดสอบหน่วย"],
+  ["packages/shared/lib/x.ts", `const s = "${ตาม}S"; const t = "UN${เจรจา}";`, "คำที่มีรหัสเป็นส่วนหนึ่ง (ไม่ใช่ทั้งคำ)"],
+]) {
+  const r = คำ({ [rel]: s });
+  ผล(r.ผ่าน, `${ชื่อ} → ผ่าน`, r.ออก);
+}
 
 // ── ข้อทดสอบรายขั้น ──
 const ขั้น = (สเปก, แถวเพิ่ม = "") => {

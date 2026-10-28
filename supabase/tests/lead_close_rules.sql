@@ -49,8 +49,8 @@ begin
 
   -- ── ข้อ 3: ดีลเลอร์พาออกจาก PAID ไม่ได้ ──
   perform closetest.as_dealer();
-  perform closetest.must_fail(format($s$select lead_apply(%L, '{"stage":{"status":"NEGO"}}'::jsonb)$s$, v_id), 'lead_won_locked',
-    'ดีลเลอร์ใช้คำสั่งบันทึกลีด พาลีด PAID กลับเป็นเจรจาต่อรอง');
+  perform closetest.must_fail(format($s$select lead_apply(%L, '{"stage":{"status":"QUOTED"}}'::jsonb)$s$, v_id), 'lead_won_locked',
+    'ดีลเลอร์ใช้คำสั่งบันทึกลีด พาลีด PAID กลับเป็นเสนอราคา');
   perform closetest.must_fail(format($s$select lead_apply(%L, '{"stage":{"status":"CANCELLED","lostReason":"ทดสอบ"}}'::jsonb)$s$, v_id), 'lead_won_locked',
     'ดีลเลอร์พาลีด PAID เป็นปิดไม่สำเร็จ');
   perform closetest.must_fail(format('update leads set status = %L where dealer_code = %L and num_id = %s', 'QUOTED', 'CNX', v_paid), 'lead_won_locked',
@@ -64,10 +64,10 @@ begin
 
   -- ── ข้อ 4: จดสถานะก่อนปิด + HQ ย้อนการตอบรับ → ลีดกลับ ──
   perform closetest.as_db();
-  update leads set status = 'NEGO' where dealer_code = 'CNX' and num_id = v_paid;     -- งานในฐาน (ไม่ใช่ผู้ใช้) ตั้งฉากทดสอบ
+  update leads set status = 'BULLET' where dealer_code = 'CNX' and num_id = v_paid;     -- งานในฐาน (ไม่ใช่ผู้ใช้) ตั้งฉากทดสอบ
   update leads set status = 'PAID' where dealer_code = 'CNX' and num_id = v_paid;
   select status_before_paid into v_bp from leads where dealer_code = 'CNX' and num_id = v_paid;
-  perform closetest.ok(v_bp = 'NEGO', 'เข้า PAID แล้วฐานจดสถานะก่อนปิด = เจรจาต่อรอง');
+  perform closetest.ok(v_bp = 'BULLET', 'เข้า PAID แล้วฐานจดสถานะก่อนปิด = รวบรวมความต้องการ');
 
   perform closetest.as_dealer();
   perform closetest.must_fail(format($s$select quotation_revert_won('CNX', %L, 'ทดสอบ')$s$, v_q), 'forbidden', 'ดีลเลอร์ย้อนการตอบรับเอง');
@@ -77,9 +77,9 @@ begin
   select status, status_before_paid into v_st, v_bp from leads where dealer_code = 'CNX' and num_id = v_paid;
   select x ->> 'text' into v_txt from leads, jsonb_array_elements(activities) x
    where dealer_code = 'CNX' and num_id = v_paid order by (x ->> 'id')::numeric desc limit 1;
-  perform closetest.ok(v_st = 'NEGO', 'HQ ย้อนการตอบรับ → ลีดกลับเป็น "เจรจาต่อรอง" (สถานะก่อนปิด) — ได้ ' || v_st);
+  perform closetest.ok(v_st = 'BULLET', 'HQ ย้อนการตอบรับ → ลีดกลับเป็น "รวบรวมความต้องการ" (สถานะก่อนปิด) — ได้ ' || v_st);
   perform closetest.ok(v_bp is null, 'ล้างช่องสถานะก่อนปิดหลังย้อน');
-  perform closetest.ok(v_txt like '%ลูกค้าเป้าหมายกลับเป็น "เจรจาต่อรอง"%', 'ไทม์ไลน์บอกว่าลีดกลับเป็นอะไร');
+  perform closetest.ok(v_txt like '%ลูกค้าเป้าหมายกลับเป็น "รวบรวมความต้องการ"%', 'ไทม์ไลน์บอกว่าลีดกลับเป็นอะไร');
 
   -- ไม่มีประวัติ (ปิดก่อนใบ 0217) → เสนอราคา · ย้อนเป็น "ไม่สำเร็จ" ก็ใช้กติกาเดียวกัน
   perform closetest.as_db();

@@ -75,11 +75,11 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     const s = await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", ใบลูกค้า);
     if (s.error) throw new Error(s.error.message);
     // ลีดอยู่ขั้นที่ไม่ใช่ค่าตั้งต้นก่อนปิด — ใช้พิสูจน์ว่า HQ ย้อนแล้วกลับไปที่ขั้นเดิม (ไม่ใช่ค่าตั้งต้น "เสนอราคา")
-    //   ใบ 0232: ดีลเลอร์ตั้งสถานะเองไม่ได้แล้ว และ "เจรจาต่อรอง" เป็นป้ายเดิมที่เลิกใช้ (ข้อมูลเก่ายังมีอยู่ได้)
-    //   จึงวางสถานะนี้ด้วยกุญแจฝั่งเซิร์ฟเวอร์เป็นข้อมูลตั้งต้น — ตัวกันของดีลเลอร์ตรวจแยกท้ายข้อแรก
+    //   ใบ 0232: ดีลเลอร์ตั้งสถานะเองไม่ได้แล้ว จึงวาง "รวบรวมความต้องการ" ด้วยกุญแจฝั่งเซิร์ฟเวอร์เป็นข้อมูลตั้งต้น
+    //   (เดิมใช้ "เจรจาต่อรอง" — เลิกใช้แล้ว ฐานไม่รับทุกทาง ใบ 0257 · ตรวจท้ายข้อแรก) · ตัวกันของดีลเลอร์ตรวจแยกท้ายข้อแรก
     const { data: l } = await admin.from("leads").select("id").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single();
-    const n = await admin.from("leads").update({ status: "NEGO" }).eq("dealer_code", "RYG").eq("id", l!.id).select("status").single();
-    if (n.error) throw new Error(`วางสถานะเจรจาต่อรอง (ข้อมูลตั้งต้น) ไม่สำเร็จ: ${n.error.message}`);
+    const n = await admin.from("leads").update({ status: "BULLET" }).eq("dealer_code", "RYG").eq("id", l!.id).select("status").single();
+    if (n.error) throw new Error(`วางสถานะรวบรวมความต้องการ (ข้อมูลตั้งต้น) ไม่สำเร็จ: ${n.error.message}`);
     const ตั้งเอง = await sb.rpc("lead_apply", { p_id: l!.id, p_intent: { stage: { status: "QUOTED" } } });
     if (!/lead_status_one_path/.test(ตั้งเอง.error?.message ?? "")) throw new Error(`ฐานต้องไม่ให้ดีลเลอร์ตั้งสถานะเอง: ${ตั้งเอง.error?.message ?? "ผ่าน"}`);
   });
@@ -112,8 +112,13 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
 
     // ฐานกัน: ดีลเลอร์พาลีดออกจากปิดการขายสำเร็จไม่ได้ (ทางเดียวกับปุ่มเปิดใหม่เดิม)
     const { data: l } = await admin.from("leads").select("id").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single();
-    const r = await (await db(RYG)).rpc("lead_apply", { p_id: l!.id, p_intent: { stage: { status: "NEGO" } } });
+    const r = await (await db(RYG)).rpc("lead_apply", { p_id: l!.id, p_intent: { stage: { status: "QUOTED" } } });
     expect(r.error?.message ?? "", "ฐานต้องปฏิเสธ").toContain("lead_won_locked");
+    // "เจรจาต่อรอง" / "ติดตามผล" ทำไม่ได้แล้ว — แม้กุญแจฝั่งเซิร์ฟเวอร์ (ใบ 0257 · เดิมข้อนี้ใช้ตั้งสถานะนั้นเป็นข้อมูลตั้งต้น)
+    for (const เก่า of ["NEGO", "FOLLOWUP"]) {
+      const x = await admin.from("leads").update({ status: เก่า }).eq("dealer_code", "RYG").eq("id", l!.id);
+      expect(x.error?.message ?? "", `กุญแจเซิร์ฟเวอร์ตั้ง ${เก่า} ต้องถูกปฏิเสธ`).toContain("lead_status_retired");
+    }
   });
 
   test("[ก·2] หน้าใบเสนอราคา: ใบที่ตอบรับแล้วไม่มีแก้ไข/ลบ ทั้งในรายการและแผงรายละเอียด", async ({ page }) => {
@@ -152,7 +157,7 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     expect(r.error?.message ?? "", "สำเนาของใบ won ต้องถูกปฏิเสธ").toMatch(/hq_quote_required|ใบ HQ|lead_closed/);
   });
 
-  test("[ก·4] HQ ย้อนการตอบรับ → ลีดกลับเป็น \"เจรจาต่อรอง\" (สถานะก่อนปิดการขาย)", async ({ page }) => {
+  test("[ก·4] HQ ย้อนการตอบรับ → ลีดกลับเป็น \"รวบรวมความต้องการ\" (สถานะก่อนปิดการขาย)", async ({ page }) => {
     await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
     await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
@@ -166,7 +171,7 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     await ถาม.getByLabel("เหตุผลที่ย้อน").fill("ทดสอบช่วงก ลูกค้าขอเลื่อน");
     await ถาม.getByRole("button", { name: "ย้อนการตอบรับ" }).click();
     await expect.poll(async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.status,
-      { timeout: 20_000, message: "ลีดต้องกลับเป็นเจรจาต่อรอง" }).toBe("NEGO");
+      { timeout: 20_000, message: "ลีดต้องกลับเป็นรวบรวมความต้องการ" }).toBe("BULLET");
     const { data: l } = await admin.from("leads").select("activities").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single();
     expect(JSON.stringify(l?.activities ?? []), "ไทม์ไลน์บอกว่าลีดกลับเป็นอะไร").toContain("ลูกค้าเป้าหมายกลับเป็น");
   });

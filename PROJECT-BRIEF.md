@@ -453,7 +453,7 @@ RootLayout (apps/{hq,dealer}/app/layout.tsx) → <html lang="th"> + ฟอนต
 |---|---|
 | `UserRole` | 6 role (SUPER_ADMIN/HQ_MANAGEMENT/HQ_STAFF/DEALER_ADMIN/DEALER_SALES/DEALER_SITE) |
 | `MockSession` | name, role, dealerName, dealerCode, scopeAll |
-| `LeadStatus` | WAITING/BULLET/QUOTED/FOLLOWUP/NEGO/PAID/CANCELLED |
+| `LeadStatus` | WAITING/BULLET/HQ_PRICING/HQ_QUOTED/QUOTED/PAID/CANCELLED (แสดงเป็น 5 ขั้นผ่าน leadStage.ts) |
 | `LeadRow` | id, numId, name, company, contact, phone?, province, product, status, value, assigned, dealerCode?, source?, tasks?, activities?, customerId? |
 | `LeadTask` | key, label, done, doneAt?, doneBy? |
 | `CustomerRow` | id, name, company, province, status, projects, owner, totalValue, contacts?, imported? |
@@ -499,14 +499,14 @@ RootLayout (apps/{hq,dealer}/app/layout.tsx) → <html lang="th"> + ฟอนต
 
 ### W1. วงจรการขายหลัก (Dealer) — Lead → Won/Lost
 ```
-เพิ่มลีด (WAITING) [/leads]
-  → ทำงาน/ติดตาม (ติ๊ก LeadTasks → เลื่อน stage อัตโนมัติ: BULLET)
-  → ออกใบเสนอราคา [แท็บใบเสนอราคาในลีด → LeadQuotationsPanel]
-      → status QUOTED (ติ๊ก task makeQuote/sendQuote อัตโนมัติ)
-  → เจรจา (NEGO)
+(ลำดับจริงอยู่ docs/FLOW.html ขั้น D1–D8 · ตาราง "สถานะ ↔ ขั้น")
+เพิ่มลีด → ขั้น 1 ข้อมูลลูกค้า (WAITING · ฐานตั้งเอง) [/leads]
+  → ขอราคาจาก HQ → ขั้น 2 (HQ_PRICING · ฐานขยับ)
+  → HQ ส่งใบ → ขั้น 3 ได้ใบ HQ (HQ_QUOTED) → ทำใบให้ลูกค้า (ร่าง) = ขั้น 4
+  → ส่งให้ลูกค้า → ขั้น 5 รอลูกค้าตอบ (QUOTED) · ต่อรอง = "ทำฉบับใหม่" ที่ใบ (ไม่มีขั้นเจรจาแยก)
   → ปิดการขาย:
-      • markWon()  → PAID  → convertLeadToCustomer อัตโนมัติ → ลีดหายจาก /leads ไปเป็นลูกค้าใน /customers
-      • markLost() → CANCELLED → เลือกเหตุผลจาก loadLostReasons()
+      • "ลูกค้าตอบรับ" ที่ใบ → PAID + สร้างลูกค้า (ทางเดียว)
+      • "ลูกค้าปฏิเสธ" ที่ใบ / "ปิดไม่สำเร็จ" ที่กล่องขั้นต่อไป → CANCELLED + เหตุผล
 ```
 
 ### W2. ใบเสนอราคา (Quotation)

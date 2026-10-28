@@ -64,9 +64,11 @@ begin
 
   perform onepath.must_fail(format($s$select lead_apply('#L-%s', '{"stage":{"status":"BULLET"}}'::jsonb)$s$, n1), 'lead_status_one_path',
     'ดีลเลอร์ใช้คำสั่งบันทึกลีดเลื่อนขั้นเอง (ติดต่อแล้ว → รวบรวมความต้องการ)');
-  perform onepath.must_fail(format($s$select lead_apply('#L-%s', '{"stage":{"status":"NEGO"}}'::jsonb)$s$, n1), 'lead_status_one_path',
-    'ดีลเลอร์ตั้งเจรจาต่อรอง (เลิกใช้แล้ว)');
-  perform onepath.must_fail(format('update leads set status = %L where dealer_code = %L and num_id = %s', 'FOLLOWUP', 'CNX', n1), 'lead_status_one_path',
+  perform onepath.must_fail(format($s$select lead_apply('#L-%s', '{"stage":{"status":"NEGO"}}'::jsonb)$s$, n1), 'lead_status_retired',
+    'ดีลเลอร์ตั้งเจรจาต่อรอง = ทำไม่ได้แล้ว (เลิกใช้ · ใบ 0257)');
+  perform onepath.must_fail(format('update leads set status = %L where dealer_code = %L and num_id = %s', 'FOLLOWUP', 'CNX', n1), 'lead_status_retired',
+    'ดีลเลอร์ยิงตรงตั้งติดตามผล = ทำไม่ได้แล้ว (เลิกใช้ · ใบ 0257)');
+  perform onepath.must_fail(format('update leads set status = %L where dealer_code = %L and num_id = %s', 'QUOTED', 'CNX', n1), 'lead_status_one_path',
     'ดีลเลอร์ยิงตรงเปลี่ยนสถานะ');
   perform onepath.must_fail(format($s$select lead_apply('#L-%s', '{"stage":{"status":"PAID"}}'::jsonb)$s$, n1), 'lead_won_needs_accepted_quote',
     'ดีลเลอร์ปิดสำเร็จที่ลีดโดยไม่มีใบที่ตอบรับ');
