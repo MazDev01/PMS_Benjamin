@@ -108,7 +108,7 @@ test("[ux·dealer] ฟอร์มเพิ่มลูกค้าเป้า�
 test("[ux·dealer] ฟอร์มใบเสนอราคาหน้าเดียว + ยอด/หัวข้อ BOQ ไม่ซ้ำ", async ({ page }) => {
   await openLeadQuotationForm(page);
   // ทุก section แสดงพร้อมกันบนหน้าเดียว (ไม่มี stepper ให้กด · ไม่มีขั้น "เลือกแม่แบบ" แยก)
-  await expect(page.getByText("ชื่อโครงการ / เอกสาร")).toBeVisible();
+  await expect(page.locator("label").filter({ hasText: /^งานที่ต้องการ$/ }).first()).toBeVisible();   // ชุดช่องมาตรฐาน (เดิม "ชื่อโครงการ / เอกสาร" · ตารางเทียบ FLOW รอบ 5)
   await expect(page.getByText("รายการใบเสนอราคา")).toBeVisible();
   await expect(page.getByText("เลือกแม่แบบ", { exact: true })).toHaveCount(0);
   // ช่องเลือกแม่แบบ/หมวดอาคารต้องไม่มี (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
