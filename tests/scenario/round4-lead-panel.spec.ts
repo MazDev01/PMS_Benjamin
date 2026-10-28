@@ -41,6 +41,8 @@ async function เปิดลีด(page: Page, company: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  // ข้อในไฟล์นี้เปิดลีดที่ปิดแล้วด้วย — ตัวกรองขั้นตอนค่าเริ่มต้นซ่อนลีดปิดแล้ว (บอสสั่ง 28 ต.ค. 69) จึงเลือก "ทั้งหมด"
+  await page.getByLabel("ขั้นตอน", { exact: true }).selectOption({ label: "ทั้งหมด" });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   await page.locator("tbody tr").filter({ hasText: company }).first().locator("td").first().click();
   await expect(page.locator("[data-panel='next-step']:not([aria-busy])")).toBeVisible({ timeout: 20_000 });

@@ -50,7 +50,7 @@ async function เปิดรายการเตือน(page: Page, ชื�
     await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 40_000 });
   // ขั้นอื่นพับไว้ (28 ต.ค. 69) — กางทุกขั้นก่อนตรวจรายการ
-  for (const b of await page.locator("[data-lead-tasks] button[aria-expanded='false']").all()) await b.click();
+  for (let i = 0, พับ = page.locator("[data-lead-tasks] button[aria-expanded='false']"); i < 5 && await พับ.count(); i++) await พับ.first().click();
   return page.locator("[data-lead-tasks]");
 }
 

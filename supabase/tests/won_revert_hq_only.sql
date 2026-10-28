@@ -47,12 +47,6 @@ begin
   select id into c1 from customers where dealer_code = 'CNX' order by id limit 1;
   perform flowtest.ok(cnx is not null and hq is not null and l1 is not null and c1 is not null, 'มีข้อมูลตั้งต้นครบ');
 
-  -- ใบเก่า won (ผูกลูกค้าเป้าหมาย l1 · ลูกค้า c1)
-  alter table quotations disable trigger quotations_hq_link_guard;
-  insert into quotations (id, dealer_code, customer, line_items, total_value, status, customer_id, deal_id)
-  values ('ZZR-OLD-WON', 'CNX', 'ZZR เก่า', li, 1000, 'won', c1, l1);
-  alter table quotations enable trigger quotations_hq_link_guard;
-
   -- ใบจากใบ HQ ที่ won
   perform flowtest.as_dealer(cnx);
   r := quote_request_submit(l1, 'โกดังและคลังสินค้า');
@@ -62,6 +56,15 @@ begin
   select * into q from create_quotation('CNX', 'Q-', jsonb_build_object('customer', 'ZZR HQ won', 'status', 'sent_to_client',
     'date', to_char(current_date, 'DD/MM/YYYY'), 'line_items', '[{"name":"x","qty":1}]'::jsonb, 'hq_quote_id', h.id, 'markup_percent', 50));
   update quotations set status = 'won', customer_id = c1 where id = q.id and dealer_code = 'CNX';
+
+  -- ใบเก่า won (ผูกลูกค้าเป้าหมาย l1 · ลูกค้า c1) — สร้างหลังใบจากใบ HQ: ใบ 0252 ตั้งลีดเป็น PAID ทันทีที่มีใบ won
+  --   ถ้าสร้างก่อน ลีด l1 จะปิดแล้วส่งคำขอราคาไม่ได้ (เดิมสร้างไว้บนสุด)
+  perform flowtest.as_root();
+  alter table quotations disable trigger quotations_hq_link_guard;
+  insert into quotations (id, dealer_code, customer, line_items, total_value, status, customer_id, deal_id)
+  values ('ZZR-OLD-WON', 'CNX', 'ZZR เก่า', li, 1000, 'won', c1, l1);
+  alter table quotations enable trigger quotations_hq_link_guard;
+  perform flowtest.as_dealer(cnx);
 
   -- ══ ดีลเลอร์เปลี่ยนสถานะใบ won ไม่ได้ ══
   perform flowtest.must_fail($q$update quotations set status = 'lost', lost_reason = 'x' where id = 'ZZR-OLD-WON' and dealer_code = 'CNX'$q$, 'quote_won_locked', 'ใบเก่าที่ won: ดีลเลอร์ย้อนเป็นไม่สำเร็จไม่ได้');

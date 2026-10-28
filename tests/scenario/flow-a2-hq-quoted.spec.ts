@@ -120,7 +120,7 @@ test("[ก2·2] แผงลีด: ไม่มีช่องเลือก�
   // งานในแต่ละขั้นอยู่แท็บภาพรวม (บอสสั่ง 28 ต.ค. 69) — กางทุกขั้นก่อนหา
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();
   await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 10_000 });
-  for (const b of await page.locator("[data-lead-tasks] button[aria-expanded='false']").all()) await b.click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
+  for (let i = 0, พับ = page.locator("[data-lead-tasks] button[aria-expanded='false']"); i < 5 && await พับ.count(); i++) await พับ.first().click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
   const งานระบบ = page.locator("[data-auto-task='1']");
   await expect(งานระบบ.first(), "มีงานที่ระบบติ๊กเอง").toBeVisible({ timeout: 10_000 });
   for (const b of await งานระบบ.all()) await expect(b, "งานที่ระบบติ๊กเองกดไม่ได้").toBeDisabled();

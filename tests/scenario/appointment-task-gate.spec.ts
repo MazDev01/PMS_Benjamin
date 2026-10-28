@@ -55,7 +55,7 @@ test("[func·dealer] งานนัดหมายติ๊กเองไม�
     // รอบ 4 (บอสสั่ง 21 ต.ค. 69): รายการงานเป็นรายการเตือนในแท็บ "ประวัติ" · งานนัดหมาย = ช่องที่ระบบติ๊กให้เมื่อบันทึกนัดจริง
     //   กดติ๊กเองไม่ได้อีกต่อไป (ไม่ต้องพาไปฟอร์มแล้ว) — ช่องบอกวิธีไว้ในตัว · ตรวจว่ากดแล้วไม่ติ๊กทั้งบนจอและในฐาน
     await กดแท็บ(page, "ภาพรวม", /งานในแต่ละขั้น/);   // งานในแต่ละขั้น + นัดหมาย อยู่แท็บภาพรวม (28 ต.ค. 69)
-    for (const b of await page.locator("[data-lead-tasks] button[aria-expanded='false']").all()) await b.click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
+    for (let i = 0, พับ = page.locator("[data-lead-tasks] button[aria-expanded='false']"); i < 5 && await พับ.count(); i++) await พับ.first().click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
 
     const งานนัด = page.locator('[role="checkbox"]').filter({ hasText: "นัดหมาย" }).first();
     await expect(งานนัด, "ขั้นนี้ต้องมีงานนัดหมายในรายการเตือน").toBeVisible({ timeout: 20_000 });

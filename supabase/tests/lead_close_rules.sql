@@ -64,8 +64,11 @@ begin
 
   -- ── ข้อ 4: จดสถานะก่อนปิด + HQ ย้อนการตอบรับ → ลีดกลับ ──
   perform closetest.as_db();
-  update leads set status = 'NEGO' where dealer_code = 'CNX' and num_id = v_paid;     -- งานในฐาน (ไม่ใช่ผู้ใช้) ตั้งฉากทดสอบ
-  update leads set status = 'PAID' where dealer_code = 'CNX' and num_id = v_paid;
+  -- ตั้งฉากทดสอบ: ลีดนี้มีใบ won อยู่ → ใบ 0252 ไม่ให้ใครพาลีดออกจาก PAID (รวมงานในฐาน) จึงตั้ง NEGO ตอนปิดตัวดักชั่วคราว
+  set local session_replication_role = replica;
+  update leads set status = 'NEGO' where dealer_code = 'CNX' and num_id = v_paid;
+  set local session_replication_role = origin;
+  update leads set status = 'PAID' where dealer_code = 'CNX' and num_id = v_paid;     -- ตัวดัก 0217 จดสถานะก่อนปิดตรงนี้
   select status_before_paid into v_bp from leads where dealer_code = 'CNX' and num_id = v_paid;
   perform closetest.ok(v_bp = 'NEGO', 'เข้า PAID แล้วฐานจดสถานะก่อนปิด = เจรจาต่อรอง');
 

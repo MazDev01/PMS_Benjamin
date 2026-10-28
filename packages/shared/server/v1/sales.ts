@@ -65,7 +65,7 @@ export const LEAD_PAGE_SHAPE = {
   limit:       num({ int: true, min: 1, max: MAX_PAGE, def: 50 }),
   offset:      num({ int: true, min: 0, max: 1_000_000, def: 0 }),
   status:      oneOf(LEAD_STATUS, { optional: true }),
-  stage:       num({ int: true, min: 1, max: 7, optional: true }),   // เลขขั้น (leadStage.ts · ใบ 0251)
+  stage:       num({ int: true, min: 0, max: 7, optional: true }),   // เลขขั้น (leadStage.ts · ใบ 0251) · 0 = กำลังดำเนินการ ขั้น 1–5 (ใบ 0256)
   dealerCodes: arrOf(str({ max: 20 }), { optional: true, max: MAX_DEALERS }),
   province:    str({ max: 100, optional: true }),
   product:     str({ max: 200, optional: true }),
