@@ -90,6 +90,13 @@ if (Number(นับบัญชี.stdout.trim()) === 0) {
   if (r.status !== 0) หยุด("ใส่ข้อมูลตัวอย่างในฐาน dev ไม่สำเร็จ");
 }
 
+// ③ข ข้อมูลตัวอย่างครบทุกขั้นใน FLOW (scripts/dev-sample-data.mjs · บอสสั่ง 28 ต.ค. 69) — มีแล้วข้าม · เฉพาะฐาน dev ตัวจริง
+//   (ฐานจำลองของข้อทดสอบ dev-db-rebuild ไม่มีตาราง/บัญชี) · ใส่ไม่สำเร็จ = เตือนแล้วเปิดเว็บต่อ (สร้างใหม่: npm run dev:sample)
+if (โปรเจกต์ === "pms-dev") {
+  const ตัวอย่าง = sh(process.execPath, [path.join(รากโฟลเดอร์, "scripts/dev-sample-data.mjs")], { stdio: "inherit", shell: false, cwd: รากโฟลเดอร์ });
+  if (ตัวอย่าง.status !== 0) console.warn("⚠️ ใส่ข้อมูลตัวอย่างครบทุกขั้นไม่สำเร็จ (ดูข้อความด้านบน) — เปิดเว็บต่อด้วยข้อมูลตั้งต้น · ลองใหม่: npm run dev:sample");
+}
+
 if (process.argv.includes("--prepare-only")) process.exit(0);
 
 // ④ เปิดเว็บชี้ฐาน dev — ค่าใน env ชนะ .env.local (ซึ่งชี้ฐานทดสอบไว้ให้ชุดทดสอบ)

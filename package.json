@@ -6,6 +6,7 @@
     "dev": "node scripts/dev-db.mjs",
     "dev:hq": "node scripts/dev-db.mjs --filter=hq",
     "dev:dealer": "node scripts/dev-db.mjs --filter=dealer",
+    "dev:sample": "node scripts/dev-sample-data.mjs --reset",
     "build": "turbo build",
     "typecheck": "turbo typecheck && tsc -p tests/tsconfig.json --noEmit",
     "lint": "turbo lint",
