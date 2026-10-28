@@ -81,7 +81,7 @@ const วัดหน้า = (page: Page, จอกว้าง: boolean) => pa
     for (const c of e.querySelectorAll("input:not([type=hidden]), select, textarea, svg")) if (เห็น(c)) ชิ้น.push({ ที่: c, r: c.getBoundingClientRect() });
     // ชิ้นที่กล่องเลื่อนข้างใน (ตารางเลื่อนแนวนอน ฯลฯ) ตัดไว้ = มองไม่เห็นเต็ม ไม่นับ — ส่วนที่เห็นเต็มเท่านั้นที่วัด
     const ถูกตัด = (ที่: Element, x: DOMRect) => {
-      for (let p = ที่.parentElement; p && p !== e; p = p.parentElement) {
+      for (let p: Element | null = ที่; p && p !== e; p = p.parentElement) {   // รวมตัวที่ถือข้อความเอง (ตัดด้วย … ในช่องตัวเอง)
         const ps = getComputedStyle(p);
         if (ps.overflowX === "visible" && ps.overflowY === "visible") continue;
         const pr = p.getBoundingClientRect();
