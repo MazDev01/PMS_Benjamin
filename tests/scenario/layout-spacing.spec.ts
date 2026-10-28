@@ -86,6 +86,10 @@ const วัดหน้า = (page: Page, จอกว้าง: boolean) => pa
         if (ps.overflowX === "visible" && ps.overflowY === "visible") continue;
         const pr = p.getBoundingClientRect();
         if (x.left < pr.left - 0.5 || x.right > pr.right + 0.5 || x.top < pr.top - 0.5 || x.bottom > pr.bottom + 0.5) return true;
+        // ขอบของกล่องที่เลื่อนได้จริง = ขอบที่เลื่อนต่อได้ (เนื้อหายังมีต่อ) ไม่ใช่ขอบกล่อง — ชิ้นที่อยู่ติดขอบนั้นไม่นับ
+        const เลื่อนข้าง = p.scrollWidth > p.clientWidth + 1, เลื่อนลง = p.scrollHeight > p.clientHeight + 1;
+        if (เลื่อนข้าง && (x.right > pr.right - ห่างขอบ || x.left < pr.left + ห่างขอบ)) return true;
+        if (เลื่อนลง && (x.bottom > pr.bottom - ห่างขอบ || x.top < pr.top + ห่างขอบ)) return true;
       }
       return false;
     };

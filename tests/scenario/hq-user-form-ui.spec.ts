@@ -50,7 +50,7 @@ test.describe("[ui·hq] ฟอร์มเพิ่มผู้ใช้งา�
     const ป้าย = (await กล่อง.locator(".form-label").allInnerTexts()).map(t => t.trim().replace(/ ·.*/s, "").toLowerCase());
     expect(ป้าย).toEqual([
       "ชื่อ *", "นามสกุล", "อีเมล (ใช้เข้าระบบ) *", "รหัสผ่านชั่วคราว", "เบอร์โทร",
-      "บทบาท (role) *", "แผนก", "สถานะ",
+      "บทบาท *", "แผนก", "สถานะ",
     ].map(t => t.toLowerCase()));
 
     const ปุ่มปิด = กล่อง.getByRole("button", { name: "ปิด" });

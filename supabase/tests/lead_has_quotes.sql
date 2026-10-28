@@ -79,14 +79,15 @@ begin
   alter table public.quotations enable trigger quotations_hq_link_guard;
   perform hqtest.eq(hqtest.v(q), true, '4) มีใบร่างผูกลีด = มี');
   perform hqtest.eq(hqtest.s(q) = 4, true, '4) มีใบร่าง ขั้นที่ไปถึง = 4 (ทำใบให้ลูกค้า)');
+  delete from public.quotations where id = 'ZZTEST-QHQ-' || q;   -- ลบได้เฉพาะใบร่าง (ใบที่ส่งแล้วฐานกัน quote_sent_no_delete)
+  perform hqtest.eq(hqtest.v(q), false, '4) ลบใบร่างออกแล้ว = ไม่มี (ลบลีดได้อีกครั้ง)');
+  perform hqtest.eq(hqtest.s(q) = 1, true, '4) ลบใบร่างออกแล้ว ขั้นที่ไปถึงกลับเป็น 1');
+  -- ใบที่ส่งถึงลูกค้าแล้ว (ลีด r ที่มีคำขออยู่แล้ว) → ขั้นที่ไปถึง = 5
   alter table public.quotations disable trigger quotations_hq_link_guard;
   insert into public.quotations (id, dealer_code, deal_id, customer, project, total_value, status, date)
-  values ('ZZTEST-QHQ-' || q || '-V2', 'CNX', q, 'ZZTEST-มีคำขอ', 'ZZTEST', 1000, 'sent_to_client', current_date);
+  values ('ZZTEST-QHQ-' || r, 'CNX', r, 'ZZTEST-มีคำขอ', 'ZZTEST', 1000, 'sent_to_client', current_date);
   alter table public.quotations enable trigger quotations_hq_link_guard;
-  perform hqtest.eq(hqtest.s(q) = 5, true, '4) ส่งใบถึงลูกค้าแล้ว ขั้นที่ไปถึง = 5');
-  delete from public.quotations where id in ('ZZTEST-QHQ-' || q, 'ZZTEST-QHQ-' || q || '-V2');
-  perform hqtest.eq(hqtest.v(q), false, '4) ลบใบทั้งหมดออกแล้ว = ไม่มี (ลบลีดได้อีกครั้ง)');
-  perform hqtest.eq(hqtest.s(q) = 1, true, '4) ลบใบออกแล้ว ขั้นที่ไปถึงกลับเป็น 1');
+  perform hqtest.eq(hqtest.s(r) = 5, true, '4) ส่งใบถึงลูกค้าแล้ว ขั้นที่ไปถึง = 5');
 
   -- 5) ตรงกับตัวกันลบ 0217 ทุกแถว: has_quotes = false ⇔ ลบได้
   perform hqtest.eq((select bool_and(has_quotes = _lead_has_quotes(dealer_code, num_id)) from public.leads), true,

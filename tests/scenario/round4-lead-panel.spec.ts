@@ -82,7 +82,7 @@ test("ข้อ 1 · รอราคา HQ = ไฮไลต์ขั้น 2 (�
   await expect(page.getByRole("button", { name: "ลบ", exact: true })).toHaveCount(0);
 });
 
-test("ข้อ 2 · ป้ายสถานะในตารางกดแล้วไม่มีเมนูเลือกขั้น · การ์ดบนบอร์ดลากไม่ได้ · แถวตารางไม่มีปุ่มลบ", async ({ page }) => {
+test("ข้อ 2 · ป้ายสถานะในตารางกดแล้วไม่มีเมนูเลือกขั้น · การ์ดบนบอร์ดลากไม่ได้ · ลีดที่ยังไม่มีคำขอมีปุ่มลบในแถว", async ({ page }) => {
   const company = ชื่อ("ตาราง"); await ลีดเปล่า("WAITING", company);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
@@ -91,7 +91,8 @@ test("ข้อ 2 · ป้ายสถานะในตารางกดแ�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const แถว = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(แถว).toBeVisible();
-  await expect(แถว.getByTitle("ลบลูกค้าเป้าหมาย")).toHaveCount(0);
+  // ตารางตามรูป (บอสสั่ง 28 ต.ค. 69): ลีดที่ยังไม่มีคำขอ/ใบ มีปุ่มลบในแถว (ลีดที่มีคำขอไม่มี — lead-quote-tables.spec.ts)
+  await expect(แถว.getByTitle("ลบลูกค้าเป้าหมาย")).toHaveCount(1);
   await expect(แถว.locator("button.badge")).toHaveCount(0);
   await แถว.locator(".badge").first().click();
   await expect(page.locator("[data-menu='stage']")).toHaveCount(0);

@@ -89,7 +89,7 @@ test("[D6] [ui·dealer] ตาราง: ป้ายฉบับ V1/V2 ทุ�
   await expect(page.getByRole("columnheader", { name: "งานที่ต้องการ" })).toBeVisible();
   const แถว = page.locator("tbody tr").filter({ hasText: ชุด });
   await expect(แถว.first()).toBeVisible({ timeout: 25_000 });
-  const ฉบับ = await แถว.locator("td:first-child .badge").allTextContents();
+  const ฉบับ = await แถว.locator("[data-revision-cell] .badge").allTextContents();   // คอลัมน์ฉบับแยก (ตารางตามรูป 28 ต.ค. 69)
   expect(ฉบับ.length, "ทุกแถวมีป้ายฉบับ").toBe(await แถว.count());
   for (const f of ฉบับ) expect(f.trim(), "ป้ายฉบับแบบ V1/V2").toMatch(/^V\d+$/);
   const วันที่ = await แถว.locator("[data-date-cell]").allTextContents();
