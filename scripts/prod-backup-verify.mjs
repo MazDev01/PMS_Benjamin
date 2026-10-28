@@ -22,6 +22,7 @@ import { loadTarget } from "./lib/targetEnv.mjs";
 import { อ่านคำสั่งสำรอง } from "./lib/backupArgs.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
+import { บันทึกผลซ้อมกู้ } from "./lib/prodBackupMark.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { target, ชื่อ } = อ่านคำสั่งสำรอง(process.argv.slice(2));
@@ -38,6 +39,11 @@ const LOCAL_CONTAINER = "supabase_db_pms-dbcheck";
 const SQL_COUNT = path.join(REPO, "scripts/sql/prod-count-all.sql");
 const SQL_SEQ = path.join(REPO, "scripts/sql/prod-seq-check.sql");
 const D = path.join(ROOT, ชื่อ);
+
+// ผลกลางของฐานจริง (scripts/lib/prodBackupMark.mjs · บอสสั่ง 28 ต.ค. 69): เริ่มรอบ = "ไม่ผ่าน · กำลังสำรอง" ก่อนทำอะไร
+//   ผลผ่านของรอบก่อนใช้ไม่ได้ทันที — รอบนี้ล้มกลางทาง สคริปต์ที่เขียนฐานจริง (prod-live) ต้องไม่รัน
+const บันทึกผล = (ผ่าน, เหตุ = "") => { if (target === "prod") บันทึกผลซ้อมกู้({ ผ่าน, ชุด: ชื่อ, เหตุ }); };
+บันทึกผล(false, "กำลังสำรอง");
 
 // ไม่ผ่าน = โยนออกไปจบที่ท้ายไฟล์ (ไม่ใช่ process.exit ทันที — ขั้นล้างฐานซ้อมกู้ใน finally ต้องได้ทำเสมอ)
 class ไม่ผ่านแล้ว extends Error {}
@@ -216,6 +222,7 @@ try {
   ปิดฐานซ้อมกู้();
 }
 writeFileSync(path.join(D, "ผ่าน.txt"), new Date().toISOString());
+บันทึกผล(true);
 console.log(`✅ ผ่าน — สำรองและซ้อมกู้ครบ · ${D}`);
 } catch (e) {
   // ข้อผิดพลาดที่ไม่ได้คาดไว้ก็ต้องจบด้วยข้อความภาษาไทยที่บอกขั้น — ห้ามขึ้น stack trace ของ Node ให้ผู้ใช้เห็น (บอสสั่ง 20 ต.ค. 69)
@@ -223,5 +230,6 @@ console.log(`✅ ผ่าน — สำรองและซ้อมกู้�
     ? `❌ ไม่ผ่าน — ${e.message}`
     : `❌ ไม่ผ่าน — เครื่องมือล้มที่ขั้น "${ขั้นปัจจุบัน}" (ข้อผิดพลาดภายใน: ${e?.message ?? e})`);
   console.error("   ห้ามเขียนฐานจริงต่อจนกว่าจะสำรองและซ้อมกู้ผ่าน");
+  บันทึกผล(false, e instanceof ไม่ผ่านแล้ว ? e.message : `เครื่องมือล้มที่ขั้น ${ขั้นปัจจุบัน}`);
   process.exitCode = 1;
 }
