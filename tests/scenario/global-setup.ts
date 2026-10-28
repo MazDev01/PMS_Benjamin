@@ -119,6 +119,9 @@ const QUOTES: QuoteSeed[] = [
 ];
 
 export default async function globalSetup() {
+  // ช่วง tools (*-tool.spec.ts · ไม่ใช้ฐานทดสอบ) รันพร้อมช่วง chromium ในรอบตรวจเต็ม — ห้ามลงข้อมูลตั้งต้นซ้ำกลางรอบ chromium
+  //   (scripts/test-prodbuild.mjs ตั้ง PMS_GLOBAL_SETUP_SKIP=1 ให้ช่วงนี้เท่านั้น · 28 ต.ค. 69)
+  if (process.env.PMS_GLOBAL_SETUP_SKIP === "1") { console.log("[global-setup] ข้าม — ช่วงข้อทดสอบเครื่องมือ ไม่ใช้ฐานทดสอบ"); return; }
   // ถือล็อกฐานทดสอบก่อนแตะฐาน — เซสชันอื่นใช้อยู่ = หยุด บอกว่าใคร (scripts/lib/testDbLock.mjs · 22 ต.ค. 69)
   await ขอล็อกฐานทดสอบก่อนรัน();
   if (!REAL_BACKEND || !ADMIN_SUPABASE_URL || !ADMIN_SERVICE_ROLE_KEY) {

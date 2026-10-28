@@ -12,7 +12,7 @@
 //   next.config ของทั้งสองแอปอ่าน PMS_DIST_DIR · turbo.json ประกาศ PMS_DIST_DIR ให้งาน build (โหมด strict กรองทิ้งถ้าไม่ประกาศ)
 //   ข้อทดสอบ: tests/tools/dev-build-separate.test.mjs
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { createWriteStream, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -21,6 +21,7 @@ import { สภาพตอนเริ่ม, บันทึกcommitที่
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
 import { ตรวจไม่นิ่งท้ายรอบ } from "./lib/flakyLog.mjs";
+import { ตัดสินพร้อมรันซ้ำ } from "./lib/gateRerun.mjs";
 import { อาร์กิวเมนต์psql, คอนเทนเนอร์ as คอนเทนเนอร์ฐานทดสอบ } from "./lib/testDbGuard.mjs";
 
 const โฟลเดอร์build = process.env.PMS_TEST_DIST_DIR || ".next-test";
@@ -29,6 +30,36 @@ if (process.argv.includes("--build-only")) {
   const b = spawnSync("npm", ["run", "build"], { env: { ...เดิม, PMS_DIST_DIR: โฟลเดอร์build }, stdio: "inherit", shell: true });
   process.exit(b.status ?? 1);
 }
+
+// ── จับเวลาแต่ละช่วง + รันชุดที่ไม่ใช้ฐานร่วมกันพร้อมกัน (บอสสั่งเร่ง 28 ต.ค. 69) ─────────────────────────────────────
+//   พร้อมกัน: ตัวตรวจกับดัก ∥ ข้อทดสอบหน่วย ∥ build (หลัง typecheck — typecheck อ่านไฟล์ชนิดที่ build เขียน)
+//             ช่วง tools (*-tool.spec.ts ไม่ใช้เว็บ/ฐานทดสอบ) ∥ ช่วง chromium
+//   ชุดที่ใช้ฐานทดสอบร่วมกัน (chromium · hq-settings · safari · stress · prod-live) ยังรันทีละช่วงเหมือนเดิม
+//   PMS_GATE_PARALLEL=0 = เรียงทีละขั้นแบบเดิม (ใช้วัดเวลาก่อน/หลัง) · ผลเวลาอยู่ test-results/gate-timing.json
+const พร้อมกัน = process.env.PMS_GATE_PARALLEL !== "0";
+const เริ่มรอบ = Date.now();
+const เวลา = [];
+const จับเวลา = async (ช่วง, fn) => {
+  const s = Date.now();
+  try { return await fn(); } finally { เวลา.push({ ช่วง, วินาที: Math.round((Date.now() - s) / 1000) }); }
+};
+const สรุปเวลา = () => {
+  const รวม = Math.round((Date.now() - เริ่มรอบ) / 1000);
+  console.log(`▶ เวลาแต่ละช่วง (${พร้อมกัน ? "รันพร้อมกัน" : "เรียงทีละขั้น"} · รวม ${(รวม / 60).toFixed(1)} นาที):`);
+  for (const x of เวลา) console.log(`   ${String(x.วินาที).padStart(5)} วิ  ${x.ช่วง}`);
+  mkdirSync("test-results", { recursive: true });
+  writeFileSync("test-results/gate-timing.json", JSON.stringify({ รอบ: process.env.PMS_RUN_ID ?? "", โหมด: พร้อมกัน ? "พร้อมกัน" : "เรียง", รวมวินาที: รวม, ช่วง: เวลา }, null, 2) + "\n");
+};
+// รันคำสั่งเบื้องหลัง เก็บข้อความลงไฟล์ (หลายตัวพร้อมกัน = ข้อความไม่ปนกันบนจอ) · ตกแล้วพิมพ์ท้ายไฟล์ให้เห็น
+const รันเก็บข้อความ = (ชื่อ, cmd, args, opt) => new Promise(ok => {
+  mkdirSync("test-results/gate-logs", { recursive: true });
+  const ไฟล์ = `test-results/gate-logs/${ชื่อ.replace(/[^\w-]+/g, "_")}.log`;
+  const out = createWriteStream(ไฟล์);
+  const p = spawn(cmd, args, { ...opt, shell: true });
+  p.stdout.pipe(out); p.stderr.pipe(out);
+  p.on("exit", code => out.end(() => ok({ ชื่อ, code: code ?? 1, ไฟล์ })));
+});
+const พิมพ์ท้าย = (ไฟล์, n = 60) => console.error(readFileSync(ไฟล์, "utf8").split(/\r?\n/).slice(-n).join("\n"));
 
 // commit ที่กำลังตรวจ + ไฟล์ค้างตอนเริ่ม — ผลผ่านผูกกับ commit นี้ (ตัวกัน push ขึ้น monorepo · 22 ต.ค. 69)
 const ตอนเริ่ม = สภาพตอนเริ่ม();
@@ -87,19 +118,35 @@ process.on("SIGINT", () => { ปิดทั้งหมด(); process.exit(130)
 // ── ขั้นแรกของรอบปิดด่าน: typecheck + pnpm checks — แดง = หยุดทั้งรอบ (บอสสั่ง 15 ต.ค. 69) ───────────────────────
 //   เดิมตัวตรวจกับดักแดงค้างมาตั้งแต่ด่าน 1–2 โดยไม่มีใครเห็น เพราะรอบปิดด่านไม่ได้รันมัน
 //   ไม่มีตัวเลือกข้าม · เจาะไฟล์เดียว (ระบุอาร์กิวเมนต์เอง) ไม่ใช่รอบปิดด่าน จึงไม่บังคับ
-if (!process.argv.slice(2).length) {
-  // ข้อทดสอบหน่วย (vitest) อยู่ในขั้นแรกด้วย (21 ต.ค. 69) — เดิมไม่ได้รันในรอบปิดด่านเลย ข้อทดสอบของตัวกัน db:push จึงไม่ถูกตรวจก่อนขึ้นระบบ
-  for (const [ชื่อ, สคริปต์] of [["typecheck", "typecheck"], ["ตัวตรวจกับดัก (pnpm checks)", "checks"], ["ข้อทดสอบหน่วย (vitest)", "test:unit"]]) {
-    console.log(`▶ ขั้นแรก: ${ชื่อ}`);
-    const r = spawnSync("npm", ["run", "-s", สคริปต์], { env: { ...process.env, PMS_TESTDB_LOCK_HELD: ล็อกฐาน.token }, stdio: "inherit", shell: true });
-    if (r.status !== 0) { console.error(`❌ ${ชื่อ} ไม่ผ่าน — ไม่เริ่มรอบปิดด่าน`); process.exit(r.status ?? 1); }
+const ขั้นแรก = [["typecheck", "typecheck"], ["ตัวตรวจกับดัก (pnpm checks)", "checks"], ["ข้อทดสอบหน่วย (vitest)", "test:unit"]];
+const envขั้นแรก = { ...process.env, PMS_TESTDB_LOCK_HELD: ล็อกฐาน.token };
+const ทำbuild = !process.env.SKIP_BUILD;
+if (!process.argv.slice(2).length && พร้อมกัน) {
+  // typecheck ก่อน (อ่านไฟล์ชนิดใน .next-test ที่ build เขียนทับ) แล้ว ตัวตรวจกับดัก ∥ ข้อทดสอบหน่วย ∥ build
+  console.log("▶ ขั้นแรก: typecheck");
+  const t = await จับเวลา("ขั้นแรก: typecheck", async () => spawnSync("npm", ["run", "-s", "typecheck"], { env: envขั้นแรก, stdio: "inherit", shell: true }));
+  if (t.status !== 0) { console.error("❌ typecheck ไม่ผ่าน — ไม่เริ่มรอบปิดด่าน"); process.exit(t.status ?? 1); }
+  console.log(`▶ พร้อมกัน: ${ขั้นแรก.slice(1).map(([ชื่อ]) => ชื่อ).join(" · ")}${ทำbuild ? ` · build ทั้งสองแอป (โหมด ${MODE})` : ""} — ข้อความเต็มอยู่ test-results/gate-logs/`);
+  const งาน = ขั้นแรก.slice(1).map(([ชื่อ, สคริปต์]) => จับเวลา(`ขั้นแรก: ${ชื่อ}`, () => รันเก็บข้อความ(ชื่อ, "npm", ["run", "-s", สคริปต์], { env: envขั้นแรก })));
+  if (ทำbuild) งาน.push(จับเวลา("build", () => รันเก็บข้อความ("build", "npm", ["run", "build"], { env })));
+  const ผล = await Promise.all(งาน);
+  for (const r of ผล) console.log(`   ${r.code === 0 ? "✓" : "✗"} ${r.ชื่อ}`);
+  const ตก = ผล.find(r => r.code !== 0);
+  if (ตก) { พิมพ์ท้าย(ตก.ไฟล์); console.error(`❌ ${ตก.ชื่อ} ไม่ผ่าน — ไม่เริ่มรอบปิดด่าน (ข้อความเต็ม ${ตก.ไฟล์})`); process.exit(ตก.code); }
+} else {
+  if (!process.argv.slice(2).length) {
+    // ข้อทดสอบหน่วย (vitest) อยู่ในขั้นแรกด้วย (21 ต.ค. 69) — เดิมไม่ได้รันในรอบปิดด่านเลย ข้อทดสอบของตัวกัน db:push จึงไม่ถูกตรวจก่อนขึ้นระบบ
+    for (const [ชื่อ, สคริปต์] of ขั้นแรก) {
+      console.log(`▶ ขั้นแรก: ${ชื่อ}`);
+      const r = await จับเวลา(`ขั้นแรก: ${ชื่อ}`, async () => spawnSync("npm", ["run", "-s", สคริปต์], { env: envขั้นแรก, stdio: "inherit", shell: true }));
+      if (r.status !== 0) { console.error(`❌ ${ชื่อ} ไม่ผ่าน — ไม่เริ่มรอบปิดด่าน`); process.exit(r.status ?? 1); }
+    }
   }
-}
-
-if (!process.env.SKIP_BUILD) {
-  console.log(`▶ build ทั้งสองแอป (โหมด ${MODE}) — ใช้เวลาราว 1 นาที`);
-  const b = spawnSync("npm", ["run", "build"], { env, stdio: "inherit", shell: true });
-  if (b.status !== 0) { console.error("build ไม่ผ่าน — หยุด"); process.exit(b.status ?? 1); }
+  if (ทำbuild) {
+    console.log(`▶ build ทั้งสองแอป (โหมด ${MODE}) — ใช้เวลาราว 1 นาที`);
+    const b = await จับเวลา("build", async () => spawnSync("npm", ["run", "build"], { env, stdio: "inherit", shell: true }));
+    if (b.status !== 0) { console.error("build ไม่ผ่าน — หยุด"); process.exit(b.status ?? 1); }
+  }
 }
 
 for (const a of แอป) {
@@ -108,13 +155,15 @@ for (const a of แอป) {
     process.exit(1);
   }
 }
-for (const a of แอป) {
-  console.log(`▶ สตาร์ท ${a.ชื่อ} แบบ production ที่พอร์ต ${a.port}`);
-  เซิร์ฟเวอร์.push(spawn("npx", ["next", "start", "-p", String(a.port)], { cwd: a.cwd, env, stdio: "ignore", shell: true }));
-}
-for (const a of แอป) {
-  if (!await รอจนพร้อม(a.port)) { console.error(`${a.ชื่อ} ไม่ขึ้นภายในเวลาที่รอ — หยุด`); ปิดทั้งหมด(); process.exit(1); }
-}
+await จับเวลา("สตาร์ทเซิร์ฟเวอร์", async () => {
+  for (const a of แอป) {
+    console.log(`▶ สตาร์ท ${a.ชื่อ} แบบ production ที่พอร์ต ${a.port}`);
+    เซิร์ฟเวอร์.push(spawn("npx", ["next", "start", "-p", String(a.port)], { cwd: a.cwd, env, stdio: "ignore", shell: true }));
+  }
+  for (const a of แอป) {
+    if (!await รอจนพร้อม(a.port)) { console.error(`${a.ชื่อ} ไม่ขึ้นภายในเวลาที่รอ — หยุด`); ปิดทั้งหมด(); process.exit(1); }
+  }
+});
 console.log("▶ เซิร์ฟเวอร์พร้อม เริ่มรันชุดทดสอบบนโค้ดแบบที่ขึ้นเว็บจริง");
 
 // ── รอบปิดด่าน (ไม่ระบุไฟล์/โปรเจกต์) = รันเป็นช่วงต่อกัน แล้วตัวตรวจ check-e2e-ran เป็นขั้นบังคับท้ายรอบ ──────────
@@ -165,24 +214,54 @@ if (process.env.PMS_GATE_ONLY_LIVE === "1") {   // เจาะช่วง prod
 }
 const ช่วง = ["chromium", "hq-settings", "safari", "stress"];
 const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json";
-const รายงาน = [];
-let ตก = 0;
-for (const โปรเจกต์ of ช่วง) {
-  const ไฟล์รายงาน = รายงานหลัก.replace(/\.json$/, "") + `.${โปรเจกต์}.json`;
-  รายงาน.push(ไฟล์รายงาน);
+const รายงานของ = (โปรเจกต์) => รายงานหลัก.replace(/\.json$/, "") + `.${โปรเจกต์}.json`;
+// ช่วง tools ไม่ใช้ฐานทดสอบ → ไม่ลงข้อมูลตั้งต้น/ไม่กวาดข้อมูลทดสอบ (กันชนช่วง chromium ที่รันพร้อมกัน · global-setup.ts)
+const envช่วง = (โปรเจกต์) => ({ PLAYWRIGHT_JSON_OUTPUT_NAME: รายงานของ(โปรเจกต์), PMS_RUN_STAGE: โปรเจกต์, ...(โปรเจกต์ === "tools" ? { PMS_GLOBAL_SETUP_SKIP: "1" } : {}) });
+const ผลช่วง = [];
+const รันช่วง = (โปรเจกต์) => จับเวลา(`ช่วง ${โปรเจกต์}`, async () => {
   console.log(`▶ ช่วง ${โปรเจกต์}`);
-  const code = await รัน([`--project=${โปรเจกต์}`, รีพอร์ตเตอร์], { PLAYWRIGHT_JSON_OUTPUT_NAME: ไฟล์รายงาน, PMS_RUN_STAGE: โปรเจกต์ });
-  if (code !== 0) ตก = code;
+  const code = await รัน([`--project=${โปรเจกต์}`, รีพอร์ตเตอร์], envช่วง(โปรเจกต์));
+  ผลช่วง.push({ โปรเจกต์, รายงาน: รายงานของ(โปรเจกต์), code });
+});
+if (พร้อมกัน) {
+  // tools ∥ chromium — ข้อความของ tools ลงไฟล์ (ไม่ปนกับ chromium บนจอ) · ตกแล้วพิมพ์ท้ายไฟล์
+  console.log("▶ ช่วง tools (ไม่ใช้ฐานทดสอบ) รันพร้อมช่วง chromium — ข้อความอยู่ test-results/gate-logs/ช่วง_tools.log");
+  const tools = จับเวลา("ช่วง tools (พร้อม chromium)", async () => {
+    const r = await รันเก็บข้อความ("ช่วง tools", "npx", ["playwright", "test", "-c", "playwright.prodbuild.config.ts", "--project=tools", รีพอร์ตเตอร์],
+      { env: { ...env, ...envช่วง("tools") } });
+    ผลช่วง.push({ โปรเจกต์: "tools", รายงาน: รายงานของ("tools"), code: r.code });
+    console.log(`   ${r.code === 0 ? "✓" : "✗"} ช่วง tools จบ`);
+    if (r.code !== 0) พิมพ์ท้าย(r.ไฟล์, 40);
+  });
+  await จับเวลา("chromium ∥ tools (ตามนาฬิกา)", () => Promise.all([รันช่วง("chromium"), tools]));
+  for (const โปรเจกต์ of ช่วง.slice(1)) await รันช่วง(โปรเจกต์);
+} else {
+  for (const โปรเจกต์ of [...ช่วง, "tools"]) await รันช่วง(โปรเจกต์);
 }
-{ const code = await รันprodLive(); if (code !== 0) ตก = code; }
+let ตก = 0;
+{ const code = await จับเวลา("ช่วง prod-live", รันprodLive); if (code !== 0) ตก = code; }
+// ── ข้อตก → รันซ้ำเฉพาะไฟล์ที่ตก บน commit/เซิร์ฟเวอร์เดิม ก่อนปิดเซิร์ฟเวอร์ (บอสสั่ง 28 ต.ค. 69 · scripts/lib/gateRerun.mjs) ──
+//   ผ่าน = ข้อนั้นนับเป็นไม่นิ่ง (จดลงตัวนับ) · ยังตก / ช่วงล้มทั้งช่วง = ตกจริง · ไม่ต้องรันใหม่ทั้งรอบ
+const ตัดสิน = await จับเวลา("รันซ้ำไฟล์ที่ตก", () => ตัดสินพร้อมรันซ้ำ({
+  ช่วง: ผลช่วง,
+  รันซ้ำ: (โปรเจกต์, ไฟล์, รายงานใหม่) => รัน([`--project=${โปรเจกต์}`, ...ไฟล์, รีพอร์ตเตอร์],
+    { ...envช่วง(โปรเจกต์), PLAYWRIGHT_JSON_OUTPUT_NAME: รายงานใหม่, PMS_RUN_STAGE: `${โปรเจกต์}-rerun` }),
+}));
+if (ตัดสิน.ตก) {
+  ตก = ตก || 1;
+  console.error("✗ ตกจริง (รันซ้ำแล้วยังตก / ช่วงล้มทั้งช่วง):");
+  for (const l of ตัดสิน.ตกจริง) console.error(`   ${l}`);
+}
 ปิดทั้งหมด();
+const รายงาน = [...ผลช่วง.map(c => c.รายงาน), ...ตัดสิน.รายงานรันซ้ำ];   // รายงานรันซ้ำต่อท้าย = ทับผลข้อเดียวกัน (check-e2e-ran)
 console.log(`▶ หลักฐานข้อที่ตก (trace + ภาพหน้าจอ): node_modules/.cache/playwright-results/${PMS_RUN_ID}`);
 console.log("▶ ตัวตรวจรอบปิดด่าน: ทุกข้อต้องได้รันจริง");
 const ตรวจ = spawnSync("node", ["scripts/check-e2e-ran.mjs", ...รายงาน], { stdio: "inherit", shell: true });
 // ── ตัวนับข้อไม่นิ่ง (บอสสั่ง 26 ต.ค. 69 · scripts/lib/flakyLog.mjs) ──────────────────────────────────────────────────
-//   ทุกข้อที่ตกแล้วผ่านตอนรันซ้ำ → บรรทัด "ไม่นิ่ง" ใน tests/flaky-log.txt (commit พร้อมงาน · ไม่นับในลายนิ้วมือโค้ด)
+//   ทุกข้อที่ตกแล้วผ่านตอนรันซ้ำ (ในรอบ หรือรันซ้ำทั้งไฟล์ท้ายรอบ) → บรรทัด "ไม่นิ่ง" ใน tests/flaky-log.txt (commit พร้อมงาน · ไม่นับในลายนิ้วมือโค้ด)
 //   ข้อไหนครบ 3 ครั้งโดยยังไม่มีบรรทัด "ต้นเหตุ" → รอบนี้ไม่ผ่าน (ไม่บันทึกผลผ่าน = ขึ้นเว็บไม่ได้)
-if (ตรวจไม่นิ่งท้ายรอบ(รายงาน, { รอบ: `${ชื่อเซสชัน()}·${PMS_RUN_ID}` })) ตก = ตก || 1;
+if (ตรวจไม่นิ่งท้ายรอบ(รายงาน, { รอบ: `${ชื่อเซสชัน()}·${PMS_RUN_ID}`, เพิ่ม: ตัดสิน.ไม่นิ่ง })) ตก = ตก || 1;
+สรุปเวลา();
 // ผ่านครบ (ตก 0 + ตัวตรวจท้ายรอบผ่าน) → บันทึกลายนิ้วมือใบปรับฐานทุกใบ · db:push:prod ลงได้เฉพาะใบที่ตรงกับบันทึกนี้
 //   (บอสสั่ง 21 ต.ค. 69 · scripts/lib/migrationGate.mjs) · ต้อง commit ไฟล์บันทึกพร้อมงาน
 if (บันทึกเมื่อผ่าน({ ตก, ตัวตรวจ: ตรวจ.status ?? 1, ป้าย: PMS_RUN_ID })) {

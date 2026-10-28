@@ -67,6 +67,8 @@ async function sweep(admin: SupabaseClient, เก็บชุดตั้งต
 }
 
 export default async function globalTeardown() {
+  // ช่วง tools รันพร้อมช่วง chromium — จบก่อนแล้วกวาดข้อมูลทดสอบ = ลบของที่ chromium กำลังใช้ (ดู global-setup.ts · 28 ต.ค. 69)
+  if (process.env.PMS_GLOBAL_SETUP_SKIP === "1") return;
   if (!REAL_BACKEND || !ADMIN_SUPABASE_URL || !ADMIN_SERVICE_ROLE_KEY) return;
   const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
   // KEEP_TEST_DATA=1 → เก็บ "ชุดข้อมูลตั้งต้น" ไว้ให้เปิดหน้าจอดูต่อได้หลังรันจบ (บอสสั่ง 20 ส.ค. 69)
