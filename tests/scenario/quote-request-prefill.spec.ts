@@ -76,7 +76,7 @@ test("[flow·dealer] ขอราคา: ลีดไม่มีพื้นท
   await expect(แผง.getByLabel("งานที่ขอราคา"), "ลีดไม่มีงานที่ต้องการ → ช่องว่าง").toHaveValue("");
 });
 
-test("[flow·dealer] ขอแก้ราคา (D5x): สเปกกรอกจากคำขอล่าสุด", async ({ page }) => {
+test("[D5x] [flow·dealer] ขอแก้ราคา (D5x): สเปกกรอกจากคำขอล่าสุด", async ({ page }) => {
   await สร้างลีด("แก้ราคา", { project: งาน });
   const sb = await db(RYG);
   const r = await sb.rpc("quote_request_submit", { p_lead_num_id: เลข.แก้ราคา, p_product: งาน, p_spec: "ZZ สเปกในคำขอล่าสุด" });

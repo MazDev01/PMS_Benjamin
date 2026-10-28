@@ -97,7 +97,7 @@ test("[ui·hq] หน้าดีลเลอร์: เลือกแพ็ก
 
   // ── หน้ารายละเอียดดีลเลอร์ › แก้ไข (ปุ่มแก้ไขย้ายจากแถวทะเบียนมาที่นี่ · รอบ 2 ช่วง ข) ──
   await loginUI(page, HQ_ORIGIN, `/hq/dealers/${STD}`, ADMIN);
-  await page.getByRole("button", { name: "แก้ไขข้อมูลดีลเลอร์" }).click({ timeout: 30_000 });
+  await page.getByRole("button", { name: "แก้ไข", exact: true }).click({ timeout: 30_000 });
   const เป้า = page.getByLabel("เป้ายอดขายทั้งปี");
   await expect(เป้า).toHaveValue("500,000");
   await page.getByLabel("แพ็กเกจดีลเลอร์").selectOption("standard");

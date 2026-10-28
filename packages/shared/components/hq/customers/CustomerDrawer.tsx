@@ -3,7 +3,8 @@
 // ─── แผงรายละเอียดลูกค้า (HQ ดูอย่างเดียว) ──────────────────────────────────────
 // แท็บทั้งหมดอ่านจากข้อมูลจริง: ใบที่ปิดการขายได้ (รูปแม่แบบเอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // ไม่มีแท็บสัญญา / ใบส่งมอบ / แบบก่อสร้าง — ระบบไม่มีที่เก็บข้อมูลเหล่านั้น
-import { Building2, IdCard, MapPin, Compass, Store, Repeat, CalendarDays, Wallet, StickyNote, History, Activity } from "lucide-react";
+import { Building2, IdCard, MapPin, Compass, Store, Repeat, CalendarDays, Wallet, StickyNote, History, Activity, User, Phone, Mail, Home } from "lucide-react";
+import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
 import { SidePanel, type แท็บแผง } from "@pms/shared/components/ui/SidePanel";
 import { customerCode, noteCategoryColor } from "@pms/shared/lib/mock";
@@ -66,7 +67,13 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
           </PanelStats>
           <PanelSection icon={IdCard} title="ข้อมูลลูกค้า" style={{ marginTop: 14 }}>
             <PanelRow icon={IdCard} label="รหัสลูกค้า" value={customerCode(row.dealerCode, row.localId ?? row.id)} />
-            <PanelRow icon={MapPin} label="จังหวัด" value={row.province} />
+            {/* ชุดช่องมาตรฐานข้อมูลลูกค้า (FLOW · fieldLabels.ts) — ข้อมูลที่ดีลเลอร์กรอกครั้งเดียวแล้วไหลมาถึง HQ
+                เดิมหมวดนี้มีแค่ รหัส/จังหวัด/ภาค/ซื้อซ้ำ (ตรวจเทียบ FLOW รอบ 5 · แถว 29) · ไม่มีข้อมูล = "—" */}
+            <PanelRow icon={User} label={ช่อง.ผู้ติดต่อ} value={row.contact} />
+            <PanelRow icon={Phone} label={ช่อง.โทรศัพท์} value={row.phone} />
+            <PanelRow icon={Mail} label={ช่อง.อีเมล} value={row.email} />
+            <PanelRow icon={Home} label={ช่อง.ที่อยู่} value={row.address} />
+            <PanelRow icon={MapPin} label={ช่อง.จังหวัด} value={row.province} />
             <PanelRow icon={Compass} label="ภาค" value={row.region} />
             <PanelRow icon={Repeat} label="ลูกค้าซื้อซ้ำ" value={row.isRepeat ? "ใช่" : "ไม่ใช่"} />
           </PanelSection>

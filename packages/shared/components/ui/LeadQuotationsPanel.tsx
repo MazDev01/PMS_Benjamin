@@ -706,7 +706,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                         title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{q.revision ?? "V1"}</span>
                       <span className="badge" style={{ background: c.bg, color: c.text, fontSize: "0.65rem" }}>{quotationStatusLabel[q.status]}</span>
                     </div>
-                    <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{q.date} · {fmtBaht(q.totalValue)}</div>
+                    {/* วันที่ พ.ศ. (ตารางเทียบ FLOW รอบ 5 แถว D10 · เดิมขึ้น 2026-05-10) */}
+                    <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{q.date ? วันไทยสั้น(q.date) : "—"} · {fmtBaht(q.totalValue)}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {/* ส่งใบเสนอราคา — เด่นเป็นปุ่ม navy · แสดงเฉพาะใบที่ยังส่งได้ (ร่าง/ส่งแล้ว) · ซ่อนเมื่อดูอย่างเดียว */}

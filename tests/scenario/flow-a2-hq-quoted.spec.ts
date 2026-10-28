@@ -51,7 +51,7 @@ async function แถวลีด(page: Page, company: string) {
   return page.locator("tbody tr").filter({ hasText: company }).first();
 }
 
-test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้ราคา HQ\" · ป้ายบนจอ · ตัวกรอง · ตัวเลขแดชบอร์ด ตรงกันทั้ง 3 ที่", async ({ page }) => {
+test("[D4] [H9] [ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้ราคา HQ\" · ป้ายบนจอ · ตัวกรอง · ตัวเลขแดชบอร์ด ตรงกันทั้ง 3 ที่", async ({ page }) => {
   expect(await สถานะ(ก.leadNum), "ฐาน: HQ ส่งใบแล้ว").toBe("HQ_QUOTED");
   expect(await สถานะ(เลขรอราคา), "ฐาน: ยังไม่ได้ใบ").toBe("HQ_PRICING");
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);

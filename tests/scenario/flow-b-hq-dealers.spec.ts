@@ -93,11 +93,11 @@ test("[ข·2] แถวทะเบียนมีแค่ \"เข้าร�
   await expect(page).toHaveURL(new RegExp(`/hq/dealers/${รหัสยาว}$`), { timeout: 15_000 });
 });
 
-test("[ข·2] หน้ารายละเอียด: แก้ไขข้อมูล + ปิด/เปิดใช้งาน · /hq/dealers/HQ ไม่ใช่ดีลเลอร์", async ({ page }) => {
+test("[H11] [ข·2] หน้ารายละเอียด: แก้ไขข้อมูล + ปิด/เปิดใช้งาน · /hq/dealers/HQ ไม่ใช่ดีลเลอร์", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers/${รหัสยาว}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "แก้ไขข้อมูลดีลเลอร์" }).click();
+  await page.getByRole("button", { name: "แก้ไข", exact: true }).click();
   const ชื่อใหม่ = "ZZTEST สาขารหัสยาว แก้ชื่อแล้ว (ลบทิ้ง)";
   await page.getByLabel("ชื่อดีลเลอร์").fill(ชื่อใหม่);
   await page.getByRole("button", { name: "บันทึกการแก้ไข" }).click();

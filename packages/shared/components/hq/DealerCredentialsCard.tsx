@@ -19,6 +19,7 @@ import { fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { account } from "@pms/shared/lib/data";
+import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 
 /** ช่องคัดลอกค่า (ปิดบังได้) — ใช้ทั้งที่นี่และตอนสร้างดีลเลอร์ใหม่ */
 export function CopyField({ label, value, secret = false, defaultShown = false }: {
@@ -164,6 +165,10 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
   }, [email, แก้บัญชี, พิมพ์อีเมลเอง]);
 
   // จัดการบัญชีดีลเลอร์ได้เฉพาะผู้มีสิทธิ์ — ผู้ใช้ HQ ระดับปฏิบัติงานไม่ควรเห็นรหัสของสาขา
+  // ชื่อผู้ใช้ที่ดีลเลอร์พิมพ์ที่หน้าเข้าระบบ: รหัสสาขา (บัญชีที่ระบบสร้างให้) · เปลี่ยนอีเมลไปแล้ว = อีเมลนั้น
+  const ใช้รหัสสาขาได้ = email !== "—" && email.toLowerCase() === อีเมลเข้าระบบของสาขา(dealer.code);
+  const ชื่อผู้ใช้ = email === "—" ? "—" : ใช้รหัสสาขาได้ ? dealer.code : email;
+
   if (!can("dealers:manage")) return null;
 
 
@@ -193,13 +198,21 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
         display: "flex", alignItems: "center", gap: 7 }}>
         <Key size={13} color="#003366" /> ข้อมูลเข้าระบบของดีลเลอร์
       </p>
+      {/* ชื่อผู้ใช้ = รหัสสาขา (FLOW: "HQ ส่งชื่อผู้ใช้ + รหัสผ่าน แยกรายสาขา · ชื่อผู้ใช้ = รหัสสาขา" · ผลตรวจรอบ 5 แถว 11)
+          หน้าเข้าระบบดีลเลอร์แปลงรหัสสาขาเป็น "<รหัส>@dealer.benjaminpebsteel.com" (lib/dealerLogin.ts) — จึงบอกว่ารหัสสาขา
+          ใช้เข้าได้ "เฉพาะ" บัญชีที่อีเมลเข้าระบบยังเป็นอีเมลนั้น · บัญชีที่เปลี่ยนอีเมลไปแล้ว ต้องพิมพ์อีเมลเต็ม ห้ามบอกว่ารหัสสาขาใช้ได้
+          (ยังไม่รู้อีเมล = "—" ไม่เดา) · เรื่องสิทธิ์แก้อีเมล/รหัสเองไม่แตะ */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
-        <CopyField label="อีเมลเข้าสู่ระบบ" value={email} />
+        <CopyField label="ชื่อผู้ใช้" value={ชื่อผู้ใช้} />
         <DealerPasswordField code={dealer.code} fallback={dealer.credentials?.password} />
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
-        <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>
-          ดีลเลอร์ใช้อีเมลนี้เข้าสู่ระบบที่หน้าเข้าสู่ระบบของดีลเลอร์
+        <div style={{ fontSize: "0.72rem", color: "#6b7280" }} data-testid="dealer-login-hint">
+          {email === "—"
+            ? "ยังไม่ทราบบัญชีเข้าระบบของดีลเลอร์นี้"
+            : ใช้รหัสสาขาได้
+              ? <>ดีลเลอร์พิมพ์รหัสสาขา <b>{dealer.code}</b> + รหัสผ่าน ที่หน้าเข้าสู่ระบบของดีลเลอร์ (อีเมลเข้าสู่ระบบ {email} พิมพ์เต็มแทนได้)</>
+              : <>บัญชีนี้เปลี่ยนอีเมลเข้าสู่ระบบเป็น {email} แล้ว — ดีลเลอร์ต้องพิมพ์อีเมลนี้เต็ม ๆ (พิมพ์รหัสสาขาเข้าไม่ได้)</>}
         </div>
         {/* เหลือปุ่มเดียว (บอสสั่ง 20 ส.ค. 69) — ปุ่ม "รีเซ็ตรหัสผ่าน" ถูกถอดออก
             เพราะซ้ำกับปุ่มนี้: อยากได้รหัสใหม่ก็พิมพ์รหัสที่ต้องการลงไปตรง ๆ ได้เลย

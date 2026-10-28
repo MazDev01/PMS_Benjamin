@@ -119,7 +119,7 @@ test("[flow·hq] หัวใบ HQ แสดงข้อมูลลูกค�
   await expect(กล่อง.locator("[data-info='province']")).toContainText(ช่อง.จังหวัด);
 });
 
-test("[flow·dealer] D8 ลูกค้าตอบรับ: ลูกค้าที่สร้างได้ผู้ติดต่อ/โทร/อีเมล/ที่อยู่/จังหวัดตรงกับลีด", async ({ page }) => {
+test("[D8] [flow·dealer] D8 ลูกค้าตอบรับ: ลูกค้าที่สร้างได้ผู้ติดต่อ/โทร/อีเมล/ที่อยู่/จังหวัดตรงกับลีด", async ({ page }) => {
   await สร้างลีด("ตอบรับ");
   const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(RYG, "RYG", เลข.ตอบรับ);
   const q = await ทำใบลูกค้าจากใบHQ(RYG, ใบ, { customer: ชื่อ("ตอบรับ"), markupPercent: 10, status: "sent_to_client" });

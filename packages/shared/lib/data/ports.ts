@@ -437,6 +437,8 @@ export interface HQCustomerPageRow {
   //    "วันปิดการขาย + 90 วัน" ซึ่งเป็นค่าที่ระบบคิดขึ้นเอง ไม่ใช่ข้อมูลจริงของงาน
   /** ISO date (ไม่ใช่ Thai string) — client format เองด้วย fmtISOToThai ตอนแสดงผล */
   lastPurchaseAt: string | null;
+  /** ชุดช่องมาตรฐานข้อมูลลูกค้า (fieldLabels.ts) ให้แผงลูกค้า HQ แสดง (ใบ 0254) — ว่าง = "" (แผงแสดง "—") */
+  contact: string; phone: string; email: string; address: string;
 }
 export interface HQCustomersPageOpts {
   search?: string; dealerCode?: string; provinces?: string[]; buildingType?: string;

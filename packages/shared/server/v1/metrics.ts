@@ -185,6 +185,8 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
           province: S(r.province), totalValue: N(r.total_value),
           buildingTypes: (r.building_types as string[] | null) ?? [], templates: (r.templates as string[] | null) ?? [],
           lastPurchaseAt: (r.last_purchase_at as string | null) ?? null,
+          // ข้อมูลติดต่อ (ใบ 0254) — คู่กับ SupabaseAdapter.hqCustomersPage
+          contact: S(r.contact), phone: S(r.phone), email: S(r.email), address: S(r.address),
         })),
       };
     },

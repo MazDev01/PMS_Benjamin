@@ -5,7 +5,7 @@ import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
-import { apptTypeLabel, fmtISOToThai, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
+import { apptTypeLabel, fmtISOToThai, นัดยังเปิด, ป้ายสถานะนัด, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -68,7 +68,7 @@ type ViewMode = "month" | "week" | "day";
 function apptGroup(a: AppointmentMock): Exclude<GroupFilter, "all"> | null {
   if (a.date === GROUP_TODAY) return "today";
   if (a.date > GROUP_TODAY && a.status !== "cancelled") return "upcoming";
-  if (a.date < GROUP_TODAY && a.status !== "done" && a.status !== "cancelled") return "overdue";
+  if (a.date < GROUP_TODAY && นัดยังเปิด(a.status)) return "overdue";
   return null;
 }
 
@@ -187,7 +187,7 @@ export default function CalendarPage() {
   const ตรงการ์ดนัด = (a: AppointmentMock, k: NonNullable<typeof การ์ดนัด>) =>
     k === "today" ? a.date === APP_NOW_ISO
     : k === "week" ? a.date >= สัปดาห์[0] && a.date <= สัปดาห์[1]
-    : k === "overdue" ? a.date < APP_NOW_ISO && a.status !== "done"
+    : k === "overdue" ? a.date < APP_NOW_ISO && นัดยังเปิด(a.status)   // นัดที่ยกเลิกแล้วไม่ใช่ "ยังไม่ปิด"
     : a.date >= สัปดาห์[0] && a.date <= สัปดาห์[1] && a.status === "done";
   const นัดตามการ์ด = การ์ดนัด ? allAppts.filter(a => ตรงการ์ดนัด(a, การ์ดนัด)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)) : [];
   const การ์ดปฏิทิน = [
@@ -228,7 +228,7 @@ export default function CalendarPage() {
                 <tbody>{นัดตามการ์ด.map(a => (
                   <tr key={a.id} data-appt-row={a.id} onClick={() => { selectDate(a.date); setView("day"); setDetail(a); }} style={{ cursor: "pointer" }}>
                     <td>{fmtISOToThai(a.date)}</td><td>{a.time || "—"}</td><td>{a.company || "—"}</td><td>{apptTypeLabel[a.type as ApptType] ?? a.type}</td>
-                    <td>{a.status === "done" ? "เสร็จสิ้น" : a.status === "upcoming" ? "กำลังจะถึง" : "นัดไว้"}</td>
+                    <td>{ป้ายสถานะนัด(a.status)}</td>
                   </tr>
                 ))}</tbody>
               </table></div>}
@@ -453,7 +453,7 @@ export default function CalendarPage() {
 function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, customerId, router }: { a: AppointmentMock; onClose: () => void; onEdit: () => void; onDelete: () => void;
   onStatus: (s: AppointmentMock["status"]) => void; leadNum?: number; customerId?: number; router: ReturnType<typeof useRouter> }) {
   const m = bucketMeta(a);
-  const statusLabel = a.status === "upcoming" ? "กำลังจะถึง" : a.status === "done" ? "เสร็จสิ้น" : "ยกเลิก";
+  const statusLabel = ป้ายสถานะนัด(a.status);
   const rows: [ReactNode, string][] = [
     [<Building2 key="b" size={13} />, a.project],
     // ไม่มีข้อมูล = ขึ้น "—" ตรงนี้ (ชั้นแสดงผล) ไม่ใช่ไปเก็บขีดลงฐาน
@@ -491,7 +491,7 @@ function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, cust
           </div>
           <div style={{ padding: "13px 20px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", background: "#fafafa", flexWrap: "wrap" }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {a.status === "upcoming" && (
+              {นัดยังเปิด(a.status) && (
                 <>
                   <button onClick={() => onStatus("done")} className="btn btn-primary btn-md"><CalendarCheck size={13} /> ทำเสร็จแล้ว</button>
                   <button onClick={() => onStatus("cancelled")} className="btn btn-secondary btn-md" style={{ color: "#b45309" }}><X size={13} /> ยกเลิกนัด</button>

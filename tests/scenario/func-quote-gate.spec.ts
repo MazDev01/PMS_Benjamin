@@ -119,7 +119,7 @@ test("[func] ย้ายลูกค้าเป้าหมายไปขั�
 
 // ด่าน 3 (FLOW.html ขั้น 7–8): ใบทำจากใบ HQ · ลูกค้าเป้าหมายคงขั้น "รอราคา HQ" จนส่งใบให้ลูกค้า แล้วฐานขยับเป็นเสนอราคาเอง
 //   (เดิม: ออกใบแล้วแอปเลื่อนขั้นเป็นเสนอราคาทันที — ขัดกับตารางสถานะของ FLOW)
-test("[func] ออกใบจากใบ HQ → ระบบติ๊กงาน 'จัดทำใบเสนอราคา' · ขั้นคงเป็นรอราคา HQ จนกว่าจะส่งใบ", async ({ page }) => {
+test("[D5] [func] ออกใบจากใบ HQ → ระบบติ๊กงาน 'จัดทำใบเสนอราคา' · ขั้นคงเป็นรอราคา HQ จนกว่าจะส่งใบ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await openTestLead(page);
@@ -163,7 +163,7 @@ test("[func] งาน 'ส่งใบเสนอราคา' ระบบต
   assertNoErrors(errs, "ด่านส่งใบเสนอราคา");
 });
 
-test("[func] กดส่งใบจริง → ระบบติ๊กงาน 'ส่งใบเสนอราคา' ให้เอง", async ({ page }) => {
+test("[D6] [func] กดส่งใบจริง → ระบบติ๊กงาน 'ส่งใบเสนอราคา' ให้เอง", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await openTestLead(page);

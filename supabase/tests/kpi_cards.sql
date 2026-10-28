@@ -79,7 +79,9 @@ insert into quotation_won_at (dealer_code, quote_id, won_at) values ('ZZK', 'ZZK
 insert into appointments (id, dealer_code, company, date, status) values
   (990701, 'ZZK', 'ZZK นัด1', '2026-10-27', 'scheduled'), (990702, 'ZZK', 'ZZK นัด2', '2026-10-28', 'done'),
   (990703, 'ZZK', 'ZZK นัด3', '2026-10-20', 'scheduled'), (990704, 'ZZK', 'ZZK นัด4', '2026-10-25', 'done'),
-  (990705, 'ZZK', 'ZZK นัด5', '2026-11-01', 'upcoming');
+  (990705, 'ZZK', 'ZZK นัด5', '2026-11-01', 'upcoming'),
+  -- นัดเลยกำหนดที่ยกเลิกแล้ว ไม่ใช่ "ยังไม่ปิด" (ใบ 0253 · ตารางเทียบ FLOW รอบ 5 แถว D19) — 0246 นับเป็น 2
+  (990706, 'ZZK', 'ZZK นัด6', '2026-10-21', 'cancelled');
 -- ผู้สนใจ + ใบค่าแฟรนไชส์ (ทั้งเครือ)
 insert into dealer_prospects (id, name, status, follow_up, converted_at) values
   (990101, 'ZZK ผู้สนใจคุยอยู่', 'meeting', '2026-10-20', null),
@@ -128,7 +130,7 @@ begin
 
   k := kpi_cards('dealer.calendar', null, null, null, '2026-10-27');
   perform flowtest.ok(k = '{"today":1,"week":3,"overdue":1,"doneWeek":1}'::jsonb,
-    format('ปฏิทิน: วันนี้ 1 · สัปดาห์นี้ 3 · เลยกำหนดยังไม่ปิด 1 · ทำเสร็จสัปดาห์นี้ 1 (ได้ %s)', k));
+    format('ปฏิทิน: วันนี้ 1 · สัปดาห์นี้ 3 · เลยกำหนดยังไม่ปิด 1 (นัดที่ยกเลิกแล้วไม่นับ) · ทำเสร็จสัปดาห์นี้ 1 (ได้ %s)', k));
 
   -- สาขาอื่นเห็นแต่ของตัวเอง · ส่งรหัสสาขาอื่นมาก็ไม่มีผล
   perform flowtest.as_user('DEALER_ADMIN', 'RYG');

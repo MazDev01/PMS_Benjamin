@@ -59,7 +59,7 @@ async function login(page: Page, origin: string, path: string, who: Account) {
   throw new Error(`ล็อกอินไม่ผ่าน (${who.email}) — ยังอยู่ที่ ${page.url()} · ข้อความบนฟอร์ม: ${JSON.stringify(alerts)}`);
 }
 
-test("[supabase] ดีลเลอร์ RYG ล็อกอินผ่านหน้าจอจริงแล้วเข้าระบบได้", async ({ page }) => {
+test("[D1] [supabase] ดีลเลอร์ RYG ล็อกอินผ่านหน้าจอจริงแล้วเข้าระบบได้", async ({ page }) => {
   const errs = trackErrors(page);
   await login(page, DEALER, "/login", RYG);
   // ล็อกอินสำเร็จ = เด้งออกจากหน้า login
@@ -91,7 +91,7 @@ test("[supabase] ดีลเลอร์เปิดหน้าหลักไ
 
 // ข้อ "หน้าแม่แบบของดีลเลอร์ดึงแคตตาล็อกจาก HQ" ลบแล้ว 16 ต.ค. 69 — เอาแม่แบบออกทั้งระบบ (ดู no-template.spec.ts)
 
-test("[supabase] HQ ล็อกอินแล้วเปิดหน้าเครือได้", async ({ page }) => {
+test("[H1] [supabase] HQ ล็อกอินแล้วเปิดหน้าเครือได้", async ({ page }) => {
   const errs = trackErrors(page);
   await login(page, HQ, "/hq/login", ADMIN);
   for (const p of ["/hq/dashboard", "/hq/dealers", "/hq/leads", "/hq/settings"]) {
