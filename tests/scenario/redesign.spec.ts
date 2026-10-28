@@ -3,6 +3,7 @@ import { open, assertHealthyPage, openLeadQuotationForm, settle } from "./helper
 import { RYG } from "./supabaseEnv";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { REAL_BACKEND } from "./supabaseEnv";
+import { ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { ที่อยู่เว็บ } from "./sessionPorts";
 
 // "วันนี้ของระบบ" (APP_NOW) เดินตามแหล่งข้อมูล: supabase = วันจริง · local = ตรึง 30 มิ.ย. 2569
@@ -28,7 +29,8 @@ async function เปิดหน้าดูใบ(page: import("@playwright/te
   await open(page, "dealer", "/quotations");
   await assertHealthyPage(page, "ใบเสนอราคา");
   await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบดู);
-  await page.locator("tbody tr").filter({ hasText: เลขใบดู }).first().locator("td").nth(1).click({ timeout: 20_000 });
+  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด" (หน้าดูใบในแผงลีดยังเป็นที่ทำงานกับใบ)
+  await ไปแผงลีดจากแถวใบ(page.locator("tbody tr").filter({ hasText: เลขใบดู }).first());
   await page.waitForURL(/\/leads/, { timeout: 25_000 });
   await settle(page);
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
@@ -45,7 +47,8 @@ test("[ui·dealer] หน้าดูใบเสนอราคา (BOQ + ส�
   await เปิดหน้าดูใบ(page);
   // เอกสาร + BOQ + ยอดสรุป
   await expect(page.getByText("รายการสินค้า (BOQ)")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator("label").filter({ hasText: /^งานที่ต้องการ$/ }).first()).toBeVisible();   // ชุดช่องมาตรฐาน (เดิม "ชื่อโครงการ / เอกสาร" · ตารางเทียบ FLOW รอบ 5)
+  // ชุดช่องมาตรฐาน (เดิม "ชื่อโครงการ / เอกสาร" · ตารางเทียบ FLOW รอบ 5) — หน้าดูใบเป็นข้อความ ไม่ใช่ <label> ของฟอร์ม
+  await expect(page.getByText("งานที่ต้องการ", { exact: true }).filter({ visible: true }).first()).toBeVisible();
   // สรุปยอด = ยอดชำระสุทธิท้าย BOQ (หัวข้อ "สรุปใบเสนอราคา" ถูกยุบไปเป็นป้ายบนหัวแผงแล้ว)
   // (ไม่เช็ค "เปลี่ยนสถานะ" — โผล่เฉพาะใบที่ลูกค้ายังไม่ตอบ ส่วนแถวแรกเป็นใบที่ตอบรับแล้ว)
   // คำบนจอเปลี่ยนตอนเพิ่มภาษีหัก ณ ที่จ่าย (28 ส.ค. 69): "ยอดรวมสุทธิ (รวม VAT)" → "รวมเป็นเงิน" + "ยอดชำระสุทธิ"
