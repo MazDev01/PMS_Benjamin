@@ -1,3 +1,5 @@
+> **เอกสารเก่า ไม่ใช่ข้อกำหนดปัจจุบัน — ดู docs/FLOW.html**
+
 # Benjamin PMS — โครงสร้างฐานข้อมูล (Database Schema)
 
 > Schema อ้างอิง Prisma/PostgreSQL — ทุกตารางธุรกรรมมี `dealerId` (tenant) + เวลา/ผู้สร้างเพื่อ audit

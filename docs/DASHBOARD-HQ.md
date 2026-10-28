@@ -2,7 +2,7 @@
 
 > หน้าแดชบอร์ดสำหรับ SUPER_ADMIN / HQ_MANAGEMENT / HQ_STAFF
 > **กฎหลัก:** HQ มี `scopeAll = true` → เห็นข้อมูล **ทุกดีลเลอร์** (ไม่กรอง `dealerId`) + เปรียบเทียบรายดีลเลอร์/ภาคได้
-> เทียบคู่กับ [DASHBOARD-DEALER.md](./DASHBOARD-DEALER.md)
+> เทียบคู่กับ [DASHBOARD-DEALER.md](./archive/DASHBOARD-DEALER.md)
 
 ---
 

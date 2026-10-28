@@ -100,24 +100,25 @@ test("[ui·dealer] หน้าใบเสนอราคาไม่มีต�
 });
 
 test("[func·dealer] ลูกค้าเป้าหมายที่มีแม่แบบเก่า → ข้อความแจ้งเตือนและนัดหมายใหม่ต้องไม่มีชื่อแม่แบบ", async ({ page }) => {
-  // ข้อมูลเก่าในฐาน (เก็บไว้ ไม่แสดง): ลูกค้าเป้าหมายสถานะ "ติดตาม" ที่เคยเลือกแม่แบบไว้
+  // ข้อมูลเก่าในฐาน (เก็บไว้ ไม่แสดง): ลูกค้าเป้าหมายที่ส่งใบให้ลูกค้าแล้ว (เสนอราคา) ที่เคยเลือกแม่แบบไว้
+  //   (เดิมใช้สถานะ "ติดตาม" — เลิกใช้แล้ว ฐานไม่รับ ใบ 0257 · ลีดเก่าย้ายเป็นเสนอราคา)
   const เลข = เลขลีด + 1, ชื่อ = `${บริษัท}-นัด`, แม่แบบเก่า = "ZZ-แม่แบบเก่า-แจ้งเตือน";
   // ใบ 0232: ดีลเลอร์เพิ่มลีดได้เฉพาะขั้นรอติดต่อ/ลูกค้าเป้าหมาย — ข้อมูลเก่าขั้น "ติดตาม" วางที่ฐานด้วยบัญชีผู้ดูแล (ตัวช่วยทดสอบ)
   const l = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อ, name: ชื่อ,
-    contact: "ผู้ทดสอบ", phone: "000-000-0002", province: "ระยอง", status: "FOLLOWUP", product: แม่แบบเก่า });
+    contact: "ผู้ทดสอบ", phone: "000-000-0002", province: "ระยอง", status: "QUOTED", product: แม่แบบเก่า });
   expect(l.error).toBeNull();
   try {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
 
-    // 1) กระดิ่งแจ้งเตือน — รอบ 4 (ใบ 0231): สถานะ "ติดตาม" เฉย ๆ ไม่ใช่เรื่องในตารางกลาง (ติดตาม = นัดหมายถึงกำหนดวันนี้)
+    // 1) กระดิ่งแจ้งเตือน — รอบ 4 (ใบ 0231): สถานะลีดเฉย ๆ ไม่ใช่เรื่องในตารางกลาง (ติดตาม = นัดหมายถึงกำหนดวันนี้)
     //    กระดิ่งจึงไม่มีเรื่องของลูกค้าเป้าหมายนี้เลย และไม่มีชื่อแม่แบบเก่าแน่นอน
     await page.getByRole("button", { name: "การแจ้งเตือน" }).click();
     const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
     if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
     await expect(page.locator("span").filter({ hasText: /^การแจ้งเตือน$/ }).first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator("[data-notif-kind]").filter({ hasText: ชื่อ }), "สถานะติดตามอย่างเดียวไม่สร้างแจ้งเตือน").toHaveCount(0);
+    await expect(page.locator("[data-notif-kind]").filter({ hasText: ชื่อ }), "สถานะลีดอย่างเดียวไม่สร้างแจ้งเตือน").toHaveCount(0);
     await expect(page.getByText(แม่แบบเก่า, { exact: false }), "ข้อความแจ้งเตือนต้องไม่มีชื่อแม่แบบเก่า").toHaveCount(0);
     await page.keyboard.press("Escape");
 

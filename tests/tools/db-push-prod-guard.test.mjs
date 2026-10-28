@@ -3,6 +3,7 @@
 //   B) ซ้อมกู้ไม่ผ่าน (PMS_DRILL_SABOTAGE ลบ 1 แถวในฐานที่กู้) → ต้องไม่ถึงขั้นลงใบ · บอกเหตุผลภาษาไทยว่าตารางไหนไม่ตรง
 //   C) กรณีปกติ (ตัวคุม): สำรอง + ซ้อมกู้ผ่าน → ถึงขั้นลงใบ — พิสูจน์ว่า B ตกเพราะการซ้อมกู้ ไม่ใช่เพราะอย่างอื่น
 //   ล็อกค้างของโปรเซสที่ตายแล้ว (ต้องเก็บกวาดแล้วไปต่อ) ตรวจที่ tests/unit/prodLock.test.ts
+//   I–J) ตัวนับเลขเทียบกับไฟล์สำรองเอง (ต้นทางเลื่อนหลัง dump = ผ่าน · ฐานที่กู้ต่างไฟล์ = ไม่ผ่าน)
 // รัน: npm run test:push-guard   (ต้องมี Docker + ฐานทดสอบ pms-dbcheck · ฐานซ้อมกู้ pms-blank ตัวสคริปต์เปิด/ปิดเอง)
 import { spawn, spawnSync } from "node:child_process";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -106,6 +107,19 @@ for (const [ป้าย, แก้, ใบ, ข้อความ] of [
   ผล(p.code === 4 && !existsSync(MARK), `${ป้าย[0]}1 ${ป้าย.slice(2)} → หยุด ไม่ลงใบ (exit ${p.code})`, p.out);
   ผล(ข้อความ.test(p.out), `${ป้าย[0]}2 บอกบนจอว่า "ใบ ${ใบ} ยังไม่ผ่านรอบตรวจเต็ม รอให้ผ่านก่อน"`, p.out);
   ผล((existsSync(ROOT) ? readdirSync(ROOT).length : 0) === ก่อน && !existsSync(LOCK), `${ป้าย[0]}3 หยุดก่อนเริ่มสำรอง · ไม่ค้างล็อก`);
+}
+
+// ── I–J) ตัวนับเลขเทียบกับไฟล์สำรองเอง ไม่ใช่ฐานที่ยังทำงาน (บอสอนุมัติ 28 ต.ค. 69 · scripts/lib/backupSeq.mjs) ──
+//   เหตุจริง: งานสแกนการแจ้งเตือนกินตัวนับ 240 ระหว่าง dump กับขั้นอ่านตัวนับต้นทาง → ซ้อมกู้ตกทั้งที่ไฟล์กู้ได้ครบ
+//   I) ตัวนับต้นทางเลื่อนหลัง dump (ไม่เพิ่มแถว) → ยังผ่าน  J) ตัวนับในฐานที่กู้ต่างจากไฟล์สำรอง 1 → ไม่ผ่าน (เกณฑ์ตรงทุกตัวเท่าเดิม)
+{
+  const b = รัน("scripts/prod-backup-verify.mjs", { PMS_DRILL_ADVANCE_SEQ: "1" }, ["--target", "local", "zz-ตัวนับเลื่อน"]);
+  ผล(/\(ข้อทดสอบ\) เลื่อนตัวนับต้นทาง 240 หลัง dump/.test(b.out), "I1 จำลองงานกินตัวนับ 240 หลัง dump ได้จริง", b.out);
+  ผล(b.code === 0 && /✅ ผ่าน — สำรองและซ้อมกู้ครบ/.test(b.out), `I2 ตัวนับต้นทางเลื่อนหลัง dump → ยังผ่าน เพราะเทียบกับไฟล์สำรอง (exit ${b.code})`, b.out);
+  const s = รัน("scripts/prod-backup-verify.mjs", { PMS_DRILL_SABOTAGE: "seq" }, ["--target", "local", "zz-ตัวนับกู้ผิด"]);
+  ผล(/\(ข้อทดสอบ\) เลื่อนตัวนับในฐานที่กู้ 1/.test(s.out), "J1 จำลองตัวนับในฐานที่กู้ไม่ตรงได้จริง", s.out);
+  ผล(s.code !== 0 && /ตัวนับเลข public\.audit_log_id_seq: ในไฟล์สำรอง \d+ · กู้ได้ \d+/.test(s.out), `J2 ตัวนับกู้ต่างจากไฟล์สำรอง 1 → ไม่ผ่าน บอกตัวนับที่ไม่ตรง (exit ${s.code})`, s.out);
+  ผล(!existsSync(LOCK), "J3 ปล่อยล็อกแล้ว");
 }
 
 rmSync(tmp, { recursive: true, force: true });

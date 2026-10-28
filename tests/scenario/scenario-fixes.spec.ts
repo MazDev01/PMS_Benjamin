@@ -71,6 +71,23 @@ test.describe("อื่น ๆ", () => {
 
   // ข้อ 5 — คำที่เคยชนกัน ต้องแยกออกจากกัน
   test("[5] ป้ายอัตราต่าง ๆ แยกกันชัด", async ({ page }) => {
+    // นับฐาน "ก่อน" ตั้งแต่ก่อนเปิดหน้า (หน้าโหลดตัวเลขตอนเปิด) แล้วนับ "หลัง" หลังอ่านจอ = คร่อมเวลาที่หน้าเว็บดึงข้อมูลจริง
+    //   เดิมนับทั้งสองครั้งหลังหน้าโหลดแล้ว — ข้อทดสอบอื่นปิดลีดของสาขาเดียวกันระหว่างนั้น จอ 46% ฐาน 50% ทั้งสองครั้ง (ไม่นิ่ง 3 ครั้ง 28–29 ต.ค. 69)
+    const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+    const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
+    const อัตราทุกสาขา = async () => {
+      const { data, error } = await adminClient().from("leads").select("dealer_code, status, created_date")
+        .or(`created_date.is.null,and(created_date.gte.${ต้นปี},created_date.lte.${วันนี้})`);
+      expect(error, `อ่านลีดจากฐานไม่ได้: ${error?.message}`).toBeNull();
+      const นับ = new Map<string, { ได้: number; เสีย: number }>();
+      for (const l of data ?? []) {
+        const n = นับ.get(l.dealer_code) ?? { ได้: 0, เสีย: 0 };
+        if (l.status === "PAID") n.ได้++; else if (l.status === "CANCELLED") n.เสีย++;
+        นับ.set(l.dealer_code, n);
+      }
+      return (code: string) => { const n = นับ.get(code) ?? { ได้: 0, เสีย: 0 }; return n.ได้ + n.เสีย === 0 ? "—" : `${Math.round(n.ได้ / (n.ได้ + n.เสีย) * 100)}%`; };
+    };
+    const ก่อน = await อัตราทุกสาขา();
     await open(page, "hq", "/hq/pipeline");
     await expect(page.getByText(/ของมูลค่า/).first()).toBeVisible();          // "ปิดได้ X% ของมูลค่า"
     const tbl = page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }).first();
@@ -85,23 +102,14 @@ test.describe("อื่น ๆ", () => {
     const [iได้, iไม่ได้, iอัตรา] = [ช่อง("ปิดได้"), ช่อง("ปิดไม่ได้"), ช่อง("อัตราปิดการขาย")];
     expect([iได้, iไม่ได้, iอัตรา].every(i => i >= 0), `ต้องมีคอลัมน์ ปิดได้ / ปิดไม่ได้ / อัตราปิดการขาย แยกกัน (ได้: ${หัว.join(" · ")})`).toBe(true);
     expect(หัว.includes("อัตราปิด"), "ไม่มีคอลัมน์ชื่อเก่า \"อัตราปิด\" แล้ว").toBe(false);
-    const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-    const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
-    const อัตราจากฐาน = async (code: string) => {
-      const { data } = await adminClient().from("leads").select("status, created_date").eq("dealer_code", code)
-        .or(`created_date.is.null,and(created_date.gte.${ต้นปี},created_date.lte.${วันนี้})`);
-      const ได้ = (data ?? []).filter(l => l.status === "PAID").length, เสีย = (data ?? []).filter(l => l.status === "CANCELLED").length;
-      return ได้ + เสีย === 0 ? "—" : `${Math.round(ได้ / (ได้ + เสีย) * 100)}%`;
-    };
     const แถว = tbl.locator("tbody tr");
     const จำนวน = await แถว.count();
     expect(จำนวน, "ตารางต้องมีดีลเลอร์อย่างน้อย 1 แถว").toBeGreaterThan(0);
-    for (let r = 0; r < จำนวน; r++) {
-      const เซลล์ = (await แถว.nth(r).locator("td").allInnerTexts()).map(t => t.trim());
-      // ข้อทดสอบอื่นที่รันพร้อมกันเพิ่ม/ปิดลีดได้ — นับฐานคร่อมเวลาที่อ่านจอ ยอมรับถ้าตรงครั้งใดครั้งหนึ่ง
-      const ก่อน = await อัตราจากฐาน(เซลล์[0]);
-      const หลัง = await อัตราจากฐาน(เซลล์[0]);
-      expect([ก่อน, หลัง], `แถว ${เซลล์[0]}: อัตราปิดการขาย ${เซลล์[iอัตรา]} ต้องเท่ากับสูตรกลางจากลีด`).toContain(เซลล์[iอัตรา]);
-    }
+    const ทุกแถว = [];
+    for (let r = 0; r < จำนวน; r++) ทุกแถว.push((await แถว.nth(r).locator("td").allInnerTexts()).map(t => t.trim()));
+    const หลัง = await อัตราทุกสาขา();
+    // ข้อทดสอบอื่นที่รันพร้อมกันเพิ่ม/ปิดลีดได้ — ยอมรับถ้าตรงกับฐานก่อนเปิดหน้า หรือหลังอ่านจอ
+    for (const เซลล์ of ทุกแถว)
+      expect([ก่อน(เซลล์[0]), หลัง(เซลล์[0])], `แถว ${เซลล์[0]}: อัตราปิดการขาย ${เซลล์[iอัตรา]} ต้องเท่ากับสูตรกลางจากลีด`).toContain(เซลล์[iอัตรา]);
   });
 });

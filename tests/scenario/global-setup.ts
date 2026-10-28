@@ -57,7 +57,7 @@ function thaiDateLabel(n: number): string {
 
 type LeadSeed = {
   idOffset: number; dealerCode: string; company: string; province: string; product: string;
-  status: "WAITING" | "BULLET" | "QUOTED" | "FOLLOWUP" | "NEGO" | "PAID" | "CANCELLED";
+  status: "WAITING" | "BULLET" | "QUOTED" | "PAID" | "CANCELLED";   // ไม่มี ติดตามผล/เจรจาต่อรอง (เลิกใช้ · ฐานไม่รับ ใบ 0257)
   ageDays: number; lostReason?: string;
 };
 
@@ -78,8 +78,8 @@ const LEADS: LeadSeed[] = [
   // ── RYG ──
   { idOffset: 1, dealerCode: "RYG", company: tag("บจ. อาร์วายจีหนึ่ง"), province: "ระยอง", product: "โรงงาน", status: "WAITING", ageDays: 2 },
   { idOffset: 2, dealerCode: "RYG", company: tag("บจ. อาร์วายจีสอง"), province: "ระยอง", product: "อาคารสำเร็จรูปทุกประเภท", status: "BULLET", ageDays: 10 },
-  { idOffset: 3, dealerCode: "RYG", company: tag("บจ. อาร์วายจีสาม"), province: "ชลบุรี", product: "อาคารสำเร็จรูปทุกประเภท", status: "FOLLOWUP", ageDays: 20 },
-  { idOffset: 4, dealerCode: "RYG", company: tag("บจ. อาร์วายจีสี่"), province: "ระยอง", product: "โรงงาน", status: "NEGO", ageDays: 35 },
+  { idOffset: 3, dealerCode: "RYG", company: tag("บจ. อาร์วายจีสาม"), province: "ชลบุรี", product: "อาคารสำเร็จรูปทุกประเภท", status: "QUOTED", ageDays: 20 },
+  { idOffset: 4, dealerCode: "RYG", company: tag("บจ. อาร์วายจีสี่"), province: "ระยอง", product: "โรงงาน", status: "QUOTED", ageDays: 35 },
   { idOffset: 5, dealerCode: "RYG", company: tag("บจ. อาร์วายจีห้า"), province: "ชลบุรี", product: "งานตามแบบของลูกค้า", status: "QUOTED", ageDays: 5 },
   { idOffset: 6, dealerCode: "RYG", company: tag("บจ. อาร์วายจีหก"), province: "ระยอง", product: "โรงงาน", status: "CANCELLED", ageDays: 15, lostReason: "ราคาสูงกว่าคู่แข่ง" },
   { idOffset: 7, dealerCode: "RYG", company: tag("บจ. อาร์วายจีเจ็ด"), province: "ชลบุรี", product: "อาคารสำเร็จรูปทุกประเภท", status: "CANCELLED", ageDays: 25, lostReason: "ลูกค้าชะลอโครงการ" },
@@ -87,8 +87,8 @@ const LEADS: LeadSeed[] = [
   // ── CNX ──
   { idOffset: 21, dealerCode: "CNX", company: tag("บจ. เชียงใหม่หนึ่ง"), province: "เชียงใหม่", product: "โรงงาน", status: "WAITING", ageDays: 3 },
   { idOffset: 22, dealerCode: "CNX", company: tag("บจ. เชียงใหม่สอง"), province: "เชียงใหม่", product: "อาคารสำเร็จรูปทุกประเภท", status: "BULLET", ageDays: 9 },
-  { idOffset: 23, dealerCode: "CNX", company: tag("บจ. เชียงใหม่สาม"), province: "เชียงราย", product: "อาคารสำเร็จรูปทุกประเภท", status: "FOLLOWUP", ageDays: 18 },
-  { idOffset: 24, dealerCode: "CNX", company: tag("บจ. เชียงใหม่สี่"), province: "เชียงใหม่", product: "โรงงาน", status: "NEGO", ageDays: 33 },
+  { idOffset: 23, dealerCode: "CNX", company: tag("บจ. เชียงใหม่สาม"), province: "เชียงราย", product: "อาคารสำเร็จรูปทุกประเภท", status: "QUOTED", ageDays: 18 },
+  { idOffset: 24, dealerCode: "CNX", company: tag("บจ. เชียงใหม่สี่"), province: "เชียงใหม่", product: "โรงงาน", status: "QUOTED", ageDays: 33 },
   { idOffset: 25, dealerCode: "CNX", company: tag("บจ. เชียงใหม่ห้า"), province: "เชียงราย", product: "งานตามแบบของลูกค้า", status: "QUOTED", ageDays: 6 },
   { idOffset: 26, dealerCode: "CNX", company: tag("บจ. เชียงใหม่หก"), province: "เชียงใหม่", product: "โรงงาน", status: "CANCELLED", ageDays: 14, lostReason: "งบประมาณไม่พอ" },
   { idOffset: 27, dealerCode: "CNX", company: tag("บจ. เชียงใหม่เจ็ด"), province: "เชียงราย", product: "อาคารสำเร็จรูปทุกประเภท", status: "CANCELLED", ageDays: 22, lostReason: "เลือกคู่แข่ง" },

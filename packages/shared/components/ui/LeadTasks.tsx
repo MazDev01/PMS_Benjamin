@@ -25,8 +25,9 @@ export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนน�
   lead: LeadRow; performedBy: string; onSave: (intent: LeadIntent) => void; ขั้นตอนนี้: เลขขั้น;
 }) {
   const taskTpl = useLeadTaskTemplate();
-  // งานที่เห็นต้องตรงกับชุดที่ HQ ตั้งไว้เสมอ (บอสแจ้ง 19 ส.ค. 69) · ลีดที่ปิดแล้วคงรายการเดิม (ไม่แสดงรายการ flow เก่า)
-  const tasks: LeadTask[] = applyTaskTemplate(lead.tasks, taskTpl, lead.status).filter(t => !["close", "negotiate", "followup", "catalog"].includes(t.key));
+  // งานที่เห็นต้องตรงกับชุดที่ HQ ตั้งไว้เสมอ (บอสแจ้ง 19 ส.ค. 69) · ลีดที่ปิดแล้วคงรายการเดิม
+  //   (รายการ flow เก่าไม่มีในฐานแล้ว และฐานไม่รับ — ใบ 0257 · ไม่ต้องกรองที่หน้าจอ)
+  const tasks: LeadTask[] = applyTaskTemplate(lead.tasks, taskTpl, lead.status);
   const closed = lead.status === "PAID" || lead.status === "CANCELLED";
   const ขั้นของรายการ = new Map(taskTpl.map(d => [d.key, d.step] as const));
   // รายการเฉพาะของลีด (ไม่อยู่ในแม่แบบ) ไปอยู่ขั้น 1

@@ -33,7 +33,9 @@ begin
   perform flowtest.ok(lead_stage_no('CNX', -1, 'WAITING') = 1 and lead_stage_no('CNX', -1, 'BULLET') = 1, 'ติดต่อแล้ว/รวบรวมความต้องการ = ขั้น 1');
   perform flowtest.ok(lead_stage_no('CNX', -1, 'HQ_PRICING') = 2, 'รอราคา HQ = ขั้น 2');
   perform flowtest.ok(lead_stage_no('CNX', -1, 'HQ_QUOTED') = 3, 'ได้ราคา HQ ไม่มีใบร่าง = ขั้น 3');
-  perform flowtest.ok(lead_stage_no('CNX', -1, 'QUOTED') = 5 and lead_stage_no('CNX', -1, 'FOLLOWUP') = 5 and lead_stage_no('CNX', -1, 'NEGO') = 5, 'เสนอราคา/ติดตามผล/เจรจา = ขั้น 5');
+  perform flowtest.ok(lead_stage_no('CNX', -1, 'QUOTED') = 5, 'เสนอราคา = ขั้น 5');
+  -- สถานะเก่า (ติดตามผล/เจรจาต่อรอง) เลิกใช้แล้ว ไม่มีขั้น (ใบ 0257)
+  perform flowtest.ok(lead_stage_no('CNX', -1, 'FOLLOWUP') is null and lead_stage_no('CNX', -1, 'NEGO') is null, 'สถานะเก่าไม่มีขั้นแล้ว (ใบ 0257)');
   perform flowtest.ok(lead_stage_no('CNX', -1, 'PAID') = 6 and lead_stage_no('CNX', -1, 'CANCELLED') = 7, 'ปิดสำเร็จ = 6 · ปิดไม่สำเร็จ = 7');
 
   -- ② เส้นทางจริง: ขอราคา (2) → HQ ส่งใบ (3) → ทำใบร่าง (4)

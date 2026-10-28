@@ -71,7 +71,7 @@ flowchart LR
         U7["ดู Dashboard/รายงาน"]
         U8["ตั้งค่าบริษัท/ผู้รับผิดชอบ"]
 
-        M1["ติดตามผลงานตัวแทน"]
+        M1["ดูผลงานตัวแทน"]
         M2["บริหารลูกค้า/ใบเสนอราคาทั้งเครือ"]
         M3["กำหนดราคากลาง + แม่แบบสินค้า"]
         M4["วิเคราะห์ยอดขาย/Conversion"]
@@ -332,7 +332,7 @@ erDiagram
 | template_id | INT FK → product_template | แม่แบบ/แม่แบบย่อยที่สนใจ |
 | customer_id | INT FK → customer | NULL จนกว่าปิดการขาย (WON) |
 | company, contact, phone, email, province | VARCHAR | ข้อมูลผู้สนใจ |
-| status | ENUM | WAITING / BULLET / QUOTED / FOLLOWUP / NEGO / PAID / CANCELLED |
+| status | ENUM | WAITING / BULLET / HQ_PRICING / HQ_QUOTED / QUOTED / PAID / CANCELLED (enum ในฐานยังมีค่าเดิม 2 ค่าที่เลิกใช้ — ข้อบังคับ leads_status_retired ไม่ให้แถวไหนใช้ · ใบ 0257) |
 | value | BIGINT | มูลค่าคาดการณ์ |
 | source | VARCHAR | ช่องทางที่มา |
 | lost_reason | VARCHAR | เหตุผล (เมื่อ CANCELLED) |

@@ -8,7 +8,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { กันฐานจริง } from "../../scripts/lib/prodBackupMark.mjs";
 
+กันฐานจริง("first-login-check");   // ฐานจริง: ต้องมีผลสำรอง+ซ้อมกู้ผ่านภายใน 30 นาที (บอสสั่ง 28 ต.ค. 69)
 const env = Object.fromEntries(readFileSync(".env.production.local", "utf8").split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));
 const st = JSON.parse(readFileSync(path.join(process.env.LIVE_STATE_DIR ?? ".", "live-state-prod.json"), "utf8"));
 const ด = st.users.find(u => u.role === "DEALER_ADMIN");

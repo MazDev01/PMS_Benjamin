@@ -158,7 +158,7 @@ Supabase ระบบจริง → Authentication → Hooks → Send Email Ho
 1. [ ] รอบเต็ม `npm run test:prodbuild` ผ่าน (ตก 0 · check-e2e-ran ผ่าน) → commit + push
 2. [ ] Vercel build เสร็จทั้ง 2 เว็บ (benjamin-hq · benjamin-dealer)
 3. [ ] ชุดทดสอบเว็บจริง `tests/prod-live` ผ่านครบ — วงจรเต็มด้วยบัญชีชั่วคราว: ขอราคา → HQ ทำใบ (พิมพ์รายการเอง) ส่ง → ดีลเลอร์ทำใบลูกค้า → won → สั่งผลิต
-- ลบบัญชีชั่วคราว (สาขา ZZT · `live-*@example.test`) หลังจบทุกรอบ — `tests/prod-live/cleanup.sql`
+- ลบบัญชีชั่วคราว (สาขา ZZT · `live-*@example.test`) หลังจบทุกรอบ — `node tests/prod-live/run.mjs --target prod files` แล้ว `... cleanup` (ใส่ชื่อชุดสำรองให้เอง + ตรวจว่าไม่เหลือแถวทดสอบ) · ทุกขั้นบนฐานจริงต้องมีผลสำรอง+ซ้อมกู้ "ผ่าน" ภายใน 30 นาที ไม่มี = ไม่รัน (`scripts/lib/prodBackupMark.mjs` · บอสสั่ง 28 ต.ค. 69)
 
 ---
 
