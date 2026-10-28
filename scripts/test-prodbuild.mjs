@@ -6,6 +6,11 @@
 // ใช้: npm run test:prodbuild
 //      npm run test:prodbuild -- tests/scenario/ui.spec.ts     (เจาะไฟล์เดียว)
 //      SKIP_BUILD=1 npm run test:prodbuild                      (ใช้ของที่ build ไว้แล้ว)
+//      node scripts/test-prodbuild.mjs --build-only             (build อย่างเดียว ไม่ถือล็อกฐาน — ข้อทดสอบ dev-build-separate ใช้)
+// ผล build อยู่โฟลเดอร์ของรอบตรวจเอง (.next-test · PMS_TEST_DIST_DIR เปลี่ยนได้) ไม่ใช่ .next ที่ npm run dev ใช้
+//   เดิม build ทับ .next ขณะเปิด dev ค้างในโฟลเดอร์เดียวกัน → dev พัง/build ตก "Cannot find module for page" (บอสสั่งแยก 28 ต.ค. 69)
+//   next.config ของทั้งสองแอปอ่าน PMS_DIST_DIR · turbo.json ประกาศ PMS_DIST_DIR ให้งาน build (โหมด strict กรองทิ้งถ้าไม่ประกาศ)
+//   ข้อทดสอบ: tests/tools/dev-build-separate.test.mjs
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import net from "node:net";
@@ -17,6 +22,13 @@ import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs
 import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
 import { ตรวจไม่นิ่งท้ายรอบ } from "./lib/flakyLog.mjs";
 import { อาร์กิวเมนต์psql, คอนเทนเนอร์ as คอนเทนเนอร์ฐานทดสอบ } from "./lib/testDbGuard.mjs";
+
+const โฟลเดอร์build = process.env.PMS_TEST_DIST_DIR || ".next-test";
+if (process.argv.includes("--build-only")) {
+  const { PMS_TESTDB_LOCK_HELD: _ไม่ใช้, ...เดิม } = process.env;
+  const b = spawnSync("npm", ["run", "build"], { env: { ...เดิม, PMS_DIST_DIR: โฟลเดอร์build }, stdio: "inherit", shell: true });
+  process.exit(b.status ?? 1);
+}
 
 // commit ที่กำลังตรวจ + ไฟล์ค้างตอนเริ่ม — ผลผ่านผูกกับ commit นี้ (ตัวกัน push ขึ้น monorepo · 22 ต.ค. 69)
 const ตอนเริ่ม = สภาพตอนเริ่ม();
@@ -30,7 +42,7 @@ const ล็อกฐาน = ขอล็อกฐานทดสอบ(`รอ
 // พอร์ตทดสอบของโฟลเดอร์นี้ (โฟลเดอร์หลัก = ค่าใน scripts/lib/ports.json · เซสชันลูก = .pms-session.json)
 const พอร์ตทดสอบ = พอร์ต("test"), ที่อยู่ = ต้นทาง("test");
 // PMS_LOCAL_HTTP_TEST: เซิร์ฟเวอร์ในเครื่องรันบน http — ให้คุกกี้ใบผ่านไม่ติด Secure (WebKit ทิ้งคุกกี้ Secure บน http · ดู _cookie.ts)
-const env = { ...process.env, NEXT_PUBLIC_DATA_SOURCE: MODE, PMS_RUN_ID, PMS_LOCAL_HTTP_TEST: "1",
+const env = { ...process.env, PMS_DIST_DIR: โฟลเดอร์build, NEXT_PUBLIC_DATA_SOURCE: MODE, PMS_RUN_ID, PMS_LOCAL_HTTP_TEST: "1",
   PMS_TESTDB_LOCK_HELD: ล็อกฐาน.token, PMS_DEALER_ORIGIN: ที่อยู่.dealer, PMS_HQ_ORIGIN: ที่อยู่.hq,
   // ที่อยู่แอปที่ฝังตอน build (ลิงก์ข้ามแอป · CORS) = พอร์ตทดสอบของโฟลเดอร์นี้ — ค่าใน env ชนะ .env.local (เซสชันลูกมีพอร์ต dev ในไฟล์นั้น)
   NEXT_PUBLIC_DEALER_APP_URL: ที่อยู่.dealer, DEALER_APP_ORIGIN: ที่อยู่.dealer, NEXT_PUBLIC_HQ_ORIGIN: ที่อยู่.hq };

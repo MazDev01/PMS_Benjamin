@@ -4,6 +4,9 @@ import { securityHeaderRules } from "../../packages/shared/lib/securityHeaders.m
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@pms/shared"],
+  // ที่เก็บไฟล์ที่ build แล้ว — ตั้งทับด้วย PMS_DIST_DIR (รอบตรวจ build ลง .next-test แยกจาก .next ของ npm run dev · 28 ต.ค. 69)
+  // ⚠️ สองเซิร์ฟเวอร์ที่ใช้โฟลเดอร์เดียวกันจะเขียนทับกันจนหน้าเว็บพัง (เหมือนแอปดีลเลอร์)
+  distDir: process.env.PMS_DIST_DIR || ".next",
   // ไม่ประกาศชนิดเซิร์ฟเวอร์ให้คนภายนอกรู้ (ตรวจพบ 27 ส.ค. 69) — ลดข้อมูลตั้งต้นให้คนที่ไล่หาช่องโหว่
   poweredByHeader: false,
 
