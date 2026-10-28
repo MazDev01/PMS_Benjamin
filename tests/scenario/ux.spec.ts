@@ -143,7 +143,7 @@ test("[ux·hq] หน้าผู้ใช้ HQ เฉพาะ HQ + stat/matri
   await open(page, "hq", "/hq/settings");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
   await expect(page.getByText("ผู้ใช้ทั้งหมด")).toBeVisible();
-  await expect(page.getByText("Permission Matrix", { exact: false })).toBeVisible();
+  await expect(page.getByText("ตารางสิทธิ์ตามบทบาท", { exact: true })).toBeVisible();   // เดิม "Permission Matrix" — หน้าเว็บเป็นไทย (28 ต.ค. 69)
   // ต้องไม่มีผู้ใช้ของ Dealer (role เซลส์ดีลเลอร์หายไป)
   await expect(page.getByText("เซลส์ดีลเลอร์")).toHaveCount(0);
   // action dropdown → เหลือ "ตั้งรหัสผ่านใหม่ทันที" · เมนูส่งลิงก์ทางอีเมลเอาออกแล้ว (ปิดอีเมลระบบล็อกอิน 16 ต.ค. 69)

@@ -171,7 +171,7 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
           {!initial && <><div className="col-full"><label className="form-label">รหัสผ่านชั่วคราว</label><input style={{ ...inp, fontFamily: "monospace", fontWeight: 700 }} value={f.tempPassword} onChange={e => setF({ ...f, tempPassword: e.target.value.replace(/\s/g, "") })} /><div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 4 }}>ใช้รหัสนี้เข้าระบบครั้งแรก · อย่างน้อย 8 ตัว ห้ามมีช่องว่าง · เว้นว่าง = ระบบสุ่มให้ · ผู้ใช้เปลี่ยนเองได้ที่หน้าโปรไฟล์</div></div></>}
           <div><label className="form-label">เบอร์โทร</label><input style={inp} inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: formatPhone(e.target.value) })} placeholder="08x-xxx-xxxx" /></div>
           <div className="form-section">สิทธิ์การใช้งาน</div>
-          <div><label className="form-label">บทบาท (Role) *{lockPriv && <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}> · เฉพาะผู้ดูแลระบบ</span>}</label><select style={{ ...inp, ...(lockPriv ? { background: "#f3f4f6", cursor: "not-allowed", opacity: .7 } : {}) }} aria-label="บทบาท" disabled={lockPriv} value={f.role} onChange={e => setF({ ...f, role: e.target.value as RoleKey, department: defaultDept(e.target.value as RoleKey) })}><option value="">— ยังไม่ระบุ —</option>{ROLES.filter(r => r.key !== "SUPER_ADMIN" || canEditPrivileges).map(r => <option key={r.key} value={r.key}>{r.th}</option>)}</select></div>
+          <div><label className="form-label">บทบาท *{lockPriv && <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}> · เฉพาะผู้ดูแลระบบ</span>}</label><select style={{ ...inp, ...(lockPriv ? { background: "#f3f4f6", cursor: "not-allowed", opacity: .7 } : {}) }} aria-label="บทบาท" disabled={lockPriv} value={f.role} onChange={e => setF({ ...f, role: e.target.value as RoleKey, department: defaultDept(e.target.value as RoleKey) })}><option value="">— ยังไม่ระบุ —</option>{ROLES.filter(r => r.key !== "SUPER_ADMIN" || canEditPrivileges).map(r => <option key={r.key} value={r.key}>{r.th}</option>)}</select></div>
           <div>
             <label className="form-label">แผนก <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}>· ตามบทบาทที่เลือก</span></label>
             {/* แสดงอย่างเดียว แก้ไม่ได้ — ค่าจริงที่บันทึกคือ แผนกตามบทบาท */}
@@ -491,7 +491,7 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
 
       {/* Permission matrix */}
       <div className="card">
-        <div className="card-header"><div><div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}><Shield size={17} color={PRIMARY} /> สิทธิ์ตามบทบาท (Permission Matrix)</div>{/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div></div>
+        <div className="card-header"><div><div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}><Shield size={17} color={PRIMARY} /> ตารางสิทธิ์ตามบทบาท</div>{/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div></div>
         <div className="card-body">
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
             {ROLES.map(r => <button key={r.key} onClick={() => setMatrixRole(r.key)} className="badge" style={{ border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, background: matrixRole === r.key ? r.tone : r.tone + "14", color: matrixRole === r.key ? "#fff" : r.tone }}>{r.th}</button>)}

@@ -439,8 +439,8 @@ export default function SalesAnalyticsPage() {
         <KpiCard kpi="winRate" label={ชื่ออัตราปิดการขาย} value={ค่า(การ์ด, "winRate.rate") == null ? null : `${ค่า(การ์ด, "winRate.rate")}%`} rawValue={ค่า(การ์ด, "winRate.rate")}
           unit={คำอธิบายอัตราปิดการขาย} empty={การ์ด ? "ยังไม่มีลีดที่ปิดในช่วงนี้" : "กำลังโหลด…"} icon={Percent} color="#7C3AED" bg="#F0EBFB"
           sub={การ์ด ? `ปิดสำเร็จ ${ค่า(การ์ด, "winRate.won") ?? 0} · ไม่สำเร็จ ${ค่า(การ์ด, "winRate.lost") ?? 0}` : undefined} onClick={() => router.push("/hq/leads")} />
-        <KpiCard kpi="margin" label="margin เฉลี่ย" value={ค่า(การ์ด, "margin.pct") == null ? null : `${Number(ค่า(การ์ด, "margin.pct")).toFixed(1)}%`} rawValue={ค่า(การ์ด, "margin.pct")}
-          unit={`ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับและผูกใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
+        <KpiCard kpi="margin" label="ส่วนต่างกำไรเฉลี่ย" value={ค่า(การ์ด, "margin.pct") == null ? null : `${Number(ค่า(การ์ด, "margin.pct")).toFixed(1)}%`} rawValue={ค่า(การ์ด, "margin.pct")}
+          unit={`ส่วนต่างกำไร % ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับและผูกใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
           icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="ดูรายดีลเลอร์"
           onClick={() => document.querySelector("[data-testid='dealer-margin']")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
         <KpiCard kpi="onTarget" label="ดีลเลอร์ที่ถึงเป้า" value={ค่า(การ์ด, "onTarget.reached") == null ? null : `${ค่า(การ์ด, "onTarget.reached")} จาก ${ค่า(การ์ด, "onTarget.of")}`}

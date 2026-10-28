@@ -22,10 +22,11 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useTableLayout, type Col } from "@pms/shared/components/ui/TableTools";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
-import { QuotationViewPanel } from "@pms/shared/components/ui/QuotationViewPanel";
+import { QuotationViewPanel, usePrintQuote } from "@pms/shared/components/ui/QuotationViewPanel";
+import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { ป้ายฉบับ } from "@pms/shared/lib/quoteRevision";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
-import { X, FileText, LayoutList, LayoutGrid, ChevronUp, ChevronDown, Eye, ChevronLeft, ChevronRight, Check, Hourglass, AlarmClock } from "lucide-react";
+import { X, FileText, LayoutList, LayoutGrid, ChevronUp, ChevronDown, Eye, Printer, Pencil, Trash2, ChevronLeft, ChevronRight, Check, Hourglass, AlarmClock } from "lucide-react";
 
 // ── Tokens ────────────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -137,8 +138,9 @@ function QuotationsPageInner(){
   // อายุใบของ "สาขา" มาก่อนนโยบายเครือ (บอสสั่ง 20 ส.ค. 69) — สาขาตั้งไว้เท่าไรต้องใช้ค่านั้นจริง
   const validityDays = useQuoteValidity();
   const {
-    quotations: allQuotationsRaw, customers: allCustomersRaw, leads: allLeads, salesVersion,
+    quotations: allQuotationsRaw, customers: allCustomersRaw, leads: allLeads, salesVersion, deleteQuotation,
   } = useSales();
+  const พิมพ์ใบ = usePrintQuote();
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
   // scope ทุกอย่างเป็นของสาขาที่ล็อกอิน — RYG ไม่เห็นใบ/ลูกค้า/ลูกค้าเป้าหมายของ CNX (undefined = ของ CNX)
   // (ลูกค้าเป้าหมาย lookup ผู้รับผิดชอบด้วยชื่อบริษัท — ถ้าไม่กรอง ownerOf/saveQ ไปเจอ+เขียนทับลูกค้าเป้าหมายสาขาอื่นชื่อซ้ำ)
@@ -213,14 +215,15 @@ function QuotationsPageInner(){
   const [ดูใบ, setดูใบ] = useState<string|null>(null);
   const ใบที่ดู = ดูใบ ? data.find(x=>x.id===ดูใบ) ?? null : null;
   // ผู้ติดต่อ/เบอร์/จังหวัดของใบที่ดู — หัวเอกสารตอนพิมพ์ (ลีดก่อน ไม่มีค่อยใช้ลูกค้า · ไม่มีทั้งคู่ = ว่าง ไม่เดา)
-  const ลูกค้าของใบ = useMemo(()=>{
-    if(!ใบที่ดู) return undefined;
-    const l = ใบที่ดู.dealId!=null ? leads.find(x=>x.numId===ใบที่ดู.dealId) : undefined;
-    if(l) return { company: ใบที่ดู.customer || l.company, name: l.contact, phone: l.phone, province: l.province, email: l.email };
-    const c = ใบที่ดู.customerId ? customers.find(x=>x.id===ใบที่ดู.customerId) : undefined;
-    if(c) return { company: ใบที่ดู.customer || c.company, name: c.name, phone: c.phone, province: c.province, email: c.email };
+  //   ใช้ทั้งแผงดูใบและปุ่มพิมพ์ในแถว
+  const ลูกค้าจากใบ = (q:QuotationMock) => {
+    const l = q.dealId!=null ? leads.find(x=>x.numId===q.dealId) : undefined;
+    if(l) return { company: q.customer || l.company, name: l.contact, phone: l.phone, province: l.province, email: l.email };
+    const c = q.customerId ? customers.find(x=>x.id===q.customerId) : undefined;
+    if(c) return { company: q.customer || c.company, name: c.name, phone: c.phone, province: c.province, email: c.email };
     return undefined;
-  },[ใบที่ดู,leads,customers]);
+  };
+  const ลูกค้าของใบ = ใบที่ดู ? ลูกค้าจากใบ(ใบที่ดู) : undefined;
   useEffect(()=>{
     if(!เปิดจากลิงก์.current){ เปิดจากลิงก์.current=true; setขอเปิด(new URLSearchParams(window.location.search).get("open")); }
     const on=(e:Event)=>{
@@ -284,23 +287,27 @@ function QuotationsPageInner(){
   //   บอสสั่ง 28 ต.ค. 69 "กดแล้วเปิดดูใบได้เลย": กดแถว = เปิดแผงดูใบบนหน้านี้ (URL ยังเป็น /quotations · ตัวกรอง/ค้นหา/หน้า คงเดิม)
   //   งานของใบ (ส่ง D6 · ผลจากลูกค้า D8 · ทำฉบับใหม่ D8x) ยังทำที่แผงลีดที่เดียว → ปุ่ม "ไปแผงลีด" ในแผงดูใบ
   function selectRow(q:QuotationMock){ setดูใบ(q.id); }
+  async function ลบใบร่าง(q:QuotationMock){
+    if(!await ยืนยัน({ หัวข้อ:`ลบใบร่าง ${q.id}?`, รายละเอียด:"ลบแล้วกู้คืนไม่ได้", ปุ่มตกลง:"ลบใบร่าง", อันตราย:true })) return;
+    deleteQuotation(q.id); showToast("ลบใบร่างแล้ว");
+  }
   function ไปแผงลีด(q:QuotationMock){
     if(q.dealId!=null) router.push(`/leads?open=${q.dealId}`);
     else if(q.customerId) router.push(`/customers?open=${q.customerId}`);
   }
 
   return (
-    <div className="erp" style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+    <div className="erp">
 
       {/* ══ MAIN ════════════════════════════════════════════ */}
-      <div style={{flex:1,minWidth:0}}>
+      <div className="erp-col">{/* ระยะระหว่างส่วนจากโครงกลาง (.erp-col) */}
 
         {/* หัวหน้า/ปุ่ม → ไปอยู่บนแถบบน (ชื่อหน้ามาจาก Topbar) */}
         <TopbarActions>
           <FilterBar dims={[]} />
           <ExportMenu filename="quotations" title="ใบเสนอราคา" small
-            headers={["เลขที่","ฉบับ","ลูกค้า","ผู้รับผิดชอบ",ช่อง.งาน,"จังหวัด","พื้นที่","มูลค่ารวม","สถานะ","วันที่"]}
-            rows={filtered.map(q=>[q.id,ป้ายฉบับ(q.revision),q.customer,ownerOf(q) || "—",q.project,q.province,q.area,q.totalValue,quotationStatusLabel[q.status],q.date])} />
+            headers={["เลขที่","ลูกค้า",ช่อง.งาน,"ฉบับ","ผู้รับผิดชอบ","มูลค่ารวม","สถานะ","วันที่สร้าง","หมดอายุ","จังหวัด","พื้นที่"]}
+            rows={filtered.map(q=>{ const ex=expiryOf(q,validityDays); return [q.id,q.customer,q.project,ป้ายฉบับ(q.revision),ownerOf(q) || "—",q.totalValue,quotationStatusLabel[q.status],fmtDate(q.date),ex?fmtDate(ex):"—",q.province,q.area]; })} />
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
@@ -356,22 +363,23 @@ function QuotationsPageInner(){
                       ของจริงต้องการรวม 1284px แต่กรอบมีแค่ 1012px (กรอบกว้างเท่านี้ตายตัว ขยายจอไม่ช่วย)
                       → คอลัมน์ห้ามตัด (เลขที่/มูลค่า/สถานะ/วันที่/ปุ่ม) ให้เต็มตามที่วัดได้ รวมหัวตารางด้วย
                         คอลัมน์ข้อความยาว (ลูกค้า/โครงการ/ประเภท/ผู้รับผิดชอบ) รับส่วนที่เหลือ → "..." + hover ดูเต็ม */}
-                  <col style={{width:170}} />{/* เลขที่ — ฉบับใหม่ "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69) · ป้ายฉบับขึ้นบรรทัดล่างได้ */}
+                  <col style={{width:170}} />{/* เลขที่ — เลขเต็ม "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69 · ย้ำ 28 ต.ค. 69 ใช้เลขเต็ม) · ฉบับแยกคอลัมน์ */}
                   {/* คอลัมน์ข้อความหดลงรวม 32px เพื่อแลกที่ให้ปุ่ม "ลบ" ที่เพิ่มเข้ามา (13 ส.ค. 69)
                       หดได้เพราะยังกว้างกว่าหัวคอลัมน์ของตัวเอง — ข้อมูลยาวยังตัดด้วย … + hover ดูเต็มเหมือนเดิม */}
                   {/* 28 ต.ค. 69: คอลัมน์ปุ่มเหลือไอคอนดูใบอันเดียว (เดิม 5 ปุ่ม 190px) → คืนที่ให้ ผู้รับผิดชอบ (ชื่อเต็มไม่ตัด) + วันที่มีปี พ.ศ. */}
                   <col style={{width:"12.5%",minWidth:78}} />{/* ลูกค้า (…) หัว 74 · รับส่วนของคอลัมน์ "ประเภท" ที่ถอดออก 16 ต.ค. 69 */}
-                  {!hiddenCols.includes("project")&&<col style={{width:"13%",minWidth:100}} />}{/* งานที่ต้องการ (…) */}
+                  {!hiddenCols.includes("project")&&<col style={{width:"13%",minWidth:100}} />}{/* งานที่ต้องการ — ตกบรรทัดได้ ไม่ตัด */}
+                  <col style={{width:52}} />{/* ฉบับ "V1" "V2" (แทนคอลัมน์ประเภทเดิม) */}
                   {!hiddenCols.includes("owner")&&<col style={{width:"14%",minWidth:120}} />}{/* ผู้รับผิดชอบ — วงย่อชื่อ + ชื่อเต็ม (ตกบรรทัดได้ ไม่ตัด) */}
                   {!hiddenCols.includes("value")&&<col style={{width:"11.3%",minWidth:116}} />}{/* มูลค่า — ข้อมูล 114 ห้ามตัด */}
                   <col style={{width:"10.9%",minWidth:110}} />{/* สถานะ — ป้ายยาวสุด "ส่งแล้ว"/"ปฏิเสธ" */}
                   {!hiddenCols.includes("created")&&<col style={{width:"9.6%",minWidth:92}} />}{/* วันที่สร้าง — "28 ต.ค. 2569" */}
                   {!hiddenCols.includes("expiry")&&<col style={{width:"9.6%",minWidth:92}} />}{/* หมดอายุ — "28 ต.ค. 2569" */}
-                  <col style={{width:44}} />{/* ปุ่มดูใบ (ไอคอนเดียว) */}
+                  <col style={{width:124}} />{/* ปุ่ม ดู · พิมพ์ · แก้ · ลบ (ไอคอน 4 ปุ่ม · แก้/ลบ เฉพาะใบร่าง) */}
                 </colgroup>
                 <thead>
                   <tr>
-                    {([{label:"เลขที่",key:"id",col:null},{label:"ลูกค้า",key:"customer",col:null},{label:ช่อง.งาน,key:"project",col:"project"},{label:"ผู้รับผิดชอบ",key:null,col:"owner"},{label:"มูลค่า",key:"totalValue",col:"value"},{label:"สถานะ",key:"status",col:null},
+                    {([{label:"เลขที่",key:"id",col:null},{label:"ลูกค้า",key:"customer",col:null},{label:ช่อง.งาน,key:"project",col:"project"},{label:"ฉบับ",key:null,col:null},{label:"ผู้รับผิดชอบ",key:null,col:"owner"},{label:"มูลค่า",key:"totalValue",col:"value"},{label:"สถานะ",key:"status",col:null},
                       /* "วันที่สร้าง" ไม่มีลูกศรเรียงตามที่บอสสั่ง (key:null) — หัวคอลัมน์เหลือแค่ตัวหนังสือ ไม่มี ‹› ไม่มี "..." */
                       {label:"วันที่สร้าง",key:null,col:"created"},{label:"หมดอายุ",key:null,col:"expiry"},{label:"",key:null,col:null}] as {label:string;key:SortKey|null;col:string|null}[])
                       .filter(col=>!col.col||!hiddenCols.includes(col.col))
@@ -387,7 +395,7 @@ function QuotationsPageInner(){
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length===0&&<tr><td colSpan={9-["project","owner","value","created","expiry"].filter(c=>hiddenCols.includes(c)).length} style={{padding:0}}>
+                  {filtered.length===0&&<tr><td colSpan={10-["project","owner","value","created","expiry"].filter(c=>hiddenCols.includes(c)).length} style={{padding:0}}>
                     <EmptyState icon={<FileText size={28}/>} title="ไม่พบใบเสนอราคา" description="ใบเสนอราคาออกจากหน้า “ลูกค้าเป้าหมาย” — เปิดรายการแล้วสร้างในแท็บใบเสนอราคา"
                       action={<button className="btn btn-secondary btn-md" style={{color:"#003366"}} onClick={()=>router.push("/leads")}>ไปหน้าลูกค้าเป้าหมาย →</button>} />
                   </td></tr>}
@@ -399,12 +407,8 @@ function QuotationsPageInner(){
                         style={{background:isSel?"#f0f6ff":undefined}}>
                         {/* ไอคอนเอกสารหน้าเลขที่เอาออก — ซ้ำกันทุกแถว ไม่ได้บอกอะไร แลกที่ให้คอลัมน์อื่น */}
                         <td>
-                          {/* เลขที่ + ฉบับ (บอสสั่ง 21 ส.ค. 69) — ต้องรู้จากตารางเลยว่าใบนี้แก้มากี่รอบแล้ว */}
-                          <span style={{display:"flex",alignItems:"center",gap:"2px 6px",flexWrap:"wrap"}}>
-                            <span data-quote-no style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace",whiteSpace:"nowrap"}}>{q.id}</span>
-                            <span className="badge" style={{background:"#eef3f8",color:PRIMARY,fontSize:"0.62rem",fontWeight:800}}
-                            title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{ป้ายฉบับ(q.revision)}</span>
-                          </span>
+                          {/* เลขเต็ม (บอสเลือก 28 ต.ค. 69) — ฉบับ (V1 V2) อยู่คอลัมน์ฉบับ */}
+                          <span data-quote-no style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace",whiteSpace:"nowrap"}}>{q.id}</span>
                         </td>
                         <td>
                           {q.customerId ? (
@@ -417,8 +421,12 @@ function QuotationsPageInner(){
                           )}
                         </td>
                         {!hiddenCols.includes("project")&&(
-                        <td title={q.project} style={{fontSize:"0.78rem",color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project||"—"}</td>
+                        <td style={{fontSize:"0.78rem",color:STEEL,overflowWrap:"anywhere"}}>{q.project||"—"}</td>
                         )}
+                        <td data-revision-cell>
+                          <span className="badge" style={{background:"#eef3f8",color:PRIMARY,fontSize:"0.66rem",fontWeight:800}}
+                            title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{ป้ายฉบับ(q.revision)}</span>
+                        </td>
                         {!hiddenCols.includes("owner")&&(() => {
                           // ผู้รับผิดชอบ = ผู้รับผิดชอบลูกค้าที่ใบนี้ผูกอยู่ · ใบที่ไม่ได้ผูกลูกค้า (customerId=0) หาไม่เจอ
                           // แสดงเป็นวงกลมย่อ + ชื่อ (AssigneeAvatars) ตามที่บอสสั่ง — ตัวคอมโพเนนต์ขึ้น "—" ให้เองเมื่อไม่มีค่า
@@ -448,10 +456,17 @@ function QuotationsPageInner(){
                           const ex = expiryOf(q, validityDays);
                           return <td data-date-cell style={{fontSize:"0.72rem",color:MUTED,whiteSpace:"nowrap"}}>{ex?fmtDate(ex):"—"}</td>;
                         })()}
-                        {/* ปุ่มทำงานรายใบเอาออก (รอบ 4) · ไอคอนตา = เปิดแผงดูใบ (เหมือนกดแถว · 28 ต.ค. 69) */}
-                        <td style={{textAlign:"right"}}>
-                          <button title="ดูใบ" aria-label={`ดูใบ ${q.id}`} onClick={e=>{e.stopPropagation();selectRow(q);}}
-                            style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"inline-flex",color:MUTED}}><Eye size={14} aria-hidden /></button>
+                        {/* ปุ่ม ดู · พิมพ์ · แก้ · ลบ (บอสสั่ง 28 ต.ค. 69) — ดู = แผงดูใบบนหน้านี้ · พิมพ์ = ทางเดียวกับแผงดูใบ (กันข้อมูลบริษัทไม่ครบ)
+                            แก้/ลบ ขึ้นเฉพาะใบร่าง (ฐานกันใบที่ส่งแล้วอยู่แล้ว) · แก้ใบร่างทำที่แผงลีด › แท็บใบเสนอราคาที่เดียว */}
+                        <td style={{textAlign:"right",whiteSpace:"nowrap"}} data-row-actions>
+                          {(()=>{ const ขาด=พิมพ์ใบ.ขาด(q); const ปุ่ม:React.CSSProperties={background:"none",border:"none",cursor:"pointer",padding:4,display:"inline-flex",color:MUTED};
+                            return <>
+                              <button title="ดูใบ" aria-label={`ดูใบ ${q.id}`} onClick={e=>{e.stopPropagation();selectRow(q);}} style={ปุ่ม}><Eye size={14} aria-hidden /></button>
+                              <button title={ขาด.length?`พิมพ์ไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาด.join(" · ")})`:"พิมพ์ PDF"} aria-label={`พิมพ์ ${q.id}`} disabled={ขาด.length>0}
+                                onClick={e=>{e.stopPropagation();void พิมพ์ใบ.พิมพ์(q,ลูกค้าจากใบ(q));}} style={{...ปุ่ม,opacity:ขาด.length?.4:1,cursor:ขาด.length?"not-allowed":"pointer"}}><Printer size={14} aria-hidden /></button>
+                              {q.status==="draft"&&(q.dealId!=null||!!q.customerId)&&<button title="แก้ใบร่าง (ที่แผงลีด)" aria-label={`แก้ ${q.id}`} onClick={e=>{e.stopPropagation();ไปแผงลีด(q);}} style={ปุ่ม}><Pencil size={14} aria-hidden /></button>}
+                              {q.status==="draft"&&<button title="ลบใบร่าง" aria-label={`ลบ ${q.id}`} onClick={e=>{e.stopPropagation();void ลบใบร่าง(q);}} style={{...ปุ่ม,color:"#dc2626"}}><Trash2 size={14} aria-hidden /></button>}
+                            </>; })()}
                         </td>
                       </ClickableRow>
                     );

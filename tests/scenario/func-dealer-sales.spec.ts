@@ -138,8 +138,8 @@ test("[func] ลบลูกค้าเป้าหมายผ่านหน�
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
 
-  // รอบ 4: ปุ่มลบลีดอยู่ที่หัวแผงลีดที่เดียว (ลีดที่ยังไม่มีคำขอ/ใบ) · ไม่มีปุ่มลบในแถวตารางแล้ว
-  await expect(row.getByTitle("ลบลูกค้าเป้าหมาย"), "ไม่มีปุ่มลบในแถวตาราง").toHaveCount(0);
+  // ตารางตามรูป (บอสสั่ง 28 ต.ค. 69): ลีดที่ยังไม่มีคำขอ/ใบ มีปุ่มลบในแถวด้วย (ฐานบอก has_quotes ใบ 0258) · ข้อนี้ลบผ่านหัวแผงลีด
+  await expect(row.getByTitle("ลบลูกค้าเป้าหมาย"), "ลีดที่ยังไม่มีคำขอ/ใบ มีปุ่มลบในแถวตาราง").toHaveCount(1);
   await row.getByTitle("ดูรายละเอียด").first().click();
   await page.getByTitle("ลบ", { exact: true }).click({ timeout: 20_000 });
   await expect(page.getByText(/ต้องการลบ/)).toBeVisible({ timeout: 10_000 });

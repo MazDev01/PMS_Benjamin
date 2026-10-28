@@ -845,10 +845,10 @@ export default function CustomersPage(){
   };
 
   return (
-    <div className="erp" style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+    <div className="erp">
 
       {/* ══ MAIN ══════════════════════════════════════════════ */}
-      <div style={{flex:1,minWidth:0}}>
+      <div className="erp-col">{/* ระยะระหว่างส่วนจากโครงกลาง (.erp-col) */}
 
         {/* หัวหน้า/ปุ่ม → ไปอยู่บนแถบบน (ชื่อหน้ามาจาก Topbar) */}
         <TopbarActions>

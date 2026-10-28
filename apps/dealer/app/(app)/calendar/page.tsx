@@ -386,7 +386,7 @@ export default function CalendarPage() {
           <div className="card">
             <div className="card-header" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
               <div className="card-title" style={{ fontSize: "0.92rem" }}>รายการนัดหมาย</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div className="chip-row" role="group" aria-label="กรองรายการนัดหมาย">{/* แถวเดียว · ไม่พอ = เลื่อนแนวนอน (บอสสั่ง 28 ต.ค. 69) */}
                 {([
                   { k: "all" as const,      label: "ทั้งหมด",     n: groups.today.length + groups.upcoming.length + groups.overdue.length, col: PRIMARY },
                   { k: "today" as const,    label: "วันนี้",       n: groups.today.length,    col: GROUP_COLORS.today.key },

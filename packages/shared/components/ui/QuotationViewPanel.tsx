@@ -47,6 +47,22 @@ export function ฉบับทั้งหมดของใบ(q: QuotationMoc
   return [...ชุด.values()].sort((a, b) => เลขฉบับ(a) - เลขฉบับ(b) || a.id.localeCompare(b.id, "en", { numeric: true }));
 }
 
+/** พิมพ์ใบให้ลูกค้า — ทางเดียวของแผงดูใบและปุ่มพิมพ์ในแถวตาราง (ขอหัวกระดาษจากฐาน + กันข้อมูลบริษัทไม่ครบ ใบ 0247)
+ *  ขาด(q) = ช่องข้อมูลบริษัทที่ยังไม่กรอก (มี = กดพิมพ์ไม่ได้) · ยังโหลดข้อมูลบริษัทไม่เสร็จ ≠ ยังไม่ได้กรอก (เจอจริง 27 ส.ค. 69) */
+export function usePrintQuote() {
+  const dealerCfg = useDealerSettings();
+  const dealerVat = useDealerVat();
+  const ขาด = (q: QuotationMock) => dealerCfg.loaded ? ช่องที่ขาดตอนพิมพ์(q.issuer, dealerCfg.settings.issuer) : [];
+  const พิมพ์ = async (q: QuotationMock, ลูกค้า?: PrintCustomer) => {
+    if (!dealerCfg.loaded) { แจ้งสำเร็จ("กำลังโหลดข้อมูลบริษัท — รอสักครู่แล้วกดพิมพ์อีกครั้ง"); return; }
+    try {
+      await printQuotation(q, { company: q.customer, ...ลูกค้า }, q.vatPercent ?? dealerVat,
+        { issuer: dealerCfg.settings.issuer, doc: dealerCfg.settings.document }, () => quotationsRepo.printData(dealerCodeOf(q), q.id));
+    } catch (e) { แจ้งพลาด("พิมพ์ใบเสนอราคาไม่สำเร็จ: " + friendlyError(e)); }
+  };
+  return { ขาด, พิมพ์ };
+}
+
 type Props = {
   q: QuotationMock;
   /** ใบทั้งหมดของสาขา — ใช้หาฉบับอื่นของใบเดียวกัน */
@@ -70,8 +86,8 @@ export function QuotationViewPanel(p: Props) {
 
 function แผงใบ({ q, ทั้งหมด, ผู้รับผิดชอบ, ลูกค้า, validityDays, onClose, onPick, onGoLead }: Props) {
   const ref = useModalA11y<HTMLDivElement>(onClose);
-  const dealerCfg = useDealerSettings();
   const dealerVat = useDealerVat();
+  const พิมพ์ใบ = usePrintQuote();
   const sc = quotationStatusColor[q.status];
   const lis = boqLineItems(q);
   // สูตรเดียวกับหน้าดูใบในแผงลีด (LeadQuotationsPanel โหมด view) — ผลรวมรายการก่อน ไม่มีค่อยใช้ยอดที่บันทึก
@@ -79,15 +95,8 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
   const ภาษีใบ = คิดภาษีใบเสนอราคา(subtotal, { vatPercent: q.vatPercent ?? dealerVat, whtPercent: q.whtRate });
   const ฉบับ = ฉบับทั้งหมดของใบ(q, ทั้งหมด);
   const หมดอายุ = quoteExpiryISO(q, validityDays);
-  // ยังโหลดข้อมูลบริษัทไม่เสร็จ ≠ ยังไม่ได้กรอก (เจอจริง 27 ส.ค. 69) — ยังไม่โหลด = ไม่ปิดปุ่ม
-  const ขาด = dealerCfg.loaded ? ช่องที่ขาดตอนพิมพ์(q.issuer, dealerCfg.settings.issuer) : [];
-  const พิมพ์ = async () => {
-    if (!dealerCfg.loaded) { แจ้งสำเร็จ("กำลังโหลดข้อมูลบริษัท — รอสักครู่แล้วกดพิมพ์อีกครั้ง"); return; }
-    try {
-      await printQuotation(q, { company: q.customer, ...ลูกค้า }, q.vatPercent ?? dealerVat,
-        { issuer: dealerCfg.settings.issuer, doc: dealerCfg.settings.document }, () => quotationsRepo.printData(dealerCodeOf(q), q.id));
-    } catch (e) { แจ้งพลาด("พิมพ์ใบเสนอราคาไม่สำเร็จ: " + friendlyError(e)); }
-  };
+  const ขาด = พิมพ์ใบ.ขาด(q);
+  const พิมพ์ = () => พิมพ์ใบ.พิมพ์(q, ลูกค้า);
   const th: React.CSSProperties = { textAlign: "left", fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", padding: "8px 10px", background: "#f7f9fc", whiteSpace: "nowrap" };
   const td: React.CSSProperties = { fontSize: "0.78rem", color: "#2D2D2D", padding: "9px 10px", borderTop: "1px solid #eef0f4" };
   const ปุ่มหัว: React.CSSProperties = { background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, height: 30, padding: "0 11px", cursor: "pointer", color: "#fff",

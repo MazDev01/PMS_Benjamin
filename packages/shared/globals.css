@@ -429,6 +429,8 @@ body {
   --sh:0 1px 2px rgba(16,40,80,.04), 0 10px 24px -14px rgba(16,40,80,.12); --sh-md:0 2px 4px rgba(16,40,80,.05), 0 18px 34px -16px rgba(16,40,80,.20);
   /* spacing scale — การ์ดห่าง 24, section ห่าง 32, padding การ์ด 20-24 */
   --space-card:14px; --space-section:18px; --pad-card:22px;
+  /* ระยะเนื้อหาห่างขอบกล่องขั้นต่ำ — ตัวตรวจ tests/scenario/layout-spacing.spec.ts อ่านค่านี้ (บอสสั่ง 28 ต.ค. 69) */
+  --pad-min:8px;
 
   /* ── hover ของการ์ด — มาตรฐานเดียวทั้งแอป (บอสสั่ง 17 ก.ค. 69) ──
      ต้นแบบ = การ์ด KPI แดชบอร์ดดีลเลอร์ (.dash-tile) · ยกลอย 2px + เงานุ่ม + ขอบเข้มขึ้นนิด
@@ -882,6 +884,19 @@ body {
 @keyframes erpFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 .erp { animation: erpFade 0.3s ease backwards; }
+/* ── ระยะห่างระหว่างส่วนของหน้า — ค่ากลางตัวเดียว (บอสสั่ง 28 ต.ค. 69 · ปฏิทิน: การ์ด 4 ใบชนปฏิทิน) ──
+   ทุกหน้าใช้ .erp เป็นรากหน้า (หน้าที่มีคอลัมน์หลักซ้อนอีกชั้นใช้ .erp-col) → ลูกชั้นแรก (แถวการ์ด KPI · กล่อง · ตาราง)
+   ห่างกันด้วย gap = --space-section ตัวเดียว · ห้ามเขียน margin ระหว่างส่วนเองรายหน้า (ล้างด้วย !important)
+   ตัวตรวจ tests/scenario/layout-spacing.spec.ts วนทุกหน้าในเมนู จอกว้าง + มือถือ */
+.erp, .erp-col { display: flex; flex-direction: column; gap: var(--space-section); }
+.erp > *, .erp-col > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+.erp-col { flex: 1; min-width: 0; }
+/* แถวปุ่มกรอง/ชิป — แถวเดียวเสมอ ไม่พอ = เลื่อนแนวนอนในแถว (ไม่ตกเป็น 2 แถว · บอสสั่ง 28 ต.ค. 69) */
+.chip-row { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.chip-row > * { flex-shrink: 0; white-space: nowrap; }
+/* จอมือถือ: ตารางไม่บีบคอลัมน์จนตัวหนังสือล้นทับกัน — กว้างขั้นต่ำแล้วเลื่อนแนวนอนในกล่องตาราง (.table-wrap มี overflow-x อยู่แล้ว)
+   เจอที่หน้าไฟล์ (คอลัมน์เป็น % ล้วน จอ 390 เหลือช่องละไม่กี่ px) · ตัวตรวจ layout-spacing.spec.ts */
+@media (max-width: 640px) { .table-wrap > table { min-width: 720px; } }
 /* Stagger content cards + KPI stat cards (any layout) so everything settles in sequence */
 /* ต้องครอบตะแกรง KPI ทุกแบบที่มีในระบบ — เดิมตก .kpi-bar > .kpi (หน้าปฏิทิน)
    กับ .dash-kpis (หน้าลูกค้าเป้าหมาย/ลูกค้า/ใบเสนอราคา) — การ์ดโผล่มาเฉย ๆ ต่างจากหน้าอื่น (บอสแจ้ง 19 ส.ค. 69)

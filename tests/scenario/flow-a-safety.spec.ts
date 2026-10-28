@@ -207,8 +207,8 @@ test.describe("ลบลีด / ลบลูกค้า", () => {
   test("[ก·6] ลีดที่ยังไม่มีคำขอ/ใบ: มีปุ่มลบ และลบได้จริง", async ({ page }) => {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     const แถว = await เปิดแผงลีด(page, เปล่า);
-    // รอบ 4: ปุ่มลบอยู่ที่หัวแผงลีดที่เดียว (ไม่มีในแถวตารางแล้ว)
-    await expect(แถว.getByTitle("ลบลูกค้าเป้าหมาย"), "แถวไม่มีปุ่มลบ").toHaveCount(0);
+    // ตารางตามรูป (บอสสั่ง 28 ต.ค. 69): ลีดที่ยังไม่มีคำขอ/ใบ มีปุ่มลบในแถวด้วย · ข้อนี้ลบผ่านหัวแผงลีด
+    await expect(แถว.getByTitle("ลบลูกค้าเป้าหมาย"), "แถวมีปุ่มลบ").toHaveCount(1);
     await แถว.locator("td").first().click();
     await page.getByTitle("ลบ", { exact: true }).click({ timeout: 20_000 });
     await page.getByText(/ต้องการลบ/).locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ลบ", exact: true }).click();

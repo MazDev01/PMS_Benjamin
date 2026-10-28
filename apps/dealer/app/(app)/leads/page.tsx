@@ -14,6 +14,7 @@ import {
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
+import { LeadProgressBar } from "@pms/shared/components/ui/LeadProgressBar";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
@@ -103,6 +104,7 @@ type SortKey = "company"|"value"|"status"|"assigned";
 const COLS: { key: string; label: string }[] = [
   { key: "province", label: ช่อง.จังหวัด },
   { key: "source",   label: ช่อง.ช่องทาง },
+  { key: "project",  label: ช่อง.งาน },
   { key: "area",     label: "พื้นที่" },
   { key: "activity", label: "กิจกรรมล่าสุด" },
 ];
@@ -134,22 +136,12 @@ function ป้ายขั้นลีด({ l, มีใบร่าง }: { l:
       style={{ background:สี.bg, color:สี.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap", alignSelf:"flex-start" }}>{ชื่อขั้น(n)}</span>
   );
 }
-function แถบความคืบหน้า({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
-  const n = เลขขั้นของลีด(l.status, มีใบร่าง);
-  const เต็ม = n === 6 ? 5 : n === 7 ? 0 : n;
-  const สี = สีขั้น(n);
-  return (
-    <div role="img" aria-label={`ความคืบหน้า ${เต็ม} จาก 5 ขั้น`} title={`${เต็ม} จาก 5 ขั้น`}
-      style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:2, maxWidth:120 }}>
-      {[1,2,3,4,5].map(k => <span key={k} style={{ height:4, borderRadius:99, background: k <= เต็ม ? สี.bar : "#e5e7eb" }} />)}
-    </div>
-  );
-}
+// แถบความคืบหน้า = ตัวกลาง LeadProgressBar (ขั้นละ 20% · ปิดสำเร็จ 100% · ปิดไม่สำเร็จ สีแดงตามขั้นที่ไปถึง · บอสสั่ง 28 ต.ค. 69)
 function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
   return (
     <div data-mini-stage style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
       <ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่าง} />
-      <แถบความคืบหน้า l={l} มีใบร่าง={มีใบร่าง} />
+      <LeadProgressBar l={l} มีใบร่าง={มีใบร่าง} />
     </div>
   );
 }
@@ -752,6 +744,12 @@ export default function LeadsPage() {
   const ข้อความขั้น = (l: LeadRow) => ชื่อขั้น(เลขขั้นของ(l));
   const ลบได้ = (l: LeadRow) => l.status !== "PAID" && คำขอของแผง?.leadId === l.id && !คำขอของแผง.มี
     && !quotations.some(q => quoteBelongsToLead(q, l));
+  // แถวตาราง: ฐานบอกว่ามีคำขอ/ใบหรือยัง (has_quotes ใบ 0258) + ใบในเครื่องที่เพิ่งสร้าง
+  const ลบได้ในแถว = (l: LeadRow) => l.status !== "PAID" && l.hasQuotes === false && !quotations.some(q => quoteBelongsToLead(q, l));
+  async function ลบจากแถว(l: LeadRow) {
+    if (!await ยืนยัน({ หัวข้อ: `ลบ ${l.company}?`, รายละเอียด: "การลบไม่สามารถย้อนกลับได้", ปุ่มตกลง: "ลบลูกค้าเป้าหมาย", อันตราย: true })) return;
+    removeLead(l.id);
+  }
   const myAllLeads = useMemo(
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
@@ -1344,16 +1342,18 @@ export default function LeadsPage() {
                     แทนที่จะดัน .table-wrap ให้ scroll (ต่างจากตาราง /customers ที่ตั้ง minWidth ครบทุกคอลัมน์)
                     → เติม minWidth ให้ครบเหมือนกัน */}
                 <colgroup>
-                  <col style={{width:"18%", minWidth:180}} />{/* บริษัท / ผู้ติดต่อ */}
-                  {!hiddenCols.includes("province") && <col style={{width:"9%", minWidth:90}} />}
-                  {!hiddenCols.includes("source")   && <col style={{width:"10%", minWidth:100}} />}
-                  {!hiddenCols.includes("area")     && <col style={{width:"8%", minWidth:100}} />}
-                  <col style={{width:"12%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "ทำใบให้ลูกค้า" อยู่ได้ */}
-                  <col style={{width:"9%", minWidth:96}} />{/* ความคืบหน้า (แถบ 5 ช่อง · แยกคอลัมน์ บอสสั่ง 28 ต.ค. 69) */}
-                  <col style={{width:"11%", minWidth:90}} />{/* มูลค่า */}
-                  <col style={{width:"12%", minWidth:110}} />{/* ผู้รับผิดชอบ */}
-                  {!hiddenCols.includes("activity") && <col style={{width:"9%", minWidth:100}} />}
-                  <col style={{width:"8%", minWidth:48}} />{/* ปุ่มดู */}
+                  {/* ลำดับคอลัมน์ตามที่บอสสั่ง 28 ต.ค. 69 · ข้อความตกบรรทัดได้ ไม่ตัดเป็น "…" */}
+                  <col style={{width:"15%", minWidth:150}} />{/* บริษัท / ผู้ติดต่อ */}
+                  {!hiddenCols.includes("province") && <col style={{width:"8%", minWidth:84}} />}
+                  {!hiddenCols.includes("source")   && <col style={{width:"8%", minWidth:84}} />}
+                  {!hiddenCols.includes("project")  && <col style={{width:"11%", minWidth:110}} />}{/* งานที่ต้องการ */}
+                  {!hiddenCols.includes("area")     && <col style={{width:"7%", minWidth:76}} />}
+                  <col style={{width:"11%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "ทำใบให้ลูกค้า" อยู่ได้ */}
+                  <col style={{width:"9%", minWidth:112}} />{/* ความคืบหน้า แถบ 5 ช่อง + % */}
+                  <col style={{width:"8%", minWidth:84}} />{/* มูลค่า */}
+                  <col style={{width:"10%", minWidth:110}} />{/* ผู้รับผิดชอบ */}
+                  {!hiddenCols.includes("activity") && <col style={{width:"8%", minWidth:104}} />}{/* กิจกรรมล่าสุด "28 ต.ค. 2569" เต็ม */}
+                  <col style={{width:"5%", minWidth:72}} />{/* ปุ่มดู · ลบ */}
                 </colgroup>
                 <thead>
                   <tr>
@@ -1361,6 +1361,7 @@ export default function LeadsPage() {
                       ["company","บริษัท / ผู้ติดต่อ",null],
                       [null,ช่อง.จังหวัด,"province"],
                       [null,ช่อง.ช่องทาง,"source"],
+                      [null,ช่อง.งาน,"project"],
                       [null,ช่อง.พื้นที่,"area"],
                       ["status",ช่อง.ขั้นตอน,null],
                       [null,"ความคืบหน้า",null],
@@ -1393,14 +1394,17 @@ export default function LeadsPage() {
                         label={`เปิดรายละเอียดลูกค้าเป้าหมาย ${l.company}`}
                         style={{ background:isSel?"#f0f4f8":undefined }}>
                         <td style={{ minWidth:0 }}>
-                          <div style={{ fontSize:"0.86rem", fontWeight:700, color:"#2D2D2D", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.company}>{l.company}</div>
-                          <div style={{ fontSize:"0.65rem", color:"#374151", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.contact}>{l.contact}</div>
+                          <div style={{ fontSize:"0.86rem", fontWeight:700, color:"#2D2D2D", overflowWrap:"anywhere" }}>{l.company}</div>
+                          <div style={{ fontSize:"0.65rem", color:"#374151", marginTop:1, overflowWrap:"anywhere" }}>{l.contact}</div>
                         </td>
                         {!hiddenCols.includes("province") && (
                           <td style={{ fontSize:"0.72rem", color:"#374151" }}>{l.province || "—"}</td>
                         )}
                         {!hiddenCols.includes("source") && (
-                          <td style={{ fontSize:"0.72rem", color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.source}>{l.source || "—"}</td>
+                          <td style={{ fontSize:"0.72rem", color:"#374151", overflowWrap:"anywhere" }}>{l.source || "—"}</td>
+                        )}
+                        {!hiddenCols.includes("project") && (
+                          <td data-cell="project" style={{ fontSize:"0.72rem", color:"#374151", overflowWrap:"anywhere" }}>{l.project || "—"}</td>
                         )}
                         {!hiddenCols.includes("area") && (
                           <td className="num" style={{ fontSize:"0.72rem", color:"#374151", whiteSpace:"nowrap", fontVariantNumeric:"tabular-nums" }}>
@@ -1412,7 +1416,7 @@ export default function LeadsPage() {
                           <ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่างของ(l)} />
                         </td>
                         <td>
-                          <แถบความคืบหน้า l={l} มีใบร่าง={มีใบร่างของ(l)} />
+                          <LeadProgressBar l={l} มีใบร่าง={มีใบร่างของ(l)} />
                         </td>
                         {(
                           <td className="num" style={{ fontSize:"0.8rem", fontWeight:700, color: มูลค่าลีด(l) == null ? "#cbd5e1" : "#2D2D2D" }}
@@ -1424,7 +1428,7 @@ export default function LeadsPage() {
                           <AssigneeAvatars value={l.assigned} size={26} />
                         </td>
                         {!hiddenCols.includes("activity") && (
-                          <td style={{ fontSize:"0.72rem", color:"#6b7280" }}>{lastActivity(l)}</td>
+                          <td data-cell="activity" style={{ fontSize:"0.72rem", color:"#6b7280", whiteSpace:"nowrap" }}>{lastActivity(l)}</td>
                         )}
                         {/* ── จัดการ: ปุ่มลัด (โทร / แก้ไข / ดูรายละเอียด) · WON = ป้ายลูกค้าแล้ว ── */}
                         <td onClick={e => e.stopPropagation()}>
@@ -1438,14 +1442,21 @@ export default function LeadsPage() {
                               style={{ width:28, height:28, borderRadius:7, border:"1px solid #dbe3ec", background:"#fff", color:"#003366", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                               <Eye size={13} />
                             </button>
-                            {/* ปุ่มลบลีดอยู่หัวแผงที่เดียว (รอบ 4) — แถวตารางไม่รู้ว่าลีดมีคำขอราคาหรือยัง */}
+                            {/* ปุ่มลบ: เฉพาะลีดที่ยังไม่มีคำขอราคาหรือใบ — กฎเดียวกับหัวแผงลีด (ฐานกันอยู่แล้ว ใบ 0217)
+                                แถวรู้จาก leads.has_quotes ที่ฐานเขียนเอง (ใบ 0258 · คำขอที่ยกเลิกแล้วก็นับ) */}
+                            {ลบได้ในแถว(l) && (
+                              <button title="ลบลูกค้าเป้าหมาย" aria-label={`ลบ ${l.company}`} onClick={()=>void ลบจากแถว(l)}
+                                style={{ width:28, height:28, borderRadius:7, border:"1px solid #fecaca", background:"#fff", color:"#dc2626", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                <Trash2 size={13} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </ClickableRow>
                     );
                   })}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={10 - COLS.filter(c => hiddenCols.includes(c.key)).length} style={{ padding:0 }}>
+                    <tr><td colSpan={11 - COLS.filter(c => hiddenCols.includes(c.key)).length} style={{ padding:0 }}>
                       <EmptyState icon={<Users size={28} />} title="ไม่พบลูกค้าเป้าหมาย"
                         description="ลองปรับตัวกรอง หรือเพิ่มลูกค้าเป้าหมายรายใหม่เพื่อเริ่มการขาย"
                         action={<button className="btn btn-primary btn-md" onClick={()=>setShowAddForm(true)}><Plus size={14} /> เพิ่มลูกค้าเป้าหมาย</button>} />

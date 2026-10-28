@@ -524,4 +524,11 @@ select distinct l.dealer_code, l.assigned, true from public.leads l
  where l.assigned like 'พนักงานขายทดสอบ %'
    and not exists (select 1 from public.responsible_persons p where p.dealer_code = l.dealer_code and p.name = l.assigned);
 
+-- สภาพหลังใบ 0258 (29 ต.ค. 69): ข้อมูลข้างบนลงแบบปิดตัวทำงานอัตโนมัติ (replica) → ช่องที่ฐานเขียนเอง has_quotes / reached_step
+--   ไม่ถูกคิด · คิดใหม่จากคำขอ/ใบจริงด้วยเงื่อนไขเดียวกับใบ 0258 (ข้อทดสอบ supabase/tests/lead_has_quotes.sql ตรวจทุกแถว)
+update public.leads l
+   set has_quotes = public._lead_has_quotes(l.dealer_code, l.num_id), reached_step = public._lead_reached_step(l.dealer_code, l.num_id)
+ where l.has_quotes is distinct from public._lead_has_quotes(l.dealer_code, l.num_id)
+    or l.reached_step is distinct from public._lead_reached_step(l.dealer_code, l.num_id);
+
 set session_replication_role = origin;

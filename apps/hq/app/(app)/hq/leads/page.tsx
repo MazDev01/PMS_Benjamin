@@ -8,6 +8,8 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // ใช้ข้อมูลจริงจาก SalesContext (leads) — HQ ดูอย่างเดียว (Sales CRM เท่านั้น)
 import { useMemo, useState, useEffect, useRef } from "react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
+import { LeadProgressBar } from "@pms/shared/components/ui/LeadProgressBar";
+import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
@@ -603,28 +605,31 @@ export default function HQLeadsPage() {
                 เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่เท่านั้น (table-layout: fixed — ใส่ที่ <th> ไม่มีผล)
                 และต้องคุมผลรวม minWidth ไม่ให้เกินกรอบ ไม่งั้นกลับมาล้นอีก */}
             <colgroup>
-              <col style={{ width: "7%", minWidth: 88 }} />{/* รหัสลูกค้าเป้าหมาย */}
-              <col style={{ width: "12%", minWidth: 140 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
-              <col style={{ width: "24%", minWidth: 160 }} />{/* ลูกค้า (รับ 8% จากคอลัมน์ "เสนอราคา" ที่ถอดออก 28 ต.ค. 69) */}
-              <col style={{ width: "7%", minWidth: 84 }} />{/* จังหวัด */}
-              <col style={{ width: "8%", minWidth: 84 }} />{/* แหล่งที่มา */}
-              <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
-              <col style={{ width: "8%", minWidth: 88 }} />{/* ติดต่อล่าสุด */}
-              <col style={{ width: "8%", minWidth: 100 }} />{/* ต้องติดตาม — ในช่องเป็นป้ายชื่อ ห้ามตัด */}
-              <col style={{ width: "12%", minWidth: 128 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
+              {/* ลำดับคอลัมน์ตามที่บอสสั่ง 28 ต.ค. 69 (เหมือนตารางของดีลเลอร์) · รหัสดีลเลอร์อยู่ใต้ชื่อบริษัท · ต้องติดตามอยู่ใต้กิจกรรมล่าสุด
+                  ข้อความตกบรรทัดได้ ไม่ตัดเป็น "…" ที่จอกว้าง */}
+              <col style={{ width: "15%", minWidth: 160 }} />{/* บริษัท / ผู้ติดต่อ (+ ดีลเลอร์) */}
+              <col style={{ width: "8%", minWidth: 84 }} />{/* จังหวัดหน้างาน */}
+              <col style={{ width: "8%", minWidth: 84 }} />{/* ช่องทางที่มา */}
+              <col style={{ width: "11%", minWidth: 110 }} />{/* งานที่ต้องการ */}
+              <col style={{ width: "6%", minWidth: 72 }} />{/* พื้นที่ */}
+              <col style={{ width: "11%", minWidth: 128 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
+              <col style={{ width: "9%", minWidth: 112 }} />{/* ความคืบหน้า แถบ 5 ช่อง + % */}
+              <col style={{ width: "8%", minWidth: 84 }} />{/* มูลค่า */}
+              <col style={{ width: "10%", minWidth: 110 }} />{/* ผู้รับผิดชอบ */}
+              <col style={{ width: "9%", minWidth: 108 }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
               <col style={{ width: "5%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน (ปุ่ม 28px + padding ของ td) */}
             </colgroup>
             <thead><tr>
-              <th>รหัส</th><th>ดีลเลอร์</th><th>ลูกค้า</th>
-              <th>จังหวัด</th><th>แหล่งที่มา</th>
+              <th>บริษัท / ผู้ติดต่อ</th><th>{ช่อง.จังหวัด}</th><th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
+              <th>{ช่อง.ขั้นตอน}</th><th>ความคืบหน้า</th>
               {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกตัด (th ตั้ง white-space: nowrap ทั้งระบบ) — ไฟล์ส่งออกยังใช้ชื่อเต็ม */}
-              <th className="num">มูลค่า</th><th>ติดต่อล่าสุด</th>
+              <th className="num">มูลค่า</th><th>{ช่อง.ผู้รับผิดชอบ}</th><th>กิจกรรมล่าสุด</th>
               {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 (26 ส.ค. 69) */}
-              <th>ต้องติดตาม</th><th>ขั้นตอน</th><th style={ตรึงคอลัมน์ปุ่ม(true)}></th>
+              <th style={ตรึงคอลัมน์ปุ่ม(true)}></th>
             </tr></thead>
             <tbody>
               {displayLeads.length === 0 ? (
-                <tr><td colSpan={10} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
+                <tr><td colSpan={11} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
               ) : displayLeads.map(l => {
                 const c = สีขั้น(เลขขั้นแถว(l));
                 const followUp = needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays);
@@ -636,32 +641,24 @@ export default function HQLeadsPage() {
                 // ผลคือ React แยกสองแถวไม่ออก อาจสลับ/ซ้ำ/หายเวลาข้อมูลอัปเดต (ตารางลูกค้าแก้ถูกอยู่แล้ว)
                 return (
                   <ClickableRow key={`${l.dealerCode ?? ""}-${l.id}`} className="clickable" onActivate={() => setViewLead(l)} label={`เปิดรายละเอียดลูกค้าเป้าหมาย ${l.company}`}>
-                    <td style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY, whiteSpace: "nowrap" }}>{l.id}</td>
-                    {/* รหัส + ชื่อดีลเลอร์รวมเซลล์เดียว — เดิมแยก 2 คอลัมน์ทั้งที่เป็นข้อมูลตัวเดียวกัน กินที่ 228px */}
-                    <td title={DEALER_NAME.get(l.dealerCode ?? "") ?? ""} style={{ overflow: "hidden" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                        <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace", flexShrink: 0 }}>{l.dealerCode || "—"}</span>
-                        <span style={{ color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}</span>
+                    <td className="wrap">
+                      <div style={{ fontWeight: 700, color: "#1F2937", overflowWrap: "anywhere" }}>{l.company}</div>
+                      <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflowWrap: "anywhere" }}>{l.contact}</div>
+                      {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — รหัส + ชื่อ */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, flexWrap: "wrap" }} data-cell="dealer">
+                        <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{l.dealerCode || "—"}</span>
+                        <span style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflowWrap: "anywhere" }}>{DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}</span>
                       </div>
                     </td>
-                    <td title={l.company}>
-                      <div style={{ fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.company}</div>
-                      <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.contact}</div>
-                    </td>
-                    <td style={{ color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{l.province}</td>
-                    <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.source || "—"}</td>
-                    <td className="num" style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</td>
-                    <td style={{ color: "var(--muted-foreground)", fontSize: "0.76rem", whiteSpace: "nowrap" }}>{last}</td>
-                    <td>
-                      {followUp
-                        ? <span className="badge" style={{ background: "#fff3e6", color: "#d97706", whiteSpace: "nowrap" }}>ต้องติดตาม</span>
-                        : <span style={{ color: "#9ca3af" }}>—</span>}
-                    </td>
+                    <td className="wrap" style={{ color: "var(--muted-foreground)" }}>{l.province || "—"}</td>
+                    <td className="wrap" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }}>{l.source || "—"}</td>
+                    <td className="wrap" data-cell="project" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", overflowWrap: "anywhere" }}>{l.project || "—"}</td>
+                    <td className="num" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.area != null ? Number(l.area).toLocaleString() : "—"}</td>
                     {/* ── ปิดไม่สำเร็จ = ต้องเห็นเหตุผลจากหน้ารายการเลย (บอสสั่ง 21 ส.ค. 69) ──────
                         เดิมต้องเปิดแผงรายละเอียดทีละใบถึงจะรู้ว่าเสียงานเพราะอะไร
                         ⚠️ ใส่ไว้ใต้ป้ายสถานะ ไม่เพิ่มคอลัมน์ใหม่ — ตารางนี้เต็มความกว้างพอดีแล้ว
                            (ดูหมายเหตุที่ colgroup: เพิ่มคอลัมน์แล้วจะกลับมามีแถบเลื่อนแนวนอนอีก) */}
-                    <td>
+                    <td className="wrap">
                       <span className="badge" data-stage-label style={{ background: c.bg, color: c.text, whiteSpace: "nowrap" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</span>
                       {l.status === "CANCELLED" && (
                         <span title={l.lostReason || "ไม่ได้ระบุเหตุผล"}
@@ -670,6 +667,13 @@ export default function HQLeadsPage() {
                           {l.lostReason || "— ไม่ได้ระบุเหตุผล"}
                         </span>
                       )}
+                    </td>
+                    <td><LeadProgressBar l={l} มีใบร่าง={quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l))} /></td>
+                    <td className="num" style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</td>
+                    <td className="wrap"><AssigneeAvatars value={l.assigned} size={24} /></td>
+                    <td className="wrap" data-cell="activity">
+                      <span style={{ color: "var(--muted-foreground)", fontSize: "0.76rem", whiteSpace: "nowrap" }}>{last}</span>
+                      {followUp && <span className="badge" style={{ display: "table", marginTop: 3, background: "#fff3e6", color: "#d97706", whiteSpace: "nowrap" }}>ต้องติดตาม</span>}
                     </td>
                     <td onClick={e => e.stopPropagation()} style={ตรึงคอลัมน์ปุ่ม()}>
                       {/* ปุ่มไอคอนล้วน — ข้อความ "ดู" ซ้ำกับที่ไอคอนสื่ออยู่แล้ว · title/aria-label คงไว้ให้ screen reader */}
