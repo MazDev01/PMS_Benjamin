@@ -60,6 +60,8 @@ test("[D6] [ux·dealer] กดแถว → แผงดูใบในหน้
   expect(ยอด, "ตั้งต้น: (2×1,000 + 500) × 1.10").toBe(2750);
 
   await เปิดหน้า(page);
+  // ค้นด้วยเลขใบ — ตารางเรียงใหม่สุดก่อน ใบแรก (V1) ของชุดตกไปหน้า 2 (เจอจริงในรอบพิสูจน์) · ค้นเลขนี้เหลือ V1 + V2 หน้าเดียว
+  await ช่องค้นหา(page).fill(เลขV1);
   const แถว = page.locator("tbody tr").filter({ has: page.locator("[data-quote-no]", { hasText: new RegExp(`^${เลขV1}$`) }) }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await แถว.locator("td").first().click();
