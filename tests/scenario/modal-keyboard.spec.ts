@@ -54,7 +54,7 @@ test("[a11y] โมดัลเพิ่มผู้ใช้ HQ — Esc ปิ�
 test("[a11y] ฟอร์มข้อมูลดีลเลอร์ (HQ) — Esc ปิดได้ และประกาศตัวเป็นหน้าต่างซ้อน", async ({ page }) => {
   // ปุ่มแก้ไขย้ายจากแถวทะเบียนมาหน้ารายละเอียดดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · รอบ 2 ช่วง ข)
   await open(page, "hq", "/hq/dealers/RYG");
-  const editBtn = page.getByRole("button", { name: "แก้ไขข้อมูลดีลเลอร์" });
+  const editBtn = page.getByRole("button", { name: "แก้ไข", exact: true });
   await editBtn.waitFor({ state: "visible", timeout: 30_000 });
   await editBtn.click();
 

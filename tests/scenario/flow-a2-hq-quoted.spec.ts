@@ -51,7 +51,7 @@ async function แถวลีด(page: Page, company: string) {
   return page.locator("tbody tr").filter({ hasText: company }).first();
 }
 
-test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้ราคา HQ\" · ป้ายบนจอ · ตัวกรอง · ตัวเลขแดชบอร์ด ตรงกันทั้ง 3 ที่", async ({ page }) => {
+test("[D4] [H9] [ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้ราคา HQ\" · ป้ายบนจอ · ตัวกรอง · ตัวเลขแดชบอร์ด ตรงกันทั้ง 3 ที่", async ({ page }) => {
   expect(await สถานะ(ก.leadNum), "ฐาน: HQ ส่งใบแล้ว").toBe("HQ_QUOTED");
   expect(await สถานะ(เลขรอราคา), "ฐาน: ยังไม่ได้ใบ").toBe("HQ_PRICING");
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
@@ -63,18 +63,21 @@ test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้รา�
   const แถว = await แถวลีด(page, ได้ราคา);
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   // ป้ายในตาราง = ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมชื่อสถานะ "ได้ราคา HQ")
-  await expect(แถว.getByText("3 ได้ใบ HQ", { exact: true }), "ป้ายในแถว = ขั้น 3 ได้ใบ HQ").toBeVisible();
-  await expect(แถว.getByText("2 ขอราคา HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
+  await expect(แถว.getByText("ได้ใบ HQ", { exact: true }), "ป้ายในแถว = ขั้น 3 ได้ใบ HQ").toBeVisible();
+  await expect(แถว.getByText("ขอราคา HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
 
   // ตัวกรอง
-  const ตัวกรอง = page.getByRole("combobox", { name: "ทุกขั้นตอน" });
+  // ตัวกรองขั้นตอนเป็นกลุ่ม (บอสสั่ง 28 ต.ค. 69): กำลังดำเนินการ (ค่าเริ่มต้น ขั้น 1–5) · ปิดสำเร็จ · ปิดไม่สำเร็จ · ทั้งหมด
+  const ตัวกรอง = page.getByRole("combobox", { name: "ขั้นตอน", exact: true });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill("ZZTEST-");
-  await ตัวกรอง.selectOption({ label: "2 ขอราคา HQ" });
-  await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กรองรอราคา HQ: เห็นลีดที่ยังรอ").toHaveCount(1, { timeout: 15_000 });
-  await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กรองรอราคา HQ: ไม่เห็นลีดที่ได้ราคาแล้ว").toHaveCount(0);
-  await ตัวกรอง.selectOption({ label: "3 ได้ใบ HQ" });
-  await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กรองได้ราคา HQ: เห็น").toHaveCount(1, { timeout: 15_000 });
-  await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กรองได้ราคา HQ: ไม่เห็นลีดที่ยังรอ").toHaveCount(0);
+  await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กำลังดำเนินการ: เห็นลีดขั้น 2 (รอราคา)").toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กำลังดำเนินการ: เห็นลีดขั้น 3 (ได้ใบ HQ)").toHaveCount(1);
+  await expect(page.locator("tbody tr").filter({ hasText: รอราคา }).getByText("ขอราคา HQ", { exact: true }), "ลีดที่ยังรอ = ป้ายขั้น 2 ขอราคา HQ").toBeVisible();
+  await ตัวกรอง.selectOption({ label: "ปิดไม่สำเร็จ" });
+  await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "ปิดไม่สำเร็จ: ไม่เห็นลีดที่ยังเปิด").toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "ปิดไม่สำเร็จ: ไม่เห็นลีดที่ยังเปิด").toHaveCount(0);
+  await ตัวกรอง.selectOption({ label: "ทั้งหมด" });
+  await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "ทั้งหมด: เห็นอีกครั้ง").toHaveCount(1, { timeout: 15_000 });
 
   // ตัวเลขแดชบอร์ด (โดนัทขั้นตอนการขาย) = นับจากฐาน
   //   ลีด RYG ถูกข้ออื่นที่รันขนานเพิ่ม/ลบได้ตลอด (ตก 26 ต.ค. 69: 8 กับ 7 · ไม่นิ่ง 21 ต.ค. 69) — นับฐานก่อนเปิดหน้า + หลังอ่านจอ
@@ -87,7 +90,7 @@ test("[ก2·1] HQ ส่งใบ → ฐานเป็น \"ได้รา�
     const มีร่าง = new Set((ร่าง ?? []).map(q => Number(q.deal_id)));
     return (ลีด ?? []).filter(l => !มีร่าง.has(Number(l.num_id))).length;
   };
-  for (const [ป้าย, s] of [["3 ได้ใบ HQ", "HQ_QUOTED"], ["2 ขอราคา HQ", "HQ_PRICING"]] as const) {
+  for (const [ป้าย, s] of [["ได้ใบ HQ", "HQ_QUOTED"], ["ขอราคา HQ", "HQ_PRICING"]] as const) {
     let ได้ = false;
     for (let รอบ = 0; รอบ < 5 && !ได้; รอบ++) {
       const ก่อน = await นับ(s);
@@ -112,13 +115,20 @@ test("[ก2·2] แผงลีด: ไม่มีช่องเลือก�
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
   const แถว = await แถวลีด(page, ได้ราคา);
   await แถว.locator("td").first().click();
-  await expect(page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }), "แถบขั้นต่อไปมีปุ่มทำใบ").toHaveCount(1, { timeout: 15_000 });
+  // ปุ่มทำใบ (ไม่นับปุ่มพับ/กางหัวขั้น "ทำใบให้ลูกค้า" ของงานในแต่ละขั้น · aria-expanded · 28 ต.ค. 69)
+  const ปุ่มทำใบ = page.locator("button:not([aria-expanded])").filter({ hasText: /ทำใบให้ลูกค้า/ });
+  await expect(page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ทำใบให้ลูกค้า/ }), "แถบขั้นต่อไปมีปุ่มทำใบ").toHaveCount(1, { timeout: 15_000 });
+  await expect(ปุ่มทำใบ, "ปุ่มทำใบมีที่เดียว").toHaveCount(1);
   await expect(page.getByRole("combobox", { name: "สถานะลูกค้าเป้าหมาย" }), "ไม่มีช่องเลือกสถานะในแท็บภาพรวม").toHaveCount(0);
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await expect(page.getByRole("button", { name: /ทำใบเสนอราคาจากใบ HQ|แก้ใบเสนอราคา/ }), "แท็บใบเสนอราคาไม่มีปุ่มทำใบซ้ำ").toHaveCount(0);
-  await expect(page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }), "ปุ่มทำใบยังมีที่เดียว").toHaveCount(1);
-  // รอบ 4: แท็บงานยุบเข้า "ประวัติ" (รายการเตือน)
-  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
+  await expect(ปุ่มทำใบ, "ปุ่มทำใบยังมีที่เดียว").toHaveCount(1);
+  // งานในแต่ละขั้นอยู่แท็บภาพรวม (บอสสั่ง 28 ต.ค. 69) — กางทุกขั้นก่อนหา
+  await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();
+  await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 10_000 });
+  // กางทีละปุ่มจนไม่เหลือ — กางแล้วรายการเปลี่ยน (จับรายการไว้ก่อนแล้ววน = ปุ่มลำดับถัดไปหาย)
+  const พับอยู่ = page.locator("[data-lead-tasks] button[aria-expanded='false']");
+  for (let i = 0; i < 10 && await พับอยู่.count(); i++) await พับอยู่.first().click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
   const งานระบบ = page.locator("[data-auto-task='1']");
   await expect(งานระบบ.first(), "มีงานที่ระบบติ๊กเอง").toBeVisible({ timeout: 10_000 });
   for (const b of await งานระบบ.all()) await expect(b, "งานที่ระบบติ๊กเองกดไม่ได้").toBeDisabled();

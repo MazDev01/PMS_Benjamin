@@ -45,7 +45,7 @@ test.afterAll(async () => {
   await ล้าง();
 });
 
-test("[hq] โอนลูกค้าเป้าหมายของ HQ: ยืนยันเป็นชุด (ดีลเลอร์รายเดียว) · เลือกเองเมื่อทับซ้อน · คิวรอไม่โอน", async ({ page }) => {
+test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ: ยืนยันเป็นชุด (ดีลเลอร์รายเดียว) · เลือกเองเมื่อทับซ้อน · คิวรอไม่โอน", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });

@@ -71,6 +71,18 @@ function โฟลเดอร์() { const d = mkdtempSync(join(tmpdir(), "flak
   rmSync(d, { recursive: true, force: true });
 }
 
+// 4ข) ติดรหัสขั้น [D3]/[H9x] นำหน้าชื่อข้อภายหลัง (check-flow-step-tests · 28 ต.ค. 69) → ยังเป็นข้อเดิม ประวัติไม่หลุด
+{
+  const d = โฟลเดอร์();
+  writeFileSync(join(d, "tests/flaky-log.txt"), [1, 2].map(i => `ไม่นิ่ง | 2026-10-0${i} | ร${i} | ${keyA}`).join("\n") + "\n");
+  const r = รายงาน(d, "r", [[{ file: ข้อA.file, title: `[D3] [H9x] ${ข้อA.title}` }, "flaky"]]);
+  ผล(ตัวนับ.ตรวจไม่นิ่งท้ายรอบ([r], { รอบ: "ร3", วันที่: "2026-10-03", cwd: d, ...เงียบ }) && ตัวนับ.สรุป(d).get(keyA)?.ครั้ง === 3,
+    "ชื่อข้อติดรหัสขั้นแล้ว: นับต่อจากประวัติเดิม (ครั้งที่ 3 กัน)", JSON.stringify([...ตัวนับ.สรุป(d)]));
+  appendFileSync(join(d, "tests/flaky-log.txt"), `ต้นเหตุ | 2026-10-03 | a.spec.ts › [D3] ${ข้อA.title} | แก้แล้ว\n`);
+  ผล(!ตัวนับ.ตรวจไม่นิ่งท้ายรอบ([], { รอบ: "ร4", cwd: d, ...เงียบ }), "บรรทัดต้นเหตุที่พิมพ์ชื่อพร้อมรหัสขั้น นับเป็นข้อเดียวกัน");
+  rmSync(d, { recursive: true, force: true });
+}
+
 // 5) ไฟล์จริงของ repo อ่านได้ทุกบรรทัด (ไม่มีบรรทัดผิดรูปแบบที่ตัวนับข้ามเงียบ ๆ)
 {
   const บรรทัด = readFileSync(join(ราก, "tests/flaky-log.txt"), "utf8").split(/\r?\n/).filter(l => l && !l.startsWith("#"));

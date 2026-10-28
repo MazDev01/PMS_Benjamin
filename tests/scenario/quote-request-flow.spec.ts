@@ -95,7 +95,9 @@ test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอ
   expect((await admin.from("quote_requests").select("product").eq("id", ridใหม่).single()).data?.product, "งานที่พิมพ์ต้องลงฐาน").toBe("โกดังเก็บสินค้า");
   expect(await อีเมล("request_new"), "อีเมลคำขอใหม่ถึง HQ (ตารางกลาง H1 · ใบ 0231)").toBe(1);
   // ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ (เมนูขั้นบอกเหตุผล)
-  await expect(page.locator("text=รอราคา HQ >> visible=true").first(), "หน้าจอแสดงขั้น รอราคา HQ ทันที (ไม่ต้องรีเฟรช)").toBeVisible({ timeout: 15_000 });
+  // ขั้นที่อยู่ตอนนี้ในแถบ 5 ขั้น = "ขอราคา HQ" (ชื่อขั้นจากตัวกลาง · เดิมป้ายสถานะ "รอราคา HQ") — ต้องเปลี่ยนทันทีไม่ต้องรีเฟรช
+  await expect(page.getByRole("list", { name: "ขั้นตอนการขาย" }).locator('li[aria-current="step"]').filter({ visible: true }).first(),
+    "หน้าจอแสดงขั้น ขอราคา HQ ทันที (ไม่ต้องรีเฟรช)").toContainText("ขอราคา HQ", { timeout: 15_000 });
   assertNoErrors(errs, "ส่งคำขอราคา");
 });
 
@@ -128,7 +130,7 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   assertNoErrors(errs, "กล่องงานคำขอของ HQ");
 });
 
-test("[flow·dealer] ยกเลิกคำขอ ต้องมีเหตุผล → ลูกค้าเป้าหมายกลับรวบรวมความต้องการ · อีเมลถึง HQ (แถว 6)", async ({ page }) => {
+test("[D3x] [flow·dealer] ยกเลิกคำขอ ต้องมีเหตุผล → ลูกค้าเป้าหมายกลับรวบรวมความต้องการ · อีเมลถึง HQ (แถว 6)", async ({ page }) => {
   const errs = watchErrors(page);
   const แผง = await เปิดแท็บใบเสนอราคา(page);
   await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();

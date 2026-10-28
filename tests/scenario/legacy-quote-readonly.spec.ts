@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 import { settle } from "./helpers";
@@ -37,7 +37,7 @@ test("[func·dealer] ใบเดิมที่ไม่มีใบ HQ: ไม
 
   // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — กดแถวพาไปแผงลีด/แผงลูกค้าของใบนั้น (ที่เดียวที่ดู/พิมพ์ใบได้)
   //   ใบเดิมยังดูและพิมพ์ได้ในแผงนั้น และไม่มีปุ่มแก้ · ลบ · ส่ง · ทำสำเนา · เปลี่ยนสถานะ
-  await แถว.locator("td").nth(1).click();
+  await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads|\/customers/, { timeout: 25_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 25_000 });
   const ใบในแผง = page.locator(`[data-quote-item="${ใบ}"]`);

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
-import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, นำเข้าลูกค้าหนึ่งราย } from "./funcHelpers";
+import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, นำเข้าลูกค้าหนึ่งราย, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
@@ -72,14 +72,14 @@ test("[ง] ใบเสนอราคา: หน้าแก้ใบแก้
   const แถว = page.locator("tbody tr").filter({ hasText: เลขใบลูกค้า }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   // รอบ 4: กดแถวในหน้าใบเสนอราคา → แผงลีดของใบนั้น (ที่เดียวที่ดู/แก้ใบได้)
-  await แถว.locator("td").nth(1).click();
+  await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads/, { timeout: 25_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 25_000 });
   const ใบ = page.locator(`[data-quote-item="${เลขใบลูกค้า}"]`);
   await expect(ใบ).toBeVisible({ timeout: 20_000 });
   // หน้าดูใบ: ไม่มีการ์ดประวัติต่อรองราคา
   await ใบ.getByTitle("ดู", { exact: true }).click();
-  await expect(page.getByText(เลขใบลูกค้า).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(เลขใบลูกค้า).filter({ visible: true }).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("ประวัติการต่อรองราคา"), "ไม่มีการ์ดประวัติต่อรองราคา (ไม่มีส่วนลดแล้ว)").toHaveCount(0);
   await page.getByRole("button", { name: "กลับ" }).click();
   // หน้าแก้ใบ (ฟอร์มในแผงลีด): สถานะ/วันที่ไม่มีช่องให้แก้ · วันหมดอายุแสดงอย่างเดียว · รายการแก้ได้เฉพาะ %

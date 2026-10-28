@@ -18,7 +18,7 @@ const ADDRESS = "99/1 ถ.นิมมานเหมินท์ ต.สุเ�
 test.beforeAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 test.afterAll(async () => { await cleanup(await db(RYG), "RYG", NS); });
 
-test("[func] กรอกที่อยู่ตอนเพิ่มลูกค้าเป้าหมาย → บันทึกลงระบบจริง", async ({ page }) => {
+test("[D2] [func] กรอกที่อยู่ตอนเพิ่มลูกค้าเป้าหมาย → บันทึกลงระบบจริง", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });

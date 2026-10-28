@@ -41,6 +41,8 @@ async function เปิดลีด(page: Page, company: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  // ข้อในไฟล์นี้เปิดลีดที่ปิดแล้วด้วย — ตัวกรองขั้นตอนค่าเริ่มต้นซ่อนลีดปิดแล้ว (บอสสั่ง 28 ต.ค. 69) จึงเลือก "ทั้งหมด"
+  await page.getByLabel("ขั้นตอน", { exact: true }).selectOption({ label: "ทั้งหมด" });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   await page.locator("tbody tr").filter({ hasText: company }).first().locator("td").first().click();
   await expect(page.locator("[data-panel='next-step']:not([aria-busy])")).toBeVisible({ timeout: 20_000 });
@@ -100,7 +102,7 @@ test("ข้อ 2 · ป้ายสถานะในตารางกดแ�
   expect(await การ์ด.getAttribute("draggable")).toBeNull();
 });
 
-test("ข้อ 3 · ปิดไม่สำเร็จที่กล่อง (ขั้น 1) → ลีดปิดพร้อมเหตุผล · ขั้น 2 = ยกเลิกคำขอให้ด้วย", async ({ page }) => {
+test("[D8y] ข้อ 3 · ปิดไม่สำเร็จที่กล่อง (ขั้น 1) → ลีดปิดพร้อมเหตุผล · ขั้น 2 = ยกเลิกคำขอให้ด้วย", async ({ page }) => {
   const ก = ชื่อ("ปิดขั้น1"); const n1 = await ลีดเปล่า("WAITING", ก);
   const ข = ชื่อ("ปิดขั้น2"); const n2 = await ลีดเปล่า("BULLET", ข); const rid = await ขอราคา(n2);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);

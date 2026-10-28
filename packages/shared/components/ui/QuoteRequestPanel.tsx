@@ -21,6 +21,8 @@ import {
   ยอดบรรทัด, ป้ายได้ราคาแล้ว,
 } from "@pms/shared/lib/quoteRequests";
 import type { LeadRow } from "@pms/shared/lib/mock";
+// ชื่อขั้นจากแหล่งเดียว (leadStage.ts) — เดิมพิมพ์ชื่อสถานะเก่า "ติดต่อแล้ว/รวบรวมความต้องการ" ไม่ตรงแถบ 5 ขั้น (บอสสั่ง 28 ต.ค. 69)
+import { ชื่อขั้นการขาย } from "@pms/shared/lib/leadStage";
 import { ช่องขอราคา, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
 import { MaterialEstimatePicker, type วัสดุที่เลือก } from "@pms/shared/components/ui/MaterialEstimatePicker";
 import { ป้ายราคาประเมิน } from "@pms/shared/lib/materialTemplates";
@@ -183,7 +185,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
       ) : (
         <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>
           {ขอได้ ? "ยังไม่ได้ขอราคา — ส่งคำขอพร้อมชื่องานและสเปก สำนักงานใหญ่ทำ BOQ และส่งใบ HQ ภายใน 14 วัน"
-                 : lead.status === "HQ_PRICING" ? "กำลังโหลดคำขอ…" : "ขอราคาจาก HQ ได้ในขั้นติดต่อแล้ว หรือรวบรวมความต้องการ"}
+                 : lead.status === "HQ_PRICING" ? "กำลังโหลดคำขอ…" : `ขอราคาจาก HQ ได้ในขั้น “${ชื่อขั้นการขาย[0]}”`}
           {/* ปุ่ม "ขอราคาจาก HQ" อยู่ในกล่องขั้นต่อไปที่เดียว (รอบ 4) — กดแล้วฟอร์มเปิดที่นี่ */}
           {ขอได้ && โหมด === "ดู" && " · กด “ขอราคาจาก HQ” ที่กล่องขั้นต่อไปด้านบน"}
         </div>

@@ -426,7 +426,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         {/* รายการใบเสนอราคา — ชื่อเอกสาร + รายการจากใบ HQ (แก้ได้เฉพาะ % ที่บวก) */}
         <div style={secLabel}><FileText size={12} color="#003366" /> รายการใบเสนอราคา</div>
         <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>ชื่อโครงการ / เอกสาร</label>
+          <label style={lbl}>{ช่อง.งาน}</label>{/* ชุดช่องมาตรฐาน (ตารางเทียบ FLOW รอบ 5 แถว D11 · เดิม "ชื่อโครงการ / เอกสาร") */}
           <input value={form.project} onChange={e => set("project", e.target.value)} readOnly={ฉบับใหม่} style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} placeholder="เช่น โกดังเก็บสินค้าเกษตร — บจ. ..." />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
             <div><label style={lbl} htmlFor="q-province">{ช่อง.จังหวัด}</label>
@@ -588,7 +588,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
 
         {/* ชื่อโครงการ/เอกสาร (อ่านอย่างเดียว) — แม่แบบแสดงเป็นแท็กเล็กใต้ชื่อ (มาจากรายการ BOQ) */}
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>ชื่อโครงการ / เอกสาร</div>
+          <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>{ช่อง.งาน}</div>
           <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#2D2D2D" }}>{q.project}</div>
           {q.buildingType && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 6, padding: "2px 9px", borderRadius: 999, background: "#eef4fb", color: "#003366", fontSize: "0.66rem", fontWeight: 700 }}>
@@ -630,7 +630,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         {/* วันหมดอายุ / ยอดสุทธิ / หมายเหตุ */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
           <div><div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>วันหมดอายุ</div>
-            <div style={{ fontSize: "0.85rem", color: "#2D2D2D" }}>{q.expiry || "—"}</div></div>
+            <div style={{ fontSize: "0.85rem", color: "#2D2D2D" }}>{q.expiry ? fmtISOToThai(q.expiry) : "—"}</div></div>{/* พ.ศ. (ตารางเทียบ FLOW รอบ 5 แถว D11) */}
           <div data-quote-totals style={{ gridColumn: "1/-1", display: "flex", flexDirection: "column", gap: 6, background: "#f7f9fc", border: "1px solid #eef0f4", borderRadius: 10, padding: "10px 12px" }}>
             {([
               ["ยอดรวมย่อย (ก่อน VAT)", fmtFull(ภาษีใบ.subtotal), {}],
@@ -706,7 +706,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                         title="ฉบับที่เท่าไรของใบนี้ — แก้ใบที่ส่งไปแล้วจะขึ้นฉบับใหม่">{q.revision ?? "V1"}</span>
                       <span className="badge" style={{ background: c.bg, color: c.text, fontSize: "0.65rem" }}>{quotationStatusLabel[q.status]}</span>
                     </div>
-                    <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{q.date} · {fmtBaht(q.totalValue)}</div>
+                    {/* วันที่ พ.ศ. (ตารางเทียบ FLOW รอบ 5 แถว D10 · เดิมขึ้น 2026-05-10) */}
+                    <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{q.date ? วันไทยสั้น(q.date) : "—"} · {fmtBaht(q.totalValue)}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {/* ส่งใบเสนอราคา — เด่นเป็นปุ่ม navy · แสดงเฉพาะใบที่ยังส่งได้ (ร่าง/ส่งแล้ว) · ซ่อนเมื่อดูอย่างเดียว */}

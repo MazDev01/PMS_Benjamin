@@ -114,7 +114,7 @@ async function การ์ด(page: Page) {
   return JSON.parse(ก่อน) as Record<string, string>;
 }
 
-test("[แดชบอร์ด HQ] การ์ด 4 ใบตรงกับการนับจากตาราง · ช่วงเวลา/ดีลเลอร์เปลี่ยนตัวเลขจริง · ยอดขายตามวันตอบรับ", async ({ page }) => {
+test("[H12] [แดชบอร์ด HQ] การ์ด 4 ใบตรงกับการนับจากตาราง · ช่วงเวลา/ดีลเลอร์เปลี่ยนตัวเลขจริง · ยอดขายตามวันตอบรับ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
   await เปิด(page);

@@ -182,7 +182,7 @@ test("[flow·hq] margin: HQ เห็นต้นทุน · % · ราคา�
   assertNoErrors(errs, "margin ฝั่ง HQ");
 });
 
-test("[flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเสธ: won → PAID · ใบ HQ สั่งผลิต · ราคาล็อก | lost → CANCELLED + เหตุผล", async ({ page }) => {
+test("[D8x] [flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเสธ: won → PAID · ใบ HQ สั่งผลิต · ราคาล็อก | lost → CANCELLED + เหตุผล", async ({ page }) => {
   const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
   test.skip(!q10 || q10.status !== "sent_to_client", "ข้อก่อนหน้าไม่ผ่าน");
   // รอบ 4: ลูกค้าตอบรับ/ปฏิเสธ = ปุ่มที่ใบในแท็บใบเสนอราคาของแผงลีดที่เดียว (หน้าใบเสนอราคาเหลือรายการอย่างเดียว)

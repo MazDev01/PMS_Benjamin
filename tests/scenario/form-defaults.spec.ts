@@ -29,7 +29,7 @@ test("[ui·dealer] ลงนัด: ปฏิทินไม่มีปุ่�
     await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ);
     await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
-    await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
+    await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();   // นัดหมาย/ไฟล์อยู่แท็บภาพรวม (28 ต.ค. 69)
     await page.getByRole("button", { name: /เพิ่มนัดหมาย/ }).click();
     const ประเภท = page.getByLabel("ประเภทนัดหมาย");
     await expect(ประเภท).toBeVisible({ timeout: 15_000 });

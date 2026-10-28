@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-28 13:26:29",
- "รอบ": "2026-10-28-12-34-41",
- "จำนวน": 250,
+ "บันทึกเมื่อ": "2026-10-28 16:14:17",
+ "รอบ": "2026-10-28-15-50-49",
+ "จำนวน": 255,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -253,6 +253,11 @@
   "0248_quote_events_timeline_in_db.sql": "526940fc4cde34a8fc2f8f7d2d9c43a282e05999b684f27db410876ab47aee88",
   "0249_quote_board_status_select.sql": "c5acfcd0ddbfbce43f45cbfa588682cc100fdfa104d774adaa6d20a97011a248",
   "0250_lead_tasks_five_steps.sql": "37b5573b2b252abeda80b17b7f85ef8a9815ab5f2e1c96ebe6b91ceeb6840d72",
-  "0251_lead_stage_no.sql": "dd67a7fcbb844bf7c96632b64c1b778325db3258df4b6444d648c2277205ec0d"
+  "0251_lead_stage_no.sql": "dd67a7fcbb844bf7c96632b64c1b778325db3258df4b6444d648c2277205ec0d",
+  "0252_won_quote_lead_paid.sql": "ee61e129b2ac93ee892814f9f4a8a22e3d78d993a0f05234aa53ca56933c5611",
+  "0253_calendar_overdue_excludes_cancelled.sql": "533618be3e4e8bd34caa29e16e2fa1b3a5221655fb6101e15b326fbaa7e84a28",
+  "0254_hq_customer_total_from_won_quotes.sql": "403d34d26f67bfe61171d267753d8f8188961f883704f366cbe2181b9e105b8f",
+  "0255_territory_on_province_fix.sql": "9425ed6d93108c3077a86d413ae43b5ea287264390d545e0f4739492a66d4b72",
+  "0256_lead_new_step1_open_filter.sql": "c7094387b0d4934a69ee24ddefba3b6ca55fddb6a4a0f5a94ac1f2c414e4948d"
  }
 }

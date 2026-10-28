@@ -39,7 +39,9 @@ test("[func·dealer] บันทึกนัดหมาย → ระบบต
     // รอบ 4: รายการเตือน (งาน) + นัดหมาย อยู่ในแท็บ "ประวัติ" แท็บเดียว — งานนัดหมายเป็นช่องที่ระบบติ๊กให้
     const งานนัด = page.locator('[role="checkbox"][data-auto-task]').filter({ hasText: "นัดหมาย" }).first();
     // ก่อนลงนัด: งานนัดหมายต้องยังไม่ถูกติ๊ก
-    await กดแท็บ(page, "ประวัติ", /รายการเตือน/);
+    await กดแท็บ(page, "ภาพรวม", /งานในแต่ละขั้น/);   // งานในแต่ละขั้น + นัดหมาย อยู่แท็บภาพรวม (28 ต.ค. 69)
+    for (let i = 0, พับ = page.locator("[data-lead-tasks] button[aria-expanded='false']"); i < 5 && await พับ.count(); i++) await พับ.first().click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
+
     await expect(งานนัด).toBeVisible({ timeout: 20_000 });
     await expect(งานนัด, "ยังไม่มีนัด ห้ามติ๊กมาก่อน").toHaveAttribute("aria-checked", "false");
 

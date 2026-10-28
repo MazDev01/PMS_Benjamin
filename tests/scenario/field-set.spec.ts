@@ -61,10 +61,12 @@ test("[ui·dealer] ฟอร์มเพิ่มลีด: 3 กลุ่ม �
   await expect(ฟอร์ม).toBeVisible({ timeout: 15_000 });
   const กลุ่ม = await ฟอร์ม.locator(".form-section").allInnerTexts();
   expect(กลุ่ม.map(s => s.trim()), "3 กลุ่มตามลำดับ").toEqual([กลุ่มช่อง.ลูกค้า, กลุ่มช่อง.งาน, กลุ่มช่อง.การดูแล]);
-  for (const ป้าย of [`${ช่อง.บริษัท} *`, `${ช่อง.ผู้ติดต่อ} *`, `${ช่อง.โทรศัพท์} *`, ช่อง.อีเมล, ช่อง.ที่อยู่, `${ช่อง.จังหวัด} *`, ช่อง.งาน, ช่อง.พื้นที่, ช่อง.สเปก, ช่อง.ขั้นตอน, ช่อง.ผู้รับผิดชอบ, ช่อง.ช่องทาง])
+  for (const ป้าย of [`${ช่อง.บริษัท} *`, `${ช่อง.ผู้ติดต่อ} *`, `${ช่อง.โทรศัพท์} *`, ช่อง.อีเมล, ช่อง.ที่อยู่, `${ช่อง.จังหวัด} *`, ช่อง.งาน, ช่อง.พื้นที่, ช่อง.สเปก, ช่อง.ผู้รับผิดชอบ, ช่อง.ช่องทาง])
     await expect(ฟอร์ม.locator("label").filter({ hasText: new RegExp(`^${ป้าย.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}$`) }), `ช่อง "${ป้าย}"`).toHaveCount(1);
   await expect(ฟอร์ม.getByRole("button", { name: /อัปโหลดรูป|เปลี่ยนรูป/ }), "ไม่มีอัปโหลดโลโก้").toHaveCount(0);
-  await expect(ฟอร์ม.getByRole("combobox", { name: "ขั้นตอน" }).locator("option"), "ขั้นตอน 2 ตัวเลือก (D2)").toHaveCount(2);
+  // ไม่มีช่องขั้นตอนในฟอร์ม (บอสสั่ง 28 ต.ค. 69 · FLOW D2) — ลีดใหม่อยู่ขั้นข้อมูลลูกค้าเสมอ ฐานตั้งเอง (ใบ 0256)
+  await expect(ฟอร์ม.locator("label").filter({ hasText: /^ขั้นตอน$/ }), "ไม่มีช่องขั้นตอน (D2)").toHaveCount(0);
+  await expect(ฟอร์ม.getByRole("combobox", { name: "ขั้นตอน" }), "ไม่มีช่องเลือกขั้นตอน (D2)").toHaveCount(0);
   // จังหวัดหน้างานอยู่หลังหัวกลุ่มข้อมูลงาน (ไม่ใช่ในข้อมูลลูกค้า)
   const ลำดับ = await ฟอร์ม.locator(".form-section, label").allInnerTexts();
   expect(ลำดับ.indexOf(`${ช่อง.จังหวัด} *`), "จังหวัดหน้างานอยู่กลุ่มข้อมูลงาน").toBeGreaterThan(ลำดับ.indexOf(กลุ่มช่อง.งาน));
@@ -119,7 +121,7 @@ test("[flow·hq] หัวใบ HQ แสดงข้อมูลลูกค�
   await expect(กล่อง.locator("[data-info='province']")).toContainText(ช่อง.จังหวัด);
 });
 
-test("[flow·dealer] D8 ลูกค้าตอบรับ: ลูกค้าที่สร้างได้ผู้ติดต่อ/โทร/อีเมล/ที่อยู่/จังหวัดตรงกับลีด", async ({ page }) => {
+test("[D8] [flow·dealer] D8 ลูกค้าตอบรับ: ลูกค้าที่สร้างได้ผู้ติดต่อ/โทร/อีเมล/ที่อยู่/จังหวัดตรงกับลีด", async ({ page }) => {
   await สร้างลีด("ตอบรับ");
   const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(RYG, "RYG", เลข.ตอบรับ);
   const q = await ทำใบลูกค้าจากใบHQ(RYG, ใบ, { customer: ชื่อ("ตอบรับ"), markupPercent: 10, status: "sent_to_client" });

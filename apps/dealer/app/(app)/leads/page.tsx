@@ -17,7 +17,8 @@ import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
-import { ขั้นของลีด, ชื่อขั้นการขาย, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, ตัวเลือกขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
@@ -124,17 +125,31 @@ function fmtมูลค่าเต็ม(n: number | null) {
 
 // ขั้นของลีด สำหรับตาราง/บอร์ด — ชื่อและสีจากตัวกลาง lib/leadStage.ts ที่เดียว (บอสสั่ง 27 ต.ค. 69 · ตรงกับแถบ 5 ขั้นในแผงลีด)
 //   เดิมคอลัมน์ "ขั้นตอน" แสดงชื่อสถานะภายใน (รอราคา HQ · เสนอราคา ฯลฯ) แยกจากคอลัมน์ "ขั้น" — รวมเป็นคอลัมน์เดียวแล้ว
-function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
+//   ตาราง: ป้ายขั้น (คอลัมน์ "ขั้นตอน") กับแถบ (คอลัมน์ "ความคืบหน้า") แยกคอลัมน์ (บอสสั่ง 28 ต.ค. 69) · การ์ดบอร์ดซ้อนสองอย่างไว้ด้วยกัน
+function ป้ายขั้นลีด({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
   const n = เลขขั้นของลีด(l.status, มีใบร่าง);
-  const ข้อความ = ชื่อขั้น(n);
+  const สี = สีขั้น(n);
+  return (
+    <span className="badge" data-stage-label data-stage-no={n} title={ชื่อขั้น(n)}
+      style={{ background:สี.bg, color:สี.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap", alignSelf:"flex-start" }}>{ชื่อขั้น(n)}</span>
+  );
+}
+function แถบความคืบหน้า({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
+  const n = เลขขั้นของลีด(l.status, มีใบร่าง);
   const เต็ม = n === 6 ? 5 : n === 7 ? 0 : n;
   const สี = สีขั้น(n);
   return (
-    <div data-mini-stage data-stage-no={n} title={ข้อความ} style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
-      <span className="badge" data-stage-label style={{ background:สี.bg, color:สี.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap", alignSelf:"flex-start" }}>{ข้อความ}</span>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:2, maxWidth:120 }}>
-        {[1,2,3,4,5].map(k => <span key={k} style={{ height:4, borderRadius:99, background: k <= เต็ม ? สี.bar : "#e5e7eb" }} />)}
-      </div>
+    <div role="img" aria-label={`ความคืบหน้า ${เต็ม} จาก 5 ขั้น`} title={`${เต็ม} จาก 5 ขั้น`}
+      style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:2, maxWidth:120 }}>
+      {[1,2,3,4,5].map(k => <span key={k} style={{ height:4, borderRadius:99, background: k <= เต็ม ? สี.bar : "#e5e7eb" }} />)}
+    </div>
+  );
+}
+function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
+  return (
+    <div data-mini-stage style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
+      <ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่าง} />
+      <แถบความคืบหน้า l={l} มีใบร่าง={มีใบร่าง} />
     </div>
   );
 }
@@ -330,11 +345,12 @@ function OverviewEditor({ lead, persons, onSave }: {
         <div style={OV_GROUP_FIRST}>{กลุ่มช่อง.ลูกค้า}</div>
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <Building2 size={14} color="#94a3b8" style={{ flexShrink:0 }} />
-          <span style={cellLbl}>{ช่อง.บริษัท}</span>
+          {/* ดาว * ตรงกับฟอร์มเพิ่มลีด (ช่องบังคับลีด · ผลตรวจ FLOW รอบ 5 · 28 ต.ค. 69) */}
+          <span style={cellLbl}>{ป้ายบังคับ("บริษัท")}</span>
           <span style={{ flex:1, minWidth:0 }}><input aria-label="ชื่อบริษัท" value={f.company} onChange={e=>set("company",e.target.value)} style={inp} /></span>
         </div>
-        <Cell icon={User}    label={ช่อง.ผู้ติดต่อ}><input aria-label="ชื่อผู้ติดต่อ" value={f.contact} onChange={e=>set("contact",e.target.value)} style={inp} /></Cell>
-        <Cell icon={Phone}   label={ช่อง.โทรศัพท์}><input inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Cell>
+        <Cell icon={User}    label={ป้ายบังคับ("ผู้ติดต่อ")}><input aria-label="ชื่อผู้ติดต่อ" value={f.contact} onChange={e=>set("contact",e.target.value)} style={inp} /></Cell>
+        <Cell icon={Phone}   label={ป้ายบังคับ("โทรศัพท์")}><input inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Cell>
         <Cell icon={Mail}    label={ช่อง.อีเมล}><input aria-label={ช่อง.อีเมล} value={f.email} onChange={e=>set("email",e.target.value)} type="email" style={inp} /></Cell>
         {/* ⚠️ ทุกช่องเลือกในแผงนี้ต้องมีตัวเลือก "ยังไม่ระบุ" (บั๊กจริง พบ 10 ส.ค. 69)
             ค่าจริงเป็นว่างได้ทุกช่อง แต่ถ้าไม่มีตัวเลือกว่างให้ตรง เบราว์เซอร์จะโชว์ตัวเลือกแรกแทน
@@ -376,7 +392,8 @@ function OverviewEditor({ lead, persons, onSave }: {
         <Cell icon={Users}   label={ช่อง.ผู้รับผิดชอบ}>
           <select aria-label={ช่อง.ผู้รับผิดชอบ} value={f.assigned} onChange={e=>set("assigned",e.target.value)} style={inp}>
             <option value="">— ยังไม่มอบหมาย —</option>
-            {persons.map(x=><option key={x}>{x}</option>)}
+            {/* ชื่อที่ลีดใช้อยู่แต่ไม่อยู่ในรายชื่อ (ลบออกจากตั้งค่า/ข้อมูลนำเข้า) → แทรกเป็นตัวเลือก ห้ามขึ้น "ยังไม่มอบหมาย" ทั้งที่มีคนรับผิดชอบ */}
+            {[...(f.assigned && !persons.includes(f.assigned) ? [f.assigned] : []), ...persons].map(x=><option key={x}>{x}</option>)}
           </select>
         </Cell>
         {f.status === "CANCELLED" && (
@@ -536,7 +553,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       phone: form.phone, email: form.email,
       province: form.province, address: form.address.trim() || undefined,
       // แม่แบบเอาออกทั้งระบบ (16 ต.ค. 69) — ไม่อ่านช่องแม่แบบ: แก้ของเดิมคงค่าเดิมผ่าน ...initial · ใหม่ใส่ค่าว่างข้างล่าง
-      status: form.status, assigned: form.assigned,
+      // ลีดใหม่ = ขั้นข้อมูลลูกค้าเสมอ (ไม่มีช่องขั้นตอนในฟอร์ม · ฐานตั้งเอง ใบ 0256) · แก้ไข = คงขั้นเดิม
+      status: (isEdit && initial ? initial.status : "WAITING") as LeadStatus, assigned: form.assigned,
       source: form.source, note: form.note,
       project: form.project.trim() || undefined,   // ไม่กรอก = ไม่มีข้อมูล (หน้าจอขึ้น "—") ห้ามเติมค่าเดา
       logo: form.logo || undefined,
@@ -664,20 +682,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
 
               {/* ── การดูแล ── */}
               <div className="form-section">{กลุ่มช่อง.การดูแล}</div>
-              <div>
-                <label style={labelStyle}>{ช่อง.ขั้นตอน}</label>
-                {/* เลือกได้เฉพาะขั้นก่อน "เสนอราคา" — ขั้นเสนอราคาขึ้นไปเลื่อนอัตโนมัติเมื่อมีใบเสนอราคา
-                    aria-label: ชื่อเดียวกับ label — กันสับสนกับ dropdown "ทุกสถานะ" บนแถบเครื่องมือที่มีครบทุกขั้น */}
-                {/* ต้องมีค่าเสมอ — งานขายต้องเริ่มที่ขั้นใดขั้นหนึ่งเสมอ */}
-                {/* "รอราคา HQ" ฐานข้อมูลขยับให้เองตามคำขอราคา (FLOW.html) — ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ ยกเลิกคำขอได้ที่แท็บใบเสนอราคา */}
-                {/* ลีดใหม่เริ่มได้ 2 ขั้นนี้เท่านั้น — ขั้นอื่นระบบเลื่อนให้เอง (ฐานกัน ใบ 0232) */}
-                <select aria-label={ช่อง.ขั้นตอน} value={form.status} onChange={e=>set("status",e.target.value as LeadStatus)} style={inputStyle} disabled={isEdit}>
-                  {/* ลีดใหม่: ตัวเลือกตาม FLOW D2 (ติดต่อแล้ว / รวบรวมความต้องการ) · แก้ไข: ช่องล็อก แสดงชื่อขั้นจากตัวกลาง (ตรงกับแถบในแผงลีด) */}
-                  {isEdit && initial
-                    ? <option value={form.status}>{ชื่อขั้น(เลขขั้นของลีด(form.status, ใบทั้งหมด.some(q => q.status === "draft" && quoteBelongsToLead(q, initial))))}</option>
-                    : (["WAITING","BULLET"] as LeadStatus[]).map(s=><option key={s} value={s}>{leadStatusLabel[s]}</option>)}
-                </select>
-              </div>
+              {/* ไม่มีช่อง "ขั้นตอน" (บอสสั่ง 28 ต.ค. 69 · FLOW D2) — ลีดใหม่อยู่ขั้นข้อมูลลูกค้าเสมอ ฐานตั้งเอง (ใบ 0256)
+                  เลื่อนขั้นได้ทางกล่องขั้นต่อไปในแผงลีดที่เดียว */}
               <div>
                 <label style={labelStyle}>{ช่อง.ช่องทาง}</label>
                 <select aria-label={ช่อง.ช่องทาง} value={form.source} onChange={e=>set("source",e.target.value)} style={inputStyle}>
@@ -750,7 +756,8 @@ export default function LeadsPage() {
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
   );
-  const leadsData = useMemo(() => myAllLeads.filter(l => l.status !== "PAID"), [myAllLeads]);
+  // ลีดปิดสำเร็จอยู่ในหน้านี้ด้วย (บอสสั่ง 28 ต.ค. 69 · FLOW) — ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ = ขั้น 1–5)
+  const leadsData = myAllLeads;
 
   // sync งาน/สถานะที่ระบบติ๊กอัตโนมัติ (เช่น สร้าง/ส่งใบเสนอราคา) เข้าโมดัลที่เปิดอยู่
   // — อัปเดตเฉพาะ tasks/status ไม่ทับฟิลด์ที่ผู้ใช้กำลังแก้ใน draft
@@ -827,7 +834,8 @@ export default function LeadsPage() {
   }, [view]);
   const [hideEmpty, setHideEmpty] = useState(false); // ซ่อนคอลัมน์ที่ไม่มีการ์ด
   const [query, setQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");   // เลขขั้น 1–7 (ตัวกลาง leadStage.ts) · ALL = ทุกขั้น
+  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–5 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
+  const [filterStatus, setFilterStatus] = useState<string>("OPEN");
   // ค่าเริ่มต้น = ไม่เลือกคอลัมน์ → ลูกค้าเป้าหมายที่เพิ่มล่าสุดขึ้นก่อน (numId มากสุด) · บอสสั่ง 21 ก.ย. 69 ทุกตาราง
   const [sortKey, setSortKey] = useState<SortKey|null>(null);
   const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
@@ -956,7 +964,7 @@ export default function LeadsPage() {
   const filtered = useMemo(() => {
     let arr = leadsData.filter(l => {
       // ตัวกรองพื้นฐาน (ค้นหา/ผู้รับผิดชอบ/ช่วงเวลา/จังหวัด/ช่องทาง/ช่วงมูลค่า) ใช้ตัวเดียวกับการ์ด KPI
-      const matchS = filterStatus === "ALL" || เลขขั้นของ(l) === Number(filterStatus);
+      const matchS = filterStatus === "ALL" || (filterStatus === "OPEN" ? เลขขั้นของ(l) <= 5 : เลขขั้นของ(l) === Number(filterStatus));
       const matchFollow = followUpDays === 0 || needsFollowUp(l, followUpDays);
       const ขั้น = ขั้นจากการ์ด == null ? null : ขั้นของลีด(l.status, มีใบร่างของ(l));
       const matchKpi = ขั้นจากการ์ด == null || (ขั้น?.kind === "open" && ขั้น.step === ขั้นจากการ์ด);
@@ -1207,15 +1215,15 @@ export default function LeadsPage() {
   //   ขั้น 2/3/5 = ตัวแปลงกลาง lib/leadStage.ts (ฐานใช้กติกาเดียวกัน) · กดการ์ด = กรองตารางตามขั้นนั้น · กดซ้ำ = ล้าง
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(myAllLeads, ตรงตัวกรองอื่น, l => l.id), [myAllLeads, ตรงตัวกรองอื่น]);
   const kpi = useKpiCards("dealer.leads", { filters: ชุดการ์ด, รุ่น: [myAllLeads.map(l => `${l.id}:${l.status}`).join(","), quotations.filter(q => q.status === "draft").length] });
-  const กดขั้น = (s: 2 | 3 | 5 | null) => { setFilterStatus("ALL"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
+  const กดขั้น = (s: 2 | 3 | 5 | null) => { setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
   const kpiCards = [
     { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
-      on: ขั้นจากการ์ด == null && filterStatus === "ALL" && followUpDays === 0, onClick: () => กดขั้น(null) },
-    { kpi: "hq-pricing", label: "รอราคา HQ", value: ค่า(kpi, "hqPricing"), unit: `ราย · ขั้น 2 ${ชื่อขั้นการขาย[1]}`, icon: Send, color: "#7C3AED", bg: "#F3E8FF",
+      on: ขั้นจากการ์ด == null && filterStatus === "OPEN" && followUpDays === 0, onClick: () => กดขั้น(null) },
+    { kpi: "hq-pricing", label: ชื่อขั้น(2), value: ค่า(kpi, "hqPricing"), unit: "ราย · ส่งคำขอแล้ว รอ HQ ตีราคา", icon: Send, color: "#7C3AED", bg: "#F3E8FF",
       on: ขั้นจากการ์ด === 2, onClick: () => กดขั้น(2) },
-    { kpi: "hq-quoted", label: "ได้ราคาแล้ว รอทำใบ", value: ค่า(kpi, "hqQuotedNoDraft"), unit: `ราย · ขั้น 3 ${ชื่อขั้นการขาย[2]}`, icon: Inbox, color: "#16A34A", bg: "#E6F7EE",
+    { kpi: "hq-quoted", label: "ได้ราคาแล้ว รอทำใบ", value: ค่า(kpi, "hqQuotedNoDraft"), unit: `ราย · ${ชื่อขั้น(3)}`, icon: Inbox, color: "#16A34A", bg: "#E6F7EE",
       on: ขั้นจากการ์ด === 3, onClick: () => กดขั้น(3) },
-    { kpi: "awaiting-client", label: ชื่อขั้นการขาย[4], value: ค่า(kpi, "awaitingClient"), unit: "ราย · ขั้น 5 ส่งใบให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
+    { kpi: "awaiting-client", label: ชื่อขั้น(5), value: ค่า(kpi, "awaitingClient"), unit: "ราย · ส่งใบให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
       on: ขั้นจากการ์ด === 5, onClick: () => กดขั้น(5) },
   ];
 
@@ -1288,11 +1296,11 @@ export default function LeadsPage() {
         {/* ── แถบตัวกรองแถวเดียว (มาตรฐานเดียวกับหน้า /hq/pipeline) ──
             เดิมเป็นปุ่ม "ตัวกรอง" + แผงเลื่อนจากขวา — ตอนนี้เห็นตัวกรองทุกตัวพร้อมกัน
             "ทุกสถานะ" ใช้ state เดียวกับการ์ด KPI ด้านบน → กดที่ไหนก็ตรงกัน
-            ปิดการขายสำเร็จ (PAID) ไม่อยู่ในตัวเลือก — ลูกค้าเป้าหมายที่ปิดแล้วย้ายไปหน้าลูกค้า (leadsData ตัดออก) */}
+            ตัวกรองขั้นตอน = กลุ่ม: กำลังดำเนินการ (ค่าเริ่มต้น) · ปิดสำเร็จ · ปิดไม่สำเร็จ · ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
         <FilterRow
           query={query} onQuery={setQuery} placeholder="ค้นหาบริษัท ผู้ติดต่อ..."
-          showClear={hasActiveFilters || filterStatus!=="ALL" || followUpDays!==0 || !!query}
-          onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setFollowUpDays(0); setขั้นจากการ์ด(null); setFAssignee(""); setFProvince(""); setFSource(""); setFValueMin(""); setFValueMax(""); }}
+          showClear={hasActiveFilters || filterStatus!=="OPEN" || followUpDays!==0 || !!query}
+          onClear={()=>{ setQuery(""); setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(null); setFAssignee(""); setFProvince(""); setFSource(""); setFValueMin(""); setFValueMax(""); }}
           right={
             /* สลับมุมมอง ตาราง/บอร์ด — กลับมาอยู่ท้ายแถบตัวกรองเหมือนเดิม (ช่อง right ของ FilterRow เตรียมไว้ให้พอดี)
                ขนาดเล็กกว่าช่องกรอง (สูง 30 · ไอคอน 12) เพราะเป็นตัวควบคุมรอง ไม่ใช่ตัวกรอง */
@@ -1309,9 +1317,9 @@ export default function LeadsPage() {
         >
           {/* ไม่ตั้ง minWidth เกินจำเป็น — select กว้างตามคำ caption อยู่แล้ว
               ตั้งเกินไว้ = กินที่ฟรีจนแถบตกบรรทัดที่จอ 1440 */}
-          {/* ปิดสำเร็จไม่มีในรายการลีด (ย้ายไปหน้าลูกค้า) — ตัวเลือกจึงไม่มีขั้น 6 */}
-          <FilterSelect caption="ทุกขั้นตอน" value={filterStatus} onChange={setFilterStatus}
-            options={ตัวเลือกขั้น.filter(o=>o.v!=="6")} />
+          {/* ค่าเริ่มต้น = กำลังดำเนินการ (ขั้น 1–5) · ลีดที่ปิดแล้วดูได้จากตัวเลือกปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด */}
+          <FilterSelect caption="กำลังดำเนินการ" all="OPEN" label={ช่อง.ขั้นตอน} value={filterStatus} onChange={setFilterStatus}
+            options={[{ v: "6", l: ชื่อขั้น(6) }, { v: "7", l: ชื่อขั้น(7) }, { v: "ALL", l: "ทั้งหมด" }]} />
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={fAssignee} onChange={setFAssignee} all=""
             options={personsList.map(p=>({v:p,l:p}))} />
           <FilterSelect caption="ทุกจังหวัด" value={fProvince} onChange={setFProvince} all=""
@@ -1340,11 +1348,12 @@ export default function LeadsPage() {
                   {!hiddenCols.includes("province") && <col style={{width:"9%", minWidth:90}} />}
                   {!hiddenCols.includes("source")   && <col style={{width:"10%", minWidth:100}} />}
                   {!hiddenCols.includes("area")     && <col style={{width:"8%", minWidth:100}} />}
-                  <col style={{width:"17%", minWidth:150}} />{/* ขั้นตอน (ชื่อขั้นจากตัวกลาง + แถบเล็ก) — minWidth พอให้ "4 ทำใบให้ลูกค้า" อยู่ได้ */}
+                  <col style={{width:"12%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "ทำใบให้ลูกค้า" อยู่ได้ */}
+                  <col style={{width:"9%", minWidth:96}} />{/* ความคืบหน้า (แถบ 5 ช่อง · แยกคอลัมน์ บอสสั่ง 28 ต.ค. 69) */}
                   <col style={{width:"11%", minWidth:90}} />{/* มูลค่า */}
                   <col style={{width:"12%", minWidth:110}} />{/* ผู้รับผิดชอบ */}
                   {!hiddenCols.includes("activity") && <col style={{width:"9%", minWidth:100}} />}
-                  <col style={{width:"12%", minWidth:48}} />{/* ปุ่มดู */}
+                  <col style={{width:"8%", minWidth:48}} />{/* ปุ่มดู */}
                 </colgroup>
                 <thead>
                   <tr>
@@ -1354,6 +1363,7 @@ export default function LeadsPage() {
                       [null,ช่อง.ช่องทาง,"source"],
                       [null,ช่อง.พื้นที่,"area"],
                       ["status",ช่อง.ขั้นตอน,null],
+                      [null,"ความคืบหน้า",null],
                       ["value","มูลค่า",null],
                       ["assigned",ช่อง.ผู้รับผิดชอบ,null],
                       [null,"กิจกรรมล่าสุด","activity"],
@@ -1399,7 +1409,10 @@ export default function LeadsPage() {
                         )}
                         {/* ขั้นตอน = ดูอย่างเดียว (รอบ 4) · ชื่อขั้นตรงกับขั้นที่ไฮไลต์ในแผงลีด · เปลี่ยนขั้นได้ทางกล่องขั้นต่อไปในแผงที่เดียว */}
                         <td>
-                          <MiniStage l={l} มีใบร่าง={มีใบร่างของ(l)} />
+                          <ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่างของ(l)} />
+                        </td>
+                        <td>
+                          <แถบความคืบหน้า l={l} มีใบร่าง={มีใบร่างของ(l)} />
                         </td>
                         {(
                           <td className="num" style={{ fontSize:"0.8rem", fontWeight:700, color: มูลค่าลีด(l) == null ? "#cbd5e1" : "#2D2D2D" }}
@@ -1483,9 +1496,9 @@ export default function LeadsPage() {
         {/* ── KANBAN VIEW — คอลัมน์ตามสถานะ · ดูอย่างเดียว ลากการ์ดไม่ได้ (รอบ 4 · เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผง) ── */}
         {view === "kanban" && (() => {
           // คอลัมน์ = 5 ขั้น (ตัวกลาง leadStage.ts · บอสสั่ง 27 ต.ค. 69) + ปิดไม่สำเร็จ
-          //   ปิดสำเร็จไม่มีคอลัมน์ — ย้ายไปหน้า "ลูกค้า" อัตโนมัติ
+          //   ปิดสำเร็จ/ปิดไม่สำเร็จมีคอลัมน์ (บอสสั่ง 28 ต.ค. 69) — ค่าเริ่มต้นของตัวกรองซ่อนลีดปิดแล้ว คอลัมน์จึงว่างจนเลือกกลุ่มนั้น
           const ACTIVE: เลขขั้น[] = [1, 2, 3, 4, 5];
-          const TERMINAL: เลขขั้น[] = [7];
+          const TERMINAL: เลขขั้น[] = [6, 7];
           const renderColumn = (status: เลขขั้น, wide: boolean) => {
             const col = filtered.filter(l => เลขขั้นของ(l) === status);
             if (hideEmpty && col.length === 0) return null;
@@ -1824,9 +1837,9 @@ export default function LeadsPage() {
           </DrawerSection>
         );
 
-        // ── รายการเตือน (รอบ 4): อยู่ในแท็บประวัติ · ติ๊กไว้กันลืม ไม่ขยับสถานะ ไม่มี % · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
+        // ── งานในแต่ละขั้น: แท็บภาพรวม ใต้แถบ 5 ขั้น (บอสสั่ง 28 ต.ค. 69) · ติ๊กไว้กันลืม ไม่ขยับสถานะ · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
         const tabTasks = (
-          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} />
+          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} ขั้นตอนนี้={เลขขั้นของ(c)} />
         );
 
         // ── Tab: รายงานการติดตาม (Lead Report) — แก้ไข/เพิ่ม/ลบได้ทั้งหมด ──
@@ -1872,7 +1885,8 @@ export default function LeadsPage() {
                       <div style={{ minWidth:0, paddingBottom:last ? 0 : 12 }}>
                         <div style={{ fontSize:"0.8rem", color:"#2D2D2D", fontWeight:600, lineHeight:1.4 }}>{a.text}</div>
                         <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:"0.65rem", color:"#6b7280", marginTop:3 }}>
-                          <CalendarClock size={11} /> {a.date}
+                          {/* วันที่ผ่านตัวจัดรูปกลาง (พ.ศ.) — ข้อมูลเดิมบางรายการเก็บ ISO ค.ศ. "2026-04-28" (ผลตรวจ FLOW รอบ 5 · 28 ต.ค. 69) */}
+                          <CalendarClock size={11} /> {วันที่แสดงไทย(a.date) || "—"}
                         </div>
                       </div>
                     </div>
@@ -1967,7 +1981,7 @@ export default function LeadsPage() {
                   <div style={{ display:"flex", alignItems:"center", gap:7, flexShrink:0, flexWrap:"wrap" }}>
                     {/* หัว = การกระทำด่วนเท่านั้น · Won/Lost/ใบเสนอราคา อยู่แถบล่าง (ไม่ซ้ำ)
                         ปุ่ม "โทร" (tel: ลิงก์) ถูกเอาออก (บอสสั่ง 17 ก.ค. 69) — เบอร์โทรยังอยู่ในการ์ดข้อมูลลูกค้า แท็บภาพรวม */}
-                    <button title="สร้างนัดหมาย" onClick={()=>{ setDTab("history"); setApptAdding(true); setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }} style={qa}><CalendarClock size={13} /> นัดหมาย</button>
+                    <button title="สร้างนัดหมาย" onClick={()=>{ setDTab("overview"); setApptAdding(true); setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }} style={qa}><CalendarClock size={13} /> นัดหมาย</button>
                     {isCustomer && (
                       <button title="ดูโปรไฟล์ลูกค้า" onClick={()=>{ closePanel(); router.push(c.customerId ? `/customers?open=${c.customerId}` : "/customers"); }} style={qa}><CheckCircle2 size={13} /> ลูกค้า</button>
                     )}
@@ -2025,15 +2039,20 @@ export default function LeadsPage() {
               {/* Body — เนื้อหาตามแท็บ */}
               <div style={{ flex:1, overflowY:"auto", background:"#f5f7fa" }}>
                 {/* ── TAB: ภาพรวม ── */}
+                {/* บอสสั่ง 28 ต.ค. 69: งานในแต่ละขั้นอยู่แท็บภาพรวม ใต้แถบ 5 ขั้น · แท็บประวัติเหลือไทม์ไลน์อย่างเดียว */}
                 <div style={{ padding:16, display:dTab==="overview"?"flex":"none", flexDirection:"column", gap:14 }}>
+                  <div style={cardStyle}>{tabTasks}</div>
                   <div style={cardStyle}>
                     {/* แก้ไขได้ในที่เดิมตลอดเวลา — ปุ่มสลับโหมด "แก้ไขข้อมูล" ถูกถอดออก (บอสสั่ง 17 ก.ค. 69)
                         ปุ่ม "บันทึกการแก้ไข" ท้ายการ์ดติดไฟเมื่อมีการแก้จริงเท่านั้น */}
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                      <div style={{ ...secLabel, marginBottom:0 }}><User size={13} color="#003366" /> ข้อมูลลูกค้า (Overview)</div>
+                      <div style={{ ...secLabel, marginBottom:0 }}><User size={13} color="#003366" /> ข้อมูลลูกค้า</div>
                     </div>
                     <OverviewEditor lead={c} persons={personsList} onSave={saveLead} />
                   </div>
+                  <div ref={rightApptRef} style={cardStyle}>{tabAppts}</div>
+                  <div style={cardStyle}>{tabFiles}</div>
+                  <div style={cardStyle}><div style={secLabel}><StickyNote size={13} color="#003366" /> โน้ต</div>{tabReport}</div>
                 </div>
 
                 {/* ── TAB: ใบเสนอราคา ── */}
@@ -2041,13 +2060,9 @@ export default function LeadsPage() {
                   <div style={cardStyle}>{tabQuotation}</div>
                 </div>
 
-                {/* ── TAB: ประวัติ = รายการเตือน + ไทม์ไลน์ + นัดหมาย + ไฟล์ + โน้ต ── */}
-                <div style={{ padding:16, display:dTab==="history"?"flex":"none", flexDirection:"column", gap:14 }}>
-                  <div style={cardStyle}>{tabTasks}</div>
+                {/* ── TAB: ประวัติ = ไทม์ไลน์เหตุการณ์อย่างเดียว (ใคร ทำอะไร เมื่อไหร่ · บอสสั่ง 28 ต.ค. 69) ── */}
+                <div data-tab-panel="history" style={{ padding:16, display:dTab==="history"?"flex":"none", flexDirection:"column", gap:14 }}>
                   <div style={cardStyle}>{tabActivities}</div>
-                  <div ref={rightApptRef} style={cardStyle}>{tabAppts}</div>
-                  <div style={cardStyle}>{tabFiles}</div>
-                  <div style={cardStyle}><div style={secLabel}><StickyNote size={13} color="#003366" /> โน้ต</div>{tabReport}</div>
                 </div>
               </div>
 

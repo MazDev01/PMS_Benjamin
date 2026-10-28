@@ -78,10 +78,12 @@ test("[live·รอบ3] ส่ง V1 → ทำฉบับใหม่ → ส
     await page.getByPlaceholder(/ค้นหา/).first().fill(v1);
     await expect(page.locator("tbody tr").filter({ hasText: v1 }).first()).toBeVisible({ timeout: 30_000 });
   };
-  // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — กดแถว V1 → แผงลีด › แท็บใบเสนอราคา › ปุ่มของใบ V1
+  // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — กดแถว V1 → แผงดูใบ › ไปแผงลีด › แท็บใบเสนอราคา › ปุ่มของใบ V1
   const เปิดแผงใบ = async () => {
     await เปิดรายการ();
     await page.locator("tbody tr").filter({ hasText: v1 }).first().locator("td").first().click();
+    await expect(page.locator("[data-quote-view]"), "กดแถวใบแล้วแผงดูใบเปิด (28 ต.ค. 69)").toBeVisible({ timeout: 30_000 });
+    await page.locator("[data-quote-view] [data-goto-lead]").click();
     await page.waitForURL(/\/leads/, { timeout: 30_000 });
     await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 30_000 });
   };

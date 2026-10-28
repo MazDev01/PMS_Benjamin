@@ -46,10 +46,12 @@ async function เปิดรายการเตือน(page: Page, ชื�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ชื่อ);
   await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
   await expect(async () => {
-    await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click({ timeout: 5_000 });
-    await expect(page.getByText(/รายการเตือน/).first()).toBeVisible({ timeout: 3_000 });
+    await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click({ timeout: 5_000 });   // งานในแต่ละขั้นอยู่แท็บภาพรวม (28 ต.ค. 69)
+    await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 40_000 });
-  return page.locator("[data-lead-tasks]").or(page.getByText(/รายการเตือน/).first().locator("xpath=.."));
+  // ขั้นอื่นพับไว้ (28 ต.ค. 69) — กางทุกขั้นก่อนตรวจรายการ
+  for (let i = 0, พับ = page.locator("[data-lead-tasks] button[aria-expanded='false']"); i < 5 && await พับ.count(); i++) await พับ.first().click();
+  return page.locator("[data-lead-tasks]");
 }
 
 test("[func·dealer] รายการเตือน 5 ขั้น · ไม่มีงาน flow เก่า · วันที่ พ.ศ. · งานของระบบฐานติ๊กเอง ดีลเลอร์ติ๊กไม่ได้", async ({ page }) => {
@@ -100,9 +102,12 @@ test("[func·hq] ตั้งค่า › เส้นทางการขา�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "เส้นทางการขาย" }).first().click();
+  await page.getByRole("button", { name: "ขั้นตอนการขายมาตรฐาน" }).first().click();
   for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"].entries())
     await expect.soft(page.locator(`[data-journey-step="${i + 1}"]`), `ขั้น ${i + 1} ${ชื่อ}`).toContainText(ชื่อ, { timeout: 15_000 });
+  // ป้ายขั้นไม่มีเลขลำดับ (บอสสั่ง 28 ต.ค. 69) — แถวขั้นต้องขึ้นต้นด้วยชื่อขั้น ไม่ใช่เลข
+  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"].entries())
+    expect.soft((await page.locator(`[data-journey-step="${i + 1}"]`).innerText()).trim(), `ขั้น ${ชื่อ}: ไม่มีเลขลำดับนำหน้า`).toMatch(new RegExp(`^${ชื่อ}`));
   for (const ชื่อ of ["นัดหมาย", "ส่งคำขอราคา", "ได้ใบ HQ", "จัดทำใบเสนอราคา", "ส่งใบเสนอราคา"])
     await expect.soft(page.getByRole("button", { name: `ลบงาน ${ชื่อ}` }), `"${ชื่อ}" ระบบติ๊ก — ลบไม่ได้`).toHaveCount(0);
   await expect.soft(page.getByRole("button", { name: "ลบงาน ติดตามลูกค้า" }), "รายการติ๊กเองลบได้").toHaveCount(1);

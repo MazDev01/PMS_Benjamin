@@ -3,7 +3,7 @@ import { กดตกลงในกล่องยืนยัน, settle } fro
 import { RYG, skipReason } from "./supabaseEnv";
 import {
   DEALER_ORIGIN, loginUI, watchErrors, assertNoErrors,
-  db, waitRow, cleanup, specNS, nsTag, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ } from "./funcHelpers";
+  db, waitRow, cleanup, specNS, nsTag, markQuotationSent, เปิดฟอร์มทำใบจากใบHQ, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 
 // โซ่ธุรกิจหลักของทั้งระบบ: ลูกค้าเป้าหมาย → ใบเสนอราคา (BOQ) → ปิดการขาย → ลูกค้า
 // ทุกขั้นต้องลง DB จริง ไม่ใช่แค่เปลี่ยนบนจอ
@@ -167,7 +167,7 @@ test("[func] ปิดการขายจากหน้าใบเสนอ�
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   const qrow = page.locator("tbody tr").filter({ hasText: COMP }).first();
   await expect(qrow).toBeVisible({ timeout: 25_000 });
-  await qrow.locator("td").nth(1).click();
+  await ไปแผงลีดจากแถวใบ(qrow);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads/, { timeout: 20_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
   // ปิดการขาย = ย้อนกลับไม่ได้ → แอปขึ้น confirm() ก่อนเสมอ (เพิ่มหลังผลตรวจสอบ /scenario 31 ก.ค. 69)

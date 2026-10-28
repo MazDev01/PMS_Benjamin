@@ -508,4 +508,18 @@ update public.hq_sales_journey set tasks = public._lead_task_template_default() 
 update public.leads set tasks = public._lead_tasks_five_steps(tasks, dealer_code, num_id, 'task_bullet_1')
  where jsonb_typeof(tasks) = 'array' and jsonb_array_length(tasks) > 0;
 
+-- สภาพหลังใบ 0252 (28 ต.ค. 69 · บั๊ก L037): ข้อมูลข้างบนส่งออกก่อนกติกา "ใบตอบรับแล้ว = ลีดปิดสำเร็จ" → ลีด 22 รายที่ใบตอบรับแล้ว
+--   ค้างขั้นอื่น (ใบแบบเดิม) · ซ่อมแบบเดียวกับส่วนซ่อมข้อมูลในใบ 0252 (จำขั้นเดิมใน status_before_paid ให้ย้อนการตอบรับได้)
+update public.leads l
+   set status_before_paid = l.status, status = 'PAID', lost_reason = case when l.status = 'CANCELLED' then null else l.lost_reason end
+ where l.status <> 'PAID'
+   and exists (select 1 from public.quotations q where q.dealer_code = l.dealer_code and q.deal_id = l.num_id and q.status = 'won');
+
+-- ผู้รับผิดชอบ (ผลตรวจ FLOW รอบ 5 · 28 ต.ค. 69): ลีดตัวอย่างมีชื่อผู้รับผิดชอบ (สร้างด้วยสูตร "พนักงานขายทดสอบ XXX-n") แต่ตารางรายชื่อว่าง
+--   → แผงลีดขึ้น "ยังไม่มอบหมาย" · ตั้งค่า›ผู้รับผิดชอบว่าง · ตัวกรองไม่มีชื่อ · เติมรายชื่อจากชื่อที่ลีดใช้จริง (ไม่มีข้อมูลจริง)
+insert into public.responsible_persons (dealer_code, name, active)
+select distinct l.dealer_code, l.assigned, true from public.leads l
+ where l.assigned like 'พนักงานขายทดสอบ %'
+   and not exists (select 1 from public.responsible_persons p where p.dealer_code = l.dealer_code and p.name = l.assigned);
+
 set session_replication_role = origin;

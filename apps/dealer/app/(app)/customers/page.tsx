@@ -61,6 +61,7 @@ import { useFilters, APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterCont
 import { ช่อง, ตัวอย่างช่อง, ป้ายบังคับ, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { Plus, X, ChevronUp, ChevronDown, Upload, Download, Phone, Building2, Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer, MapPin, Mail, Coins, Layers, CalendarClock, Users, Trash2, UserPlus, Briefcase } from "lucide-react";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
+import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
 import { แจ้งพลาด, แจ้งสำเร็จ, ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 
@@ -199,7 +200,7 @@ function printCustomer(c:CustomerRow, rows:QuotationMock[], code:string){
     <h2>ข้อมูลลูกค้า</h2>
     <div class="grid">${info.map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("")}</div>
     <h2>ประวัติการปิดการขาย (${rows.length})</h2>
-    ${rows.length===0 ? `<div style="font-size:11px;color:#6b7280">— ยังไม่มีโครงการที่ปิดการขาย</div>` : `
+    ${rows.length===0 ? `<div style="font-size:11px;color:#6b7280">— ยังไม่มีงานที่ปิดการขาย</div>` : `
     <table><thead><tr><th>#</th><th>เลขที่ใบเสนอราคา</th><th>ชื่องาน</th><th>วันที่ซื้อ</th><th class="num">ราคา</th></tr></thead>
     <tbody>${rows.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.id)}</td><td>${esc(q.project)}</td><td>${fmtDate(q.date)}</td><td class="num">${fmtMoney(q.totalValue)}</td></tr>`).join("")}</tbody>
     <tfoot><tr><td colspan="4" class="num">รวมมูลค่าทั้งหมด</td><td class="num">${fmtMoney(total)}</td></tr></tfoot></table>`}
@@ -309,7 +310,10 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
           {/* แถว "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · category ยังอยู่ใน f (มาจาก seed)
               บันทึกแล้วส่งค่าเดิมกลับไปตรง ๆ ไม่มีใครแก้ได้ ข้อมูลในฐานจึงไม่เปลี่ยน */}
           {/* joinDate = วันที่เข้าระบบเป็นลูกค้า — ป้าย "วันที่สมัคร" เดิมชวนเข้าใจผิด (บอสสั่งเปลี่ยน 17 ก.ค. 69) */}
-          <Row label="เป็นลูกค้าเมื่อ"><input type="date" aria-label="วันที่เป็นลูกค้า" value={f.joinDate} onChange={e=>set("joinDate",e.target.value)} style={inp} /></Row>
+          {/* แสดงปี พ.ศ. แบบเดียวกับหัวแผง ("เข้าร่วม 29 ธ.ค. 2568") — เดิมช่องวันที่ของเบราว์เซอร์แสดงตามเครื่อง = 29/12/2025 (ค.ศ.)
+              ตรวจเทียบ FLOW รอบ 5 · ใช้ช่องเลือกวันที่กลาง ThaiDateInput (ค่าที่เก็บยังเป็น YYYY-MM-DD) */}
+          <Row label="เป็นลูกค้าเมื่อ"><ThaiDateInput ariaLabel="วันที่เป็นลูกค้า" value={f.joinDate} onChange={v=>set("joinDate",v)} width="100%"
+            style={{ height:28, padding:"0 8px", border:"none", borderRadius:6, background:"transparent", fontSize:"0.78rem", fontWeight:700, color:"#2D2D2D" }} /></Row>
           <Row label={ช่อง.ผู้รับผิดชอบ}><PersonPicker value={f.owner} onChange={v=>set("owner",v)} multiple /></Row>
           {/* แถว "สถานะ" ถูกถอดออกจากการ์ด (บอสสั่ง 17 ก.ค. 69) — สถานะกลับเป็นข้อมูลแสดงผลอย่างเดียว
               (เหมือนก่อนมีตัวแก้ในที่เดิม: ไม่เคยมี UI แก้สถานะมาก่อน ดรอปดาวน์นี้เพิ่งถูกเพิ่มแล้วถูกสั่งถอด) */}
@@ -502,17 +506,27 @@ export default function CustomersPage(){
       return;
     }
     const size = humanFileSize(f.size);
-    // อัปโหลด bytes เข้า Storage ก่อน (local คืน null = เก็บแค่ metadata) แล้วบันทึก metadata
-    void fileStorage.upload(currentDealer.code, f).catch(() => null)
-      .then(storagePath => filesRepo.add({
-        name: f.name, size, ext: extOfName(f.name), category: guessFileCategory(f.name),
-        project: selected.company || selected.name, uploadedBy: selected.owner || "คุณ",
-        uploadedAt: APP_NOW_ISO, source: "customer", recordId: selected.id, customerId: selected.id, dealerCode: currentDealer.code,
-        ...(storagePath ? { storagePath } : {}),
-      }))
-      .then(() => filesRepo.list({ dealerCode: currentDealer.code, isHQ: false }).then(setDealerFiles))
-      .catch(e => logRepoRead("files.add/list", e));
+    const cust = selected;
     if (fileInputRef.current) fileInputRef.current.value = "";
+    // ขั้นตอนเดียวกับแผงลีด: อัปไบต์ขึ้น Storage ก่อน (เส้นทางเดิม fileStorage.upload · local คืน null = เก็บแค่ metadata)
+    //   แล้วบันทึก metadata · อัปไม่สำเร็จต้องดัง ห้ามกลืน (H1) — เดิม .catch(()=>null) ทำให้ไฟล์โผล่เหมือนสำเร็จแต่ไบต์ไม่ขึ้น
+    void (async () => {
+      let storagePath: string | null = null;
+      try {
+        storagePath = await fileStorage.upload(currentDealer.code, f);
+        await filesRepo.add({
+          name: f.name, size, ext: extOfName(f.name), category: guessFileCategory(f.name),
+          project: cust.company || cust.name, uploadedBy: cust.owner || "คุณ",
+          uploadedAt: APP_NOW_ISO, source: "customer", recordId: cust.id, customerId: cust.id, dealerCode: currentDealer.code,
+          ...(storagePath ? { storagePath } : {}),
+        });
+        setDealerFiles(await filesRepo.list({ dealerCode: currentDealer.code, isHQ: false }));
+        แจ้งสำเร็จ(`แนบไฟล์ "${f.name}" แล้ว`);
+      } catch (err) {
+        if (storagePath) await fileStorage.remove(storagePath).catch(() => {}); // กันไบต์กำพร้า
+        แจ้งพลาด("แนบไฟล์ไม่สำเร็จ: " + friendlyError(err));
+      }
+    })();
   }
   // ลบไฟล์ที่แนบผิด (รอบ 4 · ย้ายมาจากหน้าไฟล์) — ถามยืนยัน · ไฟล์ของใบที่ส่งลูกค้าแล้วลบไม่ได้ (ฐานกัน ใบ 0233)
   async function ลบไฟล์นี้(f: DealerFile) {
@@ -914,7 +928,7 @@ export default function CustomersPage(){
                   <col style={{ width:"11%",   minWidth:118 }} />{/* โทรศัพท์ — เบอร์ห้ามตัด */}
                   <col style={{ width:"9.2%",  minWidth:96 }} />{/* จังหวัด */}
                   <col style={{ width:"11.5%", minWidth:114 }} />{/* ยอดขายรวม — หัว 111 */}
-                  <col style={{ width:"9%",    minWidth:90 }} />{/* โครงการ — หัว 87 */}
+                  <col style={{ width:"9%",    minWidth:90 }} />{/* งานที่ปิดการขาย (จำนวน) */}
                   <col style={{ width:"11%",   minWidth:112 }} />{/* ติดต่อล่าสุด */}
                   <col style={{ width:"9.7%",  minWidth:96 }} />{/* ปุ่ม ดู + ลบ — 2×28 + gap + padding */}
                 </colgroup>
@@ -924,7 +938,9 @@ export default function CustomersPage(){
                         (มาตรฐานเดียวกับตารางลูกค้าเป้าหมาย/ใบเสนอราคา) · คอลัมน์ตัวเลขจัดชิดขวาให้ตรงกับค่าในเซลล์ */}
                     {([
                       ["company",ช่อง.บริษัท,false],["name",ช่อง.ผู้ติดต่อ,false],["phone",ช่อง.โทรศัพท์,false],["province",ช่อง.จังหวัด,false],
-                      [null,"ยอดขายรวม",true],[null,"โครงการ",true],["lastActivity","ติดต่อล่าสุด",false],
+                      // "งานที่ปิดการขาย" (เดิม "โครงการ" — ไม่ใช่คำของระบบ · ตรวจเทียบ FLOW รอบ 5) = จำนวนใบที่ลูกค้าตอบรับ
+                      //   ไม่ใช้ป้าย "งานที่ต้องการ" เพราะช่องนี้เป็นจำนวน ไม่ใช่ข้อความงานที่ลูกค้าต้องการ
+                      [null,"ยอดขายรวม",true],[null,"งานที่ปิดการขาย",true],["lastActivity","ติดต่อล่าสุด",false],
                     ] as [SortKey|null,string,boolean][]).map(([k,label,isNum])=>(
                       <th key={label} className={isNum?"num":(k?"clickable":undefined)}
                         onClick={k?()=>handleSort(k):undefined}
@@ -1006,7 +1022,7 @@ export default function CustomersPage(){
             <div style={{...secLabel, marginBottom:12}}><Layers size={13} color={PRIMARY}/> ประวัติการปิดการขาย ({purchasedRows.length})</div>
             {purchasedRows.length===0 ? (
               <div style={{fontSize:"0.8rem",color:MUTED,textAlign:"center",padding:"20px 0"}}>
-                ยังไม่มีโครงการที่ปิดการขาย — จะขึ้นที่นี่เมื่อใบเสนอราคาถูกตอบรับ
+                ยังไม่มีงานที่ปิดการขาย — จะขึ้นที่นี่เมื่อใบเสนอราคาถูกตอบรับ
               </div>
             ) : (
               <>
@@ -1182,6 +1198,39 @@ export default function CustomersPage(){
                     </div>
                   )}
                 </div>
+                {/* ── ไฟล์ของลูกค้า — แนบ/ลบที่นี่ (FLOW: "แนบ/ลบไฟล์ — แผงลีด หรือ แผงลูกค้า · หน้าไฟล์ = ดูอย่างเดียว") ──
+                    คลังไฟล์ตัวเดียวกับแผงลีด/หน้าไฟล์ (filesRepo + fileStorage.upload) · ลบผ่าน ลบไฟล์() กลางตัวเดียวกับแผงลีด
+                    เดิมการ์ดนี้อยู่ในแผงรายละเอียดงานที่ปิดการขาย (เปิดได้เฉพาะลูกค้าที่มีใบตอบรับ) — ย้ายมาแผงลูกค้า ตรวจเทียบ FLOW รอบ 5 */}
+                <div style={cardStyle} data-customer-files>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                    <div style={{...secLabel,marginBottom:0}}><Paperclip size={13} color={PRIMARY}/> ไฟล์ ({selectedFiles.length})</div>
+                    <button type="button" onClick={()=>fileInputRef.current?.click()} className="btn btn-secondary btn-sm" style={{color:PRIMARY}}>
+                      <Plus size={12}/> แนบไฟล์
+                    </button>
+                  </div>
+                  {selectedFiles.length===0 ? (
+                    <div style={{fontSize:"0.8rem",color:MUTED,textAlign:"center",padding:"14px 0"}}>ยังไม่มีไฟล์แนบ</div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      {selectedFiles.map(f=>(
+                        <button key={f.id} type="button" onClick={()=>setPreviewFile(f)} title="กดเพื่อดูไฟล์"
+                          style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"7px 10px",borderRadius:9,
+                            border:`1px solid ${BORDER}`,background:"#fff",cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>
+                          <Paperclip size={12} color={MUTED} style={{flexShrink:0}}/>
+                          <span style={{flex:1,minWidth:0,fontSize:"0.74rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
+                          <span style={{fontSize:"0.65rem",color:MUTED,flexShrink:0}}>{f.size}</span>
+                          {/* ไฟล์ของใบที่ส่งลูกค้าแล้วไม่มีปุ่มลบ (ฐานกัน ใบ 0233) — กติกาเดียวกับแผงลีด (ลบไฟล์ได้) */}
+                          {ลบไฟล์ได้(f, quotations, currentDealer.code) && (
+                            <span role="button" tabIndex={0} title="ลบไฟล์" aria-label={`ลบไฟล์ ${f.name}`}
+                              onClick={e=>{ e.stopPropagation(); void ลบไฟล์นี้(f); }}
+                              onKeyDown={e=>{ if(e.key==="Enter"){ e.stopPropagation(); void ลบไฟล์นี้(f); } }}
+                              style={{display:"flex",padding:3,borderRadius:6,color:"#dc2626",flexShrink:0}}><Trash2 size={12}/></span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* ── ดีล/โครงการ ── */}
@@ -1334,37 +1383,8 @@ export default function CustomersPage(){
                     </div>
                   </div>
 
-                  {/* ไฟล์ของลูกค้ารายนี้ + แนบเพิ่ม — ใช้คลังไฟล์ตัวเดียวกับหน้าไฟล์ (addDealerFile) */}
-                  <div style={cardS}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                      <div style={{...secL,marginBottom:0}}><Paperclip size={13} color={PRIMARY}/> ไฟล์ ({selectedFiles.length})</div>
-                      <button onClick={()=>fileInputRef.current?.click()} className="btn btn-secondary btn-sm" style={{color:PRIMARY}}>
-                        <Plus size={12}/> แนบไฟล์
-                      </button>
-                    </div>
-                    {selectedFiles.length===0 ? (
-                      <div style={{fontSize:"0.78rem",color:MUTED}}>— ยังไม่มีไฟล์แนบ</div>
-                    ) : (
-                      <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                        {selectedFiles.map(f=>(
-                          <button key={f.id} onClick={()=>setPreviewFile(f)} title="กดเพื่อดูไฟล์"
-                            style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"7px 10px",borderRadius:9,
-                              border:`1px solid ${BORDER}`,background:"#fff",cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>
-                            <Paperclip size={12} color={MUTED} style={{flexShrink:0}}/>
-                            <span style={{flex:1,minWidth:0,fontSize:"0.74rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
-                            <span style={{fontSize:"0.65rem",color:MUTED,flexShrink:0}}>{f.size}</span>
-                            {/* ลบไฟล์ที่นี่ (หน้าไฟล์ดูอย่างเดียว · รอบ 4) — ไฟล์ของใบที่ส่งลูกค้าแล้วไม่มีปุ่ม (ฐานกัน ใบ 0233) */}
-                            {ลบไฟล์ได้(f, quotations, currentDealer.code) && (
-                              <span role="button" tabIndex={0} title="ลบไฟล์" aria-label={`ลบไฟล์ ${f.name}`}
-                                onClick={e=>{ e.stopPropagation(); void ลบไฟล์นี้(f); }}
-                                onKeyDown={e=>{ if(e.key==="Enter"){ e.stopPropagation(); void ลบไฟล์นี้(f); } }}
-                                style={{display:"flex",padding:3,borderRadius:6,color:"#dc2626",flexShrink:0}}><Trash2 size={12}/></span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* การ์ด "ไฟล์" ย้ายไปแผงลูกค้า (แท็บข้อมูลลูกค้า) ที่เดียว — ไฟล์เป็นของลูกค้า ไม่ใช่ของใบ
+                      (FLOW: แนบ/ลบไฟล์ — แผงลีด หรือ แผงลูกค้า · ตรวจเทียบ FLOW รอบ 5) ไม่ซ้ำไว้ที่นี่อีก */}
 
                   {/* ไทม์ไลน์ของดีลที่ผูกกับใบนี้ */}
                   <div style={cardS}>

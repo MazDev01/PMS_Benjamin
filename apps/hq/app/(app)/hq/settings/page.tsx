@@ -60,7 +60,7 @@ import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
 import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
 import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
-import { ชื่อขั้น, ชื่อขั้นการขาย, สีขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, สีขั้น } from "@pms/shared/lib/leadStage";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
@@ -196,8 +196,9 @@ function JourneyTab() {
         <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden", marginTop: 6 }}>
           {ขั้นทั้งหมด.map((n, idx) => (
             <div key={n} data-journey-step={n} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderBottom: idx < ขั้นทั้งหมด.length - 1 ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>
-              <span style={{ width: 24, height: 24, borderRadius: "50%", background: สีขั้น(n).bg, color: สีขั้น(n).text, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, flexShrink: 0, marginTop: 4 }}>{n}</span>
-              <span style={{ flex: "1 1 140px", fontSize: "0.84rem", fontWeight: 700, color: STEEL, marginTop: 5 }}>{ชื่อขั้นการขาย[n - 1]}</span>
+              {/* ไม่มีเลขลำดับ (บอสสั่ง 28 ต.ค. 69) — จุดสีของขั้น + ชื่อจาก ชื่อขั้น() ตัวกลาง · ลำดับดูจากแถวบนลงล่าง */}
+              <span aria-hidden style={{ width: 10, height: 10, borderRadius: "50%", background: สีขั้น(n).bar, flexShrink: 0, marginTop: 10 }} />
+              <span style={{ flex: "1 1 140px", fontSize: "0.84rem", fontWeight: 700, color: STEEL, marginTop: 5 }}>{ชื่อขั้น(n)}</span>
               {/* รายการเตือนของขั้นนี้ — ติ๊กกันลืม ไม่เลื่อนขั้น · รายการของระบบล็อก (ฐานติ๊กเมื่อทำจริง) */}
               <span style={{ flex: "2 1 300px", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                 {tasksOf(n).map(t => t.auto ? (
@@ -383,9 +384,9 @@ function RecruitTab() {
       {/* สองการ์ดช่องทางอยู่แถวเดียวกัน (บอสสั่ง 14 ก.ย. 69) · จอแคบซ้อนลงเป็นคอลัมน์เดียวเอง (.row-2-eq) */}
       <div className="row-2-eq">
         {/* fill + note เว้นบรรทัดเท่ากัน → ช่องเพิ่มของสองการ์ดอยู่ระดับเดียวกัน (บอสสั่ง "ทำให้แถวมันตรงกัน") */}
-        <SectionCard fill icon={<UserPlus size={19} />} title="ช่องทางที่เข้ามา">
-          <ListEditor label="ช่องทางที่เข้ามา" items={d.channels} onChange={ตั้งรายการ("channels")} placeholder="เช่น TikTok"
-            emptyNote="ยังไม่มีช่องทาง — ถ้าบันทึกตอนว่าง ระบบใช้รายการเริ่มต้น"
+        <SectionCard fill icon={<UserPlus size={19} />} title="แหล่งที่มา">
+          <ListEditor label="แหล่งที่มา" items={d.channels} onChange={ตั้งรายการ("channels")} placeholder="เช่น TikTok"
+            emptyNote="ยังไม่มีแหล่งที่มา — ถ้าบันทึกตอนว่าง ระบบใช้รายการเริ่มต้น"
             note="ในฟอร์มมีตัวเลือก “อื่น ๆ” ต่อท้ายให้เสมอ" />
         </SectionCard>
 
@@ -405,7 +406,7 @@ function RecruitTab() {
             note="" noteLines={2} />
         </SectionCard>
 
-        <SectionCard fill icon={<X size={19} />} title="เหตุผลที่ไม่สำเร็จ (ลูกค้าเป้าหมาย HQ)">
+        <SectionCard fill icon={<X size={19} />} title="เหตุผลที่ไม่สำเร็จ (ผู้สนใจเป็นดีลเลอร์)">
           <ListEditor label="เหตุผลที่ไม่สำเร็จ" items={d.lostReasons} onChange={ตั้งรายการ("lostReasons")} placeholder="เช่น เงินทุนไม่พอ"
             emptyNote="ยังไม่ได้ตั้ง — ตอนปิดว่าไม่สำเร็จยังพิมพ์เหตุผลเองได้"
             note="ตั้งรายการแล้ว มีตัวเลือก “อื่น ๆ (ระบุเอง)” ให้ด้วย · แยกจากเหตุผลของดีลเลอร์" noteLines={2} />
@@ -595,7 +596,10 @@ function TargetsTab() {
       m.set(k, r);
     });
     return [...m.entries()].map(([key, v]) => ({ key, ...v }));
-  }, [dealers]);
+    // ⚠️ ต้องคิดใหม่เมื่อผลงาน (perf) มาถึงด้วย — เดิมฟังแค่ dealers: ทะเบียนมาก่อนยอด → "ทำได้จริง" รายภูมิภาค
+    //    ค้าง ฿0 ทุกภาคตลอด ทั้งที่ทั้งเครือ/รายดีลเลอร์มียอด (ผลตรวจเทียบ FLOW รอบ 5 แถว 33 · goal-vs-allocated.spec.ts)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealers, perf]);
   const byDealer = useMemo(() => dealers.map(d => ({ key: `${d.code} · ${d.name}`, target: d.revenueTarget, actual: actualOf(d.code), dealers: 1 })), [dealers, perf]);
 
   const totalActual = dealers.reduce((s, d) => s + actualOf(d.code), 0);
@@ -848,7 +852,7 @@ type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "materia
 const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNode }[] = [
   { key: "company", label: "บริษัท", icon: <Building2 size={15} />, render: () => <CompanyTab /> },
   { key: "users", label: "ผู้ใช้งานและสิทธิ์", icon: <Users size={15} />, render: () => <UsersPanel embedded /> },
-  { key: "journey", label: "เส้นทางการขาย", icon: <GitMerge size={15} />, render: () => <JourneyTab /> },
+  { key: "journey", label: "ขั้นตอนการขายมาตรฐาน", icon: <GitMerge size={15} />, render: () => <JourneyTab /> },
   // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
   { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
   { key: "targets", label: "เป้าหมายยอดขาย", icon: <Target size={15} />, render: () => <TargetsTab /> },

@@ -37,7 +37,8 @@ begin
   insert into quotations (id, dealer_code, customer, line_items, total_value, status, revision, deal_id, customer_id) values
     ('ZZL-OPEN',  'CNX', 'ZZL บริษัทเก่า', li, 1000, 'sent_to_client', 'V1', l1, c1),
     ('ZZL-DRAFT', 'CNX', 'ZZL บริษัทเก่า', li, 1000, 'draft',          'V1', l1, null),
-    ('ZZL-WON',   'CNX', 'ZZL บริษัทเก่า', li, 1000, 'won',            'V1', l1, c1),
+    -- ใบ won ไม่ผูกลีด: ใบ 0252 ตั้งลีดของใบ won เป็นปิดสำเร็จ — ถ้าผูก l1 ลีดจะปิด แล้วข้ออื่นที่ใช้ l1 ถูกกันด้วย lead_closed แทน
+    ('ZZL-WON',   'CNX', 'ZZL บริษัทเก่า', li, 1000, 'won',            'V1', null, c1),
     ('ZZL-LOST',  'CNX', 'ZZL บริษัทกำพร้า', li, 1000, 'lost',         'V1', null, null),
     ('ZZL-EXP',   'CNX', 'ZZL บริษัทเก่า', li, 1000, 'expired',        'V1', l1, c1);
   alter table quotations enable trigger quotations_hq_link_guard;

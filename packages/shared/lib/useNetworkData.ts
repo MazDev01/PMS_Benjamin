@@ -339,6 +339,7 @@ export function useNetworkCustomers(): HQCustomer[] {
         // ระบบยังไม่บันทึก "วันติดต่อล่าสุด" ของลูกค้า (มีแต่ของลูกค้าเป้าหมาย) → ไม่มีข้อมูลก็ต้องขึ้น "—"
         // เดิมยัดวันเดียวกันให้ลูกค้าทุกรายทั้งเครือ = ค่าที่กุขึ้นมา
         lastContact: "—", segment: "sme",
+        contact: c.name, phone: c.phone, email: c.email, address: c.address,
       };
     });
     if (!USE_SEED) return live; // supabase: ลูกค้าทุกสาขามาจาก DB จริงแล้ว

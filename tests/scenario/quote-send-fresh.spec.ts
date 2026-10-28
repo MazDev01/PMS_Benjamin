@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from "@playwright/test";
 import { skipReason } from "./supabaseEnv";
 import { สร้างสาขาของชุด, ลบสาขาของชุด, type บัญชีสาขาของชุด } from "./ownBranch";
 import { SERVICE_ROLE_READY } from "./adminEnv";
-import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
@@ -12,7 +12,7 @@ import { เตรียมใบHQ, ทำใบลูกค้าจากใ�
 //   ซึ่งยังเป็น V2 รุ่นเก่า (2,750) เพราะข่าวอัปเดตสดของแถวเก่ามาถึงทีหลังแล้วทับของใหม่ → ถ้าคำขอผ่าน % ที่แก้หายเงียบ ๆ
 //   กติกาใหม่: ① ปุ่มส่งเปลี่ยนแค่สถานะ ราคาที่ส่งเอาจากฐาน ② ข่าวอัปเดตสดที่เวลาแก้ล่าสุด (updated_at) เก่ากว่าหรือเท่ากับของที่มีอยู่ = ทิ้ง
 //   ข้อทดสอบนี้ "คุมสายข่าว" เอง (ดัก /api/v1/events แล้วส่งข่าวที่กำหนด) — ไม่ต้องลุ้นจังหวะ ข่าวมาถึงทุกรอบเหมือนกัน
-//   วันที่ปี 2099 ในข่าวที่ส่งเอง = เครื่องหมายว่าข่าวไหนถูกใช้บนจอ (รายการใบแสดงวันที่ของใบ)
+//   วันที่ปี 2099 ในข่าวที่ส่งเอง = เครื่องหมายว่าข่าวไหนถูกใช้บนจอ (รายการใบแสดงวันที่ของใบเป็น พ.ศ. = ปี 2642 · แถว D10)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.skip(() => process.env.NEXT_PUBLIC_DATA_SOURCE !== "api", "สายข่าวของเราเอง (/api/v1/events) มีเฉพาะโหมด api");
 test.setTimeout(180_000);
@@ -59,7 +59,7 @@ async function เตรียมV2แก้แล้ว(page: Page, ใบ: ใ
   await page.getByPlaceholder(/ค้นหา/).first().fill(v1);
   const แถว = page.locator("tbody tr").filter({ hasText: v1 }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
-  await แถว.locator("td").first().click();
+  await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
   await page.waitForURL(/\/leads/, { timeout: 25_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
   await page.locator(`[data-quote-item="${v1}"]`).getByTitle("ทำฉบับใหม่").click({ timeout: 20_000 });
@@ -108,9 +108,9 @@ test("[func·dealer] แก้ % บันทึกแล้วกดส่ง�
     { ...เนื้อหาเก่า(แถว), ...ล่าสุด, date: "2099-01-02" },
   ]);
   const ใบV2 = page.locator(`[data-quote-item="${v2}"]`);
-  await expect(ใบV2, "ข่าวที่ส่งเองมาถึงหน้าเว็บแล้ว").toContainText("2099-", { timeout: 30_000 });
+  await expect(ใบV2, "ข่าวที่ส่งเองมาถึงหน้าเว็บแล้ว").toContainText("2642", { timeout: 30_000 });
   await page.waitForTimeout(500);
-  await expect(ใบV2, "ข่าวที่เก่ากว่าหรือเวลาเท่ากันต้องไม่ทับของใหม่ (ต้องเหลือข่าว ① 2099-12-31)").toContainText("2099-12-31");
+  await expect(ใบV2, "ข่าวที่เก่ากว่าหรือเวลาเท่ากันต้องไม่ทับของใหม่ (ต้องเหลือข่าว ① 2099-12-31)").toContainText("31 ธ.ค. 2642");
   expect(await ยอดบนจอ(page, v2), "หน้าจอยังเป็นยอดล่าสุด").toContain("฿2,950");
 
   // กดส่งทันที (กล่องขั้นต่อไป) → ใบที่ลูกค้าได้ = ยอดล่าสุดในฐาน
@@ -132,7 +132,7 @@ test("[func·dealer] หน้าจอค้างยอดผิด แล้�
   // ข่าวที่ "ใหม่กว่า" แต่เนื้อหาผิด (2,750) — หน้าจอรับไว้ (จำลองหน้าจอที่ค้างค่าผิดด้วยเหตุใดก็ตาม)
   const แถว = await ใบของ(v2);
   ส่งข่าว([{ ...เนื้อหาเก่า(แถว), ...เวลา(แถว, 1), date: "2099-06-06" }]);
-  await expect(page.locator(`[data-quote-item="${v2}"]`), "หน้าจอรับข่าวยอดผิดแล้ว").toContainText("2099-06-06", { timeout: 30_000 });
+  await expect(page.locator(`[data-quote-item="${v2}"]`), "หน้าจอรับข่าวยอดผิดแล้ว").toContainText("6 มิ.ย. 2642", { timeout: 30_000 });
   expect(await ยอดบนจอ(page, v2), "หน้าจอค้างยอดผิด (ตั้งใจ)").toContain("฿2,750");
 
   await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 20_000 });
@@ -144,6 +144,6 @@ test("[func·dealer] หน้าจอค้างยอดผิด แล้�
   expect(ส่งแล้ว.date, "วันที่ส่ง = วันนี้ (ฐานประทับ ไม่ใช่วันที่ค้างบนจอ)").toBe(new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10));
   expect((await ใบของ(v1)).status, "V1 ถูกแทนที่").toBe("superseded");
   // หลังส่ง หน้าจอได้แถวจากฐานกลับมา → ยอดถูก
-  await expect(page.locator(`[data-quote-item="${v2}"]`)).not.toContainText("2099-06-06", { timeout: 20_000 });
+  await expect(page.locator(`[data-quote-item="${v2}"]`)).not.toContainText("6 มิ.ย. 2642", { timeout: 20_000 });
   expect(await ยอดบนจอ(page, v2), "หลังส่ง หน้าจอแสดงยอดจากฐาน").toContain("฿2,950");
 });

@@ -184,6 +184,7 @@ export default function HQCustomersPage() {
         id: c.id, name: c.name, dealerCode: c.dealerCode, dealerName: c.dealerName, province: c.province,
         totalValue: c.totalRevenue, buildingTypes: [], templates: [], // แม่แบบ — ไม่ใช้แล้ว (ช่องยังอยู่ใน type ของ ports)
         lastPurchaseAt: c.lastPurchaseAt ? c.lastPurchaseAt.toISOString().slice(0, 10) : null,
+        contact: c.contact ?? "", phone: c.phone ?? "", email: c.email ?? "", address: c.address ?? "",
       }));
   const totalCount = pageResult ? pageResult.total : localFiltered.length;
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -213,6 +214,8 @@ export default function HQCustomersPage() {
       id: remoteRowMeta.id, localId: remoteRowMeta.id, name: remoteRowMeta.name,
       dealerCode: remoteRowMeta.dealerCode, dealerName: remoteRowMeta.dealerName, province: remoteRowMeta.province,
       dealsWon: 0, totalRevenue: remoteRowMeta.totalValue, status: "active", lastContact: "—", segment: "sme",
+      // ยอดซื้อรวมจากฐาน = ผลรวมใบที่ตอบรับ กติกาเดียวกับแท็บประวัติ (ใบ 0254) · ข้อมูลติดต่อมากับแถวเดียวกัน
+      contact: remoteRowMeta.contact, phone: remoteRowMeta.phone, email: remoteRowMeta.email, address: remoteRowMeta.address,
       region: regionOf(remoteRowMeta.province), buildings,
       lastPurchase: lastBuy?.wonDate ?? null, lastPurchaseAt: lastBuy?.wonAt ?? null,
       isRepeat: buildings.length > 1,

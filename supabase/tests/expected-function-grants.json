@@ -1,5 +1,5 @@
 {
- "migration": "0251",
+ "migration": "0256",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -175,6 +175,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "_lead_won_must_be_paid(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "_notify(p_kind text, p_dealer text, p_once text, p_vars jsonb, p_ref_table text, p_ref_id text, p_detail text)",
@@ -569,6 +576,13 @@
    "definer": false
   },
   {
+   "f": "dealers_territory_on_province_fix()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "delete_customer_cascade(p_customer_id bigint)",
    "anon": false,
    "authenticated": true,
@@ -783,7 +797,7 @@
    "anon": false,
    "authenticated": false,
    "service_role": false,
-   "definer": false
+   "definer": true
   },
   {
    "f": "hq_settings_audit()",
@@ -965,10 +979,17 @@
    "anon": false,
    "authenticated": false,
    "service_role": false,
-   "definer": false
+   "definer": true
   },
   {
    "f": "leads_territory_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "leads_won_must_be_paid()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -1213,6 +1234,13 @@
    "definer": false
   },
   {
+   "f": "quotations_legacy_won_lead_paid()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotations_no_delete_won()",
    "anon": false,
    "authenticated": false,
@@ -1281,6 +1309,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "quotations_won_must_be_paid()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "quote_request_accept(p_id bigint, p_assignee uuid)",

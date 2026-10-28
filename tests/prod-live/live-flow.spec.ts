@@ -131,12 +131,14 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
   });
 
   await test.step("4 ดีลเลอร์ส่งใบให้ลูกค้า", async () => {
-    // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — ใบต้องโผล่ในรายการ แล้วกดแถว → แผงลีด › ส่งที่กล่องขั้นต่อไป
+    // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — ใบต้องโผล่ในรายการ แล้วกดแถว → แผงดูใบ › ไปแผงลีด › ส่งที่กล่องขั้นต่อไป
     await d.goto(`${DEALER}/quotations`, { waitUntil: "domcontentloaded" });
     await รอเงียบ(d);
     const แถว = d.locator("tbody tr").filter({ hasText: บริษัท }).first();
     await expect(แถว).toBeVisible({ timeout: 30_000 });
     await แถว.locator("td").first().click();
+    await expect(d.locator("[data-quote-view]"), "กดแถวใบแล้วแผงดูใบเปิด (28 ต.ค. 69)").toBeVisible({ timeout: 30_000 });
+    await d.locator("[data-quote-view] [data-goto-lead]").click();
     await d.waitForURL(/\/leads/, { timeout: 30_000 });
     await d.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ส่งให้ลูกค้า/ }).click({ timeout: 30_000 });
     await ตกลงในกล่องยืนยัน(d);
@@ -147,8 +149,10 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
   await test.step("5 ลูกค้าตอบรับ (won)", async () => {
     await d.goto(`${DEALER}/quotations`, { waitUntil: "domcontentloaded" });
     await รอเงียบ(d);
-    // รอบ 4: ลูกค้าตอบรับ = ปุ่มที่ใบในแท็บใบเสนอราคาของแผงลีด (กดแถวในหน้ารายการ → แผงลีด)
+    // รอบ 4: ลูกค้าตอบรับ = ปุ่มที่ใบในแท็บใบเสนอราคาของแผงลีด (กดแถวในหน้ารายการ → แผงดูใบ › ไปแผงลีด)
     await d.locator("tbody tr").filter({ hasText: บริษัท }).first().locator("td").first().click();
+    await expect(d.locator("[data-quote-view]"), "กดแถวใบแล้วแผงดูใบเปิด (28 ต.ค. 69)").toBeVisible({ timeout: 30_000 });
+    await d.locator("[data-quote-view] [data-goto-lead]").click();
     await d.waitForURL(/\/leads/, { timeout: 30_000 });
     await d.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 30_000 });
     const เลขใบ = (await ใบลูกค้า())!.id;
