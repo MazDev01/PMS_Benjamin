@@ -1,6 +1,6 @@
 # Benjamin PMS — สถาปัตยกรรมระบบ (System Architecture)
 
-> เอกสารโครงสร้างระดับสถาปัตยกรรม คู่กับ [PMS-PLAN.md](./PMS-PLAN.md), [DATABASE-SCHEMA.md](./DATABASE-SCHEMA.md), [PERMISSIONS.md](./PERMISSIONS.md)
+> เอกสารโครงสร้างระดับสถาปัตยกรรม คู่กับ [PMS-PLAN.md](./PMS-PLAN.md), [DATABASE-SCHEMA.md](./archive/DATABASE-SCHEMA.md), [PERMISSIONS.md](./PERMISSIONS.md)
 
 ---
 

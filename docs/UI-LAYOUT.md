@@ -2,7 +2,7 @@
 
 > ยึดเลย์เอาต์แบบ reference (LifeCare-style): sidebar ซ้าย + KPI แถวบน + กราฟ + ตาราง + พาเนลขวา
 > ใช้ **สีแบรนด์ Benjamin** แทนโทนเทา — ดู [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md)
-> Stack: Next.js + Tailwind + shadcn/ui · ข้อมูลอ้าง [DASHBOARD-DEALER.md](./DASHBOARD-DEALER.md) / [DASHBOARD-HQ.md](./DASHBOARD-HQ.md)
+> Stack: Next.js + Tailwind + shadcn/ui · ข้อมูลอ้าง [DASHBOARD-DEALER.md](./archive/DASHBOARD-DEALER.md) / [DASHBOARD-HQ.md](./DASHBOARD-HQ.md)
 
 ---
 

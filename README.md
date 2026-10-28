@@ -17,9 +17,9 @@
 | [docs/PMS-PLAN.md](docs/PMS-PLAN.md) | แผนภาพรวม, roles, roadmap |
 | [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) | **แผนการสร้าง HQ + ดีลเลอร์ (milestone/DoD)** |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | สถาปัตยกรรม, multi-tenant, data flow |
-| [docs/DATABASE-SCHEMA.md](docs/DATABASE-SCHEMA.md) | คำอธิบายโครงสร้างฐานข้อมูล |
+| [docs/archive/DATABASE-SCHEMA.md](docs/archive/DATABASE-SCHEMA.md) | คำอธิบายโครงสร้างฐานข้อมูล |
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) | RBAC permission matrix |
-| [docs/DASHBOARD-DEALER.md](docs/DASHBOARD-DEALER.md) | สเปกหน้าแดชบอร์ดดีลเลอร์ (ฟิลด์/query) |
+| [docs/archive/DASHBOARD-DEALER.md](docs/archive/DASHBOARD-DEALER.md) | สเปกหน้าแดชบอร์ดดีลเลอร์ (ฟิลด์/query) |
 | [docs/DASHBOARD-HQ.md](docs/DASHBOARD-HQ.md) | สเปกหน้าแดชบอร์ด HQ |
 | [docs/DEALER-MANAGEMENT.md](docs/DEALER-MANAGEMENT.md) | เพิ่ม/แก้/ปิดดีลเลอร์ + สร้าง Admin อัตโนมัติ |
 | [docs/PROJECT-STRUCTURE.md](docs/PROJECT-STRUCTURE.md) | โครงสร้างโฟลเดอร์โค้ด |

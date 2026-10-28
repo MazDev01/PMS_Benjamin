@@ -20,13 +20,20 @@ const คำ = (ไฟล์, ยกเว้น = []) => {
     คำ: [{ คำ: "ติดตามผล", เหตุ: "เลิกใช้" }, { คำ: "ประเมินราคา", เหตุ: "เลิกใช้" }],
     แบบ: [{ แบบ: "^[1-5]\\s*[·.]?\\s*(ข้อมูลลูกค้า|ขอราคา HQ)$", เหตุ: "ไม่มีเลข" }], ยกเว้น,
     สถานะ: { รหัส: รหัสเก่า.map(รหัส => ({ รหัส, เหตุ: "เลิกใช้" })),
-      ที่ตรวจ: ["apps", "packages", "scripts", "tests/fixtures", "tests/scenario/global-setup.ts"], ไม่ตรวจ: ["scripts/old-flow-words.json"] } }));
+      ที่ตรวจ: ["apps", "packages", "scripts", "tests/fixtures", "tests/scenario/global-setup.ts"], ไม่ตรวจ: ["scripts/old-flow-words.json"] },
+    เอกสาร: { ที่ตรวจ: ["docs/", "README.md"], ไม่ตรวจ: ["docs/archive/"] } }));
   for (const [rel, s] of Object.entries(ไฟล์)) เขียน(root, rel, s);
   const r = spawnSync(process.execPath, [path.join(ราก, "scripts/check-old-flow-words.mjs")], { encoding: "utf8", env: { ...process.env, PMS_OLD_WORDS_ROOT: root } });
   rmSync(root, { recursive: true, force: true });
   return { ผ่าน: r.status === 0, ออก: r.stdout + r.stderr };
 };
 const หน้า = "apps/dealer/app/(app)/x/page.tsx";
+// ── หมวดเอกสาร (บอสสั่ง 28 ต.ค. 69): docs + README ตรวจคำ/สถานะเก่า · ยกเว้นเฉพาะ docs/archive/ ──
+ผล(!คำ({ "docs/คู่มือ.md": "| ประเมินราคา | กรอกเองถ้ามี |" }).ผ่าน, "เอกสาร: คำเก่าในคู่มือ → ตก");
+ผล(!คำ({ "docs/FLOW.html": "<td>ขั้น 5</td><td>QUOTED · NEGO</td>" }).ผ่าน, "เอกสาร: รหัสสถานะเก่าใน FLOW → ตก");
+ผล(!คำ({ "README.md": "ลีดติดตามผล" }).ผ่าน, "เอกสาร: README มีคำเก่า → ตก");
+ผล(คำ({ "docs/archive/เก่า.md": "> เอกสารเก่า · | ประเมินราคา | NEGO | ติดตามผล |" }).ผ่าน, "เอกสาร: docs/archive/ ไม่ตรวจ → ผ่าน");
+ผล(คำ({ "docs/FLOW.html": "<td>ขั้น 5</td><td>เสนอราคา (QUOTED)</td>" }).ผ่าน, "เอกสาร: ไม่มีของเก่า → ผ่าน");
 ผล(!คำ({ [หน้า]: `export default () => <div>สถานะ ติดตามผล</div>;` }).ผ่าน, "คำเก่าในข้อความ JSX → ตก");
 ผล(!คำ({ [หน้า]: `export const ป้าย = "ประเมินราคา";` }).ผ่าน, "คำเก่าในสตริง → ตก");
 ผล(!คำ({ [หน้า]: "export const f = (n: number) => `ขั้น ${n} ติดตามผล`;" }).ผ่าน, "คำเก่าในเทมเพลต → ตก");
