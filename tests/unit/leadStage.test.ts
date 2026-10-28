@@ -19,7 +19,7 @@ describe("ขั้นของลีด", () => {
     expect(ขั้นของลีด("HQ_PRICING", false)).toEqual({ kind: "open", step: 2 });
     expect(ขั้นของลีด("HQ_QUOTED", false)).toEqual({ kind: "open", step: 3 });
     expect(ขั้นของลีด("HQ_QUOTED", true)).toEqual({ kind: "open", step: 4 });
-    for (const s of ["QUOTED", "FOLLOWUP", "NEGO"] as const) expect(ขั้นของลีด(s, false)).toEqual({ kind: "open", step: 5 });
+    expect(ขั้นของลีด("QUOTED", false)).toEqual({ kind: "open", step: 5 });
     expect(ขั้นของลีด("PAID", false)).toEqual({ kind: "won" });
     expect(ขั้นของลีด("CANCELLED", false)).toEqual({ kind: "lost" });
   });
@@ -32,7 +32,7 @@ describe("แถบขั้น — ไฮไลต์ขั้นที่อ�
   it("ลีดเปิดอยู่: ขั้นก่อนหน้า = ผ่าน · ขั้นนี้ = ตอนนี้ · ขั้นหลัง = ยังไม่ถึง", () => {
     expect(สภาพแถบขั้น("HQ_PRICING", false, ว่าง)).toEqual(["ผ่าน", "ตอนนี้", "ยังไม่ถึง", "ยังไม่ถึง", "ยังไม่ถึง"]);
     expect(สภาพแถบขั้น("WAITING", false, ว่าง)).toEqual(["ตอนนี้", "ยังไม่ถึง", "ยังไม่ถึง", "ยังไม่ถึง", "ยังไม่ถึง"]);
-    expect(สภาพแถบขั้น("NEGO", false, ว่าง)).toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน", "ตอนนี้"]);
+    expect(สภาพแถบขั้น("QUOTED", false, ว่าง)).toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน", "ตอนนี้"]);
   });
   it("ปิดสำเร็จ = ผ่านครบ 5 ขั้น", () => {
     expect(สภาพแถบขั้น("PAID", false, ว่าง)).toEqual(["ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน", "ผ่าน"]);

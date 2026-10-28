@@ -3,21 +3,27 @@
 //   node tests/prod-live/run.mjs --target local|prod test      รัน live-flow.spec.ts (กดผ่านหน้าจอ)
 //   node tests/prod-live/run.mjs --target local|prod files     ลบแถวของการทดสอบส่งอีเมลจริง (ถ้ามี · email-send-cleanup.mjs)
 //                                                              แล้วลบไฟล์ใน Storage ที่ข้อทดสอบสร้าง (ก่อนรัน cleanup.sql)
-//   ลำดับล้าง: files → cleanup.sql (cleanup.sql ลบบัญชีทดสอบ — ขั้นล้างอีเมลต้องได้รหัสบัญชีก่อนบัญชีหาย)
+//   node tests/prod-live/run.mjs --target prod cleanup              ฐานจริง: นับบันทึกการใช้งาน (ปนแถวจริงต้อง 0) → cleanup.sql
+//                                                              (ใส่ชื่อชุดสำรองที่ซ้อมกู้ผ่านให้เอง) → ตรวจว่าไม่เหลือแถวทดสอบ
+//   ลำดับล้าง: files → cleanup (cleanup.sql ลบบัญชีทดสอบ — ขั้นล้างอีเมลต้องได้รหัสบัญชีก่อนบัญชีหาย)
+// ด่านฐานจริง (บอสสั่ง 28 ต.ค. 69): --target prod ทุกขั้นต้องมีผลสำรอง+ซ้อมกู้ "ผ่าน" ภายใน 30 นาที (scripts/lib/prodBackupMark.mjs)
+//   ไม่มี/ไม่ผ่าน/เก่าเกิน = ไม่รัน ตรวจก่อนอ่านกุญแจหรือต่อฐาน — ไม่พึ่งการต่อคำสั่งด้วย && · ข้อทดสอบ tests/tools/prod-live-guard.test.mjs
 // ไม่พิมพ์รหัสผ่าน · อีเมลชั่วคราวเป็น live-*@example.test · สถานะเก็บที่ไฟล์ใน LIVE_STATE_DIR (ไม่อยู่ในโค้ด)
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { ต้นทาง } from "../../scripts/lib/session.mjs";
 import { ขอล็อกฐานทดสอบ } from "../../scripts/lib/testDbLock.mjs";
+import { กันฐานจริง } from "../../scripts/lib/prodBackupMark.mjs";
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
 const phase = args.at(-1);
-if (!["local", "prod"].includes(target) || !["setup", "test", "files", "trial"].includes(phase)) {
-  console.error("ใช้: node tests/prod-live/run.mjs --target local|prod setup|test|files|trial"); process.exit(2);
+if (!["local", "prod"].includes(target) || !["setup", "test", "files", "trial", "cleanup"].includes(phase)) {
+  console.error("ใช้: node tests/prod-live/run.mjs --target local|prod setup|test|files|trial|cleanup"); process.exit(2);
 }
+const ชุดสำรอง = target === "prod" ? กันฐานจริง(`prod-live ${phase}`) : "";
 const envFile = target === "prod" ? ".env.production.local" : "apps/hq/.env.local";
 const env = Object.fromEntries(readFileSync(envFile, "utf8").split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));
 const URL_ = env.NEXT_PUBLIC_SUPABASE_URL, ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY, KEY = env.SUPABASE_SERVICE_ROLE_KEY;
@@ -102,5 +108,33 @@ if (phase === "files") {
     ลบ += data?.length ?? 0;
   }
   console.log(`✓ files: แถวไฟล์ ${rows?.length ?? 0} · ลบใน Storage ${ลบ}`);
+}
+if (phase === "cleanup") {
+  // ฐานในเครื่องล้างโดยรอบตรวจเต็ม (scripts/test-prodbuild.mjs) · ที่นี่ฐานจริงเท่านั้น ผ่านโฟลเดอร์ที่ผูกฐานจริงไว้ (supabase link)
+  if (target !== "prod") ตาย("cleanup ใช้กับ --target prod เท่านั้น (ฐานในเครื่องล้างโดยรอบตรวจเต็ม)");
+  const OPS = process.env.PMS_PROD_OPS_DIR ?? "C:/.claude/pms-prod-ops";
+  const ถาม = (ไฟล์, ชื่อขั้น) => {
+    const r = spawnSync("npx", ["supabase", "db", "query", "--linked", "--workdir", `"${OPS}"`, "--output-format", "json", "-f", `"${ไฟล์}"`],
+      { cwd: OPS, encoding: "utf8", shell: true });
+    if (r.status !== 0) ตาย(`${ชื่อขั้น} ไม่สำเร็จ (รหัส ${r.status}) — ${(r.stderr || r.stdout || "").trim().slice(0, 300)}`);
+    try { return JSON.parse(r.stdout.slice(r.stdout.indexOf("{"))).rows ?? []; } catch { ตาย(`${ชื่อขั้น}: อ่านผลไม่ได้`); }
+  };
+  const นับ = () => ถาม(path.resolve("tests/prod-live/cleanup-audit-count.sql"), "นับบันทึกการใช้งาน")[0] ?? {};
+  const ก่อน = นับ();
+  if (Number(ก่อน.ปนแถวจริง) !== 0) ตาย(`เงื่อนไขลบจับแถวที่ไม่ใช่แถวทดสอบ ${ก่อน.ปนแถวจริง} แถว — ไม่ลบ หยุดรายงาน`);
+  const ไฟล์ล้าง = path.join(OPS, "cleanup-run.sql");
+  writeFileSync(ไฟล์ล้าง, readFileSync("tests/prod-live/cleanup.sql", "utf8").replaceAll("__ชุดสำรองก่อนลบ__", ชุดสำรอง));
+  ถาม(ไฟล์ล้าง, "cleanup.sql");
+  const หลัง = นับ();
+  const ไฟล์เหลือ = path.join(OPS, "cleanup-left.sql");
+  writeFileSync(ไฟล์เหลือ, `select (select count(*) from public.dealers where code = '${CODE}') as สาขา,
+  (select count(*) from public.leads where dealer_code = '${CODE}') as ลีด,
+  (select count(*) from auth.users where email like 'live-%@example.test') as บัญชี;
+`);
+  const เหลือ = ถาม(ไฟล์เหลือ, "ตรวจแถวที่เหลือ")[0] ?? {};
+  const ค้าง = { บันทึก: Number(หลัง.จะลบ), สาขา: Number(เหลือ.สาขา), ลีด: Number(เหลือ.ลีด), บัญชี: Number(เหลือ.บัญชี) };
+  if (Object.values(ค้าง).some(n => n !== 0)) ตาย(`ล้างแล้วยังเหลือแถวทดสอบ ${JSON.stringify(ค้าง)} — หยุดรายงาน`);
+  if (existsSync(STATE)) rmSync(STATE);   // สถานะมีรหัสผ่านบัญชีชั่วคราว — ล้างครบแล้วไม่ต้องเก็บ
+  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบลบ ${ก่อน.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา 0 · ลีด 0 · บัญชี 0 · บันทึก 0) · ชุดสำรอง ${ชุดสำรอง}`);
 }
 void ANON;

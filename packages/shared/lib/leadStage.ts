@@ -5,7 +5,7 @@
 //   ขั้น 2 ขอราคา HQ     = รอราคา HQ
 //   ขั้น 3 ได้ใบ HQ      = ได้ราคา HQ (ยังไม่มีใบร่างให้ลูกค้า)
 //   ขั้น 4 ทำใบให้ลูกค้า = ได้ราคา HQ + มีใบร่าง
-//   ขั้น 5 รอลูกค้าตอบ   = เสนอราคา / ติดตามผล / เจรจาต่อรอง
+//   ขั้น 5 รอลูกค้าตอบ   = เสนอราคา
 //   ปิดสำเร็จ = ผ่านครบ 5 ขั้น · ปิดไม่สำเร็จ = ติ๊กเฉพาะขั้นที่ทำจริง (ดูจากประวัติคำขอ/ใบ ไม่ใช่สถานะ)
 // แถบขั้นไฮไลต์ "ขั้นที่อยู่ตอนนี้" ไม่ใช่ขั้นที่ต้องทำต่อ
 // ⛔ ห้ามเขียนตาราง สถานะ→ขั้น หรือรายชื่อขั้นซ้ำที่อื่น — scripts/check-lead-stage-map.mjs (รอบตรวจเต็ม) ตกทันที
@@ -24,7 +24,7 @@ export function ขั้นของลีด(status: LeadStatus, มีใบ�
     case "WAITING": case "BULLET": return { kind: "open", step: 1 };
     case "HQ_PRICING": return { kind: "open", step: 2 };
     case "HQ_QUOTED": return { kind: "open", step: มีใบร่าง ? 4 : 3 };
-    case "QUOTED": case "FOLLOWUP": case "NEGO": return { kind: "open", step: 5 };
+    case "QUOTED": return { kind: "open", step: 5 };
     case "PAID": return { kind: "won" };
     case "CANCELLED": return { kind: "lost" };
   }

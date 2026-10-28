@@ -1,3 +1,5 @@
+> **เอกสารเก่า ไม่ใช่ข้อกำหนดปัจจุบัน — ดู docs/FLOW.html**
+
 # Benjamin PMS — สเปกหน้า Dashboard ดีลเลอร์
 
 > หน้าแดชบอร์ดสำหรับผู้ใช้ระดับดีลเลอร์ (DEALER_ADMIN / DEALER_SALES / DEALER_SITE)

@@ -23,6 +23,7 @@ const กฎ = [
 const ยกเว้น = [
   ["scripts/restore.mjs", /rpc\("restore_sync_sequences"\)/, "กู้ข้อมูลจากชุดสำรองแล้วต้องตั้งตัวนับให้ตรงกับข้อมูลที่กู้ (กันกับดักกู้แล้วบันทึกใหม่ไม่ได้ · 0131)"],
   ["tests/prod-live/cleanup.sql", /where dealer_code = 'ZZT'/, "ลบตัวนับของสาขาทดสอบชั่วคราว ZZT เท่านั้น"],
+  ["scripts/prod-backup-verify.mjs", /psql\(BLANK, "select setval\('public\.audit_log_id_seq'/, "ข้อทดสอบเครื่องมือเท่านั้น (PMS_DRILL_SABOTAGE=seq · ใช้ได้กับ --target local): เลื่อนตัวนับในฐานซ้อมกู้ในเครื่อง (BLANK) ไม่ใช่ฐานจริง"],
   ["scripts/go-live-reset.mjs", /clear\("(entity|quote)_counters"/, "ใช้ก่อนเปิดระบบครั้งเดียว · หยุดเองเมื่อมีคำขอราคาของดีลเลอร์จริง (ตัวกัน 19 ต.ค. 69)"],
 ];
 

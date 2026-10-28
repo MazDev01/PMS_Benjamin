@@ -89,15 +89,15 @@ export const RED     = "#dc2626";
 ```
 
 ### 1.3 สีสถานะ (ต้องยกไปทั้งชุด — ผูกกับความหมาย)
-**LeadStatus** — ไล่ตามลำดับขั้น เทา→navy→indigo→amber→orange→green(Won)→red(Lost)
+**LeadStatus** — สถานะภายใน (หน้าจอแสดงเป็น 5 ขั้นผ่าน `packages/shared/lib/leadStage.ts` เท่านั้น · ตาราง "สถานะ ↔ ขั้น" ใน docs/FLOW.html)
 
 | status | label | bg | text |
 |---|---|---|---|
 | `WAITING` | ติดต่อแล้ว | `#eef2f7` | `#475569` |
 | `BULLET` | รวบรวมความต้องการ | `#dce5f0` | `#003366` |
+| `HQ_PRICING` | รอราคา HQ | `#f3e8ff` | `#6b21a8` |
+| `HQ_QUOTED` | ได้ราคา HQ | `#dcfce7` | `#166534` |
 | `QUOTED` | เสนอราคา | `#e0e7ff` | `#4338ca` |
-| `FOLLOWUP` | ติดตามผล | `#fff3cd` | `#d97706` |
-| `NEGO` | เจรจาต่อรอง | `#fde8cd` | `#b45309` |
 | `PAID` | ปิดการขายสำเร็จ | `#e5faf0` | `#059669` |
 | `CANCELLED` | ปิดการขายไม่สำเร็จ | `#fee2e2` | `#dc2626` |
 
@@ -204,7 +204,7 @@ type MockSession = {
 
 ### 4.2 Lead (⭐ = Deal — ไม่มี entity "deal" แยก)
 ```ts
-type LeadStatus = "WAITING"|"BULLET"|"QUOTED"|"FOLLOWUP"|"NEGO"|"PAID"|"CANCELLED";
+type LeadStatus = "WAITING"|"BULLET"|"HQ_PRICING"|"HQ_QUOTED"|"QUOTED"|"PAID"|"CANCELLED";
 
 type LeadRow = {
   id: string; numId: number;
@@ -323,26 +323,26 @@ LOST_REASONS = ["ราคา","คู่แข่ง","งบประมาณ
 **ความคืบหน้า % คำนวณจากงานที่ติ๊กเท่านั้น — ห้ามให้ผู้ใช้ลาก slider**
 
 ```ts
-const LEAD_TASK_TEMPLATE: { key: string; label: string; stage: LeadStatus }[] = [
-  { key:"contact",     label:"ติดต่อครั้งแรก",    stage:"WAITING"  },
-  { key:"collect",     label:"เก็บข้อมูลลูกค้า",   stage:"WAITING"  },
-  { key:"requirement", label:"รวบรวมความต้องการ", stage:"BULLET"   },
-  { key:"catalog",     label:"ส่งแม่แบบให้ลูกค้า", stage:"BULLET"   },
-  { key:"appointment", label:"นัดหมาย",          stage:"BULLET"   },
-  { key:"makeQuote",   label:"จัดทำใบเสนอราคา",   stage:"QUOTED"   },
-  { key:"sendQuote",   label:"ส่งใบเสนอราคา",     stage:"QUOTED"   },
-  { key:"followup",    label:"ติดตามผล",         stage:"FOLLOWUP" },
-  { key:"negotiate",   label:"เจรจา",            stage:"NEGO"     },
-  { key:"close",       label:"ปิดการขาย",        stage:"PAID"     },
+// งานในแต่ละขั้น (FLOW D7 · ใบ 0250) — ผูกกับขั้น 1–5 ไม่ใช่สถานะลีด · auto = ระบบติ๊กเมื่อเกิดเหตุการณ์จริง
+const LEAD_TASK_TEMPLATE: { key: string; label: string; step: 1|2|3|4|5; auto?: true }[] = [
+  { key:"contact",        label:"ติดต่อแล้ว",       step:1 },
+  { key:"collect",        label:"เก็บข้อมูลลูกค้า",  step:1 },
+  { key:"requirement",    label:"สรุปความต้องการ",  step:1 },
+  { key:"appointment",    label:"นัดหมาย",         step:1, auto:true },
+  { key:"requestQuote",   label:"ส่งคำขอราคา",      step:2, auto:true },
+  { key:"hqQuote",        label:"ได้ใบ HQ",         step:3, auto:true },
+  { key:"makeQuote",      label:"จัดทำใบเสนอราคา",  step:4, auto:true },
+  { key:"sendQuote",      label:"ส่งใบเสนอราคา",    step:5, auto:true },
+  { key:"followCustomer", label:"ติดตามลูกค้า",     step:5 },
 ];
-const STAGE_RANK = { WAITING:0, BULLET:1, QUOTED:2, FOLLOWUP:3, NEGO:4, PAID:5, CANCELLED:2 };
+// งานไม่เลื่อนขั้น (รอบ 4 · ใบ 0232) — ขั้นของลีดฐานขยับตามคำขอราคา/ใบเสนอราคาเท่านั้น
 ```
 
 | ฟังก์ชัน | สูตร / กฎ |
 |---|---|
 | `taskProgress(tasks)` | `round(done / total × 100)` |
-| `stageFromTasks(tasks)` | ไล่ template **ข้าม `close`** → stage ของงานสุดท้ายที่ done · ฐาน `"WAITING"` |
-| `syncTasksToStage(tasks, status, doneBy)` | ปรับ checklist ให้ตรงสเตจเป๊ะ: ไปหน้า→ติ๊กถึงสเตจนั้น (คง doneAt เดิม) · ย้อนกลับ→**เอาติ๊กที่เกินออก** · `CANCELLED` → **ไม่แตะเลย** |
+| ~~`stageFromTasks(tasks)`~~ (เอาออกรอบ 4 — งานไม่เลื่อนขั้น) | ไล่ template **ข้าม `close`** → stage ของงานสุดท้ายที่ done · ฐาน `"WAITING"` |
+| ~~`syncTasksToStage(tasks, status, doneBy)`~~ (เอาออกรอบ 4) | ปรับ checklist ให้ตรงสเตจเป๊ะ: ไปหน้า→ติ๊กถึงสเตจนั้น (คง doneAt เดิม) · ย้อนกลับ→**เอาติ๊กที่เกินออก** · `CANCELLED` → **ไม่แตะเลย** |
 | `buildLeadTasks()` | checklist ใหม่ `done:false` ทุกงาน |
 
 ---
@@ -414,7 +414,7 @@ const idx = Math.min(ACTIVE_STAGES.length - 1,
 ### 6.6 ใบเสนอราคา → ติ๊กงานลีดอัตโนมัติ
 ```ts
 completeLeadQuoteTasks(quotation, keys: string[])
-const RANK = { WAITING:0, BULLET:1, QUOTED:2, FOLLOWUP:3, NEGO:4 };
+// (เดิมเลื่อนสถานะลีดตามงาน — เอาออกรอบ 4 · ตอนนี้ฐานติ๊กงานของระบบและเลื่อนขั้นเอง ใบ 0210/0219/0248/0250)
 ```
 - จับคู่ลีด: `(q.customerId > 0 && l.customerId === q.customerId) || l.company === q.customer`
 - **ข้ามลีด `PAID` / `CANCELLED`** (terminal)

@@ -48,8 +48,8 @@ begin
   -- HQ ก็ส่งสถานะอื่นตอนสร้างไม่ได้
   perform nstest.as_user('SUPER_ADMIN', '');
   perform nstest.must_fail($q$insert into leads (id, num_id, dealer_code, company, name, phone, province, status, assigned)
-      values ('#L-ZZNS4', 990954, 'RYG', 'ZZNS ลีด 4', 'ZZNS ลีด 4', '000-000-0954', 'ระยอง', 'FOLLOWUP', 'ทดสอบระบบ')$q$,
-    'lead_new_status_locked', 'HQ ส่ง "ติดตามผล" ตอนสร้าง = ปฏิเสธ');
+      values ('#L-ZZNS4', 990954, 'RYG', 'ZZNS ลีด 4', 'ZZNS ลีด 4', '000-000-0954', 'ระยอง', 'QUOTED', 'ทดสอบระบบ')$q$,
+    'lead_new_status_locked', 'HQ ส่ง "เสนอราคา" ตอนสร้าง = ปฏิเสธ');
 
   -- leads_page: p_stage = 0 = กำลังดำเนินการ (ขั้น 1–5) · ไม่มีลีดปิดแล้ว · null = ทั้งหมด
   perform nstest.as_user('SUPER_ADMIN', '');

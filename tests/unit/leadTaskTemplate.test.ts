@@ -50,18 +50,15 @@ describe("ตรวจ/ซ่อมชุดรายการก่อนใช
     expect(out.filter(t => t.step === 1 && !t.auto).map(t => t.key)).toEqual(["w", "w2"]);
   });
 
-  it("แม่แบบรุ่นเก่า (ผูกสถานะลีด stage) อ่านได้ — แปลงเป็นขั้นใหม่ · ทิ้งรายการ flow เก่า", () => {
+  it("แม่แบบรุ่นเก่า (ผูกสถานะลีด stage ไม่มีขั้น) ใช้ไม่ได้แล้ว — ไม่แปลง ทิ้งทั้งหมด ได้ชุดตั้งต้น 5 ขั้น (ใบ 0257 ย้ายข้อมูลแล้ว ฐานไม่รับ)", () => {
     const out = normalizeLeadTaskTemplate([
       { key: "contact", label: "ติดต่อแล้ว", stage: "WAITING" },
       { key: "followup", label: "ติดตามผล", stage: "FOLLOWUP" },
       { key: "negotiate", label: "เจรจาต่อรอง", stage: "NEGO" },
-      { key: "close", label: "ปิดการขาย / ไม่สำเร็จ", stage: "PAID" },
-      { key: "catalog", label: "ส่งแม่แบบให้ลูกค้า", stage: "QUOTED" },
       { key: "task_quoted_1", label: "งานที่ HQ เพิ่มเอง", stage: "QUOTED" },
     ]);
-    expect(out.find(t => t.key === "contact")?.step).toBe(1);
-    expect(out.find(t => t.key === "task_quoted_1")?.step).toBe(5);
-    for (const k of ["followup", "negotiate", "close", "catalog"]) expect(out.some(t => t.key === k), `ไม่มี ${k}`).toBe(false);
+    expect(out).toEqual(LEAD_TASK_TEMPLATE);
+    for (const k of ["followup", "negotiate", "task_quoted_1"]) expect(out.some(t => t.key === k), `ไม่มี ${k}`).toBe(false);
   });
 });
 

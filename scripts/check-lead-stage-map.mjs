@@ -17,7 +17,7 @@ import { ไฟล์ที่gitเก็บ } from "./lib/gitFiles.mjs";
 
 const ROOT = process.env.PMS_STAGE_CHECK_ROOT || process.cwd();
 const ตัวกลาง = new Set(["packages/shared/lib/leadStage.ts"]);
-const สถานะ = new Set(["WAITING", "BULLET", "HQ_PRICING", "HQ_QUOTED", "QUOTED", "FOLLOWUP", "NEGO", "PAID", "CANCELLED"]);
+const สถานะ = new Set(["WAITING", "BULLET", "HQ_PRICING", "HQ_QUOTED", "QUOTED", "PAID", "CANCELLED"]);
 const ชื่อขั้น = ["ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"];
 
 const ไฟล์ = [];

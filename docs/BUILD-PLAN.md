@@ -37,7 +37,7 @@
 
 ### 3.1 หน้าจอ (Routes)
 ```
-/dashboard        แดชบอร์ดดีลเลอร์ (DASHBOARD-DEALER.md)
+/dashboard        แดชบอร์ดดีลเลอร์ (archive/DASHBOARD-DEALER.md · เอกสารเก่า)
 /leads            pipeline (Kanban) + list
 /leads/[id]       รายละเอียดลูกค้าเป้าหมาย + activity
 /customers        ลูกค้า + ปุ่ม "เพิ่มลูกค้า" (กรอกเอง)
