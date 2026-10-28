@@ -68,5 +68,5 @@ export async function เตรียม() {
     if (r.status !== 0) throw new Error(`SQL ฐาน dev: ${(r.stderr || r.stdout).trim().split(/\r?\n/).slice(-3).join(" ")}`);
     return r.stdout;
   };
-  return { svc, เข้า, sql, ทดสอบ, ไฟล์บัญชี, อ่านบัญชี, บัญชีผู้ใช้, วัน, ป้ายวัน, เวลาย้อน, ต้อง, ป้าย, เบอร์ };
+  return { svc, เข้า, sql, คอนเทนเนอร์, ทดสอบ, ไฟล์บัญชี, อ่านบัญชี, บัญชีผู้ใช้, วัน, ป้ายวัน, เวลาย้อน, ต้อง, ป้าย, เบอร์ };
 }

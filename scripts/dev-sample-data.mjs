@@ -4,6 +4,7 @@
 // ตัวรัน: เรียกทีละส่วนในโฟลเดอร์ scripts/dev-sample/ ตามลำดับ (ส่วนหลังพึ่งของส่วนก่อนได้ เช่น ดีลเลอร์/บัญชี)
 //   แต่ละส่วน export { ชื่อ, มีแล้ว(ctx), ลบ(ctx), สร้าง(ctx) } · ลบ/สร้างเฉพาะของตัวเอง (ช่วงเลข/ชื่อของตัวเอง)
 //   กติกาทุกส่วน: scripts/dev-sample/ตัวช่วย.mjs (ทางเดียวกับหน้าเว็บ · flow ใหม่เท่านั้น · ข้อมูลสมมติ · ฐาน dev เท่านั้น)
+//   ขั้นงานขายร่วม + ย้อนเวลา + SQL ลบของส่วน: scripts/dev-sample/งานขาย.mjs (ไม่ใช่ส่วน · ส่วนอื่นเรียกใช้)
 // ฐาน dev เท่านั้น (พอร์ต ฐาน.dev ใน scripts/lib/ports.json) — ฐานทดสอบ/ฐานจริงห้ามรัน · ไม่แตะ tests/fixtures/test-baseline.sql
 // ใช้: node scripts/dev-sample-data.mjs                 (ส่วนที่มีแล้ว = ข้าม)
 //      node scripts/dev-sample-data.mjs --reset         (ลบทุกส่วนแล้วสร้างใหม่ · npm run dev:sample)
