@@ -128,7 +128,7 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   assertNoErrors(errs, "กล่องงานคำขอของ HQ");
 });
 
-test("[flow·dealer] ยกเลิกคำขอ ต้องมีเหตุผล → ลูกค้าเป้าหมายกลับรวบรวมความต้องการ · อีเมลถึง HQ (แถว 6)", async ({ page }) => {
+test("[D3x] [flow·dealer] ยกเลิกคำขอ ต้องมีเหตุผล → ลูกค้าเป้าหมายกลับรวบรวมความต้องการ · อีเมลถึง HQ (แถว 6)", async ({ page }) => {
   const errs = watchErrors(page);
   const แผง = await เปิดแท็บใบเสนอราคา(page);
   await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();

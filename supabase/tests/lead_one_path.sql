@@ -57,7 +57,7 @@ begin
   perform onepath.as_dealer();
   perform onepath.must_fail(format($s$insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status)
     values ('#L-%s', %s, 'CNX', 'ZZTEST-onepath-1', 'ZZTEST-onepath-1', 'ผู้ทดสอบ', '0890000001', 'เชียงใหม่', 'โกดัง', 'QUOTED')$s$, n1, n1),
-    'lead_status_one_path', 'ดีลเลอร์สร้างลีดใหม่ที่ขั้นเสนอราคา');
+    'lead_new_status_locked', 'ดีลเลอร์สร้างลีดใหม่ที่ขั้นเสนอราคา (ใบ 0256: ลีดใหม่ = ขั้นข้อมูลลูกค้าเสมอ)');
   insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status)
   values ('#L-' || n1, n1, 'CNX', 'ZZTEST-onepath-1', 'ZZTEST-onepath-1', 'ผู้ทดสอบ', '0890000001', 'เชียงใหม่', 'โกดัง', 'WAITING');
   perform onepath.ok(true, 'ดีลเลอร์สร้างลีดใหม่ที่ขั้นติดต่อแล้วได้');

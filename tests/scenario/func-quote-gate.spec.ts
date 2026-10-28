@@ -80,7 +80,9 @@ test("[func] งาน 'จัดทำใบเสนอราคา' ระบ
   await openTestLead(page);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
 
-  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();   // รอบ 4: แท็บงานยุบเข้าประวัติ (รายการเตือน)
+  await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();   // งานในแต่ละขั้นอยู่แท็บภาพรวม (28 ต.ค. 69)
+  await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 10_000 });
+  for (const b of await page.locator("[data-lead-tasks] button[aria-expanded='false']").all()) await b.click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
   // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69 "ปุ่มทำใบมีที่เดียว")
   //   เจตนาเดิมยังอยู่: "ติ๊กงานเฉย ๆ โดยไม่มีใบจริงไม่ได้" — ทำใบได้ทางเดียวคือปุ่มที่แถบขั้นต่อไป
   const งานออกใบ = page.getByRole("checkbox", { name: /จัดทำใบเสนอราคา/ }).first();
@@ -146,7 +148,9 @@ test("[func] งาน 'ส่งใบเสนอราคา' ระบบต
   await openTestLead(page);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().locator("td").first().click();
 
-  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();   // รอบ 4: แท็บงานยุบเข้าประวัติ (รายการเตือน)
+  await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();   // งานในแต่ละขั้นอยู่แท็บภาพรวม (28 ต.ค. 69)
+  await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 10_000 });
+  for (const b of await page.locator("[data-lead-tasks] button[aria-expanded='false']").all()) await b.click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
   // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69) — ส่งใบได้ทางเดียวคือปุ่ม "ส่งให้ลูกค้า" (แถบขั้นต่อไป/รายการใบ)
   await expect(page.getByRole("checkbox", { name: /ส่งใบเสนอราคา/ }).first(), "งาน 'ส่งใบเสนอราคา' กดเองไม่ได้").toBeDisabled({ timeout: 15_000 });
   await expect(page.getByText("ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า").first()).toBeVisible();

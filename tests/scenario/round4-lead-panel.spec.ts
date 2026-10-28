@@ -100,7 +100,7 @@ test("ข้อ 2 · ป้ายสถานะในตารางกดแ�
   expect(await การ์ด.getAttribute("draggable")).toBeNull();
 });
 
-test("ข้อ 3 · ปิดไม่สำเร็จที่กล่อง (ขั้น 1) → ลีดปิดพร้อมเหตุผล · ขั้น 2 = ยกเลิกคำขอให้ด้วย", async ({ page }) => {
+test("[D8y] ข้อ 3 · ปิดไม่สำเร็จที่กล่อง (ขั้น 1) → ลีดปิดพร้อมเหตุผล · ขั้น 2 = ยกเลิกคำขอให้ด้วย", async ({ page }) => {
   const ก = ชื่อ("ปิดขั้น1"); const n1 = await ลีดเปล่า("WAITING", ก);
   const ข = ชื่อ("ปิดขั้น2"); const n2 = await ลีดเปล่า("BULLET", ข); const rid = await ขอราคา(n2);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);

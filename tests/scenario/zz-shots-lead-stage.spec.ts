@@ -48,10 +48,10 @@ test("ถ่ายรูป: แท็บประวัติ (รายกา�
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(บริษัท);
     await page.locator("tbody tr").filter({ hasText: บริษัท }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
     await expect(async () => {
-      await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click({ timeout: 5_000 });
-      await expect(page.getByText(/รายการเตือน/).first()).toBeVisible({ timeout: 3_000 });
+      await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click({ timeout: 5_000 });   // งานในแต่ละขั้นอยู่แท็บภาพรวม (28 ต.ค. 69)
+      await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 3_000 });
     }).toPass({ timeout: 40_000 });
-    await page.getByText(/รายการเตือน/).first().scrollIntoViewIfNeeded();
+    await page.locator("[data-lead-tasks]").scrollIntoViewIfNeeded();
   });
   const hq = await (await browser.newContext()).newPage();
   await loginUI(hq, HQ_ORIGIN, "/hq/login", ADMIN);

@@ -47,6 +47,8 @@ import {
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { QUOTED_UP } from "@pms/shared/lib/mock";
+import { ช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
+import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
 import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น, สีกราฟขั้น, ตัวเลือกขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
@@ -92,7 +94,8 @@ export default function HQLeadsPage() {
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [query, setQuery] = useState("");
   // ตัวกรองขั้น = เลขขั้น 1–7 จากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมกรองตามชื่อสถานะภายใน) · ALL = ทุกขั้น
-  const [status, setStatus] = useState<string>("ALL");
+  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–5 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
+  const [status, setStatus] = useState<string>("OPEN");
   // เลขขั้นของแถว: แถวจากฐาน (leads_page ใบ 0251) มี stageNo · โหมดตัวอย่าง/ค้างติดตาม คิดจากใบร่างที่มีในเครื่อง
   const เลขขั้นแถว = (l: LeadRow): เลขขั้น => (l.stageNo as เลขขั้น | undefined)
     ?? เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
@@ -161,7 +164,7 @@ export default function HQLeadsPage() {
   }, [scoped, query, province, dealerSel, regionSel, srcSel, REGION_OF]);
 
   const filtered = useMemo(() => kpiBase.filter(l =>
-    (status === "ALL" || เลขขั้นแถว(l) === Number(status)) &&
+    (status === "ALL" || (status === "OPEN" ? เลขขั้นแถว(l) <= 5 : เลขขั้นแถว(l) === Number(status))) &&
     (!overdueOnly || needsFollowUp(l, 30))
   ), [kpiBase, status, overdueOnly, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -179,7 +182,8 @@ export default function HQLeadsPage() {
     source: srcSel === "ALL" ? undefined : srcSel,
     search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
   };
-  const sumCharts = useLeadSummary({ ...baseF, stage: status === "ALL" ? undefined : Number(status) }); // กราฟ (filtered)
+  // กราฟนับตามช่วงเวลาเหมือนเดิม (รวมลีดปิดแล้ว) เมื่ออยู่ที่ค่าเริ่มต้น "กำลังดำเนินการ" — เลือกปิดสำเร็จ/ไม่สำเร็จ = กรองกลุ่มนั้น
+  const sumCharts = useLeadSummary({ ...baseF, stage: status === "ALL" || status === "OPEN" ? undefined : Number(status) }); // กราฟ (filtered)
   const chartSummary = overdueOnly ? null : sumCharts;                               // overdue → client (พึ่ง last_contact + เกณฑ์)
 
   // ── ตารางลูกค้าเป้าหมาย: แบ่งหน้าที่ DB (M9 Phase 4) · local/ยังไม่กลับ = filtered (client) ──
@@ -188,7 +192,8 @@ export default function HQLeadsPage() {
   const [leadPage, setLeadPage] = useState(0);
   const leadOpts: LeadListOpts = useMemo(() => ({
     limit: LEADS_PAGE, offset: leadPage * LEADS_PAGE,
-    stage: status === "ALL" ? undefined : Number(status), dealerCodes: leadDealerCodes,
+    // 0 = กำลังดำเนินการ (ขั้น 1–5 · ใบ 0256)
+    stage: status === "ALL" ? undefined : status === "OPEN" ? 0 : Number(status), dealerCodes: leadDealerCodes,
     province: province === "ALL" ? undefined : province,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
     dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
@@ -236,7 +241,7 @@ export default function HQLeadsPage() {
       {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
     </select>
   );
-  const anyFilter = !!query.trim() || [status, province, dealerSel, regionSel, srcSel].some(v => v !== "ALL");
+  const anyFilter = !!query.trim() || status !== "OPEN" || [province, dealerSel, regionSel, srcSel].some(v => v !== "ALL");
 
 
   // ── Section 1 · ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา รายดีลเลอร์ ─────────────────────────────
@@ -282,14 +287,14 @@ export default function HQLeadsPage() {
   }, [leadDealerCodes, baseF.province, baseF.source, baseF.search]);
   const การ์ด = useKpiCards("hq.leads", { ...ช่วงการ์ด, dealer: dealerSel === "ALL" ? null : dealerSel, today: isoDateOf(APP_NOW), filters: ตัวกรองการ์ด, รุ่น: salesVersion });
   const kpiCards = [
-    { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(การ์ด, "open"), unit: "ราย · ยังไม่ปิดการขาย", Icon: Users, color: "#2563a8", on: status === "ALL" && !overdueOnly,
-      onClick: () => { setStatus("ALL"); setOverdueOnly(false); } },
+    { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(การ์ด, "open"), unit: "ราย · ยังไม่ปิดการขาย", Icon: Users, color: "#2563a8", on: status === "OPEN" && !overdueOnly,
+      onClick: () => { setStatus("OPEN"); setOverdueOnly(false); } },
     { kpi: "new", label: "ลีดใหม่ในช่วงนี้", value: ค่า(การ์ด, "new"), unit: "ราย · เข้ามาในช่วงที่เลือก", Icon: PhoneCall, color: "#7c3aed", on: false,
-      onClick: () => { setStatus("ALL"); setOverdueOnly(false); } },
+      onClick: () => { setStatus("OPEN"); setOverdueOnly(false); } },
     { kpi: "hqWaiting", label: "ลีดของ HQ รอโอน", value: ค่า(การ์ด, "hqWaiting"), unit: "ราย · ยังไม่โอนให้ดีลเลอร์", Icon: Inbox, color: "#0891B2", on: false,
       onClick: () => document.querySelector("[data-card='hq-lead-transfer']")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { kpi: "idle", label: "ไม่เคลื่อนไหวเกิน 30 วัน", value: ค่า(การ์ด, "idle"), unit: "ราย · ติดต่อล่าสุดเกิน 30 วัน", Icon: AlarmClock, color: "#EA580C", on: overdueOnly,
-      onClick: () => { setStatus("ALL"); setOverdueOnly(v => !v); } },
+      onClick: () => { setStatus("OPEN"); setOverdueOnly(v => !v); } },
   ];
 
   // ── Section 7 · แนวโน้มรายเดือน — 4 เส้น: ลูกค้าเป้าหมายใหม่ · ใบเสนอราคา · ปิดได้ · ปิดไม่สำเร็จ ──
@@ -380,27 +385,11 @@ export default function HQLeadsPage() {
   }, [chartSummary, filtered]);
 
 
-  // ── Section 5 · ผลงานดีลเลอร์ (Top 10) ─────────────────────────────────────
-  // ใช้ leadVsQuote ที่คำนวณไว้แล้ว (แหล่งเดียว ไม่คำนวณซ้ำ) + ยอดขายจากใบที่ตอบรับ
-  const dealerPerf = useMemo(() => {
-    const sales = new Map<string, number>();
-    if (rangeByDealer) { for (const [code, v] of rangeByDealer) sales.set(code, v.wonVal); } // supabase
-    else netQuotes.forEach(q => { // local/ยังไม่กลับ
-      const d = parseThaiDate(q.createdAt ?? "");
-      if (d && (d < timeRange.start || d > timeRange.end)) return;
-      if (q.status === "won") sales.set(q.dealerCode, (sales.get(q.dealerCode) ?? 0) + q.valueNum);
-    });
-    return leadVsQuote
-      .map(d => ({ ...d, sales: sales.get(d.code) ?? 0 }))
-      .sort((a, b) => b.sales - a.sales)
-      .slice(0, 10);
-  }, [leadVsQuote, rangeByDealer, netQuotes, timeRange.start, timeRange.end]);
 
   // Export — หนึ่งแถวต่อลูกค้าเป้าหมาย (คอลัมน์ตรงกับตาราง) · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด · local: จาก filtered
   const leadToCells = (l: LeadRow) => [
     l.id, l.dealerCode ?? "—", DEALER_NAME.get(l.dealerCode ?? "") ?? "—", l.company, l.contact,
     l.province, l.source || "—", มูลค่าอ่านง่าย(มูลค่าลีด(l)),
-    QUOTED_UP.includes(l.status) ? "เสนอแล้ว" : "—",
     lastContactLabel(l),
     needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays) ? "ต้องติดตาม" : "—",
     l.assigned || "—", ชื่อขั้น(เลขขั้นแถว(l)),
@@ -421,7 +410,7 @@ export default function HQLeadsPage() {
           <FilterBar dims={[]} />
           {/* ส่งออก = สิ่งที่เห็นบนจอตอนนี้ (ผ่านตัวกรองทุกตัวแล้ว) · คอลัมน์เรียงตรงกับตาราง */}
           <ExportMenu filename="hq-leads" title="ลูกค้าเป้าหมายทั้งเครือ"
-            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","แหล่งที่มา","มูลค่า","เสนอราคาแล้ว","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","ขั้นตอน","เหตุผลที่ปิดไม่สำเร็จ"]}
+            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","แหล่งที่มา","มูลค่า","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","ขั้นตอน","เหตุผลที่ปิดไม่สำเร็จ"]}
             rows={filtered.map(leadToCells)} getRows={exportGetRows} />
       </TopbarActions>
 
@@ -451,9 +440,16 @@ export default function HQLeadsPage() {
           {leadSel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(o => ({ v: o, l: regionDisplay(o) })))}
           {leadSel(province, setProvince, "ทุกจังหวัด", provinces.map(p => ({ v: p, l: p })))}
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
-          {leadSel(status, setStatus, "ทุกขั้นตอน", ตัวเลือกขั้น)}
+          {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–5) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
+          <select aria-label={ช่อง.ขั้นตอน} value={status} onChange={e => setStatus(e.target.value)} className="form-input"
+            style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
+            <option value="OPEN">กำลังดำเนินการ</option>
+            <option value="6">{ชื่อขั้น(6)}</option>
+            <option value="7">{ชื่อขั้น(7)}</option>
+            <option value="ALL">ทั้งหมด</option>
+          </select>
           {anyFilter && (
-            <button onClick={() => { setQuery(""); setDealerSel("ALL"); setRegionSel("ALL"); setProvince("ALL"); setSrcSel("ALL"); setStatus("ALL"); }}
+            <button onClick={() => { setQuery(""); setDealerSel("ALL"); setRegionSel("ALL"); setProvince("ALL"); setSrcSel("ALL"); setStatus("OPEN"); }}
               className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>ล้างตัวกรอง</button>
           )}
         </div>
@@ -588,49 +584,7 @@ export default function HQLeadsPage() {
         </div>
       </div>
 
-      {/* ── แถว 3 · ผลงานดีลเลอร์ (Top 10) — เต็มความกว้าง ──
-          ตารางนี้มี 6 คอลัมน์ กว้างขั้นต่ำ 674px (colgroup) จึงอยู่ในช่องแคบไม่ได้
-          เคยอยู่ช่องที่ 3 ของกริด (~300px) → เห็นแค่คอลัมน์ "ลูกค้าเป้าหมาย" ที่เหลือต้องเลื่อนแนวนอน */}
-      <div className="card" style={{ marginBottom: 16, display: "flex", flexDirection: "column" }}>
-        <div className="card-header"><div className="card-title">ผลงานดีลเลอร์ 10 อันดับแรก</div></div>
-        <div className="table-wrap">
-          <table>
-            <colgroup>
-              <col style={{ width: "6%", minWidth: 64 }} />
-              <col style={{ width: "30%", minWidth: 180 }} />
-              <col style={{ width: "14%", minWidth: 90 }} />
-              <col style={{ width: "16%", minWidth: 110 }} />
-              <col style={{ width: "16%", minWidth: 110 }} />
-              <col style={{ width: "18%", minWidth: 120 }} />
-            </colgroup>
-            <thead><tr>
-              <th>อันดับ</th><th>ดีลเลอร์</th>
-              <th className="num">ลูกค้าเป้าหมาย</th><th className="num">ใบเสนอราคา</th>
-              <th className="num" title="ลูกค้าเป้าหมายที่ออกใบเสนอราคาแล้ว ÷ ลูกค้าเป้าหมายทั้งหมด — ไม่ใช่อัตราปิดการขาย">อัตราออกใบเสนอราคา</th><th className="num">ยอดขาย</th>
-            </tr></thead>
-            <tbody>
-              {!dealerPerf.length ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: "28px 14px", color: "var(--muted-foreground)" }}>ไม่มีข้อมูลในช่วงที่เลือก</td></tr>
-              ) : dealerPerf.map((d, i) => (
-                <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าดีลเลอร์ ${d.name}`}>
-                  <td>
-                    {/* อันดับ 1-3 = เหรียญ ทอง/เงิน/ทองแดง · ที่เหลือ = เลขในชิปเทา (โพลิชแบบ leaderboard) */}
-                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 8, fontWeight: 800, fontSize: "0.72rem", fontVariantNumeric: "tabular-nums",
-                      background: i === 0 ? "linear-gradient(135deg,#ffe9a8,#f6c453)" : i === 1 ? "linear-gradient(135deg,#e9edf3,#c7cfdb)" : i === 2 ? "linear-gradient(135deg,#f5ddc4,#e0a878)" : "#eef2f9",
-                      color: i === 0 ? "#7a5a00" : i === 1 ? "#48566b" : i === 2 ? "#6b4522" : "#6b7280" }}>{i + 1}</span>
-                  </td>
-                  <td title={d.name} style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</td>
-                  <td className="num" style={{ fontVariantNumeric: "tabular-nums" }}>{d.leads}</td>
-                  <td className="num" style={{ fontVariantNumeric: "tabular-nums" }}>{d.quotes}</td>
-                  <td className="num" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{d.conv === null ? "—" : `${d.conv}%`}</td>
-                  <td className="num" style={{ fontWeight: 800, color: "#003366", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{fmtBaht(d.sales)}</td>
-                </ClickableRow>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+      {/* การ์ด "ผลงานดีลเลอร์ 10 อันดับแรก" เอาออก (ผลตรวจ FLOW รอบ 5 แถว 22 · 28 ต.ค. 69) — FLOW: ผลงานดีลเลอร์ดูได้ที่ภาพรวมยอดขายที่เดียว */}
       {/* ── ตารางลูกค้าเป้าหมายทั้งเครือ — คอลัมน์ตามสเปก ──
           13 คอลัมน์ต้องการ ~1,500px แต่กรอบมี ~1,012px → เลื่อนแนวนอน (.table-wrap overflow-x:auto)
           ดีกว่าบีบจนอ่านไม่ออก · ความกว้างคุมที่ colgroup เท่านั้น (table-layout:fixed) */}
@@ -651,11 +605,10 @@ export default function HQLeadsPage() {
             <colgroup>
               <col style={{ width: "7%", minWidth: 88 }} />{/* รหัสลูกค้าเป้าหมาย */}
               <col style={{ width: "12%", minWidth: 140 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
-              <col style={{ width: "16%", minWidth: 160 }} />{/* ลูกค้า */}
+              <col style={{ width: "24%", minWidth: 160 }} />{/* ลูกค้า (รับ 8% จากคอลัมน์ "เสนอราคา" ที่ถอดออก 28 ต.ค. 69) */}
               <col style={{ width: "7%", minWidth: 84 }} />{/* จังหวัด */}
               <col style={{ width: "8%", minWidth: 84 }} />{/* แหล่งที่มา */}
               <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
-              <col style={{ width: "8%", minWidth: 88 }} />{/* เสนอราคา */}
               <col style={{ width: "8%", minWidth: 88 }} />{/* ติดต่อล่าสุด */}
               <col style={{ width: "8%", minWidth: 100 }} />{/* ต้องติดตาม — ในช่องเป็นป้ายชื่อ ห้ามตัด */}
               <col style={{ width: "12%", minWidth: 128 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
@@ -665,17 +618,16 @@ export default function HQLeadsPage() {
               <th>รหัส</th><th>ดีลเลอร์</th><th>ลูกค้า</th>
               <th>จังหวัด</th><th>แหล่งที่มา</th>
               {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกตัด (th ตั้ง white-space: nowrap ทั้งระบบ) — ไฟล์ส่งออกยังใช้ชื่อเต็ม */}
-              <th className="num">มูลค่า</th><th>เสนอราคา</th><th>ติดต่อล่าสุด</th>
+              <th className="num">มูลค่า</th><th>ติดต่อล่าสุด</th>
               {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 (26 ส.ค. 69) */}
               <th>ต้องติดตาม</th><th>ขั้นตอน</th><th style={ตรึงคอลัมน์ปุ่ม(true)}></th>
             </tr></thead>
             <tbody>
               {displayLeads.length === 0 ? (
-                <tr><td colSpan={11} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
+                <tr><td colSpan={10} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
               ) : displayLeads.map(l => {
                 const c = สีขั้น(เลขขั้นแถว(l));
                 const followUp = needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays);
-                const quoted = QUOTED_UP.includes(l.status);
                 // ติดต่อล่าสุด = กิจกรรมล่าสุดของลูกค้าเป้าหมาย · ลูกค้าเป้าหมายที่ไม่มีบันทึกกิจกรรม = "—" (ไม่เดาวันให้)
                 const last = lastContactLabel(l);
                 // คีย์ต้องพ่วงรหัสสาขา — เลขที่ลูกค้าเป้าหมายไม่ซ้ำ "เฉพาะภายในสาขา" (คีย์จริง = สาขา + เลขที่)
@@ -699,12 +651,6 @@ export default function HQLeadsPage() {
                     <td style={{ color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{l.province}</td>
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.source || "—"}</td>
                     <td className="num" style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</td>
-                    <td>
-                      {/* ระบบไม่มี dealId ผูกใบเสนอราคากับลูกค้าเป้าหมาย → นับจำนวนใบไม่ได้
-                          ใช้สถานะของลูกค้าเป้าหมายแทน (ไปถึงขั้นเสนอราคา = เคยออกใบแล้วจริง) */}
-                      {quoted ? <span style={{ color: "#059669", fontWeight: 700, fontSize: "0.76rem" }}>เสนอแล้ว</span>
-                              : <span style={{ color: "#9ca3af" }}>—</span>}
-                    </td>
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.76rem", whiteSpace: "nowrap" }}>{last}</td>
                     <td>
                       {followUp
@@ -750,7 +696,6 @@ export default function HQLeadsPage() {
       {viewLead && (() => {
         const l = viewLead;
         const c = สีขั้น(เลขขั้นแถว(l));
-        const quoted = QUOTED_UP.includes(l.status);
         return (
           <>
             <div onClick={() => setViewLead(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 240 }} />
@@ -783,17 +728,27 @@ export default function HQLeadsPage() {
                 {/* แถบสรุปบนสุด — ยอดใบเสนอราคาล่าสุด กับสถานะใบเสนอราคา อ่านได้ตั้งแต่ยังไม่เลื่อนจอ (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) */}
                 <PanelStats>
                   <PanelStat label="ใบเสนอราคาล่าสุด" value={มูลค่าอ่านง่าย(มูลค่าลีด(l))} />
-                  <PanelStat label="ใบเสนอราคา" tone={quoted ? "good" : "plain"}
-                    value={quoted ? "เสนอราคาแล้ว" : "ยังไม่ได้เสนอราคา"}
-                    sub={quoted ? "ดูใบได้ที่ ใบเสนอราคาทั้งเครือ" : undefined} />
+                  {/* ขั้นจาก leadStage.ts (เดิม "เสนอราคาแล้ว" = ชื่อสถานะภายใน · ผลตรวจ FLOW รอบ 5 แถว 19) */}
+                  <PanelStat label={ช่อง.ขั้นตอน} tone={เลขขั้นแถว(l) === 6 ? "good" : "plain"} value={ชื่อขั้น(เลขขั้นแถว(l))} />
                 </PanelStats>
 
-                <PanelSection icon={User} title="ข้อมูลลูกค้า">
-                  <PanelRow icon={User} label="ผู้ติดต่อ" value={l.contact} />
-                  <PanelRow icon={Phone} label="โทรศัพท์" value={เบอร์อ่านง่าย(l.phone)} />
-                  <PanelRow icon={Mail} label="อีเมล" value={l.email} />
-                  <PanelRow icon={MapPin} label="จังหวัด" value={l.province} />
-                  <PanelRow icon={Compass} label="แหล่งที่มา" value={l.source} />
+                {/* ชุดช่องมาตรฐาน (lib/fieldLabels.ts · บอสสั่ง 26 ต.ค. 69): ข้อมูลลูกค้า · ข้อมูลงาน · การดูแล — ชื่อช่องเดียวกับแผงลีดดีลเลอร์ */}
+                <PanelSection icon={User} title={กลุ่มช่อง.ลูกค้า}>
+                  <PanelRow icon={User} label={ช่อง.ผู้ติดต่อ} value={l.contact} />
+                  <PanelRow icon={Phone} label={ช่อง.โทรศัพท์} value={เบอร์อ่านง่าย(l.phone)} />
+                  <PanelRow icon={Mail} label={ช่อง.อีเมล} value={l.email} />
+                  <PanelRow icon={MapPin} label={ช่อง.ที่อยู่} value={l.address} />
+                </PanelSection>
+
+                <PanelSection icon={Compass} title={กลุ่มช่อง.งาน}>
+                  <PanelRow icon={MapPin} label={ช่อง.จังหวัด} value={l.province} />
+                  <PanelRow icon={Compass} label={ช่อง.งาน} value={l.project} />
+                  <PanelRow icon={Compass} label={ช่อง.พื้นที่} value={l.area != null && l.area > 0 ? l.area.toLocaleString("th-TH") : undefined} />
+                  <PanelRow icon={Compass} label={ช่อง.สเปก} value={l.note} />
+                </PanelSection>
+
+                <PanelSection icon={UserCheck} title={กลุ่มช่อง.การดูแล}>
+                  <PanelRow icon={Compass} label={ช่อง.ช่องทาง} value={l.source} />
                   <PanelRow icon={CalendarDays} label="สร้างเมื่อ" value={วันที่สร้างอ่านง่าย(l.createdAt)} />
                 </PanelSection>
 
@@ -817,7 +772,8 @@ export default function HQLeadsPage() {
                           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#fff", border: "2px solid #003366", marginTop: 4, flexShrink: 0, zIndex: 1 }} />
                           <span style={{ minWidth: 0 }}>
                             <span style={{ display: "block", fontSize: "0.76rem", color: "#1F2937", lineHeight: 1.5 }}>{a.text}</span>
-                            <span style={{ display: "block", fontSize: "0.66rem", color: "#94A3B8", marginTop: 2 }}>{a.date}</span>
+                            {/* ตัวจัดรูปวันที่กลาง (พ.ศ.) — ข้อมูลเดิมเก็บ ISO ค.ศ. บางรายการ (ผลตรวจ FLOW รอบ 5 แถว 20) */}
+                            <span style={{ display: "block", fontSize: "0.66rem", color: "#94A3B8", marginTop: 2 }}>{วันที่แสดงไทย(a.date) || "—"}</span>
                           </span>
                         </div>
                       ))}

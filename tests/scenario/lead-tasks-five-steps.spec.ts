@@ -46,10 +46,12 @@ async function เปิดรายการเตือน(page: Page, ชื�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ชื่อ);
   await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
   await expect(async () => {
-    await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click({ timeout: 5_000 });
-    await expect(page.getByText(/รายการเตือน/).first()).toBeVisible({ timeout: 3_000 });
+    await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click({ timeout: 5_000 });   // งานในแต่ละขั้นอยู่แท็บภาพรวม (28 ต.ค. 69)
+    await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 40_000 });
-  return page.locator("[data-lead-tasks]").or(page.getByText(/รายการเตือน/).first().locator("xpath=.."));
+  // ขั้นอื่นพับไว้ (28 ต.ค. 69) — กางทุกขั้นก่อนตรวจรายการ
+  for (const b of await page.locator("[data-lead-tasks] button[aria-expanded='false']").all()) await b.click();
+  return page.locator("[data-lead-tasks]");
 }
 
 test("[func·dealer] รายการเตือน 5 ขั้น · ไม่มีงาน flow เก่า · วันที่ พ.ศ. · งานของระบบฐานติ๊กเอง ดีลเลอร์ติ๊กไม่ได้", async ({ page }) => {

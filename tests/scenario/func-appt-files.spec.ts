@@ -51,7 +51,7 @@ test("[func] สร้างนัดหมายผ่านหน้าจอ 
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ลีดนัด);
   await page.locator("tbody tr").filter({ hasText: ลีดนัด }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
-  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
+  await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();   // นัดหมาย/ไฟล์อยู่แท็บภาพรวม (28 ต.ค. 69)
   await page.getByRole("button", { name: /เพิ่มนัดหมาย/ }).click();
   // ประเภทนัดหมาย = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — เริ่มที่ "ยังไม่ระบุ" · จังหวัดมาจากลีด (ไม่มีช่องพิมพ์)
   await page.getByLabel("ประเภทนัดหมาย").selectOption({ index: 1 });
@@ -206,7 +206,7 @@ test("[func] ลบไฟล์แต่ลบไบต์ไม่สำเร�
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().getByTitle("ดูรายละเอียด").click({ timeout: 25_000 });
-  await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
+  await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();   // นัดหมาย/ไฟล์อยู่แท็บภาพรวม (28 ต.ค. 69)
 
   // บังคับให้ Storage ปฏิเสธการลบไบต์ (DELETE) — การลบ metadata ต้องไม่เกิดขึ้นตาม
   await page.route(/\/storage\/v1\/object\/|\/api\/v1\/storage(\?|$)/, (r) =>

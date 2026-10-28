@@ -128,7 +128,7 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
     await expect(row).toBeVisible({ timeout: 25_000 });
     await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
     // รอบ 4: นัดหมายอยู่ที่แท็บประวัติ → "เพิ่มนัดหมาย" เปิดฟอร์มนัดหมายใหม่
-    await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
+    await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();   // นัดหมาย/ไฟล์อยู่แท็บภาพรวม (28 ต.ค. 69)
     await page.getByRole("button", { name: "เพิ่มนัดหมาย" }).first().click();
     await expect(page.getByRole("button", { name: "บันทึกนัดหมาย" })).toBeVisible({ timeout: 15_000 });
     await page.getByLabel("ประเภทนัดหมาย").selectOption({ index: 1 });
