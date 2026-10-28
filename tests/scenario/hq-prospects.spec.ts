@@ -462,7 +462,12 @@ test("[func·hq] ออกใบค่าแฟรนไชส์ → ร่า�
   const ชำระ = page.getByRole("region", { name: `การชำระ ${แถวใบ.proposal_no}` });
   const ไปหน้าใบ = async () => {
     await page.goto(`${HQ_ORIGIN}/hq/proposals?q=${encodeURIComponent(แถวใบ.proposal_no)}`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("row", { name: new RegExp(`เปิดใบค่าแฟรนไชส์ ${แถวใบ.proposal_no} `) }).first().click({ timeout: 25_000 });
+    const แถว = page.getByRole("row", { name: new RegExp(`เปิดใบค่าแฟรนไชส์ ${แถวใบ.proposal_no} `) }).first();
+    await expect(แถว).toBeVisible({ timeout: 25_000 });
+    // การ์ด/ตารางเลื่อนเข้าตามแอนิเมชันตอนเปิดหน้า — กดกลางแอนิเมชัน = คลิกลงที่ตำแหน่งที่แถวเลื่อนพ้นไปแล้ว แผงไม่เปิด
+    //   (ไม่นิ่ง 3 ครั้ง 27–28 ต.ค. 69 · ภาพจากบันทึกการทดสอบ: กดหลังแถวขึ้น ~0.1 วิ ตารางยังจางและกำลังขยับ) → รอแอนิเมชันจบจริงก่อนกด
+    await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== "running"), null, { timeout: 15_000 });
+    await แถว.click();
     await expect(ชำระ).toBeVisible({ timeout: 15_000 });
   };
   const กลับแผง = async () => {
