@@ -203,7 +203,7 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
     const reasonPicker = page.locator("[data-lost-picker]");
     await expect(reasonPicker).toBeVisible({ timeout: 30_000 });
     await reasonPicker.getByRole("button").first().click();
-    await reasonPicker.getByRole("button", { name: "ยืนยันลูกค้าปฏิเสธ" }).click();
+    await page.locator("[data-reason-dialog]").getByRole("button", { name: "ยืนยันลูกค้าปฏิเสธ" }).click();   // กล่องเหตุผลกลาง (28 ต.ค. 69)
     await expect.poll(async () => (await sb.from("quotations").select("status").eq("id", quoteId)).data?.[0]?.status,
       { timeout: 60_000, message: `${code}: ใบต้องเป็น 'lost'` }).toBe("lost");
     mark("closed_lost");

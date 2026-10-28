@@ -90,5 +90,5 @@ test("[flow·dealer] ขอแก้ราคา (D5x): สเปกกรอก
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const แผง = await เปิดแท็บใบเสนอราคา(page, "แก้ราคา");
   await แผง.getByRole("button", { name: "ขอแก้ราคา" }).click();
-  await expect(แผง.locator("#qr-reprice-spec"), "ขอแก้ราคา: สเปก ← คำขอล่าสุด").toHaveValue("ZZ สเปกในคำขอล่าสุด", { timeout: 15_000 });
+  await expect(page.locator("[data-reason-dialog]").getByLabel("สเปกที่ขอแก้ราคา"), "ขอแก้ราคา: สเปก ← คำขอล่าสุด (กล่องเหตุผลกลาง)").toHaveValue("ZZ สเปกในคำขอล่าสุด", { timeout: 15_000 });
 });

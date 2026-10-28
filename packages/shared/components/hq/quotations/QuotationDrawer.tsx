@@ -28,8 +28,7 @@ import { fmtBaht } from "@pms/shared/lib/format";
 import { regionDisplay, type QuoteRow } from "@pms/shared/lib/hqQuotations";
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
 import { SidePanel } from "@pms/shared/components/ui/SidePanel";
-import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { ถามเหตุผล, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
 const PRIMARY = "#003366";
 const บาท2 = (n: number) => Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,20 +58,20 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
   // ── HQ ย้อนการตอบรับ (won) — ดีลเลอร์ทำเองไม่ได้ (ฐานข้อมูลบังคับ 0204/0205) · ต้องมีเหตุผล · ไทม์ไลน์บอกว่าใคร/เมื่อไร ──
   const [ย้อนอยู่, setย้อนอยู่] = useState(false);
   async function ย้อน(to: "sent_to_client" | "lost") {
-    const เหตุผล = await ถามเหตุผล({
-      หัวข้อ: `ย้อนการตอบรับใบ ${quote.quoteNo} เป็น “${to === "lost" ? "ลูกค้าปฏิเสธ" : "ส่งให้ลูกค้าแล้ว"}” ?`,
-      รายละเอียด: "ยอดขายของใบนี้จะไม่นับแล้ว · ไทม์ไลน์ของลูกค้าเป้าหมายบันทึกว่าสำนักงานใหญ่ย้อน พร้อมเหตุผล",
-      ป้ายช่อง: "เหตุผลที่ย้อน", ปุ่มตกลง: "ย้อนการตอบรับ", อันตราย: true,
-    });
-    if (เหตุผล == null) return;
+    // กล่องเหตุผลกลาง (28 ต.ค. 69): กล่องรอฐาน · ฐานปฏิเสธ = ข้อความในกล่อง ไม่ปิดเอง
     setย้อนอยู่(true);
     try {
-      await quoteRequestsRepo.revertWon(quote.dealerCode, quote.quoteNo, เหตุผล, to);
+      const ทำแล้ว = await ถามเหตุผล({
+        หัวข้อ: `ย้อนการตอบรับใบ ${quote.quoteNo} เป็น “${to === "lost" ? "ลูกค้าปฏิเสธ" : "ส่งให้ลูกค้าแล้ว"}” ?`,
+        รายละเอียด: "ยอดขายของใบนี้จะไม่นับแล้ว · ไทม์ไลน์ของลูกค้าเป้าหมายบันทึกว่าสำนักงานใหญ่ย้อน พร้อมเหตุผล",
+        ป้ายช่อง: "เหตุผลที่ย้อน", ปุ่มตกลง: "ย้อนการตอบรับ", ปุ่มกำลังทำ: "กำลังย้อนการตอบรับ…", อันตราย: true,
+        ทำ: เหตุผล => quoteRequestsRepo.revertWon(quote.dealerCode, quote.quoteNo, เหตุผล, to),
+      });
+      if (!ทำแล้ว) return;
       แจ้งสำเร็จ(`ย้อนการตอบรับใบ ${quote.quoteNo} แล้ว`);
       onChanged?.();
       onClose();
-    } catch (e) { แจ้งพลาด(friendlyError(e, "ย้อนการตอบรับไม่สำเร็จ")); }
-    finally { setย้อนอยู่(false); }
+    } finally { setย้อนอยู่(false); }
   }
 
   return (

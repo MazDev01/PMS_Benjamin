@@ -382,7 +382,8 @@ function OverviewEditor({ lead, persons, onSave }: {
         {f.status === "CANCELLED" && (
           <Cell icon={XCircle} label="เหตุผลที่เสีย">
             {/* เหตุผลไม่ตรงรายการที่ HQ กำหนดไว้เลย → กรอกเองได้ (ค่า lostReason เดิม/พิมพ์เองใหม่ ไม่ผูกกับ
-                รายการตายตัว) — เดิมเลือกได้แค่จากลิสต์ ถ้าเหตุผลจริงไม่มีในนั้นก็บันทึกไม่ได้เลย */}
+                รายการตายตัว) — เดิมเลือกได้แค่จากลิสต์ ถ้าเหตุผลจริงไม่มีในนั้นก็บันทึกไม่ได้เลย
+                ช่องแก้เหตุผลของลีดที่ปิดไปแล้ว (แก้ในที่เดิมตามการ์ดภาพรวม) — ไม่ใช่กล่องเหตุผล (ปิดไม่สำเร็จ = กล่องเหตุผลกลาง) */}
             {lostReasons.includes(f.lostReason) || f.lostReason === "" ? (
               <select aria-label="เหตุผลที่ปิดการขายไม่สำเร็จ" value={f.lostReason} onChange={e=>set("lostReason", e.target.value)} style={inp}>
                 <option value="">— เลือก —</option>
@@ -727,7 +728,7 @@ export default function LeadsPage() {
 
   // List state
   const {
-    leads: allLeads, addLead, บันทึกลีด, deleteLead: removeLead, newLeadNumId, syncLeadFromServer,
+    leads: allLeads, addLead, บันทึกลีด, บันทึกลีดรอฐาน, deleteLead: removeLead, newLeadNumId, syncLeadFromServer,
     appointments, addAppointment, newAppointmentId, quotations, sendQuotation,
   } = useSales();
   // ปิดการขายสำเร็จ = เป็น "ลูกค้า" แล้ว → ไม่แสดงในหน้าลูกค้าเป้าหมาย (ไปอยู่ที่ /customers)
@@ -786,6 +787,13 @@ export default function LeadsPage() {
         ? "บันทึกปิดการขายไม่สำเร็จแล้ว"
         : `เลื่อนขั้นอัตโนมัติ → ${ข้อความขั้น(l)}`);
     }
+  }
+  // แบบรอฐาน (กล่องเหตุผลกลาง · 28 ต.ค. 69) — ฐานปฏิเสธ = โยนให้กล่องแสดง ไม่ปิดกล่อง
+  async function saveLeadรอฐาน(intent: LeadIntent) {
+    if (!selectedLead) return;
+    const ได้ = await บันทึกลีดรอฐาน(selectedLead.id, intent);
+    const l: LeadRow = { ...selectedLead, ...ได้, report: ได้.report ?? selectedLead.report, activities: ได้.activities ?? selectedLead.activities };
+    setSelectedLead(l); setDraft(l);
   }
   // Global filter: ผู้รับผิดชอบ + ช่วงเวลา (วันเดือนปีจากตัวกรองกลาง — กรองจากวันที่กิจกรรมล่าสุดของลูกค้าเป้าหมาย)
   const { person, timeRange } = useFilters();
@@ -1979,7 +1987,7 @@ export default function LeadsPage() {
                 onRequests={rs => setคำขอของแผง({ leadId: c.id, มี: rs.length > 0 })}
                 onLost={async (reason, ยกเลิกคำขอแล้ว) => {
                   if (ยกเลิกคำขอแล้ว) await syncLeadFromServer(c.id);
-                  else saveLead({ stage: { status: "CANCELLED", lostReason: reason } });
+                  else await saveLeadรอฐาน({ stage: { status: "CANCELLED", lostReason: reason } });
                   setToast("บันทึกปิดการขายไม่สำเร็จแล้ว");
                 }}
                 onAction={async (kind, quoteId) => {
@@ -1992,9 +2000,11 @@ export default function LeadsPage() {
                   } else if (kind === "send_quote" && quoteId) {
                     const q = quotations.find(x => x.id === quoteId);
                     if (!q) return;
-                    if (!(await ยืนยัน({ หัวข้อ: `ส่งใบ ${q.id} ให้ลูกค้า ?`, รายละเอียด: "ส่งแล้วแก้ใบนี้ไม่ได้ — ลูกค้าต่อรองให้ทำฉบับใหม่", ปุ่มตกลง: "ส่งให้ลูกค้า" }))) return;
                     // ส่ง = เปลี่ยนแค่สถานะที่ฐาน ราคาเป็นของในฐาน (ใบ 0238 · เดิมส่งทั้งแถวจากหน้าจอ → หน้าจอค้างรุ่นเก่า = ลูกค้าได้ยอดเก่า)
-                    if (await sendQuotation(q.id)) setToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าแล้ว`);
+                    //   กล่องรอฐาน (28 ต.ค. 69): ปุ่มขึ้น "กำลังส่ง…" จนฐานตอบ · ส่งไม่สำเร็จ = ข้อความในกล่อง
+                    if (!(await ยืนยัน({ หัวข้อ: `ส่งใบ ${q.id} ให้ลูกค้า ?`, รายละเอียด: "ส่งแล้วแก้ใบนี้ไม่ได้ — ลูกค้าต่อรองให้ทำฉบับใหม่", ปุ่มตกลง: "ส่งให้ลูกค้า", ปุ่มกำลังทำ: "กำลังส่ง…",
+                      ทำ: async () => { if (!(await sendQuotation(q.id))) throw new Error("ส่งใบไม่สำเร็จ — ลองใหม่อีกครั้ง"); } }))) return;
+                    setToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าแล้ว`);
                   } else if (kind === "customer_result" && quoteId) {
                     setDTab("quotation");
                     setQuoteViewSignal(s => ({ id: quoteId, n: (s?.n ?? 0) + 1 }));

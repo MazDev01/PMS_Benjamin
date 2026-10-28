@@ -202,7 +202,7 @@ test("[flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเสธ
   const ตัวเลือก = page.locator("[data-lost-picker]");
   await expect(ตัวเลือก).toBeVisible({ timeout: 30_000 });
   await ตัวเลือก.getByRole("button").first().click();
-  await ตัวเลือก.getByRole("button", { name: "ยืนยันลูกค้าปฏิเสธ" }).click();
+  await page.locator("[data-reason-dialog]").getByRole("button", { name: "ยืนยันลูกค้าปฏิเสธ" }).click();   // กล่องเหตุผลกลาง (28 ต.ค. 69)
   await expect.poll(async () => (await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.status, { timeout: 25_000, message: "lost → ลูกค้าเป้าหมาย CANCELLED" }).toBe("CANCELLED");
   expect((await สถานะลูกค้าเป้าหมาย(ข.leadNum))?.lost_reason, "ต้องมีเหตุผล").toBeTruthy();
   expect((await admin.from("quote_requests").select("status").eq("id", ข.requestId).single()).data?.status, "คำขอปิด lost").toBe("lost");

@@ -277,6 +277,7 @@ function JourneyTab() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, marginTop: 10, maxWidth: 420 }}>
+          {/* ช่องตั้งรายการเหตุผลของ HQ — ไม่ใช่กล่องเหตุผล (ตัวตรวจ check-reason-dialogs) */}
           <input className="form-input" value={newLost} placeholder="เพิ่มเหตุผล…" onChange={e => setNewLost(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") addLost(); }} />
           <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }} onClick={addLost}><Plus size={14} /></button>

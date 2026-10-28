@@ -64,6 +64,8 @@ export type SalesContextType = {
   /** ตัวกลางบันทึกลูกค้าเป้าหมาย — ทางเดียวที่แก้ leads · ส่งเฉพาะส่วนต่าง (ดู lib/leadIntent.ts · ใบ 0211)
    *  คืนแถวหลังรวมเจตนา (แสดงผลทันที) · null = ผิดกฎ/ไม่พบ (แจ้งผู้ใช้แล้ว) */
   บันทึกลีด: (id: string, intent: LeadIntent) => LeadRow | null;
+  /** บันทึกลีดแบบรอฐานตอบ (กล่องเหตุผล/ปุ่มรอฐาน · 28 ต.ค. 69) — คืนแถวจากฐาน · ผิดกฎ/ฐานปฏิเสธ = โยน error */
+  บันทึกลีดรอฐาน: (id: string, intent: LeadIntent) => Promise<LeadRow>;
   deleteLead: (leadId: string) => void;
   /** ดึงแถวของลูกค้าเป้าหมายรายนี้จากฐานข้อมูลมาแทนของในหน่วยความจำ — ใช้หลังคำสั่งที่ฐานขยับสถานะเอง
    *  (ส่ง/ยกเลิกคำขอราคา · ขอแก้ราคา) ผู้ใช้ต้องเห็นสถานะใหม่ทันที ไม่ต้องรอสัญญาณสด */
@@ -90,12 +92,15 @@ export type SalesContextType = {
   /** ทำฉบับใหม่ (V2 …) จากใบที่ส่งให้ลูกค้าแล้ว — คืนใบร่างฉบับใหม่ (มีอยู่แล้ว = ใบเดิมนั้น) · รอบ 3 ใบ 0228 */
   newQuotationVersion: (quotation: QuotationMock) => Promise<QuotationMock>;
   /** แก้ใบเสนอราคา (ห้ามใช้ส่งให้ลูกค้า — ใช้ sendQuotation) */
-  updateQuotation: (quotation: QuotationMock) => void;
+  /** คืน Promise ของข้อความผิดพลาด — null = ฐานบันทึกแล้ว · ข้อความ = ไม่สำเร็จ (แจ้งผู้ใช้ + โหลดใหม่แล้ว)
+   *  กล่องรอฐานเอาข้อความนี้แสดงในกล่อง (28 ต.ค. 69) · ผู้เรียกเดิมไม่รอก็ได้ */
+  updateQuotation: (quotation: QuotationMock) => Promise<string | null>;
   /** ส่งใบให้ลูกค้า / ส่งอีกครั้ง — เปลี่ยนแค่สถานะที่ฐาน ราคาเป็นของในฐาน แล้วเอาแถวจากฐานแทนของบนจอ (ใบ 0238)
    *  คืน true = ส่งสำเร็จ · false = ไม่สำเร็จ (แจ้งผู้ใช้ + โหลดรายการใหม่แล้ว) */
   sendQuotation: (id: string) => Promise<boolean>;
   deleteQuotation: (id: string) => void;
-  setQuotationStatus: (id: string, status: QuotationStatus) => void;
+  /** คืน Promise ของข้อความผิดพลาด — null = ฐานเปลี่ยนสถานะแล้ว · ข้อความ = ไม่สำเร็จ (แจ้งผู้ใช้ + ย้อนบนจอแล้ว) */
+  setQuotationStatus: (id: string, status: QuotationStatus) => Promise<string | null>;
   /** เลขนัดหมายถัดไปของสาขา — ออกจาก DB แบบ atomic เหมือนเลขลูกค้า/เลขที่ใบ
    *  (เดิมหน้าปฏิทินใช้ Date.now() · หน้าลูกค้าเป้าหมายใช้ max+1 — คนละแบบและไม่กันชนจริง) */
   newAppointmentId: () => Promise<number>;
@@ -264,12 +269,13 @@ export function SalesProvider({
   };
   const persistLead = useRef({
     create: (l: LeadRow) => { bumpWrite(); void เข้าคิวเขียนลีด(l.id, () => leadsRepo.create(l).catch(onFail("leads", "สร้างลูกค้าเป้าหมาย"))); },
-    // ส่วนต่างเท่านั้น (ใบ 0211) — คืนแถวล่าสุดจากฐาน · null = ล้มเหลว (onFail แจ้งผู้ใช้ + ดึงของจริงมาทับแล้ว)
-    apply: (id: string, intent: LeadIntent): Promise<LeadRow | null> => {
+    // ส่วนต่างเท่านั้น (ใบ 0211) — คืนแถวล่าสุดจากฐาน · ล้มเหลว = { ผิด } (onFail แจ้งผู้ใช้ + ดึงของจริงมาทับแล้ว)
+    //   ผิด = ข้อความที่อ่านรู้เรื่อง — กล่องรอฐานแสดงในกล่อง (28 ต.ค. 69)
+    apply: (id: string, intent: LeadIntent): Promise<LeadRow | { ผิด: string }> => {
       bumpWrite();
       return new Promise(res => {
         void เข้าคิวเขียนลีด(id, () => leadsRepo.apply(id, intent).then(r => res(r),
-          e => { onFail("leads", "แก้ไขลูกค้าเป้าหมาย")(e); res(null); }));
+          e => { onFail("leads", "แก้ไขลูกค้าเป้าหมาย")(e); res({ ผิด: friendlyError(e) }); }));
       });
     },
     remove: (id: string) => { bumpWrite(); void เข้าคิวเขียนลีด(id, () => leadsRepo.remove(id).catch(onFail("leads", "ลบลูกค้าเป้าหมาย"))); },
@@ -320,24 +326,35 @@ export function SalesProvider({
   //   จอแสดงผลทันทีด้วยตรรกะเดียวกับฐาน (applyLeadIntent) แล้วแทนด้วยค่าจริงที่ฐานคืนมา
   //   ⚠️ ห้ามเขียน leads ทางอื่น — scripts/check-lead-writes.mjs ใน pnpm checks จับ
   const ปิดการขายRef = useRef<(lead: LeadRow) => void>(() => {});
-  const บันทึกลีด = useCallback((id: string, intent: LeadIntent): LeadRow | null => {
+  // เริ่มบันทึก: แสดงผลทันที (next) + งานฐานที่รอได้ (เสร็จ · { ผิด } = ฐานปฏิเสธ แจ้งผู้ใช้แล้ว) · ผิดกฎ = โยน
+  const เริ่มบันทึกลีด = useCallback((id: string, intent: LeadIntent): { next: LeadRow; เสร็จ: Promise<LeadRow | { ผิด: string }> } | null => {
     const lead = leadsRef.current.find(l => l.id === id);
     if (!lead) return null;
-    if (intentIsEmpty(intent)) return lead;
-    let next: LeadRow;
-    try { next = applyLeadIntent(lead, intent, { tpl: taskTplRef.current, now: nowStampTH() }); }
-    catch (e) { setSyncError(`บันทึกไม่สำเร็จ: แก้ไขลูกค้าเป้าหมาย — ${friendlyError(e)}`); return null; }
+    if (intentIsEmpty(intent)) return { next: lead, เสร็จ: Promise.resolve(lead) };
+    const next = applyLeadIntent(lead, intent, { tpl: taskTplRef.current, now: nowStampTH() });
     leadsRef.current = leadsRef.current.map(l => l.id !== id ? l : next);
     setLeads(prev => prev.map(l => l.id !== id ? l : next));
-    void persistLead.apply(id, intent).then(fresh => {
-      if (!fresh) return;
+    const เสร็จ = persistLead.apply(id, intent).then(fresh => {
+      if ("ผิด" in fresh) return fresh;
       leadsRef.current = leadsRef.current.map(l => l.id !== id ? l : { ...l, ...fresh });
       setLeads(prev => prev.map(l => l.id !== id ? l : { ...l, ...fresh }));
+      return { ...next, ...fresh };
     });
     // ปิดการขายสำเร็จ → เดินเส้นทางปิดการขายเสมอ (สร้างลูกค้าถ้ายังไม่มี · ปิดใบเสนอราคา · รวมยอดใหม่)
     if (intent.stage && shouldCloseWon(intent.stage.status)) setTimeout(() => ปิดการขายRef.current(next), 0);
-    return next;
+    return { next, เสร็จ };
   }, [persistLead]);
+  const บันทึกลีด = useCallback((id: string, intent: LeadIntent): LeadRow | null => {
+    try { return เริ่มบันทึกลีด(id, intent)?.next ?? null; }
+    catch (e) { setSyncError(`บันทึกไม่สำเร็จ: แก้ไขลูกค้าเป้าหมาย — ${friendlyError(e)}`); return null; }
+  }, [เริ่มบันทึกลีด]);
+  const บันทึกลีดรอฐาน = useCallback(async (id: string, intent: LeadIntent): Promise<LeadRow> => {
+    const เริ่ม = เริ่มบันทึกลีด(id, intent);   // ผิดกฎ = โยนออกไปให้กล่องแสดง
+    if (!เริ่ม) throw new Error("ไม่พบลูกค้าเป้าหมายนี้ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
+    const fresh = await เริ่ม.เสร็จ;
+    if ("ผิด" in fresh) throw new Error(fresh.ผิด);
+    return fresh;
+  }, [เริ่มบันทึกลีด]);
   useEffect(() => {
     if (!ready || gateHQ) return; // HQ/supabase: ใบทั้งเครืออ่านผ่าน RPC (summary/listPage) แทน array
     let alive = true;
@@ -366,9 +383,10 @@ export function SalesProvider({
   }, [ready, dealerCode, myDealerCode, isHQ, isLoggedIn, gateHQ, quoteValidityDays, loadFresh]);
   const persistQuote = useRef({
     // ผลตอบกลับ = แถวจากฐาน (เวลาแก้ล่าสุดใหม่ · 0238) → เอาแทนของบนจอ ข่าวอัปเดตสดที่เก่ากว่าจะทับไม่ได้อีก
-    update: (q: QuotationMock) => { bumpWrite(); return quotationsRepo.update(q).then(บันทึกแล้ว => { if (บันทึกแล้ว?.id) setQuotations(prev => รับแถวใบ(prev, บันทึกแล้ว)); return บันทึกแล้ว; }).catch(onFail("quotations", "แก้ไขใบเสนอราคา")); },
+    //   คืนข้อความผิดพลาด (null = สำเร็จ) — กล่องรอฐานแสดงในกล่อง · ไม่สำเร็จแจ้งผู้ใช้ + โหลดใหม่แล้ว
+    update: (q: QuotationMock): Promise<string | null> => { bumpWrite(); return quotationsRepo.update(q).then(บันทึกแล้ว => { if (บันทึกแล้ว?.id) setQuotations(prev => รับแถวใบ(prev, บันทึกแล้ว)); return null; }, e => { onFail("quotations", "แก้ไขใบเสนอราคา")(e); return friendlyError(e); }); },
     remove: (id: string) => { bumpWrite(); void quotationsRepo.remove(id).catch(onFail("quotations", "ลบใบเสนอราคา")); },
-    setStatus: (id: string, status: QuotationStatus) => { bumpWrite(); void quotationsRepo.setStatus(id, status).catch(onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")); },
+    setStatus: (id: string, status: QuotationStatus): Promise<string | null> => { bumpWrite(); return quotationsRepo.setStatus(id, status).then(() => null, e => { onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")(e); return friendlyError(e); }); },
   }).current;
   // auto-link ไฟล์ใบเสนอราคา (metadata) ผ่าน repository — แทน syncAddQuotationFile/Remove เดิม (Phase 6)
   const fileScopeRef = useRef({ dealerCode, isHQ, myDealerCode });
@@ -770,7 +788,7 @@ export function SalesProvider({
     return created;
   }, [myDealerCode, bumpWrite]);
 
-  const updateQuotation = useCallback((ที่แก้มา: QuotationMock) => {
+  const updateQuotation = useCallback((ที่แก้มา: QuotationMock): Promise<string | null> => {
     // งานที่ระบบติ๊กให้เมื่อใบถูกส่งจริง
     const งานที่ติ๊ก = ["makeQuote", "sendQuote"];
     const before = quotationsRef.current.find(q => q.id === ที่แก้มา.id);
@@ -785,19 +803,19 @@ export function SalesProvider({
     const needsReconcile = quotation.customerId && quotation.customerId > 0 && (quotation.status === "won" || before?.status === "won");
     const ปล่อยลีด = before?.status !== quotation.status ? กั้นลีดระหว่างฐานขยับ(quotation) : () => {};
     if (!needsReconcile) {
-      void Promise.resolve(persistQuote.update(quotation)).finally(() => { ปล่อยลีด(); ดึงลีดของดีลกลับ(quotation.dealId, "หลังแก้ใบ"); });
+      const เสร็จ = persistQuote.update(quotation).finally(() => { ปล่อยลีด(); ดึงลีดของดีลกลับ(quotation.dealId, "หลังแก้ใบ"); });
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
       จดกิจกรรมของใบ(before, quotation);
-      return;
+      return เสร็จ;
     }
     // ต้อง await การเขียนใบให้ commit จริงก่อนค่อย reconcile — RPC คำนวณผลรวมจาก DB สด (กัน race, 0078)
-    void (async () => {
+    return (async () => {
       try {
         const บันทึกแล้ว = await quotationsRepo.update(quotation);
         if (บันทึกแล้ว?.id) setQuotations(prev => รับแถวใบ(prev, บันทึกแล้ว));
       } catch (e) {
         onFail("quotations", "แก้ไขใบเสนอราคา")(e);
-        return;
+        return friendlyError(e);
       } finally { ปล่อยลีด(); ดึงลีดของดีลกลับ(quotation.dealId, "หลังแก้ใบ"); }
       if (quotation.status !== "draft") completeLeadQuoteTasks(quotation, งานที่ติ๊ก);
       จดกิจกรรมของใบ(before, quotation);
@@ -806,6 +824,7 @@ export function SalesProvider({
       } catch (e) {
         onFail("customers", "คำนวณยอดลูกค้าใหม่")(e);
       }
+      return null;
     })();
   }, [completeLeadQuoteTasks, persistQuote, reconcileCustomerTotal, แทนที่ใบเดิมบนจอ, ดึงลีดของดีลกลับ]);
 
@@ -861,12 +880,13 @@ export function SalesProvider({
     })();
   }, [persistQuote, syncQuoteFile, reconcileCustomerTotal, completeLeadQuoteTasks, จดกิจกรรมของใบ]);
 
-  const setQuotationStatus = useCallback((id: string, status: QuotationStatus) => {
+  // คืนข้อความผิดพลาด (null = ฐานเปลี่ยนสถานะแล้ว) — กล่องรอฐาน "ลูกค้าตอบรับ" แสดงในกล่อง (28 ต.ค. 69) · ผู้เรียกเดิมไม่รอก็ได้
+  const setQuotationStatus = useCallback((id: string, status: QuotationStatus): Promise<string | null> => {
     const target = quotationsRef.current.find(q => q.id === id);
     const prevStatus = target?.status;
     setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status })); // optimistic UI
     if (target && prevStatus === "draft") แทนที่ใบเดิมบนจอ({ supersedesId: target.supersedesId, status });
-    if (!target || status === "draft") { persistQuote.setStatus(id, status); return; }
+    if (!target || status === "draft") return persistQuote.setStatus(id, status);
     // ใบที่ทำจากใบ HQ: ฐานขยับขั้นลูกค้าเป้าหมายเอง — กั้นงานเขียนลูกค้าเป้าหมายไว้จนฐานทำเสร็จ (ดู กั้นลีดระหว่างฐานขยับ)
     const ปล่อยลีด = กั้นลีดระหว่างฐานขยับ(target);
     // เปลี่ยนเป็นสถานะหลังการส่ง → ติ๊ก จัดทำ/ส่งใบเสนอราคา ให้ลูกค้าเป้าหมายอัตโนมัติ
@@ -889,51 +909,53 @@ export function SalesProvider({
     //   เดิมยิง setStatus(won) ทันทีแบบ fire-and-forget แล้วค่อยสร้างลูกค้าใน setTimeout แยก —
     //   พลาดกลางทาง = ใบเป็น won แต่ไม่มีลูกค้า (หรือกลับกัน) เงียบ ๆ
     // กรณีอื่น (sent/lost/expired · won ที่ผูกลูกค้าแล้ว/ไม่มีลูกค้าเป้าหมายต้นทาง) — mark สถานะตามปกติ
-    const ทำสถานะตามปกติ = () => {
+    const ทำสถานะตามปกติ = (): Promise<string | null> => {
       // R6/H2: ใบที่ผูกลูกค้าเดิมอยู่แล้ว เปลี่ยนเป็น won (ดีลที่ 2+) หรือย้อน won ออก (→ lost/expired/sent)
       //   → รวมยอดลูกค้าใหม่หลังเปลี่ยนสถานะ · เดิมคิดเฉพาะขา won → ย้อน won ออกแล้วยอดไม่ลด
       const needsReconcile = target.customerId && target.customerId > 0 && (status === "won" || prevStatus === "won");
       if (!needsReconcile) {
         bumpWrite();
-        void quotationsRepo.setStatus(id, status).catch(onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา"))
+        return quotationsRepo.setStatus(id, status).then(() => null, e => { onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")(e); return friendlyError(e); })
           .finally(() => { ปล่อยลีด(); ดึงลีดของดีลกลับ(target.dealId, "หลังเปลี่ยนสถานะใบ"); });
-        return;
       }
       // เปลี่ยนสถานะ + รวมยอดลูกค้าใหม่ในทรานแซกชันเดียว (0102) — เดิมเรียก setStatus แล้วค่อย reconcile
       // แยก 2 คำขอ ภายใต้โหลดสูงเจอช่องว่างจังหวะเวลาที่ reconcile คำนวณได้ 0 ทั้งที่สถานะเปลี่ยนไปแล้วจริง
-      void (async () => {
+      return (async () => {
         try {
           const { quotation, customer } = await quotationsRepo.setStatusReconciled(id, status);
           setQuotations(prev => prev.map(q => q.id !== id ? q : quotation));
           if (customer) setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
+          return null;
         } catch (e) {
           onFail("quotations", "เปลี่ยนสถานะใบเสนอราคา")(e);
           setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status: prevStatus ?? q.status }));
+          return friendlyError(e);
         } finally { ปล่อยลีด(); ดึงลีดของดีลกลับ(target.dealId, "หลังเปลี่ยนสถานะใบ"); }
       })();
     };
     const linkable = status === "won" && !(target.customerId && target.customerId > 0);
     if (linkable) {
-      void (async () => {
+      return (async () => {
         // ⚠️ ต้องรอให้ "ลูกค้าเป้าหมายโหลดเสร็จ" ก่อนตัดสินว่าใบนี้มีลูกค้าเป้าหมายต้นทางไหม
         //    (เจอจริง 27 ส.ค. 69 บนโหมดเดียวกับเว็บจริง) — ตัดสินจากอาร์เรย์ที่ยังโหลดไม่เสร็จ
         //    = "ไม่มีลูกค้าเป้าหมายต้นทาง" → ใบกลายเป็น won เงียบ ๆ โดยไม่มีลูกค้าเกิดขึ้นเลย
         const รายชื่อลีด = await ensureLeads();
         const lead = รายชื่อลีด.find(l => (target.dealId != null && l.numId === target.dealId) || l.company === target.customer);
-        if (!lead || lead.customerId != null) { ทำสถานะตามปกติ(); return; }
+        if (!lead || lead.customerId != null) return ทำสถานะตามปกติ();
         try {
           // ทั้งก้อน (หา/สร้างลูกค้า + relink ใบกำพร้า + บังคับใบนี้เป็น won + รวมยอด) เป็น RPC เดียว
           // atomic ที่ DB แล้ว (Phase 4, 0094/0095) — ส่ง id ใบที่กำลังกดเป็น targetQuoteId ตรงๆ
           // ไม่ต้องแยกเรียก setStatus/reconcile อีกที (ตัดจุดเสี่ยง "customer ลงแล้วแต่ setStatus ไม่ทัน")
           await convertLeadToCustomer(lead, false, id);
-        } catch {
+          return null;
+        } catch (e) {
           // ล้มเหลว (error ถูกแจ้งแล้วในตัว convertLeadToCustomer) → ย้อนสถานะใบใน UI
           setQuotations(prev => prev.map(q => q.id !== id ? q : { ...q, status: prevStatus ?? "sent_to_client" }));
+          return friendlyError(e);
         } finally { ปล่อยลีด(); ดึงลีดของดีลกลับ(target.dealId, "หลังตอบรับ"); }
       })();
-      return;
     }
-    ทำสถานะตามปกติ();
+    return ทำสถานะตามปกติ();
   }, [completeLeadQuoteTasks, convertLeadToCustomer, persistQuote, ensureLeads, แทนที่ใบเดิมบนจอ, ดึงลีดของดีลกลับ]);
 
   // เลขที่ใบเสนอราคาถัดไป — ผ่าน repo (supabase: RPC next_quote_no atomic · local: max+1)
@@ -1017,7 +1039,7 @@ export function SalesProvider({
     return v === undefined || v === l.quoteValue ? l : { ...l, quoteValue: v };
   }), [leads, quotations]);
   const value = useMemo(() => ({
-    leads: leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
+    leads: leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, บันทึกลีดรอฐาน, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, sendQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,
@@ -1026,7 +1048,7 @@ export function SalesProvider({
     syncError, clearSyncError,
     salesVersion, refreshSales,
   }), [
-    leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, deleteLead, syncLeadFromServer,
+    leadsมีมูลค่า, newLeadNumId, addLead, บันทึกลีด, บันทึกลีดรอฐาน, deleteLead, syncLeadFromServer,
     customers, addCustomer, updateCustomer, deleteCustomer,
     quotations, quotationsReady, ensureQuotations, createQuotation, newQuotationVersion, updateQuotation, sendQuotation, deleteQuotation, setQuotationStatus,
     newAppointmentId,

@@ -71,6 +71,18 @@ export async function เข้าระบบด้วยคุกกี้(pag
   const เก่า = คุกกี้ที่เก็บไว้.get(key);
   if (เก่า?.length) {
     await page.context().addCookies(เก่า);
+    // ใบผ่าน (pms_at) ใกล้หมด/หมดแล้ว = ต่ออายุก่อนส่งให้เทสต์ (ไม่นิ่ง 3 ครั้ง 28 ต.ค. 69 · quote-request-flow)
+    //   รอบตรวจเต็มยาวกว่าอายุใบผ่าน · คุกกี้ที่ใช้ซ้ำหมดอายุกลางรอบ → หน้าแรกของข้อถัดไปได้ 401 ที่ /api/v1/auth
+    //   ก่อนแอปต่ออายุเอง (ทางปกติ) แล้วตัวเฝ้า error นับ 401 นั้น · ต่ออายุตรงนี้ = หน้าเว็บไม่เจอใบผ่านหมดอายุเลย
+    const at = เก่า.find(c => c.name.startsWith("pms_at"));
+    if (!at || (at.expires > 0 && at.expires * 1000 < Date.now() + 120_000)) {
+      const r = await page.context().request.post(`${origin}/api/v1/auth?op=refresh`);
+      if (r.ok()) {
+        const ใหม่ = await page.context().cookies();
+        คุกกี้ที่เก็บไว้.set(key, ใหม่.filter(c => c.name.startsWith("pms_at") || c.name.startsWith("pms_rt")));
+      }
+      // ต่ออายุไม่ได้ = ปล่อยให้ loginUI เห็นว่าถูกเด้งไปหน้าเข้าสู่ระบบแล้วล็อกอินใหม่ (ทางเดิม)
+    }
     return;
   }
   const res = await page.context().request.post(`${origin}/api/v1/auth?op=login`, {

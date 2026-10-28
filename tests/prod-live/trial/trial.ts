@@ -209,13 +209,15 @@ test("ทดลอง · จอกว้าง · D1–D9 · H1–H12", async ({
     await เปิดลีด(d, ข, "ใบเสนอราคา");
     const แผง = d.locator("[data-panel='quote-request']");
     await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();
-    await แผง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();
-    await expect(แผง.getByText("ต้องระบุเหตุผล")).toBeVisible();
+    // กล่องเหตุผลกลาง (28 ต.ค. 69): ไม่ใส่เหตุผล = ปุ่มยืนยันกดไม่ได้ + บอกที่ช่อง
+    const กล่อง = d.locator("[data-reason-dialog]");
+    await expect(กล่อง.getByRole("button", { name: "ยืนยันยกเลิก" })).toBeDisabled();
+    await expect(กล่อง.locator("[data-reason-hint]")).toBeVisible();
   }, { คาดว่าถูกปฏิเสธ: true });
   await ขั้น("D3x", "ยกเลิกคำขอพร้อมเหตุผล", d, async () => {
-    const แผง = d.locator("[data-panel='quote-request']");
-    await แผง.getByLabel("เหตุผลที่ยกเลิก").fill("ลูกค้าขอเลื่อนโครงการ");
-    await แผง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();
+    const กล่อง = d.locator("[data-reason-dialog]");
+    await กล่อง.getByLabel("เหตุผลที่ยกเลิก").fill("ลูกค้าขอเลื่อนโครงการ");
+    await กล่อง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();
     await expect.poll(async () => (await คำขอของ((await ลีด(ข))!.num_id))[0]?.status, { timeout: 20_000 }).toBe("cancelled");
     const s = (await ลีด(ข))!.status;
     if (!["BULLET", "CANCELLED"].includes(s)) throw new Error(`ลีดหลังยกเลิกเป็น ${s}`);
@@ -264,8 +266,9 @@ test("ทดลอง · จอกว้าง · D1–D9 · H1–H12", async ({
     await เปิดลีด(d, ก, "ใบเสนอราคา");
     const แผง = d.locator("[data-panel='quote-request']");
     await แผง.getByRole("button", { name: "ขอแก้ราคา" }).click();
-    await แผง.getByLabel("เหตุผลที่ขอแก้ราคา").fill("ลูกค้าลดพื้นที่");
-    await แผง.getByRole("button", { name: "ส่งขอแก้ราคา" }).click();
+    const กล่อง = d.locator("[data-reason-dialog]");   // กล่องเหตุผลกลาง (28 ต.ค. 69)
+    await กล่อง.getByLabel("เหตุผลที่ขอแก้ราคา").fill("ลูกค้าลดพื้นที่");
+    await กล่อง.getByRole("button", { name: "ส่งขอแก้ราคา" }).click();
     await expect.poll(async () => (await ลีด(ก))?.status, { timeout: 20_000 }).toBe("HQ_PRICING");
   });
   await ขั้น("H9", "HQ ตีราคาคำขอแก้ราคาแล้วส่ง (เวอร์ชัน 2)", h, () => HQตีราคาและส่ง(h, ก, "900"));

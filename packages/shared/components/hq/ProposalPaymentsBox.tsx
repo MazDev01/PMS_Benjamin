@@ -65,17 +65,17 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
   }
 
   async function ยกเลิก(x: DealerProposalPayment) {
-    const เหตุผล = await ถามเหตุผล({
+    // กล่องเหตุผลกลาง (28 ต.ค. 69): กล่องรอฐาน · ฐานปฏิเสธ = ข้อความในกล่อง ไม่ปิดเอง
+    if (!(await ถามเหตุผล({
       หัวข้อ: `ยกเลิกการชำระ ${บาท(x.amount)} บาท (${x.reference}) ?`,
       รายละเอียด: "บันทึกการชำระแก้/ลบไม่ได้ — ยกเลิกแล้วยอดนี้ไม่นับ ถ้าบันทึกผิดให้บันทึกใหม่",
-      ป้ายช่อง: "เหตุผลที่ยกเลิก", ปุ่มตกลง: "ยกเลิกการชำระ", อันตราย: true,
-    });
-    if (เหตุผล == null) return;
-    try {
-      const row = await proposalsRepo.cancelPayment(x.id, เหตุผล);
-      setList(l => (l ?? []).map(y => y.id === row.id ? row : y));
-      onChanged?.();
-    } catch (e) { แจ้งพลาด(friendlyError(e, "ยกเลิกการชำระไม่สำเร็จ")); }
+      ป้ายช่อง: "เหตุผลที่ยกเลิก", ปุ่มตกลง: "ยกเลิกการชำระ", ปุ่มกำลังทำ: "กำลังยกเลิกการชำระ…", ปุ่มยกเลิก: "ไม่ยกเลิก", อันตราย: true,
+      ทำ: async เหตุผล => {
+        const row = await proposalsRepo.cancelPayment(x.id, เหตุผล);
+        setList(l => (l ?? []).map(y => y.id === row.id ? row : y));
+      },
+    }))) return;
+    onChanged?.();
   }
 
   const ช่อง: React.CSSProperties = { padding: "4px 8px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: "0.76rem", fontFamily: "inherit" };
@@ -113,7 +113,7 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
             value={ยอด ? formatMoneyInput(String(ยอด)) : ""} onChange={e => setยอด(parseMoneyInput(e.target.value))} />
           <input type="text" aria-label="เลขอ้างอิง" placeholder="เลขอ้างอิง เช่น เลขที่โอน" style={{ ...ช่อง, width: 170 }} disabled={busy}
             value={อ้างอิง} onChange={e => setอ้างอิง(e.target.value)} />
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void บันทึก()}>บันทึกการชำระ</button>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-busy={busy || undefined} data-busy-button onClick={() => void บันทึก()}>{busy ? "กำลังบันทึก…" : "บันทึกการชำระ"}</button>
         </div>
       )}
     </div>

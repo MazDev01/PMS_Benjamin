@@ -110,11 +110,13 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
   await expect(แผง.getByRole("checkbox", { name: "ส่งโบรชัวร์ทดสอบ" }), "ชื่องานต้องเป็นชื่อที่ตั้งไว้").toBeVisible({ timeout: 15_000 });
-  await แผง.getByRole("button", { name: "ไม่สำเร็จ" }).click();
-  await expect(แผง.locator("select#pj-lost-reason"), "ตั้งรายการเหตุผลแล้วต้องเลือกจากรายการ").toBeVisible();
-  await expect(แผง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }), "ยังไม่เลือกเหตุผล = กดยืนยันไม่ได้").toBeDisabled();
-  await แผง.locator("#pj-lost-reason").selectOption("เงินทุนไม่พอ (ทดสอบ)");
-  await แผง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }).click();
+  await แผง.getByRole("button", { name: "ไม่สำเร็จ", exact: true }).click();
+  // กล่องเหตุผลกลาง (28 ต.ค. 69) — รายการที่ตั้งไว้เป็นปุ่มให้เลือก (เดิม select#pj-lost-reason)
+  const กล่อง = page.locator("[data-reason-dialog]");
+  await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ (ทดสอบ)" }), "ตั้งรายการเหตุผลแล้วต้องเลือกจากรายการ").toBeVisible();
+  await expect(กล่อง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }), "ยังไม่เลือกเหตุผล = กดยืนยันไม่ได้").toBeDisabled();
+  await กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ (ทดสอบ)" }).click();
+  await กล่อง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }).click();
   await waitRow(sb, "dealer_prospects", { name, status: "lost", lost_reason: "เงินทุนไม่พอ (ทดสอบ)" });
   assertNoErrors(errs, "ตั้งค่าหาดีลเลอร์ → ฟอร์มลูกค้าเป้าหมาย");
 });

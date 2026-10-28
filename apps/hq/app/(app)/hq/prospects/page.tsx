@@ -344,7 +344,8 @@ export default function HQProspectsPage() {
   }
 
   // ── เปลี่ยนขั้นจากแท็บงาน ──
-  async function เปลี่ยนขั้น(next: DealerProspectStatus, lostReason?: string) {
+  //   โยน = true: ผิดพลาดโยนออกไป (กล่องเหตุผลกลางแสดงในกล่อง · ไม่สำเร็จ) · ไม่ใช่ = แจ้งด้วยข้อความกลาง
+  async function เปลี่ยนขั้น(next: DealerProspectStatus, lostReason?: string, โยน = false) {
     const ราย = รายที่เปิด;
     if (!ราย) return;
     setStageBusy(true);
@@ -355,6 +356,7 @@ export default function HQProspectsPage() {
       if (เปิดอยู่Ref.current === saved.id) setรายที่เปิด(saved);
       void โหลดของราย(saved.id);
     } catch (e) {
+      if (โยน) throw e;
       แจ้งพลาด(friendlyError(e, "เปลี่ยนขั้นไม่สำเร็จ"));
     } finally {
       setStageBusy(false);
@@ -937,7 +939,8 @@ export default function HQProspectsPage() {
                       มีใบส่งแล้ว={มีใบส่งแล้ว}
                       editable={จัดการได้ && ประวัติโหลดแล้ว && !ประวัติผิด}
                       busy={stageBusy}
-                      onStage={(next, reason) => void เปลี่ยนขั้น(next, reason)}
+                      onStage={next => void เปลี่ยนขั้น(next)}
+                      onLost={reason => เปลี่ยนขั้น("lost", reason, true)}
                       onNeedContact={() => {
                         setแท็บที่เปิด("contact"); setฟอร์มติดต่อเปิด(true);
                         แจ้งสำเร็จ("ติ๊กงานนี้เองไม่ได้ — บันทึกการติดต่อจริงก่อน แล้วระบบจะติ๊กให้เอง");

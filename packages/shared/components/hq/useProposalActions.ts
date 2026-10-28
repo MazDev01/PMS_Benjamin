@@ -36,29 +36,24 @@ export function useProposalActions() {
   const เปลี่ยนสถานะ = useCallback(async (p: DealerPackageProposal, status: DealerProposalStatus, ชื่อราย: string) => {
     if (status === p.status) return null;
     // ปฏิเสธ = ปิดใบ ต้องมีเหตุผล (FLOW: ปฏิเสธหรือหมดอายุ → ปิด พร้อมเหตุผล · ฐานข้อมูลบังคับ 0207)
-    let เหตุผล: string | undefined;
-    if (ต้องมีเหตุผล(status)) {
-      const ตอบ = await ถามเหตุผล({
-        หัวข้อ: `ปฏิเสธใบ ${p.proposalNo ?? ""} ?`,
-        รายละเอียด: "ปิดใบแล้วย้อนกลับไม่ได้ — ถ้าจะเจรจาต่อ ทำเวอร์ชันใหม่จากใบนี้ได้",
-        ป้ายช่อง: "เหตุผลที่ปฏิเสธ", ปุ่มตกลง: "ปฏิเสธใบนี้", อันตราย: true,
-      });
-      if (ตอบ == null) return null;
-      เหตุผล = ตอบ;
-    } else if (!(await ยืนยัน({
-      หัวข้อ: `เปลี่ยนใบ ${p.proposalNo ?? ""} เป็น “${proposalStatusLabel[status]}” ?`,
-      รายละเอียด: status === "sent"
-        ? "ส่งแล้วจะแก้เนื้อหาในใบและลบใบไม่ได้อีก — ถ้าต้องแก้ ทำเวอร์ชันใหม่ · ใบนี้คือหลักฐานว่าเสนออะไรไป"
-        : "เปลี่ยนแล้วย้อนกลับไม่ได้",
-      ปุ่มตกลง: `เปลี่ยนเป็น${proposalStatusLabel[status]}`,
-    }))) return null;
-    try {
-      const saved = await proposalsRepo.setStatus(p.id, status, เหตุผล);
-      return saved;
-    } catch (e) {
-      แจ้งพลาด(friendlyError(e, "เปลี่ยนสถานะไม่สำเร็จ"));
-      return null;
-    }
+    //   กล่องรอฐาน (บอสสั่ง 28 ต.ค. 69): ปุ่มขึ้น "กำลัง…" จนฐานตอบ · ฐานปฏิเสธ = ข้อความในกล่อง ไม่ปิดเอง
+    let saved = null as DealerPackageProposal | null;   // ตั้งในกล่อง (closure) — as กัน TS ตีเป็น never
+    const ทำแล้ว = ต้องมีเหตุผล(status)
+      ? await ถามเหตุผล({
+          หัวข้อ: `ปฏิเสธใบ ${p.proposalNo ?? ""} ?`,
+          รายละเอียด: "ปิดใบแล้วย้อนกลับไม่ได้ — ถ้าจะเจรจาต่อ ทำเวอร์ชันใหม่จากใบนี้ได้",
+          ป้ายช่อง: "เหตุผลที่ปฏิเสธ", ปุ่มตกลง: "ปฏิเสธใบนี้", ปุ่มกำลังทำ: "กำลังปฏิเสธใบ…", อันตราย: true,
+          ทำ: async เหตุผล => { saved = await proposalsRepo.setStatus(p.id, status, เหตุผล); },
+        })
+      : await ยืนยัน({
+          หัวข้อ: `เปลี่ยนใบ ${p.proposalNo ?? ""} เป็น “${proposalStatusLabel[status]}” ?`,
+          รายละเอียด: status === "sent"
+            ? "ส่งแล้วจะแก้เนื้อหาในใบและลบใบไม่ได้อีก — ถ้าต้องแก้ ทำเวอร์ชันใหม่ · ใบนี้คือหลักฐานว่าเสนออะไรไป"
+            : "เปลี่ยนแล้วย้อนกลับไม่ได้",
+          ปุ่มตกลง: `เปลี่ยนเป็น${proposalStatusLabel[status]}`, ปุ่มกำลังทำ: "กำลังบันทึก…",
+          ทำ: async () => { saved = await proposalsRepo.setStatus(p.id, status); },
+        });
+    return ทำแล้ว ? saved : null;
   }, []);
 
   /** ส่งแล้วแก้ไม่ได้ → ทำเวอร์ชันใหม่ (ร่าง) · คืนใบใหม่ · ยกเลิก/ไม่สำเร็จ = null */
