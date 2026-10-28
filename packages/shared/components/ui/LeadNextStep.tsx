@@ -15,7 +15,8 @@ import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { ขั้นต่อไป, type NextStepAction } from "@pms/shared/lib/leadNextStep";
 import { ชื่อขั้นการขาย, สภาพแถบขั้น, สีแถบขั้น } from "@pms/shared/lib/leadStage";
-import { LostReasonPicker } from "@pms/shared/components/ui/LostReasonPicker";
+import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
+import { useLostReasons } from "@pms/shared/lib/useHQConfig";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import type { HqQuote, QuoteRequest } from "@pms/shared/lib/quoteRequests";
 import type { LeadRow, QuotationMock } from "@pms/shared/lib/mock";
@@ -40,9 +41,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
   const ตั้งค่าสาขา = useDealerSettings();
   const [คำขอทั้งหมด, setคำขอทั้งหมด] = useState<QuoteRequest[] | undefined>(undefined);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
-  const [เลือกเหตุผล, setเลือกเหตุผล] = useState(false);
-  const [กำลังปิด, setกำลังปิด] = useState(false);
-  const [ผิด, setผิด] = useState("");
+  const lostReasons = useLostReasons();
   const [รอบ, setรอบ] = useState(0);
   const dealerCode = dealerCodeOf(lead);
 
@@ -64,7 +63,6 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
       .catch(e => logRepoRead("quoteRequests.hqQuoteFor(next-step)", e));
     return () => { alive = false; };
   }, [คำขอ]);
-  useEffect(() => { setเลือกเหตุผล(false); setผิด(""); }, [lead.id]);
 
   // ใบลูกค้าทุกใบของดีลนี้ (สาขาเดียวกันเท่านั้น — SalesContext มีใบทั้งเครือ) · ใหม่สุดก่อน
   const ใบของดีล = useMemo<QuotationMock[]>(() =>
@@ -111,17 +109,20 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
     : ขั้น.action ? { bg: "#fff4e5", line: "#b45309", text: "#7c3d06" }
     : { bg: "#eef3f8", line: "#9fb3c8", text: "#003366" };
 
-  async function ยืนยันปิด(reason: string) {
-    setกำลังปิด(true); setผิด("");
-    try {
-      // รอราคา HQ อยู่ = ยกเลิกคำขอพร้อมปิดลีด (ฐานเลื่อนลีดให้เอง) · อย่างอื่น = บันทึกปิดไม่สำเร็จที่ลีด
-      const รอHQ = !!คำขอ && (คำขอ.status === "new" || คำขอ.status === "pricing");
-      if (รอHQ) await repo.cancel(คำขอ!.id, reason, true);
-      await onLost(reason, รอHQ);
-      setเลือกเหตุผล(false); setรอบ(n => n + 1);
-    } catch (e) {
-      setผิด(e instanceof Error ? e.message.replace(/^[a-z_]+:\s*/, "") : String(e));
-    } finally { setกำลังปิด(false); }
+  // ปิดไม่สำเร็จ = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) — กล่องรอฐาน · ผิดพลาดแสดงในกล่อง
+  function ปิดไม่สำเร็จ() {
+    // รอราคา HQ อยู่ = ยกเลิกคำขอพร้อมปิดลีด (ฐานเลื่อนลีดให้เอง) · อย่างอื่น = บันทึกปิดไม่สำเร็จที่ลีด
+    const รอHQ = !!คำขอ && (คำขอ.status === "new" || คำขอ.status === "pricing");
+    void ถามเหตุผล({
+      หัวข้อ: รอHQ ? "ปิดไม่สำเร็จ — ระบบยกเลิกคำขอราคาที่รอ HQ ให้ด้วย" : "ปิดไม่สำเร็จ — เลือกเหตุผลที่ปิดการขายไม่ได้",
+      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่ได้", ตัวเลือก: lostReasons,
+      ปุ่มตกลง: "ยืนยันปิดการขาย", ปุ่มกำลังทำ: "กำลังปิดการขาย…", อันตราย: true,
+      ทำ: async reason => {
+        if (รอHQ) await repo.cancel(คำขอ!.id, reason, true);
+        await onLost(reason, รอHQ);
+        setรอบ(n => n + 1);
+      },
+    });
   }
 
   return (
@@ -141,14 +142,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
           );
         })}
       </ol>
-      {เลือกเหตุผล ? (
-        <div>
-          <LostReasonPicker กำลังบันทึก={กำลังปิด}
-            หัวข้อ={คำขอ && (คำขอ.status === "new" || คำขอ.status === "pricing") ? "ปิดไม่สำเร็จ — ระบบยกเลิกคำขอราคาที่รอ HQ ให้ด้วย · เลือกเหตุผล" : undefined}
-            onConfirm={r => void ยืนยันปิด(r)} onCancel={() => { setเลือกเหตุผล(false); setผิด(""); }} />
-          {ผิด && <div role="alert" style={{ marginTop: 6, fontSize: "0.72rem", color: "#b91c1c" }}>{ผิด}</div>}
-        </div>
-      ) : (
+      {(
         <div role="status" aria-label="ขั้นต่อไป" style={{ minHeight: 62, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: สีกล่อง.bg, border: `1px solid ${สีกล่อง.line}`, borderRadius: 12, padding: "10px 14px" }}>
           <div style={{ flex: "1 1 260px", minWidth: 0 }}>
             <div style={{ fontSize: "0.66rem", fontWeight: 700, color: สีกล่อง.text, opacity: 0.85 }}>{จบแล้ว ? "สถานะ" : "ขั้นต่อไป"}</div>
@@ -156,7 +150,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
             <div style={{ fontSize: "0.74rem", color: สีกล่อง.text }}>{ขั้น.detail}{ขั้น.key === "lost" && lead.lostReason ? ` · เหตุผล: ${lead.lostReason}` : ""}</div>
           </div>
           {ขั้น.ปิดไม่สำเร็จได้ && (
-            <button type="button" onClick={() => setเลือกเหตุผล(true)}
+            <button type="button" onClick={ปิดไม่สำเร็จ}
               style={{ height: 40, padding: "0 14px", border: "1px solid #fecaca", borderRadius: 10, background: "#fff", color: "#dc2626", fontFamily: "inherit", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
               <XCircle size={14} /> ปิดไม่สำเร็จ
             </button>

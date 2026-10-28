@@ -132,10 +132,12 @@ test("[flow·dealer] ยกเลิกคำขอ ต้องมีเหต�
   const errs = watchErrors(page);
   const แผง = await เปิดแท็บใบเสนอราคา(page);
   await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();
-  await แผง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();
-  await expect(แผง.getByText("ต้องระบุเหตุผล"), "ไม่ใส่เหตุผล ยกเลิกไม่ได้").toBeVisible();
-  await แผง.getByLabel("เหตุผลที่ยกเลิก").fill("ลูกค้าขอเลื่อนโครงการ");
-  await แผง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();
+  // กล่องเหตุผลกลาง (28 ต.ค. 69): ไม่ใส่เหตุผล = ปุ่มยืนยันกดไม่ได้ + บอกที่ช่องเหตุผล
+  const กล่อง = page.locator("[data-reason-dialog]");
+  await expect(กล่อง.getByRole("button", { name: "ยืนยันยกเลิก" }), "ไม่ใส่เหตุผล ยกเลิกไม่ได้").toBeDisabled();
+  await expect(กล่อง.locator("[data-reason-hint]"), "บอกว่าต้องใส่เหตุผลก่อน").toBeVisible();
+  await กล่อง.getByLabel("เหตุผลที่ยกเลิก").fill("ลูกค้าขอเลื่อนโครงการ");
+  await กล่อง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();
   await expect.poll(async () => (await คำขอล่าสุด()).status, { timeout: 20_000 }).toBe("cancelled");
   expect(await สถานะลูกค้าเป้าหมาย(), "ยกเลิกแล้วกลับรวบรวมความต้องการ").toBe("BULLET");
   expect(await อีเมล("request_cancelled"), "อีเมลยกเลิกถึง HQ (ตารางกลาง H6 · คืนตาม FLOW D3x · ใบ 0236)").toBe(1);
@@ -159,8 +161,9 @@ test("[flow·dealer] ขอแก้ราคาหลัง HQ ส่งใบ 
   const แผง = await เปิดแท็บใบเสนอราคา(page);
   await expect(แผง.getByText("ส่งใบแล้ว", { exact: true })).toBeVisible({ timeout: 20_000 });
   await แผง.getByRole("button", { name: "ขอแก้ราคา" }).click();
-  await แผง.getByLabel("เหตุผลที่ขอแก้ราคา").fill("ลูกค้าลดพื้นที่เหลือ 600 ตร.ม.");
-  await แผง.getByRole("button", { name: "ส่งขอแก้ราคา" }).click();
+  const กล่อง = page.locator("[data-reason-dialog]");   // กล่องเหตุผลกลาง (28 ต.ค. 69)
+  await กล่อง.getByLabel("เหตุผลที่ขอแก้ราคา").fill("ลูกค้าลดพื้นที่เหลือ 600 ตร.ม.");
+  await กล่อง.getByRole("button", { name: "ส่งขอแก้ราคา" }).click();
   await expect.poll(async () => (await คำขอล่าสุด()).supersedes_id, { timeout: 20_000 }).toBe(rid);
   expect((await คำขอล่าสุด()).status, "คำขอใหม่เริ่มที่ ใหม่").toBe("new");
   expect(await สถานะลูกค้าเป้าหมาย(), "ขอแก้ราคา → รอราคา HQ").toBe("HQ_PRICING");

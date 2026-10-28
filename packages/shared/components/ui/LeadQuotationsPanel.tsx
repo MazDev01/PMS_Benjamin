@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, Check, XCircle } from "lucide-react";
-import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { LostReasonPicker } from "@pms/shared/components/ui/LostReasonPicker";
+import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { useLostReasons } from "@pms/shared/lib/useHQConfig";
+import { ปุ่มรอฐาน } from "@pms/shared/components/ui/BusyButton";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
   quotationStatusLabel, quotationStatusColor, fmtISOToThai,
@@ -64,7 +65,7 @@ type LeadQuotationsPanelProps =
 
 export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon }: LeadQuotationsPanelProps) {
   const { quotations, createQuotation, updateQuotation, sendQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus } = useSales();
-  const [ปฏิเสธใบ, setปฏิเสธใบ] = useState<string | null>(null);   // ใบที่กำลังเลือกเหตุผล "ลูกค้าปฏิเสธ"
+  const lostReasons = useLostReasons();   // เหตุผล "ลูกค้าปฏิเสธ" = รายการของ HQ (กล่องเหตุผลกลาง)
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
   const [editing, setEditing] = useState<QuotationMock | null>(null);
   const ฉบับใหม่ = !!editing?.supersedesId;   // ฉบับใหม่ (V2 …): ลูกค้า โครงการ ภาษี คัดลอกจากใบเดิม แก้ไม่ได้ (0228)
@@ -254,34 +255,39 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
 
   // ── ผลจากลูกค้า (รอบ 4): ตอบรับ = ทางเดียวที่ปิดการขายสำเร็จ (ฐานกัน ใบ 0232) · ปฏิเสธ = ฐานปิดลีดเป็นไม่สำเร็จให้เอง ──
   const บันทึกผลได้ = (q: QuotationMock) => แก้ได้(q) && q.status === "sent_to_client";
+  //   กล่องรอฐานทั้งคู่ (บอสสั่ง 28 ต.ค. 69): ปุ่มขึ้น "กำลัง…" จนฐานตอบ · ไม่สำเร็จ = ข้อความในกล่อง กล่องไม่ปิด
   async function ลูกค้าตอบรับ(q: QuotationMock) {
     if (!(await ยืนยัน({
       หัวข้อ: `ลูกค้าตอบรับใบ ${q.id} ?`,
       รายละเอียด: "ปิดการขายสำเร็จ — ระบบสร้าง/ผูกลูกค้าให้อัตโนมัติ และใบ HQ เปลี่ยนเป็นสั่งผลิต · ย้อนได้เฉพาะสำนักงานใหญ่",
-      ปุ่มตกลง: "ลูกค้าตอบรับ", อันตราย: true,
+      ปุ่มตกลง: "ลูกค้าตอบรับ", ปุ่มกำลังทำ: "กำลังบันทึกลูกค้าตอบรับ…", อันตราย: true,
+      ทำ: async () => { const ผิด = await setQuotationStatus(q.id, "won"); if (ผิด) throw new Error(ผิด); },
     }))) return;
-    setQuotationStatus(q.id, "won");
     setEditing(e => e?.id === q.id ? { ...e, status: "won" } : e);
     onToast?.("ปิดการขายสำเร็จ — ระบบสร้าง/ผูกลูกค้าให้อัตโนมัติ");
     onWon?.(q.customer);
   }
-  function ลูกค้าปฏิเสธ(q: QuotationMock, reason: string) {
-    updateQuotation({ ...q, status: "lost", lostReason: reason });
-    setEditing(e => e?.id === q.id ? { ...e, status: "lost", lostReason: reason } : e);
-    setปฏิเสธใบ(null);
+  async function ลูกค้าปฏิเสธ(q: QuotationMock) {
+    let เหตุผลที่บันทึก = "";
+    if (!(await ถามเหตุผล({
+      หัวข้อ: `ลูกค้าปฏิเสธใบ ${q.id} — เลือกเหตุผล`,
+      รายละเอียด: "ลูกค้าเป้าหมายปิดไม่สำเร็จให้อัตโนมัติ",
+      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่ได้", ตัวเลือก: lostReasons,
+      ปุ่มตกลง: "ยืนยันลูกค้าปฏิเสธ", ปุ่มกำลังทำ: "กำลังบันทึกลูกค้าปฏิเสธ…", อันตราย: true,
+      ทำ: async reason => {
+        const ผิด = await updateQuotation({ ...q, status: "lost", lostReason: reason });
+        if (ผิด) throw new Error(ผิด);
+        เหตุผลที่บันทึก = reason;
+      },
+    }))) return;
+    setEditing(e => e?.id === q.id ? { ...e, status: "lost", lostReason: เหตุผลที่บันทึก } : e);
     onToast?.(`บันทึกลูกค้าปฏิเสธใบ ${q.id} แล้ว — ลูกค้าเป้าหมายปิดไม่สำเร็จ`);
   }
   const ปุ่มผลลูกค้า = (q: QuotationMock) => บันทึกผลได้(q) && (
-    ปฏิเสธใบ === q.id ? (
-      <div style={{ flexBasis: "100%", marginTop: 8 }}>
-        <LostReasonPicker หัวข้อ="ลูกค้าปฏิเสธ — เลือกเหตุผล" ปุ่มยืนยัน="ยืนยันลูกค้าปฏิเสธ" onConfirm={r => ลูกค้าปฏิเสธ(q, r)} onCancel={() => setปฏิเสธใบ(null)} />
-      </div>
-    ) : (
-      <div data-customer-result style={{ display: "flex", gap: 6 }}>
-        <button type="button" onClick={() => void ลูกค้าตอบรับ(q)} className="btn btn-sm" style={{ background: "#059669", color: "#fff", height: 28, padding: "0 11px" }}><Check size={12} /> ลูกค้าตอบรับ</button>
-        <button type="button" onClick={() => setปฏิเสธใบ(q.id)} className="btn btn-sm" style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca", height: 28, padding: "0 11px" }}><XCircle size={12} /> ลูกค้าปฏิเสธ</button>
-      </div>
-    )
+    <div data-customer-result style={{ display: "flex", gap: 6 }}>
+      <button type="button" onClick={() => void ลูกค้าตอบรับ(q)} className="btn btn-sm" style={{ background: "#059669", color: "#fff", height: 28, padding: "0 11px" }}><Check size={12} /> ลูกค้าตอบรับ</button>
+      <button type="button" onClick={() => void ลูกค้าปฏิเสธ(q)} className="btn btn-sm" style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca", height: 28, padding: "0 11px" }}><XCircle size={12} /> ลูกค้าปฏิเสธ</button>
+    </div>
   );
 
   function openEdit(q: QuotationMock) {
@@ -325,7 +331,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         expiry: วันหมดอายุ, note: form.note || undefined, ...ภาษีที่บันทึก };
       const เวอร์ชันใหม่ = ฉบับถัดไป(ใบล่าสุด, ใบหลังแก้);
       const ขึ้นเวอร์ชัน = จะขึ้นฉบับใหม่(ใบล่าสุด, ใบหลังแก้);
-      updateQuotation(ใบหลังแก้);
+      // รอฐานบันทึกก่อน (ปุ่มขึ้น "กำลังบันทึก…") · ไม่สำเร็จ = ฟอร์มค้างไว้ให้แก้ต่อ (ระบบแจ้งเหตุผลแล้ว)
+      if (await updateQuotation(ใบหลังแก้)) return;   // คืนข้อความผิดพลาด = ไม่สำเร็จ
       onToast?.(ขึ้นเวอร์ชัน
         ? `บันทึกเป็นฉบับแก้ไข ${เวอร์ชันใหม่} แล้ว — ส่งให้ลูกค้าอีกครั้งเพื่อให้ได้ฉบับล่าสุด`
         : "บันทึกใบเสนอราคาแล้ว");
@@ -544,7 +551,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
             </div>
           )}
           <button onClick={() => setMode("list")} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>ยกเลิก</button>
-          <button onClick={save} disabled={saving || !canSave} className="btn btn-primary btn-sm" style={(saving || !canSave) ? { opacity: .6, cursor: "not-allowed" } : undefined}><FilePlus size={13} /> {mode === "edit" ? "บันทึก" : "สร้างใบเสนอราคา"}</button>
+          <button onClick={save} disabled={saving || !canSave} aria-busy={saving || undefined} data-busy-button className="btn btn-primary btn-sm" style={(saving || !canSave) ? { opacity: .6, cursor: "not-allowed" } : undefined}><FilePlus size={13} /> {saving ? (mode === "edit" ? "กำลังบันทึก…" : "กำลังสร้างใบ…") : mode === "edit" ? "บันทึก" : "สร้างใบเสนอราคา"}</button>
         </div>
       </div>
     );
@@ -655,9 +662,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
           {ทำฉบับใหม่ได้(q) && <button onClick={() => void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><CopyPlus size={13} /> ทำฉบับใหม่</button>}
           {/* ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง (ใบที่ส่งแล้ว) */}
           {แก้ได้(q) && q.status === "sent_to_client" && (
-            <button onClick={() => { void sendQuote(q); setMode("list"); }} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
+            <ปุ่มรอฐาน ทำ={async () => { await sendQuote(q); setMode("list"); }} กำลังทำ="กำลังส่ง…" className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
               <Send size={13} /> ส่งอีกครั้ง
-            </button>
+            </ปุ่มรอฐาน>
           )}
         </div>
         <IssuerGuardNote ขาด={ขาดตอนพิมพ์(q)} การกระทำ="พิมพ์ใบให้ลูกค้า" style={{ marginTop: 12 }} />
@@ -705,10 +712,10 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                     {/* ส่งใบเสนอราคา — เด่นเป็นปุ่ม navy · แสดงเฉพาะใบที่ยังส่งได้ (ร่าง/ส่งแล้ว) · ซ่อนเมื่อดูอย่างเดียว */}
                     {/* ส่งใบร่าง = กล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง */}
                     {แก้ได้(q) && q.status === "sent_to_client" && (
-                      <button onClick={() => void sendQuote(q)} title="ส่งอีกครั้ง"
+                      <ปุ่มรอฐาน ทำ={() => sendQuote(q)} กำลังทำ="กำลังส่ง…" title="ส่งอีกครั้ง"
                         className="btn btn-secondary btn-sm" style={{ height: 28, padding: "0 11px", color: "#374151" }}>
                         <Send size={12} /> ส่งอีกครั้ง
-                      </button>
+                      </ปุ่มรอฐาน>
                     )}
                     {([
                       { ic: <Eye size={13} />, t: "ดู", fn: () => { setEditing(q); setMode("view"); } },

@@ -13,11 +13,11 @@ import type { DealerProspect, DealerProspectStatus } from "@pms/shared/lib/data/
 import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealerProspects";
 import { งานมาตรฐาน, งานเสร็จแล้ว, ความคืบหน้า, ติ๊กงาน, ยกเลิกงาน, ลำดับขั้น } from "@pms/shared/lib/prospectJourney";
 import { ชื่องานที่ใช้, type HQRecruitSettings } from "@pms/shared/lib/recruitSettings";
+import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
 
 const PRIMARY = "#003366";
-const เหตุผลอื่น = "__อื่น__";
 
-export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง }: {
+export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง }: {
   prospect: DealerProspect;
   /** ชื่องาน + รายการเหตุผลที่ไม่สำเร็จ ที่ตั้งไว้ (หน้าตั้งค่า › หาดีลเลอร์) — ไม่ส่ง = ชื่อเดิม/พิมพ์เหตุผลเอง */
   ค่าตั้ง?: Pick<HQRecruitSettings, "taskLabels" | "lostReasons">;
@@ -27,19 +27,22 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
   มีใบส่งแล้ว: boolean;
   editable: boolean;
   busy?: boolean;
-  onStage: (next: DealerProspectStatus, lostReason?: string) => void;
+  onStage: (next: DealerProspectStatus) => void;
+  /** ไม่สำเร็จ (กล่องเหตุผลกลางรอฐาน · 28 ต.ค. 69) — ฐานปฏิเสธ = โยน error ให้กล่องแสดง */
+  onLost: (lostReason: string) => Promise<unknown>;
   onNeedContact: () => void;
   onNeedProposal: () => void;
   onConvert: () => void;
 }) {
   const [hint, setHint] = useState("");
-  const [เปิดไม่สำเร็จ, setเปิดไม่สำเร็จ] = useState(false);
-  const [เหตุผล, setเหตุผล] = useState("");
-  // มีรายการเหตุผลตั้งไว้ = เลือกจากรายการ (มี "อื่น ๆ" ให้พิมพ์เอง) · ไม่มี = พิมพ์เองเหมือนเดิม
-  const รายการเหตุผล = ค่าตั้ง?.lostReasons ?? [];
-  const [เลือกเหตุผล, setเลือกเหตุผล] = useState("");
-  const เหตุผลที่ใช้ = (รายการเหตุผล.length && เลือกเหตุผล !== เหตุผลอื่น ? เลือกเหตุผล : เหตุผล).trim();
-  const ปิดฟอร์มเหตุผล = () => { setเปิดไม่สำเร็จ(false); setเหตุผล(""); setเลือกเหตุผล(""); };
+  // ไม่สำเร็จ = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) · มีรายการเหตุผลตั้งไว้ = เลือกจากรายการ (มี "อื่นๆ" ให้พิมพ์เอง) · ไม่มี = พิมพ์เอง
+  const ไม่สำเร็จ = () => void ถามเหตุผล({
+    หัวข้อ: `ปิด “${prospect.name}” ว่าไม่สำเร็จ ?`,
+    รายละเอียด: "เปิดติดตามใหม่ได้ภายหลัง",
+    ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ", ตัวเลือก: ค่าตั้ง?.lostReasons ?? [],
+    ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
+    ทำ: เหตุผล => onLost(เหตุผล),
+  });
   const ชื่อ = (g: (typeof งานมาตรฐาน)[number]) => (ค่าตั้ง ? ชื่องานที่ใช้(ค่าตั้ง, g.key, g.label) : g.label);
 
   const status = prospect.status;
@@ -155,38 +158,13 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
               </button>
             )}
           </div>
-        ) : เปิดไม่สำเร็จ ? (
-          <div style={{ padding: "12px 14px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca" }}>
-            <label htmlFor="pj-lost-reason" style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#dc2626", marginBottom: 8 }}>เหตุผลที่ไม่สำเร็จ</label>
-            {รายการเหตุผล.length ? (
-              <>
-                <select id="pj-lost-reason" autoFocus className="form-select" value={เลือกเหตุผล} onChange={e => setเลือกเหตุผล(e.target.value)} style={{ cursor: "pointer" }}>
-                  <option value="">— ยังไม่ระบุ —</option>
-                  {รายการเหตุผล.map(r => <option key={r} value={r}>{r}</option>)}
-                  <option value={เหตุผลอื่น}>อื่น ๆ (ระบุเอง)</option>
-                </select>
-                {เลือกเหตุผล === เหตุผลอื่น && (
-                  <input id="pj-lost-reason-other" aria-label="ระบุเหตุผลเอง" autoFocus value={เหตุผล} onChange={e => setเหตุผล(e.target.value)}
-                    placeholder="พิมพ์เหตุผล…" className="form-input" style={{ marginTop: 8 }} />
-                )}
-              </>
-            ) : (
-              <input id="pj-lost-reason" autoFocus value={เหตุผล} onChange={e => setเหตุผล(e.target.value)} placeholder="พิมพ์เหตุผล…" className="form-input" />
-            )}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={ปิดฟอร์มเหตุผล}>ยกเลิก</button>
-              <button type="button" className="btn btn-sm" disabled={!เหตุผลที่ใช้ || busy}
-                style={เหตุผลที่ใช้ ? { background: "#dc2626", color: "#fff" } : { background: "#f3f4f6", color: "#9ca3af", cursor: "not-allowed" }}
-                onClick={() => { onStage("lost", เหตุผลที่ใช้); ปิดฟอร์มเหตุผล(); }}>ยืนยันไม่สำเร็จ</button>
-            </div>
-          </div>
         ) : editable ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ flex: 1, fontSize: "0.8rem", fontWeight: 700, color: "#374151" }}>ปิดท้าย :</span>
             <button type="button" className="btn btn-sm" disabled={busy} onClick={onConvert} style={{ background: "#059669", color: "#fff" }}>
               <Store size={13} /> ตั้งเป็นดีลเลอร์
             </button>
-            <button type="button" className="btn btn-sm" disabled={busy} onClick={() => setเปิดไม่สำเร็จ(true)}
+            <button type="button" className="btn btn-sm" disabled={busy} onClick={ไม่สำเร็จ}
               style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca" }}>
               <XCircle size={13} /> ไม่สำเร็จ
             </button>

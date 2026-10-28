@@ -109,7 +109,7 @@ test("ข้อ 3 · ปิดไม่สำเร็จที่กล่อ�
     await กล่อง(page).getByRole("button", { name: /ปิดไม่สำเร็จ/ }).click();
     const ตัวเลือก = page.locator("[data-lost-picker]");
     await ตัวเลือก.locator("button").first().click();
-    await ตัวเลือก.getByRole("button", { name: "ยืนยันปิดการขาย" }).click();
+    await page.locator("[data-reason-dialog]").getByRole("button", { name: "ยืนยันปิดการขาย" }).click();   // กล่องเหตุผลกลาง (28 ต.ค. 69)
     await expect.poll(async () => (await สถานะลีด(n)).status, { timeout: 20_000 }).toBe("CANCELLED");
     expect((await สถานะลีด(n)).lost_reason).toBeTruthy();
     await page.keyboard.press("Escape");

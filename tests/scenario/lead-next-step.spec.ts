@@ -134,7 +134,7 @@ test("[func·dealer] ขั้นต่อไป: ราคา HQ หมดอ�
   const กล่อง = await เปิดแผง(page, "หมดอายุ");
   await expect(กล่อง).toContainText("ราคา HQ หมดอายุแล้ว", { timeout: 20_000 });
   await กล่อง.getByRole("button", { name: /ขอราคาใหม่/ }).click();
-  await expect(page.locator("[data-panel='quote-request']").getByRole("button", { name: "ส่งขอแก้ราคา" }), "กดแล้วต้องเปิดฟอร์มขอแก้ราคา").toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("[data-reason-dialog]").getByRole("button", { name: "ส่งขอแก้ราคา" }), "กดแล้วต้องเปิดกล่องขอแก้ราคา (กล่องเหตุผลกลาง)").toBeVisible({ timeout: 15_000 });
 });
 
 test("[func·dealer] ขั้นต่อไป: ปิดไม่สำเร็จ และลีดค้างขั้นที่ขอราคาไม่ได้ → ไม่มีปุ่ม", async ({ page }) => {

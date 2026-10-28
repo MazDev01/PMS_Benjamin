@@ -24,8 +24,12 @@ import type { LeadRow } from "@pms/shared/lib/mock";
 import { ช่องขอราคา, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
 import { MaterialEstimatePicker, type วัสดุที่เลือก } from "@pms/shared/components/ui/MaterialEstimatePicker";
 import { ป้ายราคาประเมิน } from "@pms/shared/lib/materialTemplates";
+import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
 
-type โหมด = "ดู" | "ขอราคา" | "ยกเลิก" | "แก้ราคา";
+// ยกเลิกคำขอ / ขอแก้ราคา = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) — กล่องรอฐาน + รอรายการคำขอโหลดใหม่ก่อนปิด
+//   เดิมเป็นฟอร์มในแผง: ปุ่มไม่บอกว่ากำลังทำ · เหตุผลว่างกดได้แล้วขึ้นตัวแดงเล็ก · ปิดฟอร์มก่อนรายการโหลดใหม่
+//   (ช่วงสั้น ๆ จอยังโชว์ "ใหม่" + ปุ่มยกเลิกคำขอ ทั้งที่ฐานยกเลิกแล้ว = ดูเหมือนกดแล้วไม่เกิดอะไร)
+type โหมด = "ดู" | "ขอราคา";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d5dbe4", borderRadius: 9, padding: "9px 11px", fontSize: "0.84rem", fontFamily: "inherit", boxSizing: "border-box" };
 
@@ -38,17 +42,17 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const [area, setArea] = useState("");
   // วัสดุจากแม่แบบ (ไม่บังคับ · ใบ 0244) — ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา
   const [วัสดุ, setวัสดุ] = useState<วัสดุที่เลือก[]>([]);
-  const [เหตุผล, setเหตุผล] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
 
   const dealerCode = dealerCodeOf(lead);
-  const โหลด = useCallback(() => {
+  // คืน Promise — หลังยกเลิก/ขอแก้ราคา กล่องรอรายการใหม่ก่อนปิด (จอไม่ค้างสถานะเก่า)
+  const โหลด = useCallback(async () => {
     if (!REAL_BACKEND || !dealerCode || lead.numId == null) return;
-    repo.listForLead(dealerCode, lead.numId).then(setรายการ).catch(e => logRepoRead("quoteRequests.listForLead", e));
+    await repo.listForLead(dealerCode, lead.numId).then(setรายการ).catch(e => logRepoRead("quoteRequests.listForLead", e));
   }, [dealerCode, lead.numId]);
-  useEffect(โหลด, [โหลด]);
+  useEffect(() => { void โหลด(); }, [โหลด]);
 
   const ล่าสุด = รายการ?.[0];
   const เปิด = ล่าสุด && คำขอเปิดอยู่(ล่าสุด.status) ? ล่าสุด : null;
@@ -65,47 +69,59 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   //   ขอแก้ราคา (D5x): สเปก ← คำขอล่าสุด · ลีด/คำขอไม่มีค่าช่องไหน = ช่องนั้นว่าง ห้ามเดา
   //   เดิมเปิดมาว่างทุกช่อง ดีลเลอร์ต้องพิมพ์ซ้ำสิ่งที่กรอกไว้ในลีดแล้ว · ยกเลิก/ส่งแล้วเปิดใหม่ = ดึงใหม่ ไม่ค้างค่าที่พิมพ์รอบก่อน
   const เข้าโหมด = useCallback((m: โหมด) => {
-    setErr(""); setเหตุผล("");
+    setErr("");
     if (m === "ขอราคา") {
       setProduct(lead.project ?? "");
       setArea(lead.area != null && lead.area > 0 ? String(lead.area) : "");
       setSpec(lead.note ?? "");
       setวัสดุ([]);
-    } else if (m === "แก้ราคา") {
-      setSpec(รายการ?.[0]?.spec ?? "");
     }
     setโหมด(m);
-  }, [lead.project, lead.area, lead.note, รายการ]);
+  }, [lead.project, lead.area, lead.note]);
+
+  // หลังฐานตอบสำเร็จ: รอรายการคำขอใหม่ก่อน (กล่องยังขึ้น "กำลัง…") แล้วค่อยบอกหน้าแม่
+  const หลังทำ = async () => { await โหลด(); onChanged?.(); };
+  const ยกเลิกคำขอ = (คำขอ: QuoteRequest) => ถามเหตุผล({
+    หัวข้อ: `ยกเลิกคำขอ ${คำขอ.requestNo} ?`,
+    รายละเอียด: "ยกเลิกแล้วลูกค้าเป้าหมายกลับไปขั้น \"ข้อมูลลูกค้า\" · ลูกค้าไม่สนใจแล้ว ใช้ \"ปิดไม่สำเร็จ\" ที่กล่องขั้นต่อไป",
+    ป้ายช่อง: "เหตุผลที่ยกเลิก", ปุ่มตกลง: "ยืนยันยกเลิก", ปุ่มกำลังทำ: "กำลังยกเลิก…", ปุ่มยกเลิก: "ไม่ยกเลิก", อันตราย: true,
+    // ปิดไม่สำเร็จ = กล่องขั้นต่อไปที่เดียว (รอบ 4) — ที่นี่กลับไปรวบรวมความต้องการเสมอ
+    ทำ: async เหตุผล => { await repo.cancel(คำขอ.id, เหตุผล, false); await หลังทำ(); },
+  });
+  // ขอแก้ราคา (D5x): สเปก ← คำขอล่าสุด · ไม่มีค่า = ว่าง ห้ามเดา
+  const ขอแก้ราคา = (คำขอ: QuoteRequest) => ถามเหตุผล({
+    หัวข้อ: `ขอแก้ราคาคำขอ ${คำขอ.requestNo} ?`,
+    รายละเอียด: "ใบ HQ ใบเดิมปิด · เปิดคำขอใหม่ให้ HQ ตีราคาอีกครั้ง (เริ่มนับ 14 วันใหม่)",
+    ป้ายช่อง: "เหตุผลที่ขอแก้ราคา", ปุ่มตกลง: "ส่งขอแก้ราคา", ปุ่มกำลังทำ: "กำลังส่งขอแก้ราคา…",
+    ช่องเพิ่ม: { ป้าย: "สเปกที่ขอแก้ราคา", ค่าตั้งต้น: คำขอ.spec ?? "" },
+    ทำ: async (เหตุผล, สเปก) => { await repo.reprice(คำขอ.id, เหตุผล, สเปก || undefined); await หลังทำ(); },
+  });
 
   // สั่งเปิดฟอร์มจากปุ่ม "ขั้นต่อไป" — รอให้รายการคำขอโหลดเสร็จก่อน (ต้องรู้ว่ามีคำขอเปิดอยู่ไหม)
   const สัญญาณล่าสุด = useRef(0);
   useEffect(() => {
     if (!openSignal || openSignal.n === สัญญาณล่าสุด.current || รายการ === null) return;
     สัญญาณล่าสุด.current = openSignal.n;
-    เข้าโหมด(openSignal.mode);
+    if (openSignal.mode === "แก้ราคา") { if (เปิด) void ขอแก้ราคา(เปิด); }
+    else เข้าโหมด("ขอราคา");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSignal, รายการ, เข้าโหมด]);
 
   if (!REAL_BACKEND) return null;
   const ขอได้ = !เปิด && (lead.status === "WAITING" || lead.status === "BULLET");
 
-  const ทำ = async (fn: () => Promise<unknown>) => {
-    setErr(""); setBusy(true);
-    try { await fn(); setโหมด("ดู"); setเหตุผล(""); setProduct(""); setSpec(""); setArea(""); setวัสดุ([]); โหลด(); onChanged?.(); }
-    catch (e) { setErr(friendlyError(e)); }
-    finally { setBusy(false); }
-  };
-  const ส่งคำขอ = () => {
+  // ส่งคำขอ: ปุ่มขึ้น "กำลังส่ง…" จนฐานตอบ และรอรายการคำขอใหม่ก่อนปิดฟอร์ม (กันจอค้างสถานะเก่า)
+  const ส่งคำขอ = async () => {
+    if (busy) return;
     if (!product.trim()) { setErr("ระบุงานที่ขอราคาก่อน"); return; }
     if (วัสดุ.some(v => !(v.qty > 0))) { setErr("จำนวนวัสดุต้องมากกว่า 0 — แก้หรือเอาออกก่อนส่ง"); return; }
-    void ทำ(() => repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: วัสดุ }));
-  };
-  const ยกเลิก = () => {
-    if (!เหตุผล.trim()) { setErr("ต้องระบุเหตุผล"); return; }
-    void ทำ(() => repo.cancel(เปิด!.id, เหตุผล.trim(), false));   // ปิดไม่สำเร็จ = กล่องขั้นต่อไปที่เดียว (รอบ 4) — ที่นี่กลับไปรวบรวมความต้องการเสมอ
-  };
-  const แก้ราคา = () => {
-    if (!เหตุผล.trim()) { setErr("ต้องระบุเหตุผล"); return; }
-    void ทำ(() => repo.reprice(เปิด!.id, เหตุผล.trim(), spec.trim() || undefined));
+    setErr(""); setBusy(true);
+    try {
+      await repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: วัสดุ });
+      await หลังทำ();
+      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setวัสดุ([]);
+    } catch (e) { setErr(friendlyError(e)); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -157,10 +173,10 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           )}
           {โหมด === "ดู" && (
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => เข้าโหมด("ยกเลิก")}>ยกเลิกคำขอ</button>}
+              {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ยกเลิกคำขอ(เปิด)}>ยกเลิกคำขอ</button>}
               {/* ลีดปิดการขายแล้ว = ขอแก้ราคาไม่ได้ (ใบ 0221 กันที่ฐาน) */}
               {/* ราคาหมดอายุ = ปุ่ม "ขอราคาใหม่" ในกล่องขั้นต่อไป (ไม่ซ้ำสองปุ่ม · รอบ 4) */}
-              {เปิด.status === "quoted" && lead.status !== "PAID" && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => เข้าโหมด("แก้ราคา")}>ขอแก้ราคา</button>}
+              {เปิด.status === "quoted" && lead.status !== "PAID" && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
             </div>
           )}
         </div>
@@ -185,32 +201,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>{ช่องขอราคา.จังหวัด}: {lead.province || "—"}</div>
           <MaterialEstimatePicker value={วัสดุ} onChange={setวัสดุ} disabled={busy} />
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={ส่งคำขอ}>{busy ? "กำลังส่ง…" : "ส่งคำขอ"}</button>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ยกเลิก</button>
-          </div>
-        </div>
-      )}
-
-      {โหมด === "ยกเลิก" && เปิด && (
-        <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-          <label className="form-label" htmlFor="qr-cancel-reason">เหตุผลที่ยกเลิก</label>
-          <textarea id="qr-cancel-reason" aria-label="เหตุผลที่ยกเลิก" rows={2} style={ช่อง} value={เหตุผล} onChange={e => setเหตุผล(e.target.value)} disabled={busy} />
-          <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>ยกเลิกแล้วลูกค้าเป้าหมายกลับไปขั้น "ข้อมูลลูกค้า" · ลูกค้าไม่สนใจแล้ว ใช้ "ปิดไม่สำเร็จ" ที่กล่องขั้นต่อไป</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={ยกเลิก}>ยืนยันยกเลิก</button>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ไม่ยกเลิก</button>
-          </div>
-        </div>
-      )}
-
-      {โหมด === "แก้ราคา" && เปิด && (
-        <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-          <label className="form-label" htmlFor="qr-reprice-reason">เหตุผลที่ขอแก้ราคา</label>
-          <textarea id="qr-reprice-reason" aria-label="เหตุผลที่ขอแก้ราคา" rows={2} style={ช่อง} value={เหตุผล} onChange={e => setเหตุผล(e.target.value)} disabled={busy} />
-          <label className="form-label" htmlFor="qr-reprice-spec">สเปก (กรอกจากคำขอล่าสุด · แก้ได้ถ้าเปลี่ยน)</label>
-          <textarea id="qr-reprice-spec" aria-label="สเปกที่ขอแก้ราคา" rows={2} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={แก้ราคา}>ส่งขอแก้ราคา</button>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy || undefined} data-busy-button onClick={() => void ส่งคำขอ()}>{busy ? "กำลังส่ง…" : "ส่งคำขอ"}</button>
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ยกเลิก</button>
           </div>
         </div>
