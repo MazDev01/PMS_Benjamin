@@ -169,7 +169,7 @@ export const DELETE = withErrors("delete-user", async (req: NextRequest) => {
       console.error("[delete-user] นับจำนวนแอดมินสูงสุดไม่สำเร็จ", cntErr);
       return bad(503, "ตรวจสอบจำนวนผู้ดูแลระบบไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
     }
-    if ((count ?? 0) <= 1) return bad(400, "ลบผู้ดูแลระบบ (Super Admin) คนสุดท้ายไม่ได้");
+    if ((count ?? 0) <= 1) return bad(400, "ลบผู้ดูแลระบบคนสุดท้ายไม่ได้");
   }
 
   const { error } = await admin.auth.admin.deleteUser(id);
