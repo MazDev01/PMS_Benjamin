@@ -103,6 +103,9 @@ test("[func·hq] ตั้งค่า › เส้นทางการขา�
   await page.getByRole("button", { name: "เส้นทางการขาย" }).first().click();
   for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"].entries())
     await expect.soft(page.locator(`[data-journey-step="${i + 1}"]`), `ขั้น ${i + 1} ${ชื่อ}`).toContainText(ชื่อ, { timeout: 15_000 });
+  // ป้ายขั้นไม่มีเลขลำดับ (บอสสั่ง 28 ต.ค. 69) — แถวขั้นต้องขึ้นต้นด้วยชื่อขั้น ไม่ใช่เลข
+  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"].entries())
+    expect.soft((await page.locator(`[data-journey-step="${i + 1}"]`).innerText()).trim(), `ขั้น ${ชื่อ}: ไม่มีเลขลำดับนำหน้า`).toMatch(new RegExp(`^${ชื่อ}`));
   for (const ชื่อ of ["นัดหมาย", "ส่งคำขอราคา", "ได้ใบ HQ", "จัดทำใบเสนอราคา", "ส่งใบเสนอราคา"])
     await expect.soft(page.getByRole("button", { name: `ลบงาน ${ชื่อ}` }), `"${ชื่อ}" ระบบติ๊ก — ลบไม่ได้`).toHaveCount(0);
   await expect.soft(page.getByRole("button", { name: "ลบงาน ติดตามลูกค้า" }), "รายการติ๊กเองลบได้").toHaveCount(1);

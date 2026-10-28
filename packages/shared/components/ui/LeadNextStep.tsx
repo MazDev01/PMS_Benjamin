@@ -14,7 +14,7 @@ import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { ขั้นต่อไป, type NextStepAction } from "@pms/shared/lib/leadNextStep";
-import { ชื่อขั้นการขาย, สภาพแถบขั้น, สีแถบขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, ชื่อขั้นการขาย, สภาพแถบขั้น, สีแถบขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
 import { useLostReasons } from "@pms/shared/lib/useHQConfig";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
@@ -134,9 +134,10 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
           return (
             <li key={ชื่อ} aria-current={ตอนนี้ ? "step" : undefined} data-step-state={สภาพ} style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
               <div style={{ height: 5, borderRadius: 99, background: ผ่าน ? สีแถบขั้น.ผ่าน : ตอนนี้ ? สีแถบขั้น.ตอนนี้ : สีแถบขั้น.ยังไม่ถึง }} />
-              {/* ชื่อขั้นขึ้นบรรทัดใหม่ได้ (มือถือเดิมถูกตัดเป็น "2 · ขอราค…" · ทดลองเว็บจริง 21 ต.ค. 69) */}
+              {/* ชื่อขั้นขึ้นบรรทัดใหม่ได้ (มือถือเดิมถูกตัดเป็น "2 · ขอราค…" · ทดลองเว็บจริง 21 ต.ค. 69)
+                  ไม่มีเลขลำดับนำหน้า — ชื่อจาก ชื่อขั้น() ตัวเดียวกับป้ายในตาราง/บอร์ด/หน้า HQ (บอสสั่ง 28 ต.ค. 69) */}
               <div style={{ fontSize: "0.68rem", fontWeight: ตอนนี้ ? 800 : 600, color: ตอนนี้ ? สีแถบขั้น.ตอนนี้ตัวอักษร : ผ่าน ? สีแถบขั้น.ผ่าน : "#9ca3af", lineHeight: 1.3, overflowWrap: "anywhere" }}>
-                {ผ่าน && <Check size={10} style={{ verticalAlign: "-1px", marginRight: 2 }} />}{i + 1} · {ชื่อ}
+                {ผ่าน && <Check size={10} style={{ verticalAlign: "-1px", marginRight: 2 }} />}{ชื่อขั้น((i + 1) as เลขขั้น)}
               </div>
             </li>
           );

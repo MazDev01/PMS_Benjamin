@@ -17,7 +17,7 @@ import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
-import { ขั้นของลีด, ชื่อขั้นการขาย, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, ตัวเลือกขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, ตัวเลือกขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
@@ -124,17 +124,31 @@ function fmtมูลค่าเต็ม(n: number | null) {
 
 // ขั้นของลีด สำหรับตาราง/บอร์ด — ชื่อและสีจากตัวกลาง lib/leadStage.ts ที่เดียว (บอสสั่ง 27 ต.ค. 69 · ตรงกับแถบ 5 ขั้นในแผงลีด)
 //   เดิมคอลัมน์ "ขั้นตอน" แสดงชื่อสถานะภายใน (รอราคา HQ · เสนอราคา ฯลฯ) แยกจากคอลัมน์ "ขั้น" — รวมเป็นคอลัมน์เดียวแล้ว
-function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
+//   ตาราง: ป้ายขั้น (คอลัมน์ "ขั้นตอน") กับแถบ (คอลัมน์ "ความคืบหน้า") แยกคอลัมน์ (บอสสั่ง 28 ต.ค. 69) · การ์ดบอร์ดซ้อนสองอย่างไว้ด้วยกัน
+function ป้ายขั้นลีด({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
   const n = เลขขั้นของลีด(l.status, มีใบร่าง);
-  const ข้อความ = ชื่อขั้น(n);
+  const สี = สีขั้น(n);
+  return (
+    <span className="badge" data-stage-label data-stage-no={n} title={ชื่อขั้น(n)}
+      style={{ background:สี.bg, color:สี.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap", alignSelf:"flex-start" }}>{ชื่อขั้น(n)}</span>
+  );
+}
+function แถบความคืบหน้า({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
+  const n = เลขขั้นของลีด(l.status, มีใบร่าง);
   const เต็ม = n === 6 ? 5 : n === 7 ? 0 : n;
   const สี = สีขั้น(n);
   return (
-    <div data-mini-stage data-stage-no={n} title={ข้อความ} style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
-      <span className="badge" data-stage-label style={{ background:สี.bg, color:สี.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap", alignSelf:"flex-start" }}>{ข้อความ}</span>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:2, maxWidth:120 }}>
-        {[1,2,3,4,5].map(k => <span key={k} style={{ height:4, borderRadius:99, background: k <= เต็ม ? สี.bar : "#e5e7eb" }} />)}
-      </div>
+    <div role="img" aria-label={`ความคืบหน้า ${เต็ม} จาก 5 ขั้น`} title={`${เต็ม} จาก 5 ขั้น`}
+      style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:2, maxWidth:120 }}>
+      {[1,2,3,4,5].map(k => <span key={k} style={{ height:4, borderRadius:99, background: k <= เต็ม ? สี.bar : "#e5e7eb" }} />)}
+    </div>
+  );
+}
+function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
+  return (
+    <div data-mini-stage style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
+      <ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่าง} />
+      <แถบความคืบหน้า l={l} มีใบร่าง={มีใบร่าง} />
     </div>
   );
 }
@@ -1211,11 +1225,11 @@ export default function LeadsPage() {
   const kpiCards = [
     { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
       on: ขั้นจากการ์ด == null && filterStatus === "ALL" && followUpDays === 0, onClick: () => กดขั้น(null) },
-    { kpi: "hq-pricing", label: "รอราคา HQ", value: ค่า(kpi, "hqPricing"), unit: `ราย · ขั้น 2 ${ชื่อขั้นการขาย[1]}`, icon: Send, color: "#7C3AED", bg: "#F3E8FF",
+    { kpi: "hq-pricing", label: "รอราคา HQ", value: ค่า(kpi, "hqPricing"), unit: `ราย · ${ชื่อขั้น(2)}`, icon: Send, color: "#7C3AED", bg: "#F3E8FF",
       on: ขั้นจากการ์ด === 2, onClick: () => กดขั้น(2) },
-    { kpi: "hq-quoted", label: "ได้ราคาแล้ว รอทำใบ", value: ค่า(kpi, "hqQuotedNoDraft"), unit: `ราย · ขั้น 3 ${ชื่อขั้นการขาย[2]}`, icon: Inbox, color: "#16A34A", bg: "#E6F7EE",
+    { kpi: "hq-quoted", label: "ได้ราคาแล้ว รอทำใบ", value: ค่า(kpi, "hqQuotedNoDraft"), unit: `ราย · ${ชื่อขั้น(3)}`, icon: Inbox, color: "#16A34A", bg: "#E6F7EE",
       on: ขั้นจากการ์ด === 3, onClick: () => กดขั้น(3) },
-    { kpi: "awaiting-client", label: ชื่อขั้นการขาย[4], value: ค่า(kpi, "awaitingClient"), unit: "ราย · ขั้น 5 ส่งใบให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
+    { kpi: "awaiting-client", label: ชื่อขั้น(5), value: ค่า(kpi, "awaitingClient"), unit: "ราย · ส่งใบให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
       on: ขั้นจากการ์ด === 5, onClick: () => กดขั้น(5) },
   ];
 
@@ -1340,11 +1354,12 @@ export default function LeadsPage() {
                   {!hiddenCols.includes("province") && <col style={{width:"9%", minWidth:90}} />}
                   {!hiddenCols.includes("source")   && <col style={{width:"10%", minWidth:100}} />}
                   {!hiddenCols.includes("area")     && <col style={{width:"8%", minWidth:100}} />}
-                  <col style={{width:"17%", minWidth:150}} />{/* ขั้นตอน (ชื่อขั้นจากตัวกลาง + แถบเล็ก) — minWidth พอให้ "4 ทำใบให้ลูกค้า" อยู่ได้ */}
+                  <col style={{width:"12%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "ทำใบให้ลูกค้า" อยู่ได้ */}
+                  <col style={{width:"9%", minWidth:96}} />{/* ความคืบหน้า (แถบ 5 ช่อง · แยกคอลัมน์ บอสสั่ง 28 ต.ค. 69) */}
                   <col style={{width:"11%", minWidth:90}} />{/* มูลค่า */}
                   <col style={{width:"12%", minWidth:110}} />{/* ผู้รับผิดชอบ */}
                   {!hiddenCols.includes("activity") && <col style={{width:"9%", minWidth:100}} />}
-                  <col style={{width:"12%", minWidth:48}} />{/* ปุ่มดู */}
+                  <col style={{width:"8%", minWidth:48}} />{/* ปุ่มดู */}
                 </colgroup>
                 <thead>
                   <tr>
@@ -1354,6 +1369,7 @@ export default function LeadsPage() {
                       [null,ช่อง.ช่องทาง,"source"],
                       [null,ช่อง.พื้นที่,"area"],
                       ["status",ช่อง.ขั้นตอน,null],
+                      [null,"ความคืบหน้า",null],
                       ["value","มูลค่า",null],
                       ["assigned",ช่อง.ผู้รับผิดชอบ,null],
                       [null,"กิจกรรมล่าสุด","activity"],
@@ -1399,7 +1415,10 @@ export default function LeadsPage() {
                         )}
                         {/* ขั้นตอน = ดูอย่างเดียว (รอบ 4) · ชื่อขั้นตรงกับขั้นที่ไฮไลต์ในแผงลีด · เปลี่ยนขั้นได้ทางกล่องขั้นต่อไปในแผงที่เดียว */}
                         <td>
-                          <MiniStage l={l} มีใบร่าง={มีใบร่างของ(l)} />
+                          <ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่างของ(l)} />
+                        </td>
+                        <td>
+                          <แถบความคืบหน้า l={l} มีใบร่าง={มีใบร่างของ(l)} />
                         </td>
                         {(
                           <td className="num" style={{ fontSize:"0.8rem", fontWeight:700, color: มูลค่าลีด(l) == null ? "#cbd5e1" : "#2D2D2D" }}
