@@ -13,6 +13,8 @@
 //   PMS_BACKUP_ROOT        ที่เก็บไฟล์สำรอง (C:/.claude/pms-prod-backups) — นอก repo เสมอ (มีข้อมูลลูกค้าจริง)
 //   PMS_FAKE_EMPTY=<ขั้น>   ข้อทดสอบเท่านั้น (--target local): จำลองคำสั่งของขั้นนั้นคืนผลว่าง (dump = ไฟล์สำรอง 2-data.sql ว่าง)
 //   PMS_DRILL_SABOTAGE=1   ข้อทดสอบเท่านั้น (ใช้ได้กับ --target local เท่านั้น): ลบ 1 แถวในฐานที่กู้ ก่อนเทียบ → ต้องไม่ผ่าน
+//   PMS_DRILL_SABOTAGE=seq ข้อทดสอบเท่านั้น (--target local): เลื่อนตัวนับ 1 ตัวในฐานที่กู้ → ต้องไม่ผ่าน
+//   PMS_DRILL_ADVANCE_SEQ=1 ข้อทดสอบเท่านั้น (--target local): กินตัวนับต้นทาง 240 หลัง dump (จำลองงานสแกนการแจ้งเตือน) → ต้องยังผ่าน
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -23,12 +25,14 @@ import { อ่านคำสั่งสำรอง } from "./lib/backupArgs.
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 import { บันทึกผลซ้อมกู้ } from "./lib/prodBackupMark.mjs";
+import { ตัวนับในไฟล์สำรอง, เทียบตัวนับ } from "./lib/backupSeq.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { target, ชื่อ } = อ่านคำสั่งสำรอง(process.argv.slice(2));
 if (!["prod", "local"].includes(target)) { console.error("ใช้: node scripts/prod-backup-verify.mjs [--target prod|local] [ชื่อโฟลเดอร์]"); process.exit(2); }
 if (process.env.PMS_FAKE_EMPTY && target !== "local") { console.error("⛔ PMS_FAKE_EMPTY ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
-if (process.env.PMS_DRILL_SABOTAGE === "1" && target !== "local") { console.error("⛔ PMS_DRILL_SABOTAGE ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
+if (process.env.PMS_DRILL_ADVANCE_SEQ === "1" && target !== "local") { console.error("⛔ PMS_DRILL_ADVANCE_SEQ ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
+if (process.env.PMS_DRILL_SABOTAGE && target !== "local") { console.error("⛔ PMS_DRILL_SABOTAGE ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
 
 const OPS = process.env.PMS_PROD_OPS_DIR || "C:/.claude/pms-prod-ops";
 const RESTORE = process.env.PMS_RESTORE_WORKDIR || "C:/.claude/pms-restore-check";
@@ -111,7 +115,8 @@ const ชุด = [
   ["1-schema.sql", []],
   // ฐานทดสอบในเครื่องใช้ระบบล็อกอินรุ่นใหม่กว่าฐานซ้อมกู้ (auth.one_time_tokens คอลัมน์ไม่ตรง) — ตัดตารางรหัสชั่วคราวนี้ออกเฉพาะตอนทดสอบ
   //   ไม่อยู่ในรายการเทียบอยู่แล้ว · ฐานจริงสำรองครบทุกตารางเหมือนเดิม (กู้ลงฐานซ้อมกู้ผ่าน 20 ต.ค. 69)
-  ["2-data.sql", ["--data-only", ...(target === "local" ? ["-x", "auth.one_time_tokens"] : [])]],
+  //   pms_lock.current = ตารางของตัวกันฐานทดสอบ (ฐานจริงไม่มี) ตัดออกตอนทดสอบเช่นกัน — ดูขั้นตัด pms_lock ในไฟล์โครงสร้างด้านล่าง
+  ["2-data.sql", ["--data-only", ...(target === "local" ? ["-x", "auth.one_time_tokens", "-x", "pms_lock.current"] : [])]],
   ["3-auth-data.sql", ["--data-only", "--schema", "auth"]],
   ["4-migration-history.sql", ["--data-only", "--schema", "supabase_migrations"]],
   ["4a-migration-history-schema.sql", ["--schema", "supabase_migrations"]],
@@ -128,6 +133,32 @@ for (const [f, extra] of ชุด) {
     writeFileSync(path.join(D, ".dump.log"), ข้อความ);
     ไม่ผ่าน(`ขั้น "ดึงไฟล์สำรอง ${f}" ล้ม — ${r.status !== 0 ? `คำสั่งจบด้วยรหัส ${r.status}` : `ได้ไฟล์ว่างหรือเล็กผิดปกติ (${ขนาด} ไบต์)`}${ชน} · รายละเอียด ${path.join(D, ".dump.log")}`);
   }
+}
+
+if (target === "local") {
+  // ฐานทดสอบมี schema pms_lock ของตัวกันฐานทดสอบ (scripts/lib/testDbGuard.mjs · เจ้าของ supabase_admin) — ฐานจริงไม่มี
+  //   กู้ลงฐานเปล่าในฐานะ postgres แล้วล้มที่ขั้นตั้งเจ้าของ ("must be able to SET ROLE supabase_admin" · ข้อทดสอบ B–C ตกตั้งแต่ 26 ต.ค. 69)
+  //   → ตัดเฉพาะส่วนของ pms_lock ออกจากไฟล์โครงสร้างตอนทดสอบเครื่องมือ (ไม่ใช่ข้อมูลของระบบ · ไม่อยู่ในรายการนับ)
+  //   ไฟล์จากคำสั่ง dump แบ่งคำสั่งด้วยบรรทัดว่าง (ไม่มีหัวคอมเมนต์) → ตัดเฉพาะคำสั่งที่บรรทัดแรกอ้าง "pms_lock" แล้วตรวจว่าไม่เหลือ
+  //   ตัดได้ 0 หรือยังเหลือคำว่า "pms_lock" = หยุด (รูปแบบไฟล์เปลี่ยน · ห้ามกู้ไฟล์ที่ตัดผิด)
+  const ไฟล์ = path.join(D, "1-schema.sql");
+  const คำสั่ง = readFileSync(ไฟล์, "utf8").split(/\r?\n[ \t]*\r?\n/);
+  const เก็บ = คำสั่ง.filter(x => !/"pms_lock"/.test(x.trimStart().split(/\r?\n/)[0]));
+  const เหลือ = เก็บ.join("\n\n");
+  // ช่วงที่ตัดต้องเป็นของ pms_lock ล้วน — บรรทัดขึ้นต้นคำสั่ง (CREATE/ALTER/GRANT/REVOKE/COMMENT) ทุกบรรทัดต้องอ้าง "pms_lock"
+  const ตัดเกิน = คำสั่ง.filter(x => !เก็บ.includes(x)).flatMap(x => x.split(/\r?\n/))
+    .filter(l => /^(CREATE|ALTER|GRANT|REVOKE|COMMENT)\b/.test(l) && !/"pms_lock"/.test(l));
+  if (ตัดเกิน.length) ไม่ผ่าน(`ตัดส่วน pms_lock แล้วติดคำสั่งอื่นไปด้วย: ${ตัดเกิน[0].slice(0, 120)}`);
+  if (เก็บ.length === คำสั่ง.length || /"pms_lock"/.test(เหลือ)) ไม่ผ่าน(`ตัดส่วน pms_lock ออกจากไฟล์โครงสร้างไม่ได้ (ตัด ${คำสั่ง.length - เก็บ.length} คำสั่ง · เหลืออ้างถึง ${/"pms_lock"/.test(เหลือ) ? "มี" : "ไม่มี"})`);
+  writeFileSync(ไฟล์, เหลือ);
+  console.log(`   (ฐานในเครื่อง) ตัดคำสั่งของ pms_lock ออกจากไฟล์โครงสร้าง ${คำสั่ง.length - เก็บ.length} คำสั่ง`);
+}
+if (process.env.PMS_DRILL_ADVANCE_SEQ === "1") {
+  // ข้อทดสอบเท่านั้น: จำลองงานสแกนการแจ้งเตือนที่รันตกหลัง dump — กินตัวนับ 240 โดยไม่เพิ่มแถว (เหตุจริง 28 ต.ค. 69 16:30)
+  const r = รัน("docker", [...อาร์กิวเมนต์psql(LOCAL_CONTAINER), "-X", "-A", "-t"],
+    { input: "select count(nextval('public.audit_log_id_seq')) from generate_series(1, 240);", shell: false });
+  if (r.status !== 0 || r.stdout.trim() !== "240") throw new Error(`จำลองการกินตัวนับไม่สำเร็จ: ${r.stdout} ${r.stderr}`);
+  console.log("   (ข้อทดสอบ) เลื่อนตัวนับต้นทาง 240 หลัง dump โดยไม่เพิ่มแถว");
 }
 
 // ── 2. นับต้นทาง ──
@@ -180,6 +211,12 @@ try {
     if (!/DELETE 1/.test(r.stdout)) throw new Error(`จำลองการกู้ไม่ครบไม่สำเร็จ: ${r.stdout} ${r.stderr}`);
     console.log("   (ข้อทดสอบ) ลบ 1 แถวในฐานที่กู้ เพื่อจำลองการกู้ที่ไม่ครบ");
   }
+  if (process.env.PMS_DRILL_SABOTAGE === "seq") {
+    // ตัวนับในฐานที่กู้ต่างจากไฟล์สำรอง 1 → ต้องไม่ผ่าน (พิสูจน์ว่าเกณฑ์ตัวนับไม่ได้ผ่อน)
+    const r = psql(BLANK, "select setval('public.audit_log_id_seq', (select last_value from public.audit_log_id_seq) + 1);", ["-X", "-A", "-t"]);
+    if (r.status !== 0) throw new Error(`จำลองตัวนับกู้ไม่ตรงไม่สำเร็จ: ${r.stdout} ${r.stderr}`);
+    console.log("   (ข้อทดสอบ) เลื่อนตัวนับในฐานที่กู้ 1 เพื่อจำลองตัวนับกู้ไม่ตรง");
+  }
 
   // ── 5. เทียบ ──
   // นับฐานที่กู้ — ตรวจผลก่อนใช้เหมือนฝั่งต้นทาง
@@ -195,11 +232,15 @@ try {
   ขั้น("เทียบต้นทางกับฐานที่กู้");
   const ตาราง = [...new Set([...Object.keys(นับก่อน), ...Object.keys(นับหลัง)])];
   const แถวไม่ตรง = ตาราง.filter(k => Number(นับก่อน[k]) !== Number(นับหลัง[k]));
-  const ตัวนับไม่ตรง = Object.keys(ตัวนับก่อน.seqs ?? {}).filter(k => String(ตัวนับก่อน.seqs[k]) !== String(ตัวนับหลัง.seqs?.[k]));
-  console.log(`   ตาราง ${ตาราง.length} · แถวไม่ตรง ${แถวไม่ตรง.length} · ที่เก็บไฟล์ ${ตัวนับก่อน.buckets}/${ตัวนับหลัง.buckets} · ไฟล์ ${ตัวนับก่อน.objects}/${ตัวนับหลัง.objects} · ตัวนับเลขต่าง ${ตัวนับไม่ตรง.length}`);
+  // ตัวนับเลข: เทียบฐานที่กู้กับค่าในไฟล์สำรอง 2-data.sql เอง (ไม่ใช่ฐานจริงที่ยังทำงาน · ไฟล์ที่กู้ลงคือไฟล์นี้)
+  //   งานอัตโนมัติบนฐานจริงกินตัวนับระหว่าง dump กับขั้นอ่านได้ (scripts/lib/backupSeq.mjs) · เกณฑ์ตรงทุกตัวเท่าเดิม
+  const ตัวนับในชุด = ตัวนับในไฟล์สำรอง(readFileSync(path.join(D, "2-data.sql"), "utf8"));
+  writeFileSync(path.join(D, "0-seq-in-dump.json"), JSON.stringify(ตัวนับในชุด));
+  const ตัวนับไม่ตรง = เทียบตัวนับ({ ในชุด: ตัวนับในชุด, ต้นทาง: ตัวนับก่อน.seqs ?? {}, กู้ได้: ตัวนับหลัง.seqs ?? {} });
+  console.log(`   ตาราง ${ตาราง.length} · แถวไม่ตรง ${แถวไม่ตรง.length} · ที่เก็บไฟล์ ${ตัวนับก่อน.buckets}/${ตัวนับหลัง.buckets} · ไฟล์ ${ตัวนับก่อน.objects}/${ตัวนับหลัง.objects} · ตัวนับเลข ${Object.keys(ตัวนับในชุด).length} ตัว ไม่ตรง ${ตัวนับไม่ตรง.length}`);
   const ปัญหา = [
     ...แถวไม่ตรง.map(k => `ตาราง ${k}: ต้นทาง ${นับก่อน[k] ?? "ไม่มี"} แถว · กู้ได้ ${นับหลัง[k] ?? "ไม่มี"} แถว`),
-    ...ตัวนับไม่ตรง.map(k => `ตัวนับเลข ${k}: ต้นทาง ${ตัวนับก่อน.seqs[k]} · กู้ได้ ${ตัวนับหลัง.seqs?.[k]}`),
+    ...ตัวนับไม่ตรง,
     ...(ตัวนับก่อน.buckets !== ตัวนับหลัง.buckets ? [`ที่เก็บไฟล์: ต้นทาง ${ตัวนับก่อน.buckets} · กู้ได้ ${ตัวนับหลัง.buckets}`] : []),
     ...(ตัวนับก่อน.objects !== ตัวนับหลัง.objects ? [`ไฟล์ในที่เก็บ: ต้นทาง ${ตัวนับก่อน.objects} · กู้ได้ ${ตัวนับหลัง.objects}`] : []),
   ];
