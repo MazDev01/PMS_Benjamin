@@ -46,10 +46,13 @@ begin
   insert into dealers (code, name, province, region, status) values ('HQ', 'สำนักงานใหญ่', 'กรุงเทพมหานคร', 'กลาง', 'active') on conflict (code) do nothing;
   -- ลำพูนมี 2 สาขาดูแล = สาขาทดสอบ 2 สาขาจังหวัดเดียวกัน (ดีลเลอร์ 1 ราย = 1 จังหวัดพอดี · ใบ 0259 · ฐานให้พื้นที่ตามจังหวัดที่ตั้งเอง)
   insert into dealers (code, name, province, region, status) values ('ZZLPA', 'ZZTEST ลำพูน A', 'ลำพูน', 'เหนือ', 'active'), ('ZZLPB', 'ZZTEST ลำพูน B', 'ลำพูน', 'เหนือ', 'active');
+  -- จังหวัดสาขาเดียว = ยโสธร สาขาทดสอบ ZZLTY (เดิมระยอง/RYG — สาขาทดสอบที่รันพร้อมกันตั้งที่ระยองได้พื้นที่ระยองตามใบ 0259
+  --   ระยองจึงกลายเป็นหลายสาขาชั่วขณะ แผนการโอนขึ้น "HQ เลือก" แทน "อัตโนมัติ" · ต้นเหตุไม่นิ่ง 29 ต.ค. 69)
+  insert into dealers (code, name, province, region, status) values ('ZZLTY', 'ZZTEST ยโสธร', 'ยโสธร', 'อีสาน', 'active');
   insert into leads (id, dealer_code, num_id, name, company, phone, province, status, note, activities) values
-    ('#HQ-1', 'HQ', 970000001, 'ก', 'บจ. โอนระยองหนึ่ง', '081-200-0001', 'ระยอง', 'WAITING', 'โน้ตจาก HQ',
+    ('#HQ-1', 'HQ', 970000001, 'ก', 'บจ. โอนระยองหนึ่ง', '081-200-0001', 'ยโสธร', 'WAITING', 'โน้ตจาก HQ',
        '[{"id":1,"date":"1 ต.ค. 2569 · 09:00","text":"HQ รับเรื่องจากเว็บไซต์","type":"note","icon":"note"}]'),
-    ('#HQ-2', 'HQ', 970000002, 'ข', 'บจ. โอนระยองสอง', '081-200-0002', 'ระยอง', 'WAITING', '', '[]'),
+    ('#HQ-2', 'HQ', 970000002, 'ข', 'บจ. โอนระยองสอง', '081-200-0002', 'ยโสธร', 'WAITING', '', '[]'),
     ('#HQ-3', 'HQ', 970000003, 'ค', 'บจ. โอนลำพูน', '081-200-0003', 'ลำพูน', 'WAITING', '', '[]'),
     ('#HQ-4', 'HQ', 970000004, 'ง', 'บจ. ไม่มีจังหวัด', '081-200-0004', '', 'WAITING', '', '[]'),
     ('#HQ-5', 'HQ', 970000005, 'จ', 'บจ. จังหวัดว่าง', '081-200-0005', 'บึงกาฬ', 'WAITING', '', '[]');
@@ -62,27 +65,27 @@ begin
   perform flowtest.must_fail('select transfer_hq_leads_auto()', 'forbidden', 'ดีลเลอร์สั่งโอนไม่ได้');
   perform flowtest.as_hq(c.hq_uid);
   select string_agg(coalesce(nullif(province, ''), '(ไม่มีจังหวัด)') || ':' || mode || ':' || leads || ':' || array_to_string(dealer_codes, '+'), ' ' order by province)
-    into s from hq_lead_transfer_plan() where province in ('ระยอง', 'ลำพูน', 'บึงกาฬ', '');
-  perform flowtest.ok(s = '(ไม่มีจังหวัด):queue:1: บึงกาฬ:queue:1: ระยอง:auto:2:RYG ลำพูน:choose:1:ZZLPA+ZZLPB',
+    into s from hq_lead_transfer_plan() where province in ('ยโสธร', 'ลำพูน', 'บึงกาฬ', '');
+  perform flowtest.ok(s = '(ไม่มีจังหวัด):queue:1: บึงกาฬ:queue:1: ยโสธร:auto:2:ZZLTY ลำพูน:choose:1:ZZLPA+ZZLPB',
     'แผน: ดีลเลอร์รายเดียว = โอนอัตโนมัติ · ทับซ้อน = HQ เลือก · ไม่มีจังหวัด/จังหวัดว่าง = คิวรอ (ได้ ' || coalesce(s, 'ว่าง') || ')');
 
   -- ══ ข. HQ กดยืนยันโอนอัตโนมัติเป็นชุด ══
   n := transfer_hq_leads_auto();
   perform flowtest.ok(n >= 2, 'โอนอัตโนมัติทั้งชุด (จังหวัดที่มีดีลเลอร์รายเดียว)');
   perform flowtest.as_root();
-  select num_id into new_num from leads where dealer_code = 'RYG' and company = 'บจ. โอนระยองหนึ่ง';
+  select num_id into new_num from leads where dealer_code = 'ZZLTY' and company = 'บจ. โอนระยองหนึ่ง';
   perform flowtest.ok(new_num is not null and not exists (select 1 from leads where dealer_code = 'HQ' and company like 'บจ. โอนระยอง%'),
     'ลูกค้าเป้าหมายไปอยู่ที่ RYG และไม่เหลือที่ HQ');
-  perform flowtest.ok((select id = '#L-' || (40321 + num_id) from leads where dealer_code = 'RYG' and company = 'บจ. โอนระยองหนึ่ง'),
+  perform flowtest.ok((select id = '#L-' || (40321 + num_id) from leads where dealer_code = 'ZZLTY' and company = 'บจ. โอนระยองหนึ่ง'),
     'ได้เลขใหม่ตามเลขของดีลเลอร์ปลายทาง (ไม่ชนกับของเดิมของ RYG)');
   perform flowtest.ok((select note = 'โน้ตจาก HQ' and activities -> 0 ->> 'text' = 'HQ รับเรื่องจากเว็บไซต์'
                          and (activities -> -1 ->> 'text') like 'รับโอนจากสำนักงานใหญ่%'
-                         from leads where dealer_code = 'RYG' and company = 'บจ. โอนระยองหนึ่ง'),
+                         from leads where dealer_code = 'ZZLTY' and company = 'บจ. โอนระยองหนึ่ง'),
     'ประวัติและโน้ตย้ายตาม + บรรทัดบอกว่ารับโอนจาก HQ');
-  perform flowtest.ok(exists (select 1 from appointments where dealer_code = 'RYG' and lead_id = new_num and note = 'นัดดูหน้างาน')
+  perform flowtest.ok(exists (select 1 from appointments where dealer_code = 'ZZLTY' and lead_id = new_num and note = 'นัดดูหน้างาน')
                       and not exists (select 1 from appointments where dealer_code = 'HQ' and company = 'บจ. โอนระยองหนึ่ง'),
     'นัดหมายย้ายตาม และชี้ลูกค้าเป้าหมายรายเดิม (เลขใหม่)');
-  perform flowtest.as_dealer('RYG', c.ryg_uid);
+  perform flowtest.as_dealer('ZZLTY', c.ryg_uid);
   perform flowtest.ok((select count(*) from leads where company like 'บจ. โอนระยอง%') = 2, 'RYG เห็นลูกค้าเป้าหมายที่รับโอนในฐานะเจ้าของ');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.ok((select count(*) from leads where company like 'บจ. โอนระยอง%') = 0, 'ดีลเลอร์อื่นไม่เห็น');
