@@ -167,7 +167,7 @@ test("[ui·dealer] ฟอร์มใบเสนอราคา inline ใน�
 // (วันที่ออกไม่ใช่ช่องให้กรอกอีกแล้ว — ระบบประทับให้ตอนบันทึก · ช่องวันที่ในฟอร์ม = วันหมดอายุ)
 test("[ux·dealer] ใบเสนอราคาที่สร้างใหม่ลงวันที่วันนี้ของระบบ", async ({ page }) => {
   // ต้องเป็นการ "ออกใบใหม่" จริง ๆ — ถ้าไปแก้ใบเดิม วันที่ออกย่อมเป็นของเดิม (ถูกต้องแล้ว แต่คนละเรื่องที่วัด)
-  await openLeadQuotationForm(page, { ใบใหม่เท่านั้น: true });
+  const ชื่อลูกค้า = await openLeadQuotationForm(page, { ใบใหม่เท่านั้น: true });
   // ปุ่มส่งฟอร์ม: โหมดออกใบใหม่เขียน "สร้างใบเสนอราคา" · โหมดเพิ่มรายการในใบเดิมเขียน "บันทึก"
   await page.getByRole("button", { name: /^(สร้างใบเสนอราคา|บันทึก)$/ }).last().click();
   await page.waitForTimeout(800);
@@ -175,10 +175,12 @@ test("[ux·dealer] ใบเสนอราคาที่สร้างให�
   // ใบสร้างบนแอปดีลเลอร์ (:3001) → localStorage อยู่ origin นั้น ต้องเปิด /quotations ของ :3001 (ไม่ใช่ baseURL :3002 = HQ)
   await page.goto(`${ที่อยู่เว็บ.dealer}/quotations`, { waitUntil: "domcontentloaded" });
   // การสร้างใบเป็น async (ขอเลขที่ผ่าน repo + บันทึก) → รอแบบ poll ไม่ใช่ timeout ตายตัว (กันเทสต์วูบ)
-  // ตารางเรียงใบใหม่สุดไว้บน → แถวแรกต้องลงวันที่ของ "วันนี้" ระบบ
+  // แถวของใบที่ข้อนี้เพิ่งสร้าง (ค้นด้วยชื่อลูกค้าของข้อ) ต้องลงวันที่ของ "วันนี้" ระบบ
+  //   เดิมอ่าน "แถวแรก" ของรายการใบ RYG — ข้ออื่นวางใบย้อนหลังของ RYG พร้อมกันแล้วขึ้นบนสุด (29 ต.ค. 69 · คิวข้อ 3)
   const expectedDate = appNowThaiShort();
+  await page.getByPlaceholder(/ค้นหา/).first().fill(ชื่อลูกค้า);
   await expect.poll(
-    async () => (await page.locator("tbody tr").first().locator("td").allInnerTexts()).join(" | "),
+    async () => (await page.locator("tbody tr").filter({ hasText: ชื่อลูกค้า }).first().locator("td").allInnerTexts()).join(" | "),
     { message: `ใบที่สร้างใหม่ต้องลงวันที่ ${expectedDate} (วันนี้ของระบบ)`, timeout: 10_000 },
   ).toContain(expectedDate);
 });
@@ -298,35 +300,46 @@ test("[ui·dealer] ตารางเหลือไม่กี่แถว —
   await open(page, "dealer", "/leads");
   await page.waitForTimeout(2000);
   const rows = page.locator("tbody tr");
-  const first = (await rows.first().locator("td").first().innerText()).split(String.fromCharCode(10))[0].trim();
-  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(first);
-  await page.waitForTimeout(1200);
-  // ⚠️ ห้ามยืนยันว่า "เหลือแถวเดียวเป๊ะ" — ชื่อบริษัทในข้อมูลทดสอบซ้ำกันได้
-  //   (ชุดข้อมูลตั้งต้นใช้คำนำหน้าเดียวกันทุกราย ค้นแล้วติดมาหลายแถวเป็นปกติ)
-  //   สิ่งที่เทสต์นี้ตรวจจริงคือ "ตารางสั้น ๆ แล้วเมนูเปลี่ยนขั้นต้องยังอยู่ในจอ"
-  //   ตารางเหลือไม่กี่แถวก็สร้างเงื่อนไขนั้นได้เหมือนกัน
-  const เหลือ = await rows.count();
-  expect(เหลือ, "ต้องกรองให้ตารางสั้นลงจริง").toBeGreaterThan(0);
-  expect(เหลือ, "ต้องกรองให้เหลือไม่กี่แถว").toBeLessThanOrEqual(5);
+  // ค้นด้วยลีดของข้อนี้เอง (ป้ายไม่ซ้ำ) — เดิมค้นชื่อของแถวแรก ซึ่งอาจเป็นลีดที่ข้ออื่นกำลังสร้าง/ลบ (29 ต.ค. 69 · คิวข้อ 3)
+  const first = `ZZTEST-ตารางสั้น-${Date.now() % 100000}`;
+  const เลขลีด = 977_800_000 + (Date.now() % 100000);
+  const ใส่ = await adminClient().from("leads").insert({ id: `#L-${เลขลีด}`, num_id: เลขลีด, dealer_code: "RYG", company: first, name: first,
+    contact: "ผู้ทดสอบ", phone: "000-000-0301", province: "ระยอง", status: "WAITING" });
+  expect(ใส่.error, `เตรียมลีดของข้อนี้ (${ใส่.error?.message ?? ""})`).toBeNull();
+  try {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+    await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(first);
+    await page.waitForTimeout(1200);
+    // ⚠️ ห้ามยืนยันว่า "เหลือแถวเดียวเป๊ะ" — ชื่อบริษัทในข้อมูลทดสอบซ้ำกันได้
+    //   (ชุดข้อมูลตั้งต้นใช้คำนำหน้าเดียวกันทุกราย ค้นแล้วติดมาหลายแถวเป็นปกติ)
+    //   สิ่งที่เทสต์นี้ตรวจจริงคือ "ตารางสั้น ๆ แล้วเมนูเปลี่ยนขั้นต้องยังอยู่ในจอ"
+    //   ตารางเหลือไม่กี่แถวก็สร้างเงื่อนไขนั้นได้เหมือนกัน
+    const เหลือ = await rows.count();
+    expect(เหลือ, "ต้องกรองให้ตารางสั้นลงจริง").toBeGreaterThan(0);
+    expect(เหลือ, "ต้องกรองให้เหลือไม่กี่แถว").toBeLessThanOrEqual(5);
 
-  // รอบ 4: เมนูเปลี่ยนขั้นในตารางเอาออกแล้ว (ป้ายเป็นข้อความ) — เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผงลีดที่เดียว
-  //   ตารางสั้นแล้วทางเปลี่ยนขั้นต้องยังกดโดนครบ: เปิดแผงจากแถว แล้วทุกปุ่มในกล่องขั้นต่อไปต้องอยู่ในจอและไม่ถูกบัง
-  await expect(rows.first().locator("button.badge"), "ป้ายขั้นในตารางไม่ใช่ปุ่ม").toHaveCount(0);
-  await expect(page.locator('[data-menu="stage"]'), "ไม่มีเมนูเลือกขั้นในตาราง").toHaveCount(0);
-  await rows.first().getByTitle("ดูรายละเอียด").click();
-  const menu = page.getByRole("status", { name: "ขั้นต่อไป" });
-  await expect(menu).toBeVisible({ timeout: 10_000 });
+    // รอบ 4: เมนูเปลี่ยนขั้นในตารางเอาออกแล้ว (ป้ายเป็นข้อความ) — เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผงลีดที่เดียว
+    //   ตารางสั้นแล้วทางเปลี่ยนขั้นต้องยังกดโดนครบ: เปิดแผงจากแถว แล้วทุกปุ่มในกล่องขั้นต่อไปต้องอยู่ในจอและไม่ถูกบัง
+    await expect(rows.first().locator("button.badge"), "ป้ายขั้นในตารางไม่ใช่ปุ่ม").toHaveCount(0);
+    await expect(page.locator('[data-menu="stage"]'), "ไม่มีเมนูเลือกขั้นในตาราง").toHaveCount(0);
+    await rows.first().getByTitle("ดูรายละเอียด").click();
+    const menu = page.getByRole("status", { name: "ขั้นต่อไป" });
+    await expect(menu).toBeVisible({ timeout: 10_000 });
 
-  // วัดของจริง: ทุกปุ่มในกล่องต้องอยู่ในจอ และจิ้มกลางตัวมันต้องโดนตัวมันเอง (ไม่ถูกบัง)
-  const bad = await menu.evaluate(el => {
-    const out: string[] = [];
-    for (const it of Array.from(el.querySelectorAll("button"))) {
-      const b = it.getBoundingClientRect();
-      if (b.bottom > window.innerHeight || b.top < 0) { out.push(`"${it.textContent}" หลุดจอ`); continue; }
-      const hitEl = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
-      if (!hitEl || !(hitEl === it || it.contains(hitEl))) out.push(`"${it.textContent}" ถูกบัง`);
-    }
-    return out;
-  });
-  expect(bad, "ปุ่มในกล่องขั้นต่อไปที่กดไม่ได้").toEqual([]);
+    // วัดของจริง: ทุกปุ่มในกล่องต้องอยู่ในจอ และจิ้มกลางตัวมันต้องโดนตัวมันเอง (ไม่ถูกบัง)
+    const bad = await menu.evaluate(el => {
+      const out: string[] = [];
+      for (const it of Array.from(el.querySelectorAll("button"))) {
+        const b = it.getBoundingClientRect();
+        if (b.bottom > window.innerHeight || b.top < 0) { out.push(`"${it.textContent}" หลุดจอ`); continue; }
+        const hitEl = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        if (!hitEl || !(hitEl === it || it.contains(hitEl))) out.push(`"${it.textContent}" ถูกบัง`);
+      }
+      return out;
+    });
+    expect(bad, "ปุ่มในกล่องขั้นต่อไปที่กดไม่ได้").toEqual([]);
+  } finally {
+    await adminClient().from("leads").delete().eq("dealer_code", "RYG").eq("num_id", เลขลีด);
+  }
 });

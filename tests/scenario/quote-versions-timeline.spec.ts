@@ -123,6 +123,9 @@ test("[ui] หน้าใบเสนอราคาแสดงเลขฉบ
   expect(ฉบับ.length, "ทุกแถวต้องมีป้ายฉบับ (V1/V2/…)").toBeGreaterThan(0);
 
   // ใบของเทสต์ก่อนหน้า (แก้ตอนเป็นใบร่าง แล้วส่ง) ต้องโชว์ V1 — ส่งแล้วแก้ไม่ได้ จึงไม่มีฉบับใหม่ (รอบ 3 · ใบ 0226)
+  //   ค้นด้วยชื่อของข้อก่อน — รายการใบ RYG ยาวขึ้นตามข้ออื่นที่ออกใบพร้อมกัน ใบนี้อาจตกไปหน้า 2 (29 ต.ค. 69 · คิวข้อ 3)
+  await page.getByPlaceholder(/ค้นหา/).first().fill(COMPANY);
+  await expect(page.locator("tbody tr").filter({ hasText: COMPANY }).first()).toBeVisible({ timeout: 20_000 });
   const ฉบับใบนี้ = await page.locator("tbody tr").filter({ hasText: COMPANY }).first()
     .locator(".badge").filter({ hasText: /^V\d+$/ }).first().textContent();
   expect((ฉบับใบนี้ ?? "").trim(), "ใบนี้โชว์ฉบับ V1").toBe("V1");

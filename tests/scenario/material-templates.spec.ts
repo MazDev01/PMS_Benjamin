@@ -155,9 +155,22 @@ test("[flow·hq] ใบ HQ เปิดมามีรายการจาก�
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
-  const ค่า = await svc.from("quote_requests").select("estimate_deviation_pct").not("estimate_deviation_pct", "is", null);
-  const เฉลี่ย = (ค่า.data ?? []).reduce((s, r) => s + Math.abs(Number(r.estimate_deviation_pct)), 0) / (ค่า.data ?? []).length;
-  await expect(page.getByTestId("estimate-accuracy"), "การ์ดแสดงค่าเฉลี่ยจากฐาน (คลาดเฉลี่ยไม่สนทิศ)")
-    .toHaveText(`${(Math.round(เฉลี่ย * 10) / 10).toFixed(1)}%`, { timeout: 20_000 });
+  // การ์ด = ค่าเฉลี่ยทั้งระบบที่ฐานคิด (material_estimate_accuracy) — เทียบกับฐาน ณ จังหวะเดียวกัน ไม่ตรง = โหลดหน้าใหม่แล้วเทียบอีกรอบ
+  //   เดิมดึงทุกแถวมาเฉลี่ยเองในข้อทดสอบ: ปัดเศษด้วยเลขทศนิยมของ JS (เช่น 10.15 → 10.1) ≠ round() ของฐาน (10.2) เมื่อมีหลายแถว
+  //   + อ่านฐานครั้งเดียวหลังหน้าโหลด — ข้ออื่น/ตัวเก็บกวาดเพิ่มหรือลบคำขอที่มี % คลาดระหว่างนั้น (ต้นเหตุไม่นิ่ง 28 ต.ค. 69)
+  //   ค่าของข้อนี้ (+10.1%) อยู่ในค่าเฉลี่ยแน่นอน: ตรวจแล้วข้างบนว่าฐานเก็บ 10.1 และ n ต้องนับแถวนี้
+  const hq = await db(ADMIN);
+  // รอการ์ดโหลดเสร็จก่อนเทียบ (มีคำขอของข้อนี้แล้ว = ต้องมีตัวเลข) — กันโหลดหน้าใหม่ซ้ำเพราะอ่านตอนยังขึ้น "—"
+  await expect(page.getByTestId("estimate-accuracy"), "มีคำขอที่ HQ ส่งใบแล้ว = การ์ดมีตัวเลข").not.toHaveText("—", { timeout: 20_000 });
+  await expect.poll(async () => {
+    const a = (await hq.rpc("material_estimate_accuracy")).data as { n: number; avg_abs_pct: number | null };
+    const ควร = a.avg_abs_pct == null ? "—" : `${Number(a.avg_abs_pct).toFixed(1)}%`;
+    const จอ = (await page.getByTestId("estimate-accuracy").innerText()).trim();
+    if (a.n >= 1 && จอ === ควร) return "ตรง";
+    await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
+    await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
+    await expect(page.getByTestId("estimate-accuracy")).not.toHaveText("—", { timeout: 20_000 });
+    return `จอ ${จอ} · ฐาน ${ควร} (n ${a.n})`;
+  }, { timeout: 20_000, message: "การ์ดแสดงค่าเฉลี่ยจากฐาน (คลาดเฉลี่ยไม่สนทิศ · material_estimate_accuracy)" }).toBe("ตรง");
   assertNoErrors(errs, "ใบ HQ จากคำขอที่มีวัสดุ");
 });

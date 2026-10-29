@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
@@ -271,15 +272,15 @@ test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใ
   await expect(page.getByText("ยังไม่มีใบที่ส่งแล้ว"), "อัตราตอบรับ: ไม่มีตัวหาร = —").toBeVisible({ timeout: 20_000 });
 
   // ฝั่งดีลเลอร์: แดชบอร์ดเมื่อยังไม่ตั้งเป้า (อัตราปิดไม่มีตัวหารตรวจที่ภาพรวมยอดขายข้างบน)
-  const เป้าเดิม = (await admin.from("dealers").select("revenue_target").eq("code", "RYG").single()).data?.revenue_target;
-  await admin.from("dealers").update({ revenue_target: 0 }).eq("code", "RYG");
+  //   สาขาของข้อนี้เอง (เป้า 0 ตั้งแต่สร้าง) — เดิมตั้งเป้า RYG เป็น 0 ชั่วคราว ชนข้ออื่นที่อ่าน/แก้เป้า RYG พร้อมกัน (29 ต.ค. 69)
+  const สาขา = await สร้างสาขาของข้อ({ เป้า: 0 });
   try {
-    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
     await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
     await settle(page);
     await expect(page.getByText("ยังไม่ได้ตั้งเป้า").first(), "แดชบอร์ดดีลเลอร์: ยังไม่ตั้งเป้า").toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("img", { name: "ยังไม่มีข้อมูล" }), "วงแหวนขึ้น — ไม่ใช่ 0%").toBeVisible();
   } finally {
-    await admin.from("dealers").update({ revenue_target: เป้าเดิม }).eq("code", "RYG");
+    await สาขา.ลบ();
   }
 });

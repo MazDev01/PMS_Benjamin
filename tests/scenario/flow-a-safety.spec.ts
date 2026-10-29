@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
@@ -46,19 +47,23 @@ test.describe("หน้าตั้งรหัสผ่านใหม่แ�
   });
 
   test("[ก·1] ทางลัดเปลี่ยนรหัสโดยไม่ใส่รหัสเดิม (reset-done · first-password) ตอบ 410 · รหัสผ่านไม่เปลี่ยน", async ({ request }) => {
-    const sb = await db(RYG);
-    const token = (await sb.auth.getSession()).data.session?.access_token ?? "";
-    const หัว = { authorization: `Bearer ${token}`, "content-type": "application/json" };
-    const ก่อน = (await admin.from("dealer_account_changes").select("id", { count: "exact", head: true }).eq("dealer_code", "RYG")).count ?? 0;
-    const r1 = await request.post(`${HQ_ORIGIN}/api/account/reset-done`, { headers: หัว, data: {} });
-    expect(r1.status(), "reset-done ต้องปิด").toBe(410);
-    const r2 = await request.post(`${HQ_ORIGIN}/api/account`, { headers: หัว, data: { op: "first-password", password: `ZZtest-ใหม่-${แท็ก}` } });
-    expect(r2.status(), "first-password ต้องปิด").toBe(410);
-    const หลัง = (await admin.from("dealer_account_changes").select("id", { count: "exact", head: true }).eq("dealer_code", "RYG")).count ?? 0;
-    expect(หลัง, "ไม่มีประวัติเปลี่ยนรหัสเพิ่ม").toBe(ก่อน);
-    // รหัสเดิมยังเข้าได้
-    const { error } = await (await db(RYG)).auth.signInWithPassword({ email: RYG.email, password: RYG.password });
-    expect(error, "รหัสเดิมต้องยังใช้ได้").toBeNull();
+    // บัญชีของสาขาของข้อเอง — นับประวัติเปลี่ยนรหัสของสาขานี้อย่างเดียว ไม่ปนข้ออื่น (29 ต.ค. 69 · คิวข้อ 3)
+    const สาขา = await สร้างสาขาของข้อ();
+    try {
+      const sb = await db(สาขา.บัญชี);
+      const token = (await sb.auth.getSession()).data.session?.access_token ?? "";
+      const หัว = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+      const ก่อน = (await admin.from("dealer_account_changes").select("id", { count: "exact", head: true }).eq("dealer_code", สาขา.รหัส)).count ?? 0;
+      const r1 = await request.post(`${HQ_ORIGIN}/api/account/reset-done`, { headers: หัว, data: {} });
+      expect(r1.status(), "reset-done ต้องปิด").toBe(410);
+      const r2 = await request.post(`${HQ_ORIGIN}/api/account`, { headers: หัว, data: { op: "first-password", password: `ZZtest-ใหม่-${แท็ก}` } });
+      expect(r2.status(), "first-password ต้องปิด").toBe(410);
+      const หลัง = (await admin.from("dealer_account_changes").select("id", { count: "exact", head: true }).eq("dealer_code", สาขา.รหัส)).count ?? 0;
+      expect(หลัง, "ไม่มีประวัติเปลี่ยนรหัสเพิ่ม").toBe(ก่อน);
+      // รหัสเดิมยังเข้าได้
+      const { error } = await (await db(สาขา.บัญชี)).auth.signInWithPassword({ email: สาขา.บัญชี.email, password: สาขา.บัญชี.password });
+      expect(error, "รหัสเดิมต้องยังใช้ได้").toBeNull();
+    } finally { await สาขา.ลบ(); }
   });
 });
 

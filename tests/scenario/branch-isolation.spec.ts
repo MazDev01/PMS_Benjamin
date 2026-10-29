@@ -3,6 +3,8 @@ import { open, openAs, CNX } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { REAL_BACKEND } from "./supabaseEnv";
+import { รันSQLในฐาน } from "./localDb";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 
 // ── ขอบเขตข้อมูลข้ามสาขา (regression) — บั๊กประเภท "กระดิ่ง/หน้า HQ รั่วข้ามสาขา" ──
 // เดิมเทียบกับ mock.ts (ข้อมูลจำลอง local mode) — ใช้ไม่ได้แล้วเพราะแอปรันโหมด supabase จริง
@@ -53,15 +55,38 @@ test("หน้า HQ เจาะสาขา CNX ไม่โผล่ลู�
   const leaked = otherBranch.filter(name => bodyText.includes(name));
   console.log(`หน้าเจาะ CNX → โผล่บริษัทสาขาอื่น: ${leaked.length}`, JSON.stringify(leaked.slice(0, 6)));
   expect(leaked, "หน้าเจาะสาขา CNX ต้องมีเฉพาะลูกค้าเป้าหมายของ CNX").toEqual([]);
-  // จำนวนแถวในตารางลูกค้าเป้าหมาย ต้อง = จำนวนลูกค้าเป้าหมาย CNX จริงใน DB (ไม่ใช่ทั้งเครือ)
-  // ⚠️ ตารางนี้แบ่งหน้า หน้าละ 10 แถว — ถ้าสาขามีมากกว่านั้น หน้าแรกย่อมมีแค่ 10
-  //    เทียบกับยอดรวมดิบ ๆ จะตกทันทีที่ข้อมูลตัวอย่างเยอะขึ้น ทั้งที่การกันข้ามสาขายังทำงานถูก
-  //    (เจอจริง 21 ส.ค. 69 หลังเติมข้อมูลตัวอย่างให้ครบทุกสาขา: CNX 22 ราย เห็นหน้าแรก 10 แถว)
-  const PAGE_SIZE = 10;
-  const cnxCount = (await admin.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", "CNX")).count ?? 0;
-  const rows = await page.locator("table tbody tr").count();
-  console.log(`แถวตารางลูกค้าเป้าหมาย = ${rows} · ลูกค้าเป้าหมาย CNX จริง = ${cnxCount}`);
-  expect(rows, "จำนวนแถว = ลูกค้าเป้าหมาย CNX เท่านั้น (สูงสุดเท่าหนึ่งหน้า)").toBe(Math.min(cnxCount, PAGE_SIZE));
+});
+
+// จำนวนแถว = ลูกค้าเป้าหมายของสาขานั้นเท่านั้น (ไม่ใช่ทั้งเครือ) — นับจากสาขาของข้อที่รู้ค่า 3 ราย
+//   เดิมนับลีด CNX ที่ฐานแล้วเทียบแถวบนจอ — ข้ออื่นที่รันพร้อมกันเพิ่ม/ลบลีด CNX ระหว่างนั้น = ตัวเลขขยับ (บอสสั่ง 29 ต.ค. 69 · คิวข้อ 3)
+//   3 ราย < หน้าละ 10 แถว → แถวบนจอต้องเท่ากับ 3 พอดี
+//   แยกจากข้อ CNX ด้านบน (เดิมอยู่ข้อเดียวกัน · สร้างสาขา + เปิด 2 หน้าในข้อเดียว = หมดเวลาข้อ 30 วิ ตอนเครื่องมีภาระ · รอบรวม round4)
+test("หน้า HQ เจาะสาขา: จำนวนแถวลูกค้าเป้าหมาย = ของสาขานั้นเท่านั้น (สาขาของข้อ 3 ราย)", async ({ page }) => {
+  const สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
+  const ป้าย = `ZZTEST-เจาะสาขา-${Date.now() % 100000}`;
+  const เลข = 960_000_000 + (Date.now() % 100_000) * 10;
+  try {
+    const ใส่ = รันSQLในฐาน(`set local session_replication_role = replica;
+      insert into public.leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
+      ${[0, 1, 2].map(i => `('#L-${เลข + i}', ${เลข + i}, '${สาขา.รหัส}', '${ป้าย}-${i + 1}', 'ZZTEST', '000-000-000${i}', 'ตราด', 'BULLET', current_date)`).join(",\n      ")};
+      set local session_replication_role = origin;`);
+    if (ใส่ === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางลีดของสาขาของข้อไม่ได้");
+    const ของข้อ = await admin.from("leads").select("company").eq("dealer_code", สาขา.รหัส).like("company", `${ป้าย}%`);
+    expect((ของข้อ.data ?? []).length, "ตั้งต้น: สาขาของข้อมีลีด 3 ราย").toBe(3);
+    const อื่น = await otherBranchCompanies(สาขา.รหัส);
+    await open(page, "hq", `/hq/dealers/${สาขา.รหัส}`);
+    await page.getByRole("button", { name: /ลูกค้าเป้าหมาย/ }).first().click().catch(() => {});
+    const แถว = page.locator("table tbody tr");
+    await expect(แถว.filter({ hasText: ป้าย }), "ลีดของสาขานี้ครบ 3 ราย").toHaveCount(3, { timeout: 20_000 });
+    await expect(แถว, "จำนวนแถว = ลีดของสาขานี้เท่านั้น").toHaveCount(3);
+    const ข้อความ = await page.evaluate(() => document.body.innerText);
+    expect(อื่น.filter(name => ข้อความ.includes(name)), "หน้าเจาะสาขาของข้อต้องไม่มีลีดของสาขาอื่น").toEqual([]);
+  } finally {
+    รันSQLในฐาน(`set local session_replication_role = replica;
+      delete from public.leads where dealer_code = '${สาขา.รหัส}';
+      set local session_replication_role = origin;`);
+    await สาขา.ลบ();
+  }
 });
 
 test("ค้นหาบน Topbar (CNX) ไม่โผล่ลูกค้า/ใบเสนอราคาสาขาอื่น", async ({ page }) => {

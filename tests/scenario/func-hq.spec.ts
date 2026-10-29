@@ -56,8 +56,11 @@ test("[func·hq] สร้างดีลเลอร์ = สร้างบั
   // ชื่อสาขาอ่านจากฐาน ไม่เขียนตายตัว — ข้อมูลตั้งต้นใช้ชื่อตามสูตร (tests/fixtures/test-baseline.sql · 15 ต.ค. 69)
   const ชื่อRYG = String((await sb.from("dealers").select("name").eq("code", "RYG").single()).data?.name ?? "");
   expect(ชื่อRYG, "ต้องมีสาขา RYG ในฐานทดสอบ").not.toBe("");
+  //   ค้น RYG ก่อน — ข้ออื่นสร้างสาขาของข้อ (ZT…) พร้อมกัน ทะเบียนเรียงใหม่สุดก่อน RYG ตกไปหน้าถัดไป (29 ต.ค. 69 · คิวข้อ 3)
+  await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill("RYG");
   await expect.poll(async () => page.evaluate(() => document.body.innerText),
     { timeout: 25_000, message: "ทะเบียนดีลเลอร์ต้องโหลดเสร็จก่อน" }).toContain(ชื่อRYG);
+  await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill("");
   // ดีลเลอร์ต้องมาจากลูกค้าเป้าหมาย (บอสสั่ง 14 ก.ย. 69) — สร้างผ่านกล่อง "ตั้งเป็นดีลเลอร์"
   const ตั้ง = await เปิดฟอร์มตั้งดีลเลอร์(page, NEW_CODE, NEW_NAME);
   await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
@@ -144,37 +147,8 @@ test("[func·hq] ไม่มีปุ่มลบดีลเลอร์ · �
 // ต่อมาย้ายให้แต่ละสาขาตั้งเอง (ตั้งค่า › ใบเสนอราคา) เพราะจดทะเบียนภาษีคนละแบบกัน
 // เทสต์นี้จึงเปลี่ยนหน้าที่: จากเดิม "ค่าต้องไหลลงมา" เป็น "ค่าของสาขาต้องไม่ถูกทับ"
 //   ถ้าวันหนึ่งมีใครผูกสองอย่างนี้กลับเข้าหากัน เทสต์นี้จะจับได้ทันที
-test("[func·hq→dealer] สำนักงานใหญ่แก้ VAT แล้วต้องไม่ทับค่าที่สาขาตั้งเอง", async ({ page }) => {
-  const errs = watchErrors(page);
-  const sb = await db(ADMIN);
-  const { data: before } = await sb.from("hq_policy").select("vat").eq("id", 1).maybeSingle();
-  const origVat = (before?.vat as number) ?? 7;
-  const newVat = origVat === 7 ? 10 : 7;
-
-  // ค่าที่สาขา RYG ตั้งไว้เอง — คือค่าที่ต้องเห็นบนหน้าจอดีลเลอร์เสมอ
-  const dealerSb = await db(RYG);
-  const { data: ds } = await dealerSb.from("dealer_settings").select("document").eq("dealer_code", "RYG").maybeSingle();
-  const vatของสาขา = (ds?.document as { vatPercent?: number } | null)?.vatPercent ?? 7;
-
-  try {
-    const up = await sb.from("hq_policy").update({ vat: newVat }).eq("id", 1).select();
-    expect(up.error, `HQ แก้ VAT ไม่ได้: ${JSON.stringify(up.error)}`).toBeNull();
-
-    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-    await page.goto(`${DEALER_ORIGIN}/settings`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "ตั้งค่าใบเสนอราคา" }).first().click();
-
-    // ค่าอยู่ในช่องกรอก ไม่ใช่ข้อความในหน้า — ต้องอ่านจากช่องโดยตรง
-    const ช่องVat = page.getByLabel("ภาษีมูลค่าเพิ่ม %");
-    await expect(ช่องVat, "หน้าตั้งค่าของดีลเลอร์ต้องโหลดเสร็จ").toBeVisible({ timeout: 20_000 });
-    await expect(ช่องVat, "ต้องเห็น VAT ของสาขาตัวเอง ไม่ใช่ค่าที่สำนักงานใหญ่เพิ่งเปลี่ยน")
-      .toHaveValue(String(vatของสาขา), { timeout: 20_000 });
-
-    assertNoErrors(errs, "VAT ของสาขาไม่ถูกสำนักงานใหญ่ทับ");
-  } finally {
-    await sb.from("hq_policy").update({ vat: origVat }).eq("id", 1);
-  }
-});
+// ข้อ "HQ แก้ VAT แล้วต้องไม่ทับค่าที่สาขาตั้งเอง" ย้ายไป hq-vat-not-override.spec.ts (ช่วง hq-settings รันทีละไฟล์)
+//   แก้ VAT ของเครือชั่วคราว (แถวเดียวทั้งระบบ) — รันพร้อมข้ออื่นที่ออกใบแล้วยอดภาษีขยับ (29 ต.ค. 69 · คิวข้อ 3)
 
 test("[func·hq] HQ เปิดหน้างานขายได้ แต่ไม่มีปุ่มสร้าง/แก้/ลบ", async ({ page }) => {
   const errs = watchErrors(page);

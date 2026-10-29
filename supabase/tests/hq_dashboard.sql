@@ -26,6 +26,11 @@ create table flowtest.r (k text primary key, v jsonb);
 grant all on flowtest.r to authenticated;
 
 -- ═══ ชุดข้อมูล (ปิดตัวดักในช่วงนี้เท่านั้น) ═══
+-- กันข้อทดสอบอื่นที่รันพร้อมกัน commit แถวใหม่เข้ามาหลังลบ (คิวข้อ 3 · 29 ต.ค. 69 · แบบเดียวกับ hq_overview.sql)
+--   เช่น ข้ออื่นสร้างสาขาของข้อระหว่างเรียกตัวคำนวณกับนับทะเบียน → "จำนวนดีลเลอร์ = ทะเบียน" ไม่ตรง · ใบ/ลีดใหม่โผล่ในยอดที่เทียบเป๊ะ
+--   ล็อกตารางที่ล้าง/นับไว้จนจบรายการ: คนอื่นอ่านได้ เขียนต้องรอ (รายการนี้ไม่ถึงวินาที) — ตัวเลขเทียบเป๊ะเหมือนเดิม
+lock table quotation_won_at, dealer_proposal_payments, dealer_package_proposals, dealer_prospect_activities, dealer_prospects,
+  hq_quotes, quote_request_events, quote_requests, quotations, leads, customers, dealers, dealer_territories in share row exclusive mode;
 set local session_replication_role = replica;
 delete from quotation_won_at; delete from dealer_proposal_payments; delete from dealer_package_proposals; delete from dealer_prospect_activities;
 delete from dealer_prospects; delete from hq_quotes; delete from quote_request_events; delete from quote_requests;

@@ -97,6 +97,9 @@ test("อีเมล+รหัสผ่านที่หน้าจอโช�
   // เทสต์ที่ดูแค่ว่า "มีอีเมลขึ้นไหม/มีรหัสขึ้นไหม" จับบั๊กนี้ไม่ได้ — ต้องเอาไปล็อกอินจริงเท่านั้น
   const { open } = await import("./helpers");
   await open(page, "hq", "/hq/dealers?view=table");   // หน้าเริ่มเป็นการ์ด — เทสต์นี้ใช้แถวตาราง
+  // ค้น RYG ก่อน — ต้นเหตุไม่นิ่ง (29 ต.ค. 69 · ครั้งที่ 3): ทะเบียนเรียงใหม่สุดก่อน หน้าละ 10 แถว
+  //   สาขาทดสอบที่ข้ออื่นสร้างพร้อมกัน (ZZ…/ZT…) ดัน RYG (สร้างเก่าสุด) ไปหน้า 2 → หาแถวไม่เจอ 30 วิ
+  await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill("RYG");
 
   const row = page.locator("tbody tr").filter({ hasText: "RYG" }).first();
   await row.waitFor({ state: "visible", timeout: 30_000 });

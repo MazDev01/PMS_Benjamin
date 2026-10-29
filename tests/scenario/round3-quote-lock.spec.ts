@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { RYG, ADMIN, skipReason } from "./supabaseEnv";
+import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
-import { adminClient } from "./testDealers";
+import { adminClient, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
-import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
+import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
+import { ล้างใบHQทดสอบ } from "./legacyQuotes";
+import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
 // ── รอบ 3 ข้อ 1: หน้าแก้ไขใบเสนอราคา (บอสสั่ง 20 ต.ค. 69) ───────────────────────────────────────────────────────────
 //   ราคาแต่ละรายการแก้ได้เฉพาะ % · ชื่อลูกค้า โครงการ จังหวัด พื้นที่ แก้ได้เฉพาะใบร่าง · ส่งลูกค้าแล้วล็อกทั้งหมด (กันที่ฐาน ใบ 0226)
@@ -17,23 +19,29 @@ test.describe.configure({ mode: process.env.PMS_GATE_ALL === "1" ? "default" : "
 test.setTimeout(180_000);
 
 const admin = adminClient();
+// สาขาของชุดเอง (ไม่ใช้ RYG): ข้อ V1/V2 อ่านแท็บใบเสนอราคาในหน้าดีลเลอร์ของ HQ ซึ่งไม่มีช่องค้นหา (แบ่งหน้า 10 ใบ ใหม่สุดก่อน)
+//   ใบ RYG ของข้ออื่นที่รันพร้อมกันดัน V1 ไปหน้า 2 → เห็นแถวเดียว (ต้นเหตุไม่นิ่ง 29 ต.ค. 69: "แสดง 1–10 จาก 35 ใบ")
+//   สาขาของชุดมีแค่ใบของไฟล์นี้ (V1 + V2) จึงอยู่หน้าเดียวเสมอ · ข้อมูลบริษัทครบ (ส่งใบให้ลูกค้าได้) · จังหวัดตราด
+let สาขา: สาขาของข้อ;
 const แท็ก = `${Date.now() % 100000}`;
 const ลูกค้า = `ZZTEST-ล็อกใบส่งแล้ว-${แท็ก}`;
 let ใบ: ใบHQพร้อมใช้;
 let เลขใบ = "";
 const แถวฐาน = async () => (await admin.from("quotations").select("status, date, project, province, area, customer, total_value")
-  .eq("dealer_code", "RYG").eq("id", เลขใบ).single()).data;
+  .eq("dealer_code", สาขา.รหัส).eq("id", เลขใบ).single()).data;
 
 test.beforeAll(async () => {
-  ใบ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ลูกค้า, province: "ระยอง",
+  สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ตราด", ภาค: "ตะวันออก" });
+  await กรอกข้อมูลบริษัททดสอบ(สาขา.รหัส, admin);
+  ใบ = await เตรียมใบHQ(สาขา.บัญชี, { dealerCode: สาขา.รหัส, company: ลูกค้า, province: "ตราด",
     lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 2, unit: "ชุด", unitCost: 1000 }, { name: "หลังคาชุดทดสอบ", qty: 1, unit: "งาน", unitCost: 500 }] });
   // วันที่ย้อนหลัง — "ส่งอีกครั้ง" ประทับวันนี้ ใช้วัดว่าบันทึกทั้งแถวผ่านจริง
-  เลขใบ = (await ทำใบลูกค้าจากใบHQ(RYG, ใบ, { customer: ลูกค้า, markupPercent: 10, extra: { date: "2026-01-05" } })).id;
+  เลขใบ = (await ทำใบลูกค้าจากใบHQ(สาขา.บัญชี, ใบ, { customer: ลูกค้า, markupPercent: 10, extra: { date: "2026-01-05" } })).id;
 });
 test.afterAll(async () => {
-  const { data: cs } = await admin.from("customers").select("id").eq("dealer_code", "RYG").eq("company", ลูกค้า);
-  ล้างใบHQทดสอบ("RYG", [ใบ?.leadNum]);
-  for (const c of cs ?? []) await admin.from("customers").delete().eq("dealer_code", "RYG").eq("id", c.id);
+  if (!สาขา) return;
+  if (ใบ) ล้างใบHQทดสอบ(สาขา.รหัส, [ใบ.leadNum]);
+  await สาขา.ลบ();
 });
 
 // รอบ 4 (บอสสั่ง 21 ต.ค. 69): หน้าใบเสนอราคาเหลือรายการ+ค้นหา กดแถวพาไปแผงลีดของใบนั้น
@@ -55,7 +63,7 @@ async function เปิดแผงใบ(page: import("@playwright/test").Page
 }
 
 test("[รอบ3·1] ใบร่าง: แก้โครงการ/จังหวัด/พื้นที่ได้ · รายการแก้ได้เฉพาะ %", async ({ page }) => {
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงใบ(page);
   await ใบในแผง(page, เลขใบ).getByTitle("แก้ไข").click();
   await expect(page.getByText("กำลังโหลดใบ HQ")).toHaveCount(0, { timeout: 15_000 });
@@ -75,13 +83,13 @@ test("[รอบ3·1] ใบร่าง: แก้โครงการ/จั�
 
 test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก้ไข/ลบ มีปุ่มทำฉบับใหม่ · ส่งอีกครั้งยังได้ · ฐานปฏิเสธการแก้ทุกช่อง", async ({ page }) => {
   // ล้างพื้นที่/จังหวัดให้ว่างในฐานตอนยังเป็นใบร่าง — วัดว่าบันทึกทั้งแถวจากหน้าเว็บ (ว่าง → "0"/"") ไม่ถูกนับว่าแก้
-  const sb = await db(RYG);
-  const ล้าง = await sb.from("quotations").update({ area: null, province: null, date: "2026-01-05" }).eq("dealer_code", "RYG").eq("id", เลขใบ);
+  const sb = await db(สาขา.บัญชี);
+  const ล้าง = await sb.from("quotations").update({ area: null, province: null, date: "2026-01-05" }).eq("dealer_code", สาขา.รหัส).eq("id", เลขใบ);
   expect(ล้าง.error?.message ?? "", "ใบร่าง: ล้างพื้นที่/จังหวัดได้").toBe("");
-  const ส่ง = await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", เลขใบ);
+  const ส่ง = await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", สาขา.รหัส).eq("id", เลขใบ);
   expect(ส่ง.error?.message ?? "", "ส่งให้ลูกค้า").toBe("");
 
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงใบ(page);
   const ใบ1 = ใบในแผง(page, เลขใบ);
   await expect(ใบ1.getByTitle("แก้ไข"), "ใบที่ส่งแล้ว: ไม่มีปุ่มแก้ไข").toHaveCount(0);
@@ -99,7 +107,7 @@ test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก�
 
   // ฐาน: ดีลเลอร์ยิงตรงแก้ไม่ได้
   for (const [ช่อง, ค่า] of [["customer", "ZZTEST-แอบเปลี่ยน"], ["project", "ZZTEST-แอบเปลี่ยน"], ["province", "ลำปาง"], ["area", "999"], ["markup_percent", 40]] as const) {
-    const r = await sb.from("quotations").update({ [ช่อง]: ค่า }).eq("dealer_code", "RYG").eq("id", เลขใบ);
+    const r = await sb.from("quotations").update({ [ช่อง]: ค่า }).eq("dealer_code", สาขา.รหัส).eq("id", เลขใบ);
     expect(r.error?.message ?? "", `ฐานปฏิเสธการแก้ ${ช่อง} ของใบที่ส่งแล้ว`).toMatch(/quote_sent_locked/);
   }
   const สุดท้าย = await แถวฐาน();
@@ -110,15 +118,15 @@ test("[รอบ3·1] ส่งแล้ว: ไม่มีปุ่มแก�
 // ── รอบ 3 · ทำฉบับใหม่ (บอสสั่ง 21 ต.ค. 69): ส่ง V1 → ทำฉบับใหม่ → แก้ % → ส่ง V2 → V1 ถูกแทนที่ ─────────────────────────────
 //   ตอบรับ V1 ไม่ได้ · ตอบรับ V2 ได้ · มูลค่าลีดเปลี่ยนตาม V2 · ลบใบที่ส่งแล้วไม่ได้ (ข้อทดสอบระดับฐาน quote_new_version.sql)
 test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → แก้ % → ส่ง V2 → V1 ถูกแทนที่ · ตอบรับ V2 · มูลค่าลีดตาม V2", async ({ page }) => {
-  const sb = await db(RYG);
+  const sb = await db(สาขา.บัญชี);
   const เลขV2 = `${เลขใบ}-V2`;
   const ใบ_ = async (id: string) => (await admin.from("quotations").select("status, total_value, revision, supersedes_id, project")
-    .eq("dealer_code", "RYG").eq("id", id).maybeSingle()).data;
-  const มูลค่าลีด = async () => Number((await admin.from("leads").select("quote_value").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.quote_value ?? 0);
+    .eq("dealer_code", สาขา.รหัส).eq("id", id).maybeSingle()).data;
+  const มูลค่าลีด = async () => Number((await admin.from("leads").select("quote_value").eq("dealer_code", สาขา.รหัส).eq("num_id", ใบ.leadNum).single()).data?.quote_value ?? 0);
   expect((await ใบ_(เลขใบ))?.status, "ตั้งต้น: V1 ส่งแล้ว (ข้อก่อนหน้า)").toBe("sent_to_client");
   expect(await มูลค่าลีด(), "ตั้งต้น: มูลค่าลีด = ยอด V1").toBe(2950);
 
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   const ใบV1 = () => ใบในแผง(page, เลขใบ);
   const ใบV2 = () => ใบในแผง(page, เลขV2);
 
@@ -161,10 +169,10 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
   await page.getByRole("button", { name: "กลับ" }).click();
 
   // ฐาน: ตอบรับ V1 ไม่ได้ · ลบใบที่ส่งแล้ว/ถูกแทนที่ไม่ได้
-  const ตอบรับV1 = await sb.from("quotations").update({ status: "won" }).eq("dealer_code", "RYG").eq("id", เลขใบ);
+  const ตอบรับV1 = await sb.from("quotations").update({ status: "won" }).eq("dealer_code", สาขา.รหัส).eq("id", เลขใบ);
   expect(ตอบรับV1.error?.message ?? "", "ฐานไม่ให้ตอบรับ V1").toMatch(/quote_superseded/);
   for (const id of [เลขใบ, เลขV2]) {
-    const ลบ = await sb.from("quotations").delete().eq("dealer_code", "RYG").eq("id", id);
+    const ลบ = await sb.from("quotations").delete().eq("dealer_code", สาขา.รหัส).eq("id", id);
     expect(ลบ.error?.message ?? "", `ฐานไม่ให้ลบใบที่ส่งแล้ว ${id}`).toMatch(/quote_sent_no_delete/);
   }
 
@@ -172,7 +180,7 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
   await ใบV2().locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await ใบ_(เลขV2))?.status, { timeout: 30_000, message: "ตอบรับ V2 ได้" }).toBe("won");
-  await expect.poll(async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.status,
+  await expect.poll(async () => (await admin.from("leads").select("status").eq("dealer_code", สาขา.รหัส).eq("num_id", ใบ.leadNum).single()).data?.status,
     { timeout: 30_000, message: "ลีดปิดการขายสำเร็จ" }).toBe("PAID");
   expect(await มูลค่าลีด(), "มูลค่าลีด = ยอด V2").toBe(3150);
   expect((await ใบ_(เลขใบ))?.status, "V1 ยังถูกแทนที่").toBe("superseded");
@@ -191,7 +199,7 @@ async function เลขที่ในตาราง(page: import("@playwright
 }
 test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสดงเต็ม ไม่เหมือนกัน — ตารางดีลเลอร์และ HQ", async ({ page, browser }) => {
   const คาด = [เลขใบ, `${เลขใบ}-V2`].sort();
-  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
   await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
   const ดีลเลอร์ = await เลขที่ในตาราง(page, เลขใบ);
@@ -213,7 +221,7 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
   expect(ป้าย.map(x => x.text).sort(), "HQ ทั้งเครือ: ป้ายสถานะ V1/V2").toEqual(["ตอบรับ", "ถูกแทนที่"]);
   expect(ป้าย.filter(x => x.ตัด), "HQ ทั้งเครือ: ป้ายสถานะไม่ถูกตัด").toEqual([]);
 
-  await hq.goto(`${HQ_ORIGIN}/hq/dealers/RYG`, { waitUntil: "domcontentloaded" }); await settle(hq);
+  await hq.goto(`${HQ_ORIGIN}/hq/dealers/${สาขา.รหัส}`, { waitUntil: "domcontentloaded" }); await settle(hq);
   await hq.locator("button.tab-item").filter({ hasText: /^ใบเสนอ\s*\d*$/ }).first().click();
   const หน้าดีลเลอร์ = await เลขที่ในตาราง(hq, เลขใบ);
   expect(หน้าดีลเลอร์.map(x => x.text).sort(), "HQ หน้าดีลเลอร์: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);

@@ -4,6 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
+import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
 import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
 
 // ── ขายหนึ่งงาน ขั้น 2–4 บนหน้าจอ + ตารางสถานะแถว 1–3, 6–7 (FLOW.html · ด่าน 1) ──────────────────────────────
@@ -36,7 +37,10 @@ function ล้างที่ฐาน() {
   if (leadNum) รันSQLในฐาน(sql);
 }
 
+let ปล่อยแถว = () => {};
 test.beforeAll(async () => {
+  // ผู้รับอีเมล HQ เป็นแถวเดียวทั้งระบบ — 3 ไฟล์ตั้งค่าแถวนี้ (email-outbox-cron · hq-email-recipients · quote-request-flow) ต่อคิวกัน
+  ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "hq_notif_rules");
   const { data } = await admin.from("hq_notif_rules").select("email_recipients").eq("id", 1).single();
   ผู้รับเดิม = (data?.email_recipients as string[]) ?? [];
   await admin.from("hq_notif_rules").update({ email_recipients: [ผู้รับ] }).eq("id", 1);
@@ -50,6 +54,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await admin.from("hq_notif_rules").update({ email_recipients: ผู้รับเดิม }).eq("id", 1);
   ล้างที่ฐาน();
+  ปล่อยแถว();
 });
 
 const สถานะลูกค้าเป้าหมาย = async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", leadNum).single()).data?.status;

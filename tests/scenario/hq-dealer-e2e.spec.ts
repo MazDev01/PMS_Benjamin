@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 import { createClient } from "@supabase/supabase-js";
 import { RYG, CNX, ADMIN, skipReason, appEnv } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
@@ -352,18 +353,22 @@ test("[16-17] ปิดการขายใบเดียวกันพร้
 
 // ── 18) ทรานแซกชัน: ล้มกลางทางต้องย้อนกลับทั้งก้อน ─────────────────────────
 test("[18] ทรานแซกชันย้อนกลับ: ออกใบที่ยอดไม่ตรง BOQ ต้องไม่ทิ้งอะไรค้างไว้เลย", async ({ request }) => {
-  await เข้าระบบ(request, DEALER_ORIGIN, RYG);
-  const COMPANY = บริษัท("ย้อนกลับ");
-  const { data: ก่อน } = await db.from("quote_counters").select("*").eq("dealer_code", "RYG").maybeSingle();
+  // สาขาของข้อเอง — เดิมเทียบตัวนับเลขที่ใบของ RYG ก่อน/หลัง ข้ออื่นออกใบ RYG พร้อมกัน ตัวนับเดินเอง (29 ต.ค. 69 · คิวข้อ 3)
+  const สาขา = await สร้างสาขาของข้อ();
+  try {
+    await เข้าระบบ(request, DEALER_ORIGIN, สาขา.บัญชี);
+    const COMPANY = บริษัท("ย้อนกลับ");
+    const { data: ก่อน } = await db.from("quote_counters").select("*").eq("dealer_code", สาขา.รหัส).maybeSingle();
 
-  const r = await request.post(`${DEALER_ORIGIN}/api/v1/quotations?op=numbered`, { data: {
-    dealer: "RYG", prefix: "Q-", row: { customer: COMPANY, project: COMPANY, date: "2026-08-20", province: "ระยอง",
-      buildingType: "โกดังสำเร็จรูป", area: 1, total: "9999999", totalValue: 9_999_999, materialCost: 500_000,
-      items: 1, status: "draft", lineItems: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 500_000 }] } } });
-  expect(r.status(), "ยอดไม่ตรงรายการ ต้องถูกปฏิเสธ ไม่ใช่ 503 ระบบขัดข้อง").toBe(400);
+    const r = await request.post(`${DEALER_ORIGIN}/api/v1/quotations?op=numbered`, { data: {
+      dealer: สาขา.รหัส, prefix: "Q-", row: { customer: COMPANY, project: COMPANY, date: "2026-08-20", province: "ตราด",
+        buildingType: "โกดังสำเร็จรูป", area: 1, total: "9999999", totalValue: 9_999_999, materialCost: 500_000,
+        items: 1, status: "draft", lineItems: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 500_000 }] } } });
+    expect(r.status(), "ยอดไม่ตรงรายการ ต้องถูกปฏิเสธ ไม่ใช่ 503 ระบบขัดข้อง").toBe(400);
 
-  const { data: ใบที่ค้าง } = await db.from("quotations").select("id").eq("customer", COMPANY);
-  expect(ใบที่ค้าง ?? [], "ล้มแล้วต้องไม่มีใบค้างในฐานข้อมูล").toEqual([]);
-  const { data: หลัง } = await db.from("quote_counters").select("*").eq("dealer_code", "RYG").maybeSingle();
-  expect(JSON.stringify(หลัง), "ตัวนับเลขที่ใบต้องไม่เดินเมื่อการออกใบล้มเหลว").toBe(JSON.stringify(ก่อน));
+    const { data: ใบที่ค้าง } = await db.from("quotations").select("id").eq("customer", COMPANY);
+    expect(ใบที่ค้าง ?? [], "ล้มแล้วต้องไม่มีใบค้างในฐานข้อมูล").toEqual([]);
+    const { data: หลัง } = await db.from("quote_counters").select("*").eq("dealer_code", สาขา.รหัส).maybeSingle();
+    expect(JSON.stringify(หลัง), "ตัวนับเลขที่ใบต้องไม่เดินเมื่อการออกใบล้มเหลว").toBe(JSON.stringify(ก่อน));
+  } finally { await สาขา.ลบ(); }
 });

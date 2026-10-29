@@ -3,6 +3,7 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
+import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
 
 // ── ตั้งค่า › การแจ้งเตือน: รายชื่อผู้รับอีเมลแจ้งเตือนของสำนักงานใหญ่ (ด่าน 1 · ใบ 0193) ─────────────────
 // ผู้รับฝั่ง HQ ของ "คำขอใหม่ · เกิน 14 วัน · ยกเลิก · ขอแก้ราคา" มาจากรายชื่อนี้ ไม่ใช่อีเมลรายคน (ข้อตัดสิน 14 ต.ค. 69)
@@ -11,12 +12,15 @@ test.describe.configure({ mode: "serial" });
 
 const admin = adminClient();
 let เดิม: string[] = [];
+let ปล่อยแถว = () => {};
 test.beforeAll(async () => {
+  // ผู้รับอีเมล HQ เป็นแถวเดียวทั้งระบบ — 3 ไฟล์ตั้งค่าแถวนี้ (email-outbox-cron · hq-email-recipients · quote-request-flow) ต่อคิวกัน
+  ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "hq_notif_rules");
   const { data } = await admin.from("hq_notif_rules").select("email_recipients").eq("id", 1).single();
   เดิม = (data?.email_recipients as string[]) ?? [];
   await admin.from("hq_notif_rules").update({ email_recipients: [] }).eq("id", 1);
 });
-test.afterAll(async () => { await admin.from("hq_notif_rules").update({ email_recipients: เดิม }).eq("id", 1); });
+test.afterAll(async () => { await admin.from("hq_notif_rules").update({ email_recipients: เดิม }).eq("id", 1); ปล่อยแถว(); });
 
 const อ่าน = async () => ((await admin.from("hq_notif_rules").select("email_recipients").eq("id", 1).single()).data?.email_recipients as string[]) ?? [];
 
