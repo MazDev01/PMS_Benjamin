@@ -56,17 +56,29 @@ function ตรวจไฟล์(ไฟล์) {
   const ทั้งไฟล์ = readFileSync(join(ราก, "tests/scenario", ไฟล์), "utf8");
   if (/^\s*test\.skip\(\s*\(\)\s*=>\s*!process\.env\.PMS_SHOTS/m.test(ทั้งไฟล์)) return [];   // ไฟล์ถ่ายภาพหน้าจอ ไม่ตรวจตัวเลข
   const ช่วย = ตัวช่วย(ทั้งไฟล์);
-  const ทั้งไฟล์สร้างเอง = /beforeAll[\s\S]{0,400}?สร้างสาขาของข้อ\(/.test(ทั้งไฟล์);
+  // สาขาของข้อที่สร้างระดับไฟล์ (เช่นใน beforeAll: ก = await สร้างสาขาของข้อ()) — นับเป็นข้อมูลของข้อ เฉพาะข้อที่ใช้ตัวแปรนั้นจริง (ก.รหัส / ก.บัญชี)
+  //   เดิมยกเว้นทั้งไฟล์เมื่อ beforeAll สร้างสาขา — ข้อในไฟล์เดียวกันที่ยังนับยอดทั้งเครือหลุดไป (ef พบ 29 ต.ค. 69: kpi-cards › ทุกหน้า HQ)
+  const ตัวแปรสาขา = [...ทั้งไฟล์.matchAll(/([\p{L}\p{M}\w$]+)\s*=\s*await\s+สร้างสาขาของข้อ\(/gu)].map(m => m[1]);
+  //   + ตัวแปรที่รับรหัสจากสาขานั้น (CODE = สาขา.รหัส)
+  for (const x of [...ตัวแปรสาขา]) for (const m of ทั้งไฟล์.matchAll(new RegExp(String.raw`([\p{L}\p{M}\w$]+)\s*=\s*${x}\??\.รหัส`, "gu"))) ตัวแปรสาขา.push(m[1]);
+  const ใช้รหัส = (ตัว) => ตัวแปรสาขา.some(x => new RegExp(String.raw`(?<![\p{L}\p{M}\w$])${x}(?![\p{L}\p{M}\w$])(?!\??\.)`, "u").test(ตัว));
+  const ใช้สาขาไฟล์ = (ตัว) => ตัวแปรสาขา.some(x => new RegExp(String.raw`(?<![\p{L}\p{M}\w$])${x}\??\.(?:รหัส|บัญชี)`, "u").test(ตัว));
   return บล็อก(ทั้งไฟล์).map(({ ชื่อ, ตัว }) => ({ ชื่อ,
     ตัว: [ตัว, ...ช่วย.filter(h => new RegExp(String.raw`(?<![\p{L}\p{M}\w$])${h.ชื่อ}\(`, "u").test(ตัว)).map(h => h.ตัว)].join("\n") }))
     .filter(({ ตัว }) =>
     (นับฐานสาขาร่วม.test(ตัว) || นับฐานทั้งเครือ.test(ตัว) || (นับฐาน.test(ตัว) && /\.from\("/.test(ตัว)) || อ่านจอ.test(ตัว) || อ่านเลขจอ.test(ตัว)) && ตรงเป๊ะ.test(ตัว)
-    && !สร้างเอง.test(ตัว) && !ทั้งไฟล์สร้างเอง && !ป้ายของข้อ(ตัว, ทั้งไฟล์))
+    && !สร้างเอง.test(ตัว) && !ใช้สาขาไฟล์(ตัว) && !ใช้รหัส(ตัว) && !ป้ายของข้อ(ตัว, ทั้งไฟล์))
     .map(({ ชื่อ }) => `${ไฟล์} › ${ชื่อ}`);
 }
 
+// ไฟล์ในช่วงที่รันทีละไฟล์ (โปรเจกต์ hq-settings · stress ใน playwright.config.ts) ไม่มีข้ออื่นเขียนพร้อมกัน — ยอดทั้งเครือนิ่ง ไม่ตรวจ
+const ค่าตั้ง = existsSync(join(ราก, "playwright.config.ts")) ? readFileSync(join(ราก, "playwright.config.ts"), "utf8") : "";
+const รันทีละไฟล์ = new Set(["hq-settings", "stress"].flatMap(ชื่อ => {
+  const m = ค่าตั้ง.match(new RegExp(String.raw`name:\s*"${ชื่อ}"[\s\S]*?testMatch:\s*\/\(?([^/)]*)\)?\\.spec\\.ts\/`));
+  return m ? m[1].split("|").map(x => `${x}.spec.ts`) : [];
+}));
 const ที่ข้อ = join(ราก, "tests/scenario");
-const พบ = existsSync(ที่ข้อ) ? readdirSync(ที่ข้อ).filter(f => f.endsWith(".spec.ts")).sort().flatMap(ตรวจไฟล์) : [];
+const พบ = existsSync(ที่ข้อ) ? readdirSync(ที่ข้อ).filter(f => f.endsWith(".spec.ts") && !รันทีละไฟล์.has(f)).sort().flatMap(ตรวจไฟล์) : [];
 const รายการ = existsSync(ที่รายการ) ? JSON.parse(readFileSync(ที่รายการ, "utf8")).ข้อ ?? [] : [];
 
 let ฐาน = null;

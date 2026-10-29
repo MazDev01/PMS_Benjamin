@@ -71,5 +71,17 @@ r = ลอง({ "kpi.spec.ts": ข้อสาขาเอง }, ["kpi.spec.ts �
 r = ลอง({ "kpi.spec.ts": ข้อนับRYG, "hq.spec.ts": ข้อทั้งเครือ }, ["kpi.spec.ts › [kpi] การ์ดลีด RYG ตรงฐาน", "hq.spec.ts › [hq] ยอดลูกค้าทั้งเครือตรงฐาน"], ["kpi.spec.ts › [kpi] การ์ดลีด RYG ตรงฐาน"]);
 ผล(r.status === 1 && /เพิ่มรายการยกเว้นไม่ได้/.test(r.ออก) && r.ออก.includes("hq.spec.ts › [hq] ยอดลูกค้าทั้งเครือตรงฐาน"), "⑦ เพิ่มชื่อใหม่เข้ารายการยกเว้น → ตก", r.ออก);
 
+// ⑧ ช่องโหว่ที่ ef พบ (29 ต.ค. 69): beforeAll สร้างสาขาของข้อ แต่ข้อในไฟล์ยังนับยอดทั้งเครือโดยไม่ใช้สาขานั้น → ต้องตก
+const ไฟล์สาขาในฮุก = `let สาขา; let CODE = "";
+test.beforeAll(async () => { สาขา = await สร้างสาขาของข้อ(); CODE = สาขา.รหัส; });
+test("[hq] ใช้สาขาของไฟล์", async ({ page }) => {
+  const { count } = await admin.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", CODE);
+  await expect(page.locator('[data-kpi="leads"] [data-value]')).toHaveAttribute("data-value", String(count));
+});
+` + ข้อทั้งเครือ;
+r = ลอง({ "mixed.spec.ts": ไฟล์สาขาในฮุก });
+ผล(r.status === 1 && r.ออก.includes("mixed.spec.ts › [hq] ยอดลูกค้าทั้งเครือตรงฐาน") && !r.ออก.includes("mixed.spec.ts › [hq] ใช้สาขาของไฟล์"),
+  "⑧ beforeAll สร้างสาขาของข้อ: ข้อที่ใช้สาขานั้นผ่าน · ข้อที่ยังนับทั้งเครือในไฟล์เดียวกันต้องตก", r.ออก);
+
 console.log(ตก ? `\n${ตก} FAIL` : "\nALL PASS");
 process.exit(ตก ? 1 : 0);

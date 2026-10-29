@@ -88,8 +88,16 @@ test("[กฎที่ DB] อ้าง customer_id ของดีลเลอ�
 });
 
 test("[กฎที่ DB] งานขายใหม่ของลูกค้าจริงของสาขาเดียวกัน ที่ไม่มีเบอร์โทรในระบบ → สร้างได้", async () => {
-  const { data: ลูกค้า } = await ryg.from("customers").select("id").limit(1);
-  test.skip(!ลูกค้า?.length, "ฐานทดสอบไม่มีลูกค้าของ RYG");
-  const { error } = await ryg.from("leads").insert(ราย({ phone: "", province: "", customer_id: ลูกค้า![0].id }));
-  expect(error, `ลูกค้าเดิมของสาขาเองต้องเพิ่มงานขายได้ (${error?.message ?? ""})`).toBeNull();
+  // ลูกค้าของข้อนี้เอง — เดิมหยิบลูกค้า RYG ตัวแรก (อาจเป็นลูกค้าชั่วคราวที่ข้ออื่นกำลังลบ → ติดกุญแจนอก · 29 ต.ค. 69 · คิวข้อ 3)
+  const cid = Number((await ryg.rpc("next_entity_id", { p_dealer: "RYG", p_entity: "customers" })).data);
+  const ชื่อ = `${TAG}-ลูกค้า-${cid}`;
+  const ใส่ = await ryg.from("customers").insert({ id: cid, dealer_code: "RYG", company: ชื่อ, name: ชื่อ });
+  expect(ใส่.error, `เตรียมลูกค้าของข้อนี้ (${ใส่.error?.message ?? ""})`).toBeNull();
+  try {
+    const { error } = await ryg.from("leads").insert(ราย({ phone: "", province: "", customer_id: cid }));
+    expect(error, `ลูกค้าเดิมของสาขาเองต้องเพิ่มงานขายได้ (${error?.message ?? ""})`).toBeNull();
+  } finally {
+    await ryg.from("leads").delete().eq("dealer_code", "RYG").eq("customer_id", cid);
+    await ryg.from("customers").delete().eq("dealer_code", "RYG").eq("id", cid);
+  }
 });

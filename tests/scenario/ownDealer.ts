@@ -36,3 +36,11 @@ export async function สร้างสาขาของข้อ(ตั้ง
   }
   throw new Error("สุ่มรหัสสาขาของข้อไม่ได้ใน 20 ครั้ง");
 }
+
+// หน้า HQ: กรองด้วยสาขาของข้อ (ตัวกรองดีลเลอร์บนแถบตัวกรอง) — ยอดบนจอจึงเป็นของสาขานี้อย่างเดียว ไม่ปนข้ออื่นที่รันพร้อมกัน
+export async function กรองหน้าHQด้วยสาขา(page: import("@playwright/test").Page, รหัส: string) {
+  const { expect } = await import("@playwright/test");
+  await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
+  await page.getByRole("button", { name: new RegExp(`^${รหัส} – `) }).click();
+  await expect(page.getByRole("button", { name: new RegExp(`^${รหัส} – `) }).first()).toBeVisible();
+}
