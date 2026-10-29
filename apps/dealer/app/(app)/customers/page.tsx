@@ -1681,7 +1681,7 @@ export default function CustomersPage(){
               </div>
               <div style={{fontSize:"0.7rem",fontWeight:800,color:MUTED,marginBottom:-6}}>{กลุ่มช่อง.งาน}</div>
               <div><label className="form-label" htmlFor="nd-province">{ป้ายบังคับ("จังหวัด")}</label>
-                <ProvinceSelect id="nd-province" label="จังหวัด" className="form-select" value={dealForm.province} onChange={v=>setDealForm(f=>({...f,province:v}))} options={จังหวัดของสาขา}
+                <ProvinceSelect id="nd-province" label={ช่อง.จังหวัด} className="form-select" value={dealForm.province} onChange={v=>setDealForm(f=>({...f,province:v}))} options={จังหวัดของสาขา}
                   หลัง={dealForm.province && !จังหวัดของสาขา.includes(dealForm.province) && <option value={dealForm.province}>{dealForm.province} (นอกภาค)</option>} /></div>
               {/* ชื่อ + ตัวอย่างเดียวกับฟอร์มลูกค้าเป้าหมาย (บอสสั่ง 26 ต.ค. 69 · เดิม "ชื่อโครงการ") — ฟอร์มขอราคาดึงช่องนี้ไปกรอกให้ */}
               <div><label className="form-label" htmlFor="nd-project">{ช่อง.งาน}</label>
