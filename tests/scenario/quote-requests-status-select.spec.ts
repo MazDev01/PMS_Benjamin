@@ -56,15 +56,26 @@ test("[ui·hq] คำขอใบเสนอราคา: ช่องเลื
 
   // ── ความเร็วเปิดหน้า: นับจากเริ่มโหลดหน้าจนรายการ + การ์ดขึ้นครบ · วัด 3 ครั้งใช้ค่ากลาง
   //    (ครั้งเดียวแกว่งตามภาระเครื่อง: ครั้งแรกหลังเว็บสตาร์ท + ข้อทดสอบอื่นรันพร้อมกัน วัดได้ 1,228 / รอบซ้ำ 558 ms) ──
-  const ครั้ง: number[] = [];
+  //    เวลาจดในหน้าเว็บเอง ทุกเฟรม (polling: raf) ตอนรายการ + การ์ดขึ้นครบพร้อมกัน (29 ต.ค. 69 · คิวข้อ 3)
+  //      เดิมรอด้วย expect 2 ตัวต่อกันแล้วค่อยถาม performance.now() — expect เช็กซ้ำห่างขึ้นเรื่อย ๆ (0.1 → 0.25 → 0.5 → 1 วิ)
+  //      เครื่องมีภาระ = เห็นช้ากว่าหน้าขึ้นจริงได้เกือบ 1 วิต่อตัว · รอบรวม 38 ไฟล์วัดได้ 2.7–3.0 วิ ขณะที่สลับสถานะ (ข้อมูลชุดเดียวกัน) 0.1 วิ
+  //      ตอนนี้วัดเฉพาะเวลาของหน้า (จากเริ่มนำทางถึงเฟรมที่ขึ้นครบ) · เกณฑ์ 1 วินาทีเท่าเดิม · พิมพ์ช่วงฝั่งเซิร์ฟเวอร์แยกไว้ดูต้นเหตุ
+  const ครั้ง: number[] = [], ช่วง: string[] = [];
   for (let i = 0; i < 3; i++) {
     await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
-    await expect(รายการ(page).getByRole("button").first()).toBeVisible({ timeout: 30_000 });
-    await expect(การ์ด(page, "todo").locator("[data-value]")).not.toHaveAttribute("data-value", "", { timeout: 30_000 });
-    ครั้ง.push(Math.round(await page.evaluate(() => performance.now())));
+    const ขึ้นครบ = await page.waitForFunction(() => {
+      const แถว = document.querySelector('ul[aria-label="รายการคำขอ"] button') as HTMLElement | null;
+      const ค่า = document.querySelector('[data-kpi-row] [data-kpi="todo"] [data-value]')?.getAttribute("data-value") ?? "";
+      return แถว && แถว.getClientRects().length > 0 && ค่า !== "" ? performance.now() : false;
+    }, null, { polling: "raf", timeout: 30_000 });
+    ครั้ง.push(Math.round(Number(await ขึ้นครบ.jsonValue())));
+    ช่วง.push(await page.evaluate(() => {
+      const n = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+      return n ? `เซิร์ฟเวอร์ตอบ ${Math.round(n.responseStart)} · หน้าพร้อม ${Math.round(n.domContentLoadedEventEnd)}` : "ไม่มีข้อมูลนำทาง";
+    }));
   }
   const เปิดหน้า = [...ครั้ง].sort((a, b) => a - b)[1];
-  console.log(`[เวลา] เปิดหน้า 3 ครั้ง ${ครั้ง.join(" / ")} ms`);
+  console.log(`[เวลา] เปิดหน้า 3 ครั้ง ${ครั้ง.join(" / ")} ms · ${ช่วง.join(" | ")}`);
   await settle(page);
 
   // ── 1) ไม่มีแถวปุ่มกรอง · ช่องเลือกข้างช่องค้นหา ──
