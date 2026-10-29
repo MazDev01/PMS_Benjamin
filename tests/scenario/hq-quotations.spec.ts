@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { open, assertHealthyPage } from "./helpers";
+import { สร้างสาขาของข้อ } from "./ownDealer";
+import { รันSQLในฐาน } from "./localDb";
+import { เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
 // ─── HQ · ใบเสนอราคาทั้งเครือ ─────────────────────────────────────────────────
 // ล็อกสเปก: HQ ดูอย่างเดียว · KPI 4 ตัว · กราฟครบตามที่ข้อมูลจริงรองรับ
@@ -125,37 +128,54 @@ test("[ux·hq] ลิ้นชักดูใบเสนอราคา อ่�
 //    เพราะข้อมูลทดสอบมีใบน้อยกว่าราย เลยไม่มีทางเกิน 100% อยู่แล้ว (เทสต์โกหก)
 //    ต้องเทียบกับตัวเลขใน tooltip ซึ่งพก "รายที่ออกใบแล้ว / รายทั้งหมด / จำนวนใบ" มาครบ
 test("[ux·hq] อัตราแปลง = รายที่ออกใบแล้ว ÷ รายทั้งหมด (ไม่ใช่จำนวนใบ)", async ({ page }) => {
-  await open(page, "hq", "/hq/quotations");
-  await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
-  const card = page.locator(".card", { hasText: "อัตราลูกค้าเป้าหมายที่ออกใบเสนอราคา แยกตามดีลเลอร์" }).first();
-  await expect(card).toBeVisible();
-  // คำอธิบายใต้หัวข้อถูกถอดออก (ชื่อการ์ดบอกครบในตัวแล้ว) — ตรวจที่ "หน่วยของแถบ" แทน
-  // ทั้งสองแถบต้องเป็น "ราย" ไม่งั้น % กับความยาวแถบจะไม่ตรงกันเหมือนบั๊กเดิม
-  await expect(card.getByText(/\d+ ราย/).first()).toBeVisible();
-  await expect(card.getByText(/\d+ ใบ$/), "แถบต้องไม่กลับไปวัดด้วยจำนวนใบอีก").toHaveCount(0);
+  // ข้อมูลของข้อเอง (สาขาของข้อ · กรองหน้าด้วยสาขานี้) — รู้ค่าแน่นอน: ลูกค้าเป้าหมาย 4 ราย · ถึงขั้นเสนอราคา 2 ราย · ใบ 3 ใบ (รายแรกมี 2 ใบ)
+  //   สูตรถูก = 2/4 = 50% · สูตรเก่า (ใบ ÷ ราย) = 3/4 = 75% → ตัวเลขสองสูตรต่างกันเสมอ ข้อนี้จึงพิสูจน์สูตรได้ทุกครั้ง
+  //   เดิมอ่านแถบของทุกสาขาในเครือ: สาขาทดสอบของข้ออื่นที่มีใบแต่ยังไม่มีลูกค้าเป้าหมายในช่วง (หรือเพิ่งลบ) ขึ้นคำว่า
+  //   "ยังไม่มีลูกค้าเป้าหมายในช่วงที่เลือก" → แยกตัวเลขจาก tooltip ไม่ได้ = ตก (ต้นเหตุไม่นิ่ง 29 ต.ค. 69)
+  //   และ "ต้องมีสาขาที่ใบ ≠ ราย" ขึ้นกับข้อมูลตั้งต้นร่วม
+  const สาขา = await สร้างสาขาของข้อ({ จังหวัด: "สกลนคร", ภาค: "อีสาน" });
+  try {
+    const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+    const เลข = [เลขลูกค้าเป้าหมายทดสอบ(), เลขลูกค้าเป้าหมายทดสอบ(), เลขลูกค้าเป้าหมายทดสอบ(), เลขลูกค้าเป้าหมายทดสอบ()];
+    const สถานะ = ["QUOTED", "QUOTED", "BULLET", "WAITING"];   // NEGO เลิกใช้แล้ว (ใบ 0257 · ฐานไม่รับ)
+    // วางที่ฐานตรง (ปิดตัวดัก) — ใบเสนอราคาแบบมีลูกค้าเป้าหมายถึงขั้นเสนอราคา สร้างผ่านหน้าจอต้องผ่านใบ HQ ทั้งสาย · ข้อนี้วัดสูตรกราฟ
+    const ผล = รันSQLในฐาน(`set local session_replication_role = replica;
+      insert into public.leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
+        ${เลข.map((n, i) => `('#L-${n}', ${n}, '${สาขา.รหัส}', 'ZZTEST-อัตราแปลง-${i}', 'ZZTEST', '000000${String(i).padStart(4, "0")}', 'สกลนคร', '${สถานะ[i]}', '${วันนี้}')`).join(", ")};
+      insert into public.quotations (dealer_code, id, customer, project, status, total_value, date, deal_id) values
+        ('${สาขา.รหัส}', 'Q-${สาขา.รหัส}-1', 'ZZTEST-อัตราแปลง-0', 'ZZTEST', 'sent_to_client', 1000, '${วันนี้}', ${เลข[0]}),
+        ('${สาขา.รหัส}', 'Q-${สาขา.รหัส}-2', 'ZZTEST-อัตราแปลง-0', 'ZZTEST', 'sent_to_client', 2000, '${วันนี้}', ${เลข[0]}),
+        ('${สาขา.รหัส}', 'Q-${สาขา.รหัส}-3', 'ZZTEST-อัตราแปลง-1', 'ZZTEST', 'sent_to_client', 3000, '${วันนี้}', ${เลข[1]});
+      set local session_replication_role = origin;`);
+    if (ผล === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางข้อมูลของข้อไม่ได้");
 
-  const cells = card.locator("span[title*='ออกใบเสนอราคาแล้ว']");
-  const n = await cells.count();
-  expect(n, "กราฟต้องมีอย่างน้อยหนึ่งดีลเลอร์ให้ตรวจ").toBeGreaterThan(0);
+    await open(page, "hq", `/hq/quotations?dealer=${สาขา.รหัส}`);
+    await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
+    const card = page.locator(".card", { hasText: "อัตราลูกค้าเป้าหมายที่ออกใบเสนอราคา แยกตามดีลเลอร์" }).first();
+    await expect(card).toBeVisible();
+    // คำอธิบายใต้หัวข้อถูกถอดออก (ชื่อการ์ดบอกครบในตัวแล้ว) — ตรวจที่ "หน่วยของแถบ" แทน
+    // ทั้งสองแถบต้องเป็น "ราย" ไม่งั้น % กับความยาวแถบจะไม่ตรงกันเหมือนบั๊กเดิม
+    await expect(card.getByText(/\d+ ราย/).first()).toBeVisible();
+    await expect(card.getByText(/\d+ ใบ$/), "แถบต้องไม่กลับไปวัดด้วยจำนวนใบอีก").toHaveCount(0);
 
-  let checkedAgainstDocs = 0;
-  for (let i = 0; i < n; i++) {
-    const title = (await cells.nth(i).getAttribute("title")) ?? "";
-    const shown = ((await cells.nth(i).innerText()) ?? "").trim();
+    // กรองสาขาของข้อแล้ว = เหลือแถบเดียว (ตัวกรองดีลเลอร์ติดแล้ว ไม่ใช่อ่านตอนยังเป็นทั้งเครือ)
+    const cells = card.locator("span[title*='ออกใบเสนอราคาแล้ว']");
+    await expect(cells, "กรองสาขาของข้อแล้วเหลือแถบของสาขานี้แถบเดียว").toHaveCount(1);
+    await expect(card, "แถบเป็นของสาขาของข้อ").toContainText(สาขา.รหัส);
+    await expect(cells.first(), "tooltip บอกที่มาของตัวเลขครบ (ราย · ราย · ใบ)")
+      .toHaveAttribute("title", "ออกใบเสนอราคาแล้ว 2 จากลูกค้าเป้าหมาย 4 ราย (รวม 3 ใบ)");
+    const title = (await cells.first().getAttribute("title")) ?? "";
+    const shown = ((await cells.first().innerText()) ?? "").trim();
     const m = title.match(/ออกใบเสนอราคาแล้ว (\d+) จากลูกค้าเป้าหมาย (\d+) ราย \(รวม (\d+) ใบ\)/);
     expect(m, `tooltip ต้องบอกที่มาของตัวเลขครบ: "${title}"`).not.toBeNull();
     const [quoted, leads, docs] = [Number(m![1]), Number(m![2]), Number(m![3])];
-
     expect(quoted, `รายที่ออกใบแล้วต้องไม่เกินรายทั้งหมด (${title})`).toBeLessThanOrEqual(leads);
     expect(shown, `อัตราต้องคิดจาก ${quoted}/${leads} ราย (${title})`).toBe(`${Math.round(quoted / leads * 100)}%`);
-
-    // เคสที่พิสูจน์ว่าไม่ได้หารด้วยจำนวนใบ: ใบ ≠ ราย แล้วค่าที่โชว์ยังไม่ใช่ผลของจำนวนใบ
-    if (docs !== quoted && Math.round(docs / leads * 100) !== Math.round(quoted / leads * 100)) {
-      expect(shown, `ค่าที่โชว์ตรงกับสูตรเก่า (จำนวนใบ ÷ ราย) — สูตรถูกย้อนกลับแล้ว (${title})`)
-        .not.toBe(`${Math.round(docs / leads * 100)}%`);
-      checkedAgainstDocs++;
-    }
+    expect(shown, "2 ÷ 4 ราย = 50%").toBe("50%");
+    // พิสูจน์ว่าไม่ได้หารด้วยจำนวนใบ: ใบ (3) ≠ ราย (2) และค่าที่โชว์ไม่ใช่ผลของสูตรเก่า (3 ÷ 4 = 75%)
+    expect(docs, "ข้อมูลของข้อ: จำนวนใบต่างจากจำนวนราย").not.toBe(quoted);
+    expect(shown, `ค่าที่โชว์ตรงกับสูตรเก่า (จำนวนใบ ÷ ราย) — สูตรถูกย้อนกลับแล้ว (${title})`).not.toBe(`${Math.round(docs / leads * 100)}%`);
+  } finally {
+    await สาขา.ลบ();
   }
-  expect(checkedAgainstDocs, "ข้อมูลทดสอบไม่มีดีลเลอร์ที่จำนวนใบต่างจากจำนวนราย — เทสต์นี้จะพิสูจน์อะไรไม่ได้เลย").toBeGreaterThan(0);
 });
-

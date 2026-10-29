@@ -2,6 +2,10 @@
 -- รัน: docker exec -i supabase_db_pms-dbcheck psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/lead_summary_lost.sql
 -- ทรานแซกชันเดียวแล้ว rollback · ผ่าน = "ALL PASS"
 begin;
+-- ทั้งรายการเห็นข้อมูลชุดเดียว (บอสสั่ง 29 ต.ค. 69 · คิวข้อ 3): เดิมนับจากตารางลีดกับเรียกตัวสรุปคนละคำสั่ง
+--   ข้ออื่นที่รันพร้อมกัน commit ลีด CNX ที่ปิดแล้วแทรกระหว่างสองคำสั่ง = ตัวเลขคลาดกัน ทั้งที่ตัวสรุปถูก
+--   repeatable read = ทุกคำสั่งในรายการเห็นภาพเดียวกัน (ไม่ล็อก ไม่รอใคร) · ตรวจเทียบเป๊ะเหมือนเดิม
+set transaction isolation level repeatable read;
 do $$
 declare
   d jsonb; v_won int; v_lost int; s_won int; s_lost int;

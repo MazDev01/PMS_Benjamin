@@ -5,6 +5,7 @@ import { db, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { สร้างดีลเลอร์รหัสยาว, ล้างดีลเลอร์รหัสยาว, รหัสยาว } from "./longCodeDealer";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 
 // ── รอบ 2 ช่วง ข: หน้าดีลเลอร์ของ HQ (บอสตัดสิน 19 ต.ค. 69) ───────────────────────────────────────────────────────
 //   1) แถว HQ ซ่อนจากรายชื่อดีลเลอร์ และไม่นับในตัวเลขดีลเลอร์ (ทะเบียน · แดชบอร์ด · ภาพรวมยอดขาย) · ฐานกันลบ/ปิด (ใบ 0222)
@@ -37,20 +38,25 @@ test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อแ�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const การ์ดทั้งหมด = page.locator(".kpi-card, [class*='kpi']").filter({ hasText: "ดีลเลอร์ทั้งหมด" }).first();
-  // นับจากฐาน ณ จังหวะเดียวกับที่อ่านการ์ด (22 ต.ค. 69 · เดิมนับก่อนเปิดหน้า แล้วข้อทดสอบอื่นที่รันพร้อมกันสร้างสาขาทดสอบชั่วคราว
-  //   ระหว่างนั้น → ฐาน 9 แต่หน้าเห็น 10) · ไม่ตรง = โหลดหน้าใหม่แล้วเทียบอีกรอบ · เทียบเลขตรงตัว ไม่ใช่แค่ "มีเลขนี้อยู่ในข้อความ"
-  await expect.poll(async () => {
-    const เลข = (await การ์ดทั้งหมด.innerText()).replace(/\s+/g, " ").match(/ดีลเลอร์ทั้งหมด\s*([\d,]+)/)?.[1]?.replace(/,/g, "");
-    const { count } = await admin.from("dealers").select("code", { count: "exact", head: true }).neq("code", "HQ");
-    if (เลข === String(count)) return "ตรง";
+  const การ์ดทั้งหมด = page.locator("[data-kpi='total'] [data-value]").first();
+  // คิวข้อ 3 (29 ต.ค. 69): เดิมเทียบการ์ดกับจำนวนดีลเลอร์ทั้งเครือ — ข้ออื่นสร้าง/ลบสาขาของข้อตลอด ตัวเลขทั้งเครือไม่เคยนิ่งพอ
+  //   การ์ดเดินตามคำค้น (บอสตัดสิน 27 ต.ค. 69) → ค้นด้วยป้ายของข้อ: สาขาของข้อ 2 ราย = การ์ด 2 พอดี · ตารางก็ 2 แถว
+  //   ค้นชื่อแถว HQ → ตารางว่าง + การ์ด 0 (ถ้าการ์ดนับแถว HQ จะได้ 1) — ตรวจเรื่อง "ไม่นับ HQ" ตรงตัวโดยไม่พึ่งยอดทั้งเครือ
+  const ป้าย = `ZZTEST-ทะเบียน-${Date.now() % 100000}`;
+  const สาขา = [await สร้างสาขาของข้อ({ ชื่อ: `${ป้าย} ก` }), await สร้างสาขาของข้อ({ ชื่อ: `${ป้าย} ข` })];
+  try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await settle(page);
-    return `การ์ด ${เลข ?? "ไม่มีเลข"} · ฐาน ${count}`;
-  }, { message: "การ์ดดีลเลอร์ทั้งหมด = นับจากฐานไม่รวม HQ", timeout: 20_000 }).toBe("ตรง");
+    await page.getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
+    await expect(page.locator("tbody tr").filter({ hasText: ป้าย }), "ทะเบียน: สาขาของข้อครบ 2 แถว").toHaveCount(2, { timeout: 20_000 });
+    await expect(การ์ดทั้งหมด, "การ์ดดีลเลอร์ทั้งหมด = สาขาที่ตรงคำค้น (2)").toHaveAttribute("data-value", "2", { timeout: 20_000 });
+  } finally { for (const x of สาขา) await x.ลบ(); }
+  const { data: ชื่อHQ } = await admin.from("dealers").select("name").eq("code", "HQ").single();
+  expect(ชื่อHQ?.name, "ตั้งต้น: ฐานมีแถว HQ").toBeTruthy();
   await page.getByPlaceholder(/ค้นหา/).first().fill("สำนักงานใหญ่");
   await expect(page.locator("td[data-col='code']").filter({ hasText: /^HQ$/ }), "ทะเบียนไม่มีแถว HQ").toHaveCount(0);
   await expect(page.getByText("ไม่พบข้อมูล")).toBeVisible({ timeout: 10_000 });
+  await expect(การ์ดทั้งหมด, "ค้นชื่อแถว HQ → การ์ด 0 (ไม่นับสำนักงานใหญ่)").toHaveAttribute("data-value", "0", { timeout: 10_000 });
 
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);

@@ -6,9 +6,12 @@ import { adminClient } from "./testDealers";
 import { settle } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
+import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
 // ── แดชบอร์ด HQ (บอสสั่ง 21 ต.ค. 69 · ตัวคำนวณ hq_dashboard ใบ 0235) ───────────────────────────────────────────────
-//   ใช้สาขาทดสอบของไฟล์นี้เอง (ZZDB มีข้อมูลที่รู้ค่า · ZZDE ว่าง) แล้วเลือกดีลเลอร์นั้นบนหน้า → ตัวเลขไม่โดนข้อทดสอบอื่นที่รันพร้อมกันกวน
+//   ใช้สาขาของข้อ (ownDealer · รหัสสุ่ม ZT… ตัวหนึ่งมีข้อมูลที่รู้ค่า · อีกตัวว่าง) แล้วเลือกดีลเลอร์นั้นบนหน้า → ตัวเลขไม่โดนข้อทดสอบอื่นที่รันพร้อมกันกวน
+//   ส่วนที่ตั้งใจเป็นของทั้งเครือ (วันนี้ต้องทำ · จำนวนดีลเลอร์ตามภาค) อ่านจอกับตารางในรอบเดียวกันซ้ำจนตรงกัน — ข้ออื่นเพิ่ม/ลบแถวระหว่างทางได้
+//     (เดิมอ่านตารางรอบหนึ่ง อ่านจออีกรอบ / เทียบค่าทั้งเครือสองครั้งห่างกัน → ตกเมื่อข้ออื่นสร้างสาขา/คำขอระหว่างนั้น)
 //   1) การ์ด 4 ใบ + 10 อันดับ ตรงกับการนับจากตาราง · เปลี่ยนช่วงเวลา (วันนี้ ↔ ปีนี้) ตัวเลขเปลี่ยนจริง
 //      ยอดขายนับตาม "วันที่ลูกค้าตอบรับ" (ใบที่ออกต้นปีแต่ตอบรับวันนี้ = ยอดวันนี้)
 //   2) วันนี้ต้องทำ = นับจากตาราง · เลือกดีลเลอร์แล้วไม่เปลี่ยน · กดแล้วไปหน้างานพร้อมตัวกรอง
@@ -21,7 +24,8 @@ test.setTimeout(180_000);
 
 const admin = adminClient();
 const ป้าย = `${Date.now() % 100000}`;
-const สาขา = "ZZDB", สาขาว่าง = "ZZDE";
+let สาขา = "", สาขาว่าง = "";   // รหัสจาก สร้างสาขาของข้อ (beforeAll)
+const ของข้อ: สาขาของข้อ[] = [];
 const เลขลูกค้า = 979_200_001;
 const เลขลีด = [979_200_101, 979_200_102, 979_200_103];
 const ปี = new Date(Date.now() + 7 * 3_600_000).getUTCFullYear();
@@ -29,17 +33,18 @@ const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().sl
 const ต้นปี = `${ปี}-01-02`;
 const กิจกรรมจริง = `กิจกรรมแดชบอร์ด-${ป้าย}`;
 
+// ล้างแถวของไฟล์ (เลขที่ตายตัว + สาขาของข้อเมื่อมีแล้ว) — ตัวสาขาลบด้วย สาขาของข้อ.ลบ() ใน afterAll
 function ล้าง() {
-  ลบใบทดสอบที่ฐาน(`dealer_code in ('${สาขา}', '${สาขาว่าง}')`);
+  const รหัส = [สาขา, สาขาว่าง].filter(Boolean).map(c => `'${c}'`).join(", ") || "''";
+  ลบใบทดสอบที่ฐาน(`dealer_code in (${รหัส})`);
   รันSQLในฐาน(`set local session_replication_role = replica;
     delete from public.dealer_package_proposals where id = 979200811;
     delete from public.dealer_prospects where id = 979200801;
     delete from public.quote_request_events where request_id = 979200901;
     delete from public.quote_requests where id = 979200901;
-    delete from public.leads where dealer_code in ('${สาขา}', '${สาขาว่าง}');
-    delete from public.customers where dealer_code in ('${สาขา}', '${สาขาว่าง}');
-    delete from public.files where dealer_code in ('${สาขา}', '${สาขาว่าง}');
-    delete from public.dealers where code in ('${สาขา}', '${สาขาว่าง}');
+    delete from public.leads where dealer_code in (${รหัส}) or num_id in (${เลขลีด.join(", ")});
+    delete from public.customers where dealer_code in (${รหัส}) or id = ${เลขลูกค้า};
+    delete from public.files where dealer_code in (${รหัส});
     -- บันทึกการใช้งานลบได้เฉพาะแถวทดสอบ ผ่านสวิตช์ล้างข้อมูลทดสอบ (ใบ 0241) — แถวที่หน้าตาเหมือนจริงติดป้าย ZZTEST ที่การกระทำ
     select set_config('pms.audit_delete', 'test', false);
     select set_config('pms.audit_backup', 'ฐานทดสอบ (ข้อทดสอบแดชบอร์ด)', false);   -- ใบ 0245
@@ -48,16 +53,16 @@ function ล้าง() {
     select set_config('pms.audit_backup', '', false);`);
 }
 
-test.beforeAll(() => {
+test.beforeAll(async () => {
+  ของข้อ.push(await สร้างสาขาของข้อ({ จังหวัด: "ยะลา", ภาค: "ใต้", เป้า: 36_500_000, ชื่อ: "ZZTEST สาขาแดชบอร์ด (ลบทิ้ง)" }));
+  ของข้อ.push(await สร้างสาขาของข้อ({ จังหวัด: "ยะลา", ภาค: "ใต้", เป้า: 0, ชื่อ: "ZZTEST สาขาว่าง (ลบทิ้ง)" }));
+  [สาขา, สาขาว่าง] = ของข้อ.map(x => x.รหัส);
   ล้าง();
   // ใบ: Q1 ออกต้นปี ตอบรับวันนี้ 120,000 · Q2 ออกวันนี้ ตอบรับต้นปี 80,000 · Q3 ส่งแล้ววันนี้ · Q4 ร่างวันนี้ (ไม่นับ)
   // ลีด: วันนี้ ปิดสำเร็จ 1 (ผูก Q1) + ปิดไม่สำเร็จ 1 · ต้นปี รอติดต่อ 1
   // กิจกรรม: เห็น 1 รายการ (HQ แก้ไขดีลเลอร์ RYG) · ไม่เห็น 4 รายการ (บัญชีชั่วคราว · อีเมลทดสอบ · สาขา ZZ · ป้าย ZZTEST)
   const out = รันSQLในฐาน(`set local session_replication_role = replica;
-    insert into public.dealers (code, name, status, province, region, revenue_target) values
-      ('${สาขา}', 'ZZTEST สาขาแดชบอร์ด (ลบทิ้ง)', 'active', 'ระยอง', 'ตะวันออก', 36500000),
-      ('${สาขาว่าง}', 'ZZTEST สาขาว่าง (ลบทิ้ง)', 'active', 'ระยอง', 'ตะวันออก', 0);
-    insert into public.customers (id, dealer_code, name, company, province) values (${เลขลูกค้า}, '${สาขา}', 'ZZTEST-ลูกค้าแดชบอร์ด', 'ZZTEST-ลูกค้าแดชบอร์ด', 'ระยอง');
+    insert into public.customers (id, dealer_code, name, company, province) values (${เลขลูกค้า}, '${สาขา}', 'ZZTEST-ลูกค้าแดชบอร์ด', 'ZZTEST-ลูกค้าแดชบอร์ด', 'ยะลา');
     insert into public.quotations (dealer_code, id, customer, project, status, total_value, date, customer_id, deal_id) values
       ('${สาขา}', 'Q-${สาขา}-1', 'ZZTEST-ลูกค้าแดชบอร์ด', 'ZZTEST', 'won', 120000, '${ต้นปี}', ${เลขลูกค้า}, ${เลขลีด[0]}),
       ('${สาขา}', 'Q-${สาขา}-2', 'ZZTEST-ลูกค้าแดชบอร์ด', 'ZZTEST', 'won',  80000, '${วันนี้}', ${เลขลูกค้า}, null),
@@ -68,9 +73,9 @@ test.beforeAll(() => {
       ('${สาขา}', 'Q-${สาขา}-1', (('${วันนี้}'::date)::timestamp + interval '10 hours') at time zone 'Asia/Bangkok'),
       ('${สาขา}', 'Q-${สาขา}-2', (('${ต้นปี}'::date)::timestamp + interval '9 hours') at time zone 'Asia/Bangkok');
     insert into public.leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
-      ('#L-${เลขลีด[0]}', ${เลขลีด[0]}, '${สาขา}', 'ZZTEST-ลีดแดชบอร์ด1', 'ZZTEST', '0000000001', 'ระยอง', 'PAID', '${วันนี้}'),
-      ('#L-${เลขลีด[1]}', ${เลขลีด[1]}, '${สาขา}', 'ZZTEST-ลีดแดชบอร์ด2', 'ZZTEST', '0000000002', 'ระยอง', 'CANCELLED', '${วันนี้}'),
-      ('#L-${เลขลีด[2]}', ${เลขลีด[2]}, '${สาขา}', 'ZZTEST-ลีดแดชบอร์ด3', 'ZZTEST', '0000000003', 'ระยอง', 'WAITING', '${ต้นปี}');
+      ('#L-${เลขลีด[0]}', ${เลขลีด[0]}, '${สาขา}', 'ZZTEST-ลีดแดชบอร์ด1', 'ZZTEST', '0000000001', 'ยะลา', 'PAID', '${วันนี้}'),
+      ('#L-${เลขลีด[1]}', ${เลขลีด[1]}, '${สาขา}', 'ZZTEST-ลีดแดชบอร์ด2', 'ZZTEST', '0000000002', 'ยะลา', 'CANCELLED', '${วันนี้}'),
+      ('#L-${เลขลีด[2]}', ${เลขลีด[2]}, '${สาขา}', 'ZZTEST-ลีดแดชบอร์ด3', 'ZZTEST', '0000000003', 'ยะลา', 'WAITING', '${ต้นปี}');
     -- งานค้างของ HQ ที่รู้ค่า: คำขอเลยกำหนด 1 · ใบค่าแฟรนไชส์ค้างชำระ 1 (แถว "วันนี้ต้องทำ" มีของให้นับเสมอ)
     insert into public.quote_requests (id, request_no, dealer_code, lead_num_id, product, status, submitted_at, due_at) values
       (979200901, 'QR-${สาขา}-1', '${สาขา}', ${เลขลีด[2]}, 'ZZTEST', 'new', now() - interval '20 days', now() - interval '6 days');
@@ -86,7 +91,7 @@ test.beforeAll(() => {
     select 'ok';`);
   if (!out?.includes("ok")) throw new Error("วางข้อมูลแดชบอร์ดไม่สำเร็จ");
 });
-test.afterAll(ล้าง);
+test.afterAll(async () => { ล้าง(); for (const x of ของข้อ) await x.ลบ(); });
 
 async function เปิด(page: Page) {
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
@@ -126,7 +131,7 @@ test("[H12] [แดชบอร์ด HQ] การ์ด 4 ใบตรงก�
   const ใบส่ง = async (ตั้งแต่: string) => ((await admin.from("quotations").select("status, date").eq("dealer_code", สาขา)).data ?? [])
     .filter(q => ["sent_to_client", "won", "lost", "expired"].includes(q.status) && q.date >= ตั้งแต่ && q.date <= วันนี้).length;
 
-  await expect.poll(async () => (await การ์ด(page)).sales, { timeout: 30_000, message: "ปีนี้: ยอดขาย ZZDB = 120,000 + 80,000" }).toBe("200000");
+  await expect.poll(async () => (await การ์ด(page)).sales, { timeout: 30_000, message: "ปีนี้: ยอดขายสาขาของข้อ = 120,000 + 80,000" }).toBe("200000");
   const ปีนี้ = await การ์ด(page);
   const ลีดปี = await ลีดในช่วง(`${ปี}-01-01`);
   expect(Number(ปีนี้.leads), "ปีนี้: ลีดใหม่ = นับจากตาราง (3)").toBe(ลีดปี.length);
@@ -136,6 +141,9 @@ test("[H12] [แดชบอร์ด HQ] การ์ด 4 ใบตรงก�
   expect(Number(ปีนี้.win), "อัตราปิดการขาย = 1 ÷ (1 + 1)").toBe(50);
   await expect(page.locator("[data-kpi='leads']"), "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลีดใหม่ของ ${สาขา}`);
   expect(JSON.stringify(ปีนี้), "เลือกดีลเลอร์แล้วตัวเลขเปลี่ยนจากทั้งเครือ").not.toBe(JSON.stringify(ทั้งเครือ));
+  // ดีลเลอร์ตามภาค: เลือกสาขาของข้อ → โดนัทนับ 1 ดีลเลอร์ · ภาคของสาขานั้น (ข้อมูลของข้อเอง ตรงเป๊ะ)
+  await expect(page.locator("[data-card='regions'] .donut-center .dc-val").last(), "เลือกดีลเลอร์แล้วโดนัทนับสาขาเดียว").toHaveText("1", { timeout: 30_000 });
+  await expect(page.locator("[data-card='regions']"), "ภาคของสาขาที่เลือก").toContainText("ภาคใต้");
 
   await เลือกช่วง(page, "วันนี้");
   await expect.poll(async () => (await การ์ด(page)).sales, { timeout: 30_000, message: "วันนี้: ยอดขาย = Q1 (ออกใบต้นปี แต่ตอบรับวันนี้) เท่านั้น" }).toBe("120000");
@@ -145,7 +153,7 @@ test("[H12] [แดชบอร์ด HQ] การ์ด 4 ใบตรงก�
   expect(await ใบส่ง(วันนี้)).toBe(3);
   await expect(page.locator("[data-kpi='sales'] [data-target]"), "วันนี้: เป้าเฉลี่ย 1 วัน = 36.5 ล้าน ÷ 365").toHaveAttribute("data-target", "100000");
 
-  // 10 อันดับ: แถวเดียว ZZDB · ยอดวันนี้
+  // 10 อันดับ: แถวเดียว (สาขาของข้อ) · ยอดวันนี้
   const แถว = page.locator("[data-top-row]");
   await expect(แถว).toHaveCount(1);
   await expect(page.locator(`[data-top-row='${สาขา}'] [data-value]`)).toHaveAttribute("data-value", "120000");
@@ -188,17 +196,21 @@ test("[แดชบอร์ด HQ] วันนี้ต้องทำ: ตร
   await expect.poll(async () => { await เปิด(page); return JSON.stringify(await อ่าน()) === JSON.stringify(await จากตาราง()); },
     { timeout: 90_000, intervals: [1000, 3000, 5000], message: "วันนี้ต้องทำ = นับจากตาราง" }).toBe(true);
   const ทั้งเครือ = await อ่าน();
-  await เลือกดีลเลอร์(page, สาขาว่าง);
-  await page.waitForTimeout(1500);
-  const เลือกสาขา = await อ่าน();
-
   expect(ทั้งเครือ.open, "มีคำขอที่วางไว้อย่างน้อย 1").toBeGreaterThanOrEqual(1);
   expect(ทั้งเครือ.overdue, "มีคำขอเลยกำหนดอย่างน้อย 1").toBeGreaterThanOrEqual(1);
   expect(ทั้งเครือ.franchise, "มีใบค้างชำระอย่างน้อย 1").toBeGreaterThanOrEqual(1);
-  expect(เลือกสาขา, "เลือกดีลเลอร์แล้วทั้งแถวไม่เปลี่ยน").toEqual(ทั้งเครือ);
+  // เลือกดีลเลอร์ที่ไม่มีงานค้างเลย แล้วแถวยังเท่ากับตารางทั้งเครือ (ไม่ใช่ 0 ของสาขานั้น) = ไม่ขึ้นกับตัวกรอง
+  //   ตารางทั้งเครืออ่านใหม่ในรอบเดียวกับจอ — ข้ออื่นสร้าง/ปิดคำขอระหว่างทางได้ (เดิมเทียบกับค่าที่อ่านไว้ก่อนเลือก → ตกแบบสุ่ม)
+  await เลือกดีลเลอร์(page, สาขาว่าง);
+  await expect.poll(async () => JSON.stringify(await อ่าน()) === JSON.stringify(await จากตาราง()),
+    { timeout: 90_000, intervals: [1000, 3000, 5000], message: "เลือกดีลเลอร์แล้ว วันนี้ต้องทำ = ตารางทั้งเครือ (ไม่กรองตามสาขา)" }).toBe(true);
+  const { count: คำขอของสาขาว่าง } = await admin.from("quote_requests").select("id", { count: "exact", head: true }).eq("dealer_code", สาขาว่าง);
+  expect(คำขอของสาขาว่าง, "สาขาที่เลือกไม่มีคำขอของตัวเอง (ถ้ากรองตามสาขา แถวจะเป็น 0)").toBe(0);
   await page.getByTestId("today-franchise").click();
   await page.waitForURL(/\/hq\/proposals/, { timeout: 60_000 });
-  await expect(page.getByTestId("filter-overdue"), "หน้าใบค่าแฟรนไชส์กรองเฉพาะใบค้างชำระ").toContainText(`เฉพาะใบค้างชำระ (${ทั้งเครือ.franchise})`, { timeout: 20_000 });
+  // จำนวนบนตัวกรอง = ใบค้างชำระทั้งเครือ ณ ตอนอ่าน (อ่านตารางใหม่ทุกรอบ)
+  await expect.poll(async () => (await page.getByTestId("filter-overdue").innerText()).includes(`เฉพาะใบค้างชำระ (${(await จากตาราง()).franchise})`),
+    { timeout: 20_000, message: "หน้าใบค่าแฟรนไชส์กรองเฉพาะใบค้างชำระ · จำนวนตรงตาราง" }).toBe(true);
   await เปิด(page);
   await page.getByTestId("today-requests").click();
   await page.waitForURL(/\/hq\/quote-requests/, { timeout: 60_000 });
@@ -213,9 +225,16 @@ test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บ
     await expect(การ์ดกิจกรรม, `ไม่เห็น ${ซ่อน}`).not.toContainText(ซ่อน);
   await expect(การ์ดกิจกรรม, "ไม่มีชื่อบัญชีชั่วคราว").not.toContainText("บัญชีทดสอบชั่วคราว");
 
-  // ภาค: จำนวนดีลเลอร์ = ทะเบียนไม่นับแถว HQ
-  const { count } = await admin.from("dealers").select("code", { count: "exact", head: true }).neq("code", "HQ");
-  await expect(page.locator("[data-card='regions']"), "โดนัท = ทะเบียนดีลเลอร์ไม่นับแถว HQ").toContainText(String(count));
+  // ภาค: จำนวนดีลเลอร์ = ทะเบียนไม่นับแถว HQ — อ่านเลขกลางโดนัทกับทะเบียนในรอบเดียวกัน ซ้ำจนตรง
+  //   (ข้ออื่นสร้าง/ลบสาขาของข้อตลอด · เดิมอ่านทะเบียนครั้งเดียวแล้วดูว่าการ์ด "มีเลขนี้" → ตกแบบสุ่ม และ "มีเลขนี้" หลวมเกิน)
+  const กลางโดนัท = page.locator("[data-card='regions'] .donut-center .dc-val").last();
+  const ทะเบียน = async (ไม่นับHQ: boolean) => {
+    const q = admin.from("dealers").select("code", { count: "exact", head: true });
+    return (await (ไม่นับHQ ? q.neq("code", "HQ") : q)).count ?? -1;
+  };
+  await expect.poll(async () => { await เปิด(page); return Number(await กลางโดนัท.innerText()) === await ทะเบียน(true); },
+    { timeout: 60_000, intervals: [1000, 3000, 5000], message: "โดนัท = ทะเบียนดีลเลอร์ไม่นับแถว HQ" }).toBe(true);
+  expect(await ทะเบียน(false), "ทะเบียนมีแถว HQ (ถ้าจอนับแถว HQ จะไม่ตรง)").toBeGreaterThan(await ทะเบียน(true));
 
   await การ์ดกิจกรรม.locator("[data-activity-link]").filter({ hasText: กิจกรรมจริง }).click();
   await page.waitForURL(/\/hq\/dealers\/RYG$/, { timeout: 20_000 });

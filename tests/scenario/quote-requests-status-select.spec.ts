@@ -16,16 +16,18 @@ test.setTimeout(180_000);
 
 // ข้อมูลของข้อทดสอบเอง: คำขอที่ส่งใบ HQ แล้ว 2 รายการ (กลุ่มส่งแล้ว) + คำขอใหม่ 2 รายการ (กลุ่มต้องตีราคา) — ให้วัดเวลาสลับ/เลือกได้เสมอ
 const แท็ก = Date.now() % 100_000;
+// ป้ายของข้อ — ชื่อลูกค้าเป้าหมายทุกรายของข้อขึ้นต้นด้วยป้ายนี้ · ค้นด้วยป้าย = เห็นเฉพาะคำขอของข้อ (ข้ออื่นเพิ่มคำขอพร้อมกันไม่กระทบ)
+const ป้าย = `ZZTEST-ช่องสถานะ-${แท็ก}`;
 const เลขลีด: number[] = [];
 test.beforeAll(async () => {
   for (let i = 0; i < 2; i++) {
-    const ใบ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: `ZZTEST-ช่องสถานะ-ส่งแล้ว${i}-${แท็ก}`, province: "ระยอง",
+    const ใบ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: `${ป้าย}-ส่งแล้ว${i}`, province: "ระยอง",
       lines: [{ name: "ZZTEST โครงหลัก", qty: 1, unit: "ชุด", unitCost: 1000 }] });
     เลขลีด.push(ใบ.leadNum);
   }
   const sb = await db(RYG);
   for (let i = 0; i < 2; i++) {
-    const n = เลขลูกค้าเป้าหมายทดสอบ(), ชื่อ = `ZZTEST-ช่องสถานะ-ใหม่${i}-${แท็ก}`;
+    const n = เลขลูกค้าเป้าหมายทดสอบ(), ชื่อ = `${ป้าย}-ใหม่${i}`;
     const l = await sb.from("leads").insert({ id: `#L-${n}`, num_id: n, dealer_code: "RYG", company: ชื่อ, name: ชื่อ, contact: "ผู้ทดสอบ",
       phone: `08${String(n).slice(-8)}`, province: "ระยอง", status: "BULLET" });
     expect(l.error).toBeNull();
@@ -40,8 +42,10 @@ const รายการ = (page: Page) => page.getByRole("list", { name: "ร�
 const การ์ด = (page: Page, kpi: string) => page.locator(`[data-kpi-row] [data-kpi="${kpi}"]`);
 const จำนวนแถว = async (page: Page) => {
   // รายการแบ่งหน้า (แถบเปลี่ยนหน้าโผล่เมื่อเกินหน้าเดียว) — มีแถบ = ยอดรวมจากแถบ · ไม่มี = นับแถวที่เห็น
-  const แถบ = page.getByText(/แสดง .* จาก .*/);
-  if (await แถบ.count()) { const m = (await แถบ.first().innerText()).replace(/,/g, "").match(/จาก\s+(\d+)/); return m ? Number(m[1]) : NaN; }
+  //   อ่านทีเดียว (allInnerTexts ไม่รอ) — เดิม count() แล้วค่อย innerText(): แถบหายระหว่างสองคำสั่ง (เปลี่ยนกลุ่มแล้วเหลือหน้าเดียว)
+  //   → innerText รอแถบที่ไม่มีแล้วจนหมดเวลา 8 วิ (ต้นเหตุไม่นิ่ง 28–29 ต.ค. 69)
+  const [แถบ] = await page.getByText(/แสดง .* จาก .*/).allInnerTexts();
+  if (แถบ !== undefined) { const m = แถบ.replace(/,/g, "").match(/จาก\s+(\d+)/); return m ? Number(m[1]) : NaN; }
   return รายการ(page).getByRole("button").count();
 };
 const หาค่าการ์ด = async (page: Page, kpi: string) => Number(await การ์ด(page, kpi).locator("[data-value]").getAttribute("data-value"));
@@ -111,17 +115,20 @@ test("[ui·hq] คำขอใบเสนอราคา: ช่องเลื
   await page.setViewportSize({ width: 1440, height: 900 });
 
   // ── 2) เลือก "ส่งแล้ว รอดีลเลอร์" ได้แถวตรงฐาน · "ทั้งหมด" = ทุกกลุ่ม ──
-  for (const g of ["quoted", "won", "closed", "all"] as const) {
+  //   ค้นด้วยป้ายของข้อ — รู้ค่าแน่นอน: ส่งแล้ว 2 · ต้องตีราคา 2 · สั่งผลิต 0 · ปิด 0 · ทั้งหมด 4 (เดิมเทียบทั้งเครือ: ข้ออื่นเพิ่มคำขอ = จอค้างค่าเก่า)
+  //   ตรวจทั้ง "จอ = ฐาน" (ตัวกรองหน้าเว็บกับฐานใช้คำค้นเดียวกัน) และ "ฐาน = ค่าที่รู้" (ฐานกรองกลุ่มถูก)
+  await page.getByLabel("ค้นหาคำขอ").fill(ป้าย);
+  for (const [g, รู้ค่า] of [["todo", 2], ["quoted", 2], ["won", 0], ["closed", 0], ["all", 4]] as const) {
     await ช่องเลือก(page).selectOption(g);
-    await expect.poll(async () => {
-      const { data } = await hq.rpc("hq_quote_board", { p_group: g, p_q: "" });
-      const ฐาน = (data as { rows: unknown[] }).rows.length;
-      return (await จำนวนแถว(page)) === ฐาน ? "ตรง" : `จอ ${await จำนวนแถว(page)} · ฐาน ${ฐาน}`;
-    }, { timeout: 20_000, message: `เลือก ${g}: จำนวนแถว = ฐาน` }).toBe("ตรง");
+    const { data } = await hq.rpc("hq_quote_board", { p_group: g, p_q: ป้าย });
+    const ฐาน = (data as { rows: unknown[] }).rows.length;
+    expect.soft(ฐาน, `ฐาน กลุ่ม ${g} (ค้นด้วยป้ายของข้อ) = ${รู้ค่า}`).toBe(รู้ค่า);
+    await expect.poll(() => จำนวนแถว(page), { timeout: 20_000, message: `เลือก ${g}: จำนวนแถวบนจอ = ฐาน (${ฐาน})` }).toBe(ฐาน);
   }
+  await page.getByLabel("ค้นหาคำขอ").fill("");
   const { data: ทั้งหมด } = await hq.rpc("hq_quote_board", { p_group: "all", p_q: "" });
   const c = (ทั้งหมด as { counts: Record<string, number> }).counts;
-  expect.soft((ทั้งหมด as { rows: unknown[] }).rows.length, "ทั้งหมด = ผลรวมทุกกลุ่ม").toBe(c.todo + c.quoted + c.won + c.closed);
+  expect.soft((ทั้งหมด as { rows: unknown[] }).rows.length, "ทั้งหมด = ผลรวมทุกกลุ่ม (ผลจากคำขอเดียวกันที่ฐาน)").toBe(c.todo + c.quoted + c.won + c.closed);
 
   // ── 3) กดการ์ด → ช่องเลือกเปลี่ยนตาม · ตัวเลขการ์ด = จำนวนแถว ──
   for (const [kpi, ค่า, นับ] of [["overdue", "overdue", true], ["todo", "todo", true], ["cancel-rate", "closed", false], ["avg-response", "quoted", false]] as const) {
