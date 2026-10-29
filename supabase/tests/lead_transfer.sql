@@ -43,7 +43,8 @@ begin
   select * into c from flowtest.t_ctx;
   -- เตรียม: รหัส HQ (ระบบจริงมีลูกค้าเป้าหมายใต้รหัสนี้ 252 ราย) · ลำพูนทับซ้อน RYG + CNX · ตราดว่าง
   insert into dealers (code, name, province, region, status) values ('HQ', 'สำนักงานใหญ่', 'กรุงเทพมหานคร', 'กลาง', 'active') on conflict (code) do nothing;
-  insert into dealer_territories (province, dealer_code, legacy) values ('ลำพูน', 'RYG', true), ('ลำพูน', 'CNX', true);
+  -- ลำพูนมี 2 สาขาดูแล = สาขาทดสอบ 2 สาขาจังหวัดเดียวกัน (ดีลเลอร์ 1 ราย = 1 จังหวัดพอดี · ใบ 0259 · ฐานให้พื้นที่ตามจังหวัดที่ตั้งเอง)
+  insert into dealers (code, name, province, region, status) values ('ZZLPA', 'ZZTEST ลำพูน A', 'ลำพูน', 'เหนือ', 'active'), ('ZZLPB', 'ZZTEST ลำพูน B', 'ลำพูน', 'เหนือ', 'active');
   insert into leads (id, dealer_code, num_id, name, company, phone, province, status, note, activities) values
     ('#HQ-1', 'HQ', 970000001, 'ก', 'บจ. โอนระยองหนึ่ง', '081-200-0001', 'ระยอง', 'WAITING', 'โน้ตจาก HQ',
        '[{"id":1,"date":"1 ต.ค. 2569 · 09:00","text":"HQ รับเรื่องจากเว็บไซต์","type":"note","icon":"note"}]'),
@@ -61,7 +62,7 @@ begin
   perform flowtest.as_hq(c.hq_uid);
   select string_agg(coalesce(nullif(province, ''), '(ไม่มีจังหวัด)') || ':' || mode || ':' || leads || ':' || array_to_string(dealer_codes, '+'), ' ' order by province)
     into s from hq_lead_transfer_plan() where province in ('ระยอง', 'ลำพูน', 'ตราด', '');
-  perform flowtest.ok(s = '(ไม่มีจังหวัด):queue:1: ตราด:queue:1: ระยอง:auto:2:RYG ลำพูน:choose:1:CNX+RYG',
+  perform flowtest.ok(s = '(ไม่มีจังหวัด):queue:1: ตราด:queue:1: ระยอง:auto:2:RYG ลำพูน:choose:1:ZZLPA+ZZLPB',
     'แผน: ดีลเลอร์รายเดียว = โอนอัตโนมัติ · ทับซ้อน = HQ เลือก · ไม่มีจังหวัด/จังหวัดว่าง = คิวรอ (ได้ ' || coalesce(s, 'ว่าง') || ')');
 
   -- ══ ข. HQ กดยืนยันโอนอัตโนมัติเป็นชุด ══
@@ -89,8 +90,8 @@ begin
 
   -- ══ ค. จังหวัดทับซ้อน: HQ เลือกดีลเลอร์เป็นชุดต่อจังหวัด ══
   perform flowtest.must_fail('select transfer_hq_leads(''ลำพูน'', ''BKK'')', 'transfer_not_owner', 'โอนให้ดีลเลอร์ที่ไม่ได้ดูแลจังหวัดนั้นไม่ได้');
-  n := transfer_hq_leads('ลำพูน', 'CNX');
-  perform flowtest.ok(n = 1 and exists (select 1 from leads where dealer_code = 'CNX' and company = 'บจ. โอนลำพูน'), 'จังหวัดทับซ้อน HQ เลือก CNX → โอนให้ CNX');
+  n := transfer_hq_leads('ลำพูน', 'ZZLPB');
+  perform flowtest.ok(n = 1 and exists (select 1 from leads where dealer_code = 'ZZLPB' and company = 'บจ. โอนลำพูน'), 'จังหวัดหลายสาขา HQ เลือกสาขาที่ 2 → โอนให้สาขานั้น');
 
   -- ══ ง. ไม่มีจังหวัด / จังหวัดว่าง = คิวรอ ไม่โอน ══
   perform flowtest.must_fail('select transfer_hq_leads('''', ''RYG'')', 'transfer_queue', 'ลูกค้าเป้าหมายที่ไม่มีจังหวัด โอนไม่ได้ (อยู่ในคิวรอ)');

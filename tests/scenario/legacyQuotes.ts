@@ -9,8 +9,11 @@ export function วางใบเดิมที่ฐาน(rows: Record<strin
   const json = JSON.stringify(rows).replace(/\$json\$/g, "");
   // ระบุเฉพาะคอลัมน์ที่ส่งมา — คอลัมน์อื่นใช้ค่าตั้งต้นของตาราง (populate_recordset ใส่ null ให้ทุกคอลัมน์ที่ไม่มี)
   const cols = [...new Set(rows.flatMap(r => Object.keys(r)))].filter(c => /^[a-z_]+$/.test(c)).join(", ");
+  // ใบเดิมวางตามที่ส่งมาทุกช่อง รวมเวลาตอบรับ (won_at · ใบ 0260) — ไม่ส่ง = ใบเดิมที่ไม่มีบันทึกวันตอบรับ (รายงานใช้วันออกใบ)
   const sql = `alter table public.quotations disable trigger quotations_hq_link_guard;
+    alter table public.quotations disable trigger quotations_won_at_column;
     insert into public.quotations (${cols}) select ${cols} from jsonb_populate_recordset(null::public.quotations, $json$${json}$json$::jsonb);
+    alter table public.quotations enable trigger quotations_won_at_column;
     alter table public.quotations enable trigger quotations_hq_link_guard;`;
   if (รันSQLในฐาน(sql) === null) throw new Error("[วางใบเดิมที่ฐาน] ไม่พบฐานทดสอบในเครื่อง (docker) — วางใบแบบเดิมไม่ได้ตั้งแต่ปิดทางเดิม (ด่าน 3)");
 }
