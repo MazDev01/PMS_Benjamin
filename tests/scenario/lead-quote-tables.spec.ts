@@ -76,7 +76,7 @@ test("[ui·dealer] ตารางลีด: ลำดับคอลัมน�
   await expect(เปล่า.locator("td").nth(ช่องคืบ), "ขั้นข้อมูลลูกค้า = 20%").toContainText("20%");
 });
 
-test("[ui·hq] ตารางลีดทั้งเครือ: ลำดับคอลัมน์ตามรูป · ได้ใบ HQ = 60%", async ({ page }) => {
+test("[ui·hq] ตารางลีดทั้งเครือ: ลำดับคอลัมน์ตามรูป · ได้ใบ HQ = 60% · HQ ไม่มีปุ่มลบลีดของดีลเลอร์ (ฐานกัน)", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
@@ -86,6 +86,17 @@ test("[ui·hq] ตารางลีดทั้งเครือ: ลำดั
   expect(await หัวคอลัมน์(page), "ลำดับคอลัมน์เหมือนตารางดีลเลอร์").toEqual(ลำดับลีด);
   await expect(แถว.locator('[data-cell="dealer"]'), "ดีลเลอร์เจ้าของลีดอยู่ใต้ชื่อบริษัท").toContainText("RYG");
   await expect(แถว.getByRole("img", { name: /^ความคืบหน้า/ }), "ได้ใบ HQ = 60%").toHaveAttribute("aria-label", /^ความคืบหน้า 60%/);
+
+  // บอสตัดสิน 29 ต.ค. 69: ลีดเป็นงานของดีลเลอร์ — HQ ไม่มีปุ่มลบลีดของดีลเลอร์ แม้ลีดที่ฝั่งดีลเลอร์ลบได้ (ยังไม่มีคำขอ/ใบ) · ฐานก็ไม่ให้ HQ ลบ
+  await page.getByPlaceholder("ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…").fill(ลีดเปล่า);
+  const เปล่า = page.locator("tbody tr").filter({ hasText: ลีดเปล่า }).first();
+  await expect(เปล่า).toBeVisible({ timeout: 20_000 });
+  await expect(เปล่า.getByRole("button", { name: /^ลบ/ }), "HQ ไม่มีปุ่มลบลีดของดีลเลอร์").toHaveCount(0);
+  const hq = await db(ADMIN);
+  const ลบ = await hq.from("leads").delete().eq("dealer_code", "RYG").eq("num_id", เลขเปล่า).select("id");
+  expect(ลบ.data ?? [], `ฐานต้องไม่ให้ HQ ลบลีดของดีลเลอร์ (${ลบ.error?.message ?? "ไม่มีข้อผิดพลาด"})`).toHaveLength(0);
+  const ยังอยู่ = await (await db(RYG)).from("leads").select("id").eq("dealer_code", "RYG").eq("num_id", เลขเปล่า);
+  expect(ยังอยู่.data ?? [], "ลีดยังอยู่หลัง HQ พยายามลบ").toHaveLength(1);
 });
 
 test("[ui·dealer] ตารางใบเสนอราคา: ลำดับคอลัมน์ตามรูป · ส่งแล้วไม่มีปุ่มแก้/ลบ · ใบร่างมี · ฉบับ V2 · วันที่มีปี พ.ศ.", async ({ page }) => {

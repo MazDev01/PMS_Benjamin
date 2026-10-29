@@ -100,7 +100,23 @@ try {
     { cwd: repo, encoding: "utf8", env: { ...env, PMS_PROD_OPS_DIR: join(ที่, "ไม่มีโฟลเดอร์นี้") },
       input: `refs/heads/monorepo ${B} refs/heads/monorepo ${"0".repeat(40)}\n` });
   ผล(h.status !== 0 && /ตรวจใบปรับฐานบนฐานจริงไม่ได้/.test(h.stderr), "remote GitHub: ไม่เชื่อค่าปลอมของข้อทดสอบ ต้องถามฐานจริง (ถามไม่ได้ = ปฏิเสธ)", h.stdout + h.stderr);
-} finally {
+
+  // 10) ถามฐานจริงไม่ได้ → ข้อความบอกเหตุ + วิธีแก้เป็นขั้นตอน (บอสสั่ง 29 ต.ค. 69 · เดิมบอกแค่ "ต่อไม่ได้")
+  const ไม่มีโฟลเดอร์ = join(ที่, "ไม่มีโฟลเดอร์นี้");
+  ผล(/ยังไม่ได้ผูกฐานจริง/.test(h.stderr) && /วิธีแก้/.test(h.stderr) && h.stderr.includes(`cd ${ไม่มีโฟลเดอร์}`) && /npx supabase login/.test(h.stderr) && /npx supabase link --project-ref/.test(h.stderr),
+    "ถามฐานจริงไม่ได้ (ไม่มีโฟลเดอร์/ไม่ได้ผูก) → บอกเหตุ + ขั้นตอน cd · ทดลองถาม · login · link", h.stderr);
+  //     ผูกแล้วแต่ terminal ยังไม่ได้ล็อกอิน Supabase (npx ปลอมใน PATH ตอบแบบ CLI จริง)
+  const ผูกแล้ว = join(ที่, "ops"), ถังnpx = join(ที่, "npx-ปลอม");
+  mkdirSync(join(ผูกแล้ว, "supabase/.temp"), { recursive: true }); writeFileSync(join(ผูกแล้ว, "supabase/.temp/project-ref"), "ทดสอบ\n");
+  mkdirSync(ถังnpx);
+  writeFileSync(join(ถังnpx, "npx.cmd"), "@echo Access token not provided. Supply an access token by running supabase login 1>&2\r\n@exit /b 1\r\n");
+  writeFileSync(join(ถังnpx, "npx"), "#!/bin/sh\necho 'Access token not provided. Supply an access token by running supabase login' >&2\nexit 1\n", { mode: 0o755 });
+  const คีย์path = Object.keys(env).find(k => /^path$/i.test(k)) ?? "PATH";
+  const h2 = spawnSync(process.execPath, ["scripts/git-hooks/pre-push.mjs", "origin", "https://github.com/MazDev01/PMS_Benjamin.git"],
+    { cwd: repo, encoding: "utf8", env: { ...env, PMS_PROD_OPS_DIR: ผูกแล้ว, [คีย์path]: `${ถังnpx}${process.platform === "win32" ? ";" : ":"}${env[คีย์path]}` },
+      input: `refs/heads/monorepo ${B} refs/heads/monorepo ${"0".repeat(40)}\n` });
+  ผล(h2.status !== 0 && /ยังไม่ได้ล็อกอิน Supabase/.test(h2.stderr) && /npx supabase login/.test(h2.stderr),
+    "ผูกแล้วแต่ยังไม่ได้ล็อกอิน Supabase → บอกเหตุตรงตัว + ขั้นตอน login", h2.stdout + h2.stderr);} finally {
   rmSync(ที่, { recursive: true, force: true });
 }
 console.log(ตก ? `FAIL ${ตก}` : "ALL PASS");
