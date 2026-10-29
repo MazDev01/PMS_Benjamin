@@ -9,6 +9,8 @@ import { test, expect } from "@playwright/test";
 import { open } from "./helpers";
 import { adminClient } from "./testDealers";
 import { REAL_BACKEND } from "./supabaseEnv";
+import { รันSQLในฐาน } from "./localDb";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 
 // เทสต์ [2]/[3] seed กฎผ่าน localStorage ใช้ได้กับ "โหมด local" เท่านั้น —
 // โหมด supabase แอปอ่านกฎจาก DB (dealer_lead_rules) ไม่ใช่ localStorage → seed ไม่มีผล
@@ -71,45 +73,68 @@ test.describe("อื่น ๆ", () => {
 
   // ข้อ 5 — คำที่เคยชนกัน ต้องแยกออกจากกัน
   test("[5] ป้ายอัตราต่าง ๆ แยกกันชัด", async ({ page }) => {
-    // นับฐาน "ก่อน" ตั้งแต่ก่อนเปิดหน้า (หน้าโหลดตัวเลขตอนเปิด) แล้วนับ "หลัง" หลังอ่านจอ = คร่อมเวลาที่หน้าเว็บดึงข้อมูลจริง
-    //   เดิมนับทั้งสองครั้งหลังหน้าโหลดแล้ว — ข้อทดสอบอื่นปิดลีดของสาขาเดียวกันระหว่างนั้น จอ 46% ฐาน 50% ทั้งสองครั้ง (ไม่นิ่ง 3 ครั้ง 28–29 ต.ค. 69)
-    const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-    const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
-    const อัตราทุกสาขา = async () => {
-      const { data, error } = await adminClient().from("leads").select("dealer_code, status, created_date")
-        .or(`created_date.is.null,and(created_date.gte.${ต้นปี},created_date.lte.${วันนี้})`);
-      expect(error, `อ่านลีดจากฐานไม่ได้: ${error?.message}`).toBeNull();
-      const นับ = new Map<string, { ได้: number; เสีย: number }>();
-      for (const l of data ?? []) {
-        const n = นับ.get(l.dealer_code) ?? { ได้: 0, เสีย: 0 };
-        if (l.status === "PAID") n.ได้++; else if (l.status === "CANCELLED") n.เสีย++;
-        นับ.set(l.dealer_code, n);
+    // สาขาของข้อ 2 สาขา (คิวรอบหน้าข้อ 3 · 29 ต.ค. 69) — เดิมเทียบทุกแถวกับลีดทั้งเครือ (ข้อมูลตั้งต้นร่วม)
+    //   ข้ออื่นที่รันพร้อมกันปิดลีดของสาขาเดียวกันระหว่างอ่านจอกับนับฐาน → ไม่นิ่ง 4 ครั้ง แม้นับคร่อมก่อน/หลังแล้ว
+    //   ก: ลีดปีนี้ ปิดสำเร็จ 3 · ปิดไม่สำเร็จ 1 · เปิดอยู่ 1 → 75% · ข: ลีดเปิดอยู่อย่างเดียว → "—" (ไม่มีลีดที่ปิด)
+    //   ตารางนี้แสดงเฉพาะสาขาที่มีใบ → ทั้งสองสาขามีใบ (ก: ตอบรับ 1 · ไม่ตอบรับ 1 · รอตอบ 1 · ข: รอตอบ 1)
+    //   วางที่ฐานตรง (ปิดตัวดัก) · ข้อนี้วัดป้ายและสูตร ไม่ใช่ทางปิดการขาย
+    const ก = await สร้างสาขาของข้อ({ จังหวัด: "ยะลา", ภาค: "ใต้" }), ข = await สร้างสาขาของข้อ({ จังหวัด: "ยะลา", ภาค: "ใต้" });
+    try {
+      const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+      const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
+      const ฐานเลข = 1_500_000_000 + Math.floor(Math.random() * 500_000) * 100;   // เลขแถวของรอบนี้ (ไม่ชนช่วงเลขตายตัวของไฟล์อื่น)
+      const ลีด: [string, string][] = [[ก.รหัส, "PAID"], [ก.รหัส, "PAID"], [ก.รหัส, "PAID"], [ก.รหัส, "CANCELLED"], [ก.รหัส, "WAITING"], [ข.รหัส, "WAITING"]];
+      const ผล = รันSQLในฐาน(`set local session_replication_role = replica;
+        insert into public.leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
+          ${ลีด.map(([c, st], i) => `('#L-${ฐานเลข + i}', ${ฐานเลข + i}, '${c}', 'ZZTEST-อัตรา-${c}-${i}', 'ZZTEST', '000-000-${String(i).padStart(4, "0")}', 'ยะลา', '${st}', '${วันนี้}')`).join(",\n          ")};
+        insert into public.customers (id, dealer_code, name, company, province, join_date) values
+          (${ฐานเลข + 20}, '${ก.รหัส}', 'ZZTEST-อัตรา-${ก.รหัส}-ลูกค้า', 'ZZTEST-อัตรา-${ก.รหัส}-ลูกค้า', 'ยะลา', '${วันนี้}');
+        insert into public.quotations (id, dealer_code, customer, project, status, total_value, date, customer_id, won_at) values
+          ('${ก.รหัส}-Q1', '${ก.รหัส}', 'ZZTEST-อัตรา-${ก.รหัส}-ลูกค้า', 'ZZTEST', 'won', 40000, '${วันนี้}', ${ฐานเลข + 20}, now()),
+          ('${ก.รหัส}-Q2', '${ก.รหัส}', 'ZZTEST-อัตรา-${ก.รหัส}-ลูกค้า', 'ZZTEST', 'lost', 30000, '${วันนี้}', ${ฐานเลข + 20}, null),
+          ('${ก.รหัส}-Q3', '${ก.รหัส}', 'ZZTEST-อัตรา-${ก.รหัส}-ลูกค้า', 'ZZTEST', 'sent_to_client', 20000, '${วันนี้}', ${ฐานเลข + 20}, null),
+          ('${ข.รหัส}-Q1', '${ข.รหัส}', 'ZZTEST-อัตรา-${ข.รหัส}-ลูกค้า', 'ZZTEST', 'sent_to_client', 10000, '${วันนี้}', null, null);
+        insert into public.quotation_won_at (dealer_code, quote_id, won_at) values ('${ก.รหัส}', '${ก.รหัส}-Q1', now());
+        set local session_replication_role = origin;`);
+      expect(ผล, "ต้องมีฐานทดสอบในเครื่อง (docker) — วางลีด/ใบของสาขาไม่ได้").not.toBeNull();
+      // สูตรกลางจากลีดในฐาน (ลีดที่เข้ามาในช่วงค่าตั้งต้น "ปีนี้") — ฐานต้องได้ค่าที่วางไว้ก่อน แล้วจอต้องตรงกับฐาน
+      const อัตราของ = async (code: string) => {
+        const { data, error } = await adminClient().from("leads").select("status").eq("dealer_code", code)
+          .or(`created_date.is.null,and(created_date.gte.${ต้นปี},created_date.lte.${วันนี้})`);
+        expect(error, `อ่านลีดจากฐานไม่ได้: ${error?.message}`).toBeNull();
+        const ได้ = (data ?? []).filter(l => l.status === "PAID").length, เสีย = (data ?? []).filter(l => l.status === "CANCELLED").length;
+        return ได้ + เสีย === 0 ? "—" : `${Math.round(ได้ / (ได้ + เสีย) * 100)}%`;
+      };
+      expect([await อัตราของ(ก.รหัส), await อัตราของ(ข.รหัส)], "ฐาน: สูตรกลางของลีดที่วางไว้").toEqual(["75%", "—"]);
+
+      await open(page, "hq", "/hq/pipeline");
+      await expect(page.getByText(/ของมูลค่า/).first()).toBeVisible();          // "ปิดได้ X% ของมูลค่า"
+      const tbl = page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }).first();
+      await expect(tbl).not.toContainText("ชุดเดียวกับกราฟด้านบน");
+      // คำอธิบายสูตรใต้ตารางถูกเอาออก (บอสสั่ง 22 ก.ย. 69 · commit 4e269ac "เอาคำอธิบายใต้ตารางผลงานออก")
+      await expect(tbl).not.toContainText("อัตราปิด = ปิดได้ ÷");
+      // รอบ 4 (บอสตัดสิน 21 ต.ค. 69 ข้อ 5): คอลัมน์ "อัตราปิด" (เดิมคิดจากใบ) → "อัตราปิดการขาย" สูตรกลางเดียวทุกหน้า
+      //   = ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) ของลีดที่เข้ามาในช่วง (ค่าตั้งต้น "ปีนี้") · ไม่มีลีดที่ปิด = "—"
+      //   คอลัมน์ ปิดได้/ปิดไม่ได้ ยังเป็นจำนวน "ใบ" — ก มีใบตอบรับ 1 ไม่ตอบรับ 1 ทั้งที่ลีดปิดสำเร็จ 3 (สองเลขต้องไม่ปนกัน)
+      const หัว = (await tbl.locator("thead th").allInnerTexts()).map(t => t.trim());
+      const ช่อง = (ชื่อ: string) => หัว.findIndex(h => h === ชื่อ);
+      const [iได้, iไม่ได้, iอัตรา] = [ช่อง("ปิดได้"), ช่อง("ปิดไม่ได้"), ช่อง("อัตราปิดการขาย")];
+      expect([iได้, iไม่ได้, iอัตรา].every(i => i >= 0), `ต้องมีคอลัมน์ ปิดได้ / ปิดไม่ได้ / อัตราปิดการขาย แยกกัน (ได้: ${หัว.join(" · ")})`).toBe(true);
+      expect(หัว.includes("อัตราปิด"), "ไม่มีคอลัมน์ชื่อเก่า \"อัตราปิด\" แล้ว").toBe(false);
+      // เลือกดีลเลอร์ทีละสาขาของข้อ → ตารางเหลือแถวของสาขานั้นแถวเดียว
+      for (const [สาขา, อัตรา, ได้, ไม่ได้] of [[ก, "75%", "1", "1"], [ข, "—", "0", "0"]] as const) {
+        await page.getByLabel("ทุกดีลเลอร์", { exact: true }).first().selectOption(สาขา.รหัส);
+        const แถว = tbl.locator("tbody tr");
+        await expect(แถว, `เลือก ${สาขา.รหัส}: ตารางเหลือแถวเดียว`).toHaveCount(1, { timeout: 20_000 });
+        const เซลล์ = (await แถว.first().locator("td").allInnerTexts()).map(t => t.trim());
+        expect(เซลล์[0], "แถวเป็นของสาขาที่เลือก").toBe(สาขา.รหัส);
+        expect(เซลล์[iอัตรา], `แถว ${สาขา.รหัส}: อัตราปิดการขาย = สูตรกลางจากลีด`).toBe(await อัตราของ(สาขา.รหัส));
+        expect(เซลล์[iอัตรา], `แถว ${สาขา.รหัส}: อัตราปิดการขาย = ค่าที่วางไว้`).toBe(อัตรา);
+        expect([เซลล์[iได้], เซลล์[iไม่ได้]], `แถว ${สาขา.รหัส}: ปิดได้/ปิดไม่ได้ = จำนวนใบ (ไม่ใช่ลีด)`).toEqual([ได้, ไม่ได้]);
       }
-      return (code: string) => { const n = นับ.get(code) ?? { ได้: 0, เสีย: 0 }; return n.ได้ + n.เสีย === 0 ? "—" : `${Math.round(n.ได้ / (n.ได้ + n.เสีย) * 100)}%`; };
-    };
-    const ก่อน = await อัตราทุกสาขา();
-    await open(page, "hq", "/hq/pipeline");
-    await expect(page.getByText(/ของมูลค่า/).first()).toBeVisible();          // "ปิดได้ X% ของมูลค่า"
-    const tbl = page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }).first();
-    await expect(tbl).not.toContainText("ชุดเดียวกับกราฟด้านบน");
-    // คำอธิบายสูตรใต้ตารางถูกเอาออก (บอสสั่ง 22 ก.ย. 69 · commit 4e269ac "เอาคำอธิบายใต้ตารางผลงานออก")
-    await expect(tbl).not.toContainText("อัตราปิด = ปิดได้ ÷");
-    // รอบ 4 (บอสตัดสิน 21 ต.ค. 69 ข้อ 5): คอลัมน์ "อัตราปิด" (เดิมคิดจากใบ) → "อัตราปิดการขาย" สูตรกลางเดียวทุกหน้า
-    //   = ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) ของลีดที่เข้ามาในช่วง (ค่าตั้งต้น "ปีนี้") · ไม่มีลีดที่ปิด = "—"
-    //   คอลัมน์ ปิดได้/ปิดไม่ได้ ยังเป็นจำนวน "ใบ" — ตรวจสูตรอัตราด้วยการนับลีดจากฐานเองทีละแถว
-    const หัว = (await tbl.locator("thead th").allInnerTexts()).map(t => t.trim());
-    const ช่อง = (ชื่อ: string) => หัว.findIndex(h => h === ชื่อ);
-    const [iได้, iไม่ได้, iอัตรา] = [ช่อง("ปิดได้"), ช่อง("ปิดไม่ได้"), ช่อง("อัตราปิดการขาย")];
-    expect([iได้, iไม่ได้, iอัตรา].every(i => i >= 0), `ต้องมีคอลัมน์ ปิดได้ / ปิดไม่ได้ / อัตราปิดการขาย แยกกัน (ได้: ${หัว.join(" · ")})`).toBe(true);
-    expect(หัว.includes("อัตราปิด"), "ไม่มีคอลัมน์ชื่อเก่า \"อัตราปิด\" แล้ว").toBe(false);
-    const แถว = tbl.locator("tbody tr");
-    const จำนวน = await แถว.count();
-    expect(จำนวน, "ตารางต้องมีดีลเลอร์อย่างน้อย 1 แถว").toBeGreaterThan(0);
-    const ทุกแถว = [];
-    for (let r = 0; r < จำนวน; r++) ทุกแถว.push((await แถว.nth(r).locator("td").allInnerTexts()).map(t => t.trim()));
-    const หลัง = await อัตราทุกสาขา();
-    // ข้อทดสอบอื่นที่รันพร้อมกันเพิ่ม/ปิดลีดได้ — ยอมรับถ้าตรงกับฐานก่อนเปิดหน้า หรือหลังอ่านจอ
-    for (const เซลล์ of ทุกแถว)
-      expect([ก่อน(เซลล์[0]), หลัง(เซลล์[0])], `แถว ${เซลล์[0]}: อัตราปิดการขาย ${เซลล์[iอัตรา]} ต้องเท่ากับสูตรกลางจากลีด`).toContain(เซลล์[iอัตรา]);
+    } finally {
+      รันSQLในฐาน(`delete from public.quotation_won_at where dealer_code in ('${ก.รหัส}', '${ข.รหัส}');`);
+      await ก.ลบ(); await ข.ลบ();
+    }
   });
 });

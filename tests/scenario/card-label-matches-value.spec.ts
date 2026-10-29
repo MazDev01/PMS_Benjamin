@@ -7,6 +7,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 const db = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -31,6 +32,25 @@ test("การ์ดลีดใหม่บนแดชบอร์ด HQ ต�
     await expect(การ์ด.locator("[data-value]")).not.toHaveAttribute("data-value", "", { timeout: 30_000 });
     return Number(await การ์ด.locator("[data-value]").getAttribute("data-value")) === await นับ();
   }, { timeout: 90_000, intervals: [1000, 3000, 5000], message: "ลีดใหม่บนการ์ด = นับจากตาราง" }).toBe(true);
+
+  // ตรงเป๊ะกับข้อมูลที่รู้ค่า (คิวข้อ 3 · 29 ต.ค. 69): สาขาของข้อมีลีดปีนี้ 2 + ปีก่อน 1 → เลือกดีลเลอร์นั้น การ์ด = 2 · ชื่อการ์ดบอกสาขา
+  //   ยอดทั้งเครือข้างบนขยับตามข้ออื่นได้ (จึงอ่านซ้ำจนตรงตาราง) — ส่วนนี้ไม่มีข้อไหนเขียนสาขานี้
+  const สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ยะลา", ภาค: "ใต้" });
+  try {
+    const ฐานเลข = 978_200_000 + (Date.now() % 9_000) * 10;
+    const ลีด = (n: number, เมื่อ: string) => ({ id: `#L-${ฐานเลข + n}`, num_id: ฐานเลข + n, dealer_code: สาขา.รหัส,
+      company: `ZZTEST-ลีดการ์ด-${สาขา.รหัส}-${n}`, name: "ZZTEST", phone: `000000${String(n).padStart(4, "0")}`, province: "ยะลา", status: "WAITING", created_at: เมื่อ });
+    const ปีก่อน = `${Number(วันนี้.slice(0, 4)) - 1}-06-15T03:00:00Z`;
+    const { error } = await db.from("leads").insert([ลีด(1, new Date().toISOString()), ลีด(2, new Date().toISOString()), ลีด(3, ปีก่อน)]);
+    if (error) throw new Error(`วางลีดของข้อไม่สำเร็จ: ${error.message}`);
+    expect((await db.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", สาขา.รหัส)
+      .gte("created_date", ต้นปี).lte("created_date", วันนี้)).count, "ตั้งต้น: ลีดปีนี้ของสาขา = 2 (ฐานคิดวันเข้ามาจากเวลาที่บันทึก)").toBe(2);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
+    await page.getByRole("button", { name: new RegExp(`^${สาขา.รหัส} – `) }).click();
+    await expect(การ์ด, "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลีดใหม่ของ ${สาขา.รหัส}`, { timeout: 30_000 });
+    await expect(การ์ด.locator("[data-value]"), "ลีดใหม่ของสาขา = 2 (ไม่นับลีดปีก่อน)").toHaveAttribute("data-value", "2", { timeout: 30_000 });
+  } finally { await สาขา.ลบ(); }
 });
 
 test("แดชบอร์ดดีลเลอร์: แท่งคู่ต้องเป็นหน่วยราย และแท่งหลังไม่เกินแท่งหน้า", async ({ page }) => {

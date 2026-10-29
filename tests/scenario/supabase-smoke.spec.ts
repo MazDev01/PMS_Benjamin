@@ -3,6 +3,7 @@ import { RYG, ADMIN, skipReason, type Account } from "./supabaseEnv";
 import { db } from "./funcHelpers";
 import { settle } from "./helpers";
 import { ที่อยู่เว็บ } from "./sessionPorts";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 
@@ -127,8 +128,11 @@ test("[supabase] หน้าทะเบียนดีลเลอร์แส
   // ⚠️ ต้องรอ "ข้อมูลจริงขึ้นจอ" ไม่ใช่แค่ "มีแถวในตาราง"
   //   ระหว่างโหลด ตารางมีแถวโครงเปล่าอยู่ก่อนแล้ว ถ้าเช็กแค่จำนวนแถว จะอ่านตอนยังว่างแล้วตกทันที
   //   (เจอกับตัวเองตอนเขียนเทสต์นี้ 10 ส.ค. 69 — เช็กว่ามีแถว ผ่าน แต่ชื่อสาขายังว่าง)
-  await expect.poll(async () => page.evaluate(() => document.body.innerText),
-    { timeout: 20_000, message: "ต้องรอชื่อสาขาจริงขึ้นจอก่อน" }).toContain(names[0]);
+  //   คิวข้อ 3 (29 ต.ค. 69): เดิมรอ names[0] (แถวแรกตามลำดับของฐาน) — ตารางเรียงใหม่สุดก่อนแบ่งหน้าละ 10 และข้ออื่นสร้างสาขาตลอด
+  //   แถวนั้นไม่อยู่หน้าแรกได้ → รอแถวใดก็ได้บนจอที่ชื่อตรงฐาน
+  await expect.poll(async () => page.evaluate((ชื่อ) => [...document.querySelectorAll("tbody tr")]
+    .some(tr => [...tr.children].some(td => ชื่อ.includes(td.textContent?.trim() ?? ""))), names),
+    { timeout: 20_000, message: "ต้องรอชื่อสาขาจริงขึ้นจอก่อน" }).toBe(true);
 
   // เก็บข้อความทุกช่องของแต่ละแถว — ไม่ผูกกับลำดับคอลัมน์ สลับคอลัมน์เมื่อไหร่เทสต์ก็ยังใช้ได้
   const rows: string[][] = await page.evaluate(() =>
@@ -148,6 +152,18 @@ test("[supabase] หน้าทะเบียนดีลเลอร์แส
   // ถ้าสาขาน้อยกว่าหนึ่งหน้า ต้องเห็นครบทุกสาขา ไม่มีหายไปเงียบ ๆ
   if (นิ่ง && names.length <= 10) expect(rows.length, "สาขาไม่ถึงหนึ่งหน้า ต้องแสดงครบทุกสาขา").toBe(names.length);
   console.log(`ทะเบียนดีลเลอร์แสดง ${rows.length} สาขาจากฐานข้อมูล: ${shown.join(", ")}`);
+
+  // ข้อมูลที่รู้ค่า: สาขาของข้อที่เพิ่งสร้างในฐาน ต้องขึ้นจอด้วยชื่อ+รหัสจริง 1 แถวพอดี (ข้อมูลตัวอย่างในโค้ดไม่มีสาขานี้แน่นอน)
+  const ป้าย = `ZZTEST-สโมค-${Date.now() % 100000}`;
+  const สาขา = await สร้างสาขาของข้อ({ ชื่อ: ป้าย });
+  try {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await settle(page);
+    await page.getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
+    const แถว = page.locator("tbody tr").filter({ hasText: ป้าย });
+    await expect(แถว, "สาขาที่สร้างในฐานขึ้นจอ 1 แถว").toHaveCount(1, { timeout: 20_000 });
+    await expect(แถว, "แถวแสดงรหัสสาขาจริง").toContainText(สาขา.รหัส);
+  } finally { await สาขา.ลบ(); }
 });
 
 test("[supabase] หน้าจอโชว์ชื่อคน/ชื่อสาขาจริง ไม่ใช่อีเมล/รหัสสาขา (B5)", async ({ page }) => {

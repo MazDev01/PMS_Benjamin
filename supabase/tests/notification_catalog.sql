@@ -4,6 +4,10 @@
 -- รัน: docker exec -i supabase_db_pms-dbcheck psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/notification_catalog.sql
 -- ทรานแซกชันเดียวแล้ว rollback · รอบปิดด่านรันผ่าน tests/scenario/db-rule-tests.spec.ts · ผ่าน = "ALL PASS"
 begin;
+-- กันข้อทดสอบอื่นที่รันพร้อมกัน commit แจ้งเตือน/อีเมลใหม่เข้ามาหลังล้าง (บอสสั่ง 29 ต.ค. 69 · คิวข้อ 3 · แบบเดียวกับ hq_overview.sql)
+--   รายการนี้ล้าง notifications แล้วนับทั้งตาราง ("HQ ที่ส่งราคาเองไม่ได้แจ้งเตือน" · "รันรอบสองไม่ซ้ำ" · "ดีลเลอร์อ่านเฉพาะสาขาตัวเอง")
+--   แถวของข้ออื่น (ตัวดักสร้างตามทุกการขอราคา/ส่งใบ) โผล่ระหว่างนับ = ตัวเลขขยับ · ล็อกไว้จนจบ: คนอื่นอ่านได้ เขียนต้องรอ — ตัวเลขเทียบเป๊ะเหมือนเดิม
+lock table notifications, email_outbox in share row exclusive mode;
 create schema ntest;
 create function ntest.ok(p_cond boolean, p_what text) returns void language plpgsql as $$
 begin if p_cond is not true then raise exception 'FAIL: %', p_what; end if; raise notice 'ok  %', p_what; end $$;
