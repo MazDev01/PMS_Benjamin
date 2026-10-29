@@ -7,6 +7,7 @@
 //   session:merge: commit ล่าสุดไม่มีผลรอบตรวจ → ไม่ merge · มี → merge · merge แล้วเลขใบขาดช่วง → ไม่ merge (บอกว่าใครจอง)
 //     หลัง merge (บอสสั่ง 27 ต.ค. 69): ลายนิ้วมือตรงกับที่เซสชันตรวจผ่าน → ใช้ผลเดิม (commit ผ่านรอบตรวจโดยไม่รันซ้ำ)
 //     ไม่ตรง → บอกให้รันรอบตรวจรวม + บอกงานที่ตรวจผ่านแล้วรอรวม · ห้ามข้าม (commit ไม่มีผลผ่าน)
+//     รายการใบผ่านรอบตรวจชนกัน → ได้ฉบับของเซสชัน ไม่หายใบ (บอสสั่ง 29 ต.ค. 69)
 //   ตัวตรวจ: พอร์ตที่เขียนเอง → ตก · เลขใบซ้ำ/ข้าม → ตก (0051 ยกเว้น · เซสชันลูกข้ามเลขที่คนอื่นจองได้)
 // mutation proof: PMS_SESSION_MUTATE=<แบบ> ทำสคริปต์ในสำเนาให้พังทีละแบบ → ข้อทดสอบต้องตก (ดูรายการ "พัง" ข้างล่าง)
 // รัน: node tests/tools/session-tools.test.mjs
@@ -68,7 +69,8 @@ try {
   if (พัง === "merge") แก้("scripts/session-merge.mjs", "if (!ผล.ผ่าน) ตาย(", "if (false) ตาย(");
   if (พัง === "reuse") แก้("scripts/session-merge.mjs", 'if (ใช้ผลเดิมได้(ปลาย, "HEAD", cwd)) {', "if (true) {");
   if (พัง === "noreuse") แก้("scripts/session-merge.mjs", 'if (ใช้ผลเดิมได้(ปลาย, "HEAD", cwd)) {', "if (false) {");
-  if (พัง === "mergegap") แก้("scripts/session-merge.mjs", "if (ตรวจเลข.status !== 0) {", "if (false) {");
+  if (พัง === "mergelist") แก้("scripts/session-merge.mjs", ' || รายการใบ("HEAD") !== รายการใบ(ปลาย)) {', ") {");
+  if (พัง === "mergegap")แก้("scripts/session-merge.mjs", "if (ตรวจเลข.status !== 0) {", "if (false) {");
   if (พัง === "ports") แก้("scripts/check-hardcoded-ports.mjs", "if (เจอ.length) {", "if (false) {");
   if (พัง === "dup") แก้("scripts/check-migration-numbers.mjs", "if (fs.length > 1) ผิด.push", "if (false) ผิด.push");
   if (พัง === "gap") แก้("scripts/check-migration-numbers.mjs", "if (!ตามเลข.has(n) && !ข้ามได้.has(n) && !จองโดยคนอื่น.has(n))", "if (false)");
@@ -212,6 +214,17 @@ try {
   m = รัน(repo, "scripts/session-merge.mjs", ["bb"]);
   ผล(m.ได้ && /ใช้ผลเดิม ไม่ต้องรันรอบตรวจซ้ำ/.test(m.ข้อความ) && globalThis.__cg.ตรวจcommitผ่าน("HEAD", repo).ผ่าน,
     "session:merge: ลายนิ้วมือหลังรวมตรงกับที่เซสชันตรวจผ่าน → ใช้ผลเดิม · commit สาขาหลักผ่านรอบตรวจโดยไม่รันซ้ำ", m.ข้อความ);
+  // รายการใบผ่านรอบตรวจ (บอสสั่ง 29 ต.ค. 69): สาขาหลักได้ฉบับเก่าจากงานอื่น · bb ได้ฉบับที่มีใบเพิ่ม → git ชนแล้วเลือกฝั่งรวมงาน
+  //   บรรทัดผลไม่หาย (ลายนิ้วมือเดิม) → เครื่องมือเดิมไม่ซ่อม รายการถอย ใบหาย → db:push ไม่รับ (เกิดจริง: ใบ 0258)
+  const ฉบับ = (ใบ) => JSON.stringify({ คำอธิบาย: "จำลอง", ใบ: Object.fromEntries(ใบ.map(f => [f, "x"])) }, null, 1) + "\n";
+  เขียน(repo, "supabase/gate-passed-migrations.json", ฉบับ(["0001_a.sql", "0002_b.sql", "0003_c.sql"]));
+  git("add", "supabase/gate-passed-migrations.json"); git("commit", "-qm", "บันทึกผลรอบตรวจของงานอื่น (ฉบับเก่า)");
+  เขียน(B, "supabase/gate-passed-migrations.json", ฉบับ(["0001_a.sql", "0002_b.sql", "0003_c.sql", "0004_q_zero.sql"]));
+  gitIn(B, "add", "supabase/gate-passed-migrations.json"); gitIn(B, "commit", "-qm", "บันทึกผลรอบตรวจ bb (มีใบ 0004)");
+  m = รัน(repo, "scripts/session-merge.mjs", ["bb"]);
+  const รายการหลัง = (() => { try { return Object.keys(JSON.parse(git("show", "HEAD:supabase/gate-passed-migrations.json")).ใบ); } catch { return []; } })();
+  ผล(m.ได้ && รายการหลัง.includes("0004_q_zero.sql") && รายการหลัง.length === 4 && globalThis.__cg.ตรวจcommitผ่าน("HEAD", repo).ผ่าน,
+    "session:merge: รายการใบผ่านรอบตรวจชนกัน (สาขาหลักเป็นฉบับเก่า) → ได้ฉบับของเซสชัน ไม่หายใบ", `${รายการหลัง} · ${m.ข้อความ}`);
 
   // ═══ 7) session:close — ยังไม่ merge = ไม่ปิด · ถอดทางลัดก่อนลบ ไฟล์นอกโฟลเดอร์ไม่หาย ═══
   let c = รัน(repo, "scripts/session-close.mjs", ["aa"]);
