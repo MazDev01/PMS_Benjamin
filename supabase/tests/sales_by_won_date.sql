@@ -1,7 +1,8 @@
 -- ── ข้อทดสอบใบ 0260: ยอดขายทุกหน้านับตามวันที่ลูกค้าตอบรับ (บอสตัดสิน 29 ต.ค. 69) ─────────────────────────────────────
 --   ตัวอย่างของบอส: ใบออก ก.ย. ตอบรับ ต.ค. = ยอด ต.ค. ทุกหน้า · ใบออก ธ.ค. ปีก่อน ตอบรับ ม.ค. = ยอดปีนี้
 --   ทุกตัวคำนวณที่หน้าเว็บใช้: dealer_rollup (ยอดทั้งปีเทียบเป้า) · dashboard_quote_summary · hq_quotations_summary
---   · network_quote_range · hq_customers_page (ซื้อล่าสุด/ตัวกรองช่วงที่ซื้อ) · ฟังก์ชันกลาง _q_report_date · ตัวดักเขียน won_at
+--   · network_quote_range · hq_customers_page (ซื้อล่าสุด/ตัวกรองช่วงที่ซื้อ) · การ์ด KPI/แดชบอร์ด HQ (_kpi_won/_hd_won · ใบ 0262)
+--   · ฟังก์ชันกลาง _q_report_date · ตัวดักเขียน won_at
 -- รัน: docker exec -i supabase_db_pms-dbcheck psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/sales_by_won_date.sql
 -- ทรานแซกชันเดียวแล้ว rollback · รอบปิดด่านรันผ่าน tests/scenario/db-rule-tests.spec.ts · ผ่าน = "ALL PASS"
 -- ตกบนโค้ดก่อนใบ 0260: ไม่มี quotations.won_at · ทุกตัวคำนวณนับตามวันออกใบ (ก.ย. / ธ.ค. ปีก่อน)
@@ -69,6 +70,13 @@ begin
   perform swtest.eq((select (x ->> 'won_val')::numeric from jsonb_array_elements(j -> 'byDealer') x where x ->> 'dealer_code' = 'ZZSW'), 100000, 'hq_quotations_summary ต.ค.: ยอดใบ A ของสาขา');
   j := hq_quotations_summary(null, array['ZZSW'], null, null, '2026-09-01', '2026-09-30');
   perform swtest.eq((select coalesce((x ->> 'won_val')::numeric, 0) from jsonb_array_elements(j -> 'byDealer') x where x ->> 'dealer_code' = 'ZZSW'), 0, 'hq_quotations_summary ก.ย.: ไม่มียอดขาย');
+
+  -- การ์ด KPI + แดชบอร์ด HQ (ใบ 0262): ตัวรวมใบตอบรับใช้ฟังก์ชันกลางตัวเดียวกัน — ใบที่มีเวลาตอบรับในใบ (ไม่มีแถว quotation_won_at) ก็นับ
+  perform swtest.eq((select sum(value) from _kpi_won('ZZSW') where d between '2026-10-01' and '2026-10-31'), 100000, 'การ์ด KPI: ใบออก ก.ย. ตอบรับ ต.ค. = ยอด ต.ค. (0262)');
+  perform swtest.eq((select coalesce(sum(value), 0) from _kpi_won('ZZSW') where d between '2026-09-01' and '2026-09-30'), 0, 'การ์ด KPI: เดือน ก.ย. ไม่มียอด (0262)');
+  perform swtest.eq((select sum(value) from _kpi_won('ZZSW') where extract(year from d) = 2026), 300000, 'การ์ด KPI: ยอดทั้งปี 2026 รวมใบออก ธ.ค. ปีก่อน (0262)');
+  perform swtest.eq((select sum(value) from _hd_won('ZZSW') where d between '2026-01-01' and '2026-01-31'), 200000, 'แดชบอร์ด HQ: ใบออก ธ.ค. ปีก่อน ตอบรับ ม.ค. = ยอด ม.ค. (0262)');
+  perform swtest.eq((select h from _hd_won('ZZSW') where d = '2026-10-05'), 10, 'แดชบอร์ด HQ: รายชั่วโมงตามเวลาตอบรับ (10:00 น.)');
 
   -- hq_customers_page: ซื้อล่าสุด = วันตอบรับ · ตัวกรองช่วงที่ซื้อ ต.ค. เห็นลูกค้า
   perform swtest.as_hq();
