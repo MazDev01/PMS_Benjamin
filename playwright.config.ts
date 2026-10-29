@@ -119,7 +119,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: [/(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux)\.spec\.ts/, /-tool\.spec\.ts$/],
+      testIgnore: [/(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux|numbers-consistency)\.spec\.ts/, /-tool\.spec\.ts$/],
       dependencies: ["setup"],
     },
     {
@@ -144,9 +144,10 @@ export default defineConfig({
       //   ใช้สาขาของข้อแทนไม่ได้ (สิ่งที่ตรวจคือยอดรวมทุกสาขา) — รันพร้อมข้อที่สร้างสาขา/ปิดการขายไม่ได้ จึงรันทีละไฟล์ (29 ต.ค. 69 · คิวข้อ 3)
       // kpi-cards (ข้อ ทุกหน้า HQ) · hq-quote-requests-ux (การ์ด 4 ใบ) อ่านตัวเลขทั้งเครือโดยออกแบบ (หน้าไม่มีตัวกรองสาขา) — บอสตัดสิน 29 ต.ค. 69:
       //   รันทีละไฟล์ ไม่มีข้ออื่นเขียนพร้อมกัน ตรวจตรงเป๊ะได้เหมือนเดิม ไม่ลดสิ่งที่ตรวจ
+      // numbers-consistency หัวการ์ด "ยอดขายรวมทั้งเครือ" = ผลบวกใบตอบรับทั้งเครือ (การ์ดทั้งเครือโดยออกแบบ · กรองสาขาแล้วเป็นการ์ดคนละใบ) — ทีละไฟล์ (29 ต.ค. 69)
       // hq-settings-backup-excel นำไฟล์สำรองกลับ = เขียนทับค่าตั้งเครือทั้งชุด (ผู้รับอีเมล · เหตุผลไม่สำเร็จ · ข้อมูลบริษัท · เป้า)
       //   + บันทึกทะเบียนดีลเลอร์ตามไฟล์ (เป้าทุกสาขากลับเป็นค่าตอนส่งออก) — รันพร้อมชุดอื่นไม่ได้ (29 ต.ค. 69 · คิวข้อ 3)
-      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux)\.spec\.ts/,
+      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux|numbers-consistency)\.spec\.ts/,
       workers: 1,
       dependencies: ["setup"],
     },

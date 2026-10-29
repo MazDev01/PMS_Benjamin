@@ -6,8 +6,6 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
-import { สร้างสาขาของข้อ, กรองหน้าHQด้วยสาขา } from "./ownDealer";
-import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 const db = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
@@ -15,33 +13,31 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 test.setTimeout(240_000);
 
 test("ยอดรวมบนหัวการ์ดกราฟ ต้องตรงกับผลบวกจริง (ไม่ใช่ผลบวกของค่าที่ปัดแล้ว)", async ({ page }) => {
-  // ต้นเหตุไม่นิ่ง (29 ต.ค. 69 · คิวข้อ 3): เดิมบวกยอดใบตอบรับทั้งเครือจากฐานแล้วเทียบหัวการ์ด — ข้ออื่นปิดการขายพร้อมกัน ยอดขยับ
-  //   ตอนนี้ใช้สาขาของข้อเอง: ใบตอบรับ 3 ใบ 3 เดือน ใบละ 1,040,000 → ยอดจริง 3,120,000 = "฿3.1M"
-  //   ถ้าหัวการ์ดบวกค่ารายเดือนที่ปัดแล้ว (1.0 + 1.0 + 1.0) จะได้ "฿3.0M" — ข้อนี้จับบั๊ก HQ-07 ได้ตรงกว่าเดิม (เดิมพึ่งยอดที่บังเอิญปัดต่าง)
-  const สาขา = await สร้างสาขาของข้อ();
-  const ปี = new Date(Date.now() + 7 * 3600_000).getUTCFullYear();
-  const เดือนนี้ = new Date(Date.now() + 7 * 3600_000).getUTCMonth() + 1;
-  // ม.ค.–มี.ค. ของปีนี้ (ตัวกรองตั้งต้น "ปีนี้") · ถ้ายังไม่ถึง มี.ค. ใช้เดือนที่ผ่านมาแล้วซ้ำ (ยอดรวมยังต้องตรง ฿3.1M)
-  const เดือน = [1, 2, 3].map(m => Math.min(m, เดือนนี้));
-  const วัน = (m: number) => `${ปี}-${String(m).padStart(2, "0")}-01`;
-  // ใบตอบรับต้องผูกลูกค้า (quotations_won_requires_customer) — ลูกค้าของสาขาของข้อ
-  const ใส่ลูกค้า = await db.from("customers").insert({ id: 1, dealer_code: สาขา.รหัส, company: `ZZTEST-NC-${สาขา.รหัส}`, name: `ZZTEST-NC-${สาขา.รหัส}` });
-  expect(ใส่ลูกค้า.error, `เตรียมลูกค้าของข้อ (${ใส่ลูกค้า.error?.message ?? ""})`).toBeNull();
-  const แถว = เดือน.map((m, i) => ({ id: `ZZTEST-NC-${สาขา.รหัส}-${i}`, dealer_code: สาขา.รหัส, customer_id: 1, customer: `ZZTEST-NC-${สาขา.รหัส}`, project: "ZZTEST-NC",
-    date: วัน(m), won_at: `${วัน(m)}T03:00:00+00:00`, province: "ตราด", building_type: "โกดังสำเร็จรูป", area: "1", total: "1040000",
-    total_value: 1_040_000, material_cost: 1_040_000, items: 1, status: "won" }));
-  try {
-    วางใบเดิมที่ฐาน(แถว);
-    await openAs(page, ADMIN, "hq", "/hq/dashboard");
-    await settle(page);
-    await กรองหน้าHQด้วยสาขา(page, สาขา.รหัส);
-    const card = page.locator(".card").filter({ hasText: "ยอดขายรวม" }).first();
-    await expect.poll(async () => (await card.innerText()).split("\n").map(x => x.trim()).find(x => /^฿[\d.]+M$/.test(x)) ?? "",
-      { timeout: 30_000, message: "หัวการ์ดยอดขายของสาขาของข้อ = ผลบวกจริง ฿3.1M (ไม่ใช่ ฿3.0M จากค่ารายเดือนที่ปัดแล้ว)" }).toBe("฿3.1M");
-  } finally {
-    ลบใบทดสอบที่ฐาน(`dealer_code = '${สาขา.รหัส}'`);
-    await สาขา.ลบ();
-  }
+  const ผลบวก = async () => {
+    const { data: q } = await db.from("quotations").select("total_value,date,status").eq("status", "won");
+    // ⚠️ ต้องใช้ "ช่วงเดียวกับตัวกรองบนหน้าจอ" ซึ่งค่าตั้งต้นคือ "ปีนี้" (FilterContext · DEFAULTS.preset)
+    //    เดิมบวกย้อนหลัง 6 เดือน — ตรงกันโดยบังเอิญตอนฐานทดสอบมีแต่ข้อมูลใหม่ ๆ เท่านั้น
+    //    พอฐานมีใบที่ปิดการขายช่วงต้นปีด้วย หัวการ์ด (นับทั้งปี) ย่อมมากกว่าผลบวก 6 เดือน แล้วฟ้องผิด
+    const ต้นปี = `${new Date().getFullYear()}-01-01`;
+    const รวม = (q ?? []).filter(x => String(x.date).slice(0, 10) >= ต้นปี).reduce((s, x) => s + Number(x.total_value || 0), 0);
+    return `฿${(รวม / 1e6).toFixed(1)}M`;
+  };
+  const ผลบวกก่อนเปิดหน้า = await ผลบวก();
+  await openAs(page, ADMIN, "hq", "/hq/dashboard");
+  await settle(page); await page.waitForTimeout(2500);
+  const card = page.locator(".card").filter({ hasText: "ยอดขายรวมทั้งเครือ" }).first();
+  const t = (await card.innerText()).split("\n").filter(Boolean);
+  const หัวการ์ด = t.find(x => /^฿[\d.]+M$/.test(x.trim())) ?? "";
+  // อ่านค่ารายเดือนจากป้ายบนกราฟไม่ได้ตรง ๆ → เทียบกับผลรวมจากฐานข้อมูลในช่วง 6 เดือนล่าสุดแทน
+  // ⚠️ ตอนรันทั้งชุดพร้อมกัน ชุดอื่นสร้าง/ปิดใบเสนอราคาของตัวเองอยู่ตลอด ผลบวกในฐานข้อมูล
+  //   จึงขยับได้ระหว่าง "หน้าจอวาดตัวเลข" กับ "เทสต์ไปบวกเลขมาเทียบ" (เจอจริง 26 ส.ค. 69:
+  //   ฿182.3M vs ฿181.8M = ใบของอีกชุดหนึ่งที่เกิดขึ้นคั่นกลางพอดี)
+  //   จึงบวกสองครั้ง คร่อมเวลาที่อ่านหน้าจอ แล้วยอมรับถ้าตรงกับครั้งใดครั้งหนึ่ง
+  //   ถ้าไม่มีใครเขียนแทรก สองค่านี้เท่ากัน = เข้มงวดเท่าเดิมทุกประการ
+  const ก่อน = ผลบวกก่อนเปิดหน้า;
+  const หลัง = await ผลบวก();
+  console.log("หัวการ์ด:", หัวการ์ด, "· ผลบวกจริง 6 เดือน ก่อน/หลัง:", ก่อน, "/", หลัง);
+  expect([ก่อน, หลัง], `หัวการ์ด ${หัวการ์ด} ต้องตรงกับผลบวกจริง (ก่อน ${ก่อน} · หลัง ${หลัง})`).toContain(หัวการ์ด);
 });
 
 test("ชื่อการ์ดอัตราปิดการขายต้องบอกตัวหาร และไม่ซ้ำกันข้ามหน้า", async ({ page }) => {
