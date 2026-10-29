@@ -36,6 +36,9 @@ if (!existsSync(ไฟล์ค่าตั้ง)) {
   let c = readFileSync(ต้นแบบ, "utf8").replace(/^project_id\s*=.*$/m, `project_id = "${โปรเจกต์}"`);
   c = c.replace(/\b553(\d\d)\b/g, (_, n) => `${String(พอร์ตAPI).slice(0, 3)}${n}`);
   c = c.replace(/(\[db\.seed\][^[]*?enabled\s*=\s*)true/, "$1false");
+  // ปิด pg-delta (ใช้แค่ db diff/pull — ฐาน dev ไม่ใช้): เปิดอยู่ supabase start จะส่งออกโครงฐานผ่านคอนเทนเนอร์ edge-runtime
+  //   ที่บางครั้งไม่ยอมจบ (supabase/pg-toolbelt#312) → start ค้างไม่มีกำหนด — 29 ต.ค. 69 รอบตรวจเต็มค้างกว่า 50 นาทีที่ข้อ dev-db-rebuild
+  c = c.replace(/(\[experimental\.pgdelta\][^[]*?enabled\s*=\s*)true/, "$1false");
   writeFileSync(ไฟล์ค่าตั้ง, c);
   console.log(`▶ สร้างฐาน dev ที่ ${ที่ฐานdev} (พอร์ต API ${พอร์ตAPI})`);
 }
