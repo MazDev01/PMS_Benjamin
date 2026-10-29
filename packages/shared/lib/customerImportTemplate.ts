@@ -80,6 +80,6 @@ export function เนื้อไฟล์Csv(ค่า: ค่าที่ร�
  */
 export function จับคู่คอลัมน์(rows: string[][]): ImportRow[] {
   return จับคู่ตามหัวตาราง(rows, ชื่อคอลัมน์)
-    .map(r => ({ ...r, province: r.province || "กรุงเทพฯ", joinDate: แปลงวันที่นำเข้า(r.joinDate) }))
+    .map(r => ({ ...r, province: r.province, joinDate: แปลงวันที่นำเข้า(r.joinDate) }))   // ไม่มีจังหวัด = ว่าง (ห้ามเดา · เดิมเติม "กรุงเทพฯ" ซึ่งไม่ใช่ชื่อมาตรฐาน)
     .filter(r => r.company && !r.company.trimStart().startsWith("#"));
 }

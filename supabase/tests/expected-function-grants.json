@@ -1,5 +1,5 @@
 {
- "migration": "0258",
+ "migration": "0260",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -244,6 +244,27 @@
    "anon": false,
    "authenticated": false,
    "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_province_ok(p text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_q_report_at(p_status text, p_won_at timestamp with time zone, p_created_at timestamp with time zone)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
+  },
+  {
+   "f": "_q_report_date(p_status text, p_won_at timestamp with time zone, p_date text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
    "definer": false
   },
   {
@@ -590,6 +611,20 @@
    "definer": false
   },
   {
+   "f": "dealer_territories_keep_one()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_territories_match_dealer()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealers_audit()",
    "anon": false,
    "authenticated": false,
@@ -611,7 +646,21 @@
    "definer": false
   },
   {
+   "f": "dealers_province_standard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealers_territory_on_province_fix()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealers_territory_sync()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -1199,6 +1248,13 @@
    "definer": false
   },
   {
+   "f": "province_field_standard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quotation_margin(p_dealer text, p_id text)",
    "anon": false,
    "authenticated": true,
@@ -1361,6 +1417,13 @@
   },
   {
    "f": "quotations_version_supersede()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quotations_won_at_column()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

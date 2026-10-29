@@ -43,7 +43,7 @@ test.beforeAll(async () => {
   const res = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${adminTok}` },
-    body: JSON.stringify({ code: CODE, name: "ZZTEST-สาขาทดสอบผู้ดูแล", province: "ทดสอบ", region: "กลาง", revenueTarget: 1_000_000, status: "active", prospectId: await ลูกค้าเป้าหมายรองรับสาขา(CODE) }),
+    body: JSON.stringify({ code: CODE, name: "ZZTEST-สาขาทดสอบผู้ดูแล", province: "นครปฐม", region: "กลาง", revenueTarget: 1_000_000, status: "active", prospectId: await ลูกค้าเป้าหมายรองรับสาขา(CODE) }),
   });
   const json = await res.json().catch(() => ({} as Record<string, string>));
   // ต้องดังถ้าเตรียมข้อมูลไม่สำเร็จ — ไม่งั้นเทสต์จะ "ผ่าน" ทั้งที่ไม่ได้วัดอะไรเลย
@@ -91,7 +91,7 @@ test("[edge·hq] ลบสาขาที่ยังมีข้อมูลค
     p_dealer: CODE,
     p_payload: {
       name: "คุณค้าง", company: COMPANY, email: "", phone: "",
-      province: "ทดสอบ", category: "โกดังสำเร็จรูป", status: "active",
+      province: "นครปฐม", category: "โกดังสำเร็จรูป", status: "active",
       projects: 0, join_date: new Date().toISOString().slice(0, 10), owner: "ทดสอบ",
       initials: "ZZ", color: "#003366",
     },

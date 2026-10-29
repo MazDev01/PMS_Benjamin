@@ -13,7 +13,7 @@
 // ลูกค้าที่ไม่มีใบปิดการขายจับคู่ได้ → ไม่มีอาคาร/ส่งมอบ = null → หน้าแสดง "—"
 // (ห้ามเดาแทน — ลูกค้า seed หลายรายมี dealsWon แต่ไม่มีใบในระบบ ถือว่าไม่มีข้อมูล)
 import { useMemo } from "react";
-import { type HQCustomer } from "@pms/shared/lib/mock";
+import { type HQCustomer, fmtISOToThai } from "@pms/shared/lib/mock";
 import { useNetworkCustomers, useNetworkQuotations } from "@pms/shared/lib/useNetworkData";
 import { parseThaiDate } from "@pms/shared/lib/thaiDate";
 
@@ -45,15 +45,16 @@ export type CustomerDbRow = HQCustomer & {
 };
 
 // ข้อมูลขั้นต่ำที่ใช้สร้าง 1 อาคาร — HQQuotation ก็เข้าได้ (fallback) · rollup จาก DB map มาให้ (M9 Phase 2)
-export type BuildingSrc = { quoteNo: string; productLine: string; valueNum: number; createdAt: string };
+export type BuildingSrc = { quoteNo: string; productLine: string; valueNum: number; createdAt: string; salesDate?: string | null };
 export const buildingOf = (q: BuildingSrc): PurchasedBuilding => {
   const product = q.productLine ?? "";
   return {
     quoteNo: q.quoteNo,
     product,
     value: q.valueNum,
-    wonDate: q.createdAt,
-    wonAt: parseThaiDate(q.createdAt),
+    // วันที่ซื้อ = วันที่ลูกค้าตอบรับ (บอสตัดสิน 29 ต.ค. 69 · ใบ 0260) · ไม่มี = วันออกใบ (กติกาเดียวกับฐาน)
+    wonDate: q.salesDate ? fmtISOToThai(q.salesDate) : q.createdAt,
+    wonAt: q.salesDate ? new Date(Number(q.salesDate.slice(0, 4)), Number(q.salesDate.slice(5, 7)) - 1, Number(q.salesDate.slice(8, 10))) : parseThaiDate(q.createdAt),
   };
 };
 

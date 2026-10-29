@@ -60,6 +60,8 @@ export type QuoteRow = HQQuotation & {
   region: string;
   dealerProvince: string;     // จังหวัดของดีลเลอร์ที่ออกใบ (ไม่ใช่จังหวัดลูกค้า)
   createdDate: Date | null;
+  /** วันที่ของแถวในรายงาน: ใบตอบรับ = วันลูกค้าตอบรับ · ใบอื่น = วันออกใบ (กติกาเดียวกับฐาน _q_report_date · ใบ 0260) */
+  reportDate: Date | null;
   agingDays: number | null;   // จำนวนวันนับจากวันที่สร้าง ถึง "วันนี้" ของระบบ (30 มิ.ย. 2569)
   validUntil: string | null;  // วันที่สร้าง + อายุใบเสนอราคาตามนโยบาย HQ
   sent: boolean;
@@ -84,6 +86,7 @@ export function toQuoteRows(quotes: HQQuotation[], validityDays: number, look: D
       region: look.regionOf(q.dealerCode),
       dealerProvince: look.provinceOf(q.dealerCode),
       createdDate, agingDays, validUntil,
+      reportDate: q.salesDate ? new Date(Number(q.salesDate.slice(0, 4)), Number(q.salesDate.slice(5, 7)) - 1, Number(q.salesDate.slice(8, 10))) : createdDate,
       sent: isSent(q), pending: isPending(q),
     };
   });

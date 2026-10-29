@@ -46,6 +46,8 @@ export const provincesOfRegion = (region: string): string[] => {
 
 /** จังหวัดมาตรฐาน 77 จังหวัด (ตรงกับ th_provinces ในฐาน) — ใช้ตรวจว่าชื่อจังหวัดเป็นชื่อมาตรฐาน */
 const จังหวัดมาตรฐาน = provincesOfRegion(ALL_REGIONS);
+/** ชื่อนี้อยู่ในรายชื่อ 77 จังหวัดไหม (ชื่อย่อ เช่น "กทม" / "กรุงเทพฯ" = ไม่ใช่) — ฐานตรวจซ้ำอีกชั้น (ใบ 0196 · 0259) */
+export const เป็นจังหวัดมาตรฐาน = (p: string | null | undefined): boolean => จังหวัดมาตรฐาน.includes((p ?? "").trim());
 
 /** ตัวคำนวณล้วนของ useMyProvinces (useMyProvinces.ts) — แยกไว้ให้เทสย่อยเรียกได้ */
 export function จังหวัดให้เลือก(dealers: { code: string; region?: string | null; province?: string | null }[], code: string, current?: string): string[] {

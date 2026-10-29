@@ -42,7 +42,7 @@ async function provisionDealer(token: string, code: string): Promise<Provisioned
   const res = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify({ code, name: `${TAG}-ดีลเลอร์-${code}`, province: "ทดสอบโหลด", region: "กลาง", revenueTarget: 0, status: "active", prospectId: await ลูกค้าเป้าหมายรองรับสาขา(code) }),
+    body: JSON.stringify({ code, name: `${TAG}-ดีลเลอร์-${code}`, province: "นครปฐม", region: "กลาง", revenueTarget: 0, status: "active", prospectId: await ลูกค้าเป้าหมายรองรับสาขา(code) }),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) { console.log(`[setup] สร้างดีลเลอร์ ${code} ไม่สำเร็จ: ${JSON.stringify(json)}`); return null; }

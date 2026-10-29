@@ -136,7 +136,7 @@ test("[role] HQ_STAFF เรียก API จัดการดีลเลอ�
 
   const mk = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
     method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
-    body: JSON.stringify({ code: "ZZRL", name: `${NS}-สาขา`, province: "ทดสอบ", region: "กลาง", revenueTarget: 0, status: "active" }),
+    body: JSON.stringify({ code: "ZZRL", name: `${NS}-สาขา`, province: "นครปฐม", region: "กลาง", revenueTarget: 0, status: "active" }),
   });
   expect(mk.status, `HQ_STAFF สร้างดีลเลอร์ไม่ได้ (ได้ ${mk.status})`).toBe(403);
 

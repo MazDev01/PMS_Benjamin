@@ -51,9 +51,9 @@ begin
   -- ══ ก. รายชื่อจังหวัดมาตรฐาน ══
   perform flowtest.ok((select count(*) from th_provinces) = 77, 'รายชื่อจังหวัดมาตรฐาน 77 จังหวัด');
   perform flowtest.must_fail('insert into dealer_territories (province, dealer_code) values (''กรุงเทพฯ'', ''RYG'')',
-    'dealer_territories_province_fkey', 'จังหวัดที่ไม่อยู่ในรายชื่อมาตรฐาน (ชื่อย่อ กรุงเทพฯ) ใส่ในพื้นที่ไม่ได้');
+    'dealer_territor', 'จังหวัดที่ไม่อยู่ในรายชื่อมาตรฐาน (ชื่อย่อ กรุงเทพฯ) ใส่ในพื้นที่ไม่ได้');   -- ใบ 0259: ตัวกันพื้นที่ต้องตรงที่ตั้ง ดักก่อนกุญแจนอก
   perform flowtest.must_fail('insert into dealer_territories (province, dealer_code) values (''ระยองง'', ''RYG'')',
-    'dealer_territories_province_fkey', 'จังหวัดที่สะกดผิดใส่ในพื้นที่ไม่ได้');
+    'dealer_territor', 'จังหวัดที่สะกดผิดใส่ในพื้นที่ไม่ได้');
 
   -- ══ ข. ย้ายพื้นที่จากข้อมูลดีลเลอร์เดิม — ไม่เดาจับคู่ ══
   perform flowtest.ok(exists (select 1 from dealer_territories where dealer_code = 'RYG' and province = 'ระยอง' and not legacy),
@@ -65,12 +65,13 @@ begin
     'รายการดีลเลอร์ที่จับคู่จังหวัดไม่ได้ ให้ HQ เห็นและแก้เอง');
 
   -- ══ ค. การกำหนดพื้นที่ — จังหวัดเดียวมีหลายดีลเลอร์ได้ (ใบ 0214 · ยกเลิกหนึ่งจังหวัดหนึ่งดีลเลอร์ 16 ต.ค. 69) ══
-  insert into dealer_territories (province, dealer_code) values ('ระยอง', 'CBI');
-  perform flowtest.ok(true, 'จังหวัดที่มีดีลเลอร์ดูแลแล้ว เพิ่มดีลเลอร์รายที่ 2 ได้');
-  delete from dealer_territories where province = 'ระยอง' and dealer_code = 'CBI';
-  insert into dealer_territories (province, dealer_code) values ('ตราด', 'RYG');
-  perform flowtest.ok(true, 'จังหวัดว่างกำหนดให้ดีลเลอร์ได้');
-  delete from dealer_territories where province = 'ตราด';
+  --   ใบ 0259: ดีลเลอร์ 1 ราย = 1 จังหวัดพอดี = จังหวัดที่ตั้ง (ฐานให้พื้นที่เอง) → ดีลเลอร์รายที่ 2 ของจังหวัด = สาขาใหม่จังหวัดเดียวกัน
+  insert into dealers (code, name, province, region, status) values ('ZZTRB', 'ZZTEST ระยอง B', 'ระยอง', 'ตะวันออก', 'active');
+  perform flowtest.ok(exists (select 1 from dealer_territories where province = 'ระยอง' and dealer_code = 'ZZTRB'), 'จังหวัดที่มีดีลเลอร์ดูแลแล้ว เพิ่มดีลเลอร์รายที่ 2 ได้');
+  delete from dealers where code = 'ZZTRB';
+  insert into dealers (code, name, province, region, status) values ('ZZTRT', 'ZZTEST ยะลา', 'ยะลา', 'ใต้', 'active');
+  perform flowtest.ok(exists (select 1 from dealer_territories where province = 'ยะลา' and dealer_code = 'ZZTRT'), 'จังหวัดว่างกำหนดให้ดีลเลอร์ได้');
+  delete from dealers where code = 'ZZTRT';
 
   -- ══ ง. ลูกค้าเป้าหมายใหม่: หน้างานต้องอยู่ในพื้นที่ตัวเอง ══
   perform flowtest.as_dealer('RYG', c.ryg_uid);
@@ -80,24 +81,23 @@ begin
     'lead_outside_territory', 'หน้างานอยู่ในพื้นที่ของดีลเลอร์อื่น (ชลบุรี = CBI) → สร้างไม่ได้');
 
   -- ══ จ. จังหวัดว่าง: ใครยื่นก่อนได้งาน ══
-  perform flowtest.new_lead('RYG', '#TT-3', 'บจ. โกดังตราด', '081-100-0003', 'ตราด');
+  perform flowtest.new_lead('RYG', '#TT-3', 'บจ. โกดังบึงกาฬ', '081-100-0003', 'บึงกาฬ');
   perform flowtest.ok(true, 'จังหวัดว่าง → ดีลเลอร์ใดก็ยื่นได้');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
-  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-4'', ''  บจ.  โกดังตราด '', ''0811000003'', ''ตราด'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-4'', ''  บจ.  โกดังบึงกาฬ '', ''0811000003'', ''บึงกาฬ'')',
     'lead_taken', 'จังหวัดว่าง งานเดียวกัน (ชื่อ+เบอร์เดียวกันหลังปรับรูปแบบ) ดีลเลอร์อื่นยื่นไว้ก่อน → ยื่นซ้ำไม่ได้');
-  perform flowtest.new_lead('CNX', '#TT-5', 'บจ. งานอื่นที่ตราด', '081-100-0005', 'ตราด');
+  perform flowtest.new_lead('CNX', '#TT-5', 'บจ. งานอื่นที่บึงกาฬ', '081-100-0005', 'บึงกาฬ');
   perform flowtest.ok(true, 'จังหวัดว่าง งานคนละงาน → ยื่นได้');
 
   -- ══ ฉ. จังหวัดที่ดูแลร่วมกัน: ดีลเลอร์ทุกรายที่ดูแลสร้างลีดได้ · รายที่ไม่ได้ดูแลสร้างไม่ได้ ══
   perform flowtest.as_root();
-  insert into dealer_territories (province, dealer_code) values ('ลำพูน', 'RYG'), ('ลำพูน', 'CNX');
-  perform flowtest.as_dealer('RYG', c.ryg_uid);
-  perform flowtest.new_lead('RYG', '#TT-6', 'บจ. ลำพูนหนึ่ง', '081-100-0006', 'ลำพูน');
-  perform flowtest.as_dealer('CNX', c.cnx_uid);
-  perform flowtest.new_lead('CNX', '#TT-7', 'บจ. ลำพูนสอง', '081-100-0007', 'ลำพูน');
+  --   ใบ 0259: ลำพูนดูแลร่วม = สาขาทดสอบ 2 สาขาจังหวัดเดียวกัน (สิทธิ์เขียนอ่านจากรหัสสาขาในบัตรผ่าน)
+  insert into dealers (code, name, province, region, status) values ('ZZTLA', 'ZZTEST ลำพูน A', 'ลำพูน', 'เหนือ', 'active'), ('ZZTLB', 'ZZTEST ลำพูน B', 'ลำพูน', 'เหนือ', 'active');
+  perform flowtest.as_dealer('ZZTLA', c.ryg_uid);
+  perform flowtest.new_lead('ZZTLA', '#TT-6', 'บจ. ลำพูนหนึ่ง', '081-100-0006', 'ลำพูน');
+  perform flowtest.as_dealer('ZZTLB', c.cnx_uid);
+  perform flowtest.new_lead('ZZTLB', '#TT-7', 'บจ. ลำพูนสอง', '081-100-0007', 'ลำพูน');
   perform flowtest.ok(true, 'จังหวัดที่ดูแลร่วมกัน → ดีลเลอร์ทั้งสองรายสร้างลูกค้าเป้าหมายได้');
-  perform flowtest.as_root();
-  delete from dealer_territories where province = 'ลำพูน' and dealer_code = 'CNX';
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-8'', ''บจ. ลำพูนสาม'', ''081-100-0008'', ''ลำพูน'')',
     'lead_outside_territory', 'ดีลเลอร์ที่ไม่ได้ดูแลจังหวัด สร้างลูกค้าเป้าหมายในจังหวัดนั้นไม่ได้');

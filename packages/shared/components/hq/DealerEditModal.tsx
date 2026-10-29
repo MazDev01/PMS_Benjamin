@@ -3,6 +3,7 @@
 // ── แก้ไขข้อมูลดีลเลอร์ (ย้ายจากหน้าทะเบียนมาหน้ารายละเอียด · บอสตัดสิน 19 ต.ค. 69 · รอบ 2 ช่วง ข) ──────────────────────
 //   แถวทะเบียนเหลือ "เข้าระบบแทน" + กดแถวเปิดหน้ารายละเอียด · แก้ไข/ปิดใช้งาน/สถิติ อยู่ที่หน้ารายละเอียด
 //   ฟิลด์และกติกาเหมือนเดิมทุกข้อ: รหัสแก้ไม่ได้ · ภาคก่อนจังหวัด (ทุกภาค = ทุกจังหวัด) · เป้าไม่ติดลบ · จังหวัดเดิมนอกภาคยังเห็นค่าเดิม
+import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
@@ -44,7 +45,8 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
 
   // เปลี่ยนภาค: จังหวัดที่ไม่อยู่ในภาคใหม่ถูกล้าง (กันข้อมูลขัดกันเอง) · ทุกภาค = ทุกจังหวัด
   function changeRegion(region: string) {
-    setForm(f => ({ ...f, region, province: region === ALL_REGIONS ? ALL_PROVINCES : provincesOfRegion(region).includes(f.province) ? f.province : "" }));
+    // "ทุกจังหวัด" ใช้กับแถวสำนักงานใหญ่เท่านั้น — ดีลเลอร์ต้องดูแล 1 จังหวัดจริง (บอสสั่ง 29 ต.ค. 69)
+    setForm(f => ({ ...f, region, province: region === ALL_REGIONS && dealer.code === "HQ" ? ALL_PROVINCES : provincesOfRegion(region).includes(f.province) ? f.province : "" }));
   }
 
   async function save() {
@@ -91,14 +93,13 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
               </select>
             </InputField>
             <InputField label="จังหวัดที่ตั้ง *">
-              <select aria-label="จังหวัดที่ตั้ง" value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
-                <option value="">{form.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}</option>
-                {form.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
-                {provincesOfRegion(form.region).map(p => <option key={p} value={p}>{p}</option>)}
-                {form.province && form.province !== ALL_PROVINCES && !provincesOfRegion(form.region).includes(form.province) && (
+              {/* ดีลเลอร์ดูแล 1 จังหวัดพอดี = จังหวัดที่ตั้ง (บอสสั่ง 29 ต.ค. 69 · ฐานกัน ใบ 0259) — ไม่มี "ทุกจังหวัด" */}
+              <ProvinceSelect label="จังหวัดที่ตั้ง" value={form.province} onChange={v => setForm(f => ({ ...f, province: v }))} style={{ ...INPUT_STYLE, cursor: "pointer" }}
+                options={provincesOfRegion(form.region)} ว่าง={form.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}
+                ก่อน={dealer.code === "HQ" && form.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
+                หลัง={form.province && form.province !== ALL_PROVINCES && !provincesOfRegion(form.region).includes(form.province) && (
                   <option value={form.province}>{form.province} (นอกภาค {form.region})</option>
-                )}
-              </select>
+                )} />
             </InputField>
             <div className="form-section">เป้าหมายและสถานะ</div>
             <InputField label="แพ็กเกจ">

@@ -49,24 +49,27 @@ do $$
 declare c record; n int; s text;
 begin
   select * into c from flowtest.t_ctx;
-  delete from dealer_territories where province in ('ลำพูน', 'น่าน');
-
+  -- ใบ 0259 (บอสสั่ง 29 ต.ค. 69): ดีลเลอร์ 1 ราย = 1 จังหวัดพอดี = จังหวัดที่ตั้ง (ฐานให้พื้นที่เอง) · จังหวัดเดียวหลายสาขาได้
+  --   → "ดีลเลอร์รายที่ 2 ของจังหวัด" = สาขาทดสอบใหม่ที่ตั้งจังหวัดเดียวกัน (ZZMA · ZZMB ลำพูน)
   -- ══ ก. HQ เพิ่มดีลเลอร์รายที่ 2 ในจังหวัดเดียวกันได้ ══
-  perform flowtest.as_hq(c.hq_uid);
-  insert into dealer_territories (province, dealer_code) values ('ลำพูน', 'RYG');
-  insert into dealer_territories (province, dealer_code) values ('ลำพูน', 'CNX');
+  --   สร้างสาขาด้วยสิทธิ์ระบบ (ทางสร้างจริงคือ api/admin/dealers ด้วยกุญแจฝั่งเซิร์ฟเวอร์ · ผู้ใช้สร้างตรงติดด่านใบค่าแฟรนไชส์ 0208)
+  perform flowtest.as_root();
+  insert into dealers (code, name, province, region, status) values ('ZZMA', 'ZZTEST ลำพูน A', 'ลำพูน', 'เหนือ', 'active');
+  insert into dealers (code, name, province, region, status) values ('ZZMB', 'ZZTEST ลำพูน B', 'ลำพูน', 'เหนือ', 'active');
   perform flowtest.ok((select count(*) from dealer_territories where province = 'ลำพูน') = 2, 'จังหวัดเดียวมีดีลเลอร์ดูแล 2 ราย');
-  perform flowtest.must_fail('insert into dealer_territories (province, dealer_code) values (''ลำพูน'', ''RYG'')',
-    'dealer_territories_province_dealer_code_key', 'ดีลเลอร์เดิมซ้ำจังหวัดเดิมไม่ได้ (คู่จังหวัด+ดีลเลอร์ยังห้ามซ้ำ)');
+  perform flowtest.must_fail('insert into dealer_territories (province, dealer_code) values (''ลำพูน'', ''ZZMA'')',
+    'duplicate key', 'ดีลเลอร์เดิมซ้ำจังหวัดเดิมไม่ได้ (คู่จังหวัด+ดีลเลอร์ยังห้ามซ้ำ)');
+  perform flowtest.must_fail('insert into dealer_territories (province, dealer_code) values (''น่าน'', ''ZZMA'')',
+    'dealer_territor', 'ดีลเลอร์รายเดียวดูแลจังหวัดที่ 2 ไม่ได้ (ใบ 0259)');
   perform flowtest.ok(not exists (select 1 from dealer_territories where legacy), 'ไม่มีป้ายทับซ้อน (legacy) เหลือ');
   perform flowtest.ok(to_regclass('public.territory_overlaps') is null, 'มุมมองจังหวัดทับซ้อนเอาออกแล้ว');
   perform flowtest.ok(to_regprocedure('public.territory_resolve_overlap(text,text)') is null, 'คำสั่งเคลียร์จังหวัดทับซ้อนเอาออกแล้ว');
 
   -- ══ ข. ดีลเลอร์ทั้ง 2 รายสร้างลีดในจังหวัดนั้นได้ ══
-  perform flowtest.as_dealer('RYG', c.ryg_uid);
-  perform flowtest.new_lead('RYG', '#ZZM-1', 'บจ. ลำพูนหนึ่ง', '0810000001', 'ลำพูน');
-  perform flowtest.as_dealer('CNX', c.cnx_uid);
-  perform flowtest.new_lead('CNX', '#ZZM-2', 'บจ. ลำพูนสอง', '0810000002', 'ลำพูน');
+  perform flowtest.as_dealer('ZZMA', c.ryg_uid);
+  perform flowtest.new_lead('ZZMA', '#ZZM-1', 'บจ. ลำพูนหนึ่ง', '0810000001', 'ลำพูน');
+  perform flowtest.as_dealer('ZZMB', c.cnx_uid);
+  perform flowtest.new_lead('ZZMB', '#ZZM-2', 'บจ. ลำพูนสอง', '0810000002', 'ลำพูน');
   perform flowtest.as_root();
   perform flowtest.ok((select count(*) from leads where id in ('#ZZM-1', '#ZZM-2')) = 2, 'สร้างลีดในจังหวัดที่ดูแลร่วมกันได้ทั้งคู่');
 
@@ -81,13 +84,12 @@ begin
 
   -- ══ ง. โอนลีดของ HQ: หลายสาขา = HQ เลือก · สาขาเดียว = อัตโนมัติ ══
   perform flowtest.as_root();
-  delete from dealer_territories where province = 'น่าน';
-  insert into dealer_territories (province, dealer_code) values ('น่าน', 'RYG');
+  insert into dealers (code, name, province, region, status) values ('ZZMN', 'ZZTEST น่าน', 'น่าน', 'เหนือ', 'active');
   perform flowtest.as_hq(c.hq_uid);
   select string_agg(province || ':' || mode || ':' || array_to_string(dealer_codes, '+'), ' ' order by province) into s
     from (select t.province, case when count(*) = 1 then 'auto' else 'choose' end as mode, array_agg(t.dealer_code order by t.dealer_code) as dealer_codes
             from dealer_territories t where t.province in ('ลำพูน', 'น่าน') group by t.province) x;
-  perform flowtest.ok(s = 'น่าน:auto:RYG ลำพูน:choose:CNX+RYG', 'พื้นที่: น่านสาขาเดียว · ลำพูนสองสาขา');
+  perform flowtest.ok(s = 'น่าน:auto:ZZMN ลำพูน:choose:ZZMA+ZZMB', 'พื้นที่: น่านสาขาเดียว · ลำพูนสองสาขา');
   perform flowtest.as_root();
   raise notice 'ALL PASS';
 end $$;

@@ -7,6 +7,7 @@
 //
 // ⚠️ ห้ามแยกเขียนฟอร์มนี้ซ้ำที่อื่น — กติกา (ช่องบังคับ/ช่องเงินมีลูกน้ำ/ภาคก่อนจังหวัด) ต้องเหมือนกันทุกหน้า
 //    วางที่ body (portal) เพราะบางหน้าเปิดจากในหน้าต่างอีกชั้น — คลิกฉากหลังต้องหยุดไม่ให้หน้าต่างแม่ปิดตาม
+import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useEffect, useRef, useState } from "react";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 import { บวกวัน } from "@pms/shared/lib/recruitSettings";
@@ -247,14 +248,12 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
             </div>
             <div>
               <label className="form-label" htmlFor="pp-province">จังหวัด</label>
-              <select id="pp-province" className="form-select" value={ร่าง.province ?? ""} onChange={e => ตั้งค่า("province", e.target.value || null)} style={{ cursor: "pointer" }}>
-                <option value="">{ร่าง.region ? "— ยังไม่ระบุ —" : "— ยังไม่ระบุ (เลือกภาคก่อน) —"}</option>
-                {ร่าง.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
-                {provincesOfRegion(ร่าง.region ?? "").map(p => <option key={p} value={p}>{p}</option>)}
-                {ร่าง.province && ร่าง.province !== ALL_PROVINCES && !provincesOfRegion(ร่าง.region ?? "").includes(ร่าง.province) && (
+              <ProvinceSelect id="pp-province" label="จังหวัด" className="form-select" value={ร่าง.province ?? ""} onChange={v => ตั้งค่า("province", v || null)} style={{ cursor: "pointer" }}
+                options={provincesOfRegion(ร่าง.region ?? "")} ว่าง={ร่าง.region ? "— ยังไม่ระบุ —" : "— ยังไม่ระบุ (เลือกภาคก่อน) —"}
+                ก่อน={ร่าง.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
+                หลัง={ร่าง.province && ร่าง.province !== ALL_PROVINCES && !provincesOfRegion(ร่าง.region ?? "").includes(ร่าง.province) && (
                   <option value={ร่าง.province}>{ร่าง.province} (ตามที่บันทึกไว้)</option>
-                )}
-              </select>
+                )} />
             </div>
             <div>
               <label className="form-label" htmlFor="pp-date">วันที่เสนอ *</label>

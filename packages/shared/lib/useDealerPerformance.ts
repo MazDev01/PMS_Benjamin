@@ -107,9 +107,9 @@ export function useDealerPerformance(): DealerPerfMap {
       r.quotes += 1;
       if (q.status === "won") {
         r.won += 1;
-        // ยอดขาย = ของ "ปีนี้" เท่านั้น เพื่อให้เทียบกับเป้ารายปีได้ตรง ๆ
-        const d = parseThaiDate(q.createdAt);
-        if (d && d.getFullYear() === APP_NOW.getFullYear()) r.revenue += q.valueNum;
+        // ยอดขาย = ของ "ปีนี้" เท่านั้น เพื่อให้เทียบกับเป้ารายปีได้ตรง ๆ — ปีที่ลูกค้าตอบรับ (บอสตัดสิน 29 ต.ค. 69 · ใบ 0260)
+        const ปี = q.salesDate ? Number(q.salesDate.slice(0, 4)) : parseThaiDate(q.createdAt)?.getFullYear();
+        if (ปี === APP_NOW.getFullYear()) r.revenue += q.valueNum;
       }
       if (q.status === "lost") r.lost += 1;
     }
