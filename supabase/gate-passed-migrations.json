@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-29 14:09:33",
- "รอบ": "2026-10-29-13-39-46",
- "จำนวน": 259,
+ "บันทึกเมื่อ": "2026-10-29 15:35:11",
+ "รอบ": "2026-10-29-15-03-52",
+ "จำนวน": 261,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -262,6 +262,8 @@
   "0257_lead_old_status_retired.sql": "f4500053974253474d70d07e68537dbbdeaa0cd99902dc3891afa084bf531d81",
   "0258_lead_has_quotes.sql": "f1f83b229ec60245094bb9dcfe9719ca9053715de4ba9fea4d153c5c866f1d57",
   "0259_province_standard_everywhere.sql": "f9bc8ac192e0e0e215a7db372af9f032535eee8ef8b24beff6d1a5726cdd64ad",
-  "0260_sales_by_won_date.sql": "4c603ed316480e3a41bbe7145aeb989637b4fb9bfc1afcdf6bc804d53fd04088"
+  "0260_sales_by_won_date.sql": "4c603ed316480e3a41bbe7145aeb989637b4fb9bfc1afcdf6bc804d53fd04088",
+  "0261_prospect_province_cleanup.sql": "035144821147aa9b8160ed4705b0f3e2ed3f104cf5e8a48d3076208c110701c0",
+  "0262_won_helpers_central.sql": "f0f93a1da9597c080fa3c1942f32aa84e391b9c0da8218fa9dd1fd8d1efec619"
  }
 }
