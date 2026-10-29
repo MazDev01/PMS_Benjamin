@@ -5,6 +5,7 @@ import { เตรียมใบHQ, ทำใบลูกค้าจากใ�
 import { REAL_BACKEND } from "./supabaseEnv";
 import { ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { ที่อยู่เว็บ } from "./sessionPorts";
+import { adminClient } from "./testDealers";
 
 // "วันนี้ของระบบ" (APP_NOW) เดินตามแหล่งข้อมูล: supabase = วันจริง · local = ตรึง 30 มิ.ย. 2569
 // เทสต์ประทับวันใบใหม่จึงต้องคำนวณวันคาดหวังแบบเดียวกัน (ไม่ hardcode "30 มิ.ย.")
@@ -185,52 +186,61 @@ test("[ux·dealer] ใบเสนอราคาที่สร้างให�
 // Smart filter: ลูกค้าเป้าหมายขาดติดต่อ >7/14/30 วัน — ตัวกรองเกณฑ์วันเป็น dropdown บนแถบเครื่องมือ (เดิมเป็นชิป >7/>14/>30)
 //   การ์ด "เกิน 7 วัน" ถูกแทนด้วยชุดการ์ด 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — จึงตรวจตัวกรองกับข้อมูลในตารางตรง ๆ แทนการเทียบกับการ์ด:
 //   ทุกแถวที่ผ่าน "ค้างติดต่อ >N วัน" ต้องมีกิจกรรมล่าสุดเก่ากว่า N วันจริง · เกณฑ์ยาวขึ้นต้องได้ไม่มากกว่าเกณฑ์สั้น · ล้างแล้วกลับเท่าเดิม
+// ต้นเหตุไม่นิ่ง (29 ต.ค. 69): เดิมนับลีดทั้งสาขา RYG ก่อน/หลังกรอง แล้วตรวจว่าล้างตัวกรองแล้ว "กลับเท่าเดิม"
+//   ข้อทดสอบอื่นที่รันพร้อมกันเพิ่ม/ลบลีดของ RYG ระหว่างนั้น → ยอดขยับ (20 → 17) · ตอนนี้ใช้ลีดชุดของข้อนี้เอง 4 ราย
+//   ติดต่อล่าสุด 3 · 10 · 20 · 40 วันก่อน (ฐานคิดจาก created_date เมื่อไม่มีกิจกรรม · ใบ 0147) แล้วค้นด้วยป้ายของชุด
+//   → ยอดรู้ค่าแน่นอนทุกเกณฑ์ (4 → >7 = 3 → >14 = 2 → >30 = 1 → ล้าง = 4) — ตรวจเข้มกว่าเดิม ไม่ใช่น้อยลง
 test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วัน) + กรองได้", async ({ page }) => {
-  await open(page, "dealer", "/leads");
-  await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
-  await page.getByRole("button", { name: "ตาราง" }).click();
-  await expect.poll(() => page.locator("tbody tr").count(), { timeout: 20_000 }).toBeGreaterThan(0);
+  test.skip(!REAL_BACKEND, "ต้องใช้ฐานจริงในเครื่อง (สร้างลีดชุดของข้อนี้)");
+  const admin = adminClient();
+  const ป้าย = `ZZTEST-ค้างติดต่อ-${Date.now() % 100000}`;
+  const วันไทย = (ย้อน: number) => new Date(Date.now() + 7 * 3600_000 - ย้อน * 86400_000).toISOString().slice(0, 10);
+  const อายุชุด = [3, 10, 20, 40];
+  const แถว = อายุชุด.map((วัน, i) => ({ id: `#ZZIDLE-${ป้าย}-${i}`, num_id: 977_500_000 + (Date.now() % 100000) * 10 + i, dealer_code: "RYG",
+    company: `${ป้าย}-${วัน}วัน`, name: `${ป้าย}-${วัน}วัน`, contact: "ผู้ทดสอบ", phone: `000-000-${String(9000 + i)}`, province: "ระยอง",
+    status: "WAITING", created_date: วันไทย(วัน) }));
+  const r = await admin.from("leads").insert(แถว);
+  expect(r.error, `เตรียมลีดชุดของข้อนี้ (${r.error?.message ?? ""})`).toBeNull();
+  try {
+    const { data: ฐาน } = await admin.from("leads").select("company, last_contact_at").like("company", `${ป้าย}%`);
+    expect((ฐาน ?? []).length, "ลีดชุดของข้อนี้ครบ 4 ราย").toBe(4);
 
-  const idle = page.getByLabel("ค้างติดต่อทุกช่วง");
-  await expect(idle).toBeVisible();
-  for (const d of [7, 14, 30]) {
-    await expect(idle.getByRole("option", { name: `ค้างติดต่อ >${d} วัน`, exact: true }), `ต้องมีเกณฑ์ >${d} วัน`).toHaveCount(1);
+    await open(page, "dealer", "/leads");
+    await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
+    await page.getByRole("button", { name: "ตาราง" }).click();
+    await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ป้าย);
+
+    const idle = page.getByLabel("ค้างติดต่อทุกช่วง");
+    await expect(idle).toBeVisible();
+    for (const d of [7, 14, 30]) {
+      await expect(idle.getByRole("option", { name: `ค้างติดต่อ >${d} วัน`, exact: true }), `ต้องมีเกณฑ์ >${d} วัน`).toHaveCount(1);
+    }
+    const ชื่อในตาราง = () => page.locator("tbody tr").filter({ hasText: ป้าย }).evaluateAll(trs => trs.map(tr => tr.textContent ?? ""));
+    const จำนวนในตาราง = async () => (await ชื่อในตาราง()).length;
+    // ยอดรวมจากแถบแบ่งหน้า ("แสดง 1–4 จาก N ...") ต้องตรงกับแถวที่เห็น (ตารางแบ่งหน้า หน้าละ 10 แถว — ชุดนี้ 4 แถว อยู่หน้าเดียว)
+    const ยอด = async () => {
+      const txt = await page.getByText(/แสดง .* จาก .*/).first().innerText();
+      const m = txt.replace(/,/g, "").match(/จาก\s+(\d+)/);
+      return m ? Number(m[1]) : 0;
+    };
+    await expect.poll(จำนวนในตาราง, { timeout: 20_000, message: "ไม่กรอง: เห็นลีดชุดของข้อนี้ครบ 4 ราย" }).toBe(4);
+    for (const d of [7, 14, 30]) {
+      await idle.selectOption(String(d));
+      const ควร = อายุชุด.filter(a => a > d);
+      await expect.poll(จำนวนในตาราง, { timeout: 15_000, message: `ค้างติดต่อ >${d} วัน: ต้องเหลือ ${ควร.length} ราย (${ควร.join(", ")} วัน)` }).toBe(ควร.length);
+      expect(await ยอด(), `ค้างติดต่อ >${d} วัน: ยอดรวมที่แถบแบ่งหน้า = แถวที่เห็น`).toBe(ควร.length);
+      const เห็น = (await ชื่อในตาราง()).join(" | ");
+      for (const a of อายุชุด) {
+        if (a > d) expect(เห็น, `ค้างติดต่อ >${d} วัน: ต้องเห็นรายที่ติดต่อล่าสุด ${a} วันก่อน`).toContain(`${ป้าย}-${a}วัน`);
+        else expect(เห็น, `ค้างติดต่อ >${d} วัน: ต้องไม่เห็นรายที่ติดต่อล่าสุด ${a} วันก่อน`).not.toContain(`${ป้าย}-${a}วัน`);
+      }
+    }
+    await idle.selectOption({ index: 0 });
+    await expect.poll(จำนวนในตาราง, { timeout: 15_000, message: "ล้างตัวกรองแล้วต้องกลับเท่าเดิม (4 ราย)" }).toBe(4);
+    expect(await ยอด(), "ล้างตัวกรองแล้ว ยอดรวมที่แถบแบ่งหน้ากลับเท่าเดิม").toBe(4);
+  } finally {
+    await admin.from("leads").delete().eq("dealer_code", "RYG").like("company", `${ป้าย}%`);
   }
-
-  // ยอดรวมจากแถบแบ่งหน้า ("แสดง 1–10 จาก N ...") — ตารางแบ่งหน้า หน้าละ 10 แถว
-  const ยอด = async () => {
-    const txt = await page.getByText(/แสดง .* จาก .*/).first().innerText();
-    const m = txt.replace(/,/g, "").match(/จาก\s+(\d+)/);
-    return m ? Number(m[1]) : 0;
-  };
-  const คอลัมน์ = await page.locator("thead th").evaluateAll(ths => ths.findIndex(th => (th.textContent ?? "").includes("กิจกรรมล่าสุด")));
-  expect(คอลัมน์, "ตารางมีคอลัมน์กิจกรรมล่าสุด").toBeGreaterThanOrEqual(0);
-  const เดือน = TH_MO_ABBR;
-  const อายุวัน = (s: string) => {   // "5 ต.ค. 2569" → จำนวนวันจากวันนี้ (เวลาไทย) · อ่านไม่ออก = null
-    const m = s.trim().match(/^(\d{1,2}) (\S+) (\d{4})$/);
-    if (!m || เดือน.indexOf(m[2]) < 0) return null;
-    const d = Date.UTC(Number(m[3]) - 543, เดือน.indexOf(m[2]), Number(m[1]));
-    const ไทย = new Date(Date.now() + 7 * 3600_000);
-    return Math.floor((Date.UTC(ไทย.getUTCFullYear(), ไทย.getUTCMonth(), ไทย.getUTCDate()) - d) / 86400000);
-  };
-  await expect.poll(ยอด, { timeout: 15_000 }).toBeGreaterThan(0);
-  const ก่อน = await ยอด();
-
-  let ก่อนหน้า = ก่อน;
-  for (const d of [7, 14, 30]) {
-    await idle.selectOption(String(d));
-    await expect.poll(async () => (await page.locator("tbody tr td").first().count()) > 0 && await ยอด() <= ก่อนหน้า,
-      { timeout: 15_000, message: `ค้างติดต่อ >${d} วัน: ต้องได้ไม่มากกว่าเกณฑ์ก่อนหน้า (${ก่อนหน้า})` }).toBe(true);
-    const จำนวน = await ยอด();
-    const ข้อความ = await page.locator("tbody tr").filter({ hasNot: page.locator("td[colspan]") })
-      .evaluateAll((trs, i) => trs.map(tr => (tr.children[i as number]?.textContent ?? "").trim()), คอลัมน์);
-    expect(ข้อความ.length, `ค้างติดต่อ >${d} วัน: แถวในหน้าแรก = ยอดรวมเท่าที่หน้าแรกใส่ได้`).toBe(Math.min(จำนวน, 10));
-    const ผิด = ข้อความ.filter(s => { const a = อายุวัน(s); return a !== null && a <= d; });
-    expect(ผิด, `ค้างติดต่อ >${d} วัน: ทุกแถวต้องติดต่อล่าสุดเก่ากว่า ${d} วัน`).toEqual([]);
-    ก่อนหน้า = จำนวน;
-  }
-  await idle.selectOption({ index: 0 });
-  await expect.poll(ยอด, { timeout: 15_000, message: "ล้างตัวกรองแล้วต้องกลับเท่าเดิม" }).toBe(ก่อน);
 });
 
 // รายละเอียดลูกค้าเป้าหมาย = แผงกลางจอ 3 แท็บ (รอบ 4 · บอสสั่ง 21 ต.ค. 69 ข้อ 4): ภาพรวม · ใบเสนอราคา · ประวัติ

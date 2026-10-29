@@ -278,7 +278,7 @@ test("[H5] [func·hq] ตั้งเป็นดีลเลอร์ใหม�
   const { data: พื้นที่ } = await svc.from("dealer_territories").select("province").eq("dealer_code", NEW_CODE).order("province");
   expect((พื้นที่ ?? []).map(p => p.province), "จังหวัดที่เลือกต้องเป็นพื้นที่ของสาขาใหม่ 1 จังหวัดพอดี (ระยองที่ RYG ดูแลอยู่)").toEqual(["ระยอง"]);
   const { data: ระยอง } = await svc.from("dealer_territories").select("dealer_code").eq("province", "ระยอง");
-  expect((ระยอง ?? []).map(r => r.dealer_code).sort(), "RYG ยังดูแลระยองอยู่ — ไม่ถูกแทนที่").toEqual([NEW_CODE, "RYG"].sort());
+  expect((ระยอง ?? []).map(r => r.dealer_code), "RYG ยังดูแลระยองอยู่ — ไม่ถูกแทนที่ (สาขาทดสอบที่รันพร้อมกันอาจดูแลระยองด้วย)").toEqual(expect.arrayContaining([NEW_CODE, "RYG"]));
 
   // ยิงซ้ำด้วยรายเดิม (เช่น กดสองครั้ง / สองคนกดพร้อมกัน) ต้องถูกปฏิเสธก่อนสร้างบัญชี
   const token = await adminToken();
