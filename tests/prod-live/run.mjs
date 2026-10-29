@@ -49,8 +49,11 @@ if (phase === "setup") {
   if (d.error) ตาย(`สร้างสาขาไม่สำเร็จ: ${d.error.message}`);
   // จังหวัดที่ดูแล — ดีลเลอร์สร้างลีดได้เฉพาะในพื้นที่ตัวเอง · หน้าแก้ไขดีลเลอร์ของ HQ ไม่มีช่องนี้ (กำหนดได้ตอนตั้งเป็นดีลเลอร์เท่านั้น)
   //   ลบตามสาขาอัตโนมัติ (FK ON DELETE CASCADE) — cleanup.sql ไม่ต้องลบเอง
-  const พื้นที่ = await svc.from("dealer_territories").insert({ dealer_code: CODE, province: "ระยอง" });
+  //   ฐานที่ลงใบ 0259 แล้วให้พื้นที่ตามจังหวัดที่ตั้งเอง (ดีลเลอร์ 1 ราย = 1 จังหวัด) → มีแล้วข้าม · ฐานก่อนใบนี้ = ใส่เอง
+  const พื้นที่ = await svc.from("dealer_territories").upsert({ dealer_code: CODE, province: "ระยอง" }, { onConflict: "province,dealer_code", ignoreDuplicates: true });
   if (พื้นที่.error) ตาย(`ตั้งจังหวัดที่ดูแลไม่สำเร็จ: ${พื้นที่.error.message}`);
+  const { data: ได้พื้นที่ } = await svc.from("dealer_territories").select("province").eq("dealer_code", CODE);
+  if ((ได้พื้นที่ ?? []).map(x => x.province).join(",") !== "ระยอง") ตาย(`จังหวัดที่ดูแลของสาขาทดสอบไม่ใช่ระยอง: ${JSON.stringify(ได้พื้นที่)}`);
   // ข้อมูลบริษัทครบ — ส่ง/พิมพ์ใบให้ลูกค้าได้เฉพาะสาขาที่กรอกชื่อบริษัท · ที่อยู่ · เลขผู้เสียภาษีครบ (ใบ 0247) · cleanup.sql ลบแถวนี้
   const ตั้งค่า = await svc.from("dealer_settings").upsert({ dealer_code: CODE,
     issuer: { company: "ZZTEST บริษัทสาขาทดสอบชั่วคราว", address: "ZZTEST ที่อยู่ทดสอบ", phone: "000-000-0000", taxId: "0000000000000" } },
