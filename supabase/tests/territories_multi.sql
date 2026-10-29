@@ -52,10 +52,10 @@ begin
   -- ใบ 0259 (บอสสั่ง 29 ต.ค. 69): ดีลเลอร์ 1 ราย = 1 จังหวัดพอดี = จังหวัดที่ตั้ง (ฐานให้พื้นที่เอง) · จังหวัดเดียวหลายสาขาได้
   --   → "ดีลเลอร์รายที่ 2 ของจังหวัด" = สาขาทดสอบใหม่ที่ตั้งจังหวัดเดียวกัน (ZZMA · ZZMB ลำพูน)
   -- ══ ก. HQ เพิ่มดีลเลอร์รายที่ 2 ในจังหวัดเดียวกันได้ ══
-  perform flowtest.as_hq(c.hq_uid);
+  --   สร้างสาขาด้วยสิทธิ์ระบบ (ทางสร้างจริงคือ api/admin/dealers ด้วยกุญแจฝั่งเซิร์ฟเวอร์ · ผู้ใช้สร้างตรงติดด่านใบค่าแฟรนไชส์ 0208)
+  perform flowtest.as_root();
   insert into dealers (code, name, province, region, status) values ('ZZMA', 'ZZTEST ลำพูน A', 'ลำพูน', 'เหนือ', 'active');
   insert into dealers (code, name, province, region, status) values ('ZZMB', 'ZZTEST ลำพูน B', 'ลำพูน', 'เหนือ', 'active');
-  perform flowtest.as_root();
   perform flowtest.ok((select count(*) from dealer_territories where province = 'ลำพูน') = 2, 'จังหวัดเดียวมีดีลเลอร์ดูแล 2 ราย');
   perform flowtest.must_fail('insert into dealer_territories (province, dealer_code) values (''ลำพูน'', ''ZZMA'')',
     'duplicate key', 'ดีลเลอร์เดิมซ้ำจังหวัดเดิมไม่ได้ (คู่จังหวัด+ดีลเลอร์ยังห้ามซ้ำ)');

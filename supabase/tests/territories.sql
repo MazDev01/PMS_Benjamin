@@ -69,8 +69,8 @@ begin
   insert into dealers (code, name, province, region, status) values ('ZZTRB', 'ZZTEST ระยอง B', 'ระยอง', 'ตะวันออก', 'active');
   perform flowtest.ok(exists (select 1 from dealer_territories where province = 'ระยอง' and dealer_code = 'ZZTRB'), 'จังหวัดที่มีดีลเลอร์ดูแลแล้ว เพิ่มดีลเลอร์รายที่ 2 ได้');
   delete from dealers where code = 'ZZTRB';
-  insert into dealers (code, name, province, region, status) values ('ZZTRT', 'ZZTEST ตราด', 'ตราด', 'ตะวันออก', 'active');
-  perform flowtest.ok(exists (select 1 from dealer_territories where province = 'ตราด' and dealer_code = 'ZZTRT'), 'จังหวัดว่างกำหนดให้ดีลเลอร์ได้');
+  insert into dealers (code, name, province, region, status) values ('ZZTRT', 'ZZTEST ยะลา', 'ยะลา', 'ใต้', 'active');
+  perform flowtest.ok(exists (select 1 from dealer_territories where province = 'ยะลา' and dealer_code = 'ZZTRT'), 'จังหวัดว่างกำหนดให้ดีลเลอร์ได้');
   delete from dealers where code = 'ZZTRT';
 
   -- ══ ง. ลูกค้าเป้าหมายใหม่: หน้างานต้องอยู่ในพื้นที่ตัวเอง ══
@@ -81,12 +81,12 @@ begin
     'lead_outside_territory', 'หน้างานอยู่ในพื้นที่ของดีลเลอร์อื่น (ชลบุรี = CBI) → สร้างไม่ได้');
 
   -- ══ จ. จังหวัดว่าง: ใครยื่นก่อนได้งาน ══
-  perform flowtest.new_lead('RYG', '#TT-3', 'บจ. โกดังตราด', '081-100-0003', 'ตราด');
+  perform flowtest.new_lead('RYG', '#TT-3', 'บจ. โกดังบึงกาฬ', '081-100-0003', 'บึงกาฬ');
   perform flowtest.ok(true, 'จังหวัดว่าง → ดีลเลอร์ใดก็ยื่นได้');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
-  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-4'', ''  บจ.  โกดังตราด '', ''0811000003'', ''ตราด'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-4'', ''  บจ.  โกดังบึงกาฬ '', ''0811000003'', ''บึงกาฬ'')',
     'lead_taken', 'จังหวัดว่าง งานเดียวกัน (ชื่อ+เบอร์เดียวกันหลังปรับรูปแบบ) ดีลเลอร์อื่นยื่นไว้ก่อน → ยื่นซ้ำไม่ได้');
-  perform flowtest.new_lead('CNX', '#TT-5', 'บจ. งานอื่นที่ตราด', '081-100-0005', 'ตราด');
+  perform flowtest.new_lead('CNX', '#TT-5', 'บจ. งานอื่นที่บึงกาฬ', '081-100-0005', 'บึงกาฬ');
   perform flowtest.ok(true, 'จังหวัดว่าง งานคนละงาน → ยื่นได้');
 
   -- ══ ฉ. จังหวัดที่ดูแลร่วมกัน: ดีลเลอร์ทุกรายที่ดูแลสร้างลีดได้ · รายที่ไม่ได้ดูแลสร้างไม่ได้ ══

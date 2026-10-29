@@ -41,7 +41,7 @@ test("[H11] HQ กด \"แก้ไข\" เปลี่ยนจังหว�
   await page.getByRole("button", { name: "แก้ไข", exact: true }).click({ timeout: 30_000 });
   const แผง = page.getByRole("dialog", { name: "ฟอร์มข้อมูลดีลเลอร์" });
   await expect(แผง).toBeVisible({ timeout: 15_000 });
-  await แผง.getByLabel("ค้นหาจังหวัดที่ตั้ง").fill("ตรัง");
+  await แผง.getByLabel("พิมพ์ค้นในรายการ").fill("ตรัง");
   await expect(แผง.getByLabel("จังหวัดที่ตั้ง", { exact: true }), "พิมพ์ค้นแล้วเหลือจังหวัดเดียว = เลือกให้").toHaveValue("ตรัง");
   await แผง.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
   await expect(แผง).toBeHidden({ timeout: 15_000 });

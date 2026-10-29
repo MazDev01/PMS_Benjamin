@@ -21,7 +21,7 @@ test("[cleanup] คำสั่งลบของระบบล้ม — ต�
   const token = (await (await db(ADMIN)).auth.getSession()).data.session?.access_token ?? "";
   const สร้าง = await request.post(`${HQ_ORIGIN}/api/admin/dealers`, {
     headers: { authorization: `Bearer ${token}` }, timeout: 60_000,
-    data: { code: CODE, name: "ZZTEST-สาขาทดสอบตัวเก็บกวาด", province: "ทดสอบ", region: "กลาง", revenueTarget: 1_000_000, prospectId: await ลูกค้าเป้าหมายรองรับสาขา(CODE) },
+    data: { code: CODE, name: "ZZTEST-สาขาทดสอบตัวเก็บกวาด", province: "นครปฐม", region: "กลาง", revenueTarget: 1_000_000, prospectId: await ลูกค้าเป้าหมายรองรับสาขา(CODE) },
   });
   expect(สร้าง.status(), `สร้างสาขาต้องผ่าน (ได้ ${สร้าง.status()} · ${await สร้าง.text()})`).toBe(200);
   const { email } = await สร้าง.json() as { email: string };

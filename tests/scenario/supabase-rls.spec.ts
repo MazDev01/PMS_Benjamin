@@ -265,12 +265,12 @@ test("[repo] HQ ลบดีลเลอร์แล้วหายจาก DB 
   try {
     // HQ เพิ่มแถวดีลเลอร์ตรงไม่ได้แล้ว — ต้องมาจากผู้สนใจที่ตอบรับ + ชำระครบ (ฐานข้อมูลบังคับ 0208 · ด่าน 4)
     const ตรง = await sb.from("dealers").insert({
-      code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพฯ", region: "กลาง", status: "active",
+      code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพมหานคร", region: "กลาง", status: "active",
     }).select("code");
     expect(ตรง.error?.message ?? "", "HQ เพิ่มดีลเลอร์ตรงโดยไม่ผูกผู้สนใจต้องถูกปฏิเสธ").toContain("conversion_needs_prospect");
     // เพิ่มดีลเลอร์ชั่วคราวด้วยสิทธิ์เซิร์ฟเวอร์ (ทางเดียวกับสคริปต์ลงทะเบียนสาขาตั้งต้น) — ข้อนี้ทดสอบการลบของ HQ
     const ins = await adminClient().from("dealers").insert({
-      code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพฯ", region: "กลาง", status: "active",
+      code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพมหานคร", region: "กลาง", status: "active",
     }).select("code");
     expect(ins.error, `เพิ่มไม่ได้: ${JSON.stringify(ins.error)}`).toBeNull();
     expect(((await sb.from("dealers").select("code")).data ?? []).length).toBe(before.length + 1);

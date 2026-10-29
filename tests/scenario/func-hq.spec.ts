@@ -81,7 +81,7 @@ test("[func·hq] สร้างดีลเลอร์ = สร้างบั
 //   ตั้ง key แล้ว → 401/403 · ยังไม่ตั้ง → 501 · ทั้งหมดต้อง "ไม่ใช่ 200" และไม่มีสาขาเกิดขึ้น
 test("[func·hq] route สร้างดีลเลอร์ปฏิเสธคำขอที่ไม่มีสิทธิ์ (H5)", async ({ request }) => {
   const sb = await db(ADMIN);
-  const payload = { code: "ZZX", name: "ทดสอบสิทธิ์", province: "กรุงเทพฯ", region: "กลาง", revenueTarget: 0 };
+  const payload = { code: "ZZX", name: "ทดสอบสิทธิ์", province: "กรุงเทพมหานคร", region: "กลาง", revenueTarget: 0 };   // จังหวัดจากรายชื่อ (ใบ 0259) — ข้อนี้วัดสิทธิ์ ไม่ใช่จังหวัด
   try {
     // 1) ไม่มี token
     const noAuth = await request.post(`${HQ_ORIGIN}/api/admin/dealers`, { data: payload });

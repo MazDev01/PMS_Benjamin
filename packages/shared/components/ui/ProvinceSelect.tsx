@@ -7,7 +7,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 
 export function ProvinceSelect({ id, label, value, onChange, options, ว่าง = "— ยังไม่ระบุ —", ก่อน, หลัง, style, className, disabled }: {
   id?: string;
-  /** ชื่อช่อง (aria-label ของช่องเลือก) · ช่องค้น = "ค้นหา" + ชื่อช่อง */
+  /** ชื่อช่อง (aria-label ของช่องเลือก) · ช่องค้นชื่อ "พิมพ์ค้นในรายการ" (title บอกชื่อช่อง) */
   label: string;
   value: string;
   onChange: (v: string) => void;
@@ -35,7 +35,8 @@ export function ProvinceSelect({ id, label, value, onChange, options, ว่า�
         {เห็น.map(p => <option key={p} value={p}>{p}</option>)}
         {หลัง}
       </select>
-      <input type="search" aria-label={`ค้นหา${label}`} placeholder="พิมพ์ค้น…" value={ค้น} disabled={disabled}
+      {/* ชื่อช่องค้นไม่มีคำของช่องเลือก — getByLabel("จังหวัด") ต้องได้ช่องเลือกตัวเดียว (ข้อทดสอบเดิมทั้งระบบ) · ผูกกับช่องเลือกด้วย aria-controls */}
+      <input type="search" aria-label="พิมพ์ค้นในรายการ" aria-controls={id} title={`พิมพ์ค้น${label}`} placeholder="พิมพ์ค้น…" value={ค้น} disabled={disabled}
         onChange={e => {
           setค้น(e.target.value);
           // พิมพ์แล้วเหลือจังหวัดเดียว = เลือกให้เลย
