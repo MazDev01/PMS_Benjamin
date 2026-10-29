@@ -15,6 +15,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/check-server-rpc-grants.test.mjs", "ตัวตรวจสิทธิ์ฟังก์ชันฝั่งเซิร์ฟเวอร์"],
   ["tests/tools/testdb-baseline-key.test.mjs", "กุญแจข้อมูลตั้งต้นฐานทดสอบ"],
   ["tests/tools/tool-tests-in-gate.test.mjs", "ตัวตรวจว่าข้อทดสอบเครื่องมือทุกชุดอยู่ในรอบตรวจเต็ม"],
+  ["tests/tools/shared-baseline-asserts.test.mjs", "ตัวตรวจข้อทดสอบที่นับตรงเป๊ะจากข้อมูลตั้งต้นร่วม (คิวข้อ 3 · 29 ต.ค. 69)"],
 ];
 for (const [ไฟล์, อะไร] of ชุด) {
   test(`[tool] ${อะไร} (${ไฟล์})`, () => {

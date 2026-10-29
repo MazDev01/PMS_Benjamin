@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, RYG, CNX, ADMIN, skipReason, type Account } from "./supabaseEnv";
 import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 import { adminClient } from "./testDealers";
+import { ถือแถวกลาง } from "./sharedRowLock";
 
 // กฎความปลอดภัยที่ "มีจริงเฉพาะโหมด supabase" — RLS / สิทธิ์เขียน / FK / ตัวนับเลขที่ (M5)
 //
@@ -184,6 +185,7 @@ test("[rpc] ใบที่ส่งแล้วและเลยกำหน�
 test("[hq→dealer] เหตุผลปิดการขายไม่สำเร็จที่ HQ ตั้ง ไปถึงดีลเลอร์จริง (0021)", async () => {
   const hq = await signIn(ADMIN);
   const dealer = await signIn(RYG);
+  const ปล่อยแถว = await ถือแถวกลาง("hq_sales_journey");   // แถวเดียวทั้งระบบ — ข้ออื่นที่แก้/อ่านแถวนี้ต่อคิว (sharedRowLock.ts)
   const before = (await hq.from("hq_sales_journey").select("lost").eq("id", 1)).data?.[0]?.lost as string[];
   expect(before, "ต้องมีแถวตั้งค่าอยู่แล้ว (0021 seed ให้)").toBeTruthy();
 
@@ -200,6 +202,7 @@ test("[hq→dealer] เหตุผลปิดการขายไม่สำ
     expect(seen, "ดีลเลอร์ต้องเห็นรายการที่ HQ เพิ่งตั้ง").toEqual(probe);
   } finally {
     await hq.from("hq_sales_journey").update({ lost: before }).eq("id", 1);
+    ปล่อยแถว();
   }
 });
 
@@ -260,6 +263,9 @@ test("[rpc] คำนำหน้าเลขที่ที่ดีลเล�
 test("[repo] HQ ลบดีลเลอร์แล้วหายจาก DB จริง ไม่ใช่แค่หายจากหน้าจอ (A4)", async () => {
   const sb = await signIn(ADMIN);
   const CODE = "ZTEST";
+  // ต้นเหตุพังข้ออื่น (29 ต.ค. 69): เดิมจดรายชื่อตอนเริ่ม แล้ว "ลบทุกสาขาที่ไม่อยู่ในรายชื่อ" + นับต้องเท่าเดิม
+  //   สาขาทดสอบ Z* ที่ข้ออื่นสร้างระหว่างนั้นถูกลบไปด้วย · ตอนนี้ชุดที่เก็บ = ทุกสาขาที่มีอยู่ตอนลบ ยกเว้น ZTEST ของข้อนี้
+  //   แล้วตรวจว่า ZTEST หาย และทุกสาขาในชุดที่เก็บยังอยู่ครบ (เข้มเท่าเดิม ไม่แตะของข้ออื่น)
   const before = (await sb.from("dealers").select("code")).data ?? [];
   expect(before.length, "ต้องมีดีลเลอร์อยู่ก่อน").toBeGreaterThan(0);
   try {
@@ -273,16 +279,20 @@ test("[repo] HQ ลบดีลเลอร์แล้วหายจาก DB 
       code: CODE, name: "สาขาทดสอบอัตโนมัติ", province: "กรุงเทพมหานคร", region: "กลาง", status: "active",
     }).select("code");
     expect(ins.error, `เพิ่มไม่ได้: ${JSON.stringify(ins.error)}`).toBeNull();
-    expect(((await sb.from("dealers").select("code")).data ?? []).length).toBe(before.length + 1);
+    const ตอนลบ = ((await sb.from("dealers").select("code")).data ?? []).map(d => d.code as string);
+    expect(ตอนลบ, "HQ เห็นสาขาที่เพิ่ม").toContain(CODE);
 
     // จำลองสิ่งที่ dealers.save ทำ: upsert ชุดที่ "ไม่มี ZTEST" แล้วลบส่วนเกิน
-    const keep = before.map(d => `"${d.code}"`).join(",");
-    const del = await sb.from("dealers").delete().not("code", "in", `(${keep})`).select("code");
+    const เก็บ = ตอนลบ.filter(c => c !== CODE);
+    //   สาขาทดสอบ Z* อื่นที่เกิดระหว่างอ่านกับลบ ไม่อยู่ในชุดที่ลบได้ (ข้ออื่นเป็นเจ้าของ)
+    const del = await sb.from("dealers").delete().not("code", "in", `(${เก็บ.map(c => `"${c}"`).join(",")})`)
+      .or(`code.eq.${CODE},code.not.like.Z*`).select("code");
     expect(del.error, `ลบไม่ได้: ${JSON.stringify(del.error)}`).toBeNull();
+    expect((del.data ?? []).map(d => d.code), "ลบ ZTEST ออกจาก DB จริง (ไม่ลบสาขาอื่น)").toEqual([CODE]);
 
-    const after = (await sb.from("dealers").select("code")).data ?? [];
-    expect(after.length, "ดีลเลอร์ที่ถูกเอาออกต้องหายจาก DB").toBe(before.length);
-    expect(after.some(d => d.code === CODE), "ZTEST ต้องไม่เหลือ").toBe(false);
+    const after = ((await sb.from("dealers").select("code")).data ?? []).map(d => d.code as string);
+    expect(after.includes(CODE), "ZTEST ต้องไม่เหลือ").toBe(false);
+    expect(เก็บ.filter(c => !after.includes(c) && !/^Z/.test(c)), "สาขาที่เก็บไว้ยังอยู่ครบ").toEqual([]);
   } finally {
     await sb.from("dealers").delete().eq("code", CODE);
   }
@@ -327,6 +337,7 @@ test("[dealer-settings] หัวกระดาษ/เอกสารของ�
   const issuer = { company: "บจ. ทดสอบอัตโนมัติ", address: "ที่อยู่ทดสอบ", phone: "000", taxId: "0000000000000" };
   // คืนแถวตั้งค่าเดิมของ RYG ตอนจบ — เดิมลบทิ้งทั้งแถว ข้อมูลบริษัทของ RYG (ข้อมูลตั้งต้น) หายกลางรอบ
   //   แล้วชุดอื่นที่ส่ง/พิมพ์ใบของ RYG ตกตาม (ใบ 0247 · รอบตรวจรวม 27 ต.ค. 69)
+  const ปล่อยแถว = await ถือแถวกลาง("dealer_settings.RYG");   // ข้ออื่นที่แก้/อ่านตั้งค่า RYG ต่อคิว (เดิมคืนค่าทับกัน)
   const เดิม = (await ryg.from("dealer_settings").select("*").eq("dealer_code", "RYG").maybeSingle()).data;
   try {
     // สาขาบันทึกหัวกระดาษของตัวเองได้
@@ -352,6 +363,7 @@ test("[dealer-settings] หัวกระดาษ/เอกสารของ�
   } finally {
     if (เดิม) await ryg.from("dealer_settings").upsert(เดิม, { onConflict: "dealer_code" });
     else await ryg.from("dealer_settings").delete().eq("dealer_code", "RYG");
+    ปล่อยแถว();
   }
 });
 
@@ -425,18 +437,21 @@ test("[notes] โน้ตลูกค้าเก็บที่ DB · สา�
 test("[hq-company] ข้อมูลบริษัท HQ อ่านได้ทุกคน · เขียนเฉพาะผู้มีสิทธิ์ข้อมูลกลาง (0028)", async () => {
   const hq = await signIn(ADMIN);
   const dealer = await signIn(RYG);
-  const before = (await hq.from("hq_company").select("name").eq("id", 1)).data?.[0] as { name: string };
-  expect(before, "ต้องมีแถวข้อมูลบริษัท (0028 seed ให้)").toBeTruthy();
+  // แก้ช่อง website (เดิมแก้ชื่อบริษัท ซึ่งขึ้นหัวเอกสารของข้ออื่นที่รันพร้อมกัน) + ต่อคิวกับ role-matrix ที่ตรวจช่องเดียวกัน
+  const ปล่อยแถว = await ถือแถวกลาง("hq_company");
+  const before = (await hq.from("hq_company").select("website").eq("id", 1)).data?.[0] as { website: string };
   try {
+    expect(before, "ต้องมีแถวข้อมูลบริษัท (0028 seed ให้)").toBeTruthy();
     // ดีลเลอร์อ่านได้ (อ้างอิงชื่อบริษัทแม่) แต่แก้ไม่ได้
     expect(((await dealer.from("hq_company").select("name").eq("id", 1)).data ?? []).length).toBe(1);
     const blocked = await dealer.from("hq_company").update({ name: "ดีลเลอร์แก้" }).eq("id", 1).select();
     expect(wasBlocked(blocked), "ดีลเลอร์ต้องแก้ข้อมูลบริษัท HQ ไม่ได้").toBe(true);
 
-    const ok = await hq.from("hq_company").update({ name: "ทดสอบอัตโนมัติ" }).eq("id", 1).select();
+    const ok = await hq.from("hq_company").update({ website: "ทดสอบอัตโนมัติ" }).eq("id", 1).select();
     expect(ok.error).toBeNull();
     expect(ok.data?.length).toBe(1);
   } finally {
-    await hq.from("hq_company").update({ name: before.name }).eq("id", 1);
+    if (before) await hq.from("hq_company").update({ website: before.website }).eq("id", 1);
+    ปล่อยแถว();
   }
 });

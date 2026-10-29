@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
@@ -110,9 +111,14 @@ test("[func·db] รายการเตือน/แม่แบบงาน�
     .eq("dealer_code", "RYG").eq("num_id", เลข);
   expect.soft(ตรง.error?.message ?? "", "กุญแจเซิร์ฟเวอร์ใส่รายการผูกสถานะลีดแบบเก่าไม่ได้").toMatch(/lead_task_retired/);
   // HQ เพิ่ม "ติดตามผล" ในแม่แบบงาน
-  const เดิม = (await admin.from("hq_sales_journey").select("tasks").eq("id", 1).single()).data?.tasks as { key: string }[];
-  const เพิ่ม = await hq.from("hq_sales_journey").update({ tasks: [...(เดิม ?? []), { key: "followup", label: "ติดตามผล", step: 5 }] }).eq("id", 1);
-  if (!เพิ่ม.error) await admin.from("hq_sales_journey").update({ tasks: เดิม }).eq("id", 1);   // ฐานยอม (ผิด) = คืนค่าทันที
+  //   อ่าน-แก้-คืนแถวงานตามขั้น (แถวเดียวทั้งระบบ) — ต่อคิวกับข้ออื่นที่แก้แถวนี้ (sharedRowLock.ts · 29 ต.ค. 69)
+  const ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "hq_sales_journey");
+  let เพิ่ม: { error: { message: string } | null };
+  try {
+    const เดิม = (await admin.from("hq_sales_journey").select("tasks").eq("id", 1).single()).data?.tasks as { key: string }[];
+    เพิ่ม = await hq.from("hq_sales_journey").update({ tasks: [...(เดิม ?? []), { key: "followup", label: "ติดตามผล", step: 5 }] }).eq("id", 1);
+    if (!เพิ่ม.error) await admin.from("hq_sales_journey").update({ tasks: เดิม }).eq("id", 1);   // ฐานยอม (ผิด) = คืนค่าทันที
+  } finally { ปล่อยแถว(); }
   expect.soft(เพิ่ม.error?.message ?? "", "HQ เพิ่ม ติดตามผล ในแม่แบบไม่ได้").toMatch(/lead_task_retired/);
 });
 
@@ -133,10 +139,14 @@ test("[func·hq] ตั้งค่า › เส้นทางการขา�
     await expect.soft(page.locator(`input[value="${เก่า}"]`), `ไม่มี "${เก่า}"`).toHaveCount(0);
 
   const hq = await db(ADMIN);
-  const เดิม = (await admin.from("hq_sales_journey").select("tasks").eq("id", 1).single()).data?.tasks as { key: string }[];
-  const ตัด = await hq.from("hq_sales_journey").update({ tasks: (เดิม ?? []).filter(t => t.key !== "requestQuote") }).eq("id", 1);
-  if (!ตัด.error) await admin.from("hq_sales_journey").update({ tasks: เดิม }).eq("id", 1);   // ฐานยอม (ผิด) = คืนค่าทันที ไม่ให้กระทบชุดอื่น
+  const ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "hq_sales_journey");   // อ่าน-แก้-คืนแถวงานตามขั้น — ต่อคิว (29 ต.ค. 69)
+  let ตัด: { error: { message: string } | null }, ปัจจุบัน: { key: string }[];
+  try {
+    const เดิม = (await admin.from("hq_sales_journey").select("tasks").eq("id", 1).single()).data?.tasks as { key: string }[];
+    ตัด = await hq.from("hq_sales_journey").update({ tasks: (เดิม ?? []).filter(t => t.key !== "requestQuote") }).eq("id", 1);
+    if (!ตัด.error) await admin.from("hq_sales_journey").update({ tasks: เดิม }).eq("id", 1);   // ฐานยอม (ผิด) = คืนค่าทันที ไม่ให้กระทบชุดอื่น
+    ปัจจุบัน = (await admin.from("hq_sales_journey").select("tasks").eq("id", 1).single()).data?.tasks as { key: string }[];
+  } finally { ปล่อยแถว(); }
   expect.soft(ตัด.error?.message ?? "", "ฐาน: HQ ตัดรายการของระบบไม่ได้").toMatch(/system_task_locked/);
-  const ปัจจุบัน = (await admin.from("hq_sales_journey").select("tasks").eq("id", 1).single()).data?.tasks as { key: string }[];
   expect.soft((ปัจจุบัน ?? []).some(t => t.key === "requestQuote"), "แม่แบบยังมีรายการของระบบครบ").toBe(true);
 });
