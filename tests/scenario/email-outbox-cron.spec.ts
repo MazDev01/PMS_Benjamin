@@ -5,6 +5,7 @@ import { CNX, skipReason, SUPABASE_URL } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, HQ_ORIGIN } from "./funcHelpers";
 import { adminClient } from "./testDealers";
+import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
 
 // ── คำขอเกิน 14 วัน → อีเมลสรุปจริงหนึ่งฉบับต่อวัน (เงื่อนไขปิดด่าน 1 · รอบ 4 ใบ 0231: สรุปรวมวันละครั้ง ไม่แจ้งทีละคำขอ) ──────
 //
@@ -22,12 +23,17 @@ function ค่าในไฟล์(key: string): string {
 }
 const CRON_SECRET = ค่าในไฟล์("CRON_SECRET");
 const MAIL = process.env.PMS_MAIL_URL ?? SUPABASE_URL.replace(/:(\d+)\/?$/, (_m, p) => `:${Number(p) + 3}`);
-const ผู้รับ = "zztest-hq-overdue@example.test";
+// ผู้รับของรอบนี้เท่านั้น — ไม่ต้องล้างกล่องจดหมายทดสอบทั้งกล่อง (เดิมล้างทั้งกล่อง = อีเมลที่ข้ออื่นกำลังรอหายไป · 29 ต.ค. 69)
+const ผู้รับ = `zztest-hq-overdue-${Date.now() % 1_000_000}@example.test`;
 const admin = adminClient();
 let เดิม: string[] = [];
 let คำขอ = 0;
+let ลีด = 0;
+let ปล่อยแถว = () => {};
 
 test.beforeAll(async () => {
+  // ผู้รับอีเมล HQ เป็นแถวเดียวทั้งระบบ — 3 ไฟล์ตั้งค่าแถวนี้ (email-outbox-cron · hq-email-recipients · quote-request-flow) ต่อคิวกัน
+  ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "hq_notif_rules")   // + สรุปคำขอค้างรายวัน (requests_overdue) ที่ข้อนี้ล้างแล้วสร้างใหม่;
   const { data } = await admin.from("hq_notif_rules").select("email_recipients").eq("id", 1).single();
   เดิม = (data?.email_recipients as string[]) ?? [];
 });
@@ -40,6 +46,8 @@ test.afterAll(async () => {
     await admin.from("notifications").delete().like("dedupe_key", `%:${คำขอ}`);
     await admin.from("quote_requests").delete().eq("id", คำขอ);
   }
+  if (ลีด) await admin.from("leads").delete().eq("dealer_code", "CNX").eq("num_id", ลีด);
+  ปล่อยแถว();
 });
 
 test("[email] งานตั้งเวลาต้องมีกุญแจ — คนนอกสั่งให้ระบบส่งอีเมลไม่ได้", async ({ request }) => {
@@ -55,16 +63,19 @@ test("[email] คำขอเกิน 14 วัน → อีเมลสรุ
   expect((await admin.from("hq_notif_rules").update({ email_recipients: [ผู้รับ] }).eq("id", 1)).error).toBeNull();
 
   // ดีลเลอร์ส่งคำขอจริง (ผ่านคำสั่งของระบบ ด้วยใบผ่านของดีลเลอร์)
+  //   ใช้ลีดของข้อนี้เอง (เดิมหยิบลีด CNX ตัวแรกของข้อมูลตั้งต้น — ข้ออื่นที่ใช้ลีดนั้นเห็นสถานะเปลี่ยนกลางทาง · 29 ต.ค. 69)
   const cnx = await db(CNX);
-  const { data: lead } = await cnx.from("leads").select("num_id").eq("dealer_code", "CNX").in("status", ["WAITING", "BULLET"]).order("num_id").limit(1).single();
-  const ส่ง = await cnx.rpc("quote_request_submit", { p_lead_num_id: lead!.num_id, p_product: "โกดังและคลังสินค้า" });
+  ลีด = 978_500_000 + (Date.now() % 99_999);
+  const ใส่ = await cnx.from("leads").insert({ id: `#L-${ลีด}`, num_id: ลีด, dealer_code: "CNX", company: `ZZTEST-สรุปค้าง-${ลีด}`,
+    name: `ZZTEST-สรุปค้าง-${ลีด}`, contact: "ผู้ทดสอบ", phone: "000-000-0014", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "BULLET" });
+  expect(ใส่.error, `เตรียมลีดของข้อนี้ (${ใส่.error?.message ?? ""})`).toBeNull();
+  const ส่ง = await cnx.rpc("quote_request_submit", { p_lead_num_id: ลีด, p_product: "โกดังและคลังสินค้า" });
   expect(ส่ง.error, `ดีลเลอร์ส่งคำขอต้องผ่าน (${ส่ง.error?.message})`).toBeNull();
   const r = ส่ง.data as { id: number; request_no: string };
   คำขอ = r.id;
 
   // เลื่อนกำหนดส่งให้เลยมาแล้ว (จำลองเวลาผ่านไป 14 วัน)
   await admin.from("quote_requests").update({ due_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", r.id);
-  await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
   // สรุปวันนี้อาจถูกสร้างไปแล้วจากรอบทดสอบก่อนหน้า (กันซ้ำวันละครั้ง) — ล้างของวันนี้ก่อน ให้รอบนี้ได้สรุปใหม่ที่มีคำขอนี้
   await admin.from("notifications").delete().eq("kind", "requests_overdue");
   await admin.from("email_outbox").delete().eq("kind", "requests_overdue");

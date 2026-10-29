@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { RYG, CNX, skipReason } from "./supabaseEnv";
+import { skipReason } from "./supabaseEnv";
 import { getSession } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
 import { ที่อยู่เว็บ } from "./sessionPorts";
+import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
 // ── ด่านจำกัดจำนวนคำขอบนเส้นทางงานขาย (ผลตรวจระบบ 19 ส.ค. 69) ──────────────────
 // เดิมด่านนี้มีเฉพาะ /api/admin/* งานขายทั้งหมดยิงได้ไม่จำกัด
@@ -18,9 +19,15 @@ const DEALER = ที่อยู่เว็บ.dealer;
 const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
 const WRITE_QUOTA = 300;   // ต้องตรงกับ LIMIT_WRITE ใน packages/shared/server/v1/_ctx.ts (ขยับ 27 ส.ค. 69)
 
-async function ยิง(token: string, method: "GET" | "POST") {
+// ต้นเหตุพังข้ออื่น (29 ต.ค. 69): เดิมยิงจนเต็มโควตาด้วยบัญชี RYG/CNX ที่ข้ออื่นใช้พร้อมกัน → ข้ออื่นได้ 429 กลางทาง
+//   และข้อ "โควตาแยกกัน" ล้างโควตาทั้งตาราง · ตอนนี้ใช้สาขาของไฟล์นี้เอง 2 สาขา (บัญชีของตัวเอง) ไม่แตะโควตาของใคร
+let ก: สาขาของข้อ, ข: สาขาของข้อ;
+test.beforeAll(async () => { ก = await สร้างสาขาของข้อ(); ข = await สร้างสาขาของข้อ(); });
+test.afterAll(async () => { await ก?.ลบ(); await ข?.ลบ(); });
+
+async function ยิง(token: string, method: "GET" | "POST", รหัส = ก.รหัส) {
   try {
-    const r = await fetch(`${DEALER}/api/v1/leads?dealerCode=RYG`, {
+    const r = await fetch(`${DEALER}/api/v1/leads?dealerCode=${รหัส}`, {
       method,
       headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: method === "GET" ? undefined : JSON.stringify({ company: "" }),
@@ -35,7 +42,7 @@ async function ยิง(token: string, method: "GET" | "POST") {
 }
 
 test("[security] ยิงคำขอเขียนเกินโควตา → ถูกปฏิเสธ 429 และงานอ่านยังทำได้", async () => {
-  const s = await getSession(RYG);
+  const s = await getSession(ก.บัญชี);
   await admin.from("rate_limits").delete().like("key", `v1:%${s.user.id}`);
 
   // ยิงเป็นชุดละ 30 ให้จบก่อนหน้าต่างเวลารีเซ็ต (ยิงทีละครั้งจะช้าเกิน 60 วิ แล้วตัวนับเริ่มใหม่)
@@ -63,8 +70,8 @@ test("[security] ยิงคำขอเขียนเกินโควตา
 //   หน้าจอโหลดข้อมูลด้วย POST หลายทาง (เปิดแผงลูกค้าเป้าหมาย op=get · ตารางแบ่งหน้า op=page · ตัวเลขสรุป metrics)
 //   เดิมนับเป็น "เขียน" (300/นาที/บัญชี) — เปิดหน้าดูรัว ๆ แล้วกดสร้างใบไม่ได้ (429) · พบจาก quote-versions-timeline:48
 test("[security] อ่านแบบ POST เกินโควตาเขียน → ยังสร้างใบเสนอราคาได้", async () => {
-  const s = await getSession(RYG);
-  const ใบHQ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: `ZZTEST-โควตาอ่าน-${Date.now() % 100000}`, province: "ระยอง",
+  const s = await getSession(ข.บัญชี);
+  const ใบHQ = await เตรียมใบHQ(ข.บัญชี, { dealerCode: ข.รหัส, company: `ZZTEST-โควตาอ่าน-${Date.now() % 100000}`, province: "ตราด",
     lines: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitCost: 10 }] });
   const หัว = { Authorization: `Bearer ${s.access_token}`, "content-type": "application/json" };
   try {
@@ -78,19 +85,21 @@ test("[security] อ่านแบบ POST เกินโควตาเขี
     expect(อ่าน.filter(x => x === 429).length, "อ่านแบบ POST ต้องไม่ถูกจำกัดด้วยโควตาเขียน").toBe(0);
 
     const r = await fetch(`${DEALER}/api/v1/quotations?op=numbered`, { method: "POST", headers: หัว, body: JSON.stringify({
-      dealer: "RYG", prefix: "Q-", row: { customer: `ZZTEST-โควตาอ่าน`, project: "ZZTEST-โควตาอ่าน", date: "2026-10-15", province: "ระยอง",
+      dealer: ข.รหัส, prefix: "Q-", row: { customer: `ZZTEST-โควตาอ่าน`, project: "ZZTEST-โควตาอ่าน", date: "2026-10-15", province: "ตราด",
         buildingType: "โกดังสำเร็จรูป", area: 1, dealId: ใบHQ.leadNum, total: "10", totalValue: 10, materialCost: 10, items: 1, status: "draft",
         hqQuoteId: ใบHQ.hqQuoteId, lineItems: [{ name: "โครงเหล็กชุดทดสอบ", qty: 1, unit: "ชุด", unitPrice: 10, markupPct: 0 }] } }) });
     expect(r.status, `สร้างใบต้องยังทำได้หลังอ่านรัว ๆ — ได้ ${r.status} ${(await r.text()).slice(0, 120)}`).toBe(200);
   } finally {
     await admin.from("rate_limits").delete().like("key", `v1:%${s.user.id}`);
-    ล้างใบHQทดสอบ("RYG", [ใบHQ.leadNum]);
+    ล้างใบHQทดสอบ(ข.รหัส, [ใบHQ.leadNum]);
   }
 });
 
 test("[security] โควตาของแต่ละบัญชีแยกกัน — คนหนึ่งยิงเต็มไม่ทำให้อีกคนใช้งานไม่ได้", async () => {
-  const a = await getSession(RYG), b = await getSession(CNX);
-  await admin.from("rate_limits").delete().like("key", "v1:%");
+  const a = await getSession(ก.บัญชี), b = await getSession(ข.บัญชี);
+  // ล้างเฉพาะโควตาของ 2 บัญชีในข้อนี้ — เดิมล้าง "v1:%" ทั้งตาราง = ล้างโควตาที่ข้ออื่นกำลังนับอยู่ (29 ต.ค. 69)
+  const ล้างโควตาของข้อนี้ = () => Promise.all([a, b].map(x => admin.from("rate_limits").delete().like("key", `v1:%${x.user.id}`)));
+  await ล้างโควตาของข้อนี้();
 
   // ยิงทีละชุด 30 (แบบข้อด้านบน) — ไม่ยิง 330 ครั้งพร้อมกันรวดเดียว
   //   ไม่นิ่งซ้ำทุกรอบปิดด่าน (ด่าน 1–5): ครั้งแรก "fetch failed" ภายใน 0.3 วิ ต่อไม่ได้ทั้ง IPv4/IPv6 (AggregateError)
@@ -98,7 +107,7 @@ test("[security] โควตาของแต่ละบัญชีแยก
   //   ของชั้นการเชื่อมต่อออกมาระหว่างจำลอง — ต้นเหตุที่น่าจะใช่ ยังไม่พิสูจน์ · ถ้าตกอีก ข้อความบอกรหัสจริงแล้ว
   for (let i = 0; i < WRITE_QUOTA + 30; i += 30) await Promise.all(Array.from({ length: 30 }, () => ยิง(a.access_token, "POST")));
   // อีกบัญชีต้องยังยิงได้ตามปกติ (ต้องไม่ใช่ 429)
-  expect(await ยิง(b.access_token, "GET"), "บัญชีอื่นต้องไม่โดนหางเลข").not.toBe(429);
+  expect(await ยิง(b.access_token, "GET", ข.รหัส), "บัญชีอื่นต้องไม่โดนหางเลข").not.toBe(429);
 
-  await admin.from("rate_limits").delete().like("key", "v1:%");
+  await ล้างโควตาของข้อนี้();
 });

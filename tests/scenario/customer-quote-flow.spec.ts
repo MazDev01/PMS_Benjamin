@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
 import { readFileSync } from "node:fs";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
@@ -126,6 +127,8 @@ test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า 
   const เจอ = (เนื้อ: string, คำ: string) => คำ === "HQ-" ? /(?<!ใบ)HQ-/.test(เนื้อ) : เนื้อ.includes(คำ);
   //   พิมพ์จากแผงใบเสนอราคาของลูกค้าเป้าหมาย (ตัวสร้างเอกสารชุดเดียวกับหน้ารายการใบ — buildQuotationHTML)
   //   พิมพ์ต้องมีข้อมูลบริษัทครบ (ใบ 0247 · ข้อมูลตั้งต้นของ RYG ครบแล้ว) — ถ้าไม่มีชื่อบริษัท ตั้งชื่อทดสอบให้ชั่วคราว แล้วคืนค่าเดิม
+  //   ต่อคิวแถวตั้งค่า RYG กับข้ออื่นที่แก้/ตรวจแถวเดียวกัน (sharedRowLock.ts · 29 ต.ค. 69)
+  const ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "dealer_settings.RYG");
   const ตั้งค่าเดิม = (await admin.from("dealer_settings").select("issuer").eq("dealer_code", "RYG").maybeSingle()).data;
   const ชื่อผู้ออก = "ZZTEST บริษัทผู้ออกใบ จำกัด";
   if (!String((ตั้งค่าเดิม?.issuer as { company?: string } | null)?.company ?? "").trim()) {
@@ -144,6 +147,7 @@ test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า 
   } finally {
     if (!ตั้งค่าเดิม) await admin.from("dealer_settings").delete().eq("dealer_code", "RYG");   // เดิมไม่มีแถวตั้งค่า
     else await admin.from("dealer_settings").update({ issuer: ตั้งค่าเดิม.issuer }).eq("dealer_code", "RYG");
+    ปล่อยแถว();
   }
 
   // ไฟล์ส่งออกจากหน้าใบเสนอราคา (CSV และ Excel) — อ่านไฟล์ที่ดาวน์โหลดจริง

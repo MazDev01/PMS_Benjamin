@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
 import { createClient } from "@supabase/supabase-js";
 import { RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
@@ -124,46 +125,50 @@ test("[tax] บันทึกใบ → ฐานข้อมูลเก็บ
 });
 
 test("[tax] ใบเก่าที่ยังไม่มีข้อมูลภาษี ต้องเปิดดู/พิมพ์ได้ตามปกติ (ไม่พัง)", async ({ page }) => {
-  const เก่า = `${NS}-ใบเก่าไม่มีภาษี`;
-  // ใบเก่า (ก่อนปิดทางเดิม · ด่าน 3) สร้างผ่านแอปไม่ได้แล้ว — วางที่ฐานทดสอบตรง ๆ
-  // ใบเดิมบนระบบจริงผูกลูกค้าเป้าหมายทุกใบ — วางลีดคู่กัน (รอบ 4: ดู/พิมพ์ใบที่แผงลีด หน้าใบเสนอราคาเป็นรายการ)
-  const เลข = 979_800_000 + (Date.now() % 90_000);
-  const ลีด = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: เก่า, name: เก่า,
-    phone: "0810000996", province: "ระยอง", status: "QUOTED" });
-  expect(ลีด.error, `วางลีดไม่สำเร็จ: ${ลีด.error?.message}`).toBeNull();
-  วางใบเดิมที่ฐาน([{
-    id: `${NS}-OLD`, dealer_code: "RYG", customer: เก่า, project: เก่า, date: "2026-08-20", deal_id: เลข,
-    province: "ระยอง", building_type: "โกดังสำเร็จรูป", area: "1", total: "400000",
-    total_value: 400_000, material_cost: 400_000, items: 1, status: "sent_to_client",
-    line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 400_000 }],
-  }]);
+  // ข้อนี้เทียบ VAT บนจอกับตั้งค่าเอกสารของ RYG — ต่อคิวกับข้อที่แก้แถวนั้น (supabase-rls · quotation-print · customer-quote-flow)
+  const ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "dealer_settings.RYG");
   try {
-    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-    await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(เก่า);
-    const แถว = page.locator("tbody tr").filter({ hasText: เก่า }).first();
-    await expect(แถว).toBeVisible({ timeout: 20_000 });
-    await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
-    await page.waitForURL(/\/leads/, { timeout: 25_000 });
-    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
-    await page.locator(`[data-quote-item="${NS}-OLD"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
-    // หน้าดูใบต้องเปิดได้ · มูลค่างานเท่าเดิม · มีปุ่มพิมพ์
-    //   หน้าดูใบแยกยอด VAT แล้ว (บอสอนุมัติ 22 ต.ค. 69 · เดิมมีแค่ "ยอดสุทธิ" = มูลค่างาน)
-    //   ใบที่ไม่ส่งภาษีมา: ฐานบันทึก VAT ที่หน้าเว็บของสาขาแสดงอยู่ (ใบ 0237) — ยอดที่แสดงเท่ากับตอนก่อนลงใบ
-    const doc = (await admin.from("dealer_settings").select("document").eq("dealer_code", "RYG").maybeSingle()).data?.document as { vatPercent?: unknown } | undefined;
-    const vat = typeof doc?.vatPercent === "number" && doc.vatPercent >= 0 ? Math.min(doc.vatPercent, 100) : 7;
-    expect(Number((await admin.from("quotations").select("vat_percent").eq("dealer_code", "RYG").eq("id", `${NS}-OLD`).single()).data?.vat_percent),
-      "ใบที่ไม่ส่งภาษี: ฐานบันทึก VAT ที่สาขาแสดง (ไม่ว่าง)").toBe(vat);
-    const ยอด = page.locator("[data-quote-totals]");
-    await expect(ยอด.getByText("ยอดรวมย่อย (ก่อน VAT)")).toBeVisible({ timeout: 15_000 });
-    await expect(ยอด.getByText("฿400,000", { exact: true }).first(), "มูลค่างาน (ก่อน VAT) = ยอดเดิมของใบ").toBeVisible();
-    await expect(ยอด.getByText(`ภาษีมูลค่าเพิ่ม ${vat}%`, { exact: true })).toBeVisible();
-    await expect(ยอด.getByText(`฿${(400_000 * (1 + vat / 100)).toLocaleString()}`).first(), "ยอดชำระสุทธิ = มูลค่างาน + VAT").toBeVisible();
-    await expect(ยอด.getByText("ยอดชำระสุทธิ")).toBeVisible();
-    await expect(page.getByRole("button", { name: /พิมพ์ PDF/ }), "ยังพิมพ์ได้").toBeVisible();
-  } finally {
-    ลบใบทดสอบที่ฐาน(`id = '${NS}-OLD'`);
-    await admin.from("leads").delete().eq("dealer_code", "RYG").eq("num_id", เลข);
-  }
+    const เก่า = `${NS}-ใบเก่าไม่มีภาษี`;
+    // ใบเก่า (ก่อนปิดทางเดิม · ด่าน 3) สร้างผ่านแอปไม่ได้แล้ว — วางที่ฐานทดสอบตรง ๆ
+    // ใบเดิมบนระบบจริงผูกลูกค้าเป้าหมายทุกใบ — วางลีดคู่กัน (รอบ 4: ดู/พิมพ์ใบที่แผงลีด หน้าใบเสนอราคาเป็นรายการ)
+    const เลข = 979_800_000 + (Date.now() % 90_000);
+    const ลีด = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: เก่า, name: เก่า,
+      phone: "0810000996", province: "ระยอง", status: "QUOTED" });
+    expect(ลีด.error, `วางลีดไม่สำเร็จ: ${ลีด.error?.message}`).toBeNull();
+    วางใบเดิมที่ฐาน([{
+      id: `${NS}-OLD`, dealer_code: "RYG", customer: เก่า, project: เก่า, date: "2026-08-20", deal_id: เลข,
+      province: "ระยอง", building_type: "โกดังสำเร็จรูป", area: "1", total: "400000",
+      total_value: 400_000, material_cost: 400_000, items: 1, status: "sent_to_client",
+      line_items: [{ name: "งาน", qty: 1, unit: "งาน", unitPrice: 400_000 }],
+    }]);
+    try {
+      await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+      await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      await page.getByPlaceholder(/ค้นหา/).first().fill(เก่า);
+      const แถว = page.locator("tbody tr").filter({ hasText: เก่า }).first();
+      await expect(แถว).toBeVisible({ timeout: 20_000 });
+      await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
+      await page.waitForURL(/\/leads/, { timeout: 25_000 });
+      await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click({ timeout: 20_000 });
+      await page.locator(`[data-quote-item="${NS}-OLD"]`).getByTitle("ดู", { exact: true }).click({ timeout: 20_000 });
+      // หน้าดูใบต้องเปิดได้ · มูลค่างานเท่าเดิม · มีปุ่มพิมพ์
+      //   หน้าดูใบแยกยอด VAT แล้ว (บอสอนุมัติ 22 ต.ค. 69 · เดิมมีแค่ "ยอดสุทธิ" = มูลค่างาน)
+      //   ใบที่ไม่ส่งภาษีมา: ฐานบันทึก VAT ที่หน้าเว็บของสาขาแสดงอยู่ (ใบ 0237) — ยอดที่แสดงเท่ากับตอนก่อนลงใบ
+      const doc = (await admin.from("dealer_settings").select("document").eq("dealer_code", "RYG").maybeSingle()).data?.document as { vatPercent?: unknown } | undefined;
+      const vat = typeof doc?.vatPercent === "number" && doc.vatPercent >= 0 ? Math.min(doc.vatPercent, 100) : 7;
+      expect(Number((await admin.from("quotations").select("vat_percent").eq("dealer_code", "RYG").eq("id", `${NS}-OLD`).single()).data?.vat_percent),
+        "ใบที่ไม่ส่งภาษี: ฐานบันทึก VAT ที่สาขาแสดง (ไม่ว่าง)").toBe(vat);
+      const ยอด = page.locator("[data-quote-totals]");
+      await expect(ยอด.getByText("ยอดรวมย่อย (ก่อน VAT)")).toBeVisible({ timeout: 15_000 });
+      await expect(ยอด.getByText("฿400,000", { exact: true }).first(), "มูลค่างาน (ก่อน VAT) = ยอดเดิมของใบ").toBeVisible();
+      await expect(ยอด.getByText(`ภาษีมูลค่าเพิ่ม ${vat}%`, { exact: true })).toBeVisible();
+      await expect(ยอด.getByText(`฿${(400_000 * (1 + vat / 100)).toLocaleString()}`).first(), "ยอดชำระสุทธิ = มูลค่างาน + VAT").toBeVisible();
+      await expect(ยอด.getByText("ยอดชำระสุทธิ")).toBeVisible();
+      await expect(page.getByRole("button", { name: /พิมพ์ PDF/ }), "ยังพิมพ์ได้").toBeVisible();
+    } finally {
+      ลบใบทดสอบที่ฐาน(`id = '${NS}-OLD'`);
+      await admin.from("leads").delete().eq("dealer_code", "RYG").eq("num_id", เลข);
+    }
+  } finally { ปล่อยแถว(); }
 });

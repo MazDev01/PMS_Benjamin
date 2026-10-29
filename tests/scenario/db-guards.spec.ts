@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
@@ -54,16 +55,19 @@ test("เป้ายอดขายติดลบ ต้องถูกกั�
   const hq = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
   await hq.auth.signInWithPassword(ADMIN);
 
-  const { data: before } = await svc.from("dealers").select("name, province, region, status, revenue_target").eq("code", "RYG");
-  const d = before![0];
-  await hq.rpc("save_dealers", {
-    p_rows: [{ code: "RYG", name: d.name, province: d.province, region: d.region, status: d.status, revenue_target: "-9000000" }],
-  });
-  const { data: after } = await svc.from("dealers").select("revenue_target").eq("code", "RYG");
-  expect(Number(after?.[0]?.revenue_target), "ยิงค่าติดลบเข้ามาตรง ๆ ต้องไม่ถูกเก็บ").toBeGreaterThanOrEqual(0);
-
-  // คืนค่าเดิมให้ระบบ ไม่ทิ้งผลข้างเคียงไว้
-  await svc.from("dealers").update({ revenue_target: d.revenue_target }).eq("code", "RYG");
+  // สาขาของข้อนี้เอง — เดิมยิงใส่เป้าของ RYG แล้วคืนค่าทีหลัง ชนข้อ "ยังไม่ตั้งเป้า" (flow-c) ที่แก้เป้า RYG พร้อมกัน (29 ต.ค. 69)
+  const สาขา = await สร้างสาขาของข้อ({ เป้า: 1_000_000 });
+  try {
+    const { data: before } = await svc.from("dealers").select("name, province, region, status, revenue_target").eq("code", สาขา.รหัส);
+    const d = before![0];
+    await hq.rpc("save_dealers", {
+      p_rows: [{ code: สาขา.รหัส, name: d.name, province: d.province, region: d.region, status: d.status, revenue_target: "-9000000" }],
+    });
+    const { data: after } = await svc.from("dealers").select("revenue_target").eq("code", สาขา.รหัส);
+    expect(Number(after?.[0]?.revenue_target), "ยิงค่าติดลบเข้ามาตรง ๆ ต้องไม่ถูกเก็บ").toBeGreaterThanOrEqual(0);
+  } finally {
+    await สาขา.ลบ();
+  }
 });
 
 test("ห้ามลบ/ลดสิทธิ์ผู้ดูแลสูงสุดคนสุดท้าย", async () => {

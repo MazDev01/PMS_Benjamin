@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { ใช้แถวกลาง } from "./sharedRowLock";
 import { open, settle } from "./helpers";
 import { RYG } from "./supabaseEnv";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
@@ -15,6 +16,8 @@ import { เตรียมใบHQ, ทำใบลูกค้าจากใ�
 const บริษัท = `ZZTEST-พิมพ์ใบ-${Date.now() % 100000}`;
 let ใบHQ: ใบHQพร้อมใช้ | undefined;
 let เลขใบ = "";
+// ทั้งไฟล์บันทึก/ตรวจตั้งค่าบริษัทของ RYG ผ่านหน้าตั้งค่า (บันทึกทั้งฟอร์ม) — ต่อคิวกับข้ออื่นที่แก้แถวเดียวกัน (29 ต.ค. 69)
+ใช้แถวกลาง(test, "dealer_settings.RYG");
 test.beforeAll(async () => {
   ใบHQ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: บริษัท, province: "ระยอง", lines: [{ name: "โครงเหล็กชุดพิมพ์", qty: 2, unit: "ชุด", unitCost: 1000 }] });
   เลขใบ = (await ทำใบลูกค้าจากใบHQ(RYG, ใบHQ, { customer: บริษัท, markupPercent: 10 })).id;
