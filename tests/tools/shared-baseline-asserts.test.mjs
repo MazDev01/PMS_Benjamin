@@ -83,5 +83,29 @@ r = ลอง({ "mixed.spec.ts": ไฟล์สาขาในฮุก });
 ผล(r.status === 1 && r.ออก.includes("mixed.spec.ts › [hq] ยอดลูกค้าทั้งเครือตรงฐาน") && !r.ออก.includes("mixed.spec.ts › [hq] ใช้สาขาของไฟล์"),
   "⑧ beforeAll สร้างสาขาของข้อ: ข้อที่ใช้สาขานั้นผ่าน · ข้อที่ยังนับทั้งเครือในไฟล์เดียวกันต้องตก", r.ออก);
 
+// ⑨ บอสตัดสิน 29 ต.ค. 69: ข้อที่ยังนับทั้งเครือ ต้องไม่ขึ้นว่า "แก้แล้ว" เพราะคำในคอมเมนต์ (ตัวกรองสาขา:) หรือตัวแปรชื่อสั้นจากสาขาของไฟล์ (c = สาขา.รหัส)
+const ไฟล์คอมเมนต์ = `let สาขา;
+test.beforeAll(async () => { สาขา = await สร้างสาขาของข้อ(); const c = สาขา.รหัส; void c; });
+async function ตรวจเลข(page, sb) {
+  const { data } = await sb.rpc("kpi_cards", { p_page: "hq.prospects" });
+  const จอ = await page.locator('[data-kpi="talking"] [data-value]').getAttribute("data-value");
+  expect([จอ].map(c => c)).toEqual([String(data.talking)]);
+}
+// หน้า HQ ไม่มีตัวกรองสาขา: ผู้สนใจ — ไม่ได้ใช้สาขาของข้อ
+test("[kpi·hq] ทุกหน้า HQ", async ({ page }) => { await ตรวจเลข(page, sb); });
+`;
+r = ลอง({ "kpi.spec.ts": ไฟล์คอมเมนต์ });
+ผล(r.status === 1 && r.ออก.includes("kpi.spec.ts › [kpi·hq] ทุกหน้า HQ"), "⑨ คอมเมนต์มีคำว่าสาขา / ตัวแปรชื่อสั้น ไม่นับเป็นข้อมูลของข้อ → ยังตก", r.ออก);
+
+// ⑩ บอสตัดสิน 29 ต.ค. 69: ตรวจแค่ "มีการ์ด 4 ใบ + ป้าย" ไม่ได้อ่านตัวเลข → ต้องไม่ถูกจับ
+const ข้อโครงการ์ด = `test("[ux·hq] KPI 4 ตัว", async ({ page }) => {
+  const tiles = page.locator("[data-kpi-row] [data-kpi]");
+  await expect(tiles).toHaveCount(4);
+  await expect(page.locator("[data-kpi='acceptRate']")).toContainText("ตอบรับ ÷ ใบที่ส่งในช่วงนี้");
+});
+`;
+r = ลอง({ "tiles.spec.ts": ข้อโครงการ์ด });
+ผล(r.status === 0, "⑩ ข้อที่ตรวจแค่จำนวนการ์ดกับป้าย (ไม่อ่านตัวเลข) → ผ่าน ไม่ถูกจับ", r.ออก);
+
 console.log(ตก ? `\n${ตก} FAIL` : "\nALL PASS");
 process.exit(ตก ? 1 : 0);

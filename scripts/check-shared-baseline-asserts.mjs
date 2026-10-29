@@ -32,7 +32,8 @@ const นับฐานสาขาร่วม = new RegExp(String.raw`\.eq\(\
 const นับฐานทั้งเครือ = /\.from\("(?:leads|customers|quotations|quote_requests|dealers|dealer_prospects|appointments)"\)\.select\([^)]*\{\s*count:\s*"exact"[^}]*\}\)(?![^;]*\.(?:eq|like|ilike|in)\(\s*"(?:company|name|customer|code|dealer_code|id|num_id|lead_num_id|request_no)")/s;
 const นับฐาน = /count:\s*"exact"|\.reduce\(/;   // นับแถว / บวกยอดจากฐาน (ใช้คู่กับ .from( ในข้อเดียวกัน)
 const อ่านเลขจอ = /Number\(\s*\(?\s*await\s+[^;]*\.(?:innerText|textContent)\(\)|\.(?:innerText|textContent)\(\)\)?\.replace\(\/\[\^\d/;
-const อ่านจอ = /data-kpi|\[data-value\]|"data-value"|แสดง \.\* จาก|จาก\\s\+\(\\d\+\)|tbody tr"\)\.count\(\)|locator\("tbody tr"\)\)\.toHaveCount/;
+// อ่าน "ตัวเลข" บนจอ — แค่มีการ์ด (data-kpi) แล้วนับจำนวนใบ = ตรวจโครงหน้า ไม่ใช่ตัวเลข (บอสตัดสิน 29 ต.ค. 69: hq-quotations KPI 4 ตัว จับผิด)
+const อ่านจอ = /\[data-value\]|"data-value"|แสดง \.\* จาก|จาก\\s\+\(\\d\+\)|tbody tr"\)\.count\(\)|locator\("tbody tr"\)\)\.toHaveCount/;
 // (ข) ตรวจตรงเป๊ะ
 const ตรงเป๊ะ = /\.(?:toBe|toEqual|toStrictEqual|toHaveCount|toHaveText|toContain)\(|toHaveAttribute\(\s*"data-value"/;
 // (ค) ข้อมูลของตัวเอง
@@ -53,14 +54,16 @@ function ตัวช่วย(เนื้อ) {
 }
 
 function ตรวจไฟล์(ไฟล์) {
-  const ทั้งไฟล์ = readFileSync(join(ราก, "tests/scenario", ไฟล์), "utf8");
+  // ตัดคอมเมนต์ก่อนตรวจ — คำในคอมเมนต์ (เช่น "ตัวกรองสาขา: …") เคยถูกนับเป็นการใช้สาขาของข้อ ข้อที่ยังไม่แก้จึงขึ้นว่า "แก้แล้ว"
+  //   (บอสตัดสิน 29 ต.ค. 69: kpi-cards › ทุกหน้า HQ) · ตัดเฉพาะ // ที่ต้นบรรทัดหรือหลังช่องว่าง (ไม่ตัด https:// ในข้อความ)
+  const ทั้งไฟล์ = readFileSync(join(ราก, "tests/scenario", ไฟล์), "utf8").replace(/(^|[ 	])\/\/.*$/gm, "$1");
   if (/^\s*test\.skip\(\s*\(\)\s*=>\s*!process\.env\.PMS_SHOTS/m.test(ทั้งไฟล์)) return [];   // ไฟล์ถ่ายภาพหน้าจอ ไม่ตรวจตัวเลข
   const ช่วย = ตัวช่วย(ทั้งไฟล์);
   // สาขาของข้อที่สร้างระดับไฟล์ (เช่นใน beforeAll: ก = await สร้างสาขาของข้อ()) — นับเป็นข้อมูลของข้อ เฉพาะข้อที่ใช้ตัวแปรนั้นจริง (ก.รหัส / ก.บัญชี)
   //   เดิมยกเว้นทั้งไฟล์เมื่อ beforeAll สร้างสาขา — ข้อในไฟล์เดียวกันที่ยังนับยอดทั้งเครือหลุดไป (ef พบ 29 ต.ค. 69: kpi-cards › ทุกหน้า HQ)
   const ตัวแปรสาขา = [...ทั้งไฟล์.matchAll(/([\p{L}\p{M}\w$]+)\s*=\s*await\s+สร้างสาขาของข้อ\(/gu)].map(m => m[1]);
   //   + ตัวแปรที่รับรหัสจากสาขานั้น (CODE = สาขา.รหัส)
-  for (const x of [...ตัวแปรสาขา]) for (const m of ทั้งไฟล์.matchAll(new RegExp(String.raw`([\p{L}\p{M}\w$]+)\s*=\s*${x}\??\.รหัส`, "gu"))) ตัวแปรสาขา.push(m[1]);
+  for (const x of [...ตัวแปรสาขา]) for (const m of ทั้งไฟล์.matchAll(new RegExp(String.raw`([\p{L}\p{M}\w$]+)\s*=\s*${x}\??\.รหัส`, "gu"))) { if (m[1].length >= 3) ตัวแปรสาขา.push(m[1]); }   // ชื่อสั้น (c, x) ชนตัวแปรอื่นในข้อ — ไม่นับ
   const ใช้รหัส = (ตัว) => ตัวแปรสาขา.some(x => new RegExp(String.raw`(?<![\p{L}\p{M}\w$])${x}(?![\p{L}\p{M}\w$])(?!\??\.)`, "u").test(ตัว));
   const ใช้สาขาไฟล์ = (ตัว) => ตัวแปรสาขา.some(x => new RegExp(String.raw`(?<![\p{L}\p{M}\w$])${x}\??\.(?:รหัส|บัญชี)`, "u").test(ตัว));
   return บล็อก(ทั้งไฟล์).map(({ ชื่อ, ตัว }) => ({ ชื่อ,

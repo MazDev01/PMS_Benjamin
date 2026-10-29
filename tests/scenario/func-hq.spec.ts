@@ -56,8 +56,11 @@ test("[func·hq] สร้างดีลเลอร์ = สร้างบั
   // ชื่อสาขาอ่านจากฐาน ไม่เขียนตายตัว — ข้อมูลตั้งต้นใช้ชื่อตามสูตร (tests/fixtures/test-baseline.sql · 15 ต.ค. 69)
   const ชื่อRYG = String((await sb.from("dealers").select("name").eq("code", "RYG").single()).data?.name ?? "");
   expect(ชื่อRYG, "ต้องมีสาขา RYG ในฐานทดสอบ").not.toBe("");
+  //   ค้น RYG ก่อน — ข้ออื่นสร้างสาขาของข้อ (ZT…) พร้อมกัน ทะเบียนเรียงใหม่สุดก่อน RYG ตกไปหน้าถัดไป (29 ต.ค. 69 · คิวข้อ 3)
+  await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill("RYG");
   await expect.poll(async () => page.evaluate(() => document.body.innerText),
     { timeout: 25_000, message: "ทะเบียนดีลเลอร์ต้องโหลดเสร็จก่อน" }).toContain(ชื่อRYG);
+  await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill("");
   // ดีลเลอร์ต้องมาจากลูกค้าเป้าหมาย (บอสสั่ง 14 ก.ย. 69) — สร้างผ่านกล่อง "ตั้งเป็นดีลเลอร์"
   const ตั้ง = await เปิดฟอร์มตั้งดีลเลอร์(page, NEW_CODE, NEW_NAME);
   await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();

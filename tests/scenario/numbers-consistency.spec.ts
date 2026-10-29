@@ -24,7 +24,10 @@ test("ยอดรวมบนหัวการ์ดกราฟ ต้อง�
   // ม.ค.–มี.ค. ของปีนี้ (ตัวกรองตั้งต้น "ปีนี้") · ถ้ายังไม่ถึง มี.ค. ใช้เดือนที่ผ่านมาแล้วซ้ำ (ยอดรวมยังต้องตรง ฿3.1M)
   const เดือน = [1, 2, 3].map(m => Math.min(m, เดือนนี้));
   const วัน = (m: number) => `${ปี}-${String(m).padStart(2, "0")}-01`;
-  const แถว = เดือน.map((m, i) => ({ id: `ZZTEST-NC-${สาขา.รหัส}-${i}`, dealer_code: สาขา.รหัส, customer: `ZZTEST-NC-${สาขา.รหัส}`, project: "ZZTEST-NC",
+  // ใบตอบรับต้องผูกลูกค้า (quotations_won_requires_customer) — ลูกค้าของสาขาของข้อ
+  const ใส่ลูกค้า = await db.from("customers").insert({ id: 1, dealer_code: สาขา.รหัส, company: `ZZTEST-NC-${สาขา.รหัส}`, name: `ZZTEST-NC-${สาขา.รหัส}` });
+  expect(ใส่ลูกค้า.error, `เตรียมลูกค้าของข้อ (${ใส่ลูกค้า.error?.message ?? ""})`).toBeNull();
+  const แถว = เดือน.map((m, i) => ({ id: `ZZTEST-NC-${สาขา.รหัส}-${i}`, dealer_code: สาขา.รหัส, customer_id: 1, customer: `ZZTEST-NC-${สาขา.รหัส}`, project: "ZZTEST-NC",
     date: วัน(m), won_at: `${วัน(m)}T03:00:00+00:00`, province: "ตราด", building_type: "โกดังสำเร็จรูป", area: "1", total: "1040000",
     total_value: 1_040_000, material_cost: 1_040_000, items: 1, status: "won" }));
   try {
