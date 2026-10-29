@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { diffLeadFields, type LeadIntent, type LeadFields } from "@pms/shared/lib/leadIntent";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { validateUpload, humanFileSize } from "@pms/shared/lib/uploadLimits";
@@ -355,11 +356,8 @@ function OverviewEditor({ lead, persons, onSave }: {
         {/* งาน — ฟอร์มขอราคาจาก HQ ดึงสามช่องนี้ไปกรอกให้ (แก้ได้ก่อนส่ง) · เดิม "ชื่อโครงการ" โชว์เฉพาะดีลที่มีค่า → ตอนนี้ทุกลีด */}
         <div style={OV_GROUP}>{กลุ่มช่อง.งาน}</div>
         <Cell icon={MapPin}  label={ป้ายบังคับ("จังหวัด")}>
-          <select aria-label={ช่อง.จังหวัด} value={f.province} onChange={e=>set("province",e.target.value)} style={inp}>
-            <option value="">— ยังไม่ระบุ —</option>
-            {myProvinces.map(x=><option key={x}>{x}</option>)}
-            {f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>}
-          </select>
+          <ProvinceSelect label={ช่อง.จังหวัด} value={f.province} onChange={v=>set("province",v)} style={inp} options={myProvinces}
+            หลัง={f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>} />
         </Cell>
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
@@ -649,11 +647,8 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
               <div className="form-section">{กลุ่มช่อง.งาน}</div>
               <div>
                 <label style={labelStyle} htmlFor="lf-province">{ป้ายบังคับ("จังหวัด")}</label>
-                <select id="lf-province" aria-label={ช่อง.จังหวัด} value={form.province} onChange={e=>set("province",e.target.value)} style={inputStyle}>
-                  <option value="">— ยังไม่ระบุ —</option>
-                  {myProvinces.map(p=><option key={p}>{p}</option>)}
-                  {form.province && !myProvinces.includes(form.province) && <option value={form.province}>{form.province} (นอกภาค)</option>}
-                </select>
+                <ProvinceSelect id="lf-province" label={ช่อง.จังหวัด} value={form.province} onChange={v=>set("province",v)} style={inputStyle} options={myProvinces}
+                  หลัง={form.province && !myProvinces.includes(form.province) && <option value={form.province}>{form.province} (นอกภาค)</option>} />
               </div>
               <div className="col-full">
                 <label style={labelStyle} htmlFor="lf-project">{ช่อง.งาน}</label>

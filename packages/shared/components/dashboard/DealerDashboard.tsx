@@ -5,7 +5,8 @@
 // S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + ขั้นตอนการขาย
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
 import { useMemo, useState } from "react";
-import { มูลค่าลีด, ชื่อกิจกรรมใบ } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
+import { มูลค่าลีด, ชื่อกิจกรรมใบ } from "@pms/shared/lib/mock";
+import { วันที่ขายของใบ, เวลาขายของใบ } from "@pms/shared/lib/salesDate";   // ยอดขายตามวันลูกค้าตอบรับ (ใบ 0260)   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
 import {
   Target, TrendingUp, PhoneCall, Activity, Building2, User,
@@ -96,8 +97,9 @@ export default function DealerDashboard() {
   // ไม่ตัดตามช่วงเวลาบนแถบบน — กราฟรายเดือนมีปุ่มช่วงของตัวเอง และเป้าเทียบทั้งปีเสมอ
   const wonByKey = useMemo(() => {
     const m = new Map<string, number>();
+    // ยอดขายนับตามเดือนที่ลูกค้าตอบรับ (บอสตัดสิน 29 ต.ค. 69 · ใบ 0260) — ไม่ใช่เดือนที่ออกใบ
     quotations.filter(q => q.status === "won")
-      .forEach(q => { const k = q.date.slice(0, 7); m.set(k, (m.get(k) ?? 0) + q.totalValue); });
+      .forEach(q => { const k = วันที่ขายของใบ(q)?.slice(0, 7); if (k) m.set(k, (m.get(k) ?? 0) + q.totalValue); });
     return m;
   }, [quotations]);
 
@@ -145,8 +147,8 @@ export default function DealerDashboard() {
   const salesData = useMemo(() => {
     const won = quotations.filter(q => q.status === "won");
     if (ละเอียดยอดขาย === "hour") {
-      const ของวันนั้น = won.filter(q => { const d = parseISO(q.date); return !!d && d >= timeRange.start && d <= timeRange.end; });
-      const pts = ยอดรายชั่วโมง(ของวันนั้น.map(q => ({ savedAt: q.savedAt, valueNum: q.totalValue })));
+      const ของวันนั้น = won.filter(q => { const d = parseISO(วันที่ขายของใบ(q) ?? ""); return !!d && d >= timeRange.start && d <= timeRange.end; });
+      const pts = ยอดรายชั่วโมง(ของวันนั้น.map(q => ({ savedAt: เวลาขายของใบ(q), valueNum: q.totalValue })));
       if (pts) return pts.map(p => ({ label: p.month, value: Math.round(p.value * 10) / 10 }));
       // ⚠️ เลือก "วันนี้" ต้องเห็นแกน 24 ชั่วโมงเสมอ แม้ยังไม่มียอดขายเลย (บอสทัก 26 ส.ค. 69)
       //    เดิมตกกลับไปเป็นรายวัน แล้วได้จุดเดียวโดด ๆ ใต้หัวข้อที่เขียนว่า "รายชั่วโมง"
@@ -161,7 +163,7 @@ export default function DealerDashboard() {
     const ช่อง = ช่องเวลาในช่วง(timeRange.start, timeRange.end, ละเอียดยอดขาย === "hour" ? "day" : ละเอียดยอดขาย);
     const ยอด = new Map<string, number>();
     won.forEach(q => {
-      const d = parseISO(q.date); if (!d || d < timeRange.start || d > timeRange.end) return;
+      const d = parseISO(วันที่ขายของใบ(q) ?? ""); if (!d || d < timeRange.start || d > timeRange.end) return;   // ตามวันตอบรับ (0260)
       const k = คีย์ช่อง(d, ละเอียดยอดขาย === "hour" ? "day" : ละเอียดยอดขาย);
       ยอด.set(k, (ยอด.get(k) ?? 0) + q.totalValue);
     });
@@ -229,12 +231,20 @@ export default function DealerDashboard() {
       const e = lead && m.get(owner(lead));
       if (!e) return;
       e.quotes++;
+    });
+    // ยอดปิดการขายของแต่ละคน = ใบที่ลูกค้าตอบรับ "ในช่วง" ตามวันตอบรับ (ใบ 0260) — ไม่ใช่วันออกใบ
+    quotations.filter(q => q.status === "won" && passes({ date: วันที่ขายของใบ(q) ?? "" })).forEach(q => {
+      const lead = leadsIn.find(l => q.dealId != null
+        ? l.numId === q.dealId
+        : q.customerId > 0 && l.customerId === q.customerId);
+      const e = lead && m.get(owner(lead));
+      if (!e) return;
       // ⚠️ "ยอดปิดการขาย" ต้องมาจากใบที่ชนะจริง ไม่ใช่มูลค่าประเมินของลูกค้าเป้าหมาย (แก้ 10 ส.ค. 69)
       //   เดิมบวกจาก l.value ของลูกค้าเป้าหมายสถานะ PAID ซึ่งเป็น "ตัวเลขที่เซลส์เดาไว้ตอนเปิดลูกค้าเป้าหมาย"
       //   ผลที่เห็นจริง: การ์ดนี้ขึ้น ฿3.2M ขณะที่ยอดขายสะสมทั้งปีและใบที่ชนะขึ้น ฿10.2M
       //   ทั้งที่การ์ดเขียนกำกับตัวเองว่า "ยอดปิดการขายของแต่ละคน"
       //   เป็นบทเรียนเดียวกับการ์ด "ยอดขายตามแม่แบบ" ที่แก้ไปแล้ว — ทั้งแดชบอร์ดต้องนิยาม "ยอดขาย" เหมือนกัน
-      if (q.status === "won") { e.quotesWon++; e.won += q.totalValue; }
+      e.quotesWon++; e.won += q.totalValue;
     });
     // โชว์ 5 อันดับแรก — การ์ดนี้ตอบว่า "ใครทำได้ดี/ใครต้องช่วย" ไม่ได้ให้ไล่อ่านทุกคน
     // (รายชื่อครบอยู่ที่หน้าลูกค้าเป้าหมาย — กด "ดูทั้งหมด" ที่หัวการ์ด)
@@ -242,7 +252,7 @@ export default function DealerDashboard() {
     return [...m.entries()].map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => b.won - a.won || b.deals - a.deals)
       .slice(0, 5);
-  }, [leadsIn, quotesIn]);
+  }, [leadsIn, quotesIn, quotations, passes]);
 
   // ตัวย่อยอดเงินของการ์ดผลงาน (฿1.2M · ฿350K)
   const cmpBaht = (v: number) => v >= 1e6 ? `฿${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `฿${Math.round(v / 1e3)}K` : `฿${v}`;
@@ -271,7 +281,10 @@ export default function DealerDashboard() {
     quotesIn.forEach(q => {
       // ใบร่างยังไม่ได้ส่งลูกค้า — เรียกว่า "สร้างใบเสนอราคา (ร่าง)" ไม่ใช่ "ส่ง" (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง)
       ev.push({ kind: "quote", icon: Mail, title: ชื่อกิจกรรมใบ(q), customer: q.customer, date: q.date, color: "#EA580C", bg: "#FEF0E6", href: "/quotations" });
-      if (q.status === "won") ev.push({ kind: "won", icon: CheckCircle2, title: "ปิดการขายสำเร็จ", customer: q.customer, date: q.date, color: SUCCESS, bg: "#E6F7EE", href: "/customers" });
+    });
+    // ปิดการขายสำเร็จ = วันที่ลูกค้าตอบรับ (ใบ 0260) · อยู่ในช่วงตามวันตอบรับ
+    quotations.filter(q => q.status === "won" && passes({ date: วันที่ขายของใบ(q) ?? "" })).forEach(q => {
+      ev.push({ kind: "won", icon: CheckCircle2, title: "ปิดการขายสำเร็จ", customer: q.customer, date: วันที่ขายของใบ(q) ?? q.date, color: SUCCESS, bg: "#E6F7EE", href: "/customers" });
     });
     // แสดง "ล่าสุดของแต่ละประเภท" → ไทม์ไลน์หลากหลาย (ไม่ซ้ำชนิดเดียว) แล้วเรียงตามวัน
     const byKind = new Map<string, Ev>();
@@ -280,7 +293,7 @@ export default function DealerDashboard() {
     // เติมด้วยรายการล่าสุดที่เหลือให้ครบ 6
     ev.forEach(e => { if (picked.length < 6 && !picked.includes(e)) picked.push(e); });
     return picked.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
-  }, [leadsIn, apptsIn, quotesIn]);
+  }, [leadsIn, apptsIn, quotesIn, quotations, passes]);
 
   // ── styles ──
   // การ์ดเนื้อหาบนแดชบอร์ด — พื้น/ขอบ/มุม/เงา + hover ยกลอย มาจากคลาส .card ใน globals.css (มาตรฐานเดียวทั้งแอป)

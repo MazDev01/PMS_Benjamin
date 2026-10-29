@@ -194,7 +194,7 @@ export default function NetworkQuotationPage() {
       const ช่อง = ช่องเวลาในช่วง(timeRange.start, timeRange.end, ละเอียดแท่ง);
       const barM = new Map<string, number>(), lineM = new Map<string, number>();
       trendRows.forEach(r => {
-        const d = r.createdDate; if (!d || d < timeRange.start || d > timeRange.end) return;
+        const d = r.reportDate; if (!d || d < timeRange.start || d > timeRange.end) return;   // ใบตอบรับ = วันตอบรับ (ใบ 0260 · กติกาเดียวกับฐาน)
         const k = คีย์ช่อง(d, ละเอียดแท่ง);
         barM.set(k, (barM.get(k) ?? 0) + 1);
         if (r.status === "won") lineM.set(k, (lineM.get(k) ?? 0) + 1);
@@ -209,8 +209,8 @@ export default function NetworkQuotationPage() {
       slots.forEach((s, i) => { const r = byKey.get(`${s.y}-${s.m}`); if (r) { bar[i] = r.quotes; line[i] = r.won; } });
     } else {
       slots.forEach((s, i) => {
-        bar[i] = trendRows.filter(r => r.createdDate && r.createdDate.getFullYear() === s.y && r.createdDate.getMonth() === s.m).length;
-        line[i] = trendRows.filter(r => r.status === "won" && r.createdDate && r.createdDate.getFullYear() === s.y && r.createdDate.getMonth() === s.m).length;
+        bar[i] = trendRows.filter(r => r.reportDate && r.reportDate.getFullYear() === s.y && r.reportDate.getMonth() === s.m).length;
+        line[i] = trendRows.filter(r => r.status === "won" && r.reportDate && r.reportDate.getFullYear() === s.y && r.reportDate.getMonth() === s.m).length;
       });
     }
     return { months: slots.map(s => s.label), bar, line };

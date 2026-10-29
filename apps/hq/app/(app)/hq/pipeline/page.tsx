@@ -161,7 +161,8 @@ export default function SalesAnalyticsPage() {
   const codes = useMemo(() => new Set(dealers.map(d => d.code)), [dealers]);
 
   const quotes = useMemo(
-    () => netQuotes.filter(x => codes.has(x.dealerCode) && inRange(x.createdAt)),
+    // ใบตอบรับอยู่ในช่วงตามวันที่ลูกค้าตอบรับ · ใบอื่นตามวันออกใบ (บอสตัดสิน 29 ต.ค. 69 · กติกาเดียวกับฐาน ใบ 0260)
+    () => netQuotes.filter(x => codes.has(x.dealerCode) && inRange(x.salesDate ?? x.createdAt)),
     [netQuotes, codes, inRange],
   );
   // ⚠️ ต้องกรองช่วงเวลาด้วย (inRange) เหมือน quotes ข้างบน — เดิมไม่กรอง ทำให้ทุกการ์ดที่จับคู่

@@ -2,6 +2,7 @@
 
 // LocalAdapter — ห่อ loader / localStorage เดิม (mock.ts, useAudit.ts) โดยไม่แก้ของเดิม
 // เป็น adapter เริ่มต้น (NEXT_PUBLIC_DATA_SOURCE=local) · พฤติกรรมเท่าเดิม แค่รวมเข้าท่อเดียว
+import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { แดชบอร์ดHQว่าง } from "../../hqDashboard";
 import { applyLeadIntent } from "@pms/shared/lib/leadIntent";
 import {
@@ -589,8 +590,8 @@ export const LocalAdapter: DataAdapter = {
         r.quotes += 1;
         if (q.status === "won") {
           r.won += 1;
-          // ปีของ date แบบ literal (ตรงกับ fmtISOToThai→parseThaiDate ที่ client ใช้)
-          const yr = /^(\d{4})-\d{2}-\d{2}/.exec(q.date || "")?.[1];
+          // ปีที่ลูกค้าตอบรับ (ฟังก์ชันกลาง · กติกาเดียวกับฐาน ใบ 0260) — โหมดตัวอย่างไม่มีเวลาตอบรับ = วันออกใบ
+          const yr = วันที่ขายของใบ(q)?.slice(0, 4);
           if (yr && Number(yr) === year) r.revenue += q.totalValue ?? 0;
         }
         if (q.status === "lost") r.lost += 1;

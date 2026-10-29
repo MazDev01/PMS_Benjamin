@@ -1,5 +1,6 @@
 "use client";
 
+import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
@@ -40,7 +41,7 @@ import { useTableLayout, type Col } from "@pms/shared/components/ui/TableTools";
 import { PersonPicker } from "@pms/shared/components/ui/PersonPicker";
 import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
-import { provincesOfRegion } from "@pms/shared/lib/provinces";
+import { provincesOfRegion, เป็นจังหวัดมาตรฐาน, ALL_REGIONS } from "@pms/shared/lib/provinces";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { leads as leadsRepo, dealers as dealersRepo, persons as personsRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
@@ -78,7 +79,8 @@ const MUTED   = "#6b7280";
 type SortKey = "company"|"name"|"phone"|"province"|"owner"|"lastActivity"|"quotationCount"|"joinDate";
 type SortDir = "asc"|"desc";
 
-const PROVINCES  =["กรุงเทพฯ","เชียงใหม่","ระยอง","เชียงราย","นนทบุรี","สมุทรสาคร","สมุทรปราการ","นครสวรรค์","ราชบุรี","ขอนแก่น","ตาก","อุตรดิตถ์","อื่นๆ"];
+// สาขาที่ยังไม่มีภาค = เลือกได้ทั้ง 77 จังหวัด (เดิมรายชื่อสำรองมีชื่อย่อ "กรุงเทพฯ" / "อื่นๆ" ที่ฐานไม่รับ)
+const PROVINCES = provincesOfRegion(ALL_REGIONS);
 
 // ── จังหวัดที่เลือกได้ = จังหวัดใน "ภาค" ของสาขาที่ล็อกอิน (บอสสั่ง 17 ส.ค. 69) ──
 // กติกาเดียวกับหน้าลูกค้าเป้าหมาย · ค่าที่บันทึกไว้แล้วแต่อยู่นอกภาค ต้องยังเห็นในลิสต์ ห้ามให้หายเงียบ
@@ -301,11 +303,8 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
               style={{ ...inp, height:"auto", padding:"5px 8px", resize:"vertical", lineHeight:1.4, fontWeight:400 }} />
           </Row>
           <Row label={ช่อง.จังหวัด}>
-            <select aria-label={ช่อง.จังหวัด} value={f.province} onChange={e=>set("province",e.target.value)} style={{ ...inp, cursor:"pointer" }}>
-              <option value="">— ยังไม่ระบุ —</option>
-              {myProvinces.map(p=><option key={p}>{p}</option>)}
-              {f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>}
-            </select>
+            <ProvinceSelect label={ช่อง.จังหวัด} value={f.province} onChange={v=>set("province",v)} style={{ ...inp, cursor:"pointer" }} options={myProvinces}
+              หลัง={f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>} />
           </Row>
           {/* แถว "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 · category ยังอยู่ใน f (มาจาก seed)
               บันทึกแล้วส่งค่าเดิมกลับไปตรง ๆ ไม่มีใครแก้ได้ ข้อมูลในฐานจึงไม่เปลี่ยน */}
@@ -671,7 +670,7 @@ export default function CustomersPage(){
   function makeImported(r: Omit<ImportRow,"category">, id: number): CustomerRow {
     return { id, name:r.name||r.company, company:r.company, email:r.email, phone:r.phone,
       address:r.address||undefined,
-      province:r.province||"กรุงเทพฯ", category:"", status:"active", projects:0,
+      province:r.province||"", category:"", status:"active", projects:0,   // ไม่มีจังหวัด = ว่าง (ห้ามเดา)
       // วันที่/ผู้รับผิดชอบจากไฟล์ก่อนเสมอ — ไม่มีค่อยใช้ค่าตั้งต้น (วันนี้ / ผู้รับผิดชอบที่เลือกในฟอร์ม)
       joinDate:r.joinDate||APP_NOW_ISO, owner:r.owner||"",   /* ไม่มีผู้รับผิดชอบ = เว้นว่าง ห้ามใส่ชื่อตัวอย่าง (บอสสั่ง 20 ต.ค. 69) */
       initials:initials(r.company), color:PALETTE[id%PALETTE.length], totalValue:0, imported:true };
@@ -699,6 +698,12 @@ export default function CustomersPage(){
     setImportFile(f.name); setImportRows([]); setImportErr("");
     try{
       const rows=จับคู่คอลัมน์(await อ่านตารางจากไฟล์(f));
+      // จังหวัดต้องอยู่ในรายชื่อ 77 จังหวัด (บอสสั่ง 29 ต.ค. 69 · ฐานกันอีกชั้น) — ชื่อย่อ/สะกดผิด = ไม่นำเข้าทั้งไฟล์ บอกแถวให้แก้
+      const จังหวัดผิด = rows.map((r,i)=>({ แถว:i+2, p:(r.province??"").trim() })).filter(x=>x.p && !เป็นจังหวัดมาตรฐาน(x.p));
+      if(จังหวัดผิด.length){
+        setImportErr(`จังหวัดไม่อยู่ในรายชื่อ 77 จังหวัด ${จังหวัดผิด.length} แถว: ${จังหวัดผิด.slice(0,8).map(x=>`แถว ${x.แถว} "${x.p}"`).join(" · ")}${จังหวัดผิด.length>8?" …":""} — แก้ในไฟล์ให้ตรงรายชื่อ (ดูแผ่น "ค่าที่เลือกได้") แล้วนำเข้าใหม่`);
+        return;
+      }
       setImportRows(rows);
       setImportErr(rows.length?"":`ไม่พบข้อมูลในไฟล์ — ต้องมีคอลัมน์ "${ช่อง.บริษัท}" และมีอย่างน้อย 1 แถว`);
     }catch(err){ setImportErr(friendlyError(err)); }
@@ -1676,11 +1681,8 @@ export default function CustomersPage(){
               </div>
               <div style={{fontSize:"0.7rem",fontWeight:800,color:MUTED,marginBottom:-6}}>{กลุ่มช่อง.งาน}</div>
               <div><label className="form-label" htmlFor="nd-province">{ป้ายบังคับ("จังหวัด")}</label>
-                <select id="nd-province" className="form-select" value={dealForm.province} onChange={e=>setDealForm(f=>({...f,province:e.target.value}))}>
-                  <option value="">— ยังไม่ระบุ —</option>
-                  {จังหวัดของสาขา.map(p=><option key={p}>{p}</option>)}
-                  {dealForm.province && !จังหวัดของสาขา.includes(dealForm.province) && <option value={dealForm.province}>{dealForm.province} (นอกภาค)</option>}
-                </select></div>
+                <ProvinceSelect id="nd-province" label="จังหวัด" className="form-select" value={dealForm.province} onChange={v=>setDealForm(f=>({...f,province:v}))} options={จังหวัดของสาขา}
+                  หลัง={dealForm.province && !จังหวัดของสาขา.includes(dealForm.province) && <option value={dealForm.province}>{dealForm.province} (นอกภาค)</option>} /></div>
               {/* ชื่อ + ตัวอย่างเดียวกับฟอร์มลูกค้าเป้าหมาย (บอสสั่ง 26 ต.ค. 69 · เดิม "ชื่อโครงการ") — ฟอร์มขอราคาดึงช่องนี้ไปกรอกให้ */}
               <div><label className="form-label" htmlFor="nd-project">{ช่อง.งาน}</label>
                 <input id="nd-project" className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} /></div>

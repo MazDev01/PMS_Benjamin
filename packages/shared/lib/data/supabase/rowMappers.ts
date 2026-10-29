@@ -63,6 +63,8 @@ export function quoteToRow(q: QuotationMock): Row {
   delete r.saved_at;
   // updated_at = เวลาแก้ล่าสุดที่ฐานใส่เองทุกครั้ง (ใบ 0238) — หน้าเว็บห้ามส่งค่ามา (ตัวกันที่เทียบทั้งแถวจะเห็นค่าที่หน้าจอถือไว้)
   delete r.updated_at;
+  // won_at = เวลาที่ลูกค้าตอบรับ ฐานเขียนเอง (ใบ 0260) — หน้าเว็บไม่ส่ง
+  delete r.won_at;
   if (r.area != null) r.area = String(r.area);
   // customer_id: แอปใช้ 0 = "ยังไม่มีลูกค้า" (ออกใบให้ลูกค้าเป้าหมาย) → เก็บเป็น NULL ที่ DB (M6)
   // เพื่อให้ใส่ FK (dealer_code, customer_id) → customers ได้ · 0 ไม่ใช่ id ลูกค้าจริง (เริ่มที่ 1)

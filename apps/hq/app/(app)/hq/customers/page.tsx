@@ -1,4 +1,5 @@
 "use client";
+import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 // ─── HQ · ฐานข้อมูลลูกค้าทั้งเครือ ───────────────────────────────────────────────
@@ -207,7 +208,7 @@ export default function HQCustomersPage() {
     // buildings ยังไม่มา (กำลังโหลดใบ won แยก) → เปิดแผงไปก่อนด้วย [] ชั่วคราว (โปรไฟล์/ยอดรวมมีอยู่แล้วจาก
     // แถวตารางที่เพิ่งคลิก ไม่ต้องรอ) ไม่งั้นแผงค้างไม่เปิดจนกว่า fetch ที่สองจะเสร็จ — ผู้ใช้กดแล้วไม่มีอะไรเกิดขึ้น
     const buildings = (remoteBuildQuotes ?? [])
-      .map(q => buildingOf({ quoteNo: q.id, productLine: q.project || "", valueNum: q.totalValue, createdAt: fmtISOToThai(q.date) }))
+      .map(q => buildingOf({ quoteNo: q.id, productLine: q.project || "", valueNum: q.totalValue, createdAt: fmtISOToThai(q.date), salesDate: วันที่ขายของใบ(q) }))   // วันซื้อ = วันตอบรับ (ใบ 0260)
       .sort((a, b) => (a.wonAt?.getTime() ?? 0) - (b.wonAt?.getTime() ?? 0));
     const lastBuy = [...buildings].filter(b => b.wonAt).pop() ?? null;
     return {

@@ -153,8 +153,9 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   // ── 5) แปลงเป็นดีลเลอร์ + จังหวัดที่ดูแล ───────────────────────────────────────────────────────────
   await แผง.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click();
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
-  const กลุ่มพื้นที่ = ตั้ง.getByRole("group", { name: /จังหวัดที่ดูแล/ });
-  await expect(กลุ่มพื้นที่.getByLabel(`ดูแลจังหวัด ${จังหวัด}`), "จังหวัดของผู้สนใจที่ยังว่าง ถูกเลือกไว้ให้").toBeChecked({ timeout: 15_000 });
+  // จังหวัดที่ดูแล = จังหวัดที่ตั้ง 1 จังหวัดพอดี (บอสสั่ง 29 ต.ค. 69 · ใบ 0259) — เติมจากจังหวัดของผู้สนใจให้
+  await expect(ตั้ง.locator("#cv-province"), "จังหวัดของผู้สนใจ ถูกเลือกไว้ให้").toHaveValue(จังหวัด, { timeout: 15_000 });
+  await expect(ตั้ง.locator("[data-territory-note]")).toContainText(`ดูแลจังหวัด ${จังหวัด}`);
   await expect(ตั้ง.getByText(/เป้ายอดขายรายปีของสาขาจะตั้งตามใบเสนอ .*฿6,000,000/)).toBeVisible();
   await ตั้ง.locator("#cv-code").fill(CODE);
   await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();

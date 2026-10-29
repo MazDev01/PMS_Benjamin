@@ -17,6 +17,7 @@
 //
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์ = ผู้มีสิทธิ์จัดการดีลเลอร์ (dealers:manage)
 //   RLS บังคับซ้ำที่ฐานข้อมูล — การซ่อนปุ่มตรงนี้เป็นแค่ความสะดวก ไม่ใช่ด่านจริง
+import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -139,7 +140,6 @@ export default function HQProspectsPage() {
   const [convBusy, setConvBusy] = useState(false);
   // จังหวัดที่ดูแล (ด่าน 4 · FLOW: แปลงเป็นดีลเลอร์ · HQ กำหนดจังหวัดที่ดูแล · หนึ่งจังหวัด หนึ่งดีลเลอร์ 0195)
   //   เจ้าของพื้นที่ = null ระหว่างโหลด · โหลดไม่ได้ = บอกตรง ๆ ห้ามแสดงว่าทุกจังหวัดว่าง
-  const [พื้นที่, setพื้นที่] = useState<string[]>([]);
   const [เจ้าของพื้นที่, setเจ้าของพื้นที่] = useState<Map<string, string[]> | null>(null);   // จังหวัด → ดีลเลอร์ที่ดูแลอยู่ (หลายรายได้ · ใบ 0214)
   const [พื้นที่ผิด, setพื้นที่ผิด] = useState("");
   // ตกลง + ชำระ (0208): ฐานข้อมูลตอบว่าพร้อมแปลงไหม — undefined = กำลังตรวจ · null = พร้อม · ข้อความ = ยังไม่พร้อมเพราะอะไร
@@ -394,27 +394,26 @@ export default function HQProspectsPage() {
     setโหมดตั้ง("new");
     setฟอร์ม({
       code: "", name: p.name, region: ภาค,
-      province: จังหวัดใช้ได้ ? จังหวัดเดิม : ภาค === ALL_REGIONS ? ALL_PROVINCES : "",
+      // ดีลเลอร์ 1 ราย ดูแล 1 จังหวัดพอดี (บอสสั่ง 29 ต.ค. 69) — "ทุกจังหวัด" ไม่ใช่จังหวัด ตั้งให้ไม่ได้
+      province: จังหวัดใช้ได้ && จังหวัดเดิม !== ALL_PROVINCES ? จังหวัดเดิม : "",
       email: p.email ?? "", password: "", existingCode: "",
     });
     setConvErr("");
-    setพื้นที่([]); setเจ้าของพื้นที่(null); setพื้นที่ผิด("");
+    setเจ้าของพื้นที่(null); setพื้นที่ผิด("");
     setยังไม่พร้อมแปลง(undefined);
     proposalsRepo.conversionReady(p.id).then(setยังไม่พร้อมแปลง)
       .catch(e => setยังไม่พร้อมแปลง(friendlyError(e, "ตรวจใบค่าแฟรนไชส์ไม่สำเร็จ — ปิดแล้วเปิดใหม่")));
     territoriesRepo.owners().then(list => {
       const m = new Map<string, string[]>();
       for (const x of list) m.set(x.province, [...(m.get(x.province) ?? []), x.dealerCode]);
-      setเจ้าของพื้นที่(m);
-      // ตั้งต้น = จังหวัดของรายนี้ ถ้ายังไม่มีใครดูแล (HQ เลือกเพิ่ม/ถอดได้ · จังหวัดที่มีคนดูแลแล้วก็เลือกได้ — ใบ 0214)
-      if (จังหวัดใช้ได้ && จังหวัดเดิม !== ALL_PROVINCES && !m.has(จังหวัดเดิม)) setพื้นที่([จังหวัดเดิม]);
+      setเจ้าของพื้นที่(m);   // แสดงว่าจังหวัดที่เลือกมีดีลเลอร์รายไหนดูแลอยู่แล้ว (เลือกได้ · ใบ 0214)
     }).catch(e => { logRepoRead("territories.owners(convert)", e); setพื้นที่ผิด(friendlyError(e, "โหลดพื้นที่ของดีลเลอร์ไม่สำเร็จ")); });
   }
 
   function เปลี่ยนภาค(region: string) {
     setฟอร์ม(f => ({
       ...f, region,
-      province: region === ALL_REGIONS ? ALL_PROVINCES : provincesOfRegion(region).includes(f.province) ? f.province : "",
+      province: provincesOfRegion(region).includes(f.province) ? f.province : "",
     }));
   }
 
@@ -460,8 +459,7 @@ export default function HQProspectsPage() {
     if (dealers.some(d => d.code === code)) { setConvErr(`รหัส “${code}” มีอยู่แล้ว`); return; }
     if (!ฟอร์ม.name.trim()) { setConvErr("ต้องระบุชื่อดีลเลอร์"); return; }
     if (!ฟอร์ม.region) { setConvErr("ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก"); return; }
-    if (!ฟอร์ม.province) { setConvErr("ต้องระบุจังหวัด"); return; }
-    if (พื้นที่.length === 0) { setConvErr("ต้องเลือกจังหวัดที่ดูแลอย่างน้อย 1 จังหวัด"); return; }
+    if (!ฟอร์ม.province || !provincesOfRegion(ALL_REGIONS).includes(ฟอร์ม.province)) { setConvErr("ต้องเลือกจังหวัดที่ดูแล 1 จังหวัดจากรายชื่อ"); return; }
     const อีเมล = ฟอร์ม.email.trim();
     if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setConvErr("รูปแบบอีเมลไม่ถูกต้อง"); return; }
     if (ฟอร์ม.password && ฟอร์ม.password.length < 8) { setConvErr("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
@@ -510,7 +508,7 @@ export default function HQProspectsPage() {
       //   เซิร์ฟเวอร์อ่านจากใบด้วยกติกาเดียวกันอีกชั้น — ค่าตรงนี้เป็นแค่ค่าสำรองของคำขอ
       revenueTarget: ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด)?.annualTarget ?? 0,
       email: อีเมล || undefined, password: ฟอร์ม.password || undefined,
-      prospectId: converting.id, provinces: พื้นที่,
+      prospectId: converting.id, provinces: [ฟอร์ม.province],   // จังหวัดที่ดูแล = จังหวัดที่ตั้ง 1 จังหวัดพอดี (ฐานกัน ใบ 0259)
     });
     setConvBusy(false);
     if (!res.ok) { setConvErr(res.error); return; } // ล้มเหลวต้องบอกจริง คงฟอร์มไว้ให้แก้
@@ -604,14 +602,12 @@ export default function HQProspectsPage() {
         <div>
           <label className="form-label" htmlFor="pr-province">จังหวัด</label>
           {/* จังหวัดที่บันทึกไว้แต่ไม่อยู่ในรายการ (ข้อมูลเก่าพิมพ์ย่อ เช่น "ปทุม") ต้องยังเห็นค่าเดิม ไม่หายเงียบตอนเปิดมาแก้ */}
-          <select id="pr-province" className="form-select" value={ร่าง.province ?? ""} onChange={e => ตั้งค่า("province", e.target.value || null)} style={{ cursor: "pointer" }}>
-            <option value="">{ร่าง.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}</option>
-            {ร่าง.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
-            {provincesOfRegion(ร่าง.region ?? "").map(p => <option key={p} value={p}>{p}</option>)}
-            {ร่าง.province && ร่าง.province !== ALL_PROVINCES && !provincesOfRegion(ร่าง.region ?? "").includes(ร่าง.province) && (
+          <ProvinceSelect id="pr-province" label="จังหวัด" className="form-select" value={ร่าง.province ?? ""} onChange={v => ตั้งค่า("province", v || null)} style={{ cursor: "pointer" }}
+            options={provincesOfRegion(ร่าง.region ?? "")} ว่าง={ร่าง.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}
+            ก่อน={ร่าง.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
+            หลัง={ร่าง.province && ร่าง.province !== ALL_PROVINCES && !provincesOfRegion(ร่าง.region ?? "").includes(ร่าง.province) && (
               <option value={ร่าง.province}>{ร่าง.province} (ตามที่บันทึกไว้)</option>
-            )}
-          </select>
+            )} />
         </div>
         <div>
           <label className="form-label" htmlFor="pr-type">ประเภทธุรกิจ</label>
@@ -1062,40 +1058,21 @@ export default function HQProspectsPage() {
                     <select id="cv-region" className="form-select" value={ฟอร์ม.region} onChange={e => เปลี่ยนภาค(e.target.value)} style={{ cursor: "pointer" }}>
                       <option value="">— ยังไม่ระบุ —</option>
                       {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                      {/* ทุกภาค = ทั่วประเทศ (แบบเดียวกับฟอร์มดีลเลอร์) → จังหวัดเป็น "ทุกจังหวัด" ให้เอง */}
+                      {/* ทุกภาค = เลือกจังหวัดได้จาก 77 จังหวัด (ดีลเลอร์ต้องดูแล 1 จังหวัดพอดี · ไม่มี "ทุกจังหวัด") */}
                       <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
                     </select>
                   </div>
                   <div>
-                    <label className="form-label" htmlFor="cv-province">จังหวัดที่ตั้ง *</label>
-                    <select id="cv-province" className="form-select" value={ฟอร์ม.province} onChange={e => setฟอร์ม(f => ({ ...f, province: e.target.value }))} style={{ cursor: "pointer" }}>
-                      <option value="">{ฟอร์ม.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}</option>
-                      {ฟอร์ม.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
-                      {provincesOfRegion(ฟอร์ม.region).map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
+                    <label className="form-label" htmlFor="cv-province">จังหวัดที่ตั้ง / ที่ดูแล *</label>
+                    <ProvinceSelect id="cv-province" label="จังหวัดที่ตั้ง" className="form-select" value={ฟอร์ม.province} onChange={v => setฟอร์ม(f => ({ ...f, province: v }))}
+                      options={provincesOfRegion(ฟอร์ม.region)} ว่าง={ฟอร์ม.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"} style={{ cursor: "pointer" }} />
                   </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <div className="form-label" id="cv-territory-label">จังหวัดที่ดูแล * <span style={{ fontWeight: 400, color: MUTED }}>(เลือกได้หลายจังหวัด · จังหวัดที่มีดีลเลอร์ดูแลอยู่แล้วก็เลือกได้)</span></div>
-                    {พื้นที่ผิด ? (
-                      <div role="alert" style={{ fontSize: "0.75rem", color: "#b91c1c" }}>{พื้นที่ผิด}</div>
-                    ) : !เจ้าของพื้นที่ ? (
-                      <div style={{ fontSize: "0.75rem", color: MUTED }}>กำลังโหลดพื้นที่…</div>
-                    ) : !ฟอร์ม.region ? (
-                      <div style={{ fontSize: "0.75rem", color: MUTED }}>เลือกภาคก่อน</div>
-                    ) : (
-                      <div role="group" aria-labelledby="cv-territory-label" style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", maxHeight: 150, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px" }}>
-                        {[...new Set([...พื้นที่, ...provincesOfRegion(ฟอร์ม.region)])].map(จ => {
-                          const ดูแลอยู่ = เจ้าของพื้นที่.get(จ) ?? [];
-                          return (
-                            <label key={จ} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.76rem", color: "#374151", cursor: "pointer" }}>
-                              <input type="checkbox" aria-label={`ดูแลจังหวัด ${จ}`} checked={พื้นที่.includes(จ)}
-                                onChange={e => setพื้นที่(l => e.target.checked ? [...l, จ] : l.filter(x => x !== จ))} />
-                              {จ}{ดูแลอยู่.length ? <span style={{ color: MUTED }}>{` (มี ${ดูแลอยู่.join(", ")} ดูแลอยู่)`}</span> : ""}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
+                  {/* จังหวัดที่ดูแล = จังหวัดที่ตั้ง 1 จังหวัดพอดี (บอสสั่ง 29 ต.ค. 69 · ฐานกัน ใบ 0259) · จังหวัดเดียวมีหลายสาขาได้ (ใบ 0214) */}
+                  <div style={{ gridColumn: "1 / -1", fontSize: "0.75rem", color: MUTED }} data-territory-note>
+                    {พื้นที่ผิด ? <span role="alert" style={{ color: "#b91c1c" }}>{พื้นที่ผิด}</span>
+                      : !เจ้าของพื้นที่ ? "กำลังโหลดพื้นที่…"
+                      : !ฟอร์ม.province ? "ดีลเลอร์ดูแล 1 จังหวัด = จังหวัดที่ตั้งที่เลือก"
+                      : `ดูแลจังหวัด ${ฟอร์ม.province}${(เจ้าของพื้นที่.get(ฟอร์ม.province) ?? []).length ? ` · มี ${(เจ้าของพื้นที่.get(ฟอร์ม.province) ?? []).join(", ")} ดูแลอยู่แล้ว (เลือกได้)` : ""}`}
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label className="form-label" htmlFor="cv-email">อีเมลเข้าระบบ</label>

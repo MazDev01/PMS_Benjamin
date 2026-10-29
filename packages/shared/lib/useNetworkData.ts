@@ -4,6 +4,7 @@
 // รวม "ใบเสนอราคา/ลูกค้าที่ดีลเลอร์สร้างจริง" (SalesContext = สมุดงานสาขา CNX)
 // เข้ากับ seed ของสาขาอื่น (hqAllQuotations/hqAllCustomers)
 // → ดีลเลอร์สร้าง/แก้ใบเสนอราคา แล้ว HQ เห็นทันที (dedup ด้วยเลขที่/ชื่อ · live ทับ seed)
+import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { useMemo, useEffect, useState } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { ขั้นของลีด } from "./leadStage";
@@ -299,7 +300,7 @@ export function useNetworkQuotations(): HQQuotation[] {
         id: `LIVE-${q.id}`, quoteNo: q.id,
         dealerCode: dl.code, dealerName: dl.name,
         customer: q.customer, valueNum: q.totalValue,
-        status: q.status, createdAt: fmtISOToThai(q.date), savedAt: q.savedAt,
+        status: q.status, createdAt: fmtISOToThai(q.date), savedAt: q.savedAt, salesDate: วันที่ขายของใบ(q),
         salesperson: lead?.assigned ?? `ดีลเลอร์ ${dl.code}`,
         productLine: q.project, // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         // รายละเอียดราคาจริงของใบที่ดีลเลอร์สร้าง → HQ เจาะดูรายการสินค้าได้
@@ -439,12 +440,15 @@ export function useNetworkDealerDetail(code: string): DealerDetail {
     }));
     // แท็บ "โอกาสการขาย" (มูลค่า + % ความคืบหน้า) เอาออกจากหน้ารายละเอียดดีลเลอร์ (รอบ 4 · ไม่มีตัวเลขยอดขาย)
     const projects: DealerProjectItem[] = [];
-    // ยอดขายรายเดือน (พันบาท) จากใบเสนอราคาที่ปิดได้ของสาขานี้ · แสดง ม.ค.–มิ.ย. (mock วันนี้ = มิ.ย.)
+    // ยอดขายรายเดือน (พันบาท) จากใบที่ลูกค้าตอบรับ "ปีนี้" ของสาขานี้ — ตามวันที่ลูกค้าตอบรับ (บอสตัดสิน 29 ต.ค. 69 · ใบ 0260)
+    //   เดิมดูแค่เดือนของวันออกใบ ไม่ดูปี → ใบปีก่อนเดือนเดียวกันนับปนเข้ามา
     const byMonth = new Map<number, number>();
     myQuotes.forEach(q => {
       if (q.status !== "won") return;
-      const m = parseInt((q.date || "").slice(5, 7)) - 1;
-      if (!isNaN(m)) byMonth.set(m, (byMonth.get(m) ?? 0) + q.totalValue);
+      const d = วันที่ขายของใบ(q);
+      if (!d || Number(d.slice(0, 4)) !== APP_NOW.getFullYear()) return;
+      const m = Number(d.slice(5, 7)) - 1;
+      byMonth.set(m, (byMonth.get(m) ?? 0) + q.totalValue);
     });
     // ⚠️ เดิมตัดไว้ 6 เดือนแรกตายตัว ไม่เกี่ยวกับว่าตอนนี้เดือนอะไร (แก้ 10 ส.ค. 69)
     //   วันนี้ ส.ค. แต่กราฟหยุดที่ มิ.ย. และแท่งสุดท้ายถูกเน้นเป็น "เดือนปัจจุบัน" ผิดไป 2 เดือน

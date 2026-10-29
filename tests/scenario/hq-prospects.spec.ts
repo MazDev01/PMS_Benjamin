@@ -251,17 +251,16 @@ test("[H5] [func·hq] ตั้งเป็นดีลเลอร์ใหม�
   await expect(ตั้ง.locator("#cv-province")).toHaveValue("ระยอง");
   await expect(ตั้ง.locator("#cv-region")).not.toHaveValue("");
   await expect(ตั้ง.getByText(/เป้ายอดขายรายปีของสาขาจะตั้งตามใบเสนอ .*฿12,000,000/), "ต้องบอกล่วงหน้าว่าเป้าจะตั้งตามใบไหน").toBeVisible();
-  // จังหวัดที่ดูแล (ด่าน 4 · FLOW: HQ กำหนดจังหวัดที่ดูแล)
+  // จังหวัดที่ดูแล = จังหวัดที่ตั้ง 1 จังหวัดพอดี (บอสสั่ง 29 ต.ค. 69 · ใบ 0259)
   //   ใบ 0214 (บอสสั่ง 16 ต.ค. 69): จังหวัดเดียวมีดีลเลอร์ได้ไม่จำกัดสาขา — ระยองมี RYG ดูแลอยู่ก็เลือกได้ (บอกให้รู้ว่าใครดูแลอยู่)
-  //   ยังไม่เลือกสักจังหวัด = สร้างไม่ได้
-  const กลุ่มพื้นที่ = ตั้ง.getByRole("group", { name: /จังหวัดที่ดูแล/ });
-  await expect(กลุ่มพื้นที่.getByLabel("ดูแลจังหวัด ระยอง"), "จังหวัดที่มีดีลเลอร์ดูแลอยู่แล้ว ต้องเลือกได้").toBeEnabled({ timeout: 15_000 });
-  await expect(กลุ่มพื้นที่.getByText(/ระยอง \(มี RYG ดูแลอยู่\)/)).toBeVisible();
+  //   ยังไม่เลือกจังหวัด = สร้างไม่ได้
+  const พื้นที่ดูแล = ตั้ง.locator("[data-territory-note]");
+  await expect(พื้นที่ดูแล, "จังหวัดที่มีดีลเลอร์ดูแลอยู่แล้ว ต้องเลือกได้ และบอกว่าใครดูแลอยู่").toContainText(/ดูแลจังหวัด ระยอง · มี RYG ดูแลอยู่แล้ว/, { timeout: 15_000 });
   await ตั้ง.locator("#cv-code").fill(NEW_CODE);
+  await ตั้ง.locator("#cv-province").selectOption("");
   await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
-  await expect(ตั้ง.getByText("ต้องเลือกจังหวัดที่ดูแลอย่างน้อย 1 จังหวัด"), "ไม่เลือกจังหวัดที่ดูแล ต้องสร้างไม่ได้").toBeVisible();
-  await กลุ่มพื้นที่.getByLabel("ดูแลจังหวัด ตราด").check();
-  await กลุ่มพื้นที่.getByLabel("ดูแลจังหวัด ระยอง").check();   // ดีลเลอร์รายที่ 2 ของระยอง (ร่วมกับ RYG)
+  await expect(ตั้ง.getByText("ต้องเลือกจังหวัดที่ดูแล 1 จังหวัดจากรายชื่อ"), "ไม่เลือกจังหวัดที่ดูแล ต้องสร้างไม่ได้").toBeVisible();
+  await ตั้ง.locator("#cv-province").selectOption("ระยอง");   // ดีลเลอร์รายที่ 2 ของระยอง (ร่วมกับ RYG)
   await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
 
   await expect(page.getByText("สร้างดีลเลอร์สำเร็จ")).toBeVisible({ timeout: 30_000 });
@@ -277,7 +276,7 @@ test("[H5] [func·hq] ตั้งเป็นดีลเลอร์ใหม�
   expect(Number((สาขา as { revenue_target: number } | null)?.revenue_target), "เป้าของสาขาต้องมาจากใบ (12,000,000) ไม่ใช่เป้าแพ็กเกจ (3,000,000)").toBe(12_000_000);
   await waitRow(sb, "dealer_package_proposals", { prospect_id: id, status: "accepted" });
   const { data: พื้นที่ } = await svc.from("dealer_territories").select("province").eq("dealer_code", NEW_CODE).order("province");
-  expect((พื้นที่ ?? []).map(p => p.province).sort(), "จังหวัดที่เลือกต้องเป็นพื้นที่ของสาขาใหม่ (รวมระยองที่ RYG ดูแลอยู่)").toEqual(["ตราด", "ระยอง"].sort());
+  expect((พื้นที่ ?? []).map(p => p.province), "จังหวัดที่เลือกต้องเป็นพื้นที่ของสาขาใหม่ 1 จังหวัดพอดี (ระยองที่ RYG ดูแลอยู่)").toEqual(["ระยอง"]);
   const { data: ระยอง } = await svc.from("dealer_territories").select("dealer_code").eq("province", "ระยอง");
   expect((ระยอง ?? []).map(r => r.dealer_code).sort(), "RYG ยังดูแลระยองอยู่ — ไม่ถูกแทนที่").toEqual([NEW_CODE, "RYG"].sort());
 

@@ -153,8 +153,10 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   //   ไม่ส่งมา = ไม่กำหนด (สคริปต์/ข้อทดสอบเดิม) · หน้าจอบังคับเลือกอย่างน้อย 1 จังหวัด
   const พื้นที่ = Array.isArray(body.provinces)
     ? [...new Set(body.provinces.map(x => String(x ?? "").trim()).filter(Boolean))] : [];
-  if (Array.isArray(body.provinces) && พื้นที่.length === 0) return bad(400, "ต้องเลือกจังหวัดที่ดูแลอย่างน้อย 1 จังหวัด");
-  if (พื้นที่.length > 80) return bad(400, "จังหวัดที่ดูแลมากเกินไป");
+  // ดีลเลอร์ดูแล 1 จังหวัดพอดี = จังหวัดที่ตั้ง (บอสสั่ง 29 ต.ค. 69 · ฐานกัน ใบ 0259 และเขียนพื้นที่ให้เอง)
+  if (Array.isArray(body.provinces) && พื้นที่.length !== 1) return bad(400, "ดีลเลอร์ต้องดูแล 1 จังหวัดพอดี");
+  if (พื้นที่.length === 1 && พื้นที่[0] !== province) return bad(400, "จังหวัดที่ดูแลต้องเป็นจังหวัดที่ตั้งของดีลเลอร์");
+  if (code !== "HQ" && !พื้นที่.length) พื้นที่.push(province);   // ไม่ส่งมา (สคริปต์/ข้อทดสอบเดิม) = ดูแลจังหวัดที่ตั้ง
   if (พื้นที่.length) {
     const { data: มีจริง, error: e1 } = await admin.from("th_provinces").select("name").in("name", พื้นที่);
     if (e1) {
@@ -215,9 +217,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
       code, name, province, region, revenue_target: revenueTarget, status: "active", package: แพ็กเกจ,
       prospect_id: prospectId,   // ด่านในฐาน (0208): ผูกผู้สนใจแล้วต้องตอบรับ + ชำระครบ
     }));
-    if (พื้นที่.length) {
-      await must(admin.from("dealer_territories").insert(พื้นที่.map(p => ({ province: p, dealer_code: code }))));
-    }
+    // พื้นที่ดูแล: ฐานเขียนให้เองจากจังหวัดที่ตั้ง (dealers_territory_sync · ใบ 0259) — ไม่เขียนซ้ำที่นี่
     // profiles.id → auth.users(id) · บทบาทตั้งต้นของหัวสาขา = DEALER_ADMIN
     await must(admin.from("profiles").upsert({
       id: uid, role: "DEALER_ADMIN", dealer_code: code, name, status: "active",

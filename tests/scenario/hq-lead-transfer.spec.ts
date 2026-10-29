@@ -4,6 +4,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, db, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { กดตกลงในกล่องยืนยัน, รอข้อความแจ้งเตือน } from "./helpers";
+import { สร้างสาขาของชุด, ลบสาขาของชุด } from "./ownBranch";
 
 // ── HQ โอนลูกค้าเป้าหมายใต้รหัส HQ ให้ดีลเลอร์ (ด่าน 1 · ใบ 0197) ───────────────────────────────────────
 // ข้อตัดสินของบอส 14 ต.ค. 69: ดีลเลอร์รายเดียว → โอนอัตโนมัติ (HQ กดยืนยันเป็นชุด) · ทับซ้อน → HQ เลือกต่อจังหวัด
@@ -14,14 +15,16 @@ test.setTimeout(120_000);   // ข้อเดียวเดินครบ 3 �
 
 const admin = adminClient();
 const ป้าย = "ZZTEST-โอนHQ";
+// ลำพูน = จังหวัดที่มี 2 สาขาดูแล — สาขาทดสอบ 2 สาขาที่ดูแลลำพูนจังหวัดเดียว (ดีลเลอร์ 1 ราย = 1 จังหวัดพอดี · ใบ 0259 · บอสสั่ง 29 ต.ค. 69)
+const สาขาลำพูน = ["ZTLPA", "ZTLPB"] as const;
 async function ล้าง() {
-  for (const code of ["HQ", "RYG", "CNX"]) {
+  for (const code of ["HQ", "RYG"]) {
     const { data } = await admin.from("leads").select("num_id").eq("dealer_code", code).like("company", `${ป้าย}%`);
     const nums = (data ?? []).map(r => r.num_id);
     if (nums.length) await admin.from("appointments").delete().eq("dealer_code", code).in("lead_id", nums);
     await admin.from("leads").delete().eq("dealer_code", code).like("company", `${ป้าย}%`);
   }
-  await admin.from("dealer_territories").delete().eq("province", "ลำพูน");
+  for (const code of สาขาลำพูน) expect(await ลบสาขาของชุด(code), `เก็บกวาดสาขา ${code}`).toEqual([]);
 }
 test.beforeAll(async () => {
   await ล้าง();
@@ -29,8 +32,8 @@ test.beforeAll(async () => {
   const สาขาHQ = await admin.from("dealers").upsert({ code: "HQ", name: "สำนักงานใหญ่ (ทดสอบ)", province: "กรุงเทพมหานคร", region: "กลาง", status: "active" },
     { onConflict: "code", ignoreDuplicates: true });
   if (สาขาHQ.error) throw new Error(สาขาHQ.error.message);
-  // ลำพูน = จังหวัดที่มี 2 สาขาดูแล (ใบ 0214: จังหวัดเดียวมีหลายดีลเลอร์ได้ · ป้าย legacy ไม่ใช้แล้ว)
-  await admin.from("dealer_territories").insert([{ province: "ลำพูน", dealer_code: "RYG" }, { province: "ลำพูน", dealer_code: "CNX" }]);
+  // ลำพูน = จังหวัดที่มี 2 สาขาดูแล (ใบ 0214: จังหวัดเดียวมีหลายดีลเลอร์ได้) — สาขาทดสอบ 2 สาขา จังหวัดเดียวกัน
+  for (const code of สาขาลำพูน) await สร้างสาขาของชุด(code, "ลำพูน");
   const lead = (n: number, company: string, province: string) => ({
     id: `#ZZHQ-${n}`, dealer_code: "HQ", num_id: 979_000_000 + n, name: company, company, phone: `081-300-000${n}`, province, status: "WAITING",
     note: n === 1 ? "โน้ตจาก HQ" : "",
@@ -52,7 +55,7 @@ test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ:
   const การ์ด = page.locator(".card").filter({ hasText: "โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์" }).first();
   await expect(การ์ด).toBeVisible({ timeout: 30_000 });
   await expect(การ์ด.getByRole("row", { name: /ระยอง/ })).toContainText("RYG");
-  // จังหวัดสาขาเดียว (ระยอง) = โอนอัตโนมัติ · จังหวัดหลายสาขา (ลำพูน: RYG + CNX · ใบ 0214) = HQ ต้องเลือกเอง ระบบไม่เลือกให้
+  // จังหวัดสาขาเดียว (ระยอง) = โอนอัตโนมัติ · จังหวัดหลายสาขา (ลำพูน: ZTLPA + ZTLPB · ใบ 0214) = HQ ต้องเลือกเอง ระบบไม่เลือกให้
   await expect(การ์ด.getByRole("row", { name: /ระยอง/ }).getByText("โอนอัตโนมัติได้")).toBeVisible();
   const ช่องลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ }).getByLabel("โอนจังหวัดลำพูนให้");
   await expect(ช่องลำพูน, "หลายสาขา: ระบบต้องไม่เลือกสาขาให้").toHaveValue("");
@@ -74,13 +77,13 @@ test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ:
   const { data: เห็น } = await (await db(RYG)).from("leads").select("company").eq("company", `${ป้าย}-ระยอง`);
   expect(เห็น?.length, "RYG เห็นลูกค้าเป้าหมายที่รับโอน").toBe(1);
 
-  // 2) หลายสาขา — HQ เลือก CNX เอง
+  // 2) หลายสาขา — HQ เลือกสาขาที่ 2 เอง
   const แถวลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ });
-  await แถวลำพูน.getByLabel("โอนจังหวัดลำพูนให้").selectOption("CNX");
+  await แถวลำพูน.getByLabel("โอนจังหวัดลำพูนให้").selectOption("ZTLPB");
   await แถวลำพูน.getByRole("button", { name: "โอน" }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code), { timeout: 20_000 })
-    .toEqual(["CNX"]);
+    .toEqual(["ZTLPB"]);
 
   // 3) คิวรอยังอยู่ที่ HQ
   const { data: คิว } = await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ไม่มีจังหวัด`);

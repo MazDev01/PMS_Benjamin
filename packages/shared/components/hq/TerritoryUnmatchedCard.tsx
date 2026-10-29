@@ -10,6 +10,7 @@ import { MapPinned } from "lucide-react";
 import { territories as territoriesRepo } from "@pms/shared/lib/data";
 import type { UnmatchedDealer } from "@pms/shared/lib/data/ports";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { NoticeBox } from "@pms/shared/components/ui/NoticeBox";
 
 export function TerritoryUnmatchedCard() {
   const [ไม่ตรง, setไม่ตรง] = useState<UnmatchedDealer[]>([]);
@@ -19,14 +20,10 @@ export function TerritoryUnmatchedCard() {
   if (!ไม่ตรง.length) return null;
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div role="note" style={{ display: "flex", gap: 10, background: "#FFFBEB", border: "1px solid #FCD34D", borderRadius: 10, padding: "10px 14px", fontSize: "0.78rem", color: "#78350F", lineHeight: 1.7 }}>
-        <MapPinned size={18} color="#b45309" style={{ flexShrink: 0, marginTop: 2 }} />
-        <div>
-          <strong>ดีลเลอร์ที่ยังไม่มีพื้นที่ {ไม่ตรง.length} ราย</strong> — จังหวัดในทะเบียนสะกดไม่ตรงรายชื่อ 77 จังหวัด ระบบไม่เดาให้ แก้จังหวัดในข้อมูลดีลเลอร์ให้ตรงรายชื่อ:
-          <div style={{ marginTop: 4 }}>{ไม่ตรง.map(u => `${u.dealerCode} (${u.province || "ไม่ได้ระบุ"})`).join(" · ")}</div>
-        </div>
-      </div>
-    </div>
+    // กล่องแจ้งเตือนกลาง (บอสสั่ง 29 ต.ค. 69) — ไม่เขียนกล่องเตือนเอง
+    <NoticeBox icon={MapPinned} data-territory-unmatched="" title={`ดีลเลอร์ที่ยังไม่มีพื้นที่ ${ไม่ตรง.length} ราย`}>
+      {" "}— จังหวัดในทะเบียนสะกดไม่ตรงรายชื่อ 77 จังหวัด ระบบไม่เดาให้ แก้จังหวัดในข้อมูลดีลเลอร์ให้ตรงรายชื่อ:
+      <div style={{ marginTop: 4 }}>{ไม่ตรง.map(u => `${u.dealerCode} (${u.province || "ไม่ได้ระบุ"})`).join(" · ")}</div>
+    </NoticeBox>
   );
 }

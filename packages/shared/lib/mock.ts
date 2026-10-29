@@ -1000,6 +1000,8 @@ export type QuotationMock = {
   materialCost: number;
   province: string; buildingType: string; area: number;
   status: QuotationStatus; date: string; items: number;
+  /** เวลาที่ลูกค้าตอบรับ (ISO) · ฐานเขียนเอง (ใบ 0260) · ยอดขายทุกหน้านับตามวันนี้ — lib/salesDate.ts วันที่ขายของใบ() */
+  wonAt?: string | null;
   lineItems?: QuoteLineItem[]; // รายการสินค้าจริง (BOQ) — items=ความยาว, materialCost=Σ(qty×unitPrice)
   customerId: number;
   projectId: number;
@@ -1607,6 +1609,8 @@ export type HQQuotation = {
   createdAt: string;
   /** เวลาที่ระบบบันทึกใบนี้ (มีเฉพาะโหมดต่อฐานข้อมูลจริง) — ดู QuotationMock.savedAt */
   savedAt?: string;
+  /** วันที่ของใบในรายงานยอดขาย (YYYY-MM-DD): ใบตอบรับ = วันลูกค้าตอบรับ · ใบอื่น = วันออกใบ (lib/salesDate.ts · ใบ 0260) */
+  salesDate?: string | null;
   salesperson: string;
   productLine: string;
   // ── รายละเอียดราคา: มีเฉพาะใบที่ดีลเลอร์สร้างจริง (สาขา CNX) — ใบ seed ของสาขาอื่นไม่มี ──
