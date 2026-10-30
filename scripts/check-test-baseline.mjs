@@ -58,9 +58,34 @@ const เงิน = (t, n, ช่อง, ได้, ควร) => { if (Number(
   if (m.subtype_prices && Object.keys(m.subtype_prices).length) ผิด.push(`master_catalog แถว ${i + 1}: subtype_prices ต้องว่าง (ยังไม่มีสูตร)`);
 });
 
+// ── จังหวัดตรงรายชื่อ 77 จังหวัด + ดีลเลอร์ 1 จังหวัดพอดี (ใบ 0259 · คนรวมงานเจอ 30 ต.ค. 69) ───────────────────────────────
+//   ไฟล์ใส่แบบปิดตัวดัก → ตัวกันของฐานไม่ทำงานตอนโหลด: BKK เคยเป็น "กรุงเทพฯ" (ชื่อย่อ · ฐานปฏิเสธ) และไม่มีแถวพื้นที่
+//   ข้อทดสอบที่รันบนข้อมูลตั้งต้นจึงเห็นข้อมูลที่ระบบจริงสร้างไม่ได้ — ตัวนี้กันไม่ให้กลับมา
+//   รายชื่อมาตรฐานอ่านจากใบ 0195 (ตาราง th_provinces) · ว่าง = ได้ · "ทุกจังหวัด" = ได้ (ผู้สนใจทั่วประเทศ · แถว HQ — ใบ 0259)
+const ใบจังหวัด = "supabase/migrations/0195_dealer_territories.sql";
+if (existsSync(ใบจังหวัด)) {
+  const ใบ = readFileSync(ใบจังหวัด, "utf8");
+  const เริ่ม = ใบ.indexOf("insert into public.th_provinces");
+  const จังหวัด = new Set([...ใบ.slice(เริ่ม, ใบ.indexOf(";", เริ่ม)).matchAll(/\(\s*'([^']+)'\s*,\s*'[^']*'\s*\)/g)].map(m => m[1]));
+  if (จังหวัด.size !== 77) ผิด.push(`อ่านรายชื่อจังหวัดจาก ${ใบจังหวัด} ได้ ${จังหวัด.size} จังหวัด (ควร 77) — ตัวตรวจอ่านใบผิด`);
+  const ผิดจังหวัด = new Map();
+  for (const m of ข้อความ.matchAll(/"province":"([^"]*)"/g)) {
+    const p = m[1];
+    if (p && p !== "ทุกจังหวัด" && !จังหวัด.has(p)) ผิดจังหวัด.set(p, (ผิดจังหวัด.get(p) ?? 0) + 1);
+  }
+  for (const [p, n] of ผิดจังหวัด) ผิด.push(`จังหวัด "${p}" ไม่อยู่ในรายชื่อ 77 จังหวัด (${n} แถว) — ฐานไม่รับชื่อนี้แล้ว (ใบ 0259)`);
+  const พื้นที่ = แถวของ("dealer_territories");
+  for (const d of แถวของ("dealers")) {
+    if (d.code === "HQ") continue;
+    const ของ = พื้นที่.filter(t => t.dealer_code === d.code).map(t => t.province);
+    if (ของ.length !== 1 || ของ[0] !== d.province)
+      ผิด.push(`ดีลเลอร์ ${d.code} (จังหวัด ${d.province ?? "ว่าง"}): พื้นที่ต้องมี 1 แถว = จังหวัดที่ตั้ง แต่มี [${ของ.join(", ") || "ไม่มี"}] (ใบ 0259)`);
+  }
+}
+
 if (ผิด.length) {
-  console.error(`❌ check-test-baseline: ${ไฟล์} มีข้อมูลที่อาจเป็นของจริง ${ผิด.length} จุด — ส่งออกใหม่ด้วย scripts/export-test-baseline.mjs`);
+  console.error(`❌ check-test-baseline: ${ไฟล์} ไม่ตรงกติกา ${ผิด.length} จุด — ส่งออกใหม่ด้วย scripts/export-test-baseline.mjs (ข้อมูลที่อาจเป็นของจริง · จังหวัด/พื้นที่ไม่ตรงกติกาฐาน)`);
   for (const x of ผิด.slice(0, 20)) console.error(`   ${x}`);
   process.exit(1);
 }
-console.log(`check-test-baseline: ผ่าน (${ไฟล์} · อีเมล @example.test · เบอร์ 000-000-NNNN · จำนวนเงินตรงสูตร)`);
+console.log(`check-test-baseline: ผ่าน (${ไฟล์} · อีเมล @example.test · เบอร์ 000-000-NNNN · จำนวนเงินตรงสูตร · จังหวัดตรง 77 จังหวัด · ดีลเลอร์ 1 จังหวัดพอดี)`);

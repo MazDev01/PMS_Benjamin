@@ -43,6 +43,12 @@ begin
   values (p_id, p_dealer, 980000000 + (abs(hashtext(p_id)) % 9999999), p_company, p_company, p_phone, p_province, 'WAITING');
 end $$;
 
+-- ดีลเลอร์ที่จังหวัดในทะเบียนสะกดไม่ตรงรายชื่อ (ข้อมูลเดิมก่อนใบ 0259 — ตัวกันไม่รับแล้ว จึงใส่แบบปิดตัวดัก)
+--   เดิมพึ่ง BKK "กรุงเทพฯ" ในข้อมูลตั้งต้น · 30 ต.ค. 69 ข้อมูลตั้งต้นแก้เป็น "กรุงเทพมหานคร" + พื้นที่ 1 แถว (ตามกติกา 0259) → ข้อนี้ใส่แถวของตัวเอง
+set local session_replication_role = replica;
+insert into dealers (code, name, province, region, status) values ('ZZTUB', 'ZZTEST จังหวัดสะกดไม่ตรง', 'กรุงเทพฯ', 'กลาง', 'active');
+set local session_replication_role = origin;
+
 do $$
 declare c record; n int;
 begin
@@ -58,10 +64,13 @@ begin
   -- ══ ข. ย้ายพื้นที่จากข้อมูลดีลเลอร์เดิม — ไม่เดาจับคู่ ══
   perform flowtest.ok(exists (select 1 from dealer_territories where dealer_code = 'RYG' and province = 'ระยอง' and not legacy),
     'ดีลเลอร์ที่อยู่จังหวัดเดียว → ได้พื้นที่จังหวัดนั้นเต็มกฎ (ไม่ติดป้าย legacy)');
-  perform flowtest.ok(not exists (select 1 from dealer_territories where dealer_code = 'BKK'),
-    'ดีลเลอร์ที่จังหวัดสะกดไม่ตรงรายชื่อมาตรฐาน (BKK = กรุงเทพฯ) → ไม่ถูกจับคู่เอง ไม่ได้พื้นที่');
-  perform flowtest.ok((select count(*) from territory_unmatched_dealers()) = 1
-                      and (select dealer_code from territory_unmatched_dealers() limit 1) = 'BKK',
+  perform flowtest.ok(not exists (select 1 from dealer_territories where dealer_code = 'ZZTUB'),
+    'ดีลเลอร์ที่จังหวัดสะกดไม่ตรงรายชื่อมาตรฐาน (ZZTUB = กรุงเทพฯ) → ไม่ถูกจับคู่เอง ไม่ได้พื้นที่');
+  perform flowtest.ok(exists (select 1 from dealer_territories where dealer_code = 'BKK' and province = 'กรุงเทพมหานคร'),
+    'ข้อมูลตั้งต้น BKK = กรุงเทพมหานคร มีพื้นที่ 1 แถว (ตามกติกา 0259)');
+  perform flowtest.ok(exists (select 1 from territory_unmatched_dealers() u where u.dealer_code = 'ZZTUB')
+                      and not exists (select 1 from territory_unmatched_dealers() u
+                                       where exists (select 1 from dealer_territories t where t.dealer_code = u.dealer_code)),
     'รายการดีลเลอร์ที่จับคู่จังหวัดไม่ได้ ให้ HQ เห็นและแก้เอง');
 
   -- ══ ค. การกำหนดพื้นที่ — จังหวัดเดียวมีหลายดีลเลอร์ได้ (ใบ 0214 · ยกเลิกหนึ่งจังหวัดหนึ่งดีลเลอร์ 16 ต.ค. 69) ══
