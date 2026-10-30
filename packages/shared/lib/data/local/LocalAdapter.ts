@@ -620,6 +620,8 @@ export const LocalAdapter: DataAdapter = {
         if (iso && f.dateStart && iso < f.dateStart) return false;
         if (iso && f.dateEnd && iso > f.dateEnd) return false;
         if (f.dealerCodes?.length && !f.dealerCodes.includes(l.dealerCode ?? DEFAULT_DEALER_CODE)) return false;
+        // ลีดของ HQ ที่ยังไม่โอน อยู่ในกล่องโอนที่เดียว — กติกาเดียวกับฐาน (ใบ 0265)
+        if (l.dealerCode === "HQ" && !f.dealerCodes?.includes("HQ")) return false;
         if (f.province && l.province !== f.province) return false;
         // ตัวกรอง/ค้นตามแม่แบบ (l.product) ลบแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         if (f.source && (l.source || "ไม่ระบุ") !== f.source) return false;
@@ -995,6 +997,8 @@ export const LocalAdapter: DataAdapter = {
         if (opts.status && l.status !== opts.status) return false;
         if (opts.stage && เลขขั้นโหมดตัวอย่าง(l) !== opts.stage) return false;
         if (opts.dealerCodes?.length && !opts.dealerCodes.includes(l.dealerCode ?? DEFAULT_DEALER_CODE)) return false;
+        // ลีดของ HQ ที่ยังไม่โอน อยู่ในกล่องโอนที่เดียว — กติกาเดียวกับฐาน (ใบ 0265)
+        if (l.dealerCode === "HQ" && !opts.dealerCodes?.includes("HQ")) return false;
         if (opts.province && l.province !== opts.province) return false;
         if (opts.source && (l.source || "ไม่ระบุ") !== opts.source) return false;
         if (search && !`${l.company ?? ""} ${l.contact ?? ""} ${l.province ?? ""} ${l.assigned ?? ""} ${l.id ?? ""} ${l.dealerCode ?? ""}`.toLowerCase().includes(search)) return false;

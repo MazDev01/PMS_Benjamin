@@ -57,13 +57,17 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
     finally { setBusy(false); }
   };
 
+  // หน้าตาเดียวกับการ์ด/ตารางอื่นของหน้า (บอสสั่ง 30 ต.ค. 69): หัวการ์ด + เนื้อการ์ดมีระยะขอบ · ตารางมาตรฐาน .table-wrap
+  //   หัวคอลัมน์ขนาดเท่าตารางอื่น · ความกว้างที่ colgroup (table-layout: fixed) · ตัวเลขชิดขวาทั้งหัวและข้อมูล
   return (
     <div className="card" data-card="hq-lead-transfer" style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-        <ArrowRightLeft size={18} color="#003366" />
-        <div style={{ flex: "1 1 260px" }}>
-          <div style={{ fontWeight: 800, color: "#003366", fontSize: "0.92rem" }}>โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์ ({รวม(แผน)} ราย)</div>
-          <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>สำนักงานใหญ่ไม่ขายตรง — ลูกค้าเป้าหมายใต้รหัส HQ โอนให้ดีลเลอร์ที่ดูแลจังหวัดหน้างาน</div>
+      <div className="card-header" style={{ alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "1 1 260px", minWidth: 0 }}>
+          <ArrowRightLeft size={18} color="#003366" style={{ flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div className="card-title">โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์ ({รวม(แผน)} ราย)</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>สำนักงานใหญ่ไม่ขายตรง — ลูกค้าเป้าหมายใต้รหัส HQ โอนให้ดีลเลอร์ที่ดูแลจังหวัดหน้างาน</div>
+          </div>
         </div>
         {อัตโนมัติ.length > 0 && (
           <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void โอนชุด()}>
@@ -71,38 +75,51 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
           </button>
         )}
       </div>
-      <div className="table-scroll">
-        <table className="table" style={{ width: "100%" }}>
-          <thead><tr><th>จังหวัด</th><th style={{ width: 90 }}>ลูกค้าเป้าหมาย</th><th>ดีลเลอร์ที่ดูแล</th><th style={{ width: 300 }}>การโอน</th></tr></thead>
-          <tbody>
-            {[...อัตโนมัติ, ...เลือกเอง].map(r => (
-              <tr key={r.province} aria-label={r.province}>
-                <td style={{ fontWeight: 700 }}>{r.province}</td>
-                <td>{r.leads.toLocaleString()}</td>
-                <td style={{ fontSize: "0.8rem" }}>{r.dealerCodes.map(c => `${c} ${dealerName(c)}`.trim()).join(" · ")}</td>
-                <td>
-                  {r.mode === "auto" ? <span style={{ fontSize: "0.76rem", color: "#047857" }}>โอนอัตโนมัติได้</span> : (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <select aria-label={`โอนจังหวัด${r.province}ให้`} className="form-select" value={เลือก[r.province] ?? ""} disabled={busy}
-                        onChange={e => setเลือก(s => ({ ...s, [r.province]: e.target.value }))}>
-                        <option value="">หลายสาขา — เลือกสาขา</option>
-                        {r.dealerCodes.map(c => <option key={c} value={c}>{c} {dealerName(c)}</option>)}
-                      </select>
-                      <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !เลือก[r.province]} onClick={() => void โอนจังหวัด(r)}>โอน</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="card-body" style={{ paddingTop: 0 }}>
+        {[...อัตโนมัติ, ...เลือกเอง].length > 0 && (
+          <div className="table-wrap" style={{ border: "1px solid var(--border)", borderRadius: 10 }}>
+            <table style={{ minWidth: 640 }}>
+              <colgroup>
+                <col style={{ width: "18%" }} />{/* จังหวัด */}
+                <col style={{ width: "14%" }} />{/* ลูกค้าเป้าหมาย (ราย) */}
+                <col style={{ width: "36%" }} />{/* ดีลเลอร์ที่ดูแล */}
+                <col style={{ width: "32%" }} />{/* การโอน */}
+              </colgroup>
+              <thead><tr><th>จังหวัด</th><th className="num">ลูกค้าเป้าหมาย</th><th>ดีลเลอร์ที่ดูแล</th><th>การโอน</th></tr></thead>
+              <tbody>
+                {[...อัตโนมัติ, ...เลือกเอง].map(r => {
+                  const ดูแล = r.dealerCodes.map(c => `${c} ${dealerName(c)}`.trim()).join(" · ");
+                  return (
+                    <tr key={r.province} aria-label={r.province}>
+                      <td style={{ fontWeight: 700 }} title={r.province}>{r.province}</td>
+                      <td className="num">{r.leads.toLocaleString()}</td>
+                      <td className="wrap" title={ดูแล}>{ดูแล}</td>
+                      <td className="ovf-visible">
+                        {r.mode === "auto" ? <span style={{ fontSize: "0.76rem", color: "#047857", fontWeight: 600 }}>โอนอัตโนมัติได้</span> : (
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <select aria-label={`โอนจังหวัด${r.province}ให้`} className="form-select" value={เลือก[r.province] ?? ""} disabled={busy}
+                              style={{ flex: 1, minWidth: 0 }} onChange={e => setเลือก(s => ({ ...s, [r.province]: e.target.value }))}>
+                              <option value="">หลายสาขา — เลือกสาขา</option>
+                              {r.dealerCodes.map(c => <option key={c} value={c}>{c} {dealerName(c)}</option>)}
+                            </select>
+                            <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !เลือก[r.province]} onClick={() => void โอนจังหวัด(r)}>โอน</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {คิว.length > 0 && (
+          <div role="note" style={{ marginTop: 10, fontSize: "0.76rem", color: "#6b7280", lineHeight: 1.7 }}>
+            <strong>คิวรอ {รวม(คิว)} ราย</strong> — โอนไม่ได้จนกว่าจะแก้จังหวัดหน้างาน หรือกำหนดดีลเลอร์ให้จังหวัดนั้น:{" "}
+            {คิว.map(r => `${r.province || "ไม่มีจังหวัด"} ${r.leads} ราย`).join(" · ")}
+          </div>
+        )}
       </div>
-      {คิว.length > 0 && (
-        <div role="note" style={{ marginTop: 10, fontSize: "0.76rem", color: "#6b7280", lineHeight: 1.7 }}>
-          <strong>คิวรอ {รวม(คิว)} ราย</strong> — โอนไม่ได้จนกว่าจะแก้จังหวัดหน้างาน หรือกำหนดดีลเลอร์ให้จังหวัดนั้น:{" "}
-          {คิว.map(r => `${r.province || "ไม่มีจังหวัด"} ${r.leads} ราย`).join(" · ")}
-        </div>
-      )}
     </div>
   );
 }

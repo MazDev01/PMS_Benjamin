@@ -76,5 +76,13 @@ export function ตรวจรันต่อได้(cwd = process.cwd()) {
   return { ได้: true, จด, เปลี่ยน };
 }
 
+/** ข้อในไฟล์ที่รันต่อ ซึ่งมีในรายงานเดิมแต่หายจากรายงานใหม่ (ลบข้อทิ้ง = ลดข้อทดสอบ · ไม่นับว่าผ่าน) · เทียบด้วยไฟล์ › ชื่อข้อ › โปรเจกต์ (ไม่ใช้บรรทัด) */
+export function ข้อที่หาย(รายงานเดิม, รายงานใหม่, ไฟล์, cwd = process.cwd()) {
+  const ชุด = new Set(ไฟล์.map(f => path.basename(f)));
+  const ของ = (rs) => rs.flatMap(r => ข้อในรายงาน(r, cwd)?.ข้อ ?? []).filter(x => ชุด.has(path.basename(x.ไฟล์))).map(x => `${x.key} [${x.โปรเจกต์}]`);
+  const ใหม่ = new Set(ของ(รายงานใหม่));
+  return [...new Set(ของ(รายงานเดิม))].filter(k => !ใหม่.has(k));
+}
+
 /** รอบรันต่อผ่าน / รอบเต็มรอบใหม่เริ่ม → ลบที่จด (ผลผูกกับรอบเดียว) */
 export function ลบที่จด(cwd = process.cwd()) { rmSync(โฟลเดอร์จด(cwd), { recursive: true, force: true }); }
