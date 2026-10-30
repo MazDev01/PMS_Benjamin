@@ -5,10 +5,10 @@
 //   ใบบนฐานจริงปลอมด้วยไฟล์ (PMS_PROD_VERSIONS_FILE — ใช้ได้เฉพาะ remote ที่ไม่ใช่ GitHub)
 // mutation proof: PMS_PREPUSH_MUTATE=reject|gate|prod|github ทำตัวกันในสำเนาให้พังทีละแบบ → ข้อทดสอบต้องตก
 // รัน: node tests/tools/pre-push-guard.test.mjs
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSync, appendFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSync, appendFileSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import { spawnSync, execFileSync } from "node:child_process";
+import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { ลายนิ้วมือโค้ด } from "../../scripts/lib/commitGate.mjs";
 
 const ราก = process.cwd();
@@ -38,7 +38,8 @@ try {
   execFileSync("git", ["init", "-q", "--bare", remote]);
   mkdirSync(repo);
   execFileSync("git", ["init", "-q", "-b", "monorepo"], { cwd: repo });
-  for (const f of [".githooks/pre-push", "scripts/git-hooks/pre-push.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/session.mjs", "scripts/lib/ports.json"]) คัด(f);
+  for (const f of [".githooks/pre-push", "scripts/git-hooks/pre-push.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/session.mjs", "scripts/lib/ports.json",
+                   "scripts/lib/prodLock.mjs", "scripts/lib/fileLock.mjs"]) { if (existsSync(join(ราก, f))) คัด(f); }
   // ── mutation proof: ทำตัวกันในสำเนาให้พังทีละแบบ ──
   //   แปลงขึ้นบรรทัดเป็น \n ก่อน — โฟลเดอร์ที่ git แปลงเป็น CRLF จะหาข้อความไม่เจอ (ข้อทดสอบพังเองแทนที่จะพิสูจน์)
   const แก้สำเนา = (f, a, b) => { const p = join(repo, f), s = readFileSync(p, "utf8").replace(/\r\n/g, "\n"); if (!s.includes(a)) throw new Error(`ไม่พบ ${a}`); writeFileSync(p, s.replace(a, b)); };
@@ -116,7 +117,31 @@ try {
     { cwd: repo, encoding: "utf8", env: { ...env, PMS_PROD_OPS_DIR: ผูกแล้ว, [คีย์path]: `${ถังnpx}${process.platform === "win32" ? ";" : ":"}${env[คีย์path]}` },
       input: `refs/heads/monorepo ${B} refs/heads/monorepo ${"0".repeat(40)}\n` });
   ผล(h2.status !== 0 && /ยังไม่ได้ล็อกอิน Supabase/.test(h2.stderr) && /npx supabase login/.test(h2.stderr),
-    "ผูกแล้วแต่ยังไม่ได้ล็อกอิน Supabase → บอกเหตุตรงตัว + ขั้นตอน login", h2.stdout + h2.stderr);} finally {
+    "ผูกแล้วแต่ยังไม่ได้ล็อกอิน Supabase → บอกเหตุตรงตัว + ขั้นตอน login", h2.stdout + h2.stderr);
+
+  // 11) บอสกำลัง db:push / สำรอง+ซ้อมกู้ (ถือล็อกฐานจริง) → ตัวกันต้องรอจนงานนั้นจบก่อนถามฐานจริง ไม่ยิงแทรก (30 ต.ค. 69)
+  //     npx ปลอมจดเวลาที่ถูกเรียก · โปรเซสถือล็อกจบเองหลัง 3 วิ → ถามฐานต้องเกิดหลังล็อกปล่อย
+  const ล็อก = join(ที่, "prod.lock"), จด = join(ที่, "npx-called.txt"), ถังnpx2 = join(ที่, "npx-จดเวลา");
+  mkdirSync(ถังnpx2);
+  // จดว่าถูกเรียกด้วย echo ล้วน (เวลา = เวลาแก้ไฟล์) — ไม่ซ้อนเครื่องหมายคำพูดใน cmd
+  writeFileSync(join(ถังnpx2, "npx.cmd"), `@echo called> "${จด}"
+@echo {"rows":[{"version":"0001"},{"version":"0002"}]}
+`);
+  writeFileSync(join(ถังnpx2, "npx"), `#!/bin/sh
+echo called > '${จด}'
+echo '{"rows":[{"version":"0001"},{"version":"0002"}]}'
+`, { mode: 0o755 });
+  const ถือ = spawn(process.execPath, ["-e", "setTimeout(()=>{}, 3000)"], { stdio: "ignore" });
+  writeFileSync(ล็อก, JSON.stringify({ token: "บอส-db-push", pid: ถือ.pid, งาน: "db:push:prod", เริ่ม: new Date().toISOString() }));
+  const ถือจบ = new Promise(r => ถือ.on("exit", () => r(Date.now())));
+  const h3 = await new Promise(r => { const p = spawn(process.execPath, ["scripts/git-hooks/pre-push.mjs", "origin", "https://github.com/MazDev01/PMS_Benjamin.git"],
+    { cwd: repo, env: { ...env, PMS_PROD_LOCK: ล็อก, PMS_PROD_OPS_DIR: ผูกแล้ว, [คีย์path]: `${ถังnpx2}${process.platform === "win32" ? ";" : ":"}${env[คีย์path]}` } });
+    let ออก = ""; p.stdout.on("data", d => ออก += d); p.stderr.on("data", d => ออก += d);
+    p.stdin.end(`refs/heads/monorepo ${B} refs/heads/monorepo ${"0".repeat(40)}
+`); p.on("exit", code => r({ code, ออก })); });
+  const ปล่อยเมื่อ = await ถือจบ, ถามเมื่อ = existsSync(จด) ? statSync(จด).mtimeMs : 0;
+  ผล(/⏳ รอ — งาน "db:push:prod"/.test(h3.ออก) && ถามเมื่อ > 0 && ถามเมื่อ >= ปล่อยเมื่อ,
+    `บอสกำลัง db:push → git push รอจนงานนั้นจบแล้วค่อยถามฐานจริง (ถาม ${ถามเมื่อ ? ถามเมื่อ - ปล่อยเมื่อ : "ไม่ถาม"} ms หลังปล่อย)`, h3.ออก);} finally {
   rmSync(ที่, { recursive: true, force: true });
 }
 console.log(ตก ? `FAIL ${ตก}` : "ALL PASS");
