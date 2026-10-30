@@ -497,6 +497,8 @@ export interface MetricsRepo {
   /** การ์ด KPI 4 ใบของหน้า (ใบ 0246 · kpi_cards) — ฐานคิดทุกตัว · หน้าดีลเลอร์ = สาขาของผู้เรียก · start/end = ช่วง (ไม่มี = ทุกช่วง/ณ ตอนนี้) */
   kpiCards(page: import("../kpiCards").KpiPage, start?: string | null, end?: string | null, dealer?: string | null, today?: string | null,
     filters?: import("../kpiCards").KpiFilters | null): Promise<import("../kpiCards").KpiCardsData>;
+  /** ผลงานรายดีลเลอร์ของหน้าภาพรวมยอดขาย (ใบ 0264 · hq_pipeline_dealers) — ชุดเดียวกับการ์ด hq.pipeline · dealers = ชุดสาขาที่ผ่านตัวกรอง (null = ทั้งเครือ) · HQ เท่านั้น */
+  hqPipelineDealers(start: string, end: string, dealers: string[] | null, today?: string | null): Promise<import("../hqPipeline").ผลงานดีลเลอร์[]>;
 }
 
 // ── โดเมนงานขาย — list (อ่าน) + CRUD เต็ม (Phase 0) ──

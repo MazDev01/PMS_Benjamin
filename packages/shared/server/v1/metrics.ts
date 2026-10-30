@@ -9,6 +9,7 @@ import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
+import { จัดรูปผลงานดีลเลอร์ } from "@pms/shared/lib/hqPipeline";
 
 type Row = Record<string, unknown>;
 type Args = Record<string, unknown>;
@@ -35,6 +36,12 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
     args: a => ({ p_page: S(a.page), p_start: a.start ?? null, p_end: a.end ?? null, p_dealer: a.dealer ?? null, p_today: a.today ?? null,
                   p_filters: a.filters && typeof a.filters === "object" && !Array.isArray(a.filters) ? a.filters : null }),
     shape: d => (d ?? {}),
+  },
+  // ผลงานรายดีลเลอร์ของหน้าภาพรวมยอดขาย (ใบ 0264) — ฐานตรวจว่าเป็น HQ เอง · ชุดสาขาส่งเป็นรายการข้อความ (ไม่ใช่รายการ = ทั้งเครือ)
+  hqPipelineDealers: {
+    rpc: "hq_pipeline_dealers",
+    args: a => ({ p_start: a.start, p_end: a.end, p_dealers: Array.isArray(a.dealers) ? a.dealers.map(String) : null, p_today: a.today ?? null }),
+    shape: d => จัดรูปผลงานดีลเลอร์(d),
   },
   dealerRollup: {
     rpc: "dealer_rollup",
