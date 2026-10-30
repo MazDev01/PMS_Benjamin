@@ -23,6 +23,7 @@ import { พอร์ต, ต้นทาง, ชื่อเซสชัน } f
 import { ตรวจไม่นิ่งท้ายรอบ, ต้องหาต้นเหตุ } from "./lib/flakyLog.mjs";
 import { จดรอบที่ตก, ตรวจรันต่อได้, ลบที่จด } from "./lib/gateResume.mjs";
 import { ไฟล์ทดสอบที่เปลี่ยน, ช่วงก่อนรอบเต็ม } from "./lib/gatePrecheck.mjs";
+import { ปิดของค้างบนพอร์ต } from "./lib/stalePorts.mjs";
 import { ตัดสินพร้อมรันซ้ำ } from "./lib/gateRerun.mjs";
 import { อาร์กิวเมนต์psql, คอนเทนเนอร์ as คอนเทนเนอร์ฐานทดสอบ } from "./lib/testDbGuard.mjs";
 
@@ -170,6 +171,13 @@ if (!process.argv.slice(2).length && พร้อมกัน) {
   }
 }
 
+// พอร์ตทดสอบของเซสชันนี้มีโปรเซสค้าง (รอบก่อนถูกหยุดกลางทาง) → ปิดเอง (บอสสั่ง 29 ต.ค. 69 · คิวข้อ 1 · scripts/lib/stalePorts.mjs)
+//   เฉพาะพอร์ตของเซสชันนี้ (พอร์ต("test")) — ไม่แตะพอร์ตของเซสชันอื่น · ปิดแล้วยังไม่ว่าง = หยุดเหมือนเดิม
+{
+  const ไม่ว่าง = [];
+  for (const a of แอป) if (!await พอร์ตว่าง(a.port)) ไม่ว่าง.push(a.port);
+  if (ไม่ว่าง.length) { ปิดของค้างบนพอร์ต(ไม่ว่าง); await new Promise(r => setTimeout(r, 1500)); }
+}
 for (const a of แอป) {
   if (!await พอร์ตว่าง(a.port)) {
     console.error(`❌ พอร์ต ${a.port} ถูกใช้อยู่ (มีเซิร์ฟเวอร์ค้าง) — ปิดก่อนแล้วรันใหม่ · ไม่รันต่อเพราะข้อทดสอบจะคุยกับเซิร์ฟเวอร์ผิดตัว`);
