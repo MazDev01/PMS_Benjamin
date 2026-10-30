@@ -16,6 +16,8 @@ const ชุด: [string, string][] = [
   ["tests/tools/testdb-baseline-key.test.mjs", "กุญแจข้อมูลตั้งต้นฐานทดสอบ"],
   ["tests/tools/tool-tests-in-gate.test.mjs", "ตัวตรวจว่าข้อทดสอบเครื่องมือทุกชุดอยู่ในรอบตรวจเต็ม"],
   ["tests/tools/shared-baseline-asserts.test.mjs", "ตัวตรวจข้อทดสอบที่นับตรงเป๊ะจากข้อมูลตั้งต้นร่วม (คิวข้อ 3 · 29 ต.ค. 69)"],
+  ["tests/tools/gate-resume.test.mjs", "รอบตรวจตกเพราะข้อทดสอบ → แก้แค่ไฟล์ที่ตก → รันต่อเฉพาะไฟล์นั้น (คิวข้อ 5 · 30 ต.ค. 69)"],
+  ["tests/tools/gate-precheck.test.mjs", "ก่อนรอบตรวจเต็ม รันไฟล์ทดสอบที่เปลี่ยนก่อน · ตก = ไม่เริ่มรอบเต็ม (คิวข้อ 4 · 30 ต.ค. 69)"],
 ];
 for (const [ไฟล์, อะไร] of ชุด) {
   test(`[tool] ${อะไร} (${ไฟล์})`, () => {
