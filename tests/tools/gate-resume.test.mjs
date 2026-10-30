@@ -10,7 +10,7 @@
 //   ซ. ลบที่จด (รอบรันต่อผ่าน/รอบเต็มใหม่) → ใช้ไม่ได้ · ผลผูกกับรอบเดียว
 //   ฌ. ตัวรันรอบตรวจ (scripts/test-prodbuild.mjs) ต่อสายครบ: ตรวจรันต่อได้ก่อนขั้นแรก · จดรอบที่ตกท้ายรอบ · ลบที่จดเมื่อรอบเต็มเริ่ม
 // รัน: node tests/tools/gate-resume.test.mjs   (โค้ดเดิมไม่มี scripts/lib/gateResume.mjs → ตก)
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -121,6 +121,24 @@ const ตำแหน่ง = (s) => ตัวรัน.indexOf(s);
   && ตำแหน่ง("จดรอบที่ตก({") > ตำแหน่ง("ตรวจไม่นิ่งท้ายรอบ(รายงาน,")
   && /check-e2e-ran\.mjs", \.\.\.รายงานรวม/.test(ตัวรัน) && /\.\.\.รันต่อ\.จด\.รายงาน/.test(ตัวรัน),
   "ฌ. ตัวรันรอบตรวจ: ตรวจรันต่อก่อนขั้นแรก · รอบเต็มลบที่จด · จดท้ายรอบ · ตัวตรวจท้ายรอบใช้รายงานเดิม+รันต่อ");
+
+// ญ. แก้ไฟล์ทดสอบแล้วบรรทัดเลื่อน (รันต่อจริง 30 ต.ค. 69: lead-quote-tables :102 → :110) — ผลเก่า "ไม่ได้รัน" ต้องไม่ค้าง
+//    ตัวตรวจท้ายรอบ (check-e2e-ran) ใช้ผลใหม่ของไฟล์นั้นแทนทั้งชุด · ไฟล์อื่นในรายงานเดิมยังนับตามเดิม
+{
+  const ที่ญ = mkdtempSync(path.join(tmpdir(), "pms-e2e-shift-"));
+  const เขียนรายงาน = (ชื่อ, ข้อ) => { const f = path.join(ที่ญ, ชื่อ); writeFileSync(f, JSON.stringify({ config: { rootDir: ที่ญ }, errors: [],
+    suites: ข้อ.map(([ไฟล์, บรรทัด, ชื่อข้อ, สถานะ]) => ({ file: ไฟล์, specs: [{ title: ชื่อข้อ, file: ไฟล์, line: บรรทัด, tests: [{ projectName: "chromium", status: สถานะ, annotations: [] }] }] })) })); return f; };
+  const เดิม = เขียนรายงาน("old.json", [["a.spec.ts", 79, "ข้อตาราง HQ", "unexpected"], ["a.spec.ts", 102, "ข้อตารางใบ", "skipped"], ["b.spec.ts", 5, "ข้ออื่น", "expected"]]);
+  const ใหม่ = เขียนรายงาน("new.json", [["a.spec.ts", 79, "ข้อตาราง HQ", "expected"], ["a.spec.ts", 110, "ข้อตารางใบ", "expected"]]);
+  const r = spawnSync(process.execPath, [path.join(ราก, "scripts/check-e2e-ran.mjs"), เดิม, ใหม่], { encoding: "utf8" });
+  ผล(r.status === 0 && /ผ่าน 3 · ตก 0/.test(r.stdout + r.stderr), "ญ. บรรทัดเลื่อนหลังแก้ไฟล์ → ผลใหม่ของไฟล์แทนทั้งชุด (ไม่ค้าง \"ไม่ได้รัน\") · ไฟล์อื่นยังนับ", r.stdout + r.stderr);
+  // ข้อในไฟล์ที่รันต่อหายไปจากรายงานใหม่ (ลบข้อทิ้ง) → ตัวรันรอบตรวจต้องจับได้ (ข้อทดสอบห้ามลด) — ข้อที่หาย()
+  const { ข้อที่หาย } = await import(pathToFileURL(ที่lib).href);
+  const หาย = ข้อที่หาย([เดิม], [เขียนรายงาน("new2.json", [["a.spec.ts", 79, "ข้อตาราง HQ", "expected"]])], ["a.spec.ts"]);
+  ผล(หาย.length === 1 && หาย[0].includes("ข้อตารางใบ"), "ญ. รันต่อแล้วข้อในไฟล์นั้นหายจากรายงาน (ลบข้อทิ้ง) → จับได้ บอกชื่อข้อ", JSON.stringify(หาย));
+  ผล(ข้อที่หาย([เดิม], [ใหม่], ["a.spec.ts"]).length === 0, "ญ. บรรทัดเลื่อนแต่ข้อครบ → ไม่ถือว่าหาย");
+  rmSync(ที่ญ, { recursive: true, force: true });
+}
 
 console.log(ตก ? `\n${ตก} FAIL` : "\nALL PASS");
 process.exit(ตก ? 1 : 0);

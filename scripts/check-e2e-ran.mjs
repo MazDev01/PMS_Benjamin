@@ -26,14 +26,19 @@ for (const f of ไฟล์) {
   if (!existsSync(f)) { console.error(`❌ ไม่พบรายงาน ${f} — ช่วงนั้นไม่ได้รันเลย`); process.exit(1); }
   const j = JSON.parse(readFileSync(f, "utf8"));
   let ในรายงานนี้ = 0;
+  const แถวใหม่ = [];
   (function เดิน(s, file) {
     for (const x of s.suites ?? []) เดิน(x, x.file ?? file);
     for (const sp of s.specs ?? []) for (const t of sp.tests) {
-      const r = { ไฟล์: sp.file ?? file, บรรทัด: sp.line, ชื่อ: sp.title, โปรเจกต์: t.projectName, t };
-      แถวตาม.set(`${r.ไฟล์}|${r.บรรทัด}|${r.ชื่อ}|${r.โปรเจกต์}`, r);
+      แถวใหม่.push({ ไฟล์: sp.file ?? file, บรรทัด: sp.line, ชื่อ: sp.title, โปรเจกต์: t.projectName, t });
       ในรายงานนี้++;
     }
   })(j);
+  // รายงานที่มาทีหลังรันทั้งไฟล์ (รันซ้ำไฟล์ที่ตก · รันต่อจากรอบที่ตก) → ผลเดิมของไฟล์+โปรเจกต์นั้นถูกแทนทั้งชุด
+  //   เดิมทับเฉพาะคีย์ที่บรรทัดตรงกัน — แก้ไฟล์ทดสอบแล้วบรรทัดเลื่อน ผลเก่า "ไม่ได้รัน" ของข้อเดิมค้าง (รอบรันต่อ 30 ต.ค. 69)
+  const แทน = new Set(แถวใหม่.map(r => `${r.ไฟล์}|${r.โปรเจกต์}`));
+  for (const [k, r] of แถวตาม) if (แทน.has(`${r.ไฟล์}|${r.โปรเจกต์}`)) แถวตาม.delete(k);
+  for (const r of แถวใหม่) แถวตาม.set(`${r.ไฟล์}|${r.บรรทัด}|${r.ชื่อ}|${r.โปรเจกต์}`, r);
   const ข้อผิดพลาด = (j.errors ?? []).map(e => String(e.message ?? e.value ?? "").split(/\r?\n/)[0]).filter(Boolean);
   if (ข้อผิดพลาด.length || !ในรายงานนี้) ช่วงที่ล้ม.push(`${f}: ${ข้อผิดพลาด[0] ?? "ไม่มีข้อทดสอบในรายงานเลย"}`);
 }
