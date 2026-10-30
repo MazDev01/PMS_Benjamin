@@ -7,6 +7,9 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { รอถ้าฐานไม่ว่าง } from "../../scripts/lib/testDbWait.mjs";
+// เซสชันอื่นถือฐานทดสอบอยู่ = "รอ" (exit 75) ไม่ใช่ "ตก" — คิวข้อ 2 · 29 ต.ค. 69
+รอถ้าฐานไม่ว่าง("ข้อทดสอบโครงฐานทดสอบ");
 
 if (process.env.PMS_TESTDB_LOCK_HELD) { console.log("- ข้าม: รันใต้ล็อกของตัวแม่ (ข้อนี้สร้างฐานทดสอบใหม่ — รันเดี่ยวเท่านั้น)\n\nALL PASS"); process.exit(0); }
 const ราก = process.cwd();

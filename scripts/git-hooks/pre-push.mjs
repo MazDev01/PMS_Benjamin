@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { ตรวจcommitผ่าน, ใบในcommit } from "../lib/commitGate.mjs";
 import { อ่านเซสชัน } from "../lib/session.mjs";
+import { รอฐานจริงว่าง } from "../lib/prodLock.mjs";
 
 const [, , remoteName = "", remoteUrl = ""] = process.argv;
 const สาขาที่ขึ้นเว็บจริง = "refs/heads/monorepo";
@@ -54,6 +55,8 @@ function ใบบนฐานจริง() {
     try { return { ใบ: JSON.parse(readFileSync(process.env.PMS_PROD_VERSIONS_FILE, "utf8")) }; } catch { return { เหตุ: "อ่านไฟล์ใบปลอมของข้อทดสอบไม่ได้" }; }
   }
   if (!existsSync(path.join(ที่ฐานจริง, "supabase/.temp/project-ref"))) return { เหตุ: `โฟลเดอร์ ${ที่ฐานจริง} ยังไม่ได้ผูกฐานจริง (ไม่มีโฟลเดอร์ หรือยังไม่ได้ supabase link)` };
+  // ระหว่างบอส db:push / สำรอง+ซ้อมกู้ = รอให้จบก่อน (ถามแบบ --linked ตั้งรหัสใหม่ให้บัญชีที่ขั้นสำรองใช้ → สำรองตก · 29 ต.ค. 69)
+  รอฐานจริงว่าง("git push: ตรวจใบปรับฐานบนฐานจริง");
   const d = mkdtempSync(path.join(tmpdir(), "pms-prepush-"));
   try {
     const q = path.join(d, "q.sql");

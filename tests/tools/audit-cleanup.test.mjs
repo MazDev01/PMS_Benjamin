@@ -10,6 +10,9 @@ import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { ขอล็อกฐานทดสอบ } from "../../scripts/lib/testDbLock.mjs";
 import { อาร์กิวเมนต์psql, คอนเทนเนอร์ } from "../../scripts/lib/testDbGuard.mjs";
+import { รอถ้าฐานไม่ว่าง } from "../../scripts/lib/testDbWait.mjs";
+// เซสชันอื่นถือฐานทดสอบอยู่ = "รอ" (exit 75) ไม่ใช่ "ตก" — คิวข้อ 2 · 29 ต.ค. 69
+รอถ้าฐานไม่ว่าง("ข้อทดสอบล้างบันทึกการใช้งาน");
 
 let ตก = 0;
 const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถูก) ตก++; console.log(`${ถูก ? "✓" : "✗"} ${ชื่อ}${ถูก ? "" : `\n${String(เพิ่ม).slice(0, 1500)}`}`); };

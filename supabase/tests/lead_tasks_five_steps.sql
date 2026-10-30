@@ -89,8 +89,10 @@ begin
     'ดีลเลอร์ยกเลิกติ๊ก "ส่งคำขอราคา" เองไม่ได้');
   perform flowtest.must_fail($q$update leads set tasks = '[]'::jsonb where id = '#L-ZZLT1'$q$, 'system_task_locked',
     'ดีลเลอร์ล้างรายการทั้งชุดตรงที่ตาราง (ลบติ๊กของระบบ) ไม่ได้');
-  perform lead_apply('#L-ZZLT1', '{"tasks":[{"key":"collect","done":true}]}'::jsonb);
-  perform flowtest.ok((flowtest.งาน(990801, 'collect') ->> 'done')::boolean, 'รายการติ๊กเอง (เก็บข้อมูลลูกค้า) ติ๊กได้');
+  -- เก็บข้อมูลลูกค้า เป็นรายการของระบบตั้งแต่ใบ 0263 (30 ต.ค. 69) — รายการติ๊กเองที่เหลือ = ติดตามลูกค้า
+  perform lead_apply('#L-ZZLT1', '{"tasks":[{"key":"followCustomer","done":false}]}'::jsonb);
+  perform lead_apply('#L-ZZLT1', '{"tasks":[{"key":"followCustomer","done":true}]}'::jsonb);
+  perform flowtest.ok((flowtest.งาน(990801, 'followCustomer') ->> 'done')::boolean, 'รายการติ๊กเอง (ติดตามลูกค้า) ติ๊กได้');
   perform flowtest.ok((select status::text from leads where id = '#L-ZZLT1') = 'BULLET', 'ติ๊กเองไม่เปลี่ยนขั้นของลีด');
 
   -- ═══ 4) ฐานติ๊กเอง: ส่งคำขอราคา → "ส่งคำขอราคา" · HQ ส่งใบ → "ได้ใบ HQ" (ลีดที่ยังไม่มีรายการ สร้างจากแม่แบบ) ═══

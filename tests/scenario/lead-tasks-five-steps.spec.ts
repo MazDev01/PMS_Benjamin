@@ -26,11 +26,12 @@ const เลข = เลขลูกค้าเป้าหมายทดส�
 let ใบ: ใบHQพร้อมใช้ | undefined;
 
 test.beforeAll(async () => {
-  // ลีดที่มีรายการแบบเดิม (ติดต่อแล้ว ติ๊ก "2026-06-02" แบบ ค.ศ.) — รายการ flow เก่าใส่ไม่ได้แล้ว (ใบ 0257 · ตรวจในข้อ 6)
+  // ลีดที่มีรายการแบบเดิม (ติดตามลูกค้า ติ๊ก "2026-06-02" แบบ ค.ศ.) — รายการ flow เก่าใส่ไม่ได้แล้ว (ใบ 0257 · ตรวจในข้อ 6)
+  //   "ติดต่อแล้ว" เอาออกทั้งระบบ (ใบ 0263 · 30 ต.ค. 69) · ข้อมูลลูกค้าครบ (บริษัท·ผู้ติดต่อ·โทร) → ฐานติ๊ก "เก็บข้อมูลลูกค้า" เอง
   const r = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อลีด, name: ชื่อลีด,
     contact: "ผู้ทดสอบ", phone: `08${String(เลข).slice(-8)}`, province: "ระยอง", status: "BULLET", assigned: "ทดสอบระบบ",
     tasks: [
-      { key: "contact", label: "ติดต่อแล้ว", done: true, doneAt: "2026-06-02", doneBy: "ทดสอบระบบ" },
+      { key: "followCustomer", label: "ติดตามลูกค้า", done: true, doneAt: "2026-06-02", doneBy: "ทดสอบระบบ" },
       { key: "collect", label: "เก็บข้อมูลลูกค้า", done: false },
     ] });
   expect(r.error, "ลีดทดสอบ").toBeNull();
@@ -66,15 +67,19 @@ test("[func·dealer] รายการเตือน 5 ขั้น · ไม�
   for (const เก่า of ["เจรจาต่อรอง", "ติดตามผล"])
     await expect.soft(page.getByRole("checkbox", { name: new RegExp(`^${เก่า}`) }), `ไม่มี "${เก่า}" แบบเดิม`).toHaveCount(0);
   // รายการตั้งต้นใหม่ครบ (ระบบติ๊ก = ปุ่มปิด)
-  for (const [ชื่อ, ระบบ] of [["ติดต่อแล้ว", false], ["เก็บข้อมูลลูกค้า", false], ["สรุปความต้องการ", false], ["นัดหมาย", true], ["ส่งคำขอราคา", true],
+  for (const [ชื่อ, ระบบ] of [["เก็บข้อมูลลูกค้า", true], ["สรุปความต้องการ", true], ["นัดหมาย", true], ["ส่งคำขอราคา", true],
                              ["ได้ใบ HQ", true], ["จัดทำใบเสนอราคา", true], ["ส่งใบเสนอราคา", true], ["ติดตามลูกค้า", false]] as const) {
     const ช่อง = page.getByRole("checkbox", { name: new RegExp(`^${ชื่อ}`) }).first();
     await expect.soft(ช่อง, `มีรายการ "${ชื่อ}"`).toBeVisible();
     if (ระบบ) await expect.soft(ช่อง, `"${ชื่อ}" ระบบติ๊ก — กดเองไม่ได้`).toBeDisabled();
     else await expect.soft(ช่อง, `"${ชื่อ}" ติ๊กเองได้`).toBeEnabled();
   }
+  await expect.soft(page.getByRole("checkbox", { name: /^ติดต่อแล้ว/ }), 'ไม่มี "ติดต่อแล้ว" (ใบ 0263)').toHaveCount(0);
+  // ใบ 0263: ข้อมูลลูกค้าครบ → "เก็บข้อมูลลูกค้า" ติ๊กแล้ว · ข้อมูลงานยังไม่ครบ → "สรุปความต้องการ" ยังไม่ติ๊ก
+  await expect.soft(page.getByRole("checkbox", { name: /^เก็บข้อมูลลูกค้า/ }).first(), "ข้อมูลลูกค้าครบ → ระบบติ๊กให้").toHaveAttribute("aria-checked", "true");
+  await expect.soft(page.getByRole("checkbox", { name: /^สรุปความต้องการ/ }).first(), "ข้อมูลงานยังไม่ครบ → ยังไม่ติ๊ก").toHaveAttribute("aria-checked", "false");
   // 2) วันที่ พ.ศ. (ข้อมูลเดิม "2026-06-02")
-  const ติดต่อ = page.getByRole("checkbox", { name: /^ติดต่อแล้ว/ }).first();
+  const ติดต่อ = page.getByRole("checkbox", { name: /^ติดตามลูกค้า/ }).first();
   await expect.soft(ติดต่อ, "วันที่ทำเป็น พ.ศ.").toContainText("2 มิ.ย. 2569");
   await expect.soft(ติดต่อ, "ไม่แสดงวันที่ ค.ศ.").not.toContainText("2026");
   void รายการ;
@@ -83,7 +88,9 @@ test("[func·dealer] รายการเตือน 5 ขั้น · ไม�
   const sb = await db(RYG);
   const ระบบ = await sb.rpc("lead_apply", { p_id: `#L-${เลข}`, p_intent: { tasks: [{ key: "requestQuote", done: true }] } });
   expect.soft(ระบบ.error?.message ?? "", "ฐาน: ดีลเลอร์ติ๊กงานของระบบไม่ได้").toMatch(/system_task_locked/);
-  const เอง = await sb.rpc("lead_apply", { p_id: `#L-${เลข}`, p_intent: { tasks: [{ key: "collect", done: true }] } });
+  const ข้อมูล = await sb.rpc("lead_apply", { p_id: `#L-${เลข}`, p_intent: { tasks: [{ key: "requirement", done: true }] } });
+  expect.soft(ข้อมูล.error?.message ?? "", "ฐาน: สรุปความต้องการ ระบบติ๊ก — ดีลเลอร์ติ๊กเองไม่ได้ (ใบ 0263)").toMatch(/system_task_locked/);
+  const เอง = await sb.rpc("lead_apply", { p_id: `#L-${เลข}`, p_intent: { tasks: [{ key: "followCustomer", done: false }] } });
   expect.soft(เอง.error?.message ?? "", "ฐาน: งานติ๊กเองยังติ๊กได้").toBe("");
   const แถว = (await admin.from("leads").select("status, tasks").eq("dealer_code", "RYG").eq("num_id", เลข).single()).data;
   expect.soft(แถว?.status, "ติ๊กงานเองไม่เปลี่ยนขั้นของลีด").toBe("BULLET");
@@ -132,10 +139,10 @@ test("[func·hq] ตั้งค่า › เส้นทางการขา�
   // ป้ายขั้นไม่มีเลขลำดับ (บอสสั่ง 28 ต.ค. 69) — แถวขั้นต้องขึ้นต้นด้วยชื่อขั้น ไม่ใช่เลข
   for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"].entries())
     expect.soft((await page.locator(`[data-journey-step="${i + 1}"]`).innerText()).trim(), `ขั้น ${ชื่อ}: ไม่มีเลขลำดับนำหน้า`).toMatch(new RegExp(`^${ชื่อ}`));
-  for (const ชื่อ of ["นัดหมาย", "ส่งคำขอราคา", "ได้ใบ HQ", "จัดทำใบเสนอราคา", "ส่งใบเสนอราคา"])
+  for (const ชื่อ of ["เก็บข้อมูลลูกค้า", "สรุปความต้องการ", "นัดหมาย", "ส่งคำขอราคา", "ได้ใบ HQ", "จัดทำใบเสนอราคา", "ส่งใบเสนอราคา"])
     await expect.soft(page.getByRole("button", { name: `ลบงาน ${ชื่อ}` }), `"${ชื่อ}" ระบบติ๊ก — ลบไม่ได้`).toHaveCount(0);
   await expect.soft(page.getByRole("button", { name: "ลบงาน ติดตามลูกค้า" }), "รายการติ๊กเองลบได้").toHaveCount(1);
-  for (const เก่า of ["ติดตามผล", "เจรจาต่อรอง"])
+  for (const เก่า of ["ติดตามผล", "เจรจาต่อรอง", "ติดต่อแล้ว"])
     await expect.soft(page.locator(`input[value="${เก่า}"]`), `ไม่มี "${เก่า}"`).toHaveCount(0);
 
   const hq = await db(ADMIN);

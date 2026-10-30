@@ -8,6 +8,9 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { รอถ้าฐานไม่ว่าง } from "../../scripts/lib/testDbWait.mjs";
+// เซสชันอื่นถือฐานทดสอบอยู่ = "รอ" (exit 75) ไม่ใช่ "ตก" — คิวข้อ 2 · 29 ต.ค. 69
+รอถ้าฐานไม่ว่าง("ข้อทดสอบตัวกันฐานทดสอบ");
 
 const ราก = process.cwd();
 const ที่ตัวกัน = process.env.PMS_GUARD_LIB_DIR || path.join(ราก, "scripts/lib");
