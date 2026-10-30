@@ -81,15 +81,17 @@ test("[ui·hq] ตารางลีดทั้งเครือ: ลำดั
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByPlaceholder("ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…").fill(ลีดได้ใบ);
-  const แถว = page.locator("tbody tr").filter({ hasText: ลีดได้ใบ }).first();
+  // อ่านเฉพาะตารางลีด — กล่องโอนลีด HQ (H6) ก็เป็นตาราง ขึ้นเมื่อมีลีด HQ ค้างจากข้ออื่นที่รันพร้อมกัน (ไม่นิ่ง round5 30 ต.ค. 69)
+  const ตารางลีด = page.locator('table[aria-label="ตารางลูกค้าเป้าหมายทั้งเครือ"]');
+  const แถว = ตารางลีด.locator("tbody tr").filter({ hasText: ลีดได้ใบ }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   // บอสสั่ง 30 ต.ค. 69 (หน้า /hq/leads): "ใช้แบบเดียวกับตารางลูกค้าเป้าหมายฝั่งดีลเลอร์ที่บอสส่งแบบไว้ 28 ต.ค. + คอลัมน์ดีลเลอร์
   //   · เอาคอลัมน์ "ความคืบหน้า %" ออก (ซ้ำป้ายขั้นตอน และขั้นตอนไม่มีตัวเลข)" → ลำดับ = แบบดีลเลอร์ · ดีลเลอร์ต่อจากบริษัท · ไม่มีความคืบหน้า
   //   ขั้นของลีด (เดิมตรวจผ่านแถบ 60%) ตรวจที่ป้ายขั้นตอนแทน: ได้ใบ HQ = ขั้น 3 (ชื่อกลางจาก leadStage.ts)
   const ลำดับHQ = ลำดับลีด.filter(h => h !== "ความคืบหน้า");
   ลำดับHQ.splice(1, 0, "ดีลเลอร์");
-  expect(await หัวคอลัมน์(page), "ลำดับคอลัมน์ = แบบดีลเลอร์ + ดีลเลอร์ · ไม่มีความคืบหน้า").toEqual(ลำดับHQ);
-  const หัวHQ = (await page.locator("thead th").allInnerTexts()).map(h => h.trim());
+  const หัวHQ = (await ตารางลีด.locator("thead th").allInnerTexts()).map(h => h.replace(/\s+/g, " ").trim());
+  expect(หัวHQ.filter(Boolean), "ลำดับคอลัมน์ = แบบดีลเลอร์ + ดีลเลอร์ · ไม่มีความคืบหน้า").toEqual(ลำดับHQ);
   await expect(แถว.locator("td").nth(หัวHQ.indexOf("ดีลเลอร์")), "คอลัมน์ดีลเลอร์ = ดีลเลอร์เจ้าของลีด").toContainText("RYG");
   await expect(แถว.locator('[data-cell="dealer"]'), "ช่องดีลเลอร์").toContainText("RYG");
   await expect(แถว.locator("td").nth(หัวHQ.indexOf("ขั้นตอน")), "ได้ใบ HQ = ขั้น 3").toHaveText("ได้ใบ HQ");
@@ -97,7 +99,7 @@ test("[ui·hq] ตารางลีดทั้งเครือ: ลำดั
 
   // บอสตัดสิน 29 ต.ค. 69: ลีดเป็นงานของดีลเลอร์ — HQ ไม่มีปุ่มลบลีดของดีลเลอร์ แม้ลีดที่ฝั่งดีลเลอร์ลบได้ (ยังไม่มีคำขอ/ใบ) · ฐานก็ไม่ให้ HQ ลบ
   await page.getByPlaceholder("ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…").fill(ลีดเปล่า);
-  const เปล่า = page.locator("tbody tr").filter({ hasText: ลีดเปล่า }).first();
+  const เปล่า = ตารางลีด.locator("tbody tr").filter({ hasText: ลีดเปล่า }).first();
   await expect(เปล่า).toBeVisible({ timeout: 20_000 });
   await expect(เปล่า.getByRole("button", { name: /^ลบ/ }), "HQ ไม่มีปุ่มลบลีดของดีลเลอร์").toHaveCount(0);
   const hq = await db(ADMIN);
