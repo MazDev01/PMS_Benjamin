@@ -57,7 +57,8 @@ test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาร�
   const แถว = page.getByRole("row", { name: new RegExp(เลขที่) });
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await expect(แถว).toContainText(name);
-  await expect(แถว).toContainText("Exclusive");
+  // บอสสั่ง 30 ต.ค. 69: ตารางใบค่าแฟรนไชส์ไม่มีคอลัมน์/ป้ายแพ็กเกจ (ฟอร์มออกใบยังมีช่องแพ็กเกจจนกว่าใบปรับฐานจะลง)
+  await expect(แถว, "ไม่มีป้ายแพ็กเกจในตาราง").not.toContainText(/Exclusive|Standard|แพ็กเกจ/);
   await expect(แถว).toContainText("250,000");
   await expect(แถว).toContainText("ส่งแล้ว");
   // หน้ารวม: ไม่มีปุ่มแก้/ลบ/ส่ง/ออกใบแล้ว (ทำที่แผงผู้สนใจ) — ฐานก็ล็อกใบที่ส่งแล้ว

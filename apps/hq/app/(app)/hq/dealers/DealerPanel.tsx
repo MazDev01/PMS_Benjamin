@@ -21,12 +21,10 @@ import { วันที่ขายของใบ } from "@pms/shared/lib/sale
 import { DealerCredentialsCard } from "@pms/shared/components/hq/DealerCredentialsCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { dealerStatusLabel, dealerStatusColor, quotationStatusColor, quotationStatusLabel, fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
-import { packageLabel } from "@pms/shared/lib/dealerProposals";
 import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import { วันเวลาไทย } from "@pms/shared/lib/thaiDate";
 import { ชื่อขั้น, สีขั้น, เลขขั้นจากผล } from "@pms/shared/lib/leadStage";
 import { ป้ายสถานะชำระ, type แผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
-import type { DealerPackage } from "@pms/shared/lib/data/types";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -34,11 +32,6 @@ type แท็บ = "overview" | "leads" | "quotes" | "customers" | "activity";
 const ชื่อแท็บ: Record<แท็บ, string> = { overview: "ภาพรวม", leads: "ลูกค้าเป้าหมาย", quotes: "ใบเสนอราคา", customers: "ลูกค้า", activity: "กิจกรรม" };
 const เวลา = (s: string | null | undefined) => { if (!s) return "—"; const d = new Date(s); return Number.isNaN(d.getTime()) ? "—" : วันเวลาไทย(d); };
 
-export function ป้ายแพ็กเกจ({ p }: { p?: DealerPackage | string | null }) {
-  if (!p || !(p in packageLabel)) return <span style={{ color: "#C0C0C0", fontSize: "0.8rem" }}>—</span>;
-  const สี = p === "exclusive" ? { background: "#fdf3e1", color: "#b45309" } : { background: "#e8f0fe", color: "#1d4ed8" };
-  return <span className="badge" data-package style={{ ...สี, whiteSpace: "nowrap" }}>{packageLabel[p as DealerPackage]}</span>;
-}
 
 /** หัวข้อของส่วนในแท็บภาพรวม — แบบเดียวกันทุกส่วน */
 function ส่วน({ title, icon, children, testid }: { title: string; icon: React.ReactNode; children: React.ReactNode; testid: string }) {
@@ -133,14 +126,13 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
       <aside role="dialog" aria-label={`แผงดีลเลอร์ ${dealer.name}`} data-dealer-panel={code} className="side-drawer"
         style={{ position: "fixed", top: 12, right: 12, bottom: 12, width: 640, maxWidth: "calc(100vw - 24px)", zIndex: 241,
           background: "#F8FAFC", boxShadow: "0 24px 70px rgba(0,0,0,.24)", borderRadius: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        {/* ── 1. หัวแผง: ชื่อ · รหัส · แพ็กเกจ · สถานะ · จังหวัด/ภูมิภาค · ปุ่ม ── */}
+        {/* ── 1. หัวแผง: ชื่อ · รหัส · สถานะ · จังหวัด/ภูมิภาค · ปุ่ม ── */}
         <header style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "16px 18px 14px", color: "#fff", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div data-panel-name style={{ fontSize: "1rem", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={dealer.name}>{dealer.name}</div>
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6, fontSize: "0.72rem" }}>
                 <span className="badge" style={{ background: "rgba(255,255,255,.16)", color: "#fff", fontFamily: "monospace" }}>{code}</span>
-                <ป้ายแพ็กเกจ p={dealer.package} />
                 <span className="badge" data-panel-status style={{ background: สีสถานะ.bg, color: สีสถานะ.color }}>{dealerStatusLabel[dealer.status]}</span>
                 <span style={{ color: "rgba(255,255,255,.8)" }}>{dealer.province || "—"} · {ชื่อภาค(dealer.region)}</span>
               </div>
@@ -250,9 +242,8 @@ function ภาพรวม({ ข้อมูล, dealer, ไปแท็บ }: 
       {/* 4. ข้อมูลเข้าระบบ — ชื่อผู้ใช้ · ดูรหัสผ่าน · แก้อีเมล/รหัสผ่าน · สิทธิ์แก้เอง · คืนสิทธิ์ (การ์ดกลางชุดเดิม) */}
       <div data-panel-section="login" style={{ marginBottom: 12 }}><DealerCredentialsCard dealer={dealer} /></div>
 
-      {/* 5. แฟรนไชส์ — แพ็กเกจ · ใบค่าแฟรนไชส์ · สถานะชำระ (ไม่มียอดเงินในแผงนี้) */}
+      {/* 5. แฟรนไชส์ — ใบค่าแฟรนไชส์ · สถานะชำระ (ไม่มียอดเงินในแผงนี้) */}
       <ส่วน title="แฟรนไชส์" icon={<FileText size={15} />} testid="franchise">
-        <แถว label="แพ็กเกจ" value={<ป้ายแพ็กเกจ p={dealer.package} />} />
         <แถว label="ใบค่าแฟรนไชส์" value={f ? <Link href={`/hq/proposals?open=${f.proposalId}`} style={{ color: PRIMARY, fontWeight: 700 }}>{f.proposalNo}</Link> : "—"} />
         <แถว label="สถานะชำระ" value={f ? <span data-payment={f.payment}>{ป้ายสถานะชำระ[f.payment]}</span> : "—"} />
       </ส่วน>

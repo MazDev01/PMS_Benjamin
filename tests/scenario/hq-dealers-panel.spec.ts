@@ -66,14 +66,14 @@ test("[H11·hq] ดีลเลอร์: ตารางตามแบบ ไ�
   const ตาราง = page.locator(".table-wrap table").first();
   const แถว = ตาราง.locator("tbody tr").filter({ hasText: ก!.รหัส });
   await expect(แถว).toHaveCount(1, { timeout: 20_000 });
-  expect((await ตาราง.locator("thead th").allInnerTexts()).map(t => t.trim())).toEqual(["ลำดับ", "รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "แพ็กเกจ", "สถานะ", ""]);
+  expect((await ตาราง.locator("thead th").allInnerTexts()).map(t => t.trim())).toEqual(["ลำดับ", "รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""]);
   // กันหลุดกลับมา: ไม่มีตัวเลขยอดขาย/เป้า/โอกาสขาย/ตรงเวลา ทั้งหน้า
   await expect(page.locator(".erp"), "หน้าดีลเลอร์ไม่มีตัวเลขยอดขาย/เป้า").not.toContainText(/฿|ยอดขาย|ยอด\s*\/\s*เป้า|เป้ายอด|โอกาสขาย|ตรงเวลา|ผลงานดีลเลอร์/);
   await expect(page.locator("button[title*='ลบ'], button[aria-label*='ลบ']"), "ไม่มีปุ่มลบดีลเลอร์").toHaveCount(0);
   // ชื่อดีลเลอร์ · ป้ายภูมิภาค · แพ็กเกจ · สถานะ ไม่ถูกตัดที่จอกว้าง · ภูมิภาคใช้ชื่อกลาง
-  const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='name'], td[data-col='region'] .badge, td[data-col='package'] .badge, td[data-col='status'] .badge, td[data-col='name'] span"))
+  const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='name'], td[data-col='region'] .badge, td[data-col='status'] .badge, td[data-col='name'] span"))
     .filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > (e.closest("td")!.getBoundingClientRect().right + 1)).map(e => e.textContent));
-  expect(ตัด, "จอ 1440: ชื่อ/ภูมิภาค/แพ็กเกจ/สถานะ ไม่ถูกตัด").toEqual([]);
+  expect(ตัด, "จอ 1440: ชื่อ/ภูมิภาค/สถานะ ไม่ถูกตัด").toEqual([]);
   await expect(แถว.locator("td[data-col='region']")).toHaveText("ภาคตะวันออก");
   await expect(แถว.locator("td[data-col='name']"), "ชี้ที่ชื่อแล้วเห็นเต็ม").toHaveAttribute("title", "ZZTEST ดีลเลอร์แผงขวา");
   // ปุ่มปิดใช้งาน (ตาปิด) ต้องยืนยันก่อน แล้วลงฐานจริง · กดอีกครั้ง (ตาเปิด) = เปิดใช้งาน

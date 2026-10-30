@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { DealerEditModal, type DealerEdit } from "@pms/shared/components/hq/DealerEditModal";
-import { DealerPanel, ป้ายแพ็กเกจ } from "./DealerPanel";
+import { DealerPanel } from "./DealerPanel";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { dealerStatusLabel, dealerStatusColor, type DealerRow, type DealerStatus } from "@pms/shared/lib/mock";
@@ -60,7 +60,7 @@ const STATUS_PILLS: { value: DealerStatus | "all"; label: string }[] = [
 function ปุ่มไอคอน({ title, testid, onClick, children }: { title: string; testid: string; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" title={title} aria-label={title} data-row-action={testid} onClick={onClick} className="btn btn-secondary btn-sm"
-      style={{ width: 28, height: 28, padding: 0, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", color: "#003366", flexShrink: 0 }}>
+      style={{ width: 28, minHeight: 28, padding: 0, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", color: "#003366", flexShrink: 0 }}>
       {children}
     </button>
   );
@@ -318,7 +318,6 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
                           <span style={{ width: 6, height: 6, borderRadius: "50%", background: สีสถานะ.color }} />
                           {dealerStatusLabel[สถานะ]}
                         </span>
-                        {d.package && <ป้ายแพ็กเกจ p={d.package} />}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginTop: 12 }} onClick={ev => ev.stopPropagation()}>
                         {canImpersonate && (
@@ -361,29 +360,28 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
                 ไม่งั้นได้ความกว้างพอดีตัวอักษรแต่เนื้อหาโดนเฉือน (เคยได้ "C..." แทน "CNX") */}
             {/* คอลัมน์ตามแบบที่บอสส่ง (30 ต.ค. 69 · FLOW H11 งานดูแล ไม่มีตัวเลขยอดขาย): ลำดับ · รหัส · ดีลเลอร์ · จังหวัด · ภูมิภาค · แพ็กเกจ · สถานะ · ปุ่ม
                 ไม่มี ยอด/เป้า · โอกาสขาย · ตรงเวลา · ไม่มีปุ่มลบ (ปิด/เปิดใช้งานแทน) · ชื่อดีลเลอร์ไม่ถูกตัดที่จอกว้าง (ชี้แล้วเห็นเต็ม)
-                ป้ายภูมิภาค/แพ็กเกจ/สถานะ ห้ามตัด · ปุ่มท้ายแถว: เข้าระบบ (~99px) + ไอคอน 4 ปุ่ม (28px) + ช่องไฟ ≈ 240px + ระยะขอบ 32px
+                ป้ายภูมิภาค/สถานะ ห้ามตัด · ปุ่มท้ายแถว: เข้าระบบ (~99px) + ไอคอน 4 ปุ่ม (28px) + ช่องไฟ ≈ 240px + ระยะขอบ 32px
                 เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่เท่านั้น (table-layout: fixed) · รวม % = 100 */}
             <colgroup>
               <col style={{ width: "5%", minWidth: 64 }} />{/* ลำดับ — เลข 3 หลัก + หัว "ลำดับ" */}
               <col style={{ width: 92 }} />{/* รหัส 5 ตัว (ZZWWW) ห้ามตัด */}
-              <col style={{ width: "33%", minWidth: 220 }} />{/* ดีลเลอร์ */}
+              <col style={{ width: "42%", minWidth: 220 }} />{/* ดีลเลอร์ (คอลัมน์แพ็กเกจเอาออก บอสสั่ง 30 ต.ค. 69 · 9% ยกให้) */}
               <col style={{ width: "11%", minWidth: 110 }} />{/* จังหวัด */}
               <col style={{ width: "15%", minWidth: 190 }} />{/* ภูมิภาค — "ภาคตะวันออกเฉียงเหนือ" ในป้าย ห้ามตัด */}
-              <col style={{ width: "9%", minWidth: 104 }} />{/* แพ็กเกจ — ป้าย "Exclusive" ห้ามตัด */}
               <col style={{ width: "9%", minWidth: 112 }} />{/* สถานะ — "เปิดใช้งาน"/"ปิดใช้งาน" ห้ามตัด */}
               <col style={{ width: 284 }} />{/* ปุ่มท้ายแถว */}
             </colgroup>
             <thead>
               <tr>
                 {/* ⚠️ คอลัมน์ปุ่มตรึงไว้ขวาสุด (sticky) — จอแคบตารางเลื่อนแนวนอนได้ ปุ่มยังอยู่ให้กด (บอสทัก 26 ส.ค. 69) */}
-                {["ลำดับ", "รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "แพ็กเกจ", "สถานะ", ""].map((h, i, arr) => (
+                {["ลำดับ", "รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""].map((h, i, arr) => (
                   <th key={i} style={i === arr.length - 1 ? ตรึงคอลัมน์ปุ่ม(true) : undefined} aria-label={h || "ปุ่ม"}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="empty-row">{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
+                <tr><td colSpan={7} className="empty-row">{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
               ) : pageSlice(filtered, Math.min(page, pageCountOf(filtered.length) - 1)).map((d, i) => (
                 <ClickableRow key={d.id} className="clickable" style={{ opacity: dealerStatus(d) === "active" ? 1 : 0.55 }}
                   onActivate={() => setแผง(d.code)} label={`เปิดแผงดีลเลอร์ ${d.name}`}>
@@ -398,11 +396,10 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
                   <td data-col="region" className="ovf-visible">
                     <span className="badge" style={{ background: "#f0f0f5", color: "#6b7280", whiteSpace: "nowrap" }}>{ชื่อภาค(d.region)}</span>
                   </td>
-                  <td data-col="package" className="ovf-visible"><ป้ายแพ็กเกจ p={d.package} /></td>
                   <td data-col="status" className="ovf-visible"><StatusBadge status={dealerStatus(d)} /></td>
                   <td style={{ overflow: "visible", ...ตรึงคอลัมน์ปุ่ม() }} onClick={e => e.stopPropagation()}>
                     {/* ปุ่มท้ายแถว (บอสสั่ง 30 ต.ค. 69) — ทุกปุ่มมีคำอธิบายภาษาไทยเมื่อชี้ · ไม่มีปุ่มลบดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · ยืนยัน 30 ต.ค. 69) */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>
+                    <div style={{ display: "flex", alignItems: "stretch", gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>{/* stretch = ปุ่มสูงเท่ากัน ขอบบนตรงแนวเดียว */}
                       {canImpersonate && (
                         <button onClick={() => enterDealer(d)} disabled={entering === d.id} title="เข้าระบบแทนดีลเลอร์" aria-label={`เข้าระบบแทน ${d.name}`}
                           className="btn btn-primary btn-sm" style={{ opacity: entering === d.id ? 0.6 : 1, whiteSpace: "nowrap", flexShrink: 0 }}>

@@ -6,7 +6,7 @@
 // ⚠️ ทุกค่าที่มาจากผู้ใช้ต้องผ่าน esc() — หน้าพิมพ์ประกอบ HTML แล้วเขียนลงหน้าต่างใหม่ตรง ๆ
 //    ชื่อลูกค้าเป้าหมาย/เงื่อนไขที่มี <script> จะรันจริงถ้าลืม (มีเทสต์ล็อกไว้)
 import type { DealerPackageProposal, DealerProspect, HQCompany } from "./data/types";
-import { packageLabel, มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย } from "./dealerProposals";
+import { มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย } from "./dealerProposals";
 import { fmtISOToThai } from "./mock";
 
 function esc(s: unknown) {
@@ -87,15 +87,14 @@ table.items td.r,table.items th.r{text-align:right}
       ${prospect.province ? `<div class="row">จังหวัด: ${esc(prospect.province)}</div>` : ""}
     </div>
     <div class="party">
-      <div class="lbl">แพ็กเกจที่เสนอ</div>
-      <div class="co">${esc(packageLabel[p.package] ?? p.package)}</div>
+      <div class="lbl">สิทธิ์ดีลเลอร์ที่เสนอ</div>
       <div class="row">พื้นที่ที่ได้สิทธิ์: ${esc(พื้นที่)}</div>
     </div>
   </div>
   <table class="items">
     <thead><tr><th>รายการ</th><th class="r" style="width:220px">รายละเอียด</th></tr></thead>
     <tbody>
-      <tr><td><b>แพ็กเกจดีลเลอร์ ${esc(packageLabel[p.package] ?? p.package)}</b><br/><span style="color:#888;font-size:11px">พื้นที่: ${esc(พื้นที่)}</span></td><td class="r">${esc(packageLabel[p.package] ?? p.package)}</td></tr>
+      <tr><td><b>สิทธิ์เป็นดีลเลอร์</b><br/><span style="color:#888;font-size:11px">พื้นที่: ${esc(พื้นที่)}</span></td><td class="r">${esc(p.proposalNo ?? "—")}</td></tr>
       <tr><td>ค่าแรกเข้า (จ่ายครั้งเดียว)</td><td class="r">${esc(มูลค่าอ่านง่าย(p.amount))}</td></tr>
       <tr><td>ระยะสัญญา</td><td class="r">${esc(ระยะสัญญาอ่านง่าย(p.contractMonths))}</td></tr>
       <tr><td>เป้ายอดซื้อต่อปี</td><td class="r">${esc(มูลค่าอ่านง่าย(p.annualTarget))}</td></tr>

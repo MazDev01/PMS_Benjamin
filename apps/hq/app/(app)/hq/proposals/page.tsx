@@ -17,8 +17,8 @@ import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, บาทเต็ม, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import { FileText, Send, AlarmClock, Search, X, Eye, Printer, MapPin, ExternalLink, Coins, Wallet } from "lucide-react";
 import { proposals as proposalsRepo, prospects as prospectsRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
-import type { DealerPackage, DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
-import { PACKAGE_ORDER, PROPOSAL_STATUS_ORDER, packageLabel, proposalStatusLabel, proposalStatusColor, มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว } from "@pms/shared/lib/dealerProposals";
+import type { DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
+import { PROPOSAL_STATUS_ORDER, proposalStatusLabel, proposalStatusColor, มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว } from "@pms/shared/lib/dealerProposals";
 import { ProposalPaymentsBox } from "@pms/shared/components/hq/ProposalPaymentsBox";
 import { useProposalActions } from "@pms/shared/components/hq/useProposalActions";
 import { useRole } from "@pms/shared/context/RoleContext";
@@ -62,7 +62,6 @@ export default function HQProposalsPage() {
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "expired" | DealerProposalStatus>("all");
-  const [packageFilter, setPackageFilter] = useState<"all" | DealerPackage>("all");
   // ?overdue=1 (แถว "วันนี้ต้องทำ" ของแดชบอร์ด) = เฉพาะใบค้างชำระ — รายการเลขใบมาจากตัวคำนวณเดียวกับแดชบอร์ด (hq_dashboard · ใบ 0235)
   const [ค้างชำระ, setค้างชำระ] = useState<Set<number> | null>(null);
   // ชุดเลขใบที่กรองอยู่มาจากไหน (การ์ด KPI · ใบ 0246 / ลิงก์แดชบอร์ด) — ป้ายบนชิปกรอง
@@ -118,13 +117,12 @@ export default function HQProposalsPage() {
 
   // ตัวกรองอื่นของหน้า (แพ็กเกจ/คำค้น · ไม่รวมสถานะกับชุดที่กดจากการ์ด) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน (บอสตัดสิน 27 ต.ค. 69)
   const ตรงตัวกรองอื่น = useCallback((p: DealerPackageProposal) => {
-    if (packageFilter !== "all" && p.package !== packageFilter) return false;
     const คำ = q.trim().toLowerCase();
     if (!คำ) return true;
     const r = รายตามรหัส.get(p.prospectId);
-    return [p.proposalNo, r?.name, r?.social, p.province, p.region, packageLabel[p.package]]
+    return [p.proposalNo, r?.name, r?.social, p.province, p.region]
       .some(v => String(v ?? "").toLowerCase().includes(คำ));
-  }, [packageFilter, q, รายตามรหัส]);
+  }, [q, รายตามรหัส]);
   const filtered = useMemo(() => ใบ.filter(p => {
     if (ค้างชำระ && !ค้างชำระ.has(p.id)) return false;
     if (statusFilter === "expired" ? !หมดอายุแล้ว(p, APP_NOW_ISO) : statusFilter !== "all" && p.status !== statusFilter) return false;
@@ -156,9 +154,9 @@ export default function HQProposalsPage() {
         <ExportMenu
           filename="hq-dealer-package-proposals"
           title="ใบค่าแฟรนไชส์"
-          headers={["เลขที่", "ผู้สนใจ", "แพ็กเกจ", "ภาค", "จังหวัด", "ค่าแรกเข้า (บาท)", "ระยะสัญญา (เดือน)", "เป้ายอดซื้อต่อปี (บาท)", "สถานะ", "วันที่เสนอ", "มีผลถึง", "เงื่อนไข"]}
+          headers={["เลขที่", "ผู้สนใจ", "ภาค", "จังหวัด", "ค่าแรกเข้า (บาท)", "ระยะสัญญา (เดือน)", "เป้ายอดซื้อต่อปี (บาท)", "สถานะ", "วันที่เสนอ", "มีผลถึง", "เงื่อนไข"]}
           rows={filtered.map(p => [
-            p.proposalNo ?? "", รายตามรหัส.get(p.prospectId)?.name ?? "", packageLabel[p.package], p.region ?? "", p.province ?? "",
+            p.proposalNo ?? "", รายตามรหัส.get(p.prospectId)?.name ?? "", p.region ?? "", p.province ?? "",
             p.amount ?? "", p.contractMonths ?? "", p.annualTarget ?? "", proposalStatusLabel[p.status],
             p.proposedDate ?? "", p.validUntil ?? "", p.terms ?? "",
           ])}
@@ -201,10 +199,6 @@ export default function HQProposalsPage() {
           {PROPOSAL_STATUS_ORDER.map(s => <option key={s} value={s}>{proposalStatusLabel[s]}</option>)}
           <option value="expired">ส่งแล้ว · เลยวันมีผล</option>
         </select>
-        <select aria-label="กรองตามแพ็กเกจ" value={packageFilter} onChange={e => { setPackageFilter(e.target.value as typeof packageFilter); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกแพ็กเกจ</option>
-          {PACKAGE_ORDER.map(k => <option key={k} value={k}>{packageLabel[k]}</option>)}
-        </select>
       </div>
 
       {loadErr && (
@@ -223,8 +217,7 @@ export default function HQProposalsPage() {
                 เป้ายอดซื้อ/ระยะสัญญา/พื้นที่ ดูในแผงรายละเอียด — ใส่ครบในตารางแล้วล้นกรอบ (ภาพหน้าจอ 14 ก.ย. 69) */}
             <colgroup>
               <col style={{ width: "13%", minWidth: 124 }} />
-              <col style={{ width: "21%", minWidth: 170 }} />
-              <col style={{ width: "10%", minWidth: 90 }} />
+              <col style={{ width: "31%", minWidth: 170 }} />{/* ผู้สนใจ (คอลัมน์แพ็กเกจเอาออก บอสสั่ง 30 ต.ค. 69 · 10% ยกให้) */}
               <col style={{ width: "11%", minWidth: 104 }} />
               <col style={{ width: "10%", minWidth: 84 }} />
               <col style={{ width: "11%", minWidth: 104 }} />
@@ -233,7 +226,7 @@ export default function HQProposalsPage() {
             </colgroup>
             <thead>
               <tr>
-                <th>เลขที่</th><th>ผู้สนใจ</th><th>แพ็กเกจ</th><th className="num">ค่าแรกเข้า</th><th>สถานะ</th><th>วันที่เสนอ</th><th>มีผลถึง</th>
+                <th>เลขที่</th><th>ผู้สนใจ</th><th className="num">ค่าแรกเข้า</th><th>สถานะ</th><th>วันที่เสนอ</th><th>มีผลถึง</th>
                 <th style={{ ...ตรึงคอลัมน์ปุ่ม(true), textAlign: "right" }}>จัดการ</th>
               </tr>
             </thead>
@@ -253,7 +246,6 @@ export default function HQProposalsPage() {
                     style={{ background: ดูรหัส === p.id ? "#f0f6ff" : undefined }}>
                     <td style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap", fontFamily: "monospace" }}>{p.proposalNo ?? "—"}</td>
                     <td title={r?.name} style={{ fontWeight: 700, color: STEEL, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r?.name ?? "—"}</td>
-                    <td><span className="badge" style={{ background: "#eef3f8", color: PRIMARY }}>{packageLabel[p.package]}</span></td>
                     <td className="num" style={{ fontWeight: 800, color: STEEL, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(p.amount)}</td>
                     <td><span className="badge" style={{ background: สี.bg, color: สี.text }}>{proposalStatusLabel[p.status]}</span></td>
                     <td style={{ fontSize: "0.76rem", color: MUTED, whiteSpace: "nowrap" }}>{p.proposedDate ? fmtISOToThai(p.proposedDate) : "—"}</td>
@@ -319,7 +311,6 @@ export default function HQProposalsPage() {
                   <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: sc.bg, color: sc.text }}>{proposalStatusLabel[p.status]}</span>
                   {(p.version ?? 1) > 1 && <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" }}>เวอร์ชัน {p.version}</span>}
                   {p.closeReason && <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "#fee2e2", color: "#991b1b" }}>เหตุผล: {p.closeReason}</span>}
-                  <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" }}>แพ็กเกจ {packageLabel[p.package]}</span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 800, background: "#fff", color: PRIMARY }}><Coins size={11} /> ค่าแรกเข้า {มูลค่าอ่านง่าย(p.amount)}</span>
                 </div>
               </div>
@@ -335,7 +326,6 @@ export default function HQProposalsPage() {
                   <div style={หัวการ์ด}><FileText size={13} color={PRIMARY} /> รายละเอียดข้อเสนอ</div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0 24px" }}>
                     {([
-                      ["แพ็กเกจ", packageLabel[p.package]],
                       ["พื้นที่ที่ได้สิทธิ์", พื้นที่ของใบ(p)],
                       ["ค่าแรกเข้า", มูลค่าอ่านง่าย(p.amount)],
                       ["ระยะสัญญา", ระยะสัญญาอ่านง่าย(p.contractMonths)],

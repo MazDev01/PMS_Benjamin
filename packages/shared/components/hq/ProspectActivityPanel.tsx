@@ -109,7 +109,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
             <div style={{ gridColumn: "1 / -1" }}>
               <label className="form-label" htmlFor="pc-body">คุยอะไรไป *</label>
               <textarea id="pc-body" className="form-input" rows={3} value={body} onChange={e => setBody(e.target.value)}
-                placeholder="เช่น สนใจแพ็กเกจ Exclusive ขอข้อมูลค่าแรกเข้า นัดคุยอีกครั้งสัปดาห์หน้า" style={{ resize: "vertical" }} />
+                placeholder="เช่น สนใจเป็นดีลเลอร์ ขอข้อมูลค่าแรกเข้า นัดคุยอีกครั้งสัปดาห์หน้า" style={{ resize: "vertical" }} />
             </div>
           </fieldset>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
