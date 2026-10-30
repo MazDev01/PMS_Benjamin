@@ -67,6 +67,18 @@ try {
   // ④ เปิดครั้งถัดไป ฐานตรงกับไฟล์แล้ว → ไม่สร้างใหม่ซ้ำ
   const สาม = เตรียม();
   ผล(สาม.status === 0 && !/สร้างฐาน dev ใหม่/.test(สาม.stdout + สาม.stderr), "เปิดครั้งถัดไปไม่สร้างฐานใหม่ซ้ำ", สาม.stdout + สาม.stderr);
+  // ⑤ ข้อมูลเดิมในฐาน dev ขัดกับใบใหม่ (30 ต.ค. 69: ข้อมูลตัวอย่างดีลเลอร์ 2 จังหวัด ชนใบ 0259 · บอสเปิด npm run dev ไม่ได้)
+  //    → ลงใบไม่ได้ = สร้างฐาน dev ใหม่ครั้งเดียวแล้วลงต่อ · บอกว่าใบไหนชนข้อมูลเดิม
+  sql("insert into public.from_0003 values (1)");
+  writeFileSync(path.join(ใบ, "0004_d.sql"), "alter table public.from_0003 add constraint from_0003_gt5 check (id > 5);");
+  const สี่ = เตรียม();
+  const ออกสี่ = สี่.stdout + สี่.stderr;
+  ผล(สี่.status === 0 && /สร้างฐาน dev ใหม่ — ลง 0004_d\.sql บนข้อมูลเดิมของฐาน dev ไม่ได้/.test(ออกสี่)
+    && sql("select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations") === "0001,0002,0003,0004"
+    && sql("select count(*) from public.from_0003") === "0",
+    "ข้อมูลเดิมในฐาน dev ขัดกับใบใหม่ → สร้างฐาน dev ใหม่เองแล้วลงครบ (เดิมหยุด \"ลงใบปรับฐานบนฐาน dev ไม่สำเร็จ\")",
+    `รหัส ${สี่.status} · ใบในฐาน ${sql("select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations")} · แถว ${sql("select count(*) from public.from_0003")}\n` +
+    ออกสี่.split(/\r?\n/).filter(l => /สร้างฐาน|ลงใบ|ไม่สำเร็จ|ERROR|Applying/.test(l)).join("\n"));
   // ค่าตั้งที่สร้างให้ฐาน dev ปิด pg-delta (ต้นเหตุ start ค้าง 29 ต.ค. 69)
   const ค่าตั้ง = readFileSync(path.join(ฐาน, "supabase/config.toml"), "utf8");
   ผล(/\[experimental\.pgdelta\][^[]*?enabled\s*=\s*false/.test(ค่าตั้ง), "ค่าตั้งฐาน dev ปิด pg-delta (start ไม่ส่งออกโครงฐานผ่านคอนเทนเนอร์ที่ค้างได้)",

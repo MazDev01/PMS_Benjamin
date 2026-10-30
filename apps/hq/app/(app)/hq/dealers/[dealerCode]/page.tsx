@@ -17,6 +17,7 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ชื่อขั้น, สีขั้น, เลขขั้นจากผล, type ผลขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -309,7 +310,7 @@ export default function DealerDrillDownPage({ params }: { params: Promise<{ deal
             </div>
           )}
           <p>
-            ภาค{dealer.region || "—"} · จังหวัด{dealer.province || "—"}
+            {ชื่อภาค(dealer.region)} · จังหวัด{dealer.province || "—"}
           </p>
         </div>
       </div>

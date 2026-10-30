@@ -1,55 +1,40 @@
 "use client";
+// ─── HQ · ภาพรวมยอดขายทั้งเครือ (/hq/pipeline · FLOW H12) ──────────────────────────────────────────────────────────
+// อ่านอย่างเดียว ไม่มีสร้าง/แก้/ลบ · บอสสั่ง 30 ต.ค. 69: เหลือ 3 ส่วน — การ์ด 4 ใบ · กราฟยอดขายเทียบเป้าตามช่วง · ตารางผลงานดีลเลอร์ตารางเดียว
+//   ตัวเลขทุกตัวในหน้า = ฟังก์ชันกลางชุดเดียวกับการ์ด: ตาราง/กราฟมาจาก hq_pipeline_dealers (ใบ 0264) · การ์ดจาก kpi_cards('hq.pipeline')
+//   ชุดสาขาที่เห็นในตาราง (หลังทุกตัวกรอง) = ชุดที่ส่งให้การ์ด → แถวรวมท้ายตาราง = การ์ด ทุกตัว ทุกตัวกรอง
+//   (ข้อทดสอบ supabase/tests/hq_pipeline_dealers.sql · tests/scenario/hq-pipeline-h12.spec.ts)
+//   เอาออก (ข้อมูลซ้ำ · รวมเข้าตารางแล้ว): ใบที่ออก vs ปิดได้ · ลีดเทียบออกใบ · มูลค่าใบเทียบยอดขาย · ตัวเลขการปิดการขายรายดีลเลอร์
+//     · เป้าทั้งปีเทียบยอด (เคยขึ้น ฿0 ทุกสาขา — ยอดมาจากตัวรวมฝั่งหน้าเว็บอีกตัว) · ส่วนบวกรายดีลเลอร์ (ไม่ขึ้นกับตัวกรอง)
+//   เป้าบนการ์ดตอนไม่กรอง = เป้าทั้งเครือที่ HQ ตั้ง (บอสตัดสิน 22 ต.ค. 69) · แถวรวมท้ายตาราง = ผลรวมเป้าสาขา (คนละตัว ตั้งใจ)
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Percent, Trophy, Eye, X, Coins, Search, Award, ArrowDown, ArrowUp } from "lucide-react";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
-
-// ─── HQ · ภาพรวมยอดขายทั้งเครือ (Sales Analytics) ──────────────────────────────
-// ศูนย์บัญชาการยอดขายของสำนักงานใหญ่ — อ่านอย่างเดียว ไม่มีสร้าง/แก้/ลบ (Action = ดู · วิเคราะห์ · ส่งออก)
-// กราฟใช้ได้เฉพาะ แท่งแนวนอน / แท่งคู่ / แท่งซ้อน / เส้น (ไม่มีกรวย/เกจ/วงกลม)
-//
-// ── สิ่งที่ตัดออกจากสเปก เพราะข้อมูลจริงไม่รองรับ (อย่าใส่กลับโดยไม่มีข้อมูลก่อน) ──
-// • Forecast / คาดการณ์รายได้ — ระบบไม่มีวันคาดปิดการขาย (ลบทั้งฟีเจอร์แล้ว) และไม่มีฟิลด์ % ความน่าจะเป็น
-//   จึงถ่วงน้ำหนัก pipeline ไม่ได้ · บอสสั่งตัดออก
-// • ย้อนหลังฟิกซ์ 12 เดือน — ดีลเลอร์ 9/10 รายมีข้อมูลแค่ 3 เดือน · กราฟตัดตามตัวกรองเวลา "เท่าที่มีข้อมูล"
-// • Last Updated รายดีลเลอร์ — DealerRow ไม่มีฟิลด์นี้ · ใช้ "ใบเสนอราคาล่าสุด" ที่หาได้จริงแทน (ชื่อคอลัมน์ตรงกับสิ่งที่มันเป็น)
-// • Refresh — ระบบไม่มี backend ให้ refresh (ข้อมูลสดจาก SalesContext อยู่แล้ว)
-import { useMemo, useState, useEffect } from "react";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
-import { useRouter } from "next/navigation";
+import { ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, บาทเต็ม } from "@pms/shared/lib/kpiCards";
 import { useSales } from "@pms/shared/context/SalesContext";
-import { Percent, Target, Trophy, Eye, X, Coins, Search, Award } from "lucide-react";
-import { DealerQuotationPerformance, DealerQuotationTable } from "@pms/shared/components/hq/pipeline/DealerQuotationPerformance";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
-import { DealerMarginCard } from "@pms/shared/components/hq/HqOverviewParts";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
-import { DEFAULT_HQ_TARGETS, QUOTED_UP, type DealerRow, type HQTargets } from "@pms/shared/lib/mock";
+import { fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
-import { useDealerPerformance, EMPTY_PERF } from "@pms/shared/lib/useDealerPerformance";
-import { dealers as dealersRepo, settings as settingsRepo } from "@pms/shared/lib/data";
+import { useAuthReady } from "@pms/shared/lib/useAuthReady";
+import { dealers as dealersRepo, metrics } from "@pms/shared/lib/data";
+import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
-import { useNetworkQuotations, useNetworkLeads, useHQQuotationsSummary, useLeadSummary } from "@pms/shared/lib/useNetworkData";
-import { regionDisplay } from "@pms/shared/lib/hqQuotations";
+import { ชื่อภาค, ภาคมาตรฐาน, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
+import { รวมผลงาน, type ผลงานดีลเลอร์ } from "@pms/shared/lib/hqPipeline";
 import { fmtBaht } from "@pms/shared/lib/format";
-import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 
 const PRIMARY = "#003366";
-const STEEL = "#2D2D2D";
 const MUTED = "var(--muted-foreground)";
-const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626"];
-const TH_ABBR = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const TH_MONTH: Record<string, number> = Object.fromEntries(TH_ABBR.map((m, i) => [m, i]));
-const parseThaiDate = (s: string): Date | null => {
-  const mt = /^(\d{1,2})\s+(\S+)\s+(\d{4})/.exec((s || "").trim());
-  if (!mt || !(mt[2] in TH_MONTH)) return null;
-  const y = +mt[3] > 2500 ? +mt[3] - 543 : +mt[3];
-  return new Date(y, TH_MONTH[mt[2]], +mt[1]);
-};
 const ALL = "ALL";
 
 // ── แท่งแนวนอนคู่ — ใช้ซ้ำใน Section 1 / 2 / 3 (แท่งหลัก + แท่งเทียบ) ──
@@ -117,495 +102,244 @@ function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt
   );
 }
 
+type คีย์เรียง = "code" | "name" | "region" | "leads" | "quotes" | "won" | "lost" | "rate" | "sales" | "target" | "pct" | "marginPct" | "latest";
+// คอลัมน์ตารางผลงาน (FLOW H12 · บอสสั่ง 30 ต.ค. 69): รหัส · ดีลเลอร์ · ภูมิภาค · ลีด · ใบเสนอราคา · ปิดได้ · ปิดไม่ได้ · อัตราปิด
+//   · ยอดขาย · เป้าตามช่วง · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด · ดู — เรียงได้ทุกคอลัมน์ · ข้อความยาวแสดงเต็มเมื่อชี้
+//   ความกว้างคุมที่ colgroup (ตารางแบบตายตัว) · รวม ~1,180px = พอดีพื้นที่จริงที่จอ 1440 (ช่องแน่น)
+const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w: number }[] = [
+  { k: "code", หัว: "รหัส", w: 74 },
+  { k: "name", หัว: "ดีลเลอร์", w: 150 },
+  { k: "region", หัว: "ภูมิภาค", w: 150 },
+  { k: "leads", หัว: "ลีด", ชี้: "ลีดที่เข้ามาในช่วง", num: true, w: 56 },
+  { k: "quotes", หัว: "ใบเสนอราคา", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true, w: 92 },
+  { k: "won", หัว: "ปิดได้", ชี้: "ลีดปิดสำเร็จ (เข้ามาในช่วง)", num: true, w: 64 },
+  { k: "lost", หัว: "ปิดไม่ได้", ชี้: "ลีดปิดไม่สำเร็จ (เข้ามาในช่วง)", num: true, w: 76 },
+  { k: "rate", หัว: "อัตราปิด", ชี้: "ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรกลาง", num: true, w: 76 },
+  { k: "sales", หัว: "ยอดขาย", ชี้: "ใบที่ลูกค้าตอบรับในช่วง (ตามวันตอบรับ · ก่อน VAT)", num: true, w: 110 },
+  { k: "target", หัว: "เป้าตามช่วง", ชี้: "เป้าทั้งปี × จำนวนวันในช่วง ÷ 365", num: true, w: 110 },
+  { k: "pct", หัว: "% เป้า", num: true, w: 68 },
+  { k: "marginPct", หัว: "ส่วนต่างกำไร", ชี้: "ส่วนบวกของใบที่ทำจากใบ HQ ตอบรับในช่วง · % ของราคาขาย", num: true, w: 96 },
+  { k: "latest", หัว: "เสนอล่าสุด", ชี้: "วันออกใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว", w: 96 },
+  { k: "view", หัว: "", w: 44 },
+];
+
 export default function SalesAnalyticsPage() {
   const router = useRouter();
-  const { timeRange, inRange } = useFilters();
+  const { timeRange } = useFilters();
+  const ready = useAuthReady();
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
-  // ยอดขายจริงรายสาขา — จากใบที่ปิดการขายได้ ไม่ใช่คอลัมน์ revenue_actual ที่ seed ไว้
-  const dealerPerf = useDealerPerformance();
-  const perfOf = (code: string) => dealerPerf.get(code) ?? EMPTY_PERF;
-  // ยอดขายที่ยังโหลดไม่เสร็จต้องขึ้น "—" ไม่ใช่ ฿0 — ศูนย์แปลว่า "ขายไม่ได้เลย" ซึ่งคนละเรื่องกับ "ยังไม่รู้"
-  const money = (v: number) => (dealerPerf.ready ? fmtBaht(v) : "—");
-  const targets = useRepoValue<HQTargets>(() => settingsRepo.getTargets(), DEFAULT_HQ_TARGETS);
 
-  const netQuotes = useNetworkQuotations();
-  const netLeads = useNetworkLeads();
-
-  // ── Smart Filter — ทุกตัวเลือกสร้างจากข้อมูลจริง ไม่ฮาร์ดโค้ด ──
+  // ── ตัวกรอง (แถวเดียว ค้างใต้แถบบนตอนเลื่อน — ส่วนกลาง .hq-sticky-filter) ──
   const [q, setQ] = useState("");
   const [dealerSel, setDealerSel] = useState(ALL);
   const [regionSel, setRegionSel] = useState(ALL);
   const [provSel, setProvSel] = useState(ALL);
   const [salesSel, setSalesSel] = useState(ALL);
-  const [view, setView] = useState<"dealer" | "region" | "province" | "month">("dealer");
-
-  const DEALER_META = useMemo(() => new Map(allDealers.map(d => [d.code, d])), [allDealers]);
-  const SALES_BANDS = useMemo(() => [
-    { v: "lt5", l: "ต่ำกว่า ฿5M", hit: (n: number) => n < 5e6 },
-    { v: "5to8", l: "฿5M – ฿8M", hit: (n: number) => n >= 5e6 && n < 8e6 },
-    { v: "gte8", l: "฿8M ขึ้นไป", hit: (n: number) => n >= 8e6 },
-  ], []);
-
-  // ดีลเลอร์ที่ผ่านตัวกรอง = ขอบเขตของทั้งหน้า (ทุกกราฟ/ตารางอิงชุดนี้ชุดเดียว)
-  const dealers = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return allDealers.filter(d =>
-      (dealerSel === ALL || d.code === dealerSel) &&
-      (regionSel === ALL || d.region === regionSel) &&
-      (provSel === ALL || d.province === provSel) &&
-      (salesSel === ALL || (SALES_BANDS.find(b => b.v === salesSel)?.hit(perfOf(d.code).revenue) ?? true)) &&
-      (!s || (d.code + d.name + d.province + d.region).toLowerCase().includes(s)),
-    );
-  }, [allDealers, q, dealerSel, regionSel, provSel, salesSel, SALES_BANDS]);
-  const codes = useMemo(() => new Set(dealers.map(d => d.code)), [dealers]);
-
-  const quotes = useMemo(
-    // ใบตอบรับอยู่ในช่วงตามวันที่ลูกค้าตอบรับ · ใบอื่นตามวันออกใบ (บอสตัดสิน 29 ต.ค. 69 · กติกาเดียวกับฐาน ใบ 0260)
-    () => netQuotes.filter(x => codes.has(x.dealerCode) && inRange(x.salesDate ?? x.createdAt)),
-    [netQuotes, codes, inRange],
-  );
-  // ⚠️ ต้องกรองช่วงเวลาด้วย (inRange) เหมือน quotes ข้างบน — เดิมไม่กรอง ทำให้ทุกการ์ดที่จับคู่
-  //    "ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา" เอาลูกค้าเป้าหมาย "ทั้งหมดตั้งแต่เปิดสาขา" ไปเทียบกับใบ "เฉพาะช่วงที่เลือก"
-  //    เลือกช่วงแคบ ๆ แล้วแท่งสองอันจึงไม่มีทางสัมพันธ์กันเลย (บอสแจ้ง 21 ส.ค. 69: "ทำไมมันไม่เท่ากัน")
-  const leads = useMemo(
-    () => netLeads.filter(l => codes.has(dealerCodeOf(l)) && inRange(l.createdAt ?? "")),
-    [netLeads, codes, inRange],
-  );
-
-  // filter(Boolean) จำเป็น ไม่ใช่กันไว้เฉย ๆ — ดีลเลอร์ที่บันทึกไว้ก่อนมีฟิลด์ province/region จะได้ค่า undefined
-  // กลายเป็น <option> ที่เลือกแล้วกรองอะไรไม่ได้ + React เตือน "unique key" (key={undefined})
-  const regionOpts = useMemo(() => [...new Set(allDealers.map(d => d.region).filter(Boolean))].sort(), [allDealers]);
-  const provOpts = useMemo(() => [...new Set(allDealers.map(d => d.province).filter(Boolean))].sort(), [allDealers]);
-  // ตัวกรอง "ประเภทอาคาร" (แม่แบบ) ถอดออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
-
-  // สถิติใบรายดีลเลอร์ "หลังกรอง" ที่ DB (M9 Phase 2) — supabase · local/ยังไม่กลับ = client จาก quotes
-  // ตัวกรอง = ชุดเดียวกับ quotes: dealerCodes (codes ที่ผ่านตัวกรอง) · ช่วงเวลา
-  const qSummary = useHQQuotationsSummary(useMemo(() => ({
-    dealerCodes: [...codes],
-    dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end), asOf: isoDateOf(APP_NOW),
-  }), [codes, timeRange.start, timeRange.end]));
-  const byDealer = useMemo(() => qSummary ? new Map(qSummary.byDealer.map(d => [d.dealerCode, d])) : null, [qSummary]);
-  // ลูกค้าเป้าหมายรายสาขา (leads/quoted) ที่ DB — ตัวกรองชุดเดียวกับ leads: codes + ช่วงเวลา
-  // ⚠️ ช่วงเวลาต้องส่งไปด้วย ไม่งั้นได้ยอด "ทั้งหมดตั้งแต่เปิดสาขา" มาเทียบกับใบเสนอราคาเฉพาะช่วงที่เลือก
-  const leadSum = useLeadSummary(useMemo(() => ({
-    dealerCodes: [...codes],
-    dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
-  }), [codes, timeRange.start, timeRange.end]));
-  const leadByDealer = useMemo(() => leadSum ? new Map(leadSum.byDealer.map(d => [d.dealerCode, d])) : null, [leadSum]);
-
-  // ── สถิติรายดีลเลอร์ — แหล่งเดียวของทุกกราฟ/ตาราง (คำนวณครั้งเดียว) ──
-  const perf = useMemo(() => dealers.map(d => {
-    const dq = quotes.filter(x => x.dealerCode === d.code);
-    const dl = leads.filter(l => l.dealerCode === d.code);
-    const lbd = leadByDealer?.get(d.code);
-    // นับ/รวมยอด: supabase = จาก byDealer (parity) · ไม่มี = client จาก dq
-    const a = byDealer?.get(d.code);
-    // ใบเสนอราคาล่าสุด: supabase = byDealer.latest (ISO) · fallback = client dq
-    let latestStr = "—";
-    if (a) {
-      if (a.latest) { const p = a.latest.split("-").map(Number); latestStr = `${p[2]} ${TH_ABBR[p[1] - 1]} ${p[0] + 543}`; }
-    } else {
-      const latest = dq.map(x => parseThaiDate(x.createdAt)).filter(Boolean).sort((x, y) => +y! - +x!)[0] ?? null;
-      if (latest) latestStr = `${latest.getDate()} ${TH_ABBR[latest.getMonth()]} ${latest.getFullYear() + 543}`;
-    }
-    const quotesN = a ? a.count : dq.length;
-    const quoteVal = a ? a.value : dq.reduce((s, x) => s + x.valueNum, 0);
-    const wonCount = a ? a.won : dq.filter(x => x.status === "won").length;
-    const lostCount = a ? a.lost : dq.filter(x => x.status === "lost").length;
-    const wonVal = a ? a.wonVal : dq.filter(x => x.status === "won").reduce((s, x) => s + x.valueNum, 0);
-    // อัตราปิดการขาย = ลีดปิดสำเร็จ ÷ (สำเร็จ + ไม่สำเร็จ) สูตรกลาง (รอบ 4 · lib/winRate.ts) — ไม่ใช่จากใบอีกแล้ว
-    const leadWon = lbd ? lbd.won : dl.filter(l => l.status === "PAID").length;
-    const leadLost = lbd ? lbd.lost : dl.filter(l => l.status === "CANCELLED").length;
-    return {
-      ...d,
-      leads: lbd ? lbd.leads : dl.length,
-      quoted: lbd ? lbd.quoted : dl.filter(l => QUOTED_UP.includes(l.status)).length,
-      quotes: quotesN,
-      quoteVal,
-      wonCount,
-      lostCount,   // ปฏิเสธจริงเท่านั้น — ไม่ใช่ "ใบทั้งหมด − ปิดได้"
-      wonVal,
-      leadWon, leadLost,
-      conv: อัตราปิดการขาย(leadWon, leadLost),
-      // ⚠️ ยอดสะสม/เป้า = ตัวเลข "ทั้งปี" ไม่ขึ้นกับตัวกรอง (บอสสั่งกลับ 26 ส.ค. 69)
-      //    เป้าที่ HQ ตั้งให้ดีลเลอร์เป็นรายปี — ถ้าหดตามช่วง เลือก "วันนี้" จะได้ 0% ทุกสาขา
-      //    ส่วนคอลัมน์ลูกค้าเป้าหมาย/ใบเสนอราคา/มูลค่า ยังเดินตามตัวกรองตามเดิม
-      revenueActual: perfOf(d.code).revenue,
-      tpct: d.revenueTarget > 0 ? Math.round(perfOf(d.code).revenue / d.revenueTarget * 100) : null,   // ยังไม่ตั้งเป้า = "—" (บอสตัดสิน 19 ต.ค. 69 ข้อ 8)
-      latest: latestStr,
-    };
-  }).sort((a, b) => b.revenueActual - a.revenueActual), [dealers, quotes, leads, byDealer, leadByDealer]);
-
-  // ── Executive KPI (4 การ์ด — ตัด Forecast ออก ไม่มีข้อมูล · ตัด "ดีลเลอร์ยอดขายสูงสุด" ตามคำสั่ง) ──
-  const kpi = useMemo(() => {
-    // รวมจาก perf (มาจาก byDealer ที่ DB เมื่อพร้อม · client เมื่อ fallback) — ชุดเดียวกับตาราง/กราฟ
-    const wonCount = perf.reduce((s, d) => s + d.wonCount, 0);
-    const actual = dealers.reduce((s, d) => s + perfOf(d.code).revenue, 0);   // ยอดสะสมทั้งปี
-    // เป้าทั้งเครือใช้ค่าที่ HQ ตั้งไว้ · แต่ถ้ากรองเหลือบางดีลเลอร์ ต้องรวมเป้าเฉพาะรายนั้น ไม่งั้น % ผิด
-    const filtered = dealers.length !== allDealers.length;
-    const target = filtered ? dealers.reduce((s, d) => s + d.revenueTarget, 0) : targets.annualTarget;
-    return {
-      wonVal: perf.reduce((s, d) => s + d.wonVal, 0), wonCount,
-      quotes: perf.reduce((s, d) => s + d.quotes, 0), quoteVal: perf.reduce((s, d) => s + d.quoteVal, 0),
-      conv: อัตราปิดการขาย(perf.reduce((s, d) => s + d.leadWon, 0), perf.reduce((s, d) => s + d.leadLost, 0)),
-      actual, target, tpct: target > 0 ? Math.round(actual / target * 100) : null, filtered,
-    };
-  }, [perf, dealers, allDealers.length, targets.annualTarget]);
-
-  // ── Section 1 · ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา — สลับมุมมองได้ 4 แบบ ──
-  // "อัตราแปลง" ที่เคยต่อท้ายแต่ละแถวถูกตัดออก (บอสสั่ง 17 ก.ค. 69) — มันคิดจากสถานะลูกค้าเป้าหมาย
-  // (ถึงขั้นเสนอราคาขึ้นไป ÷ ลูกค้าเป้าหมายทั้งหมด) ไม่ใช่เลขคู่ "ลูกค้าเป้าหมาย / ใบ" ที่โชว์อยู่ข้างหน้า คนอ่านเลยตีความผิด
-  // และ seed วนสถานะเท่า ๆ กันจนได้ 50% แทบทุกแถว ไม่มีสาระให้เทียบ
-  //
-  // ⚠️ หน่วยของสองแท่งต้องเป็น "ราย" เหมือนกัน (บอสแจ้ง 21 ส.ค. 69: "ทำไมมันไม่เท่ากัน")
-  //    ของเดิมแท่งหลังนับ "จำนวนใบเสนอราคา" ซึ่งเป็นคนละหน่วยกับแท่งหน้าที่นับ "จำนวนราย"
-  //    ลูกค้าหนึ่งรายออกได้หลายใบ · ใบของลูกค้าเก่าก็ถูกนับทั้งที่เจ้าตัวไม่อยู่ในแท่งหน้า
-  //    → เชียงใหม่จึงขึ้น 16 / 24 แท่งหลังยาวกว่าแท่งหน้า ทั้งที่ควรเป็นส่วนย่อยของกันและกัน
-  //    ตอนนี้แท่งหลัง = "ลูกค้าเป้าหมายที่ออกใบเสนอราคาแล้ว" (QUOTED_UP) จึงไม่มีทางเกินแท่งหน้า
-  //    สูตรเดียวกับ /hq/leads และการ์ด "อัตราลูกค้าเป้าหมายที่ออกใบเสนอราคา" ที่ /hq/quotations
-  const leadVsQuote = useMemo(() => {
-    // ⚠️ ปิดการขายได้แล้ว = เป็น "ลูกค้า" ไปแล้ว ไม่ใช่ลูกค้าเป้าหมายอีกต่อไป จึงหักออกทั้งสองแท่ง
-    //    (บอสสั่ง 21 ส.ค. 69) การ์ดนี้จึงเป็นภาพของ "รายที่ยังไล่อยู่" ไม่ใช่ยอดสะสมตลอดกาล
-    //    รายที่ปิดไม่สำเร็จยังนับอยู่ — เขาไม่เคยเป็นลูกค้า จึงยังเป็นตัวหารของความพยายามในช่วงนั้น
-    // ⚠️ ต้องหักจากตัวเลขที่ฐานข้อมูลสรุปมา (ใบ 0157 เพิ่ม won รายสาขา + quoted รายเดือน)
-    //    ห้ามหันไปนับจากรายการดิบฝั่งหน้าจอ — หน้าสำนักงานใหญ่ไม่ได้โหลดลูกค้าเป้าหมายทั้งเครือไว้
-    //    (ลองแล้วได้การ์ดว่าง "ไม่พบข้อมูลในช่วงที่เลือก" ทั้งที่ข้อมูลมีอยู่จริง)
-    const useRpc = !!leadSum;
-    if (view === "month") {
-      // รายเดือน = มองเป็นรุ่น (cohort): ลูกค้าเป้าหมายที่เข้ามาเดือนนั้น กี่รายไปถึงขั้นออกใบเสนอราคา
-      const lM = new Map<string, number>(), qM = new Map<string, number>();
-      if (useRpc) {
-        leadSum.byMonth.forEach(r => {
-          lM.set(`${r.y}-${r.m}`, Math.max(0, r.created - r.won));
-          qM.set(`${r.y}-${r.m}`, Math.max(0, r.quoted - r.won));
-        });
-      } else {
-        const mk = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
-        leads.filter(l => l.status !== "PAID").forEach(l => {
-          const d = parseThaiDate(l.createdAt ?? ""); if (!d) return;
-          lM.set(mk(d), (lM.get(mk(d)) ?? 0) + 1);
-          if (QUOTED_UP.includes(l.status)) qM.set(mk(d), (qM.get(mk(d)) ?? 0) + 1);
-        });
-      }
-      const out: { key: string; label: string; a: number; b: number }[] = [];
-      const cur = new Date(timeRange.start.getFullYear(), timeRange.start.getMonth(), 1);
-      const end = new Date(timeRange.end.getFullYear(), timeRange.end.getMonth(), 1);
-      while (cur <= end) {
-        const k = `${cur.getFullYear()}-${cur.getMonth()}`;
-        out.push({ key: k, label: TH_ABBR[cur.getMonth()], a: lM.get(k) ?? 0, b: qM.get(k) ?? 0 });
-        cur.setMonth(cur.getMonth() + 1);
-      }
-      return out;
-    }
-    const keyOf = (code: string) => view === "dealer" ? code
-      : view === "region" ? (DEALER_META.get(code)?.region ?? "—")
-      : (DEALER_META.get(code)?.province ?? "—");
-    const m = new Map<string, { a: number; b: number }>();
-    const add = (k: string, f: "a" | "b", n: number) => { const r = m.get(k) ?? { a: 0, b: 0 }; r[f] += n; m.set(k, r); };
-    if (useRpc) {
-      leadSum.byDealer.forEach(d => {
-        add(keyOf(d.dealerCode), "a", Math.max(0, d.leads - d.won));
-        add(keyOf(d.dealerCode), "b", Math.max(0, d.quoted - d.won));
-      });
-    } else {
-      leads.filter(l => l.status !== "PAID").forEach(l => {
-        add(keyOf(dealerCodeOf(l)), "a", 1);
-        if (QUOTED_UP.includes(l.status)) add(keyOf(dealerCodeOf(l)), "b", 1);
-      });
-    }
-    return [...m.entries()].map(([k, v]) => ({
-      key: k, a: v.a, b: v.b,
-      label: view === "dealer" ? `${k} – ${DEALER_META.get(k)?.name ?? k}` : view === "region" ? regionDisplay(k) : k,
-      onClick: view === "dealer" ? () => router.push(`/hq/dealers/${k}`) : undefined,
-    })).sort((x, y) => y.a - x.a);
-  }, [view, leadSum, leads, DEALER_META, timeRange, router]);
-
-  // ── Section 2 · มูลค่าใบเสนอราคา เทียบ ยอดขายจริง (รายดีลเลอร์) ──
-  const quoteVsSales = useMemo(() => perf.map(d => ({
-    key: d.code, label: `${d.code} – ${d.name}`, a: d.quoteVal, b: d.wonVal,
-    // สัดส่วน "มูลค่า" ไม่ใช่อัตราปิดการขาย (สูตรกลางนับจากลีด) — ต้องกำกับหน่วยไว้ ไม่งั้นอ่านว่าขัดกัน
-    note: d.quoteVal ? `ปิดได้ ${Math.round(d.wonVal / d.quoteVal * 100)}% ของมูลค่า` : undefined,
-    onClick: () => router.push(`/hq/dealers/${d.code}`),
-  })).sort((a, b) => b.a - a.a), [perf, router]);
-
-  // ── Section 2b · วิเคราะห์ประสิทธิภาพการปิดการขายของดีลเลอร์ ──
-  // แท่งคู่ทุกดีลเลอร์: ออกใบกี่ใบ เทียบ ปิดได้กี่ใบ · เรียงออกใบมาก→น้อย
-  // "ยังไม่รู้ผล" ต้องแยกออกมาเสมอ ไม่ยุบเข้า "ปิดไม่ได้" (ดูเหตุผลในคอมเมนต์ของคอมโพเนนต์)
-  const quotePerf = useMemo(
-    () => perf
-      .filter(d => d.quotes > 0)  // ไม่มีใบเลย = ไม่มีอะไรให้วัด
-      .map(d => ({
-        code: d.code, name: d.name,
-        quotes: d.quotes, won: d.wonCount, lost: d.lostCount,
-        pending: d.quotes - d.wonCount - d.lostCount,
-        conv: d.conv,
-      }))
-      .sort((a, b) => b.quotes - a.quotes || b.won - a.won),
-    [perf],
-  );
-
-  // ── Section 3 · เป้าหมายทั้งปี เทียบ ยอดขายจริง — สลับกลุ่มได้ ──
-  const [tgView, setTgView] = useState<"dealer" | "region" | "province">("dealer");
-  const targetVsActual = useMemo(() => {
-    const keyOf = (d: DealerRow) => tgView === "dealer" ? d.code : tgView === "region" ? d.region : d.province;
-    const m = new Map<string, { a: number; b: number }>();
-    dealers.forEach(d => {
-      const k = keyOf(d);
-      const r = m.get(k) ?? { a: 0, b: 0 };
-      r.a += perfOf(d.code).revenue; r.b += d.revenueTarget;
-      m.set(k, r);
-    });
-    return [...m.entries()].map(([k, v]) => ({
-      key: k, a: v.a, b: v.b,
-      label: tgView === "dealer" ? `${k} – ${DEALER_META.get(k)?.name ?? k}` : tgView === "region" ? regionDisplay(k) : k,
-      note: v.b ? `${Math.round(v.a / v.b * 100)}% ของเป้า` : undefined,
-      onClick: tgView === "dealer" ? () => router.push(`/hq/dealers/${k}`) : undefined,
-    }))
-      // ยอดเท่ากัน (เช่นต้นปียัง ฿0 หมด) → % ของเป้า แล้วค่อยเป้าที่ใหญ่กว่า
-      .sort((x, y) => y.a - x.a || (y.b ? y.a / y.b : 0) - (x.b ? x.a / x.b : 0) || y.b - x.b);
-  }, [tgView, dealers, DEALER_META, router]);
-  // แสดงหน้าละ 7 แถว + แถบเปลี่ยนหน้า (บอสสั่ง 22 ก.ย. 69 — เดิมเทรวดทุกดีลเลอร์ 155 แถว ยาวเกินไป)
-  const TG_PAGE_SIZE = 7;
-  const [tgPage, setTgPage] = useState(0);
-  useEffect(() => { setTgPage(0); }, [tgView]);
-  const tgPageSafe = Math.min(tgPage, pageCountOf(targetVsActual.length, TG_PAGE_SIZE) - 1);
-  const tgRows = pageSlice(targetVsActual, tgPageSafe, TG_PAGE_SIZE);
-
-  // เดิมมี regional / lostReasons / trend สำหรับกราฟ 4 ใบที่ถูกตัดออก (ข้อมูลซ้ำกับหน้าอื่น) — ลบทิ้งพร้อมกัน
-
-  const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL);
-
-  // ── ตารางผลงานดีลเลอร์: แบ่งหน้า 10 แถวเท่าทุกตารางในระบบ ──
-  // เปลี่ยนตัวกรองต้องกลับหน้า 1 เสมอ — ไม่งั้นกรองแล้วค้างอยู่หน้ากลางลิสต์ที่ไม่มีข้อมูลแล้ว
-  const [perfPage, setPerfPage] = useState(0);
-  useEffect(() => { setPerfPage(0); }, [q, dealerSel, regionSel, provSel, salesSel]);
-  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ช่วงเวลา + ดีลเลอร์ที่เลือก (กติกาเดียวกับแดชบอร์ด HQ)
-  //   ยอดขาย = ตามวันลูกค้าตอบรับ เทียบเป้าเฉลี่ยตามช่วง · อัตราปิด = ลีดเข้ามาในช่วง · margin = ใบ won ที่ผูกใบ HQ (ตอบรับในช่วง)
-  //   ดีลเลอร์ที่ถึงเป้า = ณ ตอนนี้ (ยอดตั้งแต่ต้นปี ≥ เป้าทั้งปี)
-  //   การ์ดเดินตามตัวกรองภาค/จังหวัด/ช่วงยอดขาย/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ส่งสาขาที่ผ่านตัวกรอง (ชุดเดียวกับตารางและกราฟ) · เป้า = ผลรวมเป้าของสาขาที่เหลือ
-  const { salesVersion } = useSales();
-  const ช่วงการ์ด = { start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) };
-  const สาขาการ์ด = useMemo(() => dealers.length === allDealers.length ? null : { dealerCodes: dealers.map(d => d.code) }, [dealers, allDealers]);
-  const การ์ด = useKpiCards("hq.pipeline", { ...ช่วงการ์ด, dealer: dealerSel === ALL ? null : dealerSel, today: isoDateOf(APP_NOW), filters: สาขาการ์ด, รุ่น: salesVersion });
-  const ยอดการ์ด = ค่า(การ์ด, "sales.value"), เป้าการ์ด = ค่า(การ์ด, "sales.target");
-  // การ์ด "ดีลเลอร์ที่ถึงเป้า" กดแล้ว = ตารางผลงานเหลือเฉพาะสาขาที่ฐานนับว่าถึงเป้า (รหัสสาขาจาก kpi_cards · ตัวเลขกับตารางตรงกัน)
   const [ถึงเป้าเท่านั้น, setถึงเป้าเท่านั้น] = useState(false);
-  const รหัสถึงเป้า = useMemo(() => new Set(((การ์ด?.onTarget as { codes?: string[] } | undefined)?.codes) ?? []), [การ์ด]);
-  const perfShown = useMemo(() => ถึงเป้าเท่านั้น ? perf.filter(d => รหัสถึงเป้า.has(d.code)) : perf, [perf, ถึงเป้าเท่านั้น, รหัสถึงเป้า]);
-  const perfPageSafe = Math.min(perfPage, pageCountOf(perfShown.length) - 1);
-  const perfRows = pageSlice(perfShown, perfPageSafe);
+  const SALES_BANDS = useMemo(() => [
+    { v: "lt5", l: "ยอดขายต่ำกว่า ฿5M", hit: (n: number) => n < 5e6 },
+    { v: "5to8", l: "ยอดขาย ฿5M – ฿8M", hit: (n: number) => n >= 5e6 && n < 8e6 },
+    { v: "gte8", l: "ยอดขาย ฿8M ขึ้นไป", hit: (n: number) => n >= 8e6 },
+  ], []);
+  const regionOpts = useMemo(() => [...new Set(allDealers.map(d => ภาคมาตรฐาน(d.region)).filter((r): r is NonNullable<typeof r> => !!r))].sort(), [allDealers]);
+  const provOpts = useMemo(() => [...new Set(allDealers.map(d => d.province).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")), [allDealers]);
 
+  // ชุดสาขาจากตัวกรองที่ไม่ขึ้นกับตัวเลข (คำค้น · ดีลเลอร์ · ภาค · จังหวัด) → ส่งให้ฐานคิดผลงาน
+  const ชุดฐาน = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    const ผ่าน = allDealers.filter(d =>
+      (dealerSel === ALL || d.code === dealerSel) &&
+      (regionSel === ALL || ภาคมาตรฐาน(d.region) === regionSel) &&
+      (provSel === ALL || d.province === provSel) &&
+      (!s || `${d.code} ${d.name} ${d.province} ${ชื่อภาค(d.region)}`.toLowerCase().includes(s)));
+    return ผ่าน.length === allDealers.length ? null : ผ่าน.map(d => d.code);
+  }, [allDealers, q, dealerSel, regionSel, provSel]);
 
-  // ตัวกรองทุกช่องกว้างเท่ากันและยืด/หดร่วมกันในแถวเดียว (บอสสั่ง 14 ก.ย. 69 "แก้" — ภาพแถบที่ขึ้น 2 แถว)
-  //   เดิม width:auto → ช่อง "ทุกดีลเลอร์" กว้างตามชื่อดีลเลอร์ที่ยาวที่สุด ดันช่องอื่นตกไปแถวสอง
-  //   ป้ายยาว ถูกตัดด้วย … ในช่อง — ชี้ค้างอ่านเต็มได้จาก title · ห้ามตัดคำบอกที่มาทิ้ง
+  // ── ผลงานรายดีลเลอร์ที่ฐาน (ใบ 0264 · hq_pipeline_dealers) — ชุดเดียวกับการ์ด ──
+  const ช่วง = { start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) };
+  const { salesVersion } = useSales();
+  const [แถวฐาน, setแถวฐาน] = useState<ผลงานดีลเลอร์[] | null>(null);
+  const ลำดับคำขอ = useRef(0);
+  const คีย์ชุด = JSON.stringify(ชุดฐาน);
+  useEffect(() => {
+    if (!ready) return;
+    const ครั้งนี้ = ++ลำดับคำขอ.current;
+    metrics.hqPipelineDealers(ช่วง.start, ช่วง.end, คีย์ชุด === "null" ? null : JSON.parse(คีย์ชุด), isoDateOf(APP_NOW))
+      .then(r => { if (ครั้งนี้ === ลำดับคำขอ.current) setแถวฐาน(r); })
+      .catch(e => { logRepoRead("metrics.hqPipelineDealers", e); if (ครั้งนี้ === ลำดับคำขอ.current) setแถวฐาน([]); });
+  }, [ready, ช่วง.start, ช่วง.end, คีย์ชุด, salesVersion]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ตัวกรองที่ขึ้นกับตัวเลข (ช่วงยอดขาย · ถึงเป้า) กรองแถวที่ฐานคืน → ชุดสาขาที่เห็นจริง = ชุดที่ส่งให้การ์ด (ผลรวม = การ์ด ทุกตัวกรอง)
+  const แถว = useMemo(() => (แถวฐาน ?? []).filter(r =>
+    (salesSel === ALL || (SALES_BANDS.find(b => b.v === salesSel)?.hit(r.sales) ?? true)) && (!ถึงเป้าเท่านั้น || r.onTarget)), [แถวฐาน, salesSel, SALES_BANDS, ถึงเป้าเท่านั้น]);
+  const กรองตัวเลข = salesSel !== ALL || ถึงเป้าเท่านั้น;
+  const ชุดการ์ด = useMemo(() => (ชุดฐาน === null && !กรองตัวเลข) ? null : { dealerCodes: แถว.map(r => r.code) }, [ชุดฐาน, กรองตัวเลข, แถว]);
+  const การ์ด = useKpiCards("hq.pipeline", { ...ช่วง, dealer: null, today: isoDateOf(APP_NOW), filters: แถวฐาน === null && กรองตัวเลข ? undefined : ชุดการ์ด, รุ่น: salesVersion });
+  const ยอดการ์ด = ค่า(การ์ด, "sales.value"), เป้าการ์ด = ค่า(การ์ด, "sales.target");
+  const รวม = useMemo(() => รวมผลงาน(แถว), [แถว]);
+
+  // ── เรียงตาราง (กดหัวคอลัมน์) · ค่าเริ่มต้น = ยอดขายมากสุดก่อน ──
+  const [เรียง, setเรียง] = useState<{ k: คีย์เรียง; ลง: boolean }>({ k: "sales", ลง: true });
+  const ค่าเรียง = (r: ผลงานดีลเลอร์, k: คีย์เรียง): string | number => k === "region" ? ชื่อภาค(r.region) : k === "latest" ? r.latest ?? "" : (r[k] as string | number | null) ?? -Infinity;
+  const เรียงแล้ว = useMemo(() => [...แถว].sort((a, b) => {
+    const x = ค่าเรียง(a, เรียง.k), y = ค่าเรียง(b, เรียง.k);
+    const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "th");
+    return (เรียง.ลง ? -c : c) || a.code.localeCompare(b.code);
+  }), [แถว, เรียง]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const [หน้า, setหน้า] = useState(0);
+  useEffect(() => { setหน้า(0); }, [q, dealerSel, regionSel, provSel, salesSel, ถึงเป้าเท่านั้น, เรียง, ช่วง.start, ช่วง.end]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const หน้าจริง = Math.min(หน้า, pageCountOf(เรียงแล้ว.length) - 1);
+  const ในหน้า = pageSlice(เรียงแล้ว, หน้าจริง);
+
+  // กราฟ: ยอดขาย เทียบ เป้าตามช่วง รายดีลเลอร์ (ลำดับเดียวกับตาราง · แบ่งหน้า 7 แถว)
+  const แท่ง: HRow[] = useMemo(() => เรียงแล้ว.map(r => ({
+    key: r.code, label: `${r.code} – ${r.name}`, a: r.sales, b: r.target ?? 0,
+    note: r.pct == null ? "ยังไม่ตั้งเป้า" : `${r.pct}% ของเป้า`, onClick: () => router.push(`/hq/dealers/${r.code}`),
+  })), [เรียงแล้ว, router]);
+  const ขนาดกราฟ = 7;
+  const [หน้ากราฟ, setหน้ากราฟ] = useState(0);
+  useEffect(() => { setหน้ากราฟ(0); }, [แท่ง.length]);
+  const หน้ากราฟจริง = Math.min(หน้ากราฟ, pageCountOf(แท่ง.length, ขนาดกราฟ) - 1);
+
+  const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL) || ถึงเป้าเท่านั้น;
+  const ล้าง = () => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); setถึงเป้าเท่านั้น(false); };
   const sel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
-    // ตัวเลือกแรกคือทั้งหมด — ป้าย "ทุก…" ของตัวกรองแต่ละช่อง
     <select aria-label={caption} title={caption} value={v} onChange={e => on(e.target.value)} className="form-select"
-      style={{ flex: "1 1 130px", minWidth: 0, maxWidth: 210, cursor: "pointer", textOverflow: "ellipsis" }}>
+      style={{ flex: "1 1 0", minWidth: 120, maxWidth: 210, fontSize: "0.82rem" }}>
       <option value={ALL}>{caption}</option>
       {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
     </select>
   );
-  const viewTab = (cur: string, v: string, l: string, on: () => void) => (
-    <button key={v} onClick={on} style={{
-      padding: "4px 11px", borderRadius: 8, fontSize: "0.68rem", fontWeight: 700, cursor: "pointer",
-      border: `1px solid ${cur === v ? PRIMARY : "#dbe3ec"}`, background: cur === v ? PRIMARY : "#fff",
-      color: cur === v ? "#fff" : MUTED,
-    }}>{l}</button>
-  );
+  const เงิน = (v: number | null) => (v == null ? "—" : fmtBaht(v));
+  const โหลด = แถวฐาน === null;
 
   return (
     <div className="erp">
-      {/* ── HEADER ── */}
-      {/* ปุ่ม/ตัวกรองของหน้าอยู่ขวาหัวหน้าเพจ (UI รอบใหม่ 14 ก.ย. 69) — ชื่อหน้า/ป้ายกลุ่มมาจากแถบบนแล้ว */}
       <TopbarActions>
           <FilterBar dims={[]} />
-          {/* ส่งออก = ตารางผลงานที่เห็นบนจอ (ผ่านตัวกรองทุกตัวแล้ว) */}
+          {/* ส่งออก = ตารางผลงานที่เห็นบนจอ (ผ่านตัวกรองทุกตัวแล้ว · เรียงตามตาราง) */}
           <ExportMenu filename="hq-sales-analytics" title="ภาพรวมยอดขายทั้งเครือ"
-            headers={["รหัสดีลเลอร์", "ดีลเลอร์", "ภูมิภาค", "จังหวัด", "ลูกค้าเป้าหมาย", "ใบเสนอราคา", "มูลค่าใบเสนอราคา", "ยอดขายสะสมทั้งปี", "อัตราปิดการขาย", "เป้าหมายทั้งปี", "% ของเป้า", "ใบเสนอราคาล่าสุด"]}
-            rows={perf.map(d => [
-              d.code, d.name, regionDisplay(d.region), d.province, d.leads, d.quotes, d.quoteVal,
-              d.revenueActual, d.conv === null ? "—" : `${d.conv}%`, d.revenueTarget, d.tpct == null ? "—" : `${d.tpct}%`, d.latest,
-            ])} />
+            headers={["รหัสดีลเลอร์", "ดีลเลอร์", "ภูมิภาค", "ลีด", "ใบเสนอราคา", "ปิดได้", "ปิดไม่ได้", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", "เสนอล่าสุด"]}
+            rows={เรียงแล้ว.map(r => [r.code, r.name, ชื่อภาค(r.region), r.leads, r.quotes, r.won, r.lost, r.rate == null ? "—" : `${r.rate}%`,
+              r.sales, r.target ?? "—", r.pct == null ? "—" : `${r.pct}%`, r.marginPct == null ? "—" : `${r.marginPct}%`, r.latest ? fmtISOToThai(r.latest) : "—"])} />
       </TopbarActions>
 
-      {/* ── การ์ด KPI 4 ใบ (คอมโพเนนต์กลาง · ใบ 0246) ── */}
-      <KpiRow label="สรุปภาพรวมยอดขาย" range={ช่วงการ์ด}>
+      {/* ── 1 · การ์ด KPI 4 ใบ (ใบ 0246) — ชุดสาขาเดียวกับตาราง: ผลรวมแถวท้ายตาราง = การ์ด ── */}
+      <KpiRow label="สรุปภาพรวมยอดขาย" range={ช่วง}>
         <KpiCard kpi="sales" label="ยอดขาย (เทียบเป้า)" value={บาทเต็ม(ยอดการ์ด)} rawValue={ยอดการ์ด} empty="กำลังโหลด…"
           unit={เป้าการ์ด == null ? "ยังไม่ได้ตั้งเป้า" : `เป้าในช่วง ${บาทเต็ม(เป้าการ์ด)} · ตามวันลูกค้าตอบรับ`}
           ring={ยอดการ์ด != null && เป้าการ์ด ? Math.round(ยอดการ์ด / เป้าการ์ด * 100) : null} icon={Trophy}
           onClick={() => router.push("/hq/quotations?kpi=won")} />
         <KpiCard kpi="winRate" label={ชื่ออัตราปิดการขาย} value={ค่า(การ์ด, "winRate.rate") == null ? null : `${ค่า(การ์ด, "winRate.rate")}%`} rawValue={ค่า(การ์ด, "winRate.rate")}
-          unit={คำอธิบายอัตราปิดการขาย} empty={การ์ด ? "ยังไม่มีลีดที่ปิดในช่วงนี้" : "กำลังโหลด…"} icon={Percent} color="#7C3AED" bg="#F0EBFB"
+          unit={คำอธิบายอัตราปิดการขาย} empty={การ์ด ? "ยังไม่มีลีดที่ปิดในช่วงนี้" : "กำลังโหลด…"} icon={Percent}
           sub={การ์ด ? `ปิดสำเร็จ ${ค่า(การ์ด, "winRate.won") ?? 0} · ไม่สำเร็จ ${ค่า(การ์ด, "winRate.lost") ?? 0}` : undefined} onClick={() => router.push("/hq/leads")} />
         <KpiCard kpi="margin" label="ส่วนต่างกำไรเฉลี่ย" value={ค่า(การ์ด, "margin.pct") == null ? null : `${Number(ค่า(การ์ด, "margin.pct")).toFixed(1)}%`} rawValue={ค่า(การ์ด, "margin.pct")}
-          unit={`ส่วนต่างกำไร % ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับและผูกใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
-          icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="ดูรายดีลเลอร์"
-          onClick={() => document.querySelector("[data-testid='dealer-margin']")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-        <KpiCard kpi="onTarget" label="ดีลเลอร์ที่ถึงเป้า" value={ค่า(การ์ด, "onTarget.reached") == null ? null : `${ค่า(การ์ด, "onTarget.reached")} จาก ${ค่า(การ์ด, "onTarget.of")}`}
-          rawValue={ค่า(การ์ด, "onTarget.reached")} unit="ราย · ยอดตั้งแต่ต้นปีถึงเป้าทั้งปี" empty="กำลังโหลด…" icon={Award} color="#2563EB" bg="#E8F0FE"
-          actionLabel={ถึงเป้าเท่านั้น ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => { setถึงเป้าเท่านั้น(v => !v); setPerfPage(0); }} />
+          unit={`ส่วนต่างกำไร % ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับจากใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
+          icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="เรียงตามส่วนต่าง"
+          onClick={() => { setเรียง({ k: "marginPct", ลง: true }); document.querySelector("[data-testid='pipeline-table']")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+        <KpiCard kpi="onTarget" label="ดีลเลอร์ที่ถึงเป้า" value={ค่า(การ์ด, "onTarget.reached") == null ? null : `${ค่า(การ์ด, "onTarget.reached")} จาก ${ค่า(การ์ด, "onTarget.of") ?? 0}`}
+          rawValue={ค่า(การ์ด, "onTarget.reached")} unit="ราย · ยอดตั้งแต่ต้นปีถึงเป้าทั้งปี" empty="กำลังโหลด…" icon={Award} color="#d97706" bg="#FEF3C7"
+          actionLabel={ถึงเป้าเท่านั้น ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => setถึงเป้าเท่านั้น(v => !v)} />
       </KpiRow>
 
-      {/* ── SMART FILTER ── อยู่ใต้ KPI เหมือนหน้า HQ อื่น (ใบเสนอราคา/ลูกค้า/ดีลเลอร์)
-          เดิมหน้านี้หน้าเดียวที่เอาตัวกรองไว้เหนือ KPI */}
-      <div className="card hq-sticky-filter" style={{ marginBottom: "1.25rem" }}>
-        <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 12, paddingBottom: 12 }}>
-          {/* ช่องค้นหาแบบเดียวกับทุกหน้า HQ (ไอคอน + ปุ่มล้าง) */}
-          <div className="search-bar" style={{ flex: "1.4 1 200px", minWidth: 180, maxWidth: 300 }}>
+      {/* ── ตัวกรองแถวเดียว — ค้างใต้แถบบนตอนเลื่อน (พื้นทึบ ไม่ทับเนื้อหา · ส่วนกลาง .hq-sticky-filter) ── */}
+      <div className="card hq-sticky-filter" data-filter-row>
+        <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "nowrap", alignItems: "center", paddingTop: 12, paddingBottom: 12, overflowX: "auto" }}>
+          <div className="search-bar" style={{ flex: "1.4 1 0", minWidth: 180, maxWidth: 300 }}>
             <Search size={14} color="#9ca3af" />
             <input aria-label="ค้นหาดีลเลอร์" value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหารหัส ชื่อดีลเลอร์ จังหวัด…" />
             {q && <button aria-label="ล้างคำค้น" onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
           </div>
           {sel(dealerSel, setDealerSel, "ทุกดีลเลอร์", allDealers.map(d => ({ v: d.code, l: `${d.code} – ${d.name}` })))}
-          {sel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(r => ({ v: r, l: regionDisplay(r) })))}
+          {sel(regionSel, setRegionSel, ป้ายทุกภูมิภาค, regionOpts.map(r => ({ v: r, l: ชื่อภาค(r) })))}
           {sel(provSel, setProvSel, "ทุกจังหวัด", provOpts.map(p => ({ v: p, l: p })))}
           {sel(salesSel, setSalesSel, "ทุกช่วงยอดขาย", SALES_BANDS.map(b => ({ v: b.v, l: b.l })))}
-          {anyFilter && (
-            <button onClick={() => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); }}
-              className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>ล้างตัวกรอง</button>
-          )}
+          {anyFilter && <button onClick={ล้าง} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>ล้างตัวกรอง</button>}
         </div>
       </div>
 
-      {/* ── แถว 1 · วิเคราะห์ประสิทธิภาพการปิดการขายของดีลเลอร์ — เต็มความกว้าง ──
-          คำถามหลักของหน้า "ใครออกใบเยอะแต่ปิดได้น้อย" จึงขึ้นก่อนเพื่อน
-          แท่งคู่ 10 ดีลเลอร์ · ตัวเลขชุดเดียวกันอยู่ในตารางแถว 3 (แยกการ์ดเพื่อไม่ให้ใบเดียวสูง 1,010px) */}
-      <DealerQuotationPerformance rows={quotePerf} />
-
-      {/* ── แถว 2 · เปรียบเทียบรายดีลเลอร์: ลูกค้าเป้าหมาย→ใบเสนอราคา | มูลค่า→ยอดขายจริง ──
-          สองใบนี้เป็นแท่งคู่รายดีลเลอร์เหมือนกันและสูงพอ ๆ กัน จับคู่ไว้แถวเดียว
-          (เดิมทั้งหน้าเป็นการ์ดเต็มความกว้าง 8 ใบเรียงซ้อนกัน ยาว 4,800px) */}
-      <div className="hq-dealer-charts" style={{ marginBottom: "1.25rem", alignItems: "stretch" }}>
-      <div className="card chart-m" style={{ marginBottom: 0 }}>
+      {/* ── 2 · กราฟเดียว: ยอดขาย เทียบ เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365) รายดีลเลอร์ ── */}
+      <div className="card" data-testid="pipeline-chart" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
         <div className="card-header">
-          <div className="card-title">ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว</div>
-          <div style={{ display: "flex", gap: 5 }}>
-            {([["dealer", "ดีลเลอร์"], ["region", "ภูมิภาค"], ["province", "จังหวัด"], ["month", "รายเดือน"]] as const)
-              .map(([v, l]) => viewTab(view, v, l, () => setView(v)))}
-          </div>
-        </div>
-        <HBars rows={leadVsQuote} aLabel="ลูกค้าเป้าหมาย" bLabel="ออกใบเสนอราคาแล้ว" bColor="#0891b2" fmt={v => `${v} ราย`} />
-      </div>
-
-      {/* ── SECTION 2 · มูลค่าใบเสนอราคา เทียบ ยอดขายจริง ── */}
-      <div className="card chart-m" style={{ marginBottom: 0 }}>
-        <div className="card-header">
-          <div className="card-title">มูลค่าใบเสนอราคา เทียบ ยอดขายจริง · รายดีลเลอร์</div>
-        </div>
-        <HBars rows={quoteVsSales} aLabel="มูลค่าใบเสนอราคา" bLabel="ยอดขายจริง" aColor="#0891b2" bColor="#059669" fmt={fmtBaht} />
-      </div>
-      </div>
-
-      {/* ── แถว 3 · ตัวเลขการปิดการขาย (ตารางของกราฟแถว 1) | เป้าหมายทั้งปี เทียบ ยอดขายจริง ──
-          โดนัท "เหตุผลที่เสียโอกาสการขาย" ที่เคยอยู่แถวนี้ถูกตัดออก — ซ้ำกับ /hq/leads และ /hq/quotations */}
-      <div className="hq-dealer-charts" style={{ marginBottom: "1.25rem", alignItems: "stretch" }}>
-      <DealerQuotationTable rows={quotePerf} avgConv={kpi.conv} />
-
-      {/* ไม่ใช้ chart-l (ล็อกสูง 420px ตายตัว) — การ์ดคู่กันเป็นตารางที่สูงตามจำนวนดีลเลอร์
-          ความสูงตายตัวชนะ align-items: stretch เสมอ → การ์ดขวาเตี้ยกว่า เหลือช่องว่างใต้การ์ด
-          ยืดเองด้วย flex column แทน แล้วปล่อยให้ .chart-scroll ข้างในกินที่ที่เหลือ */}
-      <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-        <div className="card-header">
-          <div className="card-title">เป้าหมายทั้งปี เทียบ ยอดขายจริง</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            {([["dealer", "ดีลเลอร์"], ["region", "ภูมิภาค"], ["province", "จังหวัด"]] as const)
-              .map(([v, l]) => viewTab(tgView, v, l, () => setTgView(v)))}
-          </div>
+          <div className="card-title">ยอดขาย เทียบ เป้าตามช่วง · รายดีลเลอร์</div>
         </div>
         <div style={{ flex: 1 }}>
-          <HBars rows={tgRows} aLabel="ยอดขายสะสมทั้งปี" bLabel="เป้าหมายทั้งปี" fmt={fmtBaht} paged />
+          {โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
+            : <HBars rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} paged />}
         </div>
-        <TablePagination page={tgPageSafe} total={targetVsActual.length} onPage={setTgPage} size={TG_PAGE_SIZE}
-          unit={tgView === "dealer" ? "ดีลเลอร์" : tgView === "region" ? "ภูมิภาค" : "จังหวัด"} />
-      </div>
+        <TablePagination page={หน้ากราฟจริง} total={แท่ง.length} onPage={setหน้ากราฟ} size={ขนาดกราฟ} unit="ดีลเลอร์" />
       </div>
 
-      {/* กราฟที่ถูกตัดออกจากหน้านี้ (ข้อมูลซ้ำ — ดูที่เจ้าของเรื่องแทน):
-          · เหตุผลที่เสียโอกาสการขาย → /hq/leads และ /hq/quotations
-          · เทียบรายภูมิภาค          → /hq/quotations
-          · แนวโน้มจำนวนรายการ/ยอดขาย → แดชบอร์ด HQ (SalesTrendChart + ลูกค้าเป้าหมาย·ใบเสนอราคา·ปิดการขาย รายเดือน) */}
-      {/* ── PERFORMANCE TABLE — ตารางเต็มท้ายหน้าตามเดิม (ตามที่บอสสั่ง ไม่แยกแท็บ) ── */}
-      <div className="card" style={{ marginBottom: 0 }}>
+      {/* ── 3 · ตารางผลงานดีลเลอร์ตารางเดียว — เรียงได้ทุกคอลัมน์ · แถวท้าย = ผลรวม (เท่าการ์ด) ── */}
+      <div className="card" data-testid="pipeline-table" style={{ marginBottom: 0 }}>
         <div className="card-header">
           <div className="card-title">ตารางผลงานดีลเลอร์</div>
         </div>
-        <div className="table-wrap">
-          <table>
-            <colgroup>
-              {/* รวม minWidth = 1,102px — พอดีพื้นที่จริง 1,128px (วัดที่จอ 1440 · 11 ส.ค. 69)
-                  ชุดเดิมรวม 996px แต่แบ่งผิดสัดส่วน: ช่องภูมิภาคแคบกว่าป้ายชื่อภาคเต็ม
-                  ("ภาคตะวันออกเฉียงเหนือ") และหัวคอลัมน์ยาวหลายอันถูกเฉือน ทั้งที่ยังเหลือที่ว่าง */}
-              <col style={{ width: 96 }} />{/* รหัส — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
-              <col style={{ width: "12%", minWidth: 136 }} />{/* ดีลเลอร์ */}
-              <col style={{ width: "13%", minWidth: 148 }} />{/* ภูมิภาค — ป้ายชื่อภาคเต็ม ห้ามตัด */}
-              <col style={{ width: "5%", minWidth: 58 }} />{/* ลูกค้าเป้าหมาย */}
-              <col style={{ width: "8%", minWidth: 94 }} />{/* ใบเสนอราคา */}
-              <col style={{ width: "9%", minWidth: 100 }} />{/* มูลค่าเสนอ */}
-              <col style={{ width: "9%", minWidth: 100 }} />{/* ยอดขายสะสม */}
-              <col style={{ width: "7%", minWidth: 84 }} />{/* อัตราปิด */}
-              <col style={{ width: "8%", minWidth: 94 }} />{/* เป้าทั้งปี */}
-              <col style={{ width: "6%", minWidth: 76 }} />{/* % เป้า */}
-              <col style={{ width: "9%", minWidth: 98 }} />{/* เสนอล่าสุด */}
-              <col style={{ width: "8%", minWidth: 56 }} />{/* ปุ่มดู */}
-            </colgroup>
+        <div className="table-wrap dense">
+          <table aria-label="ตารางผลงานดีลเลอร์" style={{ minWidth: คอลัมน์.reduce((s, c) => s + c.w, 0) }}>
+            <colgroup>{คอลัมน์.map(c => <col key={c.k} style={{ width: c.w }} />)}</colgroup>
             <thead>
               <tr>
-                <th>รหัส</th>
-                <th>ดีลเลอร์</th>
-                <th>ภูมิภาค</th>
-                <th style={{ textAlign: "right" }} title="ลูกค้าเป้าหมาย">เป้าหมาย</th>
-                <th style={{ textAlign: "right" }}>ใบเสนอราคา</th>
-                {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกเฉือน (th ตั้ง white-space: nowrap ทั้งระบบ) */}
-                <th style={{ textAlign: "right" }} title="มูลค่ารวมของใบเสนอราคาทั้งหมด">มูลค่าเสนอ</th>
-                <th style={{ textAlign: "right" }}>ยอดขายสะสม</th>
-                <th style={{ textAlign: "right" }} title="ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรเดียวทุกหน้า">อัตราปิดการขาย</th>
-                <th style={{ textAlign: "right" }}>เป้าทั้งปี</th>
-                <th style={{ textAlign: "right" }}>% เป้า</th>
-                <th title="วันที่ออกใบเสนอราคาล่าสุด">เสนอล่าสุด</th>
-                <th></th>
+                {คอลัมน์.map(c => c.k === "view" ? <th key={c.k} aria-label="ดู" /> : (
+                  <th key={c.k} className={c.num ? "num" : undefined} title={c.ชี้ ?? c.หัว}
+                    aria-sort={เรียง.k === c.k ? (เรียง.ลง ? "descending" : "ascending") : "none"}>
+                    <button type="button" data-sort={c.k} onClick={() => setเรียง(s => ({ k: c.k as คีย์เรียง, ลง: s.k === c.k ? !s.ลง : c.num ?? false }))}
+                      style={{ all: "unset", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                      {c.หัว}{เรียง.k === c.k ? (เรียง.ลง ? <ArrowDown size={11} /> : <ArrowUp size={11} />) : null}
+                    </button>
+                  </th>))}
               </tr>
             </thead>
             <tbody>
-              {!perfShown.length && <tr><td colSpan={12} style={{ padding: 32, textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
-              {perfRows.map(d => (
-                <ClickableRow key={d.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${d.code}`)} label={`เปิดหน้าดีลเลอร์ ${d.name}`}>
-                  <td data-col="code" style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY, overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>{d.code}</td>
-                  <td style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {d.name}
-                    {d.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}
-                  </td>
-                  <td style={{ color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{regionDisplay(d.region)}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{d.leads}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{d.quotes}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmtBaht(d.quoteVal)}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 800, color: "#1F2937" }}>{money(d.revenueActual)}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{d.conv === null ? "—" : `${d.conv}%`}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmtBaht(d.revenueTarget)}</td>
-                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: d.tpct == null ? "#94a3b8" : d.tpct >= 100 ? "#059669" : PRIMARY }}>{d.tpct == null ? "—" : `${d.tpct}%`}</td>
-                  <td style={{ color: MUTED, whiteSpace: "nowrap" }}>{d.latest}</td>
+              {โหลด && <tr><td colSpan={คอลัมน์.length} className="empty-row">กำลังโหลด…</td></tr>}
+              {!โหลด && !เรียงแล้ว.length && <tr><td colSpan={คอลัมน์.length} className="empty-row">ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
+              {ในหน้า.map(r => (
+                <ClickableRow key={r.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${r.code}`)} label={`เปิดหน้าดีลเลอร์ ${r.name}`}>
+                  <td data-perf-row={r.code} style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }} title={r.code}>{r.code}</td>
+                  <td style={{ fontWeight: 600, color: "#1F2937" }} title={r.name}>{r.name}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}</td>
+                  <td title={ชื่อภาค(r.region)}>{ชื่อภาค(r.region)}</td>
+                  <td className="num" data-cell="leads">{r.leads.toLocaleString()}</td>
+                  <td className="num" data-cell="quotes">{r.quotes.toLocaleString()}</td>
+                  <td className="num" data-cell="won">{r.won.toLocaleString()}</td>
+                  <td className="num" data-cell="lost">{r.lost.toLocaleString()}</td>
+                  <td className="num" data-cell="rate" style={{ fontWeight: 700 }}>{r.rate == null ? "—" : `${r.rate}%`}</td>
+                  <td className="num" data-cell="sales" data-value={r.sales} style={{ fontWeight: 800, color: "#1F2937" }} title={fmtBaht(r.sales)}>{fmtBaht(r.sales)}</td>
+                  <td className="num" data-cell="target" data-value={r.target ?? ""} title={เงิน(r.target)}>{เงิน(r.target)}</td>
+                  <td className="num" data-cell="pct" style={{ fontWeight: 700, color: r.pct == null ? "#94a3b8" : r.pct >= 100 ? "#059669" : PRIMARY }}>{r.pct == null ? "—" : `${r.pct}%`}</td>
+                  <td className="num" data-cell="margin">{r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`}</td>
+                  <td style={{ color: MUTED }} title={r.latest ? fmtISOToThai(r.latest) : "ยังไม่มีใบที่ส่งลูกค้า"}>{r.latest ? fmtISOToThai(r.latest) : "—"}</td>
                   <td onClick={e => e.stopPropagation()}>
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <button title="เปิดหน้าดีลเลอร์" onClick={() => router.push(`/hq/dealers/${d.code}`)}
-                        style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Eye size={13} />
-                      </button>
-                    </div>
+                    <button title="เปิดหน้าดีลเลอร์" aria-label={`เปิดหน้าดีลเลอร์ ${r.name}`} onClick={() => router.push(`/hq/dealers/${r.code}`)}
+                      style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Eye size={13} />
+                    </button>
                   </td>
                 </ClickableRow>
               ))}
             </tbody>
+            {/* แถวรวมแสดงเสมอเมื่อโหลดเสร็จ — ไม่มีแถว = ผลรวม 0 (เทียบกับการ์ดได้ทุกตัวกรอง เช่น "ถึงเป้าเท่านั้น" แล้วยังไม่มีใครถึงเป้า) */}
+            {!โหลด && (
+              <tfoot>
+                <tr data-perf-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
+                  <td colSpan={3}>รวม {เรียงแล้ว.length.toLocaleString()} ดีลเลอร์</td>
+                  <td className="num" data-sum="leads">{รวม.leads.toLocaleString()}</td>
+                  <td className="num" data-sum="quotes">{รวม.quotes.toLocaleString()}</td>
+                  <td className="num" data-sum="won" data-value={รวม.won}>{รวม.won.toLocaleString()}</td>
+                  <td className="num" data-sum="lost" data-value={รวม.lost}>{รวม.lost.toLocaleString()}</td>
+                  <td className="num" data-sum="rate" data-value={รวม.rate ?? ""}>{รวม.rate == null ? "—" : `${รวม.rate}%`}</td>
+                  <td className="num" data-sum="sales" data-value={รวม.sales} title={fmtBaht(รวม.sales)}>{fmtBaht(รวม.sales)}</td>
+                  <td className="num" data-sum="target" data-value={รวม.target ?? ""} title="ผลรวมเป้าตามช่วงของสาขาที่ตั้งเป้า">{เงิน(รวม.target)}</td>
+                  <td className="num" data-sum="pct">{รวม.pct == null ? "—" : `${รวม.pct}%`}</td>
+                  <td className="num" data-sum="margin" data-value={รวม.marginPct ?? ""}>{รวม.marginPct == null ? "—" : `${รวม.marginPct.toFixed(1)}%`}</td>
+                  <td colSpan={2} data-sum="onTarget" data-value={รวม.onTarget}>ถึงเป้า {รวม.onTarget} ราย</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
-        <TablePagination page={perfPageSafe} total={perfShown.length} onPage={setPerfPage} unit="ดีลเลอร์" />
+        <TablePagination page={หน้าจริง} total={เรียงแล้ว.length} onPage={setหน้า} unit="ดีลเลอร์" />
       </div>
-
-      {/* ส่วนบวกรายดีลเลอร์ (บอสตัดสิน 22 ต.ค. 69) — แอป HQ เท่านั้น · ไม่อยู่ในไฟล์ส่งออกของหน้านี้ */}
-      <DealerMarginCard />
-
-      {/* แผงดีลเลอร์ซ้อนเอาออก (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — กดดีลเลอร์แล้วไปหน้ารายละเอียดดีลเลอร์ · ผลงานอยู่หน้านี้ที่เดียว */}
     </div>
   );
 }

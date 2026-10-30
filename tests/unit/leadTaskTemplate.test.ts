@@ -78,9 +78,10 @@ describe("ลูกค้าเป้าหมายใช้ชุดที่ 
 
 // ── รายการตั้งต้นที่บอสสั่ง (27 ต.ค. 69 · FLOW D7) — ล็อกทั้งชื่อ ลำดับ ขั้น และรายการที่ระบบติ๊ก ──────────────────────
 describe("รายการตั้งต้นตาม FLOW ใหม่ 5 ขั้น", () => {
-  it("ชื่อ/ขั้น/ระบบติ๊ก ตรงเป๊ะ 9 รายการ", () => {
+  // ใบ 0263 (บอสสั่ง 30 ต.ค. 69): "ติดต่อแล้ว" เอาออก · เก็บข้อมูลลูกค้า/สรุปความต้องการ ระบบติ๊กเอง
+  it("ชื่อ/ขั้น/ระบบติ๊ก ตรงเป๊ะ 8 รายการ (ไม่มี ติดต่อแล้ว)", () => {
     expect(LEAD_TASK_TEMPLATE.map(t => [t.label, t.step, !!t.auto])).toEqual([
-      ["ติดต่อแล้ว", 1, false], ["เก็บข้อมูลลูกค้า", 1, false], ["สรุปความต้องการ", 1, false], ["นัดหมาย", 1, true],
+      ["เก็บข้อมูลลูกค้า", 1, true], ["สรุปความต้องการ", 1, true], ["นัดหมาย", 1, true],
       ["ส่งคำขอราคา", 2, true], ["ได้ใบ HQ", 3, true], ["จัดทำใบเสนอราคา", 4, true],
       ["ส่งใบเสนอราคา", 5, true], ["ติดตามลูกค้า", 5, false],
     ]);
@@ -164,8 +165,8 @@ describe("รายการของระบบ ติ๊กเองไม่
     expect(() => applyLeadIntent(ลีด, { tasks: [{ key: "requestQuote", done: true }] }, ctx)).toThrow(/system_task_locked/);
   });
   it("รายการติ๊กเองยังติ๊กได้ และไม่เปลี่ยนขั้น", () => {
-    const r = applyLeadIntent(ลีด, { tasks: [{ key: "collect", done: true }] }, ctx);
-    expect(r.tasks?.find(t => t.key === "collect")?.done).toBe(true);
+    const r = applyLeadIntent(ลีด, { tasks: [{ key: "followCustomer", done: true }] }, ctx);
+    expect(r.tasks?.find(t => t.key === "followCustomer")?.done).toBe(true);
     expect(r.status).toBe("BULLET");
   });
   it("ระบบติ๊กตามเหตุการณ์ (โหมดในเครื่อง) ผ่าน", () => {

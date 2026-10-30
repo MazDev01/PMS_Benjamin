@@ -18,6 +18,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { หน่วยBOQ, วันไทยสั้น } from "@pms/shared/lib/quoteRequests";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import {
   type MaterialTemplate, type EstimateAccuracy, หมวดที่มี, ค้นแม่แบบ, ป้ายเปอร์เซ็นต์คลาด,
 } from "@pms/shared/lib/materialTemplates";
@@ -100,37 +101,22 @@ export function MaterialTemplatesPanel() {
         <datalist id="mt-categories">{หมวด.map(h => <option key={h} value={h} />)}</datalist>
         <datalist id="mt-units">{หน่วยBOQ.map(u => <option key={u} value={u} />)}</datalist>
 
-        <div className="table-wrap">
-          <table aria-label="แม่แบบวัสดุ" style={{ minWidth: 860 }}>
-            <colgroup>
-              <col style={{ width: "17%" }} /><col style={{ width: "30%" }} /><col style={{ width: "11%" }} />
-              <col style={{ width: "15%" }} /><col style={{ width: "10%" }} /><col style={{ width: "12%" }} /><col style={{ width: "5%" }} />
-            </colgroup>
-            <thead>
-              <tr><th>หมวด</th><th>ชื่อวัสดุ</th><th>หน่วย</th><th className="num">ราคาต่อหน่วย (ก่อน VAT)</th><th>เปิดใช้</th><th>อัปเดตราคา</th><th aria-label="ลบ" /></tr>
-            </thead>
-            <tbody>
-              {บันทึกแล้ว === null && <tr><td colSpan={7} className="empty-row">กำลังโหลด…</td></tr>}
-              {บันทึกแล้ว !== null && แสดง.length === 0 && (
-                <tr><td colSpan={7} className="empty-row">{rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีแม่แบบวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}</td></tr>
-              )}
-              {ในหน้า.map((r, i) => (
-                <tr key={r.key} data-mt-row={r.id ?? "new"} style={r.active ? undefined : { opacity: 0.6 }}>
-                  <td><input list="mt-categories" aria-label={`หมวด ${i + 1}`} style={ช่องกรอก} value={r.category} maxLength={80} placeholder="เช่น ผนัง" onChange={e => แก้(r.key, { category: e.target.value })} /></td>
-                  <td><input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /></td>
-                  <td><input list="mt-units" aria-label={`หน่วย ${i + 1}`} style={ช่องกรอก} value={r.unit} maxLength={40} onChange={e => แก้(r.key, { unit: e.target.value })} /></td>
-                  <td className="num"><NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /></td>
-                  <td><label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
-                    <input type="checkbox" aria-label={`เปิดใช้ ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}
-                  </label></td>
-                  <td style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }} data-testid="price-updated">{r.priceUpdatedAt ? วันไทยสั้น(r.priceUpdatedAt) : "ยังไม่บันทึก"}</td>
-                  <td><button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
-                    style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "flex", padding: 4 }}><Trash2 size={15} /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* ตารางรายการกลาง: หน่วยชิดซ้าย · ราคาต่อหน่วยชิดขวา หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
+        <ตารางรายการ ป้าย="แม่แบบวัสดุ" ลำดับ={false} กว้างขั้นต่ำ={860} แถว={บันทึกแล้ว === null ? [] : ในหน้า}
+          ว่าง={บันทึกแล้ว === null ? "กำลังโหลด…" : rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีแม่แบบวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}
+          คุณสมบัติแถว={r => ({ "data-mt-row": String(r.id ?? "new"), style: r.active ? undefined : { opacity: 0.6 } })} คอลัมน์={[
+            { key: "cat", หัว: "หมวด", ชนิด: "ข้อความ", กว้าง: "15%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-categories" aria-label={`หมวด ${i + 1}`} style={ช่องกรอก} value={r.category} maxLength={80} placeholder="เช่น ผนัง" onChange={e => แก้(r.key, { category: e.target.value })} /> },
+            { key: "name", หัว: "ชื่อวัสดุ", ชนิด: "ข้อความ", กว้าง: "28%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /> },
+            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "11%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-units" aria-label={`หน่วย ${i + 1}`} style={ช่องกรอก} value={r.unit} maxLength={40} onChange={e => แก้(r.key, { unit: e.target.value })} /> },
+            { key: "price", หัว: "ราคาต่อหน่วย (ก่อน VAT)", ชนิด: "เงิน", กว้าง: "19%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
+            { key: "active", หัว: "เปิดใช้", ชนิด: "ข้อความ", กว้าง: "10%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
+                <input type="checkbox" aria-label={`เปิดใช้ ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}
+              </label> },
+            { key: "updated", หัว: "อัปเดตราคา", ชนิด: "ข้อความ", กว้าง: "12%", สไตล์: () => ({ fontSize: "0.78rem", color: "var(--muted-foreground)" }),
+              ค่า: r => <span data-testid="price-updated">{r.priceUpdatedAt ? วันไทยสั้น(r.priceUpdatedAt) : "ยังไม่บันทึก"}</span> },
+            { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: "5%", ค่า: (r, i) => <button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
+                style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={15} /></button> },
+          ]} />
         <TablePagination page={หน้าจริง} total={แสดง.length} onPage={setหน้า} />
       </SectionCard>
     </div>

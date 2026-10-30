@@ -17,7 +17,7 @@ update public.leads set status = 'PAID' where dealer_code = 'RYG' and num_id = 9
 set local session_replication_role = origin;
 
 do $$
-declare l leads; n int; f files;
+declare l leads; n int; f files; ก่อน leads;
 begin
   -- ① ใบร่าง → ติ๊ก "จัดทำใบเสนอราคา" เท่านั้น · งานสร้างจากแม่แบบของ HQ (ลูกค้าเป้าหมายยังไม่มีรายการงาน)
   insert into quotations (id, dealer_code, customer, project, total, total_value, status, date, deal_id, line_items)
@@ -42,10 +42,12 @@ begin
      or l.activities->1->>'text' <> 'ออกใบเสนอราคา ZZ-QS-2 (V2) · ยอด ฿20' then raise exception 'FAIL: กิจกรรมใบที่ 2'; end if;
 
   -- ③ ลูกค้าเป้าหมายที่ปิดแล้ว → ไม่แตะงาน/กิจกรรม (แต่ยังมีแถวไฟล์ของใบ)
+  --   (ข้อมูลลูกค้าครบตั้งแต่สร้าง → ฐานติ๊ก "เก็บข้อมูลลูกค้า" ไว้แล้ว · ใบ 0263) — ตรวจว่าใบใหม่ไม่แตะงาน/กิจกรรมเดิม
+  select * into ก่อน from leads where dealer_code = 'RYG' and num_id = 979000002;
   insert into quotations (id, dealer_code, customer, project, total, total_value, status, date, deal_id, line_items)
   values ('ZZ-QS-3', 'RYG', 'ZZTEST-QSYNC2', 'โครงการ ZZ', '฿15', 15, 'draft', '2026-10-15', 979000002, '[{"name":"x","qty":1,"unit":"ชุด","unitPrice":15}]');
   select * into l from leads where dealer_code = 'RYG' and num_id = 979000002;
-  if l.tasks <> '[]'::jsonb or l.activities <> '[]'::jsonb then raise exception 'FAIL: ลูกค้าเป้าหมายที่ปิดแล้วต้องไม่ถูกแตะ'; end if;
+  if l.tasks is distinct from ก่อน.tasks or l.activities <> '[]'::jsonb then raise exception 'FAIL: ลูกค้าเป้าหมายที่ปิดแล้วต้องไม่ถูกแตะ'; end if;
   if not exists (select 1 from files where dealer_code = 'RYG' and position('ZZ-QS-3' in name) > 0) then raise exception 'FAIL: แถวไฟล์ของใบ 3'; end if;
 
   -- ④ ไฟล์ของใบไม่ซ้ำ: มีแถวชื่อเลขใบอยู่แล้ว → ไม่เพิ่ม

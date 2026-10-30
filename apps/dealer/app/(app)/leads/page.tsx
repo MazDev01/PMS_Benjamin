@@ -645,19 +645,20 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
 
               {/* ── งาน — ฟอร์มขอราคาจาก HQ ดึงสามช่องนี้ไปกรอกให้ (แก้ได้ก่อนส่ง) ── */}
               <div className="form-section">{กลุ่มช่อง.งาน}</div>
-              <div>
+              {/* จัดคู่บรรทัด (บอสสั่ง 30 ต.ค. 69): จังหวัดเต็มแถว · งานที่ต้องการ คู่ พื้นที่ · ช่องทางที่มา คู่ ผู้รับผิดชอบ */}
+              <div className="col-full">
                 <label style={labelStyle} htmlFor="lf-province">{ป้ายบังคับ("จังหวัด")}</label>
                 <ProvinceSelect id="lf-province" label={ช่อง.จังหวัด} value={form.province} onChange={v=>set("province",v)} style={inputStyle} options={myProvinces}
                   หลัง={form.province && !myProvinces.includes(form.province) && <option value={form.province}>{form.province} (นอกภาค)</option>} />
               </div>
-              <div className="col-full">
+              <div data-form-pair="งาน">
                 <label style={labelStyle} htmlFor="lf-project">{ช่อง.งาน}</label>
                 <input id="lf-project" value={form.project} onChange={e=>set("project",e.target.value)}
                   placeholder={ตัวอย่างช่อง.งาน} maxLength={200} style={inputStyle} />
               </div>
-              <div>
-                <label style={labelStyle}>{ช่อง.พื้นที่}</label>
-                <input type="number" min={0} value={form.area} onChange={e=>set("area",e.target.value)}
+              <div data-form-pair="งาน">
+                <label style={labelStyle} htmlFor="lf-area">{ช่อง.พื้นที่}</label>
+                <input id="lf-area" type="number" min={0} value={form.area} onChange={e=>set("area",e.target.value)}
                   placeholder="เช่น 1200" style={inputStyle} />
               </div>
               <div className="col-full">
@@ -671,14 +672,14 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
               <div className="form-section">{กลุ่มช่อง.การดูแล}</div>
               {/* ไม่มีช่อง "ขั้นตอน" (บอสสั่ง 28 ต.ค. 69 · FLOW D2) — ลีดใหม่อยู่ขั้นข้อมูลลูกค้าเสมอ ฐานตั้งเอง (ใบ 0256)
                   เลื่อนขั้นได้ทางกล่องขั้นต่อไปในแผงลีดที่เดียว */}
-              <div>
+              <div data-form-pair="การดูแล">
                 <label style={labelStyle}>{ช่อง.ช่องทาง}</label>
                 <select aria-label={ช่อง.ช่องทาง} value={form.source} onChange={e=>set("source",e.target.value)} style={inputStyle}>
                   <option value="">— ยังไม่ระบุ —</option>
                   {[...legacySource(form.source), ...SOURCES].map(s=><option key={s}>{s}</option>)}
                 </select>
               </div>
-              <div className="col-full">
+              <div data-form-pair="การดูแล">
                 <label style={labelStyle}>{ช่อง.ผู้รับผิดชอบ}</label>
                 <PersonPicker value={form.assigned} onChange={v=>set("assigned",v)} multiple />
               </div>

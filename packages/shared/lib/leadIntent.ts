@@ -7,6 +7,7 @@
 //   ⚠️ แก้ตรรกะที่นี่ต้องแก้ supabase/migrations/0211_lead_apply.sql ด้วย (และกลับกัน) — tests/unit/leadIntent.test.ts
 import { buildLeadTasks, leadStatusLabel, เป็นรายการระบบ, ระบบติ๊กเมื่อ,
   type LeadRow, type LeadStatus, type LeadTask, type LeadTaskDef, type LeadActivity } from "./mock";
+import { ติ๊กข้อมูลอัตโนมัติ } from "./leadInfoTasks";
 
 /** ช่องที่ผู้ใช้แก้ได้ผ่าน fields — ตรงกับรายการใน lead_apply */
 export const LEAD_EDITABLE_FIELDS = ["name", "company", "contact", "phone", "email", "province", "product", "category", "value", "area",
@@ -113,6 +114,9 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
 
   const next: LeadRow = { ...lead, ...(f as Partial<LeadRow>), status, lostReason };
   if (งานเปลี่ยน) next.tasks = tasks;
+  // เก็บข้อมูลลูกค้า / สรุปความต้องการ — ฐานติ๊กเองตามข้อมูลที่ครบ (ตัวดัก leads_tasks_info_auto · ใบ 0263) โหมดในเครื่องคิดแบบเดียวกัน
+  const ติ๊กอัตโนมัติ = ติ๊กข้อมูลอัตโนมัติ(next.tasks, next, () => buildLeadTasks(ctx.tpl), ctx.now);
+  if (JSON.stringify(ติ๊กอัตโนมัติ) !== JSON.stringify(next.tasks)) next.tasks = ติ๊กอัตโนมัติ;
   // ไทม์ไลน์ไม่อยู่ในมือ (รายการไม่ดึงมา) = ไม่เดา — รอค่าจริงจากฐาน
   if (logs.length && lead.activities) {
     let n = lead.activities.reduce((m, a) => Math.max(m, Number(a.id) || 0), 0);

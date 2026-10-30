@@ -25,6 +25,7 @@ import { useCurrentDealer, useDealerDisplayName } from "@pms/shared/lib/useCurre
 import { NotificationBell } from "./NotificationBell";
 import { APP_NOW } from "@pms/shared/context/FilterContext";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 
 // วันที่ของชุดข้อมูลตัวอย่าง แบบอ่านง่าย (ใช้บนป้ายเตือนโหมดตัวอย่าง)
 const APP_NOW_TH = `${APP_NOW.getDate()} ${["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."][APP_NOW.getMonth()]} ${APP_NOW.getFullYear() + 543}`;
@@ -220,7 +221,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
       ...(isHQ ? dealers.filter(ไม่ใช่แถวHQ)
         .filter((d: DealerRow) => has(d.name) || has(d.code) || has(d.region))
         .slice(0, 5)
-        .map((d: DealerRow) => ({ type: "ดีลเลอร์", label: d.name, sub: `${d.code} · ${d.region}`, href: `/hq/dealers/${d.code}` })) : []),
+        .map((d: DealerRow) => ({ type: "ดีลเลอร์", label: d.name, sub: `${d.code} · ${ชื่อภาค(d.region)}`, href: `/hq/dealers/${d.code}` })) : []),
     ];
   }, [q, dealers, liveLeads, liveCustomers, liveQuotations, isHQ, hqSearch]);
 

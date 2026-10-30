@@ -140,7 +140,8 @@ test("[ข·3] รหัสดีลเลอร์ 5 ตัวไม่โด�
     ["ใบเสนอราคาทั้งเครือ", "/hq/quotations", "ZZTEST-ลูกค้ารหัสยาว"],
   ] as const) {
     await ค้น(page, path, คำ);
-    const ช่อง = page.locator("td[data-col='code']").filter({ hasText: รหัสยาว }).first();
+    // ภาพรวมยอดขาย (ตารางผลงานดีลเลอร์ · 30 ต.ค. 69) ช่องรหัสใช้ data-perf-row · หน้าอื่น data-col='code'
+    const ช่อง = page.locator("td[data-col='code'], td[data-perf-row]").filter({ hasText: รหัสยาว }).first();
     await expect(ช่อง, `${หน้า}: มีช่องรหัส ${รหัสยาว}`).toBeVisible({ timeout: 20_000 });
     await expect(ช่อง, `${หน้า}: ข้อความรหัสครบ`).toHaveText(รหัสยาว);
     expect(await อยู่ในช่องครบ(ช่อง), `${หน้า}: รหัสต้องอยู่ในช่องครบ ไม่โดนตัด/ไม่ล้น`).toBe(true);

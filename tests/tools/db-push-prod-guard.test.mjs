@@ -10,6 +10,9 @@ import { appendFileSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileS
 import { บันทึกเมื่อผ่าน } from "../../scripts/lib/migrationGate.mjs";
 import os from "node:os";
 import path from "node:path";
+import { รอถ้าฐานไม่ว่าง } from "../../scripts/lib/testDbWait.mjs";
+// เซสชันอื่นถือฐานทดสอบอยู่ = "รอ" (exit 75) ไม่ใช่ "ตก" — คิวข้อ 2 · 29 ต.ค. 69
+รอถ้าฐานไม่ว่าง("ข้อทดสอบเครื่องมือ db:push ฐานจริง + สำรอง/ซ้อมกู้");
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "pms-push-guard-"));
 const LOCK = path.join(tmp, "prod.lock"), MARK = path.join(tmp, "marker.txt"), ROOT = path.join(tmp, "backups");

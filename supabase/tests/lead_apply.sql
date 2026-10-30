@@ -42,7 +42,9 @@ begin
   -- ① แก้ช่องเดียว → ช่องอื่นไม่ถูกแตะ · ลูกค้าเป้าหมายที่ยังไม่มีรายการงานได้งานจากแม่แบบ HQ เมื่อติ๊ก
   r := lead_apply('#L-ZLA1', '{"fields":{"contact":"ผู้ติดต่อใหม่"}}');
   perform latest.ok(r.contact = 'ผู้ติดต่อใหม่' and r.phone = '0810000001' and r.status = 'WAITING', 'แก้ช่องเดียว ช่องอื่นคงเดิม');
-  perform latest.ok(r.tasks = '[]'::jsonb and r.activities = '[]'::jsonb, 'แก้ช่องธรรมดา ไม่แตะงาน/ไทม์ไลน์');
+  --   งาน: ข้อมูลลูกค้าครบ → ฐานติ๊ก "เก็บข้อมูลลูกค้า" ให้เอง (ใบ 0263) · รายการอื่นไม่ถูกติ๊ก · ไทม์ไลน์ไม่แตะ
+  perform latest.ok((select array_agg(t ->> 'key') from jsonb_array_elements(r.tasks) t where (t ->> 'done')::boolean) = array['collect']
+                    and r.activities = '[]'::jsonb, 'แก้ช่องธรรมดา ไม่แตะไทม์ไลน์ · งานติ๊กเฉพาะ เก็บข้อมูลลูกค้า (ระบบ)');
 
   -- ② ช่องที่ฐานเป็นเจ้าของ ส่งทาง fields ไม่ได้
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"fields":{"status":"PAID"}}')$q$, 'lead_field_not_allowed', 'ส่งขั้นทาง fields');
@@ -51,11 +53,12 @@ begin
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"fields":{"lost_reason":"x"}}')$q$, 'lead_field_not_allowed', 'ส่งเหตุผลปิดทาง fields');
 
   -- ③ ติ๊กงานทีละงาน + จดไทม์ไลน์ · รอบ 4 (ใบ 0232): งานไม่เลื่อนขั้น deriveStage ถูกเมิน
-  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"contact","done":true,"doneBy":"คนติ๊ก"}],"deriveStage":"any"}');
-  perform latest.ok(latest.done('#L-ZLA1', 'contact') and jsonb_array_length(r.tasks) = (select jsonb_array_length(tasks) from hq_sales_journey order by id limit 1), 'ติ๊กงาน · งานมาจากแม่แบบ');
-  perform latest.ok((select t ->> 'doneBy' from jsonb_array_elements(r.tasks) t where t ->> 'key' = 'contact') = 'คนติ๊ก', 'ผู้ทำตามที่ส่ง');
-  perform latest.ok(r.activities -> 0 ->> 'text' = 'ทำงาน: ติดต่อแล้ว', 'ไทม์ไลน์ "ทำงาน: …" ฐานจดเอง');
-  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"collect","done":true},{"key":"requirement","done":true}],"deriveStage":"any"}');
+  --   (ใบ 0263: ติดต่อแล้วเอาออก · เก็บข้อมูลลูกค้า/สรุปความต้องการ ระบบติ๊ก — ใช้รายการติ๊กเอง "ติดตามลูกค้า")
+  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"followCustomer","done":true,"doneBy":"คนติ๊ก"}],"deriveStage":"any"}');
+  perform latest.ok(latest.done('#L-ZLA1', 'followCustomer') and jsonb_array_length(r.tasks) = (select jsonb_array_length(tasks) from hq_sales_journey order by id limit 1), 'ติ๊กงาน · งานมาจากแม่แบบ');
+  perform latest.ok((select t ->> 'doneBy' from jsonb_array_elements(r.tasks) t where t ->> 'key' = 'followCustomer') = 'คนติ๊ก', 'ผู้ทำตามที่ส่ง');
+  perform latest.ok(r.activities -> 0 ->> 'text' = 'ทำงาน: ติดตามลูกค้า', 'ไทม์ไลน์ "ทำงาน: …" ฐานจดเอง');
+  r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"followCustomer","done":false}],"deriveStage":"any"}');
   perform latest.ok(r.status = 'WAITING', 'ติ๊กงานแล้วขั้นไม่ขยับ (ใบ 0232)');
   perform latest.ok(not (r.activities @> '[{"text":"เปลี่ยนขั้นเป็น \"รวบรวมความต้องการ\""}]'), 'ไม่มีไทม์ไลน์เปลี่ยนขั้นจากงาน');
 

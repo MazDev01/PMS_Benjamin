@@ -7,6 +7,7 @@ import { leadIntentToWire } from "@pms/shared/lib/leadIntent";
 import { เตรียมบันทึกใบ } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
+import { จัดรูปผลงานดีลเลอร์ } from "@pms/shared/lib/hqPipeline";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import type { DealerProspect, ProspectActivity, AppNotification } from "@pms/shared/lib/data/types";
@@ -1011,6 +1012,11 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("hq_dashboard", { p_start: start, p_end: end, p_dealer: dealer ?? null, p_today: today ?? null });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return จัดรูปแดชบอร์ดHQ(data);
+    },
+    hqPipelineDealers: async (start, end, dealers, today) => {
+      const { data, error } = await sb().rpc("hq_pipeline_dealers", { p_start: start, p_end: end, p_dealers: dealers ?? null, p_today: today ?? null });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return จัดรูปผลงานดีลเลอร์(data);
     },
     kpiCards: async (page, start, end, dealer, today, filters) => {
       const { data, error } = await sb().rpc("kpi_cards", { p_page: page, p_start: start ?? null, p_end: end ?? null, p_dealer: dealer ?? null, p_today: today ?? null, p_filters: filters ?? null });

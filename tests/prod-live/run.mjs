@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ต้นทาง } from "../../scripts/lib/session.mjs";
 import { ขอล็อกฐานทดสอบ } from "../../scripts/lib/testDbLock.mjs";
 import { กันฐานจริง } from "../../scripts/lib/prodBackupMark.mjs";
+import { รอฐานจริงว่าง } from "../../scripts/lib/prodLock.mjs";
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
@@ -23,6 +24,8 @@ const phase = args.at(-1);
 if (!["local", "prod"].includes(target) || !["setup", "test", "files", "trial", "cleanup"].includes(phase)) {
   console.error("ใช้: node tests/prod-live/run.mjs --target local|prod setup|test|files|trial|cleanup"); process.exit(2);
 }
+// ฐานจริง: รอ db:push / สำรอง+ซ้อมกู้ ที่ถือล็อกอยู่จบก่อน (ขั้น cleanup ต่อฐานแบบ --linked = ตั้งรหัส cli_login ใหม่ ทำสำรองที่กำลังรันตก) · แล้วค่อยตรวจผลซ้อมกู้
+if (target === "prod") รอฐานจริงว่าง(`prod-live ${phase}`);
 const ชุดสำรอง = target === "prod" ? กันฐานจริง(`prod-live ${phase}`) : "";
 const envFile = target === "prod" ? ".env.production.local" : "apps/hq/.env.local";
 const env = Object.fromEntries(readFileSync(envFile, "utf8").split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));

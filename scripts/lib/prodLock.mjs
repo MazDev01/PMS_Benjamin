@@ -7,11 +7,44 @@
 //
 // ที่อยู่ไฟล์: PMS_PROD_LOCK (ข้อทดสอบใช้ที่อื่น) หรือ <โฟลเดอร์บ้าน>/.pms-prod-ops.lock
 // ตัวลูกที่ถูกเรียกจากตัวที่ถือล็อกอยู่แล้ว ส่ง PMS_PROD_LOCK_HELD=<รหัสล็อก> ต่อให้ → ไม่ล็อกซ้ำ
+//
+// คำสั่งอ่านฐานจริง (ไม่ถือล็อก) ต้องรอให้งานที่ถือล็อกจบก่อน — รอฐานจริงว่าง() (บอสรับทราบ 29 ต.ค. 69 · คิว ef 30 ต.ค. 69)
+//   เหตุจริง 29 ต.ค. 69: คนรวมงานอ่านฐานจริงทุก 30 วิ (supabase db query --linked) ระหว่างบอส db:push 0261 0262
+//   ทุกครั้งที่ CLI ต่อฐานแบบ --linked จะตั้งรหัสใหม่ให้ cli_login_postgres → ขั้นสำรอง 3-auth-data ที่ล็อกอินไว้ก่อนหน้า
+//   ตก "password authentication failed" · การอ่านด้วยกุญแจ REST ไม่ตั้งรหัสใหม่ แต่รอแบบเดียวกันทุกทาง (กติกาเดียว จำง่าย)
+//   ตัวที่ถือล็อกเอง (db:push · สำรอง+ซ้อมกู้) และตัวลูกของมัน (PMS_PROD_LOCK_HELD) ไม่รอตัวเอง
 import os from "node:os";
 import path from "node:path";
-import { ตัวล็อก } from "./fileLock.mjs";
+import { ตัวล็อก, อ่านล็อก, ยังทำงานอยู่ } from "./fileLock.mjs";
 
 export const lockPath = () => process.env.PMS_PROD_LOCK || path.join(os.homedir(), ".pms-prod-ops.lock");
+const นอน = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/**
+ * รอจนไม่มีงานถือล็อกฐานจริง (db:push · สำรอง+ซ้อมกู้) แล้วค่อยให้คำสั่งอ่านฐานจริงไปต่อ — ไม่ยึดล็อกเอง
+ *   (ยึดล็อก = db:push ที่บอสสั่งตอนเรากำลังอ่านจะหยุดทันที · รอเฉย ๆ = งานของบอสไม่สะดุด)
+ *   ล็อกของโปรเซสที่ตายแล้ว = ไม่ต้องรอ (คนถัดไปที่ขอล็อกเก็บกวาดเอง) · รอเกิน รอ ms = หยุด exit 3 บอกว่ารออะไร
+ * @param {string} งาน คำสั่งอ่านที่กำลังรอ (โชว์บนจอ)
+ * @param {{ รอ?: number }} [opt] รอได้นานสุด (ค่าตั้งต้น 3 ชั่วโมง · PMS_PROD_READ_WAIT_MS)
+ */
+export function รอฐานจริงว่าง(งาน, { รอ = Number(process.env.PMS_PROD_READ_WAIT_MS || 3 * 3_600_000) } = {}) {
+  const ที่ = lockPath(), หมดเวลา = Date.now() + รอ;
+  let บอกแล้ว = false;
+  for (;;) {
+    const cur = อ่านล็อก(ที่);
+    if (!cur || !ยังทำงานอยู่(cur.pid) || cur.pid === process.pid || (cur.token && cur.token === process.env.PMS_PROD_LOCK_HELD)) {
+      if (บอกแล้ว) console.error(`▶ ฐานจริงว่างแล้ว — เริ่ม "${งาน}"`);
+      return;
+    }
+    const ใคร = `"${cur.งาน ?? "ไม่ทราบ"}" (เริ่ม ${cur.เริ่ม ?? "?"} · โปรเซส ${cur.pid})`;
+    if (Date.now() >= หมดเวลา) {
+      console.error(`⛔ หยุด "${งาน}" — รองาน ${ใคร} ที่กำลังแตะฐานจริงเกินเวลาแล้ว · ไฟล์ล็อก: ${ที่}`);
+      process.exit(3);
+    }
+    if (!บอกแล้ว) { console.error(`⏳ รอ — งาน ${ใคร} กำลังแตะฐานจริง · "${งาน}" จะเริ่มเมื่องานนั้นจบ (ไม่ยิงแทรก)`); บอกแล้ว = true; }
+    นอน(1000);
+  }
+}
 
 /**
  * ขอล็อก — ได้: คืน { token, release } · ไม่ได้ (มีอีกตัวรันอยู่): พิมพ์เหตุผลแล้ว process.exit(3)

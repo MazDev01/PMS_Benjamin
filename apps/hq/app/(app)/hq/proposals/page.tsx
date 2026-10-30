@@ -32,6 +32,7 @@ import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/compo
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { formatPhone } from "@pms/shared/lib/format";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 
 const PRIMARY = "#003366";
 const STEEL = "#2D2D2D";
@@ -40,7 +41,7 @@ const BORDER = "#e5e7eb";
 
 /** ข้อความพื้นที่ — ทุกภาค = ทั่วประเทศ */
 const พื้นที่ของใบ = (p: DealerPackageProposal) =>
-  p.region === "ทุกภาค" ? "ทั่วประเทศ" : [p.province, p.region ? `ภาค${p.region}` : ""].filter(Boolean).join(" · ") || "—";
+  p.region === "ทุกภาค" ? "ทั่วประเทศ" : [p.province, p.region ? ชื่อภาค(p.region) : ""].filter(Boolean).join(" · ") || "—";
 
 // ปุ่มไอคอนในแถว — หน้าตาเดียวกับหน้าใบเสนอราคาของดีลเลอร์
 const ปุ่มไอคอน = (อันตราย = false): React.CSSProperties => ({

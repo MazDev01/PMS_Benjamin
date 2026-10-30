@@ -27,6 +27,8 @@ import { ช่องขอราคา, ตัวอย่างช่อง } 
 import { MaterialEstimatePicker, type วัสดุที่เลือก } from "@pms/shared/components/ui/MaterialEstimatePicker";
 import { ป้ายราคาประเมิน } from "@pms/shared/lib/materialTemplates";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 
 // ยกเลิกคำขอ / ขอแก้ราคา = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) — กล่องรอฐาน + รอรายการคำขอโหลดใหม่ก่อนปิด
 //   เดิมเป็นฟอร์มในแผง: ปุ่มไม่บอกว่ากำลังทำ · เหตุผลว่างกดได้แล้วขึ้นตัวแดงเล็ก · ปิดฟอร์มก่อนรายการโหลดใหม่
@@ -157,18 +159,14 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
                 ใบ HQ {ใบHQ.quoteNo} · เวอร์ชัน {ใบHQ.version}
                 <span style={{ fontWeight: 400, color: "#6b7280" }}> · ยืนราคาถึง {ใบHQ.validUntil ? วันไทยสั้น(ใบHQ.validUntil) : "—"}</span>
               </div>
-              <div className="table-scroll">
-                <table className="table" style={{ width: "100%", fontSize: "0.78rem" }} aria-label="รายการในใบ HQ">
-                  <thead><tr><th>รายการ</th><th style={{ textAlign: "right" }}>จำนวน</th><th>หน่วย</th><th style={{ textAlign: "right" }}>ต้นทุน/หน่วย</th><th style={{ textAlign: "right" }}>ยอด</th></tr></thead>
-                  <tbody>
-                    {ใบHQ.lineItems.map((l, i) => (
-                      <tr key={i}><td>{l.name}</td><td style={{ textAlign: "right" }}>{Number(l.qty).toLocaleString()}</td><td>{l.unit}</td>
-                        <td style={{ textAlign: "right" }}>{บาท(Number(l.unitCost))}</td><td style={{ textAlign: "right" }}>{บาท(ยอดบรรทัด(l))}</td></tr>
-                    ))}
-                  </tbody>
-                  <tfoot><tr><td colSpan={4} style={{ textAlign: "right", fontWeight: 700 }}>ต้นทุนรวมจาก HQ</td><td style={{ textAlign: "right", fontWeight: 800 }} data-testid="dealer-hq-quote-total">{บาท(Number(ใบHQ.totalCost))}</td></tr></tfoot>
-                </table>
-              </div>
+              {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69 · เดิม "38ตัน") */}
+              <ตารางรายการ ป้าย="รายการในใบ HQ" แน่น กว้างขั้นต่ำ={560} แถว={ใบHQ.lineItems} คอลัมน์={[
+                { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "34%", ค่า: l => l.name, ชี้: l => l.name },
+                { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "13%", ค่า: l => จัดรูปจำนวน(l.qty) },
+                { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "13%", ค่า: l => จัดรูปหน่วย(l.unit) },
+                { key: "cost", หัว: "ต้นทุน/หน่วย", ชนิด: "เงิน", กว้าง: "20%", ค่า: l => บาท(Number(l.unitCost)) },
+                { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "20%", ค่า: l => บาท(ยอดบรรทัด(l)) },
+              ]} ท้าย={<tr><td colSpan={5} className="num" style={{ fontWeight: 700 }}>ต้นทุนรวมจาก HQ</td><td className="num" style={{ fontWeight: 800 }} data-testid="dealer-hq-quote-total">{บาท(Number(ใบHQ.totalCost))}</td></tr>} />
               {ใบHQ.note && <div style={{ color: "#4b5563" }}>หมายเหตุจาก HQ: {ใบHQ.note}</div>}
               <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคานี้เป็นต้นทุนของคุณ ไม่แสดงต่อลูกค้า — ทำใบเสนอราคาให้ลูกค้าโดยบวก % จากใบนี้</div>
             </div>
