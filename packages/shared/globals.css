@@ -713,7 +713,16 @@ body {
 @media (max-width: 1100px) { .hq-cust-charts { grid-template-columns: 1fr; } }
 /* แถบตัวกรองติดบน (หน้ารายการยาว ๆ ของ HQ) — รูปแบบเดียวกับ .cust-filter ในหน้าลูกค้า */
 /* ⚠️ ต้องติดใต้แถบบน (sticky สูง --topbar-h) ไม่ใช่ขอบจอ — เดิม top:8px แถบตัวกรองมุดไปซ่อนใต้แถบบนตอนเลื่อน (บอสทัก 22 ก.ย. 69) */
-.hq-sticky-filter { position: sticky; top: calc(var(--topbar-h, 64px) + 8px); z-index: 20; }
+/* 30 ต.ค. 69 (บอสสั่ง · ตัวแก้ส่วนกลางชุดเดียวของ /hq/pipeline · /hq/leads · /hq/quotations · /hq/customers):
+     เดิมค้างห่างแถบบน 8px → เนื้อหาที่เลื่อนผ่านโผล่ในช่องนั้นเหมือนตัวกรองทับเนื้อหา
+     ตอนนี้ติดใต้แถบบนพอดี · พื้นหลังทึบ · เงาบางแบ่งจากเนื้อหาที่เลื่อนอยู่ข้างใต้
+     จอแคบ (≤ 768px) ตัวกรองขึ้นหลายบรรทัด — ไม่ค้าง (ค้างแล้วบังเนื้อหาเกือบครึ่งจอ) · ข้อทดสอบ tests/scenario/hq-sticky-filter.spec.ts */
+.hq-sticky-filter, .cust-filter {
+  position: sticky; top: var(--topbar-h, 64px); z-index: 20;
+  background: var(--card, #fff);
+  box-shadow: 0 6px 12px -10px rgba(16, 40, 80, .35);
+}
+@media (max-width: 768px) { .hq-sticky-filter, .cust-filter { position: static; box-shadow: none; } }
 /* Dealer · ลูกค้า → แผงรายละเอียดโครงการ: ซ้าย = ภาพแม่แบบ · ขวา = ข้อมูลโครงการ */
 @media (max-width: 860px) {
   .proj-shell { grid-template-columns: 1fr !important; }
@@ -756,7 +765,7 @@ body {
 @media (max-width: 1280px) { .cust-analytics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 680px)  { .cust-analytics { grid-template-columns: 1fr; } }
 /* ตัวกรองปักบนสุดเวลาเลื่อนตาราง */
-.cust-filter { position: sticky; top: calc(var(--topbar-h, 64px) + 8px); z-index: 20; }
+/* .cust-filter ใช้กติกาเดียวกับ .hq-sticky-filter (ด้านบน) */
 /* แท่งการส่งมอบรายเดือน — โตจากฐาน */
 @keyframes bar-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .bar-grow-y { transform-origin: bottom; animation: bar-grow-y .7s cubic-bezier(.4,0,.2,1) both; }
@@ -855,6 +864,12 @@ body {
 /* หัวตารางมีพื้นจางๆ ให้ดูจบ (subtle · ทุกตารางทั้งระบบ) */
 .table-wrap thead th { background: #f7f9fc; }
 .table-wrap td.num, .table-wrap th.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* ตารางรายการกลาง (components/ui/LineItemsTable.tsx · บอสสั่ง 30 ต.ค. 69): ช่องกรอกในคอลัมน์ตัวเลขชิดขวาตามหัว · ปุ่มอยู่กลางช่อง */
+.table-wrap td.num input { text-align: right; }
+.table-wrap th.li-center, .table-wrap td.li-center { text-align: center; }
+.table-wrap[data-line-items] thead th { border-bottom: 1px solid var(--border); letter-spacing: 0; }   /* ระยะห่างตัวอักษรของหัวมาตรฐานดันขอบขวาของหัวคอลัมน์ตัวเลขเลยแนวข้อมูล */
+.table-wrap[data-line-items] td.li-wrap { white-space: normal; overflow-wrap: anywhere; }
+.table-wrap[data-line-items] td.num { white-space: nowrap; }
 /* ตารางกระชับ — ใช้กับตารางหลายคอลัมน์ที่อยู่ในการ์ดครึ่งจอ (~550px)
    padding ปกติข้างละ 1rem × 7 คอลัมน์ = กินไป 224px ทำให้คอลัมน์ท้ายถูกดันออกนอกกรอบ
    ลดเหลือข้างละ 0.5rem → คืนพื้นที่ ~112px พอให้ทุกคอลัมน์อยู่ในกรอบโดยไม่ต้องเลื่อนแนวนอน */

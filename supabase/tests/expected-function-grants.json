@@ -1,5 +1,5 @@
 {
- "migration": "0262",
+ "migration": "0264",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -815,6 +815,13 @@
   },
   {
    "f": "hq_overview()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_pipeline_dealers(p_start date, p_end date, p_dealers text[], p_today date)",
    "anon": false,
    "authenticated": true,
    "service_role": false,

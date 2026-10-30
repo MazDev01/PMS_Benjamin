@@ -26,6 +26,8 @@ import { useModalA11y } from "@pms/shared/lib/useModalA11y";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 import { PanelSection, PanelRow } from "@pms/shared/components/ui/DetailPanel";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 
 const เลขฉบับ = (q: QuotationMock) => Number(ป้ายฉบับ(q.revision).slice(1));
 
@@ -146,28 +148,14 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
 
           <PanelSection icon={Coins} title="รายการสินค้า" bodyStyle={{ padding: 0, overflow: "hidden" }}>
             {/* จอแคบ: ตารางเลื่อนในกล่องตัวเอง — หน้าไม่เลื่อนแนวนอน */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", minWidth: 460, borderCollapse: "collapse" }}>
-                <thead><tr>
-                  <th style={th}>รายการ</th><th style={{ ...th, textAlign: "right" }}>จำนวน</th>
-                  <th style={th}>หน่วย</th><th style={{ ...th, textAlign: "right" }}>ราคา/หน่วย</th>
-                  <th style={{ ...th, textAlign: "right" }}>รวม</th>
-                </tr></thead>
-                <tbody>
-                  {lis.length === 0 ? (
-                    <tr><td style={{ ...td, textAlign: "center", color: "#9aa2ad" }} colSpan={5}>ไม่มีรายการ</td></tr>
-                  ) : lis.map((it, i) => (
-                    <tr key={i}>
-                      <td style={{ ...td, fontWeight: 600 }}>{it.name || "—"}</td>
-                      <td style={{ ...td, textAlign: "right" }}>{it.qty.toLocaleString("th-TH")}</td>
-                      <td style={td}>{it.unit || "—"}</td>
-                      <td style={{ ...td, textAlign: "right" }}>{it.unitPrice.toLocaleString("th-TH")}</td>
-                      <td style={{ ...td, textAlign: "right", fontWeight: 700, color: "#003366" }}>{fmtFull(it.qty * it.unitPrice)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
+            <ตารางรายการ ป้าย="รายการสินค้าในใบเสนอราคา" แน่น กว้างขั้นต่ำ={520} ว่าง="ไม่มีรายการ" แถว={lis} คอลัมน์={[
+              { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "34%", สไตล์: () => ({ fontWeight: 600 }), ค่า: it => it.name || "—", ชี้: it => it.name },
+              { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "13%", ค่า: it => จัดรูปจำนวน(it.qty) },
+              { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "13%", ค่า: it => จัดรูปหน่วย(it.unit) },
+              { key: "price", หัว: "ราคา/หน่วย", ชนิด: "เงิน", กว้าง: "20%", ค่า: it => it.unitPrice.toLocaleString("th-TH") },
+              { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "20%", สไตล์: () => ({ fontWeight: 700, color: "#003366" }), ค่า: it => fmtFull(it.qty * it.unitPrice) },
+            ]} />
             <div data-quote-totals style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 14px", borderTop: "1px solid #eef0f4", background: "#f7f9fc" }}>
               {([
                 ["ยอดรวมก่อน VAT", fmtFull(ภาษีใบ.subtotal), { คีย์: "subtotal" }],

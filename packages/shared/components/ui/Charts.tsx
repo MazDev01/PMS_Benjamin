@@ -231,13 +231,18 @@ export function ProgressRing({ pct, size = 50, color = NAVY }: { pct: number | n
   }, [pct]);
   // เส้นโค้งวาดได้สูงสุด 1 รอบ (เกิน 100% วาดเพิ่มไม่ได้) — แต่ "ตัวเลขเก็บค่าจริง" ไม่ถูกตัด
   const arc = Math.max(0, Math.min(100, shown));
+  // ตัวเลขกลางวงต้องอยู่ในวง (บอสสั่ง 30 ต.ค. 69 · หน้าภาพรวมยอดขาย "วงกลม % ไม่ล้นกรอบ"):
+  //   เดิมตัวอักษรขนาดตายตัว 24% ของวง — "1234%" กว้างเกินวงด้านใน · ตอนนี้ย่อตามจำนวนตัวอักษรให้กว้างไม่เกินเส้นผ่านวงด้านใน
+  const ข้อความ = pct == null ? "—" : `${pct}%`;
+  //   วงด้านใน = 2r − ความหนาเส้น 9 · เผื่อขอบข้างละ 3px ไม่ให้ตัวเลขชิดเส้นวง · ตัวอักษรหนาไทย/อารบิกกว้าง ≈ 0.68 เท่าของขนาด
+  const ขนาดตัวอักษร = Math.min(size * 0.24, (2 * r - 9 - 6) / (ข้อความ.length * 0.68));
   return (
     <svg width={size} height={size} style={{ flexShrink: 0 }} role="img" aria-label={pct == null ? "ยังไม่มีข้อมูล" : `${pct}%`}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EEF2F7" strokeWidth={9} />
       <circle className="ring-arc" cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={9} strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - arc / 100)}
         transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central" fontSize={size * 0.24} fontWeight={800} fill={pct == null ? "#94a3b8" : color}>{pct == null ? "—" : `${pct}%`}</text>
+      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central" fontSize={ขนาดตัวอักษร} fontWeight={800} fill={pct == null ? "#94a3b8" : color}>{ข้อความ}</text>
     </svg>
   );
 }

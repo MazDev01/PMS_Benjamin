@@ -65,6 +65,8 @@ import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
 import { แจ้งพลาด, แจ้งสำเร็จ, ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 
 // ── Design tokens ────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -1479,46 +1481,29 @@ export default function CustomersPage(){
                       ))}
                     </div>
                     {/* รายการสินค้า (BOQ) */}
-                    <div className="table-wrap" style={{border:"1px solid #eef1f5",borderRadius:10,overflow:"hidden"}}>
-                      <table>
-                        <colgroup>
-                          <col style={{width:"40%",minWidth:150}} /><col style={{width:"14%",minWidth:70}} />
-                          <col style={{width:"14%",minWidth:70}} /><col style={{width:"16%",minWidth:90}} />
-                          <col style={{width:"16%",minWidth:90}} />
-                        </colgroup>
-                        <thead><tr><th>รายการ</th><th className="num">จำนวน</th><th>หน่วย</th><th className="num">ราคา/หน่วย</th><th className="num">รวม</th></tr></thead>
-                        <tbody>
-                          {lis.length===0 ? (
-                            <tr><td colSpan={5} style={{textAlign:"center",padding:"18px",color:MUTED,fontSize:"0.78rem"}}>— ใบนี้ไม่มีรายการสินค้าบันทึกไว้</td></tr>
-                          ) : lis.map((li,i)=>(
-                            <tr key={i}>
-                              <td style={{fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={li.name}>{li.name}</td>
-                              <td className="num">{li.qty.toLocaleString()}</td>
-                              <td style={{color:MUTED}}>{li.unit}</td>
-                              <td className="num">{li.unitPrice.toLocaleString()}</td>
-                              <td className="num" style={{fontWeight:700}}>{fmtMoney(li.qty*li.unitPrice)}</td>
-                            </tr>
-                          ))}
-                          {/* ยอดท้าย BOQ ให้ครบเหมือนหน้าใบเสนอราคา — VAT อ่านจากนโยบาย HQ (แหล่งเดียว ไม่ hardcode) */}
-                          {lis.length>0 && (
-                            <>
-                              <tr>
-                                <td colSpan={4} style={{textAlign:"right",color:MUTED,background:"#f8fafc"}}>{lis.length} รายการ · ยอดรวมย่อย</td>
-                                <td className="num" style={{fontWeight:700,color:STEEL,background:"#f8fafc"}}>{fmtMoney(boqTotal)}</td>
-                              </tr>
-                              <tr>
-                                <td colSpan={4} style={{textAlign:"right",color:MUTED,background:"#f8fafc"}}>VAT {vatPct}%</td>
-                                <td className="num" style={{color:STEEL,background:"#f8fafc"}}>{fmtMoney(Math.round(boqTotal*vatPct/100))}</td>
-                              </tr>
-                              <tr>
-                                <td colSpan={4} style={{textAlign:"right",fontWeight:800,color:STEEL,background:"#f8fafc"}}>ยอดรวมสุทธิ (รวม VAT)</td>
-                                <td className="num" style={{fontWeight:800,color:PRIMARY,background:"#f8fafc"}}>{fmtMoney(boqTotal + Math.round(boqTotal*vatPct/100))}</td>
-                              </tr>
-                            </>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                    {/* ตารางรายการกลาง: ลำดับ · รายการ · จำนวน · หน่วย · ราคา/หน่วย · ยอด (บอสสั่ง 30 ต.ค. 69) */}
+                    <ตารางรายการ ป้าย="รายการสินค้าในใบเสนอราคา" กว้างขั้นต่ำ={560} กรอบ={{border:"1px solid #eef1f5",borderRadius:10}} ว่าง="— ใบนี้ไม่มีรายการสินค้าบันทึกไว้" แถว={lis} คอลัมน์={[
+                      { key:"name", หัว:"รายการ", ชนิด:"ข้อความ", กว้าง:"34%", สไตล์:()=>({fontWeight:700,color:STEEL}), ค่า:li=>li.name, ชี้:li=>li.name },
+                      { key:"qty", หัว:"จำนวน", ชนิด:"จำนวน", กว้าง:"12%", ค่า:li=>จัดรูปจำนวน(li.qty) },
+                      { key:"unit", หัว:"หน่วย", ชนิด:"หน่วย", กว้าง:"12%", สไตล์:()=>({color:MUTED}), ค่า:li=>จัดรูปหน่วย(li.unit) },
+                      { key:"price", หัว:"ราคา/หน่วย", ชนิด:"เงิน", กว้าง:"18%", ค่า:li=>li.unitPrice.toLocaleString() },
+                      { key:"total", หัว:"ยอด", ชนิด:"เงิน", กว้าง:"18%", สไตล์:()=>({fontWeight:700}), ค่า:li=>fmtMoney(li.qty*li.unitPrice) },
+                    ]} ท้าย={lis.length>0 ? (
+                      <>
+                        <tr>
+                          <td colSpan={5} className="num" style={{color:MUTED,background:"#f8fafc"}}>{lis.length} รายการ · ยอดรวมย่อย</td>
+                          <td className="num" style={{fontWeight:700,color:STEEL,background:"#f8fafc"}}>{fmtMoney(boqTotal)}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={5} className="num" style={{color:MUTED,background:"#f8fafc"}}>VAT {vatPct}%</td>
+                          <td className="num" style={{color:STEEL,background:"#f8fafc"}}>{fmtMoney(Math.round(boqTotal*vatPct/100))}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={5} className="num" style={{fontWeight:800,color:STEEL,background:"#f8fafc"}}>ยอดรวมสุทธิ (รวม VAT)</td>
+                          <td className="num" style={{fontWeight:800,color:PRIMARY,background:"#f8fafc"}}>{fmtMoney(boqTotal + Math.round(boqTotal*vatPct/100))}</td>
+                        </tr>
+                      </>
+                    ) : undefined} />
                     {q.note && (
                       <div style={{marginTop:12,fontSize:"0.75rem",color:"#374151",lineHeight:1.6}}>
                         <span style={{color:"#8a929c"}}>หมายเหตุ: </span>{q.note}

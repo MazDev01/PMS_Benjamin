@@ -126,6 +126,7 @@ export const metrics: MetricsRepo = {
   hqCustomersPage: (opts) => dedupeRead(`metrics.hqCustomersPage:${JSON.stringify(opts)}`, () => _metrics.hqCustomersPage(opts)),
   hqCustomersFilterOptions: () => dedupeRead("metrics.hqCustomersFilterOptions", () => _metrics.hqCustomersFilterOptions()),
   hqOverview: () => dedupeRead("metrics.hqOverview", () => _metrics.hqOverview()),
+  hqPipelineDealers: (start, end, dealers, today) => dedupeRead(`metrics.hqPipelineDealers:${start}:${end}:${JSON.stringify(dealers)}:${today ?? ""}`, () => _metrics.hqPipelineDealers(start, end, dealers, today)),
   kpiCards: (page, start, end, dealer, today, filters) => dedupeRead(`metrics.kpiCards:${page}:${start ?? ""}:${end ?? ""}:${dealer ?? ""}:${today ?? ""}:${JSON.stringify(filters ?? null)}`, () => _metrics.kpiCards(page, start, end, dealer, today, filters)),
   hqDashboard: (start, end, dealer, today) => dedupeRead(`metrics.hqDashboard:${start}:${end}:${dealer ?? ""}:${today ?? ""}`, () => _metrics.hqDashboard(start, end, dealer, today)),
 };

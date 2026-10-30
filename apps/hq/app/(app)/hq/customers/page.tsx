@@ -36,6 +36,7 @@ import { เดือนนี้ } from "@pms/shared/lib/kpiCards";
 import { CustomerAnalytics } from "@pms/shared/components/hq/customers/CustomerAnalytics";
 import { CustomerTable } from "@pms/shared/components/hq/customers/CustomerTable";
 import { CustomerDrawer } from "@pms/shared/components/hq/customers/CustomerDrawer";
+import { ชื่อภาค, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
 
 const PAGE_SIZE = 10;
 
@@ -288,8 +289,8 @@ export default function HQCustomersPage() {
           onChange={e => { setRegionSel(e.target.value); setProvinceSel("all"); }}
           className="form-select" style={selectStyle}
         >
-          <option value="all">ทุกภาค</option>
-          {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+          <option value="all">{ป้ายทุกภูมิภาค}</option>
+          {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
         </select>
 
         <select aria-label="กรองตามจังหวัด" value={provinceSel} onChange={e => setProvinceSel(e.target.value)} className="form-select" style={selectStyle}>

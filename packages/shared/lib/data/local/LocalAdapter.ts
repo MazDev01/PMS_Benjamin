@@ -951,6 +951,8 @@ export const LocalAdapter: DataAdapter = {
     hqDashboard: () => ok(แดชบอร์ดHQว่าง()),
     // การ์ด KPI คิดที่ฐานเท่านั้น (ใบ 0246) — โหมดข้อมูลตัวอย่างไม่มีฐาน = ทุกใบขึ้น "—"
     kpiCards: () => ok({}),
+    // โหมดตัวอย่าง: ไม่มีตัวคำนวณที่ฐาน — ไม่กุตัวเลข (ตารางขึ้นว่าง)
+    hqPipelineDealers: () => ok([]),
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);
       const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
