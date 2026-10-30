@@ -121,6 +121,13 @@
    "definer": true
   },
   {
+   "f": "_lead_customer_info_complete(p_company text, p_contact text, p_phone text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_lead_flow_set_status(p_dealer text, p_num_id integer, p_status lead_status, p_lost_reason text)",
    "anon": false,
    "authenticated": false,
@@ -133,6 +140,20 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "_lead_info_tasks(p_tasks jsonb, p_status text, p_assigned text, p_company text, p_contact text, p_phone text, p_province text, p_project text, p_area text, p_note text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_lead_job_info_complete(p_province text, p_project text, p_area text, p_note text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "_lead_quote_value(p_dealer text, p_num integer)",
@@ -178,6 +199,13 @@
   },
   {
    "f": "_lead_system_tasks()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_lead_task_set(p_tasks jsonb, p_key text, p_label text, p_done boolean, p_by text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -1102,6 +1130,13 @@
   },
   {
    "f": "leads_system_tasks_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "leads_tasks_info_auto()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
