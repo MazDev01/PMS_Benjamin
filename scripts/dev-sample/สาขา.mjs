@@ -1,8 +1,8 @@
 // ── ส่วน "สาขา": ดีลเลอร์ที่มีบัญชีเข้าระบบ ≥ 4 ราย · จังหวัดเดียว 2 สาขา · ข้อมูลบริษัทครบ 3 ไม่ครบ 1 (บอสสั่ง 28 ต.ค. 69) ─────
 // มีอยู่แล้วในข้อมูลตั้งต้น: RYG (ระยอง) · CNX (เชียงใหม่) — บัญชีเข้าระบบ + ข้อมูลบริษัทครบ
 // ส่วนนี้เพิ่ม 2 สาขา ทางเดียวกับหน้าเว็บ (FLOW H2–H5: ผู้สนใจ → ใบค่าแฟรนไชส์ส่ง → ตอบรับ → ชำระครบ → แปลงเป็นดีลเลอร์):
-//   RYT  ระยอง (จังหวัดเดียวกับ RYG · ใบ 0214 จังหวัดเดียวหลายดีลเลอร์) + จันทบุรี · ดีลเลอร์กรอกข้อมูลบริษัทครบที่หน้าตั้งค่า
-//   SKN  สกลนคร + นครพนม · ข้อมูลบริษัทมีแค่ชื่อ (ค่าตั้งต้นตอนเปิดสาขา) = ไม่ครบ → ส่ง/พิมพ์ใบไม่ได้ (ใบ 0247)
+//   RYT  ระยอง (จังหวัดเดียวกับ RYG · ใบ 0214 จังหวัดเดียวหลายดีลเลอร์) · ดีลเลอร์กรอกข้อมูลบริษัทครบที่หน้าตั้งค่า
+//   SKN  สกลนคร · ข้อมูลบริษัทมีแค่ชื่อ (ค่าตั้งต้นตอนเปิดสาขา) = ไม่ครบ → ส่ง/พิมพ์ใบไม่ได้ (ใบ 0247)
 // แปลงเป็นดีลเลอร์: ทำตามขั้นของ apps/hq/app/api/admin/dealers/route.ts (เส้นทางผู้ดูแลฝั่งเซิร์ฟเวอร์ · กุญแจ service_role)
 //   — ตัวรันข้อมูลตัวอย่างทำงานก่อนเปิดเว็บ (scripts/dev-db.mjs) จึงเรียกเส้นทางเว็บไม่ได้ ทำขั้นเดียวกันด้วย ctx.svc
 //   อีเมลเข้าระบบ = <รหัสสาขาตัวเล็ก>@dealer.benjaminpebsteel.com (lib/dealerLogin.ts · หน้าเข้าระบบพิมพ์รหัสสาขา) · รหัสผ่านในไฟล์นอก repo
@@ -14,8 +14,9 @@ import { เข้าHQ } from "./งานขาย.mjs";
 
 export const ชื่อ = "สาขา";
 export const สาขาใหม่ = [
-  { code: "RYT", province: "ระยอง", region: "ตะวันออก", พื้นที่: ["ระยอง", "จันทบุรี"], ครบ: true, เบอร์: 7101 },
-  { code: "SKN", province: "สกลนคร", region: "ตะวันออกเฉียงเหนือ", พื้นที่: ["สกลนคร", "นครพนม"], ครบ: false, เบอร์: 7102 },
+  // ดีลเลอร์ 1 ราย = 1 จังหวัดพอดี (ใบ 0259 · บอสตัดสิน 29 ต.ค. 69) — เดิม RYT/SKN ดูแล 2 จังหวัด ฐาน dev ลงใบ 0259 ไม่ได้ (30 ต.ค. 69)
+  { code: "RYT", province: "ระยอง", region: "ตะวันออก", ครบ: true, เบอร์: 7101 },
+  { code: "SKN", province: "สกลนคร", region: "ตะวันออกเฉียงเหนือ", ครบ: false, เบอร์: 7102 },
 ];
 const ชื่อสาขา = (code) => `ดีลเลอร์ตัวอย่าง ${code}`;
 const ชื่อผู้สนใจ = (code) => `ว่าที่ดีลเลอร์ตัวอย่าง ${code}`;   // ไม่ขึ้นต้น "ผู้สนใจตัวอย่าง" (ของส่วนขั้นทั้งหมด)
@@ -78,7 +79,7 @@ export async function สร้าง(ctx) {
     const { data: ใบตอบรับ } = await svc.from("dealer_package_proposals").select("annual_target, package").eq("id", ใบ.id).single();
     ต้อง(await svc.from("dealers").insert({ code: s.code, name, province: s.province, region: s.region, status: "active",
       revenue_target: Number(ใบตอบรับ.annual_target), package: ใบตอบรับ.package, prospect_id: ราย.id }), `ทะเบียนสาขา ${s.code}`);
-    ต้อง(await svc.from("dealer_territories").insert(s.พื้นที่.map(p => ({ province: p, dealer_code: s.code }))), `พื้นที่ดูแล ${s.code}`);
+    //   พื้นที่ดูแล = จังหวัดที่ตั้ง — ฐานเขียนให้เอง (ตัวดัก dealers_territory_sync · ใบ 0259) ไม่ใส่เอง
     await ctx.บัญชีผู้ใช้({ email: อีเมลสาขา(s.code), role: "DEALER_ADMIN", dealer_code: s.code, name });
     ต้อง(await svc.from("dealer_settings").insert({ dealer_code: s.code, issuer: { company: name } }), `ชื่อบริษัทตั้งต้น ${s.code}`);
     ต้อง(await svc.from("dealer_prospects").update({ status: "won", dealer_code: s.code, converted_at: new Date().toISOString(), lost_reason: null })
@@ -96,7 +97,7 @@ export async function สร้าง(ctx) {
         document: { vatPercent: 7, validityDays: 30, quotePrefix: "Q-", termsAndConditions: `เงื่อนไขตัวอย่างของ ${s.code}` } },
         { onConflict: "dealer_code" }), `ข้อมูลบริษัท ${s.code}`);
     }
-    console.log(`✓ ${s.code} ${s.province} · บัญชี ${อีเมลสาขา(s.code)} · พื้นที่ ${s.พื้นที่.join("/")} · ข้อมูลบริษัท${s.ครบ ? "ครบ" : "ไม่ครบ (มีแค่ชื่อ)"}`);
+    console.log(`✓ ${s.code} ${s.province} · บัญชี ${อีเมลสาขา(s.code)} · พื้นที่ ${s.province} · ข้อมูลบริษัท${s.ครบ ? "ครบ" : "ไม่ครบ (มีแค่ชื่อ)"}`);
   }
   console.log("✓ ดีลเลอร์มีบัญชี 4 ราย (RYG · CNX · RYT · SKN) · ระยองมี 2 สาขา (RYG · RYT) · ข้อมูลบริษัทครบ 3 ไม่ครบ 1 (SKN)");
 }

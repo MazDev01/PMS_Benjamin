@@ -67,19 +67,29 @@ if (st.status !== 0 || !st.stdout.includes(String(พอร์ตAPI))) {
 const ในฐาน = sh("docker", ["exec", คอนเทนเนอร์, "psql", "-U", "postgres", "-d", "postgres", "-At", "-c",
   "select version from supabase_migrations.schema_migrations order by version"], { shell: false });
 const เหตุสร้างใหม่ = เหตุต้องสร้างใหม่(ในฐาน.status === 0 ? ในฐาน.stdout.split(/\r?\n/).filter(Boolean) : [], ใบ.map(f => f.split("_")[0]));
-if (เหตุสร้างใหม่) {
+const ท้าย = (r) => (r.stderr || r.stdout).split(/\r?\n/).filter(l => !/^NOTICE/.test(l)).slice(-15).join("\n");
+function สร้างใหม่(เหตุ) {
   const ไฟล์เวลา = path.join(ที่ฐานdev, ".rebuild-seconds");
   const ครั้งก่อน = existsSync(ไฟล์เวลา) ? Number(readFileSync(ไฟล์เวลา, "utf8")) : 0;
-  console.log(`▶ สร้างฐาน dev ใหม่ — ${เหตุสร้างใหม่} · ใช้เวลาราว ${ครั้งก่อน ? `${Math.max(1, Math.round(ครั้งก่อน / 60))} นาที` : "3–5 นาที"} (ข้อมูลที่ลองบันทึกในฐาน dev จะหาย · ใส่ข้อมูลตัวอย่างให้ใหม่)`);
+  console.log(`▶ สร้างฐาน dev ใหม่ — ${เหตุ} · ใช้เวลาราว ${ครั้งก่อน ? `${Math.max(1, Math.round(ครั้งก่อน / 60))} นาที` : "3–5 นาที"} (ข้อมูลที่ลองบันทึกในฐาน dev จะหาย · ใส่ข้อมูลตัวอย่างให้ใหม่)`);
   const เริ่ม = Date.now();
   const r = sh("npx", ["supabase", "db", "reset", "--local", "--workdir", ที่ฐานdev]);
-  if (r.status !== 0) หยุด(`สร้างฐาน dev ใหม่ไม่สำเร็จ:\n${(r.stderr || r.stdout).split(/\r?\n/).filter(l => !/^NOTICE/.test(l)).slice(-15).join("\n")}`);
+  if (r.status !== 0) หยุด(`สร้างฐาน dev ใหม่ไม่สำเร็จ:\n${ท้าย(r)}`);
   writeFileSync(ไฟล์เวลา, String(Math.round((Date.now() - เริ่ม) / 1000)));
 }
+let สร้างแล้ว = false;
+if (เหตุสร้างใหม่) { สร้างใหม่(เหตุสร้างใหม่); สร้างแล้ว = true; }
 
-// ลงใบที่ขาด
-const ลง = sh("npx", ["supabase", "migration", "up", "--local", "--workdir", ที่ฐานdev]);
-if (ลง.status !== 0) หยุด(`ลงใบปรับฐานบนฐาน dev ไม่สำเร็จ:\n${(ลง.stderr || ลง.stdout).split(/\r?\n/).filter(l => !/^NOTICE/.test(l)).slice(-15).join("\n")}`);
+// ลงใบที่ขาด — ลงไม่ได้เพราะข้อมูลเดิมในฐาน dev ขัดกับใบใหม่ (30 ต.ค. 69: ข้อมูลตัวอย่างดีลเลอร์ 2 จังหวัด ชนใบ 0259)
+//   = สร้างฐาน dev ใหม่จากไฟล์ใบครั้งเดียวแล้วลงต่อ (ข้อมูลตัวอย่างชุดใหม่ใส่ให้เอง) · สร้างใหม่แล้วยังลงไม่ได้ = ใบผิดจริง หยุดบอกเหตุ
+let ลง = sh("npx", ["supabase", "migration", "up", "--local", "--workdir", ที่ฐานdev]);
+if (ลง.status !== 0 && !สร้างแล้ว) {
+  const ใบที่ตก = ((ลง.stdout + ลง.stderr).match(/Applying migration \S+/g) ?? []).pop()?.replace("Applying migration ", "").replace(/\.+$/, "") ?? "ใบใหม่";   // CLI พิมพ์ "0259_x.sql..." — ตัดจุดท้าย
+  สร้างใหม่(`ลง ${ใบที่ตก} บนข้อมูลเดิมของฐาน dev ไม่ได้ (ข้อมูลเดิมขัดกับใบ)`);
+  สร้างแล้ว = true;
+  ลง = sh("npx", ["supabase", "migration", "up", "--local", "--workdir", ที่ฐานdev]);
+}
+if (ลง.status !== 0) หยุด(`ลงใบปรับฐานบนฐาน dev ไม่สำเร็จ:\n${ท้าย(ลง)}`);
 const ลงใหม่ = (ลง.stdout + ลง.stderr).match(/Applying migration \S+/g) ?? [];
 console.log(ลงใหม่.length ? `▶ ลงใบปรับฐานบนฐาน dev ${ลงใหม่.length} ใบ` : "▶ ฐาน dev ใบปรับฐานครบแล้ว");
 
