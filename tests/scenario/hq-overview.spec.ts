@@ -96,6 +96,7 @@ const เลข = 970_000_000 + (Date.now() % 100_000) * 10;   // รหัส�
 test.afterAll(async () => {
   if (!สาขา) return;
   รันSQLในฐาน(`set local session_replication_role = replica;
+    delete from public.quotation_won_at where dealer_code = '${สาขา.รหัส}';
     delete from public.quotations where dealer_code = '${สาขา.รหัส}';
     delete from public.customers where dealer_code = '${สาขา.รหัส}';
     delete from public.hq_quotes where request_id = ${เลข};
@@ -116,8 +117,9 @@ test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายก�
       (${เลข}, ${เลข}, 1, 'HQ-${code}-1', 'ordered', '[]', 300000, now() - interval '8 days', now() - interval '5 days');
     insert into public.customers (id, dealer_code, name, company, province) values
       (${เลข}, '${code}', 'ZZTEST ลูกค้าส่วนบวก', 'ZZTEST ลูกค้าส่วนบวก', 'ตราด');
-    insert into public.quotations (id, dealer_code, customer, status, total_value, line_items, hq_quote_id, customer_id) values
-      ('${code}-Q1', '${code}', 'ZZTEST ลูกค้าส่วนบวก', 'won', 400000, '[]', ${เลข}, ${เลข});
+    insert into public.quotations (id, dealer_code, customer, status, total_value, line_items, hq_quote_id, customer_id, won_at) values
+      ('${code}-Q1', '${code}', 'ZZTEST ลูกค้าส่วนบวก', 'won', 400000, '[]', ${เลข}, ${เลข}, now());
+    insert into public.quotation_won_at (dealer_code, quote_id, won_at) values ('${code}', '${code}-Q1', now());
     set local session_replication_role = origin;`);
   if (ใส่ === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางใบของสาขาของข้อไม่ได้");
   await loginUI(page, HQ_ORIGIN, "/hq/quote-requests", ADMIN);
@@ -142,20 +144,44 @@ test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายก�
   expect(คำขอ.s.ยกเลิก, "อัตรายกเลิก = ฐาน").toBe(r.cancel.pct == null ? "" : String(r.cancel.pct));
   expect(คำขอ.s.ข้อความ, "จำนวนยกเลิก/ทั้งหมด = ฐาน").toContain(`(${r.cancel.cancelled.toLocaleString()} จาก ${r.cancel.total.toLocaleString()})`);
 
-  const การ์ด = page.getByTestId("dealer-margin");
-  const ส่วนบวก = await อ่านคู่นิ่ง(async () => (await ฐาน()).sales.marginByDealer, async () => {
+  // 30 ต.ค. 69 (บอสสั่งยุบหน้า /hq/pipeline ให้ตรง FLOW H12): การ์ด "ส่วนบวกรายดีลเลอร์" รวมเข้าคอลัมน์ "ส่วนต่างกำไร" ของตารางผลงานดีลเลอร์
+  //   ตัวเลขทั้งตารางมาจากตัวคำนวณกลางของหน้า hq_pipeline_dealers (ใบ 0264 · ชุดเดียวกับการ์ด) ตามช่วงที่เลือก (ค่าตั้งต้น "ปีนี้")
+  //   ใบตอบรับนับตามวันตอบรับ (ใบ 0260) → ใบของข้อตอบรับวันนี้ · ทุกแถวที่มีส่วนต่าง = ฐาน · แถวของข้อ = ค่าที่รู้แน่นอน
+  const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
+  type แถวผลงาน = { code: string; sales: number; marginSale: number; marginCost: number; marginPct: number | null };
+  const ตาราง = page.locator('table[aria-label="ตารางผลงานดีลเลอร์"]');
+  const ผลงานฐาน = async () => {
+    const { data, error } = await hq.rpc("hq_pipeline_dealers", { p_start: ต้นปี, p_end: วันนี้, p_dealers: null, p_today: วันนี้ });
+    expect(error).toBeNull();
+    return data as แถวผลงาน[];
+  };
+  // ทั้งเครือ: แถวรวมของคอลัมน์ส่วนต่าง (ตารางแบ่งหน้า 10 แถว — ผลรวมครอบทุกแถว) = ฐาน · % คิดจากผลรวมขาย/ต้นทุน
+  const รวม = await อ่านคู่นิ่ง(async () => {
+    const rows = await ผลงานฐาน();
+    const ขาย = rows.reduce((t, x) => t + Number(x.marginSale), 0), ทุน = rows.reduce((t, x) => t + Number(x.marginCost), 0);
+    return ขาย === 0 ? "" : String(Math.round(1000 * (ขาย - ทุน) / ขาย) / 10);
+  }, async () => {
     await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await expect(การ์ด.locator(`[data-margin-row='${code}']`), "แถวส่วนบวกของสาขาของข้อ").toBeVisible({ timeout: 25_000 });
-    return await การ์ด.locator("[data-margin-row]").evaluateAll(rs => rs.map(x => ({
-      code: x.getAttribute("data-margin-row"), sale: x.querySelector("[data-sale]")?.getAttribute("data-sale") ?? null,
-      pct: x.querySelector("[data-pct-sale]")?.getAttribute("data-pct-sale") ?? null })));
+    const ช่อง = ตาราง.locator("tfoot [data-sum='margin']");
+    await expect(ช่อง).toBeVisible({ timeout: 25_000 });
+    return await ช่อง.getAttribute("data-value");
   });
-  // ทุกแถว = ฐาน (ชุดเดียวกัน ช่วงเดียวกัน)
-  expect(ส่วนบวก.s, "แถวส่วนบวก = รายดีลเลอร์จากฐาน").toEqual(ส่วนบวก.r.map(x => ({ code: x.dealerCode, sale: String(Number(x.sale)), pct: x.pctOfSale == null ? "" : String(x.pctOfSale) })));
-  // แถวของสาขาของข้อ = ค่าที่รู้แน่นอน
-  expect(ส่วนบวก.s.find(x => x.code === code), "สาขาของข้อ: ขาย 400,000 ต้นทุน 300,000 → 25% ของราคาขาย").toEqual({ code, sale: "400000", pct: "25" });
+  expect(รวม.s, "ส่วนต่างกำไรรวมทั้งเครือ = ฐาน").toBe(รวม.r);
+  // แถวของสาขาของข้อ (ค้นด้วยรหัส → เหลือแถวเดียว) = ฐาน = ค่าที่รู้แน่นอน
+  await page.getByLabel("ค้นหาดีลเลอร์").fill(code);
+  const แถว = ตาราง.locator("tbody tr").filter({ has: page.locator(`td[data-perf-row='${code}']`) });
+  await expect(แถว, "แถวของสาขาของข้อ").toHaveCount(1, { timeout: 25_000 });
+  const ของข้อ = (await ผลงานฐาน()).find(x => x.code === code);
+  expect(ของข้อ && { sale: Number(ของข้อ.marginSale), cost: Number(ของข้อ.marginCost), pct: Number(ของข้อ.marginPct) }, "ฐาน: ขาย 400,000 ต้นทุน 300,000 → 25%")
+    .toEqual({ sale: 400000, cost: 300000, pct: 25 });
+  expect({ sales: await แถว.locator("td[data-cell='sales']").getAttribute("data-value"), margin: (await แถว.locator("td[data-cell='margin']").innerText()).trim() },
+    "สาขาของข้อ: ยอดขาย 400,000 · ส่วนต่าง 25% ของราคาขาย").toEqual({ sales: "400000", margin: "25.0%" });
 
+  // ดีลเลอร์เรียกตัวคำนวณของหน้าภาพรวมยอดขาย (ส่วนต่าง/ต้นทุน HQ) ไม่ได้ — กันที่ฐาน
+  const ดีลเลอร์ผลงาน = await (await db(RYG)).rpc("hq_pipeline_dealers", { p_start: ต้นปี, p_end: วันนี้, p_dealers: null, p_today: วันนี้ });
+  expect(ดีลเลอร์ผลงาน.error?.message ?? "", "ดีลเลอร์อ่านผลงาน/ส่วนต่างไม่ได้").toMatch(/forbidden/);
   // ดีลเลอร์เรียกตัวคำนวณภาพรวม (ส่วนบวก/ต้นทุน HQ) ไม่ได้ — กันที่ฐาน
   const ดีลเลอร์ = await (await db(RYG)).rpc("hq_overview");
   expect(ดีลเลอร์.error?.message ?? "", "ดีลเลอร์อ่านส่วนบวกไม่ได้").toMatch(/forbidden/);
