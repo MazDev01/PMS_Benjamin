@@ -101,6 +101,21 @@ export default function HQLeadsPage() {
     ?? เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
   const [province, setProvince] = useState<string>("ALL");
   const [viewLead, setViewLead] = useState<LeadRow | null>(null);  // Drawer — ดูอย่างเดียว
+  // ?open=รหัสสาขา:รหัสลีด (กดแถวในแท็บลูกค้าเป้าหมายของแผงดีลเลอร์ · บอสสั่ง 30 ต.ค. 69) = เปิดแผงลีดนั้น แล้วล้างออกจาก URL
+  //   รหัสลีดซ้ำกันได้ข้ามสาขา → ค้นในสาขานั้นเท่านั้น · ไม่พบ = ไม่เปิดอะไร
+  useEffect(() => {
+    const ค่า = new URLSearchParams(window.location.search).get("open");
+    if (!ค่า) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    const k = ค่า.indexOf(":");
+    const สาขา = ค่า.slice(0, k), รหัส = ค่า.slice(k + 1);
+    if (k < 1 || !รหัส) return;
+    let alive = true;
+    leadsRepo.listPage(undefined, { limit: 20, offset: 0, dealerCodes: [สาขา], search: รหัส })
+      .then(r => { const l = r.rows.find(x => x.id === รหัส && dealerCodeOf(x) === สาขา); if (alive && l) setViewLead(l); })
+      .catch(e => logRepoRead("leads.listPage(open)", e));
+    return () => { alive = false; };
+  }, []);
   const [dealerSel, setDealerSel] = useState<string>("ALL");
   const [regionSel, setRegionSel] = useState<string>("ALL");
   const [srcSel, setSrcSel] = useState<string>("ALL");

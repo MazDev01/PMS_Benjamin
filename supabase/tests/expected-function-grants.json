@@ -1,5 +1,5 @@
 {
- "migration": "0265",
+ "migration": "0266",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -822,6 +822,13 @@
   },
   {
    "f": "hq_dashboard(p_start date, p_end date, p_dealer text, p_today date)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_dealer_panel(p_code text, p_activity_limit integer)",
    "anon": false,
    "authenticated": true,
    "service_role": false,

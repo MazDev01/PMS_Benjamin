@@ -955,6 +955,7 @@ export const LocalAdapter: DataAdapter = {
     kpiCards: () => ok({}),
     // โหมดตัวอย่าง: ไม่มีตัวคำนวณที่ฐาน — ไม่กุตัวเลข (ตารางขึ้นว่าง)
     hqPipelineDealers: () => ok([]),
+    hqDealerPanel: () => ok(null),   // โหมดตัวอย่างไม่มีตัวคำนวณของฐาน — แผงแสดง "—"
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);
       const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);

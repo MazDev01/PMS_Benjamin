@@ -133,6 +133,13 @@ export default function SalesAnalyticsPage() {
   // ── ตัวกรอง (แถวเดียว ค้างใต้แถบบนตอนเลื่อน — ส่วนกลาง .hq-sticky-filter) ──
   const [q, setQ] = useState("");
   const [dealerSel, setDealerSel] = useState(ALL);
+  // ?dealer=รหัส (ปุ่ม "ดูผลงาน" จากหน้า/แผงดีลเลอร์ · บอสสั่ง 30 ต.ค. 69) = เลือกดีลเลอร์นั้นไว้ให้ · ตั้งหลังเปิดหน้า แล้วล้างออกจาก URL
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("dealer");
+    if (!code) return;
+    setDealerSel(code.toUpperCase());
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
   const [regionSel, setRegionSel] = useState(ALL);
   const [provSel, setProvSel] = useState(ALL);
   const [salesSel, setSalesSel] = useState(ALL);

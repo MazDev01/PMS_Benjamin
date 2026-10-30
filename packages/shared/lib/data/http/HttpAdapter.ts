@@ -414,6 +414,7 @@ const metrics: MetricsRepo = {
   hqDashboard: (start, end, dealer, today) => metric("hqDashboard", { start, end, dealer: dealer ?? null, today: today ?? null }),
   kpiCards: (page, start, end, dealer, today, filters) => metric("kpiCards", { page, start: start ?? null, end: end ?? null, dealer: dealer ?? null, today: today ?? null, filters: filters ?? null }),
   hqPipelineDealers: (start, end, dealers, today) => metric("hqPipelineDealers", { start, end, dealers: dealers ?? null, today: today ?? null }),
+  hqDealerPanel: (code, activityLimit) => metric("hqDealerPanel", { code, activityLimit: activityLimit ?? 10 }),
 };
 // ── งานขาย ──
 // scope ส่งไปกับคำขอ (?hq=1 / ?dealer=…) — RLS ที่ DB ยังเป็นด่านจริง อันนี้แค่ไม่ดึงเกินจำเป็น

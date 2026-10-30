@@ -499,6 +499,8 @@ export interface MetricsRepo {
     filters?: import("../kpiCards").KpiFilters | null): Promise<import("../kpiCards").KpiCardsData>;
   /** ผลงานรายดีลเลอร์ของหน้าภาพรวมยอดขาย (ใบ 0264 · hq_pipeline_dealers) — ชุดเดียวกับการ์ด hq.pipeline · dealers = ชุดสาขาที่ผ่านตัวกรอง (null = ทั้งเครือ) · HQ เท่านั้น */
   hqPipelineDealers(start: string, end: string, dealers: string[] | null, today?: string | null): Promise<import("../hqPipeline").ผลงานดีลเลอร์[]>;
+  /** แผงดีลเลอร์ด้านขวาของหน้า HQ ดีลเลอร์ (ใบ 0266 · hq_dealer_panel) — งานดูแลเป็นจำนวน ไม่มีเงิน · ไม่พบ/แถว HQ = null */
+  hqDealerPanel(code: string, activityLimit?: number): Promise<import("../hqDealerPanel").แผงดีลเลอร์ | null>;
 }
 
 // ── โดเมนงานขาย — list (อ่าน) + CRUD เต็ม (Phase 0) ──

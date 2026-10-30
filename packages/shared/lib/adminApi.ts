@@ -25,6 +25,8 @@ async function adminToken(): Promise<string> {
  *  เดิมยิงตรง ๆ: ใช้หน้า HQ นานจนใบผ่านหมดอายุ แล้วกด "เข้าระบบแทน" / สร้างดีลเลอร์ / ดูรหัสผ่าน ได้ 401 ใช้งานไม่ได้จนรีเฟรชหน้า
  *  (ทดลองใช้เว็บจริงแทนบอส 21 ต.ค. 69 · ข้อทดสอบ tests/unit/adminFetchRefresh.test.ts) */
 export async function adminFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  // คำสั่งที่เขียน (ไม่ใช่อ่าน) อาจเปลี่ยนอีเมลเข้าระบบของสาขา → ทิ้งผลอ่านที่เก็บไว้ (listDealerLoginEmails)
+  if ((init.method ?? "GET").toUpperCase() !== "GET") อีเมลเข้าระบบล่าสุด = null;
   const ยิง = () => fetch(url, { credentials: "same-origin", ...init });
   let res = await ยิง();
   if (res.status === 401 && COOKIE_AUTH) {
@@ -229,7 +231,20 @@ export async function resetDealerPassword(
 
 /** อีเมลเข้าระบบจริงของแต่ละสาขา (รหัสสาขา → อีเมล) — สาขาที่ไม่มีบัญชีจะไม่มีคีย์
  *  ต้องถามเซิร์ฟเวอร์ ห้ามคำนวณเอาเองจากรหัสสาขา (อีเมลจริงของแต่ละสาขาไม่ได้เป็นสูตรเดียวกัน) */
-export async function listDealerLoginEmails(): Promise<Record<string, string>> {
+// ผลอ่านอีเมลเข้าระบบทั้งเครือ ใช้ร่วมกันในหน้าเดียว 30 วินาที (30 ต.ค. 69)
+//   หน้าทะเบียนดีลเลอร์ + แผงด้านขวา (การ์ดข้อมูลเข้าระบบ) เคยถามซ้ำทุกครั้งที่เปิดแผง → ชนเพดานคำขอ (429) ตอนใช้งานถี่
+//   ห้ามแก้ด้วยการเพิ่มเพดาน — ลดคำขอที่ซ้ำแทน · คำสั่งเขียนทุกตัวผ่าน adminFetch ทิ้งค่านี้ก่อนเสมอ (อีเมลที่เพิ่งแก้ไม่ค้าง)
+let อีเมลเข้าระบบล่าสุด: { at: number; p: Promise<Record<string, string>> } | null = null;
+export function listDealerLoginEmails(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (อีเมลเข้าระบบล่าสุด && now - อีเมลเข้าระบบล่าสุด.at < 30_000) return อีเมลเข้าระบบล่าสุด.p;
+  const p = ถามอีเมลเข้าระบบ();
+  อีเมลเข้าระบบล่าสุด = { at: now, p };
+  // ถามไม่สำเร็จ (ได้ {}) = ไม่เก็บไว้ใช้ซ้ำ
+  void p.then(m => { if (!Object.keys(m).length && อีเมลเข้าระบบล่าสุด?.p === p) อีเมลเข้าระบบล่าสุด = null; });
+  return p;
+}
+async function ถามอีเมลเข้าระบบ(): Promise<Record<string, string>> {
   // โหมดตัวอย่าง (เว็บ demo) ไม่มีเซิร์ฟเวอร์ให้ถาม — แต่ชุดข้อมูลตัวอย่างมีอีเมลของแต่ละสาขาอยู่แล้ว
   // เดิมคืนค่าว่างเสมอ หน้าจอจึงขึ้น "—" คู่กับรหัสผ่านที่ดูได้ คนดูเข้าใจว่าระบบเก็บอีเมลไม่ได้
   // (บอสทักท้วง 3 ก.ย. 69) · ไม่ใช่การเดาอีเมล — เป็นค่าที่อยู่ในชุดตัวอย่างจริง ๆ
