@@ -29,6 +29,7 @@
     "backup": "node scripts/backup.mjs",
     "db:push:prod": "node scripts/db-push-prod.mjs",
     "backup:verify": "node scripts/prod-backup-verify.mjs",
+    "prod:query": "node scripts/prod-query.mjs",
     "test:push-guard": "node tests/tools/db-push-prod-guard.test.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "session:new": "node scripts/session-new.mjs",

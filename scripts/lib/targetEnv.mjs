@@ -15,7 +15,12 @@
 // ใช้:  import { loadTarget } from "./lib/targetEnv.mjs";
 //       const { url, serviceKey, ref, label } = loadTarget();   // ฐานจริง
 //       const t = loadTarget({ allowTest: true });              // ยอมให้ชี้ฐานทดสอบได้ด้วย --test
+//
+// ชี้ฐานจริง = รอให้ db:push / สำรอง+ซ้อมกู้ ที่ถือล็อกฐานจริงอยู่จบก่อน (scripts/lib/prodLock.mjs · รอฐานจริงว่าง)
+//   ตัวที่ขอล็อกเองหลังเรียกตัวนี้ (db-push-prod · prod-backup-verify) ส่ง { ถือล็อกเอง: true } — ไม่รอ แต่ขอล็อก (ไม่ได้ = หยุดบอกเหตุ)
 import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
+import { รอฐานจริงว่าง } from "./prodLock.mjs";
 
 export function readEnvFile(file) {
   const out = {};
@@ -34,12 +39,14 @@ export function refOf(url) {
 }
 
 /**
- * @param {{ allowTest?: boolean, quiet?: boolean }} opt
+ * @param {{ allowTest?: boolean, quiet?: boolean, ถือล็อกเอง?: boolean }} opt
  *   allowTest — ให้ใส่ --test ตอนเรียกเพื่อสลับไปฐานทดสอบได้ (ค่าตั้งต้น: ไม่ให้)
+ *   ถือล็อกเอง — สคริปต์ขอล็อกฐานจริงเองต่อจากนี้ (db:push · สำรอง+ซ้อมกู้) = ไม่รอคิวตรงนี้
  */
 export function loadTarget(opt = {}) {
   const wantTest = opt.allowTest && process.argv.includes("--test");
   const file = wantTest ? "apps/hq/.env.local" : ".env.production.local";
+  if (!wantTest && !opt.ถือล็อกเอง) รอฐานจริงว่าง(`อ่าน/เขียนฐานจริง (${path.basename(process.argv[1] ?? "สคริปต์")})`);
 
   if (!existsSync(file)) {
     // ยังไม่ได้แยกไฟล์ (เครื่องที่ยัง setup ไม่ครบ) — ถอยไปใช้ของแอปแต่ต้องบอกให้รู้ตัว

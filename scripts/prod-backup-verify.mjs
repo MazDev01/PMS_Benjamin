@@ -98,7 +98,7 @@ process.env.PMS_PROD_LOCK_HELD = ล็อก.token;
 // ── 0. ปลายทางถูกตัว ──
 let ต้นทางเลือก;
 if (target === "prod") {
-  const { ref } = loadTarget({ quiet: true });
+  const { ref } = loadTarget({ quiet: true, ถือล็อกเอง: true });   // ถือล็อกฐานจริงอยู่แล้ว (ด้านบน)
   const ผูก = existsSync(path.join(OPS, "supabase/.temp/project-ref")) ? readFileSync(path.join(OPS, "supabase/.temp/project-ref"), "utf8").trim() : "";
   if (!ref || ผูก !== ref) ไม่ผ่าน(`โฟลเดอร์ ${OPS} ไม่ได้ผูกฐานจริง (ผูกอยู่: ${ผูก || "ไม่มี"})`);
   ต้นทางเลือก = ["--linked"];
