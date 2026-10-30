@@ -8,7 +8,6 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // ใช้ข้อมูลจริงจาก SalesContext (leads) — HQ ดูอย่างเดียว (Sales CRM เท่านั้น)
 import { useMemo, useState, useEffect, useRef } from "react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
-import { LeadProgressBar } from "@pms/shared/components/ui/LeadProgressBar";
 import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
@@ -20,7 +19,7 @@ import {
   User, Phone, Mail, MapPin, Compass, Wallet, CalendarDays,
   Store, IdCard, UserCheck, FileText, Activity, CalendarClock, Paperclip, StickyNote, Lock, AlertTriangle,
 } from "lucide-react";
-import { useNetworkLeads, useNetworkQuotations, useLeadSummary, useLeadsPage, useNetworkQuoteRange, useUnassignedLeads, useDashboardQuoteSummary, useLeadAppointments } from "@pms/shared/lib/useNetworkData";
+import { useNetworkLeads, useNetworkQuotations, useLeadSummary, useLeadsPage, useUnassignedLeads, useDashboardQuoteSummary, useLeadAppointments } from "@pms/shared/lib/useNetworkData";
 import type { LeadSummaryFilters, LeadListOpts } from "@pms/shared/lib/data/ports";
 import { DEFAULT_LEAD_RULES } from "@pms/shared/lib/mock";
 import { useLeadRulesOf } from "@pms/shared/lib/useHQRules";
@@ -32,7 +31,7 @@ import { PanelSection, PanelRow, PanelStats, PanelStat, ย่อชื่อ } 
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { dealers as dealersRepo, leads as leadsRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
-import { regionDisplay } from "@pms/shared/lib/hqQuotations";  // แหล่งเดียวของชื่อภาค — ไม่ก็อปโค้ดซ้ำ
+import { ภาคมาตรฐาน, ชื่อภาค, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";  // แหล่งเดียวของชื่อภาค — ไม่ก็อปโค้ดซ้ำ
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { DEALER_FILES_EVENT, type DealerFile } from "@pms/shared/lib/mock";
@@ -48,7 +47,6 @@ import {
   type MonthRange,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
-import { QUOTED_UP } from "@pms/shared/lib/mock";
 import { ช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
 import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น, สีกราฟขั้น, ตัวเลือกขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
@@ -107,11 +105,14 @@ export default function HQLeadsPage() {
   const [regionSel, setRegionSel] = useState<string>("ALL");
   const [srcSel, setSrcSel] = useState<string>("ALL");
 
-  // ลูกค้าเป้าหมายในช่วงเวลาที่เลือก (ตาม createdAt) — แหล่งเดียวของทั้งหน้า
-  const scoped = useMemo(() => leads.filter(l => {
+  // ชุดลีดของหน้า (บอสตัดสิน 30 ต.ค. 69 · ใบ 0265): ไม่นับลีดของ HQ ที่ยังไม่โอน — อยู่ในกล่องโอนที่เดียว (การ์ด "ลีดของ HQ รอโอน")
+  //   ทุกส่วนของหน้า (การ์ด · กราฟ · ตาราง) นับชุดเดียวกัน · ฐานคิด (kpi_cards · lead_summary · leads_page) — ตรงนี้คือทางสำรองโหมดตัวอย่าง
+  const ของดีลเลอร์ = useMemo(() => leads.filter(l => ไม่ใช่แถวHQ({ code: l.dealerCode })), [leads]);
+  // ลูกค้าเป้าหมายในช่วงเวลาที่เลือก (ตาม createdAt)
+  const scoped = useMemo(() => ของดีลเลอร์.filter(l => {
     const d = parseThaiDate(l.createdAt ?? "");
     return !d || (d >= timeRange.start && d <= timeRange.end);
-  }), [leads, timeRange.start, timeRange.end]);
+  }), [ของดีลเลอร์, timeRange.start, timeRange.end]);
 
   // นัดหมาย + ไฟล์ — ใช้แสดงใน Drawer เท่านั้น (HQ ดูอย่างเดียว)
   // นัดหมายผูกด้วย leadId · ไฟล์ผูกด้วย source="lead" + recordId — ทั้งคู่คือ numId ของลูกค้าเป้าหมาย
@@ -134,7 +135,7 @@ export default function HQLeadsPage() {
 
   // ภาค/ชื่อของดีลเลอร์ — จากทะเบียนดีลเลอร์จริง (เดิมอ่านจากชุด seed → โหมด supabase ได้ภาคของสาขาที่ไม่มีอยู่จริง)
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
-  const REGION_OF = useMemo(() => new Map(allDealers.map(d => [d.code, d.region])), [allDealers]);
+  const REGION_OF = useMemo(() => new Map(allDealers.map(d => [d.code, ภาคมาตรฐาน(d.region) ?? d.region])), [allDealers]);   // ภาคมาตรฐาน — ชื่อแสดงผ่าน ชื่อภาค()
 
   // ตัวเลือกตัวกรอง — จากลูกค้าเป้าหมายจริงในช่วง (ไม่ hardcode) · supabase: lead_summary (เวลาอย่างเดียว) · local/ยังไม่กลับ: scoped
   const optsSummary = useLeadSummary(useMemo(() => ({ dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]));
@@ -154,21 +155,25 @@ export default function HQLeadsPage() {
   // ฐานของ KPI = ตัวกรอง "ขอบเขต" ทุกตัว (ดีลเลอร์ · ภูมิภาค · จังหวัด · แหล่งที่มา · ค้นหา)
   // แต่ยังไม่กรองด้วย "สถานะ" และ "ต้องติดตามด่วน" — สองอันนั้นคือปุ่มของการ์ด KPI เอง
   // ถ้า KPI ตามสองอันนั้นด้วย ตัวเลขจะยุบเหลือค่าเดียวทันทีที่กด การ์ดจะไร้ความหมาย
-  const kpiBase = useMemo(() => {
+  const ตรงขอบเขต = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return scoped.filter(l =>
+    return (l: LeadRow) =>
       (province === "ALL" || l.province === province) &&
       (dealerSel === "ALL" || l.dealerCode === dealerSel) &&
       (regionSel === "ALL" || REGION_OF.get(dealerCodeOf(l)) === regionSel) &&
       (srcSel === "ALL" || (l.source || "ไม่ระบุ") === srcSel) &&
-      (!q || (l.company + l.contact + l.province + l.assigned + (l.id ?? "") + (l.dealerCode ?? "")).toLowerCase().includes(q))
-    );
-  }, [scoped, query, province, dealerSel, regionSel, srcSel, REGION_OF]);
+      (!q || (l.company + l.contact + l.province + l.assigned + (l.id ?? "") + (l.dealerCode ?? "")).toLowerCase().includes(q));
+  }, [query, province, dealerSel, regionSel, srcSel, REGION_OF]);
+  // ณ ตอนนี้ (ไม่ผูกช่วงเวลา): ลีดที่เปิดอยู่ · ไม่เคลื่อนไหว — บอสตัดสิน 22 ต.ค. 69 (ยืนยันอีกครั้ง 30 ต.ค. 69)
+  const kpiBaseAll = useMemo(() => ของดีลเลอร์.filter(ตรงขอบเขต), [ของดีลเลอร์, ตรงขอบเขต]);
+  // ตามช่วงเวลา (วันที่ลีดเข้ามา): ลีดใหม่ · ปิดสำเร็จ/ปิดไม่สำเร็จ · กราฟ
+  const kpiBase = useMemo(() => scoped.filter(ตรงขอบเขต), [scoped, ตรงขอบเขต]);
 
-  const filtered = useMemo(() => kpiBase.filter(l =>
+  // ตาราง: "กำลังดำเนินการ" (ขั้น 1–5 · การ์ดลีดที่เปิดอยู่/ไม่เคลื่อนไหว) = ณ ตอนนี้ · ขั้นอื่น/ทั้งหมด = ตามช่วง
+  const filtered = useMemo(() => (status === "OPEN" ? kpiBaseAll : kpiBase).filter(l =>
     (status === "ALL" || (status === "OPEN" ? เลขขั้นแถว(l) <= 5 : เลขขั้นแถว(l) === Number(status))) &&
     (!overdueOnly || needsFollowUp(l, 30))
-  ), [kpiBase, status, overdueOnly, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
+  ), [kpiBase, kpiBaseAll, status, overdueOnly, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── M9 Phase 2: สรุปลูกค้าเป้าหมายหลังกรองที่ DB (supabase) · local/overdue/ระหว่างโหลด = client fallback ──
   const leadDealerCodes = useMemo<string[] | undefined>(() => {
@@ -184,9 +189,11 @@ export default function HQLeadsPage() {
     source: srcSel === "ALL" ? undefined : srcSel,
     search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
   };
-  // กราฟนับตามช่วงเวลาเหมือนเดิม (รวมลีดปิดแล้ว) เมื่ออยู่ที่ค่าเริ่มต้น "กำลังดำเนินการ" — เลือกปิดสำเร็จ/ไม่สำเร็จ = กรองกลุ่มนั้น
-  const sumCharts = useLeadSummary({ ...baseF, stage: status === "ALL" || status === "OPEN" ? undefined : Number(status) }); // กราฟ (filtered)
-  const chartSummary = overdueOnly ? null : sumCharts;                               // overdue → client (พึ่ง last_contact + เกณฑ์)
+  // กราฟนับตามช่วงเวลา (รวมลีดปิดแล้ว · FLOW แถว /hq/leads) — ไม่ผูกตัวกรองขั้น/ค้างติดตาม: สองตัวนั้นคุมตาราง เหมือนการ์ด
+  //   (บอสสั่ง 30 ต.ค. 69: ทุกตัวกรอง ผลรวมกราฟขั้นตอน = การ์ด · วงกลมแหล่งที่มา = การ์ดลีดใหม่)
+  const chartSummary = useLeadSummary(baseF);
+  // กราฟตามขั้นตอน ขั้น 1–5 = ลีดที่เปิดอยู่ ณ ตอนนี้ (ชุดเดียวกับการ์ด "ลีดที่เปิดอยู่") · ขั้น 6–7 = ปิดในช่วง (ตามวันที่ลีดเข้ามา)
+  const openSummary = useLeadSummary({ ...baseF, dateStart: undefined, dateEnd: undefined });
 
   // ── ตารางลูกค้าเป้าหมาย: แบ่งหน้าที่ DB (M9 Phase 4) · local/ยังไม่กลับ = filtered (client) ──
   // 10 แถว/หน้าเท่าทุกตารางในระบบ (บอสสั่ง 13 ส.ค. 69 — เดิมหน้านี้ 25 อยู่หน้าเดียวที่ไม่เหมือนใคร)
@@ -198,7 +205,8 @@ export default function HQLeadsPage() {
     stage: status === "ALL" ? undefined : status === "OPEN" ? 0 : Number(status), dealerCodes: leadDealerCodes,
     province: province === "ALL" ? undefined : province,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
-    dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
+    // กำลังดำเนินการ (ขั้น 1–5) = ณ ตอนนี้ ตรงการ์ดลีดที่เปิดอยู่ (ไม่ผูกช่วง) · ขั้นอื่น/ทั้งหมด = ลีดที่เข้ามาในช่วง
+    dateStart: status === "OPEN" ? undefined : isoDateOf(timeRange.start), dateEnd: status === "OPEN" ? undefined : isoDateOf(timeRange.end),
     // การ์ด "ไม่เคลื่อนไหวเกิน 30 วัน" (ใบ 0246) = ตัวกรองค้างติดตามที่ 30 วันทุกสาขา (กติกาเดียวกับฐาน)
     overdue: overdueOnly, asOf: isoDateOf(APP_NOW), defaultDays: 30, perDealer: undefined,
   }), [leadPage, status, leadDealerCodes, province, srcSel, query, timeRange.start, timeRange.end, overdueOnly]);
@@ -246,35 +254,8 @@ export default function HQLeadsPage() {
   const anyFilter = !!query.trim() || status !== "OPEN" || [province, dealerSel, regionSel, srcSel].some(v => v !== "ALL");
 
 
-  // ── Section 1 · ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา รายดีลเลอร์ ─────────────────────────────
-  // สาขาไหนรับลูกค้าเป้าหมายเยอะแต่ออกใบเสนอราคาน้อย = จุดที่ผู้บริหารต้องเร่ง
-  //
-  // อัตราแปลง = ลูกค้าเป้าหมายที่ไปถึงขั้น "เสนอราคา" ขึ้นไป ÷ ลูกค้าเป้าหมายทั้งหมด
-  // ตั้งใจไม่ใช้ "จำนวนใบเสนอราคา ÷ จำนวนลูกค้าเป้าหมาย" เพราะผิดความจริง 2 ทาง:
-  //   1) ลูกค้าเป้าหมาย 1 ใบออกใบเสนอราคาได้หลายใบ (revision/เสนอใหม่) → หารแล้วเกิน 100% ได้
-  //   2) ใบเสนอราคา seed ของสาขาอื่นไม่ได้ผูกกับลูกค้าเป้าหมาย → เอามาหารกันคนละชุดข้อมูล
-  // สถานะของลูกค้าเป้าหมายบอกเองว่าเคยเสนอราคาแล้วหรือยัง — ใช้แหล่งเดียว ไม่มีทางเกิน 100%
   const netQuotes = useNetworkQuotations();
   const DEALER_NAME = useMemo(() => new Map(allDealers.map(d => [d.code, d.name])), [allDealers]);
-  // ใบ/ยอดขายรายสาขาในช่วง ที่ DB (M9 Phase 4) — supabase · local/ยังไม่กลับ = netQuotes (client)
-  const rangeByDealer = useNetworkQuoteRange(timeRange.start, timeRange.end);
-  const leadVsQuote = useMemo(() => {
-    const m = new Map<string, { leads: number; quoted: number; quotes: number }>();
-    const at = (c: string) => m.get(c) ?? (m.set(c, { leads: 0, quoted: 0, quotes: 0 }), m.get(c)!);
-    // ลูกค้าเป้าหมาย/ถึงขั้นเสนอราคา รายสาขา: supabase = byDealer (chartSummary) · overdue/local = filtered
-    if (chartSummary) { chartSummary.byDealer.forEach(d => { const r = at(d.dealerCode); r.leads = d.leads; r.quoted = d.quoted; }); }
-    else filtered.forEach(l => { const r = at(l.dealerCode || "—"); r.leads++; if (QUOTED_UP.includes(l.status)) r.quoted++; });
-    // จำนวนใบในช่วง รายสาขา: supabase = rangeByDealer · local = netQuotes
-    if (rangeByDealer) { for (const [code, v] of rangeByDealer) at(code).quotes = v.quotes; }
-    else netQuotes.forEach(q => { const d = parseThaiDate(q.createdAt ?? ""); if (d && (d < timeRange.start || d > timeRange.end)) return; at(q.dealerCode).quotes++; });
-    const arr = [...m.entries()].map(([code, v]) => ({
-      code, name: DEALER_NAME.get(code) ?? code,
-      leads: v.leads, quotes: v.quotes,
-      conv: v.leads > 0 ? Math.round(v.quoted / v.leads * 100) : null,  // ไม่มีลูกค้าเป้าหมาย = คำนวณไม่ได้ ไม่ใส่ 0%
-    })).sort((a, b) => b.leads - a.leads);
-    const max = Math.max(1, ...arr.flatMap(a => [a.leads, a.quotes]));
-    return arr.map(a => ({ ...a, lPct: Math.round(a.leads / max * 100), qPct: Math.round(a.quotes / max * 100) }));
-  }, [chartSummary, filtered, rangeByDealer, netQuotes, timeRange.start, timeRange.end, DEALER_NAME]);
 
 
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ช่วงเวลา + ดีลเลอร์ที่เลือก · ไม่นับแถว HQ
@@ -291,8 +272,9 @@ export default function HQLeadsPage() {
   const kpiCards = [
     { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(การ์ด, "open"), unit: "ราย · ยังไม่ปิดการขาย", Icon: Users, color: "#2563a8", on: status === "OPEN" && !overdueOnly,
       onClick: () => { setStatus("OPEN"); setOverdueOnly(false); } },
-    { kpi: "new", label: "ลีดใหม่ในช่วงนี้", value: ค่า(การ์ด, "new"), unit: "ราย · เข้ามาในช่วงที่เลือก", Icon: PhoneCall, color: "#7c3aed", on: false,
-      onClick: () => { setStatus("OPEN"); setOverdueOnly(false); } },
+    // ลีดใหม่ = ทุกขั้นที่เข้ามาในช่วง → ตาราง "ทั้งหมด" (ตามช่วง) · จำนวนแถว = การ์ด
+    { kpi: "new", label: "ลีดใหม่ในช่วงนี้", value: ค่า(การ์ด, "new"), unit: "ราย · เข้ามาในช่วงที่เลือก", Icon: PhoneCall, color: "#7c3aed", on: status === "ALL" && !overdueOnly,
+      onClick: () => { setStatus("ALL"); setOverdueOnly(false); } },
     { kpi: "hqWaiting", label: "ลีดของ HQ รอโอน", value: ค่า(การ์ด, "hqWaiting"), unit: "ราย · ยังไม่โอนให้ดีลเลอร์", Icon: Inbox, color: "#0891B2", on: false,
       onClick: () => document.querySelector("[data-card='hq-lead-transfer']")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { kpi: "idle", label: "ไม่เคลื่อนไหวเกิน 30 วัน", value: ค่า(การ์ด, "idle"), unit: "ราย · ติดต่อล่าสุดเกิน 30 วัน", Icon: AlarmClock, color: "#EA580C", on: overdueOnly,
@@ -318,7 +300,7 @@ export default function HQLeadsPage() {
       const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
       const ในช่วง = (d: Date) => d >= timeRange.start && d <= timeRange.end;
       netQuotes.forEach(q => { const d = parseThaiDate(q.createdAt ?? ""); if (d && ในช่วง(d)) bump(quoteM, คีย์ช่อง(d, ละเอียดกราฟ)); });
-      filtered.forEach(l => {
+      kpiBase.forEach(l => {
         const d = parseThaiDate(l.createdAt ?? ""); if (!d || !ในช่วง(d)) return;
         const k = คีย์ช่อง(d, ละเอียดกราฟ);
         bump(newM, k);
@@ -338,7 +320,7 @@ export default function HQLeadsPage() {
     if (chartSummary) { // ลูกค้าเป้าหมาย: จาก byMonth ที่ DB (key YYYY-MM)
       chartSummary.byMonth.forEach(r => { const k = `${r.y}-${String(r.m + 1).padStart(2, "0")}`; newM.set(k, r.created); wonM.set(k, r.won); lostM.set(k, r.lost); });
     } else {
-      filtered.forEach(l => {
+      kpiBase.forEach(l => {
         const d = parseThaiDate(l.createdAt ?? ""); if (!d) return;
         const k = monthKeyOf(d);
         bump(newM, k);
@@ -348,27 +330,32 @@ export default function HQLeadsPage() {
     }
     const pick = (m: Map<string, number>) => buckets.map(b => m.get(b.key) ?? 0);
     return { months: buckets.map(b => b.label), newM: pick(newM), wonM: pick(wonM), lostM: pick(lostM), quoteM: pick(quoteM) };
-  }, [chartSummary, filtered, quoteTrendSum, netQuotes, trendRange, ละเอียดกราฟ, timeRange.start, timeRange.end]);
+  }, [chartSummary, kpiBase, quoteTrendSum, netQuotes, trendRange, ละเอียดกราฟ, timeRange.start, timeRange.end]);
 
   // ลูกค้าเป้าหมายตามแหล่งที่มา + ตามสถานะ (แท่งแนวนอน)
   const sources = useMemo(() => {
     const base = chartSummary
       ? chartSummary.bySource.map(r => ({ label: r.source, count: r.count }))
-      : (() => { const m = new Map<string, number>(); filtered.forEach(l => m.set(l.source || "ไม่ระบุ", (m.get(l.source || "ไม่ระบุ") ?? 0) + 1)); return [...m.entries()].map(([label, count]) => ({ label, count })); })();
+      : (() => { const m = new Map<string, number>(); kpiBase.forEach(l => m.set(l.source || "ไม่ระบุ", (m.get(l.source || "ไม่ระบุ") ?? 0) + 1)); return [...m.entries()].map(([label, count]) => ({ label, count })); })();
     const arr = [...base].sort((a, b) => b.count - a.count);
     const max = Math.max(...arr.map(a => a.count), 1);
     const total = arr.reduce((s, a) => s + a.count, 0) || 1;
     // pct = เทียบตัวมากสุด (ใช้กับแท่ง) · share = สัดส่วนของทั้งหมด (ใช้กับโดนัท) — คนละความหมาย อย่าสลับ
     return arr.map(a => ({ ...a, pct: Math.round(a.count / max * 100), share: Math.round(a.count / total * 100) }));
-  }, [chartSummary, filtered]);
+  }, [chartSummary, kpiBase]);
 
   // ตามขั้น — เลขขั้นจากฐาน (lead_summary.byStage ใบ 0251) · ชื่อขั้นจากตัวกลาง leadStage.ts
   const byStatus = useMemo(() => {
-    const byS = chartSummary ? new Map((chartSummary.byStage ?? []).map(r => [r.stage, r.count])) : null;
-    const count = (n: เลขขั้น) => byS ? (byS.get(n) ?? 0) : filtered.filter(l => เลขขั้นแถว(l) === n).length;
+    // ขั้น 1–5 = เปิดอยู่ ณ ตอนนี้ (openSummary · ชุดเดียวกับการ์ด) · ขั้น 6–7 = ปิดในช่วง (chartSummary)
+    const จากฐาน = (sum: typeof chartSummary) => sum ? new Map((sum.byStage ?? []).map(r => [r.stage, r.count])) : null;
+    const เปิด = จากฐาน(openSummary), ช่วง = จากฐาน(chartSummary);
+    const count = (n: เลขขั้น) => {
+      const ฐาน = n <= 5 ? เปิด : ช่วง;
+      return ฐาน ? (ฐาน.get(n) ?? 0) : (n <= 5 ? kpiBaseAll : kpiBase).filter(l => เลขขั้นแถว(l) === n).length;
+    };
     const max = Math.max(...เลขขั้นทั้งหมด.map(count), 1);
     return เลขขั้นทั้งหมด.map(n => ({ stage: n, count: count(n), pct: Math.round(count(n) / max * 100) }));
-  }, [chartSummary, filtered]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chartSummary, openSummary, kpiBase, kpiBaseAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Section 4 · เหตุผลที่ปิดการขายไม่สำเร็จ ────────────────────────────────
   // นับเฉพาะลูกค้าเป้าหมายที่ปิดไม่สำเร็จ "และบันทึกเหตุผลไว้จริง" — ไม่เดาเหตุผลให้ลูกค้าเป้าหมายที่ไม่ได้ระบุ
@@ -376,15 +363,15 @@ export default function HQLeadsPage() {
   const lostReasons = useMemo(() => {
     const ดิบ = chartSummary
       ? chartSummary.byLostReason.map(r => ({ reason: r.reason, count: r.count }))
-      : (() => { const m = new Map<string, number>(); filtered.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => m.set(l.lostReason!, (m.get(l.lostReason!) ?? 0) + 1)); return [...m.entries()].map(([reason, count]) => ({ reason, count })); })();
+      : (() => { const m = new Map<string, number>(); kpiBase.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => m.set(l.lostReason!, (m.get(l.lostReason!) ?? 0) + 1)); return [...m.entries()].map(([reason, count]) => ({ reason, count })); })();
     // โชว์ทุกเหตุผลตามจริง · ยุบเฉพาะหางยาวที่เกิน 6 ชิ้น (ดู groupLostReasons)
     // แล้วเติมก้อน "อื่นๆ (ไม่ได้ระบุเหตุผล)" ให้ผลรวมของชิ้นเท่ากับเลขกลางวงเสมอ
     const ปิดไม่สำเร็จทั้งหมด = chartSummary
       ? (chartSummary.byStatus.find(s => s.status === "CANCELLED")?.count ?? 0)
-      : filtered.filter(l => l.status === "CANCELLED").length;
+      : kpiBase.filter(l => l.status === "CANCELLED").length;
     const มีเหตุผล = ดิบ.reduce((s, r) => s + r.count, 0);
     return withUnspecified(groupLostReasons(ดิบ), ปิดไม่สำเร็จทั้งหมด - มีเหตุผล);
-  }, [chartSummary, filtered]);
+  }, [chartSummary, kpiBase]);
 
 
 
@@ -439,7 +426,7 @@ export default function HQLeadsPage() {
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…"
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
           {leadSel(dealerSel, setDealerSel, "ทุกดีลเลอร์", dealerOpts.map(o => ({ v: o, l: `${o} – ${DEALER_NAME.get(o) ?? o}` })))}
-          {leadSel(regionSel, setRegionSel, "ทุกภูมิภาค", regionOpts.map(o => ({ v: o, l: regionDisplay(o) })))}
+          {leadSel(regionSel, setRegionSel, ป้ายทุกภูมิภาค, regionOpts.map(o => ({ v: o, l: ชื่อภาค(o) })))}
           {leadSel(province, setProvince, "ทุกจังหวัด", provinces.map(p => ({ v: p, l: p })))}
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
           {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–5) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
@@ -499,18 +486,19 @@ export default function HQLeadsPage() {
                 แท่งกลุ่ม ไม่ใช่แท่งซ้อน — สี่ชุดนี้เป็นขั้นของลูกค้าเป้าหมายเดียวกัน บวกกันแล้วยอดรวมไม่มีความหมาย */}
             <GroupedBarChart months={trend.months} vw={560} height={210} fmt={v => `${Math.round(v)}`}
               series={[
-                { name: "ลูกค้าเป้าหมายใหม่", color: "#003366", data: trend.newM },
+                { name: "ลีดใหม่", color: "#003366", data: trend.newM },
                 { name: "ใบเสนอราคา", color: "#0891b2", data: trend.quoteM },
-                { name: "ปิดการขาย", color: "#10B981", data: trend.wonM },
-                { name: "ปิดไม่สำเร็จ", color: "#dc2626", data: trend.lostM },
+                { name: ชื่อขั้น(6), color: "#10B981", data: trend.wonM },
+                { name: ชื่อขั้น(7), color: "#dc2626", data: trend.lostM },
               ]} />
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header"><div className="card-title">ตามขั้นตอน</div></div>
-          <div className="card-body" style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* data-ready = ตัวเลขมาจากฐานครบทั้งสองชุดแล้ว (ข้อทดสอบรอก่อนอ่าน · ระหว่างโหลดเป็นทางสำรองในเครื่อง) */}
+          <div className="card-body" data-stage-chart data-ready={chartSummary && openSummary ? "1" : ""} style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
             {byStatus.map(s => { const c = สีกราฟขั้น[s.stage]; return (
-              <div key={s.stage}>
+              <div key={s.stage} data-stage={s.stage} data-count={s.count}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", marginBottom: 3 }}>
                   <span style={{ color: "#374151", fontWeight: 600 }}>{ชื่อขั้น(s.stage)}</span><span style={{ fontWeight: 800, color: c }}>{s.count}</span>
                 </div>
@@ -530,7 +518,8 @@ export default function HQLeadsPage() {
             ย้ายมาจากแถว 3 · การ์ดกว้างขึ้น (ครึ่งจอ) → วางโดนัทซ้าย legend ขวา แบบเดียวกับใบข้าง ๆ */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
           <div className="card-header"><div className="card-title">ตามแหล่งที่มา</div><GitBranch size={16} color="#9ca3af" /></div>
-          <div className="card-body" style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
+          <div className="card-body" data-source-chart data-ready={chartSummary ? "1" : ""} data-total={sources.reduce((t, x) => t + x.count, 0)}
+            style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!sources.length ? (
               <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>— ไม่มีข้อมูลในช่วงที่เลือก</div>
             ) : (<>
@@ -594,38 +583,33 @@ export default function HQLeadsPage() {
           หัวตารางพื้นเทาและเส้นแบ่งแถวเป็นมุมเหลี่ยม จึงทาบทับพ้นส่วนโค้งออกมาทั้งสี่มุม = "ตารางทะลุขอบ"
           เดิมไม่เจอเพราะการ์ดตัดมุมบนทิ้ง (เชื่อมกับแถบตัวกรอง) — พอคืนมุมโค้งครบ อาการเลยโผล่
           การเลื่อนแนวนอนยังทำงานปกติ เพราะ .table-wrap มี overflow-x: auto เป็นตัวเลื่อนของมันเอง */}
-      <div className="card" style={{ marginBottom: 0, overflow: "hidden" }}>
+      <div className="card" data-lead-table data-ready={leadsPage ? "1" : ""} data-total={leadTotal} style={{ marginBottom: 0, overflow: "hidden" }}>
         <div className="table-wrap">
-          <table>
-            {/* 11 คอลัมน์ · รวม minWidth = 1,056px — ไม่เกินพื้นที่จริง 1,128px (วัดที่จอ 1440 · 11 ส.ค. 69)
-                (16 ต.ค. 69: ถอดคอลัมน์ "ประเภทอาคาร" — เอาแม่แบบออกทั้งระบบ · 9% ยกให้คอลัมน์ "ลูกค้า")
-                ชุดก่อนหน้ารวม 1,214px → เกินไป 86px ตารางจึงยังมีแถบเลื่อนแนวนอนคาอยู่
-                (เดิม 13 คอลัมน์ = 1,440px · ที่ประหยัดมาได้: รวม "รหัสดีลเลอร์" เข้ากับ "ดีลเลอร์" ซึ่งข้อมูลซ้ำกัน)
-                จอกว้างกว่า 1440 คอลัมน์จะยืดตาม % เอง (รวมต้องได้ 100)
-                เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่เท่านั้น (table-layout: fixed — ใส่ที่ <th> ไม่มีผล)
-                และต้องคุมผลรวม minWidth ไม่ให้เกินกรอบ ไม่งั้นกลับมาล้นอีก */}
+          <table aria-label="ตารางลูกค้าเป้าหมายทั้งเครือ">
+            {/* แบบเดียวกับตารางลูกค้าเป้าหมายฝั่งดีลเลอร์ (บอสส่งแบบ 28 ต.ค. 69) + คอลัมน์ดีลเลอร์ (บอสสั่ง 30 ต.ค. 69)
+                · เอาคอลัมน์ "ความคืบหน้า %" ออก (ซ้ำป้ายขั้นตอน และขั้นตอนไม่มีตัวเลข)
+                · "งานที่ต้องการ" คงไว้ = ช่อง project ที่ดีลเลอร์กรอกในฟอร์มลีด (ข้อมูลจริง · ไม่กรอก = "—")
+                · ชื่อบริษัท / ดีลเลอร์ / มูลค่า / หัวคอลัมน์ ไม่ตัด ไม่ตกบรรทัดที่จอกว้าง — ชี้แล้วเห็นเต็ม (title)
+                เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่เท่านั้น (table-layout: fixed — ใส่ที่ <th> ไม่มีผล) · รวม % = 100 */}
             <colgroup>
-              {/* ลำดับคอลัมน์ตามที่บอสสั่ง 28 ต.ค. 69 (เหมือนตารางของดีลเลอร์) · รหัสดีลเลอร์อยู่ใต้ชื่อบริษัท · ต้องติดตามอยู่ใต้กิจกรรมล่าสุด
-                  ข้อความตกบรรทัดได้ ไม่ตัดเป็น "…" ที่จอกว้าง */}
-              <col style={{ width: "15%", minWidth: 160 }} />{/* บริษัท / ผู้ติดต่อ (+ ดีลเลอร์) */}
-              <col style={{ width: "8%", minWidth: 84 }} />{/* จังหวัดหน้างาน */}
-              <col style={{ width: "8%", minWidth: 84 }} />{/* ช่องทางที่มา */}
-              <col style={{ width: "11%", minWidth: 110 }} />{/* งานที่ต้องการ */}
-              <col style={{ width: "6%", minWidth: 72 }} />{/* พื้นที่ */}
-              <col style={{ width: "11%", minWidth: 128 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
-              <col style={{ width: "9%", minWidth: 112 }} />{/* ความคืบหน้า แถบ 5 ช่อง + % */}
-              <col style={{ width: "8%", minWidth: 84 }} />{/* มูลค่า */}
-              <col style={{ width: "10%", minWidth: 110 }} />{/* ผู้รับผิดชอบ */}
-              <col style={{ width: "9%", minWidth: 108 }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
-              <col style={{ width: "5%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน (ปุ่ม 28px + padding ของ td) */}
+              <col style={{ width: "20%", minWidth: 190 }} />{/* บริษัท / ผู้ติดต่อ */}
+              <col style={{ width: "15%", minWidth: 170 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
+              <col style={{ width: "8%", minWidth: 112 }} />{/* จังหวัดหน้างาน */}
+              <col style={{ width: "7%", minWidth: 104 }} />{/* ช่องทางที่มา */}
+              <col style={{ width: "9%", minWidth: 112 }} />{/* งานที่ต้องการ */}
+              <col style={{ width: "7%", minWidth: 104 }} />{/* พื้นที่ (ตร.ม.) */}
+              <col style={{ width: "9%", minWidth: 124 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
+              <col style={{ width: "8%", minWidth: 104 }} />{/* มูลค่า "฿12,345,678" */}
+              <col style={{ width: "6%", minWidth: 104 }} />{/* ผู้รับผิดชอบ */}
+              <col style={{ width: "8%", minWidth: 108 }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
+              <col style={{ width: "3%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน */}
             </colgroup>
             <thead><tr>
-              <th>บริษัท / ผู้ติดต่อ</th><th>{ช่อง.จังหวัด}</th><th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
-              <th>{ช่อง.ขั้นตอน}</th><th>ความคืบหน้า</th>
-              {/* หัวคอลัมน์ต้องสั้นพอไม่ให้ถูกตัด (th ตั้ง white-space: nowrap ทั้งระบบ) — ไฟล์ส่งออกยังใช้ชื่อเต็ม */}
+              <th>บริษัท / ผู้ติดต่อ</th><th>ดีลเลอร์</th><th>{ช่อง.จังหวัด}</th><th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
+              <th>{ช่อง.ขั้นตอน}</th>
               <th className="num">มูลค่า</th><th>{ช่อง.ผู้รับผิดชอบ}</th><th>กิจกรรมล่าสุด</th>
-              {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 (26 ส.ค. 69) */}
-              <th style={ตรึงคอลัมน์ปุ่ม(true)}></th>
+              {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอแคบ (26 ส.ค. 69) */}
+              <th style={ตรึงคอลัมน์ปุ่ม(true)} aria-label="ดู"></th>
             </tr></thead>
             <tbody>
               {displayLeads.length === 0 ? (
@@ -641,18 +625,18 @@ export default function HQLeadsPage() {
                 // ผลคือ React แยกสองแถวไม่ออก อาจสลับ/ซ้ำ/หายเวลาข้อมูลอัปเดต (ตารางลูกค้าแก้ถูกอยู่แล้ว)
                 return (
                   <ClickableRow key={`${l.dealerCode ?? ""}-${l.id}`} className="clickable" onActivate={() => setViewLead(l)} label={`เปิดรายละเอียดลูกค้าเป้าหมาย ${l.company}`}>
-                    <td className="wrap">
-                      <div style={{ fontWeight: 700, color: "#1F2937", overflowWrap: "anywhere" }}>{l.company}</div>
-                      <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflowWrap: "anywhere" }}>{l.contact}</div>
-                      {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — รหัส + ชื่อ */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, flexWrap: "wrap" }} data-cell="dealer">
-                        <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{l.dealerCode || "—"}</span>
-                        <span style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflowWrap: "anywhere" }}>{DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}</span>
-                      </div>
+                    <td data-cell="company" title={[l.company, l.contact].filter(Boolean).join(" · ")}>
+                      <div style={{ fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis" }}>{l.company || "—"}</div>
+                      <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis" }}>{l.contact || "—"}</div>
                     </td>
-                    <td className="wrap" style={{ color: "var(--muted-foreground)" }}>{l.province || "—"}</td>
-                    <td className="wrap" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }}>{l.source || "—"}</td>
-                    <td className="wrap" data-cell="project" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", overflowWrap: "anywhere" }}>{l.project || "—"}</td>
+                    {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — รหัส + ชื่อ */}
+                    <td data-cell="dealer" title={`${l.dealerCode ?? "—"} ${DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}`}>
+                      <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{l.dealerCode || "—"}</span>
+                      <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis" }}>{DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}</div>
+                    </td>
+                    <td style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>
+                    <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source || undefined}>{l.source || "—"}</td>
+                    <td data-cell="project" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.project || undefined}>{l.project || "—"}</td>
                     <td className="num" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.area != null ? Number(l.area).toLocaleString() : "—"}</td>
                     {/* ── ปิดไม่สำเร็จ = ต้องเห็นเหตุผลจากหน้ารายการเลย (บอสสั่ง 21 ส.ค. 69) ──────
                         เดิมต้องเปิดแผงรายละเอียดทีละใบถึงจะรู้ว่าเสียงานเพราะอะไร
@@ -668,8 +652,7 @@ export default function HQLeadsPage() {
                         </span>
                       )}
                     </td>
-                    <td><LeadProgressBar l={l} มีใบร่าง={quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l))} /></td>
-                    <td className="num" style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</td>
+                    <td className="num" data-cell="value" style={{ fontWeight: 800, color: PRIMARY }} title={มูลค่าอ่านง่าย(มูลค่าลีด(l))}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</td>
                     <td className="wrap"><AssigneeAvatars value={l.assigned} size={24} /></td>
                     <td className="wrap" data-cell="activity">
                       <span style={{ color: "var(--muted-foreground)", fontSize: "0.76rem", whiteSpace: "nowrap" }}>{last}</span>
