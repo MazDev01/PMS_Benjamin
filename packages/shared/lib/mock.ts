@@ -1614,6 +1614,8 @@ export type HQQuotation = {
   /** วันที่ของใบในรายงานยอดขาย (YYYY-MM-DD): ใบตอบรับ = วันลูกค้าตอบรับ · ใบอื่น = วันออกใบ (lib/salesDate.ts · ใบ 0260) */
   salesDate?: string | null;
   salesperson: string;
+  /** จังหวัดหน้างาน = จังหวัดของลีดที่ใบผูกอยู่ (ไม่มีลีด = ไม่มีค่า → แสดง "—") */
+  siteProvince?: string;
   productLine: string;
   // ── รายละเอียดราคา: มีเฉพาะใบที่ดีลเลอร์สร้างจริง (สาขา CNX) — ใบ seed ของสาขาอื่นไม่มี ──
   // valueNum = มูลค่างานก่อน VAT · materialCost = ราคารวมจากรายการสินค้า (เท่ากับ valueNum)

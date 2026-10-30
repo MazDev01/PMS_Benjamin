@@ -71,7 +71,7 @@ const HQ: { ที่: string; หน้า: string | null; การ์ด: [st
   { ที่: "/hq/pipeline", หน้า: "hq.pipeline", การ์ด: [["sales", "sales.value"], ["winRate", "winRate.rate"], ["margin", "margin.pct"], ["onTarget", "onTarget.reached"]] },
   { ที่: "/hq/leads", หน้า: "hq.leads", การ์ด: [["open", "open"], ["new", "new"], ["hqWaiting", "hqWaiting"], ["idle", "idle"]] },
   { ที่: "/hq/quotations", หน้า: "hq.quotations", การ์ด: [["sent", "sent"], ["awaiting", "awaiting"], ["won", "won.value"], ["acceptRate", "acceptRate"]] },
-  { ที่: "/hq/customers", หน้า: "hq.customers", การ์ด: [["total", "total"], ["new", "new"], ["sales", "sales"], ["dealers", "dealers.with"]] },
+  { ที่: "/hq/customers", หน้า: "hq.customers", การ์ด: [["total", "total"], ["new", "new"], ["dealers", "dealers.with"]] },   // 3 ใบ (บอสสั่ง 30 ต.ค. 69 · เอายอดขายเดือนนี้ออก)
   { ที่: "/hq/audit", หน้า: "hq.audit", การ์ด: [["actionsToday", "actionsToday"], ["usersToday", "usersToday"], ["impersonations", "impersonations"], ["reversals", "reversals"]] },
   { ที่: "/hq/users", หน้า: "hq.users", การ์ด: [["total", "total"], ["active", "active"], ["inactive", "inactive"], ["signedIn30", "signedIn30"]] },
 ];
@@ -87,7 +87,8 @@ async function แถวการ์ดครบ4(page: Page, ที่: string)
   await expect(แถว.first(), `${ที่}: มีแถวการ์ด`).toBeVisible({ timeout: 25_000 });
   const จำนวนแถว = await แถว.count();
   for (let i = 0; i < จำนวนแถว; i++) {
-    await expect(แถว.nth(i).locator("[data-kpi]"), `${ที่}: แถวการ์ดที่ ${i + 1} ต้องมี 4 ใบพอดี`).toHaveCount(4);
+    const ใบ = ที่ === "/hq/customers" ? 3 : 4;   // ลูกค้าทั้งเครือ 3 ใบ (บอสสั่ง 30 ต.ค. 69)
+    await expect(แถว.nth(i).locator("[data-kpi]"), `${ที่}: แถวการ์ดที่ ${i + 1} ต้องมี ${ใบ} ใบพอดี`).toHaveCount(ใบ);
   }
 }
 

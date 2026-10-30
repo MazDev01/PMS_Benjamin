@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, X, Inbox, ClipboardList, AlarmClock, Timer, Ban } from "lucide-react";
 import { quoteRequests as repo, metrics as metricsRepo } from "@pms/shared/lib/data";
 import {
-  type QuoteBoard, type QuoteBoardFilter, type QuoteBoardRow, quoteBoardFilters, quoteBoardTag, กลุ่มของคำขอ, วันไทยสั้น, เหลือหรือเกิน,
+  type QuoteBoard, type QuoteBoardFilter, type QuoteBoardRow, quoteBoardTag, กลุ่มของคำขอ, วันไทยสั้น, เหลือหรือเกิน,
 } from "@pms/shared/lib/quoteRequests";
 import type { HqOverview } from "@pms/shared/lib/hqOverview";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
@@ -31,9 +31,9 @@ import { HqQuoteEditor, type ร่างใบHQ } from "@pms/shared/components
 
 const ส้ม = "#b45309";
 /** แถวในรายการ: ต้องตีราคา = นับถึงกำหนดส่งใบ HQ · ส่งแล้ว = นับถึงวันยืนราคา · กลุ่มปิด = วันที่ปิด (ไม่มีกำหนดให้นับ) */
-const นับวัน = (r: QuoteBoardRow, ตัวกรอง: QuoteBoardFilter) => {
+const นับวัน = (r: QuoteBoardRow, ตัวกรอง: QuoteBoardFilter | "done") => {
   // เกิน 14 วัน = แถวต้องตีราคา · ทั้งหมด = ตามกลุ่มของคำขอแต่ละแถว
-  const g = ตัวกรอง === "overdue" ? "todo" : ตัวกรอง === "all" ? กลุ่มของคำขอ(r.status) : ตัวกรอง;
+  const g = ตัวกรอง === "overdue" ? "todo" : ตัวกรอง === "all" || ตัวกรอง === "done" ? กลุ่มของคำขอ(r.status) : ตัวกรอง;
   return g === "todo" ? `กำหนดส่ง ${เหลือหรือเกิน(r.dueAt)}`
   : g === "quoted" ? (r.validUntil ? `ยืนราคา ${เหลือหรือเกิน(r.validUntil)}` : "ยืนราคา —")
   : `ปิดเมื่อ ${r.closedAt ? วันไทยสั้น(r.closedAt) : "—"}`;
@@ -42,7 +42,8 @@ const ร้อยละ = (v: number) => `${v.toLocaleString("th-TH", { minimum
 
 export default function HQQuoteRequestsPage() {
   // สถานะที่เลือก (ช่องเลือกช่องเดียวแทนแถวปุ่มกรอง · บอสสั่ง 27 ต.ค. 69 · ใบ 0249) — การ์ดด้านบนเปลี่ยนค่านี้ด้วย
-  const [กลุ่ม, setกลุ่ม] = useState<QuoteBoardFilter>("todo");
+  // "done" = ปุ่ม "ปิด/ยกเลิก" (บอสสั่ง 30 ต.ค. 69 · ตามแบบ): รวมกลุ่มสั่งผลิต (ปิดสำเร็จ) + ปิด/ยกเลิก ของฐาน — รายการจากฐาน 2 กลุ่มต่อกัน
+  const [กลุ่ม, setกลุ่ม] = useState<QuoteBoardFilter | "done">("todo");
   const [พิมพ์, setพิมพ์] = useState("");
   const [ค้นหา, setค้นหา] = useState("");
   const [กล่อง, setกล่อง] = useState<QuoteBoard | null>(null);
@@ -98,7 +99,10 @@ export default function HQQuoteRequestsPage() {
 
   const โหลด = useCallback(() => {
     let alive = true;
-    repo.board(กลุ่ม, ค้นหา).then(b => {
+    const ดึง = กลุ่ม === "done"
+      ? Promise.all([repo.board("won", ค้นหา), repo.board("closed", ค้นหา)]).then(([a, b]) => ({ counts: b.counts, rows: [...a.rows, ...b.rows] }))
+      : repo.board(กลุ่ม, ค้นหา);
+    ดึง.then(b => {
       if (!alive) return;
       setกล่อง(b);
       if (!ค้นหา) setนับคิว(b.counts);   // ตัวนับทั้งหมด (ไม่มีคำค้น) = ตัวเลขของการ์ด
@@ -124,7 +128,7 @@ export default function HQQuoteRequestsPage() {
     if (r.id === เลือก?.id) return;
     if (ออกจากใบได้()) setเลือก(r);
   };
-  const เปลี่ยนกลุ่ม = (g: QuoteBoardFilter) => {
+  const เปลี่ยนกลุ่ม = (g: QuoteBoardFilter | "done") => {
     if (g === กลุ่ม) return;
     if (ออกจากใบได้()) { setเลือก(null); setกลุ่ม(g); }
   };
@@ -161,9 +165,20 @@ export default function HQQuoteRequestsPage() {
             {/* ช่องเลือกสถานะช่องเดียวข้างช่องค้นหา (บอสสั่ง 27 ต.ค. 69) — แทนแถวปุ่มกรองที่มีตัวเลขซ้ำกับการ์ด · ตัวเลขอยู่บนการ์ดที่เดียว
                 ต้องมีค่าเสมอ: ค่ามาจากสถานะของหน้า (ค่าเริ่มต้น ต้องตีราคา · การ์ดเปลี่ยนค่า) ไม่มีจังหวะว่าง · "ทั้งหมด" เป็นตัวเลือกหนึ่ง */}
             <div className="hq-qr-filter">
-              <select aria-label="สถานะคำขอ" className="form-select" value={กลุ่ม} disabled={กำลังบันทึก} onChange={e => เปลี่ยนกลุ่ม(e.target.value as QuoteBoardFilter)}>
-                {quoteBoardFilters.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-              </select>
+              {/* ปุ่ม 3 กลุ่มพร้อมจำนวน (บอสสั่ง 30 ต.ค. 69 · ตามแบบ · แทนช่องเลือก) — เกิน 14 วัน = การ์ดด้านบน (อยู่ในกลุ่มต้องตีราคา) */}
+              <div role="tablist" aria-label="กลุ่มคำขอ" className="hq-qr-groups">
+                {([["todo", "ต้องตีราคา"], ["quoted", "ส่งแล้ว รอดีลเลอร์"], ["done", "ปิด/ยกเลิก"]] as const).map(([k, ป้าย]) => {
+                  const น = กล่อง?.counts ?? นับคิว;   // ตามผลที่เห็นอยู่ (มีคำค้น = จำนวนของผลค้น · ไม่มี = ทั้งหมด = การ์ด)
+                  const จำนวน = !น ? null : k === "done" ? น.won + น.closed : น[k];
+                  const เลือกอยู่ = k === "todo" ? (กลุ่ม === "todo" || กลุ่ม === "overdue") : k === "done" ? (กลุ่ม === "done" || กลุ่ม === "won" || กลุ่ม === "closed") : กลุ่ม === k;
+                  return (
+                    <button key={k} type="button" role="tab" aria-selected={เลือกอยู่} data-group={k} disabled={กำลังบันทึก} onClick={() => เปลี่ยนกลุ่ม(k)}
+                      className={เลือกอยู่ ? "on" : undefined}>
+                      {ป้าย} <span className="n" data-count={จำนวน ?? ""}>{จำนวน == null ? "—" : จำนวน.toLocaleString()}</span>
+                    </button>
+                  );
+                })}
+              </div>
               <div className="search-bar hq-qr-search">
                 <Search size={14} />
                 <input value={พิมพ์} onChange={e => setพิมพ์(e.target.value)} placeholder="ค้นหาเลขคำขอ ดีลเลอร์ ลูกค้า งาน จังหวัด" aria-label="ค้นหาคำขอ" title="ค้นหาเลขคำขอ / ดีลเลอร์ / ลูกค้าเป้าหมาย / งาน / จังหวัด" />

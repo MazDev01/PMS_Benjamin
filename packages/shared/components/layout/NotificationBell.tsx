@@ -10,6 +10,7 @@
 //
 // กดเรื่อง = เปิดตรงเรื่องนั้น (href จากตารางกลาง) · อยู่หน้าเดิมอยู่แล้ว = โหลดหน้าใหม่ให้เปิดจาก ?open=
 // อ่านแล้ว/ยังไม่อ่าน จำต่อบัญชีในเบราว์เซอร์ (useReadNotifications) · เรื่องก่อนวันเริ่มใช้ถือว่าอ่านแล้ว
+import { ชื่อขั้นปัจจุบัน } from "@pms/shared/lib/dealerProspects";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, FileText, AlertTriangle, CalendarClock, CheckCircle2, Inbox, RotateCcw, Wallet, Clock, XCircle } from "lucide-react";
@@ -140,10 +141,10 @@ export function NotificationBell({ scope, open, onOpenChange }: {
                     <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: "50%", background: ic.bg, color: ic.color, flexShrink: 0 }}>{ic.el}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: STEEL }}>{n.title}</span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: STEEL }}>{ชื่อขั้นปัจจุบัน(n.title)}</span>
                         {!read && <span data-unread-dot style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc2626", flexShrink: 0 }} />}
                       </div>
-                      <div style={{ fontSize: "0.72rem", color: "#6b7280", lineHeight: 1.4 }}>{n.body}</div>
+                      <div style={{ fontSize: "0.72rem", color: "#6b7280", lineHeight: 1.4 }}>{ชื่อขั้นปัจจุบัน(n.body)}</div>
                       <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: 3 }}>{เวลาไทย(n.createdAt)}</div>
                     </div>
                   </button>

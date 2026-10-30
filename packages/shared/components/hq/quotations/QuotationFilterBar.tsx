@@ -8,7 +8,7 @@
 // หมายเหตุ: "จังหวัด" = จังหวัดของดีลเลอร์ที่ออกใบ ไม่ใช่จังหวัดลูกค้า/หน้างาน
 // (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง — ป้ายบนตัวเลือกจึงต้องเขียนว่า "จังหวัดดีลเลอร์" ให้ชัด)
 import { Search, X } from "lucide-react";
-import { quotationStatusLabel, type QuotationStatus } from "@pms/shared/lib/mock";
+import type { QuotationStatus } from "@pms/shared/lib/mock";
 import { regionDisplay } from "@pms/shared/lib/hqQuotations";
 
 const MUTED = "#6b7280";
@@ -18,11 +18,17 @@ export type QuotationFilters = {
   dealer: string;
   region: string;
   province: string;
-  status: QuotationStatus | "all";
+  /** "sent" = ส่งลูกค้าแล้ว ไม่นับร่าง/ถูกแทนที่ (ค่าเริ่มต้น = ชุดเดียวกับการ์ด · บอสสั่ง 30 ต.ค. 69) · "all" = ทุกสถานะ */
+  status: QuotationStatus | "all" | "sent";
+};
+
+/** ชื่อสถานะบนหน้า HQ ใบเสนอราคาทั้งเครือ — คำเดียวกับ FLOW (ส่งให้ลูกค้าแล้ว · ตอบรับ · ลูกค้าปฏิเสธ · ถูกแทนที่ · ร่าง) */
+export const ชื่อสถานะใบHQ: Record<QuotationStatus, string> = {
+  sent_to_client: "ส่งให้ลูกค้าแล้ว", won: "ตอบรับ", lost: "ลูกค้าปฏิเสธ", expired: "หมดอายุ", superseded: "ถูกแทนที่", draft: "ร่าง",
 };
 
 export const EMPTY_FILTERS: QuotationFilters = {
-  search: "", dealer: "all", region: "all", province: "all", status: "all",
+  search: "", dealer: "all", region: "all", province: "all", status: "sent",
 };
 
 export function QuotationFilterBar({
@@ -35,7 +41,7 @@ export function QuotationFilterBar({
 }) {
   const set = <K extends keyof QuotationFilters>(k: K, v: QuotationFilters[K]) => onChange({ ...filters, [k]: v });
   const dirty = filters.search !== "" || filters.dealer !== "all" || filters.region !== "all"
-    || filters.province !== "all" || filters.status !== "all";
+    || filters.province !== "all" || filters.status !== "sent";
 
   // ขนาดเดียวกับแถบกรองหน้าลูกค้าทั้งเครือ — ย่อตัวได้เมื่อจอแคบ ไม่ตกบรรทัด
   const ช่องเลือก = { width: "auto", flex: "0 1 auto", minWidth: 0, maxWidth: 168, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" } as const;
@@ -75,11 +81,12 @@ export function QuotationFilterBar({
         {provinces.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
 
-      <select aria-label="กรองตามสถานะใบเสนอราคา" value={filters.status} onChange={e => set("status", e.target.value as QuotationFilters["status"])} className="form-select" style={ช่องเลือก}>
-        <option value="all">ทุกสถานะ</option>
-        {(Object.keys(quotationStatusLabel) as QuotationStatus[]).map(s => (
-          <option key={s} value={s}>{quotationStatusLabel[s]}</option>
+      <select aria-label="กรองตามสถานะใบเสนอราคา" value={filters.status} onChange={e => set("status", e.target.value as QuotationFilters["status"])} className="form-select" style={{ ...ช่องเลือก, maxWidth: 260 }}>
+        <option value="sent">ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)</option>
+        {(Object.keys(ชื่อสถานะใบHQ) as QuotationStatus[]).map(s => (
+          <option key={s} value={s}>{ชื่อสถานะใบHQ[s]}</option>
         ))}
+        <option value="all">ทุกสถานะ</option>
       </select>
 
 

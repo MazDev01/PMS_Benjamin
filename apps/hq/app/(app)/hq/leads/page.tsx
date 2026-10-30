@@ -117,6 +117,13 @@ export default function HQLeadsPage() {
     return () => { alive = false; };
   }, []);
   const [dealerSel, setDealerSel] = useState<string>("ALL");
+  // ?dealer=รหัส (ปุ่ม "ดูทั้งหมด" ลีดล่าสุดของดีลเลอร์ในภาพรวมยอดขาย · 30 ต.ค. 69) = เลือกดีลเลอร์นั้นไว้ให้ แล้วล้างออกจาก URL
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("dealer");
+    if (!code) return;
+    setDealerSel(code.toUpperCase());
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
   const [regionSel, setRegionSel] = useState<string>("ALL");
   const [srcSel, setSrcSel] = useState<string>("ALL");
 

@@ -105,15 +105,21 @@ export function MaterialTemplatesPanel() {
         <ตารางรายการ ป้าย="แม่แบบวัสดุ" ลำดับ={false} กว้างขั้นต่ำ={860} แถว={บันทึกแล้ว === null ? [] : ในหน้า}
           ว่าง={บันทึกแล้ว === null ? "กำลังโหลด…" : rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีแม่แบบวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}
           คุณสมบัติแถว={r => ({ "data-mt-row": String(r.id ?? "new"), style: r.active ? undefined : { opacity: 0.6 } })} คอลัมน์={[
-            { key: "cat", หัว: "หมวด", ชนิด: "ข้อความ", กว้าง: "15%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-categories" aria-label={`หมวด ${i + 1}`} style={ช่องกรอก} value={r.category} maxLength={80} placeholder="เช่น ผนัง" onChange={e => แก้(r.key, { category: e.target.value })} /> },
-            { key: "name", หัว: "ชื่อวัสดุ", ชนิด: "ข้อความ", กว้าง: "28%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /> },
-            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "11%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-units" aria-label={`หน่วย ${i + 1}`} style={ช่องกรอก} value={r.unit} maxLength={40} onChange={e => แก้(r.key, { unit: e.target.value })} /> },
-            { key: "price", หัว: "ราคาต่อหน่วย (ก่อน VAT)", ชนิด: "เงิน", กว้าง: "19%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
-            { key: "active", หัว: "เปิดใช้", ชนิด: "ข้อความ", กว้าง: "10%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
+            { key: "cat", หัว: "หมวด", ชนิด: "ข้อความ", กว้าง: "13%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-categories" aria-label={`หมวด ${i + 1}`} style={ช่องกรอก} value={r.category} maxLength={80} placeholder="เช่น ผนัง" onChange={e => แก้(r.key, { category: e.target.value })} /> },
+            { key: "name", หัว: "ชื่อวัสดุ", ชนิด: "ข้อความ", กว้าง: "24%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /> },
+            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "9%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-units" aria-label={`หน่วย ${i + 1}`} style={ช่องกรอก} value={r.unit} maxLength={40} onChange={e => แก้(r.key, { unit: e.target.value })} /> },
+            { key: "price", หัว: "ราคาต่อหน่วย (ก่อน VAT)", ชนิด: "เงิน", กว้าง: "17%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
+            { key: "active", หัว: "เปิดใช้", ชนิด: "ข้อความ", กว้าง: "9%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
                 <input type="checkbox" aria-label={`เปิดใช้ ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}
               </label> },
-            { key: "updated", หัว: "อัปเดตราคา", ชนิด: "ข้อความ", กว้าง: "12%", สไตล์: () => ({ fontSize: "0.78rem", color: "var(--muted-foreground)" }),
+            { key: "updated", หัว: "อัปเดตราคา", ชนิด: "ข้อความ", กว้าง: "11%", สไตล์: () => ({ fontSize: "0.78rem", color: "var(--muted-foreground)" }),
               ค่า: r => <span data-testid="price-updated">{r.priceUpdatedAt ? วันไทยสั้น(r.priceUpdatedAt) : "ยังไม่บันทึก"}</span> },
+            // % คลาดเฉลี่ยรายวัสดุ (FLOW · บอสสั่ง 30 ต.ค. 69 · ใบ 0268): ฐานคิดจากคำขอที่เลือกวัสดุนี้และ HQ ส่งใบแล้ว · ยังไม่มีคำขอ/ฐานยังไม่ถึงใบนั้น = "—"
+            { key: "dev", หัว: "% คลาดเฉลี่ย", ชนิด: "เงิน", กว้าง: "12%", ค่า: r => {
+                const ค = r.id != null ? ความแม่น?.byTemplate?.find(t => t.id === r.id) : undefined;
+                return <span data-testid="template-deviation" data-value={ค?.avgPct ?? ""} title={ค ? `จาก ${ค.n} คำขอ` : "ยังไม่มีคำขอที่ HQ ส่งใบแล้ว"}
+                  style={{ fontWeight: 700, color: ค?.avgPct != null && Math.abs(ค.avgPct) > 5 ? "#dc2626" : "#374151" }}>{ป้ายเปอร์เซ็นต์คลาด(ค?.avgPct)}</span>;
+              } },
             { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: "5%", ค่า: (r, i) => <button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
                 style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={15} /></button> },
           ]} />

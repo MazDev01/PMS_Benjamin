@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, db, loginUI } from "./funcHelpers";
-import { settle, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, เปิดใบHQในกล่องงาน, เลือกกลุ่มคำขอ } from "./helpers";
 import { adminClient } from "./testDealers";
 import { เลขลูกค้าเป้าหมายทดสอบ, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
 
@@ -76,22 +76,23 @@ test("[H9x] [ui·hq] แต่ละสถานะในช่องเลื�
   expect(error).toBeNull();
   const ฐาน = (data as { counts: Record<string, number> }).counts;
   expect(ฐาน, "ชุดข้อมูลที่รู้ค่าล่วงหน้า").toEqual({ todo: 2, overdue: 1, quoted: 1, won: 1, closed: 1 });
-  // ช่องเลือกสถานะแทนแถวปุ่มกรอง (27 ต.ค. 69 · ตัวเลขอยู่บนการ์ดที่เดียว) — เลือกแต่ละสถานะแล้วจำนวนแถว (ผ่านคำค้น) = ตัวนับของฐาน
-  //   รวม "เกิน 14 วัน" (เดิมเป็นบรรทัด "เกินกำหนด 14 วัน N คำขอ") และ "ทั้งหมด"
-  for (const [key, n] of [["quoted", ฐาน.quoted], ["won", ฐาน.won], ["closed", ฐาน.closed], ["overdue", ฐาน.overdue],
-                          ["all", ฐาน.todo + ฐาน.quoted + ฐาน.won + ฐาน.closed], ["todo", ฐาน.todo]] as const) {
-    await page.getByLabel("สถานะคำขอ").selectOption(key);
-    await expect(รายการ(page).getByRole("button"), `เลือก ${key}: แถว = ฐาน ${n}`).toHaveCount(n, { timeout: 20_000 });
+  // ปุ่ม 3 กลุ่มพร้อมจำนวน (บอสสั่ง 30 ต.ค. 69 · แทนช่องเลือก): จำนวนบนปุ่ม = ฐาน · แถว = จำนวนบนปุ่ม
+  //   ปิด/ยกเลิก = สั่งผลิต + ปิด/ยกเลิกของฐาน · เกิน 14 วัน = การ์ด (อยู่ในกลุ่มต้องตีราคา)
+  for (const [k, n] of [["quoted", ฐาน.quoted], ["done", ฐาน.won + ฐาน.closed], ["todo", ฐาน.todo]] as const) {
+    await เลือกกลุ่มคำขอ(page, k);
+    await expect(page.locator(`[aria-label="กลุ่มคำขอ"] [data-group="${k}"] [data-count]`), `ปุ่ม ${k}: จำนวน = ฐาน`).toHaveAttribute("data-count", String(n));
+    await expect(รายการ(page).getByRole("button"), `ปุ่ม ${k}: แถว = ฐาน ${n}`).toHaveCount(n, { timeout: 20_000 });
   }
-  await page.getByLabel("สถานะคำขอ").selectOption("overdue");
+  await page.locator('[data-kpi-row] [data-kpi="overdue"]').click();
+  await expect(รายการ(page).getByRole("button"), "การ์ดเกิน 14 วัน: แถว = ฐาน").toHaveCount(ฐาน.overdue, { timeout: 20_000 });
   await expect(รายการ(page).getByRole("button").first(), "เกิน 14 วัน = คำขอที่เลยกำหนด").toContainText(ของ("A").บริษัท);
-  await page.getByLabel("สถานะคำขอ").selectOption("todo");
+  await เลือกกลุ่มคำขอ(page, "todo");
   // ลำดับ + ป้ายจากฐาน: เกินกำหนดบนสุด
   await expect(รายการ(page).getByRole("button")).toHaveCount(2);
   await expect(รายการ(page).getByRole("button").first()).toContainText(ของ("A").บริษัท);
   await expect(แถวของ(page, "A")).toContainText("เกิน 14 วัน");
   await expect(แถวของ(page, "B")).toContainText("ใหม่");
-  await page.getByLabel("สถานะคำขอ").selectOption("closed");
+  await เลือกกลุ่มคำขอ(page, "done");
   await expect(แถวของ(page, "E")).toContainText("ยกเลิก");
 });
 
@@ -138,10 +139,9 @@ test("[ui·hq] ใบมีการแก้ค้าง → สลับแถ
   await expect(ใบ.getByRole("heading")).toContainText(ของ("A").no);
   await expect(แถวของ(page, "B"), "แถวที่มีร่างค้างบอกไว้").toContainText("ร่างยังไม่บันทึก");
   // สลับกลุ่มแล้วกลับ → ไม่ถาม
-  await page.getByLabel("สถานะคำขอ").selectOption("quoted");
-  await expect(page.getByLabel("สถานะคำขอ")).toHaveValue("quoted");
+  await เลือกกลุ่มคำขอ(page, "quoted");
   await expect(กล่องยืนยัน(page)).toHaveCount(0);
-  await page.getByLabel("สถานะคำขอ").selectOption("todo");
+  await เลือกกลุ่มคำขอ(page, "todo");
   // กลับมาที่ B → ร่างยังอยู่ครบ
   await แถวของ(page, "B").click();
   await expect(แถวของ(page, "B")).toHaveAttribute("aria-current", "true");
@@ -171,7 +171,7 @@ test("[ui·hq] ระหว่างบันทึกร่าง แถวอ�
   await ใบ.getByRole("button", { name: "บันทึกร่าง" }).click();
   await expect.poll(() => กัก, { message: "คำสั่งบันทึกต้องออกไป (แล้วค้างอยู่)" }).toBe(1);
   await expect(แถวของ(page, "A"), "ระหว่างบันทึก ห้ามเปลี่ยนแถว").toBeDisabled();
-  await expect(page.getByLabel("สถานะคำขอ"), "ระหว่างบันทึก ห้ามเปลี่ยนสถานะที่เลือก").toBeDisabled();
+  await expect(page.locator('[aria-label="กลุ่มคำขอ"] [data-group="quoted"]'), "ระหว่างบันทึก ห้ามเปลี่ยนสถานะที่เลือก").toBeDisabled();
   await expect(แถวของ(page, "B")).toHaveAttribute("aria-current", "true");
 
   ปล่อย();

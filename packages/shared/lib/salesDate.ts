@@ -20,3 +20,14 @@ export function วันที่ขายของใบ(q: ใบที่ใ
 export function เวลาขายของใบ(q: ใบที่ใช้ & Pick<QuotationMock, "savedAt">): string | undefined {
   return q.status === "won" && q.wonAt ? q.wonAt : q.savedAt;
 }
+
+/** ช่วงวันที่ของรายการใบเสนอราคา: กรองสถานะ "ตอบรับ" = ตามวันลูกค้าตอบรับ (won_at เวลาไทย · ไม่มี = วันที่ของใบ) — กติกาเดียวกับการ์ด "ตอบรับ"
+ *  และ _q_report_date ของฐาน (ใบ 0260/0262) · สถานะอื่น = วันที่ของใบ (บอสสั่ง 30 ต.ค. 69: กดการ์ดตอบรับ → จำนวนแถว = การ์ด) */
+export function ตัวกรองวันใบ(status: string | undefined, start?: string, end?: string): { kind: "date"; start?: string; end?: string } | { kind: "won"; or: string } | null {
+  if (!start && !end) return null;
+  if (status !== "won") return { kind: "date", start, end };
+  const ถัดไป = (d: string) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+  const ตอบรับ = [start ? `won_at.gte.${start}T00:00:00+07:00` : "", end ? `won_at.lt.${ถัดไป(end)}T00:00:00+07:00` : ""].filter(Boolean).join(",");
+  const ใบ = ["won_at.is.null", start ? `date.gte.${start}` : "", end ? `date.lte.${end}` : ""].filter(Boolean).join(",");
+  return { kind: "won", or: `and(${ตอบรับ}),and(${ใบ})` };
+}

@@ -302,6 +302,7 @@ export function useNetworkQuotations(): HQQuotation[] {
         customer: q.customer, valueNum: q.totalValue,
         status: q.status, createdAt: fmtISOToThai(q.date), savedAt: q.savedAt, salesDate: วันที่ขายของใบ(q),
         salesperson: lead?.assigned ?? `ดีลเลอร์ ${dl.code}`,
+        siteProvince: lead?.province || undefined,   // จังหวัดหน้างาน = ของลีดที่ใบผูกอยู่ (ใบไม่เก็บจังหวัดเอง) · ไม่เจอลีด = "—"
         productLine: q.project, // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         // รายละเอียดราคาจริงของใบที่ดีลเลอร์สร้าง → HQ เจาะดูรายการสินค้าได้
         materialCost: q.materialCost, lineItems: q.lineItems,

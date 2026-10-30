@@ -15,8 +15,9 @@ export const materialTemplatesGET = handler("materialTemplates.list", async (req
   if (new URL(req.url).searchParams.get("view") === "accuracy") {
     const { data, error } = await sb.rpc("material_estimate_accuracy");
     if (error) return dbFail("materialTemplates.accuracy", error);
-    const a = (data ?? {}) as { n?: number; avg_abs_pct?: number | null; avg_pct?: number | null };
-    return ok({ n: Number(a.n ?? 0), avgAbsPct: a.avg_abs_pct ?? null, avgPct: a.avg_pct ?? null });
+    const a = (data ?? {}) as { n?: number; avg_abs_pct?: number | null; avg_pct?: number | null; by_template?: { id: number; n: number; avg_pct: number | null }[] };
+    return ok({ n: Number(a.n ?? 0), avgAbsPct: a.avg_abs_pct ?? null, avgPct: a.avg_pct ?? null,
+      byTemplate: a.by_template ? a.by_template.map(t => ({ id: Number(t.id), n: Number(t.n), avgPct: t.avg_pct == null ? null : Number(t.avg_pct) })) : undefined });   // ใบ 0268
   }
   const { data, error } = await sb.from("material_templates").select("*").order("category").order("name").order("id").limit(2000);
   if (error) return dbFail("materialTemplates.list", error);

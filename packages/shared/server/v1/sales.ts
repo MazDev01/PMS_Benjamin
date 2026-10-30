@@ -13,6 +13,7 @@
 //
 // ⚠️ ค่ากลาง (APP_NOW / DEFAULT_LEAD_RULES / DEFAULT_HQ_POLICY) เป็นของฝั่งแอป —
 //    ผู้เรียกเติมมาให้แล้ว เซิร์ฟเวอร์ส่งต่อตรง ๆ (เหตุผลเดียวกับ settings/dealerSettings)
+import { ตัวกรองวันใบ } from "@pms/shared/lib/salesDate";
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail, อ่านเมื่อop } from "./_ctx";
 import { parse, str, num, bool, oneOf, arrOf, mapOfNum, isoDate } from "./_valid";
@@ -55,6 +56,8 @@ export const MAX_DEALERS = 5000;
 //   → กรองลีดด้วยสถานะนี้ผ่านเส้นทางของเว็บจริงได้ 400 (พบ 20 ต.ค. 69 ตอนเพิ่ม "ได้ราคา HQ")
 const LEAD_STATUS = LEAD_STATUS_ORDER as readonly LeadStatus[];
 const QUOTE_STATUS = ["draft", "sent_to_client", "won", "lost", "expired"] as const;
+/** ตัวกรองรายการ (อ่านอย่างเดียว) เลือก "ถูกแทนที่" ได้ด้วย — หน้า HQ ใบเสนอราคาทั้งเครือ (30 ต.ค. 69) · ตั้งสถานะยังใช้ QUOTE_STATUS (ตั้งเป็นถูกแทนที่เองไม่ได้) */
+const QUOTE_FILTER_STATUS = [...QUOTE_STATUS, "superseded"] as const;
 
 /** คอลัมน์ที่ยอมให้ใช้เรียงลำดับใบเสนอราคา — ชื่อคอลัมน์จากผู้เรียกวิ่งเข้า .order() ตรง ๆ
  *  ไม่จำกัดไว้ = ผู้เรียกสั่งเรียงด้วยคอลัมน์อะไรก็ได้ รวมถึงคอลัมน์ที่ไม่ได้ตั้งใจเปิด */
@@ -85,7 +88,8 @@ export const LEAD_PAGE_SHAPE = {
 export const QUOTE_PAGE_SHAPE = {
   limit:          num({ int: true, min: 1, max: MAX_PAGE, def: 50 }),
   offset:         num({ int: true, min: 0, max: 1_000_000, def: 0 }),
-  status:         oneOf(QUOTE_STATUS, { optional: true }),
+  status:         oneOf(QUOTE_FILTER_STATUS, { optional: true }),
+  sentOnly:       bool(),   // ไม่นับร่าง/ถูกแทนที่ = ชุดเดียวกับการ์ด "ส่งลูกค้าในช่วงนี้" (ค่าเริ่มต้นตาราง HQ ใบเสนอราคาทั้งเครือ · บอสสั่ง 30 ต.ค. 69)
   dealerCodes:    arrOf(str({ max: 20 }), { optional: true, max: MAX_DEALERS }),
   productLines:   arrOf(str({ max: 200 }), { optional: true, max: 100 }),
   searchDealers:  arrOf(str({ max: 20 }), { optional: true, max: MAX_DEALERS }),
@@ -259,15 +263,16 @@ export const quotesPOST = handler("quotations.write", async (req, sb) => {
       let q = นับด้วย ? sb.from("quotations").select("*", { count: นับด้วย }) : sb.from("quotations").select("*");
       if (!isHQ && dealer) q = q.eq("dealer_code", dealer);
       if (f.status) q = q.eq("status", f.status);
+      if (f.sentOnly) q = q.not("status", "in", "(draft,superseded)");
       if (f.dealerCodes?.length) q = q.in("dealer_code", f.dealerCodes);
       if (f.productLines?.length) q = q.in("product_line", f.productLines);
-      if (f.dateStart) q = q.gte("date", f.dateStart);
-      if (f.dateEnd) q = q.lte("date", f.dateEnd);
-      if (s) {
-        const parts = [`id.ilike.%${s}%`, `customer.ilike.%${s}%`];
-        if (f.searchDealers?.length) parts.push(`dealer_code.in.(${f.searchDealers.join(",")})`);
-        q = q.or(parts.join(","));
-      }
+      const วัน = ตัวกรองวันใบ(f.status || undefined, f.dateStart || undefined, f.dateEnd || undefined);   // ตอบรับ = ตามวันตอบรับ (ชุดเดียวกับการ์ด)
+      if (วัน?.kind !== "won") { if (f.dateStart) q = q.gte("date", f.dateStart); if (f.dateEnd) q = q.lte("date", f.dateEnd); }
+      const ค้น = s ? [`id.ilike.%${s}%`, `customer.ilike.%${s}%`, ...(f.searchDealers?.length ? [`dealer_code.in.(${f.searchDealers.join(",")})`] : [])].join(",") : "";
+      // เงื่อนไข "หรือ" ได้ชุดเดียวต่อคำขอ — วันตอบรับ + คำค้น รวมเป็น and(or(…),or(…))
+      if (วัน?.kind === "won" && ค้น) q = q.or(`and(or(${วัน.or}),or(${ค้น}))`);
+      else if (วัน?.kind === "won") q = q.or(วัน.or);
+      else if (ค้น) q = q.or(ค้น);
       return q.order(sortCol, { ascending: sortAsc })
         .order("id", { ascending: true }).order(TIEBREAK_COL, { ascending: true }).range(from, to);
     };

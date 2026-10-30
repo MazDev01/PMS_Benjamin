@@ -69,6 +69,13 @@ test("[H11·hq] ดีลเลอร์: ตารางตามแบบ ไ�
   expect((await ตาราง.locator("thead th").allInnerTexts()).map(t => t.trim())).toEqual(["ลำดับ", "รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""]);
   // กันหลุดกลับมา: ไม่มีตัวเลขยอดขาย/เป้า/โอกาสขาย/ตรงเวลา ทั้งหน้า
   await expect(page.locator(".erp"), "หน้าดีลเลอร์ไม่มีตัวเลขยอดขาย/เป้า").not.toContainText(/฿|ยอดขาย|ยอด\s*\/\s*เป้า|เป้ายอด|โอกาสขาย|ตรงเวลา|ผลงานดีลเลอร์/);
+  // มุมมองแบบการ์ดก็ต้องไม่มี ฿ ยอดขาย/เป้า (บอสสั่ง 30 ต.ค. 69 · ข้อนี้ครอบทั้งตารางและการ์ด)
+  await page.goto(`${HQ_ORIGIN}/hq/dealers?view=card`, { waitUntil: "domcontentloaded" });
+  await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill(ก!.รหัส);
+  await expect(page.locator(".erp").getByText(ก!.รหัส).first(), "มุมมองการ์ด: เห็นการ์ดของสาขาของข้อ").toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".erp .table-wrap table"), "มุมมองการ์ดไม่ใช่ตาราง").toHaveCount(0);
+  await expect(page.locator(".erp"), "มุมมองการ์ดไม่มีตัวเลขยอดขาย/เป้า").not.toContainText(/฿|ยอดขาย|ยอด\s*\/\s*เป้า|เป้ายอด|โอกาสขาย|ตรงเวลา|ผลงานดีลเลอร์/);
+  await ค้นรายการ(page, ก!.รหัส);
   await expect(page.locator("button[title*='ลบ'], button[aria-label*='ลบ']"), "ไม่มีปุ่มลบดีลเลอร์").toHaveCount(0);
   // ชื่อดีลเลอร์ · ป้ายภูมิภาค · แพ็กเกจ · สถานะ ไม่ถูกตัดที่จอกว้าง · ภูมิภาคใช้ชื่อกลาง
   const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='name'], td[data-col='region'] .badge, td[data-col='status'] .badge, td[data-col='name'] span"))

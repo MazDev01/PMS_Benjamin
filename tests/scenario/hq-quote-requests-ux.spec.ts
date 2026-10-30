@@ -154,7 +154,9 @@ test("[ui·hq] การ์ด 4 ใบตรงฐาน · แถวขึ้�
   await expect(page.getByRole("tablist", { name: "กรองตามสถานะ" }), "ไม่มีแถวปุ่มกรองแล้ว").toHaveCount(0);
   for (const w of [1440, 390]) {
     await page.setViewportSize({ width: w, height: 900 });
-    const บน = await Promise.all([page.getByLabel("สถานะคำขอ"), page.getByLabel("ค้นหาคำขอ")].map(async l => {
+    // 30 ต.ค. 69: ช่องเลือกสถานะ → ปุ่ม 3 กลุ่ม (ตามแบบ) · จอแคบ (390) ปุ่มขึ้นบรรทัดของตัวเองเต็มความกว้าง (ไม่ล้นจอ)
+    if (w < 600) { expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "จอ 390px: ไม่ล้นจอ").toBe(true); continue; }
+    const บน = await Promise.all([page.getByRole("tablist", { name: "กลุ่มคำขอ" }), page.getByLabel("ค้นหาคำขอ")].map(async l => {
       const b = await l.boundingBox(); return b ? Math.round(b.y + b.height / 2) : -999;
     }));
     expect(Math.abs(บน[0] - บน[1]), `จอ ${w}px: ช่องเลือกสถานะกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);

@@ -98,7 +98,7 @@ export function BoqTable({ lines, onChange, editable, area, แหล่ง = []
         { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "12%", แสดงเกิน: editable, ค่า: (l, i) => editable
           ? <input aria-label={`หน่วย ${i + 1}`} list="boq-units" value={l.unit} onChange={e => แก้บรรทัด(i, { unit: e.target.value })} onKeyDown={e => กดปุ่มในแถว(e, i)} placeholder="เลือก/พิมพ์" style={ช่องกรอก} />
           : จัดรูปหน่วย(l.unit) },
-        { key: "cost", หัว: "ต้นทุน/หน่วย", ชนิด: "เงิน", กว้าง: "18%", แสดงเกิน: editable, ค่า: (l, i) => editable
+        { key: "cost", หัว: "ราคาต่อหน่วย", ชนิด: "เงิน", กว้าง: "18%", แสดงเกิน: editable, ค่า: (l, i) => editable
           ? <span onKeyDown={e => กดปุ่มในแถว(e, i)}><NumberInput ariaLabel={`ต้นทุนต่อหน่วย ${i + 1}`} value={Number(l.unitCost)} min={0} onChange={n => แก้บรรทัด(i, { unitCost: n })} style={ช่องกรอก} /></span>
           : บาท(Number(l.unitCost)) },
         { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: editable ? "19%" : "21%", สไตล์: () => ({ fontWeight: 600 }), ค่า: l => แถวว่าง(l) ? "—" : บาท(ยอดบรรทัด(l)) },
