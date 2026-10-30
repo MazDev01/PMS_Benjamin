@@ -14,6 +14,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { ตรวจค่าSMTP, ตรวจผู้รับของHQ } from "./lib/emailReadinessCheck.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { แถวจริง, เป็นอีเมลทดสอบ } from "./lib/prodRealData.mjs";
 
 const results = [];
 const add = (ok, name, detail = "") => results.push({ ok, name, detail });
@@ -104,13 +105,17 @@ for (const [fn, args] of [["is_account_active", {}], ["next_entity_id", { p_deal
 
 // ── 7) ต้องมีผู้ดูแลสูงสุดที่ใช้งานได้อย่างน้อย 1 คน (ไม่งั้นเข้าไปจัดการอะไรไม่ได้เลย) ──
 {
+  //   ไม่นับบัญชีทดสอบ (prod-live สร้าง live-hq-…@example.test เป็นผู้ดูแลสูงสุดชั่วคราว — ตัวกรองกลาง scripts/lib/prodRealData.mjs)
   const { data } = await svc.from("profiles").select("id").eq("role", "SUPER_ADMIN").eq("status", "active");
-  add((data?.length ?? 0) >= 1, "ผู้ดูแลสูงสุดที่ใช้งานได้", `${data?.length ?? 0} บัญชี`);
+  const { data: ผู้ใช้ } = await svc.auth.admin.listUsers({ perPage: 1000 });
+  const อีเมลของ = new Map((ผู้ใช้?.users ?? []).map(u => [u.id, u.email]));
+  const จริง = (data ?? []).filter(p => !เป็นอีเมลทดสอบ(อีเมลของ.get(p.id)));
+  add(จริง.length >= 1, "ผู้ดูแลสูงสุดที่ใช้งานได้", `${จริง.length} บัญชี (ไม่นับบัญชีทดสอบ)`);
 }
 
 // ── 8) ทุกสาขาต้องมีบัญชีเข้าระบบ (สาขาที่ไม่มีบัญชี = ดีลเลอร์เข้าใช้งานไม่ได้) ──
 {
-  const { data: dealers } = await svc.from("dealers").select("code");
+  const dealers = แถวจริง((await svc.from("dealers").select("code")).data);   // สาขาทดสอบ (ZZT ฯลฯ) ไม่นับ — ข้อ 9 จับแยก
   const { data: profs } = await svc.from("profiles").select("dealer_code").neq("dealer_code", "");
   const has = new Set((profs ?? []).map(p => p.dealer_code));
   const orphan = (dealers ?? []).map(d => d.code).filter(c => !has.has(c));

@@ -11,6 +11,7 @@
 //    (จะตรวจฐานทดสอบก็ได้ถ้าตั้งใจ — ใส่ --test)
 import { createClient } from "@supabase/supabase-js";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { แถวจริง, เป็นข้อมูลทดสอบ, เป็นอีเมลทดสอบ } from "./lib/prodRealData.mjs";
 
 const target = loadTarget({ allowTest: true });
 const URL_ = target.url, SRV = target.serviceKey, ANON = target.anonKey;
@@ -20,19 +21,19 @@ const db = createClient(URL_, SRV, { auth: { persistSession: false } });
 const results = [];
 const check = (name, ok, detail = "") => { results.push({ name, ok, detail }); console.log(`${ok ? "PASS" : "FAIL"} · ${name}${detail ? " — " + detail : ""}`); };
 
-// ข้อมูลทดสอบที่ค้างอยู่ต้องไม่ถูกนับเป็นข้อมูลจริง (ป้าย ZZTEST/ZZLOAD)
-const isTestName = (s) => /ZZTEST|ZZLOAD/i.test(String(s ?? ""));
+// ข้อมูลทดสอบต้องไม่ถูกนับเป็นข้อมูลจริง — ตัดผ่านตัวกรองกลางตัวเดียว (scripts/lib/prodRealData.mjs · บอสสั่ง 29 ต.ค. 69)
+//   สาขาทดสอบ ZZT/ZZ…/ZT… · อีเมล @example.test / live-… · ป้าย ZZTEST/ZZLOAD — หัวข้อ 1–3 นับเฉพาะแถวจริง · หัวข้อ 5 นับแถวทดสอบที่ค้าง
 
 console.log("\n=== 1. ข้อมูลข้ามสาขา ===");
 {
-  const { data: quotes } = await db.from("quotations").select("id, dealer_code, customer_id");
-  const { data: custs } = await db.from("customers").select("id, dealer_code, company, total_value");
+  const quotes = แถวจริง((await db.from("quotations").select("id, dealer_code, customer_id")).data);
+  const custs = แถวจริง((await db.from("customers").select("id, dealer_code, company, total_value")).data);
   const custKey = new Set((custs ?? []).map(c => `${c.dealer_code}|${c.id}`));
   const orphan = (quotes ?? []).filter(q => q.customer_id && !custKey.has(`${q.dealer_code}|${q.customer_id}`));
   check("ใบเสนอราคาทุกใบผูกกับลูกค้าของ 'สาขาตัวเอง' เท่านั้น",
     orphan.length === 0, orphan.length ? `พบ ${orphan.length} ใบที่ชี้ไปลูกค้าที่ไม่ใช่ของสาขานั้น: ${orphan.slice(0,3).map(o=>o.id).join(", ")}` : `ตรวจ ${quotes?.length ?? 0} ใบ`);
 
-  const { data: leads } = await db.from("leads").select("id, dealer_code, customer_id");
+  const leads = แถวจริง((await db.from("leads").select("id, dealer_code, customer_id")).data);
   const leadOrphan = (leads ?? []).filter(l => l.customer_id && !custKey.has(`${l.dealer_code}|${l.customer_id}`));
   check("ลูกค้าเป้าหมายทุกรายผูกกับลูกค้าของสาขาตัวเองเท่านั้น",
     leadOrphan.length === 0, leadOrphan.length ? `พบ ${leadOrphan.length} รายการ` : `ตรวจ ${leads?.length ?? 0} รายการ`);
@@ -40,8 +41,8 @@ console.log("\n=== 1. ข้อมูลข้ามสาขา ===");
 
 console.log("\n=== 2. ตัวเลขเงิน ===");
 {
-  const { data: custs } = await db.from("customers").select("id, dealer_code, company, total_value");
-  const { data: quotes } = await db.from("quotations").select("dealer_code, customer_id, total_value, status");
+  const custs = แถวจริง((await db.from("customers").select("id, dealer_code, company, total_value")).data);
+  const quotes = แถวจริง((await db.from("quotations").select("dealer_code, customer_id, total_value, status")).data);
   const wonByCust = new Map();
   for (const q of quotes ?? []) {
     if (q.status !== "won" || !q.customer_id) continue;
@@ -63,7 +64,7 @@ console.log("\n=== 2. ตัวเลขเงิน ===");
   check("ไม่มียอดเงินติดลบในระบบ", negC.length === 0 && negQ.length === 0,
     `ลูกค้า ${negC.length} ราย · ใบเสนอราคา ${negQ.length} ใบ`);
 
-  const { data: dealers } = await db.from("dealers").select("code, name, revenue_target");
+  const dealers = แถวจริง((await db.from("dealers").select("code, name, revenue_target")).data);
   const negT = (dealers ?? []).filter(d => Number(d.revenue_target ?? 0) < 0);
   check("ไม่มีเป้ายอดขายติดลบ", negT.length === 0,
     negT.length ? negT.map(d => `${d.code}=${d.revenue_target}`).join(", ") : `ตรวจ ${dealers?.length ?? 0} สาขา`);
@@ -75,9 +76,10 @@ console.log("\n=== 2. ตัวเลขเงิน ===");
 
 console.log("\n=== 3. บัญชีและสิทธิ์ ===");
 {
-  const { data: dealers } = await db.from("dealers").select("code, name");
-  const { data: profs } = await db.from("profiles").select("id, dealer_code, role, status");
-  const { data: users } = await db.auth.admin.listUsers({ perPage: 200 });
+  const dealers = แถวจริง((await db.from("dealers").select("code, name")).data);
+  const profs = แถวจริง((await db.from("profiles").select("id, dealer_code, role, status")).data);
+  const { data: ผู้ใช้ } = await db.auth.admin.listUsers({ perPage: 200 });
+  const users = { users: (ผู้ใช้?.users ?? []).filter(u => !เป็นอีเมลทดสอบ(u.email)) };
   const profById = new Map((profs ?? []).map(p => [p.id, p]));
 
   const orphanAuth = users.users.filter(u => !profById.has(u.id));
@@ -118,14 +120,14 @@ console.log("\n=== 4. ความปลอดภัย: คนนอกที�
 
 console.log("\n=== 5. ข้อมูลทดสอบที่ค้างในระบบจริง ===");
 {
-  const { data: custs } = await db.from("customers").select("company");
-  const { data: leads } = await db.from("leads").select("company");
-  const { data: quotes } = await db.from("quotations").select("customer");
+  const { data: custs } = await db.from("customers").select("dealer_code, company");
+  const { data: leads } = await db.from("leads").select("dealer_code, company");
+  const { data: quotes } = await db.from("quotations").select("dealer_code, customer");
   const { data: dealers } = await db.from("dealers").select("code, name");
-  const n = (arr, k) => (arr ?? []).filter(x => isTestName(x[k])).length;
-  const total = n(custs, "company") + n(leads, "company") + n(quotes, "customer") + n(dealers, "name");
+  const n = (arr) => (arr ?? []).filter(เป็นข้อมูลทดสอบ).length;
+  const total = n(custs) + n(leads) + n(quotes) + n(dealers);
   check("ไม่มีข้อมูลทดสอบค้างปนกับข้อมูลจริง", total === 0,
-    total ? `ลูกค้า ${n(custs,"company")} · ลีด ${n(leads,"company")} · ใบเสนอราคา ${n(quotes,"customer")} · สาขา ${n(dealers,"name")}` : "");
+    total ? `ลูกค้า ${n(custs)} · ลีด ${n(leads)} · ใบเสนอราคา ${n(quotes)} · สาขา ${n(dealers)}` : "");
 }
 
 const failed = results.filter(r => !r.ok);

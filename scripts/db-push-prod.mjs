@@ -43,7 +43,7 @@ const dry = args.includes("--dry-run");
   }
   console.log("✓ ใบปรับฐานทุกใบผ่านรอบตรวจเต็มแล้ว และไม่ถูกแก้หลังรอบตรวจ");
 }
-const { ref } = ทดสอบ ? { ref: "" } : loadTarget();   // พิมพ์ "🎯 ฐานข้อมูลที่จะแตะ" ให้เห็นก่อน
+const { ref } = ทดสอบ ? { ref: "" } : loadTarget({ ถือล็อกเอง: true });   // พิมพ์ "🎯 ฐานข้อมูลที่จะแตะ" ให้เห็นก่อน · ขอล็อกเองบรรทัดถัดไป (ไม่รอคิว — ชน = หยุดบอกเหตุ)
 
 const ล็อก = ขอล็อก(dry ? "db:push:prod (ดูอย่างเดียว)" : "db:push:prod");
 const envลูก = { ...process.env, PMS_PROD_LOCK_HELD: ล็อก.token };
