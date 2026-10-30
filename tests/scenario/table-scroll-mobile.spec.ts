@@ -66,7 +66,10 @@ test("[มือถือ] ดีลเลอร์: ตาราง % ที่
   const แถว = page.locator("tbody tr").filter({ hasText: ส่งแล้ว }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   await แถว.locator("td").first().click();
-  await page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }).first().click({ timeout: 20_000 });
+  // ต้นเหตุไม่นิ่ง (30 ต.ค. 69 · ครั้งที่ 3): กดปุ่ม "ทำใบให้ลูกค้า" ตอนกล่องขั้นต่อไปยังโหลด (ฝั่งเว็บสร้างกล่องใหม่ตอนได้ข้อมูล)
+  //   ปุ่มที่ถูกกดถูกแทนที่ → คลิกหาย ฟอร์มไม่เปิด (ภาพหน้าจอ: กล่องขั้นต่อไปขึ้นครบ แต่ไม่มีฟอร์ม)
+  //   กดปุ่มของกล่องที่โหลดเสร็จแล้ว (data-next-step="make_quote" มีเฉพาะตอนรู้ขั้นแล้ว) — ไม่ใช่การรอเพิ่ม
+  await page.locator('[data-panel="next-step"]:not([aria-busy]) [data-next-step="make_quote"]').click({ timeout: 20_000 });
   await expect(page.locator("[data-editor='hq-markup']")).toBeVisible({ timeout: 20_000 });
   await settle(page);
   expect(await ล้นจอ(page), "ตาราง % ที่บวก: หน้ากว้างไม่เกินจอ").toBeLessThanOrEqual(1);
