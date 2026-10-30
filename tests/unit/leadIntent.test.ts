@@ -11,18 +11,20 @@ const ลีด = (p: Partial<LeadRow> = {}): LeadRow => ({ id: "#L-1", numId: 1
 describe("applyLeadIntent", () => {
   it("แก้ช่องเดียว — ช่องอื่น/งาน/ไทม์ไลน์คงเดิม", () => {
     const r = applyLeadIntent(ลีด(), { fields: { contact: "ใหม่" } }, { tpl, now });
-    expect(r.contact).toBe("ใหม่"); expect(r.phone).toBe("081"); expect(r.tasks).toEqual([]); expect(r.activities).toEqual([]);
+    expect(r.contact).toBe("ใหม่"); expect(r.phone).toBe("081"); expect(r.activities).toEqual([]);
+    //   งาน: ข้อมูลลูกค้าครบ → ระบบติ๊ก "เก็บข้อมูลลูกค้า" (ใบ 0263) — รายการอื่นไม่ถูกติ๊ก
+    expect((r.tasks ?? []).filter(t => t.done).map(t => t.key)).toEqual(["collect"]);
   });
   it("ช่องที่ฐานเป็นเจ้าของส่งทาง fields ไม่ได้", () => {
     expect(() => applyLeadIntent(ลีด(), { fields: { status: "PAID" } as never }, { tpl, now })).toThrow(/lead_field_not_allowed/);
     expect(() => applyLeadIntent(ลีด(), { fields: { tasks: [] } as never }, { tpl, now })).toThrow(/lead_field_not_allowed/);
   });
   it("ติ๊กงานทีละงาน · งานมาจากแม่แบบ · ไทม์ไลน์ 'ทำงาน:' · งานไม่เลื่อนขั้น (รอบ 4 · ใบ 0232)", () => {
-    let r = applyLeadIntent(ลีด(), { tasks: [{ key: "contact", done: true, doneBy: "คนติ๊ก" }] }, { tpl, now });
+    let r = applyLeadIntent(ลีด(), { tasks: [{ key: "followCustomer", done: true, doneBy: "คนติ๊ก" }] }, { tpl, now });
     expect(r.tasks).toHaveLength(tpl.length);
-    expect(r.tasks!.find(t => t.key === "contact")).toMatchObject({ done: true, doneBy: "คนติ๊ก", doneAt: now });
-    expect(r.activities![0].text).toBe("ทำงาน: ติดต่อแล้ว");
-    r = applyLeadIntent(r, { tasks: [{ key: "collect", done: true }, { key: "requirement", done: true }] }, { tpl, now });
+    expect(r.tasks!.find(t => t.key === "followCustomer")).toMatchObject({ done: true, doneBy: "คนติ๊ก", doneAt: now });
+    expect(r.activities![0].text).toBe("ทำงาน: ติดตามลูกค้า");
+    r = applyLeadIntent(r, { fields: { project: "โกดัง", area: 100, note: "สเปก" } }, { tpl, now });
     expect(r.status).toBe("WAITING");
     expect(r.activities!.some(a => a.text.startsWith("เปลี่ยนขั้นเป็น"))).toBe(false);
   });
@@ -30,7 +32,7 @@ describe("applyLeadIntent", () => {
     const tasks = tpl.map(d => ({ key: d.key, label: d.label, done: d.key === "makeQuote" }));
     const r = applyLeadIntent(ลีด({ tasks }), { fields: { phone: "099" } }, { tpl, now });
     expect(r.tasks!.find(t => t.key === "makeQuote")!.done).toBe(true);
-    const r2 = applyLeadIntent(ลีด({ tasks }), { tasks: [{ key: "contact", done: true }] }, { tpl, now });
+    const r2 = applyLeadIntent(ลีด({ tasks }), { tasks: [{ key: "followCustomer", done: true }] }, { tpl, now });
     expect(r2.tasks!.find(t => t.key === "makeQuote")!.done).toBe(true);
     expect(r2.status).toBe("WAITING");
   });

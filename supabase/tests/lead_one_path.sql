@@ -74,7 +74,8 @@ begin
     'ดีลเลอร์ปิดสำเร็จที่ลีดโดยไม่มีใบที่ตอบรับ');
 
   -- งานไม่เลื่อนขั้น (deriveStage ที่แอปรุ่นเก่าส่งมาถูกเมิน)
-  perform lead_apply('#L-' || n1, '{"tasks":[{"key":"contact","done":true},{"key":"collect","done":true},{"key":"requirement","done":true}],"deriveStage":"any"}'::jsonb);
+  --   (เก็บข้อมูลลูกค้า/สรุปความต้องการ เป็นรายการของระบบตั้งแต่ใบ 0263 · ติดต่อแล้วเอาออก — ใช้รายการติ๊กเองที่เหลือ)
+  perform lead_apply('#L-' || n1, '{"tasks":[{"key":"followCustomer","done":true}],"deriveStage":"any"}'::jsonb);
   select status into v_st from leads where dealer_code = 'CNX' and num_id = n1;
   perform onepath.ok(v_st = 'WAITING', 'ติ๊กงานแล้วสถานะไม่ขยับ (ยังติดต่อแล้ว)');
 

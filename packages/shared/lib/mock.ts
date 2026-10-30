@@ -696,6 +696,9 @@ export const APPOINTMENT_TASK_KEY = "appointment";
 
 /** รายการของระบบ + ข้อความบอกว่าระบบติ๊กเมื่อไร (ลำดับ = ลำดับในแม่แบบ · ตรงกับฐาน _lead_system_tasks) */
 export const SYSTEM_LEAD_TASKS: (LeadTaskDef & { auto: true; เมื่อ: string })[] = [
+  // ใบ 0263 (บอสสั่ง 30 ต.ค. 69): ฐานติ๊กเองเมื่อข้อมูลหมวดนั้นครบ · ไม่ครบ = ติ๊กหาย (_lead_customer_info_complete / _lead_job_info_complete)
+  { key: "collect",            label: "เก็บข้อมูลลูกค้า",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลลูกค้าครบ (ชื่อบริษัท · ผู้ติดต่อ · โทรศัพท์)" },
+  { key: "requirement",        label: "สรุปความต้องการ",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลงานครบ (จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ · สเปก)" },
   { key: APPOINTMENT_TASK_KEY, label: "นัดหมาย",         step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อบันทึกนัดหมาย" },
   { key: "requestQuote",       label: "ส่งคำขอราคา",      step: 2, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งคำขอราคาให้ HQ" },
   { key: "hqQuote",            label: "ได้ใบ HQ",         step: 3, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อ HQ ส่งใบ" },
@@ -711,10 +714,9 @@ export const ระบบติ๊กเมื่อ = (key: string) => SYSTEM_L
 /** แม่แบบตั้งต้น (บอสสั่ง 27 ต.ค. 69) — ของจริง HQ แก้รายการติ๊กเองได้ที่ /hq/settings › เส้นทางการขาย (hq_sales_journey.tasks)
  *  ทุกหน้าจออ่านผ่าน useLeadTaskTemplate() · "ติดตามผล" "เจรจาต่อรอง" "ปิดการขาย" แบบเดิมเอาออก (FLOW เลิกใช้ 21 ต.ค. 69 · ต่อรองใช้ "ทำฉบับใหม่") */
 const ระบบ = (key: string): LeadTaskDef => { const s = SYSTEM_LEAD_TASKS.find(t => t.key === key)!; return { key: s.key, label: s.label, step: s.step, auto: true }; };
+//   ใบ 0263 (30 ต.ค. 69): "ติดต่อแล้ว" เอาออก · เก็บข้อมูลลูกค้า/สรุปความต้องการ เป็นรายการของระบบ
 export const LEAD_TASK_TEMPLATE: LeadTaskDef[] = [
-  { key: "contact",        label: "ติดต่อแล้ว",       step: 1 },
-  { key: "collect",        label: "เก็บข้อมูลลูกค้า",  step: 1 },
-  { key: "requirement",    label: "สรุปความต้องการ",  step: 1 },
+  ระบบ("collect"), ระบบ("requirement"),
   ระบบ(APPOINTMENT_TASK_KEY), ระบบ("requestQuote"), ระบบ("hqQuote"), ระบบ(QUOTE_TASK_KEY), ระบบ(SEND_QUOTE_TASK_KEY),
   { key: "followCustomer", label: "ติดตามลูกค้า",     step: 5 },
 ];

@@ -41,7 +41,7 @@ async function seedLead() {
   const tpl = (journey?.tasks as { key: string; label: string }[] | null)?.length
     ? (journey!.tasks as { key: string; label: string }[])
     : [
-        { key: "contact", label: "ติดต่อแล้ว" }, { key: "collect", label: "เก็บข้อมูลลูกค้า" },
+        { key: "collect", label: "เก็บข้อมูลลูกค้า" },
         { key: "requirement", label: "สรุปความต้องการ" }, { key: "appointment", label: "นัดหมาย" },
         { key: "requestQuote", label: "ส่งคำขอราคา" }, { key: "hqQuote", label: "ได้ใบ HQ" },
         { key: "makeQuote", label: "จัดทำใบเสนอราคา" }, { key: "sendQuote", label: "ส่งใบเสนอราคา" },
