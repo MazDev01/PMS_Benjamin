@@ -25,6 +25,7 @@ import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCa
 import { TerritoryUnmatchedCard } from "@pms/shared/components/hq/TerritoryUnmatchedCard";
 import { packageLabel } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackage } from "@pms/shared/lib/data/types";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 
 const REGIONS = ["เหนือ", "กลาง", "ตะวันออก", "ตะวันตก", "ใต้", "อีสาน"];
 // เวลาที่เพิ่มดีลเลอร์ (ms) — ไม่มีค่า (ข้อมูลตัวอย่างเดิม) = 0 ไปอยู่ท้าย
@@ -280,7 +281,7 @@ function HQDealersPageInner() {
                       </div>
                       <div title={d.name} style={{ fontSize: "0.95rem", fontWeight: 800, color: "#1f2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
                       <div title={d.province} style={{ fontSize: "0.72rem", color: "#6b7280", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {[d.province, d.region].filter(Boolean).join(" · ") || "—"}
+                        {[d.province, d.region && ชื่อภาค(d.region)].filter(Boolean).join(" · ") || "—"}
                       </div>
                       <div style={{ marginTop: 7, display: "flex", justifyContent: "center", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.68rem", fontWeight: 700, color: สีสถานะ.color, background: สีสถานะ.bg, borderRadius: 99, padding: "2px 9px" }}>
@@ -377,7 +378,7 @@ function HQDealersPageInner() {
                     {d.province || "—"}
                   </td>
                   <td>
-                    <span className="badge" style={{ background: "#f0f0f5", color: "#6b7280" }}>{d.region}</span>
+                    <span className="badge" style={{ background: "#f0f0f5", color: "#6b7280" }}>{ชื่อภาค(d.region)}</span>
                   </td>
                   <td><ป้ายแพ็กเกจ p={d.package} /></td>
                   <td>

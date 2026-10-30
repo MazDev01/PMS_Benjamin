@@ -7,11 +7,13 @@
 //  · ใบของสาขาอื่น (seed) ไม่มีรายการสินค้า → ให้แสดง "—" ห้ามเดาขึ้นมาเอง
 import { type HQQuotation, type QuotationStatus } from "@pms/shared/lib/mock";
 import { parseDate, APP_NOW } from "@pms/shared/context/FilterContext";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 
 const TH_MO = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 export const fmtThaiDate = (d: Date) => `${d.getDate()} ${TH_MO[d.getMonth()]} ${d.getFullYear() + 543}`;
 
-export const regionDisplay = (r: string) => r === "อีสาน" ? "ภาคตะวันออกเฉียงเหนือ" : r === "ไม่ระบุ" ? r : `ภาค${r}`;
+/** ชื่อภาคสำหรับแสดง = รายการกลาง ชื่อภาค() ใน lib/provinces.ts (ชื่อเดิมคงไว้ให้ที่เรียกอยู่ — ทุกหน้าได้คำเดียวกัน) */
+export const regionDisplay = (r: string) => ชื่อภาค(r);
 
 // ภาค/จังหวัดของใบเสนอราคา = ของ "ดีลเลอร์ที่ออกใบ" (ใบไม่มีฟิลด์ภาค/จังหวัดของตัวเอง)
 //

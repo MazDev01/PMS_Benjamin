@@ -7,6 +7,7 @@ import { loadHQPolicy, fmtISOToThai, type IssuerProfile, type QuotationMock } fr
 // termsAndConditions / validityDays มาจากหน้าตั้งค่าดีลเลอร์ (คีย์ dealer_document_settings เดียวกัน)
 // เดิมไม่ได้ประกาศไว้ → เอกสารพิมพ์เงื่อนไขที่เขียนตายในโค้ด ดีลเลอร์แก้ที่หน้าตั้งค่าไปก็ไม่มีผล
 import { คิดภาษีใบเสนอราคา } from "./quoteTax";
+import { คลาสของชนิด, จัดรูปจำนวน, จัดรูปหน่วย, type ชนิดคอลัมน์ } from "./lineItemColumns";
 
 export type DocProfile = { stamp: string; signature: string; vatPercent: number; quotePrefix: string; runningNumber: number; termsAndConditions?: string; validityDays?: number };
 // quotePrefix เป็นแค่ป้ายนำหน้า — รหัสสาขา+ปี+เลขรันต่อท้ายเสมอที่ฝั่งสร้างใบ (ดู DEFAULT_QUOTE_NUMBERING)
@@ -67,9 +68,12 @@ export function buildQuotationHTML(q: QuotationMock, issuer: IssuerProfile, cust
   const vat = ภาษี.vatAmount;
   const grand = ภาษี.totalAmount;
   // ตารางรายการ — ใช้ lineItems จริงถ้ามี · ใบเก่าที่ไม่มี → แถวเดียว (ทั้งโปรเจกต์)
+  //   จำนวน/หน่วยคนละคอลัมน์ · แนวชิดหัว/ช่องจากชนิดคอลัมน์กลาง (lib/lineItemColumns.ts · บอสสั่ง 30 ต.ค. 69 · เดิมรวมเป็น "38 ตัน")
+  const ช่อง = (ช: ชนิดคอลัมน์, ค่า: string) => `<td class="${คลาสของชนิด(ช)}">${ค่า}</td>`;
   const itemRows = (q.lineItems && q.lineItems.length)
-    ? q.lineItems.map((it, i) => `<tr><td>${i + 1}</td><td><b>${esc(it.name)}</b></td><td class="r">${n(it.qty)} ${esc(it.unit)}</td><td class="r">${n(it.unitPrice)}</td><td class="r">${n(it.qty * it.unitPrice)}</td></tr>`).join("")
-    : `<tr><td>1</td><td><b>${esc(q.project)}</b><br/><span style="color:#888;font-size:11px">${esc(q.buildingType)} · อาคารสำเร็จรูป</span></td><td class="r">${n(q.area)} ม²</td><td class="r">-</td><td class="r">${n(subtotal)}</td></tr>`;
+    ? q.lineItems.map((it, i) => `<tr>${ช่อง("ลำดับ", String(i + 1))}${ช่อง("ข้อความ", `<b>${esc(it.name)}</b>`)}${ช่อง("จำนวน", จัดรูปจำนวน(it.qty))}${ช่อง("หน่วย", esc(จัดรูปหน่วย(it.unit)))}${ช่อง("เงิน", n(it.unitPrice))}${ช่อง("เงิน", n(it.qty * it.unitPrice))}</tr>`).join("")
+    : `<tr>${ช่อง("ลำดับ", "1")}${ช่อง("ข้อความ", `<b>${esc(q.project)}</b><br/><span style="color:#888;font-size:11px">${esc(q.buildingType)} · อาคารสำเร็จรูป</span>`)}${ช่อง("จำนวน", จัดรูปจำนวน(q.area))}${ช่อง("หน่วย", "ม²")}${ช่อง("เงิน", "-")}${ช่อง("เงิน", n(subtotal))}</tr>`;
+  const หัว = (ช: ชนิดคอลัมน์, ข้อความ: string, กว้าง?: number) => `<th class="${คลาสของชนิด(ช)}"${กว้าง ? ` style="width:${กว้าง}px"` : ""}>${ข้อความ}</th>`;
   const issuerMeta = [issuer.address, issuer.phone ? ("โทร. " + issuer.phone) : "", issuer.taxId ? ("เลขผู้เสียภาษี " + issuer.taxId) : ""].filter(Boolean).join("\n");
   return `<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/>
 <title>ใบเสนอราคา ${esc(q.id)}</title>
@@ -94,7 +98,8 @@ body{font-family:'Sarabun','Tahoma',sans-serif;color:#2D2D2D;font-size:13px;line
 .party .row{font-size:11px;color:#555;margin-top:2px}
 table.items{width:100%;border-collapse:collapse;margin-top:18px}
 table.items th{background:#003366;color:#fff;font-size:11px;font-weight:700;padding:9px 10px;text-align:left}
-table.items th.r,table.items td.r{text-align:right}
+table.items th.r,table.items td.r,table.items th.num,table.items td.num{text-align:right}
+table.items td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}
 .sum{margin-top:12px;margin-left:auto;width:290px}
 .sum .line{display:flex;justify-content:space-between;padding:5px 2px;font-size:12px}
@@ -144,7 +149,7 @@ table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical
     </div>
   </div>
   <table class="items">
-    <thead><tr><th style="width:40px">ลำดับ</th><th>รายการ</th><th class="r" style="width:78px">จำนวน</th><th class="r" style="width:100px">ราคา/หน่วย</th><th class="r" style="width:128px">จำนวนเงิน (บาท)</th></tr></thead>
+    <thead><tr>${หัว("ลำดับ", "ลำดับ", 56)}${หัว("ข้อความ", "รายการ")}${หัว("จำนวน", "จำนวน", 70)}${หัว("หน่วย", "หน่วย", 60)}${หัว("เงิน", "ราคา/หน่วย", 100)}${หัว("เงิน", "ยอด (บาท)", 128)}</tr></thead>
     <tbody>${itemRows}</tbody>
   </table>
   <div class="sum">

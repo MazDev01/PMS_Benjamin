@@ -41,7 +41,7 @@ import {
 import {
   ความคืบหน้า, ขั้นก่อนไม่สำเร็จ, มีบันทึกการติดต่อ, เกณฑ์ไม่ได้ติดต่อ, ไม่ได้ติดต่อเกิน, ติดต่อล่าสุดอ่านง่าย,
 } from "@pms/shared/lib/prospectJourney";
-import { REGIONS, ALL_REGIONS, ALL_PROVINCES, provincesOfRegion, regionOf } from "@pms/shared/lib/provinces";
+import { REGIONS, ALL_REGIONS, ALL_PROVINCES, provincesOfRegion, regionOf, ชื่อภาค } from "@pms/shared/lib/provinces";
 import { createDealerAccount, linkProspectToDealer, listDealerLoginEmails } from "@pms/shared/lib/adminApi";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { DEMO_PASSWORD } from "@pms/shared/lib/auth";
@@ -595,7 +595,7 @@ export default function HQProspectsPage() {
           <label className="form-label" htmlFor="pr-region">ภาค</label>
           <select id="pr-region" className="form-select" value={ร่าง.region ?? ""} onChange={e => เปลี่ยนภาคร่าง(e.target.value)} style={{ cursor: "pointer" }}>
             <option value="">— ยังไม่ระบุ —</option>
-            {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+            {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
             <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
           </select>
         </div>
@@ -1057,7 +1057,7 @@ export default function HQProspectsPage() {
                     <label className="form-label" htmlFor="cv-region">ภาค *</label>
                     <select id="cv-region" className="form-select" value={ฟอร์ม.region} onChange={e => เปลี่ยนภาค(e.target.value)} style={{ cursor: "pointer" }}>
                       <option value="">— ยังไม่ระบุ —</option>
-                      {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                      {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
                       {/* ทุกภาค = เลือกจังหวัดได้จาก 77 จังหวัด (ดีลเลอร์ต้องดูแล 1 จังหวัดพอดี · ไม่มี "ทุกจังหวัด") */}
                       <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
                     </select>

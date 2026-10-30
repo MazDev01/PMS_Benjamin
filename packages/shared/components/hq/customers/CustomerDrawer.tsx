@@ -13,6 +13,7 @@ import { toThaiDate } from "@pms/shared/lib/thaiDate";
 import { useCustomerNotesForDealer } from "@pms/shared/lib/useCustomerNotes";
 import { type CustomerDbRow, type PurchasedBuilding } from "@pms/shared/lib/customerDb";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 
 const noteColorOf = (cat: string) =>
   (noteCategoryColor as Record<string, { bg: string; text: string; dot: string }>)[cat] ?? noteCategoryColor["ทั่วไป"];
@@ -74,7 +75,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             <PanelRow icon={Mail} label={ช่อง.อีเมล} value={row.email} />
             <PanelRow icon={Home} label={ช่อง.ที่อยู่} value={row.address} />
             <PanelRow icon={MapPin} label={ช่อง.จังหวัด} value={row.province} />
-            <PanelRow icon={Compass} label="ภาค" value={row.region} />
+            <PanelRow icon={Compass} label="ภาค" value={ชื่อภาค(row.region)} />
             <PanelRow icon={Repeat} label="ลูกค้าซื้อซ้ำ" value={row.isRepeat ? "ใช่" : "ไม่ใช่"} />
           </PanelSection>
           <PanelSection icon={Store} title="ดีลเลอร์ที่ดูแล">

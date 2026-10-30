@@ -30,6 +30,8 @@ import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/compo
 import { SidePanel } from "@pms/shared/components/ui/SidePanel";
 import { ถามเหตุผล, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 
 const PRIMARY = "#003366";
 const บาท2 = (n: number) => Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -139,22 +141,16 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
         ) : (
           <div data-panel="quote-margin">
             <div style={{ fontSize: "0.68rem", color: "#64748B", padding: "8px 12px 0" }}>จากใบ HQ {margin.hqQuoteNo} · ราคาก่อนภาษี</div>
-            <div className="table-scroll">
-              <table className="table" style={{ width: "100%", fontSize: "0.72rem" }} aria-label="ส่วนต่างกำไรรายบรรทัด">
-                <thead><tr><th>รายการ</th><th style={{ textAlign: "right" }}>ต้นทุน/หน่วย</th><th style={{ textAlign: "right" }}>% ที่บวก</th><th style={{ textAlign: "right" }}>ราคาขาย/หน่วย</th><th style={{ textAlign: "right" }}>บวก (บาท)</th></tr></thead>
-                <tbody>
-                  {margin.lines.map((l, i) => (
-                    <tr key={i} data-margin-line={i}>
-                      <td>{l.name}<div style={{ color: "#94A3B8", fontSize: "0.64rem" }}>{Number(l.qty).toLocaleString()} {l.unit}</div></td>
-                      <td style={{ textAlign: "right" }} data-cell="cost">{บาท2(l.unitCost)}</td>
-                      <td style={{ textAlign: "right" }} data-cell="pct">{เปอร์เซ็นต์(l.markupPct)}</td>
-                      <td style={{ textAlign: "right" }} data-cell="price">{บาท2(l.unitPrice)}</td>
-                      <td style={{ textAlign: "right", fontWeight: 700 }} data-cell="baht">{บาท2(l.markupBaht)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ (เดิมอยู่ใต้ชื่อเป็น "38 ตัน") หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
+            <ตารางรายการ ป้าย="ส่วนต่างกำไรรายบรรทัด" แน่น กว้างขั้นต่ำ={640} แถว={margin.lines} คุณสมบัติแถว={(_l, i) => ({ "data-margin-line": String(i) })} คอลัมน์={[
+              { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "24%", ค่า: l => l.name, ชี้: l => l.name },
+              { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "10%", ค่า: l => จัดรูปจำนวน(l.qty) },
+              { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "10%", ค่า: l => จัดรูปหน่วย(l.unit) },
+              { key: "cost", หัว: "ต้นทุน/หน่วย", ชนิด: "เงิน", กว้าง: "14%", ค่า: l => <span data-cell="cost">{บาท2(l.unitCost)}</span> },
+              { key: "pct", หัว: "% ที่บวก", ชนิด: "ร้อยละ", กว้าง: "12%", ค่า: l => <span data-cell="pct">{เปอร์เซ็นต์(l.markupPct)}</span> },
+              { key: "price", หัว: "ราคาขาย/หน่วย", ชนิด: "เงิน", กว้าง: "15%", ค่า: l => <span data-cell="price">{บาท2(l.unitPrice)}</span> },
+              { key: "baht", หัว: "บวก (บาท)", ชนิด: "เงิน", กว้าง: "15%", สไตล์: () => ({ fontWeight: 700 }), ค่า: l => <span data-cell="baht">{บาท2(l.markupBaht)}</span> },
+            ]} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "10px 12px" }}>
               <div><div style={{ fontSize: "0.64rem", color: "#64748B" }}>บวกเพิ่มรวม</div><div style={{ fontWeight: 800, color: PRIMARY }} data-cell="sum-baht">{บาท2(margin.markupBaht)} บาท</div></div>
               <div><div style={{ fontSize: "0.64rem", color: "#64748B" }}>% ของต้นทุน</div><div style={{ fontWeight: 800, color: PRIMARY }} data-cell="sum-pct-cost">{เปอร์เซ็นต์(margin.pctOfCost)}</div></div>
@@ -171,20 +167,13 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
             — ใบนี้ไม่มีรายการสินค้าบันทึกไว้ในระบบ
           </div>
         ) : (
-          <div>
-            {items.map((li, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "10px 12px",
-                borderTop: i ? "1px solid #F1F5F9" : "none" }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{li.name}</div>
-                  <div style={{ fontSize: "0.66rem", color: "#64748B", marginTop: 2 }}>{li.qty.toLocaleString()} {li.unit} × {fmtBaht(li.unitPrice)}</div>
-                </div>
-                <div style={{ fontSize: "0.76rem", fontWeight: 800, color: "#1F2937", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
-                  {fmtBaht(li.qty * li.unitPrice)}
-                </div>
-              </div>
-            ))}
-          </div>
+          <ตารางรายการ ป้าย="รายการสินค้าในใบเสนอราคา" แน่น กว้างขั้นต่ำ={520} แถว={items} คอลัมน์={[
+            { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "34%", สไตล์: () => ({ fontWeight: 700, color: "#1F2937" }), ค่า: li => li.name, ชี้: li => li.name },
+            { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "13%", ค่า: li => จัดรูปจำนวน(li.qty) },
+            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "13%", ค่า: li => จัดรูปหน่วย(li.unit) },
+            { key: "price", หัว: "ราคา/หน่วย", ชนิด: "เงิน", กว้าง: "20%", ค่า: li => fmtBaht(li.unitPrice) },
+            { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "20%", สไตล์: () => ({ fontWeight: 800, color: "#1F2937" }), ค่า: li => fmtBaht(li.qty * li.unitPrice) },
+          ]} />
         )}
       </PanelSection>
     </SidePanel>

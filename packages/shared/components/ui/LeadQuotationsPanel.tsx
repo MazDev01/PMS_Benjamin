@@ -31,6 +31,8 @@ import { useQuoteValidity } from "@pms/shared/lib/useQuoteValidity";
 import { useDealerSettings, useDealerVat, useDealerWht } from "@pms/shared/lib/useDealerSettings";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 
 // "วันนี้ของระบบ" (ISO) — โหมด supabase = วันจริง · โหมด local = 30 มิ.ย. 2569 (ดู APP_NOW ใน FilterContext)
 // ใบเสนอราคาที่สร้าง/ส่งใหม่ลงวันที่นี้ → ตรงกับตัวกรอง/รายงานที่อิง APP_NOW เสมอ
@@ -600,31 +602,19 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
         {/* ตารางรายการสินค้า (BOQ) — อ่านอย่างเดียว */}
         <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>รายการสินค้า (BOQ)</div>
         {/* จอแคบ: ตารางเลื่อนในกล่องตัวเอง — หน้าไม่เลื่อนแนวนอน (บอสอนุมัติ 22 ต.ค. 69) */}
-        <div data-boq-scroll style={{ border: "1px solid #eef0f4", borderRadius: 10, overflowX: "auto", marginBottom: 4, maxWidth: "100%" }}>
-          <table style={{ width: "100%", minWidth: 460, borderCollapse: "collapse" }}>
-            <thead><tr>
-              <th style={th}>รายการ</th><th style={{ ...th, textAlign: "right" }}>จำนวน</th>
-              <th style={th}>หน่วย</th><th style={{ ...th, textAlign: "right" }}>ราคา/หน่วย</th>
-              <th style={{ ...th, textAlign: "right" }}>รวม</th>
-            </tr></thead>
-            <tbody>
-              {lis.length === 0 ? (
-                <tr><td style={{ ...td, textAlign: "center", color: "#9aa2ad" }} colSpan={5}>ไม่มีรายการ</td></tr>
-              ) : lis.map((it, i) => (
-                <tr key={i}>
-                  <td style={{ ...td, fontWeight: 600 }}>{it.name}</td>
-                  <td style={{ ...td, textAlign: "right" }}>{it.qty.toLocaleString("th-TH")}</td>
-                  <td style={td}>{it.unit}</td>
-                  <td style={{ ...td, textAlign: "right" }}>{it.unitPrice.toLocaleString("th-TH")}</td>
-                  <td style={{ ...td, textAlign: "right", fontWeight: 700, color: "#003366" }}>{fmtFull(it.qty * it.unitPrice)}</td>
-                </tr>
-              ))}
-              <tr>
-                <td style={{ ...td, background: "#f7f9fc", fontWeight: 700 }} colSpan={4}>{lis.length} รายการ · รวมก่อน VAT</td>
-                <td style={{ ...td, background: "#f7f9fc", textAlign: "right", fontWeight: 800, color: "#003366" }}>{fmtFull(subtotal)}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div data-boq-scroll style={{ marginBottom: 4, maxWidth: "100%" }}>
+          {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
+          <ตารางรายการ ป้าย="รายการสินค้าในใบเสนอราคา" แน่น กว้างขั้นต่ำ={520} กรอบ={{ border: "1px solid #eef0f4", borderRadius: 10 }} ว่าง="ไม่มีรายการ" แถว={lis} คอลัมน์={[
+            { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "34%", สไตล์: () => ({ fontWeight: 600 }), ค่า: it => it.name || "—", ชี้: it => it.name },
+            { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "13%", ค่า: it => จัดรูปจำนวน(it.qty) },
+            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "13%", ค่า: it => จัดรูปหน่วย(it.unit) },
+            { key: "price", หัว: "ราคา/หน่วย", ชนิด: "เงิน", กว้าง: "20%", ค่า: it => it.unitPrice.toLocaleString("th-TH") },
+            { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "20%", สไตล์: () => ({ fontWeight: 700, color: "#003366" }), ค่า: it => fmtFull(it.qty * it.unitPrice) },
+          ]} ท้าย={
+            <tr>
+              <td colSpan={5} className="num" style={{ background: "#f7f9fc", fontWeight: 700 }}>{lis.length} รายการ · รวมก่อน VAT</td>
+              <td className="num" style={{ background: "#f7f9fc", fontWeight: 800, color: "#003366" }}>{fmtFull(subtotal)}</td>
+            </tr>} />
         </div>
 
         {/* วันหมดอายุ / ยอดสุทธิ / หมายเหตุ */}

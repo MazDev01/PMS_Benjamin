@@ -10,6 +10,8 @@ import { Boxes, Trash2 } from "lucide-react";
 import { materialTemplates as repo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { type MaterialTemplate, ป้ายราคาประเมิน, ยอดประเมิน, ค้นแม่แบบ } from "@pms/shared/lib/materialTemplates";
 
 export type วัสดุที่เลือก = { templateId: number; qty: number };
@@ -50,29 +52,16 @@ export function MaterialEstimatePicker({ value, onChange, disabled }: { value: �
         // ตารางกลาง (.table-wrap · colgroup · table-layout: fixed) แบบเดียวกับตารางอื่นในระบบ (บอสสั่ง 27 ต.ค. 69)
         //   เดิมเขียนตารางเอง ความกว้างช่องลอยตามเนื้อหา → ช่องจำนวนล้นทับหน่วย · ถังขยะชิดยอด (ข้อทดสอบ material-picker-layout.spec.ts)
         //   ความกว้างแก้ที่ colgroup เท่านั้น · ชื่อ/หน่วยยาวตัดด้วย … (ชี้ดูชื่อเต็ม) · จอแคบเลื่อนในกรอบตาราง ไม่ดันหน้า
-        <div className="table-wrap dense" style={{ border: "1px solid var(--border)", borderRadius: 8 }}>
-          {/* ช่องเงินกว้างพอยอดหลักล้าน (ห้ามถูกตัดเป็น …) · ช่องลบกว้างคงที่ 48px ให้ปุ่มอยู่ในช่องเสมอ */}
-          <table aria-label="วัสดุที่เลือก" style={{ minWidth: 640 }}>
-            <colgroup>
-              <col style={{ width: "30%" }} /><col style={{ width: "14%" }} /><col style={{ width: "12%" }} />
-              <col style={{ width: "19%" }} /><col style={{ width: "19%" }} /><col style={{ width: 48 }} />
-            </colgroup>
-            <thead><tr><th>วัสดุ</th><th className="num">จำนวน</th><th>หน่วย</th><th className="num">ราคาต่อหน่วย</th><th className="num">ยอด</th><th aria-label="ลบ" /></tr></thead>
-            <tbody>
-              {แถว.map((r, i) => (
-                <tr key={r.templateId} data-estimate-row={r.templateId}>
-                  <td title={r.t!.name}>{r.t!.name}</td>
-                  <td className="num"><NumberInput ariaLabel={`จำนวนวัสดุ ${i + 1}`} value={r.qty} min={0} onChange={n => onChange(value.map(v => v.templateId === r.templateId ? { ...v, qty: n } : v))} style={{ ...ช่อง, textAlign: "right" }} /></td>
-                  <td title={r.t!.unit}>{r.t!.unit || "—"}</td>
-                  <td className="num">{บาท(Number(r.t!.unitPrice))}</td>
-                  <td className="num">{บาท(Math.round(r.qty * Number(r.t!.unitPrice) * 100) / 100)}</td>
-                  <td><button type="button" aria-label={`เอา ${r.t!.name} ออก`} disabled={disabled} onClick={() => onChange(value.filter(v => v.templateId !== r.templateId))}
-                    style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "flex", padding: 4 }}><Trash2 size={14} /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ตารางรายการ ป้าย="วัสดุที่เลือก" แน่น กว้างขั้นต่ำ={640} กรอบ={{ border: "1px solid var(--border)", borderRadius: 8 }} แถว={แถว}
+          คุณสมบัติแถว={r => ({ "data-estimate-row": String(r.templateId) })} คอลัมน์={[
+            { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "30%", ค่า: r => r.t!.name, ชี้: r => r.t!.name },
+            { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "14%", ค่า: (r, i) => <NumberInput ariaLabel={`จำนวนวัสดุ ${i + 1}`} value={r.qty} min={0} onChange={n => onChange(value.map(v => v.templateId === r.templateId ? { ...v, qty: n } : v))} style={{ ...ช่อง, textAlign: "right" }} /> },
+            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "12%", ค่า: r => จัดรูปหน่วย(r.t!.unit), ชี้: r => r.t!.unit },
+            { key: "price", หัว: "ราคาต่อหน่วย", ชนิด: "เงิน", กว้าง: "19%", ค่า: r => บาท(Number(r.t!.unitPrice)) },
+            { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "19%", ค่า: r => บาท(Math.round(r.qty * Number(r.t!.unitPrice) * 100) / 100) },
+            { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: 48, ค่า: r => <button type="button" aria-label={`เอา ${r.t!.name} ออก`} disabled={disabled} onClick={() => onChange(value.filter(v => v.templateId !== r.templateId))}
+              style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={14} /></button> },
+          ]} />
       )}
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151" }}>รวมประเมิน</span>

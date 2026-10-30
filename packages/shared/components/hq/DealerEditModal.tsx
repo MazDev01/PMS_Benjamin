@@ -8,7 +8,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
-import { provincesOfRegion, ALL_REGIONS, ALL_PROVINCES } from "@pms/shared/lib/provinces";
+import { provincesOfRegion, ALL_REGIONS, ALL_PROVINCES, ชื่อภาค } from "@pms/shared/lib/provinces";
 import { PACKAGE_ORDER, packageLabel } from "@pms/shared/lib/dealerProposals";
 import { dealerStatusLabel, type DealerRow, type DealerStatus } from "@pms/shared/lib/mock";
 import type { DealerPackage } from "@pms/shared/lib/data/types";
@@ -88,7 +88,7 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
             <InputField label="ภาค *">
               <select aria-label="ภูมิภาค" value={form.region} onChange={e => changeRegion(e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
                 <option value="">— ยังไม่ระบุ —</option>
-                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
                 <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
               </select>
             </InputField>
@@ -98,7 +98,7 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
                 options={provincesOfRegion(form.region)} ว่าง={form.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}
                 ก่อน={dealer.code === "HQ" && form.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
                 หลัง={form.province && form.province !== ALL_PROVINCES && !provincesOfRegion(form.region).includes(form.province) && (
-                  <option value={form.province}>{form.province} (นอกภาค {form.region})</option>
+                  <option value={form.province}>{form.province} (นอก{ชื่อภาค(form.region)})</option>
                 )} />
             </InputField>
             <div className="form-section">เป้าหมายและสถานะ</div>

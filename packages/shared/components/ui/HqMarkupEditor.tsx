@@ -11,6 +11,8 @@ import { useState } from "react";
 import type { QuoteLineItem } from "@pms/shared/lib/mock";
 import { type HqQuoteLine, ราคาขายจากต้นทุน, ยอดบรรทัด } from "@pms/shared/lib/quoteRequests";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
+import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 
 // เพดานกันพิมพ์ผิดจำนวนหลัก (ไม่ใช่เพดานทางธุรกิจ — ดีลเลอร์ตั้งราคาขายเองได้): ราคาขายต่อหน่วยไม่เกิน 100 ล้าน
 //   เพดานราคาต่อหน่วย 100 ล้าน (เท่าช่องราคาของใบแบบเดิมที่ลบไปแล้ว) — พิมพ์ 0 เกินแล้วใบหลุดถึงลูกค้าไม่ได้
@@ -49,44 +51,25 @@ export function HqMarkupEditor({ hqLines, items, onChange, readOnly }: {
           <span style={{ marginLeft: "auto", color: "#6b7280" }}>รายการและจำนวนมาจากใบ HQ — แก้ได้เฉพาะ % ที่บวก</span>
         </div>
       )}
-      <div className="table-scroll">
-        <table className="table" style={{ width: "100%", fontSize: "0.8rem" }} aria-label="รายการในใบเสนอราคา (จากใบ HQ)">
-          <thead>
-            <tr>
-              <th>รายการ</th><th style={{ textAlign: "right" }}>จำนวน</th><th>หน่วย</th>
-              <th style={{ textAlign: "right" }}>ต้นทุน/หน่วย</th><th style={{ width: 96 }}>% ที่บวก</th>
-              <th style={{ textAlign: "right" }}>ราคาขาย/หน่วย</th><th style={{ textAlign: "right" }}>รวม</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hqLines.map((l, i) => {
-              const ราคา = ราคาขายจากต้นทุน(l.unitCost, pctOf(i));
-              return (
-                <tr key={i}>
-                  <td>{l.name}</td>
-                  <td style={{ textAlign: "right" }}>{Number(l.qty).toLocaleString()}</td>
-                  <td>{l.unit}</td>
-                  <td style={{ textAlign: "right", color: "#6b7280" }}>{บาท(Number(l.unitCost))}</td>
-                  <td>{readOnly
-                    ? `${pctOf(i)}%`
-                    : <NumberInput ariaLabel={`% ที่บวก ${i + 1}`} value={pctOf(i)} min={0} onChange={n => ตั้งบรรทัด(i, n)}
-                        style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "5px 8px" }} />}</td>
-                  <td style={{ textAlign: "right" }} data-testid={`hq-line-price-${i}`}>{บาท(ราคา)}</td>
-                  <td style={{ textAlign: "right", fontWeight: 600 }}>{บาท(ยอดบรรทัด({ qty: l.qty, unitCost: ราคา }))}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={3} style={{ fontWeight: 700 }}>รวม</td>
-              <td style={{ textAlign: "right", color: "#6b7280" }}>ต้นทุน {บาท(ต้นทุนรวม)}</td>
-              <td />
-              <td colSpan={2} style={{ textAlign: "right", fontWeight: 800, color: "#003366" }} data-testid="hq-markup-sale-total">{บาท(ขายรวม)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
+      <ตารางรายการ ป้าย="รายการในใบเสนอราคา (จากใบ HQ)" แน่น กว้างขั้นต่ำ={720} แถว={hqLines} คอลัมน์={[
+        { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "24%", ค่า: l => l.name, ชี้: l => l.name },
+        { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "10%", ค่า: l => จัดรูปจำนวน(l.qty) },
+        { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "10%", ค่า: l => จัดรูปหน่วย(l.unit) },
+        { key: "cost", หัว: "ต้นทุน/หน่วย", ชนิด: "เงิน", กว้าง: "14%", สไตล์: () => ({ color: "#6b7280" }), ค่า: l => บาท(Number(l.unitCost)) },
+        { key: "pct", หัว: "% ที่บวก", ชนิด: "ร้อยละ", กว้าง: "12%", แสดงเกิน: !readOnly, ค่า: (_l, i) => readOnly
+          ? `${pctOf(i)}%`
+          : <NumberInput ariaLabel={`% ที่บวก ${i + 1}`} value={pctOf(i)} min={0} onChange={n => ตั้งบรรทัด(i, n)}
+              style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "5px 8px" }} /> },
+        { key: "price", หัว: "ราคาขาย/หน่วย", ชนิด: "เงิน", กว้าง: "15%", ค่า: (l, i) => <span data-testid={`hq-line-price-${i}`}>{บาท(ราคาขายจากต้นทุน(l.unitCost, pctOf(i)))}</span> },
+        { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "15%", สไตล์: () => ({ fontWeight: 600 }), ค่า: (l, i) => บาท(ยอดบรรทัด({ qty: l.qty, unitCost: ราคาขายจากต้นทุน(l.unitCost, pctOf(i)) })) },
+      ]} ท้าย={
+        <tr>
+          <td colSpan={4} style={{ fontWeight: 700 }}>รวม</td>
+          <td className="num" style={{ color: "#6b7280" }}>ต้นทุน {บาท(ต้นทุนรวม)}</td>
+          <td />
+          <td colSpan={2} className="num" style={{ fontWeight: 800, color: "#003366" }} data-testid="hq-markup-sale-total">{บาท(ขายรวม)}</td>
+        </tr>} />
     </div>
   );
 }

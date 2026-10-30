@@ -16,7 +16,7 @@ import { X } from "lucide-react";
 import { proposals as proposalsRepo } from "@pms/shared/lib/data";
 import type { DealerPackage, DealerPackageProposal, DealerProspect } from "@pms/shared/lib/data/types";
 import { PACKAGE_ORDER, packageLabel, เตรียมบันทึกใบ, ตรวจใบเสนอ } from "@pms/shared/lib/dealerProposals";
-import { REGIONS, ALL_REGIONS, ALL_PROVINCES, provincesOfRegion, regionOf } from "@pms/shared/lib/provinces";
+import { REGIONS, ALL_REGIONS, ALL_PROVINCES, provincesOfRegion, regionOf, ชื่อภาค } from "@pms/shared/lib/provinces";
 import { เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
 import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
@@ -242,7 +242,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
               <label className="form-label" htmlFor="pp-region">ภาค (พื้นที่ที่ได้สิทธิ์)</label>
               <select id="pp-region" className="form-select" value={ร่าง.region ?? ""} onChange={e => เปลี่ยนภาค(e.target.value)} style={{ cursor: "pointer" }}>
                 <option value="">— ยังไม่ระบุ —</option>
-                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
                 <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
               </select>
             </div>
