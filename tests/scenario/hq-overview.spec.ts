@@ -92,35 +92,47 @@ test("[flow·hq] หน้าผู้สนใจ: ผู้สนใจกำ�
 type Overview = { requests: { avgResponseDays: number | null; cancel: { pct: number | null; cancelled: number; total: number } };
   sales: { marginByDealer: { dealerCode: string; sale: number; cost: number; pctOfSale: number | null }[] } };
 let สาขา: สาขาของข้อ | null = null;
+// สาขาที่สอง: ขาย 100,000 ต้นทุน 50,000 → 50% — % ต่างจากสาขาแรก (25%) และยอดขายต่างกัน
+//   แถวรวมทั้งเครือ "ถ่วงตามยอดขาย" ≠ "เฉลี่ยตรงรายแถว" เสมอ → คิดผิดวิธีแล้วข้อนี้ตก (หลักฐาน mutation M7 30 ต.ค. 69: เดิมมีแถวส่วนต่างแถวเดียว สองวิธีได้เลขเท่ากัน)
+let สาขา2: สาขาของข้อ | null = null;
 const เลข = 970_000_000 + (Date.now() % 100_000) * 10;   // รหัสแถวของข้อ (คำขอ/ใบ HQ) ไม่ชนข้อมูลตั้งต้น
 test.afterAll(async () => {
-  if (!สาขา) return;
-  รันSQLในฐาน(`set local session_replication_role = replica;
-    delete from public.quotation_won_at where dealer_code = '${สาขา.รหัส}';
-    delete from public.quotations where dealer_code = '${สาขา.รหัส}';
-    delete from public.customers where dealer_code = '${สาขา.รหัส}';
-    delete from public.hq_quotes where request_id = ${เลข};
-    delete from public.quote_requests where id = ${เลข};
-    set local session_replication_role = origin;`);
-  await สาขา.ลบ();
+  for (const [ส, id] of [[สาขา, เลข], [สาขา2, เลข + 1]] as const) {
+    if (!ส) continue;
+    รันSQLในฐาน(`set local session_replication_role = replica;
+      delete from public.quotation_won_at where dealer_code = '${ส.รหัส}';
+      delete from public.quotations where dealer_code = '${ส.รหัส}';
+      delete from public.customers where dealer_code = '${ส.รหัส}';
+      delete from public.hq_quotes where request_id = ${id};
+      delete from public.quote_requests where id = ${id};
+      set local session_replication_role = origin;`);
+    await ส.ลบ();
+  }
 });
+
+/** ใบ HQ สั่งผลิต (ต้นทุน) + ใบลูกค้าตอบรับ (ขาย) ของสาขา — วางที่ฐานตรง (ปิดตัวดัก) */
+function วางใบส่วนต่าง(code: string, id: number, ขาย: number, ทุน: number) {
+  return รันSQLในฐาน(`set local session_replication_role = replica;
+    insert into public.quote_requests (id, request_no, dealer_code, lead_num_id, product, status, submitted_at, due_at, quoted_at) values
+      (${id}, 'QR-${code}-1', '${code}', ${id}, 'ZZTEST', 'won', now() - interval '10 days', now() + interval '4 days', now() - interval '8 days');
+    insert into public.hq_quotes (id, request_id, version, quote_no, status, line_items, total_cost, sent_at, ordered_at) values
+      (${id}, ${id}, 1, 'HQ-${code}-1', 'ordered', '[]', ${ทุน}, now() - interval '8 days', now() - interval '5 days');
+    insert into public.customers (id, dealer_code, name, company, province) values
+      (${id}, '${code}', 'ZZTEST ลูกค้าส่วนบวก', 'ZZTEST ลูกค้าส่วนบวก', 'ตราด');
+    insert into public.quotations (id, dealer_code, customer, status, total_value, line_items, hq_quote_id, customer_id, won_at) values
+      ('${code}-Q1', '${code}', 'ZZTEST ลูกค้าส่วนบวก', 'won', ${ขาย}, '[]', ${id}, ${id}, now());
+    insert into public.quotation_won_at (dealer_code, quote_id, won_at) values ('${code}', '${code}-Q1', now());
+    set local session_replication_role = origin;`);
+}
 
 test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายกเลิก อยู่หัวหน้าคำขอใบเสนอราคา · ส่วนบวกรายดีลเลอร์อยู่ภาพรวมยอดขาย · ดีลเลอร์อ่านไม่ได้", async ({ page }) => {
   const errs = watchErrors(page);
   สาขา = await สร้างสาขาของข้อ();
   const code = สาขา.รหัส;
   // วางที่ฐานตรง (ปิดตัวดัก) — ใบ HQ สั่งผลิต + ใบลูกค้าตอบรับ สร้างผ่านหน้าจอต้องเดินทั้งเส้นทาง · ข้อนี้วัดตัวเลขที่ย้ายหน้า
-  const ใส่ = รันSQLในฐาน(`set local session_replication_role = replica;
-    insert into public.quote_requests (id, request_no, dealer_code, lead_num_id, product, status, submitted_at, due_at, quoted_at) values
-      (${เลข}, 'QR-${code}-1', '${code}', ${เลข}, 'ZZTEST', 'won', now() - interval '10 days', now() + interval '4 days', now() - interval '8 days');
-    insert into public.hq_quotes (id, request_id, version, quote_no, status, line_items, total_cost, sent_at, ordered_at) values
-      (${เลข}, ${เลข}, 1, 'HQ-${code}-1', 'ordered', '[]', 300000, now() - interval '8 days', now() - interval '5 days');
-    insert into public.customers (id, dealer_code, name, company, province) values
-      (${เลข}, '${code}', 'ZZTEST ลูกค้าส่วนบวก', 'ZZTEST ลูกค้าส่วนบวก', 'ตราด');
-    insert into public.quotations (id, dealer_code, customer, status, total_value, line_items, hq_quote_id, customer_id, won_at) values
-      ('${code}-Q1', '${code}', 'ZZTEST ลูกค้าส่วนบวก', 'won', 400000, '[]', ${เลข}, ${เลข}, now());
-    insert into public.quotation_won_at (dealer_code, quote_id, won_at) values ('${code}', '${code}-Q1', now());
-    set local session_replication_role = origin;`);
+  const ใส่ = วางใบส่วนต่าง(code, เลข, 400000, 300000);
+  สาขา2 = await สร้างสาขาของข้อ();
+  if (ใส่ !== null && วางใบส่วนต่าง(สาขา2.รหัส, เลข + 1, 100000, 50000) === null) throw new Error("วางใบของสาขาที่สองไม่ได้");
   if (ใส่ === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางใบของสาขาของข้อไม่ได้");
   await loginUI(page, HQ_ORIGIN, "/hq/quote-requests", ADMIN);
   const hq = await db(ADMIN);
@@ -168,7 +180,10 @@ test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายก�
     await expect(ช่อง).toBeVisible({ timeout: 25_000 });
     return await ช่อง.getAttribute("data-value");
   });
-  expect(รวม.s, "ส่วนต่างกำไรรวมทั้งเครือ = ฐาน").toBe(รวม.r);
+  expect(รวม.s, "ส่วนต่างกำไรรวมทั้งเครือ = ฐาน (ถ่วงตามยอดขาย)").toBe(รวม.r);
+  // มีแถวส่วนต่างอย่างน้อย 2 แถวที่ % ต่างกัน — ไม่งั้นข้างบนแยก "ถ่วงตามยอดขาย" กับ "เฉลี่ยตรง" ไม่ออก
+  const ส่วนต่างราย = (await ผลงานฐาน()).filter(x => x.marginPct != null).map(x => Number(x.marginPct));
+  expect(new Set(ส่วนต่างราย).size, "มีแถวส่วนต่างอย่างน้อย 2 ค่าที่ต่างกัน").toBeGreaterThanOrEqual(2);
   // แถวของสาขาของข้อ (ค้นด้วยรหัส → เหลือแถวเดียว) = ฐาน = ค่าที่รู้แน่นอน
   await page.getByLabel("ค้นหาดีลเลอร์").fill(code);
   const แถว = ตาราง.locator("tbody tr").filter({ has: page.locator(`td[data-perf-row='${code}']`) });
