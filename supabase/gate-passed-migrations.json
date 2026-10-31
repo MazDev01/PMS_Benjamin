@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-30 12:46:07",
- "รอบ": "2026-10-30-12-43-16 รันต่อจาก c62a46e",
- "จำนวน": 263,
+ "บันทึกเมื่อ": "2026-10-31 20:20:02",
+ "รอบ": "2026-10-31-20-18-43 รันต่อจาก 62499db",
+ "จำนวน": 267,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -266,6 +266,10 @@
   "0261_prospect_province_cleanup.sql": "035144821147aa9b8160ed4705b0f3e2ed3f104cf5e8a48d3076208c110701c0",
   "0262_won_helpers_central.sql": "f0f93a1da9597c080fa3c1942f32aa84e391b9c0da8218fa9dd1fd8d1efec619",
   "0263_lead_tasks_collect_requirement_auto.sql": "76d3c8214e275d3c4686c9fd97549fcce4c43a9a1ca4913f4630dbaa036c2518",
-  "0264_hq_pipeline_dealers.sql": "5c6f98a50cbabf36a88c3a27b3f9fc7321539a5ad25b2df857ed913fe4a5fe7c"
+  "0264_hq_pipeline_dealers.sql": "5c6f98a50cbabf36a88c3a27b3f9fc7321539a5ad25b2df857ed913fe4a5fe7c",
+  "0265_hq_leads_exclude_hq.sql": "1cf3ce786bbb1727ab9b22e982159c7976c92650f54584336864550f931b6e7f",
+  "0266_hq_dealer_panel.sql": "8ef2e949077517e14a793a59d71d1ddb7848e1885f8d2a1b12e21414d881efad",
+  "0267_package_optional.sql": "ded6a722e95b815e1497e14c8d4ef9730e114a6156f035125164b903795a6349",
+  "0268_hq_pages_monthly.sql": "2f4ff0d949dfd5271f6d4609a375ee480ccffba248550eb5338f8474889548cb"
  }
 }
