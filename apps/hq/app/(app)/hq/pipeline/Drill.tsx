@@ -83,7 +83,7 @@ export function ตารางกลุ่ม({ มิติ, แถว, รว
         <tbody>
           {!แถว.length && <tr><td colSpan={หัว.length} className="empty-row">ไม่พบข้อมูลในช่วงที่เลือก</td></tr>}
           {แถว.map(g => (
-            <ClickableRow key={g.key} className="clickable" onActivate={() => เจาะ(g.key)} label={`เจาะดู ${g.label}`}>
+            <ClickableRow key={g.key} className="clickable" onActivate={() => เจาะ(g.key)} label={`เปิดผลงานของ ${g.label} (เจาะลงระดับถัดไป)`}>
               <td data-group-row={g.key} title={g.label}><strong style={{ color: "#1F2937" }}>{g.label}</strong><div style={{ fontSize: "0.68rem", color: MUTED }}>{g.sub}</div></td>
               {ช่อง(g.รวม)}
               <td style={{ color: PRIMARY, fontWeight: 700, fontSize: "0.74rem", whiteSpace: "nowrap" }}>เจาะลึก ›</td>
@@ -144,7 +144,7 @@ export function ตารางรายเดือน({ แถว, รวม�
         <thead><tr>{หัว.map((h, i) => <th key={i} className={i > 0 && i < หัว.length - 1 ? "num" : undefined}>{h}</th>)}</tr></thead>
         <tbody>
           {แถว.map(g => เลือกเดือน ? (
-            <ClickableRow key={g.key} className="clickable" onActivate={() => เลือกเดือน(g)} label={`ดูรายดีลเลอร์ ${g.label}`}>
+            <ClickableRow key={g.key} className="clickable" onActivate={() => เลือกเดือน(g)} label={`เปิดรายดีลเลอร์ของ ${g.label}`}>
               <td data-month-row={g.key}><strong>{g.label}</strong></td>{ช่อง(g.รวม)}
               <td style={{ color: PRIMARY, fontWeight: 700, fontSize: "0.74rem", whiteSpace: "nowrap" }}>ดูรายดีลเลอร์ ›</td>
             </ClickableRow>
@@ -179,7 +179,7 @@ export function แผงเดือน({ เดือน, rows, codes, ชื�
               <tbody>
                 {!ของเดือน.length && <tr><td colSpan={6} className="empty-row">ไม่มีผลงานในเดือนนี้</td></tr>}
                 {ของเดือน.map(r => (
-                  <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เจาะดู ${r.code}`}>
+                  <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${r.code} (เจาะลงระดับดีลเลอร์)`}>
                     <td data-drawer-row={r.code} title={`${r.code} · ${ชื่อ.get(r.code) ?? ""}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{ชื่อ.get(r.code) ?? ""}</td>
                     <td className="num">{r.leads}</td><td className="num">{r.quotes}</td><td className="num">{r.won}</td><td className="num">{r.lost}</td><td className="num">{fmtBaht(r.sales)}</td>
                   </ClickableRow>

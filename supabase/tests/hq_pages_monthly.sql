@@ -24,7 +24,7 @@ set local session_replication_role = replica;
 insert into dealers (code, name, province, region, status, revenue_target) values ('ZZHPM', 'ZZTEST หน้า HQ รายเดือน', 'ตราด', 'ตะวันออก', 'active', 12000000);
 insert into customers (id, dealer_code, name, company, province)
   select 992300 + i, 'ZZHPM', 'ZZTEST ลูกค้า ' || i, 'ZZTEST ลูกค้า ' || i,
-         (array['ตราด','จันทบุรี','ระยอง','ชลบุรี','ฉะเชิงเทรา','ปราจีนบุรี','สระแก้ว','นครนายก','ลพบุรี','สระบุรี','อ่างทอง','อ่างทอง', null])[i]
+         (array['ตราด','จันทบุรี','ระยอง','ชลบุรี','ฉะเชิงเทรา','ปราจีนบุรี','สระแก้ว','นครนายก','ลพบุรี','สระบุรี','อ่างทอง','อ่างทอง', ''])[i]   -- ลูกค้าไม่มีจังหวัด = ค่าว่าง (ช่องนี้ห้าม NULL · ใบ 0106)
     from generate_series(1, 13) i;
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
   ('#L-992311', 992311, 'ZZHPM', 'ZZTEST ล1', 'ZZTEST', '000-000-2311', 'ตราด', 'PAID', '2026-09-10'),
@@ -90,12 +90,16 @@ begin
   -- 4 · แดชบอร์ด: "ใบที่ส่ง" รายเดือน ต.ค. = 1 (ไม่นับร่าง/ถูกแทนที่)
   perform hpmtest.eq((select x->>'quotes' from jsonb_array_elements(hq_dashboard('2026-10-01', '2026-10-31', 'ZZHPM', '2026-10-31') -> 'monthly') x where (x->>'m')::int = 9 and (x->>'y')::int = 2026),
                      '1', 'แดชบอร์ด ต.ค.: ใบที่ส่ง 1 (ร่าง/ถูกแทนที่ไม่นับ)');
-  -- 5 · ชื่อขั้นผู้สนใจในฐาน = หน้าเว็บ
-  perform hpmtest.eq(prospect_status_th('considering'), 'รอตัดสินใจ HQ', 'ชื่อขั้น considering (prospect_status_th)');
-  perform hpmtest.eq(_prospect_status_th('considering'), 'รอตัดสินใจ HQ', 'ชื่อขั้น considering (_prospect_status_th)');
   -- 6 · % คลาดเฉลี่ยรายวัสดุ (คำขอหนึ่งนับครั้งเดียวต่อวัสดุ)
   perform hpmtest.eq((select x::text from jsonb_array_elements(material_estimate_accuracy() -> 'by_template') x where (x->>'id')::bigint = 992381), '{"n": 2, "id": 992381, "avg_pct": 3.0}', 'วัสดุ ก: เฉลี่ย (10 − 4) ÷ 2 = 3.0 จาก 2 คำขอ');
   perform hpmtest.eq((select x::text from jsonb_array_elements(material_estimate_accuracy() -> 'by_template') x where (x->>'id')::bigint = 992382), '{"n": 1, "id": 992382, "avg_pct": 10.0}', 'วัสดุ ข: 10.0 จาก 1 คำขอ');
+end $$;
+
+-- 5 · ชื่อขั้นผู้สนใจในฐาน = หน้าเว็บ — ตัวสร้างข้อความเรียกได้เฉพาะฐาน (ตัวดัก/บันทึก) ไม่ใช่บทบาทหน้าเว็บ → ตรวจด้วยบทบาทเจ้าของฐาน
+reset role;
+do $$ begin
+  perform hpmtest.eq(prospect_status_th('considering'), 'รอตัดสินใจ HQ', 'ชื่อขั้น considering (prospect_status_th)');
+  perform hpmtest.eq(_prospect_status_th('considering'), 'รอตัดสินใจ HQ', 'ชื่อขั้น considering (_prospect_status_th)');
 end $$;
 
 -- ดีลเลอร์เรียกไม่ได้
