@@ -193,7 +193,15 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   const อีเมลใหม่ = EMAIL3.replace("@", "2@");
   await ช่องอีเมล.fill(อีเมลใหม่);
   await page.getByLabel("รหัสผ่านใหม่").fill("ZZtest-UI-2569");
+  // ต้นเหตุตก (รอบตรวจ 31 ต.ค. 69 · ตกทุกครั้ง): ข้อทดสอบใช้ "เห็นอีเมลใหม่บนหน้า" เป็นสัญญาณว่าบันทึกเสร็จ แล้วเข้าระบบทันที
+  //   ไล่แล้ว: ตอนลองเข้าระบบ บัญชีในฐานยังเป็นอีเมลเดิม (คำขอบันทึกยังไม่ตอบ) · รอคำตอบของคำขอบันทึกก่อน = ผ่าน
+  //   แก้: รอคำตอบของคำขอบันทึกจริง (PATCH 200 · อีเมล/รหัสตรงที่กรอก) + หน้าต่างแก้ปิด = บันทึกเสร็จ — รอเหตุการณ์ ไม่ใช่เพิ่มเวลา
+  const คำตอบบันทึก = page.waitForResponse(r => r.request().method() === "PATCH" && r.url().includes(`/api/admin/dealers?code=${CODE3}`));
   await page.getByRole("button", { name: "บันทึก" }).first().click();
+  const ตอบ = await คำตอบบันทึก;
+  expect(ตอบ.status(), "บันทึกผ่านเซิร์ฟเวอร์").toBe(200);
+  expect(await ตอบ.json(), "เซิร์ฟเวอร์ตั้งอีเมล/รหัสตามที่กรอก").toMatchObject({ ok: true, email: EMAIL3.replace("@", "2@"), password: "ZZtest-UI-2569" });
+  await expect(page.getByLabel("อีเมลเข้าสู่ระบบใหม่"), "บันทึกเสร็จแล้วหน้าต่างแก้ปิด").toHaveCount(0);
 
   // บันทึกแล้วอีเมลบนการ์ดต้องเปลี่ยนตามทันที ไม่ต้องรีโหลดหน้า
   await expect(page.getByText(อีเมลใหม่).first(), "การ์ดต้องแสดงอีเมลใหม่ทันที").toBeVisible({ timeout: 20_000 });
