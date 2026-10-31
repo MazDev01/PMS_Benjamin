@@ -60,7 +60,7 @@ test("[db] กติกาเลื่อนขั้น + บันทึกก
   expect(ไม่มีใบ.error?.message ?? "", "ยังไม่มีใบที่ส่งแล้ว เป็นรอตัดสินใจไม่ได้").toMatch(/ใบค่าแฟรนไชส์/);
 
   // ส่งใบแล้ว → นัดคุยแล้ว → รอตัดสินใจ ให้เอง
-  const { data: ใบ } = await sb.from("dealer_package_proposals").insert({ prospect_id: id, package: "standard", proposed_date: "2026-09-14" }).select("id").single();
+  const { data: ใบ } = await sb.from("dealer_package_proposals").insert({ prospect_id: id, proposed_date: "2026-09-14" }).select("id").single();
   expect((await sb.from("dealer_package_proposals").update({ status: "sent" }).eq("id", (ใบ as { id: number }).id)).error).toBeNull();
   expect((await ขั้น()).status, "ส่งใบแล้วต้องเลื่อนเป็นรอตัดสินใจเอง").toBe("considering");
 
@@ -92,7 +92,7 @@ test("[db] ใบถูกปฏิเสธ → รอตัดสินใจ�
   const id = (pr as { id: number }).id;
   const ขั้น = async () => ((await sb.from("dealer_prospects").select("status").eq("id", id).single()).data as { status: string }).status;
   const ออกใบ = async () => ((await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, package: "standard", proposed_date: "2026-09-15" }).select("id, proposal_no").single()).data as { id: number; proposal_no: string });
+    .insert({ prospect_id: id, proposed_date: "2026-09-15" }).select("id, proposal_no").single()).data as { id: number; proposal_no: string });
   // ปฏิเสธต้องมีเหตุผล (ด่าน 4 · 0207)
   const ตั้ง = async (ใบId: number, status: string) =>
     expect((await sb.from("dealer_package_proposals")
@@ -188,7 +188,7 @@ test("[func·hq] รูปประจำตัว: อัปโหลดตั�
   assertNoErrors(errs, "รูปประจำตัวผู้สนใจเป็นดีลเลอร์");
 });
 
-test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/30 วัน · ติดต่อล่าสุดในตาราง · แท็บประวัติ", async ({ page }) => {
+test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/30 วัน · การ์ดไม่ได้ติดต่อ 14 วัน · ติดต่อล่าสุดในตาราง · แท็บประวัติ", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-เงียบ20วัน`;
@@ -201,6 +201,16 @@ test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/
   await page.getByLabel("ค้นหาผู้สนใจ").fill(name);
   const แถว = page.getByRole("row", { name: new RegExp(name) });
   await expect(แถว).toContainText("ยังไม่เคยติดต่อ", { timeout: 25_000 });
+
+  // การ์ด "ไม่ได้ติดต่อ 14 วัน" (บอสสั่ง 1 พ.ย. 69 · แทน "รอตอบใบค่าแฟรนไชส์") — การ์ดเดินตามคำค้น → ค้นชื่อของข้อนี้ = นับรายของข้อนี้รายเดียวพอดี
+  const การ์ดเงียบ = page.locator('[data-kpi-row] [data-kpi="idle14"]');
+  await expect(การ์ดเงียบ.locator("[data-value]"), "เงียบ 20 วัน = นับในการ์ด 14 วัน").toHaveAttribute("data-value", "1", { timeout: 20_000 });
+  await expect(page.locator('[data-kpi-row] [data-kpi="proposalWaiting"]'), "การ์ดรอตอบใบค่าแฟรนไชส์ออกจากหน้านี้แล้ว").toHaveCount(0);
+  await การ์ดเงียบ.click();
+  await expect(page.getByLabel("กรองตามสถานะ"), "กดการ์ด = ตัวกรองไม่ได้ติดต่อ 14 วัน").toHaveValue("idle14");
+  await expect(แถว).toBeVisible();
+  await การ์ดเงียบ.click();
+  await expect(page.getByLabel("กรองตามสถานะ"), "กดซ้ำ = ล้างตัวกรอง").toHaveValue("all");
 
   await page.getByLabel("กรองตามสถานะ").selectOption("idle14");
   await expect(แถว, "เงียบ 20 วัน ต้องติดตัวกรอง 14 วัน").toBeVisible();
@@ -224,5 +234,6 @@ test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/
   await expect(แผง.getByText("ทักกลับมาถามค่าแรกเข้า")).toBeVisible({ timeout: 15_000 });
   await expect(แผง.getByText("ติดต่อทาง Facebook")).toBeVisible();
   await expect(แผง.getByText("ติดต่อล่าสุด: วันนี้")).toBeVisible({ timeout: 15_000 });
+  await expect(การ์ดเงียบ.locator("[data-value]"), "ติดต่อแล้ววันนี้ → การ์ดไม่ได้ติดต่อ 14 วันต้องลดเป็น 0 ทันที").toHaveAttribute("data-value", "0", { timeout: 15_000 });
   assertNoErrors(errs, "บันทึกการติดต่อผู้สนใจเป็นดีลเลอร์");
 });

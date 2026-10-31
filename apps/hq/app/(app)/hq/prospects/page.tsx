@@ -25,7 +25,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
-  UserPlus, Users, AlarmClock, Store, FileClock, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip,
+  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip,
 } from "lucide-react";
 import {
   prospects as prospectsRepo, dealers as dealersRepo, proposals as proposalsRepo, prospectActivities as activitiesRepo,
@@ -111,7 +111,7 @@ export default function HQProspectsPage() {
   const router = useRouter();
   const ช่วงเดือนนี้ = useMemo(() => เดือนนี้(APP_NOW.getTime()), []);
   // ข้อมูลในหน้าเปลี่ยน (เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์) = โหลดการ์ดใหม่
-  const รุ่นการ์ด = useMemo(() => list.map(p => `${p.id}:${p.status}:${p.followUp ?? ""}`).join(","), [list]);
+  const รุ่นการ์ด = useMemo(() => list.map(p => `${p.id}:${p.status}:${p.followUp ?? ""}:${p.lastContactAt ?? ""}`).join(","), [list]);   // ติดต่อล่าสุด = การ์ดไม่ได้ติดต่อ 14 วัน
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [page, setPage] = useState(0);
 
@@ -479,7 +479,6 @@ export default function HQProspectsPage() {
         const แถวใหม่: DealerRow = {
           id: code, code, name: ฟอร์ม.name.trim(), province: ฟอร์ม.province, region: ฟอร์ม.region,
           revenueTarget: ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด)?.annualTarget ?? 0, status: "active",
-          package: ใบหลักสำหรับตั้งดีลเลอร์(ใบของรายที่เปิด)?.package ?? null,
           createdAt: new Date().toISOString(), // ให้ขึ้นบนสุดในตารางดีลเลอร์ (ใหม่ก่อน)
           // ต้องมีอีเมลเข้าระบบ ไม่งั้นหน้าเข้าสู่ระบบแบบตัวอย่างหาสาขานี้ไม่เจอ (เดิมสร้างแล้วเข้าระบบไม่ได้)
           //   ไม่เก็บรหัสผ่าน (ดู DealerCredentials) — โหมดตัวอย่างเข้าด้วยรหัสกลาง DEMO_PASSWORD
@@ -682,8 +681,10 @@ export default function HQProspectsPage() {
         <KpiCard kpi="followDue" label="ถึงกำหนดติดตาม" value={นับ(ค่า(kpi, "followDue"))} rawValue={ค่า(kpi, "followDue")} unit="ราย · วันนัดติดตามถึงแล้ว"
           danger={(ค่า(kpi, "followDue") ?? 0) > 0} icon={AlarmClock} color="#EA580C" bg="#FEF0E6"
           actionLabel={statusFilter === "due" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "due" ? "all" : "due"); setPage(0); }} />
-        <KpiCard kpi="proposalWaiting" label="รอตอบใบค่าแฟรนไชส์" value={นับ(ค่า(kpi, "proposalWaiting"))} rawValue={ค่า(kpi, "proposalWaiting")} unit="ใบ · ส่งแล้ว รอคำตอบ"
-          icon={FileClock} color="#7C3AED" bg="#F3E8FF" onClick={() => router.push("/hq/proposals?kpi=waiting")} />
+        {/* ไม่ได้ติดต่อ 14 วัน (บอสสั่ง 1 พ.ย. 69 · แทน "รอตอบใบค่าแฟรนไชส์" ที่ยังดูได้ที่หน้าใบค่าแฟรนไชส์ · ใบ 0270) — สูตรเดียวกับตัวกรอง idle14 */}
+        <KpiCard kpi="idle14" label="ไม่ได้ติดต่อ 14 วัน" value={นับ(ค่า(kpi, "idle14"))} rawValue={ค่า(kpi, "idle14")} unit="ราย · ยังติดตามอยู่ เงียบ 14 วันขึ้นไป"
+          danger={(ค่า(kpi, "idle14") ?? 0) > 0} icon={PhoneOff} color="#7C3AED" bg="#F3E8FF"
+          actionLabel={statusFilter === "idle14" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "idle14" ? "all" : "idle14"); setPage(0); }} />
         <KpiCard kpi="converted" label="เป็นดีลเลอร์แล้วเดือนนี้" value={นับ(ค่า(kpi, "converted"))} rawValue={ค่า(kpi, "converted")} unit="ราย · ตั้งเป็นดีลเลอร์ในเดือนนี้"
           icon={Store} color="#16A34A" bg="#E6F7EE" onClick={() => router.push("/hq/dealers")} />
       </KpiRow>
