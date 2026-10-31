@@ -81,6 +81,7 @@ export function QuotationFilterBar({
         {provinces.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
 
+      {/* ต้องมีค่าเสมอ — ค่าเริ่มต้น "ส่งลูกค้าแล้ว" = ชุดเดียวกับการ์ด (บอสสั่ง 30 ต.ค. 69) · "ทุกสถานะ" เป็นตัวเลือกท้ายสุด */}
       <select aria-label="กรองตามสถานะใบเสนอราคา" value={filters.status} onChange={e => set("status", e.target.value as QuotationFilters["status"])} className="form-select" style={{ ...ช่องเลือก, maxWidth: 260 }}>
         <option value="sent">ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)</option>
         {(Object.keys(ชื่อสถานะใบHQ) as QuotationStatus[]).map(s => (
