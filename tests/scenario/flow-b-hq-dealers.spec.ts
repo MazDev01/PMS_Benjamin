@@ -24,7 +24,8 @@ test.afterAll(async () => { await ล้างดีลเลอร์รหั�
 async function อยู่ในช่องครบ(cell: Locator): Promise<boolean> {
   return cell.evaluate((el) => {
     const r = document.createRange(); r.selectNodeContents(el);
-    const t = r.getBoundingClientRect(), c = el.getBoundingClientRect();
+    // ป้ายรหัสในช่องดีลเลอร์ (รหัส+ชื่อช่องเดียว · หน้าลูกค้า/ใบเสนอราคาทั้งเครือ 30 ต.ค. 69) = ต้องอยู่ครบในช่องตารางที่ครอบ
+    const t = r.getBoundingClientRect(), c = (el.tagName === "TD" ? el : el.closest("td") ?? el).getBoundingClientRect();
     return t.width > 0 && t.left >= c.left - 0.5 && t.right <= c.right + 0.5;
   });
 }
@@ -149,8 +150,9 @@ test("[ข·3] รหัสดีลเลอร์ 5 ตัวไม่โด�
     ["ใบเสนอราคาทั้งเครือ", "/hq/quotations", "ZZTEST-ลูกค้ารหัสยาว"],
   ] as const) {
     await ค้น(page, path, คำ);
-    // ภาพรวมยอดขาย (ตารางผลงานดีลเลอร์ · 30 ต.ค. 69) ช่องรหัสใช้ data-perf-row · หน้าอื่น data-col='code'
-    const ช่อง = page.locator("td[data-col='code'], td[data-perf-row]").filter({ hasText: รหัสยาว }).first();
+    // ภาพรวมยอดขาย (ตารางผลงานดีลเลอร์ · 30 ต.ค. 69) ช่องรหัสใช้ data-perf-row · ทะเบียน = td[data-col='code']
+    //   ลูกค้า/ใบเสนอราคาทั้งเครือ (ตามแบบ 30 ต.ค. 69) = ป้ายรหัส [data-col='code'] ในช่องดีลเลอร์ (รหัส+ชื่อช่องเดียว)
+    const ช่อง = page.locator("td[data-col='code'], td[data-perf-row], td[data-col='dealer'] [data-col='code']").filter({ hasText: รหัสยาว }).first();
     await expect(ช่อง, `${หน้า}: มีช่องรหัส ${รหัสยาว}`).toBeVisible({ timeout: 20_000 });
     await expect(ช่อง, `${หน้า}: ข้อความรหัสครบ`).toHaveText(รหัสยาว);
     expect(await อยู่ในช่องครบ(ช่อง), `${หน้า}: รหัสต้องอยู่ในช่องครบ ไม่โดนตัด/ไม่ล้น`).toBe(true);
