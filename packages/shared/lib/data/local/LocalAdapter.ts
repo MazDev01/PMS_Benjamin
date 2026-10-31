@@ -44,7 +44,7 @@ import { accountLocal } from "./accountLocal";
 import type { DataAdapter } from "../ports";
 import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope, DealerSettings, HQCompany, CustomerNote, SystemUser, DealerProspect, DealerPackageProposal, DealerProposalPayment, ProspectActivity, DealerProspectStatus } from "../types";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
-import { รวมค่าตั้งหาดีลเลอร์, ใช้เป้าตามแพ็กเกจ } from "@pms/shared/lib/recruitSettings";
+import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { เตรียมบันทึกใบ, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว, ทำเวอร์ชันใหม่ได้, ต้องมีเหตุผล } from "@pms/shared/lib/dealerProposals";
 import {
   ตรวจเปลี่ยนขั้น, ข้อความเพิ่มราย, ข้อความเปลี่ยนขั้น, ข้อความใบเสนอ, ข้อความถอยเพราะใบถูกปฏิเสธ, ประวัติใหม่ก่อน,
@@ -192,8 +192,7 @@ export const LocalAdapter: DataAdapter = {
   realtime: { subscribeSales: () => () => {}, subscribeSettings: () => () => {}, subscribeNotes: () => () => {}, subscribeDealerSettings: () => () => {} },
   dealers: {
     list: () => ok(loadHQDealers()),
-    // เป้าตามแพ็กเกจ (แบบเดียวกับตัวดักฐานข้อมูล 0178)
-    save: (all) => { writeKey(HQ_DEALERS_KEY, all.map(d => ใช้เป้าตามแพ็กเกจ(d, ค่าตั้งหาดีลเลอร์เดโม()))); return done(); },
+    save: (all) => { writeKey(HQ_DEALERS_KEY, all); return done(); },
     remove: (code) => {
       writeKey(HQ_DEALERS_KEY, loadHQDealers().filter(d => d.code !== code));
       // ลบดีลเลอร์แล้ว ลูกค้าเป้าหมายต้นทางลบตามไปด้วย พร้อมใบเสนอและประวัติ (บอสสั่ง 15 ก.ย. 69: "ลบไปแล้วลบไปเลย")
@@ -248,8 +247,6 @@ export const LocalAdapter: DataAdapter = {
     saveRecruitSettings: (s) => {
       const ค่าใหม่ = รวมค่าตั้งหาดีลเลอร์(s);
       writeKey(RECRUIT_KEY, ค่าใหม่);
-      // แก้เป้าของแพ็กเกจ → ดีลเลอร์ในแพ็กเกจนั้นเปลี่ยนตาม (แบบเดียวกับตัวดักฐานข้อมูล 0178)
-      writeKey(HQ_DEALERS_KEY, loadHQDealers().map(d => ใช้เป้าตามแพ็กเกจ(d, ค่าใหม่)));
       fireSettings();
       return done();
     },

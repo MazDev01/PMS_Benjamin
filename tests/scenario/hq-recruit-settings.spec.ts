@@ -144,23 +144,18 @@ test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติม
   await expect(ฟอร์ม.locator("#pp-valid"), "วันมีผล = วันที่เสนอ + 30 วัน").toHaveValue(บวกวัน(วันเสนอ, 30)!);
 
   // ผู้สนใจถูกกำหนดจากแผงแล้ว (ไม่มีช่องเลือกผู้สนใจในฟอร์มของแผง)
-  await ฟอร์ม.locator("#pp-package").selectOption("standard");
-  await expect(ฟอร์ม.locator("#pp-amount")).toHaveValue("150,000");
-  await expect(ฟอร์ม.locator("#pp-months")).toHaveValue("12");
-  await expect(ฟอร์ม.locator("#pp-target"), "ไม่ได้ตั้ง = ว่าง ไม่เดาให้").toHaveValue("");
-  // Exclusive ไม่ได้ตั้งตัวเลขไว้ → ช่องที่ระบบเติมให้ต้องว่างตาม
-  await ฟอร์ม.locator("#pp-package").selectOption("exclusive");
-  await expect(ฟอร์ม.locator("#pp-amount")).toHaveValue("");
-  // ผู้ใช้พิมพ์เองแล้ว เปลี่ยนแพ็กเกจต้องไม่ทับ
+  // แพ็กเกจเอาออกถาวร (บอสสั่ง 30 ต.ค. 69 · ช่องในฐานลบแล้ว ใบ 0269): ไม่มีช่องเลือกแพ็กเกจ · ค่าแรกเข้า/ระยะสัญญา HQ กรอกเอง
+  //   ค่าตั้งแพ็กเกจเดิมที่ยังค้างใน JSON ค่าตั้ง (ตั้งไว้ข้างบน 150,000/12) ต้องไม่ถูกเติมให้
+  await expect(ฟอร์ม.locator("#pp-package"), "ไม่มีช่องเลือกแพ็กเกจ").toHaveCount(0);
+  await expect(ฟอร์ม.locator("#pp-amount"), "ไม่เติมค่าแรกเข้าจากค่าตั้งแพ็กเกจเดิม").toHaveValue("");
+  await expect(ฟอร์ม.locator("#pp-months"), "ไม่เติมระยะสัญญาจากค่าตั้งแพ็กเกจเดิม").toHaveValue("");
   await ฟอร์ม.locator("#pp-amount").fill("99000");
-  await ฟอร์ม.locator("#pp-package").selectOption("standard");
-  await expect(ฟอร์ม.locator("#pp-amount"), "ค่าที่พิมพ์เองต้องไม่ถูกทับ").toHaveValue("99,000");
-  await expect(ฟอร์ม.locator("#pp-months")).toHaveValue("12");
+  await expect(ฟอร์ม.locator("#pp-amount"), "ช่องเงินใส่ลูกน้ำให้").toHaveValue("99,000");
+  await ฟอร์ม.locator("#pp-months").fill("12");
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
 
-  const แถว = await waitRow<{ amount: number; contract_months: number; terms: string; valid_until: string; package: string }>(
+  const แถว = await waitRow<{ amount: number; contract_months: number; terms: string; valid_until: string }>(
     sb, "dealer_package_proposals", { prospect_id: prospectId });
-  expect(แถว.package).toBe("standard");
   expect(Number(แถว.amount)).toBe(99_000);
   expect(แถว.contract_months).toBe(12);
   expect(แถว.terms).toBe("ข้อทดสอบหนึ่ง");

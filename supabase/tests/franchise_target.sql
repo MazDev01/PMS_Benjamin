@@ -14,8 +14,8 @@ update hq_recruit_settings set config = jsonb_set(coalesce(config, '{}'::jsonb),
  where id = 1;
 
 -- 1) ตั้งเป็นดีลเลอร์จากใบที่ระบุ 12,000,000 (เส้นทางสร้างดีลเลอร์ใส่เป้าจากใบ) → เป้าสาขาต้องเป็น 12,000,000
-insert into dealers (code, name, province, region, revenue_target, status, package)
-values ('ZZFT1', 'ZZTEST เป้าจากใบ', 'ระยอง', 'ตะวันออก', 12000000, 'active', 'standard');
+insert into dealers (code, name, province, region, revenue_target, status)
+values ('ZZFT1', 'ZZTEST เป้าจากใบ', 'ระยอง', 'ตะวันออก', 12000000, 'active');
 select flowtest.ok((select revenue_target from dealers where code = 'ZZFT1') = 12000000,
   'ตั้งเป็นดีลเลอร์: เป้าสาขา = เป้าในใบ 12,000,000 (ไม่ใช่เป้าแพ็กเกจ 2,400,000/3,000,000)');
 
@@ -29,7 +29,6 @@ select flowtest.ok((select revenue_target from dealers where code = 'ZZFT1') = 1
 
 -- 3) แก้ข้อมูลอื่นของดีลเลอร์ (ภาค/แพ็กเกจ) → เป้าต้องไม่ถูกเปลี่ยนตามแพ็กเกจ
 update dealers set region = 'เหนือ' where code = 'ZZFT1';
-update dealers set package = 'exclusive' where code = 'ZZFT1';
 select flowtest.ok((select revenue_target from dealers where code = 'ZZFT1') = 12000000,
   'เปลี่ยนภาค/แพ็กเกจของดีลเลอร์: เป้ายังเป็นของดีลเลอร์เอง 12,000,000');
 

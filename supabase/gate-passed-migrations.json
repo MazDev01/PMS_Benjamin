@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-10-31 21:04:35",
- "รอบ": "2026-10-31-21-03-09 รันต่อจาก 9f5e1fe",
- "จำนวน": 267,
+ "บันทึกเมื่อ": "2026-11-01 05:19:41",
+ "รอบ": "2026-11-01-05-17-52 รันต่อจาก 1618301",
+ "จำนวน": 269,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -270,6 +270,8 @@
   "0265_hq_leads_exclude_hq.sql": "1cf3ce786bbb1727ab9b22e982159c7976c92650f54584336864550f931b6e7f",
   "0266_hq_dealer_panel.sql": "8ef2e949077517e14a793a59d71d1ddb7848e1885f8d2a1b12e21414d881efad",
   "0267_package_optional.sql": "ded6a722e95b815e1497e14c8d4ef9730e114a6156f035125164b903795a6349",
-  "0268_hq_pages_monthly.sql": "2f4ff0d949dfd5271f6d4609a375ee480ccffba248550eb5338f8474889548cb"
+  "0268_hq_pages_monthly.sql": "2f4ff0d949dfd5271f6d4609a375ee480ccffba248550eb5338f8474889548cb",
+  "0269_package_drop.sql": "7189fc27c4ee67b2359ad788599553a804e7e9429eab30eba0639a10a4fe9a48",
+  "0270_prospect_idle14_card.sql": "9f2773baaf43dd79a0403e409dcd6a7ab1676dd681d39e23248abd08e39226c9"
  }
 }

@@ -246,7 +246,7 @@ export async function ลูกค้าเป้าหมายรองรั�
   //   ใบรองรับสาขาทดสอบไม่ระบุค่าแรกเข้า (ยอด 0) → ตอบรับแล้วแปลงได้เลย ไม่ต้องบันทึกการชำระ
   //   ข้อทดสอบที่ตรวจการชำระโดยเฉพาะอยู่ที่ franchise_payment_rules.sql / franchise-recruit-flow.spec.ts
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: new Date().toISOString().slice(0, 10) }).select("id").single();
+    .insert({ prospect_id: id, status: "sent", proposed_date: new Date().toISOString().slice(0, 10) }).select("id").single();
   if (ใบErr || !ใบ) throw new Error(`สร้างใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ใบErr?.message ?? "ไม่มีข้อมูลคืนมา"}`);
   const { error: ตอบรับErr } = await sb.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", (ใบ as { id: number }).id);
   if (ตอบรับErr) throw new Error(`ตอบรับใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ตอบรับErr.message}`);

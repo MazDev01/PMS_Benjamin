@@ -274,7 +274,7 @@ test.describe("รอบ 3", () => {
     const p = await hq.from("dealer_prospects").insert({ name: ผู้สนใจ, status: "contacted" }).select("id").single();
     if (p.error) throw new Error(p.error.message);
     ผู้สนใจId = (p.data as { id: number }).id;
-    const ใบ = await hq.from("dealer_package_proposals").insert({ prospect_id: ผู้สนใจId, package: "standard", proposed_date: "2026-10-20", amount: 100_000 })
+    const ใบ = await hq.from("dealer_package_proposals").insert({ prospect_id: ผู้สนใจId, proposed_date: "2026-10-20", amount: 100_000 })
       .select("proposal_no").single();
     if (ใบ.error) throw new Error(ใบ.error.message);
     เลขใบค่าแฟรนไชส์ = (ใบ.data as { proposal_no: string }).proposal_no;

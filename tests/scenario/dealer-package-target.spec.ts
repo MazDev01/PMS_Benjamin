@@ -4,6 +4,7 @@
 //   1) เป้าของแพ็กเกจ = ค่าตั้งต้นที่เติมตอนออกใบค่าแฟรนไชส์ใหม่เท่านั้น (ข้อทดสอบอยู่ที่ hq-recruit-settings)
 //   2) เป้าเป็นของดีลเลอร์รายนั้น — ตั้งจากใบตอนแปลงเป็นดีลเลอร์ · HQ แก้เองได้ · ไม่ถูกเป้าแพ็กเกจทับ
 //   3) แก้เป้าของแพ็กเกจ/แยกภาคที่หน้าตั้งค่าทีหลัง → ดีลเลอร์ที่มีอยู่ไม่เปลี่ยน
+//   (1 พ.ย. 69 · ใบ 0269) ช่องแพ็กเกจในฐานลบแล้ว — คงกติกา "เป้าเป็นของดีลเลอร์" · ค่าตั้งแพ็กเกจเดิมใน JSON เปลี่ยนแล้วเป้าไม่เปลี่ยน
 //   4) save_dealers ที่ไม่ส่งคีย์ package → แพ็กเกจเดิมไม่หาย · ทะเบียนดีลเลอร์ (view) อ่านแพ็กเกจได้
 // (ข้อทดสอบยิงตรงฐาน: supabase/tests/franchise_target.sql)
 import { test, expect } from "@playwright/test";
@@ -52,8 +53,8 @@ test("[db] เป้าเป็นของดีลเลอร์ · แพ�
   test.skip(!ADMIN_SERVICE_ROLE_KEY, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   await ตั้งเป้าแพ็กเกจ(3_000_000, null, { standard: { ตะวันออก: 2_400_000 } });
   const ใส่ = await admin.from("dealers").insert([
-    { code: STD, name: "ZZTEST แพ็กเกจ Standard", province: "ระยอง", region: "ตะวันออก", revenue_target: 12_000_000, status: "active", package: "standard" },
-    { code: EXC, name: "ZZTEST แพ็กเกจ Exclusive", province: "ระยอง", region: "ตะวันออก", revenue_target: 1_500_000, status: "active", package: "exclusive" },
+    { code: STD, name: "ZZTEST แพ็กเกจ Standard", province: "ระยอง", region: "ตะวันออก", revenue_target: 12_000_000, status: "active" },
+    { code: EXC, name: "ZZTEST แพ็กเกจ Exclusive", province: "ระยอง", region: "ตะวันออก", revenue_target: 1_500_000, status: "active" },
   ]);
   expect(ใส่.error).toBeNull();
   expect(await เป้าของ(STD), "แพ็กเกจตั้งเป้าไว้ (ภาคตะวันออก 2,400,000) เป้าที่ใส่ตอนสร้าง (จากใบ) ต้องคงอยู่").toBe(12_000_000);
@@ -62,7 +63,7 @@ test("[db] เป้าเป็นของดีลเลอร์ · แพ�
   // HQ แก้เป้าของดีลเลอร์เองผ่านหน้าดีลเลอร์ (save_dealers) — ต้องได้ค่าที่แก้
   const hq = await db(ADMIN);
   expect((await hq.rpc("save_dealers", { p_rows: [
-    { code: STD, name: "ZZTEST แพ็กเกจ Standard", province: "ระยอง", region: "ตะวันออก", status: "active", revenue_target: 9_900_000, package: "standard" },
+    { code: STD, name: "ZZTEST แพ็กเกจ Standard", province: "ระยอง", region: "ตะวันออก", status: "active", revenue_target: 9_900_000 },
   ] })).error).toBeNull();
   expect(await เป้าของ(STD), "HQ แก้เป้าของดีลเลอร์ในแพ็กเกจได้").toBe(9_900_000);
 
@@ -72,17 +73,17 @@ test("[db] เป้าเป็นของดีลเลอร์ · แพ�
   expect(await เป้าของ(EXC), "แก้เป้าแพ็กเกจทีหลัง ดีลเลอร์ exclusive ต้องไม่เปลี่ยน").toBe(1_500_000);
 
   // ย้ายภาค / เปลี่ยนแพ็กเกจ → เป้าไม่เปลี่ยนตามแพ็กเกจ
-  expect((await admin.from("dealers").update({ region: "เหนือ", province: "เชียงใหม่", package: "exclusive" }).eq("code", STD)).error).toBeNull();
+  expect((await admin.from("dealers").update({ region: "เหนือ", province: "เชียงใหม่" }).eq("code", STD)).error).toBeNull();
   expect(await เป้าของ(STD), "ย้ายภาค/เปลี่ยนแพ็กเกจ เป้าต้องคงเดิม").toBe(9_900_000);
 
   // ผู้เรียกเก่าที่ไม่ส่งคีย์ package → แพ็กเกจเดิมต้องไม่หาย · ทะเบียนอ่านแพ็กเกจได้
   expect((await hq.rpc("save_dealers", { p_rows: [
     { code: EXC, name: "ZZTEST แพ็กเกจ Exclusive (แก้ชื่อ)", province: "ระยอง", region: "ตะวันออก", status: "active", revenue_target: 2_222_000 },
   ] })).error).toBeNull();
-  const { data: ทะเบียน } = await hq.from("dealers_directory").select("code, package, revenue_target").in("code", [STD, EXC]).order("code");
+  const { data: ทะเบียน } = await hq.from("dealers_directory").select("code, revenue_target").in("code", [STD, EXC]).order("code");
   expect(ทะเบียน, "ทะเบียนดีลเลอร์ต้องอ่านแพ็กเกจได้ และแพ็กเกจเดิมไม่หาย").toEqual([
-    { code: STD, package: "exclusive", revenue_target: 9_900_000 },
-    { code: EXC, package: "exclusive", revenue_target: 2_222_000 },
+    { code: STD, revenue_target: 9_900_000 },
+    { code: EXC, revenue_target: 2_222_000 },
   ]);
 });
 
@@ -105,9 +106,9 @@ test("[ui·hq] หน้าดีลเลอร์: ไม่มีช่อง
   await expect(เป้า, "ช่องเป้าแก้ได้").toBeEnabled();
   await เป้า.fill("1234000");
   await page.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
-  await expect.poll(async () => (await admin.from("dealers").select("package, revenue_target").eq("code", STD).single()).data,
+  await expect.poll(async () => (await admin.from("dealers").select("revenue_target").eq("code", STD).single()).data,
     { timeout: 20_000, message: "บันทึกแล้วต้องได้เป้าตามที่กรอก · แพ็กเกจไม่ถูกตั้งให้" })
-    .toEqual({ package: null, revenue_target: 1_234_000 });
+    .toEqual({ revenue_target: 1_234_000 });
 
   await settle(page);   // ไม่ใช้ networkidle — โหมด api เปิดสายอัปเดตสดค้างไว้ ไม่มีวัน "เงียบ"
   await page.goto(`${HQ_ORIGIN}/hq/settings`);

@@ -109,8 +109,6 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     return bad(400, "ดีลเลอร์ต้องสร้างจากผู้สนใจที่สำเร็จแล้ว — เริ่มที่หน้า “ผู้สนใจเป็นดีลเลอร์”");
   }
   const prospectId = Number(body.prospectId);
-  // แพ็กเกจของสาขา = แพ็กเกจของใบหลัก → เป้ายอดขายเชื่อมกับแพ็กเกจ (0178 · บอสสั่ง 15 ก.ย. 69)
-  let แพ็กเกจ: string | null = null;
   {
     if (!Number.isInteger(prospectId) || prospectId <= 0) return bad(400, "ไม่พบลูกค้าเป้าหมายที่อ้างถึง");
     const { data: pr, error: prErr } = await admin.from("dealer_prospects")
@@ -133,7 +131,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     }
     if (ยังไม่พร้อม) return bad(400, `ยังแปลงเป็นดีลเลอร์ไม่ได้ — ${ยังไม่พร้อม}`);
     const { data: ใบ, error: ใบErr } = await admin.from("dealer_package_proposals")
-      .select("id, status, annual_target, package").eq("prospect_id", prospectId).eq("status", "accepted")
+      .select("id, status, annual_target").eq("prospect_id", prospectId).eq("status", "accepted")
       .order("id", { ascending: false });
     if (ใบErr || !ใบ?.length) {
       console.error("[create-dealer] อ่านใบค่าแฟรนไชส์ที่ตอบรับไม่สำเร็จ", ใบErr);
@@ -141,7 +139,6 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     }
     // เป้ายอดขายรายปีของสาขา = เป้ายอดซื้อต่อปีในใบที่ตอบรับล่าสุด (0206: เป้าในใบชนะ) · ใบไม่ระบุ = ใช้ค่าที่ส่งมา (หน้าจอส่ง 0)
     const ใบหลัก = ใบ[0];
-    แพ็กเกจ = ใบหลัก.package === "standard" || ใบหลัก.package === "exclusive" ? ใบหลัก.package : null;
     if (ใบหลัก.annual_target != null && Number.isFinite(Number(ใบหลัก.annual_target)) && Number(ใบหลัก.annual_target) >= 0) {
       revenueTarget = Number(ใบหลัก.annual_target);
     }
@@ -214,7 +211,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   // ── 4) ทะเบียนสาขา + โปรไฟล์ (ผูกกับบัญชีที่เพิ่งสร้าง) · ล้มเหลว = ย้อน auth user ──
   try {
     await must(admin.from("dealers").insert({
-      code, name, province, region, revenue_target: revenueTarget, status: "active", package: แพ็กเกจ,
+      code, name, province, region, revenue_target: revenueTarget, status: "active",
       prospect_id: prospectId,   // ด่านในฐาน (0208): ผูกผู้สนใจแล้วต้องตอบรับ + ชำระครบ
     }));
     // พื้นที่ดูแล: ฐานเขียนให้เองจากจังหวัดที่ตั้ง (dealers_territory_sync · ใบ 0259) — ไม่เขียนซ้ำที่นี่

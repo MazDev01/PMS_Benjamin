@@ -65,7 +65,7 @@ const ดีลเลอร์: { ที่: string; หน้า: string; ก�
 const HQ: { ที่: string; หน้า: string | null; การ์ด: [string, string][] }[] = [
   { ที่: "/hq/dashboard", หน้า: null, การ์ด: [] },
   { ที่: "/hq/quote-requests", หน้า: null, การ์ด: [] },
-  { ที่: "/hq/prospects", หน้า: "hq.prospects", การ์ด: [["talking", "talking"], ["followDue", "followDue"], ["proposalWaiting", "proposalWaiting"], ["converted", "converted"]] },
+  { ที่: "/hq/prospects", หน้า: "hq.prospects", การ์ด: [["talking", "talking"], ["followDue", "followDue"], ["idle14", "idle14"], ["converted", "converted"]] },
   { ที่: "/hq/proposals", หน้า: "hq.proposals", การ์ด: [["waiting", "waiting"], ["unpaid", "unpaid.count"], ["overdue", "overdue.count"], ["paid", "paid.amount"]] },
   { ที่: "/hq/dealers", หน้า: "hq.dealers", การ์ด: [["total", "total"], ["active", "active"], ["moving", "moving"], ["idle", "idle"]] },
   { ที่: "/hq/pipeline", หน้า: "hq.pipeline", การ์ด: [["sales", "sales.value"], ["winRate", "winRate.rate"], ["margin", "margin.pct"], ["onTarget", "onTarget.reached"]] },

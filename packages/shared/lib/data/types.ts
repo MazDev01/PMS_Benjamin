@@ -133,7 +133,6 @@ export type ProspectContactInput = { prospectId: number; channel: string; body: 
 // ── ใบค่าแฟรนไชส์ (บอสสั่ง 14 ก.ย. 69) ──
 //   "เหมือนใบเสนอราคาของดีลเลอร์ แต่ของ HQ" · คล้ายแฟรนไชส์แต่ไม่ใช่แฟรนไชส์ (บอสยืนยัน)
 //   ต้องมีใบที่ส่งแล้ว/ตอบรับ ถึงจะสร้างดีลเลอร์ใหม่ได้ · ดู migration 0172 · lib/dealerProposals.ts
-export type DealerPackage = "standard" | "exclusive";
 /** บันทึกการชำระค่าแฟรนไชส์ (0208) — แก้/ลบไม่ได้ ยกเลิกพร้อมเหตุผลแล้วบันทึกใหม่ · ยอดที่ยกเลิกไม่นับ */
 export type DealerProposalPayment = {
   id: number;
@@ -153,7 +152,6 @@ export type DealerPackageProposal = {
   id: number;
   prospectId: number;
   proposalNo?: string | null;    // DP-ปี-NNNN ฐานข้อมูลออกให้เสมอ
-  package: DealerPackage;
   region?: string | null;
   province?: string | null;
   amount?: number | null;        // ค่าแรกเข้า (บาท · จ่ายครั้งเดียว) — HQ กรอกเอง ไม่บังคับ

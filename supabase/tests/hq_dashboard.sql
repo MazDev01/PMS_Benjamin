@@ -78,11 +78,11 @@ insert into quote_requests (id, request_no, dealer_code, lead_num_id, product, s
 -- ใบค่าแฟรนไชส์: ค้างชำระ 1 ใบ (100,000 จ่าย 40,000 + ยกเลิก 30,000 = ค้าง 60,000)
 --   จ่ายครบ · ยังไม่ถึงกำหนด · ยังไม่ตอบรับ = ไม่นับ
 insert into dealer_prospects (id, name, status) values (9801, 'ZZHD ผู้สนใจ', 'considering');
-insert into dealer_package_proposals (id, prospect_id, proposal_no, package, amount, status, payment_due_on) values
-  (9811, 9801, 'DP-HD-1', 'standard', 100000, 'accepted', (now() at time zone 'Asia/Bangkok')::date - 3),
-  (9812, 9801, 'DP-HD-2', 'standard',  50000, 'accepted', (now() at time zone 'Asia/Bangkok')::date - 3),
-  (9813, 9801, 'DP-HD-3', 'standard',  70000, 'accepted', (now() at time zone 'Asia/Bangkok')::date + 5),
-  (9814, 9801, 'DP-HD-4', 'standard',  80000, 'sent',     (now() at time zone 'Asia/Bangkok')::date - 3);
+insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status, payment_due_on) values
+  (9811, 9801, 'DP-HD-1', 100000, 'accepted', (now() at time zone 'Asia/Bangkok')::date - 3),
+  (9812, 9801, 'DP-HD-2', 50000, 'accepted', (now() at time zone 'Asia/Bangkok')::date - 3),
+  (9813, 9801, 'DP-HD-3', 70000, 'accepted', (now() at time zone 'Asia/Bangkok')::date + 5),
+  (9814, 9801, 'DP-HD-4', 80000, 'sent',     (now() at time zone 'Asia/Bangkok')::date - 3);
 insert into dealer_proposal_payments (proposal_id, paid_on, amount, reference, cancelled_at) values
   (9811, '2026-10-01', 40000, 'ZZHD-1', null), (9811, '2026-10-02', 30000, 'ZZHD-2', now()), (9812, '2026-10-01', 50000, 'ZZHD-3', null);
 

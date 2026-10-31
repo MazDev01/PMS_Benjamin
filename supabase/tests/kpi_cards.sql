@@ -83,13 +83,18 @@ insert into appointments (id, dealer_code, company, date, status) values
   -- นัดเลยกำหนดที่ยกเลิกแล้ว ไม่ใช่ "ยังไม่ปิด" (ใบ 0253 · ตารางเทียบ FLOW รอบ 5 แถว D19) — 0246 นับเป็น 2
   (990706, 'ZZK', 'ZZK นัด6', '2026-10-21', 'cancelled');
 -- ผู้สนใจ + ใบค่าแฟรนไชส์ (ทั้งเครือ)
-insert into dealer_prospects (id, name, status, follow_up, converted_at) values
-  (990101, 'ZZK ผู้สนใจคุยอยู่', 'meeting', '2026-10-20', null),
-  (990102, 'ZZK ผู้สนใจได้แล้ว', 'won', null, '2026-10-10 10:00+07'),
-  (990103, 'ZZK ผู้สนใจไม่สำเร็จ', 'lost', null, null);
-insert into dealer_package_proposals (id, prospect_id, proposal_no, package, amount, status, payment_due_on) values
-  (990201, 990101, 'DP-ZZK-1', 'standard', 300000, 'sent', null),
-  (990202, 990102, 'DP-ZZK-2', 'standard', 100000, 'accepted', '2026-10-01');
+-- ไม่ได้ติดต่อ 14 วัน (วันนี้ = 27 ต.ค.): 990101 ติดต่อล่าสุด 13 ต.ค. = ครบ 14 วัน → นับ · 990105 ไม่เคยติดต่อ เพิ่มรายชื่อ 13 ต.ค. → นับ
+--   990104 ติดต่อ 14 ต.ค. 01:00 น. (เวลาไทย) = 13 วัน → ไม่นับ (ถ้าฐานใช้วันที่ UTC จะเป็น 13 ต.ค. แล้วนับผิด)
+--   990102 ได้แล้ว / 990103 ไม่สำเร็จ เงียบนานแต่จบแล้ว → ไม่นับ
+insert into dealer_prospects (id, name, status, follow_up, converted_at, created_at, last_contact_at) values
+  (990101, 'ZZK ผู้สนใจคุยอยู่', 'meeting', '2026-10-20', null, '2026-09-01 10:00+07', '2026-10-13 10:00+07'),
+  (990102, 'ZZK ผู้สนใจได้แล้ว', 'won', null, '2026-10-10 10:00+07', '2026-09-01 10:00+07', null),
+  (990103, 'ZZK ผู้สนใจไม่สำเร็จ', 'lost', null, null, '2026-09-01 10:00+07', null),
+  (990104, 'ZZK ผู้สนใจติดต่อเมื่อ 13 วัน', 'contacted', null, null, '2026-09-01 10:00+07', '2026-10-14 01:00+07'),
+  (990105, 'ZZK ผู้สนใจยังไม่เคยติดต่อ', 'new', null, null, '2026-10-13 12:00+07', null);
+insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status, payment_due_on) values
+  (990201, 990101, 'DP-ZZK-1', 300000, 'sent', null),
+  (990202, 990102, 'DP-ZZK-2', 100000, 'accepted', '2026-10-01');
 insert into dealer_proposal_payments (proposal_id, paid_on, amount, reference) values (990202, '2026-10-05', 30000, 'ZZK-โอน-1');
 -- บันทึกการใช้งาน (แถวทดสอบ ZZTEST ต้องไม่ถูกนับ)
 insert into audit_log ("user", role, action, target, at) values
@@ -146,9 +151,10 @@ begin
   -- ══ หน้า HQ: ต้องเพิ่มเท่าที่ใส่เป๊ะ ══
   select ค่า into ก from flowtest.ก่อน where หน้า = 'hq.prospects';
   k := kpi_cards('hq.prospects', '2026-10-01', '2026-10-27', null, '2026-10-27');
-  perform flowtest.ok((k->>'talking')::int = (ก->>'talking')::int + 1 and (k->>'followDue')::int = (ก->>'followDue')::int + 1
-    and (k->>'proposalWaiting')::int = (ก->>'proposalWaiting')::int + 1 and (k->>'converted')::int = (ก->>'converted')::int + 1,
-    format('ผู้สนใจ: กำลังคุย +1 · ถึงกำหนดติดตาม +1 · รอตอบใบค่าแฟรนไชส์ +1 · เป็นดีลเลอร์แล้วในช่วง +1 (ก่อน %s หลัง %s)', ก, k));
+  perform flowtest.ok((k->>'talking')::int = (ก->>'talking')::int + 3 and (k->>'followDue')::int = (ก->>'followDue')::int + 1
+    and (k->>'idle14')::int = (ก->>'idle14')::int + 2 and (k->>'converted')::int = (ก->>'converted')::int + 1,
+    format('ผู้สนใจ: กำลังคุย +3 · ถึงกำหนดติดตาม +1 · ไม่ได้ติดต่อ 14 วัน +2 · เป็นดีลเลอร์แล้วในช่วง +1 (ก่อน %s หลัง %s)', ก, k));
+  perform flowtest.ok(not (k ? 'proposalWaiting'), format('การ์ด "รอตอบใบค่าแฟรนไชส์" ออกจากหน้าผู้สนใจแล้ว (บอสเลือก 1 พ.ย. 69 · ได้ %s)', k));
 
   select ค่า into ก from flowtest.ก่อน where หน้า = 'hq.proposals';
   k := kpi_cards('hq.proposals', '2026-10-01', '2026-10-27', null, '2026-10-27');
@@ -236,7 +242,10 @@ begin
   perform flowtest.ok(k->>'total' = '1' and k->>'new' = '1' and k->>'sales' = '300000',
     format('ลูกค้าทั้งเครือ ZZK + ซื้อล่าสุดตั้งแต่ 1 ต.ค.: เหลือลูกค้า 1 (ใบ won 12 ต.ค.) (ได้ %s)', k));
   k := kpi_cards('hq.prospects', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"ids":[990101]}');
-  perform flowtest.ok(k = '{"talking":1,"followDue":1,"proposalWaiting":1,"converted":0}'::jsonb, format('ผู้สนใจ กรองเหลือ 1 ราย (ได้ %s)', k));
+  perform flowtest.ok(k = '{"talking":1,"followDue":1,"idle14":1,"converted":0}'::jsonb, format('ผู้สนใจ กรองเหลือ 1 ราย (ได้ %s)', k));
+  k := kpi_cards('hq.prospects', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"ids":[990104,990105,990102,990103]}');
+  perform flowtest.ok(k = '{"talking":2,"followDue":0,"idle14":1,"converted":1}'::jsonb,
+    format('ไม่ได้ติดต่อ 14 วัน: ไม่เคยติดต่อนับจากวันเพิ่มรายชื่อ · 13 วันตามเวลาไทยไม่นับ · จบแล้วไม่นับ (ได้ %s)', k));
   k := kpi_cards('hq.proposals', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"ids":[990202]}');
   perform flowtest.ok(k->>'waiting' = '0' and k #>> '{unpaid,count}' = '1' and k #>> '{unpaid,amount}' = '70000'
     and k #>> '{overdue,count}' = '1' and k #>> '{paid,count}' = '1' and k #>> '{paid,amount}' = '30000',

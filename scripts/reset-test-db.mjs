@@ -70,7 +70,7 @@ sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q"
 //   (เจอ 26 ต.ค. 69: รอบตรวจบนฐานที่สร้างใหม่ตก 5 ข้อที่ต้องใช้แถว HQ) · ค่าเดียวกับฐานจริง (ไม่ใช่ข้อมูลส่วนบุคคล)
 console.log("②ข แถว HQ ในทะเบียนดีลเลอร์ …");
 sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"], { shell: false, stdio: ["pipe", "ignore", "inherit"],
-  input: "insert into public.dealers (code, name, province, region, revenue_target, status, package, target_manual) values ('HQ', 'สำนักงานใหญ่', 'ทุกจังหวัด', 'ทุกภาค', 3200000, 'active', 'exclusive', false) on conflict (code) do nothing;" });
+  input: "insert into public.dealers (code, name, province, region, revenue_target, status, target_manual) values ('HQ', 'สำนักงานใหญ่', 'ทุกจังหวัด', 'ทุกภาค', 3200000, 'active', false) on conflict (code) do nothing;" });
 
 // ── ②ค ข้อมูลที่ใบปรับฐานเติมให้ตอนลงใบ แต่ข้อมูลตั้งต้นลงทีหลัง (ปิดตัวดักระหว่างใส่) จึงไม่ได้ ───────────────────────
 //   quotation_won_at (ใบ 0235 · แดชบอร์ดนับยอดตามวันตอบรับ): ใบตอบรับในข้อมูลตั้งต้นไม่มีวันตอบรับ → หัวการ์ดยอดขายไม่นับ
