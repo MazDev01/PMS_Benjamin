@@ -204,7 +204,11 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   await expect(page.getByLabel("อีเมลเข้าสู่ระบบใหม่"), "บันทึกเสร็จแล้วหน้าต่างแก้ปิด").toHaveCount(0);
 
   // บันทึกแล้วอีเมลบนการ์ดต้องเปลี่ยนตามทันที ไม่ต้องรีโหลดหน้า
-  await expect(page.getByText(อีเมลใหม่).first(), "การ์ดต้องแสดงอีเมลใหม่ทันที").toBeVisible({ timeout: 20_000 });
+  //   ต้นเหตุ "อีเมลใหม่ขึ้นก่อนบันทึกเสร็จ" (ไล่ 1 พ.ย. 69): ที่เห็นก่อนคำตอบคือแถวประวัติการใช้งานของหน้า "ZTF · <อีเมลใหม่> · ผู้ดูแลระบบสำนักงานใหญ่"
+  //   ที่ค้างจากการรันข้อนี้รอบก่อน (รหัสสาขา/อีเมลเดิมทุกรอบ · ประวัติไม่ลบ) — หน้าเว็บถูก ข้อตรวจเดิมหาข้อความทั้งหน้าจึงผ่านเพราะประวัติเก่า
+  //   จึงตรวจที่การ์ดข้อมูลเข้าระบบ (dealer-login-hint) เท่านั้น — การ์ดไม่เปลี่ยน = ตก แม้มีประวัติเก่าบนหน้า
+  await expect(page.getByTestId("dealer-login-hint").filter({ hasText: อีเมลใหม่ }).first(), "การ์ดต้องแสดงอีเมลใหม่ทันที").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("dealer-login-hint").filter({ hasText: EMAIL3 }), "การ์ดไม่เหลืออีเมลเดิม").toHaveCount(0);
 
   // และของจริง: ล็อกอินด้วยคู่ใหม่ได้
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
