@@ -75,8 +75,8 @@ begin
 
   -- ── ใบค่าแฟรนไชส์: ออก · แก้ร่าง · ตั้งวันครบกำหนด · ส่ง ──
   m := flowtest.mark();
-  insert into dealer_package_proposals (prospect_id, package, amount, valid_until) values (pid, 'standard', 300000, current_date + 30) returning * into p;
-  perform flowtest.ok(flowtest.n(m, 'ออกใบค่าแฟรนไชส์', p.proposal_no || ' · ZZAUDIT ผู้สนใจ · Standard') = 1, 'ออกใบ → บันทึก (เลขที่ · ผู้สนใจ · แพ็กเกจ)');
+  insert into dealer_package_proposals (prospect_id, amount, valid_until) values (pid, 300000, current_date + 30) returning * into p;
+  perform flowtest.ok(flowtest.n(m, 'ออกใบค่าแฟรนไชส์', p.proposal_no || ' · ZZAUDIT ผู้สนใจ') = 1, 'ออกใบ → บันทึก (เลขที่ · ผู้สนใจ · แพ็กเกจ)');
   m := flowtest.mark();
   update dealer_package_proposals set amount = 250000 where id = p.id;
   perform flowtest.ok(flowtest.n(m, 'แก้ไขใบค่าแฟรนไชส์', p.proposal_no || ' · ZZAUDIT ผู้สนใจ') = 1, 'แก้ใบร่าง → บันทึก');
@@ -103,7 +103,7 @@ begin
   perform flowtest.ok((select status from dealer_package_proposals where id = p.id) = 'superseded', 'ส่งเวอร์ชันใหม่ ใบเดิมถูกแทนที่เอง');
   perform flowtest.ok(flowtest.n(m, 'เปลี่ยนสถานะใบค่าแฟรนไชส์') = 1, 'ลงแค่ใบที่ผู้ใช้ส่ง ไม่ลงใบที่ระบบแทนที่ให้');
   m := flowtest.mark();
-  insert into dealer_package_proposals (prospect_id, package, amount) values (pid, 'exclusive', 1) returning * into p;
+  insert into dealer_package_proposals (prospect_id, amount) values (pid, 1) returning * into p;
   delete from dealer_package_proposals where id = p.id;
   perform flowtest.ok(flowtest.n(m, 'ลบใบค่าแฟรนไชส์ (ร่าง)', p.proposal_no || ' · ZZAUDIT ผู้สนใจ') = 1, 'ลบใบร่าง → บันทึก');
 

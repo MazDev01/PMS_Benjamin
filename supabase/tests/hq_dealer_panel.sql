@@ -21,12 +21,12 @@ grant insert on dptest.fails to authenticated;
 --   ข้อมูลบริษัทขาดเลขผู้เสียภาษี · ใบค่าแฟรนไชส์ตอบรับ 2 ใบ (ล่าสุดชำระบางส่วน) · กิจกรรม 12 รายการ (ของสาขาอื่น 1)
 set local session_replication_role = replica;
 insert into dealer_prospects (id, name, status, dealer_code) values (991201, 'ZZTEST ผู้สนใจแผง', 'won', 'ZZDPA');
-insert into dealers (code, name, province, region, status, package, prospect_id) values ('ZZDPA', 'ZZTEST แผงดีลเลอร์', 'ตราด', 'ตะวันออก', 'active', 'standard', 991201);
+insert into dealers (code, name, province, region, status, prospect_id) values ('ZZDPA', 'ZZTEST แผงดีลเลอร์', 'ตราด', 'ตะวันออก', 'active', 991201);
 insert into dealer_settings (dealer_code, issuer) values ('ZZDPA', '{"company": "ZZTEST บริษัทแผง", "address": "ZZTEST ที่อยู่", "phone": "000-000-0000", "taxId": " "}');
-insert into dealer_package_proposals (id, prospect_id, proposal_no, package, amount, status) values
-  (991211, 991201, 'FP-ZZDPA-1', 'standard', 100000, 'accepted'),
-  (991212, 991201, 'FP-ZZDPA-2', 'exclusive', 200000, 'accepted'),
-  (991213, 991201, 'FP-ZZDPA-3', 'exclusive', 300000, 'sent');
+insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status) values
+  (991211, 991201, 'FP-ZZDPA-1', 100000, 'accepted'),
+  (991212, 991201, 'FP-ZZDPA-2', 200000, 'accepted'),
+  (991213, 991201, 'FP-ZZDPA-3', 300000, 'sent');
 insert into dealer_proposal_payments (proposal_id, paid_on, amount, reference) values (991212, '2026-10-01', 50000, 'ZZTEST'), (991211, '2026-09-01', 100000, 'ZZTEST');
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
   ('#L-991221', 991221, 'ZZDPA', 'ZZTEST ล1', 'ZZTEST', '000-000-1221', 'ตราด', 'WAITING', '2026-10-01'),

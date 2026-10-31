@@ -42,8 +42,8 @@ begin
   perform flowtest.ok(hq is not null and cnx is not null, 'มีบัญชี HQ และดีลเลอร์ตั้งต้น');
   perform flowtest.as_hq(hq);
   insert into dealer_prospects (name, province, status) values ('ZZFPAY ผู้สนใจทดสอบ', 'ตราด', 'considering') returning id into pid;
-  insert into dealer_package_proposals (prospect_id, package, amount, valid_until, status)
-  values (pid, 'standard', 300000, current_date + 30, 'sent') returning * into p;
+  insert into dealer_package_proposals (prospect_id, amount, valid_until, status)
+  values (pid, 300000, current_date + 30, 'sent') returning * into p;
   เพิ่มสาขา := format($q$insert into dealers (code, name, province, region, revenue_target, status, prospect_id)
                        values ('ZZPAY', 'ZZTEST สาขาชำระ', 'ตราด', 'ตะวันออก', 0, 'active', %s)$q$, pid);
 

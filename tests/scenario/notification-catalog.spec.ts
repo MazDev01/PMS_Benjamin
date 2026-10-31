@@ -82,7 +82,7 @@ test("[รอบ4] HQ: ใบค่าแฟรนไชส์เลยวัน
   const r = await hq.from("dealer_prospects").insert({ name: ผู้สนใจ, province: "ระยอง", region: "ตะวันออก", status: "meeting" }).select("id").single();
   expect(r.error?.message ?? "").toBe("");
   รายID = Number(r.data!.id);
-  const ใบ = await hq.from("dealer_package_proposals").insert({ prospect_id: รายID, package: "standard", amount: 50000, status: "sent",
+  const ใบ = await hq.from("dealer_package_proposals").insert({ prospect_id: รายID, amount: 50000, status: "sent",
     valid_until: new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10) }).select("id, proposal_no").single();
   expect(ใบ.error?.message ?? "").toBe("");
   const ตอบ = await hq.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", ใบ.data!.id);

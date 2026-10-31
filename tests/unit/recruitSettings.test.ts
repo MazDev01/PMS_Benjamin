@@ -1,6 +1,5 @@
 // ค่าตั้ง "หาดีลเลอร์" ของสำนักงานใหญ่ (บอสสั่ง 14 ก.ย. 69)
 import { describe, it, expect } from "vitest";
-import { เป้าตามแพ็กเกจ, ใช้เป้าตามแพ็กเกจ } from "../../packages/shared/lib/recruitSettings";
 import {
   รวมค่าตั้งหาดีลเลอร์, DEFAULT_RECRUIT_SETTINGS, ช่องทางที่เข้ามาเริ่มต้น, ช่องทางติดต่อเริ่มต้น,
   จัดรายการ, ชื่องานที่ใช้, บวกวัน, ตัวเลือกพร้อมค่าเดิม, จำนวนรายการสูงสุด,
@@ -8,39 +7,8 @@ import {
 import { buildDealerProposalHTML } from "../../packages/shared/lib/dealerProposalPrint";
 import type { DealerPackageProposal, HQCompany } from "../../packages/shared/lib/data/types";
 
-describe("เป้ายอดขายตามแพ็กเกจ (0178)", () => {
-  const ค่าตั้ง = รวมค่าตั้งหาดีลเลอร์({ proposal: { packages: { standard: { annualTarget: 3_000_000 }, exclusive: { annualTarget: null } } } });
-  it("มีแพ็กเกจที่ตั้งเป้าไว้ = ใช้เป้าของแพ็กเกจ", () => {
-    expect(เป้าตามแพ็กเกจ(ค่าตั้ง, "standard")).toBe(3_000_000);
-    expect(ใช้เป้าตามแพ็กเกจ({ package: "standard", revenueTarget: 0 }, ค่าตั้ง).revenueTarget).toBe(3_000_000);
-  });
-  it("ไม่มีแพ็กเกจ หรือแพ็กเกจยังไม่ตั้งเป้า = คงเป้าที่กรอกเอง", () => {
-    expect(เป้าตามแพ็กเกจ(ค่าตั้ง, "exclusive")).toBeNull();
-    expect(เป้าตามแพ็กเกจ(ค่าตั้ง, null)).toBeNull();
-    const เอง = { package: null, revenueTarget: 1_500_000 };
-    expect(ใช้เป้าตามแพ็กเกจ(เอง, ค่าตั้ง)).toBe(เอง);
-    expect(ใช้เป้าตามแพ็กเกจ({ package: "exclusive" as const, revenueTarget: 9 }, ค่าตั้ง).revenueTarget).toBe(9);
-  });
-  it("แยกตามภาค (0179): ภาคที่ตั้งไว้ใช้เป้าของภาค · ภาคที่ไม่ได้ตั้ง/ทุกภาคใช้ค่ากลาง · ค่าเพี้ยนไม่เก็บ", () => {
-    const s = รวมค่าตั้งหาดีลเลอร์({ proposal: { packages: {
-      standard: { annualTarget: 3_000_000, targetsByRegion: { เหนือ: 2_000_000, ใต้: "abc", ดาวอังคาร: 9 } },
-      exclusive: { targetsByRegion: { กลาง: "8,000,000" } },
-    } } });
-    expect(s.proposal.packages.standard.targetsByRegion).toEqual({ เหนือ: 2_000_000 });
-    expect(เป้าตามแพ็กเกจ(s, "standard", "เหนือ")).toBe(2_000_000);
-    expect(เป้าตามแพ็กเกจ(s, "standard", "ใต้")).toBe(3_000_000);
-    expect(เป้าตามแพ็กเกจ(s, "standard", "ทุกภาค")).toBe(3_000_000);
-    expect(เป้าตามแพ็กเกจ(s, "exclusive", "กลาง")).toBe(8_000_000);
-    expect(เป้าตามแพ็กเกจ(s, "exclusive", "อีสาน"), "ไม่มีเป้าภาคและไม่มีค่ากลาง = กรอกเอง").toBeNull();
-    expect(ใช้เป้าตามแพ็กเกจ({ package: "standard" as const, region: "เหนือ", revenueTarget: 0 }, s).revenueTarget).toBe(2_000_000);
-  });
-  it("กำหนดเป้าเอง (0180): แพ็กเกจมีเป้าก็ไม่ทับ · ปิดสวิตช์แล้วกลับไปตามแพ็กเกจ", () => {
-    const เอง = { package: "standard" as const, revenueTarget: 5_000_000, targetManual: true };
-    expect(ใช้เป้าตามแพ็กเกจ(เอง, ค่าตั้ง)).toBe(เอง);
-    expect(ใช้เป้าตามแพ็กเกจ({ ...เอง, targetManual: false }, ค่าตั้ง).revenueTarget).toBe(3_000_000);
-  });
-});
-
+// "เป้ายอดขายตามแพ็กเกจ (0178–0180)" เอาออก — แพ็กเกจเอาออกถาวร (บอสสั่ง 30 ต.ค. 69 · ช่องในฐานลบแล้ว ใบ 0269)
+//   เป้าเป็นของดีลเลอร์รายนั้นเสมอ (ใบ 0206) · ข้อทดสอบที่ฐาน: supabase/tests/franchise_target.sql · package_dropped.sql
 describe("รวมค่าตั้งหาดีลเลอร์", () => {
   it("ยังไม่เคยตั้ง = ค่าเริ่มต้น · ช่องทางคงรายการเดิม · ประเภทธุรกิจ/เหตุผลว่าง (ไม่กุรายการให้)", () => {
     const s = รวมค่าตั้งหาดีลเลอร์(null);
@@ -102,7 +70,7 @@ describe("ตัวช่วยของฟอร์ม", () => {
 
 describe("ผู้ลงนามในเอกสารใบค่าแฟรนไชส์", () => {
   const hq: HQCompany = { name: "บริษัท ทดสอบ จำกัด", address: "", taxId: "", phone: "", email: "", website: "" };
-  const ใบ = { id: 1, prospectId: 1, package: "standard", status: "sent", proposalNo: "DP-2026-0001", proposedDate: "2026-09-14" } as DealerPackageProposal;
+  const ใบ = { id: 1, prospectId: 1, status: "sent", proposalNo: "DP-2026-0001", proposedDate: "2026-09-14" } as DealerPackageProposal;
 
   it("ตั้งผู้ลงนามแล้ว = ชื่อ + ตำแหน่ง + บริษัท", () => {
     const html = buildDealerProposalHTML(ใบ, { name: "คุณสมชาย" }, hq, { name: "คุณวิชัย", title: "ผู้จัดการฝ่ายขยายดีลเลอร์" });

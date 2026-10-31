@@ -34,9 +34,9 @@ insert into dealer_prospects (id, name, status) values
   (9001, 'ZZOV ก', 'new'), (9002, 'ZZOV ข', 'new'), (9003, 'ZZOV ค', 'meeting'),
   (9004, 'ZZOV ง', 'considering'), (9005, 'ZZOV จ', 'won'), (9006, 'ZZOV ฉ', 'lost');
 -- ใบค่าแฟรนไชส์รอตอบ (ส่งแล้ว) 2 ใบ รวม 450,000 · ร่าง/ตอบรับ ไม่นับ
-insert into dealer_package_proposals (id, prospect_id, proposal_no, package, amount, status) values
-  (9101, 9004, 'DP-OV-1', 'standard', 300000, 'sent'), (9102, 9003, 'DP-OV-2', 'exclusive', 150000, 'sent'),
-  (9103, 9002, 'DP-OV-3', 'standard', 999999, 'draft'), (9104, 9005, 'DP-OV-4', 'standard', 500000, 'accepted');
+insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status) values
+  (9101, 9004, 'DP-OV-1', 300000, 'sent'), (9102, 9003, 'DP-OV-2', 150000, 'sent'),
+  (9103, 9002, 'DP-OV-3', 999999, 'draft'), (9104, 9005, 'DP-OV-4', 500000, 'accepted');
 -- จังหวัดที่มีลูกค้าเป้าหมาย (ยังเปิด) แต่ยังไม่มีดีลเลอร์: ตราด 2 · สตูล 1 · (ระยองมีดีลเลอร์ = ไม่นับ · ลูกค้าเป้าหมายที่ปิดแล้วไม่นับ)
 insert into dealer_territories (province, dealer_code) values ('ระยอง', 'RYG');
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status) values

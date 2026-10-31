@@ -12,13 +12,11 @@
 //   เป้ายอดซื้อต่อปีของใบหลัก → เป้ายอดขายรายปีของสาขาตอนตั้งเป็นดีลเลอร์ (ดู ใบหลักสำหรับตั้งดีลเลอร์)
 //
 // ไฟล์นี้เป็นตรรกะล้วน — หน้าจอ ตัวเชื่อมข้อมูลทั้งสามแบบ และเซิร์ฟเวอร์ใช้ชุดเดียวกัน
-import type { DealerPackage, DealerPackageProposal, DealerProposalStatus } from "./data/types";
+import type { DealerPackageProposal, DealerProposalStatus } from "./data/types";
 import { regionOf } from "./provinces";
 import { ตรวจภาคกับจังหวัด } from "./dealerProspects";
 
-// ชื่อแพ็กเกจเป็นชื่อเฉพาะที่ทีมใช้จริง (ในไฟล์: "สนใจ Standard" / "สนใจ Exclusive") — คงภาษาอังกฤษไว้ตามนั้น
-export const PACKAGE_ORDER: readonly DealerPackage[] = ["standard", "exclusive"];
-export const packageLabel: Record<DealerPackage, string> = { standard: "Standard", exclusive: "Exclusive" };
+// แพ็กเกจเอาออกถาวร (บอสสั่ง 30 ต.ค. 69 · ช่องในฐานลบแล้ว ใบ 0269) — ห้ามเติมกลับ
 
 export const PROPOSAL_STATUS_ORDER: readonly DealerProposalStatus[] = ["draft", "sent", "accepted", "rejected", "expired", "superseded"];
 // คำเดียวกับสถานะใบเสนอราคาของดีลเลอร์ (ร่าง / ส่งแล้ว / ตอบรับ / ปฏิเสธ) — คนใช้สองระบบจะได้ไม่สับสน
@@ -35,8 +33,6 @@ export const proposalStatusColor: Record<DealerProposalStatus, { bg: string; tex
   superseded: { bg: "#f3f4f6", text: "#6b7280" },
 };
 
-export const เป็นแพ็กเกจ = (v: unknown): v is DealerPackage =>
-  typeof v === "string" && (PACKAGE_ORDER as readonly string[]).includes(v);
 export const เป็นสถานะใบ = (v: unknown): v is DealerProposalStatus =>
   typeof v === "string" && (PROPOSAL_STATUS_ORDER as readonly string[]).includes(v);
 
@@ -116,8 +112,6 @@ function เดือนจาก(v: unknown): number | null {
 export function เตรียมบันทึกใบ(p: Partial<DealerPackageProposal>): ใบเสนอที่จะบันทึก {
   return {
     prospectId: Number(p.prospectId),
-    // ไม่รู้จัก = ว่าง ให้ตัวตรวจฟ้อง "ต้องเลือกแพ็กเกจ" — ห้ามเลือกให้เอง
-    package: (เป็นแพ็กเกจ(p.package) ? p.package : "") as DealerPackage,
     province: ข้อความหรือว่าง(p.province),
     region: ข้อความหรือว่าง(p.region) ?? regionOf(String(p.province ?? "")) ?? null,
     amount: มูลค่าจาก(p.amount),
@@ -134,7 +128,6 @@ export function เตรียมบันทึกใบ(p: Partial<DealerPack
 /** ตรวจความถูกต้อง — คืนข้อความที่ผู้ใช้อ่านเข้าใจ หรือ null ถ้าผ่าน */
 export function ตรวจใบเสนอ(p: ใบเสนอที่จะบันทึก): string | null {
   if (!Number.isInteger(p.prospectId) || p.prospectId <= 0) return "ไม่ได้ระบุว่าเป็นใบของผู้สนใจรายไหน";
-  if (!เป็นแพ็กเกจ(p.package)) return "ต้องเลือกแพ็กเกจ (Standard หรือ Exclusive)";
   if (!p.proposedDate) return "ต้องระบุวันที่เสนอ";
   if (p.validUntil && p.validUntil < p.proposedDate) return "วันที่ข้อเสนอมีผลถึง ต้องไม่ก่อนวันที่เสนอ";
   if (p.amount != null && (!Number.isFinite(p.amount) || p.amount < 0)) return "ค่าแรกเข้าต้องเป็นตัวเลขไม่ติดลบ";

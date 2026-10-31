@@ -8,31 +8,33 @@ import type { DealerPackageProposal, HQCompany } from "../../packages/shared/lib
 
 // ใบค่าแฟรนไชส์ (บอสสั่ง 14 ก.ย. 69: "เหมือนดีลเลอร์ที่ต้องมีใบเสนอราคา แต่อันนี้ของ HQ")
 const ใบ = (x: Partial<DealerPackageProposal>): DealerPackageProposal => ({
-  id: 1, prospectId: 7, proposalNo: "DP-2026-0001", package: "standard", status: "draft", proposedDate: "2026-09-14", ...x,
+  id: 1, prospectId: 7, proposalNo: "DP-2026-0001", status: "draft", proposedDate: "2026-09-14", ...x,
 });
 
 describe("เตรียมบันทึกใบ / ตรวจใบเสนอ", () => {
   it("มูลค่า: พิมพ์มีลูกน้ำ/฿ ได้ · เว้นว่าง = null (ไม่ใช่ 0) · อ่านไม่ออก = ฟ้อง ไม่กลืนเป็น 0", () => {
-    expect(เตรียมบันทึกใบ({ prospectId: 7, package: "standard", proposedDate: "2026-09-14", amount: "฿150,000" as unknown as number }).amount).toBe(150000);
+    expect(เตรียมบันทึกใบ({ prospectId: 7, proposedDate: "2026-09-14", amount: "฿150,000" as unknown as number }).amount).toBe(150000);
     expect(เตรียมบันทึกใบ({ prospectId: 7, amount: "" as unknown as number }).amount).toBeNull();
-    const เพี้ยน = เตรียมบันทึกใบ({ prospectId: 7, package: "standard", proposedDate: "2026-09-14", amount: "ห้าหมื่น" as unknown as number });
+    const เพี้ยน = เตรียมบันทึกใบ({ prospectId: 7, proposedDate: "2026-09-14", amount: "ห้าหมื่น" as unknown as number });
     expect(ตรวจใบเสนอ(เพี้ยน)).toMatch(/ค่าแรกเข้า/);
   });
 
-  it("ต้องเลือกแพ็กเกจเอง — ห้ามเลือกให้", () => {
-    const r = เตรียมบันทึกใบ({ prospectId: 7, proposedDate: "2026-09-14" });
-    expect(ตรวจใบเสนอ(r)).toMatch(/ต้องเลือกแพ็กเกจ/);
+  // 1 พ.ย. 69 (ใบ 0269 ลบช่องแพ็กเกจ): เดิม "ต้องเลือกแพ็กเกจเอง" → ตอนนี้บันทึกได้โดยไม่มีแพ็กเกจ และข้อมูลที่บันทึกไม่มีช่องแพ็กเกจ
+  it("ไม่มีแพ็กเกจ — บันทึกได้ และไม่ส่งช่องแพ็กเกจไปฐาน", () => {
+    const r = เตรียมบันทึกใบ({ prospectId: 7, proposedDate: "2026-09-14", package: "exclusive" } as Parameters<typeof เตรียมบันทึกใบ>[0]);
+    expect(ตรวจใบเสนอ(r)).toBeNull();
+    expect(Object.keys(r)).not.toContain("package");
   });
 
   it("ต้องมีวันที่เสนอ · วันมีผลถึงต้องไม่ก่อนวันที่เสนอ · ต้องผูกลูกค้าเป้าหมาย", () => {
-    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ prospectId: 7, package: "exclusive" }))).toMatch(/วันที่เสนอ/);
-    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ prospectId: 7, package: "exclusive", proposedDate: "2026-09-14", validUntil: "2026-09-01" }))).toMatch(/ไม่ก่อนวันที่เสนอ/);
-    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ package: "exclusive", proposedDate: "2026-09-14" }))).toMatch(/ผู้สนใจ/);
+    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ prospectId: 7 }))).toMatch(/วันที่เสนอ/);
+    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ prospectId: 7, proposedDate: "2026-09-14", validUntil: "2026-09-01" }))).toMatch(/ไม่ก่อนวันที่เสนอ/);
+    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ proposedDate: "2026-09-14" }))).toMatch(/ผู้สนใจ/);
   });
 
   it("พื้นที่: เติมภาคจากจังหวัด · จังหวัดต้องอยู่ในภาค (กติกาเดียวกับลูกค้าเป้าหมาย)", () => {
     expect(เตรียมบันทึกใบ({ prospectId: 7, province: "ชลบุรี" }).region).toBe("ตะวันออก");
-    const ผิดภาค = เตรียมบันทึกใบ({ prospectId: 7, package: "standard", proposedDate: "2026-09-14", region: "ใต้", province: "ชลบุรี" });
+    const ผิดภาค = เตรียมบันทึกใบ({ prospectId: 7, proposedDate: "2026-09-14", region: "ใต้", province: "ชลบุรี" });
     expect(ตรวจใบเสนอ(ผิดภาค)).toMatch(/ไม่ได้อยู่ในภาค/);
   });
 
@@ -74,7 +76,7 @@ describe("พิมพ์ใบค่าแฟรนไชส์", () => {
   const hq: HQCompany = { name: "บริษัท ทดสอบสำนักงานใหญ่ จำกัด", address: "กรุงเทพฯ", taxId: "", phone: "02-000-0000", email: "", website: "" };
 
   it("หัวกระดาษเป็นของสำนักงานใหญ่ · มีเลขที่ พื้นที่ มูลค่า · ไม่มีแพ็กเกจ", () => {
-    const html = buildDealerProposalHTML(ใบ({ package: "exclusive", region: "ตะวันออก", province: "ชลบุรี", amount: 150000, status: "sent" }),
+    const html = buildDealerProposalHTML(ใบ({ region: "ตะวันออก", province: "ชลบุรี", amount: 150000, status: "sent" }),
       { name: "คุณสมชาย" }, hq);
     expect(html).toContain("ใบค่าแฟรนไชส์");
     expect(html).toContain("บริษัท ทดสอบสำนักงานใหญ่ จำกัด");
@@ -121,7 +123,7 @@ describe("พิมพ์ใบค่าแฟรนไชส์", () => {
 });
 
 describe("ช่องตัวเลข 3 ช่อง (บอสสั่ง “เอา 3 ช่อง”)", () => {
-  const ฐาน = { prospectId: 7, package: "standard" as const, proposedDate: "2026-09-14" };
+  const ฐาน = { prospectId: 7, proposedDate: "2026-09-14" };
 
   it("ระยะสัญญา: จำนวนเต็ม 1–120 เดือน · ว่าง = null · อ่านไม่ออก/ทศนิยม/เกินช่วง = ฟ้อง", () => {
     expect(เตรียมบันทึกใบ({ ...ฐาน, contractMonths: "12" as unknown as number }).contractMonths).toBe(12);

@@ -27,13 +27,12 @@ async function ไม่มีคำแพ็กเกจ(page: Page, ที่:
 test("[ui·hq] หน้า HQ ไม่มีแพ็กเกจ: ดีลเลอร์ (ตาราง/การ์ด/แผง) · ใบค่าแฟรนไชส์ · ผู้สนใจ · ตั้งค่า › หาดีลเลอร์", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-  // สาขาของข้อที่ "มีค่าแพ็กเกจในฐาน" (ข้อมูลเดิมยังอยู่ — ช่องนี้ลบในรอบถัดไป) → หน้าจอต้องไม่แสดง
+  // สาขาของข้อ (ช่องแพ็กเกจในฐานลบแล้ว · ใบ 0269) → หน้าจอต้องไม่มีคำว่าแพ็กเกจ
   const ก = await สร้างสาขาของข้อ({ ชื่อ: "ZZTEST ดีลเลอร์ข้อมูลเดิม" });
   try {
-    expect(รันSQLในฐาน(`set local session_replication_role = replica; update public.dealers set package = 'exclusive' where code = '${ก.รหัส}'; set local session_replication_role = origin;`), "ตั้งแพ็กเกจในฐานไม่ได้").not.toBeNull();
     for (const ที่ of [`/hq/dealers?view=table`, `/hq/dealers?view=card`, `/hq/dealers/${ก.รหัส}`, "/hq/proposals", "/hq/prospects"]) {
       await page.goto(`${HQ_ORIGIN}${ที่}`, { waitUntil: "domcontentloaded" });
-      if (ที่.startsWith("/hq/dealers/")) await expect(page.locator(`[data-dealer-panel="${ก.รหัส}"]`), "แผงดีลเลอร์เปิด (สาขามีแพ็กเกจในฐาน)").toBeVisible({ timeout: 25_000 });
+      if (ที่.startsWith("/hq/dealers/")) await expect(page.locator(`[data-dealer-panel="${ก.รหัส}"]`), "แผงดีลเลอร์เปิด").toBeVisible({ timeout: 25_000 });
       if (ที่.startsWith("/hq/dealers?")) { await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill(ก.รหัส); await expect(page.getByText(ก.รหัส).first()).toBeVisible({ timeout: 20_000 }); }
       await ไม่มีคำแพ็กเกจ(page, ที่);
     }
@@ -56,7 +55,7 @@ test("[ui·dealer] หน้าดีลเลอร์ไม่มีแพ็�
 });
 
 test("[ui·hq] หน้าพิมพ์ใบค่าแฟรนไชส์ไม่มีแพ็กเกจ (ใบเก่าที่มีค่าแพ็กเกจในฐานก็ไม่แสดง)", () => {
-  const ใบ = { id: 1, prospectId: 1, proposalNo: "FP-ZZ-0001", package: "exclusive", province: "ระยอง", region: "ตะวันออก",
+  const ใบ = { id: 1, prospectId: 1, proposalNo: "FP-ZZ-0001", province: "ระยอง", region: "ตะวันออก",
     amount: 150000, contractMonths: 12, annualTarget: 2_000_000, terms: "", proposedDate: "2026-10-30", validUntil: null, status: "sent" } as unknown as DealerPackageProposal;
   const html = buildDealerProposalHTML(ใบ, { name: "ZZTEST ผู้สนใจ", phone: "", email: "", province: "ระยอง", social: "" }, { name: "ZZTEST HQ" } as unknown as HQCompany);
   expect(html.replace(/<[^>]+>/g, " ").match(คำต้องห้าม), "หน้าพิมพ์ไม่มีคำว่าแพ็กเกจ/Exclusive").toBeNull();

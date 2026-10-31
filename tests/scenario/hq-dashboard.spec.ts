@@ -80,8 +80,8 @@ test.beforeAll(async () => {
     insert into public.quote_requests (id, request_no, dealer_code, lead_num_id, product, status, submitted_at, due_at) values
       (979200901, 'QR-${สาขา}-1', '${สาขา}', ${เลขลีด[2]}, 'ZZTEST', 'new', now() - interval '20 days', now() - interval '6 days');
     insert into public.dealer_prospects (id, name, status) values (979200801, 'ZZTEST-ผู้สนใจแดชบอร์ด', 'considering');
-    insert into public.dealer_package_proposals (id, prospect_id, proposal_no, package, amount, status, payment_due_on) values
-      (979200811, 979200801, 'DP-${สาขา}-1', 'standard', 1000, 'accepted', current_date - 3);
+    insert into public.dealer_package_proposals (id, prospect_id, proposal_no, amount, status, payment_due_on) values
+      (979200811, 979200801, 'DP-${สาขา}-1', 1000, 'accepted', current_date - 3);
     insert into public.audit_log ("user", role, action, target, at) values
       ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ZZTEST แก้ไขดีลเลอร์', 'RYG · ${กิจกรรมจริง}', now()),   -- ป้าย ZZTEST ที่การกระทำ: ลบได้ (ใบ 0241) แต่จอยังเห็นเป็นกิจกรรมจริง
       ('บัญชีทดสอบชั่วคราว', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · ชั่วคราว-แดชบอร์ด-${ป้าย}', now()),

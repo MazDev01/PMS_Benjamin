@@ -71,7 +71,7 @@ test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อแ�
 
   // ฐานกันแถว HQ เอง (ใบ 0222) — HQ ยิงคำสั่งบันทึกดีลเลอร์ตรง ๆ ก็ปิดใช้งานแถว HQ ไม่ได้
   const hq = await db(ADMIN);
-  const { data: แถวHQ } = await admin.from("dealers").select("code,name,province,region,revenue_target,package,target_manual").eq("code", "HQ").single();
+  const { data: แถวHQ } = await admin.from("dealers").select("code,name,province,region,revenue_target,target_manual").eq("code", "HQ").single();
   const r = await hq.rpc("save_dealers", { p_rows: [{ ...แถวHQ, status: "inactive" }] });
   await admin.from("dealers").update({ status: "active" }).eq("code", "HQ");   // ถ้าฐานไม่กัน (ทดสอบกลับด้าน) คืนค่าให้ข้ออื่น
   expect(r.error?.message ?? "", "ปิดใช้งานแถว HQ ต้องถูกปฏิเสธ").toContain("hq_row_protected");

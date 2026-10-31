@@ -82,16 +82,10 @@ export const POST = withErrors("link-prospect", async (req: NextRequest) => {
   // มีใบที่ส่งแล้วแต่ยังไม่มีใบตอบรับ → ใบล่าสุดที่ส่งแล้วถือว่าตอบรับ (กติกาเดียวกับสร้างดีลเลอร์ใหม่)
   //   ล้มตรงนี้ไม่ย้อนการผูก แต่ต้องมีร่องรอย
   const { data: ใบ } = await admin.from("dealer_package_proposals")
-    .select("id, status, package").eq("prospect_id", prospectId).in("status", ["sent", "accepted"]).order("id", { ascending: false });
+    .select("id, status").eq("prospect_id", prospectId).in("status", ["sent", "accepted"]).order("id", { ascending: false });
   if (ใบ?.length && !ใบ.some(x => x.status === "accepted")) {
     const { error: ตอบรับErr } = await admin.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", ใบ[0].id);
     if (ตอบรับErr) console.error(`[link-prospect] ตั้งใบค่าแฟรนไชส์ #${ใบ[0].id} เป็นตอบรับไม่สำเร็จ`, ตอบรับErr);
-  }
-  // สาขาที่ยังไม่มีแพ็กเกจ → ใช้แพ็กเกจของใบหลัก (เป้ายอดขายเชื่อมกับแพ็กเกจ · 0178) · มีอยู่แล้วไม่ทับ
-  if (ใบ?.length) {
-    const ใบหลัก = ใบ.find(x => x.status === "accepted") ?? ใบ[0];
-    const { error: pkErr } = await admin.from("dealers").update({ package: ใบหลัก.package }).eq("code", code).is("package", null);
-    if (pkErr) console.error(`[link-prospect] ตั้งแพ็กเกจของ ${code} ไม่สำเร็จ`, pkErr);
   }
 
   await auditLog(admin, prof, "ลูกค้าเป้าหมายเป็นดีลเลอร์แล้ว",

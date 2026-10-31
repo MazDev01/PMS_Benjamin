@@ -43,7 +43,7 @@ test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาร�
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: prospectId, package: "exclusive", status: "draft", proposed_date: "2026-09-14", amount: 250_000, contract_months: 24, annual_target: 3_000_000 })
+    .insert({ prospect_id: prospectId, status: "draft", proposed_date: "2026-09-14", amount: 250_000, contract_months: 24, annual_target: 3_000_000 })
     .select("id, proposal_no").single();
   expect(ใบErr).toBeNull();
   const { id: ใบId, proposal_no: เลขที่ } = ใบ as { id: number; proposal_no: string };
@@ -113,9 +113,9 @@ test("[func·hq] ออกใบในแผงผู้สนใจ → ใบ�
   const ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await expect(ฟอร์ม, "กดปุ่มเดียวได้ฟอร์มในแผงเลย").toBeVisible();
   await expect(ฟอร์ม.locator("#pp-prospect"), "ผู้สนใจกำหนดจากแผงแล้ว ไม่มีช่องเลือกราย").toHaveCount(0);
-  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
-  await expect(ฟอร์ม.getByText(/ต้องเลือกแพ็กเกจ/), "ไม่เลือกแพ็กเกจ = บันทึกไม่ได้").toBeVisible();
-  await ฟอร์ม.locator("#pp-package").selectOption("standard");
+  // แพ็กเกจลบออกจากฐานถาวรแล้ว (ใบ 0269 · บอสสั่ง 1 พ.ย. 69) — เดิมตรวจ "ไม่เลือกแพ็กเกจ = บันทึกไม่ได้" · กลับด้าน: ฟอร์มต้องไม่มีช่อง/ข้อความแพ็กเกจเลย
+  await expect(ฟอร์ม.locator("#pp-package"), "ไม่มีช่องเลือกแพ็กเกจ").toHaveCount(0);
+  await expect(ฟอร์ม.getByText(/แพ็กเกจ/), "ฟอร์มไม่บังคับ/ไม่พูดถึงแพ็กเกจ").toHaveCount(0);
   await expect(ฟอร์ม.locator("#pp-province"), "จังหวัดเติมจากผู้สนใจให้").toHaveValue("ลำปาง");
   await ฟอร์ม.locator("#pp-amount").fill("90000");
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
@@ -148,7 +148,7 @@ test("[func·hq] เปลี่ยนสถานะใบแล้วไปห
   const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ลำปาง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
-  const ใบ = await sb.from("dealer_package_proposals").insert({ prospect_id: prospectId, package: "standard", amount: 90_000 }).select("id, proposal_no").single();
+  const ใบ = await sb.from("dealer_package_proposals").insert({ prospect_id: prospectId, amount: 90_000 }).select("id, proposal_no").single();
   expect(ใบ.error?.message ?? "").toBe("");
   const { id: ใบId, proposal_no: เลขที่ } = ใบ.data as { id: number; proposal_no: string };
 
@@ -187,7 +187,7 @@ test("[func·hq] แถวใบร่าง 2 ปุ่ม (ดู · พิม
   const { data: pr } = await sb.from("dealer_prospects").insert({ name, status: "contacted" }).select("id").single();
   const prospectId = (pr as { id: number }).id;
   const { data: ใบ, error } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: prospectId, package: "standard", proposed_date: "2026-09-14", amount: 100_000 })
+    .insert({ prospect_id: prospectId, proposed_date: "2026-09-14", amount: 100_000 })
     .select("id, proposal_no").single();
   expect(error).toBeNull();
   const { id: ใบId, proposal_no: เลขที่ } = ใบ as { id: number; proposal_no: string };

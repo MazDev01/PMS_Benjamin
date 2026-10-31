@@ -239,7 +239,7 @@ test("[H5] [func·hq] ตั้งเป็นดีลเลอร์ใหม�
   const id = (ins as { id: number }).id;
   // ตกลง + ชำระ (ด่าน 4 · 0208): ใบตอบรับ + ชำระครบ — ใบนี้ไม่ระบุค่าแรกเข้า (ยอด 0) ตอบรับแล้วแปลงได้เลย
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, package: "standard", status: "sent", proposed_date: "2026-09-14", contract_months: 12, annual_target: 12_000_000 }).select("id").single();
+    .insert({ prospect_id: id, status: "sent", proposed_date: "2026-09-14", contract_months: 12, annual_target: 12_000_000 }).select("id").single();
   expect(ใบErr).toBeNull();
   expect((await sb.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", (ใบ as { id: number }).id)).error).toBeNull();
 
@@ -343,7 +343,7 @@ test("[api] ยังไม่มีใบค่าแฟรนไชส์ท�
   expect(error).toBeNull();
   const id = (ins as { id: number }).id;
   const { error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, package: "exclusive", status: "draft", proposed_date: "2026-09-14" });
+    .insert({ prospect_id: id, status: "draft", proposed_date: "2026-09-14" });
   expect(ใบErr).toBeNull();
 
   const res = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
@@ -362,7 +362,7 @@ test("[security] ใบค่าแฟรนไชส์: ดีลเลอร�
   const { data: pr, error } = await sb.from("dealer_prospects").insert({ name: `${NS}-ตรวจกติกาใบ` }).select("id").single();
   expect(error).toBeNull();
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: (pr as { id: number }).id, package: "standard", proposed_date: "2026-09-14", proposal_no: "ปลอม-001" })
+    .insert({ prospect_id: (pr as { id: number }).id, proposed_date: "2026-09-14", proposal_no: "ปลอม-001" })
     .select("id, proposal_no, status").single();
   expect(ใบErr).toBeNull();
   const row = ใบ as { id: number; proposal_no: string; status: string };
@@ -410,9 +410,9 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
   await expect(ใบ, "ฟอร์มต้องอยู่ในแท็บของหน้าต่างลูกค้าเป้าหมาย").toBeVisible();
   await expect(page.getByRole("dialog", { name: "ใบค่าแฟรนไชส์" }), "ต้องไม่มีหน้าต่างเด้งซ้อน").toHaveCount(0);
   await expect(แก้ไข.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }), "เปิดฟอร์มแล้วซ่อนปุ่มออกใบซ้ำ").toHaveCount(0);
-  await ใบ.getByRole("button", { name: "บันทึกใบ" }).click();
-  await expect(ใบ.getByText(/ต้องเลือกแพ็กเกจ/), "ไม่เลือกแพ็กเกจ = บันทึกไม่ได้ (ห้ามเลือกให้เอง)").toBeVisible();
-  await ใบ.locator("#pp-package").selectOption("exclusive");
+  // แพ็กเกจลบออกจากฐานถาวรแล้ว (ใบ 0269 · บอสสั่ง 1 พ.ย. 69) — เดิมตรวจ "ไม่เลือกแพ็กเกจ = บันทึกไม่ได้" · กลับด้าน: ฟอร์มต้องไม่มีช่อง/ข้อความแพ็กเกจเลย
+  await expect(ใบ.locator("#pp-package"), "ไม่มีช่องเลือกแพ็กเกจ").toHaveCount(0);
+  await expect(ใบ.getByText(/แพ็กเกจ/), "ฟอร์มไม่บังคับ/ไม่พูดถึงแพ็กเกจ").toHaveCount(0);
   await expect(ใบ.locator("#pp-province"), "จังหวัดเติมจากลูกค้าเป้าหมายให้").toHaveValue("ชลบุรี");
   await ใบ.locator("#pp-amount").fill("150000");
   await expect(ใบ.locator("#pp-amount"), "ช่องเงินต้องขึ้นลูกน้ำ").toHaveValue("150,000");

@@ -8,7 +8,6 @@
 //   • ค่าตั้งต้นของใบค่าแฟรนไชส์ (ข้อ 2)            → ว่างทั้งหมด = ฟอร์มไม่เติมอะไรให้ (ห้ามเดาตัวเลข)
 //
 // ไฟล์นี้เป็นตรรกะล้วน (ไม่พึ่ง mock.ts) — ตัวเชื่อมข้อมูลทั้งสามแบบ หน้าจอ และเทสต์ใช้ชุดเดียวกัน
-import type { DealerPackage } from "./data/types";
 import { REGIONS, type Region } from "./provinces";
 
 export type คีย์งานหาดีลเลอร์ = "contact" | "profile" | "meeting" | "proposal";
@@ -39,7 +38,8 @@ export type HQRecruitSettings = {
     /** ผู้ลงนามช่อง "ผู้เสนอ" ท้ายเอกสาร — ว่าง = ใช้ชื่อบริษัท */
     signerName: string;
     signerTitle: string;
-    packages: Record<DealerPackage, ค่าตั้งแพ็กเกจ>;
+    /** ค่าตั้งแพ็กเกจเดิม (JSON ในค่าตั้ง) — คงไว้ตามที่บันทึก ไม่ใช้แล้ว (แพ็กเกจเอาออกถาวร · ใบ 0269 ลบช่องในฐาน) */
+    packages: Record<"standard" | "exclusive", ค่าตั้งแพ็กเกจ>;
   };
 };
 
@@ -128,29 +128,6 @@ export function รวมค่าตั้งหาดีลเลอร์(raw
       packages: { standard: จัดแพ็กเกจ(pk.standard), exclusive: จัดแพ็กเกจ(pk.exclusive) },
     },
   };
-}
-
-/** เป้ายอดขายรายปีตามแพ็กเกจของดีลเลอร์ (บอสสั่ง 15 ก.ย. 69)
- *  ลำดับ: เป้าของแพ็กเกจในภาคนั้น → เป้ากลางของแพ็กเกจ → null (ใช้เป้าที่กรอกเอง)
- *  กติกาเดียวกับตัวดักฐานข้อมูล 0178/0179 */
-export function เป้าตามแพ็กเกจ(
-  s: Pick<HQRecruitSettings, "proposal">, pkg?: DealerPackage | null, region?: string | null,
-): number | null {
-  if (pkg !== "standard" && pkg !== "exclusive") return null;
-  const p = s.proposal.packages[pkg];
-  if (!p) return null;
-  const ตามภาค = region ? p.targetsByRegion?.[region as Region] : undefined;
-  return ตามภาค ?? p.annualTarget ?? null;
-}
-
-/** ดีลเลอร์หนึ่งราย → เป้าตามแพ็กเกจและภาค (ถ้ามี) · ไม่เข้าเงื่อนไข = คืนตัวเดิม
- *  กำหนดเป้าเอง (targetManual) = ไม่แตะเป้า — กติกาเดียวกับตัวดักฐานข้อมูล 0180 */
-export function ใช้เป้าตามแพ็กเกจ<T extends { package?: DealerPackage | null; region?: string | null; revenueTarget: number; targetManual?: boolean }>(
-  d: T, s: Pick<HQRecruitSettings, "proposal">,
-): T {
-  if (d.targetManual) return d;
-  const t = เป้าตามแพ็กเกจ(s, d.package, d.region);
-  return t == null || t === d.revenueTarget ? d : { ...d, revenueTarget: t };
 }
 
 /** ชื่องานที่ใช้แสดง — ตั้งเองไว้ใช้ชื่อนั้น ไม่ได้ตั้งใช้ชื่อเดิม */

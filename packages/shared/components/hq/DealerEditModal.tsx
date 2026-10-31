@@ -10,7 +10,6 @@ import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { provincesOfRegion, ALL_REGIONS, ALL_PROVINCES, ชื่อภาค } from "@pms/shared/lib/provinces";
 import { dealerStatusLabel, type DealerRow, type DealerStatus } from "@pms/shared/lib/mock";
-import type { DealerPackage } from "@pms/shared/lib/data/types";
 
 const REGIONS = ["เหนือ", "กลาง", "ตะวันออก", "ตะวันตก", "ใต้", "อีสาน"];
 const CARD: React.CSSProperties = { background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)" };
@@ -25,7 +24,7 @@ function InputField({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-export type DealerEdit = Pick<DealerRow, "name" | "province" | "region" | "revenueTarget" | "status"> & { package: DealerPackage | null };
+export type DealerEdit = Pick<DealerRow, "name" | "province" | "region" | "revenueTarget" | "status">;
 
 export function DealerEditModal({ dealer, onClose, onSave }: {
   dealer: DealerRow;
@@ -37,7 +36,7 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
   //   (ทดลองใช้เว็บแทนบอส 21 ต.ค. 69 · สาขาที่ไม่มีภาค · ข้อทดสอบ dealer-edit-null-fields.spec.ts)
   const [form, setForm] = useState({
     name: dealer.name ?? "", province: dealer.province ?? "", region: dealer.region ?? "", revenueTarget: dealer.revenueTarget,
-    package: (dealer.package ?? "") as DealerPackage | "", status: dealer.status as DealerStatus,
+    status: dealer.status as DealerStatus,
   });
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,7 +54,7 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
     setBusy(true); setErr("");
     try {
       await onSave({ name: form.name.trim(), province: form.province.trim(), region: form.region, revenueTarget: form.revenueTarget,
-        package: form.package || null, status: form.status });
+        status: form.status });
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));

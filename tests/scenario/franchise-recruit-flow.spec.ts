@@ -75,7 +75,6 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await แผง.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click();
   await แผง.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).click();
   let ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
-  await ฟอร์ม.locator("#pp-package").selectOption("standard");
   await ฟอร์ม.locator("#pp-amount").fill("300000");
   await ฟอร์ม.locator("#pp-months").fill("12");
   await ฟอร์ม.locator("#pp-target").fill("6000000");
@@ -163,8 +162,8 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
 
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "won", dealer_code: CODE });
   const admin = svc();
-  const { data: สาขา } = await admin.from("dealers").select("revenue_target, package, status").eq("code", CODE).single();
-  expect(สาขา, "สาขาใหม่: เป้า = เป้าในใบ · แพ็กเกจตามใบ").toEqual({ revenue_target: 6_000_000, package: "standard", status: "active" });
+  const { data: สาขา } = await admin.from("dealers").select("revenue_target, status").eq("code", CODE).single();
+  expect(สาขา, "สาขาใหม่: เป้า = เป้าในใบ").toEqual({ revenue_target: 6_000_000, status: "active" });
   const { data: พื้นที่ } = await admin.from("dealer_territories").select("province").eq("dealer_code", CODE);
   expect(พื้นที่, "HQ กำหนดจังหวัดที่ดูแลตอนแปลง").toEqual([{ province: จังหวัด }]);
   const { data: บัญชี } = await admin.from("profiles").select("role, status").eq("dealer_code", CODE);
