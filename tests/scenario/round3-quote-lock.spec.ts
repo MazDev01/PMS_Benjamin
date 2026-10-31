@@ -209,6 +209,8 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
   const ctx = await browser.newContext(); const hq = await ctx.newPage();
   await loginUI(hq, HQ_ORIGIN, "/hq/login", ADMIN);
   await hq.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" }); await settle(hq);
+  // 30 ต.ค. 69 (บอสสั่ง): ตาราง HQ ค่าเริ่มต้นไม่นับร่าง/ถูกแทนที่ — V1 ถูกแทนที่ ดูได้เมื่อเลือกสถานะเอง
+  await hq.getByLabel("กรองตามสถานะใบเสนอราคา").selectOption("all");
   await hq.getByPlaceholder(/ค้นหาเลขที่/).fill(เลขใบ);
   const ทั้งเครือ = await เลขที่ในตาราง(hq, เลขใบ);
   expect(ทั้งเครือ.map(x => x.text).sort(), "HQ ทั้งเครือ: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
