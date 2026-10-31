@@ -371,7 +371,7 @@ export default function SalesAnalyticsPage() {
               {โหลด && <tr><td colSpan={คอลัมน์.length} className="empty-row">กำลังโหลด…</td></tr>}
               {!โหลด && !เรียงแล้ว.length && <tr><td colSpan={คอลัมน์.length} className="empty-row">ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {ในหน้า.map(r => (
-                <ClickableRow key={r.code} className="clickable" onActivate={() => เจาะ(r.code)} label={`เจาะดู ${r.name}`}>
+                <ClickableRow key={r.code} className="clickable" onActivate={() => เจาะ(r.code)} label={`เปิดผลงานของ ${r.name} (เจาะลงระดับดีลเลอร์)`}>
                   <td data-perf-row={r.code} style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }} title={r.code}>{r.code}</td>
                   <td style={{ fontWeight: 600, color: "#1F2937" }} title={r.name}>{r.name}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}</td>
                   <td title={ชื่อภาค(r.region)}>{ชื่อภาค(r.region)}</td>

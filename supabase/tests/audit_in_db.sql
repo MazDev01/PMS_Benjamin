@@ -121,7 +121,7 @@ begin
   -- ── เปลี่ยนขั้นผู้สนใจเอง · ลบผู้สนใจ (ใบที่ลบตามไปเองไม่ลงซ้ำ) ──
   m := flowtest.mark();
   update dealer_prospects set status = 'lost', lost_reason = 'ไม่พร้อมลงทุน' where id = pid;
-  perform flowtest.ok(flowtest.n(m, 'เปลี่ยนขั้นผู้สนใจเป็นดีลเลอร์', 'ZZAUDIT ผู้สนใจ · รอตัดสินใจ → ไม่สำเร็จ') = 1, 'เปลี่ยนขั้นผู้สนใจ → บันทึก (เดิม → ใหม่)');
+  perform flowtest.ok(flowtest.n(m, 'เปลี่ยนขั้นผู้สนใจเป็นดีลเลอร์', 'ZZAUDIT ผู้สนใจ · รอตัดสินใจ HQ → ไม่สำเร็จ') = 1,   /* ชื่อขั้นตาม FLOW (ใบ 0268 · บันทึกใหม่ใช้คำใหม่ · บันทึกเก่าแปลงตอนแสดง) */ 'เปลี่ยนขั้นผู้สนใจ → บันทึก (เดิม → ใหม่)');
   perform flowtest.ok(flowtest.n(m, 'แก้ไขผู้สนใจเป็นดีลเลอร์') = 0, 'เปลี่ยนขั้นไม่ลงซ้ำเป็นแก้ไข');
   m := flowtest.mark();
   delete from dealer_prospects where id = pid;

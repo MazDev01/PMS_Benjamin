@@ -401,7 +401,7 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
                     {/* ปุ่มท้ายแถว (บอสสั่ง 30 ต.ค. 69) — ทุกปุ่มมีคำอธิบายภาษาไทยเมื่อชี้ · ไม่มีปุ่มลบดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · ยืนยัน 30 ต.ค. 69) */}
                     <div style={{ display: "flex", alignItems: "stretch", gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>{/* stretch = ปุ่มสูงเท่ากัน ขอบบนตรงแนวเดียว */}
                       {canImpersonate && (
-                        <button onClick={() => enterDealer(d)} disabled={entering === d.id} title="เข้าระบบแทนดีลเลอร์" aria-label={`เข้าระบบแทน ${d.name}`}
+                        <button onClick={() => enterDealer(d)} disabled={entering === d.id} title="เข้าระบบแทนดีลเลอร์"
                           className="btn btn-primary btn-sm" style={{ opacity: entering === d.id ? 0.6 : 1, whiteSpace: "nowrap", flexShrink: 0 }}>
                           <LogIn size={12} /> {entering === d.id ? "..." : "เข้าระบบ"}
                         </button>
