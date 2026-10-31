@@ -70,26 +70,33 @@ async function เปิด(page: Page) {
 const ค่าการ์ด = (page: Page, kpi: string) => page.locator(`[data-kpi-row] [data-kpi="${kpi}"] [data-value]`).first().getAttribute("data-value");
 const ค่ารวม = (page: Page, k: string) => page.locator(`[data-perf-total] [data-sum="${k}"]`).getAttribute("data-value");
 /** แถวรวมท้ายตาราง = การ์ด ทุกตัว (รอให้ทั้งสองโหลดชุดเดียวกันเสร็จ) */
-async function รวมเท่าการ์ด(page: Page, ที่: string) {
+async function รวมเท่าการ์ด(page: Page, ที่: string, ทั้งเครือ = false) {
+  // ต้นเหตุไม่นิ่ง (ครั้งที่ 2 · 30–31 ต.ค. 69): การ์ด (kpi_cards) กับตาราง (hq_pipeline_dealers) เป็นคำขอฐานคนละตัว
+  //   ข้ออื่นที่รันพร้อมกันเพิ่มลีดปิดไม่สำเร็จระหว่างสองคำขอ → ปิดไม่สำเร็จต่างกัน 1 แต่อัตราปิด (ปัดเป็น %) ยังเท่ากัน
+  //   เดิมเงื่อนไขรอ (poll) ไม่รวมจำนวนปิดสำเร็จ/ไม่สำเร็จ → ผ่านรอบแรกทั้งที่สองชุดอ่านคนละจังหวะ แล้วค่อยเทียบจำนวนครั้งเดียว = ตก
+  //   แก้: เทียบทุกตัวในตัวอย่างเดียวกัน (รวมปิดสำเร็จ/ไม่สำเร็จ) · ไม่ตรง = โหลดหน้าใหม่ให้การ์ดกับตารางอ่านฐานพร้อมกันอีกครั้ง (ไม่เพิ่มเวลารอ)
   await expect.poll(async () => {
     const การ์ด = { sales: await ค่าการ์ด(page, "sales"), rate: await ค่าการ์ด(page, "winRate"), margin: await ค่าการ์ด(page, "margin"), onTarget: await ค่าการ์ด(page, "onTarget") };
     const ตาราง = { sales: await ค่ารวม(page, "sales"), rate: await ค่ารวม(page, "rate"), margin: await ค่ารวม(page, "margin"), onTarget: await ค่ารวม(page, "onTarget") };
-    const n = (v: string | null) => (v == null || v === "" ? "—" : String(Number(v)));
-    return JSON.stringify({ sales: n(ตาราง.sales) === n(การ์ด.sales), rate: n(ตาราง.rate) === n(การ์ด.rate), margin: n(ตาราง.margin) === n(การ์ด.margin), onTarget: n(ตาราง.onTarget) === n(การ์ด.onTarget),
-      ตาราง: Object.values(ตาราง).map(n), การ์ด: Object.values(การ์ด).map(n) });
-  }, { timeout: 30_000, message: `${ที่}: แถวรวมท้ายตาราง = การ์ด (ยอดขาย · อัตราปิด · ส่วนต่างกำไร · ถึงเป้า)` })
-    .toMatch(/^\{"sales":true,"rate":true,"margin":true,"onTarget":true,/);
-  // ปิดสำเร็จ/ไม่สำเร็จ: ผลรวม = ตัวเลขใต้การ์ดอัตราปิด
-  const ใต้การ์ด = await page.locator(`[data-kpi-row] [data-kpi="winRate"]`).innerText();
-  const [, ได้, เสีย] = ใต้การ์ด.match(/ปิดสำเร็จ\s*([\d,]+)\s*·\s*ไม่สำเร็จ\s*([\d,]+)/) ?? [];
-  expect.soft(await ค่ารวม(page, "won"), `${ที่}: ผลรวมปิดสำเร็จ = การ์ด`).toBe(String(Number((ได้ ?? "").replace(/,/g, ""))));
-  expect.soft(await ค่ารวม(page, "lost"), `${ที่}: ผลรวมปิดไม่สำเร็จ = การ์ด`).toBe(String(Number((เสีย ?? "").replace(/,/g, ""))));
+    const ใต้การ์ด = await page.locator(`[data-kpi-row] [data-kpi="winRate"]`).innerText();
+    const [, ได้, เสีย] = ใต้การ์ด.match(/ปิดสำเร็จ\s*([\d,]+)\s*·\s*ไม่สำเร็จ\s*([\d,]+)/) ?? [];
+    const n = (v: string | null | undefined) => (v == null || v === "" ? "—" : String(Number(String(v).replace(/,/g, ""))));
+    const ผล = { sales: n(ตาราง.sales) === n(การ์ด.sales), rate: n(ตาราง.rate) === n(การ์ด.rate), margin: n(ตาราง.margin) === n(การ์ด.margin), onTarget: n(ตาราง.onTarget) === n(การ์ด.onTarget),
+      won: n(await ค่ารวม(page, "won")) === n(ได้ ?? "0"), lost: n(await ค่ารวม(page, "lost")) === n(เสีย ?? "0") };   // ไม่มีลีดที่ปิด = การ์ดไม่ขึ้นบรรทัดจำนวน = 0 (เท่าข้อเดิม)
+    // โหลดใหม่ได้เฉพาะทั้งเครือ (ไม่กรอง) — ชุดที่ข้ออื่นเขียนพร้อมกันได้ · ชุดที่กรองด้วยสาขาของข้อไม่มีใครเขียน และโหลดใหม่จะล้างตัวกรอง (ห้าม)
+    if (ทั้งเครือ && !Object.values(ผล).every(Boolean)) {   // อ่านคนละจังหวะ → ให้ทั้งคู่อ่านใหม่พร้อมกัน
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.locator("[data-perf-total]")).toBeVisible({ timeout: 30_000 });
+    }
+    return JSON.stringify({ ...ผล, ตาราง: Object.values(ตาราง).map(n), การ์ด: Object.values(การ์ด).map(n), ปิด: [ได้, เสีย] });
+  }, { timeout: 30_000, message: `${ที่}: แถวรวมท้ายตาราง = การ์ด (ยอดขาย · อัตราปิด · ส่วนต่างกำไร · ถึงเป้า · ปิดสำเร็จ/ไม่สำเร็จ)` })
+    .toMatch(/^\{"sales":true,"rate":true,"margin":true,"onTarget":true,"won":true,"lost":true,/);
 }
 
 test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์ด ทุกตัว ทุกตัวกรอง · ค่ารายแถวตรงที่ฐานคิด", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await เปิด(page);
-  await รวมเท่าการ์ด(page, "ทั้งเครือ (ไม่กรอง)");
+  await รวมเท่าการ์ด(page, "ทั้งเครือ (ไม่กรอง)", true);
 
   // ค้นด้วยป้ายของข้อ = สาขาของข้อ 2 ราย (ค่าที่รู้)
   await page.getByLabel("ค้นหาดีลเลอร์").fill(ป้าย);
