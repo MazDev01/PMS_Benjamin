@@ -133,9 +133,11 @@ test("[func·hq] ไม่มีปุ่มลบดีลเลอร์ · �
   await expect(row.getByTitle("ลบ"), "แถวไม่มีปุ่มลบ").toHaveCount(0);
   const ข้อความแจ้ง = ดักข้อความแจ้งเตือน(page);
   await row.locator("td").nth(2).click();
-  await expect(page).toHaveURL(new RegExp(`/hq/dealers/${CODE}$`), { timeout: 15_000 });
-  await expect(page.getByTitle("ลบ"), "หน้ารายละเอียดก็ไม่มีปุ่มลบ").toHaveCount(0);
-  await page.getByRole("button", { name: /ปิดใช้งาน/ }).click();
+  // 30 ต.ค. 69: กดแถว = แผงด้านขวา (เดิมไปหน้ารายละเอียด) · ปิดใช้งานที่หัวแผง
+  const แผง = page.locator(`[data-dealer-panel="${CODE}"]`);
+  await expect(แผง).toBeVisible({ timeout: 15_000 });
+  await expect(แผง.getByTitle(/^ลบ/), "แผงก็ไม่มีปุ่มลบ").toHaveCount(0);
+  await แผง.getByRole("button", { name: "ปิดใช้งาน", exact: true }).click();
   await กดตกลงในกล่องยืนยัน(page);   // กล่องยืนยันของระบบ (sonner)
   await expect.poll(async () => (await sb.from("dealers_directory").select("status").eq("code", CODE).single()).data?.status,
     { timeout: 20_000, message: `ปิดใช้งานแล้วต้องลง DB · ข้อความแจ้ง ${JSON.stringify(ข้อความแจ้ง())}` }).toBe("inactive");

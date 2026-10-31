@@ -86,7 +86,7 @@ test("[db] เป้าเป็นของดีลเลอร์ · แพ�
   ]);
 });
 
-test("[ui·hq] หน้าดีลเลอร์: เลือกแพ็กเกจแล้วช่องเป้ายังแก้ได้ · หน้าตั้งค่า: แก้เป้าแยกภาคแล้วดีลเลอร์ที่มีอยู่ไม่เปลี่ยน", async ({ page }) => {
+test("[ui·hq] หน้าดีลเลอร์: ไม่มีช่องแพ็กเกจ เป้ายังแก้ได้ (เดิม: เลือกแพ็กเกจแล้วช่องเป้ายังแก้ได้) · หน้าตั้งค่า: แก้เป้าแยกภาคแล้วดีลเลอร์ที่มีอยู่ไม่เปลี่ยน", async ({ page }) => {
   test.skip(!ADMIN_SERVICE_ROLE_KEY, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   test.setTimeout(180_000);
   const errs = watchErrors(page);
@@ -100,28 +100,20 @@ test("[ui·hq] หน้าดีลเลอร์: เลือกแพ็ก
   await page.getByRole("button", { name: "แก้ไข", exact: true }).click({ timeout: 30_000 });
   const เป้า = page.getByLabel("เป้ายอดขายทั้งปี");
   await expect(เป้า).toHaveValue("500,000");
-  await page.getByLabel("แพ็กเกจดีลเลอร์").selectOption("standard");
-  await expect(เป้า, "เลือกแพ็กเกจที่ตั้งเป้าไว้ ช่องเป้ายังแก้ได้").toBeEnabled();
-  await expect(เป้า, "เลือกแพ็กเกจแล้ว เป้าของดีลเลอร์ต้องไม่ถูกแทนด้วยเป้าแพ็กเกจ").toHaveValue("500,000");
-  await expect(page.getByText(/ตามแพ็กเกจ Standard/), "ไม่มีโหมดเป้าตามแพ็กเกจแล้ว").toHaveCount(0);
+  // บอสสั่ง 30 ต.ค. 69: เอาแพ็กเกจออกทั้งหมด — ฟอร์มแก้ไขไม่มีช่องแพ็กเกจ · ตั้งค่าไม่มีตัวเลขตั้งต้นของแต่ละแพ็กเกจ · เป้ายังแก้ได้
+  await expect(page.getByLabel("แพ็กเกจดีลเลอร์"), "ไม่มีช่องเลือกแพ็กเกจ").toHaveCount(0);
+  await expect(เป้า, "ช่องเป้าแก้ได้").toBeEnabled();
   await เป้า.fill("1234000");
   await page.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
   await expect.poll(async () => (await admin.from("dealers").select("package, revenue_target").eq("code", STD).single()).data,
-    { timeout: 20_000, message: "บันทึกแล้วต้องได้แพ็กเกจ และเป้าตามที่กรอก" })
-    .toEqual({ package: "standard", revenue_target: 1_234_000 });
+    { timeout: 20_000, message: "บันทึกแล้วต้องได้เป้าตามที่กรอก · แพ็กเกจไม่ถูกตั้งให้" })
+    .toEqual({ package: null, revenue_target: 1_234_000 });
 
-  // ── ตั้งค่า › หาดีลเลอร์ › เป้าแยกภาค (ค่าตั้งต้นของใบใหม่) ──
-  await settle(page);   // ไม่ใช้ networkidle — โหมด api เปิดสายอัปเดตสดค้างไว้ ไม่มีวัน "เงียบ" (ดู helpers.settle)
+  await settle(page);   // ไม่ใช้ networkidle — โหมด api เปิดสายอัปเดตสดค้างไว้ ไม่มีวัน "เงียบ"
   await page.goto(`${HQ_ORIGIN}/hq/settings`);
   await page.locator(".tab-bar").getByRole("button", { name: "หาดีลเลอร์" }).click({ timeout: 25_000 });
-  const ช่องตะวันออก = page.locator("#rc-standard-target-ตะวันออก");
-  await expect(ช่องตะวันออก).toHaveValue("2,400,000");
-  await ช่องตะวันออก.fill("1800000");
-  await expect(ช่องตะวันออก, "ช่องเงินต้องมีลูกน้ำ").toHaveValue("1,800,000");
-  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
-  await expect.poll(async () => ((await admin.from("hq_recruit_settings").select("config").eq("id", 1).single()).data as { config: { proposal: { packages: { standard: { targetsByRegion: Record<string, number> } } } } })
-    .config.proposal.packages.standard.targetsByRegion["ตะวันออก"], { timeout: 20_000, message: "ค่าตั้งเป้าภาคต้องบันทึกลงฐาน" }).toBe(1_800_000);
-  expect(await เป้าของ(STD), "แก้เป้าแพ็กเกจที่ตั้งค่า ดีลเลอร์ที่มีอยู่ต้องไม่เปลี่ยน").toBe(1_234_000);
-  await settle(page);
+  await expect(page.locator("#rc-terms"), "แท็บหาดีลเลอร์เปิดแล้ว").toBeVisible({ timeout: 25_000 });
+  await expect(page.locator("[id^='rc-standard'], [id^='rc-exclusive']"), "ไม่มีตัวเลขตั้งต้นของแต่ละแพ็กเกจ").toHaveCount(0);
+  await expect(page.getByText(/แพ็กเกจ/), "หน้าตั้งค่าไม่มีคำว่าแพ็กเกจ").toHaveCount(0);
   assertNoErrors(errs, "หน้าดีลเลอร์ + ตั้งค่า › หาดีลเลอร์ (เป้าของดีลเลอร์)");
 });

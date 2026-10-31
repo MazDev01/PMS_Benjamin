@@ -13,7 +13,7 @@ import { FileText, Plus, Printer, Pencil, Trash2, CopyPlus } from "lucide-react"
 import { proposals as proposalsRepo } from "@pms/shared/lib/data";
 import type { DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
 import {
-  packageLabel, proposalStatusLabel, proposalStatusColor,
+  proposalStatusLabel, proposalStatusColor,
   สถานะที่เปลี่ยนไปได้, ใบล็อกแล้ว, มูลค่าอ่านง่าย, หมดอายุแล้ว, ระยะสัญญาอ่านง่าย, ทำเวอร์ชันใหม่ได้,
 } from "@pms/shared/lib/dealerProposals";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
@@ -129,7 +129,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                         {(p.version ?? 1) > 1 && <span style={{ fontWeight: 600, color: MUTED, fontSize: "0.7rem" }}> · เวอร์ชัน {p.version}</span>}
                       </div>
                       <div style={{ fontSize: "0.74rem", color: "#374151" }}>
-                        {packageLabel[p.package]} · ค่าแรกเข้า {มูลค่าอ่านง่าย(p.amount)}
+                        ค่าแรกเข้า {มูลค่าอ่านง่าย(p.amount)}
                         {p.proposedDate ? ` · เสนอ ${fmtISOToThai(p.proposedDate)}` : ""}
                       </div>
                       <div style={{ fontSize: "0.7rem", color: MUTED }}>

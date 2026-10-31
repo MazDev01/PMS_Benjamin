@@ -955,6 +955,8 @@ export const LocalAdapter: DataAdapter = {
     kpiCards: () => ok({}),
     // โหมดตัวอย่าง: ไม่มีตัวคำนวณที่ฐาน — ไม่กุตัวเลข (ตารางขึ้นว่าง)
     hqPipelineDealers: () => ok([]),
+    hqPipelineMonths: () => ok([]),
+    hqDealerPanel: () => ok(null),   // โหมดตัวอย่างไม่มีตัวคำนวณของฐาน — แผงแสดง "—"
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);
       const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);
@@ -1053,9 +1055,10 @@ export const LocalAdapter: DataAdapter = {
       const plOf = (q: QuotationMock) => (q.project ?? "").trim() || undefined; // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
       let arr = scopeByDealer(readKey<QuotationMock[]>(SALES.quotations, quoteSeed), scope).filter(q => {
         if (opts.status && q.status !== opts.status) return false;
+        if (opts.sentOnly && (q.status === "draft" || q.status === "superseded")) return false;   // ไม่นับร่าง/ถูกแทนที่ = ชุดเดียวกับการ์ด "ส่งลูกค้าในช่วงนี้" (ค่าเริ่มต้นตาราง HQ ใบเสนอราคาทั้งเครือ · บอสสั่ง 30 ต.ค. 69)
         if (opts.dealerCodes?.length && !opts.dealerCodes.includes(q.dealerCode ?? DEFAULT_DEALER_CODE)) return false;
         if (opts.productLines?.length) { const pl = plOf(q); if (pl === undefined || !opts.productLines.includes(pl)) return false; }
-        const d = dateOf(q);
+        const d = opts.status === "won" ? (วันที่ขายของใบ(q) ?? undefined) : dateOf(q);   // ตอบรับ = ตามวันตอบรับ (ชุดเดียวกับการ์ด)
         if (opts.dateStart && (!d || d < opts.dateStart)) return false;
         if (opts.dateEnd && (!d || d > opts.dateEnd)) return false;
         if (s && !`${q.id} ${q.customer ?? ""}`.toLowerCase().includes(s) && !opts.searchDealers?.includes(q.dealerCode ?? DEFAULT_DEALER_CODE)) return false;

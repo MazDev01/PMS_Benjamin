@@ -52,6 +52,8 @@ for (const rel of ไฟล์ที่gitเก็บ(["apps", "packages"], { e
         นับไม่ได้ = c.getText(sf).slice(0, 60);
       }
       if (นับไม่ได้) เจอ.push(`${p}:${บรรทัด(n)}  <KpiRow> นับการ์ดไม่ได้ (${นับไม่ได้}) — ใส่ <KpiCard> ตรง ๆ หรือ .map จากอาร์เรย์คงที่ 4 ช่องในไฟล์นี้`);
+      // ข้อยกเว้นเดียว: <KpiRow สามใบ> = 3 ใบพอดี (หน้าลูกค้าทั้งเครือ · บอสสั่ง 30 ต.ค. 69 เอาการ์ดยอดขายออก)
+      else if (n.openingElement.attributes.properties.some(a => ts.isJsxAttribute(a) && a.name.getText(sf) === "สามใบ")) { if (นับ !== 3) เจอ.push(`${p}:${บรรทัด(n)}  <KpiRow สามใบ> มีการ์ด ${นับ} ใบ — ต้อง 3 ใบพอดี`); }
       else if (นับ !== 4) เจอ.push(`${p}:${บรรทัด(n)}  <KpiRow> มีการ์ด ${นับ} ใบ — ต้อง 4 ใบพอดี`);
     }
     ts.forEachChild(n, เดิน);

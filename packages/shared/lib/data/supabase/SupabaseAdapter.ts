@@ -3,11 +3,13 @@
 // SupabaseAdapter — เชื่อม repository ทุกตัวเข้ากับตาราง Supabase (เฟส B)
 // map ตาราง ↔ type ตาม BACKEND-DESIGN.md · ขอบเขตข้อมูล (dealer_code) บังคับด้วย RLS ที่ DB
 // แปลง snake_case (DB) ↔ camelCase (type) ด้วย mappers.ts
+import { ตัวกรองวันใบ } from "@pms/shared/lib/salesDate";
 import { leadIntentToWire } from "@pms/shared/lib/leadIntent";
 import { เตรียมบันทึกใบ } from "@pms/shared/lib/dealerProposals";
 import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
-import { จัดรูปผลงานดีลเลอร์ } from "@pms/shared/lib/hqPipeline";
+import { จัดรูปผลงานดีลเลอร์, จัดรูปผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
+import { จัดรูปแผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import type { DealerProspect, ProspectActivity, AppNotification } from "@pms/shared/lib/data/types";
@@ -565,8 +567,9 @@ export const SupabaseAdapter: DataAdapter = {
     accuracy: async () => {
       const { data, error } = await sb().rpc("material_estimate_accuracy");
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
-      const a = (data ?? {}) as { n?: number; avg_abs_pct?: number | null; avg_pct?: number | null };
-      return { n: Number(a.n ?? 0), avgAbsPct: a.avg_abs_pct ?? null, avgPct: a.avg_pct ?? null };
+      const a = (data ?? {}) as { n?: number; avg_abs_pct?: number | null; avg_pct?: number | null; by_template?: { id: number; n: number; avg_pct: number | null }[] };
+      return { n: Number(a.n ?? 0), avgAbsPct: a.avg_abs_pct ?? null, avgPct: a.avg_pct ?? null,
+        byTemplate: a.by_template ? a.by_template.map(t => ({ id: Number(t.id), n: Number(t.n), avgPct: t.avg_pct == null ? null : Number(t.avg_pct) })) : undefined };   // ใบ 0268
     },
   },
   // คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183)
@@ -1018,6 +1021,16 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return จัดรูปผลงานดีลเลอร์(data);
     },
+    hqPipelineMonths: async (start, end, dealers) => {
+      const { data, error } = await sb().rpc("hq_pipeline_months", { p_start: start, p_end: end, p_dealers: dealers ?? null });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return จัดรูปผลงานรายเดือน(data);
+    },
+    hqDealerPanel: async (code, activityLimit) => {
+      const { data, error } = await sb().rpc("hq_dealer_panel", { p_code: code, p_activity_limit: activityLimit ?? 10 });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return จัดรูปแผงดีลเลอร์(data);
+    },
     kpiCards: async (page, start, end, dealer, today, filters) => {
       const { data, error } = await sb().rpc("kpi_cards", { p_page: page, p_start: start ?? null, p_end: end ?? null, p_dealer: dealer ?? null, p_today: today ?? null, p_filters: filters ?? null });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
@@ -1037,7 +1050,7 @@ export const SupabaseAdapter: DataAdapter = {
         p_as_of: f.asOf ?? APP_NOW_ISO, p_search_dealers: f.searchDealers ?? null,
       });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
-      const d = (data ?? {}) as { byDealer?: Row[]; byMonth?: Row[]; byProduct?: Row[]; aging?: Row[] };
+      const d = (data ?? {}) as { byDealer?: Row[]; byMonth?: Row[]; byMonthSent?: Row[]; byProduct?: Row[]; aging?: Row[] };
       return {
         byDealer: (d.byDealer ?? []).map(r => ({
           dealerCode: String(r.dealer_code), count: Number(r.count), value: Number(r.value),
@@ -1047,6 +1060,7 @@ export const SupabaseAdapter: DataAdapter = {
         byMonth: (d.byMonth ?? []).map(r => ({
           y: Number(r.y), m: Number(r.m), quotes: Number(r.quotes), won: Number(r.won), lost: Number(r.lost), wonVal: Number(r.won_val),
         })),
+        byMonthSent: d.byMonthSent ? d.byMonthSent.map(r => ({ y: Number(r.y), m: Number(r.m), sent: Number(r.sent), won: Number(r.won) })) : undefined,   // ใบ 0268
         byProduct: (d.byProduct ?? []).map(r => ({ product: (r.product as string) ?? null, value: Number(r.value), projects: Number(r.projects) })),
         aging: (d.aging ?? []).map(r => ({ bucket: String(r.bucket), count: Number(r.count), value: Number(r.value) })),
       };
@@ -1129,15 +1143,16 @@ export const SupabaseAdapter: DataAdapter = {
           : sb().from("quotations").select("*", { count: "exact" });
         if (scope && !scope.isHQ && scope.dealerCode) q = q.eq("dealer_code", scope.dealerCode);
         if (opts.status) q = q.eq("status", opts.status);
+        if (opts.sentOnly) q = q.not("status", "in", "(draft,superseded)");   // ไม่นับร่าง/ถูกแทนที่ = ชุดเดียวกับการ์ด "ส่งลูกค้าในช่วงนี้" (ค่าเริ่มต้นตาราง HQ ใบเสนอราคาทั้งเครือ · บอสสั่ง 30 ต.ค. 69)
         if (opts.dealerCodes?.length) q = q.in("dealer_code", opts.dealerCodes);
         if (opts.productLines?.length) q = q.in("product_line", opts.productLines);
-        if (opts.dateStart) q = q.gte("date", opts.dateStart);
-        if (opts.dateEnd) q = q.lte("date", opts.dateEnd);
-        if (s) {
-          const parts = [`id.ilike.%${s}%`, `customer.ilike.%${s}%`];
-          if (opts.searchDealers?.length) parts.push(`dealer_code.in.(${opts.searchDealers.join(",")})`);
-          q = q.or(parts.join(","));
-        }
+        const วัน = ตัวกรองวันใบ(opts.status, opts.dateStart, opts.dateEnd);   // ตอบรับ = ตามวันตอบรับ (ชุดเดียวกับการ์ด)
+        if (วัน?.kind !== "won") { if (opts.dateStart) q = q.gte("date", opts.dateStart); if (opts.dateEnd) q = q.lte("date", opts.dateEnd); }
+        const ค้น = s ? [`id.ilike.%${s}%`, `customer.ilike.%${s}%`, ...(opts.searchDealers?.length ? [`dealer_code.in.(${opts.searchDealers.join(",")})`] : [])].join(",") : "";
+        // เงื่อนไข "หรือ" ได้ชุดเดียวต่อคำขอ — วันตอบรับ + คำค้น รวมเป็น and(or(…),or(…))
+        if (วัน?.kind === "won" && ค้น) q = q.or(`and(or(${วัน.or}),or(${ค้น}))`);
+        else if (วัน?.kind === "won") q = q.or(วัน.or);
+        else if (ค้น) q = q.or(ค้น);
         const col = opts.sort?.col ?? "date", asc = (opts.sort?.dir ?? "desc") === "asc";
         return q.order(col, { ascending: asc })
           .order("id", { ascending: true }).order(TIEBREAK_COL, { ascending: true }).range(from, to);

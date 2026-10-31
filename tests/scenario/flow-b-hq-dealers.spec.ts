@@ -24,7 +24,8 @@ test.afterAll(async () => { await ล้างดีลเลอร์รหั�
 async function อยู่ในช่องครบ(cell: Locator): Promise<boolean> {
   return cell.evaluate((el) => {
     const r = document.createRange(); r.selectNodeContents(el);
-    const t = r.getBoundingClientRect(), c = el.getBoundingClientRect();
+    // ป้ายรหัสในช่องดีลเลอร์ (รหัส+ชื่อช่องเดียว · หน้าลูกค้า/ใบเสนอราคาทั้งเครือ 30 ต.ค. 69) = ต้องอยู่ครบในช่องตารางที่ครอบ
+    const t = r.getBoundingClientRect(), c = (el.tagName === "TD" ? el : el.closest("td") ?? el).getBoundingClientRect();
     return t.width > 0 && t.left >= c.left - 0.5 && t.right <= c.right + 0.5;
   });
 }
@@ -76,50 +77,59 @@ test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อแ�
   expect(r.error?.message ?? "", "ปิดใช้งานแถว HQ ต้องถูกปฏิเสธ").toContain("hq_row_protected");
 });
 
-test("[ข·2] แถวทะเบียนมีแค่ \"เข้าระบบ\" · กดแถวเปิดหน้ารายละเอียด · การ์ดก็เช่นกัน · ไม่มีปุ่มลบ", async ({ page }) => {
+// 30 ต.ค. 69 (บอสสั่ง): ปุ่มท้ายแถว = เข้าระบบ · ดูผลงาน · แก้ไข · ปิด/เปิดใช้งาน · ข้อมูลเข้าระบบ (ทุกปุ่มมีคำอธิบายไทย) · ไม่มีปุ่มลบ
+//   กดแถว/การ์ด = เปิดแผงด้านขวา ไม่เปลี่ยนหน้า (เดิม: ไปหน้ารายละเอียดเต็มจอ) · ข้อละเอียดของแผงอยู่ที่ hq-dealers-panel.spec.ts
+test("[ข·2] แถวทะเบียน: ปุ่มครบตามแบบ ไม่มีปุ่มลบ · กดแถวเปิดแผง (หน้าไม่เปลี่ยน) · การ์ดก็เช่นกัน", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await ค้น(page, "/hq/dealers?view=table", รหัสยาว);
   const แถว = page.locator("tbody tr").filter({ hasText: รหัสยาว }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
-  await expect(แถว.getByRole("button"), "แถวมีปุ่มเดียว").toHaveCount(1);
-  await expect(แถว.getByRole("button", { name: /เข้าระบบ/ })).toBeVisible();
-  await expect(page.getByTitle("ลบ", { exact: true }), "ไม่มีปุ่มลบดีลเลอร์").toHaveCount(0);
+  const ปุ่ม = await แถว.getByRole("button").evaluateAll(bs => bs.map(b => ({ ชื่อ: (b.getAttribute("aria-label") || b.textContent || "").trim(), ชี้: b.getAttribute("title") ?? "" })));
+  expect(ปุ่ม.length, `แถวมี 5 ปุ่ม (${ปุ่ม.map(x => x.ชื่อ).join(" · ")})`).toBe(5);
+  expect(ปุ่ม.every(x => /[฀-๿]/.test(x.ชี้)), "ทุกปุ่มมีคำอธิบายภาษาไทยเมื่อชี้").toBe(true);
+  await expect(แถว.getByRole("button", { name: /เข้าระบบ/ }).first()).toBeVisible();
+  await expect(page.getByTitle(/^ลบ/), "ไม่มีปุ่มลบดีลเลอร์").toHaveCount(0);
+  const ที่อยู่ = page.url();
   await แถว.locator("td").nth(2).click();
-  await expect(page, "กดแถว = หน้ารายละเอียด").toHaveURL(new RegExp(`/hq/dealers/${รหัสยาว}$`), { timeout: 15_000 });
+  await expect(page.locator(`[data-dealer-panel="${รหัสยาว}"]`), "กดแถว = แผงด้านขวาเปิด").toBeVisible({ timeout: 15_000 });
+  expect(page.url(), "หน้าไม่เปลี่ยน").toBe(ที่อยู่);
+  await page.getByRole("button", { name: "ปิดแผง" }).click();
+  await expect(page.locator("[data-dealer-panel]")).toHaveCount(0);
 
-  await page.goto(`${HQ_ORIGIN}/hq/dealers`, { waitUntil: "domcontentloaded" });
-  await settle(page);
   await page.getByRole("button", { name: /แสดงแบบการ์ด/ }).click().catch(() => {});
-  await page.getByPlaceholder(/ค้นหา/).first().fill(รหัสยาว);
   const การ์ด = page.locator(".dealer-card").filter({ hasText: รหัสยาว }).first();
   await expect(การ์ด).toBeVisible({ timeout: 15_000 });
   await expect(การ์ด.getByRole("button", { name: /เข้าระบบ/ }), "การ์ดมีปุ่มเข้าระบบ").toHaveCount(1);
   await expect(การ์ด.locator("button"), "การ์ดมีปุ่มเดียว").toHaveCount(1);
   await การ์ด.click({ position: { x: 20, y: 60 } });
-  await expect(page).toHaveURL(new RegExp(`/hq/dealers/${รหัสยาว}$`), { timeout: 15_000 });
+  await expect(page.locator(`[data-dealer-panel="${รหัสยาว}"]`), "กดการ์ด = แผงเปิด").toBeVisible({ timeout: 15_000 });
+  expect(page.url().replace(/\?.*$/, ""), "หน้าไม่เปลี่ยน").toBe(ที่อยู่.replace(/\?.*$/, ""));
 });
 
-test("[H11] [ข·2] หน้ารายละเอียด: แก้ไขข้อมูล + ปิด/เปิดใช้งาน · /hq/dealers/HQ ไม่ใช่ดีลเลอร์", async ({ page }) => {
+test("[H11] [ข·2] แผงดีลเลอร์: แก้ไขข้อมูล + ปิด/เปิดใช้งาน · /hq/dealers/HQ ไม่ใช่ดีลเลอร์", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers/${รหัสยาว}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "แก้ไข", exact: true }).click();
+  const แผง = page.locator(`[data-dealer-panel="${รหัสยาว}"]`);
+  await expect(แผง, "เปิด /hq/dealers/รหัส ตรง ๆ = แผงของดีลเลอร์นั้น").toBeVisible({ timeout: 20_000 });
+  await แผง.getByRole("button", { name: "แก้ไข", exact: true }).click();
   const ชื่อใหม่ = "ZZTEST สาขารหัสยาว แก้ชื่อแล้ว (ลบทิ้ง)";
   await page.getByLabel("ชื่อดีลเลอร์").fill(ชื่อใหม่);
   await page.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
   await expect.poll(async () => (await admin.from("dealers").select("name").eq("code", รหัสยาว).single()).data?.name,
     { timeout: 15_000, message: "แก้ชื่อแล้วลงฐาน" }).toBe(ชื่อใหม่);
-  await page.getByRole("button", { name: /ปิดใช้งาน/ }).click();
+  await แผง.getByRole("button", { name: "ปิดใช้งาน", exact: true }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await admin.from("dealers").select("status").eq("code", รหัสยาว).single()).data?.status,
     { timeout: 15_000, message: "ปิดใช้งานแล้วลงฐาน" }).toBe("inactive");
-  await page.getByRole("button", { name: /เปิดใช้งาน/ }).click();
+  await แผง.getByRole("button", { name: "เปิดใช้งาน", exact: true }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await admin.from("dealers").select("status").eq("code", รหัสยาว).single()).data?.status,
     { timeout: 15_000 }).toBe("active");
 
   await page.goto(`${HQ_ORIGIN}/hq/dealers/HQ`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText(/ไม่พบดีลเลอร์รหัส/), "แถว HQ ไม่ใช่ดีลเลอร์").toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("[data-dealer-panel]"), "แถว HQ ไม่เปิดแผง").toHaveCount(0);
 });
 
 test("[ข·2] เส้นทางลบดีลเลอร์ / ย้ายข้อมูล ปิดแล้ว (410) · ดีลเลอร์ยังอยู่", async ({ request }) => {
@@ -140,8 +150,9 @@ test("[ข·3] รหัสดีลเลอร์ 5 ตัวไม่โด�
     ["ใบเสนอราคาทั้งเครือ", "/hq/quotations", "ZZTEST-ลูกค้ารหัสยาว"],
   ] as const) {
     await ค้น(page, path, คำ);
-    // ภาพรวมยอดขาย (ตารางผลงานดีลเลอร์ · 30 ต.ค. 69) ช่องรหัสใช้ data-perf-row · หน้าอื่น data-col='code'
-    const ช่อง = page.locator("td[data-col='code'], td[data-perf-row]").filter({ hasText: รหัสยาว }).first();
+    // ภาพรวมยอดขาย (ตารางผลงานดีลเลอร์ · 30 ต.ค. 69) ช่องรหัสใช้ data-perf-row · ทะเบียน = td[data-col='code']
+    //   ลูกค้า/ใบเสนอราคาทั้งเครือ (ตามแบบ 30 ต.ค. 69) = ป้ายรหัส [data-col='code'] ในช่องดีลเลอร์ (รหัส+ชื่อช่องเดียว)
+    const ช่อง = page.locator("td[data-col='code'], td[data-perf-row], td[data-col='dealer'] [data-col='code']").filter({ hasText: รหัสยาว }).first();
     await expect(ช่อง, `${หน้า}: มีช่องรหัส ${รหัสยาว}`).toBeVisible({ timeout: 20_000 });
     await expect(ช่อง, `${หน้า}: ข้อความรหัสครบ`).toHaveText(รหัสยาว);
     expect(await อยู่ในช่องครบ(ช่อง), `${หน้า}: รหัสต้องอยู่ในช่องครบ ไม่โดนตัด/ไม่ล้น`).toBe(true);

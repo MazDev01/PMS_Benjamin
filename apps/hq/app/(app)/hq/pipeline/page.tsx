@@ -29,8 +29,10 @@ import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { ชื่อภาค, ภาคมาตรฐาน, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
-import { รวมผลงาน, type ผลงานดีลเลอร์ } from "@pms/shared/lib/hqPipeline";
+import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { fmtBaht } from "@pms/shared/lib/format";
+import { useLeadSummary } from "@pms/shared/lib/useNetworkData";
+import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, แผงที่มา, กล่องล่าง, ล่าสุดของดีลเลอร์, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, แผงเดือน, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -102,18 +104,19 @@ function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt
   );
 }
 
-type คีย์เรียง = "code" | "name" | "region" | "leads" | "quotes" | "won" | "lost" | "rate" | "sales" | "target" | "pct" | "marginPct" | "latest";
+type คีย์เรียง = "code" | "name" | "region" | "leads" | "quotes" | "won" | "lost" | "pend" | "rate" | "sales" | "target" | "pct" | "marginPct" | "latest";
 // คอลัมน์ตารางผลงาน (FLOW H12 · บอสสั่ง 30 ต.ค. 69): รหัส · ดีลเลอร์ · ภูมิภาค · ลีด · ใบเสนอราคา · ปิดได้ · ปิดไม่ได้ · อัตราปิด
 //   · ยอดขาย · เป้าตามช่วง · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด · ดู — เรียงได้ทุกคอลัมน์ · ข้อความยาวแสดงเต็มเมื่อชี้
 //   ความกว้างคุมที่ colgroup (ตารางแบบตายตัว) · รวม ~1,180px = พอดีพื้นที่จริงที่จอ 1440 (ช่องแน่น)
 const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w: number }[] = [
   { k: "code", หัว: "รหัส", w: 74 },
   { k: "name", หัว: "ดีลเลอร์", w: 150 },
-  { k: "region", หัว: "ภูมิภาค", w: 150 },
+  { k: "region", หัว: "ภูมิภาค", w: 140 },
   { k: "leads", หัว: "ลีด", ชี้: "ลีดที่เข้ามาในช่วง", num: true, w: 56 },
-  { k: "quotes", หัว: "ใบเสนอราคา", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true, w: 92 },
+  { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true, w: 76 },
   { k: "won", หัว: "ปิดได้", ชี้: "ลีดปิดสำเร็จ (เข้ามาในช่วง)", num: true, w: 64 },
   { k: "lost", หัว: "ปิดไม่ได้", ชี้: "ลีดปิดไม่สำเร็จ (เข้ามาในช่วง)", num: true, w: 76 },
+  { k: "pend", หัว: "ยังไม่รู้ผล", ชี้: "ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้)", num: true, w: 84 },
   { k: "rate", หัว: "อัตราปิด", ชี้: "ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรกลาง", num: true, w: 76 },
   { k: "sales", หัว: "ยอดขาย", ชี้: "ใบที่ลูกค้าตอบรับในช่วง (ตามวันตอบรับ · ก่อน VAT)", num: true, w: 110 },
   { k: "target", หัว: "เป้าตามช่วง", ชี้: "เป้าทั้งปี × จำนวนวันในช่วง ÷ 365", num: true, w: 110 },
@@ -133,9 +136,19 @@ export default function SalesAnalyticsPage() {
   // ── ตัวกรอง (แถวเดียว ค้างใต้แถบบนตอนเลื่อน — ส่วนกลาง .hq-sticky-filter) ──
   const [q, setQ] = useState("");
   const [dealerSel, setDealerSel] = useState(ALL);
+  // ?dealer=รหัส (ปุ่ม "ดูผลงาน" จากหน้า/แผงดีลเลอร์ · บอสสั่ง 30 ต.ค. 69) = เลือกดีลเลอร์นั้นไว้ให้ · ตั้งหลังเปิดหน้า แล้วล้างออกจาก URL
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("dealer");
+    if (!code) return;
+    setDealerSel(code.toUpperCase());
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
   const [regionSel, setRegionSel] = useState(ALL);
   const [provSel, setProvSel] = useState(ALL);
   const [salesSel, setSalesSel] = useState(ALL);
+  // ── เจาะลึก (บอสสั่ง 30 ต.ค. 69): แท็บ ดีลเลอร์/ภูมิภาค/จังหวัด/รายเดือน · แผงที่มาของการ์ด ──
+  const [มิติเลือก, setมิติ] = useState<มิติ>("dealer");
+  const [แผงการ์ด, setแผงการ์ด] = useState<การ์ดที่มา | null>(null);
   const [ถึงเป้าเท่านั้น, setถึงเป้าเท่านั้น] = useState(false);
   const SALES_BANDS = useMemo(() => [
     { v: "lt5", l: "ยอดขายต่ำกว่า ฿5M", hit: (n: number) => n < 5e6 },
@@ -181,7 +194,7 @@ export default function SalesAnalyticsPage() {
 
   // ── เรียงตาราง (กดหัวคอลัมน์) · ค่าเริ่มต้น = ยอดขายมากสุดก่อน ──
   const [เรียง, setเรียง] = useState<{ k: คีย์เรียง; ลง: boolean }>({ k: "sales", ลง: true });
-  const ค่าเรียง = (r: ผลงานดีลเลอร์, k: คีย์เรียง): string | number => k === "region" ? ชื่อภาค(r.region) : k === "latest" ? r.latest ?? "" : (r[k] as string | number | null) ?? -Infinity;
+  const ค่าเรียง = (r: ผลงานดีลเลอร์, k: คีย์เรียง): string | number => k === "region" ? ชื่อภาค(r.region) : k === "latest" ? r.latest ?? "" : k === "pend" ? ยังไม่รู้ผล(r) : (r[k] as string | number | null) ?? -Infinity;
   const เรียงแล้ว = useMemo(() => [...แถว].sort((a, b) => {
     const x = ค่าเรียง(a, เรียง.k), y = ค่าเรียง(b, เรียง.k);
     const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "th");
@@ -195,12 +208,59 @@ export default function SalesAnalyticsPage() {
   // กราฟ: ยอดขาย เทียบ เป้าตามช่วง รายดีลเลอร์ (ลำดับเดียวกับตาราง · แบ่งหน้า 7 แถว)
   const แท่ง: HRow[] = useMemo(() => เรียงแล้ว.map(r => ({
     key: r.code, label: `${r.code} – ${r.name}`, a: r.sales, b: r.target ?? 0,
-    note: r.pct == null ? "ยังไม่ตั้งเป้า" : `${r.pct}% ของเป้า`, onClick: () => router.push(`/hq/dealers/${r.code}`),
-  })), [เรียงแล้ว, router]);
+    note: r.pct == null ? "ยังไม่ตั้งเป้า" : `${r.pct}% ของเป้า`, onClick: () => { setDealerSel(r.code); window.scrollTo({ top: 0, behavior: "smooth" }); },   // กดแท่ง = เจาะดูดีลเลอร์
+  })), [เรียงแล้ว]);
   const ขนาดกราฟ = 7;
   const [หน้ากราฟ, setหน้ากราฟ] = useState(0);
   useEffect(() => { setหน้ากราฟ(0); }, [แท่ง.length]);
   const หน้ากราฟจริง = Math.min(หน้ากราฟ, pageCountOf(แท่ง.length, ขนาดกราฟ) - 1);
+
+  // ระดับที่ดูอยู่ (แถบระดับ): เลือกดีลเลอร์ = ระดับดีลเลอร์ (ตาราง/กราฟเป็นรายเดือน = รอข้อมูล)
+  const ดีลเลอร์ที่ดู = dealerSel !== ALL ? dealerSel : null;
+  const แท็บ: มิติ[] = ดีลเลอร์ที่ดู ? ["dealer", "month"] : (["dealer", "region", "prov", "month"] as มิติ[]).filter(m => !(m === "region" && (regionSel !== ALL || provSel !== ALL)) && !(m === "prov" && provSel !== ALL));
+  const มิติจริง: มิติ = แท็บ.includes(มิติเลือก) ? มิติเลือก : แท็บ[0];
+  const กลุ่ม = useMemo(() => (มิติจริง === "region" || มิติจริง === "prov") ? จัดกลุ่ม(แถว, มิติจริง) : [], [แถว, มิติจริง]);
+  const เจาะ = (key: string) => {
+    if (มิติจริง === "region") { setRegionSel(key); setProvSel(ALL); setDealerSel(ALL); setมิติ("prov"); }
+    else if (มิติจริง === "prov") { setProvSel(key); setDealerSel(ALL); setมิติ("dealer"); }
+    else setDealerSel(key);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const ไประดับ = (ระดับ: "all" | "region" | "prov") => {
+    setDealerSel(ALL);
+    if (ระดับ === "all") { setRegionSel(ALL); setProvSel(ALL); setมิติ("dealer"); }
+    if (ระดับ === "region") { setProvSel(ALL); setมิติ("prov"); }
+    if (ระดับ === "prov") setมิติ("dealer");
+  };
+  const ภาคที่ดู = regionSel !== ALL ? regionSel : provSel !== ALL ? (ภาคมาตรฐาน(allDealers.find(d => d.province === provSel)?.region) ?? null) : ดีลเลอร์ที่ดู ? (ภาคมาตรฐาน(allDealers.find(d => d.code === ดีลเลอร์ที่ดู)?.region) ?? null) : null;
+  const จังหวัดที่ดู = provSel !== ALL ? provSel : ดีลเลอร์ที่ดู ? (allDealers.find(d => d.code === ดีลเลอร์ที่ดู)?.province || null) : null;
+  const แท่งกลุ่ม: HRow[] = useMemo(() => กลุ่ม.map(g => ({ key: g.key, label: g.label, a: g.รวม.sales, b: g.รวม.target ?? 0,
+    note: g.รวม.pct == null ? "ยังไม่ตั้งเป้า" : `${g.รวม.pct}% ของเป้า`, onClick: () => เจาะ(g.key) })), [กลุ่ม]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // ── รายเดือน (ใบ 0268 · hq_pipeline_months): ดึงเฉพาะตอนเปิดแท็บรายเดือน หรือแผงที่มาตอนอยู่ระดับดีลเลอร์ ──
+  //   null = ยังไม่ดึง/ฐานยังไม่ถึงใบนั้น (เรียกแล้วพัง) → "รอข้อมูล"
+  const ต้องรายเดือน = มิติจริง === "month" || (แผงการ์ด != null && ดีลเลอร์ที่ดู != null);
+  const [รายเดือนฐาน, setรายเดือนฐาน] = useState<ผลงานรายเดือน[] | null>(null);
+  const ชุดรายเดือน = ชุดการ์ด ? JSON.stringify(ชุดการ์ด.dealerCodes) : "null";
+  useEffect(() => {
+    if (!ready || !ต้องรายเดือน) return;
+    let ยังอยู่ = true;
+    metrics.hqPipelineMonths(ช่วง.start, ช่วง.end, JSON.parse(ชุดรายเดือน))
+      .then(r => { if (ยังอยู่) setรายเดือนฐาน(r); })
+      .catch(e => { logRepoRead("metrics.hqPipelineMonths", e); if (ยังอยู่) setรายเดือนฐาน(null); });
+    return () => { ยังอยู่ = false; };
+  }, [ready, ต้องรายเดือน, ช่วง.start, ช่วง.end, ชุดรายเดือน, salesVersion]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const รหัสในตาราง = useMemo(() => new Set(แถว.map(r => r.code)), [แถว]);
+  const เป้าทั้งปี = useMemo(() => new Map(แถว.map(r => [r.code, r.annualTarget] as const)), [แถว]);
+  const เดือน = useMemo(() => รายเดือนฐาน ? จัดรายเดือน(รายเดือนฐาน, ดีลเลอร์ที่ดู ? new Set([ดีลเลอร์ที่ดู]) : รหัสในตาราง, ช่วง.start, ช่วง.end, เป้าทั้งปี) : null,
+    [รายเดือนฐาน, รหัสในตาราง, ดีลเลอร์ที่ดู, ช่วง.start, ช่วง.end, เป้าทั้งปี]);
+  const [เดือนที่เปิด, setเดือนที่เปิด] = useState<แถวเดือน | null>(null);
+  const ชื่อดีลเลอร์ = useMemo(() => new Map(allDealers.map(d => [d.code, d.name] as const)), [allDealers]);
+  const แท่งเดือน: HRow[] = useMemo(() => (เดือน ?? []).map(g => ({ key: g.key, label: g.label, a: g.รวม.sales, b: g.รวม.target ?? 0,
+    note: g.รวม.pct == null ? "ยังไม่ตั้งเป้า" : `${g.รวม.pct}% ของเป้า`, onClick: ดีลเลอร์ที่ดู ? undefined : () => setเดือนที่เปิด(g) })), [เดือน, ดีลเลอร์ที่ดู]);
+  // กล่องล่าง: ลีดของชุดสาขาเดียวกับตาราง (งานค้าง = ตอนนี้ · เหตุผล/แหล่งที่มา = ลีดที่เข้ามาในช่วง)
+  const ชุดลีด = ชุดการ์ด?.dealerCodes;
+  const ขั้นตอนนี้ = useLeadSummary({ dealerCodes: ชุดลีด });
+  const ลีดในช่วง = useLeadSummary({ dealerCodes: ชุดลีด, dateStart: ช่วง.start, dateEnd: ช่วง.end });
 
   const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL) || ถึงเป้าเท่านั้น;
   const ล้าง = () => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); setถึงเป้าเท่านั้น(false); };
@@ -220,27 +280,28 @@ export default function SalesAnalyticsPage() {
           <FilterBar dims={[]} />
           {/* ส่งออก = ตารางผลงานที่เห็นบนจอ (ผ่านตัวกรองทุกตัวแล้ว · เรียงตามตาราง) */}
           <ExportMenu filename="hq-sales-analytics" title="ภาพรวมยอดขายทั้งเครือ"
-            headers={["รหัสดีลเลอร์", "ดีลเลอร์", "ภูมิภาค", "ลีด", "ใบเสนอราคา", "ปิดได้", "ปิดไม่ได้", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", "เสนอล่าสุด"]}
-            rows={เรียงแล้ว.map(r => [r.code, r.name, ชื่อภาค(r.region), r.leads, r.quotes, r.won, r.lost, r.rate == null ? "—" : `${r.rate}%`,
+            headers={["รหัสดีลเลอร์", "ดีลเลอร์", "ภูมิภาค", "ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "ยังไม่รู้ผล", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", "เสนอล่าสุด"]}
+            rows={เรียงแล้ว.map(r => [r.code, r.name, ชื่อภาค(r.region), r.leads, r.quotes, r.won, r.lost, ยังไม่รู้ผล(r), r.rate == null ? "—" : `${r.rate}%`,
               r.sales, r.target ?? "—", r.pct == null ? "—" : `${r.pct}%`, r.marginPct == null ? "—" : `${r.marginPct}%`, r.latest ? fmtISOToThai(r.latest) : "—"])} />
       </TopbarActions>
+
+      <แถบระดับ ภาค={ภาคที่ดู} จังหวัด={จังหวัดที่ดู} ดีลเลอร์={ดีลเลอร์ที่ดู} ชื่อดีลเลอร์={allDealers.find(d => d.code === ดีลเลอร์ที่ดู)?.name} ไป={ไประดับ} />
 
       {/* ── 1 · การ์ด KPI 4 ใบ (ใบ 0246) — ชุดสาขาเดียวกับตาราง: ผลรวมแถวท้ายตาราง = การ์ด ── */}
       <KpiRow label="สรุปภาพรวมยอดขาย" range={ช่วง}>
         <KpiCard kpi="sales" label="ยอดขาย (เทียบเป้า)" value={บาทเต็ม(ยอดการ์ด)} rawValue={ยอดการ์ด} empty="กำลังโหลด…"
           unit={เป้าการ์ด == null ? "ยังไม่ได้ตั้งเป้า" : `เป้าในช่วง ${บาทเต็ม(เป้าการ์ด)} · ตามวันลูกค้าตอบรับ`}
           ring={ยอดการ์ด != null && เป้าการ์ด ? Math.round(ยอดการ์ด / เป้าการ์ด * 100) : null} icon={Trophy}
-          onClick={() => router.push("/hq/quotations?kpi=won")} />
+          actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("sales")} />
         <KpiCard kpi="winRate" label={ชื่ออัตราปิดการขาย} value={ค่า(การ์ด, "winRate.rate") == null ? null : `${ค่า(การ์ด, "winRate.rate")}%`} rawValue={ค่า(การ์ด, "winRate.rate")}
           unit={คำอธิบายอัตราปิดการขาย} empty={การ์ด ? "ยังไม่มีลีดที่ปิดในช่วงนี้" : "กำลังโหลด…"} icon={Percent}
-          sub={การ์ด ? `ปิดสำเร็จ ${ค่า(การ์ด, "winRate.won") ?? 0} · ไม่สำเร็จ ${ค่า(การ์ด, "winRate.lost") ?? 0}` : undefined} onClick={() => router.push("/hq/leads")} />
+          sub={การ์ด ? `ปิดสำเร็จ ${ค่า(การ์ด, "winRate.won") ?? 0} · ไม่สำเร็จ ${ค่า(การ์ด, "winRate.lost") ?? 0}` : undefined} actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("winRate")} />
         <KpiCard kpi="margin" label="ส่วนต่างกำไรเฉลี่ย" value={ค่า(การ์ด, "margin.pct") == null ? null : `${Number(ค่า(การ์ด, "margin.pct")).toFixed(1)}%`} rawValue={ค่า(การ์ด, "margin.pct")}
           unit={`ส่วนต่างกำไร % ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับจากใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
-          icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="เรียงตามส่วนต่าง"
-          onClick={() => { setเรียง({ k: "marginPct", ลง: true }); document.querySelector("[data-testid='pipeline-table']")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+          icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("margin")} />
         <KpiCard kpi="onTarget" label="ดีลเลอร์ที่ถึงเป้า" value={ค่า(การ์ด, "onTarget.reached") == null ? null : `${ค่า(การ์ด, "onTarget.reached")} จาก ${ค่า(การ์ด, "onTarget.of") ?? 0}`}
           rawValue={ค่า(การ์ด, "onTarget.reached")} unit="ราย · ยอดตั้งแต่ต้นปีถึงเป้าทั้งปี" empty="กำลังโหลด…" icon={Award} color="#d97706" bg="#FEF3C7"
-          actionLabel={ถึงเป้าเท่านั้น ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => setถึงเป้าเท่านั้น(v => !v)} />
+          actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("onTarget")} />
       </KpiRow>
 
       {/* ── ตัวกรองแถวเดียว — ค้างใต้แถบบนตอนเลื่อน (พื้นทึบ ไม่ทับเนื้อหา · ส่วนกลาง .hq-sticky-filter) ── */}
@@ -259,23 +320,38 @@ export default function SalesAnalyticsPage() {
         </div>
       </div>
 
-      {/* ── 2 · กราฟเดียว: ยอดขาย เทียบ เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365) รายดีลเลอร์ ── */}
+      {/* ── 2 · กราฟ: ยอดขาย เทียบ เป้าตามช่วง ตามแท็บ (ดีลเลอร์/ภูมิภาค/จังหวัด · รายเดือน = รอข้อมูล) · กดแท่ง = เจาะลง ── */}
       <div className="card" data-testid="pipeline-chart" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-        <div className="card-header">
-          <div className="card-title">ยอดขาย เทียบ เป้าตามช่วง · รายดีลเลอร์</div>
+        <div className="card-header" style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
+          <div className="card-title">ยอดขาย เทียบ เป้าตามช่วง · {ดีลเลอร์ที่ดู ? `รายเดือนของ ${ดีลเลอร์ที่ดู}` : `ราย${ชื่อมิติ[มิติจริง]}`}</div>
+          {แท็บ.length > 1 && (
+            <div role="tablist" aria-label="ดูผลงานแยกตาม" style={{ display: "inline-flex", border: "1px solid #dbe3ec", borderRadius: 10, overflow: "hidden" }}>
+              {แท็บ.map(m => (
+                <button key={m} type="button" role="tab" aria-selected={มิติจริง === m} data-dim={m} onClick={() => setมิติ(m)}
+                  style={{ border: "none", padding: "5px 12px", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer",
+                    background: มิติจริง === m ? PRIMARY : "#fff", color: มิติจริง === m ? "#fff" : MUTED }}>{ชื่อมิติ[m]}</button>
+              ))}
+            </div>
+          )}
         </div>
         <div style={{ flex: 1 }}>
-          {โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
-            : <HBars rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} paged />}
+          {มิติจริง === "month" ? (เดือน ? <HBars rows={แท่งเดือน} aLabel="ยอดขายในเดือน" bLabel="เป้ารายเดือน" fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ฐานข้อมูลยังไม่มีผลงานรายเดือน (รอบรวมงานฐาน)" />)
+            : โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
+            : มิติจริง === "dealer" ? <HBars rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} paged />
+            : <HBars rows={แท่งกลุ่ม} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} />}
         </div>
-        <TablePagination page={หน้ากราฟจริง} total={แท่ง.length} onPage={setหน้ากราฟ} size={ขนาดกราฟ} unit="ดีลเลอร์" />
+        {มิติจริง === "dealer" && <TablePagination page={หน้ากราฟจริง} total={แท่ง.length} onPage={setหน้ากราฟ} size={ขนาดกราฟ} unit="ดีลเลอร์" />}
       </div>
 
       {/* ── 3 · ตารางผลงานดีลเลอร์ตารางเดียว — เรียงได้ทุกคอลัมน์ · แถวท้าย = ผลรวม (เท่าการ์ด) ── */}
       <div className="card" data-testid="pipeline-table" style={{ marginBottom: 0 }}>
         <div className="card-header">
-          <div className="card-title">ตารางผลงานดีลเลอร์</div>
+          <div className="card-title">{มิติจริง === "dealer" ? "ตารางผลงานดีลเลอร์" : `ตารางผลงาน${ดีลเลอร์ที่ดู ? `รายเดือนของ ${ดีลเลอร์ที่ดู}` : `ตาม${ชื่อมิติ[มิติจริง]}`}`}</div>
         </div>
+        {มิติจริง === "month" && (เดือน ? <ตารางรายเดือน แถว={เดือน} รวมทั้งหมด={รวม} เลือกเดือน={ดีลเลอร์ที่ดู ? undefined : setเดือนที่เปิด} /> : <รอข้อมูลรายเดือน ข้อความ="ฐานข้อมูลยังไม่มีผลงานรายเดือน (รอบรวมงานฐาน)" />)}
+        {(มิติจริง === "region" || มิติจริง === "prov") && (โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
+          : <ตารางกลุ่ม มิติ={มิติจริง} แถว={กลุ่ม} รวมทั้งหมด={รวม} เจาะ={เจาะ} />)}
+        {มิติจริง === "dealer" && <>
         <div className="table-wrap dense">
           <table aria-label="ตารางผลงานดีลเลอร์" style={{ minWidth: คอลัมน์.reduce((s, c) => s + c.w, 0) }}>
             <colgroup>{คอลัมน์.map(c => <col key={c.k} style={{ width: c.w }} />)}</colgroup>
@@ -295,7 +371,7 @@ export default function SalesAnalyticsPage() {
               {โหลด && <tr><td colSpan={คอลัมน์.length} className="empty-row">กำลังโหลด…</td></tr>}
               {!โหลด && !เรียงแล้ว.length && <tr><td colSpan={คอลัมน์.length} className="empty-row">ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {ในหน้า.map(r => (
-                <ClickableRow key={r.code} className="clickable" onActivate={() => router.push(`/hq/dealers/${r.code}`)} label={`เปิดหน้าดีลเลอร์ ${r.name}`}>
+                <ClickableRow key={r.code} className="clickable" onActivate={() => เจาะ(r.code)} label={`เปิดผลงานของ ${r.name} (เจาะลงระดับดีลเลอร์)`}>
                   <td data-perf-row={r.code} style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }} title={r.code}>{r.code}</td>
                   <td style={{ fontWeight: 600, color: "#1F2937" }} title={r.name}>{r.name}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}</td>
                   <td title={ชื่อภาค(r.region)}>{ชื่อภาค(r.region)}</td>
@@ -303,6 +379,7 @@ export default function SalesAnalyticsPage() {
                   <td className="num" data-cell="quotes">{r.quotes.toLocaleString()}</td>
                   <td className="num" data-cell="won">{r.won.toLocaleString()}</td>
                   <td className="num" data-cell="lost">{r.lost.toLocaleString()}</td>
+                  <td className="num" data-cell="pend">{ยังไม่รู้ผล(r).toLocaleString()}</td>
                   <td className="num" data-cell="rate" style={{ fontWeight: 700 }}>{r.rate == null ? "—" : `${r.rate}%`}</td>
                   <td className="num" data-cell="sales" data-value={r.sales} style={{ fontWeight: 800, color: "#1F2937" }} title={fmtBaht(r.sales)}>{fmtBaht(r.sales)}</td>
                   <td className="num" data-cell="target" data-value={r.target ?? ""} title={เงิน(r.target)}>{เงิน(r.target)}</td>
@@ -327,6 +404,7 @@ export default function SalesAnalyticsPage() {
                   <td className="num" data-sum="quotes">{รวม.quotes.toLocaleString()}</td>
                   <td className="num" data-sum="won" data-value={รวม.won}>{รวม.won.toLocaleString()}</td>
                   <td className="num" data-sum="lost" data-value={รวม.lost}>{รวม.lost.toLocaleString()}</td>
+                  <td className="num" data-sum="pend" data-value={ยังไม่รู้ผล(รวม)}>{ยังไม่รู้ผล(รวม).toLocaleString()}</td>
                   <td className="num" data-sum="rate" data-value={รวม.rate ?? ""}>{รวม.rate == null ? "—" : `${รวม.rate}%`}</td>
                   <td className="num" data-sum="sales" data-value={รวม.sales} title={fmtBaht(รวม.sales)}>{fmtBaht(รวม.sales)}</td>
                   <td className="num" data-sum="target" data-value={รวม.target ?? ""} title="ผลรวมเป้าตามช่วงของสาขาที่ตั้งเป้า">{เงิน(รวม.target)}</td>
@@ -339,7 +417,21 @@ export default function SalesAnalyticsPage() {
           </table>
         </div>
         <TablePagination page={หน้าจริง} total={เรียงแล้ว.length} onPage={setหน้า} unit="ดีลเลอร์" />
+        </>}
       </div>
+
+      {/* ── 4 · ระดับดีลเลอร์: ใบ/ลีดล่าสุด + ปุ่มเปิดแผงดีลเลอร์ ── */}
+      {ดีลเลอร์ที่ดู && <div style={{ marginTop: 24 }}><ล่าสุดของดีลเลอร์ code={ดีลเลอร์ที่ดู} /></div>}
+
+      {/* ── 5 · เส้นทางการขาย · งานค้างตามขั้นตอน (ตอนนี้) · เหตุผลปิดไม่สำเร็จ · ลีดตามแหล่งที่มา (ชุดสาขาเดียวกับตาราง) ── */}
+      <div style={{ marginTop: 24 }}>
+        <กล่องล่าง รวมทั้งหมด={รวม} ขั้นตอนนี้={ขั้นตอนนี้} ในช่วง={ลีดในช่วง} />
+      </div>
+
+      {แผงการ์ด && <แผงที่มา การ์ด={แผงการ์ด} แถว={แถว} รวมทั้งหมด={รวม} ดีลเลอร์={ดีลเลอร์ที่ดู} ปิด={() => setแผงการ์ด(null)}
+        ถึงเป้าเท่านั้น={ถึงเป้าเท่านั้น} สลับถึงเป้า={() => setถึงเป้าเท่านั้น(v => !v)} เดือน={ดีลเลอร์ที่ดู ? เดือน : null} />}
+      {เดือนที่เปิด && รายเดือนฐาน && <แผงเดือน เดือน={เดือนที่เปิด} rows={รายเดือนฐาน} codes={รหัสในตาราง} ชื่อ={ชื่อดีลเลอร์} ปิด={() => setเดือนที่เปิด(null)}
+        เจาะ={code => { setDealerSel(code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
     </div>
   );
 }

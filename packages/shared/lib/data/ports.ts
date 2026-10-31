@@ -363,6 +363,8 @@ export interface QuoteAgingRow { bucket: string; count: number; value: number; }
 export interface HQQuotationsSummary {
   byDealer: QuoteDealerRow[];
   byMonth: QuoteMonthRow[];
+  /** ใบที่ส่ง (ตามวันที่ส่ง · ไม่นับร่าง/ถูกแทนที่) เทียบ ตอบรับ (ตามวันตอบรับ) รายเดือน (ใบ 0268) · ไม่มี = ฐานยังไม่ถึงใบนั้น → หน้าเว็บขึ้น "รอข้อมูล" */
+  byMonthSent?: { y: number; m: number; sent: number; won: number }[];
   byProduct: QuoteProductRow[];
   aging: QuoteAgingRow[];
 }
@@ -499,6 +501,10 @@ export interface MetricsRepo {
     filters?: import("../kpiCards").KpiFilters | null): Promise<import("../kpiCards").KpiCardsData>;
   /** ผลงานรายดีลเลอร์ของหน้าภาพรวมยอดขาย (ใบ 0264 · hq_pipeline_dealers) — ชุดเดียวกับการ์ด hq.pipeline · dealers = ชุดสาขาที่ผ่านตัวกรอง (null = ทั้งเครือ) · HQ เท่านั้น */
   hqPipelineDealers(start: string, end: string, dealers: string[] | null, today?: string | null): Promise<import("../hqPipeline").ผลงานดีลเลอร์[]>;
+  /** ผลงานรายดีลเลอร์รายเดือน (ใบ 0268 · hq_pipeline_months) — ผลรวมทุกเดือน = hqPipelineDealers ช่วงเดียวกัน */
+  hqPipelineMonths(start: string, end: string, dealers: string[] | null): Promise<import("../hqPipeline").ผลงานรายเดือน[]>;
+  /** แผงดีลเลอร์ด้านขวาของหน้า HQ ดีลเลอร์ (ใบ 0266 · hq_dealer_panel) — งานดูแลเป็นจำนวน ไม่มีเงิน · ไม่พบ/แถว HQ = null */
+  hqDealerPanel(code: string, activityLimit?: number): Promise<import("../hqDealerPanel").แผงดีลเลอร์ | null>;
 }
 
 // ── โดเมนงานขาย — list (อ่าน) + CRUD เต็ม (Phase 0) ──
@@ -554,6 +560,8 @@ export interface QuoteListOpts {
   /** created_at = เวลาที่สร้างใบจริง (date ถูกตั้งใหม่ทุกครั้งที่กดส่ง ใช้เรียง "ใหม่ก่อน" ไม่ได้) */
   sort?: { col: "date" | "total_value" | "status" | "id" | "created_at"; dir: "asc" | "desc" };
   status?: string;              // สถานะเดียว (เว้น = ทุกสถานะ)
+  /** true = ไม่นับร่าง/ถูกแทนที่ = ชุดเดียวกับการ์ด "ส่งลูกค้าในช่วงนี้" (ค่าเริ่มต้นตาราง HQ ใบเสนอราคาทั้งเครือ · บอสสั่ง 30 ต.ค. 69) */
+  sentOnly?: boolean;
   dealerCodes?: string[];       // dealer_code in (...) — จาก dealer/region/province/ค้นหาชื่อ
   productLines?: string[];      // product_line in (...) — จาก product filter (รวม mainTemplate ที่ resolve แล้ว)
   search?: string;              // ilike บน id/customer

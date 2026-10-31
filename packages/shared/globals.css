@@ -701,12 +701,21 @@ body {
 .hq-kpi4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 1100px) { .hq-kpi4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 460px)  { .hq-kpi4 { grid-template-columns: 1fr; } }
+.hq-kpi4.hq-kpi3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .hq-kpi4.hq-kpi3 { grid-template-columns: 1fr; } }
 /* ช่องวันที่แสดง พ.ศ. (ThaiDateInput) — ช่องจริงโปร่งใสทับอยู่ กรอบโฟกัสจึงต้องอยู่ที่กรอบนอก */
 .thai-date:focus-within { outline: 2px solid #003366; outline-offset: 2px; }
 /* HQ · คำขอใบเสนอราคา (บอสสั่ง 26 ต.ค. 69): ปุ่มกรองแถวเดียว เลื่อนแนวนอนเมื่อจอแคบ · ช่องค้นหาเต็มความกว้าง ไม่ตัดคำ */
 /* หน้า HQ คำขอใบเสนอราคา: ช่องเลือกสถานะ + ช่องค้นหา บรรทัดเดียวกัน (จอแคบด้วย) — แทนแถวปุ่มกรอง (27 ต.ค. 69) */
 .hq-qr-filter { display: flex; gap: 8px; align-items: center; }
 .hq-qr-filter > .form-select { width: auto; flex: 0 1 190px; min-width: 0; cursor: pointer; }
+/* ปุ่ม 3 กลุ่มพร้อมจำนวน (บอสสั่ง 30 ต.ค. 69 · แทนช่องเลือก) */
+.hq-qr-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #dbe3ec; border-radius: 10px; overflow: hidden; flex: 0 0 auto; min-width: 300px; }
+.hq-qr-groups > button { border: none; background: #fff; color: #52606d; padding: 7px 8px; font-size: 0.74rem; font-weight: 700; cursor: pointer; line-height: 1.3; white-space: normal; }
+.hq-qr-groups > button + button { border-left: 1px solid #dbe3ec; }
+.hq-qr-groups > button.on { background: #003366; color: #fff; }
+.hq-qr-groups .n { font-size: 0.68rem; opacity: .85; margin-left: 2px; }
+@media (max-width: 600px) { .hq-qr-filter { flex-wrap: wrap; } .hq-qr-groups { min-width: 0; width: 100%; } }
 .search-bar.hq-qr-search { width: 100%; flex: 1 1 auto; min-width: 0; }
 /* HQ · ฐานข้อมูลลูกค้า — กราฟวิเคราะห์ 2 คอลัมน์ */
 .hq-cust-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin-bottom: 24px; }
@@ -755,6 +764,9 @@ body {
   .hq-leads-row > div:nth-child(3) { grid-column: auto; }
 }
 @media (max-width: 900px) { .hq-dealer-charts { grid-template-columns: 1fr; } }
+/* HQ ใบเสนอราคาทั้งเครือ: กราฟรายเดือน (กว้าง) คู่ อายุใบที่รอลูกค้าตอบ (เล็ก) — บอสสั่ง 30 ต.ค. 69 */
+.hq-quote-charts { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.25rem; align-items: stretch; margin-bottom: 24px; }
+@media (max-width: 1100px) { .hq-quote-charts { grid-template-columns: 1fr; } }
 
 /* ─── HQ · Customer Database ─── */
 .cust-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; }

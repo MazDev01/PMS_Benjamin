@@ -155,7 +155,9 @@ begin
   -- 12 เดือน
   perform flowtest.ok(jsonb_array_length(a->'monthly') = 12, '12 เดือนย้อนหลัง');
   oct := a->'monthly'->11;
-  perform flowtest.ok(oct = '{"y":2026,"m":9,"leads":4,"quotes":5,"won":2,"sales":130000}'::jsonb, 'เดือน ต.ค.: ลีด 4 · ใบ 5 · ตอบรับ 2 · ยอด 130,000 — ' || oct::text);
+  -- ใบ 0268 (บอสสั่ง 30 ต.ค. 69): กราฟรายเดือนเปลี่ยนชื่อเป็น "ใบที่ส่ง" → นับเฉพาะใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง) = กติกาเดียวกับการ์ด quotesSent (4) · เดิม 5 = นับใบร่างปน
+  perform flowtest.ok(oct = '{"y":2026,"m":9,"leads":4,"quotes":4,"won":2,"sales":130000}'::jsonb, 'เดือน ต.ค.: ลีด 4 · ใบที่ส่ง 4 (ไม่นับร่าง = การ์ดใบที่ส่ง) · ตอบรับ 2 · ยอด 130,000 — ' || oct::text);
+  perform flowtest.ok((oct->>'quotes')::int = (a->'cards'->>'quotesSent')::int, 'เดือน ต.ค.: ใบที่ส่งรายเดือน = การ์ดใบที่ส่งลูกค้า (ช่วง ต.ค.)');
   perform flowtest.ok(a->'monthly'->10 = '{"y":2026,"m":8,"leads":1,"quotes":2,"won":1,"sales":50000}'::jsonb, 'เดือน ก.ย. — ' || (a->'monthly'->10)::text);
   perform flowtest.ok(a->'monthly'->0->>'y' = '2025' and a->'monthly'->0->>'m' = '10', 'เดือนแรก = พ.ย. 2025');
   perform flowtest.ok(e->'monthly' = a->'monthly', '12 เดือนไม่ขึ้นกับตัวกรองเวลา');

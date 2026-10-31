@@ -12,7 +12,7 @@
 //   (charts.byType / charts.bySubtype ยังอยู่ใน type ของ ports แต่หน้านี้ไม่อ่านแล้ว)
 import { useState } from "react";
 import { TopNRows } from "@pms/shared/components/hq/TopNRows";
-import { Donut, GroupedBarChart } from "@pms/shared/components/ui/Charts";
+import { Donut } from "@pms/shared/components/ui/Charts";
 import type { HQCustomersCharts } from "@pms/shared/lib/data/ports";
 
 const PRIMARY = "#003366";
@@ -111,9 +111,10 @@ function HBar({ rows, fmt, color = PRIMARY, empty = "— ยังไม่ม�
 // การ์ดพวกนี้เคยสูง 479–519px และโตตามจำนวนแถว → หน้ายาว 5 จอ
 // ตรึงความสูงแล้วให้แถวที่เกินเลื่อนเอาในการ์ด — ทุกใบสูงเท่ากันเป็นชุด อ่านเป็น "แถว" ได้ทันที
 // hint ไม่บังคับแล้ว — การ์ดที่ไม่ต้องการคำอธิบายกำกับ ส่งแค่ title ได้ (บอสสั่ง 27 ส.ค. 69)
-function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+// ผลรวม/ชื่อ = ป้ายให้ข้อทดสอบอ่านผลรวมของกราฟ (ลูกค้าตามดีลเลอร์ = ตามจังหวัด = การ์ดลูกค้าทั้งหมด · บอสสั่ง 30 ต.ค. 69)
+function Card({ title, hint, children, ผลรวม, ชื่อ }: { title: string; hint?: string; children: React.ReactNode; ผลรวม?: number; ชื่อ?: string }) {
   return (
-    <div className="card chart-m" style={{ marginBottom: 0 }}>
+    <div className="card chart-m" style={{ marginBottom: 0 }} data-chart={ชื่อ} data-sum={ผลรวม}>
       <div className="card-header">
         <div className="card-title">{title}</div>
         {/* คำอธิบายกำกับการ์ดถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}
@@ -140,21 +141,15 @@ export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
   })();
   const dealerTotal = dealerDonut.reduce((s, r) => s + r.value, 0);
 
-  // 2 · ยอดซื้อตามดีลเลอร์ — แท่งตั้ง ชุดเดียว (ยอดซื้อสะสม)
-  // ⚠️ อย่าเอา "เฉลี่ยต่อลูกค้า" มาวางเป็นแท่งคู่บนแกนเดียวกัน: ยอดสะสมสูงสุด ฿47M แต่ค่าเฉลี่ยแค่ ฿1.4–4.2M
-  //    ต่างกัน ~30 เท่า → แท่งเฉลี่ยเตี้ยติดพื้นจนอ่านไม่ออก (ลองแล้ว) · ตัวเลขเฉลี่ยดูได้ที่ตารางด้านล่าง
-  const revenueByDealer = charts.revenueByDealer;
-  const toM = (v: number) => Math.round(v / 1e5) / 10; // บาท → ล้านบาท (ทศนิยม 1 ตำแหน่ง)
-
   // 3 · จังหวัด (10 อันดับแรก — ตัดมาจาก DB แล้ว)
   const byProvince: HRow[] = charts.byProvince;
 
   const cnt = (v: number) => `${v} ราย`;
 
   return (
-    // คู่ 2 คอลัมน์: (ตามดีลเลอร์ · ยอดซื้อตามดีลเลอร์) — แถวสอง "ตามจังหวัด" กินเต็มแถว ไม่เว้นช่องว่างครึ่งแถว
+    // คู่ 2 คอลัมน์: ลูกค้าตามดีลเลอร์ (วงกลม) · ลูกค้าตามจังหวัด (บอสสั่ง 30 ต.ค. 69 — เอา "ยอดซื้อ ตามดีลเลอร์" ออก: ผลงานดีลเลอร์อยู่ภาพรวมยอดขายที่เดียว)
     <div className="hq-cust-charts">
-      <Card title="ลูกค้า ตามดีลเลอร์">
+      <Card title="ลูกค้า ตามดีลเลอร์" ผลรวม={dealerTotal} ชื่อ="by-dealer">
         {!dealerTotal ? (
           <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>—</div>
         ) : (
@@ -163,24 +158,9 @@ export function CustomerAnalytics({ charts }: { charts: HQCustomersCharts }) {
         )}
       </Card>
 
-      <Card title="ยอดซื้อ ตามดีลเลอร์">
-        {!revenueByDealer.length ? (
-          <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>—</div>
-        ) : (
-          <GroupedBarChart
-            months={revenueByDealer.map(d => d.code)}
-            vw={560} height={244}
-            fmt={v => `${v.toFixed(1)}M`}
-            series={[{ name: "ยอดซื้อสะสม", color: "#0891B2", data: revenueByDealer.map(d => toM(d.revenue)) }]}
-          />
-        )}
+      <Card title="ลูกค้า ตามจังหวัด" ผลรวม={byProvince.reduce((s, r) => s + r.value, 0)} ชื่อ="by-province">
+        <HBar rows={byProvince} fmt={cnt} color="#6366F1" unit="จังหวัด" />
       </Card>
-
-      <div style={{ gridColumn: "1 / -1" }}>
-        <Card title="ลูกค้า ตามจังหวัด">
-          <HBar rows={byProvince} fmt={cnt} color="#6366F1" unit="จังหวัด" />
-        </Card>
-      </div>
 
     </div>
   );

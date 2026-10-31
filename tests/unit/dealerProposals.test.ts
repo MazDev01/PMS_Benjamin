@@ -73,13 +73,14 @@ describe("สถานะใบ (ตรงกับตัวดักของ�
 describe("พิมพ์ใบค่าแฟรนไชส์", () => {
   const hq: HQCompany = { name: "บริษัท ทดสอบสำนักงานใหญ่ จำกัด", address: "กรุงเทพฯ", taxId: "", phone: "02-000-0000", email: "", website: "" };
 
-  it("หัวกระดาษเป็นของสำนักงานใหญ่ · มีเลขที่ แพ็กเกจ พื้นที่ มูลค่า", () => {
+  it("หัวกระดาษเป็นของสำนักงานใหญ่ · มีเลขที่ พื้นที่ มูลค่า · ไม่มีแพ็กเกจ", () => {
     const html = buildDealerProposalHTML(ใบ({ package: "exclusive", region: "ตะวันออก", province: "ชลบุรี", amount: 150000, status: "sent" }),
       { name: "คุณสมชาย" }, hq);
     expect(html).toContain("ใบค่าแฟรนไชส์");
     expect(html).toContain("บริษัท ทดสอบสำนักงานใหญ่ จำกัด");
     expect(html).toContain("DP-2026-0001");
-    expect(html).toContain("Exclusive");
+    // เอาแพ็กเกจออกจากใบพิมพ์ (บอสสั่ง 30 ต.ค. 69) — ใบเก่าที่มีค่าแพ็กเกจในฐานก็ไม่พิมพ์
+    expect(html.replace(/<[^>]+>/g, " ")).not.toMatch(/แพ็กเกจ|Standard|Premium|Exclusive/);
     expect(html).toContain("ชลบุรี · ภาคตะวันออก");
     expect(html).toContain("฿150,000");
     expect(html).not.toContain("ยังไม่ใช่ข้อเสนอที่ส่งจริง");   // ส่งแล้ว = ไม่มีป้ายร่าง

@@ -49,7 +49,7 @@ test("หน้า HQ เจาะสาขา CNX ไม่โผล่ลู�
   await open(page, "hq", "/hq/dealers/CNX");
   await page.waitForTimeout(1500);
   // แท็บ "ลูกค้าเป้าหมาย" — ตารางลูกค้าเป้าหมายของสาขานี้
-  await page.getByRole("button", { name: /ลูกค้าเป้าหมาย/ }).first().click().catch(() => {});
+  await page.locator("[data-dealer-panel] [data-panel-tab='leads']").click();   // แท็บลูกค้าเป้าหมายในแผงดีลเลอร์ (30 ต.ค. 69)
   await page.waitForTimeout(500);
   const bodyText = await page.evaluate(() => document.body.innerText);
   const leaked = otherBranch.filter(name => bodyText.includes(name));
@@ -75,8 +75,8 @@ test("หน้า HQ เจาะสาขา: จำนวนแถวลู�
     expect((ของข้อ.data ?? []).length, "ตั้งต้น: สาขาของข้อมีลีด 3 ราย").toBe(3);
     const อื่น = await otherBranchCompanies(สาขา.รหัส);
     await open(page, "hq", `/hq/dealers/${สาขา.รหัส}`);
-    await page.getByRole("button", { name: /ลูกค้าเป้าหมาย/ }).first().click().catch(() => {});
-    const แถว = page.locator("table tbody tr");
+    await page.locator("[data-dealer-panel] [data-panel-tab='leads']").click();   // แท็บในแผงดีลเลอร์ (30 ต.ค. 69)
+    const แถว = page.locator("[data-dealer-panel] table tbody tr");
     await expect(แถว.filter({ hasText: ป้าย }), "ลีดของสาขานี้ครบ 3 ราย").toHaveCount(3, { timeout: 20_000 });
     await expect(แถว, "จำนวนแถว = ลีดของสาขานี้เท่านั้น").toHaveCount(3);
     const ข้อความ = await page.evaluate(() => document.body.innerText);

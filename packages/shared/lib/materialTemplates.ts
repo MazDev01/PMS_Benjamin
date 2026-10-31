@@ -24,7 +24,8 @@ export type MaterialTemplateDraft = Omit<MaterialTemplate, "id" | "priceUpdatedA
 export type EstimateItem = { templateId: number; category: string; name: string; unit: string; qty: number; unitPrice: number };
 
 /** ความแม่นของราคาประเมิน — n = 0 → ค่าเฉลี่ย null (แสดง "—") */
-export type EstimateAccuracy = { n: number; avgAbsPct: number | null; avgPct: number | null };
+/** byTemplate = % คลาดเฉลี่ยรายวัสดุ (ใบ 0268): ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ ของคำขอที่เลือกวัสดุนั้น · ไม่มี = ฐานยังไม่ถึงใบนั้น */
+export type EstimateAccuracy = { n: number; avgAbsPct: number | null; avgPct: number | null; byTemplate?: { id: number; n: number; avgPct: number | null }[] };
 
 export const ป้ายราคาประเมิน = "ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา";
 

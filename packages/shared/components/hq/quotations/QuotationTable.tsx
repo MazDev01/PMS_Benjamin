@@ -3,9 +3,11 @@
 // ─── ตารางใบเสนอราคาทั้งเครือ ─────────────────────────────────────────────────
 // อ่านอย่างเดียว — มีปุ่ม "ดู" เท่านั้น ไม่มีสร้าง/แก้ไข/ลบ/อนุมัติ (HQ เป็นเจ้าของข้อมูล แต่ไม่ออกใบเอง)
 // คอลัมน์เกี่ยวกับการเปิดอ่าน ถูกลบทั้งหมดพร้อมสถานะ "เปิดอ่านแล้ว"
+import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { Eye } from "lucide-react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
-import { quotationStatusLabel, quotationStatusColor } from "@pms/shared/lib/mock";
+import { quotationStatusColor } from "@pms/shared/lib/mock";
+import { ชื่อสถานะใบHQ } from "./QuotationFilterBar";
 import { fmtBaht } from "@pms/shared/lib/format";
 import type { QuoteRow } from "@pms/shared/lib/hqQuotations";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
@@ -32,29 +34,28 @@ export function QuotationTable({ rows, onView, pagination }: {
               รวม minWidth = 1144px → พอดีตั้งแต่จอ 1440 ขึ้นไป
               จอแคบกว่านั้น (1280/1366) เลื่อนแนวนอนใน .table-wrap — 11 คอลัมน์ยังไงก็ไม่พอ
               เพิ่ม/ลบคอลัมน์เมื่อไร ต้องมาวัดใหม่และแก้ colgroup ด้วยเสมอ */}
+          {/* 30 ต.ค. 69 บอสสั่ง: เลขที่ · ดีลเลอร์ (รหัส+ชื่อช่องเดียว) · ลูกค้า · จังหวัดหน้างาน · มูลค่า (ก่อน VAT) · สถานะ · วันที่ส่ง · ใช้ได้ถึง · ดู
+              เลขที่/มูลค่า/สถานะ/วันที่ ห้ามตัด · ดีลเลอร์/ลูกค้า ยาวเกิน = ตัด … + แสดงเต็มเมื่อชี้ (title) */}
           <colgroup>
-            <col style={{ width: 216 }} />{/* เลขที่ — ฉบับใหม่ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69) · รหัสดีลเลอร์ยาวได้ 5 ตัว: "Q-WWWWW-2026-0001-V2" (เดิม 170 พอแค่รหัส 3 ตัว เช่น RYG — รหัส 5 ตัวถูกตัด เจอ 29 ต.ค. 69) · ตารางแบบตายตัวไม่สน minWidth ของ col จึงใช้ px */}
-            <col style={{ width: 96 }} />{/* รหัส — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
-            <col style={{ width: "9%", minWidth: 88 }} />{/* ดีลเลอร์ — ชื่อยาวตัด … ได้ */}
-            <col style={{ width: "16%", minWidth: 120 }} />{/* ลูกค้า — ชื่อยาวตัด … ได้ (รับความกว้างของคอลัมน์ประเภทอาคารที่ลบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) */}
-            <col style={{ width: "12%", minWidth: 128 }} />{/* จังหวัดดีลเลอร์ — "พระนครศรีอยุธยา" ต้องการ 125px */}
-            <col style={{ width: "7%", minWidth: 84 }} />{/* มูลค่า */}
-            <col style={{ width: 112 }} />{/* สถานะ — ป้ายยาวสุด "ถูกแทนที่" ต้องเห็นเต็ม (ทดลองใช้เว็บ 21 ต.ค. 69 · เดิม 8% ป้ายถูกตัด) · ตารางตายตัวไม่สน minWidth จึงใช้ px */}
-            <col style={{ width: "10%", minWidth: 116 }} />{/* วันที่สร้าง — "27 มิ.ย. 2569" ต้องการ 107px */}
-            <col style={{ width: "10%", minWidth: 116 }} />{/* ใช้ได้ถึง */}
-            <col style={{ width: "5%", minWidth: 52 }} />{/* ปุ่มดู — ไอคอนล้วน ไม่ต้องเผื่อที่ให้ข้อความ */}
+            <col style={{ width: 216 }} />{/* เลขที่ — ฉบับใหม่ต้องเห็น "-V2" เต็ม */}
+            <col style={{ width: "20%", minWidth: 200 }} />{/* ดีลเลอร์ = รหัส + ชื่อ */}
+            <col style={{ width: "20%", minWidth: 150 }} />{/* ลูกค้า */}
+            <col style={{ width: "11%", minWidth: 128 }} />{/* จังหวัดหน้างาน — "พระนครศรีอยุธยา" */}
+            <col style={{ width: "9%", minWidth: 120 }} />{/* มูลค่า (ก่อน VAT) */}
+            <col style={{ width: 132 }} />{/* สถานะ — "ส่งให้ลูกค้าแล้ว" ต้องเห็นเต็ม */}
+            <col style={{ width: "9%", minWidth: 116 }} />{/* วันที่ส่ง */}
+            <col style={{ width: "9%", minWidth: 116 }} />{/* ใช้ได้ถึง */}
+            <col style={{ width: 52 }} />{/* ปุ่มดู */}
           </colgroup>
           <thead>
             <tr>
               <th>เลขที่</th>
-              <th>รหัส</th>
               <th>ดีลเลอร์</th>
               <th>ลูกค้า</th>
-              {/* จังหวัดของดีลเลอร์ที่ออกใบ — ไม่ใช่จังหวัดลูกค้า (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง) */}
-              <th>จังหวัดดีลเลอร์</th>
-              <th className="num">มูลค่า</th>
+              <th>{ช่อง.จังหวัด}</th>
+              <th className="num">มูลค่า (ก่อน VAT)</th>
               <th>สถานะ</th>
-              <th>วันที่สร้าง</th>
+              <th>วันที่ส่ง</th>
               <th>ใช้ได้ถึง</th>
               {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 (26 ส.ค. 69) */}
               <th style={ตรึงคอลัมน์ปุ่ม(true)}>ดู</th>
@@ -62,7 +63,7 @@ export function QuotationTable({ rows, onView, pagination }: {
           </thead>
           <tbody>
             {!rows.length ? (
-              <tr><td colSpan={10} style={{ textAlign: "center", padding: "32px 14px", color: MUTED }}>ไม่พบข้อมูลที่ค้นหา</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: "center", padding: "32px 14px", color: MUTED }}>ไม่พบข้อมูลที่ค้นหา</td></tr>
             ) : rows.map(q => {
               const sc = quotationStatusColor[q.status];
               // คีย์ต้องพ่วงรหัสสาขา — เลขที่ใบไม่ซ้ำ "เฉพาะภายในสาขา" (คีย์จริง = สาขา + เลขที่)
@@ -70,19 +71,18 @@ export function QuotationTable({ rows, onView, pagination }: {
               return (
                 <ClickableRow key={`${q.dealerCode ?? ""}-${q.id}`} onActivate={() => onView(q)} label={`เปิดรายละเอียดใบเสนอราคา ${q.quoteNo}`}>
                   <td data-quote-no style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
-                  <td data-col="code" style={{ overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap" }}>
-                    <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{q.dealerCode}</span>
+                  <td data-col="dealer" title={`${q.dealerCode} · ${q.dealerName}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span data-col="code" className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{q.dealerCode}</span>{q.dealerName}
                   </td>
-                  {/* ชื่อยาวตัด … — ใส่ title ให้ hover อ่านเต็มได้ (ชื่อเต็มอยู่ในลิ้นชักด้วย) */}
-                  <td title={q.dealerName} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerName}</td>
                   <td title={q.customer} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.customer}</td>
-                  <td title={`จังหวัดของดีลเลอร์ ${q.dealerName}`} style={{ color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.dealerProvince}</td>
+                  <td data-col="site-province" style={{ color: MUTED, whiteSpace: "nowrap" }}>{q.siteProvince || "—"}</td>
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>
                   <td>
-                    <span className="badge" data-quote-status style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{quotationStatusLabel[q.status]}</span>
+                    <span className="badge" data-quote-status style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{ชื่อสถานะใบHQ[q.status]}</span>
                   </td>
                   {/* คอลัมน์ "เปิดอ่าน" ถูกลบพร้อมสถานะเปิดอ่านแล้ว */}
-                  <td style={{ color: MUTED, fontSize: "0.78rem", whiteSpace: "nowrap" }}>{q.createdAt}</td>
+                  {/* วันที่ส่ง = วันที่ของใบ (ตั้งใหม่ทุกครั้งที่กดส่ง) · ใบร่างยังไม่ได้ส่ง = "—" */}
+                  <td data-col="sent-date" style={{ color: MUTED, fontSize: "0.78rem", whiteSpace: "nowrap" }}>{q.status === "draft" ? "—" : q.createdAt}</td>
                   <td style={{ color: MUTED, fontSize: "0.78rem", whiteSpace: "nowrap" }}>{q.validUntil ?? "—"}</td>
                   <td style={ตรึงคอลัมน์ปุ่ม()}>
                     {/* ปุ่มไอคอนล้วน — ข้อความ "ดู" ซ้ำกับที่ไอคอนสื่ออยู่แล้ว · title/aria-label คงไว้ให้ screen reader */}

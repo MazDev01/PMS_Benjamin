@@ -9,7 +9,8 @@ import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
-import { จัดรูปผลงานดีลเลอร์ } from "@pms/shared/lib/hqPipeline";
+import { จัดรูปผลงานดีลเลอร์, จัดรูปผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
+import { จัดรูปแผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
 
 type Row = Record<string, unknown>;
 type Args = Record<string, unknown>;
@@ -42,6 +43,18 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
     rpc: "hq_pipeline_dealers",
     args: a => ({ p_start: a.start, p_end: a.end, p_dealers: Array.isArray(a.dealers) ? a.dealers.map(String) : null, p_today: a.today ?? null }),
     shape: d => จัดรูปผลงานดีลเลอร์(d),
+  },
+  // ผลงานรายดีลเลอร์รายเดือน (ใบ 0268) — ฐานตรวจว่าเป็น HQ เอง
+  hqPipelineMonths: {
+    rpc: "hq_pipeline_months",
+    args: a => ({ p_start: a.start, p_end: a.end, p_dealers: Array.isArray(a.dealers) ? a.dealers.map(String) : null }),
+    shape: d => จัดรูปผลงานรายเดือน(d),
+  },
+  // แผงดีลเลอร์ด้านขวาของหน้า HQ ดีลเลอร์ (ใบ 0266) — ฐานตรวจว่าเป็น HQ เอง
+  hqDealerPanel: {
+    rpc: "hq_dealer_panel",
+    args: a => ({ p_code: S(a.code), p_activity_limit: Math.min(Math.max(Number(a.activityLimit) || 10, 1), 200) }),
+    shape: d => จัดรูปแผงดีลเลอร์(d),
   },
   dealerRollup: {
     rpc: "dealer_rollup",
@@ -169,6 +182,7 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
           sent: N(r.sent), won: N(r.won), lost: N(r.lost), wonVal: N(r.won_val), latest: (r.latest as string) ?? null,
         })),
         byMonth: (x.byMonth ?? []).map(r => ({ y: N(r.y), m: N(r.m), quotes: N(r.quotes), won: N(r.won), lost: N(r.lost), wonVal: N(r.won_val) })),
+        byMonthSent: x.byMonthSent ? x.byMonthSent.map(r => ({ y: N(r.y), m: N(r.m), sent: N(r.sent), won: N(r.won) })) : undefined,   // ใบ 0268
         byProduct: (x.byProduct ?? []).map(r => ({ product: (r.product as string) ?? null, value: N(r.value), projects: N(r.projects) })),
         aging: (x.aging ?? []).map(r => ({ bucket: S(r.bucket), count: N(r.count), value: N(r.value) })),
       };

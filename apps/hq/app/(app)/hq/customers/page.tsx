@@ -22,7 +22,8 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // เดิมดึงลูกค้าทั้งเครือมาไว้ในเครื่องทั้งก้อนแล้วทำทุกอย่างฝั่ง client — ที่สเกลจริง (พันรายขึ้นไป) ไม่ไหว
 // supabase: useHQCustomersPage/useHQCustomersFilterOptions (RPC) · local/demo: useCustomerDbLocal (client, ไม่ยิง fetch)
 import { useState, useMemo, useEffect } from "react";
-import { APP_NOW } from "@pms/shared/lib/appTime";
+import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
+import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { Search } from "lucide-react";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { customerCode, fmtISOToThai } from "@pms/shared/lib/mock";
@@ -32,40 +33,13 @@ import { metrics as metricsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import type { HQCustomerPageRow, HQCustomersKPI, HQCustomersCharts } from "@pms/shared/lib/data/ports";
 import { CustomerKPICards } from "@pms/shared/components/hq/customers/CustomerKPICards";
-import { เดือนนี้ } from "@pms/shared/lib/kpiCards";
 import { CustomerAnalytics } from "@pms/shared/components/hq/customers/CustomerAnalytics";
 import { CustomerTable } from "@pms/shared/components/hq/customers/CustomerTable";
 import { CustomerDrawer } from "@pms/shared/components/hq/customers/CustomerDrawer";
 import { ชื่อภาค, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
+const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const PAGE_SIZE = 10;
-
-// ── ตัวกรอง "ซื้อล่าสุด" (เฉพาะหน้านี้) ─────────────────────────────────────────
-// วัดจาก last_purchase_at = วันปิดการขายล่าสุดของลูกค้ารายนั้น
-// "all" ต้องเป็นค่าเริ่มต้นเสมอ — ฐานข้อมูลลูกค้าต้องเห็นครบก่อน แล้วผู้ใช้ค่อยแคบเอง
-const BOUGHT_OPTIONS = [
-  { key: "all",     label: "ทุกช่วงเวลาที่ซื้อ" },
-  { key: "m6",      label: "ซื้อล่าสุดใน 6 เดือน" },
-  { key: "m12",     label: "ซื้อล่าสุดใน 12 เดือน" },
-  { key: "thisYear",label: "ซื้อล่าสุดปีนี้" },
-  { key: "over12",  label: "ไม่ซื้อเกิน 12 เดือนแล้ว" },
-] as const;
-type BoughtKey = typeof BOUGHT_OPTIONS[number]["key"];
-
-/** แปลงตัวเลือกเป็นช่วงวันที่ (ISO) — ไม่คืนอะไรเลยแปลว่าไม่กรอง */
-function boughtRange(key: BoughtKey): { from?: string; to?: string } {
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const ย้อนเดือน = (n: number) => { const d = new Date(APP_NOW); d.setMonth(d.getMonth() - n); return iso(d); };
-  switch (key) {
-    case "m6": return { from: ย้อนเดือน(6) };
-    case "m12": return { from: ย้อนเดือน(12) };
-    case "thisYear": return { from: `${new Date(APP_NOW).getFullYear()}-01-01` };
-    // "ไม่ซื้อเกิน 12 เดือนแล้ว" = ซื้อครั้งสุดท้ายก่อนหน้านั้น (ลูกค้าที่ยังไม่เคยมีใบปิดการขายไม่เข้าเกณฑ์
-    // เพราะไม่มีวันที่ให้เทียบ — ไม่ใช่ระบบตัดทิ้ง)
-    case "over12": return { to: ย้อนเดือน(12) };
-    default: return {};
-  }
-}
 
 export default function HQCustomersPage() {
   // ตัวกรองเฉพาะหน้านี้ (ไม่จำข้ามหน้า) — ช่วงเวลาใช้ FilterBar ส่วนกลาง
@@ -73,14 +47,15 @@ export default function HQCustomersPage() {
   const [dealerSel, setDealerSel] = useState("all");
   const [regionSel, setRegionSel] = useState("all");
   const [provinceSel, setProvinceSel] = useState("all");
-  const [boughtSel, setBoughtSel] = useState<BoughtKey>("all");
   const [page, setPage] = useState(0);
   const [viewId, setViewId] = useState<number | null>(null);
-  // การ์ด KPI (ใบ 0246): หน้านี้ไม่มีตัวกรองช่วงเวลา → การ์ด "ในช่วงนี้" = เดือนนี้ (บอสตัดสิน 27 ต.ค. 69)
-  const ช่วงเดือนนี้ = useMemo(() => เดือนนี้(APP_NOW.getTime()), []);
+  // ช่วงวันที่มุมขวาบนแบบเดียวกับหน้า HQ อื่น (บอสสั่ง 30 ต.ค. 69 · แทนตัวกรอง "ทุกช่วงเวลาที่ซื้อ")
+  //   ใช้กับการ์ด "ลูกค้าใหม่ในช่วงนี้" เท่านั้น — ตาราง/กราฟ/การ์ดลูกค้าทั้งหมด = ฐานข้อมูลทั้งชุด (ลูกค้าเก่าไม่หาย)
+  const { timeRange } = useFilters();
+  const ช่วง = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
 
   // เปลี่ยนตัวกรอง (ไม่ใช่หน้า) → กลับไปหน้า 1 เสมอ
-  useEffect(() => { setPage(0); }, [search, dealerSel, regionSel, provinceSel, boughtSel]);
+  useEffect(() => { setPage(0); }, [search, dealerSel, regionSel, provinceSel]);
 
   // ── fallback ฝั่ง local/demo (ยังไม่กลับ) — ไม่ยิง fetch เลยในโหมด HQ+supabase (ดูคอมเมนต์ที่ hook) ──
   const localSource = useCustomerDbLocal();
@@ -115,18 +90,15 @@ export default function HQCustomersPage() {
     dealerCode: dealerSel === "all" ? undefined : dealerSel,
     provinces: resolvedProvinces,
     // ไม่ส่ง buildingType แล้ว — ตัวกรองประเภทอาคาร (แม่แบบ) ถอดออก: เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
-    boughtFrom: boughtRange(boughtSel).from,
-    boughtTo: boughtRange(boughtSel).to,
     limit: PAGE_SIZE, offset: page * PAGE_SIZE,
-  }), [search, dealerSel, resolvedProvinces, boughtSel, page]);
+  }), [search, dealerSel, resolvedProvinces, page]);
 
   const pageResult = useHQCustomersPage(pageOpts);
   // การ์ด KPI เดินตามตัวกรองของตาราง (บอสตัดสิน 27 ต.ค. 69) — ชุดเดียวกับที่ส่งให้ hq_customers_page
   const ตัวกรองการ์ด = useMemo(() => {
-    const f = { dealerCodes: dealerSel === "all" ? undefined : [dealerSel], provinces: resolvedProvinces, search: search.trim() || undefined,
-                boughtFrom: boughtRange(boughtSel).from, boughtTo: boughtRange(boughtSel).to };
+    const f = { dealerCodes: dealerSel === "all" ? undefined : [dealerSel], provinces: resolvedProvinces, search: search.trim() || undefined };
     return Object.values(f).some(v => v != null) ? f : null;
-  }, [dealerSel, resolvedProvinces, search, boughtSel]);
+  }, [dealerSel, resolvedProvinces, search]);
 
   // ── fallback ฝั่ง client (local/demo) — ตรรกะกรอง/เรียงเดิมเป๊ะ ──
   const localFiltered = useMemo(() => {
@@ -137,18 +109,10 @@ export default function HQCustomersPage() {
         if (dealerSel !== "all" && c.dealerCode !== dealerSel) return false;
         if (regionSel !== "all" && c.region !== regionSel) return false;
         if (provinceSel !== "all" && c.province !== provinceSel) return false;
-        // กติกาเดียวกับฐานข้อมูล (ใบ 0159): ไม่มีวันซื้อ = ไม่เข้าเกณฑ์เมื่อเปิดตัวกรองนี้
-        const ช่วง = boughtRange(boughtSel);
-        if (ช่วง.from || ช่วง.to) {
-          const ซื้อล่าสุด = c.lastPurchaseAt ? c.lastPurchaseAt.toISOString().slice(0, 10) : null;
-          if (!ซื้อล่าสุด) return false;
-          if (ช่วง.from && ซื้อล่าสุด < ช่วง.from) return false;
-          if (ช่วง.to && ซื้อล่าสุด > ช่วง.to) return false;
-        }
         return true;
       })
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [localSource, search, dealerSel, regionSel, provinceSel, boughtSel]);
+  }, [localSource, search, dealerSel, regionSel, provinceSel]);
 
   const ปีที่แล้ว = useMemo(() => { const d = new Date(APP_NOW); d.setFullYear(d.getFullYear() - 1); return d.getTime(); }, []);
   // kpi/charts/rows — supabase: ตรงจาก RPC · local: derive จาก localFiltered ให้ shape เดียวกัน
@@ -232,11 +196,11 @@ export default function HQCustomersPage() {
 
   // Export — หนึ่งแถวต่อลูกค้า · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด (limit=total) · local: จาก localFiltered ทั้งชุดอยู่แล้ว
   const rowToCells = (c: HQCustomerPageRow) => [
-    customerCode(c.dealerCode, c.id), c.name, c.dealerCode, c.dealerName, c.province, regionOf(c.province) ?? "—",
+    customerCode(c.dealerCode, c.id), c.name, c.dealerCode, c.dealerName, c.province, ชื่อภาค(regionOf(c.province)) || "—",
     c.totalValue, c.lastPurchaseAt ? fmtISOToThai(c.lastPurchaseAt) : "—",
   ];
   const localExportRows = localFiltered.map(c => [
-    customerCode(c.dealerCode, c.localId ?? c.id), c.name, c.dealerCode, c.dealerName, c.province, c.region ?? "—",
+    customerCode(c.dealerCode, c.localId ?? c.id), c.name, c.dealerCode, c.dealerName, c.province, ชื่อภาค(c.region) || "—",
     c.totalRevenue, c.lastPurchase ?? "—",
   ]);
 
@@ -244,6 +208,8 @@ export default function HQCustomersPage() {
     <div className="erp">
       {/* ปุ่ม/ตัวกรองของหน้าอยู่ขวาหัวหน้าเพจ (UI รอบใหม่ 14 ก.ย. 69) — ชื่อหน้า/ป้ายกลุ่มมาจากแถบบนแล้ว */}
       <TopbarActions>
+          {/* ช่วงเวลาอยู่ที่หัวหน้า — ที่เดียวกับทุกหน้า HQ */}
+          <FilterBar dims={[]} />
           <ExportMenu
             filename="hq-customers"
             title="ลูกค้าทั้งเครือ"
@@ -258,10 +224,10 @@ export default function HQCustomersPage() {
           />
       </TopbarActions>
 
-      <CustomerKPICards ช่วง={ช่วงเดือนนี้} today={ช่วงเดือนนี้.end} ตัวกรอง={ตัวกรองการ์ด} รุ่น={tableRows.length} onOpen={id => setViewId(id)}
-        onClear={() => { setSearch(""); setDealerSel("all"); setRegionSel("all"); setProvinceSel("all"); setBoughtSel("all"); setPage(0); }} />
+      <CustomerKPICards ช่วง={ช่วง} today={ช่วง.end} ตัวกรอง={ตัวกรองการ์ด} รุ่น={tableRows.length} onOpen={id => setViewId(id)}
+        onClear={() => { setSearch(""); setDealerSel("all"); setRegionSel("all"); setProvinceSel("all"); setPage(0); }} />
 
-      {/* ตัวกรอง — ค้นหา + ดีลเลอร์/ภาค/จังหวัด/ช่วงเวลาที่ซื้อ (ประเภทอาคาร/แม่แบบ ถอดออก 16 ต.ค. 69) */}
+      {/* ตัวกรอง — ค้นหา + ดีลเลอร์/ภาค/จังหวัด (ช่วงเวลาที่ซื้อ → ช่วงวันที่มุมขวาบน 30 ต.ค. 69) */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>
         {/* ขนาดช่องค้นหาต้องเท่ากันทุกหน้า (บอสสั่ง 20 ส.ค. 69) — ใช้ .search-bar ตัวมาตรฐาน
             เดิมหน้านี้สั่งให้ยืดกินที่ว่าง จึงกว้างกว่าหน้าอื่นเกือบสามเท่าเวลาจอกว้าง
@@ -296,11 +262,6 @@ export default function HQCustomersPage() {
         <select aria-label="กรองตามจังหวัด" value={provinceSel} onChange={e => setProvinceSel(e.target.value)} className="form-select" style={selectStyle}>
           <option value="all">ทุกจังหวัด</option>
           {provinceOptions.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-
-        {/* ตัวเลือกแรกคือทั้งหมด — BOUGHT_OPTIONS ตัวแรกคือ "ทุกช่วงเวลาที่ซื้อ" */}
-        <select aria-label="กรองตามช่วงเวลาที่ซื้อล่าสุด" value={boughtSel} onChange={e => setBoughtSel(e.target.value as BoughtKey)} className="form-select" style={selectStyle}>
-          {BOUGHT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
 
       </div>

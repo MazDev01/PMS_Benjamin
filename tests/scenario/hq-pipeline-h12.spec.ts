@@ -127,7 +127,10 @@ test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์�
   await page.getByLabel("ทุกช่วงยอดขาย").selectOption("lt5");
   await รวมเท่าการ์ด(page, "ช่วงยอดขายต่ำกว่า ฿5M");
   await page.getByLabel("ทุกช่วงยอดขาย").selectOption("ALL");
+  // 30 ต.ค. 69: กดการ์ด = แผงที่มา · ปุ่มในแผง "แสดงเฉพาะดีลเลอร์ที่ถึงเป้าในตาราง" (เดิมกดการ์ดแล้วกรองทันที)
   await page.locator('[data-kpi-row] [data-kpi="onTarget"]').click();
+  await page.locator('[data-card-drawer="onTarget"] [data-act="only-on-target"]').click();
+  await page.getByRole("button", { name: "ปิดแผง" }).click();
   await รวมเท่าการ์ด(page, "ถึงเป้าเท่านั้น (กดการ์ด)");
 });
 
@@ -139,12 +142,12 @@ test("[H12·hq] โครงหน้า 3 ส่วน · เรียงได
     await expect.soft(page.getByText(ชื่อ, { exact: false }), `เอาออกแล้ว: ${ชื่อ}`).toHaveCount(0);
   await expect.soft(page.getByTestId("pipeline-chart"), "กราฟเดียว: ยอดขายเทียบเป้าตามช่วง").toContainText("ยอดขาย เทียบ เป้าตามช่วง");
   const หัว = (await page.locator("table[aria-label='ตารางผลงานดีลเลอร์'] thead th").allInnerTexts()).map(s => s.trim()).filter(Boolean);
-  expect.soft(หัว, "คอลัมน์ตามที่บอสกำหนด").toEqual(["รหัส", "ดีลเลอร์", "ภูมิภาค", "ลีด", "ใบเสนอราคา", "ปิดได้", "ปิดไม่ได้", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", "เสนอล่าสุด"]);
+  expect.soft(หัว, "คอลัมน์ตามที่บอสกำหนด").toEqual(["รหัส", "ดีลเลอร์", "ภูมิภาค", "ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "ยังไม่รู้ผล", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", "เสนอล่าสุด"]);
 
   // เรียงได้ทุกคอลัมน์: กดแล้วหัวบอกทิศ · กดซ้ำกลับทิศ
   await page.getByLabel("ค้นหาดีลเลอร์").fill(ป้าย);
   await expect(page.locator("[data-perf-row]")).toHaveCount(2, { timeout: 20_000 });
-  for (const k of ["code", "name", "region", "leads", "quotes", "won", "lost", "rate", "sales", "target", "pct", "marginPct", "latest"]) {
+  for (const k of ["code", "name", "region", "leads", "quotes", "won", "lost", "pend", "rate", "sales", "target", "pct", "marginPct", "latest"]) {
     const ปุ่ม = page.locator(`button[data-sort="${k}"]`);
     await ปุ่ม.click();
     const ทิศ1 = await ปุ่ม.locator("xpath=..").getAttribute("aria-sort");

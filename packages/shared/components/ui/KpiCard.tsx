@@ -15,8 +15,9 @@ const ป้าย: React.CSSProperties = { fontSize: "0.8rem", color: "var(--mu
 const ตัวเลข: React.CSSProperties = { fontSize: "1.25rem", fontWeight: 800, color: "#1F2937", lineHeight: 1.15, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };
 
 /** range = ช่วงที่การ์ด "ในช่วงนี้" ใช้ (ข้อทดสอบอ่าน data-range-* แล้วเทียบกับ kpi_cards ช่วงเดียวกัน) · ไม่ส่ง = ณ ตอนนี้/ทุกช่วง */
-export function KpiRow({ label, children, style, range }: { label: string; children: ReactNode; style?: React.CSSProperties; range?: { start: string; end: string } | null }) {
-  return <div className="hq-kpi4" role="group" aria-label={label} data-kpi-row data-range-start={range?.start ?? ""} data-range-end={range?.end ?? ""}
+/** สามใบ = แถวการ์ด 3 ใบเต็มความกว้าง (หน้าลูกค้าทั้งเครือ · บอสสั่ง 30 ต.ค. 69) */
+export function KpiRow({ label, children, style, range, สามใบ }: { label: string; children: ReactNode; style?: React.CSSProperties; range?: { start: string; end: string } | null; สามใบ?: boolean }) {
+  return <div className={สามใบ ? "hq-kpi4 hq-kpi3" : "hq-kpi4"} role="group" aria-label={label} data-kpi-row data-range-start={range?.start ?? ""} data-range-end={range?.end ?? ""}
     style={{ marginBottom: "1.25rem", ...style }}>{children}</div>;
 }
 

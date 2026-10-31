@@ -71,9 +71,8 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await page.getByLabel("อายุใบค่าแฟรนไชส์ (วัน)").fill("30");
   await page.getByLabel("ชื่อผู้ลงนาม").fill("คุณทดสอบ ลงนาม");
   await page.locator("#rc-terms").fill("ข้อทดสอบหนึ่ง");
-  await page.locator("#rc-standard-amount").fill("150000");
-  await expect(page.locator("#rc-standard-amount"), "ช่องเงินต้องมีลูกน้ำ").toHaveValue("150,000");
-  await page.locator("#rc-standard-months").fill("12");
+  // บอสสั่ง 30 ต.ค. 69: หน้าตั้งค่าไม่มี "ตัวเลขตั้งต้นของแต่ละแพ็กเกจ" แล้ว (เอาแพ็กเกจออกจากหน้าจอ)
+  await expect(page.locator("[id^='rc-standard'], [id^='rc-exclusive']"), "ไม่มีช่องตั้งค่าแพ็กเกจ").toHaveCount(0);
 
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await expect.poll(async () => (await sb.from("hq_recruit_settings").select("config").eq("id", 1).single()).data?.config, { timeout: 20_000 })
@@ -84,9 +83,12 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
       taskLabels: { profile: "ส่งโบรชัวร์ทดสอบ" },
       proposal: {
         validityDays: 30, signerName: "คุณทดสอบ ลงนาม", terms: "ข้อทดสอบหนึ่ง",
-        packages: { standard: { amount: 150000, contractMonths: 12, annualTarget: null } },
       },
     });
+  // ค่าตั้งต้นของแพ็กเกจ (ฟอร์มออกใบยังมีช่องแพ็กเกจจนกว่าใบปรับฐานรอบรวมจะลง) — ไม่มีหน้าจอให้ตั้งแล้ว ตั้งที่ฐานตรงให้ข้อถัดไปใช้
+  const ค่าตั้ง = (await sb.from("hq_recruit_settings").select("config").eq("id", 1).single()).data?.config as Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any
+  expect((await sb.from("hq_recruit_settings").update({ config: { ...ค่าตั้ง, proposal: { ...ค่าตั้ง.proposal,
+    packages: { ...(ค่าตั้ง.proposal?.packages ?? {}), standard: { amount: 150000, contractMonths: 12, annualTarget: null, targetsByRegion: {} } } } } }).eq("id", 1)).error).toBeNull();
 
   // ── ฟอร์มผู้สนใจเป็นดีลเลอร์ ──
   // รอคำขอที่ยังค้างหลังกดบันทึก (บันทึกการใช้งาน) ส่งจบก่อนเปลี่ยนหน้า — ไม่งั้นการเปลี่ยนหน้าตัดคำขอกลางทาง

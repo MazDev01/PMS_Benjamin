@@ -209,6 +209,8 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
   const ctx = await browser.newContext(); const hq = await ctx.newPage();
   await loginUI(hq, HQ_ORIGIN, "/hq/login", ADMIN);
   await hq.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" }); await settle(hq);
+  // 30 ต.ค. 69 (บอสสั่ง): ตาราง HQ ค่าเริ่มต้นไม่นับร่าง/ถูกแทนที่ — V1 ถูกแทนที่ ดูได้เมื่อเลือกสถานะเอง
+  await hq.getByLabel("กรองตามสถานะใบเสนอราคา").selectOption("all");
   await hq.getByPlaceholder(/ค้นหาเลขที่/).fill(เลขใบ);
   const ทั้งเครือ = await เลขที่ในตาราง(hq, เลขใบ);
   expect(ทั้งเครือ.map(x => x.text).sort(), "HQ ทั้งเครือ: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
@@ -222,7 +224,7 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
   expect(ป้าย.filter(x => x.ตัด), "HQ ทั้งเครือ: ป้ายสถานะไม่ถูกตัด").toEqual([]);
 
   await hq.goto(`${HQ_ORIGIN}/hq/dealers/${สาขา.รหัส}`, { waitUntil: "domcontentloaded" }); await settle(hq);
-  await hq.locator("button.tab-item").filter({ hasText: /^ใบเสนอ\s*\d*$/ }).first().click();
+  await hq.locator("[data-dealer-panel] [data-panel-tab='quotes']").click();   // แท็บใบเสนอราคาในแผงดีลเลอร์ (30 ต.ค. 69)
   const หน้าดีลเลอร์ = await เลขที่ในตาราง(hq, เลขใบ);
   expect(หน้าดีลเลอร์.map(x => x.text).sort(), "HQ หน้าดีลเลอร์: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
   expect(หน้าดีลเลอร์.filter(x => x.ตัด), "HQ หน้าดีลเลอร์: เลขที่ไม่ถูกตัด").toEqual([]);

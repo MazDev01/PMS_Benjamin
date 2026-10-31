@@ -122,7 +122,7 @@ test("[db] ใบถูกปฏิเสธ → รอตัดสินใจ�
   await ตั้ง(ใบ3.id, "sent");
   const { data: ล่าสุด } = await sb.from("dealer_prospect_activities").select("body")
     .eq("prospect_id", id).eq("kind", "status").order("id", { ascending: false }).limit(1).single();
-  expect((ล่าสุด as { body: string }).body).toBe("นัดคุยแล้ว → รอตัดสินใจ");
+  expect((ล่าสุด as { body: string }).body).toBe("นัดคุยแล้ว → รอตัดสินใจ HQ");   // ชื่อขั้นตาม FLOW (ใบ 0268)
 });
 
 test("[security] ประวัติ: เพิ่มได้แค่บันทึกการติดต่อ · แก้/ลบไม่ได้ · ดีลเลอร์ไม่เห็น", async () => {

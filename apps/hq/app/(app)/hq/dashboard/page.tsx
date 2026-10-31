@@ -251,16 +251,16 @@ export default function HQDashboard() {
       <div className="hq-row2b" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem" }}>
         <div className="card" data-card="bars" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
           <div className="card-header">
-            <div className="card-title">ลีดใหม่ · ใบเสนอราคา · ปิดการขาย (รายเดือน)</div>
-            <MonthRangeToggle value={barRange} onChange={setBarRange} label="ช่วงเวลากราฟลีดใหม่·ใบเสนอราคา·ปิดการขาย" />
+            <div className="card-title">ลีดใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)</div>
+            <MonthRangeToggle value={barRange} onChange={setBarRange} label="ช่วงเวลากราฟลีดใหม่·ใบที่ส่ง·ปิดสำเร็จ" />
           </div>
           <div className="card-body" style={{ paddingTop: 4, flex: 1 }}>
             {barมีข้อมูล ? (
               <GroupedBarChart months={barRows.map(r => TH_ABBR[r.m])} vw={820} height={260} fmt={v => `${Math.round(v)}`}
                 series={[
                   { name: "ลีดใหม่", color: "#003366", data: barRows.map(r => r.leads) },
-                  { name: "ใบเสนอราคา", color: "#0891b2", data: barRows.map(r => r.quotes) },
-                  { name: "ปิดการขาย", color: "#10B981", data: barRows.map(r => r.won) },
+                  { name: "ใบที่ส่ง", color: "#0891b2", data: barRows.map(r => r.quotes) },   // ใบที่ส่งลูกค้า ไม่นับร่าง/ถูกแทนที่ (ใบ 0268)
+                  { name: "ปิดสำเร็จ", color: "#10B981", data: barRows.map(r => r.won) },   // คำเดียวกับขั้นตอนกลาง (บอสสั่ง 30 ต.ค. 69)
                 ]} />
             ) : <กรอบว่าง text="ยังไม่มีข้อมูลในช่วงนี้" />}
           </div>
@@ -311,7 +311,7 @@ export default function HQDashboard() {
           </div>
         </div>
         <div className="card" data-card="activity" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <div className="card-header"><div className="card-title">กิจกรรมล่าสุด</div></div>
+          <div className="card-header"><div className="card-title">กิจกรรมล่าสุด</div><Link href="/hq/audit" data-testid="activity-audit-link" className="btn btn-secondary btn-sm">บันทึกการใช้งาน ›</Link></div>
           <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
             <div className="chart-scroll" style={{ position: "absolute", inset: 0, padding: "4px 1.15rem 1.15rem" }}>
               <ActivityTimeline items={activity} />

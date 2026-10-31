@@ -24,7 +24,7 @@ test("[hq] แก้ไขดีลเลอร์ที่ไม่มีภา
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers/${CODE}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: /^แก้ไข/ }).first().click();
+  await page.locator("[data-dealer-panel]").getByRole("button", { name: "แก้ไข", exact: true }).click();   // ปุ่มหัวแผง (30 ต.ค. 69)
   const แผง = page.getByRole("dialog").filter({ hasText: "แก้ไขข้อมูลดีลเลอร์" });
   await expect(แผง).toBeVisible({ timeout: 15_000 });
   await แผง.getByRole("button", { name: "บันทึกการแก้ไข" }).click();

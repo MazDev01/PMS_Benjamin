@@ -24,6 +24,16 @@ export function จัดรูปผลงานดีลเลอร์(d: unk
   }));
 }
 
+/** ผลงานรายดีลเลอร์รายเดือน (ใบ 0268 · hq_pipeline_months) — m = 0..11 · annualTarget = เป้าทั้งปีของสาขา */
+export type ผลงานรายเดือน = { code: string; y: number; m: number; leads: number; quotes: number; won: number; lost: number; sales: number;
+  marginSale: number; marginCost: number; marginQuotes: number; annualTarget: number | null };
+export function จัดรูปผลงานรายเดือน(d: unknown): ผลงานรายเดือน[] {
+  return ((d as Record<string, unknown>[] | null) ?? []).map(r => ({
+    code: String(r.code ?? ""), y: N(r.y), m: N(r.m), leads: N(r.leads), quotes: N(r.quotes), won: N(r.won), lost: N(r.lost), sales: N(r.sales),
+    marginSale: N(r.marginSale), marginCost: N(r.marginCost), marginQuotes: N(r.marginQuotes), annualTarget: Nn(r.annualTarget),
+  }));
+}
+
 /** ผลรวมของแถว (แถวท้ายตาราง) — % คิดจากผลรวม (ไม่ใช่ค่าเฉลี่ยของ %) ด้วยสูตรเดียวกับการ์ด */
 export function รวมผลงาน(rows: ผลงานดีลเลอร์[]) {
   const s = (k: keyof ผลงานดีลเลอร์) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);

@@ -9,7 +9,6 @@ import { X } from "lucide-react";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { provincesOfRegion, ALL_REGIONS, ALL_PROVINCES, ชื่อภาค } from "@pms/shared/lib/provinces";
-import { PACKAGE_ORDER, packageLabel } from "@pms/shared/lib/dealerProposals";
 import { dealerStatusLabel, type DealerRow, type DealerStatus } from "@pms/shared/lib/mock";
 import type { DealerPackage } from "@pms/shared/lib/data/types";
 
@@ -102,12 +101,7 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
                 )} />
             </InputField>
             <div className="form-section">เป้าหมายและสถานะ</div>
-            <InputField label="แพ็กเกจ">
-              <select aria-label="แพ็กเกจดีลเลอร์" value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value as DealerPackage | "" }))} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
-                <option value="">— ยังไม่ระบุ —</option>
-                {PACKAGE_ORDER.map(k => <option key={k} value={k}>{packageLabel[k]}</option>)}
-              </select>
-            </InputField>
+            {/* ช่องแพ็กเกจเอาออก (บอสสั่ง 30 ต.ค. 69) — ค่าเดิมของดีลเลอร์ไม่แตะ (ส่งค่าเดิมกลับ) · ช่องในฐานลบรอบถัดไป */}
             <InputField label="เป้ายอดขาย (บาท/ปี)">
               {/* เป้าเป็นของดีลเลอร์รายนี้ (ใบ 0206) · ช่องเงินใส่ลูกน้ำเอง · ติดลบไม่ได้ */}
               <input type="text" inputMode="numeric" aria-label="เป้ายอดขายทั้งปี"

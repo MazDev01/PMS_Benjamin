@@ -7,6 +7,7 @@ import { Eye } from "lucide-react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
 import { customerCode, fmtISOToThai } from "@pms/shared/lib/mock";
 import { regionOf } from "@pms/shared/lib/customerDb";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import type { HQCustomerPageRow } from "@pms/shared/lib/data/ports";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { TablePagination, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
@@ -33,25 +34,25 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
       <table>
         {/* ความกว้างทุกคอลัมน์กำหนดที่นี่เท่านั้น (table-layout: fixed) — เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่ด้วย
             ถอดคอลัมน์ "ประเภทอาคาร" + "แม่แบบ" (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → 19% ยกให้คอลัมน์ "ลูกค้า" */}
+        {/* 30 ต.ค. 69 บอสสั่ง: รหัสลูกค้า · ลูกค้า · ดีลเลอร์ (รหัส+ชื่อช่องเดียว) · จังหวัด · ภูมิภาค · ยอดซื้อรวม · ซื้อล่าสุด · ดู
+            รหัสลูกค้า/จังหวัด/ภูมิภาค/ยอด/วันที่ = กว้างตายตัวพอดีข้อความ (ไม่ตัด) · ลูกค้า/ดีลเลอร์แบ่งที่เหลือ · ชื่อลูกค้า/ดีลเลอร์ยาวเกิน = ตัด + แสดงเต็มเมื่อชี้ */}
         <colgroup>
-          <col style={{ width: "7%", minWidth: 92 }} />{/* รหัสลูกค้า */}
-          <col style={{ width: "34%", minWidth: 200 }} />{/* ลูกค้า — ยาวเกินตัด + tooltip */}
-          <col style={{ width: 96 }} />{/* รหัสดีลเลอร์ — ต้องเห็นครบ 5 ตัวอักษร (บอสสั่ง 19 ต.ค. 69) */}
-          <col style={{ width: "12%", minWidth: 130 }} />{/* ชื่อดีลเลอร์ */}
-          <col style={{ width: "8%", minWidth: 84 }} />{/* จังหวัด */}
-          <col style={{ width: "7%", minWidth: 76 }} />{/* ภาค */}
-          <col style={{ width: "7%", minWidth: 96 }} />{/* ยอดซื้อรวม — หัวคอลัมน์ต้องอ่านครบ (th ไม่ตัดบรรทัด) */}
-          <col style={{ width: "8%", minWidth: 92 }} />{/* ซื้อล่าสุด */}
-          <col style={{ width: "4%", minWidth: 56 }} />{/* ปุ่มดู */}
+          <col style={{ width: 160 }} />{/* รหัสลูกค้า เช่น RYG-90039 · รหัสสาขา 5 ตัว + เลขยาว ต้องไม่ตัด (กว้างตายตัว) */}
+          <col style={{ width: "50%" }} />{/* ลูกค้า */}
+          <col style={{ width: "50%" }} />{/* ดีลเลอร์ = รหัส + ชื่อ */}
+          <col style={{ width: 130 }} />{/* จังหวัด */}
+          <col style={{ width: 190 }} />{/* ภูมิภาค — "ภาคตะวันออกเฉียงเหนือ" ห้ามตัด */}
+          <col style={{ width: 120 }} />{/* ยอดซื้อรวม */}
+          <col style={{ width: 120 }} />{/* ซื้อล่าสุด — วันที่ไม่ตัด */}
+          <col style={{ width: 56 }} />{/* ปุ่มดู */}
         </colgroup>
         <thead>
           <tr>
             <th>รหัสลูกค้า</th>
             <th>ลูกค้า</th>
-            <th style={{ paddingRight: 0 }}>รหัส</th>
-            <th style={{ paddingLeft: 8 }}>ชื่อดีลเลอร์</th>
+            <th>ดีลเลอร์</th>
             <th>จังหวัด</th>
-            <th>ภาค</th>
+            <th>ภูมิภาค</th>
             <th className="num">ยอดซื้อรวม</th>
             <th>ซื้อล่าสุด</th>
             {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 ปุ่มเคยหลุดออกนอกกรอบ (26 ส.ค. 69) */}
@@ -61,7 +62,7 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={9} style={{ textAlign: "center", padding: "40px 14px", color: "#6b7280" }}>
+              <td colSpan={8} style={{ textAlign: "center", padding: "40px 14px", color: "#6b7280" }}>
                 {loading ? "กำลังโหลด…" : "ไม่พบลูกค้า"}
               </td>
             </tr>
@@ -74,10 +75,11 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
                   {customerCode(c.dealerCode, c.id)}
                 </td>
                 <td style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={c.name}>{c.name}</td>
-                <td data-col="code" style={{ overflow: "visible", textOverflow: "clip", whiteSpace: "nowrap", fontWeight: 700, color: PRIMARY, paddingRight: 0 }}>{c.dealerCode}</td>
-                <td style={{ whiteSpace: "nowrap", paddingLeft: 8, overflow: "hidden", textOverflow: "ellipsis" }} title={c.dealerName}>{c.dealerName}</td>
+                <td data-col="dealer" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${c.dealerCode} · ${c.dealerName}`}>
+                  <span data-col="code" style={{ fontWeight: 700, color: PRIMARY, background: "#e6edf8", borderRadius: 6, padding: "1px 7px", marginRight: 6 }}>{c.dealerCode}</span>{c.dealerName}
+                </td>
                 <td style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>
-                <td style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ?? DASH}</td>
+                <td data-col="region" style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ? ชื่อภาค(regionOf(c.province)) : DASH}</td>
                 <td className="num" style={{ whiteSpace: "nowrap", fontWeight: c.totalValue > 0 ? 700 : 400, color: c.totalValue > 0 ? PRIMARY : "#6b7280" }}>
                   {c.totalValue > 0 ? fmtM(c.totalValue) : DASH}
                 </td>
