@@ -17,7 +17,18 @@ const ที่ = mkdtempSync(path.join(tmpdir(), "pms-devrebuild-"));
 const ใบ = path.join(ที่, "migrations"), ฐาน = path.join(ที่, "devdb");
 mkdirSync(ใบ);
 const โปรเจกต์ = "pms-devrebuild-test";
-const env = { ...process.env, PMS_DEV_DB_DIR: ฐาน, PMS_DEV_PROJECT: โปรเจกต์, PMS_DEV_API_PORT: "58321", PMS_DEV_MIGRATIONS_DIR: ใบ,
+// พอร์ตฐานจำลอง: เลี่ยงช่วงที่ Windows กันไว้ (Hyper-V/WSL จองช่วงพอร์ตใหม่ทุกครั้งที่รีสตาร์ท — 31 ต.ค. 69 กัน 57906–58605
+//   พอร์ตตายตัว 58321 เดิมตกรอบตรวจ "bind: An attempt was made to access a socket in a way forbidden") · ใช้ api..api+9 (supabase เปิดต่อจาก api)
+function พอร์ตจำลอง() {
+  const ช่วงกัน = process.platform !== "win32" ? [] :
+    [...(spawnSync("netsh", ["int", "ipv4", "show", "excludedportrange", "protocol=tcp"], { encoding: "utf8" }).stdout ?? "")
+      .matchAll(/^\s*(\d+)\s+(\d+)/gm)].map(m => [Number(m[1]), Number(m[2])]);
+  const ชน = (p) => ช่วงกัน.some(([a, b]) => p + 9 >= a && p <= b);
+  const p = [58321, 54921, 47321, 44321, 61321, 39321].find(x => !ชน(x));
+  if (!p) throw new Error(`ไม่มีพอร์ตจำลองที่ Windows ไม่ได้กัน (ช่วงที่กัน: ${ช่วงกัน.map(x => x.join("–")).join(" · ")})`);
+  return p;
+}
+const env = { ...process.env, PMS_DEV_DB_DIR: ฐาน, PMS_DEV_PROJECT: โปรเจกต์, PMS_DEV_API_PORT: String(พอร์ตจำลอง()), PMS_DEV_MIGRATIONS_DIR: ใบ,
   PMS_DEV_START_EXCLUDE: "gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor" };
 delete env.PMS_TESTDB_LOCK_HELD;
 // เพดานต่อครั้ง: ค้าง = ตกพร้อมบอกเหตุ ไม่ใช่ให้รอบตรวจเต็มค้างทั้งรอบ (29 ต.ค. 69 ค้างกว่า 50 นาที · ปกติครั้งละไม่ถึง 2 นาที)
