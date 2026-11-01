@@ -56,8 +56,11 @@ test("[live·แฟรนไชส์] ผู้สนใจ → ใบค่า
   await แผง.getByRole("button", { name: "บันทึกการติดต่อ" }).last().click();
   await expect.poll(สถานะผู้สนใจ, { timeout: 20_000 }).toBe("contacted");
   await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
+  // รอหน้าจอรับรู้งานก่อนหน้าก่อนกด — ฐานเปลี่ยนก่อนหน้าจอ (เว็บจริงมีเวลาเครือข่าย) กดเร็วไป = ระบบเตือน "ทำงานก่อนหน้าให้ครบก่อน" ไม่บันทึก
+  await expect(แผง.getByRole("checkbox", { name: "ติดต่อครั้งแรก" }), "หน้าจอติ๊กงานแรกแล้ว").toBeChecked({ timeout: 20_000 });
   await แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
   await expect.poll(สถานะผู้สนใจ, { timeout: 20_000 }).toBe("profile_sent");
+  await expect(แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }), "หน้าจอติ๊กงานที่สองแล้ว").toBeChecked({ timeout: 20_000 });
   await แผง.getByRole("checkbox", { name: "นัดคุยรายละเอียด" }).click();
   await expect.poll(สถานะผู้สนใจ, { timeout: 20_000 }).toBe("meeting");
 
