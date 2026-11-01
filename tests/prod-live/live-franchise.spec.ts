@@ -37,7 +37,8 @@ test("[live·แฟรนไชส์] ผู้สนใจ → ใบค่า
   expect((await svc.from("dealers").select("code").eq("code", รหัส)).data ?? [], `สาขา ${รหัส} ต้องยังไม่มี — ไม่แตะของเดิม`).toEqual([]);
 
   // ── 1) ผู้สนใจ ──
-  await เข้าระบบ(page, HQ, "/hq/prospects", ผู้ดูแล);
+  await เข้าระบบ(page, HQ, "/login", ผู้ดูแล);
+  await page.goto(`${HQ}/hq/prospects`, { waitUntil: "domcontentloaded" });   // เข้าระบบแล้วไปหน้าหลักเสมอ
   await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click();
   const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await แผง.locator("#pr-name").fill(ชื่อ);
