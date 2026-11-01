@@ -133,14 +133,20 @@ if (phase === "cleanup") {
   ถาม(ไฟล์ล้าง, "cleanup.sql");
   const หลัง = นับ();
   const ไฟล์เหลือ = path.join(OPS, "cleanup-left.sql");
-  writeFileSync(ไฟล์เหลือ, `select (select count(*) from public.dealers where code = '${CODE}') as สาขา,
-  (select count(*) from public.leads where dealer_code = '${CODE}') as ลีด,
-  (select count(*) from auth.users where email like 'live-%@example.test') as บัญชี;
+  // นับครบทุกชนิดที่ชุดทดสอบสร้าง (ผู้สนใจ · ใบ · การชำระ · จังหวัด · บัญชี ZZTN · บอสสั่ง 1 พ.ย. 69)
+  writeFileSync(ไฟล์เหลือ, `select (select count(*) from public.dealers where code in ('${CODE}', 'ZZTN')) as สาขา,
+  (select count(*) from public.leads where dealer_code in ('${CODE}', 'ZZTN')) as ลีด,
+  (select count(*) from auth.users where email like 'live-%@example.test' or lower(email) = 'zztn@dealer.benjaminpebsteel.com') as บัญชี,
+  (select count(*) from public.profiles where dealer_code in ('${CODE}', 'ZZTN')) as โปรไฟล์,
+  (select count(*) from public.dealer_prospects where name like 'ZZTEST-ผู้สนใจเว็บจริง-%') as ผู้สนใจ,
+  (select count(*) from public.dealer_package_proposals p join public.dealer_prospects x on x.id = p.prospect_id where x.name like 'ZZTEST-ผู้สนใจเว็บจริง-%') as ใบ,
+  (select count(*) from public.dealer_territories where dealer_code in ('${CODE}', 'ZZTN')) as จังหวัด,
+  (select count(*) from public.notifications where dealer_code in ('${CODE}', 'ZZTN') or body like '%ZZTEST-ผู้สนใจเว็บจริง-%') as แจ้งเตือน;
 `);
   const เหลือ = ถาม(ไฟล์เหลือ, "ตรวจแถวที่เหลือ")[0] ?? {};
-  const ค้าง = { บันทึก: Number(หลัง.จะลบ), สาขา: Number(เหลือ.สาขา), ลีด: Number(เหลือ.ลีด), บัญชี: Number(เหลือ.บัญชี) };
+  const ค้าง = { บันทึก: Number(หลัง.จะลบ), ...Object.fromEntries(Object.entries(เหลือ).map(([k, v]) => [k, Number(v)])) };
   if (Object.values(ค้าง).some(n => n !== 0)) ตาย(`ล้างแล้วยังเหลือแถวทดสอบ ${JSON.stringify(ค้าง)} — หยุดรายงาน`);
   if (existsSync(STATE)) rmSync(STATE);   // สถานะมีรหัสผ่านบัญชีชั่วคราว — ล้างครบแล้วไม่ต้องเก็บ
-  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบลบ ${ก่อน.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา 0 · ลีด 0 · บัญชี 0 · บันทึก 0) · ชุดสำรอง ${ชุดสำรอง}`);
+  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบลบ ${ก่อน.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา ลีด บัญชี โปรไฟล์ ผู้สนใจ ใบ จังหวัด แจ้งเตือน บันทึก = 0) · ชุดสำรอง ${ชุดสำรอง}`);
 }
 void ANON;
