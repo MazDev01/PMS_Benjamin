@@ -12,3 +12,10 @@ test("[db] ชุดล้างข้อมูล prod-live ลบบันท�
   expect(ออก, ออก).toContain("ALL PASS");
   expect(r.status).toBe(0);
 });
+// ชุดล้างผู้สนใจทดสอบ → ใบค่าแฟรนไชส์ → ดีลเลอร์ ZZTN (บอสสั่ง 1 พ.ย. 69): แถวทดสอบหายครบ · แถวจริงอยู่ครบ · ด่านกันพลาดยกเลิกทั้งหมด
+test("[db] ชุดล้าง prod-live ลบผู้สนใจ/ใบ/การชำระ/ดีลเลอร์/บัญชี/จังหวัดของการทดสอบเท่านั้น ไม่แตะข้อมูลจริง (tests/tools/franchise-cleanup.test.mjs)", () => {
+  const r = spawnSync(process.execPath, ["tests/tools/franchise-cleanup.test.mjs"], { encoding: "utf8" });
+  const ออก = (r.stdout ?? "") + (r.stderr ?? "");
+  expect(ออก, ออก).toContain("ALL PASS");
+  expect(r.status).toBe(0);
+});
