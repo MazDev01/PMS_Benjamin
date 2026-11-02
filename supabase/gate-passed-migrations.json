@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-11-02 13:10:47",
- "รอบ": "2026-11-02-13-07-00 รันต่อจาก d75c273",
- "จำนวน": 270,
+ "บันทึกเมื่อ": "2026-11-02 15:01:51",
+ "รอบ": "2026-11-02-14-23-13",
+ "จำนวน": 271,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -273,6 +273,7 @@
   "0268_hq_pages_monthly.sql": "2f4ff0d949dfd5271f6d4609a375ee480ccffba248550eb5338f8474889548cb",
   "0269_package_drop.sql": "7189fc27c4ee67b2359ad788599553a804e7e9429eab30eba0639a10a4fe9a48",
   "0270_prospect_idle14_card.sql": "9f2773baaf43dd79a0403e409dcd6a7ab1676dd681d39e23248abd08e39226c9",
-  "0271_hq_drill_pages.sql": "8e246d260c1bb5529f0b856410e40e7ad0100a5dd3fb552a2ad88cf16c416602"
+  "0271_hq_drill_pages.sql": "8e246d260c1bb5529f0b856410e40e7ad0100a5dd3fb552a2ad88cf16c416602",
+  "0272_hq_quote_margins.sql": "03bc86113e2db824fd478ca709830e67dc9b96605f7bc6847bc7ef8653e7b351"
  }
 }
