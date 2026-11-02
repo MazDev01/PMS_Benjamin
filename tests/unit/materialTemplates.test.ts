@@ -4,7 +4,7 @@ import {
 } from "../../packages/shared/lib/materialTemplates";
 import { แทรกรายการ, แถวเปล่าใหม่ } from "../../packages/shared/lib/quoteRequests";
 
-// แม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) — สูตรหน้าเว็บต้องตรงกับฐาน (_estimate_total: ปัดรายบรรทัด 2 ตำแหน่งแล้วรวม)
+// รายการวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) — สูตรหน้าเว็บต้องตรงกับฐาน (_estimate_total: ปัดรายบรรทัด 2 ตำแหน่งแล้วรวม)
 const ผนัง: MaterialTemplate = { id: 1, category: "ผนัง", name: "ผนังเมทัลชีท 0.35", unit: "ตร.ม.", unitPrice: 285.5, active: true, priceUpdatedAt: "2026-10-26T03:00:00Z" };
 const ประตู: MaterialTemplate = { id: 2, category: "ประตู", name: "ประตูม้วน 4x5 ม.", unit: "ชุด", unitPrice: 42000, active: true, priceUpdatedAt: "2026-10-26T03:00:00Z" };
 

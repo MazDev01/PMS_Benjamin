@@ -13,14 +13,14 @@ import { สร้างสาขาของข้อ, type สาขาขอ�
 //   เจอ: กล่องใบ HQ ในแผงลีดดีลเลอร์ขึ้น "38ตัน" "2,240ตร.ม." · หัวคอลัมน์ไม่ตรงข้อมูล (ตาราง class "table" ไม่มีสไตล์ → หัวกึ่งกลาง ช่องไม่มีระยะ)
 //     ใบพิมพ์ A4 / หน้าใบเสนอราคา HQ รวมจำนวน+หน่วยเป็นช่องเดียว "38 ตัน"
 //   ตรวจตำแหน่งจริงบนจอ (ไม่ใช่แค่ข้อความ) ทุกตารางรายการในทุกจุดที่ใช้ตารางกลาง:
-//     กล่องใบ HQ · BOQ ของ HQ · ใบลูกค้า (แผงลีด · แผงดูใบ · ฟอร์มบวก %) · ราคาประเมินวัสดุ · ใบพิมพ์ A4 · แม่แบบวัสดุ
+//     กล่องใบ HQ · BOQ ของ HQ · ใบลูกค้า (แผงลีด · แผงดูใบ · ฟอร์มบวก %) · ราคาประเมินวัสดุ · ใบพิมพ์ A4 · รายการวัสดุ
 //   เกณฑ์ (ทุกคอลัมน์ ทุกแถวรายการของข้อ):
-//     1) คอลัมน์: ลำดับ · รายการ · จำนวน · หน่วย (ถัดจากจำนวน) · … · ยอด  (แม่แบบวัสดุไม่ใช่รายการ — ตรวจเฉพาะแนว)
+//     1) คอลัมน์: ลำดับ · รายการ · จำนวน · หน่วย (ถัดจากจำนวน) · … · ยอด  (รายการวัสดุไม่ใช่รายการ — ตรวจเฉพาะแนว)
 //     2) ตัวเลขทุกคอลัมน์ชิดขวา · ข้อความชิดซ้าย · หัวคอลัมน์ชิดแนวเดียวกับข้อมูลของคอลัมน์นั้น
 //     3) จำนวนมีคั่นหลักพัน (2,240) · ตัวเลขไม่ตัดบรรทัด ไม่ถูกตัดเป็น … · เนื้อหาช่องติดกันห่างอย่างน้อย 12px (ไม่ใช่ "38ตัน")
 //     4) ส่วนสรุป BOQ: "ราคาส่งดีลเลอร์ (ก่อน VAT)" ตัวหนา · ยอดชิดขวาใต้คอลัมน์ยอด
 //     5) มือถือ: หน้าไม่ล้นจอ ตารางเลื่อนในกล่องตัวเอง
-//   ข้อมูลของข้อ: สาขาของข้อ + ใบ HQ (เหล็ก 38 ตัน · หลังคา 2,240 ตร.ม.) + ใบลูกค้า + แม่แบบวัสดุ ZZTEST 2 รายการ
+//   ข้อมูลของข้อ: สาขาของข้อ + ใบ HQ (เหล็ก 38 ตัน · หลังคา 2,240 ตร.ม.) + ใบลูกค้า + รายการวัสดุ ZZTEST 2 รายการ
 //   PMS_SHOTS=ก่อน|หลัง → ถ่ายรูปทุกตารางที่ตรวจไว้ที่ C:\.claude\pms-shots\qty-unit\<ก่อน|หลัง>\ (ถ่ายก่อนตรวจ — โค้ดเดิมตกก็ยังได้รูป)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 // ข้อต่อข้อไม่พึ่งกัน (ข้อมูลของข้อสร้างใน beforeAll) — ไม่ใช้ serial: ข้อหนึ่งตกแล้วข้ออื่นยังได้ตรวจ/ถ่ายรูปครบทุกจุด
@@ -47,10 +47,10 @@ test.beforeAll(async () => {
     lines: รายการ.map(({ name, qty, unit, unitCost }) => ({ name, qty, unit, unitCost })) });
   เลขใบ = (await ทำใบลูกค้าจากใบHQ(สาขา.บัญชี, ใบHQ, { customer: บริษัท, markupPercent: 10, status: "sent_to_client" })).id;
   const t = await svc.from("material_templates").insert(แม่แบบ).select("id");
-  expect(t.error, "ใส่แม่แบบวัสดุของข้อ").toBeNull();
+  expect(t.error, "ใส่รายการวัสดุของข้อ").toBeNull();
   ไอดีแม่แบบ = (t.data ?? []).map(x => Number(x.id));
   const l = await (await db(สาขา.บัญชี)).from("leads").insert({ id: `#L-${เลขลีดขอราคา}`, num_id: เลขลีดขอราคา, dealer_code: สาขา.รหัส,
-    company: บริษัทขอราคา, name: บริษัทขอราคา, contact: "ผู้ทดสอบ", phone: `08${String(เลขลีดขอราคา).slice(-8)}`, province: "ตราด", status: "BULLET" });
+    company: บริษัทขอราคา, name: บริษัทขอราคา, contact: "ผู้ทดสอบ", phone: `08${String(เลขลีดขอราคา).slice(-8)}`, province: "ตราด", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(l.error, "ลูกค้าเป้าหมายสำหรับฟอร์มขอราคา").toBeNull();
 });
 test.afterAll(async () => {
@@ -60,7 +60,7 @@ test.afterAll(async () => {
 });
 
 type ผลตาราง = { ตาราง: string; หัว: string[]; ปัญหา: string[]; แถวที่ตรวจ: number };
-/** วัดทุกตารางรายการบนหน้า (มีหัว "จำนวน" หรือเป็นตารางแม่แบบวัสดุ) · ตรวจเฉพาะแถวที่มีชื่อรายการของข้อ (ข้อความหรือค่าในช่องกรอก) */
+/** วัดทุกตารางรายการบนหน้า (มีหัว "จำนวน" หรือเป็นตารางรายการวัสดุ) · ตรวจเฉพาะแถวที่มีชื่อรายการของข้อ (ข้อความหรือค่าในช่องกรอก) */
 async function วัด(page: Page, ชื่อรายการ: string[], คาดจำนวน: Record<string, string>) {
   return page.evaluate(({ ชื่อรายการ, คาดจำนวน }) => {
     const ตัวเลข = (s: string) => /\d/.test(s) && !/\p{L}/u.test(s.replace(/บาท/g, ""));
@@ -102,7 +102,7 @@ async function วัด(page: Page, ชื่อรายการ: string[], �
     for (const t of Array.from(document.querySelectorAll("table"))) {
       const หัวช่อง = Array.from(t.querySelectorAll<HTMLTableCellElement>("thead tr:last-child th"));
       const หัว = หัวช่อง.map(th => th.textContent?.trim() ?? "");
-      const เป็นแม่แบบ = t.getAttribute("aria-label") === "แม่แบบวัสดุ";
+      const เป็นแม่แบบ = t.getAttribute("aria-label") === "รายการวัสดุ";
       if (!หัว.includes("จำนวน") && !เป็นแม่แบบ) continue;
       const ชื่อ = t.getAttribute("aria-label") || `ตาราง (${หัว.join(" · ")})`;
       const ปัญหา: string[] = [];
@@ -154,7 +154,7 @@ async function ถ่าย(page: Page, ชื่อ: string) {
   if (!process.env.PMS_SHOTS) return;
   const ที่ = path.join("C:/.claude/pms-shots/qty-unit", process.env.PMS_SHOTS);
   mkdirSync(ที่, { recursive: true });
-  const ตาราง = page.locator("table").filter({ has: page.locator("thead th", { hasText: /^จำนวน$/ }) }).or(page.locator("table[aria-label='แม่แบบวัสดุ']"));
+  const ตาราง = page.locator("table").filter({ has: page.locator("thead th", { hasText: /^จำนวน$/ }) }).or(page.locator("table[aria-label='รายการวัสดุ']"));
   const n = await ตาราง.count();
   for (let i = 0; i < n; i++) {
     const t = ตาราง.nth(i);
@@ -228,7 +228,7 @@ test("[ui·dealer] ราคาประเมินวัสดุตอนข�
   await ตรวจหน้า(page, "ราคาประเมินวัสดุ", แม่แบบ.map(t => t.name), { [แม่แบบ[0].name]: "38", [แม่แบบ[1].name]: "2,240" });
 });
 
-test("[ui·hq] ตาราง BOQ ของใบ HQ ที่ส่งแล้ว + แม่แบบวัสดุ — ตัวเลขชิดขวา หัวตรงแนวข้อมูล · สรุปตัวหนาชิดขวาใต้ยอด", async ({ page }) => {
+test("[ui·hq] ตาราง BOQ ของใบ HQ ที่ส่งแล้ว + รายการวัสดุ — ตัวเลขชิดขวา หัวตรงแนวข้อมูล · สรุปตัวหนาชิดขวาใต้ยอด", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests?open=${ใบHQ.requestId}`, { waitUntil: "domcontentloaded" });
   await settle(page);
@@ -247,12 +247,12 @@ test("[ui·hq] ตาราง BOQ ของใบ HQ ที่ส่งแล�
   expect.soft(สรุป.ป้ายชิด, "ป้ายสรุปชิดขวา").toBe("right");
   expect.soft(Math.abs(สรุป.ห่างจากหัวยอด), "ยอดรวมชิดขวาใต้คอลัมน์ยอด (ขอบขวาตรงหัว \"ยอด\")").toBeLessThanOrEqual(2);
 
-  // ตั้งค่า › แม่แบบวัสดุ (ค้นแม่แบบของข้อ)
+  // ตั้งค่า › รายการวัสดุ (ค้นแม่แบบของข้อ)
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
-  await page.getByLabel("ค้นแม่แบบวัสดุ").fill(`${แท็ก}`);
-  await ตรวจหน้า(page, "แม่แบบวัสดุ", แม่แบบ.map(t => t.name), {});
+  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
+  await page.getByLabel("ค้นรายการวัสดุ").fill(`${แท็ก}`);
+  await ตรวจหน้า(page, "รายการวัสดุ", แม่แบบ.map(t => t.name), {});
 });
 
 test("[ui·มือถือ] กล่องใบ HQ + ใบลูกค้าบนจอ 390px: หน้าไม่ล้นจอ ตารางเลื่อนในกล่องตัวเอง · ตัวเลขชิดขวา หัวตรงแนว", async ({ page }) => {

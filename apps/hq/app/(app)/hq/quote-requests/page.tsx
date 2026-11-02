@@ -17,8 +17,9 @@
 //   ช่องเลือกสถานะข้างช่องค้นหา แทนแถวปุ่มกรอง (บอสสั่ง 27 ต.ค. 69 · ตัวเลขซ้ำการ์ด) · ซ่อนแถบเปลี่ยนหน้าเมื่อมีหน้าเดียว (เฉพาะหน้านี้ · ทับกติกา 13 ส.ค. 69)
 //   แถวขึ้น "เหลือ X วัน / เกิน X วัน" แทนวันที่
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, X, Inbox, ClipboardList, AlarmClock, Timer, Ban } from "lucide-react";
-import { quoteRequests as repo, metrics as metricsRepo } from "@pms/shared/lib/data";
+import { Search, X, Inbox, ClipboardList, AlarmClock, Timer, Ban, Paperclip } from "lucide-react";
+import { quoteRequests as repo, metrics as metricsRepo, quoteFiles } from "@pms/shared/lib/data";
+import type { จำนวนไฟล์คำขอ } from "@pms/shared/lib/quoteFiles";
 import {
   type QuoteBoard, type QuoteBoardFilter, type QuoteBoardRow, quoteBoardTag, กลุ่มของคำขอ, วันไทยสั้น, เหลือหรือเกิน,
 } from "@pms/shared/lib/quoteRequests";
@@ -134,6 +135,18 @@ export default function HQQuoteRequestsPage() {
   };
 
   const แถว = กล่อง?.rows ?? [];
+  // ป้ายจำนวนไฟล์แนบของแถวในหน้า (ใบ 0273) — ฐานนับเฉพาะไฟล์ที่ลงถังแล้ว แยกฝั่งดีลเลอร์/HQ
+  const [ไฟล์ของแถว, setไฟล์ของแถว] = useState<Map<number, จำนวนไฟล์คำขอ>>(new Map());
+  const [รอบไฟล์, setรอบไฟล์] = useState(0);
+  const idsในหน้า = pageSlice(แถว, page).map(r => r.id).join(",");
+  useEffect(() => {
+    const ids = idsในหน้า ? idsในหน้า.split(",").map(Number) : [];
+    if (!ids.length) { setไฟล์ของแถว(new Map()); return; }
+    let alive = true;
+    quoteFiles.counts(ids).then(ls => alive && setไฟล์ของแถว(new Map(ls.map(c => [c.request, c]))))
+      .catch(e => logRepoRead("quoteFiles.counts", e));
+    return () => { alive = false; };
+  }, [idsในหน้า, รอบไฟล์]);
   return (
     <div className="erp">
       {/* การ์ด 4 ใบ (บอสสั่ง 26 ต.ค. 69) — เวลาตอบเฉลี่ย · อัตรายกเลิก = ผลงานของ HQ เอง ทั้งหมด (hq_overview 0209)
@@ -212,6 +225,16 @@ export default function HQQuoteRequestsPage() {
                       <b data-testid="row-countdown" style={{ fontWeight: 700, color: r.tag === "overdue" ? "#b91c1c" : "#52606d" }}>{นับวัน(r, กลุ่ม)}</b>
                       {ร่างค้าง.has(r.id) && <span style={{ marginLeft: 6, color: "#92400e", fontWeight: 700 }}>· ร่างยังไม่บันทึก</span>}
                     </span>
+                    {(() => {
+                      const f = ไฟล์ของแถว.get(r.id);
+                      if (!f || f.dealer + f.hq === 0) return null;
+                      return (
+                        <span data-testid="row-files" data-dealer-files={f.dealer} data-hq-files={f.hq}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.72rem", color: "#52606d" }}>
+                          <Paperclip size={11} /> ไฟล์จากดีลเลอร์ {f.dealer} · จาก HQ {f.hq}
+                        </span>
+                      );
+                    })()}
                   </button>
                 </li>
               );
@@ -225,6 +248,7 @@ export default function HQQuoteRequestsPage() {
         <div style={{ minWidth: 0 }}>
           {เลือก ? (
             <HqQuoteEditor key={เลือก.id} inline request={เลือก} dealerName={เลือก.dealerName} onClose={() => setเลือก(null)} onChanged={เมื่อเปลี่ยน}
+              onFilesChanged={() => setรอบไฟล์(n => n + 1)}
               onDirtyChange={ตั้งแก้ค้าง} onBusyChange={ตั้งกำลังบันทึก} ร่างค้าง={ร่างค้าง} />
           ) : (
             <div className="card" style={{ padding: 40, textAlign: "center", color: "#9ca3af", fontSize: "0.86rem" }}>

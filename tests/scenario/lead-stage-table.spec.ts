@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { settle } from "./helpers";
 import { RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag } from "./funcHelpers";
-import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ } from "./hqQuoteFixture";
+import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, เติมข้อมูลลีดก่อนขอราคา } from "./hqQuoteFixture";
 
 // ── ชื่อขั้นในตารางลีด = ขั้นที่ไฮไลต์ในแผงลีด ทุกขั้น (บอสสั่ง 27 ต.ค. 69) ─────────────────────────────────────────
 //   เดิมคอลัมน์ "ขั้นตอน" แสดงชื่อสถานะภายใน (ติดต่อแล้ว · รอราคา HQ · ได้ราคา HQ · เสนอราคา) ไม่ตรงกับแถบ 5 ขั้นในแผงลีด
@@ -88,6 +88,7 @@ test("[ui·dealer] ชื่อในช่องขั้นตอนของ�
   // ขั้น 2 ขอราคา HQ (ลีดอีกราย — ส่งคำขอแล้ว HQ ยังไม่ส่งใบ)
   const ข = tg("ขั้นตอนรอราคา");
   const ลีดข = await เพิ่มลีด(page, ข);
+  await เติมข้อมูลลีดก่อนขอราคา(sb, "RYG", ลีดข.num_id);   // ฟอร์มเพิ่มลีดกรอกแค่ข้อมูลลูกค้า (ใบ 0273)
   const r = await sb.rpc("quote_request_submit", { p_lead_num_id: ลีดข.num_id, p_product: "โกดังสำเร็จรูป" });
   expect(r.error?.message ?? "").toBe("");
   await เทียบ(ข, "ขั้น 2");

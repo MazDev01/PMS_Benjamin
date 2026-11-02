@@ -47,7 +47,7 @@ export async function งานขายของสาขา(ctx, { code, provi
       id: `#L-${n}`, num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
       contact: `ผู้ติดต่อตัวอย่าง ${code}-${String(n % 10_000).padStart(3, "0")}`, phone: เบอร์(n),
       email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, address: `ที่อยู่ตัวอย่าง ${n % 1000} ${province}`, province,
-      product: "โกดังเก็บสินค้า", area: String(Math.round(700 * ขนาด)), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][n % 4],
+      product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(Math.round(700 * ขนาด)), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][n % 4],
       assigned: ผู้รับผิดชอบ, status: "WAITING", note: `${ป้าย}: ${เรื่อง}`, created_label: ป้ายวัน(วัน(-ย้อนวัน)),
       ...(customerId ? { customer_id: customerId } : {}),
     }), `สร้างลีด ${บริษัท}`);

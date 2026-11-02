@@ -17,6 +17,7 @@ import { ต้นทาง } from "../../scripts/lib/session.mjs";
 import { ขอล็อกฐานทดสอบ } from "../../scripts/lib/testDbLock.mjs";
 import { กันฐานจริง } from "../../scripts/lib/prodBackupMark.mjs";
 import { รอฐานจริงว่าง } from "../../scripts/lib/prodLock.mjs";
+import { เลือกไฟล์แนบทดสอบ } from "./quoteFilesCleanup.mjs";
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
@@ -75,7 +76,9 @@ if (phase === "setup") {
   }
   // ลูกค้าเป้าหมายตั้งต้น — ใส่ด้วยกุญแจฝั่งเซิร์ฟเวอร์ (ทุกจังหวัดมีดีลเลอร์ครองพื้นที่แล้ว สาขาทดสอบเพิ่มเองไม่ได้)
   const l = await svc.from("leads").insert({ id: `#L-${st.leadNum}`, num_id: st.leadNum, dealer_code: CODE, company: st.company,
-    name: st.company, contact: "ผู้ทดสอบ", phone: "000-000-0000", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET" });
+    name: st.company, contact: "ผู้ทดสอบ", phone: "000-000-0000", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",
+    // ข้อมูลงานครบ — ขอราคาจาก HQ ได้เมื่อ "เก็บข้อมูลลูกค้า" + "สรุปความต้องการ" ครบ (ใบ 0273)
+    project: "ทดสอบระบบ — โกดัง", area: "100", note: "ทดสอบระบบ — โกดัง 10x10 ม." });
   if (l.error) ตาย(`สร้างลูกค้าเป้าหมายไม่สำเร็จ: ${l.error.message}`);
   console.log(`✓ setup: สาขา ${CODE} · บัญชี ${st.users.length} · ลูกค้าเป้าหมาย #L-${st.leadNum}`);
 }
@@ -136,6 +139,33 @@ if (phase === "files") {
     ลบ += data?.length ?? 0;
   }
   console.log(`✓ files: แถวไฟล์ ${rows?.length ?? 0} · ลบใน Storage ${ลบ}`);
+
+  // ไฟล์แนบคำขอราคา (ถัง quote-files · ใบ 0273) — ลบเฉพาะของสาขาทดสอบ (ตัวเลือกหยุดทั้งชุดถ้ามีไฟล์อื่นปน) แล้วนับถังให้เหลือ 0
+  //   ลบผ่าน API ของที่เก็บไฟล์ (ตัวดักของฐานลบแถว quote_files ตาม) · แถวจองที่ไม่มีไฟล์ cleanup.sql ลบต่อ
+  const รหัสทดสอบ = [CODE, "ZZTN"];
+  const { data: แนบ, error: e3 } = await svc.from("quote_files").select("object_name, dealer_code").in("dealer_code", รหัสทดสอบ);
+  if (e3) ตาย(`อ่านไฟล์แนบคำขอราคาไม่สำเร็จ: ${e3.message}`);
+  const ชื่อแนบ = เลือกไฟล์แนบทดสอบ(แนบ ?? [], รหัสทดสอบ);
+  let ลบแนบ = 0;
+  for (let i = 0; i < ชื่อแนบ.length; i += 100) {
+    const { data, error } = await svc.storage.from("quote-files").remove(ชื่อแนบ.slice(i, i + 100));
+    if (error) ตาย(`ลบไฟล์แนบคำขอราคาไม่สำเร็จ: ${error.message}`);
+    ลบแนบ += data?.length ?? 0;
+  }
+  let เหลือในถัง = 0;
+  for (const c of รหัสทดสอบ) {
+    // นับในถังจริงตามโฟลเดอร์ของสาขา (รวมไฟล์ที่ไม่มีแถว) — โครงพาธ สาขา/คำขอ/ฝั่ง/ไฟล์
+    const { data: คำขอ } = await svc.storage.from("quote-files").list(c, { limit: 1000 });
+    for (const q of คำขอ ?? []) {
+      const { data: ฝั่ง } = await svc.storage.from("quote-files").list(`${c}/${q.name}`, { limit: 1000 });
+      for (const f of ฝั่ง ?? []) {
+        const { data: ไฟล์ } = await svc.storage.from("quote-files").list(`${c}/${q.name}/${f.name}`, { limit: 1000 });
+        เหลือในถัง += (ไฟล์ ?? []).length;
+      }
+    }
+  }
+  if (เหลือในถัง !== 0) ตาย(`ถัง quote-files ยังมีไฟล์ของสาขาทดสอบ ${เหลือในถัง} ไฟล์ — หยุดรายงาน`);
+  console.log(`✓ files: ไฟล์แนบคำขอราคา ${ชื่อแนบ.length} · ลบในถัง ${ลบแนบ} · เหลือในถังของสาขาทดสอบ 0`);
 }
 if (phase === "cleanup") {
   // ฐานในเครื่องล้างโดยรอบตรวจเต็ม (scripts/test-prodbuild.mjs) · ที่นี่ฐานจริงเท่านั้น ผ่านโฟลเดอร์ที่ผูกฐานจริงไว้ (supabase link)
@@ -163,12 +193,14 @@ if (phase === "cleanup") {
   (select count(*) from public.dealer_prospects where name like 'ZZTEST-ผู้สนใจเว็บจริง-%') as ผู้สนใจ,
   (select count(*) from public.dealer_package_proposals p join public.dealer_prospects x on x.id = p.prospect_id where x.name like 'ZZTEST-ผู้สนใจเว็บจริง-%') as ใบ,
   (select count(*) from public.dealer_territories where dealer_code in ('${CODE}', 'ZZTN')) as จังหวัด,
-  (select count(*) from public.notifications where dealer_code in ('${CODE}', 'ZZTN') or body like '%ZZTEST-ผู้สนใจเว็บจริง-%') as แจ้งเตือน;
+  (select count(*) from public.notifications where dealer_code in ('${CODE}', 'ZZTN') or body like '%ZZTEST-ผู้สนใจเว็บจริง-%') as แจ้งเตือน,
+  (select count(*) from public.quote_files where dealer_code in ('${CODE}', 'ZZTN')) as ไฟล์แนบ,
+  (select count(*) from storage.objects where bucket_id = 'quote-files' and (name like '${CODE}/%' or name like 'ZZTN/%')) as ไฟล์ในถัง;
 `);
   const เหลือ = ถาม(ไฟล์เหลือ, "ตรวจแถวที่เหลือ")[0] ?? {};
   const ค้าง = { บันทึก: Number(หลัง.จะลบ), ...Object.fromEntries(Object.entries(เหลือ).map(([k, v]) => [k, Number(v)])) };
   if (Object.values(ค้าง).some(n => n !== 0)) ตาย(`ล้างแล้วยังเหลือแถวทดสอบ ${JSON.stringify(ค้าง)} — หยุดรายงาน`);
   if (existsSync(STATE)) rmSync(STATE);   // สถานะมีรหัสผ่านบัญชีชั่วคราว — ล้างครบแล้วไม่ต้องเก็บ
-  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบลบ ${ก่อน.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา ลีด บัญชี โปรไฟล์ ผู้สนใจ ใบ จังหวัด แจ้งเตือน บันทึก = 0) · ชุดสำรอง ${ชุดสำรอง}`);
+  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบลบ ${ก่อน.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา ลีด บัญชี โปรไฟล์ ผู้สนใจ ใบ จังหวัด แจ้งเตือน ไฟล์แนบ ไฟล์ในถัง บันทึก = 0) · ชุดสำรอง ${ชุดสำรอง}`);
 }
 void ANON;

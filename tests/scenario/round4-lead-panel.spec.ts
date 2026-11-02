@@ -4,7 +4,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, loginUI } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { adminClient } from "./testDealers";
-import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
+import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, ข้อมูลงานครบชุด } from "./hqQuoteFixture";
 
 // ── รอบ 4 · แผงลีดดีลเลอร์: สถานะที่เดียว · เปลี่ยนสถานะทางเดียว · ปุ่มลบไม่ขึ้นเมื่อมีคำขอ (บอสสั่ง 21 ต.ค. 69) ───────────
 //   1 แถบ 5 ขั้นไฮไลต์ขั้นที่อยู่ตอนนี้ · ปิดไม่สำเร็จติ๊กเฉพาะขั้นที่ทำจริง
@@ -23,7 +23,7 @@ async function ลีดเปล่า(status: "WAITING" | "BULLET", company: s
   const sb = await db(RYG);
   const n = เลขลูกค้าเป้าหมายทดสอบ();
   const r = await sb.from("leads").insert({ id: `#L-${n}`, num_id: n, dealer_code: "RYG", company, name: company,
-    contact: "ผู้ทดสอบ", phone: `08${String(n).slice(-8)}`, province: "ระยอง", product: "โกดังสำเร็จรูป", status });
+    contact: "ผู้ทดสอบ", phone: `08${String(n).slice(-8)}`, province: "ระยอง", product: "โกดังสำเร็จรูป", status, ...ข้อมูลงานครบชุด });   // ข้อมูลครบก่อนขอราคา (ใบ 0273)
   if (r.error) throw new Error(r.error.message);
   ลีด.push(n);
   return n;

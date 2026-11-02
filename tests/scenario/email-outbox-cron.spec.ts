@@ -67,7 +67,7 @@ test("[email] คำขอเกิน 14 วัน → อีเมลสรุ
   const cnx = await db(CNX);
   ลีด = 978_500_000 + (Date.now() % 99_999);
   const ใส่ = await cnx.from("leads").insert({ id: `#L-${ลีด}`, num_id: ลีด, dealer_code: "CNX", company: `ZZTEST-สรุปค้าง-${ลีด}`,
-    name: `ZZTEST-สรุปค้าง-${ลีด}`, contact: "ผู้ทดสอบ", phone: "000-000-0014", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "BULLET" });
+    name: `ZZTEST-สรุปค้าง-${ลีด}`, contact: "ผู้ทดสอบ", phone: "000-000-0014", province: "เชียงใหม่", product: "โกดังสำเร็จรูป", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(ใส่.error, `เตรียมลีดของข้อนี้ (${ใส่.error?.message ?? ""})`).toBeNull();
   const ส่ง = await cnx.rpc("quote_request_submit", { p_lead_num_id: ลีด, p_product: "โกดังและคลังสินค้า" });
   expect(ส่ง.error, `ดีลเลอร์ส่งคำขอต้องผ่าน (${ส่ง.error?.message})`).toBeNull();

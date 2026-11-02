@@ -36,8 +36,8 @@ create function ntest.lead(p_company text, p_status text default 'BULLET', p_dea
 declare n int;
 begin
   n := (select coalesce(max(num_id), 0) from public.leads where dealer_code = p_dealer) + 1;
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
-  values ('#L-' || (40321 + n), n, p_dealer, p_company, p_company, 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', p_status::lead_status);
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
+  values ('#L-' || (40321 + n), n, p_dealer, p_company, p_company, 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', p_status::lead_status, 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   return n;
 end $$;
 create function ntest.hq_send(p_rid bigint, p_valid date default (now() at time zone 'Asia/Bangkok')::date + 30) returns bigint language plpgsql as $$

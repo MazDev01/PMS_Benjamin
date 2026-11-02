@@ -1,5 +1,5 @@
 {
- "migration": "0272",
+ "migration": "0273",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -156,6 +156,13 @@
    "definer": false
   },
   {
+   "f": "_lead_missing_for_quote(l leads)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_lead_quote_value(p_dealer text, p_num integer)",
    "anon": false,
    "authenticated": false,
@@ -301,6 +308,41 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "_quote_file_actor_ok(p_dealer text, p_side text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_quote_file_ext(p_name text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_quote_file_ext_ok(p_ext text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_quote_file_open(p_request bigint, p_side text, p_hq bigint)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_quote_file_visible(f quote_files)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "_quote_lock_area(v text)",
@@ -1542,6 +1584,69 @@
    "definer": true
   },
   {
+   "f": "quote_file_counts(p_request_ids bigint[])",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_file_object_deletable(p_name text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_file_object_reserved(p_name text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_file_object_visible(p_name text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_file_reserve(p_request_id bigint, p_side text, p_name text, p_size bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_files_list(p_request_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_files_object_added()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_files_object_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_files_object_removed()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "quote_request_accept(p_id bigint, p_assignee uuid)",
    "anon": false,
    "authenticated": true,
@@ -1697,6 +1802,20 @@
   },
   {
    "f": "set_quotation_status_reconciled(p_quote_id text, p_status text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "storage_quota_set(p_gb numeric)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "storage_usage()",
    "anon": false,
    "authenticated": true,
    "service_role": false,

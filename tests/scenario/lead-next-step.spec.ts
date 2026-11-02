@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
-import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
+import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, ข้อมูลงานครบชุด } from "./hqQuoteFixture";
 import { รันSQLในฐาน } from "./localDb";
 import { adminClient } from "./testDealers";
 
@@ -21,7 +21,7 @@ async function สร้างลีด(k: keyof typeof เลข, status: strin
   // ดีลเลอร์สร้างลีดได้แค่ ติดต่อแล้ว/รวบรวมความต้องการ (ใบ 0232) — ฉากขั้นอื่นตั้งด้วยกุญแจฝั่งเซิร์ฟเวอร์
   const sb = status === "WAITING" || status === "BULLET" ? await db(RYG) : adminClient();
   const r = await sb.from("leads").insert({ id: `#L-${เลข[k]}`, num_id: เลข[k], dealer_code: "RYG", company: ชื่อ(k), name: ชื่อ(k),
-    contact: "ผู้ทดสอบ", phone: `08${String(เลข[k]).slice(-8)}`, province: "ระยอง", status });
+    contact: "ผู้ทดสอบ", phone: `08${String(เลข[k]).slice(-8)}`, province: "ระยอง", status, ...ข้อมูลงานครบชุด });   // ข้อมูลครบก่อนขอราคา (ใบ 0273)
   expect(r.error, `สร้างลีด ${k}`).toBeNull();
 }
 async function เปิดแผง(page: Page, k: keyof typeof เลข) {

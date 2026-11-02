@@ -61,8 +61,8 @@ begin
   perform flowtest.must_fail(format($q$select material_templates_save('[{"id":%s,"name":"ZZMT ผนังเมทัลชีท 0.35","unitPrice":1}]')$q$, ผนัง), 'forbidden', 'ดีลเลอร์แก้ราคาผ่านคำสั่งบันทึกไม่ได้');
 
   -- ── ดีลเลอร์ขอราคาพร้อมเลือกวัสดุ 2 รายการ → ราคาประเมินคิดที่ฐาน ──
-  insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
-  values ('#L-' || n, n, 'RYG', 'ZZMT บริษัททดสอบ', 'ZZMT บริษัททดสอบ', 'คุณทดสอบ', '000-000-0043', 'ระยอง', 'BULLET');
+  insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
+  values ('#L-' || n, n, 'RYG', 'ZZMT บริษัททดสอบ', 'ZZMT บริษัททดสอบ', 'คุณทดสอบ', '000-000-0043', 'ระยอง', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.must_fail(format($q$select quote_request_submit(%s, 'งาน', '', null, '', '', '[{"templateId":%s,"qty":1}]')$q$, n, ปิด), 'estimate_invalid', 'เลือกวัสดุที่ HQ ปิดใช้ไม่ได้');
   perform flowtest.must_fail(format($q$select quote_request_submit(%s, 'งาน', '', null, '', '', '[{"templateId":%s,"qty":0}]')$q$, n, ผนัง), 'estimate_invalid', 'จำนวน 0 ไม่ได้');
   r := quote_request_submit(n, 'ZZMT โกดัง 20x40 ม.', '', 800, '', 'ระยอง',
@@ -112,8 +112,8 @@ begin
 
   -- ── ไม่เลือกวัสดุ = ไม่มีราคาประเมิน (ไม่บังคับ) ──
   perform flowtest.as_root();
-  insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
-  values ('#L-' || (n + 1), n + 1, 'RYG', 'ZZMT บริษัททดสอบ 2', 'ZZMT บริษัททดสอบ 2', 'คุณทดสอบ', '000-000-0044', 'ระยอง', 'BULLET');
+  insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
+  values ('#L-' || (n + 1), n + 1, 'RYG', 'ZZMT บริษัททดสอบ 2', 'ZZMT บริษัททดสอบ 2', 'คุณทดสอบ', '000-000-0044', 'ระยอง', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.as_user(ryg, 'DEALER_ADMIN', 'RYG');
   r := quote_request_submit(n + 1, 'ZZMT งานไม่เลือกวัสดุ');
   perform flowtest.ok(r.estimate_total is null and r.estimate_items = '[]'::jsonb, 'ไม่เลือกวัสดุก็ส่งคำขอได้ (ราคาประเมิน = ไม่มี)');

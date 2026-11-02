@@ -1,6 +1,6 @@
 "use client";
 
-// ── ตั้งค่า › แม่แบบวัสดุ (HQ · บอสสั่ง 26 ต.ค. 69 · ใบ 0244) ─────────────────────────────────────────────────────────
+// ── ตั้งค่า › รายการวัสดุ (HQ · บอสสั่ง 26 ต.ค. 69 · ใบ 0244) ─────────────────────────────────────────────────────────
 //
 // หมวด (พิมพ์เอง มีหมวดเดิมให้เลือก) · ชื่อวัสดุ · หน่วย · ราคาต่อหน่วย (ราคาส่งดีลเลอร์ ก่อน VAT) · เปิด/ปิดใช้ · วันที่อัปเดตราคา
 //   บันทึกด้วยปุ่มบันทึกกลางของหน้าตั้งค่า (settingsBus) — ฐานบันทึกทั้งชุดในคำสั่งเดียว + ลงบันทึกการใช้งานเอง
@@ -58,8 +58,8 @@ export function MaterialTemplatesPanel() {
     const ลบ = (บันทึกแล้ว ?? []).map(r => r.id!).filter(id => !ยังอยู่.has(id));
     const ส่ง = rows.map(r => ({ id: r.id, category: r.category.trim(), name: r.name.trim(), unit: r.unit.trim(), unitPrice: Number(r.unitPrice), active: r.active }));
     repo.save(ส่ง, ลบ)
-      .then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); toast("บันทึกแม่แบบวัสดุแล้ว"); })
-      .catch(e => แจ้งพลาด("บันทึกแม่แบบวัสดุไม่สำเร็จ: " + friendlyError(e)));
+      .then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); toast("บันทึกรายการวัสดุแล้ว"); })
+      .catch(e => แจ้งพลาด("บันทึกรายการวัสดุไม่สำเร็จ: " + friendlyError(e)));
   }, [rows, บันทึกแล้ว, toast]);
   const reset = useCallback(() => { if (บันทึกแล้ว) setRows(บันทึกแล้ว); }, [บันทึกแล้ว]);
   useReportSection(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
@@ -78,7 +78,7 @@ export function MaterialTemplatesPanel() {
   //   → กรอบหัวข้อเดียวกับแท็บอื่น (SectionCard: .card-header/.card-body) + ตารางกลาง (.table-wrap · colgroup) + แถบเปลี่ยนหน้า (TablePagination)
   return (
     <div data-panel="material-templates">
-      <KpiRow label="สรุปแม่แบบวัสดุ">
+      <KpiRow label="สรุปรายการวัสดุ">
         <KpiCard kpi="mt-total" icon={Boxes} label="วัสดุทั้งหมด" value={บันทึกแล้ว ? String(บันทึกแล้ว.length) : null} rawValue={บันทึกแล้ว?.length ?? null} unit="รายการ" empty="กำลังโหลด…" />
         <KpiCard kpi="mt-active" icon={CheckCircle2} color="#16A34A" bg="#E6F7EE" label="เปิดใช้ (ดีลเลอร์เห็น)" value={บันทึกแล้ว ? String(บันทึกแล้ว.filter(r => r.active).length) : null}
           rawValue={บันทึกแล้ว?.filter(r => r.active).length ?? null} unit="รายการ" empty="กำลังโหลด…" />
@@ -91,11 +91,11 @@ export function MaterialTemplatesPanel() {
       </KpiRow>
 
       {/* ค้นหา · จำนวน · ปุ่มเพิ่ม อยู่ในส่วนหัวของกรอบหัวข้อกลาง (.card-header-actions) */}
-      <SectionCard icon={<Boxes size={19} />} title="แม่แบบวัสดุ" action={
+      <SectionCard icon={<Boxes size={19} />} title="รายการวัสดุ" action={
         <div className="card-header-actions">
           <div className="search-bar">
             <Search size={14} color="#9ca3af" />
-            <input aria-label="ค้นแม่แบบวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => { setค้น(e.target.value); setหน้า(0); }} />
+            <input aria-label="ค้นรายการวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => { setค้น(e.target.value); setหน้า(0); }} />
           </div>
           <span className="note">เปิดใช้ {เปิดใช้} จาก {rows.length} รายการ</span>
           {/* ปิดไว้จนรายการโหลดเสร็จ — เดิมกดเพิ่มก่อนโหลดเสร็จ รายการจากฐานมาทับ แถวที่เพิ่มหายเงียบ ๆ (เจอจากรอบตรวจ 27 ต.ค. 69) */}
@@ -106,8 +106,8 @@ export function MaterialTemplatesPanel() {
         <datalist id="mt-units">{หน่วยBOQ.map(u => <option key={u} value={u} />)}</datalist>
 
         {/* ตารางรายการกลาง: หน่วยชิดซ้าย · ราคาต่อหน่วยชิดขวา หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
-        <ตารางรายการ ป้าย="แม่แบบวัสดุ" ลำดับ={false} กว้างขั้นต่ำ={860} แถว={บันทึกแล้ว === null ? [] : ในหน้า}
-          ว่าง={บันทึกแล้ว === null ? "กำลังโหลด…" : rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีแม่แบบวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}
+        <ตารางรายการ ป้าย="รายการวัสดุ" ลำดับ={false} กว้างขั้นต่ำ={860} แถว={บันทึกแล้ว === null ? [] : ในหน้า}
+          ว่าง={บันทึกแล้ว === null ? "กำลังโหลด…" : rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีรายการวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}
           คุณสมบัติแถว={r => ({ "data-mt-row": String(r.id ?? "new"), style: r.active ? undefined : { opacity: 0.6 } })} คอลัมน์={[
             { key: "cat", หัว: "หมวด", ชนิด: "ข้อความ", กว้าง: "13%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-categories" aria-label={`หมวด ${i + 1}`} style={ช่องกรอก} value={r.category} maxLength={80} placeholder="เช่น ผนัง" onChange={e => แก้(r.key, { category: e.target.value })} /> },
             { key: "name", หัว: "ชื่อวัสดุ", ชนิด: "ข้อความ", กว้าง: "24%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /> },

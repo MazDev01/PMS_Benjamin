@@ -311,10 +311,20 @@ export const LocalAdapter: DataAdapter = {
     hqQuoteById: () => ok(null),
     margin: () => ok(null),
   },
-  // แม่แบบวัสดุ — โหมดข้อมูลตัวอย่างไม่มี (ต้องมีฐานข้อมูล · ใบ 0244)
+  // ไฟล์แนบของคำขอราคา — โหมดข้อมูลตัวอย่างไม่มีคำขอราคา (ต้องมีฐานข้อมูล · ใบ 0273)
+  quoteFiles: {
+    list: () => ok([]),
+    counts: () => ok([]),
+    upload: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างแนบไฟล์คำขอราคาไม่ได้")),
+    downloadUrl: () => ok(null),
+    remove: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างลบไฟล์คำขอราคาไม่ได้")),
+    usage: () => ok({ buckets: [], quotaGb: null }),
+    setQuota: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างตั้งโควตาไม่ได้")),
+  },
+  // รายการวัสดุ — โหมดข้อมูลตัวอย่างไม่มี (ต้องมีฐานข้อมูล · ใบ 0244)
   materialTemplates: {
     list: () => ok([]),
-    save: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างบันทึกแม่แบบวัสดุไม่ได้")),
+    save: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างบันทึกรายการวัสดุไม่ได้")),
     accuracy: () => ok({ n: 0, avgAbsPct: null, avgPct: null }),
     used: () => ok([]),
   },

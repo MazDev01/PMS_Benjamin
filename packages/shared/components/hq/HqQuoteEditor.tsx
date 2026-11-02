@@ -3,7 +3,7 @@
 // ─── HQ · ทำ BOQ และส่งใบ HQ ให้ดีลเลอร์ (FLOW.html ขั้น 5–6 · ด่าน 2) ─────────────────────────────────────────
 //
 // ขั้น 5  ทำ BOQ — HQ พิมพ์รายการเอง (ชื่อ · จำนวน · หน่วย · ต้นทุน) · บันทึกร่างกี่ครั้งก็ได้ ดีลเลอร์ไม่เห็นร่าง
-//         แม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244): ใบเปิดมามีรายการวัสดุที่ดีลเลอร์เลือกในคำขอ · เพิ่มจากแม่แบบได้ (ค้นได้)
+//         รายการวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244): ใบเปิดมามีรายการวัสดุที่ดีลเลอร์เลือกในคำขอ · เพิ่มจากแม่แบบได้ (ค้นได้)
 //         แม่แบบอาคารแบบเดิมยังเอาออก (16 ต.ค. 69) · หัวใบแสดงราคาประเมินของดีลเลอร์ + % คลาดหลังส่ง
 // ขั้น 6  ส่งใบ HQ — ล็อกเวอร์ชัน · หยุดนับ 14 วัน · อีเมลถึงดีลเลอร์ · ลูกค้าเป้าหมายคงเดิม (ฐานข้อมูลทำทั้งหมด)
 // ส่งแล้วแก้ไม่ได้ (กฎ "ใบ HQ ที่ส่งแล้วแก้ไม่ได้ ต้องออกเวอร์ชันใหม่") — แผงนี้แสดงแบบอ่านอย่างเดียว
@@ -11,11 +11,13 @@
 // ให้ใช้ง่าย (บอสสั่ง 26 ต.ค. 69):
 //   • หัวใบ = กล่องข้อมูลคำขอกล่องเดียว (งาน · พื้นที่ · จังหวัด · ดีลเลอร์ · กำหนดส่ง + เหลือกี่วัน) · สเปกยาวย่อไว้ กด "ดูทั้งหมด"
 //   • BOQ เปิดมามีแถวว่างพร้อมพิมพ์ 1 แถว · ตารางเป็นคอมโพเนนต์กลาง BoqTable (Enter แถวใหม่ · วางจาก Excel · หน่วย · เฉลี่ยบาท/ตร.ม.)
-//     รายการจากแหล่งอื่น (แม่แบบวัสดุ · คำขอดีลเลอร์) เข้าทาง BoqTable แหล่ง → แทรกรายการ() ทางเดียว
+//     รายการจากแหล่งอื่น (รายการวัสดุ · คำขอดีลเลอร์) เข้าทาง BoqTable แหล่ง → แทรกรายการ() ทางเดียว
 //   • ยอดรวม = "ราคาส่งดีลเลอร์ (ก่อน VAT)" — ตรงกับฐาน: total_cost = ผลรวม qty×unitCost ไม่รวม VAT · ดีลเลอร์บวก % จากราคานี้
 //   • ส่งได้เมื่อมีอย่างน้อย 1 รายการและยอด > 0 (บอกเหตุผลข้างปุ่ม · ฐานกันด้วย quote_empty ใน hq_quote_send)
 //   • ยืนราคาถึงแสดง พ.ศ. (ThaiDateInput · ตัวจัดรูปกลาง fmtISOToThai)
 //   • ร่างที่พิมพ์ค้างไม่หายเมื่อสลับไปคำขออื่น — เก็บไว้ในที่เก็บร่างของหน้า (ร่างค้าง) แล้วคืนให้เมื่อกลับมา
+// ไฟล์แนบ 2 ทาง (บอสสั่ง 2 พ.ย. 69 · ใบ 0273): HQ แนบ/ลบไฟล์ของใบได้ตอนเป็นร่าง (ต้องบันทึกร่างก่อน — ไฟล์ผูกใบ HQ ฉบับนั้น)
+//   กด "ส่งใบ HQ ให้ดีลเลอร์" แล้วไฟล์ล็อกพร้อมใบ · ไฟล์ฉบับก่อน + ไฟล์จากดีลเลอร์ดูได้ในกล่องเดียวกัน
 import { useEffect, useMemo, useState } from "react";
 import { Send, X, Copy, Lock, Boxes, ClipboardList } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
@@ -32,6 +34,7 @@ import { ช่อง as ป้ายช่อง, กลุ่มช่อง }
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
 
 const NAVY = "#003366";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -44,7 +47,7 @@ const สเปกยาว = 160;
 /** ร่างที่พิมพ์ค้าง (ยังไม่บันทึก) ของคำขอหนึ่ง — หน้าแม่ถือไว้ข้ามการสลับคำขอ */
 export type ร่างใบHQ = { lines: แถววาง[]; validUntil: string; note: string };
 
-export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง }: {
+export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged }: {
   request: QuoteRequest;
   dealerName: string;
   onClose: () => void;
@@ -60,6 +63,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   onChanged: () => void;
   /** ที่เก็บร่างค้างของหน้า (คีย์ = เลขคำขอ) — สลับคำขอแล้วกลับมา ร่างที่พิมพ์ไว้ยังอยู่ */
   ร่างค้าง?: Map<number, ร่างใบHQ>;
+  /** แนบ/ลบไฟล์แล้ว — หน้าแม่โหลดป้ายจำนวนไฟล์ใหม่ */
+  onFilesChanged?: () => void;
 }) {
   const [ใบ, setใบ] = useState<HqQuote | null | undefined>(undefined);
   const [ใบก่อน, setใบก่อน] = useState<HqQuote | null>(null);
@@ -69,7 +74,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const [busy, setBusy] = useState(false);
   const [กู้ร่าง, setกู้ร่าง] = useState(false);
   const [สเปกเต็ม, setสเปกเต็ม] = useState(false);
-  // หน้าต่างเลือกจากแม่แบบวัสดุ — เก็บตัวแทรกของตาราง (BoqTable แหล่ง) ไว้ส่งรายการกลับ
+  // หน้าต่างเลือกจากรายการวัสดุ — เก็บตัวแทรกของตาราง (BoqTable แหล่ง) ไว้ส่งรายการกลับ
   const [แทรกแม่แบบ, setแทรกแม่แบบ] = useState<((rows: แถววาง[]) => void) | null>(null);
   // ภาพของใบตอนโหลด/บันทึกล่าสุด — ต่างจากที่อยู่บนจอ = มีการแก้ที่ยังไม่บันทึก (แถวว่างไม่นับ)
   const [ภาพที่บันทึก, setภาพที่บันทึก] = useState<string | null>(null);
@@ -203,7 +208,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
   const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
   const แหล่ง: แหล่งรายการ[] = [
-    { key: "material-templates", label: "เลือกจากแม่แบบวัสดุ", icon: Boxes, เปิด: แทรก => setแทรกแม่แบบ(() => แทรก) },
+    { key: "material-templates", label: "เลือกจากรายการวัสดุ", icon: Boxes, เปิด: แทรก => setแทรกแม่แบบ(() => แทรก) },
     { key: "request-items", label: "รายการจากคำขอดีลเลอร์", icon: ClipboardList, disabled: จากคำขอ.length === 0, เปิด: แทรก => แทรก(จากคำขอ) },
   ];
   const เนื้อหา = (
@@ -288,7 +293,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                   <Lock size={14} /> ส่งให้ดีลเลอร์แล้ว{ใบ?.sentAt ? ` ${วันไทยสั้น(ใบ.sentAt)}` : ""}{ใบ?.sentByName ? ` โดย ${ใบ.sentByName}` : ""} — ใบนี้แก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นเวอร์ชันใหม่
                 </div>
               )}
-              {/* ตาราง BOQ กลาง (BoqTable) — แหล่งรายการเพิ่ม (แม่แบบวัสดุ · รายการจากคำขอดีลเลอร์) ส่งเข้ามาทาง แหล่ง โดยไม่รื้อตาราง */}
+              {/* ตาราง BOQ กลาง (BoqTable) — แหล่งรายการเพิ่ม (รายการวัสดุ · รายการจากคำขอดีลเลอร์) ส่งเข้ามาทาง แหล่ง โดยไม่รื้อตาราง */}
               <BoqTable lines={lines} onChange={setLines} editable={แก้ได้} area={พื้นที่} แหล่ง={แหล่ง} />
               {แทรกแม่แบบ && <MaterialTemplatePicker onAdd={rows => แทรกแม่แบบ(rows)} onClose={() => setแทรกแม่แบบ(null)} />}
 
@@ -306,6 +311,10 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                     : <span style={{ fontWeight: 400 }}>{ใบ?.note || "—"}</span>}
                 </label>
               </div>
+
+              <QuoteFilesBox requestId={request.id} uploadSide="hq" canUpload={แก้ได้ && !!ใบ}
+                lockedReason={ล็อก ? "ส่งใบ HQ แล้ว — ไฟล์ล็อกพร้อมใบ" : แก้ได้ ? "บันทึกร่างใบ HQ ก่อนแนบไฟล์" : "คำขอนี้ปิดแล้ว — แนบไฟล์ไม่ได้"}
+                onChanged={onFilesChanged} />
 
               {แก้ได้ && (
                 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>

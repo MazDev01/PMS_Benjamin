@@ -105,7 +105,7 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
 
   test.beforeAll(async () => {
     const r = await admin.from("leads").insert({ id: `#L-${เลขรอHQ}`, num_id: เลขรอHQ, dealer_code: "RYG", company: ชื่อรอHQ, name: ชื่อรอHQ,
-      contact: "ผู้ทดสอบ", phone: `08${String(เลขรอHQ).slice(-8)}`, province: "ระยอง", status: "BULLET", assigned: "ทดสอบระบบ" });
+      contact: "ผู้ทดสอบ", phone: `08${String(เลขรอHQ).slice(-8)}`, province: "ระยอง", status: "BULLET", assigned: "ทดสอบระบบ", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
     expect(r.error, "ลีดรอราคา HQ").toBeNull();
     const ส่ง = await (await db(RYG)).rpc("quote_request_submit", { p_lead_num_id: เลขรอHQ, p_product: "โกดังทดสอบกล่องเหตุผล" });
     expect(ส่ง.error, "ส่งคำขอราคา").toBeNull();

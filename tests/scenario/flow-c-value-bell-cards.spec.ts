@@ -51,7 +51,7 @@ test.beforeAll(async () => {
   // ลีดไม่มีใบ แต่มีช่องประเมินราคาเดิม 9,999,999 ค้างในฐาน — ต้องไม่ถูกแสดง/นับ
   เลขไม่มีใบ = เลขลูกค้าเป้าหมายทดสอบ();
   const ins = await admin.from("leads").insert({ id: `#L-${เลขไม่มีใบ}`, num_id: เลขไม่มีใบ, dealer_code: "RYG", company: ไม่มีใบ, name: ไม่มีใบ,
-    contact: "ผู้ทดสอบ", phone: `08${String(เลขไม่มีใบ).slice(-8)}`, province: "ระยอง", status: "WAITING", value: "฿9,999,999" });
+    contact: "ผู้ทดสอบ", phone: `08${String(เลขไม่มีใบ).slice(-8)}`, province: "ระยอง", status: "WAITING", value: "฿9,999,999", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   if (ins.error) throw new Error(ins.error.message);
   await สร้างดีลเลอร์รหัสยาว(รหัสยาว);   // ดีลเลอร์ที่ยังไม่ตั้งเป้า แต่มียอดขาย (ข้อ 8)
 });
@@ -184,7 +184,7 @@ test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอ
   const sb = await db(RYG);
   เลขขอราคา = เลขลูกค้าเป้าหมายทดสอบ();
   const l = await sb.from("leads").insert({ id: `#L-${เลขขอราคา}`, num_id: เลขขอราคา, dealer_code: "RYG", company: ขอราคา, name: ขอราคา,
-    contact: "ผู้ทดสอบ", phone: `08${String(เลขขอราคา).slice(-8)}`, province: "ระยอง", status: "BULLET" });
+    contact: "ผู้ทดสอบ", phone: `08${String(เลขขอราคา).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(l.error?.message ?? "").toBe("");
   const r1 = await sb.rpc("quote_request_submit", { p_lead_num_id: เลขขอราคา, p_product: "โกดังสำเร็จรูป" });
   expect(r1.error?.message ?? "", "ส่งคำขอราคา").toBe("");

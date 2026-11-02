@@ -47,7 +47,8 @@ async function เข้าระบบ(page: Page, origin: string, path: string
 test("[live·รอบ3] ส่ง V1 → ทำฉบับใหม่ → ส่ง V2 → V1 ถูกแทนที่ · มูลค่าลีดตาม V2 · ลบใบที่ส่งแล้วไม่ได้", async ({ page }) => {
   // ลีด + ใบ HQ + ใบ V1 ที่ส่งแล้ว (เตรียมด้วยคำสั่งเดียวกับที่หน้าเว็บใช้ · ขั้นที่ทดสอบจริงอยู่บนหน้าเว็บข้างล่าง)
   const l = await svc.from("leads").insert({ id: `#L-${เลขลีด}`, num_id: เลขลีด, dealer_code: สาขา, company: บริษัท, name: บริษัท,
-    contact: "ผู้ทดสอบ", phone: "000-000-0002", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET" });
+    contact: "ผู้ทดสอบ", phone: "000-000-0002", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",
+    project: "ทดสอบระบบ — โกดัง", area: "100", note: "ทดสอบระบบ — โกดัง 10x10 ม." });   // ข้อมูลครบก่อนขอราคา (ใบ 0273)
   expect(l.error?.message ?? "", "สร้างลีดทดสอบ").toBe("");
   const ด = await ลงชื่อ(ดีลเลอร์);
   const r = await ด.rpc("quote_request_submit", { p_lead_num_id: เลขลีด, p_product: "โกดังสำเร็จรูป" });

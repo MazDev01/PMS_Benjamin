@@ -34,9 +34,9 @@ begin
 end $$;
 create function qvtest.lead(p_num int, p_tag text, p_status lead_status) returns void language plpgsql as $$
 begin
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
   values ('#L-' || p_num, p_num, 'CNX', 'ZZTEST-มูลค่าลีด-' || p_tag, 'ZZTEST-มูลค่าลีด-' || p_tag, 'ผู้ทดสอบ',
-          '000-000-' || lpad((p_num % 10000)::text, 4, '0'), 'เชียงใหม่', p_status);
+          '000-000-' || lpad((p_num % 10000)::text, 4, '0'), 'เชียงใหม่', p_status, 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
 end $$;
 -- ใบลูกค้าแบบเดิมวางตรงที่ฐาน (ปิดตัวกันใบไม่มีใบ HQ เฉพาะคำสั่งนี้) — ข้อนี้วัดตัวคำนวณมูลค่า ไม่ใช่ทางสร้างใบ
 create function qvtest.quote(p_id text, p_num int, p_total numeric, p_at timestamptz, p_status quotation_status) returns void language plpgsql as $$
@@ -60,8 +60,8 @@ begin
 
   -- 1) ลีดใหม่: ยังไม่มีใบ = ไม่มีมูลค่า แม้จะส่งค่ามาเอง · ช่องประเมินราคาเดิม (value) ไม่ถูกนับ
   perform qvtest.as_dealer();
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, value, quote_value)
-  values ('#L-' || n, n, 'CNX', 'ZZTEST-มูลค่าลีด-ก', 'ZZTEST-มูลค่าลีด-ก', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'WAITING', '฿9,999,999', 777);
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, value, quote_value, project, area, note)
+  values ('#L-' || n, n, 'CNX', 'ZZTEST-มูลค่าลีด-ก', 'ZZTEST-มูลค่าลีด-ก', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'WAITING', '฿9,999,999', 777, 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform qvtest.as_db();
   perform qvtest.lead(m, 'ข', 'WAITING');
   perform qvtest.eq(qvtest.v(n), null, '1) ลีดใหม่ไม่มีใบ = ไม่มีมูลค่า (ค่าที่ส่งมาเองถูกทิ้ง)');
