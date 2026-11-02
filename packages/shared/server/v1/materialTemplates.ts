@@ -4,6 +4,7 @@
 //   อ่าน: HQ ทุกแถว · ดีลเลอร์เฉพาะที่เปิดใช้ (กฎรายแถวของฐาน)
 //   บันทึก: material_templates_save (เฉพาะผู้ดูแล/ผู้บริหาร HQ · ฐานลงบันทึกการใช้งานเอง)
 //   ?view=accuracy: ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ (HQ เท่านั้น)
+//   ?view=used: รหัสวัสดุที่เคยใช้ในคำขอ/ใบ HQ (ใบ 0271 · ลบไม่ได้ ปิดใช้แทน · HQ เท่านั้น)
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 import { toCamelList } from "@pms/shared/lib/data/supabase/mappers";
@@ -12,6 +13,11 @@ type Row = Record<string, unknown>;
 export { runtime } from "./_ctx";
 
 export const materialTemplatesGET = handler("materialTemplates.list", async (req: NextRequest, sb) => {
+  if (new URL(req.url).searchParams.get("view") === "used") {
+    const { data, error } = await sb.rpc("material_templates_used");
+    if (error) return dbFail("materialTemplates.used", error);
+    return ok(((data ?? []) as unknown[]).map(Number));
+  }
   if (new URL(req.url).searchParams.get("view") === "accuracy") {
     const { data, error } = await sb.rpc("material_estimate_accuracy");
     if (error) return dbFail("materialTemplates.accuracy", error);

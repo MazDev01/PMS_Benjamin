@@ -268,15 +268,20 @@ test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใ
   await expect(อัตราปิด, "อัตราปิดการขาย: ขึ้น —").toContainText("—");
   await expect(อัตราปิด, "อัตราปิดการขาย: ไม่ใช่ 0%").not.toContainText("%");
 
-  await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(`ZZไม่มีจริง-${แท็ก}`);
-  await expect(page.getByText("ยังไม่มีใบที่ส่งแล้ว"), "อัตราตอบรับ: ไม่มีตัวหาร = —").toBeVisible({ timeout: 20_000 });
-
   // ฝั่งดีลเลอร์: แดชบอร์ดเมื่อยังไม่ตั้งเป้า (อัตราปิดไม่มีตัวหารตรวจที่ภาพรวมยอดขายข้างบน)
   //   สาขาของข้อนี้เอง (เป้า 0 ตั้งแต่สร้าง) — เดิมตั้งเป้า RYG เป็น 0 ชั่วคราว ชนข้ออื่นที่อ่าน/แก้เป้า RYG พร้อมกัน (29 ต.ค. 69)
   const สาขา = await สร้างสาขาของข้อ({ เป้า: 0 });
   try {
+    // อัตราตอบรับ: ไม่มีใบที่ส่ง = "—" — 2 พ.ย. 69 การ์ดใบเสนอราคาคิดตามระดับที่เลือก (คำค้นคุมแค่รายชื่อ) → เลือกระดับสาขาของข้อ (ยังไม่มีใบ)
+    await page.goto(`${HQ_ORIGIN}/hq/quotations?dealer=${สาขา.รหัส}`, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "ระดับสาขาของข้อ").toContainText(สาขา.รหัส, { timeout: 25_000 });
+    const อัตราตอบรับ = page.locator('[data-kpi-row] [data-kpi="acceptRate"]');
+    await expect(อัตราตอบรับ, "อัตราตอบรับ: ไม่มีตัวหาร = —").toContainText("ยังไม่มีใบที่ส่งแล้ว", { timeout: 20_000 });
+    await expect(อัตราตอบรับ.locator("[data-value]"), "อัตราตอบรับ: ไม่มีค่า").toHaveAttribute("data-value", "");
+    await expect(อัตราตอบรับ, "อัตราตอบรับ: ขึ้น —").toContainText("—");
+    await expect(อัตราตอบรับ, "อัตราตอบรับ: ไม่ใช่ 0%").not.toContainText("%");
+
     await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
     await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
     await settle(page);

@@ -100,12 +100,19 @@ test("[ui·dealer] หน้าลูกค้า: เลือกจังห�
   await ตรวจ(page, "total", นับ, "ลูกค้าทั้งหมด", 5);
 });
 
-test("[ui·hq] หน้าลีดทั้งเครือ: เลือกจังหวัดแล้วการ์ด \"ลีดที่เปิดอยู่\" ต้องเปลี่ยนตาม (ตารางแบ่งหน้าที่ฐาน)", async ({ page }) => {
+// (2 พ.ย. 69 · ใบ 0271) หน้าลีดทั้งเครือของ HQ เจาะลึกแบบภาพรวมยอดขาย: การ์ดเดินตาม "ระดับ" (ภูมิภาค/จังหวัด/ดีลเลอร์ = ของดีลเลอร์) เท่านั้น
+//   ตัวกรองจังหวัดหน้างานของลีดเอาออก — เดิมข้อนี้ตรวจว่าการ์ดเดินตามจังหวัดหน้างาน → กลับด้าน:
+//   เลือกระดับดีลเลอร์ของข้อแล้วการ์ด = ลีดเปิดของสาขานั้นในฐาน (ทั้ง 2 จังหวัดหน้างาน) · ไม่มีช่องจังหวัดหน้างานให้กรองการ์ดแล้ว
+test("[ui·hq] หน้าลีดทั้งเครือ: การ์ด \"ลีดที่เปิดอยู่\" เดินตามระดับดีลเลอร์ · ไม่มีตัวกรองจังหวัดหน้างาน", async ({ page }) => {
   const นับ = await ตัวนับของ(ADMIN, "leads", q => q.eq("dealer_code", สาขา.รหัส).not("status", "in", "(PAID,CANCELLED)"));
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  // เลือกดีลเลอร์เป็นสาขาของข้อ (การ์ดกับตารางเดินตามตัวกรองดีลเลอร์ · ใบ 0246) แล้วค่อยเลือกจังหวัด
-  await page.getByLabel("ทุกดีลเลอร์", { exact: true }).selectOption(สาขา.รหัส);
-  await ตรวจ(page, "open", นับ, "ลีดที่เปิดอยู่ของดีลเลอร์ที่เลือก", 7);
+  expect(await นับ(null), "ข้อมูลที่วางไว้ของสาขาของข้อ").toBe(7);
+  await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(สาขา.รหัส);
+  await expect(ค่าการ์ด(page, "open"), "ระดับดีลเลอร์ของข้อ: การ์ด = ลีดเปิดของสาขาในฐาน").toHaveAttribute("data-value", "7", { timeout: 25_000 });
+  await expect(page.getByLabel("ทุกจังหวัด", { exact: true }), "ไม่มีตัวกรองจังหวัดหน้างานของลีดแล้ว").toHaveCount(0);
+  // ระดับจังหวัด (จังหวัดของดีลเลอร์ ตราด) = ตัวเลือกระดับ · การ์ดรวมลีดเปิดของสาขาของข้อด้วย
+  await page.locator('[data-crumbs] [data-crumb="prov"]').click();
+  await expect.poll(async () => Number(await ค่าการ์ด(page, "open").getAttribute("data-value")), { message: "ระดับจังหวัดตราด: รวมลีดเปิดของข้อ", timeout: 20_000 }).toBeGreaterThanOrEqual(7);
 });

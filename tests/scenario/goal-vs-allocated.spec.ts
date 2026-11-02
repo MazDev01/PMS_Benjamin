@@ -1,74 +1,74 @@
-// ── เป้าทั้งเครือ กับ ผลรวมเป้าที่แจกให้ดีลเลอร์ เป็นคนละค่า ต้องบอกส่วนต่างให้เห็น ──
+// ── ตั้งค่า › เป้าหมายยอดขาย (บอสสั่ง 2 พ.ย. 69 · ตั้งค่าให้ตรง flow ใหม่) ──
 //
-// ที่มา (ผลตรวจภายนอก HQ-01 · 24 ส.ค. 69): แดชบอร์ดคิด % จาก "เป้าที่ผู้บริหารตั้ง"
-// ส่วนหน้าดีลเลอร์คิดจาก "ผลรวมเป้าที่แจกลงไป" — สองเลขนี้ต่างกันได้โดยชอบธรรม
-// แต่เดิมไม่มีที่ไหนบอกไว้เลย ผู้บริหารจึงเห็น % ขัดกันแล้วไม่รู้ว่าอันไหนจริง
-import { test, expect } from "@playwright/test";
+// เดิม (ผลตรวจภายนอก HQ-01 · 24 ส.ค. 69): เป้าทั้งเครือกับผลรวมเป้าที่แจกให้ดีลเลอร์เป็นคนละค่า ต้องบอกให้เห็น
+//   → ตอนนี้ตารางเป้ารายดีลเลอร์มีแถวรวม "รวมเป้าดีลเลอร์" + ปุ่ม "ตั้งเท่าผลรวมเป้าดีลเลอร์" ข้างช่องเป้าทั้งปี
+// บอสสั่ง 2 พ.ย. 69: เอา "เป้าติดตามตรงเวลา" · "เป้าอัตราปิดการขายเฉลี่ย" (ไม่มีที่ใช้) · "ความคืบหน้าทั้งเครือ" · คอลัมน์ ทำได้จริง/ความคืบหน้า ออก
+//   (ผลงานดูที่ภาพรวมยอดขายที่เดียว) · หัว "พื้นที่" → "ดีลเลอร์" · ไม่มีคอลัมน์จำนวนดีลเลอร์ · ตารางเป้ารายดีลเลอร์แก้ตัวเลขในตารางได้
+//   ข้อเดิม "ทำได้จริงรายภูมิภาครวม = ทั้งเครือ" กลับด้าน: ต้องไม่มีความคืบหน้า/ทำได้จริง/ตารางรายภูมิภาคบนหน้านี้แล้ว
+import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 
 const db = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
 
-test("[func·hq] หน้าตั้งค่าเป้าหมาย ต้องบอกผลรวมเป้าที่แจกให้ดีลเลอร์ตามจริง", async ({ page }) => {
-  // แถว HQ (สำนักงานใหญ่ · เจ้าของลีดของ HQ) ไม่ใช่ดีลเลอร์ — ไม่นับในตัวเลขดีลเลอร์ทุกที่ (รอบ 2 ช่วง ข · flow-b-hq-dealers [ข·1])
-  const { data } = await db.from("dealers").select("revenue_target").neq("code", "HQ");
-  const แจก = (data ?? []).reduce((s, d) => s + Number(d.revenue_target || 0), 0);
-  const ที่คาด = `฿${(แจก / 1e6).toFixed(1)}M`;
-
+async function เปิดแท็บเป้า(page: Page) {
   await openAs(page, ADMIN, "hq", "/hq/settings");
   await settle(page);
   await page.getByRole("button", { name: /เป้าหมายยอดขาย/ }).first().click();
-  await page.waitForTimeout(1200);
+  await expect(page.getByRole("table", { name: "เป้าหมายรายดีลเลอร์" })).toBeVisible({ timeout: 20_000 });
+}
+const ตารางเป้า = (page: Page) => page.getByRole("table", { name: "เป้าหมายรายดีลเลอร์" });
 
-  // กล่องเทียบส่วนต่าง = บรรทัดที่มีทั้งข้อความและตัวเลข (ไม่ใช่คำอธิบายใต้ช่องกรอก)
-  const กล่อง = page.locator("div").filter({ hasText: /^ผลรวมเป้าที่แจกให้ดีลเลอร์ \d+ สาขา:/ }).last();
-  await expect(กล่อง, "ต้องมีกล่องเทียบเป้าทั้งเครือกับที่แจกจริง").toBeVisible({ timeout: 10_000 });
-  const ข้อความ = (await กล่อง.innerText()).replace(/\s+/g, " ");
-  console.log("บนจอ:", ข้อความ.slice(0, 160));
-  console.log("ผลรวมจริงจากฐานข้อมูล:", ที่คาด);
-  expect(ข้อความ, "ตัวเลขบนจอต้องตรงกับผลรวมเป้าดีลเลอร์จริง").toContain(ที่คาด);
+test("[func·hq] เป้าหมาย: แถวรวมเป้าดีลเลอร์ตรงฐาน · ปุ่มตั้งเท่าผลรวมเป้าดีลเลอร์ · ไม่มีผลงาน/เป้าอัตราปิด/เป้าตรงเวลา", async ({ page }) => {
+  await เปิดแท็บเป้า(page);
+  // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ (รอบ 2 ช่วง ข · flow-b-hq-dealers [ข·1]) · ข้ออื่นเพิ่ม/ลบสาขาระหว่างอ่านได้ → อ่านฐานกับจอใหม่จนตรง (ไม่เพิ่มเวลารอ)
+  let ผลรวม = NaN;
+  for (let รอบ = 0; ; รอบ++) {
+    const { data } = await db.from("dealers").select("revenue_target").neq("code", "HQ");
+    const แจก = (data ?? []).reduce((s, d) => s + Number(d.revenue_target || 0), 0);
+    ผลรวม = Number(await ตารางเป้า(page).locator('tfoot [data-sum="annual"]').getAttribute("data-value"));
+    if (ผลรวม === แจก || รอบ === 2) { expect(ผลรวม, "แถวรวมเป้าดีลเลอร์บนจอ = ผลรวมเป้าดีลเลอร์จริงในฐาน").toBe(แจก); break; }
+    await page.reload(); await เปิดแท็บเป้า(page);
+  }
+
+  // ปุ่มตั้งเท่าผลรวม → ช่องเป้าทั้งปีเป็นผลรวมนั้น (ไม่กดบันทึก · กดรีเซ็ตคืน)
+  const ปุ่ม = page.locator('[data-act="target-from-dealers"]');
+  await expect(ปุ่ม).toHaveText("ตั้งเท่าผลรวมเป้าดีลเลอร์");
+  if (await ปุ่ม.isEnabled()) {
+    await ปุ่ม.click();
+    await expect(ปุ่ม, "ตั้งแล้ว = เท่ากันแล้ว ปุ่มปิด").toBeDisabled();
+    await expect(page.getByText("ยังไม่บันทึก"), "แก้แล้วยังไม่บันทึก").toBeVisible();
+    await page.getByRole("button", { name: "รีเซ็ต" }).click();
+  }
+
+  // กลับด้านจากข้อเดิม: ไม่มีผลงาน/เป้าอัตราปิด/เป้าตรงเวลา/ตารางรายภูมิภาคบนหน้านี้ · หัวตาราง "ดีลเลอร์" ไม่ใช่ "พื้นที่"
+  for (const ข้อความ of ["ความคืบหน้าทั้งเครือ", "ทำได้จริง", "เป้าหมายรายภูมิภาค", "เป้าอัตราปิดการขายเฉลี่ย", "เป้าติดตามตรงเวลา"]) {
+    await expect(page.getByText(ข้อความ), `ไม่มี "${ข้อความ}" ในแท็บเป้า`).toHaveCount(0);
+  }
+  await expect(ตารางเป้า(page).locator("thead th")).toHaveText(["ดีลเลอร์", "จังหวัด", "เป้าทั้งปี (บาท)", "เป้ารายเดือน"]);
+  console.log(`ผลรวมเป้าดีลเลอร์ ${ผลรวม}`);
 });
 
-// ── "ทำได้จริง" รายภูมิภาค ต้องตามยอดจริง แม้ยอดผลงานมาถึงหลังทะเบียนดีลเลอร์ (ผลตรวจเทียบ FLOW รอบ 5 แถว 33 · 28 ต.ค. 69) ──
-//   เจอ: ตาราง "เป้าหมายรายภูมิภาค" ทำได้จริง ฿0 / 0% ทุกภาค ขณะที่ "ความคืบหน้าทั้งเครือ" ทำได้จริง ฿182.8M
-//   ต้นเหตุ: ตัวรวมรายภูมิภาคคิดครั้งเดียวตอนทะเบียนดีลเลอร์มาถึง ไม่คิดใหม่ตอนยอดผลงานมาถึงทีหลัง
-//   ข้อนี้หน่วงคำตอบยอดผลงานไว้ให้มาทีหลังเสมอ (บนเว็บจริงลำดับนี้เกิดเองแทบทุกครั้ง) แล้วเทียบผลรวมทุกภาคกับทั้งเครือ
-const เป็นบาท = (t: string): number => {
-  const m = /฿([\d.,]+)(M?)/.exec(t);
-  if (!m) return NaN;
-  const n = Number(m[1].replace(/,/g, ""));
-  return m[2] ? n * 1e6 : n;
-};
-test("[func·hq] เป้าหมายรายภูมิภาค: ทำได้จริงรวมทุกภาค = ทั้งเครือ แม้ยอดมาถึงหลังทะเบียนดีลเลอร์", async ({ page }) => {
-  await page.route(/\/api\/v1\/metrics\?k=dealerRollup|\/rest\/v1\/rpc\/dealer_rollup/, async route => {
-    await new Promise(r => setTimeout(r, 2500));
-    await route.continue();
-  });
-  await openAs(page, ADMIN, "hq", "/hq/settings");
-  await settle(page);
-  await page.getByRole("button", { name: /เป้าหมายยอดขาย/ }).first().click();
-
-  const การ์ด = (ชื่อ: string) => page.locator("[data-section-card]").filter({ has: page.locator(".card-title", { hasText: ชื่อ }) });
-  // ทั้งเครือ: รอจนยอดมาถึง (ก่อนมาขึ้น "—")
-  let ทั้งเครือ = NaN;
-  await expect.poll(async () => {
-    const t = (await การ์ด("ความคืบหน้าทั้งเครือ").innerText()).replace(/\s+/g, " ");
-    ทั้งเครือ = เป็นบาท(/ทำได้จริง ?(฿[\d.,]+M?)/.exec(t)?.[1] ?? "");
-    return ทั้งเครือ;
-  }, { message: "ยอดทั้งเครือต้องมาถึง", timeout: 30_000 }).toBeGreaterThan(0);
-
-  // รายภูมิภาค: คอลัมน์ที่ 4 = ทำได้จริง · ผลรวมทุกภาคต้องเท่าทั้งเครือ (คลาดได้แค่จากการปัดเศษ ฿x.xM ต่อแถว)
-  const ตาราง = การ์ด("เป้าหมายรายภูมิภาค").locator("tbody tr");
-  let ผลรวม = 0, แถว = 0;
-  await expect.poll(async () => {
-    const ค่า = await ตาราง.locator("td:nth-child(4)").allInnerTexts();
-    แถว = ค่า.length;
-    ผลรวม = ค่า.reduce((s, t) => s + (เป็นบาท(t) || 0), 0);
-    return Math.abs(ผลรวม - ทั้งเครือ) <= 0.06e6 * Math.max(1, แถว) + 0.06e6;
-  }, { message: "ทำได้จริงรวมทุกภาคต้องเท่าทั้งเครือ (เดิมค้าง ฿0 ทุกภาค)", timeout: 20_000 }).toBe(true);
-  console.log(`ทั้งเครือ ${ทั้งเครือ} · รวม ${แถว} ภาค ${ผลรวม}`);
+test("[func·hq] เป้าหมาย: แก้เป้ารายดีลเลอร์ในตาราง → กดบันทึก → ลงฐาน · เป้ารายเดือน = ÷12", async ({ page }) => {
+  const สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ตราด", เป้า: 1_200_000 });
+  try {
+    await เปิดแท็บเป้า(page);
+    const แถว = ตารางเป้า(page).locator(`[data-target-row="${สาขา.รหัส}"]`);
+    // ตารางแบ่งหน้า (เรียงตามรหัส) — เลื่อนหน้าจนเจอแถวของสาขาของข้อ
+    for (let i = 0; i < 40 && !(await แถว.count()); i++) await page.getByRole("button", { name: "หน้าถัดไป" }).click();
+    await expect(แถว, "เจอแถวของสาขาของข้อ").toBeVisible();
+    const ช่อง = แถว.getByLabel(`เป้า ${สาขา.รหัส}`);
+    await expect(ช่อง).toHaveValue("1,200,000");
+    await ช่อง.fill("2400000");
+    await expect(แถว.locator("td").nth(3), "เป้ารายเดือนคิดตามที่พิมพ์ (÷12)").toHaveText("฿200,000");
+    await page.getByRole("button", { name: "บันทึก" }).first().click();
+    await expect.poll(async () => Number((await db.from("dealers").select("revenue_target").eq("code", สาขา.รหัส).single()).data?.revenue_target),
+      { message: "เป้าใหม่ลงฐาน", timeout: 20_000 }).toBe(2_400_000);
+    await expect(page.getByText("ยังไม่บันทึก")).toHaveCount(0);
+  } finally { await สาขา.ลบ(); }
 });

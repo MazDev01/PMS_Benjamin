@@ -11,15 +11,15 @@ import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/compo
 import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
-import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
-import { useKpiCards } from "@pms/shared/lib/useKpiCards";
-import { ค่า, นับ } from "@pms/shared/lib/kpiCards";
+import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, type ขอบเขต } from "../_drill/DrillEngine";
+import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
+import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
 import {
-  Users, PhoneCall, AlarmClock, X, GitBranch, Eye, Inbox,
+  Users, AlarmClock, X, GitBranch, Eye,
   User, Phone, Mail, MapPin, Compass, Wallet, CalendarDays,
   Store, IdCard, UserCheck, FileText, Activity, CalendarClock, Paperclip, StickyNote, Lock, AlertTriangle,
 } from "lucide-react";
-import { useNetworkLeads, useNetworkQuotations, useLeadSummary, useLeadsPage, useUnassignedLeads, useDashboardQuoteSummary, useLeadAppointments } from "@pms/shared/lib/useNetworkData";
+import { useNetworkLeads, useLeadSummary, useLeadsPage, useUnassignedLeads, useLeadAppointments } from "@pms/shared/lib/useNetworkData";
 import type { LeadSummaryFilters, LeadListOpts } from "@pms/shared/lib/data/ports";
 import { DEFAULT_LEAD_RULES } from "@pms/shared/lib/mock";
 import { useLeadRulesOf } from "@pms/shared/lib/useHQRules";
@@ -31,7 +31,6 @@ import { PanelSection, PanelRow, PanelStats, PanelStat, ย่อชื่อ } 
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { dealers as dealersRepo, leads as leadsRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
-import { ภาคมาตรฐาน, ชื่อภาค, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";  // แหล่งเดียวของชื่อภาค — ไม่ก็อปโค้ดซ้ำ
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { DEALER_FILES_EVENT, type DealerFile } from "@pms/shared/lib/mock";
@@ -39,13 +38,8 @@ import { files as filesRepo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
-import { ความละเอียดของช่วง, ช่องเวลาในช่วง, คีย์ช่อง, type ความละเอียด } from "@pms/shared/lib/trendBuckets";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { GroupedBarChart, Donut } from "@pms/shared/components/ui/Charts";
-import {
-  MonthRangeToggle, lastNMonths, monthRangeSubtitle, monthKeyOf, monthKey,
-  type MonthRange,
-} from "@pms/shared/components/ui/MonthRangeToggle";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { ช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
@@ -62,6 +56,9 @@ const มูลค่าอ่านง่าย = (n: number | null) => n == nu
 const เบอร์อ่านง่าย = (v?: string) => formatPhone(String(v ?? "")) || "—";
 
 const PRIMARY = "#003366";
+
+// ── เจาะลึกแบบเดียวกับภาพรวมยอดขาย (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) — การ์ด/คอลัมน์จากตั้งค่ากลาง (แหล่งเดียวกับข้อทดสอบ) ──
+const ตั้งค่าลีด = ตั้งค่าเจาะลึกทั้งหมด.leads;
 // 8 สี — โดนัท "ตามแหล่งที่มา" มีได้ถึง 8 ชิ้น ถ้าสีวนซ้ำจะอ่านผิดว่าเป็นชิ้นเดียวกัน
 const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0f766e", "#b45309"];
 // โทนแดง-ส้ม สำหรับ "เหตุผลที่ปิดการขายไม่สำเร็จ" — คงความหมายเดิม (แท่งเคยเป็นสีแดงทั้งหมด)
@@ -75,9 +72,6 @@ const parseThaiDate = (s: string): Date | null => {
   return new Date(y, TH_MONTH[mt[2]], +mt[1]);
 };
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-// ช่วงกว้างคงที่สำหรับสรุปใบรายเดือน (กราฟแนวโน้มลูกค้าเป้าหมาย) — อ้างอิงคงที่ กัน hook รีเฟตช์
-const TREND_QUOTE_START = new Date(2000, 0, 1);
-const TREND_QUOTE_END = new Date(2999, 11, 31);
 // "ต้องติดตาม" = ลูกค้าเป้าหมายที่ยังไม่ปิด และเงียบเกินเกณฑ์ของสาขาเจ้าของลูกค้าเป้าหมาย (needsFollowUp)
 // ⚠️ ห้ามกลับไปใช้รายการสถานะ: เดิมนับจากสถานะ (ติดต่อแล้ว + สถานะติดตามแบบเก่า) ซึ่งไม่ได้นับวันเลย
 //    แต่ป้ายเขียนว่า ">7 วัน" → ตัวเลขไม่ตรงกับคำ และไม่ตรงกับที่ดีลเลอร์เห็นบนหน้าตัวเอง
@@ -87,7 +81,6 @@ const TREND_QUOTE_END = new Date(2999, 11, 31);
 export default function HQLeadsPage() {
   const router = useRouter();
   const { timeRange } = useFilters();
-  const ละเอียดของหน้า = ความละเอียดของช่วง(timeRange.start, timeRange.end);
   const leads = useNetworkLeads();
   // เกณฑ์เป็นของแต่ละสาขา (ดีลเลอร์ตั้งเองที่ ตั้งค่า › การแจ้งเตือน) → ถามเป็นรายใบด้วย dealerCode
   const rulesOf = useLeadRulesOf();
@@ -99,8 +92,10 @@ export default function HQLeadsPage() {
   // เลขขั้นของแถว: แถวจากฐาน (leads_page ใบ 0251) มี stageNo · โหมดตัวอย่าง/ค้างติดตาม คิดจากใบร่างที่มีในเครื่อง
   const เลขขั้นแถว = (l: LeadRow): เลขขั้น => (l.stageNo as เลขขั้น | undefined)
     ?? เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
-  const [province, setProvince] = useState<string>("ALL");
-  const [viewLead, setViewLead] = useState<LeadRow | null>(null);  // Drawer — ดูอย่างเดียว
+  const [viewLead, setViewLead] = useState<LeadRow | null>(null);
+  // โดนัท 2 ใบ: ชี้ก้อนสีหรือแถวคำอธิบาย เน้นก้อนเดียวกัน (บอสสั่ง 20 ส.ค. 69 · ย้ายมาจากโดนัทหน้าลูกค้าที่เอาออก 2 พ.ย. 69)
+  const [เน้นแหล่ง, setเน้นแหล่ง] = useState<number | null>(null);
+  const [เน้นเหตุผล, setเน้นเหตุผล] = useState<number | null>(null);  // Drawer — ดูอย่างเดียว
   // ?open=รหัสสาขา:รหัสลีด (กดแถวในแท็บลูกค้าเป้าหมายของแผงดีลเลอร์ · บอสสั่ง 30 ต.ค. 69) = เปิดแผงลีดนั้น แล้วล้างออกจาก URL
   //   รหัสลีดซ้ำกันได้ข้ามสาขา → ค้นในสาขานั้นเท่านั้น · ไม่พบ = ไม่เปิดอะไร
   useEffect(() => {
@@ -116,15 +111,26 @@ export default function HQLeadsPage() {
       .catch(e => logRepoRead("leads.listPage(open)", e));
     return () => { alive = false; };
   }, []);
-  const [dealerSel, setDealerSel] = useState<string>("ALL");
-  // ?dealer=รหัส (ปุ่ม "ดูทั้งหมด" ลีดล่าสุดของดีลเลอร์ในภาพรวมยอดขาย · 30 ต.ค. 69) = เลือกดีลเลอร์นั้นไว้ให้ แล้วล้างออกจาก URL
+  // ระดับที่เลือก (ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์) — ทุกการ์ด/กราฟ/รายชื่อคิดตามระดับนี้ (บอสสั่ง 2 พ.ย. 69)
+  const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
+  const ช่วงการ์ด = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
+  const เจาะลึก = useเจาะลึก("leads", ช่วงการ์ด.start, ช่วงการ์ด.end, isoDateOf(APP_NOW));
+  // ?dealer=รหัส (ปุ่ม "ดูทั้งหมด" ลีดล่าสุดของดีลเลอร์ในภาพรวมยอดขาย · 30 ต.ค. 69) = เจาะลงดีลเลอร์นั้น (รอแถวรายดีลเลอร์โหลดก่อน) แล้วล้างออกจาก URL
+  const [ดีลเลอร์จากลิงก์, setดีลเลอร์จากลิงก์] = useState<string | null>(null);
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("dealer");
     if (!code) return;
-    setDealerSel(code.toUpperCase());
+    setดีลเลอร์จากลิงก์(code.toUpperCase());
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
-  const [regionSel, setRegionSel] = useState<string>("ALL");
+  useEffect(() => {
+    if (!ดีลเลอร์จากลิงก์ || !เจาะลึก) return;
+    if (เจาะลึก.dealers.some(d => d.code === ดีลเลอร์จากลิงก์)) setขอบ(ขอบเขตของดีลเลอร์(เจาะลึก.dealers, ดีลเลอร์จากลิงก์));
+    setดีลเลอร์จากลิงก์(null);
+  }, [ดีลเลอร์จากลิงก์, เจาะลึก]);
+  // ชุดดีลเลอร์ของระดับที่เลือก (ทั้งเครือ = ไม่กรอง)
+  const ชุดดีลเลอร์ = useMemo<string[] | undefined>(() => ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์
+    ? ในขอบเขต(เจาะลึก?.dealers ?? [], ขอบ).map(r => r.code) : undefined, [เจาะลึก, ขอบ]);
   const [srcSel, setSrcSel] = useState<string>("ALL");
 
   // ชุดลีดของหน้า (บอสตัดสิน 30 ต.ค. 69 · ใบ 0265): ไม่นับลีดของ HQ ที่ยังไม่โอน — อยู่ในกล่องโอนที่เดียว (การ์ด "ลีดของ HQ รอโอน")
@@ -157,35 +163,22 @@ export default function HQLeadsPage() {
 
   // ภาค/ชื่อของดีลเลอร์ — จากทะเบียนดีลเลอร์จริง (เดิมอ่านจากชุด seed → โหมด supabase ได้ภาคของสาขาที่ไม่มีอยู่จริง)
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
-  const REGION_OF = useMemo(() => new Map(allDealers.map(d => [d.code, ภาคมาตรฐาน(d.region) ?? d.region])), [allDealers]);   // ภาคมาตรฐาน — ชื่อแสดงผ่าน ชื่อภาค()
 
   // ตัวเลือกตัวกรอง — จากลูกค้าเป้าหมายจริงในช่วง (ไม่ hardcode) · supabase: lead_summary (เวลาอย่างเดียว) · local/ยังไม่กลับ: scoped
   const optsSummary = useLeadSummary(useMemo(() => ({ dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]));
-  const dealerOpts = useMemo(() => (optsSummary
-    ? [...new Set(optsSummary.byDealer.map(d => d.dealerCode))]
-    : [...new Set(scoped.map(l => l.dealerCode).filter(Boolean))] as string[]).filter(c => ไม่ใช่แถวHQ({ code: c })).sort(), [optsSummary, scoped]);   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
-  const regionOpts = useMemo(() => (optsSummary
-    ? [...new Set(optsSummary.byDealer.map(d => REGION_OF.get(d.dealerCode)).filter(Boolean))]
-    : [...new Set(scoped.map(l => REGION_OF.get(dealerCodeOf(l))).filter(Boolean))]).sort() as string[], [optsSummary, scoped, REGION_OF]);
   const srcOpts = useMemo(() => (optsSummary
     ? optsSummary.bySource.map(s => s.source)
     : [...new Set(scoped.map(l => l.source || "ไม่ระบุ"))]).sort((a, b) => a.localeCompare(b, "th")), [optsSummary, scoped]);
-  const provinces = useMemo(() => (optsSummary
-    ? optsSummary.byProvince.map(p => p.province)
-    : [...new Set(scoped.map(l => l.province).filter(Boolean))]).sort(), [optsSummary, scoped]);
-
   // ฐานของ KPI = ตัวกรอง "ขอบเขต" ทุกตัว (ดีลเลอร์ · ภูมิภาค · จังหวัด · แหล่งที่มา · ค้นหา)
   // แต่ยังไม่กรองด้วย "สถานะ" และ "ต้องติดตามด่วน" — สองอันนั้นคือปุ่มของการ์ด KPI เอง
   // ถ้า KPI ตามสองอันนั้นด้วย ตัวเลขจะยุบเหลือค่าเดียวทันทีที่กด การ์ดจะไร้ความหมาย
   const ตรงขอบเขต = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (l: LeadRow) =>
-      (province === "ALL" || l.province === province) &&
-      (dealerSel === "ALL" || l.dealerCode === dealerSel) &&
-      (regionSel === "ALL" || REGION_OF.get(dealerCodeOf(l)) === regionSel) &&
+      (!ชุดดีลเลอร์ || ชุดดีลเลอร์.includes(dealerCodeOf(l))) &&
       (srcSel === "ALL" || (l.source || "ไม่ระบุ") === srcSel) &&
       (!q || (l.company + l.contact + l.province + l.assigned + (l.id ?? "") + (l.dealerCode ?? "")).toLowerCase().includes(q));
-  }, [query, province, dealerSel, regionSel, srcSel, REGION_OF]);
+  }, [query, ชุดดีลเลอร์, srcSel]);
   // ณ ตอนนี้ (ไม่ผูกช่วงเวลา): ลีดที่เปิดอยู่ · ไม่เคลื่อนไหว — บอสตัดสิน 22 ต.ค. 69 (ยืนยันอีกครั้ง 30 ต.ค. 69)
   const kpiBaseAll = useMemo(() => ของดีลเลอร์.filter(ตรงขอบเขต), [ของดีลเลอร์, ตรงขอบเขต]);
   // ตามช่วงเวลา (วันที่ลีดเข้ามา): ลีดใหม่ · ปิดสำเร็จ/ปิดไม่สำเร็จ · กราฟ
@@ -198,21 +191,9 @@ export default function HQLeadsPage() {
   ), [kpiBase, kpiBaseAll, status, overdueOnly, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── M9 Phase 2: สรุปลูกค้าเป้าหมายหลังกรองที่ DB (supabase) · local/overdue/ระหว่างโหลด = client fallback ──
-  const leadDealerCodes = useMemo<string[] | undefined>(() => {
-    let codes: string[] | undefined;
-    const restrict = (pred: (c: string) => boolean) => { codes = (codes ?? allDealers.map(d => d.code)).filter(pred); };
-    if (dealerSel !== "ALL") restrict(c => c === dealerSel);
-    if (regionSel !== "ALL") restrict(c => REGION_OF.get(c) === regionSel);
-    return codes;
-  }, [dealerSel, regionSel, allDealers, REGION_OF]);
-  const baseF: LeadSummaryFilters = {
-    // ไม่ส่ง product แล้ว — ตัวกรองประเภทอาคาร (แม่แบบ) ถูกถอด: เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
-    dealerCodes: leadDealerCodes, province: province === "ALL" ? undefined : province,
-    source: srcSel === "ALL" ? undefined : srcSel,
-    search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
-  };
-  // กราฟนับตามช่วงเวลา (รวมลีดปิดแล้ว · FLOW แถว /hq/leads) — ไม่ผูกตัวกรองขั้น/ค้างติดตาม: สองตัวนั้นคุมตาราง เหมือนการ์ด
-  //   (บอสสั่ง 30 ต.ค. 69: ทุกตัวกรอง ผลรวมกราฟขั้นตอน = การ์ด · วงกลมแหล่งที่มา = การ์ดลีดใหม่)
+  const leadDealerCodes = ชุดดีลเลอร์;
+  // กราฟ = ระดับที่เลือก + ช่วงเท่านั้น (บอสสั่ง 2 พ.ย. 69 · ไม่ผูกคำค้น/แหล่งที่มา/ขั้นของรายชื่อ) → ผลรวมกราฟขั้นตอน = การ์ด · วงกลมแหล่งที่มา = การ์ดลีดใหม่
+  const baseF: LeadSummaryFilters = { dealerCodes: leadDealerCodes, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) };
   const chartSummary = useLeadSummary(baseF);
   // กราฟตามขั้นตอน ขั้น 1–5 = ลีดที่เปิดอยู่ ณ ตอนนี้ (ชุดเดียวกับการ์ด "ลีดที่เปิดอยู่") · ขั้น 6–7 = ปิดในช่วง (ตามวันที่ลีดเข้ามา)
   const openSummary = useLeadSummary({ ...baseF, dateStart: undefined, dateEnd: undefined });
@@ -225,13 +206,12 @@ export default function HQLeadsPage() {
     limit: LEADS_PAGE, offset: leadPage * LEADS_PAGE,
     // 0 = กำลังดำเนินการ (ขั้น 1–5 · ใบ 0256)
     stage: status === "ALL" ? undefined : status === "OPEN" ? 0 : Number(status), dealerCodes: leadDealerCodes,
-    province: province === "ALL" ? undefined : province,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
     // กำลังดำเนินการ (ขั้น 1–5) = ณ ตอนนี้ ตรงการ์ดลีดที่เปิดอยู่ (ไม่ผูกช่วง) · ขั้นอื่น/ทั้งหมด = ลีดที่เข้ามาในช่วง
     dateStart: status === "OPEN" ? undefined : isoDateOf(timeRange.start), dateEnd: status === "OPEN" ? undefined : isoDateOf(timeRange.end),
     // การ์ด "ไม่เคลื่อนไหวเกิน 30 วัน" (ใบ 0246) = ตัวกรองค้างติดตามที่ 30 วันทุกสาขา (กติกาเดียวกับฐาน)
     overdue: overdueOnly, asOf: isoDateOf(APP_NOW), defaultDays: 30, perDealer: undefined,
-  }), [leadPage, status, leadDealerCodes, province, srcSel, query, timeRange.start, timeRange.end, overdueOnly]);
+  }), [leadPage, status, leadDealerCodes, srcSel, query, timeRange.start, timeRange.end, overdueOnly]);
   const leadsPage = useLeadsPage(leadOpts);
   const leadTableKey = JSON.stringify({ ...leadOpts, offset: 0 });
   useEffect(() => { setLeadPage(0); }, [leadTableKey]); // เปลี่ยนตัวกรอง → หน้า 1
@@ -248,10 +228,10 @@ export default function HQLeadsPage() {
   const perDealerHours = useMemo(() => Object.fromEntries(allDealers.map(d => [d.code, rulesOf(d.code).unassignedAlertHours])), [allDealers, rulesOf]);
   const unassignedSummary = useUnassignedLeads(useMemo(() => ({
     asOf: isoDateOf(APP_NOW), defaultHours: DEFAULT_LEAD_RULES.unassignedAlertHours, perDealer: perDealerHours,
-    dealerCodes: leadDealerCodes, province: province === "ALL" ? undefined : province,
+    dealerCodes: leadDealerCodes,
     source: srcSel === "ALL" ? undefined : srcSel,
     search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
-  }), [perDealerHours, leadDealerCodes, province, srcSel, query, timeRange.start, timeRange.end]));
+  }), [perDealerHours, leadDealerCodes, srcSel, query, timeRange.start, timeRange.end]));
   const unassignedClient = useMemo(() => unassignedLeads(kpiBase, rulesOf), [kpiBase, rulesOf]);
   const unassignedCount = unassignedSummary ? unassignedSummary.total : unassignedClient.length;
   // ป้ายบอกเกณฑ์ — หน้านี้รวมหลายสาขาที่ตั้งเกณฑ์ต่างกันได้ จึงสรุปเป็นช่วงเมื่อไม่เท่ากัน
@@ -273,86 +253,22 @@ export default function HQLeadsPage() {
       {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
     </select>
   );
-  const anyFilter = !!query.trim() || status !== "OPEN" || [province, dealerSel, regionSel, srcSel].some(v => v !== "ALL");
+  const anyFilter = !!query.trim() || status !== "OPEN" || srcSel !== "ALL" || overdueOnly;
 
 
-  const netQuotes = useNetworkQuotations();
   const DEALER_NAME = useMemo(() => new Map(allDealers.map(d => [d.code, d.name])), [allDealers]);
 
 
-  // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · ช่วงเวลา + ดีลเลอร์ที่เลือก · ไม่นับแถว HQ
-  //   เปิดอยู่ / ไม่เคลื่อนไหว / ลีดของ HQ รอโอน = ณ ตอนนี้ · ลีดใหม่ = เข้ามาในช่วงที่เลือก
-  //   การ์ดเดินตามตัวกรองภาค/จังหวัด/ช่องทาง/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ส่งตัวกรองชุดเดียวกับที่ส่งให้รายการ (leads_page) ฐานกรองกติกาเดียวกัน
-  //   ลีดของ HQ รอโอน = คิวของ HQ เอง ไม่ขึ้นกับตัวกรองสาขา
-  const { salesVersion } = useSales();
-  const ช่วงการ์ด = { start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) };
-  const ตัวกรองการ์ด = useMemo(() => {
-    const f = { dealerCodes: leadDealerCodes, province: baseF.province, source: baseF.source, search: baseF.search };
-    return Object.values(f).some(v => v !== undefined) ? f : null;
-  }, [leadDealerCodes, baseF.province, baseF.source, baseF.search]);
-  const การ์ด = useKpiCards("hq.leads", { ...ช่วงการ์ด, dealer: dealerSel === "ALL" ? null : dealerSel, today: isoDateOf(APP_NOW), filters: ตัวกรองการ์ด, รุ่น: salesVersion });
-  const kpiCards = [
-    { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(การ์ด, "open"), unit: "ราย · ยังไม่ปิดการขาย", Icon: Users, color: "#2563a8", on: status === "OPEN" && !overdueOnly,
-      onClick: () => { setStatus("OPEN"); setOverdueOnly(false); } },
-    // ลีดใหม่ = ทุกขั้นที่เข้ามาในช่วง → ตาราง "ทั้งหมด" (ตามช่วง) · จำนวนแถว = การ์ด
-    { kpi: "new", label: "ลีดใหม่ในช่วงนี้", value: ค่า(การ์ด, "new"), unit: "ราย · เข้ามาในช่วงที่เลือก", Icon: PhoneCall, color: "#7c3aed", on: status === "ALL" && !overdueOnly,
-      onClick: () => { setStatus("ALL"); setOverdueOnly(false); } },
-    { kpi: "hqWaiting", label: "ลีดของ HQ รอโอน", value: ค่า(การ์ด, "hqWaiting"), unit: "ราย · ยังไม่โอนให้ดีลเลอร์", Icon: Inbox, color: "#0891B2", on: false,
-      onClick: () => document.querySelector("[data-card='hq-lead-transfer']")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-    { kpi: "idle", label: "ไม่เคลื่อนไหวเกิน 30 วัน", value: ค่า(การ์ด, "idle"), unit: "ราย · ติดต่อล่าสุดเกิน 30 วัน", Icon: AlarmClock, color: "#EA580C", on: overdueOnly,
-      onClick: () => { setStatus("OPEN"); setOverdueOnly(v => !v); } },
-  ];
-
-  // ── Section 7 · แนวโน้มรายเดือน — 4 เส้น: ลูกค้าเป้าหมายใหม่ · ใบเสนอราคา · ปิดได้ · ปิดไม่สำเร็จ ──
-  // ลูกค้าเป้าหมายนับตามเดือนที่สร้าง · ใบเสนอราคานับตามเดือนที่ออก (คนละแหล่ง จับคู่ด้วยเดือน)
-  // ช่วงเดือนตัดตามตัวกรองเวลา — ไม่ฟิกซ์ 12 เดือน เพราะระบบมีข้อมูลปี 2569 ปีเดียว
-  // ── กราฟแนวโน้มรายเดือน — ปุ่มช่วงย้อนหลังของตัวเอง (ไม่ผูกกับตัวกรองเวลาบนแถบบน) ──
-  // ถังเดือนใช้คีย์ YYYY-MM — ช่วง 12 เดือนคาบเกี่ยว 2 ปี ถ้านับแต่เลขเดือน ยอดปีที่แล้วจะทับปีนี้
-  const [trendRange, setTrendRange] = useState<MonthRange>(6);
-  // ใบเสนอราคารายเดือนทั้งเครือ (คนละ entity กับลูกค้าเป้าหมาย ไม่ผูกตัวกรองลูกค้าเป้าหมาย) — supabase: byMonth ที่ DB · local: netQuotes
-  const quoteTrendSum = useDashboardQuoteSummary(TREND_QUOTE_START, TREND_QUOTE_END, undefined);
-  // ⚠️ เดินตามแถบกรองด้านบนแล้ว (บอสสั่ง 25 ส.ค. 69 "เอาทุกกราฟใน hq")
-  //    ช่วงสั้นใช้ข้อมูลดิบฝั่งเครื่อง เพราะสรุปจากฐานข้อมูลมีแค่ระดับเดือน
-  const ละเอียดกราฟ: ความละเอียด = ละเอียดของหน้า === "hour" ? "day" : ละเอียดของหน้า;
+  // ── ลีดใหม่รายเดือน (แบบหน้า) — แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill) · รวมลีดใหม่ = การ์ดลีดใหม่ ──
+  //   ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้นและปิดแล้ว (= ภาพรวมยอดขาย)
   const trend = useMemo(() => {
-    if (ละเอียดกราฟ !== "month") {
-      const ช่อง = ช่องเวลาในช่วง(timeRange.start, timeRange.end, ละเอียดกราฟ);
-      const newM = new Map<string, number>(), wonM = new Map<string, number>(),
-        lostM = new Map<string, number>(), quoteM = new Map<string, number>();
-      const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
-      const ในช่วง = (d: Date) => d >= timeRange.start && d <= timeRange.end;
-      netQuotes.forEach(q => { const d = parseThaiDate(q.createdAt ?? ""); if (d && ในช่วง(d)) bump(quoteM, คีย์ช่อง(d, ละเอียดกราฟ)); });
-      kpiBase.forEach(l => {
-        const d = parseThaiDate(l.createdAt ?? ""); if (!d || !ในช่วง(d)) return;
-        const k = คีย์ช่อง(d, ละเอียดกราฟ);
-        bump(newM, k);
-        if (l.status === "PAID") bump(wonM, k);
-        if (l.status === "CANCELLED") bump(lostM, k);
-      });
-      const เท = (m: Map<string, number>) => ช่อง.map(b => m.get(b.key) ?? 0);
-      return { months: ช่อง.map(b => b.label), newM: เท(newM), wonM: เท(wonM), lostM: เท(lostM), quoteM: เท(quoteM) };
-    }
-    const buckets = lastNMonths(trendRange, APP_NOW);
-    const newM = new Map<string, number>(), wonM = new Map<string, number>(),
-      lostM = new Map<string, number>(), quoteM = new Map<string, number>();
-    const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
-    // ใบเสนอราคา (quoteM): supabase = byMonth ที่ DB (key YYYY-MM) · local/ยังไม่กลับ = netQuotes
-    if (quoteTrendSum) { for (const r of quoteTrendSum.byMonth) quoteM.set(monthKey(r.y, r.m), r.quotes); }
-    else netQuotes.forEach(q => { const d = parseThaiDate(q.createdAt ?? ""); if (d) bump(quoteM, monthKeyOf(d)); });
-    if (chartSummary) { // ลูกค้าเป้าหมาย: จาก byMonth ที่ DB (key YYYY-MM)
-      chartSummary.byMonth.forEach(r => { const k = `${r.y}-${String(r.m + 1).padStart(2, "0")}`; newM.set(k, r.created); wonM.set(k, r.won); lostM.set(k, r.lost); });
-    } else {
-      kpiBase.forEach(l => {
-        const d = parseThaiDate(l.createdAt ?? ""); if (!d) return;
-        const k = monthKeyOf(d);
-        bump(newM, k);
-        if (l.status === "PAID") bump(wonM, k);
-        if (l.status === "CANCELLED") bump(lostM, k);
-      });
-    }
-    const pick = (m: Map<string, number>) => buckets.map(b => m.get(b.key) ?? 0);
-    return { months: buckets.map(b => b.label), newM: pick(newM), wonM: pick(wonM), lostM: pick(lostM), quoteM: pick(quoteM) };
-  }, [chartSummary, kpiBase, quoteTrendSum, netQuotes, trendRange, ละเอียดกราฟ, timeRange.start, timeRange.end]);
+    const ช่อง = เดือนในช่วง(ช่วงการ์ด.start, ช่วงการ์ด.end);
+    if (!เจาะลึก) return { months: ช่อง.map(c => c.label), newM: ช่อง.map(() => 0), wonM: ช่อง.map(() => 0), lostM: ช่อง.map(() => 0), ready: false };
+    const codes = new Set(ในขอบเขต(เจาะลึก.dealers, ขอบ).map(r => r.code));
+    const ms = เจาะลึก.months.filter(m => codes.has(m.code));
+    const ของ = (y: number, m: number, k: string) => รวมคีย์(ms.filter(x => x.y === y && x.m === m), k);
+    return { months: ช่อง.map(c => c.label), newM: ช่อง.map(c => ของ(c.y, c.m, "leads")), wonM: ช่อง.map(c => ของ(c.y, c.m, "won")), lostM: ช่อง.map(c => ของ(c.y, c.m, "lost")), ready: true };
+  }, [เจาะลึก, ขอบ, ช่วงการ์ด.start, ช่วงการ์ด.end]);
 
   // ลูกค้าเป้าหมายตามแหล่งที่มา + ตามสถานะ (แท่งแนวนอน)
   const sources = useMemo(() => {
@@ -428,43 +344,9 @@ export default function HQLeadsPage() {
       {/* โอนลูกค้าเป้าหมายใต้รหัส HQ ให้ดีลเลอร์ (ด่าน 1 · ใบ 0197) — HQ ไม่ขายตรง · ไม่มีลูกค้าเป้าหมายของ HQ = ไม่แสดง */}
       <HqLeadTransferCard dealerName={c => allDealers.find(d => d.code === c)?.name ?? ""} />
 
-      {/* ── KPI ── หน้าตาเดียวกับ /hq/pipeline และแดชบอร์ดดีลเลอร์ (ค่าลอกมาตรง ๆ ห้ามเพี้ยน)
-          แถบสีนำสายตาด้านซ้ายถูกตัดออก — หน้าอื่นไม่มี การ์ด KPI ต้องหน้าตาเหมือนกันทุกหน้า
-          ต่างจากหน้าอื่นตรงที่ "กดเพื่อกรองสถานะได้" → คงปุ่ม + สถานะถูกเลือก (ขอบน้ำเงิน) ไว้ */}
-      <KpiRow label="สรุปลูกค้าเป้าหมายทั้งเครือ" range={ช่วงการ์ด}>
-        {kpiCards.map(k => (
-          <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={นับ(k.value)} rawValue={k.value} unit={k.unit} icon={k.Icon} color={k.color} bg={k.color + "17"}
-            danger={k.kpi === "idle" && (k.value ?? 0) > 0} actionLabel={k.on && k.kpi === "idle" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : k.kpi === "hqWaiting" ? "ไปที่การโอน" : "ดูรายการ"} onClick={k.onClick} />
-        ))}
-      </KpiRow>
-
-      {/* ── SMART FILTER ── อยู่ใต้ KPI เหมือนหน้าอื่น (/hq/quotations · /hq/pipeline)
-          เดิมแถบนี้อยู่ล่างสุดเหนือตาราง → กราฟทุกใบอยู่ "เหนือ" ตัวกรอง คนอ่านเลยไม่รู้ว่ามันคุมกราฟได้
-          ตอนนี้คุมทั้งหน้า: การ์ดตัวเลข · กราฟ · 10 อันดับแรก · การ์ดเตือน · ตาราง
-          (KPI ตามตัวกรองขอบเขตทุกตัว แต่ไม่ตาม "สถานะ"/"ต้องติดตามด่วน" เพราะการ์ด KPI คือปุ่มของสองอันนั้นเอง — ดู kpiBase)
-          ตัวเลือกในดรอปดาวน์สร้างจาก scoped ไม่ใช่ filtered — ไม่งั้นพอเลือกดีลเลอร์แล้วจะเปลี่ยนกลับไม่ได้ */}
-      <div className="card hq-sticky-filter" style={{ marginBottom: "1.25rem" }}>
-        <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 14, paddingBottom: 14 }}>
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…"
-            className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
-          {leadSel(dealerSel, setDealerSel, "ทุกดีลเลอร์", dealerOpts.map(o => ({ v: o, l: `${o} – ${DEALER_NAME.get(o) ?? o}` })))}
-          {leadSel(regionSel, setRegionSel, ป้ายทุกภูมิภาค, regionOpts.map(o => ({ v: o, l: ชื่อภาค(o) })))}
-          {leadSel(province, setProvince, "ทุกจังหวัด", provinces.map(p => ({ v: p, l: p })))}
-          {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
-          {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–5) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
-          <select aria-label={ช่อง.ขั้นตอน} value={status} onChange={e => setStatus(e.target.value)} className="form-input"
-            style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
-            <option value="OPEN">กำลังดำเนินการ</option>
-            <option value="6">{ชื่อขั้น(6)}</option>
-            <option value="7">{ชื่อขั้น(7)}</option>
-            <option value="ALL">ทั้งหมด</option>
-          </select>
-          {anyFilter && (
-            <button onClick={() => { setQuery(""); setDealerSel("ALL"); setRegionSel("ALL"); setProvince("ALL"); setSrcSel("ALL"); setStatus("OPEN"); }}
-              className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>ล้างตัวกรอง</button>
-          )}
-        </div>
-      </div>
+      {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
+      <หัวเจาะลึก ตั้งค่า={ตั้งค่าลีด} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วงการ์ด} ชื่อแถวการ์ด="สรุปลูกค้าเป้าหมายทั้งเครือ" />
+      <div style={{ height: 16 }} />
 
       {/* ── เตือน: ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบเกิน 48 ชม. (กฎ HQ) ──
           อยู่บนสุดใต้ KPI — เป็นเรื่องต้องรีบ ไม่ควรให้ต้องเลื่อนผ่านกราฟ 4 ใบกว่าจะเจอ
@@ -495,13 +377,14 @@ export default function HQLeadsPage() {
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
           <div className="card-header">
-            <div className="card-title">แนวโน้มลูกค้าเป้าหมาย{ละเอียดกราฟ === "month" ? "รายเดือน" : "รายวัน"}</div>
-            {ละเอียดกราฟ === "month" && <MonthRangeToggle value={trendRange} onChange={setTrendRange} label="ช่วงเวลากราฟแนวโน้มลูกค้าเป้าหมาย" />}
+            <div className="card-title">ลีดใหม่รายเดือน</div>
           </div>
           <div style={{ fontSize: "0.62rem", color: "var(--muted-foreground)", padding: "0 1.15rem 2px" }}>
-            {ละเอียดกราฟ === "month" ? monthRangeSubtitle(trendRange, APP_NOW) : `ตามช่วงที่เลือกด้านบน (${trend.months.length} วัน)`}
+            รวม = การ์ดลีดใหม่ · ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้น (ตามระดับที่เลือก)
           </div>
-          <div className="card-body" style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div className="card-body" data-lead-monthly data-ready={trend.ready ? "1" : ""} data-sum-new={trend.newM.reduce((a, b) => a + b, 0)}
+            data-sum-won={trend.wonM.reduce((a, b) => a + b, 0)} data-sum-lost={trend.lostM.reduce((a, b) => a + b, 0)}
+            style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             {/* vw = ความกว้าง viewBox ต้องใกล้ความกว้างการ์ดจริง (~480px) ไม่งั้น SVG ถูกย่อตามสัดส่วน
                 เดิมไม่ได้ส่ง vw → ใช้ค่าเริ่มต้น 1180 → อัตราส่วน 1180:250 ทำให้กราฟสูงจริงแค่ ~100px ลอยอยู่กลางการ์ด
                 (หน้าอื่นที่การ์ดแคบส่ง vw กันหมดแล้ว — หน้านี้ตกหล่นอยู่หน้าเดียว)
@@ -509,7 +392,6 @@ export default function HQLeadsPage() {
             <GroupedBarChart months={trend.months} vw={560} height={210} fmt={v => `${Math.round(v)}`}
               series={[
                 { name: "ลีดใหม่", color: "#003366", data: trend.newM },
-                { name: "ใบเสนอราคา", color: "#0891b2", data: trend.quoteM },
                 { name: ชื่อขั้น(6), color: "#10B981", data: trend.wonM },
                 { name: ชื่อขั้น(7), color: "#dc2626", data: trend.lostM },
               ]} />
@@ -549,11 +431,13 @@ export default function HQLeadsPage() {
                 segments={sources.map((s, i) => ({ label: s.label, value: s.count, color: RAMP[i % RAMP.length] }))}
                 centerLabel="ทั้งหมด"
                 centerValue={`${sources.reduce((s, x) => s + x.count, 0)}`}
-                size={150}
+                size={150} activeIndex={เน้นแหล่ง} onActiveChange={setเน้นแหล่ง}
               />
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }} onMouseLeave={() => setเน้นแหล่ง(null)}>
                 {sources.map((s, i) => (
-                  <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem" }}>
+                  <div key={s.label} tabIndex={0} aria-label={`${s.label} ${s.count} (${s.share}%)`}
+                    onMouseEnter={() => setเน้นแหล่ง(i)} onFocus={() => setเน้นแหล่ง(i)} onBlur={() => setเน้นแหล่ง(null)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", opacity: เน้นแหล่ง != null && เน้นแหล่ง !== i ? 0.45 : 1, transition: "opacity 0.15s ease" }}>
                     <span style={{ width: 9, height: 9, borderRadius: 3, background: RAMP[i % RAMP.length], flexShrink: 0 }} />
                     <span style={{ flex: 1, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
                     <span style={{ fontWeight: 800, color: "#1F2937", fontVariantNumeric: "tabular-nums" }}>{s.count}</span>
@@ -575,15 +459,17 @@ export default function HQLeadsPage() {
                 segments={lostReasons.map((r, i) => ({ label: r.reason, value: r.count, color: LOST_RAMP[i % LOST_RAMP.length] }))}
                 centerLabel="ปิดไม่สำเร็จ"
                 centerValue={`${lostReasons.reduce((s, r) => s + r.count, 0)}`}
-                size={150}
+                size={150} activeIndex={เน้นเหตุผล} onActiveChange={setเน้นเหตุผล}
               />
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }} onMouseLeave={() => setเน้นเหตุผล(null)}>
                 {(() => {
                   const รวม = lostReasons.reduce((s, r) => s + r.count, 0) || 1;
                   return lostReasons.map((r, i) => (
                     // ก้อน "อื่นๆ (ระบุเอง)" ชี้เมาส์แล้วเห็นข้อความจริงที่ดีลเลอร์พิมพ์ไว้ (ยุบเพื่อให้อ่านง่าย ไม่ใช่ซ่อน)
                     <div key={r.reason} title={r.details?.length ? r.details.join(" · ") : undefined}
-                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem" }}>
+                      tabIndex={0} aria-label={`${r.reason} ${r.count} (${Math.round(r.count / รวม * 100)}%)`}
+                      onMouseEnter={() => setเน้นเหตุผล(i)} onFocus={() => setเน้นเหตุผล(i)} onBlur={() => setเน้นเหตุผล(null)}
+                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", opacity: เน้นเหตุผล != null && เน้นเหตุผล !== i ? 0.45 : 1, transition: "opacity 0.15s ease" }}>
                       <span style={{ width: 9, height: 9, borderRadius: 3, background: LOST_RAMP[i % LOST_RAMP.length], flexShrink: 0 }} />
                       <span style={{ flex: 1, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.reason}</span>
                       <span style={{ fontWeight: 800, color: "#1F2937", fontVariantNumeric: "tabular-nums" }}>{r.count}</span>
@@ -605,6 +491,32 @@ export default function HQLeadsPage() {
           หัวตารางพื้นเทาและเส้นแบ่งแถวเป็นมุมเหลี่ยม จึงทาบทับพ้นส่วนโค้งออกมาทั้งสี่มุม = "ตารางทะลุขอบ"
           เดิมไม่เจอเพราะการ์ดตัดมุมบนทิ้ง (เชื่อมกับแถบตัวกรอง) — พอคืนมุมโค้งครบ อาการเลยโผล่
           การเลื่อนแนวนอนยังทำงานปกติ เพราะ .table-wrap มี overflow-x: auto เป็นตัวเลื่อนของมันเอง */}
+      {/* ── ตัวกรองรายชื่อ (คุมเฉพาะรายชื่อด้านล่าง · ระดับ ดีลเลอร์/ภาค/จังหวัด อยู่ที่ตัวเจาะลึกด้านบน) ── */}
+      <div className="card hq-sticky-filter" style={{ marginBottom: 12 }}>
+        <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 14, paddingBottom: 14 }}>
+          <div className="card-title" style={{ flex: "0 0 auto", marginRight: 6 }}>รายชื่อลูกค้าเป้าหมาย</div>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…" aria-label="ค้นหาลูกค้าเป้าหมาย"
+            className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
+          {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
+          {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–5) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
+          <select aria-label={ช่อง.ขั้นตอน} value={status} onChange={e => setStatus(e.target.value)} className="form-input"
+            style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
+            <option value="OPEN">กำลังดำเนินการ</option>
+            <option value="6">{ชื่อขั้น(6)}</option>
+            <option value="7">{ชื่อขั้น(7)}</option>
+            <option value="ALL">ทั้งหมด</option>
+          </select>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.74rem", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
+            <input type="checkbox" checked={overdueOnly} onChange={e => { setOverdueOnly(e.target.checked); if (e.target.checked) setStatus("OPEN"); }} />
+            ไม่เคลื่อนไหวเกิน 30 วัน
+          </label>
+          {anyFilter && (
+            <button onClick={() => { setQuery(""); setSrcSel("ALL"); setStatus("OPEN"); setOverdueOnly(false); }}
+              className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>ล้างตัวกรอง</button>
+          )}
+        </div>
+      </div>
+
       <div className="card" data-lead-table data-ready={leadsPage ? "1" : ""} data-total={leadTotal} style={{ marginBottom: 0, overflow: "hidden" }}>
         <div className="table-wrap">
           <table aria-label="ตารางลูกค้าเป้าหมายทั้งเครือ">

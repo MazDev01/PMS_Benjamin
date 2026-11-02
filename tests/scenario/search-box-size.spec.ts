@@ -33,18 +33,28 @@ test("[ui·hq] แถบตัวกรองใบเสนอราคาไ�
   await expect(page.getByText(/^พบ [\d,]+ ใบ$/)).toHaveCount(0);
 });
 
-test("[ui·hq] วงโฟกัสของเมนูข้างต้องเป็นเส้นเดียว ไม่ซ้อนสองชั้น", async ({ page }) => {
-  // บอสถาม 20 ส.ค. 69: "ทำไมเส้นมันซ้อนกัน 2 ชั้น" — เกิดจากกฎ focus ring สั่ง border-radius
-  // ทับมุมมนของเมนู ทำให้กล่องพื้นหลังกับวงโฟกัสมีมุมคนละองศาและเว้นช่องว่างกัน
-  await openAs(page, ADMIN, "hq", "/hq/customers");
+test("[ui·hq] ไม่มีกรอบโฟกัสทุกที่ (ปุ่ม · ช่องค้นหา · ช่องเลือก · เมนูข้าง)", async ({ page }) => {
+  // บอสสั่ง 2 พ.ย. 69 "เอากรอบแบบนี้ออกจากทุกที่ที่มันขึ้น" (รูป: ปุ่มการแจ้งเตือน · ช่องค้นหาใบเสนอราคา · ช่องเลือกทุกดีลเลอร์)
+  //   เดิมข้อนี้ตรวจ "ต้องยังมีวงโฟกัส" (20 ส.ค. 69) — กลับด้านตามคำสั่งใหม่: กดเลือกแล้วต้องไม่มีกรอบ/เงาน้ำเงิน และขอบไม่เปลี่ยนสี
+  await openAs(page, ADMIN, "hq", "/hq/quotations");
   await settle(page);
-  const เมนู = page.locator(".nav-item.active").first();
-  await เมนู.focus();
-  const st = await เมนู.evaluate(el => {
-    const c = getComputedStyle(el);
-    return { radius: c.borderRadius, offset: c.outlineOffset, width: c.outlineWidth };
-  });
-  expect(st.width, "ต้องยังมีวงโฟกัสให้คนใช้คีย์บอร์ดเห็น").not.toBe("0px");
-  expect(st.radius, "มุมมนตอนโฟกัสต้องเท่าเดิม ไม่ถูกกฎ focus บังคับเป็น 6px").not.toBe("6px");
-  expect(st.offset, "วงโฟกัสของเมนูข้างต้องวาดด้านใน ไม่เว้นช่องจนดูเป็นสองชั้น").toBe("-2px");
+  const ตัวที่ตรวจ = [
+    ["ปุ่มการแจ้งเตือน", page.getByRole("button", { name: /การแจ้งเตือน/ }).first()],
+    ["ช่องค้นหา", page.getByPlaceholder(/ค้นหาเลขที่/).first()],
+    ["ช่องเลือกดีลเลอร์", page.locator("select").filter({ has: page.locator("option", { hasText: "ทุกดีลเลอร์" }) }).first()],
+    ["เมนูข้าง", page.locator(".nav-item.active").first()],
+  ] as const;
+  for (const [ชื่อ, el] of ตัวที่ตรวจ) {
+    await expect(el, `${ชื่อ}: อยู่บนหน้า`).toBeVisible({ timeout: 20_000 });
+    // เทียบกับตอนยังไม่เลือก (เมนูที่อยู่มีเงาประจำตัวอยู่แล้ว — ไม่ใช่กรอบโฟกัส)
+    const ก่อน = await el.evaluate(e => ({ border: getComputedStyle(e).borderColor, shadow: getComputedStyle(e).boxShadow }));
+    // โฟกัสแบบคีย์บอร์ด (Tab) เพื่อให้กฎ :focus-visible ทำงานจริง แล้วโฟกัสตัวที่ตรวจ
+    await page.keyboard.press("Tab");
+    await el.focus();
+    const st = await el.evaluate(e => { const c = getComputedStyle(e); return { focused: document.activeElement === e, outline: c.outlineStyle === "none" ? "0px" : c.outlineWidth, shadow: c.boxShadow, border: c.borderColor }; });
+    expect(st.focused, `${ชื่อ}: ถูกเลือกอยู่จริง`).toBe(true);
+    expect(st.outline, `${ชื่อ}: ไม่มีกรอบโฟกัส`).toBe("0px");
+    expect(st.shadow, `${ชื่อ}: ไม่มีเงากรอบเพิ่มตอนเลือก`).toBe(ก่อน.shadow);
+    expect(st.border, `${ชื่อ}: ขอบไม่เปลี่ยนสีตอนเลือก`).toBe(ก่อน.border);
+  }
 });

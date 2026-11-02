@@ -6,6 +6,7 @@
 //   บันทึกด้วยปุ่มบันทึกกลางของหน้าตั้งค่า (settingsBus) — ฐานบันทึกทั้งชุดในคำสั่งเดียว + ลงบันทึกการใช้งานเอง
 //   วันที่อัปเดตราคา ฐานประทับเองเมื่อราคาเปลี่ยน (หน้าเว็บแก้ไม่ได้) · ดีลเลอร์เห็นเฉพาะที่เปิดใช้
 //   บนหัว: ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ (คำขอที่ HQ ส่งใบแล้ว) · ยังไม่มี = "—"
+//   ลบได้เฉพาะวัสดุที่ยังไม่เคยใช้ในคำขอ/ใบ HQ (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) — เคยใช้แล้ว = ไม่มีปุ่มลบ ให้ปิดใช้แทน · ฐานกันเอง
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Boxes, Plus, Search, Trash2, CheckCircle2, Target, Tags } from "lucide-react";
 import { materialTemplates as repo } from "@pms/shared/lib/data";
@@ -38,11 +39,14 @@ export function MaterialTemplatesPanel() {
   const [ค้น, setค้น] = useState("");
   const [หน้า, setหน้า] = useState(0);
   const [ความแม่น, setความแม่น] = useState<EstimateAccuracy | null>(null);
+  // ยังไม่รู้ว่าเคยใช้หรือไม่ (กำลังโหลด) = ซ่อนปุ่มลบไว้ก่อน — ไม่ให้กดลบวัสดุที่อาจเคยใช้แล้ว
+  const [เคยใช้, setเคยใช้] = useState<Set<number> | null>(null);
   const toast = useSettingsToast();
 
   const โหลด = useCallback(() => {
     repo.list().then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); }).catch(e => logRepoRead("materialTemplates.list", e));
     repo.accuracy().then(setความแม่น).catch(e => logRepoRead("materialTemplates.accuracy", e));
+    repo.used().then(ids => setเคยใช้(new Set(ids))).catch(e => logRepoRead("materialTemplates.used", e));
   }, []);
   useEffect(โหลด, [โหลด]);
 
@@ -120,7 +124,10 @@ export function MaterialTemplatesPanel() {
                 return <span data-testid="template-deviation" data-value={ค?.avgPct ?? ""} title={ค ? `จาก ${ค.n} คำขอ` : "ยังไม่มีคำขอที่ HQ ส่งใบแล้ว"}
                   style={{ fontWeight: 700, color: ค?.avgPct != null && Math.abs(ค.avgPct) > 5 ? "#dc2626" : "#374151" }}>{ป้ายเปอร์เซ็นต์คลาด(ค?.avgPct)}</span>;
               } },
-            { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: "5%", ค่า: (r, i) => <button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
+            { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: "5%", ค่า: (r, i) => r.id != null && (เคยใช้ === null || เคยใช้.has(r.id))
+                ? <span data-mt-used={เคยใช้ ? "1" : ""} title={เคยใช้ ? "เคยใช้ในคำขอราคา/ใบ HQ แล้ว — ลบไม่ได้ ใช้ “ปิดใช้” แทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
+                    style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{เคยใช้ ? "ใช้แล้ว" : "…"}</span>
+                : <button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
                 style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={15} /></button> },
           ]} />
         <TablePagination page={หน้าจริง} total={แสดง.length} onPage={setหน้า} />

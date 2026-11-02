@@ -310,6 +310,7 @@ const materialTemplates: MaterialTemplatesRepo = {
   list: () => apiFetch<MaterialTemplate[]>("/material-templates"),
   save: (rows, deleteIds) => post<MaterialTemplate[]>("/material-templates", { rows, deleteIds }),
   accuracy: () => apiFetch<EstimateAccuracy>("/material-templates?view=accuracy"),
+  used: () => apiFetch<number[]>("/material-templates?view=used"),
 };
 // พื้นที่ของดีลเลอร์ (ใบ 0195)
 const territories: TerritoriesRepo = {
@@ -415,6 +416,7 @@ const metrics: MetricsRepo = {
   kpiCards: (page, start, end, dealer, today, filters) => metric("kpiCards", { page, start: start ?? null, end: end ?? null, dealer: dealer ?? null, today: today ?? null, filters: filters ?? null }),
   hqPipelineDealers: (start, end, dealers, today) => metric("hqPipelineDealers", { start, end, dealers: dealers ?? null, today: today ?? null }),
   hqPipelineMonths: (start, end, dealers) => metric("hqPipelineMonths", { start, end, dealers: dealers ?? null }),
+  hqDrill: (page, start, end, today) => metric("hqDrill", { page, start, end, today: today ?? null }),
   hqDealerPanel: (code, activityLimit) => metric("hqDealerPanel", { code, activityLimit: activityLimit ?? 10 }),
 };
 // ── งานขาย ──

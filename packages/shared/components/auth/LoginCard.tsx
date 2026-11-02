@@ -120,10 +120,10 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
 
   const inputWrap =
     "flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-slate-500 " +
-    "transition focus-within:border-[#2563eb] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#2563eb]/15";
+    "transition focus-within:bg-white";
   const inputEl = "w-full bg-transparent text-[0.92rem] text-slate-800 outline-none placeholder:text-slate-400";
   // globals.css มี global `input:focus-visible { outline }` แบบ unlayered → utility ใน @layer แพ้เสมอ
-  // ใช้ inline style (ชนะทุก layer) กันกรอบซ้อนเล็กๆ รอบ input; ตัวบอกโฟกัสใช้ focus-within ring ของ wrapper
+  // ใช้ inline style (ชนะทุก layer) กันกรอบซ้อนเล็กๆ รอบ input · ไม่มีกรอบ/วงโฟกัสรอบช่อง (บอสสั่ง 2 พ.ย. 69) เหลือแค่พื้นเปลี่ยนเป็นสีขาว
   const noOutline: React.CSSProperties = { outline: "none" };
 
   return (
@@ -163,7 +163,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
                   onChange={(e) => setPassword(e.target.value.replace(/\s/g, ""))} placeholder="••••••••" required className={inputEl} style={noOutline} />
                 <button type="button" onClick={() => setShowPass((v) => !v)}
                   aria-label={showPass ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"} aria-pressed={showPass}
-                  className="shrink-0 rounded-md p-1 text-slate-400 transition hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/40">
+                  className="shrink-0 rounded-md p-1 text-slate-400 transition hover:text-slate-600 focus-visible:outline-none">
                   {showPass ? <IconEyeOff /> : <IconEye />}
                 </button>
               </div>
@@ -178,7 +178,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
 
             {/* Submit */}
             <button type="submit" disabled={busy}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0e2a5c] text-[0.95rem] font-bold text-white shadow-[0_10px_30px_-12px_rgba(14,42,92,0.55)] transition hover:bg-[#12326e] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2563eb]/30 disabled:cursor-not-allowed disabled:opacity-70">
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0e2a5c] text-[0.95rem] font-bold text-white shadow-[0_10px_30px_-12px_rgba(14,42,92,0.55)] transition hover:bg-[#12326e] active:scale-[0.99] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70">
               {loading
                 ? <span className="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white/30 border-t-white" aria-hidden="true" />
                 : "เข้าสู่ระบบ"}

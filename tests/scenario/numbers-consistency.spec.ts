@@ -51,7 +51,10 @@ test("ชื่อการ์ดอัตราปิดการขายต�
   await openAs(page, ADMIN, "hq", "/hq/quotations");
   await settle(page); await page.waitForTimeout(1500);
   const b = await page.locator("body").innerText();
-  expect(b).toContain("อัตราตอบรับ (จากใบที่ส่งแล้ว)");
+  // 2 พ.ย. 69 (แบบเจาะลึก DCFG.quo): ชื่อการ์ด "อัตราตอบรับ" — ตัวหารย้ายไปบอกที่คำอธิบายใต้การ์ด "ตอบรับ N ÷ ใบที่ส่ง M"
+  const อัตรา = page.locator('[data-kpi-row] [data-kpi="acceptRate"]');
+  await expect(อัตรา, "ชื่อการ์ดอัตราตอบรับ").toContainText("อัตราตอบรับ");
+  await expect(อัตรา, "บอกตัวหารใต้การ์ด (หรือไม่มีใบให้หาร)").toContainText(/ตอบรับ [\d,]+ ÷ ใบที่ส่ง [\d,]+|ยังไม่มีใบที่ส่งแล้ว/);
   expect(b, "หน้าใบเสนอราคาไม่ใช้ชื่อ \"อัตราปิดการขาย\" กับอัตราที่คิดจากใบ").not.toContain("อัตราปิดการขาย");
   console.log("ชื่อการ์ดสองหน้าแยกกันแล้ว ✓");
 });

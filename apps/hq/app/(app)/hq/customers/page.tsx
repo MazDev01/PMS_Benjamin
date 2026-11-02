@@ -20,130 +20,70 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 //
 // ── M9 Phase 6: filter + pagination + KPI/กราฟ ย้ายไปคำนวณที่ DB (migration 0080) ──
 // เดิมดึงลูกค้าทั้งเครือมาไว้ในเครื่องทั้งก้อนแล้วทำทุกอย่างฝั่ง client — ที่สเกลจริง (พันรายขึ้นไป) ไม่ไหว
-// supabase: useHQCustomersPage/useHQCustomersFilterOptions (RPC) · local/demo: useCustomerDbLocal (client, ไม่ยิง fetch)
+// supabase: useHQCustomersPage (RPC) · local/demo: useCustomerDbLocal (client, ไม่ยิง fetch)
 import { useState, useMemo, useEffect } from "react";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { Search } from "lucide-react";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { customerCode, fmtISOToThai } from "@pms/shared/lib/mock";
-import { useCustomerDbLocal, buildingOf, regionOf, REGIONS, type CustomerDbRow } from "@pms/shared/lib/customerDb";
-import { useHQCustomersPage, useHQCustomersFilterOptions, useCustomerBuildings } from "@pms/shared/lib/useNetworkData";
+import { useCustomerDbLocal, buildingOf, regionOf, type CustomerDbRow } from "@pms/shared/lib/customerDb";
+import { useHQCustomersPage, useCustomerBuildings } from "@pms/shared/lib/useNetworkData";
 import { metrics as metricsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
-import type { HQCustomerPageRow, HQCustomersKPI, HQCustomersCharts } from "@pms/shared/lib/data/ports";
-import { CustomerKPICards } from "@pms/shared/components/hq/customers/CustomerKPICards";
-import { CustomerAnalytics } from "@pms/shared/components/hq/customers/CustomerAnalytics";
+import type { HQCustomerPageRow } from "@pms/shared/lib/data/ports";
+import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, type ขอบเขต } from "../_drill/DrillEngine";
+import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { CustomerTable } from "@pms/shared/components/hq/customers/CustomerTable";
 import { CustomerDrawer } from "@pms/shared/components/hq/customers/CustomerDrawer";
-import { ชื่อภาค, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
+import { ชื่อภาค } from "@pms/shared/lib/provinces";
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const PAGE_SIZE = 10;
 
+// ── เจาะลึกแบบเดียวกับภาพรวมยอดขาย (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) — การ์ด/คอลัมน์จากตั้งค่ากลาง (แหล่งเดียวกับข้อทดสอบ) ──
+const ตั้งค่าลูกค้า = ตั้งค่าเจาะลึกทั้งหมด.customers;
+
 export default function HQCustomersPage() {
   // ตัวกรองเฉพาะหน้านี้ (ไม่จำข้ามหน้า) — ช่วงเวลาใช้ FilterBar ส่วนกลาง
   const [search, setSearch] = useState("");
-  const [dealerSel, setDealerSel] = useState("all");
-  const [regionSel, setRegionSel] = useState("all");
-  const [provinceSel, setProvinceSel] = useState("all");
+  const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
   const [page, setPage] = useState(0);
   const [viewId, setViewId] = useState<number | null>(null);
   // ช่วงวันที่มุมขวาบนแบบเดียวกับหน้า HQ อื่น (บอสสั่ง 30 ต.ค. 69 · แทนตัวกรอง "ทุกช่วงเวลาที่ซื้อ")
   //   ใช้กับการ์ด "ลูกค้าใหม่ในช่วงนี้" เท่านั้น — ตาราง/กราฟ/การ์ดลูกค้าทั้งหมด = ฐานข้อมูลทั้งชุด (ลูกค้าเก่าไม่หาย)
   const { timeRange } = useFilters();
   const ช่วง = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
+  const เจาะลึก = useเจาะลึก("customers", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
+  // รายชื่อด้านล่าง = ดีลเลอร์ในระดับที่เลือก (ทั้งเครือ = ไม่กรอง)
+  const ชุดดีลเลอร์ = useMemo(() => ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์ ? ในขอบเขต(เจาะลึก?.dealers ?? [], ขอบ).map(r => r.code) : undefined, [เจาะลึก, ขอบ]);
 
   // เปลี่ยนตัวกรอง (ไม่ใช่หน้า) → กลับไปหน้า 1 เสมอ
-  useEffect(() => { setPage(0); }, [search, dealerSel, regionSel, provinceSel]);
+  useEffect(() => { setPage(0); }, [search, ชุดดีลเลอร์]);
 
   // ── fallback ฝั่ง local/demo (ยังไม่กลับ) — ไม่ยิง fetch เลยในโหมด HQ+supabase (ดูคอมเมนต์ที่ hook) ──
   const localSource = useCustomerDbLocal();
 
-  // ── ตัวเลือกตัวกรอง — supabase: RPC ครั้งเดียว ไม่อิงตัวกรองปัจจุบัน · local: จาก localSource ทั้งก้อน ──
-  const remoteOptions = useHQCustomersFilterOptions();
-  const dealerOptions = useMemo<[string, string][]>(() => {
-    if (remoteOptions) return remoteOptions.dealers.map(d => [d.code, d.name]);
-    const m = new Map<string, string>();
-    localSource.forEach(c => m.set(c.dealerCode, c.dealerName));
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [remoteOptions, localSource]);
-
-  const allProvinces = useMemo<string[]>(() => {
-    if (remoteOptions) return remoteOptions.provinces;
-    return [...new Set(localSource.map(c => c.province).filter((p): p is string => !!p))];
-  }, [remoteOptions, localSource]);
-  const provinceOptions = useMemo(
-    () => allProvinces.filter(p => regionSel === "all" || regionOf(p) === regionSel).sort((a, b) => a.localeCompare(b, "th")),
-    [allProvinces, regionSel],
-  );
-
-  // region → provinces[] (resolve ให้ RPC ก่อนส่ง — ตารางไม่มีคอลัมน์ region เก็บตรง ๆ)
-  const resolvedProvinces = useMemo<string[] | undefined>(() => {
-    if (provinceSel !== "all") return [provinceSel];
-    if (regionSel !== "all") return allProvinces.filter(p => regionOf(p) === regionSel);
-    return undefined;
-  }, [provinceSel, regionSel, allProvinces]);
-
   const pageOpts = useMemo(() => ({
     search: search.trim() || undefined,
-    dealerCode: dealerSel === "all" ? undefined : dealerSel,
-    provinces: resolvedProvinces,
+    dealerCodes: ชุดดีลเลอร์,
     // ไม่ส่ง buildingType แล้ว — ตัวกรองประเภทอาคาร (แม่แบบ) ถอดออก: เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
     limit: PAGE_SIZE, offset: page * PAGE_SIZE,
-  }), [search, dealerSel, resolvedProvinces, page]);
+  }), [search, ชุดดีลเลอร์, page]);
 
   const pageResult = useHQCustomersPage(pageOpts);
-  // การ์ด KPI เดินตามตัวกรองของตาราง (บอสตัดสิน 27 ต.ค. 69) — ชุดเดียวกับที่ส่งให้ hq_customers_page
-  const ตัวกรองการ์ด = useMemo(() => {
-    const f = { dealerCodes: dealerSel === "all" ? undefined : [dealerSel], provinces: resolvedProvinces, search: search.trim() || undefined };
-    return Object.values(f).some(v => v != null) ? f : null;
-  }, [dealerSel, resolvedProvinces, search]);
-
   // ── fallback ฝั่ง client (local/demo) — ตรรกะกรอง/เรียงเดิมเป๊ะ ──
   const localFiltered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return localSource
       .filter(c => {
         if (q && !c.name.toLowerCase().includes(q) && !c.province.toLowerCase().includes(q)) return false;
-        if (dealerSel !== "all" && c.dealerCode !== dealerSel) return false;
-        if (regionSel !== "all" && c.region !== regionSel) return false;
-        if (provinceSel !== "all" && c.province !== provinceSel) return false;
+        if (ชุดดีลเลอร์ && !ชุดดีลเลอร์.includes(c.dealerCode)) return false;
         return true;
       })
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [localSource, search, dealerSel, regionSel, provinceSel]);
+  }, [localSource, search, ชุดดีลเลอร์]);
 
-  const ปีที่แล้ว = useMemo(() => { const d = new Date(APP_NOW); d.setFullYear(d.getFullYear() - 1); return d.getTime(); }, []);
-  // kpi/charts/rows — supabase: ตรงจาก RPC · local: derive จาก localFiltered ให้ shape เดียวกัน
-  const kpi: HQCustomersKPI = pageResult ? pageResult.kpi : {
-    total: localFiltered.length,
-    // "ยังซื้ออยู่" = ซื้อภายใน 12 เดือนล่าสุด — กติกาเดียวกับฐานข้อมูล (ใบ 0158)
-    active: localFiltered.filter(r => r.lastPurchaseAt && r.lastPurchaseAt.getTime() >= ปีที่แล้ว).length,
-    revenue: localFiltered.reduce((s, r) => s + r.totalRevenue, 0),
-    repeat: localFiltered.filter(r => r.isRepeat).length,
-  };
-  const charts: HQCustomersCharts = pageResult ? pageResult.charts : (() => {
-    const countBy = (keysOf: (r: CustomerDbRow) => string[]) => {
-      const m = new Map<string, number>();
-      localFiltered.forEach(r => keysOf(r).forEach(k => m.set(k, (m.get(k) ?? 0) + 1)));
-      return [...m.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-    };
-    const byDealerMap = new Map<string, { name: string; value: number }>();
-    const revByDealerMap = new Map<string, number>();
-    localFiltered.forEach(c => {
-      const bd = byDealerMap.get(c.dealerCode) ?? { name: c.dealerName, value: 0 }; bd.value++; byDealerMap.set(c.dealerCode, bd);
-      revByDealerMap.set(c.dealerCode, (revByDealerMap.get(c.dealerCode) ?? 0) + c.totalRevenue);
-    });
-    // byType/bySubtype (แม่แบบ) ไม่คำนวณแล้ว — ส่งว่างให้ครบ shape ของ HQCustomersCharts (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
-    return {
-      byType: [],
-      bySubtype: [],
-      byProvince: countBy(r => r.province ? [r.province] : []).slice(0, 10),
-      byDealer: [...byDealerMap.entries()].map(([code, x]) => ({ code, name: x.name, value: x.value })).sort((a, b) => b.value - a.value),
-      revenueByDealer: [...revByDealerMap.entries()].map(([code, revenue]) => ({ code, revenue })).sort((a, b) => b.revenue - a.revenue),
-    };
-  })();
   const tableRows: HQCustomerPageRow[] = pageResult
     ? pageResult.rows
     : localFiltered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map(c => ({
@@ -188,12 +128,6 @@ export default function HQCustomersPage() {
     };
   }, [viewId, localDetail, remoteRowMeta, remoteBuildQuotes]);
 
-  // ตัวกรอง 4 ช่อง + ช่องค้นหา ต้องอยู่บรรทัดเดียว (แถวนี้ตั้ง flex-wrap: nowrap)
-  //   maxWidth — select ที่ width:auto จะกว้างตามตัวเลือกที่ยาวที่สุด (เช่น "RYG – ดีลเลอร์ระยอง สตีล") ต้องคุมเพดาน
-  //   minWidth: 0 + flexShrink — ให้ยุบตัวลงได้เมื่อจอแคบ แทนที่จะตกบรรทัด (nowrap ทำให้ยุบก่อน ไม่ใช่ wrap)
-  // ขนาดตัวอักษร/ระยะขอบ ใช้สเกลเดียวกับแถบกรองหน้า /hq/pipeline
-  const selectStyle = { width: "auto", flex: "0 1 auto", minWidth: 0, maxWidth: 146, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" } as const;
-
   // Export — หนึ่งแถวต่อลูกค้า · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด (limit=total) · local: จาก localFiltered ทั้งชุดอยู่แล้ว
   const rowToCells = (c: HQCustomerPageRow) => [
     customerCode(c.dealerCode, c.id), c.name, c.dealerCode, c.dealerName, c.province, ชื่อภาค(regionOf(c.province)) || "—",
@@ -224,14 +158,13 @@ export default function HQCustomersPage() {
           />
       </TopbarActions>
 
-      <CustomerKPICards ช่วง={ช่วง} today={ช่วง.end} ตัวกรอง={ตัวกรองการ์ด} รุ่น={tableRows.length} onOpen={id => setViewId(id)}
-        onClear={() => { setSearch(""); setDealerSel("all"); setRegionSel("all"); setProvinceSel("all"); setPage(0); }} />
+      {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
+      <หัวเจาะลึก ตั้งค่า={ตั้งค่าลูกค้า} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปลูกค้าทั้งเครือ" />
 
-      {/* ตัวกรอง — ค้นหา + ดีลเลอร์/ภาค/จังหวัด (ช่วงเวลาที่ซื้อ → ช่วงวันที่มุมขวาบน 30 ต.ค. 69) */}
-      <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>
-        {/* ขนาดช่องค้นหาต้องเท่ากันทุกหน้า (บอสสั่ง 20 ส.ค. 69) — ใช้ .search-bar ตัวมาตรฐาน
-            เดิมหน้านี้สั่งให้ยืดกินที่ว่าง จึงกว้างกว่าหน้าอื่นเกือบสามเท่าเวลาจอกว้าง
-            ตัวกรองถูกดันไปชิดขวาด้วย spacer แทน — วางตำแหน่งเหมือนหน้าใบเสนอราคาทั้งเครือ */}
+      {/* รายชื่อลูกค้า — ดีลเลอร์ในระดับที่เลือก + คำค้น */}
+      <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, margin: "16px 0", alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>
+        <div className="card-title" style={{ flex: 1 }}>รายชื่อลูกค้า</div>
+        {/* ขนาดช่องค้นหาต้องเท่ากันทุกหน้า (บอสสั่ง 20 ส.ค. 69) — ใช้ .search-bar ตัวมาตรฐาน */}
         <div className="search-bar">
           <Search size={14} color="#9ca3af" strokeWidth={2} />
           <input
@@ -241,32 +174,7 @@ export default function HQCustomersPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-
-        <div style={{ flex: 1 }} />
-
-        <select aria-label="กรองตามดีลเลอร์" value={dealerSel} onChange={e => setDealerSel(e.target.value)} className="form-select" style={selectStyle}>
-          <option value="all">ทุกดีลเลอร์</option>
-          {dealerOptions.map(([code, name]) => <option key={code} value={code}>{code} – {name}</option>)}
-        </select>
-
-        <select
-          aria-label="กรองตามภูมิภาค"
-          value={regionSel}
-          onChange={e => { setRegionSel(e.target.value); setProvinceSel("all"); }}
-          className="form-select" style={selectStyle}
-        >
-          <option value="all">{ป้ายทุกภูมิภาค}</option>
-          {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
-        </select>
-
-        <select aria-label="กรองตามจังหวัด" value={provinceSel} onChange={e => setProvinceSel(e.target.value)} className="form-select" style={selectStyle}>
-          <option value="all">ทุกจังหวัด</option>
-          {provinceOptions.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-
       </div>
-
-      <CustomerAnalytics charts={charts} />
 
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ) */}
       <div className="card">

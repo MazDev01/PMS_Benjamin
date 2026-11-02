@@ -109,6 +109,8 @@ export interface MaterialTemplatesRepo {
   save(rows: import("../materialTemplates").MaterialTemplateDraft[], deleteIds: number[]): Promise<import("../materialTemplates").MaterialTemplate[]>;
   /** ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ (HQ เท่านั้น) */
   accuracy(): Promise<import("../materialTemplates").EstimateAccuracy>;
+  /** รหัสวัสดุที่เคยใช้ในคำขอราคา/ใบ HQ แล้ว (ใบ 0271) — ลบไม่ได้ (ฐานกัน) ปิดใช้แทน · HQ เท่านั้น */
+  used(): Promise<number[]>;
 }
 export interface QuoteRequestsRepo {
   /** คำขอทั้งหมดของลูกค้าเป้าหมายหนึ่งราย (ใหม่→เก่า) */
@@ -444,6 +446,8 @@ export interface HQCustomerPageRow {
 }
 export interface HQCustomersPageOpts {
   search?: string; dealerCode?: string; provinces?: string[]; buildingType?: string;
+  /** ชุดดีลเลอร์ของระดับที่เลือก (ภูมิภาค/จังหวัด · หน้าเจาะลึก ใบ 0271) — ไม่ส่ง = ทุกดีลเลอร์ */
+  dealerCodes?: string[];
   /** ตัวกรอง "ซื้อล่าสุด" (ISO date) — เทียบกับวันปิดการขายล่าสุดของลูกค้ารายนั้น
    *  ไม่ส่งมา = ไม่กรอง (ค่าเริ่มต้นของหน้า) · ส่งมา = ลูกค้าที่ยังไม่เคยมีใบปิดการขายจะไม่เข้าเกณฑ์ */
   boughtFrom?: string; boughtTo?: string;
@@ -503,6 +507,8 @@ export interface MetricsRepo {
   hqPipelineDealers(start: string, end: string, dealers: string[] | null, today?: string | null): Promise<import("../hqPipeline").ผลงานดีลเลอร์[]>;
   /** ผลงานรายดีลเลอร์รายเดือน (ใบ 0268 · hq_pipeline_months) — ผลรวมทุกเดือน = hqPipelineDealers ช่วงเดียวกัน */
   hqPipelineMonths(start: string, end: string, dealers: string[] | null): Promise<import("../hqPipeline").ผลงานรายเดือน[]>;
+  /** เจาะลึก 3 หน้า HQ (ใบ 0271 · hq_drill) — แถวรายดีลเลอร์ + รายเดือน ของหน้า leads/quotations/customers · ผลรวม = การ์ด · HQ เท่านั้น */
+  hqDrill(page: import("../hqDrill").หน้าเจาะลึก, start: string, end: string, today?: string | null): Promise<import("../hqDrill").ข้อมูลเจาะลึก>;
   /** แผงดีลเลอร์ด้านขวาของหน้า HQ ดีลเลอร์ (ใบ 0266 · hq_dealer_panel) — งานดูแลเป็นจำนวน ไม่มีเงิน · ไม่พบ/แถว HQ = null */
   hqDealerPanel(code: string, activityLimit?: number): Promise<import("../hqDealerPanel").แผงดีลเลอร์ | null>;
 }

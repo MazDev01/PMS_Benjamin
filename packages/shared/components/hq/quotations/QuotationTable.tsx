@@ -25,7 +25,7 @@ export function QuotationTable({ rows, onView, pagination }: {
   return (
     <div className="card" style={{ marginBottom: 0 }}>
       <div className="table-wrap" style={{ borderTop: "none" }}>
-        <table>
+        <table aria-label="รายการใบเสนอราคา">
           {/* ความกว้างคุมที่ colgroup เท่านั้น (ตาราง table-layout:fixed — ใส่ที่ th ไม่มีผล)
               minWidth ทุกช่องวัดจากเบราว์เซอร์จริง (td padding ข้างละ 16px) ด้วยกฎ 2 ข้อ:
                 1) หัวคอลัมน์ห้ามโดนตัดทุกขนาดจอ → minWidth ต้อง ≥ ความกว้างหัว

@@ -4,9 +4,13 @@
 --   การ์ด "ลีดใหม่ในช่วงนี้" = แหล่งที่มารวมกัน (lead_summary ตามช่วง) = ตาราง "ทั้งหมด" ตามช่วง
 --   การ์ด "ไม่เคลื่อนไหวเกิน 30 วัน" = ตาราง "ค้างติดตาม" ที่ 30 วัน
 --   ข้อมูลของข้อ: ป้ายค้น ZZ1SET (สาขา ZZLXA + ลีดของ HQ) · ตัวกรองคำค้นทำให้ทุกตัวนับเฉพาะของข้อ
+--   (2 พ.ย. 69 · ใบ 0271 เจาะลึก) การ์ด/กราฟคิดตาม "ระดับ" (ชุดสาขา) เท่านั้น — คำค้น/จังหวัดหน้างาน/ช่องทาง คุมแค่รายชื่อ
+--     → เทียบการ์ด = กราฟ = ตาราง ที่ระดับทั้งเครือและระดับดีลเลอร์ของข้อ (ไม่ใส่คำค้น) · ตัวกรองรายชื่อไม่เปลี่ยนการ์ด (กลับด้านจากเดิม)
+--     ทั้งรายการเห็นข้อมูลชุดเดียว (repeatable read) — ระดับทั้งเครือนับลีดของทุกสาขา ข้ออื่นที่รันพร้อมกันเขียนแทรกไม่ได้
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/hq_leads_exclude_hq.sql
 -- ทรานแซกชันเดียวแล้ว rollback · ผ่าน = "ALL PASS" · ตกบนโค้ดก่อนใบ 0265: กราฟ/ตารางนับลีด HQ รวม (เกิน 2)
 begin;
+set transaction isolation level repeatable read;
 create schema lxtest;
 create table lxtest.fails (what text);
 create function lxtest.eq(p_got numeric, p_want numeric, p_what text) returns void language plpgsql as $$
@@ -45,34 +49,35 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', hq, 'role', 'authenticated', 'user_role', 'SUPER_ADMIN', 'dealer_code', '', 'email', 'hq@test')::text, true);
   perform set_config('role', 'authenticated', true);
 
-  -- ทุกชุดตัวกรองที่หน้าเว็บส่ง (คำค้นของข้อ · + ดีลเลอร์ · + จังหวัด · + ช่องทาง)
-  for ตัวกรอง in select * from (values
-      ('คำค้น', null::text[], null::text, null::text),
-      ('คำค้น + ดีลเลอร์ ZZLXA', array['ZZLXA'], null, null),
-      ('คำค้น + จังหวัดตราด', null, 'ตราด', null),
-      ('คำค้น + ช่องทาง Facebook', null, null, 'Facebook')) v(ชื่อ, สาขา, จังหวัด, ช่องทาง)
+  -- ทุกระดับที่หน้าเว็บส่ง (ทั้งเครือ · ดีลเลอร์ของข้อ) — การ์ด กราฟ ตาราง ใช้ชุดสาขาเดียวกัน ไม่มีคำค้น
+  for ตัวกรอง in select * from (values ('ทั้งเครือ', null::text[]), ('ดีลเลอร์ ZZLXA', array['ZZLXA'])) v(ชื่อ, สาขา)
   loop
-    การ์ด := kpi_cards('hq.leads', ช่วงต้น, ช่วงท้าย, null, วันนี้,
-      jsonb_strip_nulls(jsonb_build_object('search', ป้าย, 'dealerCodes', to_jsonb(ตัวกรอง.สาขา), 'province', ตัวกรอง.จังหวัด, 'source', ตัวกรอง.ช่องทาง)));
-    ทั้งหมด := lead_summary(ตัวกรอง.สาขา, ตัวกรอง.จังหวัด, null, ตัวกรอง.ช่องทาง, ป้าย, null, null, null, null);
-    ตามช่วง := lead_summary(ตัวกรอง.สาขา, ตัวกรอง.จังหวัด, null, ตัวกรอง.ช่องทาง, ป้าย, null, ช่วงต้น, ช่วงท้าย, null);
+    การ์ด := kpi_cards('hq.leads', ช่วงต้น, ช่วงท้าย, null, วันนี้, case when ตัวกรอง.สาขา is null then null else jsonb_build_object('dealerCodes', to_jsonb(ตัวกรอง.สาขา)) end);
+    ทั้งหมด := lead_summary(ตัวกรอง.สาขา, null, null, null, null, null, null, null, null);
+    ตามช่วง := lead_summary(ตัวกรอง.สาขา, null, null, null, null, null, ช่วงต้น, ช่วงท้าย, null);
     ขั้น15 := (select coalesce(sum((x ->> 'count')::numeric), 0) from jsonb_array_elements(ทั้งหมด -> 'byStage') x where (x ->> 'stage')::int between 1 and 5);
     แหล่ง := (select coalesce(sum((x ->> 'count')::numeric), 0) from jsonb_array_elements(ตามช่วง -> 'bySource') x);
     perform lxtest.eq(ขั้น15, (การ์ด ->> 'open')::numeric, ตัวกรอง.ชื่อ || ': กราฟขั้น 1–5 (ไม่ผูกช่วง) = การ์ดลีดที่เปิดอยู่');
     perform lxtest.eq(แหล่ง, (การ์ด ->> 'new')::numeric, ตัวกรอง.ชื่อ || ': วงกลมแหล่งที่มา (ตามช่วง) = การ์ดลีดใหม่');
-    perform lxtest.eq((leads_page(10, 0, null, ตัวกรอง.สาขา, ตัวกรอง.จังหวัด, null, ตัวกรอง.ช่องทาง, ป้าย, null, null, false, วันนี้, 30, null, false, 0) ->> 'total')::numeric,
+    perform lxtest.eq((leads_page(10, 0, null, ตัวกรอง.สาขา, null, null, null, null, null, null, false, วันนี้, 30, null, false, 0) ->> 'total')::numeric,
       (การ์ด ->> 'open')::numeric, ตัวกรอง.ชื่อ || ': ตารางกำลังดำเนินการ (ไม่ผูกช่วง) = การ์ดลีดที่เปิดอยู่');
-    perform lxtest.eq((leads_page(10, 0, null, ตัวกรอง.สาขา, ตัวกรอง.จังหวัด, null, ตัวกรอง.ช่องทาง, ป้าย, ช่วงต้น, ช่วงท้าย, false, วันนี้, 30, null, false, null) ->> 'total')::numeric,
+    perform lxtest.eq((leads_page(10, 0, null, ตัวกรอง.สาขา, null, null, null, null, ช่วงต้น, ช่วงท้าย, false, วันนี้, 30, null, false, null) ->> 'total')::numeric,
       (การ์ด ->> 'new')::numeric, ตัวกรอง.ชื่อ || ': ตารางทั้งหมด (ตามช่วง) = การ์ดลีดใหม่');
-    perform lxtest.eq((leads_page(10, 0, null, ตัวกรอง.สาขา, ตัวกรอง.จังหวัด, null, ตัวกรอง.ช่องทาง, ป้าย, null, null, true, วันนี้, 30, null, false, 0) ->> 'total')::numeric,
+    perform lxtest.eq((leads_page(10, 0, null, ตัวกรอง.สาขา, null, null, null, null, null, null, true, วันนี้, 30, null, false, 0) ->> 'total')::numeric,
       (การ์ด ->> 'idle')::numeric, ตัวกรอง.ชื่อ || ': ตารางค้างติดตาม 30 วัน = การ์ดไม่เคลื่อนไหว');
   end loop;
 
-  -- ค่าที่รู้แน่นอน (คำค้นอย่างเดียว): เปิดอยู่ 4 (ไม่นับ HQ 2) · ใหม่ในช่วง 5 · ไม่เคลื่อนไหว 1 (ราย "ง เก่า" เงียบ 40 วัน)
-  การ์ด := kpi_cards('hq.leads', ช่วงต้น, ช่วงท้าย, null, วันนี้, jsonb_build_object('search', ป้าย));
+  -- ตัวกรองรายชื่อ (คำค้น · จังหวัดหน้างาน · ช่องทาง) ไม่เปลี่ยนการ์ด — กลับด้านจากเดิมที่การ์ดเดินตามตัวกรองเหล่านี้
+  การ์ด := kpi_cards('hq.leads', ช่วงต้น, ช่วงท้าย, null, วันนี้, '{"dealerCodes":["ZZLXA"]}');
+  perform lxtest.eq((kpi_cards('hq.leads', ช่วงต้น, ช่วงท้าย, null, วันนี้, jsonb_build_object('dealerCodes', jsonb_build_array('ZZLXA'), 'search', ป้าย, 'province', 'ตราด', 'source', 'Facebook')) = การ์ด)::int, 1,
+    'ใส่คำค้น/จังหวัด/ช่องทาง แล้วการ์ดเท่าเดิม (คุมแค่รายชื่อ)');
+
+  -- ค่าที่รู้แน่นอน (ระดับดีลเลอร์ของข้อ): เปิดอยู่ 4 · ใหม่ในช่วง 5 · ไม่เคลื่อนไหว 1 (ราย "ง เก่า" เงียบ 40 วัน) · ลีดของ HQ ป้ายเดียวกันไม่นับ
+  การ์ด := kpi_cards('hq.leads', ช่วงต้น, ช่วงท้าย, null, วันนี้, '{"dealerCodes":["ZZLXA"]}');
   perform lxtest.eq((การ์ด ->> 'open')::numeric, 4, 'การ์ดลีดที่เปิดอยู่ = 4 (ไม่นับลีด HQ)');
   perform lxtest.eq((การ์ด ->> 'new')::numeric, 5, 'การ์ดลีดใหม่ = 5 (ไม่นับลีด HQ · ไม่นับรายนอกช่วง)');
   perform lxtest.eq((การ์ด ->> 'idle')::numeric, 1, 'การ์ดไม่เคลื่อนไหว = 1 (ลีด HQ ที่เงียบไม่นับ)');
+  perform lxtest.eq((select count(*) from jsonb_array_elements(hq_drill('leads', ช่วงต้น, ช่วงท้าย, วันนี้) -> 'dealers') r where r ->> 'code' = 'HQ'), 0, 'แถวรายดีลเลอร์ไม่มี HQ');
   ตามช่วง := lead_summary(null, null, null, null, ป้าย, null, ช่วงต้น, ช่วงท้าย, null);
   perform lxtest.eq((select coalesce(sum((x ->> 'leads')::numeric), 0) from jsonb_array_elements(ตามช่วง -> 'byDealer') x where x ->> 'dealer_code' = 'HQ'), 0, 'lead_summary ไม่มีแถว HQ');
   perform lxtest.eq((select coalesce(sum((x ->> 'new')::numeric), 0) from jsonb_array_elements(ตามช่วง -> 'byMonth') x), 5, 'กราฟแนวโน้ม ลีดใหม่รวม = 5');

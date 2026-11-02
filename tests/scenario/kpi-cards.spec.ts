@@ -69,7 +69,7 @@ const HQ: { ที่: string; หน้า: string | null; การ์ด: [st
   { ที่: "/hq/proposals", หน้า: "hq.proposals", การ์ด: [["waiting", "waiting"], ["unpaid", "unpaid.count"], ["overdue", "overdue.count"], ["paid", "paid.amount"]] },
   { ที่: "/hq/dealers", หน้า: "hq.dealers", การ์ด: [["total", "total"], ["active", "active"], ["moving", "moving"], ["idle", "idle"]] },
   { ที่: "/hq/pipeline", หน้า: "hq.pipeline", การ์ด: [["sales", "sales.value"], ["winRate", "winRate.rate"], ["margin", "margin.pct"], ["onTarget", "onTarget.reached"]] },
-  { ที่: "/hq/leads", หน้า: "hq.leads", การ์ด: [["open", "open"], ["new", "new"], ["hqWaiting", "hqWaiting"], ["idle", "idle"]] },
+  { ที่: "/hq/leads", หน้า: "hq.leads", การ์ด: [["open", "open"], ["new", "new"], ["qr", "qr"], ["idle", "idle"]] },
   { ที่: "/hq/quotations", หน้า: "hq.quotations", การ์ด: [["sent", "sent"], ["awaiting", "awaiting"], ["won", "won.value"], ["acceptRate", "acceptRate"]] },
   { ที่: "/hq/customers", หน้า: "hq.customers", การ์ด: [["total", "total"], ["new", "new"], ["dealers", "dealers.with"]] },   // 3 ใบ (บอสสั่ง 30 ต.ค. 69 · เอายอดขายเดือนนี้ออก)
   { ที่: "/hq/audit", หน้า: "hq.audit", การ์ด: [["actionsToday", "actionsToday"], ["usersToday", "usersToday"], ["impersonations", "impersonations"], ["reversals", "reversals"]] },

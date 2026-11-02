@@ -25,10 +25,8 @@ import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { useRepoState } from "@pms/shared/lib/useRepoState";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
-import { useDealerPerformance, EMPTY_PERF } from "@pms/shared/lib/useDealerPerformance";
-import { regionDisplay } from "@pms/shared/lib/hqQuotations";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { fmtBahtM as fmtB } from "@pms/shared/lib/format";
+import { fmtBahtM as fmtB, formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import {
   DEFAULT_RECRUIT_SETTINGS, จำนวนรายการสูงสุด, ความยาวรายการสูงสุด,
   type HQRecruitSettings, type คีย์งานหาดีลเลอร์,
@@ -448,176 +446,92 @@ function RecruitTab() {
 }
 
 // ═══════════════════════ 5 · เป้าหมายยอดขาย ═══════════════════════════════════
-// เป้าทั้งปี = แหล่งเดียว (แดชบอร์ด HQ/ดีลเลอร์อ่านค่านี้) · ไตรมาส/เดือน = แบ่งจากเป้าทั้งปี
-// เป้ารายดีลเลอร์ = DealerRow.revenueTarget (ตั้งที่หน้า “ดีลเลอร์”) · ความคืบหน้า = ยอดจริงเทียบเป้า
-// ไม่มี "คาดการณ์" (Forecast) — ระบบไม่มีข้อมูลคาดการณ์ (ไม่มีวันคาดปิดการขาย / ค่าความน่าจะเป็น)
-function RollupTable({ title, hint, rows, countryTarget, ready = true }: {
-  title: string; hint?: string;
-  rows: { key: string; target: number; actual: number; dealers: number }[];
-  countryTarget?: number;
-  /** ตัวเลข "ทำได้จริง" มาถึงหรือยัง — ยังไม่มา ต้องขึ้น "—" ไม่ใช่ ฿0
-   *  (฿0 อ่านว่า "ยังขายไม่ได้เลย" ซึ่งคนละความหมายกับ "ยังโหลดไม่เสร็จ") */
-  ready?: boolean;
-}) {
-  const sorted = [...rows].sort((a, b) => b.target - a.target);
-  const [page, setPage] = useState(0);
-  const cur = Math.min(page, pageCountOf(sorted.length) - 1);
-  const shown = pageSlice(sorted, cur);
-  return (
-    <SectionCard icon={<Target size={19} />} title={title}>
-      <div className="table-wrap" style={{ marginTop: 6 }}>
-        <table>
-          <colgroup>
-            <col style={{ width: "34%" }} />
-            <col style={{ width: "12%", minWidth: 76 }} />
-            <col style={{ width: "18%", minWidth: 96 }} />
-            <col style={{ width: "18%", minWidth: 96 }} />
-            <col style={{ width: "18%", minWidth: 96 }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>พื้นที่</th>
-              <th className="num">ดีลเลอร์</th>
-              <th className="num">เป้า</th>
-              <th className="num">ทำได้จริง</th>
-              <th className="num">ความคืบหน้า</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!sorted.length ? (
-              <tr><td colSpan={5} className="empty-row">—</td></tr>
-            ) : shown.map(r => {
-              const pct = r.target > 0 ? Math.round(r.actual / r.target * 100) : 0;
-              return (
-                <tr key={r.key}>
-                  <td style={{ fontWeight: 600, color: STEEL }}>{r.key}</td>
-                  <td className="num" style={{ color: "#6b7280" }}>{r.dealers}</td>
-                  <td className="num" style={{ fontWeight: 700 }}>{fmtB(r.target)}</td>
-                  <td className="num" style={{ fontWeight: 700, color: NAVY }}>{ready ? fmtB(r.actual) : "—"}</td>
-                  <td className="num" style={{ fontWeight: 800, color: pct >= 100 ? "#059669" : pct >= 70 ? NAVY : "#b45309" }}>{ready ? `${pct}%` : "—"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <TablePagination page={cur} total={sorted.length} onPage={setPage} unit="รายการ" />
-      {countryTarget != null && (() => {
-        const sum = rows.reduce((s, r) => s + r.target, 0);
-        const diff = sum - countryTarget;
-        if (diff === 0) return null;
-        return (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, background: diff < 0 ? "#fff7ed" : "#f0f4fa", border: `1px solid ${diff < 0 ? "#fed7aa" : "#dbe4f0"}`, borderRadius: 10, padding: "10px 14px", marginTop: 12, fontSize: "0.78rem", color: diff < 0 ? "#b45309" : NAVY }}>
-            <AlertCircle size={14} style={{ flexShrink: 0 }} />
-            ผลรวมเป้าดีลเลอร์ {fmtB(sum)} {diff < 0 ? "ต่ำกว่า" : "สูงกว่า"}เป้าทั้งเครือ {fmtB(countryTarget)} อยู่ {fmtB(Math.abs(diff))}
-          </div>
-        );
-      })()}
-    </SectionCard>
-  );
-}
-
+// แบบหน้า (บอสสั่ง 2 พ.ย. 69 · ตั้งค่าให้ตรง flow ใหม่): เป้าทั้งเครือทั้งปี + ตารางเป้ารายดีลเลอร์ที่แก้ตัวเลขในตารางได้
+//   ผลงาน (ทำได้จริง / ความคืบหน้า) ดูที่ภาพรวมยอดขายที่เดียว — ตัดออกจากหน้านี้ · ไม่มีเป้าติดตามตรงเวลา (คอลัมน์ตรงเวลาเอาออก 30 ต.ค. 69)
+//   เป้าอัตราปิดการขายเฉลี่ย: เดิมเป็น "เกณฑ์สีบนหน้าดีลเลอร์" ซึ่งไม่มีตัวเลขยอดขายแล้ว และภาพรวมยอดขาย (ตามแบบ) ไม่มีเกณฑ์สี
+//     → ไม่มีที่ใช้ เอาออก (บอสสั่ง "ถ้าไม่มีที่ใช้ เอาออก") · ช่องในฐาน (hq_targets) คงไว้ ไม่แตะ
+// เป้าทั้งปี = แหล่งเดียว (แดชบอร์ด HQ/ดีลเลอร์อ่านค่านี้) · เป้ารายดีลเลอร์ = DealerRow.revenueTarget (บันทึกทางเดียวกับหน้าดีลเลอร์)
 function TargetsTab() {
   const { draft, set, dirty, save, reset } = useRepoDraft<HQTargets>(() => settingsRepo.getTargets(), (v) => settingsRepo.saveTargets(v), DEFAULT_HQ_TARGETS);
-  // แท็บนี้ "อ่านอย่างเดียว" — เป้ารายดีลเลอร์แก้ที่แท็บดีลเลอร์/หน้า /hq/dealers
-  // ห้ามใช้ usePersistentState: มันเขียนกลับตอน mount → กลายเป็นคนเขียน hq_dealers_v3 คนที่ 3
-  // ทั้งที่ไม่เคยแก้ดีลเลอร์เลย (กติกาเดียวกับที่ mock.ts:893 เตือนไว้)
+  const toast = useToast();
   const [dealers, setDealers] = useState<DealerRow[]>([]); // ของจริงมาจาก repo — ห้ามตั้งต้นด้วย seed
-  // "ทำได้จริง" = ยอดจากใบที่ปิดการขายได้ ไม่ใช่คอลัมน์ revenue_actual ที่ seed ไว้
-  const perf = useDealerPerformance();
-  const actualOf = (code: string) => (perf.get(code) ?? EMPTY_PERF).revenue;
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
-  useEffect(() => { dealersRepo.list().then(l => setDealers(l.filter(ไม่ใช่แถวHQ))).catch(e => logRepoRead("dealers.list", e)); }, []);
-  useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
+  const โหลดดีลเลอร์ = () => dealersRepo.list().then(l => setDealers(l.filter(ไม่ใช่แถวHQ).sort((a, b) => a.code.localeCompare(b.code)))).catch(e => logRepoRead("dealers.list", e));
+  useEffect(() => { void โหลดดีลเลอร์(); }, []);
+  // เป้ารายดีลเลอร์ที่แก้ในตาราง (ยังไม่บันทึก) — บันทึกพร้อมปุ่มบันทึกกลางของหน้าตั้งค่า
+  const [แก้เป้า, setแก้เป้า] = useState<Record<string, number>>({});
+  const เป้าของ = (d: DealerRow) => แก้เป้า[d.code] ?? d.revenueTarget ?? 0;
+  const แก้ค้าง = Object.keys(แก้เป้า).some(c => แก้เป้า[c] !== (dealers.find(d => d.code === c)?.revenueTarget ?? 0));
+  const บันทึกทั้งหมด = useCallback(async () => {
+    if (dirty) await save();
+    const เปลี่ยน = dealers.filter(d => แก้เป้า[d.code] != null && แก้เป้า[d.code] !== d.revenueTarget).map(d => ({ ...d, revenueTarget: แก้เป้า[d.code] }));
+    if (!เปลี่ยน.length) return;
+    try { await dealersRepo.save(เปลี่ยน); setแก้เป้า({}); await โหลดดีลเลอร์(); }
+    catch (e) { toast(`บันทึกเป้ารายดีลเลอร์ไม่สำเร็จ — ${friendlyError(e)}`); }
+  }, [dirty, save, dealers, แก้เป้า, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ยกเลิกทั้งหมด = useCallback(() => { reset(); setแก้เป้า({}); }, [reset]);
+  useReport(useMemo(() => ({ dirty: dirty || แก้ค้าง, save: บันทึกทั้งหมด, reset: ยกเลิกทั้งหมด }), [dirty, แก้ค้าง, บันทึกทั้งหมด, ยกเลิกทั้งหมด]));
 
-  // รวมเป้า/ผลจริงตามพื้นที่ — มาจากเป้ารายดีลเลอร์ที่ตั้งไว้จริง ไม่ได้กุตัวเลข
-  const byRegion = useMemo(() => {
-    const m = new Map<string, { target: number; actual: number; dealers: number }>();
-    dealers.forEach(d => {
-      const k = regionDisplay(d.region) || "ไม่ระบุ";
-      const r = m.get(k) ?? { target: 0, actual: 0, dealers: 0 };
-      r.target += d.revenueTarget; r.actual += actualOf(d.code); r.dealers += 1;
-      m.set(k, r);
-    });
-    return [...m.entries()].map(([key, v]) => ({ key, ...v }));
-    // ⚠️ ต้องคิดใหม่เมื่อผลงาน (perf) มาถึงด้วย — เดิมฟังแค่ dealers: ทะเบียนมาก่อนยอด → "ทำได้จริง" รายภูมิภาค
-    //    ค้าง ฿0 ทุกภาคตลอด ทั้งที่ทั้งเครือ/รายดีลเลอร์มียอด (ผลตรวจเทียบ FLOW รอบ 5 แถว 33 · goal-vs-allocated.spec.ts)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealers, perf]);
-  const byDealer = useMemo(() => dealers.map(d => ({ key: `${d.code} · ${d.name}`, target: d.revenueTarget, actual: actualOf(d.code), dealers: 1 })), [dealers, perf]);
-
-  const totalActual = dealers.reduce((s, d) => s + actualOf(d.code), 0);
-  const achievement = draft.annualTarget > 0 ? Math.round(totalActual / draft.annualTarget * 100) : 0;
-  // ── เป้าทั้งเครือ vs ผลรวมเป้าที่แจกให้ดีลเลอร์ (บอสสั่ง 24 ส.ค. 69 · ผลตรวจภายนอก HQ-01) ──
-  //   สองค่านี้ตั้งแยกกันโดยตั้งใจ: เป้าทั้งเครือคือเป้าที่ผู้บริหารตั้ง · เป้ารายดีลเลอร์คือที่แจกลงไป
-  //   แต่เดิมไม่มีที่ไหนบอกว่ามันต่างกัน → แดชบอร์ดคิด % จากเป้าทั้งเครือ หน้าดีลเลอร์คิดจากผลรวมที่แจก
-  //   ผู้บริหารเห็นสองเลขขัดกันโดยไม่รู้ว่าทำไม · ตรงนี้จึงต้องบอกส่วนต่างให้เห็นตอนตั้งค่า
-  const แจกไปแล้ว = dealers.reduce((s, d) => s + (d.revenueTarget || 0), 0);
-  const ส่วนต่าง = แจกไปแล้ว - draft.annualTarget;
+  const ผลรวมเป้าดีลเลอร์ = dealers.reduce((s, d) => s + เป้าของ(d), 0);
+  const [หน้า, setหน้า] = useState(0);
+  const หน้าจริง = Math.min(หน้า, pageCountOf(dealers.length) - 1);
 
   return (
     <>
-      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="ตั้งเป้าทั้งปี — แดชบอร์ดสำนักงานใหญ่และแดชบอร์ดดีลเลอร์ใช้ค่านี้">
-        <Row label="เป้ายอดขายทั้งปี" desc="เป้าที่ผู้บริหารตั้งให้ทั้งเครือ — ไม่ใช่ผลรวมเป้าที่แจกให้ดีลเลอร์">
-          {numInput(draft.annualTarget, n => set(p => ({ ...p, annualTarget: n })), "บาท", 1_000_000)}
-        </Row>
-        {/* เทียบกับที่แจกลงดีลเลอร์จริง — ตัวเลขทั้งสองมาจากคนละที่ ถ้าไม่บอกไว้จะอ่านขัดกันบนแดชบอร์ด */}
-        <div style={{ margin: "-4px 0 4px", padding: "10px 14px", borderRadius: 12,
-          background: ส่วนต่าง === 0 ? "#f0fdf4" : "#fffbeb",
-          border: `1px solid ${ส่วนต่าง === 0 ? "#bbf7d0" : "#fde68a"}`, fontSize: "0.74rem", color: "#5b5b5b" }}>
-          <b style={{ color: NAVY }}>ผลรวมเป้าที่แจกให้ดีลเลอร์ {dealers.length} สาขา: {fmtB(แจกไปแล้ว)}</b>
-          {ส่วนต่าง === 0
-            ? " — เท่ากับเป้าทั้งเครือพอดี"
-            : ส่วนต่าง > 0
-              ? ` — แจกเกินเป้าทั้งเครือ ${fmtB(ส่วนต่าง)} (หน้าดีลเลอร์จะคิด % จากยอดที่แจก จึงได้ % ต่ำกว่าบนแดชบอร์ด)`
-              : ` — แจกยังไม่ครบเป้าทั้งเครือ อีก ${fmtB(-ส่วนต่าง)} (หน้าดีลเลอร์จะคิด % จากยอดที่แจก จึงได้ % สูงกว่าบนแดชบอร์ด)`}
-        </div>
-        <Row label="เป้าอัตราปิดการขายเฉลี่ย" desc="เกณฑ์สีบนหน้าดีลเลอร์ — ต่ำกว่านี้ขึ้นสีเตือน">
-          {numInput(draft.winRateTarget, n => set(p => ({ ...p, winRateTarget: n })), "%")}
-        </Row>
-        <Row label="เป้าติดตามตรงเวลา" desc="เกณฑ์สีบนหน้าดีลเลอร์ — งานติดตามที่ทำทันเวลา">
-          {numInput(draft.onTimeTarget, n => set(p => ({ ...p, onTimeTarget: n })), "%")}
-        </Row>
-
-        {/* ไตรมาส/เดือน = แบ่งจากเป้าทั้งปี — ไม่ให้ตั้งแยก จะได้ไม่ขัดกับเป้าทั้งปี
-            ไม่มีการ์ด "เป้าทั้งปี" ซ้ำตรงนี้ — ค่านั้นคือช่องกรอกด้านบนอยู่แล้ว และมันไม่ใช่ "ส่วนที่แบ่งมา" */}
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#6b7280", marginBottom: 8 }}>แบ่งจากเป้าทั้งปี</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12 }}>
-            {[
-              { label: "เป้าต่อไตรมาส", value: fmtB(Math.round(draft.annualTarget / 4)) },
-              { label: "เป้าต่อเดือน", value: fmtB(Math.round(draft.annualTarget / 12)) },
-            ].map(s => (
-              <div key={s.label} style={{ background: "#f8fafc", border: "1px solid #eef1f5", borderRadius: 12, padding: "14px 16px" }}>
-                <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>{s.label}</div>
-                <div style={{ fontSize: "1.15rem", fontWeight: 800, color: NAVY, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
-              </div>
-            ))}
+      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="ใช้ในการ์ดยอดขายเทียบเป้า (ทั้งเครือ) · เป้าตามช่วง = เป้าทั้งปี × จำนวนวัน ÷ 365">
+        <Row label="เป้ายอดขายทั้งปี" desc="บาท ก่อน VAT — แดชบอร์ดสำนักงานใหญ่และแดชบอร์ดดีลเลอร์ใช้ค่านี้">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {numInput(draft.annualTarget, n => set(p => ({ ...p, annualTarget: n })), "บาท", 1_000_000)}
+            {/* ปุ่มลัด (บอสสั่ง 2 พ.ย. 69): ตั้งเป้าทั้งเครือ = ผลรวมเป้าดีลเลอร์ในตารางด้านล่าง (รวมตัวเลขที่เพิ่งแก้ยังไม่บันทึก) */}
+            <button type="button" className="btn btn-secondary btn-sm" data-act="target-from-dealers" disabled={!dealers.length || ผลรวมเป้าดีลเลอร์ === draft.annualTarget}
+              onClick={() => set(p => ({ ...p, annualTarget: ผลรวมเป้าดีลเลอร์ }))} title={`ตั้งเป็น ${fmtB(ผลรวมเป้าดีลเลอร์)}`}>
+              ตั้งเท่าผลรวมเป้าดีลเลอร์
+            </button>
           </div>
-        </div>
+        </Row>
       </SectionCard>
 
-      {/* ความคืบหน้า: เป้า / ทำได้จริง / % — ไม่มี "คาดการณ์" เพราะระบบไม่มีข้อมูล forecast */}
-      <SectionCard icon={<Target size={19} />} title="ความคืบหน้าทั้งเครือ" desc="ยอดสะสมทั้งปีของทุกดีลเลอร์ เทียบเป้าที่ตั้งไว้ด้านบน">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginTop: 6 }}>
-          {[
-            { label: "เป้าหมาย", value: fmtB(draft.annualTarget), color: STEEL },
-            { label: "ทำได้จริง", value: perf.ready ? fmtB(totalActual) : "—", color: NAVY },
-            { label: "ความคืบหน้า", value: `${achievement}%`, color: achievement >= 100 ? "#059669" : achievement >= 70 ? NAVY : "#b45309" },
-          ].map(s => (
-            <div key={s.label} style={{ background: "#f8fafc", border: "1px solid #eef1f5", borderRadius: 12, padding: "14px 16px" }}>
-              <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>{s.label}</div>
-              <div style={{ fontSize: "1.15rem", fontWeight: 800, color: s.color, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
-            </div>
-          ))}
+      <SectionCard icon={<Target size={19} />} title="เป้าหมายรายดีลเลอร์" desc="แก้ตัวเลขในตารางได้เลย แล้วกดบันทึกด้านบน · เป้ารายเดือน = เป้าทั้งปี ÷ 12">
+        <div className="table-wrap" style={{ marginTop: 6 }}>
+          <table aria-label="เป้าหมายรายดีลเลอร์">
+            <colgroup>
+              <col style={{ width: "40%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "22%", minWidth: 150 }} />
+              <col style={{ width: "18%", minWidth: 110 }} />
+            </colgroup>
+            <thead>
+              <tr><th>ดีลเลอร์</th><th>จังหวัด</th><th className="num">เป้าทั้งปี (บาท)</th><th className="num">เป้ารายเดือน</th></tr>
+            </thead>
+            <tbody>
+              {!dealers.length ? <tr><td colSpan={4} className="empty-row">—</td></tr>
+                : pageSlice(dealers, หน้าจริง).map(d => (
+                  <tr key={d.code} data-target-row={d.code}>
+                    <td style={{ fontWeight: 600, color: STEEL }} title={`${d.code} · ${d.name}`}>
+                      <strong style={{ color: NAVY, fontFamily: "monospace", marginRight: 6 }}>{d.code}</strong>{d.name}
+                    </td>
+                    <td style={{ color: "#6b7280" }}>{d.province || "—"}</td>
+                    <td className="num">
+                      <input type="text" inputMode="numeric" aria-label={`เป้า ${d.code}`} className="form-input"
+                        value={เป้าของ(d) ? formatMoneyInput(String(เป้าของ(d))) : ""} placeholder="0"
+                        onChange={e => setแก้เป้า(m => ({ ...m, [d.code]: parseMoneyInput(e.target.value) }))}
+                        style={{ textAlign: "right", fontWeight: 700, width: "100%", boxSizing: "border-box" }} />
+                    </td>
+                    <td className="num" style={{ color: "#6b7280" }}>{fmtB(Math.round(เป้าของ(d) / 12))}</td>
+                  </tr>
+                ))}
+            </tbody>
+            <tfoot>
+              <tr data-target-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
+                <td colSpan={2}>รวมเป้าดีลเลอร์ {dealers.length.toLocaleString()} ราย</td>
+                <td className="num" data-sum="annual" data-value={ผลรวมเป้าดีลเลอร์}>{fmtB(ผลรวมเป้าดีลเลอร์)}</td>
+                <td className="num">{fmtB(Math.round(ผลรวมเป้าดีลเลอร์ / 12))}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-        <div style={{ height: 10, background: "#eef1f5", borderRadius: 999, overflow: "hidden", marginTop: 14 }}>
-          <div className="bar-grow" style={{ height: "100%", width: `${Math.min(100, achievement)}%`, background: achievement >= 100 ? "#059669" : NAVY, borderRadius: 999 }} />
-        </div>
+        <TablePagination page={หน้าจริง} total={dealers.length} onPage={setหน้า} unit="ดีลเลอร์" />
       </SectionCard>
-
-      <RollupTable title="เป้าหมายรายภูมิภาค" rows={byRegion} countryTarget={draft.annualTarget} ready={perf.ready} />
-      <RollupTable title="เป้าหมายรายดีลเลอร์" rows={byDealer} ready={perf.ready} />
     </>
   );
 }

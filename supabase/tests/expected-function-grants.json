@@ -1,5 +1,5 @@
 {
- "migration": "0268",
+ "migration": "0271",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -814,7 +814,7 @@
    "definer": true
   },
   {
-   "f": "hq_customers_page(p_search text, p_dealer_code text, p_provinces text[], p_building_type text, p_bought_from date, p_bought_to date, p_limit integer, p_offset integer)",
+   "f": "hq_customers_page(p_search text, p_dealer_code text, p_provinces text[], p_building_type text, p_bought_from date, p_bought_to date, p_limit integer, p_offset integer, p_dealer_codes text[])",
    "anon": false,
    "authenticated": true,
    "service_role": false,
@@ -829,6 +829,13 @@
   },
   {
    "f": "hq_dealer_panel(p_code text, p_activity_limit integer)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_drill(p_page text, p_start date, p_end date, p_today date)",
    "anon": false,
    "authenticated": true,
    "service_role": false,
@@ -1206,6 +1213,13 @@
    "definer": true
   },
   {
+   "f": "material_templates_block_used_delete()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "material_templates_save(p_rows jsonb, p_delete_ids bigint[])",
    "anon": false,
    "authenticated": true,
@@ -1218,6 +1232,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "material_templates_used()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "move_dealer_data_atomic(p_from text, p_to text)",
