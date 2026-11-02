@@ -714,8 +714,8 @@ const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNo
   // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
   { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
   { key: "targets", label: "เป้าหมายยอดขาย", icon: <Target size={15} />, render: () => <TargetsTab /> },
-  // แม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) — วัสดุ/ส่วนประกอบ + ราคาต่อหน่วย ดีลเลอร์เลือกตอนขอราคา (ไม่ใช่แม่แบบอาคารแบบเดิม)
-  { key: "materials", label: "แม่แบบวัสดุ", icon: <Boxes size={15} />, render: () => <MaterialTemplatesPanel /> },
+  // รายการวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) — วัสดุ/ส่วนประกอบ + ราคาต่อหน่วย ดีลเลอร์เลือกตอนขอราคา (ไม่ใช่แม่แบบอาคารแบบเดิม)
+  { key: "materials", label: "รายการวัสดุ", icon: <Boxes size={15} />, render: () => <MaterialTemplatesPanel /> },
   { key: "notifications", label: "การแจ้งเตือน", icon: <Bell size={15} />, render: () => <NotificationsTab /> },
 ];
 

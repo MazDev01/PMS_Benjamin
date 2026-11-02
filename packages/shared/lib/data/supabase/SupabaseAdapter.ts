@@ -554,7 +554,7 @@ export const SupabaseAdapter: DataAdapter = {
         .eq("id", id));
     },
   },
-  // แม่แบบวัสดุ (ใบ 0244) — กฎรายแถวของฐานกรอง (ดีลเลอร์เห็นเฉพาะที่เปิดใช้) · บันทึกผ่านคำสั่งของฐานเท่านั้น
+  // รายการวัสดุ (ใบ 0244) — กฎรายแถวของฐานกรอง (ดีลเลอร์เห็นเฉพาะที่เปิดใช้) · บันทึกผ่านคำสั่งของฐานเท่านั้น
   materialTemplates: {
     list: async () => {
       const { data, error } = await sb().from("material_templates").select("*").order("category").order("name").order("id").limit(2000);

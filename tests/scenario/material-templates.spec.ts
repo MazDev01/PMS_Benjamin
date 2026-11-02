@@ -6,8 +6,8 @@ import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI, watchErrors, assertNoErrors } fr
 import { settle, เปิดใบHQในกล่องงาน } from "./helpers";
 import { ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
-// ── แม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) ─────────────────────────────────────────────────────────────────────
-//   HQ ตั้งในตั้งค่า › แม่แบบวัสดุ (หมวด · ชื่อ · หน่วย · ราคาต่อหน่วย · เปิดใช้ · วันที่อัปเดตราคา)
+// ── รายการวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) ─────────────────────────────────────────────────────────────────────
+//   HQ ตั้งในตั้งค่า › รายการวัสดุ (หมวด · ชื่อ · หน่วย · ราคาต่อหน่วย · เปิดใช้ · วันที่อัปเดตราคา)
 //   ดีลเลอร์เลือกวัสดุ + จำนวนตอนขอราคา (D3) → ราคาประเมินรวม ป้าย "ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา" · พิมพ์ไม่ออก
 //   ใบ HQ (H8) เปิดมามีรายการจากคำขอ · เพิ่มจากแม่แบบได้ · ส่งแล้วเก็บ % คลาด → หน้าแม่แบบแสดงค่าเฉลี่ย
 //   ข้อที่ต้องตกบนโค้ดก่อนแก้: ทุกข้อ (ไม่มีตาราง/แท็บ/ช่องเลือกวัสดุ) · กันที่ฐาน: supabase/tests/material_templates.sql
@@ -49,12 +49,12 @@ test.afterAll(async () => {
   await svc.from("material_templates").delete().like("name", `ZZTEST-%-${แท็ก}`);
 });
 
-test("[flow·hq] ตั้งค่า › แม่แบบวัสดุ: เพิ่ม 2 รายการ บันทึกด้วยปุ่มกลาง · วันที่อัปเดตราคาเป็น พ.ศ.", async ({ page }) => {
+test("[flow·hq] ตั้งค่า › รายการวัสดุ: เพิ่ม 2 รายการ บันทึกด้วยปุ่มกลาง · วันที่อัปเดตราคาเป็น พ.ศ.", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
+  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
   const แผง = page.locator("[data-panel='material-templates']");
   await expect(แผง.getByTestId("estimate-accuracy"), "การ์ด % คลาดเฉลี่ยอยู่บนหัว").toBeVisible({ timeout: 20_000 });
   for (const [ชื่อ, หน่วย, ราคา] of [[ผนัง, "ตร.ม.", 285.5], [ประตู, "ชุด", 42000]] as const) {
@@ -72,7 +72,7 @@ test("[flow·hq] ตั้งค่า › แม่แบบวัสดุ: �
   const แถวผนัง = แผง.locator("tbody tr").filter({ has: page.locator(`input[value="${ผนัง}"]`) });
   await expect(แถวผนัง.getByTestId("price-updated"), "วันที่อัปเดตราคา = วันนี้ (พ.ศ.)").toHaveText(วันนี้พศ(), { timeout: 15_000 });
   for (const r of (await svc.from("material_templates").select("id, name").like("name", `ZZTEST-%-${แท็ก}`)).data ?? []) id[r.name === ผนัง ? "ผนัง" : "ประตู"] = r.id;
-  assertNoErrors(errs, "ตั้งค่าแม่แบบวัสดุ");
+  assertNoErrors(errs, "ตั้งค่ารายการวัสดุ");
 });
 
 test("[db] ดีลเลอร์แก้ราคาแม่แบบไม่ได้ (ตรง ๆ และผ่านคำสั่งบันทึก)", async () => {
@@ -135,9 +135,9 @@ test("[flow·hq] ใบ HQ เปิดมามีรายการจาก�
   await expect(ใบ.locator("[data-info='estimate']"), "หัวใบแสดงราคาประเมินของดีลเลอร์").toContainText(บาท(318110));
 
   // เพิ่มจากแม่แบบ (ค้นได้) → ต่อท้ายตาราง
-  await ใบ.getByRole("button", { name: "เลือกจากแม่แบบวัสดุ" }).click();
-  const ตัวเลือก = page.getByRole("dialog", { name: "เลือกจากแม่แบบวัสดุ" });
-  await ตัวเลือก.getByLabel("ค้นแม่แบบวัสดุ").fill(ประตู);
+  await ใบ.getByRole("button", { name: "เลือกจากรายการวัสดุ" }).click();
+  const ตัวเลือก = page.getByRole("dialog", { name: "เลือกจากรายการวัสดุ" });
+  await ตัวเลือก.getByLabel("ค้นรายการวัสดุ").fill(ประตู);
   await ตัวเลือก.getByRole("button", { name: new RegExp(`เพิ่ม ${ประตู}`) }).click();
   await ตัวเลือก.getByRole("button", { name: "เสร็จ" }).click();
   await expect(ใบ.getByLabel("ชื่อรายการ 3"), "แถว 3 = วัสดุที่เลือกจากแม่แบบ").toHaveValue(ประตู);
@@ -154,7 +154,7 @@ test("[flow·hq] ใบ HQ เปิดมามีรายการจาก�
 
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
+  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
   // การ์ด = ค่าเฉลี่ยทั้งระบบที่ฐานคิด (material_estimate_accuracy) — เทียบกับฐาน ณ จังหวะเดียวกัน ไม่ตรง = โหลดหน้าใหม่แล้วเทียบอีกรอบ
   //   เดิมดึงทุกแถวมาเฉลี่ยเองในข้อทดสอบ: ปัดเศษด้วยเลขทศนิยมของ JS (เช่น 10.15 → 10.1) ≠ round() ของฐาน (10.2) เมื่อมีหลายแถว
   //   + อ่านฐานครั้งเดียวหลังหน้าโหลด — ข้ออื่น/ตัวเก็บกวาดเพิ่มหรือลบคำขอที่มี % คลาดระหว่างนั้น (ต้นเหตุไม่นิ่ง 28 ต.ค. 69)
@@ -168,7 +168,7 @@ test("[flow·hq] ใบ HQ เปิดมามีรายการจาก�
     const จอ = (await page.getByTestId("estimate-accuracy").innerText()).trim();
     if (a.n >= 1 && จอ === ควร) return "ตรง";
     await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
-    await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
+    await page.getByRole("button", { name: "รายการวัสดุ" }).click();
     await expect(page.getByTestId("estimate-accuracy")).not.toHaveText("—", { timeout: 20_000 });
     return `จอ ${จอ} · ฐาน ${ควร} (n ${a.n})`;
   }, { timeout: 20_000, message: "การ์ดแสดงค่าเฉลี่ยจากฐาน (คลาดเฉลี่ยไม่สนทิศ · material_estimate_accuracy)" }).toBe("ตรง");
@@ -178,7 +178,7 @@ test("[flow·hq] ใบ HQ เปิดมามีรายการจาก�
 // ── ลบได้เฉพาะวัสดุที่ยังไม่เคยใช้ในคำขอ/ใบ HQ (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) ──
 //   ผนังของข้อนี้อยู่ในรายการประเมินของคำขอ (ข้อ D3 ด้านบน) → ไม่มีปุ่มลบ ขึ้น "ใช้แล้ว" (ปิดใช้แทน) · ฐานปฏิเสธการลบ
 //   ตกบนโค้ดเดิม: ทุกแถวมีปุ่มลบ · ฐานลบวัสดุที่เคยใช้ได้
-test("[flow·hq] แม่แบบวัสดุ: วัสดุที่เคยใช้ไม่มีปุ่มลบ (ปิดใช้แทน) · ฐานปฏิเสธการลบ", async ({ page }) => {
+test("[flow·hq] รายการวัสดุ: วัสดุที่เคยใช้ไม่มีปุ่มลบ (ปิดใช้แทน) · ฐานปฏิเสธการลบ", async ({ page }) => {
   const errs = watchErrors(page);
   const hq = await db(ADMIN);
   expect(((await hq.rpc("material_templates_used")).data as number[]).map(Number), "ฐาน: ผนังของข้อเคยใช้แล้ว").toContain(id.ผนัง);
@@ -187,9 +187,9 @@ test("[flow·hq] แม่แบบวัสดุ: วัสดุที่เ�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
+  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
   const แผง = page.locator("[data-panel='material-templates']");
-  await แผง.getByLabel("ค้นแม่แบบวัสดุ").fill(ผนัง);
+  await แผง.getByLabel("ค้นรายการวัสดุ").fill(ผนัง);
   const แถวผนัง = แผง.locator(`tbody tr[data-mt-row="${id.ผนัง}"]`);
   await expect(แถวผนัง.locator("[data-mt-used='1']"), "วัสดุที่เคยใช้ขึ้น \"ใช้แล้ว\"").toHaveText("ใช้แล้ว", { timeout: 20_000 });
   await expect(แถวผนัง.getByRole("button", { name: /^ลบ / }), "ไม่มีปุ่มลบ").toHaveCount(0);
@@ -198,5 +198,5 @@ test("[flow·hq] แม่แบบวัสดุ: วัสดุที่เ�
   await แผง.getByRole("button", { name: "เพิ่มวัสดุ" }).click();
   await expect(แผง.locator("tbody tr[data-mt-row='new']").first().getByRole("button", { name: /^ลบ / }), "แถวที่ยังไม่เคยใช้มีปุ่มลบ").toBeVisible();
   await page.getByRole("button", { name: "รีเซ็ต" }).click();
-  assertNoErrors(errs, "แม่แบบวัสดุ ลบได้เฉพาะที่ยังไม่เคยใช้");
+  assertNoErrors(errs, "รายการวัสดุ ลบได้เฉพาะที่ยังไม่เคยใช้");
 });

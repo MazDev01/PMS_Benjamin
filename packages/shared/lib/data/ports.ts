@@ -102,7 +102,7 @@ export interface TerritoriesRepo {
 export type QuoteRequestInput = { leadNumId: number; product: string; subtype?: string; area?: number | null; spec?: string; province?: string;
   /** วัสดุจากแม่แบบที่ดีลเลอร์เลือก (ไม่บังคับ · ใบ 0244) — ส่งแค่ วัสดุ + จำนวน ฐานคิดราคาและเก็บสำเนาเอง */
   estimate?: { templateId: number; qty: number }[] };
-// ── แม่แบบวัสดุ (ใบ 0244) — HQ เห็นทุกแถว ดีลเลอร์เห็นเฉพาะที่เปิดใช้ (ฐานกรอง) · บันทึกได้เฉพาะผู้ดูแล/ผู้บริหาร HQ ──
+// ── รายการวัสดุ (ใบ 0244) — HQ เห็นทุกแถว ดีลเลอร์เห็นเฉพาะที่เปิดใช้ (ฐานกรอง) · บันทึกได้เฉพาะผู้ดูแล/ผู้บริหาร HQ ──
 export interface MaterialTemplatesRepo {
   list(): Promise<import("../materialTemplates").MaterialTemplate[]>;
   /** บันทึกทั้งชุดในคำสั่งเดียว (ไม่มี id = เพิ่ม · deleteIds = ลบ) — คืนรายการทั้งหมดหลังบันทึก */

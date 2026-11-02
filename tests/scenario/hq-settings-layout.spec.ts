@@ -5,7 +5,7 @@ import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { settle } from "./helpers";
 
-// ── หน้าตั้งค่า HQ: ทุกแท็บใช้เลย์เอาต์เดียวกัน (บอสสั่ง 27 ต.ค. 69 · ตั้งค่า › แม่แบบวัสดุ บนเว็บจริงเพี้ยน) ─────────────
+// ── หน้าตั้งค่า HQ: ทุกแท็บใช้เลย์เอาต์เดียวกัน (บอสสั่ง 27 ต.ค. 69 · ตั้งค่า › รายการวัสดุ บนเว็บจริงเพี้ยน) ─────────────
 //   วนทุกแท็บ: 1) เนื้อหาห่างขอบกรอบไม่น้อยกว่าแท็บอื่น  2) แท็บที่เลือกหน้าตาเดียวกันทุกแท็บ + วงโฟกัสไม่ถูกแถบแท็บตัดเหลือเส้นซ้ายขวา
 //             3) แถบแท็บไม่มีแถบเลื่อนแนวตั้ง  4) หัวคอลัมน์จัดแนวเดียวกับข้อมูลในคอลัมน์ · แถวว่างอยู่กลางตาราง
 //   ต้องตกบนโค้ดก่อนแก้ (aa72c1c): คำอธิบาย/ปุ่ม/การ์ดชิดขอบกรอบ (ห่าง 0) · หัวคอลัมน์กึ่งกลาง ข้อมูลชิดซ้าย · แถวว่างชิดซ้าย
@@ -121,38 +121,38 @@ test("[ui·hq] ตั้งค่า: ทุกแท็บเลย์เอา
   const แท็บ = page.locator(".tab-bar .tab-item");
   await expect(แท็บ.first()).toBeVisible({ timeout: 20_000 });
   const ชื่อแท็บ = (await แท็บ.allInnerTexts()).map(s => s.trim());
-  expect(ชื่อแท็บ, "มีแท็บแม่แบบวัสดุ").toContain("แม่แบบวัสดุ");
+  expect(ชื่อแท็บ, "มีแท็บรายการวัสดุ").toContain("รายการวัสดุ");
 
   const ผล: Record<string, ผลแท็บ> = {};
   for (const ชื่อ of ชื่อแท็บ) {
     await page.locator(".tab-bar .tab-item", { hasText: ชื่อ }).click();
     await settle(page);
     await page.waitForTimeout(400);
-    if (ชื่อ === "แม่แบบวัสดุ") {
+    if (ชื่อ === "รายการวัสดุ") {
       // ตารางมีแถวข้อมูล (วัสดุทดสอบ) ก่อนวัดหัวคอลัมน์
-      await expect(page.locator("table[aria-label='แม่แบบวัสดุ'] tbody tr").filter({ has: page.locator(`input[value="${วัสดุ}"]`) })).toHaveCount(1, { timeout: 20_000 });
+      await expect(page.locator("table[aria-label='รายการวัสดุ'] tbody tr").filter({ has: page.locator(`input[value="${วัสดุ}"]`) })).toHaveCount(1, { timeout: 20_000 });
     }
     // โฟกัสด้วยคีย์บอร์ด (วงโฟกัสแสดงจริง) แล้ววัด
     await page.keyboard.press("Shift+Tab"); await page.keyboard.press("Tab");
     ผล[ชื่อ] = await วัดแท็บ(page);
   }
-  // แถวว่างของแท็บแม่แบบวัสดุ (ค้นสิ่งที่ไม่มี) ต้องอยู่กลางตาราง
-  await page.locator(".tab-bar .tab-item", { hasText: "แม่แบบวัสดุ" }).click();
+  // แถวว่างของแท็บรายการวัสดุ (ค้นสิ่งที่ไม่มี) ต้องอยู่กลางตาราง
+  await page.locator(".tab-bar .tab-item", { hasText: "รายการวัสดุ" }).click();
   await page.getByPlaceholder("ค้นชื่อ / หมวด / หน่วย").fill(`ZZ-ไม่มีจริง-${แท็ก}`);
   await expect(page.getByText("ไม่พบวัสดุที่ค้น")).toBeVisible({ timeout: 10_000 });
   const แถวว่าง = await วัดแท็บ(page);
 
-  const อื่น = Object.entries(ผล).filter(([k]) => k !== "แม่แบบวัสดุ");
+  const อื่น = Object.entries(ผล).filter(([k]) => k !== "รายการวัสดุ");
   const น้อยสุดของแท็บอื่น = Math.min(...อื่น.map(([, v]) => v.ห่างขอบ));
-  const วัสดุ_ = ผล["แม่แบบวัสดุ"];
+  const วัสดุ_ = ผล["รายการวัสดุ"];
   // ตรวจครบทุกข้อในรอบเดียว (expect.soft) — เห็นทุกปัญหาพร้อมกัน ไม่หยุดที่ข้อแรก
-  expect.soft(วัสดุ_.ห่างขอบ, `แม่แบบวัสดุ: เนื้อหาห่างขอบกรอบไม่น้อยกว่าแท็บอื่น (แท็บอื่นน้อยสุด ${น้อยสุดของแท็บอื่น}px · ใกล้สุด "${วัสดุ_.ใกล้สุด}")`).toBeGreaterThanOrEqual(น้อยสุดของแท็บอื่น);
+  expect.soft(วัสดุ_.ห่างขอบ, `รายการวัสดุ: เนื้อหาห่างขอบกรอบไม่น้อยกว่าแท็บอื่น (แท็บอื่นน้อยสุด ${น้อยสุดของแท็บอื่น}px · ใกล้สุด "${วัสดุ_.ใกล้สุด}")`).toBeGreaterThanOrEqual(น้อยสุดของแท็บอื่น);
   for (const [ชื่อ, v] of Object.entries(ผล)) {
     expect.soft(v.หน้าตาแท็บ, `แท็บ "${ชื่อ}" ที่เลือกหน้าตาเดียวกับแท็บแรก`).toBe(ผล[ชื่อแท็บ[0]].หน้าตาแท็บ);
     expect.soft(v.โฟกัสถูกตัด, `แท็บ "${ชื่อ}": วงโฟกัสอยู่ในแถบแท็บทั้งวง (ไม่ถูกตัดเหลือเส้นซ้ายขวา)`).toBe(false);
     expect.soft(v.แถบเลื่อนตั้ง, `แท็บ "${ชื่อ}": แถบแท็บไม่มีแถบเลื่อนแนวตั้ง`).toBe(false);
     expect.soft(v.หัวไม่ตรง, `แท็บ "${ชื่อ}": หัวคอลัมน์จัดแนวเดียวกับข้อมูล`).toEqual([]);
   }
-  expect.soft(แถวว่าง.หัวไม่ตรง, "แม่แบบวัสดุ: แถวว่างอยู่กลางตาราง").toEqual([]);
+  expect.soft(แถวว่าง.หัวไม่ตรง, "รายการวัสดุ: แถวว่างอยู่กลางตาราง").toEqual([]);
   assertNoErrors(errs, "หน้าตั้งค่า HQ ทุกแท็บ");
 });

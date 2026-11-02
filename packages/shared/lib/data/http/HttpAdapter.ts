@@ -305,7 +305,7 @@ const quoteRequests: QuoteRequestsRepo = {
   margin: (dealerCode, quotationId) => apiFetch<QuoteMargin | null>(`/quote-requests?view=margin&dealer=${encodeURIComponent(dealerCode)}&quote=${encodeURIComponent(quotationId)}`),
   quotedLeadIds: (dealerCode) => apiFetch<number[]>(`/quote-requests?view=quoted-leads&dealer=${encodeURIComponent(dealerCode)}`),
 };
-// แม่แบบวัสดุ (ใบ 0244)
+// รายการวัสดุ (ใบ 0244)
 const materialTemplates: MaterialTemplatesRepo = {
   list: () => apiFetch<MaterialTemplate[]>("/material-templates"),
   save: (rows, deleteIds) => post<MaterialTemplate[]>("/material-templates", { rows, deleteIds }),

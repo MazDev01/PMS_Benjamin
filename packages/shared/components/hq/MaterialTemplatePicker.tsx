@@ -1,6 +1,6 @@
 "use client";
 
-// ── หน้าต่าง "เลือกจากแม่แบบวัสดุ" ของใบ HQ (H8 · บอสสั่ง 26 ต.ค. 69 · ใบ 0244) ──────────────────────────────────────
+// ── หน้าต่าง "เลือกจากรายการวัสดุ" ของใบ HQ (H8 · บอสสั่ง 26 ต.ค. 69 · ใบ 0244) ──────────────────────────────────────
 //
 // แหล่งรายการหนึ่งของตาราง BOQ กลาง (BoqTable แหล่ง) — ค้นได้ · กดเพิ่มทีละรายการ (จำนวน 1 · ต้นทุน = ราคาแม่แบบ ณ ตอนนี้ แก้ต่อในตาราง)
 //   รายการที่เลือกเข้าตารางทาง แทรก() ทางเดียว (ตารางไม่ต้องรู้ว่ามาจากไหน) · แสดงเฉพาะแม่แบบที่เปิดใช้
@@ -28,20 +28,20 @@ export function MaterialTemplatePicker({ onAdd, onClose }: { onAdd: (rows: แ�
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <ModalCard onClose={onClose} label="เลือกจากแม่แบบวัสดุ"
+      <ModalCard onClose={onClose} label="เลือกจากรายการวัสดุ"
         style={{ width: 640, maxWidth: "100%", maxHeight: "86vh", display: "flex", flexDirection: "column", background: "#fff", borderRadius: 16, boxShadow: "0 24px 80px rgba(0,0,0,.28)", overflow: "hidden" }}>
         <div style={{ background: NAVY, color: "#fff", padding: "12px 18px", display: "flex", alignItems: "center", gap: 10 }}>
-          <strong style={{ flex: 1, fontSize: "0.95rem" }}>เลือกจากแม่แบบวัสดุ</strong>
+          <strong style={{ flex: 1, fontSize: "0.95rem" }}>เลือกจากรายการวัสดุ</strong>
           <button type="button" onClick={onClose} aria-label="ปิด" style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex" }}><X size={18} /></button>
         </div>
         <div style={{ padding: "12px 18px", display: "grid", gap: 10, overflowY: "auto" }}>
           <div className="search-bar">
             <Search size={14} />
-            <input aria-label="ค้นแม่แบบวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => setค้น(e.target.value)} autoFocus />
+            <input aria-label="ค้นรายการวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => setค้น(e.target.value)} autoFocus />
           </div>
           {แม่แบบ === null && <div style={{ color: "#9ca3af", fontSize: "0.84rem" }}>กำลังโหลด…</div>}
           {แม่แบบ !== null && แสดง.length === 0 && (
-            <div style={{ color: "#6b7280", fontSize: "0.84rem" }}>{แม่แบบ.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีแม่แบบวัสดุที่เปิดใช้ — ตั้งได้ที่ ตั้งค่า › แม่แบบวัสดุ"}</div>
+            <div style={{ color: "#6b7280", fontSize: "0.84rem" }}>{แม่แบบ.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีรายการวัสดุที่เปิดใช้ — ตั้งได้ที่ ตั้งค่า › รายการวัสดุ"}</div>
           )}
           {แสดง.map(t => (
             <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #f1f5f9", paddingBottom: 8 }}>
