@@ -33,11 +33,11 @@ const เวลาเพิ่ม = (d: DealerRow) => { const t = d.createdAt ? 
 const CARDS_PER_PAGE = 12;
 // แถวละ 4 ใบตายตัว (บอสสั่ง 14 ก.ย. 69: "ในแถวมีแค่ 4 การ์ด เอาใหญ่หน่อย ห้ามมีที่เหลือว่าง")
 //   เดิมใช้ auto-fill จอกว้างได้แถวละ 5 ใบ → 12 ใบเหลือแถวท้าย 2 ใบ ว่างครึ่งแถว
+// ไม่มีกรอบโฟกัสของการ์ด (บอสสั่ง 2 พ.ย. 69 · กฎกลาง globals.css ปิดกรอบทุกที่แล้ว)
 const CARD_GRID_CSS = `
 .dealer-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .dealer-card { transition: box-shadow .15s, transform .15s; }
 .dealer-card:hover { box-shadow: 0 8px 24px rgba(0,51,102,.12); transform: translateY(-1px); }
-.dealer-card:focus-visible { outline: 2px solid #003366; outline-offset: 2px; }
 @media (max-width: 1100px) { .dealer-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px)  { .dealer-card-grid { grid-template-columns: minmax(0, 1fr); } }
 `;

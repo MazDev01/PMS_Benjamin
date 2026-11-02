@@ -244,12 +244,7 @@ body {
   }
   /* input/select บรรทัดเดียว = สูงเท่าปุ่ม (36px) · textarea ยังยืดได้ */
   .form-input, .form-select { height: 36px; }
-  .form-input:focus,
-  .form-select:focus,
-  .form-textarea:focus {
-    border-color: #003366;
-    box-shadow: 0 0 0 3px rgba(0,51,102,.1);
-  }
+  /* ไม่มีกรอบ/เงาน้ำเงินตอนเลือกช่อง (บอสสั่ง 2 พ.ย. 69 "เอากรอบแบบนี้ออกจากทุกที่ที่มันขึ้น") — ขอบคงเดิม */
 
   /* ── การจัดกลุ่มช่องกรอก (บอสสั่ง 17 ส.ค. 69: "จัดกลุ่มแบบนี้ทุกอัน ทั้ง hq และ dealer") ──
      ฟอร์มทุกใบใช้ 3 คลาสนี้เท่านั้น — ห้ามเขียน grid/หัวข้อเองรายฟอร์ม ไม่งั้นหน้าตาเพี้ยนกันคนละแบบ
@@ -559,7 +554,7 @@ body {
   background: var(--muted); border: 1px solid transparent; border-radius: var(--radius-lg);
   font-size: 0.82rem; font-family: inherit; outline: none; transition: 0.15s; color: var(--foreground);
 }
-.erp-search input:focus { border-color: var(--ring); background: var(--card); box-shadow: 0 0 0 3px rgba(0,51,102,0.08); }
+.erp-search input:focus { background: var(--card); }   /* ไม่มีกรอบ/เงาน้ำเงินตอนเลือก (บอสสั่ง 2 พ.ย. 69) */
 .erp-search svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); }
 
 /* ─── Page header ─── */
@@ -704,7 +699,6 @@ body {
 .hq-kpi4.hq-kpi3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 760px) { .hq-kpi4.hq-kpi3 { grid-template-columns: 1fr; } }
 /* ช่องวันที่แสดง พ.ศ. (ThaiDateInput) — ช่องจริงโปร่งใสทับอยู่ กรอบโฟกัสจึงต้องอยู่ที่กรอบนอก */
-.thai-date:focus-within { outline: 2px solid #003366; outline-offset: 2px; }
 /* HQ · คำขอใบเสนอราคา (บอสสั่ง 26 ต.ค. 69): ปุ่มกรองแถวเดียว เลื่อนแนวนอนเมื่อจอแคบ · ช่องค้นหาเต็มความกว้าง ไม่ตัดคำ */
 /* หน้า HQ คำขอใบเสนอราคา: ช่องเลือกสถานะ + ช่องค้นหา บรรทัดเดียวกัน (จอแคบด้วย) — แทนแถวปุ่มกรอง (27 ต.ค. 69) */
 .hq-qr-filter { display: flex; gap: 8px; align-items: center; }
@@ -1184,30 +1178,18 @@ body {
   .pms-dash .kpi-row { grid-template-columns:repeat(2,1fr); }
 }
 
-/* ── Keyboard focus ring (a11y) — ทุก control ที่โฟกัสด้วยคีย์บอร์ดเห็นชัด ── */
-a:focus-visible,
-button:focus-visible,
-[role="button"]:focus-visible,
-[tabindex]:focus-visible,
-.btn:focus-visible,
-.nav-item:focus-visible,
-.tab-item:focus-visible,
-.icon-btn:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--primary, #003366);
-  outline-offset: 2px;
+/* ── ไม่มีกรอบโฟกัส (บอสสั่ง 2 พ.ย. 69 "เอากรอบแบบนี้ออกจากทุกที่ที่มันขึ้น" — ปุ่ม · ช่องค้นหา · ช่องเลือก) ──
+   เดิมทุกปุ่ม/ลิงก์/ช่องกรอกที่ถูกเลือกขึ้นกรอบน้ำเงินเข้ม 2px · ห้ามเติมกลับเอง (รวมกรอบที่ตั้งแยกรายคอมโพเนนต์) */
+a:focus, a:focus-visible,
+button:focus, button:focus-visible,
+[role="button"]:focus, [role="button"]:focus-visible,
+[tabindex]:focus, [tabindex]:focus-visible,
+input:focus, input:focus-visible,
+select:focus, select:focus-visible,
+textarea:focus, textarea:focus-visible,
+summary:focus, summary:focus-visible {
+  outline: none;
 }
-/* แท็บ: วงโฟกัสต้องอยู่ "ใน" ตัวแท็บ (27 ต.ค. 69) — แถบแท็บตัดขอบบน/ล่าง (overflow) วงที่ยื่นออก 2px จึงเหลือแค่เส้นซ้าย-ขวา
-   ดูเหมือนแท็บที่เลือกมีกรอบต่างจากแท็บอื่น (บอสแจ้ง ตั้งค่า › แม่แบบวัสดุ) · ไม่ใส่ border-radius (ดูคำเตือนข้างล่าง) */
-.tab-item:focus-visible { outline-offset: -2px; }
-/* ⚠️ ห้ามบังคับ border-radius ตรงนี้ (ถอดออก 20 ส.ค. 69 — บอสถามว่า "ทำไมเส้นมันซ้อนกัน 2 ชั้น")
-   เดิมสั่ง border-radius: 6px ทับของเดิมตอนโฟกัส กล่องพื้นหลังของเมนูที่เลือกอยู่ (มุมมนกว่า)
-   กับวงโฟกัสจึงมีมุมคนละองศา + เว้นช่องว่าง 2px กลายเป็นเส้นสองชั้นซ้อนกัน
-   ปล่อยให้แต่ละปุ่ม/เมนูใช้มุมมนของตัวเอง วงโฟกัสจะแนบไปกับรูปทรงจริงเสมอ */
-/* เมนูข้าง: วาดวงโฟกัสไว้ "ด้านใน" ขอบเมนู — ไม่งั้นชนขอบแถบเมนูและดูเป็นสองชั้นอีก */
-.nav-item:focus-visible { outline-offset: -2px; }
 
 /* ── Responsive: ยุบกริดหลายคอลัมน์บนจอแคบ (แท็บเล็ต/มือถือ) ── */
 @media (max-width:1024px){
@@ -1442,7 +1424,6 @@ textarea:focus-visible {
    .dash-tile = ทั้งใบเป็นปุ่ม (ยกขึ้นตอนชี้) · .dash-row = แถวในรายการ (ไฮไลต์ตอนชี้) */
 .dash-tile { transition: var(--card-lift-tr); } /* hover: กฎรวมด้านบน (--card-lift*) — ใบนี้คือต้นแบบของทั้งแอป */
 .dash-tile:active { transform: translateY(0); }
-.dash-tile:focus-visible, .dash-row:focus-visible { outline: 2px solid #003366; outline-offset: 2px; }
 .dash-row { transition: background .15s ease; }
 .dash-row:hover { background: #F5F8FC; }
 @media (prefers-reduced-motion: reduce) {
