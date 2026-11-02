@@ -84,14 +84,36 @@ if (phase === "test" || phase === "trial") {
   // trial = ทดลองใช้เว็บแทนบอส (tests/prod-live/trial/trial.ts · บอสสั่ง 21 ต.ค. 69) — ใช้สาขา/บัญชีชั่วคราวชุดเดียวกัน
   const st = JSON.parse(readFileSync(STATE, "utf8"));
   const config = phase === "trial" ? "tests/prod-live/trial/playwright.config.ts" : "tests/prod-live/playwright.config.ts";
-  const r = spawnSync("npx", ["playwright", "test", "-c", config, "--reporter=line"], {
-    stdio: "inherit", shell: true, env: { ...process.env, LIVE_TARGET: target,
+  // ── กันอีเมลของการทดสอบถึงผู้รับจริง (บอสสั่ง 1 พ.ย. 69 · เจอ 1 พ.ย.: ชุดขายบนเว็บจริงวางจดหมายถึงผู้รับแจ้งเตือน HQ
+  //   ตัวส่งรันทุก 15 นาที แล้ว cleanup ลบทีหลัง — จดหมายอาจออกไปแล้ว)
+  //   1) เริ่มหลังรอบส่งผ่านไป ≥ 1 นาที และเหลือเวลาก่อนรอบถัดไปพอ (ตัวส่ง: pg_cron */15 · ใบ 0212)
+  //   2) ระหว่างรัน: ทุก 1 วินาที เลื่อนจดหมายที่ยังไม่ส่งของงานทดสอบออกไป 1 วัน (ตัวส่งหยิบเฉพาะที่ถึงเวลา) · cleanup.sql ลบทิ้ง
+  //   3) จบแล้วตรวจ: จดหมายของงานทดสอบที่ส่งออกไปแล้ว ต้อง = 0 ไม่งั้นตก
+  //   ข้อทดสอบ: tests/tools/live-mail-hold.test.mjs
+  const { จดหมายทดสอบ, รอช่วงปลอดรอบส่ง, เลื่อนจดหมายทดสอบ } = await import("./mailHold.mjs");
+  const ถือจดหมาย = target === "prod";
+  if (ถือจดหมาย) await รอช่วงปลอดรอบส่ง();
+  let หยุด = false;
+  const วน = ถือจดหมาย ? (async () => { while (!หยุด) { await เลื่อนจดหมายทดสอบ(svc, CODE).catch(e => console.error(`เลื่อนจดหมายไม่สำเร็จ: ${e.message}`)); await new Promise(r => setTimeout(r, 1000)); } })() : null;
+  const { spawn } = await import("node:child_process");
+  const รหัส = await new Promise(res => {
+    const c = spawn("npx", ["playwright", "test", "-c", config, "--reporter=line"], {
+      stdio: "inherit", shell: true, env: { ...process.env, LIVE_TARGET: target,
       LIVE_SHOTS_DIR: process.env.LIVE_SHOTS_DIR ?? `C:/.claude/pms-shots/trial/${target}`,
       LIVE_HQ_URL: WEB.hq, LIVE_DEALER_URL: WEB.dealer, LIVE_PASSWORD: st.password,
       LIVE_HQ_EMAIL: st.users.find(u => u.role === "SUPER_ADMIN").email, LIVE_DEALER_EMAIL: st.users.find(u => u.role === "DEALER_ADMIN").email,
       LIVE_DEALER_CODE: st.code, LIVE_COMPANY: st.company, LIVE_LEAD_NUM: String(st.leadNum),
       LIVE_SUPABASE_URL: URL_, LIVE_SERVICE_KEY: KEY, LIVE_ANON_KEY: ANON } });
-  process.exit(r.status ?? 1);
+    c.on("exit", code => res(code ?? 1));
+  });
+  หยุด = true; await วน;
+  if (ถือจดหมาย) {
+    await เลื่อนจดหมายทดสอบ(svc, CODE);
+    const ส่งไปแล้ว = (await จดหมายทดสอบ(svc, CODE)).filter(m => m.status === "sent");
+    if (ส่งไปแล้ว.length) ตาย(`จดหมายของงานทดสอบถูกส่งออกไปแล้ว ${ส่งไปแล้ว.length} ฉบับ (${[...new Set(ส่งไปแล้ว.map(m => m.kind))].join(" · ")}) — รายงานบอส`);
+    console.log("✓ จดหมายของงานทดสอบไม่ถูกส่งออก (ถือไว้ให้ cleanup ลบ)");
+  }
+  process.exit(รหัส);
 }
 
 if (phase === "files") {

@@ -5,7 +5,7 @@
 //      + จำนวนแถวทั้งตารางเท่าก่อนใส่แถวทดสอบ
 //   3) ด่านกันพลาด: สาขา ZZTN ชื่อจริง / ผูกผู้สนใจจริง / ผู้สนใจทดสอบผูกดีลเลอร์อื่น / ZZTN มีบัญชีอื่น → ยกเลิกทั้งหมด ไม่ลบอะไรเลย
 // mutation proof (ทำให้ไฟล์ล้างผิดก่อนรัน · ข้อทดสอบต้องตก): PMS_CLEANUP_MUTATE=broad-prospect (ลบผู้สนใจทุกราย) · broad-dealer (ลบสาขาจริง)
-//   · broad-user (ลบบัญชีจริง) · no-guard (ถอดด่านกันพลาด) · miss-prospect (ไม่ลบผู้สนใจทดสอบ)
+//   · broad-user (ลบบัญชีจริง) · no-guard (ถอดด่านกันพลาด) · miss-prospect (ไม่ลบผู้สนใจทดสอบ) · broad-mail · miss-mail (จดหมายที่ตัวถือจดหมายถือไว้)
 // รัน: node tests/tools/franchise-cleanup.test.mjs (ถือล็อกฐานทดสอบระหว่างรัน)
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -27,6 +27,8 @@ const แก้ = (เดิม, ใหม่) => { if (!ไฟล์ล้า�
 if (พัง === "broad-prospect") แก้(`delete from public.dealer_prospects where name like '${ป้าย}%';`, "delete from public.dealer_prospects;");
 if (พัง === "broad-dealer") แก้("delete from public.dealers where code = 'ZZTN';", "update public.dealer_prospects set dealer_code = null where dealer_code = 'ZZTX'; delete from public.dealers where code in ('ZZTN', 'ZZTX');");
 if (พัง === "broad-user") แก้(`delete from auth.users where lower(email) = '${อีเมลทดสอบ}';`, `delete from auth.users where lower(email) like '%@dealer.benjaminpebsteel.com' and not exists (select 1 from public.profiles p where p.id = auth.users.id and p.dealer_code <> 'ZZTX');`);
+if (พัง === "broad-mail") แก้("or subject like '%ZZTEST%' or body like '%ZZTEST%';", "or subject like '%ZZT%' or body like '%ZZT%';");
+if (พัง === "miss-mail") แก้("or subject like '%ZZTEST%' or body like '%ZZTEST%';", ";");
 if (พัง === "miss-prospect") แก้(`delete from public.dealer_prospects where name like '${ป้าย}%';`, "");
 if (พัง === "no-guard") ไฟล์ล้าง = ไฟล์ล้าง.replace(/-- ด่านกันพลาดของชุดผู้สนใจ[\s\S]*?end \$\$;\n/, "");
 const ตัวไฟล์ = ไฟล์ล้าง.replace(/^begin;$/m, "").replace(/^commit;$/m, "");
@@ -64,7 +66,7 @@ const นับทุกตาราง = `(select jsonb_build_object(
   'proposals', (select count(*) from public.dealer_package_proposals), 'payments', (select count(*) from public.dealer_proposal_payments),
   'territories', (select count(*) from public.dealer_territories), 'users', (select count(*) from auth.users),
   'profiles', (select count(*) from public.profiles), 'provinces', (select count(*) from public.th_provinces),
-  'leads', (select count(*) from public.leads), 'activities', (select count(*) from public.dealer_prospect_activities where prospect_id in (select id from public.dealer_prospects where name not like 'ZZTEST-%' and name not like 'ผู้สนใจจริง-ทดสอบล้าง%'))))`;
+  'leads', (select count(*) from public.leads), 'outbox', (select count(*) from public.email_outbox), 'activities', (select count(*) from public.dealer_prospect_activities where prospect_id in (select id from public.dealer_prospects where name not like 'ZZTEST-%' and name not like 'ผู้สนใจจริง-ทดสอบล้าง%'))))`;
 
 const ล็อก = ขอล็อกฐานทดสอบ("ข้อทดสอบ franchise-cleanup", { รอนาที: 30 });
 try {
@@ -90,6 +92,9 @@ insert into public.notifications (kind, audience, dealer_code, title, body, href
   ('proposal_awaiting', 'hq', null, 'ล้าง', 'DP-ล้าง-ทดสอบ · ${ป้าย}1 · รอ', '/x', 'ล้าง-ทดสอบ-hq'),
   ('proposal_awaiting', 'hq', null, 'ล้าง', 'DP-ล้าง-จริง · ผู้สนใจจริง-ทดสอบล้าง · รอ', '/x', 'ล้าง-จริง-hq'),
   ('hq_quote_sent', 'dealer', 'ZZTN', 'ล้าง', 'ของสาขาทดสอบ', '/x', 'ล้าง-ทดสอบ-สาขา');
+insert into public.email_outbox (kind, to_email, subject, body, ref_table, ref_id, dedupe_key) values
+  ('customer_accepted', 'hq-จริง@example.test', 'ลูกค้าตอบรับ — ZZTEST-ทดสอบล้าง', '', 'quotations', '1', 'ล้าง-จดหมาย-ทดสอบ'),
+  ('customer_accepted', 'hq-จริง@example.test', 'ลูกค้าตอบรับ — บริษัทจริงทดสอบล้าง', 'ZZTOP', 'quotations', '2', 'ล้าง-จดหมาย-จริง');
 insert into public.audit_log ("user", role, action, target, at) values
   ('บัญชีทดสอบชั่วคราว', 'SUPER_ADMIN', 'ออกใบค่าแฟรนไชส์', 'DP-ล้าง-ทดสอบ · ${ป้าย}1', now()),
   ('', '', 'เพิ่มผู้สนใจเป็นดีลเลอร์', '${ป้าย}1', now()),
@@ -108,6 +113,7 @@ select concat('ทดสอบ=', jsonb_build_object(
   'บัญชี', (select count(*) from auth.users where lower(email) = '${อีเมลทดสอบ}'),
   'โปรไฟล์', (select count(*) from public.profiles where dealer_code = 'ZZTN'),
   'แจ้งเตือน', (select count(*) from public.notifications where dedupe_key like 'ล้าง-ทดสอบ%'),
+  'จดหมาย', (select count(*) from public.email_outbox where dedupe_key = 'ล้าง-จดหมาย-ทดสอบ'),
   'บันทึก', (select count(*) from public.audit_log where target like '%${ป้าย}%' and target not like '%จริง-ทดสอบล้าง' or target = 'ZZTN' or target like 'ZZTN · %' or "user" like '${ป้าย}%')));
 select concat('จริง=', jsonb_build_object(
   'ผู้สนใจ', (select count(*) from public.dealer_prospects where name in ('ผู้สนใจจริง-ทดสอบล้าง', 'ZZTEST-ชุดอื่น-ทดสอบล้าง')),
@@ -118,6 +124,7 @@ select concat('จริง=', jsonb_build_object(
   'บัญชี', (select count(*) from auth.users where lower(email) = 'zztx@dealer.benjaminpebsteel.com'),
   'โปรไฟล์', (select count(*) from public.profiles where dealer_code = 'ZZTX'),
   'แจ้งเตือน', (select count(*) from public.notifications where dedupe_key = 'ล้าง-จริง-hq'),
+  'จดหมาย', (select count(*) from public.email_outbox where dedupe_key = 'ล้าง-จดหมาย-จริง'),
   'บันทึก', (select count(*) from public.audit_log where "user" = 'ผู้ดูแลจริง' and target like '%ทดสอบล้าง')));
 -- ลบแถวจริงจำลองออก แล้วจำนวนทั้งตารางต้องเท่าก่อนใส่ = ไม่มีแถวจริงของฐานหายไปแม้แถวเดียว
 ${ปิดด่าน}
@@ -132,6 +139,7 @@ delete from auth.users where lower(email) = 'zztx@dealer.benjaminpebsteel.com';
 update public.dealers set prospect_id = null where code = 'ZZTX';
 delete from public.dealer_prospects where name = 'ผู้สนใจจริง-ทดสอบล้าง';
 delete from public.dealers where code = 'ZZTX';
+delete from public.email_outbox where dedupe_key = 'ล้าง-จดหมาย-จริง';
 select 'ก่อน=' || (select n from ก่อนใส่)::text;
 select 'หลัง=' || ${นับทุกตาราง}::text;
 rollback;
@@ -142,7 +150,7 @@ rollback;
   const อ่าน = (ป้ายผล) => { try { return JSON.parse(new RegExp(`^${ป้ายผล}=(\\{.*\\})$`, "m").exec(ออก)?.[1] ?? "null"); } catch { return null; } };
   const ทดสอบ = อ่าน("ทดสอบ"), จริง = อ่าน("จริง");
   ผล(!!ทดสอบ && Object.values(ทดสอบ).every(n => n === 0), `แถวทดสอบหายครบ ${JSON.stringify(ทดสอบ)}`, ออก);
-  const คาดจริง = { ผู้สนใจ: 2, ใบ: 1, การชำระ: 1, สาขา: 1, จังหวัด: 1, บัญชี: 1, โปรไฟล์: 1, แจ้งเตือน: 1, บันทึก: 2 };
+  const คาดจริง = { ผู้สนใจ: 2, ใบ: 1, การชำระ: 1, สาขา: 1, จังหวัด: 1, บัญชี: 1, โปรไฟล์: 1, แจ้งเตือน: 1, จดหมาย: 1, บันทึก: 2 };
   ผล(!!จริง && Object.entries(คาดจริง).every(([k, v]) => จริง[k] === v), `แถวจริงอยู่ครบ ${JSON.stringify(จริง)}`, ออก);
   const ก่อนj = อ่าน("ก่อน"), หลังj = อ่าน("หลัง");
   ผล(!!ก่อนj && JSON.stringify(ก่อนj) === JSON.stringify(หลังj), `จำนวนแถวทุกตาราง (รวมตารางจังหวัดกลาง) เท่าก่อนใส่แถวทดสอบ ${JSON.stringify(หลังj)}`, `ก่อน ${JSON.stringify(ก่อนj)} หลัง ${JSON.stringify(หลังj)}
