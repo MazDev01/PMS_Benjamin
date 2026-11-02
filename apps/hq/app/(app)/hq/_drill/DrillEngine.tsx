@@ -22,6 +22,9 @@ const MUTED = "var(--muted-foreground)";
 // ตั้งค่าของแต่ละหน้า (การ์ด + คอลัมน์) อยู่ที่ @pms/shared/lib/hqDrillConfig — แหล่งเดียวกับข้อทดสอบ
 const รูปไอคอน: Record<ไอคอนการ์ด, LucideIcon> = { users: Users, phone: PhoneCall, inbox: Inbox, alarm: AlarmClock, send: Send, hourglass: Hourglass,
   check: CheckCircle2, percent: Percent, userPlus: UserPlus, store: Store };
+// ช่องการ์ดคงที่ — ตั้งค่าแต่ละหน้ามีการ์ด 4 ใบ (ลูกค้า 3 ใบ) · ตัวตรวจนับจากอาร์เรย์นี้
+const สี่ช่อง = [0, 1, 2, 3];
+const สามช่อง = [0, 1, 2];
 const แสดง = (c: ตัวเลขเจาะลึก, v: number | null) => (v == null || Number.isNaN(v) ? "—" : c.f ? c.f(v) : v.toLocaleString());
 
 // ── ขอบเขต (ระดับที่เลือก) ──────────────────────────────────────────────────────────────────────────────────
@@ -132,18 +135,22 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
     </select>
   );
 
+  const การ์ดที่ = (i: number) => {
+    const c = ตั้งค่า.การ์ด[i];
+    const v = โหลด ? null : ค่าแถว(c, rows, ทั้งหมด);
+    return <KpiCard key={c.k} kpi={c.kpi} label={c.l} value={โหลด ? null : แสดง(c, v)} rawValue={v} unit={โหลด ? undefined : c.sub(rows)}
+      empty="กำลังโหลด…" danger={c.danger && (v ?? 0) > 0} icon={รูปไอคอน[c.icon]} color={c.color} bg={c.bg}
+      actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด(c.k)} />;
+  };
+
   return (
     <>
       <แถบระดับ ภาค={ขอบ.ภาค} จังหวัด={ขอบ.จังหวัด} ดีลเลอร์={ขอบ.ดีลเลอร์} ชื่อดีลเลอร์={ชื่อดีลเลอร์} ไป={ไประดับ} />
 
-      <KpiRow label={ชื่อแถวการ์ด} range={ช่วง} สามใบ={ตั้งค่า.การ์ด.length === 3}>
-        {ตั้งค่า.การ์ด.map(c => {
-          const v = โหลด ? null : ค่าแถว(c, rows, ทั้งหมด);
-          return <KpiCard key={c.k} kpi={c.kpi} label={c.l} value={โหลด ? null : แสดง(c, v)} rawValue={v} unit={โหลด ? undefined : c.sub(rows)}
-            empty="กำลังโหลด…" danger={c.danger && (v ?? 0) > 0} icon={รูปไอคอน[c.icon]} color={c.color} bg={c.bg}
-            actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด(c.k)} />;
-        })}
-      </KpiRow>
+      {/* แถวการ์ด 4 ใบพอดี (กติกา 22 ต.ค. 69 · check-kpi-rows) — หน้าลูกค้าทั้งเครือ 3 ใบ (ข้อยกเว้น "สามใบ" · บอสสั่ง 30 ต.ค. 69) */}
+      {ตั้งค่า.การ์ด.length === 3
+        ? <KpiRow label={ชื่อแถวการ์ด} range={ช่วง} สามใบ>{สามช่อง.map(i => การ์ดที่(i))}</KpiRow>
+        : <KpiRow label={ชื่อแถวการ์ด} range={ช่วง}>{สี่ช่อง.map(i => การ์ดที่(i))}</KpiRow>}
 
       <div className="card hq-sticky-filter" data-drill-scope>
         <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "nowrap", alignItems: "center", paddingTop: 12, paddingBottom: 12, overflowX: "auto" }}>
