@@ -186,7 +186,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
               const v = ค่าแท่ง(g);
               return (
                 <button key={g.key} type="button" data-bar-row={g.key} data-value={v} onClick={() => g.เดือน ? (ขอบ.ดีลเลอร์ ? undefined : setแผงเดือน(g)) : เจาะ(g.key)}
-                  style={{ all: "unset", cursor: g.เดือน && ขอบ.ดีลเลอร์ ? "default" : "pointer", display: "grid", gridTemplateColumns: "minmax(120px, 220px) 1fr 110px", gap: 10, alignItems: "center" }}>
+                  style={{ all: "unset", cursor: g.เดือน && ขอบ.ดีลเลอร์ ? "default" : "pointer", minHeight: 30, display: "grid", gridTemplateColumns: "minmax(120px, 220px) 1fr 110px", gap: 10, alignItems: "center" }}>
                   <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={g.label}>
                     {g.code && <strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{g.code}</strong>}{g.label}
                   </span>
@@ -208,7 +208,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
             <thead>
               <tr>
                 {[{ k: dim === "month" ? "__idx" : "__name", l: หัวคอลัมน์แรก, num: false }, ...คอลัมน์.map(c => ({ k: c.k, l: c.l, num: true }))].map(h => (
-                  <th key={h.k} className={h.num ? "num" : undefined} aria-sort={เรียง?.k === h.k ? (เรียง.ลง ? "descending" : "ascending") : "none"}>
+                  <th key={h.k} className={h.num ? "num" : undefined} style={{ paddingTop: 10 }} aria-sort={เรียง?.k === h.k ? (เรียง.ลง ? "descending" : "ascending") : "none"}>
                     <button type="button" data-sort={h.k} onClick={() => setเรียง(s => ({ k: h.k, ลง: s?.k === h.k ? !s.ลง : h.num }))}
                       style={{ all: "unset", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}>
                       {h.l}{เรียง?.k === h.k ? (เรียง.ลง ? <ArrowDown size={11} /> : <ArrowUp size={11} />) : null}
@@ -230,7 +230,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
                 if (g.เดือน && ขอบ.ดีลเลอร์) return <tr key={g.key}>{ป้าย}{เซลล์}<td /></tr>;
                 return (
                   <ClickableRow key={g.key} className="clickable" onActivate={() => g.เดือน ? setแผงเดือน(g) : เจาะ(g.key)}
-                    label={g.เดือน ? `เปิดรายดีลเลอร์ของ ${g.label}` : `เจาะดู ${g.label}`}>
+                    label={g.เดือน ? `เปิดรายดีลเลอร์ของ ${g.label}` : `เปิดตัวเลขของ ${g.label} (เจาะลงระดับถัดไป)`}>
                     {ป้าย}{เซลล์}
                     <td style={{ color: PRIMARY, fontWeight: 700, fontSize: "0.74rem", whiteSpace: "nowrap" }}>{g.เดือน ? "ดูรายดีลเลอร์ ›" : "เจาะลึก ›"}</td>
                   </ClickableRow>
@@ -284,7 +284,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
               <thead><tr><th>ดีลเลอร์</th>{ค.map(c => <th key={c.k} className="num">{c.l}</th>)}</tr></thead>
               <tbody>
                 {rows.map(r => (
-                  <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เจาะดู ${r.code}`}>
+                  <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เปิดตัวเลขของ ${r.code} (เจาะลงระดับดีลเลอร์)`}>
                     <td data-drawer-row={r.code} title={`${r.code} · ${r.name}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       <strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{r.name}</td>
                     {ค.map(c => { const v = ค่าเดือน(c, ของเดือน.filter(x => x.code === r.code)); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; })}

@@ -1,5 +1,6 @@
 // ── ชี้ที่ก้อนสีในกราฟวงกลม แล้วสีนั้นต้องเด่นขึ้น (บอสสั่ง 20 ส.ค. 69) ──────────
 // ทำที่ตัวคอมโพเนนต์ Donut = โดนัททุกใบในระบบได้พฤติกรรมเดียวกัน
+// 2 พ.ย. 69 หน้าลูกค้าไม่มีโดนัทแล้ว (เจาะลึกแทนกราฟลูกค้าตามดีลเลอร์/จังหวัด) → ตรวจโดนัทหน้าลูกค้าเป้าหมาย (แหล่งที่มา/เหตุผลปิดไม่สำเร็จ)
 import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
@@ -8,11 +9,12 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 test.setTimeout(180_000);
 
 test("[ui·hq] ชี้ก้อนสีในโดนัท → ก้อนนั้นหนาขึ้น ก้อนอื่นจางลง และตรงกลางบอกยอดของก้อนนั้น", async ({ page }) => {
-  await openAs(page, ADMIN, "hq", "/hq/customers");
+  await openAs(page, ADMIN, "hq", "/hq/leads");
   await settle(page);
 
   const โดนัท = page.locator(".donut-area").first();
   await expect(โดนัท).toBeVisible({ timeout: 30_000 });
+  await โดนัท.scrollIntoViewIfNeeded();   // โดนัทหน้าลูกค้าเป้าหมายอยู่ใต้ตารางเจาะลึก — เลื่อนให้อยู่ในจอก่อนชี้เมาส์
   const ก้อน = โดนัท.locator("svg path, svg circle + circle");
   const จำนวนก้อน = await ก้อน.count();
   test.skip(จำนวนก้อน < 2, "ฐานทดสอบยังมีข้อมูลไม่พอให้โดนัทมีหลายก้อน");
@@ -43,16 +45,17 @@ test("[ui·hq] ชี้ก้อนสีในโดนัท → ก้อน
 });
 
 test("[ui·hq] ชี้ที่แถวคำอธิบาย → ก้อนสีในโดนัทเน้นตาม", async ({ page }) => {
-  await openAs(page, ADMIN, "hq", "/hq/customers");
+  await openAs(page, ADMIN, "hq", "/hq/leads");
   await settle(page);
 
   const โดนัท = page.locator(".donut-area").first();
   await expect(โดนัท).toBeVisible({ timeout: 30_000 });
+  await โดนัท.scrollIntoViewIfNeeded();   // โดนัทหน้าลูกค้าเป้าหมายอยู่ใต้ตารางเจาะลึก — เลื่อนให้อยู่ในจอก่อนชี้เมาส์
   const ก้อน = โดนัท.locator("svg path, svg circle + circle");
   test.skip(await ก้อน.count() < 2, "ข้อมูลไม่พอ");
 
-  // แถวคำอธิบายแถวแรกของการ์ด "ลูกค้า ตามดีลเลอร์"
-  const แถว = page.locator('[aria-label]').filter({ hasText: "%" }).first();
+  // แถวคำอธิบายแถวแรกในการ์ดของโดนัทใบเดียวกัน
+  const แถว = โดนัท.locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' card ')][1]").locator('[aria-label]').filter({ hasText: "%" }).first();
   await แถว.hover();
   await expect.poll(async () => Number(await ก้อน.nth(1).getAttribute("opacity")),
     { timeout: 5000, message: "ชี้แถวแล้วก้อนอื่นต้องจางลง" }).toBeLessThan(1);
