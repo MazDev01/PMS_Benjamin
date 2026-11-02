@@ -130,6 +130,7 @@ export const metrics: MetricsRepo = {
   hqPipelineDealers: (start, end, dealers, today) => dedupeRead(`metrics.hqPipelineDealers:${start}:${end}:${JSON.stringify(dealers)}:${today ?? ""}`, () => _metrics.hqPipelineDealers(start, end, dealers, today)),
   hqPipelineMonths: (start, end, dealers) => dedupeRead(`metrics.hqPipelineMonths:${start}:${end}:${JSON.stringify(dealers)}`, () => _metrics.hqPipelineMonths(start, end, dealers)),
   hqDrill: (page, start, end, today) => dedupeRead(`metrics.hqDrill:${page}:${start}:${end}:${today ?? ""}`, () => _metrics.hqDrill(page, start, end, today)),
+  hqQuoteMargins: (keys) => dedupeRead(`metrics.hqQuoteMargins:${JSON.stringify(keys)}`, () => _metrics.hqQuoteMargins(keys)),
   kpiCards: (page, start, end, dealer, today, filters) => dedupeRead(`metrics.kpiCards:${page}:${start ?? ""}:${end ?? ""}:${dealer ?? ""}:${today ?? ""}:${JSON.stringify(filters ?? null)}`, () => _metrics.kpiCards(page, start, end, dealer, today, filters)),
   hqDashboard: (start, end, dealer, today) => dedupeRead(`metrics.hqDashboard:${start}:${end}:${dealer ?? ""}:${today ?? ""}`, () => _metrics.hqDashboard(start, end, dealer, today)),
 };

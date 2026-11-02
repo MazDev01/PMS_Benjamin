@@ -11,6 +11,7 @@ import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOvervi
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { จัดรูปผลงานดีลเลอร์, จัดรูปผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { จัดรูปเจาะลึก } from "@pms/shared/lib/hqDrill";
+import { จัดรูปส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
 import { จัดรูปแผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
 
 type Row = Record<string, unknown>;
@@ -56,6 +57,12 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
     rpc: "hq_drill",
     args: a => ({ p_page: S(a.page), p_start: a.start, p_end: a.end, p_today: a.today ?? null }),
     shape: d => จัดรูปเจาะลึก(d),
+  },
+  // ส่วนต่างรายใบของหน้าใบเสนอราคาทั้งเครือ (ใบ 0272) — ฐานตรวจว่าเป็น HQ เอง · คู่ สาขา+เลขที่ ส่งเป็นสองรายการข้อความ
+  hqQuoteMargins: {
+    rpc: "hq_quote_margins",
+    args: a => ({ p_dealers: Array.isArray(a.dealers) ? a.dealers.map(String) : [], p_ids: Array.isArray(a.ids) ? a.ids.map(String) : [] }),
+    shape: d => จัดรูปส่วนต่างใบ(d),
   },
   // แผงดีลเลอร์ด้านขวาของหน้า HQ ดีลเลอร์ (ใบ 0266) — ฐานตรวจว่าเป็น HQ เอง
   hqDealerPanel: {

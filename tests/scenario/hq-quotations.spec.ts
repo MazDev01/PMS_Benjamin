@@ -84,7 +84,8 @@ test("[ux·hq] คอลัมน์ตารางตามแบบ · จั�
   await open(page, "hq", "/hq/quotations");
   await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
   const หัว = (await page.locator('table[aria-label="รายการใบเสนอราคา"]').locator("thead th").allInnerTexts()).map(t => t.trim());
-  expect(หัว).toEqual(["เลขที่", "ดีลเลอร์", "ลูกค้า", "จังหวัดหน้างาน", "มูลค่า (ก่อน VAT)", "สถานะ", "วันที่ส่ง", "ใช้ได้ถึง", "ดู"]);
+  // 2 พ.ย. 69 บอสสั่ง: ดีลเลอร์ขายต่อเท่าไหร่ รายใบ — ราคาส่ง HQ · ราคาขายลูกค้า · ส่วนต่าง ฿ · ส่วนต่าง % (ต่อจากมูลค่า)
+  expect(หัว).toEqual(["เลขที่", "ดีลเลอร์", "ลูกค้า", "จังหวัดหน้างาน", "มูลค่า (ก่อน VAT)", "ราคาส่ง HQ", "ราคาขายลูกค้า", "ส่วนต่าง ฿", "ส่วนต่าง %", "สถานะ", "วันที่ส่ง", "ใช้ได้ถึง", "ดู"]);
   await expect(page.getByLabel("จังหวัดดีลเลอร์"), "ไม่มีช่องจังหวัดดีลเลอร์ในแถบกรองรายการ").toHaveCount(0);
   await expect(page.getByLabel("กรองตามดีลเลอร์"), "ไม่มีช่องดีลเลอร์ในแถบกรองรายการ").toHaveCount(0);
   await expect(page.locator("[data-drill-scope]").getByLabel("จังหวัด"), "ระดับจังหวัดอยู่ที่ตัวเลือกระดับ").toBeVisible();

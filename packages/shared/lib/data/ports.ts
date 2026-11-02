@@ -509,6 +509,8 @@ export interface MetricsRepo {
   hqPipelineMonths(start: string, end: string, dealers: string[] | null): Promise<import("../hqPipeline").ผลงานรายเดือน[]>;
   /** เจาะลึก 3 หน้า HQ (ใบ 0271 · hq_drill) — แถวรายดีลเลอร์ + รายเดือน ของหน้า leads/quotations/customers · ผลรวม = การ์ด · HQ เท่านั้น */
   hqDrill(page: import("../hqDrill").หน้าเจาะลึก, start: string, end: string, today?: string | null): Promise<import("../hqDrill").ข้อมูลเจาะลึก>;
+  /** ส่วนต่างรายใบ (ใบ 0272 · hq_quote_margins) — ราคาส่ง HQ/ราคาขาย/ส่วนต่างของใบที่ระบุ (คู่ สาขา+เลขที่) · ใบไม่ผูกใบ HQ = ไม่มีแถว · HQ เท่านั้น */
+  hqQuoteMargins(keys: { dealer: string; id: string }[]): Promise<import("../hqQuoteMargins").ส่วนต่างใบ[]>;
   /** แผงดีลเลอร์ด้านขวาของหน้า HQ ดีลเลอร์ (ใบ 0266 · hq_dealer_panel) — งานดูแลเป็นจำนวน ไม่มีเงิน · ไม่พบ/แถว HQ = null */
   hqDealerPanel(code: string, activityLimit?: number): Promise<import("../hqDealerPanel").แผงดีลเลอร์ | null>;
 }

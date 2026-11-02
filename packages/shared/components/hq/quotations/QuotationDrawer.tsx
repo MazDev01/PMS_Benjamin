@@ -20,7 +20,9 @@
 //   ใบเดิมที่ไม่ได้ทำจากใบ HQ = ไม่มีต้นทุนให้เทียบ → ขึ้นว่าไม่มีข้อมูล (ห้ามกุ)
 import { useEffect, useState } from "react";
 import { FileText, User, Store, Wallet, Package, CalendarDays, CalendarClock, Clock, MapPin, IdCard, UserCheck, TrendingUp } from "lucide-react";
-import { quoteRequests as quoteRequestsRepo } from "@pms/shared/lib/data";
+import { quoteRequests as quoteRequestsRepo, metrics } from "@pms/shared/lib/data";
+import type { ส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
+import { คอลัมน์ส่วนต่าง } from "./QuotationTable";
 import type { QuoteMargin } from "@pms/shared/lib/quoteRequests";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { quotationStatusLabel, quotationStatusColor } from "@pms/shared/lib/mock";
@@ -55,6 +57,16 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
     quoteRequestsRepo.margin(quote.dealerCode, quote.quoteNo)
       .then(m => alive && setMargin(m))
       .catch(e => { logRepoRead("quoteRequests.margin", e); if (alive) setMargin(null); });
+    return () => { alive = false; };
+  }, [quote.dealerCode, quote.quoteNo]);
+  // 4 ตัวเลขขายต่อ (บอสสั่ง 2 พ.ย. 69 · ใบ 0272) — ที่มาเดียวกับคอลัมน์ในตาราง → แผง = แถว · ไม่ได้ทำจากใบ HQ = "—"
+  const [ขายต่อ, setขายต่อ] = useState<ส่วนต่างใบ | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    setขายต่อ(undefined);
+    metrics.hqQuoteMargins([{ dealer: quote.dealerCode, id: quote.quoteNo }])
+      .then(r => alive && setขายต่อ(r[0] ?? null))
+      .catch(e => { logRepoRead("metrics.hqQuoteMargins", e); if (alive) setขายต่อ(null); });
     return () => { alive = false; };
   }, [quote.dealerCode, quote.quoteNo]);
 
@@ -131,6 +143,20 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
         <PanelRow icon={MapPin} label="จังหวัด" value={quote.dealerProvince} />
         <PanelRow icon={MapPin} label="ภูมิภาค" value={regionDisplay(quote.region)} />
         <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={quote.salesperson} />
+      </PanelSection>
+
+      <PanelSection icon={TrendingUp} title="ดีลเลอร์ขายต่อเท่าไหร่" >
+        <div data-panel="quote-resale" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+          {คอลัมน์ส่วนต่าง.map(c => (
+            <div key={c.k}>
+              <div style={{ fontSize: "0.64rem", color: "#64748B" }}>{c.l}</div>
+              <div data-cell={c.k} data-value={ขายต่อ ? (c.n(ขายต่อ) ?? "") : ""} style={{ fontWeight: 800, color: ขายต่อ ? PRIMARY : "#94A3B8", whiteSpace: "nowrap" }}>{ขายต่อ === undefined ? "…" : ขายต่อ ? c.v(ขายต่อ) : "—"}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: "0.66rem", color: "#64748B", marginTop: 6 }}>
+          {ขายต่อ === null ? "ใบนี้ไม่ได้ทำจากใบ HQ จึงไม่มีราคาส่งให้เทียบ" : "ราคาก่อนภาษี · ส่วนต่าง % = ส่วนต่าง ÷ ราคาขาย (สูตรเดียวกับการ์ดส่วนต่างกำไรเฉลี่ย)"}
+        </div>
       </PanelSection>
 
       <PanelSection icon={TrendingUp} title="ส่วนต่างกำไรของดีลเลอร์ (เทียบใบ HQ)" bodyStyle={margin ? { padding: 0 } : undefined}>

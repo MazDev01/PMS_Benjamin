@@ -1,5 +1,5 @@
 {
- "migration": "0271",
+ "migration": "0272",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -895,6 +895,13 @@
    "anon": false,
    "authenticated": true,
    "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_quote_margins(p_dealers text[], p_ids text[])",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
    "definer": true
   },
   {

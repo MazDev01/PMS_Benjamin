@@ -12,7 +12,9 @@ import type { QuotationMock } from "@pms/shared/lib/data/types";
 import { useQuoteValidityDays } from "@pms/shared/lib/useHQConfig";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { useSales } from "@pms/shared/context/SalesContext";
-import { dealers as dealersRepo, quotations as quotationsRepo } from "@pms/shared/lib/data";
+import { dealers as dealersRepo, quotations as quotationsRepo, metrics } from "@pms/shared/lib/data";
+import { คีย์ใบ, type ส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
+import { logRepoRead } from "@pms/shared/lib/repoLog";
 import type { DealerRow } from "@pms/shared/lib/data/types";
 import type { QuoteSummaryFilters, QuoteListOpts } from "@pms/shared/lib/data/ports";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
@@ -166,6 +168,17 @@ export default function NetworkQuotationPage() {
   const localPage = Math.min(tablePage, localPageCount - 1);
   const displayRows = useMemo(() => pageResult ? toQuoteRows(pageResult.rows.map(mapToHQ), validityDays, look) : pageSlice(tableRows, localPage, QPAGE_SIZE), [pageResult, tableRows, localPage, validityDays, look, netLeads, nameOf]); // eslint-disable-line react-hooks/exhaustive-deps
   const totalRows = pageResult ? pageResult.total : tableRows.length;
+  // ส่วนต่างรายใบของแถวในหน้านี้ (บอสสั่ง 2 พ.ย. 69 · ใบ 0272) — คิดที่ฐาน · ขอทีละหน้า
+  const คีย์หน้า = JSON.stringify(displayRows.map(r => [r.dealerCode, r.quoteNo]));
+  const [ส่วนต่าง, setส่วนต่าง] = useState<Map<string, ส่วนต่างใบ> | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    setส่วนต่าง(undefined);
+    metrics.hqQuoteMargins(displayRows.map(r => ({ dealer: r.dealerCode, id: r.quoteNo })))
+      .then(l => alive && setส่วนต่าง(new Map(l.map(m => [คีย์ใบ(m.dealer, m.id), m]))))
+      .catch(e => { logRepoRead("metrics.hqQuoteMargins", e); if (alive) setส่วนต่าง(new Map()); });
+    return () => { alive = false; };
+  }, [คีย์หน้า]); // eslint-disable-line react-hooks/exhaustive-deps
   const pagination = { page: pageResult ? tablePage : localPage, pageCount: Math.max(1, Math.ceil(totalRows / QPAGE_SIZE)), total: totalRows, onPage: setTablePage };
 
   // ผู้รับผิดชอบใบใน drawer — supabase (แถวมาจาก listPage) เดิมได้ placeholder → เติมชื่อจริงจากลูกค้าเป้าหมายผ่าน RPC
@@ -210,7 +223,7 @@ export default function NetworkQuotationPage() {
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ)
           ความยาวหน้าคุมด้วยกฎอื่นแทน: การ์ดกราฟตรึงความสูง S/M/L + กราฟรายการโชว์ Top N
           supabase = แบ่งหน้าที่ DB (listPage) · local = ทั้งชุด (tableRows) */}
-      <QuotationTable rows={displayRows} onView={setViewQ} pagination={pagination} />
+      <QuotationTable rows={displayRows} onView={setViewQ} pagination={pagination} margins={ส่วนต่าง} />
 
       {/* ย้อนการตอบรับแล้ว ตาราง/การ์ด/กราฟ ต้องดึงใหม่เอง (ตารางเทียบรอบ 1: เดิมต้องรีเฟรชหน้าเอง) */}
       {viewQ && <QuotationDrawer quote={drawerSp ? { ...viewQ, salesperson: drawerSp } : viewQ} onClose={() => setViewQ(null)} onChanged={refreshSales} />}
