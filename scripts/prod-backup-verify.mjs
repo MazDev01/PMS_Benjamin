@@ -16,6 +16,7 @@
 //   PMS_DRILL_SABOTAGE=seq ข้อทดสอบเท่านั้น (--target local): เลื่อนตัวนับ 1 ตัวในฐานที่กู้ → ต้องไม่ผ่าน
 //   PMS_DRILL_ADVANCE_SEQ=1 ข้อทดสอบเท่านั้น (--target local): กินตัวนับต้นทาง 240 หลัง dump (จำลองงานสแกนการแจ้งเตือน) → ต้องยังผ่าน
 import { spawnSync } from "node:child_process";
+import { ล้างฐานซ้อมกู้ } from "./lib/restoreReset.mjs";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -193,7 +194,7 @@ if (!เปิดอยู่) {
 const ปิดฐานซ้อมกู้ = () => { if (!เปิดอยู่) รัน("npx", ["supabase", "stop", "--workdir", RESTORE], { cwd: REPO }); };
 
 try {
-  const ล้าง = รัน("npx", ["supabase", "db", "reset", "--workdir", RESTORE], { cwd: REPO });
+  const ล้าง = ล้างฐานซ้อมกู้(() => รัน("npx", ["supabase", "db", "reset", "--workdir", RESTORE], { cwd: REPO }));
   if (ล้าง.status !== 0) {
     const ท้าย = `${ล้าง.stdout ?? ""}\n${ล้าง.stderr ?? ""}`.trim().split(/\r?\n/).slice(-3).join(" | ");
     ไม่ผ่าน(`ล้างฐานซ้อมกู้ไม่สำเร็จ: ${ท้าย}`);
@@ -253,7 +254,7 @@ try {
   // ฐานซ้อมกู้มีข้อมูลจริงของลูกค้า — ล้างทิ้งเสมอ ไม่ว่าผ่านหรือไม่
   //   เดิมใช้ reset-test-db.mjs (ล้าง + เติมข้อมูลตั้งต้นของฐานทดสอบ) — โฟลเดอร์ซ้อมกู้ไม่มีใบปรับฐาน ขั้นเติมจึงล้มทุกครั้ง
   //   แล้วขึ้นเตือน "ข้อมูลจริงอาจค้าง" ทั้งที่ขั้นล้างทำไปแล้ว (พบ 20 ต.ค. 69) → ล้างอย่างเดียว แล้วตรวจว่าว่างจริง
-  const ล้างทิ้ง = รัน("npx", ["supabase", "db", "reset", "--workdir", RESTORE], { cwd: REPO });
+  const ล้างทิ้ง = ล้างฐานซ้อมกู้(() => รัน("npx", ["supabase", "db", "reset", "--workdir", RESTORE], { cwd: REPO }));
   const ตรวจว่าง = รัน("docker", ["exec", "-i", BLANK, "psql", "-U", "postgres", "-d", "postgres", "-X", "-A", "-t", "-c",
     "select (select count(*) from auth.users) + (select count(*) from information_schema.tables where table_schema = 'public')"], { shell: false });
   const เหลือ = ตรวจว่าง.status === 0 ? Number(String(ตรวจว่าง.stdout).trim()) : NaN;

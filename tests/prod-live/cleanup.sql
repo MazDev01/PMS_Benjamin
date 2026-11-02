@@ -29,7 +29,8 @@ alter table public.quotations disable trigger quotations_no_delete_won;
 alter table public.quotations disable trigger trg_price_history_append_only;
 delete from public.email_outbox
  where (ref_table = 'quote_requests' and ref_id in (select id::text from public.quote_requests where dealer_code = 'ZZT'))
-    or to_email like 'live-%@example.test';
+    or to_email like 'live-%@example.test'
+    or subject like '%ZZTEST%' or body like '%ZZTEST%';   -- ตรงกับตัวถือจดหมาย tests/prod-live/mailHold.mjs (ถือไว้แต่ไม่ลบ = ส่งจริงรอบหลัง)
 -- แจ้งเตือน (ใบ 0231): ของสาขา ZZT หายตามกุญแจนอกตอนลบสาขา · ของ HQ ที่เกิดจากงานของ ZZT (ไม่มีรหัสสาขา) ต้องลบเอง
 --   ใบ 0231 ยังไม่ขึ้นฐานจริง = ไม่มีตาราง → ข้าม (to_regclass)
 do $$ begin
