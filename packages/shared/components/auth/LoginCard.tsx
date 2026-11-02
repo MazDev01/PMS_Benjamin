@@ -119,11 +119,11 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
 
 
   const inputWrap =
-    "flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-slate-500 " +
+    "login-field flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-slate-500 " +
     "transition focus-within:bg-white";
   const inputEl = "w-full bg-transparent text-[0.92rem] text-slate-800 outline-none placeholder:text-slate-400";
   // globals.css มี global `input:focus-visible { outline }` แบบ unlayered → utility ใน @layer แพ้เสมอ
-  // ใช้ inline style (ชนะทุก layer) กันกรอบซ้อนเล็กๆ รอบ input · ไม่มีกรอบ/วงโฟกัสรอบช่อง (บอสสั่ง 2 พ.ย. 69) เหลือแค่พื้นเปลี่ยนเป็นสีขาว
+  // ใช้ inline style (ชนะทุก layer) กันกรอบซ้อนเล็กๆ รอบ input · คลิกไม่มีกรอบ · กด Tab = กรอบที่กรอบนอก (.login-field ใน globals.css · บอสสั่ง 2 พ.ย. 69)
   const noOutline: React.CSSProperties = { outline: "none" };
 
   return (

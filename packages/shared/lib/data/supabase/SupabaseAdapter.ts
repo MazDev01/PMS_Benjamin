@@ -10,6 +10,7 @@ import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/l
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 import { จัดรูปผลงานดีลเลอร์, จัดรูปผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { จัดรูปเจาะลึก } from "@pms/shared/lib/hqDrill";
+import { จัดรูปส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
 import { จัดรูปแผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
@@ -1037,6 +1038,12 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("hq_drill", { p_page: page, p_start: start, p_end: end, p_today: today ?? null });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return จัดรูปเจาะลึก(data);
+    },
+    hqQuoteMargins: async (keys) => {
+      if (!keys.length) return [];
+      const { data, error } = await sb().rpc("hq_quote_margins", { p_dealers: keys.map(k => k.dealer), p_ids: keys.map(k => k.id) });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return จัดรูปส่วนต่างใบ(data);
     },
     hqDealerPanel: async (code, activityLimit) => {
       const { data, error } = await sb().rpc("hq_dealer_panel", { p_code: code, p_activity_limit: activityLimit ?? 10 });

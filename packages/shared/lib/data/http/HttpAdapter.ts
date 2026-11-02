@@ -417,6 +417,7 @@ const metrics: MetricsRepo = {
   hqPipelineDealers: (start, end, dealers, today) => metric("hqPipelineDealers", { start, end, dealers: dealers ?? null, today: today ?? null }),
   hqPipelineMonths: (start, end, dealers) => metric("hqPipelineMonths", { start, end, dealers: dealers ?? null }),
   hqDrill: (page, start, end, today) => metric("hqDrill", { page, start, end, today: today ?? null }),
+  hqQuoteMargins: (keys) => metric("hqQuoteMargins", { dealers: keys.map(k => k.dealer), ids: keys.map(k => k.id) }),
   hqDealerPanel: (code, activityLimit) => metric("hqDealerPanel", { code, activityLimit: activityLimit ?? 10 }),
 };
 // ── งานขาย ──

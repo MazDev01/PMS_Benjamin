@@ -12,13 +12,24 @@ import { fmtBaht } from "@pms/shared/lib/format";
 import type { QuoteRow } from "@pms/shared/lib/hqQuotations";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { TablePagination, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
+import { คีย์ใบ, type ส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
 
-export function QuotationTable({ rows, onView, pagination }: {
+/** ส่วนต่างรายใบ 4 คอลัมน์ (บอสสั่ง 2 พ.ย. 69 · ใบ 0272) — ไม่ได้ทำจากใบ HQ = "—" · ยังโหลด = "…" */
+export const คอลัมน์ส่วนต่าง = [
+  { k: "hq-cost", l: "ราคาส่ง HQ", n: (m: ส่วนต่างใบ) => m.hqCost, v: (m: ส่วนต่างใบ) => fmtBaht(m.hqCost) },
+  { k: "sale", l: "ราคาขายลูกค้า", n: (m: ส่วนต่างใบ) => m.sale, v: (m: ส่วนต่างใบ) => fmtBaht(m.sale) },
+  { k: "margin-baht", l: "ส่วนต่าง ฿", n: (m: ส่วนต่างใบ) => m.baht, v: (m: ส่วนต่างใบ) => fmtBaht(m.baht) },
+  { k: "margin-pct", l: "ส่วนต่าง %", n: (m: ส่วนต่างใบ) => m.pct, v: (m: ส่วนต่างใบ) => (m.pct == null ? "—" : `${m.pct.toFixed(1)}%`) },
+] as const;
+
+export function QuotationTable({ rows, onView, pagination, margins }: {
   rows: QuoteRow[];
   onView: (q: QuoteRow) => void;
+  /** ส่วนต่างรายใบของแถวในหน้านี้ (คีย์ = สาขา|เลขที่) · undefined = ยังโหลด */
+  margins?: Map<string, ส่วนต่างใบ>;
   // M9 Phase 2: มี = แบ่งหน้าที่ DB (supabase) → แสดงตัวควบคุมหน้า · ไม่มี = แสดงทั้งชุด (local)
   pagination?: { page: number; pageCount: number; total: number; onPage: (p: number) => void };
 }) {
@@ -42,6 +53,8 @@ export function QuotationTable({ rows, onView, pagination }: {
             <col style={{ width: "20%", minWidth: 150 }} />{/* ลูกค้า */}
             <col style={{ width: "11%", minWidth: 128 }} />{/* จังหวัดหน้างาน — "พระนครศรีอยุธยา" */}
             <col style={{ width: "9%", minWidth: 120 }} />{/* มูลค่า (ก่อน VAT) */}
+            {/* ส่วนต่างรายใบ 4 คอลัมน์ (บอสสั่ง 2 พ.ย. 69) — ตัวเลขเงินห้ามตัด */}
+            <col style={{ width: 118 }} /><col style={{ width: 124 }} /><col style={{ width: 110 }} /><col style={{ width: 96 }} />
             <col style={{ width: 132 }} />{/* สถานะ — "ส่งให้ลูกค้าแล้ว" ต้องเห็นเต็ม */}
             <col style={{ width: "9%", minWidth: 116 }} />{/* วันที่ส่ง */}
             <col style={{ width: "9%", minWidth: 116 }} />{/* ใช้ได้ถึง */}
@@ -54,6 +67,7 @@ export function QuotationTable({ rows, onView, pagination }: {
               <th>ลูกค้า</th>
               <th>{ช่อง.จังหวัด}</th>
               <th className="num">มูลค่า (ก่อน VAT)</th>
+              {คอลัมน์ส่วนต่าง.map(c => <th key={c.k} className="num" data-col-head={c.k}>{c.l}</th>)}
               <th>สถานะ</th>
               <th>วันที่ส่ง</th>
               <th>ใช้ได้ถึง</th>
@@ -63,7 +77,7 @@ export function QuotationTable({ rows, onView, pagination }: {
           </thead>
           <tbody>
             {!rows.length ? (
-              <tr><td colSpan={9} style={{ textAlign: "center", padding: "32px 14px", color: MUTED }}>ไม่พบข้อมูลที่ค้นหา</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: "center", padding: "32px 14px", color: MUTED }}>ไม่พบข้อมูลที่ค้นหา</td></tr>
             ) : rows.map(q => {
               const sc = quotationStatusColor[q.status];
               // คีย์ต้องพ่วงรหัสสาขา — เลขที่ใบไม่ซ้ำ "เฉพาะภายในสาขา" (คีย์จริง = สาขา + เลขที่)
@@ -77,6 +91,10 @@ export function QuotationTable({ rows, onView, pagination }: {
                   <td title={q.customer} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.customer}</td>
                   <td data-col="site-province" style={{ color: MUTED, whiteSpace: "nowrap" }}>{q.siteProvince || "—"}</td>
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>
+                  {คอลัมน์ส่วนต่าง.map(c => {
+                    const m = margins?.get(คีย์ใบ(q.dealerCode, q.quoteNo));
+                    return <td key={c.k} className="num" data-col={c.k} data-value={m ? (c.n(m) ?? "") : ""} style={{ whiteSpace: "nowrap", color: m ? "#1F2937" : MUTED }}>{!margins ? "…" : m ? c.v(m) : "—"}</td>;
+                  })}
                   <td>
                     <span className="badge" data-quote-status style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{ชื่อสถานะใบHQ[q.status]}</span>
                   </td>

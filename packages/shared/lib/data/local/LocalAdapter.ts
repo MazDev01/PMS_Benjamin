@@ -955,6 +955,7 @@ export const LocalAdapter: DataAdapter = {
     hqPipelineDealers: () => ok([]),
     hqPipelineMonths: () => ok([]),
     hqDrill: () => ok({ dealers: [], months: [] }),
+    hqQuoteMargins: () => ok([]),   // โหมดตัวอย่างไม่มีใบ HQ — ทุกใบ "—"
     hqDealerPanel: () => ok(null),   // โหมดตัวอย่างไม่มีตัวคำนวณของฐาน — แผงแสดง "—"
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);

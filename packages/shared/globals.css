@@ -1178,8 +1178,9 @@ body {
   .pms-dash .kpi-row { grid-template-columns:repeat(2,1fr); }
 }
 
-/* ── ไม่มีกรอบโฟกัส (บอสสั่ง 2 พ.ย. 69 "เอากรอบแบบนี้ออกจากทุกที่ที่มันขึ้น" — ปุ่ม · ช่องค้นหา · ช่องเลือก) ──
-   เดิมทุกปุ่ม/ลิงก์/ช่องกรอกที่ถูกเลือกขึ้นกรอบน้ำเงินเข้ม 2px · ห้ามเติมกลับเอง (รวมกรอบที่ตั้งแยกรายคอมโพเนนต์) */
+/* ── กรอบโฟกัส: คลิกไม่แสดง · กด Tab แสดง (บอสสั่ง 2 พ.ย. 69 รอบบ่าย — ทับคำสั่งเช้า "ไม่มีกรอบทุกกรณี") ──
+   ปกติ (เมาส์) ไม่มีกรอบเลย · ใช้คีย์บอร์ด = <html class="kbd-nav"> (KeyboardFocusMode) → ขึ้นกรอบน้ำเงินเข้ม 2px
+   ⚠️ ห้ามใช้ :focus-visible อย่างเดียว — คลิกช่องกรอกข้อความก็เข้า :focus-visible (กรอบขึ้นตอนคลิก) */
 a:focus, a:focus-visible,
 button:focus, button:focus-visible,
 [role="button"]:focus, [role="button"]:focus-visible,
@@ -1190,6 +1191,25 @@ textarea:focus, textarea:focus-visible,
 summary:focus, summary:focus-visible {
   outline: none;
 }
+/* กรอบโฟกัสตอนใช้คีย์บอร์ด (a11y) — ทุก control ที่ Tab ถึงเห็นชัด */
+html.kbd-nav a:focus-visible,
+html.kbd-nav button:focus-visible,
+html.kbd-nav [role="button"]:focus-visible,
+html.kbd-nav [tabindex]:focus-visible,
+html.kbd-nav input:focus-visible,
+html.kbd-nav select:focus-visible,
+html.kbd-nav textarea:focus-visible,
+html.kbd-nav summary:focus-visible,
+html.kbd-nav .thai-date:focus-within,
+html.kbd-nav .login-field:focus-within {
+  outline: 2px solid var(--primary, #003366);
+  outline-offset: 2px;
+}
+/* ช่องจริงของช่องวันที่ (โปร่งใสทับอยู่) / ช่องหน้าเข้าระบบ — กรอบอยู่ที่กรอบนอก ไม่ซ้อนที่ตัวช่อง */
+html.kbd-nav .thai-date input:focus-visible, html.kbd-nav .login-field input:focus-visible { outline: none; }
+/* แท็บ/เมนูข้าง: วงโฟกัสวาด "ด้านใน" (27 ต.ค. 69 · 20 ส.ค. 69) — แถบแท็บตัดขอบ และเมนูข้างชนขอบแถบจนดูสองชั้น
+   ⚠️ ห้ามบังคับ border-radius ตอนโฟกัส (บอสถาม 20 ส.ค. 69 "ทำไมเส้นมันซ้อนกัน 2 ชั้น") */
+html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { outline-offset: -2px; }
 
 /* ── Responsive: ยุบกริดหลายคอลัมน์บนจอแคบ (แท็บเล็ต/มือถือ) ── */
 @media (max-width:1024px){

@@ -5,6 +5,7 @@ import { SalesProvider } from "@pms/shared/context/SalesContext";
 import { leads as demoLeads } from "@pms/shared/lib/mock";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { ConfirmToaster } from "@pms/shared/components/ui/ConfirmToast";
+import { KeyboardFocusMode } from "@pms/shared/components/ui/KeyboardFocusMode";
 import "@pms/shared/globals.css";
 
 // ── สร้างหน้าตอนถูกเรียก ไม่ใช่สร้างล่วงหน้าตอน build ─────────────────────────────
@@ -42,6 +43,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <RoleProvider><SalesProvider initialLeads={REAL_BACKEND ? [] : demoLeads}>{children}</SalesProvider></RoleProvider>
         {/* กล่องยืนยันของระบบ — ต้องอยู่ที่ layout ราก จึงใช้ได้ทั้งหน้าที่ล็อกอินแล้วและหน้าเข้าสู่ระบบ */}
         <ConfirmToaster />
+        {/* กรอบโฟกัสเฉพาะตอนกด Tab — คลิกไม่ขึ้นกรอบ (บอสสั่ง 2 พ.ย. 69) */}
+        <KeyboardFocusMode />
       </body>
     </html>
   );
