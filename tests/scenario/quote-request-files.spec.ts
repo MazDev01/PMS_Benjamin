@@ -221,3 +221,31 @@ test("[db] ชนิดผิด / เกิน 20 MB / เกิน 10 ไฟ�
   expect(สาย.filter(f => f.side === "hq").map(f => f.version).sort(), "ไฟล์ HQ ทั้งฉบับ 1 และฉบับ 2 อยู่ในรายการ").toEqual([1, 2]);
   expect(สาย.some(f => f.path === คำขอ.hqPath), "ไฟล์ฉบับเก่าไม่ถูกทับ").toBe(true);
 });
+
+test("[ui·hq] ตั้งค่า › พื้นที่เก็บไฟล์: ใช้ไปตามจริง · ยังไม่ตั้งโควตา = ไม่มีหลอด · ตั้งแล้วหลอดเทียบโควตา", async ({ page }) => {
+  const errs = watchErrors(page);
+  const hq = await db(ADMIN);
+  const เดิม = ((await hq.rpc("storage_usage")).data as { quotaGb: number | null }).quotaGb;
+  try {
+    expect((await hq.rpc("storage_quota_set", { p_gb: null })).error).toBeNull();
+    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+    await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    await page.getByRole("button", { name: "พื้นที่เก็บไฟล์" }).click();
+    const แผง = page.locator("[data-panel='storage-usage']");
+    await expect(แผง.getByTestId("storage-quota"), "ยังไม่ตั้งโควตา = บอกตรง ๆ").toContainText("ยังไม่ได้ตั้งโควตา", { timeout: 20_000 });
+    await expect(แผง.getByTestId("storage-bar"), "ยังไม่ตั้งโควตา = ไม่มีหลอดเทียบ").toHaveCount(0);
+    // ขนาดในตารางของถังไฟล์แนบ = ขนาดจริงจากฐาน (ข้อนี้มีไฟล์ของข้อก่อนอยู่แล้ว)
+    const จริง = ((await hq.rpc("storage_usage")).data as { buckets: { bucket: string; bytes: number }[] }).buckets.find(b => b.bucket === "quote-files")!;
+    expect(Number(จริง.bytes), "ถังไฟล์แนบมีไฟล์ของข้อนี้").toBeGreaterThan(0);
+    await expect(แผง.locator("tr[data-bucket='quote-files']"), "แถวถังไฟล์แนบแสดงขนาดจริง (อ่านจากถังขณะแสดง)").toHaveAttribute("data-bytes", /^\d+$/);
+    await แผง.getByLabel("โควตาพื้นที่เก็บไฟล์ (GB)").fill("100");
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await expect.poll(async () => ((await hq.rpc("storage_usage")).data as { quotaGb: number | null }).quotaGb, { timeout: 20_000, message: "ฐานได้โควตา 100 GB" }).toBe(100);
+    await expect(แผง.getByTestId("storage-bar"), "ตั้งโควตาแล้วมีหลอดเทียบ").toBeVisible({ timeout: 20_000 });
+    await expect(แผง.getByTestId("storage-quota")).toContainText("100 GB");
+    assertNoErrors(errs, "ตั้งค่าพื้นที่เก็บไฟล์");
+  } finally {
+    await hq.rpc("storage_quota_set", { p_gb: เดิม });
+  }
+});
