@@ -28,7 +28,7 @@ const id: Record<string, number> = {};
 
 async function สร้างลีด(k: keyof typeof เลข) {
   const r = await (await db(RYG)).from("leads").insert({ id: `#L-${เลข[k]}`, num_id: เลข[k], dealer_code: "RYG", company: บริษัท(k), name: บริษัท(k),
-    contact: "ผู้ทดสอบ", phone: `08${String(เลข[k]).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "โกดัง 20x40 ม.", area: 800 });
+    contact: "ผู้ทดสอบ", phone: `08${String(เลข[k]).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "โกดัง 20x40 ม.", area: 800, note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(r.error, `สร้างลีด ${k}`).toBeNull();
 }
 async function เปิดแผงขอราคา(page: Page, k: keyof typeof เลข) {

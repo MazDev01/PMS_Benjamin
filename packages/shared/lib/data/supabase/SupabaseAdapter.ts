@@ -20,6 +20,7 @@ import { รวมค่าตั้งหาดีลเลอร์ } from "@p
 import { accountRemote } from "../accountRemote";
 import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard, QuoteBoardRow } from "../../quoteRequests";
 import type { MaterialTemplate } from "../../materialTemplates";
+import type { QuoteFile, จำนวนไฟล์คำขอ, StorageUsage } from "../../quoteFiles";
 import { getSupabase, hasStoredSession } from "./client";
 import { toCamel, toCamelList, toSnake, toSnakeList } from "./mappers";
 import { normalizeCustomer, normalizeDealer, leadToRow, rowToLead, quoteToRow, rowToQuote, apptToRow, rowToAppt } from "./rowMappers";
@@ -212,6 +213,8 @@ async function nextEntityId(dealerCode: string, entity: "customers" | "appointme
 }
 
 const FILES_BUCKET = "dealer-files";
+/** ถังไฟล์แนบของคำขอราคา (private · ใบ 0273) */
+const QUOTE_FILES_BUCKET = "quote-files";
 
 // ชื่อช่อง Realtime ต้องไม่ซ้ำกันต่อการ subscribe หนึ่งครั้ง
 // ถ้าใช้ชื่อตายตัว: หลายคอมโพเนนต์ที่ subscribe พร้อมกัน (เช่น useHQPolicy + useQuoteValidityDays
@@ -552,6 +555,45 @@ export const SupabaseAdapter: DataAdapter = {
       await must(sb().from("profiles")
         .update({ name: p.name, phone: p.phone, contact_email: p.email, avatar: p.avatar ?? null })
         .eq("id", id));
+    },
+  },
+  // ไฟล์แนบของคำขอราคา (ใบ 0273) — จองที่ผ่านคำสั่งของฐาน แล้วอัปโหลดเข้าถังในนามผู้ใช้ (กฎของถัง + ตัวดักตรวจซ้ำ)
+  quoteFiles: {
+    list: async (requestId) => {
+      const { data, error } = await sb().rpc("quote_files_list", { p_request_id: requestId });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return (data ?? []) as QuoteFile[];
+    },
+    counts: async (requestIds) => {
+      if (!requestIds.length) return [];
+      const { data, error } = await sb().rpc("quote_file_counts", { p_request_ids: requestIds });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return (data ?? []) as จำนวนไฟล์คำขอ[];
+    },
+    upload: async (requestId, side, file) => {
+      const { data, error } = await sb().rpc("quote_file_reserve", { p_request_id: requestId, p_side: side, p_name: file.name, p_size: file.size });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      const { error: e2 } = await sb().storage.from(QUOTE_FILES_BUCKET).upload(String((data as { path: string }).path), file, { upsert: false });
+      if (e2) throw new DbError(e2.message, (e2 as { code?: string }).code);
+    },
+    downloadUrl: async (path) => {
+      const { data, error } = await sb().storage.from(QUOTE_FILES_BUCKET).createSignedUrl(path, 300);
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return data?.signedUrl ?? null;
+    },
+    remove: async (path) => {
+      const { data, error } = await sb().storage.from(QUOTE_FILES_BUCKET).remove([path]);
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      if (!data?.length) throw new DbError("file_locked: ลบไฟล์ไม่ได้ — ส่งใบ HQ แล้ว หรือไม่ใช่ไฟล์ฝั่งของคุณ");
+    },
+    usage: async () => {
+      const { data, error } = await sb().rpc("storage_usage");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return data as StorageUsage;
+    },
+    setQuota: async (gb) => {
+      const { error } = await sb().rpc("storage_quota_set", { p_gb: gb });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
     },
   },
   // รายการวัสดุ (ใบ 0244) — กฎรายแถวของฐานกรอง (ดีลเลอร์เห็นเฉพาะที่เปิดใช้) · บันทึกผ่านคำสั่งของฐานเท่านั้น

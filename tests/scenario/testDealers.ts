@@ -49,6 +49,15 @@ export async function ลบสาขาทดสอบตรง(code: string, c
   // ใบ won ลบด้วยกุญแจไม่ได้แล้ว (ใบ 0203) — สาขาทดสอบ (รหัสขึ้นต้น ZZ/ZT) ลบใบที่ฐานทดสอบในเครื่องตรง ๆ
   try { const { ลบใบทดสอบที่ฐาน } = await import("./legacyQuotes"); ลบใบทดสอบที่ฐาน(`dealer_code = '${code}'`); } catch { /* ไม่มี docker */ }
   await ลบ("quotations");
+  // ไฟล์แนบของคำขอราคา (ใบ 0273): ลบในถังผ่าน API ของที่เก็บไฟล์ (ตัวดักลบแถวตาม) แล้วเก็บแถวจองที่ไม่มีไฟล์ — ก่อนลบคำขอ (กุญแจนอก)
+  { const { data: ไฟล์, error } = await admin.from("quote_files").select("object_name").eq("dealer_code", code);
+    if (error && error.code !== "42P01" && error.code !== "PGRST205") พลาด.push(`quote_files: ${error.message}`);
+    const ชื่อ = (ไฟล์ ?? []).map(f => String(f.object_name));
+    for (let i = 0; i < ชื่อ.length; i += 100) {
+      const { error: e } = await admin.storage.from("quote-files").remove(ชื่อ.slice(i, i + 100));
+      if (e) พลาด.push(`quote-files (ถัง): ${e.message}`);
+    }
+    await ลบ("quote_files"); }
   const { data: คำขอ } = await admin.from("quote_requests").select("id").eq("dealer_code", code);
   if (คำขอ?.length) {
     const { error } = await admin.from("hq_quotes").delete().in("request_id", คำขอ.map(r => r.id));

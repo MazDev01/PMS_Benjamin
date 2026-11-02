@@ -98,6 +98,15 @@ async function ขอราคา(d: Page, company: string, กดซ้ำ = fa
   await เปิดลีด(d, company, "ใบเสนอราคา");
   const แผง = d.locator("[data-panel='quote-request']");
   await แผง.getByRole("button", { name: "ขอราคาจาก HQ" }).click();
+  // ลีดที่เพิ่มด้วยข้อมูลลูกค้าอย่างเดียว → ฟอร์มเติมช่องที่ขาดก่อน (ขอราคาได้เมื่อข้อมูลครบ · บอสสั่ง 2 พ.ย. 69 · ใบ 0273)
+  const เติม = แผง.locator("[data-form='lead-info-missing']");
+  if (await เติม.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    for (const [ป้าย, ค่า] of [["งานที่ต้องการ", "ทดลอง — โกดัง"], ["พื้นที่ (ตร.ม.)", "600"], ["สเปก / รายละเอียดงาน", "ทดลอง — โกดัง 20x30 ม."]] as const) {
+      const ช่อง = เติม.getByLabel(ป้าย, { exact: true });
+      if (await ช่อง.count()) await ช่อง.fill(ค่า);
+    }
+    await เติม.getByRole("button", { name: "บันทึกแล้วไปต่อ" }).click();
+  }
   await แผง.getByLabel("งานที่ขอราคา").fill("ทดลอง — โกดัง");
   await แผง.getByLabel("สเปก / รายละเอียด").fill("ทดลอง — โกดัง 20x30 ม.");
   const ส่ง = แผง.getByRole("button", { name: "ส่งคำขอ" });

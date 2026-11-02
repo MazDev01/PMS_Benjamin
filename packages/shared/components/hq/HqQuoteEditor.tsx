@@ -16,6 +16,8 @@
 //   • ส่งได้เมื่อมีอย่างน้อย 1 รายการและยอด > 0 (บอกเหตุผลข้างปุ่ม · ฐานกันด้วย quote_empty ใน hq_quote_send)
 //   • ยืนราคาถึงแสดง พ.ศ. (ThaiDateInput · ตัวจัดรูปกลาง fmtISOToThai)
 //   • ร่างที่พิมพ์ค้างไม่หายเมื่อสลับไปคำขออื่น — เก็บไว้ในที่เก็บร่างของหน้า (ร่างค้าง) แล้วคืนให้เมื่อกลับมา
+// ไฟล์แนบ 2 ทาง (บอสสั่ง 2 พ.ย. 69 · ใบ 0273): HQ แนบ/ลบไฟล์ของใบได้ตอนเป็นร่าง (ต้องบันทึกร่างก่อน — ไฟล์ผูกใบ HQ ฉบับนั้น)
+//   กด "ส่งใบ HQ ให้ดีลเลอร์" แล้วไฟล์ล็อกพร้อมใบ · ไฟล์ฉบับก่อน + ไฟล์จากดีลเลอร์ดูได้ในกล่องเดียวกัน
 import { useEffect, useMemo, useState } from "react";
 import { Send, X, Copy, Lock, Boxes, ClipboardList } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
@@ -32,6 +34,7 @@ import { ช่อง as ป้ายช่อง, กลุ่มช่อง }
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
 
 const NAVY = "#003366";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -44,7 +47,7 @@ const สเปกยาว = 160;
 /** ร่างที่พิมพ์ค้าง (ยังไม่บันทึก) ของคำขอหนึ่ง — หน้าแม่ถือไว้ข้ามการสลับคำขอ */
 export type ร่างใบHQ = { lines: แถววาง[]; validUntil: string; note: string };
 
-export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง }: {
+export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged }: {
   request: QuoteRequest;
   dealerName: string;
   onClose: () => void;
@@ -60,6 +63,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   onChanged: () => void;
   /** ที่เก็บร่างค้างของหน้า (คีย์ = เลขคำขอ) — สลับคำขอแล้วกลับมา ร่างที่พิมพ์ไว้ยังอยู่ */
   ร่างค้าง?: Map<number, ร่างใบHQ>;
+  /** แนบ/ลบไฟล์แล้ว — หน้าแม่โหลดป้ายจำนวนไฟล์ใหม่ */
+  onFilesChanged?: () => void;
 }) {
   const [ใบ, setใบ] = useState<HqQuote | null | undefined>(undefined);
   const [ใบก่อน, setใบก่อน] = useState<HqQuote | null>(null);
@@ -306,6 +311,10 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                     : <span style={{ fontWeight: 400 }}>{ใบ?.note || "—"}</span>}
                 </label>
               </div>
+
+              <QuoteFilesBox requestId={request.id} uploadSide="hq" canUpload={แก้ได้ && !!ใบ}
+                lockedReason={ล็อก ? "ส่งใบ HQ แล้ว — ไฟล์ล็อกพร้อมใบ" : แก้ได้ ? "บันทึกร่างใบ HQ ก่อนแนบไฟล์" : "คำขอนี้ปิดแล้ว — แนบไฟล์ไม่ได้"}
+                onChanged={onFilesChanged} />
 
               {แก้ได้ && (
                 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>

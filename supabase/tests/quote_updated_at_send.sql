@@ -57,8 +57,8 @@ declare n int; rid bigint; hqid bigint; v1 quotations;
 begin
   perform uatest.as_db();
   n := (select coalesce(max(num_id), 0) from public.leads where dealer_code = 'CNX') + 1;
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
-  values ('#L-' || n, n, 'CNX', 'ZZTEST-ส่งใบ0238', 'ZZTEST-ส่งใบ0238', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET');
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
+  values ('#L-' || n, n, 'CNX', 'ZZTEST-ส่งใบ0238', 'ZZTEST-ส่งใบ0238', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform uatest.as_dealer('CNX');
   rid := (public.quote_request_submit(n, 'โกดังสำเร็จรูป')).id;
   perform uatest.as_hq();

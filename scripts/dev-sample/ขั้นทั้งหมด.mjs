@@ -109,7 +109,7 @@ export async function สร้าง(ctx) {
       ต้อง(await sb.from("leads").insert({
         id: `#L-${n}`, num_id: n, dealer_code: s.code, company, name: company, contact: `ผู้ติดต่อตัวอย่าง ${s.code}-${String(i + 1).padStart(2, "0")}`,
         phone: `000-000-${String(n).slice(-4)}`, email: `sample-${s.code.toLowerCase()}-${i + 1}@example.test`,
-        address: `ที่อยู่ตัวอย่าง ${i + 1} ${s.province}`, province: s.province, product: "โกดังเก็บสินค้า", area: String(600 + i * 50),
+        address: `ที่อยู่ตัวอย่าง ${i + 1} ${s.province}`, province: s.province, product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(600 + i * 50),
         note: `${ป้าย}: ${สถานการณ์[i]} · สเปก โครงเหล็ก ผนังเมทัลชีท`, source: "ลูกค้าแนะนำ", assigned: ผู้รับผิดชอบ, status: "WAITING",
         created_label: ป้ายวัน(วัน(-i)),
       }), `สร้างลีด ${company}`);

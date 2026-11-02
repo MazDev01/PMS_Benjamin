@@ -86,6 +86,8 @@ export const profile: ProfileRepo = {
 export const hqCompany = adapter.hqCompany;
 export const territories = adapter.territories;
 export const quoteRequests = adapter.quoteRequests;
+// ไฟล์แนบของคำขอราคา (ใบ 0273) — ต้องสดหลังแนบ/ลบ ไม่แคช
+export const quoteFiles = adapter.quoteFiles;
 // รายการวัสดุ (ใบ 0244) — หน้าตั้งค่า HQ + ฟอร์มขอราคา + ใบ HQ · ต้องสดหลังบันทึก ไม่แคช
 export const materialTemplates = adapter.materialTemplates;
 export const notes = adapter.notes;

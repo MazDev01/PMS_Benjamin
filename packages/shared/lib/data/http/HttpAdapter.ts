@@ -15,7 +15,8 @@
 import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal, DealerProposalPayment } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
-import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo, MaterialTemplatesRepo } from "../ports";
+import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo, MaterialTemplatesRepo, QuoteFilesRepo } from "../ports";
+import type { QuoteFile, จำนวนไฟล์คำขอ, StorageUsage } from "../../quoteFiles";
 import type { MaterialTemplate, EstimateAccuracy } from "../../materialTemplates";
 import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard } from "../../quoteRequests";
 import type { DealerProspect, ProspectActivity } from "../types";
@@ -305,6 +306,24 @@ const quoteRequests: QuoteRequestsRepo = {
   margin: (dealerCode, quotationId) => apiFetch<QuoteMargin | null>(`/quote-requests?view=margin&dealer=${encodeURIComponent(dealerCode)}&quote=${encodeURIComponent(quotationId)}`),
   quotedLeadIds: (dealerCode) => apiFetch<number[]>(`/quote-requests?view=quoted-leads&dealer=${encodeURIComponent(dealerCode)}`),
 };
+// ไฟล์แนบของคำขอราคา (ใบ 0273) — เซิร์ฟเวอร์จองที่ + ออกลิงก์อัปโหลด แล้วหน้าเว็บส่งไฟล์ตรงเข้าถัง (Vercel รับ body ≤ 4.5 MB)
+const quoteFiles: QuoteFilesRepo = {
+  list: (requestId) => apiFetch<QuoteFile[]>(`/quote-files?request=${requestId}`),
+  counts: (requestIds) => requestIds.length ? post<จำนวนไฟล์คำขอ[]>("/quote-files", { op: "counts", ids: requestIds }) : Promise.resolve([]),
+  upload: async (requestId, side, file) => {
+    const { path, token } = await post<{ path: string; token: string }>("/quote-files", { op: "reserve", requestId, side, name: file.name, size: file.size });
+    const { getSupabase } = await import("@pms/shared/lib/data/supabase/client");
+    const { error } = await getSupabase().storage.from("quote-files").uploadToSignedUrl(path, token, file);
+    if (error) {
+      const ใหญ่เกิน = /exceeded the maximum allowed size|too large|413/i.test(error.message);
+      throw new DbError(ใหญ่เกิน ? "ไฟล์ใหญ่เกิน 20 MB" : error.message);
+    }
+  },
+  downloadUrl: (path) => apiFetch<string | null>(`/quote-files?view=url&path=${encodeURIComponent(path)}`),
+  remove: async (path) => { await apiFetch(`/quote-files?path=${encodeURIComponent(path)}`, { method: "DELETE" }); },
+  usage: () => apiFetch<StorageUsage>("/quote-files?view=usage"),
+  setQuota: async (gb) => { await post("/quote-files", { op: "quota", gb }); },
+};
 // รายการวัสดุ (ใบ 0244)
 const materialTemplates: MaterialTemplatesRepo = {
   list: () => apiFetch<MaterialTemplate[]>("/material-templates"),
@@ -518,7 +537,7 @@ const realtime: RealtimePort = {
 
 export const HttpAdapter: DataAdapter = {
   storage, realtime, dealers, files, persons, settings, dealerSettings,
-  profile, hqCompany, territories, quoteRequests, materialTemplates, notes, users, audit, notifications, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
+  profile, hqCompany, territories, quoteRequests, quoteFiles, materialTemplates, notes, users, audit, notifications, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
 };

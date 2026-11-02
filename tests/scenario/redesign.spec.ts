@@ -252,7 +252,8 @@ test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วั�
 test("[ui·dealer] แผงลูกค้าเป้าหมายมีครบ 3 แท็บ (ภาพรวม · ใบเสนอราคา · ประวัติ) ไม่ล้นแนวนอน", async ({ page }) => {
   await open(page, "dealer", "/leads");
   await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
-  await page.getByRole("button", { name: "ตาราง" }).click(); // ค่าเริ่มต้น=บอร์ด → สลับเป็นตาราง
+  // exact: ลีดของข้ออื่นที่รันพร้อมกันอาจมีคำว่า "ตาราง" ในชื่อ (ปุ่มลบของแถวนั้นชื่อซ้อน)
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click(); // ค่าเริ่มต้น=บอร์ด → สลับเป็นตาราง
   await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   for (const tab of ["ภาพรวม", "ใบเสนอราคา", "ประวัติ"]) {
     await expect(page.getByRole("button", { name: tab, exact: true }).first(), `ต้องมีแท็บ "${tab}"`).toBeVisible();
@@ -304,7 +305,7 @@ test("[ui·dealer] ตารางเหลือไม่กี่แถว —
   const first = `ZZTEST-ตารางสั้น-${Date.now() % 100000}`;
   const เลขลีด = 977_800_000 + (Date.now() % 100000);
   const ใส่ = await adminClient().from("leads").insert({ id: `#L-${เลขลีด}`, num_id: เลขลีด, dealer_code: "RYG", company: first, name: first,
-    contact: "ผู้ทดสอบ", phone: "000-000-0301", province: "ระยอง", status: "WAITING" });
+    contact: "ผู้ทดสอบ", phone: "000-000-0301", province: "ระยอง", status: "WAITING", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(ใส่.error, `เตรียมลีดของข้อนี้ (${ใส่.error?.message ?? ""})`).toBeNull();
   try {
     await page.reload({ waitUntil: "domcontentloaded" });

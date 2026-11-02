@@ -90,7 +90,7 @@ test("[2] ดีลเลอร์สร้างลูกค้าเป้า�
   const r = await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id: `#L-${numId}`, dealerCode: "RYG", numId, name: บริษัท("ดีลหลัก"), company: บริษัท("ดีลหลัก"),
     contact: "คุณทดสอบ", phone: "081-000-0001", province: "ระยอง", product: "โรงงาน",
-    status: "WAITING", value: String(ยอดดีล), area: "300", assigned: "ทดสอบระบบ", source: "โทรเข้า",
+    status: "WAITING", value: String(ยอดดีล), area: "300", assigned: "ทดสอบระบบ", source: "โทรเข้า", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก",
   } });
   expect(r.status(), "สร้างลูกค้าเป้าหมายต้องผ่าน").toBe(200);
   const { data } = await db.from("leads").select("dealer_code,status").eq("company", บริษัท("ดีลหลัก")).single();
@@ -218,7 +218,7 @@ test("[11] ปิดการขายไม่สำเร็จ: ไม่ใ�
   //   กฎที่ข้อนี้วัด (ปิดไม่สำเร็จต้องมีเหตุผล) ใช้ได้กับลีดทุกขั้นที่ยังเปิดอยู่
   const สร้าง = await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id, dealerCode: "RYG", numId, name: บริษัท("ดีลแพ้"), company: บริษัท("ดีลแพ้"), contact: "x",
-    phone: "081-000-0002", province: "ระยอง", status: "WAITING", value: "500000", area: "100", assigned: "ทดสอบระบบ" } });
+    phone: "081-000-0002", province: "ระยอง", status: "WAITING", value: "500000", area: "100", assigned: "ทดสอบระบบ", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก" } });
   expect(สร้าง.ok(), `สร้างลีดตั้งต้นต้องสำเร็จ: ${await สร้าง.text()}`).toBe(true);
 
   // ทางแก้ลูกค้าเป้าหมายทางเดียว: op=apply (ส่วนต่าง · ใบ 0211) — กฎปิดการขายบังคับในฐาน (เดิมตรวจที่เซิร์ฟเวอร์แอป ตอบ 422)
@@ -243,7 +243,7 @@ test("[12] ลีดที่ไม่มีการติดต่อเกิ
   const id = `#L-${numId}`;
   await db.from("leads").insert({ id, dealer_code: "RYG", num_id: numId, name: บริษัท("ลีดเงียบ"),
     company: บริษัท("ลีดเงียบ"), contact: "x", province: "ระยอง", status: "WAITING",
-    value: "300000", area: "100", assigned: "ทดสอบระบบ", last_contact_at: "2026-08-01" });   // เงียบ 26 วัน
+    value: "300000", area: "100", assigned: "ทดสอบระบบ", last_contact_at: "2026-08-01", project: "ZZTEST งานโกดัง 20x40 ม.", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });   // เงียบ 26 วัน
 
   const สรุป = await (await request.post(`${HQ_ORIGIN}/api/v1/metrics?k=leadSummary`, { data: {
     dateStart: "2026-01-01", dateEnd: "2026-12-31", asOf: "2026-08-27", defaultDays: 7 } })).json();
@@ -322,7 +322,7 @@ test("[16-17] ปิดการขายใบเดียวกันพร้
   const numId = await (await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=next`, { data: { dealerCode: "RYG" } })).json();
   await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id: `#L-${numId}`, dealerCode: "RYG", numId, name: COMPANY, company: COMPANY, contact: "x",
-    phone: "081-000-0003", province: "ระยอง", status: "BULLET", value: "800000", area: "200", assigned: "ทดสอบระบบ" } });
+    phone: "081-000-0003", province: "ระยอง", status: "BULLET", value: "800000", area: "200", assigned: "ทดสอบระบบ", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก" } });
   // ด่าน 3: ใบทำจากใบ HQ (ต้นทุน 800,000 บวก 0%)
   const ใบHQid = await ใบHQผ่านAPI(request, playwright, Number(numId), 800_000);
   const ใบ = await (await request.post(`${DEALER_ORIGIN}/api/v1/quotations?op=numbered`, { data: {

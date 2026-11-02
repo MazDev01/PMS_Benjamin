@@ -38,7 +38,7 @@ test.beforeAll(async () => {
   const ryg = await db(RYG);
   const r = await ryg.from("leads").insert({
     id: `#L-${leadNum}`, num_id: leadNum, dealer_code: "RYG", company: COMPANY, name: COMPANY, contact: "ผู้ทดสอบ",
-    phone: "081-778-0002", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",
+    phone: "081-778-0002", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท",
   });
   if (r.error) throw new Error(r.error.message);
   const q = await ryg.rpc("quote_request_submit", { p_lead_num_id: leadNum, p_product: "โกดังสำเร็จรูป", p_area: 100 });

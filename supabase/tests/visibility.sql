@@ -69,8 +69,8 @@ begin
   perform hq_quote_save(r.id, lines, current_date + 30);
   h := hq_quote_send(r.id);
   perform flowtest.as_root();
-  insert into leads (id, dealer_code, num_id, name, company, phone, province, status, created_label)
-  values ('#ZZVIS-2', 'CNX', 978000002, 'ก', 'ZZVIS-ร่าง', '081-600-0002', 'เชียงใหม่', 'BULLET', '1 ม.ค. 2569');
+  insert into leads (id, dealer_code, num_id, name, company, phone, province, status, created_label, contact, project, area, note)
+  values ('#ZZVIS-2', 'CNX', 978000002, 'ก', 'ZZVIS-ร่าง', '081-600-0002', 'เชียงใหม่', 'BULLET', '1 ม.ค. 2569', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   d_r := quote_request_submit(978000002, 'โกดังและคลังสินค้า');
   perform flowtest.as_hq(c.hq_uid);

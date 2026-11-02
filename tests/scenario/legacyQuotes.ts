@@ -23,7 +23,12 @@ export function ล้างใบHQทดสอบ(dealerCode: string, leadNums
   const nums = leadNums.filter(n => Number.isInteger(n) && n > 0);
   if (!nums.length) return;
   const ids = nums.join(",");
-  const sql = `alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
+  // ไฟล์แนบของคำขอ (ใบ 0273): ลบไฟล์ในถังแบบที่ API ของที่เก็บไฟล์ลบ (สวิตช์ allow_delete_query) — ตัวดักลบแถว quote_files ตาม · แถวจองที่ไม่มีไฟล์ลบตรง
+  const sql = `select set_config('storage.allow_delete_query', 'true', false);
+    delete from storage.objects o using public.quote_files f, public.quote_requests r
+      where o.bucket_id = 'quote-files' and o.name = f.object_name and f.request_id = r.id and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
+    delete from public.quote_files f using public.quote_requests r where f.request_id = r.id and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
+    alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
     alter table public.quotations disable trigger quotations_no_delete_won;
     delete from public.quotations q using public.hq_quotes h, public.quote_requests r
       where q.hq_quote_id = h.id and h.request_id = r.id and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});

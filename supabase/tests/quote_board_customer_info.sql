@@ -30,8 +30,8 @@ declare
 begin
   perform flowtest.ok(hq is not null and ryg is not null, 'มีบัญชี HQ และดีลเลอร์ RYG');
   perform flowtest.as_user(ryg, 'DEALER_ADMIN', 'RYG');
-  insert into leads (id, num_id, dealer_code, company, name, contact, phone, email, address, province, status)
-  values ('#L-' || n, n, 'RYG', 'ZZQB บริษัททดสอบ', 'ZZQB บริษัททดสอบ', 'คุณผู้ติดต่อ ทดสอบ', '000-000-0042', 'zzqb-lead@example.test', '42 ถ.ทดสอบ', 'ระยอง', 'BULLET');
+  insert into leads (id, num_id, dealer_code, company, name, contact, phone, email, address, province, status, project, area, note)
+  values ('#L-' || n, n, 'RYG', 'ZZQB บริษัททดสอบ', 'ZZQB บริษัททดสอบ', 'คุณผู้ติดต่อ ทดสอบ', '000-000-0042', 'zzqb-lead@example.test', '42 ถ.ทดสอบ', 'ระยอง', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   rid := (quote_request_submit(n, 'โกดังเก็บสินค้า 20x40 ม.', '', 800, 'สเปกทดสอบ', 'ระยอง')).id;
 
   perform flowtest.as_user(hq, 'SUPER_ADMIN', '');

@@ -50,7 +50,7 @@ test.beforeAll(async () => {
   expect(t.error, "ใส่รายการวัสดุของข้อ").toBeNull();
   ไอดีแม่แบบ = (t.data ?? []).map(x => Number(x.id));
   const l = await (await db(สาขา.บัญชี)).from("leads").insert({ id: `#L-${เลขลีดขอราคา}`, num_id: เลขลีดขอราคา, dealer_code: สาขา.รหัส,
-    company: บริษัทขอราคา, name: บริษัทขอราคา, contact: "ผู้ทดสอบ", phone: `08${String(เลขลีดขอราคา).slice(-8)}`, province: "ตราด", status: "BULLET" });
+    company: บริษัทขอราคา, name: บริษัทขอราคา, contact: "ผู้ทดสอบ", phone: `08${String(เลขลีดขอราคา).slice(-8)}`, province: "ตราด", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(l.error, "ลูกค้าเป้าหมายสำหรับฟอร์มขอราคา").toBeNull();
 });
 test.afterAll(async () => {

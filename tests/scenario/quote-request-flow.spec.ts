@@ -47,7 +47,7 @@ test.beforeAll(async () => {
   leadNum = 978_000_000 + (Date.now() % 99_999);
   const r = await (await db(RYG)).from("leads").insert({
     id: `#L-${leadNum}`, num_id: leadNum, dealer_code: "RYG", company: COMPANY, name: COMPANY, contact: "ผู้ทดสอบ",
-    phone: "081-777-0001", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",
+    phone: "081-777-0001", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท",
   });
   if (r.error) throw new Error(r.error.message);
 });
@@ -88,6 +88,8 @@ test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอ
   // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69) — ดีลเลอร์พิมพ์ "งานที่ขอราคา" เอง และเป็นช่องบังคับ
   await expect(แผง.getByLabel("แม่แบบ", { exact: true }), "คำขอราคาต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
   await แผง.getByLabel("สเปก / รายละเอียด").fill("โกดัง 20x40 ม. สูง 8 ม.");
+  // ลีดข้อมูลครบแล้ว (ใบ 0273) ช่องงานกรอกจากลีดมาให้ — ล้างออกเพื่อตรวจว่าช่องนี้ยังบังคับตอนส่ง
+  await แผง.getByLabel("งานที่ขอราคา").fill("");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   await expect(page.getByText("ระบุงานที่ขอราคาก่อน").first(), "ไม่ระบุงานที่ขอราคา ต้องบอกเหตุผล ไม่ส่ง").toBeVisible({ timeout: 10_000 });
   expect(await สถานะลูกค้าเป้าหมาย(), "ยังไม่ส่งคำขอ → ขั้นต้องไม่เปลี่ยน").not.toBe("HQ_PRICING");

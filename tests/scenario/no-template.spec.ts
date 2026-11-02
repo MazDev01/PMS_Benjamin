@@ -105,7 +105,7 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
   const เลข = เลขลีด + 1, ชื่อ = `${บริษัท}-นัด`, แม่แบบเก่า = "ZZ-แม่แบบเก่า-แจ้งเตือน";
   // ใบ 0232: ดีลเลอร์เพิ่มลีดได้เฉพาะขั้นรอติดต่อ/ลูกค้าเป้าหมาย — ข้อมูลเก่าขั้น "ติดตาม" วางที่ฐานด้วยบัญชีผู้ดูแล (ตัวช่วยทดสอบ)
   const l = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อ, name: ชื่อ,
-    contact: "ผู้ทดสอบ", phone: "000-000-0002", province: "ระยอง", status: "QUOTED", product: แม่แบบเก่า });
+    contact: "ผู้ทดสอบ", phone: "000-000-0002", province: "ระยอง", status: "QUOTED", product: แม่แบบเก่า, project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(l.error).toBeNull();
   try {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
@@ -164,7 +164,7 @@ test("[func·dealer] % บวกตั้งต้นอยู่ที่หน
 test("[func] ครบวงจรไม่มีแม่แบบ: ดีลเลอร์พิมพ์งานที่ขอราคา → HQ ทำ BOQ ด้วยรายการที่พิมพ์เอง → ส่งใบ → ดีลเลอร์ทำใบลูกค้า (% จากหน้าตั้งค่า) → won → สั่งผลิต", async ({ browser }) => {
   const sb = await db(RYG);
   const l = await sb.from("leads").insert({ id: `#L-${เลขลีด}`, num_id: เลขลีด, dealer_code: "RYG", company: บริษัท, name: บริษัท,
-    contact: "ผู้ทดสอบ", phone: "000-000-0001", province: "ระยอง", status: "BULLET", product: "ZZ-แม่แบบเก่า" });
+    contact: "ผู้ทดสอบ", phone: "000-000-0001", province: "ระยอง", status: "BULLET", product: "ZZ-แม่แบบเก่า", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(l.error).toBeNull();
   const ลีด = async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", เลขลีด).single()).data?.status;
   const คำขอ = async () => (await admin.from("quote_requests").select("id, status, product").eq("dealer_code", "RYG").eq("lead_num_id", เลขลีด).order("id", { ascending: false }).limit(1).maybeSingle()).data;
@@ -258,7 +258,7 @@ test("[func·dealer] ใบเก่าที่เคยใช้แม่แ�
   const บริษัทเก่า = `ZZTEST-ใบแม่แบบเก่า-${แท็ก}`, เลขใบ = `ZZTEST-LEGACY-TPL-${แท็ก}`;
   const เลขลีดเก่า = 979_800_000 + (Date.now() % 90_000);
   const ลีด = await admin.from("leads").insert({ id: `#L-${เลขลีดเก่า}`, num_id: เลขลีดเก่า, dealer_code: "RYG", company: บริษัทเก่า, name: บริษัทเก่า,
-    phone: "000-000-0003", province: "ระยอง", status: "QUOTED" });
+    phone: "000-000-0003", province: "ระยอง", status: "QUOTED", contact: "ผู้ทดสอบ", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(ลีด.error, `วางลีดไม่สำเร็จ: ${ลีด.error?.message}`).toBeNull();
   วางใบเดิมที่ฐาน([{ id: เลขใบ, dealer_code: "RYG", customer: บริษัทเก่า, deal_id: เลขลีดเก่า, status: "draft", building_type: ใบ!.building_type,
     total_value: ใบ!.total_value, line_items: [{ name: "งานเดิม", qty: 1, unit: "งาน", unitPrice: Number(ใบ!.total_value) }],
