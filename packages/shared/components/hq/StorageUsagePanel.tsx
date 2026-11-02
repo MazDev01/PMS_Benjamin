@@ -15,14 +15,14 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { type StorageUsage, ขนาดไฟล์ } from "@pms/shared/lib/quoteFiles";
 
-/** ชื่อถังที่ผู้ใช้อ่านรู้เรื่อง — ถังที่ไม่รู้จักแสดงชื่อจริง */
+/** ชื่อถังที่ผู้ใช้อ่านรู้เรื่อง — ถังอื่น (รวมถังที่เลิกใช้) แสดงชื่อกลาง แต่ยังนับจำนวน/ขนาดตามจริง */
 const ชื่อถัง: Record<string, string> = {
   "quote-files": "ไฟล์แนบคำขอราคา (ดีลเลอร์ ↔ HQ)",
   "dealer-files": "ไฟล์ของดีลเลอร์ (ลูกค้า/ลีด)",
   "avatars": "รูปโปรไฟล์",
   "catalog-images": "รูปแคตตาล็อก (เลิกใช้)",
-  "catalog-plans": "แบบแปลนแม่แบบ (เลิกใช้)",
 };
+const ชื่อถังอื่น = "ไฟล์อื่น (เลิกใช้)";
 const GB = 1024 ** 3;
 
 export function StorageUsagePanel() {
@@ -89,7 +89,7 @@ export function StorageUsagePanel() {
                 {!ข้อมูล ? <tr><td colSpan={3} style={{ textAlign: "center", color: "#9ca3af" }}>{ว่าง}</td></tr>
                   : ข้อมูล.buckets.map(b => (
                     <tr key={b.bucket} data-bucket={b.bucket} data-bytes={b.bytes}>
-                      <td>{ชื่อถัง[b.bucket] ?? b.bucket}</td>
+                      <td>{ชื่อถัง[b.bucket] ?? ชื่อถังอื่น}</td>
                       <td className="num">{Number(b.files).toLocaleString()}</td>
                       <td className="num">{ขนาดไฟล์(Number(b.bytes))}</td>
                     </tr>
