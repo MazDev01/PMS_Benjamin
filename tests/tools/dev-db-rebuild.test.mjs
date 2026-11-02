@@ -23,9 +23,12 @@ function พอร์ตจำลอง() {
   const ช่วงกัน = process.platform !== "win32" ? [] :
     [...(spawnSync("netsh", ["int", "ipv4", "show", "excludedportrange", "protocol=tcp"], { encoding: "utf8" }).stdout ?? "")
       .matchAll(/^\s*(\d+)\s+(\d+)/gm)].map(m => [Number(m[1]), Number(m[2])]);
-  const ชน = (p) => ช่วงกัน.some(([a, b]) => p + 9 >= a && p <= b);
+  // พอร์ตที่มีโปรแกรมอื่นฟังอยู่ (เช่น ฐานของโปรเจกต์อื่นในเครื่อง · 2 พ.ย. 69 ERP-MAZ ถือ 58322) = ใช้ไม่ได้เหมือนกัน
+  const ฟังอยู่ = new Set([...(spawnSync(process.platform === "win32" ? "netstat" : "sh", process.platform === "win32" ? ["-ano", "-p", "TCP"] : ["-c", "ss -ltnH || true"], { encoding: "utf8" }).stdout ?? "")
+    .matchAll(/[:.](\d+)\s+\S*\s*(?:LISTENING|LISTEN)/g)].map(m => Number(m[1])));
+  const ชน = (p) => ช่วงกัน.some(([a, b]) => p + 9 >= a && p <= b) || Array.from({ length: 10 }, (_, i) => p + i).some(x => ฟังอยู่.has(x));
   const p = [58321, 54921, 47321, 44321, 61321, 39321].find(x => !ชน(x));
-  if (!p) throw new Error(`ไม่มีพอร์ตจำลองที่ Windows ไม่ได้กัน (ช่วงที่กัน: ${ช่วงกัน.map(x => x.join("–")).join(" · ")})`);
+  if (!p) throw new Error(`ไม่มีพอร์ตจำลองที่ Windows ไม่ได้กัน (ช่วงที่กัน: ${ช่วงกัน.map(x => x.join("–")).join(" · ")} · มีโปรแกรมฟังอยู่ในช่วงที่เลือก)`);
   return p;
 }
 const env = { ...process.env, PMS_DEV_DB_DIR: ฐาน, PMS_DEV_PROJECT: โปรเจกต์, PMS_DEV_API_PORT: String(พอร์ตจำลอง()), PMS_DEV_MIGRATIONS_DIR: ใบ,
