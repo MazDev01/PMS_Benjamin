@@ -4,6 +4,7 @@
 //   ตัวเลขจากฐาน hq_drill (ใบ 0271) — คีย์ใน sum = คีย์ของแถวรายดีลเลอร์/รายเดือน
 import { รวมคีย์, type หน้าเจาะลึก, type แถวเจาะลึก, type เดือนเจาะลึก } from "./hqDrill";
 import { fmtBaht } from "./format";
+import { ชื่อขั้น } from "./leadStage";   // ชื่อขั้นจากตัวกลางตัวเดียว (check-lead-stage-map)
 
 export type มิติเจาะลึก = "dealer" | "region" | "prov" | "month";
 /** ค่าของชุดแถว: sum = ผลรวมคีย์ (มีในแถวรายเดือนด้วยถ้า month=true) · หรือสูตรเอง v (แถวรายดีลเลอร์) / mv (แถวรายเดือน) */
@@ -48,14 +49,14 @@ const ลีด: ตั้งค่าเจาะลึก = {
   การ์ด: [
     { k: "open", kpi: "open", l: "ลีดที่เปิดอยู่", sum: "open", sub: () => "ราย · ตอนนี้ ยังไม่ปิดการขาย", icon: "users", color: "#2563a8", bg: "#2563a817" },
     { k: "leads", kpi: "new", l: "ลีดใหม่ในช่วงนี้", sum: "leads", month: true, sub: () => "ราย · เข้ามาในช่วงที่เลือก", icon: "phone", color: "#7c3aed", bg: "#7c3aed17" },
-    { k: "qr", kpi: "qr", l: "รอราคา HQ", sum: "qr", sub: () => "ราย · ขั้นขอราคา HQ ตอนนี้", icon: "inbox", color: "#0891B2", bg: "#0891B217" },
+    { k: "qr", kpi: "qr", l: "รอราคา HQ", sum: "qr", sub: () => `ราย · ขั้น${ชื่อขั้น(2)} ตอนนี้`, icon: "inbox", color: "#0891B2", bg: "#0891B217" },
     { k: "stale", kpi: "idle", l: "ไม่เคลื่อนไหวเกิน 30 วัน", sum: "stale", sub: () => "ราย · ตอนนี้ ติดต่อล่าสุดเกิน 30 วัน", icon: "alarm", color: "#EA580C", bg: "#EA580C17", danger: true },
   ],
   คอลัมน์: [
     { k: "leads", l: "ลีดใหม่", sum: "leads", month: true },
     { k: "open", l: "เปิดอยู่ (ตอนนี้)", sum: "open" },
-    { k: "qr", l: "ขอราคา HQ", sum: "qr" },
-    { k: "wait", l: "รอลูกค้าตอบ", sum: "wait" },
+    { k: "qr", l: ชื่อขั้น(2), sum: "qr" },
+    { k: "wait", l: ชื่อขั้น(5), sum: "wait" },
     { k: "stale", l: "ไม่เคลื่อนไหว 30 วัน", sum: "stale" },
     { k: "won", l: "ปิดสำเร็จ", sum: "won", month: true },
     { k: "lost", l: "ปิดไม่สำเร็จ", sum: "lost", month: true },
