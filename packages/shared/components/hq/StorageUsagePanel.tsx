@@ -5,7 +5,7 @@
 // โควตา = ตัวเลขที่ HQ ใส่เอง (GB) — ระบบไม่รู้แพ็กเกจของที่เก็บไฟล์ จึงไม่เดา · ยังไม่ใส่ = "ยังไม่ได้ตั้งโควตา" ไม่มีหลอดเทียบ
 // บันทึกโควตาด้วยปุ่มบันทึกกลางของหน้าตั้งค่า (เหมือนแท็บอื่น) · ตั้งได้เฉพาะผู้ดูแล/ผู้บริหาร HQ (ฐานกัน)
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { HardDrive, Gauge, Files } from "lucide-react";
+import { HardDrive, Gauge, Files, Paperclip } from "lucide-react";
 import { quoteFiles as repo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -53,6 +53,8 @@ export function StorageUsagePanel() {
   const โควตาไบต์ = ข้อมูล?.quotaGb != null ? Number(ข้อมูล.quotaGb) * GB : null;
   const ร้อยละ = ใช้ไป != null && โควตาไบต์ ? Math.min(100, (ใช้ไป / โควตาไบต์) * 100) : null;
   const ว่าง = ข้อมูล === null ? "โหลดข้อมูลไม่สำเร็จ" : "กำลังโหลด…";
+  // ถังไฟล์แนบคำขอราคา (ใบ 0273) — ไม่มีแถวของถัง = ยังไม่มีถังนี้ (ฐานรุ่นเก่า) → "—" ไม่ใช่ 0
+  const แนบ = ข้อมูล ? ข้อมูล.buckets.find(b => b.bucket === "quote-files") ?? null : null;
 
   return (
     <div data-panel="storage-usage">
@@ -63,6 +65,9 @@ export function StorageUsagePanel() {
           rawValue={ข้อมูล?.quotaGb ?? null} empty={ว่าง}
           sub={ร้อยละ != null ? `ใช้ไป ${ร้อยละ.toFixed(1)}%` : undefined} />
         <KpiCard kpi="storage-files" icon={Files} color="#0891B2" bg="#E6F4F9" label="จำนวนไฟล์" value={ไฟล์ == null ? null : ไฟล์.toLocaleString()} rawValue={ไฟล์} unit="ไฟล์" empty={ว่าง} />
+        <KpiCard kpi="storage-quote-files" icon={Paperclip} color="#EA580C" bg="#FEF0E6" label="ไฟล์แนบคำขอราคา" testId="storage-quote-files"
+          value={แนบ ? ขนาดไฟล์(Number(แนบ.bytes)) : null} rawValue={แนบ ? Number(แนบ.bytes) : null}
+          sub={แนบ ? `${Number(แนบ.files).toLocaleString()} ไฟล์ · ดีลเลอร์ ↔ HQ` : undefined} empty={ข้อมูล ? "—" : ว่าง} />
       </KpiRow>
 
       <SectionCard icon={<HardDrive size={19} />} title="พื้นที่เก็บไฟล์">
