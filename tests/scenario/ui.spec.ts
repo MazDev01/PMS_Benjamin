@@ -45,7 +45,8 @@ test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐ�
 // modal ต้องยึด viewport เต็มจอ (กันบั๊ก: แอนิเมชันหน้าเผลอใส่ transform ที่ .erp → fixed ยึด .erp แทนจอ)
 test("[ui·desktop] modal ลูกค้า HQ ครอบเต็มจอ (fixed ยึด viewport)", async ({ page }) => {
   await open(page, "hq", "/hq/customers");
-  const row = page.locator("table tbody tr").first();
+  // 2 พ.ย. 69 ตารางเจาะลึกอยู่บนรายชื่อ (กดแถว = เจาะลง) → เปิดแผงจากตารางรายชื่อลูกค้า
+  const row = page.getByRole("table", { name: "รายชื่อลูกค้า" }).locator("tbody tr").first();
   // ตารางแบ่งหน้าที่ DB (RPC async, M9 Phase 6) — แถวแรกตอนโหลดอาจเป็นแถว "กำลังโหลด…" ที่คลิกไม่ได้
   // รอปุ่ม "ดูรายละเอียด" (มีแค่แถวข้อมูลจริง) ก่อนคลิก ไม่งั้นคลิกแถวชั่วคราวแล้วโมดัลไม่เปิดเลย
   await expect(row.getByTitle("ดูรายละเอียด")).toBeVisible({ timeout: 15_000 });

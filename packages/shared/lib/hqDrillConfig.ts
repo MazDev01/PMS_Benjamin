@@ -76,7 +76,8 @@ const ใบ: ตั้งค่าเจาะลึก = {
     { k: "sales", kpi: "won", l: "ตอบรับ (มูลค่า)", sum: "sales", month: true, f: fmtBaht,
       sub: rows => `${รวมคีย์(rows, "won").toLocaleString()} ใบ · ตามวันที่ลูกค้าตอบรับ ก่อน VAT`, icon: "check", color: "#059669", bg: "#E6F6EF" },
     { k: "rate", kpi: "acceptRate", l: "อัตราตอบรับ", v: rows => อัตราแถว(rows), mv: ms => อัตราแถว(ms), f: ร้อยละ,
-      sub: rows => `ตอบรับ ${รวมคีย์(rows, "won").toLocaleString()} ÷ ใบที่ส่ง ${รวมคีย์(rows, "sent").toLocaleString()}`, icon: "percent", color: "#7c3aed", bg: "#F3E8FF" },
+      // ไม่มีใบที่ส่ง = ไม่มีตัวหาร → ค่า "—" + บอกเหตุ (ไม่ใช่ 0%)
+      sub: rows => รวมคีย์(rows, "sent") ? `ตอบรับ ${รวมคีย์(rows, "won").toLocaleString()} ÷ ใบที่ส่ง ${รวมคีย์(rows, "sent").toLocaleString()}` : "ยังไม่มีใบที่ส่งแล้ว", icon: "percent", color: "#7c3aed", bg: "#F3E8FF" },
   ],
   คอลัมน์: [
     { k: "sent", l: "ใบที่ส่ง", sum: "sent", month: true },

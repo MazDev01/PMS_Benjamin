@@ -82,9 +82,10 @@ test("[ดีลเลอร์] ทุกแถวที่กดได้ ต�
   expect(checked, "ต้องมีอย่างน้อย 1 หน้าที่มีข้อมูลให้ตรวจจริง").toBeGreaterThan(0);
 });
 
-/** แถวข้อมูลที่กดได้แถวแรก — ใช้กับเทสต์ที่ต้องกดจริง */
+/** แถวข้อมูลที่กดได้แถวแรกของรายชื่อลูกค้า — ใช้กับเทสต์ที่ต้องกดจริง
+ *  2 พ.ย. 69 หน้าลูกค้ามีตารางเจาะลึกอยู่บนรายชื่อ (กดแถว = เจาะลงระดับ ไม่ใช่เปิดรายละเอียด) → ชี้ตารางรายชื่อตรง ๆ */
 function firstClickableRow(page: Page) {
-  return page.locator("tbody tr.clickable, tbody tr[tabindex='0']").first();
+  return page.getByRole("table", { name: "รายชื่อลูกค้า" }).locator("tbody tr.clickable, tbody tr[tabindex='0']").first();
 }
 
 test("[HQ] กด Enter บนแถวที่โฟกัสอยู่ ต้องเปิดรายละเอียดได้เหมือนคลิก", async ({ page }) => {
@@ -131,3 +132,32 @@ test("[HQ] กด Enter ตอนโฟกัสอยู่ที่ปุ่�
   const dialogs = await page.getByRole("dialog").count();
   expect(dialogs, "ต้องเปิดรายละเอียดชั้นเดียว ไม่ซ้อนกัน").toBeLessThanOrEqual(1);
 });
+
+// ── ตารางเจาะลึก 3 หน้า (บอสสั่ง 2 พ.ย. 69) — แถวต้องกด Tab ถึง + Enter/Space เจาะลงได้เหมือน /hq/pipeline ──
+//   ข้อบนตรวจว่าทุกแถวโฟกัสได้ + มีคำอธิบาย · ข้อนี้กดจริง: Tab จากปุ่มเรียงหัวตารางลงแถวแรก → Enter (แท็บดีลเลอร์) / Space (แท็บภูมิภาค) → แถบระดับเพิ่มชิ้น
+for (const path of ["/hq/leads", "/hq/quotations", "/hq/customers"]) {
+  test(`[HQ] ${path} ตารางเจาะลึก: Tab ถึงแถว · Enter/Space เจาะลงระดับถัดไป`, async ({ page }) => {
+    await open(page, "hq", path);
+    const ตาราง = page.locator("[data-drill-table]");
+    const แถวแรก = ตาราง.locator("tbody tr.clickable").first();
+    await expect(แถวแรก, `${path}: มีแถวเจาะลึก`).toBeVisible({ timeout: 30_000 });
+
+    // Tab จากปุ่มเรียงคอลัมน์สุดท้ายของหัวตาราง → โฟกัสต้องลงแถวแรก
+    await ตาราง.locator("thead [data-sort]").last().focus();
+    await page.keyboard.press("Tab");
+    await expect(แถวแรก, `${path}: กด Tab แล้วโฟกัสลงแถวแรกของตารางเจาะลึก`).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), `${path}: Enter บนแถวดีลเลอร์ = เจาะลงระดับดีลเลอร์`).toBeVisible({ timeout: 15_000 });
+
+    // กลับทั้งเครือ → แท็บภูมิภาค → Space บนแถวแรก = เจาะลงภูมิภาค และหน้าไม่เลื่อน
+    await page.locator('[data-crumbs] [data-crumb="all"]').click();
+    await page.locator('[data-drill-chart] [role=tab][data-dim="region"]').click();
+    await expect(ตาราง).toHaveAttribute("data-drill-table", "region");
+    const แถวภาค = ตาราง.locator("tbody tr.clickable").first();
+    await แถวภาค.focus();
+    const ก่อน = await page.evaluate(() => window.scrollY);
+    await page.keyboard.press(" ");
+    await expect(page.locator('[data-crumbs] [data-crumb="region"]'), `${path}: Space บนแถวภูมิภาค = เจาะลงภูมิภาค`).toBeVisible({ timeout: 15_000 });
+    expect(await page.evaluate(() => window.scrollY), `${path}: Space ต้องไม่เลื่อนหน้า`).toBe(ก่อน);
+  });
+}

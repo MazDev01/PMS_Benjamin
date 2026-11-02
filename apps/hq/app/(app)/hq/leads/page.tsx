@@ -92,7 +92,10 @@ export default function HQLeadsPage() {
   // เลขขั้นของแถว: แถวจากฐาน (leads_page ใบ 0251) มี stageNo · โหมดตัวอย่าง/ค้างติดตาม คิดจากใบร่างที่มีในเครื่อง
   const เลขขั้นแถว = (l: LeadRow): เลขขั้น => (l.stageNo as เลขขั้น | undefined)
     ?? เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
-  const [viewLead, setViewLead] = useState<LeadRow | null>(null);  // Drawer — ดูอย่างเดียว
+  const [viewLead, setViewLead] = useState<LeadRow | null>(null);
+  // โดนัท 2 ใบ: ชี้ก้อนสีหรือแถวคำอธิบาย เน้นก้อนเดียวกัน (บอสสั่ง 20 ส.ค. 69 · ย้ายมาจากโดนัทหน้าลูกค้าที่เอาออก 2 พ.ย. 69)
+  const [เน้นแหล่ง, setเน้นแหล่ง] = useState<number | null>(null);
+  const [เน้นเหตุผล, setเน้นเหตุผล] = useState<number | null>(null);  // Drawer — ดูอย่างเดียว
   // ?open=รหัสสาขา:รหัสลีด (กดแถวในแท็บลูกค้าเป้าหมายของแผงดีลเลอร์ · บอสสั่ง 30 ต.ค. 69) = เปิดแผงลีดนั้น แล้วล้างออกจาก URL
   //   รหัสลีดซ้ำกันได้ข้ามสาขา → ค้นในสาขานั้นเท่านั้น · ไม่พบ = ไม่เปิดอะไร
   useEffect(() => {
@@ -428,11 +431,13 @@ export default function HQLeadsPage() {
                 segments={sources.map((s, i) => ({ label: s.label, value: s.count, color: RAMP[i % RAMP.length] }))}
                 centerLabel="ทั้งหมด"
                 centerValue={`${sources.reduce((s, x) => s + x.count, 0)}`}
-                size={150}
+                size={150} activeIndex={เน้นแหล่ง} onActiveChange={setเน้นแหล่ง}
               />
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }} onMouseLeave={() => setเน้นแหล่ง(null)}>
                 {sources.map((s, i) => (
-                  <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem" }}>
+                  <div key={s.label} tabIndex={0} aria-label={`${s.label} ${s.count} (${s.share}%)`}
+                    onMouseEnter={() => setเน้นแหล่ง(i)} onFocus={() => setเน้นแหล่ง(i)} onBlur={() => setเน้นแหล่ง(null)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", opacity: เน้นแหล่ง != null && เน้นแหล่ง !== i ? 0.45 : 1, transition: "opacity 0.15s ease" }}>
                     <span style={{ width: 9, height: 9, borderRadius: 3, background: RAMP[i % RAMP.length], flexShrink: 0 }} />
                     <span style={{ flex: 1, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
                     <span style={{ fontWeight: 800, color: "#1F2937", fontVariantNumeric: "tabular-nums" }}>{s.count}</span>
@@ -454,15 +459,17 @@ export default function HQLeadsPage() {
                 segments={lostReasons.map((r, i) => ({ label: r.reason, value: r.count, color: LOST_RAMP[i % LOST_RAMP.length] }))}
                 centerLabel="ปิดไม่สำเร็จ"
                 centerValue={`${lostReasons.reduce((s, r) => s + r.count, 0)}`}
-                size={150}
+                size={150} activeIndex={เน้นเหตุผล} onActiveChange={setเน้นเหตุผล}
               />
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }} onMouseLeave={() => setเน้นเหตุผล(null)}>
                 {(() => {
                   const รวม = lostReasons.reduce((s, r) => s + r.count, 0) || 1;
                   return lostReasons.map((r, i) => (
                     // ก้อน "อื่นๆ (ระบุเอง)" ชี้เมาส์แล้วเห็นข้อความจริงที่ดีลเลอร์พิมพ์ไว้ (ยุบเพื่อให้อ่านง่าย ไม่ใช่ซ่อน)
                     <div key={r.reason} title={r.details?.length ? r.details.join(" · ") : undefined}
-                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem" }}>
+                      tabIndex={0} aria-label={`${r.reason} ${r.count} (${Math.round(r.count / รวม * 100)}%)`}
+                      onMouseEnter={() => setเน้นเหตุผล(i)} onFocus={() => setเน้นเหตุผล(i)} onBlur={() => setเน้นเหตุผล(null)}
+                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", opacity: เน้นเหตุผล != null && เน้นเหตุผล !== i ? 0.45 : 1, transition: "opacity 0.15s ease" }}>
                       <span style={{ width: 9, height: 9, borderRadius: 3, background: LOST_RAMP[i % LOST_RAMP.length], flexShrink: 0 }} />
                       <span style={{ flex: 1, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.reason}</span>
                       <span style={{ fontWeight: 800, color: "#1F2937", fontVariantNumeric: "tabular-nums" }}>{r.count}</span>
