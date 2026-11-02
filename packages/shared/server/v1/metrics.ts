@@ -10,6 +10,7 @@ import { handler, ok, dbFail, fail } from "./_ctx";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { จัดรูปผลงานดีลเลอร์, จัดรูปผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
+import { จัดรูปเจาะลึก } from "@pms/shared/lib/hqDrill";
 import { จัดรูปแผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
 
 type Row = Record<string, unknown>;
@@ -49,6 +50,12 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
     rpc: "hq_pipeline_months",
     args: a => ({ p_start: a.start, p_end: a.end, p_dealers: Array.isArray(a.dealers) ? a.dealers.map(String) : null }),
     shape: d => จัดรูปผลงานรายเดือน(d),
+  },
+  // เจาะลึก 3 หน้า HQ (ใบ 0271) — ฐานตรวจว่าเป็น HQ เอง · หน้ารับเฉพาะ 3 ค่า (อื่น = ฐานปฏิเสธ invalid_page)
+  hqDrill: {
+    rpc: "hq_drill",
+    args: a => ({ p_page: S(a.page), p_start: a.start, p_end: a.end, p_today: a.today ?? null }),
+    shape: d => จัดรูปเจาะลึก(d),
   },
   // แผงดีลเลอร์ด้านขวาของหน้า HQ ดีลเลอร์ (ใบ 0266) — ฐานตรวจว่าเป็น HQ เอง
   hqDealerPanel: {
@@ -196,6 +203,7 @@ export const CALLS: Record<string, { rpc: string; args: (a: Args) => Args; shape
       p_building_type: a.buildingType ?? null,
       p_bought_from: a.boughtFrom ?? null, p_bought_to: a.boughtTo ?? null,
       p_limit: a.limit, p_offset: a.offset,
+      p_dealer_codes: Array.isArray(a.dealerCodes) ? (a.dealerCodes as unknown[]).map(String) : null,
     }),
     shape: (d) => {
       const x = d as { total: number; kpi: unknown; charts: unknown; rows: Row[] };

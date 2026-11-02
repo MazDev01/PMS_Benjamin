@@ -344,11 +344,10 @@ export function loadHQPolicy(): HQPolicy {
 //   (เขียนลง localStorage ได้ แต่ไม่มีโค้ดไหนอ่านไปใช้ = ช่องตั้งค่าหลอก)
 export type HQTargets = {
   annualTarget: number;     // ยอดขายรวมทั้งเครือ (รายปี) — แดชบอร์ด HQ/ดีลเลอร์ใช้จริง
-  winRateTarget: number;    // เป้าอัตราปิดการขายเฉลี่ย % (เกณฑ์สีบนหน้าดีลเลอร์)
-  onTimeTarget: number;     // เป้าติดตามตรงเวลา % (เกณฑ์สีบนหน้าดีลเลอร์)
+  // เป้าอัตราปิดการขาย/เป้าติดตามตรงเวลา เอาออก (บอสสั่ง 2 พ.ย. 69 · ไม่มีที่ใช้) — ช่องในฐาน hq_targets คงไว้ ไม่แตะ
 };
 export const HQ_TARGETS_KEY = "hq_targets";
-export const DEFAULT_HQ_TARGETS: HQTargets = { annualTarget: 260_000_000, winRateTarget: 40, onTimeTarget: 85 };
+export const DEFAULT_HQ_TARGETS: HQTargets = { annualTarget: 260_000_000 };
 export function loadHQTargets(): HQTargets {
   if (typeof window === "undefined") return { ...DEFAULT_HQ_TARGETS };
   try { const s = localStorage.getItem(HQ_TARGETS_KEY); if (s) return { ...DEFAULT_HQ_TARGETS, ...JSON.parse(s) }; } catch {}

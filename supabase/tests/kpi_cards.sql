@@ -177,8 +177,9 @@ begin
 
   select ค่า into ก from flowtest.ก่อน where หน้า = 'hq.leads';
   k := kpi_cards('hq.leads', '2026-10-01', '2026-10-27', 'ZZK', '2026-10-27');
-  perform flowtest.ok((k->>'open')::int = 6 and (k->>'new')::int = 7 and (k->>'idle')::int = 1 and (k->>'hqWaiting')::int = (ก->>'hqWaiting')::int + 1,
-    format('ลีดทั้งเครือ (ZZK): เปิดอยู่ 6 · ใหม่ในช่วง 7 · ไม่เคลื่อนไหวเกิน 30 วัน 1 · ลีดของ HQ รอโอน +1 (ได้ %s)', k));
+  -- 3 หน้าเจาะลึก (ใบ 0271 · บอสสั่ง 2 พ.ย. 69): การ์ด = ผลรวม hq_drill · ลีดของ HQ รอโอนอยู่ในกล่องโอน ไม่ใช่การ์ด → การ์ด "รอราคา HQ" (ขั้น 2 ตอนนี้) แทน
+  perform flowtest.ok(k = '{"open":6,"new":7,"qr":1,"idle":1}'::jsonb,
+    format('ลีดทั้งเครือ (ZZK): เปิดอยู่ 6 · ใหม่ในช่วง 7 · รอราคา HQ 1 (ล2) · ไม่เคลื่อนไหวเกิน 30 วัน 1 · ไม่มีการ์ดลีด HQ รอโอนแล้ว (ได้ %s)', k));
 
   k := kpi_cards('hq.quotations', '2026-10-01', '2026-10-27', 'ZZK', '2026-10-27');
   perform flowtest.ok(k = '{"sent":3,"awaiting":3,"won":{"count":1,"value":300000},"acceptRate":33.3}'::jsonb,
@@ -187,9 +188,10 @@ begin
   select ค่า into ก from flowtest.ก่อน where หน้า = 'hq.customers';
   k := kpi_cards('hq.customers', '2026-10-01', '2026-10-27', null, '2026-10-27');
   perform flowtest.ok((k->>'total')::int = (ก->>'total')::int + 2 and (k->>'new')::int = (ก->>'new')::int + 1
-    and (k->>'sales')::numeric = (ก->>'sales')::numeric + 300000
     and (k#>>'{dealers,with}')::int = (ก#>>'{dealers,with}')::int + 1 and (k#>>'{dealers,of}')::int = (ก#>>'{dealers,of}')::int + 2,
-    format('ลูกค้าทั้งเครือ: ทั้งหมด +2 · ใหม่เดือนนี้ +1 · ยอดขาย +300,000 · ดีลเลอร์ที่มีลูกค้า +1 จาก +2 (ก่อน %s หลัง %s)', ก, k));
+    format('ลูกค้าทั้งเครือ: ทั้งหมด +2 · ใหม่เดือนนี้ +1 · ดีลเลอร์ที่มีลูกค้า +1 จาก +2 (ก่อน %s หลัง %s)', ก, k));
+  -- ไม่มียอดขายรายดีลเลอร์ที่หน้าลูกค้า (อยู่ภาพรวมยอดขายที่เดียว · ใบ 0271)
+  perform flowtest.ok(not (k ? 'sales') and not (k ? 'newList') and not (k ? 'salesList'), format('การ์ดลูกค้าไม่มียอดขาย/รายชื่อแนบแล้ว (ได้ %s)', k));
 
   select ค่า into ก from flowtest.ก่อน where หน้า = 'hq.audit';
   k := kpi_cards('hq.audit', '2026-10-01', '2026-10-27', null, '2026-10-27');
@@ -220,27 +222,26 @@ begin
   perform flowtest.ok(k = '{"sales":{"value":300000,"target":73973},"winRate":{"won":1,"lost":1,"rate":50},"margin":{"quotes":1,"pct":20.0},"onTarget":{"reached":0,"of":1,"codes":[]}}'::jsonb,
     format('ภาพรวมยอดขาย กรองสาขา ZZK (ไม่เลือกดีลเลอร์) = เท่ากับเลือก ZZK · เป้า = เป้าของสาขาที่เหลือ (ได้ %s)', k));
   select ค่า into ก from flowtest.ก่อน where หน้า = 'hq.leads';
-  k := kpi_cards('hq.leads', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ล5"}');
-  perform flowtest.ok(k->>'open' = '1' and k->>'new' = '1' and k->>'idle' = '0' and (k->>'hqWaiting')::int = (ก->>'hqWaiting')::int + 1,
-    format('ลีดทั้งเครือ กรองสาขา ZZK + ค้น "ล5": เปิด 1 · ใหม่ 1 · ไม่เคลื่อนไหว 0 · คิว HQ ไม่ขึ้นกับตัวกรอง (ได้ %s)', k));
-  k := kpi_cards('hq.leads', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"province":"ตราด"}');
-  perform flowtest.ok(k->>'open' = '0' and k->>'new' = '0', format('ลีดทั้งเครือ ZZK + จังหวัดตราด = 0 (ได้ %s)', k));
-  k := kpi_cards('hq.leads', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"source":"ไม่ระบุ"}');
-  perform flowtest.ok(k->>'open' = '6' and k->>'idle' = '1', format('ลีดทั้งเครือ ZZK + ช่องทาง "ไม่ระบุ" (ช่องว่าง) = ครบ 6 (ได้ %s)', k));
-  k := kpi_cards('hq.quotations', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ล5"}');
-  perform flowtest.ok(k = '{"sent":2,"awaiting":2,"won":{"count":0,"value":0},"acceptRate":0.0}'::jsonb,
-    format('ใบทั้งเครือ ZZK + ค้นลูกค้า "ล5": ส่ง 2 · รอ 2 · ตอบรับ 0 · ใบถูกแทนที่ไม่นับ (ได้ %s)', k));
-  k := kpi_cards('hq.quotations', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ไม่มีคำนี้","searchDealers":["ZZK"]}');
+  -- 3 หน้าเจาะลึก (ใบ 0271 · บอสสั่ง 2 พ.ย. 69): การ์ดคิดตามระดับที่เลือก (ชุดสาขา) เท่านั้น — คำค้น/จังหวัดหน้างาน/ช่องทาง/ซื้อล่าสุด คุมแค่รายชื่อด้านล่าง
+  --   (เดิมตรวจว่าการ์ดเดินตามตัวกรองเหล่านี้ — กลับด้าน: ใส่ตัวกรองรายชื่อแล้วการ์ดต้องเท่ากับไม่ใส่)
+  k := kpi_cards('hq.leads', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"]}');
+  perform flowtest.ok(k = '{"open":6,"new":7,"qr":1,"idle":1}'::jsonb, format('ลีดทั้งเครือ กรองสาขา ZZK = เท่ากับเลือก ZZK (ได้ %s)', k));
+  perform flowtest.ok(kpi_cards('hq.leads', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ล5"}') = k
+                  and kpi_cards('hq.leads', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"province":"ตราด"}') = k
+                  and kpi_cards('hq.leads', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"source":"ไม่ระบุ"}') = k,
+    'ลีดทั้งเครือ: คำค้น/จังหวัดหน้างาน/ช่องทาง ไม่เปลี่ยนการ์ด (คุมแค่รายชื่อ)');
+  k := kpi_cards('hq.quotations', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"]}');
   perform flowtest.ok(k = '{"sent":3,"awaiting":3,"won":{"count":1,"value":300000},"acceptRate":33.3}'::jsonb,
-    format('ใบทั้งเครือ: คำค้นตรงชื่อสาขา = ทุกใบของสาขานั้น (กติกาเดียวกับ hq_quotations_summary) (ได้ %s)', k));
+    format('ใบทั้งเครือ กรองสาขา ZZK: ส่ง 3 (ใบร่าง/ถูกแทนที่ไม่นับ) · รอ 3 · ตอบรับ 1 ใบ 300,000 · 33.3%% (ได้ %s)', k));
+  perform flowtest.ok(kpi_cards('hq.quotations', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ล5"}') = k
+                  and kpi_cards('hq.quotations', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ไม่มีคำนี้","searchDealers":["ZZK"]}') = k,
+    'ใบทั้งเครือ: คำค้นไม่เปลี่ยนการ์ด (คุมแค่รายการใบ)');
   k := kpi_cards('hq.customers', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"]}');
-  perform flowtest.ok(k->>'total' = '2' and k->>'new' = '1' and k->>'sales' = '300000' and k->'dealers' = '{"with":1,"of":1}'::jsonb,
-    format('ลูกค้าทั้งเครือ กรองสาขา ZZK: ทั้งหมด 2 · ใหม่ 1 · ยอด 300,000 · ดีลเลอร์ 1 จาก 1 (ได้ %s)', k));
-  k := kpi_cards('hq.customers', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ลูกค้า 2"}');
-  perform flowtest.ok(k->>'total' = '1' and k->>'new' = '0' and k->>'sales' = '0', format('ลูกค้าทั้งเครือ ZZK + ค้น "ลูกค้า 2" (ได้ %s)', k));
-  k := kpi_cards('hq.customers', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"boughtFrom":"2026-10-01"}');
-  perform flowtest.ok(k->>'total' = '1' and k->>'new' = '1' and k->>'sales' = '300000',
-    format('ลูกค้าทั้งเครือ ZZK + ซื้อล่าสุดตั้งแต่ 1 ต.ค.: เหลือลูกค้า 1 (ใบ won 12 ต.ค.) (ได้ %s)', k));
+  perform flowtest.ok(k = '{"total":2,"new":1,"dealers":{"with":1,"of":1}}'::jsonb,
+    format('ลูกค้าทั้งเครือ กรองสาขา ZZK: ทั้งหมด 2 · ใหม่ 1 · ดีลเลอร์ 1 จาก 1 (ได้ %s)', k));
+  perform flowtest.ok(kpi_cards('hq.customers', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"search":"ลูกค้า 2"}') = k
+                  and kpi_cards('hq.customers', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"dealerCodes":["ZZK"],"boughtFrom":"2026-10-01"}') = k,
+    'ลูกค้าทั้งเครือ: คำค้น/ซื้อล่าสุด ไม่เปลี่ยนการ์ด (คุมแค่รายชื่อ)');
   k := kpi_cards('hq.prospects', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"ids":[990101]}');
   perform flowtest.ok(k = '{"talking":1,"followDue":1,"idle14":1,"converted":0}'::jsonb, format('ผู้สนใจ กรองเหลือ 1 ราย (ได้ %s)', k));
   k := kpi_cards('hq.prospects', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"ids":[990104,990105,990102,990103]}');

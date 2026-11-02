@@ -26,7 +26,12 @@ import {
 const QPAGE_SIZE = 10;
 const TH_MONTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-import { QuotationKPICards } from "@pms/shared/components/hq/quotations/QuotationKPICards";
+import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, type ขอบเขต } from "../_drill/DrillEngine";
+import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
+import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
+
+// ── เจาะลึกแบบเดียวกับภาพรวมยอดขาย (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) — การ์ด/คอลัมน์จากตั้งค่ากลาง (แหล่งเดียวกับข้อทดสอบ) ──
+const ตั้งค่าใบ = ตั้งค่าเจาะลึกทั้งหมด.quotations;
 import { QuotationFilterBar, EMPTY_FILTERS, ชื่อสถานะใบHQ, type QuotationFilters } from "@pms/shared/components/hq/quotations/QuotationFilterBar";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { QuotationAnalytics } from "@pms/shared/components/hq/quotations/QuotationAnalytics";
@@ -40,6 +45,9 @@ export default function NetworkQuotationPage() {
   const { refreshSales } = useSales();
   const netLeads = useNetworkLeads();
   const [filters, setFilters] = useState<QuotationFilters>(EMPTY_FILTERS);
+  const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
+  const ช่วง = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
+  const เจาะลึก = useเจาะลึก("quotations", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
   const [viewQ, setViewQ] = useState<QuoteRow | null>(null);
 
   // อายุใบเสนอราคา = นโยบาย HQ — อ่านผ่าน repo (เดิมอ่าน localStorage ตรง ๆ
@@ -48,10 +56,6 @@ export default function NetworkQuotationPage() {
   // รายชื่อดีลเลอร์จากทะเบียนจริง (เดิมถอดจากใบเสนอราคา mock → เห็นสาขาที่ไม่มีอยู่จริง)
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
   const ALL_DEALERS_FULL = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
-  const ALL_DEALERS = useMemo(
-    () => ALL_DEALERS_FULL.map(d => ({ code: d.code, name: d.name })).sort((a, b) => a.code.localeCompare(b.code)),
-    [ALL_DEALERS_FULL],
-  );
 
   // เปิดหน้าด้วย ?dealer=CODE (กดมาจากแดชบอร์ด/การ์ดสถิติ) → กรองดีลเลอร์นั้นให้เลย
   // เก็บค่าจาก URL ไว้ก่อน แล้วค่อยใช้ตอนทะเบียนดีลเลอร์โหลดเสร็จ
@@ -63,11 +67,12 @@ export default function NetworkQuotationPage() {
     if (u.get("kpi") === "won") { setFilters(f => ({ ...f, status: "won" })); window.history.replaceState(null, "", "/hq/quotations"); }
     if (code) { setPendingDealer(code); window.history.replaceState(null, "", "/hq/quotations"); }
   }, []);
+  // ?dealer= → เจาะลงระดับดีลเลอร์นั้น (รอแถวรายดีลเลอร์โหลดก่อน — ภาค/จังหวัดตามดีลเลอร์)
   useEffect(() => {
-    if (!pendingDealer || !ALL_DEALERS.length) return;
-    if (ALL_DEALERS.some(d => d.code === pendingDealer)) setFilters(f => ({ ...f, dealer: pendingDealer }));
+    if (!pendingDealer || !เจาะลึก) return;
+    if (เจาะลึก.dealers.some(d => d.code === pendingDealer)) setขอบ(ขอบเขตของดีลเลอร์(เจาะลึก.dealers, pendingDealer));
     setPendingDealer(null);
-  }, [pendingDealer, ALL_DEALERS]);
+  }, [pendingDealer, เจาะลึก]);
 
   // ภาค/จังหวัดมาจากทะเบียนดีลเลอร์จริง — สาขาที่ HQ เพิ่งเพิ่มต้องโผล่ในตัวกรองด้วย
   const look = useMemo(() => dealerLookups(ALL_DEALERS_FULL), [ALL_DEALERS_FULL]);
@@ -77,10 +82,11 @@ export default function NetworkQuotationPage() {
   //   ไม่ส่ง productLines ให้ฐานข้อมูลแล้ว (byProduct ที่ RPC ยังส่งมา = ไม่ใช้)
 
   // ตัวกรองทุกตัว "ยกเว้นช่วงเวลา" — กราฟแนวโน้ม 12 เดือนใช้ชุดนี้ (ถ้าอิงช่วงเวลาจะว่าง 11 ช่อง)
+  // ชุดดีลเลอร์ของระดับที่เลือก (ทั้งเครือ = ไม่กรอง) — ตาราง/กราฟด้านล่างคิดตามระดับนี้
+  const ชุดดีลเลอร์ = useMemo<string[] | undefined>(() => ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์
+    ? ในขอบเขต(เจาะลึก?.dealers ?? [], ขอบ).map(r => r.code) : undefined, [เจาะลึก, ขอบ]);
   const matchesNonTime = useMemo(() => (r: QuoteRow) => {
-    if (filters.dealer !== "all" && r.dealerCode !== filters.dealer) return false;
-    if (filters.region !== "all" && r.region !== filters.region) return false;
-    if (filters.province !== "all" && r.dealerProvince !== filters.province) return false;
+    if (ชุดดีลเลอร์ && !ชุดดีลเลอร์.includes(r.dealerCode)) return false;
     // "sent" (ค่าเริ่มต้น) = ไม่นับร่าง/ถูกแทนที่ — ชุดเดียวกับการ์ด "ส่งลูกค้าในช่วงนี้" (บอสสั่ง 30 ต.ค. 69)
     if (filters.status === "sent" ? (r.status === "draft" || r.status === "superseded") : filters.status !== "all" && r.status !== filters.status) return false;
     if (filters.search.trim()) {
@@ -89,7 +95,7 @@ export default function NetworkQuotationPage() {
       if (!hay.includes(s)) return false;
     }
     return true;
-  }, [filters]);
+  }, [filters, ชุดดีลเลอร์]);
 
   const trendRows = useMemo(() => allRows.filter(matchesNonTime), [allRows, matchesNonTime]);
   const rows = useMemo(() => trendRows.filter(r => inRange(r.createdAt)), [trendRows, inRange]);
@@ -100,14 +106,7 @@ export default function NetworkQuotationPage() {
 
   // ── M9 Phase 2: resolve derived filter → คอลัมน์จริง ให้ DB รวมยอด/แบ่งหน้าได้ ──
   const nameOf = useMemo(() => new Map(ALL_DEALERS_FULL.map(d => [d.code, d.name])), [ALL_DEALERS_FULL]);
-  const resolvedDealerCodes = useMemo<string[] | undefined>(() => {
-    let codes: string[] | undefined;
-    const restrict = (pred: (c: string) => boolean) => { codes = (codes ?? ALL_DEALERS_FULL.map(d => d.code)).filter(pred); };
-    if (filters.dealer !== "all") restrict(c => c === filters.dealer);
-    if (filters.region !== "all") restrict(c => look.regionOf(c) === filters.region);
-    if (filters.province !== "all") restrict(c => look.provinceOf(c) === filters.province);
-    return codes;
-  }, [filters.dealer, filters.region, filters.province, ALL_DEALERS_FULL, look]);
+  const resolvedDealerCodes = ชุดดีลเลอร์;
   const search = filters.search.trim();
   const searchDealers = useMemo<string[] | undefined>(() => {
     if (!search) return undefined;
@@ -117,23 +116,20 @@ export default function NetworkQuotationPage() {
 
   const status = filters.status === "all" || filters.status === "sent" ? undefined : filters.status;
   const sentOnly = filters.status === "sent";
-  // อายุใบที่รอลูกค้าตอบ = ณ ตอนนี้ (ไม่ขึ้นกับช่วง/สถานะ) — ชุดเดียวกับการ์ด "รอลูกค้าตอบ"
+  // ตาราง = ระดับที่เลือก + คำค้น + สถานะ + ช่วง
   const baseFilters: QuoteSummaryFilters = { dealerCodes: resolvedDealerCodes, search: search || undefined, searchDealers, asOf: isoDateOf(APP_NOW) };
-  // การ์ด KPI เดินตามตัวกรองภาค/จังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ชุดเดียวกับที่ส่งให้ตาราง (สถานะ = ปุ่มเดียวกับการ์ด ไม่ส่ง)
-  const ตัวกรองการ์ด = useMemo(() => (resolvedDealerCodes || search
-    ? { dealerCodes: resolvedDealerCodes, search: search || undefined, searchDealers } : null), [resolvedDealerCodes, search, searchDealers]);
   const qFilters = { ...baseFilters, status, sentOnly, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) };   // ตาราง (ช่วง + สถานะ)
-  const nowSummary = useHQQuotationsSummary(baseFilters);   // ไม่มีเวลา/สถานะ → อายุใบที่รอลูกค้าตอบ (ณ ตอนนี้)
-  // กราฟรายเดือน: ใบที่ส่ง/ตอบรับในช่วง (ฐานคิด byMonthSent · ใบ 0268) — ไม่มี = ฐานยังไม่ถึงใบนั้น → "รอข้อมูล"
-  const rangeSummary = useHQQuotationsSummary({ ...baseFilters, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) });
+  // กราฟ = ระดับที่เลือกเท่านั้น (ไม่ขึ้นกับคำค้น/สถานะของรายการ) → รวมกราฟ = การ์ด
+  //   อายุใบที่รอลูกค้าตอบ = ณ ตอนนี้ (รวม = การ์ดรอลูกค้าตอบ) · รายเดือน = แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill)
+  const nowSummary = useHQQuotationsSummary({ dealerCodes: resolvedDealerCodes, asOf: isoDateOf(APP_NOW) });
   const รายเดือน = useMemo(() => {
-    const ข้อมูล = rangeSummary?.byMonthSent;
-    if (!ข้อมูล) return null;
-    const ช่อง: { y: number; m: number }[] = [];
-    for (let d = new Date(timeRange.start.getFullYear(), timeRange.start.getMonth(), 1); d <= timeRange.end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) ช่อง.push({ y: d.getFullYear(), m: d.getMonth() });
-    const หา = (y: number, m: number) => ข้อมูล.find(r => r.y === y && r.m === m);
-    return { months: ช่อง.map(c => `${TH_MONTH[c.m]} ${String(c.y + 543).slice(2)}`), sent: ช่อง.map(c => หา(c.y, c.m)?.sent ?? 0), won: ช่อง.map(c => หา(c.y, c.m)?.won ?? 0) };
-  }, [rangeSummary, timeRange.start, timeRange.end]);
+    if (!เจาะลึก) return null;
+    const codes = new Set(ในขอบเขต(เจาะลึก.dealers, ขอบ).map(r => r.code));
+    const ms = เจาะลึก.months.filter(m => codes.has(m.code));
+    const ช่อง = เดือนในช่วง(ช่วง.start, ช่วง.end);
+    const ของ = (y: number, m: number, k: string) => รวมคีย์(ms.filter(x => x.y === y && x.m === m), k);
+    return { months: ช่อง.map(c => `${TH_MONTH[c.m]} ${String(c.y + 543).slice(2)}`), sent: ช่อง.map(c => ของ(c.y, c.m, "sent")), won: ช่อง.map(c => ของ(c.y, c.m, "won")) };
+  }, [เจาะลึก, ขอบ, ช่วง.start, ช่วง.end]);
 
   const aging = useMemo(() => {
     if (nowSummary) return nowSummary.aging.map(a => ({ key: a.bucket as AgingBucket, count: a.count, value: a.value }));
@@ -204,18 +200,12 @@ export default function NetworkQuotationPage() {
           />
       </TopbarActions>
 
-      <QuotationKPICards ช่วง={{ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }} dealer={filters.dealer === "all" ? null : filters.dealer}
-        today={isoDateOf(APP_NOW)} ตัวกรอง={ตัวกรองการ์ด} รุ่น={netQuotes.length} status={filters.status} onStatus={s => setFilters(f => ({ ...f, status: s }))} />
+      {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
+      <หัวเจาะลึก ตั้งค่า={ตั้งค่าใบ} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปใบเสนอราคาทั้งเครือ" />
 
-      <QuotationFilterBar
-        filters={filters}
-        onChange={setFilters}
-        dealers={ALL_DEALERS}
-        regions={look.allRegions}
-        provinces={look.allProvinces}
-      />
+      <div style={{ marginTop: 16 }}><QuotationAnalytics aging={aging} รายเดือน={รายเดือน} /></div>
 
-      <QuotationAnalytics aging={aging} รายเดือน={รายเดือน} />
+      <QuotationFilterBar filters={filters} onChange={setFilters} />
 
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ)
           ความยาวหน้าคุมด้วยกฎอื่นแทน: การ์ดกราฟตรึงความสูง S/M/L + กราฟรายการโชว์ Top N

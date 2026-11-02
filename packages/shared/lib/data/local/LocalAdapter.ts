@@ -316,6 +316,7 @@ export const LocalAdapter: DataAdapter = {
     list: () => ok([]),
     save: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างบันทึกแม่แบบวัสดุไม่ได้")),
     accuracy: () => ok({ n: 0, avgAbsPct: null, avgPct: null }),
+    used: () => ok([]),
   },
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {
@@ -953,6 +954,7 @@ export const LocalAdapter: DataAdapter = {
     // โหมดตัวอย่าง: ไม่มีตัวคำนวณที่ฐาน — ไม่กุตัวเลข (ตารางขึ้นว่าง)
     hqPipelineDealers: () => ok([]),
     hqPipelineMonths: () => ok([]),
+    hqDrill: () => ok({ dealers: [], months: [] }),
     hqDealerPanel: () => ok(null),   // โหมดตัวอย่างไม่มีตัวคำนวณของฐาน — แผงแสดง "—"
     hqCustomersFilterOptions: () => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);

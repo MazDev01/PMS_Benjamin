@@ -9,6 +9,7 @@ import { เตรียมบันทึกใบ } from "@pms/shared/lib/deal
 import type { DealerPackageProposal, DealerProposalPayment } from "@pms/shared/lib/data/types";
 import { จัดรูปภาพรวมHQ } from "@pms/shared/lib/hqOverview";
 import { จัดรูปผลงานดีลเลอร์, จัดรูปผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
+import { จัดรูปเจาะลึก } from "@pms/shared/lib/hqDrill";
 import { จัดรูปแผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
@@ -571,6 +572,11 @@ export const SupabaseAdapter: DataAdapter = {
       return { n: Number(a.n ?? 0), avgAbsPct: a.avg_abs_pct ?? null, avgPct: a.avg_pct ?? null,
         byTemplate: a.by_template ? a.by_template.map(t => ({ id: Number(t.id), n: Number(t.n), avgPct: t.avg_pct == null ? null : Number(t.avg_pct) })) : undefined };   // ใบ 0268
     },
+    used: async () => {
+      const { data, error } = await sb().rpc("material_templates_used");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return ((data ?? []) as unknown[]).map(Number);
+    },
   },
   // คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183)
   quoteRequests: {
@@ -982,6 +988,7 @@ export const SupabaseAdapter: DataAdapter = {
         p_bought_from: opts.boughtFrom ?? null,
         p_bought_to: opts.boughtTo ?? null,
         p_limit: opts.limit, p_offset: opts.offset,
+        p_dealer_codes: opts.dealerCodes ?? null,
       });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       const d = data as {
@@ -1025,6 +1032,11 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("hq_pipeline_months", { p_start: start, p_end: end, p_dealers: dealers ?? null });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return จัดรูปผลงานรายเดือน(data);
+    },
+    hqDrill: async (page, start, end, today) => {
+      const { data, error } = await sb().rpc("hq_drill", { p_page: page, p_start: start, p_end: end, p_today: today ?? null });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return จัดรูปเจาะลึก(data);
     },
     hqDealerPanel: async (code, activityLimit) => {
       const { data, error } = await sb().rpc("hq_dealer_panel", { p_code: code, p_activity_limit: activityLimit ?? 10 });

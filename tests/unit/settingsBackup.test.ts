@@ -6,7 +6,7 @@ import { DEFAULT_HQ_POLICY, DEFAULT_HQ_TARGETS, DEFAULT_HQ_NOTIF_RULES } from "@
 
 const ของจริง: ชุดการตั้งค่า = {
   policy: { ...DEFAULT_HQ_POLICY, vat: 7, quoteValidityDays: 30 },
-  targets: { annualTarget: 260_000_000, winRateTarget: 40, onTimeTarget: 85 },
+  targets: { annualTarget: 260_000_000 },
   notifRules: { ...DEFAULT_HQ_NOTIF_RULES },
   lostReasons: ["ราคาสูงกว่าคู่แข่ง", "ลูกค้าเลื่อนโครงการ"],
   company: { name: "เบญจมิน", address: "กรุงเทพฯ", taxId: "0105500000000", phone: "021234567", email: "info@example.com", website: "example.com" },
@@ -109,9 +109,9 @@ describe("ไฟล์สำรองการตั้งค่า (Excel)", ()
       const t = เล่ม.get(แผ่น.ดีลเลอร์)!;
       // ผู้ใช้สลับสองคอลัมน์แรก (รหัส ↔ ชื่อ)
       for (const r of t) { const [a, b] = [r[0], r[1]]; r[0] = b; r[1] = a; }
-      // และเรียงหัวข้อในแท็บเป้าหมายใหม่
+      // และเรียงหัวข้อในแท็บเป้าหมายใหม่ (กลับลำดับแถวข้อมูล · 2 พ.ย. 69 เหลือเป้าทั้งปีหัวข้อเดียว — เป้าอัตราปิด/ตรงเวลาเอาออก)
       const เป้า = เล่ม.get(แผ่น.เป้าหมาย)!;
-      เล่ม.set(แผ่น.เป้าหมาย, [เป้า[0], เป้า[3], เป้า[1], เป้า[2]]);
+      เล่ม.set(แผ่น.เป้าหมาย, [เป้า[0], ...เป้า.slice(1).reverse()]);
     });
     expect(ผล.dealers?.[0]).toMatchObject({ code: "CNX", name: "เชียงใหม่" });
     expect(ผล.targets).toEqual(ของจริง.targets);

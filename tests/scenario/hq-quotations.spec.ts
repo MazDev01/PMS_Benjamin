@@ -15,11 +15,12 @@ test("[ux·hq] KPI 4 ตัว คำนวณสอดคล้องกัน 
   // การ์ด 4 ใบตามชุดที่บอสสั่ง (22 ต.ค. 69 · ใบ 0246) — ตัวเลขตรงฐาน ตรวจใน kpi-cards.spec.ts
   const tiles = page.locator("[data-kpi-row] [data-kpi]");
   await expect(tiles).toHaveCount(4);
-  for (const label of ["ส่งลูกค้าในช่วงนี้", "รอลูกค้าตอบ", "ตอบรับ (มูลค่า)", "อัตราตอบรับ (จากใบที่ส่งแล้ว)"]) {
+  // ชื่อการ์ดตามแบบหน้า (บอสสั่ง 2 พ.ย. 69 · DCFG.quo)
+  for (const label of ["ส่งลูกค้าในช่วงนี้", "รอลูกค้าตอบ", "ตอบรับ (มูลค่า)", "อัตราตอบรับ"]) {
     await expect(page.locator("[data-kpi-row]").getByText(label, { exact: true })).toBeVisible();
   }
   // อัตราตอบรับต้องกำกับตัวหารไว้ให้ตรวจสอบได้ (ต่างจากอัตราปิดการขายที่นับจากลีด)
-  await expect(page.locator("[data-kpi='acceptRate']")).toContainText("ตอบรับ ÷ ใบที่ส่งในช่วงนี้");
+  await expect(page.locator("[data-kpi='acceptRate']")).toContainText(/ตอบรับ [\d,]+ ÷ ใบที่ส่ง [\d,]+/);
 });
 
 // 30 ต.ค. 69 บอสสั่ง: เหลือ 4 ส่วน — การ์ด · กราฟรายเดือน "ใบที่ส่ง" เทียบ "ตอบรับ" · อายุใบที่รอลูกค้าตอบ (ข้างกัน) · ตาราง
@@ -77,13 +78,16 @@ test("[ux·hq] ไม่มีอัตราการเปิดอ่าน �
 });
 
 // ตาราง (บอสสั่ง 30 ต.ค. 69): เลขที่ · ดีลเลอร์ (รหัส+ชื่อ) · ลูกค้า · จังหวัดหน้างาน · มูลค่า (ก่อน VAT) · สถานะ · วันที่ส่ง · ใช้ได้ถึง · ดู
-//   ตัวกรองจังหวัด = จังหวัดของดีลเลอร์ (ป้ายกำกับชัด) · คอลัมน์จังหวัด = จังหวัดหน้างาน (ของลีดที่ใบผูกอยู่)
-test("[ux·hq] คอลัมน์ตารางตามแบบ · ตัวกรองจังหวัดกำกับว่าเป็นจังหวัดดีลเลอร์", async ({ page }) => {
+//   (2 พ.ย. 69 · เจาะลึก) ตัวกรองดีลเลอร์/ภูมิภาค/จังหวัดดีลเลอร์ ย้ายไปเป็น "ระดับ" ของตัวเจาะลึกด้านบน (ไม่มีช่องเลือกซ้ำสองที่)
+//   → กลับด้านจากเดิม: ไม่มีช่อง "จังหวัดดีลเลอร์" ในแถบกรองรายการแล้ว · ระดับ "จังหวัด" (จังหวัดของดีลเลอร์) อยู่ที่ตัวเลือกระดับ
+test("[ux·hq] คอลัมน์ตารางตามแบบ · จังหวัดดีลเลอร์อยู่ที่ระดับของตัวเจาะลึก (ไม่ซ้ำในแถบกรองรายการ)", async ({ page }) => {
   await open(page, "hq", "/hq/quotations");
   await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
-  const หัว = (await page.locator(".erp .table-wrap table").first().locator("thead th").allInnerTexts()).map(t => t.trim());
+  const หัว = (await page.locator('table[aria-label="รายการใบเสนอราคา"]').locator("thead th").allInnerTexts()).map(t => t.trim());
   expect(หัว).toEqual(["เลขที่", "ดีลเลอร์", "ลูกค้า", "จังหวัดหน้างาน", "มูลค่า (ก่อน VAT)", "สถานะ", "วันที่ส่ง", "ใช้ได้ถึง", "ดู"]);
-  await expect(page.getByLabel("จังหวัดดีลเลอร์")).toBeVisible();
+  await expect(page.getByLabel("จังหวัดดีลเลอร์"), "ไม่มีช่องจังหวัดดีลเลอร์ในแถบกรองรายการ").toHaveCount(0);
+  await expect(page.getByLabel("กรองตามดีลเลอร์"), "ไม่มีช่องดีลเลอร์ในแถบกรองรายการ").toHaveCount(0);
+  await expect(page.locator("[data-drill-scope]").getByLabel("จังหวัด"), "ระดับจังหวัดอยู่ที่ตัวเลือกระดับ").toBeVisible();
 });
 
 // HQ ดูอย่างเดียว — ไม่มีสร้าง/แก้ไข/ลบ/อนุมัติ
@@ -135,8 +139,10 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     if (ผล === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางข้อมูลของข้อไม่ได้");
     await open(page, "hq", `/hq/quotations?dealer=${c}`);
     await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
+    // ?dealer= = เจาะลงระดับดีลเลอร์นั้น (แถบระดับ) → การ์ด/กราฟ/รายการเป็นของสาขาของข้ออย่างเดียว
+    await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "ลิงก์ดีลเลอร์ = ระดับดีลเลอร์").toContainText(c, { timeout: 25_000 });
     const การ์ด = async (k: string) => Number(await page.locator(`[data-kpi-row] [data-kpi="${k}"] [data-value]`).first().getAttribute("data-value"));
-    const แถว = page.locator(".erp .table-wrap table").first().locator("tbody tr");
+    const แถว = page.locator('table[aria-label="รายการใบเสนอราคา"] tbody tr');
     const สถานะ = page.getByLabel("กรองตามสถานะใบเสนอราคา");
     await expect(สถานะ, "ค่าเริ่มต้น = ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)").toHaveValue("sent");
     await expect.poll(() => การ์ด("sent"), { message: "การ์ดส่งลูกค้าในช่วงนี้", timeout: 20_000 }).toBe(4);
@@ -159,14 +165,17 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect(แถว.first().locator("[data-quote-status]")).toHaveText("ถูกแทนที่");
     await สถานะ.selectOption("all");
     await expect(แถว, "ทุกสถานะ = 6 ใบ").toHaveCount(6);
-    // กดการ์ดตอบรับ = ตารางเหลือใบตอบรับ = จำนวนบนการ์ด · กดซ้ำ = กลับค่าเริ่มต้น
+    // การ์ดตอบรับ: 2 ใบ (W1 · W2 ส่งนอกช่วงแต่ตอบรับในช่วง) มูลค่า 3,000 ตามวันลูกค้าตอบรับ
     await สถานะ.selectOption("sent");
-    await page.locator('[data-kpi-row] [data-kpi="won"]').first().click();
-    // บอสสั่ง 30 ต.ค. 69: กดการ์ดตอบรับ → ตารางกรองตามวันลูกค้าตอบรับ ให้ตรงการ์ด (W2 ส่งนอกช่วงแต่ตอบรับในช่วง) · จำนวนแถว = จำนวนใบบนการ์ด
-    await expect(แถว, "กดการ์ดตอบรับ: จำนวนแถว = การ์ด (2 ใบ ตามวันตอบรับ)").toHaveCount(2);
     await expect(page.locator('[data-kpi-row] [data-kpi="won"]').first(), "การ์ดตอบรับ 2 ใบ").toContainText("2 ใบ");
+    expect(await การ์ด("won"), "มูลค่าตอบรับ = 1,000 + 2,000").toBe(3000);
+    // กลับด้าน (บอสสั่ง 2 พ.ย. 69 · เจาะลึก): กดการ์ด = แผงที่มา (ระดับดีลเลอร์ = รายเดือน) แถวรวม = การ์ด · รายการใบไม่ถูกกรองตามการ์ดแล้ว
     await page.locator('[data-kpi-row] [data-kpi="won"]').first().click();
-    await expect(สถานะ, "กดซ้ำ = กลับค่าเริ่มต้น").toHaveValue("sent");
+    const แผง = page.locator('[data-drill-drawer="card:sales"]');
+    await expect(แผง, "กดการ์ดตอบรับ → แผงที่มา").toBeVisible();
+    await expect(แผง.locator("tfoot [data-value]"), "แผงที่มา แถวรวม = การ์ด").toHaveAttribute("data-value", "3000");
+    await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+    await expect(สถานะ, "รายการยังเป็นค่าเริ่มต้น").toHaveValue("sent");
     await expect(แถว).toHaveCount(4);
   } finally {
     รันSQLในฐาน(`set local session_replication_role = replica; delete from public.quotation_won_at where dealer_code = '${c}'; delete from public.quotations where dealer_code = '${c}'; delete from public.customers where dealer_code = '${c}'; set local session_replication_role = origin;`);

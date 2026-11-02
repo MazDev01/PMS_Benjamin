@@ -73,11 +73,12 @@ test.afterAll(ล้างข้อมูลชุดนี้);
 test("[1] HQ ตั้งค่าข้อมูลหลักได้ และค่าถูกบันทึกจริง", async ({ request }) => {
   await เข้าระบบ(request, HQ_ORIGIN, ADMIN);
   const เดิม = await (await request.get(`${HQ_ORIGIN}/api/v1/settings?k=targets`)).json();
-  const ค่าใหม่ = { ...เดิม, winRateTarget: 44 };
+  // ตั้งเป้าทั้งเครือ (เป้าอัตราปิด/ตรงเวลาเอาออกจากตั้งค่าแล้ว · บอสสั่ง 2 พ.ย. 69)
+  const ค่าใหม่ = { ...เดิม, annualTarget: Number(เดิม.annualTarget ?? 0) + 1_000 };
   const w = await request.put(`${HQ_ORIGIN}/api/v1/settings?k=targets`, { data: ค่าใหม่ });
   expect(w.status(), "HQ ต้องบันทึกเป้าหมายได้").toBe(200);
   const กลับมา = await (await request.get(`${HQ_ORIGIN}/api/v1/settings?k=targets`)).json();
-  expect(กลับมา.winRateTarget, "ค่าที่อ่านกลับต้องเป็นค่าที่เพิ่งบันทึก").toBe(44);
+  expect(Number(กลับมา.annualTarget), "ค่าที่อ่านกลับต้องเป็นค่าที่เพิ่งบันทึก").toBe(ค่าใหม่.annualTarget);
   await request.put(`${HQ_ORIGIN}/api/v1/settings?k=targets`, { data: เดิม });   // คืนค่าเดิม
 });
 

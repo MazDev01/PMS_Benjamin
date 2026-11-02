@@ -174,3 +174,29 @@ test("[flow·hq] ใบ HQ เปิดมามีรายการจาก�
   }, { timeout: 20_000, message: "การ์ดแสดงค่าเฉลี่ยจากฐาน (คลาดเฉลี่ยไม่สนทิศ · material_estimate_accuracy)" }).toBe("ตรง");
   assertNoErrors(errs, "ใบ HQ จากคำขอที่มีวัสดุ");
 });
+
+// ── ลบได้เฉพาะวัสดุที่ยังไม่เคยใช้ในคำขอ/ใบ HQ (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) ──
+//   ผนังของข้อนี้อยู่ในรายการประเมินของคำขอ (ข้อ D3 ด้านบน) → ไม่มีปุ่มลบ ขึ้น "ใช้แล้ว" (ปิดใช้แทน) · ฐานปฏิเสธการลบ
+//   ตกบนโค้ดเดิม: ทุกแถวมีปุ่มลบ · ฐานลบวัสดุที่เคยใช้ได้
+test("[flow·hq] แม่แบบวัสดุ: วัสดุที่เคยใช้ไม่มีปุ่มลบ (ปิดใช้แทน) · ฐานปฏิเสธการลบ", async ({ page }) => {
+  const errs = watchErrors(page);
+  const hq = await db(ADMIN);
+  expect(((await hq.rpc("material_templates_used")).data as number[]).map(Number), "ฐาน: ผนังของข้อเคยใช้แล้ว").toContain(id.ผนัง);
+  const ลบ = await hq.rpc("material_templates_save", { p_rows: [], p_delete_ids: [id.ผนัง] });
+  expect(ลบ.error?.message ?? "", "ฐานปฏิเสธการลบวัสดุที่เคยใช้").toMatch(/material_in_use/);
+  await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
+  const แผง = page.locator("[data-panel='material-templates']");
+  await แผง.getByLabel("ค้นแม่แบบวัสดุ").fill(ผนัง);
+  const แถวผนัง = แผง.locator(`tbody tr[data-mt-row="${id.ผนัง}"]`);
+  await expect(แถวผนัง.locator("[data-mt-used='1']"), "วัสดุที่เคยใช้ขึ้น \"ใช้แล้ว\"").toHaveText("ใช้แล้ว", { timeout: 20_000 });
+  await expect(แถวผนัง.getByRole("button", { name: /^ลบ / }), "ไม่มีปุ่มลบ").toHaveCount(0);
+  await expect(แถวผนัง.getByLabel(/^เปิดใช้ \d+$/), "ปิดใช้ได้").toBeEnabled();
+  // แถวใหม่ (ยังไม่เคยใช้) มีปุ่มลบตามปกติ
+  await แผง.getByRole("button", { name: "เพิ่มวัสดุ" }).click();
+  await expect(แผง.locator("tbody tr[data-mt-row='new']").first().getByRole("button", { name: /^ลบ / }), "แถวที่ยังไม่เคยใช้มีปุ่มลบ").toBeVisible();
+  await page.getByRole("button", { name: "รีเซ็ต" }).click();
+  assertNoErrors(errs, "แม่แบบวัสดุ ลบได้เฉพาะที่ยังไม่เคยใช้");
+});

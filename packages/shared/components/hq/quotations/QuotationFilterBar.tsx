@@ -2,22 +2,18 @@
 
 // ─── ตัวกรองใบเสนอราคาทั้งเครือ (Sticky) ──────────────────────────────────────
 // ค้นหา: เลขที่ / ดีลเลอร์ / รหัสดีลเลอร์ / ลูกค้า
-// ตัวเลือก: ดีลเลอร์ · ภูมิภาค · จังหวัดดีลเลอร์ · สถานะ
+// ตัวเลือก: สถานะ — ดีลเลอร์/ภูมิภาค/จังหวัด ย้ายไปเป็น "ระดับ" ของตัวเจาะลึกด้านบน (บอสสั่ง 2 พ.ย. 69 · ไม่มีช่องเลือกซ้ำสองที่)
 // (ตัวกรอง "ประเภทอาคาร"/แม่แบบ ถอดออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // (ตัวกรอง "ช่วงมูลค่า" ถูกลบทั้งฟีเจอร์ตามที่บอสสั่ง — อย่าใส่กลับ)
 // หมายเหตุ: "จังหวัด" = จังหวัดของดีลเลอร์ที่ออกใบ ไม่ใช่จังหวัดลูกค้า/หน้างาน
 // (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง — ป้ายบนตัวเลือกจึงต้องเขียนว่า "จังหวัดดีลเลอร์" ให้ชัด)
 import { Search, X } from "lucide-react";
 import type { QuotationStatus } from "@pms/shared/lib/mock";
-import { regionDisplay } from "@pms/shared/lib/hqQuotations";
 
 const MUTED = "#6b7280";
 
 export type QuotationFilters = {
   search: string;
-  dealer: string;
-  region: string;
-  province: string;
   /** "sent" = ส่งลูกค้าแล้ว ไม่นับร่าง/ถูกแทนที่ (ค่าเริ่มต้น = ชุดเดียวกับการ์ด · บอสสั่ง 30 ต.ค. 69) · "all" = ทุกสถานะ */
   status: QuotationStatus | "all" | "sent";
 };
@@ -28,20 +24,15 @@ export const ชื่อสถานะใบHQ: Record<QuotationStatus, string
 };
 
 export const EMPTY_FILTERS: QuotationFilters = {
-  search: "", dealer: "all", region: "all", province: "all", status: "sent",
+  search: "", status: "sent",
 };
 
-export function QuotationFilterBar({
-  filters, onChange, dealers, regions, provinces, }: {
+export function QuotationFilterBar({ filters, onChange }: {
   filters: QuotationFilters;
   onChange: (f: QuotationFilters) => void;
-  dealers: { code: string; name: string }[];
-  regions: string[];
-  provinces: string[];
 }) {
   const set = <K extends keyof QuotationFilters>(k: K, v: QuotationFilters[K]) => onChange({ ...filters, [k]: v });
-  const dirty = filters.search !== "" || filters.dealer !== "all" || filters.region !== "all"
-    || filters.province !== "all" || filters.status !== "sent";
+  const dirty = filters.search !== "" || filters.status !== "sent";
 
   // ขนาดเดียวกับแถบกรองหน้าลูกค้าทั้งเครือ — ย่อตัวได้เมื่อจอแคบ ไม่ตกบรรทัด
   const ช่องเลือก = { width: "auto", flex: "0 1 auto", minWidth: 0, maxWidth: 168, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" } as const;
@@ -50,7 +41,8 @@ export function QuotationFilterBar({
     // ตัวกรองทั้งแถบต้องอยู่บรรทัดเดียว (บอสสั่ง 25 ส.ค. 69) — เดิม flexWrap:"wrap" ทำให้ "ทุกสถานะ" ตกไปบรรทัดสอง
     // nowrap + minWidth:0 + maxWidth ที่ช่องเลือก = พอจอแคบลงช่องจะย่อตัวเอง แทนที่จะตกบรรทัด
     // (กติกาเดียวกับแถบกรองหน้าลูกค้าทั้งเครือ ซึ่งอยู่แถวเดียวอยู่แล้ว)
-    <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, flexWrap: "nowrap", alignItems: "center", marginBottom: "1.25rem", padding: "10px 14px" }}>
+    <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, flexWrap: "nowrap", alignItems: "center", margin: "16px 0", padding: "10px 14px" }}>
+      <div className="card-title" style={{ flex: "0 0 auto" }}>รายการใบเสนอราคา</div>
       {/* ใช้ .search-bar ตัวมาตรฐาน (280px) ให้เท่ากับทุกหน้า — เดิมหน้านี้ประกอบเองกว้าง 300 */}
       <div className="search-bar">
         <Search size={14} color={MUTED} strokeWidth={2} />
@@ -64,22 +56,6 @@ export function QuotationFilterBar({
 
       <div style={{ flex: 1 }} />
 
-
-      <select aria-label="กรองตามดีลเลอร์" value={filters.dealer} onChange={e => set("dealer", e.target.value)} className="form-select" style={ช่องเลือก}>
-        <option value="all">ทุกดีลเลอร์</option>
-        {dealers.map(d => <option key={d.code} value={d.code}>{d.code} – {d.name}</option>)}
-      </select>
-
-      <select aria-label="กรองตามภูมิภาค" value={filters.region} onChange={e => set("region", e.target.value)} className="form-select" style={ช่องเลือก}>
-        <option value="all">ทุกภูมิภาค</option>
-        {regions.map(r => <option key={r} value={r}>{regionDisplay(r)}</option>)}
-      </select>
-
-      {/* ป้ายเขียน "จังหวัดดีลเลอร์" ชัด ๆ — กันเข้าใจผิดว่าเป็นจังหวัดของลูกค้า */}
-      <select value={filters.province} onChange={e => set("province", e.target.value)} className="form-select" style={ช่องเลือก} aria-label="จังหวัดดีลเลอร์">
-        <option value="all">ทุกจังหวัด (ดีลเลอร์)</option>
-        {provinces.map(p => <option key={p} value={p}>{p}</option>)}
-      </select>
 
       {/* ต้องมีค่าเสมอ — ค่าเริ่มต้น "ส่งลูกค้าแล้ว" = ชุดเดียวกับการ์ด (บอสสั่ง 30 ต.ค. 69) · "ทุกสถานะ" เป็นตัวเลือกท้ายสุด */}
       <select aria-label="กรองตามสถานะใบเสนอราคา" value={filters.status} onChange={e => set("status", e.target.value as QuotationFilters["status"])} className="form-select" style={{ ...ช่องเลือก, maxWidth: 260 }}>
