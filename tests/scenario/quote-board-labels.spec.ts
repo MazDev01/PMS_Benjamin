@@ -35,7 +35,7 @@ test.beforeAll(async () => {
   const now = Date.now();
   for (const x of ชุด) {
     const l = await admin.from("leads").insert({ id: `#L-${x.lead}`, num_id: x.lead, dealer_code: "RYG", company: x.บริษัท, name: x.บริษัท,
-      contact: "ผู้ทดสอบ", phone: `08${String(x.lead).slice(-8)}`, province: "ระยอง", status: "HQ_PRICING" });
+      contact: "ผู้ทดสอบ", phone: `08${String(x.lead).slice(-8)}`, province: "ระยอง", status: "WAITING" });
     expect(l.error, `สร้างลูกค้าเป้าหมาย ${x.k}`).toBeNull();
     const r = await admin.from("quote_requests").insert({ request_no: x.no, dealer_code: "RYG", lead_num_id: x.lead, product: "โกดังทดสอบ",
       province: "ระยอง", status: x.st, submitted_at: new Date(now - 4 * วัน).toISOString(), due_at: new Date(now + x.due * วัน).toISOString() }).select("id").single();

@@ -4,6 +4,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, db, loginUI, watchErrors, assertNoErrors, waitRow } from "./funcHelpers";
 import { settle } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
+import { รันSQLในฐาน } from "./localDb";
 
 // ── สร้างนัดจากปฏิทิน (FLOW D7 เปลี่ยน · ใบ 0274 · บอสสั่ง 3 พ.ย. 69) ─────────────────────────────────────────────────
 //   ทางเข้า: ปุ่ม "+ นัดหมาย" · กดวันว่าง (เดือน) · กดช่องเวลา (สัปดาห์/วัน) — วันเวลาเติมตามที่กด
@@ -29,7 +30,11 @@ test.beforeAll(async () => {
   const sa = await db(A.บัญชี), sb = await db(B.บัญชี);
   const ลีด = (n: number, code: string, company: string, status: string) => ({ id: `#L-${n}`, num_id: n, dealer_code: code, company, name: company,
     contact: "ผู้ทดสอบ", phone: "000-000-0401", province: "ตราด", status });
-  expect((await sa.from("leads").insert([ลีด(ฐานเลข, A.รหัส, ลีดA(), "BULLET"), ลีด(ฐานเลข + 1, A.รหัส, ลีดปิดA(), "CANCELLED")])).error, "ลีดของ A").toBeNull();
+  expect((await sa.from("leads").insert(ลีด(ฐานเลข, A.รหัส, ลีดA(), "BULLET"))).error, "ลีดของ A").toBeNull();
+  // ลีดที่ปิดแล้ว (ลีดใหม่เริ่มที่ขั้นแรกเสมอ — วางตรงที่ฐานในโหมดไม่ผ่านตัวดัก)
+  expect(รันSQLในฐาน(`set local session_replication_role = replica;
+    insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
+    values ('#L-${ฐานเลข + 1}', ${ฐานเลข + 1}, '${A.รหัส}', '${ลีดปิดA()}', '${ลีดปิดA()}', 'ผู้ทดสอบ', '000-000-0403', 'ตราด', 'CANCELLED');`), "ลีดปิดแล้วของ A").not.toBeNull();
   expect((await sb.from("leads").insert(ลีด(ฐานเลข + 2, B.รหัส, ลีดB(), "BULLET"))).error, "ลีดของ B").toBeNull();
   expect((await sa.from("customers").insert({ id: ฐานเลข + 3, dealer_code: A.รหัส, name: "คุณลูกค้า", company: ลูกค้าA(), province: "ตราด",
     phone: "000-000-0402", join_date: วันนี้() })).error, "ลูกค้าของ A").toBeNull();
@@ -65,21 +70,21 @@ test("[D7] [ui·dealer] ทางเข้า 3 ทาง เติมวัน�
   await expect(ผล.getByRole("button"), "ลีดที่ปิดแล้วไม่อยู่ในผลค้น").toHaveCount(0);
   await ฟอร์ม(page).locator("#na-search").fill(`ZZTEST ปฏิทิน ${A.รหัส}`);
   await expect(ผล.getByRole("button"), "ลีดเปิด + ลูกค้าของสาขาตัวเอง").toHaveCount(2);
-  await ฟอร์ม(page).getByRole("button", { name: "ปิด" }).click();
+  await ฟอร์ม(page).getByRole("button", { name: "ปิด", exact: true }).click();
 
   // เดือน: กดวันว่าง = ฟอร์มวันนั้น
   const วันว่าง = page.locator("[data-empty-day='1']").last();
   const วันที่ว่าง = await วันว่าง.getAttribute("data-day");
   await วันว่าง.click();
   await expect(ฟอร์ม(page).locator("#na-date"), "กดวันว่าง → วันที่ตามที่กด").toHaveValue(วันที่ว่าง!);
-  await ฟอร์ม(page).getByRole("button", { name: "ปิด" }).click();
+  await ฟอร์ม(page).getByRole("button", { name: "ปิด", exact: true }).click();
 
   // สัปดาห์: กดช่องเวลา = วัน + เวลานั้น
   await page.getByRole("button", { name: "สัปดาห์", exact: true }).click();
   await page.locator(`[data-slot="${วันนี้()}T14:00"] button`).click();
   await expect(ฟอร์ม(page).locator("#na-date")).toHaveValue(วันนี้());
   await expect(ฟอร์ม(page).locator("#na-time"), "กดช่องเวลา → เวลาตามที่กด").toHaveValue("14:00");
-  await ฟอร์ม(page).getByRole("button", { name: "ปิด" }).click();
+  await ฟอร์ม(page).getByRole("button", { name: "ปิด", exact: true }).click();
 
   // วัน: กดช่องเวลา
   await page.getByRole("button", { name: "วัน", exact: true }).click();

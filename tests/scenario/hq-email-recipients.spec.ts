@@ -39,7 +39,7 @@ const เพิ่มอีเมล = async (การ์ด: import("@playwrig
 };
 test("[hq] ตั้งผู้รับอีเมลแจ้งเตือนได้ — บันทึกลงฐาน ตัดช่องว่าง ตัดซ้ำ ทำเป็นตัวเล็ก", async ({ page }) => {
   const การ์ด = await เปิดแท็บแจ้งเตือน(page);
-  await expect(การ์ด.getByText(/ยังไม่มีผู้รับ/)).toBeVisible();
+  await expect(การ์ด.getByTestId("no-recipients")).toContainText("ยังไม่มีผู้รับ");
   await เพิ่มอีเมล(การ์ด, "  Boss@Example.test ");
   await เพิ่มอีเมล(การ์ด, "sales@example.test");
   await เพิ่มอีเมล(การ์ด, "boss@example.test");

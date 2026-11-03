@@ -26,6 +26,8 @@ let ส: สาขาของข้อ;
 const แท็ก = `${Date.now() % 100_000}`;
 const อีเมล1 = `zztest-notify-${แท็ก}-1@example.test`;
 const อีเมล2 = `zztest-notify-${แท็ก}-2@example.test`;
+const อีเมลHQ = `zztest-notify-${แท็ก}-hq@example.test`;
+let ผู้รับHQเดิม: string[] = [];
 
 // แถวตารางแจ้งเตือนใน FLOW: ชนิด → แถว · ใครได้ · มีกระดิ่ง/อีเมล · จำเป็น · กดแล้วไปไหน
 type แถวFLOW = { row: string; kind: string; ฝั่ง: "dealer" | "hq"; bell: boolean; email: boolean; locked: boolean; goesTo: string };
@@ -65,18 +67,21 @@ async function ตรวจตารางตรงFLOW(page: Page, ฝั่ง
 let ปล่อยแถว = () => {};
 test.beforeAll(async () => {
   ปล่อยแถว = await ถือแถวกลางชดเวลา(test, "hq_notif_rules");
+  // ผู้รับของ HQ ระหว่างข้อนี้ = อีเมลของข้อ 1 รายการ (ถือแถวไว้แล้ว · คืนค่าเดิมท้ายไฟล์) — ส่งทดสอบได้ผลแน่นอน
+  ผู้รับHQเดิม = ((await admin.from("hq_notif_rules").select("email_recipients").eq("id", 1).single()).data?.email_recipients as string[]) ?? [];
+  expect((await admin.from("hq_notif_rules").update({ email_recipients: [อีเมลHQ] }).eq("id", 1)).error).toBeNull();
   ส = await สร้างสาขาของข้อ({ จังหวัด: "ตราด", ภาค: "ตะวันออก" });
 });
 test.afterAll(async () => {
   await admin.from("email_outbox").delete().like("to_email", `zztest-notify-${แท็ก}-%`);
   await ส?.ลบ();
+  await admin.from("hq_notif_rules").update({ email_recipients: ผู้รับHQเดิม }).eq("id", 1);
   ปล่อยแถว();
 });
 
 test("[ui·hq] ตั้งค่า › การแจ้งเตือน: รายชื่ออีเมลแบบรายการ · ว่าง = กล่องแดง · ตารางรายเรื่องตรง FLOW · เรื่องจำเป็นปิดไม่ได้ · ส่งอีเมลทดสอบบอกผลรายอีเมล", async ({ page }) => {
   const errs = watchErrors(page);
-  const { data: เดิม } = await admin.from("hq_notif_rules").select("email_recipients").eq("id", 1).single();
-  const รายชื่อเดิม = ((เดิม?.email_recipients ?? []) as string[]);
+  const รายชื่อเดิม = [อีเมลHQ];
   await loginUI(page, HQ_ORIGIN, "/hq/settings", ADMIN);
   await page.locator(".tab-bar").getByRole("button", { name: "การแจ้งเตือน" }).click({ timeout: 25_000 });
   const ช่อง = page.getByRole("textbox", { name: "เพิ่มอีเมลผู้รับแจ้งเตือน" });
@@ -110,7 +115,7 @@ test("[ui·hq] ตั้งค่า › การแจ้งเตือน: �
   await ตรวจตารางตรงFLOW(page, "hq");
 
   // ส่งอีเมลทดสอบถึงทุกผู้รับที่บันทึกแล้ว — ผลรายอีเมล
-  if (รายชื่อเดิม.length) {
+  {
     const เริ่ม = Date.now();
     await page.getByRole("button", { name: "ส่งอีเมลทดสอบ" }).click();
     const ผล = page.getByRole("list", { name: "ผลส่งอีเมลทดสอบ" });
