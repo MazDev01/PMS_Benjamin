@@ -54,7 +54,7 @@ export function SidePanel({
           display: "flex", flexDirection: "column" }}
       >
         {/* หัวแผง — ชื่อเด่น + วงย่อชื่อ · ป้ายสรุปอยู่บรรทัดเดียวกัน */}
-        <div style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "18px 20px 16px",
+        <div data-panel-head style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "18px 20px 16px",
           display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
             <span style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.2)",

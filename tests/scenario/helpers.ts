@@ -376,3 +376,22 @@ export async function เปิดใบHQในกล่องงาน(page: P
   await expect(ใบ).toBeVisible({ timeout: 20_000 });
   return { ใบ, แถว };
 }
+
+/** วันที่ (ISO) ย้อนหลัง n เดือน — วันไม่มีในเดือนปลายทาง = วันสุดท้ายของเดือน (กติกาเดียวกับ ย้อนเดือน ของ FilterContext)
+ *  ค่าตั้งต้นของตัวกรองช่วงเวลา = "1 ปี" = ย้อนเดือนISO(วันนี้, 12) ถึงวันนี้ (บอสสั่ง 3 พ.ย. 69) */
+export function ย้อนเดือนISO(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const เป้า = new Date(Date.UTC(y, m - 1 - n, 1));
+  const วันสุดท้าย = new Date(Date.UTC(เป้า.getUTCFullYear(), เป้า.getUTCMonth() + 1, 0)).getUTCDate();
+  return `${เป้า.getUTCFullYear()}-${String(เป้า.getUTCMonth() + 1).padStart(2, "0")}-${String(Math.min(d, วันสุดท้าย)).padStart(2, "0")}`;
+}
+/** ปุ่มช่วงเวลาบนแถบกรอง (ป้ายตัวเลือก หรือวันที่จริง พ.ศ.) */
+export const ปุ่มช่วงเวลา = (page: Page) => page.locator("button").filter({ hasText: /25\d\d|^1 เดือน|^3 เดือน|^1 ปี|กำหนดเอง/ }).first();
+/** ตั้งช่วงที่กำหนดเองบนแถบกรอง */
+export async function ตั้งช่วงเอง(page: Page, ต้น: string, ท้าย: string) {
+  await ปุ่มช่วงเวลา(page).click();
+  await page.getByRole("button", { name: "กำหนดช่วงเอง" }).click();
+  await page.getByLabel("วันเริ่มต้นของช่วงที่กำหนดเอง").fill(ต้น);
+  await page.getByLabel("วันสิ้นสุดของช่วงที่กำหนดเอง").fill(ท้าย);
+  await page.getByRole("button", { name: "ใช้ช่วงเวลานี้" }).click();
+}

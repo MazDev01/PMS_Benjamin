@@ -128,7 +128,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
           background: "#F8FAFC", boxShadow: "0 24px 70px rgba(0,0,0,.24)", borderRadius: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {/* ── 1. หัวแผง: ชื่อ · รหัส · สถานะ · จังหวัด/ภูมิภาค · ปุ่ม ── */}
         <header style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "16px 18px 14px", color: "#fff", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div data-panel-head style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div data-panel-name style={{ fontSize: "1rem", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={dealer.name}>{dealer.name}</div>
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6, fontSize: "0.72rem" }}>

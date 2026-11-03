@@ -57,7 +57,7 @@ test.afterAll(async () => {
 const ตัวเลข = (s: string | null | undefined) => Number((s ?? "").replace(/[^\d.]/g, "")) || 0;
 
 async function ตั้งช่วง(page: Page, ต้น: string, ท้าย: string) {
-  const ปุ่มเวลา = page.locator("button").filter({ hasText: /25\d\d|ปีนี้|วันนี้|เดือนนี้|ทุกช่วงเวลา|7 วัน/ }).first();
+  const ปุ่มเวลา = page.locator("button").filter({ hasText: /25\d\d|^1 เดือน|^3 เดือน|^1 ปี|กำหนดเอง/ }).first();
   await ปุ่มเวลา.click();
   await page.getByRole("button", { name: "กำหนดช่วงเอง" }).click();
   await page.getByLabel("วันเริ่มต้นของช่วงที่กำหนดเอง").fill(ต้น);

@@ -488,7 +488,7 @@ insert into public.hq_notif_rules (id,alerts,lead_idle_days,quote_expiring_days,
 -- hq_recruit_settings: 1 แถว
 delete from public.hq_recruit_settings where true;
 insert into public.hq_recruit_settings (id,config,updated_at) select id,config,updated_at from jsonb_populate_recordset(null::public.hq_recruit_settings, $fx$[
-{"id":1,"config":{"proposal":{"packages":{"standard":{"annualTarget":null,"targetsByRegion":{}},"exclusive":{"annualTarget":null,"targetsByRegion":{}}}}},"updated_at":"2026-09-10T05:03:58.598841+00:00"}
+{"id":1,"config":{"proposal":{"packages":{"standard":{"annualTarget":null,"targetsByRegion":{}},"exclusive":{"annualTarget":null,"targetsByRegion":{}}},"validityDays":7},"lostReasons":["เงินทุนไม่พอ","ยังไม่พร้อม","เลือกแบรนด์อื่น","ทำเลไม่เหมาะ"]},"updated_at":"2026-09-10T05:03:58.598841+00:00"}
 ]$fx$::jsonb);
 
 -- hq_sales_journey: 1 แถว

@@ -18,7 +18,8 @@ import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { account } from "@pms/shared/lib/data";
+import { account, notifications as notificationsRepo } from "@pms/shared/lib/data";
+import type { NotifyRecipient } from "@pms/shared/lib/data/types";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 
 /** ช่องคัดลอกค่า (ปิดบังได้) — ใช้ทั้งที่นี่และตอนสร้างดีลเลอร์ใหม่ */
@@ -327,18 +328,20 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
   );
 }
 
-// ── อีเมลติดต่อของดีลเลอร์ + "ยืนยันอีเมลแทน" (ด่าน 1 · ใบ 0194) ─────────────────────────────────────
-// ทางออกเมื่อระบบส่งอีเมลขัดข้องหรือดีลเลอร์ไม่ได้รับโค้ด — ยืนยันได้เฉพาะอีเมลที่ดีลเลอร์กรอกไว้เอง
-// ฝั่งเซิร์ฟเวอร์บันทึกการใช้งานว่าใครยืนยันแทน (/api/admin/dealers/contact-email)
+// ── อีเมลรับแจ้งเตือนของดีลเลอร์ (รายชื่อ · ใบ 0274) + "ยืนยันอีเมลแทน" ของอีเมลติดต่อ (ด่าน 1 · ใบ 0194) ─────────────────
+// รายชื่อ = ที่ดีลเลอร์ตั้งใน ตั้งค่า › การแจ้งเตือน (ยืนยันแล้วเท่านั้นที่ได้รับ) — HQ ดูอย่างเดียว · ไม่มีผู้ยืนยัน = บอกชัดสีแดง
+// ยืนยันแทน: ทางออกเมื่อระบบส่งอีเมลขัดข้อง — ยืนยันได้เฉพาะอีเมลติดต่อที่ดีลเลอร์กรอกไว้เอง (บันทึกการใช้งานว่าใครยืนยันแทน)
 function DealerContactEmailRow({ code }: { code: string }) {
   const [สถานะ, setสถานะ] = useState<{ contactEmail: string; verified: boolean } | null>(null);
+  const [ผู้รับ, setผู้รับ] = useState<NotifyRecipient[] | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!REAL_BACKEND) return;
     let alive = true;
     account.contactEmailOf(code).then(s => { if (alive) setสถานะ(s); }).catch(() => { /* ไม่มีสิทธิ์/อ่านไม่ได้ = ไม่แสดงแถวนี้ */ });
+    notificationsRepo.recipients(code).then(r => { if (alive) setผู้รับ(r); }).catch(() => { /* อ่านไม่ได้ = ไม่แสดงรายชื่อ */ });
     return () => { alive = false; };
-  }, [code]);
+  }, [code, สถานะ?.verified]);
   if (!สถานะ) return null;
   const ยืนยันแทน = async () => {
     if (!(await ยืนยัน({
@@ -353,11 +356,21 @@ function DealerContactEmailRow({ code }: { code: string }) {
   };
   return (
     <div data-testid="dealer-contact-email" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #eef1f5" }}>
-      <div style={{ fontSize: "0.74rem", color: "#374151" }}>
-        อีเมลติดต่อ (รับแจ้งเตือน): <b>{สถานะ.contactEmail || "—"}</b>{" "}
-        {สถานะ.contactEmail && (สถานะ.verified
-          ? <span style={{ color: "#047857", fontWeight: 700 }}>· ยืนยันแล้ว</span>
-          : <span style={{ color: "#b45309", fontWeight: 700 }}>· ยังไม่ยืนยัน</span>)}
+      <div style={{ fontSize: "0.74rem", color: "#374151", display: "grid", gap: 4 }}>
+        <span>อีเมลรับแจ้งเตือน:</span>
+        {ผู้รับ && ผู้รับ.length === 0 && <b data-testid="dealer-recipients-empty" style={{ color: "#b91c1c" }}>ยังไม่มีผู้รับ — อีเมลแจ้งเตือนไม่ถึงดีลเลอร์รายนี้</b>}
+        {ผู้รับ && ผู้รับ.length > 0 && (
+          <ul aria-label={`อีเมลรับแจ้งเตือนของ ${code}`} style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 2 }}>
+            {ผู้รับ.map(r => (
+              <li key={r.id} data-recipient={r.email} data-verified={r.verified ? "1" : "0"}>
+                <b>{r.email}</b>{" "}
+                {r.verified ? <span style={{ color: "#047857", fontWeight: 700 }}>· ยืนยันแล้ว</span> : <span style={{ color: "#b45309", fontWeight: 700 }}>· รอยืนยัน (ยังไม่ได้รับ)</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {ผู้รับ && ผู้รับ.length > 0 && !ผู้รับ.some(r => r.verified) && <b style={{ color: "#b91c1c" }}>ยังไม่มีอีเมลที่ยืนยันแล้ว — อีเมลแจ้งเตือนยังไม่ถึงใคร</b>}
+        {สถานะ.contactEmail && !สถานะ.verified && <span>อีเมลติดต่อของบัญชี: <b>{สถานะ.contactEmail}</b> <span style={{ color: "#b45309", fontWeight: 700 }}>· ยังไม่ยืนยัน</span></span>}
       </div>
       {สถานะ.contactEmail && !สถานะ.verified && (
         <button onClick={() => void ยืนยันแทน()} disabled={busy}

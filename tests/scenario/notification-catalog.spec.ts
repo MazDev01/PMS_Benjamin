@@ -62,7 +62,9 @@ test("[รอบ4] ดีลเลอร์: ส่งคำขอเองไ�
 });
 
 test("[รอบ4] ดีลเลอร์: นัดหมายวันนี้ → กระดิ่ง (งานตั้งเวลารัน 2 รอบได้เรื่องเดียว) · กดแล้วเปิดรายละเอียดนัดนั้น", async ({ page }) => {
-  const ins = await admin.from("appointments").insert({ id: เลขนัด, dealer_code: "RYG", company: นัด, date: วันนี้(), time: "10:30", type: "follow_up", status: "upcoming", note: "", assigned: "ทดสอบ" });
+  // นัดต้องผูกลีดหรือลูกค้าของสาขา (ใบ 0274) — ผูกลูกค้าตั้งต้นของ RYG (ไม่แตะงาน/ไทม์ไลน์ของลีดในข้อมูลตั้งต้น)
+  const { data: ลูกค้า } = await admin.from("customers").select("id").eq("dealer_code", "RYG").order("id").limit(1).single();
+  const ins = await admin.from("appointments").insert({ id: เลขนัด, dealer_code: "RYG", customer_id: ลูกค้า?.id ?? null, company: นัด, date: วันนี้(), time: "10:30", type: "follow_up", status: "upcoming", note: "", assigned: "ทดสอบ" });
   expect(ins.error?.message ?? "").toBe("");
   expect(สแกน(), "งานตั้งเวลารันที่ฐานทดสอบ (หาฐานไม่เจอ = null)").not.toBeNull();
   สแกน();

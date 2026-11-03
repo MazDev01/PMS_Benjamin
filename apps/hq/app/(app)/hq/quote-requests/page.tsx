@@ -5,7 +5,7 @@
 // ปัญหาที่แก้: เดิมเป็นตารางยาว + หน้าต่างลอยทำใบ HQ — HQ ดูไม่ออกว่าอะไรต้องทำก่อน และต้องเปิด/ปิดหน้าต่างทีละคำขอ
 // ตอนนี้ 2 ช่อง: ซ้าย = กล่องงาน 4 กลุ่ม (จำนวนคิดที่ฐาน · ใบ 0215 hq_quote_board) · ขวา = ใบ HQ ของคำขอที่เลือก ฝังในหน้า
 //   ต้องตีราคา = ใหม่ + กำลังตีราคา · ส่งแล้ว รอดีลเลอร์ · สั่งผลิต · ปิด/ยกเลิก
-//   ลำดับ + ป้ายของแถว (เกิน 14 วัน · ขอแก้ราคา · ร่างค้าง · ใหม่) มาจากฐาน — หน้านี้ไม่นับ/เรียงเอง
+//   ลำดับ + ป้ายของแถว (เกินกำหนด · ขอแก้ราคา · กำลังตีราคา · ใหม่) มาจากฐาน — หน้านี้ไม่นับ/เรียงเอง
 // บอสตัดสิน 19 ต.ค. 69:
 //   • ไม่มีปุ่ม "รับเรื่อง" — "บันทึกร่าง" รับเรื่องให้เองทางเดียว (ฐานทำใน hq_quote_save)
 //   • เข้าหน้าแล้วเปิดคำขอบนสุดให้ทันที — แค่เปิดดู ไม่เปลี่ยนสถานะ ไม่บันทึกอะไร
@@ -21,7 +21,7 @@ import { Search, X, Inbox, ClipboardList, AlarmClock, Timer, Ban, Paperclip } fr
 import { quoteRequests as repo, metrics as metricsRepo, quoteFiles } from "@pms/shared/lib/data";
 import type { จำนวนไฟล์คำขอ } from "@pms/shared/lib/quoteFiles";
 import {
-  type QuoteBoard, type QuoteBoardFilter, type QuoteBoardRow, quoteBoardTag, กลุ่มของคำขอ, วันไทยสั้น, เหลือหรือเกิน,
+  type QuoteBoard, type QuoteBoardFilter, type QuoteBoardRow, quoteBoardTag, กลุ่มของคำขอ, วันไทยสั้น, เหลือหรือเกิน, ป้ายเกินกำหนด, ร่างล่าสุด,
 } from "@pms/shared/lib/quoteRequests";
 import type { HqOverview } from "@pms/shared/lib/hqOverview";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
@@ -35,7 +35,8 @@ const ส้ม = "#b45309";
 const นับวัน = (r: QuoteBoardRow, ตัวกรอง: QuoteBoardFilter | "done") => {
   // เกิน 14 วัน = แถวต้องตีราคา · ทั้งหมด = ตามกลุ่มของคำขอแต่ละแถว
   const g = ตัวกรอง === "overdue" ? "todo" : ตัวกรอง === "all" || ตัวกรอง === "done" ? กลุ่มของคำขอ(r.status) : ตัวกรอง;
-  return g === "todo" ? `กำหนดส่ง ${เหลือหรือเกิน(r.dueAt)}`
+  // ต้องตีราคาที่เลยกำหนด: จำนวนวันอยู่ที่ป้ายแดงป้ายเดียว (บอสสั่ง 3 พ.ย. 69) — ไม่ต้องบอกซ้ำในบรรทัดล่าง
+  return g === "todo" ? (r.tag === "overdue" ? "" : `กำหนดส่ง ${เหลือหรือเกิน(r.dueAt)}`)
   : g === "quoted" ? (r.validUntil ? `ยืนราคา ${เหลือหรือเกิน(r.validUntil)}` : "ยืนราคา —")
   : `ปิดเมื่อ ${r.closedAt ? วันไทยสั้น(r.closedAt) : "—"}`;
 };
@@ -211,6 +212,7 @@ export default function HQQuoteRequestsPage() {
             {pageSlice(แถว, page).map(r => {
               const t = quoteBoardTag[r.tag];
               const on = เลือก?.id === r.id;
+              const นับ = นับวัน(r, กลุ่ม);
               return (
                 <li key={`${r.dealerCode}-${r.id}`} style={{ borderBottom: "1px solid #f0f2f4" }}>
                   <button type="button" disabled={กำลังบันทึก && !on} onClick={() => เปิดแถว(r)} aria-current={on ? "true" : undefined} aria-label={`${r.requestNo} ${r.leadCompany}`}
@@ -218,11 +220,13 @@ export default function HQQuoteRequestsPage() {
                       borderLeft: `4px solid ${on ? ส้ม : t.bar}`, background: on ? "#fff4e5" : t.bg }}>
                     <span style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.88rem", fontWeight: 700, color: "#1f2933" }}>
                       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.dealerCode} · {r.leadCompany || "—"}</span>
-                      <span style={{ color: t.color, fontSize: "0.76rem", whiteSpace: "nowrap" }}>{t.label}</span>
+                      <span data-testid="row-tag" data-tag={r.tag} style={{ color: t.color, fontSize: "0.76rem", whiteSpace: "nowrap" }}>{r.tag === "overdue" ? ป้ายเกินกำหนด(r.dueAt) : t.label}</span>
                     </span>
                     <span style={{ fontSize: "0.78rem", color: "#52606d" }}>
-                      {r.requestNo} · {r.product}{r.subtype ? ` · ${r.subtype}` : ""} ·{" "}
-                      <b data-testid="row-countdown" style={{ fontWeight: 700, color: r.tag === "overdue" ? "#b91c1c" : "#52606d" }}>{นับวัน(r, กลุ่ม)}</b>
+                      {r.requestNo} · {r.product}{r.subtype ? ` · ${r.subtype}` : ""}
+                      {นับ && <> · <b data-testid="row-countdown" style={{ fontWeight: 700, color: "#52606d" }}>{นับ}</b></>}
+                      {/* กำลังตีราคา: บอกว่าแก้ร่างใบ HQ ล่าสุดเมื่อไร (วันจากฐาน · ไม่มี = "—") */}
+                      {r.status === "pricing" && <> · <span data-testid="row-draft-age">{ร่างล่าสุด(r.draftUpdatedAt)}</span></>}
                       {ร่างค้าง.has(r.id) && <span style={{ marginLeft: 6, color: "#92400e", fontWeight: 700 }}>· ร่างยังไม่บันทึก</span>}
                     </span>
                     {(() => {

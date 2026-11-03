@@ -64,6 +64,7 @@ import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
+import { ช่องทางติดต่อเริ่มต้น } from "@pms/shared/lib/recruitSettings";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 
 const PRIMARY = "#003366";
@@ -610,19 +611,8 @@ export default function HQProspectsPage() {
         </div>
         <div>
           <label className="form-label" htmlFor="pr-type">ประเภทธุรกิจ</label>
-          {/* ตั้งรายการไว้แล้ว = เลือกจากรายการ (นับ/กรองได้ตรงกัน) · ยังไม่ตั้ง = พิมพ์เองเหมือนเดิม
-              ค่าเดิมที่ไม่อยู่ในรายการต้องยังเห็น ไม่หายเงียบตอนเปิดมาแก้ */}
-          {ค่าตั้ง.businessTypes.length ? (
-            <select id="pr-type" className="form-select" value={ร่าง.businessType ?? ""} onChange={e => ตั้งค่า("businessType", e.target.value || null)} style={{ cursor: "pointer" }}>
-              <option value="">— ยังไม่ระบุ —</option>
-              {ค่าตั้ง.businessTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              {ร่าง.businessType && !ค่าตั้ง.businessTypes.includes(ร่าง.businessType) && (
-                <option value={ร่าง.businessType}>{ร่าง.businessType} (ตามที่บันทึกไว้)</option>
-              )}
-            </select>
-          ) : (
-            <input id="pr-type" className="form-input" value={ร่าง.businessType ?? ""} onChange={e => ตั้งค่า("businessType", e.target.value)} placeholder="เช่น ผู้รับเหมา / ขายเหล็ก / สถาปนิก" />
-          )}
+          {/* พิมพ์เอง (บอสสั่ง 3 พ.ย. 69 · ตาม FLOW H2) — รายการประเภทธุรกิจในหน้าตั้งค่าเอาออกแล้ว · ค่าเดิมแสดงตามที่บันทึก */}
+          <input id="pr-type" className="form-input" value={ร่าง.businessType ?? ""} onChange={e => ตั้งค่า("businessType", e.target.value)} placeholder="เช่น ผู้รับเหมา / ขายเหล็ก / สถาปนิก" />
         </div>
         <div>
           <label className="form-label" htmlFor="pr-assigned">ผู้ดูแล (สำนักงานใหญ่)</label>
@@ -856,7 +846,7 @@ export default function HQProspectsPage() {
               style={{ width: 820, maxWidth: "100%", height: "min(920px, calc(100vh - 24px))", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {/* หัวน้ำเงิน + ปุ่มลัด */}
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+                <div data-panel-head style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "nowrap" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                     <div style={{ width: 46, height: 46, borderRadius: 13, background: ราย.logo ? "#fff" : "rgba(255,255,255,.18)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, border: "2px solid rgba(255,255,255,.25)", flexShrink: 0, overflow: "hidden" }}>
                       {ราย.logo ? <img src={ราย.logo} alt="รูปประจำตัว" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : อักษรย่อ}
@@ -969,7 +959,7 @@ export default function HQProspectsPage() {
                       setFormOpen={setฟอร์มติดต่อเปิด}
                       onReload={() => void โหลดของราย(ราย.id)}
                       onAdded={() => void รีเฟรชรายที่เปิด()}
-                      ช่องทาง={ค่าตั้ง.contactChannels}
+                      ช่องทาง={ช่องทางติดต่อเริ่มต้น}
                     />
                   )}
 

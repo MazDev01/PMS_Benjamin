@@ -40,7 +40,8 @@ export const GET = handler("audit.list", async (req: NextRequest, sb) => {
   const rows: Row[] = [];
   for (let from = 0; from < limit; from += PAGE) {
     const to = Math.min(from + PAGE, limit) - 1;
-    const { data, error } = await sb.from("audit_log").select("*").order("id", { ascending: false }).range(from, to);
+    // มุมมองเฉพาะที่คนของ HQ ทำ (ใบ 0274 · บอสสั่ง 3 พ.ย. 69) — เหมือนโหมดต่อฐานตรง
+    const { data, error } = await sb.from("audit_log_hq").select("*").order("id", { ascending: false }).range(from, to);
     if (error) return dbFail("audit.list", error);
     const got = (data ?? []) as Row[];
     rows.push(...got);

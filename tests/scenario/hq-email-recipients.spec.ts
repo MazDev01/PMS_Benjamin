@@ -32,18 +32,28 @@ async function เปิดแท็บแจ้งเตือน(page: import(
   return การ์ด;
 }
 
+// ใบ 0274 (บอสสั่ง 3 พ.ย. 69): รายชื่อเป็นรายการ "+ เพิ่มอีเมล" ทีละอีเมล (เดิมช่องพิมพ์หลายบรรทัด) — กติกาเดิมครบ: ตัดช่องว่าง · ตัวเล็ก · ไม่ซ้ำ
+const เพิ่มอีเมล = async (การ์ด: import("@playwright/test").Locator, e: string) => {
+  await การ์ด.getByRole("textbox", { name: "เพิ่มอีเมลผู้รับแจ้งเตือน" }).fill(e);
+  await การ์ด.getByRole("button", { name: "เพิ่มอีเมล" }).click();
+};
 test("[hq] ตั้งผู้รับอีเมลแจ้งเตือนได้ — บันทึกลงฐาน ตัดช่องว่าง ตัดซ้ำ ทำเป็นตัวเล็ก", async ({ page }) => {
   const การ์ด = await เปิดแท็บแจ้งเตือน(page);
-  await expect(การ์ด.getByText("ยังไม่มีผู้รับ")).toBeVisible();
-  await การ์ด.getByLabel("อีเมลผู้รับแจ้งเตือน").fill("  Boss@Example.test \nsales@example.test\nboss@example.test");
+  await expect(การ์ด.getByTestId("no-recipients")).toContainText("ยังไม่มีผู้รับ");
+  await เพิ่มอีเมล(การ์ด, "  Boss@Example.test ");
+  await เพิ่มอีเมล(การ์ด, "sales@example.test");
+  await เพิ่มอีเมล(การ์ด, "boss@example.test");
+  await expect(การ์ด.getByRole("alert").filter({ hasText: "อยู่ในรายชื่อแล้ว" }), "ซ้ำ = ไม่เพิ่ม").toBeVisible();
+  await expect(การ์ด.getByRole("list", { name: "อีเมลผู้รับแจ้งเตือน" }).locator("[data-recipient]")).toHaveCount(2);
   await page.getByRole("button", { name: /^บันทึก/ }).first().click();
   await expect.poll(อ่าน, { timeout: 15_000 }).toEqual(["boss@example.test", "sales@example.test"]);
 });
 
 test("[hq] ที่อยู่ที่ไม่ใช่อีเมล → บอกว่าบรรทัดไหนผิด และไม่บันทึก", async ({ page }) => {
   const การ์ด = await เปิดแท็บแจ้งเตือน(page);
-  await การ์ด.getByLabel("อีเมลผู้รับแจ้งเตือน").fill("boss@example.test\nไม่ใช่อีเมล");
+  await เพิ่มอีเมล(การ์ด, "ไม่ใช่อีเมล");
   await expect(การ์ด.getByText(/ไม่ใช่อีเมล.*รูปแบบ|รูปแบบอีเมล/)).toBeVisible();
+  await expect(การ์ด.getByRole("list", { name: "อีเมลผู้รับแจ้งเตือน" }).locator("[data-recipient]"), "ค่าที่ผิดไม่ถูกเพิ่ม").toHaveCount(2);
   // ค่าที่ผิดไม่ถูกนำเข้าร่างเลย → ไม่มีอะไรเปลี่ยน ปุ่มบันทึกจึงกดไม่ได้
   await expect(page.getByRole("button", { name: /^บันทึก/ }).first(), "ค่าที่ผิดต้องบันทึกไม่ได้").toBeDisabled();
   expect(await อ่าน(), "ค่าในฐานต้องเป็นค่าเดิมจากข้อก่อนหน้า").toEqual(["boss@example.test", "sales@example.test"]);

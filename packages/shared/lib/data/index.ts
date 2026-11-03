@@ -103,6 +103,7 @@ export const account = adapter.account;
 // แจ้งเตือน (ใบ 0231) — กระดิ่งของ Topbar อยู่ทุกหน้า · รวมคำขอที่ยิงพร้อมกัน
 const _notifications = adapter.notifications;
 export const notifications: NotificationsRepo = {
+  ..._notifications,
   list: (limit) => dedupeRead(`notifications.list:${limit ?? ""}`, () => _notifications.list(limit)),
 };
 export const audit: AuditRepo = {

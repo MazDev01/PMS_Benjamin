@@ -1076,7 +1076,7 @@ export default function CustomersPage(){
 
             {/* Sticky navy header + quick actions */}
             <div style={{background:PRIMARY,padding:"14px 20px",flexShrink:0}}>
-              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+              <div data-panel-head style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:14,flexWrap: "nowrap"}}>
                 <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0}}>
                   <div style={{width:46,height:46,borderRadius:13,overflow:"hidden",background:"rgba(255,255,255,.18)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:"1rem",border:"2px solid rgba(255,255,255,.25)",flexShrink:0}}>
                     {selected.logo ? <img src={selected.logo} alt="โลโก้" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : selected.initials}

@@ -12,7 +12,7 @@ import { Check, Lock, Store, XCircle, RotateCcw, Trophy } from "lucide-react";
 import type { DealerProspect, DealerProspectStatus } from "@pms/shared/lib/data/types";
 import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealerProspects";
 import { งานมาตรฐาน, งานเสร็จแล้ว, ความคืบหน้า, ติ๊กงาน, ยกเลิกงาน, ลำดับขั้น } from "@pms/shared/lib/prospectJourney";
-import { ชื่องานที่ใช้, type HQRecruitSettings } from "@pms/shared/lib/recruitSettings";
+import type { HQRecruitSettings } from "@pms/shared/lib/recruitSettings";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
 
 const PRIMARY = "#003366";
@@ -43,7 +43,8 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
     ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
     ทำ: เหตุผล => onLost(เหตุผล),
   });
-  const ชื่อ = (g: (typeof งานมาตรฐาน)[number]) => (ค่าตั้ง ? ชื่องานที่ใช้(ค่าตั้ง, g.key, g.label) : g.label);
+  // ชื่องาน 4 งานตาม FLOW ตายตัว (บอสสั่ง 3 พ.ย. 69 · เอา "ชื่องานตามขั้น" ออกจากหน้าตั้งค่า — ชื่อเดิมในฐานไม่แสดง)
+  const ชื่อ = (g: (typeof งานมาตรฐาน)[number]) => g.label;
 
   const status = prospect.status;
   const จบแล้ว = status === "won" || status === "lost";

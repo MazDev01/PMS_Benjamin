@@ -19,7 +19,7 @@ import { checkRateLimit } from "@pms/shared/lib/rateLimit";
 import { auditLog, withErrors, อีเมลถูกใช้แล้ว, รหัสผ่านยังเข้าระบบได้ } from "@pms/shared/lib/adminRoute";
 import { encryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
-import { สถานะอีเมลติดต่อ, ส่งโค้ดยืนยันอีเมล, ยืนยันโค้ดอีเมล } from "@pms/shared/server/contactEmail";
+import { สถานะอีเมลติดต่อ, ส่งโค้ดยืนยันอีเมล, ยืนยันโค้ดอีเมล, ส่งโค้ดผู้รับแจ้งเตือน, ยืนยันโค้ดผู้รับแจ้งเตือน, ส่งอีเมลทดสอบ } from "@pms/shared/server/contactEmail";
 
 export const runtime = "nodejs";
 
@@ -174,11 +174,12 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
   if (!who.ok) return who.res;
   const { admin, userId, email: อีเมลเดิม, dealerCode, name } = who.who;
 
-  const body = (await req.json().catch(() => null)) as null | { op?: string; email?: string; password?: string; currentPassword?: string; code?: string };
+  const body = (await req.json().catch(() => null)) as null | { op?: string; email?: string; password?: string; currentPassword?: string; code?: string; id?: number };
   // อีเมลติดต่อใช้โควตาแยก (พบ 14 ต.ค. 69 บนเส้นทางเว็บจริง): เดิมนับรวมกับการเปลี่ยนบัญชี 5 ครั้ง/5 นาที
   //   เข้าครั้งแรก = ตั้งรหัส (+ครั้งที่ไม่ผ่านกฎ) + ส่งโค้ด + ส่งใหม่ + กรอกผิด + ยืนยัน → ติด 429 ที่ขั้นสุดท้าย ต้องรอ 5 นาที
   //   ขั้นนี้มีตัวกันของตัวเองอยู่แล้ว (ส่งซ้ำได้ทุก 60 วินาที · กรอกโค้ดผิดได้จำกัดครั้งต่อโค้ด) — เพดานนี้กันยิงรัวเท่านั้น
-  const อีเมลติดต่อ = body?.op === "contact-email-send" || body?.op === "contact-email-verify";
+  //   อีเมลผู้รับแจ้งเตือน (ใบ 0274) ใช้โควตาเดียวกับอีเมลติดต่อ — มีตัวกันของตัวเองเหมือนกัน (ส่งซ้ำทุก 60 วินาที · กรอกผิดจำกัดครั้ง)
+  const อีเมลติดต่อ = ["contact-email-send", "contact-email-verify", "notify-recipient-send", "notify-recipient-verify", "notify-test"].includes(String(body?.op ?? ""));
   if (!(await checkRateLimit(admin, อีเมลติดต่อ ? `dealer-contact-email:${userId}` : `dealer-account-change:${userId}`, อีเมลติดต่อ ? 15 : 5, 300))) {
     return json(req, { error: อีเมลติดต่อ ? "ส่งคำขอถี่เกินไป — รอสักครู่แล้วลองใหม่" : "เปลี่ยนบัญชีถี่เกินไป — รอสักครู่แล้วลองใหม่" }, 429);
   }
@@ -198,6 +199,25 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
     if (!r.ok) return json(req, { error: r.error }, r.status);
     await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์ยืนยันอีเมลติดต่อ", dealerCode);
     return json(req, { verified: true });
+  }
+  // ── อีเมลผู้รับแจ้งเตือนของสาขา (ใบ 0274 · ตั้งค่า › การแจ้งเตือน): ส่งโค้ด / ยืนยันโค้ด / ส่งอีเมลทดสอบ ──
+  //   เพิ่ม/ลบรายชื่อทำที่ฐานในนามผู้ใช้ (dealer_notify_recipient_add/remove) — ที่นี่เฉพาะงานที่ต้องส่งอีเมลหรือตั้ง "ยืนยันแล้ว"
+  if (body?.op === "notify-recipient-send") {
+    const r = await ส่งโค้ดผู้รับแจ้งเตือน(admin, who.who, Number(body.id));
+    if (!r.ok) return json(req, { error: r.error }, r.status);
+    return json(req, { sentTo: r.sentTo });
+  }
+  if (body?.op === "notify-recipient-verify") {
+    const r = await ยืนยันโค้ดผู้รับแจ้งเตือน(admin, who.who, Number(body.id), String(body.code ?? ""));
+    if (!r.ok) return json(req, { error: r.error }, r.status);
+    await auditLog(admin, { name, role: "DEALER" }, "ดีลเลอร์ยืนยันอีเมลรับแจ้งเตือน", `${dealerCode} · ${r.email}`);
+    return json(req, { verified: true });
+  }
+  if (body?.op === "notify-test") {
+    // ส่งเฉพาะอีเมลที่ยืนยันแล้ว (อีเมลที่ระบบใช้ส่งแจ้งเตือนจริง)
+    const { data, error } = await admin.from("dealer_notify_recipients").select("email").eq("dealer_code", dealerCode).not("verified_at", "is", null);
+    if (error) return json(req, { error: "อ่านรายชื่อผู้รับไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503);
+    return json(req, { results: await ส่งอีเมลทดสอบ(admin, (data ?? []).map(r => String(r.email)), `ดีลเลอร์ ${dealerCode}`) });
   }
 
   const อีเมลที่ส่ง = String(body?.email ?? "").trim().toLowerCase();

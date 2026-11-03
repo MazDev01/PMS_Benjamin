@@ -1966,7 +1966,7 @@ export default function LeadsPage() {
 
               {/* Sticky navy header + quick actions */}
               <div style={{ background:"#003366", padding:"14px 20px", flexShrink:0 }}>
-                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:14, flexWrap:"wrap" }}>
+                <div data-panel-head style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:14, flexWrap: "nowrap" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
                     <div style={{ width:46, height:46, borderRadius:13, background:"rgba(255,255,255,.18)",
                       display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", overflow:"hidden",

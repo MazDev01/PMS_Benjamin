@@ -5,7 +5,7 @@
 // DL-08 เปอร์เซ็นต์แต่ละขั้นปัดแยกกันแล้วรวมได้ 103%
 import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
-import { openAs, settle } from "./helpers";
+import { openAs, settle, ย้อนเดือนISO } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 const db = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY);
@@ -15,10 +15,10 @@ test.setTimeout(240_000);
 test("ยอดรวมบนหัวการ์ดกราฟ ต้องตรงกับผลบวกจริง (ไม่ใช่ผลบวกของค่าที่ปัดแล้ว)", async ({ page }) => {
   const ผลบวก = async () => {
     const { data: q } = await db.from("quotations").select("total_value,date,status").eq("status", "won");
-    // ⚠️ ต้องใช้ "ช่วงเดียวกับตัวกรองบนหน้าจอ" ซึ่งค่าตั้งต้นคือ "ปีนี้" (FilterContext · DEFAULTS.preset)
+    // ⚠️ ต้องใช้ "ช่วงเดียวกับตัวกรองบนหน้าจอ" ซึ่งค่าตั้งต้นคือ "1 ปี" = ย้อนหลัง 12 เดือน (FilterContext · DEFAULTS.preset · 3 พ.ย. 69)
     //    เดิมบวกย้อนหลัง 6 เดือน — ตรงกันโดยบังเอิญตอนฐานทดสอบมีแต่ข้อมูลใหม่ ๆ เท่านั้น
     //    พอฐานมีใบที่ปิดการขายช่วงต้นปีด้วย หัวการ์ด (นับทั้งปี) ย่อมมากกว่าผลบวก 6 เดือน แล้วฟ้องผิด
-    const ต้นปี = `${new Date().getFullYear()}-01-01`;
+    const ต้นปี = ย้อนเดือนISO(new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10), 12);
     const รวม = (q ?? []).filter(x => String(x.date).slice(0, 10) >= ต้นปี).reduce((s, x) => s + Number(x.total_value || 0), 0);
     return `฿${(รวม / 1e6).toFixed(1)}M`;
   };

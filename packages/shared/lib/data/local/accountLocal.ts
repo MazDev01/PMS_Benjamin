@@ -123,6 +123,9 @@ export const accountLocal = {
   async verifyContactEmail(): Promise<{ verified: true }> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีการส่งอีเมล"); },
   async contactEmailOf(): Promise<{ contactEmail: string; verified: boolean }> { return { contactEmail: "", verified: false }; },
   async verifyContactEmailFor(): Promise<{ verified: true; contactEmail: string }> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีอีเมลติดต่อ"); },
+  async sendNotifyRecipientCode(): Promise<{ sentTo: string }> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีการส่งอีเมล"); },
+  async verifyNotifyRecipient(): Promise<{ verified: true }> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีการส่งอีเมล"); },
+  async sendNotifyTest(): Promise<{ email: string; ok: boolean; error?: string }[]> { throw new Error("โหมดข้อมูลตัวอย่างไม่มีการส่งอีเมล"); },
 
   async setFirstPassword(): Promise<{ message: string }> {
     throw new Error("โหมดข้อมูลตัวอย่างไม่มีการตั้งรหัสผ่านตอนเข้าระบบครั้งแรก");

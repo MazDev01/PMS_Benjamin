@@ -44,7 +44,9 @@ test("[func] สร้างนัดหมายผ่านหน้าจอ 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/calendar`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(page.getByRole("button", { name: "เพิ่มกิจกรรม" }), "ปฏิทินไม่มีปุ่มลงนัดแล้ว").toHaveCount(0);
+  // FLOW D7 เปลี่ยน 3 พ.ย. 69: ปฏิทินลงนัดได้ (ปุ่ม "+ นัดหมาย") — กลับด้านจากข้อเดิม · ปุ่มเดิม "เพิ่มกิจกรรม" ยังไม่มี
+  await expect(page.getByRole("button", { name: "นัดหมาย", exact: true }), "ปฏิทินมีปุ่ม + นัดหมาย").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "เพิ่มกิจกรรม" }), "ไม่มีปุ่มเดิม เพิ่มกิจกรรม").toHaveCount(0);
 
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);

@@ -1246,6 +1246,10 @@ export type AppointmentMock = {
   // ผูกกับลูกค้าเป้าหมายโดยตรง — ไม่เดาจากชื่อบริษัท (ชื่อซ้ำ/แก้ชื่อแล้วขาด)
   // ว่างได้: นัดหมายที่สร้างจากหน้าปฏิทินเองยังไม่ผูกลูกค้าเป้าหมาย
   leadId?: number;
+  /** ลูกค้าของสาขาเดียวกัน (ใบ 0274 · นัดจากปฏิทิน) — นัดต้องมีลีดหรือลูกค้า (ฐานกัน) · ไม่ผูกลีดล่าสุดให้เอง */
+  customerId?: number | null;
+  /** สถานที่นัด (ใบ 0274) — ว่าง = ไม่ระบุ */
+  location?: string;
   project: string; buildingType: string; area: number; province: string;
   date: string; time: string; type: ApptType; assigned: string;
   status: ApptStatus; note: string;
