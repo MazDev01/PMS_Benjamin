@@ -25,7 +25,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
-  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip,
+  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, Upload,
 } from "lucide-react";
 import {
   prospects as prospectsRepo, dealers as dealersRepo, proposals as proposalsRepo, prospectActivities as activitiesRepo,
@@ -53,6 +53,7 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import { APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
+import { ProspectImportModal } from "@pms/shared/components/hq/ProspectImportModal";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
@@ -90,6 +91,8 @@ export default function HQProspectsPage() {
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
   const ค่าตั้ง = useRecruitSettings();
+  // นำเข้าจากไฟล์ทำงานจริงของทีม (ใบ 0275 · บอสสั่ง 3 พ.ย. 69)
+  const [เปิดนำเข้า, setเปิดนำเข้า] = useState(false);
   // "อื่น ๆ" ต่อท้ายให้เสมอ — ช่องทางที่ไม่อยู่ในรายการยังเลือกได้
   const ตัวเลือกช่องทาง = ค่าตั้ง.channels.includes("อื่น ๆ") ? ค่าตั้ง.channels : [...ค่าตั้ง.channels, "อื่น ๆ"];
 
@@ -657,11 +660,20 @@ export default function HQProspectsPage() {
           ])}
         />
         {จัดการได้ && (
+          <button className="btn btn-secondary btn-sm" onClick={() => setเปิดนำเข้า(true)}>
+            <Upload size={14} /> นำเข้าจากไฟล์
+          </button>
+        )}
+        {จัดการได้ && (
           <button className="btn btn-primary btn-sm" onClick={เปิดเพิ่ม}>
             <UserPlus size={14} /> เพิ่มผู้สนใจ
           </button>
         )}
       </TopbarActions>
+      <ProspectImportModal open={เปิดนำเข้า} onClose={() => setเปิดนำเข้า(false)}
+        onImported={() => { void prospectsRepo.list().then(setList).catch(() => {}); }}
+        เบอร์ที่มีอยู่={list.map(p => p.phone ?? "").filter(Boolean)}
+        แหล่งที่มา={ค่าตั้ง.channels} เหตุผลไม่สำเร็จ={ค่าตั้ง.lostReasons} />
 
       {/* การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · เดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69)
             หน้านี้ไม่มีตัวกรองช่วงเวลา → "เป็นดีลเลอร์แล้ว" นับเดือนนี้ (บอสตัดสิน 27 ต.ค. 69) · กดการ์ด = ไปรายการที่ตรงเรื่อง */}
