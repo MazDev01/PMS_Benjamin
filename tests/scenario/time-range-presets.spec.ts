@@ -72,8 +72,7 @@ test("[ui·hq] ตัวเลขบนการ์ดเปลี่ยนต�
     const วันเข้า = [วันนี้(), ย้อนเดือนISO(วันนี้(), 2), ย้อนเดือนISO(วันนี้(), 6), ย้อนเดือนISO(วันนี้(), 14)];
     expect(รันSQLในฐาน(`set local session_replication_role = replica;
       insert into public.leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
-      ${วันเข้า.map((d, i) => `('#L-${ฐาน + i}', ${ฐาน + i}, '${สาขา.รหัส}', 'ZZTEST-ช่วงเวลา-${สาขา.รหัส}-${i}', 'ZZTEST', '000-000-05${i}0', 'ตราด', 'BULLET', '${d}')`).join(",
-      ")};`),
+      ${วันเข้า.map((d, i) => `('#L-${ฐาน + i}', ${ฐาน + i}, '${สาขา.รหัส}', 'ZZTEST-ช่วงเวลา-${สาขา.รหัส}-${i}', 'ZZTEST', '000-000-05${i}0', 'ตราด', 'BULLET', '${d}')`).join(", ")};`),
       "วางลีดของข้อ").not.toBeNull();
     await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
     await settle(page);
