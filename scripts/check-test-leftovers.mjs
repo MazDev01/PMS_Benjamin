@@ -56,7 +56,8 @@ const พบ = [];
 let ตรวจ = 0;
 for (const [table, d] of Object.entries(defs)) {
   // ช่องข้อความล้วน — ไม่รวม uuid/วันที่/ตัวเลข (ilike กับชนิดอื่นจะ error) และไม่รวมบันทึกการใช้งาน (เก็บประวัติถาวรโดยตั้งใจ)
-  if (table === "audit_log" || table === "rate_limits") continue;
+  //   audit_log_hq = มุมมองของ audit_log (ใบ 0274 · เฉพาะที่ HQ ทำ) — แถวชุดเดียวกัน ไม่ใช่ตารางที่มีของค้างแยก
+  if (table === "audit_log" || table === "audit_log_hq" || table === "rate_limits") continue;
   // ตารางแม่แบบที่เลิกใช้แล้ว (ห้าม drop · templates-removed) — แถว ZZFIX เป็นข้อมูลตั้งต้นที่ตั้งใจใส่ (tests/fixtures/test-baseline.sql)
   if (table === "master_catalog" || table === "master_catalog_public") continue;
   // ช่องที่เก็บข้อความเข้ารหัส (v1:… base64 สุ่มทุกครั้ง) — มีตัวอักษร "ZZ" ได้โดยบังเอิญ ไม่ใช่ป้ายทดสอบ
