@@ -13,6 +13,7 @@ import {
 
 // "วันนี้ของระบบ" — นิยามไว้ที่ lib/appTime.ts (แหล่งเดียว) · re-export ไว้ให้ผู้เรียกเดิมใช้ได้เหมือนเดิม
 import { APP_NOW, APP_NOW_ISO } from "@pms/shared/lib/appTime";
+import { TIME_PRESETS, ย้อนเดือน, type TimePreset } from "@pms/shared/lib/timePresets";
 export { APP_NOW, APP_NOW_ISO };
 
 const THAI_MONTH_ABBR = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -34,22 +35,8 @@ function fmtTH(d: Date): string {
   return `${d.getDate()} ${THAI_MONTH_ABBR[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 
-// ── Time range presets ──
-// เหลือ 5 ตัวตามที่บอสสั่ง (16 ก.ค. 69): วันนี้ · 7 วันล่าสุด · เดือนนี้ · ปีนี้ · กำหนดช่วงเอง
-// ตัดออกแล้ว: "30 วันล่าสุด" · "ไตรมาส" — อย่าใส่กลับโดยไม่ถาม
-// เพิ่ม "ทุกช่วงเวลา" (บอสแจ้ง 28 ส.ค. 69: "กดล้างตัวกรองแล้วข้อมูลหาย")
-//   เดิมล้างตัวกรอง = กลับไปช่วง "ปีนี้" ซึ่งยังกรองอยู่ · แถวที่วันที่อยู่นอกปีนี้
-//   (ลูกค้าเดิมที่เพิ่งนำเข้า วันที่ปีก่อน ๆ) จึงหายไปทันทีที่กดล้าง — ตรงข้ามกับคำว่า "ล้าง"
-export type TimePreset = "all" | "today" | "last7" | "thisMonth" | "thisYear" | "custom";
-
-export const TIME_PRESETS: { key: TimePreset; label: string }[] = [
-  { key: "all",       label: "ทุกช่วงเวลา" },
-  { key: "today",     label: "วันนี้" },
-  { key: "last7",     label: "7 วันล่าสุด" },
-  { key: "thisMonth", label: "เดือนนี้" },
-  { key: "thisYear",  label: "ปีนี้" },
-  { key: "custom",    label: "กำหนดเอง" },
-];
+// ── Time range presets ── (ตัวเลือก + สูตรย้อนเดือน อยู่ lib/timePresets.ts · 3 พ.ย. 69)
+export { TIME_PRESETS, ย้อนเดือน, type TimePreset };
 
 const PRESET_LABEL: Record<TimePreset, string> = Object.fromEntries(
   TIME_PRESETS.map(p => [p.key, p.label]),
@@ -69,16 +56,12 @@ export type TimeRange = {
 
 function buildTimeRange(preset: TimePreset, customStart?: string, customEnd?: string): TimeRange {
   const now = startOfDay(APP_NOW);
-  const y = now.getFullYear(), m = now.getMonth();
   let start = now, end = now;
 
   switch (preset) {
-    // ทุกช่วงเวลา = ไม่กรองเวลาเลย · ต้องครอบวันที่ในอนาคตด้วย (ไฟล์นำเข้ากรอกปีหน้ามาก็มี)
-    case "all":       start = new Date(1970, 0, 1); end = new Date(y + 50, 11, 31); break;
-    case "today":     start = now; end = now; break;
-    case "last7":     start = addDays(now, -6); end = now; break;
-    case "thisMonth": start = new Date(y, m, 1); end = now; break;
-    case "thisYear":  start = new Date(y, 0, 1); end = now; break;
+    case "m1": start = ย้อนเดือน(now, 1); end = now; break;
+    case "m3": start = ย้อนเดือน(now, 3); end = now; break;
+    case "y1": start = ย้อนเดือน(now, 12); end = now; break;
     case "custom": {
       const cs = parseDate(customStart) ?? addDays(now, -29);
       const ce = parseDate(customEnd) ?? now;
@@ -89,9 +72,7 @@ function buildTimeRange(preset: TimePreset, customStart?: string, customEnd?: st
   }
 
   const sameDay = start.getTime() === end.getTime();
-  // "ทุกช่วงเวลา" ไม่แสดงวันที่จริง (1 ม.ค. 2513 – …) เพราะไม่ใช่ช่วงที่ผู้ใช้เลือก แค่แปลว่าไม่กรอง
-  const subtitle = preset === "all" ? "ทุกช่วงเวลา"
-    : sameDay ? fmtTH(start) : `${fmtTH(start)} – ${fmtTH(end)}`;
+  const subtitle = sameDay ? fmtTH(start) : `${fmtTH(start)} – ${fmtTH(end)}`;
 
   return { preset, start, end, label: PRESET_LABEL[preset], subtitle };
 }
@@ -116,8 +97,8 @@ type FilterState = {
 };
 
 const DEFAULTS: FilterState = {
-  // เริ่มต้น "ปีนี้" → เปิดหน้าเห็นข้อมูลครบ (seed กระจายทั้งปี · ไม่ให้ดูเหมือนข้อมูลหาย) แล้วค่อยแคบลงเองได้
-  preset: "thisYear", customStart: "", customEnd: "",
+  // เริ่มต้น "1 ปี" = ย้อนหลัง 12 เดือนถึงวันนี้ (บอสสั่ง 3 พ.ย. 69 · เดิม "ปีนี้")
+  preset: "y1", customStart: "", customEnd: "",
   dealer: ALL, province: ALL, status: ALL, person: ALL,
 };
 
@@ -195,9 +176,8 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
   // เดิมตั้งใจไม่แตะช่วงเวลา แต่ผู้ใช้มองว่าช่วงเวลาก็คือตัวกรองใบหนึ่ง (มันอยู่บนแถบเดียวกัน)
   // กดล้างแล้วช่วงที่กำหนดเองยังค้างอยู่ = ตัวเลขบนจอยังแคบตามช่วงเดิม ทั้งที่เห็นว่าล้างไปแล้ว
   // ตอนนี้กลับไปเป็นค่าตั้งต้นทั้งแถบ (ช่วงเวลา + ทุก dimension) ให้ตรงกับคำว่า "ล้าง"
-  // ล้าง = ไม่เหลือตัวกรองใด ๆ รวมช่วงเวลา → "ทุกช่วงเวลา" ไม่ใช่ค่าตั้งต้น "ปีนี้"
-  // (กลับไปปีนี้ = ยังกรองอยู่ ข้อมูลนอกปีหายทั้งที่ผู้ใช้เพิ่งสั่งล้าง — บอสแจ้ง 28 ส.ค. 69)
-  const reset = useCallback(() => setState(() => ({ ...DEFAULTS, preset: "all" as TimePreset })), []);
+  // ล้าง = ค่าตั้งต้นทั้งแถบ (ช่วง 1 ปี) — "ทุกช่วงเวลา" เอาออกแล้ว (บอสสั่ง 3 พ.ย. 69)
+  const reset = useCallback(() => setState(() => ({ ...DEFAULTS })), []);
 
   const inRange = useCallback((date?: string | null) => {
     if (date === undefined || date === null || date === "") return true;
@@ -219,9 +199,8 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
 
   // ⚠️ ช่วงเวลาที่ไม่ใช่ค่าตั้งต้น ต้องนับเป็นตัวกรองที่ "เปิดอยู่" ด้วย
   //    ไม่งั้นเลือกช่วงเองแล้วปุ่มล้างไม่โผล่ = ไม่มีทางกลับไปค่าตั้งต้นได้เลยนอกจากไล่กดเอง
-  // "ทุกช่วงเวลา" = ไม่ได้กรองเวลา จึงไม่นับเป็นตัวกรองที่เปิดอยู่ (ไม่งั้นปุ่มล้างค้างอยู่ตลอด)
   const activeCount =
-    (state.preset !== DEFAULTS.preset && state.preset !== "all" ? 1 : 0) +
+    (state.preset !== DEFAULTS.preset ? 1 : 0) +
     (state.dealer !== ALL ? 1 : 0) + (state.province !== ALL ? 1 : 0) +
     (state.status !== ALL ? 1 : 0) +
     (state.person !== ALL ? 1 : 0);

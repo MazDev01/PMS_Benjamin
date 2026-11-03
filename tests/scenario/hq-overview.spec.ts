@@ -3,7 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, ย้อนเดือนISO } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
@@ -160,7 +160,7 @@ test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายก�
   //   ตัวเลขทั้งตารางมาจากตัวคำนวณกลางของหน้า hq_pipeline_dealers (ใบ 0264 · ชุดเดียวกับการ์ด) ตามช่วงที่เลือก (ค่าตั้งต้น "ปีนี้")
   //   ใบตอบรับนับตามวันตอบรับ (ใบ 0260) → ใบของข้อตอบรับวันนี้ · ทุกแถวที่มีส่วนต่าง = ฐาน · แถวของข้อ = ค่าที่รู้แน่นอน
   const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-  const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
+  const ต้นปี = ย้อนเดือนISO(วันนี้, 12);   // ค่าตั้งต้น "1 ปี" (3 พ.ย. 69)
   type แถวผลงาน = { code: string; sales: number; marginSale: number; marginCost: number; marginPct: number | null };
   const ตาราง = page.locator('table[aria-label="ตารางผลงานดีลเลอร์"]');
   const ผลงานฐาน = async () => {

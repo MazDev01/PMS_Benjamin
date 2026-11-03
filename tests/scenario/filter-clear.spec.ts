@@ -3,18 +3,17 @@
 // เดิมปุ่มล้างแตะเฉพาะตัวกรองที่เป็นดรอปดาวน์ ช่วงเวลาที่กำหนดเองยังค้างอยู่
 // ตัวเลขบนจอจึงยังแคบตามช่วงเดิมทั้งที่ผู้ใช้เห็นว่าล้างไปแล้ว — และช่องวันที่ก็ยังค้างค่าเก่า
 //
-// ปรับกติกา 28 ส.ค. 69 (บอสแจ้ง "กดล้างตัวกรองแล้วข้อมูลหาย"):
-//   ล้างแล้วต้องเป็น "ทุกช่วงเวลา" ไม่ใช่กลับไปช่วงตั้งต้น "ปีนี้"
-//   เพราะกลับไปปีนี้ = ยังกรองอยู่ แถวที่วันที่อยู่นอกปีนี้หายไปทันทีที่กดล้าง
+// ปรับกติกา 3 พ.ย. 69 (บอสสั่ง · ตัวเลือกช่วงเวลาเหลือ 1 เดือน · 3 เดือน · 1 ปี · กำหนดเอง): "ทุกช่วงเวลา" เอาออก
+//   ล้างแล้ว = กลับค่าตั้งต้น "1 ปี" (เดิม 28 ส.ค. 69 = ทุกช่วงเวลา) · ช่วงที่กำหนดเองต้องไม่ค้าง
 import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
-import { openAs, settle } from "./helpers";
+import { openAs, settle, ปุ่มช่วงเวลา } from "./helpers";
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
 test("ล้างตัวกรองต้องล้างช่วงเวลาที่กำหนดเองด้วย", async ({ page }) => {
   await openAs(page, ADMIN, "hq", "/hq/leads");
   await settle(page); await page.waitForTimeout(1200);
-  const ปุ่มเวลา = page.locator("button").filter({ hasText: /2569|ปีนี้|วันนี้|เดือนนี้|ทุกช่วงเวลา/ }).first();
+  const ปุ่มเวลา = ปุ่มช่วงเวลา(page);
   const ก่อน = (await ปุ่มเวลา.innerText()).trim();
   await ปุ่มเวลา.click();
   await page.getByRole("button", { name: "กำหนดช่วงเอง" }).click();
@@ -31,7 +30,8 @@ test("ล้างตัวกรองต้องล้างช่วงเ�
   await page.waitForTimeout(700);
   const หลังล้าง = (await ปุ่มเวลา.innerText()).trim();
   console.log("หลังล้าง:", หลังล้าง);
-  expect(หลังล้าง, "ล้างแล้วต้องเป็นทุกช่วงเวลา (ไม่กรองเวลาเลย)").toContain("ทุกช่วงเวลา");
+  await expect(page.locator("[data-time-range]").first(), "ล้างแล้วกลับค่าตั้งต้น 1 ปี").toHaveAttribute("data-time-range", "y1");
+  expect(หลังล้าง, "ล้างแล้ว = ช่วงตั้งต้นเดิมตอนเปิดหน้า").toBe(ก่อน);
   expect(หลังล้าง, "ต้องไม่ค้างช่วงที่กำหนดเองไว้").not.toBe(หลังตั้ง);
   // ช่องวันที่ต้องว่างตามด้วย
   await ปุ่มเวลา.click();
