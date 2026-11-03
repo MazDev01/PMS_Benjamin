@@ -18,6 +18,7 @@ import { ขอล็อกฐานทดสอบ } from "../../scripts/lib/te
 import { กันฐานจริง } from "../../scripts/lib/prodBackupMark.mjs";
 import { รอฐานจริงว่าง } from "../../scripts/lib/prodLock.mjs";
 import { เลือกไฟล์แนบทดสอบ } from "./quoteFilesCleanup.mjs";
+import { รันSQLไฟล์ } from "../../scripts/lib/supabaseCli.mjs";
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
@@ -176,11 +177,10 @@ if (phase === "cleanup") {
   // Supabase CLI 2.109 ถามยืนยันทุกคำสั่ง SQL กับฐานจริง (โหมด json ถามไม่ได้) → ใส่ --yes ให้ · ขั้นนี้มีคำสั่งเขียน (cleanup.sql)
   //   บอสเลือก ก (3 พ.ย. 69): ขั้นเขียนฐานจริงบอสรันเอง — ต้องพิมพ์ --yes-prod เอง · AI ห้ามใส่ธงนี้
   if (!ยืนยันเขียน) ตาย("ขั้นล้างเขียนฐานจริง — บอสรันเอง: node tests/prod-live/run.mjs --target prod cleanup --yes-prod");
+  // CLI ของโปรเจกต์ + อ่านผลได้ทั้ง [ ... ] (คนรันเอง) และ { rows } (AI รัน) — เหตุจริง 3 พ.ย. 69: บอสรันแล้วตกที่ขั้นนับ (scripts/lib/supabaseCli.mjs)
+  //   ตก/อ่านผลไม่ได้ = ตาย → ขั้นนับรันก่อน cleanup.sql เสมอ จึงหยุดก่อนลบ (ข้อทดสอบ tests/tools/supabase-cli-rows.test.mjs)
   const ถาม = (ไฟล์, ชื่อขั้น) => {
-    const r = spawnSync("npx", ["supabase", "db", "query", "--linked", "--yes", "--workdir", `"${OPS}"`, "--output-format", "json", "-f", `"${ไฟล์}"`],
-      { cwd: OPS, encoding: "utf8", shell: true });
-    if (r.status !== 0) ตาย(`${ชื่อขั้น} ไม่สำเร็จ (รหัส ${r.status}) — ${(r.stderr || r.stdout || "").trim().slice(0, 300)}`);
-    try { return JSON.parse(r.stdout.slice(r.stdout.indexOf("{"))).rows ?? []; } catch { ตาย(`${ชื่อขั้น}: อ่านผลไม่ได้`); }
+    try { return รันSQLไฟล์(ไฟล์, { cwd: OPS, workdir: OPS }); } catch (e) { ตาย(`${ชื่อขั้น}: อ่านผลไม่ได้ — ${e.message}`); }
   };
   const นับ = () => ถาม(path.resolve("tests/prod-live/cleanup-audit-count.sql"), "นับบันทึกการใช้งาน")[0] ?? {};
   const ก่อน = นับ();

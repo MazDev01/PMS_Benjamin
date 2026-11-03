@@ -71,7 +71,7 @@ const ปล่อยเมื่อ = () => existsSync(เวลาปล่อ
 // ── ก–ค: คำสั่งอ่านต้องรอจนผู้ถือปล่อย ──
 const คำสั่งอ่าน = [
   ["ก. สคริปต์ที่ใช้ loadTarget (ชี้ฐานจริง)", [อ่านผ่านloadTarget], (r) => r.status === 0 && /END \d+/.test(r.ออก)],
-  ["ข. npm run prod:query (คำสั่งถามฐานจริงแบบอ่าน)", [path.join(โค้ด, "scripts/prod-query.mjs"), "select 1"], (r) => r.status === 0 && /\[ไม่รันจริง\] npx supabase db query --linked/.test(r.ออก)],
+  ["ข. npm run prod:query (คำสั่งถามฐานจริงแบบอ่าน)", [path.join(โค้ด, "scripts/prod-query.mjs"), "select 1"], (r) => r.status === 0 && /\[ไม่รันจริง\] "[^"]*node_modules[\\/]\.bin[\\/]supabase(\.CMD)?" db query --linked/.test(r.ออก)],
   ["ค. prod-live --target prod (ขั้น cleanup ต่อฐานแบบ --linked)", [path.join(โค้ด, "tests/prod-live/run.mjs"), "--target", "prod", "cleanup"], (r) => r.status === 3 && /ไม่รัน/.test(r.ออก)],
 ];
 for (const [ชื่อ, args, จบปกติ] of คำสั่งอ่าน) {

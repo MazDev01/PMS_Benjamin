@@ -9,6 +9,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/vercel-gate.test.mjs", "Vercel ไม่ build commit ที่ไม่ผ่านรอบตรวจ"],
   ["tests/tools/flaky-log.test.mjs", "ตัวนับข้อไม่นิ่ง + บรรทัดต้นเหตุ"],
   ["tests/tools/prod-read-only.test.mjs", "prod:query ใส่ --yes เฉพาะคำสั่งอ่าน · คำสั่งเขียนถูกปฏิเสธก่อนต่อฐาน"],
+  ["tests/tools/supabase-cli-rows.test.mjs", "อ่านผล Supabase CLI ได้ทั้ง 2 รูปแบบ · อ่านไม่ได้หยุดก่อนลบ · CLI รุ่นของโปรเจกต์"],
   ["tests/tools/restore-reset.test.mjs", "ล้างฐานซ้อมกู้ลองใหม่เฉพาะอาการคอนเทนเนอร์เตรียมโครงฐานล้ม"],
   ["tests/tools/live-mail-hold.test.mjs", "ชุดทดสอบเว็บจริงถือจดหมายของงานทดสอบไว้ ไม่ให้ถึงผู้รับจริง"],
   ["tests/tools/checkers-git-files.test.mjs", "ตัวตรวจอ่านเฉพาะไฟล์ที่ git เก็บ"],
