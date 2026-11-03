@@ -194,6 +194,9 @@ test("[ui·dealer] กล่องใบ HQ · ใบลูกค้า (แผ�
   await context.addInitScript(() => { window.print = () => {}; });
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงลีด(page, บริษัท);
+  // ใบ HQ ฝั่งดีลเลอร์พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — กาง "ดูรายการ" ก่อน ให้ตารางรายการใบ HQ ถูกตรวจเหมือนเดิม
+  await page.locator("[data-panel='hq-quote']").getByRole("button", { name: /ดูรายการ/ }).click({ timeout: 20_000 });
+  await expect(page.getByRole("table", { name: "รายการในใบ HQ" }), "ตารางรายการใบ HQ กางแล้ว").toBeVisible();
   await ตรวจหน้า(page, "แผงลีด-ใบHQ-และใบลูกค้า");
 
   // แผงดูใบลูกค้า
@@ -259,6 +262,9 @@ test("[ui·มือถือ] กล่องใบ HQ + ใบลูกค้�
   await page.setViewportSize({ width: 390, height: 844 });
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงลีด(page, บริษัท);
+  // ใบ HQ ฝั่งดีลเลอร์พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — กาง "ดูรายการ" ก่อน ให้ตารางรายการใบ HQ ถูกตรวจเหมือนเดิม
+  await page.locator("[data-panel='hq-quote']").getByRole("button", { name: /ดูรายการ/ }).click({ timeout: 20_000 });
+  await expect(page.getByRole("table", { name: "รายการในใบ HQ" }), "ตารางรายการใบ HQ กางแล้ว").toBeVisible();
   await ตรวจหน้า(page, "มือถือ-แผงลีด");
   await ไม่ล้นจอ(page, "มือถือ-แผงลีด");
   const เลื่อนได้ = await page.evaluate(() => Array.from(document.querySelectorAll("table")).filter(t => Array.from(t.querySelectorAll("thead th")).some(th => th.textContent?.trim() === "จำนวน"))

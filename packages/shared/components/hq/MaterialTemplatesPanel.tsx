@@ -18,7 +18,8 @@ import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
-import { หน่วยBOQ, วันไทยสั้น } from "@pms/shared/lib/quoteRequests";
+import { วันไทยสั้น } from "@pms/shared/lib/quoteRequests";
+import { UnitSelect, useรายการหน่วย, ล้างหน่วยจากวัสดุ } from "@pms/shared/components/ui/UnitSelect";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import {
   type MaterialTemplate, type EstimateAccuracy, หมวดที่มี, ค้นแม่แบบ, ป้ายเปอร์เซ็นต์คลาด,
@@ -42,6 +43,8 @@ export function MaterialTemplatesPanel() {
   // ยังไม่รู้ว่าเคยใช้หรือไม่ (กำลังโหลด) = ซ่อนปุ่มลบไว้ก่อน — ไม่ให้กดลบวัสดุที่อาจเคยใช้แล้ว
   const [เคยใช้, setเคยใช้] = useState<Set<number> | null>(null);
   const toast = useSettingsToast();
+  // ช่องหน่วยแบบดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69) — หน่วยมาตรฐาน + หน่วยที่รายการวัสดุใช้อยู่ (รวมแถวที่เพิ่งพิมพ์)
+  const หน่วย = useรายการหน่วย(rows.map(r => r.unit));
 
   const โหลด = useCallback(() => {
     repo.list().then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); }).catch(e => logRepoRead("materialTemplates.list", e));
@@ -58,7 +61,7 @@ export function MaterialTemplatesPanel() {
     const ลบ = (บันทึกแล้ว ?? []).map(r => r.id!).filter(id => !ยังอยู่.has(id));
     const ส่ง = rows.map(r => ({ id: r.id, category: r.category.trim(), name: r.name.trim(), unit: r.unit.trim(), unitPrice: Number(r.unitPrice), active: r.active }));
     repo.save(ส่ง, ลบ)
-      .then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); toast("บันทึกรายการวัสดุแล้ว"); })
+      .then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); ล้างหน่วยจากวัสดุ(); toast("บันทึกรายการวัสดุแล้ว"); })
       .catch(e => แจ้งพลาด("บันทึกรายการวัสดุไม่สำเร็จ: " + friendlyError(e)));
   }, [rows, บันทึกแล้ว, toast]);
   const reset = useCallback(() => { if (บันทึกแล้ว) setRows(บันทึกแล้ว); }, [บันทึกแล้ว]);
@@ -103,15 +106,14 @@ export function MaterialTemplatesPanel() {
         </div>
       }>
         <datalist id="mt-categories">{หมวด.map(h => <option key={h} value={h} />)}</datalist>
-        <datalist id="mt-units">{หน่วยBOQ.map(u => <option key={u} value={u} />)}</datalist>
 
         {/* ตารางรายการกลาง: หน่วยชิดซ้าย · ราคาต่อหน่วยชิดขวา หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
         <ตารางรายการ ป้าย="รายการวัสดุ" ลำดับ={false} กว้างขั้นต่ำ={860} แถว={บันทึกแล้ว === null ? [] : ในหน้า}
           ว่าง={บันทึกแล้ว === null ? "กำลังโหลด…" : rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีรายการวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}
           คุณสมบัติแถว={r => ({ "data-mt-row": String(r.id ?? "new"), style: r.active ? undefined : { opacity: 0.6 } })} คอลัมน์={[
             { key: "cat", หัว: "หมวด", ชนิด: "ข้อความ", กว้าง: "13%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-categories" aria-label={`หมวด ${i + 1}`} style={ช่องกรอก} value={r.category} maxLength={80} placeholder="เช่น ผนัง" onChange={e => แก้(r.key, { category: e.target.value })} /> },
-            { key: "name", หัว: "ชื่อวัสดุ", ชนิด: "ข้อความ", กว้าง: "24%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /> },
-            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "9%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-units" aria-label={`หน่วย ${i + 1}`} style={ช่องกรอก} value={r.unit} maxLength={40} onChange={e => แก้(r.key, { unit: e.target.value })} /> },
+            { key: "name", หัว: "ชื่อวัสดุ", ชนิด: "ข้อความ", กว้าง: "21%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /> },
+            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "12%", แสดงเกิน: true, ค่า: (r, i) => <UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={r.unit} หน่วย={หน่วย} onChange={u => แก้(r.key, { unit: u })} /> },
             { key: "price", หัว: "ราคาต่อหน่วย (ก่อน VAT)", ชนิด: "เงิน", กว้าง: "17%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
             { key: "active", หัว: "เปิดใช้", ชนิด: "ข้อความ", กว้าง: "9%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
                 <input type="checkbox" aria-label={`เปิดใช้ ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}

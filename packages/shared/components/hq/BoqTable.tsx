@@ -13,10 +13,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import {
-  type HqQuoteLine, type แถววาง, ยอดบรรทัด, ยอดรวมใบ, หน่วยBOQ, แถวว่าง, แถวเปล่าใหม่, แยกแถววางจากExcel, แทรกรายการ,
+  type HqQuoteLine, type แถววาง, ยอดบรรทัด, ยอดรวมใบ, แถวว่าง, แถวเปล่าใหม่, แยกแถววางจากExcel, แทรกรายการ,
 } from "@pms/shared/lib/quoteRequests";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
+import { UnitSelect, useรายการหน่วย } from "@pms/shared/components/ui/UnitSelect";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
@@ -38,6 +39,8 @@ export function BoqTable({ lines, onChange, editable, area, แหล่ง = []
   ป้ายตาราง?: string;
   ป้ายพื้นที่?: string;
 }) {
+  // ช่องหน่วยแบบดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69) — หน่วยมาตรฐาน + หน่วยจากรายการวัสดุ · หน่วยเดิมนอกรายการยังแสดง
+  const หน่วย = useรายการหน่วย();
   const ตาราง = useRef<HTMLTableElement>(null);
   const [โฟกัสแถว, setโฟกัสแถว] = useState<number | null>(null);
   const รวม = useMemo(() => ยอดรวมใบ(lines.filter(l => !แถวว่าง(l))), [lines]);
@@ -82,10 +85,9 @@ export function BoqTable({ lines, onChange, editable, area, แหล่ง = []
           พิมพ์แล้วกด Enter ที่แถวสุดท้ายเพื่อเพิ่มแถว · วางจาก Excel ได้หลายแถว (คอลัมน์ รายการ · จำนวน · หน่วย · ต้นทุนต่อหน่วย)
         </div>
       )}
-      <datalist id="boq-units">{หน่วยBOQ.map(u => <option key={u} value={u} />)}</datalist>
       {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
       <ตารางรายการ ป้าย={ป้ายตาราง} อ้างอิง={ตาราง} กว้างขั้นต่ำ={editable ? 720 : 640} แถว={lines} คอลัมน์={[
-        { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: editable ? "32%" : "36%", แสดงเกิน: editable, ชี้: l => l.name, ค่า: (l, i) => editable
+        { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: editable ? "29%" : "36%", แสดงเกิน: editable, ชี้: l => l.name, ค่า: (l, i) => editable
           ? <>
               <input aria-label={`ชื่อรายการ ${i + 1}`} value={l.name} onChange={e => แก้บรรทัด(i, { name: e.target.value })}
                 onKeyDown={e => กดปุ่มในแถว(e, i)} onPaste={e => วาง(e, i)} placeholder={i === 0 && lines.length === 1 ? "เช่น โครงสร้างเหล็ก" : undefined} style={ช่องกรอก} />
@@ -95,8 +97,8 @@ export function BoqTable({ lines, onChange, editable, area, แหล่ง = []
         { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "13%", แสดงเกิน: editable, ค่า: (l, i) => editable
           ? <span onKeyDown={e => กดปุ่มในแถว(e, i)}><NumberInput ariaLabel={`จำนวน ${i + 1}`} value={Number(l.qty)} min={0} onChange={n => แก้บรรทัด(i, { qty: n })} style={ช่องกรอก} /></span>
           : จัดรูปจำนวน(l.qty) },
-        { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "12%", แสดงเกิน: editable, ค่า: (l, i) => editable
-          ? <input aria-label={`หน่วย ${i + 1}`} list="boq-units" value={l.unit} onChange={e => แก้บรรทัด(i, { unit: e.target.value })} onKeyDown={e => กดปุ่มในแถว(e, i)} placeholder="เลือก/พิมพ์" style={ช่องกรอก} />
+        { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: editable ? "15%" : "12%", แสดงเกิน: editable, ค่า: (l, i) => editable
+          ? <UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={l.unit} หน่วย={หน่วย} onChange={u => แก้บรรทัด(i, { unit: u })} onKeyDown={e => กดปุ่มในแถว(e as React.KeyboardEvent<HTMLInputElement>, i)} />
           : จัดรูปหน่วย(l.unit) },
         { key: "cost", หัว: "ราคาต่อหน่วย", ชนิด: "เงิน", กว้าง: "18%", แสดงเกิน: editable, ค่า: (l, i) => editable
           ? <span onKeyDown={e => กดปุ่มในแถว(e, i)}><NumberInput ariaLabel={`ต้นทุนต่อหน่วย ${i + 1}`} value={Number(l.unitCost)} min={0} onChange={n => แก้บรรทัด(i, { unitCost: n })} style={ช่องกรอก} /></span>

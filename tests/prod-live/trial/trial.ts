@@ -123,7 +123,7 @@ async function HQตีราคาและส่ง(h: Page, company: string, 
   if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
   await กล่อง.getByLabel("ชื่อรายการ 1").fill("ทดลอง — โครงสร้างเหล็ก");
   await กล่อง.getByLabel("จำนวน 1").fill("100");
-  await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
+  await กล่อง.getByLabel("หน่วย 1", { exact: true }).selectOption("ตร.ม.");
   await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill(ต้นทุน);
   await กล่อง.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" }).click();
   await ตกลง(h);
@@ -253,7 +253,7 @@ test("ทดลอง · จอกว้าง · D1–D9 · H1–H12", async ({
   await ขั้น("H8", "ตีราคา → บันทึกร่าง (สถานะเป็นกำลังตีราคา)", h, async () => {
     const กล่อง = h.getByRole("region", { name: "ใบ HQ" });
     await กล่อง.getByLabel("จำนวน 1").fill("100");
-    await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
+    await กล่อง.getByLabel("หน่วย 1", { exact: true }).selectOption("ตร.ม.");
     await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
     await กล่อง.getByRole("button", { name: /บันทึกร่าง/ }).click();
     await expect.poll(async () => (await คำขอของ((await ลีด(ก))!.num_id))[0]?.status, { timeout: 20_000 }).toBe("pricing");

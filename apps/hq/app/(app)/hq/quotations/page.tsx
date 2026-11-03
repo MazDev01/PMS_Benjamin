@@ -28,7 +28,8 @@ import {
 const QPAGE_SIZE = 10;
 const TH_MONTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, type ขอบเขต } from "../_drill/DrillEngine";
+import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
+import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
 
@@ -87,6 +88,8 @@ export default function NetworkQuotationPage() {
   // ชุดดีลเลอร์ของระดับที่เลือก (ทั้งเครือ = ไม่กรอง) — ตาราง/กราฟด้านล่างคิดตามระดับนี้
   const ชุดดีลเลอร์ = useMemo<string[] | undefined>(() => ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์
     ? ในขอบเขต(เจาะลึก?.dealers ?? [], ขอบ).map(r => r.code) : undefined, [เจาะลึก, ขอบ]);
+  // ป้ายระดับที่เลือก สำหรับหัวข้อกราฟ/ตาราง (บอสสั่ง 3 พ.ย. 69)
+  const ป้ายระดับที่เลือก = ป้ายระดับของขอบ(ขอบ, เจาะลึก?.dealers ?? []);
   const matchesNonTime = useMemo(() => (r: QuoteRow) => {
     if (ชุดดีลเลอร์ && !ชุดดีลเลอร์.includes(r.dealerCode)) return false;
     // "sent" (ค่าเริ่มต้น) = ไม่นับร่าง/ถูกแทนที่ — ชุดเดียวกับการ์ด "ส่งลูกค้าในช่วงนี้" (บอสสั่ง 30 ต.ค. 69)
@@ -216,14 +219,15 @@ export default function NetworkQuotationPage() {
       {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
       <หัวเจาะลึก ตั้งค่า={ตั้งค่าใบ} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปใบเสนอราคาทั้งเครือ" />
 
-      <div style={{ marginTop: 16 }}><QuotationAnalytics aging={aging} รายเดือน={รายเดือน} /></div>
+      <div style={{ marginTop: 16 }}><QuotationAnalytics aging={aging} รายเดือน={รายเดือน} ระดับ={ป้ายระดับที่เลือก} ช่วง={ช่วง} /></div>
 
       <QuotationFilterBar filters={filters} onChange={setFilters} />
 
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ)
           ความยาวหน้าคุมด้วยกฎอื่นแทน: การ์ดกราฟตรึงความสูง S/M/L + กราฟรายการโชว์ Top N
           supabase = แบ่งหน้าที่ DB (listPage) · local = ทั้งชุด (tableRows) */}
-      <QuotationTable rows={displayRows} onView={setViewQ} pagination={pagination} margins={ส่วนต่าง} />
+      <QuotationTable rows={displayRows} onView={setViewQ} pagination={pagination} margins={ส่วนต่าง}
+        หัวข้อ={{ ชื่อ: `ตารางรายการใบเสนอราคา · ${ป้ายระดับที่เลือก}`, คำอธิบาย: คำอธิบายหัวข้อ(ช่วง, "ตามสถานะและคำค้นด้านบน", "ใหม่สุดก่อน", "กดแถวเพื่อเปิดใบ") }} />
 
       {/* ย้อนการตอบรับแล้ว ตาราง/การ์ด/กราฟ ต้องดึงใหม่เอง (ตารางเทียบรอบ 1: เดิมต้องรีเฟรชหน้าเอง) */}
       {viewQ && <QuotationDrawer quote={drawerSp ? { ...viewQ, salesperson: drawerSp } : viewQ} onClose={() => setViewQ(null)} onChanged={refreshSales} />}
