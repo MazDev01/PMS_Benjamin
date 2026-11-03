@@ -21,7 +21,9 @@ import { เลือกไฟล์แนบทดสอบ } from "./quoteFile
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
-const phase = args.at(-1);
+// --yes-prod = คนพิมพ์เองเพื่อยืนยันขั้นเขียนฐานจริง (cleanup) · บอสเลือก ก 3 พ.ย. 69 — AI ห้ามใส่ธงนี้
+const ยืนยันเขียน = args.includes("--yes-prod");
+const phase = args.filter(a => a !== "--yes-prod").at(-1);
 if (!["local", "prod"].includes(target) || !["setup", "test", "files", "trial", "cleanup"].includes(phase)) {
   console.error("ใช้: node tests/prod-live/run.mjs --target local|prod setup|test|files|trial|cleanup"); process.exit(2);
 }
@@ -171,8 +173,11 @@ if (phase === "cleanup") {
   // ฐานในเครื่องล้างโดยรอบตรวจเต็ม (scripts/test-prodbuild.mjs) · ที่นี่ฐานจริงเท่านั้น ผ่านโฟลเดอร์ที่ผูกฐานจริงไว้ (supabase link)
   if (target !== "prod") ตาย("cleanup ใช้กับ --target prod เท่านั้น (ฐานในเครื่องล้างโดยรอบตรวจเต็ม)");
   const OPS = process.env.PMS_PROD_OPS_DIR ?? "C:/.claude/pms-prod-ops";
+  // Supabase CLI 2.109 ถามยืนยันทุกคำสั่ง SQL กับฐานจริง (โหมด json ถามไม่ได้) → ใส่ --yes ให้ · ขั้นนี้มีคำสั่งเขียน (cleanup.sql)
+  //   บอสเลือก ก (3 พ.ย. 69): ขั้นเขียนฐานจริงบอสรันเอง — ต้องพิมพ์ --yes-prod เอง · AI ห้ามใส่ธงนี้
+  if (!ยืนยันเขียน) ตาย("ขั้นล้างเขียนฐานจริง — บอสรันเอง: node tests/prod-live/run.mjs --target prod cleanup --yes-prod");
   const ถาม = (ไฟล์, ชื่อขั้น) => {
-    const r = spawnSync("npx", ["supabase", "db", "query", "--linked", "--workdir", `"${OPS}"`, "--output-format", "json", "-f", `"${ไฟล์}"`],
+    const r = spawnSync("npx", ["supabase", "db", "query", "--linked", "--yes", "--workdir", `"${OPS}"`, "--output-format", "json", "-f", `"${ไฟล์}"`],
       { cwd: OPS, encoding: "utf8", shell: true });
     if (r.status !== 0) ตาย(`${ชื่อขั้น} ไม่สำเร็จ (รหัส ${r.status}) — ${(r.stderr || r.stdout || "").trim().slice(0, 300)}`);
     try { return JSON.parse(r.stdout.slice(r.stdout.indexOf("{"))).rows ?? []; } catch { ตาย(`${ชื่อขั้น}: อ่านผลไม่ได้`); }
