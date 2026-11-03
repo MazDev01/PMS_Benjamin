@@ -67,6 +67,18 @@ for (const a of [["select 1", "--yes"], ["select 1", "--agent", "no"], ["select 
   const r = รัน(...a);
   ผล(r.code === 3 && !/\[ไม่รันจริง\]/.test(r.ออก), `ส่ง ${a.slice(1).join(" ")} มาเอง → ปฏิเสธ`, r.ออก);
 }
+// 4) จุดอื่นที่เรียก CLI กับฐานจริงพร้อม --yes (3 พ.ย. 69): ด่านก่อน push ตรวจคำถามเป็นคำสั่งอ่านก่อนใส่ --yes ·
+//    ขั้นล้างข้อมูลทดสอบ (มีคำสั่งเขียน) ใส่ --yes ได้เฉพาะเมื่อคนพิมพ์ --yes-prod เอง (บอสเลือก ก)
+{
+  const { readFileSync } = await import("node:fs");
+  const ก่อนpush = readFileSync(path.join(ราก, "scripts/git-hooks/pre-push.mjs"), "utf8");
+  const ตรวจที่ = ก่อนpush.indexOf("ตรวจอ่านอย่างเดียว(คำถาม)"), yesที่ = ก่อนpush.indexOf('"--yes"');
+  ผล(ตรวจที่ > 0 && yesที่ > ตรวจที่, "ด่านก่อน push: ตรวจคำถามเป็นคำสั่งอ่านก่อนใส่ --yes");
+  const ล้าง = readFileSync(path.join(ราก, "tests/prod-live/run.mjs"), "utf8");
+  const ส่วนล้าง = ล้าง.slice(ล้าง.indexOf('if (phase === "cleanup")'));
+  const ด่าน = ส่วนล้าง.indexOf("if (!ยืนยันเขียน) ตาย("), yesล้าง = ส่วนล้าง.indexOf('"--yes"');
+  ผล(ด่าน > 0 && yesล้าง > ด่าน && /args\.includes\("--yes-prod"\)/.test(ล้าง), "ขั้นล้างข้อมูลทดสอบ: ไม่มี --yes-prod ที่คนพิมพ์ = หยุดก่อนใส่ --yes");
+}
 rmSync(ที่, { recursive: true, force: true });
 console.log(ตก ? `FAIL ${ตก}` : "ALL PASS");
 process.exit(ตก ? 1 : 0);

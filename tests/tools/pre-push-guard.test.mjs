@@ -39,7 +39,7 @@ try {
   mkdirSync(repo);
   execFileSync("git", ["init", "-q", "-b", "monorepo"], { cwd: repo });
   for (const f of [".githooks/pre-push", "scripts/git-hooks/pre-push.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/session.mjs", "scripts/lib/ports.json",
-                   "scripts/lib/prodLock.mjs", "scripts/lib/fileLock.mjs"]) { if (existsSync(join(ราก, f))) คัด(f); }
+                   "scripts/lib/prodLock.mjs", "scripts/lib/fileLock.mjs", "scripts/lib/readOnlySql.mjs"]) { if (existsSync(join(ราก, f))) คัด(f); }
   // ── mutation proof: ทำตัวกันในสำเนาให้พังทีละแบบ ──
   //   แปลงขึ้นบรรทัดเป็น \n ก่อน — โฟลเดอร์ที่ git แปลงเป็น CRLF จะหาข้อความไม่เจอ (ข้อทดสอบพังเองแทนที่จะพิสูจน์)
   const แก้สำเนา = (f, a, b) => { const p = join(repo, f), s = readFileSync(p, "utf8").replace(/\r\n/g, "\n"); if (!s.includes(a)) throw new Error(`ไม่พบ ${a}`); writeFileSync(p, s.replace(a, b)); };
@@ -124,8 +124,8 @@ try {
   const ล็อก = join(ที่, "prod.lock"), จด = join(ที่, "npx-called.txt"), ถังnpx2 = join(ที่, "npx-จดเวลา");
   mkdirSync(ถังnpx2);
   // จดว่าถูกเรียกด้วย echo ล้วน (เวลา = เวลาแก้ไฟล์) — ไม่ซ้อนเครื่องหมายคำพูดใน cmd
-  writeFileSync(join(ถังnpx2, "npx.cmd"), `@echo called> "${จด}"
-@echo {"rows":[{"version":"0001"},{"version":"0002"}]}
+  writeFileSync(join(ถังnpx2, "npx.cmd"), `@echo called> "${จด}"
+@echo {"rows":[{"version":"0001"},{"version":"0002"}]}
 `);
   writeFileSync(join(ถังnpx2, "npx"), `#!/bin/sh
 echo called > '${จด}'
