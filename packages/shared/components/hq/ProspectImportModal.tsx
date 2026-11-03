@@ -141,12 +141,14 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
               <section aria-label="จับคู่คอลัมน์" style={{ display: "grid", gap: 10 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: "0.78rem" }}>
                   <label htmlFor="pi-header">แถวหัวตาราง</label>
+                  {/* ต้องมีค่าเสมอ — แถวหัวตาราง (ตัวเลือกแรก −1 = ยังไม่ระบุ) */}
                   <select id="pi-header" className="form-select" style={{ width: "auto" }} value={แถวหัว}
                     onChange={e => { const h = Number(e.target.value); setแถวหัว(h); setคู่(h >= 0 ? (อ่านที่จำ()[ลายเซ็นหัว(ไฟล์.ตาราง[h])] ?? เดาคอลัมน์(ไฟล์.ตาราง[h])) : {}); }}>
                     <option value={-1}>— ยังไม่ระบุ —</option>
                     {ไฟล์.ตาราง.slice(0, 15).map((r, i) => <option key={i} value={i}>แถว {i + 1}: {r.filter(Boolean).slice(0, 4).join(" · ").slice(0, 60)}</option>)}
                   </select>
                   <label htmlFor="pi-year">ปีของวันที่ (วัน.เดือน ในไฟล์ไม่มีปี)</label>
+                  {/* ต้องมีค่าเสมอ — ปีของวันที่ในไฟล์ (ถามครั้งเดียว · ค่าตั้งต้นปีนี้) */}
                   <select id="pi-year" className="form-select" style={{ width: "auto" }} value={ปี} onChange={e => setปี(Number(e.target.value))}>
                     {[ปีพศนี้() - 1, ปีพศนี้(), ปีพศนี้() + 1].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
@@ -171,6 +173,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                     <tbody>
                       {ช่องทางในไฟล์.map(c => (
                         <tr key={c}><td style={เซลล์}>{c}</td><td style={เซลล์}>
+                          {/* ต้องมีค่าเสมอ — ตารางแปลงช่องทาง (ไม่รู้จัก = แนะนำต่อ) */}
                           <select aria-label={`แหล่งที่มาของ ${c}`} className="form-select" value={ช่องทาง[คีย์ช่องทาง(c)] ?? ช่องทางที่ไม่รู้จัก}
                             onChange={e => setช่องทาง(m => ({ ...m, [คีย์ช่องทาง(c)]: e.target.value }))}>
                             {[...new Set([...แหล่งที่มา, ช่องทางที่ไม่รู้จัก])].map(x => <option key={x} value={x}>{x}</option>)}
@@ -216,9 +219,11 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                           <td style={เซลล์}>{r.channel ?? "—"}</td>
                           <td style={เซลล์}>{ดู === "review"
                             ? <>
+                                {/* ต้องมีค่าเสมอ — ขั้นของผู้สนใจ (ระบบเดาจากหมายเหตุ · HQ แก้ได้) */}
                                 <select className="form-select" aria-label={`ขั้น แถว ${r.row}`} value={r.status} onChange={e => แก้แถว(r.row, { status: e.target.value as ขั้นนำเข้า })}>
                                   {ขั้นที่นำเข้าได้.map(s => <option key={s.k} value={s.k}>{s.label}</option>)}
                                 </select>
+                                {/* ไม่ใช่กล่องเหตุผล — แก้ค่าของแถวในหน้าตรวจก่อนนำเข้า (ยังไม่ได้ส่งฐาน · ฐานบังคับเหตุผลตอนนำเข้า) */}
                                 {r.status === "lost" && (
                                   <select className="form-select" aria-label={`เหตุผล แถว ${r.row}`} value={r.lostReason ?? ""} onChange={e => แก้แถว(r.row, { lostReason: e.target.value || null })} style={{ marginTop: 4 }}>
                                     <option value="">— ยังไม่ระบุ —</option>
