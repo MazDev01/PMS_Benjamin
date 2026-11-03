@@ -79,16 +79,16 @@ test("[D7] [ui·dealer] ทางเข้า 3 ทาง เติมวัน�
   await expect(ฟอร์ม(page).locator("#na-date"), "กดวันว่าง → วันที่ตามที่กด").toHaveValue(วันที่ว่าง!);
   await ฟอร์ม(page).getByRole("button", { name: "ปิด", exact: true }).click();
 
-  // สัปดาห์: กดช่องเวลา = วัน + เวลานั้น
+  // สัปดาห์: กดช่องเวลา = วัน + เวลานั้น (กดวันว่างแล้ว = วันที่เลือก → สัปดาห์ที่แสดงคือสัปดาห์ของวันนั้น)
   await page.getByRole("button", { name: "สัปดาห์", exact: true }).click();
-  await page.locator(`[data-slot="${วันนี้()}T14:00"] button`).click();
-  await expect(ฟอร์ม(page).locator("#na-date")).toHaveValue(วันนี้());
+  await page.locator(`[data-slot="${วันที่ว่าง}T14:00"] button`).click();
+  await expect(ฟอร์ม(page).locator("#na-date")).toHaveValue(วันที่ว่าง!);
   await expect(ฟอร์ม(page).locator("#na-time"), "กดช่องเวลา → เวลาตามที่กด").toHaveValue("14:00");
   await ฟอร์ม(page).getByRole("button", { name: "ปิด", exact: true }).click();
 
   // วัน: กดช่องเวลา
   await page.getByRole("button", { name: "วัน", exact: true }).click();
-  await page.locator(`[data-slot="${วันนี้()}T16:00"] button`).click();
+  await page.locator(`[data-slot="${วันที่ว่าง}T16:00"] button`).click();
   await expect(ฟอร์ม(page).locator("#na-time")).toHaveValue("16:00");
   assertNoErrors(errs, "ทางเข้าสร้างนัดจากปฏิทิน");
 });
