@@ -109,7 +109,7 @@ test("[func] เลื่อนสถานะลูกค้าเป้าห�
   // เลื่อนตามงานจริง: ขอราคาจาก HQ ที่กล่องขั้นต่อไป → รอราคา HQ ลงฐาน
   const เลข = 940000 + (Date.now() % 9000);
   const ins = await sb.from("leads").insert({ phone: "081-999-0102", id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG",
-    company: ADV_COMPANY, name: ADV_COMPANY, province: "ระยอง", status: "WAITING" });
+    company: ADV_COMPANY, name: ADV_COMPANY, province: "ระยอง", status: "WAITING", contact: "ผู้ทดสอบ", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(ins.error).toBeNull();
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ADV_COMPANY);
   await page.locator("tbody tr").filter({ hasText: ADV_COMPANY }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
@@ -157,7 +157,7 @@ test("[func] ปิดการขายไม่สำเร็จ: เลื�
   const numId = 940000 + (Date.now() % 9000);
   await sb.from("leads").insert({ phone: "081-999-0101",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: LOST_COMPANY, name: LOST_COMPANY,
-    contact: "t", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET", value: "฿600,000", assigned: "t",
+    contact: "t", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET", value: "฿600,000", assigned: "t", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท",
   });
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });

@@ -33,12 +33,12 @@ export function MaterialEstimatePicker({ value, onChange, disabled }: { value: �
   const ตัวเลือก = useMemo(() => ค้นแม่แบบ((แม่แบบ ?? []).filter(t => !value.some(v => v.templateId === t.id)), ค้น).slice(0, 50), [แม่แบบ, value, ค้น]);
 
   if (แม่แบบ && แม่แบบ.length === 0) {
-    return <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>วัสดุ (ไม่บังคับ): สำนักงานใหญ่ยังไม่มีแม่แบบวัสดุ</div>;
+    return <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>วัสดุ (ไม่บังคับ): สำนักงานใหญ่ยังไม่มีรายการวัสดุ</div>;
   }
   return (
     <div className="no-print" data-box="material-estimate" style={{ border: "1px dashed #d8b4fe", background: "#fff", borderRadius: 10, padding: "10px 12px", display: "grid", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 700, color: "#3b0764" }}>
-        <Boxes size={14} /> วัสดุจากแม่แบบ (ไม่บังคับ)
+        <Boxes size={14} /> วัสดุจากรายการวัสดุ (ไม่บังคับ)
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <input aria-label="ค้นวัสดุ" placeholder="ค้นวัสดุ เช่น ผนัง ประตู หลังคา" style={{ ...ช่อง, flex: "1 1 180px" }} value={ค้น} onChange={e => setค้น(e.target.value)} disabled={disabled || !แม่แบบ} />
@@ -68,7 +68,7 @@ export function MaterialEstimatePicker({ value, onChange, disabled }: { value: �
         <span data-testid="estimate-total" style={{ fontSize: "0.95rem", fontWeight: 800, color: "#3b0764" }}>{รวม == null ? "—" : `${บาท(รวม)} บาท`}</span>
         <span data-testid="estimate-label" className="badge" style={{ background: "#fef3c7", color: "#92400e" }}>{ป้ายราคาประเมิน}</span>
       </div>
-      <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคาส่งดีลเลอร์ (ก่อน VAT) ตามแม่แบบ ณ วันนี้ — ใช้กะงบเบื้องต้นเท่านั้น ราคาจริงตามใบ HQ · ไม่แสดงต่อลูกค้า</div>
+      <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคาส่งดีลเลอร์ (ก่อน VAT) ตามรายการวัสดุ ณ วันนี้ — ใช้กะงบเบื้องต้นเท่านั้น ราคาจริงตามใบ HQ · ไม่แสดงต่อลูกค้า</div>
     </div>
   );
 }

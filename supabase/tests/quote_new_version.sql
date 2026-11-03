@@ -44,8 +44,8 @@ begin
   perform nvtest.as_db();
   n := (select coalesce(max(num_id), 0) from public.leads where dealer_code = 'CNX') + 1;
   c1 := (select id from public.customers where dealer_code = 'CNX' order by id limit 1);
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
-  values ('#L-' || n, n, 'CNX', 'ZZTEST-ฉบับใหม่', 'ZZTEST-ฉบับใหม่', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET');
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
+  values ('#L-' || n, n, 'CNX', 'ZZTEST-ฉบับใหม่', 'ZZTEST-ฉบับใหม่', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform nvtest.as_dealer();
   rid := (public.quote_request_submit(n, 'โกดังสำเร็จรูป')).id;
   perform nvtest.as_hq();

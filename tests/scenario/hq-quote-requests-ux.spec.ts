@@ -27,7 +27,7 @@ test.beforeAll(async () => {
   const sb = await db(RYG);
   for (const k of ["ก", "ข"] as const) {
     const l = await sb.from("leads").insert({ id: `#L-${เลข[k]}`, num_id: เลข[k], dealer_code: "RYG", company: บริษัท(k), name: บริษัท(k),
-      contact: "ผู้ทดสอบ", phone: `08${String(เลข[k]).slice(-8)}`, province: "ระยอง", status: "BULLET" });
+      contact: "ผู้ทดสอบ", phone: `08${String(เลข[k]).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
     expect(l.error, `สร้างลีด ${k}`).toBeNull();
     const r = await sb.rpc("quote_request_submit", { p_lead_num_id: เลข[k], p_product: "โกดังเก็บสินค้า 20x40 ม.", p_area: k === "ก" ? 800 : null, p_spec: สเปกยาว, p_province: "ระยอง" });
     expect(r.error, `ส่งคำขอ ${k}`).toBeNull();

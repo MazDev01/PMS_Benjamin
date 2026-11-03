@@ -102,7 +102,7 @@ export interface TerritoriesRepo {
 export type QuoteRequestInput = { leadNumId: number; product: string; subtype?: string; area?: number | null; spec?: string; province?: string;
   /** วัสดุจากแม่แบบที่ดีลเลอร์เลือก (ไม่บังคับ · ใบ 0244) — ส่งแค่ วัสดุ + จำนวน ฐานคิดราคาและเก็บสำเนาเอง */
   estimate?: { templateId: number; qty: number }[] };
-// ── แม่แบบวัสดุ (ใบ 0244) — HQ เห็นทุกแถว ดีลเลอร์เห็นเฉพาะที่เปิดใช้ (ฐานกรอง) · บันทึกได้เฉพาะผู้ดูแล/ผู้บริหาร HQ ──
+// ── รายการวัสดุ (ใบ 0244) — HQ เห็นทุกแถว ดีลเลอร์เห็นเฉพาะที่เปิดใช้ (ฐานกรอง) · บันทึกได้เฉพาะผู้ดูแล/ผู้บริหาร HQ ──
 export interface MaterialTemplatesRepo {
   list(): Promise<import("../materialTemplates").MaterialTemplate[]>;
   /** บันทึกทั้งชุดในคำสั่งเดียว (ไม่มี id = เพิ่ม · deleteIds = ลบ) — คืนรายการทั้งหมดหลังบันทึก */
@@ -111,6 +111,23 @@ export interface MaterialTemplatesRepo {
   accuracy(): Promise<import("../materialTemplates").EstimateAccuracy>;
   /** รหัสวัสดุที่เคยใช้ในคำขอราคา/ใบ HQ แล้ว (ใบ 0271) — ลบไม่ได้ (ฐานกัน) ปิดใช้แทน · HQ เท่านั้น */
   used(): Promise<number[]>;
+}
+// ── ไฟล์แนบของคำขอราคา 2 ทาง (ใบ 0273) — ฐาน/ถังตรวจสิทธิ์ ล็อก ชนิด ขนาด จำนวน · ไฟล์ส่งตรงเข้าถัง ไม่ผ่าน API ──
+export interface QuoteFilesRepo {
+  /** ไฟล์ทั้งสายของคำขอ (ทุกฉบับ) ที่ผู้เรียกเห็น — ใหม่สุดก่อน */
+  list(requestId: number): Promise<import("../quoteFiles").QuoteFile[]>;
+  /** ป้ายจำนวนไฟล์ในรายการคำขอ */
+  counts(requestIds: number[]): Promise<import("../quoteFiles").จำนวนไฟล์คำขอ[]>;
+  /** จองที่ (ฐานตรวจ) แล้วส่งไฟล์ตรงเข้าถัง quote-files */
+  upload(requestId: number, side: import("../quoteFiles").ฝั่งไฟล์, file: File): Promise<void>;
+  /** ลิงก์ดาวน์โหลดมีอายุ (ถังตรวจว่าเห็นไฟล์นี้ได้ไหม) */
+  downloadUrl(path: string): Promise<string | null>;
+  /** ลบจากถัง (กฎของถังตรวจฝั่ง/ล็อก) — ลบไม่ได้ = โยนข้อผิดพลาด */
+  remove(path: string): Promise<void>;
+  /** พื้นที่เก็บไฟล์ทุกถัง + โควตา (HQ เท่านั้น) */
+  usage(): Promise<import("../quoteFiles").StorageUsage>;
+  /** ตั้งโควตา GB (null = ยังไม่ตั้ง · ผู้ดูแล/ผู้บริหาร HQ) */
+  setQuota(gb: number | null): Promise<void>;
 }
 export interface QuoteRequestsRepo {
   /** คำขอทั้งหมดของลูกค้าเป้าหมายหนึ่งราย (ใหม่→เก่า) */
@@ -725,6 +742,7 @@ export interface DataAdapter {
   hqCompany: HQCompanyRepo;
   territories: TerritoriesRepo;
   quoteRequests: QuoteRequestsRepo;
+  quoteFiles: QuoteFilesRepo;
   materialTemplates: MaterialTemplatesRepo;
   notes: NotesRepo;
   users: UsersRepo;

@@ -7,6 +7,7 @@ import { ล้างใบHQทดสอบ, เลขลูกค้าเป�
 // ── ฟอร์มขอราคาจาก HQ กรอกให้จากลีด (บอสสั่ง 26 ต.ค. 69 · FLOW ขั้น 3 "งาน + พื้นที่ + สเปก") ─────────────────────────
 //   งานที่ขอราคา ← งานที่ต้องการ · พื้นที่ ← พื้นที่ · สเปก ← สเปก / รายละเอียดงาน (ลีด ณ ตอนเปิด · แก้ได้ก่อนส่ง)
 //   ลีดไม่มีค่าช่องไหน = ช่องนั้นว่าง (ห้ามเดา) · ยกเลิกแล้วเปิดใหม่ = ดึงจากลีดใหม่ ไม่ค้างค่าที่พิมพ์รอบก่อน
+//   2 พ.ย. 69 (ใบ 0273): ข้อมูลลีดไม่ครบ = ฟอร์มเติมเฉพาะช่องที่ขาดก่อน (ช่องที่ขาดเปิดมาว่าง ไม่เดา) → ข้อ "ลีดไม่มีพื้นที่/งาน" ตรวจที่ฟอร์มนั้นแทน
 //   ขอแก้ราคา (D5x) = สเปกจากคำขอล่าสุด
 //   เดิมฟอร์มเปิดมาว่างทุกช่อง (ข้อ 1 ตกบนโค้ดก่อนแก้)
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
@@ -66,18 +67,26 @@ test("[flow·dealer] ขอราคา: เปิดฟอร์มแล้ว
   assertNoErrors(errs, "ฟอร์มขอราคากรอกจากลีด");
 });
 
-test("[flow·dealer] ขอราคา: ลีดไม่มีพื้นที่/งาน → ช่องนั้นว่าง (ไม่เดาค่า)", async ({ page }) => {
+test("[flow·dealer] ขอราคา: ลีดไม่มีพื้นที่/งาน → ฟอร์มเติมเฉพาะ 2 ช่องนั้น เปิดมาว่าง (ไม่เดาค่า) · กรอกแล้วฟอร์มขอราคาดึงครบ", async ({ page }) => {
   await สร้างลีด("ไม่มีพื้นที่", { note: สเปก });
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const แผง = await เปิดแท็บใบเสนอราคา(page, "ไม่มีพื้นที่");
   await กดขอราคา(page);
-  await expect(แผง.getByLabel("สเปก / รายละเอียด"), "ช่องที่ลีดมีค่ายังกรอกให้").toHaveValue(สเปก, { timeout: 15_000 });
-  await expect(แผง.locator("#qr-area"), "ลีดไม่มีพื้นที่ → ช่องพื้นที่ว่าง").toHaveValue("");
-  await expect(แผง.getByLabel("งานที่ขอราคา"), "ลีดไม่มีงานที่ต้องการ → ช่องว่าง").toHaveValue("");
+  const เติม = แผง.locator("[data-form='lead-info-missing']");
+  await expect(เติม, "ข้อมูลงานไม่ครบ = ฟอร์มเติมช่องที่ขาดก่อน (ใบ 0273)").toBeVisible({ timeout: 15_000 });
+  await expect(เติม.getByLabel("งานที่ต้องการ", { exact: true }), "ลีดไม่มีงานที่ต้องการ → ช่องว่าง").toHaveValue("");
+  await expect(เติม.getByLabel("พื้นที่ (ตร.ม.)", { exact: true }), "ลีดไม่มีพื้นที่ → ช่องว่าง").toHaveValue("");
+  await expect(เติม.getByLabel("สเปก / รายละเอียดงาน", { exact: true }), "สเปกที่ลีดมีแล้ว ไม่ถามซ้ำ").toHaveCount(0);
+  await เติม.getByLabel("งานที่ต้องการ", { exact: true }).fill(งาน);
+  await เติม.getByLabel("พื้นที่ (ตร.ม.)", { exact: true }).fill("640");
+  await เติม.getByRole("button", { name: "บันทึกแล้วไปต่อ" }).click();
+  await expect(แผง.getByLabel("งานที่ขอราคา"), "ฟอร์มขอราคา: งานจากที่เพิ่งกรอก").toHaveValue(งาน, { timeout: 15_000 });
+  await expect(แผง.locator("#qr-area"), "ฟอร์มขอราคา: พื้นที่จากที่เพิ่งกรอก").toHaveValue("640");
+  await expect(แผง.getByLabel("สเปก / รายละเอียด"), "ช่องที่ลีดมีค่ายังกรอกให้").toHaveValue(สเปก);
 });
 
 test("[D5x] [flow·dealer] ขอแก้ราคา (D5x): สเปกกรอกจากคำขอล่าสุด", async ({ page }) => {
-  await สร้างลีด("แก้ราคา", { project: งาน });
+  await สร้างลีด("แก้ราคา", { project: งาน, area: 800, note: สเปก });   // ข้อมูลครบก่อนขอราคา (ใบ 0273)
   const sb = await db(RYG);
   const r = await sb.rpc("quote_request_submit", { p_lead_num_id: เลข.แก้ราคา, p_product: งาน, p_spec: "ZZ สเปกในคำขอล่าสุด" });
   expect(r.error).toBeNull();

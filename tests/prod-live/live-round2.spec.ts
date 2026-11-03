@@ -94,7 +94,8 @@ test("[live·รอบ2] 4) กระดิ่งดีลเลอร์ไม�
 
 test("[live·รอบ2] 5) ลีดที่มีแค่ใบ HQ → มูลค่า \"—\" (ฐาน + หน้าเว็บ)", async ({ page }) => {
   const l = await svc.from("leads").insert({ id: `#L-${เลขลีดใบHQ}`, num_id: เลขลีดใบHQ, dealer_code: สาขา, company: บริษัทใบHQ, name: บริษัทใบHQ,
-    contact: "ผู้ทดสอบ", phone: "000-000-0001", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET" });
+    contact: "ผู้ทดสอบ", phone: "000-000-0001", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",
+    project: "ทดสอบระบบ — โกดัง", area: "100", note: "ทดสอบระบบ — โกดัง 10x10 ม." });   // ข้อมูลครบก่อนขอราคา (ใบ 0273)
   expect(l.error?.message ?? "", "สร้างลีดทดสอบ").toBe("");
   const ด = await ลงชื่อ(ดีลเลอร์);
   const r = await ด.rpc("quote_request_submit", { p_lead_num_id: เลขลีดใบHQ, p_product: "โกดังสำเร็จรูป" });

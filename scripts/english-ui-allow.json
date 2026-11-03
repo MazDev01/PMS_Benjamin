@@ -5,7 +5,7 @@
     "Benjamin", "PEB", "Steel", "PMS", "Pre-Engineered", "Building",
     "Standard", "Exclusive",
     "LINE", "Google", "Sheets", "TikTok", "Zoom",
-    "Word", "PowerPoint", "CAD", "DWG", "DXF", "CSV", "XLS", "XLSX", "JPG", "PNG", "WebP", "GIF", "MB",
+    "Word", "PowerPoint", "CAD", "DWG", "DXF", "CSV", "XLS", "XLSX", "JPG", "PNG", "WebP", "GIF", "MB", "GB",
     "Enter", "Esc",
     "ZZT", "CNXB"
   ],
@@ -14,7 +14,7 @@
     "Benjamin · PEB · Steel · PMS · Pre-Engineered · Building": "ชื่อบริษัท/ชื่อระบบ/ชื่อสินค้า (ชื่อเฉพาะ)",
     "Standard · Exclusive": "ชื่อแพ็กเกจที่ทีมใช้จริง (ชื่อเฉพาะ · dealerProposals.ts)",
     "LINE · Google · Sheets · TikTok · Zoom": "ชื่อแอป/บริการ (ชื่อเฉพาะ)",
-    "Word … MB": "ชนิดไฟล์และหน่วยขนาดไฟล์ที่เห็นบนเครื่องคนใช้",
+    "Word … MB · GB": "ชนิดไฟล์และหน่วยขนาดไฟล์ที่เห็นบนเครื่องคนใช้ (GB = โควตาพื้นที่เก็บไฟล์ หน้าตั้งค่า · ใบ 0273)",
     "Enter · Esc": "ชื่อปุ่มบนแป้นพิมพ์",
     "ZZT · CNXB": "ตัวอย่างรหัสสาขาในช่องกรอก (รหัส ไม่ใช่คำ)",
     "Dealer Package Proposal · Quotation": "หัวรองบนกระดาษที่พิมพ์ (ใบค่าแฟรนไชส์ / ใบเสนอราคา) ตามแบบฟอร์มธุรกิจ — หัวหลักเป็นไทย"

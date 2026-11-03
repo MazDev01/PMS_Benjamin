@@ -58,7 +58,8 @@ test.beforeAll(purge);
 test.afterAll(purge);
 
 const ลีด = (n: number) => ({ id: `#L-ZTJ-${n}`, num_id: n, dealer_code: CODE, company: `ZZTEST-ปิดใช้งาน-${n}`, name: `ZZTEST-ปิดใช้งาน-${n}`,
-  contact: "ผู้ทดสอบ", phone: `08900000${String(n).padStart(2, "0")}`, province: "แม่ฮ่องสอน", product: "โกดังสำเร็จรูป", status: "BULLET" });
+  contact: "ผู้ทดสอบ", phone: `08900000${String(n).padStart(2, "0")}`, province: "แม่ฮ่องสอน", product: "โกดังสำเร็จรูป", status: "BULLET",
+  project: "ZZTEST งานโกดัง", area: "800", note: "ZZTEST สเปก" });   // ข้อมูลครบก่อนขอราคา (ใบ 0273)
 //   หน้างาน "แม่ฮ่องสอน" = จังหวัดที่ไม่มีดีลเลอร์รายใดดูแลในชุดทดสอบ — กฎหนึ่งจังหวัดหนึ่งดีลเลอร์ (0195) จึงไม่กันตอนเตรียม
 //   (ระยองเป็นของ RYG · สาขาใหม่ยังไม่มีพื้นที่ของตัวเอง)
 

@@ -29,9 +29,9 @@ begin
 end $$;
 create function hqtest.lead(p_num int, p_tag text) returns void language plpgsql as $$
 begin
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
   values ('#L-' || p_num, p_num, 'CNX', 'ZZTEST-มีคำขอ-' || p_tag, 'ZZTEST-มีคำขอ-' || p_tag, 'ผู้ทดสอบ',
-          '000-000-' || lpad((p_num % 10000)::text, 4, '0'), 'เชียงใหม่', 'WAITING');
+          '000-000-' || lpad((p_num % 10000)::text, 4, '0'), 'เชียงใหม่', 'WAITING', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
 end $$;
 grant usage on schema hqtest to authenticated;
 grant execute on all functions in schema hqtest to authenticated;
@@ -46,8 +46,8 @@ begin
 
   -- 1) ลีดใหม่ = ยังไม่มีคำขอ/ใบ แม้ส่งค่ามาเอง
   perform hqtest.as_dealer();
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, has_quotes)
-  values ('#L-' || n, n, 'CNX', 'ZZTEST-มีคำขอ-ก', 'ZZTEST-มีคำขอ-ก', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'WAITING', true);
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, has_quotes, project, area, note)
+  values ('#L-' || n, n, 'CNX', 'ZZTEST-มีคำขอ-ก', 'ZZTEST-มีคำขอ-ก', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'WAITING', true, 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform hqtest.as_db();
   perform hqtest.eq(hqtest.v(n), false, '1) ลีดใหม่ = ไม่มีคำขอ/ใบ (ค่าที่ส่งมาเองถูกทิ้ง)');
   perform hqtest.eq(hqtest.s(n) = 1, true, '1) ลีดใหม่ ขั้นที่ไปถึง = 1 (ข้อมูลลูกค้า)');

@@ -41,6 +41,12 @@ do $$ begin
              or dedupe_key ~ ('^(request_new|request_reprice|customer_accepted):(' || coalesce((select string_agg(id::text, '|') from public.quote_requests where dealer_code = 'ZZT'), '-1') || ')(:|$)')))$q$;
   end if;
 end $$;
+-- ไฟล์แนบคำขอราคา (ใบ 0273): ไฟล์ในถังลบแล้วที่ขั้น files (run.mjs · หยุดถ้าถังยังเหลือ) · ที่นี่ลบแถวจองที่ไม่มีไฟล์ ก่อนลบคำขอ (กุญแจนอก)
+do $$ begin
+  if to_regclass('public.quote_files') is not null then
+    delete from public.quote_files where dealer_code in ('ZZT', 'ZZTN');
+  end if;
+end $$;
 delete from public.quotations where dealer_code = 'ZZT';
 delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = 'ZZT');
 update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'ZZT';

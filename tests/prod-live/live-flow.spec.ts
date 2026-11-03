@@ -2,6 +2,8 @@
 // ดีลเลอร์ขอราคา → HQ ทำ BOQ + ส่งใบ HQ → ดีลเลอร์ทำใบลูกค้าจากใบ HQ (บวก %) → ส่งให้ลูกค้า → ลูกค้าตอบรับ (won)
 // ทุกขั้นกดผ่านหน้าจอเว็บจริง · ตรวจผลที่ฐานด้วยกุญแจฝั่งเซิร์ฟเวอร์ (อ่านอย่างเดียว)
 // ผู้เรียก: tests/prod-live/run.mjs (สร้างสาขา/บัญชีชั่วคราว + ลูกค้าเป้าหมายตั้งต้น · ล้างทิ้งด้วย cleanup.sql)
+// ไฟล์แนบ 2 ทาง (ใบ 0273 · บอสสั่ง 2 พ.ย. 69): ดีลเลอร์แนบตอนขอราคา → HQ เห็น + แนบที่ใบ HQ ร่าง → ส่งใบ → ดีลเลอร์เห็น + ดาวน์โหลดได้
+//   ไฟล์ทดสอบชื่อขึ้นต้น ZZTEST · ลบออกจากถังที่ขั้น files ของ run.mjs (ตรวจว่าเหลือ 0 และลบเฉพาะของสาขาทดสอบ)
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { ตรวจโดเมนบัญชีดีลเลอร์, LOGIN_DOMAIN } from "./loginDomainCheck.mjs";
@@ -17,6 +19,9 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(240_000);
 
 const ลีด = async () => (await svc.from("leads").select("status").eq("dealer_code", สาขา).eq("num_id", เลขลีด).single()).data?.status;
+const ไฟล์แนบ = async (rid: number) => ((await svc.from("quote_files").select("side, display_name, status").eq("request_id", rid)).data ?? [])
+  .filter(f => f.status === "ready").map(f => `${f.side}:${f.display_name}`).sort();
+const ไฟล์ทดสอบ = (name: string, size: number) => ({ name, mimeType: "application/pdf", buffer: Buffer.alloc(size, 65) });
 const คำขอ = async () => (await svc.from("quote_requests").select("id, status").eq("dealer_code", สาขา).eq("lead_num_id", เลขลีด).order("id", { ascending: false }).limit(1).maybeSingle()).data;
 const ใบHQ = async (rid: number) => (await svc.from("hq_quotes").select("id, status, total_cost").eq("request_id", rid).maybeSingle()).data;
 const ใบลูกค้า = async () => (await svc.from("quotations").select("id, status, total_value, hq_quote_id").eq("dealer_code", สาขา).eq("deal_id", เลขลีด).maybeSingle()).data;
@@ -82,8 +87,10 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     const แผง = d.locator("[data-panel='quote-request']");
     await แผง.getByLabel("งานที่ขอราคา").fill("ทดสอบระบบ — โกดัง");   // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69)
     await แผง.getByLabel("สเปก / รายละเอียด").fill("ทดสอบระบบ — โกดัง 10x10 ม.");
+    await แผง.locator("#qr-files").setInputFiles([ไฟล์ทดสอบ("ZZTEST แบบจากดีลเลอร์.pdf", 3000)]);   // แนบไฟล์ถึง HQ (ใบ 0273)
     await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
     await expect(แผง.getByText("ใหม่", { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(แผง.locator("[data-files-side='dealer'] [data-file-row]"), "ไฟล์ของดีลเลอร์ตามคำขอไป (อัปโหลดตรงเข้าถัง)").toHaveCount(1, { timeout: 30_000 });
     await expect.poll(ลีด, { timeout: 20_000, message: "ลูกค้าเป้าหมาย → รอราคา HQ" }).toBe("HQ_PRICING");
   });
 
@@ -109,11 +116,33 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
     await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
     await expect(กล่อง.getByTestId("hq-quote-total")).toHaveText("100,000.00");
+    // ไฟล์ (ใบ 0273): HQ เห็นไฟล์ดีลเลอร์ · บันทึกร่างแล้วแนบไฟล์ของใบ HQ · ส่งใบแล้วไฟล์ล็อกพร้อมใบ
+    await expect(กล่อง.locator("[data-files-side='dealer'] [data-file-row]"), "HQ เห็นไฟล์จากดีลเลอร์").toHaveCount(1, { timeout: 30_000 });
+    await กล่อง.getByRole("button", { name: "บันทึกร่าง" }).click();
+    await expect.poll(async () => (await ใบHQ(rid))?.status, { timeout: 30_000, message: "มีร่างใบ HQ" }).toBe("draft");
+    await กล่อง.locator("[data-panel='quote-files']").getByLabel("เลือกไฟล์แนบ").setInputFiles([ไฟล์ทดสอบ("ZZTEST แบบที่ HQ แก้.pdf", 5000)]);
+    await expect(กล่อง.locator("[data-files-side='hq'] [data-file-row]"), "HQ แนบไฟล์ของใบร่างได้").toHaveCount(1, { timeout: 30_000 });
     await กล่อง.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" }).click();
     await ตกลงในกล่องยืนยัน(h);
     await expect.poll(async () => (await ใบHQ(rid))?.status, { timeout: 30_000, message: "ใบ HQ = ส่งแล้ว" }).toBe("sent");
     expect((await คำขอ())?.status, "คำขอ = ส่งใบแล้ว").toBe("quoted");
     expect(Number((await ใบHQ(rid))?.total_cost), "ยอดต้นทุนใบ HQ").toBeGreaterThan(0);
+    expect(await ไฟล์แนบ(rid), "ฐานมีไฟล์ 2 ทางครบ").toEqual(["dealer:ZZTEST แบบจากดีลเลอร์.pdf", "hq:ZZTEST แบบที่ HQ แก้.pdf"]);
+    const แจ้ง = (await svc.from("notifications").select("body").eq("dedupe_key", `hq_quote_sent:${rid}`).maybeSingle()).data;
+    expect(แจ้ง?.body ?? "", "กระดิ่งตอนส่งใบ HQ บอกจำนวนไฟล์แนบ").toContain("ไฟล์แนบจาก HQ 1 ไฟล์");
+  });
+
+  await test.step("2b ดีลเลอร์เห็นไฟล์จาก HQ + ดาวน์โหลดได้ · ไฟล์ล็อกแล้ว", async () => {
+    await เปิดแท็บใบเสนอราคาของลีด(d);
+    const กล่องไฟล์ = d.locator("[data-panel='quote-request'] [data-panel='quote-files']");
+    const ของHQ = กล่องไฟล์.locator("[data-files-side='hq'] [data-file-row]");
+    await expect(ของHQ, "ดีลเลอร์เห็นไฟล์ HQ หลังส่งใบ").toHaveCount(1, { timeout: 30_000 });
+    await expect(กล่องไฟล์.locator("button[aria-label^='ลบ']"), "ส่งใบแล้ว ไม่มีปุ่มลบ").toHaveCount(0);
+    const path = (await svc.from("quote_files").select("object_name").eq("request_id", rid).eq("side", "hq").single()).data!.object_name as string;
+    const ลิงก์ = await d.request.get(`${DEALER}/api/v1/quote-files?view=url&path=${encodeURIComponent(path)}`);
+    expect(ลิงก์.status(), "ขอลิงก์ดาวน์โหลด (มีอายุ) ได้").toBe(200);
+    const ไฟล์ = await d.request.get(JSON.parse(await ลิงก์.text()) as string);
+    expect((await ไฟล์.body()).length, "ดาวน์โหลดได้ครบไบต์").toBe(5000);
   });
 
   await test.step("3 ดีลเลอร์ทำใบลูกค้าจากใบ HQ (บวก 20%)", async () => {

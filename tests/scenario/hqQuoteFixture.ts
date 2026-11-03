@@ -11,6 +11,24 @@ import { db } from "./funcHelpers";
 export type ใบHQบรรทัด = { name: string; qty: number; unit: string; unitCost: number };
 export type ใบHQพร้อมใช้ = { dealerCode: string; leadNum: number; requestId: number; hqQuoteId: number; quoteNo: string };
 
+/** ข้อมูลงานครบ (งานที่ต้องการ · พื้นที่ · สเปก) — ลีดของข้อทดสอบที่จะขอราคา (ใบ 0273) */
+export const ข้อมูลงานครบชุด = { project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท" } as const;
+
+/** ลีดที่สร้างที่อื่น (หน้าจอ · ข้อมูลตั้งต้น) อาจยังขาดข้อมูล — เติมเฉพาะช่องที่ว่างผ่านทางเขียนลีดทางเดียว
+ *  (เหมือนผู้ใช้กรอกฟอร์มช่องที่ขาดก่อนขอราคา · ใบ 0273) · sb = client ของดีลเลอร์เจ้าของลีด */
+export async function เติมข้อมูลลีดก่อนขอราคา(sb: import("@supabase/supabase-js").SupabaseClient, dealerCode: string, leadNum: number) {
+  const เดิม = (await sb.from("leads").select("id, contact, project, area, note").eq("dealer_code", dealerCode).eq("num_id", leadNum).single()).data;
+  if (!เดิม) return;
+  const ขาด: Record<string, string> = {};
+  if (!String(เดิม.contact ?? "").trim()) ขาด.contact = "ผู้ทดสอบ";
+  if (!String(เดิม.project ?? "").trim()) ขาด.project = ข้อมูลงานครบชุด.project;
+  if (!(Number(เดิม.area) > 0)) ขาด.area = ข้อมูลงานครบชุด.area;
+  if (!String(เดิม.note ?? "").trim()) ขาด.note = ข้อมูลงานครบชุด.note;
+  if (!Object.keys(ขาด).length) return;
+  const f = await sb.rpc("lead_apply", { p_id: เดิม.id, p_intent: { fields: ขาด, log: false } });
+  if (f.error) throw new Error(`เติมข้อมูลลีดก่อนขอราคาไม่สำเร็จ: ${f.error.message}`);
+}
+
 let ลำดับ = 0;
 /** เลขลูกค้าเป้าหมายของข้อทดสอบ — ช่วง 97x ล้าน (ไม่ชนข้อมูลจริง) · ไม่ซ้ำกันภายในตัวรันเดียว */
 export const เลขลูกค้าเป้าหมายทดสอบ = () => 970_000_000 + ((Date.now() % 9_000_000) * 10 + (ลำดับ++ % 10)) % 9_999_999;
@@ -25,6 +43,8 @@ export async function เตรียมใบHQ(dealer: Account & { code?: stri
   const l = await sb.from("leads").insert({
     id: `#L-${leadNum}`, num_id: leadNum, dealer_code: opts.dealerCode, company: opts.company, name: opts.company,
     contact: "ผู้ทดสอบ", phone, province: opts.province, product: opts.product ?? "โกดังสำเร็จรูป", status: "BULLET",
+    // ข้อมูลงานครบ (ใบ 0273: ขอราคาได้เมื่อ "เก็บข้อมูลลูกค้า" + "สรุปความต้องการ" ครบ)
+    ...ข้อมูลงานครบชุด,
   });
   if (l.error) throw new Error(`สร้างลูกค้าเป้าหมายทดสอบไม่สำเร็จ: ${l.error.message}`);
   return ใบHQให้ลูกค้าเป้าหมายเดิม(dealer, opts.dealerCode, leadNum, opts.lines, opts);
@@ -34,6 +54,7 @@ export async function เตรียมใบHQ(dealer: Account & { code?: stri
 export async function ใบHQให้ลูกค้าเป้าหมายเดิม(dealer: Account, dealerCode: string, leadNum: number, lines?: ใบHQบรรทัด[],
   opts: { validDays?: number; product?: string } = {}): Promise<ใบHQพร้อมใช้> {
   const sb = await db(dealer);
+  await เติมข้อมูลลีดก่อนขอราคา(sb, dealerCode, leadNum);
   const r = await sb.rpc("quote_request_submit", { p_lead_num_id: leadNum, p_product: opts.product ?? "โกดังสำเร็จรูป" });
   if (r.error) throw new Error(`ส่งคำขอราคาไม่สำเร็จ: ${r.error.message}`);
   const requestId = Number((r.data as { id: number }).id);

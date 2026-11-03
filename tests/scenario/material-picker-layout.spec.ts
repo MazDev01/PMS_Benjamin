@@ -32,7 +32,7 @@ test.beforeAll(async () => {
   ไอดี = (r.data ?? []).map(x => Number(x.id));
   const sb = await db(RYG);
   const l = await sb.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: บริษัท, name: บริษัท,
-    contact: "ผู้ทดสอบ", phone: `08${String(เลข).slice(-8)}`, province: "ระยอง", status: "BULLET" });
+    contact: "ผู้ทดสอบ", phone: `08${String(เลข).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(l.error, "ลูกค้าเป้าหมายทดสอบ").toBeNull();
 });
 test.afterAll(async () => {

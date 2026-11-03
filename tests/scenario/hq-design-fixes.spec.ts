@@ -5,13 +5,13 @@ import { settle } from "./helpers";
 
 // ── หน้า HQ ตามแบบ (บอสเลือกแก้ 30 ต.ค. 69) — คำเรียกบนจอที่บอสสั่ง (ตัวเลขตรวจที่ supabase/tests/hq_pages_monthly.sql · ใบ 0268) ──
 //   1. แดชบอร์ด: กราฟรายเดือน "ใบที่ส่ง" · "ปิดสำเร็จ" (คำเดียวกับขั้นตอนกลาง) · 2. ลิงก์ "บันทึกการใช้งาน ›" ที่กล่องกิจกรรมล่าสุด
-//   3. ผู้สนใจ: ชื่อขั้น "รอตัดสินใจ HQ" (FLOW H3–H5) · 6. แม่แบบวัสดุ: คอลัมน์ "% คลาดเฉลี่ย" รายแถว
+//   3. ผู้สนใจ: ชื่อขั้น "รอตัดสินใจ HQ" (FLOW H3–H5) · 6. รายการวัสดุ: คอลัมน์ "% คลาดเฉลี่ย" รายแถว
 //   (4–5 คำขอใบเสนอราคา: ปุ่ม 3 กลุ่ม · "ราคาต่อหน่วย" — quote-requests-groups.spec.ts · hq-quote-board.spec.ts)
 //   ตกบนโค้ดก่อนรอบนี้: "ใบเสนอราคา"/"ปิดการขาย" · ไม่มีลิงก์ · "รอตัดสินใจ" · ไม่มีคอลัมน์
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(120_000);
 
-test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง · ปิดสำเร็จ · ลิงก์บันทึกการใช้งาน · ผู้สนใจ รอตัดสินใจ HQ · แม่แบบวัสดุ % คลาดเฉลี่ย", async ({ page }) => {
+test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง · ปิดสำเร็จ · ลิงก์บันทึกการใช้งาน · ผู้สนใจ รอตัดสินใจ HQ · รายการวัสดุ % คลาดเฉลี่ย", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
@@ -34,7 +34,7 @@ test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง 
 
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click();
+  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
   const แผง = page.locator("[data-panel='material-templates']");
   await expect(แผง.locator("thead th").filter({ hasText: "% คลาดเฉลี่ย" }), "คอลัมน์ % คลาดเฉลี่ยรายแถว").toHaveCount(1, { timeout: 20_000 });
   assertNoErrors(errs, "หน้า HQ ตามแบบ");

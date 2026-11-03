@@ -115,7 +115,7 @@ test("[รอบ4·flow] HQ: ดีลเลอร์ยกเลิกคำข
   const sb = await db(RYG);
   const เลข = 970_000_000 + (Date.now() % 9_000_000);
   expect((await sb.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อ, name: ชื่อ, contact: "ผู้ทดสอบ",
-    phone: `08${String(เลข).slice(-8)}`, province: "ระยอง", status: "BULLET" })).error?.message ?? "").toBe("");
+    phone: `08${String(เลข).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  })).error?.message ?? "").toBe("");
   const ส่ง = await sb.rpc("quote_request_submit", { p_lead_num_id: เลข, p_product: "โกดังสำเร็จรูป" });
   expect(ส่ง.error?.message ?? "").toBe("");
   const rid = Number((ส่ง.data as { id: number }).id);

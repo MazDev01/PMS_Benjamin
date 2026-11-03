@@ -75,8 +75,8 @@ declare n int; rid bigint; ยืนราคา date := (now() at time zone 'As
 begin
   perform tytest.as_db();
   n := (select coalesce(max(num_id), 0) from public.leads where dealer_code = 'CNX') + 1;
-  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
-  values ('#L-' || n, n, 'CNX', 'ZZTEST-ปีไทย', 'ZZTEST-ปีไทย', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET');
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
+  values ('#L-' || n, n, 'CNX', 'ZZTEST-ปีไทย', 'ZZTEST-ปีไทย', 'ผู้ทดสอบ', '000-000-' || lpad((n % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform tytest.as_dealer();
   rid := (public.quote_request_submit(n, 'โกดังสำเร็จรูป')).id;
   perform tytest.as_hq();

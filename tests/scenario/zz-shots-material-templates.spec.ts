@@ -8,11 +8,11 @@ import { settle, เปิดใบHQในกล่องงาน } from "./he
 import { ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 import { adminClient } from "./testDealers";
 
-// ── ถ่ายรูปก่อน/หลัง งานแม่แบบวัสดุ (บอสสั่ง 26 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────────────────────────────
+// ── ถ่ายรูปก่อน/หลัง งานรายการวัสดุ (บอสสั่ง 26 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────────────────────────────
 //   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง npm run test:prodbuild -- tests/scenario/zz-shots-material-templates.spec.ts
 //   รูปลง C:/.claude/pms-shots/material-templates/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ
-//   ฉาก: ตั้งค่า HQ (แท็บแม่แบบวัสดุ) · ฟอร์มขอราคาของดีลเลอร์ (D3) · ตารางเลือกวัสดุที่เลือกแล้ว 2 รายการ · ใบ HQ ของคำขอ (H8)
-test.skip(() => !process.env.PMS_SHOTS, "ถ่ายรูปก่อน/หลังงานแม่แบบวัสดุ — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง (ไม่ใช่ข้อทดสอบ)");
+//   ฉาก: ตั้งค่า HQ (แท็บรายการวัสดุ) · ฟอร์มขอราคาของดีลเลอร์ (D3) · ตารางเลือกวัสดุที่เลือกแล้ว 2 รายการ · ใบ HQ ของคำขอ (H8)
+test.skip(() => !process.env.PMS_SHOTS, "ถ่ายรูปก่อน/หลังงานรายการวัสดุ — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง (ไม่ใช่ข้อทดสอบ)");
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(600_000);
 
@@ -62,7 +62,7 @@ test("ถ่ายรูป: ตั้งค่า HQ · ฟอร์มขอ�
   await ถ่าย(page, "ตั้งค่า-HQ", async () => {
     await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "แม่แบบวัสดุ" }).click({ timeout: 3_000 }).catch(() => {});   // ก่อนทำยังไม่มีแท็บนี้
+    await page.getByRole("button", { name: "รายการวัสดุ" }).click({ timeout: 3_000 }).catch(() => {});   // ก่อนทำยังไม่มีแท็บนี้
   });
   await ถ่าย(page, "ใบHQ-ของคำขอ", async () => {
     await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });

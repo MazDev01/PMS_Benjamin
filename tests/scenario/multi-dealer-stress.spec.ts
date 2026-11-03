@@ -5,6 +5,7 @@ import { DEALER_ORIGIN, HQ_ORIGIN, cleanup, watchErrors, assertNoErrors, นำ�
 import { settle, ติดตามคำขอ } from "./helpers";
 import { ลบสาขาทดสอบตรง, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
+import { เติมข้อมูลลีดก่อนขอราคา } from "./hqQuoteFixture";
 
 // ── Multi-Dealer Load / Stress Test ──────────────────────────────────────────
 // จำลอง 10 ดีลเลอร์ใช้งานพร้อมกันจริง (บัญชี auth จริง ไม่ใช่ mock) + HQ ติดตามแบบเรียลไทม์
@@ -148,6 +149,7 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   const { data: ดีล } = await sb.from("leads").select("num_id").eq("dealer_code", code).eq("company", COMPANY)
     .in("status", ["WAITING", "BULLET"]).order("num_id", { ascending: false }).limit(1);
   if (!ดีล?.length) throw new Error(`${code}: ไม่พบงานขายที่ขอราคาได้`);
+  await เติมข้อมูลลีดก่อนขอราคา(sb, code, Number(ดีล[0].num_id));   // งานขายที่สร้างจากหน้าจอยังไม่มีข้อมูลงาน (ใบ 0273)
   const ขอ = await sb.rpc("quote_request_submit", { p_lead_num_id: Number(ดีล[0].num_id), p_product: "โกดังสำเร็จรูป" });
   if (ขอ.error) throw new Error(`${code}: ขอราคาไม่สำเร็จ ${ขอ.error.message}`);
   const hq = await hqClient();

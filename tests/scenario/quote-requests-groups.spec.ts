@@ -27,7 +27,7 @@ test.beforeAll(async () => {
   for (let i = 0; i < 2; i++) {
     const n = เลขลูกค้าเป้าหมายทดสอบ(), ชื่อ = `${ป้าย}-ใหม่${i}`;
     const l = await sb.from("leads").insert({ id: `#L-${n}`, num_id: n, dealer_code: "RYG", company: ชื่อ, name: ชื่อ, contact: "ผู้ทดสอบ",
-      phone: `08${String(n).slice(-8)}`, province: "ระยอง", status: "BULLET" });
+      phone: `08${String(n).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
     expect(l.error).toBeNull();
     เลขลีด.push(n);
     expect((await sb.rpc("quote_request_submit", { p_lead_num_id: n, p_product: "ZZTEST โกดัง" })).error).toBeNull();

@@ -22,7 +22,7 @@ test.beforeAll(async () => {
   เลขรอ = เลขลูกค้าเป้าหมายทดสอบ();
   const sb = await db(RYG);
   const l = await sb.from("leads").insert({ id: `#L-${เลขรอ}`, num_id: เลขรอ, dealer_code: "RYG", company: รอราคา, name: รอราคา,
-    contact: "ผู้ทดสอบ", phone: `08${String(เลขรอ).slice(-8)}`, province: "ระยอง", status: "BULLET" });
+    contact: "ผู้ทดสอบ", phone: `08${String(เลขรอ).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   if (l.error) throw new Error(l.error.message);
   const r = await sb.rpc("quote_request_submit", { p_lead_num_id: เลขรอ, p_product: "โกดังสำเร็จรูป" });
   if (r.error) throw new Error(r.error.message);
