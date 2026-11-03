@@ -19,8 +19,10 @@ import type { LeadSummary } from "@pms/shared/lib/data/ports";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
-export type มิติ = "dealer" | "region" | "prov" | "month";
-export const ชื่อมิติ: Record<มิติ, string> = { dealer: "ดีลเลอร์", region: "ภูมิภาค", prov: "จังหวัด", month: "รายเดือน" };
+// ชื่อมิติ/ชนิดมิติ ย้ายไปไฟล์กลางของหัวข้อกราฟ/ตาราง (ใบหัวข้อ 3 พ.ย. 69) — ส่งต่อชื่อเดิมให้ผู้เรียกเดิม
+import { ชื่อมิติ, คำอธิบายหัวข้อ, type มิติ } from "@pms/shared/lib/drillTitles";
+import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+export { ชื่อมิติ, type มิติ };
 export type รวม = ReturnType<typeof รวมผลงาน>;
 /** ยังไม่รู้ผล = ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้) */
 export const ยังไม่รู้ผล = (x: { leads: number; won: number; lost: number }) => Math.max(0, x.leads - x.won - x.lost);
@@ -287,10 +289,10 @@ export function แผงที่มา({ การ์ด, แถว, รวม
 }
 
 // ── กล่องด้านล่าง ───────────────────────────────────────────────────────────────────────────────────────────
-function การ์ดกล่อง({ title, testid, children }: { title: string; testid: string; children: React.ReactNode }) {
+function การ์ดกล่อง({ title, คำอธิบาย, testid, children }: { title: string; คำอธิบาย: string; testid: string; children: React.ReactNode }) {
   return (
     <div className="card" data-testid={testid} style={{ marginBottom: 0 }}>
-      <div className="card-header"><div className="card-title">{title}</div></div>
+      <BoxTitle ชื่อ={title} คำอธิบาย={คำอธิบาย} />
       <div className="card-body" style={{ paddingTop: 8 }}>{children}</div>
     </div>
   );
@@ -315,7 +317,9 @@ function แถบนับ({ rows, empty }: { rows: { label: string; value: num
 }
 const สีชุด = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626", "#64748b"];
 
-export function กล่องล่าง({ รวมทั้งหมด, ขั้นตอนนี้, ในช่วง }: { รวมทั้งหมด: รวม; ขั้นตอนนี้: LeadSummary | null; ในช่วง: LeadSummary | null }) {
+/** ระดับ = ป้ายระดับที่เลือก · ช่วง = ช่วงเวลาที่เลือก (หัวข้อกราฟ · บอสสั่ง 3 พ.ย. 69) */
+export function กล่องล่าง({ รวมทั้งหมด, ขั้นตอนนี้, ในช่วง, ระดับ, ช่วง }: { รวมทั้งหมด: รวม; ขั้นตอนนี้: LeadSummary | null; ในช่วง: LeadSummary | null;
+  ระดับ: string; ช่วง: { start: string; end: string } }) {
   const ขั้น = ([1, 2, 3, 4, 5] as เลขขั้น[]).map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
   const เหตุผล = (ในช่วง?.byLostReason ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.reason || "ไม่ระบุเหตุผล", value: r.count, color: สีชุด[i % สีชุด.length] }));
   const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.source || "ไม่ระบุ", value: r.count, color: สีชุด[i % สีชุด.length] }));
@@ -329,12 +333,12 @@ export function กล่องล่าง({ รวมทั้งหมด, �
   return (
     <>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title="เส้นทางการขาย" testid="pipeline-funnel"><แถบนับ rows={เส้นทาง} empty="ยังไม่มีลีดในช่วงที่เลือก" /></การ์ดกล่อง>
-        <การ์ดกล่อง title="งานค้างตามขั้นตอน (ตอนนี้)" testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลีดที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟเส้นทางการขาย · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่เข้ามาในช่วง → ใบที่ส่ง → ผลปิดการขาย", "ตัวเลขเดียวกับแถวรวมของตาราง")} testid="pipeline-funnel"><แถบนับ rows={เส้นทาง} empty="ยังไม่มีลีดในช่วงที่เลือก" /></การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟงานค้างตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "ลีดที่ยังเปิดอยู่ แยกตามขั้นที่อยู่ตอนนี้")} testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลีดที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title="เหตุผลที่ปิดไม่สำเร็จ" testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลีดที่ปิดไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
-        <การ์ดกล่อง title="ลีดตามแหล่งที่มา" testid="pipeline-sources">{ในช่วง ? <แถบนับ rows={แหล่ง} empty="ยังไม่มีลีดในช่วงที่เลือก" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟเหตุผลที่ปิดไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่ปิดไม่สำเร็จ แยกตามเหตุผลที่บันทึก")} testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลีดที่ปิดไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟลีดตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่เข้ามาในช่วง แยกตามแหล่งที่มา")} testid="pipeline-sources">{ในช่วง ? <แถบนับ rows={แหล่ง} empty="ยังไม่มีลีดในช่วงที่เลือก" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
     </>
   );
@@ -365,11 +369,11 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
   return (
     <>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`ใบเสนอราคาล่าสุดของ ${code}`} testid="dealer-latest-quotes">
+        <การ์ดกล่อง title={`ตารางใบเสนอราคาล่าสุดของ ${code}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 ใบล่าสุดที่ส่งลูกค้าแล้ว", "ใหม่สุดก่อน")} testid="dealer-latest-quotes">
           {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [q.id, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/quotations?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
-        <การ์ดกล่อง title={`ลีดล่าสุดของ ${code}`} testid="dealer-latest-leads">
+        <การ์ดกล่อง title={`ตารางลีดล่าสุดของ ${code}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
           {ตาราง(["บริษัท", "ขั้นตอน", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลีด")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/leads?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>

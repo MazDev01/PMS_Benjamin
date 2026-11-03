@@ -32,6 +32,8 @@ import { ชื่อภาค, ภาคมาตรฐาน, ป้ายท�
 import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { fmtBaht } from "@pms/shared/lib/format";
 import { useLeadSummary } from "@pms/shared/lib/useNetworkData";
+import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
+import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, แผงที่มา, กล่องล่าง, ล่าสุดของดีลเลอร์, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, แผงเดือน, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
 
 const PRIMARY = "#003366";
@@ -255,6 +257,9 @@ export default function SalesAnalyticsPage() {
     [รายเดือนฐาน, รหัสในตาราง, ดีลเลอร์ที่ดู, ช่วง.start, ช่วง.end, เป้าทั้งปี]);
   const [เดือนที่เปิด, setเดือนที่เปิด] = useState<แถวเดือน | null>(null);
   const ชื่อดีลเลอร์ = useMemo(() => new Map(allDealers.map(d => [d.code, d.name] as const)), [allDealers]);
+  // ระดับที่เลือกสำหรับหัวข้อกราฟ/ตาราง (บอสสั่ง 3 พ.ย. 69)
+  const ระดับหัวข้อ = { ภาค: regionSel !== ALL ? regionSel : null, จังหวัด: provSel !== ALL ? provSel : null,
+    ดีลเลอร์: ดีลเลอร์ที่ดู, ชื่อดีลเลอร์: ดีลเลอร์ที่ดู ? ชื่อดีลเลอร์.get(ดีลเลอร์ที่ดู) : undefined };
   const แท่งเดือน: HRow[] = useMemo(() => (เดือน ?? []).map(g => ({ key: g.key, label: g.label, a: g.รวม.sales, b: g.รวม.target ?? 0,
     note: g.รวม.pct == null ? "ยังไม่ตั้งเป้า" : `${g.รวม.pct}% ของเป้า`, onClick: ดีลเลอร์ที่ดู ? undefined : () => setเดือนที่เปิด(g) })), [เดือน, ดีลเลอร์ที่ดู]);
   // กล่องล่าง: ลีดของชุดสาขาเดียวกับตาราง (งานค้าง = ตอนนี้ · เหตุผล/แหล่งที่มา = ลีดที่เข้ามาในช่วง)
@@ -320,10 +325,11 @@ export default function SalesAnalyticsPage() {
         </div>
       </div>
 
+      {/* หัวข้อกราฟ/ตาราง (บอสสั่ง 3 พ.ย. 69) — เปลี่ยนตามแท็บมิติและระดับที่เลือก (ตัวกลาง lib/drillTitles.ts) */}
       {/* ── 2 · กราฟ: ยอดขาย เทียบ เป้าตามช่วง ตามแท็บ (ดีลเลอร์/ภูมิภาค/จังหวัด · รายเดือน = รอข้อมูล) · กดแท่ง = เจาะลง ── */}
       <div className="card" data-testid="pipeline-chart" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-        <div className="card-header" style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
-          <div className="card-title">ยอดขาย เทียบ เป้าตามช่วง · {ดีลเลอร์ที่ดู ? `รายเดือนของ ${ดีลเลอร์ที่ดู}` : `ราย${ชื่อมิติ[มิติจริง]}`}</div>
+        <BoxTitle ชื่อ={`กราฟ${ชื่อหัวข้อ("ยอดขาย เทียบ เป้าตามช่วง ", มิติจริง, ระดับหัวข้อ)}`}
+          คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, มิติจริง === "month" ? "แท่งเข้ม = ยอดขายในเดือน · แท่งอ่อน = เป้ารายเดือน" : "แท่งเข้ม = ยอดขายในช่วง · แท่งอ่อน = เป้าตามช่วง", คำแนะนำกดแถว(มิติจริง, ระดับหัวข้อ))}>
           {แท็บ.length > 1 && (
             <div role="tablist" aria-label="ดูผลงานแยกตาม" style={{ display: "inline-flex", border: "1px solid #dbe3ec", borderRadius: 10, overflow: "hidden" }}>
               {แท็บ.map(m => (
@@ -333,7 +339,7 @@ export default function SalesAnalyticsPage() {
               ))}
             </div>
           )}
-        </div>
+        </BoxTitle>
         <div style={{ flex: 1 }}>
           {มิติจริง === "month" ? (เดือน ? <HBars rows={แท่งเดือน} aLabel="ยอดขายในเดือน" bLabel="เป้ารายเดือน" fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ฐานข้อมูลยังไม่มีผลงานรายเดือน (รอบรวมงานฐาน)" />)
             : โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
@@ -345,9 +351,8 @@ export default function SalesAnalyticsPage() {
 
       {/* ── 3 · ตารางผลงานดีลเลอร์ตารางเดียว — เรียงได้ทุกคอลัมน์ · แถวท้าย = ผลรวม (เท่าการ์ด) ── */}
       <div className="card" data-testid="pipeline-table" style={{ marginBottom: 0 }}>
-        <div className="card-header">
-          <div className="card-title">{มิติจริง === "dealer" ? "ตารางผลงานดีลเลอร์" : `ตารางผลงาน${ดีลเลอร์ที่ดู ? `รายเดือนของ ${ดีลเลอร์ที่ดู}` : `ตาม${ชื่อมิติ[มิติจริง]}`}`}</div>
-        </div>
+        <BoxTitle ชื่อ={`ตาราง${ชื่อหัวข้อ("ผลงาน", มิติจริง, ระดับหัวข้อ)}`}
+          คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "แถวรวม = การ์ดด้านบน", คำแนะนำกดแถว(มิติจริง, ระดับหัวข้อ), มิติจริง === "dealer" ? "กดหัวคอลัมน์เพื่อเรียง" : null)} />
         {มิติจริง === "month" && (เดือน ? <ตารางรายเดือน แถว={เดือน} รวมทั้งหมด={รวม} เลือกเดือน={ดีลเลอร์ที่ดู ? undefined : setเดือนที่เปิด} /> : <รอข้อมูลรายเดือน ข้อความ="ฐานข้อมูลยังไม่มีผลงานรายเดือน (รอบรวมงานฐาน)" />)}
         {(มิติจริง === "region" || มิติจริง === "prov") && (โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
           : <ตารางกลุ่ม มิติ={มิติจริง} แถว={กลุ่ม} รวมทั้งหมด={รวม} เจาะ={เจาะ} />)}
@@ -425,7 +430,7 @@ export default function SalesAnalyticsPage() {
 
       {/* ── 5 · เส้นทางการขาย · งานค้างตามขั้นตอน (ตอนนี้) · เหตุผลปิดไม่สำเร็จ · ลีดตามแหล่งที่มา (ชุดสาขาเดียวกับตาราง) ── */}
       <div style={{ marginTop: 24 }}>
-        <กล่องล่าง รวมทั้งหมด={รวม} ขั้นตอนนี้={ขั้นตอนนี้} ในช่วง={ลีดในช่วง} />
+        <กล่องล่าง รวมทั้งหมด={รวม} ขั้นตอนนี้={ขั้นตอนนี้} ในช่วง={ลีดในช่วง} ระดับ={ป้ายระดับ(ระดับหัวข้อ)} ช่วง={ช่วง} />
       </div>
 
       {แผงการ์ด && <แผงที่มา การ์ด={แผงการ์ด} แถว={แถว} รวมทั้งหมด={รวม} ดีลเลอร์={ดีลเลอร์ที่ดู} ปิด={() => setแผงการ์ด(null)}

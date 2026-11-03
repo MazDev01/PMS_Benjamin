@@ -103,10 +103,11 @@ test("[ui·hq] วางจาก Excel 3 แถว = 3 รายการ · �
   await ใบ.getByLabel("ต้นทุนต่อหน่วย 5").press("Enter");
   await expect(ใบ.getByLabel(/^ชื่อรายการ \d+$/)).toHaveCount(6);
   await expect(ใบ.getByLabel("ชื่อรายการ 6"), "Enter แล้วพิมพ์ต่อแถวใหม่ได้ทันที").toBeFocused();
-  // หน่วยเลือกจากรายการได้ และพิมพ์เองได้
-  const ตัวเลือก = await page.locator("datalist#boq-units option").evaluateAll(os => os.map(o => (o as HTMLOptionElement).value));
-  expect(ตัวเลือก, "รายการหน่วย").toEqual(["ตร.ม.", "ตัน", "เมตร", "ชุด", "งาน"]);
-  await expect(ใบ.getByLabel("หน่วย 6", { exact: true })).toHaveAttribute("list", "boq-units");
+  // หน่วยเลือกจากรายการได้ (ดรอปดาวน์ · บอสสั่ง 3 พ.ย. 69) และพิมพ์เองได้ (ตัวเลือก "หน่วยอื่น")
+  const ตัวเลือก = await ใบ.getByLabel("หน่วย 6", { exact: true }).locator("option").evaluateAll(os => os.map(o => (o as HTMLOptionElement).value));
+  expect(ตัวเลือก.slice(0, 6), "รายการหน่วย: เริ่มที่ยังไม่ระบุ แล้วหน่วยมาตรฐาน").toEqual(["", "ตร.ม.", "ตัน", "เมตร", "ชุด", "งาน"]);
+  expect(ตัวเลือก.at(-1), "ตัวเลือกท้าย = พิมพ์หน่วยอื่นเอง").toBe("__other__");
+  await ใบ.getByLabel("หน่วย 6", { exact: true }).selectOption("__other__");
   await ใบ.getByLabel("หน่วย 6", { exact: true }).fill("เที่ยว");
   await expect(ใบ.getByLabel("หน่วย 6", { exact: true })).toHaveValue("เที่ยว");
   assertNoErrors(errs, "ตาราง BOQ วางจาก Excel");

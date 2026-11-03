@@ -85,7 +85,7 @@ test("[H8] [flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายกา�
   await expect(กล่อง.getByTestId("hq-quote-total"), "แถวว่างไม่นับเป็นรายการ").toHaveText(บาท(0));
   await กล่อง.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็กพร้อมติดตั้ง");
   await กล่อง.getByLabel("จำนวน 1").fill("100");
-  await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
+  await กล่อง.getByLabel("หน่วย 1", { exact: true }).selectOption("ตร.ม.");   // ช่องหน่วยเป็นดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69)
   await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1500");
 
   await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
@@ -151,6 +151,10 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   const ใบ = page.locator("[data-panel='hq-quote']");
   await expect(ใบ, "ดีลเลอร์เห็นใบ HQ ที่ส่งแล้ว").toBeVisible({ timeout: 20_000 });
+  // ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69): บรรทัดสรุปบอกยอดเดียวกัน · ตารางพับไว้ กด "ดูรายการ" แล้วกาง
+  await expect(ใบ.getByTestId("hq-quote-summary-total")).toHaveText(บาท(คาด));
+  await expect(ใบ.getByTestId("dealer-hq-quote-total"), "ค่าเริ่มต้น = พับ").toHaveCount(0);
+  await ใบ.getByRole("button", { name: /ดูรายการ/ }).click();
   await expect(ใบ.getByTestId("dealer-hq-quote-total")).toHaveText(บาท(คาด));
   await expect(ใบ.getByText("ค่าขนส่ง")).toBeVisible();
   assertNoErrors(errs, "ส่งใบ HQ และป้ายได้ราคาแล้ว");

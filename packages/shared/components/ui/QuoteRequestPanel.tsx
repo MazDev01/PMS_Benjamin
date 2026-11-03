@@ -14,7 +14,7 @@
 // ไฟล์แนบ 2 ทาง (ใบ 0273): แนบตอนส่งคำขอ (ส่งคำขอก่อน แล้วไฟล์ตามไป) + แนบเพิ่ม/ลบได้จนกว่า HQ ส่งใบ · ไฟล์ HQ ดูได้หลัง HQ ส่งใบ
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -40,7 +40,7 @@ import { ช่อง as ป้ายช่อง } from "@pms/shared/lib/fieldL
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { provincesOfRegion, ALL_REGIONS } from "@pms/shared/lib/provinces";
 import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
-import { acceptไฟล์แนบ, ป้ายชนิดที่รับ, ตรวจไฟล์แนบ, ขนาดไฟล์ } from "@pms/shared/lib/quoteFiles";
+import { FileDropBox, แถวไฟล์, คัดไฟล์, type ไฟล์ไม่ผ่าน } from "@pms/shared/components/ui/FileDropBox";
 
 // ยกเลิกคำขอ / ขอแก้ราคา = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) — กล่องรอฐาน + รอรายการคำขอโหลดใหม่ก่อนปิด
 //   เดิมเป็นฟอร์มในแผง: ปุ่มไม่บอกว่ากำลังทำ · เหตุผลว่างกดได้แล้วขึ้นตัวแดงเล็ก · ปิดฟอร์มก่อนรายการโหลดใหม่
@@ -78,6 +78,12 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
   // ไฟล์ที่เลือกในฟอร์มขอราคา — ส่งตามไปหลังฐานสร้างคำขอแล้ว (ไฟล์ต้องผูกเลขคำขอ)
   const [ไฟล์รอส่ง, setไฟล์รอส่ง] = useState<File[]>([]);
+  const [ไฟล์ไม่ผ่านฟอร์ม, setไฟล์ไม่ผ่านฟอร์ม] = useState<ไฟล์ไม่ผ่าน[]>([]);
+  // ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69 "ทำไมมันกางแบบนี้"): ค่าเริ่มต้น = บรรทัดสรุป · กด "ดูรายการ" แล้วกางตาราง
+  const [กางรายการ, setกางรายการ] = useState(false);
+  const [ไฟล์จากHQ, setไฟล์จากHQ] = useState<number | null>(null);
+  // ไฟล์ที่ดีลเลอร์แนบเองหลัง HQ ส่งใบ — ดูย้อนได้ในรายละเอียดคำขอ (พับไว้)
+  const [ดูไฟล์ของฉัน, setดูไฟล์ของฉัน] = useState(false);
   // ฟอร์มเติมข้อมูลที่ขาด: ช่องที่ขาด ณ ตอนเปิด + ค่าที่พิมพ์
   const [ช่องขาด, setช่องขาด] = useState<ช่องลีด[]>([]);
   const [เติม, setเติม] = useState<Partial<Record<ช่องลีด, string>>>({});
@@ -120,7 +126,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
       setArea(ล่าสุด.area != null && Number(ล่าสุด.area) > 0 ? String(ล่าสุด.area) : "");
       setSpec(ล่าสุด.note ?? "");
       setวัสดุ([]);
-      setไฟล์รอส่ง([]);
+      setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
     }
     setโหมด(m);
   }, [lead]);
@@ -185,7 +191,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
         try { await quoteFiles.upload(คำขอ.id, "dealer", f); } catch (e) { ไม่ผ่าน.push(`${f.name}: ${friendlyError(e)}`); }
       }
       await หลังทำ();
-      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setวัสดุ([]); setไฟล์รอส่ง([]);
+      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setวัสดุ([]); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
       if (ไม่ผ่าน.length) setErr(`ส่งคำขอแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${ไม่ผ่าน.join(" · ")} (แนบใหม่ได้ที่กล่องไฟล์แนบ)`);
     } catch (e) { setErr(friendlyError(e)); }
     finally { setBusy(false); }
@@ -216,28 +222,50 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
             </div>
           )}
           {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
+          {/* ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69): บรรทัดสรุปเดียว · "ดูรายการ" กางตาราง · ไม่ซ้อนกรอบเพิ่ม (กล่องม่วง = ชั้นเดียว)
+              ใต้ใบ = เฉพาะไฟล์ที่ HQ แนบกับใบฉบับนี้ ไม่มี = ไม่แสดงกล่อง ("ให้แสดงเฉพาะไฟล์ที่ HQ แนบมา") · ปุ่มทำใบให้ลูกค้าอยู่ที่กล่องขั้นต่อไปเหมือนเดิม */}
           {ใบHQ && (
-            <div data-panel="hq-quote" style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px", marginTop: 8 }}>
-              <div style={{ fontWeight: 700, color: "#3b0764" }}>
-                ใบ HQ {ใบHQ.quoteNo} · เวอร์ชัน {ใบHQ.version}
-                <span style={{ fontWeight: 400, color: "#6b7280" }}> · ยืนราคาถึง {ใบHQ.validUntil ? วันไทยสั้น(ใบHQ.validUntil) : "—"}</span>
+            <div data-panel="hq-quote" style={{ borderTop: "1px solid #e9d5ff", paddingTop: 8, marginTop: 8, display: "grid", gap: 6 }}>
+              <div data-testid="hq-quote-summary" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 700, color: "#3b0764" }}>ใบ HQ {ใบHQ.quoteNo} · เวอร์ชัน {ใบHQ.version}</span>
+                <span>· ต้นทุนรวมจาก HQ <b data-testid="hq-quote-summary-total">{บาท(Number(ใบHQ.totalCost))}</b> บาท</span>
+                <span>· ยืนราคาถึง {ใบHQ.validUntil ? วันไทยสั้น(ใบHQ.validUntil) : "—"}</span>
+                <span data-testid="hq-quote-summary-lines">· {ใบHQ.lineItems.length} รายการ</span>
+                <span data-testid="hq-quote-summary-files">· {ไฟล์จากHQ == null ? "กำลังโหลดไฟล์…" : ไฟล์จากHQ ? `ไฟล์แนบจาก HQ ${ไฟล์จากHQ} ไฟล์` : "ไม่มีไฟล์แนบจาก HQ"}</span>
+                <button type="button" className="btn btn-secondary btn-sm" aria-expanded={กางรายการ} onClick={() => setกางรายการ(v => !v)} style={{ marginLeft: "auto" }}>
+                  {กางรายการ ? <>ซ่อนรายการ <ChevronUp size={13} /></> : <>ดูรายการ <ChevronDown size={13} /></>}
+                </button>
               </div>
-              {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69 · เดิม "38ตัน") */}
-              <ตารางรายการ ป้าย="รายการในใบ HQ" แน่น กว้างขั้นต่ำ={560} แถว={ใบHQ.lineItems} คอลัมน์={[
-                { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "34%", ค่า: l => l.name, ชี้: l => l.name },
-                { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "13%", ค่า: l => จัดรูปจำนวน(l.qty) },
-                { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "13%", ค่า: l => จัดรูปหน่วย(l.unit) },
-                { key: "cost", หัว: "ต้นทุน/หน่วย", ชนิด: "เงิน", กว้าง: "20%", ค่า: l => บาท(Number(l.unitCost)) },
-                { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "20%", ค่า: l => บาท(ยอดบรรทัด(l)) },
-              ]} ท้าย={<tr><td colSpan={5} className="num" style={{ fontWeight: 700 }}>ต้นทุนรวมจาก HQ</td><td className="num" style={{ fontWeight: 800 }} data-testid="dealer-hq-quote-total">{บาท(Number(ใบHQ.totalCost))}</td></tr>} />
-              {ใบHQ.note && <div style={{ color: "#4b5563" }}>หมายเหตุจาก HQ: {ใบHQ.note}</div>}
-              <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคานี้เป็นต้นทุนของคุณ ไม่แสดงต่อลูกค้า — ทำใบเสนอราคาให้ลูกค้าโดยบวก % จากใบนี้</div>
+              {กางรายการ && <>
+                {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69 · เดิม "38ตัน") */}
+                <ตารางรายการ ป้าย="รายการในใบ HQ" แน่น กว้างขั้นต่ำ={560} แถว={ใบHQ.lineItems} คอลัมน์={[
+                  { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "34%", ค่า: l => l.name, ชี้: l => l.name },
+                  { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "13%", ค่า: l => จัดรูปจำนวน(l.qty) },
+                  { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "13%", ค่า: l => จัดรูปหน่วย(l.unit) },
+                  { key: "cost", หัว: "ต้นทุน/หน่วย", ชนิด: "เงิน", กว้าง: "20%", ค่า: l => บาท(Number(l.unitCost)) },
+                  { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "20%", ค่า: l => บาท(ยอดบรรทัด(l)) },
+                ]} ท้าย={<tr><td colSpan={5} className="num" style={{ fontWeight: 700 }}>ต้นทุนรวมจาก HQ</td><td className="num" style={{ fontWeight: 800 }} data-testid="dealer-hq-quote-total">{บาท(Number(ใบHQ.totalCost))}</td></tr>} />
+                {ใบHQ.note && <div style={{ color: "#4b5563" }}>หมายเหตุจาก HQ: {ใบHQ.note}</div>}
+                <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคานี้เป็นต้นทุนของคุณ ไม่แสดงต่อลูกค้า — ทำใบเสนอราคาให้ลูกค้าโดยบวก % จากใบนี้</div>
+              </>}
+              <QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["hq"]} เฉพาะใบHQ={ใบHQ.id} ซ่อนเมื่อว่าง
+                onLoaded={fs => setไฟล์จากHQ(fs.length)} />
             </div>
           )}
-          <div style={{ marginTop: 8 }}>
-            <QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={อยู่กับHQ(เปิด.status)}
-              lockedReason="HQ ส่งใบแล้ว — ไฟล์ของคุณล็อกพร้อมคำขอ" />
-          </div>
+          {/* ไฟล์ที่ดีลเลอร์แนบเอง: ก่อน HQ ส่งใบ = กล่องแนบ · หลังส่ง = ดูย้อนได้ (พับไว้) — ไฟล์ไม่หายไปจากระบบ */}
+          {อยู่กับHQ(เปิด.status) ? (
+            <div style={{ marginTop: 8 }}>
+              <QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload กลุ่มที่แสดง={["dealer"]} />
+            </div>
+          ) : (
+            <div style={{ marginTop: 6 }}>
+              <button type="button" data-act="my-request-files" aria-expanded={ดูไฟล์ของฉัน} onClick={() => setดูไฟล์ของฉัน(v => !v)}
+                style={{ background: "none", border: "none", padding: 0, color: "#6b21a8", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <Paperclip size={12} /> ไฟล์ที่คุณแนบกับคำขอ {ดูไฟล์ของฉัน ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+              {ดูไฟล์ของฉัน && <div style={{ marginTop: 6 }}><QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="ล็อกพร้อมคำขอ (HQ ส่งใบแล้ว)" /></div>}
+            </div>
+          )}
           {โหมด === "ดู" && (
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ยกเลิกคำขอ(เปิด)}>ยกเลิกคำขอ</button>}
@@ -296,26 +324,26 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           <textarea id="qr-spec" aria-label={ช่องขอราคา.สเปก} rows={3} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
           <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>{ช่องขอราคา.จังหวัด}: {lead.province || "—"}</div>
           <MaterialEstimatePicker value={วัสดุ} onChange={setวัสดุ} disabled={busy} />
-          {/* ไฟล์แนบถึง HQ (ไม่บังคับ · ใบ 0273) — ส่งตามคำขอทันทีหลังส่ง */}
-          <div data-field="request-files" style={{ display: "grid", gap: 4 }}>
-            <label className="form-label" htmlFor="qr-files">ไฟล์แนบถึง HQ (ไม่บังคับ)</label>
-            <input id="qr-files" type="file" multiple accept={acceptไฟล์แนบ} disabled={busy} style={{ fontSize: "0.78rem" }}
-              onChange={e => {
-                const เลือก = Array.from(e.target.files ?? []);
-                e.target.value = "";
-                const ผ่าน: File[] = [], ผิด: string[] = [];
-                for (const f of เลือก) { const ป = ตรวจไฟล์แนบ(f, ไฟล์รอส่ง.length + ผ่าน.length); if (ป) ผิด.push(`${f.name}: ${ป}`); else ผ่าน.push(f); }
-                setไฟล์รอส่ง(เดิม => [...เดิม, ...ผ่าน]);
-                setErr(ผิด.join(" · "));
-              }} />
-            <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>{ป้ายชนิดที่รับ}</div>
+          {/* ไฟล์แนบถึง HQ (ไม่บังคับ · ใบ 0273) — กล่องแนบไฟล์กลาง หน้าตาเดียวกับฝั่ง HQ (บอสสั่ง 3 พ.ย. 69 "ทำเป็นปุ่มแบบของ HQ")
+              ไฟล์ส่งตามคำขอทันทีหลังส่ง · ไฟล์ที่ไม่ผ่านขึ้นเป็นแถวเตือนของไฟล์นั้น ไม่ถูกส่ง */}
+          <div data-field="request-files" style={{ display: "grid", gap: 6, background: "#f8fafc", border: "1px solid #eef1f5", borderRadius: 12, padding: "10px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Paperclip size={14} color="#374151" />
+              <strong style={{ fontSize: "0.82rem", color: "#1f2937" }}>ไฟล์แนบถึง HQ (ไม่บังคับ)</strong>
+            </div>
             {ไฟล์รอส่ง.map((f, i) => (
-              <div key={`${f.name}-${i}`} data-pending-file={f.name} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "0.76rem" }}>
-                <span style={{ flex: 1, overflowWrap: "anywhere" }}>{f.name} · {ขนาดไฟล์(f.size)}</span>
-                <button type="button" className="btn btn-secondary btn-sm" aria-label={`เอา ${f.name} ออก`} disabled={busy}
-                  onClick={() => setไฟล์รอส่ง(l => l.filter((_, j) => j !== i))}>เอาออก</button>
+              <div key={`${f.name}-${i}`} data-pending-file={f.name}>
+                <แถวไฟล์ name={f.name} size={f.size} รายละเอียด="ส่งพร้อมคำขอ" ป้ายเอาออก={`เอา ${f.name} ออก`}
+                  เอาออก={busy ? undefined : () => setไฟล์รอส่ง(l => l.filter((_, j) => j !== i))} />
               </div>
             ))}
+            {ไฟล์ไม่ผ่านฟอร์ม.map(x => (
+              <div key={x.key} data-file-rejected>
+                <แถวไฟล์ name={x.name} size={x.size} เตือน={x.เหตุ} ป้ายเอาออก={`ปิดคำเตือน ${x.name}`} เอาออก={() => setไฟล์ไม่ผ่านฟอร์ม(l => l.filter(y => y.key !== x.key))} />
+              </div>
+            ))}
+            <FileDropBox inputId="qr-files" มีอยู่แล้ว={ไฟล์รอส่ง.length} disabled={busy} ป้าย="แนบไฟล์ถึง HQ (แบบ/รูป/ใบเสนอเดิม)"
+              onFiles={fs => { const { ผ่าน, ไม่ผ่าน } = คัดไฟล์(fs, ไฟล์รอส่ง.length); setไฟล์รอส่ง(l => [...l, ...ผ่าน]); setไฟล์ไม่ผ่านฟอร์ม(l => [...l, ...ไม่ผ่าน]); }} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy || undefined} data-busy-button onClick={() => void ส่งคำขอ()}>{busy ? "กำลังส่ง…" : "ส่งคำขอ"}</button>

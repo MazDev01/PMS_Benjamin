@@ -4,6 +4,9 @@
 //           กระดิ่งตอนส่งใบบอกจำนวนไฟล์ · ดีลเลอร์เห็น + ดาวน์โหลดไฟล์ HQ ได้ (ลิงก์มีอายุ)
 //   [db] ดีลเลอร์ A อ่าน/แนบ/ลบ ของ B ไม่ได้ (ไฟล์ดีลเลอร์ + ไฟล์ HQ) · ชนิดผิด/เกินขนาด (แจ้ง + ขนาดจริง)/เกินจำนวน ถูกปฏิเสธที่เซิร์ฟเวอร์
 //        ส่งใบแล้วแนบ/ลบไม่ได้ทั้ง 2 ฝั่ง · ฉบับใหม่ (ขอแก้ราคา) แนบใหม่ได้ ไฟล์ฉบับเก่ายังอยู่
+//   3 พ.ย. 69 (บอสสั่ง): กล่องแนบไฟล์กลาง (ป้ายชัด · ปุ่มเลือกไฟล์ · ลากวาง · เตือนที่แถวไฟล์) ทั้ง 3 จุด · ใบ HQ ยังไม่มีร่าง = แนบได้ ระบบบันทึกร่างให้
+//        ใบ HQ ฝั่งดีลเลอร์พับเป็นบรรทัดสรุป · ใต้ใบแสดงเฉพาะไฟล์จาก HQ ของใบนั้น · ไฟล์ของดีลเลอร์ดูย้อนได้ที่ "ไฟล์ที่คุณแนบกับคำขอ"
+//        ช่องหน่วยในใบ HQ เป็นดรอปดาวน์ (บันทึกลงฐานตรง · หน่วยเดิมนอกรายการยังแสดง · ไม่ถูกตัด)
 //   ตกบนโค้ดเดิม: ไม่มีกล่องไฟล์แนบ / เส้นทาง /api/v1/quote-files / ถัง quote-files · ฐาน: supabase/tests/quote_request_files.sql
 // ข้อมูล: สาขาของข้อ 2 สาขา (A ทำงานจริง · B = สาขาอื่น) — ล้างไฟล์ในถังด้วยตัวเก็บกวาดสาขา (testDealers.ts)
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
@@ -27,6 +30,25 @@ const คำขอ: { id: number; hqPath?: string; dealerPath?: string; ให�
 async function api(req: APIRequestContext, origin: string, method: "POST" | "DELETE" | "GET", q: string, body?: unknown) {
   const r = await req.fetch(`${origin}/api/v1/quote-files${q}`, { method, data: body === undefined ? undefined : JSON.stringify(body), headers: { "content-type": "application/json" } });
   return { status: r.status(), text: await r.text() };
+}
+
+/** ลากไฟล์มาวางที่กล่องแนบไฟล์ (สร้าง DataTransfer ในหน้า แล้วยิง dragover/drop) */
+async function ลากวาง(page: Page, กล่อง: import("@playwright/test").Locator, files: { name: string; mimeType: string; size: number }[]) {
+  const dt = await page.evaluateHandle(fs => {
+    const d = new DataTransfer();
+    for (const f of fs) d.items.add(new File([new Uint8Array(f.size).fill(65)], f.name, { type: f.mimeType }));
+    return d;
+  }, files);
+  await กล่อง.dispatchEvent("dragover", { dataTransfer: dt });
+  await กล่อง.dispatchEvent("drop", { dataTransfer: dt });
+}
+/** กล่องแนบไฟล์เห็นได้: มีป้ายบอกชัด + ปุ่มเลือกไฟล์ + ข้อจำกัด */
+async function ตรวจกล่องแนบ(กล่อง: import("@playwright/test").Locator, ที่: string) {
+  await expect(กล่อง, `${ที่}: มีกล่องแนบไฟล์`).toBeVisible({ timeout: 20_000 });
+  await expect(กล่อง.locator("[data-drop-label]"), `${ที่}: ป้ายบอกว่าเป็นที่แนบไฟล์`).toContainText("แนบไฟล์");
+  await expect(กล่อง, `${ที่}: บอกว่าลากวางได้`).toContainText("ลากไฟล์มาวาง หรือกดเลือกไฟล์");
+  await expect(กล่อง.getByRole("button", { name: "เลือกไฟล์" }), `${ที่}: ปุ่มเลือกไฟล์`).toBeVisible();
+  await expect(กล่อง.locator("[data-drop-limits]"), `${ที่}: ข้อจำกัดอยู่ในกล่อง`).toContainText("20 MB");
 }
 
 async function เปิดแผงลีด(page: Page) {
@@ -53,16 +75,24 @@ test.beforeAll(async () => {
   expect(rb.error, "สร้างลีดของสาขา B").toBeNull();
 });
 // ใบ HQ ที่ส่งแล้วลบด้วยกุญแจไม่ได้ (ตั้งใจ) → ล้างที่ฐานทดสอบตรง (รวมไฟล์ในถัง) ก่อนลบสาขา
-test.afterAll(async () => { if (A) ล้างใบHQทดสอบ(A.รหัส, [เลขลีด]); await A?.ลบ(); await B?.ลบ(); });
+test.afterAll(async () => { if (A) ล้างใบHQทดสอบ(A.รหัส, [เลขลีด]); if (B) ล้างใบHQทดสอบ(B.รหัส, [เลขลีด + 1]); await A?.ลบ(); await B?.ลบ(); });
 
 test("[D3] [flow·dealer] แนบไฟล์ตอนส่งคำขอ + แนบเพิ่ม/ลบในแผงลีด ก่อน HQ ส่งใบ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", A.บัญชี);
   const แผง = await เปิดแผงลีด(page);
   await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
+  await ตรวจกล่องแนบ(แผง.locator("[data-field='request-files'] [data-file-drop]"), "ฟอร์มขอราคา");
   await แผง.locator("#qr-files").setInputFiles([ไฟล์("แบบบ้าน ชั้น 1.pdf", 4096), ไฟล์("ไวรัส.exe", 10, "application/octet-stream")]);
-  await expect(แผง.getByRole("alert"), "หน้าเว็บบอกชนิดที่ไม่รับก่อนส่ง").toContainText("ไวรัส.exe");
+  // ไฟล์ผิดชนิดเตือนที่แถวของไฟล์นั้นทันที (ไม่ถูกส่ง)
+  await expect(แผง.locator("[data-file-rejected] [data-file-name='ไวรัส.exe']"), "เตือนที่แถวไฟล์ที่ไม่รับ").toContainText("ไม่รองรับ");
   await expect(แผง.locator("[data-pending-file]"), "เหลือไฟล์ที่รับได้ 1 ไฟล์").toHaveCount(1);
+  // ลากวางได้: ไฟล์ขึ้นรายการรอส่ง · ไฟล์เกินขนาดเตือนที่แถว
+  await ลากวาง(page, แผง.locator("[data-field='request-files'] [data-file-drop]"), [{ name: "ลากมา.png", mimeType: "image/png", size: 2000 }, { name: "ใหญ่เกิน.pdf", mimeType: "application/pdf", size: 20 * 1024 * 1024 + 1 }]);
+  await expect(แผง.locator("[data-pending-file='ลากมา.png']"), "ลากวางแล้วไฟล์ขึ้นรายการ").toHaveCount(1);
+  await expect(แผง.locator("[data-file-rejected] [data-file-name='ใหญ่เกิน.pdf']"), "ไฟล์เกินขนาดเตือนที่แถว").toContainText("20 MB");
+  await แผง.getByRole("button", { name: "เอา ลากมา.png ออก" }).click();
+  await expect(แผง.locator("[data-pending-file]"), "เอาออกได้ก่อนส่ง").toHaveCount(1);
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   const กล่อง = แผง.locator("[data-panel='quote-files']");
   const ของดีลเลอร์ = กล่อง.locator("[data-files-side='dealer'] [data-file-row]");
@@ -71,7 +101,8 @@ test("[D3] [flow·dealer] แนบไฟล์ตอนส่งคำขอ + 
   await expect(ของดีลเลอร์.first(), "ขนาดจริงจากถัง").toContainText("4.0 KB");
   คำขอ.id = Number((await (await db(A.บัญชี)).from("quote_requests").select("id").eq("dealer_code", A.รหัส).eq("lead_num_id", เลขลีด).single()).data!.id);
 
-  // แนบเพิ่ม 2 ไฟล์ในกล่อง แล้วลบ 1
+  // แนบเพิ่ม 2 ไฟล์ในกล่อง (กล่องแนบกลางที่แท็บใบเสนอราคา) แล้วลบ 1
+  await ตรวจกล่องแนบ(กล่อง.locator("[data-file-drop]"), "แท็บใบเสนอราคาของดีลเลอร์");
   await กล่อง.getByLabel("เลือกไฟล์แนบ").setInputFiles([ไฟล์("ราคาเดิม.xlsx", 1500, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), ไฟล์("ผัง.dwg", 3000, "application/octet-stream")]);
   await expect(ของดีลเลอร์, "แนบเพิ่มได้ก่อน HQ ส่งใบ").toHaveCount(3, { timeout: 30_000 });
   await กล่อง.getByRole("button", { name: "ลบ ราคาเดิม.xlsx" }).click();
@@ -98,16 +129,25 @@ test("[H8] [flow·hq] HQ เห็นไฟล์ดีลเลอร์ + ป�
   const กล่อง = ใบ.locator("[data-panel='quote-files']");
   await expect(กล่อง.locator("[data-files-side='dealer'] [data-file-row]"), "HQ เห็นไฟล์จากดีลเลอร์").toHaveCount(2, { timeout: 30_000 });
   await expect(กล่อง.locator("[data-files-side='dealer'] [data-file-row] button[aria-label^='ลบ']"), "HQ ลบไฟล์ของดีลเลอร์ไม่ได้").toHaveCount(0);
-  await expect(กล่อง.getByTestId("files-locked"), "ยังไม่มีร่าง = ต้องบันทึกร่างก่อน").toHaveText("บันทึกร่างใบ HQ ก่อนแนบไฟล์");
-
-  // ร่างใบ HQ (ทางเดียวกับปุ่มบันทึกร่าง) แล้วเปิดใหม่
-  const valid = new Date(Date.now() + 7 * 3_600_000 + 30 * 86_400_000).toISOString().slice(0, 10);
-  expect((await hq.rpc("hq_quote_save", { p_request_id: คำขอ.id, p_lines: [{ name: "โครงเหล็ก", qty: 1, unit: "ชุด", unitCost: 100000 }], p_valid_until: valid, p_note: "" })).error).toBeNull();
-  await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
-  await page.getByLabel("ค้นหาคำขอ").fill(บริษัท());
-  await แถว.getByRole("button").first().click();
-  await ใบ.locator("[data-panel='quote-files']").getByLabel("เลือกไฟล์แนบ").setInputFiles([ไฟล์("แบบที่ HQ แก้.pdf", 6000)]);
-  await expect(ใบ.locator("[data-files-side='hq'] [data-file-row]"), "HQ แนบไฟล์ของใบร่างได้").toHaveCount(1, { timeout: 30_000 });
+  // ใบยังไม่บันทึกร่าง → กล่องแนบ HQ เห็นได้ (บอสสั่ง 3 พ.ย. 69 "ไฟล์จาก HQ แนบไงใส่มาด้วย") → แนบแล้วระบบบันทึกร่างให้เอง
+  expect((await hq.from("hq_quotes").select("id").eq("request_id", คำขอ.id)).data ?? [], "ยังไม่มีร่างใบ HQ").toHaveLength(0);
+  await ตรวจกล่องแนบ(กล่อง.locator("[data-files-side='hq'] [data-file-drop]"), "ใบ HQ ที่ยังไม่มีร่าง");
+  // ช่องหน่วยเป็นดรอปดาวน์: เลือกแล้วบันทึกลงฐานตรง · หน่วยไม่ถูกตัด (บอสสั่ง 3 พ.ย. 69)
+  await ใบ.getByLabel("ชื่อรายการ 1").fill("โครงเหล็ก");
+  await ใบ.getByLabel("หน่วย 1", { exact: true }).selectOption("ชุด");
+  await ใบ.getByLabel("ต้นทุนต่อหน่วย 1").fill("100000");
+  const ตัด = await ใบ.getByLabel("หน่วย 1", { exact: true }).evaluate(el => {
+    const s = el as HTMLSelectElement, c = document.createElement("canvas").getContext("2d")!;
+    c.font = getComputedStyle(s).font;
+    return { ข้อความ: c.measureText(s.options[s.selectedIndex].text).width, ช่อง: s.clientWidth };
+  });
+  expect(ตัด.ข้อความ + 24, `หน่วยไม่ถูกตัด (ข้อความ ${ตัด.ข้อความ}px · ช่อง ${ตัด.ช่อง}px)`).toBeLessThanOrEqual(ตัด.ช่อง);
+  await กล่อง.locator("[data-files-side='hq']").getByLabel("เลือกไฟล์แนบ").setInputFiles([ไฟล์("แบบที่ HQ แก้.pdf", 6000)]);
+  await expect(ใบ.locator("[data-files-side='hq'] [data-file-row]"), "แนบแล้วไฟล์ขึ้นรายการ").toHaveCount(1, { timeout: 30_000 });
+  await expect(กล่อง.locator("[data-files-side='hq']"), "ไฟล์จาก HQ (1)").toContainText("ไฟล์จาก HQ (1)");
+  const ร่าง = (await hq.from("hq_quotes").select("status, line_items").eq("request_id", คำขอ.id).single()).data;
+  expect(ร่าง?.status, "แนบไฟล์แล้วร่างใบ HQ ถูกสร้างให้เอง").toBe("draft");
+  expect((ร่าง?.line_items as { unit: string }[])[0].unit, "หน่วยที่เลือกจากดรอปดาวน์ลงฐานตรง").toBe("ชุด");
   await expect(แถว.getByTestId("row-files"), "ป้ายจำนวนไฟล์ HQ ขยับตาม").toHaveAttribute("data-hq-files", "1", { timeout: 20_000 });
   const ทั้งหมด = (await hq.rpc("quote_files_list", { p_request_id: คำขอ.id })).data as { side: string; path: string }[];
   คำขอ.hqPath = ทั้งหมด.find(f => f.side === "hq")!.path;
@@ -128,12 +168,29 @@ test("[H9] [flow·dealer] ส่งใบ HQ แล้ว: กระดิ่ง
 
   await loginUI(page, DEALER_ORIGIN, "/login", A.บัญชี);
   const แผง = await เปิดแผงลีด(page);
-  const กล่อง = แผง.locator("[data-panel='quote-files']");
+  // ใบ HQ พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — ตัวเลขตรงฐาน · ตารางไม่กาง
+  const ใบHQ = แผง.locator("[data-panel='hq-quote']");
+  const ฐานใบ = (await hq.from("hq_quotes").select("total_cost, line_items").eq("request_id", คำขอ.id).single()).data!;
+  await expect(ใบHQ.getByTestId("hq-quote-summary-total"), "บรรทัดสรุป: ต้นทุนรวมตรงฐาน").toHaveText(Number(ฐานใบ.total_cost).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { timeout: 30_000 });
+  await expect(ใบHQ.getByTestId("hq-quote-summary-lines"), "บรรทัดสรุป: จำนวนรายการตรงฐาน").toContainText(`${(ฐานใบ.line_items as unknown[]).length} รายการ`);
+  await expect(ใบHQ.getByTestId("hq-quote-summary-files"), "บรรทัดสรุป: จำนวนไฟล์จาก HQ").toContainText("ไฟล์แนบจาก HQ 1 ไฟล์");
+  await expect(ใบHQ.getByRole("table", { name: "รายการในใบ HQ" }), "เปิดแท็บแล้วตารางรายการไม่กาง").toHaveCount(0);
+  await ใบHQ.getByRole("button", { name: /ดูรายการ/ }).click();
+  await expect(ใบHQ.getByRole("table", { name: "รายการในใบ HQ" }), "กดดูรายการแล้วกาง").toBeVisible();
+  // ใต้ใบ HQ = เฉพาะไฟล์จาก HQ ของใบนั้น (ไม่มีกลุ่มไฟล์ดีลเลอร์ · ไม่มีข้อความล็อก)
+  const กล่อง = ใบHQ.locator("[data-panel='quote-files']");
   const ของHQ = กล่อง.locator("[data-files-side='hq'] [data-file-row]");
   await expect(ของHQ, "ดีลเลอร์เห็นไฟล์ HQ หลังส่งใบ").toHaveCount(1, { timeout: 30_000 });
   await expect(ของHQ.first()).toContainText(/ใบ HQ .+ เวอร์ชัน 1/);
-  await expect(กล่อง.getByTestId("files-locked"), "ไฟล์ของดีลเลอร์ล็อกแล้ว").toBeVisible();
-  await expect(กล่อง.locator("button[aria-label^='ลบ']"), "ไม่มีปุ่มลบหลังส่งใบ").toHaveCount(0);
+  await expect(กล่อง.locator("[data-files-side='dealer']"), "ใต้ใบ HQ ไม่มีกลุ่มไฟล์จากดีลเลอร์").toHaveCount(0);
+  await expect(กล่อง.getByTestId("files-locked"), "ใต้ใบ HQ ไม่มีข้อความล็อก").toHaveCount(0);
+  await expect(แผง.locator("[data-file-drop]"), "ส่งใบแล้ว ฝั่งดีลเลอร์ไม่มีกล่องแนบ").toHaveCount(0);
+  await expect(แผง.locator("button[aria-label^='ลบ']"), "ไม่มีปุ่มลบหลังส่งใบ").toHaveCount(0);
+  // ไฟล์ที่ดีลเลอร์แนบเองยังดูย้อนได้ (พับไว้) — ล็อกแล้ว
+  await แผง.getByRole("button", { name: /ไฟล์ที่คุณแนบกับคำขอ/ }).click();
+  const ของฉัน = แผง.locator("[data-panel='quote-files']").filter({ has: page.locator("[data-files-side='dealer']") });
+  await expect(ของฉัน.locator("[data-files-side='dealer'] [data-file-row]"), "ไฟล์ของดีลเลอร์ยังเปิดดูได้").toHaveCount(2);
+  await expect(ของฉัน.getByTestId("files-locked"), "ไฟล์ของดีลเลอร์ล็อกแล้ว").toBeVisible();
   // ดาวน์โหลดผ่านลิงก์มีอายุ — ได้ไฟล์เดิมครบไบต์
   const ลิงก์ = await api(page.request, DEALER_ORIGIN, "GET", `?view=url&path=${encodeURIComponent(คำขอ.hqPath!)}`);
   expect(ลิงก์.status, "ขอลิงก์ดาวน์โหลดไฟล์ HQ ได้").toBe(200);
@@ -248,4 +305,48 @@ test("[ui·hq] ตั้งค่า › พื้นที่เก็บไฟ
   } finally {
     await hq.rpc("storage_quota_set", { p_gb: เดิม });
   }
+});
+
+test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม่มีกล่องใต้ใบ · บรรทัดสรุปบอก · หน่วยเดิมนอกรายการยังแสดงในใบ HQ ร่าง", async ({ page }) => {
+  const errs = watchErrors(page);
+  const sbB = await db(B.บัญชี), hq = await db(ADMIN);
+  // คำขอของสาขา B: HQ ส่งใบโดยไม่แนบไฟล์ · หน่วยในใบเป็นหน่วยเดิมที่ไม่อยู่ในรายการ ("เที่ยว")
+  const r = await sbB.rpc("quote_request_submit", { p_lead_num_id: เลขลีด + 1, p_product: "โกดัง" });
+  expect(r.error).toBeNull();
+  const rid = Number((r.data as { id: number }).id);
+  const valid = new Date(Date.now() + 7 * 3_600_000 + 30 * 86_400_000).toISOString().slice(0, 10);
+  expect((await hq.rpc("hq_quote_save", { p_request_id: rid, p_lines: [{ name: "ค่าขนส่ง", qty: 2, unit: "เที่ยว", unitCost: 5000 }], p_valid_until: valid, p_note: "" })).error).toBeNull();
+
+  await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByLabel("ค้นหาคำขอ").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
+  await page.getByRole("list", { name: "รายการคำขอ" }).locator("li").filter({ hasText: `ZZTEST ไฟล์แนบ ${B.รหัส}` }).getByRole("button").first().click();
+  const ใบ = page.getByRole("region", { name: "ใบ HQ" });
+  await expect(ใบ.getByLabel("หน่วย 1", { exact: true }), "หน่วยเดิมนอกรายการยังแสดงตามที่บันทึก").toHaveValue("เที่ยว", { timeout: 20_000 });
+  expect((await hq.rpc("hq_quote_send", { p_request_id: rid })).error).toBeNull();
+  await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
+  await page.getByRole("tab", { name: /ส่งแล้ว รอดีลเลอร์/ }).click();   // ส่งใบแล้ว = คำขอย้ายไปกลุ่ม "ส่งแล้ว รอดีลเลอร์"
+  await page.getByLabel("ค้นหาคำขอ").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
+  await page.getByRole("list", { name: "รายการคำขอ" }).locator("li").filter({ hasText: `ZZTEST ไฟล์แนบ ${B.รหัส}` }).getByRole("button").first().click();
+  await expect(ใบ.locator("[data-panel='quote-files'] [data-files-side='hq']"), "HQ หลังส่งใบ: กลุ่มไฟล์ HQ ยังอยู่").toBeVisible({ timeout: 20_000 });
+  await expect(ใบ.locator("[data-file-drop]"), "หลังส่งใบ HQ ไม่มีกล่องแนบ").toHaveCount(0);
+  await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกพร้อมใบ HQ/);
+
+  // ดีลเลอร์ B: บรรทัดสรุปบอก "ไม่มีไฟล์แนบจาก HQ" และไม่มีกล่องไฟล์ใต้ใบ
+  await page.context().clearCookies();
+  await loginUI(page, DEALER_ORIGIN, "/login", B.บัญชี);
+  await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
+  const row = page.locator("tbody tr").filter({ hasText: `ZZTEST ไฟล์แนบ ${B.รหัส}` }).first();
+  await expect(row).toBeVisible({ timeout: 25_000 });
+  await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  const ใบHQ = page.locator("[data-panel='hq-quote']");
+  await expect(ใบHQ.getByTestId("hq-quote-summary-files")).toContainText("ไม่มีไฟล์แนบจาก HQ", { timeout: 30_000 });
+  await expect(ใบHQ.locator("[data-panel='quote-files']"), "ไม่มีไฟล์จาก HQ = ไม่มีกล่อง").toHaveCount(0);
+  ล้างใบHQทดสอบ(B.รหัส, [เลขลีด + 1]);
+  assertNoErrors(errs, "ใบ HQ ไม่มีไฟล์");
 });

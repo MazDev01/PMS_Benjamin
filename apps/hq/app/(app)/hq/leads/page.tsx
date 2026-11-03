@@ -11,7 +11,9 @@ import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/compo
 import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
-import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, type ขอบเขต } from "../_drill/DrillEngine";
+import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
+import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
+import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
 import {
@@ -132,6 +134,8 @@ export default function HQLeadsPage() {
   const ชุดดีลเลอร์ = useMemo<string[] | undefined>(() => ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์
     ? ในขอบเขต(เจาะลึก?.dealers ?? [], ขอบ).map(r => r.code) : undefined, [เจาะลึก, ขอบ]);
   const [srcSel, setSrcSel] = useState<string>("ALL");
+  // ป้ายระดับที่เลือก สำหรับหัวข้อกราฟ/ตาราง (บอสสั่ง 3 พ.ย. 69)
+  const ระดับ = ป้ายระดับของขอบ(ขอบ, เจาะลึก?.dealers ?? []);
 
   // ชุดลีดของหน้า (บอสตัดสิน 30 ต.ค. 69 · ใบ 0265): ไม่นับลีดของ HQ ที่ยังไม่โอน — อยู่ในกล่องโอนที่เดียว (การ์ด "ลีดของ HQ รอโอน")
   //   ทุกส่วนของหน้า (การ์ด · กราฟ · ตาราง) นับชุดเดียวกัน · ฐานคิด (kpi_cards · lead_summary · leads_page) — ตรงนี้คือทางสำรองโหมดตัวอย่าง
@@ -376,12 +380,7 @@ export default function HQLeadsPage() {
         {/* กราฟเส้นเป็น SVG ที่ย่อ/ขยายตามความกว้างการ์ด → ความสูงจริงไม่เท่า height ที่ส่งเข้าไป
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <div className="card-header">
-            <div className="card-title">ลีดใหม่รายเดือน</div>
-          </div>
-          <div style={{ fontSize: "0.62rem", color: "var(--muted-foreground)", padding: "0 1.15rem 2px" }}>
-            รวม = การ์ดลีดใหม่ · ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้น (ตามระดับที่เลือก)
-          </div>
+          <BoxTitle ชื่อ={`กราฟลีดใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "รวม = การ์ดลีดใหม่", "ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้น")} />
           <div className="card-body" data-lead-monthly data-ready={trend.ready ? "1" : ""} data-sum-new={trend.newM.reduce((a, b) => a + b, 0)}
             data-sum-won={trend.wonM.reduce((a, b) => a + b, 0)} data-sum-lost={trend.lostM.reduce((a, b) => a + b, 0)}
             style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -398,7 +397,7 @@ export default function HQLeadsPage() {
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header"><div className="card-title">ตามขั้นตอน</div></div>
+          <BoxTitle ชื่อ={`กราฟลีดตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–5 = ลีดที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
           {/* data-ready = ตัวเลขมาจากฐานครบทั้งสองชุดแล้ว (ข้อทดสอบรอก่อนอ่าน · ระหว่างโหลดเป็นทางสำรองในเครื่อง) */}
           <div className="card-body" data-stage-chart data-ready={chartSummary && openSummary ? "1" : ""} style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
             {byStatus.map(s => { const c = สีกราฟขั้น[s.stage]; return (
@@ -421,7 +420,7 @@ export default function HQLeadsPage() {
         {/* โดนัท: แหล่งที่มารวมกัน = ลูกค้าเป้าหมายทั้งหมดพอดี → สัดส่วนของก้อนเดียว
             ย้ายมาจากแถว 3 · การ์ดกว้างขึ้น (ครึ่งจอ) → วางโดนัทซ้าย legend ขวา แบบเดียวกับใบข้าง ๆ */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <div className="card-header"><div className="card-title">ตามแหล่งที่มา</div><GitBranch size={16} color="#9ca3af" /></div>
+          <BoxTitle ชื่อ={`กราฟลีดตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่เข้ามาในช่วง", "กลางวง = รวมทั้งหมด")}><GitBranch size={16} color="#9ca3af" /></BoxTitle>
           <div className="card-body" data-source-chart data-ready={chartSummary ? "1" : ""} data-total={sources.reduce((t, x) => t + x.count, 0)}
             style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!sources.length ? (
@@ -450,7 +449,7 @@ export default function HQLeadsPage() {
         </div>
         {/* โดนัท: เหตุผลรวมกันได้ 100% ของลูกค้าเป้าหมายที่ปิดไม่สำเร็จพอดี → เป็นสัดส่วนของก้อนเดียว เหมาะกับโดนัทมากกว่าแท่ง */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <div className="card-header"><div className="card-title">เหตุผลที่ปิดการขายไม่สำเร็จ</div></div>
+          <BoxTitle ชื่อ={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่ปิดไม่สำเร็จ แยกตามเหตุผล", "ไม่ได้บันทึกเหตุผล = ก้อนอื่นๆ")} />
           <div className="card-body" style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!lostReasons.length ? (
               <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>— ไม่มีข้อมูลในช่วงที่เลือก</div>
@@ -494,7 +493,12 @@ export default function HQLeadsPage() {
       {/* ── ตัวกรองรายชื่อ (คุมเฉพาะรายชื่อด้านล่าง · ระดับ ดีลเลอร์/ภาค/จังหวัด อยู่ที่ตัวเจาะลึกด้านบน) ── */}
       <div className="card hq-sticky-filter" style={{ marginBottom: 12 }}>
         <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 14, paddingBottom: 14 }}>
-          <div className="card-title" style={{ flex: "0 0 auto", marginRight: 6 }}>รายชื่อลูกค้าเป้าหมาย</div>
+          <div data-box-title style={{ flex: "0 0 auto", marginRight: 6 }}>
+            <div className="card-title" data-title>ตารางรายชื่อลูกค้าเป้าหมาย · {ระดับ}</div>
+            <div data-subtitle style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>
+              {status === "OPEN" ? คำอธิบายหัวข้อ(null, "ลีดที่กำลังดำเนินการ", "กดแถวเพื่อเปิด") : คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่เข้ามาในช่วง", "กดแถวเพื่อเปิด")}
+            </div>
+          </div>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…" aria-label="ค้นหาลูกค้าเป้าหมาย"
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}

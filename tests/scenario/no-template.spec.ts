@@ -205,7 +205,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
   await กล่อง.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็กพร้อมติดตั้ง");
   await กล่อง.getByLabel("จำนวน 1").fill("800");
-  await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
+  await กล่อง.getByLabel("หน่วย 1", { exact: true }).selectOption("ตร.ม.");   // ดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69)
   await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
   await กล่อง.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" }).click();
   await กดตกลงในกล่องยืนยัน(h);

@@ -29,7 +29,8 @@ test("[ux·hq] KPI 4 ตัว คำนวณสอดคล้องกัน 
 test("[H10] เหลือกราฟ 2 ใบ (รายเดือน · อายุใบ) · ไม่มีกราฟผลงาน/ภูมิภาค/เหตุผลเสียโอกาส", async ({ page }) => {
   await open(page, "hq", "/hq/quotations");
   await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
-  for (const title of ["ใบเสนอราคารายเดือน: ใบที่ส่ง เทียบ ตอบรับ", "อายุใบเสนอราคาที่ค้างอยู่"]) {
+  // หัวข้อกราฟ 2 บรรทัด (บอสสั่ง 3 พ.ย. 69 · lib/drillTitles.ts): "กราฟ<เรื่อง> · <ระดับ>" — ระดับเริ่มต้น = ทั้งเครือ
+  for (const title of ["กราฟใบเสนอราคารายเดือน: ใบที่ส่ง เทียบ ตอบรับ · ทั้งเครือ", "กราฟอายุใบเสนอราคาที่ค้างอยู่ · ทั้งเครือ"]) {
     await expect(page.getByText(title, { exact: true }).first(), `ต้องมีกราฟ "${title}"`).toBeVisible();
   }
   const main = page.locator(".erp");
@@ -44,7 +45,7 @@ test("[H10] เหลือกราฟ 2 ใบ (รายเดือน · �
 test("[H10] ไม่มีผลงานดีลเลอร์ (ยอดขายจริง/อันดับ) — อยู่ภาพรวมยอดขายที่เดียว", async ({ page }) => {
   await open(page, "hq", "/hq/quotations");
   await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
-  await expect(page.getByText("อายุใบเสนอราคาที่ค้างอยู่", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("กราฟอายุใบเสนอราคาที่ค้างอยู่ · ทั้งเครือ", { exact: true }).first()).toBeVisible();   // หัวข้อกราฟใหม่ (3 พ.ย. 69)
   const main = page.locator(".erp");
   await expect(main.getByText("มูลค่าใบเสนอราคา เทียบ ยอดขายจริง", { exact: true })).toHaveCount(0);
   await expect(main.getByText("อันดับดีลเลอร์", { exact: true })).toHaveCount(0);

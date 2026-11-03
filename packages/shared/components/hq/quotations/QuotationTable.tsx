@@ -3,6 +3,7 @@
 // ─── ตารางใบเสนอราคาทั้งเครือ ─────────────────────────────────────────────────
 // อ่านอย่างเดียว — มีปุ่ม "ดู" เท่านั้น ไม่มีสร้าง/แก้ไข/ลบ/อนุมัติ (HQ เป็นเจ้าของข้อมูล แต่ไม่ออกใบเอง)
 // คอลัมน์เกี่ยวกับการเปิดอ่าน ถูกลบทั้งหมดพร้อมสถานะ "เปิดอ่านแล้ว"
+import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { Eye } from "lucide-react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
@@ -25,16 +26,19 @@ export const คอลัมน์ส่วนต่าง = [
   { k: "margin-pct", l: "ส่วนต่าง %", n: (m: ส่วนต่างใบ) => m.pct, v: (m: ส่วนต่างใบ) => (m.pct == null ? "—" : `${m.pct.toFixed(1)}%`) },
 ] as const;
 
-export function QuotationTable({ rows, onView, pagination, margins }: {
+export function QuotationTable({ rows, onView, pagination, margins, หัวข้อ }: {
   rows: QuoteRow[];
   onView: (q: QuoteRow) => void;
   /** ส่วนต่างรายใบของแถวในหน้านี้ (คีย์ = สาขา|เลขที่) · undefined = ยังโหลด */
   margins?: Map<string, ส่วนต่างใบ>;
   // M9 Phase 2: มี = แบ่งหน้าที่ DB (supabase) → แสดงตัวควบคุมหน้า · ไม่มี = แสดงทั้งชุด (local)
   pagination?: { page: number; pageCount: number; total: number; onPage: (p: number) => void };
+  /** หัวข้อ 2 บรรทัดบนตาราง (บอสสั่ง 3 พ.ย. 69) */
+  หัวข้อ?: { ชื่อ: string; คำอธิบาย: string };
 }) {
   return (
     <div className="card" style={{ marginBottom: 0 }}>
+      {หัวข้อ && <BoxTitle ชื่อ={หัวข้อ.ชื่อ} คำอธิบาย={หัวข้อ.คำอธิบาย} />}
       <div className="table-wrap" style={{ borderTop: "none" }}>
         <table aria-label="รายการใบเสนอราคา">
           {/* ความกว้างคุมที่ colgroup เท่านั้น (ตาราง table-layout:fixed — ใส่ที่ th ไม่มีผล)

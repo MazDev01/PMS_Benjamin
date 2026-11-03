@@ -113,7 +113,7 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
     await กล่อง.getByLabel("ชื่อรายการ 1").fill("ทดสอบระบบ — โครงสร้างเหล็ก");
     await กล่อง.getByLabel("จำนวน 1").fill("100");
-    await กล่อง.getByLabel("หน่วย 1", { exact: true }).fill("ตร.ม.");
+    await กล่อง.getByLabel("หน่วย 1", { exact: true }).selectOption("ตร.ม.");   // ดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69)
     await กล่อง.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
     await expect(กล่อง.getByTestId("hq-quote-total")).toHaveText("100,000.00");
     // ไฟล์ (ใบ 0273): HQ เห็นไฟล์ดีลเลอร์ · บันทึกร่างแล้วแนบไฟล์ของใบ HQ · ส่งใบแล้วไฟล์ล็อกพร้อมใบ

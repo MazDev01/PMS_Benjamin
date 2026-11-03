@@ -15,6 +15,8 @@ import { useAuthReady } from "@pms/shared/lib/useAuthReady";
 import { รวมคีย์, เดือนในช่วง, type หน้าเจาะลึก, type ข้อมูลเจาะลึก, type แถวเจาะลึก, type เดือนเจาะลึก } from "@pms/shared/lib/hqDrill";
 import { ค่าแถว, ค่าเดือน, มีรายเดือน, type ตัวเลขเจาะลึก, type ตั้งค่าเจาะลึก, type ไอคอนการ์ด } from "@pms/shared/lib/hqDrillConfig";
 import { แถบระดับ, ชื่อมิติ, รอข้อมูลรายเดือน, type มิติ } from "../pipeline/Drill";
+import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
+import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -37,6 +39,10 @@ export function ขอบเขตของดีลเลอร์(rows: แถ
   const d = rows.find(r => r.code === code);
   return { ภาค: d ? ภาคมาตรฐาน(d.region) ?? null : null, จังหวัด: d?.province || null, ดีลเลอร์: code, มิติ: "dealer" };
 }
+
+/** ป้ายระดับที่เลือกเป็นคำ (หัวข้อกราฟ/ตาราง) — "ทั้งเครือ" · "ภาคเหนือ" · "จังหวัด…" · "ดีลเลอร์ รหัส ชื่อ" */
+export const ป้ายระดับของขอบ = (s: ขอบเขต, rows: แถวเจาะลึก[]) =>
+  ป้ายระดับ({ ภาค: s.ภาค, จังหวัด: s.จังหวัด, ดีลเลอร์: s.ดีลเลอร์, ชื่อดีลเลอร์: s.ดีลเลอร์ ? rows.find(r => r.code === s.ดีลเลอร์)?.name : undefined });
 
 // ── ข้อมูลจากฐาน ─────────────────────────────────────────────────────────────────────────────────────────────
 /** null = กำลังโหลด · ผิดพลาด = แถวว่าง (หน้าแสดง "—"/ว่าง ไม่เดาเลข) */
@@ -123,6 +129,9 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
   const ค่าแท่ง = (g: กลุ่ม) => ค่าของกลุ่ม(คอลัมน์แท่ง, g) ?? 0;
   const สูงสุด = Math.max(1, ...กลุ่ม.map(ค่าแท่ง));
   const หัวคอลัมน์แรก = dim === "month" ? "เดือน" : ชื่อมิติ[dim];
+  // หัวข้อกราฟ/ตาราง (บอสสั่ง 3 พ.ย. 69): เป็นอะไร · แยกตามอะไร · ระดับไหน + ช่วง · อ่าน/กดอย่างไร — เปลี่ยนตามแท็บและระดับ
+  const ระดับ = { ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์, ชื่อดีลเลอร์ };
+  const กดแถว = คำแนะนำกดแถว(dim, ระดับ);
 
   const ตัวเลือกภาค = useMemo(() => [...new Set(ทั้งหมด.map(r => ภาคมาตรฐาน(r.region)).filter((x): x is NonNullable<typeof x> => !!x))].sort((a, b) => ชื่อภาค(a).localeCompare(ชื่อภาค(b), "th")), [ทั้งหมด]);
   const ตัวเลือกจังหวัด = useMemo(() => [...new Set(ทั้งหมด.filter(r => !ขอบ.ภาค || ภาคมาตรฐาน(r.region) === ขอบ.ภาค).map(r => r.province).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")), [ทั้งหมด, ขอบ.ภาค]);
@@ -163,11 +172,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
 
       {/* ── แท่ง ── */}
       <div className="card" data-drill-chart={dim} style={{ marginBottom: 0 }}>
-        <div className="card-header" style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div className="card-title">{ขอบ.ดีลเลอร์ ? `รายเดือนของ ${ขอบ.ดีลเลอร์}` : `แยกตาม${ชื่อมิติ[dim]}`}</div>
-            <div style={{ fontSize: "0.72rem", color: MUTED, marginTop: 2 }}>แท่ง = {ตั้งค่า.ป้ายแท่ง} · กดแถวเพื่อเจาะลึก · กดหัวคอลัมน์เพื่อเรียง</div>
-          </div>
+        <BoxTitle ชื่อ={`กราฟ${ชื่อหัวข้อ(ตั้งค่า.ป้ายแท่ง, dim, ระดับ)}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, `แท่ง = ${ตั้งค่า.ป้ายแท่ง}`, กดแถว)}>
           {แท็บ.length > 1 && (
             <div role="tablist" aria-label="ดูแยกตาม" style={{ display: "inline-flex", border: "1px solid #dbe3ec", borderRadius: 10, overflow: "hidden" }}>
               {แท็บ.map(m => (
@@ -177,7 +182,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
               ))}
             </div>
           )}
-        </div>
+        </BoxTitle>
         <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflowY: "auto" }}>
           {โหลด ? <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
             : dim === "month" && !มีรายเดือน(คอลัมน์แท่ง) ? <รอข้อมูลรายเดือน ข้อความ="ตัวเลขนี้ไม่มีรายเดือน" />
@@ -202,6 +207,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
 
       {/* ── ตาราง · แถวรวม = การ์ด ── */}
       <div className="card" data-drill-table={dim} style={{ marginBottom: 0, marginTop: 16 }}>
+        <BoxTitle ชื่อ={`ตาราง${ชื่อหัวข้อ(ตั้งค่า.ป้ายแถว, dim, ระดับ)}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "แถวรวม = การ์ดด้านบน", กดแถว, "กดหัวคอลัมน์เพื่อเรียง")} />
         <div className="table-wrap dense">
           <table aria-label={`ตาราง${ตั้งค่า.ป้ายแถว}แยกตาม${หัวคอลัมน์แรก}`} style={{ minWidth: 240 + คอลัมน์.length * 120 }}>
             <colgroup><col style={{ width: 240 }} />{คอลัมน์.map(c => <col key={c.k} style={{ width: 120 }} />)}<col style={{ width: 110 }} /></colgroup>

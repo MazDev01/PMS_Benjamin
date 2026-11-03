@@ -32,7 +32,8 @@ import { useHQCustomersPage, useCustomerBuildings } from "@pms/shared/lib/useNet
 import { metrics as metricsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import type { HQCustomerPageRow } from "@pms/shared/lib/data/ports";
-import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, type ขอบเขต } from "../_drill/DrillEngine";
+import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, type ขอบเขต, ป้ายระดับของขอบ } from "../_drill/DrillEngine";
+import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { CustomerTable } from "@pms/shared/components/hq/customers/CustomerTable";
 import { CustomerDrawer } from "@pms/shared/components/hq/customers/CustomerDrawer";
@@ -163,7 +164,10 @@ export default function HQCustomersPage() {
 
       {/* รายชื่อลูกค้า — ดีลเลอร์ในระดับที่เลือก + คำค้น */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, margin: "16px 0", alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>
-        <div className="card-title" style={{ flex: 1 }}>รายชื่อลูกค้า</div>
+        <div data-box-title style={{ flex: 1, minWidth: 0 }}>
+          <div className="card-title" data-title>ตารางรายชื่อลูกค้า · {ป้ายระดับของขอบ(ขอบ, เจาะลึก?.dealers ?? [])}</div>
+          <div data-subtitle style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>{คำอธิบายหัวข้อ(null, "ลูกค้าทั้งหมดของดีลเลอร์ในระดับที่เลือก", "กดแถวเพื่อเปิด")}</div>
+        </div>
         {/* ขนาดช่องค้นหาต้องเท่ากันทุกหน้า (บอสสั่ง 20 ส.ค. 69) — ใช้ .search-bar ตัวมาตรฐาน */}
         <div className="search-bar">
           <Search size={14} color="#9ca3af" strokeWidth={2} />

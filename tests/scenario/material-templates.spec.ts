@@ -62,7 +62,7 @@ test("[flow·hq] ตั้งค่า › รายการวัสดุ: �
     const แถว = แผง.locator("tbody tr[data-mt-row='new']").first();   // แถวใหม่ขึ้นบนสุด (ตารางเรียงใหม่สุดก่อน)
     await แถว.getByLabel(/^หมวด \d+$/).fill(หมวด);
     await แถว.getByLabel(/^ชื่อวัสดุ \d+$/).fill(ชื่อ);
-    await แถว.getByLabel(/^หน่วย \d+$/).fill(หน่วย);
+    await แถว.getByLabel(/^หน่วย \d+$/).selectOption(หน่วย);   // ช่องหน่วยเป็นดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69)
     await แถว.getByLabel(/^ราคาต่อหน่วย \d+$/).fill(String(ราคา));
   }
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
