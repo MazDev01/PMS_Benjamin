@@ -1,7 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
-import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
+import { DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { settle, ย้อนเดือนISO } from "./helpers";
+import { รันSQLในฐาน } from "./localDb";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 
 // ── ตัวเลือกช่วงเวลาเหลือ 4 ตัว ทุกหน้า HQ + ดีลเลอร์ (บอสสั่ง 3 พ.ย. 69 · ตัวกลาง FilterContext/FilterBar) ─────────────────────
 //   1 เดือน · 3 เดือน · 1 ปี (ค่าเริ่มต้น = ย้อนหลัง 12 เดือนถึงวันนี้) · กำหนดเอง — ไม่มี ทุกช่วงเวลา/วันนี้/7 วันล่าสุด/เดือนนี้/ปีนี้
@@ -62,24 +64,28 @@ test("[ui·hq] ช่วงที่จำไว้เป็นตัวเล�
   }
 });
 
-test("[ui·hq] ตัวเลขบนการ์ดเปลี่ยนตามช่วง: ลีดใหม่ทั้งเครือ = นับจากตารางในช่วง 1 ปี / 1 เดือน", async ({ page }) => {
-  const sb = await db(ADMIN);
-  const นับ = async (ตั้งแต่: string) => (await sb.from("leads").select("id", { count: "exact", head: true })
-    .neq("dealer_code", "HQ").gte("created_date", ตั้งแต่).lte("created_date", วันนี้())).count ?? -1;
-  await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
-  const การ์ด = page.locator("[data-kpi='leads'] [data-value]").first();
-  for (const [ป้าย, ตัว, เดือน] of [["1 ปี", "y1", 12], ["1 เดือน", "m1", 1]] as const) {
-    // ข้ออื่นเพิ่ม/ลบลีดพร้อมกัน — อ่านจอกับตารางซ้ำจนตรงกัน
-    await expect.poll(async () => {
-      await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
-      await settle(page);
-      if (ตัว !== "y1") {
-        await ช่วง(page).locator("button").first().click();
-        await ช่วง(page).getByRole("button", { name: ป้าย, exact: true }).click();
-      }
+test("[ui·hq] ตัวเลขบนการ์ดเปลี่ยนตามช่วง: ลีดใหม่ของสาขาของข้อ 1 ปี = 3 · 3 เดือน = 2 · 1 เดือน = 1", async ({ page }) => {
+  const สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ตราด", ภาค: "ตะวันออก" });
+  try {
+    const ฐาน = 1_977_000_000 + Math.floor(Math.random() * 400_000) * 10;
+    // ลีดของข้อ: วันนี้ · 2 เดือนก่อน · 6 เดือนก่อน · 14 เดือนก่อน (นอก 1 ปี)
+    const วันเข้า = [วันนี้(), ย้อนเดือนISO(วันนี้(), 2), ย้อนเดือนISO(วันนี้(), 6), ย้อนเดือนISO(วันนี้(), 14)];
+    expect(รันSQLในฐาน(`set local session_replication_role = replica;
+      insert into public.leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
+      ${วันเข้า.map((d, i) => `('#L-${ฐาน + i}', ${ฐาน + i}, '${สาขา.รหัส}', 'ZZTEST-ช่วงเวลา-${สาขา.รหัส}-${i}', 'ZZTEST', '000-000-05${i}0', 'ตราด', 'BULLET', '${d}')`).join(",
+      ")};`),
+      "วางลีดของข้อ").not.toBeNull();
+    await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
+    await settle(page);
+    await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
+    await page.getByRole("button", { name: new RegExp(`^${สาขา.รหัส} – `) }).click();
+    const การ์ด = page.locator("[data-kpi='leads'] [data-value]").first();
+    await expect(การ์ด, "1 ปี (ค่าเริ่มต้น): 3 ราย").toHaveAttribute("data-value", "3", { timeout: 30_000 });
+    for (const [ป้าย, ตัว, คาด] of [["3 เดือน", "m3", "2"], ["1 เดือน", "m1", "1"], ["1 ปี", "y1", "3"]] as const) {
+      await ช่วง(page).locator("button").first().click();
+      await ช่วง(page).getByRole("button", { name: ป้าย, exact: true }).click();
       await expect(ช่วง(page)).toHaveAttribute("data-time-range", ตัว);
-      await expect(การ์ด).not.toHaveAttribute("data-value", "", { timeout: 30_000 });
-      return Number(await การ์ด.getAttribute("data-value")) === await นับ(ย้อนเดือนISO(วันนี้(), เดือน));
-    }, { timeout: 120_000, intervals: [1000, 3000, 5000], message: `${ป้าย}: ลีดใหม่บนการ์ด = นับจากตาราง` }).toBe(true);
-  }
+      await expect(การ์ด, `${ป้าย}: ${คาด} ราย`).toHaveAttribute("data-value", คาด, { timeout: 30_000 });
+    }
+  } finally { await สาขา.ลบ(); }
 });
