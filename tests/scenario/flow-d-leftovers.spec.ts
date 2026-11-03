@@ -125,7 +125,10 @@ test("[ง] ปฏิทิน: ทำเครื่องหมาย \"ทำ
   await settle(page);
   await page.locator(".activity").filter({ hasText: นัดลีด }).first().click();
   await page.getByRole("dialog", { name: "รายละเอียดนัดหมาย" }).getByRole("button", { name: "ดูลูกค้าเป้าหมาย" }).click();
-  await expect(page, "เปิดลีดของนัดนี้เลย").toHaveURL(new RegExp(`/leads\\?open=${เลขน่าน}`), { timeout: 15_000 });
+  // ต้นเหตุไม่นิ่ง (ครั้งที่ 3 · 3 พ.ย. 69): หน้าลูกค้าเป้าหมายเปิดแผงแล้วล้าง ?open= ออกจาก URL ทันที (history.replaceState กันเปิดซ้ำตอนรีเฟรช)
+  //   ตรวจ URL จึงแข่งกับการล้าง · ตรวจผลจริงแทน: ไปหน้าลูกค้าเป้าหมาย + แผงของลีดนี้เปิดอยู่
+  await expect(page, "ไปหน้าลูกค้าเป้าหมาย").toHaveURL(/\/leads(\?|$)/, { timeout: 15_000 });
+  await expect(page.getByRole("dialog").filter({ hasText: ลีดน่าน }).first(), `เปิดแผงลีดของนัดนี้เลย (#L-${เลขน่าน})`).toBeVisible({ timeout: 15_000 });
 });
 
 test("[ง] HQ: หน้าเข้าระบบไม่พูดถึงแคตตาล็อก · ตั้งค่าไม่บอกว่าแก้แพ็กเกจแล้วเป้าดีลเลอร์เปลี่ยนตาม · บันทึกการใช้งานไม่มีบทบาทอังกฤษดิบ", async ({ page }) => {
