@@ -179,11 +179,15 @@ const ชนิดของHQ = ["request_new", "request_reprice", "requests_ove
   "request_cancelled", "prospect_followup_due", "prospect_idle", "proposal_awaiting", "proposal_expired"];
 const ชนิดของดีลเลอร์ = ["hq_quote_sent", "hq_quote_expiring", "hq_quote_expired", "quote_expiring", "appointment_due", "lead_from_hq", "won_reverted"];
 
-test("[ux·hq] ตั้งค่า › การแจ้งเตือน เหลือรายชื่อผู้รับอีเมล ไม่มีสวิตช์รายหมวด", async ({ page }) => {
+// ใบ 0274 (บอสสั่ง 3 พ.ย. 69 · ทับ "ไม่มีสวิตช์รายหมวด"): สวิตช์มีเฉพาะรายเรื่องในตารางของ HQ — กลับด้านจากข้อเดิม · หัวข้อกฎเดิมยังไม่มี
+test("[ux·hq] ตั้งค่า › การแจ้งเตือน: รายชื่อผู้รับอีเมล + ตารางรายเรื่องของ HQ (ไม่มีหัวข้อกฎเดิม)", async ({ page }) => {
   await open(page, "hq", "/hq/settings");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /การแจ้งเตือน/ }).click();
-  await expect(page.getByLabel("อีเมลผู้รับแจ้งเตือน")).toBeVisible();
-  await expect(page.getByRole("switch"), "ไม่มีสวิตช์เปิด/ปิดรายหมวด").toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "เพิ่มอีเมลผู้รับแจ้งเตือน" })).toBeVisible();
+  const แถว = page.getByRole("table", { name: "ตั้งค่าแจ้งเตือนแต่ละเรื่อง" }).locator("tbody tr");
+  await expect(แถว, "ตารางรายเรื่อง = เรื่องของ HQ").toHaveCount(ชนิดของHQ.length);
+  for (const k of ชนิดของHQ) await expect(page.locator(`tr[data-notif-kind="${k}"]`), `มีเรื่อง ${k}`).toHaveCount(1);
+  for (const k of ชนิดของดีลเลอร์) await expect(page.locator(`tr[data-notif-kind="${k}"]`), `ไม่มีเรื่องของดีลเลอร์ ${k}`).toHaveCount(0);
   for (const เดิม of ["การแจ้งเตือนของสำนักงานใหญ่", "บันทึกการใช้งานที่อยากรู้", "จัดการดีลเลอร์", "ถึงกำหนดติดตาม"]) {
     await expect(page.getByText(เดิม, { exact: true }), `หัวข้อเดิม “${เดิม}” ต้องไม่มีแล้ว`).toHaveCount(0);
   }
