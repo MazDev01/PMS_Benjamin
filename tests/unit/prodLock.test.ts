@@ -35,7 +35,10 @@ describe("prodLock", () => {
 
   it("ล็อกค้างของโปรเซสที่ตายแล้ว → เก็บกวาดแล้วได้ล็อก", () => {
     const lock = path.join(dir, "c.lock");
-    const ตาย = spawnSync(process.execPath, ["-e", "console.log(process.pid)"], { encoding: "utf8" });
+    // ต้นเหตุไม่นิ่ง (รอบตรวจ 3 พ.ย. 69): ใช้ pid ของโปรเซสที่เพิ่งจบ — Windows เอาเลขไปใช้ซ้ำเร็วตอนเครื่องทำงานหนัก → ล็อกดูเหมือนยังมีเจ้าของ
+    //   ใช้เลขที่ระบบไม่มีทางแจก (เกินเพดาน pid ของ Windows/Linux) แทน · ตรวจด้วยว่าเลขนี้ไม่มีโปรเซสจริง
+    const ตาย = { stdout: "2147483000" };
+    expect(() => process.kill(2147483000, 0)).toThrow();
     writeFileSync(lock, JSON.stringify({ token: "ค้าง", pid: Number(ตาย.stdout.trim()), งาน: "สำรองฐานจริง + ซ้อมกู้", เริ่ม: "2026-10-20T02:32:00Z" }));
     const r = ลูก(lock);
     expect(r.status).toBe(0);
