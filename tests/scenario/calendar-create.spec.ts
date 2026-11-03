@@ -125,7 +125,8 @@ test("[D7] [flow·dealer] นัดจากปฏิทิน → แผงล�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ลีดA());
   await page.locator("tbody tr").filter({ hasText: ลีดA() }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();
-  await expect(page.getByText("ZZTEST นัดจากปฏิทิน").first(), "แผงลีดเห็นนัดที่ลงจากปฏิทิน").toBeVisible({ timeout: 20_000 });
+  // รายการนัดในแท็บภาพรวม = ประเภท · วันที่ · เวลา (บันทึกอยู่ในประวัติ)
+  await expect(page.getByText(/^นัดพบลูกค้า · .+ · 14:00 น\.$/).first(), "แผงลีดเห็นนัดที่ลงจากปฏิทิน").toBeVisible({ timeout: 20_000 });
 
   // นัดของลูกค้า: ผูกลูกค้าอย่างเดียว ไม่ผูกลีดให้เอง
   await page.goto(`${DEALER_ORIGIN}/calendar`, { waitUntil: "domcontentloaded" });
