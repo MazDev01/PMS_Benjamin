@@ -856,7 +856,7 @@ export default function HQProspectsPage() {
               style={{ width: 820, maxWidth: "100%", height: "min(920px, calc(100vh - 24px))", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {/* หัวน้ำเงิน + ปุ่มลัด */}
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+                <div data-panel-head style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "nowrap" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                     <div style={{ width: 46, height: 46, borderRadius: 13, background: ราย.logo ? "#fff" : "rgba(255,255,255,.18)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, border: "2px solid rgba(255,255,255,.25)", flexShrink: 0, overflow: "hidden" }}>
                       {ราย.logo ? <img src={ราย.logo} alt="รูปประจำตัว" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : อักษรย่อ}
