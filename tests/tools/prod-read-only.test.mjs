@@ -39,7 +39,7 @@ for (const a of อ่าน) {
 const เขียน = [
   ["insert into public.dealers (code) values ('X')"],
   ["UPDATE public.leads SET status = 'won'"],
-  ["delete from public.audit_log"],
+  ["delete from public.quote_requests"],
   ["with d as (delete from public.leads returning *) select count(*) from d"],
   ["select 1; drop table public.leads"],
   ["select * into public.copy_leads from public.leads"],
