@@ -34,7 +34,8 @@ test("[ui·dealer] การ์ด KPI หน้าปฏิทินมีท�
 test("[ui·hq] กราฟผลงานดีลเลอร์ที่ /hq/pipeline มีแท่งโตขึ้นตอนเปิดหน้า", async ({ page }) => {
   await openAs(page, ADMIN, "hq", "/hq/pipeline");
   await settle(page);
-  const กราฟ = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: "ยอดขาย เทียบ เป้าตามช่วง · รายดีลเลอร์" }) }).first();
+  // หัวข้อกราฟใหม่ (3 พ.ย. 69 · lib/drillTitles.ts): "กราฟ<เรื่อง>แยกตาม<มิติ> · <ระดับ>"
+  const กราฟ = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: "กราฟยอดขาย เทียบ เป้าตามช่วง แยกตามดีลเลอร์ · ทั้งเครือ" }) }).first();
   await expect(กราฟ).toBeVisible({ timeout: 30_000 });
   const แท่ง = กราฟ.locator(".bar-grow").first();
   await expect(แท่ง, "กราฟต้องมีแท่งข้อมูล").toBeVisible({ timeout: 30_000 });
