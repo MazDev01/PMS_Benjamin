@@ -94,21 +94,37 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   assertNoErrors(errs, "นำเข้าผู้สนใจ");
 });
 
-test("[db·hq] นำเข้าเบอร์เดิมซ้ำ = ฐานไม่สร้างซ้ำ · ยกเลิกทั้งชุดบนหน้าจอ = ลบรายของชุด", async ({ page }) => {
+test("[db·hq] นำเข้าเบอร์เดิมซ้ำ = ฐานไม่สร้างซ้ำ · มีรายถูกบันทึกการติดต่อ = ยกเลิกทั้งชุดไม่ได้ (หน้าจอ + ยิงตรง) · ชุดที่ยังไม่แตะ = ยกเลิกได้", async ({ page }) => {
   const sb = await db(ADMIN);
   const ซ้ำ = await sb.rpc("hq_prospects_import", { p_file: `${แท็ก}-ซ้ำ.xlsx`, p_rows: [{ row: 1, name: `${แท็ก} ซ้ำอีกรอบ`, phone: เบอร์(1), status: "new" }] });
   expect(ซ้ำ.error).toBeNull();
   expect((ซ้ำ.data as { inserted: number; skipped: { reason: string }[] }).inserted, "เบอร์มีอยู่แล้ว = ไม่สร้าง").toBe(0);
   expect((ซ้ำ.data as { skipped: { reason: string }[] }).skipped[0].reason).toBe("เบอร์นี้มีผู้สนใจอยู่แล้ว");
+  // ชุดแรก: บันทึกการติดต่อ 1 ราย หลังนำเข้า → ถูกแตะ
+  const { data: ราย } = await sb.from("dealer_prospects").select("id, import_batch_id").eq("phone", เบอร์จัดรูป(1)).single();
+  const ชุดแรก = Number(ราย!.import_batch_id);
+  expect((await sb.from("dealer_prospect_activities").insert({ prospect_id: ราย!.id, kind: "contact", channel: "โทรศัพท์", body: `${แท็ก} โทรหลังนำเข้า` })).error).toBeNull();
+  const ยิงตรง = await sb.rpc("hq_prospects_import_cancel", { p_batch: ชุดแรก });
+  expect(ยิงตรง.error?.message ?? "", "ยิงตรงเข้าฐานก็ยกเลิกไม่ได้").toMatch(/import_in_use/);
+  // ชุดที่สอง (ยังไม่แตะ) — ยกเลิกได้บนหน้าจอ
+  const ชุดสอง = await sb.rpc("hq_prospects_import", { p_file: `${แท็ก}-สอง.xlsx`, p_rows: [{ row: 1, name: `${แท็ก} ชุดสอง`, phone: เบอร์(9), status: "contacted", contact_note: "รอโทรกลับ" }] });
+  expect((ชุดสอง.data as { inserted: number }).inserted).toBe(1);
 
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
   await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click();
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
-  const ชุด = กล่อง.getByRole("region", { name: "ชุดที่นำเข้าล่าสุด" }).locator("li").filter({ hasText: ชื่อไฟล์ });
-  await ชุด.getByRole("button", { name: "ยกเลิกทั้งชุด" }).click({ timeout: 20_000 });
+  const รายการ = กล่อง.getByRole("region", { name: "ชุดที่นำเข้าล่าสุด" });
+  const แรก = รายการ.locator(`li[data-batch="${ชุดแรก}"]`);
+  await expect(แรก.getByTestId("batch-touched"), "บอกว่ากี่รายถูกแตะแล้ว").toHaveText("ถูกแตะแล้ว 1 ราย — ยกเลิกทั้งชุดไม่ได้", { timeout: 20_000 });
+  await expect(แรก.getByRole("button", { name: "ยกเลิกทั้งชุด" }), "ปุ่มยกเลิกใช้ไม่ได้").toBeDisabled();
+  const สอง = รายการ.locator("li").filter({ hasText: `${แท็ก}-สอง.xlsx` });
+  await expect(สอง.getByTestId("batch-touched"), "ชุดที่ไม่แตะ (บันทึกการติดต่อแรกจากไฟล์ไม่นับ)").toHaveCount(0);
+  await สอง.getByRole("button", { name: "ยกเลิกทั้งชุด" }).click();
   await กดตกลงในกล่องยืนยัน(page);
-  await expect(ชุด.getByText("ยกเลิกแล้ว")).toBeVisible({ timeout: 20_000 });
-  const { count } = await sb.from("dealer_prospects").select("id", { count: "exact", head: true }).like("name", `${แท็ก}%`);
+  await expect(สอง.getByText("ยกเลิกแล้ว")).toBeVisible({ timeout: 20_000 });
+  const { count } = await sb.from("dealer_prospects").select("id", { count: "exact", head: true }).eq("name", `${แท็ก} ชุดสอง`);
   expect(count, "ยกเลิกทั้งชุดแล้วไม่เหลือรายของชุด").toBe(0);
+  const { count: ชุดแรกเหลือ } = await sb.from("dealer_prospects").select("id", { count: "exact", head: true }).eq("import_batch_id", ชุดแรก);
+  expect(ชุดแรกเหลือ, "ชุดที่ถูกแตะยังอยู่ครบ").toBe(4);
 });

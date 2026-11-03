@@ -108,7 +108,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     ดาวน์โหลดไฟล์(blob, `แถวที่ไม่ได้นำเข้า-${ไฟล์?.ชื่อ.replace(/\.[^.]+$/, "") ?? "ไฟล์"}.xlsx`);
   }
   async function ยกเลิกชุด(b: ชุดนำเข้าผู้สนใจ) {
-    if (!(await ยืนยัน({ หัวข้อ: `ยกเลิกการนำเข้า "${b.fileName}" ทั้งชุด?`, รายละเอียด: `ลบผู้สนใจที่นำเข้าชุดนี้ ${b.remaining.toLocaleString()} ราย · มีรายที่ออกใบค่าแฟรนไชส์แล้ว = ยกเลิกไม่ได้`,
+    if (!(await ยืนยัน({ หัวข้อ: `ยกเลิกการนำเข้า "${b.fileName}" ทั้งชุด?`, รายละเอียด: `ลบผู้สนใจที่นำเข้าชุดนี้ ${b.remaining.toLocaleString()} ราย · ทำได้เฉพาะชุดที่ยังไม่มีรายถูกบันทึกการติดต่อ/เปลี่ยนขั้น/ออกใบหลังนำเข้า`,
       ปุ่มตกลง: "ยกเลิกทั้งชุด", อันตราย: true }))) return;
     try { const r = await prospectsRepo.cancelImport(b.id); แจ้งสำเร็จ(`ยกเลิกแล้ว · ลบ ${r.deleted.toLocaleString()} ราย`); onImported(); void โหลดชุด(); }
     catch (e) { แจ้งพลาด(friendlyError(e)); }
@@ -269,8 +269,12 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                   {ชุด.map(b => (
                     <li key={b.id} data-batch={b.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "0.74rem" }}>
                       <span style={{ flex: 1 }}>{b.fileName || "ไฟล์ไม่มีชื่อ"} · เพิ่ม {b.inserted.toLocaleString()} · ข้าม {b.skipped.toLocaleString()} · {b.createdBy || "—"}</span>
-                      {b.cancelledAt ? <span style={{ color: "#6b7280" }}>ยกเลิกแล้ว</span>
-                        : <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ยกเลิกชุด(b)}><Undo2 size={12} /> ยกเลิกทั้งชุด</button>}
+                      {b.cancelledAt ? <span style={{ color: "#6b7280" }}>ยกเลิกแล้ว</span> : <>
+                        {/* ยกเลิกได้เฉพาะชุดที่ยังไม่มีรายถูกแตะหลังนำเข้า (บอสสั่ง 3 พ.ย. 69 · ฐานกันอีกชั้น) */}
+                        {b.touched > 0 && <span data-testid="batch-touched" style={{ color: "#b45309", fontWeight: 600 }}>ถูกแตะแล้ว {b.touched.toLocaleString()} ราย — ยกเลิกทั้งชุดไม่ได้</span>}
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={b.touched > 0} onClick={() => void ยกเลิกชุด(b)}
+                          title={b.touched > 0 ? "มีรายที่ถูกบันทึกการติดต่อ/เปลี่ยนขั้น/ออกใบแล้วหลังนำเข้า" : undefined}><Undo2 size={12} /> ยกเลิกทั้งชุด</button>
+                      </>}
                     </li>
                   ))}
                 </ul>

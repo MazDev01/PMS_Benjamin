@@ -4,7 +4,9 @@
 --     เบอร์ซ้ำกับที่มีอยู่ หรือซ้ำกันเองในชุด = ข้าม (ฐานตัดสิน · เทียบตัวเลขล้วน) · คืนรายการที่ข้ามพร้อมเหตุผล
 --     หมายเหตุเดิม = บันทึกการติดต่อครั้งแรก (เก็บข้อความเดิมเสมอ · ช่องทาง "อื่น ๆ") · ติดต่อล่าสุด = วันเริ่มติดต่อในไฟล์ (ไม่มี = เวลานำเข้า)
 --     บันทึกการใช้งานแถวเดียวต่อชุด (ไม่ลงทีละราย)
---   • hq_prospects_import_cancel(ชุด): ยกเลิกทั้งชุด = ลบผู้สนใจของชุดนั้น · ทำไม่ได้ถ้ารายใดออกใบค่าแฟรนไชส์/เป็นดีลเลอร์แล้ว
+--   • hq_prospects_import_cancel(ชุด): ยกเลิกทั้งชุด = ลบผู้สนใจของชุดนั้น · ทำไม่ได้ถ้ามีรายใด "ถูกแตะแล้ว" (บอสสั่ง 3 พ.ย. 69):
+--     บันทึกการติดต่อหลังนำเข้า · เปลี่ยนขั้น · ออกใบค่าแฟรนไชส์ · เป็นดีลเลอร์ — บันทึกการติดต่อแรกที่มาจากหมายเหตุในไฟล์ไม่นับ
+--     (แถวที่คำสั่งนำเข้าสร้างมีเวลาเท่ากับเวลาสร้างชุดเป๊ะ = ธุรกรรมเดียวกัน · หลังจากนั้น = ถูกแตะ) · _import_batch_touched นับให้หน้าจอบอกจำนวน
 --   • hq_prospect_import_batches(): ชุดที่นำเข้าล่าสุด (หน้าจอแสดงปุ่มยกเลิก)
 -- ข้อทดสอบ: supabase/tests/prospect_import.sql · tests/scenario/prospect-import.spec.ts (ไฟล์ปลอมโครงเดียวกับไฟล์จริง)
 
@@ -117,20 +119,31 @@ end $$;
 revoke all on function public.hq_prospects_import(text, jsonb) from public, anon, authenticated, service_role;
 grant execute on function public.hq_prospects_import(text, jsonb) to authenticated;
 
+/** จำนวนรายในชุดที่ถูกแตะแล้วหลังนำเข้า (บันทึกการติดต่อ/เปลี่ยนขั้น/ใบค่าแฟรนไชส์/เป็นดีลเลอร์) */
+create or replace function public._import_batch_touched(p_batch bigint) returns integer
+  language sql stable security definer set search_path to 'public' as $$
+  select count(*)::int
+    from dealer_prospects p
+    join prospect_import_batches b on b.id = p.import_batch_id
+   where p.import_batch_id = p_batch
+     and (p.status = 'won' or p.dealer_code is not null
+          or exists (select 1 from dealer_package_proposals x where x.prospect_id = p.id)
+          or exists (select 1 from dealer_prospect_activities a
+                      where a.prospect_id = p.id and a.kind in ('contact', 'status', 'proposal') and a.created_at > b.created_at))
+$$;
+revoke all on function public._import_batch_touched(bigint) from public, anon, authenticated, service_role;
+
 create or replace function public.hq_prospects_import_cancel(p_batch bigint) returns jsonb
   language plpgsql security definer set search_path to 'public' as $$
-declare b prospect_import_batches; ติด text; n int;
+declare b prospect_import_batches; แตะ int; n int;
 begin
   if not can_write_master() then raise exception 'forbidden: ยกเลิกการนำเข้าได้เฉพาะผู้ดูแลระบบ/ผู้บริหารสำนักงานใหญ่'; end if;
   select * into b from prospect_import_batches where id = p_batch for update;
   if not found then raise exception 'not_found: ไม่พบชุดนำเข้านี้'; end if;
   if b.cancelled_at is not null then raise exception 'import_cancelled: ชุดนี้ยกเลิกไปแล้ว'; end if;
-  select string_agg(p.name, ' · ' order by p.id) into ติด
-    from dealer_prospects p
-   where p.import_batch_id = p_batch
-     and (p.status = 'won' or p.dealer_code is not null or exists (select 1 from dealer_package_proposals x where x.prospect_id = p.id));
-  if ติด is not null then
-    raise exception 'import_in_use: ยกเลิกทั้งชุดไม่ได้ — มีรายที่ออกใบค่าแฟรนไชส์/เป็นดีลเลอร์แล้ว: %', left(ติด, 300);
+  แตะ := _import_batch_touched(p_batch);
+  if แตะ > 0 then
+    raise exception 'import_in_use: ยกเลิกทั้งชุดไม่ได้ — มี % รายที่ถูกแตะแล้วหลังนำเข้า (บันทึกการติดต่อ · เปลี่ยนขั้น · ออกใบค่าแฟรนไชส์)', แตะ;
   end if;
   perform set_config('pms.audit_skip', 'on', true);
   delete from dealer_prospects where import_batch_id = p_batch;
@@ -149,7 +162,7 @@ begin
   if not is_hq() then raise exception 'forbidden: เฉพาะสำนักงานใหญ่'; end if;
   return coalesce((select jsonb_agg(jsonb_build_object('id', b.id, 'fileName', b.file_name, 'rowCount', b.row_count, 'inserted', b.inserted,
                                                      'skipped', b.skipped, 'createdBy', b.created_by, 'createdAt', b.created_at,
-                                                     'cancelledAt', b.cancelled_at,
+                                                     'cancelledAt', b.cancelled_at, 'touched', _import_batch_touched(b.id),
                                                      'remaining', (select count(*) from dealer_prospects p where p.import_batch_id = b.id))
                                   order by b.id desc)
                      from (select * from prospect_import_batches order by id desc limit 20) b), '[]'::jsonb);

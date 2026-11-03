@@ -51,7 +51,9 @@ export type AppNotification = {
 // นำเข้าผู้สนใจทั้งชุด (ใบ 0275) — ผลของคำสั่งฐาน · ชุดที่นำเข้าล่าสุด (ยกเลิกทั้งชุดได้)
 export type ผลนำเข้าผู้สนใจ = { batch: number; inserted: number; skipped: { row: string; reason: string }[] };
 export type ชุดนำเข้าผู้สนใจ = { id: number; fileName: string; rowCount: number; inserted: number; skipped: number; createdBy: string;
-  createdAt: string; cancelledAt: string | null; remaining: number };
+  createdAt: string; cancelledAt: string | null; remaining: number;
+  /** รายที่ถูกแตะแล้วหลังนำเข้า (บันทึกการติดต่อ · เปลี่ยนขั้น · ออกใบ) — มี = ยกเลิกทั้งชุดไม่ได้ (ฐานกัน) */
+  touched: number };
 
 // ค่าตั้งแจ้งเตือนรายเรื่องของฝั่งผู้เรียก (ใบ 0274 · notification_prefs_get) — แถวตามตาราง FLOW เรียงตามตารางกลาง
 //   bellAvailable/emailAvailable = เรื่องนั้นมีช่องทางนี้ไหม (ไม่มี = แสดง "—") · locked = เรื่องจำเป็น ปิดไม่ได้ (ฐานกัน)

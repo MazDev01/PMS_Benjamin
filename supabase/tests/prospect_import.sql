@@ -2,7 +2,8 @@
 --   1) นำเข้าได้ · เบอร์ทำเป็นรูปแบบเดียว · ภาคตามจังหวัด · หมายเหตุเดิม = บันทึกการติดต่อครั้งแรก · ติดต่อล่าสุด = วันเริ่มติดต่อ
 --   2) เบอร์ซ้ำในไฟล์ / ซ้ำกับที่มีอยู่ = ข้าม (ฐานตัดสิน · เทียบตัวเลขล้วน · เว้นวรรค/ขีดต่างกันก็ซ้ำ) · ไม่มีชื่อ/เบอร์ = ข้าม
 --   3) ขั้นที่นำเข้าไม่ได้ / ไม่สำเร็จไม่มีเหตุผล / จังหวัดนอก 77 = ปฏิเสธทั้งชุด · เกิน 1,000 แถว = ปฏิเสธ · ไม่ใช่ผู้ดูแล HQ = ปฏิเสธ
---   4) บันทึกการใช้งานแถวเดียวต่อชุด · ยกเลิกทั้งชุด = ลบรายของชุด · มีรายที่ออกใบแล้ว = ยกเลิกไม่ได้
+--   4) บันทึกการใช้งานแถวเดียวต่อชุด · ยกเลิกทั้งชุด = ลบรายของชุด
+--      มีรายที่ถูกแตะหลังนำเข้า (บันทึกการติดต่อ · เปลี่ยนขั้น · ออกใบ) = ยกเลิกไม่ได้ + บอกจำนวน · บันทึกการติดต่อแรกจากหมายเหตุในไฟล์ไม่นับ
 --   ตกบนโค้ดก่อนใบ 0275: ไม่มีคำสั่ง hq_prospects_import
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/prospect_import.sql
 begin;
@@ -89,13 +90,35 @@ begin
   perform pitest.must_fail($q$select public.hq_prospects_import('x', '[{"row":1,"name":"ZZTEST-ง","phone":"000 000 7104"}]')$q$, 'forbidden', '3) เจ้าหน้าที่ HQ ทั่วไปนำเข้าไม่ได้');
   perform pitest.must_fail(format('select public.hq_prospects_import_cancel(%s)', b), 'forbidden', '4) เจ้าหน้าที่ HQ ทั่วไปยกเลิกไม่ได้');
 
-  -- 4) ยกเลิกทั้งชุด: มีรายที่ออกใบแล้ว = ไม่ได้ · ไม่มี = ลบทั้งชุด
+  -- 4) ยกเลิกทั้งชุด: บันทึกการติดต่อแรกจากไฟล์ไม่นับ · ถูกแตะหลังนำเข้า = ไม่ได้ (ยิงตรงก็ไม่ได้)
   perform pitest.as_admin();
+  perform pitest.ok(_import_batch_touched(b) = 0, '4) หลังนำเข้าทันที = ยังไม่มีรายถูกแตะ (บันทึกการติดต่อแรกจากไฟล์ไม่นับ)');
+  -- บันทึกการติดต่อหลังนำเข้า 1 ราย (เวลาหลังสร้างชุด — ในธุรกรรมเดียวของข้อทดสอบต้องตั้งเวลาเอง)
+  set local session_replication_role = replica;
+  insert into dealer_prospect_activities (prospect_id, kind, channel, body, created_at)
+  values ((select id from dealer_prospects where name = 'ZZTEST-สี่'), 'contact', 'โทรศัพท์', 'ZZTEST โทรหลังนำเข้า', now() + interval '1 minute');
+  set local session_replication_role = origin;
+  perform pitest.ok(_import_batch_touched(b) = 1, '4) บันทึกการติดต่อหลังนำเข้า 1 ราย = ถูกแตะ 1');
+  perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
+  perform pitest.ok((select (x->>'touched')::int from jsonb_array_elements(public.hq_prospect_import_batches()) x where (x->>'id')::bigint = b) = 1,
+                    '4) รายการชุดบอกจำนวนรายที่ถูกแตะ (หน้าจอปิดปุ่ม)');
+  perform pitest.must_fail(format('select public.hq_prospects_import_cancel(%s)', b), 'import_in_use', '4) มีรายถูกบันทึกการติดต่อ = ยกเลิกทั้งชุดไม่ได้ (ยิงตรง)');
+  perform pitest.as_admin();
+  delete from dealer_prospect_activities where body = 'ZZTEST โทรหลังนำเข้า';
+  -- เปลี่ยนขั้นหลังนำเข้า = ถูกแตะ
+  set local session_replication_role = replica;
+  insert into dealer_prospect_activities (prospect_id, kind, body, from_status, to_status, created_at)
+  values ((select id from dealer_prospects where name = 'ZZTEST-หนึ่ง'), 'status', 'ติดต่อแล้ว → ส่งข้อมูลบริษัทแล้ว', 'contacted', 'profile_sent', now() + interval '1 minute');
+  set local session_replication_role = origin;
+  perform pitest.ok(_import_batch_touched(b) = 1, '4) เปลี่ยนขั้นหลังนำเข้า = ถูกแตะ');
+  delete from dealer_prospect_activities where body = 'ติดต่อแล้ว → ส่งข้อมูลบริษัทแล้ว' and prospect_id = (select id from dealer_prospects where name = 'ZZTEST-หนึ่ง') and created_at > now();
+  -- ออกใบค่าแฟรนไชส์ = ถูกแตะ
   insert into dealer_package_proposals (prospect_id, amount, status) values ((select id from dealer_prospects where name = 'ZZTEST-สอง'), 10000, 'draft');
   perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
   perform pitest.must_fail(format('select public.hq_prospects_import_cancel(%s)', b), 'import_in_use', '4) มีรายที่ออกใบแล้ว = ยกเลิกทั้งชุดไม่ได้');
   perform pitest.as_admin();
   delete from dealer_package_proposals where prospect_id = (select id from dealer_prospects where name = 'ZZTEST-สอง');
+  perform pitest.ok(_import_batch_touched(b) = 0, '4) ไม่มีรายถูกแตะแล้ว');
   perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
   r := public.hq_prospects_import_cancel(b);
   perform pitest.ok((r->>'deleted')::int = 4, '4) ยกเลิกทั้งชุด = ลบ 4 ราย');
