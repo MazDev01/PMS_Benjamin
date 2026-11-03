@@ -19,7 +19,7 @@ import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequests
 import type { QuoteFile, จำนวนไฟล์คำขอ, StorageUsage } from "../../quoteFiles";
 import type { MaterialTemplate, EstimateAccuracy } from "../../materialTemplates";
 import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard } from "../../quoteRequests";
-import type { DealerProspect, ProspectActivity } from "../types";
+import type { DealerProspect, ProspectActivity, NotificationPref, NotifyRecipient } from "../types";
 import { accountRemote } from "../accountRemote";
 import { รวมค่าตั้งหาดีลเลอร์ } from "../../recruitSettings";
 import type {
@@ -385,6 +385,11 @@ const users: UsersRepo = {
 };
 const notifications: NotificationsRepo = {
   list: (limit) => apiFetch<AppNotification[]>(`/notifications${limit ? `?limit=${limit}` : ""}`),
+  prefs: () => apiFetch<NotificationPref[]>("/notifications?view=prefs"),
+  setPref: (kind, bell, email) => post<NotificationPref[]>("/notifications", { op: "set-pref", kind, bell, email }),
+  recipients: (dealerCode) => apiFetch<NotifyRecipient[]>(`/notifications?view=recipients${dealerCode ? `&dealer=${encodeURIComponent(dealerCode)}` : ""}`),
+  addRecipient: (email) => post<NotifyRecipient>("/notifications", { op: "add-recipient", email }),
+  removeRecipient: async (id) => { await post("/notifications", { op: "remove-recipient", id }); },
 };
 const audit: AuditRepo = {
   list: (limit) => apiFetch<AuditEntry[]>(`/audit${limit ? `?limit=${limit}` : ""}`),

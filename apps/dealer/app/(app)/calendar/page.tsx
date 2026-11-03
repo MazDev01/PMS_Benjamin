@@ -14,6 +14,7 @@ import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { useMyProvinces } from "@pms/shared/lib/useMyProvinces";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useSales } from "@pms/shared/context/SalesContext";
+import { PersonPicker } from "@pms/shared/components/ui/PersonPicker";
 import { ChevronLeft, ChevronRight, Clock, MapPin, CalendarDays, CalendarCheck, Plus, X, User, Phone, Building2, GitBranch, Users, Edit2, Trash2, AlarmClock, CheckCircle2 } from "lucide-react";
 
 // ── Tokens (CI) ───────────────────────────────────────────────
@@ -89,6 +90,8 @@ export default function CalendarPage() {
   const [view, setView] = useState<ViewMode>("month"); // หน้า "ปฏิทิน" เปิดที่มุมมองเดือนก่อน
   // นัดหมายทั้งหมดมาจาก SalesContext (ใช้ร่วมกับแดชบอร์ด/แจ้งเตือน)
   const { appointments: allAppts, updateAppointment: ctxUpdateAppt, deleteAppointment: ctxDeleteAppt, leads: ลีดทั้งหมด, salesVersion } = useSales();
+  // สร้างนัดจากปฏิทิน (FLOW D7 · บอสสั่ง 3 พ.ย. 69): ปุ่ม "+ นัดหมาย" · กดวันว่าง (เดือน) · กดช่องเวลา (สัปดาห์/วัน) — วันเวลาเติมตามที่กด
+  const [สร้างนัด, setสร้างนัด] = useState<{ date: string; time: string } | null>(null);
   const currentDealerCal = useCurrentDealer();
   const [detail, setDetail] = useState<AppointmentMock | null>(null);
   const [editAppt, setEditAppt] = useState<AppointmentMock | null>(null);
@@ -261,6 +264,7 @@ export default function CalendarPage() {
                 <button onClick={view === "month" ? prevMonth : view === "week" ? prevWeek : prevDay} className="btn btn-secondary btn-sm" style={{ padding: "6px 10px" }}><ChevronLeft size={16} /></button>
                 <button onClick={goToday} className="btn btn-secondary btn-sm" style={{ color: PRIMARY }}>วันนี้</button>
                 <button onClick={view === "month" ? nextMonth : view === "week" ? nextWeek : nextDay} className="btn btn-secondary btn-sm" style={{ padding: "6px 10px" }}><ChevronRight size={16} /></button>
+                <button onClick={() => setสร้างนัด({ date: selectedDate, time: "09:00" })} className="btn btn-primary btn-sm"><Plus size={14} /> นัดหมาย</button>
               </div>
             </div>
           </div>
@@ -282,7 +286,9 @@ export default function CalendarPage() {
                   const isToday = date === TODAY;
                   const isSel = date === selectedDate;
                   return (
-                    <button key={i} onClick={() => setSelectedDate(date)}
+                    <button key={i} onClick={() => { setSelectedDate(date); if (appts.length === 0) setสร้างนัด({ date, time: "09:00" }); }}
+                      data-day={date} data-empty-day={appts.length === 0 ? "1" : undefined}
+                      aria-label={appts.length === 0 ? `ลงนัดวันที่ ${d} ${THAI_MONTHS[month]}` : undefined}
                       style={{
                         height: 108, borderRadius: 10, border: isSel ? `1.5px solid ${PRIMARY}` : `1px solid ${BORDER}`,
                         background: isSel ? "#f4f8fc" : isToday ? "#eef3f8" : "#fff", cursor: "pointer", padding: "6px 6px 5px",
@@ -318,47 +324,16 @@ export default function CalendarPage() {
               </>
             )}
 
-            {/* ── Week view ──────────────────────────────── */}
+            {/* ── Week view: ช่องเวลา (FLOW D7 · 3 พ.ย. 69) — กดช่องว่าง = ลงนัดวัน+เวลานั้น · กดชิป = ดูนัด ── */}
             {view === "week" && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, alignItems: "start" }}>
-                {weekDays.map(date => {
-                  const dt = parseYmd(date);
-                  const appts = (byDate[date] ?? []).slice().sort((a, b) => a.time.localeCompare(b.time));
-                  const isToday = date === TODAY;
-                  const isSel = date === selectedDate;
-                  return (
-                    <div key={date} onClick={() => selectDate(date)}
-                      style={{
-                        border: isSel ? `1.5px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-                        borderRadius: 10, background: isSel ? "#f6f9fc" : isToday ? "#eef3f8" : "#fff",
-                        cursor: "pointer", minWidth: 0, minHeight: 150, padding: 6, display: "flex", flexDirection: "column", gap: 6,
-                      }}>
-                      <div style={{ textAlign: "center", borderBottom: `1px solid ${BORDER}`, paddingBottom: 4 }}>
-                        <div style={{ fontSize: "0.65rem", fontWeight: 700, color: MUTED }}>{THAI_DAYS[dt.getDay()]}</div>
-                        <div style={{ fontSize: "0.92rem", fontWeight: isToday ? 800 : 700, color: isToday ? PRIMARY : "#2D2D2D" }}>{dt.getDate()}</div>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        {appts.length === 0 ? (
-                          <div style={{ fontSize: "0.65rem", color: "#c0c4cc", textAlign: "center", padding: "6px 0" }}>—</div>
-                        ) : appts.map(a => <WeekChip key={a.id} a={a} onOpen={() => setDetail(a)} />)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <ตารางช่องเวลา วัน={weekDays} byDate={byDate} วันที่เลือก={selectedDate}
+                onเลือกวัน={selectDate} onเปิด={setDetail} onลงนัด={(date, time) => setสร้างนัด({ date, time })} />
             )}
 
-            {/* ── Day view ───────────────────────────────── */}
+            {/* ── Day view: ช่องเวลาของวันเดียว ── */}
             {view === "day" && (
-              <div>
-                {selectedAppts.length === 0 ? (
-                  <div style={{ fontSize: "0.8rem", color: MUTED, textAlign: "center", padding: "28px 0" }}>ไม่มีนัดหมายในวันนี้</div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    {selectedAppts.map(a => <DayRow key={a.id} a={a} onOpen={() => setDetail(a)} />)}
-                  </div>
-                )}
-              </div>
+              <ตารางช่องเวลา วัน={[selectedDate]} byDate={byDate} วันที่เลือก={selectedDate}
+                onเลือกวัน={selectDate} onเปิด={setDetail} onลงนัด={(date, time) => setสร้างนัด({ date, time })} />
             )}
           </div>
         </div>
@@ -371,7 +346,8 @@ export default function CalendarPage() {
               <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.92rem" }}>
                 <CalendarDays size={15} color={PRIMARY} /> {selectedDate === TODAY ? "วันนี้" : `${parseInt(selectedDate.split("-")[2])} ${THAI_MONTHS[parseYmd(selectedDate).getMonth()]}`}
               </div>
-              {/* ปุ่มเพิ่มนัดเอาออก (รอบ 4 · บอสสั่ง 21 ต.ค. 69) — สร้างนัดได้จากแผงลีดที่เดียว · หน้านี้ดู/ทำเสร็จ/ยกเลิก */}
+              {/* สร้างนัดได้จากปฏิทินอีกทาง (FLOW D7 เปลี่ยน 3 พ.ย. 69 · ทับรอบ 4 "สร้างที่แผงลีดที่เดียว") — ใช้ตัวสร้างเดียวกับแผงลีด */}
+              <button onClick={() => setสร้างนัด({ date: selectedDate, time: "09:00" })} className="btn btn-secondary btn-sm" aria-label="ลงนัดวันที่เลือก"><Plus size={13} /></button>
             </div>
             {selectedAppts.length === 0 ? (
               <div className="card-body" style={{ fontSize: "0.8rem", color: MUTED, textAlign: "center", padding: "18px 0 22px" }}>ไม่มีนัดหมายวันนี้</div>
@@ -445,6 +421,10 @@ export default function CalendarPage() {
 
       {/* Edit appointment modal */}
       {editAppt && <AddApptModal initial={editAppt} defaultDate={editAppt.date} onSave={editAppointment} onClose={() => setEditAppt(null)} />}
+
+      {/* New appointment (ตัวสร้างเดียวกับแผงลีด — SalesContext.addAppointment) */}
+      {สร้างนัด && <NewApptModal defaultDate={สร้างนัด.date} defaultTime={สร้างนัด.time} onClose={() => setสร้างนัด(null)}
+        onSaved={a => { setสร้างนัด(null); selectDate(a.date); }} />}
     </div>
   );
 }
@@ -702,27 +682,6 @@ function WeekChip({ a, onOpen }: { a: AppointmentMock; onOpen?: () => void }) {
   );
 }
 
-// Time-ordered row for the Day view
-function DayRow({ a, onOpen }: { a: AppointmentMock; onOpen?: () => void }) {
-  const m = bucketMeta(a);
-  return (
-    <div onClick={onOpen} style={{ display: "flex", gap: 12, alignItems: "stretch", borderLeft: `3px solid ${m.color}`, padding: "10px 0 10px 12px", borderBottom: `1px solid ${BORDER}`, cursor: onOpen ? "pointer" : undefined }}>
-      <div style={{ minWidth: 56, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-        <span style={{ fontSize: "0.86rem", fontWeight: 800, color: PRIMARY }}>{a.time}</span>
-        <span style={{ fontSize: "0.65rem", color: MUTED }}>น.</span>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "0.86rem", fontWeight: 700, color: "#2D2D2D", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.company}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-          <span style={{ fontSize: "0.65rem", fontWeight: 700, color: m.color, background: m.bg, borderRadius: 999, padding: "1px 9px" }}>{apptTypeLabel[a.type]}</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.72rem", color: MUTED }}><MapPin size={11} /> {a.province}</span>
-        </div>
-        {a.note && <div style={{ fontSize: "0.72rem", color: MUTED, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.note}</div>}
-      </div>
-    </div>
-  );
-}
-
 function ApptRow({ a, showDate, groupColor, onOpen }: { a: AppointmentMock; showDate?: boolean; groupColor?: string; onOpen?: () => void }) {
   const m = bucketMeta(a);
   const c = m.color;
@@ -742,5 +701,188 @@ function ApptRow({ a, showDate, groupColor, onOpen }: { a: AppointmentMock; show
         </div>
       </div>
     </div>
+  );
+}
+
+// ── ตารางช่องเวลา (มุมมองสัปดาห์/วัน · FLOW D7) ─────────────────────────────────────────────────────────────
+//   แถว = ชั่วโมง 07:00–19:00 (นัดก่อน/หลังช่วงอยู่แถวแรก/แถวท้าย) · คอลัมน์ = วัน · ช่องว่างกด = ลงนัดวัน+เวลานั้น
+const ชั่วโมง = Array.from({ length: 13 }, (_, i) => i + 7);
+const แถวของนัด = (a: AppointmentMock) => Math.min(19, Math.max(7, parseInt(a.time, 10) || 9));
+function ตารางช่องเวลา({ วัน, byDate, วันที่เลือก, onเลือกวัน, onเปิด, onลงนัด }: {
+  วัน: string[]; byDate: Record<string, AppointmentMock[]>; วันที่เลือก: string;
+  onเลือกวัน: (d: string) => void; onเปิด: (a: AppointmentMock) => void; onลงนัด: (date: string, time: string) => void;
+}) {
+  const cols = `52px repeat(${วัน.length}, minmax(0, 1fr))`;
+  return (
+    <div role="grid" aria-label="ช่องเวลานัดหมาย" style={{ display: "grid", gridTemplateColumns: cols, border: `1px solid ${BORDER}`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ background: "#f8fafc", borderBottom: `1px solid ${BORDER}` }} />
+      {วัน.map(date => {
+        const dt = parseYmd(date);
+        return (
+          <button key={date} type="button" onClick={() => onเลือกวัน(date)}
+            style={{ border: "none", borderBottom: `1px solid ${BORDER}`, borderLeft: `1px solid ${BORDER}`, padding: "6px 2px", cursor: "pointer", fontFamily: "inherit",
+              background: date === วันที่เลือก ? "#f4f8fc" : date === TODAY ? "#eef3f8" : "#f8fafc", textAlign: "center" }}>
+            <span style={{ display: "block", fontSize: "0.65rem", fontWeight: 700, color: MUTED }}>{THAI_DAYS[dt.getDay()]}</span>
+            <span style={{ display: "block", fontSize: "0.88rem", fontWeight: date === TODAY ? 800 : 700, color: date === TODAY ? PRIMARY : "#2D2D2D" }}>{dt.getDate()}</span>
+          </button>
+        );
+      })}
+      {ชั่วโมง.map(h => {
+        const hh = `${String(h).padStart(2, "0")}:00`;
+        return [
+          <div key={`t${h}`} style={{ fontSize: "0.66rem", fontWeight: 700, color: MUTED, padding: "6px 6px 0", borderTop: `1px solid ${BORDER}`, textAlign: "right" }}>{hh}</div>,
+          ...วัน.map(date => {
+            const ใน = (byDate[date] ?? []).filter(a => แถวของนัด(a) === h).sort((x, y) => x.time.localeCompare(y.time));
+            return (
+              <div key={`${date}-${h}`} data-slot={`${date}T${hh}`} style={{ minHeight: 40, borderTop: `1px solid ${BORDER}`, borderLeft: `1px solid ${BORDER}`, padding: 3,
+                display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+                {ใน.length > 0
+                  ? ใน.map(a => <WeekChip key={a.id} a={a} onOpen={() => onเปิด(a)} />)
+                  : <button type="button" aria-label={`ลงนัด ${parseYmd(date).getDate()} ${THAI_MONTHS[parseYmd(date).getMonth()]} เวลา ${hh}`} onClick={() => onลงนัด(date, hh)}
+                      className="slot-empty" style={{ flex: 1, minHeight: 32, border: "none", background: "transparent", cursor: "pointer", borderRadius: 6, color: "transparent", fontFamily: "inherit" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "#f4f8fc"; e.currentTarget.style.color = PRIMARY; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "transparent"; }}>
+                      <Plus size={12} />
+                    </button>}
+              </div>
+            );
+          }),
+        ];
+      })}
+    </div>
+  );
+}
+
+// ── สร้างนัดจากปฏิทิน (FLOW D7 · บอสสั่ง 3 พ.ย. 69) ─────────────────────────────────────────────────────────────
+//   ต้องเลือกลีดหรือลูกค้า (ค้นได้ · สาขาตัวเองเท่านั้น · ลีดที่ปิดแล้วไม่อยู่ในรายการ) — ฐานกันซ้ำ (ใบ 0274 appointments_link_guard)
+//   ประเภท 6 แบบเดิม (บอสเลือก ก) · ตัวสร้างเดียวกับแผงลีด (SalesContext.addAppointment) → ประวัติลีด + ติ๊กงาน "นัดหมาย" (ฐานทำเอง ใบ 0248)
+//   นัดของลูกค้า = ผูกลูกค้าอย่างเดียว ไม่ผูกลีดล่าสุดให้เอง
+type ผูกกับ = { kind: "lead"; id: number } | { kind: "customer"; id: number };
+function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultDate: string; defaultTime: string; onClose: () => void; onSaved: (a: AppointmentMock) => void }) {
+  const { session } = useRole();
+  const currentDealer = useCurrentDealer();
+  const { leads: allLeads, customers: allCustomers, addAppointment, newAppointmentId } = useSales();
+  const ลีด = useMemo(() => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code && l.status !== "PAID" && l.status !== "CANCELLED"),
+    [allLeads, currentDealer.code]);
+  const ลูกค้า = useMemo(() => allCustomers.filter(c => (c.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code), [allCustomers, currentDealer.code]);
+  const [ค้น, setค้น] = useState("");
+  const [เลือก, setเลือก] = useState<ผูกกับ | null>(null);
+  const [type, setType] = useState<ApptType | "">("");
+  const [date, setDate] = useState(defaultDate);
+  const [time, setTime] = useState(defaultTime);
+  const [location, setLocation] = useState("");
+  const [note, setNote] = useState("");
+  const [assigned, setAssigned] = useState(session.name);
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const ค = ค้น.trim().toLowerCase();
+  const ตรง = (...xs: (string | undefined)[]) => !ค || xs.some(x => (x ?? "").toLowerCase().includes(ค));
+  const ตัวเลือก = [
+    ...ลีด.filter(l => ตรง(l.company, l.contact, l.phone)).slice(0, 30).map(l => ({ k: `lead-${l.numId}`, ผูก: { kind: "lead", id: l.numId } as ผูกกับ, ชื่อ: l.company || l.name || "—", รอง: `ลูกค้าเป้าหมาย${l.contact ? ` · ${l.contact}` : ""}` })),
+    ...ลูกค้า.filter(c => ตรง(c.company, c.name, c.phone)).slice(0, 30).map(c => ({ k: `cus-${c.id}`, ผูก: { kind: "customer", id: c.id } as ผูกกับ, ชื่อ: c.company || c.name || "—", รอง: `ลูกค้า${c.name ? ` · ${c.name}` : ""}` })),
+  ];
+  const ลีดที่เลือก = เลือก?.kind === "lead" ? ลีด.find(l => l.numId === เลือก.id) : undefined;
+  const ลูกค้าที่เลือก = เลือก?.kind === "customer" ? ลูกค้า.find(c => c.id === เลือก.id) : undefined;
+  const ชื่อที่เลือก = ลีดที่เลือก ? (ลีดที่เลือก.company || ลีดที่เลือก.name) : ลูกค้าที่เลือก ? (ลูกค้าที่เลือก.company || ลูกค้าที่เลือก.name) : "";
+  function เลือกราย(x: ผูกกับ) {
+    setเลือก(x); setErr("");
+    const l = x.kind === "lead" ? ลีด.find(v => v.numId === x.id) : undefined;
+    if (l?.assigned) setAssigned(l.assigned);
+  }
+  async function save() {
+    if (savingRef.current) return;
+    if (!เลือก) { setErr("ต้องเลือกลูกค้าเป้าหมายหรือลูกค้า"); return; }
+    if (!type) { setErr("ต้องเลือกประเภทนัดหมาย"); return; }
+    if (!date || !time) { setErr("ต้องระบุวันที่และเวลา"); return; }
+    setErr(""); savingRef.current = true; setSaving(true);
+    try {
+      const a: AppointmentMock = {
+        id: await newAppointmentId(),
+        ...(ลีดที่เลือก ? { leadId: ลีดที่เลือก.numId } : { customerId: ลูกค้าที่เลือก!.id }),
+        company: ชื่อที่เลือก || "—",
+        contact: ลีดที่เลือก?.contact ?? ลูกค้าที่เลือก?.name ?? "", phone: ลีดที่เลือก?.phone ?? ลูกค้าที่เลือก?.phone ?? "",
+        province: ลีดที่เลือก?.province ?? ลูกค้าที่เลือก?.province ?? "",
+        project: apptTypeLabel[type], buildingType: "", area: ลีดที่เลือก?.area ?? 0,
+        location: location.trim(), date, time, type, assigned: assigned || session.name, status: "upcoming", note: note.trim(),
+      };
+      addAppointment(a);
+      onSaved(a);
+    } catch (e) { setErr(`บันทึกไม่สำเร็จ: ${(e as Error)?.message ?? e}`); }
+    finally { savingRef.current = false; setSaving(false); }
+  }
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 200 }} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 210, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, pointerEvents: "none" }}>
+        <ModalCard onClose={onClose} label="นัดหมายใหม่" className="card modal-fit-auto" style={{ width: "100%", maxWidth: 480, pointerEvents: "auto", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,51,102,.24)" }}>
+          <div style={{ background: PRIMARY, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontWeight: 800, color: "#fff", fontSize: "0.92rem" }}>นัดหมายใหม่</span>
+            <button onClick={onClose} aria-label="ปิด" style={{ background: "rgba(255,255,255,.15)", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
+          </div>
+          <div style={{ padding: 20, maxHeight: "70vh", overflowY: "auto" }}>
+            <div className="form-grid">
+              <div className="col-full">
+                <label className="form-label" htmlFor="na-search">ลูกค้าเป้าหมาย / ลูกค้า *</label>
+                {เลือก ? (
+                  <div data-picked={เลือก.kind} style={{ display: "flex", alignItems: "center", gap: 8, border: `1px solid ${BORDER}`, borderRadius: 9, padding: "8px 11px" }}>
+                    <span style={{ flex: 1, fontSize: "0.82rem", fontWeight: 700 }}>{ชื่อที่เลือก}</span>
+                    <span style={{ fontSize: "0.68rem", color: MUTED }}>{เลือก.kind === "lead" ? "ลูกค้าเป้าหมาย" : "ลูกค้า"}</span>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setเลือก(null)}>เปลี่ยน</button>
+                  </div>
+                ) : (
+                  <>
+                    <input id="na-search" className="form-input" value={ค้น} onChange={e => setค้น(e.target.value)} placeholder="พิมพ์ชื่อบริษัท ผู้ติดต่อ หรือเบอร์โทร" autoComplete="off" />
+                    <ul aria-label="ผลค้นหาลูกค้าเป้าหมายและลูกค้า" style={{ listStyle: "none", margin: "6px 0 0", padding: 0, maxHeight: 180, overflowY: "auto", border: `1px solid ${BORDER}`, borderRadius: 9 }}>
+                      {ตัวเลือก.length === 0 && <li style={{ padding: "10px 12px", fontSize: "0.76rem", color: MUTED }}>ไม่พบ — ลีดที่ปิดแล้วไม่อยู่ในรายการ</li>}
+                      {ตัวเลือก.map(o => (
+                        <li key={o.k}>
+                          <button type="button" onClick={() => เลือกราย(o.ผูก)} style={{ width: "100%", textAlign: "left", border: "none", borderBottom: `1px solid ${BORDER}`, background: "#fff", padding: "8px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+                            <span style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D" }}>{o.ชื่อ}</span>
+                            <span style={{ display: "block", fontSize: "0.68rem", color: MUTED }}>{o.รอง}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+              <div>
+                <label className="form-label" htmlFor="na-type">ประเภท *</label>
+                <select id="na-type" value={type} onChange={e => setType(e.target.value as ApptType | "")} className="form-select">
+                  <option value="">— ยังไม่ระบุ —</option>
+                  {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label" htmlFor="na-assigned">ผู้รับผิดชอบ</label>
+                <PersonPicker value={assigned} onChange={setAssigned} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="na-date">วันที่ *</label>
+                <input id="na-date" type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="na-time">เวลา *</label>
+                <input id="na-time" type="time" value={time} onChange={e => setTime(e.target.value)} className="form-input" />
+              </div>
+              <div className="col-full">
+                <label className="form-label" htmlFor="na-location">สถานที่</label>
+                <input id="na-location" value={location} onChange={e => setLocation(e.target.value)} maxLength={200} className="form-input" />
+              </div>
+              <div className="col-full">
+                <label className="form-label" htmlFor="na-note">บันทึก</label>
+                <input id="na-note" value={note} onChange={e => setNote(e.target.value)} maxLength={500} className="form-input" />
+              </div>
+            </div>
+          </div>
+          <div style={{ padding: "13px 20px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center", background: "#fafafa" }}>
+            {err && <div role="alert" style={{ marginRight: "auto", color: "#dc2626", fontSize: "0.74rem", fontWeight: 600 }}>{err}</div>}
+            <button onClick={onClose} className="btn btn-secondary btn-md">ยกเลิก</button>
+            <button onClick={() => void save()} disabled={saving} className="btn btn-primary btn-md" style={saving ? { opacity: .6, cursor: "not-allowed" } : undefined}><Plus size={13} /> บันทึกนัดหมาย</button>
+          </div>
+        </ModalCard>
+      </div>
+    </>
   );
 }

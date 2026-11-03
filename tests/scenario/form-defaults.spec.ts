@@ -22,7 +22,9 @@ test("[ui·dealer] ลงนัด: ปฏิทินไม่มีปุ่�
   try {
     await openAs(page, RYG, "dealer", "/calendar");
     await settle(page);
-    await expect(page.getByRole("button", { name: "เพิ่มกิจกรรม" }), "ปฏิทินไม่มีปุ่มเพิ่มกิจกรรมแล้ว").toHaveCount(0);
+    // FLOW D7 เปลี่ยน 3 พ.ย. 69: ปฏิทินสร้างนัดได้อีกทาง (ปุ่ม "+ นัดหมาย") — กลับด้านจากข้อเดิม "ปฏิทินไม่มีปุ่ม" · ปุ่มเดิม "เพิ่มกิจกรรม" ยังไม่มี
+    await expect(page.getByRole("button", { name: "นัดหมาย", exact: true }), "ปฏิทินมีปุ่ม + นัดหมาย").toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "เพิ่มกิจกรรม" }), "ไม่มีปุ่มเดิม เพิ่มกิจกรรม").toHaveCount(0);
 
     await page.goto(page.url().replace(/\/calendar.*$/, "/leads"), { waitUntil: "domcontentloaded" });
     await settle(page);

@@ -194,10 +194,10 @@ begin
   update quotations set status = 'sent_to_client' where dealer_code = 'CNX' and id = q;
   perform ntest.as_db();
   perform ntest.ok((select expiry from quotations where dealer_code = 'CNX' and id = q) = (วันนี้ + 1)::text, '7) เตรียมใบส่งลูกค้าหมดอายุพรุ่งนี้');
-  -- D5 นัดหมายวันนี้ · นัดที่ทำแล้วไม่แจ้ง
-  insert into appointments (id, dealer_code, company, date, time, type, status, note)
-  values (-9101, 'CNX', 'ZZTEST-นัดวันนี้', วันนี้::text, '10:30', 'follow_up', 'upcoming', ''),
-         (-9102, 'CNX', 'ZZTEST-นัดเสร็จแล้ว', วันนี้::text, '11:00', 'visit', 'done', '');
+  -- D5 นัดหมายวันนี้ · นัดที่ทำแล้วไม่แจ้ง — นัดต้องผูกลีดของสาขา (ใบ 0274) จึงผูกกับลีดของข้อนี้
+  insert into appointments (id, dealer_code, lead_id, company, date, time, type, status, note)
+  values (-9101, 'CNX', ntest.lead('ZZTEST-ลีดของนัดวันนี้'), 'ZZTEST-นัดวันนี้', วันนี้::text, '10:30', 'follow_up', 'upcoming', ''),
+         (-9102, 'CNX', ntest.lead('ZZTEST-ลีดของนัดเสร็จแล้ว'), 'ZZTEST-นัดเสร็จแล้ว', วันนี้::text, '11:00', 'visit', 'done', '');
   -- H3 คำขอค้างเกินกำหนด 2 รายการ → สรุปเรื่องเดียว
   perform ntest.as_dealer();
   rid := (public.quote_request_submit(ntest.lead('ZZTEST-ค้าง-1'), 'โกดังสำเร็จรูป')).id;

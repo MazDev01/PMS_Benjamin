@@ -90,7 +90,9 @@ test("[H9x] [ui·hq] แต่ละสถานะในช่องเลื�
   // ลำดับ + ป้ายจากฐาน: เกินกำหนดบนสุด
   await expect(รายการ(page).getByRole("button")).toHaveCount(2);
   await expect(รายการ(page).getByRole("button").first()).toContainText(ของ("A").บริษัท);
-  await expect(แถวของ(page, "A")).toContainText("เกิน 14 วัน");
+  // ป้ายเดียว "เกินกำหนด X วัน" (บอสสั่ง 3 พ.ย. 69 · เดิม "เกิน 14 วัน" ซ้ำกับ "กำหนดส่ง เกิน X วัน")
+  await expect(แถวของ(page, "A").getByTestId("row-tag")).toHaveText("เกินกำหนด 1 วัน");
+  await expect(แถวของ(page, "A")).not.toContainText("เกิน 14 วัน");
   await expect(แถวของ(page, "B")).toContainText("ใหม่");
   await เลือกกลุ่มคำขอ(page, "done");
   await expect(แถวของ(page, "E")).toContainText("ยกเลิก");

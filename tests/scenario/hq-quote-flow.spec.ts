@@ -108,7 +108,8 @@ test("[H8] [flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายกา�
   await expect(row.getByText("ได้ใบ HQ", { exact: true }), "ยังไม่ส่ง = ยังไม่ถึงขั้น 3 ได้ใบ HQ").toHaveCount(0);
   await row.locator("td").first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-  await expect(page.locator("[data-panel='quote-request']").getByText("กำลังทำราคา", { exact: true })).toBeVisible({ timeout: 20_000 });
+  // ชื่อสถานะตาม FLOW ฝั่งดีลเลอร์ด้วย (บอสสั่ง 3 พ.ย. 69 · เดิม "กำลังทำราคา")
+  await expect(page.locator("[data-panel='quote-request']").getByText("กำลังตีราคา", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("[data-panel='hq-quote']"), "ยังไม่ส่ง = ดีลเลอร์ไม่เห็นใบ HQ").toHaveCount(0);
   assertNoErrors(errs, "ทำ BOQ และบันทึกร่าง");
 });

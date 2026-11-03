@@ -49,6 +49,9 @@ insert into hq_quotes (id, request_id, version, quote_no, status, line_items, to
   (9702, 9505, 1, 'HQ-QB-5', 'sent',    '[]', 100000, current_date + 5,          now() - interval '2 days', null),
   (9703, 9506, 1, 'HQ-QB-6', 'sent',    '[]', 200000, current_date + 20,         now() - interval '1 day',  null),
   (9704, 9507, 1, 'HQ-QB-7', 'ordered', '[]', 300000, current_date - 1,          now() - interval '20 days', now() - interval '1 day');
+-- ร่างใบ HQ ของ QB-3 แก้ล่าสุด 3 วันก่อน (ใบ 0274 · "ร่างล่าสุด X วันก่อน") — ตัวดักเวลาแก้ไม่ทำงานในโหมดนี้ ค่าคงตามที่ตั้ง
+update hq_quotes set updated_at = now() - interval '3 days' where id = 9701;
+update hq_quotes set updated_at = now() - interval '1 hour' where id = 9702;
 set local session_replication_role = origin;
 
 do $$
@@ -68,11 +71,17 @@ begin
   perform flowtest.ok((b->'rows'->0->>'waiting_days')::int = 20, 'รอมาแล้ว 20 วัน (นับจากวันส่งคำขอ)');
   perform flowtest.ok(b->'rows'->0->>'lead_company' = 'ZZQB ล1' and b->'rows'->0->>'dealer_name' <> '', 'แถวมีชื่อลูกค้าเป้าหมายและชื่อดีลเลอร์');
   perform flowtest.ok(b->'rows'->1->>'hq_status' = 'draft', 'แถวร่างค้างบอกสถานะใบ HQ = draft');
+  -- ใบ 0274: วันแก้ร่างล่าสุดจากฐาน — มีร่าง = เวลาแก้ร่าง · ไม่มีใบ HQ (QB-1 กำลังตีราคา ยังไม่มีร่าง) / ใหม่ = ว่าง (หน้าจอขึ้น "—")
+  perform flowtest.ok(abs(extract(epoch from (b->'rows'->1->>'draft_updated_at')::timestamptz - (now() - interval '3 days'))) < 5,
+                      'ร่างล่าสุด = เวลาแก้ร่างใบ HQ (3 วันก่อน) — ได้ ' || coalesce(b->'rows'->1->>'draft_updated_at', 'ว่าง'));
+  perform flowtest.ok(b->'rows'->0 ? 'draft_updated_at' and b->'rows'->0->'draft_updated_at' = 'null'::jsonb
+                      and b->'rows'->3->'draft_updated_at' = 'null'::jsonb, 'ยังไม่มีร่าง = ว่าง (ไม่เดา)');
 
   -- รอดีลเลอร์: ราคาใกล้หมดอายุก่อน · สั่งผลิต · ปิด: ปิดล่าสุดก่อน
   b := hq_quote_board('quoted', '');
   perform flowtest.ok(flowtest.ids(b) = array[9505, 9506], 'รอดีลเลอร์ เรียงราคาใกล้หมดอายุก่อน — ได้ ' || flowtest.ids(b)::text);
   perform flowtest.ok(flowtest.tags(b) = array['quoted', 'quoted'], 'ป้ายรอดีลเลอร์ = quoted');
+  perform flowtest.ok(b->'rows'->0->'draft_updated_at' = 'null'::jsonb, 'ใบที่ส่งแล้วไม่ใช่ร่าง = ไม่มีวันร่างล่าสุด (แม้ใบเพิ่งแก้)');
   b := hq_quote_board('won', '');
   perform flowtest.ok(flowtest.ids(b) = array[9507], 'สั่งผลิต 1 แถว');
   b := hq_quote_board('closed', '');

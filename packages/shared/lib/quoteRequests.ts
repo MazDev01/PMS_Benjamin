@@ -44,7 +44,7 @@ export type QuoteRequest = {
 
 export const quoteRequestStatusLabel: Record<QuoteRequestStatus, string> = {
   new: "ใหม่",
-  pricing: "กำลังทำราคา",
+  pricing: "กำลังตีราคา",   // ชื่อตาม FLOW (บอสสั่ง 3 พ.ย. 69 · เลิกใช้ "กำลังทำราคา")
   quoted: "ส่งใบแล้ว",
   won: "ปิด (ได้งาน)",
   lost: "ปิด (ไม่ได้งาน)",
@@ -218,9 +218,11 @@ export const กลุ่มของคำขอ = (status: string): QuoteBoard
 export type QuoteBoardTag = "overdue" | "reprice" | "draft" | "new" | "pricing" | "quoted" | "won" | "lost" | "cancelled" | "superseded";
 /** ป้ายของแถวในกล่องงาน — ข้อความ + สี (สีแยกด้วยความสว่าง ไม่ใช่สีอย่างเดียว) */
 export const quoteBoardTag: Record<QuoteBoardTag, { label: string; color: string; bar: string; bg: string }> = {
-  overdue:    { label: "เกิน 14 วัน",   color: "#b91c1c", bar: "#b91c1c", bg: "#fff7f7" },
+  // เกินกำหนด = ป้ายเดียว "เกินกำหนด X วัน" (บอสสั่ง 3 พ.ย. 69 · เลิก "เกิน 14 วัน" ที่ซ้ำกับนับวันกำหนดส่ง) — จำนวนวันใช้ ป้ายเกินกำหนด()
+  overdue:    { label: "เกินกำหนด",     color: "#b91c1c", bar: "#b91c1c", bg: "#fff7f7" },
   reprice:    { label: "ขอแก้ราคา",    color: "#1d4ed8", bar: "#1d4ed8", bg: "#ffffff" },
-  draft:      { label: "ร่างค้าง",      color: "#92400e", bar: "#d97706", bg: "#ffffff" },
+  // มีร่างใบ HQ = สถานะ "กำลังตีราคา" ตาม FLOW (บอสสั่ง 3 พ.ย. 69 · เลิกใช้ "ร่างค้าง") · แถบสีคงไว้ให้เห็นว่ามีร่าง
+  draft:      { label: "กำลังตีราคา",   color: "#92400e", bar: "#d97706", bg: "#ffffff" },
   new:        { label: "ใหม่",          color: "#52606d", bar: "transparent", bg: "#ffffff" },
   pricing:    { label: "กำลังตีราคา",   color: "#92400e", bar: "transparent", bg: "#ffffff" },
   quoted:     { label: "รอดีลเลอร์",    color: "#003366", bar: "transparent", bg: "#ffffff" },
@@ -232,5 +234,20 @@ export const quoteBoardTag: Record<QuoteBoardTag, { label: string; color: string
 export type QuoteBoardRow = QuoteRequest & {
   dealerName: string; leadCompany: string; hqStatus: HqQuoteStatus | null; quoteNo: string | null;
   validUntil: string | null; waitingDays: number; tag: QuoteBoardTag;
+  /** วันแก้ร่างใบ HQ ล่าสุด (ฐานคิด · ใบ 0274) — ไม่มีร่าง = null → "ร่างล่าสุด —" */
+  draftUpdatedAt?: string | null;
 };
+/** ป้ายแถวที่เลยกำหนดส่ง: "เกินกำหนด X วัน" / "เกินกำหนดวันนี้" (นับแบบเดียวกับ เหลือหรือเกิน) */
+export function ป้ายเกินกำหนด(dueAt: string | null | undefined, now = Date.now()): string {
+  const t = เหลือหรือเกิน(dueAt, now);
+  return t.startsWith("เกิน ") ? `เกินกำหนด ${t.slice(5)}` : t === "เกินกำหนดวันนี้" ? t : "เกินกำหนด";
+}
+/** บรรทัดล่างของแถวกำลังตีราคา: "ร่างล่าสุด X วันก่อน" / "ร่างล่าสุด วันนี้" · ไม่มีข้อมูล = "ร่างล่าสุด —" (ห้ามเดา) — นับวันตามปฏิทินเวลาไทย */
+export function ร่างล่าสุด(iso: string | null | undefined, now = Date.now()): string {
+  const t = iso ? new Date(iso).getTime() : NaN;
+  if (Number.isNaN(t)) return "ร่างล่าสุด —";
+  const วัน = (ms: number) => Math.floor((ms + 7 * 3_600_000) / 86_400_000);
+  const ห่าง = วัน(now) - วัน(t);
+  return ห่าง <= 0 ? "ร่างล่าสุด วันนี้" : `ร่างล่าสุด ${ห่าง} วันก่อน`;
+}
 export type QuoteBoard = { counts: Record<QuoteBoardGroup, number> & { overdue: number }; rows: QuoteBoardRow[] };

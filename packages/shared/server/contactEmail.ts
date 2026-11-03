@@ -106,3 +106,89 @@ export async function ยืนยันอีเมลแทนดีลเล�
   if (meta.must_verify_email) await admin.auth.admin.updateUserById(String(บัญชี.id), { app_metadata: { ...meta, must_verify_email: false } });
   return { ok: true, email: String(บัญชี.contact_email).trim().toLowerCase() };
 }
+
+// ── อีเมลผู้รับแจ้งเตือนของสาขา (รายการ · ใบ 0274 · บอสสั่ง 3 พ.ย. 69) ─────────────────────────────────────────
+//   เพิ่ม/ลบรายการ = คำสั่งของฐาน (dealer_notify_recipient_add/remove ในนามผู้ใช้) · ยืนยันด้วยโค้ด = ที่นี่ (กุญแจฝั่งเซิร์ฟเวอร์)
+//   ยืนยันแล้วเท่านั้นที่ได้รับแจ้งเตือน (_dealer_notify_emails) · ผู้ใช้ตั้ง "ยืนยันแล้ว" เองไม่ได้ (ตัวดักที่ฐาน)
+const แฮชผู้รับ = (id: number, code: string) => createHash("sha256").update(`notify-recipient:${id}:${code}`).digest("hex");
+
+async function ผู้รับของสาขา(admin: SupabaseClient, dealerCode: string, id: number) {
+  const { data, error } = await admin.from("dealer_notify_recipients").select("id, dealer_code, email, verified_at").eq("id", id).maybeSingle();
+  if (error) return { ok: false as const, status: 503, error: "อ่านรายชื่อผู้รับไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  // ของสาขาอื่น = ตอบเหมือนไม่มี (ไม่บอกว่ามีอยู่)
+  if (!data || String(data.dealer_code) !== dealerCode) return { ok: false as const, status: 404, error: "ไม่พบอีเมลนี้ในรายชื่อของสาขา" };
+  return { ok: true as const, row: { id: Number(data.id), email: String(data.email), verified: !!data.verified_at } };
+}
+
+/** ส่งโค้ด 6 หลักไปที่อีเมลในรายชื่อ (ยังไม่ยืนยัน) — ส่งซ้ำได้ทุก 60 วินาที */
+export async function ส่งโค้ดผู้รับแจ้งเตือน(admin: SupabaseClient, who: { dealerCode: string }, id: number): Promise<ผลส่งโค้ด> {
+  const r = await ผู้รับของสาขา(admin, who.dealerCode, id);
+  if (!r.ok) return r;
+  if (r.row.verified) return { ok: false, status: 400, error: "อีเมลนี้ยืนยันแล้ว" };
+  const { data: เดิม } = await admin.from("dealer_notify_recipient_codes").select("sent_at").eq("recipient_id", id).maybeSingle();
+  if (เดิม?.sent_at) {
+    const ผ่านไป = (Date.now() - new Date(String(เดิม.sent_at)).getTime()) / 1000;
+    if (ผ่านไป < ส่งใหม่ได้หลังวินาที) return { ok: false, status: 429, error: `เพิ่งส่งโค้ดไป — ขอโค้ดใหม่ได้อีกครั้งใน ${Math.ceil(ส่งใหม่ได้หลังวินาที - ผ่านไป)} วินาที` };
+  }
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const { error: codeErr } = await admin.from("dealer_notify_recipient_codes").upsert({
+    recipient_id: id, code_hash: แฮชผู้รับ(id, code), attempts: 0,
+    expires_at: new Date(Date.now() + อายุโค้ดนาที * 60_000).toISOString(), sent_at: new Date().toISOString(),
+  });
+  if (codeErr) return { ok: false, status: 503, error: "สร้างโค้ดยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  const { data: จดหมาย, error: mailErr } = await admin.from("email_outbox").insert({
+    kind: "notify_recipient_verify", to_email: r.row.email, ref_table: "dealer_notify_recipients", ref_id: String(id),
+    subject: `โค้ดยืนยันอีเมลรับแจ้งเตือน Benjamin PMS: ${code}`,
+    body: `โค้ดยืนยันอีเมลรับแจ้งเตือนของดีลเลอร์ ${who.dealerCode} คือ ${code}\n\nกรอกโค้ดนี้ในหน้า ตั้งค่า › การแจ้งเตือน ภายใน ${อายุโค้ดนาที} นาที\n`
+      + "ยืนยันแล้วอีเมลนี้จะได้รับแจ้งเตือนจากระบบ เช่น เมื่อสำนักงานใหญ่ส่งราคาให้\n"
+      + "ถ้าไม่ได้ขอโค้ดนี้ ไม่ต้องทำอะไร",
+  }).select("id").single();
+  if (mailErr || !จดหมาย) return { ok: false, status: 503, error: "ส่งโค้ดไม่สำเร็จ — ลองกด “ส่งโค้ด” อีกครั้ง" };
+  const ผล = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin, Number(จดหมาย.id)), await ตัวส่งSMTP(), 1);
+  if (ผล.ส่งแล้ว !== 1) {
+    if (ผล.ข้าม) console.warn(`[notify-recipient] ${ผล.ข้าม}`);
+    return { ok: false, status: 503, error: "ระบบส่งอีเมลขัดข้อง ส่งโค้ดไม่สำเร็จ — ลองกด “ส่งโค้ด” อีกครั้งภายหลัง" };
+  }
+  return { ok: true, sentTo: r.row.email };
+}
+
+/** ตรวจโค้ด → ถูกต้อง = อีเมลนี้ยืนยันแล้ว (เริ่มรับแจ้งเตือน) · นับครั้งก่อนเทียบทุกครั้ง · โค้ดใช้ได้ครั้งเดียว */
+export async function ยืนยันโค้ดผู้รับแจ้งเตือน(admin: SupabaseClient, who: { dealerCode: string }, id: number, code: string)
+  : Promise<{ ok: true; email: string } | { ok: false; status: number; error: string }> {
+  const r = await ผู้รับของสาขา(admin, who.dealerCode, id);
+  if (!r.ok) return r;
+  if (r.row.verified) return { ok: true, email: r.row.email };
+  const { data: แถว } = await admin.from("dealer_notify_recipient_codes").select("code_hash, expires_at, attempts").eq("recipient_id", id).maybeSingle();
+  if (!แถว) return { ok: false, status: 400, error: "ยังไม่ได้ขอโค้ด หรือโค้ดถูกใช้ไปแล้ว — กด “ส่งโค้ด” ก่อน" };
+  if (new Date(String(แถว.expires_at)).getTime() < Date.now()) return { ok: false, status: 400, error: "โค้ดหมดอายุแล้ว — กด “ส่งโค้ด” ใหม่" };
+  if (Number(แถว.attempts) >= ลองโค้ดได้) return { ok: false, status: 429, error: "กรอกโค้ดผิดหลายครั้งเกินไป — กด “ส่งโค้ด” ใหม่" };
+  const { data: นับแล้ว, error: นับErr } = await admin.from("dealer_notify_recipient_codes")
+    .update({ attempts: Number(แถว.attempts) + 1 }).eq("recipient_id", id).eq("attempts", Number(แถว.attempts)).select("attempts");
+  if (นับErr || !นับแล้ว?.length) return { ok: false, status: 503, error: "ตรวจโค้ดไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  if (แฮชผู้รับ(id, code.trim()) !== แถว.code_hash) return { ok: false, status: 400, error: "โค้ดไม่ถูกต้อง" };
+  const { data: ลบแล้ว, error: ลบErr } = await admin.from("dealer_notify_recipient_codes").delete().eq("recipient_id", id).select("recipient_id");
+  if (ลบErr || !ลบแล้ว?.length) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  const { error } = await admin.from("dealer_notify_recipients").update({ verified_at: new Date().toISOString() }).eq("id", id);
+  if (error) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — กด “ส่งโค้ด” แล้วลองอีกครั้ง" };
+  return { ok: true, email: r.row.email };
+}
+
+export type ผลอีเมลทดสอบ = { email: string; ok: boolean; error?: string };
+
+/** ส่งอีเมลทดสอบถึงทุกอีเมลในรายชื่อ — ส่งทันทีทีละฉบับ แล้วบอกผลรายอีเมล (ไม่มีผู้รับ = รายการว่าง) */
+export async function ส่งอีเมลทดสอบ(admin: SupabaseClient, รายชื่อ: string[], ฝั่ง: string): Promise<ผลอีเมลทดสอบ[]> {
+  const ตัวส่ง = await ตัวส่งSMTP();
+  const ผล: ผลอีเมลทดสอบ[] = [];
+  for (const email of [...new Set(รายชื่อ.map(e => e.trim().toLowerCase()).filter(Boolean))]) {
+    if (!ตัวส่ง) { ผล.push({ email, ok: false, error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ส่งอีเมล" }); continue; }
+    const { data: จดหมาย, error } = await admin.from("email_outbox").insert({
+      kind: "notify_test", to_email: email, ref_table: "notify_test", ref_id: ฝั่ง,
+      subject: "อีเมลทดสอบการแจ้งเตือน Benjamin PMS",
+      body: `อีเมลนี้ส่งจากปุ่ม “ส่งอีเมลทดสอบ” ในหน้า ตั้งค่า › การแจ้งเตือน (${ฝั่ง})\n\nได้รับอีเมลนี้ = อีเมลแจ้งเตือนของระบบส่งถึงที่อยู่นี้ได้\nไม่ต้องตอบกลับ`,
+    }).select("id").single();
+    if (error || !จดหมาย) { ผล.push({ email, ok: false, error: "วางจดหมายไม่สำเร็จชั่วคราว" }); continue; }
+    const r = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin, Number(จดหมาย.id)), ตัวส่ง, 1);
+    ผล.push(r.ส่งแล้ว === 1 ? { email, ok: true } : { email, ok: false, error: "เซิร์ฟเวอร์อีเมลไม่รับ — ตรวจที่อยู่อีเมลหรือลองใหม่ภายหลัง" });
+  }
+  return ผล;
+}

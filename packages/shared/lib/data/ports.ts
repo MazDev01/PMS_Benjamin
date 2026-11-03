@@ -10,7 +10,7 @@ import type { HQRecruitSettings } from "../recruitSettings";
 import type {
   DealerRow, DealerFile, ResponsiblePerson,
   HQPolicy, HQTargets, HQNotifRules, LeadRules, DealerLeadRulesMap, LeadTaskDef,
-  AuditEntry, AppNotification, LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope,
+  AuditEntry, AppNotification, NotificationPref, NotifyRecipient, NotifyTestResult, LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope,
   DealerSettings, UserProfile, HQCompany, CustomerNote, SystemUser,
 } from "./types";
 
@@ -301,6 +301,11 @@ export interface AccountRepo {
   /** ฝั่งสำนักงานใหญ่: สถานะอีเมลติดต่อของดีลเลอร์ / ยืนยันแทน */
   contactEmailOf(dealerCode: string): Promise<{ contactEmail: string; verified: boolean }>;
   verifyContactEmailFor(dealerCode: string): Promise<{ verified: true; contactEmail: string }>;
+  /** อีเมลผู้รับแจ้งเตือน (ใบ 0274): ส่งโค้ด / ยืนยันโค้ด — ฝั่งเซิร์ฟเวอร์ตั้ง "ยืนยันแล้ว" */
+  sendNotifyRecipientCode(id: number): Promise<{ sentTo: string }>;
+  verifyNotifyRecipient(id: number, code: string): Promise<{ verified: true }>;
+  /** ส่งอีเมลทดสอบ — ดีลเลอร์: ทุกอีเมลที่ยืนยันแล้วของสาขา · HQ (hq: true): ทุกอีเมลในรายชื่อผู้รับของ HQ ที่บันทึกแล้ว */
+  sendNotifyTest(opts?: { hq?: boolean }): Promise<NotifyTestResult[]>;
 
   // ── ดูรหัสผ่านของตัวเอง โดยยืนยันด้วยเลขที่ส่งไปทางอีเมล (บอสสั่ง 1 ก.ย. 69) ──
   //
@@ -318,6 +323,15 @@ export interface AccountRepo {
 export interface NotificationsRepo {
   /** ล่าสุดก่อน สูงสุด `limit` เรื่อง */
   list(limit?: number): Promise<AppNotification[]>;
+  /** ค่าตั้งรายเรื่องของฝั่งผู้เรียก (ใบ 0274) — HQ = เรื่องของ HQ · ดีลเลอร์ = เรื่องของดีลเลอร์ (สาขาตัวเอง) */
+  prefs(): Promise<NotificationPref[]>;
+  /** เปิด/ปิดกระดิ่ง·อีเมลของเรื่องหนึ่ง — ฐานกันเรื่องจำเป็น/สิทธิ์/ฝั่ง · คืนตารางทั้งชุดหลังบันทึก */
+  setPref(kind: string, bell: boolean, email: boolean): Promise<NotificationPref[]>;
+  /** อีเมลผู้รับแจ้งเตือนของสาขา — ดีลเลอร์ = สาขาตัวเอง (ไม่ส่ง) · HQ = สาขาที่ระบุ (แผงดีลเลอร์) */
+  recipients(dealerCode?: string): Promise<NotifyRecipient[]>;
+  /** ดีลเลอร์เพิ่มอีเมล (เริ่มที่รอยืนยัน) — ฐานตรวจรูปแบบ/ซ้ำ/เกิน 5/อีเมลเข้าระบบ */
+  addRecipient(email: string): Promise<NotifyRecipient>;
+  removeRecipient(id: number): Promise<void>;
 }
 
 export interface AuditRepo {

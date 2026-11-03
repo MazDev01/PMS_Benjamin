@@ -9,6 +9,7 @@
 //   ฝั่งเซิร์ฟเวอร์ตรวจว่าใบผ่านนี้เป็นของสาขานั้นจริงก่อนทำอะไร — ไม่เชื่อรหัสสาขาที่ส่งมา
 
 import type { AccountChangeResult, AccountRepo, AccountRequest, AccountState } from "./ports";
+import type { NotifyTestResult } from "./types";
 import { getAccessToken } from "./supabase/client";
 import { DATA_SOURCE } from "./config";
 
@@ -97,6 +98,14 @@ export const accountRemote: AccountRepo = {
     ยิง<{ contactEmail: string; verified: boolean }>(`/api/admin/dealers/contact-email?code=${encodeURIComponent(dealerCode)}`),
   verifyContactEmailFor: (dealerCode) =>
     ยิง<{ verified: true; contactEmail: string }>(`/api/admin/dealers/contact-email?code=${encodeURIComponent(dealerCode)}`, { method: "POST" }),
+  // อีเมลผู้รับแจ้งเตือน (ใบ 0274)
+  sendNotifyRecipientCode: (id) =>
+    ยิง<{ sentTo: string }>("/api/account", { method: "POST", body: JSON.stringify({ op: "notify-recipient-send", id }) }),
+  verifyNotifyRecipient: (id, code) =>
+    ยิง<{ verified: true }>("/api/account", { method: "POST", body: JSON.stringify({ op: "notify-recipient-verify", id, code }) }),
+  sendNotifyTest: (opts) => (opts?.hq
+    ? ยิง<{ results: NotifyTestResult[] }>("/api/admin/notify-test", { method: "POST" })
+    : ยิง<{ results: NotifyTestResult[] }>("/api/account", { method: "POST", body: JSON.stringify({ op: "notify-test" }) })).then(r => r.results),
 
   // ดูรหัสผ่านของตัวเอง: ขอเลขทางอีเมลก่อน แล้วเอาเลขนั้นมายืนยัน (บอสสั่ง 1 ก.ย. 69)
   sendRevealCode: () =>

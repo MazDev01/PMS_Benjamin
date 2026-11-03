@@ -125,7 +125,9 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   await ใบ.getByLabel("ต้นทุนต่อหน่วย 1").fill("1000");
   await ใบ.getByRole("button", { name: "บันทึกร่าง" }).click();
   await expect.poll(async () => (await คำขอล่าสุด()).status, { timeout: 20_000, message: "บันทึกร่าง = รับเรื่อง" }).toBe("pricing");
-  await expect(แถว).toContainText("ร่างค้าง", { timeout: 20_000 });
+  // ชื่อสถานะตาม FLOW (บอสสั่ง 3 พ.ย. 69 · เลิกใช้ "ร่างค้าง") · แถวบอกวันแก้ร่างล่าสุดจากฐาน
+  await expect(แถว).toContainText("กำลังตีราคา", { timeout: 20_000 });
+  await expect(แถว.getByTestId("row-draft-age"), "แถวกำลังตีราคาบอกวันแก้ร่างล่าสุด").toHaveText("ร่างล่าสุด วันนี้");
   expect(await สถานะลูกค้าเป้าหมาย(), "HQ รับเรื่อง ลูกค้าเป้าหมายคงเดิม").toBe("HQ_PRICING");
 
   const { id } = await คำขอล่าสุด();
@@ -133,7 +135,10 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   await page.reload({ waitUntil: "domcontentloaded" });
   await settle(page);
   const { แถว: แถวใหม่ } = await เปิดใบHQในกล่องงาน(page, COMPANY);
-  await expect(แถวใหม่.getByText("เกิน 14 วัน"), "เลยกำหนดส่ง → ป้ายแดง").toBeVisible({ timeout: 30_000 });
+  // ป้ายแดงป้ายเดียว "เกินกำหนด…" (บอสสั่ง 3 พ.ย. 69) — ไม่มี "เกิน 14 วัน" ซ้ำ · บรรทัดล่างไม่บอกกำหนดส่งซ้ำ
+  await expect(แถวใหม่.getByTestId("row-tag"), "เลยกำหนดส่ง → ป้ายแดง").toHaveText(/^เกินกำหนด/, { timeout: 30_000 });
+  await expect(แถวใหม่, "ไม่มีป้ายเกิน 14 วันซ้ำ").not.toContainText("เกิน 14 วัน");
+  await expect(แถวใหม่.getByTestId("row-countdown"), "บรรทัดล่างไม่บอกกำหนดส่งซ้ำ").toHaveCount(0);
   assertNoErrors(errs, "กล่องงานคำขอของ HQ");
 });
 

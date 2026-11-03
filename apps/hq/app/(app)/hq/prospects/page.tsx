@@ -64,6 +64,7 @@ import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
+import { ช่องทางติดต่อเริ่มต้น } from "@pms/shared/lib/recruitSettings";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 
 const PRIMARY = "#003366";
@@ -610,19 +611,8 @@ export default function HQProspectsPage() {
         </div>
         <div>
           <label className="form-label" htmlFor="pr-type">ประเภทธุรกิจ</label>
-          {/* ตั้งรายการไว้แล้ว = เลือกจากรายการ (นับ/กรองได้ตรงกัน) · ยังไม่ตั้ง = พิมพ์เองเหมือนเดิม
-              ค่าเดิมที่ไม่อยู่ในรายการต้องยังเห็น ไม่หายเงียบตอนเปิดมาแก้ */}
-          {ค่าตั้ง.businessTypes.length ? (
-            <select id="pr-type" className="form-select" value={ร่าง.businessType ?? ""} onChange={e => ตั้งค่า("businessType", e.target.value || null)} style={{ cursor: "pointer" }}>
-              <option value="">— ยังไม่ระบุ —</option>
-              {ค่าตั้ง.businessTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              {ร่าง.businessType && !ค่าตั้ง.businessTypes.includes(ร่าง.businessType) && (
-                <option value={ร่าง.businessType}>{ร่าง.businessType} (ตามที่บันทึกไว้)</option>
-              )}
-            </select>
-          ) : (
-            <input id="pr-type" className="form-input" value={ร่าง.businessType ?? ""} onChange={e => ตั้งค่า("businessType", e.target.value)} placeholder="เช่น ผู้รับเหมา / ขายเหล็ก / สถาปนิก" />
-          )}
+          {/* พิมพ์เอง (บอสสั่ง 3 พ.ย. 69 · ตาม FLOW H2) — รายการประเภทธุรกิจในหน้าตั้งค่าเอาออกแล้ว · ค่าเดิมแสดงตามที่บันทึก */}
+          <input id="pr-type" className="form-input" value={ร่าง.businessType ?? ""} onChange={e => ตั้งค่า("businessType", e.target.value)} placeholder="เช่น ผู้รับเหมา / ขายเหล็ก / สถาปนิก" />
         </div>
         <div>
           <label className="form-label" htmlFor="pr-assigned">ผู้ดูแล (สำนักงานใหญ่)</label>
@@ -969,7 +959,7 @@ export default function HQProspectsPage() {
                       setFormOpen={setฟอร์มติดต่อเปิด}
                       onReload={() => void โหลดของราย(ราย.id)}
                       onAdded={() => void รีเฟรชรายที่เปิด()}
-                      ช่องทาง={ค่าตั้ง.contactChannels}
+                      ช่องทาง={ช่องทางติดต่อเริ่มต้น}
                     />
                   )}
 

@@ -8,8 +8,9 @@ import { useState, useRef, useEffect, createContext, useContext, useCallback, us
 import {
   Building2, Plus, Pencil, Trash2, X, Check, Save, RotateCcw,
   Upload, UserCheck, FileText, ShieldCheck, Lock, ImagePlus,
-  Camera, Scale,
+  Camera, Scale, Bell,
 } from "lucide-react";
+import { DealerRecipientsCard, NotifyPrefsTable } from "@pms/shared/components/ui/NotificationSettings";
 import { defaultProfileEmail, PROFILE_UPDATED_EVENT, leadRulesOf, DEFAULT_LEAD_RULES, QUOTE_PREFIX, quoteNoPrefix, type UserProfile, type ResponsiblePerson, type LeadRules } from "@pms/shared/lib/mock";
 import { formatPhone, formatTaxId } from "@pms/shared/lib/format";
 import { useHQPolicy } from "@pms/shared/lib/useHQConfig";
@@ -33,7 +34,7 @@ const ROLE_LABEL: Record<string, string> = {
   HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม",
 };
 
-type SettingTab = "company" | "documents" | "persons" | "leadRules";
+type SettingTab = "company" | "documents" | "persons" | "leadRules" | "notifications";
 
 // ── shared save bus — แท็บที่มีฟอร์มรายงาน {dirty,save,reset} ให้ปุ่มบันทึกกลางบนหัว
 // (แนวเดียวกับหน้าตั้งค่า HQ · แท็บที่บันทึกทันที เช่น ผู้รับผิดชอบ ไม่ต้องรายงาน)
@@ -49,8 +50,9 @@ const TABS: { key: SettingTab; label: string; icon: React.ReactNode }[] = [
   { key: "company",   label: "บัญชีดีลเลอร์",     icon: <Building2 size={15} /> },
   { key: "documents", label: "ตั้งค่าใบเสนอราคา", icon: <FileText  size={15} /> },
   { key: "persons",   label: "ผู้รับผิดชอบ",       icon: <UserCheck size={15} /> },
-  // แท็บ "การแจ้งเตือน" (สวิตช์รายหมวด) เอาออก 21 ต.ค. 69 — แจ้งเตือนมาจากตารางกลางตายตัว (ใบ 0231) · เหลือกฎดูแลลูกค้าเป้าหมาย
   { key: "leadRules", label: "กฎดูแลลูกค้าเป้าหมาย", icon: <Scale size={15} /> },
+  // การแจ้งเตือน (ใบ 0274 · บอสสั่ง 3 พ.ย. 69): อีเมลผู้รับของสาขา (ยืนยันด้วยโค้ด) + ตารางรายเรื่องตาม FLOW — บันทึกทันทีที่ฐาน ไม่ใช้ปุ่มบันทึกกลาง
+  { key: "notifications", label: "การแจ้งเตือน", icon: <Bell size={15} /> },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -829,6 +831,18 @@ function LeadRulesCard({ draft, set }: { draft: LeadRules; set: (k: keyof LeadRu
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATIONS TAB (ใบ 0274) — ตั้งได้เฉพาะสาขาตัวเอง (ฐานกัน) · ผู้ดูแลสาขาเท่านั้นที่แก้ได้
+// ─────────────────────────────────────────────────────────────────────────────
+function NotificationsTab() {
+  return (
+    <div style={{ display: "grid", gap: 16, padding: 4 }}>
+      <DealerRecipientsCard />
+      <NotifyPrefsTable />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ROOT PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
@@ -903,6 +917,7 @@ export default function SettingsPage() {
           {activeTab === "documents" && <DocumentsTab />}
           {activeTab === "persons"   && <PersonsTab />}
           {activeTab === "leadRules" && <LeadRulesTab />}
+          {activeTab === "notifications" && <NotificationsTab />}
         </div>
 
         {/* Toast */}

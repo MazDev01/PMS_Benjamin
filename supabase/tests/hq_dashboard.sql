@@ -86,7 +86,9 @@ insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, stat
 insert into dealer_proposal_payments (proposal_id, paid_on, amount, reference, cancelled_at) values
   (9811, '2026-10-01', 40000, 'ZZHD-1', null), (9811, '2026-10-02', 30000, 'ZZHD-2', now()), (9812, '2026-10-01', 50000, 'ZZHD-3', null);
 
--- บันทึกการใช้งาน: เห็นรายการเดียว — ที่เหลือเป็นบัญชีทดสอบ / สาขา ZZ / ป้าย ZZTEST / งานขายของสาขา / นอกช่วง
+-- บันทึกการใช้งาน: เห็น 2 รายการที่คนของ HQ ทำ — ที่เหลือเป็นบัญชีทดสอบ / สาขา ZZ / ป้าย ZZTEST / สิ่งที่ดีลเลอร์ทำ / งานเบื้องหลัง / นอกช่วง
+--   ใบ 0274 (บอสสั่ง 3 พ.ย. 69): กรองตามบทบาทผู้ทำ (กติกาเดียวกับ /hq/audit) แทนการกรองด้วยคำในเรื่อง
+--   ดีลเลอร์ทำเรื่องที่ไม่มีคำของงานขาย ('แก้ไขข้อมูลบัญชี') ต้องไม่ขึ้น · HQ โอนลีดให้ดีลเลอร์ = สิ่งที่ HQ ทำ ต้องขึ้น
 insert into audit_log ("user", role, action, target, at) values
   ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · ร้านระยอง', '2026-10-12 09:00+07'),
   ('บัญชีทดสอบชั่วคราว',     'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · ร้านระยอง', '2026-10-12 09:01+07'),
@@ -95,6 +97,9 @@ insert into audit_log ("user", role, action, target, at) values
   ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ออกใบค่าแฟรนไชส์', 'DP-1 · ZZTEST-ผู้สนใจ', '2026-10-12 09:04+07'),
   ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์', 'ระยอง → RYG · 1 ราย', '2026-10-12 09:05+07'),
   ('sales@rayongsteel.co.th', 'DEALER_ADMIN', 'สร้างใบเสนอราคา', 'RYG · Q-1 · ลูกค้า', '2026-10-12 09:06+07'),
+  ('sales@rayongsteel.co.th', 'DEALER_ADMIN', 'แก้ไขข้อมูลบัญชี', 'RYG', '2026-10-12 09:07+07'),
+  ('ดีลเลอร์ RYG',            'DEALER',       'ดีลเลอร์ยืนยันอีเมลติดต่อ', 'RYG', '2026-10-12 09:08+07'),
+  ('',                        '',             'เปลี่ยนสถานะใบเสนอราคา sent_to_client → expired', 'RYG · Q-2', '2026-10-12 09:09+07'),
   ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'บันทึกการตั้งค่า', 'การแจ้งเตือน', '2026-09-12 09:00+07');
 set local session_replication_role = origin;
 
@@ -170,8 +175,12 @@ begin
   perform flowtest.ok((g->>'dealerCount')::int = 1, 'เลือก RYG: ดีลเลอร์ 1');
 
   -- กิจกรรม
-  perform flowtest.ok(jsonb_array_length(a->'activity') = 1 and a->'activity'->0->>'action' = 'แก้ไขดีลเลอร์'
-                      and a->'activity'->0->>'user' = 'ผู้ดูแลระบบสำนักงานใหญ่', 'กิจกรรม: เหลือรายการจริงรายการเดียว — ' || (a->'activity')::text);
+  perform flowtest.ok(jsonb_array_length(a->'activity') = 2
+                      and a->'activity'->0->>'action' = 'โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์'
+                      and a->'activity'->1->>'action' = 'แก้ไขดีลเลอร์'
+                      and a->'activity'->1->>'user' = 'ผู้ดูแลระบบสำนักงานใหญ่', 'กิจกรรม: เฉพาะที่คนของ HQ ทำ 2 รายการ — ' || (a->'activity')::text);
+  perform flowtest.ok(not exists (select 1 from jsonb_array_elements(a->'activity') x where x->>'user' in ('sales@rayongsteel.co.th', 'ดีลเลอร์ RYG', '')),
+                      'กิจกรรม: สิ่งที่ดีลเลอร์ทำ + งานเบื้องหลังของระบบ ไม่ขึ้น (แม้ไม่มีคำของงานขาย)');
 end $$;
 
 -- ═══ สิทธิ์: ดีลเลอร์เรียกไม่ได้ · ช่วงผิดถูกปฏิเสธ ═══
