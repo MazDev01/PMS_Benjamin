@@ -17,6 +17,7 @@
 //   PMS_DRILL_ADVANCE_SEQ=1 ข้อทดสอบเท่านั้น (--target local): กินตัวนับต้นทาง 240 หลัง dump (จำลองงานสแกนการแจ้งเตือน) → ต้องยังผ่าน
 import { spawnSync } from "node:child_process";
 import { ล้างฐานซ้อมกู้ } from "./lib/restoreReset.mjs";
+import { ตรวจอ่านอย่างเดียว } from "./lib/readOnlySql.mjs";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -166,7 +167,11 @@ if (process.env.PMS_DRILL_ADVANCE_SEQ === "1") {
 const นับต้นทาง = (sqlFile, ชื่อขั้น) => {
   ขั้น(ชื่อขั้น);
   if (target === "prod") {
-    const r = รันตรวจ(ชื่อขั้น, "npx", ["supabase", "db", "query", "--linked", "-f", sqlFile, "--output-format", "json"], { cwd: OPS }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
+    // Supabase CLI 2.109: คำสั่ง SQL กับฐานจริงต้องยืนยัน · โหมด json ถามไม่ได้ (แม้บอสรันเอง) → ใส่ --yes เฉพาะไฟล์นับที่เป็นคำสั่งอ่านล้วน
+    //   (บอสเลือก ก · 3 พ.ย. 69 · ตัวตรวจเดียวกับ prod:query — scripts/lib/readOnlySql.mjs)
+    const อ่าน = ตรวจอ่านอย่างเดียว(readFileSync(sqlFile, "utf8"));
+    if (!อ่าน.ได้) return ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" — ไฟล์นับไม่ใช่คำสั่งอ่านล้วน (${อ่าน.เหตุ}) · ไม่ต่อฐานจริง`);
+    const r = รันตรวจ(ชื่อขั้น, "npx", ["supabase", "db", "query", "--linked", "--yes", "-f", sqlFile, "--output-format", "json"], { cwd: OPS }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
     return ค่าแรก(ชื่อขั้น, r);
   }
   const r = รันตรวจ(ชื่อขั้น, "docker", [...อาร์กิวเมนต์psql(LOCAL_CONTAINER, { เขียน: false }), "-X", "-A", "-t"],
