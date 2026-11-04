@@ -43,9 +43,12 @@ set local session_replication_role = origin;
 
 do $$
 declare r jsonb; b bigint; p dealer_prospects; n int;
+  -- ชื่อไฟล์ไม่ซ้ำต่อรอบ: บันทึกการใช้งานลบไม่ได้ และเลขชุดเริ่มนับใหม่ได้เมื่อฐานทดสอบล้างตารางชุดนำเข้า
+  --   (รอบตรวจ deploy14 4 พ.ย. 69: แถว "… · ชุด N" ของรอบก่อนค้างใน audit_log แล้วเลขชุดของรอบนี้ซ้ำ = นับได้ 2)
+  ไฟล์ text := format('ZZTEST-ไฟล์ปลอม-%s.xlsx', txid_current());
 begin
   perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
-  r := public.hq_prospects_import('ZZTEST-ไฟล์ปลอม.xlsx', $j$[
+  r := public.hq_prospects_import(ไฟล์, $j$[
     {"row": 5, "name": "ZZTEST-หนึ่ง", "social": "ZZTEST เพจหนึ่ง", "phone": "000 000 7001", "province": "บุรีรัมย์", "channel": "Facebook",
      "first_contact": "2026-08-24", "status": "contacted", "contact_note": "ไม่มีคนรับ", "note": "Type: ทำอสังหาฯ"},
     {"row": 6, "name": "ZZTEST-สอง", "phone": "000-000-7002", "province": "นราธิวาส", "status": "profile_sent", "contact_note": "ส่ง Company Profiles แล้ว",
@@ -73,8 +76,11 @@ begin
   perform pitest.ok((select status from dealer_prospects where name = 'ZZTEST-สี่') = 'new'
                     and not exists (select 1 from dealer_prospect_activities a join dealer_prospects x on x.id = a.prospect_id where x.name = 'ZZTEST-สี่' and a.kind = 'contact'),
                     '1) หมายเหตุว่าง = รอติดต่อ ไม่มีบันทึกการติดต่อ');
-  perform pitest.ok((select count(*) from audit_log where action = 'นำเข้าผู้สนใจเป็นดีลเลอร์' and target like 'ZZTEST-ไฟล์ปลอม.xlsx%') = 1
-                    and not exists (select 1 from audit_log where action = 'เพิ่มผู้สนใจเป็นดีลเลอร์' and target like 'ZZTEST-%'),
+  -- นับเฉพาะแถวของชุดนี้ (ผูกรหัสชุด/ชื่อรายของข้อนี้) — บันทึกการใช้งานลบไม่ได้ ข้อทดสอบอื่นทิ้งแถว "เพิ่มผู้สนใจ ZZTEST-…" ไว้ในฐานร่วม
+  --   (รอบตรวจ deploy14 4 พ.ย. 69: ตรวจด้วย target like 'ZZTEST-%' ไปจับแถวของข้ออื่น = ตก ทั้งที่ชุดนี้ไม่ได้ลงทีละราย)
+  perform pitest.ok((select count(*) from audit_log where action = 'นำเข้าผู้สนใจเป็นดีลเลอร์' and target like ไฟล์ || ' · %ชุด ' || b) = 1
+                    and not exists (select 1 from audit_log where action = 'เพิ่มผู้สนใจเป็นดีลเลอร์'
+                                     and target in ('ZZTEST-หนึ่ง', 'ZZTEST-สอง', 'ZZTEST-สาม', 'ZZTEST-สี่')),
                     '4) บันทึกการใช้งานแถวเดียวต่อชุด (ไม่ลงทีละราย)');
 
   -- 3) ปฏิเสธทั้งชุด
@@ -128,7 +134,7 @@ begin
   perform pitest.as_admin();
   perform pitest.ok(not exists (select 1 from dealer_prospects where import_batch_id = b) and exists (select 1 from dealer_prospects where name = 'ZZTEST-มีอยู่แล้ว'),
                     '4) ลบเฉพาะรายของชุด (รายเดิมยังอยู่)');
-  perform pitest.ok((select count(*) from audit_log where action = 'ยกเลิกการนำเข้าผู้สนใจ' and target like '%ชุด ' || b) = 1, '4) ยกเลิกลงบันทึกการใช้งานแถวเดียว');
+  perform pitest.ok((select count(*) from audit_log where action = 'ยกเลิกการนำเข้าผู้สนใจ' and target like ไฟล์ || ' · %ชุด ' || b) = 1, '4) ยกเลิกลงบันทึกการใช้งานแถวเดียว');
   perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
   perform pitest.must_fail(format('select public.hq_prospects_import_cancel(%s)', b), 'import_cancelled', '4) ยกเลิกซ้ำไม่ได้');
   perform pitest.as_admin();
