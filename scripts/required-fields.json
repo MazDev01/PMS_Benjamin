@@ -1,0 +1,59 @@
+{
+  "คำอธิบาย": "รายการช่องบังคับทั้งระบบ (บอสสั่ง 4 พ.ย. 69) — ตัวตรวจ scripts/check-required-marks.mjs ตรวจว่าทุกช่องมี <FieldLabel htmlFor=id required> · เพิ่มฟอร์มใหม่/ช่องบังคับใหม่ = เพิ่มที่นี่ · ที่มา: ฐาน (ฐานบังคับ) · FLOW (ใช้ทำงานต่อ) · บอส (สั่งตรง)",
+  "ช่อง": [
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-prospect",
+      "ชื่อ": "ผู้สนใจ",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-amount",
+      "ชื่อ": "ค่าแรกเข้า",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-months",
+      "ชื่อ": "ระยะสัญญา",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-target",
+      "ชื่อ": "เป้ายอดซื้อต่อปี",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-region",
+      "ชื่อ": "ภาค",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-province",
+      "ชื่อ": "จังหวัด",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-date",
+      "ชื่อ": "วันที่เสนอ",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-valid",
+      "ชื่อ": "ข้อเสนอมีผลถึง",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-terms",
+      "ชื่อ": "เงื่อนไข (ใส่ - ได้)",
+      "ที่มา": "บอส"
+    }
+  ]
+}
