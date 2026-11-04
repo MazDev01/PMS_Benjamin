@@ -76,7 +76,7 @@ for (const a of [["select 1", "--yes"], ["select 1", "--agent", "no"], ["select 
   ผล(ตรวจที่ > 0 && yesที่ > ตรวจที่, "ด่านก่อน push: ตรวจคำถามเป็นคำสั่งอ่านก่อนใส่ --yes");
   const ล้าง = readFileSync(path.join(ราก, "tests/prod-live/run.mjs"), "utf8");
   const ส่วนล้าง = ล้าง.slice(ล้าง.indexOf('if (phase === "cleanup")'));
-  const ด่าน = ส่วนล้าง.indexOf("if (!ยืนยันเขียน) ตาย("), yesล้าง = ส่วนล้าง.indexOf('"--yes"');
+  const ด่าน = ส่วนล้าง.indexOf("if (!ยืนยันเขียน) ตาย("), yesล้าง = ส่วนล้าง.indexOf("รันSQLไฟล์(");   // ตัวกลางที่ใส่ --yes (scripts/lib/supabaseCli.mjs)
   ผล(ด่าน > 0 && yesล้าง > ด่าน && /args\.includes\("--yes-prod"\)/.test(ล้าง), "ขั้นล้างข้อมูลทดสอบ: ไม่มี --yes-prod ที่คนพิมพ์ = หยุดก่อนใส่ --yes");
 }
 rmSync(ที่, { recursive: true, force: true });

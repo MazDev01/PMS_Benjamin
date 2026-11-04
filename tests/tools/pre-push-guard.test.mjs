@@ -39,7 +39,7 @@ try {
   mkdirSync(repo);
   execFileSync("git", ["init", "-q", "-b", "monorepo"], { cwd: repo });
   for (const f of [".githooks/pre-push", "scripts/git-hooks/pre-push.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/session.mjs", "scripts/lib/ports.json",
-                   "scripts/lib/prodLock.mjs", "scripts/lib/fileLock.mjs", "scripts/lib/readOnlySql.mjs"]) { if (existsSync(join(ราก, f))) คัด(f); }
+                   "scripts/lib/prodLock.mjs", "scripts/lib/fileLock.mjs", "scripts/lib/readOnlySql.mjs", "scripts/lib/supabaseCli.mjs"]) { if (existsSync(join(ราก, f))) คัด(f); }
   // ── mutation proof: ทำตัวกันในสำเนาให้พังทีละแบบ ──
   //   แปลงขึ้นบรรทัดเป็น \n ก่อน — โฟลเดอร์ที่ git แปลงเป็น CRLF จะหาข้อความไม่เจอ (ข้อทดสอบพังเองแทนที่จะพิสูจน์)
   const แก้สำเนา = (f, a, b) => { const p = join(repo, f), s = readFileSync(p, "utf8").replace(/\r\n/g, "\n"); if (!s.includes(a)) throw new Error(`ไม่พบ ${a}`); writeFileSync(p, s.replace(a, b)); };
@@ -106,12 +106,14 @@ try {
   const ไม่มีโฟลเดอร์ = join(ที่, "ไม่มีโฟลเดอร์นี้");
   ผล(/ยังไม่ได้ผูกฐานจริง/.test(h.stderr) && /วิธีแก้/.test(h.stderr) && h.stderr.includes(`cd ${ไม่มีโฟลเดอร์}`) && /npx supabase login/.test(h.stderr) && /npx supabase link --project-ref/.test(h.stderr),
     "ถามฐานจริงไม่ได้ (ไม่มีโฟลเดอร์/ไม่ได้ผูก) → บอกเหตุ + ขั้นตอน cd · ทดลองถาม · login · link", h.stderr);
-  //     ผูกแล้วแต่ terminal ยังไม่ได้ล็อกอิน Supabase (npx ปลอมใน PATH ตอบแบบ CLI จริง)
-  const ผูกแล้ว = join(ที่, "ops"), ถังnpx = join(ที่, "npx-ปลอม");
+  //     ผูกแล้วแต่ terminal ยังไม่ได้ล็อกอิน Supabase (CLI ปลอมตอบแบบ CLI จริง)
+  //     ตัวกันเรียก CLI ของโปรเจกต์ (node_modules/.bin/supabase · scripts/lib/supabaseCli.mjs · 3 พ.ย. 69) ไม่ใช่ npx ใน PATH
+  //     → วาง CLI ปลอมไว้ที่ node_modules/.bin ของ repo ทดสอบ
+  const ผูกแล้ว = join(ที่, "ops"), ถังnpx = join(repo, "node_modules", ".bin");
   mkdirSync(join(ผูกแล้ว, "supabase/.temp"), { recursive: true }); writeFileSync(join(ผูกแล้ว, "supabase/.temp/project-ref"), "ทดสอบ\n");
-  mkdirSync(ถังnpx);
-  writeFileSync(join(ถังnpx, "npx.cmd"), "@echo Access token not provided. Supply an access token by running supabase login 1>&2\r\n@exit /b 1\r\n");
-  writeFileSync(join(ถังnpx, "npx"), "#!/bin/sh\necho 'Access token not provided. Supply an access token by running supabase login' >&2\nexit 1\n", { mode: 0o755 });
+  mkdirSync(ถังnpx, { recursive: true });
+  writeFileSync(join(ถังnpx, "supabase.CMD"), "@echo Access token not provided. Supply an access token by running supabase login 1>&2\r\n@exit /b 1\r\n");
+  writeFileSync(join(ถังnpx, "supabase"), "#!/bin/sh\necho 'Access token not provided. Supply an access token by running supabase login' >&2\nexit 1\n", { mode: 0o755 });
   const คีย์path = Object.keys(env).find(k => /^path$/i.test(k)) ?? "PATH";
   const h2 = spawnSync(process.execPath, ["scripts/git-hooks/pre-push.mjs", "origin", "https://github.com/MazDev01/PMS_Benjamin.git"],
     { cwd: repo, encoding: "utf8", env: { ...env, PMS_PROD_OPS_DIR: ผูกแล้ว, [คีย์path]: `${ถังnpx}${process.platform === "win32" ? ";" : ":"}${env[คีย์path]}` },
@@ -120,16 +122,15 @@ try {
     "ผูกแล้วแต่ยังไม่ได้ล็อกอิน Supabase → บอกเหตุตรงตัว + ขั้นตอน login", h2.stdout + h2.stderr);
 
   // 11) บอสกำลัง db:push / สำรอง+ซ้อมกู้ (ถือล็อกฐานจริง) → ตัวกันต้องรอจนงานนั้นจบก่อนถามฐานจริง ไม่ยิงแทรก (30 ต.ค. 69)
-  //     npx ปลอมจดเวลาที่ถูกเรียก · โปรเซสถือล็อกจบเองหลัง 3 วิ → ถามฐานต้องเกิดหลังล็อกปล่อย
-  const ล็อก = join(ที่, "prod.lock"), จด = join(ที่, "npx-called.txt"), ถังnpx2 = join(ที่, "npx-จดเวลา");
-  mkdirSync(ถังnpx2);
+  //     CLI ปลอมจดเวลาที่ถูกเรียก (วางทับที่ node_modules/.bin ของ repo ทดสอบ · ผลแบบรายการล้วน = แบบที่คนรันเองได้) · โปรเซสถือล็อกจบเองหลัง 3 วิ → ถามฐานต้องเกิดหลังล็อกปล่อย
+  const ล็อก = join(ที่, "prod.lock"), จด = join(ที่, "npx-called.txt"), ถังnpx2 = ถังnpx;
   // จดว่าถูกเรียกด้วย echo ล้วน (เวลา = เวลาแก้ไฟล์) — ไม่ซ้อนเครื่องหมายคำพูดใน cmd
-  writeFileSync(join(ถังnpx2, "npx.cmd"), `@echo called> "${จด}"
-@echo {"rows":[{"version":"0001"},{"version":"0002"}]}
+  writeFileSync(join(ถังnpx2, "supabase.CMD"), `@echo called> "${จด}"
+@echo [{"version":"0001"},{"version":"0002"}]
 `);
-  writeFileSync(join(ถังnpx2, "npx"), `#!/bin/sh
+  writeFileSync(join(ถังnpx2, "supabase"), `#!/bin/sh
 echo called > '${จด}'
-echo '{"rows":[{"version":"0001"},{"version":"0002"}]}'
+echo '[{"version":"0001"},{"version":"0002"}]'
 `, { mode: 0o755 });
   const ถือ = spawn(process.execPath, ["-e", "setTimeout(()=>{}, 3000)"], { stdio: "ignore" });
   writeFileSync(ล็อก, JSON.stringify({ token: "บอส-db-push", pid: ถือ.pid, งาน: "db:push:prod", เริ่ม: new Date().toISOString() }));
