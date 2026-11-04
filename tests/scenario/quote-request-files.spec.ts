@@ -334,6 +334,9 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกพร้อมใบ HQ/);
 
   // ดีลเลอร์ B: บรรทัดสรุปบอก "ไม่มีไฟล์แนบจาก HQ" และไม่มีกล่องไฟล์ใต้ใบ
+  // ออกจากหน้า HQ ก่อนล้างคุกกี้ — ต้นเหตุไม่นิ่ง (รอบตรวจ prodfmt 4 พ.ย. 69): ช่องค้นหาของกล่องงานยิงคำขอกลุ่มตามหลัง (หน่วงพิมพ์)
+  //   ถ้าล้างคุกกี้ขณะหน้า HQ ยังเปิด คำขอนั้นไปถึงหลังคุกกี้หาย = 401 ถูกนับเป็น error ของข้อนี้ · ปิดหน้าก่อน = ไม่มีคำขอค้าง (ไม่ได้รอเวลา)
+  await page.goto("about:blank");
   await page.context().clearCookies();
   await loginUI(page, DEALER_ORIGIN, "/login", B.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });

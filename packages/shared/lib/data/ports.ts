@@ -180,6 +180,11 @@ export interface ProspectsRepo {
   create(p: Omit<DealerProspect, "id">): Promise<DealerProspect>;
   update(p: DealerProspect): Promise<DealerProspect>;
   remove(id: number): Promise<void>;
+  /** นำเข้าทั้งชุด (ใบ 0275) — ฐานข้ามเบอร์ซ้ำ/ตรวจกติกา · แถว = แถวส่งฐาน() ของ lib/prospectImport */
+  importRows(fileName: string, rows: Record<string, unknown>[]): Promise<import("./types").ผลนำเข้าผู้สนใจ>;
+  /** ยกเลิกทั้งชุด = ลบรายของชุด (มีรายที่ออกใบแล้ว = ฐานปฏิเสธ) */
+  cancelImport(batch: number): Promise<{ deleted: number }>;
+  importBatches(): Promise<import("./types").ชุดนำเข้าผู้สนใจ[]>;
 }
 
 // ── ใบค่าแฟรนไชส์ (ของสำนักงานใหญ่) — สิทธิ์ชุดเดียวกับลูกค้าเป้าหมาย HQ (0172) ──

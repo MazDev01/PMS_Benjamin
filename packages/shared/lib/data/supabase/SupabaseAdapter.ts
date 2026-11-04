@@ -745,6 +745,21 @@ export const SupabaseAdapter: DataAdapter = {
   //   จัดข้อมูลด้วย เตรียมบันทึก ก่อนเขียนเสมอ: ช่องวันที่ว่างต้องเป็น null (ส่ง "" ไปทั้งแถวถูกปฏิเสธ)
   //   และห้ามส่ง id/created_at/updated_at ให้ฐานข้อมูล · อ่านทีละหน้าเสมอ (เพดาน 1,000 แถว/คำขอ)
   prospects: {
+    importRows: async (fileName, rows) => {
+      const { data, error } = await sb().rpc("hq_prospects_import", { p_file: fileName, p_rows: rows });
+      if (error) throw new DbError(error.message, error.code);
+      return data as import("../types").ผลนำเข้าผู้สนใจ;
+    },
+    cancelImport: async (batch) => {
+      const { data, error } = await sb().rpc("hq_prospects_import_cancel", { p_batch: batch });
+      if (error) throw new DbError(error.message, error.code);
+      return { deleted: Number((data as { deleted?: number })?.deleted ?? 0) };
+    },
+    importBatches: async () => {
+      const { data, error } = await sb().rpc("hq_prospect_import_batches");
+      if (error) throw new DbError(error.message, error.code);
+      return (data ?? []) as import("../types").ชุดนำเข้าผู้สนใจ[];
+    },
     list: async () => (await pageAll((from, to) =>
       sb().from("dealer_prospects").select("*").order("id", { ascending: false }).range(from, to), "dealer_prospects"))
       .map(r => toCamel<DealerProspect>(r)),
