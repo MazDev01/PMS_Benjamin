@@ -16,6 +16,7 @@ import { ตรวจcommitผ่าน, ใบในcommit } from "../lib/commi
 import { อ่านเซสชัน } from "../lib/session.mjs";
 import { รอฐานจริงว่าง } from "../lib/prodLock.mjs";
 import { ตรวจอ่านอย่างเดียว } from "../lib/readOnlySql.mjs";
+import { คำสั่งCLI, แถวจากผลCLI } from "../lib/supabaseCli.mjs";
 
 const [, , remoteName = "", remoteUrl = ""] = process.argv;
 const สาขาที่ขึ้นเว็บจริง = "refs/heads/monorepo";
@@ -65,7 +66,8 @@ function ใบบนฐานจริง() {
     writeFileSync(q, คำถาม);
     // Supabase CLI 2.109 ถามยืนยันทุกคำสั่ง SQL กับฐานจริง · โหมด json ถามไม่ได้ (push 3 พ.ย. 69 ตกที่นี่) → --yes เฉพาะคำสั่งอ่าน (บอสเลือก ก)
     if (!ตรวจอ่านอย่างเดียว(คำถาม).ได้) return { เหตุ: "คำถามตรวจใบไม่ใช่คำสั่งอ่านล้วน — ไม่ต่อฐานจริง" };
-    const r = spawnSync("npx", ["supabase", "db", "query", "--linked", "--yes", "-f", q, "--output-format", "json"],
+    // CLI ของโปรเจกต์ (npx ในโฟลเดอร์ผูกฐานจริงดึงรุ่นอื่น) · ผลอ่านได้ทั้ง [ ... ] และ { rows } (scripts/lib/supabaseCli.mjs · 3 พ.ย. 69)
+    const r = spawnSync(คำสั่งCLI(), ["db", "query", "--linked", "--yes", "-f", `"${q}"`, "--output-format", "json"],
       { cwd: ที่ฐานจริง, encoding: "utf8", shell: true, timeout: 120_000 });
     if (r.error?.code === "ETIMEDOUT" || r.signal) return { เหตุ: "ถามฐานจริงนานเกิน 2 นาทีจนหมดเวลา" };
     if (r.status !== 0) {
@@ -74,8 +76,7 @@ function ใบบนฐานจริง() {
       if (/not linked|project ref|supabase link/i.test(ผิด)) return { เหตุ: `โฟลเดอร์ ${ที่ฐานจริง} ยังไม่ได้ผูกฐานจริง` };
       return { เหตุ: `คำสั่งถามฐานจริงตก (รหัส ${r.status}): ${ผิด.trim().split(/\r?\n/).filter(Boolean).pop()?.slice(0, 200) ?? "ไม่มีข้อความ"}` };
     }
-    const j = JSON.parse(r.stdout.slice(r.stdout.indexOf("{")));
-    return { ใบ: (j.rows ?? []).map(x => String(x.version)) };
+    return { ใบ: แถวจากผลCLI(r.stdout).map(x => String(x.version)) };
   } catch (e) { return { เหตุ: `อ่านคำตอบจากฐานจริงไม่ได้: ${String(e?.message ?? e).slice(0, 200)}` }; } finally { rmSync(d, { recursive: true, force: true }); }
 }
 
