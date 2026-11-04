@@ -4,6 +4,7 @@
 //   ขั้น: อัปโหลด → จับคู่คอลัมน์ (ระบบเดา แก้ได้ จำไว้ครั้งหน้าตามหัวตาราง) → ตรวจ 3 กลุ่ม พร้อม/ต้องตรวจ/ข้าม → นำเข้า → สรุป + ดาวน์โหลดแถวที่ข้าม
 //   ไม่บังคับใช้แม่แบบ: หาแถวหัวตารางเอง · ข้ามแถวหัวข้อแทรก · แยกแถวรวมช่องเดียว · จับคู่จังหวัด 77 · ถามปีครั้งเดียว · ตารางแปลงช่องทางแก้ได้
 //   ฐานตัดสินสุดท้าย (เบอร์ซ้ำ · ขั้น · จังหวัด · ไม่เกิน 1,000 แถว · ทั้งชุด) · ยกเลิกทั้งชุดได้ · ตรรกะล้วนอยู่ lib/prospectImport.ts
+import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
 import { Upload, X, Download, Check, Undo2 } from "lucide-react";
@@ -16,7 +17,7 @@ import { อ่านสมุดงานจากไฟล์, นามสก
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import {
-  หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
+  หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
 } from "@pms/shared/lib/prospectImport";
 
@@ -84,6 +85,8 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     setดู(ได้.แถว.some(r => r.กลุ่ม === "review") ? "review" : "ready");
   }
   const แก้แถว = (row: number, patch: Partial<แถวนำเข้า>) => setแถว(xs => xs && จัดกลุ่ม(xs.map(r => r.row === row ? { ...r, ...patch } : r), เบอร์ที่มีอยู่));
+  // วันที่กำกวม (x.1): เลือกเดือนต่อแถว — ยังไม่เลือกครบ = ปุ่มยืนยันกดไม่ได้ (บอสสั่ง 4 พ.ย. 69)
+  const เลือกเดือน = (row: number, ช่อง: ช่องวันที่, ค่า: string) => setแถว(xs => xs && จัดกลุ่ม(xs.map(r => r.row === row ? เลือกวันที่(r, ช่อง, ค่า) : r), เบอร์ที่มีอยู่));
   const นับ = (g: กลุ่มแถว) => (แถว ?? []).filter(r => r.กลุ่ม === g).length;
   const พร้อม = (แถว ?? []).filter(r => r.กลุ่ม === "ready");
 
@@ -236,9 +239,20 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                                 )}
                               </>
                             : ขั้นที่นำเข้าได้.find(s => s.k === r.status)?.label}</td>
-                          <td style={{ ...เซลล์, color: ดู === "ready" ? "#52606d" : "#b45309" }}>{ดู === "ready" ? (r.note || "—") : r.เหตุ.join(" · ")}</td>
+                          <td style={{ ...เซลล์, color: ดู === "ready" ? "#52606d" : "#b45309" }}>
+                            {ดู === "ready" ? (r.note || "—") : r.เหตุ.join(" · ")}
+                            {ดู === "review" && (r.วันต้องเลือก ?? []).map(x => (
+                              <select key={x.ช่อง} className="form-select" data-date-choice={x.ช่อง} aria-label={`เลือกเดือน${x.ช่อง === "firstContact" ? "วันเริ่มติดต่อ" : "วันติดตาม"} แถว ${r.row}`}
+                                value="" onChange={e => e.target.value && เลือกเดือน(r.row, x.ช่อง, e.target.value)} style={{ marginTop: 4, display: "block" }}>
+                                {/* ยังไม่เลือก = ยืนยันไม่ได้ (ไม่ใช่ตัวเลือกกรอง) */}
+                                <option value="">— {x.ช่อง === "firstContact" ? "วันเริ่มติดต่อ" : "วันติดตาม"} "{x.ดิบ}" เดือนไหน —</option>
+                                {x.ตัวเลือก.map(d => <option key={d} value={d}>{fmtISOToThai(d)}</option>)}
+                              </select>
+                            ))}
+                          </td>
                           {ดู === "review" && <td style={เซลล์}>
-                            <button type="button" className="btn btn-secondary btn-sm" aria-label={`ยืนยัน แถว ${r.row}`} onClick={() => แก้แถว(r.row, { เหตุ: [] })}><Check size={12} /> ยืนยัน</button>
+                            <button type="button" className="btn btn-secondary btn-sm" aria-label={`ยืนยัน แถว ${r.row}`} onClick={() => แก้แถว(r.row, { เหตุ: [] })}
+                              disabled={!!r.วันต้องเลือก?.length} title={r.วันต้องเลือก?.length ? "เลือกเดือนของวันที่ก่อน" : undefined}><Check size={12} /> ยืนยัน</button>
                           </td>}
                         </tr>
                       ))}
