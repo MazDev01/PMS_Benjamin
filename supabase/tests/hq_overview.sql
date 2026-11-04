@@ -23,8 +23,18 @@ grant execute on all functions in schema flowtest to authenticated;
 -- ═══ ชุดข้อมูลที่รู้ค่าล่วงหน้า (ปิดตัวดัก/กุญแจนอกในรายการนี้เท่านั้น — ใส่สถานะปลายทางตรง ๆ) ═══════════════════
 -- กันข้อทดสอบอื่นที่รันพร้อมกัน commit แถวใหม่เข้ามาหลังลบ (26 ต.ค. 69 ตก: นับผู้สนใจได้ considering 2 — แถวของข้ออื่นโผล่ในรายการนี้)
 --   ล็อกตารางที่ล้างไว้จนจบรายการ: คนอื่นอ่านได้ เขียนต้องรอ (รายการนี้ไม่ถึงวินาที) — ตัวเลขเทียบเป๊ะเหมือนเดิม
-lock table dealer_proposal_payments, dealer_package_proposals, dealer_prospect_activities, dealer_prospects,
-  hq_quotes, quote_request_events, quote_requests, quotations, leads, dealer_territories in share row exclusive mode;
+-- ล็อกหลายตารางแบบ "ได้ครบหรือไม่ได้เลย" (nowait · ไม่ครบ = ปล่อยที่ได้แล้วรอสั้น ๆ แล้วขอใหม่) — ไม่ถือตารางหนึ่งค้างระหว่างรอตารางอื่น
+--   แอปเขียนสองลำดับสวนกัน (ลบผู้สนใจ → ใบตาม · ออกใบ → เลื่อนขั้นผู้สนใจ) ล็อกทีละตารางลำดับไหนก็ชนได้ = deadlock (รอบตรวจ deploy15 4 พ.ย. 69)
+do $lk$ begin
+  loop
+    begin
+      lock table dealer_proposal_payments, dealer_package_proposals, dealer_prospects, dealer_prospect_activities, dealer_territories, hq_quotes, quote_requests, quote_request_events, quotations, leads
+        in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 set local session_replication_role = replica;
 delete from dealer_proposal_payments; delete from dealer_package_proposals; delete from dealer_prospect_activities; delete from dealer_prospects;
 delete from hq_quotes; delete from quote_request_events; delete from quote_requests; delete from quotations; delete from leads; delete from dealer_territories;

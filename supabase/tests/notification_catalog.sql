@@ -4,10 +4,24 @@
 -- รัน: docker exec -i supabase_db_pms-dbcheck psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/notification_catalog.sql
 -- ทรานแซกชันเดียวแล้ว rollback · รอบปิดด่านรันผ่าน tests/scenario/db-rule-tests.spec.ts · ผ่าน = "ALL PASS"
 begin;
+-- ล็อกตารางที่รายการนี้จะ alter (ปิด/เปิดตัวดัก · แก้ช่อง) ตั้งแต่ต้น ก่อนถือแถว/ตัวนับใด ๆ — ขอกลางทางขณะถือตัวนับอยู่
+--   งานหน้าเว็บที่เขียนตารางนั้นพร้อมกันค้างกันเอง (deadlock · รอบตรวจ deploy15 4 พ.ย. 69) · ตัวตรวจ scripts/check-sql-test-table-locks.mjs
+-- (ตารางที่ alter อยู่ในคำสั่งล็อกเดิมด้านล่าง — คำสั่งเดียว ไม่จองแยกสองครั้ง)
 -- กันข้อทดสอบอื่นที่รันพร้อมกัน commit แจ้งเตือน/อีเมลใหม่เข้ามาหลังล้าง (บอสสั่ง 29 ต.ค. 69 · คิวข้อ 3 · แบบเดียวกับ hq_overview.sql)
 --   รายการนี้ล้าง notifications แล้วนับทั้งตาราง ("HQ ที่ส่งราคาเองไม่ได้แจ้งเตือน" · "รันรอบสองไม่ซ้ำ" · "ดีลเลอร์อ่านเฉพาะสาขาตัวเอง")
 --   แถวของข้ออื่น (ตัวดักสร้างตามทุกการขอราคา/ส่งใบ) โผล่ระหว่างนับ = ตัวเลขขยับ · ล็อกไว้จนจบ: คนอื่นอ่านได้ เขียนต้องรอ — ตัวเลขเทียบเป๊ะเหมือนเดิม
-lock table notifications, email_outbox in share row exclusive mode;
+-- ล็อกหลายตารางแบบ "ได้ครบหรือไม่ได้เลย" (nowait · ไม่ครบ = ปล่อยที่ได้แล้วรอสั้น ๆ แล้วขอใหม่) — ไม่ถือตารางหนึ่งค้างระหว่างรอตารางอื่น
+--   แอปเขียนสองลำดับสวนกัน (ลบผู้สนใจ → ใบตาม · ออกใบ → เลื่อนขั้นผู้สนใจ) ล็อกทีละตารางลำดับไหนก็ชนได้ = deadlock (รอบตรวจ deploy15 4 พ.ย. 69)
+do $lk$ begin
+  loop
+    begin
+      lock table dealer_package_proposals, notifications, email_outbox
+        in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 create schema ntest;
 create function ntest.ok(p_cond boolean, p_what text) returns void language plpgsql as $$
 begin if p_cond is not true then raise exception 'FAIL: %', p_what; end if; raise notice 'ok  %', p_what; end $$;

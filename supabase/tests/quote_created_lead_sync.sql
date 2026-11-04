@@ -1,6 +1,9 @@
 -- ใบ 0210: สร้างใบให้ลูกค้า → ฐานติ๊กงาน · จดกิจกรรม · สร้างแถวไฟล์ของใบ ในธุรกรรมเดียวกัน (ไม่พึ่งคำสั่งตามหลังของแอป)
 -- รัน: docker exec -i supabase_db_pms-dbcheck psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/quote_created_lead_sync.sql
 begin;
+-- ล็อกตารางที่รายการนี้จะ alter (ปิด/เปิดตัวดัก · แก้ช่อง) ตั้งแต่ต้น ก่อนถือแถว/ตัวนับใด ๆ — ขอกลางทางขณะถือตัวนับอยู่
+--   งานหน้าเว็บที่เขียนตารางนั้นพร้อมกันค้างกันเอง (deadlock · รอบตรวจ deploy15 4 พ.ย. 69) · ตัวตรวจ scripts/check-sql-test-table-locks.mjs
+lock table quotations in share row exclusive mode;
 -- ใบที่ไม่ผูกใบ HQ ใส่ตรงไม่ได้แล้ว (ใบ 0203) — ปิดตัวดักผูกใบเฉพาะในธุรกรรมทดสอบนี้ (ย้อนทิ้งท้ายไฟล์)
 alter table public.quotations disable trigger quotations_hq_link_guard;
 

@@ -29,8 +29,18 @@ grant execute on all functions in schema flowtest to authenticated;
 create table flowtest.ก่อน (หน้า text primary key, ค่า jsonb);
 grant all on flowtest.ก่อน to authenticated;
 
-lock table leads, quotations, quotation_won_at, customers, appointments, dealers, dealer_prospects, dealer_package_proposals,
-  dealer_proposal_payments, hq_quotes, quote_requests, audit_log in share row exclusive mode;
+-- ล็อกหลายตารางแบบ "ได้ครบหรือไม่ได้เลย" (nowait · ไม่ครบ = ปล่อยที่ได้แล้วรอสั้น ๆ แล้วขอใหม่) — ไม่ถือตารางหนึ่งค้างระหว่างรอตารางอื่น
+--   แอปเขียนสองลำดับสวนกัน (ลบผู้สนใจ → ใบตาม · ออกใบ → เลื่อนขั้นผู้สนใจ) ล็อกทีละตารางลำดับไหนก็ชนได้ = deadlock (รอบตรวจ deploy15 4 พ.ย. 69)
+do $lk$ begin
+  loop
+    begin
+      lock table dealer_proposal_payments, dealer_package_proposals, dealer_prospects, dealers, hq_quotes, quote_requests, quotations, quotation_won_at, appointments, leads, customers, audit_log
+        in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 
 -- ═══ ถ่ายค่าหน้า HQ ก่อนใส่ข้อมูล ═══
 do $$

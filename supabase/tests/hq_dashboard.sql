@@ -3,6 +3,9 @@
 --   ช่วงทดสอบ 1–31 ต.ค. 2026 · "วันนี้" 21 ต.ค. 2026
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/hq_dashboard.sql
 begin;
+-- ล็อกตารางที่รายการนี้จะ alter (ปิด/เปิดตัวดัก · แก้ช่อง) ตั้งแต่ต้น ก่อนถือแถว/ตัวนับใด ๆ — ขอกลางทางขณะถือตัวนับอยู่
+--   งานหน้าเว็บที่เขียนตารางนั้นพร้อมกันค้างกันเอง (deadlock · รอบตรวจ deploy15 4 พ.ย. 69) · ตัวตรวจ scripts/check-sql-test-table-locks.mjs
+-- (ตารางที่ alter อยู่ในคำสั่งล็อกเดิมด้านล่าง — คำสั่งเดียว ไม่จองแยกสองครั้ง)
 create schema flowtest;
 create function flowtest.ok(p_cond boolean, p_what text) returns void language plpgsql as $$
 begin if p_cond is not true then raise exception 'FAIL: %', p_what; end if; raise notice 'ok  %', p_what; end $$;
@@ -29,8 +32,18 @@ grant all on flowtest.r to authenticated;
 -- กันข้อทดสอบอื่นที่รันพร้อมกัน commit แถวใหม่เข้ามาหลังลบ (คิวข้อ 3 · 29 ต.ค. 69 · แบบเดียวกับ hq_overview.sql)
 --   เช่น ข้ออื่นสร้างสาขาของข้อระหว่างเรียกตัวคำนวณกับนับทะเบียน → "จำนวนดีลเลอร์ = ทะเบียน" ไม่ตรง · ใบ/ลีดใหม่โผล่ในยอดที่เทียบเป๊ะ
 --   ล็อกตารางที่ล้าง/นับไว้จนจบรายการ: คนอื่นอ่านได้ เขียนต้องรอ (รายการนี้ไม่ถึงวินาที) — ตัวเลขเทียบเป๊ะเหมือนเดิม
-lock table quotation_won_at, dealer_proposal_payments, dealer_package_proposals, dealer_prospect_activities, dealer_prospects,
-  hq_quotes, quote_request_events, quote_requests, quotations, leads, customers, dealers, dealer_territories in share row exclusive mode;
+-- ล็อกหลายตารางแบบ "ได้ครบหรือไม่ได้เลย" (nowait · ไม่ครบ = ปล่อยที่ได้แล้วรอสั้น ๆ แล้วขอใหม่) — ไม่ถือตารางหนึ่งค้างระหว่างรอตารางอื่น
+--   แอปเขียนสองลำดับสวนกัน (ลบผู้สนใจ → ใบตาม · ออกใบ → เลื่อนขั้นผู้สนใจ) ล็อกทีละตารางลำดับไหนก็ชนได้ = deadlock (รอบตรวจ deploy15 4 พ.ย. 69)
+do $lk$ begin
+  loop
+    begin
+      lock table dealer_proposal_payments, dealer_package_proposals, dealer_prospects, dealer_prospect_activities, dealers, dealer_territories, hq_quotes, quote_requests, quote_request_events, quotations, quotation_won_at, leads, customers, audit_log
+        in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 set local session_replication_role = replica;
 delete from quotation_won_at; delete from dealer_proposal_payments; delete from dealer_package_proposals; delete from dealer_prospect_activities;
 delete from dealer_prospects; delete from hq_quotes; delete from quote_request_events; delete from quote_requests;

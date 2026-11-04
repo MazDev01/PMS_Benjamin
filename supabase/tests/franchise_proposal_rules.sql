@@ -85,9 +85,12 @@ begin
 
   -- ── หมดอายุ → ปิดพร้อมเหตุผล (งานตั้งเวลา) · หมดอายุแล้วตอบรับไม่ได้ ──
   perform flowtest.as_root();
-  alter table dealer_package_proposals disable trigger dealer_package_proposals_before_write;
+  -- ข้ามตัวดักด้วย replica (ของรายการนี้คนเดียว) — ห้าม alter table … disable trigger กลางรายการ:
+  --   ต้องรอล็อกทั้งตาราง ขณะที่รายการนี้ถือตัวนับเลขใบอยู่ → ข้อทดสอบหน้าเว็บที่กำลังสร้างใบ (รอตัวนับ) ค้างกันเอง = deadlock
+  --   (รอบตรวจ deploy15 4 พ.ย. 69 · dealer-create-credentials › ลูกค้าเป้าหมายรองรับสาขา · ทำซ้ำได้ 8/3007 ครั้ง)
+  set local session_replication_role = replica;
   update dealer_package_proposals set valid_until = current_date - 1, proposed_date = current_date - 40 where id = p3.id;
-  alter table dealer_package_proposals enable trigger dealer_package_proposals_before_write;
+  set local session_replication_role = origin;
   perform flowtest.as_hq(hq);
   perform flowtest.must_fail(format('update dealer_package_proposals set status = %L where id = %s', 'accepted', p3.id), 'proposal_expired', 'เลยวันยืนราคาแล้ว ตอบรับไม่ได้');
   perform flowtest.as_root();
