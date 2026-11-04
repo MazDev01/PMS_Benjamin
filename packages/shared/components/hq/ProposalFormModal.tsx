@@ -243,15 +243,13 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
             </div>
             <div>
               <FieldLabel htmlFor="pp-province" required>จังหวัด</FieldLabel>
-              <span ref={บังคับ.ผูก("province").ref} data-field="province" data-invalid={บังคับ.ผิด.province ? "1" : undefined} style={{ display: "block" }}>
-              <ProvinceSelect id="pp-province" label="จังหวัด" className="form-select" value={ร่าง.province ?? ""} onChange={v => { บังคับ.ล้าง("province"); ตั้งค่า("province", v || null); }}
-                style={บังคับ.ผิด.province ? { cursor: "pointer", borderColor: "#dc2626", boxShadow: "0 0 0 1px #dc2626" } : { cursor: "pointer" }}
+              <ProvinceSelect id="pp-province" selectRef={บังคับ.ผูก("province").ref} invalid={!!บังคับ.ผิด.province} label="จังหวัด" className="form-select" value={ร่าง.province ?? ""} onChange={v => { บังคับ.ล้าง("province"); ตั้งค่า("province", v || null); }}
+                style={{ cursor: "pointer" }}
                 options={provincesOfRegion(ร่าง.region ?? "")} ว่าง={ร่าง.region ? "— ยังไม่ระบุ —" : "— ยังไม่ระบุ (เลือกภาคก่อน) —"}
                 ก่อน={ร่าง.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
                 หลัง={ร่าง.province && ร่าง.province !== ALL_PROVINCES && !provincesOfRegion(ร่าง.region ?? "").includes(ร่าง.province) && (
                   <option value={ร่าง.province}>{ร่าง.province} (ตามที่บันทึกไว้)</option>
                 )} />
-              </span>
               <FieldError>{บังคับ.ผิด.province}</FieldError>
             </div>
             <div>
