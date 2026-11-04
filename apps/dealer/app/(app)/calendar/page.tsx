@@ -15,6 +15,7 @@ import { useMyProvinces } from "@pms/shared/lib/useMyProvinces";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { PersonPicker } from "@pms/shared/components/ui/PersonPicker";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
 import { ChevronLeft, ChevronRight, Clock, MapPin, CalendarDays, CalendarCheck, Plus, X, User, Phone, Building2, GitBranch, Users, Edit2, Trash2, AlarmClock, CheckCircle2 } from "lucide-react";
 
 // ── Tokens (CI) ───────────────────────────────────────────────
@@ -530,6 +531,9 @@ function AddApptModal({ initial, defaultDate, onSave, onClose }: { initial?: App
   const [note, setNote] = useState(initial?.note ?? "");
   const savingRef = useRef(false); // กันกดปุ่มบันทึกซ้ำระหว่างรอเลขนัดจาก DB (H8 · guard แบบ synchronous)
   const [saving, setSaving] = useState(false); // ไว้ disable ปุ่มให้เห็น (visual)
+  const บังคับ = useช่องบังคับ();
+  // นัดเก่าที่ไม่ได้ผูกลีด (ก่อนบังคับผูก · ใบ 0274) แก้ได้โดยไม่ต้องผูก · นัดใหม่/นัดที่ผูกอยู่ ต้องมีลีด (คนรวมงานตัดสิน 4 พ.ย. 69)
+  const ต้องผูกลีด = !initial || initial.leadId != null;
   const [err, setErr] = useState("");           // ช่องบังคับยังไม่ครบ — ต้องฟ้องให้เห็น ห้ามบันทึกเงียบ
 
   // เลือกลูกค้าเป้าหมาย → ผูก leadId แล้วเติมชื่อบริษัท/ผู้ติดต่อ/เบอร์/จังหวัดอัตโนมัติ
@@ -549,9 +553,15 @@ function AddApptModal({ initial, defaultDate, onSave, onClose }: { initial?: App
     if (savingRef.current) return;
     // วันที่/เวลา มีค่าตั้งต้นให้ แต่ผู้ใช้ล้างทิ้งได้ — ปล่อยผ่านแล้วจะได้นัดหมายที่ไม่มีวันเวลา
     // (โผล่ในปฏิทินไม่ได้ ตามงานต่อไม่ได้) ดาว * บนป้ายกำกับต้องตรงกับที่ตรวจตรงนี้เสมอ
-    if (!type) { setErr("ต้องเลือกประเภทกิจกรรม"); return; }
-    if (!date || !time) { setErr("ต้องระบุวันที่และเวลา"); return; }
+    // ช่องบังคับ (ตัวกลาง · บอสสั่ง 4 พ.ย. 69): ประเภท · วันที่ · เวลา · ลูกค้าเป้าหมาย (นัดใหม่/นัดที่ผูกอยู่แล้ว — นัดเก่าที่ไม่ได้ผูกแก้ได้)
     setErr("");
+    if (!บังคับ.ตรวจ([
+      { key: "type", label: "ประเภท", value: type, ข้อความ: "ต้องเลือกประเภทกิจกรรม" },
+      ...(ต้องผูกลีด ? [{ key: "lead", label: "ลูกค้าเป้าหมาย", value: leadId != null ? "1" : "", ข้อความ: "ต้องเลือกลูกค้าเป้าหมาย" }] : []),
+      { key: "date", label: "วันที่", value: date, ข้อความ: "ต้องระบุวันที่" },
+      { key: "time", label: "เวลา", value: time, ข้อความ: "ต้องระบุเวลา" },
+    ])) return;
+    if (!type) return;   // ตรวจแล้วข้างบน — ให้ TS แคบชนิด
     savingRef.current = true; setSaving(true);
     try {
     const name = company.trim() || initial?.company || "กิจกรรมใหม่";
@@ -589,28 +599,32 @@ function AddApptModal({ initial, defaultDate, onSave, onClose }: { initial?: App
             <div className="form-grid">
               <div className="form-section">กิจกรรม</div>
               <div>
-                <label className="form-label">ประเภท *</label>
-                <select aria-label="ประเภท" value={type} onChange={e => setType(e.target.value as ApptType | "")} className="form-select">
+                <FieldLabel htmlFor="ae-type" required>ประเภท</FieldLabel>
+                <select id="ae-type" aria-label="ประเภท" value={type} onChange={e => { บังคับ.ล้าง("type"); setType(e.target.value as ApptType | ""); }} className="form-select" {...บังคับ.ผูก("type")}>
                   <option value="">— ยังไม่ระบุ —</option>
                   {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
                 </select>
+                <FieldError>{บังคับ.ผิด.type}</FieldError>
               </div>
               <div>
-                <label className="form-label">ลูกค้าเป้าหมาย</label>
-                <select value={leadId ?? ""} onChange={e => pickLead(e.target.value)} className="form-select">
+                <FieldLabel htmlFor="ae-lead" required={ต้องผูกลีด}>ลูกค้าเป้าหมาย</FieldLabel>
+                <select id="ae-lead" value={leadId ?? ""} onChange={e => { บังคับ.ล้าง("lead"); pickLead(e.target.value); }} className="form-select" {...บังคับ.ผูก("lead")}>
                   <option value="">— ไม่ผูกลูกค้าเป้าหมาย —</option>
                   {leads.map(l => <option key={l.numId} value={l.numId}>{l.company}{l.contact ? ` · ${l.contact}` : ""}</option>)}
                 </select>
+                <FieldError>{บังคับ.ผิด.lead}</FieldError>
               </div>
 
               <div className="form-section">วันเวลาและสถานที่</div>
               <div>
-                <label className="form-label">วันที่ *</label>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" />
+                <FieldLabel htmlFor="ae-date" required>วันที่</FieldLabel>
+                <input id="ae-date" type="date" value={date} onChange={e => { บังคับ.ล้าง("date"); setDate(e.target.value); }} className="form-input" {...บังคับ.ผูก("date")} />
+                <FieldError>{บังคับ.ผิด.date}</FieldError>
               </div>
               <div>
-                <label className="form-label">เวลา *</label>
-                <input type="time" value={time} onChange={e => setTime(e.target.value)} className="form-input" />
+                <FieldLabel htmlFor="ae-time" required>เวลา</FieldLabel>
+                <input id="ae-time" type="time" value={time} onChange={e => { บังคับ.ล้าง("time"); setTime(e.target.value); }} className="form-input" {...บังคับ.ผูก("time")} />
+                <FieldError>{บังคับ.ผิด.time}</FieldError>
               </div>
               <div className="col-full">
                 <label className="form-label">จังหวัด</label>
@@ -773,6 +787,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [assigned, setAssigned] = useState(session.name);
+  const บังคับ = useช่องบังคับ();
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -786,16 +801,22 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
   const ลูกค้าที่เลือก = เลือก?.kind === "customer" ? ลูกค้า.find(c => c.id === เลือก.id) : undefined;
   const ชื่อที่เลือก = ลีดที่เลือก ? (ลีดที่เลือก.company || ลีดที่เลือก.name) : ลูกค้าที่เลือก ? (ลูกค้าที่เลือก.company || ลูกค้าที่เลือก.name) : "";
   function เลือกราย(x: ผูกกับ) {
-    setเลือก(x); setErr("");
+    setเลือก(x); setErr(""); บังคับ.ล้าง("pick");
     const l = x.kind === "lead" ? ลีด.find(v => v.numId === x.id) : undefined;
     if (l?.assigned) setAssigned(l.assigned);
   }
   async function save() {
     if (savingRef.current) return;
-    if (!เลือก) { setErr("ต้องเลือกลูกค้าเป้าหมายหรือลูกค้า"); return; }
-    if (!type) { setErr("ต้องเลือกประเภทนัดหมาย"); return; }
-    if (!date || !time) { setErr("ต้องระบุวันที่และเวลา"); return; }
-    setErr(""); savingRef.current = true; setSaving(true);
+    // ช่องบังคับ (ตัวกลาง · บอสสั่ง 4 พ.ย. 69): ลีด/ลูกค้า · ประเภท · วันที่ · เวลา — ขาด = กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรก
+    setErr("");
+    if (!บังคับ.ตรวจ([
+      { key: "pick", label: "ลูกค้าเป้าหมาย / ลูกค้า", value: เลือก ? "1" : "", ข้อความ: "ต้องเลือกลูกค้าเป้าหมายหรือลูกค้า" },
+      { key: "type", label: "ประเภท", value: type, ข้อความ: "ต้องเลือกประเภทนัดหมาย" },
+      { key: "date", label: "วันที่", value: date, ข้อความ: "ต้องระบุวันที่" },
+      { key: "time", label: "เวลา", value: time, ข้อความ: "ต้องระบุเวลา" },
+    ])) return;
+    if (!type || !เลือก) return;   // ตรวจแล้วข้างบน — ให้ TS แคบชนิด
+    savingRef.current = true; setSaving(true);
     try {
       const a: AppointmentMock = {
         id: await newAppointmentId(),
@@ -823,7 +844,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
           <div style={{ padding: 20, maxHeight: "70vh", overflowY: "auto" }}>
             <div className="form-grid">
               <div className="col-full">
-                <label className="form-label" htmlFor="na-search">ลูกค้าเป้าหมาย / ลูกค้า *</label>
+                <FieldLabel htmlFor="na-search" required>ลูกค้าเป้าหมาย / ลูกค้า</FieldLabel>
                 {เลือก ? (
                   <div data-picked={เลือก.kind} style={{ display: "flex", alignItems: "center", gap: 8, border: `1px solid ${BORDER}`, borderRadius: 9, padding: "8px 11px" }}>
                     <span style={{ flex: 1, fontSize: "0.82rem", fontWeight: 700 }}>{ชื่อที่เลือก}</span>
@@ -832,7 +853,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
                   </div>
                 ) : (
                   <>
-                    <input id="na-search" className="form-input" value={ค้น} onChange={e => setค้น(e.target.value)} placeholder="พิมพ์ชื่อบริษัท ผู้ติดต่อ หรือเบอร์โทร" autoComplete="off" />
+                    <input id="na-search" className="form-input" value={ค้น} onChange={e => setค้น(e.target.value)} {...บังคับ.ผูก("pick")} placeholder="พิมพ์ชื่อบริษัท ผู้ติดต่อ หรือเบอร์โทร" autoComplete="off" />
                     <ul aria-label="ผลค้นหาลูกค้าเป้าหมายและลูกค้า" style={{ listStyle: "none", margin: "6px 0 0", padding: 0, maxHeight: 180, overflowY: "auto", border: `1px solid ${BORDER}`, borderRadius: 9 }}>
                       {ตัวเลือก.length === 0 && <li style={{ padding: "10px 12px", fontSize: "0.76rem", color: MUTED }}>ไม่พบ — ลีดที่ปิดแล้วไม่อยู่ในรายการ</li>}
                       {ตัวเลือก.map(o => (
@@ -846,25 +867,29 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
                     </ul>
                   </>
                 )}
+                <FieldError>{บังคับ.ผิด.pick}</FieldError>
               </div>
               <div>
-                <label className="form-label" htmlFor="na-type">ประเภท *</label>
-                <select id="na-type" value={type} onChange={e => setType(e.target.value as ApptType | "")} className="form-select">
+                <FieldLabel htmlFor="na-type" required>ประเภท</FieldLabel>
+                <select id="na-type" value={type} onChange={e => { บังคับ.ล้าง("type"); setType(e.target.value as ApptType | ""); }} className="form-select" {...บังคับ.ผูก("type")}>
                   <option value="">— ยังไม่ระบุ —</option>
                   {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
                 </select>
+                <FieldError>{บังคับ.ผิด.type}</FieldError>
               </div>
               <div>
                 <label className="form-label" htmlFor="na-assigned">ผู้รับผิดชอบ</label>
                 <PersonPicker value={assigned} onChange={setAssigned} />
               </div>
               <div>
-                <label className="form-label" htmlFor="na-date">วันที่ *</label>
-                <input id="na-date" type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" />
+                <FieldLabel htmlFor="na-date" required>วันที่</FieldLabel>
+                <input id="na-date" type="date" value={date} onChange={e => { บังคับ.ล้าง("date"); setDate(e.target.value); }} className="form-input" {...บังคับ.ผูก("date")} />
+                <FieldError>{บังคับ.ผิด.date}</FieldError>
               </div>
               <div>
-                <label className="form-label" htmlFor="na-time">เวลา *</label>
-                <input id="na-time" type="time" value={time} onChange={e => setTime(e.target.value)} className="form-input" />
+                <FieldLabel htmlFor="na-time" required>เวลา</FieldLabel>
+                <input id="na-time" type="time" value={time} onChange={e => { บังคับ.ล้าง("time"); setTime(e.target.value); }} className="form-input" {...บังคับ.ผูก("time")} />
+                <FieldError>{บังคับ.ผิด.time}</FieldError>
               </div>
               <div className="col-full">
                 <label className="form-label" htmlFor="na-location">สถานที่</label>

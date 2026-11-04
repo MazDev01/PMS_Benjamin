@@ -18,6 +18,8 @@ import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { ข้อความช่องขีด } from "@pms/shared/lib/requiredFields";
 import { markupPctOf } from "@pms/shared/lib/boq";
 import { useRouter } from "next/navigation";
 import { DealerAccountSummary } from "@pms/shared/components/ui/DealerAccountCard";
@@ -39,7 +41,8 @@ type SettingTab = "company" | "documents" | "persons" | "leadRules" | "notificat
 // ── shared save bus — แท็บที่มีฟอร์มรายงาน {dirty,save,reset} ให้ปุ่มบันทึกกลางบนหัว
 // (แนวเดียวกับหน้าตั้งค่า HQ · แท็บที่บันทึกทันที เช่น ผู้รับผิดชอบ ไม่ต้องรายงาน)
 // save คืน Promise ได้ — หน้าแม่จะได้ "รอให้บันทึกเสร็จจริง" ก่อนบอกผู้ใช้ว่าบันทึกแล้ว
-type SectionApi = { dirty: boolean; save: () => void | Promise<void>; reset: () => void };
+// save คืน false = ช่องบังคับยังไม่ครบ → ไม่บันทึก และไม่ขึ้น "บันทึกแล้ว" (ตัวกลางช่องบังคับ · บอสสั่ง 4 พ.ย. 69)
+type SectionApi = { dirty: boolean; save: () => void | false | Promise<void | false>; reset: () => void };
 const SettingsBus = createContext<{ report: (a: SectionApi | null) => void; toast: (m: string) => void }>({ report: () => {}, toast: () => {} });
 function useReport(api: SectionApi) {
   const { report } = useContext(SettingsBus);
@@ -91,10 +94,20 @@ function CompanyTab() {
     setBaseline(JSON.stringify({ form: f, logo: l, prof: p }));
   }, [dealerCfg.loaded, dealerCfg.settings, userProfile.loaded, userProfile.profile, session.dealerCode, session.name]);
 
+  // ข้อมูลผู้ออกใบ (หัวใบเสนอราคา · ใบ 0247 ส่ง/พิมพ์ไม่ได้ถ้าขาด): ชื่อบริษัท · ที่อยู่ · โทร · เลขผู้เสียภาษี ("-" ได้)
+  const บังคับ = useช่องบังคับ();
+  const ตรวจบังคับ = บังคับ.ตรวจ;
   function set<K extends keyof CompanyProfile>(k: K, v: CompanyProfile[K]) {
     setForm(p => ({ ...p, [k]: v }));
+    บังคับ.ล้าง(k as string);
   }
-  const save = useCallback(async () => {
+  const save = useCallback(async (): Promise<void | false> => {
+    if (!ตรวจบังคับ([
+      { key: "company", label: "ชื่อบริษัท", value: form.company },
+      { key: "taxId", label: "เลขประจำตัวผู้เสียภาษี", value: form.taxId, ข้อความ: ข้อความช่องขีด("เลขประจำตัวผู้เสียภาษี") },
+      { key: "phone", label: "โทรศัพท์บริษัท", value: form.phone },
+      { key: "address", label: "ที่อยู่", value: form.address },
+    ])) return false;
     const cleanProf: UserProfile = { name: prof.name.trim() || session.name, email: prof.email.trim() || defaultProfileEmail(session.dealerCode), phone: prof.phone.trim(), avatar: prof.avatar };
     // รอให้เขียนเสร็จจริงทั้งคู่ — ไม่ยิงทิ้งแบบเดิม (ผู้ใช้กดเมนูอื่นต่อแล้วคำขอถูกยกเลิกกลางทาง)
     const งานโปรไฟล์ = userProfile.save(cleanProf)
@@ -107,7 +120,7 @@ function CompanyTab() {
     await Promise.all([งานโปรไฟล์, งานบริษัท]);
     window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
     setBaseline(JSON.stringify({ form, logo, prof }));
-  }, [form, logo, prof, session.dealerCode, session.name]);
+  }, [form, logo, prof, session.dealerCode, session.name, ตรวจบังคับ]);
   async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // ให้เลือกไฟล์เดิมซ้ำได้หลังถูกปฏิเสธ
@@ -179,25 +192,29 @@ function CompanyTab() {
         <div style={sec}><Building2 size={14} /> ข้อมูลบริษัท (ออกในนามดีลเลอร์)</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginBottom: 14 }}>
           <div>
-            <label className="form-label">ชื่อบริษัท</label>
-            <input className="form-input" value={form.company} onChange={e => set("company", e.target.value)} placeholder="บริษัท ตัวอย่าง จำกัด" />
+            <FieldLabel htmlFor="is-company" required>ชื่อบริษัท</FieldLabel>
+            <input id="is-company" className="form-input" value={form.company} onChange={e => set("company", e.target.value)} placeholder="บริษัท ตัวอย่าง จำกัด" {...บังคับ.ผูก("company")} />
+            <FieldError>{บังคับ.ผิด.company}</FieldError>
           </div>
           <div>
-            <label className="form-label">เลขประจำตัวผู้เสียภาษี</label>
+            <FieldLabel htmlFor="is-tax" required>เลขประจำตัวผู้เสียภาษี</FieldLabel>
             {/* ⚠️ ตัวอย่างเลขต้องมี X (แก้ 10 ส.ค. 69) — เดิมเป็น "0105555000000" ซึ่งเป็นตัวเลข 13 หลัก
                 ครบรูปแบบ อ่านผ่าน ๆ แล้วแยกไม่ออกว่าเป็นค่าตัวอย่างหรือเลขที่กรอกไว้แล้ว
                 และต้องเขียนเหมือนฝั่งสำนักงานใหญ่ (CompanyPanel) — ช่องเดียวกันห้ามมี 2 รูปแบบ */}
-            <input className="form-input" inputMode="numeric" value={form.taxId} onChange={e => set("taxId", formatTaxId(e.target.value))} placeholder="0-1055-XXXXX-XX-X" />
+            {/* ไม่มีเลข (บุคคลธรรมดา/ยังไม่จด) ใส่ "-" ได้ — formatTaxId กลืนขีดทิ้ง จึงรับ "-" ตรง ๆ ก่อน (บอสสั่ง 4 พ.ย. 69) */}
+            <input id="is-tax" className="form-input" inputMode="numeric" value={form.taxId} onChange={e => set("taxId", e.target.value.trim() === "-" ? "-" : formatTaxId(e.target.value))} placeholder="0-1055-XXXXX-XX-X" {...บังคับ.ผูก("taxId")} />
+            <FieldError>{บังคับ.ผิด.taxId}</FieldError>
           </div>
           <div>
             <label className="form-label">อีเมลบริษัท</label>
             <input className="form-input" type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="info@example.co.th" />
           </div>
           <div>
-            <label className="form-label">โทรศัพท์บริษัท</label>
+            <FieldLabel htmlFor="is-phone" required>โทรศัพท์บริษัท</FieldLabel>
             {/* เติมขีดให้เองระหว่างพิมพ์ — เดิมพิมพ์ 222555205 แล้วเก็บติดกันแบบนั้น
                 หน้าอื่นที่แสดงเบอร์ทั้งระบบใช้รูปแบบมีขีด สองแบบปนกันแล้วอ่านยากและค้นไม่เจอ */}
-            <input className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="02-000-0000" />
+            <input id="is-phone" className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="02-000-0000" {...บังคับ.ผูก("phone")} />
+            <FieldError>{บังคับ.ผิด.phone}</FieldError>
           </div>
           <div style={{ gridColumn: "1/-1" }}>
             <label className="form-label">เว็บไซต์</label>
@@ -205,10 +222,12 @@ function CompanyTab() {
           </div>
         </div>
         <div style={{ marginBottom: 20 }}>
-          <label className="form-label">ที่อยู่</label>
-          <textarea className="form-textarea" value={form.address} rows={3}
+          <FieldLabel htmlFor="is-address" required>ที่อยู่</FieldLabel>
+          {(() => { const ผ = บังคับ.ผูก("address"); return (
+          <textarea id="is-address" className="form-textarea" value={form.address} rows={3}
             onChange={e => set("address", e.target.value)}
-            placeholder="ที่อยู่เต็ม รวมจังหวัดและรหัสไปรษณีย์" style={{ resize: "vertical" }} />
+            placeholder="ที่อยู่เต็ม รวมจังหวัดและรหัสไปรษณีย์" {...ผ} style={{ resize: "vertical", ...(ผ.style ?? {}) }} />); })()}
+          <FieldError>{บังคับ.ผิด.address}</FieldError>
         </div>
 
         {/* ── ข้อมูลบัญชี — ดีลเลอร์แก้อีเมล/รหัสผ่านเองได้ (บอสสั่ง 28 ส.ค. 69) ──
@@ -372,10 +391,10 @@ function DocumentsTab() {
             <div>
               {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69)
                   ใบที่ออกไปแล้วไม่กระทบ — ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง */}
-              <label className="form-label">ภาษีมูลค่าเพิ่ม %</label>
+              <FieldLabel htmlFor="doc-vat" required>ภาษีมูลค่าเพิ่ม %</FieldLabel>
               {/* ผูกชื่อช่องไว้ด้วย — โปรแกรมอ่านหน้าจอต้องบอกได้ว่าช่องตัวเลขนี้คืออะไร
                   (ป้ายข้างบนไม่ได้ผูกกับช่องด้วย htmlFor จึงต้องระบุที่ตัวช่องเอง) */}
-              <NumberInput ariaLabel="ภาษีมูลค่าเพิ่ม %" min={0} max={100} step="0.01"
+              <NumberInput id="doc-vat" ariaLabel="ภาษีมูลค่าเพิ่ม %" min={0} max={100} step="0.01"
                 value={doc.vatPercent} onChange={n => set("vatPercent", n)}
                 style={{ fontFamily: "monospace" }} />
             </div>
@@ -404,8 +423,8 @@ function DocumentsTab() {
           {/* ค่าเริ่มต้น: อายุใบเสนอราคา (ดีลเลอร์ตั้งได้เอง) */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 200px))", gap: 12, marginTop: 14 }}>
             <div>
-              <label className="form-label">อายุใบเสนอราคา (วัน)</label>
-              <NumberInput ariaLabel="อายุใบเสนอราคา (วัน)" min={1} value={doc.validityDays}
+              <FieldLabel htmlFor="doc-validity" required>อายุใบเสนอราคา (วัน)</FieldLabel>
+              <NumberInput id="doc-validity" ariaLabel="อายุใบเสนอราคา (วัน)" min={1} value={doc.validityDays}
                 onChange={n => set("validityDays", n)}
                 style={{ fontFamily: "monospace" }} />
             </div>
@@ -483,6 +502,7 @@ function reindexPersons(arr: unknown): ResponsiblePerson[] {
 
 function PersonsTab() {
   const currentDealer = useCurrentDealer(); // พนักงานขายเป็นของสาขานี้ (multi-tenant)
+  const คนบังคับ = useช่องบังคับ();   // ชื่อ-นามสกุล บังคับ (ตัวกลางช่องบังคับ · บอสสั่ง 4 พ.ย. 69) — ทั้งเพิ่มและแก้
   // เริ่มว่างเสมอ — เดิมตั้งต้นด้วยพนักงานตัวอย่าง 5 คน ถ้าโหลดพลาดแล้วผู้ใช้กดแก้/เพิ่ม
   // save() จะเขียนคนปลอมทั้ง 5 ลง DB จริง
   const [persons, setPersons] = useState<ResponsiblePerson[]>([]);
@@ -524,15 +544,16 @@ function PersonsTab() {
     setEditPhone(p.phone ?? ""); setEditEmail(p.email ?? ""); setEditAvatar(p.avatar);
   }
   function saveEdit() {
+    if (!คนบังคับ.ตรวจ([{ key: "name", label: "ชื่อ-นามสกุล", value: editName }])) return;   // เดิมแก้ชื่อเป็นว่างแล้วบันทึกได้
     save(persons.map(p => p.id === editId
-      ? { ...p, name: editName, title: editTitle, phone: editPhone, email: editEmail, avatar: editAvatar }
+      ? { ...p, name: editName.trim(), title: editTitle, phone: editPhone, email: editEmail, avatar: editAvatar }
       : p));
     setEditId(null);
   }
   function toggleActive(id: number) { save(persons.map(p => p.id === id ? { ...p, active: !p.active } : p)); }
   function deletePerson(id: number) { save(persons.filter(p => p.id !== id)); setDeleteConfirmId(null); }
   function addPerson() {
-    if (!newName.trim()) return;
+    if (!คนบังคับ.ตรวจ([{ key: "name", label: "ชื่อ-นามสกุล", value: newName }])) return;
     const p: ResponsiblePerson = {
       id: Math.max(0, ...persons.map(x => x.id)) + 1, name: newName.trim(), title: newTitle.trim() || "เจ้าหน้าที่ขาย",
       phone: newPhone.trim(), email: newEmail.trim(), active: true, avatar: newAvatar,
@@ -542,10 +563,12 @@ function PersonsTab() {
   }
 
   // ปิดฟอร์ม (ทั้งโหมดเพิ่มและโหมดแก้ไข) — ต้องอยู่ระดับนี้เพื่อให้ตัวคุมการคลิกฉากหลังใช้ได้
+  const ล้างผิดชื่อ = คนบังคับ.ล้าง;
   const closeForm = useCallback(() => {
+    ล้างผิดชื่อ("name");
     if (editId !== null) { setEditId(null); return; }
     setAdding(false); setNewName(""); setNewTitle(""); setNewPhone(""); setNewEmail(""); setNewAvatar(undefined);
-  }, [editId]);
+  }, [editId, ล้างผิดชื่อ]);
   // คลิกฉากหลังเพื่อปิด — แต่กันคลิกที่สองของดับเบิลคลิก และกันการลากข้อความออกนอกกล่อง
   const overlayProps = useOverlayClose(closeForm, adding || editId !== null);
 
@@ -575,7 +598,7 @@ function PersonsTab() {
           const setAvatar = isEdit ? setEditAvatar : setNewAvatar;
           const submit = isEdit ? saveEdit : addPerson;
           const close = closeForm;
-          const onEnter = (e: React.KeyboardEvent) => { if (e.key === "Enter" && name.trim()) submit(); };
+          const onEnter = (e: React.KeyboardEvent) => { if (e.key === "Enter") submit(); };
           return (
             // แขวนที่ระดับหน้าเว็บ ไม่ฝังในการ์ด — ไม่งั้นอนิเมชันของการ์ดจะดึงตำแหน่งป๊อปอัพไปด้วย
             <ModalPortal>
@@ -628,9 +651,10 @@ function PersonsTab() {
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                     <div style={{ gridColumn: "1/-1" }}>
-                      <label className="form-label">ชื่อ-นามสกุล *</label>
-                      <input className="form-input" value={name} autoFocus onChange={e => setName(e.target.value)}
+                      <FieldLabel htmlFor="ps-name" required>ชื่อ-นามสกุล</FieldLabel>
+                      <input id="ps-name" className="form-input" value={name} autoFocus onChange={e => { คนบังคับ.ล้าง("name"); setName(e.target.value); }} {...คนบังคับ.ผูก("name")}
                         placeholder="เช่น สมชาย เชียงใหม่" onKeyDown={onEnter} />
+                      <FieldError>{คนบังคับ.ผิด.name}</FieldError>
                     </div>
                     <div>
                       <label className="form-label">ตำแหน่ง</label>
@@ -653,8 +677,8 @@ function PersonsTab() {
                 <div style={{ padding: "14px 22px", borderTop: "1px solid #e5e7eb", background: "#fafafa",
                   display: "flex", justifyContent: "flex-end", gap: 8 }}>
                   <button className="btn btn-secondary btn-md" onClick={close}>ยกเลิก</button>
-                  <button className="btn btn-primary btn-md" disabled={!name.trim()}
-                    style={!name.trim() ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                  {/* กดได้เสมอ — ชื่อว่าง = ฟ้องที่ช่อง (ไม่ใช่ปุ่มเทาเงียบ ๆ) */}
+                  <button className="btn btn-primary btn-md"
                     onClick={submit}><Check size={14} strokeWidth={2.5} /> บันทึก</button>
                 </div>
               </ModalCard>
@@ -874,7 +898,7 @@ export default function SettingsPage() {
     if (!dirty || !api || กำลังบันทึก) return;
     setกำลังบันทึก(true);
     try {
-      await api.save();
+      if ((await api.save()) === false) return;   // ช่องบังคับยังไม่ครบ — ช่องที่ขาดฟ้องเองแล้ว
       showToast("บันทึกการตั้งค่าแล้ว");
     } catch (e) {
       showToast("บันทึกไม่สำเร็จ: " + friendlyError(e));
