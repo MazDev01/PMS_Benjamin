@@ -32,6 +32,7 @@ import {
   Eye, EyeOff, Pencil, Power, Clock, UserPlus, Phone, ImagePlus, Trash2, AlertTriangle, Mail, Building2, UserCheck, UserX, LogIn,
 } from "lucide-react";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
 
 const PRIMARY = "#003366";
 const STEEL = "#2D2D2D";
@@ -136,9 +137,20 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
   // แผนกผูกกับบทบาทเสมอ — เลือกบทบาทแล้วแผนกมาเอง ไม่ต้องกรอกซ้ำและไม่มีทางตั้งขัดกัน
   // (เดิมเป็นช่องอิสระ เลือกบทบาทแล้วแผนกยังค้างเป็น "ยังไม่ระบุ" ได้ · บอสสั่งฟิก 3 ก.ย. 69)
   const แผนกตามบทบาท = f.role ? defaultDept(f.role) : "";
-  const valid = f.firstName.trim() && /\S+@\S+\.\S+/.test(f.email) && !!f.role && !!แผนกตามบทบาท;
+  // ช่องบังคับ (4 พ.ย. 69 · ตัวกลาง): ชื่อ · อีเมล · บทบาท — กดบันทึกแล้วขาด = กรอบแดง + ข้อความใต้ช่อง + เลื่อนไปช่องแรก
+  //   (เดิมปุ่มบันทึกเป็นสีจางกดไม่ได้ ไม่บอกว่าขาดช่องไหน) · อีเมลผิดรูป = ข้อความใต้ช่องอีเมล
+  const บังคับ = useช่องบังคับ();
+  const อีเมลถูกรูป = /\S+@\S+\.\S+/.test(f.email);
   const inp: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 9, border: `1px solid ${BORDER}`, fontSize: "0.84rem", color: STEEL, background: "#fff", outline: "none", boxSizing: "border-box" };
-  const submit = () => { if (!valid) return; onSave({ name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(), email: f.email.trim(), phone: f.phone.trim(), role: f.role, department: แผนกตามบทบาท, status: f.status, avatar: f.avatar }, initial ? undefined : f.tempPassword); onClose(); };
+  const submit = () => {
+    if (!บังคับ.ตรวจ([
+      { key: "firstName", label: "ชื่อ", value: f.firstName },
+      { key: "email", label: "อีเมล", value: f.email },
+      { key: "role", label: "บทบาท", value: f.role },
+    ])) return;
+    if (!อีเมลถูกรูป) { บังคับ.ตั้งผิด("email", "อีเมลไม่ถูกรูปแบบ เช่น name@benjamin.co.th"); return; }
+    if (!แผนกตามบทบาท) return;
+    onSave({ name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(), email: f.email.trim(), phone: f.phone.trim(), role: f.role, department: แผนกตามบทบาท, status: f.status, avatar: f.avatar }, initial ? undefined : f.tempPassword); onClose(); };
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);   // Esc ปิด · Tab วนในกล่อง · คืนโฟกัสเดิม
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(45,45,45,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -165,13 +177,13 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
             </label>
           </div>
           <div className="form-section">ข้อมูลผู้ใช้</div>
-          <div><label className="form-label">ชื่อ *</label><input style={inp} value={f.firstName} autoFocus onChange={e => setF({ ...f, firstName: e.target.value })} placeholder="ชื่อ" /></div>
+          <div><FieldLabel htmlFor="us-first" required>ชื่อ</FieldLabel><input id="us-first" {...บังคับ.ผูก("firstName")} style={{ ...inp, ...บังคับ.ผูก("firstName").style }} value={f.firstName} autoFocus onChange={e => { บังคับ.ล้าง("firstName"); setF({ ...f, firstName: e.target.value }); }} placeholder="ชื่อ" /><FieldError>{บังคับ.ผิด.firstName}</FieldError></div>
           <div><label className="form-label">นามสกุล</label><input style={inp} value={f.lastName} onChange={e => setF({ ...f, lastName: e.target.value })} placeholder="นามสกุล" /></div>
-          <div className="col-full"><label className="form-label">อีเมล (ใช้เข้าระบบ) *</label><input style={inp} value={f.email} onChange={e => setF({ ...f, email: e.target.value })} placeholder="name@benjamin.co.th" /></div>
+          <div className="col-full"><FieldLabel htmlFor="us-email" required>อีเมล (ใช้เข้าระบบ)</FieldLabel><input id="us-email" {...บังคับ.ผูก("email")} style={{ ...inp, ...บังคับ.ผูก("email").style }} value={f.email} onChange={e => { บังคับ.ล้าง("email"); setF({ ...f, email: e.target.value }); }} placeholder="name@benjamin.co.th" /><FieldError>{บังคับ.ผิด.email}</FieldError></div>
           {!initial && <><div className="col-full"><label className="form-label">รหัสผ่านชั่วคราว</label><input style={{ ...inp, fontFamily: "monospace", fontWeight: 700 }} value={f.tempPassword} onChange={e => setF({ ...f, tempPassword: e.target.value.replace(/\s/g, "") })} /><div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 4 }}>ใช้รหัสนี้เข้าระบบครั้งแรก · อย่างน้อย 8 ตัว ห้ามมีช่องว่าง · เว้นว่าง = ระบบสุ่มให้ · ผู้ใช้เปลี่ยนเองได้ที่หน้าโปรไฟล์</div></div></>}
           <div><label className="form-label">เบอร์โทร</label><input style={inp} inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: formatPhone(e.target.value) })} placeholder="08x-xxx-xxxx" /></div>
           <div className="form-section">สิทธิ์การใช้งาน</div>
-          <div><label className="form-label">บทบาท *{lockPriv && <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}> · เฉพาะผู้ดูแลระบบ</span>}</label><select style={{ ...inp, ...(lockPriv ? { background: "#f3f4f6", cursor: "not-allowed", opacity: .7 } : {}) }} aria-label="บทบาท" disabled={lockPriv} value={f.role} onChange={e => setF({ ...f, role: e.target.value as RoleKey, department: defaultDept(e.target.value as RoleKey) })}><option value="">— ยังไม่ระบุ —</option>{ROLES.filter(r => r.key !== "SUPER_ADMIN" || canEditPrivileges).map(r => <option key={r.key} value={r.key}>{r.th}</option>)}</select></div>
+          <div><FieldLabel htmlFor="us-role" required>บทบาท{lockPriv && <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}> · เฉพาะผู้ดูแลระบบ</span>}</FieldLabel><select id="us-role" {...บังคับ.ผูก("role")} style={{ ...inp, ...(lockPriv ? { background: "#f3f4f6", cursor: "not-allowed", opacity: .7 } : {}), ...บังคับ.ผูก("role").style }} aria-label="บทบาท" disabled={lockPriv} value={f.role} onChange={e => { บังคับ.ล้าง("role"); setF({ ...f, role: e.target.value as RoleKey, department: defaultDept(e.target.value as RoleKey) }); }}><option value="">— ยังไม่ระบุ —</option>{ROLES.filter(r => r.key !== "SUPER_ADMIN" || canEditPrivileges).map(r => <option key={r.key} value={r.key}>{r.th}</option>)}</select><FieldError>{บังคับ.ผิด.role}</FieldError></div>
           <div>
             <label className="form-label">แผนก <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}>· ตามบทบาทที่เลือก</span></label>
             {/* แสดงอย่างเดียว แก้ไม่ได้ — ค่าจริงที่บันทึกคือ แผนกตามบทบาท */}
@@ -184,7 +196,7 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
         </div>
         <div style={{ padding: "14px 22px", borderTop: `1px solid ${BORDER}`, background: "#fafafa", display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button className="btn btn-secondary btn-md" onClick={onClose}>ยกเลิก</button>
-          <button className="btn btn-primary btn-md" disabled={!valid} style={!valid ? { opacity: .5, cursor: "not-allowed" } : undefined} onClick={submit}><Check size={14} /> บันทึก</button>
+          <button className="btn btn-primary btn-md" onClick={submit}><Check size={14} /> บันทึก</button>
         </div>
       </div>
     </div>

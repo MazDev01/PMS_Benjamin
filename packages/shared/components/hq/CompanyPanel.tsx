@@ -8,6 +8,8 @@ import { hqCompany as hqCompanyRepo } from "@pms/shared/lib/data";
 import { Building2, Check, Save, Image as ImageIcon } from "lucide-react";
 import { useReportSection } from "@pms/shared/lib/settingsBus";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
+import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { ข้อความช่องขีด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 
 // โลโก้ Benjamin เป็นแบรนด์มาตรฐานเดียว (ไฟล์ static) — ไม่มีคีย์เก็บโลโก้ที่อัปโหลดอีกแล้ว
 // ตัดทิ้งตามสเปก Enterprise: การ์ด "สินทรัพย์แบรนด์" (โลโก้ดาวน์โหลด / สี CI / ฟอนต์)
@@ -56,11 +58,22 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
     return () => { alive = false; };
   }, []);
 
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · หัวใบค่าแฟรนไชส์/เอกสารที่ออกจาก HQ ใช้ข้อมูลชุดนี้)
+  //   ชื่อบริษัท · ที่อยู่ · โทรศัพท์ · เลขผู้เสียภาษี (ไม่มีเลข = ใส่ "-") — ขาด = ไม่บันทึก · ฐานกันอีกชั้น (ใบ 0276)
+  const บังคับ = useช่องบังคับ();
+  const ชุดบังคับ = (f: CompanyProfile): ช่องบังคับ[] => [
+    { key: "name", label: "ชื่อบริษัท", value: f.name },
+    { key: "taxId", label: "เลขประจำตัวผู้เสียภาษี", value: f.taxId, ข้อความ: ข้อความช่องขีด("เลขประจำตัวผู้เสียภาษี") },
+    { key: "phone", label: "โทรศัพท์", value: f.phone },
+    { key: "address", label: "ที่อยู่", value: f.address },
+  ];
   function set<K extends keyof CompanyProfile>(k: K, v: CompanyProfile[K]) {
     setForm(p => ({ ...p, [k]: v }));
+    บังคับ.ล้าง(k);
     setSaved(false);
   }
   const save = useCallback(() => {
+    if (!บังคับ.ตรวจ(ชุดบังคับ(form))) return false;
     void hqCompanyRepo.save(form)
       .catch(e => แจ้งพลาด("บันทึกข้อมูลบริษัทไม่สำเร็จ: " + friendlyError(e)));
     // ⚠️ ต้องบันทึกไว้ในประวัติการใช้งานด้วย (แก้ 10 ส.ค. 69)
@@ -74,7 +87,8 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
     setBaseline(JSON.stringify({ form }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
-  }, [form, embedded]);
+    return true;
+  }, [form, embedded, บังคับ.ตรวจ]);
   // โหมดฝังในหน้าตั้งค่า → รายงาน {dirty,save,reset} ให้ปุ่มบันทึกกลาง (ไม่มีปุ่มของตัวเอง = ไม่ซ้ำ)
   const dirty = baseline !== "" && JSON.stringify({ form }) !== baseline;
   const reset = useCallback(() => {
@@ -131,18 +145,22 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
           <div className="form-grid" style={{ marginBottom: 28 }}>
             <div className="form-section">ข้อมูลบริษัท</div>
             <div className="col-full">
-              <label className="form-label">ชื่อบริษัท</label>
-              <input className="form-input" value={form.name} onChange={e => set("name", e.target.value)} />
+              <FieldLabel htmlFor="co-name" required>ชื่อบริษัท</FieldLabel>
+              <input id="co-name" className="form-input" value={form.name} onChange={e => set("name", e.target.value)} {...บังคับ.ผูก("name")} />
+              <FieldError>{บังคับ.ผิด.name}</FieldError>
             </div>
             <div className="col-full">
-              <label className="form-label">เลขประจำตัวผู้เสียภาษี</label>
-              <input className="form-input" inputMode="numeric" value={form.taxId} onChange={e => set("taxId", formatTaxId(e.target.value))} placeholder="0-1055-XXXXX-XX-X" />
+              <FieldLabel htmlFor="co-tax" required>เลขประจำตัวผู้เสียภาษี</FieldLabel>
+              {/* ไม่มีเลข = ใส่ "-" (formatTaxId คืน "-" ให้ · 4 พ.ย. 69) */}
+              <input id="co-tax" className="form-input" inputMode="numeric" value={form.taxId} onChange={e => set("taxId", formatTaxId(e.target.value))} placeholder='0-1055-XXXXX-XX-X · ไม่มีเลขใส่ "-"' {...บังคับ.ผูก("taxId")} />
+              <FieldError>{บังคับ.ผิด.taxId}</FieldError>
             </div>
 
             <div className="form-section">ช่องทางติดต่อ</div>
             <div>
-              <label className="form-label">โทรศัพท์</label>
-              <input className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="02-000-0000" />
+              <FieldLabel htmlFor="co-phone" required>โทรศัพท์</FieldLabel>
+              <input id="co-phone" className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="02-000-0000" {...บังคับ.ผูก("phone")} />
+              <FieldError>{บังคับ.ผิด.phone}</FieldError>
             </div>
             <div>
               <label className="form-label">อีเมล</label>
@@ -153,11 +171,12 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
               <input className="form-input" value={form.website} onChange={e => set("website", e.target.value)} placeholder="www.example.co.th" />
             </div>
             <div className="col-full">
-              <label className="form-label">ที่อยู่</label>
-              <textarea className="form-textarea" value={form.address} rows={3}
+              <FieldLabel htmlFor="co-address" required>ที่อยู่</FieldLabel>
+              <textarea id="co-address" className="form-textarea" value={form.address} rows={3}
                 onChange={e => set("address", e.target.value)}
                 placeholder="ที่อยู่เต็ม รวมจังหวัดและรหัสไปรษณีย์"
-                style={{ resize: "vertical" }} />
+                {...บังคับ.ผูก("address")} style={{ resize: "vertical", ...(บังคับ.ผิด.address ? กรอบผิด : null) }} />
+              <FieldError>{บังคับ.ผิด.address}</FieldError>
             </div>
           </div>
 

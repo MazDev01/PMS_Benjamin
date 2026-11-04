@@ -54,6 +54,96 @@
       "id": "pp-terms",
       "ชื่อ": "เงื่อนไข (ใส่ - ได้)",
       "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalPaymentsBox.tsx",
+      "id": "pay-date-${}",
+      "ชื่อ": "วันที่ชำระ",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalPaymentsBox.tsx",
+      "id": "pay-amount-${}",
+      "ชื่อ": "ยอดชำระ",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalPaymentsBox.tsx",
+      "id": "pay-ref-${}",
+      "ชื่อ": "เลขอ้างอิง (ใส่ - ได้)",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/ProspectActivityPanel.tsx",
+      "id": "pc-channel",
+      "ชื่อ": "ช่องทาง",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/ProspectActivityPanel.tsx",
+      "id": "pc-body",
+      "ชื่อ": "คุยอะไรไป",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/UsersPanel.tsx",
+      "id": "us-first",
+      "ชื่อ": "ชื่อ",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/UsersPanel.tsx",
+      "id": "us-email",
+      "ชื่อ": "อีเมล (ใช้เข้าระบบ)",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/UsersPanel.tsx",
+      "id": "us-role",
+      "ชื่อ": "บทบาท",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/DealerEditModal.tsx",
+      "id": "de-name",
+      "ชื่อ": "ชื่อดีลเลอร์",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/DealerEditModal.tsx",
+      "id": "de-region",
+      "ชื่อ": "ภาค",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "packages/shared/components/hq/DealerEditModal.tsx",
+      "id": "de-province",
+      "ชื่อ": "จังหวัดที่ตั้ง",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/CompanyPanel.tsx",
+      "id": "co-name",
+      "ชื่อ": "ชื่อบริษัท",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/CompanyPanel.tsx",
+      "id": "co-tax",
+      "ชื่อ": "เลขประจำตัวผู้เสียภาษี (ใส่ - ได้)",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/CompanyPanel.tsx",
+      "id": "co-phone",
+      "ชื่อ": "โทรศัพท์",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/CompanyPanel.tsx",
+      "id": "co-address",
+      "ชื่อ": "ที่อยู่",
+      "ที่มา": "บอส"
     }
   ]
 }

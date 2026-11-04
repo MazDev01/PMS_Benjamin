@@ -681,7 +681,8 @@ function HQSettingsPageInner() {
   }
   const active = TABS.find(t => t.key === tab)!;
   // บันทึกการใช้งาน: ฐานลงเองตอนตารางตั้งค่าเปลี่ยนจริง (ใบ 0240 · ตัวดักต่อตาราง) — ไม่ลงตอนกดแล้วบันทึกไม่สำเร็จเหมือนเดิม
-  function saveAll() { if (dirty && api) { api.save(); showToast("บันทึกการตั้งค่าแล้ว"); } }
+  // save คืน false = ช่องบังคับขาด ไม่ได้บันทึก (แท็บแสดงกรอบแดงเอง) → ไม่ขึ้น "บันทึกแล้ว"
+  function saveAll() { if (dirty && api && api.save() !== false) showToast("บันทึกการตั้งค่าแล้ว"); }
   function resetAll() { if (dirty && api) api.reset(); }
 
   return (
