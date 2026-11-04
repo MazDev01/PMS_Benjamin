@@ -41,7 +41,7 @@ const ตรวจ = (root) => spawnSync(process.execPath, [path.join(ราก,
 const ออกของ = (r) => (r.stdout ?? "") + (r.stderr ?? "");
 const รายการ = ["scripts/backup.mjs", "scripts/backup-drill.mjs", "scripts/restore.mjs", "scripts/prod-backup-verify.mjs", "scripts/go-live-reset.mjs",
   "scripts/seed-dealers.mjs", "scripts/seed-hq-leads.mjs", "scripts/seed-hq-settings.mjs", "scripts/git-hooks/pre-push.mjs", "scripts/prod-query.mjs",
-  "tests/prod-live/run.mjs"];
+  "scripts/db-push-prod.mjs", "tests/prod-live/run.mjs"];
 function จำลอง(ชื่อ, ไฟล์) {
   const r = path.join(ที่, ชื่อ);
   rmSync(r, { recursive: true, force: true });
