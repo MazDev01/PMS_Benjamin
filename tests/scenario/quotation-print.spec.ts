@@ -123,7 +123,11 @@ test("[func·dealer] ตั้งชื่อบริษัทแล้ว → 
     if ((await ช่อง.inputValue()) !== เดิม) {
       await ช่อง.fill(เดิม);
       await page.getByRole("button", { name: /^บันทึก/ }).first().click();
-      await page.waitForTimeout(1200);
+      // รอบันทึกเสร็จจริงแบบเดียวกับตอนตั้งชื่อ — เดิมรอ 1.2 วิ ถ้าบันทึกช้ากว่านั้นหน้าปิดก่อน คำขอถูกยกเลิก ชื่อทดสอบค้างที่ RYG
+      //   แล้วข้ออื่นที่หาปุ่มด้วยคำว่า "เอกสาร" ไปโดนเมนูบัญชี (ชื่อบริษัทมีคำว่าเอกสาร · number-input-clear · รอบตรวจ deploy16)
+      await expect(page.getByText("บันทึกการตั้งค่าแล้ว"), "คืนชื่อบริษัทเดิมสำเร็จ").toBeVisible({ timeout: 20_000 });
+      await open(page, "dealer", "/settings");
+      await expect(page.getByLabel("ชื่อบริษัท").or(page.locator('input[placeholder="บริษัท ตัวอย่าง จำกัด"]')).first(), "เปิดใหม่ได้ชื่อบริษัทเดิม (ลงฐานจริง)").toHaveValue(เดิม);
     }
   }
 });
