@@ -205,9 +205,9 @@ begin
   perform ntest.as_db();
   update quote_requests set due_at = now() - interval '1 day' where id in (rid, rid2);
   -- H5 ใบค่าแฟรนไชส์ตอบรับแล้ว เลยวันครบกำหนดชำระ ยังค้าง
-  insert into dealer_prospects (name, province) values ('ZZTEST-ผู้สนใจค้างชำระ', 'เชียงใหม่') returning id into pid;
+  insert into dealer_prospects (name, province, phone) values ('ZZTEST-ผู้สนใจค้างชำระ', 'เชียงใหม่', '000-000-7702') returning id into pid;
   perform ntest.as_hq();
-  insert into dealer_package_proposals (prospect_id, amount, status, valid_until) values (pid, 50000, 'sent', วันนี้ + 10) returning id into pr;
+  insert into dealer_package_proposals (prospect_id, amount, status, valid_until, contract_months, annual_target, region, province, terms) values (pid, 50000, 'sent', วันนี้ + 10, 12, 1000000, 'ตะวันออก', 'ตราด', '-') returning id into pr;
   update dealer_package_proposals set status = 'accepted', payment_due_on = วันนี้ - 1 where id = pr;
   perform ntest.as_db();
 
@@ -268,11 +268,11 @@ begin
   perform ntest.as_db();
 
   -- ══ 12) H7 ผู้สนใจเป็นดีลเลอร์ถึงกำหนดติดตาม / ไม่ได้ติดต่อนาน (เกณฑ์เดิม 14 วัน) — งานตั้งเวลา · รัน 2 รอบได้เรื่องเดียว ══
-  insert into dealer_prospects (name, province, status, follow_up, created_at)
-  values ('ZZTEST-ผู้สนใจถึงนัด', 'เชียงใหม่', 'meeting', วันนี้ - 2, now() - interval '1 day'),
-         ('ZZTEST-ผู้สนใจเงียบ', 'เชียงใหม่', 'contacted', null, now() - interval '40 days'),
-         ('ZZTEST-ผู้สนใจเงียบน้อย', 'เชียงใหม่', 'contacted', null, now() - interval '40 days'),
-         ('ZZTEST-ผู้สนใจจบแล้ว', 'เชียงใหม่', 'lost', วันนี้ - 5, now() - interval '40 days');
+  insert into dealer_prospects (name, province, status, follow_up, created_at, phone)
+  values ('ZZTEST-ผู้สนใจถึงนัด', 'เชียงใหม่', 'meeting', วันนี้ - 2, now() - interval '1 day', '000-000-7703'),
+         ('ZZTEST-ผู้สนใจเงียบ', 'เชียงใหม่', 'contacted', null, now() - interval '40 days', '000-000-7704'),
+         ('ZZTEST-ผู้สนใจเงียบน้อย', 'เชียงใหม่', 'contacted', null, now() - interval '40 days', '000-000-7705'),
+         ('ZZTEST-ผู้สนใจจบแล้ว', 'เชียงใหม่', 'lost', วันนี้ - 5, now() - interval '40 days', '000-000-7706');
   -- ติดต่อล่าสุด = ฐานตั้งจากบันทึกการติดต่อเท่านั้น (ใบ 0174) — จำลองวันในอดีตด้วยสวิตช์ของตัวดักนั้น
   perform set_config('app.prospect_contact', 'on', true);
   update dealer_prospects set last_contact_at = now() - interval '20 days' where name = 'ZZTEST-ผู้สนใจเงียบ';
@@ -298,12 +298,12 @@ begin
   perform ntest.ok(ntest.n('prospect_followup_due', '%ZZTEST-ผู้สนใจถึงนัด%') = 2, '12) H7 เลื่อนนัดแล้วถึงนัดใหม่ → แจ้งอีกเรื่อง');
 
   -- ══ 13) H8 ใบค่าแฟรนไชส์รอคำตอบนาน (เกณฑ์เดิม 7 วัน) ══
-  insert into dealer_prospects (name, province, status) values ('ZZTEST-ผู้สนใจรอใบ', 'เชียงใหม่', 'considering') returning id into pid;
+  insert into dealer_prospects (name, province, status, phone) values ('ZZTEST-ผู้สนใจรอใบ', 'เชียงใหม่', 'considering', '000-000-7707') returning id into pid;
   perform ntest.as_hq();
-  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until)
-  values (pid, 30000, 'sent', วันนี้ - 8, วันนี้ + 20) returning id into pr;
-  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until)
-  values (pid, 30000, 'sent', วันนี้ - 6, วันนี้ + 20);
+  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until, contract_months, annual_target, region, province, terms)
+  values (pid, 30000, 'sent', วันนี้ - 8, วันนี้ + 20, 12, 1000000, 'ตะวันออก', 'ตราด', '-') returning id into pr;
+  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until, contract_months, annual_target, region, province, terms)
+  values (pid, 30000, 'sent', วันนี้ - 6, วันนี้ + 20, 12, 1000000, 'ตะวันออก', 'ตราด', '-');
   perform ntest.as_db();
   perform public.notifications_scan(เช้านี้ + interval '4 hours');
   perform public.notifications_scan(เช้านี้ + interval '5 hours');
@@ -313,8 +313,8 @@ begin
 
   -- ══ 14) H8 เลยวันมีผล → งานตั้งเวลาปิดใบเป็นหมดอายุ → แจ้ง (ตัวดัก) · รันซ้ำไม่ซ้ำ ══
   perform ntest.as_hq();
-  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until)
-  values (pid, 30000, 'sent', วันนี้ - 3, วันนี้ + 1) returning id into pr;
+  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until, contract_months, annual_target, region, province, terms)
+  values (pid, 30000, 'sent', วันนี้ - 3, วันนี้ + 1, 12, 1000000, 'ตะวันออก', 'ตราด', '-') returning id into pr;
   perform ntest.as_db();
   -- ใบส่งแล้วแก้วันไม่ได้ (ตัวกัน 0207) — จำลองวันผ่านไปด้วยการปิดตัวกันชั่วคราว (ในทรานแซกชันทดสอบ · rollback)
   alter table dealer_package_proposals disable trigger user;
@@ -330,8 +330,8 @@ begin
 
   -- ══ 15) H8 HQ ปิดใบเองเป็นหมดอายุ → ไม่แจ้งคนทำเอง ══
   perform ntest.as_hq();
-  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until)
-  values (pid, 30000, 'sent', วันนี้ - 3, วันนี้ + 1) returning id into pr;
+  insert into dealer_package_proposals (prospect_id, amount, status, proposed_date, valid_until, contract_months, annual_target, region, province, terms)
+  values (pid, 30000, 'sent', วันนี้ - 3, วันนี้ + 1, 12, 1000000, 'ตะวันออก', 'ตราด', '-') returning id into pr;
   perform ntest.as_db();
   alter table dealer_package_proposals disable trigger user;
   update dealer_package_proposals set valid_until = วันนี้ - 1 where id = pr;

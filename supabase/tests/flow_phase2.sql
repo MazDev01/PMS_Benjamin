@@ -160,7 +160,10 @@ begin
   perform flowtest.must_fail('update leads set status = ''WAITING'' where dealer_code = ''CNX'' and id = ''#T2-1''', 'lead_duplicate', 'เปิดรายที่ปิดแล้วกลับมาชนกับรายที่เปิดอยู่ไม่ได้');
   -- รอบ 4 (ใบ 0232): ไม่ชนรายอื่นก็เปิดกลับไม่ได้ — ดีลเลอร์ไม่มี "เปิดใหม่" แล้ว (ทดสอบใน lead_one_path.sql)
   perform flowtest.as_root();
+  -- จำลองแถวเก่าที่ไม่มีเบอร์: ข้ามด่าน 0276 (ฐานไม่ยอมให้ล้างเบอร์ที่มีอยู่แล้ว · แถวเก่าบนฐานจริงว่างมาก่อนใบนั้น)
+  set local session_replication_role = replica;
   update leads set phone = '' where dealer_code = 'CNX' and id = '#T2-3';
+  set local session_replication_role = origin;
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   update leads set note = 'แก้รายเก่าที่ไม่มีเบอร์' where dealer_code = 'CNX' and id = '#T2-3';
   perform flowtest.ok(found, 'รายเดิมที่ไม่มีเบอร์โทร (ข้อมูลเก่า) ยังแก้ได้ (เลื่อนขั้นเองไม่ได้แล้ว · ใบ 0232)');

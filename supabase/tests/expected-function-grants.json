@@ -1,5 +1,5 @@
 {
- "migration": "0275",
+ "migration": "0276",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -443,6 +443,13 @@
    "definer": false
   },
   {
+   "f": "appointments_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "audit_actor()",
    "anon": false,
    "authenticated": true,
@@ -576,11 +583,25 @@
    "definer": true
   },
   {
+   "f": "customer_notes_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "customer_rollup()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "customers_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "dashboard_quote_summary(p_start date, p_end date, p_dealer text)",
@@ -647,6 +668,13 @@
   },
   {
    "f": "dealer_package_proposals_log()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_package_proposals_required()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -737,6 +765,13 @@
    "definer": true
   },
   {
+   "f": "dealer_prospects_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "dealer_prospects_stage_guard()",
    "anon": false,
    "authenticated": false,
@@ -756,6 +791,13 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "dealer_settings_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "dealer_territories_keep_one()",
@@ -801,6 +843,13 @@
   },
   {
    "f": "dealers_province_standard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealers_required()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -924,6 +973,13 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "hq_company_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "hq_customers_filter_options()",
@@ -1290,6 +1346,13 @@
    "definer": true
   },
   {
+   "f": "leads_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "leads_status_one_path()",
    "anon": false,
    "authenticated": false,
@@ -1491,6 +1554,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "profiles_required()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "prospect_stage_no(s text)",
@@ -1881,6 +1951,34 @@
    "f": "replace_responsible_persons(p_dealer text, p_rows jsonb)",
    "anon": false,
    "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "req_blank(v text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "req_blanked(o text, n text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "req_fail(\"ช่อง\" text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "responsible_persons_required()",
+   "anon": false,
+   "authenticated": false,
    "service_role": false,
    "definer": true
   },

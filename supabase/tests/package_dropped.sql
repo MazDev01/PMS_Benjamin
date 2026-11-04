@@ -27,13 +27,13 @@ end $$;
 
 -- ใบค่าแฟรนไชส์ยังบันทึก + ทำฉบับใหม่ได้ · ดีลเลอร์ยังบันทึกผ่าน save_dealers ได้ (ฟังก์ชันที่แก้ในใบนี้ทำงาน)
 set local session_replication_role = replica;
-insert into dealer_prospects (id, name, status) values (991301, 'ZZTEST ผู้สนใจหลังลบแพ็กเกจ', 'new');
+insert into dealer_prospects (id, name, status, phone) values (991301, 'ZZTEST ผู้สนใจหลังลบแพ็กเกจ', 'new', '000-000-7708');
 insert into dealers (code, name, province, region, revenue_target, status) values ('ZZPKD', 'ZZTEST ดีลเลอร์หลังลบแพ็กเกจ', 'ตราด', 'ตะวันออก', 1000000, 'active');
 set local session_replication_role = origin;
 do $$
 declare p dealer_package_proposals; hq uuid := (select id from profiles where role = 'SUPER_ADMIN' and status = 'active' limit 1); ใหม่ bigint;
 begin
-  insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status) values (991311, 991301, 'FP-ZZPKD-1', 150000, 'draft') returning * into p;
+  insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status, contract_months, annual_target, region, province, valid_until, terms) values (991311, 991301, 'FP-ZZPKD-1', 150000, 'draft', 12, 1000000, 'ตะวันออก', 'ตราด', (current_date) + 30, '-') returning * into p;
   update dealer_package_proposals set status = 'sent', proposed_date = current_date, valid_until = current_date + 30 where id = p.id;
   perform set_config('request.jwt.claims', json_build_object('sub', hq, 'role', 'authenticated', 'user_role', 'SUPER_ADMIN', 'dealer_code', '', 'email', 'hq@test')::text, true);
   perform set_config('role', 'authenticated', true);

@@ -64,10 +64,10 @@ begin
   perform pvtest.must_pass($q$update public.dealers set province = 'ทุกจังหวัด' where code = 'HQ'$q$, 'แถว HQ ใช้ "ทุกจังหวัด" ได้');
 
   -- ผู้สนใจ + ลูกค้า: ชื่อนอกรายชื่อ = ปฏิเสธ · ว่างได้ · ผู้สนใจ "ทุกจังหวัด" ได้
-  perform pvtest.must_fail($q$insert into public.dealer_prospects (name, province) values ('ZZTEST ผู้สนใจจังหวัด', 'กทม')$q$, 'province_invalid', 'ผู้สนใจจังหวัด "กทม" = ปฏิเสธ');
-  perform pvtest.must_pass($q$insert into public.dealer_prospects (name, province) values ('ZZTEST ผู้สนใจจังหวัด', 'กรุงเทพมหานคร')$q$, 'ผู้สนใจจังหวัดมาตรฐาน บันทึกได้');
-  perform pvtest.must_pass($q$insert into public.dealer_prospects (name, province) values ('ZZTEST ผู้สนใจทั่วประเทศ', 'ทุกจังหวัด')$q$, 'ผู้สนใจ "ทุกจังหวัด" บันทึกได้');
-  perform pvtest.must_pass($q$insert into public.dealer_prospects (name) values ('ZZTEST ผู้สนใจไม่มีจังหวัด')$q$, 'ผู้สนใจไม่ระบุจังหวัด บันทึกได้');
+  perform pvtest.must_fail($q$insert into public.dealer_prospects (name, province, phone) values ('ZZTEST ผู้สนใจจังหวัด', 'กทม', '000-000-7709')$q$, 'province_invalid', 'ผู้สนใจจังหวัด "กทม" = ปฏิเสธ');
+  perform pvtest.must_pass($q$insert into public.dealer_prospects (name, province, phone) values ('ZZTEST ผู้สนใจจังหวัด', 'กรุงเทพมหานคร', '000-000-7710')$q$, 'ผู้สนใจจังหวัดมาตรฐาน บันทึกได้');
+  perform pvtest.must_pass($q$insert into public.dealer_prospects (name, province, phone) values ('ZZTEST ผู้สนใจทั่วประเทศ', 'ทุกจังหวัด', '000-000-7711')$q$, 'ผู้สนใจ "ทุกจังหวัด" บันทึกได้');
+  perform pvtest.must_pass($q$insert into public.dealer_prospects (name, phone) values ('ZZTEST ผู้สนใจไม่มีจังหวัด', '000-000-7712')$q$, 'ผู้สนใจไม่ระบุจังหวัด บันทึกได้');
   perform pvtest.must_fail($q$update public.customers set province = 'กรุงเทพฯ' where id = (select min(id) from public.customers where province is distinct from 'กรุงเทพฯ')$q$, 'province_invalid', 'ลูกค้าจังหวัด "กรุงเทพฯ" = ปฏิเสธ');
   perform pvtest.must_fail($q$update public.leads set province = 'กรุงเทพฯ' where (dealer_code, num_id) = (select dealer_code, num_id from public.leads where province is distinct from 'กรุงเทพฯ' order by num_id limit 1)$q$, 'lead_province_invalid', 'ลีดจังหวัด "กรุงเทพฯ" = ปฏิเสธ (ใบ 0196)');
 

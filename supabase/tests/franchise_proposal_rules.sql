@@ -40,12 +40,12 @@ declare
 begin
   perform flowtest.ok(hq is not null and cnx is not null, 'มีบัญชี HQ และดีลเลอร์ตั้งต้น');
   perform flowtest.as_hq(hq);
-  insert into dealer_prospects (name, province, status) values ('ZZFP ผู้สนใจทดสอบ', 'ระยอง', 'meeting') returning id into pid;
-  insert into dealer_package_proposals (prospect_id, amount, terms, valid_until, contract_months, annual_target)
-  values (pid, 500000, 'เงื่อนไขเดิม', current_date + 30, 12, 12000000) returning * into p1;
+  insert into dealer_prospects (name, province, status, phone) values ('ZZFP ผู้สนใจทดสอบ', 'ระยอง', 'meeting', '000-000-7701') returning id into pid;
+  insert into dealer_package_proposals (prospect_id, amount, terms, valid_until, contract_months, annual_target, region, province)
+  values (pid, 500000, 'เงื่อนไขเดิม', current_date + 30, 12, 12000000, 'ตะวันออก', 'ตราด') returning * into p1;
   perform flowtest.ok(p1.version = 1 and p1.supersedes_id is null, 'ใบแรก = เวอร์ชัน 1');
-  perform flowtest.must_fail(format($q$insert into dealer_package_proposals (prospect_id, status) values (%s, 'accepted')$q$, pid), 'proposal_status', 'สร้างใบเป็นตอบรับตั้งแต่ต้นไม่ได้ (ข้ามขั้น)');
-  perform flowtest.must_fail(format($q$insert into dealer_package_proposals (prospect_id, status, supersedes_id) values (%s, 'sent', %s)$q$, pid, p1.id), 'proposal_', 'สร้างเวอร์ชันใหม่ที่ไม่ใช่ร่างไม่ได้');
+  perform flowtest.must_fail(format($q$insert into dealer_package_proposals (prospect_id, status, amount, contract_months, annual_target, region, province, valid_until, terms) values (%s, 'accepted', 10000, 12, 1000000, 'ตะวันออก', 'ตราด', (current_date) + 30, '-')$q$, pid), 'proposal_status', 'สร้างใบเป็นตอบรับตั้งแต่ต้นไม่ได้ (ข้ามขั้น)');
+  perform flowtest.must_fail(format($q$insert into dealer_package_proposals (prospect_id, status, supersedes_id, amount, contract_months, annual_target, region, province, valid_until, terms) values (%s, 'sent', %s, 10000, 12, 1000000, 'ตะวันออก', 'ตราด', (current_date) + 30, '-')$q$, pid, p1.id), 'proposal_', 'สร้างเวอร์ชันใหม่ที่ไม่ใช่ร่างไม่ได้');
 
   -- ── ร่างแก้ได้ · ส่งแล้วแก้ไม่ได้ ──
   update dealer_package_proposals set amount = 550000 where id = p1.id;

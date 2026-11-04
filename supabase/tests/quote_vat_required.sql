@@ -42,9 +42,12 @@ create function vattest.ตั้งVAT(p_dealer text, p_doc jsonb) returns void
 begin
   if p_doc is null then delete from public.dealer_settings where dealer_code = p_dealer; return; end if;
   -- แถวใหม่ต้องมีข้อมูลบริษัทครบ — ไม่งั้นส่งใบให้ลูกค้าไม่ได้ (ใบ 0247) · แถวเดิมแก้แค่ document
+  -- จำลองค่าที่เก็บไว้แบบต่าง ๆ (ว่าง/ข้อความ/ไม่มีช่อง) = แถวเก่า → ข้ามด่าน 0276 (ฐานไม่ยอมให้ล้าง VAT/อายุใบที่มีอยู่แล้ว)
+  set local session_replication_role = replica;
   insert into public.dealer_settings (dealer_code, document, issuer) values (p_dealer, p_doc,
     jsonb_build_object('company', 'ZZVAT บริษัททดสอบ ' || p_dealer, 'address', 'ZZVAT ที่อยู่ทดสอบ', 'phone', '000-000-0000', 'taxId', '0000000000000'))
     on conflict (dealer_code) do update set document = excluded.document;
+  set local session_replication_role = origin;
 end $$;
 grant usage on schema vattest to authenticated, service_role;
 grant execute on all functions in schema vattest to authenticated, service_role;

@@ -1,5 +1,5 @@
 {
- "migration": "0275",
+ "migration": "0276",
  "relations": [
   {
    "r": "appointments",
