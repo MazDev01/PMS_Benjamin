@@ -4,6 +4,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
 import { settle } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
+import { ต้องมีดาวแดง as ดาวแดง, ต้องไม่มีดาว as ไม่มีดาว, สีแดง } from "./requiredMark";
 
 // ── ช่องบังคับกรอกทุกฟอร์มของแอปดีลเลอร์ (บอสสั่ง 4 พ.ย. 69) ─────────────────────────────────────────────────────────
 //   * สีแดงเฉพาะช่องที่บังคับจริง · กดบันทึก/ส่งตอนช่องบังคับว่าง = ไม่บันทึก · กรอบแดง + ข้อความใต้ช่อง · เลื่อน/โฟกัสช่องแรกที่ขาด
@@ -33,20 +34,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await ส?.ลบ(); });
 
-const สีแดง = (c: string) => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c); return !!m && +m[1] >= 180 && +m[2] <= 90 && +m[3] <= 90; };
-/** ป้ายช่องมี "*" สีแดง */
-async function ดาวแดง(ป้าย: Locator, ชื่อ: string) {
-  await expect(ป้าย, `ป้าย "${ชื่อ}" ต้องเป็น <label> ที่มองเห็น`).toBeVisible({ timeout: 15_000 });
-  const ดาว = ป้าย.locator("*").filter({ hasText: /^\*$/ });
-  await expect(ดาว, `ป้าย "${ชื่อ}" ต้องมี * แยกเป็นตัวของมันเอง`).toHaveCount(1);
-  const สี = await ดาว.evaluate(e => getComputedStyle(e).color);
-  expect(สีแดง(สี), `* ของ "${ชื่อ}" ต้องเป็นสีแดง (ได้ ${สี})`).toBe(true);
-}
-/** ป้ายช่องไม่บังคับ = ไม่มี * */
-async function ไม่มีดาว(ป้าย: Locator, ชื่อ: string) {
-  await expect(ป้าย, `ป้าย "${ชื่อ}"`).toBeVisible({ timeout: 15_000 });
-  expect(await ป้าย.innerText(), `ช่อง "${ชื่อ}" ไม่บังคับ — ห้ามมี *`).not.toContain("*");
-}
+// * แดง / ไม่มี * — ตัวช่วยกลาง tests/scenario/requiredMark.ts (* วาดด้วย CSS ตั้งแต่รอบตรวจ deploy16 · ข้อความป้ายไม่มี "*")
 /** ช่องที่ขาด: กรอบแดง (aria-invalid) + ข้อความใต้ช่อง */
 async function ฟ้องที่ช่อง(ช่อง: Locator, ชื่อ: string) {
   await expect(ช่อง, `ช่อง "${ชื่อ}" ต้องขึ้นว่าผิด (aria-invalid)`).toHaveAttribute("aria-invalid", "true", { timeout: 10_000 });

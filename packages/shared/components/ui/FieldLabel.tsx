@@ -16,13 +16,14 @@ export function FieldLabel({ children, required, htmlFor, className = "form-labe
   return (
     <label className={className} htmlFor={htmlFor} style={style}>
       {children}
-      {required && <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }}>*</span>}
+      {/* * วาดด้วย CSS ([data-required]::after · globals.css) — ข้อความ/ชื่อช่องไม่มี "*" ปน */}
+      {required && <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }} />}
     </label>
   );
 }
 
 /** * แดงอย่างเดียว — หัวคอลัมน์ของตารางที่กรอกในช่อง (ไม่มีป้ายต่อช่อง) · หน้าตาเดียวกับ <FieldLabel required> */
-export const ดาวบังคับ = () => <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }}>*</span>;
+export const ดาวบังคับ = () => <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }} />;
 
 export function FieldError({ children, id }: { children?: ReactNode; id?: string }) {
   if (!children) return null;

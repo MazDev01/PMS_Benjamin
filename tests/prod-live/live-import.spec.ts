@@ -56,6 +56,7 @@ const แถวไฟล์: string[][] = [
   ["37", "", `${ชื่อ("รวม")} สกุลรวม ${เบอร์(7)} ปทุม`],                                                                        // อัดช่องเดียว → ตรวจ
   ["38", "เพจแปด", เบอร์(8), "ตราด", ชื่อ("แปด"), "??", "304", "", "รอโทรกลับ", "FB"],                                            // ไม่ใช่วันที่ → ข้ามแถว (อ่านไม่ออก)
   ["39", "เพจซ้ำ", ` ${เบอร์(4)} `, "กทม", ชื่อ("ซ้ำ"), "27.8", "", "", "รอโทรกลับ", "Direct"],                                   // เบอร์ซ้ำในไฟล์ → ข้าม
+  ["40", "เพจไม่มีเบอร์", "", "ตราด", ชื่อ("ไม่มีเบอร์"), "27.8", "", "", "รอโทรกลับ", "FB"],                                        // ไม่มีเบอร์ → ข้าม (บอสสั่ง 4 พ.ย. 69 · ฐานบังคับเบอร์ ใบ 0276)
 ];
 const ไฟล์ = path.join(os.tmpdir(), `pms-live-import-${process.pid}`, ชื่อไฟล์);
 
@@ -112,7 +113,7 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   const นับ = (g: string) => กล่อง.locator(`[role="tab"][data-group="${g}"] [data-count]`);
   await expect(นับ("ready"), "พร้อม: สี่ · ห้า · หก").toHaveAttribute("data-count", "3");
   await expect(นับ("review"), "ต้องตรวจ: หนึ่ง(อุบล) · สอง(กทม) · สาม(5.1) · รวม").toHaveAttribute("data-count", "4");
-  await expect(นับ("skip"), "ข้าม: เบอร์ซ้ำในไฟล์ · แปด(??/304 อ่านไม่ออก)").toHaveAttribute("data-count", "2");
+  await expect(นับ("skip"), "ข้าม: เบอร์ซ้ำในไฟล์ · แปด(??/304 อ่านไม่ออก) · ไม่มีเบอร์").toHaveAttribute("data-count", "3");
   await expect(กล่อง.getByText("แถวหัวข้อแทรกที่ข้าม 2 แถว"), "แถวหัวข้อ BJM PEB ถูกข้าม").toBeVisible();
   const ตรวจ = กล่อง.getByRole("table", { name: "แถวต้องตรวจ" });
   const แถว = (n: number) => ตรวจ.locator("tr").filter({ hasText: เบอร์ฐาน(n) });
@@ -133,6 +134,7 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await expect(ข้าม.locator("tr").filter({ hasText: เบอร์ฐาน(4) }), "เบอร์ซ้ำ → ข้าม").toContainText("เบอร์ซ้ำกับแถว");
   await expect(ข้าม.locator("tr").filter({ hasText: เบอร์ฐาน(8) }), "?? → ข้าม").toContainText(`"??" อ่านไม่ออก`);
   await expect(ข้าม.locator("tr").filter({ hasText: เบอร์ฐาน(8) }), "304 → ข้าม").toContainText(`"304" อ่านไม่ออก`);
+  await expect(ข้าม.locator("tr").filter({ hasText: ชื่อ("ไม่มีเบอร์") }), "ไม่มีเบอร์ → ข้าม พร้อมเหตุ").toContainText("ไม่มีเบอร์โทร");
   await กล่อง.locator('[role="tab"][data-group="review"]').click();
   // วันที่กำกวม 5.1 (บอสสั่ง 4 พ.ย. 69): ยังไม่เลือกเดือน = ปุ่มยืนยันกดไม่ได้ → เลือก ต.ค. → ยืนยันได้ (ข้อ 1–2)
   const ยืนยัน3 = แถว(3).getByRole("button", { name: /^ยืนยัน แถว/ });
@@ -155,7 +157,9 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   expect(ชุด![0], "ชุด: ส่ง 7 · เพิ่ม 7 · ข้าม 0 · ผู้นำเข้า = บัญชี HQ ชั่วคราว").toMatchObject({ row_count: 7, inserted: 7, skipped: 0, created_by: "บัญชีทดสอบชั่วคราว", cancelled_at: null });
   const เลขชุด = Number(ชุด![0].id);
   const { data: ราย } = await svc.from("dealer_prospects").select("name, phone, province, first_contact, follow_up, status, channel").eq("import_batch_id", เลขชุด);
-  expect((ราย ?? []).map(r => r.phone).sort(), "นำเข้าตรง 7 ราย (ไม่มี ??/304 · เบอร์ซ้ำ)").toEqual([1, 2, 3, 4, 5, 6, 7].map(เบอร์ฐาน));
+  expect((ราย ?? []).map(r => r.phone).sort(), "นำเข้าตรง 7 ราย (ไม่มี ??/304 · เบอร์ซ้ำ · ไม่มีเบอร์)").toEqual([1, 2, 3, 4, 5, 6, 7].map(เบอร์ฐาน));
+  const { count: ไม่มีเบอร์ } = await svc.from("dealer_prospects").select("id", { count: "exact", head: true }).eq("name", ชื่อ("ไม่มีเบอร์"));
+  expect(ไม่มีเบอร์, "แถวไม่มีเบอร์ไม่ลงฐาน (ทั้งไฟล์ไม่ล้ม · แถวอื่นนำเข้าครบ)").toBe(0);
   const ของ = (n: number) => (ราย ?? []).find(r => r.phone === เบอร์ฐาน(n))!;
   expect(ของ(1), "อุบล → อุบลราชธานี · 24.8").toMatchObject({ name: ชื่อ("หนึ่ง"), province: "อุบลราชธานี", status: "contacted", channel: "Facebook", first_contact: ไม่เกินวันนี้(24, 8) });
   expect(ของ(2), "กทม → กรุงเทพมหานคร").toMatchObject({ name: ชื่อ("สอง"), province: "กรุงเทพมหานคร", status: "profile_sent" });

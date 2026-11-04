@@ -62,8 +62,9 @@ test("[ui·dealer] ฟอร์มเพิ่มลีด: 3 กลุ่ม �
   const กลุ่ม = await ฟอร์ม.locator(".form-section").allInnerTexts();
   expect(กลุ่ม.map(s => s.trim()), "3 กลุ่มตามลำดับ").toEqual([กลุ่มช่อง.ลูกค้า, กลุ่มช่อง.งาน, กลุ่มช่อง.การดูแล]);
   for (const ป้าย of [`${ช่อง.บริษัท} *`, `${ช่อง.ผู้ติดต่อ} *`, `${ช่อง.โทรศัพท์} *`, ช่อง.อีเมล, ช่อง.ที่อยู่, `${ช่อง.จังหวัด} *`, ช่อง.งาน, ช่อง.พื้นที่, ช่อง.สเปก, ช่อง.ผู้รับผิดชอบ, ช่อง.ช่องทาง])
-    // ป้ายช่องบังคับ = ตัวกลาง FieldLabel (บอสสั่ง 4 พ.ย. 69): ชื่อช่องตามด้วย * แดง (data-required · ไม่มีเว้นวรรคคั่น)
-    await expect(ฟอร์ม.locator("label").filter({ hasText: new RegExp(`^${ป้าย.replace(/ \*$/, "").replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}${ป้าย.endsWith(" *") ? "\\s*\\*" : ""}$`) }), `ช่อง "${ป้าย}"`).toHaveCount(1);
+    // ป้ายช่องบังคับ = ตัวกลาง FieldLabel (บอสสั่ง 4 พ.ย. 69): ข้อความป้าย = ชื่อช่องเดิม · * แดงวาดด้วย CSS ([data-required]) ไม่ใช่ตัวอักษร
+    await expect(ฟอร์ม.locator("label").filter({ hasText: new RegExp(`^${ป้าย.replace(/ \*$/, "").replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}$`) })
+      .filter(ป้าย.endsWith(" *") ? { has: page.locator("[data-required]") } : { hasNot: page.locator("[data-required]") }), `ช่อง "${ป้าย}"`).toHaveCount(1);
   await expect(ฟอร์ม.getByRole("button", { name: /อัปโหลดรูป|เปลี่ยนรูป/ }), "ไม่มีอัปโหลดโลโก้").toHaveCount(0);
   // ไม่มีช่องขั้นตอนในฟอร์ม (บอสสั่ง 28 ต.ค. 69 · FLOW D2) — ลีดใหม่อยู่ขั้นข้อมูลลูกค้าเสมอ ฐานตั้งเอง (ใบ 0256)
   await expect(ฟอร์ม.locator("label").filter({ hasText: /^ขั้นตอน$/ }), "ไม่มีช่องขั้นตอน (D2)").toHaveCount(0);

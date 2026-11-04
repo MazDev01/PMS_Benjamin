@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { ที่อยู่เว็บ } from "./sessionPorts";
+import { ต้องมีดาวแดง } from "./requiredMark";
 
 // ─── ช่องอีเมลหน้าเข้าสู่ระบบ ต้องไม่รับช่องว่าง (ผู้ใช้แจ้ง 25 ส.ค. 69) ────────
 // เดิมตัดช่องว่างตอนกดเข้าระบบเท่านั้น ผู้ใช้จึงเห็นช่องว่างค้างอยู่หน้าอีเมล
@@ -9,9 +10,10 @@ for (const [ชื่อ, url] of [["สำนักงานใหญ่", `${�
   test(`[func] หน้าเข้าสู่ระบบ${ชื่อ}: พิมพ์เว้นวรรคในช่องอีเมล/รหัสผ่านต้องไม่ติด`, async ({ page }) => {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     // ดีลเลอร์พิมพ์รหัสสาขา (ป้าย "รหัสสาขา" · 19 ต.ค. 69) · HQ พิมพ์อีเมล
-    // ป้ายมี * แดงจากตัวกลาง (ช่องบังคับ · 4 พ.ย. 69) — ข้อความป้าย "อีเมล*" · จับด้วยชื่อช่อง + * ท้าย (ตรวจว่ามี * ด้วย)
-    const ช่องอีเมล = page.getByLabel(ชื่อ === "ดีลเลอร์" ? /^รหัสสาขา\*$/ : /^อีเมล\*$/);
-    await expect(page.locator('label[for="login-email"] [data-required]'), "ช่องอีเมล/รหัสสาขามี * แดง").toHaveCount(1);
+    // ป้ายมี * แดงจากตัวกลาง (ช่องบังคับ · 4 พ.ย. 69) — * วาดด้วย CSS ชื่อช่องจึงยังเป็น "อีเมล"/"รหัสสาขา" ตรงตัว (รอบตรวจ deploy16)
+    const ช่องอีเมล = page.getByLabel(ชื่อ === "ดีลเลอร์" ? "รหัสสาขา" : "อีเมล", { exact: true });
+    await ต้องมีดาวแดง(page.locator('label[for="login-email"]'), ชื่อ === "ดีลเลอร์" ? "รหัสสาขา" : "อีเมล");
+    await ต้องมีดาวแดง(page.locator('label[for="login-password"]'), "รหัสผ่าน");
     await expect(ช่องอีเมล).toBeVisible();
 
     // ⚠️ ต้องรอให้หน้าจอ "รับค่าได้จริง" ก่อน แล้วค่อยตรวจ (แก้ 26 ส.ค. 69)
@@ -37,7 +39,7 @@ for (const [ชื่อ, url] of [["สำนักงานใหญ่", `${�
     await expect(ช่องอีเมล).toHaveValue("admin@benjamin.com");
 
     // ช่องรหัสผ่านต้องกันช่องว่างเหมือนกัน (บอสสั่ง 25 ส.ค. 69)
-    const ช่องรหัส = page.getByLabel(/^รหัสผ่าน\*$/);
+    const ช่องรหัส = page.getByLabel("รหัสผ่าน", { exact: true });
     await พิมพ์ให้ติด(ช่องรหัส, " ab cd ", "abcd", true);
     await expect(ช่องรหัส).toHaveValue("abcd");
     await พิมพ์ให้ติด(ช่องรหัส, "  P@ss w0rd  ", "P@ssw0rd");
