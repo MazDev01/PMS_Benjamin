@@ -59,7 +59,10 @@ import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useFilters, APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
-import { ช่อง, ตัวอย่างช่อง, ป้ายบังคับ, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
+import { ช่อง, ตัวอย่างช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
+import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด } from "@pms/shared/lib/requiredFields";
+import { refช่องในกล่อง } from "../_form/ผูกช่องห่อ";
 import { Plus, X, ChevronUp, ChevronDown, Upload, Download, Phone, Building2, Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer, MapPin, Mail, Coins, Layers, CalendarClock, Users, Trash2, UserPlus, Briefcase } from "lucide-react";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
@@ -258,10 +261,11 @@ const CU_INP: React.CSSProperties = { width:"100%", height:28, padding:"0 8px", 
 const CU_ROW: React.CSSProperties = { display:"flex", gap:8, alignItems:"center", padding:"6px 10px", minWidth:0, background:"#fafbfc", border:"1px solid #eef1f5", borderRadius:9, marginBottom:6 };
 const CU_KEY: React.CSSProperties = { fontSize:"0.74rem", color:"#8a929c", flex:"0 0 96px" };
 const CU_COLON: React.CSSProperties = { fontSize:"0.74rem", color:"#c7ccd3", flexShrink:0 };
-function CuRow({ label, children }:{ label:string; children:React.ReactNode }) {
+// ป้าย = <FieldLabel htmlFor="…" required> (* แดง · เขียนตรงจุดใช้ให้ตัวตรวจ check-required-marks อ่านได้) · ผิด = ข้อความใต้ช่อง (ตัวกลางช่องบังคับ · บอสสั่ง 4 พ.ย. 69)
+function CuRow({ label, children, ป้าย, ผิด }:{ label:string; children:React.ReactNode; ป้าย?: React.ReactNode; ผิด?: string }) {
   return (
-    <div style={CU_ROW}><span style={CU_KEY}>{label}</span><span style={CU_COLON}>:</span>
-      <span style={{ flex:1, minWidth:0 }}>{children}</span></div>
+    <div style={CU_ROW}>{ป้าย ?? <span style={CU_KEY}>{label}</span>}<span style={CU_COLON}>:</span>
+      <span style={{ flex:1, minWidth:0 }}>{children}<FieldError>{ผิด}</FieldError></span></div>
   );
 }
 // สไตล์เดียวกับหน้าลูกค้าเป้าหมาย (OverviewEditor) — แก้ในหน้านี้เลย ไม่มีฟอร์มแยก
@@ -280,7 +284,18 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
   // (seed ถูกสร้างใหม่ทุก render จะทำให้ล้างสิ่งที่ผู้ใช้กำลังพิมพ์อยู่ทิ้งทุกครั้ง)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(seed()); }, [customer.id]);
-  const set = <K extends keyof CustomerForm>(k:K,v:CustomerForm[K])=>setF(p=>({...p,[k]:v}));
+  // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69): ชื่อบริษัท · ผู้ติดต่อ ("-" ได้) · โทร — ว่าง = ไม่บันทึก
+  const บังคับ = useช่องบังคับ();
+  const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
+  const set = <K extends keyof CustomerForm>(k:K,v:CustomerForm[K])=>{ setF(p=>({...p,[k]:v})); บังคับ.ล้าง(k as string); };
+  function บันทึก() {
+    if (!บังคับ.ตรวจ([
+      { key: "company", label: ช่อง.บริษัท, value: f.company },
+      { key: "name", label: ช่อง.ผู้ติดต่อ, value: f.name, ข้อความ: ข้อความช่องขีด(ช่อง.ผู้ติดต่อ) },
+      { key: "phone", label: ช่อง.โทรศัพท์, value: f.phone },
+    ])) return;
+    onSave(f);
+  }
   // อัปโหลดโลโก้เอาออกจากฟอร์ม (บอสสั่ง 26 ต.ค. 69 · ชุดช่องมาตรฐาน) — คอลัมน์ logo ในฐานคงไว้ ค่าเดิมไม่ถูกแตะ
   const dirty = (Object.keys(f) as (keyof CustomerForm)[]).some(k => (f[k] ?? "") !== ((customer as unknown as CustomerForm)[k] ?? ""));
 
@@ -293,9 +308,9 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 28px", borderTop:"1px solid #eef1f5", paddingTop:12 }}>
         <div style={{ display:"flex", flexDirection:"column" }}>
           <Row label="รหัสลูกค้า"><span style={{ fontSize:"0.8rem", fontWeight:700, color:"#9ca3af" }}>{code}</span></Row>
-          <Row label={ช่อง.บริษัท}><input aria-label={ช่อง.บริษัท} value={f.company} onChange={e=>set("company",e.target.value)} style={inp} /></Row>
-          <Row label={ช่อง.ผู้ติดต่อ}><input aria-label={ช่อง.ผู้ติดต่อ} value={f.name} onChange={e=>set("name",e.target.value)} style={inp} /></Row>
-          <Row label={ช่อง.โทรศัพท์}><input aria-label={ช่อง.โทรศัพท์} inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Row>
+          <Row label={ช่อง.บริษัท} ป้าย={<FieldLabel htmlFor="cu-company" required className="" style={CU_KEY}>{ช่อง.บริษัท}</FieldLabel>} ผิด={บังคับ.ผิด.company}><input id="cu-company" aria-label={ช่อง.บริษัท} value={f.company} onChange={e=>set("company",e.target.value)} {...ผูกช่อง("company", inp)} /></Row>
+          <Row label={ช่อง.ผู้ติดต่อ} ป้าย={<FieldLabel htmlFor="cu-name" required className="" style={CU_KEY}>{ช่อง.ผู้ติดต่อ}</FieldLabel>} ผิด={บังคับ.ผิด.name}><input id="cu-name" aria-label={ช่อง.ผู้ติดต่อ} value={f.name} onChange={e=>set("name",e.target.value)} {...ผูกช่อง("name", inp)} /></Row>
+          <Row label={ช่อง.โทรศัพท์} ป้าย={<FieldLabel htmlFor="cu-phone" required className="" style={CU_KEY}>{ช่อง.โทรศัพท์}</FieldLabel>} ผิด={บังคับ.ผิด.phone}><input id="cu-phone" aria-label={ช่อง.โทรศัพท์} inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" {...ผูกช่อง("phone", inp)} /></Row>
           <Row label={ช่อง.อีเมล}><input aria-label={ช่อง.อีเมล} value={f.email} onChange={e=>set("email",e.target.value)} type="email" placeholder="email@company.com" style={inp} /></Row>
         </div>
         <div style={{ display:"flex", flexDirection:"column" }}>
@@ -324,7 +339,7 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
       <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8, paddingTop:8, borderTop:"1px solid #f4f6f9", flexWrap:"wrap" }}>
         <span style={{ flex:1 }} />
         {dirty && <button onClick={()=>setF(seed())} className="btn btn-secondary btn-sm" style={{ color:"#374151" }}>ยกเลิก</button>}
-        <button onClick={()=>onSave(f)} disabled={!dirty} className="btn btn-primary btn-sm"
+        <button onClick={บันทึก} disabled={!dirty} className="btn btn-primary btn-sm"
           style={{ opacity: dirty ? 1 : 0.5, cursor: dirty ? "pointer" : "default" }}>
           <Check size={13} /> บันทึกการแก้ไข
         </button>
@@ -352,6 +367,7 @@ export default function CustomersPage(){
   const customerNotes = useCustomerNotes(userProfile.profile.name);
   const [addingNote, setAddingNote] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
+  const โน้ตบังคับ = useช่องบังคับ();   // หัวข้อโน้ต บังคับ ("-" ได้) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
   const [noteBody, setNoteBody] = useState(""); // โน้ตลูกค้าผ่าน repo (ผู้เขียน = ผู้ใช้ที่ล็อกอิน) // VAT จาก HQ ผ่าน repo (ดีลเลอร์ตั้งเองไม่ได้ · อัปเดตตามเมื่อ HQ แก้)
   // scope ทุกอย่างเป็นของสาขาที่ล็อกอิน (multi-tenant) — RYG ไม่เห็นลูกค้า/ใบ/ลูกค้าเป้าหมายของ CNX
   // undefined = ของ CNX (สมุดงานเดิม) · ที่เหลือกรองด้วย dealerCode ตรง ๆ
@@ -462,6 +478,7 @@ export default function CustomersPage(){
   const [dealForm, setDealForm] = useState({project:"",value:"",area:"",province:"",status:"WAITING" as LeadStatus,assigned:"",note:""});
   // ข้อความฟ้องตอนกดบันทึก — ต้องมีเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย ไม่ใช่กดแล้วเงียบ
   const [dealErr, setDealErr] = useState("");
+  const งานบังคับ = useช่องบังคับ();   // งานขายใหม่: จังหวัดหน้างาน บังคับ (FLOW D2 · ฐานบังคับ)
   // นำเข้าลูกค้าเดิม (ดีลเลอร์) — ลูกค้าก่อนมีระบบ / ไม่ได้ผ่าน Lead→Won · CSV + คีย์มือ
   const [showImport, setShowImport]   = useState(false);
   const [importRows, setImportRows]   = useState<ImportRow[]>([]);
@@ -783,7 +800,8 @@ export default function CustomersPage(){
     if(creatingDealRef.current) return;
     const c=dealCustomer; if(!c) return;
     setDealErr("");
-    if(!dealForm.province.trim()){ setDealErr(`กรอกให้ครบก่อนบันทึก: ${ช่อง.จังหวัด}`); return; }
+    const ช่องงาน = [{ key: "province", label: ช่อง.จังหวัด, value: dealForm.province }];
+    if(!งานบังคับ.ตรวจ(ช่องงาน)){ setDealErr(สรุปช่องที่ขาด(ช่องงาน, ตรวจช่องบังคับ(ช่องงาน))); return; }
     creatingDealRef.current = true;
     try {
       const nid = await newLeadNumId(); // num_id atomic ต่อสาขา (M7) — เลิก Math.max+1 ที่ชนได้
@@ -1142,15 +1160,21 @@ export default function CustomersPage(){
                   {/* ฟอร์มเพิ่มโน้ต — เดิมมีแต่ส่วนแสดงผล ตารางกับ repo พร้อมแล้วแต่ไม่มีทางเพิ่มจากหน้าจอ */}
                   {addingNote && (
                     <div style={{marginBottom:10,padding:12,borderRadius:10,background:"#f8f9fb",border:"1px solid #eef0f4",display:"flex",flexDirection:"column",gap:8}}>
-                      <input value={noteTitle} onChange={e=>setNoteTitle(e.target.value)} placeholder="หัวข้อโน้ต"
-                        style={{width:"100%",border:"1px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:"0.8rem",outline:"none",fontFamily:"inherit"}}/>
+                      <div>
+                      <FieldLabel htmlFor="note-title" required>หัวข้อ</FieldLabel>
+                      {(() => { const ผ = โน้ตบังคับ.ผูก("noteTitle"); return (
+                      <input id="note-title" value={noteTitle} onChange={e=>{ โน้ตบังคับ.ล้าง("noteTitle"); setNoteTitle(e.target.value); }} placeholder="หัวข้อโน้ต"
+                        {...ผ} style={{width:"100%",border:"1px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:"0.8rem",outline:"none",fontFamily:"inherit",...(ผ.style ?? {})}}/>); })()}
+                      <FieldError>{โน้ตบังคับ.ผิด.noteTitle}</FieldError>
+                      </div>
                       <textarea value={noteBody} onChange={e=>setNoteBody(e.target.value)} placeholder="รายละเอียดการติดตาม" rows={3}
                         style={{width:"100%",border:"1px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:"0.8rem",outline:"none",fontFamily:"inherit",resize:"vertical"}}/>
                       <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-                        <button type="button" onClick={()=>{setAddingNote(false);setNoteTitle("");setNoteBody("");}} className="btn btn-secondary btn-sm" style={{color:"#374151"}}>ยกเลิก</button>
-                        <button type="button" disabled={!noteTitle.trim()} className="btn btn-primary btn-sm"
-                          style={{opacity:noteTitle.trim()?1:.5,cursor:noteTitle.trim()?"pointer":"not-allowed"}}
+                        <button type="button" onClick={()=>{setAddingNote(false);setNoteTitle("");setNoteBody("");โน้ตบังคับ.ล้าง("noteTitle");}} className="btn btn-secondary btn-sm" style={{color:"#374151"}}>ยกเลิก</button>
+                        {/* ปุ่มกดได้เสมอ — กดตอนหัวข้อว่าง = บอกที่ช่องว่าขาดอะไร (ไม่ใช่ปุ่มเทาเงียบ ๆ · บอสสั่ง 4 พ.ย. 69) */}
+                        <button type="button" className="btn btn-primary btn-sm"
                           onClick={async()=>{
+                            if (!โน้ตบังคับ.ตรวจ([{ key: "noteTitle", label: "หัวข้อโน้ต", value: noteTitle, ข้อความ: ข้อความช่องขีด("หัวข้อโน้ต") }])) return;
                             try {
                               await customerNotes.add({ title:noteTitle.trim(), content:noteBody.trim(), category:"ลูกค้า", color:"#003366", customerId:selected.id });
                               setAddingNote(false); setNoteTitle(""); setNoteBody("");
@@ -1665,9 +1689,13 @@ export default function CustomersPage(){
                 ))}
               </div>
               <div style={{fontSize:"0.7rem",fontWeight:800,color:MUTED,marginBottom:-6}}>{กลุ่มช่อง.งาน}</div>
-              <div><label className="form-label" htmlFor="nd-province">{ป้ายบังคับ("จังหวัด")}</label>
-                <ProvinceSelect id="nd-province" label={ช่อง.จังหวัด} className="form-select" value={dealForm.province} onChange={v=>setDealForm(f=>({...f,province:v}))} options={จังหวัดของสาขา}
-                  หลัง={dealForm.province && !จังหวัดของสาขา.includes(dealForm.province) && <option value={dealForm.province}>{dealForm.province} (นอกภาค)</option>} /></div>
+              <div><FieldLabel htmlFor="nd-province" required>{ช่อง.จังหวัด}</FieldLabel>
+                <span ref={refช่องในกล่อง(งานบังคับ.ผูก("province"))} style={{ display:"block" }}>
+                <ProvinceSelect id="nd-province" label={ช่อง.จังหวัด} className="form-select" value={dealForm.province} onChange={v=>{ งานบังคับ.ล้าง("province"); setDealForm(f=>({...f,province:v})); }} options={จังหวัดของสาขา}
+                  style={งานบังคับ.ผิด.province ? กรอบผิด : undefined}
+                  หลัง={dealForm.province && !จังหวัดของสาขา.includes(dealForm.province) && <option value={dealForm.province}>{dealForm.province} (นอกภาค)</option>} />
+                </span>
+                <FieldError>{งานบังคับ.ผิด.province}</FieldError></div>
               {/* ชื่อ + ตัวอย่างเดียวกับฟอร์มลูกค้าเป้าหมาย (บอสสั่ง 26 ต.ค. 69 · เดิม "ชื่อโครงการ") — ฟอร์มขอราคาดึงช่องนี้ไปกรอกให้ */}
               <div><label className="form-label" htmlFor="nd-project">{ช่อง.งาน}</label>
                 <input id="nd-project" className="form-input" value={dealForm.project} onChange={e=>setDealForm(f=>({...f,project:e.target.value}))} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} /></div>

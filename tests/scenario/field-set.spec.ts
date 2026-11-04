@@ -62,14 +62,15 @@ test("[ui·dealer] ฟอร์มเพิ่มลีด: 3 กลุ่ม �
   const กลุ่ม = await ฟอร์ม.locator(".form-section").allInnerTexts();
   expect(กลุ่ม.map(s => s.trim()), "3 กลุ่มตามลำดับ").toEqual([กลุ่มช่อง.ลูกค้า, กลุ่มช่อง.งาน, กลุ่มช่อง.การดูแล]);
   for (const ป้าย of [`${ช่อง.บริษัท} *`, `${ช่อง.ผู้ติดต่อ} *`, `${ช่อง.โทรศัพท์} *`, ช่อง.อีเมล, ช่อง.ที่อยู่, `${ช่อง.จังหวัด} *`, ช่อง.งาน, ช่อง.พื้นที่, ช่อง.สเปก, ช่อง.ผู้รับผิดชอบ, ช่อง.ช่องทาง])
-    await expect(ฟอร์ม.locator("label").filter({ hasText: new RegExp(`^${ป้าย.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}$`) }), `ช่อง "${ป้าย}"`).toHaveCount(1);
+    // ป้ายช่องบังคับ = ตัวกลาง FieldLabel (บอสสั่ง 4 พ.ย. 69): ชื่อช่องตามด้วย * แดง (data-required · ไม่มีเว้นวรรคคั่น)
+    await expect(ฟอร์ม.locator("label").filter({ hasText: new RegExp(`^${ป้าย.replace(/ \*$/, "").replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}${ป้าย.endsWith(" *") ? "\\s*\\*" : ""}$`) }), `ช่อง "${ป้าย}"`).toHaveCount(1);
   await expect(ฟอร์ม.getByRole("button", { name: /อัปโหลดรูป|เปลี่ยนรูป/ }), "ไม่มีอัปโหลดโลโก้").toHaveCount(0);
   // ไม่มีช่องขั้นตอนในฟอร์ม (บอสสั่ง 28 ต.ค. 69 · FLOW D2) — ลีดใหม่อยู่ขั้นข้อมูลลูกค้าเสมอ ฐานตั้งเอง (ใบ 0256)
   await expect(ฟอร์ม.locator("label").filter({ hasText: /^ขั้นตอน$/ }), "ไม่มีช่องขั้นตอน (D2)").toHaveCount(0);
   await expect(ฟอร์ม.getByRole("combobox", { name: "ขั้นตอน" }), "ไม่มีช่องเลือกขั้นตอน (D2)").toHaveCount(0);
   // จังหวัดหน้างานอยู่หลังหัวกลุ่มข้อมูลงาน (ไม่ใช่ในข้อมูลลูกค้า)
   const ลำดับ = await ฟอร์ม.locator(".form-section, label").allInnerTexts();
-  expect(ลำดับ.indexOf(`${ช่อง.จังหวัด} *`), "จังหวัดหน้างานอยู่กลุ่มข้อมูลงาน").toBeGreaterThan(ลำดับ.indexOf(กลุ่มช่อง.งาน));
+  expect(ลำดับ.findIndex(t => t.replace(/\s*\*$/, "") === ช่อง.จังหวัด),"จังหวัดหน้างานอยู่กลุ่มข้อมูลงาน").toBeGreaterThan(ลำดับ.indexOf(กลุ่มช่อง.งาน));
 
   // กันชื่อ+เบอร์ซ้ำ (FLOW ขั้น 2): หน้าเว็บบอกก่อนกด · ฐานปฏิเสธ
   await ฟอร์ม.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(ชื่อ("ซ้ำ"));

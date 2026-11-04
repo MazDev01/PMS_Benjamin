@@ -23,6 +23,12 @@ do $$ begin
               where p.dealer_code = 'ZZTN' and lower(coalesce(u.email, '')) <> 'zztn@dealer.benjaminpebsteel.com') then
     raise exception 'ZZTN มีบัญชีอื่นนอกเหนือบัญชีทดสอบ — ยกเลิก';
   end if;
+  -- ชุดนำเข้าผู้สนใจของข้อทดสอบ (live-import.spec.ts · ใบ 0275 · บอสสั่ง 4 พ.ย. 69) ต้องมีแต่ผู้สนใจทดสอบ
+  if exists (select 1 from public.prospect_import_batches b join public.dealer_prospects x on x.import_batch_id = b.id
+              where (b.file_name like 'ZZTEST-ผู้สนใจเว็บจริง-%' or b.created_by = 'บัญชีทดสอบชั่วคราว' or b.created_by like 'live-%@example.test')
+                and x.name not like 'ZZTEST-ผู้สนใจเว็บจริง-%') then
+    raise exception 'ชุดนำเข้าทดสอบมีผู้สนใจจริง — ยกเลิก';
+  end if;
 end $$;
 alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
 alter table public.quotations disable trigger quotations_no_delete_won;
@@ -89,6 +95,8 @@ delete from public.responsible_persons where dealer_code = 'ZZTN';
 delete from public.dealer_account_changes where dealer_code = 'ZZTN';
 delete from public.dealer_account_requests where dealer_code = 'ZZTN';
 delete from public.dealer_prospects where name like 'ZZTEST-ผู้สนใจเว็บจริง-%';
+-- ชุดนำเข้าของข้อทดสอบ (ชื่อไฟล์ขึ้นต้นป้ายทดสอบ หรือบัญชี HQ ชั่วคราวเป็นผู้นำเข้า) — ผู้สนใจของชุดลบแล้วบรรทัดบน · ตรงกับขั้นนับที่เหลือใน run.mjs
+delete from public.prospect_import_batches where file_name like 'ZZTEST-ผู้สนใจเว็บจริง-%' or created_by = 'บัญชีทดสอบชั่วคราว' or created_by like 'live-%@example.test';
 delete from public.profiles where dealer_code = 'ZZTN';
 delete from auth.users where lower(email) = 'zztn@dealer.benjaminpebsteel.com';
 delete from public.dealers where code = 'ZZTN';

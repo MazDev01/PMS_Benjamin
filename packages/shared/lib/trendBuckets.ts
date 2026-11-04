@@ -40,6 +40,11 @@ export function ยอดรายชั่วโมง(
 //    แล้วอ่านเหมือนวันนั้นไม่มีอยู่จริง
 const เดือนไทย = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 
+/** ป้ายแกนรายเดือน — ช่วงข้ามปีต้องติดปี พ.ศ. 2 หลัก ("พ.ย. 68" / "พ.ย. 69") (คนรวมงานแจ้ง 4 พ.ย. 69)
+ *  ⚠️ ค่าเริ่มต้น "1 ปี" = ย้อน 12 เดือนถึงวันนี้ → เดือนนี้โผล่ 2 ครั้ง ถ้าป้ายมีแต่ชื่อเดือนจะอ่านไม่ออกว่าจุดไหนปีไหน
+ *     และกราฟที่ใช้ป้ายเป็นคีย์ React จะเตือนคีย์ซ้ำ · ยอดแยกด้วยคีย์ปี-เดือน (คีย์ช่อง) อยู่แล้ว ไม่ทับกัน */
+export const ป้ายเดือน = (y: number, m: number, ติดปี: boolean) => (ติดปี ? `${เดือนไทย[m]} ${String(y + 543).slice(2)}` : เดือนไทย[m]);
+
 /** คีย์ประจำช่องของวันที่หนึ่ง ๆ — ใช้จับคู่ข้อมูลกับช่อง */
 export function คีย์ช่อง(d: Date, ละเอียด: ความละเอียด): string {
   if (ละเอียด === "hour") return String(d.getHours());
@@ -56,10 +61,11 @@ export function ช่องเวลาในช่วง(start: Date, end: Dat
   }
   const cur = new Date(start.getFullYear(), start.getMonth(), ละเอียด === "day" ? start.getDate() : 1);
   const หยุดที่ = new Date(end.getFullYear(), end.getMonth(), ละเอียด === "day" ? end.getDate() : 1);
+  const ข้ามปี = start.getFullYear() !== end.getFullYear();
   while (cur <= หยุดที่) {
     out.push({
       key: คีย์ช่อง(cur, ละเอียด),
-      label: ละเอียด === "day" ? `${cur.getDate()} ${เดือนไทย[cur.getMonth()]}` : เดือนไทย[cur.getMonth()],
+      label: ละเอียด === "day" ? `${cur.getDate()} ${เดือนไทย[cur.getMonth()]}` : ป้ายเดือน(cur.getFullYear(), cur.getMonth(), ข้ามปี),
     });
     if (ละเอียด === "day") cur.setDate(cur.getDate() + 1); else cur.setMonth(cur.getMonth() + 1);
   }

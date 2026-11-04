@@ -6,7 +6,8 @@
 // (แยกไฟล์เพื่อกัน circular import ระหว่าง settings ↔ หน้าที่ถูกฝัง)
 import { createContext, useContext, useEffect } from "react";
 
-export type SectionApi = { dirty: boolean; save: () => void; reset: () => void };
+// save คืน false = ไม่ได้บันทึก (ช่องบังคับขาด · แท็บแสดงกรอบแดง/ข้อความใต้ช่องเอง) — ปุ่มกลางต้องไม่ขึ้น "บันทึกแล้ว" (4 พ.ย. 69)
+export type SectionApi = { dirty: boolean; save: () => void | boolean | Promise<void>; reset: () => void };
 
 export const SettingsBusCtx = createContext<{ report: (a: SectionApi | null) => void; toast: (m: string) => void }>({
   report: () => {},

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { กรอกช่องบังคับใบที่ว่าง } from "../scenario/proposalFormFill";
 
 // ── prod-live หาดีลเลอร์ใหม่ครบเส้น (บอสสั่ง 1 พ.ย. 69) ─────────────────────────────────────────────────────────────
 //   ผู้สนใจทดสอบ → ออกใบค่าแฟรนไชส์ → ส่ง → ตอบรับ → บันทึกชำระครบ → ตั้งเป็นดีลเลอร์ → เข้าระบบดีลเลอร์ใหม่ได้จริง
@@ -71,6 +72,7 @@ test("[live·แฟรนไชส์] ผู้สนใจ → ใบค่า
   await ฟอร์ม.locator("#pp-amount").fill(String(ค่าแรกเข้า));
   await ฟอร์ม.locator("#pp-months").fill("12");
   await ฟอร์ม.locator("#pp-target").fill(String(เป้า));
+  await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ภาค/จังหวัด/วันที่/เงื่อนไข เป็นช่องบังคับ (4 พ.ย. 69)
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();   // จุดที่แตะช่องแพ็กเกจเดิม (ใบ 0269 ลบช่องแล้ว)
   const ผู้สนใจ = (await svc.from("dealer_prospects").select("id").eq("name", ชื่อ).single()).data!;
   const ใบ = async () => (await svc.from("dealer_package_proposals").select("id, proposal_no, status, amount").eq("prospect_id", ผู้สนใจ.id)).data ?? [];

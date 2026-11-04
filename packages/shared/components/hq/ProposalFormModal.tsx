@@ -21,6 +21,8 @@ import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { ข้อความช่องขีด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
 const MUTED = "#6b7280";
@@ -115,7 +117,25 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
     };
   });
 
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ฐานกันอีกชั้น dealer_package_proposals_required) — เงื่อนไขไม่มี = ใส่ "-" · หมายเหตุภายในไม่บังคับ
+  const บังคับ = useช่องบังคับ();
+  const ชุดบังคับ = (): ช่องบังคับ[] => [
+    ...(เลือกในฟอร์ม ? [{ key: "prospect", label: "ผู้สนใจ", value: ร่าง.prospectId ?? null }] : []),
+    { key: "amount", label: "ค่าแรกเข้า", value: ร่าง.มูลค่าที่พิมพ์ },
+    { key: "months", label: "ระยะสัญญา", value: ร่าง.ระยะที่พิมพ์ },
+    { key: "target", label: "เป้ายอดซื้อต่อปี", value: ร่าง.เป้าที่พิมพ์ },
+    { key: "region", label: "ภาค", value: ร่าง.region },
+    { key: "province", label: "จังหวัด", value: ร่าง.province },
+    { key: "date", label: "วันที่เสนอ", value: ร่าง.proposedDate },
+    { key: "valid", label: "ข้อเสนอมีผลถึง", value: ร่าง.validUntil },
+    { key: "terms", label: "เงื่อนไข", value: ร่าง.terms, ข้อความ: ข้อความช่องขีด("เงื่อนไข") },
+  ];
   async function บันทึก() {
+    const ครบ = บังคับ.ตรวจ(ชุดบังคับ());
+    if (!ครบ) { setFormErr(""); return; }
+    if (ร่าง.validUntil && ร่าง.proposedDate && ร่าง.validUntil < ร่าง.proposedDate) {
+      บังคับ.ตั้งผิด("valid", "ข้อเสนอมีผลถึง ต้องไม่ก่อนวันที่เสนอ"); return;
+    }
     if (!รายของใบ) { setFormErr("ต้องเลือกผู้สนใจ"); return; }
     const { มูลค่าที่พิมพ์, ระยะที่พิมพ์, เป้าที่พิมพ์, ...ค่าอื่น } = ร่าง;
     const row = เตรียมบันทึกใบ({
@@ -178,67 +198,83 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
           <fieldset disabled={busy} style={{ border: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
             {เลือกในฟอร์ม && (
               <div style={{ gridColumn: "1 / -1" }}>
-                <label className="form-label" htmlFor="pp-prospect">ผู้สนใจ *</label>
-                <select id="pp-prospect" className="form-select" value={ร่าง.prospectId != null ? String(ร่าง.prospectId) : ""} onChange={e => เลือกราย(e.target.value)} style={{ cursor: "pointer" }}>
+                <FieldLabel htmlFor="pp-prospect" required>ผู้สนใจ</FieldLabel>
+                <select id="pp-prospect" className="form-select" value={ร่าง.prospectId != null ? String(ร่าง.prospectId) : ""} {...บังคับ.ผูก("prospect")}
+                  onChange={e => { บังคับ.ล้าง("prospect"); เลือกราย(e.target.value); }}>
                   <option value="">— ยังไม่ระบุ —</option>
                   {(choices ?? []).map(c => <option key={c.id} value={String(c.id)}>{c.name}{c.province ? ` · ${c.province}` : ""}</option>)}
                 </select>
+                <FieldError>{บังคับ.ผิด.prospect}</FieldError>
                 {(choices ?? []).length === 0 && (
                   <div style={{ fontSize: "0.7rem", color: "#92400e", marginTop: 4 }}>ยังไม่มีผู้สนใจที่ติดตามอยู่ — เพิ่มที่หน้าผู้สนใจเป็นดีลเลอร์ ก่อน</div>
                 )}
               </div>
             )}
             <div>
-              <label className="form-label" htmlFor="pp-amount">ค่าแรกเข้า (บาท · จ่ายครั้งเดียว)</label>
-              {/* ช่องเงินใช้ text + ใส่ลูกน้ำเอง (บอสสั่ง 26 ส.ค. 69) · ไม่บังคับ — ไม่กรอก = "—" ห้ามเติมตัวเลขให้ */}
-              <input id="pp-amount" className="form-input" type="text" inputMode="numeric" value={ร่าง.มูลค่าที่พิมพ์}
-                onChange={e => ตั้งค่า("มูลค่าที่พิมพ์", formatMoneyInput(e.target.value))} placeholder="เว้นว่างได้" />
+              <FieldLabel htmlFor="pp-amount" required>ค่าแรกเข้า (บาท · จ่ายครั้งเดียว)</FieldLabel>
+              {/* ช่องเงินใช้ text + ใส่ลูกน้ำเอง (บอสสั่ง 26 ส.ค. 69) · บังคับ (บอสสั่ง 4 พ.ย. 69) — ห้ามเติมตัวเลขให้ */}
+              <input id="pp-amount" className="form-input" type="text" inputMode="numeric" value={ร่าง.มูลค่าที่พิมพ์} {...บังคับ.ผูก("amount")}
+                onChange={e => { บังคับ.ล้าง("amount"); ตั้งค่า("มูลค่าที่พิมพ์", formatMoneyInput(e.target.value)); }} />
+              <FieldError>{บังคับ.ผิด.amount}</FieldError>
             </div>
             <div>
-              <label className="form-label" htmlFor="pp-months">ระยะสัญญา (เดือน)</label>
-              <input id="pp-months" className="form-input" type="text" inputMode="numeric" value={ร่าง.ระยะที่พิมพ์}
-                onChange={e => ตั้งค่า("ระยะที่พิมพ์", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="เช่น 12 · เว้นว่างได้" />
+              <FieldLabel htmlFor="pp-months" required>ระยะสัญญา (เดือน)</FieldLabel>
+              <input id="pp-months" className="form-input" type="text" inputMode="numeric" value={ร่าง.ระยะที่พิมพ์} {...บังคับ.ผูก("months")}
+                onChange={e => { บังคับ.ล้าง("months"); ตั้งค่า("ระยะที่พิมพ์", e.target.value.replace(/\D/g, "").slice(0, 3)); }} placeholder="เช่น 12" />
+              <FieldError>{บังคับ.ผิด.months}</FieldError>
             </div>
             <div>
-              <label className="form-label" htmlFor="pp-target">เป้ายอดซื้อต่อปี (บาท)</label>
-              <input id="pp-target" className="form-input" type="text" inputMode="numeric" value={ร่าง.เป้าที่พิมพ์}
-                onChange={e => ตั้งค่า("เป้าที่พิมพ์", formatMoneyInput(e.target.value))} placeholder="เว้นว่างได้" />
+              <FieldLabel htmlFor="pp-target" required>เป้ายอดซื้อต่อปี (บาท)</FieldLabel>
+              <input id="pp-target" className="form-input" type="text" inputMode="numeric" value={ร่าง.เป้าที่พิมพ์} {...บังคับ.ผูก("target")}
+                onChange={e => { บังคับ.ล้าง("target"); ตั้งค่า("เป้าที่พิมพ์", formatMoneyInput(e.target.value)); }} />
+              <FieldError>{บังคับ.ผิด.target}</FieldError>
               <div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 3 }}>ตั้งเป็นดีลเลอร์แล้ว ใช้เป็นเป้ายอดขายรายปีของสาขา</div>
             </div>
             {/* ภาคมาก่อนจังหวัด — กติกาเดียวกับฟอร์มผู้สนใจ · "ทุกภาค" = ทุกจังหวัด */}
             <div>
-              <label className="form-label" htmlFor="pp-region">ภาค (พื้นที่ที่ได้สิทธิ์)</label>
-              <select id="pp-region" className="form-select" value={ร่าง.region ?? ""} onChange={e => เปลี่ยนภาค(e.target.value)} style={{ cursor: "pointer" }}>
+              <FieldLabel htmlFor="pp-region" required>ภาค (พื้นที่ที่ได้สิทธิ์)</FieldLabel>
+              <select id="pp-region" className="form-select" value={ร่าง.region ?? ""} {...บังคับ.ผูก("region")}
+                onChange={e => { บังคับ.ล้าง("region"); เปลี่ยนภาค(e.target.value); }}>
                 <option value="">— ยังไม่ระบุ —</option>
                 {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
                 <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
               </select>
+              <FieldError>{บังคับ.ผิด.region}</FieldError>
             </div>
             <div>
-              <label className="form-label" htmlFor="pp-province">จังหวัด</label>
-              <ProvinceSelect id="pp-province" label="จังหวัด" className="form-select" value={ร่าง.province ?? ""} onChange={v => ตั้งค่า("province", v || null)} style={{ cursor: "pointer" }}
+              <FieldLabel htmlFor="pp-province" required>จังหวัด</FieldLabel>
+              <ProvinceSelect id="pp-province" selectRef={บังคับ.ผูก("province").ref} invalid={!!บังคับ.ผิด.province} label="จังหวัด" className="form-select" value={ร่าง.province ?? ""} onChange={v => { บังคับ.ล้าง("province"); ตั้งค่า("province", v || null); }}
+                style={{ cursor: "pointer" }}
                 options={provincesOfRegion(ร่าง.region ?? "")} ว่าง={ร่าง.region ? "— ยังไม่ระบุ —" : "— ยังไม่ระบุ (เลือกภาคก่อน) —"}
                 ก่อน={ร่าง.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
                 หลัง={ร่าง.province && ร่าง.province !== ALL_PROVINCES && !provincesOfRegion(ร่าง.region ?? "").includes(ร่าง.province) && (
                   <option value={ร่าง.province}>{ร่าง.province} (ตามที่บันทึกไว้)</option>
                 )} />
+              <FieldError>{บังคับ.ผิด.province}</FieldError>
             </div>
             <div>
-              <label className="form-label" htmlFor="pp-date">วันที่เสนอ *</label>
-              <input id="pp-date" className="form-input" type="date" value={ร่าง.proposedDate ?? ""} onChange={e => เปลี่ยนวันเสนอ(e.target.value || null)} />
+              <FieldLabel htmlFor="pp-date" required>วันที่เสนอ</FieldLabel>
+              <input id="pp-date" className="form-input" type="date" value={ร่าง.proposedDate ?? ""} {...บังคับ.ผูก("date")}
+                onChange={e => { บังคับ.ล้าง("date"); เปลี่ยนวันเสนอ(e.target.value || null); }} />
+              <FieldError>{บังคับ.ผิด.date}</FieldError>
             </div>
             <div>
-              <label className="form-label" htmlFor="pp-valid">ข้อเสนอมีผลถึง</label>
-              <input id="pp-valid" className="form-input" type="date" value={ร่าง.validUntil ?? ""} onChange={e => ตั้งค่า("validUntil", e.target.value || null)} />
+              <FieldLabel htmlFor="pp-valid" required>ข้อเสนอมีผลถึง</FieldLabel>
+              <input id="pp-valid" className="form-input" type="date" value={ร่าง.validUntil ?? ""} min={ร่าง.proposedDate ?? undefined} {...บังคับ.ผูก("valid")}
+                onChange={e => { บังคับ.ล้าง("valid"); ตั้งค่า("validUntil", e.target.value || null); }} />
+              <FieldError>{บังคับ.ผิด.valid}</FieldError>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label" htmlFor="pp-terms">เงื่อนไข</label>
-              <textarea id="pp-terms" className="form-input" rows={4} value={ร่าง.terms ?? ""} onChange={e => ตั้งค่า("terms", e.target.value)}
-                placeholder="พิมพ์ทีละบรรทัด — แต่ละบรรทัดขึ้นเป็นหนึ่งข้อในเอกสาร" style={{ resize: "vertical" }} />
+              <FieldLabel htmlFor="pp-terms" required>เงื่อนไข</FieldLabel>
+              <textarea id="pp-terms" className="form-input" rows={4} value={ร่าง.terms ?? ""} {...บังคับ.ผูก("terms")}
+                onChange={e => { บังคับ.ล้าง("terms"); ตั้งค่า("terms", e.target.value); }}
+                placeholder={'พิมพ์ทีละบรรทัด — แต่ละบรรทัดขึ้นเป็นหนึ่งข้อในเอกสาร · ไม่มีเงื่อนไข ใส่ "-"'} />
+              <FieldError>{บังคับ.ผิด.terms}</FieldError>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label className="form-label" htmlFor="pp-note">หมายเหตุภายใน (ไม่พิมพ์ลงเอกสาร)</label>
-              <input id="pp-note" className="form-input" value={ร่าง.note ?? ""} onChange={e => ตั้งค่า("note", e.target.value)} placeholder="เช่น คุยรายละเอียดทาง LINE แล้ว" />
+              {/* ไม่บังคับ · ไม่ใช้กติกา "-" (บอสสั่ง 4 พ.ย. 69) */}
+              <input id="pp-note" className="form-input" value={ร่าง.note ?? ""} onChange={e => ตั้งค่า("note", e.target.value)} placeholder="รายละเอียดที่ได้คุยกัน" />
             </div>
           </fieldset>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>

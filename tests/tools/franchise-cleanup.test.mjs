@@ -6,6 +6,8 @@
 //   3) ด่านกันพลาด: สาขา ZZTN ชื่อจริง / ผูกผู้สนใจจริง / ผู้สนใจทดสอบผูกดีลเลอร์อื่น / ZZTN มีบัญชีอื่น → ยกเลิกทั้งหมด ไม่ลบอะไรเลย
 // mutation proof (ทำให้ไฟล์ล้างผิดก่อนรัน · ข้อทดสอบต้องตก): PMS_CLEANUP_MUTATE=broad-prospect (ลบผู้สนใจทุกราย) · broad-dealer (ลบสาขาจริง)
 //   · broad-user (ลบบัญชีจริง) · no-guard (ถอดด่านกันพลาด) · miss-prospect (ไม่ลบผู้สนใจทดสอบ) · broad-mail · miss-mail (จดหมายที่ตัวถือจดหมายถือไว้)
+//   · miss-batch (ไม่ลบชุดนำเข้าทดสอบ) · broad-batch (ลบชุดนำเข้าทุกชุด) — ชุดนำเข้าผู้สนใจของ live-import.spec.ts (ใบ 0275 · บอสสั่ง 4 พ.ย. 69)
+// ขั้นนับที่เหลือของ run.mjs (cleanup-left · ฐานจริงรันหลัง cleanup.sql) — ดึงคำสั่งตัวจริงจาก run.mjs มารันหลังไฟล์ล้างในทรานแซกชันเดียวกัน ทุกช่องต้อง 0
 // รัน: node tests/tools/franchise-cleanup.test.mjs (ถือล็อกฐานทดสอบระหว่างรัน)
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -28,12 +30,18 @@ if (พัง === "broad-prospect") แก้(`delete from public.dealer_prospec
 if (พัง === "broad-dealer") แก้("delete from public.dealers where code = 'ZZTN';", "update public.dealer_prospects set dealer_code = null where dealer_code = 'ZZTX'; delete from public.dealers where code in ('ZZTN', 'ZZTX');");
 if (พัง === "broad-user") แก้(`delete from auth.users where lower(email) = '${อีเมลทดสอบ}';`, `delete from auth.users where lower(email) like '%@dealer.benjaminpebsteel.com' and not exists (select 1 from public.profiles p where p.id = auth.users.id and p.dealer_code <> 'ZZTX');`);
 if (พัง === "broad-mail") แก้("or subject like '%ZZTEST%' or body like '%ZZTEST%';", "or subject like '%ZZT%' or body like '%ZZT%';");
+if (พัง === "miss-batch") แก้("delete from public.prospect_import_batches where file_name like 'ZZTEST-ผู้สนใจเว็บจริง-%' or created_by = 'บัญชีทดสอบชั่วคราว' or created_by like 'live-%@example.test';", "");
+if (พัง === "broad-batch") แก้("delete from public.prospect_import_batches where file_name like 'ZZTEST-ผู้สนใจเว็บจริง-%' or created_by = 'บัญชีทดสอบชั่วคราว' or created_by like 'live-%@example.test';", "delete from public.prospect_import_batches;");
 if (พัง === "miss-mail") แก้("or subject like '%ZZTEST%' or body like '%ZZTEST%';", ";");
 if (พัง === "miss-prospect") แก้(`delete from public.dealer_prospects where name like '${ป้าย}%';`, "");
 if (พัง === "no-guard") ไฟล์ล้าง = ไฟล์ล้าง.replace(/-- ด่านกันพลาดของชุดผู้สนใจ[\s\S]*?end \$\$;\n/, "");
 const ตัวไฟล์ = ไฟล์ล้าง.replace(/^begin;$/m, "").replace(/^commit;$/m, "");
 ผล(/^begin;$/m.test(ไฟล์ล้าง) && /^commit;$/m.test(ไฟล์ล้าง), "cleanup.sql อยู่ในทรานแซกชันเดียว (พังกลางทาง = ไม่ลบอะไร)");
 
+// คำสั่งนับที่เหลือตัวจริงของ run.mjs (cleanup-left) — สาขาทดสอบ ZZT
+const นับที่เหลือ = (/writeFileSync\(ไฟล์เหลือ, `([\s\S]*?)`\);/.exec(readFileSync("tests/prod-live/run.mjs", "utf8").replace(/\r\n/g, "\n"))?.[1] ?? "")
+  .replaceAll("${CODE}", "ZZT").trim().replace(/;$/, "");
+ผล(/ as ชุดนำเข้า,/.test(นับที่เหลือ), "ขั้นนับที่เหลือของ run.mjs นับชุดนำเข้าผู้สนใจด้วย");
 const รัน = (sql) => spawnSync("docker", [...อาร์กิวเมนต์psql(คอนเทนเนอร์), "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"], { input: sql, encoding: "utf8", maxBuffer: 64 << 20 });
 
 // ตัวเตรียมแถว: ใส่ตรงในทรานแซกชัน (ปิดด่านแปลงเป็นดีลเลอร์ + ตัวดักสถานะชั่วคราว เฉพาะทรานแซกชันนี้) — ข้อนี้ตรวจการลบ ไม่ใช่การสร้าง
@@ -66,7 +74,7 @@ const นับทุกตาราง = `(select jsonb_build_object(
   'proposals', (select count(*) from public.dealer_package_proposals), 'payments', (select count(*) from public.dealer_proposal_payments),
   'territories', (select count(*) from public.dealer_territories), 'users', (select count(*) from auth.users),
   'profiles', (select count(*) from public.profiles), 'provinces', (select count(*) from public.th_provinces),
-  'leads', (select count(*) from public.leads), 'outbox', (select count(*) from public.email_outbox), 'activities', (select count(*) from public.dealer_prospect_activities where prospect_id in (select id from public.dealer_prospects where name not like 'ZZTEST-%' and name not like 'ผู้สนใจจริง-ทดสอบล้าง%'))))`;
+  'leads', (select count(*) from public.leads), 'batches', (select count(*) from public.prospect_import_batches), 'outbox', (select count(*) from public.email_outbox), 'activities', (select count(*) from public.dealer_prospect_activities where prospect_id in (select id from public.dealer_prospects where name not like 'ZZTEST-%' and name not like 'ผู้สนใจจริง-ทดสอบล้าง%'))))`;
 
 const ล็อก = ขอล็อกฐานทดสอบ("ข้อทดสอบ franchise-cleanup", { รอนาที: 30 });
 try {
@@ -80,6 +88,13 @@ insert into public.dealer_prospects (name, phone, region, province, status) valu
   ('${ป้าย}1', '000-000-0001', 'ตะวันออก', 'ตราด', 'meeting'),
   ('ผู้สนใจจริง-ทดสอบล้าง', '000-000-0002', 'ตะวันออก', 'ตราด', 'meeting'),
   ('ZZTEST-ชุดอื่น-ทดสอบล้าง', '000-000-0003', 'ตะวันออก', 'ตราด', 'meeting');
+insert into public.prospect_import_batches (file_name, row_count, inserted, created_by) values
+  ('${ป้าย}นำเข้า-ทดสอบล้าง.xlsx', 2, 2, 'บัญชีทดสอบชั่วคราว'), ('ไฟล์จริง-ทดสอบล้าง.xlsx', 1, 1, 'ผู้ดูแลจริง');
+insert into public.dealer_prospects (name, phone, region, province, status, import_batch_id)
+  select '${ป้าย}นำเข้า-' || n, '000-000-01' || n, 'ตะวันออก', 'ตราด', 'new', b.id
+    from public.prospect_import_batches b, generate_series(10, 11) n where b.file_name = '${ป้าย}นำเข้า-ทดสอบล้าง.xlsx';
+update public.dealer_prospects set import_batch_id = (select id from public.prospect_import_batches where file_name = 'ไฟล์จริง-ทดสอบล้าง.xlsx')
+ where name = 'ผู้สนใจจริง-ทดสอบล้าง';
 ${ใส่ใบ(`${ป้าย}1`, "DP-ล้าง-ทดสอบ", 100000)}
 ${ใส่ใบ("ผู้สนใจจริง-ทดสอบล้าง", "DP-ล้าง-จริง", 200000)}
 ${สาขา("ZZTN", `${ป้าย}1`, "ตราด", `(select id from public.dealer_prospects where name = '${ป้าย}1')`)}
@@ -101,10 +116,15 @@ insert into public.audit_log ("user", role, action, target, at) values
   ('${ป้าย}1', 'DEALER_ADMIN', 'เข้าสู่ระบบ', 'ตัวแอป', now()),
   ('system', '', 'แก้ไขดีลเลอร์', 'ZZTN · ${ป้าย}1', now()),
   ('ผู้ดูแลจริง', 'SUPER_ADMIN', 'ออกใบค่าแฟรนไชส์', 'DP-ล้าง-จริง · ผู้สนใจจริง-ทดสอบล้าง', now()),
-  ('ผู้ดูแลจริง', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'ZZTX · สาขาจริงทดสอบล้าง', now());
+  ('ผู้ดูแลจริง', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'ZZTX · สาขาจริงทดสอบล้าง', now()),
+  ('บัญชีทดสอบชั่วคราว', 'SUPER_ADMIN', 'นำเข้าผู้สนใจเป็นดีลเลอร์', '${ป้าย}นำเข้า-ทดสอบล้าง.xlsx · เพิ่ม 2 ราย · ข้าม 0 แถว · ชุด 1', now()),
+  ('บัญชีทดสอบชั่วคราว', 'SUPER_ADMIN', 'ยกเลิกการนำเข้าผู้สนใจ', '${ป้าย}นำเข้า-ทดสอบล้าง.xlsx · ลบ 2 ราย · ชุด 1', now()),
+  ('ผู้ดูแลจริง', 'SUPER_ADMIN', 'นำเข้าผู้สนใจเป็นดีลเลอร์', 'ไฟล์จริง-ทดสอบล้าง.xlsx · เพิ่ม 1 ราย · ข้าม 0 แถว · ชุด 2', now());
 ${เปิดด่าน}
 ${ตัวไฟล์}
+select concat('เหลือ=', to_jsonb(x)) from (${นับที่เหลือ}) x;
 select concat('ทดสอบ=', jsonb_build_object(
+  'ชุดนำเข้า', (select count(*) from public.prospect_import_batches where file_name like '${ป้าย}%'),
   'ผู้สนใจ', (select count(*) from public.dealer_prospects where name like '${ป้าย}%'),
   'ใบ', (select count(*) from public.dealer_package_proposals where proposal_no = 'DP-ล้าง-ทดสอบ'),
   'การชำระ', (select count(*) from public.dealer_proposal_payments where reference = 'TR-DP-ล้าง-ทดสอบ'),
@@ -116,6 +136,9 @@ select concat('ทดสอบ=', jsonb_build_object(
   'จดหมาย', (select count(*) from public.email_outbox where dedupe_key = 'ล้าง-จดหมาย-ทดสอบ'),
   'บันทึก', (select count(*) from public.audit_log where target like '%${ป้าย}%' and target not like '%จริง-ทดสอบล้าง' or target = 'ZZTN' or target like 'ZZTN · %' or "user" like '${ป้าย}%')));
 select concat('จริง=', jsonb_build_object(
+  'ชุดนำเข้า', (select count(*) from public.prospect_import_batches b join public.dealer_prospects x on x.import_batch_id = b.id
+                 where b.file_name = 'ไฟล์จริง-ทดสอบล้าง.xlsx' and x.name = 'ผู้สนใจจริง-ทดสอบล้าง'),
+  'บันทึกนำเข้า', (select count(*) from public.audit_log where "user" = 'ผู้ดูแลจริง' and target like 'ไฟล์จริง-ทดสอบล้าง.xlsx · %'),
   'ผู้สนใจ', (select count(*) from public.dealer_prospects where name in ('ผู้สนใจจริง-ทดสอบล้าง', 'ZZTEST-ชุดอื่น-ทดสอบล้าง')),
   'ใบ', (select count(*) from public.dealer_package_proposals where proposal_no = 'DP-ล้าง-จริง'),
   'การชำระ', (select count(*) from public.dealer_proposal_payments where reference = 'TR-DP-ล้าง-จริง'),
@@ -139,6 +162,7 @@ delete from auth.users where lower(email) = 'zztx@dealer.benjaminpebsteel.com';
 update public.dealers set prospect_id = null where code = 'ZZTX';
 delete from public.dealer_prospects where name = 'ผู้สนใจจริง-ทดสอบล้าง';
 delete from public.dealers where code = 'ZZTX';
+delete from public.prospect_import_batches where file_name = 'ไฟล์จริง-ทดสอบล้าง.xlsx';
 delete from public.email_outbox where dedupe_key = 'ล้าง-จดหมาย-จริง';
 select 'ก่อน=' || (select n from ก่อนใส่)::text;
 select 'หลัง=' || ${นับทุกตาราง}::text;
@@ -150,7 +174,9 @@ rollback;
   const อ่าน = (ป้ายผล) => { try { return JSON.parse(new RegExp(`^${ป้ายผล}=(\\{.*\\})$`, "m").exec(ออก)?.[1] ?? "null"); } catch { return null; } };
   const ทดสอบ = อ่าน("ทดสอบ"), จริง = อ่าน("จริง");
   ผล(!!ทดสอบ && Object.values(ทดสอบ).every(n => n === 0), `แถวทดสอบหายครบ ${JSON.stringify(ทดสอบ)}`, ออก);
-  const คาดจริง = { ผู้สนใจ: 2, ใบ: 1, การชำระ: 1, สาขา: 1, จังหวัด: 1, บัญชี: 1, โปรไฟล์: 1, แจ้งเตือน: 1, จดหมาย: 1, บันทึก: 2 };
+  const เหลือ = อ่าน("เหลือ");
+  ผล(!!เหลือ && Object.keys(เหลือ).length > 0 && Object.values(เหลือ).every(n => Number(n) === 0), `ขั้นนับที่เหลือของ run.mjs (cleanup-left) = 0 ทุกช่อง ${JSON.stringify(เหลือ)}`, ออก);
+  const คาดจริง = { ชุดนำเข้า: 1, บันทึกนำเข้า: 1, ผู้สนใจ: 2, ใบ: 1, การชำระ: 1, สาขา: 1, จังหวัด: 1, บัญชี: 1, โปรไฟล์: 1, แจ้งเตือน: 1, จดหมาย: 1, บันทึก: 2 };
   ผล(!!จริง && Object.entries(คาดจริง).every(([k, v]) => จริง[k] === v), `แถวจริงอยู่ครบ ${JSON.stringify(จริง)}`, ออก);
   const ก่อนj = อ่าน("ก่อน"), หลังj = อ่าน("หลัง");
   ผล(!!ก่อนj && JSON.stringify(ก่อนj) === JSON.stringify(หลังj), `จำนวนแถวทุกตาราง (รวมตารางจังหวัดกลาง) เท่าก่อนใส่แถวทดสอบ ${JSON.stringify(หลังj)}`, `ก่อน ${JSON.stringify(ก่อนj)} หลัง ${JSON.stringify(หลังj)}
@@ -171,6 +197,9 @@ rollback;
     ["ผู้สนใจทดสอบผูกกับดีลเลอร์อื่น", `insert into public.dealer_prospects (name, phone, region, province, status, dealer_code) values ('${ป้าย}2', '000-000-0001', 'ตะวันออก', 'ตราด', 'won', 'RYG');`, "ผู้สนใจทดสอบผูกกับดีลเลอร์อื่น"],
     ["สาขา ZZTN ผูกกับผู้สนใจจริง", `insert into public.dealer_prospects (name, phone, region, province, status) values ('ผู้สนใจจริง-ทดสอบล้าง', '000-000-0002', 'ตะวันออก', 'ตราด', 'won');
 ${สาขา("ZZTN", `${ป้าย}3`, "ตราด", "(select id from public.dealer_prospects where name = 'ผู้สนใจจริง-ทดสอบล้าง')")}`, "ZZTN ผูกกับผู้สนใจจริง"],
+    ["ชุดนำเข้าทดสอบมีผู้สนใจจริง", `insert into public.prospect_import_batches (file_name, created_by) values ('${ป้าย}นำเข้า-ด่าน.xlsx', 'บัญชีทดสอบชั่วคราว');
+insert into public.dealer_prospects (name, phone, region, province, status, import_batch_id)
+  select 'ผู้สนใจจริง-ทดสอบล้าง', '000-000-0002', 'ตะวันออก', 'ตราด', 'new', id from public.prospect_import_batches where file_name = '${ป้าย}นำเข้า-ด่าน.xlsx';`, "ชุดนำเข้าทดสอบมีผู้สนใจจริง"],
     ["สาขา ZZTN มีบัญชีอื่นปน", `${สาขา("ZZTN", `${ป้าย}4`, "ตราด")}
 ${บัญชี("00000000-0000-4000-8000-0000000000a3", "คนจริง@example.test", "ZZTN")}`, "ZZTN มีบัญชีอื่น"],
   ]) {

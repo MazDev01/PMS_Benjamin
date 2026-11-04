@@ -60,6 +60,9 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   await expect(กล่อง.getByLabel("คอลัมน์ เบอร์โทร"), "เดาคอลัมน์เบอร์").toHaveValue("2");
   await expect(กล่อง.getByLabel("คอลัมน์ จังหวัด")).toHaveValue("3");
   const ปี = new Date(Date.now() + 7 * 3_600_000).getUTCFullYear();
+  // กฎปี (บอสตัดสิน 4 พ.ย. 69): วันเริ่มติดต่อที่เลยวันนี้ = ปีก่อน · วันติดตามไม่ก่อนวันเริ่ม (ใกล้ที่สุด)
+  const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const ปีเริ่ม = (mmdd: string) => (`${ปี}-${mmdd}` > วันนี้ ? ปี - 1 : ปี);
   await expect(กล่อง.locator("#pi-year"), "ถามปีครั้งเดียว (ค่าตั้งต้นปีนี้)").toHaveValue(String(ปี + 543));
   // ตารางแปลงช่องทาง (แก้ได้)
   await expect(กล่อง.getByLabel("แหล่งที่มาของ FB")).toHaveValue("Facebook");
@@ -86,10 +89,10 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   const { data } = await sb.from("dealer_prospects").select("name, phone, province, first_contact, follow_up, status, lost_reason, channel, note, social").like("name", `${แท็ก}%`);
   const ของ = (n: number) => (data ?? []).find(r => r.phone === เบอร์จัดรูป(n))!;
   expect(data ?? [], "เบอร์ซ้ำในไฟล์ไม่สร้างซ้ำ").toHaveLength(4);
-  expect(ของ(1)).toMatchObject({ name: `${แท็ก} เพจหนึ่ง`, province: "บุรีรัมย์", first_contact: `${ปี}-08-24`, status: "contacted", channel: "Facebook" });
+  expect(ของ(1)).toMatchObject({ name: `${แท็ก} เพจหนึ่ง`, province: "บุรีรัมย์", first_contact: `${ปีเริ่ม("08-24")}-08-24`, status: "contacted", channel: "Facebook" });
   expect(ของ(2)).toMatchObject({ province: "นราธิวาส", status: "profile_sent", channel: "LINE ส่วนตัว" });
   expect(ของ(2).note).toContain("จังหวัดอื่นในไฟล์: ปัตตานี ยะลา");
-  expect(ของ(3)).toMatchObject({ province: "อุบลราชธานี", status: "lost", lost_reason: "เงินทุนไม่พอ", follow_up: `${ปี}-04-18` });
+  expect(ของ(3)).toMatchObject({ province: "อุบลราชธานี", status: "lost", lost_reason: "เงินทุนไม่พอ", first_contact: `${ปีเริ่ม("08-25")}-08-25`, follow_up: `${ปีเริ่ม("08-25") + 1}-04-18` });   // ติดตาม 18.4 หลังเริ่ม 25.8 = เม.ย. ปีถัดไป
   expect(ของ(4)).toMatchObject({ name: `${แท็ก} รวม สกุลรวม`, province: "นครสวรรค์" });
   assertNoErrors(errs, "นำเข้าผู้สนใจ");
 });

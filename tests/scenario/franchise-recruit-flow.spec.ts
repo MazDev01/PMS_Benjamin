@@ -5,6 +5,7 @@ import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, waitRow, specNS, db } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 import { ลบสาขาทดสอบตรง } from "./testDealers";
+import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
 
 // ── ด่าน 4 · "หาดีลเลอร์ใหม่" ทั้งเส้นบนหน้าจอ ตามลำดับกล่องใน FLOW.html ช่วงที่ 1 ──────────────────────────────
 //   1) ผู้สนใจ: ข้อมูลติดต่อ · จังหวัด · แหล่งที่มา · ผู้ดูแลฝั่ง HQ
@@ -78,6 +79,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await ฟอร์ม.locator("#pp-amount").fill("300000");
   await ฟอร์ม.locator("#pp-months").fill("12");
   await ฟอร์ม.locator("#pp-target").fill("6000000");
+  await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
   const v1 = await waitRow<{ id: number; proposal_no: string }>(sb, "dealer_package_proposals", { prospect_id: ราย.id, status: "draft" });
   await แผง.getByLabel(`สถานะใบ ${v1.proposal_no}`).selectOption("sent");
@@ -93,6 +95,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await expect(ฟอร์ม, "ทำเวอร์ชันใหม่แล้วเปิดร่างให้แก้ทันที").toBeVisible({ timeout: 15_000 });
   await expect(ฟอร์ม.locator("#pp-amount"), "เวอร์ชันใหม่คัดลอกเนื้อหาเดิม").toHaveValue("300,000");
   await ฟอร์ม.locator("#pp-amount").fill("250000");
+  await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
   const v2no = `${v1.proposal_no}-V2`;
   // รอจนยอดใหม่ลงฐาน (ร่างเกิดทันทีตอนกดทำเวอร์ชันใหม่ — รอแค่ "มีร่าง" แล้วกดส่งต่อ = ส่งระหว่างที่บันทึกยังไม่เสร็จ)
@@ -120,6 +123,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await กดตกลงในกล่องยืนยัน(page);
   ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await ฟอร์ม.locator("#pp-amount").fill("200000");
+  await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
   const v3no = `${v1.proposal_no}-V3`;
   const v3 = await waitRow<{ id: number }>(sb, "dealer_package_proposals", { proposal_no: v3no, status: "draft", amount: 200000 });
