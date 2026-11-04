@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, ADMIN, RYG, CNX, type Account, appEnv } from "./supabaseEnv";
 import { SESSION_KEY, getSession, settle, ติดตามคำขอ, เข้าระบบด้วยคุกกี้, ล็อกอินใหม่ } from "./helpers";
 import { ที่อยู่เว็บ } from "./sessionPorts";
+import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
 // ที่อยู่เว็บของโฟลเดอร์นี้ (พอร์ตจาก sessionPorts.ts · ตั้งทับด้วย PMS_*_ORIGIN)
 export const DEALER_ORIGIN = ที่อยู่เว็บ.dealer;
@@ -239,14 +240,14 @@ export async function ลูกค้าเป้าหมายรองรั�
   const name = `${TAG}-ผู้สนใจ-${code}`;
   const { error: delErr } = await sb.from("dealer_prospects").delete().eq("name", name);
   if (delErr) throw new Error(`ล้างลูกค้าเป้าหมายทดสอบของ ${code} ไม่สำเร็จ: ${delErr.message}`);
-  const { data, error } = await sb.from("dealer_prospects").insert({ name, status: "considering" }).select("id").single();
+  const { data, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, status: "considering" }).select("id").single();
   if (error || !data) throw new Error(`สร้างลูกค้าเป้าหมายรองรับสาขา ${code} ไม่สำเร็จ: ${error?.message ?? "ไม่มีข้อมูลคืนมา"}`);
   const id = (data as { id: number }).id;
   // ตกลง + ชำระ (ด่าน 4 · 0208): แปลงได้เมื่อใบ "ตอบรับ" + ยอดชำระรวมครบตามใบ
   //   ใบรองรับสาขาทดสอบไม่ระบุค่าแรกเข้า (ยอด 0) → ตอบรับแล้วแปลงได้เลย ไม่ต้องบันทึกการชำระ
   //   ข้อทดสอบที่ตรวจการชำระโดยเฉพาะอยู่ที่ franchise_payment_rules.sql / franchise-recruit-flow.spec.ts
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, status: "sent", proposed_date: new Date().toISOString().slice(0, 10) }).select("id").single();
+    .insert({ ...ช่องใบครบ(), prospect_id: id, status: "sent", proposed_date: new Date().toISOString().slice(0, 10) }).select("id").single();
   if (ใบErr || !ใบ) throw new Error(`สร้างใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ใบErr?.message ?? "ไม่มีข้อมูลคืนมา"}`);
   const { error: ตอบรับErr } = await sb.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", (ใบ as { id: number }).id);
   if (ตอบรับErr) throw new Error(`ตอบรับใบค่าแฟรนไชส์รองรับสาขา ${code} ไม่สำเร็จ: ${ตอบรับErr.message}`);

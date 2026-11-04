@@ -8,6 +8,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
 import { settle } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
+import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -82,9 +83,9 @@ for (const [จอ, ขนาด] of [["จอกว้าง", { width: 1440, h
 test("[ui·hq] แผงลูกค้า · ดีลเลอร์ · ผู้สนใจ · ใบค่าแฟรนไชส์ — ปุ่มปิดมุมขวาบนเมื่อข้อมูลหัวแผงยาว", async ({ page }) => {
   // ข้อมูลตั้งต้นไม่มีผู้สนใจ → สร้างของข้อ 1 ราย (ลบท้ายไฟล์) ให้หน้าผู้สนใจมีแถวให้เปิด
   // + ใบค่าแฟรนไชส์ 1 ใบให้หน้าใบค่าแฟรนไชส์มีแถว (ลบผู้สนใจ = ใบหายตาม)
-  const ผ = await (await db(ADMIN)).from("dealer_prospects").insert({ name: ชื่อผู้สนใจ(), status: "considering" }).select("id").single();
+  const ผ = await (await db(ADMIN)).from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: ชื่อผู้สนใจ(), status: "considering" }).select("id").single();
   expect(ผ.error, "สร้างผู้สนใจของข้อ").toBeNull();
-  const ใบ = await (await db(ADMIN)).from("dealer_package_proposals").insert({ prospect_id: (ผ.data as { id: number }).id, status: "sent",
+  const ใบ = await (await db(ADMIN)).from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: (ผ.data as { id: number }).id, status: "sent",
     proposed_date: new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10) });
   expect(ใบ.error, "สร้างใบค่าแฟรนไชส์ของข้อ").toBeNull();
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);

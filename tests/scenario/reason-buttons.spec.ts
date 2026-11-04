@@ -5,6 +5,7 @@ import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
+import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
 // ── กล่องเหตุผลกลาง + ปุ่มรอฐาน (บอสสั่ง 28 ต.ค. 69 · กด "ยกเลิกคำขอ" แล้วดูเหมือนไม่เกิดอะไร) ─────────────────────────────
 //   ทุกจุดที่ต้องใส่เหตุผล: ยกเลิกคำขอ · ขอแก้ราคา · ลูกค้าปฏิเสธ · ปิดไม่สำเร็จ (ดีลเลอร์)
@@ -202,16 +203,16 @@ test.describe("HQ: กล่องเหตุผล", () => {
 
     // ผู้สนใจ + ใบค่าแฟรนไชส์ที่ส่งแล้ว (ปฏิเสธได้) + ใบที่ตอบรับและมีการชำระ (ยกเลิกการชำระได้)
     const sb = await db(ADMIN);
-    const p = await sb.from("dealer_prospects").insert({ name: `${NS}-ผู้สนใจ`, province: "ระยอง", status: "meeting" }).select("id").single();
+    const p = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ผู้สนใจ`, province: "ระยอง", status: "meeting" }).select("id").single();
     expect(p.error, "ผู้สนใจ").toBeNull();
     prospectId = (p.data as { id: number }).id;
-    const ส่งแล้ว = await sb.from("dealer_package_proposals").insert({ prospect_id: prospectId, status: "sent", proposed_date: "2026-10-01", contract_months: 12, annual_target: 12_000_000 })
+    const ส่งแล้ว = await sb.from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: prospectId, status: "sent", proposed_date: "2026-10-01", contract_months: 12, annual_target: 12_000_000 })
       .select("id, proposal_no").single();
     expect(ส่งแล้ว.error, "ใบค่าแฟรนไชส์ที่ส่งแล้ว").toBeNull();
     ใบปฏิเสธ = (ส่งแล้ว.data as { proposal_no: string }).proposal_no;
-    const p2 = await sb.from("dealer_prospects").insert({ name: `${NS}-ชำระ`, province: "ระยอง", status: "meeting" }).select("id").single();
+    const p2 = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ชำระ`, province: "ระยอง", status: "meeting" }).select("id").single();
     expect(p2.error).toBeNull();
-    const ชำระ = await sb.from("dealer_package_proposals").insert({ prospect_id: (p2.data as { id: number }).id, status: "sent", proposed_date: "2026-10-01", contract_months: 12, annual_target: 12_000_000, amount: 100_000 })
+    const ชำระ = await sb.from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: (p2.data as { id: number }).id, status: "sent", proposed_date: "2026-10-01", contract_months: 12, annual_target: 12_000_000, amount: 100_000 })
       .select("id, proposal_no").single();
     expect(ชำระ.error, "ใบที่จะชำระ").toBeNull();
     const ชำระId = (ชำระ.data as { id: number }).id;

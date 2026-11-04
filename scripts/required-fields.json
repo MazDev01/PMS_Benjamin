@@ -56,6 +56,48 @@
       "ที่มา": "บอส"
     },
     {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "pr-name",
+      "ชื่อ": "ผู้สนใจ · ชื่อผู้ติดต่อ / ชื่อบริษัท",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "pr-phone",
+      "ชื่อ": "ผู้สนใจ · เบอร์โทร",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-existing",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · ดีลเลอร์เดิม",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-code",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · รหัสดีลเลอร์",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-name",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · ชื่อดีลเลอร์",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-region",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · ภาค",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-province",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · จังหวัดที่ตั้ง",
+      "ที่มา": "ฐาน"
+    },
+    {
       "file": "apps/dealer/app/(app)/leads/page.tsx",
       "id": "lf-company",
       "ชื่อ": "เพิ่มลีด · ชื่อบริษัท",

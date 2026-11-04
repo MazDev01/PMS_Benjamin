@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
+import { ช่องผู้สนใจครบ, ช่องใบครบ, เบอร์ทดสอบ } from "./requiredFixtures";
 
 // ── เส้นทางการทำงานของผู้สนใจเป็นดีลเลอร์ — migration 0174 ──
 //   บอสสั่ง 14 ก.ย. 69: "ทำให้ ลูกค้าเป้าหมาย ออกแบบการทำออกมาใช้งานให้เสร็จ" · "ให้มันทำงานแบบเดียวกับดีลเลอร์"
@@ -26,7 +27,7 @@ test.afterAll(cleanup);
 
 test("[db] กติกาเลื่อนขั้น + บันทึกการติดต่อ + ส่งใบแล้วเลื่อนเอง", async () => {
   const sb = await db(ADMIN);
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name: `${NS}-กติกาขั้น` }).select("id, status").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-กติกาขั้น` }).select("id, status").single();
   expect(error).toBeNull();
   const id = (pr as { id: number }).id;
   const ขั้น = async () => ((await sb.from("dealer_prospects").select("status, last_contact_at, follow_up, first_contact").eq("id", id).single()).data as
@@ -60,7 +61,7 @@ test("[db] กติกาเลื่อนขั้น + บันทึกก
   expect(ไม่มีใบ.error?.message ?? "", "ยังไม่มีใบที่ส่งแล้ว เป็นรอตัดสินใจไม่ได้").toMatch(/ใบค่าแฟรนไชส์/);
 
   // ส่งใบแล้ว → นัดคุยแล้ว → รอตัดสินใจ ให้เอง
-  const { data: ใบ } = await sb.from("dealer_package_proposals").insert({ prospect_id: id, proposed_date: "2026-09-14" }).select("id").single();
+  const { data: ใบ } = await sb.from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: id, proposed_date: "2026-09-14" }).select("id").single();
   expect((await sb.from("dealer_package_proposals").update({ status: "sent" }).eq("id", (ใบ as { id: number }).id)).error).toBeNull();
   expect((await ขั้น()).status, "ส่งใบแล้วต้องเลื่อนเป็นรอตัดสินใจเอง").toBe("considering");
 
@@ -87,12 +88,12 @@ test("[db] กติกาเลื่อนขั้น + บันทึกก
 
 test("[db] ใบถูกปฏิเสธ → รอตัดสินใจถอยกลับนัดคุยแล้ว เฉพาะเมื่อไม่มีใบที่ส่งแล้วเหลือ (0177)", async () => {
   const sb = await db(ADMIN);
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name: `${NS}-ใบถูกปฏิเสธ`, status: "meeting" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ใบถูกปฏิเสธ`, status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const id = (pr as { id: number }).id;
   const ขั้น = async () => ((await sb.from("dealer_prospects").select("status").eq("id", id).single()).data as { status: string }).status;
   const ออกใบ = async () => ((await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, proposed_date: "2026-09-15" }).select("id, proposal_no").single()).data as { id: number; proposal_no: string });
+    .insert({ ...ช่องใบครบ(), prospect_id: id, proposed_date: "2026-09-15" }).select("id, proposal_no").single()).data as { id: number; proposal_no: string });
   // ปฏิเสธต้องมีเหตุผล (ด่าน 4 · 0207)
   const ตั้ง = async (ใบId: number, status: string) =>
     expect((await sb.from("dealer_package_proposals")
@@ -127,7 +128,7 @@ test("[db] ใบถูกปฏิเสธ → รอตัดสินใจ�
 
 test("[security] ประวัติ: เพิ่มได้แค่บันทึกการติดต่อ · แก้/ลบไม่ได้ · ดีลเลอร์ไม่เห็น", async () => {
   const sb = await db(ADMIN);
-  const { data: pr } = await sb.from("dealer_prospects").insert({ name: `${NS}-ประวัติลับ` }).select("id").single();
+  const { data: pr } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ประวัติลับ` }).select("id").single();
   const id = (pr as { id: number }).id;
 
   const ปลอมขั้น = await sb.from("dealer_prospect_activities").insert({ prospect_id: id, kind: "status", body: "เป็นดีลเลอร์แล้ว (ปลอม)" }).select();
@@ -168,6 +169,7 @@ test("[func·hq] รูปประจำตัว: อัปโหลดตั�
   await ฟอร์ม.getByLabel("อัปโหลดรูปผู้สนใจ").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: รูปทดสอบ });
   await expect(ฟอร์ม.getByRole("img", { name: "รูปประจำตัว" }), "เลือกรูปแล้วต้องเห็นตัวอย่างในฟอร์ม").toBeVisible({ timeout: 10_000 });
   await ฟอร์ม.locator("#pr-name").fill(name);
+  await ฟอร์ม.locator("#pr-phone").fill(เบอร์ทดสอบ());   // เบอร์โทรเป็นช่องบังคับ (4 พ.ย. 69 · ใบ 0276)
   // ผู้ดูแล = ดรอปดาวน์จากผู้ใช้งานสำนักงานใหญ่ (บอสสั่ง 14 ก.ย. 69) — ต้องไม่ใช่ช่องพิมพ์เองแล้ว
   const ผู้ดูแล = ฟอร์ม.locator("select#pr-assigned");
   await expect(ผู้ดูแล, "ผู้ดูแลต้องเป็นดรอปดาวน์").toHaveCount(1);
@@ -193,7 +195,7 @@ test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/
   const sb = await db(ADMIN);
   const name = `${NS}-เงียบ20วัน`;
   const ยี่สิบวันก่อน = new Date(Date.now() - 20 * 86_400_000).toISOString();
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, status: "contacted", created_at: ยี่สิบวันก่อน, follow_up: "2027-01-15" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, status: "contacted", created_at: ยี่สิบวันก่อน, follow_up: "2027-01-15" }).select("id").single();
   expect(error).toBeNull();
   const id = (pr as { id: number }).id;
 
