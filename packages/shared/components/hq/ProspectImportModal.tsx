@@ -4,6 +4,7 @@
 //   ขั้น: อัปโหลด → จับคู่คอลัมน์ (ระบบเดา แก้ได้ จำไว้ครั้งหน้าตามหัวตาราง) → ตรวจ 3 กลุ่ม พร้อม/ต้องตรวจ/ข้าม → นำเข้า → สรุป + ดาวน์โหลดแถวที่ข้าม
 //   ไม่บังคับใช้แม่แบบ: หาแถวหัวตารางเอง · ข้ามแถวหัวข้อแทรก · แยกแถวรวมช่องเดียว · จับคู่จังหวัด 77 · ถามปีครั้งเดียว · ตารางแปลงช่องทางแก้ได้
 //   ฐานตัดสินสุดท้าย (เบอร์ซ้ำ · ขั้น · จังหวัด · ไม่เกิน 1,000 แถว · ทั้งชุด) · ยกเลิกทั้งชุดได้ · ตรรกะล้วนอยู่ lib/prospectImport.ts
+import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
 import { Upload, X, Download, Check, Undo2 } from "lucide-react";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
@@ -78,7 +79,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     if (คู่.phone === undefined) { setพลาด("ต้องเลือกคอลัมน์เบอร์โทร (ใช้กันรายซ้ำ)"); return; }
     setพลาด("");
     จำ(ลายเซ็นหัว(หัว), คู่);
-    const ได้ = เตรียมแถว(ไฟล์.ตาราง, แถวหัว, คู่, { ปี, ช่องทาง, เหตุผลไม่สำเร็จ, เบอร์ที่มีอยู่ });
+    const ได้ = เตรียมแถว(ไฟล์.ตาราง, แถวหัว, คู่, { ปี, วันนี้: APP_NOW_ISO, ช่องทาง, เหตุผลไม่สำเร็จ, เบอร์ที่มีอยู่ });
     setแถว(ได้.แถว); setหัวข้อที่ข้าม(ได้.หัวข้อที่ข้าม);
     setดู(ได้.แถว.some(r => r.กลุ่ม === "review") ? "review" : "ready");
   }
@@ -152,6 +153,9 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                   <select id="pi-year" className="form-select" style={{ width: "auto" }} value={ปี} onChange={e => setปี(Number(e.target.value))}>
                     {[ปีพศนี้() - 1, ปีพศนี้(), ปีพศนี้() + 1].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
+                  <span data-year-rule style={{ fontSize: "0.68rem", color: "#6b7280", flexBasis: "100%" }}>
+                    วันเริ่มติดต่อที่เลยวันนี้ไป ระบบถอยเป็นปีก่อนให้เอง (เช่น 24.12 → ธ.ค. ปีก่อน) · วันนัดติดตามใช้ปีที่เลือก
+                  </span>
                 </div>
                 {แถวหัว >= 0 && (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
