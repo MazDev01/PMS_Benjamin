@@ -1,5 +1,5 @@
 {
- "migration": "0274",
+ "migration": "0275",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -94,6 +94,13 @@
   },
   {
    "f": "_hd_won(p_dealer text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_import_batch_touched(p_batch bigint)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -269,6 +276,13 @@
   },
   {
    "f": "_notify_render(p_text text, p_vars jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_phone_digits(p text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -976,6 +990,27 @@
   },
   {
    "f": "hq_pipeline_months(p_start date, p_end date, p_dealers text[])",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_prospect_import_batches()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_prospects_import(p_file text, p_rows jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_prospects_import_cancel(p_batch bigint)",
    "anon": false,
    "authenticated": true,
    "service_role": false,
