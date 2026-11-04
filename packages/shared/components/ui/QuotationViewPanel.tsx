@@ -112,7 +112,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
         style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 820, maxWidth: "calc(100vw - 24px)",
           maxHeight: "calc(100vh - 24px)", zIndex: 210, background: "#F8FAFC", boxShadow: "0 30px 90px rgba(0,0,0,.32)", borderRadius: 18,
           display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ background: "#003366", padding: "14px 20px", flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div data-panel-head style={{ background: "#003366", padding: "14px 20px", flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "nowrap" }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: "1.05rem", fontWeight: 800, color: "#fff", fontFamily: "monospace" }}>{q.id}</span>

@@ -6,7 +6,7 @@
 // 4. รหัสผ่านดีลเลอร์โชว์เต็มทันทีที่เปิดแถว
 // 5. คำว่า "อัตราปิด/ปิดได้ %" ถูกใช้กับหลายสูตร จนอ่านเหมือนตัวเลขขัดกัน
 import { test, expect } from "@playwright/test";
-import { open } from "./helpers";
+import { open, ย้อนเดือนISO } from "./helpers";
 import { adminClient } from "./testDealers";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { รันSQLในฐาน } from "./localDb";
@@ -82,7 +82,7 @@ test.describe("อื่น ๆ", () => {
     const ก = await สร้างสาขาของข้อ({ จังหวัด: "ยะลา", ภาค: "ใต้" }), ข = await สร้างสาขาของข้อ({ จังหวัด: "ยะลา", ภาค: "ใต้" });
     try {
       const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-      const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
+      const ต้นปี = ย้อนเดือนISO(วันนี้, 12);   // ค่าตั้งต้น "1 ปี" (3 พ.ย. 69)
       const ฐานเลข = 1_500_000_000 + Math.floor(Math.random() * 500_000) * 100;   // เลขแถวของรอบนี้ (ไม่ชนช่วงเลขตายตัวของไฟล์อื่น)
       const ลีด: [string, string][] = [[ก.รหัส, "PAID"], [ก.รหัส, "PAID"], [ก.รหัส, "PAID"], [ก.รหัส, "CANCELLED"], [ก.รหัส, "WAITING"], [ข.รหัส, "WAITING"]];
       const ผล = รันSQLในฐาน(`set local session_replication_role = replica;

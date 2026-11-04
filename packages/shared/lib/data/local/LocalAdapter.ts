@@ -567,7 +567,13 @@ export const LocalAdapter: DataAdapter = {
   // บัญชีเข้าระบบของดีลเลอร์ (แก้เอง 2 ครั้ง · ครั้งที่ 3 ขอ HQ อนุมัติ) — จำลองครบในเครื่อง
   account: accountLocal,
   // แจ้งเตือนเกิดจากเหตุการณ์ในฐานข้อมูลเท่านั้น (ใบ 0231) — โหมดตัวอย่างไม่มีฐาน จึงไม่มีแจ้งเตือน (ไม่ประกอบเองในหน้าเว็บ)
-  notifications: { list: () => ok([]) },
+  // โหมดข้อมูลตัวอย่างไม่มีฐาน: ไม่มีแจ้งเตือน · ค่าตั้ง/ผู้รับว่าง · เขียนไม่ได้ (บอกชัด)
+  notifications: {
+    list: () => ok([]), prefs: () => ok([]), recipients: () => ok([]),
+    setPref: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างตั้งค่าแจ้งเตือนไม่ได้")),
+    addRecipient: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างเพิ่มอีเมลผู้รับไม่ได้")),
+    removeRecipient: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างลบอีเมลผู้รับไม่ได้")),
+  },
   audit: {
     // local: loadAudit เพดาน MAX=300 อยู่แล้ว · เคารพ limit เพื่อพฤติกรรมตรงกับ supabase (M8)
     list: (limit) => ok(limit ? loadAudit().slice(0, limit) : loadAudit()),

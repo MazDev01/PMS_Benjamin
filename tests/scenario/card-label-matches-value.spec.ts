@@ -4,7 +4,7 @@
 // 2) แดชบอร์ดดีลเลอร์เทียบ "ราย" กับ "ใบ" ในกราฟเดียวกัน แท่งหลังจึงยาวเกินแท่งหน้าได้
 import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
-import { openAs, settle } from "./helpers";
+import { openAs, settle, ย้อนเดือนISO } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { สร้างสาขาของข้อ } from "./ownDealer";
@@ -21,9 +21,9 @@ test("การ์ดลีดใหม่บนแดชบอร์ด HQ ต�
   const การ์ด = page.locator("[data-kpi='leads']");
   await expect(การ์ด).toContainText("ลีดใหม่ทั้งเครือ", { timeout: 30_000 });
   await expect(page.locator("[data-kpi]").filter({ hasText: "ลูกค้าใหม่ทั้งเครือ" }), "การ์ดลูกค้าใหม่เอาออกแล้ว").toHaveCount(0);
-  // ⚠️ อย่าฝังเลขปีไว้ — ค่าตั้งต้นของตัวกรองคือ "ปีนี้" = 1 ม.ค. ถึงวันนี้
+  // ⚠️ อย่าฝังเลขปีไว้ — ค่าตั้งต้นของตัวกรองคือ "1 ปี" = ย้อนหลัง 12 เดือนถึงวันนี้ (บอสสั่ง 3 พ.ย. 69 · เดิม "ปีนี้")
   const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-  const ต้นปี = `${วันนี้.slice(0, 4)}-01-01`;
+  const ต้นปี = ย้อนเดือนISO(วันนี้, 12);
   const นับ = async () => (await db.from("leads").select("id", { count: "exact", head: true })
     .neq("dealer_code", "HQ").gte("created_date", ต้นปี).lte("created_date", วันนี้)).count ?? -1;
   // ข้อทดสอบอื่นเพิ่ม/ลบลีดพร้อมกัน — อ่านจอกับตารางซ้ำจนตรงกัน

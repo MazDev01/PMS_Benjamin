@@ -62,6 +62,8 @@ insert into profiles (id, role, dealer_code, name, status, contact_email, contac
   ('00000000-0000-4000-8000-0000000a0001', 'DEALER_ADMIN', 'ZZQFA', 'ZZQF ดีลเลอร์ A', 'active', 'zzqf-a@example.test', now()),
   ('00000000-0000-4000-8000-0000000b0001', 'DEALER_ADMIN', 'ZZQFB', 'ZZQF ดีลเลอร์ B', 'active', '', null),
   ('00000000-0000-4000-8000-0000000c0001', 'HQ_STAFF', '', 'ZZQF เจ้าหน้าที่ HQ', 'active', '', null);
+-- ผู้รับแจ้งเตือนของสาขา = รายชื่อที่ยืนยันแล้ว (ใบ 0274) — โหมดนี้ตัวดักไม่ทำงาน จึงวางแถวที่ตัวดักจะสร้างจากอีเมลติดต่อเอง
+insert into dealer_notify_recipients (dealer_code, email, is_contact, verified_at) values ('ZZQFA', 'zzqf-a@example.test', true, now());
 insert into leads (id, num_id, dealer_code, company, contact, phone, province, project, area, note, status) values
   ('ZZQFA-1', 993101, 'ZZQFA', 'ZZTEST ไฟล์ 1', 'คุณไฟล์', '000-000-0101', 'ตราด', 'โกดัง', '100', 'สเปก', 'HQ_PRICING'),
   ('ZZQFA-2', 993102, 'ZZQFA', 'ZZTEST ไฟล์ 2', 'คุณไฟล์', '000-000-0102', 'ตราด', 'โกดัง', '100', 'สเปก', 'HQ_PRICING'),

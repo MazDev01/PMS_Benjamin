@@ -3,7 +3,7 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, ตั้งช่วงเอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
@@ -103,9 +103,10 @@ async function เลือกดีลเลอร์(page: Page, code: string)
   await page.getByRole("button", { name: new RegExp(`^${code} – `) }).click();
   await expect(page.getByRole("button", { name: new RegExp(`^${code} – `) }).first()).toBeVisible();
 }
-async function เลือกช่วง(page: Page, ชื่อ: "วันนี้" | "ปีนี้") {
-  await page.locator("button").filter({ hasText: /^(ปีนี้|วันนี้|เดือนนี้|7 วันล่าสุด|ทุกช่วงเวลา|.*2569.*)$/ }).first().click();
-  await page.getByRole("button", { name: ชื่อ, exact: true }).click();
+// ตัวเลือกช่วงเวลา 4 ตัว (3 พ.ย. 69): "วันนี้" ไม่มีแล้ว → ช่วงกำหนดเองวันเดียว (ตัวเลขเดิมทุกตัว)
+async function เลือกช่วง(page: Page, ชื่อ: "วันนี้") {
+  void ชื่อ;
+  await ตั้งช่วงเอง(page, วันนี้, วันนี้);
 }
 const ค่า = async (page: Page, kpi: string) => (await page.locator(`[data-kpi='${kpi}'] [data-value]`).first().getAttribute("data-value")) ?? "";
 async function การ์ด(page: Page) {

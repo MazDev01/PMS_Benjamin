@@ -1,5 +1,5 @@
 {
- "migration": "0273",
+ "migration": "0274",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -261,6 +261,13 @@
    "definer": true
   },
   {
+   "f": "_notify_owner()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_notify_render(p_text text, p_vars jsonb)",
    "anon": false,
    "authenticated": false,
@@ -387,6 +394,13 @@
    "definer": true
   },
   {
+   "f": "_recruit_fill_defaults()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_role_th(r text)",
    "anon": false,
    "authenticated": false,
@@ -406,6 +420,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "appointments_link_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
   },
   {
    "f": "audit_actor()",
@@ -441,6 +462,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": true
+  },
+  {
+   "f": "audit_role_is_hq(p_role text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": true,
+   "definer": false
   },
   {
    "f": "audit_test_cleanup(p_ids bigint[], p_action_like text, p_target_like text, p_backup text)",
@@ -552,6 +580,34 @@
    "anon": false,
    "authenticated": true,
    "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "dealer_notify_recipient_add(p_email text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_notify_recipient_remove(p_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealer_notify_recipients_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "dealer_notify_recipients_list(p_dealer text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
    "definer": true
   },
   {
@@ -710,6 +766,13 @@
   },
   {
    "f": "dealers_conversion_gate()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "dealers_delete_notify_prefs()",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -1325,6 +1388,27 @@
    "definer": true
   },
   {
+   "f": "notification_prefs_get()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "notification_prefs_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "notification_prefs_set(p_kind text, p_bell boolean, p_email boolean)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "notifications_scan(p_now timestamp with time zone)",
    "anon": false,
    "authenticated": false,
@@ -1354,6 +1438,13 @@
   },
   {
    "f": "profiles_audit()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "profiles_contact_email_to_recipients()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

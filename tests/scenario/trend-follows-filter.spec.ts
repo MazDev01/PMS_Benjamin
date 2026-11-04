@@ -2,22 +2,22 @@ import { test, expect } from "@playwright/test";
 import { open } from "./helpers";
 
 // ─── กราฟยอดขายรวมทั้งเครือ ต้องเดินตามแถบกรองเวลา (บอสสั่ง 25 ส.ค. 69) ─────────
-// เลือกช่วงสั้น (วันนี้ / 7 วันล่าสุด / เดือนนี้) → จุดละวัน · เลือกปีนี้ → จุดละเดือน
+// เลือกช่วงสั้น (1 เดือน) → จุดละวัน · เลือก 1 ปี → จุดละเดือน (ตัวเลือก 4 ตัว · 3 พ.ย. 69)
 // ⚠️ ละเอียดกว่าวันไม่ได้ ระบบเก็บวันปิดการขายเป็น "วัน" ไม่มีเวลานาฬิกา
 
 async function เลือกช่วง(page: import("@playwright/test").Page, ชื่อ: string) {
-  await page.getByRole("button", { name: /2569/ }).first().click();
+  await page.getByRole("button", { name: /25\d\d/ }).first().click();
   await page.getByRole("button", { name: ชื่อ, exact: true }).first().click();
   await page.waitForTimeout(1200);
 }
 
-test("[func·hq] เลือก 'ปีนี้' → กราฟเป็นรายเดือน · เลือก '7 วันล่าสุด' → กราฟเป็นรายวัน", async ({ page }) => {
+test("[func·hq] เลือก '1 ปี' → กราฟเป็นรายเดือน · เลือก '1 เดือน' → กราฟเป็นรายวัน", async ({ page }) => {
   await open(page, "hq", "/hq/dashboard");
 
   // หน้านี้มีกราฟแนวโน้มหลายใบ — ต้องเจาะเฉพาะการ์ด "ยอดขายรวมทั้งเครือ" ใบเดียว
   const การ์ด = () => page.locator(".card").filter({ hasText: /ยอดขายรวมทั้งเครือ|ยอดขาย .* ราย/ }).first();
 
-  await เลือกช่วง(page, "ปีนี้");
+  await เลือกช่วง(page, "1 ปี");
   await expect(การ์ด().getByText(/รายเดือน/).first()).toBeVisible();
   // ⚠️ ห้ามมีปุ่มช่วงของกราฟเอง — ตัวคุมเวลาต้องมีตัวเดียวคือแถบกรองด้านบน (บอสทัก 25 ส.ค. 69)
   await expect(การ์ด().getByRole("button", { name: /^\d+ เดือน$/ })).toHaveCount(0);
@@ -27,7 +27,7 @@ test("[func·hq] เลือก 'ปีนี้' → กราฟเป็น�
   const จุดบนกราฟ = () => การ์ด().locator("svg circle, svg path[d]").count();
   expect(await จุดบนกราฟ(), "ระดับเดือนต้องมีจุดไม่เกิน 12").toBeLessThanOrEqual(40);
 
-  await เลือกช่วง(page, "7 วันล่าสุด");
+  await เลือกช่วง(page, "1 เดือน");
   await expect(การ์ด().getByText(/รายวัน/).first()).toBeVisible();
   // ระดับวันของช่วง 7 วัน — หัวข้อการ์ดเป็นตัวบอกระดับความละเอียดที่ผู้ใช้เห็นจริง
 });

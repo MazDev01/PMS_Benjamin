@@ -29,10 +29,8 @@ import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/
 import { fmtBahtM as fmtB, formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import {
   DEFAULT_RECRUIT_SETTINGS, จำนวนรายการสูงสุด, ความยาวรายการสูงสุด,
-  type HQRecruitSettings, type คีย์งานหาดีลเลอร์,
+  type HQRecruitSettings,
 } from "@pms/shared/lib/recruitSettings";
-import { งานมาตรฐาน } from "@pms/shared/lib/prospectJourney";
-import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealerProspects";
 import { settings as settingsRepo, dealers as dealersRepo, hqCompany as hqCompanyRepo, audit as auditRepo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
@@ -57,12 +55,13 @@ import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
 import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
 import { StorageUsagePanel } from "@pms/shared/components/hq/StorageUsagePanel";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
+import { EmailListEditor, NotifyPrefsTable, NotifyTestButton } from "@pms/shared/components/ui/NotificationSettings";
 import { ชื่อขั้น, สีขั้น } from "@pms/shared/lib/leadStage";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
 import {
-  Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, MessageSquare, ArrowUp, ArrowDown,
+  Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, ArrowUp, ArrowDown,
   Save, RotateCcw, Plus, Trash2, Check, X,
   Download, Upload, RefreshCw, AlertCircle,
   Mail, Boxes, HardDrive,
@@ -290,9 +289,8 @@ function JourneyTab() {
 
 // ═══════════════════════ 4 · หาดีลเลอร์ ═════════════════════════════════════════
 // บอสสั่ง 14 ก.ย. 69 (ข้อ 1 + ข้อ 2 ที่แนะนำ) — เก็บที่ hq_recruit_settings (0176) · กติกาอยู่ lib/recruitSettings.ts
-//   ช่องทางที่เข้ามา / ช่องทางในบันทึกการติดต่อ / ประเภทธุรกิจ / เหตุผลที่ไม่สำเร็จ / ชื่องานตามขั้น
-//   ค่าตั้งต้นใบค่าแฟรนไชส์ (อายุใบ · เงื่อนไขมาตรฐาน · ผู้ลงนาม · ตัวเลขตั้งต้นของแต่ละแพ็กเกจ)
-// ⚠️ งานตามขั้นแก้ได้แค่ชื่อ — เพิ่ม/ลบไม่ได้ เพราะ 4 งานผูกกับขั้นที่ฐานข้อมูลบังคับ (0174)
+//   3 พ.ย. 69 (ตาม FLOW H2–H5): เหลือ แหล่งที่มา / เหตุผลที่ไม่สำเร็จ (ตั้งต้น 4 ข้อ ใบ 0274) / ค่าตั้งต้นใบค่าแฟรนไชส์ (อายุใบตั้งต้น 7 วัน · เงื่อนไข · ผู้ลงนาม)
+//   ชื่องานตามขั้น · ประเภทธุรกิจ · ช่องทางในบันทึกการติดต่อ เอาออก (ค่าเดิมในฐานคงไว้ ไม่แสดง/ไม่ใช้)
 const ปุ่มไอคอน = (ปิด: boolean) => ({
   background: "none", border: "none", cursor: ปิด ? "default" : "pointer",
   color: ปิด ? "#cbd5e1" : "#64748b", display: "flex", padding: 3,
@@ -359,64 +357,30 @@ function RecruitTab() {
   );
   useReport(useMemo(() => ({ dirty: rc.dirty, save: rc.save, reset: rc.reset }), [rc.dirty, rc.save, rc.reset]));
   const d = rc.draft;
-  const ตั้งรายการ = (k: "channels" | "contactChannels" | "businessTypes" | "lostReasons") =>
+  const ตั้งรายการ = (k: "channels" | "lostReasons") =>
     (next: string[]) => rc.set(p => ({ ...p, [k]: next }));
-  const ตั้งชื่องาน = (k: คีย์งานหาดีลเลอร์, v: string) => rc.set(p => ({ ...p, taskLabels: { ...p.taskLabels, [k]: v } }));
   const ตั้งใบ = (patch: Partial<HQRecruitSettings["proposal"]>) => rc.set(p => ({ ...p, proposal: { ...p.proposal, ...patch } }));
   const หมายเหตุ = { fontSize: "0.7rem", color: "#8a929c", marginTop: 8 } as const;
 
   return (
     <>
-      {/* สองการ์ดช่องทางอยู่แถวเดียวกัน (บอสสั่ง 14 ก.ย. 69) · จอแคบซ้อนลงเป็นคอลัมน์เดียวเอง (.row-2-eq) */}
+      {/* บอสสั่ง 3 พ.ย. 69 (ตาม FLOW H2–H5): เหลือ "แหล่งที่มา" + "เหตุผลที่ไม่สำเร็จ" แถวเดียวกัน
+          เอาออก: ชื่องานตามขั้น (ใช้ชื่อ 4 งานตาม FLOW ตายตัว · ชื่อเดิมในฐานคงไว้ไม่แสดง) · ประเภทธุรกิจ (ฟอร์มพิมพ์เอง)
+                  ช่องทางในบันทึกการติดต่อ (รายการตายตัว โทรศัพท์ · LINE · Facebook · พบตัว · อีเมล · อื่น ๆ — บันทึกเก่าช่องทางอื่นยังแสดงตามเดิม)
+          fill + note จองบรรทัดเท่ากัน → ช่องเพิ่มของสองการ์ดอยู่ระดับเดียวกัน */}
       <div className="row-2-eq">
-        {/* fill + note เว้นบรรทัดเท่ากัน → ช่องเพิ่มของสองการ์ดอยู่ระดับเดียวกัน (บอสสั่ง "ทำให้แถวมันตรงกัน") */}
         <SectionCard fill icon={<UserPlus size={19} />} title="แหล่งที่มา">
           <ListEditor label="แหล่งที่มา" items={d.channels} onChange={ตั้งรายการ("channels")} placeholder="เช่น TikTok"
             emptyNote="ยังไม่มีแหล่งที่มา — ถ้าบันทึกตอนว่าง ระบบใช้รายการเริ่มต้น"
-            note="ในฟอร์มมีตัวเลือก “อื่น ๆ” ต่อท้ายให้เสมอ" />
-        </SectionCard>
-
-        <SectionCard fill icon={<MessageSquare size={19} />} title="ช่องทางในบันทึกการติดต่อ">
-          <ListEditor label="ช่องทางติดต่อ" items={d.contactChannels} onChange={ตั้งรายการ("contactChannels")} placeholder="เช่น Zoom"
-            emptyNote="ยังไม่มีช่องทาง — บันทึกการติดต่อต้องเลือกช่องทาง ถ้าบันทึกตอนว่าง ระบบใช้รายการเริ่มต้น"
-            note="" />
-        </SectionCard>
-      </div>
-
-      {/* ประเภทธุรกิจ + เหตุผลที่ไม่สำเร็จ แถวเดียวกัน (บอสสั่ง 15 ก.ย. 69) · จองหมายเหตุ 2 บรรทัดเท่ากันทั้งคู่
-          — หมายเหตุฝั่งเหตุผลตัดขึ้นบรรทัดใหม่ในการ์ดครึ่งจอ ถ้าจองไม่เท่ากันช่องเพิ่มจะเหลื่อม */}
-      <div className="row-2-eq">
-        <SectionCard fill icon={<Building2 size={19} />} title="ประเภทธุรกิจ">
-          <ListEditor label="ประเภทธุรกิจ" items={d.businessTypes} onChange={ตั้งรายการ("businessTypes")} placeholder="เช่น ผู้รับเหมา"
-            emptyNote="ยังไม่ได้ตั้ง — ช่องประเภทธุรกิจในฟอร์มยังพิมพ์เองได้"
-            note="" noteLines={2} />
+            note="ในฟอร์มมีตัวเลือก “อื่น ๆ” ต่อท้ายให้เสมอ" noteLines={2} />
         </SectionCard>
 
         <SectionCard fill icon={<X size={19} />} title="เหตุผลที่ไม่สำเร็จ (ผู้สนใจเป็นดีลเลอร์)">
           <ListEditor label="เหตุผลที่ไม่สำเร็จ" items={d.lostReasons} onChange={ตั้งรายการ("lostReasons")} placeholder="เช่น เงินทุนไม่พอ"
             emptyNote="ยังไม่ได้ตั้ง — ตอนปิดว่าไม่สำเร็จยังพิมพ์เหตุผลเองได้"
-            note="ตั้งรายการแล้ว มีตัวเลือก “อื่น ๆ (ระบุเอง)” ให้ด้วย · แยกจากเหตุผลของดีลเลอร์" noteLines={2} />
+            note="มีตัวเลือก “อื่น ๆ (ระบุเอง)” ให้ด้วยเสมอ · ปฏิเสธ/หมดอายุใบค่าแฟรนไชส์ต้องมีเหตุผล · แยกจากเหตุผลของดีลเลอร์" noteLines={2} />
         </SectionCard>
       </div>
-
-      <SectionCard icon={<GitMerge size={19} />} title="ชื่องานตามขั้น">
-        <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden", marginTop: 6 }}>
-          {งานมาตรฐาน.map((g, i) => (
-            <div key={g.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderTop: i ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>
-              <span style={{ width: 24, height: 24, borderRadius: "50%", background: "#eef2f7", color: NAVY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
-              <input className="form-input" aria-label={`ชื่องาน ${g.label}`} value={d.taskLabels[g.key] ?? ""} placeholder={g.label} maxLength={60}
-                onChange={e => ตั้งชื่องาน(g.key, e.target.value)} style={{ flex: "1 1 220px", maxWidth: 360 }} />
-              <span className="badge" style={{ background: prospectStatusColor[g.ไปขั้น].bg, color: prospectStatusColor[g.ไปขั้น].text, border: "none" }}>→ {prospectStatusLabel[g.ไปขั้น]}</span>
-              {g.หลักฐาน && (
-                <span style={{ fontSize: "0.68rem", color: "#6b7280" }}>
-                  {g.หลักฐาน === "contact" ? "ระบบติ๊กให้เมื่อบันทึกการติดต่อ" : "ระบบติ๊กให้เมื่อใบเสนอเป็น “ส่งแล้ว”"}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-        <div style={หมายเหตุ}>เว้นว่าง = ใช้ชื่อเดิม · เพิ่มหรือลบงานไม่ได้ เพราะแต่ละงานผูกกับขั้นที่ระบบบังคับ</div>
-      </SectionCard>
 
       <SectionCard icon={<FileText size={19} />} title="ค่าตั้งต้นใบค่าแฟรนไชส์">
         <Row label="อายุใบ">
@@ -538,54 +502,24 @@ function TargetsTab() {
 }
 
 // ═══════════════════════ 7 · การแจ้งเตือน ═════════════════════════════════════
-// 21 ต.ค. 69 (รอบ 4 · บอสสั่ง): แจ้งเตือนเหลือเฉพาะเรื่องที่คนรับต้องทำอะไรต่อ จากตารางกลางที่ฐาน (ใบ 0231)
-//   กระดิ่ง/อีเมลของแต่ละเรื่องตายตัวตามตาราง — สวิตช์เปิด/ปิดรายหมวด กฎแจ้งเตือนงาน HQ และหมวดบันทึกการใช้งาน เอาออกหมด
-//   เหลือรายชื่อผู้รับอีเมลของ HQ อย่างเดียว
-// ── อีเมลผู้รับแจ้งเตือนของสำนักงานใหญ่ (ด่าน 1 · ใบ 0193) ─────────────────────────────────────
-// ผู้รับอีเมลแจ้งเตือนของ HQ (คำขอใหม่ · ขอแก้ราคา · สรุปคำขอค้างเกิน 14 วัน · ลูกค้าตอบรับ · ใบ 0231) — ทุกฉบับส่งถึงทุกคนในรายชื่อ
-// พิมพ์ทีละบรรทัด (หรือคั่นด้วยจุลภาค) · บรรทัดที่ไม่ใช่อีเมลไม่ถูกนำไปบันทึก และบอกชัดว่าบรรทัดไหนผิด
-const รูปแบบอีเมล = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
-function EmailRecipientsCard({ value, onChange }: { value: string[]; onChange: (list: string[]) => void }) {
-  const [text, setText] = useState(value.join("\n"));
-  const [ผิด, setผิด] = useState<string[]>([]);
-  // ค่าจากฐานมาถึงทีหลัง (โหลดเสร็จ) หรือถูกล้างด้วยปุ่มยกเลิก → ตามค่านั้น เว้นแต่ผู้ใช้กำลังพิมพ์ค่าที่ยังผิดอยู่
-  const ค่าปัจจุบัน = value.join("\n");
-  useEffect(() => { if (!ผิด.length) setText(ค่าปัจจุบัน); }, [ค่าปัจจุบัน]); // eslint-disable-line react-hooks/exhaustive-deps
-  const เปลี่ยน = (s: string) => {
-    setText(s);
-    const บรรทัด = s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-    const ไม่ผ่าน = บรรทัด.filter(x => !รูปแบบอีเมล.test(x));
-    setผิด(ไม่ผ่าน);
-    if (!ไม่ผ่าน.length) onChange([...new Set(บรรทัด.map(x => x.toLowerCase()))]);
-  };
-  return (
-    <SectionCard icon={<Mail size={19} />} title="อีเมลผู้รับแจ้งเตือน"
-      desc="อีเมลของคำขอราคาใหม่ · ดีลเลอร์ขอแก้ราคา · สรุปคำขอค้างเกิน 14 วัน (วันละครั้ง) · ลูกค้าตอบรับ ส่งถึงทุกคนในรายชื่อนี้ · บรรทัดละหนึ่งอีเมล">
-      <textarea aria-label="อีเมลผู้รับแจ้งเตือน" value={text} onChange={e => เปลี่ยน(e.target.value)} rows={4}
-        placeholder={"เช่น\nsales@benjaminpebsteel.com"}
-        style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${ผิด.length ? "#fca5a5" : "var(--border,#e5e7eb)"}`, borderRadius: 10, padding: "10px 12px", fontSize: "0.84rem", fontFamily: "inherit", resize: "vertical" }} />
-      {ผิด.length > 0 && (
-        <div role="alert" style={{ marginTop: 6, fontSize: "0.74rem", color: "#b91c1c" }}>
-          ไม่ใช่รูปแบบอีเมล: {ผิด.join(", ")} — แก้ให้ถูกก่อน ค่าที่ผิดจะไม่ถูกบันทึก
-        </div>
-      )}
-      {!ผิด.length && value.length === 0 && (
-        <div style={{ marginTop: 6, fontSize: "0.74rem", color: "#b45309" }}>
-          ยังไม่มีผู้รับ — อีเมลแจ้งเตือนของสำนักงานใหญ่จะไม่ถึงใครเลย (กระดิ่งยังขึ้นตามปกติ)
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
+// ใบ 0274 (บอสสั่ง 3 พ.ย. 69 · ทับกติกา "ไม่มีสวิตช์รายหมวด" ของรอบ 4):
+//   • อีเมลผู้รับของ HQ เป็นรายการ — "+ เพิ่มอีเมล" · ลบรายตัว · ตรวจรูปแบบทันที (ฐานตรวจซ้ำตอนบันทึก) · ไม่มีผู้รับ = กล่องแดง
+//     เก็บใน hq_notif_rules.email_recipients (ตัววางจดหมายของฐานอ่านจากที่นี่) · บันทึกด้วยปุ่มบันทึกกลาง
+//   • ส่งอีเมลทดสอบถึงทุกผู้รับที่บันทึกแล้ว บอกผลรายอีเมล (แก้ค้างอยู่ = บันทึกก่อน)
+//   • ตารางแจ้งเตือนรายเรื่องของ HQ (กระดิ่ง/อีเมล) — กดสวิตช์ = บันทึกทันที · เรื่องจำเป็นปิดไม่ได้
 function NotificationsTab() {
-  // รายชื่อผู้รับเก็บใน hq_notif_rules.email_recipients (ตัววางจดหมายของฐานอ่านจากที่นี่)
   const rules = useRepoDraft<HQNotifRules>(() => settingsRepo.getNotifRules(), (v) => settingsRepo.saveNotifRules(v), DEFAULT_HQ_NOTIF_RULES);
   const { dirty, save, reset } = rules;
   useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
-
+  const รายชื่อ = rules.draft.emailRecipients ?? [];
   return (
-    <EmailRecipientsCard value={rules.draft.emailRecipients ?? []} onChange={list => rules.set(p => ({ ...p, emailRecipients: list }))} />
+    <>
+      <SectionCard icon={<Mail size={19} />} title="อีเมลผู้รับแจ้งเตือน">
+        <EmailListEditor value={รายชื่อ} onChange={list => rules.set(p => ({ ...p, emailRecipients: list }))} />
+        <NotifyTestButton hq disabledReason={dirty ? "บันทึกรายชื่อก่อน แล้วจึงส่งทดสอบ" : รายชื่อ.length === 0 ? "ยังไม่มีผู้รับ" : undefined} />
+      </SectionCard>
+      <NotifyPrefsTable />
+    </>
   );
 }
 

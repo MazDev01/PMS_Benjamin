@@ -15,7 +15,8 @@ const MONTH_START_ISO = `${APP_NOW.getFullYear()}-${String(APP_NOW.getMonth() + 
 type Opt = { value: string; label: string };
 
 // ลำดับ preset ในเมนู — "กำหนดช่วงเอง" อยู่ท้ายเมนูแยกต่างหาก (ไม่อยู่ในลิสต์นี้)
-const PRESET_ORDER: TimePreset[] = ["all", "today", "last7", "thisMonth", "thisYear"];
+const PRESET_ORDER: TimePreset[] = ["m1", "m3", "y1"];
+const isoของ = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function useClickOutside(cb: () => void) {
   const ref = useRef<HTMLDivElement>(null);
@@ -106,7 +107,8 @@ function TimeRangePicker() {
   }
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    // ช่วงที่ใช้อยู่จริง (ตัวเลือก + วันเริ่ม/สิ้นสุด) — ข้อทดสอบอ่านตรงนี้ ไม่ต้องแกะข้อความวันที่ไทย
+    <div ref={ref} style={{ position: "relative" }} data-time-range={timeRange.preset} data-start={isoของ(timeRange.start)} data-end={isoของ(timeRange.end)}>
       <Trigger
         icon={<CalendarDays size={14} style={{ color: "var(--primary)", flexShrink: 0 }} />}
         label={timeRange.subtitle || timeRange.label} active open={open}
@@ -194,7 +196,7 @@ export function SelectFilter({ caption, value, options, onChange }: {
 }
 
 // ── ปุ่มช่วงเวลาแบบ pill (สไตล์เดียวกับหัวกราฟ SalesTrendChart) — ผูกกับ FilterContext กลาง ──
-const PILL_LABEL: Partial<Record<TimePreset, string>> = { all: "ทั้งหมด", today: "วันนี้", last7: "7 วัน" };
+const PILL_LABEL: Partial<Record<TimePreset, string>> = {};
 export function TimeRangePills({ style }: { style?: React.CSSProperties }) {
   const { timeRange, setPreset, setCustomRange } = useFilters();
   const [showCustom, setShowCustom] = useState(false);

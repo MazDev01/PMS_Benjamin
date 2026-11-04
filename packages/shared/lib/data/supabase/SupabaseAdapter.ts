@@ -14,7 +14,7 @@ import { จัดรูปส่วนต่างใบ } from "@pms/shared/li
 import { จัดรูปแผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
 import { จัดรูปแดชบอร์ดHQ } from "@pms/shared/lib/hqDashboard";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
-import type { DealerProspect, ProspectActivity, AppNotification } from "@pms/shared/lib/data/types";
+import type { DealerProspect, ProspectActivity, AppNotification, NotificationPref, NotifyRecipient } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
 import { accountRemote } from "../accountRemote";
@@ -881,6 +881,28 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, error.code);
       return ((data ?? []) as Row[]).map(r => toCamel<AppNotification>(r));
     },
+    // ค่าตั้งรายเรื่อง + อีเมลผู้รับ (ใบ 0274) — ฐานตรวจสิทธิ์/ฝั่ง/เรื่องจำเป็นเอง
+    prefs: async () => {
+      const { data, error } = await sb().rpc("notification_prefs_get");
+      if (error) throw new DbError(error.message, error.code);
+      return (data ?? []) as NotificationPref[];
+    },
+    setPref: async (kind, bell, email) => {
+      const { data, error } = await sb().rpc("notification_prefs_set", { p_kind: kind, p_bell: bell, p_email: email });
+      if (error) throw new DbError(error.message, error.code);
+      return (data ?? []) as NotificationPref[];
+    },
+    recipients: async (dealerCode) => {
+      const { data, error } = await sb().rpc("dealer_notify_recipients_list", { p_dealer: dealerCode ?? null });
+      if (error) throw new DbError(error.message, error.code);
+      return (data ?? []) as NotifyRecipient[];
+    },
+    addRecipient: async (email) => {
+      const { data, error } = await sb().rpc("dealer_notify_recipient_add", { p_email: email });
+      if (error) throw new DbError(error.message, error.code);
+      return data as NotifyRecipient;
+    },
+    removeRecipient: (id) => must(sb().rpc("dealer_notify_recipient_remove", { p_id: id })),
   },
   audit: {
     // อ่านล่าสุดสูงสุด limit รายการ (id desc) + แปลง at (timestamptz) → สตริงไทยที่ /hq/audit (parseDate) เข้าใจ
@@ -894,7 +916,8 @@ export const SupabaseAdapter: DataAdapter = {
     //   ซึ่งอันตรายกว่าโหลดไม่สำเร็จ เพราะหน้าจอดูปกติทุกอย่าง (กับดักเดียวกับ L-1)
     list: async (limit = 5000) => {
       const { rows } = await rangedFetch<Row>(
-        (from, to) => sb().from("audit_log").select("*").order("id", { ascending: false }).range(from, to),
+        // มุมมองเฉพาะที่คนของ HQ ทำ (ใบ 0274 · บอสสั่ง 3 พ.ย. 69) — ตัวกรอง/ตัวนับ/ส่งออกของหน้าใช้ชุดเดียวกันนี้
+        (from, to) => sb().from("audit_log_hq").select("*").order("id", { ascending: false }).range(from, to),
         limit, 0,
       );
       return rows.map(r => ({ ...toCamel<AuditEntry>(r), at: fmtAuditAt(String(r.at)) }));

@@ -1626,3 +1626,11 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 
 /* ราคาประเมินจากรายการวัสดุ (ใบ 0244 · บอสสั่ง 26 ต.ค. 69): ไม่ใช่ใบเสนอราคา — สั่งพิมพ์หน้าจอแล้วไม่ออกกระดาษ */
 @media print { .no-print { display: none !important; } }
+
+/* ── หัวแผงรายละเอียด (แผงลูกค้า · ลีด · ผู้สนใจ · ใบค่าแฟรนไชส์ · ใบเสนอราคา) — ปุ่มมุมขวาบน (ปิด ฯลฯ) ไม่ขึ้นบรรทัดใหม่
+   (บอสสั่ง 3 พ.ย. 69 "กากบาทมันตกลงมา") · ข้อมูลยาว (อีเมล/ชื่อยาว) ตัดบรรทัดในพื้นที่ของตัวเอง ไม่ดันปุ่ม
+   ข้อทดสอบ: tests/scenario/panel-head-close.spec.ts */
+[data-panel-head] { flex-wrap: nowrap !important; }
+[data-panel-head] > :first-child { flex: 1 1 auto; min-width: 0; }
+[data-panel-head] > :first-child * { overflow-wrap: anywhere; }
+[data-panel-head] > :last-child { flex-shrink: 0; }

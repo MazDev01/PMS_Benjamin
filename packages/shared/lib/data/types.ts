@@ -48,6 +48,17 @@ export type AppNotification = {
   createdAt: string;
 };
 
+// ค่าตั้งแจ้งเตือนรายเรื่องของฝั่งผู้เรียก (ใบ 0274 · notification_prefs_get) — แถวตามตาราง FLOW เรียงตามตารางกลาง
+//   bellAvailable/emailAvailable = เรื่องนั้นมีช่องทางนี้ไหม (ไม่มี = แสดง "—") · locked = เรื่องจำเป็น ปิดไม่ได้ (ฐานกัน)
+export type NotificationPref = {
+  kind: string; flowRow: string; title: string; goesTo: string; locked: boolean;
+  bellAvailable: boolean; emailAvailable: boolean; bell: boolean; email: boolean;
+};
+// อีเมลผู้รับแจ้งเตือนของสาขา (ใบ 0274) — ยืนยันแล้วเท่านั้นที่ได้รับ · isContact = อีเมลติดต่อของบัญชี (ไม่นับเพดาน 5)
+export type NotifyRecipient = { id: number; email: string; verified: boolean; verifiedAt: string | null; isContact: boolean; createdAt: string };
+// ผลส่งอีเมลทดสอบรายอีเมล
+export type NotifyTestResult = { email: string; ok: boolean; error?: string };
+
 // ข้อมูลบริษัทของสำนักงานใหญ่ (แถวเดียวทั้งระบบ)
 export type HQCompany = {
   name: string; address: string; taxId: string;

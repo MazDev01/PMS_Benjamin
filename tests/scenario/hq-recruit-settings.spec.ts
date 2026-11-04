@@ -1,14 +1,16 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
-import { ช่องทางที่เข้ามาเริ่มต้น, บวกวัน } from "../../packages/shared/lib/recruitSettings";
+import { ช่องทางที่เข้ามาเริ่มต้น, ช่องทางติดต่อเริ่มต้น, บวกวัน } from "../../packages/shared/lib/recruitSettings";
 import { settle } from "./helpers";
 
 // ── ตั้งค่า › หาดีลเลอร์ (บอสสั่ง 14 ก.ย. 69 · ข้อ 1 + ข้อ 2) ─────────────────────────────
 // สิ่งที่ต้องพิสูจน์:
-//   1) ตั้งรายการ/ชื่องาน/ค่าตั้งต้นใบ แล้วบันทึกลงฐานข้อมูลจริง (hq_recruit_settings · 0176)
-//   2) ฟอร์มผู้สนใจเป็นดีลเลอร์ ใช้รายการที่ตั้ง: ประเภทธุรกิจ/ช่องทางเป็นดรอปดาวน์ · ชื่องานเปลี่ยน · เหตุผลเลือกจากรายการ
-//   3) ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น: เงื่อนไข · วันมีผล · ตัวเลขของแพ็กเกจ (เปลี่ยนแพ็กเกจแล้วตัวเลขเปลี่ยนตาม)
+//   1) ตั้งรายการ/ค่าตั้งต้นใบ แล้วบันทึกลงฐานข้อมูลจริง (hq_recruit_settings · 0176)
+//   2) ฟอร์มผู้สนใจเป็นดีลเลอร์ ใช้รายการที่ตั้ง: แหล่งที่มาเป็นดรอปดาวน์ · เหตุผลเลือกจากรายการ
+//   3) ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น: เงื่อนไข · วันมีผล
+//   3 พ.ย. 69 (บอสสั่ง · ตาม FLOW H2–H5 · กลับด้านข้อเดิม): แท็บไม่มี ชื่องานตามขั้น · ประเภทธุรกิจ · ช่องทางในบันทึกการติดต่อ
+//      ชื่องาน = 4 งานตาม FLOW ตายตัว · ประเภทธุรกิจพิมพ์เอง · ช่องทางติดต่อ = รายการตายตัว · ค่าตั้งต้นจากใบ 0274: เหตุผล 4 ข้อ + อายุใบ 7 วัน
 // ค่าตั้งเป็นแถวเดียวของทั้งระบบ — เก็บของเดิมไว้แล้วคืนให้ท้ายไฟล์เสมอ
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -58,16 +60,20 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
     await page.getByRole("button", { name: `เพิ่ม${ชื่อรายการ}` }).click();
     await expect(page.getByRole("button", { name: `ลบ ${ค่า}` })).toBeVisible();
   };
-  await expect(page.getByText("ยังไม่ได้ตั้ง — ช่องประเภทธุรกิจในฟอร์มยังพิมพ์เองได้")).toBeVisible();
+  // 3 หัวข้อที่เอาออก (บอสสั่ง 3 พ.ย. 69) — กลับด้านจากข้อเดิมที่ตั้งค่าเหล่านี้ได้
+  for (const หัวข้อ of ["ชื่องานตามขั้น", "ประเภทธุรกิจ", "ช่องทางในบันทึกการติดต่อ"])
+    await expect(page.locator("[data-section-card] .card-title").filter({ hasText: new RegExp(`^${หัวข้อ}$`) }), `ไม่มีหัวข้อ ${หัวข้อ}`).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "เพิ่มประเภทธุรกิจ" })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "เพิ่มช่องทางติดต่อ" })).toHaveCount(0);
+  await expect(page.getByLabel(/^ชื่องาน /)).toHaveCount(0);
+  await expect(page.locator("[data-section-card] .card-title").filter({ hasText: /^แหล่งที่มา$/ }), "แหล่งที่มายังอยู่").toHaveCount(1);
   await เพิ่ม("แหล่งที่มา", "TikTok ทดสอบ");
-  await เพิ่ม("ประเภทธุรกิจ", "ผู้รับเหมาทดสอบ");
   await เพิ่ม("เหตุผลที่ไม่สำเร็จ", "เงินทุนไม่พอ (ทดสอบ)");
   // ใส่ซ้ำต้องไม่ได้สองรายการ
-  await page.getByRole("textbox", { name: "เพิ่มประเภทธุรกิจ" }).fill("ผู้รับเหมาทดสอบ");
-  await page.getByRole("button", { name: "เพิ่มประเภทธุรกิจ" }).click();
-  await expect(page.getByText("“ผู้รับเหมาทดสอบ” มีอยู่แล้ว")).toBeVisible();
+  await page.getByRole("textbox", { name: "เพิ่มเหตุผลที่ไม่สำเร็จ" }).fill("เงินทุนไม่พอ (ทดสอบ)");
+  await page.getByRole("button", { name: "เพิ่มเหตุผลที่ไม่สำเร็จ" }).click();
+  await expect(page.getByText("“เงินทุนไม่พอ (ทดสอบ)” มีอยู่แล้ว")).toBeVisible();
 
-  await page.getByLabel("ชื่องาน ส่งข้อมูลบริษัท").fill("ส่งโบรชัวร์ทดสอบ");
   await page.getByLabel("อายุใบค่าแฟรนไชส์ (วัน)").fill("30");
   await page.getByLabel("ชื่อผู้ลงนาม").fill("คุณทดสอบ ลงนาม");
   await page.locator("#rc-terms").fill("ข้อทดสอบหนึ่ง");
@@ -78,9 +84,7 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await expect.poll(async () => (await sb.from("hq_recruit_settings").select("config").eq("id", 1).single()).data?.config, { timeout: 20_000 })
     .toMatchObject({
       channels: [...ช่องทางที่เข้ามาเริ่มต้น, "TikTok ทดสอบ"],
-      businessTypes: ["ผู้รับเหมาทดสอบ"],
       lostReasons: ["เงินทุนไม่พอ (ทดสอบ)"],
-      taskLabels: { profile: "ส่งโบรชัวร์ทดสอบ" },
       proposal: {
         validityDays: 30, signerName: "คุณทดสอบ ลงนาม", terms: "ข้อทดสอบหนึ่ง",
       },
@@ -98,9 +102,10 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await page.goto(`${HQ_ORIGIN}/hq/prospects`);
   await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click({ timeout: 25_000 });
   const ฟอร์ม = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
-  await expect(ฟอร์ม.locator("select#pr-type"), "ตั้งรายการแล้ว ประเภทธุรกิจต้องเป็นดรอปดาวน์").toBeVisible();
+  // ประเภทธุรกิจพิมพ์เอง (ไม่มีรายการในตั้งค่าแล้ว)
+  await expect(ฟอร์ม.locator("select#pr-type"), "ประเภทธุรกิจไม่ใช่ดรอปดาวน์").toHaveCount(0);
   await ฟอร์ม.locator("#pr-name").fill(name);
-  await ฟอร์ม.locator("#pr-type").selectOption("ผู้รับเหมาทดสอบ");
+  await ฟอร์ม.locator("input#pr-type").fill("ผู้รับเหมาทดสอบ");
   await ฟอร์ม.locator("#pr-channel").selectOption("TikTok ทดสอบ");
   await ฟอร์ม.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
   await waitRow(sb, "dealer_prospects", { name, business_type: "ผู้รับเหมาทดสอบ", channel: "TikTok ทดสอบ" });
@@ -110,8 +115,14 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await page.getByLabel("ค้นหาผู้สนใจ").fill(name);
   await page.getByRole("row", { name: new RegExp(name) }).click({ timeout: 25_000 });
   const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
+  // ช่องทางในบันทึกการติดต่อ = รายการตายตัว (ไม่ขึ้นกับค่าตั้ง)
+  await แผง.getByRole("tab", { name: "บันทึกการติดต่อ" }).click();
+  await แผง.getByRole("button", { name: "บันทึกการติดต่อ" }).click();
+  await expect(แผง.locator("#pc-channel option:not([value=''])"), "ช่องทางติดต่อ = รายการตายตัวตาม FLOW").toHaveText([...ช่องทางติดต่อเริ่มต้น]);
+  expect([...ช่องทางติดต่อเริ่มต้น]).toEqual(["โทรศัพท์", "LINE", "Facebook", "พบตัว", "อีเมล", "อื่น ๆ"]);
+  // ชื่องาน = 4 งานตาม FLOW (ชื่อที่เคยตั้งไว้ในฐานไม่แสดง)
   await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
-  await expect(แผง.getByRole("checkbox", { name: "ส่งโบรชัวร์ทดสอบ" }), "ชื่องานต้องเป็นชื่อที่ตั้งไว้").toBeVisible({ timeout: 15_000 });
+  await expect(แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }), "ชื่องานตาม FLOW").toBeVisible({ timeout: 15_000 });
   await แผง.getByRole("button", { name: "ไม่สำเร็จ", exact: true }).click();
   // กล่องเหตุผลกลาง (28 ต.ค. 69) — รายการที่ตั้งไว้เป็นปุ่มให้เลือก (เดิม select#pj-lost-reason)
   const กล่อง = page.locator("[data-reason-dialog]");
@@ -161,4 +172,25 @@ test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติม
   expect(แถว.terms).toBe("ข้อทดสอบหนึ่ง");
   expect(แถว.valid_until).toBe(บวกวัน(วันเสนอ, 30));
   assertNoErrors(errs, "ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น");
+});
+
+test("[func·hq] ค่าตั้งต้นจากใบ 0274: เหตุผลที่ไม่สำเร็จ 4 ข้อ · ใบค่าแฟรนไชส์ใหม่อายุ 7 วัน", async ({ page }) => {
+  // ค่าที่ฐานมีก่อนข้อนี้ = ผลของใบ 0274 บนข้อมูลตั้งต้น (เหมือนระบบจริงหลังลงใบ)
+  expect((ค่าตั้งเดิม as { lostReasons?: string[] }).lostReasons, "เหตุผลตั้งต้น").toEqual(["เงินทุนไม่พอ", "ยังไม่พร้อม", "เลือกแบรนด์อื่น", "ทำเลไม่เหมาะ"]);
+  expect((ค่าตั้งเดิม as { proposal?: { validityDays?: number } }).proposal?.validityDays, "อายุใบตั้งต้น").toBe(7);
+  const sb = await db(ADMIN);
+  expect((await sb.from("hq_recruit_settings").upsert({ id: 1, config: ค่าตั้งเดิม })).error).toBeNull();
+  const name = `${NS}-อายุใบเจ็ดวัน`;
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ลำปาง", status: "meeting" }).select("id").single();
+  expect(error).toBeNull();
+  await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+  await page.goto(`${HQ_ORIGIN}/hq/prospects?open=${(pr as { id: number }).id}`, { waitUntil: "domcontentloaded" });
+  const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
+  await แผง.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click({ timeout: 25_000 });
+  await แผง.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).click({ timeout: 25_000 });
+  const ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
+  const วันเสนอ = await ฟอร์ม.locator("#pp-date").inputValue();
+  await expect(ฟอร์ม.locator("#pp-valid"), "ใบใหม่ = วันที่เสนอ + 7 วัน").toHaveValue(บวกวัน(วันเสนอ, 7)!, { timeout: 15_000 });
+  // ไม่สำเร็จ: เหตุผลตั้งต้นเป็นตัวเลือก + อื่น ๆ (ระบุเอง)
+  await page.keyboard.press("Escape");
 });
