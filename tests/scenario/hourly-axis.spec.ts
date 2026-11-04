@@ -4,10 +4,14 @@ import { open } from "./helpers";
 // ── เลือกช่วง "วันนี้" แล้วกราฟต้องเป็นแกน 24 ชั่วโมงจริง ────────────────────────
 // ⚠️ บั๊กจริง 26 ส.ค. 69: หัวข้อเขียน "ยอดขายรายชั่วโมง" แต่กราฟโชว์จุดเดียวป้าย "26 ส.ค."
 //    (ตกกลับไปเป็นรายวันเพราะวันนั้นยังไม่มีใบที่ปิดการขาย) — หัวข้อกับของที่เห็นไม่ตรงกัน
+// 3 พ.ย. 69 บอสเอาตัวเลือก "วันนี้" ออก (เหลือ 1 เดือน · 3 เดือน · 1 ปี · กำหนดเอง) → ช่วงวันเดียวเลือกผ่าน "กำหนดช่วงเอง" วันนี้–วันนี้
 async function เลือกวันนี้(page: any) {
+  const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
   await page.getByRole("button", { name: /2569/ }).first().click();
-  await page.waitForTimeout(800);
-  await page.getByRole("button", { name: "วันนี้", exact: true }).first().click();
+  await page.getByRole("button", { name: "กำหนดช่วงเอง" }).first().click();
+  await page.getByLabel("วันเริ่มต้นของช่วงที่กำหนดเอง").first().fill(วันนี้);
+  await page.getByLabel("วันสิ้นสุดของช่วงที่กำหนดเอง").first().fill(วันนี้);
+  await page.getByRole("button", { name: "ใช้ช่วงเวลานี้" }).first().click();
   await page.waitForTimeout(3500);
 }
 

@@ -15,6 +15,7 @@ import path from "node:path";
 import { ตรวจcommitผ่าน, ใบในcommit } from "../lib/commitGate.mjs";
 import { อ่านเซสชัน } from "../lib/session.mjs";
 import { รอฐานจริงว่าง } from "../lib/prodLock.mjs";
+import { ตรวจอ่านอย่างเดียว } from "../lib/readOnlySql.mjs";
 
 const [, , remoteName = "", remoteUrl = ""] = process.argv;
 const สาขาที่ขึ้นเว็บจริง = "refs/heads/monorepo";
@@ -60,8 +61,11 @@ function ใบบนฐานจริง() {
   const d = mkdtempSync(path.join(tmpdir(), "pms-prepush-"));
   try {
     const q = path.join(d, "q.sql");
-    writeFileSync(q, "select version from supabase_migrations.schema_migrations order by version;\n");
-    const r = spawnSync("npx", ["supabase", "db", "query", "--linked", "-f", q, "--output-format", "json"],
+    const คำถาม = "select version from supabase_migrations.schema_migrations order by version;\n";
+    writeFileSync(q, คำถาม);
+    // Supabase CLI 2.109 ถามยืนยันทุกคำสั่ง SQL กับฐานจริง · โหมด json ถามไม่ได้ (push 3 พ.ย. 69 ตกที่นี่) → --yes เฉพาะคำสั่งอ่าน (บอสเลือก ก)
+    if (!ตรวจอ่านอย่างเดียว(คำถาม).ได้) return { เหตุ: "คำถามตรวจใบไม่ใช่คำสั่งอ่านล้วน — ไม่ต่อฐานจริง" };
+    const r = spawnSync("npx", ["supabase", "db", "query", "--linked", "--yes", "-f", q, "--output-format", "json"],
       { cwd: ที่ฐานจริง, encoding: "utf8", shell: true, timeout: 120_000 });
     if (r.error?.code === "ETIMEDOUT" || r.signal) return { เหตุ: "ถามฐานจริงนานเกิน 2 นาทีจนหมดเวลา" };
     if (r.status !== 0) {

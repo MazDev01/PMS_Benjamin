@@ -253,7 +253,7 @@ test.describe("HQ: กล่องเหตุผล", () => {
     await ตรวจกล่องเหตุผล(page, "ผู้สนใจไม่สำเร็จ", async () => {
       await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
       await แผง.getByRole("button", { name: "ไม่สำเร็จ", exact: true }).click({ timeout: 20_000 });
-    });
+    }, { เลือกจากรายการ: true });   // ใบ 0274: เหตุผลไม่สำเร็จตั้งต้น 4 ข้อ (FLOW H2–H5) → กล่องเป็นปุ่มเลือก ไม่ใช่ช่องพิมพ์
     await ตรวจกล่องเหตุผล(page, "ปฏิเสธใบค่าแฟรนไชส์", async () => {
       await แผง.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click();
       await แผง.getByLabel(`สถานะใบ ${ใบปฏิเสธ}`).selectOption("rejected");
