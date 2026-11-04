@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { รอฐานจริงว่าง } from "./lib/prodLock.mjs";
 import { ตรวจอ่านอย่างเดียว } from "./lib/readOnlySql.mjs";
+import { คำสั่งCLI } from "./lib/supabaseCli.mjs";
 
 const OPS = process.env.PMS_PROD_OPS_DIR || "C:/.claude/pms-prod-ops";
 const args = process.argv.slice(2);
@@ -32,12 +33,18 @@ const sql = ที่ไฟล์ >= 0
 const ผลตรวจ = ตรวจอ่านอย่างเดียว(sql);
 if (!ผลตรวจ.ได้) { console.error(`⛔ prod:query รับเฉพาะคำสั่งอ่าน — ${ผลตรวจ.เหตุ} · ไม่ได้ต่อฐาน (คำสั่งเขียนฐานจริง บอสรันเอง)`); process.exit(3); }
 รอฐานจริงว่าง("prod:query (อ่านฐานจริง)");
-const คำสั่ง = ["supabase", "db", "query", "--linked", "--yes", "--workdir", OPS, ...args];
+// ไฟล์ -f แบบที่อยู่สั้นอ้างจากโฟลเดอร์ที่สั่ง แต่ CLI รันในโฟลเดอร์ผูกฐานจริง → แปลงเป็นที่อยู่เต็ม (เดิมหาไฟล์ไม่เจอ)
+const ส่งต่อ = args.map((a, i) => ที่ไฟล์ < 0 ? a
+  : i === ที่ไฟล์ && a.startsWith("--file=") ? `--file=${path.resolve(a.slice(7))}`
+  : i === ที่ไฟล์ + 1 && !args[ที่ไฟล์].startsWith("--file=") ? path.resolve(a) : a);
+// CLI ของโปรเจกต์ (รุ่นที่ล็อกไว้) — npx ในโฟลเดอร์ผูกฐานจริงดึงรุ่นอื่นมา (scripts/lib/supabaseCli.mjs)
+const cli = คำสั่งCLI();
+const คำสั่ง = ["db", "query", "--linked", "--yes", "--workdir", OPS, ...ส่งต่อ];
 if (process.env.PMS_PROD_QUERY_DRY === "1") {
-  console.log(`[ไม่รันจริง] npx ${คำสั่ง.join(" ")}`);
+  console.log(`[ไม่รันจริง] ${cli} ${คำสั่ง.join(" ")}`);
   process.exit(0);
 }
-// Windows เรียก npx ผ่าน shell → อาร์กิวเมนต์ที่มีช่องว่าง (คำสั่ง SQL · ที่อยู่โฟลเดอร์) ต้องครอบเครื่องหมายคำพูดเอง
-const ครอบ = (a) => process.platform === "win32" && /[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a;
-const r = spawnSync("npx", คำสั่ง.map(ครอบ), { cwd: OPS, stdio: "inherit", shell: process.platform === "win32" });
+// เรียก CLI ผ่าน shell → อาร์กิวเมนต์ที่มีช่องว่าง (คำสั่ง SQL · ที่อยู่โฟลเดอร์) ต้องครอบเครื่องหมายคำพูดเอง
+const ครอบ = (a) => /[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a;
+const r = spawnSync(cli, คำสั่ง.map(ครอบ), { cwd: OPS, stdio: "inherit", shell: true });
 process.exit(r.status ?? 1);

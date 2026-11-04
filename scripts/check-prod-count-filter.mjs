@@ -34,7 +34,8 @@ const ข้อยกเว้น = {
   "tests/prod-live/run.mjs": "ชุดล้างข้อมูลทดสอบ ZZT ของ prod-live — นับแถวทดสอบที่จะลบ จึงต้องเห็นแถวทดสอบ",
 };
 
-const ชี้ฐานจริง = /\bloadTarget\s*\(|["'`]--linked["'`]|prod-query\.mjs|prod:query/;
+// รันSQLไฟล์ = ตัวกลางเรียก CLI แบบ --linked (scripts/lib/supabaseCli.mjs · 3 พ.ย. 69) — ผู้เรียกจึงชี้ฐานจริงเช่นกัน
+const ชี้ฐานจริง = /\bloadTarget\s*\(|["'`]--linked["'`]|prod-query\.mjs|prod:query|รันSQLไฟล์\s*\(/;
 const นับ = /count:\s*["']exact["']|count\(\*\)|\.length\b|\.reduce\(|\bsum\(/;
 const ใช้ตัวกรอง = /from\s+["'][./]*(?:scripts\/)?lib\/prodRealData\.mjs["']|prodRealData\.mjs["']/;
 

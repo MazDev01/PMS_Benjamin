@@ -18,6 +18,7 @@
 import { spawnSync } from "node:child_process";
 import { ล้างฐานซ้อมกู้ } from "./lib/restoreReset.mjs";
 import { ตรวจอ่านอย่างเดียว } from "./lib/readOnlySql.mjs";
+import { คำสั่งCLI } from "./lib/supabaseCli.mjs";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -125,7 +126,10 @@ const ชุด = [
 ];
 for (const [f, extra] of ชุด) {
   ขั้น(`ดึงไฟล์สำรอง ${f}`);
-  const r = รัน("npx", ["supabase", "db", "dump", ...ต้นทางเลือก, ...extra, "-f", path.join(D, f)], { cwd: target === "prod" ? OPS : REPO });
+  // ฐานจริง: CLI ของโปรเจกต์ (npx ในโฟลเดอร์ผูกฐานจริงดึงรุ่นอื่นมา · scripts/lib/supabaseCli.mjs · 3 พ.ย. 69)
+  const r = target === "prod"
+    ? รัน(คำสั่งCLI(), ["db", "dump", ...ต้นทางเลือก, ...extra, "-f", `"${path.join(D, f)}"`], { cwd: OPS, shell: true })
+    : รัน("npx", ["supabase", "db", "dump", ...ต้นทางเลือก, ...extra, "-f", path.join(D, f)], { cwd: REPO });
   if (process.env.PMS_FAKE_EMPTY === "dump" && f === "2-data.sql") writeFileSync(path.join(D, f), "");   // ทดสอบเครื่องมือ: จำลองไฟล์สำรองว่าง
   if (r.error) ไม่ผ่าน(`ขั้น "ดึงไฟล์สำรอง ${f}" ล้ม — เรียกโปรแกรม npx ไม่ได้ (${r.error.code ?? r.error.message})`);
   const ขนาด = existsSync(path.join(D, f)) ? statSync(path.join(D, f)).size : 0;
@@ -171,7 +175,7 @@ const นับต้นทาง = (sqlFile, ชื่อขั้น) => {
     //   (บอสเลือก ก · 3 พ.ย. 69 · ตัวตรวจเดียวกับ prod:query — scripts/lib/readOnlySql.mjs)
     const อ่าน = ตรวจอ่านอย่างเดียว(readFileSync(sqlFile, "utf8"));
     if (!อ่าน.ได้) return ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" — ไฟล์นับไม่ใช่คำสั่งอ่านล้วน (${อ่าน.เหตุ}) · ไม่ต่อฐานจริง`);
-    const r = รันตรวจ(ชื่อขั้น, "npx", ["supabase", "db", "query", "--linked", "--yes", "-f", sqlFile, "--output-format", "json"], { cwd: OPS }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
+    const r = รันตรวจ(ชื่อขั้น, คำสั่งCLI(), ["db", "query", "--linked", "--yes", "-f", `"${sqlFile}"`, "--output-format", "json"], { cwd: OPS, shell: true }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
     return ค่าแรก(ชื่อขั้น, r);
   }
   const r = รันตรวจ(ชื่อขั้น, "docker", [...อาร์กิวเมนต์psql(LOCAL_CONTAINER, { เขียน: false }), "-X", "-A", "-t"],
