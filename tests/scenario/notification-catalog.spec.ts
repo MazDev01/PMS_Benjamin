@@ -6,6 +6,7 @@ import { adminClient } from "./testDealers";
 import { settle } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
+import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
 // ── รอบ 4 (บอสสั่ง 21 ต.ค. 69 · ใบ 0231): แจ้งเตือนจากตารางกลางที่เดียว ─────────────────────────────────────────
 //   กดแจ้งเตือนแล้วต้องเปิดตรงเรื่องนั้น (ลีด · นัด · ใบค่าแฟรนไชส์) ไม่ใช่แค่ไปหน้ารายการ
@@ -81,10 +82,10 @@ test("[รอบ4] ดีลเลอร์: นัดหมายวันน�
 
 test("[รอบ4] HQ: ใบค่าแฟรนไชส์เลยวันครบกำหนดชำระ → กระดิ่ง HQ · กดแล้วเปิดใบนั้น (มีช่องวันครบกำหนดชำระ)", async ({ page }) => {
   const hq = await db(ADMIN);
-  const r = await hq.from("dealer_prospects").insert({ name: ผู้สนใจ, province: "ระยอง", region: "ตะวันออก", status: "meeting" }).select("id").single();
+  const r = await hq.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: ผู้สนใจ, province: "ระยอง", region: "ตะวันออก", status: "meeting" }).select("id").single();
   expect(r.error?.message ?? "").toBe("");
   รายID = Number(r.data!.id);
-  const ใบ = await hq.from("dealer_package_proposals").insert({ prospect_id: รายID, amount: 50000, status: "sent",
+  const ใบ = await hq.from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: รายID, amount: 50000, status: "sent",
     valid_until: new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10) }).select("id, proposal_no").single();
   expect(ใบ.error?.message ?? "").toBe("");
   const ตอบ = await hq.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", ใบ.data!.id);
@@ -144,7 +145,7 @@ test("[รอบ4·flow] HQ: ดีลเลอร์ยกเลิกคำข
 test("[รอบ4·flow] HQ: ผู้สนใจเป็นดีลเลอร์ถึงกำหนดติดตาม → กระดิ่ง · กดแล้วเปิดแผงผู้สนใจนั้น", async ({ page }) => {
   const ชื่อ = `ZZTEST-ผู้สนใจถึงนัด-${แท็ก}`;
   const hq = await db(ADMIN);
-  const r = await hq.from("dealer_prospects").insert({ name: ชื่อ, province: "ระยอง", region: "ตะวันออก", status: "meeting",
+  const r = await hq.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: ชื่อ, province: "ระยอง", region: "ตะวันออก", status: "meeting",
     follow_up: new Date(Date.now() + 7 * 3_600_000 - 2 * 86_400_000).toISOString().slice(0, 10) }).select("id").single();
   expect(r.error?.message ?? "").toBe("");
   const id = Number(r.data!.id);

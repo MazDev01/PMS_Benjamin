@@ -29,6 +29,14 @@ const ตั้งข้อมูลบริษัท = async (issuer: Record<s
   const r = await admin.from("dealer_settings").upsert({ dealer_code: รหัสสาขา, issuer }, { onConflict: "dealer_code" });
   expect(r.error?.message ?? "", "ตั้งข้อมูลบริษัททดสอบ").toBe("");
 };
+/** สภาพ "HQ เพิ่งสร้างดีลเลอร์ — มีแต่ชื่อบริษัท" แบบที่เกิดจริง: แถวตั้งค่าถูกสร้างใหม่ (ไม่ใช่ล้างข้อมูลที่กรอกแล้ว)
+ *  ตั้งแต่ใบ 0276 ฐานไม่ยอมให้ช่องที่มีค่าแล้วแก้เป็นว่าง → ลบแถวเดิมแล้วสร้างใหม่ (คงตั้งค่าใบเสนอราคาเดิมไว้) */
+const ตั้งข้อมูลบริษัทใหม่ = async (issuer: Record<string, string>) => {
+  const เดิม = (await admin.from("dealer_settings").select("document").eq("dealer_code", รหัสสาขา).maybeSingle()).data;
+  expect((await admin.from("dealer_settings").delete().eq("dealer_code", รหัสสาขา)).error?.message ?? "", "ลบแถวตั้งค่าเดิม").toBe("");
+  const r = await admin.from("dealer_settings").insert({ dealer_code: รหัสสาขา, issuer, ...(เดิม ? { document: เดิม.document } : {}) });
+  expect(r.error?.message ?? "", "สร้างแถวตั้งค่าแบบดีลเลอร์ใหม่").toBe("");
+};
 const สถานะใบ = async (id: string) =>
   (await admin.from("quotations").select("status").eq("dealer_code", รหัสสาขา).eq("id", id).single()).data?.status as string | undefined;
 
@@ -44,8 +52,12 @@ async function เปิดแผงของใบ(page: Page, id: string) {
 }
 
 test("[func·dealer] ข้อมูลบริษัทไม่ครบ: ส่ง/พิมพ์ไม่ได้ทั้งหน้าเว็บและฐาน · ใบร่างยังทำได้ · กรอกครบแล้วส่ง/พิมพ์ได้", async ({ page }) => {
-  // ข้อมูลบริษัทเหมือนตอน HQ สร้างดีลเลอร์ใหม่ — มีแต่ชื่อบริษัท
-  await ตั้งข้อมูลบริษัท({ company: "ZZTEST บริษัทยังไม่ครบ", address: "", phone: "", taxId: "" });
+  // ฐานกัน (ใบ 0276): ข้อมูลบริษัทที่กรอกครบแล้ว ล้างกลับเป็นว่างไม่ได้ — ทั้งผ่านหน้าเว็บและยิงตรง
+  await ตั้งข้อมูลบริษัท(ข้อมูลครบ);
+  const ล้าง = await admin.from("dealer_settings").upsert({ dealer_code: รหัสสาขา, issuer: { company: "ZZTEST บริษัทยังไม่ครบ", address: "", phone: "", taxId: "" } }, { onConflict: "dealer_code" });
+  expect(ล้าง.error?.message ?? "", "ฐาน: ล้างข้อมูลบริษัทที่กรอกแล้วเป็นว่าง = ปฏิเสธ (ใบ 0276)").toMatch(/required_field/);
+  // ข้อมูลบริษัทเหมือนตอน HQ สร้างดีลเลอร์ใหม่ — มีแต่ชื่อบริษัท (แถวสร้างใหม่ ไม่ใช่ล้างของเดิม)
+  await ตั้งข้อมูลบริษัทใหม่({ company: "ZZTEST บริษัทยังไม่ครบ", address: "", phone: "", taxId: "" });
   ใบHQ = await เตรียมใบHQ(สาขา, { dealerCode: รหัสสาขา, company: `ZZTEST-ข้อมูลบริษัท-${Date.now() % 100000}`, province: "ระยอง",
     lines: [{ name: "ZZTEST โครงหลัก", qty: 2, unit: "ชุด", unitCost: 1000 }] });
   // ใบร่างยังสร้างได้ตามปกติ

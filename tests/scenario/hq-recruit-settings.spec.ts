@@ -4,6 +4,7 @@ import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } 
 import { ช่องทางที่เข้ามาเริ่มต้น, ช่องทางติดต่อเริ่มต้น, บวกวัน } from "../../packages/shared/lib/recruitSettings";
 import { settle } from "./helpers";
 import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
+import { ช่องผู้สนใจครบ, เบอร์ทดสอบ } from "./requiredFixtures";
 
 // ── ตั้งค่า › หาดีลเลอร์ (บอสสั่ง 14 ก.ย. 69 · ข้อ 1 + ข้อ 2) ─────────────────────────────
 // สิ่งที่ต้องพิสูจน์:
@@ -106,6 +107,7 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   // ประเภทธุรกิจพิมพ์เอง (ไม่มีรายการในตั้งค่าแล้ว)
   await expect(ฟอร์ม.locator("select#pr-type"), "ประเภทธุรกิจไม่ใช่ดรอปดาวน์").toHaveCount(0);
   await ฟอร์ม.locator("#pr-name").fill(name);
+  await ฟอร์ม.locator("#pr-phone").fill(เบอร์ทดสอบ());   // เบอร์โทรเป็นช่องบังคับ (4 พ.ย. 69 · ใบ 0276)
   await ฟอร์ม.locator("input#pr-type").fill("ผู้รับเหมาทดสอบ");
   await ฟอร์ม.locator("#pr-channel").selectOption("TikTok ทดสอบ");
   await ฟอร์ม.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
@@ -139,7 +141,7 @@ test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติม
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-ออกใบค่าตั้งต้น`;
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ลำปาง", status: "meeting" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ลำปาง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
 
@@ -183,7 +185,7 @@ test("[func·hq] ค่าตั้งต้นจากใบ 0274: เหต�
   const sb = await db(ADMIN);
   expect((await sb.from("hq_recruit_settings").upsert({ id: 1, config: ค่าตั้งเดิม })).error).toBeNull();
   const name = `${NS}-อายุใบเจ็ดวัน`;
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ลำปาง", status: "meeting" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ลำปาง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/prospects?open=${(pr as { id: number }).id}`, { waitUntil: "domcontentloaded" });

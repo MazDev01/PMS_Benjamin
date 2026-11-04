@@ -62,6 +62,8 @@ import { formatPhone } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { สรุปช่องที่ขาด, ตรวจช่องบังคับ, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
@@ -126,6 +128,12 @@ export default function HQProspectsPage() {
   const [แท็บที่เปิด, setแท็บที่เปิด] = useState<แท็บ>("overview");
   const [ร่าง, setร่าง] = useState<Partial<DealerProspect>>(ร่างว่าง());
   const [formErr, setFormErr] = useState("");
+  // ช่องบังคับของฟอร์มผู้สนใจ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ชื่อ + เบอร์โทร (ฐานกันอีกชั้น ใบ 0276)
+  const บังคับ = useช่องบังคับ();
+  const ชุดบังคับ = (r: Partial<DealerProspect>): ช่องบังคับ[] => [
+    { key: "name", label: "ชื่อผู้ติดต่อ / ชื่อบริษัท", value: r.name, ข้อความ: "ต้องระบุชื่อผู้สนใจ" },
+    { key: "phone", label: "เบอร์โทร", value: r.phone, ข้อความ: "ต้องระบุเบอร์โทร" },
+  ];
   const [saving, setSaving] = useState(false);
   const [stageBusy, setStageBusy] = useState(false);
 
@@ -140,6 +148,24 @@ export default function HQProspectsPage() {
   const [converting, setConverting] = useState<DealerProspect | null>(null);
   const [โหมดตั้ง, setโหมดตั้ง] = useState<"new" | "existing">("new");
   const [ฟอร์ม, setฟอร์ม] = useState<ฟอร์มดีลเลอร์>({ code: "", name: "", region: "", province: "", email: "", password: "", existingCode: "" });
+  // ช่องบังคับของกล่องตั้งเป็นดีลเลอร์ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ข้อความเดิมของแต่ละช่องอยู่ใต้ช่อง · แถบผิดพลาดสรุปชื่อช่องที่ขาด (ไม่ซ้ำข้อความใต้ช่อง)
+  const บังคับแปลง = useช่องบังคับ();
+  const ชุดแปลง = (f: ฟอร์มดีลเลอร์, โหมด: "new" | "existing"): ช่องบังคับ[] => โหมด === "existing"
+    ? [{ key: "existingCode", label: "ดีลเลอร์", value: f.existingCode, ข้อความ: "ต้องเลือกดีลเลอร์" }]
+    : [
+        { key: "code", label: "รหัสดีลเลอร์", value: f.code, ข้อความ: "รหัสดีลเลอร์ต้องเป็นตัวอักษร A–Z 2–5 ตัว (ห้ามมีตัวเลข)" },
+        { key: "name", label: "ชื่อดีลเลอร์", value: f.name, ข้อความ: "ต้องระบุชื่อดีลเลอร์" },
+        { key: "region", label: "ภาค", value: f.region, ข้อความ: "ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก" },
+        { key: "province", label: "จังหวัดที่ตั้ง / ที่ดูแล", value: f.province, ข้อความ: "ต้องเลือกจังหวัดที่ดูแล 1 จังหวัดจากรายชื่อ" },
+      ];
+  /** ตรวจช่องบังคับของโหมดนั้น — ขาด = กรอบแดง + ข้อความใต้ช่อง + แถบผิดพลาดสรุปช่องที่ขาด · คืน false */
+  const ครบช่องแปลง = (โหมด: "new" | "existing") => {
+    const ชุด = ชุดแปลง(ฟอร์ม, โหมด);
+    if (บังคับแปลง.ตรวจ(ชุด)) return true;
+    setConvErr(สรุปช่องที่ขาด(ชุด, ตรวจช่องบังคับ(ชุด)));
+    return false;
+  };
+  const แก้ช่องแปลง = (k: keyof ฟอร์มดีลเลอร์, v: string) => { setฟอร์ม(f => ({ ...f, [k]: v })); บังคับแปลง.ล้าง(k); };
   const [convErr, setConvErr] = useState("");
   const [convBusy, setConvBusy] = useState(false);
   // จังหวัดที่ดูแล (ด่าน 4 · FLOW: แปลงเป็นดีลเลอร์ · HQ กำหนดจังหวัดที่ดูแล · หนึ่งจังหวัด หนึ่งดีลเลอร์ 0195)
@@ -234,7 +260,7 @@ export default function HQProspectsPage() {
     setแท็บที่เปิด(แท็บเริ่ม);
     // รายเก่าที่ยังไม่มีภาค แต่จังหวัดเป็นจังหวัดที่ระบบรู้จัก → เติมภาคให้ในฟอร์ม จะได้เลือกจังหวัดต่อได้ทันที
     setร่าง({ ...p, region: p.region || regionOf(p.province ?? "") });
-    setFormErr("");
+    setFormErr(""); บังคับ.ล้างทั้งหมด();
     setใบของรายที่เปิด([]);
     setประวัติ([]);
     setประวัติโหลดแล้ว(false);
@@ -300,9 +326,9 @@ export default function HQProspectsPage() {
 
   // ── เพิ่มรายใหม่ ──
   function เปิดเพิ่ม() {
-    setเพิ่มใหม่(true); setร่าง(ร่างว่าง()); setFormErr("");
+    setเพิ่มใหม่(true); setร่าง(ร่างว่าง()); setFormErr(""); บังคับ.ล้างทั้งหมด();
   }
-  const ตั้งค่า = <K extends keyof DealerProspect>(k: K, v: DealerProspect[K]) => setร่าง(r => ({ ...r, [k]: v }));
+  const ตั้งค่า = <K extends keyof DealerProspect>(k: K, v: DealerProspect[K]) => { setร่าง(r => ({ ...r, [k]: v })); บังคับ.ล้าง(k); };
   // รูปประจำตัว — ย่อเหลือ 256px ก่อนเก็บ แบบเดียวกับรูปลูกค้าเป้าหมายของดีลเลอร์ (fileToResizedDataURL)
   async function อัปโหลดรูป(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -325,6 +351,7 @@ export default function HQProspectsPage() {
     const row = เตรียมบันทึก(รายที่เปิด && !เพิ่มใหม่
       ? { ...ร่าง, status: รายที่เปิด.status, lostReason: รายที่เปิด.lostReason, dealerCode: รายที่เปิด.dealerCode, convertedAt: รายที่เปิด.convertedAt }
       : { ...ร่าง, status: "new" });
+    if (!บังคับ.ตรวจ(ชุดบังคับ(ร่าง))) { setFormErr(สรุปช่องที่ขาด(ชุดบังคับ(ร่าง), ตรวจช่องบังคับ(ชุดบังคับ(ร่าง)))); return; }
     const ผิด = ตรวจผู้สนใจ(row);
     if (ผิด) { setFormErr(ผิด); return; }
     setSaving(true); setFormErr("");
@@ -402,7 +429,7 @@ export default function HQProspectsPage() {
       province: จังหวัดใช้ได้ && จังหวัดเดิม !== ALL_PROVINCES ? จังหวัดเดิม : "",
       email: p.email ?? "", password: "", existingCode: "",
     });
-    setConvErr("");
+    setConvErr(""); บังคับแปลง.ล้างทั้งหมด();
     setเจ้าของพื้นที่(null); setพื้นที่ผิด("");
     setยังไม่พร้อมแปลง(undefined);
     proposalsRepo.conversionReady(p.id).then(setยังไม่พร้อมแปลง)
@@ -425,7 +452,7 @@ export default function HQProspectsPage() {
     if (!converting) return;
     setConvErr("");
     if (โหมดตั้ง === "existing") {
-      if (!ฟอร์ม.existingCode) { setConvErr("ต้องเลือกดีลเลอร์"); return; }
+      if (!ครบช่องแปลง("existing")) return;
       const row = เตรียมบันทึก({
         ...converting, status: "won", dealerCode: ฟอร์ม.existingCode, convertedAt: new Date().toISOString(), lostReason: null,
       });
@@ -458,6 +485,7 @@ export default function HQProspectsPage() {
 
     // สร้างดีลเลอร์ใหม่ — ตรวจที่หน้าจอก่อนเพื่อบอกตรงช่องที่ผิด (เซิร์ฟเวอร์ตรวจซ้ำเสมอ)
     if (ยังไม่พร้อมแปลง !== null) { setConvErr(ยังไม่พร้อมแปลง ?? "กำลังตรวจใบค่าแฟรนไชส์ — รอสักครู่"); return; }
+    if (!ครบช่องแปลง("new")) return;
     const code = ฟอร์ม.code.trim().toUpperCase();
     if (!/^[A-Z]{2,5}$/.test(code)) { setConvErr("รหัสดีลเลอร์ต้องเป็นตัวอักษร A–Z 2–5 ตัว (ห้ามมีตัวเลข)"); return; }
     if (dealers.some(d => d.code === code)) { setConvErr(`รหัส “${code}” มีอยู่แล้ว`); return; }
@@ -565,17 +593,19 @@ export default function HQProspectsPage() {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
         <div style={{ gridColumn: "1 / -1" }}>
-          <label className="form-label" htmlFor="pr-name">ชื่อผู้ติดต่อ / ชื่อบริษัท *</label>
-          <input id="pr-name" className="form-input" value={ร่าง.name ?? ""} onChange={e => ตั้งค่า("name", e.target.value)} placeholder="เช่น คุณสมชาย / หจก. ตัวอย่างสตีล" />
+          <FieldLabel htmlFor="pr-name" required>ชื่อผู้ติดต่อ / ชื่อบริษัท</FieldLabel>
+          <input id="pr-name" className="form-input" value={ร่าง.name ?? ""} onChange={e => ตั้งค่า("name", e.target.value)} placeholder="เช่น คุณสมชาย / หจก. ตัวอย่างสตีล" {...บังคับ.ผูก("name")} />
+          <FieldError>{บังคับ.ผิด.name}</FieldError>
         </div>
         <div>
           <label className="form-label" htmlFor="pr-social">ชื่อบนโซเชียล</label>
           <input id="pr-social" className="form-input" value={ร่าง.social ?? ""} onChange={e => ตั้งค่า("social", e.target.value)} placeholder="ชื่อ Facebook / LINE" />
         </div>
         <div>
-          <label className="form-label" htmlFor="pr-phone">เบอร์โทร</label>
+          <FieldLabel htmlFor="pr-phone" required>เบอร์โทร</FieldLabel>
           {/* พิมพ์ได้แต่ตัวเลข ใส่ขีดให้เอง (บอสสั่ง 14 ก.ย. 69) — ตัวจัดรูปแบบเดียวกับฟอร์มลูกค้า/ลูกค้าเป้าหมายของดีลเลอร์ */}
-          <input id="pr-phone" className="form-input" inputMode="tel" value={ร่าง.phone ?? ""} onChange={e => ตั้งค่า("phone", formatPhone(e.target.value))} placeholder="08x-xxx-xxxx" />
+          <input id="pr-phone" className="form-input" inputMode="tel" value={ร่าง.phone ?? ""} onChange={e => ตั้งค่า("phone", formatPhone(e.target.value))} placeholder="08x-xxx-xxxx" {...บังคับ.ผูก("phone")} />
+          <FieldError>{บังคับ.ผิด.phone}</FieldError>
         </div>
         <div>
           <label className="form-label" htmlFor="pr-email">อีเมล</label>
@@ -1022,9 +1052,9 @@ export default function HQProspectsPage() {
 
               {โหมดตั้ง === "existing" ? (
                 <div>
-                  <label className="form-label" htmlFor="cv-existing">ดีลเลอร์</label>
+                  <FieldLabel htmlFor="cv-existing" required>ดีลเลอร์</FieldLabel>
                   <select id="cv-existing" className="form-select" value={ฟอร์ม.existingCode} disabled={convBusy}
-                    onChange={e => { setฟอร์ม(f => ({ ...f, existingCode: e.target.value })); setConvErr(""); }} style={{ cursor: "pointer" }}>
+                    onChange={e => { แก้ช่องแปลง("existingCode", e.target.value); setConvErr(""); }} {...บังคับแปลง.ผูก("existingCode")} style={{ cursor: "pointer", ...บังคับแปลง.ผูก("existingCode").style }}>
                     <option value="">— เลือกดีลเลอร์ —</option>
                     {/* ปิดใช้งาน / ผูกกับรายอื่นแล้ว = เลือกไม่ได้ (เซิร์ฟเวอร์ตรวจซ้ำเสมอ) */}
                     {dealers.filter(d => d.code !== HQ_CODE).map(d => {
@@ -1037,6 +1067,7 @@ export default function HQProspectsPage() {
                       );
                     })}
                   </select>
+                  <FieldError>{บังคับแปลง.ผิด.existingCode}</FieldError>
                   {ฟอร์ม.existingCode && สาขามีบัญชี && !สาขามีบัญชี[ฟอร์ม.existingCode] && (
                     <div role="note" style={{ marginTop: 8, background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.78rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
                       ดีลเลอร์ {ฟอร์ม.existingCode} ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ดีลเลอร์จะยังเข้าระบบไม่ได้
@@ -1047,28 +1078,34 @@ export default function HQProspectsPage() {
               ) : (
                 <fieldset disabled={convBusy} style={{ border: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12 }}>
                   <div>
-                    <label className="form-label" htmlFor="cv-code">รหัสดีลเลอร์ *</label>
+                    <FieldLabel htmlFor="cv-code" required>รหัสดีลเลอร์</FieldLabel>
                     <input id="cv-code" className="form-input" value={ฟอร์ม.code} placeholder="เช่น CNXB"
-                      onChange={e => setฟอร์ม(f => ({ ...f, code: e.target.value.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 5) }))}
-                      style={{ textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em" }} />
+                      onChange={e => แก้ช่องแปลง("code", e.target.value.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 5))}
+                      {...บังคับแปลง.ผูก("code")} style={{ textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em", ...บังคับแปลง.ผูก("code").style }} />
+                    <FieldError>{บังคับแปลง.ผิด.code}</FieldError>
                   </div>
                   <div>
-                    <label className="form-label" htmlFor="cv-name">ชื่อดีลเลอร์ *</label>
-                    <input id="cv-name" className="form-input" value={ฟอร์ม.name} onChange={e => setฟอร์ม(f => ({ ...f, name: e.target.value }))} placeholder="ชื่อที่จะใช้ในระบบ" />
+                    <FieldLabel htmlFor="cv-name" required>ชื่อดีลเลอร์</FieldLabel>
+                    <input id="cv-name" className="form-input" value={ฟอร์ม.name} onChange={e => แก้ช่องแปลง("name", e.target.value)} placeholder="ชื่อที่จะใช้ในระบบ" {...บังคับแปลง.ผูก("name")} />
+                    <FieldError>{บังคับแปลง.ผิด.name}</FieldError>
                   </div>
                   <div>
-                    <label className="form-label" htmlFor="cv-region">ภาค *</label>
-                    <select id="cv-region" className="form-select" value={ฟอร์ม.region} onChange={e => เปลี่ยนภาค(e.target.value)} style={{ cursor: "pointer" }}>
+                    <FieldLabel htmlFor="cv-region" required>ภาค</FieldLabel>
+                    <select id="cv-region" className="form-select" value={ฟอร์ม.region} onChange={e => { เปลี่ยนภาค(e.target.value); บังคับแปลง.ล้าง("region"); }}
+                      {...บังคับแปลง.ผูก("region")} style={{ cursor: "pointer", ...บังคับแปลง.ผูก("region").style }}>
                       <option value="">— ยังไม่ระบุ —</option>
                       {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
                       {/* ทุกภาค = เลือกจังหวัดได้จาก 77 จังหวัด (ดีลเลอร์ต้องดูแล 1 จังหวัดพอดี · ไม่มี "ทุกจังหวัด") */}
                       <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
                     </select>
+                    <FieldError>{บังคับแปลง.ผิด.region}</FieldError>
                   </div>
                   <div>
-                    <label className="form-label" htmlFor="cv-province">จังหวัดที่ตั้ง / ที่ดูแล *</label>
-                    <ProvinceSelect id="cv-province" label="จังหวัดที่ตั้ง" className="form-select" value={ฟอร์ม.province} onChange={v => setฟอร์ม(f => ({ ...f, province: v }))}
-                      options={provincesOfRegion(ฟอร์ม.region)} ว่าง={ฟอร์ม.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"} style={{ cursor: "pointer" }} />
+                    <FieldLabel htmlFor="cv-province" required>จังหวัดที่ตั้ง / ที่ดูแล</FieldLabel>
+                    <ProvinceSelect id="cv-province" label="จังหวัดที่ตั้ง" className="form-select" value={ฟอร์ม.province} onChange={v => แก้ช่องแปลง("province", v)}
+                      options={provincesOfRegion(ฟอร์ม.region)} ว่าง={ฟอร์ม.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"} style={{ cursor: "pointer" }}
+                      selectRef={บังคับแปลง.ผูก("province").ref} invalid={!!บังคับแปลง.ผิด.province} />
+                    <FieldError>{บังคับแปลง.ผิด.province}</FieldError>
                   </div>
                   {/* จังหวัดที่ดูแล = จังหวัดที่ตั้ง 1 จังหวัดพอดี (บอสสั่ง 29 ต.ค. 69 · ฐานกัน ใบ 0259) · จังหวัดเดียวมีหลายสาขาได้ (ใบ 0214) */}
                   <div style={{ gridColumn: "1 / -1", fontSize: "0.75rem", color: MUTED }} data-territory-note>

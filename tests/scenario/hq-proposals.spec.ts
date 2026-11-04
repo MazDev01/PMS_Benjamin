@@ -3,6 +3,7 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
+import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
 // ── หน้ารวม "ใบค่าแฟรนไชส์" ของสำนักงานใหญ่ ──
 //   บอสสั่ง 14 ก.ย. 69: "ทำหน้า ใบค่าแฟรนไชส์ ด้วย" · "ให้มีการแสดงในหน้าเดียวแบบดีลเลอร์"
@@ -40,11 +41,11 @@ test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาร�
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-มีใบส่งแล้ว`;
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ขอนแก่น", status: "considering" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ขอนแก่น", status: "considering" }).select("id").single();
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: prospectId, status: "draft", proposed_date: "2026-09-14", amount: 250_000, contract_months: 24, annual_target: 3_000_000 })
+    .insert({ ...ช่องใบครบ(), prospect_id: prospectId, status: "draft", proposed_date: "2026-09-14", amount: 250_000, contract_months: 24, annual_target: 3_000_000 })
     .select("id, proposal_no").single();
   expect(ใบErr).toBeNull();
   const { id: ใบId, proposal_no: เลขที่ } = ใบ as { id: number; proposal_no: string };
@@ -103,7 +104,7 @@ test("[func·hq] ออกใบในแผงผู้สนใจ → ใบ�
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-ออกใบจากหน้ารวม`;
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ลำปาง", status: "meeting" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ลำปาง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
 
@@ -147,10 +148,10 @@ test("[func·hq] ออกใบในแผงผู้สนใจ → ใบ�
 test("[func·hq] เปลี่ยนสถานะใบแล้วไปหน้าอื่นทันที → บันทึกการใช้งานยังลงฐาน", async ({ page }) => {
   const sb = await db(ADMIN);
   const name = `${NS}-เปลี่ยนหน้าทันที`;
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ลำปาง", status: "meeting" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ลำปาง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
-  const ใบ = await sb.from("dealer_package_proposals").insert({ prospect_id: prospectId, amount: 90_000 }).select("id, proposal_no").single();
+  const ใบ = await sb.from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: prospectId, amount: 90_000 }).select("id, proposal_no").single();
   expect(ใบ.error?.message ?? "").toBe("");
   const { id: ใบId, proposal_no: เลขที่ } = ใบ.data as { id: number; proposal_no: string };
 
@@ -186,10 +187,10 @@ test("[func·hq] แถวใบร่าง 2 ปุ่ม (ดู · พิม
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-แก้ลบในแถว`;
-  const { data: pr } = await sb.from("dealer_prospects").insert({ name, status: "contacted" }).select("id").single();
+  const { data: pr } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, status: "contacted" }).select("id").single();
   const prospectId = (pr as { id: number }).id;
   const { data: ใบ, error } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: prospectId, proposed_date: "2026-09-14", amount: 100_000 })
+    .insert({ ...ช่องใบครบ(), prospect_id: prospectId, proposed_date: "2026-09-14", amount: 100_000 })
     .select("id, proposal_no").single();
   expect(error).toBeNull();
   const { id: ใบId, proposal_no: เลขที่ } = ใบ as { id: number; proposal_no: string };

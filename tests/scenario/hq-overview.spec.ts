@@ -6,6 +6,7 @@ import { adminClient } from "./testDealers";
 import { settle, ย้อนเดือนISO } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
+import { ช่องผู้สนใจครบ } from "./requiredFixtures";
 
 // ── แถบสรุปบนหน้าผู้สนใจเป็นดีลเลอร์ (ย้ายมาจากกล่อง "หาดีลเลอร์ใหม่" ของแดชบอร์ด · บอสสั่ง 21 ต.ค. 69) ─────────────────────
 //   ผู้สนใจกำลังคุย · จังหวัดที่มีลูกค้าเป้าหมายแต่ยังไม่มีดีลเลอร์ — ตัวเลขคิดที่ฐาน (hq_overview · ค่าตายตัวตรวจแล้วใน supabase/tests/hq_overview.sql)
@@ -71,7 +72,7 @@ test("[flow·hq] หน้าผู้สนใจ: ผู้สนใจกำ�
 
   // ผู้สนใจใหม่ 2 ราย (ยังคุยอยู่) + 1 รายที่จบแล้ว (ไม่นับ) → ของข้อนี้ +2 พอดี
   const { error } = await admin.from("dealer_prospects").insert([
-    { name: `${TAG}-ใหม่`, status: "new" }, { name: `${TAG}-นัด`, status: "meeting" }, { name: `${TAG}-ไม่สำเร็จ`, status: "lost", lost_reason: "ทดสอบ" },
+    { ...ช่องผู้สนใจครบ(), name: `${TAG}-ใหม่`, status: "new" }, { ...ช่องผู้สนใจครบ(), name: `${TAG}-นัด`, status: "meeting" }, { ...ช่องผู้สนใจครบ(), name: `${TAG}-ไม่สำเร็จ`, status: "lost", lost_reason: "ทดสอบ" },
   ]);
   expect(error).toBeNull();
   const หลัง = await อ่านคู่นิ่ง(ฐาน, () => อ่านจอ(page));

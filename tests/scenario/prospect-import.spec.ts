@@ -131,3 +131,70 @@ test("[db·hq] นำเข้าเบอร์เดิมซ้ำ = ฐา�
   const { count: ชุดแรกเหลือ } = await sb.from("dealer_prospects").select("id", { count: "exact", head: true }).eq("import_batch_id", ชุดแรก);
   expect(ชุดแรกเหลือ, "ชุดที่ถูกแตะยังอยู่ครบ").toBe(4);
 });
+
+// ── หน้าตรวจ: วันที่กำกวมต้องเลือกเดือน · ช่องบังคับของแถว (บอสสั่ง 4 พ.ย. 69) ─────────────────────────────────────────────
+//   วันที่ "5.1" (ไฟล์ตัดเลข 0 ท้าย) = 5 ม.ค. หรือ 5 ต.ค. — ยังไม่เลือกเดือน = ปุ่มยืนยันกดไม่ได้ · เลือกแล้วฐานได้วันที่เลือกจริง
+//   ชื่อเว้นว่าง / ขั้นไม่สำเร็จไม่มีเหตุผล = กดยืนยันแล้วแถวยังต้องตรวจ · กรอบแดง + ข้อความใต้ช่อง (ตัวกลาง) · แก้แล้วยืนยันได้
+//   ตกบนโค้ดก่อน c0ddcd7 (ไม่มีช่องเลือกเดือน) และก่อนตัวกลางในหน้าตรวจ (ยืนยันแถวชื่อว่างได้)
+test("[ui·hq] หน้าตรวจนำเข้า: วันที่กำกวมเลือกเดือนก่อนยืนยัน · ชื่อ/เหตุผลเป็นช่องบังคับของแถว", async ({ page }) => {
+  const errs = watchErrors(page);
+  const ไฟล์2 = path.join(os.tmpdir(), "pms-prospect-import", `${แท็ก}-เดือน.xlsx`);
+  const หัว = ["", "social", "เบอร์", "จังหวัด", "ชื่อ", "เริ่มติดต่อ", "ติดตาม", "Type", "หมายหตุ", "Channel"];
+  const blob = สร้างไฟล์Xlsx([{ ชื่อ: "ลูกค้ารอสรุป PEB", หัวตาราง: หัว, แถว: [
+    ["1", `${แท็ก} เพจกำกวม`, เบอร์(21), "บุรีรัมย์", `${แท็ก} กำกวม`, "5.1", "", "", "ไม่มีคนรับ", "FB"],
+  ] }]);
+  writeFileSync(ไฟล์2, Buffer.from(await blob.arrayBuffer()));
+
+  await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+  await settle(page);
+  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click();
+  const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
+  await กล่อง.getByLabel("ไฟล์ผู้สนใจ").setInputFiles(ไฟล์2);
+  await expect(กล่อง.getByTestId("import-file")).toContainText(`${แท็ก}-เดือน.xlsx`, { timeout: 20_000 });
+  await กล่อง.getByRole("button", { name: "ไปหน้าตรวจ" }).click();
+  const นับ = (g: string) => กล่อง.locator(`[role="tab"][data-group="${g}"] [data-count]`);
+  await expect(นับ("review"), "วันที่กำกวม = ต้องตรวจ").toHaveAttribute("data-count", "1");
+  const ตรวจ = กล่อง.getByRole("table", { name: "แถวต้องตรวจ" });
+  const แถว = ตรวจ.locator("tr").filter({ hasText: เบอร์จัดรูป(21) });
+  for (const หัวช่อง of ["ชื่อ", "เบอร์"]) {
+    await expect(ตรวจ.getByRole("columnheader", { name: new RegExp(`^${หัวช่อง}`) }).locator("[data-required]"), `หัว ${หัวช่อง} มี * แดง`).toHaveCount(1);
+  }
+
+  // 1) ยังไม่เลือกเดือน = ยืนยันไม่ได้
+  const เดือน = แถว.locator("select[data-date-choice='firstContact']");
+  await expect(เดือน, "มีช่องเลือกเดือนของวันเริ่มติดต่อ").toBeVisible();
+  const ตัวเลือก = (await เดือน.locator("option").evaluateAll(os => os.map(o => (o as HTMLOptionElement).value))).filter(Boolean);
+  expect(ตัวเลือก.map(d => d.slice(5, 7)).sort(), "5.1 = ม.ค. หรือ ต.ค.").toEqual(["01", "10"]);
+  const ยืนยันแถว = แถว.getByRole("button", { name: /^ยืนยัน แถว/ });
+  await expect(ยืนยันแถว, "ยังไม่เลือกเดือน = ยืนยันไม่ได้").toBeDisabled();
+  await expect(กล่อง.getByRole("button", { name: "นำเข้า 0 ราย" }), "ยังไม่มีแถวพร้อม = นำเข้าไม่ได้").toBeDisabled();
+  const ตุลา = ตัวเลือก.find(d => d.slice(5, 7) === "10")!;
+  await เดือน.selectOption(ตุลา);
+  await expect(ยืนยันแถว, "เลือกเดือนแล้ว = ยืนยันได้").toBeEnabled();
+
+  // 2) ชื่อเว้นว่าง → กดยืนยัน = ยังต้องตรวจ · กรอบแดง + ข้อความใต้ช่อง
+  const ชื่อ = แถว.getByLabel(/^ชื่อ แถว/);
+  await ชื่อ.fill("  ");
+  await ยืนยันแถว.click();
+  await expect(ชื่อ, "ชื่อว่าง = กรอบแดง").toHaveAttribute("aria-invalid", "true");
+  await expect(แถว.locator("[data-field-error]"), "ข้อความใต้ช่องชื่อ").toHaveText("ต้องระบุชื่อ");
+  await expect(นับ("review"), "ยังต้องตรวจ").toHaveAttribute("data-count", "1");
+
+  // 3) ขั้นไม่สำเร็จไม่เลือกเหตุผล → กดยืนยัน = ยังต้องตรวจ · ข้อความใต้ช่องเหตุผล
+  await ชื่อ.fill(`${แท็ก} กำกวม แก้ชื่อ`);
+  await expect(แถว.locator("[data-field-error]"), "แก้ชื่อแล้วข้อความหาย").toHaveCount(0);
+  await แถว.getByLabel(/^ขั้น แถว/).selectOption("lost");
+  await ยืนยันแถว.click();
+  await expect(แถว.getByLabel(/^เหตุผล แถว/), "ไม่มีเหตุผล = กรอบแดง").toHaveAttribute("aria-invalid", "true");
+  await expect(แถว.locator("[data-field-error]")).toHaveText("ต้องเลือกเหตุผลที่ไม่สำเร็จ");
+  await แถว.getByLabel(/^ขั้น แถว/).selectOption("contacted");
+  await ยืนยันแถว.click();
+  await expect(นับ("ready"), "ครบแล้วยืนยันได้ → พร้อม").toHaveAttribute("data-count", "1");
+
+  await กล่อง.getByRole("button", { name: "นำเข้า 1 ราย" }).click();
+  await กดตกลงในกล่องยืนยัน(page);
+  await expect(กล่อง.getByTestId("import-result")).toHaveAttribute("data-inserted", "1", { timeout: 30_000 });
+  const { data } = await (await db(ADMIN)).from("dealer_prospects").select("name, first_contact, status").eq("phone", เบอร์จัดรูป(21)).single();
+  expect(data, "ฐานได้ชื่อที่แก้ · วันเริ่มติดต่อ = เดือนที่เลือก").toMatchObject({ name: `${แท็ก} กำกวม แก้ชื่อ`, first_contact: ตุลา, status: "contacted" });
+  assertNoErrors(errs, "หน้าตรวจนำเข้า: เลือกเดือน + ช่องบังคับ");
+});

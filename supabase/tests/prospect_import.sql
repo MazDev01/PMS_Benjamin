@@ -119,7 +119,7 @@ begin
   perform pitest.ok(_import_batch_touched(b) = 1, '4) เปลี่ยนขั้นหลังนำเข้า = ถูกแตะ');
   delete from dealer_prospect_activities where body = 'ติดต่อแล้ว → ส่งข้อมูลบริษัทแล้ว' and prospect_id = (select id from dealer_prospects where name = 'ZZTEST-หนึ่ง') and created_at > now();
   -- ออกใบค่าแฟรนไชส์ = ถูกแตะ
-  insert into dealer_package_proposals (prospect_id, amount, status) values ((select id from dealer_prospects where name = 'ZZTEST-สอง'), 10000, 'draft');
+  insert into dealer_package_proposals (prospect_id, amount, status, contract_months, annual_target, region, province, valid_until, terms) values ((select id from dealer_prospects where name = 'ZZTEST-สอง'), 10000, 'draft', 12, 1000000, 'ตะวันออก', 'ตราด', (current_date) + 30, '-');
   perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
   perform pitest.must_fail(format('select public.hq_prospects_import_cancel(%s)', b), 'import_in_use', '4) มีรายที่ออกใบแล้ว = ยกเลิกทั้งชุดไม่ได้');
   perform pitest.as_admin();

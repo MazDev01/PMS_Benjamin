@@ -5,6 +5,9 @@
 --   ข้อยกเว้นเดียว: ผูกลูกค้าครั้งแรกจากค่าว่าง (คำสั่งปิดการขายผูกใบกำพร้าของบริษัทเดียวกัน — ไม่ใช่การเปลี่ยนลูกค้าที่ผูกอยู่)
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/legacy_quote_lock.sql
 begin;
+-- ปิดตัวดักของ quotations กลางรายการ (alter table … disable trigger) ต้องล็อกทั้งตาราง — ถือล็อกนั้นตั้งแต่ต้นรายการ
+--   ก่อนถือแถว/ตัวนับใด ๆ: ถ้าขอกลางทาง ขณะถือตัวนับ/แถวอยู่ งานหน้าเว็บที่เขียนใบพร้อมกันค้างกันเอง (deadlock · พบที่ตารางใบค่าแฟรนไชส์ 4 พ.ย. 69)
+lock table quotations in share row exclusive mode;
 create schema flowtest;
 create function flowtest.ok(p_cond boolean, p_what text) returns void language plpgsql as $$
 begin if p_cond is not true then raise exception 'FAIL: %', p_what; end if; raise notice 'ok  %', p_what; end $$;

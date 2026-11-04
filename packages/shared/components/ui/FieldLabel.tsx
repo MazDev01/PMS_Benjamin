@@ -16,10 +16,14 @@ export function FieldLabel({ children, required, htmlFor, className = "form-labe
   return (
     <label className={className} htmlFor={htmlFor} style={style}>
       {children}
-      {required && <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }}>*</span>}
+      {/* * วาดด้วย CSS ([data-required]::after · globals.css) — ข้อความ/ชื่อช่องไม่มี "*" ปน */}
+      {required && <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }} />}
     </label>
   );
 }
+
+/** * แดงอย่างเดียว — หัวคอลัมน์ของตารางที่กรอกในช่อง (ไม่มีป้ายต่อช่อง) · หน้าตาเดียวกับ <FieldLabel required> */
+export const ดาวบังคับ = () => <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }} />;
 
 export function FieldError({ children, id }: { children?: ReactNode; id?: string }) {
   if (!children) return null;
@@ -56,5 +60,7 @@ export function useช่องบังคับ() {
     style: ผิด[key] ? กรอบผิด : undefined,
   }), [ผิด]);
   const ล้าง = useCallback((key: string) => setผิด(p => (p[key] ? (({ [key]: _ทิ้ง, ...rest }) => rest)(p) : p)), []);
-  return { ผิด, ตรวจ, ตั้งผิด, ผูก, ล้าง, สรุป: (ช่อง: ช่องบังคับ[]) => สรุปช่องที่ขาด(ช่อง, ผิด) };
+  /** ล้างข้อความผิดทุกช่อง (เปิดฟอร์มใหม่/สลับรายการ) */
+  const ล้างทั้งหมด = useCallback(() => setผิด({}), []);
+  return { ผิด, ตรวจ, ตั้งผิด, ผูก, ล้าง, ล้างทั้งหมด, สรุป: (ช่อง: ช่องบังคับ[]) => สรุปช่องที่ขาด(ช่อง, ผิด) };
 }

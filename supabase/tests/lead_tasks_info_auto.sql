@@ -64,12 +64,24 @@ do $$ begin
   -- ลบข้อมูลจนไม่ครบ → ติ๊กหาย
   update leads set note = '' where dealer_code = 'RYG' and num_id = 990901;
   perform flowtest.ok(not flowtest.ติ๊ก(990901, 'requirement'), 'ลบสเปกออก → ติ๊ก สรุปความต้องการ หาย');
-  update leads set contact = '' where dealer_code = 'RYG' and num_id = 990901;
-  perform flowtest.ok(not flowtest.ติ๊ก(990901, 'collect'), 'ลบผู้ติดต่อออก → ติ๊ก เก็บข้อมูลลูกค้า หาย');
+  -- ลบผู้ติดต่อออก: เดิม (ก่อนใบ 0276) ติ๊กหาย · ตั้งแต่ 0276 ฐานไม่ยอมให้ล้างผู้ติดต่อที่มีอยู่แล้ว → ปฏิเสธ ติ๊กยังอยู่ (ตรวจกลับด้าน)
+  perform flowtest.must_fail($q$update leads set contact = '' where dealer_code = 'RYG' and num_id = 990901$q$, 'required_field',
+    'ลบผู้ติดต่อออก = ปฏิเสธ (ช่องบังคับ · ใบ 0276)');
+  perform flowtest.ok(flowtest.ติ๊ก(990901, 'collect'), 'ลบผู้ติดต่อไม่สำเร็จ → ติ๊ก เก็บข้อมูลลูกค้า ยังอยู่');
+  -- ลีดเก่าที่ผู้ติดต่อว่างอยู่แล้ว (ก่อนใบ 0276) → แก้ช่องอื่นแล้วติ๊กหาย (ใช้แทนการลบผู้ติดต่อออก ซึ่งทำไม่ได้แล้ว)
+  insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, status)
+    values ('#L-ZZLI2', 990902, 'RYG', 'ZZLI ลีด 2', 'ZZLI ลีด 2', 'คุณทดสอบ', '000-000-0902', 'ระยอง', 'WAITING');
+  perform flowtest.as_root();
+  set local session_replication_role = replica;
+  update leads set contact = '' where dealer_code = 'RYG' and num_id = 990902;
+  set local session_replication_role = origin;
+  perform flowtest.as_user('DEALER_ADMIN', 'RYG');
+  update leads set note = 'ZZLI แก้ช่องอื่น' where dealer_code = 'RYG' and num_id = 990902;
+  perform flowtest.ok(not flowtest.ติ๊ก(990902, 'collect'), 'ลีดเก่าไม่มีผู้ติดต่อ → ติ๊ก เก็บข้อมูลลูกค้า หาย');
 
   -- ดีลเลอร์ติ๊กเองไม่ได้
   perform flowtest.must_fail($q$update leads set tasks = (select jsonb_agg(case when t ->> 'key' = 'collect' then t || '{"done":true}' else t end)
-                                 from jsonb_array_elements(tasks) t) where dealer_code = 'RYG' and num_id = 990901$q$,
+                                 from jsonb_array_elements(tasks) t) where dealer_code = 'RYG' and num_id = 990902$q$,
     'system_task_locked', 'ดีลเลอร์ติ๊ก เก็บข้อมูลลูกค้า เอง');
   perform flowtest.must_fail($q$select lead_apply('#L-ZZLI1', '{"tasks":[{"key":"requirement","done":true}]}'::jsonb)$q$,
     'system_task_locked', 'ดีลเลอร์ติ๊ก สรุปความต้องการ เองผ่านคำสั่งบันทึกลีด');

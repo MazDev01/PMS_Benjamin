@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, specNS } from "./funcHelpers";
+import { ช่องผู้สนใจครบ } from "./requiredFixtures";
 
 // ── หน้าดีลเลอร์: มุมมองการ์ดมีรูป ──
 //   บอสสั่ง 14 ก.ย. 69: "หน้า ดีลเลอร์ ให้แสดงแบบเป็นการ์ด มีรูปแสดง ดูตามตัวอย่าง ทำเป็นแบบเฉย ๆ"
@@ -29,7 +30,7 @@ test("[func·hq] หน้าดีลเลอร์: เปิดมาเป�
   const sb = await db(ADMIN);
   // ลูกค้าเป้าหมายที่เป็นดีลเลอร์ RYG แล้ว และมีรูป → การ์ด RYG ต้องขึ้นรูปนี้
   const { error } = await sb.from("dealer_prospects")
-    .insert({ name: `${NS}-RYG-มีรูป`, status: "won", dealer_code: "RYG", logo: รูปทดสอบ });
+    .insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-RYG-มีรูป`, status: "won", dealer_code: "RYG", logo: รูปทดสอบ });
   expect(error).toBeNull();
 
   await loginUI(page, HQ_ORIGIN, "/hq/dealers", ADMIN);

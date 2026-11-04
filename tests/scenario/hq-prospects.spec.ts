@@ -2,10 +2,11 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
-import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
+import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 import { ลบสาขาทดสอบตรง } from "./testDealers";
 import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
+import { ช่องผู้สนใจครบ, ช่องใบครบ, เบอร์ทดสอบ } from "./requiredFixtures";
 
 // ── ลูกค้าเป้าหมายของสำนักงานใหญ่ = ผู้สนใจเป็นดีลเลอร์ (บอสสั่ง 14 ก.ย. 69) ─────────
 //   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นดีลเลอร์"
@@ -87,7 +88,7 @@ test.afterAll(async () => {
 
 test("[security] ดีลเลอร์มองไม่เห็น และเขียนลูกค้าเป้าหมายของสำนักงานใหญ่ไม่ได้", async () => {
   const hq = await db(ADMIN);
-  const { error: hqErr } = await hq.from("dealer_prospects").insert({ name: `${NS}-ลับ`, phone: "0800000000" });
+  const { error: hqErr } = await hq.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ลับ`, phone: "0800000000" });
   expect(hqErr, "ผู้ดูแลสำนักงานใหญ่ต้องเพิ่มได้").toBeNull();
 
   const dealer = await db(RYG);
@@ -95,7 +96,7 @@ test("[security] ดีลเลอร์มองไม่เห็น แล�
   expect(error).toBeNull();
   expect(data ?? [], "ดีลเลอร์ต้องไม่เห็นสักแถว (RLS กรองทิ้ง ไม่ใช่แค่ซ่อนเมนู)").toHaveLength(0);
 
-  const { error: dealerErr } = await dealer.from("dealer_prospects").insert({ name: `${NS}-ปลอม` });
+  const { error: dealerErr } = await dealer.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ปลอม` });
   expect(dealerErr, "ดีลเลอร์ต้องเพิ่มไม่ได้").not.toBeNull();
 });
 
@@ -164,7 +165,7 @@ test("[api] ผูกกับดีลเลอร์ที่มีอยู�
     body: JSON.stringify({ prospectId, dealerCode }),
   });
   const เพิ่มราย = async (ชื่อ: string) =>
-    ((await sb.from("dealer_prospects").insert({ name: `${NS}-${ชื่อ}`, status: "meeting" }).select("id").single()).data as { id: number }).id;
+    ((await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-${ชื่อ}`, status: "meeting" }).select("id").single()).data as { id: number }).id;
 
   // สาขาทดสอบที่ไม่มีบัญชีเข้าระบบ (ลงทะเบียนตรง แบบรายชื่อดีลเลอร์เดิมจาก Excel)
   expect((await admin.from("dealers").insert({ code: NOACC_CODE, name: "ZZTEST สาขาไม่มีบัญชี", province: "ระยอง", region: "ตะวันออก", revenue_target: 0, status: "active" })).error).toBeNull();
@@ -209,7 +210,7 @@ test("[func·hq] ผูกกับสาขาที่ยังไม่มี
   await admin.from("dealers").upsert({ code: NOACC_CODE, name: "ZZTEST สาขาไม่มีบัญชี", province: "ระยอง", region: "ตะวันออก", revenue_target: 0, status: "active" });
   await admin.from("dealer_prospects").delete().eq("dealer_code", NOACC_CODE);
   const name = `${NS}-ผูกผ่านหน้าจอไม่มีบัญชี`;
-  const { data: ins, error } = await sb.from("dealer_prospects").insert({ name, status: "meeting" }).select("id").single();
+  const { data: ins, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const id = (ins as { id: number }).id;
 
@@ -235,12 +236,12 @@ test("[H5] [func·hq] ตั้งเป็นดีลเลอร์ใหม�
   const name = `${NS}-สาขาใหม่`;
   const sb = await db(ADMIN);
   const { data: ins, error } = await sb.from("dealer_prospects")
-    .insert({ name, province: "ระยอง", status: "meeting" }).select("id").single();
+    .insert({ ...ช่องผู้สนใจครบ(), name, province: "ระยอง", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const id = (ins as { id: number }).id;
   // ตกลง + ชำระ (ด่าน 4 · 0208): ใบตอบรับ + ชำระครบ — ใบนี้ไม่ระบุค่าแรกเข้า (ยอด 0) ตอบรับแล้วแปลงได้เลย
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, status: "sent", proposed_date: "2026-09-14", contract_months: 12, annual_target: 12_000_000 }).select("id").single();
+    .insert({ ...ช่องใบครบ(), prospect_id: id, status: "sent", proposed_date: "2026-09-14", contract_months: 12, annual_target: 12_000_000 }).select("id").single();
   expect(ใบErr).toBeNull();
   expect((await sb.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", (ใบ as { id: number }).id)).error).toBeNull();
 
@@ -329,10 +330,66 @@ test("[ui·hq] ฟอร์มลูกค้าเป้าหมาย: เล
 
   const name = `${NS}-มีภาค`;
   await ฟอร์ม.locator("#pr-name").fill(name);
+  await ฟอร์ม.locator("#pr-phone").fill(เบอร์ทดสอบ());   // เบอร์โทรเป็นช่องบังคับ (4 พ.ย. 69 · ใบ 0276)
   await จังหวัด.selectOption("บุรีรัมย์");
   await ฟอร์ม.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
   await waitRow(await db(ADMIN), "dealer_prospects", { name, region: "อีสาน", province: "บุรีรัมย์" });
   assertNoErrors(errs, "ฟอร์มลูกค้าเป้าหมาย: ภาค/จังหวัด");
+});
+
+test("[ui·hq] ฟอร์มผู้สนใจ: ชื่อ + เบอร์โทรเป็นช่องบังคับ — * แดง · ว่างแล้วกดเพิ่ม = ไม่บันทึก กรอบแดง ข้อความใต้ช่อง (บอสสั่ง 4 พ.ย. 69)", async ({ page }) => {
+  const errs = watchErrors(page);
+  await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+  await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click();
+  const ฟอร์ม = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
+  for (const id of ["pr-name", "pr-phone"]) {
+    await expect(ฟอร์ม.locator(`label[for="${id}"] [data-required]`), `${id} ต้องมี * แดงจากตัวกลาง`).toHaveCount(1);
+  }
+  await expect(ฟอร์ม.locator('label[for="pr-email"] [data-required]'), "อีเมลไม่บังคับ = ไม่มี *").toHaveCount(0);
+
+  const name = `${NS}-ไม่มีเบอร์`;
+  await ฟอร์ม.locator("#pr-name").fill(name);
+  await ฟอร์ม.locator("#pr-phone").fill("   ");
+  await ฟอร์ม.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
+  await expect(ฟอร์ม, "ไม่บันทึก = หน้าต่างยังเปิด").toBeVisible();
+  await expect(ฟอร์ม.locator("#pr-phone"), "เบอร์ว่าง = กรอบแดง").toHaveAttribute("aria-invalid", "true");
+  await expect(ฟอร์ม.locator("[data-field-error]"), "ข้อความใต้ช่องเบอร์").toHaveText(["ต้องระบุเบอร์โทร"]);
+  await expect(ฟอร์ม.locator("#pr-phone"), "เลื่อน/โฟกัสไปช่องแรกที่ขาด").toBeFocused();
+  const { count } = await (await db(ADMIN)).from("dealer_prospects").select("id", { count: "exact", head: true }).eq("name", name);
+  expect(count, "ต้องไม่มีแถวลงฐาน").toBe(0);
+
+  // กรอกเบอร์แล้ว: ข้อความหาย · บันทึกได้
+  await ฟอร์ม.locator("#pr-phone").fill(เบอร์ทดสอบ());
+  await expect(ฟอร์ม.locator("[data-field-error]"), "แก้ช่องแล้วข้อความหาย").toHaveCount(0);
+  await ฟอร์ม.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
+  await waitRow(await db(ADMIN), "dealer_prospects", { name });
+  assertNoErrors(errs, "ฟอร์มผู้สนใจ: ช่องบังคับ");
+});
+
+test("[ui·hq] ตั้งเป็นดีลเลอร์: รหัส/ชื่อ/ภาค/จังหวัด เป็นช่องบังคับ — * แดง · ว่างแล้วกดยืนยัน = กรอบแดงทุกช่องที่ขาด (บอสสั่ง 4 พ.ย. 69)", async ({ page }) => {
+  // ผู้สนใจที่พร้อมแปลง (ใบตอบรับ · ยอด 0) — ปุ่มสร้างดีลเลอร์กดได้ · ไม่กดจนสร้างจริง (ช่องบังคับไม่ครบ)
+  const id = await ลูกค้าเป้าหมายรองรับสาขา("ZZRQC");
+  await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+  await page.goto(`${HQ_ORIGIN}/hq/prospects?open=${id}`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" }).getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click();
+  const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
+  for (const id of ["cv-code", "cv-name", "cv-region", "cv-province"]) {
+    await expect(ตั้ง.locator(`label[for="${id}"] [data-required]`), `${id} ต้องมี * แดงจากตัวกลาง`).toHaveCount(1);
+  }
+  await expect(ตั้ง.locator('label[for="cv-email"] [data-required]'), "อีเมลเว้นได้ = ไม่มี *").toHaveCount(0);
+  await ตั้ง.locator("#cv-name").fill("");
+  await expect(ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }), "ใบพร้อมแปลงแล้ว = ปุ่มกดได้").toBeEnabled({ timeout: 15_000 });
+  await ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" }).click();
+  for (const id of ["cv-code", "cv-name", "cv-region"]) {
+    await expect(ตั้ง.locator(`#${id}`), `${id} ว่าง = กรอบแดง`).toHaveAttribute("aria-invalid", "true");
+  }
+  await expect(ตั้ง.locator("#cv-province"), "จังหวัดว่าง = กรอบแดง").toHaveAttribute("aria-invalid", "true");
+  await expect(ตั้ง.locator("[data-field-error]").first(), "ข้อความใต้ช่องแรก (รหัส)").toHaveText("รหัสดีลเลอร์ต้องเป็นตัวอักษร A–Z 2–5 ตัว (ห้ามมีตัวเลข)");
+  await expect(ตั้ง.getByRole("alert").filter({ hasText: "กรอกให้ครบก่อนบันทึก: รหัสดีลเลอร์ · ชื่อดีลเลอร์ · ภาค · จังหวัดที่ตั้ง / ที่ดูแล" }),
+    "แถบผิดพลาดสรุปช่องที่ขาดครบ (ไม่ซ้ำข้อความใต้ช่อง)").toHaveCount(1);
+  await expect(ตั้ง.locator("#cv-code"), "โฟกัสช่องแรกที่ขาด").toBeFocused();
+  await ตั้ง.locator("#cv-code").fill("ZZRQ");
+  await expect(ตั้ง.locator("#cv-code"), "แก้ช่องแล้วกรอบแดงหาย").not.toHaveAttribute("aria-invalid", "true");
 });
 
 // ── ใบค่าแฟรนไชส์ (บอสสั่ง 14 ก.ย. 69: "เหมือนดีลเลอร์ที่ต้องมีใบเสนอราคา แต่อันนี้ของ HQ") ──
@@ -340,11 +397,11 @@ test("[ui·hq] ฟอร์มลูกค้าเป้าหมาย: เล
 test("[api] ยังไม่มีใบค่าแฟรนไชส์ที่ส่งแล้ว → สร้างดีลเลอร์ไม่ได้ (ใบร่างไม่นับ)", async () => {
   const sb = await db(ADMIN);
   const name = `${NS}-ยังไม่ส่งใบ`;
-  const { data: ins, error } = await sb.from("dealer_prospects").insert({ name, status: "considering" }).select("id").single();
+  const { data: ins, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, status: "considering" }).select("id").single();
   expect(error).toBeNull();
   const id = (ins as { id: number }).id;
   const { error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: id, status: "draft", proposed_date: "2026-09-14" });
+    .insert({ ...ช่องใบครบ(), prospect_id: id, status: "draft", proposed_date: "2026-09-14" });
   expect(ใบErr).toBeNull();
 
   const res = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
@@ -360,10 +417,10 @@ test("[api] ยังไม่มีใบค่าแฟรนไชส์ท�
 
 test("[security] ใบค่าแฟรนไชส์: ดีลเลอร์มองไม่เห็น · ข้ามจากร่างไปตอบรับไม่ได้ · ส่งแล้วแก้เนื้อหา/ลบไม่ได้", async () => {
   const sb = await db(ADMIN);
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name: `${NS}-ตรวจกติกาใบ` }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ตรวจกติกาใบ` }).select("id").single();
   expect(error).toBeNull();
   const { data: ใบ, error: ใบErr } = await sb.from("dealer_package_proposals")
-    .insert({ prospect_id: (pr as { id: number }).id, proposed_date: "2026-09-14", proposal_no: "ปลอม-001" })
+    .insert({ ...ช่องใบครบ(), prospect_id: (pr as { id: number }).id, proposed_date: "2026-09-14", proposal_no: "ปลอม-001" })
     .select("id, proposal_no, status").single();
   expect(ใบErr).toBeNull();
   const row = ใบ as { id: number; proposal_no: string; status: string };
@@ -394,7 +451,7 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
   const name = `${NS}-ออกใบผ่านหน้าจอ`;
-  const { data: pr, error } = await sb.from("dealer_prospects").insert({ name, province: "ชลบุรี", status: "meeting" }).select("id").single();
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ชลบุรี", status: "meeting" }).select("id").single();
   expect(error).toBeNull();
   const prospectId = (pr as { id: number }).id;
 

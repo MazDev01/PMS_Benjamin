@@ -4,6 +4,7 @@ import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { SUPABASE_URL, SUPABASE_ANON, ADMIN } from "./supabaseEnv";
 import { HQ_ORIGIN } from "./funcHelpers";
 import { open, SESSION_KEY } from "./helpers";
+import { ป้ายพร้อมดาว } from "./requiredMark";
 
 // ฟอร์ม "เพิ่มผู้ใช้งาน HQ" — ปัญหาที่บอสแจ้ง 3 ก.ย. 69 (พร้อมภาพหน้าจอ):
 //   บนโน้ตบุ๊กจอเตี้ย กล่องสูงกว่าจอ หัวกล่องโดนตัดข้างบน ปุ่มบันทึกโดนตัดข้างล่าง กดไม่ได้
@@ -47,8 +48,8 @@ test.describe("[ui·hq] ฟอร์มเพิ่มผู้ใช้งา�
     await เปิดฟอร์ม(page);
     const กล่อง = page.getByRole("dialog", { name: "ฟอร์มผู้ใช้ HQ" });
 
-    // * แดงมาจากตัวกลาง <FieldLabel required> (4 พ.ย. 69) — innerText ติดกัน "ชื่อ*" → จัดเป็น "ชื่อ *" ก่อนเทียบ (ลำดับ/ช่องบังคับเหมือนเดิม)
-    const ป้าย = (await กล่อง.locator(".form-label").allInnerTexts()).map(t => t.trim().replace(/ ·.*/s, "").replace(/\s*\*$/, " *").toLowerCase());
+    // * แดงมาจากตัวกลาง <FieldLabel required> (4 พ.ย. 69 · วาดด้วย CSS ไม่อยู่ในข้อความ) — ป้ายพร้อมดาว ต่อ " *" ให้ช่องที่มี [data-required]
+    const ป้าย = (await ป้ายพร้อมดาว(กล่อง.locator(".form-label"))).map(t => t.trim().replace(/ ·.*?(?= \*$|$)/s, "").toLowerCase());
     await expect(กล่อง.locator(".form-label [data-required]"), "* แดงจากตัวกลาง 3 ช่อง (ชื่อ · อีเมล · บทบาท)").toHaveCount(3);
     expect(ป้าย).toEqual([
       "ชื่อ *", "นามสกุล", "อีเมล (ใช้เข้าระบบ) *", "รหัสผ่านชั่วคราว", "เบอร์โทร",

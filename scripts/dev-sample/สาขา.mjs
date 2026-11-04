@@ -68,7 +68,9 @@ export async function สร้าง(ctx) {
       status: "considering", phone: เบอร์(s.เบอร์), email: `prospect-${s.code.toLowerCase()}@example.test`, channel: "งานแสดงสินค้า",
       first_contact: วัน(-60), note: `${ป้าย}: ผู้สนใจที่แปลงเป็นดีลเลอร์ ${s.code}` }).select("id").single(), `ผู้สนใจ ${s.code}`);
     // ── H3–H4 ใบค่าแฟรนไชส์: ส่ง → ตอบรับ → ชำระครบ ──
-    const ใบ = ต้อง(await hq.from("dealer_package_proposals").insert({ prospect_id: ราย.id, package: "standard", status: "sent",
+    // ใบต้องครบ 8 ช่องบังคับ (ใบ 0276) · ช่องแพ็กเกจลบไปแล้ว (ใบ 0269)
+    const ใบ = ต้อง(await hq.from("dealer_package_proposals").insert({ prospect_id: ราย.id, status: "sent",
+      region: s.region, province: s.province, valid_until: วัน(15), terms: "ราคานี้รวมค่าอบรมเริ่มต้น",
       proposed_date: วัน(-45), contract_months: 12, annual_target: s.ครบ ? 18_000_000 : 6_000_000, amount: 300_000 }).select("id").single(), `ใบค่าแฟรนไชส์ ${s.code}`);
     ต้อง(await hq.from("dealer_package_proposals").update({ status: "accepted", payment_due_on: วัน(-30) }).eq("id", ใบ.id), `ตอบรับใบ ${s.code}`);
     ต้อง(await hq.from("dealer_proposal_payments").insert({ proposal_id: ใบ.id, paid_on: วัน(-32), amount: 300_000, reference: `TR-ตัวอย่าง-${s.code}` }), `ชำระ ${s.code}`);

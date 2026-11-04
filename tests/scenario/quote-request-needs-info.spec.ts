@@ -9,6 +9,7 @@ import { DEALER_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcH
 import { settle } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
+import { ป้ายพร้อมดาว } from "./requiredMark";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.describe.configure({ mode: process.env.PMS_GATE_ALL === "1" ? "default" : "serial" });
@@ -51,11 +52,16 @@ test("[D3] [flow·dealer] ข้อมูลไม่ครบ → ฟอร์�
   await expect(ฟอร์ม, "ข้อมูลไม่ครบ = ฟอร์มเติมข้อมูลก่อน").toBeVisible({ timeout: 15_000 });
   await expect(แผง.getByRole("button", { name: "ส่งคำขอ" }), "ยังไม่มีปุ่มส่งคำขอ").toHaveCount(0);
   // เฉพาะช่องที่ขาด: งาน · พื้นที่ · สเปก (ข้อมูลลูกค้าครบแล้ว ไม่ถามซ้ำ)
-  const ป้าย = await ฟอร์ม.locator("label.form-label").allTextContents();
+  // * แดงมาจากตัวกลาง <FieldLabel required> (4 พ.ย. 69 · วาดด้วย CSS) — ป้ายพร้อมดาว ต่อ " *" ให้ช่องที่มี [data-required] · ทุกช่องต้องมี * จริง
+  const ป้าย = await ป้ายพร้อมดาว(ฟอร์ม.locator("label.form-label"));
   expect(ป้าย, "ถามเฉพาะช่องที่ขาด").toEqual([`${ช่อง.งาน} *`, `${ช่อง.พื้นที่} *`, `${ช่อง.สเปก} *`]);
+  await expect(ฟอร์ม.locator("label.form-label [data-required]"), "ทุกช่องที่ขาดมี * แดงจากตัวกลาง").toHaveCount(3);
   await ฟอร์ม.getByLabel(ช่อง.งาน, { exact: true }).fill("ZZTEST โกดัง 30x50 ม.");
   await ฟอร์ม.getByRole("button", { name: "บันทึกแล้วไปต่อ" }).click();
-  await expect(แผง.getByRole("alert"), "ยังกรอกไม่ครบ = บอกช่องที่เหลือ").toContainText(`${ช่อง.พื้นที่} · ${ช่อง.สเปก}`);
+  await expect(แผง.getByRole("alert").filter({ hasText: "กรอกให้ครบก่อน" }), "ยังกรอกไม่ครบ = บอกช่องที่เหลือ").toContainText(`${ช่อง.พื้นที่} · ${ช่อง.สเปก}`);
+  // ตัวกลางช่องบังคับ (4 พ.ย. 69): ช่องที่ยังขาดกรอบแดง + ข้อความใต้ช่อง · ช่องที่กรอกแล้วไม่มี
+  await expect(ฟอร์ม.locator("[data-field-error]"), "ข้อความใต้ช่องที่ยังขาด 2 ช่อง").toHaveText([`ต้องกรอก${ช่อง.พื้นที่}`, `ต้องกรอก${ช่อง.สเปก}`]);
+  await expect(ฟอร์ม.getByLabel(ช่อง.งาน, { exact: true }), "ช่องที่กรอกแล้วไม่แดง").not.toHaveAttribute("aria-invalid", "true");
   await ฟอร์ม.getByLabel(ช่อง.พื้นที่, { exact: true }).fill("1500");
   await ฟอร์ม.getByLabel(ช่อง.สเปก, { exact: true }).fill("ZZTEST หลังคาเมทัลชีท สูง 8 ม.");
   await ฟอร์ม.getByRole("button", { name: "บันทึกแล้วไปต่อ" }).click();

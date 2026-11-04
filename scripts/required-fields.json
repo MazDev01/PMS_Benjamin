@@ -56,6 +56,108 @@
       "ที่มา": "บอส"
     },
     {
+      "file": "packages/shared/components/ui/QuoteRequestPanel.tsx",
+      "id": "qr-product",
+      "ชื่อ": "ขอราคา · งานที่ขอราคา",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/ui/QuoteRequestPanel.tsx",
+      "id": "qr-missing-${}",
+      "ชื่อ": "ขอราคา · ช่องที่ลีดยังขาด",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "packages/shared/components/ui/DealerAccountCard.tsx",
+      "id": "ac-email",
+      "ชื่อ": "บัญชี · อีเมลเข้าสู่ระบบใหม่",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "packages/shared/components/ui/DealerAccountCard.tsx",
+      "id": "ac-email-pw",
+      "ชื่อ": "บัญชี · รหัสผ่านปัจจุบัน (เปลี่ยนอีเมล)",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/ui/DealerAccountCard.tsx",
+      "id": "ac-pw-current",
+      "ชื่อ": "บัญชี · รหัสผ่านปัจจุบัน",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/ui/DealerAccountCard.tsx",
+      "id": "ac-pw-new",
+      "ชื่อ": "บัญชี · รหัสผ่านใหม่",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/ui/DealerAccountCard.tsx",
+      "id": "ac-pw-confirm",
+      "ชื่อ": "บัญชี · ยืนยันรหัสผ่านใหม่",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "packages/shared/components/auth/LoginCard.tsx",
+      "id": "login-email",
+      "ชื่อ": "เข้าระบบ · อีเมล / รหัสสาขา",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/auth/LoginCard.tsx",
+      "id": "login-password",
+      "ชื่อ": "เข้าระบบ · รหัสผ่าน",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/HqQuoteEditor.tsx",
+      "id": "hq-valid",
+      "ชื่อ": "ใบ HQ · ยืนราคาถึง",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "pr-name",
+      "ชื่อ": "ผู้สนใจ · ชื่อผู้ติดต่อ / ชื่อบริษัท",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "pr-phone",
+      "ชื่อ": "ผู้สนใจ · เบอร์โทร",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-existing",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · ดีลเลอร์เดิม",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-code",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · รหัสดีลเลอร์",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-name",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · ชื่อดีลเลอร์",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-region",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · ภาค",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/hq/app/(app)/hq/prospects/page.tsx",
+      "id": "cv-province",
+      "ชื่อ": "ตั้งเป็นดีลเลอร์ · จังหวัดที่ตั้ง",
+      "ที่มา": "ฐาน"
+    },
+    {
       "file": "apps/dealer/app/(app)/leads/page.tsx",
       "id": "lf-company",
       "ชื่อ": "เพิ่มลีด · ชื่อบริษัท",

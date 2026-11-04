@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   เตรียมบันทึกใบ, ตรวจใบเสนอ, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว, หมดอายุแล้ว, มูลค่าอ่านง่าย, ใบล็อกแล้ว,
-  ระยะสัญญาอ่านง่าย, ใบหลักสำหรับตั้งดีลเลอร์,
+  ระยะสัญญาอ่านง่าย, ใบหลักสำหรับตั้งดีลเลอร์, ช่องที่ขาดของใบ,
 } from "../../packages/shared/lib/dealerProposals";
 import { buildDealerProposalHTML } from "../../packages/shared/lib/dealerProposalPrint";
 import type { DealerPackageProposal, HQCompany } from "../../packages/shared/lib/data/types";
@@ -10,6 +10,8 @@ import type { DealerPackageProposal, HQCompany } from "../../packages/shared/lib
 const ใบ = (x: Partial<DealerPackageProposal>): DealerPackageProposal => ({
   id: 1, prospectId: 7, proposalNo: "DP-2026-0001", status: "draft", proposedDate: "2026-09-14", ...x,
 });
+// ช่องบังคับครบ (บอสสั่ง 4 พ.ย. 69 · ใบ 0276) — ข้อที่วัดเรื่องอื่นใส่ครบไว้ก่อน แล้วทับเฉพาะช่องที่วัด
+const ครบ = { amount: 0, contractMonths: 12, annualTarget: 1_000_000, region: "ตะวันออก", province: "ชลบุรี", validUntil: "2026-10-14", terms: "-" };
 
 describe("เตรียมบันทึกใบ / ตรวจใบเสนอ", () => {
   it("มูลค่า: พิมพ์มีลูกน้ำ/฿ ได้ · เว้นว่าง = null (ไม่ใช่ 0) · อ่านไม่ออก = ฟ้อง ไม่กลืนเป็น 0", () => {
@@ -21,7 +23,7 @@ describe("เตรียมบันทึกใบ / ตรวจใบเส�
 
   // 1 พ.ย. 69 (ใบ 0269 ลบช่องแพ็กเกจ): เดิม "ต้องเลือกแพ็กเกจเอง" → ตอนนี้บันทึกได้โดยไม่มีแพ็กเกจ และข้อมูลที่บันทึกไม่มีช่องแพ็กเกจ
   it("ไม่มีแพ็กเกจ — บันทึกได้ และไม่ส่งช่องแพ็กเกจไปฐาน", () => {
-    const r = เตรียมบันทึกใบ({ prospectId: 7, proposedDate: "2026-09-14", package: "exclusive" } as Parameters<typeof เตรียมบันทึกใบ>[0]);
+    const r = เตรียมบันทึกใบ({ ...ครบ, prospectId: 7, proposedDate: "2026-09-14", package: "exclusive" } as Parameters<typeof เตรียมบันทึกใบ>[0]);
     expect(ตรวจใบเสนอ(r)).toBeNull();
     expect(Object.keys(r)).not.toContain("package");
   });
@@ -122,6 +124,21 @@ describe("พิมพ์ใบค่าแฟรนไชส์", () => {
   });
 });
 
+describe("ช่องบังคับของใบ (บอสสั่ง 4 พ.ย. 69 · ตรงกับฐาน ใบ 0276)", () => {
+  const ฐาน = { prospectId: 7, proposedDate: "2026-09-14" };
+  it("ครบ 8 ช่อง = ผ่าน · เงื่อนไข \"-\" = ผ่าน · ค่าแรกเข้า 0 = กรอกแล้ว", () => {
+    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ ...ฐาน, ...ครบ }))).toBeNull();
+    expect(ช่องที่ขาดของใบ(เตรียมบันทึกใบ({ ...ฐาน, ...ครบ, amount: 0, terms: "-" }))).toEqual([]);
+  });
+  it("ขาดช่องไหน = บอกชื่อช่องนั้น (ตามลำดับบนฟอร์ม) · ช่องว่างล้วน = ขาด · ไม่บันทึก", () => {
+    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ ...ฐาน }))).toBe('ยังไม่ได้กรอก ค่าแรกเข้า · ระยะสัญญา · เป้ายอดซื้อต่อปี · ภาค · จังหวัด · ข้อเสนอมีผลถึง · เงื่อนไข (ไม่มี = ใส่ "-")');
+    for (const [ช่อง, ชื่อ] of [["amount", "ค่าแรกเข้า"], ["contractMonths", "ระยะสัญญา"], ["annualTarget", "เป้ายอดซื้อต่อปี"], ["validUntil", "ข้อเสนอมีผลถึง"]] as const) {
+      expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ ...ฐาน, ...ครบ, [ช่อง]: null })), ช่อง).toBe(`ยังไม่ได้กรอก ${ชื่อ}`);
+    }
+    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ ...ฐาน, ...ครบ, terms: "   " }))).toMatch(/^ยังไม่ได้กรอก เงื่อนไข/);
+  });
+});
+
 describe("ช่องตัวเลข 3 ช่อง (บอสสั่ง “เอา 3 ช่อง”)", () => {
   const ฐาน = { prospectId: 7, proposedDate: "2026-09-14" };
 
@@ -131,7 +148,7 @@ describe("ช่องตัวเลข 3 ช่อง (บอสสั่ง �
     for (const ผิด of ["หนึ่งปี", 1.5, 0, 121]) {
       expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ ...ฐาน, contractMonths: ผิด as unknown as number }))).toMatch(/ระยะสัญญา/);
     }
-    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ ...ฐาน, contractMonths: 120 }))).toBeNull();
+    expect(ตรวจใบเสนอ(เตรียมบันทึกใบ({ ...ฐาน, ...ครบ, contractMonths: 120 }))).toBeNull();
   });
 
   it("เป้ายอดซื้อต่อปี: มีลูกน้ำได้ · ติดลบ/อ่านไม่ออก = ฟ้อง", () => {

@@ -9,6 +9,7 @@ import { adminClient } from "./testDealers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างดีลเลอร์รหัสยาว, ล้างดีลเลอร์รหัสยาว, รหัสยาว } from "./longCodeDealer";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
+import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
 // ── ถ่ายรูปหน้าจอ "ก่อน/หลัง" ของหน้าที่แก้ในรอบ 2 (บอสสั่ง 19 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────
 //   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง PMS_SHOTS_DIR=<โฟลเดอร์> npm run test:prodbuild -- tests/scenario/zz-shots.spec.ts
@@ -271,10 +272,10 @@ test.describe("รอบ 3", () => {
     const r = await sb.from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", เลขส่ง);
     if (r.error) throw new Error(`ส่งใบไม่สำเร็จ: ${r.error.message}`);
     const hq = await db(ADMIN);
-    const p = await hq.from("dealer_prospects").insert({ name: ผู้สนใจ, status: "contacted" }).select("id").single();
+    const p = await hq.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: ผู้สนใจ, status: "contacted" }).select("id").single();
     if (p.error) throw new Error(p.error.message);
     ผู้สนใจId = (p.data as { id: number }).id;
-    const ใบ = await hq.from("dealer_package_proposals").insert({ prospect_id: ผู้สนใจId, proposed_date: "2026-10-20", amount: 100_000 })
+    const ใบ = await hq.from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: ผู้สนใจId, proposed_date: "2026-10-20", amount: 100_000 })
       .select("proposal_no").single();
     if (ใบ.error) throw new Error(ใบ.error.message);
     เลขใบค่าแฟรนไชส์ = (ใบ.data as { proposal_no: string }).proposal_no;

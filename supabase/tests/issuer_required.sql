@@ -111,7 +111,11 @@ begin
     'บันทึกการพิมพ์มีเลขใบและเวลา');
 
   -- ═══ งานระบบ (ข้อมูลตั้งต้นของชุดทดสอบ) ไม่ผ่านกติกานี้ ═══
+  -- ล้างข้อมูลบริษัทที่กรอกแล้วเป็นว่าง: ฐานปฏิเสธตั้งแต่ใบ 0276 แม้เป็นงานระบบ → จำลองแถวเก่าที่ว่างด้วยการข้ามด่าน
+  perform flowtest.must_fail($q$update dealer_settings set issuer = '{}' where dealer_code = 'ZZQ'$q$, 'required_field', 'ล้างข้อมูลบริษัทที่กรอกแล้ว = ปฏิเสธ (ใบ 0276)');
+  set local session_replication_role = replica;
   update dealer_settings set issuer = '{}' where dealer_code = 'ZZQ';
+  set local session_replication_role = origin;
   update quotations set status = 'draft' where dealer_code = 'ZZQ' and id = 'ZZQ-Q2';
   update quotations set status = 'sent_to_client' where dealer_code = 'ZZQ' and id = 'ZZQ-Q2';
   perform flowtest.ok((select status::text from quotations where dealer_code = 'ZZQ' and id = 'ZZQ-Q2') = 'sent_to_client',

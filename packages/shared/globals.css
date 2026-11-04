@@ -1634,3 +1634,9 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 [data-panel-head] > :first-child { flex: 1 1 auto; min-width: 0; }
 [data-panel-head] > :first-child * { overflow-wrap: anywhere; }
 [data-panel-head] > :last-child { flex-shrink: 0; }
+
+/* ── * แดงของช่องบังคับ (ตัวกลาง FieldLabel · ดาวบังคับ · บอสสั่ง 4 พ.ย. 69) ─────────────────────────────────────────
+   วาดด้วย ::after ไม่ใช่ตัวอักษรใน DOM → ข้อความป้าย/ชื่อช่องคงเดิม ("อีเมล" ไม่ใช่ "อีเมล*")
+   content: "*" / "" = ข้อความแทนว่าง โปรแกรมอ่านหน้าจอไม่อ่าน "*" · บรรทัดแรกสำรองให้เบราว์เซอร์ที่ไม่รู้จักรูปแบบ / ""
+   (รอบตรวจ deploy16: ป้ายเดิมมี "*" ใน DOM → getByLabel("รหัสสาขา", exact) หาไม่เจอ) */
+[data-required]::after { content: "*"; content: "*" / ""; }

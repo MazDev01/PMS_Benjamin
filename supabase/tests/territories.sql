@@ -2,6 +2,9 @@
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/territories.sql
 -- ทุกอย่างอยู่ในทรานแซกชันเดียวแล้ว rollback ท้ายไฟล์ · ผ่าน = บรรทัดสุดท้ายขึ้น "ALL PASS"
 begin;
+-- ล็อกตารางที่รายการนี้จะ alter (ปิด/เปิดตัวดัก · แก้ช่อง) ตั้งแต่ต้น ก่อนถือแถว/ตัวนับใด ๆ — ขอกลางทางขณะถือตัวนับอยู่
+--   งานหน้าเว็บที่เขียนตารางนั้นพร้อมกันค้างกันเอง (deadlock · รอบตรวจ deploy15 4 พ.ย. 69) · ตัวตรวจ scripts/check-sql-test-table-locks.mjs
+lock table leads in share row exclusive mode;
 
 create schema flowtest;
 create table flowtest.t_ctx as

@@ -7,6 +7,9 @@
 -- รัน: docker exec -i supabase_db_pms-dbcheck psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/quote_vat_required.sql
 -- ทรานแซกชันเดียวแล้ว rollback · ผ่าน = "ALL PASS"
 begin;
+-- ล็อกตารางที่รายการนี้จะ alter (ปิด/เปิดตัวดัก · แก้ช่อง) ตั้งแต่ต้น ก่อนถือแถว/ตัวนับใด ๆ — ขอกลางทางขณะถือตัวนับอยู่
+--   งานหน้าเว็บที่เขียนตารางนั้นพร้อมกันค้างกันเอง (deadlock · รอบตรวจ deploy15 4 พ.ย. 69) · ตัวตรวจ scripts/check-sql-test-table-locks.mjs
+lock table quotations in access exclusive mode;
 create schema vattest;
 create function vattest.ok(p_cond boolean, p_what text) returns void language plpgsql as $$
 begin if p_cond is not true then raise exception 'FAIL: %', p_what; end if; raise notice 'ok  %', p_what; end $$;
@@ -42,9 +45,12 @@ create function vattest.ตั้งVAT(p_dealer text, p_doc jsonb) returns void
 begin
   if p_doc is null then delete from public.dealer_settings where dealer_code = p_dealer; return; end if;
   -- แถวใหม่ต้องมีข้อมูลบริษัทครบ — ไม่งั้นส่งใบให้ลูกค้าไม่ได้ (ใบ 0247) · แถวเดิมแก้แค่ document
+  -- จำลองค่าที่เก็บไว้แบบต่าง ๆ (ว่าง/ข้อความ/ไม่มีช่อง) = แถวเก่า → ข้ามด่าน 0276 (ฐานไม่ยอมให้ล้าง VAT/อายุใบที่มีอยู่แล้ว)
+  set local session_replication_role = replica;
   insert into public.dealer_settings (dealer_code, document, issuer) values (p_dealer, p_doc,
     jsonb_build_object('company', 'ZZVAT บริษัททดสอบ ' || p_dealer, 'address', 'ZZVAT ที่อยู่ทดสอบ', 'phone', '000-000-0000', 'taxId', '0000000000000'))
     on conflict (dealer_code) do update set document = excluded.document;
+  set local session_replication_role = origin;
 end $$;
 grant usage on schema vattest to authenticated, service_role;
 grant execute on all functions in schema vattest to authenticated, service_role;

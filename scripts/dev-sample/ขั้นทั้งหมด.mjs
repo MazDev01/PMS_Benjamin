@@ -199,11 +199,13 @@ export async function สร้าง(ctx) {
       follow_up: ติดตาม == null ? null : วัน(ติดตาม) }).select("id").single(), `ผู้สนใจ ${status}`);
     pid[status] = r.id;
   }
-  const ใบค่า = (prospect, status, extra = {}) => hq.from("dealer_package_proposals").insert({ prospect_id: prospect, package: "standard", status,
-    proposed_date: วัน(-10), contract_months: 12, annual_target: 12_000_000, amount: 300_000, ...extra }).select("id").single();
-  ต้อง(await ใบค่า(pid.meeting, "sent"), "ใบค่าแฟรนไชส์ส่งแล้ว");
-  ต้อง(await ใบค่า(pid.profile_sent, "draft"), "ใบค่าแฟรนไชส์ร่าง");
-  { const r = ต้อง(await ใบค่า(pid.considering, "sent", { payment_due_on: วัน(-5) }), "ใบค่าแฟรนไชส์ที่จะตอบรับ");
+  // ใบต้องครบ 8 ช่องบังคับ (ใบ 0276) · ภาค/จังหวัด = ของผู้สนใจ · ช่องแพ็กเกจลบไปแล้ว (ใบ 0269)
+  const ใบค่า = (prospect, [region, province], status, extra = {}) => hq.from("dealer_package_proposals").insert({ prospect_id: prospect, status,
+    region, province, proposed_date: วัน(-10), valid_until: วัน(20), terms: "ราคานี้รวมค่าอบรมเริ่มต้น",
+    contract_months: 12, annual_target: 12_000_000, amount: 300_000, ...extra }).select("id").single();
+  ต้อง(await ใบค่า(pid.meeting, ["อีสาน", "ขอนแก่น"], "sent"), "ใบค่าแฟรนไชส์ส่งแล้ว");
+  ต้อง(await ใบค่า(pid.profile_sent, ["ใต้", "สุราษฎร์ธานี"], "draft"), "ใบค่าแฟรนไชส์ร่าง");
+  { const r = ต้อง(await ใบค่า(pid.considering, ["อีสาน", "อุดรธานี"], "sent", { payment_due_on: วัน(-5) }), "ใบค่าแฟรนไชส์ที่จะตอบรับ");
     ต้อง(await hq.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", r.id), "ตอบรับใบค่าแฟรนไชส์");
     ต้อง(await hq.from("dealer_proposal_payments").insert({ proposal_id: r.id, paid_on: วัน(-3), amount: 100_000, reference: "TR-ตัวอย่าง-01" }), "ชำระบางส่วน"); }
   console.log("✓ ผู้สนใจเป็นดีลเลอร์ 6 ราย · ใบค่าแฟรนไชส์ 3 ใบ (ร่าง · ส่งแล้ว · ตอบรับค้างชำระเลยกำหนด)");

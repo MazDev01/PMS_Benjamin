@@ -63,7 +63,7 @@ begin
 
   -- ── ผู้สนใจเป็นดีลเลอร์ ──
   m := flowtest.mark();
-  insert into dealer_prospects (name, province, status) values ('ZZAUDIT ผู้สนใจ', 'ตราด', 'meeting') returning id into pid;
+  insert into dealer_prospects (name, province, status, phone) values ('ZZAUDIT ผู้สนใจ', 'ตราด', 'meeting', '000-000-7700') returning id into pid;
   perform flowtest.ok(flowtest.n(m, 'เพิ่มผู้สนใจเป็นดีลเลอร์', 'ZZAUDIT ผู้สนใจ') = 1, 'เพิ่มผู้สนใจ → บันทึก 1 แถว');
   perform flowtest.ok(flowtest.who(m) = (select name from profiles where id = hq), 'ชื่อผู้ทำ = ชื่อในโปรไฟล์ของบัญชีที่เข้าระบบ (คิดที่ฐาน · แบบเดียวกับบันทึกเดิม)');
   m := flowtest.mark();
@@ -75,7 +75,7 @@ begin
 
   -- ── ใบค่าแฟรนไชส์: ออก · แก้ร่าง · ตั้งวันครบกำหนด · ส่ง ──
   m := flowtest.mark();
-  insert into dealer_package_proposals (prospect_id, amount, valid_until) values (pid, 300000, current_date + 30) returning * into p;
+  insert into dealer_package_proposals (prospect_id, amount, valid_until, contract_months, annual_target, region, province, terms) values (pid, 300000, current_date + 30, 12, 1000000, 'ตะวันออก', 'ตราด', '-') returning * into p;
   perform flowtest.ok(flowtest.n(m, 'ออกใบค่าแฟรนไชส์', p.proposal_no || ' · ZZAUDIT ผู้สนใจ') = 1, 'ออกใบ → บันทึก (เลขที่ · ผู้สนใจ · แพ็กเกจ)');
   m := flowtest.mark();
   update dealer_package_proposals set amount = 250000 where id = p.id;
@@ -103,7 +103,7 @@ begin
   perform flowtest.ok((select status from dealer_package_proposals where id = p.id) = 'superseded', 'ส่งเวอร์ชันใหม่ ใบเดิมถูกแทนที่เอง');
   perform flowtest.ok(flowtest.n(m, 'เปลี่ยนสถานะใบค่าแฟรนไชส์') = 1, 'ลงแค่ใบที่ผู้ใช้ส่ง ไม่ลงใบที่ระบบแทนที่ให้');
   m := flowtest.mark();
-  insert into dealer_package_proposals (prospect_id, amount) values (pid, 1) returning * into p;
+  insert into dealer_package_proposals (prospect_id, amount, contract_months, annual_target, region, province, valid_until, terms) values (pid, 1, 12, 1000000, 'ตะวันออก', 'ตราด', (current_date) + 30, '-') returning * into p;
   delete from dealer_package_proposals where id = p.id;
   perform flowtest.ok(flowtest.n(m, 'ลบใบค่าแฟรนไชส์ (ร่าง)', p.proposal_no || ' · ZZAUDIT ผู้สนใจ') = 1, 'ลบใบร่าง → บันทึก');
 
@@ -221,7 +221,7 @@ begin
   perform flowtest.as_root();
   m := flowtest.mark();
   update dealers set name = 'ZZAUDIT โดยระบบ' where code = 'CNX';
-  insert into dealer_prospects (name, province, status) values ('ZZAUDIT โดยระบบ', 'ตราด', 'new');
+  insert into dealer_prospects (name, province, status, phone) values ('ZZAUDIT โดยระบบ', 'ตราด', 'new', '000-000-7701');
   perform flowtest.ok(flowtest.n(m, 'แก้ไขดีลเลอร์') = 0 and flowtest.n(m, 'เพิ่มผู้สนใจเป็นดีลเลอร์') = 0, 'ไม่มีผู้ใช้ในคำขอ → ไม่ลงบันทึก');
 end $$;
 

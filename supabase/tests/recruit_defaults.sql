@@ -40,8 +40,8 @@ begin
   perform rdtest.ok((select config->'lostReasons' from hq_recruit_settings where id = 1) = '["ย้ายไปทำธุรกิจอื่น"]'::jsonb, '1) มีรายการเดิม = ไม่แตะ');
 
   -- ปฏิเสธ/หมดอายุต้องมีเหตุผล (ฐานกัน)
-  insert into dealer_prospects (name, province) values ('ZZTEST-ผู้สนใจเหตุผล', 'ตราด') returning id into pid;
-  insert into dealer_package_proposals (prospect_id, amount, status, valid_until, proposed_date) values (pid, 10000, 'sent', current_date - 1, current_date - 8) returning id into pr;
+  insert into dealer_prospects (name, province, phone) values ('ZZTEST-ผู้สนใจเหตุผล', 'ตราด', '000-000-7713') returning id into pid;
+  insert into dealer_package_proposals (prospect_id, amount, status, valid_until, proposed_date, contract_months, annual_target, region, province, terms) values (pid, 10000, 'sent', current_date - 1, current_date - 8, 12, 1000000, 'ตะวันออก', 'ตราด', '-') returning id into pr;
   perform rdtest.must_fail(format($q$update public.dealer_package_proposals set status = 'rejected' where id = %s$q$, pr), 'proposal_close_reason', '3) ปฏิเสธโดยไม่มีเหตุผล = ปฏิเสธ');
   perform rdtest.must_fail(format($q$update public.dealer_package_proposals set status = 'expired', close_reason = '  ' where id = %s$q$, pr), 'proposal_close_reason', '3) หมดอายุโดยเหตุผลว่าง = ปฏิเสธ');
   update dealer_package_proposals set status = 'rejected', close_reason = 'เงินทุนไม่พอ' where id = pr;

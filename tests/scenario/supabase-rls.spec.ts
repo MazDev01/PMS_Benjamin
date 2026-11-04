@@ -341,8 +341,10 @@ test("[dealer-settings] หัวกระดาษ/เอกสารของ�
   const เดิม = (await ryg.from("dealer_settings").select("*").eq("dealer_code", "RYG").maybeSingle()).data;
   try {
     // สาขาบันทึกหัวกระดาษของตัวเองได้
+    // ส่งเอกสารทั้งก้อนแบบหน้าตั้งค่าจริง (ค่าเดิม + ช่องที่แก้) — เดิมส่งแค่ quotePrefix ทับทั้งก้อน → ถ้าข้ออื่นตั้ง VAT ของ RYG ไว้ก่อน
+    //   = ล้าง VAT ที่มีค่าแล้ว ใบ 0276 ปฏิเสธ (ผ่าน/ตกตามลำดับไฟล์ · รอบตรวจ deploy16) · หน้าเว็บส่งครบเสมอ ({...DOC_DEFAULT, ...เดิม})
     const up = await ryg.from("dealer_settings")
-      .upsert({ dealer_code: "RYG", issuer, document: { quotePrefix: "RYG-" } }, { onConflict: "dealer_code" }).select();
+      .upsert({ dealer_code: "RYG", issuer, document: { ...((เดิม?.document as object | null) ?? {}), quotePrefix: "RYG-" } }, { onConflict: "dealer_code" }).select();
     expect(up.error, `RYG บันทึกไม่ได้: ${JSON.stringify(up.error)}`).toBeNull();
 
     // อ่านกลับมาได้ครบ — นี่คือสิ่งที่ทำให้ "ย้ายเครื่องแล้วหัวกระดาษไม่หาย"

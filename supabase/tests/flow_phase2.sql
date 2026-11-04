@@ -3,6 +3,18 @@
 -- ทุกอย่างอยู่ในทรานแซกชันเดียวแล้ว rollback ท้ายไฟล์ — ไม่ทิ้งข้อมูลไว้ในฐาน
 -- ผ่าน = บรรทัดสุดท้ายขึ้น "ALL PASS" · ตกข้อไหนหยุดที่ข้อนั้นพร้อมข้อความ
 begin;
+-- ล็อกตารางที่รายการนี้จะ alter (ปิด/เปิดตัวดัก · แก้ช่อง) ตั้งแต่ต้น ก่อนถือแถว/ตัวนับใด ๆ — ขอกลางทางขณะถือตัวนับอยู่
+--   งานหน้าเว็บที่เขียนตารางนั้นพร้อมกันค้างกันเอง (deadlock · รอบตรวจ deploy15 4 พ.ย. 69) · ตัวตรวจ scripts/check-sql-test-table-locks.mjs
+-- สองตาราง = ได้ครบหรือไม่ได้เลย (nowait วนขอใหม่) — ไม่ถือตารางหนึ่งค้างระหว่างรอตารางอื่น
+do $lk$ begin
+  loop
+    begin
+      lock table hq_quotes, quotations in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 
 create schema flowtest;
 create table flowtest.t_ctx as
@@ -160,7 +172,10 @@ begin
   perform flowtest.must_fail('update leads set status = ''WAITING'' where dealer_code = ''CNX'' and id = ''#T2-1''', 'lead_duplicate', 'เปิดรายที่ปิดแล้วกลับมาชนกับรายที่เปิดอยู่ไม่ได้');
   -- รอบ 4 (ใบ 0232): ไม่ชนรายอื่นก็เปิดกลับไม่ได้ — ดีลเลอร์ไม่มี "เปิดใหม่" แล้ว (ทดสอบใน lead_one_path.sql)
   perform flowtest.as_root();
+  -- จำลองแถวเก่าที่ไม่มีเบอร์: ข้ามด่าน 0276 (ฐานไม่ยอมให้ล้างเบอร์ที่มีอยู่แล้ว · แถวเก่าบนฐานจริงว่างมาก่อนใบนั้น)
+  set local session_replication_role = replica;
   update leads set phone = '' where dealer_code = 'CNX' and id = '#T2-3';
+  set local session_replication_role = origin;
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   update leads set note = 'แก้รายเก่าที่ไม่มีเบอร์' where dealer_code = 'CNX' and id = '#T2-3';
   perform flowtest.ok(found, 'รายเดิมที่ไม่มีเบอร์โทร (ข้อมูลเก่า) ยังแก้ได้ (เลื่อนขั้นเองไม่ได้แล้ว · ใบ 0232)');

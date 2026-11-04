@@ -57,9 +57,10 @@ alter table public.dealer_prospects enable trigger dealer_prospects_stage_guard;
 alter table public.dealer_package_proposals enable trigger dealer_package_proposals_before_write;
 alter table public.dealer_proposal_payments enable trigger dealer_proposal_payments_guard;
 `;
+// ใบแบบที่เว็บจริงสร้าง: ครบ 8 ช่องบังคับ (ใบ 0276 · ตัวกันช่องบังคับไม่ปิด — ชุดล้างต้องล้างใบแบบนี้ได้)
 const ใส่ใบ = (ผู้สนใจ, เลข, ยอด) => `
-insert into public.dealer_package_proposals (prospect_id, proposal_no, status, amount)
-  select id, '${เลข}', 'accepted', ${ยอด} from public.dealer_prospects where name = '${ผู้สนใจ}';
+insert into public.dealer_package_proposals (prospect_id, proposal_no, status, amount, contract_months, annual_target, region, province, proposed_date, valid_until, terms)
+  select id, '${เลข}', 'accepted', ${ยอด}, 12, 1000000, 'ตะวันออก', 'ระยอง', current_date - 10, current_date + 20, '-' from public.dealer_prospects where name = '${ผู้สนใจ}';
 insert into public.dealer_proposal_payments (proposal_id, paid_on, amount, reference)
   select id, current_date, ${ยอด}, 'TR-${เลข}' from public.dealer_package_proposals where proposal_no = '${เลข}';`;
 const บัญชี = (id, อีเมล, สาขา) => `

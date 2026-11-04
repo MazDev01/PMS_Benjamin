@@ -152,9 +152,9 @@ begin
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.ok(flowtest.n('select 1 from dealer_prospects') = 0 and flowtest.n('select 1 from dealer_prospect_activities') = 0,
     'ผู้สนใจเป็นดีลเลอร์ · ใบค่าแฟรนไชส์: ดีลเลอร์ไม่เห็นเลย');
-  perform flowtest.no_write($q$insert into dealer_prospects (name) values ('ZZVIS-ผู้สนใจ')$q$, 'ผู้สนใจ: ดีลเลอร์สร้างไม่ได้');
+  perform flowtest.no_write($q$insert into dealer_prospects (name, phone) values ('ZZVIS-ผู้สนใจ', '000-000-7714')$q$, 'ผู้สนใจ: ดีลเลอร์สร้างไม่ได้');
   perform flowtest.as_root();
-  insert into dealer_prospects (name) values ('ZZVIS-ผู้สนใจของ HQ');
+  insert into dealer_prospects (name, phone) values ('ZZVIS-ผู้สนใจของ HQ', '000-000-7715');
   select count(*) into cust from dealer_prospects;
   perform flowtest.as_hq(c.hq_uid);
   perform flowtest.ok(cust > 0 and flowtest.n('select 1 from dealer_prospects') = cust, 'ผู้สนใจ: HQ เห็นครบ (' || cust || ' ราย)');
