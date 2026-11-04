@@ -48,7 +48,7 @@ const แถวไฟล์: string[][] = [
   ["", "", "BJM PEB"],                                                                                                          // หัวข้อแทรก → ข้าม
   ["31", "เพจหนึ่ง", เบอร์(1), "อุบล", ชื่อ("หนึ่ง"), "24.8", "", "ทำอสังหาฯ", "ไม่มีคนรับ", "FB", "", "DM ปลอม"],               // จังหวัดย่อ → ตรวจ
   ["32", "เพจสอง", เบอร์(2), "กทม", ชื่อ("สอง"), "24.12", "", "", "ส่ง Company Profile แล้ว", "Line OA"],                        // จังหวัดย่อ + ข้ามปี
-  ["33", "เพจสาม", เบอร์(3), "ปทุม", ชื่อ("สาม"), "5.1", "", "", "รอโทรกลับ", "Direct"],                                           // 5.1 กำกวม → ตรวจ ไม่ยืนยัน
+  ["33", "เพจสาม", เบอร์(3), "ปทุม", ชื่อ("สาม"), "5.1", "", "", "รอโทรกลับ", "Direct"],                                           // 5.1 กำกวม → ต้องเลือกเดือน (เลือก ต.ค.) แล้วยืนยัน
   ["34", "เพจสี่", เบอร์(4), "เชียงใหม่", ชื่อ("สี่"), "26.8", "", "", "รอโทรกลับ", "Direct", "", "", "", "", "หมายเหตุปลอม"],    // พร้อม
   ["35", "เพจห้า", เบอร์(5), "ลำปาง", ชื่อ("ห้า"), "20.12", "5/1", "", "โทรแล้ว", "FB"],                                          // ข้ามปี เริ่ม→ติดตาม (5/1 ทับไม่กำกวม)
   ["36", "เพจหก", เบอร์(6), "ลำพูน", ชื่อ("หก"), "", "20.12", "", "", "Line Pu"],                                                // มีแต่วันติดตาม
@@ -134,25 +134,37 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await expect(ข้าม.locator("tr").filter({ hasText: เบอร์ฐาน(8) }), "?? → ข้าม").toContainText(`"??" อ่านไม่ออก`);
   await expect(ข้าม.locator("tr").filter({ hasText: เบอร์ฐาน(8) }), "304 → ข้าม").toContainText(`"304" อ่านไม่ออก`);
   await กล่อง.locator('[role="tab"][data-group="review"]').click();
-  // ยืนยันเฉพาะ อุบล · กทม · แถวรวม — 5.1 และ ??/304 ไม่ยืนยัน (ต้องไม่ถูกนำเข้า)
-  for (const n of [1, 2, 7]) await แถว(n).getByRole("button", { name: /^ยืนยัน แถว/ }).click();
-  await expect(นับ("ready")).toHaveAttribute("data-count", "6");
-  await expect(นับ("review")).toHaveAttribute("data-count", "2");
+  // วันที่กำกวม 5.1 (บอสสั่ง 4 พ.ย. 69): ยังไม่เลือกเดือน = ปุ่มยืนยันกดไม่ได้ → เลือก ต.ค. → ยืนยันได้ (ข้อ 1–2)
+  const ยืนยัน3 = แถว(3).getByRole("button", { name: /^ยืนยัน แถว/ });
+  await expect(ยืนยัน3, "ยังไม่เลือกเดือน → ปุ่มยืนยันกดไม่ได้").toBeDisabled();
+  const เลือก3 = แถว(3).getByLabel(/^เลือกเดือนวันเริ่มติดต่อ แถว/);
+  await expect(เลือก3.locator("option"), "ตัวเลือก ม.ค. / ต.ค. + ยังไม่เลือก").toHaveCount(3);
+  await เลือก3.selectOption(ไม่เกินวันนี้(5, 10));
+  await expect(ยืนยัน3, "เลือก ต.ค. แล้ว → ยืนยันได้").toBeEnabled();
+  // ยืนยัน อุบล · กทม · 5.1(ต.ค.) · แถวรวม — ??/304 อยู่กลุ่มข้าม (ไม่นำเข้า)
+  for (const n of [1, 2, 3, 7]) await แถว(n).getByRole("button", { name: /^ยืนยัน แถว/ }).click();
+  await expect(นับ("ready")).toHaveAttribute("data-count", "7");
+  await expect(นับ("review")).toHaveAttribute("data-count", "0");
 
   // ── 4) นำเข้า ──
-  await กล่อง.getByRole("button", { name: "นำเข้า 6 ราย" }).click();
+  await กล่อง.getByRole("button", { name: "นำเข้า 7 ราย" }).click();
   await กดตกลง(page);
-  await expect(กล่อง.getByTestId("import-result"), "นำเข้า 6 ราย").toHaveAttribute("data-inserted", "6", { timeout: 30_000 });
+  await expect(กล่อง.getByTestId("import-result"), "นำเข้า 7 ราย").toHaveAttribute("data-inserted", "7", { timeout: 30_000 });
   const { data: ชุด } = await svc.from("prospect_import_batches").select("id, row_count, inserted, skipped, created_by, cancelled_at").eq("file_name", ชื่อไฟล์);
   expect(ชุด ?? [], "ชุดนำเข้า 1 ชุด").toHaveLength(1);
-  expect(ชุด![0], "ชุด: ส่ง 6 · เพิ่ม 6 · ข้าม 0 · ผู้นำเข้า = บัญชี HQ ชั่วคราว").toMatchObject({ row_count: 6, inserted: 6, skipped: 0, created_by: "บัญชีทดสอบชั่วคราว", cancelled_at: null });
+  expect(ชุด![0], "ชุด: ส่ง 7 · เพิ่ม 7 · ข้าม 0 · ผู้นำเข้า = บัญชี HQ ชั่วคราว").toMatchObject({ row_count: 7, inserted: 7, skipped: 0, created_by: "บัญชีทดสอบชั่วคราว", cancelled_at: null });
   const เลขชุด = Number(ชุด![0].id);
   const { data: ราย } = await svc.from("dealer_prospects").select("name, phone, province, first_contact, follow_up, status, channel").eq("import_batch_id", เลขชุด);
-  expect((ราย ?? []).map(r => r.phone).sort(), "นำเข้าตรง 6 ราย (ไม่มี 5.1 · ??/304 · เบอร์ซ้ำ)").toEqual([1, 2, 4, 5, 6, 7].map(เบอร์ฐาน));
+  expect((ราย ?? []).map(r => r.phone).sort(), "นำเข้าตรง 7 ราย (ไม่มี ??/304 · เบอร์ซ้ำ)").toEqual([1, 2, 3, 4, 5, 6, 7].map(เบอร์ฐาน));
   const ของ = (n: number) => (ราย ?? []).find(r => r.phone === เบอร์ฐาน(n))!;
   expect(ของ(1), "อุบล → อุบลราชธานี · 24.8").toMatchObject({ name: ชื่อ("หนึ่ง"), province: "อุบลราชธานี", status: "contacted", channel: "Facebook", first_contact: ไม่เกินวันนี้(24, 8) });
   expect(ของ(2), "กทม → กรุงเทพมหานคร").toMatchObject({ name: ชื่อ("สอง"), province: "กรุงเทพมหานคร", status: "profile_sent" });
   expect(ของ(4), "26.8").toMatchObject({ name: ชื่อ("สี่"), province: "เชียงใหม่", status: "contacted", channel: "โทรเข้ามาเอง", first_contact: ไม่เกินวันนี้(26, 8) });
+  expect(ของ(3).first_contact, "5.1 เลือก ต.ค. → วันที่ที่นำเข้าเป็น 5 ต.ค. จริง (ข้อ 2)").toBe(ไม่เกินวันนี้(5, 10));
+  // ข้อ 3: แถวที่ไฟล์มีค่าวันที่ ต้องได้วันที่ทุกแถว (ไม่มีนำเข้าแล้ววันว่าง)
+  const มีวันเริ่มในไฟล์ = [1, 2, 3, 4, 5], มีวันติดตามในไฟล์ = [5, 6];
+  for (const k of มีวันเริ่มในไฟล์) expect(ของ(k).first_contact, `แถว ${k}: ไฟล์มีวันเริ่มติดต่อ → ต้องไม่ว่าง`).not.toBeNull();
+  for (const k of มีวันติดตามในไฟล์) expect(ของ(k).follow_up, `แถว ${k}: ไฟล์มีวันติดตาม → ต้องไม่ว่าง`).not.toBeNull();
   expect(ของ(7), "แถวอัดช่องเดียว").toMatchObject({ name: `${ชื่อ("รวม")} สกุลรวม`, province: "ปทุมธานี" });
   // [รอโค้ด ef · 0276] กติกาปีข้ามปี — soft: ตกแล้วยังเดินต่อให้ถึงขั้นยกเลิกชุด (ไม่ทิ้งข้อมูลค้าง)
   expect.soft(ของ(2).first_contact, "[รอโค้ด ef] 24.12 + ปีนี้ → เกินวันนี้ = ปีก่อน").toBe(ไม่เกินวันนี้(24, 12));
@@ -167,7 +179,7 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   const ค้น = page.getByLabel("ค้นหาผู้สนใจ");
   await ค้น.fill(ป้าย);
   const ในตาราง = page.locator("table tbody tr").filter({ hasText: ป้าย });
-  await expect(ในตาราง, "ผู้สนใจที่นำเข้าเห็นในตาราง 6 ราย").toHaveCount(6, { timeout: 20_000 });
+  await expect(ในตาราง, "ผู้สนใจที่นำเข้าเห็นในตาราง 7 ราย").toHaveCount(7, { timeout: 20_000 });
 
   // ── 6) ยกเลิกทั้งชุด ──
   await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click();
