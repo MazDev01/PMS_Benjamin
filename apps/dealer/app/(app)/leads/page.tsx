@@ -27,7 +27,10 @@ import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonP
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
-import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง, ป้ายบังคับ, ช่องบังคับลีด } from "@pms/shared/lib/fieldLabels";
+import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
+import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
+import { refช่องในกล่อง } from "../_form/ผูกช่องห่อ";
 import { formatPhone } from "@pms/shared/lib/format";
 import { fmtLeadValue } from "@pms/shared/lib/format";
 import { useEscapeKey } from "@pms/shared/lib/useModalA11y";
@@ -252,14 +255,25 @@ const OV_GROUP: React.CSSProperties = {
 };
 const OV_GROUP_FIRST: React.CSSProperties = { ...OV_GROUP, marginTop: 0 };
 
-function OvCell({ icon:Ic, label, children }:{ icon: typeof User; label:string; children:React.ReactNode }) {
+// ป้าย = <FieldLabel htmlFor="…" required> (* แดง · เขียนตรงจุดใช้ให้ตัวตรวจ check-required-marks อ่านได้) · ผิด = ข้อความใต้ช่อง (ตัวกลางช่องบังคับ · บอสสั่ง 4 พ.ย. 69)
+function OvCell({ icon:Ic, label, children, ป้าย, ผิด }:{ icon: typeof User; label:string; children:React.ReactNode; ป้าย?: React.ReactNode; ผิด?: string }) {
   return (
     <div style={OV_CELL}>
       <Ic size={14} color="#94a3b8" style={{ flexShrink:0 }} />
-      <span style={OV_CELL_LBL}>{label}</span>
-      <span style={{ flex:1, minWidth:0 }}>{children}</span>
+      {ป้าย ?? <span style={OV_CELL_LBL}>{label}</span>}
+      <span style={{ flex:1, minWidth:0 }}>{children}<FieldError>{ผิด}</FieldError></span>
     </div>
   );
+}
+
+/** ช่องบังคับของลีด (ฐานบังคับ 0186 + FLOW D2): ชื่อบริษัท · ผู้ติดต่อ ("-" ได้) · โทร · จังหวัดหน้างาน — ลำดับ = ลำดับบนฟอร์ม */
+function ช่องบังคับของลีด(v: { company: string; contact: string; phone: string; province: string }): ช่องบังคับ[] {
+  return [
+    { key: "company", label: ช่อง.บริษัท, value: v.company },
+    { key: "contact", label: ช่อง.ผู้ติดต่อ, value: v.contact, ข้อความ: ข้อความช่องขีด(ช่อง.ผู้ติดต่อ) },
+    { key: "phone", label: ช่อง.โทรศัพท์, value: v.phone },
+    { key: "province", label: ช่อง.จังหวัด, value: v.province },
+  ];
 }
 
 function OverviewEditor({ lead, persons, onSave }: {
@@ -285,7 +299,10 @@ function OverviewEditor({ lead, persons, onSave }: {
   // จงใจไม่ใส่ seed ใน dependency — seed ถูกสร้างใหม่ทุก render จะล้างสิ่งที่ผู้ใช้กำลังพิมพ์ทิ้ง
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(seed()); setต้นฉบับ(lead); }, [lead.id]);
-  const set = (k: keyof ReturnType<typeof seed>, v: string) => setF(p => ({ ...p, [k]: v }));
+  // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69): บันทึกตอนช่องบังคับว่าง = ไม่บันทึก · กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรกที่ขาด
+  const บังคับ = useช่องบังคับ();
+  const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
+  const set = (k: keyof ReturnType<typeof seed>, v: string) => { setF(p => ({ ...p, [k]: v })); บังคับ.ล้าง(k); };
   // อัปโหลดโลโก้เอาออกจากฟอร์ม (บอสสั่ง 26 ต.ค. 69 · ชุดช่องมาตรฐาน) — คอลัมน์ logo ในฐานคงไว้ ค่าเดิมไม่ถูกแตะ
 
   const dirty =
@@ -301,6 +318,7 @@ function OverviewEditor({ lead, persons, onSave }: {
   const inp = OV_INP;
 
   function save() {
+    if (!บังคับ.ตรวจ(ช่องบังคับของลีด(f))) return;
     const หลัง: LeadRow = {
       // value (ประเมินราคาเดิม) ไม่แก้จากหน้าเว็บแล้ว — ไม่อยู่ในฟอร์ม จึงคงค่าเดิมในฐาน
       ...lead, ...f, logo: f.logo || undefined,
@@ -338,12 +356,13 @@ function OverviewEditor({ lead, persons, onSave }: {
         <div style={OV_GROUP_FIRST}>{กลุ่มช่อง.ลูกค้า}</div>
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <Building2 size={14} color="#94a3b8" style={{ flexShrink:0 }} />
-          {/* ดาว * ตรงกับฟอร์มเพิ่มลีด (ช่องบังคับลีด · ผลตรวจ FLOW รอบ 5 · 28 ต.ค. 69) */}
-          <span style={cellLbl}>{ป้ายบังคับ("บริษัท")}</span>
-          <span style={{ flex:1, minWidth:0 }}><input aria-label="ชื่อบริษัท" value={f.company} onChange={e=>set("company",e.target.value)} style={inp} /></span>
+          {/* ดาว * แดงจากตัวกลาง (ช่องบังคับลีด · บอสสั่ง 4 พ.ย. 69) — ตรงกับฟอร์มเพิ่มลีด */}
+          <FieldLabel htmlFor="ov-company" required className="" style={cellLbl}>{ช่อง.บริษัท}</FieldLabel>
+          <span style={{ flex:1, minWidth:0 }}><input id="ov-company" aria-label="ชื่อบริษัท" value={f.company} onChange={e=>set("company",e.target.value)} {...ผูกช่อง("company", inp)} />
+            <FieldError>{บังคับ.ผิด.company}</FieldError></span>
         </div>
-        <Cell icon={User}    label={ป้ายบังคับ("ผู้ติดต่อ")}><input aria-label="ชื่อผู้ติดต่อ" value={f.contact} onChange={e=>set("contact",e.target.value)} style={inp} /></Cell>
-        <Cell icon={Phone}   label={ป้ายบังคับ("โทรศัพท์")}><input inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" style={inp} /></Cell>
+        <Cell icon={User}    label={ช่อง.ผู้ติดต่อ} ป้าย={<FieldLabel htmlFor="ov-contact" required className="" style={OV_CELL_LBL}>{ช่อง.ผู้ติดต่อ}</FieldLabel>} ผิด={บังคับ.ผิด.contact}><input id="ov-contact" aria-label="ชื่อผู้ติดต่อ" value={f.contact} onChange={e=>set("contact",e.target.value)} {...ผูกช่อง("contact", inp)} /></Cell>
+        <Cell icon={Phone}   label={ช่อง.โทรศัพท์} ป้าย={<FieldLabel htmlFor="ov-phone" required className="" style={OV_CELL_LBL}>{ช่อง.โทรศัพท์}</FieldLabel>} ผิด={บังคับ.ผิด.phone}><input id="ov-phone" inputMode="tel" value={f.phone} onChange={e=>set("phone",formatPhone(e.target.value))} placeholder="0XX-XXX-XXXX" {...ผูกช่อง("phone", inp)} /></Cell>
         <Cell icon={Mail}    label={ช่อง.อีเมล}><input aria-label={ช่อง.อีเมล} value={f.email} onChange={e=>set("email",e.target.value)} type="email" style={inp} /></Cell>
         {/* ⚠️ ทุกช่องเลือกในแผงนี้ต้องมีตัวเลือก "ยังไม่ระบุ" (บั๊กจริง พบ 10 ส.ค. 69)
             ค่าจริงเป็นว่างได้ทุกช่อง แต่ถ้าไม่มีตัวเลือกว่างให้ตรง เบราว์เซอร์จะโชว์ตัวเลือกแรกแทน
@@ -355,9 +374,11 @@ function OverviewEditor({ lead, persons, onSave }: {
         </div>
         {/* งาน — ฟอร์มขอราคาจาก HQ ดึงสามช่องนี้ไปกรอกให้ (แก้ได้ก่อนส่ง) · เดิม "ชื่อโครงการ" โชว์เฉพาะดีลที่มีค่า → ตอนนี้ทุกลีด */}
         <div style={OV_GROUP}>{กลุ่มช่อง.งาน}</div>
-        <Cell icon={MapPin}  label={ป้ายบังคับ("จังหวัด")}>
-          <ProvinceSelect label={ช่อง.จังหวัด} value={f.province} onChange={v=>set("province",v)} style={inp} options={myProvinces}
+        <Cell icon={MapPin}  label={ช่อง.จังหวัด} ป้าย={<FieldLabel htmlFor="ov-province" required className="" style={OV_CELL_LBL}>{ช่อง.จังหวัด}</FieldLabel>} ผิด={บังคับ.ผิด.province}>
+          <span ref={refช่องในกล่อง(บังคับ.ผูก("province"))} style={{ display:"block" }}>
+          <ProvinceSelect id="ov-province" label={ช่อง.จังหวัด} value={f.province} onChange={v=>set("province",v)} style={บังคับ.ผิด.province ? { ...inp, ...กรอบผิด } : inp} options={myProvinces}
             หลัง={f.province && !myProvinces.includes(f.province) && <option value={f.province}>{f.province} (นอกภาค)</option>} />
+          </span>
         </Cell>
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
@@ -387,19 +408,19 @@ function OverviewEditor({ lead, persons, onSave }: {
           </select>
         </Cell>
         {f.status === "CANCELLED" && (
-          <Cell icon={XCircle} label="เหตุผลที่เสีย">
+          <Cell icon={XCircle} label="เหตุผลที่เสีย" ป้าย={<FieldLabel htmlFor="ov-lost" required className="" style={OV_CELL_LBL}>เหตุผลที่เสีย</FieldLabel>}>
             {/* เหตุผลไม่ตรงรายการที่ HQ กำหนดไว้เลย → กรอกเองได้ (ค่า lostReason เดิม/พิมพ์เองใหม่ ไม่ผูกกับ
                 รายการตายตัว) — เดิมเลือกได้แค่จากลิสต์ ถ้าเหตุผลจริงไม่มีในนั้นก็บันทึกไม่ได้เลย
                 ช่องแก้เหตุผลของลีดที่ปิดไปแล้ว (แก้ในที่เดิมตามการ์ดภาพรวม) — ไม่ใช่กล่องเหตุผล (ปิดไม่สำเร็จ = กล่องเหตุผลกลาง) */}
             {lostReasons.includes(f.lostReason) || f.lostReason === "" ? (
-              <select aria-label="เหตุผลที่ปิดการขายไม่สำเร็จ" value={f.lostReason} onChange={e=>set("lostReason", e.target.value)} style={inp}>
+              <select id="ov-lost" aria-label="เหตุผลที่ปิดการขายไม่สำเร็จ" value={f.lostReason} onChange={e=>set("lostReason", e.target.value)} style={inp}>
                 <option value="">— เลือก —</option>
                 {lostReasons.map(r => <option key={r} value={r}>{r}</option>)}
                 <option value={OTHER_LOST_REASON}>อื่นๆ (ระบุเอง)</option>
               </select>
             ) : (
               <span style={{ display:"flex", gap:6, alignItems:"center" }}>
-                <input value={f.lostReason === OTHER_LOST_REASON ? "" : f.lostReason} onChange={e=>set("lostReason", e.target.value)} placeholder="ระบุเหตุผล…" style={inp} autoFocus />
+                <input id="ov-lost" aria-label="ระบุเหตุผลที่ปิดการขายไม่สำเร็จ" value={f.lostReason === OTHER_LOST_REASON ? "" : f.lostReason} onChange={e=>set("lostReason", e.target.value)} placeholder="ระบุเหตุผล…" style={inp} autoFocus />
                 <button type="button" onClick={()=>set("lostReason","")} title="กลับไปเลือกจากรายการ" style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", flexShrink:0, padding:4 }}><X size={14}/></button>
               </span>
             )}
@@ -524,15 +545,18 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     if (dupLead.similar[0]) return `ชื่อใกล้เคียงกับลูกค้าเป้าหมายที่มีอยู่ "${dupLead.similar[0].company}" — ตรวจก่อนว่าไม่ใช่รายการเดียวกัน`;
     return "";
   }, [isEdit, form.company, form.phone, customers, existingLeads, myDealer.code]);
-  function set(k: keyof typeof form, v: string) { setForm(p=>({...p,[k]:v})); if (submitError) setSubmitError(""); }
+  // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69) — กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรกที่ขาด
+  const บังคับ = useช่องบังคับ();
+  const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
+  function set(k: keyof typeof form, v: string) { setForm(p=>({...p,[k]:v})); บังคับ.ล้าง(k); if (submitError) setSubmitError(""); }
   function submit() {
     if (savingRef.current) return;
     // ช่องบังคับ (บอสสั่ง 17 ส.ค. 69 เพิ่มโทรศัพท์+จังหวัด) — ดาว * บนป้ายกำกับต้องตรงกับที่ตรวจจริงตรงนี้เสมอ
     //   โทรศัพท์: ไม่มีเบอร์ = ตามงานต่อไม่ได้เลย · จังหวัด: ใช้แบ่งเขต/ทำรายงานรายภาค ถ้าว่างตัวเลขจะเพี้ยน
-    const ค่าของ = { บริษัท: form.company, ผู้ติดต่อ: form.contact, โทรศัพท์: form.phone, จังหวัด: form.province } as Record<string, string>;
-    const missing = ช่องบังคับลีด.filter(k => !(ค่าของ[k] ?? "").trim()).map(k => ช่อง[k]);
-    if (missing.length) {
-      setSubmitError(`กรอกให้ครบก่อนบันทึก: ${missing.join(" · ")}`);
+    const ช่องบังคับ = ช่องบังคับของลีด(form);
+    if (!บังคับ.ตรวจ(ช่องบังคับ)) {
+      // สรุปจากผลตรวจตรง ๆ (บังคับ.สรุป อ่าน state ที่ยังไม่อัปเดตในรอบนี้)
+      setSubmitError(สรุปช่องที่ขาด(ช่องบังคับ, ตรวจช่องบังคับ(ช่องบังคับ)));
       return;
     }
     savingRef.current = true;
@@ -615,20 +639,23 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
               {/* ── ข้อมูลลูกค้า ── */}
               <div className="form-section">{กลุ่มช่อง.ลูกค้า}</div>
               <div className="col-full">
-                <label style={labelStyle}>{ป้ายบังคับ("บริษัท")}</label>
-                <input value={form.company} onChange={e=>set("company",e.target.value)}
-                  placeholder={ตัวอย่างช่อง.บริษัท} style={inputStyle} autoFocus />
+                <FieldLabel htmlFor="lf-company" required className="" style={labelStyle}>{ช่อง.บริษัท}</FieldLabel>
+                <input id="lf-company" value={form.company} onChange={e=>set("company",e.target.value)}
+                  placeholder={ตัวอย่างช่อง.บริษัท} {...ผูกช่อง("company", inputStyle)} autoFocus />
+                <FieldError>{บังคับ.ผิด.company}</FieldError>
                 {dupHint && <div style={dupHintStyle}>{dupHint}</div>}
               </div>
               <div>
-                <label style={labelStyle}>{ป้ายบังคับ("ผู้ติดต่อ")}</label>
-                <input value={form.contact} onChange={e=>set("contact",e.target.value)}
-                  placeholder="ชื่อผู้ติดต่อ" style={inputStyle} />
+                <FieldLabel htmlFor="lf-contact" required className="" style={labelStyle}>{ช่อง.ผู้ติดต่อ}</FieldLabel>
+                <input id="lf-contact" value={form.contact} onChange={e=>set("contact",e.target.value)}
+                  placeholder="ชื่อผู้ติดต่อ" {...ผูกช่อง("contact", inputStyle)} />
+                <FieldError>{บังคับ.ผิด.contact}</FieldError>
               </div>
               <div>
-                <label style={labelStyle}>{ป้ายบังคับ("โทรศัพท์")}</label>
-                <input inputMode="tel" value={form.phone} onChange={e=>set("phone",formatPhone(e.target.value))}
-                  placeholder="0XX-XXX-XXXX" style={inputStyle} />
+                <FieldLabel htmlFor="lf-phone" required className="" style={labelStyle}>{ช่อง.โทรศัพท์}</FieldLabel>
+                <input id="lf-phone" inputMode="tel" value={form.phone} onChange={e=>set("phone",formatPhone(e.target.value))}
+                  placeholder="0XX-XXX-XXXX" {...ผูกช่อง("phone", inputStyle)} />
+                <FieldError>{บังคับ.ผิด.phone}</FieldError>
               </div>
               <div>
                 <label style={labelStyle}>{ช่อง.อีเมล}</label>
@@ -647,9 +674,12 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
               <div className="form-section">{กลุ่มช่อง.งาน}</div>
               {/* จัดคู่บรรทัด (บอสสั่ง 30 ต.ค. 69): จังหวัดเต็มแถว · งานที่ต้องการ คู่ พื้นที่ · ช่องทางที่มา คู่ ผู้รับผิดชอบ */}
               <div className="col-full">
-                <label style={labelStyle} htmlFor="lf-province">{ป้ายบังคับ("จังหวัด")}</label>
-                <ProvinceSelect id="lf-province" label={ช่อง.จังหวัด} value={form.province} onChange={v=>set("province",v)} style={inputStyle} options={myProvinces}
+                <FieldLabel htmlFor="lf-province" required className="" style={labelStyle}>{ช่อง.จังหวัด}</FieldLabel>
+                <span ref={refช่องในกล่อง(บังคับ.ผูก("province"))} style={{ display:"block" }}>
+                <ProvinceSelect id="lf-province" label={ช่อง.จังหวัด} value={form.province} onChange={v=>set("province",v)} style={บังคับ.ผิด.province ? { ...inputStyle, ...กรอบผิด } : inputStyle} options={myProvinces}
                   หลัง={form.province && !myProvinces.includes(form.province) && <option value={form.province}>{form.province} (นอกภาค)</option>} />
+                </span>
+                <FieldError>{บังคับ.ผิด.province}</FieldError>
               </div>
               <div data-form-pair="งาน">
                 <label style={labelStyle} htmlFor="lf-project">{ช่อง.งาน}</label>
@@ -867,6 +897,8 @@ export default function LeadsPage() {
   const [apptForm, setApptForm] = useState<{ type: ApptType | ""; date: string; time: string; title: string; note: string }>({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" });
   const apptSavingRef = useRef(false); // กันกดบันทึกนัดซ้ำระหว่างรอเลขนัดจาก DB (H8 · guard synchronous)
   const [apptSaving, setApptSaving] = useState(false); // ไว้ disable ปุ่ม (visual)
+  // ช่องบังคับของนัด (ประเภท · วันที่ · เวลา) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
+  const นัดบังคับ = useช่องบังคับ();
   const [apptErr, setApptErr] = useState("");  // ฟ้องเมื่อยังไม่เลือกประเภทนัด — ห้ามกดแล้วเงียบ
   const [draft, setDraft] = useState<LeadRow|null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1016,7 +1048,7 @@ export default function LeadsPage() {
   const current = draft ?? selectedLead;
   const lid = current?.id ?? "";
 
-  function resetApptForm() { setApptAdding(false); setApptForm({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" }); }
+  function resetApptForm() { นัดบังคับ.ล้าง("apptType"); นัดบังคับ.ล้าง("apptDate"); นัดบังคับ.ล้าง("apptTime"); setApptAdding(false); setApptForm({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" }); }
   // พาไปแท็บใบเสนอราคาของลูกค้าเป้าหมายนี้ — ใช้ทั้งตอนพาไปออกใบใหม่ และตอนพาไปกดส่งใบที่มีอยู่
   const [quoteFormSignal, setQuoteFormSignal] = useState(0);
   // ปุ่ม "ขั้นต่อไป" สั่งแผงคำขอราคาเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) — n เปลี่ยน = สั่งใหม่
@@ -1167,6 +1199,8 @@ export default function LeadsPage() {
   function closeFieldPopup() { setPopupField(null); setEditPopupPos(null); setEditPopupVal(""); setEditPopupOptions(null); }
   function commitFieldPopup() {
     if (!draft || !popupField) return;
+    // ช่องบังคับของลีดห้ามบันทึกเป็นว่าง (บอสสั่ง 4 พ.ย. 69) — ตอนนี้ไม่มีที่เรียกป๊อปอัพนี้ กันไว้เผื่อมีคนต่อกลับ
+    if (ช่องบังคับของลีด({ company: "x", contact: "x", phone: "x", province: "x" }).some(c => c.key === popupField) && !editPopupVal.trim()) return;
     saveLead({ fields: { [popupField]: editPopupVal } as LeadFields });
     closeFieldPopup();
   }
@@ -1760,7 +1794,11 @@ export default function LeadsPage() {
           .slice().sort((a, b) => (a.date + a.time) < (b.date + b.time) ? 1 : -1);
         const saveAppt = async () => {
           if (apptSavingRef.current) return; // กันกดซ้ำระหว่างรอเลขนัดจาก DB (H8)
-          if (!apptForm.type) { setApptErr("เลือกประเภทนัดหมายก่อนบันทึก"); return; }
+          if (!นัดบังคับ.ตรวจ([
+            { key: "apptType", label: "ประเภทนัดหมาย", value: apptForm.type, ข้อความ: "เลือกประเภทนัดหมายก่อนบันทึก" },
+            { key: "apptDate", label: "วันที่", value: apptForm.date, ข้อความ: "ต้องระบุวันที่นัดหมาย" },
+            { key: "apptTime", label: "เวลา", value: apptForm.time, ข้อความ: "ต้องระบุเวลานัดหมาย" },
+          ])) return;
           setApptErr("");
           apptSavingRef.current = true; setApptSaving(true);
           try {
@@ -1789,6 +1827,7 @@ export default function LeadsPage() {
         };
         const aInp: React.CSSProperties = { width:"100%", border:"1px solid #e5e7eb", borderRadius:9, padding:"8px 11px", fontSize:"0.8rem", color:"#2D2D2D", outline:"none", boxSizing:"border-box", fontFamily:"inherit", background:"#fff" };
         const aLbl: React.CSSProperties = { display:"block", fontSize:"0.65rem", fontWeight:700, color:"#6b7280", marginBottom:5 };
+        const ผูกนัด = (k: string) => { const p = นัดบังคับ.ผูก(k); return { ...p, style: { ...aInp, ...(p.style ?? {}) } }; };
         const tabAppts = (
           <DrawerSection title="นัดหมาย">
             {!apptAdding ? (
@@ -1800,16 +1839,19 @@ export default function LeadsPage() {
                 <div style={{ fontSize:"0.8rem", fontWeight:800, color:"#2D2D2D", marginBottom:12 }}>นัดหมายใหม่ · {c.company}</div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                   <div className="col-full">
-                    <label style={aLbl}>ประเภทนัดหมาย</label>
-                    <select aria-label="ประเภทนัดหมาย" value={apptForm.type} onChange={e => setApptForm(f => ({ ...f, type: e.target.value as ApptType | "" }))} style={aInp}>
+                    <FieldLabel htmlFor="la-type" required className="" style={aLbl}>ประเภทนัดหมาย</FieldLabel>
+                    <select id="la-type" aria-label="ประเภทนัดหมาย" value={apptForm.type} onChange={e => { นัดบังคับ.ล้าง("apptType"); setApptForm(f => ({ ...f, type: e.target.value as ApptType | "" })); }} {...ผูกนัด("apptType")}>
                       <option value="">— ยังไม่ระบุ —</option>
                       {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
                     </select>
+                    <FieldError>{นัดบังคับ.ผิด.apptType}</FieldError>
                   </div>
-                  <div><label style={aLbl}>วันที่</label>
-                    <input type="date" value={apptForm.date} onChange={e => setApptForm(f => ({ ...f, date: e.target.value }))} style={aInp} /></div>
-                  <div><label style={aLbl}>เวลา</label>
-                    <input type="time" value={apptForm.time} onChange={e => setApptForm(f => ({ ...f, time: e.target.value }))} style={aInp} /></div>
+                  <div><FieldLabel htmlFor="la-date" required className="" style={aLbl}>วันที่</FieldLabel>
+                    <input id="la-date" aria-label="วันที่นัดหมาย" type="date" value={apptForm.date} onChange={e => { นัดบังคับ.ล้าง("apptDate"); setApptForm(f => ({ ...f, date: e.target.value })); }} {...ผูกนัด("apptDate")} />
+                    <FieldError>{นัดบังคับ.ผิด.apptDate}</FieldError></div>
+                  <div><FieldLabel htmlFor="la-time" required className="" style={aLbl}>เวลา</FieldLabel>
+                    <input id="la-time" aria-label="เวลานัดหมาย" type="time" value={apptForm.time} onChange={e => { นัดบังคับ.ล้าง("apptTime"); setApptForm(f => ({ ...f, time: e.target.value })); }} {...ผูกนัด("apptTime")} />
+                    <FieldError>{นัดบังคับ.ผิด.apptTime}</FieldError></div>
                   <div className="col-full"><label style={aLbl}>หัวข้อ</label>
                     <input value={apptForm.title} onChange={e => setApptForm(f => ({ ...f, title: e.target.value }))} placeholder={apptForm.type ? apptTypeLabel[apptForm.type] : "หัวข้อนัดหมาย"} style={aInp} /></div>
                   <div className="col-full"><label style={aLbl}>รายละเอียด</label>

@@ -1,0 +1,245 @@
+{
+  "คำอธิบาย": "รายการช่องบังคับทั้งระบบ (บอสสั่ง 4 พ.ย. 69) — ตัวตรวจ scripts/check-required-marks.mjs ตรวจว่าทุกช่องมี <FieldLabel htmlFor=id required> · เพิ่มฟอร์มใหม่/ช่องบังคับใหม่ = เพิ่มที่นี่ · ที่มา: ฐาน (ฐานบังคับ) · FLOW (ใช้ทำงานต่อ) · บอส (สั่งตรง)",
+  "ช่อง": [
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-prospect",
+      "ชื่อ": "ผู้สนใจ",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-amount",
+      "ชื่อ": "ค่าแรกเข้า",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-months",
+      "ชื่อ": "ระยะสัญญา",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-target",
+      "ชื่อ": "เป้ายอดซื้อต่อปี",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-region",
+      "ชื่อ": "ภาค",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-province",
+      "ชื่อ": "จังหวัด",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-date",
+      "ชื่อ": "วันที่เสนอ",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-valid",
+      "ชื่อ": "ข้อเสนอมีผลถึง",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "packages/shared/components/hq/ProposalFormModal.tsx",
+      "id": "pp-terms",
+      "ชื่อ": "เงื่อนไข (ใส่ - ได้)",
+      "ที่มา": "บอส"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "lf-company",
+      "ชื่อ": "เพิ่มลีด · ชื่อบริษัท",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "lf-contact",
+      "ชื่อ": "เพิ่มลีด · ผู้ติดต่อ (ใส่ - ได้)",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "lf-phone",
+      "ชื่อ": "เพิ่มลีด · โทรศัพท์",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "lf-province",
+      "ชื่อ": "เพิ่มลีด · จังหวัดหน้างาน",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "ov-company",
+      "ชื่อ": "แผงลีด · ชื่อบริษัท",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "ov-contact",
+      "ชื่อ": "แผงลีด · ผู้ติดต่อ (ใส่ - ได้)",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "ov-phone",
+      "ชื่อ": "แผงลีด · โทรศัพท์",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "ov-province",
+      "ชื่อ": "แผงลีด · จังหวัดหน้างาน",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "ov-lost",
+      "ชื่อ": "แผงลีด · เหตุผลที่เสีย",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "la-type",
+      "ชื่อ": "นัดในแผงลีด · ประเภท",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "la-date",
+      "ชื่อ": "นัดในแผงลีด · วันที่",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/leads/page.tsx",
+      "id": "la-time",
+      "ชื่อ": "นัดในแผงลีด · เวลา",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/calendar/page.tsx",
+      "id": "na-search",
+      "ชื่อ": "นัดใหม่ในปฏิทิน · ลูกค้าเป้าหมาย/ลูกค้า",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/calendar/page.tsx",
+      "id": "na-type",
+      "ชื่อ": "นัดใหม่ในปฏิทิน · ประเภท",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/calendar/page.tsx",
+      "id": "na-date",
+      "ชื่อ": "นัดใหม่ในปฏิทิน · วันที่",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/calendar/page.tsx",
+      "id": "na-time",
+      "ชื่อ": "นัดใหม่ในปฏิทิน · เวลา",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/calendar/page.tsx",
+      "id": "ae-type",
+      "ชื่อ": "แก้นัดในปฏิทิน · ประเภท",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/calendar/page.tsx",
+      "id": "ae-date",
+      "ชื่อ": "แก้นัดในปฏิทิน · วันที่",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/calendar/page.tsx",
+      "id": "ae-time",
+      "ชื่อ": "แก้นัดในปฏิทิน · เวลา",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/customers/page.tsx",
+      "id": "cu-company",
+      "ชื่อ": "แผงลูกค้า · ชื่อบริษัท",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/customers/page.tsx",
+      "id": "cu-name",
+      "ชื่อ": "แผงลูกค้า · ผู้ติดต่อ (ใส่ - ได้)",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/customers/page.tsx",
+      "id": "cu-phone",
+      "ชื่อ": "แผงลูกค้า · โทรศัพท์",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/customers/page.tsx",
+      "id": "nd-province",
+      "ชื่อ": "งานขายใหม่ของลูกค้าเดิม · จังหวัดหน้างาน",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/customers/page.tsx",
+      "id": "note-title",
+      "ชื่อ": "โน้ตลูกค้า · หัวข้อ (ใส่ - ได้)",
+      "ที่มา": "ฐาน"
+    },
+    {
+      "file": "apps/dealer/app/(app)/settings/page.tsx",
+      "id": "is-company",
+      "ชื่อ": "ผู้ออกใบ · ชื่อบริษัท",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/settings/page.tsx",
+      "id": "is-tax",
+      "ชื่อ": "ผู้ออกใบ · เลขผู้เสียภาษี (ใส่ - ได้)",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/settings/page.tsx",
+      "id": "is-phone",
+      "ชื่อ": "ผู้ออกใบ · โทรศัพท์",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/settings/page.tsx",
+      "id": "is-address",
+      "ชื่อ": "ผู้ออกใบ · ที่อยู่",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/settings/page.tsx",
+      "id": "doc-vat",
+      "ชื่อ": "ตั้งค่าใบเสนอราคา · VAT %",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/settings/page.tsx",
+      "id": "doc-validity",
+      "ชื่อ": "ตั้งค่าใบเสนอราคา · อายุใบ (วัน)",
+      "ที่มา": "FLOW"
+    },
+    {
+      "file": "apps/dealer/app/(app)/settings/page.tsx",
+      "id": "ps-name",
+      "ชื่อ": "ผู้รับผิดชอบ · ชื่อ-นามสกุล",
+      "ที่มา": "ฐาน"
+    }
+  ]
+}

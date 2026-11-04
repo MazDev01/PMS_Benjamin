@@ -277,7 +277,7 @@ export default function HQProposalsPage() {
         const qa: React.CSSProperties = { background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, height: 30, padding: "0 11px", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap", textDecoration: "none" };
         const การ์ด: React.CSSProperties = { background: "#fff", border: "1px solid #eef1f5", borderRadius: 14, padding: 16 };
         const หัวการ์ด: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: "0.62rem", fontWeight: 800, color: "#8a929c", letterSpacing: "0.06em", marginBottom: 12 };
-        const termLines = String(p.terms ?? "").split(/\r?\n/).map(t => t.trim()).filter(Boolean);
+        const termLines = String(p.terms ?? "").split(/\r?\n/).map(t => t.trim()).filter(t => t && t !== "-");   // "-" = ตั้งใจไม่มีเงื่อนไข (บอสสั่ง 4 พ.ย. 69) → ไม่แสดงหัวข้อ
         return (
           <div onClick={() => setดูรหัส(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
             <ModalCard onClose={() => setดูรหัส(null)} label="รายละเอียดใบค่าแฟรนไชส์"

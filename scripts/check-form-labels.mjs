@@ -30,7 +30,8 @@ const rows = [];
 for (const file of files) {
   const src = readFileSync(file, "utf8");
   const lines = src.split("\n");
-  const labelFor = new Set([...src.matchAll(/<label[^>]*htmlFor=["'{]([\w$.\-]+)/g)].map(m => m[1]));
+  // <FieldLabel htmlFor> = ป้ายกลางของช่องบังคับ (components/ui/FieldLabel.tsx · วาดเป็น <label htmlFor> · 4 พ.ย. 69)
+  const labelFor = new Set([...src.matchAll(/<(?:label|FieldLabel)\b[^>]*htmlFor=["'{]([\w$.\-]+)/g)].map(m => m[1]));
 
   const re = /<(input|select|textarea)\b/g;
   let m;
