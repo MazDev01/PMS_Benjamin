@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
+import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
 
 // ── หน้ารวม "ใบค่าแฟรนไชส์" ของสำนักงานใหญ่ ──
 //   บอสสั่ง 14 ก.ย. 69: "ทำหน้า ใบค่าแฟรนไชส์ ด้วย" · "ให้มีการแสดงในหน้าเดียวแบบดีลเลอร์"
@@ -118,6 +119,7 @@ test("[func·hq] ออกใบในแผงผู้สนใจ → ใบ�
   await expect(ฟอร์ม.getByText(/แพ็กเกจ/), "ฟอร์มไม่บังคับ/ไม่พูดถึงแพ็กเกจ").toHaveCount(0);
   await expect(ฟอร์ม.locator("#pp-province"), "จังหวัดเติมจากผู้สนใจให้").toHaveValue("ลำปาง");
   await ฟอร์ม.locator("#pp-amount").fill("90000");
+  await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
 
   const แถวใบ = await waitRow<{ id: number; proposal_no: string; status: string; amount: number }>(sb, "dealer_package_proposals", { prospect_id: prospectId });
@@ -207,6 +209,7 @@ test("[func·hq] แถวใบร่าง 2 ปุ่ม (ดู · พิม
   const ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await expect(ฟอร์ม.locator("#pp-amount"), "ฟอร์มแก้ต้องมีค่าเดิม").toHaveValue("100,000");
   await ฟอร์ม.locator("#pp-amount").fill("120000");
+  await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
   await waitRow(sb, "dealer_package_proposals", { id: ใบId, amount: 120_000 });
   await แผง.getByRole("button", { name: `ลบใบ ${เลขที่}` }).click();

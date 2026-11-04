@@ -5,6 +5,7 @@ import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { กดตกลงในกล่องยืนยัน } from "./helpers";
 import { ลบสาขาทดสอบตรง } from "./testDealers";
+import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
 
 // ── ลูกค้าเป้าหมายของสำนักงานใหญ่ = ผู้สนใจเป็นดีลเลอร์ (บอสสั่ง 14 ก.ย. 69) ─────────
 //   "เพิ่มโมดูลลูกค้าเป้าหมายของทางฝั่ง HQ และเมื่อสำเร็จจากลูกค้าเป้าหมายจะกลายเป็นดีลเลอร์"
@@ -419,6 +420,7 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
   await ใบ.locator("#pp-months").fill("12");
   await ใบ.locator("#pp-target").fill("2000000");
   await expect(ใบ.locator("#pp-target"), "เป้ายอดซื้อต้องขึ้นลูกน้ำ").toHaveValue("2,000,000");
+  await กรอกช่องบังคับใบที่ว่าง(ใบ);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
   await ใบ.getByRole("button", { name: "บันทึกใบ" }).click();
 
   const แถวใบ = await waitRow<{ id: number; proposal_no: string; status: string; amount: number; contract_months: number; annual_target: number }>(
