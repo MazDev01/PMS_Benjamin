@@ -3,6 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { ช่องทางที่เข้ามาเริ่มต้น, ช่องทางติดต่อเริ่มต้น, บวกวัน } from "../../packages/shared/lib/recruitSettings";
 import { settle } from "./helpers";
+import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
 
 // ── ตั้งค่า › หาดีลเลอร์ (บอสสั่ง 14 ก.ย. 69 · ข้อ 1 + ข้อ 2) ─────────────────────────────
 // สิ่งที่ต้องพิสูจน์:
@@ -163,6 +164,7 @@ test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติม
   await ฟอร์ม.locator("#pp-amount").fill("99000");
   await expect(ฟอร์ม.locator("#pp-amount"), "ช่องเงินใส่ลูกน้ำให้").toHaveValue("99,000");
   await ฟอร์ม.locator("#pp-months").fill("12");
+  await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
   await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
 
   const แถว = await waitRow<{ amount: number; contract_months: number; terms: string; valid_until: string }>(

@@ -18,6 +18,7 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
+import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
 const ป้ายชนิด: Record<ProspectActivity["kind"], { type: string; label: string }> = {
@@ -55,7 +56,13 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
     // eslint-disable-next-line react-hooks/exhaustive-deps -- เติมตอนเปิดฟอร์มเท่านั้น ไม่ทับที่ผู้ใช้กำลังแก้
   }, [formOpen, prospect.id]);
 
+  // ช่องบังคับ: ช่องทาง · คุยอะไรไป (ฐานบังคับ · 4 พ.ย. 69 ตัวกลาง) — ขาด = กรอบแดง + ข้อความใต้ช่อง · ตัวตรวจเดิมยังตรวจความยาว/วันย้อนหลัง
+  const บังคับ = useช่องบังคับ();
   async function บันทึก() {
+    if (!บังคับ.ตรวจ([
+      { key: "channel", label: "ช่องทาง", value: channel, ข้อความ: "ต้องเลือกช่องทางที่ติดต่อ" },
+      { key: "body", label: "คุยอะไรไป", value: body, ข้อความ: "ต้องบันทึกว่าคุยอะไรไป" },
+    ])) return;
     const row = เตรียมบันทึกการติดต่อ({ prospectId: prospect.id, channel, body, nextFollowUp });
     const ผิด = ตรวจบันทึกการติดต่อ(row, APP_NOW_ISO);
     if (ผิด) { setErr(ผิด); return; }
@@ -94,11 +101,13 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
           {err && <div role="alert" style={{ fontSize: "0.74rem", color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "7px 10px", marginBottom: 10 }}>{err}</div>}
           <fieldset disabled={busy} style={{ border: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
             <div>
-              <label className="form-label" htmlFor="pc-channel">ช่องทาง *</label>
-              <select id="pc-channel" className="form-select" value={channel} onChange={e => setChannel(e.target.value)} style={{ cursor: "pointer" }}>
+              <FieldLabel htmlFor="pc-channel" required>ช่องทาง</FieldLabel>
+              <select id="pc-channel" className="form-select" value={channel} {...บังคับ.ผูก("channel")}
+                onChange={e => { บังคับ.ล้าง("channel"); setChannel(e.target.value); }} style={{ cursor: "pointer", ...(บังคับ.ผิด.channel ? กรอบผิด : null) }}>
                 <option value="">— ยังไม่ระบุ —</option>
                 {ช่องทาง.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              <FieldError>{บังคับ.ผิด.channel}</FieldError>
             </div>
             <div>
               <label className="form-label" htmlFor="pc-next">นัดติดตามครั้งถัดไป</label>
@@ -108,9 +117,10 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
               </div>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label" htmlFor="pc-body">คุยอะไรไป *</label>
-              <textarea id="pc-body" className="form-input" rows={3} value={body} onChange={e => setBody(e.target.value)}
-                placeholder="เช่น สนใจเป็นดีลเลอร์ ขอข้อมูลค่าแรกเข้า นัดคุยอีกครั้งสัปดาห์หน้า" style={{ resize: "vertical" }} />
+              <FieldLabel htmlFor="pc-body" required>คุยอะไรไป</FieldLabel>
+              <textarea id="pc-body" className="form-input" rows={3} value={body} {...บังคับ.ผูก("body")} onChange={e => { บังคับ.ล้าง("body"); setBody(e.target.value); }}
+                placeholder="เช่น สนใจเป็นดีลเลอร์ ขอข้อมูลค่าแรกเข้า นัดคุยอีกครั้งสัปดาห์หน้า" style={{ resize: "vertical", ...(บังคับ.ผิด.body ? กรอบผิด : null) }} />
+              <FieldError>{บังคับ.ผิด.body}</FieldError>
             </div>
           </fieldset>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>

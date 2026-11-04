@@ -4,6 +4,8 @@
 //   C) กรณีปกติ (ตัวคุม): สำรอง + ซ้อมกู้ผ่าน → ถึงขั้นลงใบ — พิสูจน์ว่า B ตกเพราะการซ้อมกู้ ไม่ใช่เพราะอย่างอื่น
 //   ล็อกค้างของโปรเซสที่ตายแล้ว (ต้องเก็บกวาดแล้วไปต่อ) ตรวจที่ tests/unit/prodLock.test.ts
 //   I–J) ตัวนับเลขเทียบกับไฟล์สำรองเอง (ต้นทางเลื่อนหลัง dump = ผ่าน · ฐานที่กู้ต่างไฟล์ = ไม่ผ่าน)
+//   K) ด่านพิมพ์เลขใบ (บอสสั่ง 4 พ.ย. 69 · เหตุ 0275 ลงเพราะกด Enter ที่ [Y/n] ของ CLI): Enter/Y/เลขผิด = ไม่ลง · เลขใบสุดท้าย = ลง
+//   L) บันทึกการรันทุกครั้ง (<PMS_BACKUP_ROOT>/db-push-log.jsonl): ทุกครั้งที่รันมี 1 บรรทัด มีเวลาเริ่ม/จบ ผล ใบ ผู้ใช้ โฟลเดอร์
 // รัน: npm run test:push-guard   (ต้องมี Docker + ฐานทดสอบ pms-dbcheck · ฐานซ้อมกู้ pms-blank ตัวสคริปต์เปิด/ปิดเอง)
 import { spawn, spawnSync } from "node:child_process";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -21,10 +23,17 @@ const RECORD = path.join(tmp, "gate-passed.json");
 บันทึกเมื่อผ่าน({ ตก: 0, ตัวตรวจ: 0, dir: "supabase/migrations", record: RECORD, ป้าย: "ทดสอบเครื่องมือ" });
 const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT, PMS_GATE_RECORD: RECORD };
 delete base.PMS_PROD_LOCK_HELD; delete base.PMS_DRILL_SABOTAGE; delete base.PMS_FAKE_EMPTY; delete base.PMS_MIGRATIONS_DIR;
-const รัน = (file, extraEnv = {}, a = []) => {
-  const r = spawnSync("node", [file, ...a], { env: { ...base, ...extraEnv }, encoding: "utf8", maxBuffer: 1 << 28 });
+delete base.PMS_PUSH_TEST_PENDING; delete base.PMS_PUSH_LOG;   // บันทึกการรันไปที่ค่าตั้งต้น <PMS_BACKUP_ROOT>/db-push-log.jsonl (= ROOT ของข้อทดสอบ)
+const LOG = path.join(ROOT, "db-push-log.jsonl");
+// input = คำตอบที่พิมพ์ให้ด่านพิมพ์เลขใบ (stdin) · ไม่ใส่ = ไม่มีคำตอบ (stdin ปิด) = ไม่ลง
+const รัน = (file, extraEnv = {}, a = [], input = "") => {
+  const r = spawnSync("node", [file, ...a], { env: { ...base, ...extraEnv }, encoding: "utf8", maxBuffer: 1 << 28, input });
   return { code: r.status, out: `${r.stdout}\n${r.stderr}` };
 };
+// db-push ทุกครั้งที่รัน + ผลที่ต้องขึ้นในบันทึก (ตรวจท้ายไฟล์ ข้อ L)
+const คาดบันทึก = [];
+const รันpush = (ป้าย, ผลคาด, extraEnv = {}, input = "") => { คาดบันทึก.push({ ป้าย, ผล: ผลคาด }); return รัน("scripts/db-push-prod.mjs", extraEnv, [], input); };
+const เลขล่าสุด = readdirSync("supabase/migrations").filter(n => /^\d{4}_.*\.sql$/.test(n)).sort().at(-1).slice(0, 4);
 let ตก = 0;
 const ผล = (ok, m, extra = "") => { if (!ok) ตก++; console.log(`${ok ? "✓" : "✗"} ${m}${!ok && extra ? `\n    ${extra.slice(-600).replace(/\n/g, "\n    ")}` : ""}`); };
 
@@ -33,7 +42,7 @@ const ผล = (ok, m, extra = "") => { if (!ok) ตก++; console.log(`${ok ? "
   const ค้าง = spawn(process.execPath, ["-e", "setTimeout(()=>{}, 600000)"], { stdio: "ignore" });
   writeFileSync(LOCK, JSON.stringify({ token: "ทดสอบ", pid: ค้าง.pid, งาน: "สำรองฐานจริง + ซ้อมกู้", เริ่ม: new Date().toISOString() }));
   rmSync(MARK, { force: true });
-  const p = รัน("scripts/db-push-prod.mjs");
+  const p = รันpush("A ล็อกชน", "ไม่ลง");
   ผล(p.code === 3, `A1 db:push ตัวที่สองหยุดทันที (exit ${p.code})`, p.out);
   ผล(/มีงานอื่นกำลังแตะฐานจริงอยู่/.test(p.out) && /สำรองฐานจริง \+ ซ้อมกู้/.test(p.out), "A2 บอกว่ารองานอะไรอยู่", p.out);
   ผล(!existsSync(MARK), "A3 ไม่ถึงขั้นลงใบ");
@@ -47,18 +56,18 @@ const ผล = (ok, m, extra = "") => { if (!ok) ตก++; console.log(`${ok ? "
 // ── B) ซ้อมกู้ไม่ผ่าน → ไม่ลงใบ ──
 {
   rmSync(MARK, { force: true });
-  const p = รัน("scripts/db-push-prod.mjs", { PMS_DRILL_SABOTAGE: "1" });
+  const p = รันpush("B ซ้อมกู้ไม่ผ่าน", "ตก", { PMS_DRILL_SABOTAGE: "1" }, `${เลขล่าสุด}\n`);
   ผล(p.code !== 0, `B1 db:push จบแบบไม่สำเร็จ (exit ${p.code})`, p.out);
   ผล(!existsSync(MARK), "B2 ไม่ถึงขั้นลงใบ", p.out);
   ผล(/ซ้อมกู้แล้วข้อมูลไม่ครบ/.test(p.out) && /ตาราง th_provinces/.test(p.out) && /ไม่ลงใบ/.test(p.out), "B3 บอกเหตุผลภาษาไทย: ตารางไหนไม่ตรง และไม่ลงใบ", p.out);
   ผล(!existsSync(LOCK), "B4 ปล่อยล็อกแล้ว");
 }
 
-// ── C) กรณีปกติ ──
+// ── C) กรณีปกติ (พิมพ์เลขใบสุดท้ายถูก) ──
 {
   rmSync(MARK, { force: true });
-  const p = รัน("scripts/db-push-prod.mjs");
-  ผล(p.code === 0 && existsSync(MARK), `C1 สำรอง + ซ้อมกู้ผ่าน → ถึงขั้นลงใบ (exit ${p.code})`, p.out);
+  const p = รันpush("C ปกติ พิมพ์เลขถูก", "ลง", {}, `${เลขล่าสุด}\n`);
+  ผล(p.code === 0 && existsSync(MARK), `C1 สำรอง + ซ้อมกู้ผ่าน + พิมพ์เลขใบ ${เลขล่าสุด} → ถึงขั้นลงใบ (exit ${p.code})`, p.out);
   ผล(/✅ ผ่าน — สำรองและซ้อมกู้ครบ/.test(p.out), "C2 บอกว่าสำรองและซ้อมกู้ผ่าน", p.out);
   ผล(!existsSync(LOCK), "C3 ปล่อยล็อกแล้ว");
 }
@@ -68,7 +77,7 @@ const ผล = (ok, m, extra = "") => { if (!ok) ตก++; console.log(`${ok ? "
 const ไม่มีstack = (out) => !/TypeError|SyntaxError|ReferenceError|\n\s+at (file:|node:|.*\.m?js:\d+)/.test(out);
 {
   rmSync(MARK, { force: true });
-  const p = รัน("scripts/db-push-prod.mjs", { PMS_FAKE_EMPTY: "dump" });
+  const p = รันpush("D dump ว่าง", "ตก", { PMS_FAKE_EMPTY: "dump" }, `${เลขล่าสุด}\n`);
   ผล(p.code !== 0 && !existsSync(MARK), `D1 dump ได้ไฟล์ว่าง → ไม่ลงใบ (exit ${p.code})`, p.out);
   ผล(/ขั้น "ดึงไฟล์สำรอง 2-data\.sql" ล้ม — ได้ไฟล์ว่างหรือเล็กผิดปกติ/.test(p.out), "D2 บอกเป็นภาษาไทยว่าขั้นไหนล้มและเพราะอะไร", p.out);
   ผล(ไม่มีstack(p.out), "D3 ไม่มี stack trace ของ Node", p.out);
@@ -78,7 +87,7 @@ const ไม่มีstack = (out) => !/TypeError|SyntaxError|ReferenceError|\n\
 // ── E) คำสั่งนับแถวคืนผลว่าง (จุดที่ล้มจริง) → หยุดพร้อมข้อความภาษาไทย · ไม่มี stack trace ──
 {
   rmSync(MARK, { force: true });
-  const p = รัน("scripts/db-push-prod.mjs", { PMS_FAKE_EMPTY: "นับแถวทุกตารางของต้นทาง" });
+  const p = รันpush("E นับแถวว่าง", "ตก", { PMS_FAKE_EMPTY: "นับแถวทุกตารางของต้นทาง" }, `${เลขล่าสุด}\n`);
   ผล(p.code !== 0 && !existsSync(MARK), `E1 นับแถวได้ผลว่าง → ไม่ลงใบ (exit ${p.code})`, p.out);
   ผล(/ขั้น "นับแถวทุกตารางของต้นทาง" ล้ม — คำสั่งสำเร็จแต่ไม่ได้ผลลัพธ์กลับมาเลย/.test(p.out), "E2 บอกเป็นภาษาไทยว่าขั้นไหนล้มและเพราะอะไร", p.out);
   ผล(ไม่มีstack(p.out), "E3 ไม่มี stack trace ของ Node", p.out);
@@ -86,7 +95,7 @@ const ไม่มีstack = (out) => !/TypeError|SyntaxError|ReferenceError|\n\
 
 // ── F) ชื่อโฟลเดอร์สำรองที่ db-push ตั้งให้ต้องไปถึงตัวสำรอง (ตรวจปลายทางรวม · ต้นเหตุที่ชื่อหายในโหมดฐานจริงพิสูจน์ที่ tests/unit/backupArgs.test.ts) ──
 {
-  const ชื่อ = readdirSync(ROOT);
+  const ชื่อ = readdirSync(ROOT).filter(n => n !== "db-push-log.jsonl");
   ผล(ชื่อ.some(n => n.endsWith("-ก่อน-db-push")) && !ชื่อ.some(n => /-(local|prod)$/.test(n)), `F1 โฟลเดอร์สำรองชื่อตามที่ db-push ตั้ง (${ชื่อ.join(", ")})`);
 }
 
@@ -106,7 +115,7 @@ for (const [ป้าย, แก้, ใบ, ข้อความ] of [
 ]) {
   rmSync(MARK, { force: true });
   const ก่อน = existsSync(ROOT) ? readdirSync(ROOT).length : 0;
-  const p = รัน("scripts/db-push-prod.mjs", { PMS_MIGRATIONS_DIR: ใบชุดทดลอง(แก้) });
+  const p = รันpush(`${ป้าย[0]} ใบไม่ผ่านรอบตรวจ`, "ไม่ลง", { PMS_MIGRATIONS_DIR: ใบชุดทดลอง(แก้) }, `${ใบ}\n`);
   ผล(p.code === 4 && !existsSync(MARK), `${ป้าย[0]}1 ${ป้าย.slice(2)} → หยุด ไม่ลงใบ (exit ${p.code})`, p.out);
   ผล(ข้อความ.test(p.out), `${ป้าย[0]}2 บอกบนจอว่า "ใบ ${ใบ} ยังไม่ผ่านรอบตรวจเต็ม รอให้ผ่านก่อน"`, p.out);
   ผล((existsSync(ROOT) ? readdirSync(ROOT).length : 0) === ก่อน && !existsSync(LOCK), `${ป้าย[0]}3 หยุดก่อนเริ่มสำรอง · ไม่ค้างล็อก`);
@@ -123,6 +132,44 @@ for (const [ป้าย, แก้, ใบ, ข้อความ] of [
   ผล(/\(ข้อทดสอบ\) เลื่อนตัวนับในฐานที่กู้ 1/.test(s.out), "J1 จำลองตัวนับในฐานที่กู้ไม่ตรงได้จริง", s.out);
   ผล(s.code !== 0 && /ตัวนับเลข public\.audit_log_id_seq: ในไฟล์สำรอง \d+ · กู้ได้ \d+/.test(s.out), `J2 ตัวนับกู้ต่างจากไฟล์สำรอง 1 → ไม่ผ่าน บอกตัวนับที่ไม่ตรง (exit ${s.code})`, s.out);
   ผล(!existsSync(LOCK), "J3 ปล่อยล็อกแล้ว");
+}
+
+// ── K) ด่านพิมพ์เลขใบ: ตัวถาม [Y/n] ของ CLI ไม่ใช่ด่านอีกต่อไป · ต้องพิมพ์เลขใบสุดท้ายเท่านั้น ──
+//   (สำรอง + ซ้อมกู้ผ่านทุกข้อ — ไม่ลงเพราะด่านพิมพ์เลข ไม่ใช่เพราะอย่างอื่น · ข้อ C = พิมพ์ถูกแล้วลง)
+for (const [ข้อ, ป้าย, input, env] of [
+  ["K1", "กด Enter เฉย ๆ", "\n", {}],
+  ["K2", "พิมพ์ Y", "Y\n", {}],
+  ["K3", "พิมพ์ yes", "yes\n", {}],
+  ["K4", "ไม่มีคำตอบเลย (stdin ปิด)", "", {}],
+  ["K5", "หลายใบ พิมพ์เลขใบแรก (ไม่ใช่ใบสุดท้าย)", "0901\n", { PMS_PUSH_TEST_PENDING: "0902_zz_b.sql,0901_zz_a.sql" }],
+]) {
+  rmSync(MARK, { force: true });
+  const p = รันpush(`${ข้อ} ${ป้าย}`, "ไม่ลง", env, input);
+  ผล(p.code !== 0 && !existsSync(MARK) && /✅ ผ่าน — สำรองและซ้อมกู้ครบ/.test(p.out) && /✋ ไม่ลงใบ/.test(p.out), `${ข้อ} ${ป้าย} → ไม่ลง (exit ${p.code})`, p.out);
+}
+{
+  rmSync(MARK, { force: true });
+  const p = รันpush("K6 หลายใบ พิมพ์เลขใบสุดท้าย", "ลง", { PMS_PUSH_TEST_PENDING: "0902_zz_b.sql,0901_zz_a.sql" }, "0902\n");
+  ผล(p.code === 0 && existsSync(MARK), `K6 หลายใบ พิมพ์เลขใบสุดท้าย 0902 → ลง (exit ${p.code})`, p.out);
+  ผล(/• 0901_zz_a\.sql/.test(p.out) && /• 0902_zz_b\.sql/.test(p.out) && /พิมพ์เลขใบสุดท้าย "0902"/.test(p.out), "K7 จอแสดงรายชื่อใบที่จะลงทุกใบ + บอกเลขที่ต้องพิมพ์", p.out);
+  ผล(!existsSync(LOCK), "K8 ปล่อยล็อกแล้ว");
+}
+
+// ── L) บันทึกการรันทุกครั้ง (รวมกรณีหยุดก่อนถึงขั้นลงใบ) ──
+{
+  const บรรทัด = existsSync(LOG) ? readFileSync(LOG, "utf8").split("\n").filter(Boolean).map(x => JSON.parse(x)) : [];
+  ผล(บรรทัด.length === คาดบันทึก.length, `L1 รัน db-push ${คาดบันทึก.length} ครั้ง → บันทึก ${บรรทัด.length} บรรทัด`, JSON.stringify(บรรทัด.map(b => b.ผล)));
+  const ผิด = คาดบันทึก.map((k, i) => ({ ...k, ได้: บรรทัด[i] })).filter(({ ผล: ผลคาด, ได้ }) => !ได้
+    || ได้.ผล !== ผลคาด || !ได้.เริ่ม || !ได้.จบ || Date.parse(ได้.จบ) < Date.parse(ได้.เริ่ม)
+    || !ได้.ผู้ใช้ || !ได้.โฟลเดอร์ || ได้.โหมด !== "ทดสอบเครื่องมือ" || typeof ได้.exit !== "number");
+  ผล(ผิด.length === 0, "L2 ทุกบรรทัดมีเวลาเริ่ม/จบ ผลตรงกรณี (ลง/ไม่ลง/ตก) ผู้ใช้ โฟลเดอร์ exit",
+    ผิด.map(x => `${x.ป้าย}: คาด ${x.ผล} ได้ ${JSON.stringify(x.ได้)}`).join("\n"));
+  const c = บรรทัด[คาดบันทึก.findIndex(k => k.ป้าย.startsWith("C "))];
+  ผล(!!c && c.ใบ.at(-1)?.startsWith(เลขล่าสุด) && /-ก่อน-db-push$/.test(c.ชุดสำรอง ?? ""), "L3 บันทึกบอกใบที่ลงและชุดสำรอง", JSON.stringify(c));
+  const k6 = บรรทัด[คาดบันทึก.findIndex(k => k.ป้าย.startsWith("K6"))];
+  ผล(JSON.stringify(k6?.ใบ) === JSON.stringify(["0901_zz_a.sql", "0902_zz_b.sql"]), "L4 หลายใบ = บันทึกทุกใบ", JSON.stringify(k6));
+  const k1 = บรรทัด[คาดบันทึก.findIndex(k => k.ป้าย.startsWith("K1"))];
+  ผล(/ไม่ใช่เลขใบ/.test(k1?.เหตุ ?? ""), "L5 ไม่ลงเพราะด่าน = บอกเหตุในบันทึก", JSON.stringify(k1));
 }
 
 rmSync(tmp, { recursive: true, force: true });

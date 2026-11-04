@@ -26,4 +26,10 @@ describe("formatTaxId", () => {
     expect(formatTaxId("")).toBe("");
     expect(formatTaxId("---")).toBe("");
   });
+  it('"-" ล้วน = ตั้งใจไม่มีเลข → คืน "-" (ช่องบังคับ 4 พ.ย. 69 · เดิมกลืนเหลือว่าง)', () => {
+    expect(formatTaxId("-")).toBe("-");
+    expect(formatTaxId(" - ")).toBe("-");
+    expect(formatTaxId("--")).toBe("");
+    expect(formatTaxId("0-1")).toBe("0-1");
+  });
 });

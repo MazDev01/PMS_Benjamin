@@ -37,5 +37,14 @@ r = ตรวจ({ "scripts/required-fields.json": รายการ([]),
   [ฟอร์ม]: 'export const C = () => (<>\n  <FieldLabel htmlFor="f-note">หมายเหตุ</FieldLabel>\n  <input id="f-note" placeholder="เว้นว่างได้" />\n</>);\n' });
 ผล(r.ผ่าน, "ช่องไม่บังคับบอกว่าเว้นว่างได้ → ผ่าน", r.ข้อความ);
 
+// id มีตัวแปร (ฟอร์มหลายชุดในหน้าเดียว · 4 พ.ย. 69): รายการเขียน `pay-date-${}`
+const ช่องแปร = [{ file: ฟอร์ม, id: "pay-date-${}", ชื่อ: "วันที่ชำระ", ที่มา: "ฐาน" }];
+r = ตรวจ({ "scripts/required-fields.json": รายการ(ช่องแปร),
+  [ฟอร์ม]: 'export const C = ({ p }) => (<>\n  <FieldLabel htmlFor={`pay-date-${p.id}`} required>วันที่ชำระ</FieldLabel>\n  <input id={`pay-date-${p.id}`} />\n</>);\n' });
+ผล(r.ผ่าน, "id มีตัวแปร + <FieldLabel required> → ผ่าน", r.ข้อความ);
+r = ตรวจ({ "scripts/required-fields.json": รายการ(ช่องแปร),
+  [ฟอร์ม]: 'export const C = ({ p }) => (<>\n  <FieldLabel htmlFor={`pay-date-${p.id}`}>วันที่ชำระ</FieldLabel>\n  <input id={`pay-date-${p.id}`} placeholder="เว้นว่างได้" />\n</>);\n' });
+ผล(!r.ผ่าน && /pay-date-/.test(r.ข้อความ), "id มีตัวแปร ลืม required → ตก", r.ข้อความ);
+
 console.log(ตก ? `FAIL ${ตก}` : "ALL PASS");
 process.exit(ตก ? 1 : 0);

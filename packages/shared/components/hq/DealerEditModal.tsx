@@ -4,6 +4,7 @@
 //   แถวทะเบียนเหลือ "เข้าระบบแทน" + กดแถวเปิดหน้ารายละเอียด · แก้ไข/ปิดใช้งาน/สถิติ อยู่ที่หน้ารายละเอียด
 //   ฟิลด์และกติกาเหมือนเดิมทุกข้อ: รหัสแก้ไม่ได้ · ภาคก่อนจังหวัด (ทุกภาค = ทุกจังหวัด) · เป้าไม่ติดลบ · จังหวัดเดิมนอกภาคยังเห็นค่าเดิม
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
@@ -15,10 +16,12 @@ const REGIONS = ["เหนือ", "กลาง", "ตะวันออก", 
 const CARD: React.CSSProperties = { background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)" };
 const INPUT_STYLE: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: "0.8rem", color: "#2D2D2D", outline: "none", background: "#fafafa", boxSizing: "border-box" };
 
-function InputField({ label, children }: { label: string; children: React.ReactNode }) {
+// ป้ายช่องจากตัวกลาง (* แดงเฉพาะช่องบังคับ · 4 พ.ย. 69) · ช่องบังคับเขียน <FieldLabel htmlFor required> ตรง ๆ (ตัวตรวจ check-required-marks อ่านจากโค้ด)
+const ป้ายช่อง: React.CSSProperties = { textTransform: "none", letterSpacing: "normal", fontSize: "0.72rem" };
+function InputField({ label, htmlFor, required, children }: { label: string; htmlFor?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <label className="form-label" style={{ textTransform: "none", letterSpacing: "normal", fontSize: "0.72rem" }}>{label}</label>
+      <FieldLabel htmlFor={htmlFor} required={required} style={ป้ายช่อง}>{label}</FieldLabel>
       {children}
     </div>
   );
@@ -40,6 +43,8 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
   });
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  // ช่องบังคับ: ชื่อ · ภาค · จังหวัด (ฐานเก็บว่างไม่ได้ · ใบ 0276) — ขาด = กรอบแดง + ข้อความใต้ช่อง + เลื่อนไปช่องแรก
+  const บังคับ = useช่องบังคับ();
 
   // เปลี่ยนภาค: จังหวัดที่ไม่อยู่ในภาคใหม่ถูกล้าง (กันข้อมูลขัดกันเอง) · ทุกภาค = ทุกจังหวัด
   function changeRegion(region: string) {
@@ -48,9 +53,11 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
   }
 
   async function save() {
-    if (!form.name.trim()) { setErr("ต้องระบุชื่อดีลเลอร์"); return; }
-    if (!form.region.trim()) { setErr("ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก"); return; }
-    if (!form.province.trim()) { setErr("ต้องระบุจังหวัด"); return; }
+    if (!บังคับ.ตรวจ([
+      { key: "name", label: "ชื่อดีลเลอร์", value: form.name, ข้อความ: "ต้องระบุชื่อดีลเลอร์" },
+      { key: "region", label: "ภาค", value: form.region, ข้อความ: "ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก" },
+      { key: "province", label: "จังหวัดที่ตั้ง", value: form.province, ข้อความ: "ต้องระบุจังหวัด" },
+    ])) return;
     setBusy(true); setErr("");
     try {
       await onSave({ name: form.name.trim(), province: form.province.trim(), region: form.region, revenueTarget: form.revenueTarget,
@@ -72,33 +79,42 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
           {err && <div role="alert" style={{ background: "#fee2e2", border: "1px solid #dc262630", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: "0.8rem", color: "#dc2626", fontWeight: 600 }}>{err}</div>}
           <div className="form-grid" style={{ gridTemplateColumns: "1fr 2fr" }}>
             <div className="form-section">ข้อมูลดีลเลอร์</div>
-            <InputField label="รหัสดีลเลอร์ *">
+            <InputField label="รหัสดีลเลอร์" required>
               <input value={dealer.code} disabled aria-label="รหัสดีลเลอร์"
                 style={{ ...INPUT_STYLE, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em", opacity: 0.6 }} />
               <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 3 }}>แก้ไขรหัสไม่ได้</div>
             </InputField>
-            <InputField label="ชื่อดีลเลอร์ *">
-              <input aria-label="ชื่อดีลเลอร์" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={INPUT_STYLE} />
-            </InputField>
+            <div style={{ marginBottom: 14 }}>
+              <FieldLabel htmlFor="de-name" required style={ป้ายช่อง}>ชื่อดีลเลอร์</FieldLabel>
+              <input id="de-name" aria-label="ชื่อดีลเลอร์" value={form.name} {...บังคับ.ผูก("name")}
+                onChange={e => { บังคับ.ล้าง("name"); setForm(f => ({ ...f, name: e.target.value })); }} style={{ ...INPUT_STYLE, ...บังคับ.ผูก("name").style }} />
+              <FieldError>{บังคับ.ผิด.name}</FieldError>
+            </div>
           </div>
           <div className="form-grid">
             <div className="form-section">พื้นที่รับผิดชอบ</div>
-            <InputField label="ภาค *">
-              <select aria-label="ภูมิภาค" value={form.region} onChange={e => changeRegion(e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+            <div style={{ marginBottom: 14 }}>
+              <FieldLabel htmlFor="de-region" required style={ป้ายช่อง}>ภาค</FieldLabel>
+              <select id="de-region" aria-label="ภูมิภาค" value={form.region} {...บังคับ.ผูก("region")}
+                onChange={e => { บังคับ.ล้าง("region"); changeRegion(e.target.value); }} style={{ ...INPUT_STYLE, cursor: "pointer", ...บังคับ.ผูก("region").style }}>
                 <option value="">— ยังไม่ระบุ —</option>
                 {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
                 <option value={ALL_REGIONS}>{ALL_REGIONS} (ทั่วประเทศ)</option>
               </select>
-            </InputField>
-            <InputField label="จังหวัดที่ตั้ง *">
+              <FieldError>{บังคับ.ผิด.region}</FieldError>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <FieldLabel htmlFor="de-province" required style={ป้ายช่อง}>จังหวัดที่ตั้ง</FieldLabel>
               {/* ดีลเลอร์ดูแล 1 จังหวัดพอดี = จังหวัดที่ตั้ง (บอสสั่ง 29 ต.ค. 69 · ฐานกัน ใบ 0259) — ไม่มี "ทุกจังหวัด" */}
-              <ProvinceSelect label="จังหวัดที่ตั้ง" value={form.province} onChange={v => setForm(f => ({ ...f, province: v }))} style={{ ...INPUT_STYLE, cursor: "pointer" }}
+              <ProvinceSelect id="de-province" selectRef={บังคับ.ผูก("province").ref} invalid={!!บังคับ.ผิด.province} label="จังหวัดที่ตั้ง" value={form.province}
+                onChange={v => { บังคับ.ล้าง("province"); setForm(f => ({ ...f, province: v })); }} style={{ ...INPUT_STYLE, cursor: "pointer" }}
                 options={provincesOfRegion(form.region)} ว่าง={form.region ? "— ยังไม่ระบุ —" : "— เลือกภาคก่อน —"}
                 ก่อน={dealer.code === "HQ" && form.region === ALL_REGIONS && <option value={ALL_PROVINCES}>{ALL_PROVINCES}</option>}
                 หลัง={form.province && form.province !== ALL_PROVINCES && !provincesOfRegion(form.region).includes(form.province) && (
                   <option value={form.province}>{form.province} (นอก{ชื่อภาค(form.region)})</option>
                 )} />
-            </InputField>
+              <FieldError>{บังคับ.ผิด.province}</FieldError>
+            </div>
             <div className="form-section">เป้าหมายและสถานะ</div>
             {/* ช่องแพ็กเกจเอาออก (บอสสั่ง 30 ต.ค. 69) — ค่าเดิมของดีลเลอร์ไม่แตะ (ส่งค่าเดิมกลับ) · ช่องในฐานลบรอบถัดไป */}
             <InputField label="เป้ายอดขาย (บาท/ปี)">

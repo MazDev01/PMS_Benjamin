@@ -12,6 +12,8 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { ข้อความช่องขีด } from "@pms/shared/lib/requiredFields";
 
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -49,10 +51,14 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
   const ชำระแล้ว = (list ?? []).filter(x => !x.cancelledAt).reduce((s, x) => s + x.amount, 0);
   const ครบ = list != null && ชำระแล้ว >= ยอดในใบ;
 
+  // ช่องบังคับ (ฐานบังคับ · 4 พ.ย. 69 ตัวกลาง): วันที่ชำระ · ยอด (> 0) · เลขอ้างอิง (ไม่มีเลข = ใส่ "-" เช่นจ่ายเงินสด)
+  const บังคับ = useช่องบังคับ();
   async function บันทึก() {
-    if (!(ยอด > 0)) { แจ้งพลาด("ยอดชำระต้องมากกว่า 0"); return; }
-    if (!อ้างอิง.trim()) { แจ้งพลาด("ต้องระบุเลขอ้างอิงการชำระ"); return; }
-    if (!วันที่) { แจ้งพลาด("ต้องระบุวันที่ชำระ"); return; }
+    if (!บังคับ.ตรวจ([
+      { key: "date", label: "วันที่ชำระ", value: วันที่, ข้อความ: "ต้องระบุวันที่ชำระ" },
+      { key: "amount", label: "ยอดชำระ", value: ยอด > 0 ? ยอด : "", ข้อความ: "ยอดชำระต้องมากกว่า 0" },
+      { key: "ref", label: "เลขอ้างอิง", value: อ้างอิง, ข้อความ: ข้อความช่องขีด("เลขอ้างอิงการชำระ") },
+    ])) return;
     setBusy(true);
     try {
       const row = await proposalsRepo.addPayment({ proposalId: proposal.id, paidOn: วันที่, amount: ยอด, reference: อ้างอิง.trim() });
@@ -79,6 +85,7 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
   }
 
   const ช่อง: React.CSSProperties = { padding: "4px 8px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: "0.76rem", fontFamily: "inherit" };
+  const ป้ายเล็ก: React.CSSProperties = { fontSize: "0.66rem", marginBottom: 2 };
   return (
     <div role="region" aria-label={`การชำระ ${proposal.proposalNo ?? ""}`} style={{ flexBasis: "100%", borderTop: "1px dashed #e5e7eb", paddingTop: 8, marginTop: 2 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.74rem", fontWeight: 700, color: "#374151" }}>
@@ -107,13 +114,30 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
         </div>
       ))}
       {editable && (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
-          <input type="date" aria-label="วันที่ชำระ" value={วันที่} onChange={e => setวันที่(e.target.value)} style={ช่อง} disabled={busy} />
-          <input type="text" inputMode="numeric" aria-label="ยอดชำระ" placeholder="ยอด (บาท)" style={{ ...ช่อง, width: 120 }} disabled={busy}
-            value={ยอด ? formatMoneyInput(String(ยอด)) : ""} onChange={e => setยอด(parseMoneyInput(e.target.value))} />
-          <input type="text" aria-label="เลขอ้างอิง" placeholder="เลขอ้างอิง เช่น เลขที่โอน" style={{ ...ช่อง, width: 170 }} disabled={busy}
-            value={อ้างอิง} onChange={e => setอ้างอิง(e.target.value)} />
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-busy={busy || undefined} data-busy-button onClick={() => void บันทึก()}>{busy ? "กำลังบันทึก…" : "บันทึกการชำระ"}</button>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-start", marginTop: 6 }}>
+          {/* ป้ายช่องเล็ก + * แดงจากตัวกลาง · id ต่อท้ายเลขใบ (หลายใบในหน้าเดียว) */}
+          <div>
+            <FieldLabel htmlFor={`pay-date-${proposal.id}`} required style={ป้ายเล็ก}>วันที่ชำระ</FieldLabel>
+            <input id={`pay-date-${proposal.id}`} type="date" aria-label="วันที่ชำระ" value={วันที่} {...บังคับ.ผูก("date")}
+              onChange={e => { บังคับ.ล้าง("date"); setวันที่(e.target.value); }} style={{ ...ช่อง, ...(บังคับ.ผิด.date ? กรอบผิด : null) }} disabled={busy} />
+            <FieldError>{บังคับ.ผิด.date}</FieldError>
+          </div>
+          <div>
+            <FieldLabel htmlFor={`pay-amount-${proposal.id}`} required style={ป้ายเล็ก}>ยอดชำระ (บาท)</FieldLabel>
+            <input id={`pay-amount-${proposal.id}`} type="text" inputMode="numeric" aria-label="ยอดชำระ" placeholder="ยอด (บาท)" disabled={busy} {...บังคับ.ผูก("amount")}
+              style={{ ...ช่อง, width: 120, ...(บังคับ.ผิด.amount ? กรอบผิด : null) }}
+              value={ยอด ? formatMoneyInput(String(ยอด)) : ""} onChange={e => { บังคับ.ล้าง("amount"); setยอด(parseMoneyInput(e.target.value)); }} />
+            <FieldError>{บังคับ.ผิด.amount}</FieldError>
+          </div>
+          <div>
+            <FieldLabel htmlFor={`pay-ref-${proposal.id}`} required style={ป้ายเล็ก}>เลขอ้างอิง</FieldLabel>
+            <input id={`pay-ref-${proposal.id}`} type="text" aria-label="เลขอ้างอิง" placeholder='เลขที่โอน · ไม่มีใส่ "-"' disabled={busy} {...บังคับ.ผูก("ref")}
+              style={{ ...ช่อง, width: 170, ...(บังคับ.ผิด.ref ? กรอบผิด : null) }}
+              value={อ้างอิง} onChange={e => { บังคับ.ล้าง("ref"); setอ้างอิง(e.target.value); }} />
+            <FieldError>{บังคับ.ผิด.ref}</FieldError>
+          </div>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-busy={busy || undefined} data-busy-button onClick={() => void บันทึก()}
+            style={{ marginTop: 17 }}>{busy ? "กำลังบันทึก…" : "บันทึกการชำระ"}</button>
         </div>
       )}
     </div>

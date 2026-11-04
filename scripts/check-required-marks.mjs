@@ -31,7 +31,13 @@ function แท็ก(src, ชื่อ) {
   }
   return ผล;
 }
-const htmlForของ = (t) => /htmlFor=(?:"([^"]+)"|\{"([^"]+)"\})/.exec(t)?.slice(1).find(Boolean) ?? null;
+// id แบบมีตัวแปร (ฟอร์มที่ขึ้นหลายชุดในหน้าเดียว เช่นช่องการชำระรายใบ) เขียนในรายการเป็น `pay-date-${}` — ส่วน ${…} ทุกตัวนับเป็น ${}
+const ปกติid = (s) => s.replace(/\$\{[^}]*\}/g, "${}");
+const htmlForของ = (t) => {
+  const m = /htmlFor=(?:"([^"]+)"|\{"([^"]+)"\}|\{`([^`]+)`\})/.exec(t);
+  const v = m?.slice(1).find(Boolean);
+  return v ? ปกติid(v) : null;
+};
 
 const อ่านแล้ว = new Map();
 const อ่าน = (f) => { if (!อ่านแล้ว.has(f)) อ่านแล้ว.set(f, readFileSync(join(ราก, f), "utf8")); return อ่านแล้ว.get(f); };
@@ -52,7 +58,8 @@ for (const f of ไฟล์) {
   if (!src.includes("FieldLabel")) continue;
   const บังคับ = new Set(แท็ก(src, "FieldLabel").filter(t => /\srequired(\s|>|=\{true\})/.test(t.ข้อความ)).map(t => htmlForของ(t.ข้อความ)).filter(Boolean));
   for (const ชื่อ of ["input", "select", "textarea"]) for (const t of แท็ก(src, ชื่อ)) {
-    const id = /\sid=(?:"([^"]+)"|\{"([^"]+)"\})/.exec(t.ข้อความ)?.slice(1).find(Boolean);
+    const idดิบ = /\sid=(?:"([^"]+)"|\{"([^"]+)"\}|\{`([^`]+)`\})/.exec(t.ข้อความ)?.slice(1).find(Boolean);
+    const id = idดิบ ? ปกติid(idดิบ) : undefined;
     if (id && บังคับ.has(id) && /placeholder=[^>]*เว้นว่าง/.test(t.ข้อความ)) พบ.push(`${f}:${t.บรรทัด} — ช่องบังคับ "${id}" มีข้อความตัวอย่าง "เว้นว่าง…" — ช่องบังคับเว้นว่างไม่ได้`);
   }
 }
