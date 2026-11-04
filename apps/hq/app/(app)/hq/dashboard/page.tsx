@@ -22,7 +22,7 @@ import { PlanVsActualBars, GroupedBarChart, Donut } from "@pms/shared/components
 import { SalesTrendChart } from "@pms/shared/components/ui/SalesTrendChart";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
 import { MonthRangeToggle, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
-import { ความละเอียดของช่วง } from "@pms/shared/lib/trendBuckets";
+import { ความละเอียดของช่วง, ช่องเวลาในช่วง } from "@pms/shared/lib/trendBuckets";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { dealers as dealersRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
@@ -90,10 +90,8 @@ export default function HQDashboard() {
       return pts;
     }
     const byM = new Map(t.byMonth.map(r => [`${r.y}-${r.m}`, r.sales]));
-    const pts: { month: string; value: number }[] = [];
-    for (const d = new Date(timeRange.start.getFullYear(), timeRange.start.getMonth(), 1); d <= timeRange.end; d.setMonth(d.getMonth() + 1))
-      pts.push({ month: TH_ABBR[d.getMonth()], value: (byM.get(`${d.getFullYear()}-${d.getMonth()}`) ?? 0) / 1e6 });
-    return pts;
+    // ช่องเดือน + ป้ายจากตัวกลาง (ข้ามปีติดปี พ.ศ. · 4 พ.ย. 69) · คีย์ช่องรายเดือน = "ปี-เดือน(0–11)" ตรงกับ byMonth
+    return ช่องเวลาในช่วง(timeRange.start, timeRange.end, "month").map(b => ({ month: b.label, value: (byM.get(b.key) ?? 0) / 1e6 }));
   }, [ข้อมูล, ละเอียด, timeRange.start, timeRange.end]);
   const มียอดในช่วง = (ข้อมูล?.cards.sales ?? 0) > 0;
   const หน่วยเวลา = ละเอียด === "hour" ? "รายชั่วโมง" : ละเอียด === "day" ? "รายวัน" : "รายเดือน";

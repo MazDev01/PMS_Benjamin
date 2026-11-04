@@ -159,7 +159,7 @@ export function PlanVsActualBars({
         const pH = baseY - yAt(d.plan);
         const isHover = hover === i;
         return (
-          <g key={d.label} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+          <g key={`${i}-${d.label}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
             {/* ไฮไลต์คอลัมน์ตอนชี้ */}
             {isHover && <rect x={cx - slot / 2 + 3} y={pT} width={slot - 6} height={cH} rx={6} fill="#f2f6fc" />}
             <rect x={cx - slot / 2} y={pT} width={slot} height={cH} fill="transparent" />
@@ -392,13 +392,13 @@ export function SalesLineChart({
       {pts.map((p, i) => {
         const hit = p.value >= target && p.value > 0;
         return (
-          <circle key={p.label} cx={p.x} cy={p.y} r={hover === i ? 5.5 : 4}
+          <circle key={`${i}-${p.label}`} cx={p.x} cy={p.y} r={hover === i ? 5.5 : 4}
             fill={hit ? "#059669" : NAVY} stroke="#fff" strokeWidth="2"
             opacity={drawn ? 1 : 0} style={fadeIn(0.9 + i * 0.02)} />
         );
       })}
 
-      {pts.map((p, i) => showLabel(i, pts.length, labelStep(cW / Math.max(pts.length - 1, 1), 13, pts.map(q => q.label))) && <text key={`x${p.label}`} x={p.x} y={H - 10} textAnchor="middle" fontSize="13" fill="#8a94a3">{p.label}</text>)}
+      {pts.map((p, i) => showLabel(i, pts.length, labelStep(cW / Math.max(pts.length - 1, 1), 13, pts.map(q => q.label))) && <text key={`x${i}-${p.label}`} x={p.x} y={H - 10} textAnchor="middle" fontSize="13" fill="#8a94a3">{p.label}</text>)}
 
       {/* ชั้นรับเมาส์ + เส้นตั้ง + ป้ายค่า (เดือนที่ชี้เท่านั้น) */}
       {hover !== null && (() => {
@@ -420,7 +420,7 @@ export function SalesLineChart({
       })()}
       {pts.map((p, i) => {
         const half = n > 1 ? cW / (n - 1) / 2 : cW / 2;
-        return <rect key={`hit${p.label}`} x={p.x - half} y={pT} width={half * 2} height={cH} fill="transparent"
+        return <rect key={`hit${i}-${p.label}`} x={p.x - half} y={pT} width={half * 2} height={cH} fill="transparent"
           style={{ cursor: "crosshair" }} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} />;
       })}
     </svg>
@@ -750,7 +750,7 @@ export function GroupedBarChart({
           const gx = pL + band * i + band / 2 - groupW / 2;
           const isHover = hover === i;
           return (
-            <g key={m} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            <g key={`${i}-${m}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
               {/* hit area — ชี้ที่ไหนก็ได้ในเดือนนั้น แล้วโชว์ตัวเลขทุกแท่ง */}
               <rect x={pL + band * i} y={pT} width={band} height={cH} fill="transparent" />
               {series.map((ser, si) => {
@@ -848,7 +848,7 @@ export function BarLineChart({
           const h = (val / ceiling) * cH;
           const isHover = hover === i;
           return (
-            <g key={m} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            <g key={`${i}-${m}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
               <rect x={pL + band * i} y={pT} width={band} height={cH} fill="transparent" />
               {/* ค่า 0 = ขีดบาง ๆ ให้เห็นว่าเดือนนั้นมีข้อมูลแต่เป็นศูนย์ (ไม่ใช่ไม่มีข้อมูล) */}
               <rect x={cx(i) - bw / 2} y={drawn ? bottomY - Math.max(h, val > 0 ? 2 : 1.5) : bottomY}
