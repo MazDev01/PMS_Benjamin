@@ -20,6 +20,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { sbSignOutLocal } from "@pms/shared/lib/supabaseAuth";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
 
 const กล่อง: React.CSSProperties = {
   background: "#F8FAFC", border: "1px solid #E7EDF4", borderRadius: 12, padding: "12px 14px",
@@ -195,8 +196,16 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
   const ล็อก = !!busy || มีคำขอค้าง || !!โหลดพลาด;
   const ปุ่ม = ต้องขออนุมัติ ? "ส่งคำขอ" : "บันทึก";
 
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ว่าง = กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรก · ข้อความข้างปุ่มคงเดิม
+  const บังคับอีเมล = useช่องบังคับ();
+  const บังคับรหัส = useช่องบังคับ();
   async function เปลี่ยนรหัสผ่าน() {
     setMsgPw(null);
+    บังคับรหัส.ตรวจ([
+      { key: "current", label: "รหัสผ่านปัจจุบัน", value: pwCurrent, ข้อความ: "ต้องกรอกรหัสผ่านปัจจุบัน" },
+      { key: "new", label: "รหัสผ่านใหม่", value: pw, ข้อความ: "ต้องกรอกรหัสผ่านใหม่" },
+      { key: "confirm", label: "ยืนยันรหัสผ่านใหม่", value: pw2, ข้อความ: "ต้องพิมพ์รหัสผ่านใหม่อีกครั้ง" },
+    ]);
     if (!pw) { setMsgPw({ ok: false, text: "ยังไม่ได้กรอกรหัสผ่านใหม่" }); return; }
     if (pw !== pw2) { setMsgPw({ ok: false, text: "รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน" }); return; }
     if (!pwCurrent) { setMsgPw({ ok: false, text: "ต้องกรอกรหัสผ่านปัจจุบันเพื่อยืนยันตัวตน" }); return; }
@@ -239,6 +248,10 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
 
   async function เปลี่ยนอีเมล() {
     setMsgEmail(null);
+    บังคับอีเมล.ตรวจ([
+      { key: "email", label: "อีเมลเข้าสู่ระบบใหม่", value: email, ข้อความ: "ต้องกรอกอีเมลใหม่" },
+      { key: "current", label: "รหัสผ่านปัจจุบัน", value: emailCurrent, ข้อความ: "ต้องกรอกรหัสผ่านปัจจุบัน" },
+    ]);
     const ใหม่ = email.trim();
     if (!ใหม่ || ใหม่.toLowerCase() === อีเมลปัจจุบัน.toLowerCase()) {
       setMsgEmail({ ok: false, text: ใหม่ ? "อีเมลนี้เป็นอีเมลเดิมอยู่แล้ว" : "ยังไม่ได้กรอกอีเมลใหม่" }); return;
@@ -320,16 +333,18 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
       <ก้อน ไอคอน={Mail} หัวข้อ="เปลี่ยนอีเมลเข้าสู่ระบบ" รอง="อีเมลนี้ใช้เข้าระบบและรับการติดต่อจากสำนักงานใหญ่" เน้น={focus === "email"}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           <div>
-            <label className="form-label">อีเมลเข้าสู่ระบบใหม่</label>
-            <input className="form-input" value={email} disabled={ล็อก}
-              onChange={e => setEmail(e.target.value.replace(/\s/g, ""))}
+            <FieldLabel htmlFor="ac-email" required>อีเมลเข้าสู่ระบบใหม่</FieldLabel>
+            <input id="ac-email" className="form-input" value={email} disabled={ล็อก}
+              onChange={e => { setEmail(e.target.value.replace(/\s/g, "")); บังคับอีเมล.ล้าง("email"); }} {...บังคับอีเมล.ผูก("email")}
               aria-label="อีเมลเข้าสู่ระบบ" placeholder={อีเมลปัจจุบัน ? `เช่น ${อีเมลปัจจุบัน}` : "name@company.co.th"} />
+            <FieldError>{บังคับอีเมล.ผิด.email}</FieldError>
           </div>
           <div>
-            <label className="form-label">รหัสผ่านปัจจุบัน *</label>
-            <input className="form-input" type="password" value={emailCurrent} disabled={ล็อก}
-              onChange={e => setEmailCurrent(e.target.value.replace(/\s/g, ""))} aria-label="รหัสผ่านปัจจุบัน (ยืนยันการเปลี่ยนอีเมล)"
+            <FieldLabel htmlFor="ac-email-pw" required>รหัสผ่านปัจจุบัน</FieldLabel>
+            <input id="ac-email-pw" className="form-input" type="password" value={emailCurrent} disabled={ล็อก}
+              onChange={e => { setEmailCurrent(e.target.value.replace(/\s/g, "")); บังคับอีเมล.ล้าง("current"); }} {...บังคับอีเมล.ผูก("current")} aria-label="รหัสผ่านปัจจุบัน (ยืนยันการเปลี่ยนอีเมล)"
               placeholder="ยืนยันตัวตนก่อนเปลี่ยน" autoComplete="current-password" />
+            <FieldError>{บังคับอีเมล.ผิด.current}</FieldError>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
@@ -342,22 +357,25 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
       <ก้อน ไอคอน={KeyRound} หัวข้อ="เปลี่ยนรหัสผ่าน" รอง="ตั้งรหัสผ่านใหม่ — ต้องยืนยันด้วยรหัสผ่านปัจจุบัน" เน้น={focus === "password"}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           <div>
-            <label className="form-label">รหัสผ่านปัจจุบัน *</label>
-            <input className="form-input" type="password" value={pwCurrent} disabled={ล็อก}
-              onChange={e => setPwCurrent(e.target.value.replace(/\s/g, ""))} aria-label="รหัสผ่านปัจจุบัน"
+            <FieldLabel htmlFor="ac-pw-current" required>รหัสผ่านปัจจุบัน</FieldLabel>
+            <input id="ac-pw-current" className="form-input" type="password" value={pwCurrent} disabled={ล็อก}
+              onChange={e => { setPwCurrent(e.target.value.replace(/\s/g, "")); บังคับรหัส.ล้าง("current"); }} {...บังคับรหัส.ผูก("current")} aria-label="รหัสผ่านปัจจุบัน"
               placeholder="ยืนยันตัวตนก่อนเปลี่ยน" autoComplete="current-password" />
+            <FieldError>{บังคับรหัส.ผิด.current}</FieldError>
           </div>
           <div>
-            <label className="form-label">รหัสผ่านใหม่</label>
-            <input className="form-input" type="password" value={pw} disabled={ล็อก}
-              onChange={e => setPw(e.target.value.replace(/\s/g, ""))} aria-label="รหัสผ่านใหม่"
+            <FieldLabel htmlFor="ac-pw-new" required>รหัสผ่านใหม่</FieldLabel>
+            <input id="ac-pw-new" className="form-input" type="password" value={pw} disabled={ล็อก}
+              onChange={e => { setPw(e.target.value.replace(/\s/g, "")); บังคับรหัส.ล้าง("new"); }} {...บังคับรหัส.ผูก("new")} aria-label="รหัสผ่านใหม่"
               placeholder="อย่างน้อย 8 ตัวอักษร" autoComplete="new-password" />
+            <FieldError>{บังคับรหัส.ผิด.new}</FieldError>
           </div>
           <div>
-            <label className="form-label">ยืนยันรหัสผ่านใหม่</label>
-            <input className="form-input" type="password" value={pw2} disabled={ล็อก}
-              onChange={e => setPw2(e.target.value.replace(/\s/g, ""))} aria-label="ยืนยันรหัสผ่านใหม่"
+            <FieldLabel htmlFor="ac-pw-confirm" required>ยืนยันรหัสผ่านใหม่</FieldLabel>
+            <input id="ac-pw-confirm" className="form-input" type="password" value={pw2} disabled={ล็อก}
+              onChange={e => { setPw2(e.target.value.replace(/\s/g, "")); บังคับรหัส.ล้าง("confirm"); }} {...บังคับรหัส.ผูก("confirm")} aria-label="ยืนยันรหัสผ่านใหม่"
               placeholder="พิมพ์รหัสใหม่อีกครั้ง" autoComplete="new-password" />
+            <FieldError>{บังคับรหัส.ผิด.confirm}</FieldError>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, flexWrap: "wrap" }}>

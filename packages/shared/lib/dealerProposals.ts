@@ -125,6 +125,14 @@ export function เตรียมบันทึกใบ(p: Partial<DealerPack
   };
 }
 
+/** ช่องบังคับของใบที่ยังว่าง (ชื่อช่องที่ผู้ใช้เห็น) — ตรงกับฐาน (ใบ 0276) */
+export function ช่องที่ขาดของใบ(p: ใบเสนอที่จะบันทึก): string[] {
+  const ว่าง = (v: unknown) => v == null || (typeof v === "string" && v.trim() === "");
+  return ([
+    ["ค่าแรกเข้า", p.amount], ["ระยะสัญญา", p.contractMonths], ["เป้ายอดซื้อต่อปี", p.annualTarget], ["ภาค", p.region], ["จังหวัด", p.province],
+    ["วันที่เสนอ", p.proposedDate], ["ข้อเสนอมีผลถึง", p.validUntil], ['เงื่อนไข (ไม่มี = ใส่ "-")', p.terms],
+  ] as const).filter(([, v]) => ว่าง(v)).map(([k]) => k);
+}
 /** ตรวจความถูกต้อง — คืนข้อความที่ผู้ใช้อ่านเข้าใจ หรือ null ถ้าผ่าน */
 export function ตรวจใบเสนอ(p: ใบเสนอที่จะบันทึก): string | null {
   if (!Number.isInteger(p.prospectId) || p.prospectId <= 0) return "ไม่ได้ระบุว่าเป็นใบของผู้สนใจรายไหน";
@@ -135,5 +143,9 @@ export function ตรวจใบเสนอ(p: ใบเสนอที่จ
     return "ระยะสัญญาต้องเป็นจำนวนเดือนเต็ม 1–120 เดือน";
   }
   if (p.annualTarget != null && (!Number.isFinite(p.annualTarget) || p.annualTarget < 0)) return "เป้ายอดซื้อต่อปีต้องเป็นตัวเลขไม่ติดลบ";
-  return ตรวจภาคกับจังหวัด(p.region ?? null, p.province ?? null);
+  const ผิดพื้นที่ = ตรวจภาคกับจังหวัด(p.region ?? null, p.province ?? null);
+  if (ผิดพื้นที่) return ผิดพื้นที่;
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ฐานกันอีกชั้น dealer_package_proposals_required) — ตรวจท้ายสุด ให้ข้อความรูปแบบผิดที่เจาะจงกว่าขึ้นก่อน · เงื่อนไขไม่มี = "-"
+  const ขาด = ช่องที่ขาดของใบ(p);
+  return ขาด.length ? `ยังไม่ได้กรอก ${ขาด.join(" · ")}` : null;
 }

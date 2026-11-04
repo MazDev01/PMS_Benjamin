@@ -6,6 +6,7 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { DEMO_PASSWORD, DEMO_LOGINS } from "@pms/shared/lib/auth";
 import { ชื่อผู้ใช้เป็นอีเมล } from "@pms/shared/lib/dealerLogin";
+import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 
 // ── ทางเข้าเดโมของอีกฝั่ง (ตั้งที่ Vercel ของโปรเจกต์เดโมเท่านั้น) ──
 // ว่าง = ไม่มีปุ่ม · ระบบจริงไม่ตั้งค่านี้
@@ -45,6 +46,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const บังคับ = useช่องบังคับ();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // "ลืมรหัสผ่าน?" (ส่งลิงก์/เลขยืนยันทางอีเมล) ปิดแล้ว — บอสสั่ง 16 ต.ค. 69 · ลืมรหัสผ่าน = ติดต่อ HQ
@@ -82,6 +84,11 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ว่าง = ไม่ส่งเข้าระบบ · กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรกที่ขาด (เซิร์ฟเวอร์กันอีกชั้น)
+    if (!บังคับ.ตรวจ([
+      { key: "email", label: isHQ ? "อีเมล" : "รหัสสาขา", value: email, ข้อความ: isHQ ? "ต้องกรอกอีเมล" : "ต้องกรอกรหัสสาขา" },
+      { key: "password", label: "รหัสผ่าน", value: password, ข้อความ: "ต้องกรอกรหัสผ่าน" },
+    ])) return;
     setLoading(true);
     // signIn เป็น async แล้ว — โหมด supabase รอ signInWithPassword จริง · โหมด local เร็วทันที
     // ดีลเลอร์พิมพ์รหัสสาขา → เติมโดเมนให้ (บอสสั่ง 19 ต.ค. 69 · lib/dealerLogin.ts) · HQ พิมพ์อีเมลเต็มเหมือนเดิม
@@ -142,12 +149,14 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
                   ผู้ใช้เห็นช่องว่างนำหน้าค้างอยู่ในช่อง เลยไม่แน่ใจว่าที่เข้าไม่ได้เพราะอะไร
                   อีเมลไม่มีช่องว่างอยู่แล้วโดยธรรมชาติ ตัดทิ้งได้เลยไม่ต้องถาม */}
               {/* ดีลเลอร์ = รหัสสาขา (19 ต.ค. 69) — อีเมลเข้าระบบของสาขาไม่มีกล่องจดหมายจริง ดีลเลอร์ไม่ต้องรู้ */}
-              <label htmlFor="login-email" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">{isHQ ? "อีเมล" : "รหัสสาขา"}</label>
-              <div className={inputWrap}>
+              <FieldLabel htmlFor="login-email" required className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">{isHQ ? "อีเมล" : "รหัสสาขา"}</FieldLabel>
+              <div className={inputWrap} style={บังคับ.ผิด.email ? กรอบผิด : undefined}>
                 <IconMail />
                 <input id="login-email" type="text" inputMode={isHQ ? "email" : "text"} autoCapitalize="none" autoComplete="username" value={email}
-                  onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))} placeholder={isHQ ? "name@benjaminpebsteel.com" : "เช่น ZZT"} required className={inputEl} style={noOutline} />
+                  ref={บังคับ.ผูก("email").ref} aria-invalid={บังคับ.ผิด.email ? true : undefined}
+                  onChange={(e) => { setEmail(e.target.value.replace(/\s/g, "")); บังคับ.ล้าง("email"); }} placeholder={isHQ ? "name@benjaminpebsteel.com" : "เช่น ZZT"} required className={inputEl} style={noOutline} />
               </div>
+              <FieldError>{บังคับ.ผิด.email}</FieldError>
             </div>
 
             {/* Password */}
@@ -156,17 +165,19 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
                   เพราะไฟล์นี้เป็นหน้าเข้าสู่ระบบตัวเดียวกันของทั้งสองแอป (variant hq/dealer)
                   ⚠️ ผลข้างเคียงที่ต้องรู้: ถ้าวันหนึ่งมีรหัสผ่านที่ตั้งใจให้มีเว้นวรรคจริง จะพิมพ์ไม่ได้
                   ตอนนี้ไม่มีบัญชีแบบนั้น และช่องว่างติดมากับการ copy-paste เป็นปัญหาที่เจอจริงมากกว่า */}
-              <label htmlFor="login-password" className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">รหัสผ่าน</label>
-              <div className={inputWrap}>
+              <FieldLabel htmlFor="login-password" required className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">รหัสผ่าน</FieldLabel>
+              <div className={inputWrap} style={บังคับ.ผิด.password ? กรอบผิด : undefined}>
                 <IconLock />
                 <input id="login-password" type={showPass ? "text" : "password"} autoComplete="current-password" value={password}
-                  onChange={(e) => setPassword(e.target.value.replace(/\s/g, ""))} placeholder="••••••••" required className={inputEl} style={noOutline} />
+                  ref={บังคับ.ผูก("password").ref} aria-invalid={บังคับ.ผิด.password ? true : undefined}
+                  onChange={(e) => { setPassword(e.target.value.replace(/\s/g, "")); บังคับ.ล้าง("password"); }} placeholder="••••••••" required className={inputEl} style={noOutline} />
                 <button type="button" onClick={() => setShowPass((v) => !v)}
                   aria-label={showPass ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"} aria-pressed={showPass}
                   className="shrink-0 rounded-md p-1 text-slate-400 transition hover:text-slate-600 focus-visible:outline-none">
                   {showPass ? <IconEyeOff /> : <IconEye />}
                 </button>
               </div>
+              <FieldError>{บังคับ.ผิด.password}</FieldError>
             </div>
 
             {/* ลืมรหัสผ่าน = ติดต่อ HQ (ปุ่มส่งอีเมลปิดแล้ว 16 ต.ค. 69 — ดูหมายเหตุบนสุดของคอมโพเนนต์) */}

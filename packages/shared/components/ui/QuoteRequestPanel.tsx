@@ -41,6 +41,7 @@ import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { provincesOfRegion, ALL_REGIONS } from "@pms/shared/lib/provinces";
 import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
 import { FileDropBox, แถวไฟล์, คัดไฟล์, type ไฟล์ไม่ผ่าน } from "@pms/shared/components/ui/FileDropBox";
+import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
 
 // ยกเลิกคำขอ / ขอแก้ราคา = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) — กล่องรอฐาน + รอรายการคำขอโหลดใหม่ก่อนปิด
 //   เดิมเป็นฟอร์มในแผง: ปุ่มไม่บอกว่ากำลังทำ · เหตุผลว่างกดได้แล้วขึ้นตัวแดงเล็ก · ปิดฟอร์มก่อนรายการโหลดใหม่
@@ -86,6 +87,9 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const [ดูไฟล์ของฉัน, setดูไฟล์ของฉัน] = useState(false);
   // ฟอร์มเติมข้อมูลที่ขาด: ช่องที่ขาด ณ ตอนเปิด + ค่าที่พิมพ์
   const [ช่องขาด, setช่องขาด] = useState<ช่องลีด[]>([]);
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ช่องที่ขาดของลีด · งานที่ขอราคา — ว่าง = กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรก
+  const บังคับขาด = useช่องบังคับ();
+  const บังคับขอ = useช่องบังคับ();
   const [เติม, setเติม] = useState<Partial<Record<ช่องลีด, string>>>({});
   const { บันทึกลีดรอฐาน } = useSales();
 
@@ -134,6 +138,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   // บันทึกช่องที่ขาดลงลีด (ทางเขียนลีดทางเดียว) → 2 งานติ๊กเอง → ไปต่อฟอร์มขอราคา
   const บันทึกข้อมูลที่ขาด = async () => {
     if (busy) return;
+    บังคับขาด.ตรวจ(ช่องขาด.map(k => ({ key: k, label: ป้ายของ(k), value: ช่องนี้ครบ(เติม, k) ? "ครบ" : "", ข้อความ: `ต้องกรอก${ป้ายของ(k)}` })));
     const ยังขาด = ช่องขาด.filter(k => !ช่องนี้ครบ(เติม, k));
     if (ยังขาด.length) { setErr(`กรอกให้ครบก่อน: ${ยังขาด.map(ป้ายของ).join(" · ")}`); return; }
     setErr(""); setBusy(true);
@@ -180,7 +185,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   // ส่งคำขอ: ปุ่มขึ้น "กำลังส่ง…" จนฐานตอบ และรอรายการคำขอใหม่ก่อนปิดฟอร์ม (กันจอค้างสถานะเก่า)
   const ส่งคำขอ = async () => {
     if (busy) return;
-    if (!product.trim()) { setErr("ระบุงานที่ขอราคาก่อน"); return; }
+    if (!บังคับขอ.ตรวจ([{ key: "product", label: ช่องขอราคา.งาน, value: product, ข้อความ: "ระบุงานที่ขอราคาก่อน" }])) { setErr(`กรอกให้ครบก่อน: ${ช่องขอราคา.งาน}`); return; }
     if (วัสดุ.some(v => !(v.qty > 0))) { setErr("จำนวนวัสดุต้องมากกว่า 0 — แก้หรือเอาออกก่อนส่ง"); return; }
     setErr(""); setBusy(true);
     try {
@@ -292,17 +297,21 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           {ช่องขาด.map(k => {
             const ป้าย = ป้ายของ(k);
             const ค่า = เติม[k] ?? "";
-            const ตั้ง = (v: string) => setเติม(d => ({ ...d, [k]: v }));
+            const ตั้ง = (v: string) => { setเติม(d => ({ ...d, [k]: v })); บังคับขาด.ล้าง(k); };
             return (
               <div key={k} style={{ display: "grid", gap: 4 }}>
-                <label className="form-label" htmlFor={`qr-missing-${k}`}>{ป้าย} *</label>
+                <FieldLabel htmlFor={`qr-missing-${k}`} required>{ป้าย}</FieldLabel>
                 {k === "province"
-                  ? <ProvinceSelect id={`qr-missing-${k}`} label={ป้าย} value={ค่า} onChange={ตั้ง} options={จังหวัดทั้งหมด} disabled={busy} />
+                  ? <ProvinceSelect id={`qr-missing-${k}`} label={ป้าย} value={ค่า} onChange={ตั้ง} options={จังหวัดทั้งหมด} disabled={busy}
+                      selectRef={บังคับขาด.ผูก(k).ref} invalid={!!บังคับขาด.ผิด[k]} />
                   : k === "note"
-                  ? <textarea id={`qr-missing-${k}`} aria-label={ป้าย} rows={3} style={ช่อง} value={ค่า} onChange={e => ตั้ง(e.target.value)} disabled={busy} />
-                  : <input id={`qr-missing-${k}`} aria-label={ป้าย} style={ช่อง} value={ค่า} disabled={busy}
+                  ? <textarea id={`qr-missing-${k}`} aria-label={ป้าย} rows={3} value={ค่า} onChange={e => ตั้ง(e.target.value)} disabled={busy}
+                      {...บังคับขาด.ผูก(k)} style={{ ...ช่อง, ...บังคับขาด.ผูก(k).style }} />
+                  : <input id={`qr-missing-${k}`} aria-label={ป้าย} value={ค่า} disabled={busy}
                       inputMode={k === "area" ? "decimal" : k === "phone" ? "tel" : undefined}
-                      onChange={e => ตั้ง(k === "area" ? e.target.value.replace(/[^\d.]/g, "") : e.target.value)} />}
+                      onChange={e => ตั้ง(k === "area" ? e.target.value.replace(/[^\d.]/g, "") : e.target.value)}
+                      {...บังคับขาด.ผูก(k)} style={{ ...ช่อง, ...บังคับขาด.ผูก(k).style }} />}
+                <FieldError>{บังคับขาด.ผิด[k]}</FieldError>
               </div>
             );
           })}
@@ -315,9 +324,10 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
 
       {โหมด === "ขอราคา" && (
         <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-          <label className="form-label" htmlFor="qr-product">{ช่องขอราคา.งาน} *</label>
-          <input id="qr-product" aria-label={ช่องขอราคา.งาน} style={ช่อง} value={product} onChange={e => setProduct(e.target.value)} disabled={busy}
-            placeholder={ตัวอย่างช่อง.งาน} maxLength={200} required />
+          <FieldLabel htmlFor="qr-product" required>{ช่องขอราคา.งาน}</FieldLabel>
+          <input id="qr-product" aria-label={ช่องขอราคา.งาน} value={product} onChange={e => { setProduct(e.target.value); บังคับขอ.ล้าง("product"); }} disabled={busy}
+            placeholder={ตัวอย่างช่อง.งาน} maxLength={200} required {...บังคับขอ.ผูก("product")} style={{ ...ช่อง, ...บังคับขอ.ผูก("product").style }} />
+          <FieldError>{บังคับขอ.ผิด.product}</FieldError>
           <label className="form-label" htmlFor="qr-area">{ช่องขอราคา.พื้นที่}</label>
           <input id="qr-area" inputMode="decimal" style={ช่อง} value={area} onChange={e => setArea(e.target.value.replace(/[^\d.]/g, ""))} disabled={busy} />
           <label className="form-label" htmlFor="qr-spec">{ช่องขอราคา.สเปก}</label>

@@ -16,6 +16,7 @@ import type { ชุดนำเข้าผู้สนใจ, ผลนำเ�
 import { อ่านสมุดงานจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { ดาวบังคับ, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
 import {
   หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
@@ -88,6 +89,16 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   // วันที่กำกวม (x.1): เลือกเดือนต่อแถว — ยังไม่เลือกครบ = ปุ่มยืนยันกดไม่ได้ (บอสสั่ง 4 พ.ย. 69)
   const เลือกเดือน = (row: number, ช่อง: ช่องวันที่, ค่า: string) => setแถว(xs => xs && จัดกลุ่ม(xs.map(r => r.row === row ? เลือกวันที่(r, ช่อง, ค่า) : r), เบอร์ที่มีอยู่));
   const นับ = (g: กลุ่มแถว) => (แถว ?? []).filter(r => r.กลุ่ม === g).length;
+  // ช่องบังคับของแถวต้องตรวจ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ชื่อ · เหตุผล (ขั้นไม่สำเร็จ) — ขาด = กด "ยืนยัน" แล้วแถวยังต้องตรวจ กรอบแดง + ข้อความใต้ช่อง
+  //   เบอร์: แถวไม่มีเบอร์ไปกลุ่มข้ามเอง (ฐานกันอีกชั้น ใบ 0276) จึงมีแค่ * ที่หัวคอลัมน์
+  const บังคับ = useช่องบังคับ();
+  const ยืนยันแถว = (r: แถวนำเข้า) => {
+    if (!บังคับ.ตรวจ([
+      { key: `name:${r.row}`, label: "ชื่อ", value: r.name, ข้อความ: "ต้องระบุชื่อ" },
+      ...(r.status === "lost" ? [{ key: `reason:${r.row}`, label: "เหตุผล", value: r.lostReason, ข้อความ: "ต้องเลือกเหตุผลที่ไม่สำเร็จ" }] : []),
+    ])) return;
+    แก้แถว(r.row, { เหตุ: [] });
+  };
   const พร้อม = (แถว ?? []).filter(r => r.กลุ่ม === "ready");
 
   async function นำเข้า() {
@@ -208,13 +219,14 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                 </div>
                 <div className="table-wrap" style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 10 }}>
                   <table aria-label={`แถว${ป้ายกลุ่ม[ดู]}`} style={{ width: "100%" }}>
-                    <thead><tr><th>แถว</th><th>ชื่อ</th><th>เบอร์</th><th>จังหวัด</th><th>แหล่งที่มา</th><th>ขั้น</th><th>{ดู === "skip" ? "เหตุผลที่ข้าม" : "ต้องตรวจ / หมายเหตุ"}</th>{ดู === "review" && <th />}</tr></thead>
+                    <thead><tr><th>แถว</th><th>ชื่อ{ดู === "review" && <ดาวบังคับ />}</th><th>เบอร์{ดู === "review" && <ดาวบังคับ />}</th><th>จังหวัด</th><th>แหล่งที่มา</th><th>ขั้น</th><th>{ดู === "skip" ? "เหตุผลที่ข้าม" : "ต้องตรวจ / หมายเหตุ"}</th>{ดู === "review" && <th />}</tr></thead>
                     <tbody>
                       {แถว.filter(r => r.กลุ่ม === ดู).map(r => (
                         <tr key={r.row} data-import-row={r.row} data-group={r.กลุ่ม}>
                           <td style={เซลล์}>{r.row}</td>
                           <td style={เซลล์}>{ดู === "review"
-                            ? <input className="form-input" aria-label={`ชื่อ แถว ${r.row}`} value={r.name} onChange={e => แก้แถว(r.row, { name: e.target.value })} />
+                            ? <><input className="form-input" aria-label={`ชื่อ แถว ${r.row}`} value={r.name} onChange={e => { แก้แถว(r.row, { name: e.target.value }); บังคับ.ล้าง(`name:${r.row}`); }} {...บังคับ.ผูก(`name:${r.row}`)} />
+                                <FieldError>{บังคับ.ผิด[`name:${r.row}`]}</FieldError></>
                             : r.name || "—"}{r.เดิม && <div style={{ fontSize: "0.66rem", color: "#9ca3af" }}>เดิม: {r.เดิม}</div>}</td>
                           <td style={เซลล์}>{r.phone || "—"}</td>
                           <td style={เซลล์}>{ดู === "review"
@@ -232,10 +244,12 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                                 </select>
                                 {/* ไม่ใช่กล่องเหตุผล — แก้ค่าของแถวในหน้าตรวจก่อนนำเข้า (ยังไม่ได้ส่งฐาน · ฐานบังคับเหตุผลตอนนำเข้า) */}
                                 {r.status === "lost" && (
-                                  <select className="form-select" aria-label={`เหตุผล แถว ${r.row}`} value={r.lostReason ?? ""} onChange={e => แก้แถว(r.row, { lostReason: e.target.value || null })} style={{ marginTop: 4 }}>
+                                  <><select className="form-select" aria-label={`เหตุผล แถว ${r.row}`} value={r.lostReason ?? ""} onChange={e => { แก้แถว(r.row, { lostReason: e.target.value || null }); บังคับ.ล้าง(`reason:${r.row}`); }}
+                                    {...บังคับ.ผูก(`reason:${r.row}`)} style={{ marginTop: 4, ...บังคับ.ผูก(`reason:${r.row}`).style }}>
                                     <option value="">— ยังไม่ระบุ —</option>
                                     {[...new Set([...เหตุผลไม่สำเร็จ, ...(r.lostReason ? [r.lostReason] : [])])].map(x => <option key={x} value={x}>{x}</option>)}
                                   </select>
+                                  <FieldError>{บังคับ.ผิด[`reason:${r.row}`]}</FieldError></>
                                 )}
                               </>
                             : ขั้นที่นำเข้าได้.find(s => s.k === r.status)?.label}</td>
@@ -251,7 +265,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                             ))}
                           </td>
                           {ดู === "review" && <td style={เซลล์}>
-                            <button type="button" className="btn btn-secondary btn-sm" aria-label={`ยืนยัน แถว ${r.row}`} onClick={() => แก้แถว(r.row, { เหตุ: [] })}
+                            <button type="button" className="btn btn-secondary btn-sm" aria-label={`ยืนยัน แถว ${r.row}`} onClick={() => ยืนยันแถว(r)}
                               disabled={!!r.วันต้องเลือก?.length} title={r.วันต้องเลือก?.length ? "เลือกเดือนของวันที่ก่อน" : undefined}><Check size={12} /> ยืนยัน</button>
                           </td>}
                         </tr>

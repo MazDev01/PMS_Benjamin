@@ -14,11 +14,14 @@ import type { HqTransferPlanRow } from "@pms/shared/lib/data/ports";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { ดาวบังคับ, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
 
 export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: (code: string) => string; onTransferred?: () => void }) {
   const [แผน, setแผน] = useState<HqTransferPlanRow[]>([]);
   const [เลือก, setเลือก] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): จังหวัดที่มีหลายสาขา ต้องเลือกสาขาก่อนโอน — ไม่เลือก = กรอบแดง + ข้อความใต้ช่อง (เดิมปุ่มกดไม่ได้เฉย ๆ)
+  const บังคับ = useช่องบังคับ();
   const โหลด = useCallback(() => {
     territoriesRepo.transferPlan().then(setแผน).catch(e => {
       // บัญชีที่ไม่ใช่ผู้ดูแลระดับจัดการ = ไม่มีสิทธิ์ดูแผน (forbidden) → ไม่แสดงการ์ด ไม่ต้องบันทึก
@@ -45,8 +48,8 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
     finally { setBusy(false); }
   };
   const โอนจังหวัด = async (r: HqTransferPlanRow) => {
+    if (!บังคับ.ตรวจ([{ key: r.province, label: "สาขาที่จะโอนให้", value: เลือก[r.province], ข้อความ: "ต้องเลือกสาขาที่จะโอนให้" }])) return;
     const to = เลือก[r.province];
-    if (!to) return;
     if (!(await ยืนยัน({
       หัวข้อ: `โอน ${r.leads} ราย ในจังหวัด${r.province} ให้ ${to} ${dealerName(to)}?`,
       รายละเอียด: "ลูกค้าเป้าหมายย้ายพร้อมประวัติ นัดหมาย และโน้ต · ย้อนกลับไม่ได้", ปุ่มตกลง: "โอน", อันตราย: true,
@@ -85,7 +88,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
                 <col style={{ width: "36%" }} />{/* ดีลเลอร์ที่ดูแล */}
                 <col style={{ width: "32%" }} />{/* การโอน */}
               </colgroup>
-              <thead><tr><th>จังหวัด</th><th className="num">ลูกค้าเป้าหมาย</th><th>ดีลเลอร์ที่ดูแล</th><th>การโอน</th></tr></thead>
+              <thead><tr><th>จังหวัด</th><th className="num">ลูกค้าเป้าหมาย</th><th>ดีลเลอร์ที่ดูแล</th><th>การโอน{เลือกเอง.length > 0 && <> (เลือกสาขา<ดาวบังคับ />)</>}</th></tr></thead>
               <tbody>
                 {[...อัตโนมัติ, ...เลือกเอง].map(r => {
                   const ดูแล = r.dealerCodes.map(c => `${c} ${dealerName(c)}`.trim()).join(" · ");
@@ -96,13 +99,17 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
                       <td className="wrap" title={ดูแล}>{ดูแล}</td>
                       <td className="ovf-visible">
                         {r.mode === "auto" ? <span style={{ fontSize: "0.76rem", color: "#047857", fontWeight: 600 }}>โอนอัตโนมัติได้</span> : (
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <select aria-label={`โอนจังหวัด${r.province}ให้`} className="form-select" value={เลือก[r.province] ?? ""} disabled={busy}
-                              style={{ flex: 1, minWidth: 0 }} onChange={e => setเลือก(s => ({ ...s, [r.province]: e.target.value }))}>
-                              <option value="">หลายสาขา — เลือกสาขา</option>
-                              {r.dealerCodes.map(c => <option key={c} value={c}>{c} {dealerName(c)}</option>)}
-                            </select>
-                            <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !เลือก[r.province]} onClick={() => void โอนจังหวัด(r)}>โอน</button>
+                          <div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <select aria-label={`โอนจังหวัด${r.province}ให้`} className="form-select" value={เลือก[r.province] ?? ""} disabled={busy}
+                                {...บังคับ.ผูก(r.province)} style={{ flex: 1, minWidth: 0, ...บังคับ.ผูก(r.province).style }}
+                                onChange={e => { setเลือก(s => ({ ...s, [r.province]: e.target.value })); บังคับ.ล้าง(r.province); }}>
+                                <option value="">หลายสาขา — เลือกสาขา</option>
+                                {r.dealerCodes.map(c => <option key={c} value={c}>{c} {dealerName(c)}</option>)}
+                              </select>
+                              <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void โอนจังหวัด(r)}>โอน</button>
+                            </div>
+                            <FieldError>{บังคับ.ผิด[r.province]}</FieldError>
                           </div>
                         )}
                       </td>

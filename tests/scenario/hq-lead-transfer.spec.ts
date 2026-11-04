@@ -59,7 +59,13 @@ test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ:
   await expect(การ์ด.getByRole("row", { name: /ระยอง/ }).getByText("โอนอัตโนมัติได้")).toBeVisible();
   const ช่องลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ }).getByLabel("โอนจังหวัดลำพูนให้");
   await expect(ช่องลำพูน, "หลายสาขา: ระบบต้องไม่เลือกสาขาให้").toHaveValue("");
-  await expect(การ์ด.getByRole("row", { name: /ลำพูน/ }).getByRole("button", { name: "โอน" }), "ยังไม่เลือกสาขา = โอนไม่ได้").toBeDisabled();
+  // ยังไม่เลือกสาขา = โอนไม่ได้ · เดิมปุ่มกดไม่ได้เฉย ๆ → ตั้งแต่ 4 พ.ย. 69 (ตัวกลางช่องบังคับ) กดได้แต่ไม่โอน: กรอบแดง + ข้อความใต้ช่อง (ตรวจกลับด้าน)
+  await expect(การ์ด.getByRole("columnheader", { name: /การโอน/ }).locator("[data-required]"), "หัวคอลัมน์มี * แดง (ต้องเลือกสาขา)").toHaveCount(1);
+  await การ์ด.getByRole("row", { name: /ลำพูน/ }).getByRole("button", { name: "โอน" }).click();
+  await expect(ช่องลำพูน, "ยังไม่เลือกสาขา = กรอบแดง").toHaveAttribute("aria-invalid", "true");
+  await expect(การ์ด.getByRole("row", { name: /ลำพูน/ }).locator("[data-field-error]"), "ข้อความใต้ช่อง").toHaveText("ต้องเลือกสาขาที่จะโอนให้");
+  await expect(page.getByRole("dialog"), "ไม่เลือกสาขา = ไม่ขึ้นกล่องยืนยันโอน").toHaveCount(0);
+  expect((await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code), "ยังไม่ถูกโอน").toEqual(["HQ"]);
   await expect(การ์ด.getByText(/คิวรอ/)).toBeVisible();
 
   // 1) ยืนยันเป็นชุด

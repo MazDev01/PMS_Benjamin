@@ -119,6 +119,13 @@ test("[ui·hq] ยืนราคาถึงแสดงปี พ.ศ. · ห�
   await expect(ใบ.locator("[data-thai-date]"), "วันยืนราคาตั้งต้นแสดงเป็น พ.ศ.").toHaveText(วันไทย(ตั้งต้น));
   await ใบ.getByLabel("ยืนราคาถึง").fill("2026-12-31");
   await expect(ใบ.locator("[data-thai-date]"), "เปลี่ยนวันแล้วยังเป็น พ.ศ.").toHaveText("31 ธ.ค. 2569");
+  // ช่องบังคับตอนส่ง (บอสสั่ง 4 พ.ย. 69): * แดงจากตัวกลาง · ลบวันออก = ข้อความใต้ช่อง · ใส่กลับ = หาย
+  await expect(ใบ.locator('label[for="hq-valid"] [data-required]'), "ยืนราคาถึงมี * แดง").toHaveCount(1);
+  await ใบ.getByLabel("ยืนราคาถึง").fill("");
+  await expect(ใบ.locator("[data-field-error]"), "ไม่มีวันยืนราคา = ข้อความใต้ช่อง").toHaveText("ต้องกำหนดวันยืนราคา");
+  await expect(ใบ.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" }), "ไม่มีวันยืนราคา = ส่งไม่ได้").toBeDisabled();
+  await ใบ.getByLabel("ยืนราคาถึง").fill("2026-12-31");
+  await expect(ใบ.locator("[data-field-error]"), "ใส่วันกลับแล้วข้อความหาย").toHaveCount(0);
 
   const กล่อง = ใบ.locator("[data-box='request-info']");
   await expect(กล่อง.locator("[data-info='job']")).toContainText("โกดังเก็บสินค้า 20x40 ม.");

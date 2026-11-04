@@ -16,7 +16,9 @@ import { useReportSection, useSettingsToast } from "@pms/shared/lib/settingsBus"
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
-import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
+import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
+import { ดาวบังคับ, กรอบผิด, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import type { ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { วันไทยสั้น } from "@pms/shared/lib/quoteRequests";
 import { UnitSelect, useรายการหน่วย, ล้างหน่วยจากวัสดุ } from "@pms/shared/components/ui/UnitSelect";
@@ -43,6 +45,13 @@ export function MaterialTemplatesPanel() {
   // ยังไม่รู้ว่าเคยใช้หรือไม่ (กำลังโหลด) = ซ่อนปุ่มลบไว้ก่อน — ไม่ให้กดลบวัสดุที่อาจเคยใช้แล้ว
   const [เคยใช้, setเคยใช้] = useState<Set<number> | null>(null);
   const toast = useSettingsToast();
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ชื่อวัสดุ · หน่วย ทุกแถว · ราคาต่อหน่วยเป็นช่องตัวเลข (ว่าง = 0) มีแค่ * ที่หัว
+  //   ขาด = ไม่บันทึก · กรอบแดงช่องที่ขาด · พาไปหน้าของแถวแรกที่ขาดแล้วเลื่อนไปช่องนั้น
+  const บังคับ = useช่องบังคับ();
+  const ช่องของแถว = (rs: แถว[]): ช่องบังคับ[] => rs.flatMap(r => [
+    { key: `name:${r.key}`, label: "ชื่อวัสดุ", value: r.name },
+    { key: `unit:${r.key}`, label: "หน่วย", value: r.unit },
+  ]);
   // ช่องหน่วยแบบดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69) — หน่วยมาตรฐาน + หน่วยที่รายการวัสดุใช้อยู่ (รวมแถวที่เพิ่งพิมพ์)
   const หน่วย = useรายการหน่วย(rows.map(r => r.unit));
 
@@ -55,21 +64,33 @@ export function MaterialTemplatesPanel() {
 
   const dirty = บันทึกแล้ว !== null && ภาพ(rows) !== ภาพ(บันทึกแล้ว);
   const save = useCallback(() => {
-    const ว่าง = rows.find(r => !r.name.trim());
-    if (ว่าง) { แจ้งพลาด("ทุกรายการต้องมีชื่อวัสดุ — ลบแถวที่ไม่ใช้ หรือพิมพ์ชื่อก่อนบันทึก"); return; }
+    const ช่อง = ช่องของแถว(rows);
+    const แถวแรกที่ขาด = rows.findIndex(r => !r.name.trim() || !r.unit.trim());
+    if (แถวแรกที่ขาด >= 0) {
+      // แถวที่ขาดอาจอยู่หน้าอื่น/ถูกค้นซ่อน → ล้างคำค้น ไปหน้าของแถวนั้น แล้วค่อยตรวจ (ช่องต้องอยู่บนจอก่อนถึงเลื่อนไปได้)
+      setค้น(""); setหน้า(Math.floor(แถวแรกที่ขาด / ROWS_PER_PAGE));
+      requestAnimationFrame(() => บังคับ.ตรวจ(ช่อง));
+      แจ้งพลาด(!rows[แถวแรกที่ขาด].name.trim()
+        ? "ทุกรายการต้องมีชื่อวัสดุ — ลบแถวที่ไม่ใช้ หรือพิมพ์ชื่อก่อนบันทึก"
+        : "ทุกรายการต้องมีหน่วย — เลือกหน่วยก่อนบันทึก");
+      return false;
+    }
     const ยังอยู่ = new Set(rows.map(r => r.id).filter((x): x is number => x != null));
     const ลบ = (บันทึกแล้ว ?? []).map(r => r.id!).filter(id => !ยังอยู่.has(id));
     const ส่ง = rows.map(r => ({ id: r.id, category: r.category.trim(), name: r.name.trim(), unit: r.unit.trim(), unitPrice: Number(r.unitPrice), active: r.active }));
     repo.save(ส่ง, ลบ)
       .then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); ล้างหน่วยจากวัสดุ(); toast("บันทึกรายการวัสดุแล้ว"); })
       .catch(e => แจ้งพลาด("บันทึกรายการวัสดุไม่สำเร็จ: " + friendlyError(e)));
-  }, [rows, บันทึกแล้ว, toast]);
+  }, [rows, บันทึกแล้ว, toast, บังคับ.ตรวจ]);
   const reset = useCallback(() => { if (บันทึกแล้ว) setRows(บันทึกแล้ว); }, [บันทึกแล้ว]);
   useReportSection(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
 
   const หมวด = useMemo(() => หมวดที่มี(rows), [rows]);
   const แสดง = useMemo(() => ค้นแม่แบบ(rows, ค้น), [rows, ค้น]);
-  const แก้ = (key: string, patch: Partial<แถว>) => setRows(rs => rs.map(r => r.key === key ? { ...r, ...patch } : r));
+  const แก้ = (key: string, patch: Partial<แถว>) => {
+    setRows(rs => rs.map(r => r.key === key ? { ...r, ...patch } : r));
+    for (const k of Object.keys(patch)) บังคับ.ล้าง(`${k}:${key}`);
+  };
   // เพิ่มแถวใหม่ไว้บนสุด (ตารางเรียงใหม่สุดก่อน · ความจำ newest-first-tables) แล้วกลับหน้าแรกให้เห็นแถวที่เพิ่ม
   const เพิ่ม = () => { setค้น(""); setหน้า(0); setRows(rs => [{ key: `new-${++ลำดับใหม่}`, category: "", name: "", unit: "", unitPrice: 0, active: true }, ...rs]); };
   const เปิดใช้ = rows.filter(r => r.active).length;
@@ -112,9 +133,13 @@ export function MaterialTemplatesPanel() {
           ว่าง={บันทึกแล้ว === null ? "กำลังโหลด…" : rows.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีรายการวัสดุ — กด “เพิ่มวัสดุ” เพื่อเริ่ม"}
           คุณสมบัติแถว={r => ({ "data-mt-row": String(r.id ?? "new"), style: r.active ? undefined : { opacity: 0.6 } })} คอลัมน์={[
             { key: "cat", หัว: "หมวด", ชนิด: "ข้อความ", กว้าง: "13%", แสดงเกิน: true, ค่า: (r, i) => <input list="mt-categories" aria-label={`หมวด ${i + 1}`} style={ช่องกรอก} value={r.category} maxLength={80} placeholder="เช่น ผนัง" onChange={e => แก้(r.key, { category: e.target.value })} /> },
-            { key: "name", หัว: "ชื่อวัสดุ", ชนิด: "ข้อความ", กว้าง: "21%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} style={ช่องกรอก} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })} /> },
-            { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: "12%", แสดงเกิน: true, ค่า: (r, i) => <UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={r.unit} หน่วย={หน่วย} onChange={u => แก้(r.key, { unit: u })} /> },
-            { key: "price", หัว: "ราคาต่อหน่วย (ก่อน VAT)", ชนิด: "เงิน", กว้าง: "17%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
+            { key: "name", หัว: <>ชื่อวัสดุ<ดาวบังคับ /></>, ชนิด: "ข้อความ", กว้าง: "21%", แสดงเกิน: true, ค่า: (r, i) => <input aria-label={`ชื่อวัสดุ ${i + 1}`} value={r.name} maxLength={200} placeholder="เช่น ผนังเมทัลชีท 0.35 มม." onChange={e => แก้(r.key, { name: e.target.value })}
+                {...บังคับ.ผูก(`name:${r.key}`)} style={{ ...ช่องกรอก, ...บังคับ.ผูก(`name:${r.key}`).style }} /> },
+            { key: "unit", หัว: <>หน่วย<ดาวบังคับ /></>, ชนิด: "หน่วย", กว้าง: "12%", แสดงเกิน: true, ค่า: (r, i) => (
+                <span ref={บังคับ.ผูก(`unit:${r.key}`).ref} data-field={`unit:${r.key}`} data-invalid={บังคับ.ผิด[`unit:${r.key}`] ? "1" : undefined} style={{ display: "block" }}>
+                  <UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={r.unit} หน่วย={หน่วย} onChange={u => แก้(r.key, { unit: u })} style={บังคับ.ผิด[`unit:${r.key}`] ? กรอบผิด : undefined} />
+                </span>) },
+            { key: "price", หัว: <>ราคาต่อหน่วย (ก่อน VAT)<ดาวบังคับ /></>, ชนิด: "เงิน", กว้าง: "17%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
             { key: "active", หัว: "เปิดใช้", ชนิด: "ข้อความ", กว้าง: "9%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
                 <input type="checkbox" aria-label={`เปิดใช้ ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}
               </label> },

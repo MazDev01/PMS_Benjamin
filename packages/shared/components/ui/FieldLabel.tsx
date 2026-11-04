@@ -21,6 +21,9 @@ export function FieldLabel({ children, required, htmlFor, className = "form-labe
   );
 }
 
+/** * แดงอย่างเดียว — หัวคอลัมน์ของตารางที่กรอกในช่อง (ไม่มีป้ายต่อช่อง) · หน้าตาเดียวกับ <FieldLabel required> */
+export const ดาวบังคับ = () => <span data-required aria-hidden="true" style={{ color: สีบังคับ, fontWeight: 800, marginLeft: 3 }}>*</span>;
+
 export function FieldError({ children, id }: { children?: ReactNode; id?: string }) {
   if (!children) return null;
   return <div role="alert" id={id} data-field-error style={{ marginTop: 4, fontSize: "0.72rem", fontWeight: 600, color: สีบังคับ }}>{children}</div>;

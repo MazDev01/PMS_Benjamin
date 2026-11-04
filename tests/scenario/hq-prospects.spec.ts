@@ -384,7 +384,9 @@ test("[ui·hq] ตั้งเป็นดีลเลอร์: รหัส/�
     await expect(ตั้ง.locator(`#${id}`), `${id} ว่าง = กรอบแดง`).toHaveAttribute("aria-invalid", "true");
   }
   await expect(ตั้ง.locator("#cv-province"), "จังหวัดว่าง = กรอบแดง").toHaveAttribute("aria-invalid", "true");
-  await expect(ตั้ง.getByRole("alert").filter({ hasText: "รหัสดีลเลอร์ต้องเป็นตัวอักษร" }).first(), "แถบผิดพลาดบอกช่องแรกที่ขาด").toBeVisible();
+  await expect(ตั้ง.locator("[data-field-error]").first(), "ข้อความใต้ช่องแรก (รหัส)").toHaveText("รหัสดีลเลอร์ต้องเป็นตัวอักษร A–Z 2–5 ตัว (ห้ามมีตัวเลข)");
+  await expect(ตั้ง.getByRole("alert").filter({ hasText: "กรอกให้ครบก่อนบันทึก: รหัสดีลเลอร์ · ชื่อดีลเลอร์ · ภาค · จังหวัดที่ตั้ง / ที่ดูแล" }),
+    "แถบผิดพลาดสรุปช่องที่ขาดครบ (ไม่ซ้ำข้อความใต้ช่อง)").toHaveCount(1);
   await expect(ตั้ง.locator("#cv-code"), "โฟกัสช่องแรกที่ขาด").toBeFocused();
   await ตั้ง.locator("#cv-code").fill("ZZRQ");
   await expect(ตั้ง.locator("#cv-code"), "แก้ช่องแล้วกรอบแดงหาย").not.toHaveAttribute("aria-invalid", "true");

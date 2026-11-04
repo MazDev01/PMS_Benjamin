@@ -35,6 +35,7 @@ import { ยืนยัน, แจ้งพลาด, แจ้งสำเร�
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
+import { FieldLabel, FieldError, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 
 const NAVY = "#003366";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -299,10 +300,12 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
 
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                 <div style={{ display: "grid", gap: 4, fontSize: "0.8rem", fontWeight: 600, color: "#374151" }}>
-                  <span>ยืนราคาถึง</span>
+                  {/* ช่องบังคับตอนส่ง (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ว่าง = กรอบแดง + ข้อความใต้ช่อง · ปุ่มส่งปิดพร้อมเหตุผลตามเดิม (ฐานกันอีกชั้น) */}
+                  {แก้ได้ ? <FieldLabel htmlFor="hq-valid" required className="" style={{ fontWeight: 600 }}>ยืนราคาถึง</FieldLabel> : <span>ยืนราคาถึง</span>}
                   {แก้ได้
-                    ? <ThaiDateInput ariaLabel="ยืนราคาถึง" value={ยืนราคาถึง} min={วันนี้ไทย()} onChange={setยืนราคาถึง} />
+                    ? <ThaiDateInput id="hq-valid" ariaLabel="ยืนราคาถึง" value={ยืนราคาถึง} min={วันนี้ไทย()} onChange={setยืนราคาถึง} style={ยืนราคาถึง ? undefined : กรอบผิด} />
                     : <span style={{ fontWeight: 400 }}>{ใบ?.validUntil ? วันไทยสั้น(ใบ.validUntil) : "—"}</span>}
+                  {แก้ได้ && !ยืนราคาถึง && <FieldError>ต้องกำหนดวันยืนราคา</FieldError>}
                 </div>
                 <label style={{ display: "grid", gap: 4, fontSize: "0.8rem", fontWeight: 600, color: "#374151", flex: 1, minWidth: 240 }}>
                   หมายเหตุถึงดีลเลอร์

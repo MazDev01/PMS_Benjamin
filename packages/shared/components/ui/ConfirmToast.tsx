@@ -23,6 +23,7 @@ import { Toaster, toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { OTHER_LOST_REASON, OTHER_REASON_OPTION } from "@pms/shared/lib/mock";
+import { ดาวบังคับ } from "@pms/shared/components/ui/FieldLabel";
 
 export type ตัวเลือกยืนยัน = {
   หัวข้อ: string;
@@ -209,8 +210,10 @@ function กล่องเหตุผล({ o, ตอบ, กำลังทำ
         <div className="pms-confirm-title">{o.หัวข้อ}</div>
       </div>
       {o.รายละเอียด && <div className="pms-confirm-detail">{o.รายละเอียด}</div>}
+      {/* เหตุผลเป็นช่องบังคับ — * แดงจากตัวกลาง (บอสสั่ง 4 พ.ย. 69) · ว่าง = ปุ่มตกลงกดไม่ได้ + คำบอกใต้ช่อง (ตามเดิม) */}
+      <div data-reason-label style={{ marginTop: 10, fontSize: "0.74rem", fontWeight: 700, color: "#4b5563" }}>{o.ป้ายช่อง}<ดาวบังคับ /></div>
       {ใช้รายการ && !พิมพ์เอง && (
-        <div data-lost-picker style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6, marginTop: 10 }}>
+        <div data-lost-picker style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6, marginTop: 6 }}>
           {รายการ.map(r => ปุ่มเลือก(r, เลือก === r, () => setเลือก(r === OTHER_REASON_OPTION ? OTHER_LOST_REASON : r)))}
           {!รายการ.includes(OTHER_REASON_OPTION) && ปุ่มเลือก(OTHER_REASON_OPTION, false, () => setเลือก(OTHER_LOST_REASON), true)}
         </div>
@@ -218,7 +221,7 @@ function กล่องเหตุผล({ o, ตอบ, กำลังทำ
       {พิมพ์เอง && (
         <textarea aria-label={o.ป้ายช่อง} placeholder="พิมพ์เหตุผล…" value={พิมพ์} autoFocus rows={2} disabled={กำลังทำ}
           aria-invalid={ว่าง || undefined} aria-describedby={ว่าง ? idคำบอก : undefined}
-          onChange={e => setพิมพ์(e.target.value)} style={{ ...ช่องในกล่อง, marginTop: 10 }} />
+          onChange={e => setพิมพ์(e.target.value)} style={{ ...ช่องในกล่อง, marginTop: 6 }} />
       )}
       {ใช้รายการ && พิมพ์เอง && (
         <button type="button" disabled={กำลังทำ} onClick={() => { setเลือก(""); setพิมพ์(""); }}
