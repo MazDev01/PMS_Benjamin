@@ -45,7 +45,9 @@ export function MaterialTemplatesPanel() {
   // ยังไม่รู้ว่าเคยใช้หรือไม่ (กำลังโหลด) = ซ่อนปุ่มลบไว้ก่อน — ไม่ให้กดลบวัสดุที่อาจเคยใช้แล้ว
   const [เคยใช้, setเคยใช้] = useState<Set<number> | null>(null);
   const toast = useSettingsToast();
-  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ชื่อวัสดุ · หน่วย ทุกแถว · ราคาต่อหน่วยเป็นช่องตัวเลข (ว่าง = 0) มีแค่ * ที่หัว
+  // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ชื่อวัสดุ · หน่วย ทุกแถว (* ที่หัวคอลัมน์)
+  //   ราคาต่อหน่วยเป็นช่องตัวเลข ว่างไม่ได้จริง (เว้นว่าง = 0) จึงไม่มี * — เดิมใส่ * แล้วหัว "ราคาต่อหน่วย (ก่อน VAT)" ตัดบรรทัด
+  //   หัวไม่ตรงแนวข้อมูล (รอบตรวจ deploy16 · qty-unit-columns.spec)
   //   ขาด = ไม่บันทึก · กรอบแดงช่องที่ขาด · พาไปหน้าของแถวแรกที่ขาดแล้วเลื่อนไปช่องนั้น
   const บังคับ = useช่องบังคับ();
   const ช่องของแถว = (rs: แถว[]): ช่องบังคับ[] => rs.flatMap(r => [
@@ -139,7 +141,7 @@ export function MaterialTemplatesPanel() {
                 <span ref={บังคับ.ผูก(`unit:${r.key}`).ref} data-field={`unit:${r.key}`} data-invalid={บังคับ.ผิด[`unit:${r.key}`] ? "1" : undefined} style={{ display: "block" }}>
                   <UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={r.unit} หน่วย={หน่วย} onChange={u => แก้(r.key, { unit: u })} style={บังคับ.ผิด[`unit:${r.key}`] ? กรอบผิด : undefined} />
                 </span>) },
-            { key: "price", หัว: <>ราคาต่อหน่วย (ก่อน VAT)<ดาวบังคับ /></>, ชนิด: "เงิน", กว้าง: "17%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
+            { key: "price", หัว: "ราคาต่อหน่วย (ก่อน VAT)", ชนิด: "เงิน", กว้าง: "17%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
             { key: "active", หัว: "เปิดใช้", ชนิด: "ข้อความ", กว้าง: "9%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
                 <input type="checkbox" aria-label={`เปิดใช้ ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}
               </label> },
