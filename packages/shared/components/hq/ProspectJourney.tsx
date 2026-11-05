@@ -17,8 +17,14 @@ import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmTo
 
 const PRIMARY = "#003366";
 
-export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง }: {
+export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง, ตั้งไม่ได้เพราะ, ป้ายสถานะ, onLinkExisting }: {
   prospect: DealerProspect;
+  /** ปุ่มตั้งเป็นดีลเลอร์: null = พร้อม (ปุ่มเด่น) · ข้อความ = กดไม่ได้พร้อมเหตุผล (บอสสั่ง 5 พ.ย. 69 · เหตุยังตั้งดีลเลอร์ไม่ได้) · ไม่ส่ง = กำลังตรวจ */
+  ตั้งไม่ได้เพราะ?: string | null;
+  /** ป้ายสถานะย่อยหลังส่งใบ (รอผู้สนใจตอบรับ · รอชำระ (จ่ายแล้ว x / y บาท) · พร้อมตั้งเป็นดีลเลอร์) — ไม่ส่ง = ชื่อขั้นหลัก */
+  ป้ายสถานะ?: string;
+  /** ผูกกับดีลเลอร์เดิม (สาขาเดิมจาก Excel) — กดได้เสมอ ไม่ต้องรอชำระครบ (บอสตัดสิน 5 พ.ย. 69 ข้อ ด) */
+  onLinkExisting?: () => void;
   /** ชื่องาน + รายการเหตุผลที่ไม่สำเร็จ ที่ตั้งไว้ (หน้าตั้งค่า › หาดีลเลอร์) — ไม่ส่ง = ชื่อเดิม/พิมพ์เหตุผลเอง */
   ค่าตั้ง?: Pick<HQRecruitSettings, "taskLabels" | "lostReasons">;
   /** รายที่ไม่สำเร็จ: ขั้นก่อนปิด (ใช้แสดงงานที่ทำไปแล้ว + เปิดติดตามใหม่) */
@@ -82,7 +88,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <div>
             <span style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>สถานะปัจจุบัน</span>
-            <div data-testid="journey-status" style={{ fontSize: "0.92rem", fontWeight: 800, color: สีแถบ }}>{prospectStatusLabel[status]}</div>
+            <div data-testid="journey-status" style={{ fontSize: "0.92rem", fontWeight: 800, color: สีแถบ }}>{ป้ายสถานะ ?? prospectStatusLabel[status]}</div>
           </div>
           <div style={{ fontSize: "1.7rem", fontWeight: 800, color: สีแถบ, fontVariantNumeric: "tabular-nums" }}>{pct}%</div>
         </div>
@@ -162,13 +168,26 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
         ) : editable ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ flex: 1, fontSize: "0.8rem", fontWeight: 700, color: "#374151" }}>ปิดท้าย :</span>
-            <button type="button" className="btn btn-sm" disabled={busy} onClick={onConvert} style={{ background: "#059669", color: "#fff" }}>
+            {/* พร้อม (ตอบรับ + ชำระครบ) = ปุ่มเด่น · ยังไม่พร้อม = กดไม่ได้ + บอกเหตุผล (บอสสั่ง 5 พ.ย. 69) */}
+            <button type="button" className={ตั้งไม่ได้เพราะ === null ? "btn btn-md" : "btn btn-sm"} data-convert-ready={ตั้งไม่ได้เพราะ === null ? "1" : "0"}
+              disabled={busy || ตั้งไม่ได้เพราะ !== null} title={ตั้งไม่ได้เพราะ ?? undefined} onClick={onConvert}
+              style={ตั้งไม่ได้เพราะ === null
+                ? { background: "#059669", color: "#fff", fontWeight: 800, boxShadow: "0 0 0 3px #bbf7d0" }
+                : { background: "#e5e7eb", color: "#6b7280", cursor: "not-allowed" }}>
               <Store size={13} /> ตั้งเป็นดีลเลอร์
             </button>
+            {onLinkExisting && (
+              <button type="button" className="btn btn-secondary btn-sm" data-link-existing disabled={busy} onClick={onLinkExisting}>ผูกกับดีลเลอร์เดิม</button>
+            )}
             <button type="button" className="btn btn-sm" disabled={busy} onClick={ไม่สำเร็จ}
               style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca" }}>
               <XCircle size={13} /> ไม่สำเร็จ
             </button>
+            {ตั้งไม่ได้เพราะ !== null && (
+              <div data-convert-blocked style={{ flexBasis: "100%", fontSize: "0.74rem", color: "#92400e", fontWeight: 600 }}>
+                ตั้งเป็นดีลเลอร์ยังไม่ได้: {ตั้งไม่ได้เพราะ ?? "กำลังตรวจใบค่าแฟรนไชส์…"}
+              </div>
+            )}
           </div>
         ) : null}
       </div>

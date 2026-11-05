@@ -29,8 +29,9 @@ test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง 
   await page.goto(`${HQ_ORIGIN}/hq/prospects`, { waitUntil: "domcontentloaded" });
   await settle(page);
   const ขั้น = await page.getByLabel("กรองตามสถานะ").locator("option").allInnerTexts();
-  expect(ขั้น.map(t => t.trim()), "ชื่อขั้นตาม FLOW").toEqual(expect.arrayContaining(["รอติดต่อ", "ติดต่อแล้ว", "ส่งข้อมูลบริษัทแล้ว", "นัดคุยแล้ว", "รอตัดสินใจ HQ"]));   // "เป็นดีลเลอร์แล้ว" ไม่อยู่ในตัวกรอง (ตั้งใจ)
-  expect(ขั้น.map(t => t.trim()), "ไม่มีชื่อเดิม").not.toContain("รอตัดสินใจ");
+  // 5 พ.ย. 69 (บอสสั่ง): "รอตัดสินใจ HQ" → "รอผู้สนใจตอบรับ" (คนตัดสินใจคือผู้สนใจ) — ตรวจกลับด้านจากข้อเดิม 30 ต.ค. 69
+  expect(ขั้น.map(t => t.trim()), "ชื่อขั้นตาม FLOW").toEqual(expect.arrayContaining(["รอติดต่อ", "ติดต่อแล้ว", "ส่งข้อมูลบริษัทแล้ว", "นัดคุยแล้ว", "รอผู้สนใจตอบรับ"]));   // "เป็นดีลเลอร์แล้ว" ไม่อยู่ในตัวกรอง (ตั้งใจ)
+  for (const เดิม of ["รอตัดสินใจ", "รอตัดสินใจ HQ"]) expect(ขั้น.map(t => t.trim()), `ไม่มีชื่อเดิม "${เดิม}"`).not.toContain(เดิม);
 
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
@@ -46,8 +47,10 @@ test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง 
 test("[H3·hq] ชื่อขั้นเดิมในบันทึกเก่าแสดงเป็นคำใหม่ · ใบ 0268 ไม่แก้บันทึกในฐาน", async () => {
   const fs = await import("node:fs");
   const { ชื่อขั้นปัจจุบัน } = await import("../../packages/shared/lib/dealerProspects");
-  expect(ชื่อขั้นปัจจุบัน("นัดคุยแล้ว → รอตัดสินใจ"), "ข้อความเก่า → คำใหม่").toBe("นัดคุยแล้ว → รอตัดสินใจ HQ");
-  expect(ชื่อขั้นปัจจุบัน("นัดคุยแล้ว → รอตัดสินใจ HQ"), "ข้อความใหม่ไม่เปลี่ยน (ไม่เติม HQ ซ้ำ)").toBe("นัดคุยแล้ว → รอตัดสินใจ HQ");
+  // 5 พ.ย. 69: ชื่อปัจจุบัน "รอผู้สนใจตอบรับ" — ข้อความทั้งรุ่นก่อน 30 ต.ค. ("รอตัดสินใจ") และรุ่น 30 ต.ค.–5 พ.ย. ("รอตัดสินใจ HQ") แปลงตอนแสดง
+  expect(ชื่อขั้นปัจจุบัน("นัดคุยแล้ว → รอตัดสินใจ"), "ข้อความก่อน 30 ต.ค. → คำปัจจุบัน").toBe("นัดคุยแล้ว → รอผู้สนใจตอบรับ");
+  expect(ชื่อขั้นปัจจุบัน("นัดคุยแล้ว → รอตัดสินใจ HQ"), "ข้อความ 30 ต.ค.–5 พ.ย. → คำปัจจุบัน (ไม่เหลือ HQ ค้าง)").toBe("นัดคุยแล้ว → รอผู้สนใจตอบรับ");
+  expect(ชื่อขั้นปัจจุบัน("นัดคุยแล้ว → รอผู้สนใจตอบรับ"), "ข้อความใหม่ไม่เปลี่ยน").toBe("นัดคุยแล้ว → รอผู้สนใจตอบรับ");
   const ใบ = fs.readFileSync("supabase/migrations/0268_hq_pages_monthly.sql", "utf8").replace(/--.*$/gm, "");
   expect(ใบ.match(/\b(update|delete\s+from|truncate|insert\s+into)\s+(public\.)?(audit_log|notifications|dealer_prospect_activities|lead_activities)\b/gi) ?? [], "ใบ 0268 ไม่มีคำสั่งแก้/ลบ/เพิ่มตารางบันทึก").toEqual([]);
   for (const ไฟล์ of ["packages/shared/lib/useAudit.ts", "packages/shared/components/hq/ProspectActivityPanel.tsx", "packages/shared/components/layout/NotificationBell.tsx"])

@@ -18,16 +18,17 @@ export const prospectStatusLabel: Record<DealerProspectStatus, string> = {
   contacted: "ติดต่อแล้ว",
   profile_sent: "ส่งข้อมูลบริษัทแล้ว",
   meeting: "นัดคุยแล้ว",
-  considering: "รอตัดสินใจ HQ",   // ชื่อตาม FLOW H3–H5 (บอสสั่ง 30 ต.ค. 69)
+  // ส่งใบแล้ว: คนตัดสินใจคือผู้สนใจ ไม่ใช่ HQ (บอสสั่ง 5 พ.ย. 69 · เดิม "รอตัดสินใจ HQ") — สถานะย่อยตามใบ: prospectJourney.ขั้นย่อยหลังส่งใบ
+  considering: "รอผู้สนใจตอบรับ",
   won: "เป็นดีลเลอร์แล้ว",
   lost: "ไม่สำเร็จ",
 };
 
-/** ข้อความบันทึก/ประวัติ/แจ้งเตือนรุ่นก่อน 30 ต.ค. 69 ใช้ชื่อขั้นเดิม "รอตัดสินใจ" — แปลงตอนแสดงเป็น "รอตัดสินใจ HQ" (บอสสั่ง)
- *  ห้ามแก้ข้อความในฐาน (บันทึกการใช้งานแก้ไม่ได้ทุกบทบาท · ใบ 0241) · ของใหม่ฐานบันทึกคำใหม่เอง (ใบ 0268) */
+/** ข้อความบันทึก/ประวัติ/แจ้งเตือนที่ใช้ชื่อขั้นเดิม ("รอตัดสินใจ" ก่อน 30 ต.ค. 69 · "รอตัดสินใจ HQ" ก่อน 5 พ.ย. 69)
+ *  — แปลงตอนแสดงเป็นชื่อปัจจุบัน "รอผู้สนใจตอบรับ" (บอสสั่ง) · ห้ามแก้ข้อความในฐาน (บันทึกการใช้งานแก้ไม่ได้ทุกบทบาท · ใบ 0241) */
 export function ชื่อขั้นปัจจุบัน(t: string): string;
 export function ชื่อขั้นปัจจุบัน(t: string | null | undefined): string | null | undefined;
-export function ชื่อขั้นปัจจุบัน(t: string | null | undefined) { return t == null ? t : t.replace(/รอตัดสินใจ(?! HQ)/g, "รอตัดสินใจ HQ"); }
+export function ชื่อขั้นปัจจุบัน(t: string | null | undefined) { return t == null ? t : t.replace(/รอตัดสินใจ(?: HQ)?/g, prospectStatusLabel.considering); }
 
 export const prospectStatusColor: Record<DealerProspectStatus, { bg: string; text: string }> = {
   new:          { bg: "#f3f4f6", text: "#4b5563" },

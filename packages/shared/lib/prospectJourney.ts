@@ -81,7 +81,7 @@ export function ตรวจเปลี่ยนขั้น(
   if (จาก !== "lost" && Math.abs(ลำดับขั้น(ไป) - ลำดับขั้น(จาก)) !== 1) {
     return `เลื่อนขั้นได้ทีละขั้น ห้ามข้ามขั้น (${prospectStatusLabel[จาก]} → ${prospectStatusLabel[ไป]})`;
   }
-  if (ไป === "considering" && !ctx.มีใบส่งแล้ว) return "ต้องส่งใบค่าแฟรนไชส์ก่อน ถึงจะเป็น “รอตัดสินใจ”";
+  if (ไป === "considering" && !ctx.มีใบส่งแล้ว) return `ต้องส่งใบค่าแฟรนไชส์ก่อน ถึงจะเป็น “${prospectStatusLabel.considering}”`;
   return null;
 }
 
@@ -176,4 +176,38 @@ export function ตรวจบันทึกการติดต่อ(x: Pro
   if (x.body.length > 2000) return "บันทึกยาวเกิน 2,000 ตัวอักษร";
   if (วันนี้ISO && x.nextFollowUp && x.nextFollowUp < วันนี้ISO) return "วันนัดติดตามต้องไม่ย้อนหลัง";
   return null;
+}
+
+// ── สถานะย่อยหลังส่งใบค่าแฟรนไชส์ (บอสสั่ง 5 พ.ย. 69 · ขั้น considering ในฐาน) ─────────────────────────────────────────
+//   เดินตามใบเอง ไม่มีใครกดเปลี่ยน: ส่งใบแล้ว = รอผู้สนใจตอบรับ · ตอบรับแต่ยังจ่ายไม่ครบ = รอชำระ (จ่ายแล้ว x / y บาท)
+//   ตอบรับ + ชำระครบ = พร้อมตั้งเป็นดีลเลอร์ (ปุ่มตั้งเป็นดีลเลอร์กดได้) · ตั้งแล้ว = เป็นดีลเลอร์แล้ว (ขั้น won)
+//   กติกาเดียวกับ dealer_conversion_ready ของฐาน: ใบตอบรับใบไหนชำระรวม >= ยอด = พร้อม · ยังไม่ครบ = บอกใบตอบรับล่าสุด (รหัสมากสุด)
+//   ความพร้อมคิดจากใบอย่างเดียว (แบบฐาน) — รายที่ยังอยู่ขั้นก่อนหน้าแต่มีใบส่งแล้ว/ตอบรับ ก็ได้สถานะย่อย (ป้ายในตารางเปลี่ยนเฉพาะขั้น considering)
+export type ขั้นย่อยใบ = { key: "รอตอบรับ" | "รอชำระ" | "พร้อม"; label: string; ชำระ?: number; ยอด?: number; เลขที่?: string | null };
+export const ชื่อขั้นย่อย = { รอตอบรับ: "รอผู้สนใจตอบรับ", รอชำระ: "รอชำระ", พร้อม: "พร้อมตั้งเป็นดีลเลอร์" } as const;
+const บาท = (n: number) => n.toLocaleString("th-TH", { maximumFractionDigits: 2 });
+export function ขั้นย่อยหลังส่งใบ(
+  status: DealerProspectStatus,
+  ใบ: readonly { id: number; status: DealerProposalStatus; amount?: number | null; proposalNo?: string | null }[],
+  ชำระรวม: ReadonlyMap<number, number>,
+): ขั้นย่อยใบ | null {
+  if (!ยังติดตามอยู่(status)) return null;
+  if (status !== "considering" && !ใบ.some(p => p.status === "sent" || p.status === "accepted")) return null;
+  const ตอบรับ = ใบ.filter(p => p.status === "accepted").sort((a, b) => b.id - a.id);
+  if (ตอบรับ.some(p => (ชำระรวม.get(p.id) ?? 0) >= Number(p.amount ?? 0))) return { key: "พร้อม", label: ชื่อขั้นย่อย.พร้อม };
+  const ล่าสุด = ตอบรับ[0];
+  if (ล่าสุด) {
+    const ชำระ = ชำระรวม.get(ล่าสุด.id) ?? 0, ยอด = Number(ล่าสุด.amount ?? 0);
+    return { key: "รอชำระ", label: `${ชื่อขั้นย่อย.รอชำระ} (จ่ายแล้ว ${บาท(ชำระ)} / ${บาท(ยอด)} บาท)`, ชำระ, ยอด, เลขที่: ล่าสุด.proposalNo };
+  }
+  return { key: "รอตอบรับ", label: ชื่อขั้นย่อย.รอตอบรับ };
+}
+
+/** ปุ่ม "ตั้งเป็นดีลเลอร์" กดได้เมื่อพร้อมเท่านั้น (บอสสั่ง 5 พ.ย. 69) — null = พร้อม · ข้อความ = เหตุที่ยังกดไม่ได้ (ฐานตรวจซ้ำ dealer_conversion_ready) */
+export function เหตุยังตั้งดีลเลอร์ไม่ได้(status: DealerProspectStatus, ย่อย: ขั้นย่อยใบ | null | undefined): string | null {
+  if (status === "won") return "รายนี้เป็นดีลเลอร์แล้ว";
+  if (ย่อย?.key === "พร้อม") return null;
+  if (ย่อย?.key === "รอชำระ") return `ยังชำระไม่ครบ — จ่ายแล้ว ${บาท(ย่อย.ชำระ ?? 0)} / ${บาท(ย่อย.ยอด ?? 0)} บาท`;
+  if (ย่อย?.key === "รอตอบรับ") return "รอผู้สนใจตอบรับใบค่าแฟรนไชส์ — ตอบรับแล้วชำระค่าแรกเข้าให้ครบก่อน";
+  return "ต้องส่งใบค่าแฟรนไชส์ ให้ผู้สนใจตอบรับ และชำระค่าแรกเข้าครบก่อน";
 }

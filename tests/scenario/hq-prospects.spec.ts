@@ -141,9 +141,11 @@ test("[H2] [func·hq] เพิ่มลูกค้าเป้าหมาย 
   await แก้ไข.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
   await waitRow(sb, "dealer_prospects", { name, status: "profile_sent" });
 
-  await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click();
+  // ผูกกับดีลเลอร์เดิม = ปุ่มแยก กดได้เสมอ (บอสตัดสิน 5 พ.ย. 69) — ปุ่มตั้งเป็นดีลเลอร์ (สร้างใหม่) ปิดจนตอบรับ+ชำระครบ
+  await expect(แก้ไข.locator("button[data-convert-ready]").first(), "ยังไม่ส่งใบ = ปุ่มตั้งเป็นดีลเลอร์ (สร้างใหม่) กดไม่ได้").toBeDisabled();
+  await แก้ไข.locator("button[data-link-existing]").first().click();
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
-  await ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว").check();
+  await expect(ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว"), "เปิดมาที่โหมดผูกดีลเลอร์เดิม").toBeChecked();
   // CNX ไม่ใช่ RYG — สเปกอื่นผูกลูกค้าเป้าหมายทดสอบกับ RYG อยู่ และหนึ่งสาขาผูกได้รายเดียว (บอสสั่ง 15 ก.ย. 69)
   await ตั้ง.locator("#cv-existing").selectOption("CNX");
   await ตั้ง.getByRole("button", { name: "ผูกกับดีลเลอร์นี้" }).click();
@@ -216,9 +218,9 @@ test("[func·hq] ผูกกับสาขาที่ยังไม่มี
 
   await loginUI(page, HQ_ORIGIN, `/hq/prospects?open=${id}`, ADMIN);
   const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
-  await แผง.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click({ timeout: 30_000 });
+  await แผง.locator("button[data-link-existing]").first().click({ timeout: 30_000 });   // ผูกดีลเลอร์เดิม = ปุ่มแยก (บอสตัดสิน 5 พ.ย. 69)
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
-  await ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว").check();
+  await expect(ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว")).toBeChecked();
   await ตั้ง.locator("#cv-existing").selectOption(NOACC_CODE);
   await expect(ตั้ง.getByText(`ดีลเลอร์ ${NOACC_CODE} ยังไม่มีบัญชีเข้าระบบ`), "ต้องเตือนก่อนกดผูก").toBeVisible({ timeout: 15_000 });
   await ตั้ง.getByRole("button", { name: "ผูกกับดีลเลอร์นี้" }).click();
@@ -492,23 +494,29 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
   // ── ตกลง + ชำระ (ด่าน 4 · บอสตัดสิน 15 ต.ค. 69 · ฐานข้อมูลบังคับ 0208) ──
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
   const ปุ่มสร้าง = ตั้ง.getByRole("button", { name: "สร้างดีลเลอร์" });
-  const เปิดกล่องตั้ง = async () => { await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).click(); await expect(ตั้ง).toBeVisible(); };
+  const เปิดกล่องตั้ง = async () => { await แก้ไข.getByRole("button", { name: "ตั้งเป็นดีลเลอร์" }).first().click(); await expect(ตั้ง).toBeVisible(); };
+  // ยังไม่พร้อม (5 พ.ย. 69 · บอสสั่ง): ปุ่ม "ตั้งเป็นดีลเลอร์" ในแผงกดไม่ได้ + บอกเหตุผล (ตรวจกลับด้านจากเดิมที่กดเปิดกล่องได้)
+  //   กล่องยังตรวจได้ทางปุ่ม "ผูกกับดีลเลอร์เดิม" (กดได้เสมอ) แล้วสลับเป็นสร้างใหม่ — ข้อความฐาน + ปุ่มสร้างปิด เหมือนเดิม
+  const ยังตั้งไม่ได้ = async (เหตุในแผง: RegExp, เหตุในกล่อง: RegExp) => {
+    await expect(แก้ไข.locator("button[data-convert-ready]").first(), "ยังไม่พร้อม = ปุ่มตั้งเป็นดีลเลอร์กดไม่ได้").toBeDisabled({ timeout: 15_000 });
+    await expect(แก้ไข.locator("button[data-convert-ready]").first()).toHaveAttribute("title", เหตุในแผง);
+    await แก้ไข.locator("button[data-link-existing]").first().click();
+    await expect(ตั้ง).toBeVisible();
+    await ตั้ง.getByRole("radio", { name: /สร้างดีลเลอร์ใหม่/ }).check();
+    await expect(ตั้ง.getByText(เหตุในกล่อง)).toBeVisible({ timeout: 15_000 });
+    await expect(ปุ่มสร้าง).toBeDisabled();
+    await ปิดกล่องตั้ง();
+  };
   const ปิดกล่องตั้ง = async () => { await ตั้ง.getByRole("button", { name: "ยกเลิก" }).click(); await expect(ตั้ง).toHaveCount(0); };
 
   // ยังเป็นร่าง → กดสร้างไม่ได้ พร้อมบอกเหตุผล
-  await เปิดกล่องตั้ง();
-  await expect(ตั้ง.getByText(/ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ/)).toBeVisible({ timeout: 15_000 });
-  await expect(ปุ่มสร้าง).toBeDisabled();
-  await ปิดกล่องตั้ง();
+  await ยังตั้งไม่ได้(/ต้องส่งใบค่าแฟรนไชส์/, /ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ/);
 
   // ส่งแล้ว (ยังไม่ตอบรับ) → ยังสร้างไม่ได้
   await แก้ไข.getByLabel(`สถานะใบ ${แถวใบ.proposal_no}`).selectOption("sent");
   await กดตกลงในกล่องยืนยัน(page);
   await waitRow(sb, "dealer_package_proposals", { id: แถวใบ.id, status: "sent" });
-  await เปิดกล่องตั้ง();
-  await expect(ตั้ง.getByText(/ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ/), "ส่งแล้วแต่ยังไม่ตอบรับ ต้องสร้างไม่ได้").toBeVisible({ timeout: 15_000 });
-  await expect(ปุ่มสร้าง).toBeDisabled();
-  await ปิดกล่องตั้ง();
+  await ยังตั้งไม่ได้(/รอผู้สนใจตอบรับ/, /ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ/);
 
   // ตอบรับ → บันทึกการชำระงวดแรก 100,000 จาก 150,000 → ยังสร้างไม่ได้ (บอกยอดค้าง)
   await แก้ไข.getByLabel(`สถานะใบ ${แถวใบ.proposal_no}`).selectOption("accepted");
@@ -541,10 +549,7 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
   await expect(ชำระ.getByTestId(`ยอดชำระ-${แถวใบ.proposal_no}`)).toContainText("ค้าง 50,000.00");
   await กลับแผง();
   await expect(แก้ไข.getByTestId(`ยอดชำระ-${แถวใบ.proposal_no}`), "แผงผู้สนใจเห็นยอดค้างเดียวกัน").toContainText("ค้าง 50,000.00", { timeout: 15_000 });
-  await เปิดกล่องตั้ง();
-  await expect(ตั้ง.getByText(/ยังชำระไม่ครบ/), "ชำระ 1 งวดไม่ครบ → สร้างไม่ได้").toBeVisible({ timeout: 15_000 });
-  await expect(ปุ่มสร้าง).toBeDisabled();
-  await ปิดกล่องตั้ง();
+  await ยังตั้งไม่ได้(/ยังชำระไม่ครบ — จ่ายแล้ว 100,000 \/ 150,000 บาท/, /ยังชำระไม่ครบ/);   // ชำระ 1 งวดไม่ครบ → สร้างไม่ได้
 
   // งวดที่ 2 ครบ → สร้างได้
   await ไปหน้าใบ();
@@ -568,10 +573,70 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
   await waitRow(sb, "dealer_proposal_payments", { proposal_id: แถวใบ.id, reference: "TR-ZZ-2", cancel_reason: "บันทึกยอดผิด" });
   await expect(ชำระ.getByText("ยกเลิกแล้ว: บันทึกยอดผิด")).toBeVisible();
   await กลับแผง();
-  await เปิดกล่องตั้ง();
-  await expect(ตั้ง.getByText(/ยังชำระไม่ครบ/), "ยกเลิกงวดจนยอดไม่ครบ → สร้างไม่ได้").toBeVisible({ timeout: 15_000 });
-  await expect(ปุ่มสร้าง).toBeDisabled();
-  await ปิดกล่องตั้ง();
+  await ยังตั้งไม่ได้(/ยังชำระไม่ครบ — จ่ายแล้ว 100,000 \/ 150,000 บาท/, /ยังชำระไม่ครบ/);   // ยกเลิกงวดจนยอดไม่ครบ → สร้างไม่ได้
   assertNoErrors(errs, "ออกใบค่าแฟรนไชส์ + ตกลง + ชำระ");
 });
 
+
+// ── สถานะผู้สนใจหลังส่งใบ เดินตามใบเอง (บอสสั่ง 5 พ.ย. 69) ────────────────────────────────────────────────────────────
+//   ส่งใบแล้ว = รอผู้สนใจตอบรับ · ตอบรับยังจ่ายไม่ครบ = รอชำระ (จ่ายแล้ว x / y บาท) · ตอบรับ+ชำระครบ = พร้อมตั้งเป็นดีลเลอร์ · ตั้งแล้ว = เป็นดีลเลอร์แล้ว
+//   ปุ่ม "ตั้งเป็นดีลเลอร์" กดไม่ได้ + บอกเหตุผลจนชำระครบ · พร้อม = ปุ่มเด่นกดได้
+//   ตกบนโค้ดเดิม: ป้าย "รอตัดสินใจ HQ" ทุกขั้นย่อย · ปุ่มตั้งเป็นดีลเลอร์กดได้ตลอด
+const SUB_CODE = "ZZPS";
+test("[ui·hq] สถานะผู้สนใจหลังส่งใบ 4 ขั้นตามใบ · ปุ่มตั้งเป็นดีลเลอร์กดไม่ได้จนชำระครบ", async ({ page }) => {
+  const errs = watchErrors(page);
+  await purgeDealer(SUB_CODE);
+  const sb = await db(ADMIN);
+  const name = `${NS}-สถานะตามใบ`;
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, region: "เหนือ", province: "ตาก", status: "meeting" }).select("id").single();
+  expect(error).toBeNull();
+  const id = (pr as { id: number }).id;
+  const ใบ = await sb.from("dealer_package_proposals").insert({ ...ช่องใบครบ(), prospect_id: id, status: "sent", amount: 50_000, region: "เหนือ", province: "ตาก" }).select("id").single();
+  expect(ใบ.error?.message ?? "").toBe("");
+  const ใบId = (ใบ.data as { id: number }).id;
+
+  await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+  const ตรวจขั้น = async (ป้าย: string, พร้อม: boolean) => {
+    await page.goto(`${HQ_ORIGIN}/hq/prospects`, { waitUntil: "domcontentloaded" });
+    await page.getByLabel("ค้นหาผู้สนใจ").fill(name);
+    const แถว = page.getByRole("row", { name: new RegExp(name) });
+    await expect(แถว.locator(".badge").first(), `ตาราง: ${ป้าย}`).toHaveText(ป้าย, { timeout: 20_000 });
+    for (const เดิม of ["รอตัดสินใจ HQ", "รอตัดสินใจ"]) await expect(แถว, `ไม่มีชื่อเดิม "${เดิม}"`).not.toContainText(เดิม);
+    await แถว.click();
+    const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
+    await แผง.getByRole("tab", { name: /งาน/ }).click();
+    await expect(แผง.getByTestId("journey-status"), `แท็บงาน: ${ป้าย}`).toHaveText(ป้าย, { timeout: 20_000 });
+    const ปุ่มในงาน = แผง.locator("button[data-convert-ready]").filter({ hasText: "ตั้งเป็นดีลเลอร์" }).last();
+    const ปุ่มหัว = แผง.locator("button[data-convert-ready]").first();
+    for (const ปุ่ม of [ปุ่มหัว, ปุ่มในงาน]) {
+      if (พร้อม) await expect(ปุ่ม, "พร้อม = กดได้").toBeEnabled();
+      else await expect(ปุ่ม, "ยังไม่พร้อม = กดไม่ได้").toBeDisabled();
+      await expect(ปุ่ม).toHaveAttribute("data-convert-ready", พร้อม ? "1" : "0");
+    }
+    if (!พร้อม) await expect(แผง.locator("[data-convert-blocked]"), "บอกเหตุผลที่ยังตั้งไม่ได้").toBeVisible();
+    else await expect(แผง.locator("[data-convert-blocked]")).toHaveCount(0);
+    return แผง;
+  };
+  // 1) ส่งใบแล้ว
+  let แผง = await ตรวจขั้น("รอผู้สนใจตอบรับ", false);
+  await expect(แผง.locator("[data-convert-blocked]")).toContainText("รอผู้สนใจตอบรับใบค่าแฟรนไชส์");
+  // 2) ตอบรับ ยังไม่จ่าย → จ่ายบางส่วน
+  expect((await sb.from("dealer_package_proposals").update({ status: "accepted" }).eq("id", ใบId)).error).toBeNull();
+  แผง = await ตรวจขั้น("รอชำระ (จ่ายแล้ว 0 / 50,000 บาท)", false);
+  expect((await sb.from("dealer_proposal_payments").insert({ proposal_id: ใบId, paid_on: "2026-11-05", amount: 20_000, reference: `TR-${NS}-1` })).error).toBeNull();
+  แผง = await ตรวจขั้น("รอชำระ (จ่ายแล้ว 20,000 / 50,000 บาท)", false);
+  await expect(แผง.locator("[data-convert-blocked]")).toContainText("ยังชำระไม่ครบ — จ่ายแล้ว 20,000 / 50,000 บาท");
+  // 3) ชำระครบ
+  expect((await sb.from("dealer_proposal_payments").insert({ proposal_id: ใบId, paid_on: "2026-11-05", amount: 30_000, reference: `TR-${NS}-2` })).error).toBeNull();
+  await ตรวจขั้น("พร้อมตั้งเป็นดีลเลอร์", true);
+  // 4) ตั้งเป็นดีลเลอร์ → เป็นดีลเลอร์แล้ว
+  const res = await fetch(`${HQ_ORIGIN}/api/admin/dealers`, {
+    method: "POST", headers: { authorization: `Bearer ${await adminToken()}`, "content-type": "application/json" },
+    body: JSON.stringify({ code: SUB_CODE, name, province: "ตาก", region: "เหนือ", revenueTarget: 0, prospectId: id }),
+  });
+  expect(res.status, await res.text()).toBe(200);
+  const { data: หลัง } = await sb.from("dealer_prospects").select("status, dealer_code").eq("id", id).single();
+  expect(หลัง, "ตั้งแล้ว = เป็นดีลเลอร์แล้ว").toMatchObject({ status: "won", dealer_code: SUB_CODE });
+  await purgeDealer(SUB_CODE);
+  assertNoErrors(errs, "สถานะผู้สนใจตามใบ");
+});
