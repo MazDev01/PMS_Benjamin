@@ -139,7 +139,8 @@ for (const [ป้าย, แก้, ใบ, ข้อความ] of [
   คาดบันทึก.push({ ป้าย: "M1 dry-run ใบไม่ผ่านรอบตรวจ", ผล: "ไม่ลง" });
   const p = รัน("scripts/db-push-prod.mjs", { PMS_MIGRATIONS_DIR: d, PMS_PUSH_TEST_PENDING: "9999_zz_new.sql" }, ["--dry-run"]);
   const จด = existsSync(PROD) ? JSON.parse(readFileSync(PROD, "utf8")) : null;
-  ผล(p.code === 0 && !existsSync(MARK), `M1 dry-run ที่มีใบ 9999 ยังไม่ผ่านรอบตรวจ → ไม่หยุด ไม่ลงใบ (exit ${p.code})`, p.out);
+  // ไม่หยุดที่ด่าน ⓪ (ใบยังไม่ผ่านรอบตรวจ = ข้อมูล) → ถึงขั้นอ่าน/จดรายชื่อ · ใบ 9999 ไม่อยู่ในรอบที่ผ่าน = ตัวกันเลขใบหยุดหลังจด (วัดที่ migration-order.test.mjs)
+  ผล(p.code !== 4 && !existsSync(MARK) && /ℹ️  \(ดูอย่างเดียว\) มีใบปรับฐานที่ยังไม่ผ่านรอบตรวจเต็ม/.test(p.out), `M1 dry-run ที่มีใบ 9999 ยังไม่ผ่านรอบตรวจ → ไม่หยุดที่ด่านรอบตรวจ ไม่ลงใบ (exit ${p.code})`, p.out);
   ผล(!!จด && จด.ใบ.some(x => String(x).startsWith(ล่าสุด.split("_")[0])) && !จด.ใบ.some(x => String(x).startsWith("9999")),
     "M2 จดรายชื่อใบบนฐานครบ (มีใบล่าสุดในเครื่อง ไม่มีใบ 9999 ที่จะลง)", JSON.stringify(จด) + "\n" + p.out);
   ผล(/ใบ 9999 ยังไม่ผ่านรอบตรวจเต็ม/.test(p.out), "M3 ยังบอกบนจอว่าใบ 9999 ยังไม่ผ่านรอบตรวจ (เป็นข้อมูล)", p.out);
