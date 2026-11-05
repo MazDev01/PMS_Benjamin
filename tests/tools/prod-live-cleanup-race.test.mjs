@@ -2,7 +2,7 @@
 //   เหตุ: บอสรันล้างแล้วขั้นนับก่อนลบได้ 0 แต่ฐานลบจริง 54 · ต้นเหตุยังไม่ยืนยัน (ตัวเลขเข้ากับการเขียนแถวระหว่างนับกับลบ แต่เวลาไม่ชัด)
 //   1) run.mjs --target prod: ขั้นอื่นของชุดเว็บจริงถือล็อกอยู่ → ไม่เริ่ม (exit 3) บอกว่ารออะไร · หยุดก่อนแตะฐานจริง
 //      ตาข่ายกันพลาด: ล็อกฐานจริงจำลองถืออยู่ + รอได้ 1 มิลลิวินาที → ถ้าตัวกันไม่ทำงาน ก็หยุดที่ขั้นรอฐานจริง ไม่ถึงฐานจริง
-//   2) จำลองการเขียนแถวระหว่างล้าง (ฐานทดสอบ · rollback ทุกอย่าง): ทรานแซกชันล้างใช้คำสั่งล็อกตารางจาก cleanup.sql จริง
+//   2) จำลองการเขียนแถวระหว่างล้าง (ฐานทดสอบ · rollback ทุกอย่าง · ฝั่งล้าง = supabase/tests/cleanup_race_side.sql): ใช้คำสั่งล็อกตารางจาก cleanup.sql จริง
 //      → อีกทรานแซกชันเขียนแถวทดสอบแทรก ต้องรอจนการล้างจบ · จำนวนที่นับ = จำนวนที่ลบ (สรุปการลบของฐาน) · แถวที่แทรกไม่ถูกลบเงียบ ๆ
 //   3) ลำดับใน cleanup.sql: ล็อกตาราง → ด่านปนแถวจริง → ลบ · ข้อความจบของ run.mjs ใช้สรุปการลบของฐาน
 //   ตกบนโค้ดก่อนแก้: ไม่มีล็อกชุดเว็บจริง (ไปหยุดที่ขั้นรอฐานจริงแทน) · cleanup.sql ไม่ล็อกตาราง (แถวแทรกได้ทันที)
@@ -32,40 +32,41 @@ try {
   // ── 3) ลำดับใน cleanup.sql + ข้อความจบ ──
   const ล้าง = readFileSync("tests/prod-live/cleanup.sql", "utf8");
   const ล็อกตาราง = /^lock table public\.audit_log in [a-z ]+ mode;$/m.exec(ล้าง)?.[0];
-  const ที่ล็อก = ล็อกตาราง ? ล้าง.indexOf(ล็อกตาราง) : -1, ที่ด่าน = ล้าง.indexOf("_audit_is_test_row(\"user\", target, action)"), ที่ลบ = ล้าง.indexOf("delete from public.audit_log");
-  ผล(ที่ล็อก > 0 && ที่ล็อก < ที่ด่าน && ที่ด่าน < ที่ลบ, "cleanup.sql: ล็อกตารางบันทึก → ด่านปนแถวจริง → ลบ (ในทรานแซกชันเดียว)", `ล็อก ${ที่ล็อก} ด่าน ${ที่ด่าน} ลบ ${ที่ลบ}`);
+  const ที่ล็อก = ล็อกตาราง ? ล้าง.indexOf(ล็อกตาราง) : -1, ที่ด่าน = ล้าง.indexOf("_audit_is_test_row(\"user\", target, action)");
+  const ที่ก่อนลบ = ล้าง.indexOf("set local pms.audit_backup = '__ชุดสำรองก่อนลบ__';"), ที่จบ = ล้าง.lastIndexOf("commit;");
+  const ช่วง = ที่ล็อก > 0 && ที่จบ > ที่ล็อก ? ล้าง.slice(ที่ล็อก, ที่จบ) : "";
+  ผล(ที่ล็อก > 0 && ที่ล็อก < ที่ด่าน && ที่ด่าน < ที่ก่อนลบ && !/^\s*(commit|begin|end)\s*;/mi.test(ช่วง),
+    "cleanup.sql: ล็อกตารางบันทึก → ด่านปนแถวจริง → ลบ (ในทรานแซกชันเดียว ไม่มี commit คั่น)", `ล็อก ${ที่ล็อก} ด่าน ${ที่ด่าน} ก่อนลบ ${ที่ก่อนลบ} จบ ${ที่จบ}`);
   const run = readFileSync("tests/prod-live/run.mjs", "utf8");
   ผล(/สรุปการลบล่าสุด/.test(run) && /ลบจริงตามฐาน/.test(run), "run.mjs: ข้อความจบใช้จำนวนจากสรุปการลบของฐาน");
 
   // ── 2) จำลองการเขียนแถวระหว่างล้าง ──
+  //   ฝั่งล้าง = supabase/tests/cleanup_race_side.sql (ทั้งไฟล์ rollback) โดยแทนบรรทัดล็อกด้วยบรรทัดจาก cleanup.sql จริง
+  //   ฝั่งแทรก = อีกการเชื่อมต่อ เขียนแถวทดสอบระหว่างฝั่งล้างหน่วง แล้ว rollback (ไม่มีแถวค้าง ไม่ต้องลบจริง)
+  const ฝั่งล้างไฟล์ = readFileSync("supabase/tests/cleanup_race_side.sql", "utf8");
+  const ล็อกในไฟล์ = /^lock table public\.audit_log in [a-z ]+ mode;$/m.exec(ฝั่งล้างไฟล์)?.[0];
+  ผล(!!ล็อกตาราง && ล็อกในไฟล์ === ล็อกตาราง, "คำสั่งล็อกใน cleanup_race_side.sql ตรงกับ cleanup.sql", `${ล็อกในไฟล์} ≠ ${ล็อกตาราง}`);
   const { psqlArgs, TESTDB_CONTAINER } = await import(new URL(`file:///${path.resolve("scripts/lib/testDbPsql.mjs").replace(/\\/g, "/")}`).href);
   if (!process.env.PMS_TESTDB_PG_PASSWORD) {
     ผล(false, "ข้อ 2 ต้องถือล็อกฐานทดสอบ (รันผ่าน tool-suites-db.spec.ts / toolrun)");
-  } else if (!ล็อกตาราง) {
+  } else if (!ล็อกตาราง || !ล็อกในไฟล์) {
     ผล(false, "ข้อ 2: cleanup.sql ไม่มีคำสั่งล็อกตารางบันทึก — แถวแทรกระหว่างนับกับลบได้");
   } else {
-    const ป้าย = `ZZT · จำลองแข่ง-${process.pid}`;
-    const psql = (sql) => new Promise(res => { const p = spawn("docker", [...psqlArgs(TESTDB_CONTAINER), "-X", "-At", "-v", "ON_ERROR_STOP=1"]);
-      let o = ""; p.stdout.on("data", d => o += d); p.stderr.on("data", d => o += d); p.on("close", c => res({ c, o, จบ: Date.now() })); p.stdin.end(sql); });
-    // ทรานแซกชันล้าง: วางแถวทดสอบ 3 แถว (commit แยก) → ล็อกตาราง (คำสั่งจาก cleanup.sql) → นับ → หน่วงให้อีกฝั่งแทรก → ลบ → สรุปการลบ
-    await psql(`set session_replication_role = replica; insert into public.audit_log ("user", role, action, target) select 'live-race@example.test', 'SUPER_ADMIN', 'จำลองแข่ง', '${ป้าย}' from generate_series(1, 3);`);
+    const psql = (sql, เมื่อพิมพ์) => new Promise(res => { const p = spawn("docker", [...psqlArgs(TESTDB_CONTAINER), "-X", "-At", "-v", "ON_ERROR_STOP=1"]);
+      let o = ""; p.stdout.on("data", d => { o += d; เมื่อพิมพ์?.(o); }); p.stderr.on("data", d => o += d); p.on("close", c => res({ c, o, จบ: Date.now() })); p.stdin.end(sql); });
+    let วางแล้ว; const รอวาง = new Promise(r2 => { วางแล้ว = r2; });
     const เริ่ม = Date.now();
-    const ฝั่งล้าง = psql(`begin;
-${ล็อกตาราง}
-select 'นับ=' || count(*) from public.audit_log where target = '${ป้าย}';
-select pg_sleep(2.5);
-set local pms.audit_delete = 'test'; set local pms.audit_backup = 'ข้อทดสอบจำลองแข่ง';
-with ลบ as (delete from public.audit_log where target = '${ป้าย}' returning 1) select 'ลบ=' || count(*) from ลบ;
-commit;`);
+    const ฝั่งล้าง = psql(ฝั่งล้างไฟล์.replace(ล็อกในไฟล์, ล็อกตาราง), o => { if (o.includes("วางแถวแล้ว")) วางแล้ว(); });
+    await Promise.race([รอวาง, ฝั่งล้าง]);
     await new Promise(r2 => setTimeout(r2, 800));
-    const ฝั่งแทรก = psql(`set session_replication_role = replica; insert into public.audit_log ("user", role, action, target) values ('live-race@example.test', 'SUPER_ADMIN', 'จำลองแข่ง', '${ป้าย}'); select 'แทรกเสร็จ';`);
+    const ฝั่งแทรก = psql(`begin; set local session_replication_role = replica;
+insert into public.audit_log ("user", role, action, target) values ('live-race@example.test', 'SUPER_ADMIN', 'จำลองแข่ง', 'ZZT · จำลองแข่ง');
+select 'เห็นแถวตัวเอง=' || count(*) from public.audit_log where target = 'ZZT · จำลองแข่ง';
+rollback;`);
     const [ก, ข] = await Promise.all([ฝั่งล้าง, ฝั่งแทรก]);
-    const นับ = /นับ=(\d+)/.exec(ก.o)?.[1], ลบ = /ลบ=(\d+)/.exec(ก.o)?.[1];
-    ผล(ก.c === 0 && นับ === "3" && ลบ === "3", "จำนวนที่นับในทรานแซกชันล้าง = จำนวนที่ลบ (3 = 3)", ก.o);
+    ผล(ก.c === 0 && /นับ=3/.test(ก.o) && /ลบ=3/.test(ก.o) && /ALL PASS/.test(ก.o), "จำนวนที่นับในทรานแซกชันล้าง = จำนวนที่ลบ (3 = 3)", ก.o);
     ผล(ข.c === 0 && ข.จบ >= ก.จบ - 50, "แถวที่เขียนแทรกระหว่างล้าง ต้องรอจนการล้างจบ (ไม่แทรกระหว่างนับกับลบ)", `แทรกเสร็จ +${ข.จบ - เริ่ม} ms · ล้างเสร็จ +${ก.จบ - เริ่ม} ms\n${ข.o}`);
-    const เหลือ = await psql(`select count(*) from public.audit_log where target = '${ป้าย}';`);
-    ผล(เหลือ.o.trim().split("\n").at(-1) === "1", "แถวที่แทรกหลังการล้างยังอยู่ (ไม่ถูกลบโดยไม่ได้นับ)", เหลือ.o);
-    await psql(`set session_replication_role = replica; set pms.audit_delete = 'test'; set pms.audit_backup = 'ข้อทดสอบจำลองแข่ง'; delete from public.audit_log where target = '${ป้าย}' or (action = 'ลบแถวทดสอบในบันทึกการใช้งาน' and target like '%ข้อทดสอบจำลองแข่ง');`);
+    ผล(/เห็นแถวตัวเอง=1/.test(ข.o), "แถวที่แทรกหลังการล้างยังอยู่ (ไม่ถูกลบโดยไม่ได้นับ)", ข.o);
   }
 } finally {
   ถือ.kill();
