@@ -42,12 +42,17 @@ const iso = (y: number, ด: number, ว: number) => `${y}-${String(ด).padStar
 const ไม่เกินวันนี้ = (ว: number, ด: number) => (iso(ปี, ด, ว) > วันนี้ ? iso(ปี - 1, ด, ว) : iso(ปี, ด, ว));
 /** วันติดตาม: ปีที่ไม่ก่อนวันเริ่มและใกล้ที่สุด */
 const ไม่ก่อน = (เริ่ม: string, ว: number, ด: number) => { const y = Number(เริ่ม.slice(0, 4)); return iso(y, ด, ว) >= เริ่ม ? iso(y, ด, ว) : iso(y + 1, ด, ว); };
-/** วัน/เดือน แบบทับ (ไม่กำกวม) ของวันนี้ + n วัน — แถว N6: เริ่ม = วันนี้ · ติดตาม = พรุ่งนี้ (เกินวันนี้เสมอ ไม่ขึ้นกับวันที่รัน) */
-const ทับ = (n: number) => { const d = new Date(`${วันนี้}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`; };
+/** วันนี้ + n วัน (ISO) */
+const เลื่อนวัน = (n: number) => { const d = new Date(`${วันนี้}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+/** วัน/เดือน แบบทับ (ไม่กำกวม) ของวันนี้ + n วัน — แถว N6: เริ่ม = วันนี้ · ติดตาม = พรุ่งนี้ (เกินวันนี้เสมอ ไม่ขึ้นกับวันที่รัน)
+ *  เริ่ม = วันนี้ ตั้งใจ: บันทึกจากไฟล์ลงเวลา 09:00 ไทย — รันก่อน 09:00 บันทึกจะใหม่กว่าเวลาชุด · เดิมนับว่า "ถูกแตะ" ยกเลิกชุดไม่ได้
+ *  ใบ 0277 ติดรหัสชุดในบันทึกที่ชุดสร้าง → ไม่ขึ้นกับเวลา (ข้อทดสอบตรวจรหัสชุดในบันทึก + ชุดไม่ถูกแตะ) */
+const ทับ = (n: number) => { const [, ด, ว] = เลื่อนวัน(n).split("-").map(Number); return `${ว}/${ด}`; };
 
 // ── ไฟล์ปลอม ──
+//   หัว "วันติดตาม (ที่ผ่านมา)" = หัวใหม่ (ใบ 0277 · บอสตัดสิน 5 พ.ย. 69) — โค้ดเดิมไม่รู้จัก · หัว "ติดตาม"/"วันติดตาม" ตรวจในข้อทดสอบหน่วย
 //   แถว 1 = หัวแผ่นของทีม · แถว 2 = หัวตาราง · คอลัมน์แรก = เลขลำดับ · คอลัมน์ท้าย (Total · DM · Ad Run ...) = ข้าม
-const หัว = ["", "social", "เบอร์", "จังหวัด", "ชื่อ", "เริ่มติดต่อ", "ติดตาม", "Type", "หมายหตุ", "Channel", "Total", "DM", "Ad Run", "Website", "note"];
+const หัว = ["", "social", "เบอร์", "จังหวัด", "ชื่อ", "เริ่มติดต่อ", "วันติดตาม (ที่ผ่านมา)", "Type", "หมายหตุ", "Channel", "Total", "DM", "Ad Run", "Website", "note"];
 const แถวไฟล์: string[][] = [
   หัว,
   [],
@@ -117,6 +122,7 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await expect(กล่อง.getByLabel("คอลัมน์ จังหวัด")).toHaveValue("3");
   await expect(กล่อง.getByLabel("คอลัมน์ ชื่อ", { exact: true })).toHaveValue("4");
   await expect(กล่อง.getByLabel("คอลัมน์ เริ่มติดต่อ")).toHaveValue("5");
+  await expect(กล่อง.getByLabel("คอลัมน์ วันติดตาม (ที่ผ่านมา)"), "หัวใหม่ วันติดตาม (ที่ผ่านมา) จับคู่ได้ (ใบ 0277)").toHaveValue("6");
   await expect(กล่อง.getByLabel("คอลัมน์ แหล่งที่มา")).toHaveValue("9");
   await expect(กล่อง.locator("#pi-year"), "ค่าตั้งต้น = ปีนี้ (พ.ศ.)").toHaveValue(String(ปี + 543));
   await กล่อง.locator("#pi-year").selectOption(String(ปี + 543));   // ใส่ปี (ครั้งเดียวทั้งไฟล์)
@@ -168,7 +174,7 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await กล่อง.getByRole("button", { name: "นำเข้า 11 ราย" }).click();
   await กดตกลง(page);
   await expect(กล่อง.getByTestId("import-result"), "นำเข้า 11 ราย").toHaveAttribute("data-inserted", "11", { timeout: 30_000 });
-  const { data: ชุด } = await svc.from("prospect_import_batches").select("id, row_count, inserted, skipped, created_by, cancelled_at").eq("file_name", ชื่อไฟล์);
+  const { data: ชุด } = await svc.from("prospect_import_batches").select("id, row_count, inserted, skipped, created_by, cancelled_at, created_at").eq("file_name", ชื่อไฟล์);
   expect(ชุด ?? [], "ชุดนำเข้า 1 ชุด").toHaveLength(1);
   expect(ชุด![0], "ชุด: ส่ง 11 · เพิ่ม 11 · ข้าม 0 · ผู้นำเข้า = บัญชี HQ ชั่วคราว").toMatchObject({ row_count: 11, inserted: 11, skipped: 0, created_by: "บัญชีทดสอบชั่วคราว", cancelled_at: null });
   const เลขชุด = Number(ชุด![0].id);
@@ -188,8 +194,20 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   for (const r of ราย ?? []) expect(r.follow_up, `${r.name}: นัดติดตามว่าง (วันติดตามในไฟล์ไม่ใช่นัด)`).toBeNull();
   for (const k of มีวันในไฟล์) expect(ของ(k).last_contact_at, `แถว ${k}: มีวันที่ในไฟล์ → ติดต่อล่าสุดไม่ว่าง`).not.toBeNull();
   // บันทึกการติดต่อตามวันในไฟล์ (วันไทย · ข้อความ) ของแต่ละราย
-  const { data: บันทึก } = await svc.from("dealer_prospect_activities").select("prospect_id, body, created_at").eq("kind", "contact").in("prospect_id", (ราย ?? []).map(r => r.id));
-  const วันไทย = (t: string) => new Date(new Date(t).getTime() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const { data: บันทึก } = await svc.from("dealer_prospect_activities").select("prospect_id, body, channel, created_at, import_batch_id").eq("kind", "contact").in("prospect_id", (ราย ?? []).map(r => r.id));
+  const เวลาไทย = (t: string) => new Date(new Date(t).getTime() + 7 * 3_600_000).toISOString();
+  const วันไทย = (t: string) => เวลาไทย(t).slice(0, 10);
+  // ทุกบันทึกจากไฟล์: ช่องทาง "อื่น ๆ" · ขึ้นต้น "จากไฟล์นำเข้า: " (ใบ 0277)
+  for (const a of บันทึก ?? []) {
+    expect(a.channel, `บันทึก "${a.body}": ช่องทาง อื่น ๆ`).toBe("อื่น ๆ");
+    expect(a.body, "บันทึกจากไฟล์ขึ้นต้น จากไฟล์นำเข้า:").toMatch(/^จากไฟล์นำเข้า: /);
+    expect(Number(a.import_batch_id), `บันทึก "${a.body}": ติดรหัสชุด (ยกเลิกชุดได้ไม่ขึ้นกับเวลา · ใบ 0277)`).toBe(เลขชุด);
+  }
+  // บันทึกที่มีวันในไฟล์ = ลงเวลา 09:00 เวลาไทยของวันนั้น · หมายเหตุไม่มีวันที่ (แถว 9) = เวลานำเข้า (ธุรกรรมเดียวกับชุด)
+  for (const a of (บันทึก ?? []).filter(a => a.prospect_id !== ของ(9).id))
+    expect(เวลาไทย(a.created_at).slice(11, 19), `บันทึก "${a.body}": ลงเวลา 09:00 เวลาไทยของวันในไฟล์`).toBe("09:00:00");
+  for (const a of (บันทึก ?? []).filter(a => a.prospect_id === ของ(9).id))
+    expect(new Date(a.created_at).getTime(), "N3 บันทึกหมายเหตุไม่มีวันที่ = ลงเวลานำเข้า").toBe(new Date(ชุด![0].created_at).getTime());
   const บันทึกของ = (n: number) => (บันทึก ?? []).filter(a => a.prospect_id === ของ(n).id).map(a => ({ วัน: วันไทย(a.created_at), body: a.body })).sort((a, b) => a.วัน.localeCompare(b.วัน));
   const ติดต่อล่าสุด = (n: number) => (ของ(n).last_contact_at ? วันไทย(ของ(n).last_contact_at!) : null);
   const เริ่ม5 = ไม่เกินวันนี้(20, 12), ตาม5 = ไม่ก่อน(เริ่ม5, 5, 1);
@@ -206,6 +224,24 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   expect(บันทึกของ(12), "N6 วันติดตามเกินวันนี้ → ไม่ลงวันนั้น (บันทึกแค่วันเริ่ม)").toEqual([{ วัน: วันนี้, body: "จากไฟล์นำเข้า: เริ่มติดต่อ · โทรแล้ว" }]);
   expect(ของ(12).note ?? "", "N6 เก็บค่าเดิมในหมายเหตุ").toContain(`วันติดตามในไฟล์: ${ทับ(1)}`);
   expect(ของ(7), "แถวอัดช่องเดียว").toMatchObject({ name: `${ชื่อ("รวม")} สกุลรวม`, province: "ปทุมธานี" });
+  // N2 หมายเหตุต่อท้ายบันทึกวันเดียว/วันล่าสุด · หมายเหตุเพิ่มเติม (คอลัมน์ note) ไม่เข้าบันทึก · วันบันทึก = วันเริ่มที่ลงฐาน
+  expect(บันทึกของ(1), "แถว 1: วันเริ่มอย่างเดียว + หมายเหตุ").toEqual([{ วัน: ไม่เกินวันนี้(24, 8), body: "จากไฟล์นำเข้า: เริ่มติดต่อ · ไม่มีคนรับ" }]);
+  expect(บันทึกของ(2), "แถว 2: วันบันทึก = วันเริ่มที่ลงฐาน").toEqual([{ วัน: ของ(2).first_contact, body: "จากไฟล์นำเข้า: เริ่มติดต่อ · ส่ง Company Profile แล้ว" }]);
+  expect(บันทึกของ(3), "แถว 3: วันที่เลือกเดือน ต.ค.").toEqual([{ วัน: ไม่เกินวันนี้(5, 10), body: "จากไฟล์นำเข้า: เริ่มติดต่อ · รอโทรกลับ" }]);
+  expect(บันทึกของ(4), "แถว 4: หมายเหตุเพิ่มเติมไม่ปนบันทึก").toEqual([{ วัน: ไม่เกินวันนี้(26, 8), body: "จากไฟล์นำเข้า: เริ่มติดต่อ · รอโทรกลับ" }]);
+  expect(บันทึกของ(11), "N5 แถว 11: วันเริ่ม ไม่มีหมายเหตุ").toEqual([{ วัน: ไม่เกินวันนี้(28, 8), body: "จากไฟล์นำเข้า: เริ่มติดต่อ" }]);
+  expect(บันทึกของ(7), "แถว 7: ไม่มีวันที่ ไม่มีหมายเหตุ → ไม่มีบันทึก").toEqual([]);
+  expect(ของ(7).last_contact_at, "แถว 7: ไม่มีวันที่ → ติดต่อล่าสุดว่าง").toBeNull();
+  // ติดต่อล่าสุด = วันล่าสุดในบันทึกจากไฟล์ (09:00 เวลาไทย) ทุกแถวที่มีวันที่
+  for (const k of มีวันในไฟล์) {
+    const วัน = บันทึกของ(k).map(a => a.วัน);
+    expect(ติดต่อล่าสุด(k), `แถว ${k}: ติดต่อล่าสุด = วันล่าสุดในไฟล์`).toBe(วัน[วัน.length - 1]);
+    expect(เวลาไทย(ของ(k).last_contact_at!).slice(11, 19), `แถว ${k}: ติดต่อล่าสุด 09:00 เวลาไทย`).toBe("09:00:00");
+  }
+  expect(ของ(12), "N6 วันเริ่ม = วันนี้ · ติดต่อล่าสุด = วันเริ่ม (ไม่ใช่วันเกินวันนี้)").toMatchObject({ first_contact: วันนี้, follow_up: null });
+  expect(ติดต่อล่าสุด(12)).toBe(วันนี้);
+  for (const k of [1, 2, 3, 4, 5, 6, 7, 9, 10, 11])
+    expect(ของ(k).note ?? "", `แถว ${k}: วันติดตามไม่เกินวันนี้ → ไม่มีข้อความวันติดตามในหมายเหตุ`).not.toContain("วันติดตามในไฟล์");
   // [รอโค้ด ef · 0276] กติกาปีข้ามปี — soft: ตกแล้วยังเดินต่อให้ถึงขั้นยกเลิกชุด (ไม่ทิ้งข้อมูลค้าง)
   expect.soft(ของ(2).first_contact, "[รอโค้ด ef] 24.12 + ปีนี้ → เกินวันนี้ = ปีก่อน").toBe(ไม่เกินวันนี้(24, 12));
   expect.soft(ของ(5).first_contact, "[รอโค้ด ef] เริ่ม 20.12 → ไม่เกินวันนี้").toBe(ไม่เกินวันนี้(20, 12));
@@ -217,7 +253,16 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   const ค้น = page.getByLabel("ค้นหาผู้สนใจ");
   await ค้น.fill(ป้าย);
   const ในตาราง = page.locator("table tbody tr").filter({ hasText: ป้าย });
-  await expect(ในตาราง, "ผู้สนใจที่นำเข้าเห็นในตาราง 11 ราย").toHaveCount(11, { timeout: 20_000 });
+  // ตารางแบ่งหน้าละ 10 แถว (มาตรฐานทั้งระบบ · TablePagination) → 11 ราย = หน้า 1 สิบแถว + หน้า 2 หนึ่งแถว · เบอร์ครบ 11 ไม่ซ้ำ
+  await expect(page.getByText("แสดง 1–10 จาก 11 ราย"), "ผู้สนใจที่นำเข้าเห็นในตาราง 11 ราย").toBeVisible({ timeout: 20_000 });
+  await expect(ในตาราง, "หน้า 1 = 10 แถว").toHaveCount(10);
+  const แถวในตาราง = await ในตาราง.allTextContents();
+  await page.getByRole("button", { name: "หน้าถัดไป" }).click();
+  await expect(page.getByText("แสดง 11–11 จาก 11 ราย")).toBeVisible();
+  await expect(ในตาราง, "หน้า 2 = 1 แถว").toHaveCount(1);
+  แถวในตาราง.push(...await ในตาราง.allTextContents());
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12])
+    expect(แถวในตาราง.filter(t => t.includes(เบอร์ฐาน(n))), `ตารางมีผู้สนใจเบอร์ ${เบอร์ฐาน(n)} 1 แถว`).toHaveLength(1);
   // การ์ด "ถึงกำหนดติดตาม" ไม่เพิ่มจากการนำเข้า (โหลดหน้าใหม่ให้การ์ดคิดจากฐาน)
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(การ์ดถึงกำหนด, "หลังนำเข้า การ์ดถึงกำหนดติดตามเท่าเดิม").toHaveAttribute("data-value", ถึงกำหนดก่อน ?? "", { timeout: 30_000 });
