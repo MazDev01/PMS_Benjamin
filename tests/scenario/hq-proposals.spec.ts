@@ -219,3 +219,70 @@ test("[func·hq] แถวใบร่าง 2 ปุ่ม (ดู · พิม
     { timeout: 15_000 }).toBe(0);
   assertNoErrors(errs, "แก้ไข/ลบใบร่างที่แผงผู้สนใจ");
 });
+
+// ── แผงรายละเอียดใบ = 9 ช่องเดียวกับฟอร์มออกใบ (บอสสั่ง 5 พ.ย. 69) ─────────────────────────────────────────────────────
+//   ชื่อ/ลำดับ: ค่าแรกเข้า · ระยะสัญญา · เป้ายอดซื้อต่อปี · ภาค · จังหวัด · วันที่เสนอ · ข้อเสนอมีผลถึง · เงื่อนไข · หมายเหตุภายใน
+//   หมายเหตุภายในติดป้าย "ภายใน ไม่พิมพ์ลงเอกสาร" และไม่อยู่ใน PDF · "-"/ว่าง = "-" · ทุกเวอร์ชันแสดงแบบเดียวกัน
+//   ตกบนโค้ดเดิม: แผงรวมภาค+จังหวัดเป็น "พื้นที่ที่ได้สิทธิ์" · เงื่อนไขอยู่การ์ดแยก · ไม่มีหมายเหตุภายในเมื่อว่าง
+const ชื่อช่องใบ = ["ค่าแรกเข้า", "ระยะสัญญา", "เป้ายอดซื้อต่อปี", "ภาค", "จังหวัด", "วันที่เสนอ", "ข้อเสนอมีผลถึง", "เงื่อนไข", "หมายเหตุภายใน"];
+test("[ui·hq] แผงรายละเอียดใบ: 9 ช่อง ชื่อ/ลำดับเดียวกับฟอร์มออกใบ · ค่าตรงที่กรอก · ทุกเวอร์ชัน · หมายเหตุภายในไม่อยู่ใน PDF", async ({ page, context }) => {
+  const errs = watchErrors(page);
+  const sb = await db(ADMIN);
+  const name = `${NS}-ครบเก้าช่อง`;
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ขอนแก่น", status: "considering" }).select("id").single();
+  expect(error).toBeNull();
+  const prospectId = (pr as { id: number }).id;
+  const หมายเหตุ = `ZZTEST หมายเหตุลับ ${Date.now() % 100000}`;
+  const ใบ1 = await sb.from("dealer_package_proposals").insert({ prospect_id: prospectId, status: "draft", amount: 123_000, contract_months: 36, annual_target: 4_500_000,
+    region: "อีสาน", province: "ขอนแก่น", proposed_date: "2026-11-01", valid_until: "2026-12-15", terms: "ข้อหนึ่ง ZZ\nข้อสอง ZZ", note: หมายเหตุ }).select("id, proposal_no").single();
+  expect(ใบ1.error?.message ?? "").toBe("");
+  const { id: id1, proposal_no: เลข1 } = ใบ1.data as { id: number; proposal_no: string };
+  expect((await sb.from("dealer_package_proposals").update({ status: "sent" }).eq("id", id1)).error).toBeNull();
+  // เวอร์ชัน 2: เงื่อนไข "-" (ตั้งใจไม่มี) · ไม่มีหมายเหตุภายใน → ทั้งสองช่องแสดง "-"
+  const ใหม่ = await sb.rpc("dealer_proposal_new_version", { p_id: id1 });
+  expect(ใหม่.error?.message ?? "").toBe("");
+  const id2 = Number((ใหม่.data as { id: number }).id);
+  expect((await sb.from("dealer_package_proposals").update({ terms: "-", note: null, amount: 99_000 }).eq("id", id2)).error?.message ?? "").toBe("");
+  const เลข2 = ((await sb.from("dealer_package_proposals").select("proposal_no").eq("id", id2).single()).data as { proposal_no: string }).proposal_no;
+
+  const แผงของ = async (เลข: string) => {
+    await page.goto(`${HQ_ORIGIN}/hq/proposals`, { waitUntil: "domcontentloaded" });
+    await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
+    await page.getByRole("button", { name: `ดูใบ ${เลข}`, exact: true }).click();   // ตรงตัว — "DP-…" เป็นคำนำหน้าของ "DP-…-V2"
+    const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
+    await expect(แผง.getByText(เลข).first()).toBeVisible({ timeout: 20_000 });
+    return แผง;
+  };
+  const ช่องของ = async (แผง: import("@playwright/test").Locator) => แผง.locator("[data-proposal-fields] [data-field]").evaluateAll(els => els.map(e => ({
+    ชื่อ: (e.querySelector("[data-field-label]")?.childNodes[0]?.textContent ?? "").trim(),
+    ค่า: ((e.querySelector("[data-field-value]") as HTMLElement | null)?.innerText ?? "").trim(),
+  })));
+
+  await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
+  const แผง1 = await แผงของ(เลข1);
+  const ช่อง1 = await ช่องของ(แผง1);
+  expect(ช่อง1.map(c => c.ชื่อ), "ชื่อ + ลำดับ 9 ช่องเดียวกับฟอร์มออกใบ").toEqual(ชื่อช่องใบ);
+  expect(Object.fromEntries(ช่อง1.map(c => [c.ชื่อ, c.ค่า])), "ค่าตรงที่กรอก").toEqual({
+    "ค่าแรกเข้า": "฿123,000", "ระยะสัญญา": "36 เดือน (3 ปี)", "เป้ายอดซื้อต่อปี": "฿4,500,000", "ภาค": "ภาคตะวันออกเฉียงเหนือ", "จังหวัด": "ขอนแก่น",
+    "วันที่เสนอ": "1 พ.ย. 2569", "ข้อเสนอมีผลถึง": "15 ธ.ค. 2569", "เงื่อนไข": "ข้อหนึ่ง ZZ\nข้อสอง ZZ", "หมายเหตุภายใน": หมายเหตุ,
+  });
+  await expect(แผง1.locator('[data-field="หมายเหตุภายใน"] [data-internal-note]'), "ป้ายหมายเหตุภายใน").toHaveText("ภายใน ไม่พิมพ์ลงเอกสาร");
+  await expect(แผง1.getByText("พื้นที่ที่ได้สิทธิ์"), "ไม่รวมภาค+จังหวัดเป็นช่องเดียวแล้ว").toHaveCount(0);
+
+  // PDF: มีเงื่อนไข · ไม่มีหมายเหตุภายใน
+  await context.addInitScript(() => { window.print = () => {}; });
+  const [เอกสาร] = await Promise.all([context.waitForEvent("page"), แผง1.getByRole("button", { name: "พิมพ์ PDF" }).click()]);
+  await expect.poll(async () => await เอกสาร.content(), { timeout: 20_000, message: "หน้าพิมพ์ได้เอกสารจริง" }).toContain(เลข1);
+  const html = await เอกสาร.content();
+  expect(html, "PDF มีเงื่อนไข").toContain("ข้อหนึ่ง ZZ");
+  expect(html, "PDF ไม่มีหมายเหตุภายใน").not.toContain(หมายเหตุ);
+  expect(html, "PDF ไม่มีหัวข้อหมายเหตุภายใน").not.toContain("หมายเหตุภายใน");
+  await เอกสาร.close();
+
+  // เวอร์ชัน 2 แสดงแบบเดียวกัน · "-"/ว่าง = "-"
+  const ช่อง2 = await ช่องของ(await แผงของ(เลข2));
+  expect(ช่อง2.map(c => c.ชื่อ), "เวอร์ชันใหม่: ชื่อ + ลำดับเดียวกัน").toEqual(ชื่อช่องใบ);
+  expect(Object.fromEntries(ช่อง2.map(c => [c.ชื่อ, c.ค่า])), "เวอร์ชันใหม่: ค่าของเวอร์ชันนั้น · เงื่อนไข \"-\" และหมายเหตุว่าง = \"-\"").toMatchObject({
+    "ค่าแรกเข้า": "฿99,000", "ภาค": "ภาคตะวันออกเฉียงเหนือ", "จังหวัด": "ขอนแก่น", "เงื่อนไข": "-", "หมายเหตุภายใน": "-" });
+  assertNoErrors(errs, "แผงรายละเอียดใบ 9 ช่อง");
+});

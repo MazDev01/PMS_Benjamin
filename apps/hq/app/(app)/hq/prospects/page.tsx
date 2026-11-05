@@ -26,6 +26,7 @@ import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
   UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, Upload,
+  Link2,
 } from "lucide-react";
 import {
   prospects as prospectsRepo, dealers as dealersRepo, proposals as proposalsRepo, prospectActivities as activitiesRepo,
@@ -39,8 +40,10 @@ import {
   เตรียมบันทึก, ตรวจผู้สนใจ, ถึงกำหนดติดตาม, ตรงกับคำค้น,
 } from "@pms/shared/lib/dealerProspects";
 import {
-  ความคืบหน้า, ขั้นก่อนไม่สำเร็จ, มีบันทึกการติดต่อ, เกณฑ์ไม่ได้ติดต่อ, ไม่ได้ติดต่อเกิน, ติดต่อล่าสุดอ่านง่าย,
+  ความคืบหน้า, ขั้นก่อนไม่สำเร็จ, มีบันทึกการติดต่อ, เกณฑ์ไม่ได้ติดต่อ, ไม่ได้ติดต่อเกิน, ติดต่อล่าสุดอ่านง่าย, เหตุยังตั้งดีลเลอร์ไม่ได้,
+  ชื่อขั้นย่อย, type ขั้นย่อยใบ,
 } from "@pms/shared/lib/prospectJourney";
+import { useProspectSubStages } from "@pms/shared/lib/useProspectSubStages";
 import { REGIONS, ALL_REGIONS, ALL_PROVINCES, provincesOfRegion, regionOf, ชื่อภาค } from "@pms/shared/lib/provinces";
 import { createDealerAccount, linkProspectToDealer, listDealerLoginEmails } from "@pms/shared/lib/adminApi";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
@@ -80,7 +83,8 @@ const ร่างว่าง = (): Partial<DealerProspect> => ({ name: "", sta
 
 type ฟอร์มดีลเลอร์ = { code: string; name: string; region: string; province: string; email: string; password: string; existingCode: string };
 type แท็บ = "overview" | "tasks" | "contact" | "proposals";
-type ตัวกรองสถานะ = "all" | "due" | "idle7" | "idle14" | "idle30" | DealerProspectStatus;
+// ขั้นหลังส่งใบแยก 3 ตัวเลือกตามสถานะย่อย (บอสสั่ง 5 พ.ย. 69 · ขั้นย่อยหลังส่งใบ)
+type ตัวกรองสถานะ = "all" | "due" | "idle7" | "idle14" | "idle30" | Exclude<DealerProspectStatus, "considering"> | `sub:${ขั้นย่อยใบ["key"]}`;
 
 const แท็บทั้งหมด: { key: แท็บ; label: string }[] = [
   { key: "overview",  label: "ภาพรวม" },
@@ -139,6 +143,11 @@ export default function HQProspectsPage() {
 
   // ของรายที่เปิด: ใบเสนอ · ประวัติ
   const [ใบของรายที่เปิด, setใบของรายที่เปิด] = useState<DealerPackageProposal[]>([]);
+  // สถานะย่อยหลังส่งใบ (บอสสั่ง 5 พ.ย. 69): รอผู้สนใจตอบรับ · รอชำระ (จ่ายแล้ว x / y) · พร้อมตั้งเป็นดีลเลอร์ — เดินตามใบ+การชำระเอง
+  //   รุ่นใบ เพิ่มทุกครั้งที่ใบ/การชำระของรายที่เปิดโหลดใหม่ → คิดใหม่ทั้งตาราง
+  const [รุ่นใบ, setรุ่นใบ] = useState(0);
+  const { ย่อย, โหลดแล้ว: ย่อยโหลดแล้ว } = useProspectSubStages(list, รุ่นใบ);
+  const ป้ายขั้น = (p: Pick<DealerProspect, "id" | "status">) => (p.status === "considering" ? ย่อย.get(p.id)?.label : undefined) ?? prospectStatusLabel[p.status];
   const [ประวัติ, setประวัติ] = useState<ProspectActivity[]>([]);
   const [ประวัติโหลดแล้ว, setประวัติโหลดแล้ว] = useState(false);
   const [ประวัติผิด, setประวัติผิด] = useState("");
@@ -222,6 +231,7 @@ export default function HQProspectsPage() {
       if (เปิดอยู่Ref.current !== id) return;   // ปิด/เปลี่ยนรายไปแล้ว — ผลที่มาช้าห้ามทับของรายใหม่
       setประวัติ(ป);
       setใบของรายที่เปิด(ใ);
+      setรุ่นใบ(n => n + 1);
       setประวัติผิด("");
     } catch (e) {
       if (เปิดอยู่Ref.current === id) setประวัติผิด(friendlyError(e, "โหลดประวัติไม่สำเร็จ"));
@@ -314,9 +324,10 @@ export default function HQProspectsPage() {
       : statusFilter === "idle7" ? ไม่ได้ติดต่อเกิน(p, 7, APP_NOW_ISO)
       : statusFilter === "idle14" ? ไม่ได้ติดต่อเกิน(p, 14, APP_NOW_ISO)
       : statusFilter === "idle30" ? ไม่ได้ติดต่อเกิน(p, 30, APP_NOW_ISO)
+      : statusFilter.startsWith("sub:") ? p.status === "considering" && ย่อย.get(p.id)?.key === statusFilter.slice(4)
       : p.status === statusFilter;
     return ผ่านสถานะ && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q);
-  }), [รายที่แสดงได้, statusFilter, provinceFilter, q]);
+  }), [รายที่แสดงได้, statusFilter, provinceFilter, q, ย่อย]);
   // การ์ดเดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ชุดจากทุกราย รวมที่เป็นดีลเลอร์แล้ว (การ์ด "เป็นดีลเลอร์แล้วเดือนนี้")
   //   ตัวกรองสถานะ = ปุ่มเดียวกับการ์ด "ถึงกำหนดติดตาม" → ไม่ใช่ตัวกรองของการ์ด (กดการ์ดแล้วใบอื่นต้องไม่เปลี่ยน)
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(list, p => (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q), p => p.id),
@@ -414,7 +425,8 @@ export default function HQProspectsPage() {
   }
 
   // ── ตั้งเป็นดีลเลอร์ ──
-  function เปิดตั้งดีลเลอร์(p: DealerProspect) {
+  // โหมดตั้งต้นของกล่อง: "new" = สร้างดีลเลอร์ใหม่ (ต้องพร้อม) · "existing" = ผูกกับดีลเลอร์เดิม (กดได้เสมอ · บอสตัดสิน 5 พ.ย. 69 ข้อ ด)
+  function เปิดตั้งดีลเลอร์(p: DealerProspect, โหมด: "new" | "existing" = "new") {
     // เดาภาคจากจังหวัดที่บันทึกไว้ให้ก่อน — ถ้าจังหวัดสะกดไม่ตรงรายการ ปล่อยว่างให้เลือกเอง ไม่เดาต่อ
     const ภาค = p.region || regionOf(p.province ?? "") || "";
     const จังหวัดเดิม = (p.province ?? "").trim();
@@ -422,7 +434,7 @@ export default function HQProspectsPage() {
       ? จังหวัดเดิม === ALL_PROVINCES || provincesOfRegion(ALL_REGIONS).includes(จังหวัดเดิม)
       : !!ภาค && provincesOfRegion(ภาค).includes(จังหวัดเดิม);
     setConverting(p);
-    setโหมดตั้ง("new");
+    setโหมดตั้ง(โหมด);
     setฟอร์ม({
       code: "", name: p.name, region: ภาค,
       // ดีลเลอร์ 1 ราย ดูแล 1 จังหวัดพอดี (บอสสั่ง 29 ต.ค. 69) — "ทุกจังหวัด" ไม่ใช่จังหวัด ตั้งให้ไม่ได้
@@ -685,7 +697,7 @@ export default function HQProspectsPage() {
           headers={["ชื่อ", "ชื่อบนโซเชียล", "เบอร์โทร", "อีเมล", "ภาค", "จังหวัด", "ประเภทธุรกิจ", "แหล่งที่มา", "เริ่มติดต่อ", "ติดตามครั้งถัดไป", "สถานะ", "เหตุผลที่ไม่สำเร็จ", "ผู้ดูแล", "รหัสดีลเลอร์", "หมายเหตุ"]}
           rows={filtered.map(p => [
             p.name, p.social ?? "", p.phone ?? "", p.email ?? "", p.region ?? "", p.province ?? "", p.businessType ?? "", p.channel ?? "",
-            p.firstContact ?? "", p.followUp ?? "", prospectStatusLabel[p.status], p.lostReason ?? "", p.assigned ?? "",
+            p.firstContact ?? "", p.followUp ?? "", ป้ายขั้น(p), p.lostReason ?? "", p.assigned ?? "",
             p.dealerCode ?? "", p.note ?? "",
           ])}
         />
@@ -747,7 +759,9 @@ export default function HQProspectsPage() {
           <option value="due">ถึงกำหนดติดตาม</option>
           {/* ตัวกรองติดตามด่วน (สเปก: ไม่ได้ติดต่อ 7 / 14 / 30 วัน) — นับเฉพาะรายที่ยังติดตามอยู่ */}
           {เกณฑ์ไม่ได้ติดต่อ.map(ว => <option key={ว} value={`idle${ว}`}>ไม่ได้ติดต่อ {ว} วันขึ้นไป</option>)}
-          {PROSPECT_STATUS_ORDER.filter(s => s !== "won").map(s => <option key={s} value={s}>{prospectStatusLabel[s]}</option>)}
+          {PROSPECT_STATUS_ORDER.filter(s => s !== "won").flatMap(s => s === "considering"
+            ? (Object.keys(ชื่อขั้นย่อย) as ขั้นย่อยใบ["key"][]).map(k => <option key={k} value={`sub:${k}`}>{ชื่อขั้นย่อย[k]}</option>)
+            : [<option key={s} value={s}>{prospectStatusLabel[s]}</option>])}
         </select>
         <select aria-label="กรองตามจังหวัด" value={provinceFilter} onChange={e => { setProvinceFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
           <option value="all">ทุกจังหวัด</option>
@@ -824,7 +838,7 @@ export default function HQProspectsPage() {
                     <td title={p.channel ?? undefined} style={{ fontSize: "0.78rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.channel || "—"}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span className="badge" style={{ background: สี.bg, color: สี.text }}>{prospectStatusLabel[p.status]}</span>
+                        <span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status} style={{ background: สี.bg, color: สี.text }}>{ป้ายขั้น(p)}</span>
                         {ยังติดตามอยู่(p.status) && <span style={{ fontSize: "0.7rem", fontWeight: 700, color: MUTED, fontVariantNumeric: "tabular-nums" }}>{pct}%</span>}
                       </div>
                     </td>
@@ -904,8 +918,14 @@ export default function HQProspectsPage() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                     {/* ปุ่มลัด "บันทึกการติดต่อ" / "ออกใบค่าแฟรนไชส์" บนหัวแผง บอสสั่งเอาออก (14 ก.ย. 69) — ทำในแท็บของมันแทน ห้ามใส่กลับ */}
+                    {จัดการได้ && ติดตามอยู่ && (() => {
+                      // ก่อนพร้อม (ตอบรับ + ชำระครบ) กดไม่ได้ + บอกเหตุผลที่ป้ายลอย (บอสสั่ง 5 พ.ย. 69) · เหตุผลเต็มอยู่ในแท็บงาน
+                      const เหตุ = ย่อยโหลดแล้ว ? เหตุยังตั้งดีลเลอร์ไม่ได้(ราย.status, ย่อย.get(ราย.id)) : "กำลังตรวจใบค่าแฟรนไชส์…";
+                      return <button style={{ ...qa, ...(เหตุ ? { opacity: 0.55, cursor: "not-allowed" } : { background: "#059669" }) }} disabled={!!เหตุ} title={เหตุ ?? undefined}
+                        data-convert-ready={เหตุ ? "0" : "1"} onClick={() => เปิดตั้งดีลเลอร์(ราย)}><Store size={13} /> ตั้งเป็นดีลเลอร์</button>;
+                    })()}
                     {จัดการได้ && ติดตามอยู่ && (
-                      <button style={qa} onClick={() => เปิดตั้งดีลเลอร์(ราย)}><Store size={13} /> ตั้งเป็นดีลเลอร์</button>
+                      <button style={qa} data-link-existing onClick={() => เปิดตั้งดีลเลอร์(ราย, "existing")}><Link2 size={13} /> ผูกกับดีลเลอร์เดิม</button>
                     )}
                     {ราย.status === "won" && ราย.dealerCode && (
                       <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ดีลเลอร์ {ราย.dealerCode}</Link>
@@ -917,7 +937,7 @@ export default function HQProspectsPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-                  <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: sc.bg, color: sc.text }}>{prospectStatusLabel[ราย.status]}</span>
+                  <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: sc.bg, color: sc.text }}>{ป้ายขั้น(ราย)}</span>
                   <span style={{ ...ป้าย, background: "#fff", color: PRIMARY, fontWeight: 800 }}>ความคืบหน้า {pct}%</span>
                   <span style={ป้าย}>ติดต่อล่าสุด: {ติดต่อล่าสุดอ่านง่าย(ราย, APP_NOW_ISO)}</span>
                   {ราย.followUp && ติดตามอยู่ && (
@@ -972,6 +992,9 @@ export default function HQProspectsPage() {
                       มีใบส่งแล้ว={มีใบส่งแล้ว}
                       editable={จัดการได้ && ประวัติโหลดแล้ว && !ประวัติผิด}
                       busy={stageBusy}
+                      ป้ายสถานะ={ป้ายขั้น(ราย)}
+                      onLinkExisting={() => เปิดตั้งดีลเลอร์(ราย, "existing")}
+                      ตั้งไม่ได้เพราะ={ย่อยโหลดแล้ว ? เหตุยังตั้งดีลเลอร์ไม่ได้(ราย.status, ย่อย.get(ราย.id)) : undefined}
                       onStage={next => void เปลี่ยนขั้น(next)}
                       onLost={reason => เปลี่ยนขั้น("lost", reason, true)}
                       onNeedContact={() => {

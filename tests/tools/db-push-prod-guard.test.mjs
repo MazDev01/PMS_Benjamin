@@ -5,10 +5,11 @@
 //   ล็อกค้างของโปรเซสที่ตายแล้ว (ต้องเก็บกวาดแล้วไปต่อ) ตรวจที่ tests/unit/prodLock.test.ts
 //   I–J) ตัวนับเลขเทียบกับไฟล์สำรองเอง (ต้นทางเลื่อนหลัง dump = ผ่าน · ฐานที่กู้ต่างไฟล์ = ไม่ผ่าน)
 //   K) ด่านพิมพ์เลขใบ (บอสสั่ง 4 พ.ย. 69 · เหตุ 0275 ลงเพราะกด Enter ที่ [Y/n] ของ CLI): Enter/Y/เลขผิด = ไม่ลง · เลขใบสุดท้าย = ลง
+//   M) --dry-run จดรายชื่อใบบนฐานได้เสมอแม้มีใบยังไม่ผ่านรอบตรวจ · ลงจริงยังหยุด (บอสอนุญาต 5 พ.ย. 69)
 //   L) บันทึกการรันทุกครั้ง (<PMS_BACKUP_ROOT>/db-push-log.jsonl): ทุกครั้งที่รันมี 1 บรรทัด มีเวลาเริ่ม/จบ ผล ใบ ผู้ใช้ โฟลเดอร์
 // รัน: npm run test:push-guard   (ต้องมี Docker + ฐานทดสอบ pms-dbcheck · ฐานซ้อมกู้ pms-blank ตัวสคริปต์เปิด/ปิดเอง)
 import { spawn, spawnSync } from "node:child_process";
-import { appendFileSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { บันทึกเมื่อผ่าน } from "../../scripts/lib/migrationGate.mjs";
 import os from "node:os";
 import path from "node:path";
@@ -21,7 +22,13 @@ const LOCK = path.join(tmp, "prod.lock"), MARK = path.join(tmp, "marker.txt"), R
 // บันทึก "ผ่านรอบตรวจเต็ม" ของใบปัจจุบันทุกใบ (แทนผลรอบตรวจจริง) — ข้อ A–F วัดเรื่องอื่น ต้องผ่านด่านใบก่อน (G–H วัดด่านนี้)
 const RECORD = path.join(tmp, "gate-passed.json");
 บันทึกเมื่อผ่าน({ ตก: 0, ตัวตรวจ: 0, dir: "supabase/migrations", record: RECORD, ป้าย: "ทดสอบเครื่องมือ" });
-const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT, PMS_GATE_RECORD: RECORD };
+// ตัวกันเลขใบ (5 พ.ย. 69 · วัดที่ migration-order.test.mjs): ที่เก็บรอบชั่วคราว + รอบที่ผ่านแล้วที่มีใบของข้อนี้ (ใบล่าสุดในเครื่อง · 0901 · 0902 ของข้อ K)
+//   ข้อ A–L วัดเรื่องอื่น ต้องผ่านด่านเลขใบก่อน · ไม่จดรายชื่อใบลงที่เก็บรอบจริง
+const ROUND_DIR = path.join(tmp, "round");
+mkdirSync(path.join(ROUND_DIR, "rounds"), { recursive: true });
+writeFileSync(path.join(ROUND_DIR, "rounds", "รอบ-ทดสอบ.json"), JSON.stringify({ รอบ: "รอบ-ทดสอบเครื่องมือ", สถานะ: "ผ่านแล้ว", ผ่านเมื่อ: new Date().toISOString(),
+  ใบ: [readdirSync("supabase/migrations").filter(n => /^\d{4}_.*\.sql$/.test(n)).sort().at(-1).slice(0, 4), "0901", "0902"] }));
+const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT, PMS_GATE_RECORD: RECORD, PMS_ROUND_DIR: ROUND_DIR };
 delete base.PMS_PROD_LOCK_HELD; delete base.PMS_DRILL_SABOTAGE; delete base.PMS_FAKE_EMPTY; delete base.PMS_MIGRATIONS_DIR;
 delete base.PMS_PUSH_TEST_PENDING; delete base.PMS_PUSH_LOG;   // บันทึกการรันไปที่ค่าตั้งต้น <PMS_BACKUP_ROOT>/db-push-log.jsonl (= ROOT ของข้อทดสอบ)
 const LOG = path.join(ROOT, "db-push-log.jsonl");
@@ -119,6 +126,28 @@ for (const [ป้าย, แก้, ใบ, ข้อความ] of [
   ผล(p.code === 4 && !existsSync(MARK), `${ป้าย[0]}1 ${ป้าย.slice(2)} → หยุด ไม่ลงใบ (exit ${p.code})`, p.out);
   ผล(ข้อความ.test(p.out), `${ป้าย[0]}2 บอกบนจอว่า "ใบ ${ใบ} ยังไม่ผ่านรอบตรวจเต็ม รอให้ผ่านก่อน"`, p.out);
   ผล((existsSync(ROOT) ? readdirSync(ROOT).length : 0) === ก่อน && !existsSync(LOCK), `${ป้าย[0]}3 หยุดก่อนเริ่มสำรอง · ไม่ค้างล็อก`);
+}
+
+// ── M) --dry-run อ่านและจดรายชื่อใบบนฐานได้เสมอ แม้มีใบยังไม่ผ่านรอบตรวจ (บอสอนุญาต 5 พ.ย. 69 · เหตุ: dry-run หยุดที่ด่าน ⓪
+//   จึงจดรายชื่อไม่ได้ → รอบตรวจเต็มเริ่มไม่ได้ วนกัน) · ลงจริงที่มีใบยังไม่ผ่านรอบตรวจ ยังหยุดเหมือนข้อ G ──
+{
+  const PROD = path.join(ROUND_DIR, "prod-migrations.json");
+  const d = ใบชุดทดลอง(d => writeFileSync(path.join(d, "9999_zz_new.sql"), "select 1;\n"));
+  rmSync(MARK, { force: true }); rmSync(PROD, { force: true });
+  const ชุดสำรอง = () => existsSync(ROOT) ? readdirSync(ROOT).filter(n => n.endsWith("-ก่อน-db-push")).length : 0;
+  const ก่อน = ชุดสำรอง();
+  คาดบันทึก.push({ ป้าย: "M1 dry-run ใบไม่ผ่านรอบตรวจ", ผล: "ไม่ลง" });
+  const p = รัน("scripts/db-push-prod.mjs", { PMS_MIGRATIONS_DIR: d, PMS_PUSH_TEST_PENDING: "9999_zz_new.sql" }, ["--dry-run"]);
+  const จด = existsSync(PROD) ? JSON.parse(readFileSync(PROD, "utf8")) : null;
+  // ไม่หยุดที่ด่าน ⓪ (ใบยังไม่ผ่านรอบตรวจ = ข้อมูล) → ถึงขั้นอ่าน/จดรายชื่อ · ใบ 9999 ไม่อยู่ในรอบที่ผ่าน = ตัวกันเลขใบหยุดหลังจด (วัดที่ migration-order.test.mjs)
+  ผล(p.code !== 4 && !existsSync(MARK) && /ℹ️  \(ดูอย่างเดียว\) มีใบปรับฐานที่ยังไม่ผ่านรอบตรวจเต็ม/.test(p.out), `M1 dry-run ที่มีใบ 9999 ยังไม่ผ่านรอบตรวจ → ไม่หยุดที่ด่านรอบตรวจ ไม่ลงใบ (exit ${p.code})`, p.out);
+  ผล(!!จด && จด.ใบ.some(x => String(x).startsWith(ล่าสุด.split("_")[0])) && !จด.ใบ.some(x => String(x).startsWith("9999")),
+    "M2 จดรายชื่อใบบนฐานครบ (มีใบล่าสุดในเครื่อง ไม่มีใบ 9999 ที่จะลง)", JSON.stringify(จด) + "\n" + p.out);
+  ผล(/ใบ 9999 ยังไม่ผ่านรอบตรวจเต็ม/.test(p.out), "M3 ยังบอกบนจอว่าใบ 9999 ยังไม่ผ่านรอบตรวจ (เป็นข้อมูล)", p.out);
+  ผล(ชุดสำรอง() === ก่อน && !existsSync(LOCK), "M4 ไม่สำรอง · ไม่ค้างล็อก");
+  rmSync(PROD, { force: true });
+  const q = รันpush("M5 ลงจริง ใบไม่ผ่านรอบตรวจ", "ไม่ลง", { PMS_MIGRATIONS_DIR: d, PMS_PUSH_TEST_PENDING: "9999_zz_new.sql" }, "9999\n");
+  ผล(q.code === 4 && !existsSync(MARK) && !existsSync(PROD), `M5 ลงจริงที่มีใบ 9999 ยังไม่ผ่านรอบตรวจ → ยังหยุด ไม่ลง ไม่จดรายชื่อ (exit ${q.code})`, q.out);
 }
 
 // ── I–J) ตัวนับเลขเทียบกับไฟล์สำรองเอง ไม่ใช่ฐานที่ยังทำงาน (บอสอนุมัติ 28 ต.ค. 69 · scripts/lib/backupSeq.mjs) ──

@@ -69,8 +69,10 @@ begin
   select * into p from dealer_prospects where name = 'ZZTEST-หนึ่ง';
   perform pitest.ok(p.phone = '000-000-7001' and p.region is not null and p.status = 'contacted' and p.import_batch_id = b and p.first_contact = '2026-08-24'
                     and (p.last_contact_at at time zone 'Asia/Bangkok')::date = '2026-08-24', '1) เบอร์รูปแบบเดียว · ภาคตามจังหวัด · ขั้น · ติดต่อล่าสุด = วันเริ่มติดต่อในไฟล์');
-  perform pitest.ok(exists (select 1 from dealer_prospect_activities a where a.prospect_id = p.id and a.kind = 'contact' and a.body = 'จากไฟล์นำเข้า: ไม่มีคนรับ'),
-                    '1) หมายเหตุเดิม = บันทึกการติดต่อครั้งแรก (ข้อความเดิม)');
+  -- ใบ 0277 (5 พ.ย. 69): บันทึกของวันเริ่มติดต่อ + หมายเหตุเดิมต่อท้าย (ข้อความเดิมไม่หาย) — เดิมบันทึกเป็นหมายเหตุล้วน
+  perform pitest.ok(exists (select 1 from dealer_prospect_activities a where a.prospect_id = p.id and a.kind = 'contact' and a.body = 'จากไฟล์นำเข้า: เริ่มติดต่อ · ไม่มีคนรับ'
+                              and (a.created_at at time zone 'Asia/Bangkok')::date = '2026-08-24'),
+                    '1) หมายเหตุเดิม = อยู่ในบันทึกการติดต่อวันเริ่มติดต่อ (ข้อความเดิม · ลงวันตามไฟล์)');
   perform pitest.ok((select status from dealer_prospects where name = 'ZZTEST-สอง') = 'profile_sent', '1) ส่งข้อมูลบริษัทแล้ว');
   perform pitest.ok((select status || ':' || lost_reason from dealer_prospects where name = 'ZZTEST-สาม') = 'lost:เงินทุนไม่พอ', '1) ไม่สำเร็จ + เหตุผล');
   perform pitest.ok((select status from dealer_prospects where name = 'ZZTEST-สี่') = 'new'
@@ -137,6 +139,84 @@ begin
   perform pitest.ok((select count(*) from audit_log where action = 'ยกเลิกการนำเข้าผู้สนใจ' and target like ไฟล์ || ' · %ชุด ' || b) = 1, '4) ยกเลิกลงบันทึกการใช้งานแถวเดียว');
   perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
   perform pitest.must_fail(format('select public.hq_prospects_import_cancel(%s)', b), 'import_cancelled', '4) ยกเลิกซ้ำไม่ได้');
+  perform pitest.as_admin();
+end $$;
+
+-- ── 5) ช่อง "ติดตาม" = วันที่ตามไปแล้ว (บอสสั่ง 5 พ.ย. 69 · ใบ 0277 · คำตอบบอส N1–N6) ──
+--   ตกบนโค้ดก่อนใบ 0277: วันติดตามลง follow_up · ไม่มีบันทึกตามวัน · ติดต่อล่าสุด = วันเริ่ม/ว่าง · วันเกินวันนี้ผ่าน
+do $$
+declare r jsonb; b bigint; ก dealer_prospects; ข dealer_prospects; ค dealer_prospects; ง dealer_prospects; จ dealer_prospects;
+  ไฟล์ text := format('ZZTEST-ไฟล์ติดตาม-%s.xlsx', txid_current());
+  วัน text := 'Asia/Bangkok';
+begin
+  perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
+  perform pitest.must_fail(format($q$select public.hq_prospects_import('x', '[{"row":1,"name":"ZZTEST-ฉ","phone":"000 000 7306","status":"contacted","follow_up":"%s"}]')$q$,
+                                  to_char((now() at time zone 'Asia/Bangkok')::date + 1, 'YYYY-MM-DD')),
+                           'import_follow_up', '5) วันติดตามเกินวันนี้ = ปฏิเสธ (วันติดตามคือวันที่ตามไปแล้ว · N6)');
+  r := public.hq_prospects_import(ไฟล์, $j$[
+    {"row": 1, "name": "ZZTEST-ตามสองวัน", "phone": "000 000 7301", "status": "contacted", "first_contact": "2026-08-01", "follow_up": "2026-08-10", "contact_note": "คุยแล้ว รอโทรกลับ"},
+    {"row": 2, "name": "ZZTEST-ไม่มีวันเริ่ม", "phone": "000 000 7302", "status": "contacted", "follow_up": "2026-09-03"},
+    {"row": 3, "name": "ZZTEST-หมายเหตุไม่มีวัน", "phone": "000 000 7303", "status": "contacted", "contact_note": "ไม่รับสาย"},
+    {"row": 4, "name": "ZZTEST-วันเดียวกัน", "phone": "000 000 7304", "status": "contacted", "first_contact": "2026-07-07", "follow_up": "2026-07-07"},
+    {"row": 5, "name": "ZZTEST-ขั้นตามไฟล์", "phone": "000 000 7305", "status": "new", "first_contact": "2026-06-01"}
+  ]$j$::jsonb);
+  b := (r->>'batch')::bigint;
+  perform pitest.ok((r->>'inserted')::int = 5, '5) นำเข้า 5 ราย — ได้ ' || r::text);
+  perform pitest.as_admin();
+  select * into ก from dealer_prospects where name = 'ZZTEST-ตามสองวัน';
+  select * into ข from dealer_prospects where name = 'ZZTEST-ไม่มีวันเริ่ม';
+  select * into ค from dealer_prospects where name = 'ZZTEST-หมายเหตุไม่มีวัน';
+  select * into ง from dealer_prospects where name = 'ZZTEST-วันเดียวกัน';
+  select * into จ from dealer_prospects where name = 'ZZTEST-ขั้นตามไฟล์';
+  perform pitest.ok(ก.follow_up is null and ข.follow_up is null and ง.follow_up is null, '5) นัดติดตามว่างทุกราย (ทีมตั้งเอง · ไม่ขึ้นถึงกำหนดติดตาม)');
+  perform pitest.ok((select array_agg((a.created_at at time zone วัน)::date::text || '|' || a.body order by a.created_at) from dealer_prospect_activities a where a.prospect_id = ก.id and a.kind = 'contact')
+                    = array['2026-08-01|จากไฟล์นำเข้า: เริ่มติดต่อ', '2026-08-10|จากไฟล์นำเข้า: ติดตาม · คุยแล้ว รอโทรกลับ'],
+                    '5) วันเริ่ม + วันติดตาม = บันทึกการติดต่อ 2 รายการลงวันตามไฟล์ · หมายเหตุผูกบันทึกวันล่าสุด (N2)');
+  perform pitest.ok((ก.last_contact_at at time zone วัน)::date = '2026-08-10' and ก.first_contact = '2026-08-01', '5) ติดต่อล่าสุด = วันล่าสุดในสองช่อง · วันเริ่มตามไฟล์');
+  perform pitest.ok(ข.first_contact is null and (ข.last_contact_at at time zone วัน)::date = '2026-09-03'
+                    and (select count(*) from dealer_prospect_activities a where a.prospect_id = ข.id and a.kind = 'contact' and a.body = 'จากไฟล์นำเข้า: ติดตาม'
+                           and (a.created_at at time zone วัน)::date = '2026-09-03') = 1,
+                    '5) ไม่มีวันเริ่ม = ไม่เดาวันเริ่ม · บันทึกแค่วันติดตาม (N1)');
+  perform pitest.ok(ค.last_contact_at is null
+                    and exists (select 1 from dealer_prospect_activities a where a.prospect_id = ค.id and a.kind = 'contact' and a.body = 'จากไฟล์นำเข้า: ไม่รับสาย'),
+                    '5) หมายเหตุไม่มีวันที่ = เก็บบันทึกหมายเหตุ · ติดต่อล่าสุดว่าง (N3)');
+  perform pitest.ok((select count(*) from dealer_prospect_activities a where a.prospect_id = ง.id and a.kind = 'contact') = 1
+                    and exists (select 1 from dealer_prospect_activities a where a.prospect_id = ง.id and a.body = 'จากไฟล์นำเข้า: เริ่มติดต่อ · ติดตาม'),
+                    '5) วันเริ่ม = วันติดตาม → บันทึกเดียว (N4)');
+  perform pitest.ok(จ.status = 'new' and exists (select 1 from dealer_prospect_activities a where a.prospect_id = จ.id and a.kind = 'contact'),
+                    '5) ขั้นตั้งตามไฟล์ (ตัวดักบันทึกการติดต่อเลื่อนให้แล้วก็ทับกลับตามไฟล์)');
+  perform pitest.ok(_import_batch_touched(b) = 0, '5) บันทึกลงวันย้อนหลังจากไฟล์ไม่นับว่าถูกแตะ — ยกเลิกทั้งชุดได้');
+  perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
+  perform pitest.ok((public.hq_prospects_import_cancel(b)->>'deleted')::int = 5, '5) ยกเลิกทั้งชุดได้');
+  perform pitest.as_admin();
+end $$;
+
+-- ── 6) บันทึกที่ชุดนำเข้าสร้างเองไม่นับว่า "ถูกแตะ" ไม่ขึ้นกับเวลา (ใบ 0277 · บั๊กที่ผู้ช่วย liveimport เจอ 5 พ.ย. 69) ──
+--   เหตุ: บันทึกลง 09:00 ของวันในไฟล์ · วันในไฟล์ = วันนี้ + นำเข้าก่อน 09:00 → บันทึกใหม่กว่าเวลาชุด → เดิมนับว่าถูกแตะ ยกเลิกไม่ได้
+--   จำลอง: ย้ายเวลาสร้างชุดไปก่อน 09:00 ของวันนี้ · ตกบนโค้ดก่อนแก้: ถูกแตะ = 1 ยกเลิกไม่ได้
+do $$
+declare r jsonb; b bigint; pid bigint; วันนี้ text := to_char((now() at time zone 'Asia/Bangkok')::date, 'YYYY-MM-DD');
+begin
+  perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
+  r := public.hq_prospects_import(format('ZZTEST-ไฟล์วันนี้-%s.xlsx', txid_current()),
+         jsonb_build_array(jsonb_build_object('row', 1, 'name', 'ZZTEST-เริ่มวันนี้', 'phone', '000 000 7401', 'status', 'contacted', 'first_contact', วันนี้, 'contact_note', 'โทรแล้ว')));
+  b := (r->>'batch')::bigint;
+  perform pitest.as_admin();
+  pid := (select id from dealer_prospects where import_batch_id = b);
+  update prospect_import_batches set created_at = ((วันนี้::date)::timestamp + interval '8 hours') at time zone 'Asia/Bangkok' where id = b;   -- ชุดสร้าง 08:00 วันนี้
+  perform pitest.ok((select count(*) from dealer_prospect_activities a where a.prospect_id = pid and a.import_batch_id = b
+                       and a.created_at > (select created_at from prospect_import_batches where id = b)) = 1,
+                    '6) บันทึกจากไฟล์ (09:00 วันนี้) ใหม่กว่าเวลาชุด (08:00) และติดรหัสชุด');
+  perform pitest.ok(_import_batch_touched(b) = 0, '6) บันทึกที่ชุดสร้างเองไม่นับว่าถูกแตะ (ไม่ขึ้นกับเวลา)');
+  -- แอปส่งรหัสชุดมาเองไม่ได้ (กันซ่อนการแตะหลังนำเข้า) — บันทึกการติดต่อของคน = ถูกแตะ
+  perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
+  insert into dealer_prospect_activities (prospect_id, kind, channel, body, import_batch_id) values (pid, 'contact', 'โทรศัพท์', 'ZZTEST โทรตามหลังนำเข้า', b);
+  perform pitest.as_admin();
+  perform pitest.ok((select import_batch_id from dealer_prospect_activities where body = 'ZZTEST โทรตามหลังนำเข้า') is null, '6) แอปตั้งรหัสชุดเองไม่ได้ (ล้างทิ้ง)');
+  perform pitest.ok(_import_batch_touched(b) = 1, '6) บันทึกการติดต่อของคนหลังนำเข้า = ถูกแตะ');
+  delete from dealer_prospect_activities where body = 'ZZTEST โทรตามหลังนำเข้า';
+  perform pitest.as_user('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN');
+  perform pitest.ok((public.hq_prospects_import_cancel(b)->>'deleted')::int = 1, '6) ยกเลิกทั้งชุดได้ แม้บันทึกจากไฟล์ใหม่กว่าเวลาชุด');
   perform pitest.as_admin();
 end $$;
 
