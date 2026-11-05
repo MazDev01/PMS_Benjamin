@@ -19,6 +19,7 @@ import { กันฐานจริง } from "../../scripts/lib/prodBackupMark
 import { รอฐานจริงว่าง } from "../../scripts/lib/prodLock.mjs";
 import { เลือกไฟล์แนบทดสอบ } from "./quoteFilesCleanup.mjs";
 import { รันSQLไฟล์ } from "../../scripts/lib/supabaseCli.mjs";
+import { ตรวจผลนับ } from "../../scripts/lib/cleanupCount.mjs";
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
@@ -182,15 +183,18 @@ if (phase === "cleanup") {
   const ถาม = (ไฟล์, ชื่อขั้น) => {
     try { return รันSQLไฟล์(ไฟล์, { cwd: OPS, workdir: OPS }); } catch (e) { ตาย(`${ชื่อขั้น}: อ่านผลไม่ได้ — ${e.message}`); }
   };
-  const นับ = () => ถาม(path.resolve("tests/prod-live/cleanup-audit-count.sql"), "นับบันทึกการใช้งาน")[0] ?? {};
-  const ก่อน = นับ();
+  // ผลนับต้องผ่านตัวตรวจเข้ม (scripts/lib/cleanupCount.mjs · 5 พ.ย. 69): แถวเดียว · คอลัมน์ไทยครบ · จำนวนเต็ม · เห็นทุกแถว · ทั้งตาราง > 0
+  //   เหตุ: บอสรันจากหน้าจอคน ขั้นนับได้ "ลบ 0" ทั้งที่มีแถวทดสอบ (ฐานจดลบจริง 54) → ด่านปนแถวจริงก็อ่าน 0 ได้ · อ่านไม่ได้/ผิดรูป = หยุดก่อนลบ ไม่เดาเป็น 0
+  const นับ = (ขั้น) => { const แถว = ถาม(path.resolve("tests/prod-live/cleanup-audit-count.sql"), `นับบันทึกการใช้งาน (${ขั้น})`);
+    try { return { ...แถว[0], ...ตรวจผลนับ(แถว) }; } catch (e) { ตาย(`นับบันทึกการใช้งาน (${ขั้น}): ${e.message} — ผลดิบ ${JSON.stringify(แถว).slice(0, 300)} · ไม่ลบ หยุดรายงาน`); } };
+  const ก่อน = นับ("ก่อนลบ");
   // บัญชีที่ CLI ใช้ต้องข้ามกฎสิทธิ์รายแถวได้ — ไม่ได้ = นับได้ 0 ทั้งที่มีแถว ด่านปนแถวจริงก็อ่านเป็น 0 (5 พ.ย. 69 · บอสรันจากหน้าจอคน ขึ้น "ลบ 0")
   if (ก่อน.เห็นทุกแถว !== true) ตาย(`บัญชีที่ Supabase CLI ใช้มองไม่เห็นทุกแถว (เห็นทุกแถว = ${JSON.stringify(ก่อน.เห็นทุกแถว)}) — ผลนับเชื่อไม่ได้ ไม่ลบ หยุดรายงาน`);
   if (Number(ก่อน.ปนแถวจริง) !== 0) ตาย(`เงื่อนไขลบจับแถวที่ไม่ใช่แถวทดสอบ ${ก่อน.ปนแถวจริง} แถว — ไม่ลบ หยุดรายงาน`);
   const ไฟล์ล้าง = path.join(OPS, "cleanup-run.sql");
   writeFileSync(ไฟล์ล้าง, readFileSync("tests/prod-live/cleanup.sql", "utf8").replaceAll("__ชุดสำรองก่อนลบ__", ชุดสำรอง));
   ถาม(ไฟล์ล้าง, "cleanup.sql");
-  const หลัง = นับ();
+  const หลัง = นับ("หลังลบ");
   const ไฟล์เหลือ = path.join(OPS, "cleanup-left.sql");
   // นับครบทุกชนิดที่ชุดทดสอบสร้าง (ผู้สนใจ · ใบ · การชำระ · จังหวัด · บัญชี ZZTN · บอสสั่ง 1 พ.ย. 69 · ชุดนำเข้าผู้สนใจ live-import.spec.ts 4 พ.ย. 69)
   writeFileSync(ไฟล์เหลือ, `select (select rolsuper or rolbypassrls from pg_roles where rolname = current_user) as เห็นทุกแถว, (select count(*) from public.dealers where code in ('${CODE}', 'ZZTN')) as สาขา,
@@ -210,6 +214,6 @@ if (phase === "cleanup") {
   const ค้าง = { บันทึก: Number(หลัง.จะลบ), ...Object.fromEntries(Object.entries(เหลือ).map(([k, v]) => [k, Number(v)])) };
   if (Object.values(ค้าง).some(n => n !== 0)) ตาย(`ล้างแล้วยังเหลือแถวทดสอบ ${JSON.stringify(ค้าง)} — หยุดรายงาน`);
   if (existsSync(STATE)) rmSync(STATE);   // สถานะมีรหัสผ่านบัญชีชั่วคราว — ล้างครบแล้วไม่ต้องเก็บ
-  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบลบ ${ก่อน.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา ลีด บัญชี โปรไฟล์ ผู้สนใจ ใบ ชุดนำเข้า จังหวัด แจ้งเตือน ไฟล์แนบ ไฟล์ในถัง บันทึก = 0) · ชุดสำรอง ${ชุดสำรอง}`);
+  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบก่อนลบ ${ก่อน.จะลบ} แถว (ทั้งตาราง ${ก่อน.จะลบ + ก่อน.เหลือ}) · หลังลบเหลือ ${หลัง.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา ลีด บัญชี โปรไฟล์ ผู้สนใจ ใบ ชุดนำเข้า จังหวัด แจ้งเตือน ไฟล์แนบ ไฟล์ในถัง บันทึก = 0) · ชุดสำรอง ${ชุดสำรอง}`);
 }
 void ANON;
