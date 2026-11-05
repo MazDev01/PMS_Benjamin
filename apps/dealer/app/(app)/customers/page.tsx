@@ -12,6 +12,7 @@ import { printQuotation } from "@pms/shared/lib/quotationPrint";
 import { buildLeadTasks, leadStatusLabel, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
 import { useCustomerNotes } from "@pms/shared/lib/useCustomerNotes";
 import { อ่านตารางจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
+import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
 import { CSV_HEADERS, จับคู่คอลัมน์, แถวตัวอย่าง, แผ่นค่าที่เลือกได้, เนื้อไฟล์Csv, type ImportRow, type ค่าที่ระบบมี as ค่าที่เลือกได้ในระบบ } from "@pms/shared/lib/customerImportTemplate";
 import { สร้างไฟล์Xlsx as สร้างสมุดงานXlsx } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -714,6 +715,10 @@ export default function CustomersPage(){
   // รับได้ทั้ง CSV · Excel (.xlsx) · .xls/HTML ที่ระบบเก่าส่งออก — ตัวอ่านอยู่ที่ lib/importSheet
   async function onCsvFile(e: React.ChangeEvent<HTMLInputElement>){
     const f=e.target.files?.[0]; if(e.target)e.target.value=""; if(!f) return;
+    await รับไฟล์ลูกค้า(f);
+  }
+  // อ่านไฟล์ลูกค้าเดิม → หน้าตรวจ (ปุ่มเลือกไฟล์ในกล่อง + เมนูนำเข้า ImportMenu ใช้ตัวเดียวกัน · บอสสั่ง 5 พ.ย. 69)
+  async function รับไฟล์ลูกค้า(f: File){
     setImportFile(f.name); setImportRows([]); setImportErr("");
     try{
       const rows=จับคู่คอลัมน์(await อ่านตารางจากไฟล์(f));
@@ -891,10 +896,11 @@ export default function CustomersPage(){
             headers={[...CSV_HEADERS,"กิจกรรมล่าสุด","จำนวนใบเสนอราคา","ยอดขายรวม"]}
             rows={filtered.map(c=>[c.company,c.name,c.phone,c.email,c.address??"",c.province,c.joinDate,c.owner,
                 lastActivityFor(c.id,c.joinDate,quotations),quotationCountFor(c.id,quotations),fmtMoney(totalSalesFor(c.id,quotations))])} />
-          {/* นำเข้าลูกค้าเดิม (คีย์มือ/CSV) — ลูกค้าใหม่ยังเกิดจาก Lead→Won เท่านั้น */}
-          <button className="btn btn-primary btn-sm" onClick={()=>{setImportRows([]);setImportErr("");setImportFile("");setShowImport(true);}}>
-            <Upload size={14}/> นำเข้าลูกค้าเดิม
-          </button>
+          {/* นำเข้าลูกค้าเดิม — ลูกค้าใหม่ยังเกิดจาก Lead→Won เท่านั้น
+              เมนูนำเข้า ตัวกลาง (บอสสั่ง 5 พ.ย. 69): Excel · CSV = เปิดหน้าต่างเลือกไฟล์ทันที → หน้าตรวจเดิม · แบบฟอร์มตัวอย่าง = เทมเพลต Excel เดิม (มีแผ่นค่าที่เลือกได้) */}
+          <ImportMenu label="นำเข้าลูกค้าเดิม" primary
+            onFile={f=>{ setImportRows([]); setImportErr(""); setImportFile(""); setShowImport(true); void รับไฟล์ลูกค้า(f); }}
+            onTemplate={()=>downloadXlsxTemplate(ค่าที่ระบบมี)} />
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 

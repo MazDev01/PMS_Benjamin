@@ -4,7 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
-import { HQ_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
+import { HQ_ORIGIN, db, loginUI, watchErrors, assertNoErrors, นำเข้าผ่านเมนู } from "./funcHelpers";
 import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { adminClient } from "./testDealers";
 import { สร้างไฟล์Xlsx } from "../../packages/shared/lib/exportWorkbook";
@@ -52,9 +52,8 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click();
+  await นำเข้าผ่านเมนู(page, "นำเข้าจากไฟล์", "xlsx", ไฟล์);   // เมนูนำเข้า (บอสสั่ง 5 พ.ย. 69): Excel → หน้าต่างเลือกไฟล์ทันที
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
-  await กล่อง.getByLabel("ไฟล์ผู้สนใจ").setInputFiles(ไฟล์);
   await expect(กล่อง.getByTestId("import-file")).toContainText(ชื่อไฟล์, { timeout: 20_000 });
   await expect(กล่อง.locator("#pi-header"), "หาหัวตารางเจอที่แถว 2 (ไม่ใช่แถวแรก)").toHaveValue("1");
   await expect(กล่อง.getByLabel("คอลัมน์ เบอร์โทร"), "เดาคอลัมน์เบอร์").toHaveValue("2");
@@ -118,7 +117,9 @@ test("[db·hq] นำเข้าเบอร์เดิมซ้ำ = ฐา�
 
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click();
+  // ชุดที่นำเข้าล่าสุด = รายการที่ 4 ของเมนูนำเข้า (บอสตอบ M1 = ก · 5 พ.ย. 69)
+  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click();
+  await page.getByRole("menu", { name: "นำเข้าจากไฟล์" }).getByRole("menuitem", { name: /ชุดที่นำเข้าล่าสุด/ }).click();
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
   const รายการ = กล่อง.getByRole("region", { name: "ชุดที่นำเข้าล่าสุด" });
   const แรก = รายการ.locator(`li[data-batch="${ชุดแรก}"]`);
@@ -150,9 +151,8 @@ test("[ui·hq] หน้าตรวจนำเข้า: วันที่ก
 
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click();
+  await นำเข้าผ่านเมนู(page, "นำเข้าจากไฟล์", "xlsx", ไฟล์2);
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
-  await กล่อง.getByLabel("ไฟล์ผู้สนใจ").setInputFiles(ไฟล์2);
   await expect(กล่อง.getByTestId("import-file")).toContainText(`${แท็ก}-เดือน.xlsx`, { timeout: 20_000 });
   await กล่อง.getByRole("button", { name: "ไปหน้าตรวจ" }).click();
   const นับ = (g: string) => กล่อง.locator(`[role="tab"][data-group="${g}"] [data-count]`);
@@ -200,4 +200,36 @@ test("[ui·hq] หน้าตรวจนำเข้า: วันที่ก
   const { data } = await (await db(ADMIN)).from("dealer_prospects").select("name, first_contact, status").eq("phone", เบอร์จัดรูป(21)).single();
   expect(data, "ฐานได้ชื่อที่แก้ · วันเริ่มติดต่อ = เดือนที่เลือก").toMatchObject({ name: `${แท็ก} กำกวม แก้ชื่อ`, first_contact: ตุลา, status: "contacted" });
   assertNoErrors(errs, "หน้าตรวจนำเข้า: เลือกเดือน + ช่องบังคับ");
+});
+
+// ── เมนูนำเข้า (บอสสั่ง 5 พ.ย. 69 · ImportMenu ตัวกลาง): 3 ตัวเลือกนำเข้า + ชุดที่นำเข้าล่าสุด · แบบฟอร์มตัวอย่างนำเข้ากลับได้ไม่มีแถวต้องตรวจ ──
+//   ตกบนโค้ดเดิม: ปุ่ม "นำเข้าจากไฟล์" เปิดกล่องเปล่าทันที ไม่มีเมนู/แบบฟอร์มตัวอย่าง
+test("[ui·hq] เมนูนำเข้าผู้สนใจ: Excel · CSV · แบบฟอร์มตัวอย่าง (+ ชุดที่นำเข้าล่าสุด) · แบบฟอร์มนำเข้ากลับไม่มีแถวต้องตรวจ", async ({ page }) => {
+  const errs = watchErrors(page);
+  await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+  await settle(page);
+  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click();
+  const เมนู = page.getByRole("menu", { name: "นำเข้าจากไฟล์" });
+  await expect(เมนู.locator("[data-import-option]"), "3 ตัวเลือกนำเข้า").toHaveText([/^Excel/, /^CSV/, /^ดาวน์โหลดแบบฟอร์มตัวอย่าง/]);
+  await expect(เมนู.locator("[data-import-option]").nth(0)).toContainText(".xlsx");
+  await expect(เมนู.locator("[data-import-option]").nth(1)).toContainText(".csv");
+  await expect(เมนู.locator("[data-import-extra]"), "รายการเสริม: ชุดที่นำเข้าล่าสุด").toHaveText([/^ชุดที่นำเข้าล่าสุด/]);
+  await expect(page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" }), "เปิดเมนูไม่เปิดกล่องเปล่า").toHaveCount(0);
+  const [ไฟล์] = await Promise.all([page.waitForEvent("download", { timeout: 25_000 }), เมนู.locator('[data-import-option="template"]').click()]);
+  expect(ไฟล์.suggestedFilename()).toBe("แบบฟอร์มนำเข้าผู้สนใจ.xlsx");
+  const ที่อยู่ = path.join(os.tmpdir(), "pms-prospect-import", `${แท็ก}-แบบฟอร์ม.xlsx`);
+  await ไฟล์.saveAs(ที่อยู่);
+  await นำเข้าผ่านเมนู(page, "นำเข้าจากไฟล์", "xlsx", ที่อยู่);
+  const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
+  await expect(กล่อง.getByTestId("import-file"), "เลือกไฟล์แล้วเข้าหน้าจับคู่คอลัมน์ทันที").toContainText(`${แท็ก}-แบบฟอร์ม.xlsx`, { timeout: 20_000 });
+  await expect(กล่อง.locator("#pi-header"), "หัวตารางแถวแรก").toHaveValue("0");
+  await expect(กล่อง.getByLabel("คอลัมน์ วันติดตาม (ที่ผ่านมา)"), "หัวใหม่จับคู่เอง").not.toHaveValue("");
+  await expect(กล่อง.getByLabel("คอลัมน์ เบอร์โทร")).not.toHaveValue("");
+  await กล่อง.getByRole("button", { name: "ไปหน้าตรวจ" }).click();
+  await expect(กล่อง.locator('[role="tab"][data-group="review"] [data-count]'), "แบบฟอร์มเปล่า = ไม่มีแถวต้องตรวจ").toHaveAttribute("data-count", "0");
+  // CSV = หน้าต่างเลือกไฟล์รับเฉพาะ .csv (ตัวช่วยตรวจ accept)
+  await กล่อง.getByRole("button", { name: "ปิด", exact: true }).first().click();
+  await นำเข้าผ่านเมนู(page, "นำเข้าจากไฟล์", "csv", { name: `${แท็ก}.csv`, mimeType: "text/csv", buffer: Buffer.from("﻿ชื่อ,เบอร์โทร,จังหวัด\n", "utf8") });
+  await expect(page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" }).getByTestId("import-file")).toContainText(`${แท็ก}.csv`, { timeout: 20_000 });
+  assertNoErrors(errs, "เมนูนำเข้าผู้สนใจ");
 });

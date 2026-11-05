@@ -25,7 +25,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
-  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, Upload,
+  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, History,
   Link2,
 } from "lucide-react";
 import {
@@ -57,6 +57,9 @@ import { APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ProspectImportModal } from "@pms/shared/components/hq/ProspectImportModal";
+import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
+import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
+import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
@@ -99,6 +102,7 @@ export default function HQProspectsPage() {
   const ค่าตั้ง = useRecruitSettings();
   // นำเข้าจากไฟล์ทำงานจริงของทีม (ใบ 0275 · บอสสั่ง 3 พ.ย. 69)
   const [เปิดนำเข้า, setเปิดนำเข้า] = useState(false);
+  const [ไฟล์นำเข้า, setไฟล์นำเข้า] = useState<File | null>(null);   // เลือกจากเมนูนำเข้า → กล่องอ่านไฟล์นี้ทันที
   // "อื่น ๆ" ต่อท้ายให้เสมอ — ช่องทางที่ไม่อยู่ในรายการยังเลือกได้
   const ตัวเลือกช่องทาง = ค่าตั้ง.channels.includes("อื่น ๆ") ? ค่าตั้ง.channels : [...ค่าตั้ง.channels, "อื่น ๆ"];
 
@@ -702,9 +706,11 @@ export default function HQProspectsPage() {
           ])}
         />
         {จัดการได้ && (
-          <button className="btn btn-secondary btn-sm" onClick={() => setเปิดนำเข้า(true)}>
-            <Upload size={14} /> นำเข้าจากไฟล์
-          </button>
+          // เมนูนำเข้า ตัวกลาง (บอสสั่ง 5 พ.ย. 69): Excel · CSV · แบบฟอร์มตัวอย่าง + ชุดที่นำเข้าล่าสุด (ดู/ยกเลิกทั้งชุด · บอสตอบ M1 = ก)
+          <ImportMenu label="นำเข้าจากไฟล์"
+            onFile={f => { setไฟล์นำเข้า(f); setเปิดนำเข้า(true); }}
+            onTemplate={() => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "ผู้สนใจ", หัวตาราง: Object.values(หัวแบบฟอร์มผู้สนใจ), แถว: [] }]), "แบบฟอร์มนำเข้าผู้สนใจ.xlsx")}
+            extraActions={[{ label: "ชุดที่นำเข้าล่าสุด", desc: "ดู/ยกเลิกทั้งชุด", icon: <History size={15} />, onClick: () => { setไฟล์นำเข้า(null); setเปิดนำเข้า(true); } }]} />
         )}
         {จัดการได้ && (
           <button className="btn btn-primary btn-sm" onClick={เปิดเพิ่ม}>
@@ -712,7 +718,7 @@ export default function HQProspectsPage() {
           </button>
         )}
       </TopbarActions>
-      <ProspectImportModal open={เปิดนำเข้า} onClose={() => setเปิดนำเข้า(false)}
+      <ProspectImportModal open={เปิดนำเข้า} onClose={() => { setเปิดนำเข้า(false); setไฟล์นำเข้า(null); }} ไฟล์เริ่ม={ไฟล์นำเข้า}
         onImported={() => { void prospectsRepo.list().then(setList).catch(() => {}); }}
         เบอร์ที่มีอยู่={list.map(p => p.phone ?? "").filter(Boolean)}
         แหล่งที่มา={ค่าตั้ง.channels} เหตุผลไม่สำเร็จ={ค่าตั้ง.lostReasons} />
