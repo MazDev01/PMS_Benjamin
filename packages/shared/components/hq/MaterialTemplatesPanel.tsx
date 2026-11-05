@@ -7,8 +7,16 @@
 //   วันที่อัปเดตราคา ฐานประทับเองเมื่อราคาเปลี่ยน (หน้าเว็บแก้ไม่ได้) · ดีลเลอร์เห็นเฉพาะที่เปิดใช้
 //   บนหัว: ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ (คำขอที่ HQ ส่งใบแล้ว) · ยังไม่มี = "—"
 //   ลบได้เฉพาะวัสดุที่ยังไม่เคยใช้ในคำขอ/ใบ HQ (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) — เคยใช้แล้ว = ไม่มีปุ่มลบ ให้ปิดใช้แทน · ฐานกันเอง
+//   เพิ่ม 2 ทาง (บอสสั่ง 5 พ.ย. 69): "เพิ่มวัสดุ" = ตารางกรอกหลายแถว บันทึกครั้งเดียว (MaterialAddModal)
+//     · "นำเข้าจากไฟล์" = เมนูนำเข้าตัวกลาง Excel/CSV/แบบฟอร์มตัวอย่าง/ชุดที่นำเข้าล่าสุด (MaterialImportModal · ใบ 0279)
+//     ตารางมีการแก้ที่ยังไม่บันทึก = ต้องบันทึก/ยกเลิกก่อน (บันทึกจาก 2 ทางนี้โหลดรายการใหม่ทับตาราง)
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Boxes, Plus, Search, Trash2, CheckCircle2, Target, Tags } from "lucide-react";
+import { Boxes, Plus, Search, Trash2, CheckCircle2, Target, Tags, History } from "lucide-react";
+import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
+import { MaterialImportModal } from "@pms/shared/components/hq/MaterialImportModal";
+import { MaterialAddModal } from "@pms/shared/components/hq/MaterialAddModal";
+import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
+import { หัวแบบฟอร์มวัสดุ, ลำดับช่องวัสดุ } from "@pms/shared/lib/materialImport";
 import { materialTemplates as repo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -34,7 +42,6 @@ const ช่องกรอก: React.CSSProperties = { width: "100%", border: "
 type แถว = Omit<MaterialTemplate, "id" | "priceUpdatedAt"> & { key: string; id?: number; priceUpdatedAt?: string };
 const จากฐาน = (t: MaterialTemplate): แถว => ({ ...t, unitPrice: Number(t.unitPrice), key: `id-${t.id}` });
 const ภาพ = (rows: แถว[]) => JSON.stringify(rows.map(r => [r.id ?? null, r.category.trim(), r.name.trim(), r.unit.trim(), Number(r.unitPrice), r.active]));
-let ลำดับใหม่ = 0;
 
 export function MaterialTemplatesPanel() {
   const [บันทึกแล้ว, setบันทึกแล้ว] = useState<แถว[] | null>(null);
@@ -44,6 +51,9 @@ export function MaterialTemplatesPanel() {
   const [ความแม่น, setความแม่น] = useState<EstimateAccuracy | null>(null);
   // ยังไม่รู้ว่าเคยใช้หรือไม่ (กำลังโหลด) = ซ่อนปุ่มลบไว้ก่อน — ไม่ให้กดลบวัสดุที่อาจเคยใช้แล้ว
   const [เคยใช้, setเคยใช้] = useState<Set<number> | null>(null);
+  const [เปิดเพิ่ม, setเปิดเพิ่ม] = useState(false);
+  // รายการจากฐาน (ทุกแถวมี id) — ใช้ตรวจซ้ำของ 2 ทางเพิ่ม
+  const [นำเข้า, setนำเข้า] = useState<{ ไฟล์: File | null } | null>(null);
   const toast = useSettingsToast();
   // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ชื่อวัสดุ · หน่วย ทุกแถว (* ที่หัวคอลัมน์)
   //   ราคาต่อหน่วยเป็นช่องตัวเลข ว่างไม่ได้จริง (เว้นว่าง = 0) จึงไม่มี * — เดิมใส่ * แล้วหัว "ราคาต่อหน่วย (ก่อน VAT)" ตัดบรรทัด
@@ -64,6 +74,7 @@ export function MaterialTemplatesPanel() {
   }, []);
   useEffect(โหลด, [โหลด]);
 
+  const ของเดิม = useMemo(() => (บันทึกแล้ว ?? []) as MaterialTemplate[], [บันทึกแล้ว]);
   const dirty = บันทึกแล้ว !== null && ภาพ(rows) !== ภาพ(บันทึกแล้ว);
   const save = useCallback(() => {
     const ช่อง = ช่องของแถว(rows);
@@ -93,8 +104,16 @@ export function MaterialTemplatesPanel() {
     setRows(rs => rs.map(r => r.key === key ? { ...r, ...patch } : r));
     for (const k of Object.keys(patch)) บังคับ.ล้าง(`${k}:${key}`);
   };
-  // เพิ่มแถวใหม่ไว้บนสุด (ตารางเรียงใหม่สุดก่อน · ความจำ newest-first-tables) แล้วกลับหน้าแรกให้เห็นแถวที่เพิ่ม
-  const เพิ่ม = () => { setค้น(""); setหน้า(0); setRows(rs => [{ key: `new-${++ลำดับใหม่}`, category: "", name: "", unit: "", unitPrice: 0, active: true }, ...rs]); };
+  // 2 ทางเพิ่ม (บอสสั่ง 5 พ.ย. 69) — บันทึกแล้วรายการจากฐานมาแทนตาราง จึงต้องไม่มีการแก้ค้างในตาราง
+  const ก่อนเพิ่ม = () => {
+    if (dirty) { แจ้งพลาด("มีการแก้ในตารางที่ยังไม่บันทึก — กดบันทึกหรือยกเลิกการแก้ก่อน"); return false; }
+    return true;
+  };
+  const เมื่อบันทึกจากหน้าต่าง = (ls: MaterialTemplate[]) => {
+    const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); ล้างหน่วยจากวัสดุ(); setค้น(""); setหน้า(0);
+    repo.used().then(ids => setเคยใช้(new Set(ids))).catch(e => logRepoRead("materialTemplates.used", e));
+  };
+  const แบบฟอร์ม = () => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "รายการวัสดุ", หัวตาราง: ลำดับช่องวัสดุ.map(k => หัวแบบฟอร์มวัสดุ[k]), แถว: [] }]), "แบบฟอร์มนำเข้ารายการวัสดุ.xlsx");
   const เปิดใช้ = rows.filter(r => r.active).length;
 
   const หน้าจริง = Math.min(หน้า, pageCountOf(แสดง.length) - 1);
@@ -125,7 +144,9 @@ export function MaterialTemplatesPanel() {
           </div>
           <span className="note">เปิดใช้ {เปิดใช้} จาก {rows.length} รายการ</span>
           {/* ปิดไว้จนรายการโหลดเสร็จ — เดิมกดเพิ่มก่อนโหลดเสร็จ รายการจากฐานมาทับ แถวที่เพิ่มหายเงียบ ๆ (เจอจากรอบตรวจ 27 ต.ค. 69) */}
-          <button type="button" className="btn btn-primary btn-sm" onClick={เพิ่ม} disabled={บันทึกแล้ว === null}><Plus size={14} /> เพิ่มวัสดุ</button>
+          <ImportMenu label="นำเข้าจากไฟล์" onFile={f => { if (ก่อนเพิ่ม()) setนำเข้า({ ไฟล์: f }); }} onTemplate={แบบฟอร์ม}
+            extraActions={[{ label: "ชุดที่นำเข้าล่าสุด", desc: "ดู/ยกเลิกทั้งชุด", icon: <History size={15} />, onClick: () => setนำเข้า({ ไฟล์: null }) }]} />
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => { if (ก่อนเพิ่ม()) setเปิดเพิ่ม(true); }} disabled={บันทึกแล้ว === null}><Plus size={14} /> เพิ่มวัสดุ</button>
         </div>
       }>
         <datalist id="mt-categories">{หมวด.map(h => <option key={h} value={h} />)}</datalist>
@@ -161,6 +182,10 @@ export function MaterialTemplatesPanel() {
           ]} />
         <TablePagination page={หน้าจริง} total={แสดง.length} onPage={setหน้า} />
       </SectionCard>
+      <MaterialAddModal open={เปิดเพิ่ม} onClose={() => setเปิดเพิ่ม(false)} ที่มี={ของเดิม} หน่วย={หน่วย}
+        onSaved={ls => { setเปิดเพิ่ม(false); เมื่อบันทึกจากหน้าต่าง(ls); }} />
+      <MaterialImportModal open={!!นำเข้า} ไฟล์เริ่ม={นำเข้า?.ไฟล์} onClose={() => setนำเข้า(null)} ที่มี={ของเดิม} หน่วย={หน่วย}
+        onImported={() => { repo.list().then(เมื่อบันทึกจากหน้าต่าง).catch(e => logRepoRead("materialTemplates.list", e)); }} />
     </div>
   );
 }

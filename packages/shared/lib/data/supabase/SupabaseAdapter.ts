@@ -620,6 +620,24 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return ((data ?? []) as unknown[]).map(Number);
     },
+    // นำเข้าจากไฟล์ (ใบ 0279)
+    importRows: async (fileName, rows) => {
+      const { data, error } = await sb().rpc("hq_materials_import", { p_file: fileName, p_rows: rows });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      const d = (data ?? {}) as { batch?: number; inserted?: number; updated?: number };
+      return { batch: Number(d.batch ?? 0), inserted: Number(d.inserted ?? 0), updated: Number(d.updated ?? 0) };
+    },
+    cancelImport: async (batch) => {
+      const { data, error } = await sb().rpc("hq_materials_import_cancel", { p_batch: batch });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      const d = (data ?? {}) as { deleted?: number; restored?: number };
+      return { deleted: Number(d.deleted ?? 0), restored: Number(d.restored ?? 0) };
+    },
+    importBatches: async () => {
+      const { data, error } = await sb().rpc("hq_material_import_batches");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return (data ?? []) as import("../../materialTemplates").ชุดนำเข้าวัสดุ[];
+    },
   },
   // คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183)
   quoteRequests: {

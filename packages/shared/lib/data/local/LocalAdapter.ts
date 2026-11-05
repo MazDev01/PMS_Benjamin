@@ -327,6 +327,9 @@ export const LocalAdapter: DataAdapter = {
     save: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างบันทึกรายการวัสดุไม่ได้")),
     accuracy: () => ok({ n: 0, avgAbsPct: null, avgPct: null }),
     used: () => ok([]),
+    importRows: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างนำเข้ารายการวัสดุไม่ได้")),
+    cancelImport: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างนำเข้ารายการวัสดุไม่ได้")),
+    importBatches: () => ok([]),
   },
   // พื้นที่ของดีลเลอร์ — โหมดข้อมูลตัวอย่างไม่มีกฎพื้นที่ (ไม่มีฐานข้อมูล)
   territories: {

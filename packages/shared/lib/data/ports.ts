@@ -111,6 +111,11 @@ export interface MaterialTemplatesRepo {
   accuracy(): Promise<import("../materialTemplates").EstimateAccuracy>;
   /** รหัสวัสดุที่เคยใช้ในคำขอราคา/ใบ HQ แล้ว (ใบ 0271) — ลบไม่ได้ (ฐานกัน) ปิดใช้แทน · HQ เท่านั้น */
   used(): Promise<number[]>;
+  /** นำเข้าจากไฟล์ทั้งชุด (ใบ 0279) — ใหม่ = เพิ่ม · หมวด+ชื่อตรงของเดิม = อัปเดตแค่ราคา · ทั้งหมดหรือไม่เลย */
+  importRows(fileName: string, rows: { category: string; name: string; unit: string; unitPrice: number; active: boolean }[]): Promise<import("../materialTemplates").ผลนำเข้าวัสดุ>;
+  /** ยกเลิกทั้งชุด = ลบที่เพิ่ม + คืนราคาเดิม (มีคำขอราคาใช้แล้ว/แก้ราคาหลังนำเข้า = ฐานปฏิเสธ) */
+  cancelImport(batch: number): Promise<{ deleted: number; restored: number }>;
+  importBatches(): Promise<import("../materialTemplates").ชุดนำเข้าวัสดุ[]>;
 }
 // ── ไฟล์แนบของคำขอราคา 2 ทาง (ใบ 0273) — ฐาน/ถังตรวจสิทธิ์ ล็อก ชนิด ขนาด จำนวน · ไฟล์ส่งตรงเข้าถัง ไม่ผ่าน API ──
 export interface QuoteFilesRepo {

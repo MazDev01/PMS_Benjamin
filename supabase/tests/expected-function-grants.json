@@ -1,5 +1,5 @@
 {
- "migration": "0278",
+ "migration": "0279",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -255,6 +255,13 @@
   },
   {
    "f": "_lead_won_must_be_paid(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_material_import_block(p_batch bigint)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -1018,6 +1025,27 @@
   },
   {
    "f": "hq_lead_transfer_plan()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_material_import_batches()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_materials_import(p_file text, p_rows jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_materials_import_cancel(p_batch bigint)",
    "anon": false,
    "authenticated": true,
    "service_role": false,

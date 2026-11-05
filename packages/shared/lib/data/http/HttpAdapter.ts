@@ -330,6 +330,9 @@ const materialTemplates: MaterialTemplatesRepo = {
   save: (rows, deleteIds) => post<MaterialTemplate[]>("/material-templates", { rows, deleteIds }),
   accuracy: () => apiFetch<EstimateAccuracy>("/material-templates?view=accuracy"),
   used: () => apiFetch<number[]>("/material-templates?view=used"),
+  importRows: (fileName, rows) => post("/material-templates", { op: "import", fileName, rows }),
+  cancelImport: (batch) => post("/material-templates", { op: "cancelImport", batch }),
+  importBatches: () => apiFetch("/material-templates?view=imports"),
 };
 // พื้นที่ของดีลเลอร์ (ใบ 0195)
 const territories: TerritoriesRepo = {

@@ -49,7 +49,8 @@ test.afterAll(async () => {
   await svc.from("material_templates").delete().like("name", `ZZTEST-%-${แท็ก}`);
 });
 
-test("[flow·hq] ตั้งค่า › รายการวัสดุ: เพิ่ม 2 รายการ บันทึกด้วยปุ่มกลาง · วันที่อัปเดตราคาเป็น พ.ศ.", async ({ page }) => {
+// เพิ่มวัสดุ = ตารางกรอกหลายแถว บันทึกครั้งเดียว (บอสสั่ง 5 พ.ย. 69 · เดิมเพิ่มทีละแถวในตาราง แล้วบันทึกด้วยปุ่มกลาง)
+test("[flow·hq] ตั้งค่า › รายการวัสดุ: เพิ่ม 2 รายการจากตารางเพิ่มวัสดุ บันทึกครั้งเดียว · วันที่อัปเดตราคาเป็น พ.ศ.", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
@@ -57,15 +58,17 @@ test("[flow·hq] ตั้งค่า › รายการวัสดุ: �
   await page.getByRole("button", { name: "รายการวัสดุ" }).click();
   const แผง = page.locator("[data-panel='material-templates']");
   await expect(แผง.getByTestId("estimate-accuracy"), "การ์ด % คลาดเฉลี่ยอยู่บนหัว").toBeVisible({ timeout: 20_000 });
-  for (const [ชื่อ, หน่วย, ราคา] of [[ผนัง, "ตร.ม.", 285.5], [ประตู, "ชุด", 42000]] as const) {
-    await แผง.getByRole("button", { name: "เพิ่มวัสดุ" }).click();
-    const แถว = แผง.locator("tbody tr[data-mt-row='new']").first();   // แถวใหม่ขึ้นบนสุด (ตารางเรียงใหม่สุดก่อน)
-    await แถว.getByLabel(/^หมวด \d+$/).fill(หมวด);
-    await แถว.getByLabel(/^ชื่อวัสดุ \d+$/).fill(ชื่อ);
-    await แถว.getByLabel(/^หน่วย \d+$/).selectOption(หน่วย);   // ช่องหน่วยเป็นดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69)
-    await แถว.getByLabel(/^ราคาต่อหน่วย \d+$/).fill(String(ราคา));
+  await แผง.getByRole("button", { name: "เพิ่มวัสดุ" }).click();
+  const ตารางเพิ่ม = page.getByRole("dialog", { name: "เพิ่มวัสดุ" });
+  for (const [i, [ชื่อ, หน่วย, ราคา]] of ([[ผนัง, "ตร.ม.", 285.5], [ประตู, "ชุด", 42000]] as const).entries()) {
+    if (i > 0) await ตารางเพิ่ม.locator("[data-add-line]").click();
+    await ตารางเพิ่ม.getByLabel(`หมวด แถว ${i + 1}`).fill(หมวด);
+    await ตารางเพิ่ม.getByLabel(`ชื่อวัสดุ แถว ${i + 1}`).fill(ชื่อ);
+    await ตารางเพิ่ม.getByLabel(`หน่วย แถว ${i + 1}`, { exact: true }).selectOption(หน่วย);   // ช่องหน่วยเป็นดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69)
+    await ตารางเพิ่ม.getByLabel(`ราคาต่อหน่วย แถว ${i + 1}`).fill(String(ราคา));
   }
-  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+  await ตารางเพิ่ม.locator("[data-add-save]").click();
+  await expect(ตารางเพิ่ม, "บันทึกแล้วปิดตารางเพิ่ม").toHaveCount(0, { timeout: 20_000 });
   await expect.poll(async () => ((await svc.from("material_templates").select("name, unit, unit_price, active").like("name", `ZZTEST-%-${แท็ก}`).order("name")).data ?? [])
     .map(r => [r.name, r.unit, Number(r.unit_price), r.active]), { timeout: 20_000, message: "ฐานได้ 2 รายการตามที่กรอก" })
     .toEqual([[ประตู, "ชุด", 42000, true], [ผนัง, "ตร.ม.", 285.5, true]].sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
@@ -215,9 +218,14 @@ test("[flow·hq] รายการวัสดุ: วัสดุที่เ�
   await expect(แถวผนัง.locator("[data-mt-used='1']"), "วัสดุที่เคยใช้ขึ้น \"ใช้แล้ว\"").toHaveText("ใช้แล้ว", { timeout: 20_000 });
   await expect(แถวผนัง.getByRole("button", { name: /^ลบ / }), "ไม่มีปุ่มลบ").toHaveCount(0);
   await expect(แถวผนัง.getByLabel(/^เปิดใช้ \d+$/), "ปิดใช้ได้").toBeEnabled();
-  // แถวใหม่ (ยังไม่เคยใช้) มีปุ่มลบตามปกติ
-  await แผง.getByRole("button", { name: "เพิ่มวัสดุ" }).click();
-  await expect(แผง.locator("tbody tr[data-mt-row='new']").first().getByRole("button", { name: /^ลบ / }), "แถวที่ยังไม่เคยใช้มีปุ่มลบ").toBeVisible();
-  await page.getByRole("button", { name: "รีเซ็ต" }).click();
+  // วัสดุที่ยังไม่เคยใช้มีปุ่มลบตามปกติ (เดิมใช้แถวใหม่ในตาราง — ปุ่มเพิ่มวัสดุเปลี่ยนเป็นตารางเพิ่มหลายแถว 5 พ.ย. 69)
+  const ไม่ใช้ = `ZZTEST-ยังไม่ใช้-${แท็ก}`;
+  const ใส่ = await svc.from("material_templates").insert({ category: หมวด, name: ไม่ใช้, unit: "ชุด", unit_price: 1 }).select("id").single();
+  expect(ใส่.error).toBeNull();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
+  await แผง.getByLabel("ค้นรายการวัสดุ").fill(ไม่ใช้);
+  await expect(แผง.locator(`tbody tr[data-mt-row="${(ใส่.data as { id: number }).id}"]`).getByRole("button", { name: /^ลบ / }), "วัสดุที่ยังไม่เคยใช้มีปุ่มลบ").toBeVisible({ timeout: 20_000 });
   assertNoErrors(errs, "รายการวัสดุ ลบได้เฉพาะที่ยังไม่เคยใช้");
 });

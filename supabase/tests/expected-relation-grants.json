@@ -1,5 +1,5 @@
 {
- "migration": "0278",
+ "migration": "0279",
  "relations": [
   {
    "r": "appointments",
@@ -384,6 +384,30 @@
    "anon": "",
    "authenticated": "SELECT",
    "service_role": "SELECT"
+  },
+  {
+   "r": "material_import_batches",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "SELECT",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "material_import_batches_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "material_import_changes",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
   {
    "r": "material_templates",
