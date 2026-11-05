@@ -180,6 +180,8 @@ export interface ProspectsRepo {
   create(p: Omit<DealerProspect, "id">): Promise<DealerProspect>;
   update(p: DealerProspect): Promise<DealerProspect>;
   remove(id: number): Promise<void>;
+  /** ยกเลิกงานล่าสุดที่ติ๊กในแผง = ถอย 1 ขั้น (ทางเดียวที่คนถอยขั้นได้ · ใบ 0278 prospect_undo_last_task) */
+  undoLastTask(id: number): Promise<DealerProspect>;
   /** นำเข้าทั้งชุด (ใบ 0275) — ฐานข้ามเบอร์ซ้ำ/ตรวจกติกา · แถว = แถวส่งฐาน() ของ lib/prospectImport */
   importRows(fileName: string, rows: Record<string, unknown>[]): Promise<import("./types").ผลนำเข้าผู้สนใจ>;
   /** ยกเลิกทั้งชุด = ลบรายของชุด (มีรายที่ออกใบแล้ว = ฐานปฏิเสธ) */

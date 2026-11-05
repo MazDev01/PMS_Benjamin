@@ -439,6 +439,20 @@ export default function HQProspectsPage() {
         ทำ: เหตุผล => เปลี่ยนขั้นของ(p, "lost", เหตุผล, true) });
     }
   }
+  /** ยกเลิกงานล่าสุดที่ติ๊ก = ถอย 1 ขั้น (บอสตอบ 5 พ.ย. 69 · ฐานยอมทางนี้ทางเดียว prospect_undo_last_task) */
+  async function ยกเลิกงานล่าสุด(p: DealerProspect) {
+    setStageBusy(true);
+    try {
+      const saved = await prospectsRepo.undoLastTask(p.id);
+      setList(l => l.map(x => x.id === saved.id ? saved : x));
+      if (เปิดอยู่Ref.current === saved.id) setรายที่เปิด(saved);
+      void โหลดของราย(saved.id);
+    } catch (e) {
+      แจ้งพลาด(friendlyError(e, "ยกเลิกงานไม่สำเร็จ"));
+    } finally {
+      setStageBusy(false);
+    }
+  }
   /** ติ๊กงานในแผง → ขั้นที่มีฟอร์ม (ส่งข้อมูลบริษัท = ยืนยัน · นัดคุย = ฟอร์มนัดคุย) ไปทางเดียวกับบอร์ด · เปิดติดตามใหม่ = เปลี่ยนตรง */
   function ไปขั้นจากงาน(p: DealerProspect, next: DealerProspectStatus) {
     if (p.status !== "lost" && next === "profile_sent") return void ไปขั้นด้วยฟอร์ม(p, "profile");
@@ -1067,6 +1081,7 @@ export default function HQProspectsPage() {
                       onLinkExisting={() => เปิดตั้งดีลเลอร์(ราย, "existing")}
                       ตั้งไม่ได้เพราะ={ย่อยโหลดแล้ว ? เหตุยังตั้งดีลเลอร์ไม่ได้(ราย.status, ย่อย.get(ราย.id)) : undefined}
                       onStage={next => ไปขั้นจากงาน(ราย, next)}
+                      onUndo={() => void ยกเลิกงานล่าสุด(ราย)}
                       onLost={reason => เปลี่ยนขั้น("lost", reason, true)}
                       onNeedContact={() => {
                         setแท็บที่เปิด("contact"); setโหมดนัดคุย(false); setฟอร์มติดต่อเปิด(true);

@@ -2,6 +2,7 @@
 --   1) ชื่อขั้น considering = "รอผู้สนใจตอบรับ" (prospect_status_th · _prospect_status_th) · ข้อความกันขั้นใช้ชื่อใหม่
 --   2) คนถอยขั้นไม่ได้ (ทุกระยะ) · คนข้ามขั้นไม่ได้ · เดินหน้าทีละขั้นได้
 --   3) ระบบเลื่อน/ถอยตามใบ: ส่งใบ = นัดคุยแล้ว → รอผู้สนใจตอบรับ · ใบถูกปฏิเสธ = ถอยกลับนัดคุยแล้ว (ตัวดักใบ · ชั้นตัวดัก 2)
+--   5) ยกเลิกงานล่าสุด (prospect_undo_last_task) = ถอยได้ 1 ขั้นทางเดียว · ลงประวัติ · เปลี่ยนขั้นตรงยังถอยไม่ได้ · รอติดต่อ = ไม่มีงานให้ยกเลิก
 --   4) คงเดิม: ไม่สำเร็จได้จากทุกขั้น · เปิดติดตามใหม่จากไม่สำเร็จได้ (เป็นดีลเลอร์แล้วเปลี่ยนไม่ได้ = hq-prospect-workflow.spec)
 --   ข้อมูลปลอมทั้งหมด (000-000-NNNN) · ทรานแซกชันเดียวแล้ว rollback · ผ่าน = "ALL PASS"
 --   ตกบนโค้ดก่อนใบ 0278: ชื่อขั้นยังเป็น "รอตัดสินใจ HQ" · คนถอยขั้นได้ทีละขั้น (abs = 1)
@@ -61,6 +62,20 @@ begin
   update dealer_package_proposals set status = 'rejected', close_reason = 'ZZTEST ขอเลื่อน' where id = ใบ;
   select status into ขั้น from dealer_prospects where id = pid;
   perform sbgtest.ok(ขั้น = 'meeting', '3) ใบถูกปฏิเสธ ระบบถอยกลับนัดคุยแล้วได้ (ตัวดักใบ) — ได้ ' || ขั้น);
+
+  -- 5) ยกเลิกงานล่าสุดที่ติ๊ก = ถอย 1 ขั้นทางเดียว (บอสตอบ 5 พ.ย. 69 · prospect_undo_last_task) — เปลี่ยนขั้นตรงยังถอยไม่ได้
+  perform public.prospect_undo_last_task(pid);
+  perform sbgtest.ok((select status from dealer_prospects where id = pid) = 'profile_sent', '5) ยกเลิกงานล่าสุด: นัดคุยแล้ว → ส่งข้อมูลบริษัทแล้ว (ถอย 1 ขั้น)');
+  perform sbgtest.ok(exists (select 1 from dealer_prospect_activities where prospect_id = pid and kind = 'status' and body = 'ยกเลิกงานล่าสุด · นัดคุยแล้ว → ส่งข้อมูลบริษัทแล้ว'),
+                     '5) ยกเลิกงานลงประวัติด้วยข้อความยกเลิกงาน');
+  perform sbgtest.must_fail(format('update dealer_prospects set status = %L where id = %s', 'contacted', pid), 'ย้อนขั้นไม่ได้', '5) หลังยกเลิกงาน เปลี่ยนขั้นตรงยังถอยไม่ได้ (สวิตช์ไม่ค้าง)');
+  perform public.prospect_undo_last_task(pid);
+  perform public.prospect_undo_last_task(pid);
+  perform sbgtest.ok((select status from dealer_prospects where id = pid) = 'new', '5) ยกเลิกงานต่อเนื่องได้ทีละ 1 ขั้นจนถึงรอติดต่อ');
+  perform sbgtest.must_fail(format('select public.prospect_undo_last_task(%s)', pid), 'ยกเลิกงานไม่ได้', '5) รอติดต่อ = ไม่มีงานให้ยกเลิก');
+  update dealer_prospects set status = 'contacted' where id = pid;
+  update dealer_prospects set status = 'profile_sent' where id = pid;
+  update dealer_prospects set status = 'meeting' where id = pid;
 
   -- 4) ไม่สำเร็จได้ทุกขั้น · เปิดติดตามใหม่ได้
   update dealer_prospects set status = 'lost', lost_reason = 'ZZTEST ไม่พร้อม' where id = pid;

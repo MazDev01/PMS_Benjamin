@@ -356,6 +356,8 @@ const prospects: ProspectsRepo = {
   create: (p) => post<DealerProspect>("/prospects", p),
   update: (p) => put<DealerProspect>("/prospects", p),
   remove: async (id) => { await apiFetch(`/prospects?id=${id}`, { method: "DELETE" }); },
+  // ยกเลิกงานล่าสุด = ถอย 1 ขั้น (ใบ 0278 · เส้นทางเดียวกัน op=undo)
+  undoLastTask: (id) => post<DealerProspect>("/prospects", { op: "undo", id }),
   // นำเข้าทั้งชุด (ใบ 0275) — เส้นทางแยก /prospect-import (เขียนในนามผู้เรียก · ฐานตรวจสิทธิ์)
   importRows: (fileName, rows) => post("/prospect-import", { op: "import", fileName, rows }),
   cancelImport: (batch) => post("/prospect-import", { op: "cancel", batch }),

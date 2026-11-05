@@ -745,6 +745,12 @@ export const SupabaseAdapter: DataAdapter = {
   //   จัดข้อมูลด้วย เตรียมบันทึก ก่อนเขียนเสมอ: ช่องวันที่ว่างต้องเป็น null (ส่ง "" ไปทั้งแถวถูกปฏิเสธ)
   //   และห้ามส่ง id/created_at/updated_at ให้ฐานข้อมูล · อ่านทีละหน้าเสมอ (เพดาน 1,000 แถว/คำขอ)
   prospects: {
+    // ยกเลิกงานล่าสุด = ถอย 1 ขั้น (ใบ 0278) — ทำในนามผู้เรียก ฐานตรวจสิทธิ์
+    undoLastTask: async (id) => {
+      const { data, error } = await sb().rpc("prospect_undo_last_task", { p_id: id });
+      if (error) throw new DbError(error.message, error.code);
+      return toCamel<import("../types").DealerProspect>(data as Record<string, unknown>);
+    },
     importRows: async (fileName, rows) => {
       const { data, error } = await sb().rpc("hq_prospects_import", { p_file: fileName, p_rows: rows });
       if (error) throw new DbError(error.message, error.code);

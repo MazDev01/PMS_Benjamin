@@ -17,7 +17,9 @@ import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmTo
 
 const PRIMARY = "#003366";
 
-export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง, ตั้งไม่ได้เพราะ, ป้ายสถานะ, onLinkExisting }: {
+export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง, ตั้งไม่ได้เพราะ, ป้ายสถานะ, onLinkExisting, onUndo }: {
+  /** ยกเลิกงานล่าสุด = ถอย 1 ขั้น ทางคำสั่งฐาน prospect_undo_last_task (ใบ 0278) — ไม่ส่ง = ใช้ onStage แบบเดิม (โหมดตัวอย่าง) */
+  onUndo?: () => void;
   prospect: DealerProspect;
   /** ปุ่มตั้งเป็นดีลเลอร์: null = พร้อม (ปุ่มเด่น) · ข้อความ = กดไม่ได้พร้อมเหตุผล (บอสสั่ง 5 พ.ย. 69 · เหตุยังตั้งดีลเลอร์ไม่ได้) · ไม่ส่ง = กำลังตรวจ */
   ตั้งไม่ได้เพราะ?: string | null;
@@ -64,7 +66,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
     if (งานเสร็จแล้ว(status, i)) {
       const ผล = ยกเลิกงาน(status, i);
       if ("ผิด" in ผล) { setHint(ผล.ผิด); return; }
-      setHint(""); onStage(ผล.ขั้นใหม่);
+      setHint(""); if (onUndo) onUndo(); else onStage(ผล.ขั้นใหม่);
       return;
     }
     const ผล = ติ๊กงาน(status, i, { มีบันทึกการติดต่อ, มีใบส่งแล้ว });

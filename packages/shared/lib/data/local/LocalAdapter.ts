@@ -365,6 +365,7 @@ export const LocalAdapter: DataAdapter = {
     importRows: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างนำเข้าผู้สนใจไม่ได้")),
     cancelImport: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างยกเลิกการนำเข้าไม่ได้")),
     importBatches: () => ok([]),
+    undoLastTask: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างยกเลิกงานไม่ได้ — ทางถอยขั้นอยู่ที่ฐานจริง (ใบ 0278)")),
     list: () => ok(อ่านผู้สนใจเดโม()),
     create: (p) => {
       const all = อ่านผู้สนใจเดโม();

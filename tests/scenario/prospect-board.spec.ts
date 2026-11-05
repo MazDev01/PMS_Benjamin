@@ -111,5 +111,14 @@ test("[ui·hq] บอร์ดผู้สนใจ: ลากทีละขั
   await page.getByRole("alertdialog").locator("[data-dialog-cancel]").click();
   await อยู่ที่(page, "meeting", "ยกเลิกเหตุผล = อยู่ที่เดิม");
   expect(await ขั้นในฐาน()).toBe("meeting");
+
+  // ยกเลิกงานล่าสุดที่ติ๊กในแผง = ถอย 1 ขั้นได้ (บอสตอบ 5 พ.ย. 69) — ลากถอยบนบอร์ดยังไม่ได้ (ข้างบน)
+  await การ์ด(page).click();
+  await แผง(page).getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
+  await แผง(page).getByRole("checkbox", { name: "นัดคุยรายละเอียด" }).click();
+  await expect.poll(ขั้นในฐาน, { timeout: 20_000, message: "ยกเลิกงานล่าสุด = นัดคุยแล้ว → ส่งข้อมูลบริษัทแล้ว" }).toBe("profile_sent");
+  await แผง(page).getByRole("checkbox", { name: "ติดต่อครั้งแรก" }).click();
+  await expect(แผง(page).getByRole("alert").filter({ hasText: "ยกเลิกได้เฉพาะงานล่าสุด" }), "ยกเลิกงานที่ไม่ใช่งานล่าสุด = ไม่ได้").toBeVisible();
+  expect(await ขั้นในฐาน()).toBe("profile_sent");
   assertNoErrors(errs, "บอร์ดผู้สนใจ");
 });
