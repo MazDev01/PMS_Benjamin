@@ -72,10 +72,16 @@ for (const [จอ, ขนาด] of [["จอกว้าง", { width: 1440, h
   test(`[ui·dealer] ${จอ}: แผงใบเสนอราคา — ปุ่มปิดมุมขวาบนเมื่อข้อมูลหัวแผงยาว`, async ({ page }) => {
     await page.setViewportSize(ขนาด);
     // สาขาที่มีใบในข้อมูลตั้งต้น (สาขาของข้อยังไม่มีใบ) — เปิดดูอย่างเดียว ไม่เขียน
+    //   ต้นเหตุผลไม่นิ่ง (รอบ deploy17 5 พ.ย. 69 · trace): เดิมกด "ดูใบ" แถวแรกของรายการ RYG ซึ่งเรียงใหม่สุดก่อน → แถวแรกเป็นใบชั่วคราว
+    //   ของข้อทดสอบอื่นที่รันพร้อมกัน (Q-RYG-2026-3365) · ข้อนั้นลบใบทิ้ง → แผงดูใบปิดเอง (แผงหาใบจากรายการ ไม่พบ = ปิด) → หาหัวแผงไม่เจอ
+    //   แก้: เปิดใบของข้อมูลตั้งต้น (ZZTEST-BASE-Q-RYG-1 · ไม่มีข้อไหนลบระหว่างรอบ) ด้วยเลขที่ตรงตัว — ไม่ขึ้นกับลำดับ/ข้อทดสอบอื่น
+    const ใบตั้งต้น = "ZZTEST-BASE-Q-RYG-1";
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: /^ดูใบ / }).first().click({ timeout: 25_000 });
+    await page.getByPlaceholder(/ค้นหาเลขที่/).first().fill(ใบตั้งต้น);
+    await page.getByRole("button", { name: `ดูใบ ${ใบตั้งต้น}`, exact: true }).click({ timeout: 25_000 });
+    await expect(page.locator("[data-panel-head]").last(), "แผงเปิดใบตั้งต้นจริง").toContainText(ใบตั้งต้น, { timeout: 20_000 });
     await ตรวจหัวแผง(page, `${จอ} แผงใบเสนอราคา`, true);
   });
 }
