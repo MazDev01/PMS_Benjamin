@@ -7,9 +7,10 @@ import { หัวแบบฟอร์มผู้สนใจ, เดาคอ
 import { ตัวเลือกนำเข้า } from "../../packages/shared/lib/importMenuOptions";
 
 describe("เมนูนำเข้า ตัวกลาง", () => {
-  it("3 ตัวเลือก: Excel (.xlsx) · CSV (.csv) · ดาวน์โหลดแบบฟอร์มตัวอย่าง", () => {
+  it("3 ตัวเลือก: Excel (.xlsx) · CSV (.csv) · แบบฟอร์มตัวอย่าง · คำอธิบายสั้น (บอสสั่งย่อ 5 พ.ย. 69)", () => {
     expect(ตัวเลือกนำเข้า.map(x => [x.key, x.label, x.accept ?? ""])).toEqual([
-      ["xlsx", "Excel", ".xlsx"], ["csv", "CSV", ".csv"], ["template", "ดาวน์โหลดแบบฟอร์มตัวอย่าง", ""]]);
+      ["xlsx", "Excel", ".xlsx"], ["csv", "CSV", ".csv"], ["template", "แบบฟอร์มตัวอย่าง", ""]]);
+    expect(ตัวเลือกนำเข้า.map(x => x.desc)).toEqual(["ไฟล์ .xlsx", "ไฟล์ .csv", "ไฟล์เปล่าพร้อมหัวตาราง"]);
     for (const x of ตัวเลือกนำเข้า) expect(x.desc.length, `${x.label} มีคำอธิบายสั้น`).toBeGreaterThan(0);
   });
 });

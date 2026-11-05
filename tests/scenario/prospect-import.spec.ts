@@ -210,10 +210,17 @@ test("[ui·hq] เมนูนำเข้าผู้สนใจ: Excel · CSV
   await settle(page);
   await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click();
   const เมนู = page.getByRole("menu", { name: "นำเข้าจากไฟล์" });
-  await expect(เมนู.locator("[data-import-option]"), "3 ตัวเลือกนำเข้า").toHaveText([/^Excel/, /^CSV/, /^ดาวน์โหลดแบบฟอร์มตัวอย่าง/]);
+  await expect(เมนู.locator("[data-import-option]"), "3 ตัวเลือกนำเข้า").toHaveText([/^Excel/, /^CSV/, /^แบบฟอร์มตัวอย่าง/]);
   await expect(เมนู.locator("[data-import-option]").nth(0)).toContainText(".xlsx");
   await expect(เมนู.locator("[data-import-option]").nth(1)).toContainText(".csv");
   await expect(เมนู.locator("[data-import-extra]"), "รายการเสริม: ชุดที่นำเข้าล่าสุด").toHaveText([/^ชุดที่นำเข้าล่าสุด/]);
+  // ทุกบรรทัดในเมนูอยู่บรรทัดเดียว (บอสสั่งย่อ 5 พ.ย. 69 · เดิม "ดาวน์โหลดแบบฟอร์มตัวอย่าง / หัวตาราง…" ขึ้น 2 บรรทัด)
+  const จำนวนบรรทัด = await เมนู.locator("[role=menuitem] span span").evaluateAll(els => els.map(el => {
+    const r = document.createRange(); r.selectNodeContents(el);
+    return { ข้อความ: el.textContent, บรรทัด: new Set([...r.getClientRects()].map(x => Math.round(x.top))).size };
+  }));
+  expect(จำนวนบรรทัด.length, "ป้าย+คำอธิบายของทุกรายการ").toBeGreaterThanOrEqual(8);
+  expect(จำนวนบรรทัด.filter(x => x.บรรทัด !== 1), "ทุกบรรทัดในเมนูนำเข้าอยู่บรรทัดเดียว").toEqual([]);
   await expect(page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" }), "เปิดเมนูไม่เปิดกล่องเปล่า").toHaveCount(0);
   const [ไฟล์] = await Promise.all([page.waitForEvent("download", { timeout: 25_000 }), เมนู.locator('[data-import-option="template"]').click()]);
   expect(ไฟล์.suggestedFilename()).toBe("แบบฟอร์มนำเข้าผู้สนใจ.xlsx");

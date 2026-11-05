@@ -59,7 +59,7 @@ test("[func·dealer] กล่องนำเข้าลูกค้าเด�
   // ปุ่มเป็นเมนูนำเข้า (บอสสั่ง 5 พ.ย. 69): 3 ตัวเลือก Excel · CSV · แบบฟอร์มตัวอย่าง — ไม่มี "คีย์เองทีละราย" ทั้งในเมนูและกล่อง
   await page.getByRole("button", { name: "นำเข้าลูกค้าเดิม" }).click();
   const เมนู = page.getByRole("menu", { name: "นำเข้าลูกค้าเดิม" });
-  await expect(เมนู.getByRole("menuitem"), "เมนู 3 ตัวเลือก").toHaveText([/^Excel/, /^CSV/, /^ดาวน์โหลดแบบฟอร์มตัวอย่าง/], { timeout: 15_000 });
+  await expect(เมนู.getByRole("menuitem"), "เมนู 3 ตัวเลือก").toHaveText([/^Excel/, /^CSV/, /^แบบฟอร์มตัวอย่าง/], { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "คีย์เองทีละราย" }),
     "ปุ่มคีย์เองทีละรายถูกเอาออกแล้ว (บอสสั่ง 2 ก.ย. 69)").toHaveCount(0);
   await page.keyboard.press("Escape");

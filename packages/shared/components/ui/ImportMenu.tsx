@@ -1,6 +1,6 @@
 "use client";
 // ── ปุ่มนำเข้าแบบเมนูเลื่อนลง ตัวกลาง (บอสสั่ง 5 พ.ย. 69) — หน้าตาเดียวกับ "ส่งออก" (ExportMenu): ไอคอน + ชื่อ + คำอธิบายสั้น ─────
-//   Excel (.xlsx) · CSV (.csv) · ดาวน์โหลดแบบฟอร์มตัวอย่าง
+//   Excel (.xlsx) · CSV (.csv) · แบบฟอร์มตัวอย่าง — ทุกบรรทัดอยู่บรรทัดเดียว (บอสสั่งย่อ 5 พ.ย. 69)
 //   เลือก Excel/CSV = เปิดหน้าต่างเลือกไฟล์ทันที (รับเฉพาะนามสกุลนั้น) ไม่มีกล่องเปล่าคั่น → onFile → หน้าตรวจเดิมของแต่ละหน้า
 //   ใช้ร่วม: ผู้สนใจเป็นดีลเลอร์ (/hq/prospects) · ลูกค้าเดิม (/customers ดีลเลอร์)
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -16,7 +16,7 @@ export function ImportMenu({ label = "นำเข้าจากไฟล์", 
   label?: string;
   /** เลือกไฟล์แล้ว → หน้าตรวจของหน้านั้น */
   onFile: (f: File, ชนิด: ชนิดไฟล์นำเข้า) => void;
-  /** ดาวน์โหลดแบบฟอร์มตัวอย่าง (หัวตารางตรงกับที่ระบบอ่าน) */
+  /** แบบฟอร์มตัวอย่าง (ไฟล์เปล่าพร้อมหัวตารางที่ระบบอ่าน) */
   onTemplate: () => void;
   small?: boolean;
   primary?: boolean;
@@ -46,8 +46,8 @@ export function ImportMenu({ label = "นำเข้าจากไฟล์", 
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
       <span style={{ width: 30, height: 30, borderRadius: 8, background: "#dce5f0", color: "#003366", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</span>
       <span>
-        <span style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D" }}>{ป้าย}</span>
-        {คำอธิบาย && <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280" }}>{คำอธิบาย}</span>}
+        <span style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D", whiteSpace: "nowrap" }}>{ป้าย}</span>
+        {คำอธิบาย && <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", whiteSpace: "nowrap" }}>{คำอธิบาย}</span>}
       </span>
     </button>
   );
