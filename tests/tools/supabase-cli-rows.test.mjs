@@ -67,6 +67,17 @@ const ล้าง = run.slice(run.indexOf('if (phase === "cleanup")'));
 const ที่นับ = ล้าง.indexOf("const ก่อน = นับ()"), ที่ตรวจปน = ล้าง.indexOf("Number(ก่อน.ปนแถวจริง) !== 0"), ที่ลบ = ล้าง.indexOf('ถาม(ไฟล์ล้าง, "cleanup.sql")');
 ผล(ที่นับ > 0 && ที่ตรวจปน > ที่นับ && ที่ลบ > ที่ตรวจปน, "run.mjs: นับ → ตรวจแถวปน → แล้วค่อยรัน cleanup.sql (อ่านผลนับไม่ได้ = หยุดก่อนลบ)");
 ผล(!/JSON\.parse\(r\.stdout\.slice\(r\.stdout\.indexOf\("\{"\)\)\)/.test(ล้าง), "run.mjs: ไม่เหลือตัวอ่านเดิม");
+// 3b) มองไม่เห็นทุกแถว (5 พ.ย. 69 · บอสรันล้างจากหน้าจอคน ขึ้น "ลบ 0" ทั้งที่มีแถว · กลไกพิสูจน์ที่ supabase/tests/cleanup_visibility.sql)
+//     บัญชีที่ CLI ใช้ข้ามกฎสิทธิ์รายแถวไม่ได้ = นับ 0 · ด่านปนแถวจริง 0 · "เหลือ 0" ผ่านเท็จ → ต้องตรวจตัวชี้ เห็นทุกแถว ก่อนลบ และตอนตรวจเหลือ
+const นิพจน์เห็น = "(select rolsuper or rolbypassrls from pg_roles where rolname = current_user) as เห็นทุกแถว";
+const ไฟล์นับ = readFileSync(path.join(ราก, "tests/prod-live/cleanup-audit-count.sql"), "utf8");
+ผล(ไฟล์นับ.includes(นิพจน์เห็น), "cleanup-audit-count.sql: มีตัวชี้ เห็นทุกแถว (บัญชีข้ามกฎสิทธิ์รายแถวได้ไหม)");
+const ที่ตรวจเห็น = ล้าง.indexOf("if (ก่อน.เห็นทุกแถว !== true) ตาย(");
+ผล(ที่ตรวจเห็น > ที่นับ && ที่ตรวจเห็น < ที่ลบ, "run.mjs: มองไม่เห็นทุกแถว = หยุดก่อนรัน cleanup.sql");
+ผล(ล้าง.includes(นิพจน์เห็น) && /if \(เห็นตอนตรวจ !== true\) ตาย\(/.test(ล้าง), "run.mjs: ตรวจแถวที่เหลือ ต้องเห็นทุกแถวด้วย (ไม่งั้น \"เหลือ 0\" เชื่อไม่ได้)");
+const ไฟล์ลบ = readFileSync(path.join(ราก, "tests/prod-live/cleanup.sql"), "utf8");
+const ด่านแรก = ไฟล์ลบ.indexOf("role_no_bypassrls"), ด่านZZT = ไฟล์ลบ.indexOf("raise exception 'ZZT ไม่ใช่สาขาทดสอบ"), ลบแรก = ไฟล์ลบ.search(/^\s*delete from /m);
+ผล(ด่านแรก > ไฟล์ลบ.indexOf("begin;") && ด่านแรก < ด่านZZT && ด่านแรก < ลบแรก, "cleanup.sql: ด่านแรก = บัญชีต้องข้ามกฎสิทธิ์รายแถวได้ (ก่อนด่านอื่นและก่อนลบ)");
 
 // 4) ไม่เรียก npx supabase ในจุดที่รันในโฟลเดอร์ผูกฐานจริง
 const ไม่ลอย = [

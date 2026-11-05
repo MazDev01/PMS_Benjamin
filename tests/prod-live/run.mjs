@@ -184,6 +184,8 @@ if (phase === "cleanup") {
   };
   const นับ = () => ถาม(path.resolve("tests/prod-live/cleanup-audit-count.sql"), "นับบันทึกการใช้งาน")[0] ?? {};
   const ก่อน = นับ();
+  // บัญชีที่ CLI ใช้ต้องข้ามกฎสิทธิ์รายแถวได้ — ไม่ได้ = นับได้ 0 ทั้งที่มีแถว ด่านปนแถวจริงก็อ่านเป็น 0 (5 พ.ย. 69 · บอสรันจากหน้าจอคน ขึ้น "ลบ 0")
+  if (ก่อน.เห็นทุกแถว !== true) ตาย(`บัญชีที่ Supabase CLI ใช้มองไม่เห็นทุกแถว (เห็นทุกแถว = ${JSON.stringify(ก่อน.เห็นทุกแถว)}) — ผลนับเชื่อไม่ได้ ไม่ลบ หยุดรายงาน`);
   if (Number(ก่อน.ปนแถวจริง) !== 0) ตาย(`เงื่อนไขลบจับแถวที่ไม่ใช่แถวทดสอบ ${ก่อน.ปนแถวจริง} แถว — ไม่ลบ หยุดรายงาน`);
   const ไฟล์ล้าง = path.join(OPS, "cleanup-run.sql");
   writeFileSync(ไฟล์ล้าง, readFileSync("tests/prod-live/cleanup.sql", "utf8").replaceAll("__ชุดสำรองก่อนลบ__", ชุดสำรอง));
@@ -191,7 +193,7 @@ if (phase === "cleanup") {
   const หลัง = นับ();
   const ไฟล์เหลือ = path.join(OPS, "cleanup-left.sql");
   // นับครบทุกชนิดที่ชุดทดสอบสร้าง (ผู้สนใจ · ใบ · การชำระ · จังหวัด · บัญชี ZZTN · บอสสั่ง 1 พ.ย. 69 · ชุดนำเข้าผู้สนใจ live-import.spec.ts 4 พ.ย. 69)
-  writeFileSync(ไฟล์เหลือ, `select (select count(*) from public.dealers where code in ('${CODE}', 'ZZTN')) as สาขา,
+  writeFileSync(ไฟล์เหลือ, `select (select rolsuper or rolbypassrls from pg_roles where rolname = current_user) as เห็นทุกแถว, (select count(*) from public.dealers where code in ('${CODE}', 'ZZTN')) as สาขา,
   (select count(*) from public.leads where dealer_code in ('${CODE}', 'ZZTN')) as ลีด,
   (select count(*) from auth.users where email like 'live-%@example.test' or lower(email) = 'zztn@dealer.benjaminpebsteel.com') as บัญชี,
   (select count(*) from public.profiles where dealer_code in ('${CODE}', 'ZZTN')) as โปรไฟล์,
@@ -203,7 +205,8 @@ if (phase === "cleanup") {
   (select count(*) from public.quote_files where dealer_code in ('${CODE}', 'ZZTN')) as ไฟล์แนบ,
   (select count(*) from storage.objects where bucket_id = 'quote-files' and (name like '${CODE}/%' or name like 'ZZTN/%')) as ไฟล์ในถัง;
 `);
-  const เหลือ = ถาม(ไฟล์เหลือ, "ตรวจแถวที่เหลือ")[0] ?? {};
+  const { เห็นทุกแถว: เห็นตอนตรวจ, ...เหลือ } = ถาม(ไฟล์เหลือ, "ตรวจแถวที่เหลือ")[0] ?? {};
+  if (เห็นตอนตรวจ !== true) ตาย("ตรวจแถวที่เหลือ: บัญชีที่ CLI ใช้มองไม่เห็นทุกแถว — ผล \"เหลือ 0\" เชื่อไม่ได้ หยุดรายงาน");
   const ค้าง = { บันทึก: Number(หลัง.จะลบ), ...Object.fromEntries(Object.entries(เหลือ).map(([k, v]) => [k, Number(v)])) };
   if (Object.values(ค้าง).some(n => n !== 0)) ตาย(`ล้างแล้วยังเหลือแถวทดสอบ ${JSON.stringify(ค้าง)} — หยุดรายงาน`);
   if (existsSync(STATE)) rmSync(STATE);   // สถานะมีรหัสผ่านบัญชีชั่วคราว — ล้างครบแล้วไม่ต้องเก็บ

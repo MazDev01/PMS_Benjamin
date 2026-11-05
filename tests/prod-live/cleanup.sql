@@ -2,6 +2,13 @@
 -- รันหลัง run.mjs files · ทรานแซกชันเดียว · ปลดตัวกันลบชั่วคราวแล้วเปิดคืนในทรานแซกชันเดียวกัน
 -- ด่านกันพลาด: ถ้าสาขา ZZT ไม่ใช่สาขาทดสอบ (ชื่อไม่ตรง) → ยกเลิกทั้งหมด
 begin;
+-- ด่านแรก (5 พ.ย. 69): บัญชีที่รันต้องข้ามกฎสิทธิ์รายแถวได้ — ไม่ได้ = ทุกตารางที่มีกฎ (dealers · leads · audit_log …) มองเห็น/ลบได้ 0 แถว
+--   ด่านกันพลาดข้างล่างทุกข้อจะผ่านเงียบ ๆ (หาแถวที่ผิดไม่เจอ) และตรวจ "เหลือ 0" ก็ผ่านเท็จ → ยกเลิกทั้งชุดก่อนแตะอะไร
+do $$ begin
+  if not coalesce((select rolsuper or rolbypassrls from pg_roles where rolname = current_user), false) then
+    raise exception 'role_no_bypassrls: บัญชีที่รัน (%) ข้ามกฎสิทธิ์รายแถวไม่ได้ — มองไม่เห็นทุกแถว ผลนับ/ลบเชื่อไม่ได้ ยกเลิกทั้งชุด', current_user;
+  end if;
+end $$;
 do $$ begin
   if exists (select 1 from public.dealers where code = 'ZZT' and name <> 'สาขาทดสอบชั่วคราว (ลบทิ้ง)') then
     raise exception 'ZZT ไม่ใช่สาขาทดสอบ — ยกเลิก';
