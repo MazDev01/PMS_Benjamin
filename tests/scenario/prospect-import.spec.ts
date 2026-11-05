@@ -92,7 +92,10 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   expect(ของ(1)).toMatchObject({ name: `${แท็ก} เพจหนึ่ง`, province: "บุรีรัมย์", first_contact: `${ปีเริ่ม("08-24")}-08-24`, status: "contacted", channel: "Facebook" });
   expect(ของ(2)).toMatchObject({ province: "นราธิวาส", status: "profile_sent", channel: "LINE ส่วนตัว" });
   expect(ของ(2).note).toContain("จังหวัดอื่นในไฟล์: ปัตตานี ยะลา");
-  expect(ของ(3)).toMatchObject({ province: "อุบลราชธานี", status: "lost", lost_reason: "เงินทุนไม่พอ", first_contact: `${ปีเริ่ม("08-25")}-08-25`, follow_up: `${ปีเริ่ม("08-25") + 1}-04-18` });   // ติดตาม 18.4 หลังเริ่ม 25.8 = เม.ย. ปีถัดไป
+  // ใบ 0277 (ตรวจกลับด้าน — เดิม follow_up = วันติดตามในไฟล์): ช่อง "ติดตาม" = วันที่ตามไปแล้ว → นัดติดตามว่างเสมอ (บอสสั่ง 5 พ.ย. 69)
+  //   ติดตาม 18.4 หลังเริ่ม 25.8 = เม.ย. ปีถัดไป · ยังไม่ถึง = เกินวันนี้ → ไม่ลงวันนั้น เก็บค่าเดิมในหมายเหตุ (N6)
+  expect(ของ(3)).toMatchObject({ province: "อุบลราชธานี", status: "lost", lost_reason: "เงินทุนไม่พอ", first_contact: `${ปีเริ่ม("08-25")}-08-25`, follow_up: null });
+  if (`${ปีเริ่ม("08-25") + 1}-04-18` > วันนี้) expect(ของ(3).note ?? "", "วันติดตามเกินวันนี้ → ค่าเดิมอยู่ในหมายเหตุ").toContain("วันติดตามในไฟล์: 18.4");
   expect(ของ(4)).toMatchObject({ name: `${แท็ก} รวม สกุลรวม`, province: "นครสวรรค์" });
   assertNoErrors(errs, "นำเข้าผู้สนใจ");
 });
