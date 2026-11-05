@@ -1,5 +1,5 @@
 {
- "migration": "0276",
+ "migration": "0278",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -1575,6 +1575,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "prospect_undo_last_task(p_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "province_field_standard()",

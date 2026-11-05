@@ -108,5 +108,5 @@ begin
   perform set_config('app.prospect_step_note', '', true);
   return p;
 end $$;
-revoke all on function public.prospect_undo_last_task(bigint) from public, anon, service_role;
+revoke all on function public.prospect_undo_last_task(bigint) from public, anon, authenticated, service_role;
 grant execute on function public.prospect_undo_last_task(bigint) to authenticated;
