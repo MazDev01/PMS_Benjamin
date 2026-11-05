@@ -19,7 +19,7 @@ const svc = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { p
 const แท็ก = Date.now() % 100_000;
 const หมวด = `ZZTEST-หมวด-${แท็ก}`;
 const ผนัง = `ZZTEST-ผนังเมทัลชีท-${แท็ก}`, ประตู = `ZZTEST-ประตูม้วน-${แท็ก}`;
-const เลข = { ขอ: เลขลูกค้าเป้าหมายทดสอบ() };
+const เลข = { ขอ: เลขลูกค้าเป้าหมายทดสอบ(), ว่าง: เลขลูกค้าเป้าหมายทดสอบ() };
 const บริษัท = (k: keyof typeof เลข) => `ZZTEST-วัสดุ-${k}-${แท็ก}`;
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const เดือน = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -91,6 +91,8 @@ test("[D3] [flow·dealer] ขอราคา: เลือกวัสดุ 2 �
   const แผง = await เปิดแผงขอราคา(page, "ขอ");
   const กล่อง = แผง.locator("[data-box='material-estimate']");
   await expect(กล่อง.getByTestId("estimate-total"), "ยังไม่เลือก = ไม่มีราคาประเมิน").toHaveText("—", { timeout: 20_000 });
+  await expect(กล่อง.getByLabel("เลือกวัสดุ"), "มีวัสดุเปิดใช้ = ช่องเพิ่มวัสดุกดได้").toBeEnabled();
+  await expect(กล่อง.getByTestId("material-empty-reason"), "มีวัสดุ = ไม่มีข้อความเหตุผล").toHaveCount(0);
   await กล่อง.getByLabel("ค้นวัสดุ").fill(`-${แท็ก}`);
   await กล่อง.getByLabel("เลือกวัสดุ").selectOption(String(id.ผนัง));
   await กล่อง.getByLabel("เลือกวัสดุ").selectOption(String(id.ประตู));
@@ -110,6 +112,25 @@ test("[D3] [flow·dealer] ขอราคา: เลือกวัสดุ 2 �
   const ลีด = (await (await db(RYG)).from("leads").select("value").eq("dealer_code", "RYG").eq("num_id", เลข.ขอ).single()).data;
   expect(ลีด?.value ?? null, "ราคาประเมินไม่ไปเป็นมูลค่าลีด (ไม่นับในมูลค่าโอกาสการขาย)").toBeNull();
   assertNoErrors(errs, "ขอราคาพร้อมวัสดุ");
+});
+
+// HQ ยังไม่เปิดใช้วัสดุสักรายการ (บอสสั่ง 5 พ.ย. 69): ช่องเพิ่มวัสดุยังอยู่แต่กดไม่ได้ + บอกเหตุผล — เดิมซ่อนทั้งกล่อง ขึ้นแค่ข้อความ
+//   จำลองรายการวัสดุว่างด้วยการตอบแทนคำขอรายการวัสดุของหน้าเว็บ (ไม่ปิดวัสดุจริงในฐาน — ข้อทดสอบอื่นที่รันพร้อมกันใช้อยู่)
+test("[D3] [ui·dealer] ขอราคา: HQ ยังไม่เปิดใช้วัสดุ = ช่องเพิ่มวัสดุกดไม่ได้ + บอกเหตุผล", async ({ page }) => {
+  const errs = watchErrors(page);
+  await สร้างลีด("ว่าง");
+  const ว่าง = (route: import("@playwright/test").Route) => route.request().method() === "GET"
+    ? route.fulfill({ status: 200, contentType: "application/json", body: "[]" }) : route.continue();
+  await page.route(/\/api\/v1\/material-templates(\?|$)/, ว่าง);
+  await page.route(/\/rest\/v1\/material_templates(\?|$)/, ว่าง);
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  const แผง = await เปิดแผงขอราคา(page, "ว่าง");
+  const กล่อง = แผง.locator("[data-box='material-estimate']");
+  await expect(กล่อง.getByLabel("เลือกวัสดุ"), "ช่องเพิ่มวัสดุยังอยู่").toBeVisible({ timeout: 20_000 });
+  await expect(กล่อง.getByLabel("เลือกวัสดุ"), "ไม่มีวัสดุเปิดใช้ = กดไม่ได้").toBeDisabled();
+  await expect(กล่อง.getByTestId("material-empty-reason")).toHaveText("เพิ่มวัสดุไม่ได้ — HQ ยังไม่ได้เปิดใช้รายการวัสดุ");
+  await expect(แผง.getByText("สำนักงานใหญ่ยังไม่มีรายการวัสดุ"), "ข้อความเดิมเอาออก").toHaveCount(0);
+  assertNoErrors(errs, "ขอราคาไม่มีวัสดุ");
 });
 
 test("[db] HQ เปลี่ยนราคาแม่แบบแล้ว คำขอเก่าไม่เปลี่ยน", async () => {

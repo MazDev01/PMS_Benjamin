@@ -5,6 +5,7 @@
 // ไม่บังคับ · ได้ "ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา" — ไม่นับในมูลค่าโอกาสการขาย · พิมพ์ส่งลูกค้าไม่ได้ (class no-print)
 //   ราคาที่เห็นคือราคาแม่แบบ ณ ตอนนี้ · ฐานคิดซ้ำจากแม่แบบตอนส่งคำขอและเก็บสำเนาไว้ (หน้าเว็บส่งแค่ วัสดุ + จำนวน)
 //   ควบคุมจากข้างนอก (value + onChange) — แผงคำขอถือรายการไว้จนกดส่ง
+//   HQ ยังไม่เปิดใช้วัสดุสักรายการ = ช่องเพิ่มวัสดุยังอยู่แต่กดไม่ได้ + บอกเหตุผล (บอสสั่ง 5 พ.ย. 69 · เดิมซ่อนทั้งกล่อง)
 import { useEffect, useMemo, useState } from "react";
 import { Boxes, Trash2 } from "lucide-react";
 import { materialTemplates as repo } from "@pms/shared/lib/data";
@@ -32,22 +33,22 @@ export function MaterialEstimatePicker({ value, onChange, disabled }: { value: �
   const รวม = ยอดประเมิน(แถว.map(r => ({ qty: r.qty, unitPrice: Number(r.t!.unitPrice) })));
   const ตัวเลือก = useMemo(() => ค้นแม่แบบ((แม่แบบ ?? []).filter(t => !value.some(v => v.templateId === t.id)), ค้น).slice(0, 50), [แม่แบบ, value, ค้น]);
 
-  if (แม่แบบ && แม่แบบ.length === 0) {
-    return <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>วัสดุ (ไม่บังคับ): สำนักงานใหญ่ยังไม่มีรายการวัสดุ</div>;
-  }
+  const ไม่มีวัสดุ = !!แม่แบบ && แม่แบบ.length === 0;
+  const เหตุไม่มี = "HQ ยังไม่ได้เปิดใช้รายการวัสดุ";
   return (
     <div className="no-print" data-box="material-estimate" style={{ border: "1px dashed #d8b4fe", background: "#fff", borderRadius: 10, padding: "10px 12px", display: "grid", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 700, color: "#3b0764" }}>
         <Boxes size={14} /> วัสดุจากรายการวัสดุ (ไม่บังคับ)
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <input aria-label="ค้นวัสดุ" placeholder="ค้นวัสดุ เช่น ผนัง ประตู หลังคา" style={{ ...ช่อง, flex: "1 1 180px" }} value={ค้น} onChange={e => setค้น(e.target.value)} disabled={disabled || !แม่แบบ} />
-        <select aria-label="เลือกวัสดุ" style={{ ...ช่อง, flex: "2 1 220px" }} value="" disabled={disabled || !แม่แบบ}
+        <input aria-label="ค้นวัสดุ" placeholder="ค้นวัสดุ เช่น ผนัง ประตู หลังคา" style={{ ...ช่อง, flex: "1 1 180px" }} value={ค้น} onChange={e => setค้น(e.target.value)} disabled={disabled || !แม่แบบ || ไม่มีวัสดุ} />
+        <select aria-label="เลือกวัสดุ" style={{ ...ช่อง, flex: "2 1 220px" }} value="" disabled={disabled || !แม่แบบ || ไม่มีวัสดุ} title={ไม่มีวัสดุ ? เหตุไม่มี : undefined}
           onChange={e => { const id = Number(e.target.value); if (id) { onChange([...value, { templateId: id, qty: 1 }]); setค้น(""); } }}>
-          <option value="">{แม่แบบ ? `เลือกวัสดุ (${ตัวเลือก.length} รายการ)` : "กำลังโหลด…"}</option>
+          <option value="">{!แม่แบบ ? "กำลังโหลด…" : ไม่มีวัสดุ ? "เลือกวัสดุ (ยังไม่มีรายการ)" : `เลือกวัสดุ (${ตัวเลือก.length} รายการ)`}</option>
           {ตัวเลือก.map(t => <option key={t.id} value={t.id}>{t.category ? `${t.category} · ` : ""}{t.name} — {บาท(Number(t.unitPrice))} บาท/{t.unit || "หน่วย"}</option>)}
         </select>
       </div>
+      {ไม่มีวัสดุ && <div data-testid="material-empty-reason" style={{ fontSize: "0.74rem", color: "#b45309", fontWeight: 600 }}>เพิ่มวัสดุไม่ได้ — {เหตุไม่มี}</div>}
       {แถว.length > 0 && (
         // ตารางกลาง (.table-wrap · colgroup · table-layout: fixed) แบบเดียวกับตารางอื่นในระบบ (บอสสั่ง 27 ต.ค. 69)
         //   เดิมเขียนตารางเอง ความกว้างช่องลอยตามเนื้อหา → ช่องจำนวนล้นทับหน่วย · ถังขยะชิดยอด (ข้อทดสอบ material-picker-layout.spec.ts)
