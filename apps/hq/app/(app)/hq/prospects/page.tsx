@@ -25,7 +25,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
-  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, History,
+  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, History, LayoutList, Columns3,
   Link2,
 } from "lucide-react";
 import {
@@ -58,12 +58,14 @@ import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ProspectImportModal } from "@pms/shared/components/hq/ProspectImportModal";
 import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
+import { StageBoard } from "@pms/shared/components/ui/StageBoard";
+import { คอลัมน์บอร์ดผู้สนใจ, คอลัมน์ของผู้สนใจ, ทางย้ายผู้สนใจ, type คอลัมน์ผู้สนใจ, type ฟอร์มขั้นผู้สนใจ } from "@pms/shared/lib/prospectBoard";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
-import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { formatPhone } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
@@ -157,6 +159,10 @@ export default function HQProspectsPage() {
   const [ประวัติผิด, setประวัติผิด] = useState("");
   const [ฟอร์มติดต่อเปิด, setฟอร์มติดต่อเปิด] = useState(false);
   const [สัญญาณออกใบ, setสัญญาณออกใบ] = useState(0);
+  // ฟอร์มนัดคุยในแท็บบันทึกการติดต่อ (บอสตอบ P2) — ลาก/ติ๊กไป "นัดคุยแล้ว" = เปิดโหมดนี้ · บันทึกแล้วเลื่อนขั้น
+  const [โหมดนัดคุย, setโหมดนัดคุย] = useState(false);
+  // ตาราง / บอร์ด (บอสสั่ง 5 พ.ย. 69 · ตัวกลาง StageBoard)
+  const [มุมมอง, setมุมมอง] = useState<"table" | "board">("table");
 
   const [converting, setConverting] = useState<DealerProspect | null>(null);
   const [โหมดตั้ง, setโหมดตั้ง] = useState<"new" | "existing">("new");
@@ -280,6 +286,7 @@ export default function HQProspectsPage() {
     setประวัติโหลดแล้ว(false);
     setประวัติผิด("");
     setฟอร์มติดต่อเปิด(false);
+    setโหมดนัดคุย(false);
     setสัญญาณออกใบ(0);
     void โหลดของราย(p.id);
   }
@@ -393,8 +400,10 @@ export default function HQProspectsPage() {
   // ── เปลี่ยนขั้นจากแท็บงาน ──
   //   โยน = true: ผิดพลาดโยนออกไป (กล่องเหตุผลกลางแสดงในกล่อง · ไม่สำเร็จ) · ไม่ใช่ = แจ้งด้วยข้อความกลาง
   async function เปลี่ยนขั้น(next: DealerProspectStatus, lostReason?: string, โยน = false) {
-    const ราย = รายที่เปิด;
-    if (!ราย) return;
+    if (รายที่เปิด) await เปลี่ยนขั้นของ(รายที่เปิด, next, lostReason, โยน);
+  }
+  /** เปลี่ยนขั้นของรายใดก็ได้ (แผง · บอร์ด) — ฐานตัดสินซ้ำ (ทีละขั้น · ห้ามถอย) */
+  async function เปลี่ยนขั้นของ(ราย: DealerProspect, next: DealerProspectStatus, lostReason?: string, โยน = false) {
     setStageBusy(true);
     try {
       const row = เตรียมบันทึก({ ...ราย, status: next, lostReason: next === "lost" ? lostReason : null });
@@ -408,6 +417,33 @@ export default function HQProspectsPage() {
     } finally {
       setStageBusy(false);
     }
+  }
+
+  // ── ย้ายไปขั้นถัดไปด้วยฟอร์มของขั้นนั้น (บอร์ดลาก · ปุ่ม "ย้ายไปขั้น…" · ติ๊กงานในแผง ใช้ทางเดียวกัน · บอสสั่ง 5 พ.ย. 69) ──
+  //   การ์ดย้ายเมื่อบันทึกสำเร็จเท่านั้น (ข้อมูลเปลี่ยน) · ยกเลิกฟอร์ม = ข้อมูลไม่เปลี่ยน การ์ดอยู่ที่เดิม
+  async function ไปขั้นด้วยฟอร์ม(p: DealerProspect, ฟอร์ม: ฟอร์มขั้นผู้สนใจ) {
+    if (ฟอร์ม === "contact" || ฟอร์ม === "meeting") {
+      if (รายที่เปิด?.id !== p.id) เปิดแผง(p, "contact"); else setแท็บที่เปิด("contact");
+      setโหมดนัดคุย(ฟอร์ม === "meeting"); setฟอร์มติดต่อเปิด(true);
+    } else if (ฟอร์ม === "proposal") {
+      if (รายที่เปิด?.id !== p.id) เปิดแผง(p, "proposals"); else setแท็บที่เปิด("proposals");
+      setสัญญาณออกใบ(n => n + 1);
+    } else if (ฟอร์ม === "profile") {
+      await ยืนยัน({ หัวข้อ: `ยืนยันว่าส่งข้อมูลบริษัทให้ “${p.name}” แล้ว ?`, รายละเอียด: "ขั้นเลื่อนเป็น “ส่งข้อมูลบริษัทแล้ว” · ย้อนขั้นเองไม่ได้",
+        ปุ่มตกลง: "ยืนยันส่งแล้ว", ปุ่มกำลังทำ: "กำลังบันทึก…", ทำ: () => เปลี่ยนขั้นของ(p, "profile_sent", undefined, true) });
+    } else if (ฟอร์ม === "convert") {
+      เปิดตั้งดีลเลอร์(p);
+    } else if (ฟอร์ม === "lost") {
+      await ถามเหตุผล({ หัวข้อ: `ปิด “${p.name}” ว่าไม่สำเร็จ ?`, รายละเอียด: "เปิดติดตามใหม่ได้ภายหลัง", ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ",
+        ตัวเลือก: ค่าตั้ง.lostReasons ?? [], ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
+        ทำ: เหตุผล => เปลี่ยนขั้นของ(p, "lost", เหตุผล, true) });
+    }
+  }
+  /** ติ๊กงานในแผง → ขั้นที่มีฟอร์ม (ส่งข้อมูลบริษัท = ยืนยัน · นัดคุย = ฟอร์มนัดคุย) ไปทางเดียวกับบอร์ด · เปิดติดตามใหม่ = เปลี่ยนตรง */
+  function ไปขั้นจากงาน(p: DealerProspect, next: DealerProspectStatus) {
+    if (p.status !== "lost" && next === "profile_sent") return void ไปขั้นด้วยฟอร์ม(p, "profile");
+    if (p.status !== "lost" && next === "meeting") return void ไปขั้นด้วยฟอร์ม(p, "meeting");
+    void เปลี่ยนขั้นของ(p, next);
   }
 
   async function ลบ(p: DealerProspect) {
@@ -773,6 +809,16 @@ export default function HQProspectsPage() {
           <option value="all">ทุกจังหวัด</option>
           {จังหวัดในข้อมูล.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+        {/* สลับมุมมอง ตาราง/บอร์ด — แบบเดียวกับหน้าลูกค้าเป้าหมาย */}
+        <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", height: 30, boxSizing: "border-box", flexShrink: 0 }}>
+          {([["table", LayoutList, "ตาราง"], ["board", Columns3, "บอร์ด"]] as const).map(([v, Ico, tip]) => (
+            <button key={v} type="button" title={tip} aria-pressed={มุมมอง === v} onClick={() => setมุมมอง(v)}
+              style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 8px", height: "100%", border: "none", cursor: "pointer",
+                background: มุมมอง === v ? PRIMARY : "#fff", color: มุมมอง === v ? "#fff" : "#6b7280", fontFamily: "inherit", fontSize: "0.68rem", fontWeight: 600 }}>
+              <Ico size={12} /> {tip}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loadErr && (
@@ -782,8 +828,27 @@ export default function HQProspectsPage() {
         </div>
       )}
 
+      {/* บอร์ด (บอสสั่ง 5 พ.ย. 69): ลากทีละ 1 ขั้นไปข้างหน้า = เปิดฟอร์มของขั้นนั้น · การ์ดย้ายเมื่อบันทึกสำเร็จ · ห้ามข้าม/ถอย (ฐานกันซ้ำ) */}
+      {มุมมอง === "board" && (
+        <StageBoard<DealerProspect, คอลัมน์ผู้สนใจ> ป้ายบอร์ด="บอร์ดผู้สนใจเป็นดีลเลอร์" columns={[...คอลัมน์บอร์ดผู้สนใจ]} items={filtered}
+          idOf={p => p.id} colOf={p => คอลัมน์ของผู้สนใจ(p, ย่อย.get(p.id))} onOpen={p => เปิดแผง(p)} ข้อความว่าง="ไม่มีผู้สนใจ"
+          ทางย้าย={p => จัดการได้ ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
+          onMove={(p, ไป) => { const ทาง = ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว).find(x => x.ไป === ไป); if (ทาง?.ฟอร์ม) void ไปขั้นด้วยฟอร์ม(p, ทาง.ฟอร์ม); }}
+          renderCard={p => (
+            <div data-prospect-card={p.id}>
+              <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#2D2D2D", lineHeight: 1.35 }} title={p.name}>{p.name}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "6px 0", fontSize: "0.68rem", color: "#64748b" }}>
+                <span>{p.province || "—"}</span><span>·</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{p.phone ? formatPhone(p.phone) || p.phone : "—"}</span>
+              </div>
+              <span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status}
+                style={{ background: prospectStatusColor[p.status].bg, color: prospectStatusColor[p.status].text }}>{ป้ายขั้น(p)}</span>
+              <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, marginTop: 6 }}>ติดต่อล่าสุด {ติดต่อล่าสุดอ่านง่าย(p, APP_NOW_ISO)}</div>
+            </div>
+          )} />
+      )}
+
       {/* ตาราง */}
-      <div className="card">
+      {มุมมอง === "table" && <div className="card">
         <div className="table-wrap" style={{ borderTop: "none" }}>
           <table>
             {/* เพิ่ม/ลบคอลัมน์ต้องแก้ colgroup ด้วย (table-layout: fixed — ใส่ความกว้างที่ th ไม่มีผล)
@@ -866,7 +931,7 @@ export default function HQProspectsPage() {
           </table>
         </div>
         <TablePagination page={page} total={filtered.length} onPage={setPage} unit="ราย" />
-      </div>
+      </div>}
 
       {/* ── เพิ่มผู้สนใจ (หน้าต่างเล็ก) — เพิ่มเสร็จเปิดแผงงานของรายนั้นให้ต่อเลย ── */}
       {เพิ่มใหม่ && (
@@ -1001,10 +1066,10 @@ export default function HQProspectsPage() {
                       ป้ายสถานะ={ป้ายขั้น(ราย)}
                       onLinkExisting={() => เปิดตั้งดีลเลอร์(ราย, "existing")}
                       ตั้งไม่ได้เพราะ={ย่อยโหลดแล้ว ? เหตุยังตั้งดีลเลอร์ไม่ได้(ราย.status, ย่อย.get(ราย.id)) : undefined}
-                      onStage={next => void เปลี่ยนขั้น(next)}
+                      onStage={next => ไปขั้นจากงาน(ราย, next)}
                       onLost={reason => เปลี่ยนขั้น("lost", reason, true)}
                       onNeedContact={() => {
-                        setแท็บที่เปิด("contact"); setฟอร์มติดต่อเปิด(true);
+                        setแท็บที่เปิด("contact"); setโหมดนัดคุย(false); setฟอร์มติดต่อเปิด(true);
                         แจ้งสำเร็จ("ติ๊กงานนี้เองไม่ได้ — บันทึกการติดต่อจริงก่อน แล้วระบบจะติ๊กให้เอง");
                       }}
                       onNeedProposal={() => {
@@ -1031,6 +1096,8 @@ export default function HQProspectsPage() {
                       onReload={() => void โหลดของราย(ราย.id)}
                       onAdded={() => void รีเฟรชรายที่เปิด()}
                       ช่องทาง={ช่องทางติดต่อเริ่มต้น}
+                      โหมดนัดคุย={โหมดนัดคุย}
+                      onนัดคุยแล้ว={async () => { setโหมดนัดคุย(false); if (ราย.status === "profile_sent") await เปลี่ยนขั้นของ(ราย, "meeting"); }}
                     />
                   )}
 

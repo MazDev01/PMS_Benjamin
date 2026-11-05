@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { ยืนยันส่งข้อมูลบริษัท } from "./prospectSteps";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
@@ -139,6 +140,7 @@ test("[H2] [func·hq] เพิ่มลูกค้าเป้าหมาย 
   await แก้ไข.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
   await expect(แก้ไข.getByRole("checkbox", { name: "ติดต่อครั้งแรก" })).toHaveAttribute("aria-checked", "true", { timeout: 15_000 });
   await แก้ไข.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
+  await ยืนยันส่งข้อมูลบริษัท(page);   // ขั้นนี้ = ยืนยันการส่ง (บอสตอบ P1 · 5 พ.ย. 69)
   await waitRow(sb, "dealer_prospects", { name, status: "profile_sent" });
 
   // ผูกกับดีลเลอร์เดิม = ปุ่มแยก กดได้เสมอ (บอสตัดสิน 5 พ.ย. 69) — ปุ่มตั้งเป็นดีลเลอร์ (สร้างใหม่) ปิดจนตอบรับ+ชำระครบ

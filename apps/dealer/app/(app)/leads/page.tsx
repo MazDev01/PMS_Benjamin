@@ -18,8 +18,10 @@ import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
 import { LeadProgressBar } from "@pms/shared/components/ui/LeadProgressBar";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
-import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
-import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { LeadNextStep, type คำสั่งบอร์ดลีด } from "@pms/shared/components/ui/LeadNextStep";
+import { StageBoard } from "@pms/shared/components/ui/StageBoard";
+import { ทางย้ายลีด, คำสั่งของปลายทาง } from "@pms/shared/lib/leadBoard";
+import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
@@ -1066,6 +1068,13 @@ export default function LeadsPage() {
   /** พาไปออกใบใหม่ — เพิ่มค่าสัญญาณเสมอ (ห้ามรีเซ็ตเป็น 0 ก่อน ไม่งั้นสั่งซ้ำรอบสองจะได้ค่าเดิม = ไม่เปิด) */
   function openQuotationForm(l: LeadRow) { focusQuotationTab(l); setQuoteFormSignal(n => n + 1); }
 
+  // ── บอร์ดลากได้ (บอสสั่ง 5 พ.ย. 69 · คำตอบบอส L1–L5) — ทางย้ายตามขั้น · ทำงานผ่านกล่องขั้นต่อไปในแผงลีด (ทางเดียวกับปุ่ม) ──
+  const [คำสั่งบอร์ด, setคำสั่งบอร์ด] = useState<คำสั่งบอร์ดลีด | null>(null);
+  function สั่งจากบอร์ด(l: LeadRow, ไป: string) {
+    if (selectedLead?.id !== l.id) openPanel(l);
+    setคำสั่งบอร์ด(c => ({ เป้า: คำสั่งของปลายทาง(ไป), n: (c?.n ?? 0) + 1 }));
+  }
+
   function openPanel(l: LeadRow) {
     if (selectedLead?.id === l.id) return closePanel();
     setSelectedLead(l); setDraft({...l});
@@ -1534,47 +1543,19 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {/* ── KANBAN VIEW — คอลัมน์ตามสถานะ · ดูอย่างเดียว ลากการ์ดไม่ได้ (รอบ 4 · เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผง) ── */}
-        {view === "kanban" && (() => {
-          // คอลัมน์ = 5 ขั้น (ตัวกลาง leadStage.ts · บอสสั่ง 27 ต.ค. 69) + ปิดไม่สำเร็จ
-          //   ปิดสำเร็จ/ปิดไม่สำเร็จมีคอลัมน์ (บอสสั่ง 28 ต.ค. 69) — ค่าเริ่มต้นของตัวกรองซ่อนลีดปิดแล้ว คอลัมน์จึงว่างจนเลือกกลุ่มนั้น
-          const ACTIVE: เลขขั้น[] = [1, 2, 3, 4, 5];
-          const TERMINAL: เลขขั้น[] = [6, 7];
-          const renderColumn = (status: เลขขั้น, wide: boolean) => {
-            const col = filtered.filter(l => เลขขั้นของ(l) === status);
-            if (hideEmpty && col.length === 0) return null;
-            const sc = สีขั้น(status);
-            const total = col.reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0);
-            const w = wide ? 300 : 264;
-            return (
-              <div key={status}
-                style={{ minWidth:w, width:w, flexShrink:0, display:"flex", flexDirection:"column",
-                  // คอลัมน์ยาวลงมาเต็มพื้นที่จอเสมอ ไม่หดตามจำนวนการ์ด — คอลัมน์ว่างจึงยังเป็นเป้าให้ลากมาวางได้ชัด ๆ
-                  // (เดิม alignSelf:"flex-start" ทำให้สูงพอดีเนื้อหา คอลัมน์ที่ยังไม่มีลูกค้าเป้าหมายเลยเหลือแค่แถบเตี้ย ๆ)
-                  minHeight: ความสูงกระดาน ?? "max(360px, calc(100vh - 330px))",
-                  background: "#f6f7f9", borderRadius:12, padding:10,
-                  border: "1.5px solid transparent" }}>
-                {/* header */}
-                <div style={{ padding:"7px 6px 11px", borderTop:`3px solid ${sc.text}`, marginBottom:2 }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:6, minWidth:0 }}>
-                      <span style={{ width:9, height:9, borderRadius:"50%", background:sc.text, flexShrink:0 }} />
-                      <span style={{ fontSize:"0.8rem", fontWeight:800, color:"#2D2D2D", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ชื่อขั้น(status)}</span>
-                    </span>
-                    <span className="badge" style={{ background:sc.bg, color:sc.text, flexShrink:0 }}>{col.length}</span>
-                  </div>
-                  {total > 0 && <div style={{ fontSize:"0.65rem", color:"#9ca3af", fontWeight:600, marginTop:3, fontVariantNumeric:"tabular-nums" }}>{fmtM(total)}</div>}
-                </div>
-                {/* cards */}
-                <div style={{ display:"flex", flexDirection:"column", gap:10, minHeight:44, flex:1 }}>
-                  {col.map(l => (
-                    <div key={l.id}
-                      onClick={() => openPanel(l)}
-                      className="card"
-                      style={{ padding:"12px 14px", cursor:"pointer", userSelect:"none", borderRadius:10,
-                        boxShadow:"0 1px 4px rgba(0,0,0,.05)", transition:"box-shadow .12s" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,51,102,.12)"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(0,0,0,.05)"; }}>
+        {/* ── KANBAN VIEW — ลากได้ (บอสสั่ง 5 พ.ย. 69 · ทับรอบ 4 ที่บอร์ดดูอย่างเดียว) · ตัวกลาง StageBoard ตัวเดียวกับบอร์ดผู้สนใจ HQ ──
+            ลากทีละ 1 ขั้นไปข้างหน้า = เปิดแผงลีด แล้วทำปุ่มหลักของกล่องขั้นต่อไป (ขอราคา · ทำใบ · ส่งใบ) — การ์ดย้ายเมื่อบันทึกสำเร็จ
+            ขอราคา HQ → ได้ใบ HQ ลากไม่ได้ (HQ เป็นคนส่งราคา · L1) · รอลูกค้าตอบ → ปิดสำเร็จ = บันทึกลูกค้าตอบรับที่ใบ (L2)
+            ปิดไม่สำเร็จ = กล่องเหตุผล หรือ "ลูกค้าปฏิเสธ" ที่ใบเมื่อส่งใบแล้ว (L3) · ราคา HQ หมดอายุ = ฟอร์มขอราคาใหม่ (L4) · การ์ดที่ปิดแล้วลากออกไม่ได้ (L5) */}
+        {view === "kanban" && (
+          <div ref={กระดานRef}>
+            <StageBoard<LeadRow, string> ป้ายบอร์ด="บอร์ดลูกค้าเป้าหมาย" items={filtered} idOf={l => l.id} colOf={l => String(เลขขั้นของ(l))}
+              columns={เลขขั้นทั้งหมด.map(n => ({ key: String(n), label: ชื่อขั้น(n), สี: สีขั้น(n), แคบ: n >= 6, คั่นก่อน: n === 6,
+                ย่อย: (() => { const t = filtered.filter(l => เลขขั้นของ(l) === n).reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0); return t > 0 ? fmtM(t) : undefined; })() }))}
+              ซ่อนว่าง={hideEmpty} ความสูง={ความสูงกระดาน ?? undefined} ข้อความว่าง="ไม่มีลูกค้าเป้าหมาย" onOpen={l => openPanel(l)}
+              ทางย้าย={l => ทางย้ายลีด(เลขขั้นของ(l))}
+              onMove={(l, ไป) => สั่งจากบอร์ด(l, ไป)}
+              renderCard={l => (<>
                       {/* Sales-only — ไม่มีรูปอาคาร/building type (โฟกัสโอกาสการขายอย่างเดียว)
                           ไอคอนตา = แค่บอกใบ้ว่าคลิกการ์ดเปิดรายละเอียดได้ (การ์ดทั้งใบคลิกได้อยู่แล้ว เลยไม่ต้องมี onClick ซ้ำ)
                           เดิมไม่มี affordance เลย ผู้ใช้ที่ไม่คุ้น kanban อาจไม่รู้ว่าคลิกการ์ดได้ */}
@@ -1626,25 +1607,10 @@ export default function LeadsPage() {
                           <CalendarClock size={10} /> {lastActivity(l)}
                         </div>
                       )}
-                    </div>
-                  ))}
-                  {col.length === 0 && (
-                    <div style={{ flex:1, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:"16px 6px", fontSize:"0.65rem", color:"#c7ccd3", border:"1.5px dashed #e5e7eb", borderRadius:10 }}>ไม่มีลูกค้าเป้าหมาย</div>
-                  )}
-                </div>
-              </div>
-            );
-          };
-          return (
-            <div ref={กระดานRef}
-              style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:10, alignItems:"stretch" }}>
-              {ACTIVE.map(s => renderColumn(s, true))}
-              {/* เส้นคั่นก่อนกลุ่มปิดการขาย (ปิดการขายสำเร็จ/ปิดการขายไม่สำเร็จ) — หัวคอลัมน์ตรงแนวเดียวกัน */}
-              <div style={{ width:1, alignSelf:"stretch", background:"#e5e7eb", flexShrink:0, margin:"2px 0" }} />
-              {TERMINAL.map(s => renderColumn(s, false))}
-            </div>
-          );
-        })()}
+              </>)} />
+          </div>
+        )}
+
 
       </div>
 
@@ -2046,7 +2012,7 @@ export default function LeadsPage() {
               </div>
 
               {/* แถบขั้นตอน + ขั้นต่อไป (UI ตาม flow · หน้า 3 · 16 ต.ค. 69) — ปุ่มพาไปทางเดิมที่มีอยู่ */}
-              <LeadNextStep lead={c}
+              <LeadNextStep lead={c} คำสั่ง={คำสั่งบอร์ด}
                 onRequests={rs => setคำขอของแผง({ leadId: c.id, มี: rs.length > 0 })}
                 onLost={async (reason, ยกเลิกคำขอแล้ว) => {
                   if (ยกเลิกคำขอแล้ว) await syncLeadFromServer(c.id);

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { ยืนยันส่งข้อมูลบริษัท, กรอกนัดคุย } from "../scenario/prospectSteps";
 import { createClient } from "@supabase/supabase-js";
 import { กรอกช่องบังคับใบที่ว่าง } from "../scenario/proposalFormFill";
 
@@ -60,9 +61,11 @@ test("[live·แฟรนไชส์] ผู้สนใจ → ใบค่า
   // รอหน้าจอรับรู้งานก่อนหน้าก่อนกด — ฐานเปลี่ยนก่อนหน้าจอ (เว็บจริงมีเวลาเครือข่าย) กดเร็วไป = ระบบเตือน "ทำงานก่อนหน้าให้ครบก่อน" ไม่บันทึก
   await expect(แผง.getByRole("checkbox", { name: "ติดต่อครั้งแรก" }), "หน้าจอติ๊กงานแรกแล้ว").toBeChecked({ timeout: 20_000 });
   await แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
+  await ยืนยันส่งข้อมูลบริษัท(page);   // ขั้นนี้ = ยืนยันการส่ง (บอสตอบ P1 · 5 พ.ย. 69)
   await expect.poll(สถานะผู้สนใจ, { timeout: 20_000 }).toBe("profile_sent");
   await expect(แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }), "หน้าจอติ๊กงานที่สองแล้ว").toBeChecked({ timeout: 20_000 });
   await แผง.getByRole("checkbox", { name: "นัดคุยรายละเอียด" }).click();
+  await กรอกนัดคุย(แผง, "ทดสอบบนเว็บจริง");   // ขั้นนี้ = ฟอร์มนัดคุย (บอสตอบ P2)
   await expect.poll(สถานะผู้สนใจ, { timeout: 20_000 }).toBe("meeting");
 
   // ── 3) ออกใบค่าแฟรนไชส์ → ส่ง ──

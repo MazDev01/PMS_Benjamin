@@ -6,7 +6,7 @@
 //   กล่องขั้นต่อไป = ทางเดียวที่ดีลเลอร์ขยับลีด: ปุ่มหลักหนึ่งปุ่ม (ทำงานในแผง) + "ปิดไม่สำเร็จ" ที่เดียว
 //   ขั้นของแถบ → lib/leadStage.ts · ปุ่มของกล่อง → lib/leadNextStep.ts (ที่นี่แค่ดึงข้อมูลจริงแล้ววาด)
 // ปิดไม่สำเร็จระหว่างรอราคา HQ = ยกเลิกคำขอพร้อมปิดลีด (ฐานไม่ให้เปลี่ยนสถานะเองระหว่างรอ · ใบ 0183)
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, XCircle } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
@@ -15,7 +15,7 @@ import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { ขั้นต่อไป, type NextStepAction } from "@pms/shared/lib/leadNextStep";
 import { ชื่อขั้น, ชื่อขั้นการขาย, สภาพแถบขั้น, สีแถบขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
-import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
+import { ถามเหตุผล, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import { useLostReasons } from "@pms/shared/lib/useHQConfig";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import type { HqQuote, QuoteRequest } from "@pms/shared/lib/quoteRequests";
@@ -27,8 +27,15 @@ import { IssuerGuardNote } from "@pms/shared/components/ui/IssuerGuardNote";
 /** วันนี้ตามเวลาไทย (YYYY-MM-DD) — เกณฑ์เดียวกับฐานตอนตรวจราคา HQ หมดอายุ */
 const วันนี้ไทย = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 
-export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
+/** คำสั่งจากบอร์ดลีด (ลากการ์ด · ปุ่ม "ย้ายไปขั้น…" · บอสสั่ง 5 พ.ย. 69) — n เปลี่ยน = สั่งใหม่
+ *  ถัดไป = ปุ่มหลักของกล่องนี้ · ปิดสำเร็จ = บันทึกผลจากลูกค้า (ตอบรับที่ใบ · L2) · ปิดไม่สำเร็จ = กล่องเหตุผล หรือ "ลูกค้าปฏิเสธ" ที่ใบเมื่อส่งใบแล้ว (L3)
+ *  ตัดสินจากขั้นต่อไป() ตัวเดียวกับปุ่ม — ไม่มีทางไปต่อ = บอกเหตุผล ไม่เดา */
+export type คำสั่งบอร์ดลีด = { เป้า: "ถัดไป" | "ปิดสำเร็จ" | "ปิดไม่สำเร็จ"; n: number };
+
+export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั่ง }: {
   lead: LeadRow;
+  /** คำสั่งจากบอร์ดลีด — ทำเมื่อโหลดคำขอ/ใบ HQ ครบแล้ว ครั้งเดียวต่อ n */
+  คำสั่ง?: คำสั่งบอร์ดลีด | null;
   /** ปุ่มหลัก — quoteId = ใบลูกค้าที่เกี่ยว (ใบร่างที่จะส่ง / ใบที่รอลูกค้าตอบ) */
   onAction: (kind: NextStepAction["kind"], quoteId?: string) => void;
   /** ปิดไม่สำเร็จ — ยกเลิกคำขอแล้ว = ฐานปิดลีดให้แล้ว ผู้เรียกแค่ดึงลีดใหม่ · ไม่ใช่ = บันทึกผ่านตัวกลางบันทึกลีด · โยน = แสดงข้อความในกล่อง */
@@ -41,6 +48,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
   const ตั้งค่าสาขา = useDealerSettings();
   const [คำขอทั้งหมด, setคำขอทั้งหมด] = useState<QuoteRequest[] | undefined>(undefined);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
+  const [ใบHQพร้อม, setใบHQพร้อม] = useState(false);   // คำสั่งจากบอร์ดรอผลใบ HQ (ราคาหมดอายุ? · L4) ไม่เดา
   const lostReasons = useLostReasons();
   const [รอบ, setรอบ] = useState(0);
   const dealerCode = dealerCodeOf(lead);
@@ -57,10 +65,11 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
   }, [dealerCode, lead.numId, lead.status, รอบ]);
   const คำขอ = คำขอทั้งหมด?.[0] ?? null;
   useEffect(() => {
-    if (คำขอ?.status !== "quoted") { setใบHQ(null); return; }
+    if (คำขอ?.status !== "quoted") { setใบHQ(null); setใบHQพร้อม(true); return; }
     let alive = true;
-    repo.hqQuoteFor(คำขอ.id).then(h => { if (alive) setใบHQ(h); })
-      .catch(e => logRepoRead("quoteRequests.hqQuoteFor(next-step)", e));
+    setใบHQพร้อม(false);
+    repo.hqQuoteFor(คำขอ.id).then(h => { if (alive) { setใบHQ(h); setใบHQพร้อม(true); } })
+      .catch(e => { logRepoRead("quoteRequests.hqQuoteFor(next-step)", e); if (alive) setใบHQพร้อม(true); });
     return () => { alive = false; };
   }, [คำขอ]);
 
@@ -71,6 +80,14 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
   [quotations, lead, dealerCode]);
   const ใบล่าสุด = ใบของดีล[0] ?? null;
   const ใบที่ส่งอยู่ = ใบของดีล.find(q => q.status === "sent_to_client") ?? null;
+  // คำสั่งจากบอร์ด: ทำเมื่อโหลดครบ ครั้งเดียวต่อ n (ตัวทำตั้งหลังคิดขั้นต่อไปด้านล่าง)
+  const ทำคำสั่ง = useRef<(() => void) | null>(null);
+  const ทำแล้ว = useRef(0);
+  useEffect(() => {
+    if (!คำสั่ง || คำสั่ง.n === ทำแล้ว.current || คำขอทั้งหมด === undefined || !ใบHQพร้อม || !ทำคำสั่ง.current) return;
+    ทำแล้ว.current = คำสั่ง.n;
+    ทำคำสั่ง.current();
+  });
 
   // ยังโหลดไม่เสร็จ — ไม่เดาขั้น แต่จองพื้นที่ขนาดเท่าของจริงไว้ก่อน (กล่องโผล่ทีหลังดันเนื้อหา = กดปุ่มในแท็บพลาดเป้า · 16 ต.ค. 69)
   if (คำขอทั้งหมด === undefined) {
@@ -108,6 +125,24 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests }: {
     : ขั้น.key === "won" ? { bg: "#ecfdf5", line: "#059669", text: "#065f46" }
     : ขั้น.action ? { bg: "#fff4e5", line: "#b45309", text: "#7c3d06" }
     : { bg: "#eef3f8", line: "#9fb3c8", text: "#003366" };
+
+  // คำสั่งจากบอร์ดลีด → ทางเดียวกับปุ่มในกล่องนี้ (บอสตอบ L1–L5 · 5 พ.ย. 69)
+  ทำคำสั่ง.current = () => {
+    const เป้า = คำสั่ง?.เป้า;
+    if (เป้า === "ปิดไม่สำเร็จ") {
+      if (ขั้น.ปิดไม่สำเร็จได้) return ปิดไม่สำเร็จ();
+      if (ขั้น.action?.kind === "customer_result") return onAction("customer_result", ใบที่ส่งอยู่?.id);   // ส่งใบแล้ว = "ลูกค้าปฏิเสธ" ที่ใบ (L3)
+      return แจ้งพลาด(`ปิดไม่สำเร็จไม่ได้ — ${ขั้น.title}`);
+    }
+    if (เป้า === "ปิดสำเร็จ") {
+      if (ขั้น.action?.kind === "customer_result") return onAction("customer_result", ใบที่ส่งอยู่?.id);   // บันทึก "ลูกค้าตอบรับ" ที่ใบ (L2)
+      return แจ้งพลาด(`ปิดสำเร็จได้เมื่อส่งใบให้ลูกค้าแล้ว — ตอนนี้: ${ขั้น.title}`);
+    }
+    if (!ขั้น.action) return แจ้งพลาด(`${ขั้น.title} — ${ขั้น.detail}`);
+    if (กันส่ง) return แจ้งพลาด(`ส่งไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาดตอนส่ง.join(" · ")})`);
+    if (ขั้น.action.kind === "reprice") แจ้งพลาด(`${ขั้น.title} — ${ขั้น.detail}`);   // ราคา HQ หมดอายุ → ฟอร์มขอราคาใหม่แทน (L4)
+    onAction(ขั้น.action.kind, ขั้น.key === "await_customer" ? ใบที่ส่งอยู่?.id : ใบล่าสุด?.id);
+  };
 
   // ปิดไม่สำเร็จ = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) — กล่องรอฐาน · ผิดพลาดแสดงในกล่อง
   function ปิดไม่สำเร็จ() {

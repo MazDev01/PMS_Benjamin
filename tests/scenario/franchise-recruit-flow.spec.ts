@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { ยืนยันส่งข้อมูลบริษัท, กรอกนัดคุย } from "./prospectSteps";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
@@ -68,8 +69,10 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "contacted" });
   await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
   await แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
+  await ยืนยันส่งข้อมูลบริษัท(page);   // ขั้นนี้ = ยืนยันการส่ง (บอสตอบ P1 · 5 พ.ย. 69)
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "profile_sent" });
   await แผง.getByRole("checkbox", { name: "นัดคุยรายละเอียด" }).click();
+  await กรอกนัดคุย(แผง);   // ขั้นนี้ = ฟอร์มนัดคุย (บอสตอบ P2)
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "meeting" });
 
   // ── 3) ใบค่าแฟรนไชส์ V1 → ส่ง ──────────────────────────────────────────────────────────────────

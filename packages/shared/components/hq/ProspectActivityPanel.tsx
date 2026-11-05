@@ -28,7 +28,11 @@ const ป้ายชนิด: Record<ProspectActivity["kind"], { type: string;
   proposal: { type: "quote",  label: "ใบค่าแฟรนไชส์" },
 };
 
-export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, editable, formOpen, setFormOpen, onReload, onAdded, ช่องทาง = ช่องทางติดต่อ }: {
+export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, editable, formOpen, setFormOpen, onReload, onAdded, ช่องทาง = ช่องทางติดต่อ, โหมดนัดคุย = false, onนัดคุยแล้ว }: {
+  /** ฟอร์มนัดคุย (บอสตอบ P2 · 5 พ.ย. 69): วันที่/เวลา/สถานที่ ลงบันทึกการติดต่อ + ตั้งวันติดตาม = วันนัด · ยังไม่มีปฏิทิน HQ */
+  โหมดนัดคุย?: boolean;
+  /** บันทึกนัดคุยสำเร็จ → หน้าแม่เลื่อนขั้นเป็น "นัดคุยแล้ว" (บันทึกก่อน · ขั้นทีหลัง) */
+  onนัดคุยแล้ว?: () => void | Promise<void>;
   prospect: DealerProspect;
   /** ช่องทางที่เลือกได้ (หน้าตั้งค่า › หาดีลเลอร์) — ไม่ส่ง = รายการเริ่มต้น */
   ช่องทาง?: readonly string[];
@@ -45,6 +49,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
   const [channel, setChannel] = useState("");
   const [body, setBody] = useState("");
   const [nextFollowUp, setNextFollowUp] = useState("");
+  const [วันนัด, setวันนัด] = useState(""), [เวลานัด, setเวลานัด] = useState(""), [สถานที่, setสถานที่] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -59,20 +64,28 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
   // ช่องบังคับ: ช่องทาง · คุยอะไรไป (ฐานบังคับ · 4 พ.ย. 69 ตัวกลาง) — ขาด = กรอบแดง + ข้อความใต้ช่อง · ตัวตรวจเดิมยังตรวจความยาว/วันย้อนหลัง
   const บังคับ = useช่องบังคับ();
   async function บันทึก() {
-    if (!บังคับ.ตรวจ([
+    if (!บังคับ.ตรวจ(โหมดนัดคุย ? [
+      { key: "channel", label: "ช่องทาง", value: channel, ข้อความ: "ต้องเลือกช่องทางที่ติดต่อ" },
+      { key: "meetDate", label: "วันที่นัด", value: วันนัด, ข้อความ: "ต้องระบุวันที่นัดคุย" },
+      { key: "meetTime", label: "เวลา", value: เวลานัด, ข้อความ: "ต้องระบุเวลานัดคุย" },
+      { key: "meetPlace", label: "สถานที่", value: สถานที่, ข้อความ: "ต้องระบุสถานที่นัดคุย" },
+    ] : [
       { key: "channel", label: "ช่องทาง", value: channel, ข้อความ: "ต้องเลือกช่องทางที่ติดต่อ" },
       { key: "body", label: "คุยอะไรไป", value: body, ข้อความ: "ต้องบันทึกว่าคุยอะไรไป" },
     ])) return;
-    const row = เตรียมบันทึกการติดต่อ({ prospectId: prospect.id, channel, body, nextFollowUp });
+    // นัดคุย = บันทึกการติดต่อข้อความมาตรฐาน + วันติดตาม = วันนัด (ห้ามย้อนหลัง · ตัวตรวจเดิม)
+    const ข้อความนัด = `นัดคุย ${fmtISOToThai(วันนัด)} เวลา ${เวลานัด} น. · สถานที่ ${สถานที่.trim()}${body.trim() ? ` · ${body.trim()}` : ""}`;
+    const row = เตรียมบันทึกการติดต่อ({ prospectId: prospect.id, channel, body: โหมดนัดคุย ? ข้อความนัด : body, nextFollowUp: โหมดนัดคุย ? วันนัด : nextFollowUp });
     const ผิด = ตรวจบันทึกการติดต่อ(row, APP_NOW_ISO);
     if (ผิด) { setErr(ผิด); return; }
     setBusy(true); setErr("");
     try {
       await activitiesRepo.addContact(row);
-      แจ้งสำเร็จ(prospect.status === "new" ? "บันทึกการติดต่อแล้ว · ติ๊กงาน “ติดต่อครั้งแรก” ให้อัตโนมัติ" : "บันทึกการติดต่อแล้ว");
-      setChannel(""); setBody(""); setNextFollowUp("");
+      แจ้งสำเร็จ(โหมดนัดคุย ? "บันทึกนัดคุยแล้ว" : prospect.status === "new" ? "บันทึกการติดต่อแล้ว · ติ๊กงาน “ติดต่อครั้งแรก” ให้อัตโนมัติ" : "บันทึกการติดต่อแล้ว");
+      setChannel(""); setBody(""); setNextFollowUp(""); setวันนัด(""); setเวลานัด(""); setสถานที่("");
       setFormOpen(false);
       onAdded();
+      if (โหมดนัดคุย) await onนัดคุยแล้ว?.();
     } catch (e) {
       setErr(friendlyError(e, "บันทึกการติดต่อไม่สำเร็จ"));
     } finally {
@@ -97,7 +110,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
       )}
       {editable && formOpen && (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, marginBottom: 14, background: "#fafbfc" }}>
-          <div style={{ fontSize: "0.8rem", fontWeight: 800, color: "#2D2D2D", marginBottom: 12 }}>บันทึกการติดต่อ · {prospect.name}</div>
+          <div style={{ fontSize: "0.8rem", fontWeight: 800, color: "#2D2D2D", marginBottom: 12 }}>{โหมดนัดคุย ? "บันทึกนัดคุย" : "บันทึกการติดต่อ"} · {prospect.name}</div>
           {err && <div role="alert" style={{ fontSize: "0.74rem", color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "7px 10px", marginBottom: 10 }}>{err}</div>}
           <fieldset disabled={busy} style={{ border: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
             <div>
@@ -109,15 +122,35 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
               </select>
               <FieldError>{บังคับ.ผิด.channel}</FieldError>
             </div>
-            <div>
+            {โหมดนัดคุย && (<>
+              <div>
+                <FieldLabel htmlFor="pc-meet-date" required>วันที่นัด</FieldLabel>
+                <input id="pc-meet-date" className="form-input" type="date" min={APP_NOW_ISO} value={วันนัด} {...บังคับ.ผูก("meetDate")}
+                  onChange={e => { บังคับ.ล้าง("meetDate"); setวันนัด(e.target.value); }} style={บังคับ.ผิด.meetDate ? กรอบผิด : undefined} />
+                <FieldError>{บังคับ.ผิด.meetDate}</FieldError>
+              </div>
+              <div>
+                <FieldLabel htmlFor="pc-meet-time" required>เวลา</FieldLabel>
+                <input id="pc-meet-time" className="form-input" type="time" value={เวลานัด} {...บังคับ.ผูก("meetTime")}
+                  onChange={e => { บังคับ.ล้าง("meetTime"); setเวลานัด(e.target.value); }} style={บังคับ.ผิด.meetTime ? กรอบผิด : undefined} />
+                <FieldError>{บังคับ.ผิด.meetTime}</FieldError>
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <FieldLabel htmlFor="pc-meet-place" required>สถานที่</FieldLabel>
+                <input id="pc-meet-place" className="form-input" value={สถานที่} placeholder="เช่น สำนักงานผู้สนใจ · ออนไลน์ (LINE/Zoom)" {...บังคับ.ผูก("meetPlace")}
+                  onChange={e => { บังคับ.ล้าง("meetPlace"); setสถานที่(e.target.value); }} style={บังคับ.ผิด.meetPlace ? กรอบผิด : undefined} />
+                <FieldError>{บังคับ.ผิด.meetPlace}</FieldError>
+              </div>
+            </>)}
+            {!โหมดนัดคุย && <div>
               <label className="form-label" htmlFor="pc-next">นัดติดตามครั้งถัดไป</label>
               <input id="pc-next" className="form-input" type="date" min={APP_NOW_ISO} value={nextFollowUp} onChange={e => setNextFollowUp(e.target.value)} />
               <div style={{ fontSize: "0.66rem", color: "#6b7280", marginTop: 3 }}>
                 {prospect.followUp && nextFollowUp === prospect.followUp ? "ใช้วันที่ตั้งไว้เดิม — แก้ได้ถ้านัดใหม่" : "ไม่บังคับ · ใส่แล้ววันนัดของรายนี้เปลี่ยนตาม"}
               </div>
-            </div>
+            </div>}
             <div style={{ gridColumn: "1 / -1" }}>
-              <FieldLabel htmlFor="pc-body" required>คุยอะไรไป</FieldLabel>
+              {โหมดนัดคุย ? <label className="form-label" htmlFor="pc-body">รายละเอียดเพิ่มเติม</label> : <FieldLabel htmlFor="pc-body" required>คุยอะไรไป</FieldLabel>}
               <textarea id="pc-body" className="form-input" rows={3} value={body} {...บังคับ.ผูก("body")} onChange={e => { บังคับ.ล้าง("body"); setBody(e.target.value); }}
                 placeholder="เช่น สนใจเป็นดีลเลอร์ ขอข้อมูลค่าแรกเข้า นัดคุยอีกครั้งสัปดาห์หน้า" style={{ resize: "vertical", ...(บังคับ.ผิด.body ? กรอบผิด : null) }} />
               <FieldError>{บังคับ.ผิด.body}</FieldError>
@@ -125,7 +158,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
           </fieldset>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
             <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => { setFormOpen(false); setErr(""); }}>ยกเลิก</button>
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => void บันทึก()}>{busy ? "กำลังบันทึก…" : "บันทึกการติดต่อ"}</button>
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => void บันทึก()}>{busy ? "กำลังบันทึก…" : โหมดนัดคุย ? "บันทึกนัดคุย" : "บันทึกการติดต่อ"}</button>
           </div>
           <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: 8 }}>บันทึกแล้วแก้/ลบไม่ได้ — เป็นประวัติของรายนี้</div>
         </div>
