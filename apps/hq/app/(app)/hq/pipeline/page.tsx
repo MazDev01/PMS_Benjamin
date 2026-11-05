@@ -34,6 +34,7 @@ import { fmtBaht } from "@pms/shared/lib/format";
 import { useLeadSummary } from "@pms/shared/lib/useNetworkData";
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
 import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, แผงที่มา, กล่องล่าง, ล่าสุดของดีลเลอร์, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, แผงเดือน, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
 
 const PRIMARY = "#003366";
@@ -228,14 +229,22 @@ export default function SalesAnalyticsPage() {
     else setDealerSel(key);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const ไประดับ = (ระดับ: "all" | "region" | "prov") => {
-    setDealerSel(ALL);
-    if (ระดับ === "all") { setRegionSel(ALL); setProvSel(ALL); setมิติ("dealer"); }
-    if (ระดับ === "region") { setProvSel(ALL); setมิติ("prov"); }
-    if (ระดับ === "prov") setมิติ("dealer");
-  };
   const ภาคที่ดู = regionSel !== ALL ? regionSel : provSel !== ALL ? (ภาคมาตรฐาน(allDealers.find(d => d.province === provSel)?.region) ?? null) : ดีลเลอร์ที่ดู ? (ภาคมาตรฐาน(allDealers.find(d => d.code === ดีลเลอร์ที่ดู)?.region) ?? null) : null;
   const จังหวัดที่ดู = provSel !== ALL ? provSel : ดีลเลอร์ที่ดู ? (allDealers.find(d => d.code === ดีลเลอร์ที่ดู)?.province || null) : null;
+  // กดชิประดับ = กลับไประดับนั้น ตัวกรองของระดับก่อนหน้ายังอยู่ (บอสสั่ง 5 พ.ย. 69)
+  //   เดิม: เลือกดีลเลอร์ตรง (ตัวกรอง/กดแท่ง) ภาค/จังหวัดมาจากดีลเลอร์ ไม่ได้อยู่ในตัวกรอง → กดชิปจังหวัด/ภาค ล้างดีลเลอร์แล้วเหลือทั้งเครือ
+  //   ตอนนี้: ตั้งตัวกรองภาค/จังหวัดตามที่แถบแสดงอยู่ก่อนถอย
+  const ไปที่ระดับ = (r: { ภาค: string | null; จังหวัด: string | null; ดีลเลอร์: string | null }) => {
+    setRegionSel(r.ภาค ?? ALL); setProvSel(r.จังหวัด ?? ALL); setDealerSel(r.ดีลเลอร์ ?? ALL);
+    setมิติ(r.ภาค && !r.จังหวัด && !r.ดีลเลอร์ ? "prov" : "dealer");
+  };
+  const ไประดับ = (ระดับ: "all" | "region" | "prov") => {
+    if (ระดับ === "all") ไปที่ระดับ({ ภาค: null, จังหวัด: null, ดีลเลอร์: null });
+    if (ระดับ === "region") ไปที่ระดับ({ ภาค: ภาคที่ดู, จังหวัด: null, ดีลเลอร์: null });
+    if (ระดับ === "prov") ไปที่ระดับ({ ภาค: ภาคที่ดู, จังหวัด: จังหวัดที่ดู, ดีลเลอร์: null });
+  };
+  // ปุ่มย้อนกลับของเบราว์เซอร์ = ถอยทีละ 1 ระดับ (ตัวกลาง useประวัติระดับ · ตัวเดียวกับหัวเจาะลึก 3 หน้า)
+  useประวัติระดับ({ ภาค: ภาคที่ดู, จังหวัด: จังหวัดที่ดู, ดีลเลอร์: ดีลเลอร์ที่ดู }, ไปที่ระดับ);
   const แท่งกลุ่ม: HRow[] = useMemo(() => กลุ่ม.map(g => ({ key: g.key, label: g.label, a: g.รวม.sales, b: g.รวม.target ?? 0,
     note: g.รวม.pct == null ? "ยังไม่ตั้งเป้า" : `${g.รวม.pct}% ของเป้า`, onClick: () => เจาะ(g.key) })), [กลุ่ม]);   // eslint-disable-line react-hooks/exhaustive-deps
   // ── รายเดือน (ใบ 0268 · hq_pipeline_months): ดึงเฉพาะตอนเปิดแท็บรายเดือน หรือแผงที่มาตอนอยู่ระดับดีลเลอร์ ──
