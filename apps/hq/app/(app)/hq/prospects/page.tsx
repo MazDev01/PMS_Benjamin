@@ -59,7 +59,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ProspectImportModal } from "@pms/shared/components/hq/ProspectImportModal";
 import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
 import { StageBoard } from "@pms/shared/components/ui/StageBoard";
-import { คอลัมน์บอร์ดผู้สนใจ, คอลัมน์ของผู้สนใจ, ทางย้ายผู้สนใจ, type คอลัมน์ผู้สนใจ, type ฟอร์มขั้นผู้สนใจ } from "@pms/shared/lib/prospectBoard";
+import { คอลัมน์บอร์ดผู้สนใจ, คอลัมน์ของผู้สนใจ, ทางย้ายผู้สนใจ, ขั้นที่ขาด, เหตุเป็นดีลเลอร์ไม่ได้, type คอลัมน์ผู้สนใจ, type ฟอร์มขั้นผู้สนใจ } from "@pms/shared/lib/prospectBoard";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
@@ -161,6 +161,10 @@ export default function HQProspectsPage() {
   const [สัญญาณออกใบ, setสัญญาณออกใบ] = useState(0);
   // ฟอร์มนัดคุยในแท็บบันทึกการติดต่อ (บอสตอบ P2) — ลาก/ติ๊กไป "นัดคุยแล้ว" = เปิดโหมดนี้ · บันทึกแล้วเลื่อนขั้น
   const [โหมดนัดคุย, setโหมดนัดคุย] = useState(false);
+  // บอร์ด 5 คอลัมน์ (บอสสั่ง 5 พ.ย. 69): ลากเข้าคอลัมน์ = ฟอร์มของขั้นที่ขาดทีละฟอร์ม · ลำดับที่ค้าง = การ์ดไหน ไปคอลัมน์ไหน ทำฟอร์มไหนอยู่
+  //   บันทึกฟอร์มแล้วสถานะเปลี่ยน → เปิดฟอร์มถัดไป (ดูที่ useEffect ของ list) · ยกเลิกฟอร์ม/ปิดแผง = หยุด ขั้นที่บันทึกแล้วคงไว้
+  const ลำดับRef = useRef<{ id: DealerProspect["id"]; ไป: คอลัมน์ผู้สนใจ; ทำอยู่: ฟอร์มขั้นผู้สนใจ } | null>(null);
+  const [เลือกปิด, setเลือกปิด] = useState<DealerProspect | null>(null);
   // ตาราง / บอร์ด (บอสสั่ง 5 พ.ย. 69 · ตัวกลาง StageBoard)
   const [มุมมอง, setมุมมอง] = useState<"table" | "board">("table");
 
@@ -292,6 +296,7 @@ export default function HQProspectsPage() {
   }
   function ปิดแผงทันที() {
     เปิดอยู่Ref.current = null;
+    ลำดับRef.current = null;
     setรายที่เปิด(null);
   }
   function ปิดแผง() {
@@ -421,7 +426,7 @@ export default function HQProspectsPage() {
 
   // ── ย้ายไปขั้นถัดไปด้วยฟอร์มของขั้นนั้น (บอร์ดลาก · ปุ่ม "ย้ายไปขั้น…" · ติ๊กงานในแผง ใช้ทางเดียวกัน · บอสสั่ง 5 พ.ย. 69) ──
   //   การ์ดย้ายเมื่อบันทึกสำเร็จเท่านั้น (ข้อมูลเปลี่ยน) · ยกเลิกฟอร์ม = ข้อมูลไม่เปลี่ยน การ์ดอยู่ที่เดิม
-  async function ไปขั้นด้วยฟอร์ม(p: DealerProspect, ฟอร์ม: ฟอร์มขั้นผู้สนใจ) {
+  async function ไปขั้นด้วยฟอร์ม(p: DealerProspect, ฟอร์ม: Exclude<ฟอร์มขั้นผู้สนใจ, "close">) {
     if (ฟอร์ม === "contact" || ฟอร์ม === "meeting") {
       if (รายที่เปิด?.id !== p.id) เปิดแผง(p, "contact"); else setแท็บที่เปิด("contact");
       setโหมดนัดคุย(ฟอร์ม === "meeting"); setฟอร์มติดต่อเปิด(true);
@@ -429,16 +434,39 @@ export default function HQProspectsPage() {
       if (รายที่เปิด?.id !== p.id) เปิดแผง(p, "proposals"); else setแท็บที่เปิด("proposals");
       setสัญญาณออกใบ(n => n + 1);
     } else if (ฟอร์ม === "profile") {
-      await ยืนยัน({ หัวข้อ: `ยืนยันว่าส่งข้อมูลบริษัทให้ “${p.name}” แล้ว ?`, รายละเอียด: "ขั้นเลื่อนเป็น “ส่งข้อมูลบริษัทแล้ว” · ย้อนขั้นเองไม่ได้",
+      const ตกลง = await ยืนยัน({ หัวข้อ: `ยืนยันว่าส่งข้อมูลบริษัทให้ “${p.name}” แล้ว ?`, รายละเอียด: "ขั้นเลื่อนเป็น “ส่งข้อมูลบริษัทแล้ว” · ย้อนขั้นเองไม่ได้",
         ปุ่มตกลง: "ยืนยันส่งแล้ว", ปุ่มกำลังทำ: "กำลังบันทึก…", ทำ: () => เปลี่ยนขั้นของ(p, "profile_sent", undefined, true) });
-    } else if (ฟอร์ม === "convert") {
-      เปิดตั้งดีลเลอร์(p);
-    } else if (ฟอร์ม === "lost") {
-      await ถามเหตุผล({ หัวข้อ: `ปิด “${p.name}” ว่าไม่สำเร็จ ?`, รายละเอียด: "เปิดติดตามใหม่ได้ภายหลัง", ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ",
-        ตัวเลือก: ค่าตั้ง.lostReasons ?? [], ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
-        ทำ: เหตุผล => เปลี่ยนขั้นของ(p, "lost", เหตุผล, true) });
+      if (!ตกลง) ลำดับRef.current = null;   // ยกเลิกกลางทาง = หยุดลำดับ การ์ดอยู่ตามสถานะจริง
     }
   }
+  /** ไม่สำเร็จ = เหตุผลบังคับ (คอลัมน์ปิดแล้ว › ไม่สำเร็จ) */
+  async function ปิดไม่สำเร็จ(p: DealerProspect) {
+    await ถามเหตุผล({ หัวข้อ: `ปิด “${p.name}” ว่าไม่สำเร็จ ?`, รายละเอียด: "เปิดติดตามใหม่ได้ภายหลัง", ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ",
+      ตัวเลือก: ค่าตั้ง.lostReasons ?? [], ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
+      ทำ: เหตุผล => เปลี่ยนขั้นของ(p, "lost", เหตุผล, true) });
+  }
+  /** วางการ์ดในคอลัมน์ (ลาก · ปุ่ม "ย้ายไปขั้น…") — ปิดแล้ว = ให้เลือกผล · อื่น ๆ = เริ่มฟอร์มแรกที่ขาด */
+  function วางในคอลัมน์(p: DealerProspect, ไป: คอลัมน์ผู้สนใจ) {
+    ลำดับRef.current = null;
+    if (ไป === "closed") { setเลือกปิด(p); return; }
+    const ฟอร์ม = ขั้นที่ขาด(p.status, ไป);
+    if (!ฟอร์ม || ฟอร์ม === "close") return;
+    ลำดับRef.current = { id: p.id, ไป, ทำอยู่: ฟอร์ม };
+    void ไปขั้นด้วยฟอร์ม(p, ฟอร์ม);
+  }
+  // บันทึกฟอร์มแล้วสถานะในรายการเปลี่ยน → เปิดฟอร์มถัดไปที่ขาด · ถึงคอลัมน์แล้ว = จบ · เดินหน้าอย่างเดียว (รายการเก่าที่โหลดมาช้าไม่เปิดฟอร์มเดิมซ้ำ)
+  useEffect(() => {
+    const ล = ลำดับRef.current;
+    if (!ล) return;
+    const p = list.find(x => x.id === ล.id);
+    const ต่อ = p ? ขั้นที่ขาด(p.status, ล.ไป) : null;
+    if (!p || !ต่อ || ต่อ === "close") { ลำดับRef.current = null; return; }
+    const ลำดับขั้น: ฟอร์มขั้นผู้สนใจ[] = ["contact", "profile", "meeting", "proposal"];
+    if (ลำดับขั้น.indexOf(ต่อ) <= ลำดับขั้น.indexOf(ล.ทำอยู่)) return;
+    ลำดับRef.current = { ...ล, ทำอยู่: ต่อ };
+    void ไปขั้นด้วยฟอร์ม(p, ต่อ);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list]);
   /** ยกเลิกงานล่าสุดที่ติ๊ก = ถอย 1 ขั้น (บอสตอบ 5 พ.ย. 69 · ฐานยอมทางนี้ทางเดียว prospect_undo_last_task) */
   async function ยกเลิกงานล่าสุด(p: DealerProspect) {
     setStageBusy(true);
@@ -842,12 +870,31 @@ export default function HQProspectsPage() {
         </div>
       )}
 
-      {/* บอร์ด (บอสสั่ง 5 พ.ย. 69): ลากทีละ 1 ขั้นไปข้างหน้า = เปิดฟอร์มของขั้นนั้น · การ์ดย้ายเมื่อบันทึกสำเร็จ · ห้ามข้าม/ถอย (ฐานกันซ้ำ) */}
+      {/* บอร์ด 5 คอลัมน์ (บอสสั่ง 5 พ.ย. 69): ลากทีละ 1 คอลัมน์ไปข้างหน้า = ฟอร์มของขั้นที่ขาดตามลำดับ · การ์ดย้ายเมื่อทำครบ · ห้ามข้าม/ถอย (ฐานกันซ้ำ) */}
+      {เลือกปิด && (() => {
+        const p = เลือกปิด;
+        const เหตุ = เหตุเป็นดีลเลอร์ไม่ได้(p, ย่อย.get(p.id), ย่อยโหลดแล้ว);
+        return (
+          <div onClick={() => setเลือกปิด(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <ModalCard onClose={() => setเลือกปิด(null)} label="ปิดการติดตาม" className="card" style={{ width: "100%", maxWidth: 420, padding: 20 }}>
+              <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#2D2D2D", marginBottom: 4 }}>ปิดการติดตาม “{p.name}”</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: 14 }}>เลือกผลของรายนี้</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button type="button" className="btn btn-primary" data-close-choice="won" disabled={!!เหตุ} title={เหตุ ?? undefined}
+                  onClick={() => { setเลือกปิด(null); เปิดตั้งดีลเลอร์(p); }}>เป็นดีลเลอร์</button>
+                {เหตุ && <div data-close-won-reason style={{ fontSize: "0.7rem", color: "#b45309", marginTop: -2 }}>เป็นดีลเลอร์ยังไม่ได้ — {เหตุ}</div>}
+                <button type="button" className="btn btn-secondary" data-close-choice="lost" onClick={() => { setเลือกปิด(null); void ปิดไม่สำเร็จ(p); }}>ไม่สำเร็จ — ระบุเหตุผล</button>
+                <button type="button" className="btn btn-secondary btn-sm" data-close-cancel onClick={() => setเลือกปิด(null)}>ยกเลิก</button>
+              </div>
+            </ModalCard>
+          </div>
+        );
+      })()}
       {มุมมอง === "board" && (
         <StageBoard<DealerProspect, คอลัมน์ผู้สนใจ> ป้ายบอร์ด="บอร์ดผู้สนใจเป็นดีลเลอร์" columns={[...คอลัมน์บอร์ดผู้สนใจ]} items={filtered}
           idOf={p => p.id} colOf={p => คอลัมน์ของผู้สนใจ(p, ย่อย.get(p.id))} onOpen={p => เปิดแผง(p)} ข้อความว่าง="ไม่มีผู้สนใจ"
           ทางย้าย={p => จัดการได้ ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
-          onMove={(p, ไป) => { const ทาง = ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว).find(x => x.ไป === ไป); if (ทาง?.ฟอร์ม) void ไปขั้นด้วยฟอร์ม(p, ทาง.ฟอร์ม); }}
+          onMove={วางในคอลัมน์}
           renderCard={p => (
             <div data-prospect-card={p.id}>
               <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#2D2D2D", lineHeight: 1.35 }} title={p.name}>{p.name}</div>
@@ -1113,6 +1160,7 @@ export default function HQProspectsPage() {
                       ช่องทาง={ช่องทางติดต่อเริ่มต้น}
                       โหมดนัดคุย={โหมดนัดคุย}
                       onนัดคุยแล้ว={async () => { setโหมดนัดคุย(false); if (ราย.status === "profile_sent") await เปลี่ยนขั้นของ(ราย, "meeting"); }}
+                      onยกเลิก={() => { ลำดับRef.current = null; }}
                     />
                   )}
 

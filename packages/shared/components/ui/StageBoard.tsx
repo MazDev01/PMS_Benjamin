@@ -4,6 +4,7 @@
 //     บันทึกสำเร็จ = ข้อมูลเปลี่ยน การ์ดย้ายตามข้อมูล · ยกเลิก = ข้อมูลไม่เปลี่ยน การ์ดเด้งกลับที่เดิมเอง
 //   ทางที่ย้ายได้มาจาก ทางย้าย(การ์ด) ของแต่ละหน้า (ตัวกติกากลางของหน้านั้น) — ไม่อยู่ในรายการ = ย้ายไม่ได้ + บอกเหตุผล
 //   ทางเลือกแทนการลาก: ปุ่ม "ย้ายไปขั้น…" บนการ์ด (ใช้คีย์บอร์ด/จอสัมผัสได้)
+//   คอลัมน์ ยุบได้ = ยุบไว้ตั้งแต่แรก ปุ่ม "เปิดดู (n)" / "ยุบ" · ยุบอยู่ก็ยังวางการ์ดลงได้
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRightLeft } from "lucide-react";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
@@ -21,6 +22,8 @@ export type คอลัมน์บอร์ด<K extends string> = {
   คั่นก่อน?: boolean;
   /** บรรทัดเล็กใต้หัวคอลัมน์ (เช่น มูลค่ารวม) */
   ย่อย?: string;
+  /** ยุบไว้ตั้งแต่แรก กดเปิดดูได้ (การ์ดซ่อน · ยังวางการ์ดลงได้) — เช่น ปิดแล้วของบอร์ดผู้สนใจ */
+  ยุบได้?: boolean;
 };
 /** ทางที่การ์ดย้ายไปได้ — ไม่ได้เพราะ = แสดงในเมนูแต่กดไม่ได้ + ลากมาวางแล้วบอกเหตุผลนี้ */
 export type ทางย้าย<K extends string> = { ไป: K; ป้าย: string; ไม่ได้เพราะ?: string | null };
@@ -45,6 +48,7 @@ export function StageBoard<T, K extends string>({
   const [ลากอยู่, setลากอยู่] = useState<string | number | null>(null);
   const [เหนือ, setเหนือ] = useState<K | null>(null);
   const [เมนู, setเมนู] = useState<string | number | null>(null);
+  const [เปิดดู, setเปิดดู] = useState<ReadonlySet<K>>(() => new Set());
   const ชื่อคอลัมน์ = (k: K) => columns.find(c => c.key === k)?.label ?? k;
 
   // วางการ์ด / เลือกจากเมนู → ตรวจทางก่อน (ทางเดียวกันทั้งสองแบบ)
@@ -62,11 +66,12 @@ export function StageBoard<T, K extends string>({
       {columns.map(c => {
         const col = items.filter(t => colOf(t) === c.key);
         if (ซ่อนว่าง && col.length === 0) return null;
-        const w = c.แคบ ? 264 : 300;
+        const ยุบอยู่ = !!c.ยุบได้ && !เปิดดู.has(c.key);
+        const w = ยุบอยู่ ? 188 : c.แคบ ? 264 : 300;
         return (
           <React.Fragment key={c.key}>
             {c.คั่นก่อน && <div style={{ width: 1, alignSelf: "stretch", background: "#e5e7eb", flexShrink: 0, margin: "2px 0" }} />}
-            <div data-board-column={c.key} aria-label={`คอลัมน์ ${c.label}`}
+            <div data-board-column={c.key} data-board-collapsed={ยุบอยู่ || undefined} aria-label={`คอลัมน์ ${c.label}`}
               // รับเฉพาะการ์ดของบอร์ด (ชนิดข้อมูลของบอร์ด) — ดูจากชนิดข้อมูลที่ลาก ไม่รอสถานะ React (dragover แรกมาก่อนหน้าจอวาดใหม่ = วางไม่ติด)
               onDragOver={e => { if (!e.dataTransfer.types.includes(ชนิดลาก)) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (เหนือ !== c.key) setเหนือ(c.key); }}
               onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setเหนือ(v => (v === c.key ? null : v)); }}
@@ -91,7 +96,20 @@ export function StageBoard<T, K extends string>({
                   <span className="badge" data-board-count style={{ background: c.สี.bg, color: c.สี.text, flexShrink: 0 }}>{col.length}</span>
                 </div>
                 {c.ย่อย && <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, marginTop: 3, fontVariantNumeric: "tabular-nums" }}>{c.ย่อย}</div>}
+                {c.ยุบได้ && (
+                  <button type="button" data-board-toggle aria-expanded={!ยุบอยู่}
+                    onClick={() => setเปิดดู(v => { const n = new Set(v); if (n.has(c.key)) n.delete(c.key); else n.add(c.key); return n; })}
+                    style={{ marginTop: 8, height: 26, padding: "0 10px", borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: "#003366",
+                      fontFamily: "inherit", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer" }}>
+                    {ยุบอยู่ ? `เปิดดู (${col.length})` : "ยุบ"}
+                  </button>
+                )}
               </div>
+              {ยุบอยู่ ? (
+                <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "16px 6px", fontSize: "0.65rem", color: "#9ca3af", border: "1.5px dashed #e5e7eb", borderRadius: 10, textAlign: "center" }}>
+                  ลากการ์ดมาวางเพื่อปิดการติดตาม
+                </div>
+              ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 44, flex: 1 }}>
                 {col.map(t => {
                   const id = idOf(t);
@@ -114,6 +132,7 @@ export function StageBoard<T, K extends string>({
                   <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "16px 6px", fontSize: "0.65rem", color: "#c7ccd3", border: "1.5px dashed #e5e7eb", borderRadius: 10 }}>{ข้อความว่าง}</div>
                 )}
               </div>
+              )}
             </div>
           </React.Fragment>
         );

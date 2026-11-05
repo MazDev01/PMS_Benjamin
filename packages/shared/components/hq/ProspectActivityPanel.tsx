@@ -28,11 +28,13 @@ const ป้ายชนิด: Record<ProspectActivity["kind"], { type: string;
   proposal: { type: "quote",  label: "ใบค่าแฟรนไชส์" },
 };
 
-export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, editable, formOpen, setFormOpen, onReload, onAdded, ช่องทาง = ช่องทางติดต่อ, โหมดนัดคุย = false, onนัดคุยแล้ว }: {
+export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, editable, formOpen, setFormOpen, onReload, onAdded, ช่องทาง = ช่องทางติดต่อ, โหมดนัดคุย = false, onนัดคุยแล้ว, onยกเลิก }: {
   /** ฟอร์มนัดคุย (บอสตอบ P2 · 5 พ.ย. 69): วันที่/เวลา/สถานที่ ลงบันทึกการติดต่อ + ตั้งวันติดตาม = วันนัด · ยังไม่มีปฏิทิน HQ */
   โหมดนัดคุย?: boolean;
   /** บันทึกนัดคุยสำเร็จ → หน้าแม่เลื่อนขั้นเป็น "นัดคุยแล้ว" (บันทึกก่อน · ขั้นทีหลัง) */
   onนัดคุยแล้ว?: () => void | Promise<void>;
+  /** กดยกเลิกฟอร์ม (ไม่บันทึก) — บอร์ดใช้หยุดลำดับฟอร์มที่ลากมา */
+  onยกเลิก?: () => void;
   prospect: DealerProspect;
   /** ช่องทางที่เลือกได้ (หน้าตั้งค่า › หาดีลเลอร์) — ไม่ส่ง = รายการเริ่มต้น */
   ช่องทาง?: readonly string[];
@@ -157,7 +159,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
             </div>
           </fieldset>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
-            <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => { setFormOpen(false); setErr(""); }}>ยกเลิก</button>
+            <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => { setFormOpen(false); setErr(""); onยกเลิก?.(); }}>ยกเลิก</button>
             <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => void บันทึก()}>{busy ? "กำลังบันทึก…" : โหมดนัดคุย ? "บันทึกนัดคุย" : "บันทึกการติดต่อ"}</button>
           </div>
           <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: 8 }}>บันทึกแล้วแก้/ลบไม่ได้ — เป็นประวัติของรายนี้</div>
