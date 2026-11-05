@@ -82,6 +82,25 @@ export function มูลค่าอ่านง่าย(amount?: number | nul
   return amount == null || !Number.isFinite(amount) ? "—" : `฿${amount.toLocaleString("th-TH")}`;
 }
 
+/** ช่องของใบค่าแฟรนไชส์ — ชื่อและลำดับเดียวกับฟอร์ม "ออกใบค่าแฟรนไชส์" (ProposalFormModal) · แผงรายละเอียด HQ ใช้ชุดนี้ (บอสสั่ง 5 พ.ย. 69) */
+export const ช่องใบค่าแฟรนไชส์ = ["ค่าแรกเข้า", "ระยะสัญญา", "เป้ายอดซื้อต่อปี", "ภาค", "จังหวัด", "วันที่เสนอ", "ข้อเสนอมีผลถึง", "เงื่อนไข", "หมายเหตุภายใน"] as const;
+export type ช่องใบ = (typeof ช่องใบค่าแฟรนไชส์)[number];
+/** ค่าที่แสดงของแต่ละช่อง — ว่าง/"-"/ฐานไม่ได้เก็บ (ใบเก่า) = "-" ไม่เดา · วันที่เป็น พ.ศ. ผ่านตัวจัดรูปที่ส่งมา */
+export function ค่าช่องใบ(p: Partial<DealerPackageProposal>, { วันไทย, ชื่อภาค = (r: string) => r, วันนี้ }: { วันไทย: (iso: string) => string; ชื่อภาค?: (r: string) => string; วันนี้?: string }): Record<ช่องใบ, string> {
+  const ขีด = (s: string | null | undefined) => { const t = String(s ?? "").trim(); return !t || t === "-" || t === "—" ? "-" : t; };
+  return {
+    "ค่าแรกเข้า": ขีด(p.amount == null ? null : มูลค่าอ่านง่าย(p.amount)),
+    "ระยะสัญญา": ขีด(p.contractMonths == null ? null : ระยะสัญญาอ่านง่าย(p.contractMonths)),
+    "เป้ายอดซื้อต่อปี": ขีด(p.annualTarget == null ? null : มูลค่าอ่านง่าย(p.annualTarget)),
+    "ภาค": ขีด(p.region ? ชื่อภาค(p.region) : null),
+    "จังหวัด": ขีด(p.province),
+    "วันที่เสนอ": ขีด(p.proposedDate ? วันไทย(p.proposedDate) : null),
+    "ข้อเสนอมีผลถึง": ขีด(p.validUntil ? วันไทย(p.validUntil) + (วันนี้ && p.status && หมดอายุแล้ว({ status: p.status, validUntil: p.validUntil }, วันนี้) ? " (เลยกำหนด)" : "") : null),
+    "เงื่อนไข": ขีด(p.terms),
+    "หมายเหตุภายใน": ขีด(p.note),
+  };
+}
+
 export type ใบเสนอที่จะบันทึก = Omit<DealerPackageProposal, "id" | "proposalNo" | "createdAt" | "updatedAt">;
 
 const ข้อความหรือว่าง = (v?: string | null): string | null => {

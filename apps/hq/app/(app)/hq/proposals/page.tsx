@@ -18,7 +18,7 @@ import { ค่า, นับ, บาทเต็ม, เดือนนี้, 
 import { FileText, Send, AlarmClock, Search, X, Eye, Printer, MapPin, ExternalLink, Coins, Wallet } from "lucide-react";
 import { proposals as proposalsRepo, prospects as prospectsRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
 import type { DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
-import { PROPOSAL_STATUS_ORDER, proposalStatusLabel, proposalStatusColor, มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย, หมดอายุแล้ว } from "@pms/shared/lib/dealerProposals";
+import { PROPOSAL_STATUS_ORDER, proposalStatusLabel, proposalStatusColor, มูลค่าอ่านง่าย, หมดอายุแล้ว, ช่องใบค่าแฟรนไชส์, ค่าช่องใบ } from "@pms/shared/lib/dealerProposals";
 import { ProposalPaymentsBox } from "@pms/shared/components/hq/ProposalPaymentsBox";
 import { useProposalActions } from "@pms/shared/components/hq/useProposalActions";
 import { useRole } from "@pms/shared/context/RoleContext";
@@ -277,7 +277,8 @@ export default function HQProposalsPage() {
         const qa: React.CSSProperties = { background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, height: 30, padding: "0 11px", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap", textDecoration: "none" };
         const การ์ด: React.CSSProperties = { background: "#fff", border: "1px solid #eef1f5", borderRadius: 14, padding: 16 };
         const หัวการ์ด: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: "0.62rem", fontWeight: 800, color: "#8a929c", letterSpacing: "0.06em", marginBottom: 12 };
-        const termLines = String(p.terms ?? "").split(/\r?\n/).map(t => t.trim()).filter(t => t && t !== "-");   // "-" = ตั้งใจไม่มีเงื่อนไข (บอสสั่ง 4 พ.ย. 69) → ไม่แสดงหัวข้อ
+        // 9 ช่อง ชื่อ/ลำดับเดียวกับฟอร์มออกใบ (บอสสั่ง 5 พ.ย. 69 · ช่องใบค่าแฟรนไชส์) · ว่าง/"-"/ใบเก่าที่ฐานไม่ได้เก็บ = "-"
+        const ค่าใบ = ค่าช่องใบ(p, { วันไทย: fmtISOToThai, ชื่อภาค, วันนี้: APP_NOW_ISO });
         return (
           <div onClick={() => setดูรหัส(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
             <ModalCard onClose={() => setดูรหัส(null)} label="รายละเอียดใบค่าแฟรนไชส์"
@@ -324,19 +325,19 @@ export default function HQProposalsPage() {
 
                 <div style={การ์ด}>
                   <div style={หัวการ์ด}><FileText size={13} color={PRIMARY} /> รายละเอียดข้อเสนอ</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0 24px" }}>
-                    {([
-                      ["พื้นที่ที่ได้สิทธิ์", พื้นที่ของใบ(p)],
-                      ["ค่าแรกเข้า", มูลค่าอ่านง่าย(p.amount)],
-                      ["ระยะสัญญา", ระยะสัญญาอ่านง่าย(p.contractMonths)],
-                      ["เป้ายอดซื้อต่อปี", มูลค่าอ่านง่าย(p.annualTarget)],
-                      ["วันที่เสนอ", p.proposedDate ? fmtISOToThai(p.proposedDate) : "—"],
-                      ["ข้อเสนอมีผลถึง", p.validUntil ? fmtISOToThai(p.validUntil) + (หมดอายุแล้ว(p, APP_NOW_ISO) ? " (เลยกำหนด)" : "") : "—"],
-                    ] as [string, string][]).map(([k, v]) => (
-                      <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 0", borderBottom: "1px solid #f0f4f8", fontSize: "0.78rem" }}>
-                        <span style={{ color: "#8a929c" }}>{k}</span><span style={{ fontWeight: 700, color: STEEL, textAlign: "right" }}>{v}</span>
-                      </div>
-                    ))}
+                  <div data-proposal-fields style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0 24px" }}>
+                    {ช่องใบค่าแฟรนไชส์.map(k => {
+                      const ยาว = k === "เงื่อนไข" || k === "หมายเหตุภายใน";   // ข้อความหลายบรรทัด = เต็มแถว คงบรรทัดตามที่พิมพ์
+                      return (
+                        <div key={k} data-field={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 0", borderBottom: "1px solid #f0f4f8", fontSize: "0.78rem",
+                          ...(ยาว ? { gridColumn: "1 / -1", flexDirection: "column" as const, alignItems: "flex-start", gap: 4 } : {}) }}>
+                          <span data-field-label style={{ color: "#8a929c", display: "flex", alignItems: "center", gap: 6 }}>{k}
+                            {k === "หมายเหตุภายใน" && <span data-internal-note style={{ padding: "1px 8px", borderRadius: 99, fontSize: "0.62rem", fontWeight: 700, background: "#fef3c7", color: "#92400e" }}>ภายใน ไม่พิมพ์ลงเอกสาร</span>}
+                          </span>
+                          <span data-field-value style={{ fontWeight: 700, color: STEEL, textAlign: ยาว ? "left" : "right", whiteSpace: ยาว ? "pre-line" : undefined, lineHeight: ยาว ? 1.7 : undefined }}>{ค่าใบ[k]}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -346,18 +347,6 @@ export default function HQProposalsPage() {
                     <ProposalPaymentsBox proposal={p} editable={จัดการได้} onChanged={() => void โหลด()} />
                   </div>
                 )}
-
-                <div style={การ์ด}>
-                  <div style={หัวการ์ด}>เงื่อนไข</div>
-                  {termLines.length === 0
-                    ? <div style={{ fontSize: "0.78rem", color: "#9ca3af" }}>ไม่ได้ระบุเงื่อนไข</div>
-                    : <ul style={{ margin: 0, paddingLeft: 18, listStyle: "disc", fontSize: "0.8rem", color: STEEL, lineHeight: 1.8 }}>{termLines.map((t, i) => <li key={i}>{t}</li>)}</ul>}
-                  {p.note && (
-                    <div style={{ marginTop: 12, padding: "10px 12px", background: "#fafbfc", border: "1px solid #f0f4f8", borderRadius: 10, fontSize: "0.75rem", color: "#4b5563", lineHeight: 1.6 }}>
-                      <span style={{ fontWeight: 700, color: "#8a929c" }}>หมายเหตุภายใน (ไม่พิมพ์ลงเอกสาร): </span>{p.note}
-                    </div>
-                  )}
-                </div>
               </div>
             </ModalCard>
           </div>
