@@ -8,7 +8,7 @@
 //   L) บันทึกการรันทุกครั้ง (<PMS_BACKUP_ROOT>/db-push-log.jsonl): ทุกครั้งที่รันมี 1 บรรทัด มีเวลาเริ่ม/จบ ผล ใบ ผู้ใช้ โฟลเดอร์
 // รัน: npm run test:push-guard   (ต้องมี Docker + ฐานทดสอบ pms-dbcheck · ฐานซ้อมกู้ pms-blank ตัวสคริปต์เปิด/ปิดเอง)
 import { spawn, spawnSync } from "node:child_process";
-import { appendFileSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { บันทึกเมื่อผ่าน } from "../../scripts/lib/migrationGate.mjs";
 import os from "node:os";
 import path from "node:path";
@@ -21,7 +21,13 @@ const LOCK = path.join(tmp, "prod.lock"), MARK = path.join(tmp, "marker.txt"), R
 // บันทึก "ผ่านรอบตรวจเต็ม" ของใบปัจจุบันทุกใบ (แทนผลรอบตรวจจริง) — ข้อ A–F วัดเรื่องอื่น ต้องผ่านด่านใบก่อน (G–H วัดด่านนี้)
 const RECORD = path.join(tmp, "gate-passed.json");
 บันทึกเมื่อผ่าน({ ตก: 0, ตัวตรวจ: 0, dir: "supabase/migrations", record: RECORD, ป้าย: "ทดสอบเครื่องมือ" });
-const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT, PMS_GATE_RECORD: RECORD };
+// ตัวกันเลขใบ (5 พ.ย. 69 · วัดที่ migration-order.test.mjs): ที่เก็บรอบชั่วคราว + รอบที่ผ่านแล้วที่มีใบของข้อนี้ (ใบล่าสุดในเครื่อง · 0901 · 0902 ของข้อ K)
+//   ข้อ A–L วัดเรื่องอื่น ต้องผ่านด่านเลขใบก่อน · ไม่จดรายชื่อใบลงที่เก็บรอบจริง
+const ROUND_DIR = path.join(tmp, "round");
+mkdirSync(path.join(ROUND_DIR, "rounds"), { recursive: true });
+writeFileSync(path.join(ROUND_DIR, "rounds", "รอบ-ทดสอบ.json"), JSON.stringify({ รอบ: "รอบ-ทดสอบเครื่องมือ", สถานะ: "ผ่านแล้ว", ผ่านเมื่อ: new Date().toISOString(),
+  ใบ: [readdirSync("supabase/migrations").filter(n => /^\d{4}_.*\.sql$/.test(n)).sort().at(-1).slice(0, 4), "0901", "0902"] }));
+const base = { ...process.env, PMS_PUSH_TEST: "1", PMS_PROD_LOCK: LOCK, PMS_PUSH_TEST_MARKER: MARK, PMS_BACKUP_ROOT: ROOT, PMS_GATE_RECORD: RECORD, PMS_ROUND_DIR: ROUND_DIR };
 delete base.PMS_PROD_LOCK_HELD; delete base.PMS_DRILL_SABOTAGE; delete base.PMS_FAKE_EMPTY; delete base.PMS_MIGRATIONS_DIR;
 delete base.PMS_PUSH_TEST_PENDING; delete base.PMS_PUSH_LOG;   // บันทึกการรันไปที่ค่าตั้งต้น <PMS_BACKUP_ROOT>/db-push-log.jsonl (= ROOT ของข้อทดสอบ)
 const LOG = path.join(ROOT, "db-push-log.jsonl");

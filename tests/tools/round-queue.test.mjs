@@ -3,7 +3,7 @@
 //   → test:prodbuild ที่ผ่านตัวกันรอบไปได้จะหยุดที่ล็อก (exit 3) ก่อน build/แตะฐาน — ไม่มีอะไรรันจริง
 //   ตกบนโค้ดก่อนแก้: ไม่มีคำสั่ง round:* และ test:prodbuild รอบเต็มเดินไปถึงล็อกฐานโดยไม่ถามรอบ (exit 3 แทน 2)
 // รัน: node tests/tools/round-queue.test.mjs
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -14,6 +14,9 @@ const ที่ = mkdtempSync(join(tmpdir(), "pms-round-"));
 const ล็อก = join(ที่, "testdb.lock");
 writeFileSync(ล็อก, JSON.stringify({ token: `test-${process.pid}`, pid: process.pid, งาน: "ข้อทดสอบ round-queue ถือไว้", เซสชัน: "ข้อทดสอบ", เริ่ม: new Date().toISOString() }));
 const env = { ...process.env, PMS_ROUND_DIR: join(ที่, "round"), PMS_GATE_RESUME_DIR: join(ที่, "resume"), PMS_TESTDB_LOCK: ล็อก, PMS_TESTDB_LOCK_WAIT: "0", PMS_TESTDB_LOCK_HELD: "" };
+// รายชื่อใบบนฐานจริงที่จดไว้ (ตัวกันเลขใบ 5 พ.ย. 69) = ใบในเครื่องทั้งหมด → ไม่มีใบใหม่ · รอบไม่มีใบก็ตรงกัน (ข้อนี้วัดเรื่องรอบ · เรื่องใบวัดที่ migration-order.test.mjs)
+mkdirSync(join(ที่, "round"), { recursive: true });
+writeFileSync(join(ที่, "round", "prod-migrations.json"), JSON.stringify({ ใบ: readdirSync("supabase/migrations").filter(n => /^\d{4}_.*\.sql$/.test(n)).sort() }));
 const สั่ง = (...a) => { const r = spawnSync(process.execPath, ["scripts/round.mjs", ...a], { encoding: "utf8", env }); return { code: r.status, out: (r.stdout ?? "") + (r.stderr ?? "") }; };
 const รอบเต็ม = (extraEnv = {}, args = []) => {
   const r = spawnSync(process.execPath, ["scripts/test-prodbuild.mjs", ...args], { encoding: "utf8", env: { ...env, ...extraEnv }, timeout: 120_000 });
