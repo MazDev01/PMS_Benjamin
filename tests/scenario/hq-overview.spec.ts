@@ -105,6 +105,7 @@ test.afterAll(async () => {
       delete from public.quotations where dealer_code = '${ส.รหัส}';
       delete from public.customers where dealer_code = '${ส.รหัส}';
       delete from public.hq_quotes where request_id = ${id};
+      select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
       delete from public.quote_requests where id = ${id};
       set local session_replication_role = origin;`);
     await ส.ลบ();

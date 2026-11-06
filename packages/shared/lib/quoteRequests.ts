@@ -27,6 +27,9 @@ export type QuoteRequest = {
   quotedAt: string | null;
   closedAt: string | null;
   cancelReason: string;
+  /** คนยกเลิก + เวลา (ใบ 0280) — คำขอที่ยกเลิกก่อนใบนี้ไม่ได้จดชื่อ = "" (แสดง "—") */
+  cancelledByName?: string;
+  cancelledAt?: string | null;
   /** สำหรับคิวของ HQ — ชื่อบริษัทของลูกค้าเป้าหมาย (ไม่มีในตารางคำขอ เติมตอนอ่าน) */
   leadCompany?: string;
   /** ข้อมูลลูกค้าของลีด (กล่องงาน HQ · ใบ 0242 · ชุดช่องมาตรฐาน) — ไม่มี = "" */
@@ -48,7 +51,7 @@ export const quoteRequestStatusLabel: Record<QuoteRequestStatus, string> = {
   quoted: "ส่งใบแล้ว",
   won: "ปิด (ได้งาน)",
   lost: "ปิด (ไม่ได้งาน)",
-  cancelled: "ยกเลิก",
+  cancelled: "ยกเลิกแล้ว",   // ใบ 0280 (บอสสั่ง 5 พ.ย. 69)
   superseded: "ขอแก้ราคาแล้ว",
 };
 export const quoteRequestStatusColor: Record<QuoteRequestStatus, { bg: string; text: string }> = {
@@ -203,14 +206,14 @@ export type QuoteMargin = {
 export type QuoteBoardGroup = "todo" | "quoted" | "won" | "closed";
 /** ตัวเลือกของช่องเลือกสถานะ (ใบ 0249 · บอสสั่ง 27 ต.ค. 69 แทนแถวปุ่มกรอง) — overdue = ต้องตีราคาเฉพาะที่เกิน 14 วัน · all = ทุกกลุ่ม
  *  ฐานคัดแถวเอง (เงื่อนไขเดียวกับตัวนับ) — หน้าจอห้ามกรองแถวเอง */
-export type QuoteBoardFilter = QuoteBoardGroup | "overdue" | "all";
+export type QuoteBoardFilter = QuoteBoardGroup | "overdue" | "cancelled" | "all";   // cancelled = ยกเลิกแล้ว (ใบ 0280 · อยู่ในปิด/ยกเลิกด้วย)
 export const quoteBoardGroups: { key: QuoteBoardGroup; label: string }[] = [
   { key: "todo", label: "ต้องตีราคา" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" },
   { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" },
 ];
 export const quoteBoardFilters: { key: QuoteBoardFilter; label: string }[] = [
   { key: "todo", label: "ต้องตีราคา" }, { key: "overdue", label: "ต้องตีราคา — เกิน 14 วัน" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" },
-  { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" }, { key: "all", label: "ทั้งหมด" },
+  { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" }, { key: "cancelled", label: "ยกเลิกแล้ว" }, { key: "all", label: "ทั้งหมด" },
 ];
 /** กลุ่มของแถวตามสถานะคำขอ (กติกาเดียวกับฐาน hq_quote_board) — ใช้เลือกข้อความนับวันของแถวในมุมมอง "ทั้งหมด" */
 export const กลุ่มของคำขอ = (status: string): QuoteBoardGroup =>
@@ -228,7 +231,7 @@ export const quoteBoardTag: Record<QuoteBoardTag, { label: string; color: string
   quoted:     { label: "รอดีลเลอร์",    color: "#003366", bar: "transparent", bg: "#ffffff" },
   won:        { label: "สั่งผลิต",       color: "#166534", bar: "transparent", bg: "#ffffff" },
   lost:       { label: "ไม่ได้งาน",     color: "#52606d", bar: "transparent", bg: "#ffffff" },
-  cancelled:  { label: "ยกเลิก",        color: "#52606d", bar: "transparent", bg: "#ffffff" },
+  cancelled:  { label: "ยกเลิกแล้ว",    color: "#52606d", bar: "transparent", bg: "#ffffff" },
   superseded: { label: "มีเวอร์ชันใหม่", color: "#52606d", bar: "transparent", bg: "#ffffff" },
 };
 export type QuoteBoardRow = QuoteRequest & {
@@ -250,4 +253,4 @@ export function ร่างล่าสุด(iso: string | null | undefined, n
   const ห่าง = วัน(now) - วัน(t);
   return ห่าง <= 0 ? "ร่างล่าสุด วันนี้" : `ร่างล่าสุด ${ห่าง} วันก่อน`;
 }
-export type QuoteBoard = { counts: Record<QuoteBoardGroup, number> & { overdue: number }; rows: QuoteBoardRow[] };
+export type QuoteBoard = { counts: Record<QuoteBoardGroup, number> & { overdue: number; cancelled?: number }; rows: QuoteBoardRow[] };

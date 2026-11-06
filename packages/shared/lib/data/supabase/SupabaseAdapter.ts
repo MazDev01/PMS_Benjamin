@@ -670,6 +670,10 @@ export const SupabaseAdapter: DataAdapter = {
       const { error } = await sb().rpc("quote_request_cancel", { p_id: id, p_reason: reason, p_close_lead: closeLead });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
     },
+    abandonForm: async (leadNumId) => {
+      const { error } = await sb().rpc("lead_quote_request_abandoned", { p_lead_num: leadNumId });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+    },
     reprice: async (id, reason, spec) => {
       const { data, error } = await sb().rpc("quote_request_reprice", { p_id: id, p_reason: reason, p_spec: spec ?? null });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);

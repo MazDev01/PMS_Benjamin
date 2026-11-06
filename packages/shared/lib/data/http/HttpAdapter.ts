@@ -295,6 +295,7 @@ const quoteRequests: QuoteRequestsRepo = {
   board: (group, q) => apiFetch<QuoteBoard>(`/quote-requests?view=board&group=${encodeURIComponent(group)}&q=${encodeURIComponent(q)}`),
   submit: (i) => post<QuoteRequest>("/quote-requests", { op: "submit", ...i }),
   cancel: async (id, reason, closeLead) => { await post("/quote-requests", { op: "cancel", id, reason, closeLead }); },
+  abandonForm: async (leadNumId) => { await post("/quote-requests", { op: "abandon-form", leadNumId }); },
   reprice: (id, reason, spec) => post<QuoteRequest>("/quote-requests", { op: "reprice", id, reason, spec }),
   accept: async (id) => { await post("/quote-requests", { op: "accept", id }); },
   hqQuoteFor: (requestId) => apiFetch<HqQuote | null>(`/quote-requests?view=hq-quote&request=${requestId}`),

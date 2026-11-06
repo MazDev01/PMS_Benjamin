@@ -28,6 +28,7 @@ function ล้างที่ฐาน() {
     alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
     delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and r.dealer_code = 'RYG' and r.lead_num_id = ${leadNum};
     update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'RYG' and lead_num_id = ${leadNum};
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where dealer_code = 'RYG' and lead_num_id = ${leadNum};
     delete from public.leads where dealer_code = 'RYG' and num_id = ${leadNum};`;
   if (leadNum) รันSQLในฐาน(sql);

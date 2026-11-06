@@ -24,7 +24,7 @@ grant execute on all functions in schema flowtest to authenticated;
 
 -- ═══ ชุดข้อมูล (ปิดตัวดัก/กุญแจนอกในรายการนี้เท่านั้น — ใส่สถานะปลายทางตรง ๆ) ═══════════════════════════════
 set local session_replication_role = replica;
-delete from hq_quotes; delete from quote_request_events; delete from quote_requests;
+delete from hq_quotes; delete from quote_request_events; set local pms.quote_request_delete = 'test'; delete from quote_requests;   -- ใบ 0280 ห้ามลบคำขอ ยกเว้นชุดล้างทดสอบ
 delete from leads where company like 'ZZQB %';
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status) values
   ('#L-QB-1', 9601, 'RYG', 'ZZQB ล1', 'ZZQB ล1', '0800009601', 'ตราด', 'BULLET'),
@@ -64,7 +64,7 @@ begin
 
   -- จำนวน 4 กลุ่ม (+ เกินกำหนดในกลุ่มต้องตีราคา)
   b := hq_quote_board('todo', '');
-  perform flowtest.ok(b->'counts' = '{"todo":4,"overdue":1,"quoted":2,"won":1,"closed":3}'::jsonb, 'จำนวน 4 กลุ่ม: ต้องตีราคา 4 (เกิน 1) · รอดีลเลอร์ 2 · สั่งผลิต 1 · ปิด 3 — ได้ ' || (b->'counts')::text);
+  perform flowtest.ok(b->'counts' = '{"todo":4,"overdue":1,"quoted":2,"won":1,"closed":3,"cancelled":1}'::jsonb, 'จำนวน 4 กลุ่ม: ต้องตีราคา 4 (เกิน 1) · รอดีลเลอร์ 2 · สั่งผลิต 1 · ปิด 3 · ยกเลิกแล้ว 1 (ใบ 0280 · อยู่ในปิดด้วย) — ได้ ' || (b->'counts')::text);
   -- ต้องตีราคา: กำหนดส่งใกล้สุดก่อน · ป้ายตรงสถานะจริง
   perform flowtest.ok(flowtest.ids(b) = array[9501, 9503, 9502, 9504], 'ต้องตีราคา เรียงกำหนดส่งใกล้สุดก่อน (เกินกำหนดบนสุด) — ได้ ' || flowtest.ids(b)::text);
   perform flowtest.ok(flowtest.tags(b) = array['overdue', 'draft', 'reprice', 'new'], 'ป้าย: เกินกำหนด · ร่างค้าง · ขอแก้ราคา · ใหม่ — ได้ ' || flowtest.tags(b)::text);
@@ -87,10 +87,13 @@ begin
   b := hq_quote_board('closed', '');
   perform flowtest.ok(flowtest.ids(b) = array[9510, 9509, 9508], 'ปิด/ยกเลิก เรียงปิดล่าสุดก่อน — ได้ ' || flowtest.ids(b)::text);
   perform flowtest.ok(flowtest.tags(b) = array['cancelled', 'lost', 'superseded'], 'ป้ายปิด = สถานะคำขอ');
+  -- กลุ่มยกเลิกแล้ว (ใบ 0280): เฉพาะคำขอที่ยกเลิก + เหตุผล
+  b := hq_quote_board('cancelled', '');
+  perform flowtest.ok(flowtest.tags(b) = array['cancelled'] and (select e ->> 'cancel_reason' from jsonb_array_elements(b -> 'rows') e) = 'ลูกค้ายกเลิกโครงการ', 'กลุ่มยกเลิกแล้ว = คำขอที่ยกเลิกเท่านั้น + เหตุผล');
 
   -- คำค้นเดียวกันกรองทั้งจำนวนและรายการ (รหัสดีลเลอร์ · ชื่อลูกค้าเป้าหมาย · ไม่สนตัวพิมพ์)
   b := hq_quote_board('todo', '  cnx ');
-  perform flowtest.ok(b->'counts' = '{"todo":1,"overdue":0,"quoted":1,"won":0,"closed":1}'::jsonb, 'ค้น cnx: จำนวนทุกกลุ่มกรองด้วย — ได้ ' || (b->'counts')::text);
+  perform flowtest.ok(b->'counts' = '{"todo":1,"overdue":0,"quoted":1,"won":0,"closed":1,"cancelled":0}'::jsonb, 'ค้น cnx: จำนวนทุกกลุ่มกรองด้วย — ได้ ' || (b->'counts')::text);
   perform flowtest.ok(flowtest.ids(b) = array[9502], 'ค้น cnx: รายการต้องตีราคาเหลือ QB-2');
   b := hq_quote_board('todo', 'zzqb ล3');
   perform flowtest.ok(flowtest.ids(b) = array[9503] and (b->'counts'->>'quoted')::int = 0, 'ค้นชื่อลูกค้าเป้าหมาย: เหลือ QB-3');

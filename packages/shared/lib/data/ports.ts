@@ -144,6 +144,8 @@ export interface QuoteRequestsRepo {
   submit(input: QuoteRequestInput): Promise<import("../quoteRequests").QuoteRequest>;
   /** ยกเลิกได้จนกว่า HQ ส่งใบ · ต้องมีเหตุผล · closeLead = ปิดลูกค้าเป้าหมายเป็นไม่สำเร็จ (ไม่งั้นกลับเป็นรวบรวมความต้องการ) */
   cancel(id: number, reason: string, closeLead: boolean): Promise<void>;
+  /** กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ใบ 0280 · ไม่เก็บข้อมูลที่กรอก) */
+  abandonForm(leadNumId: number): Promise<void>;
   /** ขอแก้ราคา (หลัง HQ ส่งใบ) — คำขอเดิมปิด เปิดคำขอใหม่ เริ่มนับ 14 วันใหม่ */
   reprice(id: number, reason: string, spec?: string): Promise<import("../quoteRequests").QuoteRequest>;
   /** HQ กดรับเรื่อง → กำลังทำราคา (ผู้รับผิดชอบ = ผู้กด) */

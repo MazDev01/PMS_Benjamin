@@ -31,6 +31,7 @@ function ล้างที่ฐาน() {
     delete from public.hq_quotes h using public.quote_requests r where h.request_id = r.id and r.dealer_code = 'RYG' and r.lead_num_id = ${leadNum};
     alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
     update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'RYG' and lead_num_id = ${leadNum};
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where dealer_code = 'RYG' and lead_num_id = ${leadNum};
     delete from public.email_outbox where to_email = '${ผู้รับ}';
     delete from public.leads where dealer_code = 'RYG' and num_id = ${leadNum};`;

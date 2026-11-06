@@ -249,7 +249,16 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                   <span style={{ ...ค่าข้อมูล, overflowWrap: "anywhere" }}>{ค่า}</span>
                 </div>
               ))}
-              {request.status !== "quoted" && (
+              {/* ยกเลิกแล้ว (ใบ 0280): เหตุผล · ใคร · เมื่อไร แทนกำหนดส่ง (คำขอที่ยกเลิกไม่มีกำหนดให้นับ) */}
+              {request.status === "cancelled" && (
+                <div data-info="cancelled" style={{ display: "grid", gap: 2, minWidth: 0, gridColumn: "1 / -1" }}>
+                  <span style={ป้ายข้อมูล}>ยกเลิกแล้ว</span>
+                  <span style={{ ...ค่าข้อมูล, overflowWrap: "anywhere" }} data-testid="cancel-info">
+                    เหตุผล: {request.cancelReason || "—"} · โดย {request.cancelledByName || "—"} · เมื่อ {request.cancelledAt ?? request.closedAt ? วันไทยสั้น((request.cancelledAt ?? request.closedAt)!) : "—"}
+                  </span>
+                </div>
+              )}
+              {request.status !== "quoted" && request.status !== "cancelled" && (
                 <div data-info="due" style={{ display: "grid", gap: 2, minWidth: 0 }}>
                   <span style={ป้ายข้อมูล}>กำหนดส่งใบ HQ</span>
                   <span style={ค่าข้อมูล}>

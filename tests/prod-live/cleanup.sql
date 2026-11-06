@@ -64,6 +64,7 @@ delete from public.quotations where dealer_code = 'ZZT';
 delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = 'ZZT');
 update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'ZZT';
 delete from public.quote_request_events where request_id in (select id from public.quote_requests where dealer_code = 'ZZT');
+select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
 delete from public.quote_requests where dealer_code = 'ZZT';
 delete from public.files where dealer_code = 'ZZT';
 delete from public.customer_notes where dealer_code = 'ZZT';
@@ -91,6 +92,7 @@ delete from public.quotations where dealer_code = 'ZZTN';
 delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = 'ZZTN');
 update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'ZZTN';
 delete from public.quote_request_events where request_id in (select id from public.quote_requests where dealer_code = 'ZZTN');
+select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
 delete from public.quote_requests where dealer_code = 'ZZTN';
 delete from public.files where dealer_code = 'ZZTN';
 delete from public.customer_notes where dealer_code = 'ZZTN';

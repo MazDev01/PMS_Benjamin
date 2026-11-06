@@ -45,6 +45,7 @@ test.afterAll(async () => {
   รันSQLในฐาน(`set local session_replication_role = replica;
     delete from public.quotations where dealer_code = '${ก.รหัส}';
     delete from public.customers where dealer_code = '${ก.รหัส}';
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where dealer_code = '${ก.รหัส}';
     delete from public.leads where dealer_code = '${ก.รหัส}';
     set local session_replication_role = origin;`);

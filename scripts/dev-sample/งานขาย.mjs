@@ -258,6 +258,7 @@ export function sqlลบงานขาย(ช่วง, บริษัท = [
     alter table public.quotations enable trigger quotations_no_delete_won;
     delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and ${ใน("r.lead_num_id")};
     update public.quote_requests set supersedes_id = null, root_id = null where ${ใน("lead_num_id")};
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where ${ใน("lead_num_id")};
     delete from public.appointments where ${ใน("lead_id")};
     delete from public.leads where ${ใน("num_id")} or customer_id in (select id from public.customers where ${ลูกค้า});

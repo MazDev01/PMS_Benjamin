@@ -37,7 +37,7 @@ do $lk$ begin
 end $lk$;
 set local session_replication_role = replica;
 delete from dealer_proposal_payments; delete from dealer_package_proposals; delete from dealer_prospect_activities; delete from dealer_prospects;
-delete from hq_quotes; delete from quote_request_events; delete from quote_requests; delete from quotations; delete from leads; delete from dealer_territories;
+delete from hq_quotes; delete from quote_request_events; set local pms.quote_request_delete = 'test'; delete from quote_requests; delete from quotations; delete from leads; delete from dealer_territories;   -- ใบ 0280 ห้ามลบคำขอ ยกเว้นชุดล้างทดสอบ
 
 -- กล่อง 1 · หาดีลเลอร์ใหม่: ผู้สนใจ new 2 · meeting 1 · considering 1 · won 1 · lost 1
 insert into dealer_prospects (id, name, status) values

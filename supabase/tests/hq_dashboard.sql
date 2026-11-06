@@ -46,7 +46,7 @@ do $lk$ begin
 end $lk$;
 set local session_replication_role = replica;
 delete from quotation_won_at; delete from dealer_proposal_payments; delete from dealer_package_proposals; delete from dealer_prospect_activities;
-delete from dealer_prospects; delete from hq_quotes; delete from quote_request_events; delete from quote_requests;
+delete from dealer_prospects; delete from hq_quotes; delete from quote_request_events; set local pms.quote_request_delete = 'test'; delete from quote_requests;   -- ใบ 0280 ห้ามลบคำขอ ยกเว้นชุดล้างทดสอบ
 delete from quotations; delete from leads;
 -- บันทึกการใช้งานลบไม่ได้ (ตัวดักใบ 0241) — ปิดตัวดักชั่วคราวในทรานแซกชันนี้ ซึ่งย้อนกลับท้ายไฟล์เสมอ (ไม่มีอะไรถูกลบจริง)
 alter table audit_log disable trigger audit_log_guard_row; delete from audit_log; alter table audit_log enable trigger audit_log_guard_row;

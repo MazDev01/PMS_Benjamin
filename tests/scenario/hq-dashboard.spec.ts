@@ -41,6 +41,7 @@ function ล้าง() {
     delete from public.dealer_package_proposals where id = 979200811;
     delete from public.dealer_prospects where id = 979200801;
     delete from public.quote_request_events where request_id = 979200901;
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where id = 979200901;
     delete from public.leads where dealer_code in (${รหัส}) or num_id in (${เลขลีด.join(", ")});
     delete from public.customers where dealer_code in (${รหัส}) or id = ${เลขลูกค้า};

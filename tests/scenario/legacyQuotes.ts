@@ -38,6 +38,7 @@ export function ล้างใบHQทดสอบ(dealerCode: string, leadNums
     alter table public.quotations enable trigger quotations_no_delete_won;
     delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and r.dealer_code = '${dealerCode}' and r.lead_num_id in (${ids});
     update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = '${dealerCode}' and lead_num_id in (${ids});
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where dealer_code = '${dealerCode}' and lead_num_id in (${ids});
     delete from public.leads where dealer_code = '${dealerCode}' and num_id in (${ids});`;
   รันSQLในฐาน(sql);

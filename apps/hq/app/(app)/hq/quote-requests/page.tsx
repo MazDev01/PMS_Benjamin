@@ -34,7 +34,8 @@ const ส้ม = "#b45309";
 /** แถวในรายการ: ต้องตีราคา = นับถึงกำหนดส่งใบ HQ · ส่งแล้ว = นับถึงวันยืนราคา · กลุ่มปิด = วันที่ปิด (ไม่มีกำหนดให้นับ) */
 const นับวัน = (r: QuoteBoardRow, ตัวกรอง: QuoteBoardFilter | "done") => {
   // เกิน 14 วัน = แถวต้องตีราคา · ทั้งหมด = ตามกลุ่มของคำขอแต่ละแถว
-  const g = ตัวกรอง === "overdue" ? "todo" : ตัวกรอง === "all" || ตัวกรอง === "done" ? กลุ่มของคำขอ(r.status) : ตัวกรอง;
+  const g = ตัวกรอง === "overdue" ? "todo" : ตัวกรอง === "all" || ตัวกรอง === "done" || ตัวกรอง === "cancelled" ? กลุ่มของคำขอ(r.status) : ตัวกรอง;
+  if (r.status === "cancelled") return `ยกเลิกเมื่อ ${r.cancelledAt ?? r.closedAt ? วันไทยสั้น((r.cancelledAt ?? r.closedAt)!) : "—"}`;
   // ต้องตีราคาที่เลยกำหนด: จำนวนวันอยู่ที่ป้ายแดงป้ายเดียว (บอสสั่ง 3 พ.ย. 69) — ไม่ต้องบอกซ้ำในบรรทัดล่าง
   return g === "todo" ? (r.tag === "overdue" ? "" : `กำหนดส่ง ${เหลือหรือเกิน(r.dueAt)}`)
   : g === "quoted" ? (r.validUntil ? `ยืนราคา ${เหลือหรือเกิน(r.validUntil)}` : "ยืนราคา —")
@@ -114,7 +115,7 @@ export default function HQQuoteRequestsPage() {
       setเลือก(prev => b.rows.find(r => r.id === prev?.id) ?? prev ?? b.rows[0] ?? null);
     }).catch(e => {
       logRepoRead("quoteRequests.board", e);
-      if (alive) { setกล่อง({ counts: { todo: 0, overdue: 0, quoted: 0, won: 0, closed: 0 }, rows: [] }); if (!ค้นหา) setนับคิว(null); }
+      if (alive) { setกล่อง({ counts: { todo: 0, overdue: 0, quoted: 0, won: 0, closed: 0, cancelled: 0 }, rows: [] }); if (!ค้นหา) setนับคิว(null); }
     });
     return () => { alive = false; };
   }, [กลุ่ม, ค้นหา]);
@@ -181,9 +182,10 @@ export default function HQQuoteRequestsPage() {
             <div className="hq-qr-filter">
               {/* ปุ่ม 3 กลุ่มพร้อมจำนวน (บอสสั่ง 30 ต.ค. 69 · ตามแบบ · แทนช่องเลือก) — เกิน 14 วัน = การ์ดด้านบน (อยู่ในกลุ่มต้องตีราคา) */}
               <div role="tablist" aria-label="กลุ่มคำขอ" className="hq-qr-groups">
-                {([["todo", "ต้องตีราคา"], ["quoted", "ส่งแล้ว รอดีลเลอร์"], ["done", "ปิด/ยกเลิก"]] as const).map(([k, ป้าย]) => {
+                {/* ยกเลิกแล้ว (บอสสั่ง 5 พ.ย. 69 · ใบ 0280): คำขอที่ดีลเลอร์ยกเลิก + เหตุผล/ใคร/เมื่อไร — อยู่ในปิด/ยกเลิกด้วย */}
+                {([["todo", "ต้องตีราคา"], ["quoted", "ส่งแล้ว รอดีลเลอร์"], ["done", "ปิด/ยกเลิก"], ["cancelled", "ยกเลิกแล้ว"]] as const).map(([k, ป้าย]) => {
                   const น = กล่อง?.counts ?? นับคิว;   // ตามผลที่เห็นอยู่ (มีคำค้น = จำนวนของผลค้น · ไม่มี = ทั้งหมด = การ์ด)
-                  const จำนวน = !น ? null : k === "done" ? น.won + น.closed : น[k];
+                  const จำนวน = !น ? null : k === "done" ? น.won + น.closed : k === "cancelled" ? (น.cancelled ?? null) : น[k];
                   const เลือกอยู่ = k === "todo" ? (กลุ่ม === "todo" || กลุ่ม === "overdue") : k === "done" ? (กลุ่ม === "done" || กลุ่ม === "won" || กลุ่ม === "closed") : กลุ่ม === k;
                   return (
                     <button key={k} type="button" role="tab" aria-selected={เลือกอยู่} data-group={k} disabled={กำลังบันทึก} onClick={() => เปลี่ยนกลุ่ม(k)}

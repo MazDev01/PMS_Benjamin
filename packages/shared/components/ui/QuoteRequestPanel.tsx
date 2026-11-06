@@ -13,6 +13,8 @@
 //   เกณฑ์ "ครบ" = lib/leadInfoTasks.ts ตัวเดียวกับที่ติ๊ก 2 งานนี้ · "นัดหมาย" ไม่บังคับ
 // ไฟล์แนบ 2 ทาง (ใบ 0273): แนบตอนส่งคำขอ (ส่งคำขอก่อน แล้วไฟล์ตามไป) + แนบเพิ่ม/ลบได้จนกว่า HQ ส่งใบ · ไฟล์ HQ ดูได้หลัง HQ ส่งใบ
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
+// ยกเลิก (บอสสั่ง 5 พ.ย. 69 · ใบ 0280): คำขอที่ส่งแล้วไม่ถูกลบ — ยังเห็นในแผงนี้ (คำขอที่ยกเลิกแล้ว: เหตุผล · ใคร · เมื่อไร · ไฟล์แนบเปิดดูได้)
+//   ขอราคาใหม่ได้ตามปกติ คำขอเก่าไม่ทับ · กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ไม่เก็บที่กรอก)
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
@@ -153,6 +155,14 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
 
   // หลังฐานตอบสำเร็จ: รอรายการคำขอใหม่ก่อน (กล่องยังขึ้น "กำลัง…") แล้วค่อยบอกหน้าแม่
   const หลังทำ = async () => { await โหลด(); onChanged?.(); };
+  const ยกเลิกแล้ว = (รายการ ?? []).filter(r => r.status === "cancelled");
+  const [ดูไฟล์ยกเลิก, setดูไฟล์ยกเลิก] = useState<number | null>(null);
+  // ปิดฟอร์มขอราคาโดยไม่ส่ง (ทั้งขั้นเติมข้อมูลที่ขาดและฟอร์มขอราคา) — ฐานจดประวัติ · จดไม่ได้ไม่ขวางการปิดฟอร์ม
+  const ยกเลิกฟอร์ม = () => {
+    setโหมด("ดู");
+    if (lead.numId == null) return;
+    void repo.abandonForm(lead.numId).then(() => onChanged?.()).catch(e => logRepoRead("quoteRequests.abandonForm", e));
+  };
   const ยกเลิกคำขอ = (คำขอ: QuoteRequest) => ถามเหตุผล({
     หัวข้อ: `ยกเลิกคำขอ ${คำขอ.requestNo} ?`,
     รายละเอียด: "ยกเลิกแล้วลูกค้าเป้าหมายกลับไปขั้น \"ข้อมูลลูกค้า\" · ลูกค้าไม่สนใจแล้ว ใช้ \"ปิดไม่สำเร็จ\" ที่กล่องขั้นต่อไป",
@@ -317,7 +327,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           })}
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy || undefined} data-busy-button onClick={() => void บันทึกข้อมูลที่ขาด()}>{busy ? "กำลังบันทึก…" : "บันทึกแล้วไปต่อ"}</button>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ยกเลิก</button>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} data-act="abandon-request-form" onClick={ยกเลิกฟอร์ม}>ยกเลิก</button>
           </div>
         </div>
       )}
@@ -357,8 +367,25 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy || undefined} data-busy-button onClick={() => void ส่งคำขอ()}>{busy ? "กำลังส่ง…" : "ส่งคำขอ"}</button>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setโหมด("ดู")}>ยกเลิก</button>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} data-act="abandon-request-form" onClick={ยกเลิกฟอร์ม}>ยกเลิก</button>
           </div>
+        </div>
+      )}
+
+      {ยกเลิกแล้ว.length > 0 && (
+        <div data-box="cancelled-requests" style={{ marginTop: 12, display: "grid", gap: 6 }}>
+          <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "#6b7280" }}>คำขอที่ยกเลิกแล้ว</div>
+          {ยกเลิกแล้ว.map(r => (
+            <div key={r.id} data-cancelled-request={r.requestNo} style={{ border: "1px solid #eef0f3", borderRadius: 9, padding: "8px 10px", fontSize: "0.76rem", color: "#4b5563", display: "grid", gap: 4 }}>
+              <div><b style={{ color: "#374151" }}>{r.requestNo}</b> · <span className="badge" style={{ background: quoteRequestStatusColor.cancelled.bg, color: quoteRequestStatusColor.cancelled.text }}>{quoteRequestStatusLabel.cancelled}</span></div>
+              <div data-testid="cancel-info">เหตุผล: {r.cancelReason || "—"} · โดย {r.cancelledByName || "—"} · เมื่อ {r.cancelledAt ?? r.closedAt ? วันไทยสั้น((r.cancelledAt ?? r.closedAt)!) : "—"}</div>
+              <button type="button" data-act="cancelled-request-files" aria-expanded={ดูไฟล์ยกเลิก === r.id} onClick={() => setดูไฟล์ยกเลิก(v => v === r.id ? null : r.id)}
+                style={{ background: "none", border: "none", padding: 0, color: "#6b21a8", fontWeight: 700, fontSize: "0.74rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4, justifySelf: "start" }}>
+                <Paperclip size={12} /> ไฟล์แนบของคำขอนี้ {ดูไฟล์ยกเลิก === r.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+              {ดูไฟล์ยกเลิก === r.id && <QuoteFilesBox requestId={r.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="คำขอนี้ยกเลิกแล้ว" />}
+            </div>
+          ))}
         </div>
       )}
 

@@ -300,6 +300,7 @@ export const LocalAdapter: DataAdapter = {
     board: () => ok({ counts: { todo: 0, overdue: 0, quoted: 0, won: 0, closed: 0 }, rows: [] }),
     submit: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
     cancel: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+    abandonForm: () => ok(undefined),
     reprice: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
     accept: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
     hqQuoteFor: () => ok(null),
