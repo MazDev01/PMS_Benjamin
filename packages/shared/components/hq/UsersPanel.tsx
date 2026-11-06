@@ -68,6 +68,7 @@ const LEVEL_CAP: Record<string, Cap> = {
   none:   { v: false, c: false, e: false, d: false, x: false },
 };
 import { MODULE_LIST, MODULE_PERMS } from "@pms/shared/lib/hqPermissionMatrix";
+import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
 
 const capOf = (role: RoleKey, module: string): Cap => {
   const m = MODULE_PERMS[module];
@@ -726,6 +727,7 @@ function SetPasswordDialog({ user, onApply, onClose }: {
 // Timeline = บันทึกการใช้งานจริงของผู้ใช้คนนี้ (audit log) — เดิมเป็นวันที่ปลอมที่ hardcode ไว้
 // ระบบไม่ได้บันทึกการเข้าสู่ระบบ จึงไม่มีรายการ "เข้าสู่ระบบล่าสุด"
 function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: () => void; onEdit: () => void }) {
+  const แทนรหัส = useแทนรหัสในบันทึก();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
   const auditEntries = useAuditEntries();
   const iconOf = (action: string) =>
     action.includes("รหัสผ่าน") ? { icon: <KeyRound size={13} />, color: "#d97706" }
@@ -737,7 +739,7 @@ function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: (
     ...auditEntries
       .filter(e => e.user === user.name || e.target === user.email)
       .slice(0, 8)
-      .map(e => ({ ...iconOf(e.action), label: e.target && e.target !== user.email ? `${e.action} · ${e.target}` : e.action, at: e.at })),
+      .map(e => ({ ...iconOf(e.action), label: e.target && e.target !== user.email ? `${e.action} · ${แทนรหัส(e.target)}` : e.action, at: e.at })),
     { icon: <UserPlus size={13} />, color: MUTED, label: "สร้างบัญชี", at: user.createdAt },
   ];
 

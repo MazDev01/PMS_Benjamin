@@ -1,5 +1,6 @@
 "use client";
 
+
 // ── บันทึกการติดต่อ + ประวัติ ของผู้สนใจเป็นดีลเลอร์ ────────────────────────────────────
 //   บอสสั่ง 14 ก.ย. 69: "ให้มันทำงานแบบเดียวกับดีลเลอร์" (กิจกรรม/รายงานติดตามของดีลเลอร์)
 //
@@ -20,6 +21,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
 import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
 
 const ป้ายชนิด: Record<ProspectActivity["kind"], { type: string; label: string }> = {
   created:  { type: "note",   label: "เพิ่มรายชื่อ" },
@@ -48,6 +50,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
   onReload: () => void;
   onAdded: () => void;
 }) {
+  const แทนรหัส = useแทนรหัสในบันทึก();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
   const [channel, setChannel] = useState("");
   const [body, setBody] = useState("");
   const [nextFollowUp, setNextFollowUp] = useState("");
@@ -99,7 +102,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
     id: a.id,
     type: ป้ายชนิด[a.kind]?.type ?? "note",
     label: a.kind === "contact" && a.channel ? `ติดต่อทาง ${a.channel}` : ป้ายชนิด[a.kind]?.label,
-    text: ชื่อขั้นปัจจุบัน(a.kind === "contact" && a.nextFollowUp ? `${a.body} · นัดติดตาม ${fmtISOToThai(a.nextFollowUp)}` : a.body),   // ชื่อขั้นเดิม → ใหม่ตอนแสดง
+    text: แทนรหัส(ชื่อขั้นปัจจุบัน(a.kind === "contact" && a.nextFollowUp ? `${a.body} · นัดติดตาม ${fmtISOToThai(a.nextFollowUp)}` : a.body)),   // รหัสดีลเลอร์ → ชื่อ ตอนแสดง (6 พ.ย. 69)   // ชื่อขั้นเดิม → ใหม่ตอนแสดง
     time: `${วันเวลาไทย(new Date(a.createdAt))} · ${a.actor === "system" ? "ระบบ" : a.actor}`,
   }));
 

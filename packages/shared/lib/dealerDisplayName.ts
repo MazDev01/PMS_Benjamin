@@ -22,5 +22,6 @@ export function แทนรหัสด้วยชื่อ(ข้อควา
   const รหัส = [...new Set(รหัสที่รู้จัก)].filter(c => c && c !== "HQ" && /^[A-Z0-9]{2,6}$/.test(c)).sort((a, b) => b.length - a.length);
   if (!ข้อความ || !รหัส.length) return ข้อความ;
   const แบบ = new RegExp(`(^|[\\s·(,:/])(${รหัส.join("|")})(?=$|[\\s·),:/])`, "g");
-  return ข้อความ.replace(แบบ, (_m, หน้า: string, c: string) => หน้า + ชื่อของ(c));
+  return ข้อความ.replace(new RegExp(`รหัส (${รหัส.join("|")})(?=$|[\\s·),:/])`, "g"), (_m, c: string) => ชื่อของ(c))   // "รหัส RYG" → ชื่อ (ประวัติผู้สนใจ)
+    .replace(แบบ, (_m, หน้า: string, c: string) => หน้า + ชื่อของ(c));
 }
