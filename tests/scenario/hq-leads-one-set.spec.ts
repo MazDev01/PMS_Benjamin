@@ -109,14 +109,16 @@ test("[H6·hq] ลีดทั้งเครือ: ทุกระดับ �
   expect(ป้ายดีลเลอร์.length, "มีแถวในตาราง").toBeGreaterThan(0);
   expect(ป้ายดีลเลอร์.every(c => c.trim() === ก!.รหัส), `ทุกแถวเป็นของสาขาของข้อ (ได้ ${ป้ายดีลเลอร์.join(" · ")})`).toBe(true);
 
-  // ระดับจังหวัด (สตูล · 2 สาขาของข้อ) และภูมิภาค (ภาคใต้): รายชื่อ (คำค้นป้ายของรอบ) ยังเป็นลีดเปิดของข้อ 4 ราย · การ์ด = แถวรวมตารางเจาะลึก (ชุดเดียว)
+  // ระดับจังหวัด (สตูล · 2 สาขาของข้อ) และภูมิภาค (ภาคใต้): รายชื่อ (คำค้นป้ายของรอบ) ยังเป็นลีดเปิดของข้อ 4 ราย · การ์ด = ผลรวมแถวตารางเจาะลึก (ชุดเดียว · ไม่มีแถวรวมแล้ว)
   for (const [ระดับ, ไป] of [["จังหวัด", "prov"], ["ภูมิภาค", "region"]] as const) {
     await page.locator(`[data-crumbs] [data-crumb="${ไป}"]`).click();
     await expect(page.locator("[data-lead-table][data-ready='1']")).toHaveAttribute("data-total", "4", { timeout: 25_000 });
-    // การ์ดกับแถวรวมมาจากคำขอเดียวกัน (hq_drill) → ต้องเท่ากันทันทีที่โหลดเสร็จ
-    await expect(page.locator("[data-drill-table] tfoot [data-group-total]")).toBeVisible({ timeout: 20_000 });
+    // การ์ดกับตารางมาจากคำขอเดียวกัน (hq_drill) → ผลรวมแถวต้องเท่าการ์ดทันทีที่โหลดเสร็จ
+    await expect(page.locator('[data-drill-table] tbody [data-cell="open"]').first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("[data-drill-table] tfoot"), "ไม่มีแถวรวม").toHaveCount(0);
     const การ์ดเปิด = await page.locator('[data-kpi-row] [data-kpi="open"] [data-value]').first().getAttribute("data-value");
-    expect(การ์ดเปิด, `ระดับ${ระดับ}: การ์ดเปิดอยู่ = แถวรวมตารางเจาะลึก`).toBe(await page.locator('[data-drill-table] tfoot [data-sum="open"]').getAttribute("data-value"));
+    const รวมเปิด = (await page.locator('[data-drill-table] tbody [data-cell="open"]').evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0);
+    expect(การ์ดเปิด, `ระดับ${ระดับ}: การ์ดเปิดอยู่ = ผลรวมแถวตารางเจาะลึก`).toBe(String(รวมเปิด));
     expect(Number(การ์ดเปิด), `ระดับ${ระดับ}: นับลีดเปิดของข้อรวมอยู่ด้วย`).toBeGreaterThanOrEqual(4);
   }
   await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(ก!.รหัส);
@@ -143,7 +145,9 @@ test("[H6·hq] ลีดทั้งเครือ: กดการ์ด = แ
   await page.locator('[data-kpi="new"]').first().click();
   const แผง = page.locator('[data-drill-drawer="card:leads"]');
   await expect(แผง, "การ์ดลีดใหม่ → แผงที่มา").toBeVisible();
-  await expect(แผง.locator("tfoot [data-value]"), "แผงที่มา แถวรวม = การ์ด 5").toHaveAttribute("data-value", "5");
+  await expect(แผง.locator("tfoot"), "แผงที่มาไม่มีแถวรวม").toHaveCount(0);
+  await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
+    { message: "แผงที่มา ผลรวมแถว = การ์ด 5" }).toBe(5);
   await แผง.getByRole("button", { name: "ปิดแผง" }).click();
   await expect(ช่องขั้น, "รายชื่อยังเป็นกำลังดำเนินการ").toHaveValue("OPEN");
   await ตรงค่า(page, "หลังกดการ์ดลีดใหม่", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 4 });

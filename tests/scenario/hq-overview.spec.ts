@@ -170,7 +170,7 @@ test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายก�
     expect(error).toBeNull();
     return data as แถวผลงาน[];
   };
-  // ทั้งเครือ: แถวรวมของคอลัมน์ส่วนต่าง (ตารางแบ่งหน้า 10 แถว — ผลรวมครอบทุกแถว) = ฐาน · % คิดจากผลรวมขาย/ต้นทุน
+  // ทั้งเครือ: ผลรวมคอลัมน์ส่วนต่างของตาราง (ตารางแบ่งหน้า 10 แถว — ผลรวมครอบทุกแถว · ไม่มีแถวรวมบนจอแล้ว อ่านจาก data-total) = ฐาน · % คิดจากผลรวมขาย/ต้นทุน
   const รวม = await อ่านคู่นิ่ง(async () => {
     const rows = await ผลงานฐาน();
     const ขาย = rows.reduce((t, x) => t + Number(x.marginSale), 0), ทุน = rows.reduce((t, x) => t + Number(x.marginCost), 0);
@@ -178,9 +178,10 @@ test("[flow·hq] เวลาตอบเฉลี่ย/อัตรายก�
   }, async () => {
     await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    const ช่อง = ตาราง.locator("tfoot [data-sum='margin']");
+    const ช่อง = page.locator('table[aria-label="ตารางผลงานดีลเลอร์"][data-total]');
     await expect(ช่อง).toBeVisible({ timeout: 25_000 });
-    return await ช่อง.getAttribute("data-value");
+    const m = (JSON.parse((await ช่อง.getAttribute("data-total")) ?? "{}") as { margin?: number | string }).margin;
+    return m == null ? "" : String(m);
   });
   expect(รวม.s, "ส่วนต่างกำไรรวมทั้งเครือ = ฐาน (ถ่วงตามยอดขาย)").toBe(รวม.r);
   // มีแถวส่วนต่างอย่างน้อย 2 แถวที่ % ต่างกัน — ไม่งั้นข้างบนแยก "ถ่วงตามยอดขาย" กับ "เฉลี่ยตรง" ไม่ออก

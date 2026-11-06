@@ -11,6 +11,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Percent, Trophy, Eye, X, Coins, Search, Award, ArrowDown, ArrowUp } from "lucide-react";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { ซ่อนคอลัมน์ว่าง } from "@pms/shared/lib/tableFit";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
@@ -48,7 +49,7 @@ const ALL = "ALL";
 // (กติกาใน globals.css: ข้อมูลล้น = เลื่อนใน .chart-scroll หรือตัด Top N + ปุ่มดูทั้งหมด — ที่นี่ใช้แบบเลื่อน)
 // ปุ่มย่อกลับเป็น 5 อันดับแรกยังอยู่ เผื่ออยากดูเฉพาะหัวตาราง
 const TOP_N = 5;
-type HRow = { key: string; label: string; a: number; b: number; note?: string; onClick?: () => void };
+type HRow = { key: string; label: string; a: number; b: number; note?: string; onClick?: () => void; /** บรรทัดเล็กใต้ชื่อ (ภูมิภาค) */ sub?: string };
 function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt, paged = false }: {
   rows: HRow[]; aLabel: string; bLabel: string; aColor?: string; bColor?: string; fmt: (v: number) => string;
   /** แบ่งหน้าจากข้างนอกแล้ว (มีแถบเปลี่ยนหน้า) — แสดงทุกแถวที่ส่งมา ไม่มีปุ่มย่อ/ดูทั้งหมด (บอสสั่ง 22 ก.ย. 69) */
@@ -79,7 +80,9 @@ function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt
           {shown.map(r => (
             <div key={r.key} onClick={r.onClick} style={{ cursor: r.onClick ? "pointer" : "default" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.72rem", marginBottom: 4 }}>
-                <span style={{ color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</span>
+                <span style={{ color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }} title={r.label}>
+                  {r.label}{r.sub && <span data-row-sub style={{ color: MUTED, fontWeight: 500, fontSize: "0.64rem", marginLeft: 6 }}>{r.sub}</span>}
+                </span>
                 <span style={{ flexShrink: 0, fontWeight: 700, color: "#1F2937", fontVariantNumeric: "tabular-nums" }}>
                   {fmt(r.a)} <span style={{ color: MUTED, fontWeight: 400 }}>/ {fmt(r.b)}</span>
                   {r.note && <span style={{ color: MUTED, fontWeight: 400 }}> · {r.note}</span>}
@@ -108,26 +111,26 @@ function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt
 }
 
 type คีย์เรียง = "code" | "name" | "region" | "leads" | "quotes" | "won" | "lost" | "pend" | "rate" | "sales" | "target" | "pct" | "marginPct" | "latest";
-// คอลัมน์ตารางผลงาน (FLOW H12 · บอสสั่ง 30 ต.ค. 69): รหัส · ดีลเลอร์ · ภูมิภาค · ลีด · ใบเสนอราคา · ปิดได้ · ปิดไม่ได้ · อัตราปิด
-//   · ยอดขาย · เป้าตามช่วง · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด · ดู — เรียงได้ทุกคอลัมน์ · ข้อความยาวแสดงเต็มเมื่อชี้
-//   ความกว้างคุมที่ colgroup (ตารางแบบตายตัว) · รวม ~1,180px = พอดีพื้นที่จริงที่จอ 1440 (ช่องแน่น)
-const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w: number }[] = [
-  { k: "code", หัว: "รหัส", w: 74 },
-  { k: "name", หัว: "ดีลเลอร์", w: 150 },
-  { k: "region", หัว: "ภูมิภาค", w: 140 },
-  { k: "leads", หัว: "ลีด", ชี้: "ลีดที่เข้ามาในช่วง", num: true, w: 56 },
-  { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true, w: 76 },
-  { k: "won", หัว: "ปิดได้", ชี้: "ลีดปิดสำเร็จ (เข้ามาในช่วง)", num: true, w: 64 },
-  { k: "lost", หัว: "ปิดไม่ได้", ชี้: "ลีดปิดไม่สำเร็จ (เข้ามาในช่วง)", num: true, w: 76 },
-  { k: "pend", หัว: "ยังไม่รู้ผล", ชี้: "ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้)", num: true, w: 84 },
-  { k: "rate", หัว: "อัตราปิด", ชี้: "ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรกลาง", num: true, w: 76 },
-  { k: "sales", หัว: "ยอดขาย", ชี้: "ใบที่ลูกค้าตอบรับในช่วง (ตามวันตอบรับ · ก่อน VAT)", num: true, w: 110 },
-  { k: "target", หัว: "เป้าตามช่วง", ชี้: "เป้าทั้งปี × จำนวนวันในช่วง ÷ 365", num: true, w: 110 },
-  { k: "pct", หัว: "% เป้า", num: true, w: 68 },
-  { k: "marginPct", หัว: "ส่วนต่างกำไร", ชี้: "ส่วนบวกของใบที่ทำจากใบ HQ ตอบรับในช่วง · % ของราคาขาย", num: true, w: 96 },
-  { k: "latest", หัว: "เสนอล่าสุด", ชี้: "วันออกใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว", w: 96 },
-  { k: "view", หัว: "", w: 44 },
+// คอลัมน์ตารางผลงาน (FLOW H12 · บอสสั่ง 30 ต.ค. 69 · ปรับ 6 พ.ย. 69): ดีลเลอร์ (ภูมิภาคบรรทัดเล็กใต้ชื่อ · ไม่มีคอลัมน์รหัส) · ลีด · ใบเสนอราคา
+//   · ปิดได้ · ปิดไม่ได้ · ยังไม่รู้ผล · อัตราปิด · ยอดขาย · เป้าตามช่วง · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด · ดู — เรียงได้ทุกคอลัมน์ · ข้อความยาวแสดงเต็มเมื่อชี้
+//   พอดีจอ 1366/1920 (บอสสั่ง 6 พ.ย. 69): ชื่อยืดเต็มที่เหลือ (ไม่ระบุความกว้าง) · ตัวเลขช่องแน่น (.table-wrap.fit) · ความกว้างคุมที่ colgroup
+//   คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (ว่างได้: อัตราปิด · เป้า · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด) · ไฟล์ส่งออกยังมีรหัส/ภูมิภาคครบ
+const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w?: number; ค่า?: (r: ผลงานดีลเลอร์) => unknown }[] = [
+  { k: "name", หัว: "ดีลเลอร์" },
+  { k: "leads", หัว: "ลีด", ชี้: "ลีดที่เข้ามาในช่วง", num: true, w: 50 },
+  { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true, w: 62 },
+  { k: "won", หัว: "ปิดได้", ชี้: "ลีดปิดสำเร็จ (เข้ามาในช่วง)", num: true, w: 56 },
+  { k: "lost", หัว: "ปิดไม่ได้", ชี้: "ลีดปิดไม่สำเร็จ (เข้ามาในช่วง)", num: true, w: 66 },
+  { k: "pend", หัว: "ยังไม่รู้ผล", ชี้: "ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้)", num: true, w: 74 },
+  { k: "rate", หัว: "อัตราปิด", ชี้: "ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรกลาง", num: true, w: 66, ค่า: r => r.rate },
+  { k: "sales", หัว: "ยอดขาย", ชี้: "ใบที่ลูกค้าตอบรับในช่วง (ตามวันตอบรับ · ก่อน VAT)", num: true, w: 104 },
+  { k: "target", หัว: "เป้าตามช่วง", ชี้: "เป้าทั้งปี × จำนวนวันในช่วง ÷ 365", num: true, w: 104, ค่า: r => r.target },
+  { k: "pct", หัว: "% เป้า", num: true, w: 58, ค่า: r => r.pct },
+  { k: "marginPct", หัว: "ส่วนต่างกำไร", ชี้: "ส่วนบวกของใบที่ทำจากใบ HQ ตอบรับในช่วง · % ของราคาขาย", num: true, w: 80, ค่า: r => r.marginPct },
+  { k: "latest", หัว: "เสนอล่าสุด", ชี้: "วันออกใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว", w: 86, ค่า: r => r.latest },
+  { k: "view", หัว: "", w: 40 },
 ];
+const กว้างชื่อขั้นต่ำ = 170;
 
 export default function SalesAnalyticsPage() {
   const router = useRouter();
@@ -207,10 +210,13 @@ export default function SalesAnalyticsPage() {
   useEffect(() => { setหน้า(0); }, [q, dealerSel, regionSel, provSel, salesSel, ถึงเป้าเท่านั้น, เรียง, ช่วง.start, ช่วง.end]);   // eslint-disable-line react-hooks/exhaustive-deps
   const หน้าจริง = Math.min(หน้า, pageCountOf(เรียงแล้ว.length) - 1);
   const ในหน้า = pageSlice(เรียงแล้ว, หน้าจริง);
+  // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ดูทุกแถวหลังตัวกรอง (ไม่ใช่แค่หน้าที่เห็น) · ยังไม่มีแถว = แสดงครบ
+  const คอลัมน์แสดง = useMemo(() => ซ่อนคอลัมน์ว่าง(คอลัมน์, เรียงแล้ว, (c, r) => c.ค่า ? c.ค่า(r) : 1), [เรียงแล้ว]);
+  const แสดงคอล = useMemo(() => Object.fromEntries(คอลัมน์แสดง.map(c => [c.k, true])) as Partial<Record<คีย์เรียง | "view", boolean>>, [คอลัมน์แสดง]);
 
   // กราฟ: ยอดขาย เทียบ เป้าตามช่วง รายดีลเลอร์ (ลำดับเดียวกับตาราง · แบ่งหน้า 7 แถว)
   const แท่ง: HRow[] = useMemo(() => เรียงแล้ว.map(r => ({
-    key: r.code, label: `${r.code} – ${r.name}`, a: r.sales, b: r.target ?? 0,
+    key: r.code, label: r.name, sub: ชื่อภาค(r.region), a: r.sales, b: r.target ?? 0,
     note: r.pct == null ? "ยังไม่ตั้งเป้า" : `${r.pct}% ของเป้า`, onClick: () => { setDealerSel(r.code); window.scrollTo({ top: 0, behavior: "smooth" }); },   // กดแท่ง = เจาะดูดีลเลอร์
   })), [เรียงแล้ว]);
   const ขนาดกราฟ = 7;
@@ -358,20 +364,21 @@ export default function SalesAnalyticsPage() {
         {มิติจริง === "dealer" && <TablePagination page={หน้ากราฟจริง} total={แท่ง.length} onPage={setหน้ากราฟ} size={ขนาดกราฟ} unit="ดีลเลอร์" />}
       </div>
 
-      {/* ── 3 · ตารางผลงานดีลเลอร์ตารางเดียว — เรียงได้ทุกคอลัมน์ · แถวท้าย = ผลรวม (เท่าการ์ด) ── */}
+      {/* ── 3 · ตารางผลงานดีลเลอร์ตารางเดียว — เรียงได้ทุกคอลัมน์ · ไม่มีแถวรวม (ตัวเลขรวมดูที่การ์ด · บอสสั่ง 6 พ.ย. 69) ── */}
       <div className="card" data-testid="pipeline-table" style={{ marginBottom: 0 }}>
         <BoxTitle ชื่อ={`ตาราง${ชื่อหัวข้อ("ผลงาน", มิติจริง, ระดับหัวข้อ)}`}
-          คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "แถวรวม = การ์ดด้านบน", คำแนะนำกดแถว(มิติจริง, ระดับหัวข้อ), มิติจริง === "dealer" ? "กดหัวคอลัมน์เพื่อเรียง" : null)} />
+          คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, คำแนะนำกดแถว(มิติจริง, ระดับหัวข้อ), มิติจริง === "dealer" ? "กดหัวคอลัมน์เพื่อเรียง" : null)} />
         {มิติจริง === "month" && (เดือน ? <ตารางรายเดือน แถว={เดือน} รวมทั้งหมด={รวม} เลือกเดือน={ดีลเลอร์ที่ดู ? undefined : setเดือนที่เปิด} /> : <รอข้อมูลรายเดือน ข้อความ="ฐานข้อมูลยังไม่มีผลงานรายเดือน (รอบรวมงานฐาน)" />)}
         {(มิติจริง === "region" || มิติจริง === "prov") && (โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
           : <ตารางกลุ่ม มิติ={มิติจริง} แถว={กลุ่ม} รวมทั้งหมด={รวม} เจาะ={เจาะ} />)}
         {มิติจริง === "dealer" && <>
-        <div className="table-wrap dense">
-          <table aria-label="ตารางผลงานดีลเลอร์" style={{ minWidth: คอลัมน์.reduce((s, c) => s + c.w, 0) }}>
-            <colgroup>{คอลัมน์.map(c => <col key={c.k} style={{ width: c.w }} />)}</colgroup>
+        <div className="table-wrap dense fit">
+          {/* ไม่มีแถวรวมบนจอ (บอสสั่ง 6 พ.ย. 69) — ผลรวมชุดเดียวกับแถวในตาราง (หลังทุกตัวกรอง) อยู่ใน data-total ให้ข้อทดสอบเทียบกับการ์ด (การ์ดนับชุดเดียวกับตาราง) */}
+          <table aria-label="ตารางผลงานดีลเลอร์" data-total={โหลด ? undefined : JSON.stringify({ sales: รวม.sales, rate: รวม.rate ?? "", margin: รวม.marginPct ?? "", onTarget: รวม.onTarget, won: รวม.won, lost: รวม.lost, leads: รวม.leads, quotes: รวม.quotes, n: เรียงแล้ว.length })} style={{ minWidth: คอลัมน์แสดง.reduce((s, c) => s + (c.w ?? กว้างชื่อขั้นต่ำ), 0) }}>
+            <colgroup>{คอลัมน์แสดง.map(c => <col key={c.k} style={c.w ? { width: c.w } : undefined} />)}</colgroup>
             <thead>
               <tr>
-                {คอลัมน์.map(c => c.k === "view" ? <th key={c.k} aria-label="ดู" /> : (
+                {คอลัมน์แสดง.map(c => c.k === "view" ? <th key={c.k} aria-label="ดู" /> : (
                   <th key={c.k} className={c.num ? "num" : undefined} title={c.ชี้ ?? c.หัว}
                     aria-sort={เรียง.k === c.k ? (เรียง.ลง ? "descending" : "ascending") : "none"}>
                     <button type="button" data-sort={c.k} onClick={() => setเรียง(s => ({ k: c.k as คีย์เรียง, ลง: s.k === c.k ? !s.ลง : c.num ?? false }))}
@@ -382,24 +389,25 @@ export default function SalesAnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {โหลด && <tr><td colSpan={คอลัมน์.length} className="empty-row">กำลังโหลด…</td></tr>}
-              {!โหลด && !เรียงแล้ว.length && <tr><td colSpan={คอลัมน์.length} className="empty-row">ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
+              {โหลด && <tr><td colSpan={คอลัมน์แสดง.length} className="empty-row">กำลังโหลด…</td></tr>}
+              {!โหลด && !เรียงแล้ว.length && <tr><td colSpan={คอลัมน์แสดง.length} className="empty-row">ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {ในหน้า.map(r => (
                 <ClickableRow key={r.code} className="clickable" onActivate={() => เจาะ(r.code)} label={`เปิดผลงานของ ${r.name} (เจาะลงระดับดีลเลอร์)`}>
-                  <td data-perf-row={r.code} style={{ fontFamily: "monospace", fontWeight: 700, color: PRIMARY }} title={r.code}>{r.code}</td>
-                  <td style={{ fontWeight: 600, color: "#1F2937" }} title={r.name}>{r.name}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}</td>
-                  <td title={ชื่อภาค(r.region)}>{ชื่อภาค(r.region)}</td>
+                  <td data-perf-row={r.code} style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis" }} title={`${r.name} (${r.code})`}>
+                    {r.name}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}
+                    <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อภาค(r.region)}</div>
+                  </td>
                   <td className="num" data-cell="leads">{r.leads.toLocaleString()}</td>
                   <td className="num" data-cell="quotes">{r.quotes.toLocaleString()}</td>
                   <td className="num" data-cell="won">{r.won.toLocaleString()}</td>
                   <td className="num" data-cell="lost">{r.lost.toLocaleString()}</td>
                   <td className="num" data-cell="pend">{ยังไม่รู้ผล(r).toLocaleString()}</td>
-                  <td className="num" data-cell="rate" style={{ fontWeight: 700 }}>{r.rate == null ? "—" : `${r.rate}%`}</td>
+                  {แสดงคอล.rate && <td className="num" data-cell="rate" style={{ fontWeight: 700 }}>{r.rate == null ? "—" : `${r.rate}%`}</td>}
                   <td className="num" data-cell="sales" data-value={r.sales} style={{ fontWeight: 800, color: "#1F2937" }} title={fmtBaht(r.sales)}>{fmtBaht(r.sales)}</td>
-                  <td className="num" data-cell="target" data-value={r.target ?? ""} title={เงิน(r.target)}>{เงิน(r.target)}</td>
-                  <td className="num" data-cell="pct" style={{ fontWeight: 700, color: r.pct == null ? "#94a3b8" : r.pct >= 100 ? "#059669" : PRIMARY }}>{r.pct == null ? "—" : `${r.pct}%`}</td>
-                  <td className="num" data-cell="margin">{r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`}</td>
-                  <td style={{ color: MUTED }} title={r.latest ? fmtISOToThai(r.latest) : "ยังไม่มีใบที่ส่งลูกค้า"}>{r.latest ? fmtISOToThai(r.latest) : "—"}</td>
+                  {แสดงคอล.target && <td className="num" data-cell="target" data-value={r.target ?? ""} title={เงิน(r.target)}>{เงิน(r.target)}</td>}
+                  {แสดงคอล.pct && <td className="num" data-cell="pct" style={{ fontWeight: 700, color: r.pct == null ? "#94a3b8" : r.pct >= 100 ? "#059669" : PRIMARY }}>{r.pct == null ? "—" : `${r.pct}%`}</td>}
+                  {แสดงคอล.marginPct && <td className="num" data-cell="margin">{r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`}</td>}
+                  {แสดงคอล.latest && <td style={{ color: MUTED }} title={r.latest ? fmtISOToThai(r.latest) : "ยังไม่มีใบที่ส่งลูกค้า"}>{r.latest ? fmtISOToThai(r.latest) : "—"}</td>}
                   <td onClick={e => e.stopPropagation()}>
                     <button title="เปิดหน้าดีลเลอร์" aria-label={`เปิดหน้าดีลเลอร์ ${r.name}`} onClick={() => router.push(`/hq/dealers/${r.code}`)}
                       style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -409,25 +417,6 @@ export default function SalesAnalyticsPage() {
                 </ClickableRow>
               ))}
             </tbody>
-            {/* แถวรวมแสดงเสมอเมื่อโหลดเสร็จ — ไม่มีแถว = ผลรวม 0 (เทียบกับการ์ดได้ทุกตัวกรอง เช่น "ถึงเป้าเท่านั้น" แล้วยังไม่มีใครถึงเป้า) */}
-            {!โหลด && (
-              <tfoot>
-                <tr data-perf-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
-                  <td colSpan={3}>รวม {เรียงแล้ว.length.toLocaleString()} ดีลเลอร์</td>
-                  <td className="num" data-sum="leads">{รวม.leads.toLocaleString()}</td>
-                  <td className="num" data-sum="quotes">{รวม.quotes.toLocaleString()}</td>
-                  <td className="num" data-sum="won" data-value={รวม.won}>{รวม.won.toLocaleString()}</td>
-                  <td className="num" data-sum="lost" data-value={รวม.lost}>{รวม.lost.toLocaleString()}</td>
-                  <td className="num" data-sum="pend" data-value={ยังไม่รู้ผล(รวม)}>{ยังไม่รู้ผล(รวม).toLocaleString()}</td>
-                  <td className="num" data-sum="rate" data-value={รวม.rate ?? ""}>{รวม.rate == null ? "—" : `${รวม.rate}%`}</td>
-                  <td className="num" data-sum="sales" data-value={รวม.sales} title={fmtBaht(รวม.sales)}>{fmtBaht(รวม.sales)}</td>
-                  <td className="num" data-sum="target" data-value={รวม.target ?? ""} title="ผลรวมเป้าตามช่วงของสาขาที่ตั้งเป้า">{เงิน(รวม.target)}</td>
-                  <td className="num" data-sum="pct">{รวม.pct == null ? "—" : `${รวม.pct}%`}</td>
-                  <td className="num" data-sum="margin" data-value={รวม.marginPct ?? ""}>{รวม.marginPct == null ? "—" : `${รวม.marginPct.toFixed(1)}%`}</td>
-                  <td colSpan={2} data-sum="onTarget" data-value={รวม.onTarget}>ถึงเป้า {รวม.onTarget} ราย</td>
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
         <TablePagination page={หน้าจริง} total={เรียงแล้ว.length} onPage={setหน้า} unit="ดีลเลอร์" />

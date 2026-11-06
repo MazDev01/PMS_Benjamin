@@ -85,7 +85,9 @@ for (const หน้า of ["quotations", "leads", "customers"] as const) {
     if (หน้า === "quotations") {
       // ตัวอย่างตามภาพที่บอสส่ง — ตัวอักษรตรง ๆ (ไม่พึ่งตัวคิดหัวข้อ)
       await expect(หัว(page, "[data-drill-table]").locator("[data-title]")).toHaveText("ตารางใบเสนอราคาแยกตามดีลเลอร์ · ทั้งเครือ");
-      await expect(หัว(page, "[data-drill-table]").locator("[data-subtitle]")).toContainText("แถวรวม = การ์ดด้านบน");
+      // ไม่มีแถวรวมแล้ว (บอสสั่ง 6 พ.ย. 69) — คำอธิบายไม่มี "แถวรวม = การ์ดด้านบน" (ตรวจกลับด้าน)
+      await expect(หัว(page, "[data-drill-table]").locator("[data-subtitle]")).not.toContainText("แถวรวม");
+      await expect(หัว(page, "[data-drill-table]").locator("[data-subtitle]")).toContainText("กดหัวคอลัมน์เพื่อเรียง");
     }
     const ทั้งเครือ = { ภาค: null, จังหวัด: null, ดีลเลอร์: null };
     for (const dim of ["dealer", "region", "prov", "month"] as มิติ[]) {

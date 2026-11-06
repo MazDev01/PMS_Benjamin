@@ -78,6 +78,8 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
   const คาดใหม่ = ลูกค้า.filter(x => x.เข้า >= ต้น! && x.เข้า <= ท้าย!).length;
   expect(คาดใหม่, "ช่วงตั้งต้นครอบวันนี้แต่ไม่ครอบ 30 เดือนก่อน").toBe(2);
   await expect.poll(async () => Number(await การ์ด(page, "new").getAttribute("data-value")), { message: "ลูกค้าใหม่ในช่วงนี้" }).toBe(คาดใหม่);
-  // ระดับดีลเลอร์ = รายเดือน: ผลรวมลูกค้าใหม่รายเดือน = การ์ด
-  await expect(page.locator('[data-drill-table] tfoot [data-sum="newc"]')).toHaveAttribute("data-value", String(คาดใหม่));
+  // ระดับดีลเลอร์ = รายเดือน: ผลรวมลูกค้าใหม่รายเดือน = การ์ด (ไม่มีแถวรวมแล้ว · รวมจากแถวรายเดือน)
+  await expect(page.locator("[data-drill-table] tfoot"), "ไม่มีแถวรวม").toHaveCount(0);
+  await expect.poll(async () => (await page.locator('[data-drill-table] tbody [data-cell="newc"]').evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
+    { message: "ผลรวมลูกค้าใหม่รายเดือน = การ์ด" }).toBe(คาดใหม่);
 });

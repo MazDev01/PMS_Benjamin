@@ -78,9 +78,9 @@ export function ตารางกลุ่ม({ มิติ, แถว, รว
     <td key="c" className="num">{เปอร์เซ็นต์(x.pct)}</td>, <td key="m" className="num" data-value={x.marginPct ?? ""}>{x.marginPct == null ? "—" : `${x.marginPct.toFixed(1)}%`}</td>,
   ];
   return (
-    <div className="table-wrap dense">
-      <table aria-label={`ตารางผลงานตาม${ชื่อมิติ[มิติ]}`} style={{ minWidth: 1100 }}>
-        <colgroup><col style={{ width: 230 }} />{หัว.slice(1, -1).map((h, i) => <col key={i} style={{ width: h === "ยอดขาย" || h === "เป้าตามช่วง" ? 120 : 84 }} />)}<col style={{ width: 96 }} /></colgroup>
+    <div className="table-wrap dense fit">
+      <table aria-label={`ตารางผลงานตาม${ชื่อมิติ[มิติ]}`} data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
+        <colgroup><col />{หัว.slice(1, -1).map((h, i) => <col key={i} style={{ width: h === "ยอดขาย" || h === "เป้าตามช่วง" ? 100 : 66 }} />)}<col style={{ width: 80 }} /></colgroup>
         <thead><tr>{หัว.map((h, i) => <th key={i} className={i > 0 && i < หัว.length - 1 ? "num" : undefined}>{h}</th>)}</tr></thead>
         <tbody>
           {!แถว.length && <tr><td colSpan={หัว.length} className="empty-row">ไม่พบข้อมูลในช่วงที่เลือก</td></tr>}
@@ -92,11 +92,6 @@ export function ตารางกลุ่ม({ มิติ, แถว, รว
             </ClickableRow>
           ))}
         </tbody>
-        <tfoot>
-          <tr data-group-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
-            <td>รวม {แถว.length.toLocaleString()} {ชื่อมิติ[มิติ]}</td>{ช่อง(รวมทั้งหมด)}<td />
-          </tr>
-        </tfoot>
       </table>
     </div>
   );
@@ -140,9 +135,9 @@ export function ตารางรายเดือน({ แถว, รวม�
     <td key="c" className="num">{เปอร์เซ็นต์(x.pct)}</td>, <td key="m" className="num">{x.marginPct == null ? "—" : `${x.marginPct.toFixed(1)}%`}</td>,
   ];
   return (
-    <div className="table-wrap dense">
-      <table aria-label="ตารางผลงานรายเดือน" style={{ minWidth: 1100 }}>
-        <colgroup><col style={{ width: 150 }} />{หัว.slice(1, -1).map((h, i) => <col key={i} style={{ width: h === "ยอดขาย" || h === "เป้ารายเดือน" ? 120 : 84 }} />)}<col style={{ width: 120 }} /></colgroup>
+    <div className="table-wrap dense fit">
+      <table aria-label="ตารางผลงานรายเดือน" data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
+        <colgroup><col />{หัว.slice(1, -1).map((h, i) => <col key={i} style={{ width: h === "ยอดขาย" || h === "เป้ารายเดือน" ? 100 : 66 }} />)}<col style={{ width: 104 }} /></colgroup>
         <thead><tr>{หัว.map((h, i) => <th key={i} className={i > 0 && i < หัว.length - 1 ? "num" : undefined}>{h}</th>)}</tr></thead>
         <tbody>
           {แถว.map(g => เลือกเดือน ? (
@@ -152,13 +147,8 @@ export function ตารางรายเดือน({ แถว, รวม�
             </ClickableRow>
           ) : <tr key={g.key}><td data-month-row={g.key}><strong>{g.label}</strong></td>{ช่อง(g.รวม)}<td /></tr>)}
         </tbody>
-        <tfoot>
-          <tr data-group-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
-            <td>รวม {แถว.length} เดือน</td>{ช่อง(รวมทั้งหมด, true)}<td />
-          </tr>
-        </tfoot>
       </table>
-      <div style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · แถวรวมใช้เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365) จึงต่างจากผลรวมรายเดือนเล็กน้อย</div>
+      <div style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · ตัวเลขรวมดูที่การ์ดด้านบน (เป้าตามช่วง = เป้าทั้งปี × วัน ÷ 365 จึงต่างจากผลรวมรายเดือนเล็กน้อย)</div>
     </div>
   );
 }
@@ -187,9 +177,6 @@ export function แผงเดือน({ เดือน, rows, codes, ชื�
                   </ClickableRow>
                 ))}
               </tbody>
-              <tfoot><tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}>
-                <td>รวม (= แถว {เดือน.label})</td><td className="num">{เดือน.รวม.leads}</td><td className="num">{เดือน.รวม.quotes}</td><td className="num">{เดือน.รวม.won}</td><td className="num">{เดือน.รวม.lost}</td><td className="num" data-sum-col="sales">{fmtBaht(เดือน.รวม.sales)}</td>
-              </tr></tfoot>
             </table>
           </div></div>
         </div>
@@ -226,7 +213,7 @@ export function แผงที่มา({ การ์ด, แถว, รวม
         <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "16px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "1rem", fontWeight: 800, color: "#1F2937" }}>{หัวการ์ด[การ์ด]}</div>
-            <div style={{ fontSize: "0.74rem", color: MUTED, marginTop: 4 }}>{ดีลเลอร์ ? `ที่มารายเดือน · ${ดีลเลอร์}` : "ที่มาแยกรายดีลเลอร์ · แถวรวม = การ์ด"}</div>
+            <div style={{ fontSize: "0.74rem", color: MUTED, marginTop: 4 }}>{ดีลเลอร์ ? `ที่มารายเดือน · ${ดีลเลอร์}` : "ที่มาแยกรายดีลเลอร์ · ผลรวม = ตัวเลขบนการ์ด"}</div>
           </div>
           <button type="button" onClick={ปิด} aria-label="ปิดแผง" title="ปิดแผง"
             style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #dbe3ec", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} /></button>
@@ -252,9 +239,6 @@ export function แผงที่มา({ การ์ด, แถว, รวม
                       return <tr key={g.key} data-drawer-row={g.key}><td>{g.label}</td>{ค่า[การ์ด].map((v, i) => <td key={i} className="num">{typeof v === "number" ? v.toLocaleString() : v}</td>)}</tr>;
                     })}
                   </tbody>
-                  <tfoot><tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}>
-                    <td>รวม (= การ์ด)</td>{c.รวม.map((v, i) => <td key={i} className="num" data-sum-col={i}>{typeof v === "number" ? v.toLocaleString() : v}</td>)}
-                  </tr></tfoot>
                 </table>
               </div>
             </div>
@@ -273,11 +257,6 @@ export function แผงที่มา({ การ์ด, แถว, รวม
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}>
-                      <td>รวม (= การ์ด)</td>{c.รวม.map((v, i) => <td key={i} className="num" data-sum-col={i}>{typeof v === "number" ? v.toLocaleString() : v}</td>)}
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
             </div>
