@@ -948,7 +948,10 @@ body {
 .table-wrap.dense th, .table-wrap.dense td { padding: 0.4rem 0.7rem; font-size: 0.76rem; }
 /* พอดีจอ (บอสสั่ง 6 พ.ย. 69 · ตารางผลงานรายดีลเลอร์ HQ) — ตัวเลขชิดกันขึ้น · หัวคอลัมน์ขึ้นบรรทัดได้ (ไม่ดันตารางกว้าง) · ความกว้างยังคุมที่ colgroup
    คู่กับ lib/tableFit.ts (ซ่อนคอลัมน์ที่ทั้งตารางเป็น "—") · ข้อทดสอบ tests/scenario/hq-tables-fit.spec.ts */
-.table-wrap.fit th, .table-wrap.fit td { padding: 0.4rem 0.45rem; font-size: 0.74rem; }
+/*   ขนาดตัวอักษร (รอบ 3 · ใหญ่ขึ้นใช้ที่ว่าง): ตัวเลข/ชื่อ 0.84rem · บรรทัดย่อยใต้ชื่อ [data-row-sub] 0.72rem — ตรงกับ lib/tableFit.ts (ตัววัดคอลัมน์ชื่อ) */
+.table-wrap.fit th, .table-wrap.fit td { padding: 0.45rem 0.45rem; font-size: 0.84rem; }
+.table-wrap.fit td [data-row-sub] { font-size: 0.72rem !important; }
+.table-wrap.fit th { font-size: 0.7rem; }
 .table-wrap.fit th { white-space: normal; line-height: 1.25; vertical-align: bottom; letter-spacing: 0; }
 .table-wrap.fit td.num, .table-wrap.fit th.num { padding-left: 0.3rem; }
 

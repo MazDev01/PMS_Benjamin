@@ -38,6 +38,7 @@ import { ชื่อหัวข้อ, คำอธิบายหัวข้
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
 import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, แผงที่มา, กล่องล่าง, ล่าสุดของดีลเลอร์, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, แผงเดือน, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
+import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -118,20 +119,21 @@ type คีย์เรียง = "code" | "name" | "region" | "leads" | "quote
 //   คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (ว่างได้: อัตราปิด · เป้า · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด) · ไฟล์ส่งออกยังมีรหัส/ภูมิภาคครบ
 const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w?: number; ค่า?: (r: ผลงานดีลเลอร์) => unknown }[] = [
   { k: "name", หัว: "ดีลเลอร์" },
-  { k: "leads", หัว: "ลีด", ชี้: "ลีดที่เข้ามาในช่วง", num: true, w: 50 },
-  { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true, w: 62 },
-  { k: "won", หัว: "ปิดได้", ชี้: "ลีดปิดสำเร็จ (เข้ามาในช่วง)", num: true, w: 56 },
-  { k: "lost", หัว: "ปิดไม่ได้", ชี้: "ลีดปิดไม่สำเร็จ (เข้ามาในช่วง)", num: true, w: 66 },
-  { k: "pend", หัว: "ยังไม่รู้ผล", ชี้: "ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้)", num: true, w: 74 },
-  { k: "rate", หัว: "อัตราปิด", ชี้: "ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรกลาง", num: true, w: 66, ค่า: r => r.rate },
-  { k: "sales", หัว: "ยอดขาย", ชี้: "ใบที่ลูกค้าตอบรับในช่วง (ตามวันตอบรับ · ก่อน VAT)", num: true, w: 104 },
-  { k: "target", หัว: "เป้าตามช่วง", ชี้: "เป้าทั้งปี × จำนวนวันในช่วง ÷ 365", num: true, w: 104, ค่า: r => r.target },
-  { k: "pct", หัว: "% เป้า", num: true, w: 58, ค่า: r => r.pct },
-  { k: "marginPct", หัว: "ส่วนต่างกำไร", ชี้: "ส่วนบวกของใบที่ทำจากใบ HQ ตอบรับในช่วง · % ของราคาขาย", num: true, w: 80, ค่า: r => r.marginPct },
-  { k: "latest", หัว: "เสนอล่าสุด", ชี้: "วันออกใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว", w: 86, ค่า: r => r.latest },
+  { k: "leads", หัว: "ลีด", ชี้: "ลีดที่เข้ามาในช่วง", num: true },
+  { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true },
+  { k: "won", หัว: "ปิดได้", ชี้: "ลีดปิดสำเร็จ (เข้ามาในช่วง)", num: true },
+  { k: "lost", หัว: "ปิดไม่ได้", ชี้: "ลีดปิดไม่สำเร็จ (เข้ามาในช่วง)", num: true },
+  { k: "pend", หัว: "ยังไม่รู้ผล", ชี้: "ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้)", num: true },
+  { k: "rate", หัว: "อัตราปิด", ชี้: "ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) — สูตรกลาง", num: true, ค่า: r => r.rate },
+  { k: "sales", หัว: "ยอดขาย", ชี้: "ใบที่ลูกค้าตอบรับในช่วง (ตามวันตอบรับ · ก่อน VAT)", num: true },
+  { k: "target", หัว: "เป้าตามช่วง", ชี้: "เป้าทั้งปี × จำนวนวันในช่วง ÷ 365", num: true, ค่า: r => r.target },
+  { k: "pct", หัว: "% เป้า", num: true, ค่า: r => r.pct },
+  { k: "marginPct", หัว: "ส่วนต่างกำไร", ชี้: "ส่วนบวกของใบที่ทำจากใบ HQ ตอบรับในช่วง · % ของราคาขาย", num: true, ค่า: r => r.marginPct },
+  { k: "latest", หัว: "เสนอล่าสุด", ชี้: "วันออกใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว", ค่า: r => r.latest },
   { k: "view", หัว: "", w: 40 },
 ];
-const กว้างชื่อขั้นต่ำ = 170;
+// คอลัมน์ชื่อกว้างพอดีชื่อยาวสุดในตาราง ≤ 25% · คอลัมน์ตัวเลขไม่ระบุความกว้าง = เกลี่ยที่เหลือเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2) · จอแคบกว่าความกว้างขั้นต่ำ = เลื่อนในกรอบ
+const กว้างชื่อขั้นต่ำ = 170, กว้างตัวเลขขั้นต่ำ = 64;
 
 export default function SalesAnalyticsPage() {
   const router = useRouter();
@@ -215,6 +217,7 @@ export default function SalesAnalyticsPage() {
   const ในหน้า = pageSlice(เรียงแล้ว, หน้าจริง);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ดูทุกแถวหลังตัวกรอง (ไม่ใช่แค่หน้าที่เห็น) · ยังไม่มีแถว = แสดงครบ
   const คอลัมน์แสดง = useMemo(() => ซ่อนคอลัมน์ว่าง(คอลัมน์, เรียงแล้ว, (c, r) => c.ค่า ? c.ค่า(r) : 1), [เรียงแล้ว]);
+  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(เรียงแล้ว.map(r => ชื่อแสดง(r.code, r.name) + (r.status === "inactive" ? " (ปิดใช้งาน)" : "")), { ขั้นต่ำ: 120 }, เรียงแล้ว.map(r => ชื่อภาค(r.region)));
   const แสดงคอล = useMemo(() => Object.fromEntries(คอลัมน์แสดง.map(c => [c.k, true])) as Partial<Record<คีย์เรียง | "view", boolean>>, [คอลัมน์แสดง]);
 
   // กราฟ: ยอดขาย เทียบ เป้าตามช่วง รายดีลเลอร์ (ลำดับเดียวกับตาราง · แบ่งหน้า 7 แถว)
@@ -377,8 +380,8 @@ export default function SalesAnalyticsPage() {
         {มิติจริง === "dealer" && <>
         <div className="table-wrap dense fit">
           {/* ไม่มีแถวรวมบนจอ (บอสสั่ง 6 พ.ย. 69) — ผลรวมชุดเดียวกับแถวในตาราง (หลังทุกตัวกรอง) อยู่ใน data-total ให้ข้อทดสอบเทียบกับการ์ด (การ์ดนับชุดเดียวกับตาราง) */}
-          <table aria-label="ตารางผลงานดีลเลอร์" data-total={โหลด ? undefined : JSON.stringify({ sales: รวม.sales, rate: รวม.rate ?? "", margin: รวม.marginPct ?? "", onTarget: รวม.onTarget, won: รวม.won, lost: รวม.lost, leads: รวม.leads, quotes: รวม.quotes, n: เรียงแล้ว.length })} style={{ minWidth: คอลัมน์แสดง.reduce((s, c) => s + (c.w ?? กว้างชื่อขั้นต่ำ), 0) }}>
-            <colgroup>{คอลัมน์แสดง.map(c => <col key={c.k} style={c.w ? { width: c.w } : undefined} />)}</colgroup>
+          <table ref={ชื่อคอล.ref} aria-label="ตารางผลงานดีลเลอร์" data-total={โหลด ? undefined : JSON.stringify({ sales: รวม.sales, rate: รวม.rate ?? "", margin: รวม.marginPct ?? "", onTarget: รวม.onTarget, won: รวม.won, lost: รวม.lost, leads: รวม.leads, quotes: รวม.quotes, n: เรียงแล้ว.length })} style={{ minWidth: คอลัมน์แสดง.reduce((s, c) => s + (c.w ?? (c.k === "name" ? กว้างชื่อขั้นต่ำ : กว้างตัวเลขขั้นต่ำ)), 0) }}>
+            <colgroup>{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} style={c.k === "name" ? { width: ชื่อคอล.กว้าง } : c.w ? { width: c.w } : undefined} />)}</colgroup>
             <thead>
               <tr>
                 {คอลัมน์แสดง.map(c => c.k === "view" ? <th key={c.k} aria-label="ดู" /> : (
@@ -410,7 +413,7 @@ export default function SalesAnalyticsPage() {
                   {แสดงคอล.target && <td className="num" data-cell="target" data-value={r.target ?? ""} title={เงิน(r.target)}>{เงิน(r.target)}</td>}
                   {แสดงคอล.pct && <td className="num" data-cell="pct" style={{ fontWeight: 700, color: r.pct == null ? "#94a3b8" : r.pct >= 100 ? "#059669" : PRIMARY }}>{r.pct == null ? "—" : `${r.pct}%`}</td>}
                   {แสดงคอล.marginPct && <td className="num" data-cell="margin">{r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`}</td>}
-                  {แสดงคอล.latest && <td style={{ color: MUTED }} title={r.latest ? fmtISOToThai(r.latest) : "ยังไม่มีใบที่ส่งลูกค้า"}>{r.latest ? fmtISOToThai(r.latest) : "—"}</td>}
+                  {แสดงคอล.latest && <td style={{ color: MUTED, whiteSpace: "normal" }} title={r.latest ? fmtISOToThai(r.latest) : "ยังไม่มีใบที่ส่งลูกค้า"}>{r.latest ? fmtISOToThai(r.latest) : "—"}</td>}
                   <td onClick={e => e.stopPropagation()}>
                     <button title="เปิดหน้าดีลเลอร์" aria-label={`เปิดหน้าดีลเลอร์ ${r.name}`} onClick={() => router.push(`/hq/dealers/${r.code}`)}
                       style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>

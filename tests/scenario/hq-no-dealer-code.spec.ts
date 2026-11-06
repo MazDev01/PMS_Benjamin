@@ -21,11 +21,15 @@ async function รหัสที่เห็น(page: Page): Promise<string[]> 
   return page.evaluate((codes) => {
     const ผล: string[] = [];
     const ช่องเลือก = [...document.querySelectorAll("select option")].map(o => (o as HTMLOptionElement).text);
-    const ทั้งหน้า = [document.body.innerText, ...ช่องเลือก].join("\n");
+    // ข้อความบันทึกการใช้งานที่ฐานเขียนเก็บไว้ (กล่องกิจกรรมล่าสุดบนแดชบอร์ด) ไม่แก้ (บอสตอบข้อ 2) — ไม่นับ
+    const เก็บไว้ = [...document.querySelectorAll("[data-testid=activity-audit-link]")].map(x => x.closest(".card")).filter((x): x is HTMLElement => !!x);
+    let ข้อความหน้า = document.body.innerText;
+    for (const c of เก็บไว้) ข้อความหน้า = ข้อความหน้า.replace(c.innerText, "");
+    const ทั้งหน้า = [ข้อความหน้า, ...ช่องเลือก].join("\n");
     for (const c of codes) {
       for (const el of document.querySelectorAll("body *")) {
         const h = el as HTMLElement;
-        if (h.children.length === 0 && h.offsetParent !== null && h.textContent?.trim() === c) ผล.push(`${c}: ช่องที่มีแค่รหัส <${h.tagName.toLowerCase()}>`);
+        if (h.children.length === 0 && h.offsetParent !== null && !เก็บไว้.some(k => k.contains(h)) && h.textContent?.trim() === c) ผล.push(`${c}: ช่องที่มีแค่รหัส <${h.tagName.toLowerCase()}>`);
       }
       for (const m of ทั้งหน้า.matchAll(new RegExp(`(^|[^-A-Za-z0-9])(?<!ทดสอบ )${c}(\\s*[·–]\\s)|\\(${c}\\)|ดีลเลอร์ ${c}(?=$|\\s*[\\n?·])`, "gm")))
         ผล.push(`${c}: …${ทั้งหน้า.slice(Math.max(0, (m.index ?? 0) - 20), (m.index ?? 0) + 30).replace(/\s+/g, " ")}…`);
@@ -41,6 +45,8 @@ test("[ui·hq] รหัสดีลเลอร์: หน้าดีลเล
 
   await page.goto(`${HQ_ORIGIN}/hq/dealers`, { waitUntil: "domcontentloaded" });
   await settle(page);
+  // ทะเบียนแบ่งหน้า (ใหม่สุดก่อน) — สาขาทดสอบที่ข้ออื่นสร้างพร้อมกันดัน RYG ไปหน้าหลัง → ค้นก่อน (ค้นด้วยรหัสได้)
+  await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill("RYG");
   await expect(page.getByText("RYG", { exact: true }).first(), "หน้าดีลเลอร์คงรหัสไว้").toBeVisible({ timeout: 25_000 });
 
   for (const path of ["/hq/pipeline", "/hq/leads", "/hq/quotations", "/hq/customers", "/hq/prospects", "/hq/quote-requests", "/hq/dashboard", "/hq/proposals"]) {

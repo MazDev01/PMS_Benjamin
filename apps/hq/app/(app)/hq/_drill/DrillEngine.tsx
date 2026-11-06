@@ -22,6 +22,7 @@ import { แถบระดับ, ชื่อมิติ, รอข้อม�
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
+import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -139,6 +140,8 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
   }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า, ชื่อแสดง]);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ยังโหลด/ไม่มีแถว = แสดงครบ (ไม่เดาว่าว่าง)
   const คอลัมน์แสดง = ซ่อนคอลัมน์ว่าง(คอลัมน์, กลุ่ม, (c, g) => ค่าของกลุ่ม(c, g));
+  // คอลัมน์ชื่อกว้างพอดีชื่อยาวสุด ≤ 25% · คอลัมน์ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
+  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(กลุ่ม.map(g => g.label), { ขั้นต่ำ: 120 }, กลุ่ม.map(g => g.sub ?? ""));
   const คอลัมน์แท่ง = ตั้งค่า.คอลัมน์.find(c => c.k === ตั้งค่า.แท่ง)!;
   const ค่าแท่ง = (g: กลุ่ม) => ค่าของกลุ่ม(คอลัมน์แท่ง, g) ?? 0;
   const สูงสุด = Math.max(1, ...กลุ่ม.map(ค่าแท่ง));
@@ -222,10 +225,10 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
       {/* ── ตาราง (ไม่มีแถวรวม · ตัวเลขรวมดูที่การ์ด · บอสสั่ง 6 พ.ย. 69) ── */}
       <div className="card" data-drill-table={dim} style={{ marginBottom: 0, marginTop: 16 }}>
         <BoxTitle ชื่อ={`ตาราง${ชื่อหัวข้อ(ตั้งค่า.ป้ายแถว, dim, ระดับ)}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, null, กดแถว, "กดหัวคอลัมน์เพื่อเรียง")} />
-        {/* พอดีจอ (บอสสั่ง 6 พ.ย. 69): คอลัมน์ชื่อยืดเต็มที่เหลือ · ตัวเลขคอลัมน์ละ 92 · จอแคบกว่าความกว้างขั้นต่ำ = เลื่อนในกรอบ */}
+        {/* พอดีจอ (บอสสั่ง 6 พ.ย. 69): คอลัมน์ชื่อพอดีชื่อยาวสุด ≤ 25% · ตัวเลขเกลี่ยเท่ากัน · จอแคบกว่าความกว้างขั้นต่ำ = เลื่อนในกรอบ */}
         <div className="table-wrap dense fit">
-          <table aria-label={`ตาราง${ตั้งค่า.ป้ายแถว}แยกตาม${หัวคอลัมน์แรก}`} style={{ minWidth: 180 + คอลัมน์แสดง.length * 92 + 96 }}>
-            <colgroup><col />{คอลัมน์แสดง.map(c => <col key={c.k} style={{ width: 92 }} />)}<col style={{ width: 96 }} /></colgroup>
+          <table ref={ชื่อคอล.ref} aria-label={`ตาราง${ตั้งค่า.ป้ายแถว}แยกตาม${หัวคอลัมน์แรก}`} style={{ minWidth: 170 + คอลัมน์แสดง.length * 72 + 96 }}>
+            <colgroup><col data-col-key="__name" style={{ width: ชื่อคอล.กว้าง }} />{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} />)}<col style={{ width: 96 }} /></colgroup>
             <thead>
               <tr>
                 {[{ k: dim === "month" ? "__idx" : "__name", l: หัวคอลัมน์แรก, num: false }, ...คอลัมน์แสดง.map(c => ({ k: c.k, l: c.l, num: true }))].map(h => (
@@ -253,7 +256,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
                   <ClickableRow key={g.key} className="clickable" onActivate={() => g.เดือน ? setแผงเดือน(g) : เจาะ(g.key)}
                     label={g.เดือน ? `เปิดรายดีลเลอร์ของ ${g.label}` : `เปิดตัวเลขของ ${g.label} (เจาะลงระดับถัดไป)`}>
                     {ป้าย}{เซลล์}
-                    <td style={{ color: PRIMARY, fontWeight: 700, fontSize: "0.74rem", whiteSpace: "nowrap" }}>{g.เดือน ? "ดูรายดีลเลอร์ ›" : "เจาะลึก ›"}</td>
+                    <td style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{g.เดือน ? "ดูรายดีลเลอร์ ›" : "เจาะลึก ›"}</td>
                   </ClickableRow>
                 );
               })}

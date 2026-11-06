@@ -21,6 +21,26 @@ const หน้า = [
 async function ตรวจพอดี(ตาราง: Locator, ป้าย: string) {
   const วัด = await ตาราง.evaluate(t => { const w = t.closest(".table-wrap") as HTMLElement; return { ตาราง: Math.round(t.getBoundingClientRect().width), กรอบ: w.clientWidth, เลื่อน: w.scrollWidth }; });
   expect(วัด.เลื่อน, `${ป้าย}: ตารางไม่ล้นกรอบ (ไม่มีแถบเลื่อนแนวนอน) ${JSON.stringify(วัด)}`).toBeLessThanOrEqual(วัด.กรอบ + 1);
+  // คอลัมน์ชื่อพอดีชื่อยาวสุด ไม่เกิน 25% ของตาราง · คอลัมน์ตัวเลข (ยกเว้นคอลัมน์ปุ่มท้าย) กว้างเท่ากัน ไม่มีช่องว่างกองที่เดียว (บอสสั่ง 6 พ.ย. 69 รอบ 2)
+  const หัว = await ตาราง.evaluate(t => [...t.querySelectorAll("thead th")].map(th => Math.round((th as HTMLElement).getBoundingClientRect().width)));
+  expect(หัว[0], `${ป้าย}: คอลัมน์ชื่อไม่เกิน 25% ของตาราง ${JSON.stringify({ ชื่อ: หัว[0], ตาราง: วัด.ตาราง })}`).toBeLessThanOrEqual(Math.ceil(วัด.ตาราง * 0.25) + 1);
+  const ตัวเลข = หัว.slice(1, -1);
+  expect(Math.max(...ตัวเลข) - Math.min(...ตัวเลข), `${ป้าย}: คอลัมน์ตัวเลขกว้างเท่ากัน (ต่างไม่เกิน 2px) ${JSON.stringify(ตัวเลข)}`).toBeLessThanOrEqual(2);
+  // ตัวอักษรใหญ่ขึ้น (บอสสั่ง 6 พ.ย. 69 รอบ 3 · ตัวกลาง .table-wrap.fit): ชื่อ/ตัวเลข ≥ 0.84rem · บรรทัดภูมิภาค ≥ 0.72rem
+  const ขนาด = await ตาราง.evaluate(t => {
+    const ราก = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const td = [...t.querySelectorAll("tbody tr.clickable td")] as HTMLElement[];
+    const ย่อย = [...t.querySelectorAll("tbody tr.clickable [data-row-sub]")] as HTMLElement[];
+    return { ตัวเลขชื่อ: Math.min(...td.map(e => parseFloat(getComputedStyle(e).fontSize))) / ราก, ย่อย: Math.min(...ย่อย.map(e => parseFloat(getComputedStyle(e).fontSize))) / ราก };
+  });
+  expect(ขนาด.ตัวเลขชื่อ, `${ป้าย}: ตัวอักษรชื่อ/ตัวเลขไม่ต่ำกว่า 0.84rem`).toBeGreaterThanOrEqual(0.84 - 0.005);
+  expect(ขนาด.ย่อย, `${ป้าย}: บรรทัดภูมิภาคไม่ต่ำกว่า 0.72rem`).toBeGreaterThanOrEqual(0.72 - 0.005);
+  // ชื่อยาวสุดในตารางไม่ถูกตัดถ้ายังไม่ถึง 25% (คอลัมน์พอดีชื่อ)
+  const ชื่อล้น = await ตาราง.evaluate(t => [...t.querySelectorAll("tbody tr.clickable td:first-child")].filter(td => {
+    const h = td as HTMLElement; const ชื่อ = (h.querySelector("strong") ?? h.firstChild) as HTMLElement | Text | null;
+    const r = document.createRange(); if (ชื่อ) r.selectNodeContents(ชื่อ); return ชื่อ && r.getBoundingClientRect().width > h.clientWidth + 1;
+  }).length);
+  if (หัว[0] < Math.floor(วัด.ตาราง * 0.25) - 2) expect(ชื่อล้น, `${ป้าย}: คอลัมน์ชื่อยังไม่ถึง 25% = ชื่อไม่ถูกตัด`).toBe(0);
 }
 
 for (const กว้าง of [1366, 1920]) {
