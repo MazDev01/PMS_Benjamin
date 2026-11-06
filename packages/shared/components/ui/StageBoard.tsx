@@ -5,6 +5,9 @@
 //   ทางที่ย้ายได้มาจาก ทางย้าย(การ์ด) ของแต่ละหน้า (ตัวกติกากลางของหน้านั้น) — ไม่อยู่ในรายการ = ย้ายไม่ได้ + บอกเหตุผล
 //   ทางเลือกแทนการลาก: ปุ่ม "ย้ายไปขั้น…" บนการ์ด (ใช้คีย์บอร์ด/จอสัมผัสได้)
 //   คอลัมน์ ยุบได้ = ยุบไว้ตั้งแต่แรก ปุ่ม "เปิดดู (n)" / "ยุบ" · ยุบอยู่ก็ยังวางการ์ดลงได้
+//   ลากแล้วเลื่อนตาม (บอสสั่ง 6 พ.ย. 69): ลากใกล้ขอบซ้าย/ขวาของบอร์ด = บอร์ดเลื่อนแนวนอน · ใกล้ขอบบน/ล่างของจอ = หน้าเลื่อนแนวตั้ง
+//     ยิ่งใกล้ขอบยิ่งเร็ว · ปล่อย/ยกเลิก/ออกนอกหน้าต่าง (ไม่มีเหตุการณ์ลากเกิน 250 มิลลิวินาที) = หยุด · ใช้เหตุการณ์ลากของเบราว์เซอร์
+//     ตัวเดียวกันทั้งเมาส์และนิ้ว (เบราว์เซอร์มือถือที่ลากการ์ดได้ส่งเหตุการณ์ลากชุดเดียวกัน) · ข้อทดสอบ board-autoscroll.spec.ts
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRightLeft } from "lucide-react";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
@@ -50,6 +53,8 @@ export function StageBoard<T, K extends string>({
   const [เมนู, setเมนู] = useState<string | number | null>(null);
   const [เปิดดู, setเปิดดู] = useState<ReadonlySet<K>>(() => new Set());
   const ชื่อคอลัมน์ = (k: K) => columns.find(c => c.key === k)?.label ?? k;
+  const กล่อง = useRef<HTMLDivElement>(null);
+  useเลื่อนตามตอนลาก(กล่อง, ลากอยู่ !== null);
 
   // วางการ์ด / เลือกจากเมนู → ตรวจทางก่อน (ทางเดียวกันทั้งสองแบบ)
   function ย้าย(t: T, ไป: K) {
@@ -61,7 +66,7 @@ export function StageBoard<T, K extends string>({
   }
 
   return (
-    <div role="region" aria-label={ป้ายบอร์ด} data-stage-board
+    <div ref={กล่อง} role="region" aria-label={ป้ายบอร์ด} data-stage-board
       style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 10, alignItems: "stretch" }}>
       {columns.map(c => {
         const col = items.filter(t => colOf(t) === c.key);
@@ -139,6 +144,60 @@ export function StageBoard<T, K extends string>({
       })}
     </div>
   );
+}
+
+/** ตัวเลื่อนแนวตั้งของหน้า: กล่องบรรพบุรุษใหญ่ที่เลื่อนแนวตั้งได้ตัวแรก · ไม่มี = หน้าต่าง */
+function ตัวเลื่อนแนวตั้ง(el: HTMLElement | null): HTMLElement | null {
+  for (let p = el?.parentElement ?? null; p; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY;
+    // เฉพาะกล่องใหญ่ที่เลื่อนได้จริง (สูงเกินครึ่งจอ · เลื่อนได้มากกว่า 40px) — กล่องเล็กที่ล้นนิดเดียวไม่ใช่ตัวเลื่อนของหน้า
+    if ((o === "auto" || o === "scroll") && p.scrollHeight > p.clientHeight + 40 && p.clientHeight > window.innerHeight * 0.5) return p;
+  }
+  return null;
+}
+
+/** ลากแล้วเลื่อนตาม (บอสสั่ง 6 พ.ย. 69) — ระหว่างลากการ์ด: ขอบซ้าย/ขวาของบอร์ด = เลื่อนบอร์ด · ขอบบน/ล่างของจอ = เลื่อนหน้า
+ *  ความเร็วตามระยะห่างจากขอบ (ใกล้สุด = เร็วสุด) · เหตุการณ์ลากหยุดมา (ปล่อย/ยกเลิก/ออกนอกหน้าต่าง) = หยุดเลื่อน */
+function useเลื่อนตามตอนลาก(กล่อง: React.RefObject<HTMLDivElement | null>, ลาก: boolean) {
+  useEffect(() => {
+    if (!ลาก) return;
+    const ระยะขอบ = 64, เร็วสุด = 22, ค้างได้นาน = 250;
+    let จุด: { x: number; y: number; t: number } | null = null;
+    let รอบ: number | null = null;
+    const สัดส่วน = (ห่าง: number) => Math.max(0, Math.min(1, 1 - ห่าง / ระยะขอบ));
+    const ก้าว = () => {
+      const el = กล่อง.current;
+      if (!จุด || !el || performance.now() - จุด.t > ค้างได้นาน) { รอบ = null; return; }
+      const r = el.getBoundingClientRect();
+      // ขอบที่มองเห็นจริง (บอร์ดกว้างเลยจอได้ — ใช้ขอบจอแทน)
+      const ซ้าย = Math.max(r.left, 0), ขวา = Math.min(r.right, window.innerWidth);
+      const dx = จุด.x < ซ้าย + ระยะขอบ ? -เร็วสุด * สัดส่วน(จุด.x - ซ้าย) : จุด.x > ขวา - ระยะขอบ ? เร็วสุด * สัดส่วน(ขวา - จุด.x) : 0;
+      const H = window.innerHeight;
+      const dy = จุด.y < ระยะขอบ ? -เร็วสุด * สัดส่วน(จุด.y) : จุด.y > H - ระยะขอบ ? เร็วสุด * สัดส่วน(H - จุด.y) : 0;
+      if (dx) el.scrollLeft += dx;
+      if (dy) { const v = ตัวเลื่อนแนวตั้ง(el); if (v) v.scrollTop += dy; else window.scrollBy(0, dy); }
+      รอบ = requestAnimationFrame(ก้าว);
+    };
+    const ขยับ = (e: DragEvent) => {
+      if (!e.clientX && !e.clientY) return;   // บางเบราว์เซอร์ส่ง 0,0 ตอนออกนอกหน้าต่าง
+      จุด = { x: e.clientX, y: e.clientY, t: performance.now() };
+      if (รอบ === null) รอบ = requestAnimationFrame(ก้าว);
+    };
+    const หยุด = () => { จุด = null; if (รอบ !== null) cancelAnimationFrame(รอบ); รอบ = null; };
+    document.addEventListener("dragover", ขยับ, true);
+    document.addEventListener("drag", ขยับ, true);
+    document.addEventListener("drop", หยุด, true);
+    document.addEventListener("dragend", หยุด, true);
+    window.addEventListener("blur", หยุด);
+    return () => {
+      หยุด();
+      document.removeEventListener("dragover", ขยับ, true);
+      document.removeEventListener("drag", ขยับ, true);
+      document.removeEventListener("drop", หยุด, true);
+      document.removeEventListener("dragend", หยุด, true);
+      window.removeEventListener("blur", หยุด);
+    };
+  }, [ลาก, กล่อง]);
 }
 
 /** ปุ่ม "ย้ายไปขั้น…" บนการ์ด — ทางเดียวกับการลาก (ทางที่ไม่ได้ = กดไม่ได้ + เหตุผลบนปุ่ม) */
