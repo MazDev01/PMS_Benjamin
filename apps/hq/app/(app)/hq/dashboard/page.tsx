@@ -34,6 +34,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { ลิงก์กิจกรรม, type HqDashboard } from "@pms/shared/lib/hqDashboard";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
+import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626"];
@@ -61,6 +62,7 @@ export default function HQDashboard() {
   const selDealer = dealerSel === "all" ? null : allDealers.find(d => d.code === dealerSel) ?? null;
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสตอบ 6 พ.ย. 69)
   const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(allDealers), [allDealers]);
+  const แทนรหัส = useแทนรหัสในบันทึก();
 
   const [ข้อมูล, setข้อมูล] = useState<HqDashboard | null>(null);
   const [err, setErr] = useState("");
@@ -109,7 +111,7 @@ export default function HQDashboard() {
 
   const activity = useMemo<ActivityTimelineItem[]>(() => (ข้อมูล?.activity ?? []).map(e => ({
     id: e.id, type: AUDIT_ICON[hqAuditCategory(e.action)] ?? "note", label: e.action,
-    text: `${e.user} · ${e.target}`, time: เวลาไทย(e.at), href: ลิงก์กิจกรรม(e),
+    text: `${e.user} · ${แทนรหัส(e.target)}`, time: เวลาไทย(e.at), href: ลิงก์กิจกรรม(e),   // รหัสดีลเลอร์ → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69)
   })), [ข้อมูล]);
 
   const c = ข้อมูล?.cards;

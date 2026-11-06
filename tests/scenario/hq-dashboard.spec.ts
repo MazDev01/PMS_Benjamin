@@ -84,7 +84,7 @@ test.beforeAll(async () => {
     insert into public.dealer_package_proposals (id, prospect_id, proposal_no, amount, status, payment_due_on) values
       (979200811, 979200801, 'DP-${สาขา}-1', 1000, 'accepted', current_date - 3);
     insert into public.audit_log ("user", role, action, target, at) values
-      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ZZTEST แก้ไขดีลเลอร์', 'RYG · ${กิจกรรมจริง}', now()),   -- ป้าย ZZTEST ที่การกระทำ: ลบได้ (ใบ 0241) แต่จอยังเห็นเป็นกิจกรรมจริง
+      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ZZTEST แก้ไขดีลเลอร์', 'RYG · ${กิจกรรมจริง} · Q-RYG-2569-0001 · RYG-00012', now()),   -- รหัสยืนเดี่ยว + เลขเอกสาร (บอสตอบ 6 พ.ย. 69: แปลงตอนแสดงเฉพาะรหัสยืนเดี่ยว)   -- ป้าย ZZTEST ที่การกระทำ: ลบได้ (ใบ 0241) แต่จอยังเห็นเป็นกิจกรรมจริง
       ('บัญชีทดสอบชั่วคราว', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · ชั่วคราว-แดชบอร์ด-${ป้าย}', now()),
       ('live-hq-1@example.test', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · อีเมลทดสอบ-แดชบอร์ด-${ป้าย}', now()),
       ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ปิดใช้งานดีลเลอร์', 'ZZT · สาขาทดสอบ-แดชบอร์ด-${ป้าย}', now()),
@@ -225,6 +225,10 @@ test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บ
   await เปิด(page);
   const การ์ดกิจกรรม = page.locator("[data-card='activity']");
   await expect(การ์ดกิจกรรม, "รายการจริงต้องเห็น").toContainText(กิจกรรมจริง, { timeout: 30_000 });
+  // บันทึกเก็บรหัส "RYG · …" ไว้ — บนจอแปลงเป็นชื่อดีลเลอร์ (ตัวกลางชื่อแสดง) · เลขเอกสารที่มีรหัสในเลขไม่ถูกแปลง (บอสตอบ 6 พ.ย. 69)
+  const ชื่อRYG = ((await admin.from("dealers").select("name").eq("code", "RYG").single()).data?.name as string).trim();
+  const คาดบนจอ = `${ชื่อRYG} · ${กิจกรรมจริง} · Q-RYG-2569-0001 · RYG-00012`;
+  await expect(การ์ดกิจกรรม, "กิจกรรมล่าสุด: รหัสยืนเดี่ยวเป็นชื่อ · เลขเอกสารคงเดิม").toContainText(คาดบนจอ);
   for (const ซ่อน of [`ชั่วคราว-แดชบอร์ด-${ป้าย}`, `อีเมลทดสอบ-แดชบอร์ด-${ป้าย}`, `สาขาทดสอบ-แดชบอร์ด-${ป้าย}`, `ZZTEST-ป้าย-แดชบอร์ด-${ป้าย}`])
     await expect(การ์ดกิจกรรม, `ไม่เห็น ${ซ่อน}`).not.toContainText(ซ่อน);
   await expect(การ์ดกิจกรรม, "ไม่มีชื่อบัญชีชั่วคราว").not.toContainText("บัญชีทดสอบชั่วคราว");
@@ -242,4 +246,11 @@ test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บ
 
   await การ์ดกิจกรรม.locator("[data-activity-link]").filter({ hasText: กิจกรรมจริง }).click();
   await page.waitForURL(/\/hq\/dealers\/RYG$/, { timeout: 20_000 });
+
+  // หน้าบันทึกการใช้งาน: แปลงแบบเดียวกันตอนแสดง · ค้นด้วยรหัสยังเจอ (คำค้นใช้ข้อความดิบ)
+  await page.goto(`${HQ_ORIGIN}/hq/audit`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByPlaceholder("ค้นหาผู้ใช้ / การกระทำ / รายละเอียด...").fill(`RYG · ${กิจกรรมจริง}`);
+  const ช่อง = page.locator("[data-audit-target]").filter({ hasText: กิจกรรมจริง }).first();
+  await expect(ช่อง, "/hq/audit: ค้นด้วยรหัสเจอ · แสดงเป็นชื่อ · เลขเอกสารคงเดิม").toHaveText(คาดบนจอ, { timeout: 25_000 });
 });

@@ -13,6 +13,7 @@ import { hqAuditModule, HQ_AUDIT_MODULE_LABEL } from "@pms/shared/lib/mock";
 import { APP_NOW, parseDate } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
+import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 // ⚠️ ห้ามกลับไปใช้ hqAuditCategory ของกระดิ่งแจ้งเตือน (บั๊กจริง 10 ส.ค. 69)
@@ -32,6 +33,8 @@ const ROLE_LABEL: Record<string, { label: string; bg: string; color: string }> =
 };
 
 export default function HQAuditPage() {
+  // รหัสดีลเลอร์ในรายละเอียด → ชื่อแสดง ตอนแสดงผลเท่านั้น (บอสตอบ 6 พ.ย. 69 · ฐาน/ไฟล์ส่งออก/คำค้นคงข้อความดิบ · เลขเอกสารไม่แปลง)
+  const แทนรหัส = useแทนรหัสในบันทึก();
   const entries = useAuditEntries();
   const [q, setQ] = useState("");
   const [userFilter, setUserFilter] = useState("all");
@@ -171,7 +174,7 @@ export default function HQAuditPage() {
                       {MODULE_LABEL[hqAuditModule(e.action)] ?? "—"}
                     </td>
                     <td><span className="badge" style={{ background: "#eef2f7", color: PRIMARY }}>{e.action}</span></td>
-                    <td style={{ fontSize: "0.8rem", color: "#2D2D2D" }}>{e.target}</td>
+                    <td style={{ fontSize: "0.8rem", color: "#2D2D2D" }} data-audit-target>{แทนรหัส(e.target)}</td>
                     <td style={{ fontSize: "0.72rem", color: "#9ca3af", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{e.at}</td>
                   </tr>
                 );
