@@ -5,6 +5,8 @@
 --        · ข้อทดสอบในฐานทดสอบ (ล้างแถวที่ตัวเองสร้าง)
 --      บัญชีผู้ใช้ตั้งสวิตช์เองไม่ได้ (คำสั่งตั้งค่าไม่เปิดผ่านช่องทางของแอป) · ตัวดักนี้ปิดเองไม่ได้จากหน้าเว็บ
 --   2) ยกเลิก (ดีลเลอร์อย่างเดียว · ก่อน HQ ส่งใบเท่านั้น — ตามเดิม) จดชื่อคนยกเลิก + เวลา (cancelled_by_name · cancelled_at)
+--      ไม่ลบร่างใบ HQ อีกต่อไป (บอสตอบ 6 พ.ย. 69): ร่าง + ไฟล์แนบอยู่ครบ HQ เปิดดูได้จากคำขอที่ยกเลิก · แก้/ส่งต่อไม่ได้
+--   ใบนี้รันซ้ำได้ (เพิ่มช่องแบบ if not exists · คำสั่งแบบ create or replace · ตัวดัก drop if exists)
 --      คำขอเก่าที่ยกเลิกไปแล้ว: เวลา = closed_at เดิม · ชื่อไม่เคยจด = ว่าง (หน้าจอแสดง "—" ไม่เดา)
 --   3) กล่องคำขอ HQ: กลุ่ม "ยกเลิกแล้ว" (cancelled) + จำนวน · แถวมีเหตุผล/ชื่อ/เวลาที่ยกเลิก — กลุ่มเดิมทุกกลุ่มเหมือนเดิม (ปิด/ยกเลิก ยังรวมคำขอที่ยกเลิก)
 -- ข้อทดสอบ: supabase/tests/quote_request_cancel_keep.sql · tests/scenario/quote-request-cancel.spec.ts
@@ -45,7 +47,8 @@ begin
   update quote_requests set status = 'cancelled', cancel_reason = btrim(p_reason), closed_at = now(),
          cancelled_at = now(), cancelled_by_name = audit_actor_name()
    where id = p_id returning * into r;
-  delete from hq_quotes where request_id = p_id and status = 'draft';   -- ร่างที่ยังไม่เคยส่ง ไม่มีใครอ้างถึง
+  -- ร่างใบ HQ + ไฟล์แนบ เก็บไว้ดูย้อนได้ (บอสตอบ 6 พ.ย. 69 · เดิมลบร่างทิ้ง → ร่างที่มีไฟล์แนบทำให้ยกเลิกไม่ได้)
+  --   ร่างตามสถานะคำขอ: hq_quote_save/hq_quote_send รับเฉพาะคำขอ new/pricing · ไฟล์แนบเพิ่ม/ลบได้เฉพาะคำขอเปิด (_quote_file_open)
   -- ประวัติของลีด (บอสสั่ง 5 พ.ย. 69): คำขอที่ยกเลิกยังเห็นในแท็บประวัติ — ใคร · เมื่อไร (วันที่ของบรรทัด) · เหตุผล
   perform _lead_sync_append(r.dealer_code, r.lead_num_id, array[]::text[],
     format('ยกเลิกคำขอราคา %s · เหตุผล: %s · โดย %s', r.request_no, btrim(p_reason), r.cancelled_by_name), 'doc');
