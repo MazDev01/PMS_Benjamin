@@ -224,7 +224,9 @@ test("[func·hq] ผูกกับสาขาที่ยังไม่มี
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
   await expect(ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว")).toBeChecked();
   await ตั้ง.locator("#cv-existing").selectOption(NOACC_CODE);
-  await expect(ตั้ง.getByText(`ดีลเลอร์ ${NOACC_CODE} ยังไม่มีบัญชีเข้าระบบ`), "ต้องเตือนก่อนกดผูก").toBeVisible({ timeout: 15_000 });
+  // ข้อความเตือนแสดงชื่อดีลเลอร์ ไม่แสดงรหัส (บอสสั่ง 6 พ.ย. 69 เอารหัสออกจากหน้าจอ · ใบ 0281 ชุดเดียวกัน)
+  await expect(ตั้ง.getByText("ดีลเลอร์ ZZTEST สาขาไม่มีบัญชี ยังไม่มีบัญชีเข้าระบบ"), "ต้องเตือนก่อนกดผูก (แสดงชื่อ)").toBeVisible({ timeout: 15_000 });
+  await expect(ตั้ง.getByText(`ดีลเลอร์ ${NOACC_CODE} ยังไม่มีบัญชีเข้าระบบ`), "ไม่แสดงรหัส").toHaveCount(0);
   await ตั้ง.getByRole("button", { name: "ผูกกับดีลเลอร์นี้" }).click();
 
   const เตือน = page.getByRole("dialog", { name: "ดีลเลอร์ยังไม่มีบัญชีเข้าระบบ" });

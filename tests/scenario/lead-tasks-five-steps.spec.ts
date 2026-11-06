@@ -71,8 +71,9 @@ test("[func·dealer] รายการเตือน 5 ขั้น · ไม�
                              ["ได้ใบ HQ", true], ["จัดทำใบเสนอราคา", true], ["ส่งใบเสนอราคา", true], ["ติดตามลูกค้า", false]] as const) {
     const ช่อง = page.getByRole("checkbox", { name: new RegExp(`^${ชื่อ}`) }).first();
     await expect.soft(ช่อง, `มีรายการ "${ชื่อ}"`).toBeVisible();
-    if (ระบบ) await expect.soft(ช่อง, `"${ชื่อ}" ระบบติ๊ก — กดเองไม่ได้`).toBeDisabled();
-    else await expect.soft(ช่อง, `"${ชื่อ}" ติ๊กเองได้`).toBeEnabled();
+    // บอสสั่ง 6 พ.ย. 69: ทุกงานกดได้ — งานของระบบกด = เปิดฟอร์ม/ดูรายละเอียด (ติ๊กเองไม่ได้ ข้อ 4 ตรวจที่ฐาน) · เดิม: งานของระบบกดไม่ได้
+    await expect.soft(ช่อง, `"${ชื่อ}" กดได้`).toBeEnabled();
+    if (ระบบ) await expect.soft(ช่อง.locator("[data-system-badge]"), `"${ชื่อ}" ป้ายตามสถานะ`).toHaveText((await ช่อง.getAttribute("aria-checked")) === "true" ? "ระบบติ๊กให้" : "กดเพื่อทำ");
   }
   await expect.soft(page.getByRole("checkbox", { name: /^ติดต่อแล้ว/ }), 'ไม่มี "ติดต่อแล้ว" (ใบ 0263)').toHaveCount(0);
   // ใบ 0263: ข้อมูลลูกค้าครบ → "เก็บข้อมูลลูกค้า" ติ๊กแล้ว · ข้อมูลงานยังไม่ครบ → "สรุปความต้องการ" ยังไม่ติ๊ก
@@ -82,6 +83,12 @@ test("[func·dealer] รายการเตือน 5 ขั้น · ไม�
   const ติดต่อ = page.getByRole("checkbox", { name: /^ติดตามลูกค้า/ }).first();
   await expect.soft(ติดต่อ, "วันที่ทำเป็น พ.ศ.").toContainText("2 มิ.ย. 2569");
   await expect.soft(ติดต่อ, "ไม่แสดงวันที่ ค.ศ.").not.toContainText("2026");
+  // ติดตามลูกค้าที่ติ๊กไว้แล้ว (ลีดเก่า) = กดแล้วดูประวัติ ไม่ถอนติ๊ก (บอสตอบ 6 พ.ย. 69 ข้อ 2)
+  await ติดต่อ.click();
+  await expect.soft(page.locator("[data-tab-panel='history']"), "ติ๊กแล้ว = เปิดแท็บประวัติ").toBeVisible();
+  await page.waitForTimeout(800);   // วัดว่าไม่ถอนติ๊ก (ไม่ใช่รอให้ผ่าน)
+  const ติดตามในฐาน = ((await admin.from("leads").select("tasks").eq("dealer_code", "RYG").eq("num_id", เลข).single()).data?.tasks ?? []) as { key: string; done: boolean }[];
+  expect.soft(ติดตามในฐาน.find(t => t.key === "followCustomer")?.done, "ลีดเก่าที่ติ๊กไว้แล้ว: กดแล้วยังติ๊กอยู่").toBe(true);
   void รายการ;
 
   // 4) ดีลเลอร์สั่งติ๊กงานของระบบที่ฐานตรง ๆ ไม่ได้ · งานติ๊กเองยังติ๊กได้

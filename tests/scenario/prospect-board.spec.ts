@@ -131,10 +131,14 @@ test("[ui·hq] บอร์ดผู้สนใจ 5 คอลัมน์: ล
   // ยกเลิกงานล่าสุดที่ติ๊กในแผง = ถอย 1 ขั้นได้ (บอสตอบ 5 พ.ย. 69) — ลากถอยบนบอร์ดยังไม่ได้ (ข้างบน)
   await การ์ด(page).click();
   await แผง(page).getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
+  // บอสสั่ง 6 พ.ย. 69 (กลับด้าน): กดงานที่ติ๊กแล้ว = เปิดดูรายละเอียด ไม่ถอยขั้น · ถอย = ปุ่ม "ยกเลิกงานล่าสุด" แยก
   await แผง(page).getByRole("checkbox", { name: "นัดคุยรายละเอียด" }).click();
+  await expect(แผง(page).getByRole("tab", { name: /บันทึกการติดต่อ/ }), "กดงานที่ติ๊กแล้ว = เปิดบันทึกการติดต่อ").toHaveAttribute("aria-selected", "true");
+  await page.waitForTimeout(800);   // วัดว่าไม่ถอยขั้น (ไม่ใช่รอให้ผ่าน)
+  expect(await ขั้นในฐาน(), "กดงานที่ติ๊กแล้วไม่ถอยขั้น").toBe("meeting");
+  await แผง(page).getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
+  await แผง(page).locator("[data-undo-last]").click();
   await expect.poll(ขั้นในฐาน, { timeout: 20_000, message: "ยกเลิกงานล่าสุด = นัดคุยแล้ว → ส่งข้อมูลบริษัทแล้ว" }).toBe("profile_sent");
-  await แผง(page).getByRole("checkbox", { name: "ติดต่อครั้งแรก" }).click();
-  await expect(แผง(page).getByRole("alert").filter({ hasText: "ยกเลิกได้เฉพาะงานล่าสุด" }), "ยกเลิกงานที่ไม่ใช่งานล่าสุด = ไม่ได้").toBeVisible();
-  expect(await ขั้นในฐาน()).toBe("profile_sent");
+  await expect(แผง(page).locator("[data-undo-last]"), "ปุ่มบอกงานล่าสุดถัดไป").toContainText("ส่งข้อมูลบริษัท");
   assertNoErrors(errs, "บอร์ดผู้สนใจ");
 });

@@ -15,7 +15,7 @@ import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { ขั้นต่อไป, type NextStepAction } from "@pms/shared/lib/leadNextStep";
 import { ชื่อขั้น, ชื่อขั้นการขาย, สภาพแถบขั้น, สีแถบขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
-import { ถามเหตุผล, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
+import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { useLostReasons } from "@pms/shared/lib/useHQConfig";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import type { HqQuote, QuoteRequest } from "@pms/shared/lib/quoteRequests";
@@ -30,14 +30,18 @@ const วันนี้ไทย = () => new Date(Date.now() + 7 * 3_600_000).t
 /** คำสั่งจากบอร์ดลีด (ลากการ์ด · ปุ่ม "ย้ายไปขั้น…" · บอสสั่ง 5 พ.ย. 69) — n เปลี่ยน = สั่งใหม่
  *  ถัดไป = ปุ่มหลักของกล่องนี้ · ปิดสำเร็จ = บันทึกผลจากลูกค้า (ตอบรับที่ใบ · L2) · ปิดไม่สำเร็จ = กล่องเหตุผล หรือ "ลูกค้าปฏิเสธ" ที่ใบเมื่อส่งใบแล้ว (L3)
  *  ตัดสินจากขั้นต่อไป() ตัวเดียวกับปุ่ม — ไม่มีทางไปต่อ = บอกเหตุผล ไม่เดา */
-export type คำสั่งบอร์ดลีด = { เป้า: "ถัดไป" | "ปิดสำเร็จ" | "ปิดไม่สำเร็จ"; n: number };
+export type คำสั่งบอร์ดลีด = { เป้า: "ถัดไป" | "ปิดสำเร็จ" | "ปิดไม่สำเร็จ" | "งาน"; n: number; /** เป้า "งาน" = กดงานในแต่ละขั้นที่ยังไม่ติ๊ก (บอสสั่ง 6 พ.ย. 69) */ งาน?: string };
+/** งานในแต่ละขั้น → ปุ่มของกล่องขั้นต่อไปที่ทำงานนั้น (ทางเดียวกับบอร์ด) · ไม่ตรงกับขั้นตอนนี้ = บอกเหตุผล ไม่เดา */
+const ปุ่มของงาน: Record<string, NextStepAction["kind"][]> = {
+  requestQuote: ["request_quote", "reprice"], hqQuote: ["request_quote", "reprice"], makeQuote: ["make_quote"], sendQuote: ["send_quote"],
+};
 
 export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั่ง }: {
   lead: LeadRow;
   /** คำสั่งจากบอร์ดลีด — ทำเมื่อโหลดคำขอ/ใบ HQ ครบแล้ว ครั้งเดียวต่อ n */
   คำสั่ง?: คำสั่งบอร์ดลีด | null;
   /** ปุ่มหลัก — quoteId = ใบลูกค้าที่เกี่ยว (ใบร่างที่จะส่ง / ใบที่รอลูกค้าตอบ) */
-  onAction: (kind: NextStepAction["kind"], quoteId?: string) => void;
+  onAction: (kind: NextStepAction["kind"] | "ดูคำขอ", quoteId?: string) => void;
   /** ปิดไม่สำเร็จ — ยกเลิกคำขอแล้ว = ฐานปิดลีดให้แล้ว ผู้เรียกแค่ดึงลีดใหม่ · ไม่ใช่ = บันทึกผ่านตัวกลางบันทึกลีด · โยน = แสดงข้อความในกล่อง */
   onLost: (reason: string, ยกเลิกคำขอแล้ว: boolean) => Promise<void>;
   /** คำขอราคาทั้งหมดของลีด (หลังโหลด) — แผงใช้ตัดสินปุ่มลบลีด */
@@ -129,6 +133,16 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
   // คำสั่งจากบอร์ดลีด → ทางเดียวกับปุ่มในกล่องนี้ (บอสตอบ L1–L5 · 5 พ.ย. 69)
   ทำคำสั่ง.current = () => {
     const เป้า = คำสั่ง?.เป้า;
+    if (เป้า === "งาน") {
+      const งาน = คำสั่ง?.งาน ?? "";
+      // ได้ใบ HQ: คำขอรออยู่ = เปิดคำขอ + บอกว่ารอ HQ ส่งใบ (บอสตอบ 6 พ.ย. 69 ข้อ 1 ก) · ยังไม่มีคำขอรอ = ไปทางขอราคาด้านล่าง
+      if (งาน === "hqQuote" && คำขอ && (คำขอ.status === "new" || คำขอ.status === "pricing")) {
+        onAction("ดูคำขอ");
+        return แจ้งสำเร็จ("รอ HQ ส่งใบอยู่ — ระบบติ๊กให้เมื่อ HQ ส่งใบ");
+      }
+      if (!ขั้น.action || !(ปุ่มของงาน[งาน] ?? []).includes(ขั้น.action.kind)) return แจ้งพลาด(`ยังทำงานนี้ไม่ได้ตอนนี้ — ${ขั้น.title}: ${ขั้น.detail}`);
+      if (งาน === "hqQuote") แจ้งสำเร็จ("ยังไม่ได้ส่งคำขอราคาให้ HQ — ส่งคำขอก่อน แล้ว HQ จะส่งใบกลับมา");
+    }
     if (เป้า === "ปิดไม่สำเร็จ") {
       if (ขั้น.ปิดไม่สำเร็จได้) return ปิดไม่สำเร็จ();
       if (ขั้น.action?.kind === "customer_result") return onAction("customer_result", ใบที่ส่งอยู่?.id);   // ส่งใบแล้ว = "ลูกค้าปฏิเสธ" ที่ใบ (L3)

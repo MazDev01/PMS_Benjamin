@@ -712,12 +712,16 @@ export const ระบบติ๊กเมื่อ = (key: string) => SYSTEM_L
 
 /** แม่แบบตั้งต้น (บอสสั่ง 27 ต.ค. 69) — ของจริง HQ แก้รายการติ๊กเองได้ที่ /hq/settings › เส้นทางการขาย (hq_sales_journey.tasks)
  *  ทุกหน้าจออ่านผ่าน useLeadTaskTemplate() · "ติดตามผล" "เจรจาต่อรอง" "ปิดการขาย" แบบเดิมเอาออก (FLOW เลิกใช้ 21 ต.ค. 69 · ต่อรองใช้ "ทำฉบับใหม่") */
+/** งาน "ติดตามลูกค้า" — ไม่ใช่รายการของระบบ (ฐานไม่กัน) แต่หน้าจอไม่ให้ติ๊กเปล่า ๆ: กดแล้วเปิดกล่องบันทึกการติดต่อ/นัดหมาย ติ๊กเมื่อบันทึก (บอสตอบ 6 พ.ย. 69 ข้อ 2 ข)
+ *  ลีดเก่าที่ติ๊กไว้แล้วคงเดิม */
+export const FOLLOW_TASK_KEY = "followCustomer";
+export const ติดตามติ๊กเมื่อ = "ติ๊กให้เมื่อบันทึกการติดต่อหรือนัดหมาย";
 const ระบบ = (key: string): LeadTaskDef => { const s = SYSTEM_LEAD_TASKS.find(t => t.key === key)!; return { key: s.key, label: s.label, step: s.step, auto: true }; };
 //   ใบ 0263 (30 ต.ค. 69): "ติดต่อแล้ว" เอาออก · เก็บข้อมูลลูกค้า/สรุปความต้องการ เป็นรายการของระบบ
 export const LEAD_TASK_TEMPLATE: LeadTaskDef[] = [
   ระบบ("collect"), ระบบ("requirement"),
   ระบบ(APPOINTMENT_TASK_KEY), ระบบ("requestQuote"), ระบบ("hqQuote"), ระบบ(QUOTE_TASK_KEY), ระบบ(SEND_QUOTE_TASK_KEY),
-  { key: "followCustomer", label: "ติดตามลูกค้า",     step: 5 },
+  { key: FOLLOW_TASK_KEY, label: "ติดตามลูกค้า",     step: 5 },
 ];
 
 /** ตรวจ/ซ่อมชุดงานที่ HQ ตั้งไว้ก่อนเอาไปใช้จริง — กันข้อมูลเพี้ยนจาก DB/หน้าจอ

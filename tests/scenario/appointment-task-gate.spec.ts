@@ -63,17 +63,21 @@ test("[func·dealer] งานนัดหมายติ๊กเองไม�
     const งานนัด = page.locator('[role="checkbox"]').filter({ hasText: "นัดหมาย" }).first();
     await expect(งานนัด, "ขั้นนี้ต้องมีงานนัดหมายในรายการเตือน").toBeVisible({ timeout: 20_000 });
     await expect(งานนัด, "งานนัดหมายเป็นช่องที่ระบบติ๊กให้").toHaveAttribute("data-auto-task", "1");
-    await expect(งานนัด, "ติ๊กเองไม่ได้").toBeDisabled();
+    // บอสสั่ง 6 พ.ย. 69: งานที่ระบบติ๊กกดได้ — ยังไม่ติ๊ก = "กดเพื่อทำ" เปิดฟอร์มนัดหมาย (เดิม: กดไม่ได้)
+    await expect(งานนัด, "กดได้ (เปิดฟอร์มนัดหมาย)").toBeEnabled();
+    await expect(งานนัด.locator("[data-system-badge]"), "ยังไม่ติ๊ก = ป้าย กดเพื่อทำ").toHaveText("กดเพื่อทำ");
     await expect(งานนัด, "บอกวิธีให้ติ๊ก: บันทึกนัดหมาย").toContainText("ระบบติ๊กให้เมื่อบันทึกนัดหมาย");
-    await งานนัด.click({ force: true });
-    await page.waitForTimeout(800);
+    await งานนัด.click();
+    await expect(page.locator("#la-type"), "กดงานนัดหมาย = เปิดฟอร์มนัดหมาย").toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(800);   // วัดว่าไม่ติ๊กเอง (ไม่ใช่รอให้ผ่าน)
     // ช่องงานนัดหมายต้องยังไม่ถูกติ๊ก — ติ๊กได้ต่อเมื่อมีนัดจริงเท่านั้น
     await expect(งานนัด, "ยังไม่มีนัดจริง ห้ามติ๊กงานให้").toHaveAttribute("aria-checked", "false");
     const { data } = await admin.from("leads").select("tasks").eq("id", ID).single();
     const งาน = (data?.tasks ?? []) as { key: string; label: string; done: boolean }[];
     expect(งาน.some(t => (t.key === "appointment" || t.label.includes("นัด")) && t.done), "ฐาน: งานนัดหมายยังไม่เสร็จ").toBe(false);
     // ลงนัดได้ที่กล่องนัดหมายในแท็บเดียวกัน (ทางเดียว)
-    await expect(page.getByRole("button", { name: /เพิ่มนัดหมาย/ }), "ทางลงนัดอยู่ในแท็บประวัติ").toBeVisible();
+    // กดงานนัดหมาย = เปิดฟอร์มนัดหมายในการ์ดนัดหมายเลย (ทางเดียวกับปุ่ม "เพิ่มนัดหมาย" · บอสสั่ง 6 พ.ย. 69)
+    await expect(page.getByRole("button", { name: /บันทึกนัดหมาย/ }), "ฟอร์มนัดหมายเปิดอยู่ พร้อมบันทึก").toBeVisible();
   } finally {
     await admin.from("appointments").delete().eq("lead_id", NUM);
     await admin.from("leads").delete().eq("id", ID);

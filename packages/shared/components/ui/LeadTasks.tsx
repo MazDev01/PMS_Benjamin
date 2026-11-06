@@ -3,12 +3,14 @@
 // ── งานในแต่ละขั้นของลูกค้าเป้าหมาย (รอบ 4 · FLOW 5 ขั้น 27 ต.ค. 69 · ใบ 0250 · ย้ายมาแท็บภาพรวม 28 ต.ค. 69 · FLOW D7) ─────────
 //   อยู่แท็บภาพรวม ใต้แถบ 5 ขั้น — ติ๊กไว้กันลืม ไม่ขยับขั้น · จัดกลุ่มตาม 5 ขั้นของ leadStage.ts (หัวกลุ่ม = ชื่อขั้น ไม่มีเลข)
 //   ขั้นปัจจุบันเปิดไว้ ขั้นอื่นพับไว้ กดเปิดได้ (บอสสั่ง 28 ต.ค. 69)
-//   รายการของระบบ (นัดหมาย · ส่งคำขอราคา · ได้ใบ HQ · จัดทำใบ · ส่งใบ) ฐานติ๊กเมื่อทำจริง กดเองไม่ได้ (ฐานกันด้วย) · ป้าย "ระบบติ๊กให้"
+//   รายการของระบบ (นัดหมาย · ส่งคำขอราคา · ได้ใบ HQ · จัดทำใบ · ส่งใบ) ฐานติ๊กเมื่อทำจริง ติ๊กเองไม่ได้ (ฐานกันด้วย)
+//   บอสสั่ง 6 พ.ย. 69: กดได้ — ยังไม่ติ๊ก = เปิดฟอร์มของงานนั้น (ป้าย "กดเพื่อทำ") · ติ๊กแล้ว = เปิดดูรายละเอียด ไม่ถอนติ๊ก (ป้าย "ระบบติ๊กให้")
+//   ติดตามลูกค้า = กล่องบันทึกการติดต่อ/นัดหมาย ติ๊กเมื่อบันทึก · งานที่ HQ เพิ่มเอง = ติ๊กเองเหมือนเดิม
 //   วันที่ทำแสดงผ่านตัวจัดรูปวันที่กลาง (พ.ศ.) — ข้อมูลเดิมบางส่วนเก็บแบบ ค.ศ.
 import { useEffect, useState } from "react";
 import { diffLeadTasks, type LeadIntent } from "@pms/shared/lib/leadIntent";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
-import { applyTaskTemplate, ระบบติ๊กเมื่อ, type LeadRow, type LeadTask } from "@pms/shared/lib/mock";
+import { applyTaskTemplate, ระบบติ๊กเมื่อ, FOLLOW_TASK_KEY, ติดตามติ๊กเมื่อ, type LeadRow, type LeadTask } from "@pms/shared/lib/mock";
 import { APP_NOW } from "@pms/shared/context/FilterContext";
 import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { ชั่วโมงนาทีไทย, วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
@@ -16,13 +18,15 @@ import { ชื่อขั้น, type เลขขั้น } from "@pms/share
 
 const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 // วันประทับ = "วันนี้" ของระบบ (APP_NOW) ไม่ใช่นาฬิกาเครื่อง — กติกาเดียวกับ useAudit/ทั้งระบบ · เวลา (ชม.:นาที) ใช้นาฬิกาจริง
-function stampNow() {
+export function stampNow() {
   return `${APP_NOW.getDate()} ${THAI_MONTHS[APP_NOW.getMonth()]} ${APP_NOW.getFullYear() + 543} · ${ชั่วโมงนาทีไทย()}`;
 }
 
 /** ขั้นตอนนี้ = เลขขั้นจาก leadStage.ts (ผู้เรียกคิดจากสถานะ + ใบร่าง) · ปิดแล้ว (6/7) = ไม่เปิดกลุ่มไหนไว้ */
-export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนนี้ }: {
+export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนนี้, onOpenTask }: {
   lead: LeadRow; performedBy: string; onSave: (intent: LeadIntent) => void; ขั้นตอนนี้: เลขขั้น;
+  /** กดงานที่มีฟอร์ม (รายการของระบบ + ติดตามลูกค้า) — done = ติ๊กแล้ว (เปิดดูรายละเอียด) · ไม่ส่ง = กดไม่ได้ */
+  onOpenTask?: (key: string, done: boolean) => void;
 }) {
   const taskTpl = useLeadTaskTemplate();
   // งานที่เห็นต้องตรงกับชุดที่ HQ ตั้งไว้เสมอ (บอสแจ้ง 19 ส.ค. 69) · ลีดที่ปิดแล้วคงรายการเดิม
@@ -37,8 +41,15 @@ export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนน�
   useEffect(() => { setเปิด(new Set([ขั้นตอนนี้])); }, [ขั้นตอนนี้, lead.id]);
   const สลับ = (n: number) => setเปิด(s => { const x = new Set(s); if (x.has(n)) x.delete(n); else x.add(n); return x; });
 
+  // งานที่มีฟอร์ม: ระบบเป็นคนติ๊ก (ทำจริงแล้วติ๊ก) — หน้าจอไม่ติ๊ก/ถอนติ๊กเอง
+  const มีฟอร์ม = (key: string) => !!ระบบติ๊กเมื่อ(key) || key === FOLLOW_TASK_KEY;
   function toggle(key: string) {
-    if (closed || ระบบติ๊กเมื่อ(key)) return;
+    if (มีฟอร์ม(key)) {
+      const t = tasks.find(x => x.key === key);
+      if (!closed || t?.done) onOpenTask?.(key, !!t?.done);   // ปิดแล้ว = เปิดดูได้เฉพาะงานที่ติ๊กแล้ว
+      return;
+    }
+    if (closed) return;
     const next = tasks.map(t => t.key !== key ? t
       : t.done ? { ...t, done: false, doneAt: undefined, doneBy: undefined }
       : { ...t, done: true, doneAt: stampNow(), doneBy: performedBy });
@@ -72,21 +83,22 @@ export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนน�
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "0 10px 10px" }}>
                     {g.งาน.map(t => {
-                      const auto = ระบบติ๊กเมื่อ(t.key);
+                      const auto = ระบบติ๊กเมื่อ(t.key) || (t.key === FOLLOW_TASK_KEY ? ติดตามติ๊กเมื่อ : "");
+                      const กดได้ = auto ? !!onOpenTask && (!closed || t.done) : !closed;
                       const วันที่ = วันที่แสดงไทย(t.doneAt);
                       return (
-                        <button key={t.key} type="button" role="checkbox" aria-checked={t.done} onClick={() => toggle(t.key)} disabled={closed || !!auto}
-                          data-auto-task={auto ? "1" : undefined} title={auto || undefined}
+                        <button key={t.key} type="button" role="checkbox" aria-checked={t.done} onClick={() => toggle(t.key)} disabled={!กดได้}
+                          data-auto-task={auto ? "1" : undefined} data-task-key={t.key} title={auto ? (t.done ? "ดูรายละเอียด" : `กดเพื่อทำ — ${auto}`) : undefined}
                           style={{ display: "flex", alignItems: "flex-start", gap: 11, width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 10,
                             border: `1px solid ${t.done ? "#bbf7d0" : "#e5e7eb"}`, background: t.done ? "#f0fdf4" : "#fff",
-                            cursor: closed || auto ? "default" : "pointer", fontFamily: "inherit", opacity: closed && !t.done ? 0.6 : 1 }}>
+                            cursor: กดได้ ? "pointer" : "default", fontFamily: "inherit", opacity: closed && !t.done ? 0.6 : 1 }}>
                           <span style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1, border: `2px solid ${t.done ? "#059669" : "#cbd5e1"}`,
                             background: t.done ? "#059669" : "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             {t.done && <Check size={13} color="#fff" strokeWidth={3} />}
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ fontSize: "0.84rem", fontWeight: 600, color: t.done ? "#065f46" : "#2D2D2D", textDecoration: t.done ? "line-through" : "none" }}>{t.label}</span>
-                            {auto && <span data-system-badge className="badge" style={{ marginLeft: 6, background: "#eef3f8", color: "#475569", fontSize: "0.6rem", fontWeight: 700, verticalAlign: "middle" }}>ระบบติ๊กให้</span>}
+                            {auto && <span data-system-badge className="badge" style={{ marginLeft: 6, background: "#eef3f8", color: "#475569", fontSize: "0.6rem", fontWeight: 700, verticalAlign: "middle" }}>{t.done ? "ระบบติ๊กให้" : "กดเพื่อทำ"}</span>}
                             {!t.done && auto && <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{auto}</span>}
                             {t.done && (t.doneBy || วันที่) && (
                               <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>✓ {t.doneBy ?? "—"}{วันที่ ? ` · ${วันที่}` : ""}</span>

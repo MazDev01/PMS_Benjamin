@@ -6,6 +6,8 @@
 //   ติ๊กงานตามลำดับ → ขั้นเลื่อนเอง · % คิดจากงาน (ปรับเองไม่ได้)
 //   งานที่ต้องมีของจริง (บันทึกการติดต่อ / ใบเสนอที่ส่งแล้ว) กดแล้วพาไปทำของจริงแทน ระบบติ๊กให้ทีหลัง
 //   ปิดท้าย: ตั้งเป็นดีลเลอร์ / ไม่สำเร็จ (ต้องมีเหตุผล) / เปิดติดตามใหม่
+//   บอสสั่ง 6 พ.ย. 69: งานที่ยังไม่ติ๊ก = "กดเพื่อทำ" เปิดฟอร์มของงาน (ทางเดียวกับลากบอร์ด) · งานที่ติ๊กแล้ว = เปิดดูรายละเอียด ไม่ถอนติ๊ก
+//     ถอย 1 ขั้น = ปุ่ม "ยกเลิกงานล่าสุด" แยก (ฐาน prospect_undo_last_task · ใบ 0278)
 //   กติกาชุดเดียวกับฐานข้อมูล (lib/prospectJourney.ts ↔ migration 0174)
 import React, { useState } from "react";
 import { Check, Lock, Store, XCircle, RotateCcw, Trophy } from "lucide-react";
@@ -18,7 +20,9 @@ import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerD
 
 const PRIMARY = "#003366";
 
-export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง, ตั้งไม่ได้เพราะ, ป้ายสถานะ, onLinkExisting, onUndo }: {
+export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง, ตั้งไม่ได้เพราะ, ป้ายสถานะ, onLinkExisting, onUndo, onOpenDone }: {
+  /** กดงานที่ติ๊กแล้ว = เปิดดูรายละเอียดของงานนั้น (บันทึกการติดต่อ / ใบค่าแฟรนไชส์) — ไม่ถอนติ๊ก */
+  onOpenDone?: (key: string) => void;
   /** ยกเลิกงานล่าสุด = ถอย 1 ขั้น ทางคำสั่งฐาน prospect_undo_last_task (ใบ 0278) — ไม่ส่ง = ใช้ onStage แบบเดิม (โหมดตัวอย่าง) */
   onUndo?: () => void;
   prospect: DealerProspect;
@@ -63,14 +67,17 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
   const สีแถบ = status === "lost" ? "#dc2626" : status === "won" ? "#059669" : PRIMARY;
   const ปิดปุ่ม = !editable || !!busy;
 
+  // ยกเลิกงานล่าสุด (ปุ่มแยก) — งานล่าสุดที่ติ๊ก = งานลำดับ ขั้นปัจจุบัน - 1
+  const ล่าสุด = ลำดับขั้น(status) - 1;
+  function ยกเลิกล่าสุด() {
+    if (ปิดปุ่ม || จบแล้ว || ล่าสุด < 0) return;
+    const ผล = ยกเลิกงาน(status, ล่าสุด);
+    if ("ผิด" in ผล) { setHint(ผล.ผิด); return; }
+    setHint(""); if (onUndo) onUndo(); else onStage(ผล.ขั้นใหม่);
+  }
   function กดงาน(i: number) {
+    if (งานเสร็จแล้ว(ขั้นที่ใช้แสดง, i)) { setHint(""); onOpenDone?.(งานมาตรฐาน[i].key); return; }   // ติ๊กแล้ว = ดูรายละเอียด
     if (ปิดปุ่ม || จบแล้ว) return;
-    if (งานเสร็จแล้ว(status, i)) {
-      const ผล = ยกเลิกงาน(status, i);
-      if ("ผิด" in ผล) { setHint(ผล.ผิด); return; }
-      setHint(""); if (onUndo) onUndo(); else onStage(ผล.ขั้นใหม่);
-      return;
-    }
     const ผล = ติ๊กงาน(status, i, { มีบันทึกการติดต่อ, มีใบส่งแล้ว });
     if ("ผิด" in ผล) { setHint(ผล.ผิด); return; }
     setHint("");
@@ -119,13 +126,13 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
           return (
             // ปุ่มงาน = ช่องติ๊กในสายตาผู้ใช้ — บอกสถานะให้โปรแกรมอ่านหน้าจอ (และเทสต์) ด้วย role/aria-checked
             <button key={g.key} type="button" role="checkbox" aria-checked={เสร็จ} aria-label={ชื่อ(g)}
-              onClick={() => กดงาน(i)} disabled={จบแล้ว || ปิดปุ่ม}
-              title={ล็อก ? "ทำงานก่อนหน้าให้ครบก่อน" : g.คำอธิบาย}
+              onClick={() => กดงาน(i)} disabled={เสร็จ ? !onOpenDone : จบแล้ว || ปิดปุ่ม} data-task-key={g.key}
+              title={เสร็จ ? "ดูรายละเอียด" : ล็อก ? "ทำงานก่อนหน้าให้ครบก่อน" : `กดเพื่อทำ — ${g.คำอธิบาย}`}
               style={{
                 display: "flex", alignItems: "flex-start", gap: 11, width: "100%", textAlign: "left",
                 padding: "10px 12px", borderRadius: 10, border: `1px solid ${เสร็จ ? "#bbf7d0" : ล็อก ? "#eceff3" : "#e5e7eb"}`,
                 background: เสร็จ ? "#f0fdf4" : ล็อก ? "#fafbfc" : "#fff",
-                cursor: จบแล้ว || ปิดปุ่ม ? "default" : ล็อก ? "not-allowed" : "pointer", fontFamily: "inherit",
+                cursor: เสร็จ ? (onOpenDone ? "pointer" : "default") : จบแล้ว || ปิดปุ่ม ? "default" : ล็อก ? "not-allowed" : "pointer", fontFamily: "inherit",
                 opacity: (จบแล้ว && !เสร็จ) || ล็อก ? 0.6 : 1,
               }}>
               <span style={{
@@ -139,6 +146,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
                 <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: "0.86rem", fontWeight: 600, color: เสร็จ ? "#065f46" : ล็อก ? "#9aa4b0" : "#2D2D2D", textDecoration: เสร็จ ? "line-through" : "none" }}>{ชื่อ(g)}</span>
                   <span className="badge" style={{ background: ขั้นสี.bg, color: ขั้นสี.text, border: "none", opacity: ล็อก ? 0.5 : 1 }}>→ {prospectStatusLabel[g.ไปขั้น]}</span>
+                  {!เสร็จ && !ล็อก && !จบแล้ว && !ปิดปุ่ม && <span data-system-badge className="badge" style={{ background: "#eef3f8", color: "#475569", fontSize: "0.6rem", fontWeight: 700 }}>กดเพื่อทำ</span>}
                 </span>
                 <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{g.คำอธิบาย}</span>
               </span>
@@ -146,6 +154,15 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
           );
         })}
       </div>
+
+      {!จบแล้ว && editable && ล่าสุด >= 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <button type="button" className="btn btn-secondary btn-sm" data-undo-last disabled={ปิดปุ่ม} onClick={ยกเลิกล่าสุด}
+            title="ถอยกลับ 1 ขั้น — ยกเลิกงานล่าสุดที่ติ๊ก">
+            <RotateCcw size={13} /> ยกเลิกงานล่าสุด ({ชื่อ(งานมาตรฐาน[ล่าสุด])})
+          </button>
+        </div>
+      )}
 
       {/* ปิดท้าย */}
       <div style={{ marginTop: 14, borderTop: "1px solid #eef0f4", paddingTop: 14 }}>

@@ -8,13 +8,13 @@ import { useRouter } from "next/navigation";
 import { ยืนยัน, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import {
   leadStatusLabel, buildLeadReport, applyTaskTemplate, findAppointmentTask,
-  seedLeadTasks, apptTypeLabel, fmtISOToThai,
+  seedLeadTasks, apptTypeLabel, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
-import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
+import { LeadTasks, stampNow } from "@pms/shared/components/ui/LeadTasks";
 import { LeadProgressBar } from "@pms/shared/components/ui/LeadProgressBar";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
@@ -71,6 +71,7 @@ import { lastContactLabel, leadLatestDate as leadLatestDateOf, leadEnteredInRang
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { reportRepoSaveError } from "@pms/shared/lib/useRepoState";
 import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
+import { friendlyError } from "@pms/shared/lib/friendlyError";
 
 // ─── Design tokens ────────────────────────────────────────────────────────
 
@@ -385,14 +386,14 @@ function OverviewEditor({ lead, persons, onSave }: {
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
           <span style={cellLbl}>{ช่อง.งาน}</span>
-          <span style={{ flex:1, minWidth:0 }}><input aria-label={ช่อง.งาน} value={f.project} onChange={e=>set("project",e.target.value)} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} style={inp} /></span>
+          <span style={{ flex:1, minWidth:0 }}><input id="ov-project" aria-label={ช่อง.งาน} value={f.project} onChange={e=>set("project",e.target.value)} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} style={inp} /></span>
         </div>
         <Cell icon={Ruler}   label={ช่อง.พื้นที่}>
-          <input type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
+          <input id="ov-area" aria-label={ช่อง.พื้นที่} type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
         </Cell>
         <div style={{ gridColumn:"1/-1", background:"#f7f9fc", border:"1px solid #eef1f5", borderRadius:10, padding:"10px 12px" }}>
           <div style={{ fontSize:"0.62rem", color:"#9ca3af", fontWeight:700, marginBottom:4 }}>{ช่อง.สเปก}</div>
-          <textarea aria-label={ช่อง.สเปก} value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder={ตัวอย่างช่อง.สเปก}
+          <textarea id="ov-note" aria-label={ช่อง.สเปก} value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder={ตัวอย่างช่อง.สเปก}
             style={{ ...inp, height:"auto", resize:"vertical", lineHeight:1.6 }} />
         </div>
         <div style={OV_GROUP}>{กลุ่มช่อง.การดูแล}</div>
@@ -901,7 +902,9 @@ export default function LeadsPage() {
   const [apptSaving, setApptSaving] = useState(false); // ไว้ disable ปุ่ม (visual)
   // ช่องบังคับของนัด (ประเภท · วันที่ · เวลา) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
   const นัดบังคับ = useช่องบังคับ();
-  const [apptErr, setApptErr] = useState("");  // ฟ้องเมื่อยังไม่เลือกประเภทนัด — ห้ามกดแล้วเงียบ
+  const [apptErr, setApptErr] = useState("");
+  // กล่อง "ติดตามลูกค้า" (บอสตอบ 6 พ.ย. 69 ข้อ 2 ข) — เลือกบันทึกการติดต่อ หรือ นัดหมาย ในกล่องเดียว · บันทึกแล้วติ๊ก · ยกเลิก = ไม่ติ๊ก
+  const [ติดตาม, setติดตาม] = useState<{ แบบ: "ติดต่อ" | "นัด"; ช่องทาง: string; ข้อความ: string; err: string; busy: boolean } | null>(null);  // ฟ้องเมื่อยังไม่เลือกประเภทนัด — ห้ามกดแล้วเงียบ
   const [draft, setDraft] = useState<LeadRow|null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -1758,7 +1761,7 @@ export default function LeadsPage() {
         // ── Tab: นัดหมาย — นัดกับลูกค้าเป้าหมายก่อนปิดการขาย (แสดงในปฏิทิน+แจ้งเตือนด้วย) ──
         const leadAppts = appointments.filter(a => a.leadId === c.numId)
           .slice().sort((a, b) => (a.date + a.time) < (b.date + b.time) ? 1 : -1);
-        const saveAppt = async () => {
+        const saveAppt = async (ติ๊กติดตาม = false) => {
           if (apptSavingRef.current) return; // กันกดซ้ำระหว่างรอเลขนัดจาก DB (H8)
           if (!นัดบังคับ.ตรวจ([
             { key: "apptType", label: "ประเภทนัดหมาย", value: apptForm.type, ข้อความ: "เลือกประเภทนัดหมายก่อนบันทึก" },
@@ -1782,6 +1785,7 @@ export default function LeadsPage() {
           });
           setApptForm({ type: "visit", date: APP_NOW_ISO, time: "10:00", title: "", note: "" });
           setApptAdding(false);
+          if (ติ๊กติดตาม) { ติ๊กงานติดตาม(); setติดตาม(null); }
           // ติ๊กงาน "นัดหมาย" ให้เอง — ตัวจริงอยู่ที่ SalesContext.addAppointment แล้ว
           // (ลงนัดจากปฏิทินก็ต้องติ๊กเหมือนกัน จึงย้ายไปไว้ที่เดียว · 3 ก.ย. 69)
           const apptDef = findAppointmentTask(taskTpl);
@@ -1794,6 +1798,32 @@ export default function LeadsPage() {
         const aInp: React.CSSProperties = { width:"100%", border:"1px solid #e5e7eb", borderRadius:9, padding:"8px 11px", fontSize:"0.8rem", color:"#2D2D2D", outline:"none", boxSizing:"border-box", fontFamily:"inherit", background:"#fff" };
         const aLbl: React.CSSProperties = { display:"block", fontSize:"0.65rem", fontWeight:700, color:"#6b7280", marginBottom:5 };
         const ผูกนัด = (k: string) => { const p = นัดบังคับ.ผูก(k); return { ...p, style: { ...aInp, ...(p.style ?? {}) } }; };
+        // ช่องนัดหมายชุดเดียว — ใช้ทั้งการ์ดนัดหมาย และกล่องติดตามลูกค้า (ฟอร์มเดียวกัน)
+        const ช่องนัด = (
+          <>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div className="col-full">
+                <FieldLabel htmlFor="la-type" required className="" style={aLbl}>ประเภทนัดหมาย</FieldLabel>
+                <select id="la-type" aria-label="ประเภทนัดหมาย" value={apptForm.type} onChange={e => { นัดบังคับ.ล้าง("apptType"); setApptForm(f => ({ ...f, type: e.target.value as ApptType | "" })); }} {...ผูกนัด("apptType")}>
+                  <option value="">— ยังไม่ระบุ —</option>
+                  {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
+                </select>
+                <FieldError>{นัดบังคับ.ผิด.apptType}</FieldError>
+              </div>
+              <div><FieldLabel htmlFor="la-date" required className="" style={aLbl}>วันที่</FieldLabel>
+                <input id="la-date" aria-label="วันที่นัดหมาย" type="date" value={apptForm.date} onChange={e => { นัดบังคับ.ล้าง("apptDate"); setApptForm(f => ({ ...f, date: e.target.value })); }} {...ผูกนัด("apptDate")} />
+                <FieldError>{นัดบังคับ.ผิด.apptDate}</FieldError></div>
+              <div><FieldLabel htmlFor="la-time" required className="" style={aLbl}>เวลา</FieldLabel>
+                <input id="la-time" aria-label="เวลานัดหมาย" type="time" value={apptForm.time} onChange={e => { นัดบังคับ.ล้าง("apptTime"); setApptForm(f => ({ ...f, time: e.target.value })); }} {...ผูกนัด("apptTime")} />
+                <FieldError>{นัดบังคับ.ผิด.apptTime}</FieldError></div>
+              <div className="col-full"><label style={aLbl}>หัวข้อ</label>
+                <input value={apptForm.title} onChange={e => setApptForm(f => ({ ...f, title: e.target.value }))} placeholder={apptForm.type ? apptTypeLabel[apptForm.type] : "หัวข้อนัดหมาย"} style={aInp} /></div>
+              <div className="col-full"><label style={aLbl}>รายละเอียด</label>
+                <input value={apptForm.note} onChange={e => setApptForm(f => ({ ...f, note: e.target.value }))} placeholder="บันทึกเพิ่มเติม" style={aInp} /></div>
+            </div>
+            {apptErr && <div role="alert" style={{ fontSize:"0.72rem", color:"#B91C1C", marginTop:8 }}>{apptErr}</div>}
+          </>
+        );
         const tabAppts = (
           <DrawerSection title="นัดหมาย">
             {!apptAdding ? (
@@ -1803,30 +1833,10 @@ export default function LeadsPage() {
             ) : (
               <div style={{ border:"1px solid #e5e7eb", borderRadius:12, padding:14, marginBottom:12, background:"#fafbfc" }}>
                 <div style={{ fontSize:"0.8rem", fontWeight:800, color:"#2D2D2D", marginBottom:12 }}>นัดหมายใหม่ · {c.company}</div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                  <div className="col-full">
-                    <FieldLabel htmlFor="la-type" required className="" style={aLbl}>ประเภทนัดหมาย</FieldLabel>
-                    <select id="la-type" aria-label="ประเภทนัดหมาย" value={apptForm.type} onChange={e => { นัดบังคับ.ล้าง("apptType"); setApptForm(f => ({ ...f, type: e.target.value as ApptType | "" })); }} {...ผูกนัด("apptType")}>
-                      <option value="">— ยังไม่ระบุ —</option>
-                      {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
-                    </select>
-                    <FieldError>{นัดบังคับ.ผิด.apptType}</FieldError>
-                  </div>
-                  <div><FieldLabel htmlFor="la-date" required className="" style={aLbl}>วันที่</FieldLabel>
-                    <input id="la-date" aria-label="วันที่นัดหมาย" type="date" value={apptForm.date} onChange={e => { นัดบังคับ.ล้าง("apptDate"); setApptForm(f => ({ ...f, date: e.target.value })); }} {...ผูกนัด("apptDate")} />
-                    <FieldError>{นัดบังคับ.ผิด.apptDate}</FieldError></div>
-                  <div><FieldLabel htmlFor="la-time" required className="" style={aLbl}>เวลา</FieldLabel>
-                    <input id="la-time" aria-label="เวลานัดหมาย" type="time" value={apptForm.time} onChange={e => { นัดบังคับ.ล้าง("apptTime"); setApptForm(f => ({ ...f, time: e.target.value })); }} {...ผูกนัด("apptTime")} />
-                    <FieldError>{นัดบังคับ.ผิด.apptTime}</FieldError></div>
-                  <div className="col-full"><label style={aLbl}>หัวข้อ</label>
-                    <input value={apptForm.title} onChange={e => setApptForm(f => ({ ...f, title: e.target.value }))} placeholder={apptForm.type ? apptTypeLabel[apptForm.type] : "หัวข้อนัดหมาย"} style={aInp} /></div>
-                  <div className="col-full"><label style={aLbl}>รายละเอียด</label>
-                    <input value={apptForm.note} onChange={e => setApptForm(f => ({ ...f, note: e.target.value }))} placeholder="บันทึกเพิ่มเติม" style={aInp} /></div>
-                </div>
-                {apptErr && <div role="alert" style={{ fontSize:"0.72rem", color:"#B91C1C", marginTop:8 }}>{apptErr}</div>}
+                {ช่องนัด}
                 <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:12 }}>
                   <button onClick={() => setApptAdding(false)} className="btn btn-secondary btn-sm">ยกเลิก</button>
-                  <button onClick={saveAppt} disabled={apptSaving} className="btn btn-primary btn-sm" style={apptSaving ? { opacity: .6, cursor: "not-allowed" } : undefined}><Check size={13} /> บันทึกนัดหมาย</button>
+                  <button onClick={() => void saveAppt()} disabled={apptSaving} className="btn btn-primary btn-sm" style={apptSaving ? { opacity: .6, cursor: "not-allowed" } : undefined}><Check size={13} /> บันทึกนัดหมาย</button>
                 </div>
                 <div style={{ fontSize:"0.65rem", color:"#9ca3af", marginTop:8 }}>ผู้รับผิดชอบ: {c.assigned || session.name} · นัดหมายจะแสดงในปฏิทินด้วย</div>
               </div>
@@ -1852,9 +1862,61 @@ export default function LeadsPage() {
           </DrawerSection>
         );
 
+        // ── กดงานในแต่ละขั้น (บอสสั่ง 6 พ.ย. 69) — ยังไม่ติ๊ก = เปิดฟอร์มของงาน · ติ๊กแล้ว = เปิดดูรายละเอียด (ไม่ถอนติ๊ก) ──
+        //   งานที่ผ่านกล่องขั้นต่อไป (ขอราคา · ได้ใบ HQ · ทำใบ · ส่งใบ) ส่งคำสั่งทางเดียวกับลากบอร์ด — ฟอร์มเดียวกัน ด่านเดียวกัน
+        const ไปช่องข้อมูล = (key: string) => {
+          const ช่อง = key === "collect" ? ["ov-company", "ov-contact", "ov-phone"] : ["ov-province", "ov-project", "ov-area", "ov-note"];
+          const els = ช่อง.map(id => document.getElementById(id) as HTMLInputElement | null).filter((e): e is HTMLInputElement => !!e);
+          const ขาด = els.find(e => { const v = (e.value ?? "").trim(); return e.id === "ov-area" ? !(Number(v) > 0) : !v; }) ?? els[0];
+          ขาด?.scrollIntoView({ behavior: "smooth", block: "center" });
+          ขาด?.focus({ preventScroll: true });
+        };
+        const เปิดฟอร์มนัด = () => { setApptAdding(true); setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); };
+        const resetนัดในกล่อง = () => { นัดบังคับ.ล้าง("apptType"); นัดบังคับ.ล้าง("apptDate"); นัดบังคับ.ล้าง("apptTime"); setApptErr(""); setApptForm({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" }); };
+        function เปิดงาน(key: string, done: boolean) {
+          setDTab("overview");
+          if (key === "collect" || key === "requirement") return void setTimeout(() => ไปช่องข้อมูล(key), 30);
+          if (key === APPOINTMENT_TASK_KEY) return done ? void rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }) : เปิดฟอร์มนัด();
+          if (key === FOLLOW_TASK_KEY) {
+            if (done) return setDTab("history");
+            setApptAdding(false); resetนัดในกล่อง();
+            return setติดตาม({ แบบ: "ติดต่อ", ช่องทาง: "", ข้อความ: "", err: "", busy: false });
+          }
+          if (done) return key === "requestQuote" || key === "hqQuote" ? setDTab("quotation") : openQuotationList(c);
+          setคำสั่งบอร์ด(x => ({ เป้า: "งาน", งาน: key, n: (x?.n ?? 0) + 1 }));
+        }
+        // ติ๊ก "ติดตามลูกค้า" หลังบันทึกจริง (ชื่องานตามที่ HQ ตั้ง) — ลีดเก่าที่ติ๊กไว้แล้วไม่แตะ
+        const งานติดตาม = () => applyTaskTemplate(c.tasks, taskTpl, c.status).find(t => t.key === FOLLOW_TASK_KEY);
+        const ติ๊กงานติดตาม = () => {
+          const t = งานติดตาม();
+          if (!t || t.done) return;
+          saveLead({ tasks: [{ key: FOLLOW_TASK_KEY, done: true, label: t.label, doneAt: stampNow(), doneBy: c.assigned || session.name }] });
+        };
+        const ช่องทางติดต่อ: [string, string][] = [["call", "โทร"], ["email", ช่อง.อีเมล], ["meeting", "พบลูกค้า"], ["note", "อื่น ๆ"]];
+        async function บันทึกติดต่อ() {
+          if (!ติดตาม || ติดตาม.busy) return;
+          const ข้อความ = ติดตาม.ข้อความ.trim();
+          if (!ติดตาม.ช่องทาง) return setติดตาม({ ...ติดตาม, err: "เลือกช่องทางที่ติดต่อก่อนบันทึก" });
+          if (!ข้อความ) return setติดตาม({ ...ติดตาม, err: "พิมพ์สิ่งที่คุยกับลูกค้าก่อนบันทึก" });
+          const t = งานติดตาม();
+          const ป้าย = ช่องทางติดต่อ.find(x => x[0] === ติดตาม.ช่องทาง)?.[1] ?? "";
+          setติดตาม({ ...ติดตาม, busy: true, err: "" });
+          try {
+            // คำสั่งเดียว: บันทึกการติดต่อลงไทม์ไลน์ + ติ๊กงาน (บันทึกไม่ผ่าน = ไม่ติ๊ก)
+            await saveLeadรอฐาน({
+              activities: [{ text: `${t?.label ?? "ติดตามลูกค้า"} (${ป้าย}) · ${ข้อความ}`, type: ติดตาม.ช่องทาง }],
+              tasks: t && !t.done ? [{ key: FOLLOW_TASK_KEY, done: true, label: t.label, doneAt: stampNow(), doneBy: c.assigned || session.name }] : [],
+            });
+            setติดตาม(null);
+            setToast(t && !t.done ? `บันทึกการติดต่อแล้ว · ติ๊กงาน “${t.label}” ให้` : "บันทึกการติดต่อแล้ว");
+          } catch (e) {
+            setติดตาม(x => x && { ...x, busy: false, err: friendlyError(e, "บันทึกไม่สำเร็จ") });
+          }
+        }
+
         // ── งานในแต่ละขั้น: แท็บภาพรวม ใต้แถบ 5 ขั้น (บอสสั่ง 28 ต.ค. 69) · ติ๊กไว้กันลืม ไม่ขยับสถานะ · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
         const tabTasks = (
-          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} ขั้นตอนนี้={เลขขั้นของ(c)} />
+          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} ขั้นตอนนี้={เลขขั้นของ(c)} onOpenTask={เปิดงาน} />
         );
 
         // ── Tab: รายงานการติดตาม (Lead Report) — แก้ไข/เพิ่ม/ลบได้ทั้งหมด ──
@@ -2021,7 +2083,9 @@ export default function LeadsPage() {
                 }}
                 onAction={async (kind, quoteId) => {
                   // ทุกปุ่มทำงานในแผงนี้ ไม่พาไปหน้าอื่น (รอบ 4 · เดิม ส่ง/บันทึกผล พาไปหน้าใบเสนอราคา)
-                  if (kind === "request_quote" || kind === "reprice") {
+                  if (kind === "ดูคำขอ") {
+                    setDTab("quotation");   // ได้ใบ HQ (ยังไม่ติ๊ก) = เปิดคำขอที่รอ HQ
+                  } else if (kind === "request_quote" || kind === "reprice") {
                     setDTab("quotation");
                     setReqSignal(s => ({ mode: kind === "reprice" ? "แก้ราคา" : "ขอราคา", n: (s?.n ?? 0) + 1 }));
                   } else if (kind === "make_quote") {
@@ -2092,6 +2156,45 @@ export default function LeadsPage() {
                     ปุ่มในแท็บงานมีด่านนั้นอยู่ (ปิดปุ่มพร้อมบอกเหตุผล) จึงเหลือไว้ทางเดียว */}
               </div>
             </div>
+
+            {/* กล่องติดตามลูกค้า — บันทึกการติดต่อ หรือ นัดหมาย (ฟอร์มนัดชุดเดียวกับการ์ดนัดหมาย) · ยกเลิก = ไม่ติ๊ก */}
+            {ติดตาม && (
+              <>
+                <div onClick={() => { if (!ติดตาม.busy && !apptSaving) { setติดตาม(null); resetนัดในกล่อง(); } }} style={{ position:"fixed", inset:0, background:"rgba(45,45,45,.35)", zIndex:220 }} />
+                <div role="dialog" aria-modal="true" aria-label="ติดตามลูกค้า" data-follow-dialog
+                  style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:460, maxWidth:"calc(100vw - 24px)", maxHeight:"calc(100vh - 24px)", overflowY:"auto",
+                    zIndex:230, background:"#fff", borderRadius:14, boxShadow:"0 24px 70px rgba(0,0,0,.3)", padding:18 }}>
+                  <div style={{ fontSize:"0.92rem", fontWeight:800, color:"#2D2D2D", marginBottom:4 }}>{งานติดตาม()?.label ?? "ติดตามลูกค้า"} · {c.company}</div>
+                  <div style={{ fontSize:"0.72rem", color:"#6b7280", marginBottom:12 }}>บันทึกแล้วระบบติ๊กงานให้ · ยกเลิก = ไม่ติ๊ก</div>
+                  <div role="radiogroup" aria-label="ติดตามด้วย" style={{ display:"flex", gap:6, marginBottom:14 }}>
+                    {([["ติดต่อ", "บันทึกการติดต่อ"], ["นัด", "นัดหมาย"]] as const).map(([k, label]) => (
+                      <button key={k} type="button" role="radio" aria-checked={ติดตาม.แบบ === k} disabled={ติดตาม.busy || apptSaving}
+                        onClick={() => setติดตาม({ ...ติดตาม, แบบ: k, err: "" })}
+                        className={ติดตาม.แบบ === k ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"} style={{ flex:1 }}>{label}</button>
+                    ))}
+                  </div>
+                  {ติดตาม.แบบ === "ติดต่อ" ? (
+                    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                      <div><FieldLabel htmlFor="fu-channel" required className="" style={aLbl}>ช่องทาง</FieldLabel>
+                        <select id="fu-channel" aria-label="ช่องทางที่ติดต่อ" value={ติดตาม.ช่องทาง} onChange={e => setติดตาม({ ...ติดตาม, ช่องทาง: e.target.value, err: "" })} style={aInp}>
+                          <option value="">— ยังไม่ระบุ —</option>
+                          {ช่องทางติดต่อ.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select></div>
+                      <div><FieldLabel htmlFor="fu-text" required className="" style={aLbl}>คุยอะไรกับลูกค้า</FieldLabel>
+                        <textarea id="fu-text" aria-label="สิ่งที่คุยกับลูกค้า" rows={3} value={ติดตาม.ข้อความ} maxLength={500}
+                          onChange={e => setติดตาม({ ...ติดตาม, ข้อความ: e.target.value, err: "" })} style={{ ...aInp, height:"auto", resize:"vertical", lineHeight:1.6 }} /></div>
+                      {ติดตาม.err && <div role="alert" style={{ fontSize:"0.72rem", color:"#B91C1C" }}>{ติดตาม.err}</div>}
+                    </div>
+                  ) : ช่องนัด}
+                  <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:14 }}>
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={ติดตาม.busy || apptSaving} onClick={() => { setติดตาม(null); resetนัดในกล่อง(); }}>ยกเลิก</button>
+                    {ติดตาม.แบบ === "ติดต่อ"
+                      ? <button type="button" className="btn btn-primary btn-sm" disabled={ติดตาม.busy} onClick={() => void บันทึกติดต่อ()}><Check size={13} /> {ติดตาม.busy ? "กำลังบันทึก…" : "บันทึกการติดต่อ"}</button>
+                      : <button type="button" className="btn btn-primary btn-sm" disabled={apptSaving} onClick={() => void saveAppt(true)}><Check size={13} /> บันทึกนัดหมาย</button>}
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* ปิดการขายไม่สำเร็จ — เลือกเหตุผล */}
           </>
