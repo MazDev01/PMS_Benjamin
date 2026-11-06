@@ -51,6 +51,7 @@ import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
 import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 
 // ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
 //   มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — ยังไม่มีใบ = "—"
@@ -260,7 +261,8 @@ export default function HQLeadsPage() {
   const anyFilter = !!query.trim() || status !== "OPEN" || srcSel !== "ALL" || overdueOnly;
 
 
-  const DEALER_NAME = useMemo(() => new Map(allDealers.map(d => [d.code, d.name])), [allDealers]);
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
+  const DEALER_NAME = useMemo(() => { const f = สร้างชื่อแสดง(allDealers); return new Map(allDealers.map(d => [d.code, f(d.code, d.name)])); }, [allDealers]);
 
 
   // ── ลีดใหม่รายเดือน (แบบหน้า) — แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill) · รวมลีดใหม่ = การ์ดลีดใหม่ ──
@@ -567,10 +569,9 @@ export default function HQLeadsPage() {
                       <div style={{ fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis" }}>{l.company || "—"}</div>
                       <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis" }}>{l.contact || "—"}</div>
                     </td>
-                    {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — รหัส + ชื่อ */}
-                    <td data-cell="dealer" title={`${l.dealerCode ?? "—"} ${DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}`}>
-                      <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{l.dealerCode || "—"}</span>
-                      <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis" }}>{DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}</div>
+                    {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · ไม่มีรหัส) */}
+                    <td data-cell="dealer" title={DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}
                     </td>
                     <td style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source || undefined}>{l.source || "—"}</td>
@@ -678,7 +679,6 @@ export default function HQLeadsPage() {
                 </PanelSection>
 
                 <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">
-                  <PanelRow icon={IdCard} label="รหัสดีลเลอร์" value={l.dealerCode} />
                   <PanelRow icon={Store} label="ดีลเลอร์" value={DEALER_NAME.get(l.dealerCode ?? "")} />
                   <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={l.assigned} />
                 </PanelSection>

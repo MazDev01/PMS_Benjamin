@@ -12,6 +12,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { ชื่อภาค, ภาคมาตรฐาน, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
 import { ซ่อนคอลัมน์ว่าง } from "@pms/shared/lib/tableFit";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { metrics } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useAuthReady } from "@pms/shared/lib/useAuthReady";
@@ -44,9 +45,9 @@ export function ขอบเขตของดีลเลอร์(rows: แถ
   return { ภาค: d ? ภาคมาตรฐาน(d.region) ?? null : null, จังหวัด: d?.province || null, ดีลเลอร์: code, มิติ: "dealer" };
 }
 
-/** ป้ายระดับที่เลือกเป็นคำ (หัวข้อกราฟ/ตาราง) — "ทั้งเครือ" · "ภาคเหนือ" · "จังหวัด…" · "ดีลเลอร์ รหัส ชื่อ" */
+/** ป้ายระดับที่เลือกเป็นคำ (หัวข้อกราฟ/ตาราง) — "ทั้งเครือ" · "ภาคเหนือ" · "จังหวัด…" · "ดีลเลอร์ ชื่อ" (ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)") */
 export const ป้ายระดับของขอบ = (s: ขอบเขต, rows: แถวเจาะลึก[]) =>
-  ป้ายระดับ({ ภาค: s.ภาค, จังหวัด: s.จังหวัด, ดีลเลอร์: s.ดีลเลอร์, ชื่อดีลเลอร์: s.ดีลเลอร์ ? rows.find(r => r.code === s.ดีลเลอร์)?.name : undefined });
+  ป้ายระดับ({ ภาค: s.ภาค, จังหวัด: s.จังหวัด, ดีลเลอร์: s.ดีลเลอร์, ชื่อดีลเลอร์: s.ดีลเลอร์ ? สร้างชื่อแสดง(rows)(s.ดีลเลอร์) : undefined });
 
 // ── ข้อมูลจากฐาน ─────────────────────────────────────────────────────────────────────────────────────────────
 /** null = กำลังโหลด · ผิดพลาด = แถวว่าง (หน้าแสดง "—"/ว่าง ไม่เดาเลข) */
@@ -67,8 +68,8 @@ export function useเจาะลึก(หน้า: หน้าเจาะ�
 
 // ── กลุ่มของแท็บ ─────────────────────────────────────────────────────────────────────────────────────────────
 type กลุ่ม = { key: string; label: string; sub: string; code?: string; rows: แถวเจาะลึก[]; เดือน?: { y: number; m: number; idx: number } };
-function จัดกลุ่มแท็บ(rows: แถวเจาะลึก[], dim: มิติ, start: string, end: string): กลุ่ม[] {
-  if (dim === "dealer") return rows.map(r => ({ key: `dealer:${r.code}`, label: r.name, code: r.code, sub: `${r.region ? ชื่อภาค(r.region) : "ไม่ระบุภูมิภาค"} · ${r.province || "ไม่ระบุจังหวัด"}`, rows: [r] }));
+function จัดกลุ่มแท็บ(rows: แถวเจาะลึก[], dim: มิติ, start: string, end: string, ชื่อแสดง: (code: string, name: string) => string = (_c, n) => n): กลุ่ม[] {
+  if (dim === "dealer") return rows.map(r => ({ key: `dealer:${r.code}`, label: ชื่อแสดง(r.code, r.name), code: r.code, sub: `${r.region ? ชื่อภาค(r.region) : "ไม่ระบุภูมิภาค"} · ${r.province || "ไม่ระบุจังหวัด"}`, rows: [r] }));
   if (dim === "month") return เดือนในช่วง(start, end).map((m, idx) => ({ key: `month:${m.key}`, label: m.label, sub: "", rows, เดือน: { y: m.y, m: m.m, idx } }));
   const m = new Map<string, แถวเจาะลึก[]>();
   rows.forEach(r => { const k = dim === "region" ? (ภาคมาตรฐาน(r.region) ?? "") : (r.province || ""); m.set(k, [...(m.get(k) ?? []), r]); });
@@ -92,7 +93,9 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
   const [แผงเดือน, setแผงเดือน] = useState<กลุ่ม | null>(null);
   const [เรียง, setเรียง] = useState<{ k: string; ลง: boolean } | null>(null);
   const โหลด = ข้อมูล === null;
-  const ชื่อดีลเลอร์ = ขอบ.ดีลเลอร์ ? ทั้งหมด.find(r => r.code === ขอบ.ดีลเลอร์)?.name : undefined;
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
+  const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(ทั้งหมด), [ทั้งหมด]);
+  const ชื่อดีลเลอร์ = ขอบ.ดีลเลอร์ ? ชื่อแสดง(ขอบ.ดีลเลอร์) : undefined;
 
   // เจาะลง: ภาค → แท็บจังหวัด · จังหวัด → แท็บดีลเลอร์ · ดีลเลอร์ → รายเดือน
   const เจาะ = (key: string) => {
@@ -123,7 +126,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
     ? ค่าเดือน(c, เดือนของกลุ่ม(เดือนทั้งหมด, codes, g.เดือน.y, g.เดือน.m))
     : ค่าแถว(c, g.rows, ทั้งหมด);
   const กลุ่ม = useMemo(() => {
-    const gs = จัดกลุ่มแท็บ(rows, dim, ช่วง.start, ช่วง.end);
+    const gs = จัดกลุ่มแท็บ(rows, dim, ช่วง.start, ช่วง.end, ชื่อแสดง);
     const คีย์ = เรียง?.k ?? (dim === "month" ? "__idx" : ตั้งค่า.แท่ง), ลง = เรียง ? เรียง.ลง : dim !== "month";
     const c = ตั้งค่า.คอลัมน์.find(x => x.k === คีย์);
     const ค่า = (g: กลุ่ม): number | string => คีย์ === "__idx" ? g.เดือน?.idx ?? 0 : คีย์ === "__name" ? g.label : c ? (ค่าของกลุ่ม(c, g) ?? -1) : 0;
@@ -133,7 +136,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
       return (ลง ? -r : r) || a.label.localeCompare(b.label, "th");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า]);
+  }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า, ชื่อแสดง]);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ยังโหลด/ไม่มีแถว = แสดงครบ (ไม่เดาว่าว่าง)
   const คอลัมน์แสดง = ซ่อนคอลัมน์ว่าง(คอลัมน์, กลุ่ม, (c, g) => ค่าของกลุ่ม(c, g));
   const คอลัมน์แท่ง = ตั้งค่า.คอลัมน์.find(c => c.k === ตั้งค่า.แท่ง)!;
@@ -176,7 +179,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
         <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "nowrap", alignItems: "center", paddingTop: 12, paddingBottom: 12, overflowX: "auto" }}>
           {เลือก("ภูมิภาค", ขอบ.ภาค, ตัวเลือกภาค.map(r => ({ v: r, l: ชื่อภาค(r) })), v => { setเรียง(null); ตั้งขอบ({ ภาค: v, จังหวัด: null, ดีลเลอร์: null, มิติ: v ? "prov" : "dealer" }); }, ป้ายทุกภูมิภาค)}
           {เลือก("จังหวัด", ขอบ.จังหวัด, ตัวเลือกจังหวัด.map(p => ({ v: p, l: p })), v => { setเรียง(null); if (v) เจาะ(`prov:${v}`); else ไประดับ(ขอบ.ภาค ? "region" : "all"); }, "ทุกจังหวัด")}
-          {เลือก("ดีลเลอร์", ขอบ.ดีลเลอร์, ตัวเลือกดีลเลอร์.map(r => ({ v: r.code, l: `${r.code} · ${r.name}` })), v => { setเรียง(null); if (v) เจาะ(`dealer:${v}`); else ไประดับ(ขอบ.จังหวัด ? "prov" : ขอบ.ภาค ? "region" : "all"); }, "ทุกดีลเลอร์")}
+          {เลือก("ดีลเลอร์", ขอบ.ดีลเลอร์, ตัวเลือกดีลเลอร์.map(r => ({ v: r.code, l: ชื่อแสดง(r.code, r.name) })), v => { setเรียง(null); if (v) เจาะ(`dealer:${v}`); else ไประดับ(ขอบ.จังหวัด ? "prov" : ขอบ.ภาค ? "region" : "all"); }, "ทุกดีลเลอร์")}
           {(ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์) && <button type="button" className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }} onClick={() => ไประดับ("all")}>กลับไปทั้งเครือ</button>}
         </div>
       </div>
@@ -241,7 +244,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
               {!โหลด && !กลุ่ม.length && <tr><td colSpan={คอลัมน์แสดง.length + 2} className="empty-row">ไม่พบข้อมูลในระดับนี้</td></tr>}
               {!โหลด && กลุ่ม.map(g => {
                 const เซลล์ = คอลัมน์แสดง.map(c => { const v = ค่าของกลุ่ม(c, g); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; });
-                const ป้าย = <td data-group-row={g.key} title={g.code ? `${g.label} (${g.code})` : g.label} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                const ป้าย = <td data-group-row={g.key} title={g.label} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                   <strong style={{ color: "#1F2937", fontWeight: g.code ? 600 : 800 }}>{g.label}</strong>
                   {g.sub && <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sub}</div>}
                 </td>;
@@ -267,9 +270,9 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
         const รายเดือน = !!ขอบ.ดีลเลอร์ && มีรายเดือน(c);
         const แถวแผง = รายเดือน
           ? เดือนในช่วง(ช่วง.start, ช่วง.end).map(m => ({ key: m.key, label: m.label, v: ค่าเดือน(c, เดือนของกลุ่ม(เดือนทั้งหมด, codes, m.y, m.m)) }))
-          : [...rows].map(r => ({ key: r.code, label: `${r.code} · ${r.name}`, v: ค่าแถว(c, [r], ทั้งหมด) })).sort((a, b) => (b.v ?? -1) - (a.v ?? -1) || a.key.localeCompare(b.key));
+          : [...rows].map(r => ({ key: r.code, label: ชื่อแสดง(r.code, r.name), v: ค่าแถว(c, [r], ทั้งหมด) })).sort((a, b) => (b.v ?? -1) - (a.v ?? -1) || a.key.localeCompare(b.key));
         return (
-          <แผงขวา ชื่อ={c.l} คำอธิบาย={รายเดือน ? `ที่มารายเดือน · ${ขอบ.ดีลเลอร์}` : "ที่มาแยกรายดีลเลอร์ · ผลรวม = ตัวเลขบนการ์ด"} ปิด={() => setแผงการ์ด(null)} testid={`card:${c.k}`}>
+          <แผงขวา ชื่อ={c.l} คำอธิบาย={รายเดือน ? `ที่มารายเดือน · ${ชื่อแสดง(ขอบ.ดีลเลอร์)}` : "ที่มาแยกรายดีลเลอร์ · ผลรวม = ตัวเลขบนการ์ด"} ปิด={() => setแผงการ์ด(null)} testid={`card:${c.k}`}>
             <table aria-label={`ที่มา ${c.l}`}>
               <thead><tr><th>{รายเดือน ? "เดือน" : "ดีลเลอร์"}</th><th className="num">{c.l}</th></tr></thead>
               <tbody>
@@ -291,9 +294,9 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
               <thead><tr><th>ดีลเลอร์</th>{ค.map(c => <th key={c.k} className="num">{c.l}</th>)}</tr></thead>
               <tbody>
                 {rows.map(r => (
-                  <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เปิดตัวเลขของ ${r.code} (เจาะลงระดับดีลเลอร์)`}>
-                    <td data-drawer-row={r.code} title={`${r.code} · ${r.name}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{r.name}</td>
+                  <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เปิดตัวเลขของ ${ชื่อแสดง(r.code, r.name)} (เจาะลงระดับดีลเลอร์)`}>
+                    <td data-drawer-row={r.code} title={ชื่อแสดง(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {ชื่อแสดง(r.code, r.name)}</td>
                     {ค.map(c => { const v = ค่าเดือน(c, ของเดือน.filter(x => x.code === r.code)); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; })}
                   </ClickableRow>
                 ))}

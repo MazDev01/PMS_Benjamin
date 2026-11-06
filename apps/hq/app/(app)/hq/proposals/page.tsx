@@ -33,6 +33,7 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { formatPhone } from "@pms/shared/lib/format";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ชื่อภาค } from "@pms/shared/lib/provinces";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 const STEEL = "#2D2D2D";
@@ -51,6 +52,7 @@ const ปุ่มไอคอน = (อันตราย = false): React.CSSPr
 const ปุ่มปิดใช้: React.CSSProperties = { opacity: .35, cursor: "not-allowed" };
 
 export default function HQProposalsPage() {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
   const { พิมพ์ } = useProposalActions();
@@ -303,7 +305,7 @@ export default function HQProposalsPage() {
                     {/* แก้ไข · ทำเวอร์ชันใหม่ · ลบ · เปลี่ยนสถานะ ย้ายไปแผงผู้สนใจที่เดียว (รอบ 4) — ปุ่มลิงก์ "ผู้สนใจ" ด้านขวาพาไป */}
                     {/* เป็นดีลเลอร์แล้ว = ไม่อยู่หน้าผู้สนใจแล้ว (บอสสั่ง 15 ก.ย. 69) → ลิงก์ไปหน้าดีลเลอร์นั้นแทน */}
                     {r && r.status === "won"
-                      ? r.dealerCode && <Link href={`/hq/dealers/${r.dealerCode}`} style={qa}><ExternalLink size={13} /> ดีลเลอร์ {r.dealerCode}</Link>
+                      ? r.dealerCode && <Link href={`/hq/dealers/${r.dealerCode}`} style={qa}><ExternalLink size={13} /> ดีลเลอร์ {ชื่อของ(r.dealerCode)}</Link>
                       : r && <Link href={`/hq/prospects?open=${r.id}`} style={qa}><ExternalLink size={13} /> ผู้สนใจ</Link>}
                     <button onClick={() => setดูรหัส(null)} title="ปิด" aria-label="ปิด" style={{ ...qa, width: 30, padding: 0, justifyContent: "center" }}><X size={15} /></button>
                   </div>

@@ -50,8 +50,8 @@ test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเ
   const kpiLocator = การ์ด.locator("[data-value]");
   await expect(การ์ด, "การ์ดทั้งเครือก่อนเลือกดีลเลอร์").toContainText("ลีดใหม่ทั้งเครือ", { timeout: 30_000 });
   await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
-  await page.getByRole("button", { name: new RegExp(`^${สาขา.รหัส} – `) }).click();
-  await expect(การ์ด).toContainText(`ลีดใหม่ของ ${สาขา.รหัส}`, { timeout: 30_000 });
+  await page.getByRole("button", { name: สาขา.ชื่อ, exact: true }).click();   // ตัวเลือกเป็นชื่อดีลเลอร์ (บอสสั่ง 6 พ.ย. 69)
+  await expect(การ์ด).toContainText(`ลีดใหม่ของ ${สาขา.ชื่อ}`, { timeout: 30_000 });
   await expect(kpiLocator, "สาขาของข้อยังไม่มีลีด").toHaveAttribute("data-value", "0", { timeout: 30_000 });
   const before = ((await kpiLocator.getAttribute("data-value")) ?? "");
   console.log(`[realtime] ตัวเลขก่อนดีลเลอร์เพิ่มลีด: "${before}"`);

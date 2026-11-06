@@ -34,6 +34,7 @@ import { ถามเหตุผล, แจ้งสำเร็จ } from "@pm
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 const บาท2 = (n: number) => Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -45,6 +46,7 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
   /** สถานะใบเปลี่ยน (HQ ย้อนการตอบรับ) — ให้หน้าแม่โหลดตารางใหม่ */
   onChanged?: () => void;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   const sc = quotationStatusColor[quote.status];
   const items = quote.lineItems ?? [];
   // ใบที่ปิดการขายแล้ว/ยังไม่ได้ส่ง อ่านจากสถานะเดียวกับที่ตารางใช้ — ไม่คิดเงื่อนไขใหม่ให้ขัดกัน
@@ -94,7 +96,7 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
       label="รายละเอียดใบเสนอราคา"
       onClose={onClose}
       title={quote.quoteNo}
-      subtitle={`${quote.customer} · ${quote.dealerCode}`}
+      subtitle={`${quote.customer} · ${ชื่อของ(quote.dealerCode, quote.dealerName)}`}
       badges={[
         { ข้อความ: quotationStatusLabel[quote.status], พื้น: sc.bg, ตัวอักษร: sc.text },
         { ข้อความ: fmtBaht(quote.valueNum) },
@@ -138,8 +140,7 @@ export function QuotationDrawer({ quote, onClose, onChanged }: {
       </PanelSection>
 
       <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">
-        <PanelRow icon={IdCard} label="รหัสดีลเลอร์" value={quote.dealerCode} />
-        <PanelRow icon={Store} label="ดีลเลอร์" value={quote.dealerName} />
+        <PanelRow icon={Store} label="ดีลเลอร์" value={ชื่อของ(quote.dealerCode, quote.dealerName)} />
         <PanelRow icon={MapPin} label="จังหวัด" value={quote.dealerProvince} />
         <PanelRow icon={MapPin} label="ภูมิภาค" value={regionDisplay(quote.region)} />
         <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={quote.salesperson} />

@@ -35,7 +35,7 @@ begin
   perform set_config('role', 'authenticated', true);
 
   b := hq_quote_board('todo', 'zzqbg');
-  perform flowtest.ok(b -> 'counts' = '{"todo":2,"overdue":1,"quoted":1,"won":1,"closed":1}'::jsonb, format('ตัวนับเหมือนเดิม (ได้ %s)', b -> 'counts'));
+  perform flowtest.ok(b -> 'counts' = '{"todo":2,"overdue":1,"quoted":1,"won":1,"closed":1,"cancelled":1}'::jsonb, format('ตัวนับเหมือนเดิม + ยกเลิกแล้ว (ใบ 0280 · อยู่ในปิดด้วย) (ได้ %s)', b -> 'counts'));
   perform flowtest.ok(jsonb_array_length(b -> 'rows') = 2, 'ต้องตีราคา = 2 แถว (เหมือนเดิม)');
 
   b := hq_quote_board('overdue', 'zzqbg');
@@ -47,8 +47,8 @@ begin
   b := hq_quote_board('all', 'zzqbg');
   ids := array(select (x ->> 'id')::int from jsonb_array_elements(b -> 'rows') x);
   perform flowtest.ok(ids = array[990905, 990902, 990903, 990901, 990904], format('ทั้งหมด = ทุกกลุ่ม เรียงคำขอใหม่สุดก่อน (ได้ %s)', ids));
-  perform flowtest.ok(jsonb_array_length(b -> 'rows') = (select sum(v::int) from jsonb_each_text(b -> 'counts') e(k, v) where k <> 'overdue'),
-    'ทั้งหมด = ผลรวมทุกกลุ่ม (ไม่นับซ้ำ overdue)');
+  perform flowtest.ok(jsonb_array_length(b -> 'rows') = (select sum(v::int) from jsonb_each_text(b -> 'counts') e(k, v) where k not in ('overdue', 'cancelled')),   -- ยกเลิกแล้ว (ใบ 0280) อยู่ในกลุ่มปิดด้วย เหมือนเกินกำหนดอยู่ในต้องตีราคา
+    'ทั้งหมด = ผลรวมทุกกลุ่ม (ไม่นับซ้ำ overdue · cancelled)');
 
   b := hq_quote_board('quoted', 'zzqbg');
   perform flowtest.ok(jsonb_array_length(b -> 'rows') = 1 and (b -> 'rows' -> 0 ->> 'id') = '990903', 'ส่งแล้ว รอดีลเลอร์ = 1 แถว (เหมือนเดิม)');

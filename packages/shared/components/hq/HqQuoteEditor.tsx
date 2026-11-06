@@ -36,6 +36,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
 import { FieldLabel, FieldError, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const NAVY = "#003366";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -67,6 +68,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   /** แนบ/ลบไฟล์แล้ว — หน้าแม่โหลดป้ายจำนวนไฟล์ใหม่ */
   onFilesChanged?: () => void;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   const [ใบ, setใบ] = useState<HqQuote | null | undefined>(undefined);
   const [ใบก่อน, setใบก่อน] = useState<HqQuote | null>(null);
   const [lines, setLines] = useState<แถววาง[]>([]);
@@ -154,7 +156,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const กดส่ง = async () => {
     if (ปัญหา) { แจ้งพลาด(ปัญหา); return; }
     const ตกลง = await ยืนยัน({
-      หัวข้อ: `ส่งใบ HQ ให้ ${request.dealerCode} ?`,
+      หัวข้อ: `ส่งใบ HQ ให้ ${ชื่อของ(request.dealerCode, dealerName)} ?`,
       รายละเอียด: `ราคาส่งดีลเลอร์ (ก่อน VAT) ${บาท(รวม)} บาท · ยืนราคาถึง ${วันไทยสั้น(ยืนราคาถึง)} — ส่งแล้วแก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นเวอร์ชันใหม่`,
       ปุ่มตกลง: "ส่งใบ HQ",
     });
@@ -204,7 +206,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       <>{บาท(Number(request.estimateTotal))} บาท <span style={{ fontWeight: 500, color: "#6b7280" }}>({(request.estimateItems ?? []).length} วัสดุ · {ป้ายราคาประเมิน}
         {request.estimateDeviationPct != null ? ` · คลาดจากใบ HQ ${ป้ายเปอร์เซ็นต์คลาด(request.estimateDeviationPct)}` : ""})</span></>
     ), "estimate"] as [string, React.ReactNode, string]] : []),
-    ["ดีลเลอร์", `${request.dealerCode} ${dealerName}`.trim(), "dealer"],
+    ["ดีลเลอร์", ชื่อของ(request.dealerCode, dealerName), "dealer"],
   ];
   // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
   const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
@@ -220,7 +222,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
               ใบ HQ · {request.requestNo}{ใบ ? ` · ${ใบ.quoteNo}` : ""}
             </h2>
             <div style={{ fontSize: "0.78rem", opacity: 0.85, marginTop: 2 }}>
-              {request.dealerCode} {dealerName} · {request.leadCompany || "—"}
+              {ชื่อของ(request.dealerCode, dealerName)} · {request.leadCompany || "—"}
             </div>
           </div>
           {ใบ && <span className="badge" style={{ background: ล็อก ? "#dcfce7" : "#fef3c7", color: ล็อก ? "#166534" : "#92400e" }}>{hqQuoteStatusLabel[ใบ.status]}</span>}

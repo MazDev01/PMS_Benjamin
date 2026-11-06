@@ -171,11 +171,13 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await สถานะ.selectOption("sent");
     await expect(page.locator('[data-kpi-row] [data-kpi="won"]').first(), "การ์ดตอบรับ 2 ใบ").toContainText("2 ใบ");
     expect(await การ์ด("won"), "มูลค่าตอบรับ = 1,000 + 2,000").toBe(3000);
-    // กลับด้าน (บอสสั่ง 2 พ.ย. 69 · เจาะลึก): กดการ์ด = แผงที่มา (ระดับดีลเลอร์ = รายเดือน) แถวรวม = การ์ด · รายการใบไม่ถูกกรองตามการ์ดแล้ว
+    // กลับด้าน (บอสสั่ง 2 พ.ย. 69 · เจาะลึก): กดการ์ด = แผงที่มา (ระดับดีลเลอร์ = รายเดือน) · ไม่มีแถวรวม (6 พ.ย. 69) ผลรวมแถว = การ์ด · รายการใบไม่ถูกกรองตามการ์ดแล้ว
     await page.locator('[data-kpi-row] [data-kpi="won"]').first().click();
     const แผง = page.locator('[data-drill-drawer="card:sales"]');
     await expect(แผง, "กดการ์ดตอบรับ → แผงที่มา").toBeVisible();
-    await expect(แผง.locator("tfoot [data-value]"), "แผงที่มา แถวรวม = การ์ด").toHaveAttribute("data-value", "3000");
+    await expect(แผง.locator("tfoot"), "แผงที่มาไม่มีแถวรวม").toHaveCount(0);
+    await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
+      { message: "แผงที่มา ผลรวมแถว = การ์ด 3000" }).toBe(3000);
     await แผง.getByRole("button", { name: "ปิดแผง" }).click();
     await expect(สถานะ, "รายการยังเป็นค่าเริ่มต้น").toHaveValue("sent");
     await expect(แถว).toHaveCount(4);

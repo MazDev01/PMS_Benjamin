@@ -60,6 +60,7 @@ import { ชื่อขั้น, สีขั้น } from "@pms/shared/lib/le
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 import {
   Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, ArrowUp, ArrowDown,
   Save, RotateCcw, Plus, Trash2, Check, X,
@@ -417,6 +418,7 @@ function RecruitTab() {
 //     → ไม่มีที่ใช้ เอาออก (บอสสั่ง "ถ้าไม่มีที่ใช้ เอาออก") · ช่องในฐาน (hq_targets) คงไว้ ไม่แตะ
 // เป้าทั้งปี = แหล่งเดียว (แดชบอร์ด HQ/ดีลเลอร์อ่านค่านี้) · เป้ารายดีลเลอร์ = DealerRow.revenueTarget (บันทึกทางเดียวกับหน้าดีลเลอร์)
 function TargetsTab() {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
   const { draft, set, dirty, save, reset } = useRepoDraft<HQTargets>(() => settingsRepo.getTargets(), (v) => settingsRepo.saveTargets(v), DEFAULT_HQ_TARGETS);
   const toast = useToast();
   const [dealers, setDealers] = useState<DealerRow[]>([]); // ของจริงมาจาก repo — ห้ามตั้งต้นด้วย seed
@@ -472,9 +474,7 @@ function TargetsTab() {
               {!dealers.length ? <tr><td colSpan={4} className="empty-row">—</td></tr>
                 : pageSlice(dealers, หน้าจริง).map(d => (
                   <tr key={d.code} data-target-row={d.code}>
-                    <td style={{ fontWeight: 600, color: STEEL }} title={`${d.code} · ${d.name}`}>
-                      <strong style={{ color: NAVY, fontFamily: "monospace", marginRight: 6 }}>{d.code}</strong>{d.name}
-                    </td>
+                    <td style={{ fontWeight: 600, color: STEEL }} title={ชื่อของ(d.code, d.name)}>{ชื่อของ(d.code, d.name)}</td>
                     <td style={{ color: "#6b7280" }}>{d.province || "—"}</td>
                     <td className="num">
                       <input type="text" inputMode="numeric" aria-label={`เป้า ${d.code}`} className="form-input"

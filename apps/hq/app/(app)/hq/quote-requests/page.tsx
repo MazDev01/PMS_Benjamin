@@ -29,6 +29,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { HqQuoteEditor, type ร่างใบHQ } from "@pms/shared/components/hq/HqQuoteEditor";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const ส้ม = "#b45309";
 /** แถวในรายการ: ต้องตีราคา = นับถึงกำหนดส่งใบ HQ · ส่งแล้ว = นับถึงวันยืนราคา · กลุ่มปิด = วันที่ปิด (ไม่มีกำหนดให้นับ) */
@@ -44,6 +45,7 @@ const นับวัน = (r: QuoteBoardRow, ตัวกรอง: QuoteBoardF
 const ร้อยละ = (v: number) => `${v.toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 export default function HQQuoteRequestsPage() {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   // สถานะที่เลือก (ช่องเลือกช่องเดียวแทนแถวปุ่มกรอง · บอสสั่ง 27 ต.ค. 69 · ใบ 0249) — การ์ดด้านบนเปลี่ยนค่านี้ด้วย
   // "done" = ปุ่ม "ปิด/ยกเลิก" (บอสสั่ง 30 ต.ค. 69 · ตามแบบ): รวมกลุ่มสั่งผลิต (ปิดสำเร็จ) + ปิด/ยกเลิก ของฐาน — รายการจากฐาน 2 กลุ่มต่อกัน
   const [กลุ่ม, setกลุ่ม] = useState<QuoteBoardFilter | "done">("todo");
@@ -221,7 +223,7 @@ export default function HQQuoteRequestsPage() {
                     style={{ width: "100%", textAlign: "left", display: "grid", gap: 3, padding: "12px 16px", border: "none", cursor: "pointer", fontFamily: "inherit",
                       borderLeft: `4px solid ${on ? ส้ม : t.bar}`, background: on ? "#fff4e5" : t.bg }}>
                     <span style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.88rem", fontWeight: 700, color: "#1f2933" }}>
-                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.dealerCode} · {r.leadCompany || "—"}</span>
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อของ(r.dealerCode, r.dealerName)} · {r.leadCompany || "—"}</span>
                       <span data-testid="row-tag" data-tag={r.tag} style={{ color: t.color, fontSize: "0.76rem", whiteSpace: "nowrap" }}>{r.tag === "overdue" ? ป้ายเกินกำหนด(r.dueAt) : t.label}</span>
                     </span>
                     <span style={{ fontSize: "0.78rem", color: "#52606d" }}>

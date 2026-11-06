@@ -6,6 +6,7 @@
 //   ลีดตามขั้น/เหตุผล/แหล่งที่มา = lead_summary ชุดสาขาเดียวกับตาราง
 //   "รายเดือน" (แท็บ · ที่มารายเดือนตอนเลือกดีลเลอร์) = hq_pipeline_months (ใบ 0268) · ฐานยังไม่ถึงใบนั้น = "รอข้อมูล" — ห้ามคิดเองจากรายการดิบในหน้าเว็บ
 import { useRouter } from "next/navigation";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 import { X, ChevronRight } from "lucide-react";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
@@ -36,7 +37,7 @@ export function แถบระดับ({ ภาค, จังหวัด, ด
   const ชิ้น: { k: "all" | "region" | "prov" | "dealer"; l: string }[] = [{ k: "all", l: "ทั้งเครือ" }];
   if (ภาค) ชิ้น.push({ k: "region", l: ชื่อภาค(ภาค) });
   if (จังหวัด) ชิ้น.push({ k: "prov", l: จังหวัด });
-  if (ดีลเลอร์) ชิ้น.push({ k: "dealer", l: `${ดีลเลอร์}${ชื่อดีลเลอร์ ? ` · ${ชื่อดีลเลอร์}` : ""}` });
+  if (ดีลเลอร์) ชิ้น.push({ k: "dealer", l: ชื่อดีลเลอร์ || ดีลเลอร์ });   // ชื่อแสดง ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   return (
     <nav aria-label="ระดับที่ดูอยู่" data-crumbs style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, margin: "0 0 14px" }}>
       {ชิ้น.map((c, i) => {
@@ -154,6 +155,7 @@ export function ตารางรายเดือน({ แถว, รวม�
 }
 /** แผงรายดีลเลอร์ของเดือนที่กด (แท็บรายเดือน) — แถวรวม = แถวของเดือนนั้น */
 export function แผงเดือน({ เดือน, rows, codes, ชื่อ, ปิด, เจาะ }: { เดือน: แถวเดือน; rows: ผลงานรายเดือน[]; codes: Set<string>; ชื่อ: Map<string, string>; ปิด: () => void; เจาะ: (code: string) => void }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const ของเดือน = rows.filter(r => r.y === เดือน.y && r.m === เดือน.m && codes.has(r.code)).sort((a, b) => b.sales - a.sales || a.code.localeCompare(b.code));
   return (
     <>
@@ -171,8 +173,8 @@ export function แผงเดือน({ เดือน, rows, codes, ชื�
               <tbody>
                 {!ของเดือน.length && <tr><td colSpan={6} className="empty-row">ไม่มีผลงานในเดือนนี้</td></tr>}
                 {ของเดือน.map(r => (
-                  <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${r.code} (เจาะลงระดับดีลเลอร์)`}>
-                    <td data-drawer-row={r.code} title={`${r.code} · ${ชื่อ.get(r.code) ?? ""}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{ชื่อ.get(r.code) ?? ""}</td>
+                  <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${ชื่อของ(r.code, ชื่อ.get(r.code))} (เจาะลงระดับดีลเลอร์)`}>
+                    <td data-drawer-row={r.code} title={ชื่อของ(r.code, ชื่อ.get(r.code))} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อของ(r.code, ชื่อ.get(r.code))}</td>
                     <td className="num">{r.leads}</td><td className="num">{r.quotes}</td><td className="num">{r.won}</td><td className="num">{r.lost}</td><td className="num">{fmtBaht(r.sales)}</td>
                   </ClickableRow>
                 ))}
@@ -194,6 +196,7 @@ export function แผงที่มา({ การ์ด, แถว, รวม
   /** ระดับดีลเลอร์: ที่มารายเดือน (ใบ 0268) · null = ฐานยังไม่ถึงใบนั้น → รอข้อมูล */
   เดือน: แถวเดือน[] | null;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const เรียง = [...แถว].sort((a, b) => b.sales - a.sales || a.code.localeCompare(b.code));
   const คอลัมน์: Record<การ์ดที่มา, { หัว: string[]; ค่า: (r: ผลงานดีลเลอร์) => (string | number)[]; รวม: (string | number)[] }> = {
     sales: { หัว: ["ยอดขาย", "เป้าตามช่วง", "% เป้า"], ค่า: r => [fmtBaht(r.sales), r.target == null ? "—" : fmtBaht(r.target), เปอร์เซ็นต์(r.pct)],
@@ -213,7 +216,7 @@ export function แผงที่มา({ การ์ด, แถว, รวม
         <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "16px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "1rem", fontWeight: 800, color: "#1F2937" }}>{หัวการ์ด[การ์ด]}</div>
-            <div style={{ fontSize: "0.74rem", color: MUTED, marginTop: 4 }}>{ดีลเลอร์ ? `ที่มารายเดือน · ${ดีลเลอร์}` : "ที่มาแยกรายดีลเลอร์ · ผลรวม = ตัวเลขบนการ์ด"}</div>
+            <div style={{ fontSize: "0.74rem", color: MUTED, marginTop: 4 }}>{ดีลเลอร์ ? `ที่มารายเดือน · ${ชื่อของ(ดีลเลอร์)}` : "ที่มาแยกรายดีลเลอร์ · ผลรวม = ตัวเลขบนการ์ด"}</div>
           </div>
           <button type="button" onClick={ปิด} aria-label="ปิดแผง" title="ปิดแผง"
             style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #dbe3ec", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} /></button>
@@ -252,7 +255,7 @@ export function แผงที่มา({ การ์ด, แถว, รวม
                     {!เรียง.length && <tr><td colSpan={c.หัว.length + 1} className="empty-row">ไม่พบดีลเลอร์ในช่วงที่เลือก</td></tr>}
                     {เรียง.map(r => (
                       <tr key={r.code} data-drawer-row={r.code}>
-                        <td title={`${r.code} · ${r.name}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{r.name}</td>
+                        <td title={ชื่อของ(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อของ(r.code, r.name)}</td>
                         {c.ค่า(r).map((v, i) => <td key={i} className="num">{typeof v === "number" ? v.toLocaleString() : v}</td>)}
                       </tr>
                     ))}
@@ -327,6 +330,7 @@ export function กล่องล่าง({ รวมทั้งหมด, �
 //   ยิงคำขอเฉพาะตอนอยู่ระดับดีลเลอร์ (คอมโพเนนต์นี้แสดงเฉพาะระดับนั้น) — ไม่เพิ่มคำขอให้ระดับอื่น
 export function ล่าสุดของดีลเลอร์({ code }: { code: string }) {
   const router = useRouter();
+  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const ใบผล = useQuotationsPage({ limit: 5, offset: 0, sort: { col: "created_at", dir: "desc" }, sentOnly: true, dealerCodes: [code] });
   const ลีดผล = useLeadsPage({ limit: 5, offset: 0, dealerCodes: [code] });
   const ใบ = ใบผล ? ใบผล.rows.map(q => ({ id: q.id, customer: q.customer, status: ชื่อสถานะใบHQ[q.status], date: q.date ? fmtISOToThai(q.date) : "—" })) : null;
@@ -348,17 +352,17 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
   return (
     <>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`ตารางใบเสนอราคาล่าสุดของ ${code}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 ใบล่าสุดที่ส่งลูกค้าแล้ว", "ใหม่สุดก่อน")} testid="dealer-latest-quotes">
+        <การ์ดกล่อง title={`ตารางใบเสนอราคาล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 ใบล่าสุดที่ส่งลูกค้าแล้ว", "ใหม่สุดก่อน")} testid="dealer-latest-quotes">
           {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [q.id, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/quotations?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
-        <การ์ดกล่อง title={`ตารางลีดล่าสุดของ ${code}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
+        <การ์ดกล่อง title={`ตารางลีดล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
           {ตาราง(["บริษัท", "ขั้นตอน", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลีด")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/leads?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
       </div>
       <div style={{ marginBottom: 24 }}>
-        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers/${code}`)}>เปิดแผงดูแลดีลเลอร์ {code}</button>
+        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers/${code}`)}>เปิดแผงดูแลดีลเลอร์ {ชื่อของ(code)}</button>
       </div>
     </>
   );

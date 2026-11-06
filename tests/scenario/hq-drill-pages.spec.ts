@@ -199,13 +199,13 @@ test("[drill·hq] ตัวเลขชุดเดียวกันตรง�
   expect([ภาพรวม.winRate.won, ภาพรวม.winRate.lost, Number(ภาพรวม.sales.value)], "ภาพรวมยอดขายของสาขาของข้อ = ค่าที่วางไว้").toEqual([1, 1, 2000]);
   // ลูกค้าเป้าหมาย ระดับดีลเลอร์ของข้อ: ผลรวมปิดสำเร็จ/ไม่สำเร็จ (รายเดือน) = การ์ดอัตราปิดของภาพรวมยอดขาย
   await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(สาขา.รหัส);
-  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toContainText(สาขา.รหัส);
+  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(สาขา.ชื่อ);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await รอโหลด(page);
   expect([await ผลรวมคอลัมน์(page, "won"), await ผลรวมคอลัมน์(page, "lost")],
     "ลูกค้าเป้าหมาย: ปิดสำเร็จ/ไม่สำเร็จ = ภาพรวมยอดขาย").toEqual([ภาพรวม.winRate.won, ภาพรวม.winRate.lost]);
   // ใบเสนอราคา ระดับดีลเลอร์ของข้อ (?dealer=): ตอบรับ (มูลค่า) = ยอดขายของภาพรวมยอดขาย
   await page.goto(`${HQ_ORIGIN}/hq/quotations?dealer=${สาขา.รหัส}`);
-  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toContainText(สาขา.รหัส, { timeout: 25_000 });
+  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(สาขา.ชื่อ, { timeout: 25_000 });   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await รอโหลด(page);
   expect(await ค่าการ์ด(page, "won"), "ใบเสนอราคา: ตอบรับ (มูลค่า) = ยอดขายของภาพรวมยอดขาย").toBe(Number(ภาพรวม.sales.value));
 });

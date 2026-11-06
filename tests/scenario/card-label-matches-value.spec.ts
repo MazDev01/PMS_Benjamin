@@ -47,8 +47,8 @@ test("การ์ดลีดใหม่บนแดชบอร์ด HQ ต�
       .gte("created_date", ต้นปี).lte("created_date", วันนี้)).count, "ตั้งต้น: ลีดปีนี้ของสาขา = 2 (ฐานคิดวันเข้ามาจากเวลาที่บันทึก)").toBe(2);
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
-    await page.getByRole("button", { name: new RegExp(`^${สาขา.รหัส} – `) }).click();
-    await expect(การ์ด, "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลีดใหม่ของ ${สาขา.รหัส}`, { timeout: 30_000 });
+    await page.getByRole("button", { name: สาขา.ชื่อ, exact: true }).click();   // ตัวเลือกเป็นชื่อดีลเลอร์ (ไม่มีรหัส · บอสสั่ง 6 พ.ย. 69)
+    await expect(การ์ด, "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก (ชื่อ ไม่ใช่รหัส)").toContainText(`ลีดใหม่ของ ${สาขา.ชื่อ}`, { timeout: 30_000 });
     await expect(การ์ด.locator("[data-value]"), "ลีดใหม่ของสาขา = 2 (ไม่นับลีดปีก่อน)").toHaveAttribute("data-value", "2", { timeout: 30_000 });
   } finally { await สาขา.ลบ(); }
 });

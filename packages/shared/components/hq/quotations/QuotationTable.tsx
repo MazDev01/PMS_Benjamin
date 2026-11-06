@@ -14,6 +14,7 @@ import type { QuoteRow } from "@pms/shared/lib/hqQuotations";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { TablePagination, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { คีย์ใบ, type ส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -36,6 +37,7 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
   /** หัวข้อ 2 บรรทัดบนตาราง (บอสสั่ง 3 พ.ย. 69) */
   หัวข้อ?: { ชื่อ: string; คำอธิบาย: string };
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   return (
     <div className="card" style={{ marginBottom: 0 }}>
       {หัวข้อ && <BoxTitle ชื่อ={หัวข้อ.ชื่อ} คำอธิบาย={หัวข้อ.คำอธิบาย} />}
@@ -89,8 +91,8 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
               return (
                 <ClickableRow key={`${q.dealerCode ?? ""}-${q.id}`} onActivate={() => onView(q)} label={`เปิดรายละเอียดใบเสนอราคา ${q.quoteNo}`}>
                   <td data-quote-no style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
-                  <td data-col="dealer" title={`${q.dealerCode} · ${q.dealerName}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    <span data-col="code" className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{q.dealerCode}</span>{q.dealerName}
+                  <td data-col="dealer" title={ชื่อของ(q.dealerCode, q.dealerName)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {ชื่อของ(q.dealerCode, q.dealerName)}
                   </td>
                   <td title={q.customer} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.customer}</td>
                   <td data-col="site-province" style={{ color: MUTED, whiteSpace: "nowrap" }}>{q.siteProvince || "—"}</td>

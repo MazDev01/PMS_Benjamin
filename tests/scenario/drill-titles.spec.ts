@@ -102,7 +102,7 @@ for (const หน้า of ["quotations", "leads", "customers"] as const) {
     await ตรวจหัวข้อเจาะลึก(page, หน้า, "dealer", { ภาค: "ตะวันออก", จังหวัด: "ตราด", ดีลเลอร์: null }, ช่วง, "จังหวัดตราด · แท็บดีลเลอร์");
     await กดแถว(page, `dealer:${สาขา.รหัส}`, "dealer");
     await ตรวจหัวข้อเจาะลึก(page, หน้า, "month", { ภาค: "ตะวันออก", จังหวัด: "ตราด", ดีลเลอร์: สาขา.รหัส, ชื่อดีลเลอร์: ชื่อสาขา() }, ช่วง, "ระดับดีลเลอร์");
-    await expect(หัว(page, "[data-drill-table]").locator("[data-title]")).toContainText(`รายเดือน · ดีลเลอร์ ${สาขา.รหัส}`);
+    await expect(หัว(page, "[data-drill-table]").locator("[data-title]")).toContainText(`รายเดือน · ดีลเลอร์ ${ชื่อสาขา()}`);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
     expect(await กล่องที่ไม่มีหัวข้อ(page), "ระดับดีลเลอร์: ทุกกราฟ/ตารางยังมีหัวข้อ").toEqual([]);
     assertNoErrors(errs, `หัวข้อ /hq/${หน้า}`);
   });
@@ -128,8 +128,8 @@ test("[ui·hq] /hq/pipeline: ทุกกราฟ/ตารางมีหั�
   }
   // ระดับดีลเลอร์ (ตัวเลือกดีลเลอร์บนแถบตัวกรอง) — หัวข้อเปลี่ยนเป็นรายเดือนของดีลเลอร์
   await page.locator("[data-filter-row] select").first().selectOption(สาขา.รหัส);
-  await expect(ตาราง.locator("[data-title]").first()).toHaveText(`ตารางผลงานรายเดือน · ดีลเลอร์ ${สาขา.รหัส} ${ชื่อสาขา()}`, { timeout: 20_000 });
-  await expect(page.locator("[data-testid='pipeline-funnel'] [data-title]")).toContainText(`ดีลเลอร์ ${สาขา.รหัส}`);
+  await expect(ตาราง.locator("[data-title]").first()).toHaveText(`ตารางผลงานรายเดือน · ดีลเลอร์ ${ชื่อสาขา()}`, { timeout: 20_000 });
+  await expect(page.locator("[data-testid='pipeline-funnel'] [data-title]")).toContainText(`ดีลเลอร์ ${ชื่อสาขา()}`);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   expect(await กล่องที่ไม่มีหัวข้อ(page), "ระดับดีลเลอร์: ทุกกราฟ/ตารางยังมีหัวข้อ").toEqual([]);
   assertNoErrors(errs, "หัวข้อ /hq/pipeline");
 });

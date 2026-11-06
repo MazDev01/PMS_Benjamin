@@ -75,7 +75,8 @@ test("[H9x] [ui·hq] แต่ละสถานะในช่องเลื�
   const { data, error } = await hq.rpc("hq_quote_board", { p_group: "todo", p_q: แท็ก });
   expect(error).toBeNull();
   const ฐาน = (data as { counts: Record<string, number> }).counts;
-  expect(ฐาน, "ชุดข้อมูลที่รู้ค่าล่วงหน้า").toEqual({ todo: 2, overdue: 1, quoted: 1, won: 1, closed: 1 });
+  // ยกเลิกแล้ว (ใบ 0280) = ตัวนับเพิ่ม · คำขอ E (ยกเลิก) อยู่ในกลุ่มปิดด้วย
+  expect(ฐาน, "ชุดข้อมูลที่รู้ค่าล่วงหน้า").toEqual({ todo: 2, overdue: 1, quoted: 1, won: 1, closed: 1, cancelled: 1 });
   // ปุ่ม 3 กลุ่มพร้อมจำนวน (บอสสั่ง 30 ต.ค. 69 · แทนช่องเลือก): จำนวนบนปุ่ม = ฐาน · แถว = จำนวนบนปุ่ม
   //   ปิด/ยกเลิก = สั่งผลิต + ปิด/ยกเลิกของฐาน · เกิน 14 วัน = การ์ด (อยู่ในกลุ่มต้องตีราคา)
   for (const [k, n] of [["quoted", ฐาน.quoted], ["done", ฐาน.won + ฐาน.closed], ["todo", ฐาน.todo]] as const) {

@@ -62,8 +62,10 @@ test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อแ�
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click({ timeout: 20_000 });
-  await expect(page.getByRole("button", { name: /^RYG – / }), "แดชบอร์ด: รายการดีลเลอร์โหลดแล้ว").toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("button", { name: /^HQ – / }), "แดชบอร์ด: ตัวเลือกดีลเลอร์ไม่มี HQ").toHaveCount(0);
+  // ตัวเลือกเป็นชื่อดีลเลอร์ (ไม่มีรหัส · บอสสั่ง 6 พ.ย. 69) — หาชื่อของ RYG / แถว HQ จากทะเบียน
+  const ชื่อของ = async (c: string) => ((await adminClient().from("dealers").select("name").eq("code", c).maybeSingle()).data?.name as string | undefined) ?? c;
+  await expect(page.getByRole("button", { name: await ชื่อของ("RYG"), exact: true }), "แดชบอร์ด: รายการดีลเลอร์โหลดแล้ว").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: await ชื่อของ("HQ"), exact: true }), "แดชบอร์ด: ตัวเลือกดีลเลอร์ไม่มี HQ").toHaveCount(0);
   await page.keyboard.press("Escape");
 
   await ค้น(page, "/hq/pipeline", "HQ");
@@ -150,6 +152,14 @@ test("[ข·3] รหัสดีลเลอร์ 5 ตัวไม่โด�
     ["ใบเสนอราคาทั้งเครือ", "/hq/quotations", "ZZTEST-ลูกค้ารหัสยาว"],
   ] as const) {
     await ค้น(page, path, คำ);
+    // 6 พ.ย. 69 บอสสั่ง: รหัสแสดงเฉพาะทะเบียนดีลเลอร์ · หน้าอื่นแสดงชื่อ (ตรวจกลับด้าน: ไม่มีป้ายรหัส · ชื่อเต็มอยู่ในช่องครบ)
+    if (หน้า !== "ทะเบียนดีลเลอร์") {
+      await expect(page.locator("td[data-col='code'], td[data-col='dealer'] [data-col='code']").filter({ hasText: รหัสยาว }), `${หน้า}: ไม่มีช่อง/ป้ายรหัส`).toHaveCount(0);
+      const ชื่อ = page.locator("td[data-perf-row], td[data-col='dealer']").filter({ hasText: /ZZTEST สาขารหัสยาว/ })   // ข้อแก้ชื่อดีลเลอร์ที่รันพร้อมกันเติม "แก้ชื่อแล้ว" ได้.first();
+      await expect(ชื่อ, `${หน้า}: ช่องดีลเลอร์แสดงชื่อ`).toBeVisible({ timeout: 20_000 });
+      await expect(ชื่อ, `${หน้า}: ช่องดีลเลอร์ไม่มีรหัส`).not.toContainText(รหัสยาว);
+      continue;
+    }
     // ภาพรวมยอดขาย (ตารางผลงานดีลเลอร์ · 30 ต.ค. 69) ช่องรหัสใช้ data-perf-row · ทะเบียน = td[data-col='code']
     //   ลูกค้า/ใบเสนอราคาทั้งเครือ (ตามแบบ 30 ต.ค. 69) = ป้ายรหัส [data-col='code'] ในช่องดีลเลอร์ (รหัส+ชื่อช่องเดียว)
     const ช่อง = page.locator("td[data-col='code'], td[data-perf-row], td[data-col='dealer'] [data-col='code']").filter({ hasText: รหัสยาว }).first();

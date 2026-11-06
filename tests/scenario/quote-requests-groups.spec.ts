@@ -114,7 +114,8 @@ test("[ui·hq] คำขอใบเสนอราคา: ปุ่ม 3 กล
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(ปุ่ม(page, "todo"), "ค่าเริ่มต้น = ต้องตีราคา").toHaveAttribute("aria-selected", "true", { timeout: 20_000 });
   const ชื่อปุ่ม = (await กลุ่ม(page).getByRole("tab").allInnerTexts()).map(t => t.replace(/[\d,—]+\s*$/, "").trim());
-  expect.soft(ชื่อปุ่ม, "ปุ่ม 3 กลุ่มตามแบบ").toEqual(["ต้องตีราคา", "ส่งแล้ว รอดีลเลอร์", "ปิด/ยกเลิก"]);
+  // 5 พ.ย. 69 บอสสั่งเพิ่มตัวกรอง "ยกเลิกแล้ว" (ใบ 0280) — ปุ่ม 3 กลุ่มเดิม + ยกเลิกแล้ว
+  expect.soft(ชื่อปุ่ม, "ปุ่ม 3 กลุ่มตามแบบ + ยกเลิกแล้ว").toEqual(["ต้องตีราคา", "ส่งแล้ว รอดีลเลอร์", "ปิด/ยกเลิก", "ยกเลิกแล้ว"]);
   {
     const [a, b] = await Promise.all([กลุ่ม(page).boundingBox(), page.getByLabel("ค้นหาคำขอ").boundingBox()]);
     expect.soft(a && b && Math.abs((a.y + a.height / 2) - (b.y + b.height / 2)) < 8, "จอ 1440px: ปุ่มกลุ่มอยู่ข้างช่องค้นหา (บรรทัดเดียวกัน)").toBe(true);

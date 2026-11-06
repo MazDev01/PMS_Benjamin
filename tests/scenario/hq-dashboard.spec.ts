@@ -99,10 +99,12 @@ async function เปิด(page: Page) {
   await settle(page);
   await expect(page.locator("[data-kpi='sales'] [data-value]")).not.toHaveAttribute("data-value", "", { timeout: 30_000 });
 }
+/** ตัวเลือกเป็นชื่อดีลเลอร์ (ไม่มีรหัส · บอสสั่ง 6 พ.ย. 69) — หาชื่อของสาขาของข้อจากรหัส */
 async function เลือกดีลเลอร์(page: Page, code: string) {
+  const ชื่อ = ของข้อ.find(x => x.รหัส === code)?.ชื่อ ?? code;
   await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
-  await page.getByRole("button", { name: new RegExp(`^${code} – `) }).click();
-  await expect(page.getByRole("button", { name: new RegExp(`^${code} – `) }).first()).toBeVisible();
+  await page.getByRole("button", { name: ชื่อ, exact: true }).click();
+  await expect(page.getByRole("button", { name: ชื่อ, exact: true }).first()).toBeVisible();
 }
 // ตัวเลือกช่วงเวลา 4 ตัว (3 พ.ย. 69): "วันนี้" ไม่มีแล้ว → ช่วงกำหนดเองวันเดียว (ตัวเลขเดิมทุกตัว)
 async function เลือกช่วง(page: Page, ชื่อ: "วันนี้") {
@@ -141,7 +143,7 @@ test("[H12] [แดชบอร์ด HQ] การ์ด 4 ใบตรงก�
   expect(Number(ปีนี้.quotes), "ปีนี้: ใบที่ส่งลูกค้า = นับจากตาราง (4 · ไม่นับร่าง)").toBe(await ใบส่ง(`${ปี}-01-01`));
   expect(await ใบส่ง(`${ปี}-01-01`)).toBe(4);
   expect(Number(ปีนี้.win), "อัตราปิดการขาย = 1 ÷ (1 + 1)").toBe(50);
-  await expect(page.locator("[data-kpi='leads']"), "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลีดใหม่ของ ${สาขา}`);
+  await expect(page.locator("[data-kpi='leads']"), "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลีดใหม่ของ ${ของข้อ.find(x => x.รหัส === สาขา)?.ชื่อ ?? สาขา}`);   // ชื่อดีลเลอร์ ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   expect(JSON.stringify(ปีนี้), "เลือกดีลเลอร์แล้วตัวเลขเปลี่ยนจากทั้งเครือ").not.toBe(JSON.stringify(ทั้งเครือ));
   // ดีลเลอร์ตามภาค: เลือกสาขาของข้อ → โดนัทนับ 1 ดีลเลอร์ · ภาคของสาขานั้น (ข้อมูลของข้อเอง ตรงเป๊ะ)
   await expect(page.locator("[data-card='regions'] .donut-center .dc-val").last(), "เลือกดีลเลอร์แล้วโดนัทนับสาขาเดียว").toHaveText("1", { timeout: 30_000 });

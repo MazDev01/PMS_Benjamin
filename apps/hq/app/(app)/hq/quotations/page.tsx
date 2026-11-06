@@ -160,7 +160,7 @@ export default function NetworkQuotationPage() {
     return {
       id: `LIVE-${q.id}`, quoteNo: q.id, dealerCode: code, dealerName: nameOf.get(code) ?? code,
       customer: q.customer, valueNum: q.totalValue, status: q.status, createdAt: fmtISOToThai(q.date),
-      salesperson: lead?.assigned ?? `ดีลเลอร์ ${code}`, siteProvince: lead?.province || undefined, productLine: q.project || "",
+      salesperson: lead?.assigned ?? `ดีลเลอร์ ${nameOf.get(code) ?? code}`, siteProvince: lead?.province || undefined, productLine: q.project || "",
       materialCost: q.materialCost, lineItems: q.lineItems,
     };
   };

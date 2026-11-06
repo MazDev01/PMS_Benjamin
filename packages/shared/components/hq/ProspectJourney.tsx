@@ -14,6 +14,7 @@ import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealer
 import { งานมาตรฐาน, งานเสร็จแล้ว, ความคืบหน้า, ติ๊กงาน, ยกเลิกงาน, ลำดับขั้น } from "@pms/shared/lib/prospectJourney";
 import type { HQRecruitSettings } from "@pms/shared/lib/recruitSettings";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 
@@ -42,6 +43,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
   onNeedProposal: () => void;
   onConvert: () => void;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   const [hint, setHint] = useState("");
   // ไม่สำเร็จ = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) · มีรายการเหตุผลตั้งไว้ = เลือกจากรายการ (มี "อื่นๆ" ให้พิมพ์เอง) · ไม่มี = พิมพ์เอง
   const ไม่สำเร็จ = () => void ถามเหตุผล({
@@ -150,7 +152,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
         {status === "won" ? (
           <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 10, background: "#e5faf0" }}>
             <Trophy size={18} color="#059669" />
-            <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#059669" }}>เป็นดีลเลอร์แล้ว{prospect.dealerCode ? ` · ${prospect.dealerCode}` : ""}</div>
+            <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#059669" }}>เป็นดีลเลอร์แล้ว{prospect.dealerCode ? ` · ${ชื่อของ(prospect.dealerCode)}` : ""}</div>
           </div>
         ) : status === "lost" ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", borderRadius: 10, background: "#fee2e2", flexWrap: "wrap" }}>

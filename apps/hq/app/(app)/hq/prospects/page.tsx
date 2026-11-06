@@ -77,6 +77,7 @@ import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 import { ช่องทางติดต่อเริ่มต้น } from "@pms/shared/lib/recruitSettings";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -324,7 +325,10 @@ export default function HQProspectsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำครั้งเดียวตอนโหลดเสร็จ ไม่ต้องทำซ้ำเมื่อรายการเปลี่ยน
   }, [loaded]);
 
-  const ชื่อดีลเลอร์ = useMemo(() => new Map(dealers.map(d => [d.code, d.name])), [dealers]);
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
+  //   คงรหัส 2 จุดตามบอสตอบ: ช่องพิมพ์รหัสตอนตั้งดีลเลอร์ · กล่องบัญชีเข้าระบบดีลเลอร์ใหม่ (รหัสสาขา = ชื่อเข้าระบบ)
+  const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(dealers), [dealers]);
+  const ชื่อดีลเลอร์ = useMemo(() => new Map(dealers.map(d => [d.code, ชื่อแสดง(d.code, d.name)])), [dealers, ชื่อแสดง]);
   // เป็นดีลเลอร์แล้ว (ครบ 100%) = ไปอยู่หน้าดีลเลอร์ ไม่แสดงในหน้านี้ (บอสสั่ง 15 ก.ย. 69)
   //   ตาราง · ตัวกรอง · ส่งออก · การ์ดตัวเลข ใช้รายการนี้ทั้งหมด — ข้อมูลยังอยู่ครบในฐานข้อมูล (ประวัติ/ใบเสนอไม่หาย)
   const รายที่แสดงได้ = useMemo(() => list.filter(p => p.status !== "won"), [list]);
@@ -493,7 +497,7 @@ export default function HQProspectsPage() {
       หัวข้อ: `ลบ “${p.name}” ออกจากผู้สนใจ ?`,
       // ลบรายที่เป็นดีลเลอร์แล้ว = ลบแค่ประวัติการติดตาม ดีลเลอร์และบัญชีเข้าระบบยังอยู่ครบ — ต้องบอกให้ชัด
       รายละเอียด: p.status === "won" && p.dealerCode
-        ? `ดีลเลอร์ ${p.dealerCode} ที่สร้างไปแล้วจะยังอยู่ครบ — ลบเฉพาะประวัติการติดตามรายนี้ · ย้อนกลับไม่ได้`
+        ? `ดีลเลอร์ ${ชื่อแสดง(p.dealerCode)} ที่สร้างไปแล้วจะยังอยู่ครบ — ลบเฉพาะประวัติการติดตามรายนี้ · ย้อนกลับไม่ได้`
         : "ใบค่าแฟรนไชส์และประวัติของรายนี้จะหายไปด้วย · ย้อนกลับไม่ได้",
       ปุ่มตกลง: "ลบผู้สนใจ", อันตราย: true,
     }))) return;
@@ -553,7 +557,7 @@ export default function HQProspectsPage() {
       const ผิด = ตรวจผู้สนใจ(row);
       if (ผิด) { setConvErr(ผิด); return; }
       const ผูกอยู่ = list.find(x => x.id !== converting.id && x.dealerCode === ฟอร์ม.existingCode);
-      if (ผูกอยู่) { setConvErr(`ดีลเลอร์ ${ฟอร์ม.existingCode} ถูกผูกกับ “${ผูกอยู่.name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`); return; }
+      if (ผูกอยู่) { setConvErr(`ดีลเลอร์ ${ชื่อแสดง(ฟอร์ม.existingCode)} ถูกผูกกับ “${ผูกอยู่.name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`); return; }
       setConvBusy(true);
       try {
         const code = ฟอร์ม.existingCode;
@@ -567,7 +571,7 @@ export default function HQProspectsPage() {
           const saved = await prospectsRepo.update({ ...row, id: converting.id, createdAt: converting.createdAt });
           setList(l => l.map(x => x.id === saved.id ? saved : x));
         }
-        แจ้งสำเร็จ(`ผูก “${converting.name}” กับดีลเลอร์ ${code} แล้ว — ย้ายไปอยู่หน้าดีลเลอร์`);
+        แจ้งสำเร็จ(`ผูก “${converting.name}” กับดีลเลอร์ ${ชื่อแสดง(code)} แล้ว — ย้ายไปอยู่หน้าดีลเลอร์`);
         setConverting(null); ปิดแผงทันที();
       } catch (e) {
         setConvErr(friendlyError(e, "บันทึกไม่สำเร็จ"));
@@ -644,7 +648,7 @@ export default function HQProspectsPage() {
     await โหลด();
     if (res.prospectLinked === false) {
       // สาขาถูกสร้างแล้วจริง (บัญชีใช้ได้) แต่ผูกกลับมาที่รายนี้ไม่สำเร็จ — บอกทางแก้ที่ทำได้เอง
-      แจ้งพลาด(`สร้างดีลเลอร์ ${code} แล้ว แต่ผูกกับผู้สนใจรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
+      แจ้งพลาด(`สร้างดีลเลอร์ ${ฟอร์ม.name.trim() || ชื่อแสดง(code)} แล้ว แต่ผูกกับผู้สนใจรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
     }
     setCreds({ name: ฟอร์ม.name.trim(), code, email: res.email, password: res.password });
     setConverting(null); ปิดแผงทันที();
@@ -982,7 +986,7 @@ export default function HQProspectsPage() {
                     </td>
                     <td>
                       {p.dealerCode
-                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{p.dealerCode}</Link>
+                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</Link>
                         : "—"}
                     </td>
                   </ClickableRow>
@@ -1060,7 +1064,7 @@ export default function HQProspectsPage() {
                       <button style={qa} data-link-existing onClick={() => เปิดตั้งดีลเลอร์(ราย, "existing")}><Link2 size={13} /> ผูกกับดีลเลอร์เดิม</button>
                     )}
                     {ราย.status === "won" && ราย.dealerCode && (
-                      <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ดีลเลอร์ {ราย.dealerCode}</Link>
+                      <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ดีลเลอร์ {ชื่อดีลเลอร์.get(ราย.dealerCode) ?? ราย.dealerCode}</Link>
                     )}
                     {จัดการได้ && (
                       <button onClick={() => void ลบ(ราย)} title="ลบผู้สนใจ" aria-label="ลบผู้สนใจ" style={{ ...qa, width: 30, padding: 0, justifyContent: "center", color: "#fecaca" }}><Trash2 size={14} /></button>
@@ -1098,7 +1102,7 @@ export default function HQProspectsPage() {
                       {ราย.status === "won" && ราย.dealerCode && (
                         <div style={{ background: "#dcfce7", border: "1px solid #86efac", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: "0.78rem", color: "#15803d", fontWeight: 600 }}>
                           เป็นดีลเลอร์แล้ว — <Link href={`/hq/dealers/${ราย.dealerCode}`} style={{ color: "#15803d", textDecoration: "underline" }}>
-                            {ราย.dealerCode} · {ชื่อดีลเลอร์.get(ราย.dealerCode) ?? ""}
+                            {ชื่อดีลเลอร์.get(ราย.dealerCode) ?? ราย.dealerCode}
                           </Link>
                           {ราย.convertedAt && ` (ตั้งเมื่อ ${fmtISOToThai(ราย.convertedAt)})`}
                         </div>
@@ -1221,7 +1225,7 @@ export default function HQProspectsPage() {
                       const ปิด = d.status === "inactive";
                       return (
                         <option key={d.code} value={d.code} disabled={ปิด || !!ผูกกับ}>
-                          {d.code} · {d.name}{d.province ? ` (${d.province})` : ""}{ปิด ? " · ปิดใช้งาน" : ผูกกับ ? " · ผูกกับรายอื่นแล้ว" : ""}
+                          {ชื่อแสดง(d.code, d.name)}{d.province ? ` (${d.province})` : ""}{ปิด ? " · ปิดใช้งาน" : ผูกกับ ? " · ผูกกับรายอื่นแล้ว" : ""}
                         </option>
                       );
                     })}
@@ -1229,7 +1233,7 @@ export default function HQProspectsPage() {
                   <FieldError>{บังคับแปลง.ผิด.existingCode}</FieldError>
                   {ฟอร์ม.existingCode && สาขามีบัญชี && !สาขามีบัญชี[ฟอร์ม.existingCode] && (
                     <div role="note" style={{ marginTop: 8, background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.78rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
-                      ดีลเลอร์ {ฟอร์ม.existingCode} ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ดีลเลอร์จะยังเข้าระบบไม่ได้
+                      ดีลเลอร์ {ชื่อแสดง(ฟอร์ม.existingCode)} ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ดีลเลอร์จะยังเข้าระบบไม่ได้
                       จนกว่าจะตั้งอีเมล/รหัสผ่านที่หน้าดีลเลอร์
                     </div>
                   )}
@@ -1311,11 +1315,11 @@ export default function HQProspectsPage() {
           <ModalCard onClose={() => setผูกแล้วไม่มีบัญชี(null)} label="ดีลเลอร์ยังไม่มีบัญชีเข้าระบบ"
             style={{ background: "#fff", borderRadius: 16, width: 440, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,.3)" }}>
             <div style={{ background: "#b45309", color: "#fff", padding: "14px 20px", fontWeight: 800, borderRadius: "16px 16px 0 0" }}>
-              ดีลเลอร์ {ผูกแล้วไม่มีบัญชี.code} ยังไม่มีบัญชีเข้าระบบ
+              ดีลเลอร์ {ชื่อแสดง(ผูกแล้วไม่มีบัญชี.code)} ยังไม่มีบัญชีเข้าระบบ
             </div>
             <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
               <p style={{ margin: 0, fontSize: "0.84rem", color: "#374151", lineHeight: 1.7 }}>
-                ผูก “{ผูกแล้วไม่มีบัญชี.name}” กับดีลเลอร์ {ผูกแล้วไม่มีบัญชี.code} แล้ว
+                ผูก “{ผูกแล้วไม่มีบัญชี.name}” กับดีลเลอร์ {ชื่อแสดง(ผูกแล้วไม่มีบัญชี.code)} แล้ว
                 แต่สาขานี้ยังเข้าระบบไม่ได้ — ต้องตั้งอีเมลและรหัสผ่านให้ก่อน
               </p>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>

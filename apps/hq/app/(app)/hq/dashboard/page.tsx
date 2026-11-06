@@ -33,6 +33,7 @@ import { fmtBaht } from "@pms/shared/lib/format";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { ลิงก์กิจกรรม, type HqDashboard } from "@pms/shared/lib/hqDashboard";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 
 const PRIMARY = "#003366";
 const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626"];
@@ -58,6 +59,8 @@ export default function HQDashboard() {
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
   const [dealerSel, setDealerSel] = useState<string>("all");
   const selDealer = dealerSel === "all" ? null : allDealers.find(d => d.code === dealerSel) ?? null;
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสตอบ 6 พ.ย. 69)
+  const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(allDealers), [allDealers]);
 
   const [ข้อมูล, setข้อมูล] = useState<HqDashboard | null>(null);
   const [err, setErr] = useState("");
@@ -119,7 +122,7 @@ export default function HQDashboard() {
     <div className="erp">
       <TopbarActions>
         <SelectFilter caption="ทุกดีลเลอร์ (ทั้งเครือ)" value={dealerSel}
-          options={allDealers.map(d => ({ value: d.code, label: `${d.code} – ${d.name}` }))}
+          options={allDealers.map(d => ({ value: d.code, label: ชื่อแสดง(d.code, d.name) }))}
           onChange={setDealerSel} />
         <FilterBar dims={[]} />
       </TopbarActions>
@@ -171,7 +174,7 @@ export default function HQDashboard() {
         <KpiCard kpi="sales" label="ยอดขาย (ใบที่ลูกค้าตอบรับ ก่อน VAT)" value={c ? fmtBaht(c.sales) : null} rawValue={c?.sales ?? null} empty="กำลังโหลด…"
           sub={<span data-target={c?.target ?? ""}>{!c ? " " : c.target == null ? "ยังไม่ได้ตั้งเป้า" : `เป้า ${fmtBaht(c.target)} (เฉลี่ยตามช่วง ${ช่วงคำ})`}</span>}
           ring={c && c.target ? Math.round(c.sales / c.target * 100) : null} icon={Target} actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/pipeline")} />
-        <KpiCard kpi="leads" label={selDealer ? `ลีดใหม่ของ ${selDealer.code}` : "ลีดใหม่ทั้งเครือ"} value={c ? c.leadsNew.toLocaleString("th-TH") : null} rawValue={c?.leadsNew ?? null}
+        <KpiCard kpi="leads" label={selDealer ? `ลีดใหม่ของ ${ชื่อแสดง(selDealer.code, selDealer.name)}` : "ลีดใหม่ทั้งเครือ"} value={c ? c.leadsNew.toLocaleString("th-TH") : null} rawValue={c?.leadsNew ?? null}
           unit="ราย · เข้ามาในช่วงที่เลือก" empty="กำลังโหลด…" icon={Users2} color="#7C3AED" bg="#F0EBFB" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/leads")} />
         <KpiCard kpi="quotes" label="ใบเสนอราคาที่ส่งลูกค้า" value={c ? c.quotesSent.toLocaleString("th-TH") : null} rawValue={c?.quotesSent ?? null}
           unit="ใบ · ออกในช่วงที่เลือก (ไม่นับร่าง/ถูกแทนที่)" empty="กำลังโหลด…" icon={FileText} color="#0891B2" bg="#E6F4F9" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/quotations")} />

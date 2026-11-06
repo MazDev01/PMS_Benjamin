@@ -162,7 +162,7 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
   const รหัส = A.รหัส;
   await expect(page.locator("td[data-perf-row]"), "ยะลา: สาขา A สาขาเดียว").toHaveCount(1);
   await page.locator("td[data-perf-row]").first().click();
-  await expect(page.locator("[data-crumbs] [data-crumb='dealer']"), "แถบระดับ: … › ดีลเลอร์").toContainText(รหัส);
+  await expect(page.locator("[data-crumbs] [data-crumb='dealer']"), "แถบระดับ: … › ดีลเลอร์ (ชื่ออย่างเดียว)").toHaveText(A.ชื่อ);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await expect(page.locator("td[data-perf-row]")).toHaveCount(1);
   await ยอดรวมเท่าการ์ด(page, `ดีลเลอร์ ${รหัส}`);
   await expect(page.getByTestId("dealer-latest-quotes"), "ใบล่าสุดของ A").toContainText(`${A.รหัส}-Q1`);

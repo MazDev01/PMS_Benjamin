@@ -11,6 +11,7 @@ import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import type { HQCustomerPageRow } from "@pms/shared/lib/data/ports";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { TablePagination, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 const DASH = <span style={{ color: "#9ca3af" }}>—</span>;
@@ -29,6 +30,7 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
    *  ทั้งที่กำลังโหลดอยู่ (ผู้ใช้เข้าใจผิดว่าไม่มีข้อมูล + คลิกแถวก็ไม่มีอะไรเกิดขึ้นเพราะยังไม่มีแถวจริง) */
   loading?: boolean;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   return (
     <div className="table-wrap" style={{ borderTop: "none" }}>
       <table aria-label="รายชื่อลูกค้า">
@@ -75,8 +77,8 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
                   {customerCode(c.dealerCode, c.id)}
                 </td>
                 <td style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={c.name}>{c.name}</td>
-                <td data-col="dealer" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${c.dealerCode} · ${c.dealerName}`}>
-                  <span data-col="code" style={{ fontWeight: 700, color: PRIMARY, background: "#e6edf8", borderRadius: 6, padding: "1px 7px", marginRight: 6 }}>{c.dealerCode}</span>{c.dealerName}
+                <td data-col="dealer" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={ชื่อของ(c.dealerCode, c.dealerName)}>
+                  {ชื่อของ(c.dealerCode, c.dealerName)}
                 </td>
                 <td style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>
                 <td data-col="region" style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ? ชื่อภาค(regionOf(c.province)) : DASH}</td>

@@ -51,7 +51,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
     if (!บังคับ.ตรวจ([{ key: r.province, label: "สาขาที่จะโอนให้", value: เลือก[r.province], ข้อความ: "ต้องเลือกสาขาที่จะโอนให้" }])) return;
     const to = เลือก[r.province];
     if (!(await ยืนยัน({
-      หัวข้อ: `โอน ${r.leads} ราย ในจังหวัด${r.province} ให้ ${to} ${dealerName(to)}?`,
+      หัวข้อ: `โอน ${r.leads} ราย ในจังหวัด${r.province} ให้ ${dealerName(to)}?`,
       รายละเอียด: "ลูกค้าเป้าหมายย้ายพร้อมประวัติ นัดหมาย และโน้ต · ย้อนกลับไม่ได้", ปุ่มตกลง: "โอน", อันตราย: true,
     }))) return;
     setBusy(true);
@@ -91,7 +91,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
               <thead><tr><th>จังหวัด</th><th className="num">ลูกค้าเป้าหมาย</th><th>ดีลเลอร์ที่ดูแล</th><th>การโอน{เลือกเอง.length > 0 && <> (เลือกสาขา<ดาวบังคับ />)</>}</th></tr></thead>
               <tbody>
                 {[...อัตโนมัติ, ...เลือกเอง].map(r => {
-                  const ดูแล = r.dealerCodes.map(c => `${c} ${dealerName(c)}`.trim()).join(" · ");
+                  const ดูแล = r.dealerCodes.map(c => dealerName(c)).join(" · ");   // ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69)
                   return (
                     <tr key={r.province} aria-label={r.province}>
                       <td style={{ fontWeight: 700 }} title={r.province}>{r.province}</td>
@@ -105,7 +105,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
                                 {...บังคับ.ผูก(r.province)} style={{ flex: 1, minWidth: 0, ...บังคับ.ผูก(r.province).style }}
                                 onChange={e => { setเลือก(s => ({ ...s, [r.province]: e.target.value })); บังคับ.ล้าง(r.province); }}>
                                 <option value="">หลายสาขา — เลือกสาขา</option>
-                                {r.dealerCodes.map(c => <option key={c} value={c}>{c} {dealerName(c)}</option>)}
+                                {r.dealerCodes.map(c => <option key={c} value={c}>{dealerName(c)}</option>)}
                               </select>
                               <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void โอนจังหวัด(r)}>โอน</button>
                             </div>

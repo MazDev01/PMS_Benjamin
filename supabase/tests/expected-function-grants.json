@@ -1,5 +1,5 @@
 {
- "migration": "0280",
+ "migration": "0281",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -42,6 +42,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "_dealer_display_name(p_code text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "_dealer_display_vat(p_dealer text)",

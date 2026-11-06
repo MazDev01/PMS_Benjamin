@@ -221,7 +221,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
       ...(isHQ ? dealers.filter(ไม่ใช่แถวHQ)
         .filter((d: DealerRow) => has(d.name) || has(d.code) || has(d.region))
         .slice(0, 5)
-        .map((d: DealerRow) => ({ type: "ดีลเลอร์", label: d.name, sub: `${d.code} · ${ชื่อภาค(d.region)}`, href: `/hq/dealers/${d.code}` })) : []),
+        .map((d: DealerRow) => ({ type: "ดีลเลอร์", label: d.name, sub: ชื่อภาค(d.region), href: `/hq/dealers/${d.code}` })) : []),
     ];
   }, [q, dealers, liveLeads, liveCustomers, liveQuotations, isHQ, hqSearch]);
 

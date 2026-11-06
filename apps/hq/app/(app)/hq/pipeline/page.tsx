@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { Percent, Trophy, Eye, X, Coins, Search, Award, ArrowDown, ArrowUp } from "lucide-react";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { ซ่อนคอลัมน์ว่าง } from "@pms/shared/lib/tableFit";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
@@ -138,6 +139,8 @@ export default function SalesAnalyticsPage() {
   const ready = useAuthReady();
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
+  const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(allDealers), [allDealers]);
 
   // ── ตัวกรอง (แถวเดียว ค้างใต้แถบบนตอนเลื่อน — ส่วนกลาง .hq-sticky-filter) ──
   const [q, setQ] = useState("");
@@ -216,9 +219,9 @@ export default function SalesAnalyticsPage() {
 
   // กราฟ: ยอดขาย เทียบ เป้าตามช่วง รายดีลเลอร์ (ลำดับเดียวกับตาราง · แบ่งหน้า 7 แถว)
   const แท่ง: HRow[] = useMemo(() => เรียงแล้ว.map(r => ({
-    key: r.code, label: r.name, sub: ชื่อภาค(r.region), a: r.sales, b: r.target ?? 0,
+    key: r.code, label: ชื่อแสดง(r.code, r.name), sub: ชื่อภาค(r.region), a: r.sales, b: r.target ?? 0,
     note: r.pct == null ? "ยังไม่ตั้งเป้า" : `${r.pct}% ของเป้า`, onClick: () => { setDealerSel(r.code); window.scrollTo({ top: 0, behavior: "smooth" }); },   // กดแท่ง = เจาะดูดีลเลอร์
-  })), [เรียงแล้ว]);
+  })), [เรียงแล้ว, ชื่อแสดง]);
   const ขนาดกราฟ = 7;
   const [หน้ากราฟ, setหน้ากราฟ] = useState(0);
   useEffect(() => { setหน้ากราฟ(0); }, [แท่ง.length]);
@@ -271,7 +274,7 @@ export default function SalesAnalyticsPage() {
   const เดือน = useMemo(() => รายเดือนฐาน ? จัดรายเดือน(รายเดือนฐาน, ดีลเลอร์ที่ดู ? new Set([ดีลเลอร์ที่ดู]) : รหัสในตาราง, ช่วง.start, ช่วง.end, เป้าทั้งปี) : null,
     [รายเดือนฐาน, รหัสในตาราง, ดีลเลอร์ที่ดู, ช่วง.start, ช่วง.end, เป้าทั้งปี]);
   const [เดือนที่เปิด, setเดือนที่เปิด] = useState<แถวเดือน | null>(null);
-  const ชื่อดีลเลอร์ = useMemo(() => new Map(allDealers.map(d => [d.code, d.name] as const)), [allDealers]);
+  const ชื่อดีลเลอร์ = useMemo(() => new Map(allDealers.map(d => [d.code, ชื่อแสดง(d.code, d.name)] as const)), [allDealers, ชื่อแสดง]);
   // ระดับที่เลือกสำหรับหัวข้อกราฟ/ตาราง (บอสสั่ง 3 พ.ย. 69)
   const ระดับหัวข้อ = { ภาค: regionSel !== ALL ? regionSel : null, จังหวัด: provSel !== ALL ? provSel : null,
     ดีลเลอร์: ดีลเลอร์ที่ดู, ชื่อดีลเลอร์: ดีลเลอร์ที่ดู ? ชื่อดีลเลอร์.get(ดีลเลอร์ที่ดู) : undefined };
@@ -332,7 +335,7 @@ export default function SalesAnalyticsPage() {
             <input aria-label="ค้นหาดีลเลอร์" value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหารหัส ชื่อดีลเลอร์ จังหวัด…" />
             {q && <button aria-label="ล้างคำค้น" onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
           </div>
-          {sel(dealerSel, setDealerSel, "ทุกดีลเลอร์", allDealers.map(d => ({ v: d.code, l: `${d.code} – ${d.name}` })))}
+          {sel(dealerSel, setDealerSel, "ทุกดีลเลอร์", allDealers.map(d => ({ v: d.code, l: ชื่อแสดง(d.code, d.name) })))}
           {sel(regionSel, setRegionSel, ป้ายทุกภูมิภาค, regionOpts.map(r => ({ v: r, l: ชื่อภาค(r) })))}
           {sel(provSel, setProvSel, "ทุกจังหวัด", provOpts.map(p => ({ v: p, l: p })))}
           {sel(salesSel, setSalesSel, "ทุกช่วงยอดขาย", SALES_BANDS.map(b => ({ v: b.v, l: b.l })))}
@@ -393,8 +396,8 @@ export default function SalesAnalyticsPage() {
               {!โหลด && !เรียงแล้ว.length && <tr><td colSpan={คอลัมน์แสดง.length} className="empty-row">ไม่พบดีลเลอร์ที่ตรงกับตัวกรอง</td></tr>}
               {ในหน้า.map(r => (
                 <ClickableRow key={r.code} className="clickable" onActivate={() => เจาะ(r.code)} label={`เปิดผลงานของ ${r.name} (เจาะลงระดับดีลเลอร์)`}>
-                  <td data-perf-row={r.code} style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis" }} title={`${r.name} (${r.code})`}>
-                    {r.name}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}
+                  <td data-perf-row={r.code} style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis" }} title={ชื่อแสดง(r.code, r.name)}>
+                    {ชื่อแสดง(r.code, r.name)}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}
                     <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อภาค(r.region)}</div>
                   </td>
                   <td className="num" data-cell="leads">{r.leads.toLocaleString()}</td>

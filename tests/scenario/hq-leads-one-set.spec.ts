@@ -92,7 +92,7 @@ async function เปิดหน้าแล้วค้น(page: Page) {
   await settle(page);
   // ระดับดีลเลอร์ของข้อ → การ์ด/กราฟเป็นของข้ออย่างเดียว · คำค้นป้ายของรอบ → รายชื่อเป็นของข้ออย่างเดียว
   await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(ก!.รหัส);
-  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toContainText(ก!.รหัส, { timeout: 25_000 });
+  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(ก!.ชื่อ, { timeout: 25_000 });   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await page.getByPlaceholder(/ค้นหาบริษัท/).fill(ป้าย);
 }
 
@@ -105,9 +105,11 @@ test("[H6·hq] ลีดทั้งเครือ: ทุกระดับ �
   await ตรงค่า(page, "ระดับดีลเลอร์ของข้อ + คำค้น", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 4 });
   // ตารางไม่มีลีดของ HQ (อยู่กล่องโอนที่เดียว)
   await expect(page.locator("[data-lead-table] tbody").getByText(`${ป้าย} บจก.ทดสอบ HQ`)).toHaveCount(0);
-  const ป้ายดีลเลอร์ = await page.locator("[data-lead-table] tbody td[data-cell='dealer'] .badge").allInnerTexts();
+  // ช่องดีลเลอร์ = ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · เดิมป้ายรหัส)
+  const ป้ายดีลเลอร์ = await page.locator("[data-lead-table] tbody td[data-cell='dealer']").allInnerTexts();
   expect(ป้ายดีลเลอร์.length, "มีแถวในตาราง").toBeGreaterThan(0);
-  expect(ป้ายดีลเลอร์.every(c => c.trim() === ก!.รหัส), `ทุกแถวเป็นของสาขาของข้อ (ได้ ${ป้ายดีลเลอร์.join(" · ")})`).toBe(true);
+  expect(ป้ายดีลเลอร์.every(c => c.trim() === ก!.ชื่อ), `ทุกแถวเป็นของสาขาของข้อ (ได้ ${ป้ายดีลเลอร์.join(" · ")})`).toBe(true);
+  await expect(page.locator("[data-lead-table] tbody td[data-cell='dealer'] .badge"), "ไม่มีป้ายรหัสในช่องดีลเลอร์").toHaveCount(0);
 
   // ระดับจังหวัด (สตูล · 2 สาขาของข้อ) และภูมิภาค (ภาคใต้): รายชื่อ (คำค้นป้ายของรอบ) ยังเป็นลีดเปิดของข้อ 4 ราย · การ์ด = ผลรวมแถวตารางเจาะลึก (ชุดเดียว · ไม่มีแถวรวมแล้ว)
   for (const [ระดับ, ไป] of [["จังหวัด", "prov"], ["ภูมิภาค", "region"]] as const) {
@@ -217,7 +219,7 @@ test("[ui·hq] ลีดทั้งเครือ: กล่องโอนล
   const ชื่อเต็ม = await ตาราง.locator("tbody td[data-cell='company']").evaluateAll(cs => cs.map(c => [c.getAttribute("title") ?? "", c.querySelector("div")?.textContent ?? ""]));
   expect(ชื่อเต็ม.every(([title, ชื่อ]) => title.startsWith(ชื่อ)), "ชี้ที่ช่องบริษัทแล้วเห็นชื่อเต็ม").toBe(true);
   const ดีลเลอร์เต็ม = await ตาราง.locator("tbody td[data-cell='dealer']").evaluateAll(cs => cs.map(c => c.getAttribute("title") ?? ""));
-  expect(ดีลเลอร์เต็ม.every(t => t === `${ก!.รหัส} ZZTEST ดีลเลอร์ลีดสตูล`), `ชี้ที่ช่องดีลเลอร์แล้วเห็นรหัส + ชื่อเต็ม (${ดีลเลอร์เต็ม.join(" · ")})`).toBe(true);
+  expect(ดีลเลอร์เต็ม.every(t => t === "ZZTEST ดีลเลอร์ลีดสตูล"), `ชี้ที่ช่องดีลเลอร์แล้วเห็นชื่อเต็ม (ไม่มีรหัส · บอสสั่ง 6 พ.ย. 69) (${ดีลเลอร์เต็ม.join(" · ")})`).toBe(true);
   const ชื่อบรรทัดเดียว = await ตาราง.locator("tbody td[data-cell='company'] > div").first().evaluate(d => getComputedStyle(d).whiteSpace);
   expect(ชื่อบรรทัดเดียว, "ชื่อบริษัทไม่ตกบรรทัด").toBe("nowrap");
 
