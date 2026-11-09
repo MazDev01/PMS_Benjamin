@@ -1648,3 +1648,18 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
    content: "*" / "" = ข้อความแทนว่าง โปรแกรมอ่านหน้าจอไม่อ่าน "*" · บรรทัดแรกสำรองให้เบราว์เซอร์ที่ไม่รู้จักรูปแบบ / ""
    (รอบตรวจ deploy16: ป้ายเดิมมี "*" ใน DOM → getByLabel("รหัสสาขา", exact) หาไม่เจอ) */
 [data-required]::after { content: "*"; content: "*" / ""; }
+
+/* ── หน้าต่างรายละเอียดเอกสาร (ใบเสนอราคา · ใบค่าแฟรนไชส์ · บอสสั่ง 9 พ.ย. 69) — ชิ้นส่วนอยู่ที่ components/ui/DocDetailParts.tsx ──
+   แถบสรุป 4 ช่อง → จอแคบ 2 · กริดรายละเอียด 3 คอลัมน์ → 2 → 1 · กล่องยอดรวมชิดขวาครึ่งหนึ่ง → จอแคบเต็มแถว */
+.doc-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 16px; }
+.doc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; padding: 12px 0; }
+.doc-grid > .doc-wide { grid-column: 1 / -1; }
+.doc-totals { width: 50%; margin-left: auto; }
+@media (max-width: 640px) {
+  .doc-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .doc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .doc-totals { width: 100%; }
+}
+@media (max-width: 420px) {
+  .doc-grid { grid-template-columns: minmax(0, 1fr); }
+}

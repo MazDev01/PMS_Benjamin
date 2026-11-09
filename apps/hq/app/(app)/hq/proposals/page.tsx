@@ -33,6 +33,8 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { formatPhone } from "@pms/shared/lib/format";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ชื่อภาค } from "@pms/shared/lib/provinces";
+import { ป้ายนับวันหมดอายุ } from "@pms/shared/lib/quoteExpiry";
+import { แถบสรุปเอกสาร, กริดรายละเอียด, ช่องกริด } from "@pms/shared/components/ui/DocDetailParts";
 import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
@@ -281,6 +283,7 @@ export default function HQProposalsPage() {
         const หัวการ์ด: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: "0.62rem", fontWeight: 800, color: "#8a929c", letterSpacing: "0.06em", marginBottom: 12 };
         // 9 ช่อง ชื่อ/ลำดับเดียวกับฟอร์มออกใบ (บอสสั่ง 5 พ.ย. 69 · ช่องใบค่าแฟรนไชส์) · ว่าง/"-"/ใบเก่าที่ฐานไม่ได้เก็บ = "-"
         const ค่าใบ = ค่าช่องใบ(p, { วันไทย: fmtISOToThai, ชื่อภาค, วันนี้: APP_NOW_ISO });
+        const นับวัน = ป้ายนับวันหมดอายุ(p.validUntil, APP_NOW_ISO);
         return (
           <div onClick={() => setดูรหัส(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
             <ModalCard onClose={() => setดูรหัส(null)} label="รายละเอียดใบค่าแฟรนไชส์"
@@ -318,29 +321,25 @@ export default function HQProposalsPage() {
                 </div>
               </div>
 
-              <div style={{ flex: 1, overflowY: "auto", background: "#f5f7fa", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-                {/* สถานะใบ = ดูอย่างเดียว (รอบ 4) — ส่ง/ตอบรับ/ปฏิเสธ ทำที่แผงผู้สนใจที่เดียว */}
-                <div style={การ์ด}>
-                  <div style={หัวการ์ด}><Send size={13} color={PRIMARY} /> สถานะใบ</div>
-                  <div style={{ fontSize: "0.78rem", color: STEEL }}>ตอนนี้: {proposalStatusLabel[p.status]}</div>
-                </div>
+              {/* แถบสรุป 4 ช่อง แบบหน้าต่างใบเสนอราคา (บอสสั่ง 9 พ.ย. 69) */}
+              <แถบสรุปเอกสาร ช่อง={[
+                { คีย์: "amount", ป้าย: "ค่าแรกเข้า", ค่า: ค่าใบ["ค่าแรกเข้า"], เด่น: true },
+                { คีย์: "status", ป้าย: "สถานะ", ค่า: <span className="badge" style={{ background: sc.bg, color: sc.text }}>{proposalStatusLabel[p.status]}</span> },
+                { คีย์: "expiry", ป้าย: "ข้อเสนอมีผลถึง", ค่า: p.validUntil ? fmtISOToThai(p.validUntil) : "-", ย่อย: นับวัน?.ข้อความ, ย่อยแดง: นับวัน?.เลย },
+                { คีย์: "version", ป้าย: "เวอร์ชัน", ค่า: p.version != null ? `เวอร์ชัน ${p.version}` : "-" },
+              ]} />
 
+              <div style={{ flex: 1, overflowY: "auto", background: "#f5f7fa", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* การ์ด "สถานะใบ · ตอนนี้: …" เอาออก — สถานะอยู่ในแถบสรุปแล้ว (ดูอย่างเดียวเหมือนเดิม · ส่ง/ตอบรับ/ปฏิเสธ ทำที่แผงผู้สนใจ) */}
                 <div style={การ์ด}>
                   <div style={หัวการ์ด}><FileText size={13} color={PRIMARY} /> รายละเอียดข้อเสนอ</div>
-                  <div data-proposal-fields style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0 24px" }}>
-                    {ช่องใบค่าแฟรนไชส์.map(k => {
-                      const ยาว = k === "เงื่อนไข" || k === "หมายเหตุภายใน";   // ข้อความหลายบรรทัด = เต็มแถว คงบรรทัดตามที่พิมพ์
-                      return (
-                        <div key={k} data-field={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 0", borderBottom: "1px solid #f0f4f8", fontSize: "0.78rem",
-                          ...(ยาว ? { gridColumn: "1 / -1", flexDirection: "column" as const, alignItems: "flex-start", gap: 4 } : {}) }}>
-                          <span data-field-label style={{ color: "#8a929c", display: "flex", alignItems: "center", gap: 6 }}>{k}
-                            {k === "หมายเหตุภายใน" && <span data-internal-note style={{ padding: "1px 8px", borderRadius: 99, fontSize: "0.62rem", fontWeight: 700, background: "#fef3c7", color: "#92400e" }}>ภายใน ไม่พิมพ์ลงเอกสาร</span>}
-                          </span>
-                          <span data-field-value style={{ fontWeight: 700, color: STEEL, textAlign: ยาว ? "left" : "right", whiteSpace: ยาว ? "pre-line" : undefined, lineHeight: ยาว ? 1.7 : undefined }}>{ค่าใบ[k]}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {/* 9 ช่องเป็นกริด 3 คอลัมน์ หัวข้อบน ค่าล่าง · เงื่อนไข/หมายเหตุภายใน = เต็มแถว คงบรรทัดตามที่พิมพ์ */}
+                  <กริดรายละเอียด data-proposal-fields="" style={{ padding: 0 }}>
+                    {ช่องใบค่าแฟรนไชส์.map(k => (
+                      <ช่องกริด key={k} data-field={k} ป้าย={k} ค่า={ค่าใบ[k]} เต็มแถว={k === "เงื่อนไข" || k === "หมายเหตุภายใน"}
+                        ป้ายเสริม={k === "หมายเหตุภายใน" ? <span data-internal-note style={{ padding: "1px 8px", borderRadius: 99, fontSize: "0.62rem", fontWeight: 700, background: "#fef3c7", color: "#92400e" }}>ภายใน ไม่พิมพ์ลงเอกสาร</span> : undefined} />
+                    ))}
+                  </กริดรายละเอียด>
                 </div>
 
                 {/* ใบที่ตอบรับแล้ว: บันทึกการชำระ + วันครบกำหนดชำระ (ปลายทางของกระดิ่ง "เกินกำหนดชำระ" · ใบ 0231) */}
