@@ -162,6 +162,8 @@ export default function NetworkQuotationPage() {
       customer: q.customer, valueNum: q.totalValue, status: q.status, createdAt: fmtISOToThai(q.date),
       salesperson: lead?.assigned ?? `ดีลเลอร์ ${nameOf.get(code) ?? code}`, siteProvince: lead?.province || undefined, productLine: q.project || "",
       materialCost: q.materialCost, lineItems: q.lineItems,
+      // หน้าต่างใบเสนอราคา (แถบสรุป/กล่องยอดรวม) — ชุดเดียวกับ useNetworkQuotations
+      dateISO: q.date, expiry: q.expiry, revision: q.revision, vatPercent: q.vatPercent, whtRate: q.whtRate, province: q.province || undefined,
     };
   };
   // mapToHQ ปิดคลุม netLeads/nameOf — ขาดไปก่อนหน้านี้ทำให้ชื่อผู้รับผิดชอบค้างค่าเก่าถ้าลูกค้าเป้าหมาย/ทะเบียนดีลเลอร์

@@ -113,7 +113,9 @@ test("[ux·hq] ลิ้นชักดูใบเสนอราคา อ่�
   await page.getByRole("button", { name: "ดูรายละเอียด", exact: true }).first().click();
   const drawer = page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByText("ข้อมูลใบเสนอราคา")).toBeVisible();
+  // หน้าต่างแบบเดียวกับดีลเลอร์ (บอสตอบ 9 พ.ย. 69): หัวข้อ "ข้อมูลใบเสนอราคา" เดิม → แถบสรุป 4 ช่อง + กริดลูกค้า
+  await expect(drawer.locator("[data-doc-summary] [data-summary-item]"), "แถบสรุป 4 ช่อง").toHaveCount(4);
+  await expect(drawer.locator("[data-quote-customer] [data-grid-item]"), "กริดลูกค้า 6 ช่อง").toHaveCount(6);
   await expect(drawer.getByText(/ส่วนลด|ประวัติการเปิดอ่าน/)).toHaveCount(0);
   await expect(drawer.getByRole("button", { name: /แก้ไข|ลบ|อนุมัติ/ })).toHaveCount(0);
 });
