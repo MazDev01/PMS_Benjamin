@@ -1626,6 +1626,16 @@ export type HQQuotation = {
   // valueNum = มูลค่างานก่อน VAT · materialCost = ราคารวมจากรายการสินค้า (เท่ากับ valueNum)
   materialCost?: number;
   lineItems?: QuoteLineItem[];
+  // ── ค่าของใบจริงสำหรับหน้าต่างใบเสนอราคาฝั่ง HQ (แถบสรุป/กล่องยอดรวม · บอสสั่ง 9 พ.ย. 69) — ไม่มี = "-" ไม่เดา ──
+  /** วันที่ใบ (YYYY-MM-DD) — ใช้คิดวันหมดอายุเมื่อใบไม่ได้กรอกเอง */
+  dateISO?: string;
+  /** วันหมดอายุที่กรอกในใบ (YYYY-MM-DD) */
+  expiry?: string;
+  revision?: string;
+  vatPercent?: number;
+  whtRate?: number;
+  /** จังหวัดที่บันทึกในใบ (ช่องเดียวกับหน้าต่างใบของดีลเลอร์) */
+  province?: string;
 };
 
 export const hqAllQuotations: HQQuotation[] = [

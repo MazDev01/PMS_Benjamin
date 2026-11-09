@@ -306,6 +306,8 @@ export function useNetworkQuotations(): HQQuotation[] {
         productLine: q.project, // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         // รายละเอียดราคาจริงของใบที่ดีลเลอร์สร้าง → HQ เจาะดูรายการสินค้าได้
         materialCost: q.materialCost, lineItems: q.lineItems,
+        // หน้าต่างใบเสนอราคาฝั่ง HQ (แถบสรุป/กล่องยอดรวม) — ค่าของใบเอง (เพิ่ม 9 พ.ย. 69 · ไม่กระทบตาราง)
+        dateISO: q.date, expiry: q.expiry, revision: q.revision, vatPercent: q.vatPercent, whtRate: q.whtRate, province: q.province || undefined,
       };
     });
     if (!USE_SEED) return live; // supabase: ใบทุกสาขามาจาก DB จริงแล้ว

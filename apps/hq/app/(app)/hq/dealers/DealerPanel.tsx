@@ -7,7 +7,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X, LogIn, Pencil, EyeOff, Eye, BarChart3, AlertTriangle, Users, FileText, Inbox, Clock, Activity, Building2 } from "lucide-react";
-import { metrics as metricsRepo, dealers as dealersRepo } from "@pms/shared/lib/data";
+import { metrics as metricsRepo, dealers as dealersRepo, quotations as quotationsRepo } from "@pms/shared/lib/data";
+import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -20,7 +21,7 @@ import { buildingOf, regionOf, type CustomerDbRow } from "@pms/shared/lib/custom
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { DealerCredentialsCard } from "@pms/shared/components/hq/DealerCredentialsCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { dealerStatusLabel, dealerStatusColor, quotationStatusColor, quotationStatusLabel, fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
+import { dealerStatusLabel, dealerStatusColor, quotationStatusColor, quotationStatusLabel, fmtISOToThai, type DealerRow, type HQQuotation } from "@pms/shared/lib/mock";
 import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import { วันเวลาไทย } from "@pms/shared/lib/thaiDate";
 import { ชื่อขั้น, สีขั้น, เลขขั้นจากผล } from "@pms/shared/lib/leadStage";
@@ -85,8 +86,24 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   const look = useMemo(() => dealerLookups(allDealers), [allDealers]);
   const [ดูใบ, setดูใบ] = useState<QuoteRow | null>(null);
-  const เปิดใบ = (no: string) => {
-    const q = netQuotes.filter(x => x.id === no && dealerCodeOf(x) === code);
+  // กดใบในแท็บใบเสนอราคา = หน้าต่างใบเสนอราคาฝั่ง HQ (QuotationDrawer)
+  //   พบ 9 พ.ย. 69: เดิมกดแล้วไม่เปิดอะไร — เทียบ id ("LIVE-<เลขที่>") แทนเลขที่ และฝั่ง HQ (ฐานจริง) ไม่ถือใบทั้งเครือใน SalesContext
+  //   → เทียบเลขที่ · ไม่มีในชุดที่ถือ (ฐานจริง) = อ่านใบนั้นจากฐาน (ชุดเดียวกับแท็บ · สิทธิ์ HQ อ่านได้ทั้งเครือ) + ผู้รับผิดชอบจากลีดที่ผูก
+  const เปิดใบ = async (no: string) => {
+    let q: HQQuotation[] = netQuotes.filter(x => x.quoteNo === no && dealerCodeOf(x) === code);
+    if (!q.length && REAL_BACKEND) {
+      try {
+        const r = await quotationsRepo.listPage(undefined, { limit: 20, offset: 0, dealerCodes: [code], search: no });
+        const raw = r.rows.find(x => x.id === no);
+        if (raw) {
+          const ผู้รับผิดชอบ = await quotationsRepo.salesperson(no, code).catch(e => { logRepoRead("quotations.salesperson", e); return null; });
+          q = [{ id: `LIVE-${raw.id}`, quoteNo: raw.id, dealerCode: code, dealerName: dealer.name, customer: raw.customer, valueNum: raw.totalValue,
+            status: raw.status, createdAt: fmtISOToThai(raw.date), salesDate: วันที่ขายของใบ(raw), salesperson: ผู้รับผิดชอบ ?? "", productLine: raw.project || "",
+            materialCost: raw.materialCost, lineItems: raw.lineItems,
+            dateISO: raw.date, expiry: raw.expiry, revision: raw.revision, vatPercent: raw.vatPercent, whtRate: raw.whtRate, province: raw.province || undefined }];
+        }
+      } catch (e) { logRepoRead("quotations.listPage(dealerPanel)", e); }
+    }
     const row = toQuoteRows(q, validityDays, look)[0];
     if (row) setดูใบ(row);
   };
@@ -178,7 +195,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
           )}
           {แท็บ === "quotes" && (
             <ตารางย่อย หัว={["เลขที่", "ลูกค้า", "สถานะ", "วันที่"]} ว่าง="ไม่มีใบเสนอราคา" หน่วย="ใบ" กว้าง={[200, "38%", 128, 112]}
-              แถว={detail.quotes.map(q => ({ key: q.quoteNo, ป้าย: `เปิดใบเสนอราคา ${q.quoteNo}`, เปิด: () => เปิดใบ(q.quoteNo),
+              แถว={detail.quotes.map(q => ({ key: q.quoteNo, ป้าย: `เปิดใบเสนอราคา ${q.quoteNo}`, เปิด: () => void เปิดใบ(q.quoteNo),
                 ช่อง: [<span key="n" data-quote-no style={{ fontWeight: 700, color: PRIMARY, whiteSpace: "nowrap" }}>{q.quoteNo}</span>, q.customer, <span key="s" className="badge" style={{ background: quotationStatusColor[q.status].bg, color: quotationStatusColor[q.status].text }}>{quotationStatusLabel[q.status]}</span>, q.date] }))} />
           )}
           {แท็บ === "customers" && (
