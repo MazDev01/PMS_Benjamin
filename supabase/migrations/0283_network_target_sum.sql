@@ -1,0 +1,392 @@
+-- ── ใบ 0283: เป้าทั้งเครือ = ผลรวมเป้าสาขาอัตโนมัติ (จองโดยเซสชัน ef · บอสสั่ง 9 พ.ย. 69 · ทับข้อตัดสิน 22 ต.ค. 69) ──
+-- เดิม: การ์ดยอดขายของ HQ ตอนไม่กรอง ใช้ "เป้าทั้งเครือ" ที่ตั้งเองในหน้าตั้งค่า (hq_targets.annual_target) → ไม่ตรงผลรวมตารางผลงานรายดีลเลอร์
+-- ใหม่:
+--   1) _network_target(ชุดสาขา, วัน) ตัวกลาง: เป้าปี = ผลรวมเป้าปีสาขา · เป้าตามช่วง = ผลรวม round(เป้าปีสาขา × วัน ÷ 365) รายสาขา
+--      (= ผลรวมคอลัมน์เป้าในตารางผลงาน hq_pipeline_dealers ตัวต่อตัว ไม่เพี้ยนจากการปัดเศษ)
+--   2) kpi_cards('hq.pipeline') + hq_dashboard ใช้ตัวกลางนี้ทุกกรณี (ทั้งเครือ / กรองสาขา / ดีลเลอร์รายเดียว)
+--   3) ถึงเป้า (หน้าภาพรวมยอดขาย HQ) = ยอดในช่วงที่เลือก ≥ เป้าตามช่วง — ช่วงเดียวกับการ์ดและแผงรายชื่อ (เดิม: ยอดต้นปี ≥ เป้าทั้งปี)
+--      แดชบอร์ดดีลเลอร์ไม่แตะ (ยังยอดต้นปีเทียบเป้าทั้งปี)
+--   ช่อง hq_targets.annual_target ในฐานคงไว้ (ไม่ลบ · ไม่มีที่อ่านแล้ว) · รูปร่างผลลัพธ์ทุกฟังก์ชันเหมือนเดิม (เส้นทาง api ไม่ต้องเปลี่ยน)
+-- ข้อทดสอบ: supabase/tests/hq_pipeline_dealers.sql (เป้า/ถึงเป้า การ์ด = ตาราง) · hq_dashboard.sql · kpi_cards.sql
+
+create or replace function public._network_target(p_codes text[], p_days int, out annual numeric, out period numeric)
+  language sql stable security definer set search_path to 'public' as $$
+  select nullif(coalesce(sum(revenue_target), 0), 0), nullif(coalesce(sum(round(revenue_target * p_days / 365)), 0), 0)
+    from dealers where code <> 'HQ' and coalesce(revenue_target, 0) > 0 and (p_codes is null or code = any(p_codes)) $$;
+revoke all on function public._network_target(text[], int) from public, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.kpi_cards(p_page text, p_start date DEFAULT NULL::date, p_end date DEFAULT NULL::date, p_dealer text DEFAULT NULL::text, p_today date DEFAULT NULL::date, p_filters jsonb DEFAULT NULL::jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  วันนี้ date := coalesce(p_today, (now() at time zone 'Asia/Bangkok')::date);
+  ต้นปี date;
+  ต้นสัปดาห์ date;
+  ช่วงต้น date := p_start;
+  ช่วงท้าย date := p_end;
+  สาขา text;
+  ได้ int; เสีย int; ส่ง int; รอ int; เป้า numeric; ยอด numeric; เป้าช่วง numeric;
+  f jsonb := coalesce(p_filters, '{}'::jsonb);
+  ชุด text[];
+  ชุดสาขา text[];
+  ชุดจังหวัด text[];
+  ชุดสาขาค้น text[];
+  ซื้อจาก date;
+  ซื้อถึง date;
+  จังหวัด text := nullif(btrim(coalesce(f ->> 'province', '')), '');
+  ช่องทาง text := nullif(btrim(coalesce(f ->> 'source', '')), '');
+  คำค้น text := nullif(lower(btrim(coalesce(f ->> 'search', ''))), '');
+begin
+  ต้นปี := date_trunc('year', วันนี้)::date;
+  ต้นสัปดาห์ := วันนี้ - (extract(isodow from วันนี้)::int - 1);
+  if (ช่วงต้น is null) <> (ช่วงท้าย is null) or ช่วงท้าย < ช่วงต้น then raise exception 'bad_range: ช่วงเวลาไม่ถูกต้อง'; end if;
+  if jsonb_typeof(f) <> 'object' then raise exception 'bad_filters: ตัวกรองต้องเป็นก้อนข้อมูล'; end if;
+  if jsonb_typeof(f -> 'ids') = 'array' then ชุด := array(select jsonb_array_elements_text(f -> 'ids')); end if;
+  if jsonb_typeof(f -> 'dealerCodes') = 'array' then ชุดสาขา := array(select jsonb_array_elements_text(f -> 'dealerCodes')); end if;
+  if jsonb_typeof(f -> 'searchDealers') = 'array' then ชุดสาขาค้น := array(select jsonb_array_elements_text(f -> 'searchDealers')); end if;
+  if jsonb_typeof(f -> 'provinces') = 'array' then ชุดจังหวัด := array(select jsonb_array_elements_text(f -> 'provinces')); end if;
+
+  -- ══ หน้าดีลเลอร์ — สาขาของผู้เรียกเท่านั้น (ไม่มีช่วง = ทุกช่วงเวลา) ══
+  if p_page like 'dealer.%' then
+    สาขา := auth_dealer();
+    if coalesce(สาขา, '') = '' or สาขา = 'HQ' then raise exception 'forbidden: เฉพาะดีลเลอร์'; end if;
+
+    if p_page = 'dealer.dashboard' then
+      select nullif(coalesce(revenue_target, 0), 0) into เป้า from dealers where code = สาขา;
+      select coalesce(sum(w.value), 0) into ยอด from _kpi_won(สาขา) w where w.d between ต้นปี and วันนี้;
+      select count(*) filter (where status = 'PAID'), count(*) filter (where status = 'CANCELLED') into ได้, เสีย
+        from leads where dealer_code = สาขา and (ช่วงต้น is null or created_date between ช่วงต้น and ช่วงท้าย);
+      return jsonb_build_object(
+        'target',   jsonb_build_object('annual', เป้า, 'ytd', ยอด, 'pct', case when เป้า is null then null else round(100 * ยอด / เป้า) end),
+        'pipeline', (select jsonb_build_object('count', count(*), 'value', coalesce(sum(quote_value), 0))
+                       from leads where dealer_code = สาขา and status not in ('PAID', 'CANCELLED')),
+        'awaiting', (select jsonb_build_object('count', count(*), 'value', coalesce(sum(total_value), 0))
+                       from quotations where dealer_code = สาขา and status = 'sent_to_client'),
+        'won',      jsonb_build_object('count', ได้, 'lost', เสีย, 'rate', case when ได้ + เสีย = 0 then null else round(100.0 * ได้ / (ได้ + เสีย)) end));
+
+    elsif p_page = 'dealer.leads' then
+      return (select jsonb_build_object(
+        'open',            count(*) filter (where l.status not in ('PAID', 'CANCELLED')),
+        'hqPricing',       count(*) filter (where l.status = 'HQ_PRICING'),
+        -- ใบร่างของลีด = กติกาเดียวกับหน้าเว็บ (lib/leadQuote.ts quoteBelongsToLead): ผูกดีล = เลขดีลตรง · ไม่ผูก = ลูกค้าเดียวกัน หรือชื่อบริษัทตรง
+        'hqQuotedNoDraft', count(*) filter (where l.status = 'HQ_QUOTED' and not exists (
+                              select 1 from quotations q where q.dealer_code = l.dealer_code and q.status = 'draft'
+                                 and case when q.deal_id is not null then q.deal_id = l.num_id
+                                          else (l.customer_id is not null and q.customer_id = l.customer_id) or q.customer = l.company end)),
+        'awaitingClient',  count(*) filter (where l.status in ('QUOTED', 'FOLLOWUP', 'NEGO')))
+        from leads l where l.dealer_code = สาขา and (ชุด is null or l.id = any(ชุด)));
+
+    elsif p_page = 'dealer.quotations' then
+      return jsonb_build_object(
+        'drafts',   (select count(*) from quotations where dealer_code = สาขา and status = 'draft' and (ชุด is null or id = any(ชุด))),
+        'awaiting', (select count(*) from quotations where dealer_code = สาขา and status = 'sent_to_client' and (ชุด is null or id = any(ชุด))),
+        'won',      (select jsonb_build_object('count', count(*), 'value', coalesce(sum(w.value), 0))
+                       from _kpi_won(สาขา) w where (ช่วงต้น is null or w.d between ช่วงต้น and ช่วงท้าย) and (ชุด is null or w.quote_id = any(ชุด))),
+        'expiring', (select count(*) from quotations q where q.dealer_code = สาขา and q.status = 'sent_to_client' and (ชุด is null or q.id = any(ชุด))
+                       and _quote_valid_until(q) between วันนี้ and วันนี้ + 3));
+
+    elsif p_page = 'dealer.customers' then
+      return jsonb_build_object(
+        'total',    (select count(*) from customers where dealer_code = สาขา and (ชุด is null or id::text = any(ชุด))),
+        -- ลูกค้าใหม่ = วันที่เป็นลูกค้า (join_date · ช่องเดียวกับที่หน้าเว็บแสดง/กรอง) อยู่ในช่วง
+        'new',      (select count(*) from customers where dealer_code = สาขา and join_date ~ '^\d{4}-\d{2}-\d{2}' and (ชุด is null or id::text = any(ชุด))
+                       and (ช่วงต้น is null or substring(join_date, 1, 10)::date between ช่วงต้น and ช่วงท้าย)),
+        'sales',    (select coalesce(sum(w.value), 0) from _kpi_won(สาขา) w
+                      where (ช่วงต้น is null or w.d between ช่วงต้น and ช่วงท้าย) and (ชุด is null or w.customer_id::text = any(ชุด))),
+        'openDeal', (select count(distinct customer_id) from leads where dealer_code = สาขา and customer_id is not null
+                       and status not in ('PAID', 'CANCELLED') and (ชุด is null or customer_id::text = any(ชุด))));
+
+    elsif p_page = 'dealer.calendar' then
+      return (select jsonb_build_object(
+        'today',    count(*) filter (where ว = วันนี้),
+        'week',     count(*) filter (where ว between ต้นสัปดาห์ and ต้นสัปดาห์ + 6),
+        'overdue',  count(*) filter (where ว < วันนี้ and coalesce(a.status, '') not in ('done', 'cancelled')),   -- 0253: นัดที่ยกเลิกแล้วไม่ใช่ "ยังไม่ปิด"
+        'doneWeek', count(*) filter (where ว between ต้นสัปดาห์ and ต้นสัปดาห์ + 6 and a.status = 'done'))
+        from (select status, case when date ~ '^\d{4}-\d{2}-\d{2}' then substring(date, 1, 10)::date end as ว
+                from appointments where dealer_code = สาขา and (ชุด is null or id::text = any(ชุด))) a);
+    end if;
+    raise exception 'invalid_page: %', p_page;
+  end if;
+
+  -- ══ หน้า HQ ══
+  if not is_hq() then raise exception 'forbidden: เฉพาะสำนักงานใหญ่'; end if;
+  if p_dealer is not null and not exists (select 1 from dealers where code = p_dealer and code <> 'HQ') then
+    raise exception 'invalid_dealer: %', p_dealer;
+  end if;
+  -- การ์ด "ในช่วงนี้" ของหน้า HQ ต้องมีช่วง (หน้าที่ไม่มีตัวกรองส่งเดือนนี้มา)
+  if ช่วงต้น is null and p_page not in ('hq.dealers', 'hq.users') then raise exception 'bad_range: ต้องระบุช่วงเวลา'; end if;
+
+  if p_page = 'hq.prospects' then
+    return jsonb_build_object(
+      'talking',   (select count(*) from dealer_prospects where status in ('new', 'contacted', 'profile_sent', 'meeting', 'considering')
+                      and (ชุด is null or id::text = any(ชุด))),
+      'followDue', (select count(*) from dealer_prospects where status in ('new', 'contacted', 'profile_sent', 'meeting', 'considering')
+                      and follow_up is not null and follow_up <= วันนี้ and (ชุด is null or id::text = any(ชุด))),
+      -- ไม่ได้ติดต่อ 14 วัน (บอสสั่ง 1 พ.ย. 69 · แทน "รอตอบใบค่าแฟรนไชส์") = สูตรเดียวกับตัวกรอง idle14 ของหน้าผู้สนใจ (prospectJourney.ไม่ได้ติดต่อเกิน):
+      --   ยังติดตามอยู่ (ไม่ใช่ won/lost) · นับจากติดต่อล่าสุด ไม่เคยติดต่อ = วันเพิ่มรายชื่อ · วันตามเวลาไทย · ห่าง ≥ 14 วัน
+      'idle14',    (select count(*) from dealer_prospects where status not in ('won', 'lost')
+                      and (coalesce(last_contact_at, created_at) at time zone 'Asia/Bangkok')::date <= วันนี้ - 14
+                      and (ชุด is null or id::text = any(ชุด))),
+      'converted', (select count(*) from dealer_prospects where status = 'won' and converted_at is not null and (ชุด is null or id::text = any(ชุด))
+                      and (converted_at at time zone 'Asia/Bangkok')::date between ช่วงต้น and ช่วงท้าย));
+
+  elsif p_page = 'hq.proposals' then
+    return (select jsonb_build_object(
+      'waiting',  (select count(*) from dealer_package_proposals where status = 'sent' and (ชุด is null or id::text = any(ชุด))),
+      -- ids = เลขใบ ให้หน้าเว็บกรองตารางตรงกับตัวเลข (กดการ์ด) — ฐานตัดสินว่าใบไหนค้าง/เกินกำหนด ไม่คิดซ้ำในเบราว์เซอร์
+      'unpaid',   jsonb_build_object('count', count(*) filter (where ค้าง > 0), 'amount', coalesce(sum(ค้าง) filter (where ค้าง > 0), 0),
+                                     'ids', coalesce(jsonb_agg(id order by id) filter (where ค้าง > 0), '[]'::jsonb)),
+      'overdue',  jsonb_build_object('count', count(*) filter (where ค้าง > 0 and payment_due_on < วันนี้),
+                                     'amount', coalesce(sum(ค้าง) filter (where ค้าง > 0 and payment_due_on < วันนี้), 0),
+                                     'ids', coalesce(jsonb_agg(id order by id) filter (where ค้าง > 0 and payment_due_on < วันนี้), '[]'::jsonb)),
+      'paid',     (select jsonb_build_object('count', count(*), 'amount', coalesce(sum(x.amount), 0),
+                                             'ids', coalesce(jsonb_agg(distinct x.proposal_id), '[]'::jsonb)) from dealer_proposal_payments x
+                    where x.cancelled_at is null and x.paid_on between ช่วงต้น and ช่วงท้าย and (ชุด is null or x.proposal_id::text = any(ชุด))))
+      from (select p.id, p.payment_due_on, coalesce(p.amount, 0) - coalesce((select sum(x.amount) from dealer_proposal_payments x
+                                                                              where x.proposal_id = p.id and x.cancelled_at is null), 0) as ค้าง
+              from dealer_package_proposals p where p.status = 'accepted' and (ชุด is null or p.id::text = any(ชุด))) y);
+
+  elsif p_page = 'hq.dealers' then
+    return (select jsonb_build_object(
+      'total',    count(*),
+      'active',   count(*) filter (where status = 'active'),
+      'moving',   count(*) filter (where เคลื่อนไหว),
+      'idle',     count(*) filter (where not เคลื่อนไหว),
+      -- รหัสสาขา ให้หน้าเว็บกรองตารางตรงกับตัวเลข (กดการ์ด) — ฐานตัดสินว่าสาขาไหนเคลื่อนไหว
+      'movingCodes', coalesce(jsonb_agg(code order by code) filter (where เคลื่อนไหว), '[]'::jsonb),
+      'idleCodes',   coalesce(jsonb_agg(code order by code) filter (where not เคลื่อนไหว), '[]'::jsonb))
+      from (select code, status, _dealer_active_since(code, วันนี้ - 30) as เคลื่อนไหว from dealers
+             where code <> 'HQ' and (ชุด is null or code = any(ชุด))) x);
+
+  elsif p_page = 'hq.pipeline' then
+    -- เป้า (ใบ 0283 · บอสสั่ง 9 พ.ย. 69 ทับข้อตัดสิน 22 ต.ค. 69): ทั้งเครือ = ผลรวมเป้าสาขาอัตโนมัติ (ไม่ใช้ hq_targets แล้ว)
+    --   เป้าตามช่วง = ผลรวมเป้าตามช่วงรายสาขา (ตัวกลาง _network_target) = ผลรวมคอลัมน์เป้าในตารางผลงาน (hq_pipeline_dealers) เสมอ
+    select t.annual, t.period into เป้า, เป้าช่วง
+      from _network_target(case when p_dealer is not null then array[p_dealer] else ชุดสาขา end, ช่วงท้าย - ช่วงต้น + 1) t;
+    select count(*) filter (where status = 'PAID'), count(*) filter (where status = 'CANCELLED') into ได้, เสีย
+      from leads where dealer_code <> 'HQ' and (p_dealer is null or dealer_code = p_dealer) and (ชุดสาขา is null or dealer_code = any(ชุดสาขา))
+       and created_date between ช่วงต้น and ช่วงท้าย;
+    return jsonb_build_object(
+      'sales',   jsonb_build_object('value', (select coalesce(sum(w.value), 0) from _kpi_won(p_dealer) w
+                                               where w.d between ช่วงต้น and ช่วงท้าย and (ชุดสาขา is null or w.dealer_code = any(ชุดสาขา))),
+                                    'target', เป้าช่วง),
+      'winRate', jsonb_build_object('won', ได้, 'lost', เสีย, 'rate', case when ได้ + เสีย = 0 then null else round(100.0 * ได้ / (ได้ + เสีย)) end),
+      -- margin เฉลี่ย = ส่วนบวกของใบลูกค้า won ที่ผูกใบ HQ (ตอบรับในช่วง) เป็น % ของราคาขาย · สูตรเดียวกับ hq_overview 0209
+      'margin',  (select jsonb_build_object('quotes', count(*), 'pct', case when coalesce(sum(q.total_value), 0) = 0 then null
+                           else round(100.0 * (sum(q.total_value) - sum(h.total_cost)) / sum(q.total_value), 1) end)
+                    from quotations q join hq_quotes h on h.id = q.hq_quote_id
+                    join quotation_won_at w on w.dealer_code = q.dealer_code and w.quote_id = q.id
+                   where q.status = 'won' and q.dealer_code <> 'HQ' and (p_dealer is null or q.dealer_code = p_dealer)
+                     and (ชุดสาขา is null or q.dealer_code = any(ชุดสาขา))
+                     and (w.won_at at time zone 'Asia/Bangkok')::date between ช่วงต้น and ช่วงท้าย),
+      -- ถึงเป้า (ใบ 0283 · บอสสั่ง 9 พ.ย. 69) = ยอดในช่วงที่เลือก ≥ เป้าตามช่วงของสาขา (เป้าปี × วัน ÷ 365) — ช่วงเดียวกับการ์ด
+      --   ตรงแผงรายชื่อ + คอลัมน์ onTarget ของ hq_pipeline_dealers · นับเฉพาะสาขาที่ตั้งเป้า · (แดชบอร์ดดีลเลอร์ยังเทียบต้นปี/ทั้งปี ไม่แตะ)
+      'onTarget', (select jsonb_build_object('reached', count(*) filter (where t.sales >= t.target), 'of', count(*),
+                                             'codes', coalesce(jsonb_agg(t.code order by t.code) filter (where t.sales >= t.target), '[]'::jsonb))
+                     from (select x.code, round(x.revenue_target * (ช่วงท้าย - ช่วงต้น + 1) / 365) as target,
+                                  (select coalesce(sum(w.value), 0) from _kpi_won(x.code) w where w.d between ช่วงต้น and ช่วงท้าย) as sales
+                             from dealers x where x.code <> 'HQ' and coalesce(x.revenue_target, 0) > 0
+                              and (p_dealer is null or x.code = p_dealer) and (ชุดสาขา is null or x.code = any(ชุดสาขา))) t));
+
+  -- ══ 3 หน้าเจาะลึก (ใบ 0271 · บอสสั่ง 2 พ.ย. 69): การ์ด = ผลรวมแถวรายดีลเลอร์ของ hq_drill ชุดเดียวกับตาราง/แผงที่มา ══
+  --   ตัวกรองที่ใช้ = สาขา (p_dealer · dealerCodes) เท่านั้น — ระดับ ภูมิภาค/จังหวัด/ดีลเลอร์ ของหน้าส่งมาเป็นชุดสาขา · ไม่นับแถว HQ
+  elsif p_page in ('hq.leads', 'hq.quotations', 'hq.customers') then
+    if ช่วงต้น is null then raise exception 'bad_range: ต้องระบุช่วงเวลา'; end if;
+    return (with ร as (
+      select r from jsonb_array_elements(hq_drill(substring(p_page from 4), ช่วงต้น, ช่วงท้าย, วันนี้) -> 'dealers') r
+       where (p_dealer is null or r->>'code' = p_dealer) and (ชุดสาขา is null or r->>'code' = any(ชุดสาขา))
+    ), ส as (
+      select coalesce(sum((r->>'leads')::int), 0) as leads, coalesce(sum((r->>'open')::int), 0) as open, coalesce(sum((r->>'qr')::int), 0) as qr,
+             coalesce(sum((r->>'stale')::int), 0) as stale, coalesce(sum((r->>'sent')::int), 0) as sent, coalesce(sum((r->>'wait')::int), 0) as wait,
+             coalesce(sum((r->>'won')::int), 0) as won, coalesce(sum((r->>'sales')::numeric), 0) as sales,
+             coalesce(sum((r->>'cust')::int), 0) as cust, coalesce(sum((r->>'newc')::int), 0) as newc,
+             count(*) filter (where (r->>'cust')::int > 0) as withc, count(*) as n
+        from ร)
+    select case p_page
+      when 'hq.leads' then jsonb_build_object('open', open, 'new', leads, 'qr', qr, 'idle', stale)
+      when 'hq.quotations' then jsonb_build_object('sent', sent, 'awaiting', wait, 'won', jsonb_build_object('count', won, 'value', sales),
+                                                   'acceptRate', case when sent = 0 then null else round(100.0 * won / sent, 1) end)
+      else jsonb_build_object('total', cust, 'new', newc, 'dealers', jsonb_build_object('with', withc, 'of', n)) end
+      from ส);
+
+  elsif p_page = 'hq.audit' then
+    return (select jsonb_build_object(
+      'actionsToday',   count(*) filter (where (a.at at time zone 'Asia/Bangkok')::date = วันนี้),
+      'usersToday',     count(distinct a."user") filter (where (a.at at time zone 'Asia/Bangkok')::date = วันนี้),
+      'impersonations', count(*) filter (where a.action = 'เข้าระบบแทนดีลเลอร์' and (a.at at time zone 'Asia/Bangkok')::date between ช่วงต้น and ช่วงท้าย),
+      'reversals',      count(*) filter (where (a.action like 'ย้อน%' or a.action like 'ยกเลิก%') and (a.at at time zone 'Asia/Bangkok')::date between ช่วงต้น and ช่วงท้าย))
+      from audit_log_hq a                                          -- เฉพาะที่คนของ HQ ทำ (ใบ 0274 · ชุดเดียวกับตาราง/ส่งออกของหน้า)
+     where not _audit_is_test_row(a."user", a.target, a.action)   -- นิยามแถวทดสอบตัวเดียวกับตัวล้างบันทึก (0241)
+       and (ชุด is null or a.id::text = any(ชุด)));
+
+  elsif p_page = 'hq.users' then
+    return (select jsonb_build_object(
+      'total',      count(*),
+      'active',     count(*) filter (where p.status = 'active'),
+      'inactive',   count(*) filter (where p.status <> 'active'),
+      'signedIn30', count(*) filter (where u.last_sign_in_at >= now() - interval '30 days'))
+      from profiles p left join auth.users u on u.id = p.id
+     where p.role in ('SUPER_ADMIN', 'HQ_MANAGEMENT', 'HQ_STAFF') and (ชุด is null or p.id::text = any(ชุด)));
+  end if;
+  raise exception 'invalid_page: %', p_page;
+end $function$;
+
+CREATE OR REPLACE FUNCTION public.hq_pipeline_dealers(p_start date, p_end date, p_dealers text[] DEFAULT NULL::text[], p_today date DEFAULT NULL::date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  วันนี้ date := coalesce(p_today, (now() at time zone 'Asia/Bangkok')::date);
+  ต้นปี date := date_trunc('year', coalesce(p_today, (now() at time zone 'Asia/Bangkok')::date))::date;
+begin
+  if not is_hq() then raise exception 'forbidden: เฉพาะสำนักงานใหญ่'; end if;
+  if p_start is null or p_end is null or p_end < p_start then raise exception 'bad_range: ช่วงเวลาไม่ถูกต้อง'; end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'code', d.code, 'name', d.name, 'region', d.region, 'province', d.province, 'status', d.status,
+             'leads', ล.leads, 'quotes', ใบ.n, 'latest', ใบ.latest,
+             'won', ล.won, 'lost', ล.lost,
+             'rate', case when ล.won + ล.lost = 0 then null else round(100.0 * ล.won / (ล.won + ล.lost)) end,
+             'sales', ข.sales,
+             'annualTarget', nullif(coalesce(d.revenue_target, 0), 0),
+             'target', case when coalesce(d.revenue_target, 0) = 0 then null else round(d.revenue_target * (p_end - p_start + 1) / 365) end,
+             'pct', case when coalesce(d.revenue_target, 0) = 0 then null
+                         else round(100.0 * ข.sales / nullif(round(d.revenue_target * (p_end - p_start + 1) / 365), 0)) end,
+             'marginSale', ม.sale, 'marginCost', ม.cost, 'marginQuotes', ม.n,
+             'marginPct', case when ม.sale = 0 then null else round(100.0 * (ม.sale - ม.cost) / ม.sale, 1) end,
+             'ytd', ข.ytd,
+             'onTarget', coalesce(d.revenue_target, 0) > 0 and ข.sales >= round(d.revenue_target * (p_end - p_start + 1) / 365))   -- ใบ 0283: ยอดในช่วง ≥ เป้าตามช่วง (ตรงการ์ด)
+           order by ข.sales desc, d.code)
+      from dealers d
+      cross join lateral (select count(*) as leads, count(*) filter (where l.status = 'PAID') as won, count(*) filter (where l.status = 'CANCELLED') as lost
+                            from leads l where l.dealer_code = d.code and l.created_date between p_start and p_end) ล
+      cross join lateral (select count(*) filter (where _q_report_date('sent', null, q.date) between p_start and p_end) as n,
+                                 max(_q_report_date('sent', null, q.date)) as latest   -- วันออกใบ (ข้อความ YYYY-MM-DD · ตัวแปลงกลาง ใบ 0260)
+                            from quotations q where q.dealer_code = d.code and q.status::text not in ('draft', 'superseded')) ใบ
+      cross join lateral (select (select coalesce(sum(w.value), 0) from _kpi_won(d.code) w where w.d between p_start and p_end) as sales,
+                                 (select coalesce(sum(w.value), 0) from _kpi_won(d.code) w where w.d between ต้นปี and วันนี้) as ytd) ข
+      cross join lateral (select coalesce(sum(q.total_value), 0) as sale, coalesce(sum(h.total_cost), 0) as cost, count(*) as n
+                            from quotations q join hq_quotes h on h.id = q.hq_quote_id
+                            join quotation_won_at w on w.dealer_code = q.dealer_code and w.quote_id = q.id
+                           where q.status = 'won' and q.dealer_code = d.code
+                             and (w.won_at at time zone 'Asia/Bangkok')::date between p_start and p_end) ม
+     where d.code <> 'HQ' and (p_dealers is null or d.code = any(p_dealers))), '[]'::jsonb);
+end $function$;
+
+CREATE OR REPLACE FUNCTION public.hq_dashboard(p_start date, p_end date, p_dealer text DEFAULT NULL::text, p_today date DEFAULT NULL::date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  วันนี้ date := coalesce(p_today, (now() at time zone 'Asia/Bangkok')::date);
+  วัน int := greatest(1, p_end - p_start + 1);
+  เป้าปี numeric;
+  เป้าช่วง numeric;
+  ต้นเดือน date;
+  งานวันนี้ jsonb; การ์ด jsonb; อันดับ jsonb; แนวโน้ม jsonb; รายเดือน jsonb; ภาค jsonb; กิจกรรม jsonb;
+  จำนวนดีลเลอร์ int;
+begin
+  if not is_hq() then raise exception 'forbidden: เฉพาะสำนักงานใหญ่'; end if;
+  if p_start is null or p_end is null or p_end < p_start then raise exception 'bad_range: ช่วงเวลาไม่ถูกต้อง'; end if;
+  ต้นเดือน := (date_trunc('month', วันนี้) - interval '11 months')::date;
+
+  -- เป้า (ใบ 0283 · บอสสั่ง 9 พ.ย. 69): ทั้งเครือ = ผลรวมเป้าสาขาอัตโนมัติ · ตัวกลางเดียวกับหน้าภาพรวมยอดขาย (_network_target)
+  select t.annual, t.period into เป้าปี, เป้าช่วง
+    from _network_target(case when p_dealer is null then null else array[p_dealer] end, วัน) t;
+
+  -- ── วันนี้ต้องทำ (ไม่ขึ้นกับตัวกรอง) ──
+  select jsonb_build_object(
+      'requestsOpen',    (select count(*) from quote_requests where status in ('new', 'pricing')),
+      'requestsOverdue', (select count(*) from quote_requests where status in ('new', 'pricing') and now() > due_at),
+      'franchiseOverdue', (select jsonb_build_object('count', count(*), 'amount', coalesce(sum(ค้าง), 0),
+                                    'ids', coalesce(jsonb_agg(id order by payment_due_on, id), '[]'::jsonb))
+                             from (select p.id, p.payment_due_on,
+                                          coalesce(p.amount, 0) - coalesce((select sum(amount) from dealer_proposal_payments x
+                                                                             where x.proposal_id = p.id and x.cancelled_at is null), 0) as ค้าง
+                                     from dealer_package_proposals p
+                                    where p.status = 'accepted' and p.payment_due_on is not null
+                                      and p.payment_due_on < (now() at time zone 'Asia/Bangkok')::date) y
+                            where ค้าง > 0))
+    into งานวันนี้;
+
+  -- ── ใบตอบรับ (ยอดขาย) ตามวันตอบรับ · ใบในช่วง · ลีดในช่วง ──
+  select jsonb_build_object(
+      'sales',      (select coalesce(sum(value), 0) from _hd_won(p_dealer) where d between p_start and p_end),
+      'target',     เป้าช่วง,
+      'annualTarget', เป้าปี,
+      'days',       วัน,
+      'leadsNew',   (select count(*) from leads where dealer_code <> 'HQ' and (p_dealer is null or dealer_code = p_dealer)
+                       and created_date between p_start and p_end),
+      'quotesSent', (select count(*) from quotations where dealer_code <> 'HQ' and (p_dealer is null or dealer_code = p_dealer)
+                       and status in ('sent_to_client', 'won', 'lost', 'expired')
+                       and date ~ '^\d{4}-\d{2}-\d{2}' and substring(date, 1, 10)::date between p_start and p_end),
+      'closedWon',  (select count(*) from leads where dealer_code <> 'HQ' and (p_dealer is null or dealer_code = p_dealer)
+                       and created_date between p_start and p_end and status = 'PAID'),
+      'closedLost', (select count(*) from leads where dealer_code <> 'HQ' and (p_dealer is null or dealer_code = p_dealer)
+                       and created_date between p_start and p_end and status = 'CANCELLED'))
+    into การ์ด;
+
+  -- ── 10 อันดับ: เฉพาะดีลเลอร์ที่มียอดขายในช่วง ──
+  select coalesce(jsonb_agg(x order by x.sales desc, x.code), '[]'::jsonb) into อันดับ
+    from (select d.code, d.name, s.sales,
+                 case when coalesce(d.revenue_target, 0) = 0 then null else round(d.revenue_target * วัน / 365) end as target,
+                 (select count(*) from leads l where l.dealer_code = d.code and l.created_date between p_start and p_end and l.status = 'PAID') as "closedWon",
+                 (select count(*) from leads l where l.dealer_code = d.code and l.created_date between p_start and p_end and l.status = 'CANCELLED') as "closedLost"
+            from (select dealer_code, sum(value) as sales from _hd_won(p_dealer) where d between p_start and p_end group by 1 having sum(value) > 0) s
+            join dealers d on d.code = s.dealer_code
+           where d.code <> 'HQ'
+           order by s.sales desc, d.code limit 10) x;
+
+  select jsonb_build_object(
+      'byMonth', coalesce((select jsonb_agg(x order by x.y, x.m) from (
+          select extract(year from d)::int as y, extract(month from d)::int - 1 as m, sum(value) as sales
+            from _hd_won(p_dealer) where d between p_start and p_end group by 1, 2) x), '[]'::jsonb),
+      'byDay',   coalesce((select jsonb_agg(x order by x.d) from (
+          select to_char(d, 'YYYY-MM-DD') as d, sum(value) as sales
+            from _hd_won(p_dealer) where d between p_start and p_end group by d) x), '[]'::jsonb),
+      'byHour',  coalesce((select jsonb_agg(x order by x.h) from (
+          select h, sum(value) as sales from _hd_won(p_dealer) where d between p_start and p_end group by h) x), '[]'::jsonb))
+    into แนวโน้ม;
+
+  -- ── 12 เดือนย้อนหลัง (ไม่ขึ้นกับตัวกรองเวลา) ──
+  select coalesce(jsonb_agg(jsonb_build_object('y', extract(year from m)::int, 'm', extract(month from m)::int - 1,
+           'leads',  (select count(*) from leads where dealer_code <> 'HQ' and (p_dealer is null or dealer_code = p_dealer)
+                        and created_date >= m and created_date < m + interval '1 month'),
+           'quotes', (select count(*) from quotations where dealer_code <> 'HQ' and (p_dealer is null or dealer_code = p_dealer)
+                        and status in ('sent_to_client', 'won', 'lost', 'expired') and date ~ '^\d{4}-\d{2}-\d{2}'   -- ใบที่ส่ง ไม่นับร่าง/ถูกแทนที่ (0268)
+                        and substring(date, 1, 10)::date >= m and substring(date, 1, 10)::date < m + interval '1 month'),
+           'won',    (select count(*) from _hd_won(p_dealer) where d >= m and d < m + interval '1 month'),
+           'sales',  (select coalesce(sum(value), 0) from _hd_won(p_dealer) where d >= m and d < m + interval '1 month'))
+         order by m), '[]'::jsonb)
+    into รายเดือน
+    from generate_series(ต้นเดือน, date_trunc('month', วันนี้)::date, interval '1 month') as g(m);
+
+  -- ── ดีลเลอร์ตามภาค ──
+  select count(*) into จำนวนดีลเลอร์ from dealers where code <> 'HQ' and (p_dealer is null or code = p_dealer);
+  select coalesce(jsonb_agg(x order by x.dealers desc, x.region), '[]'::jsonb) into ภาค
+    from (select coalesce(nullif(btrim(d.region), ''), 'ไม่ระบุ') as region, count(*) as dealers,
+                 coalesce(sum((select sum(value) from _hd_won(p_dealer) w where w.dealer_code = d.code and w.d between p_start and p_end)), 0) as sales
+            from dealers d where d.code <> 'HQ' and (p_dealer is null or d.code = p_dealer)
+           group by 1) x;
+
+  -- ── กิจกรรมล่าสุด ──
+  select coalesce(jsonb_agg(x order by x.at desc, x.id desc), '[]'::jsonb) into กิจกรรม
+    from (select id, "user", action, target, at from audit_log_hq a                -- เฉพาะที่คนของ HQ ทำ (ใบ 0274 · กติกาเดียวกับ /hq/audit)
+           where (a.at at time zone 'Asia/Bangkok')::date between p_start and p_end
+             and coalesce(a."user", '') <> 'บัญชีทดสอบชั่วคราว'             -- บัญชีชั่วคราวของ prod-live (tests/prod-live/run.mjs)
+             and coalesce(a."user", '') !~* '@example\.test$|^zz'
+             and coalesce(a.target, '') !~* 'ZZTEST|ZZLOAD|ZZE2E'
+             and coalesce(a.target, '') !~ '(^|[ →])ZZ[A-Z0-9]*( |$)'       -- สาขาทดสอบ ZZ*
+           order by a.at desc, a.id desc limit 50) x;
+
+  return jsonb_build_object('today', งานวันนี้, 'cards', การ์ด, 'top', อันดับ, 'trend', แนวโน้ม,
+    'monthly', รายเดือน, 'monthlyTarget', case when เป้าปี is null then null else round(เป้าปี / 12) end,
+    'regions', ภาค, 'dealerCount', จำนวนดีลเลอร์, 'activity', กิจกรรม);
+end $function$;

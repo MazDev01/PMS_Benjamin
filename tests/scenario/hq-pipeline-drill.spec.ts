@@ -111,7 +111,9 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
     await page.locator(`[data-kpi-row] [data-kpi="${k}"]`).click();
     const แผง = page.locator(`[data-card-drawer="${k}"]`);
     await expect(แผง, `กดการ์ด ${k} = แผงที่มา`).toBeVisible();
-    expect(await แผง.locator("[data-drawer-row]").count(), `แผง ${k}: แถวรายดีลเลอร์ = จำนวนดีลเลอร์ในตาราง`).toBe(Number(await ผลรวม(page, "n")));
+    // แผงถึงเป้า (ใบ 0283 · บอสสั่ง 9 พ.ย. 69): นับเฉพาะดีลเลอร์ที่ตั้งเป้า — A ตั้งเป้า · B ไม่ตั้ง → 1 แถว · แผงอื่น = ทุกดีลเลอร์ในตาราง
+    expect(await แผง.locator("[data-drawer-row]").count(), `แผง ${k}: แถวรายดีลเลอร์ = จำนวนดีลเลอร์ในตาราง${k === "onTarget" ? "ที่ตั้งเป้า" : ""}`)
+      .toBe(k === "onTarget" ? 1 : Number(await ผลรวม(page, "n")));
     await expect(แผง.locator("tfoot, [data-drawer-total]"), `แผง ${k}: ไม่มีแถวรวม`).toHaveCount(0);
     await expect(แผง, `แผง ${k}: คำอธิบายไม่มี แถวรวม`).not.toContainText("แถวรวม");
     await แผง.getByRole("button", { name: "ปิดแผง" }).click();

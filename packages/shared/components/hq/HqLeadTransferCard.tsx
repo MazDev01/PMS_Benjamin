@@ -61,6 +61,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
   };
 
   // หน้าตาเดียวกับการ์ด/ตารางอื่นของหน้า (บอสสั่ง 30 ต.ค. 69): หัวการ์ด + เนื้อการ์ดมีระยะขอบ · ตารางมาตรฐาน .table-wrap
+  //   .fit = ขนาดตัวอักษร/หัวคอลัมน์เดียวกับตารางลีดด้านล่าง (ตารางลีดเป็น .fit ตั้งแต่ 9 พ.ย. 69)
   //   หัวคอลัมน์ขนาดเท่าตารางอื่น · ความกว้างที่ colgroup (table-layout: fixed) · ตัวเลขชิดขวาทั้งหัวและข้อมูล
   return (
     <div className="card" data-card="hq-lead-transfer" style={{ marginBottom: 16 }}>
@@ -80,7 +81,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
       </div>
       <div className="card-body" style={{ paddingTop: 0 }}>
         {[...อัตโนมัติ, ...เลือกเอง].length > 0 && (
-          <div className="table-wrap" style={{ border: "1px solid var(--border)", borderRadius: 10 }}>
+          <div className="table-wrap fit" style={{ border: "1px solid var(--border)", borderRadius: 10 }}>
             <table style={{ minWidth: 640 }}>
               <colgroup>
                 <col style={{ width: "18%" }} />{/* จังหวัด */}

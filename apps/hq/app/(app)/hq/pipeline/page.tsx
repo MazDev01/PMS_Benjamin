@@ -6,7 +6,8 @@
 //   (ข้อทดสอบ supabase/tests/hq_pipeline_dealers.sql · tests/scenario/hq-pipeline-h12.spec.ts)
 //   เอาออก (ข้อมูลซ้ำ · รวมเข้าตารางแล้ว): ใบที่ออก vs ปิดได้ · ลีดเทียบออกใบ · มูลค่าใบเทียบยอดขาย · ตัวเลขการปิดการขายรายดีลเลอร์
 //     · เป้าทั้งปีเทียบยอด (เคยขึ้น ฿0 ทุกสาขา — ยอดมาจากตัวรวมฝั่งหน้าเว็บอีกตัว) · ส่วนบวกรายดีลเลอร์ (ไม่ขึ้นกับตัวกรอง)
-//   เป้าบนการ์ดตอนไม่กรอง = เป้าทั้งเครือที่ HQ ตั้ง (บอสตัดสิน 22 ต.ค. 69) · แถวรวมท้ายตาราง = ผลรวมเป้าสาขา (คนละตัว ตั้งใจ)
+//   เป้าบนการ์ด = ผลรวมเป้าตามช่วงของสาขาในตารางเสมอ รวมตอนไม่กรอง (ใบ 0283 · บอสสั่ง 9 พ.ย. 69 · ทับข้อตัดสิน 22 ต.ค. 69 ที่ใช้เป้าทั้งเครือแยก)
+//   ถึงเป้า = ยอดในช่วง ≥ เป้าตามช่วง (ช่วงเดียวกับการ์ด) · แผงที่มาเป็นหน้าต่างกลางจอ ไม่มีแถวรวม · ไม่มีปุ่มกรองถึงเป้าในแผงแล้ว
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Percent, Trophy, Eye, X, Coins, Search, Award, ArrowDown, ArrowUp } from "lucide-react";
@@ -160,7 +161,6 @@ export default function SalesAnalyticsPage() {
   // ── เจาะลึก (บอสสั่ง 30 ต.ค. 69): แท็บ ดีลเลอร์/ภูมิภาค/จังหวัด/รายเดือน · แผงที่มาของการ์ด ──
   const [มิติเลือก, setมิติ] = useState<มิติ>("dealer");
   const [แผงการ์ด, setแผงการ์ด] = useState<การ์ดที่มา | null>(null);
-  const [ถึงเป้าเท่านั้น, setถึงเป้าเท่านั้น] = useState(false);
   const SALES_BANDS = useMemo(() => [
     { v: "lt5", l: "ยอดขายต่ำกว่า ฿5M", hit: (n: number) => n < 5e6 },
     { v: "5to8", l: "ยอดขาย ฿5M – ฿8M", hit: (n: number) => n >= 5e6 && n < 8e6 },
@@ -196,8 +196,8 @@ export default function SalesAnalyticsPage() {
 
   // ตัวกรองที่ขึ้นกับตัวเลข (ช่วงยอดขาย · ถึงเป้า) กรองแถวที่ฐานคืน → ชุดสาขาที่เห็นจริง = ชุดที่ส่งให้การ์ด (ผลรวม = การ์ด ทุกตัวกรอง)
   const แถว = useMemo(() => (แถวฐาน ?? []).filter(r =>
-    (salesSel === ALL || (SALES_BANDS.find(b => b.v === salesSel)?.hit(r.sales) ?? true)) && (!ถึงเป้าเท่านั้น || r.onTarget)), [แถวฐาน, salesSel, SALES_BANDS, ถึงเป้าเท่านั้น]);
-  const กรองตัวเลข = salesSel !== ALL || ถึงเป้าเท่านั้น;
+    (salesSel === ALL || (SALES_BANDS.find(b => b.v === salesSel)?.hit(r.sales) ?? true))), [แถวฐาน, salesSel, SALES_BANDS]);
+  const กรองตัวเลข = salesSel !== ALL;
   const ชุดการ์ด = useMemo(() => (ชุดฐาน === null && !กรองตัวเลข) ? null : { dealerCodes: แถว.map(r => r.code) }, [ชุดฐาน, กรองตัวเลข, แถว]);
   const การ์ด = useKpiCards("hq.pipeline", { ...ช่วง, dealer: null, today: isoDateOf(APP_NOW), filters: แถวฐาน === null && กรองตัวเลข ? undefined : ชุดการ์ด, รุ่น: salesVersion });
   const ยอดการ์ด = ค่า(การ์ด, "sales.value"), เป้าการ์ด = ค่า(การ์ด, "sales.target");
@@ -212,7 +212,7 @@ export default function SalesAnalyticsPage() {
     return (เรียง.ลง ? -c : c) || a.code.localeCompare(b.code);
   }), [แถว, เรียง]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [หน้า, setหน้า] = useState(0);
-  useEffect(() => { setหน้า(0); }, [q, dealerSel, regionSel, provSel, salesSel, ถึงเป้าเท่านั้น, เรียง, ช่วง.start, ช่วง.end]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setหน้า(0); }, [q, dealerSel, regionSel, provSel, salesSel, เรียง, ช่วง.start, ช่วง.end]);   // eslint-disable-line react-hooks/exhaustive-deps
   const หน้าจริง = Math.min(หน้า, pageCountOf(เรียงแล้ว.length) - 1);
   const ในหน้า = pageSlice(เรียงแล้ว, หน้าจริง);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ดูทุกแถวหลังตัวกรอง (ไม่ใช่แค่หน้าที่เห็น) · ยังไม่มีแถว = แสดงครบ
@@ -290,8 +290,8 @@ export default function SalesAnalyticsPage() {
   const ขั้นตอนนี้ = useLeadSummary({ dealerCodes: ชุดลีด });
   const ลีดในช่วง = useLeadSummary({ dealerCodes: ชุดลีด, dateStart: ช่วง.start, dateEnd: ช่วง.end });
 
-  const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL) || ถึงเป้าเท่านั้น;
-  const ล้าง = () => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); setถึงเป้าเท่านั้น(false); };
+  const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL);
+  const ล้าง = () => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); };
   const sel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
     <select aria-label={caption} title={caption} value={v} onChange={e => on(e.target.value)} className="form-select"
       style={{ flex: "1 1 0", minWidth: 120, maxWidth: 210, fontSize: "0.82rem" }}>
@@ -328,7 +328,7 @@ export default function SalesAnalyticsPage() {
           unit={`ส่วนต่างกำไร % ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับจากใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
           icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("margin")} />
         <KpiCard kpi="onTarget" label="ดีลเลอร์ที่ถึงเป้า" value={ค่า(การ์ด, "onTarget.reached") == null ? null : `${ค่า(การ์ด, "onTarget.reached")} จาก ${ค่า(การ์ด, "onTarget.of") ?? 0}`}
-          rawValue={ค่า(การ์ด, "onTarget.reached")} unit="ราย · ยอดตั้งแต่ต้นปีถึงเป้าทั้งปี" empty="กำลังโหลด…" icon={Award} color="#d97706" bg="#FEF3C7"
+          rawValue={ค่า(การ์ด, "onTarget.reached")} unit="ราย · ยอดในช่วงถึงเป้าตามช่วง" empty="กำลังโหลด…" icon={Award} color="#d97706" bg="#FEF3C7"
           actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("onTarget")} />
       </KpiRow>
 
@@ -441,8 +441,8 @@ export default function SalesAnalyticsPage() {
         <กล่องล่าง รวมทั้งหมด={รวม} ขั้นตอนนี้={ขั้นตอนนี้} ในช่วง={ลีดในช่วง} ระดับ={ป้ายระดับ(ระดับหัวข้อ)} ช่วง={ช่วง} />
       </div>
 
-      {แผงการ์ด && <แผงที่มา การ์ด={แผงการ์ด} แถว={แถว} รวมทั้งหมด={รวม} ดีลเลอร์={ดีลเลอร์ที่ดู} ปิด={() => setแผงการ์ด(null)}
-        ถึงเป้าเท่านั้น={ถึงเป้าเท่านั้น} สลับถึงเป้า={() => setถึงเป้าเท่านั้น(v => !v)} เดือน={ดีลเลอร์ที่ดู ? เดือน : null} />}
+      {แผงการ์ด && <แผงที่มา การ์ด={แผงการ์ด} แถว={แถว} ดีลเลอร์={ดีลเลอร์ที่ดู} ปิด={() => setแผงการ์ด(null)} เดือน={ดีลเลอร์ที่ดู ? เดือน : null} ช่วง={ช่วง}
+        เจาะ={code => { setDealerSel(code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
       {เดือนที่เปิด && รายเดือนฐาน && <แผงเดือน เดือน={เดือนที่เปิด} rows={รายเดือนฐาน} codes={รหัสในตาราง} ชื่อ={ชื่อดีลเลอร์} ปิด={() => setเดือนที่เปิด(null)}
         เจาะ={code => { setDealerSel(code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
     </div>

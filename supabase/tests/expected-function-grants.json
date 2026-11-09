@@ -1,5 +1,5 @@
 {
- "migration": "0282",
+ "migration": "0283",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -269,6 +269,13 @@
   },
   {
    "f": "_material_import_block(p_batch bigint)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_network_target(p_codes text[], p_days integer, OUT annual numeric, OUT period numeric)",
    "anon": false,
    "authenticated": false,
    "service_role": false,

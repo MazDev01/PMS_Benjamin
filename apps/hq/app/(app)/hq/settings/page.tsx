@@ -21,7 +21,6 @@ import {
   type ReactNode, type Dispatch, type SetStateAction,
 } from "react";
 import { useRouter } from "next/navigation";
-import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { useRepoState } from "@pms/shared/lib/useRepoState";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -115,13 +114,6 @@ function Row({ label, desc, children, error }: { label: string; desc?: string; c
     </div>
   );
 }
-const numInput = (value: number, onChange: (n: number) => void, unit: string, step?: number) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-    {/* ลบทั้งช่องระหว่างพิมพ์ได้ (ไม่เด้งเป็น 0 แล้วพิมพ์ต่อได้ "09") — ดู NumberInput */}
-    <NumberInput step={step} ariaLabel={unit} min={0} style={{ textAlign: "right", fontWeight: 700 }} value={value} onChange={onChange} />
-    <span style={{ fontSize: "0.72rem", color: "#6b7280", whiteSpace: "nowrap" }}>{unit}</span>
-  </div>
-);
 // regionDisplay = ใช้ของกลาง (hqQuotations.ts) แหล่งเดียว — เดิม copy ในไฟล์นี้ไม่มี guard "ไม่ระบุ" (1.4)
 
 // ═══════════════════════ 3 · เส้นทางการขาย ════════════════════════════════════
@@ -416,10 +408,11 @@ function RecruitTab() {
 //   ผลงาน (ทำได้จริง / ความคืบหน้า) ดูที่ภาพรวมยอดขายที่เดียว — ตัดออกจากหน้านี้ · ไม่มีเป้าติดตามตรงเวลา (คอลัมน์ตรงเวลาเอาออก 30 ต.ค. 69)
 //   เป้าอัตราปิดการขายเฉลี่ย: เดิมเป็น "เกณฑ์สีบนหน้าดีลเลอร์" ซึ่งไม่มีตัวเลขยอดขายแล้ว และภาพรวมยอดขาย (ตามแบบ) ไม่มีเกณฑ์สี
 //     → ไม่มีที่ใช้ เอาออก (บอสสั่ง "ถ้าไม่มีที่ใช้ เอาออก") · ช่องในฐาน (hq_targets) คงไว้ ไม่แตะ
-// เป้าทั้งปี = แหล่งเดียว (แดชบอร์ด HQ/ดีลเลอร์อ่านค่านี้) · เป้ารายดีลเลอร์ = DealerRow.revenueTarget (บันทึกทางเดียวกับหน้าดีลเลอร์)
+// เป้าทั้งเครือ = ผลรวมเป้ารายดีลเลอร์อัตโนมัติ (บอสสั่ง 9 พ.ย. 69 · ใบ 0283 · ทับข้อตัดสิน 22 ต.ค. 69) — แสดงอย่างเดียว ไม่มีช่องพิมพ์
+//   ฐานคิดผลรวมเองทุกที่ (การ์ดภาพรวมยอดขาย · แดชบอร์ด HQ) · ค่าเดิมใน hq_targets คงไว้ในฐาน ไม่ลบ แต่ไม่มีที่อ่านแล้ว
+// เป้ารายดีลเลอร์ = DealerRow.revenueTarget (บันทึกทางเดียวกับหน้าดีลเลอร์)
 function TargetsTab() {
   const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
-  const { draft, set, dirty, save, reset } = useRepoDraft<HQTargets>(() => settingsRepo.getTargets(), (v) => settingsRepo.saveTargets(v), DEFAULT_HQ_TARGETS);
   const toast = useToast();
   const [dealers, setDealers] = useState<DealerRow[]>([]); // ของจริงมาจาก repo — ห้ามตั้งต้นด้วย seed
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
@@ -430,14 +423,13 @@ function TargetsTab() {
   const เป้าของ = (d: DealerRow) => แก้เป้า[d.code] ?? d.revenueTarget ?? 0;
   const แก้ค้าง = Object.keys(แก้เป้า).some(c => แก้เป้า[c] !== (dealers.find(d => d.code === c)?.revenueTarget ?? 0));
   const บันทึกทั้งหมด = useCallback(async () => {
-    if (dirty) await save();
     const เปลี่ยน = dealers.filter(d => แก้เป้า[d.code] != null && แก้เป้า[d.code] !== d.revenueTarget).map(d => ({ ...d, revenueTarget: แก้เป้า[d.code] }));
     if (!เปลี่ยน.length) return;
     try { await dealersRepo.save(เปลี่ยน); setแก้เป้า({}); await โหลดดีลเลอร์(); }
     catch (e) { toast(`บันทึกเป้ารายดีลเลอร์ไม่สำเร็จ — ${friendlyError(e)}`); }
-  }, [dirty, save, dealers, แก้เป้า, toast]); // eslint-disable-line react-hooks/exhaustive-deps
-  const ยกเลิกทั้งหมด = useCallback(() => { reset(); setแก้เป้า({}); }, [reset]);
-  useReport(useMemo(() => ({ dirty: dirty || แก้ค้าง, save: บันทึกทั้งหมด, reset: ยกเลิกทั้งหมด }), [dirty, แก้ค้าง, บันทึกทั้งหมด, ยกเลิกทั้งหมด]));
+  }, [dealers, แก้เป้า, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ยกเลิกทั้งหมด = useCallback(() => { setแก้เป้า({}); }, []);
+  useReport(useMemo(() => ({ dirty: แก้ค้าง, save: บันทึกทั้งหมด, reset: ยกเลิกทั้งหมด }), [แก้ค้าง, บันทึกทั้งหมด, ยกเลิกทั้งหมด]));
 
   const ผลรวมเป้าดีลเลอร์ = dealers.reduce((s, d) => s + เป้าของ(d), 0);
   const [หน้า, setหน้า] = useState(0);
@@ -445,16 +437,10 @@ function TargetsTab() {
 
   return (
     <>
-      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="ใช้ในการ์ดยอดขายเทียบเป้า (ทั้งเครือ) · เป้าตามช่วง = เป้าทั้งปี × จำนวนวัน ÷ 365">
-        <Row label="เป้ายอดขายทั้งปี" desc="บาท ก่อน VAT — แดชบอร์ดสำนักงานใหญ่และแดชบอร์ดดีลเลอร์ใช้ค่านี้">
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {numInput(draft.annualTarget, n => set(p => ({ ...p, annualTarget: n })), "บาท", 1_000_000)}
-            {/* ปุ่มลัด (บอสสั่ง 2 พ.ย. 69): ตั้งเป้าทั้งเครือ = ผลรวมเป้าดีลเลอร์ในตารางด้านล่าง (รวมตัวเลขที่เพิ่งแก้ยังไม่บันทึก) */}
-            <button type="button" className="btn btn-secondary btn-sm" data-act="target-from-dealers" disabled={!dealers.length || ผลรวมเป้าดีลเลอร์ === draft.annualTarget}
-              onClick={() => set(p => ({ ...p, annualTarget: ผลรวมเป้าดีลเลอร์ }))} title={`ตั้งเป็น ${fmtB(ผลรวมเป้าดีลเลอร์)}`}>
-              ตั้งเท่าผลรวมเป้าดีลเลอร์
-            </button>
-          </div>
+      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="= ผลรวมเป้ารายดีลเลอร์ด้านล่างอัตโนมัติ · ใช้ในการ์ดยอดขายเทียบเป้า · เป้าตามช่วง = ผลรวมเป้าตามช่วงรายดีลเลอร์ (เป้าทั้งปี × จำนวนวัน ÷ 365)">
+        <Row label="เป้ายอดขายทั้งปี" desc="บาท ก่อน VAT — คำนวณเอง แก้ไม่ได้ · ต้องการเปลี่ยน ให้แก้เป้ารายดีลเลอร์ในตารางด้านล่าง">
+          <strong data-network-target data-value={ผลรวมเป้าดีลเลอร์} title="ผลรวมเป้าทั้งปีของทุกดีลเลอร์ (รวมตัวเลขที่เพิ่งแก้ยังไม่บันทึก)"
+            style={{ fontSize: "1rem", fontWeight: 800, color: STEEL, fontVariantNumeric: "tabular-nums" }}>{fmtB(ผลรวมเป้าดีลเลอร์)}</strong>
         </Row>
       </SectionCard>
 

@@ -36,15 +36,11 @@ test("[func·hq] เป้าหมาย: แถวรวมเป้าดี�
     await page.reload(); await เปิดแท็บเป้า(page);
   }
 
-  // ปุ่มตั้งเท่าผลรวม → ช่องเป้าทั้งปีเป็นผลรวมนั้น (ไม่กดบันทึก · กดรีเซ็ตคืน)
-  const ปุ่ม = page.locator('[data-act="target-from-dealers"]');
-  await expect(ปุ่ม).toHaveText("ตั้งเท่าผลรวมเป้าดีลเลอร์");
-  if (await ปุ่ม.isEnabled()) {
-    await ปุ่ม.click();
-    await expect(ปุ่ม, "ตั้งแล้ว = เท่ากันแล้ว ปุ่มปิด").toBeDisabled();
-    await expect(page.getByText("ยังไม่บันทึก"), "แก้แล้วยังไม่บันทึก").toBeVisible();
-    await page.getByRole("button", { name: "รีเซ็ต" }).click();
-  }
+  // 9 พ.ย. 69 (บอสสั่ง · ใบ 0283 · ตรวจกลับด้าน): เป้าทั้งเครือ = ผลรวมเป้าดีลเลอร์อัตโนมัติ แสดงอย่างเดียว
+  //   เดิม: ช่องพิมพ์เป้าทั้งปี + ปุ่ม "ตั้งเท่าผลรวมเป้าดีลเลอร์" → ตอนนี้ต้องไม่มีทั้งสองอย่าง · ค่าที่แสดง = แถวรวมเป้าดีลเลอร์
+  await expect(page.locator('[data-act="target-from-dealers"]'), "ไม่มีปุ่มตั้งเท่าผลรวมแล้ว").toHaveCount(0);
+  await expect(page.getByRole("spinbutton", { name: "บาท" }), "ไม่มีช่องพิมพ์เป้าทั้งเครือ").toHaveCount(0);
+  await expect(page.locator("[data-network-target]"), "เป้าทั้งเครือ = ผลรวมเป้าดีลเลอร์ (แสดงอย่างเดียว)").toHaveAttribute("data-value", String(ผลรวม));
 
   // กลับด้านจากข้อเดิม: ไม่มีผลงาน/เป้าอัตราปิด/เป้าตรงเวลา/ตารางรายภูมิภาคบนหน้านี้ · หัวตาราง "ดีลเลอร์" ไม่ใช่ "พื้นที่"
   for (const ข้อความ of ["ความคืบหน้าทั้งเครือ", "ทำได้จริง", "เป้าหมายรายภูมิภาค", "เป้าอัตราปิดการขายเฉลี่ย", "เป้าติดตามตรงเวลา"]) {
@@ -66,6 +62,9 @@ test("[func·hq] เป้าหมาย: แก้เป้ารายดี�
     await expect(ช่อง).toHaveValue("1,200,000");
     await ช่อง.fill("2400000");
     await expect(แถว.locator("td").nth(3), "เป้ารายเดือนคิดตามที่พิมพ์ (÷12)").toHaveText("฿200,000");
+    // เป้าทั้งเครือเดินตามทันที (ผลรวม รวมตัวเลขที่เพิ่งแก้ · ใบ 0283)
+    const ก่อน = Number(await ตารางเป้า(page).locator('tfoot [data-sum="annual"]').getAttribute("data-value"));
+    await expect(page.locator("[data-network-target]"), "เป้าทั้งเครือ = แถวรวมเป้าดีลเลอร์หลังแก้").toHaveAttribute("data-value", String(ก่อน));
     await page.getByRole("button", { name: "บันทึก" }).first().click();
     await expect.poll(async () => Number((await db.from("dealers").select("revenue_target").eq("code", สาขา.รหัส).single()).data?.revenue_target),
       { message: "เป้าใหม่ลงฐาน", timeout: 20_000 }).toBe(2_400_000);

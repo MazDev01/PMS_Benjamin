@@ -142,11 +142,13 @@ test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์�
   await page.getByLabel("ทุกช่วงยอดขาย").selectOption("lt5");
   await รวมเท่าการ์ด(page, "ช่วงยอดขายต่ำกว่า ฿5M");
   await page.getByLabel("ทุกช่วงยอดขาย").selectOption("ALL");
-  // 30 ต.ค. 69: กดการ์ด = แผงที่มา · ปุ่มในแผง "แสดงเฉพาะดีลเลอร์ที่ถึงเป้าในตาราง" (เดิมกดการ์ดแล้วกรองทันที)
+  // 9 พ.ย. 69 (บอสสั่ง · ตรวจกลับด้าน): แผงถึงเป้าไม่มีปุ่ม "แสดงเฉพาะดีลเลอร์ที่ถึงเป้าในตาราง" แล้ว — เปิดแผงไม่เปลี่ยนตาราง ผลรวม = การ์ดเหมือนเดิม
+  //   (เดิม 30 ต.ค. 69: ปุ่มในแผงกรองตาราง · แผงใหม่ 2 กลุ่ม ตรวจที่ drill-window.spec.ts)
   await page.locator('[data-kpi-row] [data-kpi="onTarget"]').click();
-  await page.locator('[data-card-drawer="onTarget"] [data-act="only-on-target"]').click();
+  await expect(page.locator('[data-card-drawer="onTarget"]')).toBeVisible();
+  await expect(page.locator('[data-card-drawer="onTarget"] [data-act="only-on-target"]'), "ไม่มีปุ่มกรองถึงเป้าในแผง").toHaveCount(0);
   await page.getByRole("button", { name: "ปิดแผง" }).click();
-  await รวมเท่าการ์ด(page, "ถึงเป้าเท่านั้น (กดการ์ด)");
+  await รวมเท่าการ์ด(page, "หลังเปิด/ปิดแผงถึงเป้า (ตารางไม่ถูกกรอง)");
 });
 
 test("[H12·hq] โครงหน้า 3 ส่วน · เรียงได้ทุกคอลัมน์ · ข้อความไม่ถูกตัด · วงกลม % ไม่ล้นวง", async ({ page }) => {
