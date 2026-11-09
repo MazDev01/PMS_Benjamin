@@ -199,8 +199,9 @@ test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอ
   await expect(ใหม่.locator("[data-unread-dot]"), "จุดแดงขึ้นจริง").toHaveCount(1);
   await ใหม่.click();
   await expect(page).toHaveURL(/\/hq\/quote-requests/, { timeout: 15_000 });
-  await expect(page.locator('[aria-current="true"]').first(), "กดแล้วเปิดคำขอนั้นตรง ๆ (ไม่ใช่แค่ไปหน้ารายการ)")
-    .toHaveAttribute("aria-label", new RegExp(`^${คำขอแรก.request_no} `), { timeout: 20_000 });
+  // ตาราง 6 พ.ย. 69: กดแล้วเปิดหน้าต่างใบ HQ ของคำขอนั้น
+  await expect(page.getByRole("dialog", { name: "ใบ HQ" }).getByRole("heading").first(), "กดแล้วเปิดคำขอนั้นตรง ๆ (ไม่ใช่แค่ไปหน้ารายการ)")
+    .toContainText(คำขอแรก.request_no, { timeout: 20_000 });
 
   // HQ ส่งราคา → ดีลเลอร์ขอแก้ราคา → HQ ส่งอีก → ดีลเลอร์ทำใบ ส่งลูกค้า → ลูกค้าปฏิเสธ
   const hq = await db(ADMIN);

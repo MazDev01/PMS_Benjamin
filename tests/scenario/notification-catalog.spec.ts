@@ -134,9 +134,9 @@ test("[รอบ4·flow] HQ: ดีลเลอร์ยกเลิกคำข
     await settle(page);
     await เปิดเรื่อง(page, "request_cancelled", `ZZTEST เหตุผลยกเลิก ${แท็ก}`);
     await expect(page).toHaveURL(/\/hq\/quote-requests/, { timeout: 15_000 });
-    // ปุ่ม 3 กลุ่ม (30 ต.ค. 69 · แทนช่องเลือก) — คำขอที่ยกเลิกอยู่กลุ่ม "ปิด/ยกเลิก"
-    await expect(page.locator('[aria-label="กลุ่มคำขอ"] [data-group="done"]'), "เปิดกลุ่ม ปิด/ยกเลิก").toHaveAttribute("aria-selected", "true", { timeout: 20_000 });
-    await expect(page.locator('[aria-current="true"]').first(), "เปิดคำขอนั้นตรง ๆ").toHaveAttribute("aria-label", new RegExp(ชื่อ), { timeout: 20_000 });
+    // ตาราง 6 พ.ย. 69: กระดิ่ง = หน้าต่างใบ HQ ของคำขอนั้น (ตัวกรองทุกสถานะ · คำขอที่ยกเลิกเปิดดูได้)
+    await expect(page.getByLabel("กรองตามสถานะคำขอ"), "ตัวกรองทุกสถานะ (เห็นคำขอที่ยกเลิก)").toHaveValue("all", { timeout: 20_000 });
+    await expect(page.getByRole("dialog", { name: "ใบ HQ" }), "เปิดคำขอนั้นตรง ๆ").toContainText(ชื่อ, { timeout: 20_000 });
   } finally {
     ล้างใบHQทดสอบ("RYG", [เลข]);
   }

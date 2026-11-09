@@ -254,3 +254,38 @@ export function ร่างล่าสุด(iso: string | null | undefined, n
   return ห่าง <= 0 ? "ร่างล่าสุด วันนี้" : `ร่างล่าสุด ${ห่าง} วันก่อน`;
 }
 export type QuoteBoard = { counts: Record<QuoteBoardGroup, number> & { overdue: number; cancelled?: number }; rows: QuoteBoardRow[] };
+
+// ── หน้าคำขอ HQ แบบตาราง (บอสสั่ง 6 พ.ย. 69 · ตามหน้าใบค่าแฟรนไชส์) ─────────────────────────────────────────────
+//   ฐานส่งทุกแถว (hq_quote_board "all") ครั้งเดียว — ตัวกรองสถานะ/ดีลเลอร์ + ตัวนับของตัวเลือก คิดจากชุดเดียวกับตาราง (กติกากลุ่มเดียวกับฐาน)
+/** ตัวเลือกสถานะ: ทุกสถานะ · ต้องตีราคา (ใหม่ + กำลังตีราคา) · เกินกำหนด (การ์ด "เกิน 14 วัน") · ส่งแล้ว รอดีลเลอร์ · ปิด (สั่งผลิต + ปิด/ยกเลิก ของฐาน) · ยกเลิกแล้ว */
+export type ตัวกรองคำขอ = "all" | "todo" | "overdue" | "quoted" | "done" | "cancelled";
+export const ตัวเลือกสถานะคำขอ: { key: ตัวกรองคำขอ; label: string }[] = [
+  { key: "all", label: "ทุกสถานะ" }, { key: "todo", label: "ต้องตีราคา" }, { key: "overdue", label: "ต้องตีราคา · เกินกำหนด" },
+  { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" }, { key: "done", label: "ปิด" }, { key: "cancelled", label: "ยกเลิกแล้ว" },
+];
+/** มีกำหนดส่งใบ HQ ให้นับ = ต้องตีราคา (ใหม่ / กำลังตีราคา) */
+export const มีกำหนดส่ง = (r: Pick<QuoteRequest, "status" | "dueAt">) => (r.status === "new" || r.status === "pricing") && !!r.dueAt;
+const เลยกำหนด = (r: Pick<QuoteRequest, "status" | "dueAt">, now: number) => มีกำหนดส่ง(r) && new Date(r.dueAt).getTime() < now;
+/** แถวนี้อยู่ในตัวเลือกสถานะไหม (กติกาเดียวกับฐาน hq_quote_board: กลุ่ม · เกินกำหนด = due_at < now() · ยกเลิกแล้วอยู่ใน "ปิด" ด้วย) */
+export function ตรงสถานะคำขอ(r: Pick<QuoteRequest, "status" | "dueAt">, k: ตัวกรองคำขอ, now = Date.now()): boolean {
+  const g = กลุ่มของคำขอ(r.status);
+  return k === "all" ? true : k === "todo" ? g === "todo" : k === "overdue" ? เลยกำหนด(r, now)
+    : k === "quoted" ? g === "quoted" : k === "done" ? g === "won" || g === "closed" : r.status === "cancelled";
+}
+/** ลำดับค่าเริ่มต้น (บอสสั่ง 6 พ.ย. 69 · ทับ "ใหม่สุดก่อน" เฉพาะหน้านี้):
+ *  มีกำหนดส่ง (ต้องตีราคา) ขึ้นก่อน — กำหนดส่งเร็วสุดก่อน (เกินกำหนดมากสุดอยู่บนสุด) · ไม่มีกำหนดส่ง (ส่งแล้ว/ปิด/ยกเลิก) ต่อท้าย ใหม่สุดก่อน */
+export function เรียงคำขอตามกำหนด<T extends Pick<QuoteRequest, "id" | "status" | "dueAt" | "submittedAt">>(rows: readonly T[]): T[] {
+  const เวลา = (s: string | null | undefined) => { const t = s ? new Date(s).getTime() : NaN; return Number.isNaN(t) ? 0 : t; };
+  return [...rows].sort((a, b) => {
+    const ka = มีกำหนดส่ง(a), kb = มีกำหนดส่ง(b);
+    if (ka !== kb) return ka ? -1 : 1;
+    if (ka) return เวลา(a.dueAt) - เวลา(b.dueAt) || a.id - b.id;
+    return เวลา(b.submittedAt) - เวลา(a.submittedAt) || b.id - a.id;
+  });
+}
+/** ป้ายสถานะในตาราง — แถวเกินกำหนดบอกสถานะจริง (จำนวนวันเกินอยู่คอลัมน์กำหนดส่ง · ไม่ซ้ำสองที่) */
+export function ป้ายสถานะคำขอ(r: Pick<QuoteBoardRow, "tag" | "status" | "supersedesId">): { label: string; color: string } {
+  if (r.tag !== "overdue") return quoteBoardTag[r.tag];
+  const t = r.supersedesId != null ? quoteBoardTag.reprice : r.status === "pricing" ? quoteBoardTag.pricing : quoteBoardTag.new;
+  return { label: t.label, color: t.color };
+}

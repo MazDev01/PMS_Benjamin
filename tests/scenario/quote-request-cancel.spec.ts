@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, จำนวนสถานะคำขอ, เลือกกลุ่มคำขอ, แถวคำขอ, หน้าต่างใบHQ } from "./helpers";
 
 // ── ยกเลิกคำขอราคาแบบเก็บประวัติ (บอสสั่ง 5 พ.ย. 69 · ใบ 0280 · บอสตอบ ดีลเลอร์ยกเลิกอย่างเดียว · ก่อน HQ ส่งใบเท่านั้น) ─────────────
 //   1) กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = แท็บประวัติของลีด "เริ่มขอราคาแล้วยกเลิก · โดย …"
@@ -118,19 +118,19 @@ test("[flow·hq] คำขอราคา: ตัวกรอง ยกเลิ
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const แท็บ = page.locator(`[role="tablist"][aria-label="กลุ่มคำขอ"] [data-group="cancelled"]`);
-  await expect(แท็บ, "มีตัวกรอง ยกเลิกแล้ว").toContainText("ยกเลิกแล้ว");
+  // ตาราง 6 พ.ย. 69: ตัวกรองสถานะเป็นช่องเลือก (ตัวเลือกมีจำนวน) แทนแท็บ
+  await expect(จำนวนสถานะคำขอ(page, "cancelled"), "มีตัวกรอง ยกเลิกแล้ว").toContainText("ยกเลิกแล้ว");
   await page.getByLabel("ค้นหาคำขอ").fill(ค1.request_no);
-  await expect(page.locator(`[role="tablist"][aria-label="กลุ่มคำขอ"] [data-group="todo"] [data-count]`), "คำขอที่ยกเลิกไม่นับในต้องตีราคา").toHaveAttribute("data-count", "0", { timeout: 20_000 });
-  await แท็บ.click();
-  await expect(แท็บ.locator("[data-count]")).toHaveAttribute("data-count", "1");
-  const แถว = page.getByRole("list", { name: "รายการคำขอ" }).getByRole("button", { name: ค1.request_no }).first();
+  await expect(จำนวนสถานะคำขอ(page, "todo"), "คำขอที่ยกเลิกไม่นับในต้องตีราคา").toHaveAttribute("data-count", "0", { timeout: 20_000 });
+  await เลือกกลุ่มคำขอ(page, "cancelled");
+  await expect(จำนวนสถานะคำขอ(page, "cancelled")).toHaveAttribute("data-count", "1");
+  const แถว = แถวคำขอ(page, ค1.request_no).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   await expect(แถว).toContainText("ยกเลิกแล้ว");
   await expect(แถว).toContainText("ยกเลิกเมื่อ");
   await แถว.click();
-  await expect(page.getByRole("region", { name: "ใบ HQ" }).getByTestId("cancel-info"), "รายละเอียดคำขอบอกเหตุผล/ใคร/เมื่อไร")
+  await expect(หน้าต่างใบHQ(page).getByTestId("cancel-info"), "รายละเอียดคำขอบอกเหตุผล/ใคร/เมื่อไร")
     .toContainText(`เหตุผล: ZZTEST ลูกค้าเลื่อนโครงการ · โดย ${ค1.cancelled_by_name} · เมื่อ `, { timeout: 20_000 });
-  await expect(page.getByRole("region", { name: "ใบ HQ" }).getByTestId("due-countdown"), "คำขอที่ยกเลิกไม่มีนับวันกำหนดส่ง").toHaveCount(0);
+  await expect(หน้าต่างใบHQ(page).getByTestId("due-countdown"), "คำขอที่ยกเลิกไม่มีนับวันกำหนดส่ง").toHaveCount(0);
   assertNoErrors(errs, "หน้าคำขอ HQ ยกเลิกแล้ว");
 });

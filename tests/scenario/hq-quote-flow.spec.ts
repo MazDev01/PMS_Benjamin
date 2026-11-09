@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน, แถวคำขอ } from "./helpers";
 
 // ── ขายหนึ่งงาน ขั้น 5–6 บนหน้าจอ + ตารางสถานะแถว "HQ ส่งใบ" (FLOW.html · ด่าน 2) ─────────────────────────────
 //   ขั้น 5  HQ ทำ BOQ ด้วยรายการที่พิมพ์เอง (ต้นทุน HQ เห็นคนเดียว · ไม่มีแม่แบบแล้ว 16 ต.ค. 69) → บันทึกร่าง — ดีลเลอร์ยังไม่เห็นร่าง ไม่มีป้าย
@@ -139,7 +139,7 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
   await expect(กล่อง.getByText(/ใบนี้แก้ไม่ได้/), "ส่งแล้วใบที่เปิดอยู่ต้องกลายเป็นอ่านอย่างเดียวทันที").toBeVisible({ timeout: 15_000 });
   // เปิดดูซ้ำจากกลุ่ม "ส่งแล้ว รอดีลเลอร์": อ่านอย่างเดียว
   กล่อง = await เปิดใบHQ(page, "ส่งแล้ว รอดีลเลอร์");
-  await expect(page.getByRole("list", { name: "รายการคำขอ" }).getByRole("button", { name: new RegExp(COMPANY) })).toContainText("รอดีลเลอร์");
+  await expect(แถวคำขอ(page, COMPANY).first()).toContainText("รอดีลเลอร์");
   await expect(กล่อง.getByText(/ใบนี้แก้ไม่ได้/)).toBeVisible();
   await expect(กล่อง.getByLabel("ชื่อรายการ 1"), "ส่งแล้วไม่มีช่องแก้").toHaveCount(0);
   await expect(กล่อง.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" })).toHaveCount(0);

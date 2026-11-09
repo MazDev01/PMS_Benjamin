@@ -1,14 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, db, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, แถวคำขอ, หน้าต่างใบHQ } from "./helpers";
+import { เรียงคำขอตามกำหนด } from "../../packages/shared/lib/quoteRequests";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
 // ── หน้า HQ คำขอใบเสนอราคา: ปุ่ม 3 กลุ่มพร้อมจำนวน (บอสสั่ง 30 ต.ค. 69 · ตามแบบ) แทนช่องเลือกสถานะ (27 ต.ค. 69) ──
 //   1) ไม่มีช่องเลือก · ปุ่ม ต้องตีราคา · ส่งแล้ว รอดีลเลอร์ · ปิด/ยกเลิก (รวมสั่งผลิต) อยู่ข้างช่องค้นหา · จอแคบไม่ล้น
 //   2) จำนวนบนปุ่ม = ฐาน (hq_quote_board) = จำนวนแถว · 3) กดการ์ดแล้วปุ่มเปลี่ยนตาม · 4) จำนวนบนปุ่มต้องตีราคา = การ์ด
 //   5) ความเร็ว: เปิดหน้า · สลับกลุ่ม · เลือกคำขอ ไม่เกิน 1 วินาที
-//   ต้องตกบนโค้ดก่อนแก้: มีช่องเลือกสถานะ · ไม่มีปุ่มกลุ่ม
+//   6 พ.ย. 69 (บอสสั่ง ตารางแบบหน้าใบค่าแฟรนไชส์): ปุ่มกลุ่ม → ช่องเลือกสถานะพร้อมจำนวน + ตัวกรองดีลเลอร์ · ค่าเริ่มต้น ทุกสถานะ · ข้อ 1–5 ตรวจแบบเดิมบนตัวกรองใหม่
+//   ต้องตกบนโค้ดก่อนแก้: มีแท็บกลุ่ม · ไม่มีตัวกรองดีลเลอร์
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
 
@@ -35,35 +37,30 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => { ล้างใบHQทดสอบ("RYG", เลขลีด); });
 
-const กลุ่ม = (page: Page) => page.getByRole("tablist", { name: "กลุ่มคำขอ" });
-const ปุ่ม = (page: Page, k: "todo" | "quoted" | "done") => กลุ่ม(page).locator(`[data-group="${k}"]`);
-const รายการ = (page: Page) => page.getByRole("list", { name: "รายการคำขอ" });
+// ตาราง 6 พ.ย. 69 (บอสสั่ง · ทับปุ่ม 3 กลุ่ม 30 ต.ค. 69): ตัวกรองสถานะ = ช่องเลือก (ตัวเลือกมีจำนวน) + ตัวกรองดีลเลอร์ ข้างช่องค้นหา · ค่าเริ่มต้น ทุกสถานะ
+const ตัวกรอง = (page: Page) => page.getByLabel("กรองตามสถานะคำขอ");
 const การ์ด = (page: Page, kpi: string) => page.locator(`[data-kpi-row] [data-kpi="${kpi}"]`);
 const จำนวนแถว = async (page: Page) => {
-  // รายการแบ่งหน้า (แถบเปลี่ยนหน้าโผล่เมื่อเกินหน้าเดียว) — มีแถบ = ยอดรวมจากแถบ · ไม่มี = นับแถวที่เห็น
-  //   อ่านทีเดียว (allInnerTexts ไม่รอ) — เดิม count() แล้วค่อย innerText(): แถบหายระหว่างสองคำสั่ง (เปลี่ยนกลุ่มแล้วเหลือหน้าเดียว)
-  //   → innerText รอแถบที่ไม่มีแล้วจนหมดเวลา 8 วิ (ต้นเหตุไม่นิ่ง 28–29 ต.ค. 69)
+  // แถบเปลี่ยนหน้าตัวกลางแสดงเสมอ — ยอดรวมจากแถบ ("แสดง a–b จาก N") · ไม่มีแถว = 0
+  //   อ่านทีเดียว (allInnerTexts ไม่รอ) — กันแถบเปลี่ยนระหว่างสองคำสั่ง (ต้นเหตุไม่นิ่ง 28–29 ต.ค. 69)
   const [แถบ] = await page.getByText(/แสดง .* จาก .*/).allInnerTexts();
   if (แถบ !== undefined) { const m = แถบ.replace(/,/g, "").match(/จาก\s+(\d+)/); return m ? Number(m[1]) : NaN; }
-  return รายการ(page).getByRole("button").count();
+  return แถวคำขอ(page).count();
 };
 const หาค่าการ์ด = async (page: Page, kpi: string) => Number(await การ์ด(page, kpi).locator("[data-value]").getAttribute("data-value"));
 
-test("[ui·hq] คำขอใบเสนอราคา: ปุ่ม 3 กลุ่มพร้อมจำนวนแทนช่องเลือก · การ์ดคุมปุ่ม · จำนวนบนปุ่ม = ฐาน = แถว · ไม่เกิน 1 วินาที", async ({ page }) => {
+test("[ui·hq] คำขอใบเสนอราคา: ตัวกรองสถานะ (ช่องเลือกพร้อมจำนวน) + ดีลเลอร์ · การ์ดคุมตัวกรอง · จำนวน = ฐาน = แถว · ไม่เกิน 1 วินาที", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   const hq = await db(ADMIN);
 
-  // ── ความเร็วเปิดหน้า: นับจากเริ่มโหลดหน้าจนรายการ + การ์ดขึ้นครบ · วัด 3 ครั้งใช้ค่ากลาง
+  // ── ความเร็วเปิดหน้า: นับจากเริ่มโหลดหน้าจนตาราง + การ์ดขึ้นครบ · วัด 3 ครั้งใช้ค่ากลาง
   //    (ครั้งเดียวแกว่งตามภาระเครื่อง: ครั้งแรกหลังเว็บสตาร์ท + ข้อทดสอบอื่นรันพร้อมกัน วัดได้ 1,228 / รอบซ้ำ 558 ms) ──
-  //    เวลาจดในหน้าเว็บเอง ทุกเฟรม (polling: raf) ตอนรายการ + การ์ดขึ้นครบพร้อมกัน (29 ต.ค. 69 · คิวข้อ 3)
-  //      เดิมรอด้วย expect 2 ตัวต่อกันแล้วค่อยถาม performance.now() — expect เช็กซ้ำห่างขึ้นเรื่อย ๆ (0.1 → 0.25 → 0.5 → 1 วิ)
-  //      เครื่องมีภาระ = เห็นช้ากว่าหน้าขึ้นจริงได้เกือบ 1 วิต่อตัว · รอบรวม 38 ไฟล์วัดได้ 2.7–3.0 วิ ขณะที่สลับสถานะ (ข้อมูลชุดเดียวกัน) 0.1 วิ
-  //      ตอนนี้วัดเฉพาะเวลาของหน้า (จากเริ่มนำทางถึงเฟรมที่ขึ้นครบ) · เกณฑ์ 1 วินาทีเท่าเดิม · พิมพ์ช่วงฝั่งเซิร์ฟเวอร์แยกไว้ดูต้นเหตุ
+  //    เวลาจดในหน้าเว็บเอง ทุกเฟรม (polling: raf) ตอนแถวแรก + การ์ดขึ้นครบพร้อมกัน (29 ต.ค. 69 · คิวข้อ 3) · เกณฑ์ 1 วินาทีเท่าเดิม
   const ครั้ง: number[] = [], ช่วง: string[] = [];
   for (let i = 0; i < 3; i++) {
     await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
     const ขึ้นครบ = await page.waitForFunction(() => {
-      const แถว = document.querySelector('ul[aria-label="รายการคำขอ"] button') as HTMLElement | null;
+      const แถว = document.querySelector('table[aria-label="ตารางคำขอใบเสนอราคา"] tbody tr.clickable') as HTMLElement | null;
       const ค่า = document.querySelector('[data-kpi-row] [data-kpi="todo"] [data-value]')?.getAttribute("data-value") ?? "";
       return แถว && แถว.getClientRects().length > 0 && ค่า !== "" ? performance.now() : false;
     }, null, { polling: "raf", timeout: 30_000 });
@@ -77,82 +74,89 @@ test("[ui·hq] คำขอใบเสนอราคา: ปุ่ม 3 กล
   console.log(`[เวลา] เปิดหน้า 3 ครั้ง ${ครั้ง.join(" / ")} ms · ${ช่วง.join(" | ")}`);
   await settle(page);
 
-  // ── 1) ปุ่ม 3 กลุ่มพร้อมจำนวน (บอสสั่ง 30 ต.ค. 69 · ตามแบบ) แทนช่องเลือกสถานะ ──
-  expect.soft(await page.getByLabel("สถานะคำขอ").count(), "ไม่มีช่องเลือกสถานะแล้ว").toBe(0);
-  const มีปุ่ม = (await กลุ่ม(page).count()) > 0;
-  expect.soft(มีปุ่ม, "มีปุ่มกลุ่ม 3 ปุ่ม").toBe(true);
+  // ── 1) ไม่มีแท็บ/ปุ่มกลุ่มแล้ว · ตัวกรองสถานะ + ดีลเลอร์เป็นช่องเลือก ──
+  expect.soft(await page.getByRole("tablist", { name: "กลุ่มคำขอ" }).count(), "ไม่มีแท็บกลุ่มแล้ว").toBe(0);
+  await expect(ตัวกรอง(page), "ค่าเริ่มต้น = ทุกสถานะ").toHaveValue("all");
+  await expect(page.getByLabel("กรองตามดีลเลอร์"), "มีตัวกรองดีลเลอร์").toHaveValue("");
 
-  // ── 5) ความเร็วสลับกลุ่ม + เลือกคำขอ ──
-  const แรกของ = async (g: string) => {
-    const { data } = await hq.rpc("hq_quote_board", { p_group: g, p_q: "" });
-    return ((data as { rows: { request_no: string }[] }).rows[0]?.request_no) ?? null;
-  };
-  const เลข = await แรกของ("quoted");
+  // ── 5) ความเร็วเปลี่ยนตัวกรอง + เปิดคำขอ ──
+  //   แถวแรกที่คาด = ลำดับเดียวกับหน้าจอ (ส่งแล้ว = ไม่มีกำหนดส่ง เรียงใหม่สุดก่อน · ตัวเรียงกลาง)
+  //   ค้นด้วยป้ายของข้อก่อน — ข้ออื่นที่รันพร้อมกันเพิ่มคำขอระหว่างหน้าเปิดอยู่ (แถวแรกของทั้งระบบเปลี่ยนได้ · ต้นเหตุตก 6 พ.ย. 69)
+  await page.getByLabel("ค้นหาคำขอ").fill(ป้าย);
+  await expect(แถวคำขอ(page, ป้าย), "ผลค้นของข้อ 4 แถว (ทุกสถานะ)").toHaveCount(4, { timeout: 20_000 });
+  const { data: ส่งแล้วฐาน } = await hq.rpc("hq_quote_board", { p_group: "quoted", p_q: ป้าย });
+  const เรียง = เรียงคำขอตามกำหนด(((ส่งแล้วฐาน as { rows: { id: number; status: string; due_at: string; submitted_at: string; request_no: string }[] }).rows)
+    .map(r => ({ id: r.id, status: r.status as never, dueAt: r.due_at, submittedAt: r.submitted_at, no: r.request_no })));
+  const เลข = เรียง[0]?.no ?? null;
   let สลับสถานะ = NaN;
-  if (เลข && มีปุ่ม) {
+  if (เลข) {
     const t0 = Date.now();
-    await ปุ่ม(page, "quoted").click();
-    await expect(รายการ(page).getByRole("button").first()).toContainText(เลข, { timeout: 15_000 });
+    await ตัวกรอง(page).selectOption("quoted");
+    await expect(แถวคำขอ(page).first()).toContainText(เลข, { timeout: 15_000 });
     สลับสถานะ = Date.now() - t0;
   }
   let เลือกคำขอ = NaN;
-  const ปุ่มแถว = รายการ(page).getByRole("button");
-  if (await ปุ่มแถว.count() > 1) {
-    const ชื่อ = (await ปุ่มแถว.nth(1).getAttribute("aria-label")) ?? "";
+  if (await แถวคำขอ(page).count() > 1) {
+    const ชื่อ = (await แถวคำขอ(page).nth(1).getAttribute("aria-label")) ?? "";
     const t0 = Date.now();
-    await ปุ่มแถว.nth(1).click();
-    await expect(page.getByRole("region", { name: "ใบ HQ" }).getByRole("heading").first()).toContainText(ชื่อ.split(" ")[0], { timeout: 15_000 });
+    await แถวคำขอ(page).nth(1).click();
+    await expect(หน้าต่างใบHQ(page).getByRole("heading").first()).toContainText(ชื่อ.split(" ")[0], { timeout: 15_000 });
     เลือกคำขอ = Date.now() - t0;
+    await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด" }).click();
   }
-  console.log(`[เวลา] เปิดหน้า ${เปิดหน้า} ms · สลับกลุ่ม ${สลับสถานะ} ms · เลือกคำขอ ${เลือกคำขอ} ms`);
+  await page.getByLabel("ค้นหาคำขอ").fill("");
+  console.log(`[เวลา] เปิดหน้า ${เปิดหน้า} ms · เปลี่ยนตัวกรอง ${สลับสถานะ} ms · เปิดคำขอ ${เลือกคำขอ} ms`);
   expect.soft(เปิดหน้า, "เปิดหน้าไม่เกิน 1 วินาที").toBeLessThanOrEqual(1000);
-  if (!Number.isNaN(สลับสถานะ)) expect.soft(สลับสถานะ, "สลับกลุ่มไม่เกิน 1 วินาที").toBeLessThanOrEqual(1000);
-  if (!Number.isNaN(เลือกคำขอ)) expect.soft(เลือกคำขอ, "เลือกคำขอไม่เกิน 1 วินาที").toBeLessThanOrEqual(1000);
-  if (!มีปุ่ม) return;   // โค้ดก่อนแก้: ตกแล้วที่ "มีปุ่มกลุ่ม" — ข้อที่เหลืออ้างปุ่มที่ไม่มี
+  if (!Number.isNaN(สลับสถานะ)) expect.soft(สลับสถานะ, "เปลี่ยนตัวกรองไม่เกิน 1 วินาที").toBeLessThanOrEqual(1000);
+  if (!Number.isNaN(เลือกคำขอ)) expect.soft(เลือกคำขอ, "เปิดคำขอไม่เกิน 1 วินาที").toBeLessThanOrEqual(1000);
 
-  // ── 1) ต่อ: ชื่อปุ่มตามแบบ · ค่าเริ่มต้น = ต้องตีราคา · อยู่บรรทัดเดียวกับช่องค้นหาที่จอกว้าง ──
+  // ── 1) ต่อ: ชื่อตัวเลือกตามคำสั่ง · อยู่บรรทัดเดียวกับช่องค้นหาที่จอกว้าง · จอแคบไม่ล้น ──
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(ปุ่ม(page, "todo"), "ค่าเริ่มต้น = ต้องตีราคา").toHaveAttribute("aria-selected", "true", { timeout: 20_000 });
-  const ชื่อปุ่ม = (await กลุ่ม(page).getByRole("tab").allInnerTexts()).map(t => t.replace(/[\d,—]+\s*$/, "").trim());
-  // 5 พ.ย. 69 บอสสั่งเพิ่มตัวกรอง "ยกเลิกแล้ว" (ใบ 0280) — ปุ่ม 3 กลุ่มเดิม + ยกเลิกแล้ว
-  expect.soft(ชื่อปุ่ม, "ปุ่ม 3 กลุ่มตามแบบ + ยกเลิกแล้ว").toEqual(["ต้องตีราคา", "ส่งแล้ว รอดีลเลอร์", "ปิด/ยกเลิก", "ยกเลิกแล้ว"]);
+  await expect(ตัวกรอง(page), "เปิดหน้าใหม่ = ทุกสถานะ").toHaveValue("all", { timeout: 20_000 });
+  const ชื่อตัวเลือก = (await ตัวกรอง(page).locator("option").allInnerTexts()).map(t => t.replace(/\s*\([\d,]+\)\s*$/, "").trim());
+  expect.soft(ชื่อตัวเลือก, "ตัวเลือกสถานะ (บอสสั่ง 6 พ.ย. 69) + เกินกำหนด (การ์ดเกิน 14 วัน)").toEqual(["ทุกสถานะ", "ต้องตีราคา", "ต้องตีราคา · เกินกำหนด", "ส่งแล้ว รอดีลเลอร์", "ปิด", "ยกเลิกแล้ว"]);
   {
-    const [a, b] = await Promise.all([กลุ่ม(page).boundingBox(), page.getByLabel("ค้นหาคำขอ").boundingBox()]);
-    expect.soft(a && b && Math.abs((a.y + a.height / 2) - (b.y + b.height / 2)) < 8, "จอ 1440px: ปุ่มกลุ่มอยู่ข้างช่องค้นหา (บรรทัดเดียวกัน)").toBe(true);
+    const [a, b] = await Promise.all([ตัวกรอง(page).boundingBox(), page.getByLabel("ค้นหาคำขอ").boundingBox()]);
+    expect.soft(a && b && Math.abs((a.y + a.height / 2) - (b.y + b.height / 2)) < 8, "จอ 1440px: ตัวกรองอยู่บรรทัดเดียวกับช่องค้นหา").toBe(true);
   }
   await page.setViewportSize({ width: 390, height: 900 });
-  expect.soft(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "จอ 390px: ปุ่มกลุ่มไม่ล้นจอ").toBe(true);
+  expect.soft(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "จอ 390px: แถวเครื่องมือไม่ล้นจอ").toBe(true);
   await page.setViewportSize({ width: 1440, height: 900 });
 
-  // ── 2) จำนวนบนปุ่ม = ฐาน = จำนวนแถว (ค้นด้วยป้ายของข้อ — รู้ค่าแน่นอน: ต้องตีราคา 2 · ส่งแล้ว 2 · ปิด/ยกเลิก 0) ──
-  //   ปิด/ยกเลิก = สั่งผลิต + ปิด/ยกเลิกของฐาน (ตามแบบ)
+  // ── 2) จำนวนในตัวเลือก = ฐาน = จำนวนแถว (ค้นด้วยป้ายของข้อ — รู้ค่าแน่นอน: ต้องตีราคา 2 · ส่งแล้ว 2 · ปิด 0 · ทุกสถานะ 4) ──
+  //   ปิด = สั่งผลิต + ปิด/ยกเลิกของฐาน
   await page.getByLabel("ค้นหาคำขอ").fill(ป้าย);
-  const ฐานของ = async (k: "todo" | "quoted" | "done") => {
+  const ฐานของ = async (k: "todo" | "quoted" | "done" | "all") => {
     const นับ = async (g: string) => ((await hq.rpc("hq_quote_board", { p_group: g, p_q: ป้าย })).data as { rows: unknown[] }).rows.length;
     return k === "done" ? (await นับ("won")) + (await นับ("closed")) : นับ(k);
   };
-  for (const [k, รู้ค่า] of [["todo", 2], ["quoted", 2], ["done", 0]] as const) {
-    await ปุ่ม(page, k).click();
+  for (const [k, รู้ค่า] of [["todo", 2], ["quoted", 2], ["done", 0], ["all", 4]] as const) {
+    await ตัวกรอง(page).selectOption(k);
     const ฐาน = await ฐานของ(k);
     expect.soft(ฐาน, `ฐาน กลุ่ม ${k} (ค้นด้วยป้ายของข้อ) = ${รู้ค่า}`).toBe(รู้ค่า);
-    await expect.poll(() => จำนวนแถว(page), { timeout: 20_000, message: `ปุ่ม ${k}: จำนวนแถวบนจอ = ฐาน (${ฐาน})` }).toBe(ฐาน);
-    await expect.poll(async () => Number(await ปุ่ม(page, k).locator("[data-count]").getAttribute("data-count")), { timeout: 20_000, message: `ปุ่ม ${k}: จำนวนบนปุ่ม = จำนวนแถว` }).toBe(ฐาน);
+    await expect.poll(() => จำนวนแถว(page), { timeout: 20_000, message: `ตัวเลือก ${k}: จำนวนแถวบนจอ = ฐาน (${ฐาน})` }).toBe(ฐาน);
+    await expect.poll(async () => Number(await ตัวกรอง(page).locator(`option[value="${k}"]`).getAttribute("data-count")), { timeout: 20_000, message: `ตัวเลือก ${k}: จำนวนในตัวเลือก = จำนวนแถว` }).toBe(ฐาน);
   }
+  // ตัวกรองดีลเลอร์: ชื่อดีลเลอร์ (ไม่มีรหัสในตัวเลือก) · เลือกแล้วแถว = คำขอของดีลเลอร์นั้น (ของข้อทั้งหมดเป็น RYG)
+  const ชื่อRYG = ((await hq.from("dealers").select("name").eq("code", "RYG").single()).data?.name as string).trim();
+  await page.getByLabel("กรองตามดีลเลอร์").selectOption({ label: ชื่อRYG });
+  await expect.poll(() => จำนวนแถว(page), { timeout: 20_000, message: "ตัวกรองดีลเลอร์ RYG: แถวของข้อครบ 4" }).toBe(4);
+  expect.soft(await page.getByLabel("กรองตามดีลเลอร์").locator("option").allInnerTexts(), "ตัวเลือกดีลเลอร์ไม่มีรหัส RYG").not.toContain("RYG");
+  await page.getByLabel("กรองตามดีลเลอร์").selectOption("");
   await page.getByLabel("ค้นหาคำขอ").fill("");
 
-  // ── 3) กดการ์ด → ปุ่มกลุ่มเปลี่ยนตาม · ตัวเลขการ์ด = จำนวนแถว ──
-  for (const [kpi, k, นับ] of [["overdue", "todo", true], ["todo", "todo", true], ["cancel-rate", "done", false], ["avg-response", "quoted", false]] as const) {
+  // ── 3) กดการ์ด → ตัวกรองเปลี่ยนตาม · ตัวเลขการ์ด = จำนวนแถว ──
+  for (const [kpi, k, นับ] of [["overdue", "overdue", true], ["todo", "todo", true], ["cancel-rate", "done", false], ["avg-response", "quoted", false]] as const) {
     await การ์ด(page, kpi).click();
-    await expect(ปุ่ม(page, k), `กดการ์ด ${kpi} → ปุ่ม ${k}`).toHaveAttribute("aria-selected", "true");
+    await expect(ตัวกรอง(page), `กดการ์ด ${kpi} → ตัวกรอง ${k}`).toHaveValue(k);
     if (นับ) await expect.poll(async () => {
       const ก = await หาค่าการ์ด(page, kpi), ร = await จำนวนแถว(page);
       if (ก !== ร) { await page.reload({ waitUntil: "domcontentloaded" }); await การ์ด(page, kpi).click(); }   // ข้ออื่นเพิ่มคำขอระหว่างอ่าน
       return ก === ร ? "ตรง" : `การ์ด ${ก} · แถว ${ร}`;
     }, { timeout: 30_000, message: `การ์ด ${kpi}: ตัวเลข = จำนวนแถว` }).toBe("ตรง");
   }
-  // ── 4) (เดิม "ห้ามมีป้ายนับซ้ำกับการ์ด" · 27 ต.ค. 69) — ยกเลิก: บอสสั่ง 30 ต.ค. 69 ให้ปุ่มกลุ่มแสดงจำนวนตามแบบ
-  //   แทนด้วย: จำนวนบนปุ่มต้องเท่ากับตัวเลขบนการ์ดเรื่องเดียวกัน (ต้องตีราคา) — ตัวเลขเดียวกันต้องไม่ขัดกัน
-  await ปุ่ม(page, "todo").click();
-  await expect.poll(async () => [await ปุ่ม(page, "todo").locator("[data-count]").getAttribute("data-count"), String(await หาค่าการ์ด(page, "todo"))].join(" = "),
-    { timeout: 20_000, message: "จำนวนบนปุ่มต้องตีราคา = การ์ดต้องตีราคา" }).toMatch(/^(\d+) = \1$/);
+  // ── 4) จำนวนในตัวเลือกต้องตีราคา = การ์ดต้องตีราคา (ตัวเลขเดียวกันต้องไม่ขัดกัน · ไม่มีคำค้น/ตัวกรองดีลเลอร์) ──
+  await ตัวกรอง(page).selectOption("todo");
+  await expect.poll(async () => [await ตัวกรอง(page).locator('option[value="todo"]').getAttribute("data-count"), String(await หาค่าการ์ด(page, "todo"))].join(" = "),
+    { timeout: 20_000, message: "จำนวนในตัวเลือกต้องตีราคา = การ์ดต้องตีราคา" }).toMatch(/^(\d+) = \1$/);
 });

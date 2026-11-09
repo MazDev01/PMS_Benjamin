@@ -51,7 +51,7 @@ test("[มือถือ] HQ คำขอใบเสนอราคา: ใบ
   expect(await ล้นจอ(page), "ใบ HQ ที่ส่งแล้ว: หน้ากว้างไม่เกินจอ").toBeLessThanOrEqual(1);
   expect(await กล่องที่ตัดตาราง(page, "table[aria-label='รายการ BOQ']"), "ใบ HQ ที่ส่งแล้ว: ตารางเลื่อนในกล่องตัวเอง").toBe("table-scroll");
   await เปิดคำขอ(page, รอราคา);
-  const กล่อง = page.getByRole("region", { name: "ใบ HQ" });
+  const กล่อง = page.getByRole("dialog", { name: "ใบ HQ" });   // ตาราง 6 พ.ย. 69: ใบ HQ อยู่ในหน้าต่าง
   if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
   await กล่อง.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็กหลักพร้อมงานติดตั้งครบชุด");
   expect(await ล้นจอ(page), "ใบ HQ ที่กำลังตีราคา (ช่องกรอก): หน้ากว้างไม่เกินจอ").toBeLessThanOrEqual(1);

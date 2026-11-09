@@ -136,10 +136,11 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   await page.reload({ waitUntil: "domcontentloaded" });
   await settle(page);
   const { แถว: แถวใหม่ } = await เปิดใบHQในกล่องงาน(page, COMPANY);
-  // ป้ายแดงป้ายเดียว "เกินกำหนด…" (บอสสั่ง 3 พ.ย. 69) — ไม่มี "เกิน 14 วัน" ซ้ำ · บรรทัดล่างไม่บอกกำหนดส่งซ้ำ
-  await expect(แถวใหม่.getByTestId("row-tag"), "เลยกำหนดส่ง → ป้ายแดง").toHaveText(/^เกินกำหนด/, { timeout: 30_000 });
+  // เลยกำหนด = แดงที่คอลัมน์กำหนดส่งที่เดียว (ตาราง 6 พ.ย. 69 · เดิมป้ายแดงที่สถานะ 3 พ.ย. 69) — ไม่มี "เกิน 14 วัน" ซ้ำ · ป้ายสถานะ = สถานะจริง
+  await expect(แถวใหม่.getByTestId("row-countdown"), "เลยกำหนดส่ง → แดงที่กำหนดส่ง").toHaveText(/^เกิน/, { timeout: 30_000 });
+  await expect(แถวใหม่.getByTestId("row-countdown")).toHaveCSS("color", "rgb(185, 28, 28)");
   await expect(แถวใหม่, "ไม่มีป้ายเกิน 14 วันซ้ำ").not.toContainText("เกิน 14 วัน");
-  await expect(แถวใหม่.getByTestId("row-countdown"), "บรรทัดล่างไม่บอกกำหนดส่งซ้ำ").toHaveCount(0);
+  await expect(แถวใหม่.getByTestId("row-tag"), "ป้ายสถานะไม่บอกเกินซ้ำ").toHaveText("กำลังตีราคา");
   assertNoErrors(errs, "กล่องงานคำขอของ HQ");
 });
 

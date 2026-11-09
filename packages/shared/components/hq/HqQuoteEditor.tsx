@@ -49,7 +49,9 @@ const สเปกยาว = 160;
 /** ร่างที่พิมพ์ค้าง (ยังไม่บันทึก) ของคำขอหนึ่ง — หน้าแม่ถือไว้ข้ามการสลับคำขอ */
 export type ร่างใบHQ = { lines: แถววาง[]; validUntil: string; note: string };
 
-export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged }: {
+export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged, เต็มจอ = false }: {
+  /** หน้าต่างเต็มจอ แบบหน้าใบค่าแฟรนไชส์ (หน้าคำขอ HQ แบบตาราง · บอสสั่ง 6 พ.ย. 69) */
+  เต็มจอ?: boolean;
   request: QuoteRequest;
   dealerName: string;
   onClose: () => void;
@@ -358,7 +360,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   return (
     <div onClick={() => !busy && onClose()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <ModalCard onClose={() => !busy && onClose()} label="ใบ HQ" className="modal-fit"
-        style={{ width: 960, maxWidth: "100%", maxHeight: "92vh", overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
+        style={{ width: เต็มจอ ? 1240 : 960, maxWidth: "100%", ...(เต็มจอ ? { height: "calc(100vh - 32px)" } : { maxHeight: "92vh" }), overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
         {เนื้อหา}
       </ModalCard>
     </div>
