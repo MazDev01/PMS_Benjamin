@@ -22,7 +22,7 @@ const MUTED = "#6b7280";
 
 /** ส่วนต่างรายใบ 4 คอลัมน์ (บอสสั่ง 2 พ.ย. 69 · ใบ 0272) — ไม่ได้ทำจากใบ HQ = "—" · ยังโหลด = "…" */
 export const คอลัมน์ส่วนต่าง = [
-  { k: "hq-cost", l: "ราคาส่ง HQ", n: (m: ส่วนต่างใบ) => m.hqCost, v: (m: ส่วนต่างใบ) => fmtBaht(m.hqCost) },
+  { k: "hq-cost", l: "ราคาจาก HQ", n: (m: ส่วนต่างใบ) => m.hqCost, v: (m: ส่วนต่างใบ) => fmtBaht(m.hqCost) },
   { k: "sale", l: "ราคาขายลูกค้า", n: (m: ส่วนต่างใบ) => m.sale, v: (m: ส่วนต่างใบ) => fmtBaht(m.sale) },
   { k: "margin-baht", l: "ส่วนต่าง ฿", n: (m: ส่วนต่างใบ) => m.baht, v: (m: ส่วนต่างใบ) => fmtBaht(m.baht) },
   { k: "margin-pct", l: "ส่วนต่าง %", n: (m: ส่วนต่างใบ) => m.pct, v: (m: ส่วนต่างใบ) => (m.pct == null ? "—" : `${m.pct.toFixed(1)}%`) },

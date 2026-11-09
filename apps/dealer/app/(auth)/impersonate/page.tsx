@@ -83,7 +83,7 @@ export default function ImpersonatePage() {
           const rt = data?.session?.refresh_token;
           const ok = at ? await caAdoptTokens(at, rt) : null;
           if (!alive) return;
-          if (!ok) { setผิดพลาด("เข้าระบบแทนไม่สำเร็จ — เก็บใบผ่านไม่ได้ ลองกดใหม่อีกครั้ง"); return; }
+          if (!ok) { setผิดพลาด("เข้าระบบแทนไม่สำเร็จ — ลองกดใหม่อีกครั้ง"); return; }
         }
         // ล้าง token ออกจากแถบที่อยู่ก่อนไปต่อ (กันติดไปกับประวัติเบราว์เซอร์)
         window.history.replaceState(null, "", window.location.pathname);

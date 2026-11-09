@@ -467,7 +467,7 @@ function DocumentsTab() {
         <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 18 }}>
           <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#003366", letterSpacing: "0.05em", marginBottom: 12,
             textTransform: "uppercase" }}>
-            ตราประทับ & ลายเซ็นดิจิทัล
+            ตราประทับและลายเซ็นดิจิทัล
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20 }}>
             <ImageUploadBox

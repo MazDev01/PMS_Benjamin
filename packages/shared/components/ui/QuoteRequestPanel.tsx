@@ -278,7 +278,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
                 style={{ background: "none", border: "none", padding: 0, color: "#6b21a8", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Paperclip size={12} /> ไฟล์ที่คุณแนบกับคำขอ {ดูไฟล์ของฉัน ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
-              {ดูไฟล์ของฉัน && <div style={{ marginTop: 6 }}><QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="ล็อกพร้อมคำขอ (HQ ส่งใบแล้ว)" /></div>}
+              {ดูไฟล์ของฉัน && <div style={{ marginTop: 6 }}><QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="ล็อกแล้ว (HQ ส่งใบแล้ว)" /></div>}
             </div>
           )}
           {โหมด === "ดู" && (

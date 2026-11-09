@@ -229,7 +229,7 @@ export default function ProfilePage() {
                   <Lock size={12} color="#9ca3af" style={{ marginLeft: "auto", flexShrink: 0 }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: "0.65rem", color: "#9ca3af" }}>
-                  <Lock size={10} /> อีเมลล็อกอินกำหนดโดยสำนักงานใหญ่ — แก้ไขที่นี่ไม่ได้
+                  <Lock size={10} /> อีเมลเข้าระบบกำหนดโดยสำนักงานใหญ่ — แก้ไขที่นี่ไม่ได้
                 </div>
               </>
             )}

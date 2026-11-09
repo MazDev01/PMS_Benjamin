@@ -39,7 +39,8 @@ const โหลดแบบฟอร์มจากเมนู = async (page: i
     page.waitForEvent("download", { timeout: 25_000 }),
     page.getByRole("menu", { name: "นำเข้าลูกค้าเดิม" }).locator('[data-import-option="template"]').click(),
   ]);
-  expect(ไฟล์.suggestedFilename(), "แบบฟอร์มตัวอย่าง = เทมเพลต Excel เดิม").toBe("เทมเพลตลูกค้าเดิม.xlsx");
+  // 9 พ.ย. 69 (คลังคำ docs/glossary.md): ชื่อไฟล์ "เทมเพลตลูกค้าเดิม" → "แบบฟอร์มลูกค้าเดิม" (เนื้อไฟล์เดิม)
+  expect(ไฟล์.suggestedFilename(), "แบบฟอร์มตัวอย่าง = ไฟล์ Excel เดิม").toBe("แบบฟอร์มลูกค้าเดิม.xlsx");
   return บันทึกไฟล์ที่ได้(ไฟล์);
 };
 

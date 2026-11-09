@@ -525,7 +525,7 @@ function NewCredsDialog({ name, email, password, onClose }: { name: string; emai
         </div>
         <div style={{ padding: 20 }}>
           <div style={{ fontSize: "0.82rem", color: MUTED, marginBottom: 14, lineHeight: 1.6 }}>
-            บัญชีเข้าระบบของ <strong style={{ color: STEEL }}>{name}</strong> พร้อมใช้แล้ว · <strong style={{ color: "#b45309" }}>รหัสนี้แสดงครั้งเดียว</strong> — ก๊อปไปแจ้งผู้ใช้ แล้วให้เปลี่ยนเองหลังเข้าครั้งแรก
+            บัญชีเข้าระบบของ <strong style={{ color: STEEL }}>{name}</strong> พร้อมใช้แล้ว · <strong style={{ color: "#b45309" }}>รหัสนี้แสดงครั้งเดียว</strong> — คัดลอกไปแจ้งผู้ใช้ แล้วให้เปลี่ยนเองหลังเข้าครั้งแรก
           </div>
           {row("อีเมลเข้าสู่ระบบ", email)}
           {row("รหัสผ่านชั่วคราว", password, true)}
@@ -561,7 +561,7 @@ function DeleteUserDialog({ user, onConfirm, onClose }: { user: AppUser; onConfi
         </div>
         <div style={{ padding: 20 }}>
           <div style={{ fontSize: "0.82rem", color: STEEL, marginBottom: 6, lineHeight: 1.6 }}>
-            กำลังจะลบ <strong>{user.name}</strong> ({user.email || "ไม่มีอีเมล"}) — <strong style={{ color: "#dc2626" }}>บัญชีเข้าระบบจะถูกลบถาวร ล็อกอินไม่ได้อีก</strong> และย้อนกลับไม่ได้
+            กำลังจะลบ <strong>{user.name}</strong> ({user.email || "ไม่มีอีเมล"}) — <strong style={{ color: "#dc2626" }}>บัญชีเข้าระบบจะถูกลบถาวร เข้าระบบไม่ได้อีก</strong> และย้อนกลับไม่ได้
           </div>
           {!user.email && <div style={{ fontSize: "0.76rem", color: "#b45309", marginBottom: 10 }}>ผู้ใช้นี้ไม่มีอีเมลติดต่อในระบบ — ยืนยันด้วยการพิมพ์ไม่ได้ กรุณาปิดใช้งานแทน หรือเพิ่มอีเมลก่อน</div>}
           <label style={{ fontSize: "0.72rem", color: MUTED, fontWeight: 600, display: "block", marginBottom: 5 }}>พิมพ์อีเมลของผู้ใช้เพื่อยืนยัน</label>

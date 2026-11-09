@@ -123,7 +123,7 @@ test("[db·hq] นำเข้าเบอร์เดิมซ้ำ = ฐา�
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
   const รายการ = กล่อง.getByRole("region", { name: "ชุดที่นำเข้าล่าสุด" });
   const แรก = รายการ.locator(`li[data-batch="${ชุดแรก}"]`);
-  await expect(แรก.getByTestId("batch-touched"), "บอกว่ากี่รายถูกแตะแล้ว").toHaveText("ถูกแตะแล้ว 1 ราย — ยกเลิกทั้งชุดไม่ได้", { timeout: 20_000 });
+  await expect(แรก.getByTestId("batch-touched"), "บอกว่ากี่รายถูกแตะแล้ว").toHaveText("มีการดำเนินการต่อแล้ว 1 ราย — ยกเลิกทั้งชุดไม่ได้", { timeout: 20_000 });
   await expect(แรก.getByRole("button", { name: "ยกเลิกทั้งชุด" }), "ปุ่มยกเลิกใช้ไม่ได้").toBeDisabled();
   const สอง = รายการ.locator("li").filter({ hasText: `${แท็ก}-สอง.xlsx` });
   await expect(สอง.getByTestId("batch-touched"), "ชุดที่ไม่แตะ (บันทึกการติดต่อแรกจากไฟล์ไม่นับ)").toHaveCount(0);

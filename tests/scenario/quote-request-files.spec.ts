@@ -331,7 +331,7 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().click();
   await expect(ใบ.locator("[data-panel='quote-files'] [data-files-side='hq']"), "HQ หลังส่งใบ: กลุ่มไฟล์ HQ ยังอยู่").toBeVisible({ timeout: 20_000 });
   await expect(ใบ.locator("[data-file-drop]"), "หลังส่งใบ HQ ไม่มีกล่องแนบ").toHaveCount(0);
-  await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกพร้อมใบ HQ/);
+  await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกแล้ว — ส่งใบ HQ แล้ว/);
 
   // ดีลเลอร์ B: บรรทัดสรุปบอก "ไม่มีไฟล์แนบจาก HQ" และไม่มีกล่องไฟล์ใต้ใบ
   // ออกจากหน้า HQ ก่อนล้างคุกกี้ — ต้นเหตุไม่นิ่ง (รอบตรวจ prodfmt 4 พ.ย. 69): ช่องค้นหาของกล่องงานยิงคำขอกลุ่มตามหลัง (หน่วงพิมพ์)

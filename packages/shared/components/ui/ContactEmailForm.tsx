@@ -51,7 +51,7 @@ export function ContactEmailForm({ initialEmail, dealerCode, onVerified }: {
     try {
       const s = await account.state(dealerCode);
       if (s.contactEmailVerified) onVerified();
-      else setErr("ยังไม่ได้รับการยืนยัน — กรอกโค้ดจากอีเมล หรือรอสำนักงานใหญ่ยืนยันแทน");
+      else setErr("ยังไม่ได้รับการยืนยัน — กรอกเลขยืนยันจากอีเมล หรือรอสำนักงานใหญ่ยืนยันแทน");
     } catch (e) { setErr(friendlyError(e)); }
     finally { setBusy(false); }
   }
@@ -65,7 +65,7 @@ export function ContactEmailForm({ initialEmail, dealerCode, onVerified }: {
           placeholder="เช่น sales@บริษัทของคุณ.co.th" onChange={e => { setEmail(e.target.value); setErr(""); }} />
         <button type="button" className="btn btn-secondary btn-md" disabled={busy || !email.trim() || รอ > 0} onClick={() => void ส่งโค้ด()}
           style={{ whiteSpace: "nowrap" }}>
-          <Mail size={14} /> {ส่งไปที่ ? (รอ > 0 ? `ส่งโค้ดใหม่ (${รอ})` : "ส่งโค้ดใหม่") : (รอ > 0 ? `ส่งโค้ด (${รอ})` : "ส่งโค้ด")}
+          <Mail size={14} /> {ส่งไปที่ ? (รอ > 0 ? `ส่งเลขยืนยันใหม่ (${รอ})` : "ส่งเลขยืนยันใหม่") : (รอ > 0 ? `ส่งเลขยืนยัน (${รอ})` : "ส่งเลขยืนยัน")}
         </button>
       </div>
       <p style={{ margin: "0 0 14px", fontSize: "0.72rem", color: "#6b7280", lineHeight: 1.6 }}>
@@ -74,8 +74,8 @@ export function ContactEmailForm({ initialEmail, dealerCode, onVerified }: {
 
       {ส่งไปที่ && (
         <>
-          <div role="status" style={{ fontSize: "0.78rem", color: "#047857", marginBottom: 8 }}>ส่งโค้ด 6 หลักไปที่ {ส่งไปที่} แล้ว</div>
-          <label htmlFor="ce-code" className="form-label">โค้ดยืนยัน</label>
+          <div role="status" style={{ fontSize: "0.78rem", color: "#047857", marginBottom: 8 }}>ส่งเลขยืนยัน 6 หลักไปที่ {ส่งไปที่} แล้ว</div>
+          <label htmlFor="ce-code" className="form-label">เลขยืนยัน</label>
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             <input id="ce-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} style={ช่อง} value={code} disabled={busy}
               onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setErr(""); }}

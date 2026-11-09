@@ -84,14 +84,14 @@ export function DealerQuotationPerformance({ rows }: {
             <i style={{ width: 9, height: 9, borderRadius: 2, background: NAVY, display: "inline-block" }} /> ใบเสนอราคาที่ออก
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <i style={{ width: 9, height: 9, borderRadius: 2, background: GREEN, display: "inline-block" }} /> ปิดการขายได้
+            <i style={{ width: 9, height: 9, borderRadius: 2, background: GREEN, display: "inline-block" }} /> ปิดการขายสำเร็จ
           </span>
         </span>
       </div>
 
       <div className="card-body" style={{ paddingTop: 4 }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ display: "block", width: "100%", height: "auto", overflow: "visible" }}
-          role="img" aria-label="ใบเสนอราคาที่ออก เทียบ ปิดการขายได้ รายดีลเลอร์">
+          role="img" aria-label="ใบเสนอราคาที่ออก เทียบ ปิดการขายสำเร็จ รายดีลเลอร์">
           {/* เส้นกริดแนวนอน + ป้ายแกน Y (จำนวนใบ) */}
           {Array.from({ length: 5 }, (_, i) => i * step).map((v, i) => (
             <g key={v}>

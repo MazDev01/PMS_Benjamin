@@ -131,7 +131,7 @@ async function สรุปสถานะ(admin: SupabaseClient, dealerCode: st
   //    ถ้าถือว่า "ใช้ไป 0 ครั้ง" ดีลเลอร์จะแก้บัญชีได้ไม่จำกัด และไม่มีบันทึกให้สำนักงานใหญ่เห็นเลย
   const ขาดตาราง = changes.count === null
     || [changes.error, pendingRes.error].some(e => e && (e.code === "42P01" || /does not exist|schema cache/i.test(e.message ?? "")));
-  if (ขาดตาราง) throw new ยังไม่ได้ติดตั้ง("ยังไม่ได้ติดตั้งตารางบัญชีดีลเลอร์ในฐานข้อมูล (migration 0165) — รัน npx supabase db push ก่อน");
+  if (ขาดตาราง) throw new ยังไม่ได้ติดตั้ง("ระบบบัญชีดีลเลอร์ยังไม่พร้อมใช้งาน — แจ้งผู้ดูแลระบบ");
   const { count } = changes;
   const pending = pendingRes.data;
   return {

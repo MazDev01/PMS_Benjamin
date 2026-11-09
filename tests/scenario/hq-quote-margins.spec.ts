@@ -77,7 +77,7 @@ test("[func·hq] ใบเสนอราคาทั้งเครือ: ร�
   await page.goto(`${HQ_ORIGIN}/hq/quotations?dealer=${c}`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "ระดับสาขาของข้อ").toContainText(c, { timeout: 25_000 });
-  await expect(ตาราง(page).locator("thead th[data-col-head]")).toHaveText(["ราคาส่ง HQ", "ราคาขายลูกค้า", "ส่วนต่าง ฿", "ส่วนต่าง %"]);
+  await expect(ตาราง(page).locator("thead th[data-col-head]")).toHaveText(["ราคาจาก HQ", "ราคาขายลูกค้า", "ส่วนต่าง ฿", "ส่วนต่าง %"]);
 
   // 1) ค่าที่รู้รายใบ
   const q1 = await ค่าแถว(page, ใบ(c, 1)), q2 = await ค่าแถว(page, ใบ(c, 2)), q3 = await ค่าแถว(page, ใบ(c, 3));

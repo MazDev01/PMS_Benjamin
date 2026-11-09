@@ -142,7 +142,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             <span>รวมจากใบที่ปิดการขาย</span><span>{fmtBaht(totalBought)}</span>
           </div>
         </PanelSection>
-      ) : <Empty text="ไม่มีใบเสนอราคาที่ปิดการขายได้ผูกกับลูกค้ารายนี้" />,
+      ) : <Empty text="ไม่มีใบเสนอราคาที่ปิดการขายสำเร็จผูกกับลูกค้ารายนี้" />,
     },
     // ⚠️ เคยมีแท็บ "การส่งมอบ" ตรงนี้ — ลบทั้งแท็บแล้ว (บอสสั่ง 20 ส.ค. 69)
     //    ไม่มีที่กรอกวันส่งมอบจริงทั้งฝั่งดีลเลอร์และสำนักงานใหญ่ · ที่โชว์อยู่คือ
@@ -172,7 +172,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
               </div>
             ))}
         </PanelSection>
-      ) : <Empty text="ยังไม่มีเหตุการณ์ — ไทม์ไลน์เริ่มจากใบที่ปิดการขายได้" />,
+      ) : <Empty text="ยังไม่มีเหตุการณ์ — ไทม์ไลน์เริ่มจากใบที่ปิดการขายสำเร็จ" />,
     },
   ];
 

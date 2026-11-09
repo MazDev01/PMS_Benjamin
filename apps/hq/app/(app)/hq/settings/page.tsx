@@ -243,7 +243,7 @@ function JourneyTab() {
           pol/sys ยังคงอยู่ เพราะกลไกบันทึกรวมของหน้านี้ (saveAll/dirty/reset) ใช้ร่วมกับการ์ดอื่น */}
 
       {/* เหตุผลปิดการขายไม่สำเร็จ — ปลายทาง "ปิดไม่สำเร็จ" ของเส้นทางการขาย (ย้ายมาจากแท็บ "กฎธุรกิจ") */}
-      <SectionCard icon={<X size={19} />} title="เหตุผลปิดการขายไม่สำเร็จ" desc="ตัวเลือกมาตรฐานที่ดีลเลอร์ต้องเลือกตอนปิดดีลไม่สำเร็จ">
+      <SectionCard icon={<X size={19} />} title="เหตุผลปิดการขายไม่สำเร็จ" desc="ตัวเลือกมาตรฐานที่ดีลเลอร์ต้องเลือกตอนปิดการขายไม่สำเร็จ">
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
           {jn.draft.lost.map((r, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px" }}>
@@ -254,7 +254,7 @@ function JourneyTab() {
           ))}
           {!jn.draft.lost.length && (
             <div style={{ fontSize: "0.78rem", color: "#b45309", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "9px 12px" }}>
-              ต้องมีอย่างน้อย 1 เหตุผล — ไม่งั้นดีลเลอร์จะไม่มีตัวเลือกตอนปิดดีลไม่สำเร็จ
+              ต้องมีอย่างน้อย 1 เหตุผล — ไม่งั้นดีลเลอร์จะไม่มีตัวเลือกตอนปิดการขายไม่สำเร็จ
             </div>
           )}
 
@@ -345,7 +345,7 @@ function RecruitTab() {
   const toast = useToast();
   const rc = useRepoDraft<HQRecruitSettings>(
     () => settingsRepo.getRecruitSettings(),
-    (v) => { settingsRepo.saveRecruitSettings(v).catch(e => toast("บันทึกค่าตั้งหาดีลเลอร์ไม่สำเร็จ: " + friendlyError(e))); },
+    (v) => { settingsRepo.saveRecruitSettings(v).catch(e => toast("บันทึกการตั้งค่าหาดีลเลอร์ไม่สำเร็จ: " + friendlyError(e))); },
     DEFAULT_RECRUIT_SETTINGS,
   );
   useReport(useMemo(() => ({ dirty: rc.dirty, save: rc.save, reset: rc.reset }), [rc.dirty, rc.save, rc.reset]));
@@ -587,7 +587,7 @@ function BackupCard() {
   async function restoreDefaults() {
     if (!(await ยืนยัน({
       หัวข้อ: "คืนค่าเริ่มต้นของนโยบาย เป้าหมาย กฎแจ้งเตือน และเหตุผลปิดการขาย ?",
-      รายละเอียด: "ทะเบียนดีลเลอร์และงานขายจะไม่ถูกแตะ",
+      รายละเอียด: "ทะเบียนดีลเลอร์และงานขายจะไม่ถูกเปลี่ยนแปลง",
       ปุ่มตกลง: "คืนค่าเริ่มต้น", อันตราย: true,
     }))) return;
     try {

@@ -367,7 +367,7 @@ export default function FilesPage() {
           {(["list","grid"] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
               style={{ padding: "0 13px", height: "100%", border: "none", background: view === v ? PRIMARY : "#fff", color: view === v ? "#fff" : MUTED, fontSize: "0.72rem", fontWeight: 600, cursor: "pointer" }}>
-              {v === "list" ? "รายการ" : "กริด"}
+              {v === "list" ? "รายการ" : "การ์ด"}
             </button>
           ))}
         </div>

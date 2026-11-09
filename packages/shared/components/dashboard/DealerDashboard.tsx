@@ -355,7 +355,7 @@ export default function DealerDashboard() {
     { kpi: "awaiting", label: "รอลูกค้าตอบ", value: นับ(ค่า(kpi, "awaiting.count")), rawValue: ค่า(kpi, "awaiting.count"),
       unit: "ใบ · ส่งให้ลูกค้าแล้ว", sub: ค่า(kpi, "awaiting.value") == null ? undefined : `มูลค่า ${บาทเต็ม(ค่า(kpi, "awaiting.value"))}`, icon: Hourglass, color: "#EA580C", bg: "#FEF0E6", href: "/quotations?kpi=awaiting" },
     // ชื่อการ์ดต้องตรงกับหน่วยของตัวเลข — ตัวเลขหลัก = จำนวนดีล · อัตราปิด (%) เป็นบรรทัดรอง
-    { kpi: "won", label: "ปิดการขายได้", value: นับ(ค่า(kpi, "won.count")), rawValue: ค่า(kpi, "won.count"), unit: "ดีล · ลีดที่เข้ามาในช่วงที่เลือก",
+    { kpi: "won", label: "ปิดการขายสำเร็จ", value: นับ(ค่า(kpi, "won.count")), rawValue: ค่า(kpi, "won.count"), unit: "ดีล · ลีดที่เข้ามาในช่วงที่เลือก",
       sub: อัตราปิด == null ? "ยังไม่มีดีลที่ปิด" : `${ชื่ออัตราปิดการขาย} ${อัตราปิด}% (${คำอธิบายอัตราปิดการขาย})`, icon: Activity, color: "#0D9488", bg: "#E6F7F5", href: "/customers" },
   ];
   // ไอคอน (i) ท้ายชื่อการ์ดถูกเอาออกตามที่บอสสั่ง (25 ส.ค. 69) — เหตุผลเดียวกับแดชบอร์ดสำนักงานใหญ่

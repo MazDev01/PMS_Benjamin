@@ -331,7 +331,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
               {/* กล่องแนบไฟล์แสดงตลอดก่อนส่งใบ (บอสสั่ง 3 พ.ย. 69 "ไฟล์จาก HQ แนบไงใส่มาด้วย") — ใบยังไม่มีร่าง = บันทึกร่างให้ก่อนแล้วแนบต่อ
                   (คำสั่งบันทึกร่างเดิม · ฐานกันตามเดิม) · ส่งใบแล้ว = รายการไฟล์ + ป้ายล็อก */}
               <QuoteFilesBox requestId={request.id} uploadSide="hq" canUpload={แก้ได้}
-                lockedReason={ล็อก ? "ล็อกพร้อมใบ HQ" : "คำขอนี้ปิดแล้ว"}
+                lockedReason={ล็อก ? "ล็อกแล้ว — ส่งใบ HQ แล้ว" : "คำขอนี้ปิดแล้ว"}
                 เตรียมก่อนแนบ={ใบ ? undefined : async () => { await บันทึก(); onChanged(); }}
                 onChanged={onFilesChanged} />
 

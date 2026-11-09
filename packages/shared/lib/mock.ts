@@ -622,7 +622,7 @@ export const ISSUER_KEY = "dealer_issuer_profile_v2";
 export const DEFAULT_ISSUER: IssuerProfile = { company: "", address: "", phone: "", taxId: "" };
 
 export const kpis = [
-  { key: "target", label: "เป้า vs ยอดขาย", value: "68%", delta: 10.4, icon: "target" },
+  { key: "target", label: "เป้า เทียบ ยอดขาย", value: "68%", delta: 10.4, icon: "target" },
   { key: "pipeline", label: "มูลค่าโอกาสการขาย", value: "฿4.2M", delta: 8.6, icon: "trending" },
   { key: "win", label: "อัตราปิดการขาย", value: "35%", delta: 4.2, icon: "award" },
   { key: "projects", label: "โอกาสการขายที่กำลังดำเนินการ", value: "5", delta: 16.4, icon: "building" },

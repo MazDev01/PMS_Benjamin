@@ -83,7 +83,7 @@ export const POST = withErrors("create-user", async (req: NextRequest) => {
   // ตรงกับกฎที่ RLS ของ profiles สงวนไว้อยู่แล้ว (0002_rls.sql) แต่ route นี้ใช้ service_role ข้าม RLS
   // จึงต้องบังคับซ้ำเองตรงนี้ (พบจากผลตรวจสอบตรรกะระบบ 31 ก.ค. 69)
   if (role === "SUPER_ADMIN" && String(prof.role) !== "SUPER_ADMIN") {
-    return bad(403, "ตั้งบัญชีใหม่เป็นแอดมินสูงสุดได้เฉพาะแอดมินสูงสุดเท่านั้น");
+    return bad(403, "ตั้งบัญชีใหม่เป็นผู้ดูแลสูงสุดได้เฉพาะผู้ดูแลสูงสุดเท่านั้น");
   }
 
   // รหัสผ่านชั่วคราวที่ผู้ดูแลกรอกในฟอร์ม (15 ก.ย. 69) — เดิมช่องนี้แสดงอยู่แต่ไม่ถูกส่งมาใช้
@@ -158,7 +158,7 @@ export const DELETE = withErrors("delete-user", async (req: NextRequest) => {
 
   // ลบบัญชี SUPER_ADMIN ได้เฉพาะผู้เรียกที่เป็น SUPER_ADMIN เอง (เหตุผลเดียวกับตอนสร้าง — เหตุผลด้านบน)
   if (String(target.role) === "SUPER_ADMIN" && String(prof.role) !== "SUPER_ADMIN") {
-    return bad(403, "ลบบัญชีแอดมินสูงสุดได้เฉพาะแอดมินสูงสุดเท่านั้น");
+    return bad(403, "ลบบัญชีผู้ดูแลสูงสุดได้เฉพาะผู้ดูแลสูงสุดเท่านั้น");
   }
   // กันลบบัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน (ใบ 0282 · ฐานกันซ้ำ last_hq_account) — นับเฉพาะบัญชีที่ใช้งาน
   if (String(target.role) === "SUPER_ADMIN" && String((target as { status?: string }).status ?? "active") === "active") {
@@ -167,7 +167,7 @@ export const DELETE = withErrors("delete-user", async (req: NextRequest) => {
       .eq("role", "SUPER_ADMIN").eq("dealer_code", "").eq("status", "active");
     // นับไม่ได้ = ห้ามเดาว่ายังเหลือคนอื่น ไม่งั้นอาจลบแอดมินสูงสุดคนสุดท้ายจนไม่มีใครเข้าระบบได้อีก
     if (cntErr) {
-      console.error("[delete-user] นับจำนวนแอดมินสูงสุดไม่สำเร็จ", cntErr);
+      console.error("[delete-user] นับจำนวนผู้ดูแลสูงสุดไม่สำเร็จ", cntErr);
       return bad(503, "ตรวจสอบจำนวนผู้ดูแลระบบไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
     }
     if ((count ?? 0) <= 1) return bad(400, "ลบบัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งานไม่ได้ — เพิ่มบัญชีสำนักงานใหญ่คนใหม่ก่อน");

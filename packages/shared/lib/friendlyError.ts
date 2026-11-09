@@ -59,7 +59,7 @@ export function friendlyError(e: unknown, fallback = "เกิดข้อผ�
   //   ไม่แปลจะกลายเป็น "เกิดข้อผิดพลาด" ลอย ๆ ทั้งที่เป็นเรื่องที่ผู้ใช้แก้เองได้
   if (/mime type .* is not supported|InvalidMimeType/i.test(msg)) return "ชนิดไฟล์นี้ไม่รองรับ";
   if (/exceeded the maximum allowed size|Payload too large|EntityTooLarge/i.test(msg)) return "ไฟล์ใหญ่เกินที่ระบบรับได้";
-  if (/JWT expired|invalid.*token|refresh_token/i.test(msg)) return "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่";
+  if (/JWT expired|invalid.*token|refresh_token/i.test(msg)) return "หมดเวลาใช้งาน — กรุณาเข้าสู่ระบบใหม่";
   if (/new password should be different/i.test(msg)) return "รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม";
   if (/password.*should be at least|password.*too short/i.test(msg)) return "รหัสผ่านสั้นเกินไป — ต้องยาวอย่างน้อย 8 ตัวอักษร";
   if (/user not found|invalid login credentials/i.test(msg)) return "อีเมลหรือรหัสผ่านไม่ถูกต้อง";

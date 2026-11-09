@@ -179,7 +179,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   //   JSON "null" ที่เซิร์ฟเวอร์ตั้งใจตอบ (เช่น ยังไม่มีใบ HQ) ยังเป็นค่าที่ถูกต้อง
   let ข้อความ: string;
   try { ข้อความ = await res.text(); }
-  catch { throw new DbError("คำขอถูกยกเลิกระหว่างโหลด (aborted) — อ่านคำตอบไม่จบ"); }
+  catch { throw new DbError("การโหลดถูกยกเลิกกลางทาง (aborted) — ลองใหม่อีกครั้ง"); }
   let body: { error?: string; code?: string } | T | null = null;
   let อ่านได้ = ข้อความ !== "";
   if (อ่านได้) { try { body = JSON.parse(ข้อความ); } catch { อ่านได้ = false; } }
