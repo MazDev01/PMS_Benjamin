@@ -3,6 +3,7 @@ import { สร้างสาขาของข้อ } from "./ownDealer";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, SUPABASE_URL, SUPABASE_ANON, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
+import { รันSQLในฐาน } from "./localDb";
 
 // ── ด่านป้องกันที่ "ชั้นฐานข้อมูล" — ต้องกันได้ทุกช่องทาง ────────────────────────
 //
@@ -70,26 +71,35 @@ test("เป้ายอดขายติดลบ ต้องถูกกั�
   }
 });
 
-test("ห้ามลบ/ลดสิทธิ์ผู้ดูแลสูงสุดคนสุดท้าย", async () => {
+test("ห้ามปิด/ลบ/ลดสิทธิ์บัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน (HQ บทบาทเดียว · ใบ 0282)", async () => {
   // ถ้าบัญชีนี้หาย จะไม่เหลือใครจัดการระบบได้เลย และกู้จากหน้าจอไม่ได้
-  // ทดสอบด้วย service_role โดยตั้งใจ — เป็นสิทธิ์สูงสุดที่ข้ามการตรวจปกติได้ทั้งหมด
-  const { data: admins } = await svc.from("profiles").select("id").eq("role", "SUPER_ADMIN").eq("status", "active");
-  test.skip((admins?.length ?? 0) !== 1, `ทดสอบนี้ใช้ได้เมื่อเหลือผู้ดูแลสูงสุดคนเดียว (ตอนนี้ ${admins?.length})`);
-  const id = admins![0].id;
-
-  const demote = await svc.from("profiles").update({ role: "HQ_STAFF" }).eq("id", id).select();
-  expect(demote.error, "ลดบทบาทผู้ดูแลคนสุดท้ายต้องถูกปฏิเสธ").not.toBeNull();
-
-  const disable = await svc.from("profiles").update({ status: "inactive" }).eq("id", id).select();
-  expect(disable.error, "ปิดใช้งานผู้ดูแลคนสุดท้ายต้องถูกปฏิเสธ").not.toBeNull();
-
-  const del = await svc.from("profiles").delete().eq("id", id).select();
-  expect(del.error, "ลบผู้ดูแลคนสุดท้ายต้องถูกปฏิเสธ").not.toBeNull();
-
-  // ต้องยังอยู่ครบเหมือนเดิม
-  const { data: still } = await svc.from("profiles").select("id, role, status").eq("id", id);
-  expect(still?.[0]?.role, "บทบาทต้องไม่ถูกเปลี่ยน").toBe("SUPER_ADMIN");
-  expect(still?.[0]?.status, "สถานะต้องไม่ถูกเปลี่ยน").toBe("active");
+  // ทำในทรานแซกชันที่ย้อนกลับที่ฐานทดสอบ: ปิดบัญชีสำนักงานใหญ่อื่นทั้งหมดก่อน (ข้ออื่นที่รันพร้อมกันเพิ่มผู้ใช้ HQ ได้ · ใบ 0282 ทุกคนเป็นบทบาทเดียว)
+  //   แล้วลองปิด/ลดสิทธิ์/ลบคนสุดท้าย — ทุกทางต้องถูกปฏิเสธด้วย last_hq_account · ไม่แตะบัญชีจริงของข้ออื่น (rollback)
+  //   เดิม: นับคนแล้วยิงด้วยกุญแจตรง ๆ — มีอีกคนเพิ่มเข้ามาระหว่างนับ = ปิดบัญชีผู้ดูแลจริงได้ (เสี่ยงพังทั้งชุดทดสอบ)
+  const ออก = รันSQLในฐาน(`
+select set_config('request.jwt.claims', '{"user_role":"SUPER_ADMIN"}', true);
+create temp table คนสุดท้าย as select id from public.profiles where role = 'SUPER_ADMIN' and status = 'active' order by created_at limit 1;
+update public.profiles set status = 'inactive' where role = 'SUPER_ADMIN' and status = 'active' and id <> (select id from คนสุดท้าย);
+do $$
+declare ผล text := '';
+begin
+  begin update public.profiles set status = 'inactive' where id = (select id from คนสุดท้าย); ผล := ผล || 'ปิด=ผ่าน;';
+  exception when others then ผล := ผล || 'ปิด=' || sqlerrm || ';'; end;
+  begin update public.profiles set role = 'DEALER_ADMIN', dealer_code = 'RYG' where id = (select id from คนสุดท้าย); ผล := ผล || 'ลด=ผ่าน;';
+  exception when others then ผล := ผล || 'ลด=' || sqlerrm || ';'; end;
+  begin delete from public.profiles where id = (select id from คนสุดท้าย); ผล := ผล || 'ลบ=ผ่าน;';
+  exception when others then ผล := ผล || 'ลบ=' || sqlerrm || ';'; end;
+  raise notice 'ผลกันคนสุดท้าย:%', ผล;
+  perform set_config('pms.last_hq_result', ผล, true);
+end $$;
+select 'ผล|' || current_setting('pms.last_hq_result', true);
+rollback;
+begin;`);
+  test.skip(ออก === null, "ไม่พบฐานทดสอบในเครื่อง (ข้อนี้รันในทรานแซกชันที่ฐานทดสอบ)");
+  const ผล = /^ผล\|(.*)$/m.exec(ออก ?? "")?.[1] ?? "";
+  for (const ทาง of ["ปิด", "ลด", "ลบ"]) {
+    expect(new RegExp(`${ทาง}=[^;]*last_hq_account`).test(ผล), `${ทาง}บัญชีสำนักงานใหญ่คนสุดท้ายต้องถูกปฏิเสธด้วย last_hq_account (${ผล})`).toBe(true);
+  }
 });
 
 test("สร้างใบเสนอราคาโดยไม่ส่งยอดมา → ต้องได้ 0 ไม่ใช่ค่าว่าง", async () => {

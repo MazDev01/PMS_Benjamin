@@ -40,7 +40,7 @@ const MUTED = "#6b7280";
 const BORDER = "#e5e7eb";
 
 const ROLE_LABEL: Record<string, string> = {
-  HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่",
+  SUPER_ADMIN: "สำนักงานใหญ่", HQ_MANAGEMENT: "สำนักงานใหญ่", HQ_STAFF: "สำนักงานใหญ่",   /* HQ บทบาทเดียว (ใบ 0282) */
   DEALER_ADMIN: "ผู้จัดการดีลเลอร์",
   DEALER_SALES: "เซลส์",
   DEALER_SITE: "เซลส์ภาคสนาม",

@@ -1,5 +1,5 @@
 {
- "migration": "0281",
+ "migration": "0282",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -388,6 +388,13 @@
   },
   {
    "f": "_quote_lock_text(v text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_quote_request_is_test_row(p_dealer_code text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -1966,7 +1973,7 @@
    "anon": false,
    "authenticated": false,
    "service_role": false,
-   "definer": false
+   "definer": true
   },
   {
    "f": "quote_requests_notify()",

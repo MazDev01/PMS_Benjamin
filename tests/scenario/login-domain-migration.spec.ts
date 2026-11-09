@@ -80,7 +80,7 @@ test("[script] migrate-dealer-login-domain --apply บนฐานทดสอ�
   expect(กุญแจ.length, "ฐานทดสอบต้องมี DEALER_SECRET_KEY").toBeGreaterThanOrEqual(32);
   const idย้าย = await สร้างสาขา(ย้าย, เดิม(ย้าย));
   const idตัวเอง = await สร้างสาขา(อีเมลตัวเอง, อีเมลของสาขาเอง);
-  const idHQ = await สร้างบัญชี(อีเมลHQ, "HQ_STAFF", null);
+  const idHQ = await สร้างบัญชี(อีเมลHQ, "SUPER_ADMIN", null);
 
   // นับอย่างเดียว (ค่าตั้งต้น) — ต้องไม่แก้อะไร
   const ดู = รันสคริปต์();

@@ -1755,7 +1755,7 @@ export const notes: NoteMock[] = [
 //   เพราะสองที่เขียนชื่อบทบาทของตัวเองแยกกัน ไม่ได้อ้างแหล่งเดียวกัน
 //   ผู้ใช้อ่านแล้วไม่แน่ใจว่าตกลงตัวเองเป็นอะไร และคำไหนคือคำที่ระบบใช้จริง
 export function roleLabelOf(role: string, isHQ: boolean): string {
-  if (isHQ) return role === "SUPER_ADMIN" ? "ผู้ดูแลระบบ" : "ผู้บริหาร HQ";
+  if (isHQ) return "สำนักงานใหญ่";   // HQ บทบาทเดียว (บอสสั่ง 5 พ.ย. 69 · ใบ 0282)
   return ({ DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม" } as Record<string, string>)[role] ?? "สมาชิก";
 }
 

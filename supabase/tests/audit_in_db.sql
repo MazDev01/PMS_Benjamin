@@ -152,12 +152,10 @@ begin
   -- ── ผู้ใช้ HQ (แผงผู้ใช้) ──
   perform flowtest.as_root();
   insert into auth.users (id, email, aud, role) values (staff, 'zzaudit-staff@example.test', 'authenticated', 'authenticated');
-  insert into profiles (id, role, name, status) values (staff, 'HQ_STAFF', 'ZZAUDIT เจ้าหน้าที่', 'active')
-    on conflict (id) do update set role = 'HQ_STAFF', name = 'ZZAUDIT เจ้าหน้าที่', status = 'active', dealer_code = null;
+  -- HQ บทบาทเดียว (ใบ 0282): ผู้ใช้ HQ ใหม่ = สำนักงานใหญ่ · บทบาทเดิม (HQ_STAFF) ตั้งไม่ได้แล้ว
+  insert into profiles (id, role, name, status) values (staff, 'SUPER_ADMIN', 'ZZAUDIT เจ้าหน้าที่', 'active')
+    on conflict (id) do update set role = 'SUPER_ADMIN', name = 'ZZAUDIT เจ้าหน้าที่', status = 'active', dealer_code = null;
   perform flowtest.as_hq(hq);
-  m := flowtest.mark();
-  update profiles set role = 'HQ_MANAGEMENT' where id = staff;
-  perform flowtest.ok(flowtest.n(m, 'เปลี่ยนบทบาทผู้ใช้', 'zzaudit-staff@example.test: เจ้าหน้าที่สำนักงานใหญ่ → ผู้บริหารสำนักงานใหญ่') = 1, 'เปลี่ยนบทบาทผู้ใช้ → บันทึก');
   m := flowtest.mark();
   update profiles set department = 'บัญชี' where id = staff;
   perform flowtest.ok(flowtest.n(m, 'แก้ไขผู้ใช้', 'zzaudit-staff@example.test') = 1, 'แก้ไขผู้ใช้ → บันทึก');
@@ -166,6 +164,13 @@ begin
   perform flowtest.ok(flowtest.n(m, 'ปิดใช้งานผู้ใช้', 'zzaudit-staff@example.test') = 1, 'ปิดใช้งานผู้ใช้ → บันทึก');
   update profiles set status = 'active' where id = staff;
   perform flowtest.ok(flowtest.n(m, 'เปิดใช้งานผู้ใช้', 'zzaudit-staff@example.test') = 1, 'เปิดใช้งานผู้ใช้ → บันทึก');
+  -- เปลี่ยนบทบาท (สำนักงานใหญ่ → ดีลเลอร์ของสาขาทดสอบที่ยังไม่มีบัญชี) = บันทึก · ชื่อบทบาท HQ = "สำนักงานใหญ่" (ใบ 0282)
+  perform flowtest.as_root();
+  insert into dealers (code, name, province, region, revenue_target, status) values ('ZZAUD', 'ZZTEST สาขาทดสอบบันทึกบทบาท', 'ระยอง', 'ตะวันออก', 0, 'active') on conflict (code) do nothing;
+  perform flowtest.as_hq(hq);
+  m := flowtest.mark();
+  update profiles set role = 'DEALER_ADMIN', dealer_code = 'ZZAUD' where id = staff;
+  perform flowtest.ok(flowtest.n(m, 'เปลี่ยนบทบาทผู้ใช้', 'zzaudit-staff@example.test: สำนักงานใหญ่ → DEALER_ADMIN') = 1, 'เปลี่ยนบทบาทผู้ใช้ → บันทึก (ชื่อบทบาท HQ = สำนักงานใหญ่)');
 
   -- ── ตั้งค่า · ข้อมูลบริษัท (ทางเดียวกับหน้าเว็บ: upsert แถวเดียว) ──
   m := flowtest.mark();

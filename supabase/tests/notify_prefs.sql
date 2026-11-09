@@ -33,7 +33,7 @@ begin perform set_config('role', 'postgres', true); perform set_config('request.
 create function nptest.as_a() returns void language sql as $$ select nptest.as_user('00000000-0000-4000-8000-00000000e001', 'DEALER_ADMIN', 'ZZNPA') $$;
 create function nptest.as_b() returns void language sql as $$ select nptest.as_user('00000000-0000-4000-8000-00000000e002', 'DEALER_ADMIN', 'ZZNPB') $$;
 create function nptest.as_hq() returns void language sql as $$ select nptest.as_user('00000000-0000-4000-8000-00000000e003', 'SUPER_ADMIN', '') $$;
-create function nptest.as_staff() returns void language sql as $$ select nptest.as_user('00000000-0000-4000-8000-00000000e004', 'HQ_STAFF', '') $$;
+create function nptest.as_staff() returns void language sql as $$ select nptest.as_user('00000000-0000-4000-8000-00000000e004', 'SUPER_ADMIN', '') $$;   -- อดีตเจ้าหน้าที่ = สำนักงานใหญ่ (ใบ 0282)
 -- ค่าที่ตั้งของเรื่องหนึ่ง (มุมมองของผู้เรียก)
 create function nptest.pref(p_kind text) returns jsonb language sql as $$
   select x from jsonb_array_elements(public.notification_prefs_get()) x where x->>'kind' = p_kind $$;
@@ -56,7 +56,7 @@ insert into profiles (id, role, dealer_code, name, status) values
   ('00000000-0000-4000-8000-00000000e001', 'DEALER_ADMIN', 'ZZNPA', 'ZZNP ดีลเลอร์ A', 'active'),
   ('00000000-0000-4000-8000-00000000e002', 'DEALER_ADMIN', 'ZZNPB', 'ZZNP ดีลเลอร์ B', 'active'),
   ('00000000-0000-4000-8000-00000000e003', 'SUPER_ADMIN', '', 'ZZNP ผู้ดูแล HQ', 'active'),
-  ('00000000-0000-4000-8000-00000000e004', 'HQ_STAFF', '', 'ZZNP เจ้าหน้าที่ HQ', 'active');
+  ('00000000-0000-4000-8000-00000000e004', 'SUPER_ADMIN', '', 'ZZNP เจ้าหน้าที่ HQ', 'active');
 -- ผู้รับของสาขา: A ยืนยันแล้ว 1 + รอยืนยัน 1 · B ยืนยันแล้ว 1 (วางตรงในนามระบบ = แบบที่เซิร์ฟเวอร์ยืนยันโค้ดแล้ว)
 insert into dealer_notify_recipients (dealer_code, email, verified_at) values
   ('ZZNPA', 'zznp-a1@example.test', now()), ('ZZNPA', 'zznp-a2@example.test', null), ('ZZNPB', 'zznp-b1@example.test', now());
@@ -143,7 +143,9 @@ begin
                     '4) ค่าที่ A ตั้งไม่โผล่ที่ B (B ยังเปิดอยู่)');
   perform nptest.ok((select count(*) from notification_prefs where dealer_code = 'ZZNPA') = 0, '4) B อ่านค่าตั้งของ A ไม่ได้');
   perform nptest.as_staff();
-  perform nptest.must_fail($q$select public.notification_prefs_set('request_reprice', true, false)$q$, 'forbidden', '4) เจ้าหน้าที่ HQ ทั่วไปตั้งค่าแจ้งเตือนไม่ได้');
+  -- HQ บทบาทเดียว (ใบ 0282 · กลับด้านจาก "เจ้าหน้าที่ HQ ทั่วไปตั้งค่าแจ้งเตือนไม่ได้"): ผู้ใช้สำนักงานใหญ่ทุกคนตั้งได้
+  perform public.notification_prefs_set('request_reprice', true, true);
+  perform nptest.ok(true, '4) ผู้ใช้สำนักงานใหญ่อีกคน (อดีตเจ้าหน้าที่) ตั้งค่าแจ้งเตือนได้');
 
   -- HQ ปิดอีเมลเรื่องขอแก้ราคา → กระดิ่ง HQ ยังขึ้น ไม่มีอีเมลถึงผู้รับของ HQ
   perform nptest.as_hq();

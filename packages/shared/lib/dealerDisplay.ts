@@ -9,7 +9,7 @@ import { useRepoValue } from "./useRepoState";
 import { dealers as dealersRepo } from "./data";
 import type { DealerRow } from "./data/types";
 
-import { สร้างชื่อแสดง, แทนรหัสด้วยชื่อ } from "./dealerDisplayName";
+import { สร้างชื่อแสดง, แทนรหัสด้วยชื่อ, แปลงบทบาทเดิมในบันทึก } from "./dealerDisplayName";
 export { สร้างชื่อแสดง };
 
 /** ชื่อแสดงของดีลเลอร์ (โหลดทะเบียนดีลเลอร์ครั้งเดียวต่อหน้า) — ใช้ทุกหน้าฝั่ง HQ ที่แสดงดีลเลอร์ */
@@ -24,6 +24,7 @@ export function useแทนรหัสในบันทึก(): (ข้อ�
   return useMemo(() => {
     const ชื่อของ = สร้างชื่อแสดง(dealers);
     const รหัส = dealers.map(d => d.code);
-    return (ข้อความ: string) => แทนรหัสด้วยชื่อ(ข้อความ ?? "", รหัส, c => ชื่อของ(c));
+    // + ชื่อบทบาท HQ เดิม = "สำนักงานใหญ่" (ใบ 0282)
+    return (ข้อความ: string) => แปลงบทบาทเดิมในบันทึก(แทนรหัสด้วยชื่อ(ข้อความ ?? "", รหัส, c => ชื่อของ(c)));
   }, [dealers]);
 }

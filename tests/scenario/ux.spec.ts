@@ -55,7 +55,9 @@ test("[ux·dealer] บัญชีดีลเลอร์ รวมโปรไ
 test("[ux·hq] ก้น sidebar แสดงชื่อบทบาทตรงกับแถบบน", async ({ page }) => {
   await open(page, "hq", "/hq/dashboard");
   // ชื่อบัญชีผู้ดูแลบังเอิญเป็นคำเดียวกับชื่อบทบาท → เจอสองจุดในการ์ดเดียว ใช้ตัวแรกพอ
-  await expect(page.locator(".sidebar-footer").getByText("ผู้ดูแลระบบ").first()).toBeVisible();
+  // HQ บทบาทเดียว (ใบ 0282): ชื่อบทบาท = "สำนักงานใหญ่" (เดิม "ผู้ดูแลระบบ")
+  await expect(page.locator(".sidebar-footer").getByText("สำนักงานใหญ่").first()).toBeVisible();
+  await expect(page.locator(".sidebar-footer").getByText(/^ผู้ดูแลระบบ$|^ผู้บริหาร HQ$/), "ไม่มีชื่อบทบาทเดิม").toHaveCount(0);
   // ต้องไม่กลับไปใช้คำเก่าที่ขัดกับแถบบนอีก
   await expect(page.getByText("เจ้าของแพลตฟอร์ม")).toHaveCount(0);
 });
@@ -143,7 +145,7 @@ test("[ux·hq] หน้าผู้ใช้ HQ เฉพาะ HQ + stat/matri
   await open(page, "hq", "/hq/settings");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
   await expect(page.getByText("ผู้ใช้ทั้งหมด")).toBeVisible();
-  await expect(page.getByText("ตารางสิทธิ์ตามบทบาท", { exact: true })).toBeVisible();   // เดิม "Permission Matrix" — หน้าเว็บเป็นไทย (28 ต.ค. 69)
+  await expect(page.getByText("ตารางสิทธิ์ตามบทบาท", { exact: true }), "HQ บทบาทเดียว (ใบ 0282): ไม่มีตารางสิทธิ์ตามบทบาท").toHaveCount(0);   // เดิม: ต้องเห็น (28 ต.ค. 69)
   // ต้องไม่มีผู้ใช้ของ Dealer (role เซลส์ดีลเลอร์หายไป)
   await expect(page.getByText("เซลส์ดีลเลอร์")).toHaveCount(0);
   // action dropdown → เหลือ "ตั้งรหัสผ่านใหม่ทันที" · เมนูส่งลิงก์ทางอีเมลเอาออกแล้ว (ปิดอีเมลระบบล็อกอิน 16 ต.ค. 69)

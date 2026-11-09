@@ -36,7 +36,7 @@ insert into auth.users (id, email, aud, role) values
   ('00000000-0000-4000-8000-0000000a7002', 'zzpi-staff@example.test', 'authenticated', 'authenticated');
 insert into profiles (id, role, dealer_code, name, status) values
   ('00000000-0000-4000-8000-0000000a7001', 'SUPER_ADMIN', '', 'ZZPI ผู้ดูแล', 'active'),
-  ('00000000-0000-4000-8000-0000000a7002', 'HQ_STAFF', '', 'ZZPI เจ้าหน้าที่', 'active');
+  ('00000000-0000-4000-8000-0000000a7002', 'SUPER_ADMIN', '', 'ZZPI เจ้าหน้าที่', 'active');   -- อดีตเจ้าหน้าที่ = สำนักงานใหญ่ (ใบ 0282)
 -- ผู้สนใจที่มีอยู่แล้ว (เบอร์เขียนต่างรูปแบบ)
 insert into dealer_prospects (name, phone, status) values ('ZZTEST-มีอยู่แล้ว', '000 000 7999', 'new');
 set local session_replication_role = origin;
@@ -95,7 +95,8 @@ begin
   perform pitest.as_admin();
   perform pitest.ok(not exists (select 1 from dealer_prospects where name in ('ZZTEST-ก', 'ZZTEST-ข', 'ZZTEST-ค')), '3) ชุดที่ถูกปฏิเสธไม่เหลือแถวใดเลย');
   perform pitest.as_user('00000000-0000-4000-8000-0000000a7002', 'HQ_STAFF');
-  perform pitest.must_fail($q$select public.hq_prospects_import('x', '[{"row":1,"name":"ZZTEST-ง","phone":"000 000 7104"}]')$q$, 'forbidden', '3) เจ้าหน้าที่ HQ ทั่วไปนำเข้าไม่ได้');
+  -- HQ บทบาทเดียว (ใบ 0282): โทเคนบทบาทเดิม HQ_STAFF = ไม่ใช่ HQ (กฎตัวเดียว) — เดิม "เจ้าหน้าที่ HQ ทั่วไปนำเข้าไม่ได้"
+  perform pitest.must_fail($q$select public.hq_prospects_import('x', '[{"row":1,"name":"ZZTEST-ง","phone":"000 000 7104"}]')$q$, 'forbidden', '3) โทเคนบทบาทเดิม HQ_STAFF นำเข้าไม่ได้');
   perform pitest.must_fail(format('select public.hq_prospects_import_cancel(%s)', b), 'forbidden', '4) เจ้าหน้าที่ HQ ทั่วไปยกเลิกไม่ได้');
 
   -- 4) ยกเลิกทั้งชุด: บันทึกการติดต่อแรกจากไฟล์ไม่นับ · ถูกแตะหลังนำเข้า = ไม่ได้ (ยิงตรงก็ไม่ได้)

@@ -50,7 +50,7 @@ test("[script] flag-temp-passwords --unset บนฐานทดสอบ: ล�
   const idครบ = await สร้างสาขา(ครบ, { must_change_password: true, must_verify_email: true, คงไว้: "ค่าเดิม" });
   const idแค่เปลี่ยน = await สร้างสาขา(แค่เปลี่ยนรหัส, { must_change_password: true });
   const idไม่มี = await สร้างสาขา(ไม่มี, { คงไว้: "ค่าเดิม" });
-  const idHQ = await สร้างบัญชี(อีเมลHQ, "HQ_STAFF", "", { must_change_password: true, must_verify_email: true });
+  const idHQ = await สร้างบัญชี(อีเมลHQ, "SUPER_ADMIN", "", { must_change_password: true, must_verify_email: true });
 
   // โหมดตั้งเครื่องหมายเดิม (ไม่ใส่ --unset) ต้องถูกปฏิเสธ — ตั้งเมื่อไร ด่าน 0187 กันข้อมูลทั้งสาขา
   let ปฏิเสธ = "";
