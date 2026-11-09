@@ -7,7 +7,7 @@
 // แผงนี้ "ดูอย่างเดียว" — ส่ง/ตอบรับ/ปฏิเสธ/ทำฉบับใหม่ (D6/D8/D8x) ยังทำที่แผงลีดที่เดียว → ปุ่ม "ไปแผงลีด"
 //   (ไม่ก๊อปปุ่มทำงานมาไว้ที่นี่ — สองที่ทำงานเดียวกัน แก้ที่หนึ่งแล้วอีกที่ไม่ตาม คือปัญหาที่รอบ 4 ตัดทิ้งไปแล้ว)
 // ยอดแยก VAT ใช้สูตรกลาง (quoteTax.ts) · พิมพ์ใช้ทางเดียวกับแผงลีด (ขอหัวกระดาษจากฐาน + กันข้อมูลบริษัทไม่ครบ ใบ 0247)
-import { Printer, X, ArrowRight, FileText, User, MapPin, Calendar, Coins, Layers } from "lucide-react";
+import { Printer, X, ArrowRight, FileText, User, Coins, Layers } from "lucide-react";
 import { quotationStatusLabel, quotationStatusColor, fmtISOToThai, type QuotationMock } from "@pms/shared/lib/mock";
 import { boqLineItems } from "@pms/shared/lib/boq";
 import { fmtFull } from "@pms/shared/lib/format";
@@ -21,10 +21,12 @@ import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { ป้ายฉบับ } from "@pms/shared/lib/quoteRevision";
-import { quoteExpiryISO } from "@pms/shared/lib/quoteExpiry";
+import { quoteExpiryISO, ป้ายนับวันหมดอายุ } from "@pms/shared/lib/quoteExpiry";
+import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
+import { แถบสรุปเอกสาร, กริดรายละเอียด, ช่องกริด } from "@pms/shared/components/ui/DocDetailParts";
 import { useModalA11y } from "@pms/shared/lib/useModalA11y";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
-import { PanelSection, PanelRow } from "@pms/shared/components/ui/DetailPanel";
+import { PanelSection } from "@pms/shared/components/ui/DetailPanel";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
@@ -97,6 +99,8 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
   const ภาษีใบ = คิดภาษีใบเสนอราคา(subtotal, { vatPercent: q.vatPercent ?? dealerVat, whtPercent: q.whtRate });
   const ฉบับ = ฉบับทั้งหมดของใบ(q, ทั้งหมด);
   const หมดอายุ = quoteExpiryISO(q, validityDays);
+  // นับวันเฉพาะใบที่ยังรอคำตอบ (ร่าง/ส่งแล้ว) · ใบปิดแล้ว (ตอบรับ/ปฏิเสธ/ถูกแทน/หมดอายุ) แสดงแค่วัน ไม่มีตัวนับ (บอสตอบ 9 พ.ย. 69)
+  const นับวัน = q.status === "draft" || q.status === "sent_to_client" ? ป้ายนับวันหมดอายุ(หมดอายุ, APP_NOW_ISO) : null;
   const ขาด = พิมพ์ใบ.ขาด(q);
   const พิมพ์ = () => พิมพ์ใบ.พิมพ์(q, ลูกค้า);
   const th: React.CSSProperties = { textAlign: "left", fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", padding: "8px 10px", background: "#f7f9fc", whiteSpace: "nowrap" };
@@ -116,8 +120,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: "1.05rem", fontWeight: 800, color: "#fff", fontFamily: "monospace" }}>{q.id}</span>
-              <span className="badge" data-view-revision style={{ background: "#fff", color: "#003366", fontWeight: 800 }}>{ป้ายฉบับ(q.revision)}</span>
-              <span className="badge" style={{ background: sc.bg, color: sc.text }}>{quotationStatusLabel[q.status]}</span>
+              {/* ป้ายฉบับ/สถานะ ย้ายไปแถบสรุปที่เดียว (บอสสั่ง 9 พ.ย. 69 · หัวเหลือเลขที่ + ชื่อ + ปุ่ม) */}
             </div>
             <div style={{ fontSize: "0.74rem", color: "rgba(255,255,255,.75)", marginTop: 4, overflowWrap: "anywhere" }}>{q.customer || "—"}</div>
           </div>
@@ -134,16 +137,27 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
           </div>
         </div>
 
+        {/* แถบสรุป 4 ช่อง (บอสสั่ง 9 พ.ย. 69) — ยอดชำระสุทธิ = ตัวเลขเดียวกับกล่องยอดรวมด้านล่าง (สูตรกลาง quoteTax.ts) */}
+        <แถบสรุปเอกสาร ช่อง={[
+          { คีย์: "net", ป้าย: "ยอดชำระสุทธิ", ค่า: fmtFull(ภาษีใบ.netPayable), เด่น: true },
+          { คีย์: "status", ป้าย: "สถานะ", ค่า: <span className="badge" style={{ background: sc.bg, color: sc.text }}>{quotationStatusLabel[q.status]}</span> },
+          { คีย์: "expiry", ป้าย: "วันหมดอายุ", ค่า: หมดอายุ ? fmtISOToThai(หมดอายุ) : "-", ย่อย: นับวัน?.ข้อความ, ย่อยแดง: นับวัน?.เลย },
+          { คีย์: "revision", ป้าย: "ฉบับ", ค่า: <span data-view-revision>{ป้ายฉบับ(q.revision)}</span> },
+        ]} />
+
         <div style={{ overflowY: "auto", padding: "4px 20px 20px" }}>
           <IssuerGuardNote ขาด={ขาด} การกระทำ="พิมพ์ใบให้ลูกค้า" style={{ marginTop: 14 }} />
 
+          {/* กริด 3 คอลัมน์ × 2 แถว — หัวข้ออยู่บน ค่าอยู่ล่าง (บอสสั่ง 9 พ.ย. 69 · เดิม 6 แถวซ้าย-ขวา) */}
           <PanelSection icon={User} title="ลูกค้า">
-            <PanelRow icon={User} label="ลูกค้า" value={q.customer} />
-            <PanelRow icon={FileText} label={ช่อง.งาน} value={q.project} />
-            <PanelRow icon={MapPin} label="จังหวัด" value={q.province} />
-            <PanelRow icon={User} label="ผู้รับผิดชอบ" value={ผู้รับผิดชอบ} />
-            <PanelRow icon={Calendar} label="วันที่สร้าง" value={q.date ? fmtISOToThai(q.date) : "—"} />
-            <PanelRow icon={Calendar} label="วันหมดอายุ" value={หมดอายุ ? fmtISOToThai(หมดอายุ) : "—"} />
+            <กริดรายละเอียด data-quote-customer="">
+              <ช่องกริด data-field="ลูกค้า" ป้าย="ลูกค้า" ค่า={q.customer} />
+              <ช่องกริด data-field={ช่อง.งาน} ป้าย={ช่อง.งาน} ค่า={q.project} />
+              <ช่องกริด data-field="จังหวัด" ป้าย="จังหวัด" ค่า={q.province} />
+              <ช่องกริด data-field="ผู้รับผิดชอบ" ป้าย="ผู้รับผิดชอบ" ค่า={ผู้รับผิดชอบ} />
+              <ช่องกริด data-field="วันที่สร้าง" ป้าย="วันที่สร้าง" ค่า={q.date ? fmtISOToThai(q.date) : "-"} />
+              <ช่องกริด data-field="วันหมดอายุ" ป้าย="วันหมดอายุ" ค่า={หมดอายุ ? fmtISOToThai(หมดอายุ) : "-"} />
+            </กริดรายละเอียด>
           </PanelSection>
 
           <PanelSection icon={Coins} title="รายการสินค้า" bodyStyle={{ padding: 0, overflow: "hidden" }}>
@@ -156,7 +170,9 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
               { key: "price", หัว: "ราคา/หน่วย", ชนิด: "เงิน", กว้าง: "20%", ค่า: it => it.unitPrice.toLocaleString("th-TH") },
               { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: "20%", สไตล์: () => ({ fontWeight: 700, color: "#003366" }), ค่า: it => fmtFull(it.qty * it.unitPrice) },
             ]} />
-            <div data-quote-totals style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 14px", borderTop: "1px solid #eef0f4", background: "#f7f9fc" }}>
+            {/* กล่องยอดรวมชิดขวา กว้างครึ่งหนึ่ง (จอแคบเต็มแถว · .doc-totals) */}
+            <div style={{ borderTop: "1px solid #eef0f4", background: "#f7f9fc", padding: "10px 14px" }}>
+            <div data-quote-totals className="doc-totals" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {([
                 ["ยอดรวมก่อน VAT", fmtFull(ภาษีใบ.subtotal), { คีย์: "subtotal" }],
                 [`ภาษีมูลค่าเพิ่ม ${ภาษีใบ.vatRate}%`, fmtFull(ภาษีใบ.vatAmount), { คีย์: "vat" }],
@@ -173,6 +189,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
                   </div>
                 );
               })}
+            </div>
             </div>
           </PanelSection>
 
