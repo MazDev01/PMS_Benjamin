@@ -180,7 +180,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
     if (!อีเมล && !รหัส) { setผิดพลาด("กรอกอีเมลใหม่หรือรหัสผ่านใหม่อย่างน้อยหนึ่งอย่าง"); return; }
     if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setผิดพลาด("รูปแบบอีเมลไม่ถูกต้อง"); return; }
     if (รหัส && รหัส.length < 8) { setผิดพลาด("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
-    if (!REAL_BACKEND) { setผิดพลาด("โหมดทดลองใช้งานไม่รองรับการแก้บัญชีเข้าระบบ"); return; }
+    if (!REAL_BACKEND) { setผิดพลาด("โหมดข้อมูลตัวอย่างไม่รองรับการแก้บัญชีเข้าระบบ"); return; }
     setResetting(true);
     setผิดพลาด("");
     const res = await resetDealerPassword(dealer.code, { email: อีเมล || undefined, password: รหัส || undefined });

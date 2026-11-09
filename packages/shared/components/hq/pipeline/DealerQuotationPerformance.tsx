@@ -143,8 +143,8 @@ export function DealerQuotationPerformance({ rows }: {
                 </text>
                 <line x1={x + 10} y1={pT + 24} x2={x + bwx - 10} y2={pT + 24} stroke="#4b5563" strokeWidth="1" />
                 {line("ใบเสนอราคา", `${d.quotes}`, 40)}
-                {line("ปิดได้", `${d.won}`, 55, "#34d399")}
-                {line("ปิดไม่ได้", `${d.lost}`, 70, "#f87171")}
+                {line("ปิดสำเร็จ", `${d.won}`, 55, "#34d399")}
+                {line("ปิดไม่สำเร็จ", `${d.lost}`, 70, "#f87171")}
                 {line("ยังไม่รู้ผล", `${d.pending}`, 85, "#9ca3af")}
                 <line x1={x + 10} y1={pT + 93} x2={x + bwx - 10} y2={pT + 93} stroke="#4b5563" strokeWidth="1" />
                 <text x={x + 10} y={pT + 107} fontSize="9.5" fill="#c4cbd4">อัตราปิดการขาย</text>
@@ -201,8 +201,8 @@ export function DealerQuotationTable({ rows, avgConv }: {
               <th>รหัส</th>
               <th>ดีลเลอร์</th>
               <th style={{ textAlign: "right" }}>ใบเสนอราคา</th>
-              <th style={{ textAlign: "right" }}>ปิดได้</th>
-              <th style={{ textAlign: "right" }}>ปิดไม่ได้</th>
+              <th style={{ textAlign: "right" }}>ปิดสำเร็จ</th>
+              <th style={{ textAlign: "right" }}>ปิดไม่สำเร็จ</th>
               <th style={{ textAlign: "right" }}>ยังไม่รู้ผล</th>
               <th style={{ textAlign: "right" }} title="ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ)">อัตราปิดการขาย</th>
             </tr>

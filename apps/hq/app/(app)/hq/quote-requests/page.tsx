@@ -244,7 +244,7 @@ export default function HQQuoteRequestsPage() {
             </colgroup>
             <thead>
               <tr>
-                <th>เลขที่คำขอ</th><th>ดีลเลอร์</th><th>ลูกค้า/โครงการ</th><th>จังหวัด</th><th className="num">พื้นที่ ตร.ม.</th>
+                <th>เลขที่คำขอ</th><th>ดีลเลอร์</th><th>ลูกค้า/ชื่องาน</th><th>จังหวัด</th><th className="num">พื้นที่ ตร.ม.</th>
                 <th>สถานะ</th><th>วันที่ขอ</th><th>กำหนดส่ง</th>
                 <th style={{ ...ตรึงคอลัมน์ปุ่ม(true), textAlign: "right" }}>จัดการ</th>
               </tr>

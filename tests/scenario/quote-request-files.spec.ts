@@ -181,7 +181,7 @@ test("[H9] [flow·dealer] ส่งใบ HQ แล้ว: กระดิ่ง
   const กล่อง = ใบHQ.locator("[data-panel='quote-files']");
   const ของHQ = กล่อง.locator("[data-files-side='hq'] [data-file-row]");
   await expect(ของHQ, "ดีลเลอร์เห็นไฟล์ HQ หลังส่งใบ").toHaveCount(1, { timeout: 30_000 });
-  await expect(ของHQ.first()).toContainText(/ใบ HQ .+ เวอร์ชัน 1/);
+  await expect(ของHQ.first()).toContainText(/ใบ HQ .+ ฉบับ 1/);
   await expect(กล่อง.locator("[data-files-side='dealer']"), "ใต้ใบ HQ ไม่มีกลุ่มไฟล์จากดีลเลอร์").toHaveCount(0);
   await expect(กล่อง.getByTestId("files-locked"), "ใต้ใบ HQ ไม่มีข้อความล็อก").toHaveCount(0);
   await expect(แผง.locator("[data-file-drop]"), "ส่งใบแล้ว ฝั่งดีลเลอร์ไม่มีกล่องแนบ").toHaveCount(0);

@@ -87,7 +87,7 @@ function ค่าตั้งหาดีลเลอร์เดโม() {
 // ── ประวัติลูกค้าเป้าหมาย HQ (โหมดเดโม) — เลียนแบบตัวดักของฐานข้อมูล 0174 ──
 function บันทึกประวัติเดโม(a: Omit<ProspectActivity, "id" | "actor" | "createdAt">): ProspectActivity {
   const all = readKey<ProspectActivity[]>(PROSPECT_ACTIVITIES_KEY, []);
-  const row: ProspectActivity = { ...a, id: all.reduce((m, x) => Math.max(m, x.id), 0) + 1, actor: "โหมดเดโม", createdAt: new Date().toISOString() };
+  const row: ProspectActivity = { ...a, id: all.reduce((m, x) => Math.max(m, x.id), 0) + 1, actor: "โหมดข้อมูลตัวอย่าง", createdAt: new Date().toISOString() };
   writeKey(PROSPECT_ACTIVITIES_KEY, [row, ...all]);
   return row;
 }
@@ -298,11 +298,11 @@ export const LocalAdapter: DataAdapter = {
     listForLead: () => ok([]),
     listQueue: () => ok([]),
     board: () => ok({ counts: { todo: 0, overdue: 0, quoted: 0, won: 0, closed: 0 }, rows: [] }),
-    submit: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
-    cancel: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+    submit: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอใบเสนอราคาไม่ได้")),
+    cancel: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอใบเสนอราคาไม่ได้")),
     abandonForm: () => ok(undefined),
-    reprice: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
-    accept: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอราคาไม่ได้")),
+    reprice: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอใบเสนอราคาไม่ได้")),
+    accept: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างส่งคำขอใบเสนอราคาไม่ได้")),
     hqQuoteFor: () => ok(null),
     saveHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
     sendHqQuote: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างทำใบ HQ ไม่ได้")),
@@ -316,9 +316,9 @@ export const LocalAdapter: DataAdapter = {
   quoteFiles: {
     list: () => ok([]),
     counts: () => ok([]),
-    upload: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างแนบไฟล์คำขอราคาไม่ได้")),
+    upload: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างแนบไฟล์คำขอใบเสนอราคาไม่ได้")),
     downloadUrl: () => ok(null),
-    remove: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างลบไฟล์คำขอราคาไม่ได้")),
+    remove: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างลบไฟล์คำขอใบเสนอราคาไม่ได้")),
     usage: () => ok({ buckets: [], quotaGb: null }),
     setQuota: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างตั้งโควตาไม่ได้")),
   },
@@ -463,8 +463,8 @@ export const LocalAdapter: DataAdapter = {
       const all = readKey<DealerPackageProposal[]>(PROPOSALS_KEY, []);
       const เดิม = all.find(x => x.id === id);
       if (!เดิม) return Promise.reject(new Error("ไม่พบใบค่าแฟรนไชส์นี้แล้ว"));
-      if (all.some(x => x.supersedesId === id && x.status === "draft")) return Promise.reject(new Error("ใบนี้มีร่างเวอร์ชันใหม่ค้างอยู่แล้ว — แก้ร่างนั้นต่อ"));
-      if (!ทำเวอร์ชันใหม่ได้(เดิม, all)) return Promise.reject(new Error("ทำเวอร์ชันใหม่ได้เฉพาะใบล่าสุดที่ส่งแล้ว/ปฏิเสธ/หมดอายุ"));
+      if (all.some(x => x.supersedesId === id && x.status === "draft")) return Promise.reject(new Error("ใบนี้มีร่างฉบับใหม่ค้างอยู่แล้ว — แก้ร่างนั้นต่อ"));
+      if (!ทำเวอร์ชันใหม่ได้(เดิม, all)) return Promise.reject(new Error("ทำฉบับใหม่ได้เฉพาะใบล่าสุดที่ส่งแล้ว/ปฏิเสธ/หมดอายุ"));
       const now = new Date().toISOString();
       const version = (เดิม.version ?? 1) + 1;
       const row: DealerPackageProposal = {
@@ -1349,7 +1349,7 @@ export const LocalAdapter: DataAdapter = {
       const leads = readKey<LeadRow[]>(SALES.leads, leadSeed);
       const linked = leads.filter(l => l.customerId === id);
       const active = linked.filter(l => !isClosedDeal(l.status));
-      if (active.length) throw new Error(`ลบลูกค้าไม่ได้ — ยังมีดีลที่ขายอยู่ ${active.length} รายการ`);
+      if (active.length) throw new Error(`ลบลูกค้าไม่ได้ — ยังมีงานขายที่เปิดอยู่ ${active.length} รายการ`);
 
       const closedIds = new Set(linked.map(l => l.numId).filter((n): n is number => n != null));
       const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);

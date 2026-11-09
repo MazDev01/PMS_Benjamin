@@ -127,7 +127,7 @@ export function QuoteFilesBox({ requestId, uploadSide, canUpload, lockedReason, 
                   {f.name}
                 </button>
                 <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>
-                  {ขนาดไฟล์(f.size)} · {วันไทยสั้น(f.createdAt)} · {f.uploadedByName || "—"} · {f.side === "hq" ? `ใบ HQ ${f.quoteNo ?? "—"} เวอร์ชัน ${f.version ?? "—"}` : `คำขอ ${f.requestNo}`}
+                  {ขนาดไฟล์(f.size)} · {วันไทยสั้น(f.createdAt)} · {f.uploadedByName || "—"} · {f.side === "hq" ? `ใบ HQ ${f.quoteNo ?? "—"} ฉบับ ${f.version ?? "—"}` : `คำขอ ${f.requestNo}`}
                 </div>
               </div>
               <button type="button" className="btn btn-secondary btn-sm" aria-label={`ดาวน์โหลด ${f.name}`} onClick={() => void เปิด(f)}><Download size={13} /></button>

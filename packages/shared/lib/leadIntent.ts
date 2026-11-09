@@ -98,7 +98,7 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
   }
   // งานไม่เลื่อนขั้นแล้ว (รอบ 4 · ใบ 0232) · ดีลเลอร์เปลี่ยนเองได้เฉพาะ "ปิดไม่สำเร็จ" — ตรงกับตัวดัก leads_status_one_path
   if (status !== lead.status && status !== "CANCELLED")
-    throw new Error('lead_status_one_path: เปลี่ยนสถานะเองได้เฉพาะ "ปิดไม่สำเร็จ" ที่กล่องขั้นต่อไป — ขั้นอื่นระบบเลื่อนให้เองตามคำขอราคาและใบเสนอราคา');
+    throw new Error('lead_status_one_path: เปลี่ยนสถานะเองได้เฉพาะ "ปิดไม่สำเร็จ" ที่กล่องขั้นต่อไป — ขั้นอื่นระบบเลื่อนให้เองตามคำขอใบเสนอราคาและใบเสนอราคา');
   if (status !== lead.status) {
     if (status === "CANCELLED" && !(lostReason ?? "").trim())
       throw new Error("lead_lost_needs_reason: ปิดการขายไม่สำเร็จต้องระบุเหตุผลเสมอ");

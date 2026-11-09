@@ -58,7 +58,7 @@ export default function ImpersonatePage() {
   }, [ผิดพลาด, กลับไปสำนักงานใหญ่]);
 
   useEffect(() => {
-    if (!REAL_BACKEND) { setผิดพลาด("โหมดเดโมไม่ต้องใช้หน้านี้"); return; }
+    if (!REAL_BACKEND) { setผิดพลาด("โหมดข้อมูลตัวอย่างไม่ต้องใช้หน้านี้"); return; }
     const token = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("th") ?? "";
     if (!token) { setผิดพลาด("ลิงก์ไม่สมบูรณ์ — ขอลิงก์ใหม่จากหน้าดีลเลอร์ของสำนักงานใหญ่"); return; }
 

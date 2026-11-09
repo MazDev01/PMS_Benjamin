@@ -76,7 +76,7 @@ test("[ui·dealer] กดงานที่ยังไม่ติ๊ก = เ�
   // ได้ใบ HQ (ยังไม่ขอราคา) → บอกให้ขอราคาก่อน + ฟอร์มขอราคา
   await ไปภาพรวม(page);
   await งานบนจอ(page, "hqQuote").click();
-  await expect(page.getByRole("status").filter({ hasText: "ยังไม่ได้ส่งคำขอราคาให้ HQ" }), "ได้ใบ HQ ยังไม่ขอราคา = บอกให้ขอก่อน").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("status").filter({ hasText: "ยังไม่ได้ส่งคำขอใบเสนอราคาให้ HQ" }), "ได้ใบ HQ ยังไม่ขอราคา = บอกให้ขอก่อน").toBeVisible({ timeout: 15_000 });
   await page.locator("[data-act='abandon-request-form']").click().catch(() => {});
 
   // ติดตามลูกค้า → กล่องเลือก · ยกเลิก = ไม่ติ๊ก

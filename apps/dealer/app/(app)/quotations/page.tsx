@@ -464,7 +464,7 @@ function QuotationsPageInner(){
                               <button title="ดูใบ" aria-label={`ดูใบ ${q.id}`} onClick={e=>{e.stopPropagation();selectRow(q);}} style={ปุ่ม}><Eye size={14} aria-hidden /></button>
                               <button title={ขาด.length?`พิมพ์ไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาด.join(" · ")})`:"พิมพ์ PDF"} aria-label={`พิมพ์ ${q.id}`} disabled={ขาด.length>0}
                                 onClick={e=>{e.stopPropagation();void พิมพ์ใบ.พิมพ์(q,ลูกค้าจากใบ(q));}} style={{...ปุ่ม,opacity:ขาด.length?.4:1,cursor:ขาด.length?"not-allowed":"pointer"}}><Printer size={14} aria-hidden /></button>
-                              {q.status==="draft"&&(q.dealId!=null||!!q.customerId)&&<button title="แก้ใบร่าง (ที่แผงลีด)" aria-label={`แก้ ${q.id}`} onClick={e=>{e.stopPropagation();ไปแผงลีด(q);}} style={ปุ่ม}><Pencil size={14} aria-hidden /></button>}
+                              {q.status==="draft"&&(q.dealId!=null||!!q.customerId)&&<button title="แก้ใบร่าง (ที่แผงลูกค้าเป้าหมาย)" aria-label={`แก้ ${q.id}`} onClick={e=>{e.stopPropagation();ไปแผงลีด(q);}} style={ปุ่ม}><Pencil size={14} aria-hidden /></button>}
                               {q.status==="draft"&&<button title="ลบใบร่าง" aria-label={`ลบ ${q.id}`} onClick={e=>{e.stopPropagation();void ลบใบร่าง(q);}} style={{...ปุ่ม,color:"#dc2626"}}><Trash2 size={14} aria-hidden /></button>}
                             </>; })()}
                         </td>
@@ -510,7 +510,7 @@ function QuotationsPageInner(){
                       </button>
                       <div style={{fontSize:"0.72rem",color:MUTED,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project} · {q.province}</div>
                       <div style={{display:"flex",gap:0,borderRadius:9,overflow:"hidden",border:"1px solid #f0f4f8",marginBottom:10}}>
-                        {[{label:"พื้นที่",value:`${q.area?.toLocaleString()} ม²`}].map((item,i)=>(
+                        {[{label:"พื้นที่",value:`${q.area?.toLocaleString()} ตร.ม.`}].map((item,i)=>(
                           <div key={i} style={{flex:1,padding:"6px 8px",background:i%2===0?"#fafafa":"#f3f6fb",borderRight:"none",textAlign:"center"}}>
                             <div style={{fontSize:"0.65rem",color:"#9ca3af",fontWeight:600,marginBottom:2}}>{item.label}</div>
                             <div style={{fontSize:"0.65rem",color:STEEL,fontWeight:700}}>{item.value}</div>

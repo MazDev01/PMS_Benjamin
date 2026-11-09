@@ -69,7 +69,7 @@ export function MaterialEstimatePicker({ value, onChange, disabled }: { value: �
         <span data-testid="estimate-total" style={{ fontSize: "0.95rem", fontWeight: 800, color: "#3b0764" }}>{รวม == null ? "—" : `${บาท(รวม)} บาท`}</span>
         <span data-testid="estimate-label" className="badge" style={{ background: "#fef3c7", color: "#92400e" }}>{ป้ายราคาประเมิน}</span>
       </div>
-      <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคาส่งดีลเลอร์ (ก่อน VAT) ตามรายการวัสดุ ณ วันนี้ — ใช้กะงบเบื้องต้นเท่านั้น ราคาจริงตามใบ HQ · ไม่แสดงต่อลูกค้า</div>
+      <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคาจาก HQ (ก่อน VAT) ตามรายการวัสดุ ณ วันนี้ — ใช้กะงบเบื้องต้นเท่านั้น ราคาจริงตามใบ HQ · ไม่แสดงต่อลูกค้า</div>
     </div>
   );
 }

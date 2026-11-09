@@ -242,7 +242,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           {ใบHQ && (
             <div data-panel="hq-quote" style={{ borderTop: "1px solid #e9d5ff", paddingTop: 8, marginTop: 8, display: "grid", gap: 6 }}>
               <div data-testid="hq-quote-summary" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontWeight: 700, color: "#3b0764" }}>ใบ HQ {ใบHQ.quoteNo} · เวอร์ชัน {ใบHQ.version}</span>
+                <span style={{ fontWeight: 700, color: "#3b0764" }}>ใบ HQ {ใบHQ.quoteNo} · ฉบับ {ใบHQ.version}</span>
                 <span>· ต้นทุนรวมจาก HQ <b data-testid="hq-quote-summary-total">{บาท(Number(ใบHQ.totalCost))}</b> บาท</span>
                 <span>· ยืนราคาถึง {ใบHQ.validUntil ? วันไทยสั้น(ใบHQ.validUntil) : "—"}</span>
                 <span data-testid="hq-quote-summary-lines">· {ใบHQ.lineItems.length} รายการ</span>

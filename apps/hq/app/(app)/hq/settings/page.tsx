@@ -630,7 +630,7 @@ function CompanyTab() {
 type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "materials" | "notifications" | "storage";
 const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNode }[] = [
   { key: "company", label: "บริษัท", icon: <Building2 size={15} />, render: () => <CompanyTab /> },
-  { key: "users", label: "ผู้ใช้งานและสิทธิ์", icon: <Users size={15} />, render: () => <UsersPanel embedded /> },
+  { key: "users", label: "ผู้ใช้งาน", icon: <Users size={15} />, render: () => <UsersPanel embedded /> },
   { key: "journey", label: "ขั้นตอนการขายมาตรฐาน", icon: <GitMerge size={15} />, render: () => <JourneyTab /> },
   // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
   { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },

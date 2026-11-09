@@ -48,7 +48,7 @@ export type QuoteRequest = {
 export const quoteRequestStatusLabel: Record<QuoteRequestStatus, string> = {
   new: "ใหม่",
   pricing: "กำลังตีราคา",   // ชื่อตาม FLOW (บอสสั่ง 3 พ.ย. 69 · เลิกใช้ "กำลังทำราคา")
-  quoted: "ส่งใบแล้ว",
+  quoted: "ส่งแล้ว รอดีลเลอร์",
   won: "ปิด (ได้งาน)",
   lost: "ปิด (ไม่ได้งาน)",
   cancelled: "ยกเลิกแล้ว",   // ใบ 0280 (บอสสั่ง 5 พ.ย. 69)
@@ -110,7 +110,7 @@ export const hqQuoteStatusLabel: Record<HqQuoteStatus, string> = {
   draft: "ร่าง (ดีลเลอร์ยังไม่เห็น)",
   sent: "ส่งแล้ว",
   ordered: "สั่งผลิตแล้ว",
-  superseded: "มีเวอร์ชันใหม่แทน",
+  superseded: "มีฉบับใหม่แทน",
 };
 /** ยอดรายบรรทัด — ปัดสองตำแหน่งแบบเดียวกับฐานข้อมูล (hq_quote_save) */
 export const ยอดบรรทัด = (l: Pick<HqQuoteLine, "qty" | "unitCost">) => Math.round(Number(l.qty) * Number(l.unitCost) * 100) / 100;
@@ -209,11 +209,11 @@ export type QuoteBoardGroup = "todo" | "quoted" | "won" | "closed";
 export type QuoteBoardFilter = QuoteBoardGroup | "overdue" | "cancelled" | "all";   // cancelled = ยกเลิกแล้ว (ใบ 0280 · อยู่ในปิด/ยกเลิกด้วย)
 export const quoteBoardGroups: { key: QuoteBoardGroup; label: string }[] = [
   { key: "todo", label: "ต้องตีราคา" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" },
-  { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" },
+  { key: "won", label: "ปิด (ได้งาน)" }, { key: "closed", label: "ปิด/ยกเลิก" },
 ];
 export const quoteBoardFilters: { key: QuoteBoardFilter; label: string }[] = [
   { key: "todo", label: "ต้องตีราคา" }, { key: "overdue", label: "ต้องตีราคา — เกิน 14 วัน" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" },
-  { key: "won", label: "สั่งผลิต" }, { key: "closed", label: "ปิด/ยกเลิก" }, { key: "cancelled", label: "ยกเลิกแล้ว" }, { key: "all", label: "ทั้งหมด" },
+  { key: "won", label: "ปิด (ได้งาน)" }, { key: "closed", label: "ปิด/ยกเลิก" }, { key: "cancelled", label: "ยกเลิกแล้ว" }, { key: "all", label: "ทั้งหมด" },
 ];
 /** กลุ่มของแถวตามสถานะคำขอ (กติกาเดียวกับฐาน hq_quote_board) — ใช้เลือกข้อความนับวันของแถวในมุมมอง "ทั้งหมด" */
 export const กลุ่มของคำขอ = (status: string): QuoteBoardGroup =>
@@ -228,11 +228,11 @@ export const quoteBoardTag: Record<QuoteBoardTag, { label: string; color: string
   draft:      { label: "กำลังตีราคา",   color: "#92400e", bar: "#d97706", bg: "#ffffff" },
   new:        { label: "ใหม่",          color: "#52606d", bar: "transparent", bg: "#ffffff" },
   pricing:    { label: "กำลังตีราคา",   color: "#92400e", bar: "transparent", bg: "#ffffff" },
-  quoted:     { label: "รอดีลเลอร์",    color: "#003366", bar: "transparent", bg: "#ffffff" },
-  won:        { label: "สั่งผลิต",       color: "#166534", bar: "transparent", bg: "#ffffff" },
-  lost:       { label: "ไม่ได้งาน",     color: "#52606d", bar: "transparent", bg: "#ffffff" },
+  quoted:     { label: "ส่งแล้ว รอดีลเลอร์",    color: "#003366", bar: "transparent", bg: "#ffffff" },
+  won:        { label: "ปิด (ได้งาน)",       color: "#166534", bar: "transparent", bg: "#ffffff" },
+  lost:       { label: "ปิด (ไม่ได้งาน)",     color: "#52606d", bar: "transparent", bg: "#ffffff" },
   cancelled:  { label: "ยกเลิกแล้ว",    color: "#52606d", bar: "transparent", bg: "#ffffff" },
-  superseded: { label: "มีเวอร์ชันใหม่", color: "#52606d", bar: "transparent", bg: "#ffffff" },
+  superseded: { label: "ขอแก้ราคาแล้ว", color: "#52606d", bar: "transparent", bg: "#ffffff" },
 };
 export type QuoteBoardRow = QuoteRequest & {
   dealerName: string; leadCompany: string; hqStatus: HqQuoteStatus | null; quoteNo: string | null;

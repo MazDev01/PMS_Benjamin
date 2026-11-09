@@ -61,12 +61,12 @@ export function ขั้นต่อไป(x: NextStepInput): NextStep {
   if (req?.status === "quoted") {
     const หมดอายุ = !!x.hqQuote?.validUntil && x.hqQuote.validUntil < x.today;
     if (หมดอายุ) {
-      return ผล({ key: "requote", title: "ราคา HQ หมดอายุแล้ว", detail: `ราคาใช้ได้ถึง ${วันไทยสั้น(x.hqQuote!.validUntil!)} — ขอราคาใหม่ก่อนทำใบให้ลูกค้า`, action: { kind: "reprice", label: "ขอราคาใหม่" } });
+      return ผล({ key: "requote", title: "ราคาจาก HQ หมดอายุแล้ว", detail: `ยืนราคาถึง ${วันไทยสั้น(x.hqQuote!.validUntil!)} — ขอราคาใหม่ก่อนทำใบให้ลูกค้า`, action: { kind: "reprice", label: "ขอราคาใหม่" } });
     }
-    return ผล({ key: "make_quote", title: "HQ ส่งราคามาแล้ว — ทำใบเสนอราคาให้ลูกค้า", detail: x.hqQuote?.validUntil ? `ราคา HQ ใช้ได้ถึง ${วันไทยสั้น(x.hqQuote.validUntil)}` : "ใส่ % ที่บวกแล้วส่งให้ลูกค้า", action: { kind: "make_quote", label: "ทำใบให้ลูกค้า" } });
+    return ผล({ key: "make_quote", title: "HQ ส่งราคามาแล้ว — ทำใบเสนอราคาให้ลูกค้า", detail: x.hqQuote?.validUntil ? `ราคาจาก HQ ยืนราคาถึง ${วันไทยสั้น(x.hqQuote.validUntil)}` : "ใส่ % ที่บวกแล้วส่งให้ลูกค้า", action: { kind: "make_quote", label: "ทำใบให้ลูกค้า" } });
   }
   if (x.leadStatus === "WAITING" || x.leadStatus === "BULLET") {
     return ผล({ key: "request", title: "ขอราคาจาก HQ", detail: "พิมพ์งานที่ขอราคาและสเปก แล้วส่งให้ HQ ตีราคา", action: { kind: "request_quote", label: "ขอราคาจาก HQ" } });
   }
-  return ผล({ key: "stuck", title: "ไม่มีคำขอราคาหรือใบที่ใช้ได้", detail: "ไม่มีคำขอที่เปิดอยู่และไม่มีใบที่รอลูกค้าตอบ · ลูกค้าไม่สนใจแล้วกด \"ปิดไม่สำเร็จ\"", action: null });
+  return ผล({ key: "stuck", title: "ไม่มีคำขอใบเสนอราคาหรือใบที่ใช้ได้", detail: "ไม่มีคำขอที่เปิดอยู่และไม่มีใบที่รอลูกค้าตอบ · ลูกค้าไม่สนใจแล้วกด \"ปิดไม่สำเร็จ\"", action: null });
 }

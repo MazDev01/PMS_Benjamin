@@ -123,8 +123,8 @@ begin
   set local session_replication_role = origin;
   perform mitest.ok(rid is not null, 'สร้างคำขอราคาจำลองที่ใช้วัสดุในชุดได้');
   perform mitest.as_user(hq, 'SUPER_ADMIN', null);
-  perform mitest.must_fail(format('select hq_materials_import_cancel(%s)', ชุด2), 'มีคำขอราคาใช้วัสดุ', '5) มีคำขอราคาใช้วัสดุในชุดแล้ว = ยกเลิกไม่ได้');
-  perform mitest.ok((select e ->> 'blocked' from jsonb_array_elements(hq_material_import_batches()) e where (e ->> 'id')::bigint = ชุด2) like 'มีคำขอราคา%', '5) รายการชุดบอกเหตุ');
+  perform mitest.must_fail(format('select hq_materials_import_cancel(%s)', ชุด2), 'มีคำขอใบเสนอราคาใช้วัสดุ', '5) มีคำขอใบเสนอราคาใช้วัสดุในชุดแล้ว = ยกเลิกไม่ได้');
+  perform mitest.ok((select e ->> 'blocked' from jsonb_array_elements(hq_material_import_batches()) e where (e ->> 'id')::bigint = ชุด2) like 'มีคำขอใบเสนอราคา%', '5) รายการชุดบอกเหตุ');
 
   -- 5) ยกเลิกไม่ได้: แก้ราคาหลังนำเข้า
   ชุด3 := (hq_materials_import('ชุด3.xlsx', format('[{"category":"ผนัง","name":"%s เดิม","unit":"ตร.ม.","unitPrice":130}]', ป)::jsonb) ->> 'batch')::bigint;

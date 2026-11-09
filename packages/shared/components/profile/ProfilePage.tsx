@@ -42,8 +42,8 @@ const BORDER = "#e5e7eb";
 const ROLE_LABEL: Record<string, string> = {
   SUPER_ADMIN: "สำนักงานใหญ่", HQ_MANAGEMENT: "สำนักงานใหญ่", HQ_STAFF: "สำนักงานใหญ่",   /* HQ บทบาทเดียว (ใบ 0282) */
   DEALER_ADMIN: "ผู้จัดการดีลเลอร์",
-  DEALER_SALES: "เซลส์",
-  DEALER_SITE: "เซลส์ภาคสนาม",
+  DEALER_SALES: "พนักงานขาย",
+  DEALER_SITE: "พนักงานขายภาคสนาม",
 };
 
 export default function ProfilePage() {
@@ -133,7 +133,7 @@ export default function ProfilePage() {
 
     // H3 — เปลี่ยนรหัสจริงในโหมด supabase (ยืนยันรหัสปัจจุบันก่อน) · โหมดเดโมไม่มีระบบยืนยันตัวตนจริง
     if (!REAL_BACKEND) {
-      setPwMsg({ ok: false, text: "โหมดเดโม: เปลี่ยนรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" });
+      setPwMsg({ ok: false, text: "โหมดข้อมูลตัวอย่าง: เปลี่ยนรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" });
       return;
     }
     setPwBusy(true);

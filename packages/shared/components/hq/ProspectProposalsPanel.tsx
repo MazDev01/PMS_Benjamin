@@ -95,7 +95,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
         )}
       </div>
       <div style={{ fontSize: "0.7rem", color: MUTED, marginBottom: 10, lineHeight: 1.6 }}>
-        สร้างดีลเลอร์ใหม่จากรายนี้ได้ ต่อเมื่อใบ “ตอบรับ” และบันทึกการชำระครบตามใบ · ส่งแล้วแก้เนื้อหาไม่ได้ ต้องทำเวอร์ชันใหม่
+        สร้างดีลเลอร์ใหม่จากรายนี้ได้ ต่อเมื่อใบ “ตอบรับ” และบันทึกการชำระครบตามใบ · ส่งแล้วแก้เนื้อหาไม่ได้ ต้องทำฉบับใหม่
       </div>
 
       {/* ออก/แก้ใบ = เปิดฟอร์มในแท็บนี้เลย ไม่เด้งหน้าต่าง (บอสสั่ง 15 ก.ย. 69) · ยกเลิก/บันทึกแล้วกลับเป็นรายการ */}
@@ -126,7 +126,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                     <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                       <div style={{ fontWeight: 800, color: PRIMARY, fontSize: "0.82rem" }}>
                         {p.proposalNo ?? "—"}
-                        {(p.version ?? 1) > 1 && <span style={{ fontWeight: 600, color: MUTED, fontSize: "0.7rem" }}> · เวอร์ชัน {p.version}</span>}
+                        {(p.version ?? 1) > 1 && <span style={{ fontWeight: 600, color: MUTED, fontSize: "0.7rem" }}> · ฉบับ {p.version}</span>}
                       </div>
                       <div style={{ fontSize: "0.74rem", color: "#374151" }}>
                         ค่าแรกเข้า {มูลค่าอ่านง่าย(p.amount)}
@@ -159,9 +159,9 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                         <Printer size={13} />
                       </button>
                       {editable && ทำเวอร์ชันใหม่ได้(p, list) && (
-                        <button className="btn btn-secondary btn-sm" aria-label={`ทำเวอร์ชันใหม่จากใบ ${p.proposalNo ?? ""}`} title="ทำเวอร์ชันใหม่"
+                        <button className="btn btn-secondary btn-sm" aria-label={`ทำฉบับใหม่จากใบ ${p.proposalNo ?? ""}`} title="ทำฉบับใหม่"
                           onClick={() => void กดทำเวอร์ชันใหม่(p)}>
-                          <CopyPlus size={13} /> เวอร์ชันใหม่
+                          <CopyPlus size={13} /> ฉบับใหม่
                         </button>
                       )}
                       {editable && !ใบล็อกแล้ว(p.status) && (

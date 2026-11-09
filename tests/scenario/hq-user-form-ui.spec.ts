@@ -16,7 +16,7 @@ import { ป้ายพร้อมดาว } from "./requiredMark";
 test.describe("[ui·hq] ฟอร์มเพิ่มผู้ใช้งานสำนักงานใหญ่", () => {
   async function เปิดฟอร์ม(page: Page) {
     await open(page, "hq", "/hq/settings");
-    await page.getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
+    await page.getByRole("button", { name: /^ผู้ใช้งาน/ }).click();
     await page.getByRole("button", { name: /เพิ่มผู้ใช้งาน HQ/ }).click();
     await expect(page.getByRole("dialog", { name: "ฟอร์มผู้ใช้ HQ" })).toBeVisible({ timeout: 15_000 });
   }
@@ -86,7 +86,7 @@ test.describe("[ui·hq] ฟอร์มเพิ่มผู้ใช้งา�
 
   test("หน้าผู้ใช้: ไม่มีตัวกรอง/คอลัมน์บทบาท · ไม่มีตารางสิทธิ์ตามบทบาท · แผนกยังกรองได้", async ({ page }) => {
     await open(page, "hq", "/hq/settings");
-    await page.getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
+    await page.getByRole("button", { name: /^ผู้ใช้งาน/ }).click();
     await expect(page.getByText("ผู้ใช้ทั้งหมด").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByLabel("กรองตามบทบาท"), "ไม่มีตัวกรองบทบาท").toHaveCount(0);
     await expect(page.getByLabel("กรองตามแผนก"), "ตัวกรองแผนกคงไว้").toBeVisible();
@@ -105,7 +105,7 @@ test.describe("[ui·hq] ฟอร์มเพิ่มผู้ใช้งา�
       await route.fulfill({ response: r, json: ใหม่ });
     });
     await open(page, "hq", "/hq/settings");
-    await page.getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
+    await page.getByRole("button", { name: /^ผู้ใช้งาน/ }).click();
     const แถว = page.locator("tbody tr.clickable").filter({ hasText: ADMIN.email }).first();
     await expect(แถว).toBeVisible({ timeout: 20_000 });
     await แถว.getByRole("button", { name: "จัดการ" }).click();
@@ -159,7 +159,7 @@ test.describe("[role·hq] บทบาทเดียว: ผู้ใช้ส�
     // ล็อกอินจริงผ่านหน้าเข้าระบบ (โหมด api เก็บใบผ่านใน cookie · เดิมยัด localStorage ซึ่งไม่มีผลแล้ว)
     await loginUI(page, HQ_ORIGIN, "/hq/settings", บัญชี!);
     await expect(page, "ไม่ถูกเด้งออกจากหน้าตั้งค่า (เดิมผู้บริหารถูก AdminGate เด้ง)").toHaveURL(/\/hq\/settings/, { timeout: 20_000 });
-    await page.getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
+    await page.getByRole("button", { name: /^ผู้ใช้งาน/ }).click();
     await expect(page.getByRole("button", { name: /เพิ่มผู้ใช้งาน HQ/ }), "เห็นปุ่มเพิ่มผู้ใช้ (เดิม: ไม่เห็น)").toHaveCount(1, { timeout: 20_000 });
   });
 });

@@ -66,7 +66,7 @@ function loadHQUsers(): StoredHQUser[] {
 }
 
 const ERR_BAD_PASSWORD = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
-const ERR_INACTIVE     = "บัญชีนี้ถูกปิดใช้งาน — กรุณาติดต่อผู้ดูแลระบบ";
+const ERR_INACTIVE     = "บัญชีนี้ถูกปิดใช้งาน — กรุณาติดต่อสำนักงานใหญ่";
 const ERR_NOT_FOUND    = "ไม่พบบัญชีผู้ใช้นี้ในระบบ";
 const ERR_EMPTY        = "กรุณากรอกอีเมลและรหัสผ่าน";
 

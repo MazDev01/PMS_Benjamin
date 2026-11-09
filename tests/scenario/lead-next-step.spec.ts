@@ -135,7 +135,7 @@ test("[func·dealer] ขั้นต่อไป: ราคา HQ หมดอ�
     alter table public.hq_quotes enable trigger hq_quotes_lock_sent;`);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const กล่อง = await เปิดแผง(page, "หมดอายุ");
-  await expect(กล่อง).toContainText("ราคา HQ หมดอายุแล้ว", { timeout: 20_000 });
+  await expect(กล่อง).toContainText("ราคาจาก HQ หมดอายุแล้ว", { timeout: 20_000 });
   await กล่อง.getByRole("button", { name: /ขอราคาใหม่/ }).click();
   await expect(page.locator("[data-reason-dialog]").getByRole("button", { name: "ส่งขอแก้ราคา" }), "กดแล้วต้องเปิดกล่องขอแก้ราคา (กล่องเหตุผลกลาง)").toBeVisible({ timeout: 15_000 });
 });
@@ -148,6 +148,6 @@ test("[func·dealer] ขั้นต่อไป: ปิดไม่สำเร
   await expect(กล่อง).toContainText("ปิดการขายไม่สำเร็จ", { timeout: 20_000 });
   await expect(กล่อง.getByRole("button")).toHaveCount(0);
   กล่อง = await เปิดแผง(page, "ค้าง");
-  await expect(กล่อง).toContainText("ไม่มีคำขอราคาหรือใบที่ใช้ได้", { timeout: 20_000 });
+  await expect(กล่อง).toContainText("ไม่มีคำขอใบเสนอราคาหรือใบที่ใช้ได้", { timeout: 20_000 });
   await expect(กล่อง.locator("[data-next-step]"), "ฐานไม่ยอมให้ขอราคาจากขั้นนี้ — ห้ามเสนอปุ่มหลัก").toHaveCount(0);
 });

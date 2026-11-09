@@ -159,7 +159,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
     if (ปัญหา) { แจ้งพลาด(ปัญหา); return; }
     const ตกลง = await ยืนยัน({
       หัวข้อ: `ส่งใบ HQ ให้ ${ชื่อของ(request.dealerCode, dealerName)} ?`,
-      รายละเอียด: `ราคาส่งดีลเลอร์ (ก่อน VAT) ${บาท(รวม)} บาท · ยืนราคาถึง ${วันไทยสั้น(ยืนราคาถึง)} — ส่งแล้วแก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นเวอร์ชันใหม่`,
+      รายละเอียด: `ราคาจาก HQ (ก่อน VAT) ${บาท(รวม)} บาท · ยืนราคาถึง ${วันไทยสั้น(ยืนราคาถึง)} — ส่งแล้วแก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นฉบับใหม่`,
       ปุ่มตกลง: "ส่งใบ HQ",
     });
     if (!ตกลง) return;
@@ -180,7 +180,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       const h = await repo.copyHqQuote(request.id, ใบก่อน.id);
       setใบ(h); setLines(h.lineItems); setยืนราคาถึง(h.validUntil ?? วันยืนราคาตั้งต้น()); setหมายเหตุ(h.note);
       setภาพที่บันทึก(ภาพ(h.lineItems, h.validUntil ?? วันยืนราคาตั้งต้น(), h.note));
-      แจ้งสำเร็จ(`เริ่มเวอร์ชันใหม่จาก ${ใบก่อน.quoteNo} แล้ว — แก้รายการแล้วส่งได้เลย`);
+      แจ้งสำเร็จ(`เริ่มฉบับใหม่จาก ${ใบก่อน.quoteNo} แล้ว — แก้รายการแล้วส่งได้เลย`);
       onChanged();
     } catch (e) { แจ้งพลาด(friendlyError(e)); }
     finally { setBusy(false); }
@@ -295,8 +295,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
 
           {ใบ !== undefined && !ใบ && ใบก่อน && แก้ได้ && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#eff6ff", borderRadius: 12, padding: "10px 14px", fontSize: "0.82rem" }}>
-              <span style={{ flex: 1 }}>ดีลเลอร์ขอแก้ราคาจาก {ใบก่อน.quoteNo} — เริ่มเวอร์ชันใหม่จากรายการเดิมแล้วแก้ต่อได้</span>
-              <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => void เริ่มจากใบก่อน()}><Copy size={13} /> เริ่มจากใบเวอร์ชันก่อน</button>
+              <span style={{ flex: 1 }}>ดีลเลอร์ขอแก้ราคาจาก {ใบก่อน.quoteNo} — เริ่มฉบับใหม่จากรายการเดิมแล้วแก้ต่อได้</span>
+              <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => void เริ่มจากใบก่อน()}><Copy size={13} /> เริ่มจากใบฉบับก่อน</button>
             </div>
           )}
 
@@ -304,7 +304,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
             <>
               {ล็อก && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#166534", background: "#f0fdf4", borderRadius: 12, padding: "10px 14px", fontSize: "0.82rem" }}>
-                  <Lock size={14} /> ส่งให้ดีลเลอร์แล้ว{ใบ?.sentAt ? ` ${วันไทยสั้น(ใบ.sentAt)}` : ""}{ใบ?.sentByName ? ` โดย ${ใบ.sentByName}` : ""} — ใบนี้แก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นเวอร์ชันใหม่
+                  <Lock size={14} /> ส่งให้ดีลเลอร์แล้ว{ใบ?.sentAt ? ` ${วันไทยสั้น(ใบ.sentAt)}` : ""}{ใบ?.sentByName ? ` โดย ${ใบ.sentByName}` : ""} — ใบนี้แก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นฉบับใหม่
                 </div>
               )}
               {/* ตาราง BOQ กลาง (BoqTable) — แหล่งรายการเพิ่ม (รายการวัสดุ · รายการจากคำขอดีลเลอร์) ส่งเข้ามาทาง แหล่ง โดยไม่รื้อตาราง */}

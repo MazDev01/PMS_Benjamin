@@ -145,7 +145,7 @@ test("[ux·dealer] ตั้งค่าใช้ปุ่มบันทึก�
 // ผู้ใช้ HQ: หน้า Users เฉพาะ HQ (ไม่มี dealer) + stat/matrix · action dropdown → รีเซ็ตรหัสผ่าน
 test("[ux·hq] หน้าผู้ใช้ HQ เฉพาะ HQ + stat/matrix + รีเซ็ตรหัสผ่าน", async ({ page }) => {
   await open(page, "hq", "/hq/settings");
-  await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
+  await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /^ผู้ใช้งาน/ }).click();
   await expect(page.getByText("ผู้ใช้ทั้งหมด")).toBeVisible();
   await expect(page.getByText("ตารางสิทธิ์ตามบทบาท", { exact: true }), "HQ บทบาทเดียว (ใบ 0282): ไม่มีตารางสิทธิ์ตามบทบาท").toHaveCount(0);   // เดิม: ต้องเห็น (28 ต.ค. 69)
   // ต้องไม่มีผู้ใช้ของ Dealer (role เซลส์ดีลเลอร์หายไป)

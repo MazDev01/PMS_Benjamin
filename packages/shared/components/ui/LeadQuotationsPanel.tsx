@@ -438,7 +438,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
               <input id="q-area" inputMode="decimal" value={form.area} onChange={e => set("area", e.target.value.replace(/[^\d.]/g, ""))} readOnly={ฉบับใหม่} placeholder="0"
                 style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} /></div>
           </div>
-          {ฉบับใหม่ && <div data-version-copied style={{ fontSize: "0.68rem", color: "#6b7280", marginTop: 4 }}>ฉบับใหม่: ลูกค้า โครงการ จังหวัด พื้นที่ และภาษี คัดลอกจากใบเดิม แก้ไม่ได้ — แก้ได้เฉพาะ % ที่บวก</div>}
+          {ฉบับใหม่ && <div data-version-copied style={{ fontSize: "0.68rem", color: "#6b7280", marginTop: 4 }}>ฉบับใหม่: ลูกค้า ชื่องาน จังหวัด พื้นที่ และภาษี คัดลอกจากใบเดิม แก้ไม่ได้ — แก้ได้เฉพาะ % ที่บวก</div>}
         </div>
         {ใบHQของฟอร์ม ? (
           <>

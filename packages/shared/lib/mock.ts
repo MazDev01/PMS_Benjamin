@@ -364,7 +364,7 @@ export const HQ_NOTIF_UPDATED_EVENT = "bpms-hq-notif-updated";
 export const HQ_NOTIF_EVENTS: { key: string; label: string; desc: string }[] = [
   { key: "dealer",  label: "จัดการดีลเลอร์",         desc: "สร้าง แก้ไข หรือปิดใช้งานดีลเลอร์ในเครือ" },
   { key: "target",  label: "เป้าหมายและการตั้งค่า", desc: "แก้เป้ายอดขายเครือ หรือการตั้งค่าระบบ" },
-  { key: "users",   label: "ผู้ใช้และสิทธิ์",        desc: "เพิ่มหรือแก้ไขผู้ใช้และสิทธิ์ใน HQ" },
+  { key: "users",   label: "ผู้ใช้งาน",        desc: "เพิ่มหรือแก้ไขผู้ใช้งานของ HQ" },
 ];
 export const DEFAULT_HQ_NOTIFS: Record<string, HQNotifChannels> =
   Object.fromEntries(HQ_NOTIF_EVENTS.map(e => [e.key, { email: e.key === "dealer", inapp: true }]));
@@ -428,7 +428,7 @@ export const HQ_AUDIT_MODULE_LABEL: Record<string, string> = {
   dealer: "ดีลเลอร์",
   pricing: "ราคากลาง",
   catalog: "แม่แบบ (เลิกใช้แล้ว · ประวัติเก่า)",   // เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 — เหลือไว้ให้ประวัติเก่าอ่านออก
-  users: "ผู้ใช้และสิทธิ์",
+  users: "ผู้ใช้งาน",
   target: "เป้าหมายและการตั้งค่า",
 };
 
@@ -699,7 +699,7 @@ export const SYSTEM_LEAD_TASKS: (LeadTaskDef & { auto: true; เมื่อ: st
   { key: "collect",            label: "เก็บข้อมูลลูกค้า",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลลูกค้าครบ (ชื่อบริษัท · ผู้ติดต่อ · โทรศัพท์)" },
   { key: "requirement",        label: "สรุปความต้องการ",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลงานครบ (จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ · สเปก)" },
   { key: APPOINTMENT_TASK_KEY, label: "นัดหมาย",         step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อบันทึกนัดหมาย" },
-  { key: "requestQuote",       label: "ส่งคำขอราคา",      step: 2, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งคำขอราคาให้ HQ" },
+  { key: "requestQuote",       label: "ส่งคำขอราคา",   /* ชื่องานตาม FLOW (ตรงรายการงานของฐาน _lead_system_tasks + งานที่บันทึกในลูกค้าเป้าหมายแล้ว) — เปลี่ยนพร้อมฐานเป็นงานแยก */      step: 2, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งคำขอใบเสนอราคาให้ HQ" },
   { key: "hqQuote",            label: "ได้ใบ HQ",         step: 3, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อ HQ ส่งใบ" },
   { key: QUOTE_TASK_KEY,       label: "จัดทำใบเสนอราคา",  step: 4, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อทำใบเสนอราคา" },
   { key: SEND_QUOTE_TASK_KEY,  label: "ส่งใบเสนอราคา",    step: 4, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า" },
@@ -829,7 +829,7 @@ export function buildLeadReport(lead: Partial<LeadRow>, dateStr = ""): string {
     "",
     "รายละเอียดเบื้องต้น",
     "- ลูกค้าสนใจ : ", // ไม่เติมแม่แบบเก่าของลูกค้าเป้าหมาย (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
-    "- ขนาดโครงการ : ",
+    "- ขนาดงาน : ",
     `- จังหวัด : ${lead.province ?? ""}`,
     "- งบประมาณ : ", // ไม่เติมช่องประเมินราคาเดิม (เอาออกจากหน้าเว็บ · บอสตัดสิน 19 ต.ค. 69 ข้อ 5)
     "- ระยะเวลาดำเนินการ : ",
@@ -864,7 +864,7 @@ export const leads: LeadRow[] = [
   { id: "#L-40334", numId: 13, createdAt: "25 มิ.ย. 2569", name: "สหกรณ์การเกษตรเชียงดาว", company: "สหกรณ์การเกษตรเชียงดาว", contact: "คุณบุญมี ส.", phone: "089-777-8899", email: "boonmee@cdcoop.or.th", province: "เชียงใหม่", product: "โกดังเก็บสินค้าเกษตร", category: "โกดังสำเร็จรูป", status: "BULLET", value: "฿1.4M", area: 700, assigned: "วิภา รัตนกุล", source: "ลูกค้าเข้ามาเอง", note: "ไซโลและโกดังเก็บข้าวโพด", tasks: seedLeadTasks("BULLET", "วิภา รัตนกุล", 20), activities: [ { id: 1, date: "25 มิ.ย. 2569", icon: "meeting", text: "ลงพื้นที่ดูหน้างานที่เชียงดาว", type: "meeting" } ] },
   { id: "#L-40335", numId: 14, createdAt: "28 มิ.ย. 2569", name: "บจ. น่านโลจิสติกส์", company: "บจ. น่านโลจิสติกส์", contact: "คุณพงศกร น.", phone: "089-888-9900", email: "pongsakorn@nanlogis.co.th", province: "น่าน", product: "งานตามแบบของลูกค้า", category: "งานตามแบบของลูกค้า", status: "WAITING", value: "฿3.3M", area: 1650, assigned: "สมชาย เชียงใหม่", source: "โทรเข้า", note: "ศูนย์กระจายสินค้าตามแบบเฉพาะ", tasks: seedLeadTasks("WAITING", "สมชาย เชียงใหม่", 27), activities: [ { id: 1, date: "28 มิ.ย. 2569", icon: "call", text: "ลูกค้าโทรเข้ามาสอบถาม — นัดเก็บความต้องการสัปดาห์หน้า", type: "call" } ] },
   { id: "#L-40336", numId: 15, createdAt: "18 มิ.ย. 2569", name: "บจ. เชียงรายฟู้ดส์", company: "บจ. เชียงรายฟู้ดส์", contact: "คุณรัชนี ก.", phone: "089-999-0011", email: "ratchanee@crfoods.co.th", province: "เชียงราย", product: "โรงงานอาหาร", category: "โรงงาน", status: "CANCELLED", value: "฿2.2M", area: 1100, assigned: "กาญจนา มีสุข", source: "เว็บไซต์", lostReason: "ราคา", note: "เลือกผู้รับเหมาท้องถิ่น ราคาต่ำกว่า 12%", tasks: seedLeadTasks("CANCELLED", "กาญจนา มีสุข", 5), activities: [ { id: 1, date: "18 มิ.ย. 2569", icon: "note", text: "ลูกค้าแจ้งเลือกเจ้าอื่น — เหตุผลด้านราคา", type: "note" } ] },
-  { id: "#L-40337", numId: 16, createdAt: "10 มิ.ย. 2569", name: "หจก. แม่ฮ่องสอนพาณิชย์", company: "หจก. แม่ฮ่องสอนพาณิชย์", contact: "คุณอนุชา ม.", phone: "089-000-1122", email: "anucha@mhscon.co.th", province: "แม่ฮ่องสอน", product: "อาคารสำเร็จรูปทุกประเภท", category: "อาคารสำเร็จรูปทุกประเภท", status: "CANCELLED", value: "฿950K", area: 480, assigned: "วิภา รัตนกุล", source: "แนะนำ", lostReason: "งบประมาณ", note: "โครงการถูกพับ — งบไม่อนุมัติ", tasks: seedLeadTasks("CANCELLED", "วิภา รัตนกุล", 3), activities: [ { id: 1, date: "10 มิ.ย. 2569", icon: "call", text: "ลูกค้าแจ้งพับโครงการ งบประมาณไม่ผ่าน", type: "call" } ] },
+  { id: "#L-40337", numId: 16, createdAt: "10 มิ.ย. 2569", name: "หจก. แม่ฮ่องสอนพาณิชย์", company: "หจก. แม่ฮ่องสอนพาณิชย์", contact: "คุณอนุชา ม.", phone: "089-000-1122", email: "anucha@mhscon.co.th", province: "แม่ฮ่องสอน", product: "อาคารสำเร็จรูปทุกประเภท", category: "อาคารสำเร็จรูปทุกประเภท", status: "CANCELLED", value: "฿950K", area: 480, assigned: "วิภา รัตนกุล", source: "แนะนำ", lostReason: "งบประมาณ", note: "งานถูกพับ — งบไม่อนุมัติ", tasks: seedLeadTasks("CANCELLED", "วิภา รัตนกุล", 3), activities: [ { id: 1, date: "10 มิ.ย. 2569", icon: "call", text: "ลูกค้าแจ้งพับงาน งบประมาณไม่ผ่าน", type: "call" } ] },
   { id: "#L-40327", numId: 6, createdAt: "21 มิ.ย. 2569", name: "บจ. ทีทีวาย", company: "บจ. ทีทีวาย อินเตอร์", contact: "คุณวิทยา ท.", phone: "086-789-0123", email: "wittaya@ttyinter.com", province: "นครสวรรค์", product: "โกดังสำเร็จรูป", category: "โกดังสำเร็จรูป", status: "PAID", value: "฿5.4M", area: 2400, assigned: "สมชาย เชียงใหม่", source: "แนะนำ", note: "ปิดการขายแล้ว รอทำสัญญา", customerId: 9, tasks: seedLeadTasks("PAID", "สมชาย เชียงใหม่", 4), activities: [ { id: 1, date: "28 มิ.ย. 2569", icon: "doc", text: "ปิดการขายสำเร็จ — ลูกค้ายืนยันสั่งซื้อ ฿5.4M", type: "doc" }, { id: 2, date: "21 มิ.ย. 2569", icon: "meeting", text: "เจรจาราคารอบสุดท้าย ตกลงเงื่อนไขชำระเงิน", type: "meeting" } ] },
 
   // ── ลูกค้าเป้าหมายของสาขาอื่น (สมมุติขึ้นตามที่บอสสั่ง — ระบบมีสมุดงานจริงแค่ CNX สาขาเดียว) ──
@@ -1088,7 +1088,7 @@ export const quotations: QuotationMock[] = [
   { id: "Q-2026-0105", customer: "หจก. เชียงใหม่ค้าวัสดุ", project: "รีโนเวทโกดัง เพิ่มชั้นลอย", total: "฿890,000", totalValue: 890000, materialCost: 890000, province: "เชียงใหม่", buildingType: "ต่อเติมอาคาร", area: 450, status: "sent_to_client", date: "2026-06-22", items: 5, customerId: 0, projectId: 0, expiry: "2026-07-22" },
   { id: "Q-2026-0106", customer: "โรงเรียนนานาชาติเชียงใหม่", project: "โรงยิมอเนกประสงค์ CMIS", total: "฿6,500,000", totalValue: 6500000, materialCost: 6500000, province: "เชียงใหม่", buildingType: "โรงยิมอเนกประสงค์", area: 2000, status: "sent_to_client", date: "2026-06-16", items: 16, customerId: 0, projectId: 0, expiry: "2026-07-16" },
   { id: "Q-2026-0107", customer: "บจ. เชียงรายฟู้ดส์", project: "โรงงานแปรรูปอาหาร เชียงราย", total: "฿2,200,000", totalValue: 2200000, materialCost: 2200000, province: "เชียงราย", buildingType: "โรงงานอาหาร", area: 1100, status: "lost", date: "2026-06-05", items: 8, customerId: 0, projectId: 0, note: "แพ้ราคาผู้รับเหมาท้องถิ่น" },
-  { id: "Q-2026-0108", customer: "บจ. เอกชัยสตอเรจ", project: "คลังสินค้า เฟส 2 ลำปาง", total: "฿1,650,000", totalValue: 1650000, materialCost: 1650000, province: "ลำปาง", buildingType: "โกดังสำเร็จรูป", area: 850, status: "expired", date: "2026-04-02", items: 6, customerId: 11, projectId: 0, expiry: "2026-05-02", note: "ลูกค้าเลื่อนโครงการ — ใบเสนอราคาหมดอายุ" },
+  { id: "Q-2026-0108", customer: "บจ. เอกชัยสตอเรจ", project: "คลังสินค้า เฟส 2 ลำปาง", total: "฿1,650,000", totalValue: 1650000, materialCost: 1650000, province: "ลำปาง", buildingType: "โกดังสำเร็จรูป", area: 850, status: "expired", date: "2026-04-02", items: 6, customerId: 11, projectId: 0, expiry: "2026-05-02", note: "ลูกค้าเลื่อนงาน — ใบเสนอราคาหมดอายุ" },
   // ── ใบเสนอราคาที่ปิดการขาย เติมให้ครบตามจำนวนโครงการของลูกค้าแต่ละราย (บอสสั่ง) ──
   // เดิม seed มีลูกค้า 13 ราย แต่ใบที่ปิดจริงมีแค่ 5 ใบ → ลูกค้า 8 รายไม่มีที่มา
   // ทั้งที่ลูกค้าเกิดจากปิดการขายเท่านั้น → ทุกรายต้องมีอย่างน้อย 1 โครงการ
@@ -1768,7 +1768,7 @@ export const notes: NoteMock[] = [
 //   ผู้ใช้อ่านแล้วไม่แน่ใจว่าตกลงตัวเองเป็นอะไร และคำไหนคือคำที่ระบบใช้จริง
 export function roleLabelOf(role: string, isHQ: boolean): string {
   if (isHQ) return "สำนักงานใหญ่";   // HQ บทบาทเดียว (บอสสั่ง 5 พ.ย. 69 · ใบ 0282)
-  return ({ DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม" } as Record<string, string>)[role] ?? "สมาชิก";
+  return ({ DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "พนักงานขาย", DEALER_SITE: "พนักงานขายภาคสนาม" } as Record<string, string>)[role] ?? "สมาชิก";
 }
 
 // ── มูลค่าลีด = ยอดก่อน VAT ของใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) ──────────

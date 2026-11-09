@@ -553,7 +553,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       && matchCustomers([l], form.company, myDealer.code).exact && ตัวเลข(l.phone) === ตัวเลข(form.phone));
     if (ชื่อเบอร์ซ้ำ) return `มีลูกค้าเป้าหมาย "${ชื่อเบอร์ซ้ำ.company}" เบอร์ ${ชื่อเบอร์ซ้ำ.phone} เปิดอยู่แล้ว — ชื่อและเบอร์ซ้ำ บันทึกไม่ได้ ให้เปิดรายการเดิมแทน`;
     if (dupLead.exact) return `มีลูกค้าเป้าหมายชื่อ "${dupLead.exact.company}" อยู่แล้ว — ถ้าเพิ่งกดบันทึกไปในหน้าอื่น อาจกลายเป็นรายการซ้ำ`;
-    if (similar[0])   return `ชื่อใกล้เคียงกับลูกค้าเดิม "${similar[0].company}" — ถ้าเป็นบริษัทเดียวกัน ควรกด "สร้างดีลใหม่" จากหน้าลูกค้าแทน`;
+    if (similar[0])   return `ชื่อใกล้เคียงกับลูกค้าเดิม "${similar[0].company}" — ถ้าเป็นบริษัทเดียวกัน ควรกด "สร้างงานขายใหม่" จากหน้าลูกค้าแทน`;
     if (dupLead.similar[0]) return `ชื่อใกล้เคียงกับลูกค้าเป้าหมายที่มีอยู่ "${dupLead.similar[0].company}" — ตรวจก่อนว่าไม่ใช่รายการเดียวกัน`;
     return "";
   }, [isEdit, form.company, form.phone, customers, existingLeads, myDealer.code]);
@@ -1266,7 +1266,7 @@ export default function LeadsPage() {
   const kpi = useKpiCards("dealer.leads", { filters: ชุดการ์ด, รุ่น: [myAllLeads.map(l => `${l.id}:${l.status}`).join(","), quotations.filter(q => q.status === "draft").length] });
   const กดขั้น = (s: 2 | 3 | 4 | null) => { setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
   const kpiCards = [
-    { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
+    { kpi: "open", label: "ลูกค้าเป้าหมายที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
       on: ขั้นจากการ์ด == null && filterStatus === "OPEN" && followUpDays === 0, onClick: () => กดขั้น(null) },
     { kpi: "hq-pricing", label: ชื่อขั้น(2), value: ค่า(kpi, "hqPricing"), unit: "ราย · ส่งคำขอแล้ว รอ HQ ตีราคา", icon: Send, color: "#7C3AED", bg: "#F3E8FF",
       on: ขั้นจากการ์ด === 2, onClick: () => กดขั้น(2) },

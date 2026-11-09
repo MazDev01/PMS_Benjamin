@@ -190,7 +190,7 @@ test("[H12·hq] กล่องล่าง: เส้นทางการข�
   const รวม = async (k: string) => (await ผลรวม(page, k)) ?? "";
   const ทาง = page.getByTestId("pipeline-funnel");
   await expect.poll(async () => ({
-    ลีด: await ทาง.locator('[data-bar-row="ลีดใหม่"]').getAttribute("data-value").catch(() => null),
+    ลีด: await ทาง.locator('[data-bar-row="ลูกค้าเป้าหมายใหม่"]').getAttribute("data-value").catch(() => null),
     ปิดได้: await ทาง.locator('[data-bar-row="ปิดสำเร็จ"]').getAttribute("data-value").catch(() => null),
   }), { message: "เส้นทางการขาย = ผลรวมของตาราง", timeout: 20_000 }).toEqual({ ลีด: await รวม("leads"), ปิดได้: await รวม("won") });
   expect([await รวม("leads"), await รวม("won")], "ค่าที่วางไว้: ลีด 6 · ปิดได้ 3").toEqual(["6", "3"]);

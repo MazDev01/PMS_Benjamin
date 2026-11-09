@@ -227,14 +227,14 @@ test("[ui·hq] หน้าต่างใบค่าแฟรนไชส์: 
   await expect(แผง.getByText(เลข).first()).toBeVisible({ timeout: 20_000 });
   await ตรวจตำแหน่งแถบ(แผง);
   const สรุป = await อ่านแถบสรุป(แผง);
-  expect(สรุป.map(s => s.ป้าย), "แถบสรุป 4 ช่องตามลำดับ").toEqual(["ค่าแรกเข้า", "สถานะ", "ข้อเสนอมีผลถึง", "เวอร์ชัน"]);
+  expect(สรุป.map(s => s.ป้าย), "แถบสรุป 4 ช่องตามลำดับ").toEqual(["ค่าแรกเข้า", "สถานะ", "ข้อเสนอมีผลถึง", "ฉบับ"]);
   const ช่อง = Object.fromEntries(สรุป.map(s => [s.คีย์, s]));
   expect(ช่อง.amount.ค่า, "ค่าแรกเข้าตามฐาน").toBe(`฿${Number(ใบ.amount).toLocaleString("en-US")}`);
   expect(ช่อง.status.ค่า, "สถานะตามฐาน").toBe("ส่งแล้ว");
   expect(ช่อง.expiry.ค่า, "ข้อเสนอมีผลถึงตามฐาน").toBe(วันไทย(ใบ.valid_until));
   expect(ช่อง.expiry.ย่อย).toBe("เลยมา 3 วัน");
   expect(ช่อง.expiry.สีย่อย, "เลยวันมีผล = แดง").toBe(แดง);
-  expect(ช่อง.version.ค่า, "เวอร์ชันตามฐาน").toBe(`เวอร์ชัน ${ใบ.version}`);
+  expect(ช่อง.version.ค่า, "ฉบับตามฐาน (บอสเลือก 9 พ.ย. 69: เวอร์ชัน → ฉบับ)").toBe(`ฉบับ ${ใบ.version}`);
   await ตรวจหัวไม่มีป้ายซ้ำ(แผง, ["ค่าแรกเข้า", "เวอร์ชัน", ช่อง.status.ค่า, ช่อง.amount.ค่า]);
   await expect(แผง.locator("[data-panel-head]"), "แถบหัวยังมีเลขที่ + ชื่อ").toContainText(เลข);
   await expect(แผง.locator("[data-panel-head]")).toContainText(name);

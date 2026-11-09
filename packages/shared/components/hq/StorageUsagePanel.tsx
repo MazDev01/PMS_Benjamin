@@ -17,8 +17,8 @@ import { type StorageUsage, ขนาดไฟล์ } from "@pms/shared/lib/quo
 
 /** ชื่อถังที่ผู้ใช้อ่านรู้เรื่อง — ถังอื่น (รวมถังที่เลิกใช้) แสดงชื่อกลาง แต่ยังนับจำนวน/ขนาดตามจริง */
 const ชื่อถัง: Record<string, string> = {
-  "quote-files": "ไฟล์แนบคำขอราคา (ดีลเลอร์ ↔ HQ)",
-  "dealer-files": "ไฟล์ของดีลเลอร์ (ลูกค้า/ลีด)",
+  "quote-files": "ไฟล์แนบคำขอใบเสนอราคา (ดีลเลอร์ ↔ HQ)",
+  "dealer-files": "ไฟล์ของดีลเลอร์ (ลูกค้า/ลูกค้าเป้าหมาย)",
   "avatars": "รูปโปรไฟล์",
   "catalog-images": "รูปแคตตาล็อก (เลิกใช้)",
 };
@@ -65,7 +65,7 @@ export function StorageUsagePanel() {
           rawValue={ข้อมูล?.quotaGb ?? null} empty={ว่าง}
           sub={ร้อยละ != null ? `ใช้ไป ${ร้อยละ.toFixed(1)}%` : undefined} />
         <KpiCard kpi="storage-files" icon={Files} color="#0891B2" bg="#E6F4F9" label="จำนวนไฟล์" value={ไฟล์ == null ? null : ไฟล์.toLocaleString()} rawValue={ไฟล์} unit="ไฟล์" empty={ว่าง} />
-        <KpiCard kpi="storage-quote-files" icon={Paperclip} color="#EA580C" bg="#FEF0E6" label="ไฟล์แนบคำขอราคา" testId="storage-quote-files"
+        <KpiCard kpi="storage-quote-files" icon={Paperclip} color="#EA580C" bg="#FEF0E6" label="ไฟล์แนบคำขอใบเสนอราคา" testId="storage-quote-files"
           value={แนบ ? ขนาดไฟล์(Number(แนบ.bytes)) : null} rawValue={แนบ ? Number(แนบ.bytes) : null}
           sub={แนบ ? `${Number(แนบ.files).toLocaleString()} ไฟล์ · ดีลเลอร์ ↔ HQ` : undefined} empty={ข้อมูล ? "—" : ว่าง} />
       </KpiRow>

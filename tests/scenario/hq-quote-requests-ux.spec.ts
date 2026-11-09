@@ -88,7 +88,7 @@ test("[ui·hq] วางจาก Excel 3 แถว = 3 รายการ · �
   await expect(ใบ.getByLabel("หน่วย 3", { exact: true })).toHaveValue("งาน");
   const รวม = 800 * 1250 + 820 * 450.5 + 15000;
   await expect(ใบ.getByTestId("hq-quote-total")).toHaveText(บาท(รวม));
-  await expect(ใบ.getByText("ราคาส่งดีลเลอร์ (ก่อน VAT)"), "ป้ายยอดรวมตรงกับที่ฐานคิด").toBeVisible();
+  await expect(ใบ.getByText("ราคาจาก HQ (ก่อน VAT)"), "ป้ายยอดรวมตรงกับที่ฐานคิด").toBeVisible();
   await expect(ใบ.getByTestId("hq-quote-per-sqm"), "คำขอมีพื้นที่ 800 ตร.ม. = เฉลี่ยต่อ ตร.ม.").toHaveText(`เฉลี่ย ${บาท(Math.round(รวม / 800 * 100) / 100)} บาท/ตร.ม.`);
 
   // แถวที่อ่านไม่ได้: ยังอยู่ + เตือนที่แถว · ส่งไม่ได้จนกว่าจะแก้

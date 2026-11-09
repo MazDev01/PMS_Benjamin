@@ -175,7 +175,7 @@ export function MaterialTemplatesPanel() {
                   style={{ fontWeight: 700, color: ค?.avgPct != null && Math.abs(ค.avgPct) > 5 ? "#dc2626" : "#374151" }}>{ป้ายเปอร์เซ็นต์คลาด(ค?.avgPct)}</span>;
               } },
             { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: "5%", ค่า: (r, i) => r.id != null && (เคยใช้ === null || เคยใช้.has(r.id))
-                ? <span data-mt-used={เคยใช้ ? "1" : ""} title={เคยใช้ ? "เคยใช้ในคำขอราคา/ใบ HQ แล้ว — ลบไม่ได้ ใช้ “ปิดใช้” แทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
+                ? <span data-mt-used={เคยใช้ ? "1" : ""} title={เคยใช้ ? "เคยใช้ในคำขอใบเสนอราคา/ใบ HQ แล้ว — ลบไม่ได้ ใช้ “ปิดใช้” แทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
                     style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{เคยใช้ ? "ใช้แล้ว" : "…"}</span>
                 : <button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
                 style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={15} /></button> },

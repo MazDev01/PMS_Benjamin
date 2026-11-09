@@ -273,7 +273,7 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
 
   // กันยิงรัว: รีเซ็ตรหัสผ่านได้ไม่เกิน 10 ครั้ง/นาที ต่อผู้เรียก
   if (!(await checkRateLimit(admin, `reset-dealer-pw:${callerId}`, 10, 60))) {
-    return bad(429, "รีเซ็ตรหัสผ่านถี่เกินไป — รอสักครู่แล้วลองใหม่");
+    return bad(429, "ตั้งรหัสผ่านใหม่ถี่เกินไป — รอสักครู่แล้วลองใหม่");
   }
 
   const code = (new URL(req.url).searchParams.get("code") ?? "").trim().toUpperCase();
@@ -330,7 +330,7 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
     if (logErr && logErr.code !== "42P01") console.error(`[reset-dealer-pw] บันทึกประวัติการเปลี่ยนบัญชีของ ${code} ไม่สำเร็จ`, logErr);
   }
   await auditLog(admin, prof,
-    อีเมลใหม่ ? (password ? "แก้อีเมลและรหัสผ่านดีลเลอร์" : "แก้อีเมลเข้าระบบดีลเลอร์") : "รีเซ็ตรหัสผ่านดีลเลอร์",
+    อีเมลใหม่ ? (password ? "แก้อีเมลและรหัสผ่านดีลเลอร์" : "แก้อีเมลเข้าระบบดีลเลอร์") : "รีเซ็ตรหัสผ่านดีลเลอร์",   // ชื่อการกระทำในบันทึกการใช้งาน คงเดิม (คลังคำ: ไม่เปลี่ยนชื่อในบันทึก · แดชบอร์ด HQ ผูกลิงก์ด้วยชื่อนี้)
     อีเมลใหม่ ? `${code} · ${อีเมลใหม่}` : code);
   return NextResponse.json({ ok: true, email: updated.user.email ?? "", password });
 });

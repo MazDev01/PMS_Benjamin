@@ -194,7 +194,7 @@ test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอ
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await เปิดกระดิ่ง(page);
-  const ใหม่ = page.locator('[data-notif-kind="request_new"]').filter({ hasText: "คำขอราคาใหม่" }).filter({ hasText: คำขอแรก.request_no }).first();
+  const ใหม่ = page.locator('[data-notif-kind="request_new"]').filter({ hasText: "คำขอใบเสนอราคาใหม่" }).filter({ hasText: คำขอแรก.request_no }).first();
   await expect(ใหม่, "HQ ได้เรื่องคำขอราคาใหม่").toBeVisible({ timeout: 20_000 });
   await expect(ใหม่.locator("[data-unread-dot]"), "จุดแดงขึ้นจริง").toHaveCount(1);
   await ใหม่.click();

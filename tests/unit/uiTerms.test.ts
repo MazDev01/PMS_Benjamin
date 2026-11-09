@@ -29,9 +29,9 @@ describe("คำห้าม", () => {
   it("ทุกคำในรายการอยู่ในคลังคำ docs/glossary.md และข้อทดสอบข้อความของฐาน", () => {
     const คลัง = readFileSync("docs/glossary.md", "utf8");
     const ฐาน = readFileSync("supabase/tests/ui_terms_db.sql", "utf8");
-    for (const k of คำห้าม as { ห้าม: string }[]) {
+    for (const k of คำห้าม as { ห้าม: string; แบบ?: string }[]) {
       expect(คลัง, `คลังคำมี "${k.ห้าม}"`).toContain(k.ห้าม.trim());
-      expect(ฐาน, `ui_terms_db.sql มี "${k.ห้าม}"`).toContain(`'${k.ห้าม}'`);
+      expect(ฐาน, `ui_terms_db.sql มี "${k.แบบ ?? k.ห้าม}"`).toContain(`'${k.แบบ ?? k.ห้าม}'`);
     }
   });
   it("จับคำห้ามในข้อความบนจอ · ข้อยกเว้นใช้ได้เฉพาะไฟล์ของมัน", () => {

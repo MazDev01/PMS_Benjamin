@@ -826,7 +826,7 @@ export default function CustomersPage(){
         project:dealForm.project||undefined,
         note:dealForm.note||undefined,
         status:dealForm.status,                                        // เลือกขั้นเริ่มต้นได้เหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย
-        source:"ลูกค้าเดิม (ดีลใหม่)",
+        source:"ลูกค้าเดิม (ดีลใหม่)",   // ค่าช่องทางที่มาที่บันทึกลงลีด (ลีดเดิมมีค่านี้ · กราฟแหล่งที่มาจัดกลุ่มด้วยค่านี้) — คงค่าเดิม (คลังคำ: ค่าข้อมูลไม่เปลี่ยน)
         createdAt:thaiToday(),
         tasks:buildLeadTasks(taskTpl),                                 // Checklist ตามที่ HQ ตั้งไว้ (ยังไม่ติ๊ก)
         activities:[],                                                 // เริ่มว่าง
@@ -845,7 +845,7 @@ export default function CustomersPage(){
   const detailFileCount = selectedFiles.length;
   const detailTabs: {key:"info"|"deals"|"quotes"|"appts"|"notes"|"files"; label:string; icon:React.ReactNode}[] = [
     {key:"info",    label:"ภาพรวม",     icon:<Building2 size={11}/>},
-    {key:"deals",   label:`ดีล (${customerDeals.length})`, icon:<FileText size={11}/>},
+    {key:"deals",   label:`งานขาย (${customerDeals.length})`, icon:<FileText size={11}/>},
     {key:"quotes",  label:`ใบเสนอราคา (${relatedQuotations.length})`, icon:<FileText size={11}/>},
     {key:"appts",   label:`นัดหมาย (${relatedAppointments.length})`,icon:<Calendar size={11}/>},
     {key:"notes",   label:`โน้ต (${relatedNotes.length})`, icon:<StickyNote size={11}/>},
@@ -1427,7 +1427,7 @@ export default function CustomersPage(){
                   <div style={cardS}>
                     <div style={secL}><CalendarClock size={13} color={PRIMARY}/> ไทม์ไลน์ที่เกี่ยวข้อง</div>
                     {acts.length===0 ? (
-                      <div style={{fontSize:"0.78rem",color:MUTED}}>— ไม่มีบันทึกกิจกรรมของดีลนี้</div>
+                      <div style={{fontSize:"0.78rem",color:MUTED}}>— ไม่มีบันทึกกิจกรรมของงานขายนี้</div>
                     ) : (
                       <div style={{display:"flex",flexDirection:"column",gap:10}}>
                         {acts.map(a=>(
@@ -1448,7 +1448,7 @@ export default function CustomersPage(){
                     {deal
                       ? <ReportEditor lead={deal} onSave={intent => บันทึกลีด(deal.id, intent)} />
                       : <><div style={secL}><StickyNote size={13} color={PRIMARY}/> รายงานติดตาม</div>
-                          <div style={{fontSize:"0.78rem",color:MUTED}}>— ใบนี้ไม่ได้ผูกกับดีลในระบบ จึงยังไม่มีที่เก็บรายงาน</div></>}
+                          <div style={{fontSize:"0.78rem",color:MUTED}}>— ใบนี้ไม่ได้ผูกกับงานขายในระบบ จึงยังไม่มีที่เก็บรายงาน</div></>}
                   </div>
 
                   {/* โน้ต ของลูกค้ารายนี้ */}

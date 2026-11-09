@@ -92,7 +92,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await expect(แผง.getByLabel(`แก้ไขใบ ${v1.proposal_no}`), "ส่งแล้วแก้ไม่ได้ — ไม่มีปุ่มแก้").toHaveCount(0);
 
   // ── ส่งแล้วแก้ไม่ได้ → ทำเวอร์ชันใหม่ (V2) ลดค่าแรกเข้า แล้วส่ง → V1 ถูกแทน ──────────────────────────────────
-  await แผง.getByRole("button", { name: `ทำเวอร์ชันใหม่จากใบ ${v1.proposal_no}` }).click();
+  await แผง.getByRole("button", { name: `ทำฉบับใหม่จากใบ ${v1.proposal_no}` }).click();
   await กดตกลงในกล่องยืนยัน(page);
   ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await expect(ฟอร์ม, "ทำเวอร์ชันใหม่แล้วเปิดร่างให้แก้ทันที").toBeVisible({ timeout: 15_000 });
@@ -122,7 +122,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "meeting" });
 
   // เจรจาต่อ: เวอร์ชัน 3 จากใบที่ปฏิเสธ → ส่ง
-  await แผง.getByRole("button", { name: `ทำเวอร์ชันใหม่จากใบ ${v2no}` }).click();
+  await แผง.getByRole("button", { name: `ทำฉบับใหม่จากใบ ${v2no}` }).click();
   await กดตกลงในกล่องยืนยัน(page);
   ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await ฟอร์ม.locator("#pp-amount").fill("200000");

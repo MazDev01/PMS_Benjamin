@@ -219,8 +219,8 @@ function ภาพรวม({ ข้อมูล, dealer, ไปแท็บ }: 
   const c = ข้อมูล?.counts;
   // 2. ตัวเลขงานดูแล (จำนวน · ไม่มีเงิน) — กดแต่ละตัว = แท็บนั้นในแผง · คำขอราคาไปกล่องงานคำขอ (ไม่มีแท็บในแผง)
   const ตัวเลข: { k: string; label: string; v: string; icon: React.ReactNode; on: () => void }[] = [
-    { k: "openLeads", label: "ลีดที่เปิดอยู่", v: c ? c.openLeads.toLocaleString() : "—", icon: <Users size={14} />, on: () => ไปแท็บ("leads") },
-    { k: "requestsWaitingHq", label: "คำขอราคาที่รอ HQ", v: c ? c.requestsWaitingHq.toLocaleString() : "—", icon: <Inbox size={14} />,
+    { k: "openLeads", label: "ลูกค้าเป้าหมายที่เปิดอยู่", v: c ? c.openLeads.toLocaleString() : "—", icon: <Users size={14} />, on: () => ไปแท็บ("leads") },
+    { k: "requestsWaitingHq", label: "คำขอใบเสนอราคาที่รอ HQ", v: c ? c.requestsWaitingHq.toLocaleString() : "—", icon: <Inbox size={14} />,
       on: () => { window.location.href = `/hq/quote-requests?q=${encodeURIComponent(dealer.code)}`; } },
     { k: "quotesAwaiting", label: "ใบที่รอลูกค้าตอบ", v: c ? c.quotesAwaiting.toLocaleString() : "—", icon: <FileText size={14} />, on: () => ไปแท็บ("quotes") },
     { k: "customers", label: "ลูกค้า", v: c ? c.customers.toLocaleString() : "—", icon: <Building2 size={14} />, on: () => ไปแท็บ("customers") },

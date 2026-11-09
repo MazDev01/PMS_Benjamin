@@ -212,7 +212,7 @@ export default function NetworkQuotationPage() {
           <ExportMenu
             filename="hq-network-quotations"
             title="ใบเสนอราคาทั้งเครือ"
-            headers={["เลขที่", "รหัสดีลเลอร์", "ดีลเลอร์", "ลูกค้า", ช่อง.จังหวัด, "ภูมิภาค (ดีลเลอร์)", "มูลค่า ก่อน VAT (บาท)", "สถานะ", "วันที่ส่ง", "ใช้ได้ถึง", "อายุใบ (วัน)"]}
+            headers={["เลขที่", "รหัสดีลเลอร์", "ดีลเลอร์", "ลูกค้า", ช่อง.จังหวัด, "ภูมิภาค (ดีลเลอร์)", "มูลค่า ก่อน VAT (บาท)", "สถานะ", "วันที่ส่ง", "ยืนราคาถึง", "อายุใบ (วัน)"]}
             rows={tableRows.map(quoteToCells)}
             getRows={exportGetRows}
           />

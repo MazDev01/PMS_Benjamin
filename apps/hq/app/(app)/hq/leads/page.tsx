@@ -388,7 +388,7 @@ export default function HQLeadsPage() {
         {/* กราฟเส้นเป็น SVG ที่ย่อ/ขยายตามความกว้างการ์ด → ความสูงจริงไม่เท่า height ที่ส่งเข้าไป
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟลีดใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "รวม = การ์ดลีดใหม่", "ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้น")} />
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "รวม = การ์ดลูกค้าเป้าหมายใหม่", "ปิดสำเร็จ/ไม่สำเร็จ = ลูกค้าเป้าหมายที่เข้ามาในเดือนนั้น")} />
           <div className="card-body" data-lead-monthly data-ready={trend.ready ? "1" : ""} data-sum-new={trend.newM.reduce((a, b) => a + b, 0)}
             data-sum-won={trend.wonM.reduce((a, b) => a + b, 0)} data-sum-lost={trend.lostM.reduce((a, b) => a + b, 0)}
             style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -398,14 +398,14 @@ export default function HQLeadsPage() {
                 แท่งกลุ่ม ไม่ใช่แท่งซ้อน — สี่ชุดนี้เป็นขั้นของลูกค้าเป้าหมายเดียวกัน บวกกันแล้วยอดรวมไม่มีความหมาย */}
             <GroupedBarChart months={trend.months} vw={560} height={210} fmt={v => `${Math.round(v)}`}
               series={[
-                { name: "ลีดใหม่", color: "#003366", data: trend.newM },
+                { name: "ลูกค้าเป้าหมายใหม่", color: "#003366", data: trend.newM },
                 { name: ชื่อขั้น(6), color: "#10B981", data: trend.wonM },
                 { name: ชื่อขั้น(7), color: "#dc2626", data: trend.lostM },
               ]} />
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
-          <BoxTitle ชื่อ={`กราฟลีดตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–4 = ลีดที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–4 = ลูกค้าเป้าหมายที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
           {/* data-ready = ตัวเลขมาจากฐานครบทั้งสองชุดแล้ว (ข้อทดสอบรอก่อนอ่าน · ระหว่างโหลดเป็นทางสำรองในเครื่อง) */}
           <div className="card-body" data-stage-chart data-ready={chartSummary && openSummary ? "1" : ""} style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
             {byStatus.map(s => { const c = สีกราฟขั้น[s.stage]; return (
@@ -428,7 +428,7 @@ export default function HQLeadsPage() {
         {/* โดนัท: แหล่งที่มารวมกัน = ลูกค้าเป้าหมายทั้งหมดพอดี → สัดส่วนของก้อนเดียว
             ย้ายมาจากแถว 3 · การ์ดกว้างขึ้น (ครึ่งจอ) → วางโดนัทซ้าย legend ขวา แบบเดียวกับใบข้าง ๆ */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟลีดตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่เข้ามาในช่วง", "กลางวง = รวมทั้งหมด")}><GitBranch size={16} color="#9ca3af" /></BoxTitle>
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่เข้ามาในช่วง", "กลางวง = รวมทั้งหมด")}><GitBranch size={16} color="#9ca3af" /></BoxTitle>
           <div className="card-body" data-source-chart data-ready={chartSummary ? "1" : ""} data-total={sources.reduce((t, x) => t + x.count, 0)}
             style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!sources.length ? (
@@ -457,7 +457,7 @@ export default function HQLeadsPage() {
         </div>
         {/* โดนัท: เหตุผลรวมกันได้ 100% ของลูกค้าเป้าหมายที่ปิดไม่สำเร็จพอดี → เป็นสัดส่วนของก้อนเดียว เหมาะกับโดนัทมากกว่าแท่ง */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่ปิดไม่สำเร็จ แยกตามเหตุผล", "ไม่ได้บันทึกเหตุผล = รวมอยู่ใน “อื่นๆ”")} />
+          <BoxTitle ชื่อ={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่ปิดไม่สำเร็จ แยกตามเหตุผล", "ไม่ได้บันทึกเหตุผล = รวมอยู่ใน “อื่นๆ”")} />
           <div className="card-body" style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!lostReasons.length ? (
               <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>— ไม่มีข้อมูลในช่วงที่เลือก</div>
@@ -504,7 +504,7 @@ export default function HQLeadsPage() {
           <div data-box-title style={{ flex: "0 0 auto", marginRight: 6 }}>
             <div className="card-title" data-title>ตารางรายชื่อลูกค้าเป้าหมาย · {ระดับ}</div>
             <div data-subtitle style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>
-              {status === "OPEN" ? คำอธิบายหัวข้อ(null, "ลีดที่กำลังดำเนินการ", "กดแถวเพื่อเปิด") : คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่เข้ามาในช่วง", "กดแถวเพื่อเปิด")}
+              {status === "OPEN" ? คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่กำลังดำเนินการ", "กดแถวเพื่อเปิด") : คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่เข้ามาในช่วง", "กดแถวเพื่อเปิด")}
             </div>
           </div>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…" aria-label="ค้นหาลูกค้าเป้าหมาย"

@@ -37,6 +37,6 @@ describe("ตัวกรองสถานะ", () => {
     expect(ป้ายสถานะคำขอ({ tag: "overdue", status: "pricing", supersedesId: null }).label).toBe("กำลังตีราคา");
     expect(ป้ายสถานะคำขอ({ tag: "overdue", status: "new", supersedesId: 7 }).label).toBe("ขอแก้ราคา");
     expect(ป้ายสถานะคำขอ({ tag: "overdue", status: "new", supersedesId: null }).label).toBe("ใหม่");
-    expect(ป้ายสถานะคำขอ({ tag: "quoted", status: "quoted", supersedesId: null }).label).toBe("รอดีลเลอร์");
+    expect(ป้ายสถานะคำขอ({ tag: "quoted", status: "quoted", supersedesId: null }).label).toBe("ส่งแล้ว รอดีลเลอร์");   // 9 พ.ย. 69 บอสเลือกชุดชื่อของตาราง (เดิม "รอดีลเลอร์")
   });
 });

@@ -58,7 +58,7 @@ export async function ดีลเลอร์ที่เรียก(
     return { ok: false, res: dealerJson(req, { error: "ตรวจสอบสิทธิ์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503) };
   }
   if (!prof || String(prof.status ?? "active") !== "active") {
-    return { ok: false, res: dealerJson(req, { error: "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อผู้ดูแลระบบ" }, 403) };
+    return { ok: false, res: dealerJson(req, { error: "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อสำนักงานใหญ่" }, 403) };
   }
   const dealerCode = String(prof.dealer_code ?? "").trim().toUpperCase();
   if (!dealerCode) {

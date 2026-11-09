@@ -228,12 +228,14 @@ test("[ui·hq] ลีดทั้งเครือ: กล่องโอนล
   expect(ชื่อบรรทัดเดียว, "ชื่อบริษัทไม่ตกบรรทัด").toBe("nowrap");
 
   // ── กราฟลีดใหม่รายเดือน (แบบหน้า 2 พ.ย. 69): คำตรงขั้นตอนกลาง · ไม่มีชุดใบเสนอราคา (อยู่หน้าใบเสนอราคา) · รวม = การ์ดลีดใหม่ · หน้านี้ไม่มีผลงานดีลเลอร์ ──
-  const แนวโน้ม = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: /^กราฟลีดใหม่รายเดือน · / }) }).first();
-  for (const คำ of ["ลีดใหม่", "ปิดสำเร็จ", "ปิดไม่สำเร็จ"]) await expect(แนวโน้ม, `กราฟรายเดือนมีคำ "${คำ}"`).toContainText(คำ);
+  const แนวโน้ม = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: /^กราฟลูกค้าเป้าหมายใหม่รายเดือน · / }) }).first();
+  for (const คำ of ["ลูกค้าเป้าหมายใหม่", "ปิดสำเร็จ", "ปิดไม่สำเร็จ"]) await expect(แนวโน้ม, `กราฟรายเดือนมีคำ "${คำ}"`).toContainText(คำ);
   await expect(แนวโน้ม, "ไม่มีชุดใบเสนอราคาในกราฟลีด").not.toContainText("ใบเสนอราคา");
   await expect(page.locator("[data-lead-monthly][data-ready='1']"), "รวมลีดใหม่รายเดือน = การ์ดลีดใหม่").toHaveAttribute("data-sum-new",
     (await page.locator('[data-kpi-row] [data-kpi="new"] [data-value]').first().getAttribute("data-value")) ?? "");
-  await expect(แนวโน้ม).not.toContainText("ลูกค้าเป้าหมายใหม่");
+  // ตรวจกลับด้าน (บอสเลือก 9 พ.ย. 69 ข้อ 1: ลีด → ลูกค้าเป้าหมาย ทั้งหมด · ทับคำในกราฟแบบหน้า 2 พ.ย. 69 ที่ใช้ "ลีดใหม่")
+  await expect(แนวโน้ม).toContainText("ลูกค้าเป้าหมายใหม่");
+  await expect(แนวโน้ม).not.toContainText("ลีดใหม่");   // คำเดิม (ชื่อดีลเลอร์ของข้อมีคำว่า ลีด จึงตรวจคำเต็ม)
   await expect(แนวโน้ม).not.toContainText("ปิดการขาย");
   await expect(page.locator(".erp"), "ไม่มีผลงานดีลเลอร์ในหน้านี้ (อยู่ภาพรวมยอดขายที่เดียว)").not.toContainText(/ผลงานดีลเลอร์|อัตราปิด|ยอดขาย/);
   assertNoErrors(errs, "หน้าตาลีดทั้งเครือ");

@@ -73,7 +73,7 @@ export function จัดกลุ่ม(rows: ผลงานดีลเลอ
 // ── ตารางตามภูมิภาค/จังหวัด — กดแถว = เจาะลง ──────────────────────────────────────────────────────────────────
 export function ตารางกลุ่ม({ มิติ, แถว, รวมทั้งหมด, เจาะ }: { มิติ: "region" | "prov"; แถว: แถวกลุ่ม[]; รวมทั้งหมด: รวม; เจาะ: (key: string) => void }) {
   const ชื่อคอล = useกว้างคอลัมน์ชื่อ(แถว.map(g => g.label), { ขั้นต่ำ: 110 }, แถว.map(g => ("sub" in g ? String((g as { sub?: string }).sub ?? "") : "")));   // ≤ 25% · ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
-  const หัว = [ชื่อมิติ[มิติ], "ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "ยังไม่รู้ผล", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", ""];
+  const หัว = [ชื่อมิติ[มิติ], "ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "ยังไม่รู้ผล", "อัตราปิดการขาย", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", ""];
   const ช่อง = (x: รวม) => [
     <td key="l" className="num">{x.leads.toLocaleString()}</td>, <td key="q" className="num">{x.quotes.toLocaleString()}</td>,
     <td key="w" className="num">{x.won.toLocaleString()}</td>, <td key="o" className="num">{x.lost.toLocaleString()}</td>,
@@ -130,7 +130,7 @@ export function จัดรายเดือน(rows: ผลงานราย
 }
 export function ตารางรายเดือน({ แถว, รวมทั้งหมด, เลือกเดือน }: { แถว: แถวเดือน[]; รวมทั้งหมด: รวม; เลือกเดือน?: (m: แถวเดือน) => void }) {
   const ชื่อคอล = useกว้างคอลัมน์ชื่อ(แถว.map(g => g.label), { ขั้นต่ำ: 110 }, แถว.map(g => ("sub" in g ? String((g as { sub?: string }).sub ?? "") : "")));   // ≤ 25% · ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
-  const หัว = ["เดือน", "ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "ยังไม่รู้ผล", "อัตราปิด", "ยอดขาย", "เป้ารายเดือน", "% เป้า", "ส่วนต่างกำไร", ""];
+  const หัว = ["เดือน", "ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "ยังไม่รู้ผล", "อัตราปิดการขาย", "ยอดขาย", "เป้ารายเดือน", "% เป้า", "ส่วนต่างกำไร", ""];
   const ช่อง = (x: รวม, รวมแถว = false) => [
     <td key="l" className="num">{x.leads.toLocaleString()}</td>, <td key="q" className="num">{x.quotes.toLocaleString()}</td>,
     <td key="w" className="num">{x.won.toLocaleString()}</td>, <td key="o" className="num">{x.lost.toLocaleString()}</td>,
@@ -168,7 +168,7 @@ export function แผงเดือน({ เดือน, rows, codes, ชื�
       <ส่วนเจาะ ไอคอน={Users} ชื่อ="ผลงานรายดีลเลอร์">
         <table aria-label={`รายดีลเลอร์ ${เดือน.label}`}>
           <colgroup><col style={{ width: "40%" }} /><col /><col /><col /><col /><col style={{ width: "18%" }} /></colgroup>
-          <thead><tr><th>ดีลเลอร์</th><th className="num">ลีด</th><th className="num">ใบที่ส่ง</th><th className="num">ปิดได้</th><th className="num">ปิดไม่ได้</th><th className="num">ยอดขาย</th></tr></thead>
+          <thead><tr><th>ดีลเลอร์</th><th className="num">ลูกค้าเป้าหมาย</th><th className="num">ใบที่ส่ง</th><th className="num">ปิดสำเร็จ</th><th className="num">ปิดไม่สำเร็จ</th><th className="num">ยอดขาย</th></tr></thead>
           <tbody>
             {!ของเดือน.length && <tr><td colSpan={6} className="empty-row">ไม่มีผลงานในเดือนนี้</td></tr>}
             {ของเดือน.map(r => (
@@ -192,7 +192,7 @@ export type การ์ดที่มา = "sales" | "winRate" | "margin" | "o
 const หัวการ์ด: Record<การ์ดที่มา, string> = { sales: "ยอดขาย (เทียบเป้า)", winRate: "อัตราปิดการขาย", margin: "ส่วนต่างกำไรเฉลี่ย", onTarget: "ดีลเลอร์ที่ถึงเป้า" };
 const สูตรการ์ด: Record<การ์ดที่มา, string> = {
   sales: "ยอดขายตามวันลูกค้าตอบรับ · เป้าตามช่วง = เป้าทั้งปี × วัน ÷ 365",
-  winRate: "อัตราปิด = ปิดได้ ÷ (ปิดได้ + ปิดไม่ได้) ของลีดที่เข้ามาในช่วง",
+  winRate: "อัตราปิดการขาย = ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) ของลูกค้าเป้าหมายที่เข้ามาในช่วง",
   margin: "ส่วนต่างกำไร % ของราคาขาย · ใบที่ตอบรับในช่วงและผูกใบ HQ",
   onTarget: "ถึงเป้า = ยอดขายในช่วง ≥ เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365)",
 };
@@ -209,7 +209,7 @@ export function แผงที่มา({ การ์ด, แถว, ดีล
   const เรียง = [...แถว].sort((a, b) => b.sales - a.sales || a.code.localeCompare(b.code));
   const คอลัมน์: Record<Exclude<การ์ดที่มา, "onTarget">, { หัว: string[]; ค่า: (r: ผลงานดีลเลอร์) => (string | number)[] }> = {
     sales: { หัว: ["ยอดขาย", "เป้าตามช่วง", "% เป้า"], ค่า: r => [fmtBaht(r.sales), r.target == null ? "—" : fmtBaht(r.target), เปอร์เซ็นต์(r.pct)] },
-    winRate: { หัว: ["ปิดได้", "ปิดไม่ได้", "อัตราปิด"], ค่า: r => [r.won, r.lost, เปอร์เซ็นต์(r.rate)] },
+    winRate: { หัว: ["ปิดสำเร็จ", "ปิดไม่สำเร็จ", "อัตราปิดการขาย"], ค่า: r => [r.won, r.lost, เปอร์เซ็นต์(r.rate)] },
     margin: { หัว: ["ใบที่ผูกใบ HQ", "ส่วนต่างกำไร"], ค่า: r => [r.marginQuotes, r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`] },
   };
   const ช่วงอ่าน = `${fmtISOToThai(ช่วง.start)} – ${fmtISOToThai(ช่วง.end)} (${จำนวนวัน(ช่วง.start, ช่วง.end).toLocaleString()} วัน)`;
@@ -338,7 +338,7 @@ export function กล่องล่าง({ รวมทั้งหมด, �
   const เหตุผล = (ในช่วง?.byLostReason ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.reason || "ไม่ระบุเหตุผล", value: r.count, color: สีชุด[i % สีชุด.length] }));
   const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.source || "ไม่ระบุ", value: r.count, color: สีชุด[i % สีชุด.length] }));
   const เส้นทาง = [
-    { label: "ลีดใหม่", value: รวมทั้งหมด.leads, color: "#003366" },
+    { label: "ลูกค้าเป้าหมายใหม่", value: รวมทั้งหมด.leads, color: "#003366" },
     { label: "ใบที่ส่ง", value: รวมทั้งหมด.quotes, color: "#0891b2" },
     { label: "ปิดสำเร็จ", value: รวมทั้งหมด.won, color: "#059669" },
     { label: "ปิดไม่สำเร็จ", value: รวมทั้งหมด.lost, color: "#dc2626" },
@@ -347,12 +347,12 @@ export function กล่องล่าง({ รวมทั้งหมด, �
   return (
     <>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`กราฟเส้นทางการขาย · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่เข้ามาในช่วง → ใบที่ส่ง → ผลปิดการขาย", "ตัวเลขเดียวกับแถวรวมของตาราง")} testid="pipeline-funnel"><แถบนับ rows={เส้นทาง} empty="ยังไม่มีลีดในช่วงที่เลือก" /></การ์ดกล่อง>
-        <การ์ดกล่อง title={`กราฟงานค้างตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "ลีดที่ยังเปิดอยู่ แยกตามขั้นที่อยู่ตอนนี้")} testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลีดที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟเส้นทางการขาย · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่เข้ามาในช่วง → ใบที่ส่ง → ผลปิดการขาย", "ตัวเลขเดียวกับแถวรวมของตาราง")} testid="pipeline-funnel"><แถบนับ rows={เส้นทาง} empty="ยังไม่มีลูกค้าเป้าหมายในช่วงที่เลือก" /></การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟงานค้างตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่ยังเปิดอยู่ แยกตามขั้นที่อยู่ตอนนี้")} testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลูกค้าเป้าหมายที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`กราฟเหตุผลที่ปิดไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่ปิดไม่สำเร็จ แยกตามเหตุผลที่บันทึก")} testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลีดที่ปิดไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
-        <การ์ดกล่อง title={`กราฟลีดตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่เข้ามาในช่วง แยกตามแหล่งที่มา")} testid="pipeline-sources">{ในช่วง ? <แถบนับ rows={แหล่ง} empty="ยังไม่มีลีดในช่วงที่เลือก" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟเหตุผลที่ปิดไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่ปิดไม่สำเร็จ แยกตามเหตุผลที่บันทึก")} testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลูกค้าเป้าหมายที่ปิดไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟลูกค้าเป้าหมายตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่เข้ามาในช่วง แยกตามแหล่งที่มา")} testid="pipeline-sources">{ในช่วง ? <แถบนับ rows={แหล่ง} empty="ยังไม่มีลูกค้าเป้าหมายในช่วงที่เลือก" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
     </>
   );
@@ -388,8 +388,8 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
           {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [q.id, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/quotations?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
-        <การ์ดกล่อง title={`ตารางลีดล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
-          {ตาราง(["บริษัท", "ขั้นตอน", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลีด")}
+        <การ์ดกล่อง title={`ตารางลูกค้าเป้าหมายล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
+          {ตาราง(["บริษัท", "ขั้นตอน", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลูกค้าเป้าหมาย")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/leads?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
       </div>

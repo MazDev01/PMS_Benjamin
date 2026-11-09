@@ -175,7 +175,7 @@ test("[flow·dealer] ขอแก้ราคาหลัง HQ ส่งใบ 
   expect(ส่งใบ.error, ส่งใบ.error?.message).toBeNull();
 
   const แผง = await เปิดแท็บใบเสนอราคา(page);
-  await expect(แผง.getByText("ส่งใบแล้ว", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(แผง.getByText("ส่งแล้ว รอดีลเลอร์", { exact: true })).toBeVisible({ timeout: 20_000 });
   await แผง.getByRole("button", { name: "ขอแก้ราคา" }).click();
   const กล่อง = page.locator("[data-reason-dialog]");   // กล่องเหตุผลกลาง (28 ต.ค. 69)
   await กล่อง.getByLabel("เหตุผลที่ขอแก้ราคา").fill("ลูกค้าลดพื้นที่เหลือ 600 ตร.ม.");

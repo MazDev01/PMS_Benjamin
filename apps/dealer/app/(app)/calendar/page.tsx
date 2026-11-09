@@ -855,7 +855,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
                   <>
                     <input id="na-search" className="form-input" value={ค้น} onChange={e => setค้น(e.target.value)} {...บังคับ.ผูก("pick")} placeholder="พิมพ์ชื่อบริษัท ผู้ติดต่อ หรือเบอร์โทร" autoComplete="off" />
                     <ul aria-label="ผลค้นหาลูกค้าเป้าหมายและลูกค้า" style={{ listStyle: "none", margin: "6px 0 0", padding: 0, maxHeight: 180, overflowY: "auto", border: `1px solid ${BORDER}`, borderRadius: 9 }}>
-                      {ตัวเลือก.length === 0 && <li style={{ padding: "10px 12px", fontSize: "0.76rem", color: MUTED }}>ไม่พบ — ลีดที่ปิดแล้วไม่อยู่ในรายการ</li>}
+                      {ตัวเลือก.length === 0 && <li style={{ padding: "10px 12px", fontSize: "0.76rem", color: MUTED }}>ไม่พบ — ลูกค้าเป้าหมายที่ปิดแล้วไม่อยู่ในรายการ</li>}
                       {ตัวเลือก.map(o => (
                         <li key={o.k}>
                           <button type="button" onClick={() => เลือกราย(o.ผูก)} style={{ width: "100%", textAlign: "left", border: "none", borderBottom: `1px solid ${BORDER}`, background: "#fff", padding: "8px 12px", cursor: "pointer", fontFamily: "inherit" }}>

@@ -327,7 +327,7 @@ export default function HQProposalsPage() {
                 { คีย์: "amount", ป้าย: "ค่าแรกเข้า", ค่า: ค่าใบ["ค่าแรกเข้า"], เด่น: true },
                 { คีย์: "status", ป้าย: "สถานะ", ค่า: <span className="badge" style={{ background: sc.bg, color: sc.text }}>{proposalStatusLabel[p.status]}</span> },
                 { คีย์: "expiry", ป้าย: "ข้อเสนอมีผลถึง", ค่า: p.validUntil ? fmtISOToThai(p.validUntil) : "-", ย่อย: นับวัน?.ข้อความ, ย่อยแดง: นับวัน?.เลย },
-                { คีย์: "version", ป้าย: "เวอร์ชัน", ค่า: p.version != null ? `เวอร์ชัน ${p.version}` : "-" },
+                { คีย์: "version", ป้าย: "ฉบับ", ค่า: p.version != null ? `ฉบับ ${p.version}` : "-" },
               ]} />
 
               <div style={{ flex: 1, overflowY: "auto", background: "#f5f7fa", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>

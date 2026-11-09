@@ -100,5 +100,5 @@ test("[email] คำขอเกิน 14 วัน → อีเมลสรุ
   // รอบถัดไปวันเดียวกัน: ไม่มีสรุปซ้ำ
   await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: `Bearer ${CRON_SECRET}` } });
   expect((await สรุป()).length, "สรุปคำขอค้างแจ้งวันละครั้ง").toBe(1);
-  expect((await ในกล่อง()).some(s => s.startsWith("คำขอราคาใหม่") && s.includes(r.request_no)), "คำขอใหม่ก็ถูกส่งถึง HQ ด้วย (H1)").toBe(true);
+  expect((await ในกล่อง()).some(s => s.startsWith("คำขอใบเสนอราคาใหม่") && s.includes(r.request_no)), "คำขอใหม่ก็ถูกส่งถึง HQ ด้วย (H1)").toBe(true);
 });
