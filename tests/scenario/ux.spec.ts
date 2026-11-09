@@ -25,7 +25,9 @@ test("[ux·hq] เมนูข้างไปได้ทุกหน้า", as
 test("[ux·hq] เตือน unsaved เมื่อออกจากหัวข้อที่แก้ค้าง", async ({ page }) => {
   await open(page, "hq", "/hq/settings");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /เป้าหมายยอดขาย/ }).click();
-  const num = page.locator('input[type="number"]').first();
+  // 9 พ.ย. 69 (ใบ 0283): เป้าทั้งเครือเป็นผลรวมแสดงอย่างเดียว ไม่มีช่องพิมพ์แล้ว → แก้เป้ารายดีลเลอร์แถวแรกในตาราง (บันทึกด้วยปุ่มกลางเหมือนเดิม)
+  const num = page.getByRole("table", { name: "เป้าหมายรายดีลเลอร์" }).locator("tbody input").first();
+  await expect(num, "มีช่องเป้ารายดีลเลอร์ให้แก้").toBeVisible({ timeout: 20_000 });
   await num.fill("999000000");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /บริษัท/ }).click();
   expect(await กดยกเลิกในกล่องยืนยัน(page)).toContain("ยังไม่บันทึก");
