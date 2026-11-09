@@ -74,8 +74,10 @@ async function อ่าน(page: Page): Promise<ตัวเลข> {
   const แหล่ง = page.locator("[data-source-chart][data-ready='1']");
   const ตาราง = page.locator("[data-lead-table][data-ready='1']");
   await expect(ขั้น).toBeVisible({ timeout: 25_000 }); await expect(แหล่ง).toBeVisible(); await expect(ตาราง).toBeVisible();
-  const ขั้น15 = (await ขั้น.locator("[data-stage]").evaluateAll(rs => rs.map(r => [Number(r.getAttribute("data-stage")), Number(r.getAttribute("data-count"))])))
-    .filter(([n]) => n >= 1 && n <= 5).reduce((t, [, c]) => t + c, 0);
+  const แถวขั้น = await ขั้น.locator("[data-stage]").evaluateAll(rs => rs.map(r => [Number(r.getAttribute("data-stage")), Number(r.getAttribute("data-count"))]));
+  // ขั้นที่เปิดอยู่ = 1–4 (ยุบ 4 ขั้น 9 พ.ย. 69 · ใบ 0284) — กราฟไม่มีแท่งขั้น 5 แล้ว
+  expect(แถวขั้น.map(([n]) => n), "กราฟลีดตามขั้นตอน: 4 ขั้น + ปิดสำเร็จ/ไม่สำเร็จ").toEqual([1, 2, 3, 4, 6, 7]);
+  const ขั้น15 = แถวขั้น.filter(([n]) => n >= 1 && n <= 4).reduce((t, [, c]) => t + c, 0);
   return { เปิด: (await การ์ด("open")) ?? "", ใหม่: (await การ์ด("new")) ?? "", เงียบ: (await การ์ด("idle")) ?? "", ขั้น15,
     แหล่ง: (await แหล่ง.getAttribute("data-total")) ?? "", ตาราง: (await ตาราง.getAttribute("data-total")) ?? "" };
 }
@@ -83,7 +85,7 @@ async function อ่าน(page: Page): Promise<ตัวเลข> {
 async function ตรงค่า(page: Page, ชื่อ: string, ควร: { เปิด: number; ใหม่: number; เงียบ: number; ตาราง: number }) {
   const ต้องได้: ตัวเลข = { เปิด: String(ควร.เปิด), ใหม่: String(ควร.ใหม่), เงียบ: String(ควร.เงียบ), ขั้น15: ควร.เปิด, แหล่ง: String(ควร.ใหม่), ตาราง: String(ควร.ตาราง) };
   let ล่าสุด: ตัวเลข | null = null;
-  await expect.poll(async () => (ล่าสุด = await อ่าน(page)), { timeout: 30_000, message: `${ชื่อ}: การ์ด = กราฟขั้น 1–5 = วงกลมแหล่งที่มา = ตาราง` }).toEqual(ต้องได้);
+  await expect.poll(async () => (ล่าสุด = await อ่าน(page)), { timeout: 30_000, message: `${ชื่อ}: การ์ด = กราฟขั้น 1–4 = วงกลมแหล่งที่มา = ตาราง` }).toEqual(ต้องได้);
   return ล่าสุด;
 }
 const เลือก = (page: Page, ป้ายช่อง: string) => page.getByLabel(ป้ายช่อง, { exact: true }).first();

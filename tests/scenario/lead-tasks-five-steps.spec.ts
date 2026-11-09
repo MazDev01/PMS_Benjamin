@@ -7,7 +7,7 @@ import { adminClient } from "./testDealers";
 import { settle } from "./helpers";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
-// ── รายการเตือนของลีด + หน้า HQ เส้นทางการขาย ตาม FLOW ใหม่ 5 ขั้น (บอสสั่ง 27 ต.ค. 69 · ใบ 0250) ───────────────────────
+// ── รายการเตือนของลีด + หน้า HQ เส้นทางการขาย ตาม FLOW 4 ขั้น (ยุบ 9 พ.ย. 69 · เดิม 5 ขั้น) (บอสสั่ง 27 ต.ค. 69 · ใบ 0250) ───────────────────────
 //   1) แท็บประวัติ: รายการจัดกลุ่มตาม 5 ขั้น (ชื่อจาก leadStage.ts) · ไม่มี "ติดตามผล" "เจรจาต่อรอง" แบบเดิม
 //   2) วันที่ในรายการเป็น พ.ศ. (ข้อมูลเดิมเก็บ "2026-06-02" ต้องขึ้น "2 มิ.ย. 2569")
 //   3) ส่งคำขอราคา → "ส่งคำขอราคา" ถูกติ๊ก · HQ ส่งใบ → "ได้ใบ HQ" ถูกติ๊ก (ฐานติ๊กในคำสั่งเดียวกับเหตุการณ์)
@@ -56,14 +56,20 @@ async function เปิดรายการเตือน(page: Page, ชื�
   return page.locator("[data-lead-tasks]");
 }
 
-test("[func·dealer] รายการเตือน 5 ขั้น · ไม่มีงาน flow เก่า · วันที่ พ.ศ. · งานของระบบฐานติ๊กเอง ดีลเลอร์ติ๊กไม่ได้", async ({ page }) => {
+test("[func·dealer] รายการเตือน 4 ขั้น · ไม่มีงาน flow เก่า · วันที่ พ.ศ. · งานของระบบฐานติ๊กเอง ดีลเลอร์ติ๊กไม่ได้", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const รายการ = await เปิดรายการเตือน(page, ชื่อลีด);
 
-  // 1) จัดกลุ่ม 5 ขั้น ชื่อตาม leadStage.ts
-  const ขั้น = ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"];
+  // 1) จัดกลุ่ม 4 ขั้น ชื่อตาม leadStage.ts (ยุบ 9 พ.ย. 69 · ใบ 0284) · ไม่มีกลุ่มขั้น 5 / ชื่อขั้นเดิม
+  const ขั้น = ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "เสนอราคาลูกค้า"];
   for (const [i, ชื่อ] of ขั้น.entries())
     await expect.soft(page.locator(`[data-task-step="${i + 1}"]`).first(), `มีกลุ่มขั้น ${i + 1} ${ชื่อ}`).toContainText(ชื่อ, { timeout: 15_000 });
+  await expect.soft(page.locator('[data-task-step="5"]'), "ไม่มีกลุ่มขั้น 5").toHaveCount(0);
+  await expect.soft(รายการ, "ไม่มีชื่อขั้นเดิม").not.toContainText(/ทำใบให้ลูกค้า|รอลูกค้าตอบ/);
+  // งานของ 2 ขั้นเดิมรวมอยู่ขั้นเสนอราคาลูกค้า เรียงตามลำดับเดิม (จัดทำใบ → ส่งใบ → ติดตามลูกค้า)
+  const รหัสขั้น4 = await page.locator('[data-task-step="4"] [data-task-key]').evaluateAll(els => els.map(e => e.getAttribute("data-task-key")));
+  expect.soft(รหัสขั้น4.filter(k => ["makeQuote", "sendQuote", "followCustomer"].includes(k ?? "")), `งานขั้นเสนอราคาลูกค้า (${รหัสขั้น4.join(",")})`)
+    .toEqual(["makeQuote", "sendQuote", "followCustomer"]);
   for (const เก่า of ["เจรจาต่อรอง", "ติดตามผล"])
     await expect.soft(page.getByRole("checkbox", { name: new RegExp(`^${เก่า}`) }), `ไม่มี "${เก่า}" แบบเดิม`).toHaveCount(0);
   // รายการตั้งต้นใหม่ครบ (ระบบติ๊ก = ปุ่มปิด)
@@ -136,15 +142,19 @@ test("[func·db] รายการเตือน/แม่แบบงาน�
   expect.soft(เพิ่ม.error?.message ?? "", "HQ เพิ่ม ติดตามผล ในแม่แบบไม่ได้").toMatch(/lead_task_retired/);
 });
 
-test("[func·hq] ตั้งค่า › เส้นทางการขาย: 5 ขั้นใหม่ · ลบได้เฉพาะรายการติ๊กเอง · ฐานไม่รับแม่แบบที่ตัดรายการของระบบ", async ({ page }) => {
+test("[func·hq] ตั้งค่า › เส้นทางการขาย: 4 ขั้น · ลบได้เฉพาะรายการติ๊กเอง · ฐานไม่รับแม่แบบที่ตัดรายการของระบบ", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "ขั้นตอนการขายมาตรฐาน" }).first().click();
-  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"].entries())
+  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "เสนอราคาลูกค้า"].entries())
     await expect.soft(page.locator(`[data-journey-step="${i + 1}"]`), `ขั้น ${i + 1} ${ชื่อ}`).toContainText(ชื่อ, { timeout: 15_000 });
+  await expect.soft(page.locator("[data-journey-step]"), "ขั้นตอนการขายมาตรฐาน 4 ขั้น (ยุบ 9 พ.ย. 69)").toHaveCount(4);
+  expect.soft(await page.locator('[data-journey-step="4"] [data-system-task]').evaluateAll(els => els.map(e => e.getAttribute("data-system-task"))),
+    "งานของระบบของ 2 ขั้นเดิมรวมที่ขั้นเสนอราคาลูกค้า เรียงตามลำดับเดิม").toEqual(["makeQuote", "sendQuote"]);
+  await expect.soft(page.locator('[data-journey-step="4"] input[value="ติดตามลูกค้า"]'), "ติดตามลูกค้าอยู่ขั้นเสนอราคาลูกค้า").toHaveCount(1);
   // ป้ายขั้นไม่มีเลขลำดับ (บอสสั่ง 28 ต.ค. 69) — แถวขั้นต้องขึ้นต้นด้วยชื่อขั้น ไม่ใช่เลข
-  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "ทำใบให้ลูกค้า", "รอลูกค้าตอบ"].entries())
+  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "เสนอราคาลูกค้า"].entries())
     expect.soft((await page.locator(`[data-journey-step="${i + 1}"]`).innerText()).trim(), `ขั้น ${ชื่อ}: ไม่มีเลขลำดับนำหน้า`).toMatch(new RegExp(`^${ชื่อ}`));
   for (const ชื่อ of ["เก็บข้อมูลลูกค้า", "สรุปความต้องการ", "นัดหมาย", "ส่งคำขอราคา", "ได้ใบ HQ", "จัดทำใบเสนอราคา", "ส่งใบเสนอราคา"])
     await expect.soft(page.getByRole("button", { name: `ลบงาน ${ชื่อ}` }), `"${ชื่อ}" ระบบติ๊ก — ลบไม่ได้`).toHaveCount(0);

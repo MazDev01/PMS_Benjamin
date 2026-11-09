@@ -21,7 +21,7 @@ import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep, type คำสั่งบอร์ดลีด } from "@pms/shared/components/ui/LeadNextStep";
 import { StageBoard } from "@pms/shared/components/ui/StageBoard";
 import { ทางย้ายลีด, คำสั่งของปลายทาง } from "@pms/shared/lib/leadBoard";
-import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, เลขขั้นทั้งหมด, ขั้นเปิดอยู่, ป้ายย่อยขั้น, แปลงชื่อขั้นเดิม, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
@@ -132,18 +132,27 @@ function fmtมูลค่าเต็ม(n: number | null) {
 }
 
 
-// ขั้นของลีด สำหรับตาราง/บอร์ด — ชื่อและสีจากตัวกลาง lib/leadStage.ts ที่เดียว (บอสสั่ง 27 ต.ค. 69 · ตรงกับแถบ 5 ขั้นในแผงลีด)
+// ขั้นของลีด สำหรับตาราง/บอร์ด — ชื่อและสีจากตัวกลาง lib/leadStage.ts ที่เดียว (บอสสั่ง 27 ต.ค. 69 · ตรงกับแถบ 4 ขั้นในแผงลีด)
 //   เดิมคอลัมน์ "ขั้นตอน" แสดงชื่อสถานะภายใน (รอราคา HQ · เสนอราคา ฯลฯ) แยกจากคอลัมน์ "ขั้น" — รวมเป็นคอลัมน์เดียวแล้ว
 //   ตาราง: ป้ายขั้น (คอลัมน์ "ขั้นตอน") กับแถบ (คอลัมน์ "ความคืบหน้า") แยกคอลัมน์ (บอสสั่ง 28 ต.ค. 69) · การ์ดบอร์ดซ้อนสองอย่างไว้ด้วยกัน
 function ป้ายขั้นลีด({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
   const n = เลขขั้นของลีด(l.status, มีใบร่าง);
   const สี = สีขั้น(n);
-  return (
-    <span className="badge" data-stage-label data-stage-no={n} title={ชื่อขั้น(n)}
+  // ขั้นเสนอราคาลูกค้า: ป้ายย่อยบอกว่าทำใบแล้ว (ยังไม่ส่ง) หรือส่งให้ลูกค้าแล้ว (บอสสั่ง 9 พ.ย. 69 · ยุบ 2 ขั้นเป็นขั้นเดียว)
+  const ย่อย = ป้ายย่อยขั้น(l.status, มีใบร่าง);
+  const ป้าย = (
+    <span className="badge" data-stage-label data-stage-no={n} title={ย่อย ? `${ชื่อขั้น(n)} · ${ย่อย}` : ชื่อขั้น(n)}
       style={{ background:สี.bg, color:สี.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap", alignSelf:"flex-start" }}>{ชื่อขั้น(n)}</span>
   );
+  if (!ย่อย) return ป้าย;
+  return (
+    <span style={{ display:"inline-flex", flexDirection:"column", gap:2, minWidth:0, maxWidth:"100%" }}>
+      {ป้าย}
+      <span data-stage-sub style={{ fontSize:"0.64rem", fontWeight:600, color:"#6b7280", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ย่อย}</span>
+    </span>
+  );
 }
-// แถบความคืบหน้า = ตัวกลาง LeadProgressBar (ขั้นละ 20% · ปิดสำเร็จ 100% · ปิดไม่สำเร็จ สีแดงตามขั้นที่ไปถึง · บอสสั่ง 28 ต.ค. 69)
+// แถบความคืบหน้า = ตัวกลาง LeadProgressBar (ขั้นละ 25% · ปิดสำเร็จ 100% · ปิดไม่สำเร็จ สีแดงตามขั้นที่ไปถึง · บอสสั่ง 28 ต.ค. 69)
 function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
   return (
     <div data-mini-stage style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
@@ -349,7 +358,7 @@ function OverviewEditor({ lead, persons, onSave }: {
       {/* มูลค่า + ป้ายสถานะ — ตำแหน่งเดียวกับตอนอ่าน */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:12 }}>
         <div style={{ minWidth:0 }}>
-          {/* ช่องเลือกสถานะเอาออก (19 ต.ค. 69) · รอบ 4: สถานะอยู่ที่แถบ 5 ขั้นที่เดียว เปลี่ยนได้ทางกล่องขั้นต่อไปเท่านั้น */}
+          {/* ช่องเลือกสถานะเอาออก (19 ต.ค. 69) · รอบ 4: สถานะอยู่ที่แถบ 4 ขั้นที่เดียว เปลี่ยนได้ทางกล่องขั้นต่อไปเท่านั้น */}
         </div>
       </div>
 
@@ -783,7 +792,7 @@ export default function LeadsPage() {
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
   );
-  // ลีดปิดสำเร็จอยู่ในหน้านี้ด้วย (บอสสั่ง 28 ต.ค. 69 · FLOW) — ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ = ขั้น 1–5)
+  // ลีดปิดสำเร็จอยู่ในหน้านี้ด้วย (บอสสั่ง 28 ต.ค. 69 · FLOW) — ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ = ขั้น 1–4)
   const leadsData = myAllLeads;
 
   // sync งาน/สถานะที่ระบบติ๊กอัตโนมัติ (เช่น สร้าง/ส่งใบเสนอราคา) เข้าโมดัลที่เปิดอยู่
@@ -861,13 +870,13 @@ export default function LeadsPage() {
   }, [view]);
   const [hideEmpty, setHideEmpty] = useState(false); // ซ่อนคอลัมน์ที่ไม่มีการ์ด
   const [query, setQuery] = useState("");
-  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–5 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
+  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–4 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
   const [filterStatus, setFilterStatus] = useState<string>("OPEN");
   // ค่าเริ่มต้น = ไม่เลือกคอลัมน์ → ลูกค้าเป้าหมายที่เพิ่มล่าสุดขึ้นก่อน (numId มากสุด) · บอสสั่ง 21 ก.ย. 69 ทุกตาราง
   const [sortKey, setSortKey] = useState<SortKey|null>(null);
   const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
   // การ์ด KPI ที่กดอยู่ (ใบ 0246) — กรองตารางตามขั้นการขาย (ตัวแปลงกลาง lib/leadStage.ts) · null = ไม่กรอง
-  const [ขั้นจากการ์ด, setขั้นจากการ์ด] = useState<2 | 3 | 5 | null>(null);
+  const [ขั้นจากการ์ด, setขั้นจากการ์ด] = useState<2 | 3 | 4 | null>(null);
   const [followUpDays, setFollowUpDays] = useState(0); // Smart filter: 0=off · 7/14/30 = ขาดติดต่อเกินกี่วัน
   // quick filter chips ถูกลบตามที่บอสสั่ง — state นี้ไม่มีใครตั้งค่าได้แล้ว จึงลบทิ้ง
   const [dTab, setDTab] = useState<"overview"|"quotation"|"history">("overview"); // แท็บในแผงลีด — รอบ 4 เหลือ 3 แท็บ
@@ -995,7 +1004,7 @@ export default function LeadsPage() {
   const filtered = useMemo(() => {
     let arr = leadsData.filter(l => {
       // ตัวกรองพื้นฐาน (ค้นหา/ผู้รับผิดชอบ/ช่วงเวลา/จังหวัด/ช่องทาง/ช่วงมูลค่า) ใช้ตัวเดียวกับการ์ด KPI
-      const matchS = filterStatus === "ALL" || (filterStatus === "OPEN" ? เลขขั้นของ(l) <= 5 : เลขขั้นของ(l) === Number(filterStatus));
+      const matchS = filterStatus === "ALL" || (filterStatus === "OPEN" ? ขั้นเปิดอยู่(เลขขั้นของ(l)) : เลขขั้นของ(l) === Number(filterStatus));
       const matchFollow = followUpDays === 0 || needsFollowUp(l, followUpDays);
       const ขั้น = ขั้นจากการ์ด == null ? null : ขั้นของลีด(l.status, มีใบร่างของ(l));
       const matchKpi = ขั้นจากการ์ด == null || (ขั้น?.kind === "open" && ขั้น.step === ขั้นจากการ์ด);
@@ -1007,7 +1016,7 @@ export default function LeadsPage() {
       if (sortKey === null) return b.numId - a.numId;
       let av: string|number = 0, bv: string|number = 0;
       if (sortKey === "value") { av = มูลค่าลีด(a) ?? -1; bv = มูลค่าลีด(b) ?? -1; }
-      else if (sortKey === "status") { av = เลขขั้นของ(a); bv = เลขขั้นของ(b); }   // เรียงตามเลขขั้น (1→5 · ปิดสำเร็จ · ปิดไม่สำเร็จ)
+      else if (sortKey === "status") { av = เลขขั้นของ(a); bv = เลขขั้นของ(b); }   // เรียงตามเลขขั้น (1→4 · ปิดสำเร็จ · ปิดไม่สำเร็จ)
       else { av = (a[sortKey] as string) ?? ""; bv = (b[sortKey] as string) ?? ""; }
       // เรียงข้อความไทยตามพยัญชนะ (locale "th") — เรียงด้วย < > ตรงๆ จะได้ลำดับ Unicode ที่ไม่ตรงตามตัวอักษรไทย
       if (typeof av === "string" && typeof bv === "string") {
@@ -1252,10 +1261,10 @@ export default function LeadsPage() {
   );
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ฐานคิด ณ ตอนนี้ (ไม่ขึ้นกับช่วงเวลา) ในชุดลีดที่ผ่านตัวกรองอื่นของหน้า
   //   (จังหวัด/ผู้รับผิดชอบ/ช่องทาง/ค้นหา/มูลค่า · บอสตัดสิน 27 ต.ค. 69) · การ์ดที่กดอยู่/สถานะ ไม่ใช่ตัวกรองของการ์ด
-  //   ขั้น 2/3/5 = ตัวแปลงกลาง lib/leadStage.ts (ฐานใช้กติกาเดียวกัน) · กดการ์ด = กรองตารางตามขั้นนั้น · กดซ้ำ = ล้าง
+  //   ขั้น 2/3/4 = ตัวแปลงกลาง lib/leadStage.ts (ฐานใช้กติกาเดียวกัน) · กดการ์ด = กรองตารางตามขั้นนั้น · กดซ้ำ = ล้าง
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(myAllLeads, ตรงตัวกรองอื่น, l => l.id), [myAllLeads, ตรงตัวกรองอื่น]);
   const kpi = useKpiCards("dealer.leads", { filters: ชุดการ์ด, รุ่น: [myAllLeads.map(l => `${l.id}:${l.status}`).join(","), quotations.filter(q => q.status === "draft").length] });
-  const กดขั้น = (s: 2 | 3 | 5 | null) => { setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
+  const กดขั้น = (s: 2 | 3 | 4 | null) => { setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
   const kpiCards = [
     { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
       on: ขั้นจากการ์ด == null && filterStatus === "OPEN" && followUpDays === 0, onClick: () => กดขั้น(null) },
@@ -1263,8 +1272,9 @@ export default function LeadsPage() {
       on: ขั้นจากการ์ด === 2, onClick: () => กดขั้น(2) },
     { kpi: "hq-quoted", label: "ได้ราคาแล้ว รอทำใบ", value: ค่า(kpi, "hqQuotedNoDraft"), unit: `ราย · ${ชื่อขั้น(3)}`, icon: Inbox, color: "#16A34A", bg: "#E6F7EE",
       on: ขั้นจากการ์ด === 3, onClick: () => กดขั้น(3) },
-    { kpi: "awaiting-client", label: ชื่อขั้น(5), value: ค่า(kpi, "awaitingClient"), unit: "ราย · ส่งใบให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
-      on: ขั้นจากการ์ด === 5, onClick: () => กดขั้น(5) },
+    // ขั้นเสนอราคาลูกค้า (ยุบ 9 พ.ย. 69) = ทำใบแล้วยังไม่ส่ง + ส่งให้ลูกค้าแล้ว · ฐานนับ quoteStage (ใบ 0284)
+    { kpi: "quote-stage", label: ชื่อขั้น(4), value: ค่า(kpi, "quoteStage"), unit: "ราย · ทำใบแล้ว / ส่งให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
+      on: ขั้นจากการ์ด === 4, onClick: () => กดขั้น(4) },
   ];
 
   // แนวโน้ม 12 เดือน — ลูกค้าเป้าหมายใหม่ เทียบ ปิดการขาย · ปีปัจจุบันเท่านั้น
@@ -1357,7 +1367,7 @@ export default function LeadsPage() {
         >
           {/* ไม่ตั้ง minWidth เกินจำเป็น — select กว้างตามคำ caption อยู่แล้ว
               ตั้งเกินไว้ = กินที่ฟรีจนแถบตกบรรทัดที่จอ 1440 */}
-          {/* ค่าเริ่มต้น = กำลังดำเนินการ (ขั้น 1–5) · ลีดที่ปิดแล้วดูได้จากตัวเลือกปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด */}
+          {/* ค่าเริ่มต้น = กำลังดำเนินการ (ขั้น 1–4) · ลีดที่ปิดแล้วดูได้จากตัวเลือกปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด */}
           <FilterSelect caption="กำลังดำเนินการ" all="OPEN" label={ช่อง.ขั้นตอน} value={filterStatus} onChange={setFilterStatus}
             options={[{ v: "6", l: ชื่อขั้น(6) }, { v: "7", l: ชื่อขั้น(7) }, { v: "ALL", l: "ทั้งหมด" }]} />
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={fAssignee} onChange={setFAssignee} all=""
@@ -1390,8 +1400,8 @@ export default function LeadsPage() {
                   {!hiddenCols.includes("source")   && <col style={{width:"8%", minWidth:84}} />}
                   {!hiddenCols.includes("project")  && <col style={{width:"11%", minWidth:110}} />}{/* งานที่ต้องการ */}
                   {!hiddenCols.includes("area")     && <col style={{width:"7%", minWidth:76}} />}
-                  <col style={{width:"11%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "ทำใบให้ลูกค้า" อยู่ได้ */}
-                  <col style={{width:"9%", minWidth:112}} />{/* ความคืบหน้า แถบ 5 ช่อง + % */}
+                  <col style={{width:"11%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "เสนอราคาลูกค้า" + ป้ายย่อย อยู่ได้ */}
+                  <col style={{width:"9%", minWidth:112}} />{/* ความคืบหน้า แถบ 4 ช่อง + % */}
                   <col style={{width:"8%", minWidth:84}} />{/* มูลค่า */}
                   <col style={{width:"10%", minWidth:110}} />{/* ผู้รับผิดชอบ */}
                   {!hiddenCols.includes("activity") && <col style={{width:"8%", minWidth:104}} />}{/* กิจกรรมล่าสุด "28 ต.ค. 2569" เต็ม */}
@@ -1548,7 +1558,7 @@ export default function LeadsPage() {
 
         {/* ── KANBAN VIEW — ลากได้ (บอสสั่ง 5 พ.ย. 69 · ทับรอบ 4 ที่บอร์ดดูอย่างเดียว) · ตัวกลาง StageBoard ตัวเดียวกับบอร์ดผู้สนใจ HQ ──
             ลากทีละ 1 ขั้นไปข้างหน้า = เปิดแผงลีด แล้วทำปุ่มหลักของกล่องขั้นต่อไป (ขอราคา · ทำใบ · ส่งใบ) — การ์ดย้ายเมื่อบันทึกสำเร็จ
-            ขอราคา HQ → ได้ใบ HQ ลากไม่ได้ (HQ เป็นคนส่งราคา · L1) · รอลูกค้าตอบ → ปิดสำเร็จ = บันทึกลูกค้าตอบรับที่ใบ (L2)
+            ขอราคา HQ → ได้ใบ HQ ลากไม่ได้ (HQ เป็นคนส่งราคา · L1) · ได้ใบ HQ → เสนอราคาลูกค้า = ฟอร์มทำใบ · เสนอราคาลูกค้า → ปิดสำเร็จ = บันทึกลูกค้าตอบรับที่ใบ (L2 · ใบยังร่าง = ฟอร์มส่งใบก่อน · 9 พ.ย. 69)
             ปิดไม่สำเร็จ = กล่องเหตุผล หรือ "ลูกค้าปฏิเสธ" ที่ใบเมื่อส่งใบแล้ว (L3) · ราคา HQ หมดอายุ = ฟอร์มขอราคาใหม่ (L4) · การ์ดที่ปิดแล้วลากออกไม่ได้ (L5) */}
         {view === "kanban" && (
           <div ref={กระดานRef}>
@@ -1603,7 +1613,7 @@ export default function LeadsPage() {
                         <AssigneeAvatars value={l.assigned} size={24} showName={false} />
                       </div>
 
-                      {/* ขั้น 1–5 (ตัวแปลงกลาง) + กิจกรรมล่าสุด — % ความคืบหน้าจากงานเอาออก (รอบ 4) */}
+                      {/* ขั้น 1–4 (ตัวแปลงกลาง) + กิจกรรมล่าสุด — % ความคืบหน้าจากงานเอาออก (รอบ 4) */}
                       <MiniStage l={l} มีใบร่าง={มีใบร่างของ(l)} />
                       {lastActivity(l) !== "—" && (
                         <div style={{ display:"flex", alignItems:"center", gap:3, fontSize:"0.65rem", color:"#9ca3af", fontWeight:600, marginTop:5 }}>
@@ -1914,7 +1924,7 @@ export default function LeadsPage() {
           }
         }
 
-        // ── งานในแต่ละขั้น: แท็บภาพรวม ใต้แถบ 5 ขั้น (บอสสั่ง 28 ต.ค. 69) · ติ๊กไว้กันลืม ไม่ขยับสถานะ · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
+        // ── งานในแต่ละขั้น: แท็บภาพรวม ใต้แถบ 4 ขั้น (บอสสั่ง 28 ต.ค. 69) · ติ๊กไว้กันลืม ไม่ขยับสถานะ · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
         const tabTasks = (
           <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} ขั้นตอนนี้={เลขขั้นของ(c)} onOpenTask={เปิดงาน} />
         );
@@ -1960,7 +1970,7 @@ export default function LeadsPage() {
                         {!last && <div style={{ width:2, flex:1, minHeight:14, background:"#eef1f5" }} />}
                       </div>
                       <div style={{ minWidth:0, paddingBottom:last ? 0 : 12 }}>
-                        <div style={{ fontSize:"0.8rem", color:"#2D2D2D", fontWeight:600, lineHeight:1.4 }}>{a.text}</div>
+                        <div style={{ fontSize:"0.8rem", color:"#2D2D2D", fontWeight:600, lineHeight:1.4 }}>{แปลงชื่อขั้นเดิม(a.text)}</div>
                         <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:"0.65rem", color:"#6b7280", marginTop:3 }}>
                           {/* วันที่ผ่านตัวจัดรูปกลาง (พ.ศ.) — ข้อมูลเดิมบางรายการเก็บ ISO ค.ศ. "2026-04-28" (ผลตรวจ FLOW รอบ 5 · 28 ต.ค. 69) */}
                           <CalendarClock size={11} /> {วันที่แสดงไทย(a.date) || "—"}
@@ -2068,7 +2078,7 @@ export default function LeadsPage() {
                 </div>
                 {/* ป้ายมูลค่า (ใบเสนอราคาล่าสุด) */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginTop:12 }}>
-                  {/* ป้ายสถานะบนหัวแผงเอาออก (รอบ 4) — สถานะเหลือที่เดียว = แถบ 5 ขั้นด้านล่าง */}
+                  {/* ป้ายสถานะบนหัวแผงเอาออก (รอบ 4) — สถานะเหลือที่เดียว = แถบ 4 ขั้นด้านล่าง */}
                   <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:800, background:"#fff", color:"#003366" }}><Coins size={11} /> {fmtLeadValue(มูลค่าลีด(c))}</span>
                 </div>
               </div>
@@ -2081,7 +2091,7 @@ export default function LeadsPage() {
                   else await saveLeadรอฐาน({ stage: { status: "CANCELLED", lostReason: reason } });
                   setToast("บันทึกปิดการขายไม่สำเร็จแล้ว");
                 }}
-                onAction={async (kind, quoteId) => {
+                onAction={async (kind, quoteId, ต่อด้วยตอบรับ) => {
                   // ทุกปุ่มทำงานในแผงนี้ ไม่พาไปหน้าอื่น (รอบ 4 · เดิม ส่ง/บันทึกผล พาไปหน้าใบเสนอราคา)
                   if (kind === "ดูคำขอ") {
                     setDTab("quotation");   // ได้ใบ HQ (ยังไม่ติ๊ก) = เปิดคำขอที่รอ HQ
@@ -2098,6 +2108,9 @@ export default function LeadsPage() {
                     if (!(await ยืนยัน({ หัวข้อ: `ส่งใบ ${q.id} ให้ลูกค้า ?`, รายละเอียด: "ส่งแล้วแก้ใบนี้ไม่ได้ — ลูกค้าต่อรองให้ทำฉบับใหม่", ปุ่มตกลง: "ส่งให้ลูกค้า", ปุ่มกำลังทำ: "กำลังส่ง…",
                       ทำ: async () => { if (!(await sendQuotation(q.id))) throw new Error("ส่งใบไม่สำเร็จ — ลองใหม่อีกครั้ง"); } }))) return;
                     setToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าแล้ว`);
+                    // ลากไปปิดสำเร็จตอนใบยังเป็นร่าง (บอสตอบ 9 พ.ย. 69 ข้อ 1 ข): ส่งแล้วเปิดใบให้ยืนยันลูกค้าตอบรับต่อ
+                    //   ยกเลิกที่ยืนยันตอบรับ = ใบส่งแล้ว การ์ดอยู่คอลัมน์เสนอราคาลูกค้า
+                    if (ต่อด้วยตอบรับ) { setDTab("quotation"); setQuoteViewSignal(s => ({ id: q.id, n: (s?.n ?? 0) + 1 })); }
                   } else if (kind === "customer_result" && quoteId) {
                     setDTab("quotation");
                     setQuoteViewSignal(s => ({ id: quoteId, n: (s?.n ?? 0) + 1 }));
@@ -2118,7 +2131,7 @@ export default function LeadsPage() {
               {/* Body — เนื้อหาตามแท็บ */}
               <div style={{ flex:1, overflowY:"auto", background:"#f5f7fa" }}>
                 {/* ── TAB: ภาพรวม ── */}
-                {/* บอสสั่ง 28 ต.ค. 69: งานในแต่ละขั้นอยู่แท็บภาพรวม ใต้แถบ 5 ขั้น · แท็บประวัติเหลือไทม์ไลน์อย่างเดียว */}
+                {/* บอสสั่ง 28 ต.ค. 69: งานในแต่ละขั้นอยู่แท็บภาพรวม ใต้แถบ 4 ขั้น · แท็บประวัติเหลือไทม์ไลน์อย่างเดียว */}
                 <div style={{ padding:16, display:dTab==="overview"?"flex":"none", flexDirection:"column", gap:14 }}>
                   <div style={cardStyle}>{tabTasks}</div>
                   <div style={cardStyle}>

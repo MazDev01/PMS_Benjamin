@@ -27,5 +27,8 @@ r = ตรวจ({ "apps/dealer/ok.tsx": 'export const C = ({ n }: any) => <span
 r = ตรวจ({ "packages/shared/lib/leadIntent.ts": 'export const t = (s: any) => `เปลี่ยนขั้นเป็น "${leadStatusLabel[s]}"`;\n' });
 ผล(r.ผ่าน, "ข้อความไทม์ไลน์ในตัวบันทึกลีด (ไม่ใช่หน้าจอ · ตรงกับฐาน) → ผ่าน", r.ข้อความ);
 
+r = ตรวจ({ "apps/dealer/stages.tsx": 'export const ขั้นปลาย = ["ได้ใบ HQ", "เสนอราคาลูกค้า"];\n' });
+ผล(!r.ผ่าน && /เสนอราคาลูกค้า/.test(r.ข้อความ), "รายชื่อขั้นเขียนเองที่มีขั้นใหม่ \"เสนอราคาลูกค้า\" (ยุบ 4 ขั้น 9 พ.ย. 69) → ตก", r.ข้อความ);
+
 console.log(ตก ? `\n${ตก} FAIL` : "\nALL PASS");
 process.exit(ตก ? 1 : 0);

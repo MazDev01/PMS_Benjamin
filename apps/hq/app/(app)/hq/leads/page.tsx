@@ -46,7 +46,7 @@ import { GroupedBarChart, Donut } from "@pms/shared/components/ui/Charts";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { ช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
-import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น, สีกราฟขั้น, ตัวเลือกขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น, สีกราฟขั้น, ตัวเลือกขั้น, เลขขั้นทั้งหมด, ขั้นเปิดอยู่, ป้ายย่อยขั้น, แปลงชื่อขั้นเดิม, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
@@ -90,12 +90,14 @@ export default function HQLeadsPage() {
   const rulesOf = useLeadRulesOf();
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [query, setQuery] = useState("");
-  // ตัวกรองขั้น = เลขขั้น 1–7 จากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมกรองตามชื่อสถานะภายใน) · ALL = ทุกขั้น
-  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–5 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
+  // ตัวกรองขั้น = เลขขั้น (1–4 · 6 ปิดสำเร็จ · 7 ปิดไม่สำเร็จ) จากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมกรองตามชื่อสถานะภายใน) · ALL = ทุกขั้น
+  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–4 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
   const [status, setStatus] = useState<string>("OPEN");
   // เลขขั้นของแถว: แถวจากฐาน (leads_page ใบ 0251) มี stageNo · โหมดตัวอย่าง/ค้างติดตาม คิดจากใบร่างที่มีในเครื่อง
   const เลขขั้นแถว = (l: LeadRow): เลขขั้น => (l.stageNo as เลขขั้น | undefined)
     ?? เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
+  // ป้ายย่อยขั้นเสนอราคาลูกค้า (ทำใบแล้ว ยังไม่ส่ง / ส่งให้ลูกค้าแล้ว · บอสสั่ง 9 พ.ย. 69) — ได้ราคา HQ + ขั้น 4 = มีใบร่าง (กติกา lead_stage_no)
+  const ป้ายย่อยแถว = (l: LeadRow) => ป้ายย่อยขั้น(l.status, เลขขั้นแถว(l) === 4);
   const [viewLead, setViewLead] = useState<LeadRow | null>(null);
   // โดนัท 2 ใบ: ชี้ก้อนสีหรือแถวคำอธิบาย เน้นก้อนเดียวกัน (บอสสั่ง 20 ส.ค. 69 · ย้ายมาจากโดนัทหน้าลูกค้าที่เอาออก 2 พ.ย. 69)
   const [เน้นแหล่ง, setเน้นแหล่ง] = useState<number | null>(null);
@@ -190,9 +192,9 @@ export default function HQLeadsPage() {
   // ตามช่วงเวลา (วันที่ลีดเข้ามา): ลีดใหม่ · ปิดสำเร็จ/ปิดไม่สำเร็จ · กราฟ
   const kpiBase = useMemo(() => scoped.filter(ตรงขอบเขต), [scoped, ตรงขอบเขต]);
 
-  // ตาราง: "กำลังดำเนินการ" (ขั้น 1–5 · การ์ดลีดที่เปิดอยู่/ไม่เคลื่อนไหว) = ณ ตอนนี้ · ขั้นอื่น/ทั้งหมด = ตามช่วง
+  // ตาราง: "กำลังดำเนินการ" (ขั้น 1–4 · การ์ดลีดที่เปิดอยู่/ไม่เคลื่อนไหว) = ณ ตอนนี้ · ขั้นอื่น/ทั้งหมด = ตามช่วง
   const filtered = useMemo(() => (status === "OPEN" ? kpiBaseAll : kpiBase).filter(l =>
-    (status === "ALL" || (status === "OPEN" ? เลขขั้นแถว(l) <= 5 : เลขขั้นแถว(l) === Number(status))) &&
+    (status === "ALL" || (status === "OPEN" ? ขั้นเปิดอยู่(เลขขั้นแถว(l)) : เลขขั้นแถว(l) === Number(status))) &&
     (!overdueOnly || needsFollowUp(l, 30))
   ), [kpiBase, kpiBaseAll, status, overdueOnly, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -201,7 +203,7 @@ export default function HQLeadsPage() {
   // กราฟ = ระดับที่เลือก + ช่วงเท่านั้น (บอสสั่ง 2 พ.ย. 69 · ไม่ผูกคำค้น/แหล่งที่มา/ขั้นของรายชื่อ) → ผลรวมกราฟขั้นตอน = การ์ด · วงกลมแหล่งที่มา = การ์ดลีดใหม่
   const baseF: LeadSummaryFilters = { dealerCodes: leadDealerCodes, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) };
   const chartSummary = useLeadSummary(baseF);
-  // กราฟตามขั้นตอน ขั้น 1–5 = ลีดที่เปิดอยู่ ณ ตอนนี้ (ชุดเดียวกับการ์ด "ลีดที่เปิดอยู่") · ขั้น 6–7 = ปิดในช่วง (ตามวันที่ลีดเข้ามา)
+  // กราฟตามขั้นตอน ขั้น 1–4 = ลีดที่เปิดอยู่ ณ ตอนนี้ (ชุดเดียวกับการ์ด "ลีดที่เปิดอยู่") · ขั้น 6–7 = ปิดในช่วง (ตามวันที่ลีดเข้ามา)
   const openSummary = useLeadSummary({ ...baseF, dateStart: undefined, dateEnd: undefined });
 
   // ── ตารางลูกค้าเป้าหมาย: แบ่งหน้าที่ DB (M9 Phase 4) · local/ยังไม่กลับ = filtered (client) ──
@@ -210,10 +212,10 @@ export default function HQLeadsPage() {
   const [leadPage, setLeadPage] = useState(0);
   const leadOpts: LeadListOpts = useMemo(() => ({
     limit: LEADS_PAGE, offset: leadPage * LEADS_PAGE,
-    // 0 = กำลังดำเนินการ (ขั้น 1–5 · ใบ 0256)
+    // 0 = กำลังดำเนินการ (ขั้น 1–4 · ใบ 0256)
     stage: status === "ALL" ? undefined : status === "OPEN" ? 0 : Number(status), dealerCodes: leadDealerCodes,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
-    // กำลังดำเนินการ (ขั้น 1–5) = ณ ตอนนี้ ตรงการ์ดลีดที่เปิดอยู่ (ไม่ผูกช่วง) · ขั้นอื่น/ทั้งหมด = ลีดที่เข้ามาในช่วง
+    // กำลังดำเนินการ (ขั้น 1–4) = ณ ตอนนี้ ตรงการ์ดลีดที่เปิดอยู่ (ไม่ผูกช่วง) · ขั้นอื่น/ทั้งหมด = ลีดที่เข้ามาในช่วง
     dateStart: status === "OPEN" ? undefined : isoDateOf(timeRange.start), dateEnd: status === "OPEN" ? undefined : isoDateOf(timeRange.end),
     // การ์ด "ไม่เคลื่อนไหวเกิน 30 วัน" (ใบ 0246) = ตัวกรองค้างติดตามที่ 30 วันทุกสาขา (กติกาเดียวกับฐาน)
     overdue: overdueOnly, asOf: isoDateOf(APP_NOW), defaultDays: 30, perDealer: undefined,
@@ -291,12 +293,12 @@ export default function HQLeadsPage() {
 
   // ตามขั้น — เลขขั้นจากฐาน (lead_summary.byStage ใบ 0251) · ชื่อขั้นจากตัวกลาง leadStage.ts
   const byStatus = useMemo(() => {
-    // ขั้น 1–5 = เปิดอยู่ ณ ตอนนี้ (openSummary · ชุดเดียวกับการ์ด) · ขั้น 6–7 = ปิดในช่วง (chartSummary)
+    // ขั้น 1–4 = เปิดอยู่ ณ ตอนนี้ (openSummary · ชุดเดียวกับการ์ด) · ขั้น 6–7 = ปิดในช่วง (chartSummary)
     const จากฐาน = (sum: typeof chartSummary) => sum ? new Map((sum.byStage ?? []).map(r => [r.stage, r.count])) : null;
     const เปิด = จากฐาน(openSummary), ช่วง = จากฐาน(chartSummary);
     const count = (n: เลขขั้น) => {
-      const ฐาน = n <= 5 ? เปิด : ช่วง;
-      return ฐาน ? (ฐาน.get(n) ?? 0) : (n <= 5 ? kpiBaseAll : kpiBase).filter(l => เลขขั้นแถว(l) === n).length;
+      const ฐาน = ขั้นเปิดอยู่(n) ? เปิด : ช่วง;
+      return ฐาน ? (ฐาน.get(n) ?? 0) : (ขั้นเปิดอยู่(n) ? kpiBaseAll : kpiBase).filter(l => เลขขั้นแถว(l) === n).length;
     };
     const max = Math.max(...เลขขั้นทั้งหมด.map(count), 1);
     return เลขขั้นทั้งหมด.map(n => ({ stage: n, count: count(n), pct: Math.round(count(n) / max * 100) }));
@@ -403,7 +405,7 @@ export default function HQLeadsPage() {
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
-          <BoxTitle ชื่อ={`กราฟลีดตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–5 = ลีดที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
+          <BoxTitle ชื่อ={`กราฟลีดตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–4 = ลีดที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
           {/* data-ready = ตัวเลขมาจากฐานครบทั้งสองชุดแล้ว (ข้อทดสอบรอก่อนอ่าน · ระหว่างโหลดเป็นทางสำรองในเครื่อง) */}
           <div className="card-body" data-stage-chart data-ready={chartSummary && openSummary ? "1" : ""} style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
             {byStatus.map(s => { const c = สีกราฟขั้น[s.stage]; return (
@@ -508,7 +510,7 @@ export default function HQLeadsPage() {
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…" aria-label="ค้นหาลูกค้าเป้าหมาย"
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
-          {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–5) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
+          {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–4) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
           <select aria-label={ช่อง.ขั้นตอน} value={status} onChange={e => setStatus(e.target.value)} className="form-input"
             style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
             <option value="OPEN">กำลังดำเนินการ</option>
@@ -544,7 +546,7 @@ export default function HQLeadsPage() {
               <col style={{ width: "8%" }} />{/* ช่องทางที่มา */}
               <col style={{ width: "10%" }} />{/* งานที่ต้องการ */}
               <col style={{ width: "6%" }} />{/* พื้นที่ (ตร.ม.) */}
-              <col style={{ width: "11%" }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
+              <col style={{ width: "11%" }} />{/* ขั้นตอน — พอให้ "เสนอราคาลูกค้า" ไม่ถูกตัด */}
               <col style={{ width: "8%" }} />{/* มูลค่า */}
               <col style={{ width: "7%" }} />{/* ผู้รับผิดชอบ */}
               <col style={{ width: "8%" }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
@@ -589,6 +591,9 @@ export default function HQLeadsPage() {
                            (ดูหมายเหตุที่ colgroup: เพิ่มคอลัมน์แล้วจะกลับมามีแถบเลื่อนแนวนอนอีก) */}
                     <td className="wrap">
                       <span className="badge" data-stage-label style={{ background: c.bg, color: c.text, whiteSpace: "nowrap" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</span>
+                      {ป้ายย่อยแถว(l) && (
+                        <span data-stage-sub style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", fontWeight: 600, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ป้ายย่อยแถว(l)}</span>
+                      )}
                       {l.status === "CANCELLED" && (
                         <span title={l.lostReason || "ไม่ได้ระบุเหตุผล"}
                           style={{ display: "block", fontSize: "0.65rem", color: l.lostReason ? "#dc2626" : "#9ca3af", marginTop: 3,
@@ -661,7 +666,7 @@ export default function HQLeadsPage() {
                 <PanelStats>
                   <PanelStat label="ใบเสนอราคาล่าสุด" value={มูลค่าอ่านง่าย(มูลค่าลีด(l))} />
                   {/* ขั้นจาก leadStage.ts (เดิม "เสนอราคาแล้ว" = ชื่อสถานะภายใน · ผลตรวจ FLOW รอบ 5 แถว 19) */}
-                  <PanelStat label={ช่อง.ขั้นตอน} tone={เลขขั้นแถว(l) === 6 ? "good" : "plain"} value={ชื่อขั้น(เลขขั้นแถว(l))} />
+                  <PanelStat label={ช่อง.ขั้นตอน} tone={เลขขั้นแถว(l) === 6 ? "good" : "plain"} value={ป้ายย่อยแถว(l) ? `${ชื่อขั้น(เลขขั้นแถว(l))} · ${ป้ายย่อยแถว(l)}` : ชื่อขั้น(เลขขั้นแถว(l))} />
                 </PanelStats>
 
                 {/* ชุดช่องมาตรฐาน (lib/fieldLabels.ts · บอสสั่ง 26 ต.ค. 69): ข้อมูลลูกค้า · ข้อมูลงาน · การดูแล — ชื่อช่องเดียวกับแผงลีดดีลเลอร์ */}
@@ -702,7 +707,7 @@ export default function HQLeadsPage() {
                           )}
                           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#fff", border: "2px solid #003366", marginTop: 4, flexShrink: 0, zIndex: 1 }} />
                           <span style={{ minWidth: 0 }}>
-                            <span style={{ display: "block", fontSize: "0.76rem", color: "#1F2937", lineHeight: 1.5 }}>{a.text}</span>
+                            <span style={{ display: "block", fontSize: "0.76rem", color: "#1F2937", lineHeight: 1.5 }}>{แปลงชื่อขั้นเดิม(a.text)}</span>
                             {/* ตัวจัดรูปวันที่กลาง (พ.ศ.) — ข้อมูลเดิมเก็บ ISO ค.ศ. บางรายการ (ผลตรวจ FLOW รอบ 5 แถว 20) */}
                             <span style={{ display: "block", fontSize: "0.66rem", color: "#94A3B8", marginTop: 2 }}>{วันที่แสดงไทย(a.date) || "—"}</span>
                           </span>

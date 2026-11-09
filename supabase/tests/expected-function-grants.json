@@ -254,6 +254,13 @@
    "definer": false
   },
   {
+   "f": "_lead_tasks_four_steps(p_tasks jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_lead_tasks_has_old_flow(p_tasks jsonb)",
    "anon": false,
    "authenticated": false,

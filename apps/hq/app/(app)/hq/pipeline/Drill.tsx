@@ -12,7 +12,7 @@ import { หน้าต่างเจาะ, ส่วนเจาะ } from "
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { ชื่อภาค, ภาคมาตรฐาน } from "@pms/shared/lib/provinces";
-import { ชื่อขั้น, สีกราฟขั้น, เลขขั้นของลีด, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, สีกราฟขั้น, เลขขั้นของลีด, เลขขั้นเปิด, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { useQuotationsPage, useLeadsPage } from "@pms/shared/lib/useNetworkData";
 import { ชื่อสถานะใบHQ } from "@pms/shared/components/hq/quotations/QuotationFilterBar";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
@@ -334,7 +334,7 @@ const สีชุด = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", 
 /** ระดับ = ป้ายระดับที่เลือก · ช่วง = ช่วงเวลาที่เลือก (หัวข้อกราฟ · บอสสั่ง 3 พ.ย. 69) */
 export function กล่องล่าง({ รวมทั้งหมด, ขั้นตอนนี้, ในช่วง, ระดับ, ช่วง }: { รวมทั้งหมด: รวม; ขั้นตอนนี้: LeadSummary | null; ในช่วง: LeadSummary | null;
   ระดับ: string; ช่วง: { start: string; end: string } }) {
-  const ขั้น = ([1, 2, 3, 4, 5] as เลขขั้น[]).map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
+  const ขั้น = เลขขั้นเปิด.map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
   const เหตุผล = (ในช่วง?.byLostReason ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.reason || "ไม่ระบุเหตุผล", value: r.count, color: สีชุด[i % สีชุด.length] }));
   const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.source || "ไม่ระบุ", value: r.count, color: สีชุด[i % สีชุด.length] }));
   const เส้นทาง = [

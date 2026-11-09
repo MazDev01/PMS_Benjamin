@@ -1286,7 +1286,7 @@ export default function CustomersPage(){
                       {/* ประวัติการปิดการขายเหลือที่เดียว = การ์ด "ประวัติการปิดการขาย" แท็บข้อมูลลูกค้า (กดเปิดรายละเอียดได้) · รอบ 4 */}
                       {/* ── โครงการที่กำลังทำ (ลูกค้าเป้าหมายที่ยังไม่ปิดการขาย) ── */}
                       {activeDeals.map(d=>{
-                        // ป้ายขั้น = ชื่อ/สีจากตัวกลาง leadStage.ts (ตรงกับแถบ 5 ขั้นในแผงลีด · บอสสั่ง 27 ต.ค. 69)
+                        // ป้ายขั้น = ชื่อ/สีจากตัวกลาง leadStage.ts (ตรงกับแถบ 4 ขั้นในแผงลีด · บอสสั่ง 27 ต.ค. 69)
                         const ขั้น=เลขขั้นของลีด(d.status,quotations.some(q=>q.status==="draft"&&quoteBelongsToLead(q,d)));
                         const sc=สีขั้น(ขั้น);
                         const dealQuoteCount=quotations.filter(q=>q.dealId===d.numId).length;

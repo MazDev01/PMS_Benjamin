@@ -432,7 +432,7 @@ export interface QuoteSummaryFilters {
 export interface LeadMonthRow { y: number; m: number; created: number; won: number; lost: number; quoted: number; }
 export interface LeadSummary {
   byStatus: { status: string; count: number; value: number }[];
-  /** รายขั้น (1–5 · 6 ปิดสำเร็จ · 7 ปิดไม่สำเร็จ · ฐานคิดใบ 0251 กติกาเดียวกับ leadStage.ts) — ป้อนกราฟ/ตัวเลือกขั้นหน้า /hq/leads */
+  /** รายขั้น (1–4 · 6 ปิดสำเร็จ · 7 ปิดไม่สำเร็จ · เลข 5 ว่างตั้งแต่ยุบขั้น 0284 · ฐานคิดใบ 0251 กติกาเดียวกับ leadStage.ts) — ป้อนกราฟ/ตัวเลือกขั้นหน้า /hq/leads */
   byStage: { stage: number; count: number; value: number }[];
   bySource: { source: string; count: number }[];
   byProduct: { product: string; count: number }[];

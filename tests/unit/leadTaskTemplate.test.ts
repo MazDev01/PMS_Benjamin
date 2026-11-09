@@ -77,13 +77,13 @@ describe("ลูกค้าเป้าหมายใช้ชุดที่ 
 });
 
 // ── รายการตั้งต้นที่บอสสั่ง (27 ต.ค. 69 · FLOW D7) — ล็อกทั้งชื่อ ลำดับ ขั้น และรายการที่ระบบติ๊ก ──────────────────────
-describe("รายการตั้งต้นตาม FLOW ใหม่ 5 ขั้น", () => {
+describe("รายการตั้งต้นตาม FLOW 4 ขั้น (ยุบ 9 พ.ย. 69 · ใบ 0284)", () => {
   // ใบ 0263 (บอสสั่ง 30 ต.ค. 69): "ติดต่อแล้ว" เอาออก · เก็บข้อมูลลูกค้า/สรุปความต้องการ ระบบติ๊กเอง
   it("ชื่อ/ขั้น/ระบบติ๊ก ตรงเป๊ะ 8 รายการ (ไม่มี ติดต่อแล้ว)", () => {
     expect(LEAD_TASK_TEMPLATE.map(t => [t.label, t.step, !!t.auto])).toEqual([
       ["เก็บข้อมูลลูกค้า", 1, true], ["สรุปความต้องการ", 1, true], ["นัดหมาย", 1, true],
       ["ส่งคำขอราคา", 2, true], ["ได้ใบ HQ", 3, true], ["จัดทำใบเสนอราคา", 4, true],
-      ["ส่งใบเสนอราคา", 5, true], ["ติดตามลูกค้า", 5, false],
+      ["ส่งใบเสนอราคา", 4, true], ["ติดตามลูกค้า", 4, false],
     ]);
   });
   it("ไม่มี 'ติดตามผล' 'เจรจาต่อรอง' 'ปิดการขาย' แบบเดิม (FLOW เลิกใช้ 21 ต.ค. 69)", () => {
@@ -93,8 +93,18 @@ describe("รายการตั้งต้นตาม FLOW ใหม่ 5 �
   it("ผ่าน normalize แล้วลำดับไม่สลับ", () => {
     expect(normalizeLeadTaskTemplate(LEAD_TASK_TEMPLATE)).toEqual(LEAD_TASK_TEMPLATE);
   });
-  it("ทุกขั้น 1–5 มีรายการอย่างน้อย 1 รายการ", () => {
-    for (const n of [1, 2, 3, 4, 5]) expect(LEAD_TASK_TEMPLATE.some(t => t.step === n), `ขั้น ${n}`).toBe(true);
+  it("ทุกขั้น 1–4 มีรายการอย่างน้อย 1 รายการ · ไม่มีรายการขั้น 5", () => {
+    for (const n of [1, 2, 3, 4]) expect(LEAD_TASK_TEMPLATE.some(t => t.step === n), `ขั้น ${n}`).toBe(true);
+    expect(LEAD_TASK_TEMPLATE.filter(t => (t.step as number) === 5)).toEqual([]);
+  });
+  it("แม่แบบค้างขั้น 5 (ก่อนใบ 0284) → ขั้น 4 ต่อท้ายรายการขั้น 4 เดิม เรียงตามลำดับเดิม", () => {
+    const เดิม = [
+      { key: "makeQuote", label: "จัดทำใบเสนอราคา", step: 4 }, { key: "zz4", label: "งาน HQ ขั้น 4", step: 4 },
+      { key: "sendQuote", label: "ส่งใบเสนอราคา", step: 5 }, { key: "followCustomer", label: "ติดตามลูกค้า", step: 5 }, { key: "zz5", label: "งาน HQ ขั้น 5", step: 5 },
+    ];
+    const ได้ = normalizeLeadTaskTemplate(เดิม);
+    expect(ได้.filter(t => t.step === 4).map(t => t.key)).toEqual(["makeQuote", "zz4", "sendQuote", "followCustomer", "zz5"]);
+    expect(ได้.every(t => t.step >= 1 && t.step <= 4)).toBe(true);
   });
 });
 
