@@ -50,6 +50,7 @@ console.log(`\n🎯 ฐานทดสอบในเครื่อง: ${proje
 const ใส่เครื่องหมายฐานทดสอบ = () => sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"], { shell: false, stdio: ["pipe", "ignore", "inherit"],
   input: "create table if not exists public._pms_test_database (ตั้งเมื่อ timestamptz not null default now());\n"
     + "revoke all on table public._pms_test_database from public, anon, authenticated, service_role;\n"
+    + "alter table public._pms_test_database enable row level security;\n"   // ทุกตารางใน public ต้องเปิดกฎสิทธิ์รายแถว (ข้อทดสอบ no_temp_password_gate)
     + "comment on table public._pms_test_database is 'เครื่องหมายฐานทดสอบในเครื่อง (scripts/reset-test-db.mjs) — ห้ามมีบนฐานจริง';" });
 if (process.argv.includes("--marker-only")) {
   ใส่เครื่องหมายฐานทดสอบ();
