@@ -19,6 +19,7 @@ import path from "node:path";
 import { บันทึกเมื่อผ่าน, ไฟล์บันทึก } from "./lib/migrationGate.mjs";
 import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน } from "./lib/commitGate.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+import { ป้ายล็อกรอบทดสอบ } from "./lib/gateLockLabel.mjs";
 import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
 import { ตรวจไม่นิ่งท้ายรอบ, ต้องหาต้นเหตุ } from "./lib/flakyLog.mjs";
 import { จดรอบที่ตก, ตรวจรันต่อได้, ลบที่จด, ข้อที่หาย } from "./lib/gateResume.mjs";
@@ -117,7 +118,8 @@ const PMS_RUN_ID = process.env.PMS_RUN_ID ?? new Date(Date.now() + 7 * 3_600_000
 // ── ถือล็อกฐานทดสอบตลอดรอบ (scripts/lib/testDbLock.mjs · 22 ต.ค. 69) — เซสชันอื่นใช้ฐานอยู่ = รอคิว (บอกว่าใคร) ─────────
 //   ทุกขั้นย่อย (playwright · prod-live ในเครื่อง · สคริปต์ล้าง) ได้รหัสล็อกทาง env จึงไม่ล็อกซ้ำ/ไม่รอตัวเอง
 const ก่อนล็อก = Date.now();
-const ล็อกฐาน = ขอล็อกฐานทดสอบ(`รอบตรวจเต็ม (${ตอนเริ่ม.sha.slice(0, 7)})`, { รอนาที: Number(process.env.PMS_TESTDB_LOCK_WAIT || 180) });
+// ป้ายบอกตามจริง: รอบตรวจเต็ม / ทดสอบบางไฟล์ (n ไฟล์) / เจาะช่วง prod-live (คนรวมงานขอ 9 พ.ย. 69 · เดิมเขียน "รอบตรวจเต็ม" ทุกครั้ง)
+const ล็อกฐาน = ขอล็อกฐานทดสอบ(ป้ายล็อกรอบทดสอบ({ args: process.argv.slice(2), onlyLive: เจาะช่วงprodLive, sha: ตอนเริ่ม.sha }), { รอนาที: Number(process.env.PMS_TESTDB_LOCK_WAIT || 180) });
 รอคิววินาที = Math.round((Date.now() - ก่อนล็อก) / 1000);
 // พอร์ตทดสอบของโฟลเดอร์นี้ (โฟลเดอร์หลัก = ค่าใน scripts/lib/ports.json · เซสชันลูก = .pms-session.json)
 const พอร์ตทดสอบ = พอร์ต("test"), ที่อยู่ = ต้นทาง("test");
