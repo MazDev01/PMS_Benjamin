@@ -4,9 +4,14 @@
 --   2) ดีลเลอร์ยกเลิก = เหตุผลบังคับ · จดชื่อคนยกเลิก + เวลา · ประวัติของลีดมีบรรทัด "ยกเลิกคำขอราคา … · เหตุผล … · โดย …" · ยกเลิกแล้วก็ลบไม่ได้
 --   3) กล่องคำขอ HQ: กลุ่ม "ยกเลิกแล้ว" มีคำขอนี้ + เหตุผล/ชื่อ/เวลา · กลุ่ม ปิด/ยกเลิก ยังมี · ไม่นับเป็นต้องตีราคา
 --   5) HQ มีร่างใบ + ไฟล์แนบแล้วดีลเลอร์ยกเลิก = ยกเลิกสำเร็จ · ร่างและไฟล์ยังอยู่ · HQ แก้/ส่งร่างไม่ได้ (บอสตอบ 6 พ.ย. 69 · เดิมลบร่าง → ติดไฟล์ ยกเลิกไม่ได้)
+--   6) สวิตช์อย่างเดียวไม่พอ (คนรวมงานสั่ง 9 พ.ย. 69): ไม่มีเครื่องหมายฐานทดสอบ (= ฐานจริง) ① ลบคำขอของสาขาจริงไม่ได้แม้ตั้งสวิตช์
+--      ② ชุดล้างลบคำขอของสาขาทดสอบ (ZZ…) ได้ ③ ปนแถวจริงแม้แถวเดียว = ทั้งคำสั่งถูกปฏิเสธ · ตกบนใบ 0280 เดิม (สวิตช์ = ลบได้ทุกแถว)
+--      1) ท้ายไฟล์: ฐานทดสอบในเครื่อง (มีเครื่องหมาย public._pms_test_database จาก reset-test-db) + สวิตช์ = ลบคำขอของสาขาตั้งต้นได้
 --   4) กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ประวัติของลีดมี "เริ่มขอราคาแล้วยกเลิก · โดย …" · ลีดของสาขาอื่น = ไม่พบ
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/quote_request_cancel_keep.sql
 begin;
+-- ข้อ 6 เปลี่ยนชื่อเครื่องหมายฐานทดสอบชั่วคราว — ล็อกก่อนคำสั่งเขียนแรก (check-sql-test-table-locks) · ฐานที่ไม่มีเครื่องหมาย = ข้อ 1 ตกอยู่แล้ว
+lock table _pms_test_database in share row exclusive mode;
 create schema qctest;
 create function qctest.ok(p_cond boolean, p_what text) returns void language plpgsql as $$
 begin if p_cond is not true then raise exception 'FAIL: %', p_what; end if; raise notice 'ok  %', p_what; end $$;
@@ -36,7 +41,7 @@ declare
   ryg uuid := (select id from profiles where role = 'DEALER_ADMIN' and dealer_code = 'RYG' limit 1);
   cnx uuid := (select id from profiles where role = 'DEALER_ADMIN' and dealer_code = 'CNX' limit 1);
   ชื่อryg text := (select coalesce(nullif(btrim(name), ''), 'zzqc@example.test') from profiles where id = (select id from profiles where role = 'DEALER_ADMIN' and dealer_code = 'RYG' limit 1));
-  ลีด integer; rid bigint; rid2 bigint; hid bigint; เลข text := 'ZZT-QC-' || (random() * 1e9)::bigint; r quote_requests; บอร์ด jsonb; ท้าย text;
+  ลีด integer; rid bigint; rid2 bigint; rz bigint; มีเครื่องหมาย boolean := to_regclass('public._pms_test_database') is not null; hid bigint; เลข text := 'ZZT-QC-' || (random() * 1e9)::bigint; r quote_requests; บอร์ด jsonb; ท้าย text;
 begin
   perform qctest.ok(hq is not null and ryg is not null and cnx is not null, 'มีบัญชี HQ · RYG · CNX');
   perform qctest.as_root();
@@ -106,13 +111,31 @@ begin
   perform qctest.ok(exists (select 1 from jsonb_array_elements(hq_quote_board('cancelled', เลข || '-B') -> 'rows') e where (e ->> 'id')::bigint = rid2 and e ->> 'hq_status' = 'draft'),
     '5) HQ เปิดดูร่างได้จากคำขอที่ยกเลิก (กลุ่มยกเลิกแล้ว)');
 
-  -- 1) ชุดล้างข้อมูลทดสอบ: ตั้งสวิตช์แล้วลบได้
+  -- 6) จำลองฐานจริง: เอาเครื่องหมายฐานทดสอบออกชั่วคราว (เปลี่ยนชื่อ · คืนก่อนข้อ 1 · ทั้งไฟล์ rollback อยู่แล้ว)
+  perform qctest.as_root();
+  if มีเครื่องหมาย then alter table public._pms_test_database rename to _pms_test_database_ปิดชั่วคราว; end if;
+  perform qctest.ok(to_regclass('public._pms_test_database') is null, '6) จำลองฐานจริง: ไม่มีเครื่องหมายฐานทดสอบ');
+  insert into dealers (code, name, province, region, revenue_target, status) values ('ZZTQC', 'ZZTEST สาขาทดสอบใบ 0280', 'ระยอง', 'ตะวันออก', 0, 'active');
+  insert into leads (id, num_id, dealer_code, company, name, status) values ('#L-999000280', 999000280, 'ZZTQC', 'ZZTEST ลีดใบ 0280', 'ZZTEST ลีดใบ 0280', 'WAITING');
+  insert into quote_requests (request_no, dealer_code, lead_num_id, due_at, product) values (เลข || '-Z', 'ZZTQC', 999000280, now() + interval '14 days', 'ZZT ทดสอบลบ')
+  returning id into rz;
+  perform set_config('pms.quote_request_delete', 'test', true);
+  perform qctest.must_fail(format('delete from quote_requests where id = %s', rid), 'request_no_delete', '6①) ไม่มีเครื่องหมาย + สวิตช์ test: ลบคำขอของสาขาจริง (RYG) ไม่ได้');
+  perform qctest.must_fail(format('delete from quote_requests where id in (%s, %s)', rid, rz), 'request_no_delete', '6③) ปนแถวจริงแถวเดียว = ทั้งคำสั่งถูกปฏิเสธ');
+  perform qctest.ok(exists (select 1 from quote_requests where id = rz) and exists (select 1 from quote_requests where id = rid), '6③) คำสั่งที่ถูกปฏิเสธไม่ลบแถวใดเลย');
+  delete from quote_requests where id = rz;
+  perform qctest.ok(not exists (select 1 from quote_requests where id = rz), '6②) ชุดล้าง (สวิตช์ test) ลบคำขอของสาขาทดสอบ ZZ… ได้ แม้ไม่มีเครื่องหมาย');
+  perform set_config('pms.quote_request_delete', '', true);
+  if มีเครื่องหมาย then alter table public._pms_test_database_ปิดชั่วคราว rename to _pms_test_database; end if;
+
+  -- 1) ชุดล้างข้อมูลทดสอบในฐานทดสอบในเครื่อง: เครื่องหมาย + สวิตช์ = ลบคำขอของสาขาตั้งต้นได้ (ข้อทดสอบล้างแถวของตัวเอง)
+  perform qctest.ok(มีเครื่องหมาย, '1) ฐานนี้เป็นฐานทดสอบ (มีเครื่องหมาย public._pms_test_database — สร้างด้วย scripts/reset-test-db.mjs)');
   perform qctest.as_root();
   perform set_config('pms.quote_request_delete', 'test', true);
   delete from quote_request_events where request_id = rid;
   delete from quote_requests where id = rid;
   perform set_config('pms.quote_request_delete', '', true);
-  perform qctest.ok(not exists (select 1 from quote_requests where id = rid), '1) ชุดล้างทดสอบ (สวิตช์ test) ลบได้');
+  perform qctest.ok(not exists (select 1 from quote_requests where id = rid), '1) ฐานทดสอบ: เครื่องหมาย + สวิตช์ test ลบคำขอของสาขาตั้งต้นได้');
 end $$;
 
 select 'ALL PASS' as result;

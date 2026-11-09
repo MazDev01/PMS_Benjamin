@@ -1,9 +1,12 @@
 -- ── ใบ 0280: คำขอราคาที่ส่งแล้วห้ามลบ · ยกเลิก = สถานะ "ยกเลิกแล้ว" + เหตุผล + ใคร เมื่อไร (บอสสั่ง 5 พ.ย. 69 · บอสตอบข้อ 1 = ก ข้อ 2 = ก) ──
 --   1) ตัวกันที่ฐาน: ลบแถว quote_requests ไม่ได้ทุกทาง (หน้าเว็บ · คำสั่งตรงของบัญชีผู้ใช้/ฝั่งเซิร์ฟเวอร์ · คำสั่ง SQL ตรง)
---      ทางเดียวที่ยอม = ชุดล้างข้อมูลทดสอบ ตั้งสวิตช์ pms.quote_request_delete = 'test' ในทรานแซกชันของตัวเอง
---        · ชุดล้างเว็บจริง (tests/prod-live/cleanup.sql · trial-cleanup.sql) ลบเฉพาะสาขาทดสอบ ZZT/ZZTN เหมือนเดิม
---        · ข้อทดสอบในฐานทดสอบ (ล้างแถวที่ตัวเองสร้าง)
---      บัญชีผู้ใช้ตั้งสวิตช์เองไม่ได้ (คำสั่งตั้งค่าไม่เปิดผ่านช่องทางของแอป) · ตัวดักนี้ปิดเองไม่ได้จากหน้าเว็บ
+--      ทางเดียวที่ยอม = ชุดล้างข้อมูลทดสอบ ตั้งสวิตช์ pms.quote_request_delete = 'test' ในทรานแซกชันของตัวเอง — และแถวต้องเป็นแถวทดสอบ:
+--        · คำขอของสาขาทดสอบ (_quote_request_is_test_row: รหัสขึ้นต้น ZZ = ZZT · ZZTN ของชุดล้างเว็บจริง · ZZU ของ trial-cleanup)
+--          คำขอจริงห้ามลบแม้ตั้งสวิตช์ · ปนแถวจริงแม้แถวเดียว = ทั้งคำสั่งถูกปฏิเสธ (แบบเดียวกับ _audit_is_test_row ใบ 0241 · คนรวมงานสั่ง 9 พ.ย. 69)
+--        · ฐานทดสอบ/ฐาน dev ในเครื่องเท่านั้น: มีเครื่องหมายฐานทดสอบ (ตาราง public._pms_test_database) = ลบคำขอของสาขาตั้งต้นได้ (ข้อทดสอบล้างแถวของตัวเอง)
+--          เครื่องหมายสร้างโดย scripts/reset-test-db.mjs ที่เดียว — ไม่อยู่ในใบปรับฐาน/ชุดล้างเว็บจริง/สคริปต์ฐานจริง (ตัวตรวจ check-test-db-marker)
+--          ฐานจริงไม่มีตารางนี้ → ทางนี้ปิดบนฐานจริง (คนที่สร้างตารางในฐานจริงได้ = คนที่ปิดตัวดักได้อยู่แล้ว ไม่เพิ่มช่องใหม่)
+--      บัญชีผู้ใช้ตั้งสวิตช์เองไม่ได้ (คำสั่งตั้งค่าไม่เปิดผ่านช่องทางของแอป) · ตัวดักนี้ปิดเองไม่ได้จากหน้าเว็บ · ห้ามแก้ด้วยการปิดตัวดัก
 --   2) ยกเลิก (ดีลเลอร์อย่างเดียว · ก่อน HQ ส่งใบเท่านั้น — ตามเดิม) จดชื่อคนยกเลิก + เวลา (cancelled_by_name · cancelled_at)
 --      ไม่ลบร่างใบ HQ อีกต่อไป (บอสตอบ 6 พ.ย. 69): ร่าง + ไฟล์แนบอยู่ครบ HQ เปิดดูได้จากคำขอที่ยกเลิก · แก้/ส่งต่อไม่ได้
 --   ใบนี้รันซ้ำได้ (เพิ่มช่องแบบ if not exists · คำสั่งแบบ create or replace · ตัวดัก drop if exists)
@@ -18,10 +21,15 @@ comment on column public.quote_requests.cancelled_at is 'เวลายกเ�
 update public.quote_requests set cancelled_at = coalesce(closed_at, updated_at) where status = 'cancelled' and cancelled_at is null;
 
 -- ═══ 1) ห้ามลบคำขอ ═══
+create or replace function public._quote_request_is_test_row(p_dealer_code text) returns boolean
+  language sql immutable set search_path to 'public' as $$ select coalesce(p_dealer_code, '') like 'ZZ%' $$;
+revoke all on function public._quote_request_is_test_row(text) from public, anon, authenticated, service_role;
+-- security definer: ตัวดักต้องเรียก _quote_request_is_test_row ได้ไม่ว่าใครเป็นคนลบ (กติกานั้นปิดสิทธิ์จากทุกบัญชี)
 create or replace function public.quote_requests_no_delete() returns trigger
-language plpgsql set search_path = public as $$
+language plpgsql security definer set search_path = public as $$
 begin
-  if coalesce(current_setting('pms.quote_request_delete', true), '') = 'test' then return old; end if;
+  if coalesce(current_setting('pms.quote_request_delete', true), '') = 'test'
+     and (_quote_request_is_test_row(old.dealer_code) or to_regclass('public._pms_test_database') is not null) then return old; end if;
   raise exception 'request_no_delete: คำขอราคา % ลบไม่ได้ — ยกเลิกแทน (สถานะ "ยกเลิกแล้ว" + เหตุผล)', old.request_no;
 end $$;
 revoke all on function public.quote_requests_no_delete() from public, anon, authenticated, service_role;
