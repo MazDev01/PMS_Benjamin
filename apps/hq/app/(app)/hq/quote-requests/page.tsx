@@ -3,7 +3,12 @@
 // ─── HQ · คำขอใบเสนอราคา — ตารางเต็มความกว้าง แบบหน้าใบค่าแฟรนไชส์ (บอสสั่ง 6 พ.ย. 69 · แทนรายการซ้าย + แผงขวา) ───────────────
 //
 //   การ์ด 4 ใบคงไว้ (ต้องตีราคา · เกิน 14 วัน · เวลาตอบเฉลี่ย · อัตรายกเลิก — คิดที่ฐาน ไม่ขึ้นกับคำค้น) กดแล้วกรองตาราง
-//   แถวเครื่องมือ: ค้นหา + ตัวกรองสถานะ (ทุกสถานะ · ต้องตีราคา · ส่งแล้ว รอดีลเลอร์ · ปิด · ยกเลิกแล้ว) + ตัวกรองดีลเลอร์ (ชื่อ · ชื่อซ้ำ "ชื่อ (รหัส)")
+//   9 พ.ย. 69 (บอสสั่ง · ทำงานแบบเดิม คงแบบตาราง): 2 มุมมอง ตารางหน้าตาเดียวกัน
+//     • ต้องตีราคา (ตารางหลัก) = เฉพาะคำขอที่ HQ ยังต้องตีราคา (ใหม่ + กำลังตีราคา) · ไม่มีตัวกรองสถานะ · ปุ่มเล็ก "เฉพาะเกินกำหนด (n)"
+//     • ประวัติคำขอ = ส่งใบคืนดีลเลอร์แล้ว / ปิด / ยกเลิกแล้ว · ค้นหา/กรองดีลเลอร์/ตัวกรองสถานะ · เปิดดูได้ แก้ไม่ได้ (ไม่มีปุ่มทำใบ · หน้าต่างอ่านอย่างเดียว
+//       ตามสถานะคำขอ · ยกเลิกแล้วยังเปิดดูร่าง/ไฟล์ได้ ใบ 0280)
+//     การ์ด: ต้องตีราคา = ตารางหลัก · เกิน 14 วัน = ตารางหลักเฉพาะเกินกำหนด (กดซ้ำ = ล้าง) · เวลาตอบเฉลี่ย = ประวัติทุกสถานะ · อัตรายกเลิก = ประวัติ "ยกเลิกแล้ว"
+//   (เดิม 6 พ.ย. 69 — ตารางเดียวทุกสถานะ:) แถวเครื่องมือ: ค้นหา + ตัวกรองสถานะ (ทุกสถานะ · ต้องตีราคา · ส่งแล้ว รอดีลเลอร์ · ปิด · ยกเลิกแล้ว) + ตัวกรองดีลเลอร์ (ชื่อ · ชื่อซ้ำ "ชื่อ (รหัส)")
 //   คอลัมน์: เลขที่คำขอ · ดีลเลอร์ · ลูกค้า/โครงการ · จังหวัด · พื้นที่ ตร.ม. · สถานะ · วันที่ขอ · กำหนดส่ง (เกินกำหนด = แดง "เกิน x วัน") · จัดการ (ดู · ทำใบ)
 //   เรียงค่าเริ่มต้น: มีกำหนดส่งก่อน เร็วสุด/เกินมากสุดบนสุด · ไม่มีกำหนดส่งต่อท้าย ใหม่สุดก่อน (ทับกติกาใหม่สุดก่อนเฉพาะหน้านี้ · lib เรียงคำขอตามกำหนด)
 //   กดแถว = หน้าต่างรายละเอียดเต็มจอ (ใบ HQ · ทำใบ/ไฟล์แนบ/ร่าง เหมือนเดิม · ยกเลิกแล้วเปิดดูร่างได้ ใบ 0280)
@@ -11,11 +16,11 @@
 // คงจากเดิม: ไม่มีปุ่ม "รับเรื่อง" (บันทึกร่าง = รับเรื่อง) · ร่างที่พิมพ์ค้างไม่หาย ปิดหน้าต่างแล้วเปิดใหม่ยังอยู่ · ออกจากหน้าขณะมีร่างค้าง = เตือน
 //   ระหว่างบันทึก/ส่งใบ ปิดหน้าต่างไม่ได้ · มาจากกระดิ่ง ?open=เลขคำขอ = เปิดคำขอนั้น · ?overdue=1 = เฉพาะเกินกำหนด
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, X, ClipboardList, AlarmClock, Timer, Ban, Paperclip, Eye, FilePen } from "lucide-react";
+import { Search, X, ClipboardList, AlarmClock, Timer, Ban, Paperclip, Eye, FilePen, History } from "lucide-react";
 import { quoteRequests as repo, metrics as metricsRepo, quoteFiles } from "@pms/shared/lib/data";
 import type { จำนวนไฟล์คำขอ } from "@pms/shared/lib/quoteFiles";
 import {
-  type QuoteBoard, type QuoteBoardRow, type ตัวกรองคำขอ, ตัวเลือกสถานะคำขอ, ตรงสถานะคำขอ, เรียงคำขอตามกำหนด, ป้ายสถานะคำขอ, มีกำหนดส่ง,
+  type QuoteBoard, type QuoteBoardRow, type ตัวกรองประวัติ, ตัวเลือกสถานะประวัติ, ตรงสถานะคำขอ, เรียงคำขอตามกำหนด, ป้ายสถานะคำขอ, มีกำหนดส่ง,
   วันไทยสั้น, เหลือหรือเกิน, ร่างล่าสุด,
 } from "@pms/shared/lib/quoteRequests";
 import type { HqOverview } from "@pms/shared/lib/hqOverview";
@@ -46,7 +51,11 @@ const บรรทัดสถานะ = (r: QuoteBoardRow): string => {
 
 export default function HQQuoteRequestsPage() {
   const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
-  const [สถานะ, setสถานะ] = useState<ตัวกรองคำขอ>("all");
+  // มุมมอง (บอสสั่ง 9 พ.ย. 69): ตารางหลัก = ต้องตีราคา · ประวัติ = ส่งแล้ว/ปิด/ยกเลิก
+  const [มุมมอง, setมุมมอง] = useState<"main" | "history">("main");
+  const [เฉพาะเกิน, setเฉพาะเกิน] = useState(false);
+  /** ตัวกรองสถานะของประวัติ (ตารางหลักไม่มีตัวกรองสถานะ) */
+  const [สถานะ, setสถานะ] = useState<ตัวกรองประวัติ>("all");
   const [ดีลเลอร์, setดีลเลอร์] = useState("");
   const [พิมพ์, setพิมพ์] = useState("");
   const [ค้นหา, setค้นหา] = useState("");
@@ -77,8 +86,8 @@ export default function HQQuoteRequestsPage() {
     if (q) { setพิมพ์(q); return; }
     if (ล็อก.current) return;
     setพิมพ์(""); setดีลเลอร์("");
-    if (overdue) { setเปิดรหัส(null); setสถานะ("overdue"); return; }
-    setสถานะ("all"); setเปิดรหัส(open);
+    if (overdue) { setเปิดรหัส(null); setมุมมอง("main"); setเฉพาะเกิน(true); return; }
+    setเฉพาะเกิน(false); setสถานะ("all"); setเปิดรหัส(open);   // มุมมองตามกลุ่มของคำขอนั้น (ด้านล่าง เมื่อโหลดแถวแล้ว)
   }, []);
   useEffect(() => { เปิดจากลิงก์(window.location.search); }, [เปิดจากลิงก์]);
   useEffect(() => {
@@ -91,7 +100,7 @@ export default function HQQuoteRequestsPage() {
   }, [เปิดจากลิงก์]);
   // คำค้นส่งไปฐานหลังหยุดพิมพ์ (ฐานกรองทั้งจำนวนและรายการด้วยคำเดียวกัน)
   useEffect(() => { const t = setTimeout(() => setค้นหา(พิมพ์.trim()), 250); return () => clearTimeout(t); }, [พิมพ์]);
-  useEffect(() => setPage(0), [ค้นหา, สถานะ, ดีลเลอร์]);
+  useEffect(() => setPage(0), [ค้นหา, สถานะ, ดีลเลอร์, มุมมอง, เฉพาะเกิน]);
 
   const โหลด = useCallback(() => {
     let alive = true;
@@ -119,12 +128,20 @@ export default function HQQuoteRequestsPage() {
     return [...m].sort((a, b) => a[1].localeCompare(b[1], "th"));
   }, [ทุกแถว, ชื่อของ]);
   const ตามดีลเลอร์ = useMemo(() => ทุกแถว.filter(r => !ดีลเลอร์ || r.dealerCode === ดีลเลอร์), [ทุกแถว, ดีลเลอร์]);
-  const แถว = useMemo(() => เรียงคำขอตามกำหนด(ตามดีลเลอร์.filter(r => ตรงสถานะคำขอ(r, สถานะ))), [ตามดีลเลอร์, สถานะ]);
+  const ต้องตีราคา = useMemo(() => ตามดีลเลอร์.filter(r => ตรงสถานะคำขอ(r, "todo")), [ตามดีลเลอร์]);
+  const ประวัติ = useMemo(() => ตามดีลเลอร์.filter(r => !ตรงสถานะคำขอ(r, "todo")), [ตามดีลเลอร์]);
+  const แถว = useMemo(() => เรียงคำขอตามกำหนด(มุมมอง === "main"
+    ? ต้องตีราคา.filter(r => !เฉพาะเกิน || ตรงสถานะคำขอ(r, "overdue"))
+    : ประวัติ.filter(r => สถานะ === "all" || ตรงสถานะคำขอ(r, สถานะ))), [มุมมอง, ต้องตีราคา, ประวัติ, เฉพาะเกิน, สถานะ]);
   const ในหน้า = pageSlice(แถว, page);
   const เปิด = เปิดรหัส == null ? null : ทุกแถว.find(r => r.id === เปิดรหัส) ?? null;
+  // เปิดจากกระดิ่ง/ลิงก์: มุมมองตามกลุ่มของคำขอที่เปิด (ส่งใบแล้ว/ปิด/ยกเลิก = ประวัติ)
+  const กลุ่มที่เปิด = เปิด ? (ตรงสถานะคำขอ(เปิด, "todo") ? "main" : "history") : null;
+  useEffect(() => { if (กลุ่มที่เปิด) setมุมมอง(กลุ่มที่เปิด); }, [กลุ่มที่เปิด, เปิดรหัส]);
 
-  /** การ์ด/ตัวเลือกเปลี่ยนสถานะ — การ์ดเดิมกดซ้ำ = ล้าง */
-  const กรองสถานะ = (k: ตัวกรองคำขอ) => setสถานะ(s => (s === k ? "all" : k));
+  /** การ์ด → มุมมอง/ตัวกรอง (บอสสั่ง 9 พ.ย. 69) · การ์ดเกิน 14 วันกดซ้ำ = ล้าง */
+  const ไปตารางหลัก = (เกิน: boolean) => { setมุมมอง("main"); setเฉพาะเกิน(เกิน); };
+  const ไปประวัติ = (k: ตัวกรองประวัติ) => { setมุมมอง("history"); setสถานะ(k); };
   const เปิดแถว = (r: QuoteBoardRow) => { if (!ล็อก.current) setเปิดรหัส(r.id); };
   const ปิดหน้าต่าง = () => { if (!ล็อก.current) setเปิดรหัส(null); };
 
@@ -143,7 +160,9 @@ export default function HQQuoteRequestsPage() {
 
   // คอลัมน์ลูกค้า/โครงการกว้างพอดีชื่อ (เพดาน 25% · ตัวกลาง tableFit) · อื่น ๆ สัดส่วนคงที่ — พอดีจอ 1366 ไม่มีแถบเลื่อนแนวนอน
   const ชื่อคอล = useกว้างคอลัมน์ชื่อ(ในหน้า.map(r => r.leadCompany || "—"), { ขั้นต่ำ: 150 }, ในหน้า.map(r => `${r.product}${r.subtype ? ` · ${r.subtype}` : ""}`));
-  const นับตัวเลือก = (k: ตัวกรองคำขอ) => ตามดีลเลอร์.filter(r => ตรงสถานะคำขอ(r, k)).length;
+  const นับตัวเลือก = (k: ตัวกรองประวัติ) => (k === "all" ? ประวัติ : ประวัติ.filter(r => ตรงสถานะคำขอ(r, k))).length;
+  const นับเกิน = ต้องตีราคา.filter(r => ตรงสถานะคำขอ(r, "overdue")).length;
+  const ดูอย่างเดียว = มุมมอง === "history";
 
   return (
     <div className="erp">
@@ -152,21 +171,31 @@ export default function HQQuoteRequestsPage() {
         <KpiRow label="สรุปคำขอใบเสนอราคา">
           <KpiCard kpi="todo" label="ต้องตีราคา" icon={ClipboardList} color="#b45309" bg="#fff4e5"
             value={นับคิว == null ? null : นับคิว.todo.toLocaleString()} rawValue={นับคิว?.todo} unit="คำขอ · ใหม่ + กำลังตีราคา"
-            empty={นับคิว === null ? "โหลดตัวเลขไม่สำเร็จ" : "กำลังโหลด…"} onClick={() => กรองสถานะ("todo")} testId="kpi-todo" />
+            empty={นับคิว === null ? "โหลดตัวเลขไม่สำเร็จ" : "กำลังโหลด…"} onClick={() => ไปตารางหลัก(false)} testId="kpi-todo" />
           <KpiCard kpi="overdue" label="เกิน 14 วัน" icon={AlarmClock} color="#dc2626" bg="#fdecec" danger={(นับคิว?.overdue ?? 0) > 0}
             value={นับคิว == null ? null : นับคิว.overdue.toLocaleString()} rawValue={นับคิว?.overdue} unit="คำขอ · เลยกำหนดส่งใบ HQ"
-            empty={นับคิว === null ? "โหลดตัวเลขไม่สำเร็จ" : "กำลังโหลด…"} onClick={() => กรองสถานะ("overdue")} testId="kpi-overdue" />
+            empty={นับคิว === null ? "โหลดตัวเลขไม่สำเร็จ" : "กำลังโหลด…"} onClick={() => ไปตารางหลัก(!(มุมมอง === "main" && เฉพาะเกิน))} testId="kpi-overdue" />
           <KpiCard kpi="avg-response" label="เวลาตอบเฉลี่ย" icon={Timer} color="#0891B2" bg="#E6F4F9"
             value={ภาพรวม?.avgResponseDays == null ? null : `${ภาพรวม.avgResponseDays.toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} วัน`}
             rawValue={ภาพรวม?.avgResponseDays} unit="ส่งคำขอ → ส่งใบ HQ · ทั้งหมด"
             empty={ภาพรวม === undefined ? "กำลังโหลด…" : ภาพรวม === null ? "โหลดตัวเลขไม่สำเร็จ" : "ยังไม่มีคำขอที่ส่งใบ HQ แล้ว"}
-            onClick={() => กรองสถานะ("quoted")} testId="request-avg-days" />
+            onClick={() => ไปประวัติ("all")} actionLabel="ดูรายการ" testId="request-avg-days" />
           <KpiCard kpi="cancel-rate" label="อัตรายกเลิกคำขอ" icon={Ban} color="#7C3AED" bg="#F0EBFB"
             value={ภาพรวม?.cancel.pct == null ? null : ร้อยละ(ภาพรวม.cancel.pct)} rawValue={ภาพรวม?.cancel.pct} unit="ดีลเลอร์ยกเลิกเอง · ทั้งหมด"
             sub={ภาพรวม ? <>({ภาพรวม.cancel.cancelled.toLocaleString()} จาก {ภาพรวม.cancel.total.toLocaleString()}){ภาพรวม.cancel.reasons[0] ? <span data-testid="request-cancel-reasons"> · เหตุผลหลัก {ภาพรวม.cancel.reasons[0].reason}</span> : null}</> : null}
             empty={ภาพรวม === undefined ? "กำลังโหลด…" : ภาพรวม === null ? "โหลดตัวเลขไม่สำเร็จ" : "ยังไม่มีคำขอ"}
-            onClick={() => กรองสถานะ("done")} testId="request-cancel-pct" />
+            onClick={() => ไปประวัติ("cancelled")} actionLabel="ดูรายการ" testId="request-cancel-pct" />
         </KpiRow>
+      </div>
+
+      {/* มุมมอง 2 แท็บ (บอสสั่ง 9 พ.ย. 69) — จำนวน = แถวที่จะเห็นหลังคำค้น + ดีลเลอร์ */}
+      <div className="tab-bar" role="tablist" aria-label="มุมมองคำขอ" style={{ marginBottom: 12 }}>
+        {([["main", "ต้องตีราคา", ClipboardList, ต้องตีราคา.length], ["history", "ประวัติคำขอ", History, ประวัติ.length]] as const).map(([k, ชื่อ, Icon, n]) => (
+          <button key={k} type="button" role="tab" aria-selected={มุมมอง === k} data-view-tab={k} data-count={กล่อง ? n : ""}
+            className={`tab-item${มุมมอง === k ? " active" : ""}`} onClick={() => { setมุมมอง(k); if (k === "history") setเฉพาะเกิน(false); }}>
+            <Icon size={14} /> {ชื่อ}{กล่อง ? ` (${n.toLocaleString()})` : ""}
+          </button>
+        ))}
       </div>
 
       {/* แถวเครื่องมือ — แบบหน้าใบค่าแฟรนไชส์ */}
@@ -177,14 +206,21 @@ export default function HQQuoteRequestsPage() {
           {พิมพ์ && <button type="button" onClick={() => setพิมพ์("")} aria-label="ล้างคำค้น" style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
         <div style={{ flex: 1 }} />
-        {/* ตัวนับในตัวเลือก = จำนวนแถวที่จะเห็น (ชุดเดียวกับตาราง · หลังคำค้น + ดีลเลอร์) */}
-        <select aria-label="กรองตามสถานะคำขอ" value={สถานะ} onChange={e => setสถานะ(e.target.value as ตัวกรองคำขอ)} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all" data-count={กล่อง ? นับตัวเลือก("all") : ""}>ทุกสถานะ{กล่อง ? ` (${นับตัวเลือก("all").toLocaleString()})` : ""}</option>
-          {ตัวเลือกสถานะคำขอ.filter(o => o.key !== "all").map(o => {
-            const n = กล่อง ? นับตัวเลือก(o.key) : null;
-            return <option key={o.key} value={o.key} data-count={n ?? ""}>{o.label}{n == null ? "" : ` (${n.toLocaleString()})`}</option>;
-          })}
-        </select>
+        {/* ตารางหลัก: ปุ่มเล็กเฉพาะเกินกำหนด (แทนตัวเลือก "ต้องตีราคา · เกินกำหนด") · ประวัติ: ตัวกรองสถานะ — ตัวนับ = แถวที่จะเห็น (หลังคำค้น + ดีลเลอร์) */}
+        {มุมมอง === "main" ? (
+          <button type="button" data-act="only-overdue" aria-pressed={เฉพาะเกิน} data-count={กล่อง ? นับเกิน : ""} onClick={() => setเฉพาะเกิน(v => !v)}
+            className={`btn btn-sm ${เฉพาะเกิน ? "btn-primary" : "btn-outline"}`} style={เฉพาะเกิน ? undefined : { color: นับเกิน > 0 ? แดง : undefined }}>
+            <AlarmClock size={13} /> เฉพาะเกินกำหนด{กล่อง ? ` (${นับเกิน.toLocaleString()})` : ""}
+          </button>
+        ) : (
+          <select aria-label="กรองตามสถานะคำขอ" value={สถานะ} onChange={e => setสถานะ(e.target.value as ตัวกรองประวัติ)} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
+            <option value="all" data-count={กล่อง ? นับตัวเลือก("all") : ""}>ทุกสถานะ{กล่อง ? ` (${นับตัวเลือก("all").toLocaleString()})` : ""}</option>
+            {ตัวเลือกสถานะประวัติ.filter(o => o.key !== "all").map(o => {
+              const n = กล่อง ? นับตัวเลือก(o.key) : null;
+              return <option key={o.key} value={o.key} data-count={n ?? ""}>{o.label}{n == null ? "" : ` (${n.toLocaleString()})`}</option>;
+            })}
+          </select>
+        )}
         <select aria-label="กรองตามดีลเลอร์" value={ดีลเลอร์} onChange={e => setดีลเลอร์(e.target.value)} className="form-select" style={{ width: "auto", maxWidth: 260, cursor: "pointer" }}>
           <option value="">ทุกดีลเลอร์</option>
           {ตัวเลือกดีลเลอร์.map(([code, ชื่อ]) => <option key={code} value={code}>{ชื่อ}</option>)}
@@ -193,7 +229,7 @@ export default function HQQuoteRequestsPage() {
 
       <div className="card">
         <div className="table-wrap fit" style={{ borderTop: "none" }}>
-          <table ref={ชื่อคอล.ref} aria-label="ตารางคำขอใบเสนอราคา">
+          <table ref={ชื่อคอล.ref} aria-label="ตารางคำขอใบเสนอราคา" data-view={มุมมอง} data-readonly={ดูอย่างเดียว ? "" : undefined}>
             {/* เพิ่ม/ลบคอลัมน์ต้องแก้ colgroup ด้วย (table-layout: fixed) */}
             <colgroup>
               <col style={{ width: "11%" }} />{/* เลขที่คำขอ */}
@@ -216,7 +252,7 @@ export default function HQQuoteRequestsPage() {
             <tbody>
               {กล่อง === null && <tr><td colSpan={9} className="empty-row">กำลังโหลด…</td></tr>}
               {กล่อง !== null && แถว.length === 0 && (
-                <tr><td colSpan={9} className="empty-row">{ค้นหา || ดีลเลอร์ ? "ไม่พบคำขอที่ตรงกับตัวกรอง" : "ไม่มีคำขอในสถานะนี้"}</td></tr>
+                <tr><td colSpan={9} className="empty-row">{ค้นหา || ดีลเลอร์ ? "ไม่พบคำขอที่ตรงกับตัวกรอง" : มุมมอง === "main" ? (เฉพาะเกิน ? "ไม่มีคำขอที่เกินกำหนด" : "ไม่มีคำขอที่ต้องตีราคา") : "ไม่มีคำขอในประวัติตามตัวกรองนี้"}</td></tr>
               )}
               {ในหน้า.map(r => {
                 const ป้าย = ป้ายสถานะคำขอ(r);
@@ -259,9 +295,10 @@ export default function HQQuoteRequestsPage() {
                     <td style={ตรึงคอลัมน์ปุ่ม()} onClick={e => e.stopPropagation()}>
                       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                         <button type="button" onClick={() => เปิดแถว(r)} title="ดูรายละเอียด" aria-label={`ดูคำขอ ${r.requestNo}`} style={ปุ่มไอคอน}><Eye size={13} /></button>
-                        <button type="button" onClick={() => เปิดแถว(r)} disabled={!มีกำหนดส่ง(r)} data-act="make-hq-quote"
+                        {/* ประวัติ = ดูอย่างเดียว ไม่มีปุ่มทำใบ (บอสสั่ง 9 พ.ย. 69) */}
+                        {!ดูอย่างเดียว && <button type="button" onClick={() => เปิดแถว(r)} disabled={!มีกำหนดส่ง(r)} data-act="make-hq-quote"
                           title={มีกำหนดส่ง(r) ? "ทำใบ HQ" : "ทำใบได้เฉพาะคำขอที่ต้องตีราคา"} aria-label={`ทำใบ HQ ${r.requestNo}`}
-                          style={{ ...ปุ่มไอคอน, ...(มีกำหนดส่ง(r) ? {} : { opacity: .35, cursor: "not-allowed" }) }}><FilePen size={13} /></button>
+                          style={{ ...ปุ่มไอคอน, ...(มีกำหนดส่ง(r) ? {} : { opacity: .35, cursor: "not-allowed" }) }}><FilePen size={13} /></button>}
                       </div>
                     </td>
                   </ClickableRow>

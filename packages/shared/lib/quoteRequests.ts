@@ -263,6 +263,12 @@ export const ตัวเลือกสถานะคำขอ: { key: ตั�
   { key: "all", label: "ทุกสถานะ" }, { key: "todo", label: "ต้องตีราคา" }, { key: "overdue", label: "ต้องตีราคา · เกินกำหนด" },
   { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" }, { key: "done", label: "ปิด" }, { key: "cancelled", label: "ยกเลิกแล้ว" },
 ];
+/** ตัวกรองสถานะของ "ประวัติคำขอ" (บอสสั่ง 9 พ.ย. 69): ตารางหลัก = ต้องตีราคาอย่างเดียว ไม่มีตัวกรองสถานะ
+ *  ประวัติ = ส่งแล้ว รอดีลเลอร์ · ปิด (สั่งผลิต/ปิด/ยกเลิก) · ยกเลิกแล้ว · "all" = ทุกสถานะในประวัติ (ไม่รวมต้องตีราคา) */
+export type ตัวกรองประวัติ = Extract<ตัวกรองคำขอ, "all" | "quoted" | "done" | "cancelled">;
+export const ตัวเลือกสถานะประวัติ: { key: ตัวกรองประวัติ; label: string }[] = [
+  { key: "all", label: "ทุกสถานะ" }, { key: "quoted", label: "ส่งแล้ว รอดีลเลอร์" }, { key: "done", label: "ปิด" }, { key: "cancelled", label: "ยกเลิกแล้ว" },
+];
 /** มีกำหนดส่งใบ HQ ให้นับ = ต้องตีราคา (ใหม่ / กำลังตีราคา) */
 export const มีกำหนดส่ง = (r: Pick<QuoteRequest, "status" | "dueAt">) => (r.status === "new" || r.status === "pricing") && !!r.dueAt;
 const เลยกำหนด = (r: Pick<QuoteRequest, "status" | "dueAt">, now: number) => มีกำหนดส่ง(r) && new Date(r.dueAt).getTime() < now;

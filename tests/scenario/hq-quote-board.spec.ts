@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, db, loginUI } from "./funcHelpers";
-import { settle, เปิดใบHQในกล่องงาน, เลือกกลุ่มคำขอ, จำนวนสถานะคำขอ, ตารางคำขอ, แถวคำขอ, หน้าต่างใบHQ } from "./helpers";
+import { settle, เปิดใบHQในกล่องงาน, เลือกกลุ่มคำขอ, แท็บมุมมองคำขอ, ปุ่มเฉพาะเกินกำหนด, จำนวนสถานะคำขอ, ตารางคำขอ, แถวคำขอ, หน้าต่างใบHQ } from "./helpers";
 import { adminClient } from "./testDealers";
 import { เลขลูกค้าเป้าหมายทดสอบ, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
 
@@ -82,22 +82,33 @@ test("[H9x] [ui·hq] ตัวเลือกสถานะได้แถว�
   expect(ฐาน, "ชุดข้อมูลที่รู้ค่าล่วงหน้า").toEqual({ todo: 2, overdue: 1, quoted: 1, won: 1, closed: 1, cancelled: 1 });
   // ตัวเลือกสถานะพร้อมจำนวน (บอสสั่ง 6 พ.ย. 69 · แทนปุ่มกลุ่ม): จำนวนในตัวเลือก = ฐาน · แถว = จำนวน
   //   ปิด = สั่งผลิต + ปิด/ยกเลิกของฐาน · เกินกำหนด = การ์ดเกิน 14 วัน (อยู่ในกลุ่มต้องตีราคา)
-  const ทั้งหมด = ฐาน.todo + ฐาน.quoted + ฐาน.won + ฐาน.closed;
-  for (const [k, n] of [["quoted", ฐาน.quoted], ["done", ฐาน.won + ฐาน.closed], ["cancelled", ฐาน.cancelled], ["overdue", ฐาน.overdue], ["todo", ฐาน.todo], ["all", ทั้งหมด]] as const) {
+  // 9 พ.ย. 69 (บอสสั่ง): ตารางหลัก = ต้องตีราคาเท่านั้น · ประวัติ "ทุกสถานะ" = ส่งแล้ว + สั่งผลิต + ปิด/ยกเลิก (ไม่รวมต้องตีราคา · เดิม all = ทุกกลุ่มรวมต้องตีราคา)
+  const ประวัติทั้งหมด = ฐาน.quoted + ฐาน.won + ฐาน.closed;
+  for (const [k, n] of [["quoted", ฐาน.quoted], ["done", ฐาน.won + ฐาน.closed], ["cancelled", ฐาน.cancelled], ["overdue", ฐาน.overdue], ["todo", ฐาน.todo], ["all", ประวัติทั้งหมด]] as const) {
     await เลือกกลุ่มคำขอ(page, k);
     await expect(จำนวนสถานะคำขอ(page, k), `ตัวเลือก ${k}: จำนวน = ฐาน`).toHaveAttribute("data-count", String(n), { timeout: 20_000 });
     await expect(แถวชุด(page), `ตัวเลือก ${k}: แถว = ฐาน ${n}`).toHaveCount(n, { timeout: 20_000 });
   }
+  // แท็บประวัติแสดงคำขอที่ไม่ต้องตีราคาเท่านั้น — A/B (ต้องตีราคา) ไม่อยู่ประวัติ · ตารางหลักไม่มี C/D/E
+  await expect(แถวของ(page, "A"), "ประวัติ: ไม่มีคำขอที่ต้องตีราคา").toHaveCount(0);
+  await expect(แถวของ(page, "B")).toHaveCount(0);
   await page.locator('[data-kpi-row] [data-kpi="overdue"]').click();
-  await expect(page.getByLabel("กรองตามสถานะคำขอ"), "การ์ดเกิน 14 วัน = ตัวกรองเกินกำหนด").toHaveValue("overdue");
+  await expect(ปุ่มเฉพาะเกินกำหนด(page), "การ์ดเกิน 14 วัน = ตารางหลักเฉพาะเกินกำหนด").toHaveAttribute("aria-pressed", "true");
+  await expect(แท็บมุมมองคำขอ(page, "main")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByLabel("กรองตามสถานะคำขอ"), "ตารางหลักไม่มีตัวกรองสถานะ").toHaveCount(0);
   await expect(แถวชุด(page), "การ์ดเกิน 14 วัน: แถว = ฐาน").toHaveCount(ฐาน.overdue, { timeout: 20_000 });
   await expect(แถวชุด(page).first(), "เกิน 14 วัน = คำขอที่เลยกำหนด").toContainText(ของ("A").บริษัท);
   await page.locator('[data-kpi-row] [data-kpi="overdue"]').click();
-  await expect(page.getByLabel("กรองตามสถานะคำขอ"), "กดการ์ดเดิมซ้ำ = ล้างตัวกรอง").toHaveValue("all");
+  await expect(ปุ่มเฉพาะเกินกำหนด(page), "กดการ์ดเดิมซ้ำ = ล้างตัวกรองเกินกำหนด").toHaveAttribute("aria-pressed", "false");
   // เรียงค่าเริ่มต้น (บอสสั่ง 6 พ.ย. 69): มีกำหนดส่งก่อน เร็วสุด/เกินมากสุดบนสุด (A เกิน 1 วัน → B เหลือ 10 วัน)
   //   ไม่มีกำหนดส่ง (ส่งแล้ว/ปิด/ยกเลิก) ต่อท้าย ใหม่สุดก่อน (E ขอเมื่อ 6 วันก่อน → C 9 วัน → D 30 วัน)
+  //   9 พ.ย. 69: ตารางหลัก = AB (ต้องตีราคาเท่านั้น) · ประวัติ = ECD (เดิมตารางเดียว ABECD)
   await expect.poll(async () => (await แถวชุด(page).allInnerTexts()).map(t => ชุด.find(x => t.includes(x.บริษัท))?.k).join(""),
-    { timeout: 20_000, message: "ลำดับค่าเริ่มต้น" }).toBe("ABECD");
+    { timeout: 20_000, message: "ลำดับค่าเริ่มต้น ตารางหลัก" }).toBe("AB");
+  await เลือกกลุ่มคำขอ(page, "all");
+  await expect.poll(async () => (await แถวชุด(page).allInnerTexts()).map(t => ชุด.find(x => t.includes(x.บริษัท))?.k).join(""),
+    { timeout: 20_000, message: "ลำดับค่าเริ่มต้น ประวัติ (ใหม่สุดก่อน)" }).toBe("ECD");
+  await เลือกกลุ่มคำขอ(page, "todo");
   // แถวเกินกำหนด: สถานะจริง + คอลัมน์กำหนดส่งแดง "เกิน 1 วัน" (ป้ายเดียว ไม่ซ้ำสองที่ · เดิม "เกินกำหนด 1 วัน" ที่ป้ายสถานะ)
   await expect(แถวของ(page, "A").getByTestId("row-tag")).toHaveText("กำลังตีราคา");
   await expect(แถวของ(page, "A").getByTestId("row-countdown")).toHaveText("เกิน 1 วัน");
@@ -105,6 +116,9 @@ test("[H9x] [ui·hq] ตัวเลือกสถานะได้แถว�
   await expect(แถวของ(page, "A")).not.toContainText("เกิน 14 วัน");
   await expect(แถวของ(page, "B").getByTestId("row-tag")).toHaveText("ใหม่");
   await expect(แถวของ(page, "B").getByTestId("row-countdown")).toHaveText("เหลือ 10 วัน");
+  await expect(แถวของ(page, "C"), "ตารางหลัก: ไม่มีคำขอที่ส่งใบแล้ว (อยู่ประวัติ)").toHaveCount(0);
+  await expect(แถวของ(page, "E"), "ตารางหลัก: ไม่มีคำขอที่ยกเลิกแล้ว").toHaveCount(0);
+  await เลือกกลุ่มคำขอ(page, "all");
   await expect(แถวของ(page, "C").getByTestId("row-countdown"), "ส่งแล้ว = ไม่มีกำหนดส่ง").toHaveCount(0);
   await expect(แถวของ(page, "E")).toContainText("ยกเลิก");
 });
@@ -130,7 +144,11 @@ test("[H7] [ui·hq] เข้าหน้าไม่มีคำสั่งเ
   await expect(หน้าต่างใบHQ(page).getByRole("heading")).toContainText(ของ("B").no);
   await ปิดใบ(page);
   await expect(แถวของ(page, "B").locator("[data-act='make-hq-quote']"), "ต้องตีราคา = ทำใบได้").toBeEnabled();
-  await expect(แถวของ(page, "C").locator("[data-act='make-hq-quote']"), "ส่งแล้ว = ทำใบไม่ได้").toBeDisabled();
+  // 9 พ.ย. 69: คำขอที่ส่งแล้วอยู่แท็บประวัติ = ดูอย่างเดียว ไม่มีปุ่มทำใบเลย (เดิมปุ่มกดไม่ได้ในตารางเดียว)
+  await เลือกกลุ่มคำขอ(page, "quoted");
+  await expect(แถวของ(page, "C"), "ส่งแล้วอยู่ประวัติ").toHaveCount(1);
+  await expect(แถวของ(page, "C").locator("[data-act='make-hq-quote']"), "ประวัติ: ไม่มีปุ่มทำใบ").toHaveCount(0);
+  await expect(ตารางคำขอ(page), "ประวัติ = ดูอย่างเดียว").toHaveAttribute("data-readonly", "");
   expect(เขียน, "เปิดดูอย่างเดียว ต้องไม่มีคำสั่งเขียน/เปลี่ยนสถานะออกไปเลย").toEqual([]);
   expect((await admin.from("quote_requests").select("status").eq("id", ของ("B").id).single()).data?.status, "B ยังเป็นคำขอใหม่").toBe("new");
 });

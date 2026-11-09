@@ -135,6 +135,8 @@ test("[รอบ4·flow] HQ: ดีลเลอร์ยกเลิกคำข
     await เปิดเรื่อง(page, "request_cancelled", `ZZTEST เหตุผลยกเลิก ${แท็ก}`);
     await expect(page).toHaveURL(/\/hq\/quote-requests/, { timeout: 15_000 });
     // ตาราง 6 พ.ย. 69: กระดิ่ง = หน้าต่างใบ HQ ของคำขอนั้น (ตัวกรองทุกสถานะ · คำขอที่ยกเลิกเปิดดูได้)
+    // 9 พ.ย. 69: คำขอที่ยกเลิกอยู่แท็บประวัติ — กระดิ่งเปิดประวัติให้เอง
+    await expect(page.locator('[data-view-tab="history"]'), "กระดิ่งคำขอที่ยกเลิก = แท็บประวัติ").toHaveAttribute("aria-selected", "true", { timeout: 20_000 });
     await expect(page.getByLabel("กรองตามสถานะคำขอ"), "ตัวกรองทุกสถานะ (เห็นคำขอที่ยกเลิก)").toHaveValue("all", { timeout: 20_000 });
     await expect(page.getByRole("dialog", { name: "ใบ HQ" }), "เปิดคำขอนั้นตรง ๆ").toContainText(ชื่อ, { timeout: 20_000 });
   } finally {

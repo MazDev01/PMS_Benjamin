@@ -119,10 +119,12 @@ test("[flow·hq] คำขอราคา: ตัวกรอง ยกเลิ
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
   // ตาราง 6 พ.ย. 69: ตัวกรองสถานะเป็นช่องเลือก (ตัวเลือกมีจำนวน) แทนแท็บ
-  await expect(จำนวนสถานะคำขอ(page, "cancelled"), "มีตัวกรอง ยกเลิกแล้ว").toContainText("ยกเลิกแล้ว");
+  // 9 พ.ย. 69: ตัวกรองสถานะอยู่ในแท็บประวัติ · คำขอที่ยกเลิกไม่อยู่ตารางหลัก (ต้องตีราคา)
   await page.getByLabel("ค้นหาคำขอ").fill(ค1.request_no);
   await expect(จำนวนสถานะคำขอ(page, "todo"), "คำขอที่ยกเลิกไม่นับในต้องตีราคา").toHaveAttribute("data-count", "0", { timeout: 20_000 });
+  await expect(แถวคำขอ(page, ค1.request_no), "ยกเลิกแล้วไม่อยู่ตารางหลัก").toHaveCount(0);
   await เลือกกลุ่มคำขอ(page, "cancelled");
+  await expect(จำนวนสถานะคำขอ(page, "cancelled"), "มีตัวกรอง ยกเลิกแล้ว").toContainText("ยกเลิกแล้ว");
   await expect(จำนวนสถานะคำขอ(page, "cancelled")).toHaveAttribute("data-count", "1");
   const แถว = แถวคำขอ(page, ค1.request_no).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });

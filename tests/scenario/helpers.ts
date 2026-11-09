@@ -358,13 +358,29 @@ export async function โค้ดยืนยันในกล่อง(ถึ
 // ── หน้าคำขอใบเสนอราคา HQ แบบตาราง (บอสสั่ง 6 พ.ย. 69 · แทนรายการซ้าย + แท็บกลุ่ม) ─────────────────────────────────
 //   ตัวกรองสถานะ = ช่องเลือก "กรองตามสถานะคำขอ" (ตัวเลือกมีจำนวนใน data-count) · แถว = tbody ของ "ตารางคำขอใบเสนอราคา"
 //   กดแถว = หน้าต่าง "ใบ HQ" (role dialog)
+//   9 พ.ย. 69 (บอสสั่ง): 2 มุมมอง — แท็บ "ต้องตีราคา" (ตารางหลัก · ปุ่ม "เฉพาะเกินกำหนด") / "ประวัติคำขอ" (ตัวกรองสถานะอยู่ที่นี่)
+//     todo = ตารางหลัก (ปิดปุ่มเกินกำหนด) · overdue = ตารางหลัก + ปุ่มเกินกำหนด · all/quoted/done/cancelled = ประวัติ + ตัวกรองสถานะ
+//     (all = ทุกสถานะในประวัติ · ไม่รวมต้องตีราคา)
 export type สถานะคำขอบนจอ = "all" | "todo" | "overdue" | "quoted" | "done" | "cancelled";
+export const แท็บมุมมองคำขอ = (page: Page, k: "main" | "history") => page.locator(`[data-view-tab="${k}"]`);
+export const ปุ่มเฉพาะเกินกำหนด = (page: Page) => page.locator('[data-act="only-overdue"]');
 export async function เลือกกลุ่มคำขอ(page: Page, k: สถานะคำขอบนจอ) {
+  if (k === "todo" || k === "overdue") {
+    await แท็บมุมมองคำขอ(page, "main").click();
+    await expect(แท็บมุมมองคำขอ(page, "main")).toHaveAttribute("aria-selected", "true");
+    const กด = (await ปุ่มเฉพาะเกินกำหนด(page).getAttribute("aria-pressed")) === "true";
+    if (กด !== (k === "overdue")) await ปุ่มเฉพาะเกินกำหนด(page).click();
+    await expect(ปุ่มเฉพาะเกินกำหนด(page)).toHaveAttribute("aria-pressed", String(k === "overdue"));
+    return;
+  }
+  await แท็บมุมมองคำขอ(page, "history").click();
+  await expect(แท็บมุมมองคำขอ(page, "history")).toHaveAttribute("aria-selected", "true");
   await page.getByLabel("กรองตามสถานะคำขอ").selectOption(k);
   await expect(page.getByLabel("กรองตามสถานะคำขอ")).toHaveValue(k);
 }
-/** จำนวนของตัวเลือกสถานะ (ชุดเดียวกับตาราง) */
-export const จำนวนสถานะคำขอ = (page: Page, k: สถานะคำขอบนจอ) => page.getByLabel("กรองตามสถานะคำขอ").locator(`option[value="${k}"]`);
+/** จำนวนของตัวกรอง (ชุดเดียวกับตาราง · data-count): todo = แท็บต้องตีราคา · overdue = ปุ่มเกินกำหนด · อื่น = ตัวเลือกในประวัติ (ต้องอยู่แท็บประวัติ) */
+export const จำนวนสถานะคำขอ = (page: Page, k: สถานะคำขอบนจอ) => k === "todo" ? แท็บมุมมองคำขอ(page, "main")
+  : k === "overdue" ? ปุ่มเฉพาะเกินกำหนด(page) : page.getByLabel("กรองตามสถานะคำขอ").locator(`option[value="${k}"]`);
 export const ตารางคำขอ = (page: Page) => page.getByRole("table", { name: "ตารางคำขอใบเสนอราคา" });
 /** แถวคำขอในตาราง (ข้อความในแถว เช่น ชื่อลูกค้า · เลขคำขอ) */
 export const แถวคำขอ = (page: Page, ข้อความ?: string) => {
@@ -378,7 +394,7 @@ export const หน้าต่างใบHQ = (page: Page) => page.getByRole("
 //   ตาราง 6 พ.ย. 69: แถวในตาราง "ตารางคำขอใบเสนอราคา" · กดแถว = หน้าต่าง "ใบ HQ"
 //   กลุ่ม: คำขอที่ส่งใบแล้วอยู่กลุ่ม "ส่งแล้ว รอดีลเลอร์" — ส่งชื่อกลุ่มเข้ามาถ้าไม่ใช่ "ต้องตีราคา"
 export async function เปิดใบHQในกล่องงาน(page: Page, คำค้น: string, กลุ่ม?: "ต้องตีราคา" | "ส่งแล้ว รอดีลเลอร์" | "สั่งผลิต" | "ปิด/ยกเลิก") {
-  // ตารางแบบหน้าใบค่าแฟรนไชส์ (6 พ.ย. 69) — ค่าเริ่มต้น "ทุกสถานะ" · ส่งกลุ่มมา = กรองสถานะนั้นก่อน (ตรวจว่าคำขออยู่กลุ่มที่คาด) · "สั่งผลิต" อยู่ใน "ปิด"
+  // 9 พ.ย. 69: ค่าเริ่มต้น = ตารางหลัก (ต้องตีราคา) · กลุ่มอื่น = แท็บประวัติ + ตัวกรองสถานะ · (เดิม 6 พ.ย. 69: ค่าเริ่มต้น "ทุกสถานะ") · ส่งกลุ่มมา = กรองสถานะนั้นก่อน (ตรวจว่าคำขออยู่กลุ่มที่คาด) · "สั่งผลิต" อยู่ใน "ปิด"
   if (กลุ่ม) await เลือกกลุ่มคำขอ(page, กลุ่ม === "ต้องตีราคา" ? "todo" : กลุ่ม === "ส่งแล้ว รอดีลเลอร์" ? "quoted" : "done");
   await page.getByLabel("ค้นหาคำขอ").fill(คำค้น);
   const แถว = แถวคำขอ(page, คำค้น).first();

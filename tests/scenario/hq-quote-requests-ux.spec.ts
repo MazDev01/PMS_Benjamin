@@ -168,10 +168,15 @@ test("[ui·hq] การ์ด 4 ใบตรงฐาน · แถวขึ้�
     if (w < 600) { expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "จอ 390px: ไม่ล้นจอ").toBe(true); continue; }
     // พอดีจอ 1366 (บอสสั่ง 6 พ.ย. 69): ตารางไม่มีแถบเลื่อนแนวนอน
     await expect.poll(() => ตารางคำขอ(page).evaluate(t => { const w = t.closest(".table-wrap") as HTMLElement; return w.scrollWidth <= w.clientWidth + 1; }), { message: `จอ ${w}px: ตารางไม่มีแถบเลื่อนแนวนอน` }).toBe(true);
-    const บน = await Promise.all([page.getByLabel("กรองตามสถานะคำขอ"), page.getByLabel("กรองตามดีลเลอร์"), page.getByLabel("ค้นหาคำขอ")].map(async l => {
+    // 9 พ.ย. 69: ตารางหลักไม่มีตัวกรองสถานะ — ปุ่มเฉพาะเกินกำหนดอยู่ที่เดิม (ประวัติตรวจท้ายลูป)
+    const บน = await Promise.all([page.locator('[data-act="only-overdue"]'), page.getByLabel("กรองตามดีลเลอร์"), page.getByLabel("ค้นหาคำขอ")].map(async l => {
       const b = await l.boundingBox(); return b ? Math.round(b.y + b.height / 2) : -999;
     }));
-    expect(Math.abs(บน[0] - บน[2]), `จอ ${w}px: ตัวกรองสถานะกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
+    expect(Math.abs(บน[0] - บน[2]), `จอ ${w}px: ปุ่มเฉพาะเกินกำหนดกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
+    await page.locator('[data-view-tab="history"]').click();
+    const [ส, ค] = await Promise.all([page.getByLabel("กรองตามสถานะคำขอ"), page.getByLabel("ค้นหาคำขอ")].map(async l => { const b = await l.boundingBox(); return b ? Math.round(b.y + b.height / 2) : -999; }));
+    expect(Math.abs(ส - ค), `จอ ${w}px: ประวัติ ตัวกรองสถานะกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
+    await page.locator('[data-view-tab="main"]').click();
     expect(Math.abs(บน[1] - บน[2]), `จอ ${w}px: ตัวกรองดีลเลอร์กับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
