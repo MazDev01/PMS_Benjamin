@@ -1,8 +1,8 @@
 "use client";
 
-// ── แถบ 5 ขั้น + กล่อง "ขั้นต่อไป" ในแผงลูกค้าเป้าหมาย (หน้า 3 · 16 ต.ค. 69 · รอบ 4 21 ต.ค. 69) ─────────────────────────
+// ── แถบ 4 ขั้น + กล่อง "ขั้นต่อไป" ในแผงลูกค้าเป้าหมาย (หน้า 3 · 16 ต.ค. 69 · รอบ 4 21 ต.ค. 69) ─────────────────────────
 //
-// รอบ 4 (บอสสั่ง): สถานะของลีดเหลือที่เดียว = แถบ 5 ขั้นนี้ (ป้ายสถานะบนหัวแผงเอาออก) · แถบไฮไลต์ "ขั้นที่อยู่ตอนนี้"
+// รอบ 4 (บอสสั่ง): สถานะของลีดเหลือที่เดียว = แถบ 4 ขั้นนี้ (ยุบ 5 → 4 ขั้น 9 พ.ย. 69) (ป้ายสถานะบนหัวแผงเอาออก) · แถบไฮไลต์ "ขั้นที่อยู่ตอนนี้"
 //   กล่องขั้นต่อไป = ทางเดียวที่ดีลเลอร์ขยับลีด: ปุ่มหลักหนึ่งปุ่ม (ทำงานในแผง) + "ปิดไม่สำเร็จ" ที่เดียว
 //   ขั้นของแถบ → lib/leadStage.ts · ปุ่มของกล่อง → lib/leadNextStep.ts (ที่นี่แค่ดึงข้อมูลจริงแล้ววาด)
 // ปิดไม่สำเร็จระหว่างรอราคา HQ = ยกเลิกคำขอพร้อมปิดลีด (ฐานไม่ให้เปลี่ยนสถานะเองระหว่างรอ · ใบ 0183)
@@ -14,7 +14,7 @@ import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { ขั้นต่อไป, type NextStepAction } from "@pms/shared/lib/leadNextStep";
-import { ชื่อขั้น, ชื่อขั้นการขาย, สภาพแถบขั้น, สีแถบขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, ชื่อขั้นการขาย, จำนวนขั้น, สภาพแถบขั้น, สีแถบขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { useLostReasons } from "@pms/shared/lib/useHQConfig";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
@@ -28,7 +28,7 @@ import { IssuerGuardNote } from "@pms/shared/components/ui/IssuerGuardNote";
 const วันนี้ไทย = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 
 /** คำสั่งจากบอร์ดลีด (ลากการ์ด · ปุ่ม "ย้ายไปขั้น…" · บอสสั่ง 5 พ.ย. 69) — n เปลี่ยน = สั่งใหม่
- *  ถัดไป = ปุ่มหลักของกล่องนี้ · ปิดสำเร็จ = บันทึกผลจากลูกค้า (ตอบรับที่ใบ · L2) · ปิดไม่สำเร็จ = กล่องเหตุผล หรือ "ลูกค้าปฏิเสธ" ที่ใบเมื่อส่งใบแล้ว (L3)
+ *  ถัดไป = ปุ่มหลักของกล่องนี้ · ปิดสำเร็จ = บันทึกผลจากลูกค้า (ตอบรับที่ใบ · L2) — ใบยังเป็นร่าง = ฟอร์มส่งใบก่อน แล้วต่อด้วยยืนยันตอบรับ (บอสตอบ 9 พ.ย. 69 ข้อ 1 ข) · ปิดไม่สำเร็จ = กล่องเหตุผล หรือ "ลูกค้าปฏิเสธ" ที่ใบเมื่อส่งใบแล้ว (L3)
  *  ตัดสินจากขั้นต่อไป() ตัวเดียวกับปุ่ม — ไม่มีทางไปต่อ = บอกเหตุผล ไม่เดา */
 export type คำสั่งบอร์ดลีด = { เป้า: "ถัดไป" | "ปิดสำเร็จ" | "ปิดไม่สำเร็จ" | "งาน"; n: number; /** เป้า "งาน" = กดงานในแต่ละขั้นที่ยังไม่ติ๊ก (บอสสั่ง 6 พ.ย. 69) */ งาน?: string };
 /** งานในแต่ละขั้น → ปุ่มของกล่องขั้นต่อไปที่ทำงานนั้น (ทางเดียวกับบอร์ด) · ไม่ตรงกับขั้นตอนนี้ = บอกเหตุผล ไม่เดา */
@@ -40,8 +40,9 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
   lead: LeadRow;
   /** คำสั่งจากบอร์ดลีด — ทำเมื่อโหลดคำขอ/ใบ HQ ครบแล้ว ครั้งเดียวต่อ n */
   คำสั่ง?: คำสั่งบอร์ดลีด | null;
-  /** ปุ่มหลัก — quoteId = ใบลูกค้าที่เกี่ยว (ใบร่างที่จะส่ง / ใบที่รอลูกค้าตอบ) */
-  onAction: (kind: NextStepAction["kind"] | "ดูคำขอ", quoteId?: string) => void;
+  /** ปุ่มหลัก — quoteId = ใบลูกค้าที่เกี่ยว (ใบร่างที่จะส่ง / ใบที่รอลูกค้าตอบ)
+   *  ต่อด้วยตอบรับ = ลากไปปิดสำเร็จตอนใบยังเป็นร่าง: ส่งใบสำเร็จแล้วเปิดใบให้ยืนยันลูกค้าตอบรับต่อ (ยกเลิกกลางทาง = อยู่ที่เดิม) */
+  onAction: (kind: NextStepAction["kind"] | "ดูคำขอ", quoteId?: string, ต่อด้วยตอบรับ?: boolean) => void;
   /** ปิดไม่สำเร็จ — ยกเลิกคำขอแล้ว = ฐานปิดลีดให้แล้ว ผู้เรียกแค่ดึงลีดใหม่ · ไม่ใช่ = บันทึกผ่านตัวกลางบันทึกลีด · โยน = แสดงข้อความในกล่อง */
   onLost: (reason: string, ยกเลิกคำขอแล้ว: boolean) => Promise<void>;
   /** คำขอราคาทั้งหมดของลีด (หลังโหลด) — แผงใช้ตัดสินปุ่มลบลีด */
@@ -97,7 +98,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
   if (คำขอทั้งหมด === undefined) {
     return (
       <div data-panel="next-step" aria-busy="true" style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "12px 20px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${จำนวนขั้น}, minmax(0, 1fr))`, gap: 6 }}>
           {ชื่อขั้นการขาย.map(ชื่อ => (
             <div key={ชื่อ} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ height: 5, borderRadius: 99, background: "#e5e7eb" }} />
@@ -150,6 +151,11 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
     }
     if (เป้า === "ปิดสำเร็จ") {
       if (ขั้น.action?.kind === "customer_result") return onAction("customer_result", ใบที่ส่งอยู่?.id);   // บันทึก "ลูกค้าตอบรับ" ที่ใบ (L2)
+      // ใบยังเป็นร่าง (ขั้นเสนอราคาลูกค้า · ทำใบแล้วยังไม่ส่ง) = ฟอร์มส่งใบก่อน แล้วต่อด้วยยืนยันตอบรับ (บอสตอบ 9 พ.ย. 69 ข้อ 1 ข)
+      if (ขั้น.action?.kind === "send_quote") {
+        if (กันส่ง) return แจ้งพลาด(`ส่งไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาดตอนส่ง.join(" · ")})`);
+        return onAction("send_quote", ใบล่าสุด?.id, true);
+      }
       return แจ้งพลาด(`ปิดสำเร็จได้เมื่อส่งใบให้ลูกค้าแล้ว — ตอนนี้: ${ขั้น.title}`);
     }
     if (!ขั้น.action) return แจ้งพลาด(`${ขั้น.title} — ${ขั้น.detail}`);
@@ -176,7 +182,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
 
   return (
     <div data-panel="next-step" style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "12px 20px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-      <ol aria-label="ขั้นตอนการขาย" style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
+      <ol aria-label="ขั้นตอนการขาย" style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: `repeat(${จำนวนขั้น}, minmax(0, 1fr))`, gap: 6 }}>
         {ชื่อขั้นการขาย.map((ชื่อ, i) => {
           const สภาพ = แถบ[i];
           const ผ่าน = สภาพ === "ผ่าน", ตอนนี้ = สภาพ === "ตอนนี้";

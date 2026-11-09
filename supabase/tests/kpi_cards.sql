@@ -132,8 +132,8 @@ begin
     format('แดชบอร์ด: ปิดได้ในช่วง 1 · อัตราปิด 50%% (ลีดเข้ามาในช่วง) (ได้ %s)', k -> 'won'));
 
   k := kpi_cards('dealer.leads', null, null, null, '2026-10-27');
-  perform flowtest.ok(k = '{"open":6,"hqPricing":1,"hqQuotedNoDraft":1,"awaitingClient":2}'::jsonb,
-    format('ลีด: เปิดอยู่ 6 · รอราคา HQ 1 · ได้ราคาแล้วรอทำใบ 1 (ลีดที่มีใบร่างแล้วไม่นับ) · รอลูกค้าตอบ 2 (ได้ %s)', k));
+  perform flowtest.ok(k = '{"open":6,"hqPricing":1,"hqQuotedNoDraft":1,"awaitingClient":2,"quoteStage":3}'::jsonb,
+    format('ลีด: เปิดอยู่ 6 · รอราคา HQ 1 · ได้ราคาแล้วรอทำใบ 1 (ลีดที่มีใบร่างแล้วไม่นับ) · รอลูกค้าตอบ 2 · เสนอราคาลูกค้า 3 (ใบร่าง ZZK4 + ส่งแล้ว 2 · ใบ 0284) (ได้ %s)', k));
 
   k := kpi_cards('dealer.quotations', '2026-10-01', '2026-10-27', null, '2026-10-27');
   perform flowtest.ok(k = '{"drafts":1,"awaiting":3,"won":{"count":1,"value":300000},"expiring":2}'::jsonb,
@@ -269,9 +269,9 @@ begin
 
   perform flowtest.as_user('DEALER_ADMIN', 'ZZK');
   k := kpi_cards('dealer.leads', null, null, null, '2026-10-27', '{"ids":["#L-ZZK2","#L-ZZK5","#L-ZZK7"]}');
-  perform flowtest.ok(k = '{"open":2,"hqPricing":1,"hqQuotedNoDraft":0,"awaitingClient":1}'::jsonb, format('ลีดของสาขา กรองเหลือ 3 ราย (ได้ %s)', k));
+  perform flowtest.ok(k = '{"open":2,"hqPricing":1,"hqQuotedNoDraft":0,"awaitingClient":1,"quoteStage":1}'::jsonb, format('ลีดของสาขา กรองเหลือ 3 ราย (ได้ %s)', k));
   k := kpi_cards('dealer.leads', null, null, null, '2026-10-27', '{"ids":[]}');
-  perform flowtest.ok(k = '{"open":0,"hqPricing":0,"hqQuotedNoDraft":0,"awaitingClient":0}'::jsonb, format('ตัวกรองไม่เหลือแถว = การ์ดเป็น 0 ไม่ใช่ทั้งหมด (ได้ %s)', k));
+  perform flowtest.ok(k = '{"open":0,"hqPricing":0,"hqQuotedNoDraft":0,"awaitingClient":0,"quoteStage":0}'::jsonb, format('ตัวกรองไม่เหลือแถว = การ์ดเป็น 0 ไม่ใช่ทั้งหมด (ได้ %s)', k));
   k := kpi_cards('dealer.quotations', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"ids":["ZZK-Q2","ZZK-Q5"]}');
   perform flowtest.ok(k = '{"drafts":0,"awaiting":1,"won":{"count":1,"value":300000},"expiring":1}'::jsonb, format('ใบของสาขา กรองเหลือ 2 ใบ (ได้ %s)', k));
   k := kpi_cards('dealer.customers', '2026-10-01', '2026-10-27', null, '2026-10-27', '{"ids":[990002]}');

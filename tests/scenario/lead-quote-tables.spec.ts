@@ -57,7 +57,7 @@ async function แถวลีดดีลเลอร์(page: Page, company: s
   return แถว;
 }
 
-test("[ui·dealer] ตารางลีด: ลำดับคอลัมน์ตามรูป · ได้ใบ HQ = 60% · มีคำขอไม่มีปุ่มลบ · ยังไม่มีคำขอมีปุ่มลบ · ป้ายขั้นตอนดูอย่างเดียว", async ({ page }) => {
+test("[ui·dealer] ตารางลีด: ลำดับคอลัมน์ตามรูป · ได้ใบ HQ = 75% (4 ขั้น) · มีคำขอไม่มีปุ่มลบ · ยังไม่มีคำขอมีปุ่มลบ · ป้ายขั้นตอนดูอย่างเดียว", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const แถว = await แถวลีดดีลเลอร์(page, ลีดได้ใบ);
   expect(await หัวคอลัมน์(page), "ลำดับคอลัมน์ตามที่บอสสั่ง").toEqual(ลำดับลีด);
@@ -66,14 +66,14 @@ test("[ui·dealer] ตารางลีด: ลำดับคอลัมน�
   const ช่องคืบ = หัว.findIndex(h => h.trim() === "ความคืบหน้า");
   await expect(แถว.locator("td").nth(ช่องขั้น), "ขั้น 3").toHaveText("ได้ใบ HQ");
   expect(await แถว.locator("td").nth(ช่องขั้น).locator("select, [role=combobox], [role=listbox]").count(), "ป้ายขั้นตอนไม่มีตัวเลือก").toBe(0);
-  await expect(แถว.locator("td").nth(ช่องคืบ).getByRole("img"), "ได้ใบ HQ = 3 จาก 5 ขั้น = 60%").toHaveAttribute("aria-label", /^ความคืบหน้า 60%/);
-  await expect(แถว.locator("td").nth(ช่องคืบ)).toContainText("60%");
+  await expect(แถว.locator("td").nth(ช่องคืบ).getByRole("img"), "ได้ใบ HQ = 3 จาก 4 ขั้น = 75% (ยุบ 4 ขั้น 9 พ.ย. 69)").toHaveAttribute("aria-label", /^ความคืบหน้า 75%/);
+  await expect(แถว.locator("td").nth(ช่องคืบ)).toContainText("75%");
   await expect(แถว.getByRole("button", { name: /^ลบ / }), "ลีดที่มีคำขอราคาแล้ว ไม่มีปุ่มลบ").toHaveCount(0);
 
   const เปล่า = await แถวลีดดีลเลอร์(page, ลีดเปล่า);
   await expect(เปล่า.getByRole("button", { name: `ลบ ${ลีดเปล่า}` }), "ลีดที่ยังไม่มีคำขอ/ใบ มีปุ่มลบ").toBeVisible();
   await expect(เปล่า.locator('[data-cell="project"]'), "งานที่ต้องการ").toHaveText("โกดังเก็บสินค้า 20x40 ม.");
-  await expect(เปล่า.locator("td").nth(ช่องคืบ), "ขั้นข้อมูลลูกค้า = 20%").toContainText("20%");
+  await expect(เปล่า.locator("td").nth(ช่องคืบ), "ขั้นข้อมูลลูกค้า = 25% (1 จาก 4)").toContainText("25%");
 });
 
 test("[ui·hq] ตารางลีดทั้งเครือ: ลำดับคอลัมน์ตามรูป + ดีลเลอร์ · ได้ใบ HQ (ขั้น 3) · HQ ไม่มีปุ่มลบลีดของดีลเลอร์ (ฐานกัน)", async ({ page }) => {

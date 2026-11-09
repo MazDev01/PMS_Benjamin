@@ -117,7 +117,7 @@ function Row({ label, desc, children, error }: { label: string; desc?: string; c
 // regionDisplay = ใช้ของกลาง (hqQuotations.ts) แหล่งเดียว — เดิม copy ในไฟล์นี้ไม่มี guard "ไม่ระบุ" (1.4)
 
 // ═══════════════════════ 3 · เส้นทางการขาย ════════════════════════════════════
-// ขั้น = 5 ขั้นของ FLOW ใหม่ (leadStage.ts · บอสสั่ง 27 ต.ค. 69 · FLOW D7) — ชื่อ/สี/ลำดับของขั้นแก้ที่นี่ไม่ได้
+// ขั้น = 4 ขั้นของ FLOW (leadStage.ts · บอสสั่ง 27 ต.ค. 69 · ยุบเหลือ 4 ขั้น 9 พ.ย. 69 · FLOW D7) — ชื่อ/สี/ลำดับของขั้นแก้ที่นี่ไม่ได้
 // สิ่งที่ HQ แก้ได้คือ "รายการเตือน" ในแต่ละขั้น (hq_sales_journey.tasks) — ติ๊กไว้กันลืม ไม่เลื่อนขั้นของลีด
 //   รายการของระบบ (นัดหมาย · ส่งคำขอราคา · ได้ใบ HQ · จัดทำใบ · ส่งใบ) ฐานติ๊กเมื่อทำจริง → แก้/ลบไม่ได้ (ฐานกัน ใบ 0250)
 //   รายการติ๊กเอง → แก้ชื่อ/เพิ่ม/ลบได้
@@ -164,7 +164,7 @@ function JourneyTab() {
   }), [pol.dirty, jn.dirty, tk.dirty, saveAll, pol.reset, jn.reset, tk.reset]));
 
   const addLost = () => { if (newLost.trim()) { jn.set(p => ({ ...p, lost: [...p.lost, newLost.trim()] })); setNewLost(""); } };
-  const ขั้นทั้งหมด = [1, 2, 3, 4, 5] as const;
+  const ขั้นทั้งหมด = [1, 2, 3, 4] as const;
   const tasksOf = (n: ขั้นรายการ) => tk.draft.filter(t => t.step === n);
   // แก้ได้แค่ชื่อ — key คงเดิมเสมอ (ผูกกับ checklist ของลูกค้าเป้าหมายที่บันทึกไว้แล้ว)
   //   รายการของระบบแก้ชื่อ/ลบไม่ได้ (ฐานปฏิเสธ system_task_locked)
@@ -181,7 +181,7 @@ function JourneyTab() {
   return (
     <>
       <SectionCard icon={<GitMerge size={19} />} title="ขั้นตอนการขายมาตรฐาน"
-        desc="5 ขั้นเดียวกันทุกดีลเลอร์ — สำนักงานใหญ่กำหนดรายการเตือนของแต่ละขั้น ดีลเลอร์แก้ไขไม่ได้">
+        desc="4 ขั้นเดียวกันทุกดีลเลอร์ — สำนักงานใหญ่กำหนดรายการเตือนของแต่ละขั้น ดีลเลอร์แก้ไขไม่ได้">
         <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden", marginTop: 6 }}>
           {ขั้นทั้งหมด.map((n, idx) => (
             <div key={n} data-journey-step={n} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderBottom: idx < ขั้นทั้งหมด.length - 1 ? "1px solid #f1f5f9" : "none", flexWrap: "wrap" }}>

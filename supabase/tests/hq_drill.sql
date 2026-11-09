@@ -54,7 +54,9 @@ insert into leads (id, num_id, dealer_code, company, name, phone, province, stat
   ('#L-991014', 991014, 'ZZDRL', 'ZZTEST ล4', 'ZZTEST', '000-000-1014', 'ตราด', 'QUOTED',     '2026-08-10', '2026-10-25'),
   ('#L-991015', 991015, 'ZZDRL', 'ZZTEST ล5', 'ZZTEST', '000-000-1015', 'ตราด', 'PAID',       '2026-09-20', null),
   ('#L-991016', 991016, 'ZZDRL', 'ZZTEST ล6', 'ZZTEST', '000-000-1016', 'ตราด', 'PAID',       '2026-10-04', null),
-  ('#L-991017', 991017, 'ZZDRL', 'ZZTEST ล7', 'ZZTEST', '000-000-1017', 'ตราด', 'CANCELLED',  '2026-10-05', null);
+  ('#L-991017', 991017, 'ZZDRL', 'ZZTEST ล7', 'ZZTEST', '000-000-1017', 'ตราด', 'CANCELLED',  '2026-10-05', null),
+  -- ใบ 0284 (ยุบ 4 ขั้น 9 พ.ย. 69): ได้ราคา HQ + ใบร่าง = ขั้นเสนอราคาลูกค้า (เดิมขั้น 4 ทำใบให้ลูกค้า ไม่นับใน wait) · นอกช่วง ยังเปิดอยู่
+  ('#L-991018', 991018, 'ZZDRL', 'ZZTEST ล8', 'ZZTEST', '000-000-1018', 'ตราด', 'HQ_QUOTED',  '2026-08-12', null);
 -- ใบ: ส่งในช่วง 3 (ก.ย. 1 · ต.ค. 2 รวมใบที่ตอบรับ) · ร่าง/ถูกแทนที่ไม่นับ · รอลูกค้าตอบตอนนี้ 2 (รวมใบนอกช่วง)
 --   ตอบรับในช่วง 2 ใบ (ตามวันตอบรับ: ก.ย. 250,000 · ต.ค. 400,000) · ใบ ต.ค. ที่ออกใบ ก.ย. นับเดือนตามวันตอบรับ
 insert into quotations (id, dealer_code, customer, status, total_value, line_items, customer_id, date, won_at) values
@@ -64,6 +66,8 @@ insert into quotations (id, dealer_code, customer, status, total_value, line_ite
   ('ZZDRL-Q4', 'ZZDRL', 'ZZTEST ล4',      'sent_to_client', 60000,  '[]', null,   '2026-08-20', null),
   ('ZZDRL-Q5', 'ZZDRL', 'ZZTEST ล3',      'draft',          70000,  '[]', null,   '2026-10-09', null),
   ('ZZDRL-Q6', 'ZZDRL', 'ZZTEST ล3',      'superseded',     80000,  '[]', null,   '2026-10-01', null);
+insert into quotations (id, dealer_code, customer, status, total_value, line_items, date, deal_id) values
+  ('ZZDRL-Q7', 'ZZDRL', 'ZZTEST ล8', 'draft', 90000, '[]', '2026-10-10', 991018);
 insert into quotation_won_at (dealer_code, quote_id, won_at) values
   ('ZZDRL', 'ZZDRL-Q1', '2026-10-06 10:00+07'), ('ZZDRL', 'ZZDRL-Q2', '2026-09-12 10:00+07');
 -- แม่แบบวัสดุ: ใช้แล้ว 1 (อยู่ในรายการประเมินของคำขอ) · ยังไม่เคยใช้ 1
@@ -87,8 +91,8 @@ begin
 
   -- ══ 1) แถวของสาขาของข้อ = ค่าที่รู้ ══
   x := drtest.row(d, 'ZZDRL');
-  perform drtest.ok(x - 'name' = '{"code":"ZZDRL","region":"ตะวันออก","province":"ตราด","leads":6,"open":4,"qr":1,"wait":2,"stale":1,"won":2,"lost":1}'::jsonb,
-    format('ลีด ZZDRL: ใหม่ 6 · เปิดอยู่ 4 · รอราคา HQ 1 · รอลูกค้าตอบ 2 · ไม่เคลื่อนไหว 1 · ปิดสำเร็จ 2 · ไม่สำเร็จ 1 (ได้ %s)', x));
+  perform drtest.ok(x - 'name' = '{"code":"ZZDRL","region":"ตะวันออก","province":"ตราด","leads":6,"open":5,"qr":1,"wait":3,"stale":1,"won":2,"lost":1}'::jsonb,
+    format('ลีด ZZDRL: ใหม่ 6 · เปิดอยู่ 5 · รอราคา HQ 1 · เสนอราคาลูกค้า 3 (ส่งแล้ว 2 + ทำใบแล้วยังไม่ส่ง 1 · ใบ 0284) · ไม่เคลื่อนไหว 1 · ปิดสำเร็จ 2 · ไม่สำเร็จ 1 (ได้ %s)', x));
   x := drtest.row(q, 'ZZDRL');
   perform drtest.ok(x - 'name' = '{"code":"ZZDRL","region":"ตะวันออก","province":"ตราด","sent":3,"wait":2,"won":2,"sales":650000}'::jsonb,
     format('ใบ ZZDRL: ส่ง 3 (ร่าง/ถูกแทนที่ไม่นับ) · รอตอบ 2 · ตอบรับ 2 ใบ 650,000 (ได้ %s)', x));

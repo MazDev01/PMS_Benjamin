@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { useRepoValue } from "./useRepoState";
 import { dealers as dealersRepo } from "./data";
 import type { DealerRow } from "./data/types";
+import { แปลงชื่อขั้นเดิม } from "./leadStage";
 
 import { สร้างชื่อแสดง, แทนรหัสด้วยชื่อ, แปลงบทบาทเดิมในบันทึก } from "./dealerDisplayName";
 export { สร้างชื่อแสดง };
@@ -24,7 +25,7 @@ export function useแทนรหัสในบันทึก(): (ข้อ�
   return useMemo(() => {
     const ชื่อของ = สร้างชื่อแสดง(dealers);
     const รหัส = dealers.map(d => d.code);
-    // + ชื่อบทบาท HQ เดิม = "สำนักงานใหญ่" (ใบ 0282)
-    return (ข้อความ: string) => แปลงบทบาทเดิมในบันทึก(แทนรหัสด้วยชื่อ(ข้อความ ?? "", รหัส, c => ชื่อของ(c)));
+    // + ชื่อบทบาท HQ เดิม = "สำนักงานใหญ่" (ใบ 0282) · ชื่อขั้นการขายเดิม (ทำใบให้ลูกค้า/รอลูกค้าตอบ) = "เสนอราคาลูกค้า" (ยุบขั้น 9 พ.ย. 69 · บันทึกเก่าไม่แก้)
+    return (ข้อความ: string) => แปลงชื่อขั้นเดิม(แปลงบทบาทเดิมในบันทึก(แทนรหัสด้วยชื่อ(ข้อความ ?? "", รหัส, c => ชื่อของ(c))));
   }, [dealers]);
 }

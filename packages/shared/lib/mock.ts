@@ -96,7 +96,7 @@ export const responsiblePersons: ResponsiblePerson[] = [
 
 // โครงสร้างฐานข้อมูลจริงอยู่ที่ supabase/migrations (ไล่ตามลำดับเลข) — เป็นแหล่งเดียวที่เชื่อได้
 
-// สถานะลีด (ภายใน) — แสดงบนจอเป็น 5 ขั้นผ่าน leadStage.ts เท่านั้น (docs/FLOW.html ตาราง "สถานะ ↔ ขั้น")
+// สถานะลีด (ภายใน) — แสดงบนจอเป็น 4 ขั้นผ่าน leadStage.ts เท่านั้น (docs/FLOW.html ตาราง "สถานะ ↔ ขั้น")
 // ติดต่อแล้ว/รวบรวมความต้องการ → รอราคา HQ → ได้ราคา HQ → เสนอราคา → ปิดการขาย (สำเร็จ / ไม่สำเร็จ)
 //   ติดตามผล/เจรจาต่อรอง เลิกใช้ (21 ต.ค. 69) · ข้อมูลย้ายเป็นเสนอราคาแล้ว ฐานไม่รับอีก (ใบ 0257) — enum ในฐานยังมีค่า แต่ไม่มีแถวใช้
 export type LeadStatus =
@@ -676,14 +676,14 @@ export type LeadRow = {
 // กิจกรรมของลูกค้าเป้าหมาย — บันทึกการโทร/ประชุม/โน้ต ฯลฯ ที่เกิดขึ้นจริง
 export type LeadActivity = { id: number; date: string; icon: string; text: string; type: string };
 
-// ─── รายการเตือนของลีด (FLOW ใหม่ 5 ขั้น · บอสสั่ง 27 ต.ค. 69 · ใบ 0250 · FLOW D7) ─────────────────────────────────
-// ติ๊กไว้กันลืม ไม่เปลี่ยนขั้นของลีด (ขั้นมาจากสถานะ/คำขอ/ใบ · leadStage.ts) — แต่ละรายการผูกกับขั้น 1–5 ของ leadStage.ts
+// ─── รายการเตือนของลีด (FLOW 4 ขั้น · บอสสั่ง 27 ต.ค. 69 · ใบ 0250 · ยุบ 4 ขั้น 9 พ.ย. 69 ใบ 0284 · FLOW D7) ─────────────────────────────────
+// ติ๊กไว้กันลืม ไม่เปลี่ยนขั้นของลีด (ขั้นมาจากสถานะ/คำขอ/ใบ · leadStage.ts) — แต่ละรายการผูกกับขั้น 1–4 ของ leadStage.ts
 //   รายการของระบบ (auto) ฐานติ๊กในคำสั่งเดียวกับเหตุการณ์ ดีลเลอร์ติ๊กเองไม่ได้ (ฐานกัน: leads_system_tasks_guard)
 //   ⚠️ รายการของระบบต้องตรงกับฐาน _lead_system_tasks (ใบ 0250) — แก้ที่เดียวไม่ได้
 export type LeadTask = { key: string; label: string; done: boolean; doneAt?: string; doneBy?: string };
 
-/** ขั้น 1–5 ของ leadStage.ts (1 ข้อมูลลูกค้า · 2 ขอราคา HQ · 3 ได้ใบ HQ · 4 ทำใบให้ลูกค้า · 5 รอลูกค้าตอบ) */
-export type ขั้นรายการ = 1 | 2 | 3 | 4 | 5;
+/** ขั้น 1–4 ของ leadStage.ts (1 ข้อมูลลูกค้า · 2 ขอราคา HQ · 3 ได้ใบ HQ · 4 เสนอราคาลูกค้า) */
+export type ขั้นรายการ = 1 | 2 | 3 | 4;
 export type LeadTaskDef = { key: string; label: string; step: ขั้นรายการ; auto?: boolean };
 
 /** งาน "จัดทำใบเสนอราคา" — ฐานติ๊กเมื่อทำใบจริง (0210) */
@@ -702,7 +702,7 @@ export const SYSTEM_LEAD_TASKS: (LeadTaskDef & { auto: true; เมื่อ: st
   { key: "requestQuote",       label: "ส่งคำขอราคา",      step: 2, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งคำขอราคาให้ HQ" },
   { key: "hqQuote",            label: "ได้ใบ HQ",         step: 3, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อ HQ ส่งใบ" },
   { key: QUOTE_TASK_KEY,       label: "จัดทำใบเสนอราคา",  step: 4, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อทำใบเสนอราคา" },
-  { key: SEND_QUOTE_TASK_KEY,  label: "ส่งใบเสนอราคา",    step: 5, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า" },
+  { key: SEND_QUOTE_TASK_KEY,  label: "ส่งใบเสนอราคา",    step: 4, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า" },
 ];
 const รหัสระบบ = new Set(SYSTEM_LEAD_TASKS.map(t => t.key));
 /** รายการนี้ระบบติ๊กให้เองไหม (ดีลเลอร์/HQ ติ๊ก แก้ ลบเองไม่ได้) */
@@ -721,14 +721,15 @@ const ระบบ = (key: string): LeadTaskDef => { const s = SYSTEM_LEAD_TASKS
 export const LEAD_TASK_TEMPLATE: LeadTaskDef[] = [
   ระบบ("collect"), ระบบ("requirement"),
   ระบบ(APPOINTMENT_TASK_KEY), ระบบ("requestQuote"), ระบบ("hqQuote"), ระบบ(QUOTE_TASK_KEY), ระบบ(SEND_QUOTE_TASK_KEY),
-  { key: FOLLOW_TASK_KEY, label: "ติดตามลูกค้า",     step: 5 },
+  { key: FOLLOW_TASK_KEY, label: "ติดตามลูกค้า",     step: 4 },
 ];
 
 /** ตรวจ/ซ่อมชุดงานที่ HQ ตั้งไว้ก่อนเอาไปใช้จริง — กันข้อมูลเพี้ยนจาก DB/หน้าจอ
  *  · ทิ้งแถวที่ไม่มีชื่อ/ขั้นไม่ถูกต้อง · คีย์ซ้ำเก็บตัวแรก
  *    (แม่แบบแบบเก่าที่ผูกสถานะลีด/รายการ flow เก่า ไม่มีในฐานแล้ว และฐานไม่รับ — ใบ 0257 · ไม่ต้องแปลงที่นี่)
  *  · รายการของระบบต้องมีครบเสมอ ชื่อ/ขั้นตามที่กำหนด (ฐานกันอยู่แล้ว · ตรงนี้ซ่อมค่าค้าง)
- *  · เรียงตามขั้น 1→5 (ภายในขั้นคงลำดับเดิม) */
+ *  · ขั้น 5 เดิม (รอลูกค้าตอบ ก่อนยุบ 9 พ.ย. 69 · ข้อมูลค้าง) = ขั้น 4 เสนอราคาลูกค้า
+ *  · เรียงตามขั้น 1→4 (ภายในขั้นคงลำดับเดิม) */
 export function normalizeLeadTaskTemplate(raw: unknown): LeadTaskDef[] {
   const list = Array.isArray(raw) ? raw : [];
   const seen = new Set<string>();
@@ -737,8 +738,8 @@ export function normalizeLeadTaskTemplate(raw: unknown): LeadTaskDef[] {
     const t = item as Partial<LeadTaskDef>;
     const key = typeof t?.key === "string" ? t.key.trim() : "";
     const label = typeof t?.label === "string" ? t.label.trim() : "";
-    const step = (typeof t?.step === "number" ? t.step : NaN) as ขั้นรายการ;
-    if (!key || !label || ![1, 2, 3, 4, 5].includes(step) || seen.has(key)) continue;
+    const step = (typeof t?.step === "number" ? ((t.step as number) === 5 ? 4 : t.step) : NaN) as ขั้นรายการ;
+    if (!key || !label || ![1, 2, 3, 4].includes(step) || seen.has(key)) continue;
     seen.add(key);
     const ระบบ = SYSTEM_LEAD_TASKS.find(s => s.key === key);
     clean.push(ระบบ ? { key, label: ระบบ.label, step: ระบบ.step, auto: true } : { key, label, step });
@@ -758,7 +759,8 @@ export function seedLeadTasks(status: LeadStatus, doneBy: string, baseDay: numbe
   const ถึง = ผล.kind === "won" ? 6 : ผล.kind === "lost" ? 0 : ผล.step;
   let day = baseDay;
   return tpl.map(t => {
-    const done = t.step < ถึง;
+    // เสนอราคา (ส่งใบแล้ว) อยู่ขั้น 4 เดียวกับใบร่าง — งานจัดทำใบเสนอราคาติ๊กแล้ว (เหมือนก่อนยุบขั้น 9 พ.ย. 69)
+    const done = t.step < ถึง || (status === "QUOTED" && t.key === QUOTE_TASK_KEY);
     const entry: LeadTask = done
       ? { key: t.key, label: t.label, done: true, doneAt: `${Math.min(day, 29)} มิ.ย. 2569 · 10:30`, doneBy }
       : { key: t.key, label: t.label, done: false };
@@ -1331,7 +1333,7 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 5600 }, { month: "พ.ค.", value: 7100 }, { month: "มิ.ย.", value: 5400 },
     ],
     leads: [
-      { id: "LD-R01", name: "บจ. แหลมฉบัง อุตสาหกรรม", province: "ชลบุรี",    product: "โรงงาน",  valueNum: 4200000, stage: { kind: "open", step: 5 },    assignedAt: "3 วันก่อน" },
+      { id: "LD-R01", name: "บจ. แหลมฉบัง อุตสาหกรรม", province: "ชลบุรี",    product: "โรงงาน",  valueNum: 4200000, stage: { kind: "open", step: 4 },    assignedAt: "3 วันก่อน" },
       { id: "LD-R02", name: "หจก. มาบตาพุดโลหะ",       province: "ระยอง",     product: "โกดังสำเร็จรูป", valueNum: 1800000, stage: { kind: "open", step: 1 }, assignedAt: "1 สัปดาห์" },
       { id: "LD-R03", name: "บจ. ชลอุตสาหกรรม",        province: "ชลบุรี",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 2600000, stage: { kind: "open", step: 1 }, assignedAt: "2 วันก่อน" },
       { id: "LD-R04", name: "นาย อนันต์ ศ.",            province: "จันทบุรี",  product: "โกดังสำเร็จรูป", valueNum: 850000,  stage: { kind: "won" },       assignedAt: "2 สัปดาห์" },
@@ -1358,7 +1360,7 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 4100 }, { month: "พ.ค.", value: 2600 }, { month: "มิ.ย.", value: 4200 },
     ],
     leads: [
-      { id: "LD-C01", name: "บจ. ไทยสตีล",          province: "เชียงใหม่",  product: "โกดังสำเร็จรูป", valueNum: 3200000, stage: { kind: "open", step: 5 },    assignedAt: "5 วันก่อน" },
+      { id: "LD-C01", name: "บจ. ไทยสตีล",          province: "เชียงใหม่",  product: "โกดังสำเร็จรูป", valueNum: 3200000, stage: { kind: "open", step: 4 },    assignedAt: "5 วันก่อน" },
       { id: "LD-C02", name: "หจก. สันทรายเมทัล",  province: "เชียงใหม่",  product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 1200000, stage: { kind: "open", step: 1 }, assignedAt: "1 สัปดาห์" },
       { id: "LD-C03", name: "บจ. ลำพูนโลหะ",         province: "ลำพูน",      product: "โรงงาน",  valueNum: 2800000, stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
@@ -1382,7 +1384,7 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 4200 }, { month: "พ.ค.", value: 3600 }, { month: "มิ.ย.", value: 3800 },
     ],
     leads: [
-      { id: "LD-M01", name: "บจ. แม่สอดโลหะ",        province: "ตาก",    product: "โกดังสำเร็จรูป", valueNum: 4100000, stage: { kind: "open", step: 5 },    assignedAt: "3 วันก่อน" },
+      { id: "LD-M01", name: "บจ. แม่สอดโลหะ",        province: "ตาก",    product: "โกดังสำเร็จรูป", valueNum: 4100000, stage: { kind: "open", step: 4 },    assignedAt: "3 วันก่อน" },
       { id: "LD-M02", name: "หจก. กาญจน์อุตฯ",       province: "กาญจนบุรี", product: "โรงงาน", valueNum: 2200000, stage: { kind: "open", step: 1 }, assignedAt: "5 วันก่อน" },
       { id: "LD-M03", name: "นาย ธนกร ป.",            province: "ตาก",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 980000,  stage: { kind: "open", step: 1 }, assignedAt: "2 วันก่อน" },
     ],
@@ -1405,7 +1407,7 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 3100 }, { month: "พ.ค.", value: 2800 }, { month: "มิ.ย.", value: 3100 },
     ],
     leads: [
-      { id: "LD-CR01", name: "บจ. เชียงรายอุตสาหกรรม", province: "เชียงราย", product: "โรงงาน",  valueNum: 3600000, stage: { kind: "open", step: 5 },    assignedAt: "4 วันก่อน" },
+      { id: "LD-CR01", name: "บจ. เชียงรายอุตสาหกรรม", province: "เชียงราย", product: "โรงงาน",  valueNum: 3600000, stage: { kind: "open", step: 4 },    assignedAt: "4 วันก่อน" },
       { id: "LD-CR02", name: "หจก. พะเยาสตีล",    province: "พะเยา",    product: "อาคารสำเร็จรูปทุกประเภท",    valueNum: 1100000, stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
     projects: [
@@ -1461,8 +1463,8 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 4400 }, { month: "พ.ค.", value: 5300 }, { month: "มิ.ย.", value: 4650 },
     ],
     leads: [
-      { id: "LD-A01", name: "บ.โรจนะอินดัสทรี",       province: "พระนครศรีอยุธยา", product: "โรงงาน",  valueNum: 6400000, stage: { kind: "open", step: 5 },    assignedAt: "2 วันก่อน" },
-      { id: "LD-A02", name: "หจก. บางปะอินโลจิสติกส์", province: "พระนครศรีอยุธยา", product: "โกดังสำเร็จรูป", valueNum: 2700000, stage: { kind: "open", step: 5 },    assignedAt: "5 วันก่อน" },
+      { id: "LD-A01", name: "บ.โรจนะอินดัสทรี",       province: "พระนครศรีอยุธยา", product: "โรงงาน",  valueNum: 6400000, stage: { kind: "open", step: 4 },    assignedAt: "2 วันก่อน" },
+      { id: "LD-A02", name: "หจก. บางปะอินโลจิสติกส์", province: "พระนครศรีอยุธยา", product: "โกดังสำเร็จรูป", valueNum: 2700000, stage: { kind: "open", step: 4 },    assignedAt: "5 วันก่อน" },
       { id: "LD-A03", name: "บ.สระบุรีคอนกรีต",        province: "สระบุรี",          product: "งานตามแบบของลูกค้า",      valueNum: 3100000, stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
     projects: [
@@ -1483,8 +1485,8 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 3600 }, { month: "พ.ค.", value: 3200 }, { month: "มิ.ย.", value: 3450 },
     ],
     leads: [
-      { id: "LD-K01", name: "บ.อีสานแดรี่",        province: "ขอนแก่น",   product: "โรงงาน",  valueNum: 3900000, stage: { kind: "open", step: 5 },    assignedAt: "3 วันก่อน" },
-      { id: "LD-K02", name: "เทศบาลนครขอนแก่น",   province: "ขอนแก่น",   product: "อาคารสำเร็จรูปทุกประเภท",   valueNum: 1750000, stage: { kind: "open", step: 5 },    assignedAt: "1 สัปดาห์" },
+      { id: "LD-K01", name: "บ.อีสานแดรี่",        province: "ขอนแก่น",   product: "โรงงาน",  valueNum: 3900000, stage: { kind: "open", step: 4 },    assignedAt: "3 วันก่อน" },
+      { id: "LD-K02", name: "เทศบาลนครขอนแก่น",   province: "ขอนแก่น",   product: "อาคารสำเร็จรูปทุกประเภท",   valueNum: 1750000, stage: { kind: "open", step: 4 },    assignedAt: "1 สัปดาห์" },
       { id: "LD-K03", name: "หจก. ชุมแพเกษตรภัณฑ์", province: "ขอนแก่น",   product: "โกดังสำเร็จรูป", valueNum: 1300000, stage: { kind: "open", step: 1 }, assignedAt: "2 วันก่อน" },
     ],
     projects: [
@@ -1503,7 +1505,7 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 2600 }, { month: "พ.ค.", value: 2400 }, { month: "มิ.ย.", value: 2750 },
     ],
     leads: [
-      { id: "LD-U01", name: "บ.อุบลไรซ์มิลล์",  province: "อุบลราชธานี", product: "โกดังสำเร็จรูป", valueNum: 2900000, stage: { kind: "open", step: 5 },    assignedAt: "4 วันก่อน" },
+      { id: "LD-U01", name: "บ.อุบลไรซ์มิลล์",  province: "อุบลราชธานี", product: "โกดังสำเร็จรูป", valueNum: 2900000, stage: { kind: "open", step: 4 },    assignedAt: "4 วันก่อน" },
       { id: "LD-U02", name: "หจก. เดชอุดมค้าวัสดุ", province: "อุบลราชธานี", product: "อาคารสำเร็จรูปทุกประเภท",  valueNum: 950000,  stage: { kind: "open", step: 1 }, assignedAt: "1 วันก่อน" },
     ],
     projects: [
@@ -1523,7 +1525,7 @@ export const dealerDetails: Record<string, DealerDetail> = {
       { month: "เม.ย.", value: 1900 }, { month: "พ.ค.", value: 2100 }, { month: "มิ.ย.", value: 2300 },
     ],
     leads: [
-      { id: "LD-P01", name: "บ.อันดามันมารีน่า",     province: "ภูเก็ต", product: "งานตามแบบของลูกค้า",      valueNum: 5200000, stage: { kind: "open", step: 5 },    assignedAt: "2 วันก่อน" },
+      { id: "LD-P01", name: "บ.อันดามันมารีน่า",     province: "ภูเก็ต", product: "งานตามแบบของลูกค้า",      valueNum: 5200000, stage: { kind: "open", step: 4 },    assignedAt: "2 วันก่อน" },
       { id: "LD-P02", name: "บ.กะตะบีชรีสอร์ท",      province: "ภูเก็ต", product: "อาคารสำเร็จรูปทุกประเภท",  valueNum: 2800000, stage: { kind: "open", step: 1 }, assignedAt: "6 วันก่อน" },
     ],
     projects: [
