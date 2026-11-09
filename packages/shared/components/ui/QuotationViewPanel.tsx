@@ -99,7 +99,8 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
   const ภาษีใบ = คิดภาษีใบเสนอราคา(subtotal, { vatPercent: q.vatPercent ?? dealerVat, whtPercent: q.whtRate });
   const ฉบับ = ฉบับทั้งหมดของใบ(q, ทั้งหมด);
   const หมดอายุ = quoteExpiryISO(q, validityDays);
-  const นับวัน = ป้ายนับวันหมดอายุ(หมดอายุ, APP_NOW_ISO);
+  // นับวันเฉพาะใบที่ยังรอคำตอบ (ร่าง/ส่งแล้ว) · ใบปิดแล้ว (ตอบรับ/ปฏิเสธ/ถูกแทน/หมดอายุ) แสดงแค่วัน ไม่มีตัวนับ (บอสตอบ 9 พ.ย. 69)
+  const นับวัน = q.status === "draft" || q.status === "sent_to_client" ? ป้ายนับวันหมดอายุ(หมดอายุ, APP_NOW_ISO) : null;
   const ขาด = พิมพ์ใบ.ขาด(q);
   const พิมพ์ = () => พิมพ์ใบ.พิมพ์(q, ลูกค้า);
   const th: React.CSSProperties = { textAlign: "left", fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", padding: "8px 10px", background: "#f7f9fc", whiteSpace: "nowrap" };
@@ -119,8 +120,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: "1.05rem", fontWeight: 800, color: "#fff", fontFamily: "monospace" }}>{q.id}</span>
-              <span className="badge" data-view-revision style={{ background: "#fff", color: "#003366", fontWeight: 800 }}>{ป้ายฉบับ(q.revision)}</span>
-              <span className="badge" style={{ background: sc.bg, color: sc.text }}>{quotationStatusLabel[q.status]}</span>
+              {/* ป้ายฉบับ/สถานะ ย้ายไปแถบสรุปที่เดียว (บอสสั่ง 9 พ.ย. 69 · หัวเหลือเลขที่ + ชื่อ + ปุ่ม) */}
             </div>
             <div style={{ fontSize: "0.74rem", color: "rgba(255,255,255,.75)", marginTop: 4, overflowWrap: "anywhere" }}>{q.customer || "—"}</div>
           </div>
@@ -142,7 +142,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
           { คีย์: "net", ป้าย: "ยอดชำระสุทธิ", ค่า: fmtFull(ภาษีใบ.netPayable), เด่น: true },
           { คีย์: "status", ป้าย: "สถานะ", ค่า: <span className="badge" style={{ background: sc.bg, color: sc.text }}>{quotationStatusLabel[q.status]}</span> },
           { คีย์: "expiry", ป้าย: "วันหมดอายุ", ค่า: หมดอายุ ? fmtISOToThai(หมดอายุ) : "-", ย่อย: นับวัน?.ข้อความ, ย่อยแดง: นับวัน?.เลย },
-          { คีย์: "revision", ป้าย: "ฉบับ", ค่า: ป้ายฉบับ(q.revision) },
+          { คีย์: "revision", ป้าย: "ฉบับ", ค่า: <span data-view-revision>{ป้ายฉบับ(q.revision)}</span> },
         ]} />
 
         <div style={{ overflowY: "auto", padding: "4px 20px 20px" }}>

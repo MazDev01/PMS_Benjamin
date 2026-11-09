@@ -27,6 +27,7 @@ const NS = specNS("DOCVIEW");
 const ใบHQ: ใบHQพร้อมใช้[] = [];
 let เลขยังไม่หมด = "";
 let เลขเลยแล้ว = "";
+let เลขปิดแล้ว = "";
 
 const เดือน = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const วันไทย = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); return `${d} ${เดือน[m - 1]} ${y + 543}`; };
@@ -44,13 +45,14 @@ test.beforeAll(async () => {
   for (const [i, ตั้ง] of ([
     { status: "sent_to_client", date: บวกวัน(-2), expiry: บวกวัน(10), wht: 3 },
     { status: "draft", date: บวกวัน(-40), expiry: บวกวัน(-5), wht: 0 },
+    { status: "lost", date: บวกวัน(-40), expiry: บวกวัน(-5), wht: 0 },
   ] as const).entries()) {
     const บริษัท = `${NS}-ใบ${i}`;
     const ใบ = await เตรียมใบHQ(สาขา, { dealerCode: รหัสสาขา, company: บริษัท, province: "ระยอง", lines });
     ใบHQ.push(ใบ);
     const q = await ทำใบลูกค้าจากใบHQ(สาขา, ใบ, { customer: บริษัท, markupPercent: 10, status: ตั้ง.status,
       extra: { date: ตั้ง.date, expiry: ตั้ง.expiry, wht_rate: ตั้ง.wht, province: "ระยอง" } });
-    if (i === 0) เลขยังไม่หมด = q.id; else เลขเลยแล้ว = q.id;
+    if (i === 0) เลขยังไม่หมด = q.id; else if (i === 1) เลขเลยแล้ว = q.id; else เลขปิดแล้ว = q.id;
   }
 });
 test.afterAll(async () => {
@@ -86,6 +88,14 @@ async function ตรวจตำแหน่งแถบ(แผง: Locator) {
   expect(ก่อนหน้า, "แถบสรุปต่อจากแถบหัว").not.toBeNull();
   expect(ก่อนหน้า!.สี, "ชิ้นก่อนหน้า = แถบหัวน้ำเงินเข้ม").toBe("rgb(0, 51, 102)");
   expect(Math.abs(ก่อนหน้า!.บน - ก่อนหน้า!.ล่าง), "ชิดใต้แถบหัว").toBeLessThan(2);
+}
+
+/** แถบหัวน้ำเงินเหลือเลขที่ + ชื่อ + ปุ่ม — ป้ายสถานะ/ฉบับ/เวอร์ชัน/ค่าแรกเข้า อยู่ในแถบสรุปที่เดียว (บอสตอบ 9 พ.ย. 69) */
+async function ตรวจหัวไม่มีป้ายซ้ำ(แผง: Locator, ห้าม: string[]) {
+  const หัว = แผง.locator("[data-doc-summary]").locator("xpath=preceding-sibling::*[1]");
+  await expect(หัว.locator(".badge"), "แถบหัวไม่มีป้าย").toHaveCount(0);
+  const ข้อความ = await หัว.innerText();
+  for (const ค of ห้าม) expect(ข้อความ, `แถบหัวไม่มี "${ค}" ซ้ำกับแถบสรุป`).not.toContain(ค);
 }
 
 async function เปิดใบ(page: Page, เลข: string) {
@@ -129,6 +139,8 @@ test("[D6] [ui·dealer] หน้าต่างใบเสนอราคา: 
   expect(ช่อง.expiry.ย่อย).toBe("เหลือ 10 วัน");
   expect(ช่อง.expiry.สีย่อย, "ยังไม่หมด = ไม่แดง").not.toBe(แดง);
   expect(ช่อง.revision.ค่า, "ฉบับ").toBe(`V${String(ฐาน!.revision ?? "1").replace(/^V/, "")}`);
+  await ตรวจหัวไม่มีป้ายซ้ำ(แผง, [ช่อง.revision.ค่า, ช่อง.status.ค่า]);
+  await expect(แผง.locator("[data-panel-head]"), "แถบหัวยังมีเลขที่ใบ").toContainText(เลขยังไม่หมด);
 
   // หมวดลูกค้า: กริด 3 คอลัมน์ × 2 แถว หัวข้ออยู่บน ค่าอยู่ล่าง
   const กริด = แผง.locator("[data-quote-customer]");
@@ -180,6 +192,19 @@ test("[D6] [ui·dealer] ใบที่เลยวันหมดอายุ: 
   expect(ช่อง.expiry.สีย่อย, "เลยวันหมดอายุ = แดง").toBe(แดง);
 });
 
+test("[D6] [ui·dealer] ใบที่ปิดแล้ว (ปฏิเสธ) เลยวันหมดอายุ: แสดงแค่วัน ไม่มีตัวนับแดง", async ({ page }) => {
+  const { data: ฐาน } = await admin.from("quotations").select("expiry, status").eq("dealer_code", รหัสสาขา).eq("id", เลขปิดแล้ว).single();
+  expect(ฐาน!.status, "ตั้งต้น: ใบปฏิเสธแล้ว").toBe("lost");
+  expect(ฐาน!.expiry, "ตั้งต้น: หมดอายุไปแล้ว 5 วัน").toBe(บวกวัน(-5));
+  await loginUI(page, DEALER_ORIGIN, "/login", สาขา);
+  const แผง = await เปิดใบ(page, เลขปิดแล้ว);
+  const ช่อง = Object.fromEntries((await อ่านแถบสรุป(แผง)).map(s => [s.คีย์, s]));
+  expect(ช่อง.status.ค่า).toBe("ปฏิเสธ");
+  expect(ช่อง.expiry.ค่า, "ยังแสดงวันหมดอายุ").toBe(วันไทย(ฐาน!.expiry as string));
+  expect(ช่อง.expiry.ย่อย, "ใบปิดแล้ว = ไม่มีตัวนับ").toBe("");
+  await expect(แผง.locator("[data-summary-sub][data-overdue]"), "ไม่มีตัวนับแดง").toHaveCount(0);
+});
+
 test("[ui·hq] หน้าต่างใบค่าแฟรนไชส์: แถบสรุป 4 ช่องตรงฐาน · เลยมา x วันแดง · 9 ช่องเป็นกริด 3 คอลัมน์ → จอแคบ 1 คอลัมน์", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(ADMIN);
@@ -210,6 +235,9 @@ test("[ui·hq] หน้าต่างใบค่าแฟรนไชส์: 
   expect(ช่อง.expiry.ย่อย).toBe("เลยมา 3 วัน");
   expect(ช่อง.expiry.สีย่อย, "เลยวันมีผล = แดง").toBe(แดง);
   expect(ช่อง.version.ค่า, "เวอร์ชันตามฐาน").toBe(`เวอร์ชัน ${ใบ.version}`);
+  await ตรวจหัวไม่มีป้ายซ้ำ(แผง, ["ค่าแรกเข้า", "เวอร์ชัน", ช่อง.status.ค่า, ช่อง.amount.ค่า]);
+  await expect(แผง.locator("[data-panel-head]"), "แถบหัวยังมีเลขที่ + ชื่อ").toContainText(เลข);
+  await expect(แผง.locator("[data-panel-head]")).toContainText(name);
 
   const กริด = แผง.locator("[data-proposal-fields]");
   expect(await จำนวนคอลัมน์(กริด), "จอกว้าง = 3 คอลัมน์").toBe(3);
@@ -226,4 +254,27 @@ test("[ui·hq] หน้าต่างใบค่าแฟรนไชส์: 
   await expect.poll(() => จำนวนคอลัมน์(กริด), { message: "จอแคบ = 1 คอลัมน์" }).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "หน้าไม่เลื่อนแนวนอน").toBe(true);
   assertNoErrors(errs, "หน้าต่างใบค่าแฟรนไชส์");
+});
+
+test("[ui·hq] ใบค่าแฟรนไชส์ที่ยังไม่ส่ง (ร่าง) เลยวันมีผล: แสดงแค่วัน ไม่มีตัวนับแดง", async ({ page }) => {
+  const sb = await db(ADMIN);
+  const name = `${NS}-ผู้สนใจร่าง`;
+  const { data: pr, error } = await sb.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name, province: "ขอนแก่น", status: "considering" }).select("id").single();
+  expect(error?.message ?? "").toBe("");
+  const ins = await sb.from("dealer_package_proposals").insert({ prospect_id: (pr as { id: number }).id, status: "draft", amount: 111_000, contract_months: 12, annual_target: 1_000_000,
+    region: "อีสาน", province: "ขอนแก่น", proposed_date: บวกวัน(-20), valid_until: บวกวัน(-3), terms: "ข้อหนึ่ง ZZ", note: null }).select("id, proposal_no, status, valid_until").single();
+  expect(ins.error?.message ?? "").toBe("");
+  const ใบ = ins.data as { proposal_no: string; status: string; valid_until: string };
+  expect(ใบ.status, "ตั้งต้น: ใบร่าง").toBe("draft");
+
+  await loginUI(page, HQ_ORIGIN, "/hq/proposals", ADMIN);
+  await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(name);
+  await page.getByRole("button", { name: `ดูใบ ${ใบ.proposal_no}`, exact: true }).click();
+  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบค่าแฟรนไชส์" });
+  await expect(แผง.getByText(ใบ.proposal_no).first()).toBeVisible({ timeout: 20_000 });
+  const ช่อง = Object.fromEntries((await อ่านแถบสรุป(แผง)).map(s => [s.คีย์, s]));
+  expect(ช่อง.status.ค่า).toBe("ร่าง");
+  expect(ช่อง.expiry.ค่า, "ยังแสดงวันมีผล").toBe(วันไทย(ใบ.valid_until));
+  expect(ช่อง.expiry.ย่อย, "ยังไม่ส่ง = ไม่มีตัวนับ").toBe("");
+  await expect(แผง.locator("[data-summary-sub][data-overdue]"), "ไม่มีตัวนับแดง").toHaveCount(0);
 });

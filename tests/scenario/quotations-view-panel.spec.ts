@@ -69,7 +69,10 @@ test("[D6] [ux·dealer] กดแถว → แผงดูใบในหน้
   const แผง = page.locator(`[data-quote-view="${เลขV1}"]`);
   await expect(แผง, "กดแถวแล้วแผงดูใบต้องเปิดบนหน้าเดิม").toBeVisible({ timeout: 15_000 });
   expect(new URL(page.url()).pathname, "URL ยังเป็นหน้าใบเสนอราคา").toBe("/quotations");
-  await expect(แผง.locator("[data-view-revision]")).toHaveText("V1");
+  // ป้ายฉบับอยู่ในแถบสรุปที่เดียว — แถบหัวไม่มีป้ายซ้ำ (บอสตอบ 9 พ.ย. 69)
+  await expect(แผง.locator('[data-summary-item="revision"] [data-view-revision]'), "ฉบับในแถบสรุป").toHaveText("V1");
+  await expect(แผง.locator("[data-view-revision]"), "ป้ายฉบับมีที่เดียว").toHaveCount(1);
+  await expect(แผง.locator("[data-panel-head] .badge"), "แถบหัวไม่มีป้ายฉบับ/สถานะ").toHaveCount(0);
   await expect(แผง.locator('[data-total-row="subtotal"] [data-total-value]'), "ยอดก่อน VAT = total_value ในฐาน")
     .toHaveText(`฿${ยอด.toLocaleString("en-US")}`);
   await expect(แผง.getByText("โครงเหล็กชุดดูใบ", { exact: true }), "เห็นรายการสินค้า").toBeVisible();
@@ -77,7 +80,7 @@ test("[D6] [ux·dealer] กดแถว → แผงดูใบในหน้
   await expect(แผง.locator(`[data-version-item="${เลขV1}"]`)).toBeVisible();
   await expect(แผง.locator(`[data-version-item="${เลขV2}"]`), "ฉบับ V2 อยู่ในรายการฉบับ").toBeVisible();
   await แผง.locator(`[data-version-item="${เลขV2}"]`).click();
-  await expect(page.locator(`[data-quote-view="${เลขV2}"] [data-view-revision]`), "กดฉบับ V2 แล้วแผงแสดง V2").toHaveText("V2");
+  await expect(page.locator(`[data-quote-view="${เลขV2}"] [data-summary-item="revision"] [data-view-revision]`), "กดฉบับ V2 แล้วแถบสรุปแสดง V2").toHaveText("V2");
   // ปุ่มไปแผงลีด (D6 ส่ง · D8/D8x ผลจากลูกค้า ทำที่นั่น)
   await page.locator("[data-quote-view] [data-goto-lead]").click();
   await page.waitForURL(/\/leads\?open=/, { timeout: 20_000 });

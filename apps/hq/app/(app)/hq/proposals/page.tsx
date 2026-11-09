@@ -283,7 +283,8 @@ export default function HQProposalsPage() {
         const หัวการ์ด: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: "0.62rem", fontWeight: 800, color: "#8a929c", letterSpacing: "0.06em", marginBottom: 12 };
         // 9 ช่อง ชื่อ/ลำดับเดียวกับฟอร์มออกใบ (บอสสั่ง 5 พ.ย. 69 · ช่องใบค่าแฟรนไชส์) · ว่าง/"-"/ใบเก่าที่ฐานไม่ได้เก็บ = "-"
         const ค่าใบ = ค่าช่องใบ(p, { วันไทย: fmtISOToThai, ชื่อภาค, วันนี้: APP_NOW_ISO });
-        const นับวัน = ป้ายนับวันหมดอายุ(p.validUntil, APP_NOW_ISO);
+        // นับวันเฉพาะใบที่ส่งแล้วรอตอบ · ใบอื่นแสดงแค่วัน (บอสตอบ 9 พ.ย. 69 · กติกาเดียวกับใบเสนอราคา)
+        const นับวัน = p.status === "sent" ? ป้ายนับวันหมดอายุ(p.validUntil, APP_NOW_ISO) : null;
         return (
           <div onClick={() => setดูรหัส(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
             <ModalCard onClose={() => setดูรหัส(null)} label="รายละเอียดใบค่าแฟรนไชส์"
@@ -313,12 +314,12 @@ export default function HQProposalsPage() {
                     <button onClick={() => setดูรหัส(null)} title="ปิด" aria-label="ปิด" style={{ ...qa, width: 30, padding: 0, justifyContent: "center" }}><X size={15} /></button>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-                  <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: sc.bg, color: sc.text }}>{proposalStatusLabel[p.status]}</span>
-                  {(p.version ?? 1) > 1 && <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" }}>เวอร์ชัน {p.version}</span>}
-                  {p.closeReason && <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "#fee2e2", color: "#991b1b" }}>เหตุผล: {p.closeReason}</span>}
-                  <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 800, background: "#fff", color: PRIMARY }}><Coins size={11} /> ค่าแรกเข้า {มูลค่าอ่านง่าย(p.amount)}</span>
-                </div>
+                {/* ป้ายสถานะ/เวอร์ชัน/ค่าแรกเข้า ย้ายไปแถบสรุปที่เดียว (บอสสั่ง 9 พ.ย. 69) · เหตุผลที่ปิดไม่มีในแถบสรุป จึงคงไว้ */}
+                {p.closeReason && (
+                  <div data-close-reason style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+                    <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "#fee2e2", color: "#991b1b" }}>เหตุผล: {p.closeReason}</span>
+                  </div>
+                )}
               </div>
 
               {/* แถบสรุป 4 ช่อง แบบหน้าต่างใบเสนอราคา (บอสสั่ง 9 พ.ย. 69) */}
