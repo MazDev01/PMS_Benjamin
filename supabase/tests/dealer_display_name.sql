@@ -38,6 +38,8 @@ begin
   v := _quote_request_vars(r);
   perform ddtest.ok(v ->> 'dealer' = 'ZZT ชื่อเดียว', '2) {dealer} แจ้งเตือน = ชื่ออย่างเดียว ไม่มีรหัสนำหน้า · ได้ ' || coalesce(v ->> 'dealer', 'ว่าง'));
   บรรทัด := _quote_request_mail_lines(r);
+  -- ใบ 0285: ขึ้นบรรทัดด้วย LF เท่านั้น ไม่ขึ้นกับขึ้นบรรทัดของไฟล์ใบ (เดิม checkout แบบ CRLF ได้ CR LF → ข้อถัดไปตก)
+  perform ddtest.ok(position(chr(13) in บรรทัด) = 0 and (length(บรรทัด) - length(replace(บรรทัด, chr(10), ''))) = 5, '2) อีเมลถึง HQ: 6 บรรทัด ขึ้นบรรทัดด้วย LF ไม่มี CR');
   perform ddtest.ok(บรรทัด like '%ดีลเลอร์: ZZT ชื่อเดียว' || E'\n' || '%' and บรรทัด not like '%ZZDC%', '2) อีเมลถึง HQ: "ดีลเลอร์: ชื่อ" ไม่มีรหัส');
 end $$;
 

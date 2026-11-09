@@ -20,3 +20,17 @@ comment on function public.hook_send_email(jsonb) is
   'Send Email Hook ของ Supabase Auth — ปฏิเสธทุกคำขอส่งอีเมลของระบบเข้าระบบ (ลืมรหัสผ่าน/เลขเข้าระบบ) · ใบ 0213 · ข้อความใบ 0285';
 revoke all on function public.hook_send_email(jsonb) from public, anon, authenticated, service_role;
 grant execute on function public.hook_send_email(jsonb) to supabase_auth_admin;
+
+-- 3) บรรทัดในอีเมลถึง HQ (จาก 0281 ทุกตัวอักษร · เปลี่ยนแค่วิธีเขียนขึ้นบรรทัด) — เดิมขึ้นบรรทัดด้วยการกด Enter ใน E'…'
+--    git บนเครื่อง Windows (core.autocrlf=true) checkout ไฟล์ใบเป็น CRLF → อีเมลได้ \r\n ตามเครื่องที่ลงใบ (ฐานจริง/ฐานทดสอบไม่เหมือนกัน)
+--    · ข้อทดสอบ dealer_display_name ตกในโฟลเดอร์ที่ checkout ใหม่ (พบ 9 พ.ย. 69 โดยผู้ช่วย stage4) → ใช้ E'\n' ไม่ขึ้นกับขึ้นบรรทัดของไฟล์
+create or replace function public._quote_request_mail_lines(r quote_requests) returns text
+  language sql stable security definer set search_path to 'public' as $function$
+  select 'เลขคำขอ: ' || r.request_no || E'\n'
+      || 'ดีลเลอร์: ' || _dealer_display_name(r.dealer_code) || E'\n'
+      || 'ลูกค้าเป้าหมาย: ' || coalesce((select nullif(l.company, '') from leads l where l.dealer_code = r.dealer_code and l.num_id = r.lead_num_id), '—') || E'\n'
+      || 'งานที่ขอ: ' || coalesce(nullif(r.product, ''), '—') || case when r.subtype <> '' then ' · ' || r.subtype else '' end || E'\n'
+      || 'จังหวัดหน้างาน: ' || coalesce(nullif(r.province, ''), '—') || E'\n'
+      || 'กำหนดส่งใบ HQ: ' || th_datetime(r.due_at) || ' น.'
+$function$;
+revoke all on function public._quote_request_mail_lines(public.quote_requests) from public, anon, authenticated, service_role;
