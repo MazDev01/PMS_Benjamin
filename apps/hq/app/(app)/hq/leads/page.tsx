@@ -12,6 +12,7 @@ import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
 import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
+import { ซ่อนตามระดับ } from "@pms/shared/lib/drillColumns";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
@@ -336,6 +337,9 @@ export default function HQLeadsPage() {
       }
     : undefined;
 
+  // คอลัมน์ที่ระดับเจาะบอกอยู่แล้ว (บอสสั่ง 9 พ.ย. 69 · ตัวกลาง drillColumns) — ตารางรายชื่อ
+  const ซ่อนรายชื่อ = ซ่อนตามระดับ({ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }, displayLeads, { จังหวัด: l => l.province });
+
   return (
     <div className="erp">
       {/* ปุ่ม/ตัวกรองของหน้าอยู่ขวาหัวหน้าเพจ (UI รอบใหม่ 14 ก.ย. 69) — ชื่อหน้า/ป้ายกลุ่มมาจากแถบบนแล้ว */}
@@ -524,28 +528,30 @@ export default function HQLeadsPage() {
       </div>
 
       <div className="card" data-lead-table data-ready={leadsPage ? "1" : ""} data-total={leadTotal} style={{ marginBottom: 0, overflow: "hidden" }}>
-        <div className="table-wrap">
-          <table aria-label="ตารางลูกค้าเป้าหมายทั้งเครือ">
+        {/* พอดีจอ 1366 ไม่มีแถบเลื่อนแนวนอน (บอสสั่ง 9 พ.ย. 69 · .table-wrap.fit · สัดส่วน % ไม่มีความกว้างขั้นต่ำ · ตัดคำด้วย … ชี้แล้วเห็นเต็ม)
+            คอลัมน์ที่ระดับเจาะบอกอยู่แล้ว ซ่อน (ตัวกลาง drillColumns): ระดับดีลเลอร์ = ไม่มีคอลัมน์ดีลเลอร์ · ทุกแถวจังหวัดเดียวกับระดับ = ไม่มีคอลัมน์จังหวัด */}
+        <div className="table-wrap fit">
+          <table aria-label="ตารางลูกค้าเป้าหมายทั้งเครือ" data-hidden-cols={[ซ่อนรายชื่อ.ดีลเลอร์ && "dealer", ซ่อนรายชื่อ.จังหวัด && "province"].filter(Boolean).join(",")}>
             {/* แบบเดียวกับตารางลูกค้าเป้าหมายฝั่งดีลเลอร์ (บอสส่งแบบ 28 ต.ค. 69) + คอลัมน์ดีลเลอร์ (บอสสั่ง 30 ต.ค. 69)
                 · เอาคอลัมน์ "ความคืบหน้า %" ออก (ซ้ำป้ายขั้นตอน และขั้นตอนไม่มีตัวเลข)
                 · "งานที่ต้องการ" คงไว้ = ช่อง project ที่ดีลเลอร์กรอกในฟอร์มลีด (ข้อมูลจริง · ไม่กรอก = "—")
                 · ชื่อบริษัท / ดีลเลอร์ / มูลค่า / หัวคอลัมน์ ไม่ตัด ไม่ตกบรรทัดที่จอกว้าง — ชี้แล้วเห็นเต็ม (title)
                 เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่เท่านั้น (table-layout: fixed — ใส่ที่ <th> ไม่มีผล) · รวม % = 100 */}
             <colgroup>
-              <col style={{ width: "20%", minWidth: 190 }} />{/* บริษัท / ผู้ติดต่อ */}
-              <col style={{ width: "15%", minWidth: 170 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
-              <col style={{ width: "8%", minWidth: 112 }} />{/* จังหวัดหน้างาน */}
-              <col style={{ width: "7%", minWidth: 104 }} />{/* ช่องทางที่มา */}
-              <col style={{ width: "9%", minWidth: 112 }} />{/* งานที่ต้องการ */}
-              <col style={{ width: "7%", minWidth: 104 }} />{/* พื้นที่ (ตร.ม.) */}
-              <col style={{ width: "9%", minWidth: 124 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
-              <col style={{ width: "8%", minWidth: 104 }} />{/* มูลค่า "฿12,345,678" */}
-              <col style={{ width: "6%", minWidth: 104 }} />{/* ผู้รับผิดชอบ */}
-              <col style={{ width: "8%", minWidth: 108 }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
-              <col style={{ width: "3%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน */}
+              <col style={{ width: `${17 + (ซ่อนรายชื่อ.ดีลเลอร์ ? 12 : 0) + (ซ่อนรายชื่อ.จังหวัด ? 9 : 0)}%` }} />{/* บริษัท / ผู้ติดต่อ (ได้ที่ของคอลัมน์ที่ซ่อน) */}
+              {!ซ่อนรายชื่อ.ดีลเลอร์ && <col style={{ width: "12%" }} />}{/* ดีลเลอร์ */}
+              {!ซ่อนรายชื่อ.จังหวัด && <col style={{ width: "9%" }} />}{/* จังหวัดหน้างาน */}
+              <col style={{ width: "8%" }} />{/* ช่องทางที่มา */}
+              <col style={{ width: "10%" }} />{/* งานที่ต้องการ */}
+              <col style={{ width: "6%" }} />{/* พื้นที่ (ตร.ม.) */}
+              <col style={{ width: "11%" }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
+              <col style={{ width: "8%" }} />{/* มูลค่า */}
+              <col style={{ width: "7%" }} />{/* ผู้รับผิดชอบ */}
+              <col style={{ width: "8%" }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
+              <col style={{ width: 44 }} />{/* ดู — ไอคอนล้วน */}
             </colgroup>
             <thead><tr>
-              <th>บริษัท / ผู้ติดต่อ</th><th>ดีลเลอร์</th><th>{ช่อง.จังหวัด}</th><th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
+              <th>บริษัท / ผู้ติดต่อ</th>{!ซ่อนรายชื่อ.ดีลเลอร์ && <th>ดีลเลอร์</th>}{!ซ่อนรายชื่อ.จังหวัด && <th>{ช่อง.จังหวัด}</th>}<th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
               <th>{ช่อง.ขั้นตอน}</th>
               <th className="num">มูลค่า</th><th>{ช่อง.ผู้รับผิดชอบ}</th><th>กิจกรรมล่าสุด</th>
               {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอแคบ (26 ส.ค. 69) */}
@@ -553,7 +559,7 @@ export default function HQLeadsPage() {
             </tr></thead>
             <tbody>
               {displayLeads.length === 0 ? (
-                <tr><td colSpan={11} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
+                <tr><td colSpan={11 - (ซ่อนรายชื่อ.ดีลเลอร์ ? 1 : 0) - (ซ่อนรายชื่อ.จังหวัด ? 1 : 0)} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
               ) : displayLeads.map(l => {
                 const c = สีขั้น(เลขขั้นแถว(l));
                 const followUp = needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays);
@@ -570,10 +576,10 @@ export default function HQLeadsPage() {
                       <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis" }}>{l.contact || "—"}</div>
                     </td>
                     {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · ไม่มีรหัส) */}
-                    <td data-cell="dealer" title={DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {!ซ่อนรายชื่อ.ดีลเลอร์ && <td data-cell="dealer" title={DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                       {DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}
-                    </td>
-                    <td style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>
+                    </td>}
+                    {!ซ่อนรายชื่อ.จังหวัด && <td data-cell="province" style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>}
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source || undefined}>{l.source || "—"}</td>
                     <td data-cell="project" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.project || undefined}>{l.project || "—"}</td>
                     <td className="num" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.area != null ? Number(l.area).toLocaleString() : "—"}</td>

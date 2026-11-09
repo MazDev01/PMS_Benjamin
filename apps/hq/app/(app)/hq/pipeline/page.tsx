@@ -217,12 +217,14 @@ export default function SalesAnalyticsPage() {
   const ในหน้า = pageSlice(เรียงแล้ว, หน้าจริง);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ดูทุกแถวหลังตัวกรอง (ไม่ใช่แค่หน้าที่เห็น) · ยังไม่มีแถว = แสดงครบ
   const คอลัมน์แสดง = useMemo(() => ซ่อนคอลัมน์ว่าง(คอลัมน์, เรียงแล้ว, (c, r) => c.ค่า ? c.ค่า(r) : 1), [เรียงแล้ว]);
-  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(เรียงแล้ว.map(r => ชื่อแสดง(r.code, r.name) + (r.status === "inactive" ? " (ปิดใช้งาน)" : "")), { ขั้นต่ำ: 120 }, เรียงแล้ว.map(r => ชื่อภาค(r.region)));
+  // เจาะภาค/จังหวัดอยู่ = ทุกแถวภาคเดียวกับระดับ (ตารางกรองตามระดับแล้ว) → ซ่อนบรรทัดภูมิภาค (กติกาเดียวกับ ซ่อนตามระดับ · drillColumns)
+  const ซ่อนภาค = regionSel !== ALL || provSel !== ALL || dealerSel !== ALL;
+  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(เรียงแล้ว.map(r => ชื่อแสดง(r.code, r.name) + (r.status === "inactive" ? " (ปิดใช้งาน)" : "")), { ขั้นต่ำ: 120 }, ซ่อนภาค ? [] : เรียงแล้ว.map(r => ชื่อภาค(r.region)));
   const แสดงคอล = useMemo(() => Object.fromEntries(คอลัมน์แสดง.map(c => [c.k, true])) as Partial<Record<คีย์เรียง | "view", boolean>>, [คอลัมน์แสดง]);
 
   // กราฟ: ยอดขาย เทียบ เป้าตามช่วง รายดีลเลอร์ (ลำดับเดียวกับตาราง · แบ่งหน้า 7 แถว)
   const แท่ง: HRow[] = useMemo(() => เรียงแล้ว.map(r => ({
-    key: r.code, label: ชื่อแสดง(r.code, r.name), sub: ชื่อภาค(r.region), a: r.sales, b: r.target ?? 0,
+    key: r.code, label: ชื่อแสดง(r.code, r.name), sub: ซ่อนภาค ? undefined : ชื่อภาค(r.region), a: r.sales, b: r.target ?? 0,
     note: r.pct == null ? "ยังไม่ตั้งเป้า" : `${r.pct}% ของเป้า`, onClick: () => { setDealerSel(r.code); window.scrollTo({ top: 0, behavior: "smooth" }); },   // กดแท่ง = เจาะดูดีลเลอร์
   })), [เรียงแล้ว, ชื่อแสดง]);
   const ขนาดกราฟ = 7;
@@ -384,7 +386,7 @@ export default function SalesAnalyticsPage() {
             <colgroup>{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} style={c.k === "name" ? { width: ชื่อคอล.กว้าง } : c.w ? { width: c.w } : undefined} />)}</colgroup>
             <thead>
               <tr>
-                {คอลัมน์แสดง.map(c => c.k === "view" ? <th key={c.k} aria-label="ดู" /> : (
+                {คอลัมน์แสดง.map(c => c.k === "view" ? <th key={c.k} aria-label="ดู" /> : c.k === "name" && ดีลเลอร์ที่ดู ? <th key={c.k} data-col-head="period">ผลงานในช่วง</th> : (
                   <th key={c.k} className={c.num ? "num" : undefined} title={c.ชี้ ?? c.หัว}
                     aria-sort={เรียง.k === c.k ? (เรียง.ลง ? "descending" : "ascending") : "none"}>
                     <button type="button" data-sort={c.k} onClick={() => setเรียง(s => ({ k: c.k as คีย์เรียง, ลง: s.k === c.k ? !s.ลง : c.num ?? false }))}
@@ -400,8 +402,10 @@ export default function SalesAnalyticsPage() {
               {ในหน้า.map(r => (
                 <ClickableRow key={r.code} className="clickable" onActivate={() => เจาะ(r.code)} label={`เปิดผลงานของ ${r.name} (เจาะลงระดับดีลเลอร์)`}>
                   <td data-perf-row={r.code} style={{ fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis" }} title={ชื่อแสดง(r.code, r.name)}>
-                    {ชื่อแสดง(r.code, r.name)}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}
-                    <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อภาค(r.region)}</div>
+                    {/* ระดับดีลเลอร์: หัวตาราง/แถบระดับบอกชื่อแล้ว → ไม่มีคอลัมน์ดีลเลอร์ แถวนี้ = ผลงานของดีลเลอร์ในช่วงที่เลือก (บอสสั่ง 9 พ.ย. 69) */}
+                    {ดีลเลอร์ที่ดู ? "ทั้งช่วงที่เลือก" : <>{ชื่อแสดง(r.code, r.name)}{r.status === "inactive" && <span style={{ marginLeft: 6, fontSize: "0.62rem", fontWeight: 700, color: MUTED }}>(ปิดใช้งาน)</span>}</>}
+                    {/* บรรทัดภูมิภาคใต้ชื่อ: เจาะภาค/จังหวัดอยู่ = ทุกแถวภาคเดียวกัน → ซ่อน (บอสสั่ง 9 พ.ย. 69 · ตัวกลาง drillColumns) */}
+                    {!ซ่อนภาค && <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อภาค(r.region)}</div>}
                   </td>
                   <td className="num" data-cell="leads">{r.leads.toLocaleString()}</td>
                   <td className="num" data-cell="quotes">{r.quotes.toLocaleString()}</td>

@@ -23,6 +23,7 @@ import { ชื่อหัวข้อ, คำอธิบายหัวข้
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
 import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
+import { บรรทัดใต้ชื่อดีลเลอร์, type ระดับเจาะ } from "@pms/shared/lib/drillColumns";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -69,8 +70,9 @@ export function useเจาะลึก(หน้า: หน้าเจาะ�
 
 // ── กลุ่มของแท็บ ─────────────────────────────────────────────────────────────────────────────────────────────
 type กลุ่ม = { key: string; label: string; sub: string; code?: string; rows: แถวเจาะลึก[]; เดือน?: { y: number; m: number; idx: number } };
-function จัดกลุ่มแท็บ(rows: แถวเจาะลึก[], dim: มิติ, start: string, end: string, ชื่อแสดง: (code: string, name: string) => string = (_c, n) => n): กลุ่ม[] {
-  if (dim === "dealer") return rows.map(r => ({ key: `dealer:${r.code}`, label: ชื่อแสดง(r.code, r.name), code: r.code, sub: `${r.region ? ชื่อภาค(r.region) : "ไม่ระบุภูมิภาค"} · ${r.province || "ไม่ระบุจังหวัด"}`, rows: [r] }));
+function จัดกลุ่มแท็บ(rows: แถวเจาะลึก[], dim: มิติ, start: string, end: string, ชื่อแสดง: (code: string, name: string) => string = (_c, n) => n, ระดับ: ระดับเจาะ = {}): กลุ่ม[] {
+  // บรรทัดใต้ชื่อ: ตัดภูมิภาค/จังหวัดที่ระดับบอกอยู่แล้ว (บอสสั่ง 9 พ.ย. 69 · ตัวกลาง drillColumns)
+  if (dim === "dealer") return rows.map(r => ({ key: `dealer:${r.code}`, label: ชื่อแสดง(r.code, r.name), code: r.code, sub: บรรทัดใต้ชื่อดีลเลอร์(r, ระดับ), rows: [r] }));
   if (dim === "month") return เดือนในช่วง(start, end).map((m, idx) => ({ key: `month:${m.key}`, label: m.label, sub: "", rows, เดือน: { y: m.y, m: m.m, idx } }));
   const m = new Map<string, แถวเจาะลึก[]>();
   rows.forEach(r => { const k = dim === "region" ? (ภาคมาตรฐาน(r.region) ?? "") : (r.province || ""); m.set(k, [...(m.get(k) ?? []), r]); });
@@ -127,7 +129,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
     ? ค่าเดือน(c, เดือนของกลุ่ม(เดือนทั้งหมด, codes, g.เดือน.y, g.เดือน.m))
     : ค่าแถว(c, g.rows, ทั้งหมด);
   const กลุ่ม = useMemo(() => {
-    const gs = จัดกลุ่มแท็บ(rows, dim, ช่วง.start, ช่วง.end, ชื่อแสดง);
+    const gs = จัดกลุ่มแท็บ(rows, dim, ช่วง.start, ช่วง.end, ชื่อแสดง, { ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ });
     const คีย์ = เรียง?.k ?? (dim === "month" ? "__idx" : ตั้งค่า.แท่ง), ลง = เรียง ? เรียง.ลง : dim !== "month";
     const c = ตั้งค่า.คอลัมน์.find(x => x.k === คีย์);
     const ค่า = (g: กลุ่ม): number | string => คีย์ === "__idx" ? g.เดือน?.idx ?? 0 : คีย์ === "__name" ? g.label : c ? (ค่าของกลุ่ม(c, g) ?? -1) : 0;
@@ -137,7 +139,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
       return (ลง ? -r : r) || a.label.localeCompare(b.label, "th");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า, ชื่อแสดง]);
+  }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า, ชื่อแสดง, ขอบ.ภาค, ขอบ.จังหวัด, ขอบ.ดีลเลอร์]);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ยังโหลด/ไม่มีแถว = แสดงครบ (ไม่เดาว่าว่าง)
   const คอลัมน์แสดง = ซ่อนคอลัมน์ว่าง(คอลัมน์, กลุ่ม, (c, g) => ค่าของกลุ่ม(c, g));
   // คอลัมน์ชื่อกว้างพอดีชื่อยาวสุด ≤ 25% · คอลัมน์ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)

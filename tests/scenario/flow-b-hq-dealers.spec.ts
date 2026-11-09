@@ -155,7 +155,7 @@ test("[ข·3] รหัสดีลเลอร์ 5 ตัวไม่โด�
     // 6 พ.ย. 69 บอสสั่ง: รหัสแสดงเฉพาะทะเบียนดีลเลอร์ · หน้าอื่นแสดงชื่อ (ตรวจกลับด้าน: ไม่มีป้ายรหัส · ชื่อเต็มอยู่ในช่องครบ)
     if (หน้า !== "ทะเบียนดีลเลอร์") {
       await expect(page.locator("td[data-col='code'], td[data-col='dealer'] [data-col='code']").filter({ hasText: รหัสยาว }), `${หน้า}: ไม่มีช่อง/ป้ายรหัส`).toHaveCount(0);
-      const ชื่อ = page.locator("td[data-perf-row], td[data-col='dealer']").filter({ hasText: /ZZTEST สาขารหัสยาว/ })   // ข้อแก้ชื่อดีลเลอร์ที่รันพร้อมกันเติม "แก้ชื่อแล้ว" ได้.first();
+      const ชื่อ = page.locator("td[data-perf-row], td[data-col='dealer'], [data-col='dealer'][data-row-sub]").filter({ hasText: /ZZTEST สาขารหัสยาว/ })   // ข้อแก้ชื่อดีลเลอร์ที่รันพร้อมกันเติม "แก้ชื่อแล้ว" ได้.first();
       await expect(ชื่อ, `${หน้า}: ช่องดีลเลอร์แสดงชื่อ`).toBeVisible({ timeout: 20_000 });
       await expect(ชื่อ, `${หน้า}: ช่องดีลเลอร์ไม่มีรหัส`).not.toContainText(รหัสยาว);
       continue;

@@ -64,10 +64,12 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
   await expect(แถวรายชื่อ(page), "จำนวนแถวรายชื่อ = การ์ด").toHaveCount(5);
   // ทุกแถว: ภูมิภาค = ชื่อกลาง · ดีลเลอร์ = รหัส+ชื่อช่องเดียว · รหัสลูกค้า/วันที่ไม่ถูกตัด
   const แถว = แถวรายชื่อ(page);
-  expect(new Set(await แถว.locator('td[data-col="region"]').allInnerTexts()), "ภูมิภาคในตาราง = ชื่อกลาง").toEqual(new Set(["ภาคตะวันออกเฉียงเหนือ"]));
+  // 9 พ.ย. 69 (บอสสั่ง): ระดับดีลเลอร์ ทุกแถวภาคเดียวกับระดับ = ไม่มีคอลัมน์ภูมิภาค/ดีลเลอร์ (ตัวกลาง drillColumns) — เดิมตรวจชื่อภาคในคอลัมน์ที่ระดับนี้
+  await expect(page.getByRole("table", { name: "รายชื่อลูกค้า" }), "ระดับดีลเลอร์: ซ่อนภูมิภาค + ดีลเลอร์").toHaveAttribute("data-hidden-cols", /dealer.*region|region.*dealer/);
+  await expect(แถว.locator('td[data-col="region"]'), "ระดับดีลเลอร์: ไม่มีคอลัมน์ภูมิภาค").toHaveCount(0);
   // ช่องดีลเลอร์ = ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · เดิม "รหัส+ชื่อ" — ตรวจกลับด้าน: ไม่มีป้ายรหัส)
-  expect((await แถว.first().locator('td[data-col="dealer"]').innerText()).trim(), "ช่องดีลเลอร์ = ชื่ออย่างเดียว").toBe(สาขา.ชื่อ);
-  await expect(แถว.first().locator('td[data-col="dealer"] [data-col="code"]'), "ไม่มีป้ายรหัสในช่องดีลเลอร์").toHaveCount(0);
+  //   ระดับดีลเลอร์ไม่มีคอลัมน์ดีลเลอร์ (หัวตาราง/แถบระดับบอกชื่อแล้ว) — ชื่อแสดงไม่มีรหัสตรวจที่แถบระดับข้างบน + hq-no-dealer-code.spec
+  await expect(แถว.first().locator('td[data-col="dealer"]'), "ระดับดีลเลอร์: ไม่มีคอลัมน์ดีลเลอร์").toHaveCount(0);
   for (const td of await แถว.first().locator("td").all()) {
     if (await td.getAttribute("title")) continue;   // ชื่อยาวตัดได้ — แสดงเต็มเมื่อชี้
     expect(await td.evaluate(e => e.scrollWidth <= e.clientWidth + 1), `ช่องไม่ถูกตัด: ${(await td.innerText()).trim()}`).toBe(true);
