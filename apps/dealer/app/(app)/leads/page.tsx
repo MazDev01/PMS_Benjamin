@@ -420,7 +420,7 @@ function OverviewEditor({ lead, persons, onSave }: {
           </select>
         </Cell>
         {f.status === "CANCELLED" && (
-          <Cell icon={XCircle} label="เหตุผลที่เสีย" ป้าย={<FieldLabel htmlFor="ov-lost" required className="" style={OV_CELL_LBL}>เหตุผลที่เสีย</FieldLabel>}>
+          <Cell icon={XCircle} label="เหตุผลที่ปิดไม่สำเร็จ" ป้าย={<FieldLabel htmlFor="ov-lost" required className="" style={OV_CELL_LBL}>เหตุผลที่ปิดไม่สำเร็จ</FieldLabel>}>
             {/* เหตุผลไม่ตรงรายการที่ HQ กำหนดไว้เลย → กรอกเองได้ (ค่า lostReason เดิม/พิมพ์เองใหม่ ไม่ผูกกับ
                 รายการตายตัว) — เดิมเลือกได้แค่จากลิสต์ ถ้าเหตุผลจริงไม่มีในนั้นก็บันทึกไม่ได้เลย
                 ช่องแก้เหตุผลของลีดที่ปิดไปแล้ว (แก้ในที่เดิมตามการ์ดภาพรวม) — ไม่ใช่กล่องเหตุผล (ปิดไม่สำเร็จ = กล่องเหตุผลกลาง) */}

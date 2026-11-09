@@ -274,7 +274,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     if (!(await ถามเหตุผล({
       หัวข้อ: `ลูกค้าปฏิเสธใบ ${q.id} — เลือกเหตุผล`,
       รายละเอียด: "ลูกค้าเป้าหมายปิดไม่สำเร็จให้อัตโนมัติ",
-      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่ได้", ตัวเลือก: lostReasons,
+      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือก: lostReasons,
       ปุ่มตกลง: "ยืนยันลูกค้าปฏิเสธ", ปุ่มกำลังทำ: "กำลังบันทึกลูกค้าปฏิเสธ…", อันตราย: true,
       ทำ: async reason => {
         const ผิด = await updateQuotation({ ...q, status: "lost", lostReason: reason });
