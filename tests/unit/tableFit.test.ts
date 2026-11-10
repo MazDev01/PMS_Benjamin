@@ -19,7 +19,8 @@ describe("ล็อกความกว้างคอลัมน์ (tableFit
     for (const f of ["apps/hq/app/(app)/hq/_drill/DrillEngine.tsx", "apps/hq/app/(app)/hq/pipeline/page.tsx", "apps/hq/app/(app)/hq/pipeline/Drill.tsx", "apps/hq/app/(app)/hq/quote-requests/page.tsx"]) {
       const s = readFileSync(f, "utf8");
       expect(s, f).not.toMatch(/ซ่อนคอลัมน์ว่าง\(|useกว้างคอลัมน์ชื่อ/);
-      expect(s, f).toContain("ความกว้างคอลัมน์ชื่อ");
+      // ภาพรวมยอดขายล็อกคอลัมน์ชื่อเอง 19% (หัวบรรทัดเดียว · คอลัมน์ตัวเลขต้องไม่แคบกว่าหัว) · ที่เหลือใช้ค่ากลาง
+      expect(s, f).toMatch(f.endsWith("pipeline/page.tsx") ? /ความกว้างชื่อผลงาน = "[0-9.]+%"/ : /ความกว้างคอลัมน์ชื่อ/);
     }
   });
   it("ค่าว่าง = null · undefined · \"\" · — · NaN", () => {

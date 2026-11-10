@@ -21,9 +21,11 @@ const หน้า = [
 async function ตรวจพอดี(ตาราง: Locator, ป้าย: string) {
   const วัด = await ตาราง.evaluate(t => { const w = t.closest(".table-wrap") as HTMLElement; return { ตาราง: Math.round(t.getBoundingClientRect().width), กรอบ: w.clientWidth, เลื่อน: w.scrollWidth }; });
   expect(วัด.เลื่อน, `${ป้าย}: ตารางไม่ล้นกรอบ (ไม่มีแถบเลื่อนแนวนอน) ${JSON.stringify(วัด)}`).toBeLessThanOrEqual(วัด.กรอบ + 1);
-  // คอลัมน์ชื่อคงที่ 24% ของตาราง ไม่ขึ้นกับข้อมูล (บอสสั่ง 10 พ.ย. 69 · เดิม 6 พ.ย. พอดีชื่อยาวสุด ≤ 25%) · คอลัมน์ตัวเลข (ยกเว้นคอลัมน์ปุ่มท้าย) กว้างเท่ากัน
+  // คอลัมน์ชื่อคงที่ตาม % ที่ล็อก ไม่ขึ้นกับข้อมูล (บอสสั่ง 10 พ.ย. 69 · เดิม 6 พ.ย. พอดีชื่อยาวสุด ≤ 25%) · คอลัมน์ตัวเลข (ยกเว้นคอลัมน์ปุ่มท้าย) กว้างเท่ากัน
   const หัว = await ตาราง.evaluate(t => [...t.querySelectorAll("thead th")].map(th => Math.round((th as HTMLElement).getBoundingClientRect().width)));
-  expect(Math.abs(หัว[0] - วัด.ตาราง * 0.24), `${ป้าย}: คอลัมน์ชื่อ = 24% ของตาราง (คงที่) ${JSON.stringify({ ชื่อ: หัว[0], ตาราง: วัด.ตาราง })}`).toBeLessThanOrEqual(1.5);
+  // คอลัมน์ชื่อ = % ที่ล็อกไว้ใน <col> แรก (ค่ากลาง 24% · ภาพรวมยอดขาย 19% ให้หัวตัวเลขบรรทัดเดียว) — ไม่ขึ้นกับข้อมูล
+  const ล็อก = await ตาราง.evaluate(t => parseFloat((t.querySelector("colgroup col") as HTMLElement).style.width));
+  expect(Math.abs(หัว[0] - วัด.ตาราง * ล็อก / 100), `${ป้าย}: คอลัมน์ชื่อ = ${ล็อก}% ของตาราง (คงที่) ${JSON.stringify({ ชื่อ: หัว[0], ตาราง: วัด.ตาราง })}`).toBeLessThanOrEqual(1.5);
   const ตัวเลข = หัว.slice(1, -1);
   expect(Math.max(...ตัวเลข) - Math.min(...ตัวเลข), `${ป้าย}: คอลัมน์ตัวเลขกว้างเท่ากัน (ต่างไม่เกิน 2px) ${JSON.stringify(ตัวเลข)}`).toBeLessThanOrEqual(2);
   // ตัวอักษรใหญ่ขึ้น (บอสสั่ง 6 พ.ย. 69 รอบ 3 · ตัวกลาง .table-wrap.fit): ชื่อ/ตัวเลข ≥ 0.84rem · บรรทัดภูมิภาค ≥ 0.72rem
