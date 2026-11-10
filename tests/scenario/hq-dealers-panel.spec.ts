@@ -52,6 +52,25 @@ test.afterAll(async () => {
   await ก.ลบ();
 });
 
+// หัวคอลัมน์ + จังหวัด/ภูมิภาค/สถานะ ไม่ถูกตัด ทุกขนาดจอทำงาน (ผู้ใช้แจ้ง 10 พ.ย. 69: หัว "ลำดับ" ขึ้น "ลำ..." · "กรุงเทพมหา...")
+//   ต้นเหตุ: ความกว้าง % + px รวมเกินพื้นที่ตาราง → เบราว์เซอร์บีบทุกคอลัมน์ · ตกบนโค้ดเดิม (หัวลำดับถูกตัด)
+test("[ui·hq] ดีลเลอร์: หัวคอลัมน์และจังหวัดยาวสุด (กรุงเทพมหานคร) ไม่ถูกตัด ที่จอ 1366 / 1440 / 1920", async ({ page }) => {
+  await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  for (const w of [1366, 1440, 1920]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill("กรุงเทพมหานคร");
+    const ตาราง = page.locator(".table-wrap table").first();
+    const แถว = ตาราง.locator("tbody tr").filter({ hasText: "กรุงเทพมหานคร" }).first();
+    await expect(แถว, `จอ ${w}: มีดีลเลอร์จังหวัดกรุงเทพมหานคร (ข้อมูลตั้งต้น)`).toBeVisible({ timeout: 20_000 });
+    const ตัด = await ตาราง.evaluate(t => Array.from(t.querySelectorAll<HTMLElement>("thead th, tbody tr:first-child td[data-col='province'], tbody tr:first-child td[data-col='code'] span, tbody tr:first-child td[data-col='region'] .badge, tbody tr:first-child td[data-col='status'] .badge"))
+      .filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent?.trim() || e.getAttribute("aria-label")));
+    expect(ตัด, `จอ ${w}: หัวคอลัมน์ · รหัส · จังหวัด · ภูมิภาค · สถานะ ไม่ถูกตัด`).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `จอ ${w}: หน้าไม่ล้นแนวนอน`).toBeLessThanOrEqual(1);
+  }
+});
+
 async function ค้นรายการ(page: Page, คำ: string) {
   await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });
   await settle(page);
