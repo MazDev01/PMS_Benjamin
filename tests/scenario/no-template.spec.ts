@@ -230,7 +230,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   const เลขใบ = (await ใบ())!.id;
   await d.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(d);
-  await d.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
+  await d.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
   const qrow = d.locator("tbody tr").filter({ hasText: บริษัท }).first();
   await expect(qrow).toBeVisible({ timeout: 25_000 });
   await ไปแผงลีดจากแถวใบ(qrow);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
@@ -267,7 +267,7 @@ test("[func·dealer] ใบเก่าที่เคยใช้แม่แ�
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
     const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
     await expect(แถว).toBeVisible({ timeout: 25_000 });
     await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"

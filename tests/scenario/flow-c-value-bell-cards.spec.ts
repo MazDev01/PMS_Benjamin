@@ -263,7 +263,7 @@ test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใ
   await expect(รp.getByText("0%", { exact: true }), "ภาพรวมยอดขาย: % เป้า ไม่ใช่ 0%").toHaveCount(0);
   // อัตราปิดการขาย: ไม่มีดีลที่ปิด = "—" ไม่ใช่ 0% — การ์ดอัตราปิดย้ายจากหน้าลีดของดีลเลอร์มาที่นี่ (ชุดการ์ด 4 ใบ บอสสั่ง 22 ต.ค. 69)
   //   การ์ดเดินตามคำค้น (บอสตัดสิน 27 ต.ค. 69) → ค้นสาขาที่ไม่มีจริง = ไม่มีดีลให้หาร
-  await page.getByPlaceholder(/ค้นหา/).first().fill(`ZZไม่มีจริง-${แท็ก}`);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(`ZZไม่มีจริง-${แท็ก}`);
   const อัตราปิด = page.locator('[data-kpi-row] [data-kpi="winRate"]');
   await expect(อัตราปิด.locator("[data-value]"), "อัตราปิดการขาย: ไม่มีดีลที่ปิด = ไม่มีค่า").toHaveAttribute("data-value", "", { timeout: 15_000 });
   await expect(อัตราปิด, "อัตราปิดการขาย: ขึ้น —").toContainText("—");

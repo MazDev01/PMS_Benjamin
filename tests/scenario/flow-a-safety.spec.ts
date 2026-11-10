@@ -145,7 +145,7 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     await expect(page.getByRole("button", { name: "ทำสำเนา", exact: true }), "แผงลูกค้า: ไม่มีปุ่มทำสำเนาใบ").toHaveCount(0);
     await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(บริษัท);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(บริษัท);
     const แถว = page.locator("tbody tr").filter({ hasText: ใบลูกค้า }).first();
     await expect(แถว).toBeVisible({ timeout: 20_000 });
     await expect(แถว.getByTitle("แก้ไข"), "แถวใบ won ไม่มีแก้ไข").toHaveCount(0);
@@ -166,7 +166,7 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
     await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
     const แถว = page.locator("tbody tr").filter({ hasText: ใบลูกค้า }).first();
     await expect(แถว).toBeVisible({ timeout: 25_000 });
     await แถว.getByRole("button", { name: /ดู/ }).first().click();

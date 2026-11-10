@@ -66,7 +66,7 @@ async function เปิดจากหน้าใบ(page: Page, id: string) {
   await page.goto(`${HQ_ORIGIN}/hq/quotations?dealer=${รหัสสาขา}`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByLabel("กรองตามสถานะใบเสนอราคา").selectOption("all");
-  await page.getByPlaceholder(/ค้นหา/).first().fill(id);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(id);
   const แถว = page.locator("tbody tr").filter({ has: page.locator("[data-quote-no]", { hasText: new RegExp(`^${id}$`) }) }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await แถว.getByRole("button", { name: /ดู/ }).first().click();

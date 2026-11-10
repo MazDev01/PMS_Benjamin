@@ -80,7 +80,7 @@ test("ช่วง ก · ดีลเลอร์: แผงลีดที่�
   await ถ่าย(page, "ดีลเลอร์-แผงลีดปิดแล้ว-ใบเสนอราคา", ไม่ต้องทำ);
   await ถ่าย(page, "ดีลเลอร์-ใบเสนอราคา-รายการ", async () => {
     await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(บริษัท).catch(() => {}); await settle(page);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(บริษัท).catch(() => {}); await settle(page);
   });
   const { data: q } = await (await db(RYG)).from("quotations").select("id").eq("dealer_code", "RYG").eq("deal_id", ใบ.leadNum).limit(1).single();
   await ถ่าย(page, "ดีลเลอร์-ใบเสนอราคา-ใบที่ตอบรับแล้ว", async () => {
@@ -146,7 +146,7 @@ test.describe("ช่วง ข", () => {
     await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
     const ไป = (path: string, ค้น?: string) => async () => {
       await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" }); await settle(page);
-      if (ค้น) { await page.getByPlaceholder(/ค้นหา/).first().fill(ค้น).catch(() => {}); await settle(page); }
+      if (ค้น) { await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ค้น).catch(() => {}); await settle(page); }
     };
     await ถ่าย(page, "HQ-ทะเบียนดีลเลอร์-ตาราง", ไป("/hq/dealers?view=table"));
     await ถ่าย(page, "HQ-ทะเบียนดีลเลอร์-ค้นรหัสยาว", ไป("/hq/dealers?view=table", รหัสยาว));
@@ -203,7 +203,7 @@ test.describe("ช่วง ค", () => {
     await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
     const ไป = (path: string, ค้น?: string) => async () => {
       await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" }); await settle(page);
-      if (ค้น) { await page.getByPlaceholder(/ค้นหา/).first().fill(ค้น).catch(() => {}); await settle(page); }
+      if (ค้น) { await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ค้น).catch(() => {}); await settle(page); }
     };
     await ถ่าย(page, "HQ-ลีดทั้งเครือ", ไป("/hq/leads", "ZZTEST-ภาพค"));
     await ถ่าย(page, "HQ-ลีดทั้งเครือ-แผง", async () => { await ไป("/hq/leads")(); await page.getByPlaceholder("ค้นหา").first().fill(มีใบ); await page.locator("tbody tr").filter({ hasText: มีใบ }).first().locator("td").nth(2).click(); await settle(page); });

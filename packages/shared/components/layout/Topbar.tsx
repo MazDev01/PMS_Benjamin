@@ -4,7 +4,6 @@ import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มู�
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { fmtLeadValue } from "@pms/shared/lib/format";
-import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { useRouter, usePathname } from "next/navigation";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
@@ -143,7 +142,10 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   const [showNotifs, setShowNotifs]     = useState(false);
 
   // ── states ──
-  const [showSearch, setShowSearch]     = useState(false);
+  // ช่องค้นหาในแถบบน (บอสสั่ง 10 พ.ย. 69 · เอาหน้าต่างค้นหากลางจอออก): พิมพ์ในช่องได้เลย ผลเป็นรายการใต้ช่อง
+  const [showSearch, setShowSearch]     = useState(false);   // รายการผลใต้ช่องเปิดอยู่
+  const [searchActive, setSearchActive] = useState(0);       // แถวที่เลือกด้วยลูกศร
+  const searchBoxRef = useRef<HTMLDivElement>(null);
   const [showUser,   setShowUser]       = useState(false);
   const [searchQ,    setSearchQ]        = useState("");
   // ค้นหาฝั่ง HQ — ดึงตรงจาก repo ตามคำค้น (M9 Phase 4) · dealer/local ใช้ array ของ SalesContext เหมือนเดิม
@@ -154,14 +156,22 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
   const closeUser   = useCallback(() => setShowUser(false),   []);
   useClickOutside(userRef,   closeUser);
 
-  // open search overlay
-  useEffect(() => {
-    if (showSearch) setTimeout(() => searchInputRef.current?.focus(), 50);
-  }, [showSearch]);
+  // คลิกนอกช่อง/รายการ = ปิดรายการ
+  const closeSearch = useCallback(() => setShowSearch(false), []);
+  useClickOutside(searchBoxRef, closeSearch);
 
-  // close on Esc
+  // Esc ปิดเมนูอื่น · Ctrl+K (⌘K) = ไปที่ช่องค้นหาเดิม (ไม่เปิดหน้าต่าง)
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") { setShowSearch(false); setShowNotifs(false); setShowUser(false); } }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { setShowNotifs(false); setShowUser(false); }
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowNotifs(false); setShowUser(false);
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        setShowSearch(true);
+      }
+    }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
@@ -238,6 +248,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
     if (!(await confirmDiscard())) return;
     setShowSearch(false);
     setSearchQ("");
+    searchInputRef.current?.blur();
     router.push(href);
     // แจ้งหน้าปลายทางให้เปิดเรคคอร์ดที่ค้นเจอ แม้ผู้ใช้อยู่หน้าเดิมอยู่แล้ว
     // (router.push ไปเส้นทางเดิมด้วย query ต่างกัน จะไม่ remount → effect ?open ไม่ทำงาน)
@@ -257,73 +268,6 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
 
   return (
     <>
-      {/* ── Search overlay ──────────────────────────────────────── */}
-      {showSearch && (
-        <div
-          onClick={() => { setShowSearch(false); setSearchQ(""); }}
-          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:400, display:"flex", alignItems:"flex-start", justifyContent:"center", paddingTop:80 }}>
-          <ModalCard
-            onClose={() => { setShowSearch(false); setSearchQ(""); }}
-            label="ค้นหาทั้งระบบ"
-            style={{ width:"100%", maxWidth:560, background:"#fff", borderRadius:16, boxShadow:"0 24px 64px rgba(0,0,0,.22)", overflow:"hidden" }}>
-            {/* Input */}
-            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:`1px solid ${BORDER}` }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input
-                ref={searchInputRef}
-                value={searchQ}
-                onChange={e => setSearchQ(e.target.value)}
-                placeholder={isHQ ? "ค้นหาหน้า ลูกค้าเป้าหมาย ดีลเลอร์ ใบเสนอราคา…" : "ค้นหาหน้า ลูกค้าเป้าหมาย ลูกค้า ใบเสนอราคา…"}
-                style={{ flex:1, border:"none", outline:"none", fontSize:"0.92rem", color:STEEL, background:"transparent" }}/>
-              <button onClick={() => { setShowSearch(false); setSearchQ(""); }}
-                style={{ fontSize:"0.72rem", color:"#9ca3af", background:"none", border:`1px solid ${BORDER}`, borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>
-                Esc
-              </button>
-            </div>
-            {/* Results */}
-            {results.length > 0 ? (
-              <div style={{ maxHeight:360, overflowY:"auto" }}>
-                {results.map((r, i) => {
-                  const tc = typeMeta[r.type] ?? { bg:"#f0f0f5", text:"#6b7280", icon:null };
-                  const isGroupStart = i === 0 || results[i - 1].type !== r.type;
-                  return (
-                    <div key={i}>
-                    {isGroupStart && (
-                      <div style={{ padding:"9px 16px 4px", fontSize:"0.65rem", fontWeight:800, color:"#9ca3af", letterSpacing:"0.05em", background:"#fff" }}>
-                        {r.type}
-                      </div>
-                    )}
-                    <button onClick={() => goTo(r.href)}
-                      style={{ display:"flex", alignItems:"center", gap:12, width:"100%", padding:"9px 16px",
-                        border:"none", borderBottom:`1px solid ${BG}`, background:"#fff", cursor:"pointer", textAlign:"left" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = BG; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#fff"; }}>
-                      <span style={{ display:"flex", alignItems:"center", justifyContent:"center", width:30, height:30, borderRadius:"50%", background:tc.bg, color:tc.text, flexShrink:0 }}>{tc.icon}</span>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:"0.86rem", fontWeight:700, color:STEEL, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{r.label}</div>
-                        <div style={{ fontSize:"0.72rem", color:"#6b7280", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{r.sub}</div>
-                      </div>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
-                    </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : q.length >= 1 ? (
-              <div style={{ padding:"28px 16px", textAlign:"center", fontSize:"0.8rem", color:"#9ca3af" }}>
-                ไม่พบผลลัพธ์สำหรับ &ldquo;{searchQ}&rdquo;
-              </div>
-            ) : (
-              <div style={{ padding:"28px 16px", textAlign:"center", fontSize:"0.8rem", color:"#9ca3af" }}>
-                พิมพ์เพื่อค้นหา
-              </div>
-            )}
-          </ModalCard>
-        </div>
-      )}
-
       {/* ── Topbar (ERP look) ───────────────────────────────────── */}
       <header className="erp-topbar">
 
@@ -334,11 +278,67 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
 
         {/* ช่องค้นหากว้างแบบเว็บตัวอย่าง (UI รอบใหม่ 14 ก.ย. 69) — กดแล้วเปิดหน้าต่างค้นหาทั้งระบบตัวเดิม
             ชื่อหน้าย้ายลงไปหัวหน้าเพจใต้แถบนี้ (ป้ายกลุ่ม + ชื่อใหญ่) */}
-        <button type="button" className="topbar-search" aria-label="ค้นหา"
-          onClick={() => { setShowSearch(true); setShowNotifs(false); setShowUser(false); }}>
-          <Search size={16} />
-          <span>{isHQ ? "ค้นหาหน้า ลูกค้าเป้าหมาย ดีลเลอร์ ใบเสนอราคา…" : "ค้นหาหน้า ลูกค้าเป้าหมาย ลูกค้า ใบเสนอราคา…"}</span>
-        </button>
+        {/* ช่องค้นหา = ช่องพิมพ์จริง (บอสสั่ง 10 พ.ย. 69 · เดิมกดแล้วเปิดหน้าต่างกลางจอ) — ผลเป็นรายการเลื่อนลงใต้ช่อง กว้างเท่าช่อง
+            จัดกลุ่มเดิม (หน้า · ลูกค้าเป้าหมาย · ลูกค้า · ใบเสนอราคา · ดีลเลอร์) · ↑↓ เลือก · Enter เปิด · Esc ปิด · คลิกนอกช่องปิด · Ctrl+K มาที่ช่องนี้ */}
+        <div ref={searchBoxRef} className="topbar-search" data-topbar-search onClick={() => searchInputRef.current?.focus()}>
+          <Search size={16} aria-hidden />
+          <input
+            ref={searchInputRef}
+            type="search"
+            role="combobox"
+            aria-label="ค้นหา"
+            aria-autocomplete="list"
+            aria-expanded={showSearch && q.length >= 1}
+            aria-controls="topbar-search-list"
+            aria-activedescendant={showSearch && results.length ? `topbar-search-opt-${Math.min(searchActive, results.length - 1)}` : undefined}
+            value={searchQ}
+            placeholder={isHQ ? "ค้นหาหน้า ลูกค้าเป้าหมาย ดีลเลอร์ ใบเสนอราคา…" : "ค้นหาหน้า ลูกค้าเป้าหมาย ลูกค้า ใบเสนอราคา…"}
+            onFocus={() => { setShowSearch(true); setShowNotifs(false); setShowUser(false); }}
+            onChange={e => { setSearchQ(e.target.value); setSearchActive(0); setShowSearch(true); }}
+            onKeyDown={e => {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                if (!results.length) return;
+                e.preventDefault();
+                setShowSearch(true);
+                setSearchActive(i => { const n = results.length, cur = Math.min(i, n - 1); return e.key === "ArrowDown" ? (cur + 1) % n : (cur - 1 + n) % n; });
+              } else if (e.key === "Enter") {
+                const r = results[Math.min(searchActive, results.length - 1)];
+                if (showSearch && r) { e.preventDefault(); void goTo(r.href); }
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setShowSearch(false);
+                (e.currentTarget as HTMLInputElement).blur();
+              }
+            }}
+          />
+          {showSearch && q.length >= 1 && (
+            <div id="topbar-search-list" role="listbox" aria-label="ผลการค้นหา" className="topbar-search-list" onMouseDown={e => e.preventDefault()}>
+              {results.length > 0 ? results.map((r, i) => {
+                const tc = typeMeta[r.type] ?? { bg: "#f0f0f5", text: "#6b7280", icon: null };
+                const isGroupStart = i === 0 || results[i - 1].type !== r.type;
+                const on = i === Math.min(searchActive, results.length - 1);
+                return (
+                  <div key={i} role="presentation">
+                    {isGroupStart && <div role="presentation" data-search-group={r.type} style={{ padding: "9px 14px 4px", fontSize: "0.65rem", fontWeight: 800, color: "#9ca3af", letterSpacing: "0.05em" }}>{r.type}</div>}
+                    <div id={`topbar-search-opt-${i}`} role="option" aria-selected={on} data-search-type={r.type} data-href={r.href}
+                      onMouseEnter={() => setSearchActive(i)} onClick={() => void goTo(r.href)}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 14px", cursor: "pointer", background: on ? "#eef3f9" : "#fff" }}>
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "50%", background: tc.bg, color: tc.text, flexShrink: 0 }}>{tc.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.label}</div>
+                        <div style={{ fontSize: "0.72rem", color: "#6b7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.sub}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div role="presentation" style={{ padding: "20px 14px", textAlign: "center", fontSize: "0.8rem", color: "#9ca3af" }}>
+                  ไม่พบผลลัพธ์สำหรับ &ldquo;{searchQ}&rdquo;
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* ── ป้ายบอกว่ากำลังดูชุดข้อมูลตัวอย่าง (บอสสั่ง 24 ส.ค. 69 · ผลตรวจภายนอก DL-05/HQ-12a) ──
             โหมดตัวอย่างตรึง "วันนี้ของระบบ" ไว้ที่ยุคของข้อมูล (ดู appTime.ts) ไม่ใช่วันจริง

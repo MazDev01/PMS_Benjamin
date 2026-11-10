@@ -32,7 +32,7 @@ test("[func·dealer] บันทึกนัดหมาย → ระบบต
 
   try {
     await open(page, "dealer", "/leads");
-    await page.getByPlaceholder(/ค้นหา/).first().fill("ZZTEST-APPT2");
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill("ZZTEST-APPT2");
     await page.waitForTimeout(900);
     await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
 

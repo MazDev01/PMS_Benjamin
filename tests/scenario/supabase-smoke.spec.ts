@@ -159,7 +159,7 @@ test("[supabase] หน้าทะเบียนดีลเลอร์แส
   try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
     const แถว = page.locator("tbody tr").filter({ hasText: ป้าย });
     await expect(แถว, "สาขาที่สร้างในฐานขึ้นจอ 1 แถว").toHaveCount(1, { timeout: 20_000 });
     await expect(แถว, "แถวแสดงรหัสสาขาจริง").toContainText(สาขา.รหัส);

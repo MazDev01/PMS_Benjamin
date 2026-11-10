@@ -32,7 +32,7 @@ async function อยู่ในช่องครบ(cell: Locator): Promise<b
 async function ค้น(page: Page, path: string, คำ: string) {
   await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(คำ);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(คำ);
 }
 
 test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อและตัวเลขดีลเลอร์ (ทะเบียน · แดชบอร์ด · ภาพรวมยอดขาย)", async ({ page }) => {
@@ -48,13 +48,13 @@ test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อแ�
   try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
     await expect(page.locator("tbody tr").filter({ hasText: ป้าย }), "ทะเบียน: สาขาของข้อครบ 2 แถว").toHaveCount(2, { timeout: 20_000 });
     await expect(การ์ดทั้งหมด, "การ์ดดีลเลอร์ทั้งหมด = สาขาที่ตรงคำค้น (2)").toHaveAttribute("data-value", "2", { timeout: 20_000 });
   } finally { for (const x of สาขา) await x.ลบ(); }
   const { data: ชื่อHQ } = await admin.from("dealers").select("name").eq("code", "HQ").single();
   expect(ชื่อHQ?.name, "ตั้งต้น: ฐานมีแถว HQ").toBeTruthy();
-  await page.getByPlaceholder(/ค้นหา/).first().fill("สำนักงานใหญ่");
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill("สำนักงานใหญ่");
   await expect(page.locator("td[data-col='code']").filter({ hasText: /^HQ$/ }), "ทะเบียนไม่มีแถว HQ").toHaveCount(0);
   await expect(page.getByText("ไม่พบข้อมูล")).toBeVisible({ timeout: 10_000 });
   await expect(การ์ดทั้งหมด, "ค้นชื่อแถว HQ → การ์ด 0 (ไม่นับสำนักงานใหญ่)").toHaveAttribute("data-value", "0", { timeout: 10_000 });

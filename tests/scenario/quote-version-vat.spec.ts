@@ -56,7 +56,7 @@ test("[func·dealer] สร้างใบไม่ส่งภาษี → VAT
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขV1);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขV1);
   const แถว = page.locator("tbody tr").filter({ hasText: เลขV1 }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"

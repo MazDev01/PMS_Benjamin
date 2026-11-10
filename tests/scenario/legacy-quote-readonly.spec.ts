@@ -28,7 +28,7 @@ test("[func·dealer] ใบเดิมที่ไม่มีใบ HQ: ไม
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(ใบ);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ใบ);
   const แถว = page.locator("tbody tr").filter({ hasText: ใบ }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   for (const ชื่อ of ["แก้ไข", "ลบใบเสนอราคา", "ส่งให้ลูกค้า"]) {

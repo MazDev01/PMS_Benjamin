@@ -234,7 +234,7 @@ test.describe("HQ: กล่องเหตุผล", () => {
     await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
     await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
     const แถว = page.locator("tbody tr").filter({ hasText: ใบลูกค้า }).first();
     await expect(แถว).toBeVisible({ timeout: 25_000 });
     await แถว.getByRole("button", { name: /ดู/ }).first().click();

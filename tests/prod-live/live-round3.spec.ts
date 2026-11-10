@@ -76,7 +76,7 @@ test("[live·รอบ3] ส่ง V1 → ทำฉบับใหม่ → ส
   const เปิดรายการ = async () => {
     await page.goto(`${DEALER}/quotations`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
-    await page.getByPlaceholder(/ค้นหา/).first().fill(v1);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(v1);
     await expect(page.locator("tbody tr").filter({ hasText: v1 }).first()).toBeVisible({ timeout: 30_000 });
   };
   // รอบ 4: หน้าใบเสนอราคาเป็นรายการอย่างเดียว — กดแถว V1 → แผงดูใบ › ไปแผงลีด › แท็บใบเสนอราคา › ปุ่มของใบ V1

@@ -44,7 +44,7 @@ const สถานะใบ = async (id: string) =>
 async function เปิดแผงของใบ(page: Page, id: string) {
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(id);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(id);
   const แถว = page.locator("tbody tr").filter({ hasText: id }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"

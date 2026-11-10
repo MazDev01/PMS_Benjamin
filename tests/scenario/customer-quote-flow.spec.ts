@@ -169,7 +169,7 @@ test("[flow·hq] margin: HQ เห็นต้นทุน · % · ราคา�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(q10!.id);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(q10!.id);
   const แถว = page.locator("tbody tr").filter({ hasText: q10!.id }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await แถว.getByRole("button", { name: /ดู/ }).first().click();
@@ -222,7 +222,7 @@ test("[flow·hq] HQ ย้อนการตอบรับ (won) พร้อ�
   const เปิดใบ = async (id: string) => {
     await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(id);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(id);
     const แถว = page.locator("tbody tr").filter({ hasText: id }).first();
     await expect(แถว).toBeVisible({ timeout: 25_000 });
     await แถว.getByRole("button", { name: /ดู/ }).first().click();

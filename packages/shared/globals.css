@@ -1611,6 +1611,14 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 }
 .topbar-search:hover { border-color: #cdd8e6; box-shadow: 0 0 0 3px rgba(0,51,102,.06); }
 .topbar-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ช่องค้นหาเป็นช่องพิมพ์จริง + รายการผลใต้ช่อง กว้างเท่าช่อง (บอสสั่ง 10 พ.ย. 69 · เดิมเปิดหน้าต่างกลางจอ) */
+.topbar-search { position: relative; }
+.topbar-search:focus-within { border-color: #9fb3cc; box-shadow: 0 0 0 3px rgba(0,51,102,.10); }
+.topbar-search input { flex: 1; min-width: 0; height: 100%; border: none; outline: none; background: transparent; font-family: inherit; font-size: .86rem; color: #1F2937; }
+.topbar-search input::placeholder { color: #9ca3af; }
+.topbar-search input::-webkit-search-cancel-button { cursor: pointer; }
+.topbar-search-list { position: absolute; top: calc(100% + 6px); left: -1px; right: -1px; /* -1px = ชิดขอบนอกของช่อง (กว้างเท่าช่องรวมเส้นขอบ) */ z-index: 400; max-height: min(420px, 70vh); overflow-y: auto;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 18px 48px rgba(15,23,42,.18); padding: 4px 0; text-align: left; }
 .icon-btn, .user-chip { box-shadow: none; }
 .user-chip { border-radius: 12px; padding: .3rem .7rem .3rem .35rem; }
 
@@ -1645,6 +1653,10 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 @media (max-width: 640px) {
   .topbar-search { flex: 0 0 40px; padding: 0; justify-content: center; }
   .topbar-search span { display: none; }
+  /* จอแคบ: ช่องย่อเหลือไอคอน · แตะแล้วขยายเต็มแถบให้พิมพ์ได้ (รายการผลกว้างเท่าช่องที่ขยายแล้ว) */
+  .topbar-search input { width: 0; flex: 0 0 0; }
+  .topbar-search:focus-within { flex: 1 1 auto; padding: 0 12px; justify-content: flex-start; }
+  .topbar-search:focus-within input { flex: 1; }
 }
 
 /* กล่องงานคำขอราคา HQ (หน้า 5 · 19 ต.ค. 69): จอแคบ = กล่องงานบน ใบ HQ ล่าง */

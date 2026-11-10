@@ -96,10 +96,9 @@ test("ค้นหาบน Topbar (CNX) ไม่โผล่ลูกค้า
   const PROBE = "อาร์วายจี";
   await openAs(page, CNX, "dealer", "/dashboard");
   await page.waitForTimeout(1500);
-  // เปิดช่องค้นหา แล้วพิมพ์ token ที่มีเฉพาะในสาขาอื่น
-  await page.getByRole("button", { name: "ค้นหา" }).click();
-  await page.waitForTimeout(300);
-  await page.getByRole("textbox").first().fill(PROBE);
+  // พิมพ์ token ที่มีเฉพาะในสาขาอื่นในช่องค้นหาด้านบน (ช่องพิมพ์จริง · บอสสั่ง 10 พ.ย. 69 เอาหน้าต่างค้นหาออก)
+  await page.locator(".erp-topbar").getByRole("combobox", { name: "ค้นหา" }).fill(PROBE);
+  await expect(page.getByRole("listbox", { name: "ผลการค้นหา" }), "รายการผลค้นหาขึ้น (ตรวจผลจริง ไม่ใช่หน้าว่าง)").toBeVisible();
   await page.waitForTimeout(500);
   const resultText = await page.evaluate(() => document.body.innerText);
   const leaked = otherBranch.filter(name => name.includes(PROBE) && resultText.includes(name));
