@@ -1034,7 +1034,7 @@ export default function HQProspectsPage() {
         const ป้าย: React.CSSProperties = { display: "flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" };
         const อักษรย่อ = ราย.name.replace(/บจ\.|หจก\.|บริษัท|คุณ/g, "").trim().slice(0, 2) || "—";
         return (
-          // แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 820 · จอ < 1024 เต็มจอ · 10 พ.ย. 69) — หัวน้ำเงิน + แท็บของแผงนี้คงเดิม
+          // แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69) — หัวน้ำเงิน + แท็บของแผงนี้คงเดิม
           <RowPanelShell label="ข้อมูลผู้สนใจ" onClose={ปิดแผง} zIndex={1050} asideAttrs={{ style: { background: "#fff" } }}>
               {/* หัวน้ำเงิน + ปุ่มลัด */}
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>

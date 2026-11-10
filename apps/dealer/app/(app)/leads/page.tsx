@@ -2023,7 +2023,7 @@ export default function LeadsPage() {
         const qa: React.CSSProperties = { background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, height:30, padding:"0 11px", cursor:"pointer", color:"#fff", display:"flex", alignItems:"center", gap:6, fontSize:"0.72rem", fontWeight:600, fontFamily:"inherit", whiteSpace:"nowrap" };
         return (
           <>
-            {/* Lead Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 820 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820")
+            {/* Lead Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820")
                 Esc: ปิดกล่องที่ซ้อนอยู่ก่อน (ยืนยันลบ / กล่องแก้ช่อง) แล้วค่อยปิดแผง */}
             <RowPanelShell label="ข้อมูลลูกค้าเป้าหมาย" onClose={closePanel} zIndex={209} backdropClassName="drawer-overlay"
               onEscape={() => { if (showDeleteConfirm) setShowDeleteConfirm(false); else if (popupField) closeFieldPopup(); else closePanel(); }}

@@ -24,7 +24,7 @@ export type RightDrawerProps = {
 };
 
 /**
- * แผงผู้ใช้ (ตั้งค่า › ผู้ใช้งาน) — เปลือก = ตัวกลาง RowPanel (แผงจากแถว · ชิดขวา กว้าง 820 · จอ < 1024 เต็มจอ · บอสตอบ 10 พ.ย. 69)
+ * แผงผู้ใช้ (ตั้งค่า › ผู้ใช้งาน) — เปลือก = ตัวกลาง RowPanel (แผงจากแถว · ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · บอสตอบ 10 พ.ย. 69)
  * คงรูปแบบรับค่าเดิม (open/title/subtitle/headerRight/tabs/initialTab) · width เลิกใช้ · avatar แสดงในป้ายหัวแผง
  */
 export function RightDrawer({

@@ -9,7 +9,7 @@
    ⚠️ ประกาศไว้ที่นี่ที่เดียว ห้ามก๊อปไปไว้ในหน้า — เคยมีสามหน้าถือสไตล์คนละชุด
       แล้วแก้ที่เดียวไม่ครบทุกที่ (ปัญหาเดิมของแถบตัวกรอง/ตารางแบ่งหน้า) */
 
-import type { ComponentType, CSSProperties, ReactNode } from "react";
+import { Children, type ComponentType, type CSSProperties, type ReactNode } from "react";
 
 const หัวข้อสไตล์: CSSProperties = {
   display: "flex", alignItems: "center", gap: 7, fontSize: "0.62rem", fontWeight: 800,
@@ -70,10 +70,27 @@ export function PanelRow({ icon: Ico, label, value, strong }: {
   );
 }
 
-/** แถบสรุปบนสุดของแผง — ตัวเลขสำคัญที่ต้องเห็นก่อนเลื่อนจอ */
+/** ช่องที่การ์ดแต่ละใบกินในกริด 6 ช่อง — การ์ดเต็มแถวทุกแถว ไม่เหลือช่องว่าง (บอสสั่ง 10 พ.ย. 69)
+ *  1 ใบ = เต็ม · 2 = ครึ่ง/ครึ่ง · 3 = 3 ช่อง · 4 = 2×2 · 5 = 3+2 · 6 = 3+3 · มากกว่านั้นแถวละ 3 เศษ 1 ใช้ 2+2 */
+export function ช่วงการ์ดเต็มแถว(n: number): number[] {
+  if (n <= 0) return [];
+  const แถว: number[] = [];
+  if (n <= 3) แถว.push(n);
+  else if (n === 4) แถว.push(2, 2);
+  else { let เหลือ = n; while (เหลือ > 4) { แถว.push(3); เหลือ -= 3; } if (เหลือ === 4) แถว.push(2, 2); else แถว.push(เหลือ); }
+  return แถว.flatMap(k => Array(k).fill(6 / k));
+}
+
+/** แถบสรุปบนสุดของแผง — ตัวเลขสำคัญที่ต้องเห็นก่อนเลื่อนจอ
+ *  ในแผงจากแถว (.row-panel) = การ์ดเต็มแถวตามจำนวนใบ (globals.css · data-span) · หน้าต่างใบคง 2 ช่องเดิม */
 export function PanelStats({ children }: { children: ReactNode }) {
-  // ในแผงจากแถว (.row-panel) = กริด 3 ช่อง (globals.css) · หน้าต่างใบคง 2 ช่อง
-  return <div className="panel-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>;
+  const ใบ = Children.toArray(children);
+  const ช่วง = ช่วงการ์ดเต็มแถว(ใบ.length);
+  return (
+    <div className="panel-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      {ใบ.map((c, i) => <div key={i} data-span={ช่วง[i]} style={{ minWidth: 0, display: "grid" }}>{c}</div>)}
+    </div>
+  );
 }
 
 export function PanelStat({ label, value, sub, tone = "plain" }: {
@@ -88,8 +105,11 @@ export function PanelStat({ label, value, sub, tone = "plain" }: {
       borderRadius: 14, padding: "12px 14px", boxShadow: "0 1px 2px rgba(15,23,42,.04)", minWidth: 0,
     }}>
       <div style={{ fontSize: "0.62rem", fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-      <div style={{ fontSize: ดี ? "0.82rem" : "1.15rem", fontWeight: 800, color: ดี ? "#059669" : "#003366", marginTop: ดี ? 6 : 4, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
-      {sub && <div style={{ fontSize: "0.62rem", color: "#64748B", marginTop: 2 }}>{sub}</div>}
+      {/* ค่าตัวใหญ่ บรรทัดเดียว · บรรทัดรอง (เช่น ขั้นย่อย) ตัวเล็กใต้ค่า ไม่ตัดบรรทัด (บอสสั่ง 10 พ.ย. 69) */}
+      <div data-stat-value style={{ fontSize: "1.15rem", fontWeight: 800, color: ดี ? "#059669" : "#003366", marginTop: 4, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        title={typeof value === "string" ? value : undefined}>{value}</div>
+      {sub && <div data-stat-sub style={{ fontSize: "0.7rem", color: ดี ? "#047857" : "#64748B", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        title={typeof sub === "string" ? sub : undefined}>{sub}</div>}
     </div>
   );
 }

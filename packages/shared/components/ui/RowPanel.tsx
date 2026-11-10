@@ -8,11 +8,12 @@
 //   ข้อทดสอบ: tests/scenario/row-panel-width.spec.ts (ทุกแผงกว้างเท่าแผงดีลเลอร์ที่ 1366/1920 · จอ < 1024 เต็มจอ)
 import { useEffect, useRef, type ReactNode, type HTMLAttributes } from "react";
 import { X } from "lucide-react";
+import { ช่วงการ์ดเต็มแถว } from "@pms/shared/components/ui/DetailPanel";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
-/** ความกว้างแผงจากแถว (px) — ค่าเดียวทั้งระบบ (บอสตอบ 10 พ.ย. 69: 820 ทุกแผง รวมแผงดีลเลอร์ HQ) */
-export const ความกว้างแผงแถว = 820;
+/** ความกว้างแผงจากแถว (px) — ค่าเดียวทั้งระบบ (บอสสั่ง 10 พ.ย. 69: 640 = แผงดีลเลอร์ HQ ทุกแผง · เดิมเลือก 820 กว้างไป) */
+export const ความกว้างแผงแถว = 640;
 
 export type แท็บแผงแถว = { key: string; label: ReactNode; count?: number | null };
 type ข้อมูลแอตทริบิวต์ = Record<`data-${string}`, string | number | undefined>;
@@ -88,7 +89,7 @@ export function RowPanel({
   );
 }
 
-/** กรอบแผงจากแถว (ฉากหลัง + แผงชิดขวา กว้าง 820 · จอ < 1024 เต็มจอ · คีย์บอร์ด) — ทุกแผงจากแถวต้องอยู่ในกรอบนี้
+/** กรอบแผงจากแถว (ฉากหลัง + แผงชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · คีย์บอร์ด) — ทุกแผงจากแถวต้องอยู่ในกรอบนี้
  *  แผงที่มีหัว/แท็บของตัวเองซับซ้อน (แผงลูกค้าเป้าหมาย/ลูกค้าดีลเลอร์ · ผู้สนใจ HQ) ใช้กรอบนี้ตรง ๆ · แผงทั่วไปใช้ RowPanel (หัว+แท็บสำเร็จรูป) */
 export function RowPanelShell({ label, onClose, onEscape, children, asideAttrs, backdropAttrs, zIndex = 240, backdropClassName }: {
   label: string; onClose: () => void; children: ReactNode;
@@ -165,11 +166,12 @@ export function ป้ายหัวแผง({ children, bg = "rgba(255,255,25
 }
 
 export type ช่องสรุปแผง = { k: string; label: string; value: ReactNode; icon?: ReactNode; onClick?: () => void; small?: boolean; title?: string };
-/** แผงสรุป — กริด 3 ช่อง (จอแคบ 2 ช่อง) · ช่องที่กดได้ = ไปรายการของเรื่องนั้น */
+/** แผงสรุป — การ์ดเต็มแถวตามจำนวนใบ (ช่วงการ์ดเต็มแถว · บอสสั่ง 10 พ.ย. 69) · ช่องที่กดได้ = ไปรายการของเรื่องนั้น */
 export function สรุปแผง({ items, attrs }: { items: ช่องสรุปแผง[]; attrs?: ข้อมูลแอตทริบิวต์ }) {
+  const ช่วง = ช่วงการ์ดเต็มแถว(items.length);
   return (
     <div data-panel-stats className="row-panel-stats" {...attrs}>
-      {items.map(t => {
+      {items.map((t, i) => {
         const เนื้อ = (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6, color: MUTED, fontSize: "0.68rem", fontWeight: 700 }}>{t.icon}{t.label}</div>
@@ -179,8 +181,8 @@ export function สรุปแผง({ items, attrs }: { items: ช่องส
         );
         const กรอบ: React.CSSProperties = { textAlign: "left", padding: "10px 12px", border: "1px solid #e5e7eb", background: "#fff", marginBottom: 0, minWidth: 0 };
         return t.onClick
-          ? <button key={t.k} type="button" data-stat={t.k} onClick={t.onClick} title={`${t.label} — กดเพื่อดูรายการ`} className="card clickable" style={{ ...กรอบ, cursor: "pointer", fontFamily: "inherit" }}>{เนื้อ}</button>
-          : <div key={t.k} data-stat={t.k} className="card" style={กรอบ}>{เนื้อ}</div>;
+          ? <button key={t.k} type="button" data-stat={t.k} data-span={ช่วง[i]} onClick={t.onClick} title={`${t.label} — กดเพื่อดูรายการ`} className="card clickable" style={{ ...กรอบ, cursor: "pointer", fontFamily: "inherit" }}>{เนื้อ}</button>
+          : <div key={t.k} data-stat={t.k} data-span={ช่วง[i]} className="card" style={กรอบ}>{เนื้อ}</div>;
       })}
     </div>
   );
