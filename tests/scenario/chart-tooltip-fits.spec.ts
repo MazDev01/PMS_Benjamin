@@ -14,7 +14,9 @@ test("[ui] กล่องตัวเลขในกราฟ ต้องไ�
     const cn = await cards.count();
     for (let c = 0; c < cn; c++) {
       const card = cards.nth(c);
-      const bars = card.locator("svg rect, svg circle");
+      // เฉพาะกราฟ (ไม่นับไอคอน lucide ในหัวการ์ด/การ์ด KPI) — ผลไม่นิ่ง 10 พ.ย. 69 (deploy18 · trace): ชี้เมาส์ที่ไอคอนการ์ดละ 10 ครั้ง
+      //   รอรวม 153 × 200ms ≈ 22 วิ + ชี้เมาส์ → เกินเพดาน 30 วิของข้อทดสอบเมื่อเครื่องหน่วง · ไอคอนไม่มีกล่องตัวเลข ตรวจไปก็ไม่ได้อะไร
+      const bars = card.locator("svg:not(.lucide) rect, svg:not(.lucide) circle");
       const n = await bars.count();
       if (!n) continue;
       for (let i = n - 1; i >= Math.max(0, n - 10); i--) {
