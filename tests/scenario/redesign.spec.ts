@@ -211,7 +211,8 @@ test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วั�
 
     await open(page, "dealer", "/leads");
     await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
-    await page.getByRole("button", { name: "ตาราง" }).click();
+    // exact: ลีดของข้ออื่นที่รันพร้อมกันมีคำว่า "ตาราง" ในชื่อ (ปุ่มลบของแถวชื่อซ้ำ · ผลไม่นิ่ง 10 พ.ย. 69)
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click();
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ป้าย);
 
     const idle = page.getByLabel("ค้างติดต่อทุกช่วง");

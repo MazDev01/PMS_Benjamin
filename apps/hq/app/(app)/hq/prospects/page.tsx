@@ -927,16 +927,17 @@ export default function HQProspectsPage() {
             <colgroup>
               {/* 10 พ.ย. 69: หัว "ลำดับ" ขึ้น "ลำ..." — 5% ของตารางแคบกว่าคำ (minWidth ของ <col> ไม่มีผลใน table-layout: fixed)
                   → ลำดับกว้างตายตัว 88 · ชื่อไม่กำหนด = รับที่เหลือ · % ที่เหลือรวม 79 (ตายตัว 88 + 79% พอดีตารางตั้งแต่ ~420px) */}
-              <col style={{ width: 88 }} />{/* ลำดับ — หัว "ลำดับ" + เลข 3 หลัก ห้ามตัด */}
-              <col />{/* ชื่อ — รับพื้นที่ที่เหลือ */}
-              <col style={{ width: "11%", minWidth: 110 }} />
-              <col style={{ width: "10%", minWidth: 104 }} />
-              <col style={{ width: "8%", minWidth: 84 }} />
-              <col style={{ width: "9%", minWidth: 90 }} />
-              <col style={{ width: "13%", minWidth: 140 }} />
-              <col style={{ width: "11%", minWidth: 100 }} />
-              <col style={{ width: "10%", minWidth: 100 }} />
-              <col style={{ width: "7%", minWidth: 60 }} />
+              {/* ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
+              <col style={{ width: "8.5%" }} />{/* ลำดับ — หัว "ลำดับ" + เลข 3 หลัก ห้ามตัด */}
+              <col style={{ width: "12.5%" }} />{/* ชื่อ */}
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
             </colgroup>
             <thead>
               <tr><th>ลำดับ</th><th>ชื่อ</th><th>ชื่อบนโซเชียล</th><th>เบอร์โทร</th><th>จังหวัด</th><th>แหล่งที่มา</th><th>ขั้น · ความคืบหน้า</th><th>ติดต่อล่าสุด</th><th>นัดติดตาม</th><th>ดีลเลอร์</th></tr>

@@ -24,7 +24,7 @@ const MUTED = "var(--muted-foreground)";
 // ชื่อมิติ/ชนิดมิติ ย้ายไปไฟล์กลางของหัวข้อกราฟ/ตาราง (ใบหัวข้อ 3 พ.ย. 69) — ส่งต่อชื่อเดิมให้ผู้เรียกเดิม
 import { ชื่อมิติ, คำอธิบายหัวข้อ, type มิติ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
-import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
+import { ความกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/tableFit";
 export { ชื่อมิติ, type มิติ };
 export type รวม = ReturnType<typeof รวมผลงาน>;
 /** ยังไม่รู้ผล = ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้) */
@@ -72,7 +72,6 @@ export function จัดกลุ่ม(rows: ผลงานดีลเลอ
 
 // ── ตารางตามภูมิภาค/จังหวัด — กดแถว = เจาะลง ──────────────────────────────────────────────────────────────────
 export function ตารางกลุ่ม({ มิติ, แถว, รวมทั้งหมด, เจาะ }: { มิติ: "region" | "prov"; แถว: แถวกลุ่ม[]; รวมทั้งหมด: รวม; เจาะ: (key: string) => void }) {
-  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(แถว.map(g => g.label), { ขั้นต่ำ: 110 }, แถว.map(g => ("sub" in g ? String((g as { sub?: string }).sub ?? "") : "")));   // ≤ 25% · ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
   const หัว = [ชื่อมิติ[มิติ], "ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "ยังไม่รู้ผล", "อัตราปิดการขาย", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", ""];
   const ช่อง = (x: รวม) => [
     <td key="l" className="num">{x.leads.toLocaleString()}</td>, <td key="q" className="num">{x.quotes.toLocaleString()}</td>,
@@ -83,8 +82,8 @@ export function ตารางกลุ่ม({ มิติ, แถว, รว
   ];
   return (
     <div className="table-wrap dense fit">
-      <table ref={ชื่อคอล.ref} aria-label={`ตารางผลงานตาม${ชื่อมิติ[มิติ]}`} data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
-        <colgroup><col data-col-key="__name" style={{ width: ชื่อคอล.กว้าง }} />{หัว.slice(1, -1).map((h, i) => <col key={i} data-col-key={h} />)}<col style={{ width: 80 }} /></colgroup>
+      <table aria-label={`ตารางผลงานตาม${ชื่อมิติ[มิติ]}`} data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
+        <colgroup><col data-col-key="__name" style={{ width: ความกว้างคอลัมน์ชื่อ }} />{หัว.slice(1, -1).map((h, i) => <col key={i} data-col-key={h} />)}<col style={{ width: "7.5%" }} /></colgroup>
         <thead><tr>{หัว.map((h, i) => <th key={i} className={i > 0 && i < หัว.length - 1 ? "num" : undefined}>{h}</th>)}</tr></thead>
         <tbody>
           {!แถว.length && <tr><td colSpan={หัว.length} className="empty-row">ไม่พบข้อมูลในช่วงที่เลือก</td></tr>}
@@ -129,7 +128,6 @@ export function จัดรายเดือน(rows: ผลงานราย
   return out;
 }
 export function ตารางรายเดือน({ แถว, รวมทั้งหมด, เลือกเดือน }: { แถว: แถวเดือน[]; รวมทั้งหมด: รวม; เลือกเดือน?: (m: แถวเดือน) => void }) {
-  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(แถว.map(g => g.label), { ขั้นต่ำ: 110 }, แถว.map(g => ("sub" in g ? String((g as { sub?: string }).sub ?? "") : "")));   // ≤ 25% · ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
   const หัว = ["เดือน", "ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "ยังไม่รู้ผล", "อัตราปิดการขาย", "ยอดขาย", "เป้ารายเดือน", "% เป้า", "ส่วนต่างกำไร", ""];
   const ช่อง = (x: รวม, รวมแถว = false) => [
     <td key="l" className="num">{x.leads.toLocaleString()}</td>, <td key="q" className="num">{x.quotes.toLocaleString()}</td>,
@@ -141,8 +139,8 @@ export function ตารางรายเดือน({ แถว, รวม�
   ];
   return (
     <div className="table-wrap dense fit">
-      <table ref={ชื่อคอล.ref} aria-label="ตารางผลงานรายเดือน" data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
-        <colgroup><col data-col-key="__name" style={{ width: ชื่อคอล.กว้าง }} />{หัว.slice(1, -1).map((h, i) => <col key={i} data-col-key={h} />)}<col style={{ width: 104 }} /></colgroup>
+      <table aria-label="ตารางผลงานรายเดือน" data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
+        <colgroup><col data-col-key="__name" style={{ width: ความกว้างคอลัมน์ชื่อ }} />{หัว.slice(1, -1).map((h, i) => <col key={i} data-col-key={h} />)}<col style={{ width: "10%" }} /></colgroup>
         <thead><tr>{หัว.map((h, i) => <th key={i} className={i > 0 && i < หัว.length - 1 ? "num" : undefined}>{h}</th>)}</tr></thead>
         <tbody>
           {แถว.map(g => เลือกเดือน ? (

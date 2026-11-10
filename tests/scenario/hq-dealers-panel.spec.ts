@@ -98,9 +98,10 @@ test("[H11·hq] ดีลเลอร์: ตารางตามแบบ ไ�
   await ค้นรายการ(page, ก!.รหัส);
   await expect(page.locator("button[title*='ลบ'], button[aria-label*='ลบ']"), "ไม่มีปุ่มลบดีลเลอร์").toHaveCount(0);
   // ชื่อดีลเลอร์ · ป้ายภูมิภาค · แพ็กเกจ · สถานะ ไม่ถูกตัดที่จอกว้าง · ภูมิภาคใช้ชื่อกลาง
-  const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='name'], td[data-col='region'] .badge, td[data-col='status'] .badge, td[data-col='name'] span"))
+  // ชื่อดีลเลอร์ตัดด้วย … ได้ (ล็อกความกว้างคอลัมน์ % · บอสสั่ง 10 พ.ย. 69) — ชี้แล้วเห็นเต็ม (title ด้านล่าง) · ป้ายภูมิภาค/สถานะห้ามตัด
+  const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='region'] .badge, td[data-col='status'] .badge"))
     .filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > (e.closest("td")!.getBoundingClientRect().right + 1)).map(e => e.textContent));
-  expect(ตัด, "จอ 1440: ชื่อ/ภูมิภาค/สถานะ ไม่ถูกตัด").toEqual([]);
+  expect(ตัด, "จอ 1440: ป้ายภูมิภาค/สถานะ ไม่ถูกตัด").toEqual([]);
   await expect(แถว.locator("td[data-col='region']")).toHaveText("ภาคตะวันออก");
   await expect(แถว.locator("td[data-col='name']"), "ชี้ที่ชื่อแล้วเห็นเต็ม").toHaveAttribute("title", "ZZTEST ดีลเลอร์แผงขวา");
   // ปุ่มปิดใช้งาน (ตาปิด) ต้องยืนยันก่อน แล้วลงฐานจริง · กดอีกครั้ง (ตาเปิด) = เปิดใช้งาน

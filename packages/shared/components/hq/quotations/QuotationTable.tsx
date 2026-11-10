@@ -72,7 +72,7 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
             <col style={{ width: "9.5%" }} />{/* สถานะ — "ส่งให้ลูกค้าแล้ว" ต้องเห็นเต็ม */}
             <col style={{ width: "9.25%" }} />{/* วันที่ส่ง "28 ต.ค. 2569" ไม่ตัด */}
             <col style={{ width: "9.25%" }} />{/* ยืนราคาถึง */}
-            <col style={{ width: 44 }} />{/* ปุ่มดู */}
+            <col style={{ width: "4%" }} />{/* ปุ่มดู · ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
           </colgroup>
           <thead>
             <tr>

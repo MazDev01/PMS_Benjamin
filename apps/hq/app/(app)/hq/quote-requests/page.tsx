@@ -32,7 +32,7 @@ import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { HqQuoteEditor, type ร่างใบHQ } from "@pms/shared/components/hq/HqQuoteEditor";
 import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
-import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
+import { ความกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/tableFit";
 
 const PRIMARY = "#003366", STEEL = "#2D2D2D", MUTED = "#6b7280", BORDER = "#e5e7eb", แดง = "#b91c1c";
 const ร้อยละ = (v: number) => `${v.toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
@@ -159,7 +159,6 @@ export default function HQQuoteRequestsPage() {
   }, [idsในหน้า, รอบไฟล์]);
 
   // คอลัมน์ลูกค้า/โครงการกว้างพอดีชื่อ (เพดาน 25% · ตัวกลาง tableFit) · อื่น ๆ สัดส่วนคงที่ — พอดีจอ 1366 ไม่มีแถบเลื่อนแนวนอน
-  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(ในหน้า.map(r => r.leadCompany || "—"), { ขั้นต่ำ: 150 }, ในหน้า.map(r => `${r.product}${r.subtype ? ` · ${r.subtype}` : ""}`));
   const นับตัวเลือก = (k: ตัวกรองประวัติ) => (k === "all" ? ประวัติ : ประวัติ.filter(r => ตรงสถานะคำขอ(r, k))).length;
   const นับเกิน = ต้องตีราคา.filter(r => ตรงสถานะคำขอ(r, "overdue")).length;
   const ดูอย่างเดียว = มุมมอง === "history";
@@ -229,18 +228,18 @@ export default function HQQuoteRequestsPage() {
 
       <div className="card">
         <div className="table-wrap fit" style={{ borderTop: "none" }}>
-          <table ref={ชื่อคอล.ref} aria-label="ตารางคำขอใบเสนอราคา" data-view={มุมมอง} data-readonly={ดูอย่างเดียว ? "" : undefined}>
+          <table aria-label="ตารางคำขอใบเสนอราคา" data-view={มุมมอง} data-readonly={ดูอย่างเดียว ? "" : undefined}>
             {/* เพิ่ม/ลบคอลัมน์ต้องแก้ colgroup ด้วย (table-layout: fixed) */}
             <colgroup>
               <col style={{ width: "11%" }} />{/* เลขที่คำขอ */}
-              <col style={{ width: "14%" }} />{/* ดีลเลอร์ */}
-              <col style={{ width: ชื่อคอล.กว้าง }} />{/* ลูกค้า/โครงการ */}
+              <col style={{ width: "10%" }} />{/* ดีลเลอร์ · ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
+              <col style={{ width: ความกว้างคอลัมน์ชื่อ }} />{/* ลูกค้า/โครงการ */}
               <col style={{ width: "9%" }} />{/* จังหวัด */}
               <col style={{ width: "7%" }} />{/* พื้นที่ */}
               <col style={{ width: "12%" }} />{/* สถานะ */}
               <col style={{ width: "9%" }} />{/* วันที่ขอ */}
               <col style={{ width: "10%" }} />{/* กำหนดส่ง */}
-              <col style={{ width: 80 }} />{/* จัดการ */}
+              <col style={{ width: "8%" }} />{/* จัดการ */}
             </colgroup>
             <thead>
               <tr>
