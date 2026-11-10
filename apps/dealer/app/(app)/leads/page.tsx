@@ -72,6 +72,7 @@ import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { reportRepoSaveError } from "@pms/shared/lib/useRepoState";
 import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 
 // ─── Design tokens ────────────────────────────────────────────────────────
 
@@ -1226,19 +1227,7 @@ export default function LeadsPage() {
     closeFieldPopup();
   }
 
-  // Escape closes the detail modal (or the topmost nested overlay first)
-  useEffect(() => {
-    if (!selectedLead) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (showDeleteConfirm) setShowDeleteConfirm(false);
-      else if (popupField) closeFieldPopup();
-      else closePanel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLead, showDeleteConfirm, popupField]);
+  // Esc: กรอบแผง RowPanelShell (onEscape) ปิดกล่องที่ซ้อนก่อน แล้วค่อยปิดแผง
 
   // ── เลิกใช้ "สรุปทั้งสาขาจากฐานข้อมูล" ที่หน้านี้ (บอสสั่ง 20 ส.ค. 69) ──────────
   //   สรุปนั้นเร็วก็จริง แต่ไม่รู้จักตัวกรองของหน้า (จังหวัด/ผู้รับผิดชอบ/ช่องทาง/ช่วงมูลค่า)
@@ -2034,15 +2023,11 @@ export default function LeadsPage() {
         const qa: React.CSSProperties = { background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, height:30, padding:"0 11px", cursor:"pointer", color:"#fff", display:"flex", alignItems:"center", gap:6, fontSize:"0.72rem", fontWeight:600, fontFamily:"inherit", whiteSpace:"nowrap" };
         return (
           <>
-            {/* Backdrop */}
-            <div onClick={closePanel} className="drawer-overlay"
-              style={{ position:"fixed", inset:0, background:"rgba(45,45,45,.45)", zIndex:200 }} />
-
-            {/* Lead Detail — แผงกลางจอ · คอลัมน์เดียว (Overview / Tasks / Quotation / Timeline) */}
-            <div className="modal-pop" style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
-              width:820, maxWidth:"calc(100vw - 24px)", height:"min(920px, calc(100vh - 24px))",
-              zIndex:210, background:"#fff", boxShadow:"0 30px 90px rgba(0,0,0,.32)", borderRadius:18,
-              display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            {/* Lead Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 820 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820")
+                Esc: ปิดกล่องที่ซ้อนอยู่ก่อน (ยืนยันลบ / กล่องแก้ช่อง) แล้วค่อยปิดแผง */}
+            <RowPanelShell label="ข้อมูลลูกค้าเป้าหมาย" onClose={closePanel} zIndex={209} backdropClassName="drawer-overlay"
+              onEscape={() => { if (showDeleteConfirm) setShowDeleteConfirm(false); else if (popupField) closeFieldPopup(); else closePanel(); }}
+              asideAttrs={{ style: { background: "#fff" } }}>
 
               {/* Sticky navy header + quick actions */}
               <div style={{ background:"#003366", padding:"14px 20px", flexShrink:0 }}>
@@ -2168,7 +2153,7 @@ export default function LeadsPage() {
                     ข้ามกฎที่บอสสั่งไว้ว่าต้องมีใบเสนอราคาที่ส่งถึงลูกค้าแล้วก่อน (19 ส.ค. 69)
                     ปุ่มในแท็บงานมีด่านนั้นอยู่ (ปิดปุ่มพร้อมบอกเหตุผล) จึงเหลือไว้ทางเดียว */}
               </div>
-            </div>
+            </RowPanelShell>
 
             {/* กล่องติดตามลูกค้า — บันทึกการติดต่อ หรือ นัดหมาย (ฟอร์มนัดชุดเดียวกับการ์ดนัดหมาย) · ยกเลิก = ไม่ติ๊ก */}
             {ติดตาม && (

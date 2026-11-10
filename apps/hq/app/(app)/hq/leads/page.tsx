@@ -30,7 +30,8 @@ import { unassignedLeads } from "@pms/shared/lib/hqAlerts";
 import { lastContactLabel, needsFollowUp } from "@pms/shared/lib/leadMetrics";
 import { fmtISOToThai, type LeadRow } from "@pms/shared/lib/mock";
 // ชิ้นส่วนกลางของแผงรายละเอียด — หน้าตาเดียวกันทุกหน้า (ห้ามประกาศสไตล์เองซ้ำ)
-import { PanelSection, PanelRow, PanelStats, PanelStat, ย่อชื่อ } from "@pms/shared/components/ui/DetailPanel";
+import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
+import { RowPanel, ป้ายหัวแผง } from "@pms/shared/components/ui/RowPanel";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { dealers as dealersRepo, leads as leadsRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
@@ -99,6 +100,9 @@ export default function HQLeadsPage() {
   // ป้ายย่อยขั้นเสนอราคาลูกค้า (ทำใบแล้ว ยังไม่ส่ง / ส่งให้ลูกค้าแล้ว · บอสสั่ง 9 พ.ย. 69) — ได้ราคา HQ + ขั้น 4 = มีใบร่าง (กติกา lead_stage_no)
   const ป้ายย่อยแถว = (l: LeadRow) => ป้ายย่อยขั้น(l.status, เลขขั้นแถว(l) === 4);
   const [viewLead, setViewLead] = useState<LeadRow | null>(null);
+  // แท็บของแผงจากแถว (RowPanel · 10 พ.ย. 69) — เปิดรายใหม่ = กลับภาพรวม
+  const [แท็บแผง, setแท็บแผง] = useState("overview");
+  useEffect(() => { setแท็บแผง("overview"); }, [viewLead?.id]);
   // โดนัท 2 ใบ: ชี้ก้อนสีหรือแถวคำอธิบาย เน้นก้อนเดียวกัน (บอสสั่ง 20 ส.ค. 69 · ย้ายมาจากโดนัทหน้าลูกค้าที่เอาออก 2 พ.ย. 69)
   const [เน้นแหล่ง, setเน้นแหล่ง] = useState<number | null>(null);
   const [เน้นเหตุผล, setเน้นเหตุผล] = useState<number | null>(null);  // Drawer — ดูอย่างเดียว
@@ -634,34 +638,28 @@ export default function HQLeadsPage() {
         const l = viewLead;
         const c = สีขั้น(เลขขั้นแถว(l));
         return (
-          <>
-            <div onClick={() => setViewLead(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 240 }} />
-            {/* แผงลอยจากขอบจอเล็กน้อยแล้วมนทุกมุม (บอสสั่ง 28 ส.ค. 69) — เดิมชนขอบขวาและมนแค่สองมุมซ้าย */}
-            <div className="side-drawer" style={{ position: "fixed", top: 12, right: 12, bottom: 12, width: 420, maxWidth: "calc(100vw - 24px)", zIndex: 241,
-              background: "#F8FAFC", boxShadow: "0 24px 70px rgba(0,0,0,.24)", borderRadius: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-
-              {/* หัวแผง — ชื่อบริษัทเด่น + วงกลมย่อชื่อ · ป้ายสถานะและมูลค่าอยู่บรรทัดเดียวกัน */}
-              <div style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "18px 20px 16px",
-                display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
-                <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
-                  <span style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.2)",
-                    color: "#fff", fontWeight: 800, fontSize: "0.92rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {ย่อชื่อ(l.company)}
-                  </span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.company}</div>
-                    <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,.7)", marginTop: 3 }}>{l.id} · {l.contact}</div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 9, flexWrap: "wrap" }}>
-                      <span className="badge" data-stage-label style={{ background: c.bg, color: c.text }}>{ชื่อขั้น(เลขขั้นแถว(l))}</span>
-                      <span className="badge" style={{ background: "rgba(255,255,255,.15)", color: "#fff" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</span>
-                    </div>
-                  </div>
-                </div>
-                <button onClick={() => setViewLead(null)} title="ปิด" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(255,255,255,.2)",
-                  background: "rgba(255,255,255,.12)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={14} /></button>
-              </div>
-
-              <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px 20px" }}>
+          <RowPanel label={`ลูกค้าเป้าหมาย ${l.company}`} onClose={() => setViewLead(null)} closeLabel="ปิด"
+            asideAttrs={{ "data-hq-lead-panel": l.id }}
+            title={l.company}
+            badges={<>
+              <ป้ายหัวแผง bg={c.bg} color={c.text} attrs={{ "data-stage-label": "" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</ป้ายหัวแผง>
+              <ป้ายหัวแผง>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</ป้ายหัวแผง>
+            </>}
+            subtitle={`${l.id} · ${l.contact || "—"} · ${DEALER_NAME.get(l.dealerCode ?? "") ?? "—"}`}
+            tabs={[
+              { key: "overview", label: "ภาพรวม" },
+              { key: "activity", label: "กิจกรรม", count: l.activities?.length ?? 0 },
+              { key: "appts", label: "นัดหมาย", count: (drawerAppts ?? appointments.filter(a => a.leadId === l.numId)).length },
+              { key: "files", label: "ไฟล์แนบ", count: dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId).length },
+            ]}
+            tab={แท็บแผง} onTab={setแท็บแผง}
+            footer={<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.66rem", color: "#64748B", flex: 1 }}>
+                <Lock size={12} color="#94A3B8" /> สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของรายการ
+              </span>
+              <button onClick={() => setViewLead(null)} className="btn btn-secondary btn-md" style={{ color: "#374151" }}>ปิด</button>
+            </div>}>
+              {แท็บแผง === "overview" && <>
                 {/* แถบสรุปบนสุด — ยอดใบเสนอราคาล่าสุด กับสถานะใบเสนอราคา อ่านได้ตั้งแต่ยังไม่เลื่อนจอ (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) */}
                 <PanelStats>
                   <PanelStat label="ใบเสนอราคาล่าสุด" value={มูลค่าอ่านง่าย(มูลค่าลีด(l))} />
@@ -694,7 +692,8 @@ export default function HQLeadsPage() {
                   <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={l.assigned} />
                 </PanelSection>
 
-                <PanelSection icon={Activity} title="กิจกรรม / ไทม์ไลน์">
+                </>}
+                {แท็บแผง === "activity" && <PanelSection icon={Activity} title="กิจกรรม / ไทม์ไลน์" style={{ marginTop: 0 }}>
                   {!l.activities?.length ? (
                     <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>— ไม่มีบันทึกกิจกรรม</div>
                   ) : (
@@ -715,9 +714,9 @@ export default function HQLeadsPage() {
                       ))}
                     </div>
                   )}
-                </PanelSection>
+                </PanelSection>}
 
-                <PanelSection icon={CalendarClock} title="ประวัตินัดหมาย">
+                {แท็บแผง === "appts" && <PanelSection icon={CalendarClock} title="ประวัตินัดหมาย" style={{ marginTop: 0 }}>
                   {(() => {
                     const appts = drawerAppts ?? appointments.filter(a => a.leadId === l.numId);
                     return !appts.length ? (
@@ -733,9 +732,9 @@ export default function HQLeadsPage() {
                       </div>
                     );
                   })()}
-                </PanelSection>
+                </PanelSection>}
 
-                <PanelSection icon={Paperclip} title="ไฟล์แนบ">
+                {แท็บแผง === "files" && <PanelSection icon={Paperclip} title="ไฟล์แนบ" style={{ marginTop: 0 }}>
                   {(() => {
                     const files = dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId);
                     return !files.length ? (
@@ -752,13 +751,13 @@ export default function HQLeadsPage() {
                       </div>
                     );
                   })()}
-                </PanelSection>
+                </PanelSection>}
 
-                <PanelSection icon={StickyNote} title="หมายเหตุ">
+                {แท็บแผง === "overview" && <PanelSection icon={StickyNote} title="หมายเหตุ">
                   <div style={{ fontSize: "0.78rem", color: l.note ? "#374151" : "#94A3B8", lineHeight: 1.65, padding: "10px 0" }}>{l.note || "— ไม่มีหมายเหตุ"}</div>
-                </PanelSection>
+                </PanelSection>}
 
-                {l.status === "CANCELLED" && (
+                {แท็บแผง === "overview" && l.status === "CANCELLED" && (
                   <section style={{ marginTop: 14 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.62rem", fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}><AlertTriangle size={13} color="#F87171" /> เหตุผลที่ปิดการขายไม่สำเร็จ</div>
                     <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 14, padding: "12px 14px",
@@ -767,16 +766,7 @@ export default function HQLeadsPage() {
                     </div>
                   </section>
                 )}
-              </div>
-
-              <div style={{ padding: "12px 20px", borderTop: "1px solid #E5E7EB", background: "#fff", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.66rem", color: "#64748B", flex: 1 }}>
-                  <Lock size={12} color="#94A3B8" /> สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของรายการ
-                </span>
-                <button onClick={() => setViewLead(null)} className="btn btn-secondary btn-md" style={{ color: "#374151" }}>ปิด</button>
-              </div>
-            </div>
-          </>
+          </RowPanel>
         );
       })()}
     </div>

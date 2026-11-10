@@ -63,6 +63,7 @@ import { คอลัมน์บอร์ดผู้สนใจ, คอลั
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
+import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
@@ -1033,9 +1034,8 @@ export default function HQProspectsPage() {
         const ป้าย: React.CSSProperties = { display: "flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" };
         const อักษรย่อ = ราย.name.replace(/บจ\.|หจก\.|บริษัท|คุณ/g, "").trim().slice(0, 2) || "—";
         return (
-          <div onClick={ปิดแผง} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
-            <ModalCard onClose={ปิดแผง} label="ข้อมูลผู้สนใจ"
-              style={{ width: 820, maxWidth: "100%", height: "min(920px, calc(100vh - 24px))", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          // แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 820 · จอ < 1024 เต็มจอ · 10 พ.ย. 69) — หัวน้ำเงิน + แท็บของแผงนี้คงเดิม
+          <RowPanelShell label="ข้อมูลผู้สนใจ" onClose={ปิดแผง} zIndex={1050} asideAttrs={{ style: { background: "#fff" } }}>
               {/* หัวน้ำเงิน + ปุ่มลัด */}
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>
                 <div data-panel-head style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "nowrap" }}>
@@ -1177,8 +1177,7 @@ export default function HQProspectsPage() {
                   )}
                 </div>
               </div>
-            </ModalCard>
-          </div>
+          </RowPanelShell>
         );
       })()}
 

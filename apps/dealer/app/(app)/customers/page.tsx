@@ -71,6 +71,7 @@ import { แจ้งพลาด, แจ้งสำเร็จ, ยืนย�
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
+import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 
 // ── Design tokens ────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -1090,13 +1091,9 @@ export default function CustomersPage(){
 
         return (
         <>
-          <div onClick={()=>setSelected(null)} className="drawer-overlay" style={{position:"fixed",inset:0,background:"rgba(45,45,45,.45)",zIndex:200}}/>
-
-          {/* Customer Detail — แผงกลางจอ · คอลัมน์เดียว (มาตรฐานเดียวกับลูกค้าเป้าหมาย) */}
-          <div className="modal-pop" style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-            width:820, maxWidth:"calc(100vw - 24px)", height:"min(920px, calc(100vh - 24px))",
-            zIndex:210, background:"#fff", boxShadow:"0 30px 90px rgba(0,0,0,.32)", borderRadius:18,
-            display:"flex", flexDirection:"column", overflow:"hidden"}}>
+          {/* Customer Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 820 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820") */}
+          <RowPanelShell label="ข้อมูลลูกค้า" onClose={()=>setSelected(null)} zIndex={209} backdropClassName="drawer-overlay"
+            asideAttrs={{ style: { background: "#fff" } }}>
 
             {/* Sticky navy header + quick actions */}
             <div style={{background:PRIMARY,padding:"14px 20px",flexShrink:0}}>
@@ -1330,7 +1327,7 @@ export default function CustomersPage(){
               <button onClick={()=>setSelected(null)} className="btn btn-primary btn-md">ปิด</button>
             </div>
 
-          </div>
+          </RowPanelShell>
         </>
         );
       })()}

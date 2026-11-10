@@ -189,7 +189,6 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
       ]}
       tabs={tabs}
       footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของลูกค้า"
-      width={460}
     />
   );
 }

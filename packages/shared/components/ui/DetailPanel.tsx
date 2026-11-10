@@ -40,7 +40,8 @@ export function PanelSection({ icon: Ico, title, children, style, bodyStyle }: {
   );
 }
 
-/** แถวป้ายกำกับ: ไอคอน + หัวข้อทางซ้าย · ค่าทางขวา */
+/** แถวป้ายกำกับ: ไอคอน + หัวข้อทางซ้าย · ค่าทางขวา
+ *  ในแผงจากแถว (.row-panel · RowPanel) ค่าอยู่ชิดหัวข้อ ไม่กวาดไปขอบขวา (globals.css .row-panel .panel-kv) */
 export function PanelRow({ icon: Ico, label, value, strong }: {
   icon?: ไอคอนแบบ;
   label: string;
@@ -50,7 +51,7 @@ export function PanelRow({ icon: Ico, label, value, strong }: {
 }) {
   const ว่าง = value === undefined || value === null || value === "" || value === "—";
   return (
-    <div style={{
+    <div className="panel-kv" style={{
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       padding: "9px 0", borderBottom: "1px solid #F1F5F9", fontSize: "0.76rem",
     }}>
@@ -71,7 +72,8 @@ export function PanelRow({ icon: Ico, label, value, strong }: {
 
 /** แถบสรุปบนสุดของแผง — ตัวเลขสำคัญที่ต้องเห็นก่อนเลื่อนจอ */
 export function PanelStats({ children }: { children: ReactNode }) {
-  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>;
+  // ในแผงจากแถว (.row-panel) = กริด 3 ช่อง (globals.css) · หน้าต่างใบคง 2 ช่อง
+  return <div className="panel-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>;
 }
 
 export function PanelStat({ label, value, sub, tone = "plain" }: {

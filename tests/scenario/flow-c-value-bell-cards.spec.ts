@@ -163,7 +163,7 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
   //   หน้าลีดเปิดแผงแล้วลบ ?open ทิ้งทันที (กันเปิดซ้ำตอนรีเฟรช) · ข้อมูลลีดโหลดไว้แล้ว = เร็วจนจับ URL ชั่วคราวไม่ทัน
   //   (ไม่นิ่ง 3 ครั้ง 20/21/27 ต.ค. 69 · หลักฐาน: เห็นแต่ /leads 30 ครั้ง) — แผงที่เปิดต้องเป็นของลีดนี้ ไม่ใช่แค่มีชื่อในตาราง
   await expect(page, "กดแล้วไปหน้าลีด").toHaveURL(/\/leads(\?|$)/, { timeout: 15_000 });
-  await expect(page.locator(".modal-pop").filter({ hasText: มีใบ }), "แผงของลีดนั้นเปิดอยู่").toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("[data-row-panel]").filter({ hasText: มีใบ }), "แผงของลีดนั้นเปิดอยู่").toBeVisible({ timeout: 15_000 });
   // แผงลีดที่เปิดอยู่บังกระดิ่ง — กลับแดชบอร์ดด้วยการกดเมนู (ไม่โหลดหน้าใหม่ = ตรวจสถานะในหน้าเดิม)
   await page.locator(".drawer-overlay").click({ position: { x: 5, y: 5 } });   // ปิดแผงลีดก่อน (กดฉากหลัง = ปิด · ฉากหลังรับการกดแทนเมนู)
   await expect(page.locator(".drawer-overlay")).toHaveCount(0, { timeout: 10_000 });
