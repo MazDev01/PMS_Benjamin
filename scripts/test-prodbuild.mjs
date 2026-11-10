@@ -17,7 +17,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { บันทึกเมื่อผ่าน, ไฟล์บันทึก } from "./lib/migrationGate.mjs";
-import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน } from "./lib/commitGate.mjs";
+import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน, ไฟล์ยังไม่commit } from "./lib/commitGate.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { ป้ายล็อกรอบทดสอบ } from "./lib/gateLockLabel.mjs";
 import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
@@ -46,6 +46,15 @@ if (process.argv.includes("--build-only")) {
 const เจาะช่วงprodLive = process.env.PMS_GATE_ONLY_LIVE === "1";
 const รอบเต็มของบอส = !เจาะช่วงprodLive && !process.argv.slice(2).some(a => !a.startsWith("--reporter"));
 if (รอบเต็มของบอส) {
+  // ไฟล์ค้างในโฟลเดอร์ = ไม่เริ่ม (บอสสั่ง 9 พ.ย. 69) — รอบตรวจต้องตรวจโค้ดที่ commit แล้วเท่านั้น · บอกชื่อไฟล์ให้ commit หรือย้ายออกก่อน
+  const ค้างก่อนเริ่ม = ไฟล์ยังไม่commit();
+  if (ค้างก่อนเริ่ม.length) {
+    console.error(`⛔ ไม่เริ่มรอบตรวจเต็ม — มีไฟล์ที่ยังไม่ commit ในโฟลเดอร์ ${ค้างก่อนเริ่ม.length} ไฟล์ (รอบตรวจต้องตรวจโค้ดที่ commit แล้วเท่านั้น):`);
+    for (const f of ค้างก่อนเริ่ม.slice(0, 50)) console.error(`   ${f}`);
+    if (ค้างก่อนเริ่ม.length > 50) console.error(`   … อีก ${ค้างก่อนเริ่ม.length - 50} ไฟล์`);
+    console.error("   commit ไฟล์ที่เป็นงาน (ด้วย pathspec) หรือย้ายไฟล์ที่ไม่ใช่งานออกจากโฟลเดอร์ แล้วเริ่มใหม่");
+    process.exit(2);
+  }
   const ผลรอบ = ตรวจก่อนรอบเต็ม();
   if (!ผลรอบ.ได้) {
     console.error(`⛔ ไม่เริ่มรอบตรวจเต็ม — ${ผลรอบ.เหตุ}`);

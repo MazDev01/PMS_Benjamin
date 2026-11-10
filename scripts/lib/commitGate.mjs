@@ -28,6 +28,20 @@ export function ลายนิ้วมือโค้ด(sha = "HEAD", cwd = p
   return createHash("sha256").update(รายการ.join("\n"), "utf8").digest("hex");
 }
 
+/** ไฟล์ที่ยังไม่ commit ในโฟลเดอร์ (แก้แล้วยังไม่ commit · ไฟล์ใหม่ที่ git ยังไม่เก็บ · ลบแล้วยังไม่ commit) — ไม่นับไฟล์ที่ .gitignore ข้าม
+ *  รอบตรวจเต็มปฏิเสธเมื่อมี (บอสสั่ง 9 พ.ย. 69 หลังรอบ ef หยุด: ไฟล์ทดสอบที่ยังไม่ commit ถูกนับเป็นไฟล์ที่เปลี่ยน) · ข้อทดสอบ tests/tools/gate-dirty-tree.test.mjs */
+export function ไฟล์ยังไม่commit(cwd = process.cwd()) {
+  const ออก = execFileSync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 << 20 });
+  const ส่วน = ออก.split("\0"), ไฟล์ = [];
+  for (let i = 0; i < ส่วน.length; i++) {
+    const x = ส่วน[i];
+    if (!x) continue;
+    ไฟล์.push(x.slice(3));
+    if (x[0] === "R" || x[0] === "C") i++;   // เปลี่ยนชื่อ/คัดลอก: ช่องถัดไปคือชื่อเดิม
+  }
+  return ไฟล์;
+}
+
 /** สภาพตอนเริ่มรอบตรวจ: commit ที่กำลังตรวจ + ไฟล์ค้าง */
 export function สภาพตอนเริ่ม(cwd = process.cwd()) {
   return { sha: git(["rev-parse", "HEAD"], cwd), ค้าง: git(["status", "--porcelain"], cwd).split("\n").filter(Boolean) };
