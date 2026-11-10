@@ -9,11 +9,11 @@ insert into public.dealers (code,name,province,region,revenue_target,status,crea
 {"code":"BKK","name":"ดีลเลอร์ทดสอบ BKK","province":"กรุงเทพมหานคร","region":"กลาง","revenue_target":10000000,"status":"active","created_at":"2026-07-17T02:26:20.093425+00:00","target_manual":false,"prospect_id":null},
 {"code":"CBI","name":"ดีลเลอร์ทดสอบ CBI","province":"ชลบุรี","region":"ตะวันออก","revenue_target":20000000,"status":"active","created_at":"2026-07-17T02:26:23.472829+00:00","target_manual":false,"prospect_id":null},
 {"code":"CNX","name":"ดีลเลอร์ทดสอบ CNX","province":"เชียงใหม่","region":"เหนือ","revenue_target":30000000,"status":"active","created_at":"2026-06-17T02:22:18.305909+00:00","target_manual":false,"prospect_id":null},
-{"code":"KKN","name":"ดีลเลอร์ทดสอบ KKN","province":"ขอนแก่น","region":"ตะวันออกเฉียงเหนือ","revenue_target":40000000,"status":"active","created_at":"2026-07-17T02:26:26.751297+00:00","target_manual":false,"prospect_id":null},
-{"code":"NMA","name":"ดีลเลอร์ทดสอบ NMA","province":"นครราชสีมา","region":"ตะวันออกเฉียงเหนือ","revenue_target":50000000,"status":"active","created_at":"2026-07-17T02:26:30.157017+00:00","target_manual":false,"prospect_id":null},
+{"code":"KKN","name":"ดีลเลอร์ทดสอบ KKN","province":"ขอนแก่น","region":"อีสาน","revenue_target":40000000,"status":"active","created_at":"2026-07-17T02:26:26.751297+00:00","target_manual":false,"prospect_id":null},
+{"code":"NMA","name":"ดีลเลอร์ทดสอบ NMA","province":"นครราชสีมา","region":"อีสาน","revenue_target":50000000,"status":"active","created_at":"2026-07-17T02:26:30.157017+00:00","target_manual":false,"prospect_id":null},
 {"code":"PKT","name":"ดีลเลอร์ทดสอบ PKT","province":"ภูเก็ต","region":"ใต้","revenue_target":60000000,"status":"active","created_at":"2026-07-17T02:26:33.47353+00:00","target_manual":false,"prospect_id":null},
 {"code":"RYG","name":"ดีลเลอร์ทดสอบ RYG","province":"ระยอง","region":"ตะวันออก","revenue_target":70000000,"status":"active","created_at":"2026-06-17T02:22:18.305909+00:00","target_manual":false,"prospect_id":null},
-{"code":"UBN","name":"ดีลเลอร์ทดสอบ UBN","province":"อุบลราชธานี","region":"ตะวันออกเฉียงเหนือ","revenue_target":80000000,"status":"active","created_at":"2026-07-17T02:26:36.710802+00:00","target_manual":false,"prospect_id":null}
+{"code":"UBN","name":"ดีลเลอร์ทดสอบ UBN","province":"อุบลราชธานี","region":"อีสาน","revenue_target":80000000,"status":"active","created_at":"2026-07-17T02:26:36.710802+00:00","target_manual":false,"prospect_id":null}
 ]$fx$::jsonb);
 
 -- dealer_territories: 8 แถว

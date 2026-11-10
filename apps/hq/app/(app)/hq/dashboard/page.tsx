@@ -29,6 +29,7 @@ import { dealers as dealersRepo, metrics as metricsRepo } from "@pms/shared/lib/
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { hqAuditCategory, type DealerRow } from "@pms/shared/lib/mock";
 import { regionDisplay } from "@pms/shared/lib/hqQuotations";
+import { รวมแถวตามภาค } from "@pms/shared/lib/provinces";
 import { fmtBaht } from "@pms/shared/lib/format";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย } from "@pms/shared/lib/winRate";
@@ -204,7 +205,8 @@ export default function HQDashboard() {
           </div>
           <div className="card-body" style={{ paddingTop: 4 }}>
             {!ข้อมูล ? <กรอบว่าง text="กำลังโหลด…" h={200} /> : ข้อมูล.dealerCount === 0 ? <กรอบว่าง text="ยังไม่มีดีลเลอร์" h={200} /> : (() => {
-              const regions = ข้อมูล.regions;
+              // ภาคเดียวกันสะกดต่าง (อีสาน/ตะวันออกเฉียงเหนือ) = แถวเดียว (ตัวกลาง รวมแถวตามภาค · 10 พ.ย. 69)
+              const regions = รวมแถวตามภาค(ข้อมูล.regions, (ก, ข) => ({ ...ก, dealers: ก.dealers + ข.dealers, sales: ก.sales + ข.sales })).sort((a, b) => b.dealers - a.dealers);
               const tot = ข้อมูล.dealerCount || 1;
               const colorOf = new Map(regions.map((r, i) => [r.region, RAMP[i % RAMP.length]]));
               const segs = regions.map(r => ({ label: regionDisplay(r.region), value: r.dealers, color: colorOf.get(r.region)!, sales: r.sales, pct: Math.round(r.dealers / tot * 100) }));
