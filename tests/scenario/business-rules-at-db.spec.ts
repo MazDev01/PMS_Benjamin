@@ -72,7 +72,7 @@ test("[กฎที่ DB] ยังมีดีลที่ขายอยู�
 
   const viaRpc = await ryg.rpc("delete_customer_cascade", { p_customer_id: cid });
   expect(viaRpc.error, "ต้องถูกปฏิเสธ ไม่ใช่ลบสำเร็จ").not.toBeNull();
-  expect(String(viaRpc.error?.message), "ข้อความต้องบอกเหตุผลให้คนอ่านรู้เรื่อง").toContain("ดีลที่ขายอยู่");
+  expect(String(viaRpc.error?.message), "ข้อความต้องบอกเหตุผลให้คนอ่านรู้เรื่อง").toContain("งานขายที่เปิดอยู่"); // คำบนจอ ดีล→งานขาย (บอสเลือก 9 พ.ย. 69 · ใบ 0285)
 
   // ยิงลบตรงข้ามหน้าเว็บก็ต้องไม่ผ่าน (FK restrict) — ไม่ใช่ผ่านแล้วเหลือดีลกำพร้า
   const direct = await ryg.from("customers").delete().eq("id", cid).eq("dealer_code", "RYG").select();

@@ -335,6 +335,10 @@ export async function เปิดฟอร์มทำใบจากใบHQ(p
   const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(dealerCode === "RYG" ? RYG : CNX, dealerCode, Number(lead!.num_id), lines);
   const origin = page.url().startsWith(HQ_ORIGIN) ? HQ_ORIGIN : DEALER_ORIGIN;
   await page.goto(`${origin}/leads`, { waitUntil: "domcontentloaded" });
+  // ต้นเหตุตกรอบตรวจเต็ม 9 พ.ย. 69: กดปุ่มดูรายละเอียดตอนการ์ด KPI ยังขึ้น "ยังไม่มีข้อมูล" (1 บรรทัด) — โหลดเสร็จการ์ดสูงขึ้น
+  //   ดันตารางลง 16px ระหว่างกด การกดลงผิดที่ แผงไม่เปิด (trace: จุดกด y=545 · ปุ่มจริง y=561) → รอการ์ดได้ค่าจากฐานครบ 4 ใบก่อนกด
+  await expect(page.getByRole("group", { name: "สรุปลูกค้าเป้าหมาย" }).locator("[data-value]:not([data-value=\"\"])"),
+    "การ์ด KPI หน้าลูกค้าเป้าหมายโหลดค่าครบก่อนกด (กันหน้าขยับระหว่างกด)").toHaveCount(4, { timeout: 20_000 });
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row = page.locator("tbody tr").filter({ hasText: company }).first();
