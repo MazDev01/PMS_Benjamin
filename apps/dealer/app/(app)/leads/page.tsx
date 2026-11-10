@@ -1384,10 +1384,11 @@ export default function LeadsPage() {
                     → เติม minWidth ให้ครบเหมือนกัน */}
                 <colgroup>
                   {/* ลำดับคอลัมน์ตามที่บอสสั่ง 28 ต.ค. 69 · ข้อความตกบรรทัดได้ ไม่ตัดเป็น "…" */}
-                  <col style={{width:"15%", minWidth:150}} />{/* บริษัท / ผู้ติดต่อ */}
-                  {!hiddenCols.includes("province") && <col style={{width:"8%", minWidth:84}} />}
+                  {/* 10 พ.ย. 69: หัว "จังหวัดหน้างาน" ถูกตัดที่จอ 1366 (8% แคบกว่าคำ) → จังหวัด 13% · บริษัท 15→12 · งานที่ต้องการ 11→9 (ทั้งสองตกบรรทัดได้) · รวม 100 */}
+                  <col style={{width:"12%", minWidth:150}} />{/* บริษัท / ผู้ติดต่อ */}
+                  {!hiddenCols.includes("province") && <col style={{width:"13%", minWidth:84}} />}{/* จังหวัดหน้างาน — หัวห้ามตัด */}
                   {!hiddenCols.includes("source")   && <col style={{width:"8%", minWidth:84}} />}
-                  {!hiddenCols.includes("project")  && <col style={{width:"11%", minWidth:110}} />}{/* งานที่ต้องการ */}
+                  {!hiddenCols.includes("project")  && <col style={{width:"9%", minWidth:110}} />}{/* งานที่ต้องการ */}
                   {!hiddenCols.includes("area")     && <col style={{width:"7%", minWidth:76}} />}
                   <col style={{width:"11%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "เสนอราคาลูกค้า" + ป้ายย่อย อยู่ได้ */}
                   <col style={{width:"9%", minWidth:112}} />{/* ความคืบหน้า แถบ 4 ช่อง + % */}
