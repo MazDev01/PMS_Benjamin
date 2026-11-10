@@ -101,14 +101,16 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     await เข้าระบบ(h, HQ, "/hq/login", ผู้ดูแล);
     await h.goto(`${HQ}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
     await รอเงียบ(h);
-    // กล่องงานคำขอราคา (หน้า 5 · 19 ต.ค. 69): แถวเป็นปุ่มใน "รายการคำขอ" · ใบ HQ ฝังในหน้า (พื้นที่ "ใบ HQ")
+    // หน้าคำขอใบเสนอราคาแบบตาราง (บอสสั่ง 6 พ.ย. 69 · แทนรายการซ้าย) · แท็บ "ต้องตีราคา" เป็นค่าเริ่มต้น (9 พ.ย. 69)
+    //   แถว = tbody ของ "ตารางคำขอใบเสนอราคา" · กดแถว = หน้าต่าง "ใบ HQ" (role dialog) ของคำขอนั้น
+    await expect(h.locator("[data-view-tab='main']"), "เปิดหน้ามาอยู่แท็บต้องตีราคา").toHaveAttribute("aria-selected", "true");
     await h.getByLabel("ค้นหาคำขอ").fill(บริษัท);
-    const row = h.getByRole("list", { name: "รายการคำขอ" }).getByRole("button", { name: บริษัท }).first();
-    await expect(row).toBeVisible({ timeout: 30_000 });
+    const row = h.getByRole("table", { name: "ตารางคำขอใบเสนอราคา" }).locator("tbody tr.clickable").filter({ hasText: บริษัท }).first();
+    await expect(row, "คำขอใหม่อยู่ในตารางต้องตีราคา").toBeVisible({ timeout: 30_000 });
     await row.click();
-    await expect(row).toHaveAttribute("aria-current", "true");
-    const กล่อง = h.getByRole("region", { name: "ใบ HQ" });
+    const กล่อง = h.getByRole("dialog", { name: "ใบ HQ" });
     await expect(กล่อง).toBeVisible({ timeout: 20_000 });
+    await expect(กล่อง, "หน้าต่างใบ HQ เป็นของคำขอที่กด").toContainText(บริษัท);
     // HQ พิมพ์รายการเอง (ไม่มีแม่แบบแล้ว 16 ต.ค. 69) — ใบใหม่เริ่มว่าง
     if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
     await กล่อง.getByLabel("ชื่อรายการ 1").fill("ทดสอบระบบ — โครงสร้างเหล็ก");
