@@ -854,7 +854,7 @@ body {
 /* table-layout:fixed => คอลัมน์กว้างคงที่ ไม่ยืด/หดตามข้อมูลที่โชว์ (เสถียรทุกหน้า) */
 .table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
 .table-wrap thead { background: var(--muted); }
-.table-wrap th { padding: 0.6rem 1rem; text-align: left; font-weight: 700; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); white-space: nowrap; }
+.table-wrap th { padding: 0.6rem 1rem; text-align: left; font-weight: 700; font-size: calc(0.68rem * var(--th-scale, 1)); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); white-space: nowrap; }   /* --th-scale: ตัวกลาง useHeaderFit ลดทั้งแถวหัวเมื่อหัวช่องไหนยาวเกินช่อง (บอสสั่ง 10 พ.ย. 69) */
 .table-wrap td { padding: 0.72rem 1rem; border-top: 1px solid var(--border); vertical-align: middle; color: var(--foreground); }
 /* เนื้อหาที่ยาวเกินคอลัมน์ให้ตัดด้วย … แทนการดันคอลัมน์ให้กว้างขึ้นหรือล้นออกนอกกรอบ */
 /* white-space:nowrap จำเป็นคู่กับ text-overflow:ellipsis มิเช่นนั้นข้อความไทย (ไม่มีช่องว่างให้ตัดคำ) จะล้นออกนอกเซลล์แทนที่จะถูกตัด */
@@ -951,8 +951,8 @@ body {
 /*   ขนาดตัวอักษร (รอบ 3 · ใหญ่ขึ้นใช้ที่ว่าง): ตัวเลข/ชื่อ 0.84rem · บรรทัดย่อยใต้ชื่อ [data-row-sub] 0.72rem — ตรงกับ lib/tableFit.ts (ตัววัดคอลัมน์ชื่อ) */
 .table-wrap.fit th, .table-wrap.fit td { padding: 0.5rem 0.5rem; font-size: 0.84rem; }   /* ≥ 8px จากขอบกล่อง (ตัวตรวจ layout-spacing) */
 .table-wrap.fit td [data-row-sub] { font-size: 0.72rem !important; }
-.table-wrap.fit th { font-size: 0.7rem; padding-top: 0.6rem; }   /* หัวตารางห่างขอบบนกล่อง ≥ 8px */
-.table-wrap.fit th { white-space: normal; line-height: 1.4; vertical-align: bottom; letter-spacing: 0; }
+.table-wrap.fit th { font-size: calc(0.7rem * var(--th-scale, 1)); padding-top: 0.6rem; }   /* หัวตารางห่างขอบบนกล่อง ≥ 8px */
+.table-wrap.fit th { white-space: nowrap; line-height: 1.4; vertical-align: bottom; letter-spacing: 0; }   /* หัวบรรทัดเดียว (บอสสั่ง 10 พ.ย. 69 · เดิมขึ้นบรรทัดได้) */
 .table-wrap.fit td.num, .table-wrap.fit th.num { padding-left: 0.3rem; }
 
 /* ─── TableTools toolbar (component: src/components/ui/TableTools.tsx) ─── */

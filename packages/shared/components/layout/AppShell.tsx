@@ -12,6 +12,7 @@ import { purgeOldDealerKeys } from "@pms/shared/lib/mock";
 import { REPO_SAVE_ERROR_EVENT } from "@pms/shared/lib/useRepoState";
 import { REPO_READ_ERROR_EVENT } from "@pms/shared/lib/repoLog";
 import { useTruncatedTitles } from "@pms/shared/lib/useTruncatedTitles";
+import { useHeaderFit } from "@pms/shared/lib/useHeaderFit";
 
 // แถบเตือนขึ้นค้างอยู่กี่วินาทีก่อนหายเอง — ข้อความไทยยาวสุดในระบบอ่านจบใน ~6 วิ เผื่อไว้เล็กน้อย
 const ALERT_MS = 8000;
@@ -146,6 +147,8 @@ export function AppShell({ children, notice }: { children: React.ReactNode; noti
   useEffect(() => { purgeOldDealerKeys(); }, []);
   // ข้อความในตารางที่ถูกตัดด้วย … ชี้แล้วเห็นเต็ม — ตัวกลางเดียวทุกตาราง (บอสสั่ง 10 พ.ย. 69)
   useTruncatedTitles();
+  // หัวตารางบรรทัดเดียว — ยาวเกินช่องลดขนาดตัวอักษรทั้งแถวหัว (บอสสั่ง 10 พ.ย. 69)
+  useHeaderFit();
   const { isHQ } = useRole(); // เมนู HQ ชื่อยาวกว่า (แดชบอร์ดสำนักงานใหญ่ / ใบเสนอราคาทั้งเครือ) → ขยายแถบข้าง
   return (
     <div className={`app${isHQ ? " app-hq" : ""}`}>
