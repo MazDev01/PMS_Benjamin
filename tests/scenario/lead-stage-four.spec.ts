@@ -248,7 +248,10 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     // แผงลีด HQ: ขั้นตอน + ป้ายย่อย
     await แถว("ส่งแล้ว").click();
     await expect(page.locator(".side-drawer [data-stage-label]").first()).toHaveText("เสนอราคาลูกค้า", { timeout: 15_000 });
-    await expect(page.locator(".side-drawer"), "แผงลีด HQ บอกส่งแล้ว").toContainText("เสนอราคาลูกค้า · ส่งให้ลูกค้าแล้ว");
+    // การ์ดขั้นตอน: ชื่อขั้นตัวใหญ่ · ขั้นย่อยบรรทัดเล็กใต้ (บอสสั่ง 10 พ.ย. 69 · เดิม "ชื่อขั้น · ขั้นย่อย" บรรทัดเดียว)
+    const การ์ดขั้น = page.locator(".side-drawer [data-stat-value]").filter({ hasText: "เสนอราคาลูกค้า" }).locator("..");
+    await expect(การ์ดขั้น.locator("[data-stat-value]"), "แผงลีด HQ: ชื่อขั้น").toHaveText("เสนอราคาลูกค้า");
+    await expect(การ์ดขั้น.locator("[data-stat-sub]"), "แผงลีด HQ บอกส่งแล้ว (ขั้นย่อย)").toHaveText("ส่งให้ลูกค้าแล้ว");
     await expect(page.locator(".side-drawer")).not.toContainText(ชื่อเดิม);
     assertNoErrors(errs, "ลีดทั้งเครือ 4 ขั้น");
   });

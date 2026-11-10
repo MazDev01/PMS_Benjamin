@@ -173,7 +173,8 @@ test("[ux·hq] หัวข้อบริษัทมีปุ่มบัน�
 test("[ux·hq] Dealer Detail อ่านอย่างเดียว + แท็บกิจกรรม", async ({ page }) => {
   await open(page, "hq", "/hq/dealers/CNX");
   await expect(page.getByText("ข้อมูลงานขายดูอย่างเดียว")).toBeVisible();
-  await page.getByRole("button", { name: /^กิจกรรม/ }).click();
+  // แท็บของแผงจากแถว = role tab (ตัวกลาง RowPanel · 10 พ.ย. 69 · เดิมเป็นปุ่ม)
+  await page.getByRole("tab", { name: /^กิจกรรม/ }).click();
   await expect(page.getByText("กิจกรรมล่าสุด")).toBeVisible();
 });
 
