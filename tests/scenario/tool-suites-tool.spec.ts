@@ -26,6 +26,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/stale-ports.test.mjs", "ตอนเริ่มรอบตรวจ ปิดโปรเซสค้างบนพอร์ตของเซสชันตัวเอง (คิวข้อ 1 · 30 ต.ค. 69)"],
   ["tests/tools/gate-dirty-tree.test.mjs", "รอบตรวจเต็มปฏิเสธเมื่อมีไฟล์ที่ยังไม่ commit ในโฟลเดอร์ (บอกชื่อไฟล์ · บอสสั่ง 9 พ.ย. 69)"],
   ["tests/tools/check-fixture-regions.test.mjs", "ตัวตรวจชื่อภาคในข้อมูลตั้งต้น = รายการ th_provinces (10 พ.ย. 69)"],
+  ["tests/tools/migration-rehearsal.test.mjs", "ซ้อมลงใบปรับฐานแบบ db push บนฐานแยก (ไม่ห่อ transaction · ข้อมูลแปลงจริง · ลบคอนเทนเนอร์ทุกครั้ง)"],
 ];
 for (const [ไฟล์, อะไร] of ชุด) {
   test(`[tool] ${อะไร} (${ไฟล์})`, () => {

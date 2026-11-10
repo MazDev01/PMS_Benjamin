@@ -32,3 +32,27 @@ export function setLocalระดับบน(sql) {
   }
   return ผล;
 }
+
+/** เนื้อ SQL ระดับบนสุด — คอมเมนต์ · ข้อความ · ตัวฟังก์ชัน/DO $…$ แทนด้วยช่องว่าง (คงขึ้นบรรทัด) ใช้หาคำสั่งระดับบนด้วย regex
+ *  ใช้โดย scripts/check-migration-rehearsal.mjs (คำสั่งแปลงข้อมูลระดับบนสุด) */
+export function โครงระดับบน(sql) {
+  const s = sql.replace(/\r\n/g, "\n");
+  let ออก = "", i = 0;
+  const ว่าง = (t) => t.replace(/[^\n]/g, " ");
+  while (i < s.length) {
+    const c = s[i], n = s[i + 1];
+    let end = -1;
+    if (c === "-" && n === "-") { const e = s.indexOf("\n", i); end = e < 0 ? s.length : e; }
+    else if (c === "/" && n === "*") { const e = s.indexOf("*/", i + 2); end = e < 0 ? s.length : e + 2; }
+    else if (c === "$") { const m = /^\$([A-Za-z_฀-๿][\w฀-๿]*)?\$/.exec(s.slice(i)); if (m) { const e = s.indexOf(m[0], i + m[0].length); end = e < 0 ? s.length : e + m[0].length; } }
+    else if (c === "'" || c === "\"") {
+      let k = i + 1;
+      const escape = c === "'" && i > 0 && /[eE]/.test(s[i - 1]) && !/[\w฀-๿]/.test(s[i - 2] ?? "");
+      for (; k < s.length; k++) { if (escape && s[k] === "\\") { k++; continue; } if (s[k] === c) { if (s[k + 1] === c) { k++; continue; } break; } }
+      end = k + 1;
+    }
+    if (end > i) { ออก += ว่าง(s.slice(i, end)); i = end; continue; }
+    ออก += c; i++;
+  }
+  return ออก;
+}
