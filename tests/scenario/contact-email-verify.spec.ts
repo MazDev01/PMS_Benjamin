@@ -71,11 +71,11 @@ test("[email·dealer] หน้าบัญชี: ใส่อีเมลต�
   await สร้างสาขา(request, A);
   const การ์ด = await เปิดการ์ดอีเมลติดต่อ(page, A);
   await การ์ด.locator("#ce-email").fill(A.ติดต่อ);
-  await การ์ด.getByRole("button", { name: /^ส่งโค้ด/ }).click();
-  await expect(การ์ด.getByText(`ส่งโค้ด 6 หลักไปที่ ${A.ติดต่อ} แล้ว`)).toBeVisible({ timeout: 30_000 });
+  await การ์ด.getByRole("button", { name: /^ส่งเลขยืนยัน/ }).click();
+  await expect(การ์ด.getByText(`ส่งเลขยืนยัน 6 หลักไปที่ ${A.ติดต่อ} แล้ว`)).toBeVisible({ timeout: 30_000 });
   await การ์ด.locator("#ce-code").fill("000000");
   await การ์ด.getByRole("button", { name: "ยืนยันอีเมล" }).click();
-  await expect(การ์ด.getByText("โค้ดไม่ถูกต้อง")).toBeVisible();
+  await expect(การ์ด.getByText("เลขยืนยันไม่ถูกต้อง")).toBeVisible();
   expect((await สถานะในฐาน(A.code)).verified, "โค้ดผิดต้องไม่ยืนยัน").toBe(false);
 
   await การ์ด.locator("#ce-code").fill(await โค้ดในกล่อง(A.ติดต่อ));
@@ -106,12 +106,12 @@ test("[email·dealer] ระบบส่งอีเมลล่ม → ดี�
   execFileSync("docker", ["stop", ชื่อคอนเทนเนอร์], { stdio: "ignore" });
   try {
     await การ์ด.locator("#ce-email").fill(B.ติดต่อ);
-    await การ์ด.getByRole("button", { name: /^ส่งโค้ด/ }).click();
-    await expect(การ์ด.getByText(/ระบบส่งอีเมลขัดข้อง ส่งโค้ดไม่สำเร็จ/), "ต้องบอกชัดว่าส่งไม่สำเร็จและทางออก").toBeVisible({ timeout: 60_000 });
+    await การ์ด.getByRole("button", { name: /^ส่งเลขยืนยัน/ }).click();
+    await expect(การ์ด.getByText(/ระบบส่งอีเมลขัดข้อง ส่งเลขยืนยันไม่สำเร็จ/), "ต้องบอกชัดว่าส่งไม่สำเร็จและทางออก").toBeVisible({ timeout: 60_000 });
   } finally {
     execFileSync("docker", ["start", ชื่อคอนเทนเนอร์], { stdio: "ignore" });
   }
-  await expect(การ์ด.getByRole("button", { name: /^ส่งโค้ด/ }), "มีปุ่มส่งโค้ดใหม่ให้กดได้").toBeVisible();
+  await expect(การ์ด.getByRole("button", { name: /^ส่งเลขยืนยัน/ }), "มีปุ่มส่งโค้ดใหม่ให้กดได้").toBeVisible();
   expect((await สถานะในฐาน(B.code)).email, "อีเมลที่กรอกถูกบันทึกไว้แล้ว รอยืนยัน").toBe(B.ติดต่อ);
 
   // HQ ยืนยันแทน (ไม่พิมพ์อีเมลเอง — ยืนยันอีเมลที่ดีลเลอร์กรอกไว้)

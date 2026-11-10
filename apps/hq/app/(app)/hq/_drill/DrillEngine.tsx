@@ -3,12 +3,16 @@
 //   ตัวเดียวใช้ทั้ง 3 หน้า (ห้ามเขียนแยก) · แต่ละหน้าส่ง "ตั้งค่า" (การ์ด + คอลัมน์) มาเท่านั้น — แบบหน้า DCFG
 //   แถบระดับ ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ (แถบระดับ · ชื่อมิติ ตัวเดียวกับ /hq/pipeline Drill.tsx)
 //   การ์ด → แผงขวา "ที่มา" รายดีลเลอร์ (ระดับดีลเลอร์ = รายเดือน) · แท็บ ดีลเลอร์/ภูมิภาค/จังหวัด/รายเดือน (กราฟแท่ง + ตาราง) กดแถว = เจาะลง
-//   แท็บรายเดือนกดแถว = แผงรายดีลเลอร์ของเดือนนั้น · ทุกตัวเลข = ผลรวมของแถวรายดีลเลอร์ชุดเดียว (hq_drill · ใบ 0271) → แถวรวม = การ์ด
+//   แท็บรายเดือนกดแถว = แผงรายดีลเลอร์ของเดือนนั้น · ทุกตัวเลข = ผลรวมของแถวรายดีลเลอร์ชุดเดียว (hq_drill · ใบ 0271) → การ์ด = ผลรวมแถว
+//   ไม่มีแถวรวมทุกตาราง/แผง (บอสสั่ง 6 พ.ย. 69 · ตัวเลขรวมดูที่การ์ด) · ตารางพอดีจอ 1366/1920 (.table-wrap.fit · ซ่อนคอลัมน์ที่ทั้งตารางเป็น "—")
+//   ไม่มีรหัสหน้าชื่อ (ตาราง + กราฟแท่ง) · ภูมิภาค · จังหวัด เป็นบรรทัดเล็กใต้ชื่อดีลเลอร์
 import { useEffect, useMemo, useState } from "react";
-import { X, ArrowDown, ArrowUp, Users, PhoneCall, Inbox, AlarmClock, Send, Hourglass, CheckCircle2, Percent, UserPlus, Store, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, Users, CalendarDays, PhoneCall, Inbox, AlarmClock, Send, Hourglass, CheckCircle2, Percent, UserPlus, Store, type LucideIcon } from "lucide-react";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { ชื่อภาค, ภาคมาตรฐาน, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
+import { ซ่อนคอลัมน์ว่าง } from "@pms/shared/lib/tableFit";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { metrics } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useAuthReady } from "@pms/shared/lib/useAuthReady";
@@ -17,6 +21,11 @@ import { ค่าแถว, ค่าเดือน, มีรายเดื�
 import { แถบระดับ, ชื่อมิติ, รอข้อมูลรายเดือน, type มิติ } from "../pipeline/Drill";
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+import { fmtISOToThai } from "@pms/shared/lib/mock";
+import { หน้าต่างเจาะ, ส่วนเจาะ } from "./DrillWindow";
+import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
+import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
+import { บรรทัดใต้ชื่อดีลเลอร์, type ระดับเจาะ } from "@pms/shared/lib/drillColumns";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -40,9 +49,9 @@ export function ขอบเขตของดีลเลอร์(rows: แถ
   return { ภาค: d ? ภาคมาตรฐาน(d.region) ?? null : null, จังหวัด: d?.province || null, ดีลเลอร์: code, มิติ: "dealer" };
 }
 
-/** ป้ายระดับที่เลือกเป็นคำ (หัวข้อกราฟ/ตาราง) — "ทั้งเครือ" · "ภาคเหนือ" · "จังหวัด…" · "ดีลเลอร์ รหัส ชื่อ" */
+/** ป้ายระดับที่เลือกเป็นคำ (หัวข้อกราฟ/ตาราง) — "ทั้งเครือ" · "ภาคเหนือ" · "จังหวัด…" · "ดีลเลอร์ ชื่อ" (ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)") */
 export const ป้ายระดับของขอบ = (s: ขอบเขต, rows: แถวเจาะลึก[]) =>
-  ป้ายระดับ({ ภาค: s.ภาค, จังหวัด: s.จังหวัด, ดีลเลอร์: s.ดีลเลอร์, ชื่อดีลเลอร์: s.ดีลเลอร์ ? rows.find(r => r.code === s.ดีลเลอร์)?.name : undefined });
+  ป้ายระดับ({ ภาค: s.ภาค, จังหวัด: s.จังหวัด, ดีลเลอร์: s.ดีลเลอร์, ชื่อดีลเลอร์: s.ดีลเลอร์ ? สร้างชื่อแสดง(rows)(s.ดีลเลอร์) : undefined });
 
 // ── ข้อมูลจากฐาน ─────────────────────────────────────────────────────────────────────────────────────────────
 /** null = กำลังโหลด · ผิดพลาด = แถวว่าง (หน้าแสดง "—"/ว่าง ไม่เดาเลข) */
@@ -63,8 +72,9 @@ export function useเจาะลึก(หน้า: หน้าเจาะ�
 
 // ── กลุ่มของแท็บ ─────────────────────────────────────────────────────────────────────────────────────────────
 type กลุ่ม = { key: string; label: string; sub: string; code?: string; rows: แถวเจาะลึก[]; เดือน?: { y: number; m: number; idx: number } };
-function จัดกลุ่มแท็บ(rows: แถวเจาะลึก[], dim: มิติ, start: string, end: string): กลุ่ม[] {
-  if (dim === "dealer") return rows.map(r => ({ key: `dealer:${r.code}`, label: r.name, code: r.code, sub: r.province || "ไม่ระบุจังหวัด", rows: [r] }));
+function จัดกลุ่มแท็บ(rows: แถวเจาะลึก[], dim: มิติ, start: string, end: string, ชื่อแสดง: (code: string, name: string) => string = (_c, n) => n, ระดับ: ระดับเจาะ = {}): กลุ่ม[] {
+  // บรรทัดใต้ชื่อ: ตัดภูมิภาค/จังหวัดที่ระดับบอกอยู่แล้ว (บอสสั่ง 9 พ.ย. 69 · ตัวกลาง drillColumns)
+  if (dim === "dealer") return rows.map(r => ({ key: `dealer:${r.code}`, label: ชื่อแสดง(r.code, r.name), code: r.code, sub: บรรทัดใต้ชื่อดีลเลอร์(r, ระดับ), rows: [r] }));
   if (dim === "month") return เดือนในช่วง(start, end).map((m, idx) => ({ key: `month:${m.key}`, label: m.label, sub: "", rows, เดือน: { y: m.y, m: m.m, idx } }));
   const m = new Map<string, แถวเจาะลึก[]>();
   rows.forEach(r => { const k = dim === "region" ? (ภาคมาตรฐาน(r.region) ?? "") : (r.province || ""); m.set(k, [...(m.get(k) ?? []), r]); });
@@ -88,7 +98,9 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
   const [แผงเดือน, setแผงเดือน] = useState<กลุ่ม | null>(null);
   const [เรียง, setเรียง] = useState<{ k: string; ลง: boolean } | null>(null);
   const โหลด = ข้อมูล === null;
-  const ชื่อดีลเลอร์ = ขอบ.ดีลเลอร์ ? ทั้งหมด.find(r => r.code === ขอบ.ดีลเลอร์)?.name : undefined;
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
+  const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(ทั้งหมด), [ทั้งหมด]);
+  const ชื่อดีลเลอร์ = ขอบ.ดีลเลอร์ ? ชื่อแสดง(ขอบ.ดีลเลอร์) : undefined;
 
   // เจาะลง: ภาค → แท็บจังหวัด · จังหวัด → แท็บดีลเลอร์ · ดีลเลอร์ → รายเดือน
   const เจาะ = (key: string) => {
@@ -105,6 +117,11 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
     else if (ระดับ === "region") ตั้งขอบ({ ภาค: ขอบ.ภาค, จังหวัด: null, ดีลเลอร์: null, มิติ: "prov" });
     else ตั้งขอบ({ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: null, มิติ: "dealer" });
   };
+  // ปุ่มย้อนกลับของเบราว์เซอร์ = ถอยทีละ 1 ระดับ (บอสสั่ง 5 พ.ย. 69 · ตัวกลาง useประวัติระดับ) — แท็บตั้งต้นของระดับ: ภาค = จังหวัด · อื่น = ดีลเลอร์
+  useประวัติระดับ({ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }, r => {
+    setเรียง(null); setแผงการ์ด(null);
+    ตั้งขอบ({ ...r, มิติ: r.ภาค && !r.จังหวัด && !r.ดีลเลอร์ ? "prov" : "dealer" });
+  });
 
   // แท็บ: ระดับดีลเลอร์ = รายเดือนอย่างเดียว · เลือกภาคแล้วไม่มีแท็บภูมิภาค · เลือกจังหวัดแล้วไม่มีแท็บจังหวัด
   const dim: มิติ = ขอบ.ดีลเลอร์ ? "month" : ขอบ.มิติ;
@@ -114,7 +131,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
     ? ค่าเดือน(c, เดือนของกลุ่ม(เดือนทั้งหมด, codes, g.เดือน.y, g.เดือน.m))
     : ค่าแถว(c, g.rows, ทั้งหมด);
   const กลุ่ม = useMemo(() => {
-    const gs = จัดกลุ่มแท็บ(rows, dim, ช่วง.start, ช่วง.end);
+    const gs = จัดกลุ่มแท็บ(rows, dim, ช่วง.start, ช่วง.end, ชื่อแสดง, { ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ });
     const คีย์ = เรียง?.k ?? (dim === "month" ? "__idx" : ตั้งค่า.แท่ง), ลง = เรียง ? เรียง.ลง : dim !== "month";
     const c = ตั้งค่า.คอลัมน์.find(x => x.k === คีย์);
     const ค่า = (g: กลุ่ม): number | string => คีย์ === "__idx" ? g.เดือน?.idx ?? 0 : คีย์ === "__name" ? g.label : c ? (ค่าของกลุ่ม(c, g) ?? -1) : 0;
@@ -124,7 +141,11 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
       return (ลง ? -r : r) || a.label.localeCompare(b.label, "th");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า]);
+  }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า, ชื่อแสดง, ขอบ.ภาค, ขอบ.จังหวัด, ขอบ.ดีลเลอร์]);
+  // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ยังโหลด/ไม่มีแถว = แสดงครบ (ไม่เดาว่าว่าง)
+  const คอลัมน์แสดง = ซ่อนคอลัมน์ว่าง(คอลัมน์, กลุ่ม, (c, g) => ค่าของกลุ่ม(c, g));
+  // คอลัมน์ชื่อกว้างพอดีชื่อยาวสุด ≤ 25% · คอลัมน์ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
+  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(กลุ่ม.map(g => g.label), { ขั้นต่ำ: 120 }, กลุ่ม.map(g => g.sub ?? ""));
   const คอลัมน์แท่ง = ตั้งค่า.คอลัมน์.find(c => c.k === ตั้งค่า.แท่ง)!;
   const ค่าแท่ง = (g: กลุ่ม) => ค่าของกลุ่ม(คอลัมน์แท่ง, g) ?? 0;
   const สูงสุด = Math.max(1, ...กลุ่ม.map(ค่าแท่ง));
@@ -165,7 +186,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
         <div className="card-body" style={{ display: "flex", gap: 8, flexWrap: "nowrap", alignItems: "center", paddingTop: 12, paddingBottom: 12, overflowX: "auto" }}>
           {เลือก("ภูมิภาค", ขอบ.ภาค, ตัวเลือกภาค.map(r => ({ v: r, l: ชื่อภาค(r) })), v => { setเรียง(null); ตั้งขอบ({ ภาค: v, จังหวัด: null, ดีลเลอร์: null, มิติ: v ? "prov" : "dealer" }); }, ป้ายทุกภูมิภาค)}
           {เลือก("จังหวัด", ขอบ.จังหวัด, ตัวเลือกจังหวัด.map(p => ({ v: p, l: p })), v => { setเรียง(null); if (v) เจาะ(`prov:${v}`); else ไประดับ(ขอบ.ภาค ? "region" : "all"); }, "ทุกจังหวัด")}
-          {เลือก("ดีลเลอร์", ขอบ.ดีลเลอร์, ตัวเลือกดีลเลอร์.map(r => ({ v: r.code, l: `${r.code} · ${r.name}` })), v => { setเรียง(null); if (v) เจาะ(`dealer:${v}`); else ไประดับ(ขอบ.จังหวัด ? "prov" : ขอบ.ภาค ? "region" : "all"); }, "ทุกดีลเลอร์")}
+          {เลือก("ดีลเลอร์", ขอบ.ดีลเลอร์, ตัวเลือกดีลเลอร์.map(r => ({ v: r.code, l: ชื่อแสดง(r.code, r.name) })), v => { setเรียง(null); if (v) เจาะ(`dealer:${v}`); else ไประดับ(ขอบ.จังหวัด ? "prov" : ขอบ.ภาค ? "region" : "all"); }, "ทุกดีลเลอร์")}
           {(ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์) && <button type="button" className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }} onClick={() => ไประดับ("all")}>กลับไปทั้งเครือ</button>}
         </div>
       </div>
@@ -193,7 +214,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
                 <button key={g.key} type="button" data-bar-row={g.key} data-value={v} onClick={() => g.เดือน ? (ขอบ.ดีลเลอร์ ? undefined : setแผงเดือน(g)) : เจาะ(g.key)}
                   style={{ all: "unset", cursor: g.เดือน && ขอบ.ดีลเลอร์ ? "default" : "pointer", minHeight: 30, display: "grid", gridTemplateColumns: "minmax(120px, 220px) 1fr 110px", gap: 10, alignItems: "center" }}>
                   <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={g.label}>
-                    {g.code && <strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{g.code}</strong>}{g.label}
+                    {g.label}
                   </span>
                   <span style={{ height: 10, borderRadius: 999, background: "var(--muted)", overflow: "hidden" }}>
                     <span className="bar-grow" style={{ display: "block", width: `${Math.round(v / สูงสุด * 100)}%`, height: "100%", borderRadius: 999, background: PRIMARY }} />
@@ -205,15 +226,16 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
         </div>
       </div>
 
-      {/* ── ตาราง · แถวรวม = การ์ด ── */}
+      {/* ── ตาราง (ไม่มีแถวรวม · ตัวเลขรวมดูที่การ์ด · บอสสั่ง 6 พ.ย. 69) ── */}
       <div className="card" data-drill-table={dim} style={{ marginBottom: 0, marginTop: 16 }}>
-        <BoxTitle ชื่อ={`ตาราง${ชื่อหัวข้อ(ตั้งค่า.ป้ายแถว, dim, ระดับ)}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "แถวรวม = การ์ดด้านบน", กดแถว, "กดหัวคอลัมน์เพื่อเรียง")} />
-        <div className="table-wrap dense">
-          <table aria-label={`ตาราง${ตั้งค่า.ป้ายแถว}แยกตาม${หัวคอลัมน์แรก}`} style={{ minWidth: 240 + คอลัมน์.length * 120 }}>
-            <colgroup><col style={{ width: 240 }} />{คอลัมน์.map(c => <col key={c.k} style={{ width: 120 }} />)}<col style={{ width: 110 }} /></colgroup>
+        <BoxTitle ชื่อ={`ตาราง${ชื่อหัวข้อ(ตั้งค่า.ป้ายแถว, dim, ระดับ)}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, null, กดแถว, "กดหัวคอลัมน์เพื่อเรียง")} />
+        {/* พอดีจอ (บอสสั่ง 6 พ.ย. 69): คอลัมน์ชื่อพอดีชื่อยาวสุด ≤ 25% · ตัวเลขเกลี่ยเท่ากัน · จอแคบกว่าความกว้างขั้นต่ำ = เลื่อนในกรอบ */}
+        <div className="table-wrap dense fit">
+          <table ref={ชื่อคอล.ref} aria-label={`ตาราง${ตั้งค่า.ป้ายแถว}แยกตาม${หัวคอลัมน์แรก}`} style={{ minWidth: 170 + คอลัมน์แสดง.length * 72 + 96 }}>
+            <colgroup><col data-col-key="__name" style={{ width: ชื่อคอล.กว้าง }} />{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} />)}<col style={{ width: 96 }} /></colgroup>
             <thead>
               <tr>
-                {[{ k: dim === "month" ? "__idx" : "__name", l: หัวคอลัมน์แรก, num: false }, ...คอลัมน์.map(c => ({ k: c.k, l: c.l, num: true }))].map(h => (
+                {[{ k: dim === "month" ? "__idx" : "__name", l: หัวคอลัมน์แรก, num: false }, ...คอลัมน์แสดง.map(c => ({ k: c.k, l: c.l, num: true }))].map(h => (
                   <th key={h.k} className={h.num ? "num" : undefined} style={{ paddingTop: 10 }} aria-sort={เรียง?.k === h.k ? (เรียง.ลง ? "descending" : "ascending") : "none"}>
                     <button type="button" data-sort={h.k} onClick={() => setเรียง(s => ({ k: h.k, ลง: s?.k === h.k ? !s.ลง : h.num }))}
                       style={{ all: "unset", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}>
@@ -225,56 +247,54 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
               </tr>
             </thead>
             <tbody>
-              {โหลด && <tr><td colSpan={คอลัมน์.length + 2} className="empty-row">กำลังโหลด…</td></tr>}
-              {!โหลด && !กลุ่ม.length && <tr><td colSpan={คอลัมน์.length + 2} className="empty-row">ไม่พบข้อมูลในระดับนี้</td></tr>}
+              {โหลด && <tr><td colSpan={คอลัมน์แสดง.length + 2} className="empty-row">กำลังโหลด…</td></tr>}
+              {!โหลด && !กลุ่ม.length && <tr><td colSpan={คอลัมน์แสดง.length + 2} className="empty-row">ไม่พบข้อมูลในระดับนี้</td></tr>}
               {!โหลด && กลุ่ม.map(g => {
-                const เซลล์ = คอลัมน์.map(c => { const v = ค่าของกลุ่ม(c, g); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; });
-                const ป้าย = <td data-group-row={g.key} title={g.label}>
-                  {g.code ? <><strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{g.code}</strong>{g.label}</> : <strong style={{ color: "#1F2937" }}>{g.label}</strong>}
-                  {g.sub && <div style={{ fontSize: "0.68rem", color: MUTED }}>{g.sub}</div>}
+                const เซลล์ = คอลัมน์แสดง.map(c => { const v = ค่าของกลุ่ม(c, g); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; });
+                const ป้าย = <td data-group-row={g.key} title={g.label} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <strong style={{ color: "#1F2937", fontWeight: g.code ? 600 : 800 }}>{g.label}</strong>
+                  {g.sub && <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sub}</div>}
                 </td>;
                 if (g.เดือน && ขอบ.ดีลเลอร์) return <tr key={g.key}>{ป้าย}{เซลล์}<td /></tr>;
                 return (
                   <ClickableRow key={g.key} className="clickable" onActivate={() => g.เดือน ? setแผงเดือน(g) : เจาะ(g.key)}
                     label={g.เดือน ? `เปิดรายดีลเลอร์ของ ${g.label}` : `เปิดตัวเลขของ ${g.label} (เจาะลงระดับถัดไป)`}>
                     {ป้าย}{เซลล์}
-                    <td style={{ color: PRIMARY, fontWeight: 700, fontSize: "0.74rem", whiteSpace: "nowrap" }}>{g.เดือน ? "ดูรายดีลเลอร์ ›" : "เจาะลึก ›"}</td>
+                    <td style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{g.เดือน ? "ดูรายดีลเลอร์ ›" : "เจาะลึก ›"}</td>
                   </ClickableRow>
                 );
               })}
             </tbody>
-            {!โหลด && (
-              <tfoot>
-                <tr data-group-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
-                  <td>รวม {กลุ่ม.length.toLocaleString()} {dim === "month" ? "เดือน" : ชื่อมิติ[dim]}</td>
-                  {คอลัมน์.map(c => { const v = dim === "month" ? ค่าเดือน(c, เดือนทั้งหมด) : ค่าแถว(c, rows, ทั้งหมด); return <td key={c.k} className="num" data-sum={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; })}
-                  <td />
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
         <div style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>
-          {กลุ่ม.length.toLocaleString()} แถว · แถวรวม = การ์ดด้านบน{dim === "month" ? " · ตัวเลข \"ตอนนี้\" ไม่มีรายเดือน ดูที่การ์ด" : ""}
+          {กลุ่ม.length.toLocaleString()} แถว · ตัวเลขรวมดูที่การ์ดด้านบน{dim === "month" ? " · ตัวเลข \"ตอนนี้\" ไม่มีรายเดือน ดูที่การ์ด" : ""}
         </div>
       </div>
 
       {แผงการ์ด && (() => {
         const c = ตั้งค่า.การ์ด.find(x => x.k === แผงการ์ด)!;
         const รายเดือน = !!ขอบ.ดีลเลอร์ && มีรายเดือน(c);
-        const รวม = ค่าแถว(c, rows, ทั้งหมด);
         const แถวแผง = รายเดือน
           ? เดือนในช่วง(ช่วง.start, ช่วง.end).map(m => ({ key: m.key, label: m.label, v: ค่าเดือน(c, เดือนของกลุ่ม(เดือนทั้งหมด, codes, m.y, m.m)) }))
-          : [...rows].map(r => ({ key: r.code, label: `${r.code} · ${r.name}`, v: ค่าแถว(c, [r], ทั้งหมด) })).sort((a, b) => (b.v ?? -1) - (a.v ?? -1) || a.key.localeCompare(b.key));
+          : [...rows].map(r => ({ key: r.code, label: ชื่อแสดง(r.code, r.name), v: ค่าแถว(c, [r], ทั้งหมด) })).sort((a, b) => (b.v ?? -1) - (a.v ?? -1) || a.key.localeCompare(b.key));
         return (
-          <แผงขวา ชื่อ={c.l} คำอธิบาย={รายเดือน ? `ที่มารายเดือน · ${ขอบ.ดีลเลอร์}` : "ที่มาแยกรายดีลเลอร์ · แถวรวม = การ์ด"} ปิด={() => setแผงการ์ด(null)} testid={`card:${c.k}`}>
+          <แผงขวา ชื่อ={c.l} ปิด={() => setแผงการ์ด(null)} testid={`card:${c.k}`} กว้าง={640}
+            คำอธิบาย={`${fmtISOToThai(ช่วง.start)} – ${fmtISOToThai(ช่วง.end)}`}
+            ป้าย={[{ คีย์: "scope", ข้อความ: รายเดือน ? `ที่มารายเดือน · ${ชื่อแสดง(ขอบ.ดีลเลอร์)}` : `แยกรายดีลเลอร์ ${แถวแผง.length.toLocaleString()} ราย · รวม = ตัวเลขบนการ์ด` }]}
+            หัวส่วน={รายเดือน ? "ที่มารายเดือน" : "แยกรายดีลเลอร์"} ไอคอน={รายเดือน ? CalendarDays : Users}>
             <table aria-label={`ที่มา ${c.l}`}>
+              <colgroup><col style={{ width: "62%" }} /><col /></colgroup>
               <thead><tr><th>{รายเดือน ? "เดือน" : "ดีลเลอร์"}</th><th className="num">{c.l}</th></tr></thead>
               <tbody>
                 {!แถวแผง.length && <tr><td colSpan={2} className="empty-row">ไม่พบดีลเลอร์ในระดับนี้</td></tr>}
-                {แถวแผง.map(r => <tr key={r.key} data-drawer-row={r.key}><td title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td></tr>)}
+                {/* แถวดีลเลอร์กด = เจาะลงดีลเลอร์นั้น (บอสสั่ง 9 พ.ย. 69) · แถวเดือนไม่มีระดับถัดไป */}
+                {แถวแผง.map(r => รายเดือน
+                  ? <tr key={r.key} data-drawer-row={r.key}><td title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td></tr>
+                  : <ClickableRow key={r.key} className="clickable" onActivate={() => { setแผงการ์ด(null); เจาะ(`dealer:${r.key}`); }} label={`เปิดตัวเลขของ ${r.label} (เจาะลงระดับดีลเลอร์)`}>
+                      <td data-drawer-row={r.key} title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{r.label}</td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td>
+                    </ClickableRow>)}
               </tbody>
-              <tfoot><tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}><td>รวม (= การ์ด)</td><td className="num" data-value={รวม ?? ""}>{แสดง(c, รวม)}</td></tr></tfoot>
             </table>
           </แผงขวา>
         );
@@ -285,22 +305,19 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
         const { y, m } = แผงเดือน.เดือน;
         const ของเดือน = เดือนของกลุ่ม(เดือนทั้งหมด, codes, y, m);
         return (
-          <แผงขวา ชื่อ={แผงเดือน.label} คำอธิบาย="แยกรายดีลเลอร์ · กดแถว = เจาะดูดีลเลอร์" ปิด={() => setแผงเดือน(null)} testid={`month:${แผงเดือน.key}`} กว้าง={640}>
+          <แผงขวา ชื่อ={แผงเดือน.label} คำอธิบาย="แยกรายดีลเลอร์ · กดแถว = เจาะดูดีลเลอร์" ปิด={() => setแผงเดือน(null)} testid={`month:${แผงเดือน.key}`} กว้าง={760}
+            หัวส่วน="ผลงานรายดีลเลอร์" ไอคอน={Users} ป้าย={[{ คีย์: "dealers", ข้อความ: `${rows.length.toLocaleString()} ดีลเลอร์` }]}>
             <table aria-label={`รายดีลเลอร์ ${แผงเดือน.label}`}>
               <thead><tr><th>ดีลเลอร์</th>{ค.map(c => <th key={c.k} className="num">{c.l}</th>)}</tr></thead>
               <tbody>
                 {rows.map(r => (
-                  <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เปิดตัวเลขของ ${r.code} (เจาะลงระดับดีลเลอร์)`}>
-                    <td data-drawer-row={r.code} title={`${r.code} · ${r.name}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{r.name}</td>
+                  <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เปิดตัวเลขของ ${ชื่อแสดง(r.code, r.name)} (เจาะลงระดับดีลเลอร์)`}>
+                    <td data-drawer-row={r.code} title={ชื่อแสดง(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {ชื่อแสดง(r.code, r.name)}</td>
                     {ค.map(c => { const v = ค่าเดือน(c, ของเดือน.filter(x => x.code === r.code)); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; })}
                   </ClickableRow>
                 ))}
               </tbody>
-              <tfoot><tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}>
-                <td>รวม (= แถว {แผงเดือน.label})</td>
-                {ค.map(c => { const v = ค่าเดือน(c, ของเดือน); return <td key={c.k} className="num" data-sum={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; })}
-              </tr></tfoot>
             </table>
           </แผงขวา>
         );
@@ -309,24 +326,14 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
   );
 }
 
-function แผงขวา({ ชื่อ, คำอธิบาย, ปิด, testid, กว้าง = 560, children }: { ชื่อ: string; คำอธิบาย: string; ปิด: () => void; testid: string; กว้าง?: number; children: React.ReactNode }) {
+/** หน้าต่างกลางจอของหน้าเจาะลึก 3 หน้า (บอสสั่ง 9 พ.ย. 69 · เดิมแผงชิดขวา) — ตัวกลาง DrillWindow · ไม่มีแถวรวม */
+function แผงขวา({ ชื่อ, คำอธิบาย, ปิด, testid, กว้าง = 720, ป้าย, หัวส่วน, ไอคอน, children }: {
+  ชื่อ: string; คำอธิบาย: React.ReactNode; ปิด: () => void; testid: string; กว้าง?: number;
+  ป้าย?: { คีย์: string; ข้อความ: React.ReactNode }[]; หัวส่วน: string; ไอคอน: LucideIcon; children: React.ReactNode;
+}) {
   return (
-    <>
-      <div onClick={ปิด} style={{ position: "fixed", inset: 0, background: "rgba(8,16,32,.32)", zIndex: 240 }} />
-      <aside role="dialog" aria-modal="true" aria-label={`ที่มา ${ชื่อ}`} data-drill-drawer={testid}
-        style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: `min(${กว้าง}px, 100%)`, background: "#f7f9fc", zIndex: 241, display: "flex", flexDirection: "column", boxShadow: "-10px 0 30px rgba(8,16,32,.18)" }}>
-        <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "16px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "1rem", fontWeight: 800, color: "#1F2937" }}>{ชื่อ}</div>
-            <div style={{ fontSize: "0.74rem", color: MUTED, marginTop: 4 }}>{คำอธิบาย}</div>
-          </div>
-          <button type="button" onClick={ปิด} aria-label="ปิดแผง" title="ปิดแผง"
-            style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #dbe3ec", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} /></button>
-        </header>
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          <div className="card" style={{ marginBottom: 0 }}><div className="table-wrap dense">{children}</div></div>
-        </div>
-      </aside>
-    </>
+    <หน้าต่างเจาะ ชื่อ={ชื่อ} คำอธิบาย={คำอธิบาย} ปิด={ปิด} data-drill-drawer={testid} กว้าง={กว้าง} ป้าย={ป้าย}>
+      <ส่วนเจาะ ไอคอน={ไอคอน} ชื่อ={หัวส่วน}>{children}</ส่วนเจาะ>
+    </หน้าต่างเจาะ>
   );
 }

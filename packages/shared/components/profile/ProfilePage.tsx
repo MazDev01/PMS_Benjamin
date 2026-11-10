@@ -40,10 +40,10 @@ const MUTED = "#6b7280";
 const BORDER = "#e5e7eb";
 
 const ROLE_LABEL: Record<string, string> = {
-  HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่",
+  SUPER_ADMIN: "สำนักงานใหญ่", HQ_MANAGEMENT: "สำนักงานใหญ่", HQ_STAFF: "สำนักงานใหญ่",   /* HQ บทบาทเดียว (ใบ 0282) */
   DEALER_ADMIN: "ผู้จัดการดีลเลอร์",
-  DEALER_SALES: "เซลส์",
-  DEALER_SITE: "เซลส์ภาคสนาม",
+  DEALER_SALES: "พนักงานขาย",
+  DEALER_SITE: "พนักงานขายภาคสนาม",
 };
 
 export default function ProfilePage() {
@@ -133,7 +133,7 @@ export default function ProfilePage() {
 
     // H3 — เปลี่ยนรหัสจริงในโหมด supabase (ยืนยันรหัสปัจจุบันก่อน) · โหมดเดโมไม่มีระบบยืนยันตัวตนจริง
     if (!REAL_BACKEND) {
-      setPwMsg({ ok: false, text: "โหมดเดโม: เปลี่ยนรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" });
+      setPwMsg({ ok: false, text: "โหมดข้อมูลตัวอย่าง: เปลี่ยนรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" });
       return;
     }
     setPwBusy(true);
@@ -229,7 +229,7 @@ export default function ProfilePage() {
                   <Lock size={12} color="#9ca3af" style={{ marginLeft: "auto", flexShrink: 0 }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: "0.65rem", color: "#9ca3af" }}>
-                  <Lock size={10} /> อีเมลล็อกอินกำหนดโดยสำนักงานใหญ่ — แก้ไขที่นี่ไม่ได้
+                  <Lock size={10} /> อีเมลเข้าระบบกำหนดโดยสำนักงานใหญ่ — แก้ไขที่นี่ไม่ได้
                 </div>
               </>
             )}

@@ -53,8 +53,8 @@ begin
   keys := array(select e ->> 'key' from jsonb_array_elements(j) e);
   perform flowtest.ok(keys @> array['appointment', 'requestQuote', 'hqQuote', 'makeQuote', 'sendQuote', 'followCustomer'], format('แม่แบบมีรายการใหม่ครบ (ได้ %s)', keys));
   perform flowtest.ok(not keys && array['followup', 'negotiate', 'close', 'catalog'], 'แม่แบบไม่มี ติดตามผล/เจรจาต่อรอง/ปิดการขาย/ส่งแม่แบบ');
-  perform flowtest.ok(not exists (select 1 from jsonb_array_elements(j) e where coalesce(e ->> 'step', '') !~ '^[1-5]$'), 'ทุกรายการมีขั้น 1–5');
-  perform flowtest.ok((select string_agg(e ->> 'step', '' order by o) from jsonb_array_elements(j) with ordinality x(e, o)) ~ '^1*2*3*4*5*$', 'เรียงตามขั้น 1→5');
+  perform flowtest.ok(not exists (select 1 from jsonb_array_elements(j) e where coalesce(e ->> 'step', '') !~ '^[1-4]$'), 'ทุกรายการมีขั้น 1–4 (ยุบ 4 ขั้น ใบ 0284)');
+  perform flowtest.ok((select string_agg(e ->> 'step', '' order by o) from jsonb_array_elements(j) with ordinality x(e, o)) ~ '^1*2*3*4*$', 'เรียงตามขั้น 1→4');
   perform flowtest.ok((select (e ->> 'step')::int from jsonb_array_elements(j) e where e ->> 'key' = 'requestQuote') = 2
                   and (select (e ->> 'step')::int from jsonb_array_elements(j) e where e ->> 'key' = 'hqQuote') = 3, 'ส่งคำขอราคา = ขั้น 2 · ได้ใบ HQ = ขั้น 3');
 

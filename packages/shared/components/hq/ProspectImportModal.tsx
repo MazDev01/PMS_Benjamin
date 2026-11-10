@@ -31,8 +31,10 @@ const ปีพศนี้ = () => new Date(Date.now() + 7 * 3_600_000).getUTCF
 const อ่านที่จำ = (): Record<string, การจับคู่> => { try { return JSON.parse(localStorage.getItem(ที่จำ) ?? "{}"); } catch { return {}; } };
 const จำ = (ลาย: string, คู่: การจับคู่) => { try { localStorage.setItem(ที่จำ, JSON.stringify({ ...อ่านที่จำ(), [ลาย]: คู่ })); } catch { /* จำไม่ได้ = ครั้งหน้าเดาใหม่ */ } };
 
-export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ }: {
+export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ, ไฟล์เริ่ม }: {
   open: boolean; onClose: () => void; onImported: () => void;
+  /** ไฟล์ที่เลือกจากเมนูนำเข้า (ImportMenu) — เปิดกล่องแล้วอ่านไฟล์นี้ทันที ไปหน้าจับคู่คอลัมน์ (ไม่มีกล่องเปล่าคั่น · บอสสั่ง 5 พ.ย. 69) */
+  ไฟล์เริ่ม?: File | null;
   /** เบอร์ของผู้สนใจที่มีอยู่ (ตรวจซ้ำก่อนส่ง · ฐานตรวจอีกชั้น) */
   เบอร์ที่มีอยู่: string[];
   /** รายการแหล่งที่มาของหน้าตั้งค่า (ตารางแปลงช่องทางเลือกจากนี้) */
@@ -53,6 +55,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   const [ชุด, setชุด] = useState<ชุดนำเข้าผู้สนใจ[]>([]);
   const โหลดชุด = () => prospectsRepo.importBatches().then(setชุด).catch(() => setชุด([]));
   useEffect(() => { if (open) void โหลดชุด(); }, [open]);
+  useEffect(() => { if (open && ไฟล์เริ่ม) void เลือกไฟล์(ไฟล์เริ่ม); }, [open, ไฟล์เริ่ม]);   // eslint-disable-line react-hooks/exhaustive-deps
   const ล้าง = () => { setไฟล์(null); setแถว(null); setผล(null); setพลาด(""); setแถวหัว(-1); setคู่({}); };
 
   const หัว = ไฟล์ && แถวหัว >= 0 ? ไฟล์.ตาราง[แถวหัว] ?? [] : [];
@@ -285,7 +288,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
             {/* 4 · สรุปผล */}
             {ผล && (
               <section aria-label="ผลการนำเข้า" data-testid="import-result" data-inserted={ผล.inserted} style={{ display: "grid", gap: 8, fontSize: "0.82rem" }}>
-                <div><b>นำเข้าแล้ว {ผล.inserted.toLocaleString()} ราย</b> · ฐานข้าม {ผล.skipped.length.toLocaleString()} แถว · ไม่ได้ส่ง (ต้องตรวจ/ข้าม) {(นับ("review") + นับ("skip")).toLocaleString()} แถว</div>
+                <div><b>นำเข้าแล้ว {ผล.inserted.toLocaleString()} ราย</b> · ระบบข้าม {ผล.skipped.length.toLocaleString()} แถว · ไม่ได้ส่ง (ต้องตรวจ/ข้าม) {(นับ("review") + นับ("skip")).toLocaleString()} แถว</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={ดาวน์โหลดที่ข้าม}><Download size={13} /> ดาวน์โหลดแถวที่ไม่ได้นำเข้า (พร้อมเหตุผล)</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={ล้าง}>นำเข้าไฟล์อื่น</button>
@@ -303,7 +306,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                       <span style={{ flex: 1 }}>{b.fileName || "ไฟล์ไม่มีชื่อ"} · เพิ่ม {b.inserted.toLocaleString()} · ข้าม {b.skipped.toLocaleString()} · {b.createdBy || "—"}</span>
                       {b.cancelledAt ? <span style={{ color: "#6b7280" }}>ยกเลิกแล้ว</span> : <>
                         {/* ยกเลิกได้เฉพาะชุดที่ยังไม่มีรายถูกแตะหลังนำเข้า (บอสสั่ง 3 พ.ย. 69 · ฐานกันอีกชั้น) */}
-                        {b.touched > 0 && <span data-testid="batch-touched" style={{ color: "#b45309", fontWeight: 600 }}>ถูกแตะแล้ว {b.touched.toLocaleString()} ราย — ยกเลิกทั้งชุดไม่ได้</span>}
+                        {b.touched > 0 && <span data-testid="batch-touched" style={{ color: "#b45309", fontWeight: 600 }}>มีการดำเนินการต่อแล้ว {b.touched.toLocaleString()} ราย — ยกเลิกทั้งชุดไม่ได้</span>}
                         <button type="button" className="btn btn-secondary btn-sm" disabled={b.touched > 0} onClick={() => void ยกเลิกชุด(b)}
                           title={b.touched > 0 ? "มีรายที่ถูกบันทึกการติดต่อ/เปลี่ยนขั้น/ออกใบแล้วหลังนำเข้า" : undefined}><Undo2 size={12} /> ยกเลิกทั้งชุด</button>
                       </>}

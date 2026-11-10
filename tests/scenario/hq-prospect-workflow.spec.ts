@@ -57,6 +57,9 @@ test("[db] กติกาเลื่อนขั้น + บันทึกก
 
   expect((await sb.from("dealer_prospects").update({ status: "profile_sent" }).eq("id", id)).error).toBeNull();
   expect((await sb.from("dealer_prospects").update({ status: "meeting" }).eq("id", id)).error).toBeNull();
+  // ห้ามคนถอยขั้น (บอสสั่ง 5 พ.ย. 69 · ใบ 0278) — ยิงตรงผ่าน API ก็ไม่ได้ · ระบบถอยตามใบเท่านั้น (ข้อถัดไป)
+  const ถอยเอง = await sb.from("dealer_prospects").update({ status: "profile_sent" }).eq("id", id).select();
+  expect(ถอยเอง.error?.message ?? "", "นัดคุยแล้ว → ส่งข้อมูลบริษัทแล้ว คนถอยเองไม่ได้").toMatch(/ย้อนขั้นไม่ได้/);
   const ไม่มีใบ = await sb.from("dealer_prospects").update({ status: "considering" }).eq("id", id).select();
   expect(ไม่มีใบ.error?.message ?? "", "ยังไม่มีใบที่ส่งแล้ว เป็นรอตัดสินใจไม่ได้").toMatch(/ใบค่าแฟรนไชส์/);
 
@@ -123,7 +126,7 @@ test("[db] ใบถูกปฏิเสธ → รอตัดสินใจ�
   await ตั้ง(ใบ3.id, "sent");
   const { data: ล่าสุด } = await sb.from("dealer_prospect_activities").select("body")
     .eq("prospect_id", id).eq("kind", "status").order("id", { ascending: false }).limit(1).single();
-  expect((ล่าสุด as { body: string }).body).toBe("นัดคุยแล้ว → รอตัดสินใจ HQ");   // ชื่อขั้นตาม FLOW (ใบ 0268)
+  expect((ล่าสุด as { body: string }).body).toBe("นัดคุยแล้ว → รอผู้สนใจตอบรับ");   // ชื่อขั้นตาม FLOW (ใบ 0268)
 });
 
 test("[security] ประวัติ: เพิ่มได้แค่บันทึกการติดต่อ · แก้/ลบไม่ได้ · ดีลเลอร์ไม่เห็น", async () => {

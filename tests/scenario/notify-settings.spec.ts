@@ -153,8 +153,8 @@ test("[ui·dealer] ตั้งค่า › การแจ้งเตือ�
   await expect(page.getByTestId("no-recipients"), "ยังไม่ยืนยัน = ยังไม่มีผู้รับ").toBeVisible();
 
   const เริ่ม = Date.now();
-  await แถว1.getByRole("button", { name: `ส่งโค้ดยืนยัน ${อีเมล1}` }).click();
-  await แถว1.getByRole("textbox", { name: `โค้ดยืนยัน ${อีเมล1}` }).fill(await โค้ดยืนยันในกล่อง(อีเมล1, เริ่ม));
+  await แถว1.getByRole("button", { name: `ส่งเลขยืนยัน ${อีเมล1}` }).click();
+  await แถว1.getByRole("textbox", { name: `เลขยืนยัน ${อีเมล1}` }).fill(await โค้ดยืนยันในกล่อง(อีเมล1, เริ่ม));
   await แถว1.getByRole("button", { name: "ยืนยัน", exact: true }).click();
   await expect(แถว1.getByTestId("recipient-status"), "กรอกโค้ดถูก = ยืนยันแล้ว").toHaveText("ยืนยันแล้ว", { timeout: 20_000 });
   await expect(page.getByTestId("no-recipients"), "มีผู้ยืนยันแล้ว = กล่องแดงหาย").toHaveCount(0);

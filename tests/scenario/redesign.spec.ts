@@ -327,13 +327,15 @@ test("[ui·dealer] ตารางเหลือไม่กี่แถว —
     await rows.first().getByTitle("ดูรายละเอียด").click();
     const menu = page.getByRole("status", { name: "ขั้นต่อไป" });
     await expect(menu).toBeVisible({ timeout: 10_000 });
+    // แผงจากแถวเลื่อนเข้าจากขวา (RowPanel · 10 พ.ย. 69) — วัดหลังเลื่อนจบ (ระหว่างเลื่อนปุ่มขวาสุดยังอยู่นอกจอ)
+    await menu.evaluate(e => Promise.all((e.closest("[data-row-panel]") ?? e).getAnimations({ subtree: false }).map(a => a.finished)));
 
     // วัดของจริง: ทุกปุ่มในกล่องต้องอยู่ในจอ และจิ้มกลางตัวมันต้องโดนตัวมันเอง (ไม่ถูกบัง)
     const bad = await menu.evaluate(el => {
       const out: string[] = [];
       for (const it of Array.from(el.querySelectorAll("button"))) {
         const b = it.getBoundingClientRect();
-        if (b.bottom > window.innerHeight || b.top < 0) { out.push(`"${it.textContent}" หลุดจอ`); continue; }
+        if (b.bottom > window.innerHeight || b.top < 0 || b.right > window.innerWidth || b.left < 0) { out.push(`"${it.textContent}" หลุดจอ`); continue; }
         const hitEl = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
         if (!hitEl || !(hitEl === it || it.contains(hitEl))) out.push(`"${it.textContent}" ถูกบัง`);
       }

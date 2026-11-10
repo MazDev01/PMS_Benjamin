@@ -160,8 +160,10 @@ export default function NetworkQuotationPage() {
     return {
       id: `LIVE-${q.id}`, quoteNo: q.id, dealerCode: code, dealerName: nameOf.get(code) ?? code,
       customer: q.customer, valueNum: q.totalValue, status: q.status, createdAt: fmtISOToThai(q.date),
-      salesperson: lead?.assigned ?? `ดีลเลอร์ ${code}`, siteProvince: lead?.province || undefined, productLine: q.project || "",
+      salesperson: lead?.assigned ?? `ดีลเลอร์ ${nameOf.get(code) ?? code}`, siteProvince: lead?.province || undefined, productLine: q.project || "",
       materialCost: q.materialCost, lineItems: q.lineItems,
+      // หน้าต่างใบเสนอราคา (แถบสรุป/กล่องยอดรวม) — ชุดเดียวกับ useNetworkQuotations
+      dateISO: q.date, expiry: q.expiry, revision: q.revision, vatPercent: q.vatPercent, whtRate: q.whtRate, province: q.province || undefined,
     };
   };
   // mapToHQ ปิดคลุม netLeads/nameOf — ขาดไปก่อนหน้านี้ทำให้ชื่อผู้รับผิดชอบค้างค่าเก่าถ้าลูกค้าเป้าหมาย/ทะเบียนดีลเลอร์
@@ -210,7 +212,7 @@ export default function NetworkQuotationPage() {
           <ExportMenu
             filename="hq-network-quotations"
             title="ใบเสนอราคาทั้งเครือ"
-            headers={["เลขที่", "รหัสดีลเลอร์", "ดีลเลอร์", "ลูกค้า", ช่อง.จังหวัด, "ภูมิภาค (ดีลเลอร์)", "มูลค่า ก่อน VAT (บาท)", "สถานะ", "วันที่ส่ง", "ใช้ได้ถึง", "อายุใบ (วัน)"]}
+            headers={["เลขที่", "รหัสดีลเลอร์", "ดีลเลอร์", "ลูกค้า", ช่อง.จังหวัด, "ภูมิภาค (ดีลเลอร์)", "มูลค่า ก่อน VAT (บาท)", "สถานะ", "วันที่ส่ง", "ยืนราคาถึง", "อายุใบ (วัน)"]}
             rows={tableRows.map(quoteToCells)}
             getRows={exportGetRows}
           />
@@ -226,7 +228,7 @@ export default function NetworkQuotationPage() {
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ)
           ความยาวหน้าคุมด้วยกฎอื่นแทน: การ์ดกราฟตรึงความสูง S/M/L + กราฟรายการโชว์ Top N
           supabase = แบ่งหน้าที่ DB (listPage) · local = ทั้งชุด (tableRows) */}
-      <QuotationTable rows={displayRows} onView={setViewQ} pagination={pagination} margins={ส่วนต่าง}
+      <QuotationTable rows={displayRows} onView={setViewQ} pagination={pagination} margins={ส่วนต่าง} ระดับ={{ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }}
         หัวข้อ={{ ชื่อ: `ตารางรายการใบเสนอราคา · ${ป้ายระดับที่เลือก}`, คำอธิบาย: คำอธิบายหัวข้อ(ช่วง, "ตามสถานะและคำค้นด้านบน", "ใหม่สุดก่อน", "กดแถวเพื่อเปิดใบ") }} />
 
       {/* ย้อนการตอบรับแล้ว ตาราง/การ์ด/กราฟ ต้องดึงใหม่เอง (ตารางเทียบรอบ 1: เดิมต้องรีเฟรชหน้าเอง) */}

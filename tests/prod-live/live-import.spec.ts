@@ -111,9 +111,18 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   const การ์ดถึงกำหนด = page.locator('[data-kpi="followDue"] [data-value]');
   await expect(การ์ดถึงกำหนด, "การ์ดถึงกำหนดติดตามโหลดแล้ว").not.toHaveAttribute("data-value", "", { timeout: 30_000 });
   const ถึงกำหนดก่อน = await การ์ดถึงกำหนด.getAttribute("data-value");
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click({ timeout: 30_000 });
+  // เมนูนำเข้าตัวกลาง (บอสสั่ง 5 พ.ย. 69): ปุ่ม "นำเข้าจากไฟล์" → เมนู → Excel (.xlsx) → หน้าต่างเลือกไฟล์ → กล่องเปิดเองที่หน้าจับคู่คอลัมน์
+  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click({ timeout: 30_000 });
+  const เมนู = page.getByRole("menu", { name: "นำเข้าจากไฟล์" });
+  await expect(เมนู, "กดปุ่มแล้วเปิดเมนูนำเข้า").toBeVisible();
+  const [หน้าต่างเลือกไฟล์] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 15_000 }),
+    เมนู.locator('[data-import-option="xlsx"]').click(),
+  ]);
+  expect(await หน้าต่างเลือกไฟล์.element().getAttribute("accept"), "เลือก Excel = รับเฉพาะ .xlsx").toBe(".xlsx");
+  await หน้าต่างเลือกไฟล์.setFiles(ไฟล์);
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
-  await กล่อง.getByLabel("ไฟล์ผู้สนใจ").setInputFiles(ไฟล์);
+  await expect(กล่อง.getByRole("region", { name: "จับคู่คอลัมน์" }), "เลือกไฟล์แล้วกล่องเปิดเองที่หน้าจับคู่คอลัมน์").toBeVisible({ timeout: 20_000 });
   await expect(กล่อง.getByTestId("import-file")).toContainText(ชื่อไฟล์, { timeout: 20_000 });
 
   // ── 2) จับคู่คอลัมน์: หัวตารางแถว 2 · เดาคอลัมน์ · ปีครั้งเดียว · ตารางแปลงช่องทาง ──
@@ -268,7 +277,9 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await expect(การ์ดถึงกำหนด, "หลังนำเข้า การ์ดถึงกำหนดติดตามเท่าเดิม").toHaveAttribute("data-value", ถึงกำหนดก่อน ?? "", { timeout: 30_000 });
 
   // ── 6) ยกเลิกทั้งชุด ──
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).click();
+  // เมนูนำเข้า → "ชุดที่นำเข้าล่าสุด" → กล่องเปิดพร้อมรายการชุด (ไม่ต้องเลือกไฟล์)
+  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click();
+  await page.getByRole("menu", { name: "นำเข้าจากไฟล์" }).getByRole("menuitem", { name: /ชุดที่นำเข้าล่าสุด/ }).click();
   const รายการ = กล่อง.getByRole("region", { name: "ชุดที่นำเข้าล่าสุด" });
   const แถวชุด = รายการ.locator(`li[data-batch="${เลขชุด}"]`);
   await expect(แถวชุด, "ชุดนี้อยู่ในรายการ").toContainText(ชื่อไฟล์, { timeout: 20_000 });

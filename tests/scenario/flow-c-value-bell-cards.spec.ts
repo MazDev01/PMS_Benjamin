@@ -163,7 +163,7 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
   //   หน้าลีดเปิดแผงแล้วลบ ?open ทิ้งทันที (กันเปิดซ้ำตอนรีเฟรช) · ข้อมูลลีดโหลดไว้แล้ว = เร็วจนจับ URL ชั่วคราวไม่ทัน
   //   (ไม่นิ่ง 3 ครั้ง 20/21/27 ต.ค. 69 · หลักฐาน: เห็นแต่ /leads 30 ครั้ง) — แผงที่เปิดต้องเป็นของลีดนี้ ไม่ใช่แค่มีชื่อในตาราง
   await expect(page, "กดแล้วไปหน้าลีด").toHaveURL(/\/leads(\?|$)/, { timeout: 15_000 });
-  await expect(page.locator(".modal-pop").filter({ hasText: มีใบ }), "แผงของลีดนั้นเปิดอยู่").toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("[data-row-panel]").filter({ hasText: มีใบ }), "แผงของลีดนั้นเปิดอยู่").toBeVisible({ timeout: 15_000 });
   // แผงลีดที่เปิดอยู่บังกระดิ่ง — กลับแดชบอร์ดด้วยการกดเมนู (ไม่โหลดหน้าใหม่ = ตรวจสถานะในหน้าเดิม)
   await page.locator(".drawer-overlay").click({ position: { x: 5, y: 5 } });   // ปิดแผงลีดก่อน (กดฉากหลัง = ปิด · ฉากหลังรับการกดแทนเมนู)
   await expect(page.locator(".drawer-overlay")).toHaveCount(0, { timeout: 10_000 });
@@ -194,13 +194,14 @@ test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอ
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await เปิดกระดิ่ง(page);
-  const ใหม่ = page.locator('[data-notif-kind="request_new"]').filter({ hasText: "คำขอราคาใหม่" }).filter({ hasText: คำขอแรก.request_no }).first();
+  const ใหม่ = page.locator('[data-notif-kind="request_new"]').filter({ hasText: "คำขอใบเสนอราคาใหม่" }).filter({ hasText: คำขอแรก.request_no }).first();
   await expect(ใหม่, "HQ ได้เรื่องคำขอราคาใหม่").toBeVisible({ timeout: 20_000 });
   await expect(ใหม่.locator("[data-unread-dot]"), "จุดแดงขึ้นจริง").toHaveCount(1);
   await ใหม่.click();
   await expect(page).toHaveURL(/\/hq\/quote-requests/, { timeout: 15_000 });
-  await expect(page.locator('[aria-current="true"]').first(), "กดแล้วเปิดคำขอนั้นตรง ๆ (ไม่ใช่แค่ไปหน้ารายการ)")
-    .toHaveAttribute("aria-label", new RegExp(`^${คำขอแรก.request_no} `), { timeout: 20_000 });
+  // ตาราง 6 พ.ย. 69: กดแล้วเปิดหน้าต่างใบ HQ ของคำขอนั้น
+  await expect(page.getByRole("dialog", { name: "ใบ HQ" }).getByRole("heading").first(), "กดแล้วเปิดคำขอนั้นตรง ๆ (ไม่ใช่แค่ไปหน้ารายการ)")
+    .toContainText(คำขอแรก.request_no, { timeout: 20_000 });
 
   // HQ ส่งราคา → ดีลเลอร์ขอแก้ราคา → HQ ส่งอีก → ดีลเลอร์ทำใบ ส่งลูกค้า → ลูกค้าปฏิเสธ
   const hq = await db(ADMIN);

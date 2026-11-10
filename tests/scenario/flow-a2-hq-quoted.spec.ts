@@ -130,7 +130,11 @@ test("[ก2·2] แผงลีด: ไม่มีช่องเลือก�
   for (let i = 0; i < 10 && await พับอยู่.count(); i++) await พับอยู่.first().click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
   const งานระบบ = page.locator("[data-auto-task='1']");
   await expect(งานระบบ.first(), "มีงานที่ระบบติ๊กเอง").toBeVisible({ timeout: 10_000 });
-  for (const b of await งานระบบ.all()) await expect(b, "งานที่ระบบติ๊กเองกดไม่ได้").toBeDisabled();
+  // บอสสั่ง 6 พ.ย. 69 (กลับด้านจาก "กดไม่ได้"): กดได้ทุกงาน — ยังไม่ติ๊ก = กดเพื่อทำ (เปิดฟอร์ม) · ติ๊กแล้ว = ดูรายละเอียด · ติ๊กเองไม่ได้ (ฐานกัน)
+  for (const b of await งานระบบ.all()) {
+    await expect(b, "งานที่ระบบติ๊กกดได้").toBeEnabled();
+    await expect(b.locator("[data-system-badge]"), "ป้ายตามสถานะงาน").toHaveText((await b.getAttribute("aria-checked")) === "true" ? "ระบบติ๊กให้" : "กดเพื่อทำ");
+  }
 });
 
 test("[ก2·3] ลีดปิดการขายแล้ว: ไม่มีขอแก้ราคา · ฐานไม่ให้ทำใบใหม่", async ({ page }) => {

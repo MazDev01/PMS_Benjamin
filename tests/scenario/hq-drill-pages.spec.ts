@@ -8,14 +8,14 @@ import { ตั้งค่าเจาะลึกทั้งหมด, มี
 
 // ── เจาะลึก 3 หน้า HQ แบบเดียวกับภาพรวมยอดขาย (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) ─────────────────────────────────────────
 //   ข้อทดสอบชุดเดียววน ทุกหน้า × ทุกระดับ (ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์) × ทุกแท็บ — การ์ด/คอลัมน์มาจากตั้งค่าชุดเดียวกับหน้าจอ (hqDrillConfig)
-//   1) แถวรวมของตาราง = การ์ด (คอลัมน์ k เดียวกับการ์ด · แท็บรายเดือนเทียบเฉพาะตัวเลขที่มีรายเดือน)
-//   2) แถวรวม = ผลรวมของแถวในตาราง (คอลัมน์ที่เป็นผลรวม)
-//   3) แผงที่มาของการ์ด: แถวรวม = การ์ด และ = ผลรวมแถวรายดีลเลอร์/รายเดือน
-//   4) แท็บรายเดือนกดแถว = แผงรายดีลเลอร์ของเดือนนั้น แถวรวม = แถวของเดือนนั้น
+//   ไม่มีแถวรวมทุกตาราง/แผง (บอสสั่ง 6 พ.ย. 69 · ตัวเลขรวมดูที่การ์ด) — ข้อเดิม "แถวรวม = การ์ด" ตรวจกลับด้าน: ไม่มีแถวรวม + คำอธิบายไม่มี "แถวรวม"
+//   1) การ์ดนับชุดเดียวกับตาราง: ผลรวมแถวในตาราง = การ์ด (คอลัมน์ผลรวมที่มีการ์ด k เดียวกัน · แท็บรายเดือนเฉพาะตัวเลขที่มีรายเดือน)
+//   3) แผงที่มาของการ์ด: ไม่มีแถวรวม · ผลรวมแถวรายดีลเลอร์/รายเดือน = การ์ด
+//   4) แท็บรายเดือนกดแถว = แผงรายดีลเลอร์ของเดือนนั้น: ไม่มีแถวรวม · ผลรวมรายดีลเลอร์ = แถวของเดือนนั้น
 //   5) ตัวเลขชุดเดียวกันตรงกันข้ามหน้า: ลีด ปิดสำเร็จ/ไม่สำเร็จ = ภาพรวมยอดขาย · ใบ มูลค่าตอบรับ = ยอดขายของภาพรวมยอดขาย
 //   ทุกการเทียบอ่านจากจอชุดเดียวกัน (การ์ดกับตารางมาจากคำขอเดียว) — ไม่นับตรงเป๊ะจากข้อมูลตั้งต้นร่วม
 //   เส้นทางเจาะลง = สาขาของข้อ (ตราด · ภาคตะวันออก) ที่วางข้อมูลรู้ค่าไว้ → ระดับดีลเลอร์ตรวจตัวเลขตรงเป๊ะ · ข้อข้ามหน้าเทียบเฉพาะสาขานี้
-//     ลีดวันนี้ 5 ราย: ข้อมูลลูกค้า · ขอราคา HQ · รอลูกค้าตอบ · ปิดสำเร็จ · ปิดไม่สำเร็จ → เปิดอยู่ 3 · ลีดใหม่ 5 · รอราคา HQ 1 · ไม่เคลื่อนไหว 0
+//     ลีดวันนี้ 5 ราย: ข้อมูลลูกค้า · ขอราคา HQ · เสนอราคาลูกค้า (ส่งแล้ว) · ปิดสำเร็จ · ปิดไม่สำเร็จ → เปิดอยู่ 3 · ลีดใหม่ 5 · รอราคา HQ 1 · ไม่เคลื่อนไหว 0
 //     ใบวันนี้: ส่งแล้ว 1,000 · ตอบรับ 2,000 (ตอบรับวันนี้) → ส่ง 2 · รอตอบ 1 · ตอบรับ 2,000 · อัตราตอบรับ 50.0% · ลูกค้าวันนี้ 2 ราย
 //   ตกบนโค้ดก่อนใบ 0271: ไม่มีแถบระดับ/ตารางเจาะลึกบน 3 หน้านี้
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
@@ -64,36 +64,43 @@ const ค่าการ์ด = async (page: Page, kpi: string) => เลข(aw
 const ตาราง = (page: Page) => page.locator("[data-drill-table]");
 
 async function รอโหลด(page: Page) {
-  await expect(ตาราง(page).locator("tfoot [data-group-total]"), "ตารางเจาะลึกโหลดเสร็จ").toBeVisible({ timeout: 30_000 });
+  await expect(ตาราง(page).locator("tbody tr").first(), "ตารางเจาะลึกมีแถว").toBeVisible({ timeout: 30_000 });
+  await expect(ตาราง(page).locator("tbody"), "ตารางเจาะลึกโหลดเสร็จ").not.toContainText("กำลังโหลด…", { timeout: 30_000 });
+  await expect(ตาราง(page).locator("tfoot"), "ไม่มีแถวรวม (บอสสั่ง 6 พ.ย. 69)").toHaveCount(0);
+  await expect(ตาราง(page), "คำอธิบายไม่มี แถวรวม = การ์ด").not.toContainText("แถวรวม");
+}
+/** ผลรวมของคอลัมน์ k ในตาราง (คอลัมน์ถูกซ่อนเพราะทั้งตารางว่าง = null) */
+async function ผลรวมคอลัมน์(page: Page, k: string): Promise<number | null> {
+  const ช่อง = await ตาราง(page).locator(`tbody [data-cell="${k}"]`).evaluateAll(es => es.map(e => e.getAttribute("data-value")));
+  if (!ช่อง.length) return null;
+  return ช่อง.reduce((a, v) => a + Number(v || 0), 0);
 }
 
-/** 1 + 2: แถวรวม = การ์ด · แถวรวม = ผลรวมแถว (ระดับ/แท็บที่เห็นอยู่) */
+/** 1: การ์ดนับชุดเดียวกับตาราง — ผลรวมแถวในตาราง = การ์ด (ระดับ/แท็บที่เห็นอยู่) · ไม่มีแถวรวม */
 async function ตรวจตาราง(page: Page, cfg: ตั้งค่าเจาะลึก, ป้าย: string) {
   await รอโหลด(page);
   const dim = await ตาราง(page).getAttribute("data-drill-table");
   for (const c of cfg.คอลัมน์) {
-    const รวม = ตาราง(page).locator(`tfoot [data-sum="${c.k}"]`);
-    if (!(await รวม.count())) continue;   // คอลัมน์นี้ไม่แสดงในแท็บนี้ (เช่น รายเดือนของตัวเลข "ตอนนี้")
-    const ค่ารวม = เลข(await รวม.getAttribute("data-value"));
+    if (!c.sum) continue;   // อัตรา/ค่าเฉลี่ยรวมแถวไม่ได้ — การ์ดอัตราเทียบกับผลรวมด้านล่างของการ์ดเองอยู่แล้ว
     const ใบ = cfg.การ์ด.find(x => x.k === c.k);
-    if (ใบ && (dim !== "month" || มีรายเดือน(ใบ))) {
-      expect(ค่ารวม, `${ป้าย} · แท็บ ${dim}: แถวรวม "${c.l}" = การ์ด "${ใบ.l}"`).toBe(await ค่าการ์ด(page, ใบ.kpi));
-    }
-    if (c.sum) {
-      const เซลล์ = await ตาราง(page).locator(`tbody [data-cell="${c.k}"]`).evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)));
-      expect(เซลล์.reduce((a, b) => a + b, 0), `${ป้าย} · แท็บ ${dim}: แถวรวม "${c.l}" = ผลรวมแถวในตาราง`).toBeCloseTo(ค่ารวม ?? 0, 2);
-    }
+    if (!ใบ || (dim === "month" && !มีรายเดือน(ใบ))) continue;
+    const รวม = await ผลรวมคอลัมน์(page, c.k);
+    const ค่า = await ค่าการ์ด(page, ใบ.kpi);
+    // คอลัมน์ถูกซ่อน (ทั้งตาราง "—") = การ์ดต้องไม่มีค่าเช่นกัน
+    if (รวม == null) { expect(ค่า ?? 0, `${ป้าย} · แท็บ ${dim}: คอลัมน์ "${c.l}" ซ่อน (ไม่มีค่า) = การ์ด "${ใบ.l}" ไม่มีค่า`).toBe(0); continue; }
+    expect(รวม, `${ป้าย} · แท็บ ${dim}: ผลรวมแถว "${c.l}" = การ์ด "${ใบ.l}"`).toBeCloseTo(ค่า ?? 0, 2);
   }
 }
 
-/** 3: แผงที่มาของทุกการ์ด — แถวรวม = การ์ด = ผลรวมแถว */
+/** 3: แผงที่มาของทุกการ์ด — ไม่มีแถวรวม · ผลรวมแถว = การ์ด */
 async function ตรวจแผงที่มา(page: Page, cfg: ตั้งค่าเจาะลึก, ป้าย: string) {
   for (const c of cfg.การ์ด) {
     const ค่า = await ค่าการ์ด(page, c.kpi);
     await การ์ด(page, c.kpi).click();
     const แผง = page.locator(`[data-drill-drawer="card:${c.k}"]`);
     await expect(แผง, `${ป้าย}: กดการ์ด "${c.l}" เปิดแผงที่มา`).toBeVisible();
-    expect(เลข(await แผง.locator("tfoot [data-value]").getAttribute("data-value")), `${ป้าย}: แผงที่มา "${c.l}" แถวรวม = การ์ด`).toBe(ค่า);
+    await expect(แผง.locator("tfoot"), `${ป้าย}: แผงที่มา "${c.l}" ไม่มีแถวรวม`).toHaveCount(0);
+    await expect(แผง, `${ป้าย}: แผงที่มา "${c.l}" คำอธิบายไม่มี แถวรวม`).not.toContainText("แถวรวม");
     if (c.sum) {
       const แถว = await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)));
       expect(แถว.reduce((a, b) => a + b, 0), `${ป้าย}: แผงที่มา "${c.l}" ผลรวมแถว = การ์ด`).toBeCloseTo(ค่า ?? 0, 2);
@@ -118,7 +125,7 @@ async function ตรวจทุกแท็บ(page: Page, cfg: ตั้ง�
     if (dim === "month") await ตรวจแผงเดือน(page, cfg, ระดับ);
   }
 }
-/** 4: กดแถวเดือน → แผงรายดีลเลอร์ แถวรวม = แถวของเดือนนั้น */
+/** 4: กดแถวเดือน → แผงรายดีลเลอร์ ไม่มีแถวรวม · ผลรวมรายดีลเลอร์ = แถวของเดือนนั้น */
 async function ตรวจแผงเดือน(page: Page, cfg: ตั้งค่าเจาะลึก, ระดับ: string) {
   const แถว = ตาราง(page).locator("tbody tr.clickable").first();
   if (!(await แถว.count())) return;
@@ -126,9 +133,9 @@ async function ตรวจแผงเดือน(page: Page, cfg: ตั้�
   await แถว.click();
   const แผง = page.locator('[data-drill-drawer^="month:"]');
   await expect(แผง, `${ระดับ}: กดแถวเดือนเปิดแผงรายดีลเลอร์`).toBeVisible();
+  await expect(แผง.locator("tfoot"), `${ระดับ}: แผงเดือนไม่มีแถวรวม`).toHaveCount(0);
   for (const c of cfg.คอลัมน์.filter(มีรายเดือน)) {
-    expect(เลข(await แผง.locator(`tfoot [data-sum="${c.k}"]`).getAttribute("data-value")), `${ระดับ}: แผงเดือน "${c.l}" แถวรวม = แถวของเดือนนั้น`).toBe(เลข(ค่าแถว[c.k] ?? null));
-    if (c.sum) {
+    if (c.sum && ค่าแถว[c.k] !== undefined) {
       const ช่อง = await แผง.locator(`tbody [data-cell="${c.k}"]`).evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)));
       expect(ช่อง.reduce((a, b) => a + b, 0), `${ระดับ}: แผงเดือน "${c.l}" ผลรวมรายดีลเลอร์ = แถวของเดือน`).toBeCloseTo(เลข(ค่าแถว[c.k] ?? null) ?? 0, 2);
     }
@@ -146,7 +153,7 @@ async function เจาะลง(page: Page, dim: string, ระดับให
 }
 
 for (const หน้า of ["leads", "quotations", "customers"] as const) {
-  test(`[drill·hq] ${ที่[หน้า]}: ทุกระดับ ทุกแท็บ แถวรวม = การ์ด · แผงที่มา = การ์ด · แผงเดือน = แถวเดือน`, async ({ page }) => {
+  test(`[drill·hq] ${ที่[หน้า]}: ทุกระดับ ทุกแท็บ ไม่มีแถวรวม · ผลรวมแถว = การ์ด · แผงที่มา = การ์ด · แผงเดือน = แถวเดือน`, async ({ page }) => {
     const errs = watchErrors(page);
     const cfg = ตั้งค่าเจาะลึกทั้งหมด[หน้า];
     await loginUI(page, HQ_ORIGIN, ที่[หน้า], ADMIN);
@@ -190,14 +197,15 @@ test("[drill·hq] ตัวเลขชุดเดียวกันตรง�
   expect(error?.message ?? "").toBe("");
   const ภาพรวม = data as { sales: { value: number }; winRate: { won: number; lost: number } };
   expect([ภาพรวม.winRate.won, ภาพรวม.winRate.lost, Number(ภาพรวม.sales.value)], "ภาพรวมยอดขายของสาขาของข้อ = ค่าที่วางไว้").toEqual([1, 1, 2000]);
-  // ลูกค้าเป้าหมาย ระดับดีลเลอร์ของข้อ: แถวรวมปิดสำเร็จ/ไม่สำเร็จ (รายเดือน) = การ์ดอัตราปิดของภาพรวมยอดขาย
+  // ลูกค้าเป้าหมาย ระดับดีลเลอร์ของข้อ: ผลรวมปิดสำเร็จ/ไม่สำเร็จ (รายเดือน) = การ์ดอัตราปิดของภาพรวมยอดขาย
   await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(สาขา.รหัส);
-  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toContainText(สาขา.รหัส);
-  expect([เลข(await ตาราง(page).locator('tfoot [data-sum="won"]').getAttribute("data-value")), เลข(await ตาราง(page).locator('tfoot [data-sum="lost"]').getAttribute("data-value"))],
+  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(สาขา.ชื่อ);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
+  await รอโหลด(page);
+  expect([await ผลรวมคอลัมน์(page, "won"), await ผลรวมคอลัมน์(page, "lost")],
     "ลูกค้าเป้าหมาย: ปิดสำเร็จ/ไม่สำเร็จ = ภาพรวมยอดขาย").toEqual([ภาพรวม.winRate.won, ภาพรวม.winRate.lost]);
   // ใบเสนอราคา ระดับดีลเลอร์ของข้อ (?dealer=): ตอบรับ (มูลค่า) = ยอดขายของภาพรวมยอดขาย
   await page.goto(`${HQ_ORIGIN}/hq/quotations?dealer=${สาขา.รหัส}`);
-  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toContainText(สาขา.รหัส, { timeout: 25_000 });
+  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(สาขา.ชื่อ, { timeout: 25_000 });   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await รอโหลด(page);
   expect(await ค่าการ์ด(page, "won"), "ใบเสนอราคา: ตอบรับ (มูลค่า) = ยอดขายของภาพรวมยอดขาย").toBe(Number(ภาพรวม.sales.value));
 });

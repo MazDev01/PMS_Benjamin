@@ -60,7 +60,7 @@ export type CreateDealerResult =
 export async function createDealerAccount(input: CreateDealerInput): Promise<CreateDealerResult> {
   // โหมดเดโม (local) ไม่มีระบบยืนยันตัวตนจริงให้ผูก — บอกตามจริง ไม่แกล้งทำสำเร็จ
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: สร้างบัญชีดีลเลอร์จริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
+    return { ok: false, error: "โหมดข้อมูลตัวอย่าง: สร้างบัญชีดีลเลอร์จริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
   }
   const token = await adminToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
@@ -87,7 +87,7 @@ const callerToken = adminToken;
 export async function linkProspectToDealer(prospectId: number, dealerCode: string): Promise<
   { ok: true; hasAccount: boolean } | { ok: false; error: string }
 > {
-  if (!REAL_BACKEND) return { ok: false, error: "โหมดเดโม: ผูกผ่านเซิร์ฟเวอร์ไม่ได้" };
+  if (!REAL_BACKEND) return { ok: false, error: "โหมดข้อมูลตัวอย่าง: ผูกผ่านเซิร์ฟเวอร์ไม่ได้" };
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
   try {
@@ -164,7 +164,7 @@ export type CreateHQUserResult =
 /** สร้างผู้ใช้ HQ "พร้อมบัญชีเข้าระบบจริง" — รหัสผ่านสุ่มที่เซิร์ฟเวอร์ คืนมาโชว์ครั้งเดียว */
 export async function createHQUser(input: CreateHQUserInput): Promise<CreateHQUserResult> {
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: สร้างบัญชีผู้ใช้จริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
+    return { ok: false, error: "โหมดข้อมูลตัวอย่าง: สร้างบัญชีผู้ใช้จริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
   }
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
@@ -185,7 +185,7 @@ export async function createHQUser(input: CreateHQUserInput): Promise<CreateHQUs
 /** ลบผู้ใช้ HQ จริง (auth + profile) ผ่าน Route Handler ฝั่งเซิร์ฟเวอร์ */
 export async function deleteHQUser(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: ลบบัญชีจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
+    return { ok: false, error: "โหมดข้อมูลตัวอย่าง: ลบบัญชีจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
   }
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
@@ -211,7 +211,7 @@ export async function resetDealerPassword(
   แก้?: { email?: string; password?: string },
 ): Promise<CreateDealerResult> {
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: รีเซ็ตรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
+    return { ok: false, error: "โหมดข้อมูลตัวอย่าง: ตั้งรหัสผ่านใหม่จริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
   }
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
@@ -272,7 +272,7 @@ export async function viewDealerPassword(code: string): Promise<
   { ok: true; password: string; updatedAt: string; updatedBy: string } | { ok: false; error: string }
 > {
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: รหัสผ่านแสดงอยู่ในหน้าอยู่แล้ว" };
+    return { ok: false, error: "โหมดข้อมูลตัวอย่าง: รหัสผ่านแสดงอยู่ในหน้าอยู่แล้ว" };
   }
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
@@ -293,7 +293,7 @@ export async function viewDealerPassword(code: string): Promise<
  *  ลิงก์ใช้ได้ครั้งเดียวแล้วหมดอายุ — เปิดในแท็บใหม่ไปยังแอปดีลเลอร์เสมอ (คนละ origin กับ HQ) */
 export async function impersonateDealer(code: string): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: ไม่ต้องขอลิงก์ — ใช้ปุ่มเข้าระบบแทนแบบเดโมได้เลย" };
+    return { ok: false, error: "โหมดข้อมูลตัวอย่าง: ไม่ต้องขอลิงก์ — ใช้ปุ่มเข้าระบบแทนแบบเดโมได้เลย" };
   }
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
@@ -320,7 +320,7 @@ export async function resetHQUserPassword(id: string, password?: string): Promis
   { ok: true; email: string; password: string } | { ok: false; error: string }
 > {
   if (!REAL_BACKEND) {
-    return { ok: false, error: "โหมดเดโม: ตั้งรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
+    return { ok: false, error: "โหมดข้อมูลตัวอย่าง: ตั้งรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" };
   }
   const token = await callerToken();
   if (!token) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };

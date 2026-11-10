@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { ยืนยันส่งข้อมูลบริษัท } from "./prospectSteps";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
@@ -139,6 +140,7 @@ test("[H2] [func·hq] เพิ่มลูกค้าเป้าหมาย 
   await แก้ไข.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
   await expect(แก้ไข.getByRole("checkbox", { name: "ติดต่อครั้งแรก" })).toHaveAttribute("aria-checked", "true", { timeout: 15_000 });
   await แก้ไข.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
+  await ยืนยันส่งข้อมูลบริษัท(page);   // ขั้นนี้ = ยืนยันการส่ง (บอสตอบ P1 · 5 พ.ย. 69)
   await waitRow(sb, "dealer_prospects", { name, status: "profile_sent" });
 
   // ผูกกับดีลเลอร์เดิม = ปุ่มแยก กดได้เสมอ (บอสตัดสิน 5 พ.ย. 69) — ปุ่มตั้งเป็นดีลเลอร์ (สร้างใหม่) ปิดจนตอบรับ+ชำระครบ
@@ -222,7 +224,9 @@ test("[func·hq] ผูกกับสาขาที่ยังไม่มี
   const ตั้ง = page.getByRole("dialog", { name: "ตั้งเป็นดีลเลอร์" });
   await expect(ตั้ง.getByLabel("ผูกกับดีลเลอร์ที่มีอยู่แล้ว")).toBeChecked();
   await ตั้ง.locator("#cv-existing").selectOption(NOACC_CODE);
-  await expect(ตั้ง.getByText(`ดีลเลอร์ ${NOACC_CODE} ยังไม่มีบัญชีเข้าระบบ`), "ต้องเตือนก่อนกดผูก").toBeVisible({ timeout: 15_000 });
+  // ข้อความเตือนแสดงชื่อดีลเลอร์ ไม่แสดงรหัส (บอสสั่ง 6 พ.ย. 69 เอารหัสออกจากหน้าจอ · ใบ 0281 ชุดเดียวกัน)
+  await expect(ตั้ง.getByText("ดีลเลอร์ ZZTEST สาขาไม่มีบัญชี ยังไม่มีบัญชีเข้าระบบ"), "ต้องเตือนก่อนกดผูก (แสดงชื่อ)").toBeVisible({ timeout: 15_000 });
+  await expect(ตั้ง.getByText(`ดีลเลอร์ ${NOACC_CODE} ยังไม่มีบัญชีเข้าระบบ`), "ไม่แสดงรหัส").toHaveCount(0);
   await ตั้ง.getByRole("button", { name: "ผูกกับดีลเลอร์นี้" }).click();
 
   const เตือน = page.getByRole("dialog", { name: "ดีลเลอร์ยังไม่มีบัญชีเข้าระบบ" });

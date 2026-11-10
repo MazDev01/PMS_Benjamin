@@ -204,9 +204,9 @@ export function DealerRecipientsCard() {
                   ? <span data-testid="recipient-status" style={ป้าย("#dcfce7", "#166534")}><Check size={11} /> ยืนยันแล้ว</span>
                   : <span data-testid="recipient-status" style={ป้าย("#fff7ed", "#b45309")}>รอยืนยัน</span>}
                 {!r.verified && (
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={!!กำลัง} aria-label={`ส่งโค้ดยืนยัน ${r.email}`}
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={!!กำลัง} aria-label={`ส่งเลขยืนยัน ${r.email}`}
                     onClick={() => void ทำ(`send-${r.id}`, () => accountRepo.sendNotifyRecipientCode(r.id), x => setส่งแล้ว(s => ({ ...s, [r.id]: (x as { sentTo: string }).sentTo })))}>
-                    <Send size={12} /> {ส่งแล้ว[r.id] ? "ส่งโค้ดใหม่" : "ส่งโค้ด"}
+                    <Send size={12} /> {ส่งแล้ว[r.id] ? "ส่งเลขยืนยันใหม่" : "ส่งเลขยืนยัน"}
                   </button>
                 )}
                 <button type="button" aria-label={`ลบ ${r.email}`} disabled={!!กำลัง} onClick={() => void ทำ(`rm-${r.id}`, () => notificationsRepo.removeRecipient(r.id))}
@@ -214,8 +214,8 @@ export function DealerRecipientsCard() {
               </span>
               {!r.verified && ส่งแล้ว[r.id] && (
                 <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "0.72rem", color: "#52606d" }}>ส่งโค้ดไปที่ {ส่งแล้ว[r.id]} แล้ว</span>
-                  <input className="form-input" inputMode="numeric" maxLength={6} aria-label={`โค้ดยืนยัน ${r.email}`} value={โค้ด[r.id] ?? ""}
+                  <span style={{ fontSize: "0.72rem", color: "#52606d" }}>ส่งเลขยืนยันไปที่ {ส่งแล้ว[r.id]} แล้ว</span>
+                  <input className="form-input" inputMode="numeric" maxLength={6} aria-label={`เลขยืนยัน ${r.email}`} value={โค้ด[r.id] ?? ""}
                     onChange={e => setโค้ด(s => ({ ...s, [r.id]: e.target.value.replace(/\D/g, "").slice(0, 6) }))} style={{ width: 110 }} />
                   <button type="button" className="btn btn-primary btn-sm" disabled={!!กำลัง || (โค้ด[r.id] ?? "").length !== 6}
                     onClick={() => void ทำ(`verify-${r.id}`, () => accountRepo.verifyNotifyRecipient(r.id, โค้ด[r.id] ?? ""))}>ยืนยัน</button>
@@ -234,7 +234,7 @@ export function DealerRecipientsCard() {
               <Plus size={14} /> เพิ่มอีเมล</button>
           </div>
           <div style={{ marginTop: 6, fontSize: "0.72rem", color: "#6b7280" }}>
-            เพิ่มเองได้ {ผู้รับเพิ่มได้สูงสุด} รายการ (ใช้ไป {เพิ่มเอง}) · อีเมลใหม่ต้องยืนยันด้วยโค้ดก่อนจึงได้รับแจ้งเตือน · ใช้อีเมลเข้าระบบไม่ได้
+            เพิ่มเองได้ {ผู้รับเพิ่มได้สูงสุด} รายการ (ใช้ไป {เพิ่มเอง}) · อีเมลใหม่ต้องยืนยันด้วยเลขยืนยันก่อนจึงได้รับแจ้งเตือน · ใช้อีเมลเข้าระบบไม่ได้
           </div>
         </>
       )}

@@ -62,7 +62,7 @@ test("[ux·hq] วิเคราะห์การปิดการขาย�
   const ตาราง = page.locator('table[aria-label="ตารางผลงานดีลเลอร์"]');
   await expect(ตาราง).toBeVisible();
   const หัว = (await ตาราง.locator("thead th").allInnerTexts()).map(t => t.trim());
-  for (const l of ["ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "อัตราปิด"]) {   // "ใบเสนอราคา" → "ใบที่ส่ง" (บอสสั่ง 30 ต.ค. 69)
+  for (const l of ["ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "อัตราปิดการขาย"]) {   // "ใบเสนอราคา" → "ใบที่ส่ง" (บอสสั่ง 30 ต.ค. 69)
     expect(หัว.filter(h => h === l), `ต้องมีคอลัมน์ "${l}" หนึ่งคอลัมน์ (ได้: ${หัว.join(" · ")})`).toHaveLength(1);
   }
   await expect(page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }), "ไม่มีตารางการปิดการขายแยก (รวมเข้าตารางผลงานแล้ว)").toHaveCount(0);
@@ -86,7 +86,8 @@ test("[ux·hq] คอลัมน์ตารางตามแบบ · จั�
   await assertHealthyPage(page, "ใบเสนอราคาทั้งเครือ");
   const หัว = (await page.locator('table[aria-label="รายการใบเสนอราคา"]').locator("thead th").allInnerTexts()).map(t => t.trim());
   // 2 พ.ย. 69 บอสสั่ง: ดีลเลอร์ขายต่อเท่าไหร่ รายใบ — ราคาส่ง HQ · ราคาขายลูกค้า · ส่วนต่าง ฿ · ส่วนต่าง % (ต่อจากมูลค่า)
-  expect(หัว).toEqual(["เลขที่", "ดีลเลอร์", "ลูกค้า", "จังหวัดหน้างาน", "มูลค่า (ก่อน VAT)", "ราคาส่ง HQ", "ราคาขายลูกค้า", "ส่วนต่าง ฿", "ส่วนต่าง %", "สถานะ", "วันที่ส่ง", "ใช้ได้ถึง", "ดู"]);
+  // 9 พ.ย. 69 (พอดีจอ 1366): ดีลเลอร์เป็นบรรทัดเล็กใต้ลูกค้า — หัว "ลูกค้า / ดีลเลอร์"
+  expect(หัว).toEqual(["เลขที่", "ลูกค้า / ดีลเลอร์", "จังหวัดหน้างาน", "มูลค่า (ก่อน VAT)", "ราคาจาก HQ", "ราคาขายลูกค้า", "ส่วนต่าง ฿", "ส่วนต่าง %", "สถานะ", "วันที่ส่ง", "ยืนราคาถึง", "ดู"]);
   await expect(page.getByLabel("จังหวัดดีลเลอร์"), "ไม่มีช่องจังหวัดดีลเลอร์ในแถบกรองรายการ").toHaveCount(0);
   await expect(page.getByLabel("กรองตามดีลเลอร์"), "ไม่มีช่องดีลเลอร์ในแถบกรองรายการ").toHaveCount(0);
   await expect(page.locator("[data-drill-scope]").getByLabel("จังหวัด"), "ระดับจังหวัดอยู่ที่ตัวเลือกระดับ").toBeVisible();
@@ -112,7 +113,9 @@ test("[ux·hq] ลิ้นชักดูใบเสนอราคา อ่�
   await page.getByRole("button", { name: "ดูรายละเอียด", exact: true }).first().click();
   const drawer = page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByText("ข้อมูลใบเสนอราคา")).toBeVisible();
+  // หน้าต่างแบบเดียวกับดีลเลอร์ (บอสตอบ 9 พ.ย. 69): หัวข้อ "ข้อมูลใบเสนอราคา" เดิม → แถบสรุป 4 ช่อง + กริดลูกค้า
+  await expect(drawer.locator("[data-doc-summary] [data-summary-item]"), "แถบสรุป 4 ช่อง").toHaveCount(4);
+  await expect(drawer.locator("[data-quote-customer] [data-grid-item]"), "กริดลูกค้า 6 ช่อง").toHaveCount(6);
   await expect(drawer.getByText(/ส่วนลด|ประวัติการเปิดอ่าน/)).toHaveCount(0);
   await expect(drawer.getByRole("button", { name: /แก้ไข|ลบ|อนุมัติ/ })).toHaveCount(0);
 });
@@ -171,11 +174,13 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await สถานะ.selectOption("sent");
     await expect(page.locator('[data-kpi-row] [data-kpi="won"]').first(), "การ์ดตอบรับ 2 ใบ").toContainText("2 ใบ");
     expect(await การ์ด("won"), "มูลค่าตอบรับ = 1,000 + 2,000").toBe(3000);
-    // กลับด้าน (บอสสั่ง 2 พ.ย. 69 · เจาะลึก): กดการ์ด = แผงที่มา (ระดับดีลเลอร์ = รายเดือน) แถวรวม = การ์ด · รายการใบไม่ถูกกรองตามการ์ดแล้ว
+    // กลับด้าน (บอสสั่ง 2 พ.ย. 69 · เจาะลึก): กดการ์ด = แผงที่มา (ระดับดีลเลอร์ = รายเดือน) · ไม่มีแถวรวม (6 พ.ย. 69) ผลรวมแถว = การ์ด · รายการใบไม่ถูกกรองตามการ์ดแล้ว
     await page.locator('[data-kpi-row] [data-kpi="won"]').first().click();
     const แผง = page.locator('[data-drill-drawer="card:sales"]');
     await expect(แผง, "กดการ์ดตอบรับ → แผงที่มา").toBeVisible();
-    await expect(แผง.locator("tfoot [data-value]"), "แผงที่มา แถวรวม = การ์ด").toHaveAttribute("data-value", "3000");
+    await expect(แผง.locator("tfoot"), "แผงที่มาไม่มีแถวรวม").toHaveCount(0);
+    await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
+      { message: "แผงที่มา ผลรวมแถว = การ์ด 3000" }).toBe(3000);
     await แผง.getByRole("button", { name: "ปิดแผง" }).click();
     await expect(สถานะ, "รายการยังเป็นค่าเริ่มต้น").toHaveValue("sent");
     await expect(แถว).toHaveCount(4);

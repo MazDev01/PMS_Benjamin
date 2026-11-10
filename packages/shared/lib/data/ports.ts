@@ -111,6 +111,11 @@ export interface MaterialTemplatesRepo {
   accuracy(): Promise<import("../materialTemplates").EstimateAccuracy>;
   /** รหัสวัสดุที่เคยใช้ในคำขอราคา/ใบ HQ แล้ว (ใบ 0271) — ลบไม่ได้ (ฐานกัน) ปิดใช้แทน · HQ เท่านั้น */
   used(): Promise<number[]>;
+  /** นำเข้าจากไฟล์ทั้งชุด (ใบ 0279) — ใหม่ = เพิ่ม · หมวด+ชื่อตรงของเดิม = อัปเดตแค่ราคา · ทั้งหมดหรือไม่เลย */
+  importRows(fileName: string, rows: { category: string; name: string; unit: string; unitPrice: number; active: boolean }[]): Promise<import("../materialTemplates").ผลนำเข้าวัสดุ>;
+  /** ยกเลิกทั้งชุด = ลบที่เพิ่ม + คืนราคาเดิม (มีคำขอราคาใช้แล้ว/แก้ราคาหลังนำเข้า = ฐานปฏิเสธ) */
+  cancelImport(batch: number): Promise<{ deleted: number; restored: number }>;
+  importBatches(): Promise<import("../materialTemplates").ชุดนำเข้าวัสดุ[]>;
 }
 // ── ไฟล์แนบของคำขอราคา 2 ทาง (ใบ 0273) — ฐาน/ถังตรวจสิทธิ์ ล็อก ชนิด ขนาด จำนวน · ไฟล์ส่งตรงเข้าถัง ไม่ผ่าน API ──
 export interface QuoteFilesRepo {
@@ -139,6 +144,8 @@ export interface QuoteRequestsRepo {
   submit(input: QuoteRequestInput): Promise<import("../quoteRequests").QuoteRequest>;
   /** ยกเลิกได้จนกว่า HQ ส่งใบ · ต้องมีเหตุผล · closeLead = ปิดลูกค้าเป้าหมายเป็นไม่สำเร็จ (ไม่งั้นกลับเป็นรวบรวมความต้องการ) */
   cancel(id: number, reason: string, closeLead: boolean): Promise<void>;
+  /** กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ใบ 0280 · ไม่เก็บข้อมูลที่กรอก) */
+  abandonForm(leadNumId: number): Promise<void>;
   /** ขอแก้ราคา (หลัง HQ ส่งใบ) — คำขอเดิมปิด เปิดคำขอใหม่ เริ่มนับ 14 วันใหม่ */
   reprice(id: number, reason: string, spec?: string): Promise<import("../quoteRequests").QuoteRequest>;
   /** HQ กดรับเรื่อง → กำลังทำราคา (ผู้รับผิดชอบ = ผู้กด) */
@@ -180,6 +187,8 @@ export interface ProspectsRepo {
   create(p: Omit<DealerProspect, "id">): Promise<DealerProspect>;
   update(p: DealerProspect): Promise<DealerProspect>;
   remove(id: number): Promise<void>;
+  /** ยกเลิกงานล่าสุดที่ติ๊กในแผง = ถอย 1 ขั้น (ทางเดียวที่คนถอยขั้นได้ · ใบ 0278 prospect_undo_last_task) */
+  undoLastTask(id: number): Promise<DealerProspect>;
   /** นำเข้าทั้งชุด (ใบ 0275) — ฐานข้ามเบอร์ซ้ำ/ตรวจกติกา · แถว = แถวส่งฐาน() ของ lib/prospectImport */
   importRows(fileName: string, rows: Record<string, unknown>[]): Promise<import("./types").ผลนำเข้าผู้สนใจ>;
   /** ยกเลิกทั้งชุด = ลบรายของชุด (มีรายที่ออกใบแล้ว = ฐานปฏิเสธ) */
@@ -423,7 +432,7 @@ export interface QuoteSummaryFilters {
 export interface LeadMonthRow { y: number; m: number; created: number; won: number; lost: number; quoted: number; }
 export interface LeadSummary {
   byStatus: { status: string; count: number; value: number }[];
-  /** รายขั้น (1–5 · 6 ปิดสำเร็จ · 7 ปิดไม่สำเร็จ · ฐานคิดใบ 0251 กติกาเดียวกับ leadStage.ts) — ป้อนกราฟ/ตัวเลือกขั้นหน้า /hq/leads */
+  /** รายขั้น (1–4 · 6 ปิดสำเร็จ · 7 ปิดไม่สำเร็จ · เลข 5 ว่างตั้งแต่ยุบขั้น 0284 · ฐานคิดใบ 0251 กติกาเดียวกับ leadStage.ts) — ป้อนกราฟ/ตัวเลือกขั้นหน้า /hq/leads */
   byStage: { stage: number; count: number; value: number }[];
   bySource: { source: string; count: number }[];
   byProduct: { product: string; count: number }[];

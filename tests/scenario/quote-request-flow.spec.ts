@@ -31,6 +31,7 @@ function ล้างที่ฐาน() {
     delete from public.hq_quotes h using public.quote_requests r where h.request_id = r.id and r.dealer_code = 'RYG' and r.lead_num_id = ${leadNum};
     alter table public.hq_quotes enable trigger hq_quotes_lock_sent;
     update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'RYG' and lead_num_id = ${leadNum};
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where dealer_code = 'RYG' and lead_num_id = ${leadNum};
     delete from public.email_outbox where to_email = '${ผู้รับ}';
     delete from public.leads where dealer_code = 'RYG' and num_id = ${leadNum};`;
@@ -135,10 +136,11 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   await page.reload({ waitUntil: "domcontentloaded" });
   await settle(page);
   const { แถว: แถวใหม่ } = await เปิดใบHQในกล่องงาน(page, COMPANY);
-  // ป้ายแดงป้ายเดียว "เกินกำหนด…" (บอสสั่ง 3 พ.ย. 69) — ไม่มี "เกิน 14 วัน" ซ้ำ · บรรทัดล่างไม่บอกกำหนดส่งซ้ำ
-  await expect(แถวใหม่.getByTestId("row-tag"), "เลยกำหนดส่ง → ป้ายแดง").toHaveText(/^เกินกำหนด/, { timeout: 30_000 });
+  // เลยกำหนด = แดงที่คอลัมน์กำหนดส่งที่เดียว (ตาราง 6 พ.ย. 69 · เดิมป้ายแดงที่สถานะ 3 พ.ย. 69) — ไม่มี "เกิน 14 วัน" ซ้ำ · ป้ายสถานะ = สถานะจริง
+  await expect(แถวใหม่.getByTestId("row-countdown"), "เลยกำหนดส่ง → แดงที่กำหนดส่ง").toHaveText(/^เกิน/, { timeout: 30_000 });
+  await expect(แถวใหม่.getByTestId("row-countdown")).toHaveCSS("color", "rgb(185, 28, 28)");
   await expect(แถวใหม่, "ไม่มีป้ายเกิน 14 วันซ้ำ").not.toContainText("เกิน 14 วัน");
-  await expect(แถวใหม่.getByTestId("row-countdown"), "บรรทัดล่างไม่บอกกำหนดส่งซ้ำ").toHaveCount(0);
+  await expect(แถวใหม่.getByTestId("row-tag"), "ป้ายสถานะไม่บอกเกินซ้ำ").toHaveText("กำลังตีราคา");
   assertNoErrors(errs, "กล่องงานคำขอของ HQ");
 });
 
@@ -173,7 +175,7 @@ test("[flow·dealer] ขอแก้ราคาหลัง HQ ส่งใบ 
   expect(ส่งใบ.error, ส่งใบ.error?.message).toBeNull();
 
   const แผง = await เปิดแท็บใบเสนอราคา(page);
-  await expect(แผง.getByText("ส่งใบแล้ว", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(แผง.getByText("ส่งแล้ว รอดีลเลอร์", { exact: true })).toBeVisible({ timeout: 20_000 });
   await แผง.getByRole("button", { name: "ขอแก้ราคา" }).click();
   const กล่อง = page.locator("[data-reason-dialog]");   // กล่องเหตุผลกลาง (28 ต.ค. 69)
   await กล่อง.getByLabel("เหตุผลที่ขอแก้ราคา").fill("ลูกค้าลดพื้นที่เหลือ 600 ตร.ม.");

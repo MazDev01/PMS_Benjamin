@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, เปิดใบHQในกล่องงาน, แถวคำขอ, ตารางคำขอ } from "./helpers";
 import { ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
 // ── หน้าคำขอใบเสนอราคาของ HQ ให้ใช้ง่าย (บอสสั่ง 26 ต.ค. 69) ──────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ test("[ui·hq] วางจาก Excel 3 แถว = 3 รายการ · �
   await expect(ใบ.getByLabel("หน่วย 3", { exact: true })).toHaveValue("งาน");
   const รวม = 800 * 1250 + 820 * 450.5 + 15000;
   await expect(ใบ.getByTestId("hq-quote-total")).toHaveText(บาท(รวม));
-  await expect(ใบ.getByText("ราคาส่งดีลเลอร์ (ก่อน VAT)"), "ป้ายยอดรวมตรงกับที่ฐานคิด").toBeVisible();
+  await expect(ใบ.getByText("ราคาจาก HQ (ก่อน VAT)"), "ป้ายยอดรวมตรงกับที่ฐานคิด").toBeVisible();
   await expect(ใบ.getByTestId("hq-quote-per-sqm"), "คำขอมีพื้นที่ 800 ตร.ม. = เฉลี่ยต่อ ตร.ม.").toHaveText(`เฉลี่ย ${บาท(Math.round(รวม / 800 * 100) / 100)} บาท/ตร.ม.`);
 
   // แถวที่อ่านไม่ได้: ยังอยู่ + เตือนที่แถว · ส่งไม่ได้จนกว่าจะแก้
@@ -139,7 +139,9 @@ test("[ui·hq] ยืนราคาถึงแสดงปี พ.ศ. · ห�
   await expect(กล่อง.getByRole("button", { name: "ย่อ" })).toHaveAttribute("aria-expanded", "true");
 });
 
-test("[ui·hq] การ์ด 4 ใบตรงฐาน · แถวขึ้นเหลือ/เกินกี่วัน · หน้าเดียวไม่มีแถบเปลี่ยนหน้า · ปุ่มกรองแถวเดียว", async ({ page }) => {
+// ตาราง 6 พ.ย. 69 (บอสสั่ง): ตัวกรองสถานะ + ดีลเลอร์ ในแถวเครื่องมือเดียวกับช่องค้นหา · แถบเปลี่ยนหน้าตัวกลางแสดงเสมอ (ทับข้อยกเว้น 26 ต.ค. 69 "หน้าเดียวไม่มีแถบ")
+//   พอดีจอ 1366 ไม่มีแถบเลื่อนแนวนอน
+test("[ui·hq] การ์ด 4 ใบตรงฐาน · แถวขึ้นเหลือ/เกินกี่วัน · แถบเปลี่ยนหน้าตัวกลาง · ตัวกรองแถวเดียวกับค้นหา · พอดีจอ 1366", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
@@ -160,20 +162,28 @@ test("[ui·hq] การ์ด 4 ใบตรงฐาน · แถวขึ้�
 
   // ช่องเลือกสถานะ + ช่องค้นหา บรรทัดเดียวกัน (แทนแถวปุ่มกรอง 27 ต.ค. 69) · ไม่มีแถวปุ่มกรองเหลือ
   await expect(page.getByRole("tablist", { name: "กรองตามสถานะ" }), "ไม่มีแถวปุ่มกรองแล้ว").toHaveCount(0);
-  for (const w of [1440, 390]) {
+  for (const w of [1440, 1366, 390]) {
     await page.setViewportSize({ width: w, height: 900 });
     // 30 ต.ค. 69: ช่องเลือกสถานะ → ปุ่ม 3 กลุ่ม (ตามแบบ) · จอแคบ (390) ปุ่มขึ้นบรรทัดของตัวเองเต็มความกว้าง (ไม่ล้นจอ)
     if (w < 600) { expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "จอ 390px: ไม่ล้นจอ").toBe(true); continue; }
-    const บน = await Promise.all([page.getByRole("tablist", { name: "กลุ่มคำขอ" }), page.getByLabel("ค้นหาคำขอ")].map(async l => {
+    // พอดีจอ 1366 (บอสสั่ง 6 พ.ย. 69): ตารางไม่มีแถบเลื่อนแนวนอน
+    await expect.poll(() => ตารางคำขอ(page).evaluate(t => { const w = t.closest(".table-wrap") as HTMLElement; return w.scrollWidth <= w.clientWidth + 1; }), { message: `จอ ${w}px: ตารางไม่มีแถบเลื่อนแนวนอน` }).toBe(true);
+    // 9 พ.ย. 69: ตารางหลักไม่มีตัวกรองสถานะ — ปุ่มเฉพาะเกินกำหนดอยู่ที่เดิม (ประวัติตรวจท้ายลูป)
+    const บน = await Promise.all([page.locator('[data-act="only-overdue"]'), page.getByLabel("กรองตามดีลเลอร์"), page.getByLabel("ค้นหาคำขอ")].map(async l => {
       const b = await l.boundingBox(); return b ? Math.round(b.y + b.height / 2) : -999;
     }));
-    expect(Math.abs(บน[0] - บน[1]), `จอ ${w}px: ช่องเลือกสถานะกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
+    expect(Math.abs(บน[0] - บน[2]), `จอ ${w}px: ปุ่มเฉพาะเกินกำหนดกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
+    await page.locator('[data-view-tab="history"]').click();
+    const [ส, ค] = await Promise.all([page.getByLabel("กรองตามสถานะคำขอ"), page.getByLabel("ค้นหาคำขอ")].map(async l => { const b = await l.boundingBox(); return b ? Math.round(b.y + b.height / 2) : -999; }));
+    expect(Math.abs(ส - ค), `จอ ${w}px: ประวัติ ตัวกรองสถานะกับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
+    await page.locator('[data-view-tab="main"]').click();
+    expect(Math.abs(บน[1] - บน[2]), `จอ ${w}px: ตัวกรองดีลเลอร์กับช่องค้นหาต้องอยู่บรรทัดเดียวกัน`).toBeLessThan(8);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
-  // ค้นหาเจอคำขอเดียว = หน้าเดียว ไม่มีแถบเปลี่ยนหน้า · แถวขึ้นเหลือกี่วันแทนวันที่
+  // ค้นหาเจอคำขอเดียว = หน้าเดียว แถบเปลี่ยนหน้าตัวกลางบอก "หน้า 1 / 1" · แถวขึ้นเหลือกี่วันใต้วันกำหนดส่ง
   await page.getByLabel("ค้นหาคำขอ").fill(บริษัท("ก"));
-  const แถว = page.getByRole("list", { name: "รายการคำขอ" }).getByRole("button", { name: บริษัท("ก") });
+  const แถว = แถวคำขอ(page, บริษัท("ก")).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
-  await expect(แถว.getByTestId("row-countdown"), "แถวบอกเหลือกี่วัน").toHaveText(/^กำหนดส่ง เหลือ 1[34] วัน$/);
-  await expect(page.getByText(/หน้า \d+ \/ \d+/), "หน้าเดียวไม่มีแถบเปลี่ยนหน้า").toHaveCount(0);
+  await expect(แถว.getByTestId("row-countdown"), "แถวบอกเหลือกี่วัน").toHaveText(/^เหลือ 1[34] วัน$/);
+  await expect(page.getByText(/หน้า 1 \/ 1/), "แถบเปลี่ยนหน้าตัวกลางแสดงเสมอ (หน้าเดียว = หน้า 1 / 1)").toBeVisible();
 });

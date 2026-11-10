@@ -10,6 +10,8 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 const ชุด: [string, string, string][] = [
   ["tests/tools/db-push-prod-guard.test.mjs", "เครื่องมือ db:push ฐานจริง + สำรอง/ซ้อมกู้ (เทียบตัวนับกับไฟล์สำรอง)", "ผ่านทั้งหมด"],
   ["tests/tools/testdb-schema.test.mjs", "โครงฐานทดสอบตรงกับใบปรับฐานในโฟลเดอร์", "ALL PASS"],
+  ["tests/tools/prod-live-cleanup-race.test.mjs", "ล้างข้อมูลทดสอบเว็บจริง: ไม่ซ้อนกับขั้นอื่น · นับ/ลบในทรานแซกชันเดียวหลังล็อกตาราง (จำลองเขียนแถวแทรก)", "ALL PASS"],
+  ["tests/tools/cleanup-self-audit.test.mjs", "ลบ 0: บันทึกที่ cleanup.sql สร้างเองตอนลบลีด/ใบ ZZT ขั้นนับก่อนลบมองไม่เห็น · ข้อความจบใช้สรุปการลบของฐาน", "ALL PASS"],
 ];
 for (const [ไฟล์, อะไร, คำผ่าน] of ชุด) {
   test(`[db·tool] ${อะไร} (${ไฟล์})`, () => {

@@ -620,6 +620,24 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return ((data ?? []) as unknown[]).map(Number);
     },
+    // นำเข้าจากไฟล์ (ใบ 0279)
+    importRows: async (fileName, rows) => {
+      const { data, error } = await sb().rpc("hq_materials_import", { p_file: fileName, p_rows: rows });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      const d = (data ?? {}) as { batch?: number; inserted?: number; updated?: number };
+      return { batch: Number(d.batch ?? 0), inserted: Number(d.inserted ?? 0), updated: Number(d.updated ?? 0) };
+    },
+    cancelImport: async (batch) => {
+      const { data, error } = await sb().rpc("hq_materials_import_cancel", { p_batch: batch });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      const d = (data ?? {}) as { deleted?: number; restored?: number };
+      return { deleted: Number(d.deleted ?? 0), restored: Number(d.restored ?? 0) };
+    },
+    importBatches: async () => {
+      const { data, error } = await sb().rpc("hq_material_import_batches");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return (data ?? []) as import("../../materialTemplates").ชุดนำเข้าวัสดุ[];
+    },
   },
   // คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183)
   quoteRequests: {
@@ -650,6 +668,10 @@ export const SupabaseAdapter: DataAdapter = {
     },
     cancel: async (id, reason, closeLead) => {
       const { error } = await sb().rpc("quote_request_cancel", { p_id: id, p_reason: reason, p_close_lead: closeLead });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+    },
+    abandonForm: async (leadNumId) => {
+      const { error } = await sb().rpc("lead_quote_request_abandoned", { p_lead_num: leadNumId });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
     },
     reprice: async (id, reason, spec) => {
@@ -745,6 +767,12 @@ export const SupabaseAdapter: DataAdapter = {
   //   จัดข้อมูลด้วย เตรียมบันทึก ก่อนเขียนเสมอ: ช่องวันที่ว่างต้องเป็น null (ส่ง "" ไปทั้งแถวถูกปฏิเสธ)
   //   และห้ามส่ง id/created_at/updated_at ให้ฐานข้อมูล · อ่านทีละหน้าเสมอ (เพดาน 1,000 แถว/คำขอ)
   prospects: {
+    // ยกเลิกงานล่าสุด = ถอย 1 ขั้น (ใบ 0278) — ทำในนามผู้เรียก ฐานตรวจสิทธิ์
+    undoLastTask: async (id) => {
+      const { data, error } = await sb().rpc("prospect_undo_last_task", { p_id: id });
+      if (error) throw new DbError(error.message, error.code);
+      return toCamel<import("../types").DealerProspect>(data as Record<string, unknown>);
+    },
     importRows: async (fileName, rows) => {
       const { data, error } = await sb().rpc("hq_prospects_import", { p_file: fileName, p_rows: rows });
       if (error) throw new DbError(error.message, error.code);

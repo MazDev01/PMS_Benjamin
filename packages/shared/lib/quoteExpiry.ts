@@ -15,3 +15,14 @@ export function daysUntilISO(iso: string, todayISO: string): number | null {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
   return Math.round((a - b) / 86400000);
 }
+
+/** ป้ายนับวันใต้วันหมดอายุ (แถบสรุปของหน้าต่างใบเสนอราคา/ใบค่าแฟรนไชส์ · บอสสั่ง 9 พ.ย. 69)
+ *  เหลือ x วัน · หมดอายุวันนี้ · เลยมา x วัน (เลย = แดง) · ไม่มีวัน/อ่านวันไม่ได้ = null (ไม่แสดงบรรทัดนี้ ไม่เดา) */
+export function ป้ายนับวันหมดอายุ(iso: string | null | undefined, todayISO: string): { ข้อความ: string; เลย: boolean } | null {
+  if (!iso) return null;
+  const วัน = daysUntilISO(iso, todayISO);
+  if (วัน == null) return null;
+  if (วัน > 0) return { ข้อความ: `เหลือ ${วัน} วัน`, เลย: false };
+  if (วัน === 0) return { ข้อความ: "หมดอายุวันนี้", เลย: false };
+  return { ข้อความ: `เลยมา ${-วัน} วัน`, เลย: true };
+}

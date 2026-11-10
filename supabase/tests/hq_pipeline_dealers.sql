@@ -84,6 +84,13 @@ begin
       format('ส่วนต่างกำไร (จากผลรวมรายดีลเลอร์) = การ์ด (%s..%s %s)', ชุด.s, ชุด.e, coalesce(array_to_string(ชุด.codes, ','), 'ทั้งเครือ')));
     perform pltest.eq((select coalesce(sum((x ->> 'marginQuotes')::numeric), 0) from jsonb_array_elements(rows) x), (card #>> '{margin,quotes}')::numeric,
       format('จำนวนใบที่คิดส่วนต่าง ผลรวม = การ์ด (%s..%s %s)', ชุด.s, ชุด.e, coalesce(array_to_string(ชุด.codes, ','), 'ทั้งเครือ')));
+    -- ใบ 0283: เป้าการ์ด = ผลรวมคอลัมน์เป้าตามช่วงในตาราง ทุกชุด รวมทั้งเครือ (เดิมทั้งเครือ = hq_targets → ไม่ตรงตาราง)
+    perform pltest.eq((select nullif(coalesce(sum((x ->> 'target')::numeric), 0), 0) from jsonb_array_elements(rows) x), (card #>> '{sales,target}')::numeric,
+      format('เป้าตามช่วง ผลรวมรายดีลเลอร์ = การ์ด (%s..%s %s)', ชุด.s, ชุด.e, coalesce(array_to_string(ชุด.codes, ','), 'ทั้งเครือ')));
+    -- ใบ 0283: ถึงเป้า = ยอดในช่วง ≥ เป้าตามช่วง ของแถวนั้นเอง (ช่วงเดียวกับการ์ด)
+    perform pltest.eq((select count(*) from jsonb_array_elements(rows) x where (x ->> 'onTarget')::boolean
+                         is distinct from ((x ->> 'target') is not null and (x ->> 'sales')::numeric >= (x ->> 'target')::numeric)), 0::numeric,
+      format('ถึงเป้ารายแถว = ยอดในช่วง ≥ เป้าตามช่วง (%s..%s %s)', ชุด.s, ชุด.e, coalesce(array_to_string(ชุด.codes, ','), 'ทั้งเครือ')));
     perform pltest.eq((select count(*) from jsonb_array_elements(rows) x where (x ->> 'onTarget')::boolean), (card #>> '{onTarget,reached}')::numeric,
       format('ถึงเป้า จำนวน = การ์ด (%s..%s %s)', ชุด.s, ชุด.e, coalesce(array_to_string(ชุด.codes, ','), 'ทั้งเครือ')));
   end loop;

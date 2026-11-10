@@ -274,7 +274,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     if (!(await ถามเหตุผล({
       หัวข้อ: `ลูกค้าปฏิเสธใบ ${q.id} — เลือกเหตุผล`,
       รายละเอียด: "ลูกค้าเป้าหมายปิดไม่สำเร็จให้อัตโนมัติ",
-      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่ได้", ตัวเลือก: lostReasons,
+      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือก: lostReasons,
       ปุ่มตกลง: "ยืนยันลูกค้าปฏิเสธ", ปุ่มกำลังทำ: "กำลังบันทึกลูกค้าปฏิเสธ…", อันตราย: true,
       ทำ: async reason => {
         const ผิด = await updateQuotation({ ...q, status: "lost", lostReason: reason });
@@ -438,7 +438,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
               <input id="q-area" inputMode="decimal" value={form.area} onChange={e => set("area", e.target.value.replace(/[^\d.]/g, ""))} readOnly={ฉบับใหม่} placeholder="0"
                 style={ฉบับใหม่ ? { ...inp, background: "#f6f8fa", color: "#6b7280" } : inp} /></div>
           </div>
-          {ฉบับใหม่ && <div data-version-copied style={{ fontSize: "0.68rem", color: "#6b7280", marginTop: 4 }}>ฉบับใหม่: ลูกค้า โครงการ จังหวัด พื้นที่ และภาษี คัดลอกจากใบเดิม แก้ไม่ได้ — แก้ได้เฉพาะ % ที่บวก</div>}
+          {ฉบับใหม่ && <div data-version-copied style={{ fontSize: "0.68rem", color: "#6b7280", marginTop: 4 }}>ฉบับใหม่: ลูกค้า ชื่องาน จังหวัด พื้นที่ และภาษี คัดลอกจากใบเดิม แก้ไม่ได้ — แก้ได้เฉพาะ % ที่บวก</div>}
         </div>
         {ใบHQของฟอร์ม ? (
           <>

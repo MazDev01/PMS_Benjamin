@@ -51,7 +51,7 @@ begin
   perform ostest.ok(j = '[{"key":"contact","label":"ติดต่อแล้ว","done":true},{"key":"followCustomer","label":"ติดตามลูกค้า","done":true,"doneAt":"3 มิ.ย. 2569 · 10:00"}]'::jsonb,
     format('ตัวแปลงรายการเตือน (ได้ %s)', j));
   j := _lead_tasks_drop_old_flow('[{"key":"zz","label":"งานของ HQ","stage":"QUOTED"}]', true);
-  perform ostest.ok(j = '[{"key":"zz","label":"งานของ HQ","step":5}]'::jsonb, format('แม่แบบ: stage เดิม → ขั้น (ได้ %s)', j));
+  perform ostest.ok(j = '[{"key":"zz","label":"งานของ HQ","step":4}]'::jsonb, format('แม่แบบ: stage เดิม → ขั้น 4 เสนอราคาลูกค้า (ยุบ 4 ขั้น ใบ 0284 · ได้ %s)', j));
 
   -- ═══ 3) ฐานปฏิเสธสถานะเก่าทุกทาง ═══
   set local session_replication_role = replica;
@@ -77,7 +77,7 @@ begin
   perform ostest.must_fail($q$insert into leads (id, num_id, dealer_code, company, name, phone, province, status, assigned)
       values ('#L-ZZOS3', 990973, 'RYG', 'ZZOS ลีด 3', 'ZZOS ลีด 3', '000-000-0973', 'ระยอง', 'NEGO', 'ทดสอบระบบ')$q$,
     'lead_status_retired', 'HQ สร้างลีดเป็น "เจรจาต่อรอง" = ปฏิเสธ');
-  perform ostest.must_fail($q$update hq_sales_journey set tasks = tasks || '[{"key":"followup","label":"ติดตามผล","step":5}]'::jsonb where id = 1$q$,
+  perform ostest.must_fail($q$update hq_sales_journey set tasks = tasks || '[{"key":"followup","label":"ติดตามผล","step":4}]'::jsonb where id = 1$q$,
     'lead_task_retired', 'HQ เพิ่ม "ติดตามผล" ในแม่แบบงาน = ปฏิเสธ');
 
   perform ostest.as_root();   -- กุญแจฝั่งเซิร์ฟเวอร์ / งานในฐาน (ตัวดักลีดตัวอื่นไม่ตรวจทางนี้)
@@ -92,7 +92,7 @@ begin
   set local session_replication_role = origin;
 
   -- ═══ 4) ตารางแปลงขั้นที่ฐานไม่มีสถานะเก่า ═══
-  perform ostest.ok(lead_stage_no('RYG', -1, 'QUOTED') = 5, 'เสนอราคา = ขั้น 5');
+  perform ostest.ok(lead_stage_no('RYG', -1, 'QUOTED') = 4, 'เสนอราคา = ขั้น 4 เสนอราคาลูกค้า (ใบ 0284)');
   perform ostest.ok(lead_stage_no('RYG', -1, 'FOLLOWUP') is null and lead_stage_no('RYG', -1, 'NEGO') is null, 'สถานะเก่าไม่มีขั้น (เลิกใช้แล้ว)');
 end $$;
 

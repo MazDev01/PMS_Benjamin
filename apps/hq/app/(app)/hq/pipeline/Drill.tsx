@@ -1,16 +1,18 @@
 "use client";
 // ─── ภาพรวมยอดขาย · เจาะลึก (บอสสั่ง 30 ต.ค. 69 · FLOW แถว /hq/pipeline + H12) ─────────────────────────────────────────
-//   แถบระดับ ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ · แผงขวา "ที่มาของการ์ด" (รายดีลเลอร์ · แถวรวม = การ์ด)
+//   แถบระดับ ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ · หน้าต่างกลางจอ "ที่มาของการ์ด" (รายดีลเลอร์ · ไม่มีแถวรวม · ตัวเลข = การ์ด · บอสสั่ง 9 พ.ย. 69)
 //   ตารางตามภูมิภาค/จังหวัด (กดแถว = เจาะลงระดับถัดไป) · กล่อง เส้นทางการขาย / งานค้างตามขั้นตอน / เหตุผลปิดไม่สำเร็จ / ลีดตามแหล่งที่มา
 //   ทุกตัวเลขมาจากฐาน: แถวรายดีลเลอร์ hq_pipeline_dealers (ใบ 0264) · ผลรวมกลุ่มใช้ รวมผลงาน() ตัวเดียวกับแถวรวมท้ายตาราง (= การ์ด)
 //   ลีดตามขั้น/เหตุผล/แหล่งที่มา = lead_summary ชุดสาขาเดียวกับตาราง
 //   "รายเดือน" (แท็บ · ที่มารายเดือนตอนเลือกดีลเลอร์) = hq_pipeline_months (ใบ 0268) · ฐานยังไม่ถึงใบนั้น = "รอข้อมูล" — ห้ามคิดเองจากรายการดิบในหน้าเว็บ
 import { useRouter } from "next/navigation";
-import { X, ChevronRight } from "lucide-react";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { ChevronRight, CalendarDays, Users, CheckCircle2, Clock } from "lucide-react";
+import { หน้าต่างเจาะ, ส่วนเจาะ } from "../_drill/DrillWindow";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { ชื่อภาค, ภาคมาตรฐาน } from "@pms/shared/lib/provinces";
-import { ชื่อขั้น, สีกราฟขั้น, เลขขั้นของลีด, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, สีกราฟขั้น, เลขขั้นของลีด, เลขขั้นเปิด, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { useQuotationsPage, useLeadsPage } from "@pms/shared/lib/useNetworkData";
 import { ชื่อสถานะใบHQ } from "@pms/shared/components/hq/quotations/QuotationFilterBar";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
@@ -22,6 +24,7 @@ const MUTED = "var(--muted-foreground)";
 // ชื่อมิติ/ชนิดมิติ ย้ายไปไฟล์กลางของหัวข้อกราฟ/ตาราง (ใบหัวข้อ 3 พ.ย. 69) — ส่งต่อชื่อเดิมให้ผู้เรียกเดิม
 import { ชื่อมิติ, คำอธิบายหัวข้อ, type มิติ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
 export { ชื่อมิติ, type มิติ };
 export type รวม = ReturnType<typeof รวมผลงาน>;
 /** ยังไม่รู้ผล = ลีดที่เข้ามาในช่วงที่ยังไม่ปิด (ลีด − ปิดได้ − ปิดไม่ได้) */
@@ -36,7 +39,7 @@ export function แถบระดับ({ ภาค, จังหวัด, ด
   const ชิ้น: { k: "all" | "region" | "prov" | "dealer"; l: string }[] = [{ k: "all", l: "ทั้งเครือ" }];
   if (ภาค) ชิ้น.push({ k: "region", l: ชื่อภาค(ภาค) });
   if (จังหวัด) ชิ้น.push({ k: "prov", l: จังหวัด });
-  if (ดีลเลอร์) ชิ้น.push({ k: "dealer", l: `${ดีลเลอร์}${ชื่อดีลเลอร์ ? ` · ${ชื่อดีลเลอร์}` : ""}` });
+  if (ดีลเลอร์) ชิ้น.push({ k: "dealer", l: ชื่อดีลเลอร์ || ดีลเลอร์ });   // ชื่อแสดง ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   return (
     <nav aria-label="ระดับที่ดูอยู่" data-crumbs style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, margin: "0 0 14px" }}>
       {ชิ้น.map((c, i) => {
@@ -69,7 +72,8 @@ export function จัดกลุ่ม(rows: ผลงานดีลเลอ
 
 // ── ตารางตามภูมิภาค/จังหวัด — กดแถว = เจาะลง ──────────────────────────────────────────────────────────────────
 export function ตารางกลุ่ม({ มิติ, แถว, รวมทั้งหมด, เจาะ }: { มิติ: "region" | "prov"; แถว: แถวกลุ่ม[]; รวมทั้งหมด: รวม; เจาะ: (key: string) => void }) {
-  const หัว = [ชื่อมิติ[มิติ], "ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "ยังไม่รู้ผล", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", ""];
+  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(แถว.map(g => g.label), { ขั้นต่ำ: 110 }, แถว.map(g => ("sub" in g ? String((g as { sub?: string }).sub ?? "") : "")));   // ≤ 25% · ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
+  const หัว = [ชื่อมิติ[มิติ], "ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "ยังไม่รู้ผล", "อัตราปิดการขาย", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", ""];
   const ช่อง = (x: รวม) => [
     <td key="l" className="num">{x.leads.toLocaleString()}</td>, <td key="q" className="num">{x.quotes.toLocaleString()}</td>,
     <td key="w" className="num">{x.won.toLocaleString()}</td>, <td key="o" className="num">{x.lost.toLocaleString()}</td>,
@@ -78,9 +82,9 @@ export function ตารางกลุ่ม({ มิติ, แถว, รว
     <td key="c" className="num">{เปอร์เซ็นต์(x.pct)}</td>, <td key="m" className="num" data-value={x.marginPct ?? ""}>{x.marginPct == null ? "—" : `${x.marginPct.toFixed(1)}%`}</td>,
   ];
   return (
-    <div className="table-wrap dense">
-      <table aria-label={`ตารางผลงานตาม${ชื่อมิติ[มิติ]}`} style={{ minWidth: 1100 }}>
-        <colgroup><col style={{ width: 230 }} />{หัว.slice(1, -1).map((h, i) => <col key={i} style={{ width: h === "ยอดขาย" || h === "เป้าตามช่วง" ? 120 : 84 }} />)}<col style={{ width: 96 }} /></colgroup>
+    <div className="table-wrap dense fit">
+      <table ref={ชื่อคอล.ref} aria-label={`ตารางผลงานตาม${ชื่อมิติ[มิติ]}`} data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
+        <colgroup><col data-col-key="__name" style={{ width: ชื่อคอล.กว้าง }} />{หัว.slice(1, -1).map((h, i) => <col key={i} data-col-key={h} />)}<col style={{ width: 80 }} /></colgroup>
         <thead><tr>{หัว.map((h, i) => <th key={i} className={i > 0 && i < หัว.length - 1 ? "num" : undefined}>{h}</th>)}</tr></thead>
         <tbody>
           {!แถว.length && <tr><td colSpan={หัว.length} className="empty-row">ไม่พบข้อมูลในช่วงที่เลือก</td></tr>}
@@ -92,11 +96,6 @@ export function ตารางกลุ่ม({ มิติ, แถว, รว
             </ClickableRow>
           ))}
         </tbody>
-        <tfoot>
-          <tr data-group-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
-            <td>รวม {แถว.length.toLocaleString()} {ชื่อมิติ[มิติ]}</td>{ช่อง(รวมทั้งหมด)}<td />
-          </tr>
-        </tfoot>
       </table>
     </div>
   );
@@ -130,7 +129,8 @@ export function จัดรายเดือน(rows: ผลงานราย
   return out;
 }
 export function ตารางรายเดือน({ แถว, รวมทั้งหมด, เลือกเดือน }: { แถว: แถวเดือน[]; รวมทั้งหมด: รวม; เลือกเดือน?: (m: แถวเดือน) => void }) {
-  const หัว = ["เดือน", "ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "ยังไม่รู้ผล", "อัตราปิด", "ยอดขาย", "เป้ารายเดือน", "% เป้า", "ส่วนต่างกำไร", ""];
+  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(แถว.map(g => g.label), { ขั้นต่ำ: 110 }, แถว.map(g => ("sub" in g ? String((g as { sub?: string }).sub ?? "") : "")));   // ≤ 25% · ตัวเลขเกลี่ยเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2)
+  const หัว = ["เดือน", "ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "ยังไม่รู้ผล", "อัตราปิดการขาย", "ยอดขาย", "เป้ารายเดือน", "% เป้า", "ส่วนต่างกำไร", ""];
   const ช่อง = (x: รวม, รวมแถว = false) => [
     <td key="l" className="num">{x.leads.toLocaleString()}</td>, <td key="q" className="num">{x.quotes.toLocaleString()}</td>,
     <td key="w" className="num">{x.won.toLocaleString()}</td>, <td key="o" className="num">{x.lost.toLocaleString()}</td>,
@@ -140,9 +140,9 @@ export function ตารางรายเดือน({ แถว, รวม�
     <td key="c" className="num">{เปอร์เซ็นต์(x.pct)}</td>, <td key="m" className="num">{x.marginPct == null ? "—" : `${x.marginPct.toFixed(1)}%`}</td>,
   ];
   return (
-    <div className="table-wrap dense">
-      <table aria-label="ตารางผลงานรายเดือน" style={{ minWidth: 1100 }}>
-        <colgroup><col style={{ width: 150 }} />{หัว.slice(1, -1).map((h, i) => <col key={i} style={{ width: h === "ยอดขาย" || h === "เป้ารายเดือน" ? 120 : 84 }} />)}<col style={{ width: 120 }} /></colgroup>
+    <div className="table-wrap dense fit">
+      <table ref={ชื่อคอล.ref} aria-label="ตารางผลงานรายเดือน" data-total={JSON.stringify({ sales: รวมทั้งหมด.sales, won: รวมทั้งหมด.won, lost: รวมทั้งหมด.lost })} style={{ minWidth: 960 }}>
+        <colgroup><col data-col-key="__name" style={{ width: ชื่อคอล.กว้าง }} />{หัว.slice(1, -1).map((h, i) => <col key={i} data-col-key={h} />)}<col style={{ width: 104 }} /></colgroup>
         <thead><tr>{หัว.map((h, i) => <th key={i} className={i > 0 && i < หัว.length - 1 ? "num" : undefined}>{h}</th>)}</tr></thead>
         <tbody>
           {แถว.map(g => เลือกเดือน ? (
@@ -152,139 +152,153 @@ export function ตารางรายเดือน({ แถว, รวม�
             </ClickableRow>
           ) : <tr key={g.key}><td data-month-row={g.key}><strong>{g.label}</strong></td>{ช่อง(g.รวม)}<td /></tr>)}
         </tbody>
-        <tfoot>
-          <tr data-group-total style={{ background: "#f7f9fc", fontWeight: 800 }}>
-            <td>รวม {แถว.length} เดือน</td>{ช่อง(รวมทั้งหมด, true)}<td />
-          </tr>
-        </tfoot>
       </table>
-      <div style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · แถวรวมใช้เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365) จึงต่างจากผลรวมรายเดือนเล็กน้อย</div>
+      <div style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · ตัวเลขรวมดูที่การ์ดด้านบน (เป้าตามช่วง = เป้าทั้งปี × วัน ÷ 365 จึงต่างจากผลรวมรายเดือนเล็กน้อย)</div>
     </div>
   );
 }
 /** แผงรายดีลเลอร์ของเดือนที่กด (แท็บรายเดือน) — แถวรวม = แถวของเดือนนั้น */
 export function แผงเดือน({ เดือน, rows, codes, ชื่อ, ปิด, เจาะ }: { เดือน: แถวเดือน; rows: ผลงานรายเดือน[]; codes: Set<string>; ชื่อ: Map<string, string>; ปิด: () => void; เจาะ: (code: string) => void }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const ของเดือน = rows.filter(r => r.y === เดือน.y && r.m === เดือน.m && codes.has(r.code)).sort((a, b) => b.sales - a.sales || a.code.localeCompare(b.code));
   return (
-    <>
-      <div onClick={ปิด} style={{ position: "fixed", inset: 0, background: "rgba(8,16,32,.32)", zIndex: 240 }} />
-      <aside role="dialog" aria-modal="true" aria-label={`รายดีลเลอร์ ${เดือน.label}`} data-month-drawer={เดือน.key}
-        style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(600px, 100%)", background: "#f7f9fc", zIndex: 241, display: "flex", flexDirection: "column", boxShadow: "-10px 0 30px rgba(8,16,32,.18)" }}>
-        <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "16px 18px", display: "flex", gap: 10 }}>
-          <div style={{ flex: 1 }}><div style={{ fontSize: "1rem", fontWeight: 800 }}>{เดือน.label}</div><div style={{ fontSize: "0.74rem", color: MUTED, marginTop: 4 }}>แยกรายดีลเลอร์ · ยอดขายตามวันลูกค้าตอบรับ · กดแถว = เจาะดูดีลเลอร์</div></div>
-          <button type="button" onClick={ปิด} aria-label="ปิดแผง" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #dbe3ec", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} /></button>
-        </header>
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          <div className="card" style={{ marginBottom: 0 }}><div className="table-wrap dense">
-            <table aria-label={`รายดีลเลอร์ ${เดือน.label}`}>
-              <thead><tr><th>ดีลเลอร์</th><th className="num">ลีด</th><th className="num">ใบที่ส่ง</th><th className="num">ปิดได้</th><th className="num">ปิดไม่ได้</th><th className="num">ยอดขาย</th></tr></thead>
-              <tbody>
-                {!ของเดือน.length && <tr><td colSpan={6} className="empty-row">ไม่มีผลงานในเดือนนี้</td></tr>}
-                {ของเดือน.map(r => (
-                  <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${r.code} (เจาะลงระดับดีลเลอร์)`}>
-                    <td data-drawer-row={r.code} title={`${r.code} · ${ชื่อ.get(r.code) ?? ""}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{ชื่อ.get(r.code) ?? ""}</td>
-                    <td className="num">{r.leads}</td><td className="num">{r.quotes}</td><td className="num">{r.won}</td><td className="num">{r.lost}</td><td className="num">{fmtBaht(r.sales)}</td>
-                  </ClickableRow>
-                ))}
-              </tbody>
-              <tfoot><tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}>
-                <td>รวม (= แถว {เดือน.label})</td><td className="num">{เดือน.รวม.leads}</td><td className="num">{เดือน.รวม.quotes}</td><td className="num">{เดือน.รวม.won}</td><td className="num">{เดือน.รวม.lost}</td><td className="num" data-sum-col="sales">{fmtBaht(เดือน.รวม.sales)}</td>
-              </tr></tfoot>
-            </table>
-          </div></div>
-        </div>
-      </aside>
-    </>
+    <หน้าต่างเจาะ ชื่อ={เดือน.label} ป้ายเข้าถึง={`รายดีลเลอร์ ${เดือน.label}`} data-month-drawer={เดือน.key} ปิด={ปิด}
+      คำอธิบาย="แยกรายดีลเลอร์ · ยอดขายตามวันลูกค้าตอบรับ · กดแถว = เจาะดูดีลเลอร์"
+      ป้าย={[{ คีย์: "dealers", ข้อความ: `${ของเดือน.length.toLocaleString()} ดีลเลอร์` }]}>
+      <ส่วนเจาะ ไอคอน={Users} ชื่อ="ผลงานรายดีลเลอร์">
+        <table aria-label={`รายดีลเลอร์ ${เดือน.label}`}>
+          <colgroup><col style={{ width: "40%" }} /><col /><col /><col /><col /><col style={{ width: "18%" }} /></colgroup>
+          <thead><tr><th>ดีลเลอร์</th><th className="num">ลูกค้าเป้าหมาย</th><th className="num">ใบที่ส่ง</th><th className="num">ปิดสำเร็จ</th><th className="num">ปิดไม่สำเร็จ</th><th className="num">ยอดขาย</th></tr></thead>
+          <tbody>
+            {!ของเดือน.length && <tr><td colSpan={6} className="empty-row">ไม่มีผลงานในเดือนนี้</td></tr>}
+            {ของเดือน.map(r => (
+              <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${ชื่อของ(r.code, ชื่อ.get(r.code))} (เจาะลงระดับดีลเลอร์)`}>
+                <td data-drawer-row={r.code} title={ชื่อของ(r.code, ชื่อ.get(r.code))} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อของ(r.code, ชื่อ.get(r.code))}</td>
+                <td className="num">{r.leads}</td><td className="num">{r.quotes}</td><td className="num">{r.won}</td><td className="num">{r.lost}</td><td className="num">{fmtBaht(r.sales)}</td>
+              </ClickableRow>
+            ))}
+          </tbody>
+        </table>
+      </ส่วนเจาะ>
+    </หน้าต่างเจาะ>
   );
 }
 
-// ── แผงขวา: ที่มาของการ์ด ───────────────────────────────────────────────────────────────────────────────────
+// ── หน้าต่างกลางจอ: ที่มาของการ์ด (บอสสั่ง 9 พ.ย. 69 · เดิมแผงชิดขวา) ──────────────────────────────────────────────
+//   ไม่มีแถวรวม (ตัวเลขรวมอยู่บนการ์ด) · ทุกแถวดีลเลอร์กด = เจาะลงดีลเลอร์นั้น · ระดับดีลเลอร์ = ที่มารายเดือน (ยกเว้นการ์ดถึงเป้า)
+//   การ์ดถึงเป้า (ใบ 0283): ช่วงเดียวกับการ์ด · ถึงเป้า = ยอดในช่วง ≥ เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365) · 2 กลุ่ม ถึงเป้า / ยังไม่ถึง เรียง % มากไปน้อย
+//     จำนวนกลุ่มถึงเป้า = ตัวเลขบนการ์ด (onTarget ของแถวมาจากฐานตัวเดียวกับการ์ด)
 export type การ์ดที่มา = "sales" | "winRate" | "margin" | "onTarget";
 const หัวการ์ด: Record<การ์ดที่มา, string> = { sales: "ยอดขาย (เทียบเป้า)", winRate: "อัตราปิดการขาย", margin: "ส่วนต่างกำไรเฉลี่ย", onTarget: "ดีลเลอร์ที่ถึงเป้า" };
-export function แผงที่มา({ การ์ด, แถว, รวมทั้งหมด, ดีลเลอร์, ปิด, ถึงเป้าเท่านั้น, สลับถึงเป้า, เดือน }: {
-  การ์ด: การ์ดที่มา; แถว: ผลงานดีลเลอร์[]; รวมทั้งหมด: รวม; ดีลเลอร์: string | null; ปิด: () => void;
-  ถึงเป้าเท่านั้น: boolean; สลับถึงเป้า: () => void;
+const สูตรการ์ด: Record<การ์ดที่มา, string> = {
+  sales: "ยอดขายตามวันลูกค้าตอบรับ · เป้าตามช่วง = เป้าทั้งปี × วัน ÷ 365",
+  winRate: "อัตราปิดการขาย = ปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ) ของลูกค้าเป้าหมายที่เข้ามาในช่วง",
+  margin: "ส่วนต่างกำไร % ของราคาขาย · ใบที่ตอบรับในช่วงและผูกใบ HQ",
+  onTarget: "ถึงเป้า = ยอดขายในช่วง ≥ เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365)",
+};
+const จำนวนวัน = (start: string, end: string) => Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86_400_000) + 1;
+export function แผงที่มา({ การ์ด, แถว, ดีลเลอร์, ปิด, เดือน, ช่วง, เจาะ }: {
+  การ์ด: การ์ดที่มา; แถว: ผลงานดีลเลอร์[]; ดีลเลอร์: string | null; ปิด: () => void;
   /** ระดับดีลเลอร์: ที่มารายเดือน (ใบ 0268) · null = ฐานยังไม่ถึงใบนั้น → รอข้อมูล */
   เดือน: แถวเดือน[] | null;
+  ช่วง: { start: string; end: string };
+  /** กดแถวดีลเลอร์ = เจาะลงดีลเลอร์นั้น */
+  เจาะ: (code: string) => void;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const เรียง = [...แถว].sort((a, b) => b.sales - a.sales || a.code.localeCompare(b.code));
-  const คอลัมน์: Record<การ์ดที่มา, { หัว: string[]; ค่า: (r: ผลงานดีลเลอร์) => (string | number)[]; รวม: (string | number)[] }> = {
-    sales: { หัว: ["ยอดขาย", "เป้าตามช่วง", "% เป้า"], ค่า: r => [fmtBaht(r.sales), r.target == null ? "—" : fmtBaht(r.target), เปอร์เซ็นต์(r.pct)],
-      รวม: [fmtBaht(รวมทั้งหมด.sales), รวมทั้งหมด.target == null ? "—" : fmtBaht(รวมทั้งหมด.target), เปอร์เซ็นต์(รวมทั้งหมด.pct)] },
-    winRate: { หัว: ["ปิดได้", "ปิดไม่ได้", "อัตราปิด"], ค่า: r => [r.won, r.lost, เปอร์เซ็นต์(r.rate)], รวม: [รวมทั้งหมด.won, รวมทั้งหมด.lost, เปอร์เซ็นต์(รวมทั้งหมด.rate)] },
-    margin: { หัว: ["ใบที่ผูกใบ HQ", "ส่วนต่างกำไร"], ค่า: r => [r.marginQuotes, r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`],
-      รวม: [รวมทั้งหมด.marginQuotes, รวมทั้งหมด.marginPct == null ? "—" : `${รวมทั้งหมด.marginPct.toFixed(1)}%`] },
-    onTarget: { หัว: ["ยอดตั้งแต่ต้นปี", "เป้าทั้งปี", "ถึงเป้า"], ค่า: r => [fmtBaht(r.ytd), r.annualTarget == null ? "—" : fmtBaht(r.annualTarget), r.onTarget ? "ถึงแล้ว" : "ยังไม่ถึง"],
-      รวม: ["", "", `${รวมทั้งหมด.onTarget} ราย`] },
+  const คอลัมน์: Record<Exclude<การ์ดที่มา, "onTarget">, { หัว: string[]; ค่า: (r: ผลงานดีลเลอร์) => (string | number)[] }> = {
+    sales: { หัว: ["ยอดขาย", "เป้าตามช่วง", "% เป้า"], ค่า: r => [fmtBaht(r.sales), r.target == null ? "—" : fmtBaht(r.target), เปอร์เซ็นต์(r.pct)] },
+    winRate: { หัว: ["ปิดสำเร็จ", "ปิดไม่สำเร็จ", "อัตราปิดการขาย"], ค่า: r => [r.won, r.lost, เปอร์เซ็นต์(r.rate)] },
+    margin: { หัว: ["ใบที่ผูกใบ HQ", "ส่วนต่างกำไร"], ค่า: r => [r.marginQuotes, r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`] },
   };
+  const ช่วงอ่าน = `${fmtISOToThai(ช่วง.start)} – ${fmtISOToThai(ช่วง.end)} (${จำนวนวัน(ช่วง.start, ช่วง.end).toLocaleString()} วัน)`;
+  const แถวดีลเลอร์ = (r: ผลงานดีลเลอร์, เซลล์: React.ReactNode) => (
+    <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${ชื่อของ(r.code, r.name)} (เจาะลงระดับดีลเลอร์)`}>
+      <td data-drawer-row={r.code} title={ชื่อของ(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{ชื่อของ(r.code, r.name)}</td>
+      {เซลล์}
+    </ClickableRow>
+  );
+
+  // ── การ์ดถึงเป้า: 2 กลุ่ม ──
+  if (การ์ด === "onTarget") {
+    const มีเป้า = แถว.filter(r => r.target != null);
+    const ตามเปอร์เซ็นต์ = (a: ผลงานดีลเลอร์, b: ผลงานดีลเลอร์) => (b.pct ?? -1) - (a.pct ?? -1) || b.sales - a.sales || a.code.localeCompare(b.code);
+    const ถึง = มีเป้า.filter(r => r.onTarget).sort(ตามเปอร์เซ็นต์);
+    const ยัง = มีเป้า.filter(r => !r.onTarget).sort(ตามเปอร์เซ็นต์);
+    const ไม่ตั้งเป้า = แถว.length - มีเป้า.length;
+    const ตาราง = (กลุ่ม: ผลงานดีลเลอร์[], คีย์: string, ว่าง: string) => (
+      <table aria-label={`ดีลเลอร์${คีย์ === "reached" ? "ที่ถึงเป้า" : "ที่ยังไม่ถึงเป้า"}`} data-target-group={คีย์}>
+        <colgroup><col style={{ width: "30%" }} /><col style={{ width: "17%" }} /><col style={{ width: "17%" }} /><col style={{ width: "20%" }} /><col style={{ width: "16%" }} /></colgroup>
+        <thead><tr><th>ดีลเลอร์</th><th className="num">ยอดขายในช่วง</th><th className="num">เป้าตามช่วง</th><th>% เป้า</th><th className="num">ขาดอีกเท่าไร</th></tr></thead>
+        <tbody>
+          {!กลุ่ม.length && <tr><td colSpan={5} className="empty-row">{ว่าง}</td></tr>}
+          {กลุ่ม.map(r => แถวดีลเลอร์(r, <>
+            <td className="num" data-cell="sales" data-value={r.sales}>{fmtBaht(r.sales)}</td>
+            <td className="num" data-cell="target" data-value={r.target ?? ""}>{fmtBaht(r.target ?? 0)}</td>
+            <td data-cell="pct" data-value={r.pct ?? ""}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, height: 7, borderRadius: 999, background: "#e5e9f0", overflow: "hidden" }}>
+                  <div className="bar-grow" style={{ width: `${Math.min(100, Math.max(0, r.pct ?? 0))}%`, height: "100%", borderRadius: 999, background: r.onTarget ? "#059669" : "#d97706" }} />
+                </div>
+                <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums", minWidth: 38, textAlign: "right" }}>{เปอร์เซ็นต์(r.pct)}</span>
+              </div>
+            </td>
+            <td className="num" data-cell="gap" data-value={Math.max(0, (r.target ?? 0) - r.sales)} style={{ color: r.onTarget ? MUTED : "#b45309", fontWeight: 700 }}>
+              {r.onTarget ? "—" : fmtBaht(Math.max(0, (r.target ?? 0) - r.sales))}</td>
+          </>))}
+        </tbody>
+      </table>
+    );
+    return (
+      <หน้าต่างเจาะ ชื่อ={หัวการ์ด.onTarget} data-card-drawer="onTarget" ปิด={ปิด} กว้าง={880}
+        คำอธิบาย={<>{ช่วงอ่าน}<br />{สูตรการ์ด.onTarget}</>}
+        ป้าย={[{ คีย์: "reached", ข้อความ: `ถึงเป้า ${ถึง.length.toLocaleString()} จาก ${มีเป้า.length.toLocaleString()} ราย` },
+               ...(ไม่ตั้งเป้า > 0 ? [{ คีย์: "no-target", ข้อความ: `ยังไม่ตั้งเป้า ${ไม่ตั้งเป้า.toLocaleString()} ราย (ไม่นับ)` }] : [])]}>
+        <ส่วนเจาะ ไอคอน={CheckCircle2} ชื่อ={`ถึงเป้า (${ถึง.length.toLocaleString()})`} data-group="reached" data-count={String(ถึง.length)}>
+          {ตาราง(ถึง, "reached", "ยังไม่มีดีลเลอร์ที่ถึงเป้าในช่วงนี้")}
+        </ส่วนเจาะ>
+        <ส่วนเจาะ ไอคอน={Clock} ชื่อ={`ยังไม่ถึง (${ยัง.length.toLocaleString()})`} data-group="pending" data-count={String(ยัง.length)}>
+          {ตาราง(ยัง, "pending", "ทุกดีลเลอร์ที่ตั้งเป้าถึงเป้าแล้ว")}
+        </ส่วนเจาะ>
+      </หน้าต่างเจาะ>
+    );
+  }
+
   const c = คอลัมน์[การ์ด];
   return (
-    <>
-      <div onClick={ปิด} style={{ position: "fixed", inset: 0, background: "rgba(8,16,32,.32)", zIndex: 240 }} />
-      <aside role="dialog" aria-modal="true" aria-label={`ที่มา ${หัวการ์ด[การ์ด]}`} data-card-drawer={การ์ด}
-        style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(560px, 100%)", background: "#f7f9fc", zIndex: 241, display: "flex", flexDirection: "column", boxShadow: "-10px 0 30px rgba(8,16,32,.18)" }}>
-        <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "16px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "1rem", fontWeight: 800, color: "#1F2937" }}>{หัวการ์ด[การ์ด]}</div>
-            <div style={{ fontSize: "0.74rem", color: MUTED, marginTop: 4 }}>{ดีลเลอร์ ? `ที่มารายเดือน · ${ดีลเลอร์}` : "ที่มาแยกรายดีลเลอร์ · แถวรวม = การ์ด"}</div>
-          </div>
-          <button type="button" onClick={ปิด} aria-label="ปิดแผง" title="ปิดแผง"
-            style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #dbe3ec", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} /></button>
-        </header>
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          {การ์ด === "onTarget" && (
-            <button type="button" className="btn btn-secondary btn-sm" data-act="only-on-target" onClick={สลับถึงเป้า} style={{ marginBottom: 12 }}>
-              {ถึงเป้าเท่านั้น ? "แสดงทุกดีลเลอร์ในตาราง" : "แสดงเฉพาะดีลเลอร์ที่ถึงเป้าในตาราง"}
-            </button>
-          )}
-          {ดีลเลอร์ && !เดือน ? <div className="card" style={{ marginBottom: 0 }}><รอข้อมูลรายเดือน ข้อความ="ฐานข้อมูลยังไม่มีผลงานรายเดือนของดีลเลอร์ (รอบรวมงานฐาน)" /></div>
-          : ดีลเลอร์ && เดือน ? (
-            <div className="card" style={{ marginBottom: 0 }}>
-              <div className="table-wrap dense">
-                <table aria-label={`ที่มา ${หัวการ์ด[การ์ด]} รายเดือน`}>
-                  <thead><tr><th>เดือน</th>{c.หัว.map(h => <th key={h} className="num">{h}</th>)}</tr></thead>
-                  <tbody>
-                    {เดือน.map(g => {
-                      const x = g.รวม;
-                      const ค่า: Record<การ์ดที่มา, (string | number)[]> = {
-                        sales: [fmtBaht(x.sales), x.target == null ? "—" : fmtBaht(x.target), เปอร์เซ็นต์(x.pct)], winRate: [x.won, x.lost, เปอร์เซ็นต์(x.rate)],
-                        margin: [x.marginQuotes, x.marginPct == null ? "—" : `${x.marginPct.toFixed(1)}%`], onTarget: [fmtBaht(x.sales), "", ""] };
-                      return <tr key={g.key} data-drawer-row={g.key}><td>{g.label}</td>{ค่า[การ์ด].map((v, i) => <td key={i} className="num">{typeof v === "number" ? v.toLocaleString() : v}</td>)}</tr>;
-                    })}
-                  </tbody>
-                  <tfoot><tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}>
-                    <td>รวม (= การ์ด)</td>{c.รวม.map((v, i) => <td key={i} className="num" data-sum-col={i}>{typeof v === "number" ? v.toLocaleString() : v}</td>)}
-                  </tr></tfoot>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="card" style={{ marginBottom: 0 }}>
-              <div className="table-wrap dense">
-                <table aria-label={`ที่มา ${หัวการ์ด[การ์ด]} รายดีลเลอร์`}>
-                  <colgroup><col style={{ width: "44%" }} />{c.หัว.map(h => <col key={h} />)}</colgroup>
-                  <thead><tr><th>ดีลเลอร์</th>{c.หัว.map(h => <th key={h} className="num">{h}</th>)}</tr></thead>
-                  <tbody>
-                    {!เรียง.length && <tr><td colSpan={c.หัว.length + 1} className="empty-row">ไม่พบดีลเลอร์ในช่วงที่เลือก</td></tr>}
-                    {เรียง.map(r => (
-                      <tr key={r.code} data-drawer-row={r.code}>
-                        <td title={`${r.code} · ${r.name}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><strong style={{ color: PRIMARY, fontFamily: "monospace", marginRight: 6 }}>{r.code}</strong>{r.name}</td>
-                        {c.ค่า(r).map((v, i) => <td key={i} className="num">{typeof v === "number" ? v.toLocaleString() : v}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr data-drawer-total style={{ background: "#eef2f7", fontWeight: 800 }}>
-                      <td>รวม (= การ์ด)</td>{c.รวม.map((v, i) => <td key={i} className="num" data-sum-col={i}>{typeof v === "number" ? v.toLocaleString() : v}</td>)}
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </aside>
-    </>
+    <หน้าต่างเจาะ ชื่อ={หัวการ์ด[การ์ด]} data-card-drawer={การ์ด} ปิด={ปิด}
+      คำอธิบาย={<>{ช่วงอ่าน}<br />{สูตรการ์ด[การ์ด]}</>}
+      ป้าย={[{ คีย์: "scope", ข้อความ: ดีลเลอร์ ? `ที่มารายเดือน · ${ชื่อของ(ดีลเลอร์)}` : `แยกรายดีลเลอร์ ${แถว.length.toLocaleString()} ราย · รวม = ตัวเลขบนการ์ด` }]}>
+      {ดีลเลอร์ && !เดือน ? <div className="card" style={{ marginBottom: 0 }}><รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือนของดีลเลอร์" /></div>
+      : ดีลเลอร์ && เดือน ? (
+        <ส่วนเจาะ ไอคอน={CalendarDays} ชื่อ="ที่มารายเดือน">
+          <table aria-label={`ที่มา ${หัวการ์ด[การ์ด]} รายเดือน`}>
+            <thead><tr><th>เดือน</th>{c.หัว.map(h => <th key={h} className="num">{h}</th>)}</tr></thead>
+            <tbody>
+              {เดือน.map(g => {
+                const x = g.รวม;
+                const ค่า: Record<Exclude<การ์ดที่มา, "onTarget">, (string | number)[]> = {
+                  sales: [fmtBaht(x.sales), x.target == null ? "—" : fmtBaht(x.target), เปอร์เซ็นต์(x.pct)], winRate: [x.won, x.lost, เปอร์เซ็นต์(x.rate)],
+                  margin: [x.marginQuotes, x.marginPct == null ? "—" : `${x.marginPct.toFixed(1)}%`] };
+                return <tr key={g.key} data-drawer-row={g.key}><td>{g.label}</td>{ค่า[การ์ด].map((v, i) => <td key={i} className="num">{typeof v === "number" ? v.toLocaleString() : v}</td>)}</tr>;
+              })}
+            </tbody>
+          </table>
+        </ส่วนเจาะ>
+      ) : (
+        <ส่วนเจาะ ไอคอน={Users} ชื่อ="แยกรายดีลเลอร์">
+          <table aria-label={`ที่มา ${หัวการ์ด[การ์ด]} รายดีลเลอร์`}>
+            <colgroup><col style={{ width: "44%" }} />{c.หัว.map(h => <col key={h} />)}</colgroup>
+            <thead><tr><th>ดีลเลอร์</th>{c.หัว.map(h => <th key={h} className="num">{h}</th>)}</tr></thead>
+            <tbody>
+              {!เรียง.length && <tr><td colSpan={c.หัว.length + 1} className="empty-row">ไม่พบดีลเลอร์ในช่วงที่เลือก</td></tr>}
+              {เรียง.map(r => แถวดีลเลอร์(r, c.ค่า(r).map((v, i) => <td key={i} className="num">{typeof v === "number" ? v.toLocaleString() : v}</td>)))}
+            </tbody>
+          </table>
+        </ส่วนเจาะ>
+      )}
+    </หน้าต่างเจาะ>
   );
 }
 
@@ -320,11 +334,11 @@ const สีชุด = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", 
 /** ระดับ = ป้ายระดับที่เลือก · ช่วง = ช่วงเวลาที่เลือก (หัวข้อกราฟ · บอสสั่ง 3 พ.ย. 69) */
 export function กล่องล่าง({ รวมทั้งหมด, ขั้นตอนนี้, ในช่วง, ระดับ, ช่วง }: { รวมทั้งหมด: รวม; ขั้นตอนนี้: LeadSummary | null; ในช่วง: LeadSummary | null;
   ระดับ: string; ช่วง: { start: string; end: string } }) {
-  const ขั้น = ([1, 2, 3, 4, 5] as เลขขั้น[]).map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
+  const ขั้น = เลขขั้นเปิด.map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
   const เหตุผล = (ในช่วง?.byLostReason ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.reason || "ไม่ระบุเหตุผล", value: r.count, color: สีชุด[i % สีชุด.length] }));
   const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.source || "ไม่ระบุ", value: r.count, color: สีชุด[i % สีชุด.length] }));
   const เส้นทาง = [
-    { label: "ลีดใหม่", value: รวมทั้งหมด.leads, color: "#003366" },
+    { label: "ลูกค้าเป้าหมายใหม่", value: รวมทั้งหมด.leads, color: "#003366" },
     { label: "ใบที่ส่ง", value: รวมทั้งหมด.quotes, color: "#0891b2" },
     { label: "ปิดสำเร็จ", value: รวมทั้งหมด.won, color: "#059669" },
     { label: "ปิดไม่สำเร็จ", value: รวมทั้งหมด.lost, color: "#dc2626" },
@@ -333,12 +347,12 @@ export function กล่องล่าง({ รวมทั้งหมด, �
   return (
     <>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`กราฟเส้นทางการขาย · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่เข้ามาในช่วง → ใบที่ส่ง → ผลปิดการขาย", "ตัวเลขเดียวกับแถวรวมของตาราง")} testid="pipeline-funnel"><แถบนับ rows={เส้นทาง} empty="ยังไม่มีลีดในช่วงที่เลือก" /></การ์ดกล่อง>
-        <การ์ดกล่อง title={`กราฟงานค้างตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "ลีดที่ยังเปิดอยู่ แยกตามขั้นที่อยู่ตอนนี้")} testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลีดที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟเส้นทางการขาย · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่เข้ามาในช่วง → ใบที่ส่ง → ผลปิดการขาย", "ตัวเลขเดียวกับแถวรวมของตาราง")} testid="pipeline-funnel"><แถบนับ rows={เส้นทาง} empty="ยังไม่มีลูกค้าเป้าหมายในช่วงที่เลือก" /></การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟงานค้างตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่ยังเปิดอยู่ แยกตามขั้นที่อยู่ตอนนี้")} testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลูกค้าเป้าหมายที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`กราฟเหตุผลที่ปิดไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่ปิดไม่สำเร็จ แยกตามเหตุผลที่บันทึก")} testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลีดที่ปิดไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
-        <การ์ดกล่อง title={`กราฟลีดตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลีดที่เข้ามาในช่วง แยกตามแหล่งที่มา")} testid="pipeline-sources">{ในช่วง ? <แถบนับ rows={แหล่ง} empty="ยังไม่มีลีดในช่วงที่เลือก" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟเหตุผลที่ปิดไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่ปิดไม่สำเร็จ แยกตามเหตุผลที่บันทึก")} testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลูกค้าเป้าหมายที่ปิดไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟลูกค้าเป้าหมายตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่เข้ามาในช่วง แยกตามแหล่งที่มา")} testid="pipeline-sources">{ในช่วง ? <แถบนับ rows={แหล่ง} empty="ยังไม่มีลูกค้าเป้าหมายในช่วงที่เลือก" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
     </>
   );
@@ -348,6 +362,7 @@ export function กล่องล่าง({ รวมทั้งหมด, �
 //   ยิงคำขอเฉพาะตอนอยู่ระดับดีลเลอร์ (คอมโพเนนต์นี้แสดงเฉพาะระดับนั้น) — ไม่เพิ่มคำขอให้ระดับอื่น
 export function ล่าสุดของดีลเลอร์({ code }: { code: string }) {
   const router = useRouter();
+  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const ใบผล = useQuotationsPage({ limit: 5, offset: 0, sort: { col: "created_at", dir: "desc" }, sentOnly: true, dealerCodes: [code] });
   const ลีดผล = useLeadsPage({ limit: 5, offset: 0, dealerCodes: [code] });
   const ใบ = ใบผล ? ใบผล.rows.map(q => ({ id: q.id, customer: q.customer, status: ชื่อสถานะใบHQ[q.status], date: q.date ? fmtISOToThai(q.date) : "—" })) : null;
@@ -369,17 +384,17 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
   return (
     <>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`ตารางใบเสนอราคาล่าสุดของ ${code}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 ใบล่าสุดที่ส่งลูกค้าแล้ว", "ใหม่สุดก่อน")} testid="dealer-latest-quotes">
+        <การ์ดกล่อง title={`ตารางใบเสนอราคาล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 ใบล่าสุดที่ส่งลูกค้าแล้ว", "ใหม่สุดก่อน")} testid="dealer-latest-quotes">
           {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [q.id, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/quotations?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
-        <การ์ดกล่อง title={`ตารางลีดล่าสุดของ ${code}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
-          {ตาราง(["บริษัท", "ขั้นตอน", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลีด")}
+        <การ์ดกล่อง title={`ตารางลูกค้าเป้าหมายล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
+          {ตาราง(["บริษัท", "ขั้นตอน", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลูกค้าเป้าหมาย")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/leads?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
       </div>
       <div style={{ marginBottom: 24 }}>
-        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers/${code}`)}>เปิดแผงดูแลดีลเลอร์ {code}</button>
+        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers/${code}`)}>เปิดแผงดูแลดีลเลอร์ {ชื่อของ(code)}</button>
       </div>
     </>
   );

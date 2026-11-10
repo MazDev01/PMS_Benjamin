@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-11-05 15:07:03",
- "รอบ": "2026-11-05-14-18-34",
- "จำนวน": 276,
+ "บันทึกเมื่อ": "2026-11-10 13:04:31",
+ "รอบ": "2026-11-10-11-18-26",
+ "จำนวน": 284,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -279,6 +279,14 @@
   "0274_notify_prefs_audit_recruit_calendar.sql": "716c8575c261874bc7f1fd406caf47fc9848966b2301c57a5b182a5562c91a23",
   "0275_prospect_import.sql": "b3a8ddb9f67f700a6d8071a896c53e5cd1d51b3de46d28e6df47b22aa910addf",
   "0276_required_fields_guard.sql": "6021ad63b34d7e876445a9188f159fe2750a9a8381c74bd52ebfd35fc290e041",
-  "0277_prospect_import_followup_history.sql": "b67f6b53ca47c5c9cdc55d72a25ef38bc359065798c3734314cf014cb0e27f3f"
+  "0277_prospect_import_followup_history.sql": "b67f6b53ca47c5c9cdc55d72a25ef38bc359065798c3734314cf014cb0e27f3f",
+  "0278_stage_board_guard.sql": "547687ffcd26373a7d4cd9309f43f2578247e40dc65ed8cf085876456753845a",
+  "0279_material_import.sql": "b847cf3f6b15829afe643fc472462367cc59e75e96db920e5d5458950c266f9a",
+  "0280_quote_request_cancel_keep.sql": "a8cd6d2aa9441b7162c8ed7b82f12647f5497480659321385f3d39dc8533acb7",
+  "0281_dealer_display_name.sql": "5ea32fabf6a0a97d9cc1da8c1a1ab06a801b329fbb5caf61c037b76fefb2ad2c",
+  "0282_hq_single_role.sql": "7f02a345df8cf934c2b77cac9f40b9a5dae7ed8bcbf2008c5c59156654ad9274",
+  "0283_network_target_sum.sql": "f1c544a36d563935ca4d02581858da17cdb512cb54ac953cfc206b063070c107",
+  "0284_lead_stage_four.sql": "85dfd7b6081e2e6a894cab90d222d82a12258a81256b202671848caebf3ec7e5",
+  "0285_ui_terms_db_texts.sql": "2a70d3fd3f83818748b0eaed0fa1ab29108152eb286ade8b32a2d5a88942837f"
  }
 }

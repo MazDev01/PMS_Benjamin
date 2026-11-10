@@ -77,7 +77,7 @@ test("[ui·hq] ตัวเลขบนการ์ดเปลี่ยนต�
     await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
     await settle(page);
     await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
-    await page.getByRole("button", { name: new RegExp(`^${สาขา.รหัส} – `) }).click();
+    await page.getByRole("button", { name: สาขา.ชื่อ, exact: true }).click();   // ตัวเลือกเป็นชื่อดีลเลอร์ (บอสสั่ง 6 พ.ย. 69)
     const การ์ด = page.locator("[data-kpi='leads'] [data-value]").first();
     await expect(การ์ด, "1 ปี (ค่าเริ่มต้น): 3 ราย").toHaveAttribute("data-value", "3", { timeout: 30_000 });
     for (const [ป้าย, ตัว, คาด] of [["3 เดือน", "m3", "2"], ["1 เดือน", "m1", "1"], ["1 ปี", "y1", "3"]] as const) {

@@ -1,5 +1,5 @@
 {
- "migration": "0276",
+ "migration": "0285",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -42,6 +42,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "_dealer_display_name(p_code text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "_dealer_display_vat(p_dealer text)",
@@ -247,6 +254,13 @@
    "definer": false
   },
   {
+   "f": "_lead_tasks_four_steps(p_tasks jsonb)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_lead_tasks_has_old_flow(p_tasks jsonb)",
    "anon": false,
    "authenticated": false,
@@ -255,6 +269,20 @@
   },
   {
    "f": "_lead_won_must_be_paid(p_dealer text, p_num integer)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_material_import_block(p_batch bigint)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_network_target(p_codes text[], p_days integer, OUT annual numeric, OUT period numeric)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -374,6 +402,13 @@
   },
   {
    "f": "_quote_lock_text(v text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_quote_request_is_test_row(p_dealer_code text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
@@ -1024,6 +1059,27 @@
    "definer": true
   },
   {
+   "f": "hq_material_import_batches()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_materials_import(p_file text, p_rows jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_materials_import_cancel(p_batch bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "hq_notif_rules_clean_recipients()",
    "anon": false,
    "authenticated": false,
@@ -1232,6 +1288,13 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "lead_quote_request_abandoned(p_lead_num integer)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "lead_stage_no(p_dealer text, p_num integer, p_status lead_status)",
@@ -1577,6 +1640,13 @@
    "definer": false
   },
   {
+   "f": "prospect_undo_last_task(p_id bigint)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "province_field_standard()",
    "anon": false,
    "authenticated": false,
@@ -1907,6 +1977,13 @@
   },
   {
    "f": "quote_requests_log()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "quote_requests_no_delete()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

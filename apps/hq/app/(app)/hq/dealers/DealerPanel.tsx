@@ -6,8 +6,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { X, LogIn, Pencil, EyeOff, Eye, BarChart3, AlertTriangle, Users, FileText, Inbox, Clock, Activity, Building2 } from "lucide-react";
-import { metrics as metricsRepo, dealers as dealersRepo } from "@pms/shared/lib/data";
+import { LogIn, Pencil, EyeOff, Eye, BarChart3, AlertTriangle, Users, FileText, Inbox, Clock, Activity, Building2 } from "lucide-react";
+import { metrics as metricsRepo, dealers as dealersRepo, quotations as quotationsRepo } from "@pms/shared/lib/data";
+import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -20,11 +21,12 @@ import { buildingOf, regionOf, type CustomerDbRow } from "@pms/shared/lib/custom
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { DealerCredentialsCard } from "@pms/shared/components/hq/DealerCredentialsCard";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
-import { dealerStatusLabel, dealerStatusColor, quotationStatusColor, quotationStatusLabel, fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
+import { dealerStatusLabel, dealerStatusColor, quotationStatusColor, quotationStatusLabel, fmtISOToThai, type DealerRow, type HQQuotation } from "@pms/shared/lib/mock";
 import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import { วันเวลาไทย } from "@pms/shared/lib/thaiDate";
 import { ชื่อขั้น, สีขั้น, เลขขั้นจากผล } from "@pms/shared/lib/leadStage";
 import { ป้ายสถานะชำระ, type แผงดีลเลอร์ } from "@pms/shared/lib/hqDealerPanel";
+import { RowPanel, ปุ่มหัวแผง, ป้ายหัวแผง, สรุปแผง, ส่วนแผง, แถวข้อมูล } from "@pms/shared/components/ui/RowPanel";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -33,22 +35,9 @@ const ชื่อแท็บ: Record<แท็บ, string> = { overview: "ภ�
 const เวลา = (s: string | null | undefined) => { if (!s) return "—"; const d = new Date(s); return Number.isNaN(d.getTime()) ? "—" : วันเวลาไทย(d); };
 
 
-/** หัวข้อของส่วนในแท็บภาพรวม — แบบเดียวกันทุกส่วน */
-function ส่วน({ title, icon, children, testid }: { title: string; icon: React.ReactNode; children: React.ReactNode; testid: string }) {
-  return (
-    <section className="card" data-panel-section={testid} style={{ marginBottom: 12 }}>
-      <div className="card-header"><div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ color: PRIMARY, display: "flex" }}>{icon}</span><div className="card-title">{title}</div></div></div>
-      <div className="card-body" style={{ paddingTop: 0 }}>{children}</div>
-    </section>
-  );
-}
-function แถว({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "128px minmax(0,1fr)", gap: 10, padding: "6px 0", borderTop: "1px solid #f1f5f9", fontSize: "0.8rem" }}>
-      <span style={{ color: MUTED }}>{label}</span><span style={{ color: "#1F2937", fontWeight: 600, overflowWrap: "anywhere" }}>{value}</span>
-    </div>
-  );
-}
+// ส่วน / แถว / แผงสรุป = ตัวกลางของแผงจากแถว (RowPanel.tsx) — แผงอื่นใช้ชิ้นเดียวกัน
+const ส่วน = ส่วนแผง;
+const แถว = แถวข้อมูล;
 
 export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, entering }: {
   dealer: DealerRow; onClose: () => void; onEdit: () => void; onToggle: () => void; onEnter: () => void; entering: boolean;
@@ -70,12 +59,6 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
     metricsRepo.hqDealerPanel(code, 100).then(r => { if (alive) setกิจกรรมทั้งหมด(r?.activity ?? []); }).catch(e => logRepoRead("metrics.hqDealerPanel", e));
     return () => { alive = false; };
   }, [แท็บ, code, กิจกรรมทั้งหมด]);
-  // ปิดด้วย Esc
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, [onClose]);
 
   const detail = useNetworkDealerDetail(code);
   const ลูกค้า = useHQCustomersPage(useMemo(() => ({ dealerCode: code, limit: 500, offset: 0 }), [code]));
@@ -85,8 +68,24 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   const look = useMemo(() => dealerLookups(allDealers), [allDealers]);
   const [ดูใบ, setดูใบ] = useState<QuoteRow | null>(null);
-  const เปิดใบ = (no: string) => {
-    const q = netQuotes.filter(x => x.id === no && dealerCodeOf(x) === code);
+  // กดใบในแท็บใบเสนอราคา = หน้าต่างใบเสนอราคาฝั่ง HQ (QuotationDrawer)
+  //   พบ 9 พ.ย. 69: เดิมกดแล้วไม่เปิดอะไร — เทียบ id ("LIVE-<เลขที่>") แทนเลขที่ และฝั่ง HQ (ฐานจริง) ไม่ถือใบทั้งเครือใน SalesContext
+  //   → เทียบเลขที่ · ไม่มีในชุดที่ถือ (ฐานจริง) = อ่านใบนั้นจากฐาน (ชุดเดียวกับแท็บ · สิทธิ์ HQ อ่านได้ทั้งเครือ) + ผู้รับผิดชอบจากลีดที่ผูก
+  const เปิดใบ = async (no: string) => {
+    let q: HQQuotation[] = netQuotes.filter(x => x.quoteNo === no && dealerCodeOf(x) === code);
+    if (!q.length && REAL_BACKEND) {
+      try {
+        const r = await quotationsRepo.listPage(undefined, { limit: 20, offset: 0, dealerCodes: [code], search: no });
+        const raw = r.rows.find(x => x.id === no);
+        if (raw) {
+          const ผู้รับผิดชอบ = await quotationsRepo.salesperson(no, code).catch(e => { logRepoRead("quotations.salesperson", e); return null; });
+          q = [{ id: `LIVE-${raw.id}`, quoteNo: raw.id, dealerCode: code, dealerName: dealer.name, customer: raw.customer, valueNum: raw.totalValue,
+            status: raw.status, createdAt: fmtISOToThai(raw.date), salesDate: วันที่ขายของใบ(raw), salesperson: ผู้รับผิดชอบ ?? "", productLine: raw.project || "",
+            materialCost: raw.materialCost, lineItems: raw.lineItems,
+            dateISO: raw.date, expiry: raw.expiry, revision: raw.revision, vatPercent: raw.vatPercent, whtRate: raw.whtRate, province: raw.province || undefined }];
+        }
+      } catch (e) { logRepoRead("quotations.listPage(dealerPanel)", e); }
+    }
     const row = toQuoteRows(q, validityDays, look)[0];
     if (row) setดูใบ(row);
   };
@@ -114,54 +113,30 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
   const สีสถานะ = dealerStatusColor[dealer.status];
   const จำนวนแท็บ: Partial<Record<แท็บ, number>> = { leads: detail.leads.length, quotes: detail.quotes.length, customers: ลูกค้า?.total ?? undefined };
 
-  // ปุ่มหัวแผง — ทุกปุ่มมีคำอธิบายภาษาไทยเมื่อชี้
-  const ปุ่ม = (label: string, title: string, icon: React.ReactNode, on: () => void, primary = false, disabled = false) => (
-    <button type="button" className={`btn btn-sm ${primary ? "btn-primary" : "btn-secondary"}`} title={title} disabled={disabled} onClick={on}
-      style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>{icon}{label}</button>
-  );
+  // ปุ่มหัวแผง — ทุกปุ่มมีคำอธิบายภาษาไทยเมื่อชี้ (ตัวกลาง ปุ่มหัวแผง · RowPanel)
+  const ปุ่ม = (label: string, title: string, icon: React.ReactNode, on: () => void, primary = false, disabled = false) =>
+    <ปุ่มหัวแผง key={label} label={label} title={title} icon={icon} onClick={on} primary={primary} disabled={disabled} />;
 
   return (
     <>
-      <div onClick={onClose} data-dealer-panel-backdrop style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 240 }} />
-      <aside role="dialog" aria-label={`แผงดีลเลอร์ ${dealer.name}`} data-dealer-panel={code} className="side-drawer"
-        style={{ position: "fixed", top: 12, right: 12, bottom: 12, width: 640, maxWidth: "calc(100vw - 24px)", zIndex: 241,
-          background: "#F8FAFC", boxShadow: "0 24px 70px rgba(0,0,0,.24)", borderRadius: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        {/* ── 1. หัวแผง: ชื่อ · รหัส · สถานะ · จังหวัด/ภูมิภาค · ปุ่ม ── */}
-        <header style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "16px 18px 14px", color: "#fff", flexShrink: 0 }}>
-          <div data-panel-head style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div data-panel-name style={{ fontSize: "1rem", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={dealer.name}>{dealer.name}</div>
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6, fontSize: "0.72rem" }}>
-                <span className="badge" style={{ background: "rgba(255,255,255,.16)", color: "#fff", fontFamily: "monospace" }}>{code}</span>
-                <span className="badge" data-panel-status style={{ background: สีสถานะ.bg, color: สีสถานะ.color }}>{dealerStatusLabel[dealer.status]}</span>
-                <span style={{ color: "rgba(255,255,255,.8)" }}>{dealer.province || "—"} · {ชื่อภาค(dealer.region)}</span>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} title="ปิดแผง" aria-label="ปิดแผง"
-              style={{ background: "rgba(255,255,255,.12)", border: "none", color: "#fff", width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-              <X size={16} />
-            </button>
-          </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-            {ปุ่ม(entering ? "..." : "เข้าระบบ", "เข้าระบบแทนดีลเลอร์", <LogIn size={13} />, onEnter, true, entering)}
-            {ปุ่ม("แก้ไข", "แก้ไขข้อมูลดีลเลอร์", <Pencil size={13} />, onEdit)}
-            {ปุ่ม(dealer.status === "active" ? "ปิดใช้งาน" : "เปิดใช้งาน", dealer.status === "active" ? "ปิดใช้งานดีลเลอร์ (เข้าระบบไม่ได้)" : "เปิดใช้งานดีลเลอร์",
-              dealer.status === "active" ? <EyeOff size={13} /> : <Eye size={13} />, onToggle)}
-            {ปุ่ม("ดูผลงาน", "ดูผลงานที่ภาพรวมยอดขาย (เลือกดีลเลอร์นี้ไว้ให้)", <BarChart3 size={13} />, () => router.push(ลิงก์ผลงาน))}
-          </div>
-        </header>
-
-        <div className="tab-bar" style={{ padding: "0 14px", background: "#fff", flexShrink: 0, overflowX: "auto" }}>
-          {(Object.keys(ชื่อแท็บ) as แท็บ[]).map(t => (
-            <button key={t} type="button" aria-pressed={แท็บ === t} data-active={แท็บ === t ? "1" : ""} data-panel-tab={t} onClick={() => setแท็บ(t)} className={`tab-item ${แท็บ === t ? "active" : ""}`}
-              style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
-              {ชื่อแท็บ[t]}
-              {จำนวนแท็บ[t] != null && <span style={{ fontSize: "0.65rem", fontWeight: 700, background: แท็บ === t ? "#dce5f0" : "#e5e7eb", color: แท็บ === t ? PRIMARY : MUTED, borderRadius: 99, padding: "1px 6px" }}>{จำนวนแท็บ[t]}</span>}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: 14 }} data-panel-body>
+      {/* เปลือกแผง = ตัวกลาง RowPanel (แผงเลื่อนขวาจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69) */}
+      <RowPanel label={`แผงดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดแผง"
+        asideAttrs={{ "data-dealer-panel": code }} backdropAttrs={{ "data-dealer-panel-backdrop": "" }}
+        title={dealer.name} titleAttrs={{ "data-panel-name": "" }}
+        badges={<>
+          <ป้ายหัวแผง mono>{code}</ป้ายหัวแผง>
+          <ป้ายหัวแผง bg={สีสถานะ.bg} color={สีสถานะ.color} attrs={{ "data-panel-status": "" }}>{dealerStatusLabel[dealer.status]}</ป้ายหัวแผง>
+        </>}
+        subtitle={`${dealer.province || "—"} · ${ชื่อภาค(dealer.region)}`}
+        actions={<>
+          {ปุ่ม(entering ? "..." : "เข้าระบบ", "เข้าระบบแทนดีลเลอร์", <LogIn size={13} />, onEnter, true, entering)}
+          {ปุ่ม("แก้ไข", "แก้ไขข้อมูลดีลเลอร์", <Pencil size={13} />, onEdit)}
+          {ปุ่ม(dealer.status === "active" ? "ปิดใช้งาน" : "เปิดใช้งาน", dealer.status === "active" ? "ปิดใช้งานดีลเลอร์ (เข้าระบบไม่ได้)" : "เปิดใช้งานดีลเลอร์",
+            dealer.status === "active" ? <EyeOff size={13} /> : <Eye size={13} />, onToggle)}
+          {ปุ่ม("ดูผลงาน", "ดูผลงานที่ภาพรวมยอดขาย (เลือกดีลเลอร์นี้ไว้ให้)", <BarChart3 size={13} />, () => router.push(ลิงก์ผลงาน))}
+        </>}
+        tabs={(Object.keys(ชื่อแท็บ) as แท็บ[]).map(t => ({ key: t, label: ชื่อแท็บ[t], count: จำนวนแท็บ[t] }))}
+        tab={แท็บ} onTab={k => setแท็บ(k as แท็บ)}>
           {/* ป้ายบอกขอบเขต — ไม่บอกคลุมว่าแก้อะไรไม่ได้เลย (บอสแจ้ง 20 ส.ค. 69) · ชี้ทางว่าแก้อะไรได้ที่ไหน */}
           <div data-readonly-note style={{ background: "#f5f7fa", border: "1px solid #e5e7eb", borderLeft: `3px solid ${PRIMARY}`, borderRadius: 10, padding: "8px 12px", marginBottom: 12, fontSize: "0.74rem", color: "#374151", lineHeight: 1.6 }}>
             <strong style={{ color: PRIMARY }}>ข้อมูลงานขายดูอย่างเดียว</strong> — ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า แก้จากแผงนี้ไม่ได้
@@ -178,7 +153,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
           )}
           {แท็บ === "quotes" && (
             <ตารางย่อย หัว={["เลขที่", "ลูกค้า", "สถานะ", "วันที่"]} ว่าง="ไม่มีใบเสนอราคา" หน่วย="ใบ" กว้าง={[200, "38%", 128, 112]}
-              แถว={detail.quotes.map(q => ({ key: q.quoteNo, ป้าย: `เปิดใบเสนอราคา ${q.quoteNo}`, เปิด: () => เปิดใบ(q.quoteNo),
+              แถว={detail.quotes.map(q => ({ key: q.quoteNo, ป้าย: `เปิดใบเสนอราคา ${q.quoteNo}`, เปิด: () => void เปิดใบ(q.quoteNo),
                 ช่อง: [<span key="n" data-quote-no style={{ fontWeight: 700, color: PRIMARY, whiteSpace: "nowrap" }}>{q.quoteNo}</span>, q.customer, <span key="s" className="badge" style={{ background: quotationStatusColor[q.status].bg, color: quotationStatusColor[q.status].text }}>{quotationStatusLabel[q.status]}</span>, q.date] }))} />
           )}
           {แท็บ === "customers" && (
@@ -189,8 +164,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
           {แท็บ === "activity" && (
             <ส่วน title="กิจกรรมล่าสุด" icon={<Activity size={15} />} testid="activity-all"><รายการกิจกรรม รายการ={กิจกรรมทั้งหมด} /></ส่วน>
           )}
-        </div>
-      </aside>
+      </RowPanel>
       {ดูใบ && <QuotationDrawer quote={ดูใบ} onClose={() => setดูใบ(null)} />}
       {ดูลูกค้า != null && <CustomerDrawer row={รายละเอียดลูกค้า} onClose={() => setดูลูกค้า(null)} />}
     </>
@@ -202,8 +176,8 @@ function ภาพรวม({ ข้อมูล, dealer, ไปแท็บ }: 
   const c = ข้อมูล?.counts;
   // 2. ตัวเลขงานดูแล (จำนวน · ไม่มีเงิน) — กดแต่ละตัว = แท็บนั้นในแผง · คำขอราคาไปกล่องงานคำขอ (ไม่มีแท็บในแผง)
   const ตัวเลข: { k: string; label: string; v: string; icon: React.ReactNode; on: () => void }[] = [
-    { k: "openLeads", label: "ลีดที่เปิดอยู่", v: c ? c.openLeads.toLocaleString() : "—", icon: <Users size={14} />, on: () => ไปแท็บ("leads") },
-    { k: "requestsWaitingHq", label: "คำขอราคาที่รอ HQ", v: c ? c.requestsWaitingHq.toLocaleString() : "—", icon: <Inbox size={14} />,
+    { k: "openLeads", label: "ลูกค้าเป้าหมายที่เปิดอยู่", v: c ? c.openLeads.toLocaleString() : "—", icon: <Users size={14} />, on: () => ไปแท็บ("leads") },
+    { k: "requestsWaitingHq", label: "คำขอใบเสนอราคาที่รอ HQ", v: c ? c.requestsWaitingHq.toLocaleString() : "—", icon: <Inbox size={14} />,
       on: () => { window.location.href = `/hq/quote-requests?q=${encodeURIComponent(dealer.code)}`; } },
     { k: "quotesAwaiting", label: "ใบที่รอลูกค้าตอบ", v: c ? c.quotesAwaiting.toLocaleString() : "—", icon: <FileText size={14} />, on: () => ไปแท็บ("quotes") },
     { k: "customers", label: "ลูกค้า", v: c ? c.customers.toLocaleString() : "—", icon: <Building2 size={14} />, on: () => ไปแท็บ("customers") },
@@ -214,15 +188,7 @@ function ภาพรวม({ ข้อมูล, dealer, ไปแท็บ }: 
   const ผู้ติดต่อ = p ? [p.name, p.email, p.phone].filter(Boolean).join(" · ") || "—" : "—";
   return (
     <>
-      <div data-panel-stats style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 8, marginBottom: 12 }}>
-        {ตัวเลข.map(t => (
-          <button key={t.k} type="button" data-stat={t.k} onClick={t.on} title={`${t.label} — กดเพื่อดูรายการ`} className="card clickable"
-            style={{ textAlign: "left", padding: "10px 12px", border: "1px solid #e5e7eb", cursor: "pointer", background: "#fff", marginBottom: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: MUTED, fontSize: "0.68rem", fontWeight: 700 }}>{t.icon}{t.label}</div>
-            <div data-value style={{ marginTop: 4, fontSize: t.k.startsWith("last") ? "0.78rem" : "1.15rem", fontWeight: 800, color: "#1F2937", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={t.v}>{t.v}</div>
-          </button>
-        ))}
-      </div>
+      <สรุปแผง items={ตัวเลข.map(t => ({ ...t, value: t.v, small: t.k.startsWith("last"), onClick: t.on, title: t.v }))} />
 
       {/* 3. ข้อมูลดีลเลอร์ — ต้องครบก่อนส่งใบแรก (กติกาเดียวกับด่านที่ฐาน _issuer_missing · ใบ 0247) */}
       <ส่วน title="ข้อมูลดีลเลอร์" icon={<Building2 size={15} />} testid="company">

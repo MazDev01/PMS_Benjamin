@@ -3,12 +3,15 @@
 --   การ์ด "ลีดที่เปิดอยู่" = ณ ตอนนี้ = ผลรวมขั้น 1–5 ของ lead_summary ไม่ผูกช่วง = ตาราง "กำลังดำเนินการ" ไม่ผูกช่วง
 --   การ์ด "ลีดใหม่ในช่วงนี้" = แหล่งที่มารวมกัน (lead_summary ตามช่วง) = ตาราง "ทั้งหมด" ตามช่วง
 --   การ์ด "ไม่เคลื่อนไหวเกิน 30 วัน" = ตาราง "ค้างติดตาม" ที่ 30 วัน
---   ข้อมูลของข้อ: ป้ายค้น ZZ1SET (สาขา ZZLXA + ลีดของ HQ) · ตัวกรองคำค้นทำให้ทุกตัวนับเฉพาะของข้อ
+--   ข้อมูลของข้อ: ป้ายค้น ZZLXSQL (สาขา ZZLXA + ลีดของ HQ) · ตัวกรองคำค้นทำให้ทุกตัวนับเฉพาะของข้อ
 --   (2 พ.ย. 69 · ใบ 0271 เจาะลึก) การ์ด/กราฟคิดตาม "ระดับ" (ชุดสาขา) เท่านั้น — คำค้น/จังหวัดหน้างาน/ช่องทาง คุมแค่รายชื่อ
 --     → เทียบการ์ด = กราฟ = ตาราง ที่ระดับทั้งเครือและระดับดีลเลอร์ของข้อ (ไม่ใส่คำค้น) · ตัวกรองรายชื่อไม่เปลี่ยนการ์ด (กลับด้านจากเดิม)
 --     ทั้งรายการเห็นข้อมูลชุดเดียว (repeatable read) — ระดับทั้งเครือนับลีดของทุกสาขา ข้ออื่นที่รันพร้อมกันเขียนแทรกไม่ได้
 -- รัน: docker exec -i <คอนเทนเนอร์ฐานทดสอบ> psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/hq_leads_exclude_hq.sql
 -- ทรานแซกชันเดียวแล้ว rollback · ผ่าน = "ALL PASS" · ตกบนโค้ดก่อนใบ 0265: กราฟ/ตารางนับลีด HQ รวม (เกิน 2)
+--   ป้ายค้นเปลี่ยน ZZ1SET → ZZLXSQL (9 พ.ย. 69 · ผลไม่นิ่ง "leads_page ขอ HQ ตรง ๆ ได้ 4 ควร 2"): ป้ายเดิมเป็นส่วนหนึ่งของป้าย ZZ1SETW… ของ
+--     tests/scenario/hq-leads-one-set.spec.ts ซึ่งสร้างลีด HQ จริง 2 ราย (commit) ระหว่างรัน → คำค้นของข้อนี้นับติดไปด้วยเมื่อรันซ้อน/ก่อนข้อนั้นล้าง
+--     ป้ายใหม่ห้ามเป็นส่วนหนึ่งของป้ายไฟล์อื่น (ตรวจด้วยการค้นทั้ง repo ตอนตั้ง)
 begin;
 set transaction isolation level repeatable read;
 create schema lxtest;
@@ -29,20 +32,20 @@ set local session_replication_role = replica;
 insert into dealers (code, name, province, region, status) values ('ZZLXA', 'ZZTEST ลีดชุดเดียว', 'ตราด', 'ตะวันออก', 'active');
 insert into dealer_territories (province, dealer_code) values ('ตราด', 'ZZLXA');
 insert into leads (id, num_id, dealer_code, company, name, phone, province, source, status, created_date, last_contact_at) values
-  ('#L-991101', 991101, 'ZZLXA', 'ZZ1SET ก', 'ZZTEST', '000-000-1101', 'ตราด', 'Facebook', 'WAITING',   '2026-10-05', '2026-10-28'),
-  ('#L-991102', 991102, 'ZZLXA', 'ZZ1SET ข', 'ZZTEST', '000-000-1102', 'ตราด', 'Facebook', 'HQ_QUOTED', '2026-10-06', '2026-10-28'),
-  ('#L-991103', 991103, 'ZZLXA', 'ZZ1SET ค', 'ZZTEST', '000-000-1103', 'ตราด', 'เว็บไซต์', 'QUOTED',    '2026-10-07', '2026-10-28'),
-  ('#L-991104', 991104, 'ZZLXA', 'ZZ1SET ง เก่า', 'ZZTEST', '000-000-1104', 'ตราด', 'เว็บไซต์', 'WAITING', '2025-12-01', '2026-09-20'),
-  ('#L-991105', 991105, 'ZZLXA', 'ZZ1SET จ', 'ZZTEST', '000-000-1105', 'ตราด', 'Facebook', 'PAID',      '2026-10-08', '2026-10-20'),
-  ('#L-991106', 991106, 'ZZLXA', 'ZZ1SET ฉ', 'ZZTEST', '000-000-1106', 'ตราด', 'Facebook', 'CANCELLED', '2026-10-09', '2026-10-20'),
-  ('#L-991107', 991107, 'HQ',    'ZZ1SET HQ1', 'ZZTEST', '000-000-1107', 'ตราด', 'Facebook', 'WAITING', '2026-10-10', '2026-10-10'),
-  ('#L-991108', 991108, 'HQ',    'ZZ1SET HQ2', 'ZZTEST', '000-000-1108', 'ตราด', 'เว็บไซต์', 'WAITING', '2026-10-11', '2026-09-01');
+  ('#L-991101', 991101, 'ZZLXA', 'ZZLXSQL ก', 'ZZTEST', '000-000-1101', 'ตราด', 'Facebook', 'WAITING',   '2026-10-05', '2026-10-28'),
+  ('#L-991102', 991102, 'ZZLXA', 'ZZLXSQL ข', 'ZZTEST', '000-000-1102', 'ตราด', 'Facebook', 'HQ_QUOTED', '2026-10-06', '2026-10-28'),
+  ('#L-991103', 991103, 'ZZLXA', 'ZZLXSQL ค', 'ZZTEST', '000-000-1103', 'ตราด', 'เว็บไซต์', 'QUOTED',    '2026-10-07', '2026-10-28'),
+  ('#L-991104', 991104, 'ZZLXA', 'ZZLXSQL ง เก่า', 'ZZTEST', '000-000-1104', 'ตราด', 'เว็บไซต์', 'WAITING', '2025-12-01', '2026-09-20'),
+  ('#L-991105', 991105, 'ZZLXA', 'ZZLXSQL จ', 'ZZTEST', '000-000-1105', 'ตราด', 'Facebook', 'PAID',      '2026-10-08', '2026-10-20'),
+  ('#L-991106', 991106, 'ZZLXA', 'ZZLXSQL ฉ', 'ZZTEST', '000-000-1106', 'ตราด', 'Facebook', 'CANCELLED', '2026-10-09', '2026-10-20'),
+  ('#L-991107', 991107, 'HQ',    'ZZLXSQL HQ1', 'ZZTEST', '000-000-1107', 'ตราด', 'Facebook', 'WAITING', '2026-10-10', '2026-10-10'),
+  ('#L-991108', 991108, 'HQ',    'ZZLXSQL HQ2', 'ZZTEST', '000-000-1108', 'ตราด', 'เว็บไซต์', 'WAITING', '2026-10-11', '2026-09-01');
 set local session_replication_role = origin;
 
 do $$
 declare
   hq uuid := (select id from profiles where role = 'SUPER_ADMIN' and status = 'active' limit 1);
-  ป้าย constant text := 'ZZ1SET';
+  ป้าย constant text := 'ZZLXSQL';
   ช่วงต้น constant date := '2026-10-01'; ช่วงท้าย constant date := '2026-10-31'; วันนี้ constant date := '2026-10-30';
   ตัวกรอง record; การ์ด jsonb; ทั้งหมด jsonb; ตามช่วง jsonb; ขั้น15 numeric; แหล่ง numeric; ชุดสาขา text[];
 begin

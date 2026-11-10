@@ -32,7 +32,7 @@ export async function ส่งโค้ดยืนยันอีเมล(adm
   if (เดิม?.sent_at) {
     const ผ่านไป = (Date.now() - new Date(String(เดิม.sent_at)).getTime()) / 1000;
     if (ผ่านไป < ส่งใหม่ได้หลังวินาที) {
-      return { ok: false, status: 429, error: `เพิ่งส่งโค้ดไป — ขอโค้ดใหม่ได้อีกครั้งใน ${Math.ceil(ส่งใหม่ได้หลังวินาที - ผ่านไป)} วินาที` };
+      return { ok: false, status: 429, error: `เพิ่งส่งเลขยืนยันไป — ขอเลขยืนยันใหม่ได้อีกครั้งใน ${Math.ceil(ส่งใหม่ได้หลังวินาที - ผ่านไป)} วินาที` };
     }
   }
 
@@ -44,21 +44,21 @@ export async function ส่งโค้ดยืนยันอีเมล(adm
     user_id: who.userId, email, code_hash: แฮช(who.userId, code), attempts: 0,
     expires_at: new Date(Date.now() + อายุโค้ดนาที * 60_000).toISOString(), sent_at: new Date().toISOString(),
   });
-  if (codeErr) return { ok: false, status: 503, error: "สร้างโค้ดยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  if (codeErr) return { ok: false, status: 503, error: "สร้างเลขยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
 
   const { data: จดหมาย, error: mailErr } = await admin.from("email_outbox").insert({
     kind: "contact_email_verify", to_email: email, ref_table: "profiles", ref_id: who.userId,
-    subject: `โค้ดยืนยันอีเมลติดต่อ Benjamin PMS: ${code}`,
-    body: `โค้ดยืนยันอีเมลติดต่อของดีลเลอร์ ${who.dealerCode} คือ ${code}\n\nกรอกโค้ดนี้ในหน้าจอภายใน ${อายุโค้ดนาที} นาที\n`
+    subject: `เลขยืนยันอีเมลติดต่อ Benjamin PMS: ${code}`,
+    body: `เลขยืนยันอีเมลติดต่อของดีลเลอร์ ${who.dealerCode} คือ ${code}\n\nกรอกเลขยืนยันนี้ในหน้าจอภายใน ${อายุโค้ดนาที} นาที\n`
       + "อีเมลนี้จะใช้รับแจ้งเตือนจากสำนักงานใหญ่ เช่น เมื่อสำนักงานใหญ่ส่งใบเสนอราคาให้\n"
-      + "ถ้าไม่ได้ขอโค้ดนี้ ไม่ต้องทำอะไร",
+      + "ถ้าไม่ได้ขอเลขยืนยันนี้ ไม่ต้องทำอะไร",
   }).select("id").single();
-  if (mailErr || !จดหมาย) return { ok: false, status: 503, error: "ส่งโค้ดไม่สำเร็จ — ลองกด “ส่งโค้ดใหม่” หรือติดต่อสำนักงานใหญ่ให้ยืนยันอีเมลแทน" };
+  if (mailErr || !จดหมาย) return { ok: false, status: 503, error: "ส่งเลขยืนยันไม่สำเร็จ — ลองกด “ส่งเลขยืนยันใหม่” หรือติดต่อสำนักงานใหญ่ให้ยืนยันอีเมลแทน" };
 
   const ผล = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin, Number(จดหมาย.id)), await ตัวส่งSMTP(), 1);
   if (ผล.ส่งแล้ว !== 1) {
     if (ผล.ข้าม) console.warn(`[contact-email] ${ผล.ข้าม}`);
-    return { ok: false, status: 503, error: "ระบบส่งอีเมลขัดข้อง ส่งโค้ดไม่สำเร็จ — ลองกด “ส่งโค้ดใหม่” ภายหลัง หรือติดต่อสำนักงานใหญ่ให้ยืนยันอีเมลแทน (ใช้งานระบบต่อได้ตามปกติ)" };
+    return { ok: false, status: 503, error: "ระบบส่งอีเมลขัดข้อง ส่งเลขยืนยันไม่สำเร็จ — ลองกด “ส่งเลขยืนยันใหม่” ภายหลัง หรือติดต่อสำนักงานใหญ่ให้ยืนยันอีเมลแทน (ใช้งานระบบต่อได้ตามปกติ)" };
   }
   return { ok: true, sentTo: email };
 }
@@ -67,23 +67,23 @@ export async function ส่งโค้ดยืนยันอีเมล(adm
 export async function ยืนยันโค้ดอีเมล(admin: SupabaseClient, who: { userId: string; appMeta: Record<string, unknown> }, code: string)
   : Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const { data: แถว } = await admin.from("contact_email_codes").select("email, code_hash, expires_at, attempts").eq("user_id", who.userId).maybeSingle();
-  if (!แถว) return { ok: false, status: 400, error: "ยังไม่ได้ขอโค้ด หรือโค้ดถูกใช้ไปแล้ว — กด “ส่งโค้ด” ก่อน" };
-  if (new Date(String(แถว.expires_at)).getTime() < Date.now()) return { ok: false, status: 400, error: "โค้ดหมดอายุแล้ว — กด “ส่งโค้ดใหม่”" };
-  if (Number(แถว.attempts) >= ลองโค้ดได้) return { ok: false, status: 429, error: "กรอกโค้ดผิดหลายครั้งเกินไป — กด “ส่งโค้ดใหม่”" };
+  if (!แถว) return { ok: false, status: 400, error: "ยังไม่ได้ขอเลขยืนยัน หรือเลขยืนยันถูกใช้ไปแล้ว — กด “ส่งเลขยืนยัน” ก่อน" };
+  if (new Date(String(แถว.expires_at)).getTime() < Date.now()) return { ok: false, status: 400, error: "เลขยืนยันหมดอายุแล้ว — กด “ส่งเลขยืนยันใหม่”" };
+  if (Number(แถว.attempts) >= ลองโค้ดได้) return { ok: false, status: 429, error: "กรอกเลขยืนยันผิดหลายครั้งเกินไป — กด “ส่งเลขยืนยันใหม่”" };
   const { contactEmail } = await สถานะอีเมลติดต่อ(admin, who.userId);
-  if (contactEmail.trim().toLowerCase() !== String(แถว.email)) return { ok: false, status: 400, error: "อีเมลติดต่อเปลี่ยนไปหลังขอโค้ด — กด “ส่งโค้ดใหม่”" };
+  if (contactEmail.trim().toLowerCase() !== String(แถว.email)) return { ok: false, status: 400, error: "อีเมลติดต่อเปลี่ยนไปหลังขอเลขยืนยัน — กด “ส่งเลขยืนยันใหม่”" };
   // นับครั้งก่อนเทียบโค้ด ทุกครั้ง (บอสสั่ง 15 ต.ค. 69) — เขียนไม่สำเร็จ = ปฏิเสธ แม้โค้ดถูก
   //   เดิมนับเฉพาะตอนผิด และไม่ดูผล: เขียนไม่สำเร็จแล้วตัวนับไม่ขึ้น → เดาโค้ดได้ไม่จำกัด
   //   เขียนแบบมีเงื่อนไข (ตัวนับต้องยังเป็นค่าเดิม) — สองคำขอพร้อมกันนับซ้อนกันไม่ได้ อีกคำขอถูกปฏิเสธ
   const { data: นับแล้ว, error: นับErr } = await admin.from("contact_email_codes")
     .update({ attempts: Number(แถว.attempts) + 1 }).eq("user_id", who.userId).eq("attempts", Number(แถว.attempts)).select("attempts");
-  if (นับErr || !นับแล้ว?.length) return { ok: false, status: 503, error: "ตรวจโค้ดไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
-  if (แฮช(who.userId, code.trim()) !== แถว.code_hash) return { ok: false, status: 400, error: "โค้ดไม่ถูกต้อง" };
+  if (นับErr || !นับแล้ว?.length) return { ok: false, status: 503, error: "ตรวจเลขยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  if (แฮช(who.userId, code.trim()) !== แถว.code_hash) return { ok: false, status: 400, error: "เลขยืนยันไม่ถูกต้อง" };
   // โค้ดใช้ได้ครั้งเดียว: ลบก่อนตั้งสถานะ — ลบไม่สำเร็จ = ปฏิเสธ (ไม่ให้โค้ดเดิมใช้ซ้ำได้)
   const { data: ลบแล้ว, error: ลบErr } = await admin.from("contact_email_codes").delete().eq("user_id", who.userId).select("user_id");
   if (ลบErr || !ลบแล้ว?.length) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
   const { error } = await admin.from("profiles").update({ contact_email_verified_at: new Date().toISOString() }).eq("id", who.userId);
-  if (error) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — กด “ส่งโค้ดใหม่” แล้วลองอีกครั้ง" };
+  if (error) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — กด “ส่งเลขยืนยันใหม่” แล้วลองอีกครั้ง" };
   if (who.appMeta.must_verify_email) await admin.auth.admin.updateUserById(who.userId, { app_metadata: { ...who.appMeta, must_verify_email: false } });
   return { ok: true };
 }
@@ -128,26 +128,26 @@ export async function ส่งโค้ดผู้รับแจ้งเต�
   const { data: เดิม } = await admin.from("dealer_notify_recipient_codes").select("sent_at").eq("recipient_id", id).maybeSingle();
   if (เดิม?.sent_at) {
     const ผ่านไป = (Date.now() - new Date(String(เดิม.sent_at)).getTime()) / 1000;
-    if (ผ่านไป < ส่งใหม่ได้หลังวินาที) return { ok: false, status: 429, error: `เพิ่งส่งโค้ดไป — ขอโค้ดใหม่ได้อีกครั้งใน ${Math.ceil(ส่งใหม่ได้หลังวินาที - ผ่านไป)} วินาที` };
+    if (ผ่านไป < ส่งใหม่ได้หลังวินาที) return { ok: false, status: 429, error: `เพิ่งส่งเลขยืนยันไป — ขอเลขยืนยันใหม่ได้อีกครั้งใน ${Math.ceil(ส่งใหม่ได้หลังวินาที - ผ่านไป)} วินาที` };
   }
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const { error: codeErr } = await admin.from("dealer_notify_recipient_codes").upsert({
     recipient_id: id, code_hash: แฮชผู้รับ(id, code), attempts: 0,
     expires_at: new Date(Date.now() + อายุโค้ดนาที * 60_000).toISOString(), sent_at: new Date().toISOString(),
   });
-  if (codeErr) return { ok: false, status: 503, error: "สร้างโค้ดยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  if (codeErr) return { ok: false, status: 503, error: "สร้างเลขยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
   const { data: จดหมาย, error: mailErr } = await admin.from("email_outbox").insert({
     kind: "notify_recipient_verify", to_email: r.row.email, ref_table: "dealer_notify_recipients", ref_id: String(id),
-    subject: `โค้ดยืนยันอีเมลรับแจ้งเตือน Benjamin PMS: ${code}`,
-    body: `โค้ดยืนยันอีเมลรับแจ้งเตือนของดีลเลอร์ ${who.dealerCode} คือ ${code}\n\nกรอกโค้ดนี้ในหน้า ตั้งค่า › การแจ้งเตือน ภายใน ${อายุโค้ดนาที} นาที\n`
+    subject: `เลขยืนยันอีเมลรับแจ้งเตือน Benjamin PMS: ${code}`,
+    body: `เลขยืนยันอีเมลรับแจ้งเตือนของดีลเลอร์ ${who.dealerCode} คือ ${code}\n\nกรอกเลขยืนยันนี้ในหน้า ตั้งค่า › การแจ้งเตือน ภายใน ${อายุโค้ดนาที} นาที\n`
       + "ยืนยันแล้วอีเมลนี้จะได้รับแจ้งเตือนจากระบบ เช่น เมื่อสำนักงานใหญ่ส่งราคาให้\n"
-      + "ถ้าไม่ได้ขอโค้ดนี้ ไม่ต้องทำอะไร",
+      + "ถ้าไม่ได้ขอเลขยืนยันนี้ ไม่ต้องทำอะไร",
   }).select("id").single();
-  if (mailErr || !จดหมาย) return { ok: false, status: 503, error: "ส่งโค้ดไม่สำเร็จ — ลองกด “ส่งโค้ด” อีกครั้ง" };
+  if (mailErr || !จดหมาย) return { ok: false, status: 503, error: "ส่งเลขยืนยันไม่สำเร็จ — ลองกด “ส่งเลขยืนยัน” อีกครั้ง" };
   const ผล = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin, Number(จดหมาย.id)), await ตัวส่งSMTP(), 1);
   if (ผล.ส่งแล้ว !== 1) {
     if (ผล.ข้าม) console.warn(`[notify-recipient] ${ผล.ข้าม}`);
-    return { ok: false, status: 503, error: "ระบบส่งอีเมลขัดข้อง ส่งโค้ดไม่สำเร็จ — ลองกด “ส่งโค้ด” อีกครั้งภายหลัง" };
+    return { ok: false, status: 503, error: "ระบบส่งอีเมลขัดข้อง ส่งเลขยืนยันไม่สำเร็จ — ลองกด “ส่งเลขยืนยัน” อีกครั้งภายหลัง" };
   }
   return { ok: true, sentTo: r.row.email };
 }
@@ -159,17 +159,17 @@ export async function ยืนยันโค้ดผู้รับแจ้�
   if (!r.ok) return r;
   if (r.row.verified) return { ok: true, email: r.row.email };
   const { data: แถว } = await admin.from("dealer_notify_recipient_codes").select("code_hash, expires_at, attempts").eq("recipient_id", id).maybeSingle();
-  if (!แถว) return { ok: false, status: 400, error: "ยังไม่ได้ขอโค้ด หรือโค้ดถูกใช้ไปแล้ว — กด “ส่งโค้ด” ก่อน" };
-  if (new Date(String(แถว.expires_at)).getTime() < Date.now()) return { ok: false, status: 400, error: "โค้ดหมดอายุแล้ว — กด “ส่งโค้ด” ใหม่" };
-  if (Number(แถว.attempts) >= ลองโค้ดได้) return { ok: false, status: 429, error: "กรอกโค้ดผิดหลายครั้งเกินไป — กด “ส่งโค้ด” ใหม่" };
+  if (!แถว) return { ok: false, status: 400, error: "ยังไม่ได้ขอเลขยืนยัน หรือเลขยืนยันถูกใช้ไปแล้ว — กด “ส่งเลขยืนยัน” ก่อน" };
+  if (new Date(String(แถว.expires_at)).getTime() < Date.now()) return { ok: false, status: 400, error: "เลขยืนยันหมดอายุแล้ว — กด “ส่งเลขยืนยัน” ใหม่" };
+  if (Number(แถว.attempts) >= ลองโค้ดได้) return { ok: false, status: 429, error: "กรอกเลขยืนยันผิดหลายครั้งเกินไป — กด “ส่งเลขยืนยัน” ใหม่" };
   const { data: นับแล้ว, error: นับErr } = await admin.from("dealer_notify_recipient_codes")
     .update({ attempts: Number(แถว.attempts) + 1 }).eq("recipient_id", id).eq("attempts", Number(แถว.attempts)).select("attempts");
-  if (นับErr || !นับแล้ว?.length) return { ok: false, status: 503, error: "ตรวจโค้ดไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
-  if (แฮชผู้รับ(id, code.trim()) !== แถว.code_hash) return { ok: false, status: 400, error: "โค้ดไม่ถูกต้อง" };
+  if (นับErr || !นับแล้ว?.length) return { ok: false, status: 503, error: "ตรวจเลขยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
+  if (แฮชผู้รับ(id, code.trim()) !== แถว.code_hash) return { ok: false, status: 400, error: "เลขยืนยันไม่ถูกต้อง" };
   const { data: ลบแล้ว, error: ลบErr } = await admin.from("dealer_notify_recipient_codes").delete().eq("recipient_id", id).select("recipient_id");
   if (ลบErr || !ลบแล้ว?.length) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
   const { error } = await admin.from("dealer_notify_recipients").update({ verified_at: new Date().toISOString() }).eq("id", id);
-  if (error) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — กด “ส่งโค้ด” แล้วลองอีกครั้ง" };
+  if (error) return { ok: false, status: 503, error: "ยืนยันไม่สำเร็จชั่วคราว — กด “ส่งเลขยืนยัน” แล้วลองอีกครั้ง" };
   return { ok: true, email: r.row.email };
 }
 

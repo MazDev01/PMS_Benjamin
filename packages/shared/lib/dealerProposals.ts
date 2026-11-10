@@ -22,7 +22,7 @@ export const PROPOSAL_STATUS_ORDER: readonly DealerProposalStatus[] = ["draft", 
 // คำเดียวกับสถานะใบเสนอราคาของดีลเลอร์ (ร่าง / ส่งแล้ว / ตอบรับ / ปฏิเสธ) — คนใช้สองระบบจะได้ไม่สับสน
 export const proposalStatusLabel: Record<DealerProposalStatus, string> = {
   draft: "ร่าง", sent: "ส่งแล้ว", accepted: "ตอบรับ", rejected: "ปฏิเสธ",
-  expired: "หมดอายุ", superseded: "ถูกแทนด้วยเวอร์ชันใหม่",
+  expired: "หมดอายุ", superseded: "ถูกแทนด้วยฉบับใหม่",
 };
 export const proposalStatusColor: Record<DealerProposalStatus, { bg: string; text: string }> = {
   draft:    { bg: "#f3f4f6", text: "#4b5563" },

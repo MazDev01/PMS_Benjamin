@@ -15,7 +15,11 @@ const ราก = process.cwd();
 const ที่ = mkdtempSync(join(tmpdir(), "prepush-guard-"));
 const repo = join(ที่, "repo"), remote = join(ที่, "remote.git");
 const ใบฐานจริง = join(ที่, "prod-versions.json");
-const env = { ...process.env, PMS_PROD_VERSIONS_FILE: ใบฐานจริง };
+// ล็อกฐานจริงของข้อทดสอบเอง (5 พ.ย. 69 · ต้นเหตุผลไม่นิ่ง prePushGuard หมดเวลา 169 วิ): เดิมไม่ตั้ง PMS_PROD_LOCK → ตัวกัน push ใน repo จำลอง
+//   ไปรอไฟล์ล็อกฐานจริงของเครื่อง (~/.pms-prod-ops.lock) — ระหว่างบอสสำรอง/ซ้อมกู้/db:push ฐานจริงจริง ข้อนี้ค้างรอจนหมดเวลา (รันเดี่ยวตอนล็อกว่าง = 7 วิ)
+//   ข้อ 11 ตั้งล็อกของตัวเองทับอยู่แล้ว · ข้ออื่นต้องไม่ขึ้นกับงานจริงที่ถือล็อก
+const env = { ...process.env, PMS_PROD_VERSIONS_FILE: ใบฐานจริง, PMS_PROD_LOCK: join(ที่, "ไม่มีงานถือล็อก.lock") };
+delete env.PMS_PROD_LOCK_HELD;
 const git = (...a) => execFileSync("git", ["-c", "core.autocrlf=false", "-c", "user.name=ทดสอบ", "-c", "user.email=t@example.test", ...a],
   { cwd: repo, encoding: "utf8", env, stdio: ["ignore", "pipe", "pipe"] }).trim();
 const เขียน = (f, s) => { mkdirSync(dirname(join(repo, f)), { recursive: true }); writeFileSync(join(repo, f), s); };

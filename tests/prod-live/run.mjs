@@ -19,6 +19,9 @@ import { กันฐานจริง } from "../../scripts/lib/prodBackupMark
 import { รอฐานจริงว่าง } from "../../scripts/lib/prodLock.mjs";
 import { เลือกไฟล์แนบทดสอบ } from "./quoteFilesCleanup.mjs";
 import { รันSQLไฟล์ } from "../../scripts/lib/supabaseCli.mjs";
+import { ตรวจผลนับ } from "../../scripts/lib/cleanupCount.mjs";
+import { ตัวล็อก } from "../../scripts/lib/fileLock.mjs";
+import os from "node:os";
 
 const args = process.argv.slice(2);
 const target = args[args.indexOf("--target") + 1];
@@ -28,6 +31,12 @@ const phase = args.filter(a => a !== "--yes-prod").at(-1);
 if (!["local", "prod"].includes(target) || !["setup", "test", "files", "trial", "cleanup"].includes(phase)) {
   console.error("ใช้: node tests/prod-live/run.mjs --target local|prod setup|test|files|trial|cleanup"); process.exit(2);
 }
+// ฐานจริง: ทุกขั้นของชุดนี้ถือล็อกเดียวกัน (5 พ.ย. 69 · หา "ลบ 0") — ขั้นหนึ่งรันอยู่ อีกขั้นไม่เริ่ม (หยุดทันที บอกว่าขั้นไหนรันอยู่)
+//   กัน cleanup ลบข้อมูลทดสอบระหว่าง setup/test/files ยังเขียนอยู่ · ขอก่อนแตะอะไรทั้งนั้น (ก่อนอ่านกุญแจ/ต่อฐาน)
+const ล็อกเว็บจริง = target === "prod"
+  ? ตัวล็อก({ path: process.env.PMS_PROD_LIVE_LOCK || path.join(os.homedir(), ".pms-prod-live.lock"), envHeld: "PMS_PROD_LIVE_LOCK_HELD", เรื่อง: "ชุดทดสอบเว็บจริง (prod-live)" })(`prod-live ${phase}`, { รอ: 0 })
+  : null;
+process.on("exit", () => { try { ล็อกเว็บจริง?.release(); } catch { /* ปล่อยไม่ได้ = ล็อกของโปรเซสที่จบแล้ว คนถัดไปเก็บกวาดเอง */ } });
 // ฐานจริง: รอ db:push / สำรอง+ซ้อมกู้ ที่ถือล็อกอยู่จบก่อน (ขั้น cleanup ต่อฐานแบบ --linked = ตั้งรหัส cli_login ใหม่ ทำสำรองที่กำลังรันตก) · แล้วค่อยตรวจผลซ้อมกู้
 if (target === "prod") รอฐานจริงว่าง(`prod-live ${phase}`);
 const ชุดสำรอง = target === "prod" ? กันฐานจริง(`prod-live ${phase}`) : "";
@@ -182,16 +191,23 @@ if (phase === "cleanup") {
   const ถาม = (ไฟล์, ชื่อขั้น) => {
     try { return รันSQLไฟล์(ไฟล์, { cwd: OPS, workdir: OPS }); } catch (e) { ตาย(`${ชื่อขั้น}: อ่านผลไม่ได้ — ${e.message}`); }
   };
-  const นับ = () => ถาม(path.resolve("tests/prod-live/cleanup-audit-count.sql"), "นับบันทึกการใช้งาน")[0] ?? {};
-  const ก่อน = นับ();
+  // ผลนับต้องผ่านตัวตรวจเข้ม (scripts/lib/cleanupCount.mjs · 5 พ.ย. 69): แถวเดียว · คอลัมน์ไทยครบ · จำนวนเต็ม · เห็นทุกแถว · ทั้งตาราง > 0
+  //   "ลบ 0" (9 พ.ย. 69 · tests/tools/cleanup-self-audit.test.mjs): ส่วนหนึ่งของแถวที่ฐานลบเกิดในทรานแซกชันล้างเอง (ตัวดักใบ 0150 ลงบันทึกตอนลบลีด/ใบ ZZT)
+  //     ขั้นนับก่อนลบมองไม่เห็นแถวพวกนี้ (ยังไม่เกิด) · ส่วนที่เกิดก่อนล้างแต่นับได้ 0 ยังไม่ยืนยันสาเหตุ → ข้อความจบใช้สรุปการลบของฐานแทน (ด้านล่าง)
+  //   เหตุ: บอสรันจากหน้าจอคน ขั้นนับได้ "ลบ 0" ทั้งที่มีแถวทดสอบ (ฐานจดลบจริง 54) → ด่านปนแถวจริงก็อ่าน 0 ได้ · อ่านไม่ได้/ผิดรูป = หยุดก่อนลบ ไม่เดาเป็น 0
+  const นับ = (ขั้น) => { const แถว = ถาม(path.resolve("tests/prod-live/cleanup-audit-count.sql"), `นับบันทึกการใช้งาน (${ขั้น})`);
+    try { return { ...แถว[0], ...ตรวจผลนับ(แถว) }; } catch (e) { ตาย(`นับบันทึกการใช้งาน (${ขั้น}): ${e.message} — ผลดิบ ${JSON.stringify(แถว).slice(0, 300)} · ไม่ลบ หยุดรายงาน`); } };
+  const ก่อน = นับ("ก่อนลบ");
+  // บัญชีที่ CLI ใช้ต้องข้ามกฎสิทธิ์รายแถวได้ — ไม่ได้ = นับได้ 0 ทั้งที่มีแถว ด่านปนแถวจริงก็อ่านเป็น 0 (5 พ.ย. 69 · บอสรันจากหน้าจอคน ขึ้น "ลบ 0")
+  if (ก่อน.เห็นทุกแถว !== true) ตาย(`บัญชีที่ Supabase CLI ใช้มองไม่เห็นทุกแถว (เห็นทุกแถว = ${JSON.stringify(ก่อน.เห็นทุกแถว)}) — ผลนับเชื่อไม่ได้ ไม่ลบ หยุดรายงาน`);
   if (Number(ก่อน.ปนแถวจริง) !== 0) ตาย(`เงื่อนไขลบจับแถวที่ไม่ใช่แถวทดสอบ ${ก่อน.ปนแถวจริง} แถว — ไม่ลบ หยุดรายงาน`);
   const ไฟล์ล้าง = path.join(OPS, "cleanup-run.sql");
   writeFileSync(ไฟล์ล้าง, readFileSync("tests/prod-live/cleanup.sql", "utf8").replaceAll("__ชุดสำรองก่อนลบ__", ชุดสำรอง));
   ถาม(ไฟล์ล้าง, "cleanup.sql");
-  const หลัง = นับ();
+  const หลัง = นับ("หลังลบ");
   const ไฟล์เหลือ = path.join(OPS, "cleanup-left.sql");
   // นับครบทุกชนิดที่ชุดทดสอบสร้าง (ผู้สนใจ · ใบ · การชำระ · จังหวัด · บัญชี ZZTN · บอสสั่ง 1 พ.ย. 69 · ชุดนำเข้าผู้สนใจ live-import.spec.ts 4 พ.ย. 69)
-  writeFileSync(ไฟล์เหลือ, `select (select count(*) from public.dealers where code in ('${CODE}', 'ZZTN')) as สาขา,
+  writeFileSync(ไฟล์เหลือ, `select (select rolsuper or rolbypassrls from pg_roles where rolname = current_user) as เห็นทุกแถว, (select count(*) from public.dealers where code in ('${CODE}', 'ZZTN')) as สาขา,
   (select count(*) from public.leads where dealer_code in ('${CODE}', 'ZZTN')) as ลีด,
   (select count(*) from auth.users where email like 'live-%@example.test' or lower(email) = 'zztn@dealer.benjaminpebsteel.com') as บัญชี,
   (select count(*) from public.profiles where dealer_code in ('${CODE}', 'ZZTN')) as โปรไฟล์,
@@ -201,12 +217,15 @@ if (phase === "cleanup") {
   (select count(*) from public.dealer_territories where dealer_code in ('${CODE}', 'ZZTN')) as จังหวัด,
   (select count(*) from public.notifications where dealer_code in ('${CODE}', 'ZZTN') or body like '%ZZTEST-ผู้สนใจเว็บจริง-%') as แจ้งเตือน,
   (select count(*) from public.quote_files where dealer_code in ('${CODE}', 'ZZTN')) as ไฟล์แนบ,
-  (select count(*) from storage.objects where bucket_id = 'quote-files' and (name like '${CODE}/%' or name like 'ZZTN/%')) as ไฟล์ในถัง;
+  (select count(*) from storage.objects where bucket_id = 'quote-files' and (name like '${CODE}/%' or name like 'ZZTN/%')) as ไฟล์ในถัง,
+  (select target from public.audit_log where action = 'ลบแถวทดสอบในบันทึกการใช้งาน' order by id desc limit 1) as สรุปการลบล่าสุด;
 `);
-  const เหลือ = ถาม(ไฟล์เหลือ, "ตรวจแถวที่เหลือ")[0] ?? {};
+  const { เห็นทุกแถว: เห็นตอนตรวจ, สรุปการลบล่าสุด, ...เหลือ } = ถาม(ไฟล์เหลือ, "ตรวจแถวที่เหลือ")[0] ?? {};
+  if (เห็นตอนตรวจ !== true) ตาย("ตรวจแถวที่เหลือ: บัญชีที่ CLI ใช้มองไม่เห็นทุกแถว — ผล \"เหลือ 0\" เชื่อไม่ได้ หยุดรายงาน");
   const ค้าง = { บันทึก: Number(หลัง.จะลบ), ...Object.fromEntries(Object.entries(เหลือ).map(([k, v]) => [k, Number(v)])) };
   if (Object.values(ค้าง).some(n => n !== 0)) ตาย(`ล้างแล้วยังเหลือแถวทดสอบ ${JSON.stringify(ค้าง)} — หยุดรายงาน`);
   if (existsSync(STATE)) rmSync(STATE);   // สถานะมีรหัสผ่านบัญชีชั่วคราว — ล้างครบแล้วไม่ต้องเก็บ
-  console.log(`✓ cleanup: บันทึกการใช้งานทดสอบลบ ${ก่อน.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา ลีด บัญชี โปรไฟล์ ผู้สนใจ ใบ ชุดนำเข้า จังหวัด แจ้งเตือน ไฟล์แนบ ไฟล์ในถัง บันทึก = 0) · ชุดสำรอง ${ชุดสำรอง}`);
+  // จำนวนที่ลบจริง = สรุปการลบที่ฐานจดเองในทรานแซกชันลบ (นับหลังล็อกตาราง) — ขั้นนับก่อนลบเป็นแค่ค่าอ้างอิง (อาจต่างได้ถ้ามีแถวเกิดระหว่างนั้น)
+  console.log(`✓ cleanup: ลบจริงตามฐาน "${สรุปการลบล่าสุด ?? "ไม่มีแถวให้ลบ"}" · ขั้นนับก่อนลบเห็น ${ก่อน.จะลบ} แถว (ทั้งตาราง ${ก่อน.จะลบ + ก่อน.เหลือ}) · หลังลบเหลือ ${หลัง.จะลบ} · ไม่เหลือแถวทดสอบ (สาขา ลีด บัญชี โปรไฟล์ ผู้สนใจ ใบ ชุดนำเข้า จังหวัด แจ้งเตือน ไฟล์แนบ ไฟล์ในถัง บันทึก = 0) · ชุดสำรอง ${ชุดสำรอง}`);
 }
 void ANON;

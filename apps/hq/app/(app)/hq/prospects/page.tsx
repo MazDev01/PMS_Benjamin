@@ -25,7 +25,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
-  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, Upload,
+  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, History, LayoutList, Columns3,
   Link2,
 } from "lucide-react";
 import {
@@ -57,10 +57,16 @@ import { APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ProspectImportModal } from "@pms/shared/components/hq/ProspectImportModal";
+import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
+import { StageBoard } from "@pms/shared/components/ui/StageBoard";
+import { คอลัมน์บอร์ดผู้สนใจ, คอลัมน์ของผู้สนใจ, ทางย้ายผู้สนใจ, ขั้นที่ขาด, เหตุเป็นดีลเลอร์ไม่ได้, type คอลัมน์ผู้สนใจ, type ฟอร์มขั้นผู้สนใจ } from "@pms/shared/lib/prospectBoard";
+import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
+import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
+import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
-import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { formatPhone } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
@@ -72,6 +78,7 @@ import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 import { ช่องทางติดต่อเริ่มต้น } from "@pms/shared/lib/recruitSettings";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -99,6 +106,7 @@ export default function HQProspectsPage() {
   const ค่าตั้ง = useRecruitSettings();
   // นำเข้าจากไฟล์ทำงานจริงของทีม (ใบ 0275 · บอสสั่ง 3 พ.ย. 69)
   const [เปิดนำเข้า, setเปิดนำเข้า] = useState(false);
+  const [ไฟล์นำเข้า, setไฟล์นำเข้า] = useState<File | null>(null);   // เลือกจากเมนูนำเข้า → กล่องอ่านไฟล์นี้ทันที
   // "อื่น ๆ" ต่อท้ายให้เสมอ — ช่องทางที่ไม่อยู่ในรายการยังเลือกได้
   const ตัวเลือกช่องทาง = ค่าตั้ง.channels.includes("อื่น ๆ") ? ค่าตั้ง.channels : [...ค่าตั้ง.channels, "อื่น ๆ"];
 
@@ -153,6 +161,14 @@ export default function HQProspectsPage() {
   const [ประวัติผิด, setประวัติผิด] = useState("");
   const [ฟอร์มติดต่อเปิด, setฟอร์มติดต่อเปิด] = useState(false);
   const [สัญญาณออกใบ, setสัญญาณออกใบ] = useState(0);
+  // ฟอร์มนัดคุยในแท็บบันทึกการติดต่อ (บอสตอบ P2) — ลาก/ติ๊กไป "นัดคุยแล้ว" = เปิดโหมดนี้ · บันทึกแล้วเลื่อนขั้น
+  const [โหมดนัดคุย, setโหมดนัดคุย] = useState(false);
+  // บอร์ด 5 คอลัมน์ (บอสสั่ง 5 พ.ย. 69): ลากเข้าคอลัมน์ = ฟอร์มของขั้นที่ขาดทีละฟอร์ม · ลำดับที่ค้าง = การ์ดไหน ไปคอลัมน์ไหน ทำฟอร์มไหนอยู่
+  //   บันทึกฟอร์มแล้วสถานะเปลี่ยน → เปิดฟอร์มถัดไป (ดูที่ useEffect ของ list) · ยกเลิกฟอร์ม/ปิดแผง = หยุด ขั้นที่บันทึกแล้วคงไว้
+  const ลำดับRef = useRef<{ id: DealerProspect["id"]; ไป: คอลัมน์ผู้สนใจ; ทำอยู่: ฟอร์มขั้นผู้สนใจ } | null>(null);
+  const [เลือกปิด, setเลือกปิด] = useState<DealerProspect | null>(null);
+  // ตาราง / บอร์ด (บอสสั่ง 5 พ.ย. 69 · ตัวกลาง StageBoard)
+  const [มุมมอง, setมุมมอง] = useState<"table" | "board">("table");
 
   const [converting, setConverting] = useState<DealerProspect | null>(null);
   const [โหมดตั้ง, setโหมดตั้ง] = useState<"new" | "existing">("new");
@@ -276,11 +292,13 @@ export default function HQProspectsPage() {
     setประวัติโหลดแล้ว(false);
     setประวัติผิด("");
     setฟอร์มติดต่อเปิด(false);
+    setโหมดนัดคุย(false);
     setสัญญาณออกใบ(0);
     void โหลดของราย(p.id);
   }
   function ปิดแผงทันที() {
     เปิดอยู่Ref.current = null;
+    ลำดับRef.current = null;
     setรายที่เปิด(null);
   }
   function ปิดแผง() {
@@ -308,7 +326,10 @@ export default function HQProspectsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำครั้งเดียวตอนโหลดเสร็จ ไม่ต้องทำซ้ำเมื่อรายการเปลี่ยน
   }, [loaded]);
 
-  const ชื่อดีลเลอร์ = useMemo(() => new Map(dealers.map(d => [d.code, d.name])), [dealers]);
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
+  //   คงรหัส 2 จุดตามบอสตอบ: ช่องพิมพ์รหัสตอนตั้งดีลเลอร์ · กล่องบัญชีเข้าระบบดีลเลอร์ใหม่ (รหัสสาขา = ชื่อเข้าระบบ)
+  const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(dealers), [dealers]);
+  const ชื่อดีลเลอร์ = useMemo(() => new Map(dealers.map(d => [d.code, ชื่อแสดง(d.code, d.name)])), [dealers, ชื่อแสดง]);
   // เป็นดีลเลอร์แล้ว (ครบ 100%) = ไปอยู่หน้าดีลเลอร์ ไม่แสดงในหน้านี้ (บอสสั่ง 15 ก.ย. 69)
   //   ตาราง · ตัวกรอง · ส่งออก · การ์ดตัวเลข ใช้รายการนี้ทั้งหมด — ข้อมูลยังอยู่ครบในฐานข้อมูล (ประวัติ/ใบเสนอไม่หาย)
   const รายที่แสดงได้ = useMemo(() => list.filter(p => p.status !== "won"), [list]);
@@ -389,8 +410,10 @@ export default function HQProspectsPage() {
   // ── เปลี่ยนขั้นจากแท็บงาน ──
   //   โยน = true: ผิดพลาดโยนออกไป (กล่องเหตุผลกลางแสดงในกล่อง · ไม่สำเร็จ) · ไม่ใช่ = แจ้งด้วยข้อความกลาง
   async function เปลี่ยนขั้น(next: DealerProspectStatus, lostReason?: string, โยน = false) {
-    const ราย = รายที่เปิด;
-    if (!ราย) return;
+    if (รายที่เปิด) await เปลี่ยนขั้นของ(รายที่เปิด, next, lostReason, โยน);
+  }
+  /** เปลี่ยนขั้นของรายใดก็ได้ (แผง · บอร์ด) — ฐานตัดสินซ้ำ (ทีละขั้น · ห้ามถอย) */
+  async function เปลี่ยนขั้นของ(ราย: DealerProspect, next: DealerProspectStatus, lostReason?: string, โยน = false) {
     setStageBusy(true);
     try {
       const row = เตรียมบันทึก({ ...ราย, status: next, lostReason: next === "lost" ? lostReason : null });
@@ -406,12 +429,76 @@ export default function HQProspectsPage() {
     }
   }
 
+  // ── ย้ายไปขั้นถัดไปด้วยฟอร์มของขั้นนั้น (บอร์ดลาก · ปุ่ม "ย้ายไปขั้น…" · ติ๊กงานในแผง ใช้ทางเดียวกัน · บอสสั่ง 5 พ.ย. 69) ──
+  //   การ์ดย้ายเมื่อบันทึกสำเร็จเท่านั้น (ข้อมูลเปลี่ยน) · ยกเลิกฟอร์ม = ข้อมูลไม่เปลี่ยน การ์ดอยู่ที่เดิม
+  async function ไปขั้นด้วยฟอร์ม(p: DealerProspect, ฟอร์ม: Exclude<ฟอร์มขั้นผู้สนใจ, "close">) {
+    if (ฟอร์ม === "contact" || ฟอร์ม === "meeting") {
+      if (รายที่เปิด?.id !== p.id) เปิดแผง(p, "contact"); else setแท็บที่เปิด("contact");
+      setโหมดนัดคุย(ฟอร์ม === "meeting"); setฟอร์มติดต่อเปิด(true);
+    } else if (ฟอร์ม === "proposal") {
+      if (รายที่เปิด?.id !== p.id) เปิดแผง(p, "proposals"); else setแท็บที่เปิด("proposals");
+      setสัญญาณออกใบ(n => n + 1);
+    } else if (ฟอร์ม === "profile") {
+      const ตกลง = await ยืนยัน({ หัวข้อ: `ยืนยันว่าส่งข้อมูลบริษัทให้ “${p.name}” แล้ว ?`, รายละเอียด: "ขั้นเลื่อนเป็น “ส่งข้อมูลบริษัทแล้ว” · ย้อนขั้นเองไม่ได้",
+        ปุ่มตกลง: "ยืนยันส่งแล้ว", ปุ่มกำลังทำ: "กำลังบันทึก…", ทำ: () => เปลี่ยนขั้นของ(p, "profile_sent", undefined, true) });
+      if (!ตกลง) ลำดับRef.current = null;   // ยกเลิกกลางทาง = หยุดลำดับ การ์ดอยู่ตามสถานะจริง
+    }
+  }
+  /** ไม่สำเร็จ = เหตุผลบังคับ (คอลัมน์ปิดแล้ว › ไม่สำเร็จ) */
+  async function ปิดไม่สำเร็จ(p: DealerProspect) {
+    await ถามเหตุผล({ หัวข้อ: `ปิด “${p.name}” ว่าไม่สำเร็จ ?`, รายละเอียด: "เปิดติดตามใหม่ได้ภายหลัง", ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ",
+      ตัวเลือก: ค่าตั้ง.lostReasons ?? [], ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
+      ทำ: เหตุผล => เปลี่ยนขั้นของ(p, "lost", เหตุผล, true) });
+  }
+  /** วางการ์ดในคอลัมน์ (ลาก · ปุ่ม "ย้ายไปขั้น…") — ปิดแล้ว = ให้เลือกผล · อื่น ๆ = เริ่มฟอร์มแรกที่ขาด */
+  function วางในคอลัมน์(p: DealerProspect, ไป: คอลัมน์ผู้สนใจ) {
+    ลำดับRef.current = null;
+    if (ไป === "closed") { setเลือกปิด(p); return; }
+    const ฟอร์ม = ขั้นที่ขาด(p.status, ไป);
+    if (!ฟอร์ม || ฟอร์ม === "close") return;
+    ลำดับRef.current = { id: p.id, ไป, ทำอยู่: ฟอร์ม };
+    void ไปขั้นด้วยฟอร์ม(p, ฟอร์ม);
+  }
+  // บันทึกฟอร์มแล้วสถานะในรายการเปลี่ยน → เปิดฟอร์มถัดไปที่ขาด · ถึงคอลัมน์แล้ว = จบ · เดินหน้าอย่างเดียว (รายการเก่าที่โหลดมาช้าไม่เปิดฟอร์มเดิมซ้ำ)
+  useEffect(() => {
+    const ล = ลำดับRef.current;
+    if (!ล) return;
+    const p = list.find(x => x.id === ล.id);
+    const ต่อ = p ? ขั้นที่ขาด(p.status, ล.ไป) : null;
+    if (!p || !ต่อ || ต่อ === "close") { ลำดับRef.current = null; return; }
+    const ลำดับขั้น: ฟอร์มขั้นผู้สนใจ[] = ["contact", "profile", "meeting", "proposal"];
+    if (ลำดับขั้น.indexOf(ต่อ) <= ลำดับขั้น.indexOf(ล.ทำอยู่)) return;
+    ลำดับRef.current = { ...ล, ทำอยู่: ต่อ };
+    void ไปขั้นด้วยฟอร์ม(p, ต่อ);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list]);
+  /** ยกเลิกงานล่าสุดที่ติ๊ก = ถอย 1 ขั้น (บอสตอบ 5 พ.ย. 69 · ฐานยอมทางนี้ทางเดียว prospect_undo_last_task) */
+  async function ยกเลิกงานล่าสุด(p: DealerProspect) {
+    setStageBusy(true);
+    try {
+      const saved = await prospectsRepo.undoLastTask(p.id);
+      setList(l => l.map(x => x.id === saved.id ? saved : x));
+      if (เปิดอยู่Ref.current === saved.id) setรายที่เปิด(saved);
+      void โหลดของราย(saved.id);
+    } catch (e) {
+      แจ้งพลาด(friendlyError(e, "ยกเลิกงานไม่สำเร็จ"));
+    } finally {
+      setStageBusy(false);
+    }
+  }
+  /** ติ๊กงานในแผง → ขั้นที่มีฟอร์ม (ส่งข้อมูลบริษัท = ยืนยัน · นัดคุย = ฟอร์มนัดคุย) ไปทางเดียวกับบอร์ด · เปิดติดตามใหม่ = เปลี่ยนตรง */
+  function ไปขั้นจากงาน(p: DealerProspect, next: DealerProspectStatus) {
+    if (p.status !== "lost" && next === "profile_sent") return void ไปขั้นด้วยฟอร์ม(p, "profile");
+    if (p.status !== "lost" && next === "meeting") return void ไปขั้นด้วยฟอร์ม(p, "meeting");
+    void เปลี่ยนขั้นของ(p, next);
+  }
+
   async function ลบ(p: DealerProspect) {
     if (!(await ยืนยัน({
       หัวข้อ: `ลบ “${p.name}” ออกจากผู้สนใจ ?`,
       // ลบรายที่เป็นดีลเลอร์แล้ว = ลบแค่ประวัติการติดตาม ดีลเลอร์และบัญชีเข้าระบบยังอยู่ครบ — ต้องบอกให้ชัด
       รายละเอียด: p.status === "won" && p.dealerCode
-        ? `ดีลเลอร์ ${p.dealerCode} ที่สร้างไปแล้วจะยังอยู่ครบ — ลบเฉพาะประวัติการติดตามรายนี้ · ย้อนกลับไม่ได้`
+        ? `ดีลเลอร์ ${ชื่อแสดง(p.dealerCode)} ที่สร้างไปแล้วจะยังอยู่ครบ — ลบเฉพาะประวัติการติดตามรายนี้ · ย้อนกลับไม่ได้`
         : "ใบค่าแฟรนไชส์และประวัติของรายนี้จะหายไปด้วย · ย้อนกลับไม่ได้",
       ปุ่มตกลง: "ลบผู้สนใจ", อันตราย: true,
     }))) return;
@@ -471,7 +558,7 @@ export default function HQProspectsPage() {
       const ผิด = ตรวจผู้สนใจ(row);
       if (ผิด) { setConvErr(ผิด); return; }
       const ผูกอยู่ = list.find(x => x.id !== converting.id && x.dealerCode === ฟอร์ม.existingCode);
-      if (ผูกอยู่) { setConvErr(`ดีลเลอร์ ${ฟอร์ม.existingCode} ถูกผูกกับ “${ผูกอยู่.name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`); return; }
+      if (ผูกอยู่) { setConvErr(`ดีลเลอร์ ${ชื่อแสดง(ฟอร์ม.existingCode)} ถูกผูกกับ “${ผูกอยู่.name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`); return; }
       setConvBusy(true);
       try {
         const code = ฟอร์ม.existingCode;
@@ -485,7 +572,7 @@ export default function HQProspectsPage() {
           const saved = await prospectsRepo.update({ ...row, id: converting.id, createdAt: converting.createdAt });
           setList(l => l.map(x => x.id === saved.id ? saved : x));
         }
-        แจ้งสำเร็จ(`ผูก “${converting.name}” กับดีลเลอร์ ${code} แล้ว — ย้ายไปอยู่หน้าดีลเลอร์`);
+        แจ้งสำเร็จ(`ผูก “${converting.name}” กับดีลเลอร์ ${ชื่อแสดง(code)} แล้ว — ย้ายไปอยู่หน้าดีลเลอร์`);
         setConverting(null); ปิดแผงทันที();
       } catch (e) {
         setConvErr(friendlyError(e, "บันทึกไม่สำเร็จ"));
@@ -562,7 +649,7 @@ export default function HQProspectsPage() {
     await โหลด();
     if (res.prospectLinked === false) {
       // สาขาถูกสร้างแล้วจริง (บัญชีใช้ได้) แต่ผูกกลับมาที่รายนี้ไม่สำเร็จ — บอกทางแก้ที่ทำได้เอง
-      แจ้งพลาด(`สร้างดีลเลอร์ ${code} แล้ว แต่ผูกกับผู้สนใจรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
+      แจ้งพลาด(`สร้างดีลเลอร์ ${ฟอร์ม.name.trim() || ชื่อแสดง(code)} แล้ว แต่ผูกกับผู้สนใจรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
     }
     setCreds({ name: ฟอร์ม.name.trim(), code, email: res.email, password: res.password });
     setConverting(null); ปิดแผงทันที();
@@ -702,9 +789,11 @@ export default function HQProspectsPage() {
           ])}
         />
         {จัดการได้ && (
-          <button className="btn btn-secondary btn-sm" onClick={() => setเปิดนำเข้า(true)}>
-            <Upload size={14} /> นำเข้าจากไฟล์
-          </button>
+          // เมนูนำเข้า ตัวกลาง (บอสสั่ง 5 พ.ย. 69): Excel · CSV · แบบฟอร์มตัวอย่าง + ชุดที่นำเข้าล่าสุด (ดู/ยกเลิกทั้งชุด · บอสตอบ M1 = ก)
+          <ImportMenu label="นำเข้าจากไฟล์"
+            onFile={f => { setไฟล์นำเข้า(f); setเปิดนำเข้า(true); }}
+            onTemplate={() => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "ผู้สนใจ", หัวตาราง: Object.values(หัวแบบฟอร์มผู้สนใจ), แถว: [] }]), "แบบฟอร์มนำเข้าผู้สนใจ.xlsx")}
+            extraActions={[{ label: "ชุดที่นำเข้าล่าสุด", desc: "ดู/ยกเลิกทั้งชุด", icon: <History size={15} />, onClick: () => { setไฟล์นำเข้า(null); setเปิดนำเข้า(true); } }]} />
         )}
         {จัดการได้ && (
           <button className="btn btn-primary btn-sm" onClick={เปิดเพิ่ม}>
@@ -712,7 +801,7 @@ export default function HQProspectsPage() {
           </button>
         )}
       </TopbarActions>
-      <ProspectImportModal open={เปิดนำเข้า} onClose={() => setเปิดนำเข้า(false)}
+      <ProspectImportModal open={เปิดนำเข้า} onClose={() => { setเปิดนำเข้า(false); setไฟล์นำเข้า(null); }} ไฟล์เริ่ม={ไฟล์นำเข้า}
         onImported={() => { void prospectsRepo.list().then(setList).catch(() => {}); }}
         เบอร์ที่มีอยู่={list.map(p => p.phone ?? "").filter(Boolean)}
         แหล่งที่มา={ค่าตั้ง.channels} เหตุผลไม่สำเร็จ={ค่าตั้ง.lostReasons} />
@@ -767,6 +856,16 @@ export default function HQProspectsPage() {
           <option value="all">ทุกจังหวัด</option>
           {จังหวัดในข้อมูล.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+        {/* สลับมุมมอง ตาราง/บอร์ด — แบบเดียวกับหน้าลูกค้าเป้าหมาย */}
+        <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", height: 30, boxSizing: "border-box", flexShrink: 0 }}>
+          {([["table", LayoutList, "ตาราง"], ["board", Columns3, "บอร์ด"]] as const).map(([v, Ico, tip]) => (
+            <button key={v} type="button" title={tip} aria-pressed={มุมมอง === v} onClick={() => setมุมมอง(v)}
+              style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 8px", height: "100%", border: "none", cursor: "pointer",
+                background: มุมมอง === v ? PRIMARY : "#fff", color: มุมมอง === v ? "#fff" : "#6b7280", fontFamily: "inherit", fontSize: "0.68rem", fontWeight: 600 }}>
+              <Ico size={12} /> {tip}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loadErr && (
@@ -776,8 +875,46 @@ export default function HQProspectsPage() {
         </div>
       )}
 
+      {/* บอร์ด 5 คอลัมน์ (บอสสั่ง 5 พ.ย. 69): ลากทีละ 1 คอลัมน์ไปข้างหน้า = ฟอร์มของขั้นที่ขาดตามลำดับ · การ์ดย้ายเมื่อทำครบ · ห้ามข้าม/ถอย (ฐานกันซ้ำ) */}
+      {เลือกปิด && (() => {
+        const p = เลือกปิด;
+        const เหตุ = เหตุเป็นดีลเลอร์ไม่ได้(p, ย่อย.get(p.id), ย่อยโหลดแล้ว);
+        return (
+          <div onClick={() => setเลือกปิด(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <ModalCard onClose={() => setเลือกปิด(null)} label="ปิดการติดตาม" className="card" style={{ width: "100%", maxWidth: 420, padding: 20 }}>
+              <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#2D2D2D", marginBottom: 4 }}>ปิดการติดตาม “{p.name}”</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: 14 }}>เลือกผลของรายนี้</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button type="button" className="btn btn-primary" data-close-choice="won" disabled={!!เหตุ} title={เหตุ ?? undefined}
+                  onClick={() => { setเลือกปิด(null); เปิดตั้งดีลเลอร์(p); }}>เป็นดีลเลอร์</button>
+                {เหตุ && <div data-close-won-reason style={{ fontSize: "0.7rem", color: "#b45309", marginTop: -2 }}>เป็นดีลเลอร์ยังไม่ได้ — {เหตุ}</div>}
+                <button type="button" className="btn btn-secondary" data-close-choice="lost" onClick={() => { setเลือกปิด(null); void ปิดไม่สำเร็จ(p); }}>ไม่สำเร็จ — ระบุเหตุผล</button>
+                <button type="button" className="btn btn-secondary btn-sm" data-close-cancel onClick={() => setเลือกปิด(null)}>ยกเลิก</button>
+              </div>
+            </ModalCard>
+          </div>
+        );
+      })()}
+      {มุมมอง === "board" && (
+        <StageBoard<DealerProspect, คอลัมน์ผู้สนใจ> ป้ายบอร์ด="บอร์ดผู้สนใจเป็นดีลเลอร์" columns={[...คอลัมน์บอร์ดผู้สนใจ]} items={filtered}
+          idOf={p => p.id} colOf={p => คอลัมน์ของผู้สนใจ(p, ย่อย.get(p.id))} onOpen={p => เปิดแผง(p)} ข้อความว่าง="ไม่มีผู้สนใจ"
+          ทางย้าย={p => จัดการได้ ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
+          onMove={วางในคอลัมน์}
+          renderCard={p => (
+            <div data-prospect-card={p.id}>
+              <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#2D2D2D", lineHeight: 1.35 }} title={p.name}>{p.name}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "6px 0", fontSize: "0.68rem", color: "#64748b" }}>
+                <span>{p.province || "—"}</span><span>·</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{p.phone ? formatPhone(p.phone) || p.phone : "—"}</span>
+              </div>
+              <span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status}
+                style={{ background: prospectStatusColor[p.status].bg, color: prospectStatusColor[p.status].text }}>{ป้ายขั้น(p)}</span>
+              <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, marginTop: 6 }}>ติดต่อล่าสุด {ติดต่อล่าสุดอ่านง่าย(p, APP_NOW_ISO)}</div>
+            </div>
+          )} />
+      )}
+
       {/* ตาราง */}
-      <div className="card">
+      {มุมมอง === "table" && <div className="card">
         <div className="table-wrap" style={{ borderTop: "none" }}>
           <table>
             {/* เพิ่ม/ลบคอลัมน์ต้องแก้ colgroup ด้วย (table-layout: fixed — ใส่ความกว้างที่ th ไม่มีผล)
@@ -850,7 +987,7 @@ export default function HQProspectsPage() {
                     </td>
                     <td>
                       {p.dealerCode
-                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{p.dealerCode}</Link>
+                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</Link>
                         : "—"}
                     </td>
                   </ClickableRow>
@@ -860,7 +997,7 @@ export default function HQProspectsPage() {
           </table>
         </div>
         <TablePagination page={page} total={filtered.length} onPage={setPage} unit="ราย" />
-      </div>
+      </div>}
 
       {/* ── เพิ่มผู้สนใจ (หน้าต่างเล็ก) — เพิ่มเสร็จเปิดแผงงานของรายนั้นให้ต่อเลย ── */}
       {เพิ่มใหม่ && (
@@ -897,9 +1034,8 @@ export default function HQProspectsPage() {
         const ป้าย: React.CSSProperties = { display: "flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" };
         const อักษรย่อ = ราย.name.replace(/บจ\.|หจก\.|บริษัท|คุณ/g, "").trim().slice(0, 2) || "—";
         return (
-          <div onClick={ปิดแผง} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
-            <ModalCard onClose={ปิดแผง} label="ข้อมูลผู้สนใจ"
-              style={{ width: 820, maxWidth: "100%", height: "min(920px, calc(100vh - 24px))", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          // แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69) — หัวน้ำเงิน + แท็บของแผงนี้คงเดิม
+          <RowPanelShell label="ข้อมูลผู้สนใจ" onClose={ปิดแผง} zIndex={1050} asideAttrs={{ style: { background: "#fff" } }}>
               {/* หัวน้ำเงิน + ปุ่มลัด */}
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>
                 <div data-panel-head style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "nowrap" }}>
@@ -928,7 +1064,7 @@ export default function HQProspectsPage() {
                       <button style={qa} data-link-existing onClick={() => เปิดตั้งดีลเลอร์(ราย, "existing")}><Link2 size={13} /> ผูกกับดีลเลอร์เดิม</button>
                     )}
                     {ราย.status === "won" && ราย.dealerCode && (
-                      <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ดีลเลอร์ {ราย.dealerCode}</Link>
+                      <Link href={`/hq/dealers/${ราย.dealerCode}`} style={qa}><Store size={13} /> ดีลเลอร์ {ชื่อดีลเลอร์.get(ราย.dealerCode) ?? ราย.dealerCode}</Link>
                     )}
                     {จัดการได้ && (
                       <button onClick={() => void ลบ(ราย)} title="ลบผู้สนใจ" aria-label="ลบผู้สนใจ" style={{ ...qa, width: 30, padding: 0, justifyContent: "center", color: "#fecaca" }}><Trash2 size={14} /></button>
@@ -966,7 +1102,7 @@ export default function HQProspectsPage() {
                       {ราย.status === "won" && ราย.dealerCode && (
                         <div style={{ background: "#dcfce7", border: "1px solid #86efac", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: "0.78rem", color: "#15803d", fontWeight: 600 }}>
                           เป็นดีลเลอร์แล้ว — <Link href={`/hq/dealers/${ราย.dealerCode}`} style={{ color: "#15803d", textDecoration: "underline" }}>
-                            {ราย.dealerCode} · {ชื่อดีลเลอร์.get(ราย.dealerCode) ?? ""}
+                            {ชื่อดีลเลอร์.get(ราย.dealerCode) ?? ราย.dealerCode}
                           </Link>
                           {ราย.convertedAt && ` (ตั้งเมื่อ ${fmtISOToThai(ราย.convertedAt)})`}
                         </div>
@@ -995,18 +1131,21 @@ export default function HQProspectsPage() {
                       ป้ายสถานะ={ป้ายขั้น(ราย)}
                       onLinkExisting={() => เปิดตั้งดีลเลอร์(ราย, "existing")}
                       ตั้งไม่ได้เพราะ={ย่อยโหลดแล้ว ? เหตุยังตั้งดีลเลอร์ไม่ได้(ราย.status, ย่อย.get(ราย.id)) : undefined}
-                      onStage={next => void เปลี่ยนขั้น(next)}
+                      onStage={next => ไปขั้นจากงาน(ราย, next)}
+                      onUndo={() => void ยกเลิกงานล่าสุด(ราย)}
+                      // งานที่ติ๊กแล้ว = เปิดดูรายละเอียด (บอสสั่ง 6 พ.ย. 69) · ใบค่าแฟรนไชส์ = แท็บใบ · อื่น ๆ = บันทึกการติดต่อ/ประวัติ
+                      onOpenDone={key => { setฟอร์มติดต่อเปิด(false); setแท็บที่เปิด(key === "proposal" ? "proposals" : "contact"); }}
                       onLost={reason => เปลี่ยนขั้น("lost", reason, true)}
                       onNeedContact={() => {
-                        setแท็บที่เปิด("contact"); setฟอร์มติดต่อเปิด(true);
-                        แจ้งสำเร็จ("ติ๊กงานนี้เองไม่ได้ — บันทึกการติดต่อจริงก่อน แล้วระบบจะติ๊กให้เอง");
+                        setแท็บที่เปิด("contact"); setโหมดนัดคุย(false); setฟอร์มติดต่อเปิด(true);
+                        แจ้งสำเร็จ("บันทึกการติดต่อครั้งแรก — บันทึกแล้วระบบติ๊กงานให้เอง");
                       }}
                       onNeedProposal={() => {
                         setแท็บที่เปิด("proposals");
                         if (!ใบของรายที่เปิด.length) setสัญญาณออกใบ(n => n + 1);
                         แจ้งสำเร็จ(ใบของรายที่เปิด.length
-                          ? "ติ๊กงานนี้เองไม่ได้ — เปลี่ยนสถานะใบเป็น “ส่งแล้ว” แล้วระบบจะติ๊กให้เอง"
-                          : "ติ๊กงานนี้เองไม่ได้ — ออกใบค่าแฟรนไชส์แล้วเปลี่ยนเป็น “ส่งแล้ว” ระบบจะติ๊กให้เอง");
+                          ? "เปลี่ยนสถานะใบเป็น “ส่งแล้ว” แล้วระบบจะติ๊กงานให้เอง"
+                          : "ออกใบค่าแฟรนไชส์แล้วเปลี่ยนเป็น “ส่งแล้ว” ระบบจะติ๊กงานให้เอง");
                       }}
                       onConvert={() => เปิดตั้งดีลเลอร์(ราย)}
                       ค่าตั้ง={ค่าตั้ง}
@@ -1025,6 +1164,9 @@ export default function HQProspectsPage() {
                       onReload={() => void โหลดของราย(ราย.id)}
                       onAdded={() => void รีเฟรชรายที่เปิด()}
                       ช่องทาง={ช่องทางติดต่อเริ่มต้น}
+                      โหมดนัดคุย={โหมดนัดคุย}
+                      onนัดคุยแล้ว={async () => { setโหมดนัดคุย(false); if (ราย.status === "profile_sent") await เปลี่ยนขั้นของ(ราย, "meeting"); }}
+                      onยกเลิก={() => { ลำดับRef.current = null; }}
                     />
                   )}
 
@@ -1035,8 +1177,7 @@ export default function HQProspectsPage() {
                   )}
                 </div>
               </div>
-            </ModalCard>
-          </div>
+          </RowPanelShell>
         );
       })()}
 
@@ -1085,7 +1226,7 @@ export default function HQProspectsPage() {
                       const ปิด = d.status === "inactive";
                       return (
                         <option key={d.code} value={d.code} disabled={ปิด || !!ผูกกับ}>
-                          {d.code} · {d.name}{d.province ? ` (${d.province})` : ""}{ปิด ? " · ปิดใช้งาน" : ผูกกับ ? " · ผูกกับรายอื่นแล้ว" : ""}
+                          {ชื่อแสดง(d.code, d.name)}{d.province ? ` (${d.province})` : ""}{ปิด ? " · ปิดใช้งาน" : ผูกกับ ? " · ผูกกับรายอื่นแล้ว" : ""}
                         </option>
                       );
                     })}
@@ -1093,7 +1234,7 @@ export default function HQProspectsPage() {
                   <FieldError>{บังคับแปลง.ผิด.existingCode}</FieldError>
                   {ฟอร์ม.existingCode && สาขามีบัญชี && !สาขามีบัญชี[ฟอร์ม.existingCode] && (
                     <div role="note" style={{ marginTop: 8, background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.78rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
-                      ดีลเลอร์ {ฟอร์ม.existingCode} ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ดีลเลอร์จะยังเข้าระบบไม่ได้
+                      ดีลเลอร์ {ชื่อแสดง(ฟอร์ม.existingCode)} ยังไม่มีบัญชีเข้าระบบ — ผูกได้ แต่ดีลเลอร์จะยังเข้าระบบไม่ได้
                       จนกว่าจะตั้งอีเมล/รหัสผ่านที่หน้าดีลเลอร์
                     </div>
                   )}
@@ -1175,11 +1316,11 @@ export default function HQProspectsPage() {
           <ModalCard onClose={() => setผูกแล้วไม่มีบัญชี(null)} label="ดีลเลอร์ยังไม่มีบัญชีเข้าระบบ"
             style={{ background: "#fff", borderRadius: 16, width: 440, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,.3)" }}>
             <div style={{ background: "#b45309", color: "#fff", padding: "14px 20px", fontWeight: 800, borderRadius: "16px 16px 0 0" }}>
-              ดีลเลอร์ {ผูกแล้วไม่มีบัญชี.code} ยังไม่มีบัญชีเข้าระบบ
+              ดีลเลอร์ {ชื่อแสดง(ผูกแล้วไม่มีบัญชี.code)} ยังไม่มีบัญชีเข้าระบบ
             </div>
             <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
               <p style={{ margin: 0, fontSize: "0.84rem", color: "#374151", lineHeight: 1.7 }}>
-                ผูก “{ผูกแล้วไม่มีบัญชี.name}” กับดีลเลอร์ {ผูกแล้วไม่มีบัญชี.code} แล้ว
+                ผูก “{ผูกแล้วไม่มีบัญชี.name}” กับดีลเลอร์ {ชื่อแสดง(ผูกแล้วไม่มีบัญชี.code)} แล้ว
                 แต่สาขานี้ยังเข้าระบบไม่ได้ — ต้องตั้งอีเมลและรหัสผ่านให้ก่อน
               </p>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>

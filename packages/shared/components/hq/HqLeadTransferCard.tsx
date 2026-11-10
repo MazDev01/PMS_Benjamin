@@ -51,7 +51,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
     if (!บังคับ.ตรวจ([{ key: r.province, label: "สาขาที่จะโอนให้", value: เลือก[r.province], ข้อความ: "ต้องเลือกสาขาที่จะโอนให้" }])) return;
     const to = เลือก[r.province];
     if (!(await ยืนยัน({
-      หัวข้อ: `โอน ${r.leads} ราย ในจังหวัด${r.province} ให้ ${to} ${dealerName(to)}?`,
+      หัวข้อ: `โอน ${r.leads} ราย ในจังหวัด${r.province} ให้ ${dealerName(to)}?`,
       รายละเอียด: "ลูกค้าเป้าหมายย้ายพร้อมประวัติ นัดหมาย และโน้ต · ย้อนกลับไม่ได้", ปุ่มตกลง: "โอน", อันตราย: true,
     }))) return;
     setBusy(true);
@@ -61,6 +61,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
   };
 
   // หน้าตาเดียวกับการ์ด/ตารางอื่นของหน้า (บอสสั่ง 30 ต.ค. 69): หัวการ์ด + เนื้อการ์ดมีระยะขอบ · ตารางมาตรฐาน .table-wrap
+  //   .fit = ขนาดตัวอักษร/หัวคอลัมน์เดียวกับตารางลีดด้านล่าง (ตารางลีดเป็น .fit ตั้งแต่ 9 พ.ย. 69)
   //   หัวคอลัมน์ขนาดเท่าตารางอื่น · ความกว้างที่ colgroup (table-layout: fixed) · ตัวเลขชิดขวาทั้งหัวและข้อมูล
   return (
     <div className="card" data-card="hq-lead-transfer" style={{ marginBottom: 16 }}>
@@ -80,7 +81,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
       </div>
       <div className="card-body" style={{ paddingTop: 0 }}>
         {[...อัตโนมัติ, ...เลือกเอง].length > 0 && (
-          <div className="table-wrap" style={{ border: "1px solid var(--border)", borderRadius: 10 }}>
+          <div className="table-wrap fit" style={{ border: "1px solid var(--border)", borderRadius: 10 }}>
             <table style={{ minWidth: 640 }}>
               <colgroup>
                 <col style={{ width: "18%" }} />{/* จังหวัด */}
@@ -91,7 +92,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
               <thead><tr><th>จังหวัด</th><th className="num">ลูกค้าเป้าหมาย</th><th>ดีลเลอร์ที่ดูแล</th><th>การโอน{เลือกเอง.length > 0 && <> (เลือกสาขา<ดาวบังคับ />)</>}</th></tr></thead>
               <tbody>
                 {[...อัตโนมัติ, ...เลือกเอง].map(r => {
-                  const ดูแล = r.dealerCodes.map(c => `${c} ${dealerName(c)}`.trim()).join(" · ");
+                  const ดูแล = r.dealerCodes.map(c => dealerName(c)).join(" · ");   // ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69)
                   return (
                     <tr key={r.province} aria-label={r.province}>
                       <td style={{ fontWeight: 700 }} title={r.province}>{r.province}</td>
@@ -105,7 +106,7 @@ export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: 
                                 {...บังคับ.ผูก(r.province)} style={{ flex: 1, minWidth: 0, ...บังคับ.ผูก(r.province).style }}
                                 onChange={e => { setเลือก(s => ({ ...s, [r.province]: e.target.value })); บังคับ.ล้าง(r.province); }}>
                                 <option value="">หลายสาขา — เลือกสาขา</option>
-                                {r.dealerCodes.map(c => <option key={c} value={c}>{c} {dealerName(c)}</option>)}
+                                {r.dealerCodes.map(c => <option key={c} value={c}>{dealerName(c)}</option>)}
                               </select>
                               <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void โอนจังหวัด(r)}>โอน</button>
                             </div>

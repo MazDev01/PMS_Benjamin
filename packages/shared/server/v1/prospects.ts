@@ -31,8 +31,16 @@ export const prospectsGET = handler("prospects.list", async (_req: NextRequest, 
 });
 
 export const prospectsPOST = handler("prospects.create", async (req: NextRequest, sb) => {
-  const body = (await req.json().catch(() => null)) as Partial<DealerProspect> | null;
+  const body = (await req.json().catch(() => null)) as (Partial<DealerProspect> & { op?: string }) | null;
   if (!body || typeof body !== "object") return fail(400, "ข้อมูลลูกค้าเป้าหมายไม่ถูกต้อง");
+  // op=undo: ยกเลิกงานล่าสุด = ถอย 1 ขั้น (ใบ 0278 · ทางเดียวที่คนถอยขั้นได้ · ฐานตรวจสิทธิ์ในนามผู้เรียก)
+  if (body.op === "undo") {
+    const id = Number(body.id);
+    if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุลูกค้าเป้าหมาย");
+    const { data, error } = await sb.rpc("prospect_undo_last_task", { p_id: id });
+    if (error) return dbFail("prospects.undo", error);
+    return ok(toCamel<DealerProspect>(data as Row));
+  }
   const row = เตรียมบันทึก(body);
   const ผิด = ตรวจผู้สนใจ(row);
   if (ผิด) return fail(400, ผิด);

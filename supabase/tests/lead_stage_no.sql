@@ -33,7 +33,7 @@ begin
   perform flowtest.ok(lead_stage_no('CNX', -1, 'WAITING') = 1 and lead_stage_no('CNX', -1, 'BULLET') = 1, 'ติดต่อแล้ว/รวบรวมความต้องการ = ขั้น 1');
   perform flowtest.ok(lead_stage_no('CNX', -1, 'HQ_PRICING') = 2, 'รอราคา HQ = ขั้น 2');
   perform flowtest.ok(lead_stage_no('CNX', -1, 'HQ_QUOTED') = 3, 'ได้ราคา HQ ไม่มีใบร่าง = ขั้น 3');
-  perform flowtest.ok(lead_stage_no('CNX', -1, 'QUOTED') = 5, 'เสนอราคา = ขั้น 5');
+  perform flowtest.ok(lead_stage_no('CNX', -1, 'QUOTED') = 4, 'เสนอราคา = ขั้น 4 เสนอราคาลูกค้า (ยุบ 4 ขั้น ใบ 0284 · เดิมขั้น 5)');
   -- สถานะเก่า (ติดตามผล/เจรจาต่อรอง) เลิกใช้แล้ว ไม่มีขั้น (ใบ 0257)
   perform flowtest.ok(lead_stage_no('CNX', -1, 'FOLLOWUP') is null and lead_stage_no('CNX', -1, 'NEGO') is null, 'สถานะเก่าไม่มีขั้นแล้ว (ใบ 0257)');
   perform flowtest.ok(lead_stage_no('CNX', -1, 'PAID') = 6 and lead_stage_no('CNX', -1, 'CANCELLED') = 7, 'ปิดสำเร็จ = 6 · ปิดไม่สำเร็จ = 7');

@@ -146,7 +146,7 @@ test("[ง] HQ: หน้าเข้าระบบไม่พูดถึง�
     await page.getByPlaceholder(/ค้นหา/).first().fill(`ZZTEST-${แท็ก}`);
     const แถว = page.locator("tbody tr").filter({ hasText: `ZZTEST-${แท็ก}` }).first();
     await expect(แถว).toBeVisible({ timeout: 20_000 });
-    await expect(แถว, "บทบาทเป็นภาษาไทย").toContainText("เจ้าหน้าที่ HQ");
+    await expect(แถว, "บทบาทเป็นภาษาไทย · บทบาทเดิมแสดงเป็น สำนักงานใหญ่ (HQ บทบาทเดียว · ใบ 0282)").toContainText("สำนักงานใหญ่");
     await expect(แถว, "ไม่มีรหัสบทบาทดิบ").not.toContainText("HQ_STAFF");
   } finally {
     if (แถวบันทึก.data) await admin.rpc("audit_test_cleanup", { p_ids: [แถวบันทึก.data.id], p_backup: "ฐานทดสอบ (ข้อทดสอบ flow-d)" });   // ลบตรงไม่ได้ (ใบ 0241)

@@ -40,7 +40,7 @@ test("ถ่ายรูป: แถวการ์ด KPI ทุกหน้า 
       const [p, แท็บ] = ที่.split("#");
       await page.goto(`${HQ_ORIGIN}${p}`, { waitUntil: "domcontentloaded" });
       await settle(page);
-      if (แท็บ === "users") await page.getByRole("button", { name: "ผู้ใช้งานและสิทธิ์" }).click().catch(() => {});
+      if (แท็บ === "users") await page.getByRole("button", { name: "ผู้ใช้งาน" }).click().catch(() => {});
     });
   }
   const ดีลเลอร์ = await (await browser.newContext()).newPage();

@@ -946,6 +946,14 @@ body {
 }
 /* Compact density — add class `dense` to a .table-wrap to shrink row height */
 .table-wrap.dense th, .table-wrap.dense td { padding: 0.4rem 0.7rem; font-size: 0.76rem; }
+/* พอดีจอ (บอสสั่ง 6 พ.ย. 69 · ตารางผลงานรายดีลเลอร์ HQ) — ตัวเลขชิดกันขึ้น · หัวคอลัมน์ขึ้นบรรทัดได้ (ไม่ดันตารางกว้าง) · ความกว้างยังคุมที่ colgroup
+   คู่กับ lib/tableFit.ts (ซ่อนคอลัมน์ที่ทั้งตารางเป็น "—") · ข้อทดสอบ tests/scenario/hq-tables-fit.spec.ts */
+/*   ขนาดตัวอักษร (รอบ 3 · ใหญ่ขึ้นใช้ที่ว่าง): ตัวเลข/ชื่อ 0.84rem · บรรทัดย่อยใต้ชื่อ [data-row-sub] 0.72rem — ตรงกับ lib/tableFit.ts (ตัววัดคอลัมน์ชื่อ) */
+.table-wrap.fit th, .table-wrap.fit td { padding: 0.5rem 0.5rem; font-size: 0.84rem; }   /* ≥ 8px จากขอบกล่อง (ตัวตรวจ layout-spacing) */
+.table-wrap.fit td [data-row-sub] { font-size: 0.72rem !important; }
+.table-wrap.fit th { font-size: 0.7rem; padding-top: 0.6rem; }   /* หัวตารางห่างขอบบนกล่อง ≥ 8px */
+.table-wrap.fit th { white-space: normal; line-height: 1.4; vertical-align: bottom; letter-spacing: 0; }
+.table-wrap.fit td.num, .table-wrap.fit th.num { padding-left: 0.3rem; }
 
 /* ─── TableTools toolbar (component: src/components/ui/TableTools.tsx) ─── */
 .tt-bar { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -1340,6 +1348,24 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 .drawer-overlay { animation: overlay-in .18s ease; }
 @media (prefers-reduced-motion: reduce) { .side-drawer, .drawer-overlay { animation: none; } }
 
+/* ── แผงเลื่อนขวาที่เปิดจากแถวตาราง (RowPanel · คนรวมงานสั่ง 10 พ.ย. 69) — กว้าง 640 ทุกแผง = แผงดีลเลอร์ HQ (บอสสั่ง 10 พ.ย. 69 · 820 กว้างไป) · ชิดขวา · จอแคบกว่า 1024 เต็มจอ ── */
+.row-panel { position: fixed; top: 12px; right: 12px; bottom: 12px; width: 640px; max-width: calc(100vw - 24px);
+  background: #F8FAFC; box-shadow: 0 24px 70px rgba(0,0,0,.24); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+.row-panel-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+@media (max-width: 1023.98px) {
+  .row-panel { top: 0; right: 0; bottom: 0; left: 0; width: 100%; max-width: none; border-radius: 0; }
+}
+/* ชิ้นกลางเดิม (DetailPanel) เมื่ออยู่ในแผงจากแถว: แถวข้อมูล = หัวข้อซ้าย 140px ค่าชิดติดกัน
+   การ์ดสรุป = กริด 6 ช่อง การ์ดกินช่องตาม data-span → เต็มแถวทุกแถวตามจำนวนใบ (บอสสั่ง 10 พ.ย. 69 · ช่วงการ์ดเต็มแถว) */
+.row-panel .panel-kv { display: grid !important; grid-template-columns: 140px minmax(0, 1fr); justify-content: start !important; }
+.row-panel .panel-kv > :last-child { text-align: left !important; overflow-wrap: anywhere; }
+.row-panel .panel-stats { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; margin-bottom: 4px; }
+.row-panel .panel-stats > [data-span="1"], .row-panel-stats > [data-span="1"] { grid-column: span 1; }
+.row-panel .panel-stats > [data-span="2"], .row-panel-stats > [data-span="2"] { grid-column: span 2; }
+.row-panel .panel-stats > [data-span="3"], .row-panel-stats > [data-span="3"] { grid-column: span 3; }
+.row-panel .panel-stats > [data-span="6"], .row-panel-stats > [data-span="6"] { grid-column: span 6; }
+@media (max-width: 520px) { .row-panel .panel-stats > *, .row-panel-stats > * { grid-column: span 6 !important; } }
+
 /* Centered modal pop-in */
 /* .modal-pop = สำหรับโมดัลที่จัดกลางด้วย top:50%/left:50% + translate(-50%,-50%) เท่านั้น
    (keyframes มี translate อยู่ข้างใน — ถ้าเอาไปใช้กับโมดัลที่จัดกลางด้วย flex
@@ -1640,3 +1666,18 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
    content: "*" / "" = ข้อความแทนว่าง โปรแกรมอ่านหน้าจอไม่อ่าน "*" · บรรทัดแรกสำรองให้เบราว์เซอร์ที่ไม่รู้จักรูปแบบ / ""
    (รอบตรวจ deploy16: ป้ายเดิมมี "*" ใน DOM → getByLabel("รหัสสาขา", exact) หาไม่เจอ) */
 [data-required]::after { content: "*"; content: "*" / ""; }
+
+/* ── หน้าต่างรายละเอียดเอกสาร (ใบเสนอราคา · ใบค่าแฟรนไชส์ · บอสสั่ง 9 พ.ย. 69) — ชิ้นส่วนอยู่ที่ components/ui/DocDetailParts.tsx ──
+   แถบสรุป 4 ช่อง → จอแคบ 2 · กริดรายละเอียด 3 คอลัมน์ → 2 → 1 · กล่องยอดรวมชิดขวาครึ่งหนึ่ง → จอแคบเต็มแถว */
+.doc-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 16px; }
+.doc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; padding: 12px 0; }
+.doc-grid > .doc-wide { grid-column: 1 / -1; }
+.doc-totals { width: 50%; margin-left: auto; }
+@media (max-width: 640px) {
+  .doc-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .doc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .doc-totals { width: 100%; }
+}
+@media (max-width: 420px) {
+  .doc-grid { grid-template-columns: minmax(0, 1fr); }
+}

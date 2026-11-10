@@ -12,6 +12,7 @@ import { printQuotation } from "@pms/shared/lib/quotationPrint";
 import { buildLeadTasks, leadStatusLabel, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
 import { useCustomerNotes } from "@pms/shared/lib/useCustomerNotes";
 import { อ่านตารางจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
+import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
 import { CSV_HEADERS, จับคู่คอลัมน์, แถวตัวอย่าง, แผ่นค่าที่เลือกได้, เนื้อไฟล์Csv, type ImportRow, type ค่าที่ระบบมี as ค่าที่เลือกได้ในระบบ } from "@pms/shared/lib/customerImportTemplate";
 import { สร้างไฟล์Xlsx as สร้างสมุดงานXlsx } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
@@ -70,6 +71,7 @@ import { แจ้งพลาด, แจ้งสำเร็จ, ยืนย�
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
+import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 
 // ── Design tokens ────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -116,11 +118,11 @@ function downloadXlsxTemplate(ค่า: ค่าที่เลือกได
   บันทึกไฟล์(สร้างสมุดงานXlsx([
     { ชื่อ:"ลูกค้าเดิม", หัวตาราง:CSV_HEADERS, แถว:[แถวตัวอย่าง(ค่า)] },
     แผ่นค่าที่เลือกได้(ค่า),
-  ]), "เทมเพลตลูกค้าเดิม.xlsx");
+  ]), "แบบฟอร์มลูกค้าเดิม.xlsx");
 }
 // เผื่อใครถนัด CSV หรือใช้ Google ชีต — ไฟล์เดียวไม่มีแผ่นที่สอง จึงต่อค่าที่เลือกได้เป็นบรรทัดหมายเหตุท้ายไฟล์
 function downloadCsvTemplate(ค่า: ค่าที่เลือกได้ในระบบ){
-  บันทึกไฟล์(new Blob(["\ufeff"+เนื้อไฟล์Csv(ค่า)],{type:"text/csv;charset=utf-8"}), "เทมเพลตลูกค้าเดิม.csv");
+  บันทึกไฟล์(new Blob(["\ufeff"+เนื้อไฟล์Csv(ค่า)],{type:"text/csv;charset=utf-8"}), "แบบฟอร์มลูกค้าเดิม.csv");
 }
 const THAI_MO=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 // "วันนี้" ต้องเป็นวันของระบบ (APP_NOW = 30 มิ.ย. 2569) ไม่ใช่นาฬิกาเครื่อง
@@ -714,6 +716,10 @@ export default function CustomersPage(){
   // รับได้ทั้ง CSV · Excel (.xlsx) · .xls/HTML ที่ระบบเก่าส่งออก — ตัวอ่านอยู่ที่ lib/importSheet
   async function onCsvFile(e: React.ChangeEvent<HTMLInputElement>){
     const f=e.target.files?.[0]; if(e.target)e.target.value=""; if(!f) return;
+    await รับไฟล์ลูกค้า(f);
+  }
+  // อ่านไฟล์ลูกค้าเดิม → หน้าตรวจ (ปุ่มเลือกไฟล์ในกล่อง + เมนูนำเข้า ImportMenu ใช้ตัวเดียวกัน · บอสสั่ง 5 พ.ย. 69)
+  async function รับไฟล์ลูกค้า(f: File){
     setImportFile(f.name); setImportRows([]); setImportErr("");
     try{
       const rows=จับคู่คอลัมน์(await อ่านตารางจากไฟล์(f));
@@ -821,7 +827,7 @@ export default function CustomersPage(){
         project:dealForm.project||undefined,
         note:dealForm.note||undefined,
         status:dealForm.status,                                        // เลือกขั้นเริ่มต้นได้เหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย
-        source:"ลูกค้าเดิม (ดีลใหม่)",
+        source:"ลูกค้าเดิม (ดีลใหม่)",   // ค่าช่องทางที่มาที่บันทึกลงลีด (ลีดเดิมมีค่านี้ · กราฟแหล่งที่มาจัดกลุ่มด้วยค่านี้) — คงค่าเดิม (คลังคำ: ค่าข้อมูลไม่เปลี่ยน)
         createdAt:thaiToday(),
         tasks:buildLeadTasks(taskTpl),                                 // Checklist ตามที่ HQ ตั้งไว้ (ยังไม่ติ๊ก)
         activities:[],                                                 // เริ่มว่าง
@@ -840,7 +846,7 @@ export default function CustomersPage(){
   const detailFileCount = selectedFiles.length;
   const detailTabs: {key:"info"|"deals"|"quotes"|"appts"|"notes"|"files"; label:string; icon:React.ReactNode}[] = [
     {key:"info",    label:"ภาพรวม",     icon:<Building2 size={11}/>},
-    {key:"deals",   label:`ดีล (${customerDeals.length})`, icon:<FileText size={11}/>},
+    {key:"deals",   label:`งานขาย (${customerDeals.length})`, icon:<FileText size={11}/>},
     {key:"quotes",  label:`ใบเสนอราคา (${relatedQuotations.length})`, icon:<FileText size={11}/>},
     {key:"appts",   label:`นัดหมาย (${relatedAppointments.length})`,icon:<Calendar size={11}/>},
     {key:"notes",   label:`โน้ต (${relatedNotes.length})`, icon:<StickyNote size={11}/>},
@@ -891,10 +897,11 @@ export default function CustomersPage(){
             headers={[...CSV_HEADERS,"กิจกรรมล่าสุด","จำนวนใบเสนอราคา","ยอดขายรวม"]}
             rows={filtered.map(c=>[c.company,c.name,c.phone,c.email,c.address??"",c.province,c.joinDate,c.owner,
                 lastActivityFor(c.id,c.joinDate,quotations),quotationCountFor(c.id,quotations),fmtMoney(totalSalesFor(c.id,quotations))])} />
-          {/* นำเข้าลูกค้าเดิม (คีย์มือ/CSV) — ลูกค้าใหม่ยังเกิดจาก Lead→Won เท่านั้น */}
-          <button className="btn btn-primary btn-sm" onClick={()=>{setImportRows([]);setImportErr("");setImportFile("");setShowImport(true);}}>
-            <Upload size={14}/> นำเข้าลูกค้าเดิม
-          </button>
+          {/* นำเข้าลูกค้าเดิม — ลูกค้าใหม่ยังเกิดจาก Lead→Won เท่านั้น
+              เมนูนำเข้า ตัวกลาง (บอสสั่ง 5 พ.ย. 69): Excel · CSV = เปิดหน้าต่างเลือกไฟล์ทันที → หน้าตรวจเดิม · แบบฟอร์มตัวอย่าง = เทมเพลต Excel เดิม (มีแผ่นค่าที่เลือกได้) */}
+          <ImportMenu label="นำเข้าลูกค้าเดิม" primary
+            onFile={f=>{ setImportRows([]); setImportErr(""); setImportFile(""); setShowImport(true); void รับไฟล์ลูกค้า(f); }}
+            onTemplate={()=>downloadXlsxTemplate(ค่าที่ระบบมี)} />
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}
 
@@ -1084,13 +1091,9 @@ export default function CustomersPage(){
 
         return (
         <>
-          <div onClick={()=>setSelected(null)} className="drawer-overlay" style={{position:"fixed",inset:0,background:"rgba(45,45,45,.45)",zIndex:200}}/>
-
-          {/* Customer Detail — แผงกลางจอ · คอลัมน์เดียว (มาตรฐานเดียวกับลูกค้าเป้าหมาย) */}
-          <div className="modal-pop" style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-            width:820, maxWidth:"calc(100vw - 24px)", height:"min(920px, calc(100vh - 24px))",
-            zIndex:210, background:"#fff", boxShadow:"0 30px 90px rgba(0,0,0,.32)", borderRadius:18,
-            display:"flex", flexDirection:"column", overflow:"hidden"}}>
+          {/* Customer Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820") */}
+          <RowPanelShell label="ข้อมูลลูกค้า" onClose={()=>setSelected(null)} zIndex={209} backdropClassName="drawer-overlay"
+            asideAttrs={{ style: { background: "#fff" } }}>
 
             {/* Sticky navy header + quick actions */}
             <div style={{background:PRIMARY,padding:"14px 20px",flexShrink:0}}>
@@ -1280,7 +1283,7 @@ export default function CustomersPage(){
                       {/* ประวัติการปิดการขายเหลือที่เดียว = การ์ด "ประวัติการปิดการขาย" แท็บข้อมูลลูกค้า (กดเปิดรายละเอียดได้) · รอบ 4 */}
                       {/* ── โครงการที่กำลังทำ (ลูกค้าเป้าหมายที่ยังไม่ปิดการขาย) ── */}
                       {activeDeals.map(d=>{
-                        // ป้ายขั้น = ชื่อ/สีจากตัวกลาง leadStage.ts (ตรงกับแถบ 5 ขั้นในแผงลีด · บอสสั่ง 27 ต.ค. 69)
+                        // ป้ายขั้น = ชื่อ/สีจากตัวกลาง leadStage.ts (ตรงกับแถบ 4 ขั้นในแผงลีด · บอสสั่ง 27 ต.ค. 69)
                         const ขั้น=เลขขั้นของลีด(d.status,quotations.some(q=>q.status==="draft"&&quoteBelongsToLead(q,d)));
                         const sc=สีขั้น(ขั้น);
                         const dealQuoteCount=quotations.filter(q=>q.dealId===d.numId).length;
@@ -1324,7 +1327,7 @@ export default function CustomersPage(){
               <button onClick={()=>setSelected(null)} className="btn btn-primary btn-md">ปิด</button>
             </div>
 
-          </div>
+          </RowPanelShell>
         </>
         );
       })()}
@@ -1421,7 +1424,7 @@ export default function CustomersPage(){
                   <div style={cardS}>
                     <div style={secL}><CalendarClock size={13} color={PRIMARY}/> ไทม์ไลน์ที่เกี่ยวข้อง</div>
                     {acts.length===0 ? (
-                      <div style={{fontSize:"0.78rem",color:MUTED}}>— ไม่มีบันทึกกิจกรรมของดีลนี้</div>
+                      <div style={{fontSize:"0.78rem",color:MUTED}}>— ไม่มีบันทึกกิจกรรมของงานขายนี้</div>
                     ) : (
                       <div style={{display:"flex",flexDirection:"column",gap:10}}>
                         {acts.map(a=>(
@@ -1442,7 +1445,7 @@ export default function CustomersPage(){
                     {deal
                       ? <ReportEditor lead={deal} onSave={intent => บันทึกลีด(deal.id, intent)} />
                       : <><div style={secL}><StickyNote size={13} color={PRIMARY}/> รายงานติดตาม</div>
-                          <div style={{fontSize:"0.78rem",color:MUTED}}>— ใบนี้ไม่ได้ผูกกับดีลในระบบ จึงยังไม่มีที่เก็บรายงาน</div></>}
+                          <div style={{fontSize:"0.78rem",color:MUTED}}>— ใบนี้ไม่ได้ผูกกับงานขายในระบบ จึงยังไม่มีที่เก็บรายงาน</div></>}
                   </div>
 
                   {/* โน้ต ของลูกค้ารายนี้ */}
@@ -1561,7 +1564,7 @@ export default function CustomersPage(){
                   ดีลเลอร์ดึงรายชื่อลูกค้าของตัวเองจากระบบเก่า กรอกลงเทมเพลต แล้วอัปกลับเข้ามา
                   ทำเป็น 3 ขั้นชัด ๆ เพราะของเดิมเป็นปุ่มเรียงกัน ผู้ใช้ไม่รู้ว่าต้องเริ่มตรงไหน */}
               {[
-                { ที่: 1, หัว: "ดาวน์โหลดเทมเพลต", รอง: "เปิดด้วย Excel หรือ Google ชีต แล้วพิมพ์ต่อได้เลย — มีหัวคอลัมน์และแถวตัวอย่างให้พิมพ์ทับ" },
+                { ที่: 1, หัว: "ดาวน์โหลดแบบฟอร์มตัวอย่าง", รอง: "เปิดด้วย Excel หรือ Google ชีต แล้วพิมพ์ต่อได้เลย — มีหัวคอลัมน์และแถวตัวอย่างให้พิมพ์ทับ" },
                 { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "${ช่อง.บริษัท}" ต้องมี ช่องอื่นเว้นว่างได้ · คอลัมน์: ${CSV_HEADERS.join(" · ")} · ในไฟล์มีแผ่น "ค่าที่เลือกได้" บอกจังหวัด/ผู้รับผิดชอบที่ระบบมีจริง` },
                 { ที่: 3, หัว: "อัปโหลดไฟล์กลับเข้ามา", รอง: `รับไฟล์ ${นามสกุลที่รับได้.map(n=>n.replace(".","")).join(" · ")} · ระบบจะให้ตรวจรายชื่อก่อน แล้วค่อยกดนำเข้า` },
               ].map(ข => (
@@ -1574,7 +1577,7 @@ export default function CustomersPage(){
                     {ข.ที่===1 && (
                       <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginTop:8}}>
                         <button className="btn btn-primary btn-sm" onClick={()=>downloadXlsxTemplate(ค่าที่ระบบมี)}>
-                          <Download size={13}/> ดาวน์โหลดเทมเพลต (Excel)
+                          <Download size={13}/> ดาวน์โหลดแบบฟอร์มตัวอย่าง (Excel)
                         </button>
                         {/* เป็นปุ่มเหมือนกัน (บอสสั่ง 28 ส.ค. 69) — ของเดิมเป็นข้อความขีดเส้นใต้ ดูไม่ออกว่ากดได้ */}
                         <button className="btn btn-secondary btn-sm" onClick={()=>downloadCsvTemplate(ค่าที่ระบบมี)}>

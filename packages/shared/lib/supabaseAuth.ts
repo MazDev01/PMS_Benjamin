@@ -298,7 +298,7 @@ export async function sbResetPasswordWithCode(
     if (เป็นลิงก์) {
       try { token_hash = new URL(ที่กรอก).searchParams.get("token") ?? ""; }
       catch { token_hash = (ที่กรอก.split("token=")[1] ?? "").split("&")[0]; }
-      if (!token_hash) return { ok: false, error: "ลิงก์ไม่ถูกต้อง — ก๊อปลิงก์จากอีเมลมาทั้งอัน" };
+      if (!token_hash) return { ok: false, error: "ลิงก์ไม่ถูกต้อง — คัดลอกลิงก์จากอีเมลมาทั้งอัน" };
     }
     // ยืนยันตัวตนด้วยเลข/ลิงก์ก่อน → ได้ใบผ่านชั่วคราวสำหรับตั้งรหัสใหม่
     const { data, error } = เป็นลิงก์
@@ -337,7 +337,7 @@ export async function sbLoginWithCode(email: string, codeOrLink: string): Promis
     if (เป็นลิงก์) {
       try { token_hash = new URL(ที่กรอก).searchParams.get("token") ?? ""; }
       catch { token_hash = (ที่กรอก.split("token=")[1] ?? "").split("&")[0]; }
-      if (!token_hash) return { ok: false, error: "ลิงก์ไม่ถูกต้อง — ก๊อปลิงก์จากอีเมลมาทั้งอัน" };
+      if (!token_hash) return { ok: false, error: "ลิงก์ไม่ถูกต้อง — คัดลอกลิงก์จากอีเมลมาทั้งอัน" };
     }
     const { data, error } = เป็นลิงก์
       ? await sb.auth.verifyOtp({ token_hash, type: "recovery" })

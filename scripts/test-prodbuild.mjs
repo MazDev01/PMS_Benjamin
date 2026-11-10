@@ -17,8 +17,9 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { บันทึกเมื่อผ่าน, ไฟล์บันทึก } from "./lib/migrationGate.mjs";
-import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน } from "./lib/commitGate.mjs";
+import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน, ไฟล์ยังไม่commit } from "./lib/commitGate.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
+import { ป้ายล็อกรอบทดสอบ } from "./lib/gateLockLabel.mjs";
 import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
 import { ตรวจไม่นิ่งท้ายรอบ, ต้องหาต้นเหตุ } from "./lib/flakyLog.mjs";
 import { จดรอบที่ตก, ตรวจรันต่อได้, ลบที่จด, ข้อที่หาย } from "./lib/gateResume.mjs";
@@ -45,6 +46,15 @@ if (process.argv.includes("--build-only")) {
 const เจาะช่วงprodLive = process.env.PMS_GATE_ONLY_LIVE === "1";
 const รอบเต็มของบอส = !เจาะช่วงprodLive && !process.argv.slice(2).some(a => !a.startsWith("--reporter"));
 if (รอบเต็มของบอส) {
+  // ไฟล์ค้างในโฟลเดอร์ = ไม่เริ่ม (บอสสั่ง 9 พ.ย. 69) — รอบตรวจต้องตรวจโค้ดที่ commit แล้วเท่านั้น · บอกชื่อไฟล์ให้ commit หรือย้ายออกก่อน
+  const ค้างก่อนเริ่ม = ไฟล์ยังไม่commit();
+  if (ค้างก่อนเริ่ม.length) {
+    console.error(`⛔ ไม่เริ่มรอบตรวจเต็ม — มีไฟล์ที่ยังไม่ commit ในโฟลเดอร์ ${ค้างก่อนเริ่ม.length} ไฟล์ (รอบตรวจต้องตรวจโค้ดที่ commit แล้วเท่านั้น):`);
+    for (const f of ค้างก่อนเริ่ม.slice(0, 50)) console.error(`   ${f}`);
+    if (ค้างก่อนเริ่ม.length > 50) console.error(`   … อีก ${ค้างก่อนเริ่ม.length - 50} ไฟล์`);
+    console.error("   commit ไฟล์ที่เป็นงาน (ด้วย pathspec) หรือย้ายไฟล์ที่ไม่ใช่งานออกจากโฟลเดอร์ แล้วเริ่มใหม่");
+    process.exit(2);
+  }
   const ผลรอบ = ตรวจก่อนรอบเต็ม();
   if (!ผลรอบ.ได้) {
     console.error(`⛔ ไม่เริ่มรอบตรวจเต็ม — ${ผลรอบ.เหตุ}`);
@@ -117,7 +127,8 @@ const PMS_RUN_ID = process.env.PMS_RUN_ID ?? new Date(Date.now() + 7 * 3_600_000
 // ── ถือล็อกฐานทดสอบตลอดรอบ (scripts/lib/testDbLock.mjs · 22 ต.ค. 69) — เซสชันอื่นใช้ฐานอยู่ = รอคิว (บอกว่าใคร) ─────────
 //   ทุกขั้นย่อย (playwright · prod-live ในเครื่อง · สคริปต์ล้าง) ได้รหัสล็อกทาง env จึงไม่ล็อกซ้ำ/ไม่รอตัวเอง
 const ก่อนล็อก = Date.now();
-const ล็อกฐาน = ขอล็อกฐานทดสอบ(`รอบตรวจเต็ม (${ตอนเริ่ม.sha.slice(0, 7)})`, { รอนาที: Number(process.env.PMS_TESTDB_LOCK_WAIT || 180) });
+// ป้ายบอกตามจริง: รอบตรวจเต็ม / ทดสอบบางไฟล์ (n ไฟล์) / เจาะช่วง prod-live (คนรวมงานขอ 9 พ.ย. 69 · เดิมเขียน "รอบตรวจเต็ม" ทุกครั้ง)
+const ล็อกฐาน = ขอล็อกฐานทดสอบ(ป้ายล็อกรอบทดสอบ({ args: process.argv.slice(2), onlyLive: เจาะช่วงprodLive, sha: ตอนเริ่ม.sha }), { รอนาที: Number(process.env.PMS_TESTDB_LOCK_WAIT || 180) });
 รอคิววินาที = Math.round((Date.now() - ก่อนล็อก) / 1000);
 // พอร์ตทดสอบของโฟลเดอร์นี้ (โฟลเดอร์หลัก = ค่าใน scripts/lib/ports.json · เซสชันลูก = .pms-session.json)
 const พอร์ตทดสอบ = พอร์ต("test"), ที่อยู่ = ต้นทาง("test");

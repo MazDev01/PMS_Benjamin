@@ -90,7 +90,7 @@ begin
   insert into public.quotations (id, dealer_code, deal_id, customer, project, total_value, status, date)
   values ('ZZTEST-QHQ-' || r, 'CNX', r, 'ZZTEST-มีคำขอ', 'ZZTEST', 1000, 'sent_to_client', current_date);
   alter table public.quotations enable trigger quotations_hq_link_guard;
-  perform hqtest.eq(hqtest.s(r) = 5, true, '4) ส่งใบถึงลูกค้าแล้ว ขั้นที่ไปถึง = 5');
+  perform hqtest.eq(hqtest.s(r) = 4, true, '4) ส่งใบถึงลูกค้าแล้ว ขั้นที่ไปถึง = 4 เสนอราคาลูกค้า (ยุบ 4 ขั้น ใบ 0284 · เดิม 5)');
 
   -- 5) ตรงกับตัวกันลบ 0217 ทุกแถว: has_quotes = false ⇔ ลบได้
   perform hqtest.eq((select bool_and(has_quotes = _lead_has_quotes(dealer_code, num_id)) from public.leads), true,

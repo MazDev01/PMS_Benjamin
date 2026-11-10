@@ -118,19 +118,22 @@ test.describe("อื่น ๆ", () => {
       await expect(page.locator(".card").filter({ hasText: "ตัวเลขการปิดการขาย รายดีลเลอร์" }), "ไม่มีตารางการปิดการขายแยกแล้ว").toHaveCount(0);
       await expect(page.locator(".erp")).not.toContainText("ชุดเดียวกับกราฟด้านบน");
       // คำอธิบายสูตรใต้ตารางถูกเอาออก (บอสสั่ง 22 ก.ย. 69 · commit 4e269ac "เอาคำอธิบายใต้ตารางผลงานออก")
-      await expect(page.locator(".erp")).not.toContainText("อัตราปิด = ปิดได้ ÷");
+      await expect(page.locator(".erp")).not.toContainText("อัตราปิดการขาย = ปิดสำเร็จ ÷");
       const หัว = (await tbl.locator("thead th").allInnerTexts()).map(t => t.trim());
-      for (const ชื่อ of ["ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "อัตราปิด"])   // "ใบเสนอราคา" → "ใบที่ส่ง" (บอสสั่ง 30 ต.ค. 69)
+      for (const ชื่อ of ["ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "อัตราปิดการขาย"])   // "ใบเสนอราคา" → "ใบที่ส่ง" (บอสสั่ง 30 ต.ค. 69)
         expect(หัว.filter(h => h === ชื่อ), `ต้องมีคอลัมน์ "${ชื่อ}" แยกกันหนึ่งคอลัมน์ (ได้: ${หัว.join(" · ")})`).toHaveLength(1);
       // เลือกดีลเลอร์ทีละสาขาของข้อ → ตารางเหลือแถวของสาขานั้นแถวเดียว
       for (const [สาขา, อัตรา, ลีด, ใบ, ได้, ไม่ได้] of [[ก, "75%", "5", "3", "3", "1"], [ข, "—", "1", "1", "0", "0"]] as const) {
         await page.getByLabel("ทุกดีลเลอร์", { exact: true }).first().selectOption(สาขา.รหัส);
         const แถว = tbl.locator("tbody tr").filter({ has: page.locator("td[data-perf-row]") });
         await expect(แถว, `เลือก ${สาขา.รหัส}: ตารางเหลือแถวเดียว`).toHaveCount(1, { timeout: 20_000 });
-        await expect(แถว.first().locator("td[data-perf-row]"), "แถวเป็นของสาขาที่เลือก").toHaveText(สาขา.รหัส, { timeout: 20_000 });
+        // ระดับดีลเลอร์ไม่มีคอลัมน์ดีลเลอร์ (บอสสั่ง 9 พ.ย. 69 · คอลัมน์แรก = ผลงานในช่วง) — ตรวจว่าแถวเป็นของสาขาที่เลือกจากรหัสของแถว
+        await expect(แถว.first().locator("td[data-perf-row]"), "แถวเป็นของสาขาที่เลือก").toHaveAttribute("data-perf-row", สาขา.รหัส, { timeout: 20_000 });
         const ค่า = async (k: string) => (await แถว.first().locator(`td[data-cell='${k}']`).innerText()).trim();
-        expect(await ค่า("rate"), `แถว ${สาขา.รหัส}: อัตราปิด = สูตรกลางจากลีด`).toBe(await อัตราของ(สาขา.รหัส));
-        expect(await ค่า("rate"), `แถว ${สาขา.รหัส}: อัตราปิด = ค่าที่วางไว้`).toBe(อัตรา);
+        expect(อัตรา, `ฐาน ${สาขา.รหัส}: อัตราปิด = สูตรกลางจากลีด`).toBe(await อัตราของ(สาขา.รหัส));
+        // ทั้งตาราง "—" (แถวเดียวที่ไม่มีลีดปิด) = คอลัมน์ซ่อนเอง (บอสสั่ง 6 พ.ย. 69 ซ่อนคอลัมน์ว่าง) · มีค่า = ตรงสูตรกลาง
+        if (อัตรา === "—") await expect(แถว.first().locator("td[data-cell='rate']"), `แถว ${สาขา.รหัส}: อัตราปิด "—" ทั้งตาราง = ซ่อนคอลัมน์`).toHaveCount(0);
+        else expect(await ค่า("rate"), `แถว ${สาขา.รหัส}: อัตราปิด = ค่าที่วางไว้`).toBe(อัตรา);
         expect([await ค่า("leads"), await ค่า("quotes")], `แถว ${สาขา.รหัส}: ลีด / ใบเสนอราคา (ใบที่ส่ง) แยกช่องกัน`).toEqual([ลีด, ใบ]);
         expect([await ค่า("won"), await ค่า("lost")], `แถว ${สาขา.รหัส}: ปิดได้/ปิดไม่ได้ = จำนวนลีดที่ปิด (ไม่ใช่ใบ)`).toEqual([ได้, ไม่ได้]);
       }

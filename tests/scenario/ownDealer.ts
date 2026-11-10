@@ -8,7 +8,8 @@
 import { adminClient, ลบสาขาทดสอบตรง } from "./testDealers";
 import type { Account } from "./supabaseEnv";
 
-export type สาขาของข้อ = { รหัส: string; บัญชี: Account; ลบ: () => Promise<void> };
+/** ชื่อ = ชื่อดีลเลอร์ที่หน้า HQ แสดงแทนรหัส (บอสสั่ง 6 พ.ย. 69) */
+export type สาขาของข้อ = { รหัส: string; ชื่อ: string; บัญชี: Account; ลบ: () => Promise<void> };
 
 const ตัวอักษร = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 // ZT + 3 ตัวสุ่ม (ตรงกฎรหัสสาขาทดสอบ ^Z[ZT][A-Z]{1,3}$ · ตัวกวาดตอนจบชุดเก็บให้ถ้าค้าง) — ชนรหัสที่มีอยู่ = สุ่มใหม่
@@ -32,15 +33,17 @@ export async function สร้างสาขาของข้อ(ตั้ง
         status: "active", contact_email_verified_at: new Date().toISOString() }, { onConflict: "id" });
       if (p.error) throw new Error(p.error.message);
     } catch (e) { await ลบ().catch(() => {}); throw new Error(`สร้างบัญชีของสาขา ${รหัส} ไม่สำเร็จ: ${(e as Error).message}`); }
-    return { รหัส, บัญชี, ลบ };
+    return { รหัส, ชื่อ: ตั้ง.ชื่อ ?? `ZZTEST ${รหัส}`, บัญชี, ลบ };
   }
   throw new Error("สุ่มรหัสสาขาของข้อไม่ได้ใน 20 ครั้ง");
 }
 
 // หน้า HQ: กรองด้วยสาขาของข้อ (ตัวกรองดีลเลอร์บนแถบตัวกรอง) — ยอดบนจอจึงเป็นของสาขานี้อย่างเดียว ไม่ปนข้ออื่นที่รันพร้อมกัน
+//   ตัวเลือกแสดงชื่อดีลเลอร์อย่างเดียว (บอสสั่ง 6 พ.ย. 69 · ไม่มีรหัส) → หาชื่อจากทะเบียนด้วยรหัส แล้วกดตามชื่อ
 export async function กรองหน้าHQด้วยสาขา(page: import("@playwright/test").Page, รหัส: string) {
   const { expect } = await import("@playwright/test");
+  const ชื่อ = (await adminClient().from("dealers").select("name").eq("code", รหัส).single()).data?.name ?? รหัส;
   await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
-  await page.getByRole("button", { name: new RegExp(`^${รหัส} – `) }).click();
-  await expect(page.getByRole("button", { name: new RegExp(`^${รหัส} – `) }).first()).toBeVisible();
+  await page.getByRole("button", { name: ชื่อ, exact: true }).click();
+  await expect(page.getByRole("button", { name: ชื่อ, exact: true }).first()).toBeVisible();
 }

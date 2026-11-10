@@ -11,6 +11,8 @@ import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import type { HQCustomerPageRow } from "@pms/shared/lib/data/ports";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { TablePagination, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { ซ่อนตามระดับ, type ระดับเจาะ } from "@pms/shared/lib/drillColumns";
 
 const PRIMARY = "#003366";
 const DASH = <span style={{ color: "#9ca3af" }}>—</span>;
@@ -21,7 +23,9 @@ function fmtM(n: number): string {
   return n.toLocaleString("th-TH");
 }
 
-export function CustomerTable({ rows, onView, pagination, loading }: {
+export function CustomerTable({ rows, onView, pagination, loading, ระดับ = {} }: {
+  /** ระดับเจาะลึกที่ดูอยู่ — คอลัมน์ที่ระดับบอกอยู่แล้วซ่อน (บอสสั่ง 9 พ.ย. 69 · ตัวกลาง drillColumns) */
+  ระดับ?: ระดับเจาะ;
   rows: HQCustomerPageRow[]; onView: (r: HQCustomerPageRow) => void;
   /** หน้าปัจจุบัน/จำนวนทั้งหมด — ไม่ส่งมา (local, ยังไม่กลับ) ก็ยังมีแถบ โดยนับจากแถวที่เห็นอยู่ */
   pagination?: { page: number; pageCount: number; total: number; onPage: (p: number) => void };
@@ -29,19 +33,23 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
    *  ทั้งที่กำลังโหลดอยู่ (ผู้ใช้เข้าใจผิดว่าไม่มีข้อมูล + คลิกแถวก็ไม่มีอะไรเกิดขึ้นเพราะยังไม่มีแถวจริง) */
   loading?: boolean;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
+  // ระดับดีลเลอร์ = ไม่มีคอลัมน์ดีลเลอร์ · ทุกแถวภูมิภาค/จังหวัดเดียวกับระดับ = ไม่มีคอลัมน์นั้น (บอสสั่ง 9 พ.ย. 69)
+  const ซ่อน = ซ่อนตามระดับ(ระดับ, rows, { ภาค: c => regionOf(c.province), จังหวัด: c => c.province });
+  const จำนวนคอล = 8 - (ซ่อน.ดีลเลอร์ ? 1 : 0) - (ซ่อน.จังหวัด ? 1 : 0) - (ซ่อน.ภาค ? 1 : 0);
   return (
-    <div className="table-wrap" style={{ borderTop: "none" }}>
-      <table aria-label="รายชื่อลูกค้า">
+    <div className="table-wrap fit" style={{ borderTop: "none" }}>
+      <table aria-label="รายชื่อลูกค้า" data-hidden-cols={[ซ่อน.ดีลเลอร์ && "dealer", ซ่อน.จังหวัด && "province", ซ่อน.ภาค && "region"].filter(Boolean).join(",")}>
         {/* ความกว้างทุกคอลัมน์กำหนดที่นี่เท่านั้น (table-layout: fixed) — เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่ด้วย
             ถอดคอลัมน์ "ประเภทอาคาร" + "แม่แบบ" (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) → 19% ยกให้คอลัมน์ "ลูกค้า" */}
         {/* 30 ต.ค. 69 บอสสั่ง: รหัสลูกค้า · ลูกค้า · ดีลเลอร์ (รหัส+ชื่อช่องเดียว) · จังหวัด · ภูมิภาค · ยอดซื้อรวม · ซื้อล่าสุด · ดู
             รหัสลูกค้า/จังหวัด/ภูมิภาค/ยอด/วันที่ = กว้างตายตัวพอดีข้อความ (ไม่ตัด) · ลูกค้า/ดีลเลอร์แบ่งที่เหลือ · ชื่อลูกค้า/ดีลเลอร์ยาวเกิน = ตัด + แสดงเต็มเมื่อชี้ */}
         <colgroup>
           <col style={{ width: 160 }} />{/* รหัสลูกค้า เช่น RYG-90039 · รหัสสาขา 5 ตัว + เลขยาว ต้องไม่ตัด (กว้างตายตัว) */}
-          <col style={{ width: "50%" }} />{/* ลูกค้า */}
-          <col style={{ width: "50%" }} />{/* ดีลเลอร์ = รหัส + ชื่อ */}
-          <col style={{ width: 130 }} />{/* จังหวัด */}
-          <col style={{ width: 190 }} />{/* ภูมิภาค — "ภาคตะวันออกเฉียงเหนือ" ห้ามตัด */}
+          <col style={{ width: ซ่อน.ดีลเลอร์ ? "100%" : "50%" }} />{/* ลูกค้า (ได้ที่ของดีลเลอร์ที่ซ่อน) */}
+          {!ซ่อน.ดีลเลอร์ && <col style={{ width: "50%" }} />}{/* ดีลเลอร์ */}
+          {!ซ่อน.จังหวัด && <col style={{ width: 130 }} />}{/* จังหวัด */}
+          {!ซ่อน.ภาค && <col style={{ width: 190 }} />}{/* ภูมิภาค — "ภาคตะวันออกเฉียงเหนือ" ห้ามตัด */}
           <col style={{ width: 120 }} />{/* ยอดซื้อรวม */}
           <col style={{ width: 120 }} />{/* ซื้อล่าสุด — วันที่ไม่ตัด */}
           <col style={{ width: 56 }} />{/* ปุ่มดู */}
@@ -50,9 +58,9 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
           <tr>
             <th>รหัสลูกค้า</th>
             <th>ลูกค้า</th>
-            <th>ดีลเลอร์</th>
-            <th>จังหวัด</th>
-            <th>ภูมิภาค</th>
+            {!ซ่อน.ดีลเลอร์ && <th>ดีลเลอร์</th>}
+            {!ซ่อน.จังหวัด && <th>จังหวัด</th>}
+            {!ซ่อน.ภาค && <th>ภูมิภาค</th>}
             <th className="num">ยอดซื้อรวม</th>
             <th>ซื้อล่าสุด</th>
             {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอ 1280 ปุ่มเคยหลุดออกนอกกรอบ (26 ส.ค. 69) */}
@@ -62,7 +70,7 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={8} style={{ textAlign: "center", padding: "40px 14px", color: "#6b7280" }}>
+              <td colSpan={จำนวนคอล} style={{ textAlign: "center", padding: "40px 14px", color: "#6b7280" }}>
                 {loading ? "กำลังโหลด…" : "ไม่พบลูกค้า"}
               </td>
             </tr>
@@ -75,11 +83,11 @@ export function CustomerTable({ rows, onView, pagination, loading }: {
                   {customerCode(c.dealerCode, c.id)}
                 </td>
                 <td style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={c.name}>{c.name}</td>
-                <td data-col="dealer" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${c.dealerCode} · ${c.dealerName}`}>
-                  <span data-col="code" style={{ fontWeight: 700, color: PRIMARY, background: "#e6edf8", borderRadius: 6, padding: "1px 7px", marginRight: 6 }}>{c.dealerCode}</span>{c.dealerName}
-                </td>
-                <td style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>
-                <td data-col="region" style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ? ชื่อภาค(regionOf(c.province)) : DASH}</td>
+                {!ซ่อน.ดีลเลอร์ && <td data-col="dealer" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={ชื่อของ(c.dealerCode, c.dealerName)}>
+                  {ชื่อของ(c.dealerCode, c.dealerName)}
+                </td>}
+                {!ซ่อน.จังหวัด && <td data-col="province" style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>}
+                {!ซ่อน.ภาค && <td data-col="region" style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ? ชื่อภาค(regionOf(c.province)) : DASH}</td>}
                 <td className="num" style={{ whiteSpace: "nowrap", fontWeight: c.totalValue > 0 ? 700 : 400, color: c.totalValue > 0 ? PRIMARY : "#6b7280" }}>
                   {c.totalValue > 0 ? fmtM(c.totalValue) : DASH}
                 </td>

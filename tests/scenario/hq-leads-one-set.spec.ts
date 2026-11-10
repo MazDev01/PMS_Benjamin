@@ -74,8 +74,10 @@ async function อ่าน(page: Page): Promise<ตัวเลข> {
   const แหล่ง = page.locator("[data-source-chart][data-ready='1']");
   const ตาราง = page.locator("[data-lead-table][data-ready='1']");
   await expect(ขั้น).toBeVisible({ timeout: 25_000 }); await expect(แหล่ง).toBeVisible(); await expect(ตาราง).toBeVisible();
-  const ขั้น15 = (await ขั้น.locator("[data-stage]").evaluateAll(rs => rs.map(r => [Number(r.getAttribute("data-stage")), Number(r.getAttribute("data-count"))])))
-    .filter(([n]) => n >= 1 && n <= 5).reduce((t, [, c]) => t + c, 0);
+  const แถวขั้น = await ขั้น.locator("[data-stage]").evaluateAll(rs => rs.map(r => [Number(r.getAttribute("data-stage")), Number(r.getAttribute("data-count"))]));
+  // ขั้นที่เปิดอยู่ = 1–4 (ยุบ 4 ขั้น 9 พ.ย. 69 · ใบ 0284) — กราฟไม่มีแท่งขั้น 5 แล้ว
+  expect(แถวขั้น.map(([n]) => n), "กราฟลีดตามขั้นตอน: 4 ขั้น + ปิดสำเร็จ/ไม่สำเร็จ").toEqual([1, 2, 3, 4, 6, 7]);
+  const ขั้น15 = แถวขั้น.filter(([n]) => n >= 1 && n <= 4).reduce((t, [, c]) => t + c, 0);
   return { เปิด: (await การ์ด("open")) ?? "", ใหม่: (await การ์ด("new")) ?? "", เงียบ: (await การ์ด("idle")) ?? "", ขั้น15,
     แหล่ง: (await แหล่ง.getAttribute("data-total")) ?? "", ตาราง: (await ตาราง.getAttribute("data-total")) ?? "" };
 }
@@ -83,7 +85,7 @@ async function อ่าน(page: Page): Promise<ตัวเลข> {
 async function ตรงค่า(page: Page, ชื่อ: string, ควร: { เปิด: number; ใหม่: number; เงียบ: number; ตาราง: number }) {
   const ต้องได้: ตัวเลข = { เปิด: String(ควร.เปิด), ใหม่: String(ควร.ใหม่), เงียบ: String(ควร.เงียบ), ขั้น15: ควร.เปิด, แหล่ง: String(ควร.ใหม่), ตาราง: String(ควร.ตาราง) };
   let ล่าสุด: ตัวเลข | null = null;
-  await expect.poll(async () => (ล่าสุด = await อ่าน(page)), { timeout: 30_000, message: `${ชื่อ}: การ์ด = กราฟขั้น 1–5 = วงกลมแหล่งที่มา = ตาราง` }).toEqual(ต้องได้);
+  await expect.poll(async () => (ล่าสุด = await อ่าน(page)), { timeout: 30_000, message: `${ชื่อ}: การ์ด = กราฟขั้น 1–4 = วงกลมแหล่งที่มา = ตาราง` }).toEqual(ต้องได้);
   return ล่าสุด;
 }
 const เลือก = (page: Page, ป้ายช่อง: string) => page.getByLabel(ป้ายช่อง, { exact: true }).first();
@@ -92,7 +94,7 @@ async function เปิดหน้าแล้วค้น(page: Page) {
   await settle(page);
   // ระดับดีลเลอร์ของข้อ → การ์ด/กราฟเป็นของข้ออย่างเดียว · คำค้นป้ายของรอบ → รายชื่อเป็นของข้ออย่างเดียว
   await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(ก!.รหัส);
-  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toContainText(ก!.รหัส, { timeout: 25_000 });
+  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(ก!.ชื่อ, { timeout: 25_000 });   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await page.getByPlaceholder(/ค้นหาบริษัท/).fill(ป้าย);
 }
 
@@ -105,18 +107,22 @@ test("[H6·hq] ลีดทั้งเครือ: ทุกระดับ �
   await ตรงค่า(page, "ระดับดีลเลอร์ของข้อ + คำค้น", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 4 });
   // ตารางไม่มีลีดของ HQ (อยู่กล่องโอนที่เดียว)
   await expect(page.locator("[data-lead-table] tbody").getByText(`${ป้าย} บจก.ทดสอบ HQ`)).toHaveCount(0);
-  const ป้ายดีลเลอร์ = await page.locator("[data-lead-table] tbody td[data-cell='dealer'] .badge").allInnerTexts();
-  expect(ป้ายดีลเลอร์.length, "มีแถวในตาราง").toBeGreaterThan(0);
-  expect(ป้ายดีลเลอร์.every(c => c.trim() === ก!.รหัส), `ทุกแถวเป็นของสาขาของข้อ (ได้ ${ป้ายดีลเลอร์.join(" · ")})`).toBe(true);
+  // 9 พ.ย. 69 (บอสสั่ง · ตัวกลาง drillColumns · ตรวจกลับด้าน): ระดับดีลเลอร์ไม่มีคอลัมน์ดีลเลอร์ (หัวตาราง/แถบระดับบอกชื่อแล้ว)
+  //   เดิม (6 พ.ย. 69): ช่องดีลเลอร์ = ชื่อของสาขาของข้อทุกแถว · ทั้งเครือยังมีคอลัมน์ (ตรวจที่ drill-table-columns.spec.ts)
+  await expect(page.locator("[data-lead-table] tbody tr").first(), "มีแถวในตาราง").toBeVisible();
+  await expect(page.getByRole("table", { name: "ตารางลูกค้าเป้าหมายทั้งเครือ" }), "ระดับดีลเลอร์: ซ่อนคอลัมน์ดีลเลอร์").toHaveAttribute("data-hidden-cols", /dealer/);
+  await expect(page.locator("[data-lead-table] tbody td[data-cell='dealer']"), "ระดับดีลเลอร์: ไม่มีช่องดีลเลอร์").toHaveCount(0);
 
-  // ระดับจังหวัด (สตูล · 2 สาขาของข้อ) และภูมิภาค (ภาคใต้): รายชื่อ (คำค้นป้ายของรอบ) ยังเป็นลีดเปิดของข้อ 4 ราย · การ์ด = แถวรวมตารางเจาะลึก (ชุดเดียว)
+  // ระดับจังหวัด (สตูล · 2 สาขาของข้อ) และภูมิภาค (ภาคใต้): รายชื่อ (คำค้นป้ายของรอบ) ยังเป็นลีดเปิดของข้อ 4 ราย · การ์ด = ผลรวมแถวตารางเจาะลึก (ชุดเดียว · ไม่มีแถวรวมแล้ว)
   for (const [ระดับ, ไป] of [["จังหวัด", "prov"], ["ภูมิภาค", "region"]] as const) {
     await page.locator(`[data-crumbs] [data-crumb="${ไป}"]`).click();
     await expect(page.locator("[data-lead-table][data-ready='1']")).toHaveAttribute("data-total", "4", { timeout: 25_000 });
-    // การ์ดกับแถวรวมมาจากคำขอเดียวกัน (hq_drill) → ต้องเท่ากันทันทีที่โหลดเสร็จ
-    await expect(page.locator("[data-drill-table] tfoot [data-group-total]")).toBeVisible({ timeout: 20_000 });
+    // การ์ดกับตารางมาจากคำขอเดียวกัน (hq_drill) → ผลรวมแถวต้องเท่าการ์ดทันทีที่โหลดเสร็จ
+    await expect(page.locator('[data-drill-table] tbody [data-cell="open"]').first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("[data-drill-table] tfoot"), "ไม่มีแถวรวม").toHaveCount(0);
     const การ์ดเปิด = await page.locator('[data-kpi-row] [data-kpi="open"] [data-value]').first().getAttribute("data-value");
-    expect(การ์ดเปิด, `ระดับ${ระดับ}: การ์ดเปิดอยู่ = แถวรวมตารางเจาะลึก`).toBe(await page.locator('[data-drill-table] tfoot [data-sum="open"]').getAttribute("data-value"));
+    const รวมเปิด = (await page.locator('[data-drill-table] tbody [data-cell="open"]').evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0);
+    expect(การ์ดเปิด, `ระดับ${ระดับ}: การ์ดเปิดอยู่ = ผลรวมแถวตารางเจาะลึก`).toBe(String(รวมเปิด));
     expect(Number(การ์ดเปิด), `ระดับ${ระดับ}: นับลีดเปิดของข้อรวมอยู่ด้วย`).toBeGreaterThanOrEqual(4);
   }
   await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(ก!.รหัส);
@@ -143,7 +149,9 @@ test("[H6·hq] ลีดทั้งเครือ: กดการ์ด = แ
   await page.locator('[data-kpi="new"]').first().click();
   const แผง = page.locator('[data-drill-drawer="card:leads"]');
   await expect(แผง, "การ์ดลีดใหม่ → แผงที่มา").toBeVisible();
-  await expect(แผง.locator("tfoot [data-value]"), "แผงที่มา แถวรวม = การ์ด 5").toHaveAttribute("data-value", "5");
+  await expect(แผง.locator("tfoot"), "แผงที่มาไม่มีแถวรวม").toHaveCount(0);
+  await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
+    { message: "แผงที่มา ผลรวมแถว = การ์ด 5" }).toBe(5);
   await แผง.getByRole("button", { name: "ปิดแผง" }).click();
   await expect(ช่องขั้น, "รายชื่อยังเป็นกำลังดำเนินการ").toHaveValue("OPEN");
   await ตรงค่า(page, "หลังกดการ์ดลีดใหม่", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 4 });
@@ -201,7 +209,10 @@ test("[ui·hq] ลีดทั้งเครือ: กล่องโอนล
   // ── ตารางลีด: คอลัมน์ตามแบบดีลเลอร์ + ดีลเลอร์ · ไม่มีความคืบหน้า ──
   const ตาราง = page.locator("[data-lead-table] table");
   const หัว = (await ตาราง.locator("thead th").allInnerTexts()).map(t => t.trim());
-  expect(หัว).toEqual(["บริษัท / ผู้ติดต่อ", "ดีลเลอร์", "จังหวัดหน้างาน", "ช่องทางที่มา", "งานที่ต้องการ", "พื้นที่ (ตร.ม.)", "ขั้นตอน", "มูลค่า", "ผู้รับผิดชอบ", "กิจกรรมล่าสุด", ""]);
+  // 9 พ.ย. 69 (บอสสั่ง · ตัวกลาง drillColumns · ตรวจกลับด้าน): ข้อนี้อยู่ระดับดีลเลอร์ของข้อ + ลีดทุกแถวจังหวัดเดียว (สตูล)
+  //   → ไม่มีคอลัมน์ "ดีลเลอร์" และ "จังหวัดหน้างาน" (ระดับ/ทุกแถวบอกแล้ว) · เดิมตรวจว่ามีทั้งสองคอลัมน์ · ทั้งเครือยังมี (drill-table-columns.spec.ts)
+  await expect(ตาราง, "ระดับดีลเลอร์: ซ่อนดีลเลอร์ + จังหวัด").toHaveAttribute("data-hidden-cols", /dealer.*province|province.*dealer/);
+  expect(หัว).toEqual(["บริษัท / ผู้ติดต่อ", "ช่องทางที่มา", "งานที่ต้องการ", "พื้นที่ (ตร.ม.)", "ขั้นตอน", "มูลค่า", "ผู้รับผิดชอบ", "กิจกรรมล่าสุด", ""]);
   // ไม่ถูกตัด ไม่ตกบรรทัดที่จอกว้าง: หัวคอลัมน์ · บริษัท · ดีลเลอร์ · มูลค่า · ชี้แล้วเห็นเต็ม (title)
   const ตัด = await ตาราง.evaluate(t => {
     const ช่อง = [...Array.from(t.querySelectorAll<HTMLElement>("thead th")),
@@ -212,18 +223,19 @@ test("[ui·hq] ลีดทั้งเครือ: กล่องโอนล
   expect(ตัด, "จอ 1600: หัวคอลัมน์/ชื่อบริษัท/ดีลเลอร์/มูลค่า ไม่ถูกตัด").toEqual([]);
   const ชื่อเต็ม = await ตาราง.locator("tbody td[data-cell='company']").evaluateAll(cs => cs.map(c => [c.getAttribute("title") ?? "", c.querySelector("div")?.textContent ?? ""]));
   expect(ชื่อเต็ม.every(([title, ชื่อ]) => title.startsWith(ชื่อ)), "ชี้ที่ช่องบริษัทแล้วเห็นชื่อเต็ม").toBe(true);
-  const ดีลเลอร์เต็ม = await ตาราง.locator("tbody td[data-cell='dealer']").evaluateAll(cs => cs.map(c => c.getAttribute("title") ?? ""));
-  expect(ดีลเลอร์เต็ม.every(t => t === `${ก!.รหัส} ZZTEST ดีลเลอร์ลีดสตูล`), `ชี้ที่ช่องดีลเลอร์แล้วเห็นรหัส + ชื่อเต็ม (${ดีลเลอร์เต็ม.join(" · ")})`).toBe(true);
+  await expect(ตาราง.locator("tbody td[data-cell='dealer']"), "ระดับดีลเลอร์: ไม่มีช่องดีลเลอร์ในแถว (เดิมตรวจชื่อเต็มในช่องนี้)").toHaveCount(0);
   const ชื่อบรรทัดเดียว = await ตาราง.locator("tbody td[data-cell='company'] > div").first().evaluate(d => getComputedStyle(d).whiteSpace);
   expect(ชื่อบรรทัดเดียว, "ชื่อบริษัทไม่ตกบรรทัด").toBe("nowrap");
 
   // ── กราฟลีดใหม่รายเดือน (แบบหน้า 2 พ.ย. 69): คำตรงขั้นตอนกลาง · ไม่มีชุดใบเสนอราคา (อยู่หน้าใบเสนอราคา) · รวม = การ์ดลีดใหม่ · หน้านี้ไม่มีผลงานดีลเลอร์ ──
-  const แนวโน้ม = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: /^กราฟลีดใหม่รายเดือน · / }) }).first();
-  for (const คำ of ["ลีดใหม่", "ปิดสำเร็จ", "ปิดไม่สำเร็จ"]) await expect(แนวโน้ม, `กราฟรายเดือนมีคำ "${คำ}"`).toContainText(คำ);
+  const แนวโน้ม = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: /^กราฟลูกค้าเป้าหมายใหม่รายเดือน · / }) }).first();
+  for (const คำ of ["ลูกค้าเป้าหมายใหม่", "ปิดสำเร็จ", "ปิดไม่สำเร็จ"]) await expect(แนวโน้ม, `กราฟรายเดือนมีคำ "${คำ}"`).toContainText(คำ);
   await expect(แนวโน้ม, "ไม่มีชุดใบเสนอราคาในกราฟลีด").not.toContainText("ใบเสนอราคา");
   await expect(page.locator("[data-lead-monthly][data-ready='1']"), "รวมลีดใหม่รายเดือน = การ์ดลีดใหม่").toHaveAttribute("data-sum-new",
     (await page.locator('[data-kpi-row] [data-kpi="new"] [data-value]').first().getAttribute("data-value")) ?? "");
-  await expect(แนวโน้ม).not.toContainText("ลูกค้าเป้าหมายใหม่");
+  // ตรวจกลับด้าน (บอสเลือก 9 พ.ย. 69 ข้อ 1: ลีด → ลูกค้าเป้าหมาย ทั้งหมด · ทับคำในกราฟแบบหน้า 2 พ.ย. 69 ที่ใช้ "ลีดใหม่")
+  await expect(แนวโน้ม).toContainText("ลูกค้าเป้าหมายใหม่");
+  await expect(แนวโน้ม).not.toContainText("ลีดใหม่");   // คำเดิม (ชื่อดีลเลอร์ของข้อมีคำว่า ลีด จึงตรวจคำเต็ม)
   await expect(แนวโน้ม).not.toContainText("ปิดการขาย");
   await expect(page.locator(".erp"), "ไม่มีผลงานดีลเลอร์ในหน้านี้ (อยู่ภาพรวมยอดขายที่เดียว)").not.toContainText(/ผลงานดีลเลอร์|อัตราปิด|ยอดขาย/);
   assertNoErrors(errs, "หน้าตาลีดทั้งเครือ");

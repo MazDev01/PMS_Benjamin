@@ -5,6 +5,7 @@
 //   บันทึก: material_templates_save (เฉพาะผู้ดูแล/ผู้บริหาร HQ · ฐานลงบันทึกการใช้งานเอง)
 //   ?view=accuracy: ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ (HQ เท่านั้น)
 //   ?view=used: รหัสวัสดุที่เคยใช้ในคำขอ/ใบ HQ (ใบ 0271 · ลบไม่ได้ ปิดใช้แทน · HQ เท่านั้น)
+//   นำเข้าจากไฟล์ (ใบ 0279): ?view=imports = ชุดที่นำเข้าล่าสุด · POST op=import (fileName, rows) / op=cancelImport (batch)
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
 import { toCamelList } from "@pms/shared/lib/data/supabase/mappers";
@@ -13,6 +14,11 @@ type Row = Record<string, unknown>;
 export { runtime } from "./_ctx";
 
 export const materialTemplatesGET = handler("materialTemplates.list", async (req: NextRequest, sb) => {
+  if (new URL(req.url).searchParams.get("view") === "imports") {
+    const { data, error } = await sb.rpc("hq_material_import_batches");
+    if (error) return dbFail("materialTemplates.importBatches", error);
+    return ok(data ?? []);
+  }
   if (new URL(req.url).searchParams.get("view") === "used") {
     const { data, error } = await sb.rpc("material_templates_used");
     if (error) return dbFail("materialTemplates.used", error);
@@ -31,7 +37,19 @@ export const materialTemplatesGET = handler("materialTemplates.list", async (req
 });
 
 export const materialTemplatesPOST = handler("materialTemplates.save", async (req: NextRequest, sb) => {
-  const b = (await req.json().catch(() => null)) as { rows?: unknown; deleteIds?: unknown } | null;
+  const b = (await req.json().catch(() => null)) as { rows?: unknown; deleteIds?: unknown; op?: unknown; fileName?: unknown; batch?: unknown } | null;
+  if (b?.op === "import") {
+    if (!Array.isArray(b.rows)) return fail(400, "ไม่มีแถวให้นำเข้า");
+    const { data, error } = await sb.rpc("hq_materials_import", { p_file: String(b.fileName ?? ""), p_rows: b.rows });
+    if (error) return dbFail("materialTemplates.import", error);
+    return ok(data);
+  }
+  if (b?.op === "cancelImport") {
+    const { data, error } = await sb.rpc("hq_materials_import_cancel", { p_batch: Number(b.batch) });
+    if (error) return dbFail("materialTemplates.cancelImport", error);
+    const d = (data ?? {}) as { deleted?: number; restored?: number };
+    return ok({ deleted: Number(d.deleted ?? 0), restored: Number(d.restored ?? 0) });
+  }
   if (!b || !Array.isArray(b.rows)) return fail(400, "ข้อมูลไม่ถูกต้อง");
   const ids = Array.isArray(b.deleteIds) ? b.deleteIds.map(Number).filter(n => Number.isInteger(n) && n > 0) : [];
   const { data, error } = await sb.rpc("material_templates_save", { p_rows: b.rows, p_delete_ids: ids });

@@ -19,6 +19,7 @@ delete from public.quotations where dealer_code in (select code from _ลบส�
 delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code in (select code from _ลบสาขา));
 update public.quote_requests set supersedes_id = null, root_id = null where dealer_code in (select code from _ลบสาขา);
 delete from public.quote_request_events where request_id in (select id from public.quote_requests where dealer_code in (select code from _ลบสาขา));
+select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
 delete from public.quote_requests where dealer_code in (select code from _ลบสาขา);
 delete from public.files where dealer_code in (select code from _ลบสาขา);
 delete from public.customer_notes where dealer_code in (select code from _ลบสาขา);

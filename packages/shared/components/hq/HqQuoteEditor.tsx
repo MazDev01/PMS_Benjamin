@@ -36,6 +36,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
 import { FieldLabel, FieldError, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const NAVY = "#003366";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -48,7 +49,9 @@ const สเปกยาว = 160;
 /** ร่างที่พิมพ์ค้าง (ยังไม่บันทึก) ของคำขอหนึ่ง — หน้าแม่ถือไว้ข้ามการสลับคำขอ */
 export type ร่างใบHQ = { lines: แถววาง[]; validUntil: string; note: string };
 
-export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged }: {
+export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged, เต็มจอ = false }: {
+  /** หน้าต่างเต็มจอ แบบหน้าใบค่าแฟรนไชส์ (หน้าคำขอ HQ แบบตาราง · บอสสั่ง 6 พ.ย. 69) */
+  เต็มจอ?: boolean;
   request: QuoteRequest;
   dealerName: string;
   onClose: () => void;
@@ -67,6 +70,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   /** แนบ/ลบไฟล์แล้ว — หน้าแม่โหลดป้ายจำนวนไฟล์ใหม่ */
   onFilesChanged?: () => void;
 }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   const [ใบ, setใบ] = useState<HqQuote | null | undefined>(undefined);
   const [ใบก่อน, setใบก่อน] = useState<HqQuote | null>(null);
   const [lines, setLines] = useState<แถววาง[]>([]);
@@ -154,8 +158,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const กดส่ง = async () => {
     if (ปัญหา) { แจ้งพลาด(ปัญหา); return; }
     const ตกลง = await ยืนยัน({
-      หัวข้อ: `ส่งใบ HQ ให้ ${request.dealerCode} ?`,
-      รายละเอียด: `ราคาส่งดีลเลอร์ (ก่อน VAT) ${บาท(รวม)} บาท · ยืนราคาถึง ${วันไทยสั้น(ยืนราคาถึง)} — ส่งแล้วแก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นเวอร์ชันใหม่`,
+      หัวข้อ: `ส่งใบ HQ ให้ ${ชื่อของ(request.dealerCode, dealerName)} ?`,
+      รายละเอียด: `ราคาจาก HQ (ก่อน VAT) ${บาท(รวม)} บาท · ยืนราคาถึง ${วันไทยสั้น(ยืนราคาถึง)} — ส่งแล้วแก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นฉบับใหม่`,
       ปุ่มตกลง: "ส่งใบ HQ",
     });
     if (!ตกลง) return;
@@ -176,7 +180,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       const h = await repo.copyHqQuote(request.id, ใบก่อน.id);
       setใบ(h); setLines(h.lineItems); setยืนราคาถึง(h.validUntil ?? วันยืนราคาตั้งต้น()); setหมายเหตุ(h.note);
       setภาพที่บันทึก(ภาพ(h.lineItems, h.validUntil ?? วันยืนราคาตั้งต้น(), h.note));
-      แจ้งสำเร็จ(`เริ่มเวอร์ชันใหม่จาก ${ใบก่อน.quoteNo} แล้ว — แก้รายการแล้วส่งได้เลย`);
+      แจ้งสำเร็จ(`เริ่มฉบับใหม่จาก ${ใบก่อน.quoteNo} แล้ว — แก้รายการแล้วส่งได้เลย`);
       onChanged();
     } catch (e) { แจ้งพลาด(friendlyError(e)); }
     finally { setBusy(false); }
@@ -204,7 +208,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       <>{บาท(Number(request.estimateTotal))} บาท <span style={{ fontWeight: 500, color: "#6b7280" }}>({(request.estimateItems ?? []).length} วัสดุ · {ป้ายราคาประเมิน}
         {request.estimateDeviationPct != null ? ` · คลาดจากใบ HQ ${ป้ายเปอร์เซ็นต์คลาด(request.estimateDeviationPct)}` : ""})</span></>
     ), "estimate"] as [string, React.ReactNode, string]] : []),
-    ["ดีลเลอร์", `${request.dealerCode} ${dealerName}`.trim(), "dealer"],
+    ["ดีลเลอร์", ชื่อของ(request.dealerCode, dealerName), "dealer"],
   ];
   // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
   const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
@@ -220,7 +224,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
               ใบ HQ · {request.requestNo}{ใบ ? ` · ${ใบ.quoteNo}` : ""}
             </h2>
             <div style={{ fontSize: "0.78rem", opacity: 0.85, marginTop: 2 }}>
-              {request.dealerCode} {dealerName} · {request.leadCompany || "—"}
+              {ชื่อของ(request.dealerCode, dealerName)} · {request.leadCompany || "—"}
             </div>
           </div>
           {ใบ && <span className="badge" style={{ background: ล็อก ? "#dcfce7" : "#fef3c7", color: ล็อก ? "#166534" : "#92400e" }}>{hqQuoteStatusLabel[ใบ.status]}</span>}
@@ -249,7 +253,16 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                   <span style={{ ...ค่าข้อมูล, overflowWrap: "anywhere" }}>{ค่า}</span>
                 </div>
               ))}
-              {request.status !== "quoted" && (
+              {/* ยกเลิกแล้ว (ใบ 0280): เหตุผล · ใคร · เมื่อไร แทนกำหนดส่ง (คำขอที่ยกเลิกไม่มีกำหนดให้นับ) */}
+              {request.status === "cancelled" && (
+                <div data-info="cancelled" style={{ display: "grid", gap: 2, minWidth: 0, gridColumn: "1 / -1" }}>
+                  <span style={ป้ายข้อมูล}>ยกเลิกแล้ว</span>
+                  <span style={{ ...ค่าข้อมูล, overflowWrap: "anywhere" }} data-testid="cancel-info">
+                    เหตุผล: {request.cancelReason || "—"} · โดย {request.cancelledByName || "—"} · เมื่อ {request.cancelledAt ?? request.closedAt ? วันไทยสั้น((request.cancelledAt ?? request.closedAt)!) : "—"}
+                  </span>
+                </div>
+              )}
+              {request.status !== "quoted" && request.status !== "cancelled" && (
                 <div data-info="due" style={{ display: "grid", gap: 2, minWidth: 0 }}>
                   <span style={ป้ายข้อมูล}>กำหนดส่งใบ HQ</span>
                   <span style={ค่าข้อมูล}>
@@ -282,8 +295,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
 
           {ใบ !== undefined && !ใบ && ใบก่อน && แก้ได้ && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#eff6ff", borderRadius: 12, padding: "10px 14px", fontSize: "0.82rem" }}>
-              <span style={{ flex: 1 }}>ดีลเลอร์ขอแก้ราคาจาก {ใบก่อน.quoteNo} — เริ่มเวอร์ชันใหม่จากรายการเดิมแล้วแก้ต่อได้</span>
-              <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => void เริ่มจากใบก่อน()}><Copy size={13} /> เริ่มจากใบเวอร์ชันก่อน</button>
+              <span style={{ flex: 1 }}>ดีลเลอร์ขอแก้ราคาจาก {ใบก่อน.quoteNo} — เริ่มฉบับใหม่จากรายการเดิมแล้วแก้ต่อได้</span>
+              <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => void เริ่มจากใบก่อน()}><Copy size={13} /> เริ่มจากใบฉบับก่อน</button>
             </div>
           )}
 
@@ -291,7 +304,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
             <>
               {ล็อก && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#166534", background: "#f0fdf4", borderRadius: 12, padding: "10px 14px", fontSize: "0.82rem" }}>
-                  <Lock size={14} /> ส่งให้ดีลเลอร์แล้ว{ใบ?.sentAt ? ` ${วันไทยสั้น(ใบ.sentAt)}` : ""}{ใบ?.sentByName ? ` โดย ${ใบ.sentByName}` : ""} — ใบนี้แก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นเวอร์ชันใหม่
+                  <Lock size={14} /> ส่งให้ดีลเลอร์แล้ว{ใบ?.sentAt ? ` ${วันไทยสั้น(ใบ.sentAt)}` : ""}{ใบ?.sentByName ? ` โดย ${ใบ.sentByName}` : ""} — ใบนี้แก้ไม่ได้ ถ้าต้องแก้ ดีลเลอร์ต้องขอแก้ราคาเป็นฉบับใหม่
                 </div>
               )}
               {/* ตาราง BOQ กลาง (BoqTable) — แหล่งรายการเพิ่ม (รายการวัสดุ · รายการจากคำขอดีลเลอร์) ส่งเข้ามาทาง แหล่ง โดยไม่รื้อตาราง */}
@@ -318,7 +331,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
               {/* กล่องแนบไฟล์แสดงตลอดก่อนส่งใบ (บอสสั่ง 3 พ.ย. 69 "ไฟล์จาก HQ แนบไงใส่มาด้วย") — ใบยังไม่มีร่าง = บันทึกร่างให้ก่อนแล้วแนบต่อ
                   (คำสั่งบันทึกร่างเดิม · ฐานกันตามเดิม) · ส่งใบแล้ว = รายการไฟล์ + ป้ายล็อก */}
               <QuoteFilesBox requestId={request.id} uploadSide="hq" canUpload={แก้ได้}
-                lockedReason={ล็อก ? "ล็อกพร้อมใบ HQ" : "คำขอนี้ปิดแล้ว"}
+                lockedReason={ล็อก ? "ล็อกแล้ว — ส่งใบ HQ แล้ว" : "คำขอนี้ปิดแล้ว"}
                 เตรียมก่อนแนบ={ใบ ? undefined : async () => { await บันทึก(); onChanged(); }}
                 onChanged={onFilesChanged} />
 
@@ -347,7 +360,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   return (
     <div onClick={() => !busy && onClose()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <ModalCard onClose={() => !busy && onClose()} label="ใบ HQ" className="modal-fit"
-        style={{ width: 960, maxWidth: "100%", maxHeight: "92vh", overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
+        style={{ width: เต็มจอ ? 1240 : 960, maxWidth: "100%", ...(เต็มจอ ? { height: "calc(100vh - 32px)" } : { maxHeight: "92vh" }), overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
         {เนื้อหา}
       </ModalCard>
     </div>

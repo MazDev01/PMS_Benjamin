@@ -59,13 +59,17 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
 
   // เจาะลงดีลเลอร์ของข้อ → การ์ด = รายชื่อ = 5
   await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(สาขา.รหัส);
-  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "แถบระดับถึงดีลเลอร์").toContainText(สาขา.รหัส);
+  await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "แถบระดับถึงดีลเลอร์ (ชื่ออย่างเดียว)").toHaveText(สาขา.ชื่อ);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await expect.poll(async () => Number(await การ์ด(page, "total").getAttribute("data-value")), { message: "การ์ดลูกค้าทั้งหมด = 5", timeout: 20_000 }).toBe(5);
   await expect(แถวรายชื่อ(page), "จำนวนแถวรายชื่อ = การ์ด").toHaveCount(5);
   // ทุกแถว: ภูมิภาค = ชื่อกลาง · ดีลเลอร์ = รหัส+ชื่อช่องเดียว · รหัสลูกค้า/วันที่ไม่ถูกตัด
   const แถว = แถวรายชื่อ(page);
-  expect(new Set(await แถว.locator('td[data-col="region"]').allInnerTexts()), "ภูมิภาคในตาราง = ชื่อกลาง").toEqual(new Set(["ภาคตะวันออกเฉียงเหนือ"]));
-  expect((await แถว.first().locator('td[data-col="dealer"]').innerText()).startsWith(สาขา.รหัส), "ช่องดีลเลอร์ขึ้นต้นด้วยรหัส").toBe(true);
+  // 9 พ.ย. 69 (บอสสั่ง): ระดับดีลเลอร์ ทุกแถวภาคเดียวกับระดับ = ไม่มีคอลัมน์ภูมิภาค/ดีลเลอร์ (ตัวกลาง drillColumns) — เดิมตรวจชื่อภาคในคอลัมน์ที่ระดับนี้
+  await expect(page.getByRole("table", { name: "รายชื่อลูกค้า" }), "ระดับดีลเลอร์: ซ่อนภูมิภาค + ดีลเลอร์").toHaveAttribute("data-hidden-cols", /dealer.*region|region.*dealer/);
+  await expect(แถว.locator('td[data-col="region"]'), "ระดับดีลเลอร์: ไม่มีคอลัมน์ภูมิภาค").toHaveCount(0);
+  // ช่องดีลเลอร์ = ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · เดิม "รหัส+ชื่อ" — ตรวจกลับด้าน: ไม่มีป้ายรหัส)
+  //   ระดับดีลเลอร์ไม่มีคอลัมน์ดีลเลอร์ (หัวตาราง/แถบระดับบอกชื่อแล้ว) — ชื่อแสดงไม่มีรหัสตรวจที่แถบระดับข้างบน + hq-no-dealer-code.spec
+  await expect(แถว.first().locator('td[data-col="dealer"]'), "ระดับดีลเลอร์: ไม่มีคอลัมน์ดีลเลอร์").toHaveCount(0);
   for (const td of await แถว.first().locator("td").all()) {
     if (await td.getAttribute("title")) continue;   // ชื่อยาวตัดได้ — แสดงเต็มเมื่อชี้
     expect(await td.evaluate(e => e.scrollWidth <= e.clientWidth + 1), `ช่องไม่ถูกตัด: ${(await td.innerText()).trim()}`).toBe(true);
@@ -78,6 +82,8 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
   const คาดใหม่ = ลูกค้า.filter(x => x.เข้า >= ต้น! && x.เข้า <= ท้าย!).length;
   expect(คาดใหม่, "ช่วงตั้งต้นครอบวันนี้แต่ไม่ครอบ 30 เดือนก่อน").toBe(2);
   await expect.poll(async () => Number(await การ์ด(page, "new").getAttribute("data-value")), { message: "ลูกค้าใหม่ในช่วงนี้" }).toBe(คาดใหม่);
-  // ระดับดีลเลอร์ = รายเดือน: ผลรวมลูกค้าใหม่รายเดือน = การ์ด
-  await expect(page.locator('[data-drill-table] tfoot [data-sum="newc"]')).toHaveAttribute("data-value", String(คาดใหม่));
+  // ระดับดีลเลอร์ = รายเดือน: ผลรวมลูกค้าใหม่รายเดือน = การ์ด (ไม่มีแถวรวมแล้ว · รวมจากแถวรายเดือน)
+  await expect(page.locator("[data-drill-table] tfoot"), "ไม่มีแถวรวม").toHaveCount(0);
+  await expect.poll(async () => (await page.locator('[data-drill-table] tbody [data-cell="newc"]').evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
+    { message: "ผลรวมลูกค้าใหม่รายเดือน = การ์ด" }).toBe(คาดใหม่);
 });

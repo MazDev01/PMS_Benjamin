@@ -127,7 +127,7 @@ export const POST = async (req: NextRequest): Promise<Response> => {
     const s = data?.session;
     if (error || !s?.access_token) {
       // ต่ออายุไม่ได้ = ใบผ่านใช้ไม่ได้แล้ว → ล้างทิ้ง ไม่ปล่อยให้ค้างแล้วพังซ้ำ ๆ
-      const res = fail(401, "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่");
+      const res = fail(401, "หมดเวลาใช้งาน — กรุณาเข้าสู่ระบบใหม่");
       res.cookies.set(clearCookie(ACCESS_COOKIE, req));
       res.cookies.set(clearCookie(REFRESH_COOKIE, req));
       return res;
@@ -222,12 +222,12 @@ export const GET = async (req: NextRequest): Promise<Response> => {
   //           (เจอจริง 18 ส.ค. 69 จาก api-mode-session.spec.ts — ตาเปล่ามองไม่เห็นเพราะ
   //            ต้องรอครบชั่วโมงถึงจะเกิด และ "เด้งออก" ดูเหมือนพฤติกรรมปกติของระบบ)
   if (!token) {
-    if (req.cookies.get(REFRESH_COOKIE)?.value) return fail(401, "เซสชันหมดอายุ");
+    if (req.cookies.get(REFRESH_COOKIE)?.value) return fail(401, "หมดเวลาใช้งาน");
     return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
   }
   const c = claimsOf(token);
   // ใบผ่านหมดอายุแล้ว → บอกให้ไปต่ออายุ ไม่ใช่ตอบว่ายังล็อกอินอยู่
-  if (c.exp && c.exp * 1000 <= Date.now()) return fail(401, "เซสชันหมดอายุ");
+  if (c.exp && c.exp * 1000 <= Date.now()) return fail(401, "หมดเวลาใช้งาน");
   const { alive, ...me } = await publicSession(token);
   if (!alive) return evict(GONE, req);
   return NextResponse.json(me, { headers: { "cache-control": "no-store" } });

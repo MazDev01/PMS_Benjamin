@@ -77,7 +77,7 @@ async function ดีลเลอร์ที่เรียก(req: NextRequest
     return { ok: false, res: json(req, { error: "ตรวจสอบสิทธิ์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503) };
   }
   if (!prof || String(prof.status ?? "active") !== "active") {
-    return { ok: false, res: json(req, { error: "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อผู้ดูแลระบบ" }, 403) };
+    return { ok: false, res: json(req, { error: "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อสำนักงานใหญ่" }, 403) };
   }
   const dealerCode = String(prof.dealer_code ?? "").trim().toUpperCase();
   if (!dealerCode) {
@@ -131,7 +131,7 @@ async function สรุปสถานะ(admin: SupabaseClient, dealerCode: st
   //    ถ้าถือว่า "ใช้ไป 0 ครั้ง" ดีลเลอร์จะแก้บัญชีได้ไม่จำกัด และไม่มีบันทึกให้สำนักงานใหญ่เห็นเลย
   const ขาดตาราง = changes.count === null
     || [changes.error, pendingRes.error].some(e => e && (e.code === "42P01" || /does not exist|schema cache/i.test(e.message ?? "")));
-  if (ขาดตาราง) throw new ยังไม่ได้ติดตั้ง("ยังไม่ได้ติดตั้งตารางบัญชีดีลเลอร์ในฐานข้อมูล (migration 0165) — รัน npx supabase db push ก่อน");
+  if (ขาดตาราง) throw new ยังไม่ได้ติดตั้ง("ระบบบัญชีดีลเลอร์ยังไม่พร้อมใช้งาน — ติดต่อสำนักงานใหญ่");
   const { count } = changes;
   const pending = pendingRes.data;
   return {
@@ -259,7 +259,7 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
   // ── เกินโควตา → เก็บเป็นคำขอ ยังไม่แตะบัญชีจริง ──
   if (สถานะ.selfChangesUsed >= SELF_LIMIT) {
     if (รหัสใหม่ && !dealerSecretReady()) {
-      return json(req, { error: "เซิร์ฟเวอร์ยังไม่พร้อมรับคำขอเปลี่ยนรหัสผ่าน — ติดต่อผู้ดูแลระบบ" }, 501);
+      return json(req, { error: "เซิร์ฟเวอร์ยังไม่พร้อมรับคำขอเปลี่ยนรหัสผ่าน — ติดต่อสำนักงานใหญ่" }, 501);
     }
     const { error } = await admin.from("dealer_account_requests").insert({
       dealer_code: dealerCode, kind,

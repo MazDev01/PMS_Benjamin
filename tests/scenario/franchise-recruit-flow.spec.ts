@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { ยืนยันส่งข้อมูลบริษัท, กรอกนัดคุย } from "./prospectSteps";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
@@ -68,8 +69,10 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "contacted" });
   await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
   await แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }).click();
+  await ยืนยันส่งข้อมูลบริษัท(page);   // ขั้นนี้ = ยืนยันการส่ง (บอสตอบ P1 · 5 พ.ย. 69)
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "profile_sent" });
   await แผง.getByRole("checkbox", { name: "นัดคุยรายละเอียด" }).click();
+  await กรอกนัดคุย(แผง);   // ขั้นนี้ = ฟอร์มนัดคุย (บอสตอบ P2)
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "meeting" });
 
   // ── 3) ใบค่าแฟรนไชส์ V1 → ส่ง ──────────────────────────────────────────────────────────────────
@@ -89,7 +92,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await expect(แผง.getByLabel(`แก้ไขใบ ${v1.proposal_no}`), "ส่งแล้วแก้ไม่ได้ — ไม่มีปุ่มแก้").toHaveCount(0);
 
   // ── ส่งแล้วแก้ไม่ได้ → ทำเวอร์ชันใหม่ (V2) ลดค่าแรกเข้า แล้วส่ง → V1 ถูกแทน ──────────────────────────────────
-  await แผง.getByRole("button", { name: `ทำเวอร์ชันใหม่จากใบ ${v1.proposal_no}` }).click();
+  await แผง.getByRole("button", { name: `ทำฉบับใหม่จากใบ ${v1.proposal_no}` }).click();
   await กดตกลงในกล่องยืนยัน(page);
   ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await expect(ฟอร์ม, "ทำเวอร์ชันใหม่แล้วเปิดร่างให้แก้ทันที").toBeVisible({ timeout: 15_000 });
@@ -119,7 +122,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "meeting" });
 
   // เจรจาต่อ: เวอร์ชัน 3 จากใบที่ปฏิเสธ → ส่ง
-  await แผง.getByRole("button", { name: `ทำเวอร์ชันใหม่จากใบ ${v2no}` }).click();
+  await แผง.getByRole("button", { name: `ทำฉบับใหม่จากใบ ${v2no}` }).click();
   await กดตกลงในกล่องยืนยัน(page);
   ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await ฟอร์ม.locator("#pp-amount").fill("200000");

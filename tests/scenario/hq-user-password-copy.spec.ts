@@ -38,13 +38,13 @@ test("[api·hq] รหัสชั่วคราวที่กรอกใช�
   const hdr = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
   const มีช่องว่าง = await request.post(`${HQ_ORIGIN}/api/admin/users`, {
-    headers: hdr, data: { name: "ZZTEST ผู้ใช้รหัสชั่วคราว", email: EMAIL, role: "HQ_STAFF", department: "ฝ่ายขาย", password: "มี ช่องว่าง 1234" },
+    headers: hdr, data: { name: "ZZTEST ผู้ใช้รหัสชั่วคราว", email: EMAIL, department: "ฝ่ายขาย", password: "มี ช่องว่าง 1234" },
   });
   test.skip(มีช่องว่าง.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role");
   expect(มีช่องว่าง.status(), "รหัสชั่วคราวผิดกติกาต้องถูกปฏิเสธ").toBe(400);
 
   const สร้าง = await request.post(`${HQ_ORIGIN}/api/admin/users`, {
-    headers: hdr, data: { name: "ZZTEST ผู้ใช้รหัสชั่วคราว", email: EMAIL, role: "HQ_STAFF", department: "ฝ่ายขาย", password: PASSWORD },
+    headers: hdr, data: { name: "ZZTEST ผู้ใช้รหัสชั่วคราว", email: EMAIL, department: "ฝ่ายขาย", password: PASSWORD },
   });
   expect(สร้าง.status(), await สร้าง.text()).toBe(200);
   const { id, password } = await สร้าง.json() as { id: string; password: string };

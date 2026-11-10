@@ -180,7 +180,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
     if (!อีเมล && !รหัส) { setผิดพลาด("กรอกอีเมลใหม่หรือรหัสผ่านใหม่อย่างน้อยหนึ่งอย่าง"); return; }
     if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setผิดพลาด("รูปแบบอีเมลไม่ถูกต้อง"); return; }
     if (รหัส && รหัส.length < 8) { setผิดพลาด("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
-    if (!REAL_BACKEND) { setผิดพลาด("โหมดทดลองใช้งานไม่รองรับการแก้บัญชีเข้าระบบ"); return; }
+    if (!REAL_BACKEND) { setผิดพลาด("โหมดข้อมูลตัวอย่างไม่รองรับการแก้บัญชีเข้าระบบ"); return; }
     setResetting(true);
     setผิดพลาด("");
     const res = await resetDealerPassword(dealer.code, { email: อีเมล || undefined, password: รหัส || undefined });
@@ -346,7 +346,7 @@ function DealerContactEmailRow({ code }: { code: string }) {
   const ยืนยันแทน = async () => {
     if (!(await ยืนยัน({
       หัวข้อ: `ยืนยันอีเมล ${สถานะ.contactEmail} แทนดีลเลอร์ ${code}?`,
-      รายละเอียด: "ใช้เมื่อดีลเลอร์ไม่ได้รับโค้ดทางอีเมล · ระบบบันทึกว่าคุณเป็นผู้ยืนยัน",
+      รายละเอียด: "ใช้เมื่อดีลเลอร์ไม่ได้รับเลขยืนยันทางอีเมล · ระบบบันทึกว่าคุณเป็นผู้ยืนยัน",
       ปุ่มตกลง: "ยืนยันอีเมลแทน",
     }))) return;
     setBusy(true);

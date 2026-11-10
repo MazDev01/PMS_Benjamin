@@ -351,12 +351,12 @@ export default function DealerDashboard() {
     { kpi: "target", label: "เป้าหมายยอดขาย", value: บาทเต็ม(เป้าปี), rawValue: เป้าปี, unit: "เป้าหมายทั้งปี", empty: kpi ? "ยังไม่ได้ตั้งเป้า" : "กำลังโหลด…",
       sub: ยอดปี == null ? undefined : `ยอดขายสะสมทั้งปี ${บาทเต็ม(ยอดปี)}`, ring: ค่า(kpi, "target.pct"), icon: Target, href: "/quotations" },
     { kpi: "pipeline", label: "โอกาสการขาย", value: บาทเต็ม(ค่า(kpi, "pipeline.value")), rawValue: ค่า(kpi, "pipeline.value"),
-      unit: `${นับ(ค่า(kpi, "pipeline.count")) ?? "—"} ดีล · รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่`, icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads" },
+      unit: `${นับ(ค่า(kpi, "pipeline.count")) ?? "—"} งานขาย · รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่`, icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads" },
     { kpi: "awaiting", label: "รอลูกค้าตอบ", value: นับ(ค่า(kpi, "awaiting.count")), rawValue: ค่า(kpi, "awaiting.count"),
       unit: "ใบ · ส่งให้ลูกค้าแล้ว", sub: ค่า(kpi, "awaiting.value") == null ? undefined : `มูลค่า ${บาทเต็ม(ค่า(kpi, "awaiting.value"))}`, icon: Hourglass, color: "#EA580C", bg: "#FEF0E6", href: "/quotations?kpi=awaiting" },
     // ชื่อการ์ดต้องตรงกับหน่วยของตัวเลข — ตัวเลขหลัก = จำนวนดีล · อัตราปิด (%) เป็นบรรทัดรอง
-    { kpi: "won", label: "ปิดการขายได้", value: นับ(ค่า(kpi, "won.count")), rawValue: ค่า(kpi, "won.count"), unit: "ดีล · ลีดที่เข้ามาในช่วงที่เลือก",
-      sub: อัตราปิด == null ? "ยังไม่มีดีลที่ปิด" : `${ชื่ออัตราปิดการขาย} ${อัตราปิด}% (${คำอธิบายอัตราปิดการขาย})`, icon: Activity, color: "#0D9488", bg: "#E6F7F5", href: "/customers" },
+    { kpi: "won", label: "ปิดการขายสำเร็จ", value: นับ(ค่า(kpi, "won.count")), rawValue: ค่า(kpi, "won.count"), unit: "งานขาย · ลูกค้าเป้าหมายที่เข้ามาในช่วงที่เลือก",
+      sub: อัตราปิด == null ? "ยังไม่มีงานขายที่ปิด" : `${ชื่ออัตราปิดการขาย} ${อัตราปิด}% (${คำอธิบายอัตราปิดการขาย})`, icon: Activity, color: "#0D9488", bg: "#E6F7F5", href: "/customers" },
   ];
   // ไอคอน (i) ท้ายชื่อการ์ดถูกเอาออกตามที่บอสสั่ง (25 ส.ค. 69) — เหตุผลเดียวกับแดชบอร์ดสำนักงานใหญ่
   const KpiLabel = ({ label }: { label: string; tip?: string }) => (
@@ -437,7 +437,7 @@ export default function DealerDashboard() {
           {teamPerf.length === 0 ? <EmptyState icon={<Trophy size={26} />} title="ไม่มีข้อมูลในช่วงนี้" description="ลองขยายช่วงเวลาด้านบน" compact /> : (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
               <CategoryRows
-                data={teamPerf.map(t => ({ label: t.name, value: t.won, note: `${t.deals} ดีล · เสนอ ${t.quotes} ใบ` }))}
+                data={teamPerf.map(t => ({ label: t.name, value: t.won, note: `${t.deals} งานขาย · เสนอ ${t.quotes} ใบ` }))}
                 fmt={cmpBaht} icon={<User size={11} />} onSelect={() => router.push("/leads")}
                 ariaLabel="ยอดปิดการขายของผู้รับผิดชอบแต่ละคน" />
             </div>
@@ -446,11 +446,11 @@ export default function DealerDashboard() {
 
 
         {/* ขั้นตอนการขาย (โดนัท) */}
-        <div className="card" style={card}>
+        <div className="card" style={card} data-deal-stage-chart>
           <div style={hd}><span style={title}>สัดส่วนตามขั้นตอนการขาย</span>{more("/leads")}</div>
-          {dealStatus.length === 0 ? <EmptyState icon={<Target size={26} />} title="ไม่มีดีลในช่วงนี้" description="ลองขยายช่วงเวลาด้านบน" compact /> : (
+          {dealStatus.length === 0 ? <EmptyState icon={<Target size={26} />} title="ไม่มีงานขายในช่วงนี้" description="ลองขยายช่วงเวลาด้านบน" compact /> : (
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
-              <Donut segments={dealStatus} centerLabel="ดีลทั้งหมด" centerValue={`${leadsIn.length}`} size={118} />
+              <Donut segments={dealStatus} centerLabel="งานขายทั้งหมด" centerValue={`${leadsIn.length}`} size={118} />
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 168 }}>
                 {dealStatus.map(s => (
                   <button key={s.label} className="dash-row" onClick={() => router.push("/leads")} title={`ดูลูกค้าเป้าหมายขั้นตอน ${s.label}`}

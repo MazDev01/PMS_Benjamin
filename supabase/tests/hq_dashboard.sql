@@ -46,7 +46,7 @@ do $lk$ begin
 end $lk$;
 set local session_replication_role = replica;
 delete from quotation_won_at; delete from dealer_proposal_payments; delete from dealer_package_proposals; delete from dealer_prospect_activities;
-delete from dealer_prospects; delete from hq_quotes; delete from quote_request_events; delete from quote_requests;
+delete from dealer_prospects; delete from hq_quotes; delete from quote_request_events; set local pms.quote_request_delete = 'test'; delete from quote_requests;   -- ใบ 0280 ห้ามลบคำขอ ยกเว้นชุดล้างทดสอบ
 delete from quotations; delete from leads;
 -- บันทึกการใช้งานลบไม่ได้ (ตัวดักใบ 0241) — ปิดตัวดักชั่วคราวในทรานแซกชันนี้ ซึ่งย้อนกลับท้ายไฟล์เสมอ (ไม่มีอะไรถูกลบจริง)
 alter table audit_log disable trigger audit_log_guard_row; delete from audit_log; alter table audit_log enable trigger audit_log_guard_row;
@@ -139,7 +139,11 @@ begin
 
   -- การ์ด ทั้งเครือ ต.ค.
   perform flowtest.ok((a->'cards'->>'sales')::numeric = 130000, 'ยอดขาย ต.ค. = Q1 (ตอบรับ ต.ค.) + Q3 · ไม่นับ Q2 (ตอบรับ ก.ย.) · ไม่นับแถว HQ');
-  perform flowtest.ok((a->'cards'->>'target')::numeric = 31000000, 'เป้าตามช่วง = 365 ล้าน × 31 ÷ 365');
+  -- ใบ 0283 (บอสสั่ง 9 พ.ย. 69 · ทับข้อตัดสิน 22 ต.ค. 69): เป้าทั้งเครือ = ผลรวมเป้าสาขาตามช่วง — เดิม = เป้าที่ตั้งใน hq_targets (365 ล้าน × 31 ÷ 365)
+  perform flowtest.ok((a->'cards'->>'target')::numeric = (select sum(round(revenue_target * 31 / 365)) from dealers where code <> 'HQ' and coalesce(revenue_target, 0) > 0),
+    format('เป้าตามช่วงทั้งเครือ = ผลรวม round(เป้าปีสาขา × 31 ÷ 365) รายสาขา (ได้ %s)', a->'cards'->>'target'));
+  perform flowtest.ok((a->'cards'->>'annualTarget')::numeric = (select sum(revenue_target) from dealers where code <> 'HQ'), 'เป้าทั้งปีทั้งเครือ = ผลรวมเป้าปีสาขา');
+  perform flowtest.ok((a->'cards'->>'target')::numeric <> 31000000, 'ไม่ใช้เป้าที่ตั้งใน hq_targets (365 ล้าน) แล้ว — ค่าในฐานคงไว้แต่ไม่มีผล');
   perform flowtest.ok((a->'cards'->>'days')::int = 31, 'จำนวนวันของช่วง 31');
   perform flowtest.ok((a->'cards'->>'leadsNew')::int = 4, 'ลีดใหม่ ต.ค. 4 (ไม่นับแถว HQ · ไม่นับ ก.ย.)');
   perform flowtest.ok((a->'cards'->>'quotesSent')::int = 4, 'ใบที่ส่งลูกค้า ต.ค. 4 (ไม่นับร่าง/ถูกแทนที่/แถว HQ)');
@@ -179,7 +183,8 @@ begin
   perform flowtest.ok(a->'monthly'->10 = '{"y":2026,"m":8,"leads":1,"quotes":2,"won":1,"sales":50000}'::jsonb, 'เดือน ก.ย. — ' || (a->'monthly'->10)::text);
   perform flowtest.ok(a->'monthly'->0->>'y' = '2025' and a->'monthly'->0->>'m' = '10', 'เดือนแรก = พ.ย. 2025');
   perform flowtest.ok(e->'monthly' = a->'monthly', '12 เดือนไม่ขึ้นกับตัวกรองเวลา');
-  perform flowtest.ok((a->>'monthlyTarget')::numeric = 30416667 and (g->>'monthlyTarget')::numeric = 3041667, 'เป้ารายเดือน = เป้าทั้งปี ÷ 12');
+  -- ใบ 0283: ทั้งเครือ = ผลรวมเป้าปีสาขา ÷ 12 (เดิม 365 ล้าน ÷ 12 = 30,416,667 จาก hq_targets)
+  perform flowtest.ok((a->>'monthlyTarget')::numeric = (select round(sum(revenue_target) / 12) from dealers where code <> 'HQ') and (g->>'monthlyTarget')::numeric = 3041667, 'เป้ารายเดือน = เป้าทั้งปี ÷ 12');
 
   -- ภาค
   perform flowtest.ok((a->>'dealerCount')::int = (select count(*) from dealers where code <> 'HQ'), 'จำนวนดีลเลอร์ = ทะเบียน ไม่นับแถว HQ');

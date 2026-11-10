@@ -17,7 +17,7 @@ test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง 
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   const กราฟ = page.locator('[data-card="bars"]');
-  await expect(กราฟ.locator(".card-title"), "ชื่อกราฟ").toHaveText("ลีดใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)", { timeout: 25_000 });
+  await expect(กราฟ.locator(".card-title"), "ชื่อกราฟ").toHaveText("ลูกค้าเป้าหมายใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)", { timeout: 25_000 });
   // คำอธิบายสีของกราฟ (ชุดข้อมูล) ใช้คำเดียวกับชื่อกราฟ
   await expect(กราฟ, "คำอธิบายกราฟ: ใบที่ส่ง · ปิดสำเร็จ").toContainText("ใบที่ส่ง");
   await expect(กราฟ).toContainText("ปิดสำเร็จ");

@@ -63,6 +63,16 @@ export async function ลบสาขาทดสอบตรง(code: string, c
     const { error } = await admin.from("hq_quotes").delete().in("request_id", คำขอ.map(r => r.id));
     if (error && error.code !== "42P01") พลาด.push(`hq_quotes: ${error.message}`);
   }
+  // ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบที่ฐานในเครื่อง (สวิตช์ pms.quote_request_delete) — ลบผ่าน REST ไม่ได้แล้ว
+  //   สาขาทดสอบเท่านั้น (ตรวจรหัสด้านบน) · ไม่มี docker = ลองทาง REST ตามเดิม (รายงานเหตุถ้าลบไม่ได้)
+  if (คำขอ?.length) {
+    try {
+      const { รันSQLในฐาน } = await import("./localDb");
+      รันSQLในฐาน(`update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = '${code}';
+      select set_config('pms.quote_request_delete', 'test', false);
+      delete from public.quote_requests where dealer_code = '${code}';`);
+    } catch { /* ไม่มี docker */ }
+  }
   await ลบ("quote_requests");
   for (const t of ["appointments", "customer_notes", "files", "leads", "customers",
                    "responsible_persons", "dealer_lead_rules", "dealer_account_changes", "dealer_account_requests",

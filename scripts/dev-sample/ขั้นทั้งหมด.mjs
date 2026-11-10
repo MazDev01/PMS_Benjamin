@@ -19,8 +19,8 @@ const สถานการณ์ = [
   "D4 ขั้น 3 ได้ใบ HQ แล้ว",
   "D4 ขั้น 3 ราคา HQ ใกล้หมดอายุ",
   "D5x ขอแก้ราคาแล้ว รอ HQ",
-  "D5 ขั้น 4 ทำใบให้ลูกค้า (ร่าง)",
-  "D6 ขั้น 5 ส่งใบให้ลูกค้าแล้ว",
+  "D5 ขั้น 4 เสนอราคาลูกค้า · ทำใบแล้ว (ร่าง)",
+  "D6 ขั้น 4 เสนอราคาลูกค้า · ส่งใบให้ลูกค้าแล้ว",
   "D8 ลูกค้าตอบรับ ปิดสำเร็จ",
   "D8x ลูกค้าปฏิเสธ",
   "D8y ปิดไม่สำเร็จ (ยังไม่ได้ส่งใบ)",
@@ -46,6 +46,7 @@ export function ลบ(ctx) {
     alter table public.quotations enable trigger quotations_no_delete_won;
     delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and r.lead_num_id in (${เลข});
     update public.quote_requests set supersedes_id = null, root_id = null where lead_num_id in (${เลข});
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where lead_num_id in (${เลข});
     delete from public.appointments where lead_id in (${เลข});
     delete from public.leads where num_id in (${เลข});

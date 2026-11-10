@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, waitRow, นำเข้าลูกค้าหนึ่งราย } from "./funcHelpers";
+import { DEALER_ORIGIN, loginUI, db, cleanup, specNS, nsTag, waitRow, นำเข้าลูกค้าหนึ่งราย, นำเข้าผ่านเมนู } from "./funcHelpers";
 
 // ── นำเข้าลูกค้าเดิมแล้วเจอชื่อซ้ำ ต้องถามก่อน (บอสสั่ง 2 ก.ย. 69) ────────────────
 //
@@ -33,8 +33,7 @@ test("[func·dealer] นำเข้าไฟล์ที่มีชื่อ�
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
   const หัว = "บริษัท,ผู้ติดต่อ,โทรศัพท์,อีเมล,ที่อยู่,จังหวัด,เป็นลูกค้าเมื่อ,ผู้รับผิดชอบ";
   const แถว = `  ${company} ,,0822222222,ใหม่@example.com,,ระยอง,,`;
-  await page.getByRole("button", { name: "นำเข้าลูกค้าเดิม" }).click();
-  await page.getByLabel("นำเข้าลูกค้าจากไฟล์").setInputFiles({
+  await นำเข้าผ่านเมนู(page, "นำเข้าลูกค้าเดิม", "csv", {
     name: "ซ้ำ.csv", mimeType: "text/csv", buffer: Buffer.from("\ufeff" + หัว + "\n" + แถว, "utf8"),
   });
   await page.getByRole("button", { name: /^นำเข้า \d+ ราย$/ }).click();
@@ -57,8 +56,14 @@ test("[func·dealer] นำเข้าไฟล์ที่มีชื่อ�
 test("[func·dealer] กล่องนำเข้าลูกค้าเดิม ต้องไม่มีปุ่มคีย์เองทีละรายแล้ว", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
+  // ปุ่มเป็นเมนูนำเข้า (บอสสั่ง 5 พ.ย. 69): 3 ตัวเลือก Excel · CSV · แบบฟอร์มตัวอย่าง — ไม่มี "คีย์เองทีละราย" ทั้งในเมนูและกล่อง
   await page.getByRole("button", { name: "นำเข้าลูกค้าเดิม" }).click();
-  await expect(page.getByRole("button", { name: "เลือกไฟล์" }).or(page.getByText(/เทมเพลต/)).first()).toBeVisible({ timeout: 15_000 });
+  const เมนู = page.getByRole("menu", { name: "นำเข้าลูกค้าเดิม" });
+  await expect(เมนู.getByRole("menuitem"), "เมนู 3 ตัวเลือก").toHaveText([/^Excel/, /^CSV/, /^แบบฟอร์มตัวอย่าง/], { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "คีย์เองทีละราย" }),
     "ปุ่มคีย์เองทีละรายถูกเอาออกแล้ว (บอสสั่ง 2 ก.ย. 69)").toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await นำเข้าผ่านเมนู(page, "นำเข้าลูกค้าเดิม", "csv", { name: "ว่าง.csv", mimeType: "text/csv", buffer: Buffer.from("﻿บริษัท\n", "utf8") });
+  await expect(page.getByRole("button", { name: "เลือกไฟล์" }), "เลือกไฟล์แล้วเข้ากล่องตรวจเดิม").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "คีย์เองทีละราย" })).toHaveCount(0);
 });

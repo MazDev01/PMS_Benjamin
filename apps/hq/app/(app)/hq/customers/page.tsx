@@ -182,7 +182,7 @@ export default function HQCustomersPage() {
 
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ) */}
       <div className="card">
-        <CustomerTable rows={tableRows} onView={r => setViewId(r.id)} pagination={pagination} loading={isLoading} />
+        <CustomerTable rows={tableRows} onView={r => setViewId(r.id)} pagination={pagination} loading={isLoading} ระดับ={{ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }} />
       </div>
 
       <CustomerDrawer row={viewDetail} onClose={() => setViewId(null)} />

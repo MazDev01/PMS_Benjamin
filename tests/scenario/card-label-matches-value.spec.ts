@@ -19,7 +19,7 @@ test("การ์ดลีดใหม่บนแดชบอร์ด HQ ต�
   await openAs(page, ADMIN, "hq", "/hq/dashboard");
   await settle(page);
   const การ์ด = page.locator("[data-kpi='leads']");
-  await expect(การ์ด).toContainText("ลีดใหม่ทั้งเครือ", { timeout: 30_000 });
+  await expect(การ์ด).toContainText("ลูกค้าเป้าหมายใหม่ทั้งเครือ", { timeout: 30_000 });
   await expect(page.locator("[data-kpi]").filter({ hasText: "ลูกค้าใหม่ทั้งเครือ" }), "การ์ดลูกค้าใหม่เอาออกแล้ว").toHaveCount(0);
   // ⚠️ อย่าฝังเลขปีไว้ — ค่าตั้งต้นของตัวกรองคือ "1 ปี" = ย้อนหลัง 12 เดือนถึงวันนี้ (บอสสั่ง 3 พ.ย. 69 · เดิม "ปีนี้")
   const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
@@ -47,8 +47,8 @@ test("การ์ดลีดใหม่บนแดชบอร์ด HQ ต�
       .gte("created_date", ต้นปี).lte("created_date", วันนี้)).count, "ตั้งต้น: ลีดปีนี้ของสาขา = 2 (ฐานคิดวันเข้ามาจากเวลาที่บันทึก)").toBe(2);
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
-    await page.getByRole("button", { name: new RegExp(`^${สาขา.รหัส} – `) }).click();
-    await expect(การ์ด, "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลีดใหม่ของ ${สาขา.รหัส}`, { timeout: 30_000 });
+    await page.getByRole("button", { name: สาขา.ชื่อ, exact: true }).click();   // ตัวเลือกเป็นชื่อดีลเลอร์ (ไม่มีรหัส · บอสสั่ง 6 พ.ย. 69)
+    await expect(การ์ด, "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก (ชื่อ ไม่ใช่รหัส)").toContainText(`ลูกค้าเป้าหมายใหม่ของ ${สาขา.ชื่อ}`, { timeout: 30_000 });
     await expect(การ์ด.locator("[data-value]"), "ลีดใหม่ของสาขา = 2 (ไม่นับลีดปีก่อน)").toHaveAttribute("data-value", "2", { timeout: 30_000 });
   } finally { await สาขา.ลบ(); }
 });

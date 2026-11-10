@@ -21,12 +21,9 @@ import { ค่า, นับ, วันนี้ISO, ชุดที่กร�
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { resetHQUserPassword } from "@pms/shared/lib/adminApi";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
-import { hasPermission, type Permission } from "@pms/shared/lib/permissions";
 import { users as usersRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { createHQUser, deleteHQUser } from "@pms/shared/lib/adminApi";
-import { useRole } from "@pms/shared/context/RoleContext";
-import type { UserRole } from "@pms/shared/lib/mock";
 import {
   Users, Shield, Check, X, Plus, Search, KeyRound, Copy, MoreHorizontal,
   Eye, EyeOff, Pencil, Power, Clock, UserPlus, Phone, ImagePlus, Trash2, AlertTriangle, Mail, Building2, UserCheck, UserX, LogIn,
@@ -40,47 +37,17 @@ const BORDER = "#e5e7eb";
 const MUTED = "#6b7280";
 const MOCK_TODAY = fmtISOToThai(APP_NOW_ISO); // วันที่เพิ่มผู้ใช้ = วันนี้ของระบบ (supabase=จริง / local=ตรึง)
 
-// ── Roles (HQ เท่านั้น · 3 บทบาทจริงในระบบ) ─────────────────────────────────────
-// บทบาทต้องเป็นชุดเดียวกับที่ระบบบังคับใช้จริง (user_role ใน DB + ROLE_PERMISSIONS)
-// เดิมหน้านี้มีคำศัพท์บทบาทของตัวเอง 5 แบบ (sales_manager / central_sales / …)
-// ซึ่งไม่มีอยู่จริงในระบบเลย → ตั้งบทบาทให้ใครก็ไม่มีผลกับสิทธิ์ที่ได้จริง
-type RoleKey = "SUPER_ADMIN" | "HQ_MANAGEMENT" | "HQ_STAFF";
+// ── HQ บทบาทเดียว "สำนักงานใหญ่" (บอสสั่ง 5 พ.ย. 69 · ใบ 0282) ─────────────────────────────────────────────────
+//   ค่าในฐาน = SUPER_ADMIN ค่าเดียว · ไม่มีตารางสิทธิ์ตามบทบาท · ไม่มีตัวกรอง/คอลัมน์บทบาท · เพิ่มผู้ใช้ไม่เลือกบทบาท
+//   แผนก = เลือกจาก 3 ค่าเดิม ไม่บังคับ (บอสตอบ 9 พ.ย. 69) · ผู้ใช้เดิมคงแผนกเดิม
+//   ห้ามปิด/ลบบัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน (หน้าเว็บปิดปุ่มพร้อมเหตุผล · ฐานกันซ้ำ guard_last_super_admin)
+type RoleKey = "SUPER_ADMIN";
 type UserStatus = "active" | "inactive";
-const ROLES: { key: RoleKey; en: string; th: string; tone: string }[] = [
-  { key: "SUPER_ADMIN",   en: "Super Admin",  th: "ผู้ดูแลระบบ",        tone: "#003366" },
-  { key: "HQ_MANAGEMENT", en: "HQ Management", th: "ผู้บริหารสำนักงานใหญ่", tone: "#7c3aed" },
-  { key: "HQ_STAFF",      en: "HQ Staff",      th: "เจ้าหน้าที่สำนักงานใหญ่", tone: "#0891b2" },
-];
-const ROLE_BY_KEY = Object.fromEntries(ROLES.map(r => [r.key, r])) as Record<RoleKey, typeof ROLES[number]>;
-// แผนกไม่ใช่ช่องที่กรอกเอง — เป็นผลของบทบาท (ดู defaultDept) จึงมีได้เท่าที่บทบาทกำหนด
-// ⚠️ เดิมเป็นรายการตายตัว 5 แผนก แต่ "ปฏิบัติการ" กับ "การเงิน" ไม่มีทางเกิดขึ้นได้เลย
-//    ตัวกรองจึงมีตัวเลือกที่เลือกแล้วไม่เจอใครสักคน (หัวข้อผี · บอสสั่งกวาดออก 3 ก.ย. 69)
-const defaultDept = (role: RoleKey): string =>
-  role === "HQ_MANAGEMENT" ? "บริหาร" : role === "HQ_STAFF" ? "ฝ่ายขาย" : "ไอทีและระบบ";
-
-// ── Permission model: role → module → level → CRUD-E ────────────────────────────
-type Cap = { v: boolean; c: boolean; e: boolean; d: boolean; x: boolean };
-const LEVEL_CAP: Record<string, Cap> = {
-  full:   { v: true,  c: true,  e: true,  d: true,  x: true  },
-  manage: { v: true,  c: true,  e: true,  d: false, x: true  },
-  edit:   { v: true,  c: true,  e: true,  d: false, x: false },
-  view:   { v: true,  c: false, e: false, d: false, x: true  },
-  none:   { v: false, c: false, e: false, d: false, x: false },
-};
-import { MODULE_LIST, MODULE_PERMS } from "@pms/shared/lib/hqPermissionMatrix";
-
-const capOf = (role: RoleKey, module: string): Cap => {
-  const m = MODULE_PERMS[module];
-  if (!m) return LEVEL_CAP.none;
-  const has = (perm?: Permission) => !!perm && hasPermission(role as UserRole, perm);
-  const v = has(m.read);
-  return { v, c: v && has(m.create), e: v && has(m.update), d: v && has(m.del), x: v };
-};
-const roleSummary: Record<RoleKey, string> = {
-  SUPER_ADMIN:   "จัดการทุกอย่างในระบบ · แก้ข้อมูลกลางและผู้ใช้ได้",
-  HQ_MANAGEMENT: "ดูงานขายทั้งเครือ · แก้ข้อมูลกลาง (ดีลเลอร์/นโยบาย/ค่าตั้งของเครือ) ได้",
-  HQ_STAFF:      "ดูงานขายทั้งเครือได้อย่างเดียว · แก้ข้อมูลกลางไม่ได้",
-};
+const ชื่อบทบาท = "สำนักงานใหญ่";
+const สีบทบาท = "#003366";
+const แผนกHQ = ["บริหาร", "ฝ่ายขาย", "ไอทีและระบบ"] as const;
+export const เหตุปิดบัญชีสุดท้ายไม่ได้ = "บัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน — ปิดหรือลบไม่ได้ (เพิ่มบัญชีสำนักงานใหญ่คนใหม่ก่อน)";
+import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
 
 // ไม่มีฟิลด์ "เข้าใช้ล่าสุด" — ระบบไม่ได้บันทึกเวลาเข้าสู่ระบบจริง (เดิมเป็นข้อความ seed ตายตัวที่ไม่มีอะไรอัปเดต)
 type AppUser = {
@@ -98,13 +65,12 @@ function genTempPassword(seed: string): string {
 }
 
 // ── Small UI ─────────────────────────────────────────────────────────────────────
-function Avatar({ name, role, size = 34, avatar }: { name: string; role: RoleKey; size?: number; avatar?: string }) {
+function Avatar({ name, size = 34, avatar }: { name: string; role?: RoleKey; size?: number; avatar?: string }) {
   if (avatar) return <img src={avatar} alt="" style={{ width: size, height: size, borderRadius: size * 0.29, objectFit: "cover", flexShrink: 0 }} />;
-  return <span style={{ width: size, height: size, borderRadius: size * 0.29, flexShrink: 0, background: ROLE_BY_KEY[role].tone, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: size * 0.42 }}>{name.charAt(0)}</span>;
+  return <span style={{ width: size, height: size, borderRadius: size * 0.29, flexShrink: 0, background: สีบทบาท, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: size * 0.42 }}>{name.charAt(0)}</span>;
 }
-function RoleBadge({ role }: { role: RoleKey }) {
-  const r = ROLE_BY_KEY[role];
-  return <span className="badge" style={{ background: r.tone + "1a", color: r.tone, fontWeight: 700 }}>{r.th}</span>;
+function RoleBadge() {
+  return <span className="badge" style={{ background: สีบทบาท + "1a", color: สีบทบาท, fontWeight: 700 }}>{ชื่อบทบาท}</span>;
 }
 function StatusDot({ status }: { status: UserStatus }) {
   const a = status === "active";
@@ -113,15 +79,15 @@ function StatusDot({ status }: { status: UserStatus }) {
 
 // ── Add/Edit Dialog (modal กลาง) ─────────────────────────────────────────────────
 type UserForm = { firstName: string; lastName: string; email: string; phone: string; role: RoleKey; department: string; tempPassword: string; status: UserStatus; avatar?: string };
-function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { initial?: AppUser; onSave: (u: Omit<AppUser, "id" | "createdAt">, tempPassword?: string) => void; onClose: () => void; canEditPrivileges?: boolean }) {
+function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เพราะ }: { initial?: AppUser; onSave: (u: Omit<AppUser, "id" | "createdAt">, tempPassword?: string) => void; onClose: () => void;
+  /** บัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน = เปลี่ยนสถานะเป็นปิดไม่ได้ (เหตุผลบอกใต้ช่อง) */ ปิดไม่ได้เพราะ?: string }) {
   // ล็อกบทบาท/สถานะตอน "แก้ไข" ถ้าไม่มีสิทธิ์ (HQ_MANAGEMENT) — RLS/trigger จะปฏิเสธการเปลี่ยนอยู่แล้ว
   // บทบาท/สถานะ = เรื่องสิทธิ์ ต้องเป็นผู้ดูแลระบบเท่านั้นถึงแต่งตั้งได้ ทั้งตอนเพิ่มและตอนแก้
   // (ฐานข้อมูลปฏิเสธอยู่แล้ว 0026/0064 — แต่หน้าจอต้องไม่หลอกให้กรอกแล้วค่อยไปเจอ error)
-  const lockPriv = !canEditPrivileges;
   const [f, setF] = useState<UserForm>(() => {
     if (initial) { const [fn, ...ln] = initial.name.split(" "); return { firstName: fn, lastName: ln.join(" "), email: initial.email, phone: initial.phone, role: initial.role, department: initial.department, tempPassword: "", status: initial.status, avatar: initial.avatar }; }
     // ผู้ใช้ใหม่: บทบาท/แผนก เริ่มที่ "ยังไม่ระบุ" — ห้ามตั้งสิทธิ์ให้เองโดยที่คนเพิ่มไม่ได้เลือก
-    return { firstName: "", lastName: "", email: "", phone: "", role: "" as RoleKey, department: "", tempPassword: genTempPassword("newuser@benjamin.co.th"), status: "active" };
+    return { firstName: "", lastName: "", email: "", phone: "", role: "SUPER_ADMIN", department: "", tempPassword: genTempPassword("newuser@benjamin.co.th"), status: "active" };
   });
   const fileRef = useRef<HTMLInputElement>(null);
   async function pickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
@@ -136,8 +102,7 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
   //    ถ้าไม่บังคับ จะได้ผู้ใช้ที่ไม่มีบทบาท = เข้าระบบมาแล้วไม่รู้ว่าเห็นอะไรได้บ้าง
   // แผนกผูกกับบทบาทเสมอ — เลือกบทบาทแล้วแผนกมาเอง ไม่ต้องกรอกซ้ำและไม่มีทางตั้งขัดกัน
   // (เดิมเป็นช่องอิสระ เลือกบทบาทแล้วแผนกยังค้างเป็น "ยังไม่ระบุ" ได้ · บอสสั่งฟิก 3 ก.ย. 69)
-  const แผนกตามบทบาท = f.role ? defaultDept(f.role) : "";
-  // ช่องบังคับ (4 พ.ย. 69 · ตัวกลาง): ชื่อ · อีเมล · บทบาท — กดบันทึกแล้วขาด = กรอบแดง + ข้อความใต้ช่อง + เลื่อนไปช่องแรก
+  // ช่องบังคับ (4 พ.ย. 69 · ตัวกลาง): ชื่อ · อีเมล (บทบาทเดียว ไม่ต้องเลือก · ใบ 0282) — กดบันทึกแล้วขาด = กรอบแดง + ข้อความใต้ช่อง + เลื่อนไปช่องแรก
   //   (เดิมปุ่มบันทึกเป็นสีจางกดไม่ได้ ไม่บอกว่าขาดช่องไหน) · อีเมลผิดรูป = ข้อความใต้ช่องอีเมล
   const บังคับ = useช่องบังคับ();
   const อีเมลถูกรูป = /\S+@\S+\.\S+/.test(f.email);
@@ -146,11 +111,9 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
     if (!บังคับ.ตรวจ([
       { key: "firstName", label: "ชื่อ", value: f.firstName },
       { key: "email", label: "อีเมล", value: f.email },
-      { key: "role", label: "บทบาท", value: f.role },
     ])) return;
     if (!อีเมลถูกรูป) { บังคับ.ตั้งผิด("email", "อีเมลไม่ถูกรูปแบบ เช่น name@benjamin.co.th"); return; }
-    if (!แผนกตามบทบาท) return;
-    onSave({ name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(), email: f.email.trim(), phone: f.phone.trim(), role: f.role, department: แผนกตามบทบาท, status: f.status, avatar: f.avatar }, initial ? undefined : f.tempPassword); onClose(); };
+    onSave({ name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(), email: f.email.trim(), phone: f.phone.trim(), role: "SUPER_ADMIN", department: f.department, status: f.status, avatar: f.avatar }, initial ? undefined : f.tempPassword); onClose(); };
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);   // Esc ปิด · Tab วนในกล่อง · คืนโฟกัสเดิม
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(45,45,45,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -168,7 +131,7 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
               {f.avatar
                 ? <img src={f.avatar} alt="" style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover", border: `3px solid ${PRIMARY}` }} />
                 : f.firstName.trim()
-                ? <span style={{ width: 84, height: 84, borderRadius: "50%", background: ROLE_BY_KEY[f.role]?.tone ?? PRIMARY, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "2rem" }}>{f.firstName.trim().charAt(0)}</span>
+                ? <span style={{ width: 84, height: 84, borderRadius: "50%", background: สีบทบาท, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "2rem" }}>{f.firstName.trim().charAt(0)}</span>
                 // ฟอร์มเปล่า (ยังไม่พิมพ์ชื่อ) ต้องเห็นไอคอน "เพิ่มรูป" ไม่ใช่ "?" ที่อ่านได้ว่ารูปเสีย
                 //   แบบเดียวกับฟอร์มเพิ่มผู้รับผิดชอบฝั่งดีลเลอร์ (ผู้ใช้แจ้ง 7 ส.ค. 69)
                 : <span style={{ width: 84, height: 84, borderRadius: "50%", background: "#eef3f8", border: `2px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: PRIMARY }}><ImagePlus size={30} strokeWidth={1.8} /></span>}
@@ -182,17 +145,21 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
           <div className="col-full"><FieldLabel htmlFor="us-email" required>อีเมล (ใช้เข้าระบบ)</FieldLabel><input id="us-email" {...บังคับ.ผูก("email")} style={{ ...inp, ...บังคับ.ผูก("email").style }} value={f.email} onChange={e => { บังคับ.ล้าง("email"); setF({ ...f, email: e.target.value }); }} placeholder="name@benjamin.co.th" /><FieldError>{บังคับ.ผิด.email}</FieldError></div>
           {!initial && <><div className="col-full"><label className="form-label">รหัสผ่านชั่วคราว</label><input style={{ ...inp, fontFamily: "monospace", fontWeight: 700 }} value={f.tempPassword} onChange={e => setF({ ...f, tempPassword: e.target.value.replace(/\s/g, "") })} /><div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 4 }}>ใช้รหัสนี้เข้าระบบครั้งแรก · อย่างน้อย 8 ตัว ห้ามมีช่องว่าง · เว้นว่าง = ระบบสุ่มให้ · ผู้ใช้เปลี่ยนเองได้ที่หน้าโปรไฟล์</div></div></>}
           <div><label className="form-label">เบอร์โทร</label><input style={inp} inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: formatPhone(e.target.value) })} placeholder="08x-xxx-xxxx" /></div>
-          <div className="form-section">สิทธิ์การใช้งาน</div>
-          <div><FieldLabel htmlFor="us-role" required>บทบาท{lockPriv && <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}> · เฉพาะผู้ดูแลระบบ</span>}</FieldLabel><select id="us-role" {...บังคับ.ผูก("role")} style={{ ...inp, ...(lockPriv ? { background: "#f3f4f6", cursor: "not-allowed", opacity: .7 } : {}), ...บังคับ.ผูก("role").style }} aria-label="บทบาท" disabled={lockPriv} value={f.role} onChange={e => { บังคับ.ล้าง("role"); setF({ ...f, role: e.target.value as RoleKey, department: defaultDept(e.target.value as RoleKey) }); }}><option value="">— ยังไม่ระบุ —</option>{ROLES.filter(r => r.key !== "SUPER_ADMIN" || canEditPrivileges).map(r => <option key={r.key} value={r.key}>{r.th}</option>)}</select><FieldError>{บังคับ.ผิด.role}</FieldError></div>
-          <div>
-            <label className="form-label">แผนก <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}>· ตามบทบาทที่เลือก</span></label>
-            {/* แสดงอย่างเดียว แก้ไม่ได้ — ค่าจริงที่บันทึกคือ แผนกตามบทบาท */}
-            <div aria-label="แผนก" style={{ ...inp, background: "#f3f4f6", color: แผนกตามบทบาท ? STEEL : MUTED, display: "flex", alignItems: "center" }}>
-              {แผนกตามบทบาท || "เลือกบทบาทก่อน"}
-            </div>
-          </div>
-          {/* ต้องมีค่าเสมอ — ผู้ใช้ต้องเป็นเปิดหรือปิดใช้งานอย่างใดอย่างหนึ่ง ว่างไม่ได้ */}
-          <div><label className="form-label">สถานะ{lockPriv && <span style={{ fontSize: "0.6rem", color: MUTED, fontWeight: 400 }}> · เฉพาะผู้ดูแลระบบ</span>}</label><select style={{ ...inp, ...(lockPriv ? { background: "#f3f4f6", cursor: "not-allowed", opacity: .7 } : {}) }} disabled={lockPriv} value={f.status} onChange={e => setF({ ...f, status: e.target.value as UserStatus })}><option value="active">ใช้งาน</option><option value="inactive">ปิดใช้งาน</option></select></div>
+          <div className="form-section">บัญชี</div>
+          {/* บทบาทเดียว "สำนักงานใหญ่" — ไม่มีช่องเลือกบทบาท (บอสสั่ง 5 พ.ย. 69 · ใบ 0282) */}
+          <div><label className="form-label">บทบาท</label><div aria-label="บทบาท" style={{ ...inp, background: "#f3f4f6", display: "flex", alignItems: "center" }}>{ชื่อบทบาท}</div></div>
+          <div><label className="form-label" htmlFor="us-dept">แผนก</label>
+            <select id="us-dept" aria-label="แผนก" style={inp} value={f.department} onChange={e => setF({ ...f, department: e.target.value })}>
+              <option value="">— ยังไม่ระบุ —</option>
+              {/* ผู้ใช้เดิมที่แผนกไม่อยู่ใน 3 ค่า = คงค่าเดิมไว้เป็นตัวเลือก (ไม่ทับเงียบ) */}
+              {f.department && !(แผนกHQ as readonly string[]).includes(f.department) && <option value={f.department}>{f.department}</option>}
+              {แผนกHQ.map(d => <option key={d} value={d}>{d}</option>)}
+            </select></div>
+          {/* ต้องมีค่าเสมอ — ผู้ใช้ต้องเป็นเปิดหรือปิดใช้งานอย่างใดอย่างหนึ่ง ว่างไม่ได้ · บัญชีคนสุดท้าย = ปิดไม่ได้ */}
+          <div><label className="form-label" htmlFor="us-status">สถานะ</label>
+            <select id="us-status" aria-label="สถานะ" style={{ ...inp, ...(ปิดไม่ได้เพราะ ? { background: "#f3f4f6", cursor: "not-allowed" } : {}) }} disabled={!!ปิดไม่ได้เพราะ} title={ปิดไม่ได้เพราะ}
+              value={f.status} onChange={e => setF({ ...f, status: e.target.value as UserStatus })}><option value="active">ใช้งาน</option><option value="inactive">ปิดใช้งาน</option></select>
+            {ปิดไม่ได้เพราะ && <div data-last-hq-reason style={{ fontSize: "0.66rem", color: "#92400e", marginTop: 4 }}>{ปิดไม่ได้เพราะ}</div>}</div>
         </div>
         <div style={{ padding: "14px 22px", borderTop: `1px solid ${BORDER}`, background: "#fafafa", display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button className="btn btn-secondary btn-md" onClick={onClose}>ยกเลิก</button>
@@ -210,7 +177,7 @@ function UserDialog({ initial, onSave, onClose, canEditPrivileges = true }: { in
 //   แถวท้าย ๆ ของตาราง (หรือเมนูที่มีหลายรายการ) จึงถูกตัดหายไปครึ่งหนึ่ง
 //   ผู้ใช้กดคำสั่งที่อยู่ล่างสุดไม่ได้เลย และไม่รู้ด้วยซ้ำว่ามีคำสั่งอะไรอยู่ข้างล่าง
 //   (ผู้ใช้แจ้งหลังเพิ่มรายการ "ตั้งรหัสผ่านใหม่ทันที" ซึ่งทำให้เมนูสูงขึ้นจนพ้นจอ)
-function ActionMenu({ pos, onClose, items }: { pos: { x: number; y: number }; onClose: () => void; items: { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }[] }) {
+function ActionMenu({ pos, onClose, items }: { pos: { x: number; y: number }; onClose: () => void; items: { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean; ปิดเพราะ?: string }[] }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [top, setTop] = useState(pos.y);
   // วัดความสูงจริงหลังวาด แล้วเลื่อนขึ้นให้พอดีจอ — วัดเองดีกว่าเดาจากจำนวนรายการ
@@ -253,7 +220,7 @@ function ActionMenu({ pos, onClose, items }: { pos: { x: number; y: number }; on
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 300 }} />
       <div ref={boxRef} style={{ position: "fixed", top, left: pos.x, zIndex: 301, background: "#fff", borderRadius: 12, border: `1px solid ${BORDER}`, boxShadow: "0 16px 40px rgba(0,0,0,.16)", padding: 6, minWidth: 190, maxHeight: "calc(100vh - 16px)", overflowY: "auto", transform: "translateX(-100%)" }}>
         {items.map((it, i) => (
-          <button key={i} onClick={() => { it.onClick(); onClose(); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 12px", border: "none", background: "none", cursor: "pointer", borderRadius: 8, fontSize: "0.82rem", fontWeight: 600, color: it.danger ? "#dc2626" : STEEL, textAlign: "left", fontFamily: "inherit" }} onMouseEnter={e => (e.currentTarget.style.background = it.danger ? "#fef2f2" : "#f5f7fa")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>{it.icon} {it.label}</button>
+          <button key={i} disabled={!!it.ปิดเพราะ} title={it.ปิดเพราะ} data-disabled-reason={it.ปิดเพราะ} onClick={() => { it.onClick(); onClose(); }} style={{ opacity: it.ปิดเพราะ ? .45 : 1, display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 12px", border: "none", background: "none", cursor: it.ปิดเพราะ ? "not-allowed" : "pointer", borderRadius: 8, fontSize: "0.82rem", fontWeight: 600, color: it.danger ? "#dc2626" : STEEL, textAlign: "left", fontFamily: "inherit" }} onMouseEnter={e => (e.currentTarget.style.background = it.danger ? "#fef2f2" : "#f5f7fa")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>{it.icon} {it.label}</button>
         ))}
       </div>
     </>
@@ -268,15 +235,11 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
   // ผู้ใช้จริงในระบบ (ตาราง profiles) — เฉพาะฝั่งสำนักงานใหญ่ (dealerCode ว่าง)
   const [users, setUsers] = useState<AppUser[]>([]);
   const canCreate = usersRepo.canCreate();
-  // แก้บทบาท/สถานะของผู้ใช้ = เฉพาะ SUPER_ADMIN (RLS/trigger บังคับ · 0026/0064) —
-  // HQ_MANAGEMENT แก้ได้แค่ข้อมูลทั่วไป → ล็อกช่อง role/status ในโหมดแก้ไข กันกดแล้ว error
-  const { role: currentRole } = useRole();
-  const canEditPrivileges = String(currentRole) === "SUPER_ADMIN";
   const reload = useCallback(() => {
     usersRepo.list()
       .then(rows => setUsers(rows.filter(u => !u.dealerCode).map(u => ({
         id: u.id, name: u.name, email: u.email, phone: u.phone,
-        role: (ROLE_BY_KEY[u.role as RoleKey] ? u.role : "HQ_STAFF") as RoleKey,
+        role: "SUPER_ADMIN" as RoleKey,   // บทบาทเดียว (ใบ 0282)
         department: u.department, status: u.status, createdAt: u.createdAt, avatar: u.avatar,
       }))))
       .catch(e => logRepoRead("users.list", e));
@@ -284,7 +247,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
   useEffect(() => { reload(); }, [reload]);
 
   const [q, setQ] = useState("");
-  const [roleF, setRoleF] = useState<RoleKey | "all">("all");
   const [deptF, setDeptF] = useState<string>("all");
   const [statusF, setStatusF] = useState<UserStatus | "all">("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "createdAt", dir: "desc" }); // บัญชีที่สร้างล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69)
@@ -300,7 +262,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const notify = useCallback((m: string) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 2800); }, []);
   const [menu, setMenu] = useState<{ user: AppUser; x: number; y: number } | null>(null);
-  const [matrixRole, setMatrixRole] = useState<RoleKey>("SUPER_ADMIN");
   const [creds, setCreds] = useState<{ name: string; email: string; password: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
 
@@ -308,13 +269,16 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
   const แผนกที่มีจริง = useMemo(
     () => [...new Set(users.map(u => u.department).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")),
     [users]);
-  // ตัวกรองของตาราง (คำค้น/บทบาท/แผนก) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
+  // ตัวกรองของตาราง (คำค้น/แผนก · ไม่มีบทบาท ใบ 0282) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน (บอสตัดสิน 27 ต.ค. 69 การ์ดเดินตามตัวกรอง)
   //   สถานะ = ปุ่มเดียวกับการ์ด "ใช้งานอยู่/ปิดใช้งาน" → ไม่ใช่ตัวกรองของการ์ด
   const ตรงตัวกรอง = useCallback((u: AppUser) => {
     const kw = q.trim().toLowerCase();
     return (!kw || u.name.toLowerCase().includes(kw) || u.email.toLowerCase().includes(kw)) &&
-      (roleF === "all" || u.role === roleF) && (deptF === "all" || u.department === deptF);
-  }, [q, roleF, deptF]);
+      (deptF === "all" || u.department === deptF);
+  }, [q, deptF]);
+  // บัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน = ปิด/ลบไม่ได้ (ฐานกันซ้ำ · last_hq_account)
+  const ใช้งานอยู่ = users.filter(u => u.status === "active").length;
+  const ปิดไม่ได้เพราะ = (u: AppUser) => (u.status === "active" && ใช้งานอยู่ <= 1 ? เหตุปิดบัญชีสุดท้ายไม่ได้ : undefined);
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards hq.users) ณ ตอนนี้ · เข้าระบบใน 30 วัน = เวลาเข้าระบบล่าสุดของบัญชี
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(users, ตรงตัวกรอง, u => u.id), [users, ตรงตัวกรอง]);
   const kpi = useKpiCards("hq.users", { today: วันนี้ISO(), filters: ชุดการ์ด, รุ่น: users.map(u => `${u.id}:${u.status}`).join(",") });
@@ -431,9 +395,8 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
         <div className="card-header" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <Users size={18} color={PRIMARY} />
           <div style={{ flex: 1, minWidth: 120 }}><div className="card-title">ผู้ใช้งานสำนักงานใหญ่</div>{/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div>
-          {/* สร้างผู้ใช้ = ต้องกำหนดบทบาทให้เขาด้วย ซึ่งเป็นสิทธิ์ของผู้ดูแลระบบเท่านั้น
-              บทบาทอื่นจึงไม่เห็นปุ่มนี้ — ดีกว่าให้กดแล้วกรอกจนจบค่อยไปเจอว่าบันทึกไม่ได้ */}
-          {canEditPrivileges && <button onClick={() => setAddOpen(true)} className="btn btn-primary btn-md" style={{ flexShrink: 0 }}><Plus size={15} /> เพิ่มผู้ใช้งาน HQ</button>}
+          {/* บทบาทเดียว (ใบ 0282): สำนักงานใหญ่ทุกคนเพิ่มผู้ใช้ได้ */}
+          {<button onClick={() => setAddOpen(true)} className="btn btn-primary btn-md" style={{ flexShrink: 0 }}><Plus size={15} /> เพิ่มผู้ใช้งาน HQ</button>}
         </div>
 
         {/* Filters */}
@@ -441,7 +404,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
           <div style={{ display: "flex", alignItems: "center", gap: 7, border: `1px solid ${BORDER}`, borderRadius: 9, padding: "0 10px", height: 36, flex: "1 1 220px", minWidth: 180 }}>
             <Search size={14} color={MUTED} /><input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="ค้นหาชื่อ หรือ อีเมล…" style={{ border: "none", outline: "none", flex: 1, fontSize: "0.82rem", color: STEEL, background: "transparent" }} />
           </div>
-          <select aria-label="กรองตามบทบาท" style={selCls} value={roleF} onChange={e => { setRoleF(e.target.value as RoleKey | "all"); setPage(1); }}><option value="all">ทุกบทบาท</option>{ROLES.map(r => <option key={r.key} value={r.key}>{r.th}</option>)}</select>
           <select aria-label="กรองตามแผนก" style={selCls} value={deptF} onChange={e => { setDeptF(e.target.value); setPage(1); }}><option value="all">ทุกแผนก</option>{แผนกที่มีจริง.map(d => <option key={d} value={d}>{d}</option>)}</select>
           <div style={{ display: "flex", gap: 2, background: "#f1f5f9", borderRadius: 9, padding: 3 }}>
             {([["all", "ทั้งหมด"], ["active", "ใช้งาน"], ["inactive", "ปิด"]] as const).map(([v, l]) => (
@@ -458,18 +420,17 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
                   ส่วน "จัดการ" มีแค่ปุ่มไอคอนเดียว (พบจากผลตรวจสอบระบบ 5 ส.ค. 69)
                   เพิ่ม/ลบคอลัมน์ ต้องแก้ที่นี่คู่กันเสมอ */}
               <colgroup>
-                <col style={{ width: "34%", minWidth: 220 }} />{/* ผู้ใช้ (รูป + ชื่อ + อีเมล) */}
-                <col style={{ width: "16%", minWidth: 110 }} />{/* บทบาท */}
-                <col style={{ width: "16%", minWidth: 100 }} />{/* แผนก */}
+                <col style={{ width: "42%", minWidth: 220 }} />{/* ผู้ใช้ (รูป + ชื่อ + อีเมล) */}
+                <col style={{ width: "24%", minWidth: 100 }} />{/* แผนก (คอลัมน์บทบาทเอาออก · ใบ 0282) */}
                 <col style={{ width: "11%", minWidth: 84 }} />{/* สถานะ */}
                 <col style={{ width: "15%", minWidth: 104 }} />{/* สร้างเมื่อ */}
                 <col style={{ width: "8%", minWidth: 56 }} />{/* จัดการ (ปุ่มไอคอน) */}
               </colgroup>
               <thead style={{ position: "sticky", top: 0, zIndex: 2 }}>
-                <tr>{th("ผู้ใช้", "name")}<th>บทบาท</th><th>แผนก</th><th>สถานะ</th>{th("สร้างบัญชี", "createdAt")}<th className="ovf-visible" style={{ textAlign: "right" }}>จัดการ</th></tr>
+                <tr>{th("ผู้ใช้", "name")}<th>แผนก</th><th>สถานะ</th>{th("สร้างบัญชี", "createdAt")}<th className="ovf-visible" style={{ textAlign: "right" }}>จัดการ</th></tr>
               </thead>
               <tbody>
-                {pageRows.length === 0 && <tr><td colSpan={6} style={{ padding: 36, textAlign: "center", color: "#9ca3af", fontSize: "0.82rem" }}>ไม่พบผู้ใช้ตามเงื่อนไข</td></tr>}
+                {pageRows.length === 0 && <tr><td colSpan={5} style={{ padding: 36, textAlign: "center", color: "#9ca3af", fontSize: "0.82rem" }}>ไม่พบผู้ใช้ตามเงื่อนไข</td></tr>}
                 {pageRows.map(u => (
                   <ClickableRow key={u.id} className="clickable" onActivate={() => setDetailUser(u)} label={`เปิดรายละเอียดผู้ใช้ ${u.name}`}>
                     <td>
@@ -478,7 +439,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
                         <div style={{ minWidth: 0 }}><div style={{ fontWeight: 700, color: STEEL }}>{u.name}</div><div style={{ fontSize: "0.72rem", color: MUTED, overflow: "hidden", textOverflow: "ellipsis" }}>{u.email}</div></div>
                       </div>
                     </td>
-                    <td><RoleBadge role={u.role} /></td>
                     <td style={{ fontSize: "0.8rem", color: STEEL, fontWeight: 600 }}>{u.department?.trim() || "—"}</td>
                     <td><StatusDot status={u.status} /></td>
                     {/* ⚠️ เดิมโชว์ค่าดิบจากฐานข้อมูล ("2026-08-04T08:20:57.7…") ซึ่งเป็นรูปแบบของเครื่อง ไม่ใช่ของคนอ่าน */}
@@ -501,38 +461,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
         </div>
       </div>
 
-      {/* Permission matrix */}
-      <div className="card">
-        <div className="card-header"><div><div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}><Shield size={17} color={PRIMARY} /> ตารางสิทธิ์ตามบทบาท</div>{/* คำอธิบายกำกับใต้หัวข้อถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) */}</div></div>
-        <div className="card-body">
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {ROLES.map(r => <button key={r.key} onClick={() => setMatrixRole(r.key)} className="badge" style={{ border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, background: matrixRole === r.key ? r.tone : r.tone + "14", color: matrixRole === r.key ? "#fff" : r.tone }}>{r.th}</button>)}
-          </div>
-          <div style={{ fontSize: "0.76rem", color: MUTED, marginBottom: 12 }}>{roleSummary[matrixRole]}</div>
-          <div className="table-wrap" style={{ border: `1px solid ${BORDER}`, borderRadius: 12, overflow: "hidden" }}>
-            <table>
-              {/* fixed layout — ชื่อโมดูลยาวกว่าคอลัมน์ติ๊กถูกมาก ต้องกำหนดสัดส่วนเอง (ดูหมายเหตุตารางด้านบน) */}
-              <colgroup>
-                <col style={{ width: "40%", minWidth: 150 }} />{/* โมดูล */}
-                <col style={{ width: "12%", minWidth: 52 }} />{/* ดู */}
-                <col style={{ width: "12%", minWidth: 52 }} />{/* สร้าง */}
-                <col style={{ width: "12%", minWidth: 52 }} />{/* แก้ไข */}
-                <col style={{ width: "12%", minWidth: 52 }} />{/* ลบ */}
-                <col style={{ width: "12%", minWidth: 60 }} />{/* ส่งออก */}
-              </colgroup>
-              <thead><tr><th>โมดูล</th><th className="num">ดู</th><th className="num">สร้าง</th><th className="num">แก้ไข</th><th className="num">ลบ</th><th className="num">ส่งออก</th></tr></thead>
-              <tbody>
-                {MODULE_LIST.map(m => {
-                  const c = capOf(matrixRole, m);
-                  const cell = (on: boolean) => <td className="num">{on ? <Check size={15} color="#059669" style={{ display: "inline" }} /> : <X size={14} color="#d1d5db" style={{ display: "inline" }} />}</td>;
-                  return <tr key={m}><td style={{ fontWeight: 600 }}>{m}</td>{cell(c.v)}{cell(c.c)}{cell(c.e)}{cell(c.d)}{cell(c.x)}</tr>;
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
       {/* Action dropdown — ปิดใช้งาน (พักบัญชี) แยกจาก "ลบ" (ลบถาวรพร้อมยืนยัน) */}
       {menu && (
         <ActionMenu pos={{ x: menu.x, y: menu.y }} onClose={() => setMenu(null)} items={[
@@ -540,18 +468,15 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
           { label: "แก้ไข", icon: <Pencil size={14} />, onClick: () => setDialogUser(menu.user) },
           // ตั้งรหัสให้ตรง ๆ = สวมสิทธิ์เข้าระบบแทนเขาได้ จึงเปิดเฉพาะผู้ดูแลสูงสุด
           // (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น — ซ่อนเมนูอย่างเดียวไม่ใช่การป้องกัน)
-          ...(canEditPrivileges ? [{
-            label: "ตั้งรหัสผ่านใหม่ทันที (ไม่ต้องส่งอีเมล)",
-            icon: <KeyRound size={14} />, onClick: () => setPwTarget(menu.user),
-          }] : []),
-          { label: menu.user.status === "active" ? "ปิดใช้งาน" : "เปิดใช้งาน", icon: <Power size={14} />, onClick: () => toggleStatus(menu.user) },
-          { label: "ลบผู้ใช้", icon: <Trash2 size={14} />, danger: true, onClick: () => setDeleteTarget(menu.user) },
+          { label: "ตั้งรหัสผ่านใหม่ทันที (ไม่ต้องส่งอีเมล)", icon: <KeyRound size={14} />, onClick: () => setPwTarget(menu.user) },
+          { label: menu.user.status === "active" ? "ปิดใช้งาน" : "เปิดใช้งาน", icon: <Power size={14} />, onClick: () => toggleStatus(menu.user), ปิดเพราะ: ปิดไม่ได้เพราะ(menu.user) },
+          { label: "ลบผู้ใช้", icon: <Trash2 size={14} />, danger: true, onClick: () => setDeleteTarget(menu.user), ปิดเพราะ: ปิดไม่ได้เพราะ(menu.user) },
         ]} />
       )}
 
       {detailUser && <UserDetailDrawer user={detailUser} onClose={() => setDetailUser(null)} onEdit={() => { setDialogUser(detailUser); setDetailUser(null); }} />}
-      {addOpen && <UserDialog canEditPrivileges={canEditPrivileges} onSave={(data, tempPassword) => saveUser(null, data, tempPassword)} onClose={() => setAddOpen(false)} />}
-      {dialogUser && <UserDialog initial={dialogUser} canEditPrivileges={canEditPrivileges} onSave={data => saveUser(dialogUser.id, data)} onClose={() => setDialogUser(null)} />}
+      {addOpen && <UserDialog onSave={(data, tempPassword) => saveUser(null, data, tempPassword)} onClose={() => setAddOpen(false)} />}
+      {dialogUser && <UserDialog initial={dialogUser} ปิดไม่ได้เพราะ={ปิดไม่ได้เพราะ(dialogUser)} onSave={data => saveUser(dialogUser.id, data)} onClose={() => setDialogUser(null)} />}
 
       {/* ตั้งรหัสผ่านให้ตรง ๆ — ผู้ดูแลพิมพ์เองก็ได้ หรือให้ระบบสุ่มให้ (ไม่พึ่งอีเมลเลย) */}
       {pwTarget && <SetPasswordDialog user={pwTarget} onApply={applyPassword} onClose={() => setPwTarget(null)} />}
@@ -600,7 +525,7 @@ function NewCredsDialog({ name, email, password, onClose }: { name: string; emai
         </div>
         <div style={{ padding: 20 }}>
           <div style={{ fontSize: "0.82rem", color: MUTED, marginBottom: 14, lineHeight: 1.6 }}>
-            บัญชีเข้าระบบของ <strong style={{ color: STEEL }}>{name}</strong> พร้อมใช้แล้ว · <strong style={{ color: "#b45309" }}>รหัสนี้แสดงครั้งเดียว</strong> — ก๊อปไปแจ้งผู้ใช้ แล้วให้เปลี่ยนเองหลังเข้าครั้งแรก
+            บัญชีเข้าระบบของ <strong style={{ color: STEEL }}>{name}</strong> พร้อมใช้แล้ว · <strong style={{ color: "#b45309" }}>รหัสนี้แสดงครั้งเดียว</strong> — คัดลอกไปแจ้งผู้ใช้ แล้วให้เปลี่ยนเองหลังเข้าครั้งแรก
           </div>
           {row("อีเมลเข้าสู่ระบบ", email)}
           {row("รหัสผ่านชั่วคราว", password, true)}
@@ -636,7 +561,7 @@ function DeleteUserDialog({ user, onConfirm, onClose }: { user: AppUser; onConfi
         </div>
         <div style={{ padding: 20 }}>
           <div style={{ fontSize: "0.82rem", color: STEEL, marginBottom: 6, lineHeight: 1.6 }}>
-            กำลังจะลบ <strong>{user.name}</strong> ({user.email || "ไม่มีอีเมล"}) — <strong style={{ color: "#dc2626" }}>บัญชีเข้าระบบจะถูกลบถาวร ล็อกอินไม่ได้อีก</strong> และย้อนกลับไม่ได้
+            กำลังจะลบ <strong>{user.name}</strong> ({user.email || "ไม่มีอีเมล"}) — <strong style={{ color: "#dc2626" }}>บัญชีเข้าระบบจะถูกลบถาวร เข้าระบบไม่ได้อีก</strong> และย้อนกลับไม่ได้
           </div>
           {!user.email && <div style={{ fontSize: "0.76rem", color: "#b45309", marginBottom: 10 }}>ผู้ใช้นี้ไม่มีอีเมลติดต่อในระบบ — ยืนยันด้วยการพิมพ์ไม่ได้ กรุณาปิดใช้งานแทน หรือเพิ่มอีเมลก่อน</div>}
           <label style={{ fontSize: "0.72rem", color: MUTED, fontWeight: 600, display: "block", marginBottom: 5 }}>พิมพ์อีเมลของผู้ใช้เพื่อยืนยัน</label>
@@ -726,6 +651,7 @@ function SetPasswordDialog({ user, onApply, onClose }: {
 // Timeline = บันทึกการใช้งานจริงของผู้ใช้คนนี้ (audit log) — เดิมเป็นวันที่ปลอมที่ hardcode ไว้
 // ระบบไม่ได้บันทึกการเข้าสู่ระบบ จึงไม่มีรายการ "เข้าสู่ระบบล่าสุด"
 function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: () => void; onEdit: () => void }) {
+  const แทนรหัส = useแทนรหัสในบันทึก();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
   const auditEntries = useAuditEntries();
   const iconOf = (action: string) =>
     action.includes("รหัสผ่าน") ? { icon: <KeyRound size={13} />, color: "#d97706" }
@@ -737,7 +663,7 @@ function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: (
     ...auditEntries
       .filter(e => e.user === user.name || e.target === user.email)
       .slice(0, 8)
-      .map(e => ({ ...iconOf(e.action), label: e.target && e.target !== user.email ? `${e.action} · ${e.target}` : e.action, at: e.at })),
+      .map(e => ({ ...iconOf(e.action), label: e.target && e.target !== user.email ? `${e.action} · ${แทนรหัส(e.target)}` : e.action, at: e.at })),
     { icon: <UserPlus size={13} />, color: MUTED, label: "สร้างบัญชี", at: user.createdAt },
   ];
 
@@ -746,7 +672,7 @@ function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: (
     <div style={{ padding: "6px 18px 18px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "10px 0 4px" }}>
         <Avatar name={user.name} role={user.role} size={52} avatar={user.avatar} />
-        <div><div style={{ fontSize: "1rem", fontWeight: 800, color: STEEL }}>{user.name}</div><div style={{ marginTop: 3 }}><RoleBadge role={user.role} /></div></div>
+        <div><div style={{ fontSize: "1rem", fontWeight: 800, color: STEEL }}>{user.name}</div><div style={{ marginTop: 3 }}><RoleBadge /></div></div>
       </div>
       <PanelSection icon={Mail} title="ข้อมูลติดต่อ">
         <PanelRow icon={Mail} label="อีเมล" value={user.email} />
@@ -758,20 +684,6 @@ function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: (
         {/* เดิมโชว์ค่าดิบจากฐานข้อมูล (2026-08-04T08:20:57.774166+00:00) อ่านไม่ออก — ตัดเหลือวันที่ไทย */}
         <PanelRow icon={Clock} label="วันที่สร้างบัญชี" value={fmtISOToThai(String(user.createdAt).slice(0, 10))} />
       </PanelSection>
-    </div>
-  );
-  const perms = (
-    <div style={{ padding: 20 }}>
-      <div style={{ fontSize: "0.78rem", color: MUTED, marginBottom: 4 }}>บทบาท <strong style={{ color: STEEL }}>{ROLE_BY_KEY[user.role].th}</strong></div>
-      <div style={{ fontSize: "0.74rem", color: MUTED, marginBottom: 14 }}>{roleSummary[user.role]}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {MODULE_LIST.filter(m => capOf(user.role, m).v).map(m => {
-          const c = capOf(user.role, m);
-          const tags = [c.v && "ดู", c.c && "สร้าง", c.e && "แก้ไข", c.d && "ลบ", c.x && "ส่งออก"].filter(Boolean) as string[];
-          return <div key={m} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", background: "#f8fafc", border: `1px solid ${BORDER}`, borderRadius: 10 }}><span style={{ fontSize: "0.82rem", fontWeight: 700, color: STEEL }}>{m}</span><span style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>{tags.map(t => <span key={t} className="badge" style={{ background: "#dce5f0", color: PRIMARY, fontSize: "0.62rem" }}>{t}</span>)}</span></div>;
-        })}
-        {MODULE_LIST.filter(m => capOf(user.role, m).v).length === 0 && <div style={{ fontSize: "0.8rem", color: MUTED, textAlign: "center", padding: 16 }}>ไม่มีสิทธิ์เข้าถึงโมดูลใด</div>}
-      </div>
     </div>
   );
   // ── แท็บกิจกรรม — ออกแบบใหม่ (บอสสั่ง 2 ก.ย. 69: "แสดงแบบนี้มันไม่สวย") ────────────
@@ -826,8 +738,8 @@ function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: (
     </div>
   );
   return (
-    <RightDrawer open onClose={onClose} title={user.name} avatar={user.avatar} subtitle={[ROLE_BY_KEY[user.role].th, user.department].filter(Boolean).join(" · ")}
+    <RightDrawer open onClose={onClose} title={user.name} avatar={user.avatar} subtitle={[ชื่อบทบาท, user.department].filter(Boolean).join(" · ")}
       headerRight={<button className="btn btn-secondary btn-sm" onClick={onEdit}><Pencil size={13} /> แก้ไข</button>}
-      tabs={[{ key: "info", label: "ข้อมูล", content: info }, { key: "perms", label: "สิทธิ์", content: perms }, { key: "activity", label: "กิจกรรม", content: activity }]} width={440} />
+      tabs={[{ key: "info", label: "ข้อมูล", content: info }, { key: "activity", label: "กิจกรรม", content: activity }]} width={440} />
   );
 }

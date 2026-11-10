@@ -8,18 +8,20 @@ import { useRouter } from "next/navigation";
 import { ยืนยัน, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import {
   leadStatusLabel, buildLeadReport, applyTaskTemplate, findAppointmentTask,
-  seedLeadTasks, apptTypeLabel, fmtISOToThai,
+  seedLeadTasks, apptTypeLabel, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
-import { LeadTasks } from "@pms/shared/components/ui/LeadTasks";
+import { LeadTasks, stampNow } from "@pms/shared/components/ui/LeadTasks";
 import { LeadProgressBar } from "@pms/shared/components/ui/LeadProgressBar";
 import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPanel";
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
-import { LeadNextStep } from "@pms/shared/components/ui/LeadNextStep";
-import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { LeadNextStep, type คำสั่งบอร์ดลีด } from "@pms/shared/components/ui/LeadNextStep";
+import { StageBoard } from "@pms/shared/components/ui/StageBoard";
+import { ทางย้ายลีด, คำสั่งของปลายทาง } from "@pms/shared/lib/leadBoard";
+import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, เลขขั้นทั้งหมด, ขั้นเปิดอยู่, ป้ายย่อยขั้น, แปลงชื่อขั้นเดิม, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib/fileDelete";
@@ -69,6 +71,8 @@ import { lastContactLabel, leadLatestDate as leadLatestDateOf, leadEnteredInRang
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { reportRepoSaveError } from "@pms/shared/lib/useRepoState";
 import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
+import { friendlyError } from "@pms/shared/lib/friendlyError";
+import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 
 // ─── Design tokens ────────────────────────────────────────────────────────
 
@@ -129,18 +133,27 @@ function fmtมูลค่าเต็ม(n: number | null) {
 }
 
 
-// ขั้นของลีด สำหรับตาราง/บอร์ด — ชื่อและสีจากตัวกลาง lib/leadStage.ts ที่เดียว (บอสสั่ง 27 ต.ค. 69 · ตรงกับแถบ 5 ขั้นในแผงลีด)
+// ขั้นของลีด สำหรับตาราง/บอร์ด — ชื่อและสีจากตัวกลาง lib/leadStage.ts ที่เดียว (บอสสั่ง 27 ต.ค. 69 · ตรงกับแถบ 4 ขั้นในแผงลีด)
 //   เดิมคอลัมน์ "ขั้นตอน" แสดงชื่อสถานะภายใน (รอราคา HQ · เสนอราคา ฯลฯ) แยกจากคอลัมน์ "ขั้น" — รวมเป็นคอลัมน์เดียวแล้ว
 //   ตาราง: ป้ายขั้น (คอลัมน์ "ขั้นตอน") กับแถบ (คอลัมน์ "ความคืบหน้า") แยกคอลัมน์ (บอสสั่ง 28 ต.ค. 69) · การ์ดบอร์ดซ้อนสองอย่างไว้ด้วยกัน
 function ป้ายขั้นลีด({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
   const n = เลขขั้นของลีด(l.status, มีใบร่าง);
   const สี = สีขั้น(n);
-  return (
-    <span className="badge" data-stage-label data-stage-no={n} title={ชื่อขั้น(n)}
+  // ขั้นเสนอราคาลูกค้า: ป้ายย่อยบอกว่าทำใบแล้ว (ยังไม่ส่ง) หรือส่งให้ลูกค้าแล้ว (บอสสั่ง 9 พ.ย. 69 · ยุบ 2 ขั้นเป็นขั้นเดียว)
+  const ย่อย = ป้ายย่อยขั้น(l.status, มีใบร่าง);
+  const ป้าย = (
+    <span className="badge" data-stage-label data-stage-no={n} title={ย่อย ? `${ชื่อขั้น(n)} · ${ย่อย}` : ชื่อขั้น(n)}
       style={{ background:สี.bg, color:สี.text, maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", display:"inline-flex", whiteSpace:"nowrap", alignSelf:"flex-start" }}>{ชื่อขั้น(n)}</span>
   );
+  if (!ย่อย) return ป้าย;
+  return (
+    <span style={{ display:"inline-flex", flexDirection:"column", gap:2, minWidth:0, maxWidth:"100%" }}>
+      {ป้าย}
+      <span data-stage-sub style={{ fontSize:"0.64rem", fontWeight:600, color:"#6b7280", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ย่อย}</span>
+    </span>
+  );
 }
-// แถบความคืบหน้า = ตัวกลาง LeadProgressBar (ขั้นละ 20% · ปิดสำเร็จ 100% · ปิดไม่สำเร็จ สีแดงตามขั้นที่ไปถึง · บอสสั่ง 28 ต.ค. 69)
+// แถบความคืบหน้า = ตัวกลาง LeadProgressBar (ขั้นละ 25% · ปิดสำเร็จ 100% · ปิดไม่สำเร็จ สีแดงตามขั้นที่ไปถึง · บอสสั่ง 28 ต.ค. 69)
 function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
   return (
     <div data-mini-stage style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
@@ -346,7 +359,7 @@ function OverviewEditor({ lead, persons, onSave }: {
       {/* มูลค่า + ป้ายสถานะ — ตำแหน่งเดียวกับตอนอ่าน */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:12 }}>
         <div style={{ minWidth:0 }}>
-          {/* ช่องเลือกสถานะเอาออก (19 ต.ค. 69) · รอบ 4: สถานะอยู่ที่แถบ 5 ขั้นที่เดียว เปลี่ยนได้ทางกล่องขั้นต่อไปเท่านั้น */}
+          {/* ช่องเลือกสถานะเอาออก (19 ต.ค. 69) · รอบ 4: สถานะอยู่ที่แถบ 4 ขั้นที่เดียว เปลี่ยนได้ทางกล่องขั้นต่อไปเท่านั้น */}
         </div>
       </div>
 
@@ -383,14 +396,14 @@ function OverviewEditor({ lead, persons, onSave }: {
         <div style={{ gridColumn:"1/-1", ...cell }}>
           <FileText size={14} color="#94a3b8" style={{ flexShrink:0 }} />
           <span style={cellLbl}>{ช่อง.งาน}</span>
-          <span style={{ flex:1, minWidth:0 }}><input aria-label={ช่อง.งาน} value={f.project} onChange={e=>set("project",e.target.value)} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} style={inp} /></span>
+          <span style={{ flex:1, minWidth:0 }}><input id="ov-project" aria-label={ช่อง.งาน} value={f.project} onChange={e=>set("project",e.target.value)} placeholder={ตัวอย่างช่อง.งาน} maxLength={200} style={inp} /></span>
         </div>
         <Cell icon={Ruler}   label={ช่อง.พื้นที่}>
-          <input type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
+          <input id="ov-area" aria-label={ช่อง.พื้นที่} type="number" min={0} value={f.area} onChange={e=>set("area",e.target.value)} placeholder="—" style={inp} />
         </Cell>
         <div style={{ gridColumn:"1/-1", background:"#f7f9fc", border:"1px solid #eef1f5", borderRadius:10, padding:"10px 12px" }}>
           <div style={{ fontSize:"0.62rem", color:"#9ca3af", fontWeight:700, marginBottom:4 }}>{ช่อง.สเปก}</div>
-          <textarea aria-label={ช่อง.สเปก} value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder={ตัวอย่างช่อง.สเปก}
+          <textarea id="ov-note" aria-label={ช่อง.สเปก} value={f.note} onChange={e=>set("note",e.target.value)} rows={2} placeholder={ตัวอย่างช่อง.สเปก}
             style={{ ...inp, height:"auto", resize:"vertical", lineHeight:1.6 }} />
         </div>
         <div style={OV_GROUP}>{กลุ่มช่อง.การดูแล}</div>
@@ -408,7 +421,7 @@ function OverviewEditor({ lead, persons, onSave }: {
           </select>
         </Cell>
         {f.status === "CANCELLED" && (
-          <Cell icon={XCircle} label="เหตุผลที่เสีย" ป้าย={<FieldLabel htmlFor="ov-lost" required className="" style={OV_CELL_LBL}>เหตุผลที่เสีย</FieldLabel>}>
+          <Cell icon={XCircle} label="เหตุผลที่ปิดไม่สำเร็จ" ป้าย={<FieldLabel htmlFor="ov-lost" required className="" style={OV_CELL_LBL}>เหตุผลที่ปิดไม่สำเร็จ</FieldLabel>}>
             {/* เหตุผลไม่ตรงรายการที่ HQ กำหนดไว้เลย → กรอกเองได้ (ค่า lostReason เดิม/พิมพ์เองใหม่ ไม่ผูกกับ
                 รายการตายตัว) — เดิมเลือกได้แค่จากลิสต์ ถ้าเหตุผลจริงไม่มีในนั้นก็บันทึกไม่ได้เลย
                 ช่องแก้เหตุผลของลีดที่ปิดไปแล้ว (แก้ในที่เดิมตามการ์ดภาพรวม) — ไม่ใช่กล่องเหตุผล (ปิดไม่สำเร็จ = กล่องเหตุผลกลาง) */}
@@ -541,7 +554,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
       && matchCustomers([l], form.company, myDealer.code).exact && ตัวเลข(l.phone) === ตัวเลข(form.phone));
     if (ชื่อเบอร์ซ้ำ) return `มีลูกค้าเป้าหมาย "${ชื่อเบอร์ซ้ำ.company}" เบอร์ ${ชื่อเบอร์ซ้ำ.phone} เปิดอยู่แล้ว — ชื่อและเบอร์ซ้ำ บันทึกไม่ได้ ให้เปิดรายการเดิมแทน`;
     if (dupLead.exact) return `มีลูกค้าเป้าหมายชื่อ "${dupLead.exact.company}" อยู่แล้ว — ถ้าเพิ่งกดบันทึกไปในหน้าอื่น อาจกลายเป็นรายการซ้ำ`;
-    if (similar[0])   return `ชื่อใกล้เคียงกับลูกค้าเดิม "${similar[0].company}" — ถ้าเป็นบริษัทเดียวกัน ควรกด "สร้างดีลใหม่" จากหน้าลูกค้าแทน`;
+    if (similar[0])   return `ชื่อใกล้เคียงกับลูกค้าเดิม "${similar[0].company}" — ถ้าเป็นบริษัทเดียวกัน ควรกด "สร้างงานขายใหม่" จากหน้าลูกค้าแทน`;
     if (dupLead.similar[0]) return `ชื่อใกล้เคียงกับลูกค้าเป้าหมายที่มีอยู่ "${dupLead.similar[0].company}" — ตรวจก่อนว่าไม่ใช่รายการเดียวกัน`;
     return "";
   }, [isEdit, form.company, form.phone, customers, existingLeads, myDealer.code]);
@@ -780,7 +793,7 @@ export default function LeadsPage() {
     () => allLeads.filter(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code),
     [allLeads, currentDealer.code],
   );
-  // ลีดปิดสำเร็จอยู่ในหน้านี้ด้วย (บอสสั่ง 28 ต.ค. 69 · FLOW) — ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ = ขั้น 1–5)
+  // ลีดปิดสำเร็จอยู่ในหน้านี้ด้วย (บอสสั่ง 28 ต.ค. 69 · FLOW) — ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ = ขั้น 1–4)
   const leadsData = myAllLeads;
 
   // sync งาน/สถานะที่ระบบติ๊กอัตโนมัติ (เช่น สร้าง/ส่งใบเสนอราคา) เข้าโมดัลที่เปิดอยู่
@@ -858,13 +871,13 @@ export default function LeadsPage() {
   }, [view]);
   const [hideEmpty, setHideEmpty] = useState(false); // ซ่อนคอลัมน์ที่ไม่มีการ์ด
   const [query, setQuery] = useState("");
-  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–5 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
+  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–4 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
   const [filterStatus, setFilterStatus] = useState<string>("OPEN");
   // ค่าเริ่มต้น = ไม่เลือกคอลัมน์ → ลูกค้าเป้าหมายที่เพิ่มล่าสุดขึ้นก่อน (numId มากสุด) · บอสสั่ง 21 ก.ย. 69 ทุกตาราง
   const [sortKey, setSortKey] = useState<SortKey|null>(null);
   const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
   // การ์ด KPI ที่กดอยู่ (ใบ 0246) — กรองตารางตามขั้นการขาย (ตัวแปลงกลาง lib/leadStage.ts) · null = ไม่กรอง
-  const [ขั้นจากการ์ด, setขั้นจากการ์ด] = useState<2 | 3 | 5 | null>(null);
+  const [ขั้นจากการ์ด, setขั้นจากการ์ด] = useState<2 | 3 | 4 | null>(null);
   const [followUpDays, setFollowUpDays] = useState(0); // Smart filter: 0=off · 7/14/30 = ขาดติดต่อเกินกี่วัน
   // quick filter chips ถูกลบตามที่บอสสั่ง — state นี้ไม่มีใครตั้งค่าได้แล้ว จึงลบทิ้ง
   const [dTab, setDTab] = useState<"overview"|"quotation"|"history">("overview"); // แท็บในแผงลีด — รอบ 4 เหลือ 3 แท็บ
@@ -899,7 +912,9 @@ export default function LeadsPage() {
   const [apptSaving, setApptSaving] = useState(false); // ไว้ disable ปุ่ม (visual)
   // ช่องบังคับของนัด (ประเภท · วันที่ · เวลา) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
   const นัดบังคับ = useช่องบังคับ();
-  const [apptErr, setApptErr] = useState("");  // ฟ้องเมื่อยังไม่เลือกประเภทนัด — ห้ามกดแล้วเงียบ
+  const [apptErr, setApptErr] = useState("");
+  // กล่อง "ติดตามลูกค้า" (บอสตอบ 6 พ.ย. 69 ข้อ 2 ข) — เลือกบันทึกการติดต่อ หรือ นัดหมาย ในกล่องเดียว · บันทึกแล้วติ๊ก · ยกเลิก = ไม่ติ๊ก
+  const [ติดตาม, setติดตาม] = useState<{ แบบ: "ติดต่อ" | "นัด"; ช่องทาง: string; ข้อความ: string; err: string; busy: boolean } | null>(null);  // ฟ้องเมื่อยังไม่เลือกประเภทนัด — ห้ามกดแล้วเงียบ
   const [draft, setDraft] = useState<LeadRow|null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -990,7 +1005,7 @@ export default function LeadsPage() {
   const filtered = useMemo(() => {
     let arr = leadsData.filter(l => {
       // ตัวกรองพื้นฐาน (ค้นหา/ผู้รับผิดชอบ/ช่วงเวลา/จังหวัด/ช่องทาง/ช่วงมูลค่า) ใช้ตัวเดียวกับการ์ด KPI
-      const matchS = filterStatus === "ALL" || (filterStatus === "OPEN" ? เลขขั้นของ(l) <= 5 : เลขขั้นของ(l) === Number(filterStatus));
+      const matchS = filterStatus === "ALL" || (filterStatus === "OPEN" ? ขั้นเปิดอยู่(เลขขั้นของ(l)) : เลขขั้นของ(l) === Number(filterStatus));
       const matchFollow = followUpDays === 0 || needsFollowUp(l, followUpDays);
       const ขั้น = ขั้นจากการ์ด == null ? null : ขั้นของลีด(l.status, มีใบร่างของ(l));
       const matchKpi = ขั้นจากการ์ด == null || (ขั้น?.kind === "open" && ขั้น.step === ขั้นจากการ์ด);
@@ -1002,7 +1017,7 @@ export default function LeadsPage() {
       if (sortKey === null) return b.numId - a.numId;
       let av: string|number = 0, bv: string|number = 0;
       if (sortKey === "value") { av = มูลค่าลีด(a) ?? -1; bv = มูลค่าลีด(b) ?? -1; }
-      else if (sortKey === "status") { av = เลขขั้นของ(a); bv = เลขขั้นของ(b); }   // เรียงตามเลขขั้น (1→5 · ปิดสำเร็จ · ปิดไม่สำเร็จ)
+      else if (sortKey === "status") { av = เลขขั้นของ(a); bv = เลขขั้นของ(b); }   // เรียงตามเลขขั้น (1→4 · ปิดสำเร็จ · ปิดไม่สำเร็จ)
       else { av = (a[sortKey] as string) ?? ""; bv = (b[sortKey] as string) ?? ""; }
       // เรียงข้อความไทยตามพยัญชนะ (locale "th") — เรียงด้วย < > ตรงๆ จะได้ลำดับ Unicode ที่ไม่ตรงตามตัวอักษรไทย
       if (typeof av === "string" && typeof bv === "string") {
@@ -1065,6 +1080,13 @@ export default function LeadsPage() {
   function openQuotationList(l: LeadRow) { focusQuotationTab(l); setQuoteFormSignal(0); }
   /** พาไปออกใบใหม่ — เพิ่มค่าสัญญาณเสมอ (ห้ามรีเซ็ตเป็น 0 ก่อน ไม่งั้นสั่งซ้ำรอบสองจะได้ค่าเดิม = ไม่เปิด) */
   function openQuotationForm(l: LeadRow) { focusQuotationTab(l); setQuoteFormSignal(n => n + 1); }
+
+  // ── บอร์ดลากได้ (บอสสั่ง 5 พ.ย. 69 · คำตอบบอส L1–L5) — ทางย้ายตามขั้น · ทำงานผ่านกล่องขั้นต่อไปในแผงลีด (ทางเดียวกับปุ่ม) ──
+  const [คำสั่งบอร์ด, setคำสั่งบอร์ด] = useState<คำสั่งบอร์ดลีด | null>(null);
+  function สั่งจากบอร์ด(l: LeadRow, ไป: string) {
+    if (selectedLead?.id !== l.id) openPanel(l);
+    setคำสั่งบอร์ด(c => ({ เป้า: คำสั่งของปลายทาง(ไป), n: (c?.n ?? 0) + 1 }));
+  }
 
   function openPanel(l: LeadRow) {
     if (selectedLead?.id === l.id) return closePanel();
@@ -1205,19 +1227,7 @@ export default function LeadsPage() {
     closeFieldPopup();
   }
 
-  // Escape closes the detail modal (or the topmost nested overlay first)
-  useEffect(() => {
-    if (!selectedLead) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (showDeleteConfirm) setShowDeleteConfirm(false);
-      else if (popupField) closeFieldPopup();
-      else closePanel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLead, showDeleteConfirm, popupField]);
+  // Esc: กรอบแผง RowPanelShell (onEscape) ปิดกล่องที่ซ้อนก่อน แล้วค่อยปิดแผง
 
   // ── เลิกใช้ "สรุปทั้งสาขาจากฐานข้อมูล" ที่หน้านี้ (บอสสั่ง 20 ส.ค. 69) ──────────
   //   สรุปนั้นเร็วก็จริง แต่ไม่รู้จักตัวกรองของหน้า (จังหวัด/ผู้รับผิดชอบ/ช่องทาง/ช่วงมูลค่า)
@@ -1240,19 +1250,20 @@ export default function LeadsPage() {
   );
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ฐานคิด ณ ตอนนี้ (ไม่ขึ้นกับช่วงเวลา) ในชุดลีดที่ผ่านตัวกรองอื่นของหน้า
   //   (จังหวัด/ผู้รับผิดชอบ/ช่องทาง/ค้นหา/มูลค่า · บอสตัดสิน 27 ต.ค. 69) · การ์ดที่กดอยู่/สถานะ ไม่ใช่ตัวกรองของการ์ด
-  //   ขั้น 2/3/5 = ตัวแปลงกลาง lib/leadStage.ts (ฐานใช้กติกาเดียวกัน) · กดการ์ด = กรองตารางตามขั้นนั้น · กดซ้ำ = ล้าง
+  //   ขั้น 2/3/4 = ตัวแปลงกลาง lib/leadStage.ts (ฐานใช้กติกาเดียวกัน) · กดการ์ด = กรองตารางตามขั้นนั้น · กดซ้ำ = ล้าง
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(myAllLeads, ตรงตัวกรองอื่น, l => l.id), [myAllLeads, ตรงตัวกรองอื่น]);
   const kpi = useKpiCards("dealer.leads", { filters: ชุดการ์ด, รุ่น: [myAllLeads.map(l => `${l.id}:${l.status}`).join(","), quotations.filter(q => q.status === "draft").length] });
-  const กดขั้น = (s: 2 | 3 | 5 | null) => { setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
+  const กดขั้น = (s: 2 | 3 | 4 | null) => { setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(ขั้นจากการ์ด === s ? null : s); };
   const kpiCards = [
-    { kpi: "open", label: "ลีดที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
+    { kpi: "open", label: "ลูกค้าเป้าหมายที่เปิดอยู่", value: ค่า(kpi, "open"), unit: "ราย · ยังไม่ปิดการขาย", icon: Users, color: "#2563EB", bg: "#E8F0FE",
       on: ขั้นจากการ์ด == null && filterStatus === "OPEN" && followUpDays === 0, onClick: () => กดขั้น(null) },
     { kpi: "hq-pricing", label: ชื่อขั้น(2), value: ค่า(kpi, "hqPricing"), unit: "ราย · ส่งคำขอแล้ว รอ HQ ตีราคา", icon: Send, color: "#7C3AED", bg: "#F3E8FF",
       on: ขั้นจากการ์ด === 2, onClick: () => กดขั้น(2) },
     { kpi: "hq-quoted", label: "ได้ราคาแล้ว รอทำใบ", value: ค่า(kpi, "hqQuotedNoDraft"), unit: `ราย · ${ชื่อขั้น(3)}`, icon: Inbox, color: "#16A34A", bg: "#E6F7EE",
       on: ขั้นจากการ์ด === 3, onClick: () => กดขั้น(3) },
-    { kpi: "awaiting-client", label: ชื่อขั้น(5), value: ค่า(kpi, "awaitingClient"), unit: "ราย · ส่งใบให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
-      on: ขั้นจากการ์ด === 5, onClick: () => กดขั้น(5) },
+    // ขั้นเสนอราคาลูกค้า (ยุบ 9 พ.ย. 69) = ทำใบแล้วยังไม่ส่ง + ส่งให้ลูกค้าแล้ว · ฐานนับ quoteStage (ใบ 0284)
+    { kpi: "quote-stage", label: ชื่อขั้น(4), value: ค่า(kpi, "quoteStage"), unit: "ราย · ทำใบแล้ว / ส่งให้ลูกค้าแล้ว", icon: AlarmClock, color: "#EA580C", bg: "#FEF0E6",
+      on: ขั้นจากการ์ด === 4, onClick: () => กดขั้น(4) },
   ];
 
   // แนวโน้ม 12 เดือน — ลูกค้าเป้าหมายใหม่ เทียบ ปิดการขาย · ปีปัจจุบันเท่านั้น
@@ -1345,7 +1356,7 @@ export default function LeadsPage() {
         >
           {/* ไม่ตั้ง minWidth เกินจำเป็น — select กว้างตามคำ caption อยู่แล้ว
               ตั้งเกินไว้ = กินที่ฟรีจนแถบตกบรรทัดที่จอ 1440 */}
-          {/* ค่าเริ่มต้น = กำลังดำเนินการ (ขั้น 1–5) · ลีดที่ปิดแล้วดูได้จากตัวเลือกปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด */}
+          {/* ค่าเริ่มต้น = กำลังดำเนินการ (ขั้น 1–4) · ลีดที่ปิดแล้วดูได้จากตัวเลือกปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด */}
           <FilterSelect caption="กำลังดำเนินการ" all="OPEN" label={ช่อง.ขั้นตอน} value={filterStatus} onChange={setFilterStatus}
             options={[{ v: "6", l: ชื่อขั้น(6) }, { v: "7", l: ชื่อขั้น(7) }, { v: "ALL", l: "ทั้งหมด" }]} />
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={fAssignee} onChange={setFAssignee} all=""
@@ -1378,8 +1389,8 @@ export default function LeadsPage() {
                   {!hiddenCols.includes("source")   && <col style={{width:"8%", minWidth:84}} />}
                   {!hiddenCols.includes("project")  && <col style={{width:"11%", minWidth:110}} />}{/* งานที่ต้องการ */}
                   {!hiddenCols.includes("area")     && <col style={{width:"7%", minWidth:76}} />}
-                  <col style={{width:"11%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "ทำใบให้ลูกค้า" อยู่ได้ */}
-                  <col style={{width:"9%", minWidth:112}} />{/* ความคืบหน้า แถบ 5 ช่อง + % */}
+                  <col style={{width:"11%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "เสนอราคาลูกค้า" + ป้ายย่อย อยู่ได้ */}
+                  <col style={{width:"9%", minWidth:112}} />{/* ความคืบหน้า แถบ 4 ช่อง + % */}
                   <col style={{width:"8%", minWidth:84}} />{/* มูลค่า */}
                   <col style={{width:"10%", minWidth:110}} />{/* ผู้รับผิดชอบ */}
                   {!hiddenCols.includes("activity") && <col style={{width:"8%", minWidth:104}} />}{/* กิจกรรมล่าสุด "28 ต.ค. 2569" เต็ม */}
@@ -1534,47 +1545,19 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {/* ── KANBAN VIEW — คอลัมน์ตามสถานะ · ดูอย่างเดียว ลากการ์ดไม่ได้ (รอบ 4 · เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผง) ── */}
-        {view === "kanban" && (() => {
-          // คอลัมน์ = 5 ขั้น (ตัวกลาง leadStage.ts · บอสสั่ง 27 ต.ค. 69) + ปิดไม่สำเร็จ
-          //   ปิดสำเร็จ/ปิดไม่สำเร็จมีคอลัมน์ (บอสสั่ง 28 ต.ค. 69) — ค่าเริ่มต้นของตัวกรองซ่อนลีดปิดแล้ว คอลัมน์จึงว่างจนเลือกกลุ่มนั้น
-          const ACTIVE: เลขขั้น[] = [1, 2, 3, 4, 5];
-          const TERMINAL: เลขขั้น[] = [6, 7];
-          const renderColumn = (status: เลขขั้น, wide: boolean) => {
-            const col = filtered.filter(l => เลขขั้นของ(l) === status);
-            if (hideEmpty && col.length === 0) return null;
-            const sc = สีขั้น(status);
-            const total = col.reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0);
-            const w = wide ? 300 : 264;
-            return (
-              <div key={status}
-                style={{ minWidth:w, width:w, flexShrink:0, display:"flex", flexDirection:"column",
-                  // คอลัมน์ยาวลงมาเต็มพื้นที่จอเสมอ ไม่หดตามจำนวนการ์ด — คอลัมน์ว่างจึงยังเป็นเป้าให้ลากมาวางได้ชัด ๆ
-                  // (เดิม alignSelf:"flex-start" ทำให้สูงพอดีเนื้อหา คอลัมน์ที่ยังไม่มีลูกค้าเป้าหมายเลยเหลือแค่แถบเตี้ย ๆ)
-                  minHeight: ความสูงกระดาน ?? "max(360px, calc(100vh - 330px))",
-                  background: "#f6f7f9", borderRadius:12, padding:10,
-                  border: "1.5px solid transparent" }}>
-                {/* header */}
-                <div style={{ padding:"7px 6px 11px", borderTop:`3px solid ${sc.text}`, marginBottom:2 }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:6, minWidth:0 }}>
-                      <span style={{ width:9, height:9, borderRadius:"50%", background:sc.text, flexShrink:0 }} />
-                      <span style={{ fontSize:"0.8rem", fontWeight:800, color:"#2D2D2D", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ชื่อขั้น(status)}</span>
-                    </span>
-                    <span className="badge" style={{ background:sc.bg, color:sc.text, flexShrink:0 }}>{col.length}</span>
-                  </div>
-                  {total > 0 && <div style={{ fontSize:"0.65rem", color:"#9ca3af", fontWeight:600, marginTop:3, fontVariantNumeric:"tabular-nums" }}>{fmtM(total)}</div>}
-                </div>
-                {/* cards */}
-                <div style={{ display:"flex", flexDirection:"column", gap:10, minHeight:44, flex:1 }}>
-                  {col.map(l => (
-                    <div key={l.id}
-                      onClick={() => openPanel(l)}
-                      className="card"
-                      style={{ padding:"12px 14px", cursor:"pointer", userSelect:"none", borderRadius:10,
-                        boxShadow:"0 1px 4px rgba(0,0,0,.05)", transition:"box-shadow .12s" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,51,102,.12)"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(0,0,0,.05)"; }}>
+        {/* ── KANBAN VIEW — ลากได้ (บอสสั่ง 5 พ.ย. 69 · ทับรอบ 4 ที่บอร์ดดูอย่างเดียว) · ตัวกลาง StageBoard ตัวเดียวกับบอร์ดผู้สนใจ HQ ──
+            ลากทีละ 1 ขั้นไปข้างหน้า = เปิดแผงลีด แล้วทำปุ่มหลักของกล่องขั้นต่อไป (ขอราคา · ทำใบ · ส่งใบ) — การ์ดย้ายเมื่อบันทึกสำเร็จ
+            ขอราคา HQ → ได้ใบ HQ ลากไม่ได้ (HQ เป็นคนส่งราคา · L1) · ได้ใบ HQ → เสนอราคาลูกค้า = ฟอร์มทำใบ · เสนอราคาลูกค้า → ปิดสำเร็จ = บันทึกลูกค้าตอบรับที่ใบ (L2 · ใบยังร่าง = ฟอร์มส่งใบก่อน · 9 พ.ย. 69)
+            ปิดไม่สำเร็จ = กล่องเหตุผล หรือ "ลูกค้าปฏิเสธ" ที่ใบเมื่อส่งใบแล้ว (L3) · ราคา HQ หมดอายุ = ฟอร์มขอราคาใหม่ (L4) · การ์ดที่ปิดแล้วลากออกไม่ได้ (L5) */}
+        {view === "kanban" && (
+          <div ref={กระดานRef}>
+            <StageBoard<LeadRow, string> ป้ายบอร์ด="บอร์ดลูกค้าเป้าหมาย" items={filtered} idOf={l => l.id} colOf={l => String(เลขขั้นของ(l))}
+              columns={เลขขั้นทั้งหมด.map(n => ({ key: String(n), label: ชื่อขั้น(n), สี: สีขั้น(n), แคบ: n >= 6, คั่นก่อน: n === 6,
+                ย่อย: (() => { const t = filtered.filter(l => เลขขั้นของ(l) === n).reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0); return t > 0 ? fmtM(t) : undefined; })() }))}
+              ซ่อนว่าง={hideEmpty} ความสูง={ความสูงกระดาน ?? undefined} ข้อความว่าง="ไม่มีลูกค้าเป้าหมาย" onOpen={l => openPanel(l)}
+              ทางย้าย={l => ทางย้ายลีด(เลขขั้นของ(l))}
+              onMove={(l, ไป) => สั่งจากบอร์ด(l, ไป)}
+              renderCard={l => (<>
                       {/* Sales-only — ไม่มีรูปอาคาร/building type (โฟกัสโอกาสการขายอย่างเดียว)
                           ไอคอนตา = แค่บอกใบ้ว่าคลิกการ์ดเปิดรายละเอียดได้ (การ์ดทั้งใบคลิกได้อยู่แล้ว เลยไม่ต้องมี onClick ซ้ำ)
                           เดิมไม่มี affordance เลย ผู้ใช้ที่ไม่คุ้น kanban อาจไม่รู้ว่าคลิกการ์ดได้ */}
@@ -1619,32 +1602,17 @@ export default function LeadsPage() {
                         <AssigneeAvatars value={l.assigned} size={24} showName={false} />
                       </div>
 
-                      {/* ขั้น 1–5 (ตัวแปลงกลาง) + กิจกรรมล่าสุด — % ความคืบหน้าจากงานเอาออก (รอบ 4) */}
+                      {/* ขั้น 1–4 (ตัวแปลงกลาง) + กิจกรรมล่าสุด — % ความคืบหน้าจากงานเอาออก (รอบ 4) */}
                       <MiniStage l={l} มีใบร่าง={มีใบร่างของ(l)} />
                       {lastActivity(l) !== "—" && (
                         <div style={{ display:"flex", alignItems:"center", gap:3, fontSize:"0.65rem", color:"#9ca3af", fontWeight:600, marginTop:5 }}>
                           <CalendarClock size={10} /> {lastActivity(l)}
                         </div>
                       )}
-                    </div>
-                  ))}
-                  {col.length === 0 && (
-                    <div style={{ flex:1, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:"16px 6px", fontSize:"0.65rem", color:"#c7ccd3", border:"1.5px dashed #e5e7eb", borderRadius:10 }}>ไม่มีลูกค้าเป้าหมาย</div>
-                  )}
-                </div>
-              </div>
-            );
-          };
-          return (
-            <div ref={กระดานRef}
-              style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:10, alignItems:"stretch" }}>
-              {ACTIVE.map(s => renderColumn(s, true))}
-              {/* เส้นคั่นก่อนกลุ่มปิดการขาย (ปิดการขายสำเร็จ/ปิดการขายไม่สำเร็จ) — หัวคอลัมน์ตรงแนวเดียวกัน */}
-              <div style={{ width:1, alignSelf:"stretch", background:"#e5e7eb", flexShrink:0, margin:"2px 0" }} />
-              {TERMINAL.map(s => renderColumn(s, false))}
-            </div>
-          );
-        })()}
+              </>)} />
+          </div>
+        )}
+
 
       </div>
 
@@ -1792,7 +1760,7 @@ export default function LeadsPage() {
         // ── Tab: นัดหมาย — นัดกับลูกค้าเป้าหมายก่อนปิดการขาย (แสดงในปฏิทิน+แจ้งเตือนด้วย) ──
         const leadAppts = appointments.filter(a => a.leadId === c.numId)
           .slice().sort((a, b) => (a.date + a.time) < (b.date + b.time) ? 1 : -1);
-        const saveAppt = async () => {
+        const saveAppt = async (ติ๊กติดตาม = false) => {
           if (apptSavingRef.current) return; // กันกดซ้ำระหว่างรอเลขนัดจาก DB (H8)
           if (!นัดบังคับ.ตรวจ([
             { key: "apptType", label: "ประเภทนัดหมาย", value: apptForm.type, ข้อความ: "เลือกประเภทนัดหมายก่อนบันทึก" },
@@ -1816,6 +1784,7 @@ export default function LeadsPage() {
           });
           setApptForm({ type: "visit", date: APP_NOW_ISO, time: "10:00", title: "", note: "" });
           setApptAdding(false);
+          if (ติ๊กติดตาม) { ติ๊กงานติดตาม(); setติดตาม(null); }
           // ติ๊กงาน "นัดหมาย" ให้เอง — ตัวจริงอยู่ที่ SalesContext.addAppointment แล้ว
           // (ลงนัดจากปฏิทินก็ต้องติ๊กเหมือนกัน จึงย้ายไปไว้ที่เดียว · 3 ก.ย. 69)
           const apptDef = findAppointmentTask(taskTpl);
@@ -1828,6 +1797,32 @@ export default function LeadsPage() {
         const aInp: React.CSSProperties = { width:"100%", border:"1px solid #e5e7eb", borderRadius:9, padding:"8px 11px", fontSize:"0.8rem", color:"#2D2D2D", outline:"none", boxSizing:"border-box", fontFamily:"inherit", background:"#fff" };
         const aLbl: React.CSSProperties = { display:"block", fontSize:"0.65rem", fontWeight:700, color:"#6b7280", marginBottom:5 };
         const ผูกนัด = (k: string) => { const p = นัดบังคับ.ผูก(k); return { ...p, style: { ...aInp, ...(p.style ?? {}) } }; };
+        // ช่องนัดหมายชุดเดียว — ใช้ทั้งการ์ดนัดหมาย และกล่องติดตามลูกค้า (ฟอร์มเดียวกัน)
+        const ช่องนัด = (
+          <>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div className="col-full">
+                <FieldLabel htmlFor="la-type" required className="" style={aLbl}>ประเภทนัดหมาย</FieldLabel>
+                <select id="la-type" aria-label="ประเภทนัดหมาย" value={apptForm.type} onChange={e => { นัดบังคับ.ล้าง("apptType"); setApptForm(f => ({ ...f, type: e.target.value as ApptType | "" })); }} {...ผูกนัด("apptType")}>
+                  <option value="">— ยังไม่ระบุ —</option>
+                  {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
+                </select>
+                <FieldError>{นัดบังคับ.ผิด.apptType}</FieldError>
+              </div>
+              <div><FieldLabel htmlFor="la-date" required className="" style={aLbl}>วันที่</FieldLabel>
+                <input id="la-date" aria-label="วันที่นัดหมาย" type="date" value={apptForm.date} onChange={e => { นัดบังคับ.ล้าง("apptDate"); setApptForm(f => ({ ...f, date: e.target.value })); }} {...ผูกนัด("apptDate")} />
+                <FieldError>{นัดบังคับ.ผิด.apptDate}</FieldError></div>
+              <div><FieldLabel htmlFor="la-time" required className="" style={aLbl}>เวลา</FieldLabel>
+                <input id="la-time" aria-label="เวลานัดหมาย" type="time" value={apptForm.time} onChange={e => { นัดบังคับ.ล้าง("apptTime"); setApptForm(f => ({ ...f, time: e.target.value })); }} {...ผูกนัด("apptTime")} />
+                <FieldError>{นัดบังคับ.ผิด.apptTime}</FieldError></div>
+              <div className="col-full"><label style={aLbl}>หัวข้อ</label>
+                <input value={apptForm.title} onChange={e => setApptForm(f => ({ ...f, title: e.target.value }))} placeholder={apptForm.type ? apptTypeLabel[apptForm.type] : "หัวข้อนัดหมาย"} style={aInp} /></div>
+              <div className="col-full"><label style={aLbl}>รายละเอียด</label>
+                <input value={apptForm.note} onChange={e => setApptForm(f => ({ ...f, note: e.target.value }))} placeholder="บันทึกเพิ่มเติม" style={aInp} /></div>
+            </div>
+            {apptErr && <div role="alert" style={{ fontSize:"0.72rem", color:"#B91C1C", marginTop:8 }}>{apptErr}</div>}
+          </>
+        );
         const tabAppts = (
           <DrawerSection title="นัดหมาย">
             {!apptAdding ? (
@@ -1837,30 +1832,10 @@ export default function LeadsPage() {
             ) : (
               <div style={{ border:"1px solid #e5e7eb", borderRadius:12, padding:14, marginBottom:12, background:"#fafbfc" }}>
                 <div style={{ fontSize:"0.8rem", fontWeight:800, color:"#2D2D2D", marginBottom:12 }}>นัดหมายใหม่ · {c.company}</div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                  <div className="col-full">
-                    <FieldLabel htmlFor="la-type" required className="" style={aLbl}>ประเภทนัดหมาย</FieldLabel>
-                    <select id="la-type" aria-label="ประเภทนัดหมาย" value={apptForm.type} onChange={e => { นัดบังคับ.ล้าง("apptType"); setApptForm(f => ({ ...f, type: e.target.value as ApptType | "" })); }} {...ผูกนัด("apptType")}>
-                      <option value="">— ยังไม่ระบุ —</option>
-                      {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
-                    </select>
-                    <FieldError>{นัดบังคับ.ผิด.apptType}</FieldError>
-                  </div>
-                  <div><FieldLabel htmlFor="la-date" required className="" style={aLbl}>วันที่</FieldLabel>
-                    <input id="la-date" aria-label="วันที่นัดหมาย" type="date" value={apptForm.date} onChange={e => { นัดบังคับ.ล้าง("apptDate"); setApptForm(f => ({ ...f, date: e.target.value })); }} {...ผูกนัด("apptDate")} />
-                    <FieldError>{นัดบังคับ.ผิด.apptDate}</FieldError></div>
-                  <div><FieldLabel htmlFor="la-time" required className="" style={aLbl}>เวลา</FieldLabel>
-                    <input id="la-time" aria-label="เวลานัดหมาย" type="time" value={apptForm.time} onChange={e => { นัดบังคับ.ล้าง("apptTime"); setApptForm(f => ({ ...f, time: e.target.value })); }} {...ผูกนัด("apptTime")} />
-                    <FieldError>{นัดบังคับ.ผิด.apptTime}</FieldError></div>
-                  <div className="col-full"><label style={aLbl}>หัวข้อ</label>
-                    <input value={apptForm.title} onChange={e => setApptForm(f => ({ ...f, title: e.target.value }))} placeholder={apptForm.type ? apptTypeLabel[apptForm.type] : "หัวข้อนัดหมาย"} style={aInp} /></div>
-                  <div className="col-full"><label style={aLbl}>รายละเอียด</label>
-                    <input value={apptForm.note} onChange={e => setApptForm(f => ({ ...f, note: e.target.value }))} placeholder="บันทึกเพิ่มเติม" style={aInp} /></div>
-                </div>
-                {apptErr && <div role="alert" style={{ fontSize:"0.72rem", color:"#B91C1C", marginTop:8 }}>{apptErr}</div>}
+                {ช่องนัด}
                 <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:12 }}>
                   <button onClick={() => setApptAdding(false)} className="btn btn-secondary btn-sm">ยกเลิก</button>
-                  <button onClick={saveAppt} disabled={apptSaving} className="btn btn-primary btn-sm" style={apptSaving ? { opacity: .6, cursor: "not-allowed" } : undefined}><Check size={13} /> บันทึกนัดหมาย</button>
+                  <button onClick={() => void saveAppt()} disabled={apptSaving} className="btn btn-primary btn-sm" style={apptSaving ? { opacity: .6, cursor: "not-allowed" } : undefined}><Check size={13} /> บันทึกนัดหมาย</button>
                 </div>
                 <div style={{ fontSize:"0.65rem", color:"#9ca3af", marginTop:8 }}>ผู้รับผิดชอบ: {c.assigned || session.name} · นัดหมายจะแสดงในปฏิทินด้วย</div>
               </div>
@@ -1886,9 +1861,61 @@ export default function LeadsPage() {
           </DrawerSection>
         );
 
-        // ── งานในแต่ละขั้น: แท็บภาพรวม ใต้แถบ 5 ขั้น (บอสสั่ง 28 ต.ค. 69) · ติ๊กไว้กันลืม ไม่ขยับสถานะ · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
+        // ── กดงานในแต่ละขั้น (บอสสั่ง 6 พ.ย. 69) — ยังไม่ติ๊ก = เปิดฟอร์มของงาน · ติ๊กแล้ว = เปิดดูรายละเอียด (ไม่ถอนติ๊ก) ──
+        //   งานที่ผ่านกล่องขั้นต่อไป (ขอราคา · ได้ใบ HQ · ทำใบ · ส่งใบ) ส่งคำสั่งทางเดียวกับลากบอร์ด — ฟอร์มเดียวกัน ด่านเดียวกัน
+        const ไปช่องข้อมูล = (key: string) => {
+          const ช่อง = key === "collect" ? ["ov-company", "ov-contact", "ov-phone"] : ["ov-province", "ov-project", "ov-area", "ov-note"];
+          const els = ช่อง.map(id => document.getElementById(id) as HTMLInputElement | null).filter((e): e is HTMLInputElement => !!e);
+          const ขาด = els.find(e => { const v = (e.value ?? "").trim(); return e.id === "ov-area" ? !(Number(v) > 0) : !v; }) ?? els[0];
+          ขาด?.scrollIntoView({ behavior: "smooth", block: "center" });
+          ขาด?.focus({ preventScroll: true });
+        };
+        const เปิดฟอร์มนัด = () => { setApptAdding(true); setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); };
+        const resetนัดในกล่อง = () => { นัดบังคับ.ล้าง("apptType"); นัดบังคับ.ล้าง("apptDate"); นัดบังคับ.ล้าง("apptTime"); setApptErr(""); setApptForm({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" }); };
+        function เปิดงาน(key: string, done: boolean) {
+          setDTab("overview");
+          if (key === "collect" || key === "requirement") return void setTimeout(() => ไปช่องข้อมูล(key), 30);
+          if (key === APPOINTMENT_TASK_KEY) return done ? void rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }) : เปิดฟอร์มนัด();
+          if (key === FOLLOW_TASK_KEY) {
+            if (done) return setDTab("history");
+            setApptAdding(false); resetนัดในกล่อง();
+            return setติดตาม({ แบบ: "ติดต่อ", ช่องทาง: "", ข้อความ: "", err: "", busy: false });
+          }
+          if (done) return key === "requestQuote" || key === "hqQuote" ? setDTab("quotation") : openQuotationList(c);
+          setคำสั่งบอร์ด(x => ({ เป้า: "งาน", งาน: key, n: (x?.n ?? 0) + 1 }));
+        }
+        // ติ๊ก "ติดตามลูกค้า" หลังบันทึกจริง (ชื่องานตามที่ HQ ตั้ง) — ลีดเก่าที่ติ๊กไว้แล้วไม่แตะ
+        const งานติดตาม = () => applyTaskTemplate(c.tasks, taskTpl, c.status).find(t => t.key === FOLLOW_TASK_KEY);
+        const ติ๊กงานติดตาม = () => {
+          const t = งานติดตาม();
+          if (!t || t.done) return;
+          saveLead({ tasks: [{ key: FOLLOW_TASK_KEY, done: true, label: t.label, doneAt: stampNow(), doneBy: c.assigned || session.name }] });
+        };
+        const ช่องทางติดต่อ: [string, string][] = [["call", "โทร"], ["email", ช่อง.อีเมล], ["meeting", "พบลูกค้า"], ["note", "อื่น ๆ"]];
+        async function บันทึกติดต่อ() {
+          if (!ติดตาม || ติดตาม.busy) return;
+          const ข้อความ = ติดตาม.ข้อความ.trim();
+          if (!ติดตาม.ช่องทาง) return setติดตาม({ ...ติดตาม, err: "เลือกช่องทางที่ติดต่อก่อนบันทึก" });
+          if (!ข้อความ) return setติดตาม({ ...ติดตาม, err: "พิมพ์สิ่งที่คุยกับลูกค้าก่อนบันทึก" });
+          const t = งานติดตาม();
+          const ป้าย = ช่องทางติดต่อ.find(x => x[0] === ติดตาม.ช่องทาง)?.[1] ?? "";
+          setติดตาม({ ...ติดตาม, busy: true, err: "" });
+          try {
+            // คำสั่งเดียว: บันทึกการติดต่อลงไทม์ไลน์ + ติ๊กงาน (บันทึกไม่ผ่าน = ไม่ติ๊ก)
+            await saveLeadรอฐาน({
+              activities: [{ text: `${t?.label ?? "ติดตามลูกค้า"} (${ป้าย}) · ${ข้อความ}`, type: ติดตาม.ช่องทาง }],
+              tasks: t && !t.done ? [{ key: FOLLOW_TASK_KEY, done: true, label: t.label, doneAt: stampNow(), doneBy: c.assigned || session.name }] : [],
+            });
+            setติดตาม(null);
+            setToast(t && !t.done ? `บันทึกการติดต่อแล้ว · ติ๊กงาน “${t.label}” ให้` : "บันทึกการติดต่อแล้ว");
+          } catch (e) {
+            setติดตาม(x => x && { ...x, busy: false, err: friendlyError(e, "บันทึกไม่สำเร็จ") });
+          }
+        }
+
+        // ── งานในแต่ละขั้น: แท็บภาพรวม ใต้แถบ 4 ขั้น (บอสสั่ง 28 ต.ค. 69) · ติ๊กไว้กันลืม ไม่ขยับสถานะ · ปิดงานทำที่กล่องขั้นต่อไป/ใบ ──
         const tabTasks = (
-          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} ขั้นตอนนี้={เลขขั้นของ(c)} />
+          <LeadTasks lead={c} performedBy={c.assigned || session.name} onSave={saveLead} ขั้นตอนนี้={เลขขั้นของ(c)} onOpenTask={เปิดงาน} />
         );
 
         // ── Tab: รายงานการติดตาม (Lead Report) — แก้ไข/เพิ่ม/ลบได้ทั้งหมด ──
@@ -1932,7 +1959,7 @@ export default function LeadsPage() {
                         {!last && <div style={{ width:2, flex:1, minHeight:14, background:"#eef1f5" }} />}
                       </div>
                       <div style={{ minWidth:0, paddingBottom:last ? 0 : 12 }}>
-                        <div style={{ fontSize:"0.8rem", color:"#2D2D2D", fontWeight:600, lineHeight:1.4 }}>{a.text}</div>
+                        <div style={{ fontSize:"0.8rem", color:"#2D2D2D", fontWeight:600, lineHeight:1.4 }}>{แปลงชื่อขั้นเดิม(a.text)}</div>
                         <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:"0.65rem", color:"#6b7280", marginTop:3 }}>
                           {/* วันที่ผ่านตัวจัดรูปกลาง (พ.ศ.) — ข้อมูลเดิมบางรายการเก็บ ISO ค.ศ. "2026-04-28" (ผลตรวจ FLOW รอบ 5 · 28 ต.ค. 69) */}
                           <CalendarClock size={11} /> {วันที่แสดงไทย(a.date) || "—"}
@@ -1996,15 +2023,11 @@ export default function LeadsPage() {
         const qa: React.CSSProperties = { background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, height:30, padding:"0 11px", cursor:"pointer", color:"#fff", display:"flex", alignItems:"center", gap:6, fontSize:"0.72rem", fontWeight:600, fontFamily:"inherit", whiteSpace:"nowrap" };
         return (
           <>
-            {/* Backdrop */}
-            <div onClick={closePanel} className="drawer-overlay"
-              style={{ position:"fixed", inset:0, background:"rgba(45,45,45,.45)", zIndex:200 }} />
-
-            {/* Lead Detail — แผงกลางจอ · คอลัมน์เดียว (Overview / Tasks / Quotation / Timeline) */}
-            <div className="modal-pop" style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
-              width:820, maxWidth:"calc(100vw - 24px)", height:"min(920px, calc(100vh - 24px))",
-              zIndex:210, background:"#fff", boxShadow:"0 30px 90px rgba(0,0,0,.32)", borderRadius:18,
-              display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            {/* Lead Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820")
+                Esc: ปิดกล่องที่ซ้อนอยู่ก่อน (ยืนยันลบ / กล่องแก้ช่อง) แล้วค่อยปิดแผง */}
+            <RowPanelShell label="ข้อมูลลูกค้าเป้าหมาย" onClose={closePanel} zIndex={209} backdropClassName="drawer-overlay"
+              onEscape={() => { if (showDeleteConfirm) setShowDeleteConfirm(false); else if (popupField) closeFieldPopup(); else closePanel(); }}
+              asideAttrs={{ style: { background: "#fff" } }}>
 
               {/* Sticky navy header + quick actions */}
               <div style={{ background:"#003366", padding:"14px 20px", flexShrink:0 }}>
@@ -2040,22 +2063,24 @@ export default function LeadsPage() {
                 </div>
                 {/* ป้ายมูลค่า (ใบเสนอราคาล่าสุด) */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginTop:12 }}>
-                  {/* ป้ายสถานะบนหัวแผงเอาออก (รอบ 4) — สถานะเหลือที่เดียว = แถบ 5 ขั้นด้านล่าง */}
+                  {/* ป้ายสถานะบนหัวแผงเอาออก (รอบ 4) — สถานะเหลือที่เดียว = แถบ 4 ขั้นด้านล่าง */}
                   <span style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:99, fontSize:"0.65rem", fontWeight:800, background:"#fff", color:"#003366" }}><Coins size={11} /> {fmtLeadValue(มูลค่าลีด(c))}</span>
                 </div>
               </div>
 
               {/* แถบขั้นตอน + ขั้นต่อไป (UI ตาม flow · หน้า 3 · 16 ต.ค. 69) — ปุ่มพาไปทางเดิมที่มีอยู่ */}
-              <LeadNextStep lead={c}
+              <LeadNextStep lead={c} คำสั่ง={คำสั่งบอร์ด}
                 onRequests={rs => setคำขอของแผง({ leadId: c.id, มี: rs.length > 0 })}
                 onLost={async (reason, ยกเลิกคำขอแล้ว) => {
                   if (ยกเลิกคำขอแล้ว) await syncLeadFromServer(c.id);
                   else await saveLeadรอฐาน({ stage: { status: "CANCELLED", lostReason: reason } });
                   setToast("บันทึกปิดการขายไม่สำเร็จแล้ว");
                 }}
-                onAction={async (kind, quoteId) => {
+                onAction={async (kind, quoteId, ต่อด้วยตอบรับ) => {
                   // ทุกปุ่มทำงานในแผงนี้ ไม่พาไปหน้าอื่น (รอบ 4 · เดิม ส่ง/บันทึกผล พาไปหน้าใบเสนอราคา)
-                  if (kind === "request_quote" || kind === "reprice") {
+                  if (kind === "ดูคำขอ") {
+                    setDTab("quotation");   // ได้ใบ HQ (ยังไม่ติ๊ก) = เปิดคำขอที่รอ HQ
+                  } else if (kind === "request_quote" || kind === "reprice") {
                     setDTab("quotation");
                     setReqSignal(s => ({ mode: kind === "reprice" ? "แก้ราคา" : "ขอราคา", n: (s?.n ?? 0) + 1 }));
                   } else if (kind === "make_quote") {
@@ -2068,6 +2093,9 @@ export default function LeadsPage() {
                     if (!(await ยืนยัน({ หัวข้อ: `ส่งใบ ${q.id} ให้ลูกค้า ?`, รายละเอียด: "ส่งแล้วแก้ใบนี้ไม่ได้ — ลูกค้าต่อรองให้ทำฉบับใหม่", ปุ่มตกลง: "ส่งให้ลูกค้า", ปุ่มกำลังทำ: "กำลังส่ง…",
                       ทำ: async () => { if (!(await sendQuotation(q.id))) throw new Error("ส่งใบไม่สำเร็จ — ลองใหม่อีกครั้ง"); } }))) return;
                     setToast(`ส่งใบเสนอราคา ${q.id} ให้ลูกค้าแล้ว`);
+                    // ลากไปปิดสำเร็จตอนใบยังเป็นร่าง (บอสตอบ 9 พ.ย. 69 ข้อ 1 ข): ส่งแล้วเปิดใบให้ยืนยันลูกค้าตอบรับต่อ
+                    //   ยกเลิกที่ยืนยันตอบรับ = ใบส่งแล้ว การ์ดอยู่คอลัมน์เสนอราคาลูกค้า
+                    if (ต่อด้วยตอบรับ) { setDTab("quotation"); setQuoteViewSignal(s => ({ id: q.id, n: (s?.n ?? 0) + 1 })); }
                   } else if (kind === "customer_result" && quoteId) {
                     setDTab("quotation");
                     setQuoteViewSignal(s => ({ id: quoteId, n: (s?.n ?? 0) + 1 }));
@@ -2088,7 +2116,7 @@ export default function LeadsPage() {
               {/* Body — เนื้อหาตามแท็บ */}
               <div style={{ flex:1, overflowY:"auto", background:"#f5f7fa" }}>
                 {/* ── TAB: ภาพรวม ── */}
-                {/* บอสสั่ง 28 ต.ค. 69: งานในแต่ละขั้นอยู่แท็บภาพรวม ใต้แถบ 5 ขั้น · แท็บประวัติเหลือไทม์ไลน์อย่างเดียว */}
+                {/* บอสสั่ง 28 ต.ค. 69: งานในแต่ละขั้นอยู่แท็บภาพรวม ใต้แถบ 4 ขั้น · แท็บประวัติเหลือไทม์ไลน์อย่างเดียว */}
                 <div style={{ padding:16, display:dTab==="overview"?"flex":"none", flexDirection:"column", gap:14 }}>
                   <div style={cardStyle}>{tabTasks}</div>
                   <div style={cardStyle}>
@@ -2125,7 +2153,46 @@ export default function LeadsPage() {
                     ข้ามกฎที่บอสสั่งไว้ว่าต้องมีใบเสนอราคาที่ส่งถึงลูกค้าแล้วก่อน (19 ส.ค. 69)
                     ปุ่มในแท็บงานมีด่านนั้นอยู่ (ปิดปุ่มพร้อมบอกเหตุผล) จึงเหลือไว้ทางเดียว */}
               </div>
-            </div>
+            </RowPanelShell>
+
+            {/* กล่องติดตามลูกค้า — บันทึกการติดต่อ หรือ นัดหมาย (ฟอร์มนัดชุดเดียวกับการ์ดนัดหมาย) · ยกเลิก = ไม่ติ๊ก */}
+            {ติดตาม && (
+              <>
+                <div onClick={() => { if (!ติดตาม.busy && !apptSaving) { setติดตาม(null); resetนัดในกล่อง(); } }} style={{ position:"fixed", inset:0, background:"rgba(45,45,45,.35)", zIndex:220 }} />
+                <div role="dialog" aria-modal="true" aria-label="ติดตามลูกค้า" data-follow-dialog
+                  style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:460, maxWidth:"calc(100vw - 24px)", maxHeight:"calc(100vh - 24px)", overflowY:"auto",
+                    zIndex:230, background:"#fff", borderRadius:14, boxShadow:"0 24px 70px rgba(0,0,0,.3)", padding:18 }}>
+                  <div style={{ fontSize:"0.92rem", fontWeight:800, color:"#2D2D2D", marginBottom:4 }}>{งานติดตาม()?.label ?? "ติดตามลูกค้า"} · {c.company}</div>
+                  <div style={{ fontSize:"0.72rem", color:"#6b7280", marginBottom:12 }}>บันทึกแล้วระบบติ๊กงานให้ · ยกเลิก = ไม่ติ๊ก</div>
+                  <div role="radiogroup" aria-label="ติดตามด้วย" style={{ display:"flex", gap:6, marginBottom:14 }}>
+                    {([["ติดต่อ", "บันทึกการติดต่อ"], ["นัด", "นัดหมาย"]] as const).map(([k, label]) => (
+                      <button key={k} type="button" role="radio" aria-checked={ติดตาม.แบบ === k} disabled={ติดตาม.busy || apptSaving}
+                        onClick={() => setติดตาม({ ...ติดตาม, แบบ: k, err: "" })}
+                        className={ติดตาม.แบบ === k ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"} style={{ flex:1 }}>{label}</button>
+                    ))}
+                  </div>
+                  {ติดตาม.แบบ === "ติดต่อ" ? (
+                    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                      <div><FieldLabel htmlFor="fu-channel" required className="" style={aLbl}>ช่องทาง</FieldLabel>
+                        <select id="fu-channel" aria-label="ช่องทางที่ติดต่อ" value={ติดตาม.ช่องทาง} onChange={e => setติดตาม({ ...ติดตาม, ช่องทาง: e.target.value, err: "" })} style={aInp}>
+                          <option value="">— ยังไม่ระบุ —</option>
+                          {ช่องทางติดต่อ.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select></div>
+                      <div><FieldLabel htmlFor="fu-text" required className="" style={aLbl}>คุยอะไรกับลูกค้า</FieldLabel>
+                        <textarea id="fu-text" aria-label="สิ่งที่คุยกับลูกค้า" rows={3} value={ติดตาม.ข้อความ} maxLength={500}
+                          onChange={e => setติดตาม({ ...ติดตาม, ข้อความ: e.target.value, err: "" })} style={{ ...aInp, height:"auto", resize:"vertical", lineHeight:1.6 }} /></div>
+                      {ติดตาม.err && <div role="alert" style={{ fontSize:"0.72rem", color:"#B91C1C" }}>{ติดตาม.err}</div>}
+                    </div>
+                  ) : ช่องนัด}
+                  <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:14 }}>
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={ติดตาม.busy || apptSaving} onClick={() => { setติดตาม(null); resetนัดในกล่อง(); }}>ยกเลิก</button>
+                    {ติดตาม.แบบ === "ติดต่อ"
+                      ? <button type="button" className="btn btn-primary btn-sm" disabled={ติดตาม.busy} onClick={() => void บันทึกติดต่อ()}><Check size={13} /> {ติดตาม.busy ? "กำลังบันทึก…" : "บันทึกการติดต่อ"}</button>
+                      : <button type="button" className="btn btn-primary btn-sm" disabled={apptSaving} onClick={() => void saveAppt(true)}><Check size={13} /> บันทึกนัดหมาย</button>}
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* ปิดการขายไม่สำเร็จ — เลือกเหตุผล */}
           </>

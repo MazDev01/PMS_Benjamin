@@ -51,6 +51,7 @@ test.afterAll(async () => {
       delete from public.quotation_won_at where dealer_code = '${s.รหัส}';
       delete from public.quotations where dealer_code = '${s.รหัส}';
       delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = '${s.รหัส}');
+      select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
       delete from public.quote_requests where dealer_code = '${s.รหัส}';
       delete from public.customers where dealer_code = '${s.รหัส}';
       delete from public.leads where dealer_code = '${s.รหัส}';
@@ -64,19 +65,28 @@ async function เปิด(page: Page) {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(page.locator("[data-perf-total]")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-testid='pipeline-table'] table[data-total]")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-testid='pipeline-table'] tfoot"), "ไม่มีแถวรวม (บอสสั่ง 6 พ.ย. 69)").toHaveCount(0);
   await page.getByLabel("ค้นหาดีลเลอร์").fill(ป้าย);
   await expect(page.locator("[data-perf-row]")).toHaveCount(2, { timeout: 20_000 });
 }
 const การ์ด = (page: Page, k: string) => page.locator(`[data-kpi-row] [data-kpi="${k}"] [data-value]`).first().getAttribute("data-value");
 const n = (v: string | null) => (v == null || v === "" ? "—" : String(Number(v)));
+/** ผลรวมชุดเดียวกับแถวของตารางที่เห็นอยู่ (ไม่มีแถวรวมบนจอแล้ว · บอสสั่ง 6 พ.ย. 69 · ตารางเก็บใน data-total) */
+const ผลรวม = async (page: Page, k: string) => {
+  const j = await page.locator("[data-testid='pipeline-table'] table[data-total]").first().getAttribute("data-total");
+  const v = j ? (JSON.parse(j) as Record<string, unknown>)[k] : null;
+  return v == null ? null : String(v);
+};
 
-/** แถวรวมของตารางที่เห็นอยู่ (ดีลเลอร์ = data-perf-total · ภูมิภาค/จังหวัด = data-group-total) = การ์ดยอดขาย */
+/** ผลรวมยอดขายของตารางที่เห็นอยู่ (ดีลเลอร์/ภูมิภาค/จังหวัด/รายเดือน · ชุดเดียวกับแถว · ไม่มีแถวรวมบนจอ) = การ์ดยอดขาย */
 async function ยอดรวมเท่าการ์ด(page: Page, ที่: string) {
   await expect.poll(async () => {
-    const แถวรวม = page.locator("[data-perf-total] [data-sum='sales'], [data-group-total] td[data-value]").first();
-    return [n(await แถวรวม.getAttribute("data-value")), n(await การ์ด(page, "sales"))].join(" = ");
-  }, { timeout: 30_000, message: `${ที่}: แถวรวมยอดขาย = การ์ด` }).toMatch(/^(\S+) = \1$/);
+    const j = await page.locator("[data-testid='pipeline-table'] table[data-total]").first().getAttribute("data-total");
+    const ยอด = j ? String((JSON.parse(j) as { sales: number }).sales) : null;
+    return [n(ยอด), n(await การ์ด(page, "sales"))].join(" = ");
+  }, { timeout: 30_000, message: `${ที่}: ผลรวมยอดขายในตาราง = การ์ด` }).toMatch(/^(\S+) = \1$/);
+  await expect(page.locator("[data-testid='pipeline-table'] tfoot"), `${ที่}: ไม่มีแถวรวม`).toHaveCount(0);
 }
 
 test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แถวรวม = การ์ด · แผงที่มา = การ์ด · ปิดได้/ไม่ได้ = หน้าลูกค้าเป้าหมาย · ระดับดีลเลอร์", async ({ page }) => {
@@ -92,22 +102,24 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
   const { data: ลีด, error } = await (await db(ADMIN)).rpc("lead_summary", { p_dealer_codes: [A.รหัส, B.รหัส], p_province: null, p_product: null, p_source: null, p_search: null, p_status: null, p_date_start: ต้น, p_date_end: ท้าย, p_stage: null });
   expect(error).toBeNull();
   const ขั้น = (k: number) => String(((ลีด as { byStage?: { stage: number; count: number }[] }).byStage ?? []).find(s => Number(s.stage) === k)?.count ?? 0);
-  expect({ won: await page.locator("[data-perf-total] [data-sum='won']").getAttribute("data-value"), lost: await page.locator("[data-perf-total] [data-sum='lost']").getAttribute("data-value") },
+  expect({ won: await ผลรวม(page, "won"), lost: await ผลรวม(page, "lost") },
     "ปิดได้/ปิดไม่ได้ = หน้าลูกค้าเป้าหมาย (ขั้นปิดสำเร็จ/ปิดไม่สำเร็จ ช่วงเดียวกัน)").toEqual({ won: ขั้น(6), lost: ขั้น(7) });
   expect({ won: ขั้น(6), lost: ขั้น(7) }, "ค่าที่วางไว้: ปิดได้ 3 · ปิดไม่ได้ 1").toEqual({ won: "3", lost: "1" });
 
-  // กดการ์ด = แผงที่มารายดีลเลอร์ · แถวรวม = การ์ด (ทุกการ์ด)
-  const ยอดแถวรวม = (await page.locator("[data-perf-total] [data-sum='sales']").innerText()).trim();
-  for (const [k, ช่อง, คาด] of [["sales", 0, ยอดแถวรวม], ["winRate", 2, n(await การ์ด(page, "winRate")) + "%"], ["onTarget", 2, `${n(await การ์ด(page, "onTarget"))} ราย`]] as const) {
+  // กดการ์ด = แผงที่มารายดีลเลอร์ · แถวรายดีลเลอร์ = ชุดเดียวกับตาราง · ไม่มีแถวรวม (บอสสั่ง 6 พ.ย. 69 · ตัวเลขรวมดูที่การ์ด)
+  for (const k of ["sales", "winRate", "onTarget"] as const) {
     await page.locator(`[data-kpi-row] [data-kpi="${k}"]`).click();
     const แผง = page.locator(`[data-card-drawer="${k}"]`);
     await expect(แผง, `กดการ์ด ${k} = แผงที่มา`).toBeVisible();
-    expect(await แผง.locator("[data-drawer-row]").count(), `แผง ${k}: แถวรายดีลเลอร์ = จำนวนดีลเลอร์ในตาราง`).toBe(Number((await page.locator("[data-perf-total] td").first().innerText()).match(/[\d,]+/)?.[0].replace(/,/g, "")));
-    await expect(แผง.locator(`[data-drawer-total] [data-sum-col="${ช่อง}"]`), `แผง ${k}: แถวรวม = การ์ด`).toHaveText(คาด);
+    // แผงถึงเป้า (ใบ 0283 · บอสสั่ง 9 พ.ย. 69): นับเฉพาะดีลเลอร์ที่ตั้งเป้า — A ตั้งเป้า · B ไม่ตั้ง → 1 แถว · แผงอื่น = ทุกดีลเลอร์ในตาราง
+    expect(await แผง.locator("[data-drawer-row]").count(), `แผง ${k}: แถวรายดีลเลอร์ = จำนวนดีลเลอร์ในตาราง${k === "onTarget" ? "ที่ตั้งเป้า" : ""}`)
+      .toBe(k === "onTarget" ? 1 : Number(await ผลรวม(page, "n")));
+    await expect(แผง.locator("tfoot, [data-drawer-total]"), `แผง ${k}: ไม่มีแถวรวม`).toHaveCount(0);
+    await expect(แผง, `แผง ${k}: คำอธิบายไม่มี แถวรวม`).not.toContainText("แถวรวม");
     await แผง.getByRole("button", { name: "ปิดแผง" }).click();
   }
 
-  // แท็บภูมิภาค → แถวรวม = การ์ด · กดแถวแรก = เจาะลงภูมิภาคนั้น (แท็บจังหวัด)
+  // แท็บภูมิภาค → ผลรวมแถว = การ์ด · กดแถวแรก = เจาะลงภูมิภาคนั้น (แท็บจังหวัด)
   await page.locator('[data-dim="region"]').click();
   await expect(page.locator('table[aria-label="ตารางผลงานตามภูมิภาค"]')).toBeVisible();
   await ยอดรวมเท่าการ์ด(page, "ทั้งเครือ · แท็บภูมิภาค");
@@ -122,35 +134,37 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
   await ยอดรวมเท่าการ์ด(page, `ภูมิภาค ${ภาค} · แท็บดีลเลอร์`);
   await page.locator('[data-dim="prov"]').click();
 
-  // กดจังหวัด → แท็บดีลเลอร์ · แถวรวม = การ์ด
+  // กดจังหวัด → แท็บดีลเลอร์ · ผลรวมแถว = การ์ด
   await expect(page.locator("[data-group-row]"), "ภาคใต้: จังหวัดยะลาจังหวัดเดียว").toHaveCount(1);
   await page.locator('[data-group-row="ยะลา"]').click();
   await expect(page.locator("[data-crumbs] [data-crumb]"), "แถบระดับ: ทั้งเครือ › ภูมิภาค › จังหวัด").toHaveCount(3);
-  await expect(page.locator("[data-perf-total]")).toBeVisible();
+  await expect(page.locator("[data-testid='pipeline-table'] table[data-total]")).toBeVisible();
   await ยอดรวมเท่าการ์ด(page, "จังหวัด · แท็บดีลเลอร์");
 
-  // แท็บรายเดือน (ใบ 0268): แถวรวม = การ์ด · ผลรวมยอดขายทุกเดือน = แถวรวม · กดเดือน = รายดีลเลอร์ของเดือนนั้น (แถวรวม = แถวเดือน)
+  // แท็บรายเดือน (ใบ 0268): ผลรวม = การ์ด · ผลรวมยอดขายทุกเดือน = ผลรวมของตาราง · กดเดือน = รายดีลเลอร์ของเดือนนั้น (ยอด = แถวเดือน · ไม่มีแถวรวม)
   await page.locator('[data-dim="month"]').click();
   const ตารางเดือน = page.locator('table[aria-label="ตารางผลงานรายเดือน"]');
   await expect(ตารางเดือน, "แท็บรายเดือนมีตาราง (ไม่ใช่รอข้อมูล)").toBeVisible({ timeout: 20_000 });
   await ยอดรวมเท่าการ์ด(page, "จังหวัด · แท็บรายเดือน");
   const ยอดเดือน = await ตารางเดือน.locator("tbody td[data-value]").evaluateAll(es => es.reduce((t, e) => t + Number(e.getAttribute("data-value")), 0));
-  expect(String(ยอดเดือน), "ผลรวมยอดขายทุกเดือน = แถวรวม").toBe(await ตารางเดือน.locator("tfoot td[data-value]").first().getAttribute("data-value"));
+  expect(String(ยอดเดือน), "ผลรวมยอดขายทุกเดือน = ผลรวมของตาราง (= การ์ด)").toBe(await ผลรวม(page, "sales"));
+  await expect(ตารางเดือน.locator("tfoot"), "ตารางรายเดือนไม่มีแถวรวม").toHaveCount(0);
   const เดือนนี้ = ตารางเดือน.locator("tbody tr").filter({ has: page.locator("[data-month-row]") }).last();
   const ยอดเดือนนี้ = (await เดือนนี้.locator("td[data-value]").innerText()).trim();
   await เดือนนี้.click();
   const แผงเดือน = page.locator("[data-month-drawer]");
   await expect(แผงเดือน, "กดเดือน = แผงรายดีลเลอร์").toBeVisible();
   await expect(แผงเดือน.locator("[data-drawer-row]"), "เดือนนี้: สาขา A").toHaveCount(1);
-  await expect(แผงเดือน.locator('[data-drawer-total] [data-sum-col="sales"]'), "แถวรวมในแผง = แถวเดือน").toHaveText(ยอดเดือนนี้);
+  await expect(แผงเดือน.locator("[data-drawer-row]").first().locator("xpath=.."), "ยอดของสาขาในแผง = แถวเดือน").toContainText(ยอดเดือนนี้);
+  await expect(แผงเดือน.locator("tfoot, [data-drawer-total]"), "แผงเดือนไม่มีแถวรวม").toHaveCount(0);
   await แผงเดือน.getByRole("button", { name: "ปิดแผง" }).click();
   await page.locator('[data-dim="dealer"]').click();
 
-  // กดดีลเลอร์ → ระดับดีลเลอร์: แถบระดับ 4 ชั้น · ใบ/ลีดล่าสุด · ปุ่มเปิดแผงดีลเลอร์ · แถวรวม = การ์ด
+  // กดดีลเลอร์ → ระดับดีลเลอร์: แถบระดับ 4 ชั้น · ใบ/ลีดล่าสุด · ปุ่มเปิดแผงดีลเลอร์ · ผลรวมแถว = การ์ด
   const รหัส = A.รหัส;
   await expect(page.locator("td[data-perf-row]"), "ยะลา: สาขา A สาขาเดียว").toHaveCount(1);
   await page.locator("td[data-perf-row]").first().click();
-  await expect(page.locator("[data-crumbs] [data-crumb='dealer']"), "แถบระดับ: … › ดีลเลอร์").toContainText(รหัส);
+  await expect(page.locator("[data-crumbs] [data-crumb='dealer']"), "แถบระดับ: … › ดีลเลอร์ (ชื่ออย่างเดียว)").toHaveText(A.ชื่อ);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await expect(page.locator("td[data-perf-row]")).toHaveCount(1);
   await ยอดรวมเท่าการ์ด(page, `ดีลเลอร์ ${รหัส}`);
   await expect(page.getByTestId("dealer-latest-quotes"), "ใบล่าสุดของ A").toContainText(`${A.รหัส}-Q1`);
@@ -158,26 +172,27 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
   await page.locator('[data-kpi-row] [data-kpi="sales"]').click();
   const แผงยอด = page.locator('[data-card-drawer="sales"]');
   await expect(แผงยอด.getByRole("table", { name: /รายเดือน/ }), "ระดับดีลเลอร์: ที่มารายเดือน").toBeVisible({ timeout: 20_000 });
-  await expect(แผงยอด.locator('[data-drawer-total] [data-sum-col="0"]'), "แถวรวมรายเดือน = การ์ด (ยอดขาย A 400,000)").toHaveText(
-    (await page.locator("[data-perf-total] [data-sum='sales']").innerText()).trim());
+  await expect(แผงยอด.locator("tfoot, [data-drawer-total]"), "แผงรายเดือนไม่มีแถวรวม").toHaveCount(0);
+  expect(await ผลรวม(page, "sales"), "ระดับดีลเลอร์: ผลรวมของตาราง = การ์ด (ยอดขาย A 400,000)").toBe("400000");
+  await expect(แผงยอด.locator("[data-drawer-row]").first(), "แผงรายเดือนมีแถวรายเดือน").toBeVisible();
   await แผงยอด.getByRole("button", { name: "ปิดแผง" }).click();
   await page.locator('[data-act="open-dealer-panel"]').click();
   await expect(page.locator(`[data-dealer-panel="${รหัส}"]`), "ปุ่มเปิดแผงดีลเลอร์").toBeVisible({ timeout: 25_000 });
 
   // กลับขึ้นทั้งเครือจากแถบระดับ
   await page.goBack();
-  await expect(page.locator("[data-perf-total]")).toBeVisible({ timeout: 25_000 });
+  await expect(page.locator("[data-testid='pipeline-table'] table[data-total]")).toBeVisible({ timeout: 25_000 });
   assertNoErrors(errs, "ภาพรวมยอดขาย เจาะลึก");
 });
 
-test("[H12·hq] กล่องล่าง: เส้นทางการขาย = แถวรวม · งานค้างตามขั้นตอน = ลีดเปิดอยู่ตอนนี้", async ({ page }) => {
+test("[H12·hq] กล่องล่าง: เส้นทางการขาย = ผลรวมของตาราง · งานค้างตามขั้นตอน = ลีดเปิดอยู่ตอนนี้", async ({ page }) => {
   await เปิด(page);
-  const รวม = async (k: string) => (await page.locator(`[data-perf-total] [data-sum="${k}"]`).innerText()).replace(/,/g, "").trim();
+  const รวม = async (k: string) => (await ผลรวม(page, k)) ?? "";
   const ทาง = page.getByTestId("pipeline-funnel");
   await expect.poll(async () => ({
-    ลีด: await ทาง.locator('[data-bar-row="ลีดใหม่"]').getAttribute("data-value").catch(() => null),
+    ลีด: await ทาง.locator('[data-bar-row="ลูกค้าเป้าหมายใหม่"]').getAttribute("data-value").catch(() => null),
     ปิดได้: await ทาง.locator('[data-bar-row="ปิดสำเร็จ"]').getAttribute("data-value").catch(() => null),
-  }), { message: "เส้นทางการขาย = แถวรวมท้ายตาราง", timeout: 20_000 }).toEqual({ ลีด: await รวม("leads"), ปิดได้: await รวม("won") });
+  }), { message: "เส้นทางการขาย = ผลรวมของตาราง", timeout: 20_000 }).toEqual({ ลีด: await รวม("leads"), ปิดได้: await รวม("won") });
   expect([await รวม("leads"), await รวม("won")], "ค่าที่วางไว้: ลีด 6 · ปิดได้ 3").toEqual(["6", "3"]);
   // งานค้างตามขั้นตอน (ตอนนี้) = lead_summary ไม่ระบุช่วง ขั้น 1–5
   const { data } = await (await db(ADMIN)).rpc("lead_summary", { p_dealer_codes: [A.รหัส, B.รหัส], p_province: null, p_product: null, p_source: null, p_search: null, p_status: null, p_date_start: null, p_date_end: null, p_stage: null });

@@ -148,7 +148,7 @@ export const POST = withErrors("hq-own-password", async (req: NextRequest) => {
     if (ลิงก์) {
       try { token_hash = new URL(ที่กรอก).searchParams.get("token") ?? ""; }
       catch { token_hash = (ที่กรอก.split("token=")[1] ?? "").split("&")[0]; }
-      if (!token_hash) return ตอบ({ error: "ลิงก์ไม่ถูกต้อง — ก๊อปลิงก์จากอีเมลมาทั้งอัน" }, 400);
+      if (!token_hash) return ตอบ({ error: "ลิงก์ไม่ถูกต้อง — คัดลอกลิงก์จากอีเมลมาทั้งอัน" }, 400);
     }
     const { data, error } = ลิงก์
       ? await sb.auth.verifyOtp({ token_hash, type: "magiclink" })

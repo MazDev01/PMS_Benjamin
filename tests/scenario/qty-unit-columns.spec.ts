@@ -239,14 +239,14 @@ test("[ui·hq] ตาราง BOQ ของใบ HQ ที่ส่งแล�
   // ส่วนสรุป: ป้าย "ราคาส่งดีลเลอร์ (ก่อน VAT)" ตัวหนา · ยอดชิดขวาใต้คอลัมน์ยอด
   const สรุป = await page.evaluate(() => {
     const t = document.querySelector<HTMLTableElement>("table[aria-label='รายการ BOQ']");
-    const ป้าย = t ? Array.from(t.querySelectorAll<HTMLTableCellElement>("tfoot td")).find(td => td.textContent?.includes("ราคาส่งดีลเลอร์ (ก่อน VAT)")) : undefined;
+    const ป้าย = t ? Array.from(t.querySelectorAll<HTMLTableCellElement>("tfoot td")).find(td => td.textContent?.includes("ราคาจาก HQ (ก่อน VAT)")) : undefined;
     const ยอด = t?.querySelector<HTMLElement>("[data-testid='hq-quote-total']");
     const หัวยอด = t ? Array.from(t.querySelectorAll<HTMLTableCellElement>("thead th")).find(th => /^ยอด/.test(th.textContent?.trim() ?? "")) : undefined;
     const ขวา = (el?: Element | null) => { if (!el) return NaN; const rg = document.createRange(); rg.selectNodeContents(el); return rg.getBoundingClientRect().right; };
     return { หนา: ป้าย ? Number(getComputedStyle(ป้าย).fontWeight) : 0, ป้ายชิด: ป้าย ? getComputedStyle(ป้าย).textAlign : "ไม่มี",
       ห่างจากหัวยอด: Math.round(ขวา(ยอด) - ขวา(หัวยอด)) };
   });
-  expect.soft(สรุป.หนา, "\"ราคาส่งดีลเลอร์ (ก่อน VAT)\" ตัวหนา").toBeGreaterThanOrEqual(700);
+  expect.soft(สรุป.หนา, "\"ราคาจาก HQ (ก่อน VAT)\" ตัวหนา").toBeGreaterThanOrEqual(700);
   expect.soft(สรุป.ป้ายชิด, "ป้ายสรุปชิดขวา").toBe("right");
   expect.soft(Math.abs(สรุป.ห่างจากหัวยอด), "ยอดรวมชิดขวาใต้คอลัมน์ยอด (ขอบขวาตรงหัว \"ยอด\")").toBeLessThanOrEqual(2);
 

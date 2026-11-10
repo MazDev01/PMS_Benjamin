@@ -28,7 +28,7 @@ const ช่องกรอก: React.CSSProperties = { width: "100%", border: "
 /** แหล่งรายการเพิ่มเติม (ปุ่มข้าง "เพิ่มรายการอื่น") — เปิด(แทรก) แล้วส่งรายการกลับผ่าน แทรก(rows) */
 export type แหล่งรายการ = { key: string; label: string; icon?: LucideIcon; disabled?: boolean; เปิด: (แทรก: (rows: แถววาง[]) => void) => void };
 
-export function BoqTable({ lines, onChange, editable, area, แหล่ง = [], ป้ายยอดรวม = "ราคาส่งดีลเลอร์ (ก่อน VAT)", ป้ายตาราง = "รายการ BOQ", ป้ายพื้นที่ = "คำขอนี้" }: {
+export function BoqTable({ lines, onChange, editable, area, แหล่ง = [], ป้ายยอดรวม = "ราคาจาก HQ (ก่อน VAT)", ป้ายตาราง = "รายการ BOQ", ป้ายพื้นที่ = "คำขอนี้" }: {
   lines: แถววาง[];
   onChange: (next: แถววาง[] | ((prev: แถววาง[]) => แถววาง[])) => void;
   editable: boolean;

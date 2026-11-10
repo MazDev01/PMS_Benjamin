@@ -13,6 +13,7 @@ import { hqAuditModule, HQ_AUDIT_MODULE_LABEL } from "@pms/shared/lib/mock";
 import { APP_NOW, parseDate } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
+import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 // ⚠️ ห้ามกลับไปใช้ hqAuditCategory ของกระดิ่งแจ้งเตือน (บั๊กจริง 10 ส.ค. 69)
@@ -24,14 +25,17 @@ const ROLE_LABEL: Record<string, { label: string; bg: string; color: string }> =
   // ⚠️ ต้องครอบทุกบทบาทที่มีจริง ไม่งั้นรหัสระบบดิบหลุดขึ้นจอ (แก้ 10 ส.ค. 69)
   //   เดิมไม่มี SUPER_ADMIN ในรายการ → คอลัมน์บทบาทขึ้นคำว่า "SUPER_ADMIN" ตรง ๆ
   //   ซึ่งเป็นชื่อตัวแปรในโปรแกรม ไม่ใช่คำที่ผู้ใช้ควรเห็นในระบบภาษาไทย
-  SUPER_ADMIN: { label: "ผู้ดูแลระบบ", bg: "#dce5f0", color: "#003366" },
-  HQ_MANAGEMENT: { label: "ผู้บริหาร HQ", bg: "#dce5f0", color: "#003366" },
-  HQ_STAFF: { label: "เจ้าหน้าที่ HQ", bg: "#dce5f0", color: "#003366" },   // เดิมขาด → ขึ้นคำว่า HQ_STAFF ดิบ (ตารางเทียบรอบ 1)
+  // HQ บทบาทเดียว "สำนักงานใหญ่" (บอสสั่ง 5 พ.ย. 69 · ใบ 0282) — บันทึกเก่าที่เก็บบทบาทเดิมแปลงชื่อตอนแสดง (แถวในฐานไม่แก้)
+  SUPER_ADMIN: { label: "สำนักงานใหญ่", bg: "#dce5f0", color: "#003366" },
+  HQ_MANAGEMENT: { label: "สำนักงานใหญ่", bg: "#dce5f0", color: "#003366" },
+  HQ_STAFF: { label: "สำนักงานใหญ่", bg: "#dce5f0", color: "#003366" },   // เดิมขาด → ขึ้นคำว่า HQ_STAFF ดิบ (ตารางเทียบรอบ 1)
   DEALER_ADMIN: { label: "ดีลเลอร์", bg: "#fff3cd", color: "#92400e" },
   DEALER_SALES: { label: "ฝ่ายขาย", bg: "#eef2f7", color: "#475569" },
 };
 
 export default function HQAuditPage() {
+  // รหัสดีลเลอร์ในรายละเอียด → ชื่อแสดง ตอนแสดงผลเท่านั้น (บอสตอบ 6 พ.ย. 69 · ฐาน/ไฟล์ส่งออก/คำค้นคงข้อความดิบ · เลขเอกสารไม่แปลง)
+  const แทนรหัส = useแทนรหัสในบันทึก();
   const entries = useAuditEntries();
   const [q, setQ] = useState("");
   const [userFilter, setUserFilter] = useState("all");
@@ -171,7 +175,7 @@ export default function HQAuditPage() {
                       {MODULE_LABEL[hqAuditModule(e.action)] ?? "—"}
                     </td>
                     <td><span className="badge" style={{ background: "#eef2f7", color: PRIMARY }}>{e.action}</span></td>
-                    <td style={{ fontSize: "0.8rem", color: "#2D2D2D" }}>{e.target}</td>
+                    <td style={{ fontSize: "0.8rem", color: "#2D2D2D" }} data-audit-target>{แทนรหัส(e.target)}</td>
                     <td style={{ fontSize: "0.72rem", color: "#9ca3af", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{e.at}</td>
                   </tr>
                 );

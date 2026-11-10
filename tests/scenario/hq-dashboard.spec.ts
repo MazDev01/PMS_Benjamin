@@ -41,6 +41,7 @@ function ล้าง() {
     delete from public.dealer_package_proposals where id = 979200811;
     delete from public.dealer_prospects where id = 979200801;
     delete from public.quote_request_events where request_id = 979200901;
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where id = 979200901;
     delete from public.leads where dealer_code in (${รหัส}) or num_id in (${เลขลีด.join(", ")});
     delete from public.customers where dealer_code in (${รหัส}) or id = ${เลขลูกค้า};
@@ -83,7 +84,7 @@ test.beforeAll(async () => {
     insert into public.dealer_package_proposals (id, prospect_id, proposal_no, amount, status, payment_due_on) values
       (979200811, 979200801, 'DP-${สาขา}-1', 1000, 'accepted', current_date - 3);
     insert into public.audit_log ("user", role, action, target, at) values
-      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ZZTEST แก้ไขดีลเลอร์', 'RYG · ${กิจกรรมจริง}', now()),   -- ป้าย ZZTEST ที่การกระทำ: ลบได้ (ใบ 0241) แต่จอยังเห็นเป็นกิจกรรมจริง
+      ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ZZTEST แก้ไขดีลเลอร์', 'RYG · ${กิจกรรมจริง} · Q-RYG-2569-0001 · RYG-00012', now()),   -- รหัสยืนเดี่ยว + เลขเอกสาร (บอสตอบ 6 พ.ย. 69: แปลงตอนแสดงเฉพาะรหัสยืนเดี่ยว)   -- ป้าย ZZTEST ที่การกระทำ: ลบได้ (ใบ 0241) แต่จอยังเห็นเป็นกิจกรรมจริง
       ('บัญชีทดสอบชั่วคราว', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · ชั่วคราว-แดชบอร์ด-${ป้าย}', now()),
       ('live-hq-1@example.test', 'SUPER_ADMIN', 'แก้ไขดีลเลอร์', 'RYG · อีเมลทดสอบ-แดชบอร์ด-${ป้าย}', now()),
       ('ผู้ดูแลระบบสำนักงานใหญ่', 'SUPER_ADMIN', 'ปิดใช้งานดีลเลอร์', 'ZZT · สาขาทดสอบ-แดชบอร์ด-${ป้าย}', now()),
@@ -98,10 +99,12 @@ async function เปิด(page: Page) {
   await settle(page);
   await expect(page.locator("[data-kpi='sales'] [data-value]")).not.toHaveAttribute("data-value", "", { timeout: 30_000 });
 }
+/** ตัวเลือกเป็นชื่อดีลเลอร์ (ไม่มีรหัส · บอสสั่ง 6 พ.ย. 69) — หาชื่อของสาขาของข้อจากรหัส */
 async function เลือกดีลเลอร์(page: Page, code: string) {
+  const ชื่อ = ของข้อ.find(x => x.รหัส === code)?.ชื่อ ?? code;
   await page.getByRole("button", { name: /ทุกดีลเลอร์ \(ทั้งเครือ\)/ }).first().click();
-  await page.getByRole("button", { name: new RegExp(`^${code} – `) }).click();
-  await expect(page.getByRole("button", { name: new RegExp(`^${code} – `) }).first()).toBeVisible();
+  await page.getByRole("button", { name: ชื่อ, exact: true }).click();
+  await expect(page.getByRole("button", { name: ชื่อ, exact: true }).first()).toBeVisible();
 }
 // ตัวเลือกช่วงเวลา 4 ตัว (3 พ.ย. 69): "วันนี้" ไม่มีแล้ว → ช่วงกำหนดเองวันเดียว (ตัวเลขเดิมทุกตัว)
 async function เลือกช่วง(page: Page, ชื่อ: "วันนี้") {
@@ -140,7 +143,7 @@ test("[H12] [แดชบอร์ด HQ] การ์ด 4 ใบตรงก�
   expect(Number(ปีนี้.quotes), "ปีนี้: ใบที่ส่งลูกค้า = นับจากตาราง (4 · ไม่นับร่าง)").toBe(await ใบส่ง(`${ปี}-01-01`));
   expect(await ใบส่ง(`${ปี}-01-01`)).toBe(4);
   expect(Number(ปีนี้.win), "อัตราปิดการขาย = 1 ÷ (1 + 1)").toBe(50);
-  await expect(page.locator("[data-kpi='leads']"), "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลีดใหม่ของ ${สาขา}`);
+  await expect(page.locator("[data-kpi='leads']"), "ชื่อการ์ดบอกว่านับลีดของสาขาที่เลือก").toContainText(`ลูกค้าเป้าหมายใหม่ของ ${ของข้อ.find(x => x.รหัส === สาขา)?.ชื่อ ?? สาขา}`);   // ชื่อดีลเลอร์ ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   expect(JSON.stringify(ปีนี้), "เลือกดีลเลอร์แล้วตัวเลขเปลี่ยนจากทั้งเครือ").not.toBe(JSON.stringify(ทั้งเครือ));
   // ดีลเลอร์ตามภาค: เลือกสาขาของข้อ → โดนัทนับ 1 ดีลเลอร์ · ภาคของสาขานั้น (ข้อมูลของข้อเอง ตรงเป๊ะ)
   await expect(page.locator("[data-card='regions'] .donut-center .dc-val").last(), "เลือกดีลเลอร์แล้วโดนัทนับสาขาเดียว").toHaveText("1", { timeout: 30_000 });
@@ -222,6 +225,10 @@ test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บ
   await เปิด(page);
   const การ์ดกิจกรรม = page.locator("[data-card='activity']");
   await expect(การ์ดกิจกรรม, "รายการจริงต้องเห็น").toContainText(กิจกรรมจริง, { timeout: 30_000 });
+  // บันทึกเก็บรหัส "RYG · …" ไว้ — บนจอแปลงเป็นชื่อดีลเลอร์ (ตัวกลางชื่อแสดง) · เลขเอกสารที่มีรหัสในเลขไม่ถูกแปลง (บอสตอบ 6 พ.ย. 69)
+  const ชื่อRYG = ((await admin.from("dealers").select("name").eq("code", "RYG").single()).data?.name as string).trim();
+  const คาดบนจอ = `${ชื่อRYG} · ${กิจกรรมจริง} · Q-RYG-2569-0001 · RYG-00012`;
+  await expect(การ์ดกิจกรรม, "กิจกรรมล่าสุด: รหัสยืนเดี่ยวเป็นชื่อ · เลขเอกสารคงเดิม").toContainText(คาดบนจอ);
   for (const ซ่อน of [`ชั่วคราว-แดชบอร์ด-${ป้าย}`, `อีเมลทดสอบ-แดชบอร์ด-${ป้าย}`, `สาขาทดสอบ-แดชบอร์ด-${ป้าย}`, `ZZTEST-ป้าย-แดชบอร์ด-${ป้าย}`])
     await expect(การ์ดกิจกรรม, `ไม่เห็น ${ซ่อน}`).not.toContainText(ซ่อน);
   await expect(การ์ดกิจกรรม, "ไม่มีชื่อบัญชีชั่วคราว").not.toContainText("บัญชีทดสอบชั่วคราว");
@@ -239,4 +246,11 @@ test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บ
 
   await การ์ดกิจกรรม.locator("[data-activity-link]").filter({ hasText: กิจกรรมจริง }).click();
   await page.waitForURL(/\/hq\/dealers\/RYG$/, { timeout: 20_000 });
+
+  // หน้าบันทึกการใช้งาน: แปลงแบบเดียวกันตอนแสดง · ค้นด้วยรหัสยังเจอ (คำค้นใช้ข้อความดิบ)
+  await page.goto(`${HQ_ORIGIN}/hq/audit`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.getByPlaceholder("ค้นหาผู้ใช้ / การกระทำ / รายละเอียด...").fill(`RYG · ${กิจกรรมจริง}`);
+  const ช่อง = page.locator("[data-audit-target]").filter({ hasText: กิจกรรมจริง }).first();
+  await expect(ช่อง, "/hq/audit: ค้นด้วยรหัสเจอ · แสดงเป็นชื่อ · เลขเอกสารคงเดิม").toHaveText(คาดบนจอ, { timeout: 25_000 });
 });

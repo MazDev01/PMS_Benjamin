@@ -201,7 +201,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
           {!REAL_BACKEND && (
             <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3.5">
               <p className="mb-2.5 text-center text-[0.72rem] font-bold uppercase tracking-wide text-slate-500">
-                โหมดสาธิต — เข้าใช้งานได้เลย
+                โหมดข้อมูลตัวอย่าง — เข้าใช้งานได้เลย
               </p>
               <div className="flex flex-col gap-2">
                 {DEMO_LOGINS.filter(d => (isHQ ? d.scopeAll : !d.scopeAll)).map(d => (

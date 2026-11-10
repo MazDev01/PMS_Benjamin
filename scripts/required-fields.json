@@ -386,12 +386,6 @@
       "ที่มา": "ฐาน"
     },
     {
-      "file": "packages/shared/components/hq/UsersPanel.tsx",
-      "id": "us-role",
-      "ชื่อ": "บทบาท",
-      "ที่มา": "ฐาน"
-    },
-    {
       "file": "packages/shared/components/hq/DealerEditModal.tsx",
       "id": "de-name",
       "ชื่อ": "ชื่อดีลเลอร์",

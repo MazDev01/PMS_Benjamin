@@ -75,7 +75,7 @@ test("[ui·hq] เมนูจัดการผู้ใช้ HQ ไม่ม�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("tab", { name: "ผู้ใช้งานและสิทธิ์" }).or(page.getByRole("button", { name: "ผู้ใช้งานและสิทธิ์" })).first().click();
+  await page.getByRole("tab", { name: "ผู้ใช้งาน" }).or(page.getByRole("button", { name: "ผู้ใช้งาน" })).first().click();
   await page.getByTitle("จัดการ").first().click({ timeout: 20_000 });
   await expect(page.getByText("ตั้งรหัสผ่านใหม่ทันที (ไม่ต้องส่งอีเมล)")).toBeVisible();
   await expect(page.getByText(/ส่งลิงก์ทางอีเมล/), "ต้องไม่มีเมนูส่งลิงก์รีเซ็ตทางอีเมล").toHaveCount(0);

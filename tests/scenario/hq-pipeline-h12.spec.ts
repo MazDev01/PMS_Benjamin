@@ -53,6 +53,7 @@ test.afterAll(async () => {
       delete from public.quotation_won_at where dealer_code = '${s.รหัส}';
       delete from public.quotations where dealer_code = '${s.รหัส}';
       delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = '${s.รหัส}');
+      select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
       delete from public.quote_requests where dealer_code = '${s.รหัส}';
       delete from public.customers where dealer_code = '${s.รหัส}';
       delete from public.leads where dealer_code = '${s.รหัส}';
@@ -65,11 +66,18 @@ async function เปิด(page: Page) {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(page.locator("[data-perf-total]")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-testid='pipeline-table'] table[data-total]")).toBeVisible({ timeout: 30_000 });
+  // ไม่มีแถวรวมบนจอแล้ว (บอสสั่ง 6 พ.ย. 69 · ตรวจกลับด้านจากข้อเดิม "แถวรวมท้ายตาราง")
+  await expect(page.locator("[data-testid='pipeline-table'] tfoot, [data-perf-total]"), "ไม่มีแถวรวมท้ายตาราง").toHaveCount(0);
 }
 const ค่าการ์ด = (page: Page, kpi: string) => page.locator(`[data-kpi-row] [data-kpi="${kpi}"] [data-value]`).first().getAttribute("data-value");
-const ค่ารวม = (page: Page, k: string) => page.locator(`[data-perf-total] [data-sum="${k}"]`).getAttribute("data-value");
-/** แถวรวมท้ายตาราง = การ์ด ทุกตัว (รอให้ทั้งสองโหลดชุดเดียวกันเสร็จ) */
+/** ผลรวมชุดเดียวกับแถวในตาราง (หลังทุกตัวกรอง) — ตารางเก็บไว้ใน data-total (ไม่มีแถวรวมบนจอแล้ว · บอสสั่ง 6 พ.ย. 69) */
+const ค่ารวม = async (page: Page, k: string) => {
+  const j = await page.locator("[data-testid='pipeline-table'] table[data-total]").getAttribute("data-total");
+  const v = j ? (JSON.parse(j) as Record<string, unknown>)[k] : null;
+  return v == null ? null : String(v);
+};
+/** การ์ดนับชุดสาขาเดียวกับตาราง: ผลรวมของแถวในตาราง = การ์ด ทุกตัว (รอให้ทั้งสองโหลดชุดเดียวกันเสร็จ) */
 async function รวมเท่าการ์ด(page: Page, ที่: string, ทั้งเครือ = false) {
   // ต้นเหตุไม่นิ่ง (ครั้งที่ 2 · 30–31 ต.ค. 69): การ์ด (kpi_cards) กับตาราง (hq_pipeline_dealers) เป็นคำขอฐานคนละตัว
   //   ข้ออื่นที่รันพร้อมกันเพิ่มลีดปิดไม่สำเร็จระหว่างสองคำขอ → ปิดไม่สำเร็จต่างกัน 1 แต่อัตราปิด (ปัดเป็น %) ยังเท่ากัน
@@ -86,10 +94,10 @@ async function รวมเท่าการ์ด(page: Page, ที่: strin
     // โหลดใหม่ได้เฉพาะทั้งเครือ (ไม่กรอง) — ชุดที่ข้ออื่นเขียนพร้อมกันได้ · ชุดที่กรองด้วยสาขาของข้อไม่มีใครเขียน และโหลดใหม่จะล้างตัวกรอง (ห้าม)
     if (ทั้งเครือ && !Object.values(ผล).every(Boolean)) {   // อ่านคนละจังหวะ → ให้ทั้งคู่อ่านใหม่พร้อมกัน
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.locator("[data-perf-total]")).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator("[data-testid='pipeline-table'] table[data-total]")).toBeVisible({ timeout: 30_000 });
     }
     return JSON.stringify({ ...ผล, ตาราง: Object.values(ตาราง).map(n), การ์ด: Object.values(การ์ด).map(n), ปิด: [ได้, เสีย] });
-  }, { timeout: 30_000, message: `${ที่}: แถวรวมท้ายตาราง = การ์ด (ยอดขาย · อัตราปิด · ส่วนต่างกำไร · ถึงเป้า · ปิดสำเร็จ/ไม่สำเร็จ)` })
+  }, { timeout: 30_000, message: `${ที่}: ผลรวมแถวในตาราง = การ์ด (ยอดขาย · อัตราปิด · ส่วนต่างกำไร · ถึงเป้า · ปิดสำเร็จ/ไม่สำเร็จ)` })
     .toMatch(/^\{"sales":true,"rate":true,"margin":true,"onTarget":true,"won":true,"lost":true,/);
 }
 
@@ -122,7 +130,7 @@ test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์�
   // ค่าดิบ (data-value) — ข้อความบนจอย่อเป็น "฿30.3M"
   expect.soft(await แถว(A.รหัส).locator('[data-cell="target"]').getAttribute("data-value"), "A เป้าตามช่วง = เป้าทั้งปี × วัน ÷ 365").toBe(String(Number(ฐาน)));
 
-  // เลือกดีลเลอร์ (สาขาเดียว) · ช่วงยอดขาย (ตัวกรองที่ขึ้นกับตัวเลข) · ถึงเป้า (กดการ์ด) — แถวรวม = การ์ด ทุกครั้ง
+  // เลือกดีลเลอร์ (สาขาเดียว) · ช่วงยอดขาย (ตัวกรองที่ขึ้นกับตัวเลข) · ถึงเป้า (กดการ์ด) — ผลรวมแถว = การ์ด ทุกครั้ง
   await page.getByLabel("ค้นหาดีลเลอร์").fill("");
   await page.getByLabel("ทุกดีลเลอร์").selectOption(A.รหัส);
   await expect(page.locator("[data-perf-row]")).toHaveCount(1, { timeout: 20_000 });
@@ -134,11 +142,13 @@ test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์�
   await page.getByLabel("ทุกช่วงยอดขาย").selectOption("lt5");
   await รวมเท่าการ์ด(page, "ช่วงยอดขายต่ำกว่า ฿5M");
   await page.getByLabel("ทุกช่วงยอดขาย").selectOption("ALL");
-  // 30 ต.ค. 69: กดการ์ด = แผงที่มา · ปุ่มในแผง "แสดงเฉพาะดีลเลอร์ที่ถึงเป้าในตาราง" (เดิมกดการ์ดแล้วกรองทันที)
+  // 9 พ.ย. 69 (บอสสั่ง · ตรวจกลับด้าน): แผงถึงเป้าไม่มีปุ่ม "แสดงเฉพาะดีลเลอร์ที่ถึงเป้าในตาราง" แล้ว — เปิดแผงไม่เปลี่ยนตาราง ผลรวม = การ์ดเหมือนเดิม
+  //   (เดิม 30 ต.ค. 69: ปุ่มในแผงกรองตาราง · แผงใหม่ 2 กลุ่ม ตรวจที่ drill-window.spec.ts)
   await page.locator('[data-kpi-row] [data-kpi="onTarget"]').click();
-  await page.locator('[data-card-drawer="onTarget"] [data-act="only-on-target"]').click();
+  await expect(page.locator('[data-card-drawer="onTarget"]')).toBeVisible();
+  await expect(page.locator('[data-card-drawer="onTarget"] [data-act="only-on-target"]'), "ไม่มีปุ่มกรองถึงเป้าในแผง").toHaveCount(0);
   await page.getByRole("button", { name: "ปิดแผง" }).click();
-  await รวมเท่าการ์ด(page, "ถึงเป้าเท่านั้น (กดการ์ด)");
+  await รวมเท่าการ์ด(page, "หลังเปิด/ปิดแผงถึงเป้า (ตารางไม่ถูกกรอง)");
 });
 
 test("[H12·hq] โครงหน้า 3 ส่วน · เรียงได้ทุกคอลัมน์ · ข้อความไม่ถูกตัด · วงกลม % ไม่ล้นวง", async ({ page }) => {
@@ -149,12 +159,14 @@ test("[H12·hq] โครงหน้า 3 ส่วน · เรียงได
     await expect.soft(page.getByText(ชื่อ, { exact: false }), `เอาออกแล้ว: ${ชื่อ}`).toHaveCount(0);
   await expect.soft(page.getByTestId("pipeline-chart"), "กราฟเดียว: ยอดขายเทียบเป้าตามช่วง").toContainText("ยอดขาย เทียบ เป้าตามช่วง");
   const หัว = (await page.locator("table[aria-label='ตารางผลงานดีลเลอร์'] thead th").allInnerTexts()).map(s => s.trim()).filter(Boolean);
-  expect.soft(หัว, "คอลัมน์ตามที่บอสกำหนด").toEqual(["รหัส", "ดีลเลอร์", "ภูมิภาค", "ลีด", "ใบที่ส่ง", "ปิดได้", "ปิดไม่ได้", "ยังไม่รู้ผล", "อัตราปิด", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", "เสนอล่าสุด"]);
+  // 6 พ.ย. 69 บอสสั่ง: เอาคอลัมน์รหัสออก · ภูมิภาคเป็นบรรทัดเล็กใต้ชื่อ (ไม่ใช่คอลัมน์) — ข้อมูลทั้งเครือของข้อมีค่าทุกคอลัมน์ (ไม่มีคอลัมน์ที่ซ่อนเพราะว่าง)
+  expect.soft(หัว, "คอลัมน์ตามที่บอสกำหนด").toEqual(["ดีลเลอร์", "ลูกค้าเป้าหมาย", "ใบที่ส่ง", "ปิดสำเร็จ", "ปิดไม่สำเร็จ", "ยังไม่รู้ผล", "อัตราปิดการขาย", "ยอดขาย", "เป้าตามช่วง", "% เป้า", "ส่วนต่างกำไร", "เสนอล่าสุด"]);
+  await expect.soft(page.locator("table[aria-label='ตารางผลงานดีลเลอร์'] tbody tr.clickable").first().locator("[data-row-sub]"), "ภูมิภาคเป็นบรรทัดเล็กใต้ชื่อ").toHaveText(/ภาค|ไม่ระบุภูมิภาค/);
 
   // เรียงได้ทุกคอลัมน์: กดแล้วหัวบอกทิศ · กดซ้ำกลับทิศ
   await page.getByLabel("ค้นหาดีลเลอร์").fill(ป้าย);
   await expect(page.locator("[data-perf-row]")).toHaveCount(2, { timeout: 20_000 });
-  for (const k of ["code", "name", "region", "leads", "quotes", "won", "lost", "pend", "rate", "sales", "target", "pct", "marginPct", "latest"]) {
+  for (const k of ["name", "leads", "quotes", "won", "lost", "pend", "rate", "sales", "target", "pct", "marginPct", "latest"]) {
     const ปุ่ม = page.locator(`button[data-sort="${k}"]`);
     await ปุ่ม.click();
     const ทิศ1 = await ปุ่ม.locator("xpath=..").getAttribute("aria-sort");
@@ -163,7 +175,7 @@ test("[H12·hq] โครงหน้า 3 ส่วน · เรียงได
   }
   await page.locator('button[data-sort="sales"]').click();
   if (await page.locator('button[data-sort="sales"]').locator("xpath=..").getAttribute("aria-sort") !== "descending") await page.locator('button[data-sort="sales"]').click();
-  expect.soft(await page.locator("[data-perf-row]").allInnerTexts(), "เรียงยอดขายมากไปน้อย: A (400,000) ก่อน B (150,000)").toEqual([A.รหัส, B.รหัส]);
+  expect.soft(await page.locator("[data-perf-row]").evaluateAll(es => es.map(e => e.getAttribute("data-perf-row"))), "เรียงยอดขายมากไปน้อย: A (400,000) ก่อน B (150,000)").toEqual([A.รหัส, B.รหัส]);
 
   // ข้อความไม่ถูกตัดที่จอกว้าง (หัวคอลัมน์ · รหัส · ชื่อ · ภาค · ตัวเลข)
   const ตัด = await page.locator("table[aria-label='ตารางผลงานดีลเลอร์']").evaluate(t =>

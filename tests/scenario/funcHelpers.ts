@@ -335,6 +335,10 @@ export async function เปิดฟอร์มทำใบจากใบHQ(p
   const ใบ = await ใบHQให้ลูกค้าเป้าหมายเดิม(dealerCode === "RYG" ? RYG : CNX, dealerCode, Number(lead!.num_id), lines);
   const origin = page.url().startsWith(HQ_ORIGIN) ? HQ_ORIGIN : DEALER_ORIGIN;
   await page.goto(`${origin}/leads`, { waitUntil: "domcontentloaded" });
+  // ต้นเหตุตกรอบตรวจเต็ม 9 พ.ย. 69: กดปุ่มดูรายละเอียดตอนการ์ด KPI ยังขึ้น "ยังไม่มีข้อมูล" (1 บรรทัด) — โหลดเสร็จการ์ดสูงขึ้น
+  //   ดันตารางลง 16px ระหว่างกด การกดลงผิดที่ แผงไม่เปิด (trace: จุดกด y=545 · ปุ่มจริง y=561) → รอการ์ดได้ค่าจากฐานครบ 4 ใบก่อนกด
+  await expect(page.getByRole("group", { name: "สรุปลูกค้าเป้าหมาย" }).locator("[data-value]:not([data-value=\"\"])"),
+    "การ์ด KPI หน้าลูกค้าเป้าหมายโหลดค่าครบก่อนกด (กันหน้าขยับระหว่างกด)").toHaveCount(4, { timeout: 20_000 });
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row = page.locator("tbody tr").filter({ hasText: company }).first();
@@ -348,6 +352,21 @@ export async function เปิดฟอร์มทำใบจากใบHQ(p
 
 // (งานตามเส้นทาง / งานก่อนหน้าครบถึง เอาออก 28 ต.ค. 69 — อ่านแม่แบบงานแบบเก่าที่ผูกสถานะลีด (stage) · ไม่มีที่เรียกแล้ว · แม่แบบใหม่ผูกขั้น 1–5)
 
+/** นำเข้าไฟล์ผ่านเมนูนำเข้า ตัวกลาง (ImportMenu · บอสสั่ง 5 พ.ย. 69): กดปุ่มเมนู → เลือก Excel/CSV → หน้าต่างเลือกไฟล์เปิดทันที
+ *  ตรวจว่าหน้าต่างเลือกไฟล์รับเฉพาะนามสกุลของตัวเลือก (accept) แล้วใส่ไฟล์ */
+export async function นำเข้าผ่านเมนู(page: Page, ปุ่ม: string, ชนิด: "xlsx" | "csv",
+  ไฟล์: string | { name: string; mimeType: string; buffer: Buffer }) {
+  await page.getByRole("button", { name: ปุ่ม }).first().click();
+  const เมนู = page.getByRole("menu", { name: ปุ่ม });
+  await expect(เมนู).toBeVisible();
+  const [หน้าต่าง] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 15_000 }),
+    เมนู.locator(`[data-import-option="${ชนิด}"]`).click(),
+  ]);
+  expect(await หน้าต่าง.element().getAttribute("accept"), `เลือก ${ชนิด} = รับเฉพาะ .${ชนิด}`).toBe(`.${ชนิด}`);
+  await หน้าต่าง.setFiles(ไฟล์);
+}
+
 /** เพิ่มลูกค้าหนึ่งรายผ่านหน้าจอจริง ด้วยการ "นำเข้าไฟล์" (ต้องอยู่ที่หน้า /customers แล้ว)
  *  ปุ่ม "คีย์เองทีละราย" ถูกเอาออกตามที่บอสสั่ง 2 ก.ย. 69 — ทางเดียวที่ดีลเลอร์เพิ่มลูกค้าเดิมได้คือไฟล์
  *  ไฟล์ที่ป้อนใช้หัวตารางชุดเดียวกับเทมเพลตที่ระบบแจก (ดู CSV_HEADERS ในหน้าลูกค้า) */
@@ -358,8 +377,7 @@ export async function นำเข้าลูกค้าหนึ่งรา�
   const หัว = "บริษัท,ผู้ติดต่อ,โทรศัพท์,อีเมล,ที่อยู่,จังหวัด,เป็นลูกค้าเมื่อ,ผู้รับผิดชอบ";
   const แถว = [company, ข้อมูล.ผู้ติดต่อ ?? "คุณทดสอบ", ข้อมูล.โทรศัพท์ ?? "0800000000", "", "",
     ข้อมูล.จังหวัด ?? "ระยอง", "", ""].join(",");
-  await page.getByRole("button", { name: "นำเข้าลูกค้าเดิม" }).click();
-  await page.getByLabel("นำเข้าลูกค้าจากไฟล์").setInputFiles({
+  await นำเข้าผ่านเมนู(page, "นำเข้าลูกค้าเดิม", "csv", {
     name: "ลูกค้าเดิม.csv", mimeType: "text/csv",
     buffer: Buffer.from("\ufeff" + หัว + "\n" + แถว, "utf8"),
   });

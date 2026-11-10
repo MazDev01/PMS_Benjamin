@@ -33,7 +33,7 @@ import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 
 // ป้ายตำแหน่งตาม role (ใช้ในบัญชีดีลเลอร์)
 const ROLE_LABEL: Record<string, string> = {
-  HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "เซลส์", DEALER_SITE: "เซลส์ภาคสนาม",
+  HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "พนักงานขาย", DEALER_SITE: "พนักงานขายภาคสนาม",
 };
 
 type SettingTab = "company" | "documents" | "persons" | "leadRules" | "notifications";
@@ -268,7 +268,7 @@ const DOC_DEFAULT: DocumentSettings = {
   whtPercent:          3,
   validityDays:        30,
   termsAndConditions:
-    "ราคานี้มีผลภายใน 30 วัน นับจากวันที่ออกใบเสนอราคา\n" +
+    "ยืนราคา 30 วัน นับจากวันที่ออกใบเสนอราคา\n" +
     "บริษัทขอสงวนสิทธิ์เปลี่ยนแปลงราคาโดยไม่แจ้งล่วงหน้า\n" +
     "การยืนยันการสั่งซื้อจะมีผลเมื่อได้รับเงินมัดจำเท่านั้น",
   header:    "",
@@ -467,7 +467,7 @@ function DocumentsTab() {
         <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 18 }}>
           <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#003366", letterSpacing: "0.05em", marginBottom: 12,
             textTransform: "uppercase" }}>
-            ตราประทับ & ลายเซ็นดิจิทัล
+            ตราประทับและลายเซ็นดิจิทัล
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20 }}>
             <ImageUploadBox

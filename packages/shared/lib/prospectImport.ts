@@ -180,10 +180,16 @@ const ชื่อหัวที่รู้จัก: Record<ช่องน�
   followUp: ["ติดตาม", "นัดติดตาม", "วันติดตาม", "วันติดตาม(ที่ผ่านมา)", "followup", "follow"],
   type: ["type", "ประเภท", "ประเภทธุรกิจ"],
   note: ["หมายเหตุ", "หมายหตุ", "remark", "remarks"],
-  note2: ["note", "notes"],
+  note2: ["note", "notes", "หมายเหตุเพิ่มเติม"],
   channel: ["channel", "ช่องทาง", "แหล่งที่มา", "source"],
 };
 const คีย์หัว = (s: string) => String(s ?? "").toLowerCase().replace(/\s+/g, "");
+/** หัวตารางของแบบฟอร์มตัวอย่าง (ปุ่มนำเข้า › ดาวน์โหลดแบบฟอร์มตัวอย่าง · บอสสั่ง 5 พ.ย. 69)
+ *  ทุกหัวอยู่ในชื่อหัวที่รู้จัก → นำเข้ากลับ จับคู่ครบทุกช่องเอง (tests/unit/prospectImportSheet.test.ts ตรวจ) */
+export const หัวแบบฟอร์มผู้สนใจ: Record<ช่องนำเข้า, string> = {
+  name: "ชื่อ", social: "ชื่อในโซเชียล", phone: "เบอร์โทร", province: "จังหวัด", firstContact: "เริ่มติดต่อ",
+  followUp: "วันติดตาม (ที่ผ่านมา)", note: "หมายเหตุ", type: "ประเภท", channel: "แหล่งที่มา", note2: "หมายเหตุเพิ่มเติม",
+};
 export type การจับคู่ = Partial<Record<ช่องนำเข้า, number>>;
 /** เดาว่าคอลัมน์ไหนเป็นช่องอะไรจากแถวหัวตาราง */
 export function เดาคอลัมน์(หัว: string[]): การจับคู่ {

@@ -33,6 +33,8 @@ import { fmtBaht } from "@pms/shared/lib/format";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { ลิงก์กิจกรรม, type HqDashboard } from "@pms/shared/lib/hqDashboard";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
+import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626"];
@@ -58,6 +60,9 @@ export default function HQDashboard() {
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
   const [dealerSel, setDealerSel] = useState<string>("all");
   const selDealer = dealerSel === "all" ? null : allDealers.find(d => d.code === dealerSel) ?? null;
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสตอบ 6 พ.ย. 69)
+  const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(allDealers), [allDealers]);
+  const แทนรหัส = useแทนรหัสในบันทึก();
 
   const [ข้อมูล, setข้อมูล] = useState<HqDashboard | null>(null);
   const [err, setErr] = useState("");
@@ -106,7 +111,7 @@ export default function HQDashboard() {
 
   const activity = useMemo<ActivityTimelineItem[]>(() => (ข้อมูล?.activity ?? []).map(e => ({
     id: e.id, type: AUDIT_ICON[hqAuditCategory(e.action)] ?? "note", label: e.action,
-    text: `${e.user} · ${e.target}`, time: เวลาไทย(e.at), href: ลิงก์กิจกรรม(e),
+    text: `${e.user} · ${แทนรหัส(e.target)}`, time: เวลาไทย(e.at), href: ลิงก์กิจกรรม(e),   // รหัสดีลเลอร์ → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69)
   })), [ข้อมูล]);
 
   const c = ข้อมูล?.cards;
@@ -119,7 +124,7 @@ export default function HQDashboard() {
     <div className="erp">
       <TopbarActions>
         <SelectFilter caption="ทุกดีลเลอร์ (ทั้งเครือ)" value={dealerSel}
-          options={allDealers.map(d => ({ value: d.code, label: `${d.code} – ${d.name}` }))}
+          options={allDealers.map(d => ({ value: d.code, label: ชื่อแสดง(d.code, d.name) }))}
           onChange={setDealerSel} />
         <FilterBar dims={[]} />
       </TopbarActions>
@@ -144,7 +149,7 @@ export default function HQDashboard() {
                 <Link href="/hq/quote-requests?overdue=1" data-testid="today-requests" className="clickable"
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", border: "1px solid #e6eaf0", borderRadius: 12, textDecoration: "none", color: "inherit" }}>
                   <ClipboardList size={18} color={PRIMARY} />
-                  <span style={{ fontSize: "0.82rem", color: "#374151" }}>คำขอราคารอตีราคา</span>
+                  <span style={{ fontSize: "0.82rem", color: "#374151" }}>คำขอใบเสนอราคารอตีราคา</span>
                   <b data-value={td.requestsOpen} style={{ fontSize: "1.05rem", color: PRIMARY }}>{td.requestsOpen}</b>
                   {td.requestsOverdue > 0 && (
                     <span data-testid="today-overdue" data-value={td.requestsOverdue} style={{ fontSize: "0.78rem", fontWeight: 800, color: "#dc2626" }}>
@@ -171,12 +176,12 @@ export default function HQDashboard() {
         <KpiCard kpi="sales" label="ยอดขาย (ใบที่ลูกค้าตอบรับ ก่อน VAT)" value={c ? fmtBaht(c.sales) : null} rawValue={c?.sales ?? null} empty="กำลังโหลด…"
           sub={<span data-target={c?.target ?? ""}>{!c ? " " : c.target == null ? "ยังไม่ได้ตั้งเป้า" : `เป้า ${fmtBaht(c.target)} (เฉลี่ยตามช่วง ${ช่วงคำ})`}</span>}
           ring={c && c.target ? Math.round(c.sales / c.target * 100) : null} icon={Target} actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/pipeline")} />
-        <KpiCard kpi="leads" label={selDealer ? `ลีดใหม่ของ ${selDealer.code}` : "ลีดใหม่ทั้งเครือ"} value={c ? c.leadsNew.toLocaleString("th-TH") : null} rawValue={c?.leadsNew ?? null}
+        <KpiCard kpi="leads" label={selDealer ? `ลูกค้าเป้าหมายใหม่ของ ${ชื่อแสดง(selDealer.code, selDealer.name)}` : "ลูกค้าเป้าหมายใหม่ทั้งเครือ"} value={c ? c.leadsNew.toLocaleString("th-TH") : null} rawValue={c?.leadsNew ?? null}
           unit="ราย · เข้ามาในช่วงที่เลือก" empty="กำลังโหลด…" icon={Users2} color="#7C3AED" bg="#F0EBFB" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/leads")} />
         <KpiCard kpi="quotes" label="ใบเสนอราคาที่ส่งลูกค้า" value={c ? c.quotesSent.toLocaleString("th-TH") : null} rawValue={c?.quotesSent ?? null}
           unit="ใบ · ออกในช่วงที่เลือก (ไม่นับร่าง/ถูกแทนที่)" empty="กำลังโหลด…" icon={FileText} color="#0891B2" bg="#E6F4F9" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/quotations")} />
         <KpiCard kpi="winrate" label={ชื่ออัตราปิดการขาย} value={อัตรา == null ? null : `${อัตรา}%`} rawValue={อัตรา}
-          unit={c ? `ลีดปิดสำเร็จ ${c.closedWon} · ไม่สำเร็จ ${c.closedLost}` : " "} empty={c ? "ยังไม่มีลีดที่ปิด" : "กำลังโหลด…"}
+          unit={c ? `ลูกค้าเป้าหมายปิดสำเร็จ ${c.closedWon} · ไม่สำเร็จ ${c.closedLost}` : " "} empty={c ? "ยังไม่มีลูกค้าเป้าหมายที่ปิด" : "กำลังโหลด…"}
           icon={Percent} color="#D97706" bg="#FEF0E6" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/pipeline")} />
       </KpiRow>
 
@@ -249,14 +254,14 @@ export default function HQDashboard() {
       <div className="hq-row2b" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem" }}>
         <div className="card" data-card="bars" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
           <div className="card-header">
-            <div className="card-title">ลีดใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)</div>
-            <MonthRangeToggle value={barRange} onChange={setBarRange} label="ช่วงเวลากราฟลีดใหม่·ใบที่ส่ง·ปิดสำเร็จ" />
+            <div className="card-title">ลูกค้าเป้าหมายใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)</div>
+            <MonthRangeToggle value={barRange} onChange={setBarRange} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่·ใบที่ส่ง·ปิดสำเร็จ" />
           </div>
           <div className="card-body" style={{ paddingTop: 4, flex: 1 }}>
             {barมีข้อมูล ? (
               <GroupedBarChart months={barRows.map(r => TH_ABBR[r.m])} vw={820} height={260} fmt={v => `${Math.round(v)}`}
                 series={[
-                  { name: "ลีดใหม่", color: "#003366", data: barRows.map(r => r.leads) },
+                  { name: "ลูกค้าเป้าหมายใหม่", color: "#003366", data: barRows.map(r => r.leads) },
                   { name: "ใบที่ส่ง", color: "#0891b2", data: barRows.map(r => r.quotes) },   // ใบที่ส่งลูกค้า ไม่นับร่าง/ถูกแทนที่ (ใบ 0268)
                   { name: "ปิดสำเร็จ", color: "#10B981", data: barRows.map(r => r.won) },   // คำเดียวกับขั้นตอนกลาง (บอสสั่ง 30 ต.ค. 69)
                 ]} />
@@ -287,7 +292,7 @@ export default function HQDashboard() {
           <div className="card-body" style={{ paddingTop: 4, display: "flex", flexDirection: "column", gap: 9 }}>
             {!ข้อมูล ? <กรอบว่าง text="กำลังโหลด…" h={200} /> : ข้อมูล.top.length === 0 ? <กรอบว่าง text="ยังไม่มียอดขายในช่วงนี้" h={200} /> : (<>
               <div style={{ display: "flex", fontSize: "0.68rem", color: "var(--muted-foreground)", paddingLeft: 26, gap: 8 }}>
-                <span style={{ flex: 1 }} /><span style={{ flex: "0 0 52px", textAlign: "right" }}>ยอดขาย</span><span style={{ flex: "0 0 38px", textAlign: "right" }}>% เป้า</span><span style={{ flex: "0 0 52px", textAlign: "right" }}>อัตราปิด</span>
+                <span style={{ flex: 1 }} /><span style={{ flex: "0 0 52px", textAlign: "right" }}>ยอดขาย</span><span style={{ flex: "0 0 38px", textAlign: "right" }}>% เป้า</span><span style={{ flex: "0 0 52px", textAlign: "right" }}>อัตราปิดการขาย</span>
               </div>
               {(() => { const max = Math.max(...ข้อมูล.top.map(d => d.sales), 1); return ข้อมูล.top.map((d, i) => {
                 const อัตราสาขา = อัตราปิดการขาย(d.closedWon, d.closedLost);

@@ -42,6 +42,22 @@ const container = `supabase_db_${projectId}`;
 if (ฐานมีตัวกัน()) ขอล็อกฐานทดสอบ("reset-test-db");
 console.log(`\n🎯 ฐานทดสอบในเครื่อง: ${projectId} · ${API}`);
 
+// ── เครื่องหมายฐานทดสอบ (ใบ 0280 · คนรวมงานสั่ง 9 พ.ย. 69) ─────────────────────────────────────────────────────────────
+//   ตาราง public._pms_test_database = "ฐานนี้เป็นฐานทดสอบ/ฐาน dev ในเครื่อง" — ตัวกันลบคำขอราคา (quote_requests_no_delete) ยอมให้ชุดล้างข้อมูลทดสอบ
+//   (สวิตช์ pms.quote_request_delete = 'test') ลบคำขอของสาขาตั้งต้น (RYG ฯลฯ) ได้เฉพาะฐานที่มีตารางนี้ · ฐานจริงไม่มี = ลบได้เฉพาะสาขาทดสอบ ZZ…
+//   สร้างที่นี่ที่เดียว (ตัวตรวจ check-test-db-marker) — ห้ามอยู่ในใบปรับฐาน · ชุดล้างเว็บจริง · สคริปต์ที่ชี้ฐานจริง
+//   --marker-only: ใส่เครื่องหมายอย่างเดียวแล้วจบ (ฐานทดสอบ/ฐาน dev ที่สร้างไว้ก่อนมีเครื่องหมาย) · ทำซ้ำได้
+const ใส่เครื่องหมายฐานทดสอบ = () => sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"], { shell: false, stdio: ["pipe", "ignore", "inherit"],
+  input: "create table if not exists public._pms_test_database (ตั้งเมื่อ timestamptz not null default now());\n"
+    + "revoke all on table public._pms_test_database from public, anon, authenticated, service_role;\n"
+    + "alter table public._pms_test_database enable row level security;\n"   // ทุกตารางใน public ต้องเปิดกฎสิทธิ์รายแถว (ข้อทดสอบ no_temp_password_gate)
+    + "comment on table public._pms_test_database is 'เครื่องหมายฐานทดสอบในเครื่อง (scripts/reset-test-db.mjs) — ห้ามมีบนฐานจริง';" });
+if (process.argv.includes("--marker-only")) {
+  ใส่เครื่องหมายฐานทดสอบ();
+  console.log("✓ ใส่เครื่องหมายฐานทดสอบแล้ว (public._pms_test_database)");
+  process.exit(0);
+}
+
 // ── ① ลงใบทั้งหมดใหม่ ─────────────────────────────────────────────────────────────────────────────
 //   --migrations-from <โฟลเดอร์>: ใบชุดของโฟลเดอร์นั้น (ฐานทดสอบตรงกับไฟล์ของผู้ถือล็อก · scripts/lib/testDbSchema.mjs) — คัดทับทั้งชุดก่อนล้าง
 const ใบจาก = arg("--migrations-from");
@@ -83,6 +99,10 @@ select q.dealer_code, q.id, coalesce(h.ordered_at,
   from public.quotations q left join public.hq_quotes h on h.id = q.hq_quote_id
  where q.status = 'won'
 on conflict (dealer_code, quote_id) do nothing;` });
+
+// ── ②ง เครื่องหมายฐานทดสอบ (ดูหัวไฟล์ส่วนเครื่องหมาย) — ฐานที่ล้างใหม่ไม่มีตารางนี้ ──────────────────────────────────────
+console.log("②ง เครื่องหมายฐานทดสอบ …");
+ใส่เครื่องหมายฐานทดสอบ();
 
 // ── ③ บัญชีทดสอบ ──────────────────────────────────────────────────────────────────────────────────
 const ไฟล์ = readEnvFile("tests/.env.test");

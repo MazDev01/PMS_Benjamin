@@ -2,6 +2,13 @@
 -- รันหลัง run.mjs files · ทรานแซกชันเดียว · ปลดตัวกันลบชั่วคราวแล้วเปิดคืนในทรานแซกชันเดียวกัน
 -- ด่านกันพลาด: ถ้าสาขา ZZT ไม่ใช่สาขาทดสอบ (ชื่อไม่ตรง) → ยกเลิกทั้งหมด
 begin;
+-- ด่านแรก (5 พ.ย. 69): บัญชีที่รันต้องข้ามกฎสิทธิ์รายแถวได้ — ไม่ได้ = ทุกตารางที่มีกฎ (dealers · leads · audit_log …) มองเห็น/ลบได้ 0 แถว
+--   ด่านกันพลาดข้างล่างทุกข้อจะผ่านเงียบ ๆ (หาแถวที่ผิดไม่เจอ) และตรวจ "เหลือ 0" ก็ผ่านเท็จ → ยกเลิกทั้งชุดก่อนแตะอะไร
+do $$ begin
+  if not coalesce((select rolsuper or rolbypassrls from pg_roles where rolname = current_user), false) then
+    raise exception 'role_no_bypassrls: บัญชีที่รัน (%) ข้ามกฎสิทธิ์รายแถวไม่ได้ — มองไม่เห็นทุกแถว ผลนับ/ลบเชื่อไม่ได้ ยกเลิกทั้งชุด', current_user;
+  end if;
+end $$;
 do $$ begin
   if exists (select 1 from public.dealers where code = 'ZZT' and name <> 'สาขาทดสอบชั่วคราว (ลบทิ้ง)') then
     raise exception 'ZZT ไม่ใช่สาขาทดสอบ — ยกเลิก';
@@ -57,6 +64,7 @@ delete from public.quotations where dealer_code = 'ZZT';
 delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = 'ZZT');
 update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'ZZT';
 delete from public.quote_request_events where request_id in (select id from public.quote_requests where dealer_code = 'ZZT');
+select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
 delete from public.quote_requests where dealer_code = 'ZZT';
 delete from public.files where dealer_code = 'ZZT';
 delete from public.customer_notes where dealer_code = 'ZZT';
@@ -84,6 +92,7 @@ delete from public.quotations where dealer_code = 'ZZTN';
 delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = 'ZZTN');
 update public.quote_requests set supersedes_id = null, root_id = null where dealer_code = 'ZZTN';
 delete from public.quote_request_events where request_id in (select id from public.quote_requests where dealer_code = 'ZZTN');
+select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
 delete from public.quote_requests where dealer_code = 'ZZTN';
 delete from public.files where dealer_code = 'ZZTN';
 delete from public.customer_notes where dealer_code = 'ZZTN';
@@ -104,9 +113,12 @@ delete from public.dealers where code = 'ZZTN';
 -- ⚠️ ต้องอยู่หลังลบแถวสาขา ZZT ทั้งหมด: ลบแถวสาขาทำให้ฐานจดบันทึกการใช้งานใหม่ (ใบ 0240) — เดิมอยู่ก่อน → เหลือแถวทดสอบค้าง 6 แถวบนฐานจริง 27 ต.ค. 69
 --   ข้อทดสอบลำดับ: tests/tools/audit-cleanup.test.mjs
 -- ═══ บันทึกการใช้งาน (ใบ 0240 ให้ฐานบันทึกเอง · ใบ 0241 กันแก้/ลบ · บอสสั่ง 26 ต.ค. 69) ═══
+--   ล็อกตารางก่อนตรวจ/ลบ (5 พ.ย. 69): ด่านปนแถวจริงข้างล่าง + การลบ + สรุปการลบ เห็นแถวชุดเดียวกัน (ทรานแซกชันอื่นเพิ่มแถวแทรกระหว่างนั้นไม่ได้ — รอจนจบ)
+--   ขั้นนับใน run.mjs (ก่อนเริ่มไฟล์นี้) เป็นค่าอ้างอิง · จำนวนที่ลบจริง = สรุปการลบที่ฐานจด
 --   ลบเฉพาะแถวของสาขาทดสอบ ZZT และบัญชีชั่วคราว live-* (ชื่อแสดง 'บัญชีทดสอบชั่วคราว' = บัญชี live-* ที่ run.mjs สร้าง)
 --   นับก่อนลบ: tests/prod-live/cleanup-audit-count.sql (เงื่อนไขชุดเดียวกัน — แก้ที่หนึ่งต้องแก้อีกที่ · ข้อทดสอบ audit-cleanup.test.mjs)
 --   ด่านกันพลาด: เงื่อนไขนี้จับแถวที่ไม่ใช่แถวทดสอบได้แม้แถวเดียว → ยกเลิกทั้งชุด (ตัวดักใบ 0241 ก็ปฏิเสธซ้ำอีกชั้น)
+lock table public.audit_log in share row exclusive mode;
 do $$ begin
   if to_regprocedure('public._audit_is_test_row(text,text,text)') is not null and exists (
        select 1 from public.audit_log

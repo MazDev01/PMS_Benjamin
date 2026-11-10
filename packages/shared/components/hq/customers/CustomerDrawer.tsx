@@ -14,6 +14,7 @@ import { useCustomerNotesForDealer } from "@pms/shared/lib/useCustomerNotes";
 import { type CustomerDbRow, type PurchasedBuilding } from "@pms/shared/lib/customerDb";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { ชื่อภาค } from "@pms/shared/lib/provinces";
+import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 
 const noteColorOf = (cat: string) =>
   (noteCategoryColor as Record<string, { bg: string; text: string; dot: string }>)[cat] ?? noteCategoryColor["ทั่วไป"];
@@ -47,6 +48,7 @@ function BuildingCard({ b }: { b: PurchasedBuilding }) {
 }
 
 export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; onClose: () => void }) {
+  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   // ต้องเรียก hook ก่อน early-return เสมอ (Rules of Hooks) — dealerCode ว่างตอน row ยังไม่มา ก็ไม่ยิง fetch
   const { notes: dealerNotes } = useCustomerNotesForDealer(row ? dealerCodeOf(row) : "");
   if (!row) return null;
@@ -79,8 +81,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             <PanelRow icon={Repeat} label="ลูกค้าซื้อซ้ำ" value={row.isRepeat ? "ใช่" : "ไม่ใช่"} />
           </PanelSection>
           <PanelSection icon={Store} title="ดีลเลอร์ที่ดูแล">
-            <PanelRow icon={IdCard} label="รหัสดีลเลอร์" value={row.dealerCode} />
-            <PanelRow icon={Store} label="ดีลเลอร์" value={row.dealerName} />
+            <PanelRow icon={Store} label="ดีลเลอร์" value={ชื่อของ(row.dealerCode, row.dealerName)} />
           </PanelSection>
           <PanelSection icon={Wallet} title="สรุปการซื้อ">
             <PanelRow icon={Wallet} label="ยอดซื้อรวม" value={row.totalRevenue > 0 ? fmtBaht(row.totalRevenue) : undefined} strong />
@@ -141,7 +142,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             <span>รวมจากใบที่ปิดการขาย</span><span>{fmtBaht(totalBought)}</span>
           </div>
         </PanelSection>
-      ) : <Empty text="ไม่มีใบเสนอราคาที่ปิดการขายได้ผูกกับลูกค้ารายนี้" />,
+      ) : <Empty text="ไม่มีใบเสนอราคาที่ปิดการขายสำเร็จผูกกับลูกค้ารายนี้" />,
     },
     // ⚠️ เคยมีแท็บ "การส่งมอบ" ตรงนี้ — ลบทั้งแท็บแล้ว (บอสสั่ง 20 ส.ค. 69)
     //    ไม่มีที่กรอกวันส่งมอบจริงทั้งฝั่งดีลเลอร์และสำนักงานใหญ่ · ที่โชว์อยู่คือ
@@ -171,7 +172,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
               </div>
             ))}
         </PanelSection>
-      ) : <Empty text="ยังไม่มีเหตุการณ์ — ไทม์ไลน์เริ่มจากใบที่ปิดการขายได้" />,
+      ) : <Empty text="ยังไม่มีเหตุการณ์ — ไทม์ไลน์เริ่มจากใบที่ปิดการขายสำเร็จ" />,
     },
   ];
 
@@ -180,7 +181,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
       label="รายละเอียดลูกค้า"
       onClose={onClose}
       title={row.name}
-      subtitle={`${row.dealerCode} · ${row.dealerName} · ${row.province}`}
+      subtitle={`${ชื่อของ(row.dealerCode, row.dealerName)} · ${row.province}`}
       badges={[
         { ข้อความ: row.totalRevenue > 0 ? fmtBaht(row.totalRevenue) : "ยังไม่มียอดซื้อ" },
         ...(row.buildings.length ? [{ ข้อความ: `${row.buildings.length} อาคาร` }] : []),
@@ -188,7 +189,6 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
       ]}
       tabs={tabs}
       footerNote="สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของลูกค้า"
-      width={460}
     />
   );
 }

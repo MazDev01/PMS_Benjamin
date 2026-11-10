@@ -22,7 +22,7 @@ const ไทย = new Date(Date.now() + 7 * 3600_000);
 const วันนี้ = ไทย.toISOString().slice(0, 10);
 const เมื่อวาน = new Date(ไทย.getTime() - 86_400_000).toISOString().slice(0, 10);
 const ฐานเลข = 1_500_000_000 + Math.floor(Math.random() * 500_000) * 100;   // เลขแถวของรอบนี้ (ไม่ชนช่วงเลขตายตัวของไฟล์อื่น)
-// ลีด: เปิดอยู่ 7 (ตราด 3 · สกลนคร 4) · รอราคา HQ 1 · ได้ราคา HQ 1 · รอลูกค้าตอบ 2 · ปิดสำเร็จ 3 · ปิดไม่สำเร็จ 1
+// ลีด: เปิดอยู่ 7 (ตราด 3 · สกลนคร 4) · รอราคา HQ 1 · ได้ราคา HQ 1 · เสนอราคาลูกค้า 2 (ส่งใบแล้ว · ยุบ 4 ขั้น ใบ 0284) · ปิดสำเร็จ 3 · ปิดไม่สำเร็จ 1
 const ลีดของข้อ: [string, string][] = [["WAITING", "ตราด"], ["BULLET", "ตราด"], ["HQ_PRICING", "ตราด"], ["WAITING", "สกลนคร"], ["HQ_QUOTED", "สกลนคร"],
   ["QUOTED", "สกลนคร"], ["QUOTED", "สกลนคร"], ["PAID", "สกลนคร"], ["PAID", "สกลนคร"], ["PAID", "สกลนคร"], ["CANCELLED", "ตราด"]];
 
@@ -56,7 +56,7 @@ test.afterAll(async () => {
 // คีย์การ์ดบนจอ (data-kpi) → ช่องในผลของ kpi_cards
 const ดีลเลอร์: { ที่: string; หน้า: string; การ์ด: [string, string][] }[] = [
   { ที่: "/dashboard", หน้า: "dealer.dashboard", การ์ด: [["target", "target.annual"], ["pipeline", "pipeline.value"], ["awaiting", "awaiting.count"], ["won", "won.count"]] },
-  { ที่: "/leads", หน้า: "dealer.leads", การ์ด: [["open", "open"], ["hq-pricing", "hqPricing"], ["hq-quoted", "hqQuotedNoDraft"], ["awaiting-client", "awaitingClient"]] },
+  { ที่: "/leads", หน้า: "dealer.leads", การ์ด: [["open", "open"], ["hq-pricing", "hqPricing"], ["hq-quoted", "hqQuotedNoDraft"], ["quote-stage", "quoteStage"]] },
   { ที่: "/quotations", หน้า: "dealer.quotations", การ์ด: [["drafts", "drafts"], ["awaiting", "awaiting"], ["won", "won.count"], ["expiring", "expiring"]] },
   { ที่: "/customers", หน้า: "dealer.customers", การ์ด: [["total", "total"], ["new", "new"], ["sales", "sales"], ["openDeal", "openDeal"]] },
   { ที่: "/calendar", หน้า: "dealer.calendar", การ์ด: [["today", "today"], ["week", "week"], ["overdue", "overdue"], ["doneWeek", "doneWeek"]] },
@@ -141,11 +141,11 @@ test("[kpi·dealer] ลูกค้าเป้าหมาย: กดการ�
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
-  for (const k of ["hq-pricing", "hq-quoted", "awaiting-client"]) {
+  for (const k of ["hq-pricing", "hq-quoted", "quote-stage"]) {
     const การ์ด = page.locator(`[data-kpi="${k}"]`);
     await expect(การ์ด.locator("[data-value]")).not.toHaveAttribute("data-value", "", { timeout: 20_000 });
     const ค่า = Number(await การ์ด.locator("[data-value]").getAttribute("data-value"));
-    expect(ค่า, `${k}: ตัวเลขบนการ์ด = ลีดของสาขาที่วางไว้`).toBe({ "hq-pricing": 1, "hq-quoted": 1, "awaiting-client": 2 }[k]);
+    expect(ค่า, `${k}: ตัวเลขบนการ์ด = ลีดของสาขาที่วางไว้`).toBe({ "hq-pricing": 1, "hq-quoted": 1, "quote-stage": 2 }[k]);
     await การ์ด.click();
     const แถว = page.locator("tbody tr[data-lead-row], tbody tr").filter({ hasNot: page.locator("td[colspan]") });
     if (ค่า <= 10) await expect(แถว, `กด ${k}: ตารางเหลือ ${ค่า} แถว`).toHaveCount(ค่า, { timeout: 15_000 });

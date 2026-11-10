@@ -6,6 +6,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, HQ_ORIGIN } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
+import { รันSQLในฐาน } from "./localDb";
 
 // ── คำขอเกิน 14 วัน → อีเมลสรุปจริงหนึ่งฉบับต่อวัน (เงื่อนไขปิดด่าน 1 · รอบ 4 ใบ 0231: สรุปรวมวันละครั้ง ไม่แจ้งทีละคำขอ) ──────
 //
@@ -44,7 +45,8 @@ test.afterAll(async () => {
   if (คำขอ) {
     await admin.from("email_outbox").delete().eq("ref_table", "quote_requests").eq("ref_id", String(คำขอ));
     await admin.from("notifications").delete().like("dedupe_key", `%:${คำขอ}`);
-    await admin.from("quote_requests").delete().eq("id", คำขอ);
+    // คำขอราคาลบไม่ได้ทุกทาง (ใบ 0280) — ข้อทดสอบลบแถวของตัวเองที่ฐานทดสอบด้วยสวิตช์ชุดล้างข้อมูลทดสอบ
+    รันSQLในฐาน(`select set_config('pms.quote_request_delete', 'test', false); delete from public.quote_requests where id = ${Number(คำขอ)};`);
   }
   if (ลีด) await admin.from("leads").delete().eq("dealer_code", "CNX").eq("num_id", ลีด);
   ปล่อยแถว();
@@ -98,5 +100,5 @@ test("[email] คำขอเกิน 14 วัน → อีเมลสรุ
   // รอบถัดไปวันเดียวกัน: ไม่มีสรุปซ้ำ
   await request.get(`${HQ_ORIGIN}/api/cron/send-email`, { headers: { authorization: `Bearer ${CRON_SECRET}` } });
   expect((await สรุป()).length, "สรุปคำขอค้างแจ้งวันละครั้ง").toBe(1);
-  expect((await ในกล่อง()).some(s => s.startsWith("คำขอราคาใหม่") && s.includes(r.request_no)), "คำขอใหม่ก็ถูกส่งถึง HQ ด้วย (H1)").toBe(true);
+  expect((await ในกล่อง()).some(s => s.startsWith("คำขอใบเสนอราคาใหม่") && s.includes(r.request_no)), "คำขอใหม่ก็ถูกส่งถึง HQ ด้วย (H1)").toBe(true);
 });

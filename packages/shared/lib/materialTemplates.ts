@@ -17,6 +17,10 @@ export type MaterialTemplate = {
   priceUpdatedAt: string;
 };
 
+/** ชุดนำเข้ารายการวัสดุ (ใบ 0279) — blocked = เหตุที่ยกเลิกทั้งชุดไม่ได้ (null = ยกเลิกได้) */
+export type ชุดนำเข้าวัสดุ = { id: number; fileName: string; inserted: number; updated: number; createdBy: string; createdAt: string; cancelledAt: string | null; blocked: string | null };
+export type ผลนำเข้าวัสดุ = { batch: number; inserted: number; updated: number };
+
 /** แถวที่ส่งไปบันทึก — ไม่มี id = เพิ่มใหม่ */
 export type MaterialTemplateDraft = Omit<MaterialTemplate, "id" | "priceUpdatedAt"> & { id?: number };
 

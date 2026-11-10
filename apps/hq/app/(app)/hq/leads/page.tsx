@@ -12,6 +12,7 @@ import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
 import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
+import { ซ่อนตามระดับ } from "@pms/shared/lib/drillColumns";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
@@ -29,7 +30,8 @@ import { unassignedLeads } from "@pms/shared/lib/hqAlerts";
 import { lastContactLabel, needsFollowUp } from "@pms/shared/lib/leadMetrics";
 import { fmtISOToThai, type LeadRow } from "@pms/shared/lib/mock";
 // ชิ้นส่วนกลางของแผงรายละเอียด — หน้าตาเดียวกันทุกหน้า (ห้ามประกาศสไตล์เองซ้ำ)
-import { PanelSection, PanelRow, PanelStats, PanelStat, ย่อชื่อ } from "@pms/shared/components/ui/DetailPanel";
+import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
+import { RowPanel, ป้ายหัวแผง } from "@pms/shared/components/ui/RowPanel";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { dealers as dealersRepo, leads as leadsRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
@@ -45,12 +47,13 @@ import { GroupedBarChart, Donut } from "@pms/shared/components/ui/Charts";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import { ช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
-import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น, สีกราฟขั้น, ตัวเลือกขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { เลขขั้นของลีด, ชื่อขั้น, สีขั้น, สีกราฟขั้น, ตัวเลือกขั้น, เลขขั้นทั้งหมด, ขั้นเปิดอยู่, ป้ายย่อยขั้น, แปลงชื่อขั้นเดิม, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
 import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
+import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 
 // ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
 //   มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — ยังไม่มีใบ = "—"
@@ -88,13 +91,18 @@ export default function HQLeadsPage() {
   const rulesOf = useLeadRulesOf();
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [query, setQuery] = useState("");
-  // ตัวกรองขั้น = เลขขั้น 1–7 จากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมกรองตามชื่อสถานะภายใน) · ALL = ทุกขั้น
-  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–5 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
+  // ตัวกรองขั้น = เลขขั้น (1–4 · 6 ปิดสำเร็จ · 7 ปิดไม่สำเร็จ) จากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมกรองตามชื่อสถานะภายใน) · ALL = ทุกขั้น
+  // กลุ่มขั้น (บอสสั่ง 28 ต.ค. 69): OPEN = กำลังดำเนินการ ขั้น 1–4 (ค่าเริ่มต้น) · "6" ปิดสำเร็จ · "7" ปิดไม่สำเร็จ · ALL = ทั้งหมด
   const [status, setStatus] = useState<string>("OPEN");
   // เลขขั้นของแถว: แถวจากฐาน (leads_page ใบ 0251) มี stageNo · โหมดตัวอย่าง/ค้างติดตาม คิดจากใบร่างที่มีในเครื่อง
   const เลขขั้นแถว = (l: LeadRow): เลขขั้น => (l.stageNo as เลขขั้น | undefined)
     ?? เลขขั้นของลีด(l.status, quotations.some(q => q.status === "draft" && quoteBelongsToLead(q, l)));
+  // ป้ายย่อยขั้นเสนอราคาลูกค้า (ทำใบแล้ว ยังไม่ส่ง / ส่งให้ลูกค้าแล้ว · บอสสั่ง 9 พ.ย. 69) — ได้ราคา HQ + ขั้น 4 = มีใบร่าง (กติกา lead_stage_no)
+  const ป้ายย่อยแถว = (l: LeadRow) => ป้ายย่อยขั้น(l.status, เลขขั้นแถว(l) === 4);
   const [viewLead, setViewLead] = useState<LeadRow | null>(null);
+  // แท็บของแผงจากแถว (RowPanel · 10 พ.ย. 69) — เปิดรายใหม่ = กลับภาพรวม
+  const [แท็บแผง, setแท็บแผง] = useState("overview");
+  useEffect(() => { setแท็บแผง("overview"); }, [viewLead?.id]);
   // โดนัท 2 ใบ: ชี้ก้อนสีหรือแถวคำอธิบาย เน้นก้อนเดียวกัน (บอสสั่ง 20 ส.ค. 69 · ย้ายมาจากโดนัทหน้าลูกค้าที่เอาออก 2 พ.ย. 69)
   const [เน้นแหล่ง, setเน้นแหล่ง] = useState<number | null>(null);
   const [เน้นเหตุผล, setเน้นเหตุผล] = useState<number | null>(null);  // Drawer — ดูอย่างเดียว
@@ -188,9 +196,9 @@ export default function HQLeadsPage() {
   // ตามช่วงเวลา (วันที่ลีดเข้ามา): ลีดใหม่ · ปิดสำเร็จ/ปิดไม่สำเร็จ · กราฟ
   const kpiBase = useMemo(() => scoped.filter(ตรงขอบเขต), [scoped, ตรงขอบเขต]);
 
-  // ตาราง: "กำลังดำเนินการ" (ขั้น 1–5 · การ์ดลีดที่เปิดอยู่/ไม่เคลื่อนไหว) = ณ ตอนนี้ · ขั้นอื่น/ทั้งหมด = ตามช่วง
+  // ตาราง: "กำลังดำเนินการ" (ขั้น 1–4 · การ์ดลีดที่เปิดอยู่/ไม่เคลื่อนไหว) = ณ ตอนนี้ · ขั้นอื่น/ทั้งหมด = ตามช่วง
   const filtered = useMemo(() => (status === "OPEN" ? kpiBaseAll : kpiBase).filter(l =>
-    (status === "ALL" || (status === "OPEN" ? เลขขั้นแถว(l) <= 5 : เลขขั้นแถว(l) === Number(status))) &&
+    (status === "ALL" || (status === "OPEN" ? ขั้นเปิดอยู่(เลขขั้นแถว(l)) : เลขขั้นแถว(l) === Number(status))) &&
     (!overdueOnly || needsFollowUp(l, 30))
   ), [kpiBase, kpiBaseAll, status, overdueOnly, quotations]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -199,7 +207,7 @@ export default function HQLeadsPage() {
   // กราฟ = ระดับที่เลือก + ช่วงเท่านั้น (บอสสั่ง 2 พ.ย. 69 · ไม่ผูกคำค้น/แหล่งที่มา/ขั้นของรายชื่อ) → ผลรวมกราฟขั้นตอน = การ์ด · วงกลมแหล่งที่มา = การ์ดลีดใหม่
   const baseF: LeadSummaryFilters = { dealerCodes: leadDealerCodes, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) };
   const chartSummary = useLeadSummary(baseF);
-  // กราฟตามขั้นตอน ขั้น 1–5 = ลีดที่เปิดอยู่ ณ ตอนนี้ (ชุดเดียวกับการ์ด "ลีดที่เปิดอยู่") · ขั้น 6–7 = ปิดในช่วง (ตามวันที่ลีดเข้ามา)
+  // กราฟตามขั้นตอน ขั้น 1–4 = ลีดที่เปิดอยู่ ณ ตอนนี้ (ชุดเดียวกับการ์ด "ลีดที่เปิดอยู่") · ขั้น 6–7 = ปิดในช่วง (ตามวันที่ลีดเข้ามา)
   const openSummary = useLeadSummary({ ...baseF, dateStart: undefined, dateEnd: undefined });
 
   // ── ตารางลูกค้าเป้าหมาย: แบ่งหน้าที่ DB (M9 Phase 4) · local/ยังไม่กลับ = filtered (client) ──
@@ -208,10 +216,10 @@ export default function HQLeadsPage() {
   const [leadPage, setLeadPage] = useState(0);
   const leadOpts: LeadListOpts = useMemo(() => ({
     limit: LEADS_PAGE, offset: leadPage * LEADS_PAGE,
-    // 0 = กำลังดำเนินการ (ขั้น 1–5 · ใบ 0256)
+    // 0 = กำลังดำเนินการ (ขั้น 1–4 · ใบ 0256)
     stage: status === "ALL" ? undefined : status === "OPEN" ? 0 : Number(status), dealerCodes: leadDealerCodes,
     source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
-    // กำลังดำเนินการ (ขั้น 1–5) = ณ ตอนนี้ ตรงการ์ดลีดที่เปิดอยู่ (ไม่ผูกช่วง) · ขั้นอื่น/ทั้งหมด = ลีดที่เข้ามาในช่วง
+    // กำลังดำเนินการ (ขั้น 1–4) = ณ ตอนนี้ ตรงการ์ดลีดที่เปิดอยู่ (ไม่ผูกช่วง) · ขั้นอื่น/ทั้งหมด = ลีดที่เข้ามาในช่วง
     dateStart: status === "OPEN" ? undefined : isoDateOf(timeRange.start), dateEnd: status === "OPEN" ? undefined : isoDateOf(timeRange.end),
     // การ์ด "ไม่เคลื่อนไหวเกิน 30 วัน" (ใบ 0246) = ตัวกรองค้างติดตามที่ 30 วันทุกสาขา (กติกาเดียวกับฐาน)
     overdue: overdueOnly, asOf: isoDateOf(APP_NOW), defaultDays: 30, perDealer: undefined,
@@ -260,7 +268,8 @@ export default function HQLeadsPage() {
   const anyFilter = !!query.trim() || status !== "OPEN" || srcSel !== "ALL" || overdueOnly;
 
 
-  const DEALER_NAME = useMemo(() => new Map(allDealers.map(d => [d.code, d.name])), [allDealers]);
+  // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
+  const DEALER_NAME = useMemo(() => { const f = สร้างชื่อแสดง(allDealers); return new Map(allDealers.map(d => [d.code, f(d.code, d.name)])); }, [allDealers]);
 
 
   // ── ลีดใหม่รายเดือน (แบบหน้า) — แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill) · รวมลีดใหม่ = การ์ดลีดใหม่ ──
@@ -288,12 +297,12 @@ export default function HQLeadsPage() {
 
   // ตามขั้น — เลขขั้นจากฐาน (lead_summary.byStage ใบ 0251) · ชื่อขั้นจากตัวกลาง leadStage.ts
   const byStatus = useMemo(() => {
-    // ขั้น 1–5 = เปิดอยู่ ณ ตอนนี้ (openSummary · ชุดเดียวกับการ์ด) · ขั้น 6–7 = ปิดในช่วง (chartSummary)
+    // ขั้น 1–4 = เปิดอยู่ ณ ตอนนี้ (openSummary · ชุดเดียวกับการ์ด) · ขั้น 6–7 = ปิดในช่วง (chartSummary)
     const จากฐาน = (sum: typeof chartSummary) => sum ? new Map((sum.byStage ?? []).map(r => [r.stage, r.count])) : null;
     const เปิด = จากฐาน(openSummary), ช่วง = จากฐาน(chartSummary);
     const count = (n: เลขขั้น) => {
-      const ฐาน = n <= 5 ? เปิด : ช่วง;
-      return ฐาน ? (ฐาน.get(n) ?? 0) : (n <= 5 ? kpiBaseAll : kpiBase).filter(l => เลขขั้นแถว(l) === n).length;
+      const ฐาน = ขั้นเปิดอยู่(n) ? เปิด : ช่วง;
+      return ฐาน ? (ฐาน.get(n) ?? 0) : (ขั้นเปิดอยู่(n) ? kpiBaseAll : kpiBase).filter(l => เลขขั้นแถว(l) === n).length;
     };
     const max = Math.max(...เลขขั้นทั้งหมด.map(count), 1);
     return เลขขั้นทั้งหมด.map(n => ({ stage: n, count: count(n), pct: Math.round(count(n) / max * 100) }));
@@ -333,6 +342,9 @@ export default function HQLeadsPage() {
         return all.rows.map(leadToCells);
       }
     : undefined;
+
+  // คอลัมน์ที่ระดับเจาะบอกอยู่แล้ว (บอสสั่ง 9 พ.ย. 69 · ตัวกลาง drillColumns) — ตารางรายชื่อ
+  const ซ่อนรายชื่อ = ซ่อนตามระดับ({ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }, displayLeads, { จังหวัด: l => l.province });
 
   return (
     <div className="erp">
@@ -380,7 +392,7 @@ export default function HQLeadsPage() {
         {/* กราฟเส้นเป็น SVG ที่ย่อ/ขยายตามความกว้างการ์ด → ความสูงจริงไม่เท่า height ที่ส่งเข้าไป
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟลีดใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "รวม = การ์ดลีดใหม่", "ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้น")} />
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "รวม = การ์ดลูกค้าเป้าหมายใหม่", "ปิดสำเร็จ/ไม่สำเร็จ = ลูกค้าเป้าหมายที่เข้ามาในเดือนนั้น")} />
           <div className="card-body" data-lead-monthly data-ready={trend.ready ? "1" : ""} data-sum-new={trend.newM.reduce((a, b) => a + b, 0)}
             data-sum-won={trend.wonM.reduce((a, b) => a + b, 0)} data-sum-lost={trend.lostM.reduce((a, b) => a + b, 0)}
             style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -390,14 +402,14 @@ export default function HQLeadsPage() {
                 แท่งกลุ่ม ไม่ใช่แท่งซ้อน — สี่ชุดนี้เป็นขั้นของลูกค้าเป้าหมายเดียวกัน บวกกันแล้วยอดรวมไม่มีความหมาย */}
             <GroupedBarChart months={trend.months} vw={560} height={210} fmt={v => `${Math.round(v)}`}
               series={[
-                { name: "ลีดใหม่", color: "#003366", data: trend.newM },
+                { name: "ลูกค้าเป้าหมายใหม่", color: "#003366", data: trend.newM },
                 { name: ชื่อขั้น(6), color: "#10B981", data: trend.wonM },
                 { name: ชื่อขั้น(7), color: "#dc2626", data: trend.lostM },
               ]} />
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
-          <BoxTitle ชื่อ={`กราฟลีดตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–5 = ลีดที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–4 = ลูกค้าเป้าหมายที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
           {/* data-ready = ตัวเลขมาจากฐานครบทั้งสองชุดแล้ว (ข้อทดสอบรอก่อนอ่าน · ระหว่างโหลดเป็นทางสำรองในเครื่อง) */}
           <div className="card-body" data-stage-chart data-ready={chartSummary && openSummary ? "1" : ""} style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
             {byStatus.map(s => { const c = สีกราฟขั้น[s.stage]; return (
@@ -420,7 +432,7 @@ export default function HQLeadsPage() {
         {/* โดนัท: แหล่งที่มารวมกัน = ลูกค้าเป้าหมายทั้งหมดพอดี → สัดส่วนของก้อนเดียว
             ย้ายมาจากแถว 3 · การ์ดกว้างขึ้น (ครึ่งจอ) → วางโดนัทซ้าย legend ขวา แบบเดียวกับใบข้าง ๆ */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟลีดตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่เข้ามาในช่วง", "กลางวง = รวมทั้งหมด")}><GitBranch size={16} color="#9ca3af" /></BoxTitle>
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่เข้ามาในช่วง", "กลางวง = รวมทั้งหมด")}><GitBranch size={16} color="#9ca3af" /></BoxTitle>
           <div className="card-body" data-source-chart data-ready={chartSummary ? "1" : ""} data-total={sources.reduce((t, x) => t + x.count, 0)}
             style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!sources.length ? (
@@ -449,7 +461,7 @@ export default function HQLeadsPage() {
         </div>
         {/* โดนัท: เหตุผลรวมกันได้ 100% ของลูกค้าเป้าหมายที่ปิดไม่สำเร็จพอดี → เป็นสัดส่วนของก้อนเดียว เหมาะกับโดนัทมากกว่าแท่ง */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่ปิดไม่สำเร็จ แยกตามเหตุผล", "ไม่ได้บันทึกเหตุผล = ก้อนอื่นๆ")} />
+          <BoxTitle ชื่อ={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่ปิดไม่สำเร็จ แยกตามเหตุผล", "ไม่ได้บันทึกเหตุผล = รวมอยู่ใน “อื่นๆ”")} />
           <div className="card-body" style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!lostReasons.length ? (
               <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>— ไม่มีข้อมูลในช่วงที่เลือก</div>
@@ -496,13 +508,13 @@ export default function HQLeadsPage() {
           <div data-box-title style={{ flex: "0 0 auto", marginRight: 6 }}>
             <div className="card-title" data-title>ตารางรายชื่อลูกค้าเป้าหมาย · {ระดับ}</div>
             <div data-subtitle style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>
-              {status === "OPEN" ? คำอธิบายหัวข้อ(null, "ลีดที่กำลังดำเนินการ", "กดแถวเพื่อเปิด") : คำอธิบายหัวข้อ(ช่วงการ์ด, "ลีดที่เข้ามาในช่วง", "กดแถวเพื่อเปิด")}
+              {status === "OPEN" ? คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่กำลังดำเนินการ", "กดแถวเพื่อเปิด") : คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่เข้ามาในช่วง", "กดแถวเพื่อเปิด")}
             </div>
           </div>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…" aria-label="ค้นหาลูกค้าเป้าหมาย"
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
-          {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–5) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
+          {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–4) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
           <select aria-label={ช่อง.ขั้นตอน} value={status} onChange={e => setStatus(e.target.value)} className="form-input"
             style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
             <option value="OPEN">กำลังดำเนินการ</option>
@@ -522,28 +534,30 @@ export default function HQLeadsPage() {
       </div>
 
       <div className="card" data-lead-table data-ready={leadsPage ? "1" : ""} data-total={leadTotal} style={{ marginBottom: 0, overflow: "hidden" }}>
-        <div className="table-wrap">
-          <table aria-label="ตารางลูกค้าเป้าหมายทั้งเครือ">
+        {/* พอดีจอ 1366 ไม่มีแถบเลื่อนแนวนอน (บอสสั่ง 9 พ.ย. 69 · .table-wrap.fit · สัดส่วน % ไม่มีความกว้างขั้นต่ำ · ตัดคำด้วย … ชี้แล้วเห็นเต็ม)
+            คอลัมน์ที่ระดับเจาะบอกอยู่แล้ว ซ่อน (ตัวกลาง drillColumns): ระดับดีลเลอร์ = ไม่มีคอลัมน์ดีลเลอร์ · ทุกแถวจังหวัดเดียวกับระดับ = ไม่มีคอลัมน์จังหวัด */}
+        <div className="table-wrap fit">
+          <table aria-label="ตารางลูกค้าเป้าหมายทั้งเครือ" data-hidden-cols={[ซ่อนรายชื่อ.ดีลเลอร์ && "dealer", ซ่อนรายชื่อ.จังหวัด && "province"].filter(Boolean).join(",")}>
             {/* แบบเดียวกับตารางลูกค้าเป้าหมายฝั่งดีลเลอร์ (บอสส่งแบบ 28 ต.ค. 69) + คอลัมน์ดีลเลอร์ (บอสสั่ง 30 ต.ค. 69)
                 · เอาคอลัมน์ "ความคืบหน้า %" ออก (ซ้ำป้ายขั้นตอน และขั้นตอนไม่มีตัวเลข)
                 · "งานที่ต้องการ" คงไว้ = ช่อง project ที่ดีลเลอร์กรอกในฟอร์มลีด (ข้อมูลจริง · ไม่กรอก = "—")
                 · ชื่อบริษัท / ดีลเลอร์ / มูลค่า / หัวคอลัมน์ ไม่ตัด ไม่ตกบรรทัดที่จอกว้าง — ชี้แล้วเห็นเต็ม (title)
                 เพิ่ม/ลบคอลัมน์ต้องแก้ที่นี่เท่านั้น (table-layout: fixed — ใส่ที่ <th> ไม่มีผล) · รวม % = 100 */}
             <colgroup>
-              <col style={{ width: "20%", minWidth: 190 }} />{/* บริษัท / ผู้ติดต่อ */}
-              <col style={{ width: "15%", minWidth: 170 }} />{/* ดีลเลอร์ (รหัส + ชื่อ) */}
-              <col style={{ width: "8%", minWidth: 112 }} />{/* จังหวัดหน้างาน */}
-              <col style={{ width: "7%", minWidth: 104 }} />{/* ช่องทางที่มา */}
-              <col style={{ width: "9%", minWidth: 112 }} />{/* งานที่ต้องการ */}
-              <col style={{ width: "7%", minWidth: 104 }} />{/* พื้นที่ (ตร.ม.) */}
-              <col style={{ width: "9%", minWidth: 124 }} />{/* ขั้นตอน — พอให้ "ทำใบให้ลูกค้า" ไม่ถูกตัด */}
-              <col style={{ width: "8%", minWidth: 104 }} />{/* มูลค่า "฿12,345,678" */}
-              <col style={{ width: "6%", minWidth: 104 }} />{/* ผู้รับผิดชอบ */}
-              <col style={{ width: "8%", minWidth: 108 }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
-              <col style={{ width: "3%", minWidth: 52 }} />{/* ดู — ไอคอนล้วน */}
+              <col style={{ width: `${17 + (ซ่อนรายชื่อ.ดีลเลอร์ ? 12 : 0) + (ซ่อนรายชื่อ.จังหวัด ? 9 : 0)}%` }} />{/* บริษัท / ผู้ติดต่อ (ได้ที่ของคอลัมน์ที่ซ่อน) */}
+              {!ซ่อนรายชื่อ.ดีลเลอร์ && <col style={{ width: "12%" }} />}{/* ดีลเลอร์ */}
+              {!ซ่อนรายชื่อ.จังหวัด && <col style={{ width: "9%" }} />}{/* จังหวัดหน้างาน */}
+              <col style={{ width: "8%" }} />{/* ช่องทางที่มา */}
+              <col style={{ width: "10%" }} />{/* งานที่ต้องการ */}
+              <col style={{ width: "6%" }} />{/* พื้นที่ (ตร.ม.) */}
+              <col style={{ width: "11%" }} />{/* ขั้นตอน — พอให้ "เสนอราคาลูกค้า" ไม่ถูกตัด */}
+              <col style={{ width: "8%" }} />{/* มูลค่า */}
+              <col style={{ width: "7%" }} />{/* ผู้รับผิดชอบ */}
+              <col style={{ width: "8%" }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
+              <col style={{ width: 44 }} />{/* ดู — ไอคอนล้วน */}
             </colgroup>
             <thead><tr>
-              <th>บริษัท / ผู้ติดต่อ</th><th>ดีลเลอร์</th><th>{ช่อง.จังหวัด}</th><th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
+              <th>บริษัท / ผู้ติดต่อ</th>{!ซ่อนรายชื่อ.ดีลเลอร์ && <th>ดีลเลอร์</th>}{!ซ่อนรายชื่อ.จังหวัด && <th>{ช่อง.จังหวัด}</th>}<th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
               <th>{ช่อง.ขั้นตอน}</th>
               <th className="num">มูลค่า</th><th>{ช่อง.ผู้รับผิดชอบ}</th><th>กิจกรรมล่าสุด</th>
               {/* คอลัมน์ปุ่มตรึงไว้ขวาสุด — ตารางกว้างเกินจอแคบ (26 ส.ค. 69) */}
@@ -551,7 +565,7 @@ export default function HQLeadsPage() {
             </tr></thead>
             <tbody>
               {displayLeads.length === 0 ? (
-                <tr><td colSpan={11} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
+                <tr><td colSpan={11 - (ซ่อนรายชื่อ.ดีลเลอร์ ? 1 : 0) - (ซ่อนรายชื่อ.จังหวัด ? 1 : 0)} style={{ padding: 0 }}><EmptyState icon={<Users size={26} />} title="ไม่พบลูกค้าเป้าหมาย" description="ลองปรับตัวกรองหรือคำค้น" /></td></tr>
               ) : displayLeads.map(l => {
                 const c = สีขั้น(เลขขั้นแถว(l));
                 const followUp = needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays);
@@ -567,12 +581,11 @@ export default function HQLeadsPage() {
                       <div style={{ fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis" }}>{l.company || "—"}</div>
                       <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis" }}>{l.contact || "—"}</div>
                     </td>
-                    {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — รหัส + ชื่อ */}
-                    <td data-cell="dealer" title={`${l.dealerCode ?? "—"} ${DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}`}>
-                      <span className="badge" style={{ background: "#eef2f7", color: PRIMARY, fontFamily: "monospace" }}>{l.dealerCode || "—"}</span>
-                      <div style={{ fontSize: "0.66rem", color: "var(--muted-foreground)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis" }}>{DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}</div>
-                    </td>
-                    <td style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>
+                    {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · ไม่มีรหัส) */}
+                    {!ซ่อนรายชื่อ.ดีลเลอร์ && <td data-cell="dealer" title={DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}
+                    </td>}
+                    {!ซ่อนรายชื่อ.จังหวัด && <td data-cell="province" style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>}
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source || undefined}>{l.source || "—"}</td>
                     <td data-cell="project" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.project || undefined}>{l.project || "—"}</td>
                     <td className="num" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.area != null ? Number(l.area).toLocaleString() : "—"}</td>
@@ -582,6 +595,9 @@ export default function HQLeadsPage() {
                            (ดูหมายเหตุที่ colgroup: เพิ่มคอลัมน์แล้วจะกลับมามีแถบเลื่อนแนวนอนอีก) */}
                     <td className="wrap">
                       <span className="badge" data-stage-label style={{ background: c.bg, color: c.text, whiteSpace: "nowrap" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</span>
+                      {ป้ายย่อยแถว(l) && (
+                        <span data-stage-sub style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", fontWeight: 600, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ป้ายย่อยแถว(l)}</span>
+                      )}
                       {l.status === "CANCELLED" && (
                         <span title={l.lostReason || "ไม่ได้ระบุเหตุผล"}
                           style={{ display: "block", fontSize: "0.65rem", color: l.lostReason ? "#dc2626" : "#9ca3af", marginTop: 3,
@@ -622,39 +638,33 @@ export default function HQLeadsPage() {
         const l = viewLead;
         const c = สีขั้น(เลขขั้นแถว(l));
         return (
-          <>
-            <div onClick={() => setViewLead(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 240 }} />
-            {/* แผงลอยจากขอบจอเล็กน้อยแล้วมนทุกมุม (บอสสั่ง 28 ส.ค. 69) — เดิมชนขอบขวาและมนแค่สองมุมซ้าย */}
-            <div className="side-drawer" style={{ position: "fixed", top: 12, right: 12, bottom: 12, width: 420, maxWidth: "calc(100vw - 24px)", zIndex: 241,
-              background: "#F8FAFC", boxShadow: "0 24px 70px rgba(0,0,0,.24)", borderRadius: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-
-              {/* หัวแผง — ชื่อบริษัทเด่น + วงกลมย่อชื่อ · ป้ายสถานะและมูลค่าอยู่บรรทัดเดียวกัน */}
-              <div style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "18px 20px 16px",
-                display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
-                <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
-                  <span style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.2)",
-                    color: "#fff", fontWeight: 800, fontSize: "0.92rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {ย่อชื่อ(l.company)}
-                  </span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.company}</div>
-                    <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,.7)", marginTop: 3 }}>{l.id} · {l.contact}</div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 9, flexWrap: "wrap" }}>
-                      <span className="badge" data-stage-label style={{ background: c.bg, color: c.text }}>{ชื่อขั้น(เลขขั้นแถว(l))}</span>
-                      <span className="badge" style={{ background: "rgba(255,255,255,.15)", color: "#fff" }}>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</span>
-                    </div>
-                  </div>
-                </div>
-                <button onClick={() => setViewLead(null)} title="ปิด" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(255,255,255,.2)",
-                  background: "rgba(255,255,255,.12)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={14} /></button>
-              </div>
-
-              <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px 20px" }}>
+          <RowPanel label={`ลูกค้าเป้าหมาย ${l.company}`} onClose={() => setViewLead(null)} closeLabel="ปิด"
+            asideAttrs={{ "data-hq-lead-panel": l.id }}
+            title={l.company}
+            badges={<>
+              <ป้ายหัวแผง bg={c.bg} color={c.text} attrs={{ "data-stage-label": "" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</ป้ายหัวแผง>
+              <ป้ายหัวแผง>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</ป้ายหัวแผง>
+            </>}
+            subtitle={`${l.id} · ${l.contact || "—"} · ${DEALER_NAME.get(l.dealerCode ?? "") ?? "—"}`}
+            tabs={[
+              { key: "overview", label: "ภาพรวม" },
+              { key: "activity", label: "กิจกรรม", count: l.activities?.length ?? 0 },
+              { key: "appts", label: "นัดหมาย", count: (drawerAppts ?? appointments.filter(a => a.leadId === l.numId)).length },
+              { key: "files", label: "ไฟล์แนบ", count: dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId).length },
+            ]}
+            tab={แท็บแผง} onTab={setแท็บแผง}
+            footer={<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.66rem", color: "#64748B", flex: 1 }}>
+                <Lock size={12} color="#94A3B8" /> สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของรายการ
+              </span>
+              <button onClick={() => setViewLead(null)} className="btn btn-secondary btn-md" style={{ color: "#374151" }}>ปิด</button>
+            </div>}>
+              {แท็บแผง === "overview" && <>
                 {/* แถบสรุปบนสุด — ยอดใบเสนอราคาล่าสุด กับสถานะใบเสนอราคา อ่านได้ตั้งแต่ยังไม่เลื่อนจอ (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) */}
                 <PanelStats>
                   <PanelStat label="ใบเสนอราคาล่าสุด" value={มูลค่าอ่านง่าย(มูลค่าลีด(l))} />
                   {/* ขั้นจาก leadStage.ts (เดิม "เสนอราคาแล้ว" = ชื่อสถานะภายใน · ผลตรวจ FLOW รอบ 5 แถว 19) */}
-                  <PanelStat label={ช่อง.ขั้นตอน} tone={เลขขั้นแถว(l) === 6 ? "good" : "plain"} value={ชื่อขั้น(เลขขั้นแถว(l))} />
+                  <PanelStat label={ช่อง.ขั้นตอน} tone={เลขขั้นแถว(l) === 6 ? "good" : "plain"} value={ชื่อขั้น(เลขขั้นแถว(l))} sub={ป้ายย่อยแถว(l) || undefined} />
                 </PanelStats>
 
                 {/* ชุดช่องมาตรฐาน (lib/fieldLabels.ts · บอสสั่ง 26 ต.ค. 69): ข้อมูลลูกค้า · ข้อมูลงาน · การดูแล — ชื่อช่องเดียวกับแผงลีดดีลเลอร์ */}
@@ -678,12 +688,12 @@ export default function HQLeadsPage() {
                 </PanelSection>
 
                 <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">
-                  <PanelRow icon={IdCard} label="รหัสดีลเลอร์" value={l.dealerCode} />
                   <PanelRow icon={Store} label="ดีลเลอร์" value={DEALER_NAME.get(l.dealerCode ?? "")} />
                   <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={l.assigned} />
                 </PanelSection>
 
-                <PanelSection icon={Activity} title="กิจกรรม / ไทม์ไลน์">
+                </>}
+                {แท็บแผง === "activity" && <PanelSection icon={Activity} title="กิจกรรม / ไทม์ไลน์" style={{ marginTop: 0 }}>
                   {!l.activities?.length ? (
                     <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>— ไม่มีบันทึกกิจกรรม</div>
                   ) : (
@@ -696,7 +706,7 @@ export default function HQLeadsPage() {
                           )}
                           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#fff", border: "2px solid #003366", marginTop: 4, flexShrink: 0, zIndex: 1 }} />
                           <span style={{ minWidth: 0 }}>
-                            <span style={{ display: "block", fontSize: "0.76rem", color: "#1F2937", lineHeight: 1.5 }}>{a.text}</span>
+                            <span style={{ display: "block", fontSize: "0.76rem", color: "#1F2937", lineHeight: 1.5 }}>{แปลงชื่อขั้นเดิม(a.text)}</span>
                             {/* ตัวจัดรูปวันที่กลาง (พ.ศ.) — ข้อมูลเดิมเก็บ ISO ค.ศ. บางรายการ (ผลตรวจ FLOW รอบ 5 แถว 20) */}
                             <span style={{ display: "block", fontSize: "0.66rem", color: "#94A3B8", marginTop: 2 }}>{วันที่แสดงไทย(a.date) || "—"}</span>
                           </span>
@@ -704,9 +714,9 @@ export default function HQLeadsPage() {
                       ))}
                     </div>
                   )}
-                </PanelSection>
+                </PanelSection>}
 
-                <PanelSection icon={CalendarClock} title="ประวัตินัดหมาย">
+                {แท็บแผง === "appts" && <PanelSection icon={CalendarClock} title="ประวัตินัดหมาย" style={{ marginTop: 0 }}>
                   {(() => {
                     const appts = drawerAppts ?? appointments.filter(a => a.leadId === l.numId);
                     return !appts.length ? (
@@ -722,9 +732,9 @@ export default function HQLeadsPage() {
                       </div>
                     );
                   })()}
-                </PanelSection>
+                </PanelSection>}
 
-                <PanelSection icon={Paperclip} title="ไฟล์แนบ">
+                {แท็บแผง === "files" && <PanelSection icon={Paperclip} title="ไฟล์แนบ" style={{ marginTop: 0 }}>
                   {(() => {
                     const files = dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId);
                     return !files.length ? (
@@ -741,13 +751,13 @@ export default function HQLeadsPage() {
                       </div>
                     );
                   })()}
-                </PanelSection>
+                </PanelSection>}
 
-                <PanelSection icon={StickyNote} title="หมายเหตุ">
+                {แท็บแผง === "overview" && <PanelSection icon={StickyNote} title="หมายเหตุ">
                   <div style={{ fontSize: "0.78rem", color: l.note ? "#374151" : "#94A3B8", lineHeight: 1.65, padding: "10px 0" }}>{l.note || "— ไม่มีหมายเหตุ"}</div>
-                </PanelSection>
+                </PanelSection>}
 
-                {l.status === "CANCELLED" && (
+                {แท็บแผง === "overview" && l.status === "CANCELLED" && (
                   <section style={{ marginTop: 14 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.62rem", fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}><AlertTriangle size={13} color="#F87171" /> เหตุผลที่ปิดการขายไม่สำเร็จ</div>
                     <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 14, padding: "12px 14px",
@@ -756,16 +766,7 @@ export default function HQLeadsPage() {
                     </div>
                   </section>
                 )}
-              </div>
-
-              <div style={{ padding: "12px 20px", borderTop: "1px solid #E5E7EB", background: "#fff", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.66rem", color: "#64748B", flex: 1 }}>
-                  <Lock size={12} color="#94A3B8" /> สำนักงานใหญ่ดูอย่างเดียว — แก้ไขได้ที่ดีลเลอร์เจ้าของรายการ
-                </span>
-                <button onClick={() => setViewLead(null)} className="btn btn-secondary btn-md" style={{ color: "#374151" }}>ปิด</button>
-              </div>
-            </div>
-          </>
+          </RowPanel>
         );
       })()}
     </div>

@@ -188,19 +188,18 @@ begin
      and ((q.dealer_code = 'CNX' and q.lead_num_id in (l1, l2)) or q.request_no = 'RQ-TEST-OVERDUE');
   perform flowtest.ok(n = 1, 'คำขอที่ค้างเกิน 14 วันและยังไม่ส่งใบ = เกินกำหนด');
 
-  -- ══ ช. ใครตีราคาได้ — เอาบทบาทออกจากจุดตั้งค่าเดียว บทบาทนั้นทำ/ส่งใบไม่ได้ ══
+  -- ══ ช. ใครตีราคาได้ — HQ บทบาทเดียว (ใบ 0282 · เดิมตั้งรายชื่อบทบาทที่ตาราง quote_pricing_roles · เลิกใช้แล้ว) ══
+  --   สำนักงานใหญ่ทำใบได้แม้ตารางเดิมว่าง (กฎตัวเดียว is_hq) · โทเคนบทบาทเดิม HQ_STAFF = ไม่ใช่ HQ ทำ/ส่งไม่ได้
   select id into n from quote_requests where request_no = 'RQ-TEST-OVERDUE';
-  perform set_config('request.jwt.claims', json_build_object('sub', c.hq_uid, 'role', 'authenticated',
-    'user_role', 'HQ_STAFF', 'dealer_code', '', 'email', 'staff@test')::text, true);
-  perform set_config('role', 'authenticated', true);
-  perform hq_quote_save(n, '[{"name":"x","qty":1,"unit":"ชุด","unitCost":1000}]'::jsonb, current_date + 30);
-  perform flowtest.ok(true, 'เจ้าหน้าที่ HQ ทำใบ HQ ได้ (ค่าตั้งต้น: ทุกบทบาทของสำนักงานใหญ่)');
   perform flowtest.as_root();
-  delete from quote_pricing_roles where role = 'HQ_STAFF';
+  delete from quote_pricing_roles;
+  perform flowtest.as_hq(c.hq_uid);
+  perform hq_quote_save(n, '[{"name":"x","qty":1,"unit":"ชุด","unitCost":1000}]'::jsonb, current_date + 30);
+  perform flowtest.ok(true, 'สำนักงานใหญ่ทำใบ HQ ได้ (ตารางรายชื่อบทบาทเดิมว่างก็ไม่มีผล)');
   perform set_config('request.jwt.claims', json_build_object('sub', c.hq_uid, 'role', 'authenticated',
     'user_role', 'HQ_STAFF', 'dealer_code', '', 'email', 'staff@test')::text, true);
   perform set_config('role', 'authenticated', true);
-  perform flowtest.must_fail(format('select hq_quote_send(%s)', n), 'forbidden', 'เอาบทบาทเจ้าหน้าที่ออกจากรายชื่อ → ส่งใบ HQ ไม่ได้');
+  perform flowtest.must_fail(format('select hq_quote_send(%s)', n), 'forbidden', 'โทเคนบทบาทเดิม HQ_STAFF → ส่งใบ HQ ไม่ได้');
   perform flowtest.must_fail(format('select hq_quote_save(%s, ''[{"name":"x","qty":1,"unitCost":1}]''::jsonb)', n), 'forbidden', 'และทำใบ HQ ไม่ได้');
   perform flowtest.as_hq(c.hq_uid);
   perform hq_quote_send(n);

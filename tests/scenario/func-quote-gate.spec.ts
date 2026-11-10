@@ -86,7 +86,11 @@ test("[func] งาน 'จัดทำใบเสนอราคา' ระบ
   // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69 "ปุ่มทำใบมีที่เดียว")
   //   เจตนาเดิมยังอยู่: "ติ๊กงานเฉย ๆ โดยไม่มีใบจริงไม่ได้" — ทำใบได้ทางเดียวคือปุ่มที่แถบขั้นต่อไป
   const งานออกใบ = page.getByRole("checkbox", { name: /จัดทำใบเสนอราคา/ }).first();
-  await expect(งานออกใบ, "งาน 'จัดทำใบเสนอราคา' ระบบติ๊กให้เอง — กดเองไม่ได้").toBeDisabled({ timeout: 15_000 });
+  // บอสสั่ง 6 พ.ย. 69 (กลับด้าน): กดได้ = ทางเดียวกับปุ่ม "ทำใบ" ของกล่องขั้นต่อไป · ยังไม่มีใบ HQ = บอกเหตุผล ไม่เปิดฟอร์ม ไม่ติ๊ก
+  await expect(งานออกใบ, "งาน 'จัดทำใบเสนอราคา' กดได้").toBeEnabled({ timeout: 15_000 });
+  await งานออกใบ.click();
+  await expect(page.getByRole("status").filter({ hasText: "ยังทำงานนี้ไม่ได้ตอนนี้" }), "ยังไม่มีใบ HQ = บอกเหตุผล").toBeVisible({ timeout: 10_000 });
+  await expect(งานออกใบ, "กดแล้วไม่ติ๊กเอง").toHaveAttribute("aria-checked", "false");
   await expect(page.getByText("ระบบติ๊กให้เมื่อทำใบเสนอราคา").first(), "บอกว่าระบบติ๊กให้เมื่อไร").toBeVisible();
 
   const sb = await db(RYG);
@@ -152,7 +156,14 @@ test("[func] งาน 'ส่งใบเสนอราคา' ระบบต
   await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 10_000 });
   for (let i = 0, พับ = page.locator("[data-lead-tasks] button[aria-expanded='false']"); i < 5 && await พับ.count(); i++) await พับ.first().click();   // กางทุกขั้น (ขั้นอื่นพับไว้ · 28 ต.ค. 69)
   // งานที่ระบบติ๊กเองกดเองไม่ได้ (บอสสั่ง 19 ต.ค. 69) — ส่งใบได้ทางเดียวคือปุ่ม "ส่งให้ลูกค้า" (แถบขั้นต่อไป/รายการใบ)
-  await expect(page.getByRole("checkbox", { name: /ส่งใบเสนอราคา/ }).first(), "งาน 'ส่งใบเสนอราคา' กดเองไม่ได้").toBeDisabled({ timeout: 15_000 });
+  // บอสสั่ง 6 พ.ย. 69 (กลับด้าน): กดได้ = ทางเดียวกับปุ่ม "ส่งให้ลูกค้า" (กล่องยืนยัน) · ยกเลิก = ไม่ส่ง ไม่ติ๊ก
+  const งานส่ง = page.getByRole("checkbox", { name: /ส่งใบเสนอราคา/ }).first();
+  await expect(งานส่ง, "งาน 'ส่งใบเสนอราคา' กดได้").toBeEnabled({ timeout: 15_000 });
+  await งานส่ง.click();
+  const ยืนยันส่ง = page.getByRole("alertdialog").filter({ hasText: "ให้ลูกค้า" });
+  await expect(ยืนยันส่ง, "กดงานส่งใบ = กล่องยืนยันส่ง (ทางเดียวกับกล่องขั้นต่อไป)").toBeVisible({ timeout: 15_000 });
+  await ยืนยันส่ง.locator("[data-dialog-cancel]").click();
+  await expect(งานส่ง, "ยกเลิก = ไม่ติ๊ก").toHaveAttribute("aria-checked", "false");
   await expect(page.getByText("ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า").first()).toBeVisible();
 
   const sb = await db(RYG);

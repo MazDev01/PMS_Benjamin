@@ -92,6 +92,11 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
       if (error) return dbFail("quoteRequests.cancel", error);
       return ok({ ok: true });
     }
+    case "abandon-form": {   // ใบ 0280 — กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ประวัติของลีด
+      const { error } = await sb.rpc("lead_quote_request_abandoned", { p_lead_num: Number(b.leadNumId) });
+      if (error) return dbFail("quoteRequests.abandonForm", error);
+      return ok({ ok: true });
+    }
     case "reprice": {
       const { data, error } = await sb.rpc("quote_request_reprice", { p_id: id, p_reason: String(b.reason ?? ""), p_spec: b.spec == null ? null : String(b.spec) });
       if (error) return dbFail("quoteRequests.reprice", error);

@@ -25,7 +25,9 @@ test("[ux·hq] เมนูข้างไปได้ทุกหน้า", as
 test("[ux·hq] เตือน unsaved เมื่อออกจากหัวข้อที่แก้ค้าง", async ({ page }) => {
   await open(page, "hq", "/hq/settings");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /เป้าหมายยอดขาย/ }).click();
-  const num = page.locator('input[type="number"]').first();
+  // 9 พ.ย. 69 (ใบ 0283): เป้าทั้งเครือเป็นผลรวมแสดงอย่างเดียว ไม่มีช่องพิมพ์แล้ว → แก้เป้ารายดีลเลอร์แถวแรกในตาราง (บันทึกด้วยปุ่มกลางเหมือนเดิม)
+  const num = page.getByRole("table", { name: "เป้าหมายรายดีลเลอร์" }).locator("tbody input").first();
+  await expect(num, "มีช่องเป้ารายดีลเลอร์ให้แก้").toBeVisible({ timeout: 20_000 });
   await num.fill("999000000");
   await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /บริษัท/ }).click();
   expect(await กดยกเลิกในกล่องยืนยัน(page)).toContain("ยังไม่บันทึก");
@@ -55,7 +57,9 @@ test("[ux·dealer] บัญชีดีลเลอร์ รวมโปรไ
 test("[ux·hq] ก้น sidebar แสดงชื่อบทบาทตรงกับแถบบน", async ({ page }) => {
   await open(page, "hq", "/hq/dashboard");
   // ชื่อบัญชีผู้ดูแลบังเอิญเป็นคำเดียวกับชื่อบทบาท → เจอสองจุดในการ์ดเดียว ใช้ตัวแรกพอ
-  await expect(page.locator(".sidebar-footer").getByText("ผู้ดูแลระบบ").first()).toBeVisible();
+  // HQ บทบาทเดียว (ใบ 0282): ชื่อบทบาท = "สำนักงานใหญ่" (เดิม "ผู้ดูแลระบบ")
+  await expect(page.locator(".sidebar-footer").getByText("สำนักงานใหญ่").first()).toBeVisible();
+  await expect(page.locator(".sidebar-footer").getByText(/^ผู้ดูแลระบบ$|^ผู้บริหาร HQ$/), "ไม่มีชื่อบทบาทเดิม").toHaveCount(0);
   // ต้องไม่กลับไปใช้คำเก่าที่ขัดกับแถบบนอีก
   await expect(page.getByText("เจ้าของแพลตฟอร์ม")).toHaveCount(0);
 });
@@ -141,9 +145,9 @@ test("[ux·dealer] ตั้งค่าใช้ปุ่มบันทึก�
 // ผู้ใช้ HQ: หน้า Users เฉพาะ HQ (ไม่มี dealer) + stat/matrix · action dropdown → รีเซ็ตรหัสผ่าน
 test("[ux·hq] หน้าผู้ใช้ HQ เฉพาะ HQ + stat/matrix + รีเซ็ตรหัสผ่าน", async ({ page }) => {
   await open(page, "hq", "/hq/settings");
-  await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /ผู้ใช้งานและสิทธิ์/ }).click();
+  await page.locator(HQ_SETTINGS_NAV).getByRole("button", { name: /^ผู้ใช้งาน/ }).click();
   await expect(page.getByText("ผู้ใช้ทั้งหมด")).toBeVisible();
-  await expect(page.getByText("ตารางสิทธิ์ตามบทบาท", { exact: true })).toBeVisible();   // เดิม "Permission Matrix" — หน้าเว็บเป็นไทย (28 ต.ค. 69)
+  await expect(page.getByText("ตารางสิทธิ์ตามบทบาท", { exact: true }), "HQ บทบาทเดียว (ใบ 0282): ไม่มีตารางสิทธิ์ตามบทบาท").toHaveCount(0);   // เดิม: ต้องเห็น (28 ต.ค. 69)
   // ต้องไม่มีผู้ใช้ของ Dealer (role เซลส์ดีลเลอร์หายไป)
   await expect(page.getByText("เซลส์ดีลเลอร์")).toHaveCount(0);
   // action dropdown → เหลือ "ตั้งรหัสผ่านใหม่ทันที" · เมนูส่งลิงก์ทางอีเมลเอาออกแล้ว (ปิดอีเมลระบบล็อกอิน 16 ต.ค. 69)
@@ -169,7 +173,8 @@ test("[ux·hq] หัวข้อบริษัทมีปุ่มบัน�
 test("[ux·hq] Dealer Detail อ่านอย่างเดียว + แท็บกิจกรรม", async ({ page }) => {
   await open(page, "hq", "/hq/dealers/CNX");
   await expect(page.getByText("ข้อมูลงานขายดูอย่างเดียว")).toBeVisible();
-  await page.getByRole("button", { name: /^กิจกรรม/ }).click();
+  // แท็บของแผงจากแถว = role tab (ตัวกลาง RowPanel · 10 พ.ย. 69 · เดิมเป็นปุ่ม)
+  await page.getByRole("tab", { name: /^กิจกรรม/ }).click();
   await expect(page.getByText("กิจกรรมล่าสุด")).toBeVisible();
 });
 

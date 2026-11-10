@@ -10,4 +10,4 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export const POST = () =>
-  NextResponse.json({ error: "ปิดแล้ว — ล้างบันทึกการใช้งานยกเลิกตั้งแต่ 26 ต.ค. 69 บันทึกแก้หรือลบไม่ได้ทุกบทบาท" }, { status: 410 });
+  NextResponse.json({ error: "ปิดแล้ว — ยกเลิกการล้างบันทึกการใช้งานตั้งแต่ 26 ต.ค. 69 · บันทึกแก้หรือลบไม่ได้" }, { status: 410 });

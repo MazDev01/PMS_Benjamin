@@ -38,7 +38,7 @@ describe("ลบลูกค้า — ดีลที่ยังขายอ�
     "ดีลสถานะ %s → ลบไม่ได้", (st) => {
       const im = customerDeletionImpact(1, [lead("#L-1", 1, st, 1)], []);
       expect(im.canDelete).toBe(false);
-      expect(blockReason(im)).toContain("ยังมีดีลที่ขายอยู่ 1 รายการ");
+      expect(blockReason(im)).toContain("ยังมีงานขายที่เปิดอยู่ 1 รายการ");
     });
 
   it("ปนกัน: จบแล้ว 2 + ยังขายอยู่ 1 → ลบไม่ได้ และนับเฉพาะอันที่ยังขายอยู่", () => {

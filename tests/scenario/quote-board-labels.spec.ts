@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, แถวคำขอ, ตารางคำขอ } from "./helpers";
 import { adminClient } from "./testDealers";
 import { เลขลูกค้าเป้าหมายทดสอบ, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
 
@@ -10,6 +10,7 @@ import { เลขลูกค้าเป้าหมายทดสอบ, ล
 //   1 ชื่อสถานะ "ใหม่" · "กำลังตีราคา" — ไม่มีคำเก่า "ร่างค้าง" / "กำลังทำราคา" บนหน้า
 //   2 เลยกำหนด = ป้ายแดงป้ายเดียว "เกินกำหนด X วัน" · บรรทัดล่างไม่บอกกำหนดส่งซ้ำ · ไม่มี "เกิน 14 วัน" · ยังไม่เกิน = "กำหนดส่ง เหลือ X วัน"
 //   3 กำลังตีราคา: บรรทัดล่าง "ร่างล่าสุด X วันก่อน" จากวันแก้ร่างใบ HQ ในฐาน · ยังไม่มีร่าง = "ร่างล่าสุด —" (ห้ามเดา)
+//   ตาราง 6 พ.ย. 69 (บอสสั่ง): เลยกำหนด = คอลัมน์กำหนดส่งแดง "เกิน X วัน" ที่เดียว · ป้ายสถานะ = สถานะจริง · ยังไม่เกิน = "เหลือ X วัน" ใต้วันกำหนดส่ง
 //   ตกบนโค้ดก่อน 3 พ.ย. 69: ป้าย "เกิน 14 วัน" + "กำหนดส่ง เกิน X วัน" ซ้ำกัน · ป้าย "ร่างค้าง" · ไม่มีบรรทัดร่างล่าสุด
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(150_000);
@@ -51,27 +52,29 @@ test.beforeAll(async () => {
 });
 test.afterAll(ล้าง);
 
-const แถวของ = (page: Page, k: string) => page.getByRole("list", { name: "รายการคำขอ" }).getByRole("button", { name: ของ(k).บริษัท });
+const แถวของ = (page: Page, k: string) => แถวคำขอ(page, ของ(k).บริษัท);
 
 test("[H7] [ui·hq] ต้องตีราคา: ชื่อสถานะตาม FLOW · ป้ายเกินกำหนดป้ายเดียว · ร่างล่าสุดจากฐาน", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByLabel("ค้นหาคำขอ").fill(แท็ก);
-  await expect(page.getByRole("list", { name: "รายการคำขอ" }).getByRole("button"), "ต้องตีราคา 4 แถวของข้อ").toHaveCount(4, { timeout: 25_000 });
+  await expect(แถวคำขอ(page, แท็ก), "ต้องตีราคา 4 แถวของข้อ").toHaveCount(4, { timeout: 25_000 });
 
-  // 2 · เลยกำหนด: ป้ายเดียว · บรรทัดล่างไม่บอกกำหนดส่ง · ยังมีร่างล่าสุด (สถานะกำลังตีราคา)
+  // 2 · เลยกำหนด: แดงที่คอลัมน์กำหนดส่งที่เดียว "เกิน 3 วัน" · ป้ายสถานะ = สถานะจริง (ไม่บอกเกินซ้ำ) · ยังมีร่างล่าสุด (สถานะกำลังตีราคา)
   const p1 = แถวของ(page, "P1");
-  await expect(p1.getByTestId("row-tag")).toHaveText("เกินกำหนด 3 วัน");
-  await expect(p1.getByTestId("row-tag")).toHaveCSS("color", "rgb(185, 28, 28)");
+  await expect(p1.getByTestId("row-countdown")).toHaveText("เกิน 3 วัน");
+  await expect(p1.getByTestId("row-countdown")).toHaveCSS("color", "rgb(185, 28, 28)");
+  await expect(p1.getByTestId("row-tag"), "ป้ายสถานะไม่บอกเกินกำหนดซ้ำ").toHaveText("กำลังตีราคา");
   await expect(p1, "ไม่มี \"เกิน 14 วัน\"").not.toContainText("เกิน 14 วัน");
-  await expect(p1.getByTestId("row-countdown"), "บรรทัดล่างไม่บอกกำหนดส่งซ้ำ").toHaveCount(0);
+  await expect(p1, "บอกเกินที่เดียว").not.toContainText("เกินกำหนด");
   await expect(p1.getByTestId("row-draft-age")).toHaveText("ร่างล่าสุด 2 วันก่อน");
 
   // 1 + 3 · กำลังตีราคา ยังไม่เกิน
   const p2 = แถวของ(page, "P2");
   await expect(p2.getByTestId("row-tag")).toHaveText("กำลังตีราคา");
-  await expect(p2.getByTestId("row-countdown")).toHaveText("กำหนดส่ง เหลือ 6 วัน");
+  await expect(p2.getByTestId("row-countdown")).toHaveText("เหลือ 6 วัน");
+  await expect(p2.getByTestId("row-countdown"), "ยังไม่เกิน = ไม่แดง").not.toHaveCSS("color", "rgb(185, 28, 28)");
   await expect(p2.getByTestId("row-draft-age")).toHaveText("ร่างล่าสุด 5 วันก่อน");
   // ยังไม่มีใบ HQ = ไม่รู้วันแก้ร่าง → "—" ไม่เดา
   await expect(แถวของ(page, "P3").getByTestId("row-tag")).toHaveText("กำลังตีราคา");
@@ -79,10 +82,10 @@ test("[H7] [ui·hq] ต้องตีราคา: ชื่อสถานะ�
   // ใหม่: ไม่มีบรรทัดร่าง
   const n1 = แถวของ(page, "N1");
   await expect(n1.getByTestId("row-tag")).toHaveText("ใหม่");
-  await expect(n1.getByTestId("row-countdown")).toHaveText("กำหนดส่ง เหลือ 12 วัน");
+  await expect(n1.getByTestId("row-countdown")).toHaveText("เหลือ 12 วัน");
   await expect(n1.getByTestId("row-draft-age")).toHaveCount(0);
 
   // 1 · คำเก่าไม่กลับมา (ทั้งรายการ)
-  const ข้อความ = await page.getByRole("list", { name: "รายการคำขอ" }).innerText();
+  const ข้อความ = await ตารางคำขอ(page).innerText();
   for (const คำเก่า of ["ร่างค้าง", "กำลังทำราคา", "เกิน 14 วัน"]) expect(ข้อความ, `ไม่มีคำเก่า "${คำเก่า}"`).not.toContain(คำเก่า);
 });

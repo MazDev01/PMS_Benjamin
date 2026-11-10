@@ -51,14 +51,14 @@ export function customerDeletionImpact(
 /** ข้อความบอกว่า "ลบไม่ได้เพราะอะไร" — คืน "" ถ้าลบได้ */
 export function blockReason(impact: CustomerDeletionImpact): string {
   if (impact.canDelete) return "";
-  return `ลบลูกค้าไม่ได้ — ยังมีดีลที่ขายอยู่ ${impact.activeLeads.length} รายการ · ` +
-    `ปิดการขาย (สำเร็จ/ไม่สำเร็จ) หรือลบดีลเหล่านั้นก่อน แล้วค่อยลบลูกค้า`;
+  return `ลบลูกค้าไม่ได้ — ยังมีงานขายที่เปิดอยู่ ${impact.activeLeads.length} รายการ · ` +
+    `ปิดการขาย (สำเร็จ/ไม่สำเร็จ) หรือลบงานขายเหล่านั้นก่อน แล้วค่อยลบลูกค้า`;
 }
 
 /** ข้อความยืนยันก่อนลบ — ต้องบอกให้ครบว่าอะไรจะหายไปบ้าง */
 export function confirmMessage(company: string, impact: CustomerDeletionImpact): string {
   const extra = [
-    impact.closedLeads.length ? `ประวัติการขาย ${impact.closedLeads.length} ดีล` : "",
+    impact.closedLeads.length ? `ประวัติการขาย ${impact.closedLeads.length} งานขาย` : "",
     impact.quotations.length ? `ใบเสนอราคา ${impact.quotations.length} ใบ` : "",
   ].filter(Boolean);
   return `ลบลูกค้า "${company}"?` +

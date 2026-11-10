@@ -98,8 +98,9 @@ end $$;
 -- 5 · ชื่อขั้นผู้สนใจในฐาน = หน้าเว็บ — ตัวสร้างข้อความเรียกได้เฉพาะฐาน (ตัวดัก/บันทึก) ไม่ใช่บทบาทหน้าเว็บ → ตรวจด้วยบทบาทเจ้าของฐาน
 reset role;
 do $$ begin
-  perform hpmtest.eq(prospect_status_th('considering'), 'รอตัดสินใจ HQ', 'ชื่อขั้น considering (prospect_status_th)');
-  perform hpmtest.eq(_prospect_status_th('considering'), 'รอตัดสินใจ HQ', 'ชื่อขั้น considering (_prospect_status_th)');
+  -- ใบ 0278 (5 พ.ย. 69 · ตรวจกลับด้าน — เดิม "รอตัดสินใจ HQ" ของใบ 0268): ชื่อขั้น considering = "รอผู้สนใจตอบรับ"
+  perform hpmtest.eq(prospect_status_th('considering'), 'รอผู้สนใจตอบรับ', 'ชื่อขั้น considering (prospect_status_th)');
+  perform hpmtest.eq(_prospect_status_th('considering'), 'รอผู้สนใจตอบรับ', 'ชื่อขั้น considering (_prospect_status_th)');
 end $$;
 
 -- ดีลเลอร์เรียกไม่ได้

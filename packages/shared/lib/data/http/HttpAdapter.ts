@@ -179,7 +179,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   //   JSON "null" ที่เซิร์ฟเวอร์ตั้งใจตอบ (เช่น ยังไม่มีใบ HQ) ยังเป็นค่าที่ถูกต้อง
   let ข้อความ: string;
   try { ข้อความ = await res.text(); }
-  catch { throw new DbError("คำขอถูกยกเลิกระหว่างโหลด (aborted) — อ่านคำตอบไม่จบ"); }
+  catch { throw new DbError("การโหลดถูกยกเลิกกลางทาง (aborted) — ลองใหม่อีกครั้ง"); }
   let body: { error?: string; code?: string } | T | null = null;
   let อ่านได้ = ข้อความ !== "";
   if (อ่านได้) { try { body = JSON.parse(ข้อความ); } catch { อ่านได้ = false; } }
@@ -295,6 +295,7 @@ const quoteRequests: QuoteRequestsRepo = {
   board: (group, q) => apiFetch<QuoteBoard>(`/quote-requests?view=board&group=${encodeURIComponent(group)}&q=${encodeURIComponent(q)}`),
   submit: (i) => post<QuoteRequest>("/quote-requests", { op: "submit", ...i }),
   cancel: async (id, reason, closeLead) => { await post("/quote-requests", { op: "cancel", id, reason, closeLead }); },
+  abandonForm: async (leadNumId) => { await post("/quote-requests", { op: "abandon-form", leadNumId }); },
   reprice: (id, reason, spec) => post<QuoteRequest>("/quote-requests", { op: "reprice", id, reason, spec }),
   accept: async (id) => { await post("/quote-requests", { op: "accept", id }); },
   hqQuoteFor: (requestId) => apiFetch<HqQuote | null>(`/quote-requests?view=hq-quote&request=${requestId}`),
@@ -330,6 +331,9 @@ const materialTemplates: MaterialTemplatesRepo = {
   save: (rows, deleteIds) => post<MaterialTemplate[]>("/material-templates", { rows, deleteIds }),
   accuracy: () => apiFetch<EstimateAccuracy>("/material-templates?view=accuracy"),
   used: () => apiFetch<number[]>("/material-templates?view=used"),
+  importRows: (fileName, rows) => post("/material-templates", { op: "import", fileName, rows }),
+  cancelImport: (batch) => post("/material-templates", { op: "cancelImport", batch }),
+  importBatches: () => apiFetch("/material-templates?view=imports"),
 };
 // พื้นที่ของดีลเลอร์ (ใบ 0195)
 const territories: TerritoriesRepo = {
@@ -356,6 +360,8 @@ const prospects: ProspectsRepo = {
   create: (p) => post<DealerProspect>("/prospects", p),
   update: (p) => put<DealerProspect>("/prospects", p),
   remove: async (id) => { await apiFetch(`/prospects?id=${id}`, { method: "DELETE" }); },
+  // ยกเลิกงานล่าสุด = ถอย 1 ขั้น (ใบ 0278 · เส้นทางเดียวกัน op=undo)
+  undoLastTask: (id) => post<DealerProspect>("/prospects", { op: "undo", id }),
   // นำเข้าทั้งชุด (ใบ 0275) — เส้นทางแยก /prospect-import (เขียนในนามผู้เรียก · ฐานตรวจสิทธิ์)
   importRows: (fileName, rows) => post("/prospect-import", { op: "import", fileName, rows }),
   cancelImport: (batch) => post("/prospect-import", { op: "cancel", batch }),

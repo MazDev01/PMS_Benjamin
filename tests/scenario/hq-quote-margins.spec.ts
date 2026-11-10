@@ -54,6 +54,7 @@ test.afterAll(async () => {
   รันSQLในฐาน(`set local session_replication_role = replica;
     delete from public.quotation_won_at where dealer_code = '${c}'; delete from public.quotations where dealer_code = '${c}';
     delete from public.hq_quotes where request_id in (select id from public.quote_requests where dealer_code = '${c}');
+    select set_config('pms.quote_request_delete', 'test', false);   -- ตัวกันห้ามลบคำขอ (ใบ 0280) ยอมเฉพาะชุดล้างข้อมูลทดสอบ
     delete from public.quote_requests where dealer_code = '${c}'; delete from public.leads where dealer_code = '${c}';
     delete from public.customers where dealer_code = '${c}';
     set local session_replication_role = origin;`);
@@ -76,7 +77,7 @@ test("[func·hq] ใบเสนอราคาทั้งเครือ: ร�
   await page.goto(`${HQ_ORIGIN}/hq/quotations?dealer=${c}`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "ระดับสาขาของข้อ").toContainText(c, { timeout: 25_000 });
-  await expect(ตาราง(page).locator("thead th[data-col-head]")).toHaveText(["ราคาส่ง HQ", "ราคาขายลูกค้า", "ส่วนต่าง ฿", "ส่วนต่าง %"]);
+  await expect(ตาราง(page).locator("thead th[data-col-head]")).toHaveText(["ราคาจาก HQ", "ราคาขายลูกค้า", "ส่วนต่าง ฿", "ส่วนต่าง %"]);
 
   // 1) ค่าที่รู้รายใบ
   const q1 = await ค่าแถว(page, ใบ(c, 1)), q2 = await ค่าแถว(page, ใบ(c, 2)), q3 = await ค่าแถว(page, ใบ(c, 3));

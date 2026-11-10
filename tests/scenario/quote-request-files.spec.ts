@@ -12,7 +12,7 @@
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, เลือกกลุ่มคำขอ, แถวคำขอ, หน้าต่างใบHQ } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 import { ข้อมูลงานครบชุด, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
 
@@ -121,11 +121,11 @@ test("[H8] [flow·hq] HQ เห็นไฟล์ดีลเลอร์ + ป�
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByLabel("ค้นหาคำขอ").fill(บริษัท());
-  const แถว = page.getByRole("list", { name: "รายการคำขอ" }).locator("li").filter({ hasText: บริษัท() });
+  const แถว = แถวคำขอ(page, บริษัท());
   await expect(แถว.getByTestId("row-files"), "ป้ายจำนวนไฟล์ในรายการคำขอ").toHaveAttribute("data-dealer-files", "2", { timeout: 30_000 });
   await expect(แถว.getByTestId("row-files")).toHaveAttribute("data-hq-files", "0");
-  await แถว.getByRole("button").first().click();
-  const ใบ = page.getByRole("region", { name: "ใบ HQ" });
+  await แถว.first().click();
+  const ใบ = หน้าต่างใบHQ(page);
   const กล่อง = ใบ.locator("[data-panel='quote-files']");
   await expect(กล่อง.locator("[data-files-side='dealer'] [data-file-row]"), "HQ เห็นไฟล์จากดีลเลอร์").toHaveCount(2, { timeout: 30_000 });
   await expect(กล่อง.locator("[data-files-side='dealer'] [data-file-row] button[aria-label^='ลบ']"), "HQ ลบไฟล์ของดีลเลอร์ไม่ได้").toHaveCount(0);
@@ -181,7 +181,7 @@ test("[H9] [flow·dealer] ส่งใบ HQ แล้ว: กระดิ่ง
   const กล่อง = ใบHQ.locator("[data-panel='quote-files']");
   const ของHQ = กล่อง.locator("[data-files-side='hq'] [data-file-row]");
   await expect(ของHQ, "ดีลเลอร์เห็นไฟล์ HQ หลังส่งใบ").toHaveCount(1, { timeout: 30_000 });
-  await expect(ของHQ.first()).toContainText(/ใบ HQ .+ เวอร์ชัน 1/);
+  await expect(ของHQ.first()).toContainText(/ใบ HQ .+ ฉบับ 1/);
   await expect(กล่อง.locator("[data-files-side='dealer']"), "ใต้ใบ HQ ไม่มีกลุ่มไฟล์จากดีลเลอร์").toHaveCount(0);
   await expect(กล่อง.getByTestId("files-locked"), "ใต้ใบ HQ ไม่มีข้อความล็อก").toHaveCount(0);
   await expect(แผง.locator("[data-file-drop]"), "ส่งใบแล้ว ฝั่งดีลเลอร์ไม่มีกล่องแนบ").toHaveCount(0);
@@ -321,17 +321,17 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByLabel("ค้นหาคำขอ").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
-  await page.getByRole("list", { name: "รายการคำขอ" }).locator("li").filter({ hasText: `ZZTEST ไฟล์แนบ ${B.รหัส}` }).getByRole("button").first().click();
-  const ใบ = page.getByRole("region", { name: "ใบ HQ" });
+  await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().click();
+  const ใบ = หน้าต่างใบHQ(page);
   await expect(ใบ.getByLabel("หน่วย 1", { exact: true }), "หน่วยเดิมนอกรายการยังแสดงตามที่บันทึก").toHaveValue("เที่ยว", { timeout: 20_000 });
   expect((await hq.rpc("hq_quote_send", { p_request_id: rid })).error).toBeNull();
   await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
-  await page.getByRole("tab", { name: /ส่งแล้ว รอดีลเลอร์/ }).click();   // ส่งใบแล้ว = คำขอย้ายไปกลุ่ม "ส่งแล้ว รอดีลเลอร์"
+  await เลือกกลุ่มคำขอ(page, "quoted");   // ส่งใบแล้ว = คำขอย้ายไปกลุ่ม "ส่งแล้ว รอดีลเลอร์"
   await page.getByLabel("ค้นหาคำขอ").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
-  await page.getByRole("list", { name: "รายการคำขอ" }).locator("li").filter({ hasText: `ZZTEST ไฟล์แนบ ${B.รหัส}` }).getByRole("button").first().click();
+  await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().click();
   await expect(ใบ.locator("[data-panel='quote-files'] [data-files-side='hq']"), "HQ หลังส่งใบ: กลุ่มไฟล์ HQ ยังอยู่").toBeVisible({ timeout: 20_000 });
   await expect(ใบ.locator("[data-file-drop]"), "หลังส่งใบ HQ ไม่มีกล่องแนบ").toHaveCount(0);
-  await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกพร้อมใบ HQ/);
+  await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกแล้ว — ส่งใบ HQ แล้ว/);
 
   // ดีลเลอร์ B: บรรทัดสรุปบอก "ไม่มีไฟล์แนบจาก HQ" และไม่มีกล่องไฟล์ใต้ใบ
   // ออกจากหน้า HQ ก่อนล้างคุกกี้ — ต้นเหตุไม่นิ่ง (รอบตรวจ prodfmt 4 พ.ย. 69): ช่องค้นหาของกล่องงานยิงคำขอกลุ่มตามหลัง (หน่วงพิมพ์)

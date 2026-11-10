@@ -61,7 +61,7 @@ insert into auth.users (id, email, aud, role) values
 insert into profiles (id, role, dealer_code, name, status, contact_email, contact_email_verified_at) values
   ('00000000-0000-4000-8000-0000000a0001', 'DEALER_ADMIN', 'ZZQFA', 'ZZQF ดีลเลอร์ A', 'active', 'zzqf-a@example.test', now()),
   ('00000000-0000-4000-8000-0000000b0001', 'DEALER_ADMIN', 'ZZQFB', 'ZZQF ดีลเลอร์ B', 'active', '', null),
-  ('00000000-0000-4000-8000-0000000c0001', 'HQ_STAFF', '', 'ZZQF เจ้าหน้าที่ HQ', 'active', '', null);
+  ('00000000-0000-4000-8000-0000000c0001', 'SUPER_ADMIN', '', 'ZZQF เจ้าหน้าที่ HQ', 'active', '', null);   -- ผู้ใช้สำนักงานใหญ่ (บทบาทเดียว · ใบ 0282)
 -- ผู้รับแจ้งเตือนของสาขา = รายชื่อที่ยืนยันแล้ว (ใบ 0274) — โหมดนี้ตัวดักไม่ทำงาน จึงวางแถวที่ตัวดักจะสร้างจากอีเมลติดต่อเอง
 insert into dealer_notify_recipients (dealer_code, email, is_contact, verified_at) values ('ZZQFA', 'zzqf-a@example.test', true, now());
 insert into leads (id, num_id, dealer_code, company, contact, phone, province, project, area, note, status) values
@@ -134,7 +134,7 @@ begin
   perform qftest.must_fail(format('select qftest.put(%L, 10)', pB), 'forbidden', 'A อัปโหลดเข้าที่ที่ B จองไว้ = ถังปฏิเสธ');
 
   -- ══ 4) ไฟล์ HQ ร่าง → ส่งใบ ══
-  perform qftest.as_user(HQ, 'HQ_STAFF', '');
+  perform qftest.as_user(HQ, 'SUPER_ADMIN', '');
   pH := quote_file_reserve(993002, 'hq', 'แบบที่ HQ แก้.pdf', 2048) ->> 'path';
   perform qftest.ok(pH ~ '^ZZQFA/993002/h993012/', format('ไฟล์ HQ ผูกใบ HQ ฉบับนั้น (ได้ %s)', pH));
   perform qftest.put(pH, 2048);
@@ -147,7 +147,7 @@ begin
   perform qftest.ok(n = 0, 'ดีลเลอร์อ่านไฟล์ HQ ร่างในถังไม่ได้');
   perform qftest.ok(quote_file_counts(array[993002]::bigint[]) = '[]'::jsonb, 'ป้ายจำนวนของดีลเลอร์ไม่นับไฟล์ HQ ร่าง');
 
-  perform qftest.as_user(HQ, 'HQ_STAFF', '');
+  perform qftest.as_user(HQ, 'SUPER_ADMIN', '');
   perform hq_quote_send(993002);
   perform qftest.as_admin();
   perform qftest.ok(exists (select 1 from notifications where dedupe_key = 'hq_quote_sent:993002' and body like '%ไฟล์แนบจาก HQ 1 ไฟล์%'),
@@ -162,7 +162,7 @@ begin
   perform qftest.must_fail('select quote_file_reserve(993002, ''dealer'', ''หลังส่ง.pdf'', 10)', 'file_locked', 'ส่งใบแล้ว ดีลเลอร์แนบเพิ่มไม่ได้');
   n := qftest.del('ZZQFA/993002/%');
   perform qftest.ok(n = 0, 'ส่งใบแล้ว ดีลเลอร์ลบไฟล์ (ของตัวเองและของ HQ) ไม่ได้');
-  perform qftest.as_user(HQ, 'HQ_STAFF', '');
+  perform qftest.as_user(HQ, 'SUPER_ADMIN', '');
   perform qftest.must_fail('select quote_file_reserve(993002, ''hq'', ''หลังส่ง.pdf'', 10)', 'file_locked', 'ส่งใบแล้ว HQ แนบเพิ่มไม่ได้');
   n := qftest.del(pH);
   perform qftest.ok(n = 0, 'ส่งใบแล้ว HQ ลบไฟล์ของใบไม่ได้');
@@ -176,7 +176,7 @@ begin
   update hq_quotes set status = 'superseded' where id = 993012;
   insert into hq_quotes (id, request_id, version, quote_no, status, total_cost) values (993013, 993003, 2, 'HQ-ZZQFA-2b', 'draft', 0);
   set local session_replication_role = origin;
-  perform qftest.as_user(HQ, 'HQ_STAFF', '');
+  perform qftest.as_user(HQ, 'SUPER_ADMIN', '');
   pH2 := quote_file_reserve(993003, 'hq', 'แบบฉบับ 2.pdf', 4096) ->> 'path';
   perform qftest.put(pH2, 4096);
   l := quote_files_list(993003);
@@ -199,11 +199,13 @@ begin
     format('บันทึกครบ: แนบ 12 (ดีลเลอร์ 10 + HQ 2) + ลบ 1 (ได้ %s)', (select count(*) from audit_log where action in ('แนบไฟล์คำขอราคา', 'ลบไฟล์คำขอราคา')) - บันทึกก่อน));
 
   -- ══ 6) พื้นที่เก็บไฟล์ ══
-  perform qftest.as_user(HQ, 'HQ_STAFF', '');
+  perform qftest.as_user(HQ, 'SUPER_ADMIN', '');
   j := storage_usage();
   perform qftest.ok(exists (select 1 from jsonb_array_elements(j -> 'buckets') x where x ->> 'bucket' = 'quote-files' and (x ->> 'bytes')::bigint >= 2048 + 4096),
     format('พื้นที่ที่ใช้ไปนับขนาดจริงในถัง (ได้ %s)', j));
-  perform qftest.must_fail('select storage_quota_set(100)', 'forbidden', 'เจ้าหน้าที่ HQ ตั้งโควตาไม่ได้ (ผู้ดูแล/ผู้บริหารเท่านั้น)');
+  -- HQ บทบาทเดียว (ใบ 0282 · เดิม: เจ้าหน้าที่ HQ ตั้งโควตาไม่ได้): โทเคนบทบาทเดิม HQ_STAFF = ไม่ใช่ HQ ตั้งไม่ได้ · สำนักงานใหญ่ตั้งได้ (ข้อถัดไป)
+  perform qftest.as_user(HQ, 'HQ_STAFF', '');
+  perform qftest.must_fail('select storage_quota_set(100)', 'forbidden', 'โทเคนบทบาทเดิม HQ_STAFF ตั้งโควตาไม่ได้');
   perform qftest.as_user(HQ, 'SUPER_ADMIN', '');
   perform storage_quota_set(100);
   perform qftest.ok((storage_usage() ->> 'quotaGb')::numeric = 100, 'ผู้ดูแลตั้งโควตา 100 GB แล้วอ่านกลับได้');
