@@ -7,17 +7,11 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { setLocalระดับบน } from "./lib/sqlSetLocal.mjs";
+import { ยกเว้นSetLocal } from "./lib/migrationWarnings.mjs";
 
 const โฟลเดอร์ = process.env.PMS_MIGRATIONS_DIR ?? "supabase/migrations";
-const ลงแล้ว = "ลงฐานจริงแล้ว ห้ามแก้ใบที่ลงแล้ว (ลายนิ้วมือใบ) · ตอนลงไม่ได้ปิดตัวดักจริง";
-export const ยกเว้น = {
-  "0250_lead_tasks_five_steps.sql": `${ลงแล้ว} — แปลงรายการงานลีด`,
-  "0257_lead_old_status_retired.sql": `${ลงแล้ว} — เลิกใช้สถานะลีดเดิม`,
-  "0260_sales_by_won_date.sql": `${ลงแล้ว} — วันตอบรับของใบ`,
-  "0261_prospect_province_cleanup.sql": `${ลงแล้ว} — แปลงจังหวัดผู้สนใจ`,
-  "0263_lead_tasks_collect_requirement_auto.sql": `${ลงแล้ว} — งานเก็บข้อมูล/สรุปความต้องการ`,
-  "0284_lead_stage_four.sql": `${ลงแล้ว} — คนรวมงานตรวจฐานจริง 10 พ.ย. 69 ไม่มีผลเสีย (audit ไม่ลงเพราะ auth.uid ว่าง · ลีดขั้น 5 = 0 แถว · แม่แบบงาน 8 งานขั้น 1–4)`,
-};
+// รายการยกเว้นกลาง (ใช้ร่วมกับ reset-test-db ที่ตกเมื่อการลงใบขึ้น WARNING) — scripts/lib/migrationWarnings.mjs
+export const ยกเว้น = ยกเว้นSetLocal;
 const เจอ = [];
 for (const f of readdirSync(โฟลเดอร์).filter(n => n.endsWith(".sql")).sort()) {
   if (ยกเว้น[f]) continue;
