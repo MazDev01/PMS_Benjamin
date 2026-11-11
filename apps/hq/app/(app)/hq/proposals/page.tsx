@@ -36,6 +36,7 @@ import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import { ป้ายนับวันหมดอายุ } from "@pms/shared/lib/quoteExpiry";
 import { แถบสรุปเอกสาร, กริดรายละเอียด, ช่องกริด } from "@pms/shared/components/ui/DocDetailParts";
 import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 
 const PRIMARY = "#003366";
 const STEEL = "#2D2D2D";
@@ -288,7 +289,7 @@ export default function HQProposalsPage() {
         return (
           <div onClick={() => setดูรหัส(null)} style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
             <ModalCard onClose={() => setดูรหัส(null)} label="รายละเอียดใบค่าแฟรนไชส์"
-              style={{ width: 760, maxWidth: "100%", maxHeight: "calc(100vh - 24px)", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              style={{ width: ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) · เดิม 760 */, maxWidth: "100%", maxHeight: "calc(100vh - 24px)", background: "#fff", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.32)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>
                 <div data-panel-head style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "nowrap" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>

@@ -44,6 +44,7 @@ import { ป้ายฉบับ } from "@pms/shared/lib/quoteRevision";
 import { useQuoteValidityDays } from "@pms/shared/lib/useHQConfig";
 import { useModalA11y } from "@pms/shared/lib/useModalA11y";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 
 const PRIMARY = "#003366";
 const บาท2 = (n: number) => Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -147,7 +148,7 @@ function หน้าต่างใบ({ quote, onClose, onChanged }: Props) {
     <>
       <div onClick={onClose} className="drawer-overlay" style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 250 }} />
       <div ref={ref} role="dialog" aria-modal="true" aria-label="รายละเอียดใบเสนอราคา" data-hq-quote-view={quote.quoteNo} className="modal-pop"
-        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 820, maxWidth: "calc(100vw - 24px)",
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) */, maxWidth: "calc(100vw - 24px)",
           maxHeight: "calc(100vh - 24px)", zIndex: 251, background: "#F8FAFC", boxShadow: "0 30px 90px rgba(0,0,0,.32)", borderRadius: 18,
           display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* แถบหัว = เลขที่ + ลูกค้า · ดีลเลอร์ + ปุ่มปิด — สถานะ/ฉบับ/ยอดอยู่ในแถบสรุปที่เดียว (บอสตอบ 9 พ.ย. 69) */}

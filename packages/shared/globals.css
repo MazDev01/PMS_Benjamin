@@ -1684,6 +1684,7 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 .doc-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 16px; }
 .doc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; padding: 12px 0; }
 .doc-grid > .doc-wide { grid-column: 1 / -1; }
+.doc-grid.doc-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* หน้าต่างทำใบ HQ: ข้อมูลลูกค้า/งาน 2 คอลัมน์ (บอสสั่ง 10 พ.ย. 69) */
 .doc-totals { width: 50%; margin-left: auto; }
 @media (max-width: 640px) {
   .doc-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

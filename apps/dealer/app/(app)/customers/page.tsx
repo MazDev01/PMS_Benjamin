@@ -72,6 +72,7 @@ import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 
 // ── Design tokens ────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -1357,7 +1358,7 @@ export default function CustomersPage(){
           <>
             <div onClick={()=>setViewProject(null)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:240}}/>
             <div className="modal-pop" style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-              width:1040, maxWidth:"calc(100vw - 24px)", height:"min(900px, calc(100vh - 24px))",
+              width:ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) · เดิม 1040 */, maxWidth:"calc(100vw - 24px)", height:"min(900px, calc(100vh - 24px))",
               zIndex:250, background:"#fff", boxShadow:"0 30px 90px rgba(0,0,0,.34)", borderRadius:18,
               display:"flex", flexDirection:"column", overflow:"hidden"}}>
 

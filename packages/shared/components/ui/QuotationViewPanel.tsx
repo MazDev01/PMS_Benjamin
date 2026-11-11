@@ -30,6 +30,7 @@ import { PanelSection } from "@pms/shared/components/ui/DetailPanel";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 
 const เลขฉบับ = (q: QuotationMock) => Number(ป้ายฉบับ(q.revision).slice(1));
 
@@ -113,7 +114,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
       <div onClick={onClose} className="drawer-overlay" style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 200 }} />
       {/* แผงกลางจอ 820px — มาตรฐานเดียวกับแผงลีด/แผงลูกค้าของดีลเลอร์ */}
       <div ref={ref} role="dialog" aria-modal="true" aria-label={`ใบเสนอราคา ${q.id}`} data-quote-view={q.id} className="modal-pop"
-        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 820, maxWidth: "calc(100vw - 24px)",
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) */, maxWidth: "calc(100vw - 24px)",
           maxHeight: "calc(100vh - 24px)", zIndex: 210, background: "#F8FAFC", boxShadow: "0 30px 90px rgba(0,0,0,.32)", borderRadius: 18,
           display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div data-panel-head style={{ background: "#003366", padding: "14px 20px", flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "nowrap" }}>

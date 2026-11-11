@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import { เพดานหน้าต่าง } from "@pms/shared/lib/windowSize";
 import { useModalA11y } from "@pms/shared/lib/useModalA11y";
 
 // ── กล่องเนื้อหาของโมดัล (ตัวที่อยู่บนฉากหลัง) ────────────────────────────────────
@@ -31,7 +32,8 @@ export function ModalCard({ onClose, label, style, className, children }: {
       aria-label={label}
       className={className}
       onClick={e => e.stopPropagation()}
-      style={style}
+      // เพดานความกว้างหน้าต่างกลางจอ — ค่าเดียวทั้งระบบ (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) · ค่าเดิมที่แคบกว่าคงไว้
+      style={{ ...style, maxWidth: เพดานหน้าต่าง(style?.maxWidth as number | string | undefined) }}
     >
       {children}
     </div>

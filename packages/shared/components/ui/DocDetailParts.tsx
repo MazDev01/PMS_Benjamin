@@ -48,8 +48,9 @@ export function แถบสรุปเอกสาร({ ช่อง, style }:
 }
 
 /** กริดรายละเอียด — ใส่ ช่องกริด เป็นลูก */
-export function กริดรายละเอียด({ children, style, ...rest }: { children: ReactNode; style?: CSSProperties } & Record<`data-${string}`, string | undefined>) {
-  return <div className="doc-grid" data-doc-grid style={style} {...rest}>{children}</div>;
+export function กริดรายละเอียด({ children, style, สองคอลัมน์, ...rest }: { children: ReactNode; style?: CSSProperties;
+  /** 2 คอลัมน์ (หน้าต่างทำใบ HQ: ข้อมูลลูกค้า/งาน · บอสสั่ง 10 พ.ย. 69) — ไม่ส่ง = 3 คอลัมน์ */ สองคอลัมน์?: boolean } & Record<`data-${string}`, string | undefined>) {
+  return <div className={สองคอลัมน์ ? "doc-grid doc-grid-2" : "doc-grid"} data-doc-grid style={style} {...rest}>{children}</div>;
 }
 
 /** หนึ่งช่องในกริด: หัวข้อเล็กสีเทาอยู่บน · ค่าตัวหนาอยู่ล่าง · เต็มแถว = ข้อความยาว (คงบรรทัดตามที่พิมพ์) */
