@@ -73,6 +73,7 @@ import { ตารางรายการ } from "@pms/shared/components/ui/Lin
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
+import { แถบสรุปเอกสาร } from "@pms/shared/components/ui/DocDetailParts";
 
 // ── Design tokens ────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -1374,29 +1375,16 @@ export default function CustomersPage(){
                 </button>
               </div>
 
-              {/* ซ้าย: สรุปงาน · ขวา: ข้อมูลทั้งหมด */}
-              <div className="proj-shell" style={{flex:1,minHeight:0,display:"grid",gridTemplateColumns:"320px minmax(0,1fr)",background:"#f5f7fa"}}>
-                <div style={{padding:16,borderRight:"1px solid #e9edf2",display:"flex",flexDirection:"column",gap:12,overflowY:"auto"}}>
-                  <div style={cardS}>
-                    {([
-                      ["สถานะ", ""], ["วันที่ซื้อ", fmtDate(q.date)],
-                      ["พื้นที่", q.area>0 ? `${q.area.toLocaleString()} ตร.ม.` : "—"],
-                    ] as [string,string][]).map(([k,v])=>(
-                      <div key={k} style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",padding:"7px 0",borderBottom:"1px solid #f4f6f9",fontSize:"0.75rem"}}>
-                        <span style={{color:"#8a929c",flexShrink:0}}>{k}</span>
-                        {k==="สถานะ"
-                          ? <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span>
-                          : <span style={{fontWeight:700,color:STEEL,textAlign:"right",minWidth:0,wordBreak:"break-word"}}>{v}</span>}
-                      </div>
-                    ))}
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",paddingTop:10}}>
-                      <span style={{fontSize:"0.72rem",color:"#8a929c"}}>มูลค่างาน</span>
-                      <span style={{fontSize:"1.1rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums"}}>{fmtMoney(q.totalValue)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{padding:16,display:"flex",flexDirection:"column",gap:14,overflowY:"auto"}}>
+              {/* คอลัมน์เดียว (บอสตอบ 10 พ.ย. 69 · หน้าต่างเอกสาร 820): การ์ดสรุป (สถานะ · วันที่ซื้อ · พื้นที่ · มูลค่างาน) เป็นแถบบนแบบหน้าต่างใบเสนอราคา
+                  ตารางรายการเต็มกว้าง ไม่เลื่อนแนวนอน · เดิม 2 คอลัมน์ ซ้าย 320px (ที่ 820 ตารางเหลือ 432px < ขั้นต่ำ 560) */}
+              <แถบสรุปเอกสาร ช่อง={[
+                { คีย์: "status", ป้าย: "สถานะ", ค่า: <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span> },
+                { คีย์: "date", ป้าย: "วันที่ซื้อ", ค่า: fmtDate(q.date) },
+                { คีย์: "area", ป้าย: "พื้นที่", ค่า: q.area>0 ? `${q.area.toLocaleString()} ตร.ม.` : "—" },
+                { คีย์: "value", ป้าย: "มูลค่างาน", ค่า: fmtMoney(q.totalValue), เด่น: true },
+              ]} />
+              <div className="proj-shell" style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",background:"#f5f7fa"}}>
+                <div style={{padding:16,display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flex:1,minHeight:0}}>
 
                   {/* รายละเอียดเอกสาร — ชุดเดียวกับหน้าใบเสนอราคา (ไม่มีข้อมูล = "—" ไม่เดา) */}
                   <div style={cardS}>
