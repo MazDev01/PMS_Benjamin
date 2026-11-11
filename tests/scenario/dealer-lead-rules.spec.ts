@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { open, assertHealthyPage } from "./helpers";
 import { REAL_BACKEND } from "./supabaseEnv";
+import { adminClient } from "./testDealers";
+import { สร้างสาขาของข้อ } from "./ownDealer";
+import { รันSQLในฐาน } from "./localDb";
 
 // เทสต์ที่ seed กฎผ่าน localStorage ใช้ได้กับ "โหมด local" เท่านั้น —
 // โหมด supabase แอปอ่านกฎจาก DB (dealer_lead_rules) ไม่ใช่ localStorage → seed ไม่มีผล
@@ -78,6 +81,32 @@ test("[ux·hq] หน้าลูกค้าเป้าหมาย HQ ไม�
 });
 
 test("[user·hq] เกณฑ์ที่สาขาตั้ง มีผลกับการ์ดเตือนของ HQ ด้วย", async ({ page }) => {
+  // ⚠️ 11 พ.ย. 69 (ตกหลังเลิกข้ามเงียบ): ข้อเดิมตั้งเกณฑ์ผ่าน localStorage ซึ่งโหมดต่อฐานไม่อ่าน + ข้อมูลตั้งต้นทุกรายมีผู้รับผิดชอบ
+  //   → บนฐานจริงการ์ดไม่เคยขึ้น และข้อนี้ผ่านเงียบมาตลอด (if count) · ตอนนี้โหมดต่อฐาน: สาขาของข้อ + เกณฑ์ที่ฐาน (dealer_lead_rules 1 ชม.)
+  //   + ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบ เข้ามา 3 วันก่อน → การ์ดต้องขึ้น · โหมดไม่ต่อฐานยังใช้ทาง localStorage เดิม
+  if (REAL_BACKEND) {
+    const ส = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
+    const svc = adminClient();
+    const เลข = 1_880_000_000 + Math.floor(Math.random() * 400_000) * 10;
+    const สามวันก่อน = new Date(Date.now() + 7 * 3_600_000 - 3 * 86_400_000).toISOString().slice(0, 10);
+    try {
+      expect((await svc.from("dealer_lead_rules").upsert({ dealer_code: ส.รหัส, follow_up_alert_days: 7, unassigned_alert_hours: 1 })).error, "ตั้งเกณฑ์ของสาขาที่ฐาน").toBeNull();
+      // วางที่ฐานตรงแบบปิดตัวดัก — ตัวดักตอนเพิ่มลีดตั้งวันที่เข้ามา = วันนี้เสมอ (ลีดอายุ 0 ชม. ไม่เข้าเกณฑ์) · แบบเดียวกับ hq-leads-one-set
+      expect(รันSQLในฐาน(`set local session_replication_role = replica;
+        insert into public.leads (id, num_id, dealer_code, company, name, phone, province, source, status, created_date, last_contact_at)
+        values ('#L-${เลข}', ${เลข}, '${ส.รหัส}', 'ZZTEST ไม่มีผู้รับผิดชอบ ${ส.รหัส}', 'ZZTEST ผู้ติดต่อ', '000-000-0301', 'ตราด', 'Facebook', 'WAITING', '${สามวันก่อน}', '${สามวันก่อน}');
+        set local session_replication_role = origin;`), "ลูกค้าเป้าหมายของข้อ (ไม่พบฐานทดสอบในเครื่อง = วางไม่ได้)").not.toBeNull();
+      await open(page, "hq", `/hq/leads?dealer=${ส.รหัส}`);
+      await assertHealthyPage(page, "ลูกค้าเป้าหมายทั้งเครือ");
+      const การ์ด = page.locator(".card").filter({ hasText: "ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบ" });
+      await expect(การ์ด, "เกณฑ์ 1 ชม. ของสาขา + ลีดไม่มีผู้รับผิดชอบ 3 วัน = การ์ดเตือนขึ้น").toBeVisible({ timeout: 25_000 });
+      await expect(การ์ด.getByText(/เกณฑ์ที่แต่ละสาขาตั้งไว้เอง/)).toBeVisible();
+    } finally {
+      await svc.from("leads").delete().eq("num_id", เลข);
+      await svc.from("dealer_lead_rules").delete().eq("dealer_code", ส.รหัส);
+      await ส.ลบ();
+    }
+  } else {
   // ตั้งเกณฑ์ต่ำมาก (1 ชม.) ให้สาขา CNX → ลูกค้าเป้าหมายที่ยังไม่มีผู้รับผิดชอบของ CNX ต้องเข้าเกณฑ์
   await seedRules(page, "CNX", 7, 1);
   await open(page, "hq", "/hq/leads");
@@ -88,5 +117,6 @@ test("[user·hq] เกณฑ์ที่สาขาตั้ง มีผล�
   {
     // ป้ายต้องบอกเกณฑ์ที่ "แต่ละสาขาตั้งเอง" ไม่ใช่ตัวเลขกลางตัวเดียว
     await expect(card.getByText(/เกณฑ์ที่แต่ละสาขาตั้งไว้เอง/)).toBeVisible();
+  }
   }
 });
