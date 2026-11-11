@@ -116,7 +116,7 @@ test("[H8] [flow·hq] ขั้น 5: HQ ทำ BOQ ด้วยรายกา�
 });
 
 test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ → ล็อก · ส่งใบแล้ว · ลูกค้าเป้าหมายคงเดิม + ป้ายได้ราคาแล้ว · ดีลเลอร์เห็นใบ HQ", async ({ page }) => {
-  test.skip((await ใบในฐาน())?.status !== "draft", "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip((await ใบในฐาน())?.status !== "draft", "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   const errs = watchErrors(page);
   const คาด = Number((await ใบในฐาน())!.total_cost);
   let กล่อง = await เปิดใบHQ(page);

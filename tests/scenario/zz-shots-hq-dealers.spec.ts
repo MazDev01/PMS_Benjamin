@@ -29,7 +29,7 @@ test("[shots] /hq/dealers", async ({ page }) => {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(ที่เก็บ, "2-SKN-ภาพรวม.png"), fullPage: true });
   const แผง = page.locator("[data-dealer-panel]");
-  if (await แผง.count()) {
+  if (await แผง.count()) {   // ไม่ใช่การข้าม: ชุดถ่ายรูป (รันเองเมื่อสั่ง) ไม่ใช่ข้อตรวจ
     for (const [แท็บ, ชื่อ] of [["leads", "3-SKN-ลูกค้าเป้าหมาย"], ["quotes", "4-SKN-ใบเสนอราคา"], ["customers", "5-SKN-ลูกค้า"], ["activity", "6-SKN-กิจกรรม"]] as const) {
       await แผง.locator(`[data-panel-tab='${แท็บ}']`).click();
       await page.waitForTimeout(800);

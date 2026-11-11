@@ -118,14 +118,17 @@ test("[ui·hq] /hq/pipeline: ทุกกราฟ/ตารางมีหั�
   expect(await กล่องที่ไม่มีหัวข้อ(page), "ทุกกราฟ/ตารางบนหน้ามีหัวข้อ 2 บรรทัด").toEqual([]);
   const ทั้งเครือ = { ภาค: null, จังหวัด: null, ดีลเลอร์: null };
   await expect(ตาราง.locator("[data-title]").first()).toHaveText("ตารางผลงานแยกตามดีลเลอร์ · ทั้งเครือ");
+  let แท็บที่ตรวจ = 0;
   for (const dim of ["dealer", "region", "prov", "month"] as มิติ[]) {
     const แท็บ = กราฟ.locator(`[role="tab"][data-dim="${dim}"]`);
-    if (!(await แท็บ.count())) continue;
+    if (!(await แท็บ.count())) continue;   // ไม่ใช่การข้าม: หน้านี้ไม่มีแท็บมิตินี้ — ท้ายวนตรวจ แท็บที่ตรวจ > 0
+    แท็บที่ตรวจ++;
     await แท็บ.click();
     await expect(กราฟ.locator("[data-title]").first(), `แท็บ ${dim}: หัวข้อกราฟ`).toHaveText(`กราฟ${ชื่อหัวข้อ("ยอดขาย เทียบ เป้าตามช่วง ", dim, ทั้งเครือ)}`);
     await expect(ตาราง.locator("[data-title]").first(), `แท็บ ${dim}: หัวข้อตาราง`).toHaveText(`ตาราง${ชื่อหัวข้อ("ผลงาน", dim, ทั้งเครือ)}`);
     await expect(กราฟ.locator("[data-subtitle]").first()).toContainText(ป้ายช่วง(ช่วง));
   }
+  expect(แท็บที่ตรวจ, "ไม่มีแท็บมิติให้ตรวจหัวข้อเลย — ตก ไม่ใช่ผ่านเงียบ (บอสสั่ง 11 พ.ย. 69)").toBeGreaterThan(0);
   // ระดับดีลเลอร์ (ตัวเลือกดีลเลอร์บนแถบตัวกรอง) — หัวข้อเปลี่ยนเป็นรายเดือนของดีลเลอร์
   await page.locator("[data-filter-row] select").first().selectOption(สาขา.รหัส);
   await expect(ตาราง.locator("[data-title]").first()).toHaveText(`ตารางผลงานรายเดือน · ดีลเลอร์ ${ชื่อสาขา()}`, { timeout: 20_000 });

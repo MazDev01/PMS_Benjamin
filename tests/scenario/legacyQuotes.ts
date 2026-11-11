@@ -5,7 +5,7 @@ import { รันSQLในฐาน } from "./localDb";
  *  (ระบบจริงมีใบแบบนี้อยู่ และหน้าจอยังต้องแสดงได้) · ปิดตัวดัก hq_quote_required เฉพาะคำสั่งนี้แล้วเปิดคืนในทรานแซกชันเดียว
  *  ⚠️ ไม่ใช่ทางสร้างใบของแอป — ข้อทดสอบที่วัด "การสร้างใบ" ต้องใช้ เตรียมใบHQ + ทำใบลูกค้าจากใบHQ */
 export function วางใบเดิมที่ฐาน(rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
+  if (!rows.length) return;   // ไม่ใช่การข้าม: ตัวช่วยล้าง — ไม่มีแถวให้ลบ
   const json = JSON.stringify(rows).replace(/\$json\$/g, "");
   // ระบุเฉพาะคอลัมน์ที่ส่งมา — คอลัมน์อื่นใช้ค่าตั้งต้นของตาราง (populate_recordset ใส่ null ให้ทุกคอลัมน์ที่ไม่มี)
   const cols = [...new Set(rows.flatMap(r => Object.keys(r)))].filter(c => /^[a-z_]+$/.test(c)).join(", ");
@@ -21,7 +21,7 @@ export function วางใบเดิมที่ฐาน(rows: Record<strin
 /** ล้างทุกอย่างที่ผูกกับลูกค้าเป้าหมายของข้อทดสอบ (ใบลูกค้า · ใบ HQ · คำขอ · อีเมล · ลูกค้าเป้าหมาย) ที่ฐานทดสอบในเครื่อง */
 export function ล้างใบHQทดสอบ(dealerCode: string, leadNums: number[]) {
   const nums = leadNums.filter(n => Number.isInteger(n) && n > 0);
-  if (!nums.length) return;
+  if (!nums.length) return;   // ไม่ใช่การข้าม: ตัวช่วยล้าง — ไม่มีแถวให้ลบ
   const ids = nums.join(",");
   // ไฟล์แนบของคำขอ (ใบ 0273): ลบไฟล์ในถังแบบที่ API ของที่เก็บไฟล์ลบ (สวิตช์ allow_delete_query) — ตัวดักลบแถว quote_files ตาม · แถวจองที่ไม่มีไฟล์ลบตรง
   const sql = `select set_config('storage.allow_delete_query', 'true', false);

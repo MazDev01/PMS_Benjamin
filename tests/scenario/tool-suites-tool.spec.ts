@@ -8,6 +8,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/pre-push-guard.test.mjs", "ตัวกัน push ขึ้น monorepo: ผลรอบตรวจ · ใบลงฐานจริงครบ · ถามฐานไม่ได้บอกวิธีแก้เป็นขั้นตอน"],
   ["tests/tools/vercel-gate.test.mjs", "Vercel ไม่ build commit ที่ไม่ผ่านรอบตรวจ"],
   ["tests/tools/flaky-log.test.mjs", "ตัวนับข้อไม่นิ่ง + บรรทัดต้นเหตุ"],
+  ["tests/tools/test-self-skip.test.mjs", "ตัวตรวจข้อทดสอบข้ามตัวเองเมื่อไม่มีข้อมูล + รายงานข้อที่ข้ามแยกตามเหตุผล"],
   ["tests/tools/flaky-ack.test.mjs", "ชื่อข้อไม่นิ่งท้ายผล + รอบมีข้อไม่นิ่งรอบอสรับทราบ (round:ack กัน AI)"],
   ["tests/tools/prod-read-only.test.mjs", "prod:query ใส่ --yes เฉพาะคำสั่งอ่าน · คำสั่งเขียนถูกปฏิเสธก่อนต่อฐาน"],
   ["tests/tools/supabase-cli-rows.test.mjs", "อ่านผล Supabase CLI ได้ทั้ง 2 รูปแบบ · อ่านไม่ได้หยุดก่อนลบ · CLI รุ่นของโปรเจกต์"],

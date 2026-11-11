@@ -71,7 +71,7 @@ test("[auth·hq] HQ สร้างดีลเลอร์ → บัญชี�
 });
 
 test("[auth·dealer] บัญชีที่ยังมีเครื่องหมายค้าง พิมพ์รหัสสาขาเข้า → /dashboard ทันที ไม่เจอหน้าตั้งรหัส/ยืนยันอีเมล ไม่มีแถบเตือน", async ({ page }) => {
-  test.skip(!uid, "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(!uid, "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   // จำลองบัญชีบนระบบจริงก่อนรันสคริปต์ล้าง (ตั้งเครื่องหมายไว้ 155 บัญชี 19 ต.ค. 69)
   const { data: u } = await admin.auth.admin.getUserById(uid);
   expect((await admin.auth.admin.updateUserById(uid, { app_metadata: { ...(u.user?.app_metadata ?? {}), must_change_password: true, must_verify_email: true } })).error).toBeNull();
@@ -89,7 +89,7 @@ test("[auth·dealer] บัญชีที่ยังมีเครื่อ�
 });
 
 test("[auth·dealer] หน้าบัญชีมีที่เปลี่ยนรหัสผ่านและใส่อีเมลติดต่อ (ตามใจดีลเลอร์)", async ({ page }) => {
-  test.skip(!uid, "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(!uid, "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   await admin.auth.admin.updateUserById(uid, { app_metadata: { must_change_password: false, must_verify_email: false } });
   await เข้าด้วยรหัสสาขา(page, " ZTK ");
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });

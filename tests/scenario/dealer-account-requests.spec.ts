@@ -65,7 +65,8 @@ test("[api] แก้เองตามกติกา → ครบโควต
   const { token, error } = await dealerToken(PASSWORD);
   expect(error, "ดีลเลอร์ต้องเข้าด้วยรหัสที่ตั้งตอนสร้างได้").toBeNull();
   const ก่อน = await สถานะ(request, token);
-  test.skip(!("selfChangesUsed" in ก่อน), "ฐานข้อมูลนี้ยังไม่มีตารางบัญชีดีลเลอร์ (0165)");
+  // ใบ 0165 ลงทุกฐานแล้ว — ไม่มีช่องนี้ = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69)
+  expect("selfChangesUsed" in ก่อน, "ฐานข้อมูลนี้ไม่มีตารางบัญชีดีลเลอร์ (ใบ 0165)").toBe(true);
 
   // ── 1) กติกาเดียวทั้งระบบ — ถูกปฏิเสธต้องไม่กินโควตา ──
   const เว้นวรรค = await ยิงบัญชี(request, token, { currentPassword: PASSWORD, password: "มี ช่องว่าง 12345" });

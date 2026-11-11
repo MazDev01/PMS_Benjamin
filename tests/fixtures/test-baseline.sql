@@ -542,3 +542,8 @@ values (9001, 'ผู้สนใจตัวอย่าง 001', '000-000-0901
 select setval(pg_get_serial_sequence('public.dealer_prospects', 'id'), greatest((select max(id) from public.dealer_prospects), 9001));
 insert into public.dealer_package_proposals (prospect_id, status, amount, contract_months, annual_target, region, province, proposed_date, valid_until, terms, note)
 values (9001, 'draft', 0, 12, 1000000, 'เหนือ', 'แม่ฮ่องสอน', current_date, current_date + 30, '-', null);
+
+-- บันทึกการใช้งานตัวอย่าง 1 แถว (บอสสั่ง 11 พ.ย. 69 · ข้อทดสอบห้ามข้ามเองเมื่อไม่มีข้อมูล): audit-integrity.spec.ts ข้อ "แก้/ลบบันทึกย้อนหลังไม่ได้"
+--   ต้องมีแถวให้ลองแก้/ลบเสมอ (เดิมข้ามเมื่อไม่มีบันทึก) · วันที่เก่า (ไม่โผล่ในกิจกรรมล่าสุด) · ไม่ตรงเงื่อนไขแถวทดสอบของชุดล้าง (ชุดล้างลบไม่ได้)
+insert into public.audit_log ("user", role, action, target, at)
+values ('ระบบตั้งต้นทดสอบ', 'ระบบ', 'ข้อมูลตั้งต้นทดสอบ', 'บันทึกตัวอย่าง 001', '2026-01-01T00:00:00+07:00');

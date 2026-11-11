@@ -249,7 +249,7 @@ async function ขยับตัวนับให้พ้นข้อมู�
   };
   for (const c of ตัวนับ ?? []) {
     const t = ที่มา[c.entity as string];
-    if (!t) continue;
+    if (!t) continue;   // ไม่ใช่การข้าม: ตัวเตรียมตัวนับ — ชนิดที่ไม่มีตารางต้นทาง
     const { data } = await admin.from(t.table).select(t.col).eq("dealer_code", c.dealer_code)
       .order(t.col, { ascending: false }).limit(1);
     const สูงสุด = Number((data?.[0] as Record<string, unknown> | undefined)?.[t.col] ?? 0);

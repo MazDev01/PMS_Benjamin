@@ -150,10 +150,14 @@ test("hq_alerts: รายการแจ้งเตือนลูกค้า
   expect(error, "เรียก hq_alerts ต้องไม่ error").toBeNull();
 
   const groups = (data ?? {}) as { unassigned?: Array<Record<string, unknown>>; idle?: Array<Record<string, unknown>> };
+  let ตรวจ = 0;
   for (const key of ["unassigned", "idle"] as const) {
     const rows = groups[key] ?? [];
-    if (!rows.length) continue; // ไม่มีข้อมูลเข้าเกณฑ์ตอนนี้ — ไม่ใช่ความล้มเหลว
+    ตรวจ += rows.length;
+    if (!rows.length) continue; // ไม่ใช่การข้าม: กลุ่มนี้ว่างได้ — ท้ายข้อต้องตรวจได้อย่างน้อย 1 แถวรวมทั้ง 2 กลุ่ม
     const missing = rows.filter(r => !("dealer_code" in r));
     expect(missing, `รายการ "${key}" ทุกแถวต้องมี dealer_code (ขาด ${missing.length} จาก ${rows.length})`).toEqual([]);
   }
+  // ไม่มีข้อมูล = ตก ไม่ใช่ผ่านเงียบ (บอสสั่ง 11 พ.ย. 69) — เกณฑ์ 1 ชม./1 วัน ณ 30 มิ.ย. 69 ข้อมูลตั้งต้นต้องมีลีดเข้าเกณฑ์
+  expect(ตรวจ, "ขาดข้อมูล: hq_alerts ไม่มีแถวให้ตรวจเลย (ข้อมูลตั้งต้นต้องมีลีดไม่มีผู้รับผิดชอบ/ไม่ได้ติดต่อ)").toBeGreaterThan(0);
 });

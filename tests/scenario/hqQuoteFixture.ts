@@ -18,13 +18,13 @@ export const ข้อมูลงานครบชุด = { project: "ZZTEST 
  *  (เหมือนผู้ใช้กรอกฟอร์มช่องที่ขาดก่อนขอราคา · ใบ 0273) · sb = client ของดีลเลอร์เจ้าของลีด */
 export async function เติมข้อมูลลีดก่อนขอราคา(sb: import("@supabase/supabase-js").SupabaseClient, dealerCode: string, leadNum: number) {
   const เดิม = (await sb.from("leads").select("id, contact, project, area, note").eq("dealer_code", dealerCode).eq("num_id", leadNum).single()).data;
-  if (!เดิม) return;
+  if (!เดิม) return;   // ไม่ใช่การข้าม: ตัวช่วยเติมข้อมูล — ไม่มีลีดให้เติม (ขั้นถัดไปตกเอง)
   const ขาด: Record<string, string> = {};
   if (!String(เดิม.contact ?? "").trim()) ขาด.contact = "ผู้ทดสอบ";
   if (!String(เดิม.project ?? "").trim()) ขาด.project = ข้อมูลงานครบชุด.project;
   if (!(Number(เดิม.area) > 0)) ขาด.area = ข้อมูลงานครบชุด.area;
   if (!String(เดิม.note ?? "").trim()) ขาด.note = ข้อมูลงานครบชุด.note;
-  if (!Object.keys(ขาด).length) return;
+  if (!Object.keys(ขาด).length) return;   // ไม่ใช่การข้าม: ตัวช่วยเติมข้อมูล — ครบแล้วไม่ต้องเติม
   const f = await sb.rpc("lead_apply", { p_id: เดิม.id, p_intent: { fields: ขาด, log: false } });
   if (f.error) throw new Error(`เติมข้อมูลลีดก่อนขอราคาไม่สำเร็จ: ${f.error.message}`);
 }

@@ -35,7 +35,7 @@ test.beforeAll(async () => {
   if (r.error) throw new Error(r.error.message);
 });
 test.afterAll(() => {
-  if (!leadNum) return;
+  if (!leadNum) return;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
   รันSQLในฐาน(`delete from public.hq_quotes h using public.quote_requests r where h.request_id = r.id and r.dealer_code = 'RYG' and r.lead_num_id = ${leadNum};
     delete from public.email_outbox o using public.quote_requests r where o.ref_table = 'quote_requests' and o.ref_id = r.id::text and r.dealer_code = 'RYG' and r.lead_num_id = ${leadNum};
     delete from public.notifications n using public.quote_requests r where n.dedupe_key like '%:' || r.id::text and r.dealer_code = 'RYG' and r.lead_num_id = ${leadNum};

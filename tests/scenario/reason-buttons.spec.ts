@@ -160,7 +160,7 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await เปิดแผงลีด(page, ชื่อส่งใบ);
     const เปิดใบ = async () => {
-      if (await page.locator("[data-customer-result]").first().isVisible()) return;
+      if (await page.locator("[data-customer-result]").first().isVisible()) return;   // ไม่ใช่การข้าม: วนรอปุ่มผลจากลูกค้า (เจอแล้วจบวน)
       await page.locator('[data-next-step="await_customer"]').click({ timeout: 30_000 });
       await expect(page.locator("[data-customer-result]").first()).toBeVisible({ timeout: 20_000 });
     };

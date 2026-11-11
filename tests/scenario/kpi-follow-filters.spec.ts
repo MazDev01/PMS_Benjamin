@@ -57,7 +57,7 @@ async function ตรวจ(page: Page, kpi: string, นับ: ตัวนั�
   const ตัวเลือก = await ช่อง.evaluate(el => [...(el as HTMLSelectElement).options].map(o => o.value).filter(v => v && v !== "ALL"));
   // จังหวัดที่ทำให้เลขต่างจากทั้งหมด (เลือกตัวที่มีแถวมากสุด)
   const ผล = (await Promise.all(ตัวเลือก.map(async p => ({ จังหวัด: p, เลข: await นับ(p) })))).filter(x => x.เลข !== ทั้งหมด).sort((a, b) => b.เลข - a.เลข);
-  test.skip(ผล.length === 0, `${ชื่อ}: ฐานทดสอบไม่มีจังหวัดที่ทำให้ตัวเลขต่างจากทั้งหมด`);
+  expect(ผล.length, `ขาดข้อมูล: ${ชื่อ} ไม่มีจังหวัดที่ทำให้ตัวเลขต่างจากทั้งหมด — ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69)`).toBeGreaterThan(0);
   await ช่อง.selectOption(ผล[0].จังหวัด);
   await expect(ค่าการ์ด(page, kpi), `${ชื่อ}: เลือก ${ผล[0].จังหวัด} แล้วการ์ดต้องนับเฉพาะที่กรอง (ไม่ใช่ทั้งหมด ${ทั้งหมด})`)
     .toHaveAttribute("data-value", String(ผล[0].เลข), { timeout: 20_000 });

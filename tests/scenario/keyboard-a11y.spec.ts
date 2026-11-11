@@ -36,7 +36,8 @@ async function clickableRows(page: Page): Promise<RowInfo[]> {
 
 async function assertRowsAccessible(page: Page, where: string) {
   const rows = await clickableRows(page);
-  test.skip(rows.length === 0, `${where}: ยังไม่มีแถวที่กดได้ในหน้านี้ (ไม่มีข้อมูล)`);
+  // ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69) — ทุกหน้าที่เรียกตัวนี้มีแถวจากข้อมูลตั้งต้น
+  expect(rows.length, `ขาดข้อมูล: ${where} ไม่มีแถวที่กดได้ (ข้อมูลตั้งต้นต้องมีแถวในหน้านี้)`).toBeGreaterThan(0);
 
   const noFocus = rows.filter(r => r.tabindex !== "0");
   expect(noFocus.map(r => r.text),
@@ -72,7 +73,7 @@ test("[ดีลเลอร์] ทุกแถวที่กดได้ ต�
     await page.goto(`${DEALER_ORIGIN}${path}`, { waitUntil: "domcontentloaded" });
     await page.locator("tbody tr").first().waitFor({ state: "visible", timeout: 20_000 }).catch(() => {});
     const rows = await clickableRows(page);
-    if (!rows.length) continue; // หน้านั้นยังไม่มีข้อมูล
+    if (!rows.length) continue; // ไม่ใช่การข้าม: หน้านั้นยังไม่มีข้อมูล — ท้ายวนตรวจ checked > 0
     checked++;
     expect(rows.filter(r => r.tabindex !== "0").map(r => r.text),
       `${path}: มีแถวที่กดได้แต่โฟกัสไม่ได้`).toEqual([]);

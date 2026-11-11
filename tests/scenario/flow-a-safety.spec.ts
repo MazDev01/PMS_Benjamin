@@ -89,7 +89,7 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     if (!/lead_status_one_path/.test(ตั้งเอง.error?.message ?? "")) throw new Error(`ฐานต้องไม่ให้ดีลเลอร์ตั้งสถานะเอง: ${ตั้งเอง.error?.message ?? "ผ่าน"}`);
   });
   test.afterAll(async () => {
-    if (!ใบ) return;
+    if (!ใบ) return;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
     const { data: cs } = await admin.from("customers").select("id").eq("dealer_code", "RYG").eq("company", บริษัท);
     ล้างใบHQทดสอบ("RYG", [ใบ.leadNum]);
     for (const c of cs ?? []) await admin.from("customers").delete().eq("dealer_code", "RYG").eq("id", c.id);

@@ -35,9 +35,9 @@ for (const [แอป, origin, path, who, หน้า] of [
         const ปัญหา = await page.evaluate(() => {
           const out: string[] = [];
           for (const th of document.querySelectorAll<HTMLElement>("thead th")) {
-            if (!th.offsetParent) continue;
+            if (!th.offsetParent) continue;   // ไม่ใช่การข้าม: หัวคอลัมน์ที่ซ่อนอยู่
             const ข้อความ = (th.textContent ?? "").replace(/\s+/g, " ").trim();
-            if (!ข้อความ) continue;
+            if (!ข้อความ) continue;   // ไม่ใช่การข้าม: หัวคอลัมน์ว่าง (คอลัมน์ปุ่ม)
             // กล่องตัวอักษรของทุกข้อความในช่อง (ไม่นับไอคอน) — บรรทัดเดียว = ขอบบนห่างกันไม่เกินครึ่งบรรทัด
             const ชิ้น: DOMRect[] = [];
             const เดิน = document.createTreeWalker(th, NodeFilter.SHOW_TEXT);

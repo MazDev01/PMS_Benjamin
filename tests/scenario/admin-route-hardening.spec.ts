@@ -78,7 +78,8 @@ test("หนึ่งสาขาหนึ่งบัญชี — DB ปฏิ
   // ไม่ใช่แค่ logic ใน route ที่เลี่ยงได้ถ้าเขียนข้อมูลทางอื่น
   const { data: existing } = await admin.from("profiles")
     .select("id, dealer_code").not("dealer_code", "eq", "").limit(1);
-  test.skip(!existing?.length, "ยังไม่มีบัญชีดีลเลอร์ในระบบให้ทดสอบ");
+  // ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69) — ข้อมูลตั้งต้นมีบัญชีดีลเลอร์ทดสอบ (RYG/CNX) เสมอ
+  expect(existing?.length ?? 0, "ขาดข้อมูล: ไม่มีบัญชีดีลเลอร์ในฐานทดสอบ (ข้อมูลตั้งต้นต้องมีบัญชี RYG/CNX)").toBeGreaterThan(0);
 
   const code = String(existing![0].dealer_code);
   const fakeId = "00000000-0000-4000-8000-0000000000ff";

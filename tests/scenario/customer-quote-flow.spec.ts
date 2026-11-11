@@ -104,7 +104,7 @@ test("[flow·dealer] ขั้น 7: ทำใบให้ลูกค้าจ�
 
 test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า → QUOTED · หน้าพิมพ์และไฟล์ส่งออกไม่มีต้นทุนหรือ % (ตรวจที่ไฟล์จริง)", async ({ page }) => {
   const qลับ = await ใบของ(ข.leadNum);
-  test.skip(!qลับ, "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(!qลับ, "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   // รอบ 4: ส่งใบให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปของแผงลีดที่เดียว (หน้าใบเสนอราคาไม่มีปุ่มในแถวแล้ว)
   //   ใบร่างทั้งสองยังต้องโผล่ในหน้ารายการใบเสนอราคา (ตรวจเดิมคงไว้)
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
@@ -164,7 +164,7 @@ test("[flow·dealer] ขั้น 8: ส่งใบให้ลูกค้า 
 
 test("[flow·hq] margin: HQ เห็นต้นทุน · % · ราคาขาย · บาทที่บวก รายบรรทัดและทั้งใบ (10 → 15 · 5 บาท · 50% · 33.33%)", async ({ page }) => {
   const q10 = await ใบของ(ก.leadNum);
-  test.skip(!q10, "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(!q10, "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
@@ -188,7 +188,7 @@ test("[flow·hq] margin: HQ เห็นต้นทุน · % · ราคา�
 
 test("[D8x] [flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเสธ: won → PAID · ใบ HQ สั่งผลิต · ราคาล็อก | lost → CANCELLED + เหตุผล", async ({ page }) => {
   const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
-  test.skip(!q10 || q10.status !== "sent_to_client", "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(!q10 || q10.status !== "sent_to_client", "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   // รอบ 4: ลูกค้าตอบรับ/ปฏิเสธ = ปุ่มที่ใบในแท็บใบเสนอราคาของแผงลีดที่เดียว (หน้าใบเสนอราคาเหลือรายการอย่างเดียว)
   // won
   await เปิดแท็บใบเสนอราคา(page, สิบ);
@@ -216,7 +216,7 @@ test("[D8x] [flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเ
 test("[flow·hq] HQ ย้อนการตอบรับ (won) พร้อมเหตุผล — ปุ่มอยู่ที่แผงใบของ HQ · ไทม์ไลน์บอกว่าใคร/เหตุผล · ใบที่ไม่ใช่ won ไม่มีปุ่ม", async ({ page }) => {
   // BACKLOG "ต้องแก้ก่อนขึ้นระบบจริง" (ด่าน 3 → ด่าน 5): ก่อนนี้ย้อนได้ทางเดียวคือคำสั่งของฐาน quotation_revert_won
   const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
-  test.skip(q10?.status !== "won", "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(q10?.status !== "won", "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   const เปิดใบ = async (id: string) => {

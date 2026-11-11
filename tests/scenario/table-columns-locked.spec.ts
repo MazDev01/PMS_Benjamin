@@ -57,7 +57,7 @@ async function ตรวจหน้า(page: Page, origin: string, h: ตั้
   }
   // 2) ค้นหา (คำจากแถวแรก — เหลือแถวน้อยลง) — หัวคอลัมน์ตำแหน่งเดิม
   const ช่องค้น = page.locator(".content").getByPlaceholder(/ค้นหา/).first();
-  if (await ช่องค้น.count()) {
+  if (await ช่องค้น.count()) {   // ไม่ใช่การข้าม: บางหน้าไม่มีช่องค้นหา (ข้อตรวจหลักรันทุกหน้า)
     const คำ = ((await ตาราง.locator("tbody tr").first().locator("td").first().innerText()).split(/\s+/).find(w => w.length >= 3) ?? "ZZ").slice(0, 12);
     await ช่องค้น.fill(คำ);
     await settle(page);

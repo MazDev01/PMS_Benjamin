@@ -59,7 +59,7 @@ async function ตั้งเป้าแพ็กเกจ3ล้าน() {
   if (!ADMIN_SERVICE_ROLE_KEY) return;
   const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const เดิม = ((await admin.from("hq_recruit_settings").select("config").eq("id", 1).maybeSingle()).data as { config: Record<string, unknown> } | null)?.config;
-  if (!เดิม) return;
+  if (!เดิม) return;   // ไม่ใช่การข้าม: ตัวเตรียมค่าตั้ง — ไม่มีค่าเดิมให้จำ
   ค่าตั้งเดิม = เดิม;
   const proposal = (เดิม.proposal && typeof เดิม.proposal === "object" ? เดิม.proposal : {}) as Record<string, unknown>;
   const { error } = await admin.from("hq_recruit_settings").update({ config: { ...เดิม, proposal: { ...proposal, packages: {

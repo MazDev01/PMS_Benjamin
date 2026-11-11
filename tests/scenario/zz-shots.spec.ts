@@ -47,7 +47,7 @@ test.beforeAll(async () => {
   if (r.error) throw new Error(`ส่งใบไม่สำเร็จ: ${r.error.message}`);
 });
 test.afterAll(async () => {
-  if (!ใบ) return;
+  if (!ใบ) return;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
   const admin = adminClient();
   const { data: cs } = await admin.from("customers").select("id").eq("dealer_code", "RYG").eq("company", บริษัท);
   ล้างใบHQทดสอบ("RYG", [ใบ.leadNum]);

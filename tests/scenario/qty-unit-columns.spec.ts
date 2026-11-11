@@ -116,7 +116,7 @@ async function วัด(page: Page, ชื่อรายการ: string[], �
       for (const tr of Array.from(t.querySelectorAll<HTMLTableRowElement>("tbody tr"))) {
         const ค่าทั้งแถว = (tr.textContent ?? "") + Array.from(tr.querySelectorAll("input")).map(i => i.value).join(" ");
         const ของข้อ = ชื่อรายการ.find(n => ค่าทั้งแถว.includes(n));
-        if (!ของข้อ || tr.cells.length !== หัวช่อง.length) continue;
+        if (!ของข้อ || tr.cells.length !== หัวช่อง.length) continue;   // ไม่ใช่การข้าม: เลือกเฉพาะแถวของข้อ (นับ แถวที่ตรวจ ท้ายวน)
         // หัวคอลัมน์ต้องเห็นเต็ม (ไม่ถูกตัดเป็น … — เจอ "ลำ…" ที่ตาราง BOQ ของ HQ 30 ต.ค. 69)
         if (!แถวที่ตรวจ) หัวช่อง.forEach((th, i) => { if (หัว[i] && th.scrollWidth > th.clientWidth + 1) ปัญหา.push(`หัว "${หัว[i]}" ถูกตัด (ต้องการ ${th.scrollWidth}px มี ${th.clientWidth}px)`); });
         แถวที่ตรวจ++;
@@ -158,7 +158,7 @@ async function ถ่าย(page: Page, ชื่อ: string) {
   const n = await ตาราง.count();
   for (let i = 0; i < n; i++) {
     const t = ตาราง.nth(i);
-    if (!(await t.isVisible())) continue;
+    if (!(await t.isVisible())) continue;   // ไม่ใช่การข้าม: ตารางที่ซ่อนอยู่ (แท็บอื่น) ไม่ถ่ายกรอบ
     await t.scrollIntoViewIfNeeded().catch(() => {});
     // ถ่ายกรอบรอบตาราง (รวมส่วนสรุป/ขอบ) — ถ้าหากรอบไม่ได้ ถ่ายตัวตาราง
     const กรอบ = t.locator("xpath=ancestor::*[contains(@class,'table-wrap') or contains(@class,'table-scroll') or @data-panel][1]");
@@ -213,10 +213,10 @@ test("[ui·dealer] กล่องใบ HQ · ใบลูกค้า (แผ�
   // ฟอร์มทำใบให้ลูกค้าจากใบ HQ (ตั้ง % รายบรรทัด) — ปุ่มที่แถบขั้นต่อไป (ลีดที่ทำใบแล้วอาจไม่มีปุ่ม = ไม่มีฟอร์มให้ตรวจ)
   await เปิดแผงลีด(page, บริษัท);
   const ปุ่มทำใบ = page.getByRole("button", { name: /ทำใบให้ลูกค้า/ });
-  if (await ปุ่มทำใบ.count()) {
-    await ปุ่มทำใบ.first().click();
-    await ตรวจหน้า(page, "ฟอร์มทำใบจากใบ-HQ");
-  }
+  // ไม่มีปุ่ม = ตก ไม่ใช่ข้ามเงียบ (บอสสั่ง 11 พ.ย. 69 · เดิม "ลีดที่ทำใบแล้วอาจไม่มีปุ่ม = ไม่มีฟอร์มให้ตรวจ")
+  await expect(ปุ่มทำใบ.first(), "ขาดข้อมูล: ไม่มีปุ่มทำใบให้ลูกค้าในแผงลูกค้าเป้าหมาย (ฟอร์มทำใบจากใบ HQ ไม่ได้ตรวจ)").toBeVisible({ timeout: 20_000 });
+  await ปุ่มทำใบ.first().click();
+  await ตรวจหน้า(page, "ฟอร์มทำใบจากใบ-HQ");
 });
 
 test("[ui·dealer] ราคาประเมินวัสดุตอนขอราคา — ตัวเลข/ช่องกรอกชิดขวา หัวตรงแนวข้อมูล จำนวน/หน่วยแยก", async ({ page }) => {

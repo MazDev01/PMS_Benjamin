@@ -30,7 +30,7 @@ test("[realtime] HQ dashboard เปิดค้างไว้ → ตัวเ
     // ดูคำตอบตอน "ขอสมัครรับข้อมูล" ว่าเซิร์ฟเวอร์ตอบ ok หรือ error — สายเปิดอยู่ไม่ได้แปลว่าสมัครสำเร็จ
     ws.on("framereceived", (f) => {
       const s = typeof f.payload === "string" ? f.payload : "";
-      if (!s) return;
+      if (!s) return;   // ไม่ใช่การข้าม: ตัวฟังข้อความ — ข้ามเฟรมที่ไม่ใช่ข้อความ
       if (s.includes("phx_reply")) {
         const status = s.match(/"status":"(\w+)"/)?.[1];
         const reason = s.match(/"reason":"([^"]{0,80})"/)?.[1];

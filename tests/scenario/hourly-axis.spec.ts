@@ -38,7 +38,7 @@ test("[ui·hq] เลือกวันนี้ → แดชบอร์ดต
   const การ์ด = page.locator("[data-card='trend']");
   await expect(การ์ด).toContainText("ยอดขายรวมทั้งเครือ รายชั่วโมง", { timeout: 20_000 });
   // วันนี้ยังไม่มียอดขาย = กรอบว่าง "ยังไม่มียอดขาย" (บอสสั่ง 21 ต.ค. 69 ทับ "ต้องเห็นแกน 24 ชม. เสมอ" ของ 26 ส.ค. 69)
-  if (await การ์ด.locator("[data-empty]").count()) {
+  if (await การ์ด.locator("[data-empty]").count()) {   // ไม่ใช่การข้าม: ไม่มียอดวันนี้ = ตรวจกรอบว่างแทน (มีข้อตรวจในทั้ง 2 ทาง)
     await expect(การ์ด.locator("[data-empty]")).toHaveText("ยังไม่มียอดขาย");
     await expect(การ์ด.locator("svg"), "ไม่มียอด = ไม่วาดเส้น 0").toHaveCount(0);
     return;

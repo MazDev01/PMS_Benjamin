@@ -99,7 +99,7 @@ async function วัดแท็บ(page: Page): Promise<ผลแท็บ> {
           if (ตำแหน่ง(ช่อง[0]) !== "center") หัวไม่ตรง.push(`แถวว่าง "${ช่อง[0].textContent?.trim().slice(0, 30)}" ไม่อยู่กลางตาราง`);
           continue;
         }
-        if (ช่อง.length !== หัว.length) continue;
+        if (ช่อง.length !== หัว.length) continue;   // ไม่ใช่การข้าม: แถวที่ช่องไม่ครบหัว (รวมช่อง) ตรวจแนวทีละช่องไม่ได้
         หัว.forEach((th, i) => {
           if (!th.textContent?.trim()) return;
           const a = ตำแหน่ง(th), b = ตำแหน่ง(ช่อง[i]);

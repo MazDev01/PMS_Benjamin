@@ -60,7 +60,8 @@ test("ชั้นที่ 2 — ตารางเก็บรหัสอ่�
 test("ชั้นที่ 3 — ค่าที่เก็บในฐานข้อมูลต้องเข้ารหัส ไม่ใช่ข้อความเปล่า", async () => {
   const { data, error } = await admin.from("dealer_login_secrets").select("dealer_code, secret").limit(5);
   expect(error, "อ่านด้วย service_role ต้องได้").toBeNull();
-  test.skip(!data?.length, "ยังไม่มีสำเนารหัสในระบบให้ตรวจ");
+  // ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69) — ฐานทดสอบมีสำเนารหัสของบัญชีทดสอบ (ข้อ "อีเมล+รหัสผ่านที่หน้าจอโชว์" ใช้ของ RYG)
+  expect(data?.length ?? 0, "ขาดข้อมูล: ไม่มีสำเนารหัสผ่านดีลเลอร์ในฐานทดสอบ").toBeGreaterThan(0);
 
   for (const row of data ?? []) {
     const s = String(row.secret);
@@ -74,8 +75,8 @@ test("ชั้นที่ 4 — HQ ดูได้จริง และทุ
   const res = await request.get(`${HQ_ORIGIN}/api/admin/dealers/secret?code=RYG`, {
     headers: { authorization: `Bearer ${await tokenOf(ADMIN)}` },
   });
-  test.skip(res.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role หรือ DEALER_SECRET_KEY");
-  test.skip(res.status() === 404, "ยังไม่มีสำเนารหัสของ RYG ในระบบ");
+  test.skip(res.status() === 501, "เครื่องนี้ยังไม่ได้ตั้ง service_role หรือ DEALER_SECRET_KEY");   // ข้ามตั้งใจ: สภาพแวดล้อม (เครื่องไม่มีกุญแจ)
+  expect(res.status(), "ขาดข้อมูล: ไม่มีสำเนารหัสของ RYG ในฐานทดสอบ (404) — ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69)").not.toBe(404);
   expect(res.status(), `HQ ที่มีสิทธิ์ต้องดูได้ (ได้ ${res.status()} · ${await res.text()})`).toBe(200);
 
   const body = await res.json() as { ok?: boolean; password?: string };

@@ -41,7 +41,7 @@ test.beforeAll(async () => {
   if (ผล === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางข้อมูลของข้อไม่ได้");
 });
 test.afterAll(async () => {
-  if (!ก) return;
+  if (!ก) return;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
   รันSQLในฐาน(`set local session_replication_role = replica;
     delete from public.quotations where dealer_code = '${ก.รหัส}';
     delete from public.customers where dealer_code = '${ก.รหัส}';

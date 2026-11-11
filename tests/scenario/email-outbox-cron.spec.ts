@@ -60,8 +60,8 @@ test("[email] งานตั้งเวลาต้องมีกุญแจ
 test("[email] คำขอเกิน 14 วัน → อีเมลสรุปถึงผู้รับของ HQ หนึ่งฉบับจริง และไม่ส่งซ้ำ", async ({ request }) => {
   test.skip(!CRON_SECRET, "ยังไม่ได้ตั้ง CRON_SECRET ใน apps/hq/.env.local");
   // สรุปรายวันเริ่มแจ้ง 07:00 น. เวลาไทย (ไม่ปลุกตอนดึก · notifications_scan) — ก่อนนั้นไม่มีอะไรให้ตรวจ
-  test.skip(new Date(Date.now() + 7 * 3_600_000).getUTCHours() < 7, "ก่อน 07:00 น. เวลาไทย งานตั้งเวลายังไม่สรุปคำขอค้าง");
-  test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);
+  test.skip(new Date(Date.now() + 7 * 3_600_000).getUTCHours() < 7, "ก่อน 07:00 น. เวลาไทย งานตั้งเวลายังไม่สรุปคำขอค้าง");   // ข้ามตั้งใจ: ช่วงเวลา — งานตั้งเวลาส่งจดหมายเริ่ม 07:00 น.
+  test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);   // ข้ามตั้งใจ: สภาพแวดล้อม — เครื่องนี้ไม่มีกล่องจดหมายทดสอบ (Mailpit)
   expect((await admin.from("hq_notif_rules").update({ email_recipients: [ผู้รับ] }).eq("id", 1)).error).toBeNull();
 
   // ดีลเลอร์ส่งคำขอจริง (ผ่านคำสั่งของระบบ ด้วยใบผ่านของดีลเลอร์)

@@ -67,7 +67,7 @@ const สถานะในฐาน = async (code: string) => {
 const โค้ดในกล่อง = โค้ดยืนยันในกล่อง;
 
 test("[email·dealer] หน้าบัญชี: ใส่อีเมลติดต่อ → ส่งโค้ด → โค้ดผิดไม่ผ่าน → โค้ดถูก = ยืนยันแล้ว (ไม่บังคับตอนเข้า)", async ({ page, request }) => {
-  test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);
+  test.skip(!(await fetch(`${MAIL}/api/v1/messages?limit=1`).then(r => r.ok, () => false)), `ไม่พบกล่องจดหมายทดสอบที่ ${MAIL}`);   // ข้ามตั้งใจ: สภาพแวดล้อม — เครื่องนี้ไม่มีกล่องจดหมายทดสอบ (Mailpit)
   await สร้างสาขา(request, A);
   const การ์ด = await เปิดการ์ดอีเมลติดต่อ(page, A);
   await การ์ด.locator("#ce-email").fill(A.ติดต่อ);
@@ -87,7 +87,7 @@ test("[email·dealer] หน้าบัญชี: ใส่อีเมลต�
 test("[email·dealer] เปลี่ยนอีเมลติดต่อ → สถานะยืนยันถูกล้าง · เข้าระบบได้ตามปกติ ไม่มีแถบเตือน · หน้าบัญชีให้ยืนยันใหม่", async ({ page }) => {
   // แก้อีเมลติดต่อที่ฐาน — ตัวดักที่ฐานล้างสถานะยืนยัน
   const s = await สถานะในฐาน(A.code);
-  test.skip(!s.verified, "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(!s.verified, "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   const ryg = await admin.from("profiles").update({ contact_email: "zztest-ztv-new@example.test" }).eq("dealer_code", A.code).eq("role", "DEALER_ADMIN");
   expect(ryg.error).toBeNull();
   expect((await สถานะในฐาน(A.code)).verified, "แก้อีเมลแล้วต้องกลับเป็นยังไม่ยืนยัน").toBe(false);
