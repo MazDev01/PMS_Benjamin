@@ -3,6 +3,7 @@
 // ─── ตารางฐานข้อมูลลูกค้าทั้งเครือ ───────────────────────────────────────────────
 // HQ ดูอย่างเดียว — มีแต่ปุ่ม "ดู" ไม่มี เพิ่ม/แก้ไข/ลบ
 // ช่องที่ไม่มีข้อมูลจริง (ลูกค้าที่ยังไม่มีใบปิดการขาย) ขึ้น "—" ไม่เดาแทน
+import { ลิงก์ข้อมูล } from "../../ui/RecordLink";
 import { Eye } from "lucide-react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
 import { customerCode, fmtISOToThai } from "@pms/shared/lib/mock";
@@ -85,7 +86,7 @@ export function CustomerTable({ rows, onView, pagination, loading, ระดั�
                 </td>
                 <td style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={c.name}>{c.name}</td>
                 {!ซ่อน.ดีลเลอร์ && <td data-col="dealer" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={ชื่อของ(c.dealerCode, c.dealerName)}>
-                  {ชื่อของ(c.dealerCode, c.dealerName)}
+                  <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: c.dealerCode }}>{ชื่อของ(c.dealerCode, c.dealerName)}</ลิงก์ข้อมูล>
                 </td>}
                 {!ซ่อน.จังหวัด && <td data-col="province" style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>}
                 {!ซ่อน.ภาค && <td data-col="region" style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ? ชื่อภาค(regionOf(c.province)) : DASH}</td>}

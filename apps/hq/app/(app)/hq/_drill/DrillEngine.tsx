@@ -6,6 +6,7 @@
 //   แท็บรายเดือนกดแถว = แผงรายดีลเลอร์ของเดือนนั้น · ทุกตัวเลข = ผลรวมของแถวรายดีลเลอร์ชุดเดียว (hq_drill · ใบ 0271) → การ์ด = ผลรวมแถว
 //   ไม่มีแถวรวมทุกตาราง/แผง (บอสสั่ง 6 พ.ย. 69 · ตัวเลขรวมดูที่การ์ด) · ตารางพอดีจอ 1366/1920 (.table-wrap.fit · ซ่อนคอลัมน์ที่ทั้งตารางเป็น "—")
 //   ไม่มีรหัสหน้าชื่อ (ตาราง + กราฟแท่ง) · ภูมิภาค · จังหวัด เป็นบรรทัดเล็กใต้ชื่อดีลเลอร์
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Users, CalendarDays, PhoneCall, Inbox, AlarmClock, Send, Hourglass, CheckCircle2, Percent, UserPlus, Store, type LucideIcon } from "lucide-react";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
@@ -291,7 +292,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
                 {แถวแผง.map(r => รายเดือน
                   ? <tr key={r.key} data-drawer-row={r.key}><td title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td></tr>
                   : <ClickableRow key={r.key} className="clickable" onActivate={() => { setแผงการ์ด(null); เจาะ(`dealer:${r.key}`); }} label={`เปิดตัวเลขของ ${r.label} (เจาะลงระดับดีลเลอร์)`}>
-                      <td data-drawer-row={r.key} title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{r.label}</td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td>
+                      <td data-drawer-row={r.key} title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.key }}>{r.label}</ลิงก์ข้อมูล></td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td>
                     </ClickableRow>)}
               </tbody>
             </table>
@@ -312,7 +313,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
                 {rows.map(r => (
                   <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เปิดตัวเลขของ ${ชื่อแสดง(r.code, r.name)} (เจาะลงระดับดีลเลอร์)`}>
                     <td data-drawer-row={r.code} title={ชื่อแสดง(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {ชื่อแสดง(r.code, r.name)}</td>
+                      <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อแสดง(r.code, r.name)}</ลิงก์ข้อมูล></td>
                     {ค.map(c => { const v = ค่าเดือน(c, ของเดือน.filter(x => x.code === r.code)); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; })}
                   </ClickableRow>
                 ))}

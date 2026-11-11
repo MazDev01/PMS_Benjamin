@@ -16,7 +16,7 @@ export function SidePanel({
   title, subtitle, badges = [], tabs, children, footerNote, onClose, label,
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   /** ป้ายใต้ชื่อ เช่น สถานะ · มูลค่า (ไม่เกิน 2–3 อันให้อ่านง่าย) */
   badges?: ป้ายหัวแผง[];
   /** มีหลายเรื่องให้ดู = ส่งแท็บมา · เรื่องเดียว = ส่ง children มาแทน */

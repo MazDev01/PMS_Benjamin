@@ -522,7 +522,7 @@ export default function DealerDashboard() {
           {latestQuotes.length === 0 ? <EmptyState icon={<FileText size={26} />} title="ไม่มีใบเสนอราคาในช่วงนี้" description="ลองขยายช่วงเวลาด้านบน" compact /> : (
             <div style={listWrap}>
               {latestQuotes.map(q => { const sc = quotationStatusColor[q.status]; return (
-                <button key={q.id} className="dash-row" onClick={() => router.push("/quotations")} title={`เปิดใบเสนอราคา ${q.id}`} style={rowBtn}>
+                <button key={q.id} className="dash-row" data-latest-quote={q.id} onClick={() => router.push(`/quotations?open=${encodeURIComponent(q.id)}`)} title={`เปิดใบเสนอราคา ${q.id}`} style={rowBtn}>
                   <IconBox Icon={FileText} color={NAVY} bg="#F1F5F9" />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: TEXT, fontFamily: "monospace" }}>{q.id}</span>

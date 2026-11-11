@@ -17,6 +17,8 @@
 //
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์ = ผู้มีสิทธิ์จัดการดีลเลอร์ (dealers:manage)
 //   RLS บังคับซ้ำที่ฐานข้อมูล — การซ่อนปุ่มตรงนี้เป็นแค่ความสะดวก ไม่ใช่ด่านจริง
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -308,23 +310,23 @@ export default function HQProspectsPage() {
 
   // ?open=ID → เปิดแผงรายนั้นหลังโหลดรายการเสร็จ (ลิงก์จากหน้าใบค่าแฟรนไชส์) · ล้างพารามิเตอร์กันเปิดซ้ำตอนรีเฟรช
   //   ไม่พบ = บอกตรง ๆ ไม่เงียบ (รายนั้นอาจถูกลบไปแล้ว)
-  const เปิดจากลิงก์แล้ว = useRef(false);
-  useEffect(() => {
-    if (!loaded || เปิดจากลิงก์แล้ว.current) return;
-    เปิดจากลิงก์แล้ว.current = true;
-    const รหัส = new URLSearchParams(window.location.search).get("open");
-    if (!รหัส) return;
-    window.history.replaceState(null, "", "/hq/prospects");
+  //   แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่ · ลิงก์กลางมาที่นี่
+  const listRef = useRef(list);
+  listRef.current = list;
+  useเปิดตามURL("/hq/prospects", รหัส => {
+    if (!รหัส) { if (เปิดอยู่Ref.current != null) ปิดแผงทันที(); return; }
+    if (เปิดอยู่Ref.current != null && String(เปิดอยู่Ref.current) === รหัส) return;
+    const list = listRef.current;
     const ราย = list.find(x => String(x.id) === รหัส);
     // เป็นดีลเลอร์แล้ว = ไม่อยู่หน้านี้ → พาไปหน้าดีลเลอร์นั้นแทน (ลิงก์เก่าจากกระดิ่ง/บันทึกการใช้งานยังใช้ได้)
     if (ราย?.status === "won") {
-      if (ราย.dealerCode) window.location.assign(`/hq/dealers/${ราย.dealerCode}`);
+      if (ราย.dealerCode) window.location.replace(`/hq/dealers?open=${encodeURIComponent(ราย.dealerCode)}`);
       else แจ้งพลาด(`“${ราย.name}” เป็นดีลเลอร์แล้ว แต่ไม่พบดีลเลอร์ที่ผูกไว้ (อาจถูกลบไปแล้ว)`);
     }
     else if (ราย) เปิดแผง(ราย);
     else if (!loadErr) แจ้งพลาด("ไม่พบผู้สนใจรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำครั้งเดียวตอนโหลดเสร็จ ไม่ต้องทำซ้ำเมื่อรายการเปลี่ยน
-  }, [loaded]);
+  }, loaded);
+  useแผงในURL(รายที่เปิด ? String(รายที่เปิด.id) : null);
 
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
   //   คงรหัส 2 จุดตามบอสตอบ: ช่องพิมพ์รหัสตอนตั้งดีลเลอร์ · กล่องบัญชีเข้าระบบดีลเลอร์ใหม่ (รหัสสาขา = ชื่อเข้าระบบ)
@@ -990,7 +992,7 @@ export default function HQProspectsPage() {
                     </td>
                     <td>
                       {p.dealerCode
-                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</Link>
+                        ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</ลิงก์ข้อมูล>
                         : "—"}
                     </td>
                   </ClickableRow>

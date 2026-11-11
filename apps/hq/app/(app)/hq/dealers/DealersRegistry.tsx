@@ -1,4 +1,5 @@
 "use client";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 import { useCallback, useEffect, useState } from "react";
@@ -132,11 +133,14 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
   // ── แผงด้านขวา (บอสสั่ง 30 ต.ค. 69): กดแถว = เปิดแผง ไม่เปลี่ยนหน้า · /hq/dealers/[รหัส] = เปิดแผงนั้นตั้งแต่แรก ──
   //   ปิดแผง = อยู่ที่เดิมในรายการ (ตัวกรอง/หน้า/ตำแหน่งเลื่อนคงอยู่ เพราะไม่เปลี่ยนหน้า) · มาจาก /hq/dealers/[รหัส] → URL กลับเป็น /hq/dealers
   const [แผง, setแผง] = useState<string | null>(เปิดรหัส ?? null);
-  const ปิดแผง = useCallback(() => {
-    setแผง(null);
-    // มาจากลิงก์ /hq/dealers/[รหัส] → ไปหน้ารายการ (replaceState ตรง ๆ ไม่ได้ — Next วาดหน้าเดิมใหม่ แผงเปิดซ้ำจากรหัสใน URL)
-    if (window.location.pathname !== "/hq/dealers") router.replace("/hq/dealers", { scroll: false });
-  }, [router]);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): /hq/dealers?open=รหัส · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่
+  //   ลิงก์เก่า /hq/dealers/[รหัส] → แทนที่เป็น /hq/dealers?open=รหัส (หน้าเดียว ที่อยู่แบบเดียว)
+  useEffect(() => {
+    if (เปิดรหัส && window.location.pathname !== "/hq/dealers") router.replace(`/hq/dealers?open=${encodeURIComponent(เปิดรหัส)}`, { scroll: false });
+  }, [เปิดรหัส, router]);
+  useเปิดตามURL("/hq/dealers", p => setแผง(p ? p.toUpperCase() : null));
+  useแผงในURL(เปิดรหัส ? null : แผง);
+  const ปิดแผง = useCallback(() => { setแผง(null); }, []);
   // แก้ไข / ปิด-เปิดใช้งาน (ย้ายจากหน้ารายละเอียดเดิม · บอสตัดสิน 19 ต.ค. 69) — ใช้ทั้งปุ่มท้ายแถวและหัวแผง
   const [แก้, setแก้] = useState<DealerRow | null>(null);
   const [ทับ, setทับ] = useState<Record<string, DealerRow>>({});   // ค่าที่เพิ่งบันทึก (ทับแถวที่โหลดมา)

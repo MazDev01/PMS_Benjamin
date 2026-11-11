@@ -90,12 +90,10 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
 
   // (ข) ส่งใบให้ลูกค้าแล้วปิดใหม่ — คราวนี้ต้องผ่าน และยอดต้องสอดคล้องกัน
   await markQuotationSent(sb, "RYG", COMPANY);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69): รีเฟรชตอนแผงเปิด = แผงลีดเดิมเปิดคืนเอง (เดิมล้าง ?open → ต้องค้นแล้วกดแถวใหม่)
+  await expect(page, "แผงลีดอยู่ในที่อยู่หน้าเว็บ").toHaveURL(/\/leads\?open=/);
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
-  await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
-  const row3 = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
-  await expect(row3).toBeVisible({ timeout: 15_000 });
-  await row3.getByTitle("ดูรายละเอียด").first().click();
+  await expect(page.locator("aside[data-row-panel]").filter({ hasText: COMPANY }), "รีเฟรช = แผงลีดเดิมเปิดคืน").toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await page.locator(`[data-quote-item="${q.id}"] [data-customer-result]`).getByRole("button", { name: /ลูกค้าตอบรับ/ }).click({ timeout: 20_000 });
   await กดตกลงในกล่องยืนยัน(page);

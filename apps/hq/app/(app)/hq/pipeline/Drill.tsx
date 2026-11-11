@@ -5,6 +5,7 @@
 //   ทุกตัวเลขมาจากฐาน: แถวรายดีลเลอร์ hq_pipeline_dealers (ใบ 0264) · ผลรวมกลุ่มใช้ รวมผลงาน() ตัวเดียวกับแถวรวมท้ายตาราง (= การ์ด)
 //   ลีดตามขั้น/เหตุผล/แหล่งที่มา = lead_summary ชุดสาขาเดียวกับตาราง
 //   "รายเดือน" (แท็บ · ที่มารายเดือนตอนเลือกดีลเลอร์) = hq_pipeline_months (ใบ 0268) · ฐานยังไม่ถึงใบนั้น = "รอข้อมูล" — ห้ามคิดเองจากรายการดิบในหน้าเว็บ
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
 import { useRouter } from "next/navigation";
 import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 import { ChevronRight, CalendarDays, Users, CheckCircle2, Clock } from "lucide-react";
@@ -171,7 +172,7 @@ export function แผงเดือน({ เดือน, rows, codes, ชื�
             {!ของเดือน.length && <tr><td colSpan={6} className="empty-row">ไม่มีผลงานในเดือนนี้</td></tr>}
             {ของเดือน.map(r => (
               <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${ชื่อของ(r.code, ชื่อ.get(r.code))} (เจาะลงระดับดีลเลอร์)`}>
-                <td data-drawer-row={r.code} title={ชื่อของ(r.code, ชื่อ.get(r.code))} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ชื่อของ(r.code, ชื่อ.get(r.code))}</td>
+                <td data-drawer-row={r.code} title={ชื่อของ(r.code, ชื่อ.get(r.code))} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อของ(r.code, ชื่อ.get(r.code))}</ลิงก์ข้อมูล></td>
                 <td className="num">{r.leads}</td><td className="num">{r.quotes}</td><td className="num">{r.won}</td><td className="num">{r.lost}</td><td className="num">{fmtBaht(r.sales)}</td>
               </ClickableRow>
             ))}
@@ -213,7 +214,7 @@ export function แผงที่มา({ การ์ด, แถว, ดีล
   const ช่วงอ่าน = `${fmtISOToThai(ช่วง.start)} – ${fmtISOToThai(ช่วง.end)} (${จำนวนวัน(ช่วง.start, ช่วง.end).toLocaleString()} วัน)`;
   const แถวดีลเลอร์ = (r: ผลงานดีลเลอร์, เซลล์: React.ReactNode) => (
     <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${ชื่อของ(r.code, r.name)} (เจาะลงระดับดีลเลอร์)`}>
-      <td data-drawer-row={r.code} title={ชื่อของ(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{ชื่อของ(r.code, r.name)}</td>
+      <td data-drawer-row={r.code} title={ชื่อของ(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อของ(r.code, r.name)}</ลิงก์ข้อมูล></td>
       {เซลล์}
     </ClickableRow>
   );
@@ -367,14 +368,14 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
   // ขั้นของลีด: ฐานคิดให้แล้ว (leads_page · stageNo) · ไม่มี = คิดจากสถานะด้วยตัวกลาง leadStage.ts
   const ลีด = ลีดผล ? ลีดผล.rows.map(l => ({ id: l.id, company: l.company, stage: ชื่อขั้น((l.stageNo as เลขขั้น | undefined) ?? เลขขั้นของลีด(l.status, false)),
     date: l.createdAt ? l.createdAt : "—" })) : null;
-  const ตาราง = (หัว: string[], แถว: string[][] | null, ว่าง: string) => (
+  const ตาราง = (หัว: string[], แถว: React.ReactNode[][] | null, ว่าง: string) => (
     <div className="table-wrap dense">
       <table>
         <thead><tr>{หัว.map(h => <th key={h}>{h}</th>)}</tr></thead>
         <tbody>
           {แถว === null && <tr><td colSpan={หัว.length} className="empty-row">กำลังโหลด…</td></tr>}
           {แถว?.length === 0 && <tr><td colSpan={หัว.length} className="empty-row">{ว่าง}</td></tr>}
-          {แถว?.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} title={v} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</td>)}</tr>)}
+          {แถว?.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} title={typeof v === "string" ? v : undefined} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</td>)}</tr>)}
         </tbody>
       </table>
     </div>
@@ -383,7 +384,7 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
     <>
       <div className="hq-dealer-charts">
         <การ์ดกล่อง title={`ตารางใบเสนอราคาล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 ใบล่าสุดที่ส่งลูกค้าแล้ว", "ใหม่สุดก่อน")} testid="dealer-latest-quotes">
-          {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [q.id, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
+          {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [<ลิงก์ข้อมูล key="n" เป้า={{ ชนิด: "quotation", รหัส: q.id }}>{q.id}</ลิงก์ข้อมูล>, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/quotations?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
         <การ์ดกล่อง title={`ตารางลูกค้าเป้าหมายล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
@@ -392,7 +393,7 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
         </การ์ดกล่อง>
       </div>
       <div style={{ marginBottom: 24 }}>
-        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers/${code}`)}>เปิดแผงดูแลดีลเลอร์ {ชื่อของ(code)}</button>
+        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers?open=${encodeURIComponent(code)}`)}>เปิดแผงดูแลดีลเลอร์ {ชื่อของ(code)}</button>
       </div>
     </>
   );

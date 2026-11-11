@@ -3,6 +3,7 @@
 // ─── ตารางใบเสนอราคาทั้งเครือ ─────────────────────────────────────────────────
 // อ่านอย่างเดียว — มีปุ่ม "ดู" เท่านั้น ไม่มีสร้าง/แก้ไข/ลบ/อนุมัติ (HQ เป็นเจ้าของข้อมูล แต่ไม่ออกใบเอง)
 // คอลัมน์เกี่ยวกับการเปิดอ่าน ถูกลบทั้งหมดพร้อมสถานะ "เปิดอ่านแล้ว"
+import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "../../ui/RecordLink";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { Eye } from "lucide-react";
@@ -100,8 +101,8 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
                 <ClickableRow key={`${q.dealerCode ?? ""}-${q.id}`} onActivate={() => onView(q)} label={`เปิดรายละเอียดใบเสนอราคา ${q.quoteNo}`}>
                   <td data-quote-no style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
                   <td title={ซ่อน.ดีลเลอร์ ? q.customer : `${q.customer} · ${ชื่อของ(q.dealerCode, q.dealerName)}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    <div data-col="customer" style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{q.customer}</div>
-                    {!ซ่อน.ดีลเลอร์ && <div data-col="dealer" data-row-sub style={{ color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{ชื่อของ(q.dealerCode, q.dealerName)}</div>}
+                    <div data-col="customer" style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}><ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล></div>
+                    {!ซ่อน.ดีลเลอร์ && <div data-col="dealer" data-row-sub style={{ color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: q.dealerCode }}>{ชื่อของ(q.dealerCode, q.dealerName)}</ลิงก์ข้อมูล></div>}
                   </td>
                   {!ซ่อน.จังหวัด && <td data-col="site-province" style={{ color: MUTED }}>{q.siteProvince || "—"}</td>}
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>

@@ -15,6 +15,8 @@
 //   ข้อมูล: ฐานส่งทุกแถวครั้งเดียว (hq_quote_board "all" · ค้นหาที่ฐาน) — ตัวกรองสถานะ/ดีลเลอร์ + ตัวนับตัวเลือกคิดจากชุดเดียวกับตาราง (กติกากลุ่มเดียวกับฐาน)
 // คงจากเดิม: ไม่มีปุ่ม "รับเรื่อง" (บันทึกร่าง = รับเรื่อง) · ร่างที่พิมพ์ค้างไม่หาย ปิดหน้าต่างแล้วเปิดใหม่ยังอยู่ · ออกจากหน้าขณะมีร่างค้าง = เตือน
 //   ระหว่างบันทึก/ส่งใบ ปิดหน้าต่างไม่ได้ · มาจากกระดิ่ง ?open=เลขคำขอ = เปิดคำขอนั้น · ?overdue=1 = เฉพาะเกินกำหนด
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, ClipboardList, AlarmClock, Timer, Ban, Paperclip, Eye, FilePen, History } from "lucide-react";
 import { quoteRequests as repo, metrics as metricsRepo, quoteFiles } from "@pms/shared/lib/data";
@@ -81,15 +83,29 @@ export default function HQQuoteRequestsPage() {
   //   ?view=todo (แถว "วันนี้ต้องทำ" ของแดชบอร์ด · บอสสั่ง 11 พ.ย. 69) = แท็บต้องตีราคา ไม่กรองเพิ่ม — จำนวนแถว = ตัวเลขในกล่อง (สถานะ new/pricing ทั้งเครือ)
   const เปิดจากลิงก์ = useCallback((search: string) => {
     const u = new URLSearchParams(search);
-    const q = u.get("q"), open = Number(u.get("open")), overdue = u.get("overdue"), view = u.get("view");
-    if (!q && !open && !overdue && view !== "todo") return;
+    const q = u.get("q"), overdue = u.get("overdue"), view = u.get("view");
+    if (!q && !overdue && view !== "todo") return;   // ?open= ดูที่ useเปิดตามURL ด้านล่าง (ไม่ล้างออกจากที่อยู่)
     window.history.replaceState(null, "", window.location.pathname);
     if (q) { setพิมพ์(q); return; }
     if (ล็อก.current) return;
     setพิมพ์(""); setดีลเลอร์("");
     if (overdue || view === "todo") { setเปิดรหัส(null); setมุมมอง("main"); setเฉพาะเกิน(!!overdue); return; }
-    setเฉพาะเกิน(false); setสถานะ("all"); setเปิดรหัส(open);   // มุมมองตามกลุ่มของคำขอนั้น (ด้านล่าง เมื่อโหลดแถวแล้ว)
   }, []);
+  // ?open=เลขคำขอ: หน้าต่างคำขออยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts) — ลิงก์กลาง (เลขคำขอ/ใบ HQ) มาที่นี่ · ย้อนกลับ = ปิด/เปิดตามที่อยู่
+  //   ระหว่างบันทึก/ส่งใบ (ล็อก) ไม่เปลี่ยนหน้าต่าง · เปิดคำขอใหม่ = ล้างคำค้น/ตัวกรอง ให้เห็นแถว · มุมมองตามกลุ่มของคำขอนั้น (ด้านล่าง เมื่อโหลดแถวแล้ว)
+  const เปิดรหัสRef = useRef<number | null>(null);
+  เปิดรหัสRef.current = เปิดรหัส;
+  //   ?open=เลขใบ HQ (ลิงก์จากหน้าต่างใบเสนอราคา · ไม่ใช่ตัวเลขล้วน) = หาคำขอของใบนั้นเมื่อแถวโหลดแล้ว (ด้านล่าง)
+  const [ขอเปิดเลขใบ, setขอเปิดเลขใบ] = useState<string | null>(null);
+  useเปิดตามURL("/hq/quote-requests", ค่า => {
+    if (ล็อก.current) return;
+    if (ค่า && !/^\d+$/.test(ค่า)) { setขอเปิดเลขใบ(ค่า); return; }
+    const id = Number(ค่า) || null;
+    if (id === เปิดรหัสRef.current) return;
+    if (id != null) { setพิมพ์(""); setดีลเลอร์(""); setเฉพาะเกิน(false); setสถานะ("all"); }
+    setเปิดรหัส(id);
+  });
+  useแผงในURL(เปิดรหัส == null ? null : String(เปิดรหัส));
   useEffect(() => { เปิดจากลิงก์(window.location.search); }, [เปิดจากลิงก์]);
   useEffect(() => {
     const on = (e: Event) => {
@@ -135,6 +151,12 @@ export default function HQQuoteRequestsPage() {
     ? ต้องตีราคา.filter(r => !เฉพาะเกิน || ตรงสถานะคำขอ(r, "overdue"))
     : ประวัติ.filter(r => สถานะ === "all" || ตรงสถานะคำขอ(r, สถานะ))), [มุมมอง, ต้องตีราคา, ประวัติ, เฉพาะเกิน, สถานะ]);
   const ในหน้า = pageSlice(แถว, page);
+  useEffect(() => {
+    if (!ขอเปิดเลขใบ || !กล่อง) return;
+    const r = ทุกแถว.find(x => x.quoteNo === ขอเปิดเลขใบ);
+    setขอเปิดเลขใบ(null);
+    if (r) { setพิมพ์(""); setดีลเลอร์(""); setเฉพาะเกิน(false); setสถานะ("all"); setเปิดรหัส(r.id); }
+  }, [ขอเปิดเลขใบ, กล่อง, ทุกแถว]);
   const เปิด = เปิดรหัส == null ? null : ทุกแถว.find(r => r.id === เปิดรหัส) ?? null;
   // เปิดจากกระดิ่ง/ลิงก์: มุมมองตามกลุ่มของคำขอที่เปิด (ส่งใบแล้ว/ปิด/ยกเลิก = ประวัติ)
   const กลุ่มที่เปิด = เปิด ? (ตรงสถานะคำขอ(เปิด, "todo") ? "main" : "history") : null;
@@ -265,9 +287,9 @@ export default function HQQuoteRequestsPage() {
                   <ClickableRow key={`${r.dealerCode}-${r.id}`} className="clickable" onActivate={() => เปิดแถว(r)} label={`${r.requestNo} ${r.leadCompany}`}
                     style={{ background: เปิดรหัส === r.id ? "#f0f6ff" : เกิน ? "#fff7f7" : undefined }}>
                     <td style={{ fontWeight: 800, color: PRIMARY, fontFamily: "monospace", ...ตัดบรรทัด }}>{r.requestNo}</td>
-                    <td title={ชื่อของ(r.dealerCode, r.dealerName)} style={{ fontWeight: 600, color: STEEL, ...ตัดบรรทัด }}>{ชื่อของ(r.dealerCode, r.dealerName)}</td>
+                    <td title={ชื่อของ(r.dealerCode, r.dealerName)} style={{ fontWeight: 600, color: STEEL, ...ตัดบรรทัด }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.dealerCode }}>{ชื่อของ(r.dealerCode, r.dealerName)}</ลิงก์ข้อมูล></td>
                     <td title={`${r.leadCompany || "—"} · ${งาน}`} style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, color: STEEL, ...ตัดบรรทัด }}>{r.leadCompany || "—"}</div>
+                      <div style={{ fontWeight: 700, color: STEEL, ...ตัดบรรทัด }}>{r.leadCompany ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "lead", รหัส: r.leadNumId, สาขา: r.dealerCode }}>{r.leadCompany}</ลิงก์ข้อมูล> : "—"}</div>
                       <div data-row-sub style={{ color: MUTED, fontWeight: 500, ...ตัดบรรทัด }}>{งาน}</div>
                       {f && f.dealer + f.hq > 0 && (
                         <div data-testid="row-files" data-dealer-files={f.dealer} data-hq-files={f.hq} data-row-sub

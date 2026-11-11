@@ -1,4 +1,6 @@
 "use client";
+import { quotations as quotationsRepoOpen } from "@pms/shared/lib/data";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -6,7 +8,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // ─── HQ · ใบเสนอราคาทั้งเครือ (Network Quotations) ────────────────────────────
 // ศูนย์กลางใบเสนอราคาของดีลเลอร์ทุกสาขา — HQ เป็นเจ้าของข้อมูล แต่ "ไม่ออกใบเอง"
 // จึงมีแค่ ดู / วิเคราะห์ / เปรียบเทียบ / ส่งออก — ไม่มีปุ่มสร้าง แก้ไข ลบ อนุมัติ
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { fmtISOToThai, DEFAULT_DEALER_CODE, type HQQuotation } from "@pms/shared/lib/mock";
 import type { QuotationMock } from "@pms/shared/lib/data/types";
 import { useQuoteValidityDays } from "@pms/shared/lib/useHQConfig";
@@ -52,6 +54,18 @@ export default function NetworkQuotationPage() {
   const ช่วง = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
   const เจาะลึก = useเจาะลึก("quotations", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
   const [viewQ, setViewQ] = useState<QuoteRow | null>(null);
+  // หน้าต่างใบอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ?open=เลขที่ใบ · ลิงก์กลางมาที่นี่ · ย้อนกลับ = เปิด/ปิดตามที่อยู่
+  //   ใบจากลิงก์อาจไม่อยู่ในหน้าตารางที่เห็น → ค้นใบนั้นที่ฐานด้วยเลขที่ใบ (ตรงตัว)
+  const viewQRef = useRef(viewQ);
+  viewQRef.current = viewQ;
+  useเปิดตามURL("/hq/quotations", ค่า => {
+    if (!ค่า) { setViewQ(null); return; }
+    if (viewQRef.current?.id === ค่า) return;
+    quotationsRepoOpen.listPage(undefined, { limit: 20, offset: 0, search: ค่า })
+      .then(r => { const q = r.rows.find(x => x.id === ค่า); if (q) setViewQ(toQuoteRows([mapToHQ(q)], validityDays, look)[0] ?? null); })
+      .catch(e => logRepoRead("quotations.listPage(open)", e));
+  });
+  useแผงในURL(viewQ ? viewQ.id : null);
 
   // อายุใบเสนอราคา = นโยบาย HQ — อ่านผ่าน repo (เดิมอ่าน localStorage ตรง ๆ
   // โหมด supabase เลยได้ค่า default 30 วันเสมอ ไม่ใช่ค่าจริงที่ HQ ตั้งไว้ → วันหมดอายุบนหน้าเพี้ยน)
@@ -164,6 +178,7 @@ export default function NetworkQuotationPage() {
       materialCost: q.materialCost, lineItems: q.lineItems,
       // หน้าต่างใบเสนอราคา (แถบสรุป/กล่องยอดรวม) — ชุดเดียวกับ useNetworkQuotations
       dateISO: q.date, expiry: q.expiry, revision: q.revision, vatPercent: q.vatPercent, whtRate: q.whtRate, province: q.province || undefined,
+      customerId: q.customerId, dealId: q.dealId,
     };
   };
   // mapToHQ ปิดคลุม netLeads/nameOf — ขาดไปก่อนหน้านี้ทำให้ชื่อผู้รับผิดชอบค้างค่าเก่าถ้าลูกค้าเป้าหมาย/ทะเบียนดีลเลอร์

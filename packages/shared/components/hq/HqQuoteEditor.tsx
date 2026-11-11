@@ -18,6 +18,7 @@
 //   • ร่างที่พิมพ์ค้างไม่หายเมื่อสลับไปคำขออื่น — เก็บไว้ในที่เก็บร่างของหน้า (ร่างค้าง) แล้วคืนให้เมื่อกลับมา
 // ไฟล์แนบ 2 ทาง (บอสสั่ง 2 พ.ย. 69 · ใบ 0273): HQ แนบ/ลบไฟล์ของใบได้ตอนเป็นร่าง (ต้องบันทึกร่างก่อน — ไฟล์ผูกใบ HQ ฉบับนั้น)
 //   กด "ส่งใบ HQ ให้ดีลเลอร์" แล้วไฟล์ล็อกพร้อมใบ · ไฟล์ฉบับก่อน + ไฟล์จากดีลเลอร์ดูได้ในกล่องเดียวกัน
+import { ลิงก์ข้อมูล } from "../ui/RecordLink";
 import { useEffect, useMemo, useState } from "react";
 import { Send, X, Copy, Lock, Boxes, ClipboardList } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
@@ -195,7 +196,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const เหลือ = เหลือหรือเกิน(request.dueAt);
   // ชุดช่องมาตรฐาน (บอสสั่ง 26 ต.ค. 69 · lib/fieldLabels.ts): ข้อมูลลูกค้า + ข้อมูลงาน ชุดเดียวกับลีด ในกล่องเดียว
   const ข้อมูลลูกค้า: [string, React.ReactNode, string][] = [
-    [ป้ายช่อง.บริษัท, request.leadCompany || "—", "company"],
+    [ป้ายช่อง.บริษัท, request.leadCompany ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "lead", รหัส: request.leadNumId, สาขา: request.dealerCode }}>{request.leadCompany}</ลิงก์ข้อมูล> : "—", "company"],
     [ป้ายช่อง.ผู้ติดต่อ, request.leadContact || "—", "contact"],
     [ป้ายช่อง.โทรศัพท์, request.leadPhone || "—", "phone"],
     [ป้ายช่อง.อีเมล, request.leadEmail || "—", "email"],
@@ -209,7 +210,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       <>{บาท(Number(request.estimateTotal))} บาท <span style={{ fontWeight: 500, color: "#6b7280" }}>({(request.estimateItems ?? []).length} วัสดุ · {ป้ายราคาประเมิน}
         {request.estimateDeviationPct != null ? ` · คลาดจากใบ HQ ${ป้ายเปอร์เซ็นต์คลาด(request.estimateDeviationPct)}` : ""})</span></>
     ), "estimate"] as [string, React.ReactNode, string]] : []),
-    ["ดีลเลอร์", ชื่อของ(request.dealerCode, dealerName), "dealer"],
+    ["ดีลเลอร์", <ลิงก์ข้อมูล key="d" เป้า={{ ชนิด: "dealer", รหัส: request.dealerCode }}>{ชื่อของ(request.dealerCode, dealerName)}</ลิงก์ข้อมูล>, "dealer"],
   ];
   // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
   const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
@@ -225,7 +226,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
               ใบ HQ · {request.requestNo}{ใบ ? ` · ${ใบ.quoteNo}` : ""}
             </h2>
             <div style={{ fontSize: "0.78rem", opacity: 0.85, marginTop: 2 }}>
-              {ชื่อของ(request.dealerCode, dealerName)} · {request.leadCompany || "—"}
+              {/* หัวพื้นเข้ม = ลิงก์สีขาวขีดเส้นใต้ (บอสสั่ง 11 พ.ย. 69) */}
+              <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "dealer", รหัส: request.dealerCode }}>{ชื่อของ(request.dealerCode, dealerName)}</ลิงก์ข้อมูล> · {request.leadCompany ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "lead", รหัส: request.leadNumId, สาขา: request.dealerCode }}>{request.leadCompany}</ลิงก์ข้อมูล> : "—"}
             </div>
           </div>
           {ใบ && <span className="badge" style={{ background: ล็อก ? "#dcfce7" : "#fef3c7", color: ล็อก ? "#166534" : "#92400e" }}>{hqQuoteStatusLabel[ใบ.status]}</span>}

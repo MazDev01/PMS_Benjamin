@@ -533,3 +533,12 @@ update public.leads l
     or l.reached_step is distinct from public._lead_reached_step(l.dealer_code, l.num_id);
 
 set session_replication_role = origin;
+
+-- ใบค่าแฟรนไชส์ตัวอย่าง (บอสสั่ง 11 พ.ย. 69): ข้อทดสอบหน้าใบค่าแฟรนไชส์ต้องมีแถวให้ตรวจ — ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (tests/scenario/record-links.spec.ts)
+--   ผู้สนใจ 1 ราย + ใบร่าง 1 ใบ (ร่าง = ไม่เข้าการ์ดรอตอบรับ/ค้างชำระ/แจ้งเตือน) · ชื่อ/เบอร์ตามสูตร · เลขใบให้ตัวดักออกเอง (ตัวนับตามปกติ)
+--   ลงหลังเปิดตัวดักแล้ว: ตัวดักบันทึกการใช้งานลงเฉพาะผู้ใช้ที่ล็อกอิน (ใบ 0240 _audit_hq) → ไม่มีแถวบันทึกเกิดจากชุดนี้
+insert into public.dealer_prospects (id, name, phone, province, region, status)
+values (9001, 'ผู้สนใจตัวอย่าง 001', '000-000-0901', 'แม่ฮ่องสอน', 'เหนือ', 'considering');
+select setval(pg_get_serial_sequence('public.dealer_prospects', 'id'), greatest((select max(id) from public.dealer_prospects), 9001));
+insert into public.dealer_package_proposals (prospect_id, status, amount, contract_months, annual_target, region, province, proposed_date, valid_until, terms, note)
+values (9001, 'draft', 0, 12, 1000000, 'เหนือ', 'แม่ฮ่องสอน', current_date, current_date + 30, '-', null);

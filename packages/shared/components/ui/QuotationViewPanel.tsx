@@ -7,6 +7,7 @@
 // แผงนี้ "ดูอย่างเดียว" — ส่ง/ตอบรับ/ปฏิเสธ/ทำฉบับใหม่ (D6/D8/D8x) ยังทำที่แผงลีดที่เดียว → ปุ่ม "ไปแผงลีด"
 //   (ไม่ก๊อปปุ่มทำงานมาไว้ที่นี่ — สองที่ทำงานเดียวกัน แก้ที่หนึ่งแล้วอีกที่ไม่ตาม คือปัญหาที่รอบ 4 ตัดทิ้งไปแล้ว)
 // ยอดแยก VAT ใช้สูตรกลาง (quoteTax.ts) · พิมพ์ใช้ทางเดียวกับแผงลีด (ขอหัวกระดาษจากฐาน + กันข้อมูลบริษัทไม่ครบ ใบ 0247)
+import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "./RecordLink";
 import { Printer, X, ArrowRight, FileText, User, Coins, Layers } from "lucide-react";
 import { quotationStatusLabel, quotationStatusColor, fmtISOToThai, type QuotationMock } from "@pms/shared/lib/mock";
 import { boqLineItems } from "@pms/shared/lib/boq";
@@ -123,7 +124,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
               <span style={{ fontSize: "1.05rem", fontWeight: 800, color: "#fff", fontFamily: "monospace" }}>{q.id}</span>
               {/* ป้ายฉบับ/สถานะ ย้ายไปแถบสรุปที่เดียว (บอสสั่ง 9 พ.ย. 69 · หัวเหลือเลขที่ + ชื่อ + ปุ่ม) */}
             </div>
-            <div style={{ fontSize: "0.74rem", color: "rgba(255,255,255,.75)", marginTop: 4, overflowWrap: "anywhere" }}>{q.customer || "—"}</div>
+            <div style={{ fontSize: "0.74rem", color: "rgba(255,255,255,.75)", marginTop: 4, overflowWrap: "anywhere" }}>{q.customer ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล> : "—"}</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
             <button onClick={() => void พิมพ์()} disabled={ขาด.length > 0} data-print-quote style={{ ...ปุ่มหัว, opacity: ขาด.length ? .5 : 1, cursor: ขาด.length ? "not-allowed" : "pointer" }}
@@ -152,7 +153,7 @@ function แผงใบ({ q, ทั้งหมด, ผู้รับผิด
           {/* กริด 3 คอลัมน์ × 2 แถว — หัวข้ออยู่บน ค่าอยู่ล่าง (บอสสั่ง 9 พ.ย. 69 · เดิม 6 แถวซ้าย-ขวา) */}
           <PanelSection icon={User} title="ลูกค้า">
             <กริดรายละเอียด data-quote-customer="">
-              <ช่องกริด data-field="ลูกค้า" ป้าย="ลูกค้า" ค่า={q.customer} />
+              <ช่องกริด data-field="ลูกค้า" ป้าย="ลูกค้า" ค่า={q.customer ? <ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล> : undefined} />
               <ช่องกริด data-field={ช่อง.งาน} ป้าย={ช่อง.งาน} ค่า={q.project} />
               <ช่องกริด data-field="จังหวัด" ป้าย="จังหวัด" ค่า={q.province} />
               <ช่องกริด data-field="ผู้รับผิดชอบ" ป้าย="ผู้รับผิดชอบ" ค่า={ผู้รับผิดชอบ} />

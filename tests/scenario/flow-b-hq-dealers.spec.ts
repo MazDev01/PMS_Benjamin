@@ -94,9 +94,12 @@ test("[ข·2] แถวทะเบียน: ปุ่มครบตามแ
   const ที่อยู่ = page.url();
   await แถว.locator("td").nth(2).click();
   await expect(page.locator(`[data-dealer-panel="${รหัสยาว}"]`), "กดแถว = แผงด้านขวาเปิด").toBeVisible({ timeout: 15_000 });
-  expect(page.url(), "หน้าไม่เปลี่ยน").toBe(ที่อยู่);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · กลับด้านจาก "URL เท่าเดิม"): หน้าเดิม + ?open=รหัส · ปิดแผง = ที่อยู่เดิม
+  expect(new URL(page.url()).pathname, "หน้าไม่เปลี่ยน").toBe(new URL(ที่อยู่).pathname);
+  expect(new URL(page.url()).searchParams.get("open"), "แผงอยู่ในที่อยู่หน้าเว็บ").toBe(รหัสยาว);
   await page.getByRole("button", { name: "ปิดแผง" }).click();
   await expect(page.locator("[data-dealer-panel]")).toHaveCount(0);
+  expect(page.url(), "ปิดแผง = ที่อยู่เดิม (ไม่มี ?open)").toBe(ที่อยู่);
 
   await page.getByRole("button", { name: /แสดงแบบการ์ด/ }).click().catch(() => {});
   const การ์ด = page.locator(".dealer-card").filter({ hasText: รหัสยาว }).first();

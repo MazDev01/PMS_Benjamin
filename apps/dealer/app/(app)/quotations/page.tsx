@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { quoteExpiryISO, daysUntilISO } from "@pms/shared/lib/quoteExpiry";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -173,7 +175,6 @@ function QuotationsPageInner(){
   const [page, setPage]             = useState(1);
   // เปิดใบตรงจากลิงก์ /quotations?open=<เลขใบ> — ปุ่ม "ขั้นต่อไป" ในแผงลูกค้าเป้าหมายพามา (ส่งให้ลูกค้า / บันทึกผล)
   //   รอข้อมูลโหลดก่อน · เปิดครั้งเดียวต่อการเข้าหน้า
-  const เปิดจากลิงก์ = useRef(false);
   // ใบที่กำลังจะลบ — เก็บ "ตัวใบ" ไม่ใช่ boolean เพราะลบได้จากรายการโดยไม่ต้องเปิดแผงรายละเอียด
   const [toast, setToast]           = useState<string|null>(null);
   // ลูกค้าใหม่ที่เพิ่งปิดการขาย — โชว์ปุ่มลัดพาไปหน้าลูกค้าพร้อมค้นหาให้เลย (เดิมหาไม่เจอง่าย
@@ -224,20 +225,14 @@ function QuotationsPageInner(){
     return undefined;
   };
   const ลูกค้าของใบ = ใบที่ดู ? ลูกค้าจากใบ(ใบที่ดู) : undefined;
-  useEffect(()=>{
-    if(!เปิดจากลิงก์.current){ เปิดจากลิงก์.current=true; setขอเปิด(new URLSearchParams(window.location.search).get("open")); }
-    const on=(e:Event)=>{
-      const href=String((e as CustomEvent).detail??"");
-      if(href.startsWith("/quotations?")) setขอเปิด(new URLSearchParams(href.slice(href.indexOf("?"))).get("open"));
-    };
-    window.addEventListener("bpms:open-record",on);
-    return ()=>window.removeEventListener("bpms:open-record",on);
-  },[]);
+  // หน้าต่างใบอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดตามที่อยู่
+  useเปิดตามURL("/quotations", p => { if(!p){ setขอเปิด(null); setดูใบ(null); return; } setขอเปิด(p); });
+  useแผงในURL(ดูใบ);
   useEffect(()=>{
     if(!ขอเปิด) return;
     const q=data.find(x=>x.id===ขอเปิด);
     // ลิงก์ ?open=<เลขใบ> (กระดิ่ง/ค้นหา) = เปิดแผงดูใบบนหน้านี้ เหมือนกดแถว (บอสสั่ง 28 ต.ค. 69 · เดิมรอบ 4 พาไปแผงลีด)
-    if(q){ setขอเปิด(null); window.history.replaceState(null,"","/quotations"); selectRow(q); }
+    if(q){ setขอเปิด(null); selectRow(q); }
   },[data,ขอเปิด]);
 
   // ตัวกรองอื่นของหน้า (ค้นหา/ผู้รับผิดชอบ/จังหวัด/สถานะของแถบกลาง · ไม่รวมช่วงเวลาและการ์ดที่กด) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน
@@ -412,14 +407,8 @@ function QuotationsPageInner(){
                           <span data-quote-no style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace",whiteSpace:"nowrap"}}>{q.id}</span>
                         </td>
                         <td>
-                          {q.customerId ? (
-                            <button onClick={e=>{e.stopPropagation();router.push(`/customers?open=${q.customerId}`);}}
-                              style={{background:"none",border:"none",cursor:"pointer",color:PRIMARY,fontSize:"0.8rem",fontWeight:700,padding:0,textAlign:"left"}}>
-                              {q.customer}
-                            </button>
-                          ) : (
-                            <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL}}>{q.customer}</span>
-                          )}
+                          {/* ลิงก์กลาง (บอสสั่ง 11 พ.ย. 69): ผูกลูกค้า = แผงลูกค้า · ยังเป็นลูกค้าเป้าหมาย = แผงลูกค้าเป้าหมาย · ไม่ผูก = ข้อความ */}
+                          <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL}}><ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล></span>
                         </td>
                         {!hiddenCols.includes("project")&&(
                         <td style={{fontSize:"0.78rem",color:STEEL,overflowWrap:"anywhere"}}>{q.project||"—"}</td>
@@ -505,10 +494,9 @@ function QuotationsPageInner(){
                       <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span>
                     </div>
                     <div style={{padding:"12px 14px"}}>
-                      <button onClick={e=>{e.stopPropagation(); if(q.customerId) router.push(`/customers?open=${q.customerId}`);}}
-                        style={{background:"none",border:"none",cursor:q.customerId?"pointer":"default",color:q.customerId?PRIMARY:STEEL,fontSize:"0.92rem",fontWeight:800,padding:0,textAlign:"left",display:"block",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%"}}>
-                        {q.customer}
-                      </button>
+                      <div style={{color:STEEL,fontSize:"0.92rem",fontWeight:800,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%"}}>
+                        <ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล>
+                      </div>
                       <div style={{fontSize:"0.72rem",color:MUTED,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project} · {q.province}</div>
                       <div style={{display:"flex",gap:0,borderRadius:9,overflow:"hidden",border:"1px solid #f0f4f8",marginBottom:10}}>
                         {[{label:"พื้นที่",value:`${q.area?.toLocaleString()} ตร.ม.`}].map((item,i)=>(

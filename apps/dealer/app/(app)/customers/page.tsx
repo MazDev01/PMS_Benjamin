@@ -1,5 +1,7 @@
 "use client";
 
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
@@ -422,26 +424,14 @@ export default function CustomersPage(){
     const t = setTimeout(() => setLinkToast(null), 3200);
     return () => clearTimeout(t);
   }, [linkToast]);
-  useEffect(() => {
-    const openByParam = (qs: string) => {
-      const p = new URLSearchParams(qs).get("open");
-      if (!p) return;
-      const target = dataRef.current.find(c => String(c.id) === p);
-      if (target) setSelected(target);
-      else setLinkToast("ไม่พบลูกค้ารายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
-      window.history.replaceState(null, "", "/customers");
-    };
-    // 1) ตอนโหลดหน้า (mount) — จาก URL จริง
-    openByParam(window.location.search);
-    // 2) ตอนค้นหาจาก Topbar ขณะอยู่หน้าเดิม — Topbar ยิง event พร้อม href ปลายทาง
-    const onOpen = (e: Event) => {
-      const href = (e as CustomEvent<string>).detail ?? "";
-      const [path, query = ""] = href.split("?");
-      if (path === "/customers" && query) openByParam(`?${query}`);
-    };
-    window.addEventListener("bpms:open-record", onOpen);
-    return () => window.removeEventListener("bpms:open-record", onOpen);
-  }, []);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่
+  useเปิดตามURL("/customers", p => {
+    if (!p) { setSelected(null); return; }
+    const target = dataRef.current.find(c => String(c.id) === p);
+    if (target) setSelected(cur => cur?.id === target.id ? cur : target);
+    else { setLinkToast("ไม่พบลูกค้ารายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง"); ตั้งแผงในURL(null); }
+  }, data.length > 0);
+  useแผงในURL(selected ? String(selected.id) : null);
   // รายชื่อผู้รับผิดชอบดึงจาก PersonPicker เอง (registry กลาง) — ไม่ต้องเก็บ list ที่นี่
   // โมดัลรายละเอียด: ปิดด้วย Esc + ล็อกสกรอลล์พื้นหลัง (parity กับ RightDrawer)
   useEffect(() => {
@@ -1367,7 +1357,7 @@ export default function CustomersPage(){
               <div style={{background:PRIMARY,padding:"13px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexShrink:0}}>
                 <div style={{minWidth:0}}>
                   <div style={{fontSize:"1rem",fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project}</div>
-                  <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.72)",marginTop:2}}>{selected.company} · {q.id}</div>
+                  <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.72)",marginTop:2}}>{selected.company} · <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "quotation", รหัส: q.id }}>{q.id}</ลิงก์ข้อมูล></div>
                 </div>
                 <button onClick={()=>setViewProject(null)} title="ปิด"
                   style={{width:30,height:30,borderRadius:8,background:"rgba(255,255,255,.15)",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>

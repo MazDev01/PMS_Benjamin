@@ -1307,6 +1307,12 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 .pg-crumb { font-size:.7rem; color:var(--sub); margin:0 0 6px; display:flex; align-items:center; gap:6px; }
 .pg-crumb a { color:var(--sub); text-decoration:none; }
 .pg-crumb a:hover { color:var(--pr); }
+/* ลิงก์กลางไปข้อมูลอื่น (components/ui/RecordLink.tsx · บอสสั่ง 11 พ.ย. 69): สีน้ำเงิน · ขีดเส้นใต้ตอนชี้ · เมาส์รูปมือ — หน้าตาเดียวกันทุกที่ */
+.rec-link { color:#1d4ed8; font-weight:inherit; text-decoration:none; cursor:pointer; overflow-wrap:anywhere; }
+.rec-link:hover, .rec-link:focus-visible { text-decoration:underline; text-underline-offset:2px; }
+/* แบบพื้นเข้ม (หัวหน้าต่าง/หัวแผงพื้นน้ำเงินเข้ม): สีขาว ขีดเส้นใต้ตลอด (สีน้ำเงินอ่านไม่ออกบนพื้นเข้ม) */
+.rec-link.rec-link-dark { color:#fff; text-decoration:underline; text-underline-offset:2px; text-decoration-color:rgba(255,255,255,.7); }
+.rec-link.rec-link-dark:hover, .rec-link.rec-link-dark:focus-visible { text-decoration-color:#fff; }
 .pg-title { font-size:1.6rem; font-weight:800; color:var(--text); line-height:1.2; margin:0 0 3px; letter-spacing:-.01em; }
 .pg-sub { font-size:.8rem; color:var(--sub); margin:0; }
 
