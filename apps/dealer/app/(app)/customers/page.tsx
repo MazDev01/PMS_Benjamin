@@ -1357,7 +1357,7 @@ export default function CustomersPage(){
         return (
           <>
             <div onClick={()=>setViewProject(null)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:240}}/>
-            <div className="modal-pop" style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+            <div className="modal-pop" role="dialog" aria-modal="true" aria-label="รายละเอียดงาน" data-doc-window="customer-job" style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
               width:ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) · เดิม 1040 */, maxWidth:"calc(100vw - 24px)", height:"min(900px, calc(100vh - 24px))",
               zIndex:250, background:"#fff", boxShadow:"0 30px 90px rgba(0,0,0,.34)", borderRadius:18,
               display:"flex", flexDirection:"column", overflow:"hidden"}}>
