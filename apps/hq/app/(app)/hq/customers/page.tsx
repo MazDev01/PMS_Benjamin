@@ -1,4 +1,6 @@
 "use client";
+import { logRepoRead } from "@pms/shared/lib/repoLog";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
@@ -51,6 +53,22 @@ export default function HQCustomersPage() {
   const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
   const [page, setPage] = useState(0);
   const [viewId, setViewId] = useState<number | null>(null);
+  // สาขาของลูกค้าที่เปิด — เลขลูกค้าซ้ำกันได้ข้ามสาขา (กดแถว = สาขาของแถว · ลิงก์ = รหัสสาขาในที่อยู่)
+  const [viewCode, setViewCode] = useState<string | null>(null);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ?open=รหัสสาขา:เลขลูกค้า · ลิงก์กลางมาที่นี่ · ย้อนกลับ = เปิด/ปิดตามที่อยู่
+  //   แถวจากลิงก์อาจไม่อยู่ในหน้าตารางที่เห็น → ดึงแถวสรุปของลูกค้ารายนั้นแยก (ลูกค้าของสาขานั้น)
+  const [แถวจากลิงก์, setแถวจากลิงก์] = useState<NonNullable<ReturnType<typeof useHQCustomersPage>>["rows"][number] | null>(null);
+  useเปิดตามURL("/hq/customers", ค่า => {
+    const k = ค่า ? ค่า.indexOf(":") : -1;
+    const code = k > 0 ? ค่า!.slice(0, k) : null, id = k > 0 ? Number(ค่า!.slice(k + 1)) : NaN;
+    if (!code || !Number.isFinite(id)) { setViewId(null); setViewCode(null); return; }
+    setViewId(id); setViewCode(code);
+    if (!REAL_BACKEND) return;
+    metricsRepo.hqCustomersPage({ dealerCodes: [code], limit: 2000, offset: 0 })
+      .then(r => setแถวจากลิงก์(r.rows.find(x => x.id === id && x.dealerCode === code) ?? null))
+      .catch(e => logRepoRead("metrics.hqCustomersPage(open)", e));
+  });
+  useแผงในURL(viewId != null && viewCode ? `${viewCode}:${viewId}` : null);
   // ช่วงวันที่มุมขวาบนแบบเดียวกับหน้า HQ อื่น (บอสสั่ง 30 ต.ค. 69 · แทนตัวกรอง "ทุกช่วงเวลาที่ซื้อ")
   //   ใช้กับการ์ด "ลูกค้าใหม่ในช่วงนี้" เท่านั้น — ตาราง/กราฟ/การ์ดลูกค้าทั้งหมด = ฐานข้อมูลทั้งชุด (ลูกค้าเก่าไม่หาย)
   const { timeRange } = useFilters();
@@ -101,8 +119,9 @@ export default function HQCustomersPage() {
 
   // ── แผงรายละเอียด — local: ได้ CustomerDbRow เต็มจาก localFiltered ตรง ๆ (มี buildings อยู่แล้ว)
   //    supabase: ต้องเฟตช์ใบ won ของลูกค้ารายนั้นแยก (ไม่ได้มากับแถวสรุปที่แบ่งหน้า) ──
-  const localDetail = useMemo(() => viewId != null ? localSource.find(c => c.id === viewId) ?? null : null, [viewId, localSource]);
-  const remoteRowMeta = pageResult?.rows.find(r => r.id === viewId) ?? null;
+  const localDetail = useMemo(() => viewId != null ? localSource.find(c => c.id === viewId && (!viewCode || c.dealerCode === viewCode)) ?? null : null, [viewId, viewCode, localSource]);
+  const remoteRowMeta = pageResult?.rows.find(r => r.id === viewId && (!viewCode || r.dealerCode === viewCode))
+    ?? (แถวจากลิงก์ && แถวจากลิงก์.id === viewId && แถวจากลิงก์.dealerCode === viewCode ? แถวจากลิงก์ : null);
   const needsRemoteDetail = !!pageResult && viewId != null && !localDetail;
   // ต้องส่งรหัสสาขาไปด้วย — เลขที่ลูกค้าซ้ำกันได้ข้ามสาขา ถ้าไม่ระบุ HQ จะดึงใบของ
   // ลูกค้าเลขเดียวกันจากสาขาอื่นมาปนในแผงนี้ (ผลตรวจรอบ 2 · ระดับสูง)
@@ -182,10 +201,10 @@ export default function HQCustomersPage() {
 
       {/* ตารางเต็มอยู่ท้ายหน้าตามเดิม (ตามที่บอสสั่ง — ไม่แยกแท็บ) */}
       <div className="card">
-        <CustomerTable rows={tableRows} onView={r => setViewId(r.id)} pagination={pagination} loading={isLoading} ระดับ={{ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }} />
+        <CustomerTable rows={tableRows} onView={r => { setViewId(r.id); setViewCode(r.dealerCode ?? null); }} pagination={pagination} loading={isLoading} ระดับ={{ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }} />
       </div>
 
-      <CustomerDrawer row={viewDetail} onClose={() => setViewId(null)} />
+      <CustomerDrawer row={viewDetail} onClose={() => { setViewId(null); setViewCode(null); }} />
     </div>
   );
 }

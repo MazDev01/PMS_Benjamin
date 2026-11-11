@@ -132,7 +132,9 @@ test("[ui·hq] ภาพรวมยอดขาย: ทุกแผงการ
     expect(pcts, "แต่ละกลุ่มเรียง % มากไปน้อย").toEqual([...pcts].sort((a, b) => b - a));
   }
   // กดแถว = เจาะลงดีลเลอร์นั้น (หน้าต่างปิด · ตารางเหลือดีลเลอร์เดียว · แถบระดับถึงดีลเลอร์)
-  await ถึง.locator(`[data-drawer-row="${A.รหัส}"]`).click();
+  //   ⚠️ ช่องชื่อเป็นลิงก์ไปหน้าดีลเลอร์ (ลิงก์กลาง · บอสสั่ง 11 พ.ย. 69) → กดช่องตัวเลขของแถวเพื่อเจาะลง
+  //      (ตกรอบ deploy19: กดกลางช่องชื่อ = โดนลิงก์ ไปหน้าดีลเลอร์แทนการเจาะลง)
+  await ถึง.locator(`tr:has([data-drawer-row="${A.รหัส}"]) [data-cell="sales"]`).click();
   await expect(แผง, "กดแถวแล้วหน้าต่างปิด").toHaveCount(0);
   await expect(page.locator("[data-perf-row]"), "เจาะลงดีลเลอร์ A").toHaveCount(1, { timeout: 20_000 });
   await expect(page.locator("[data-crumbs] [data-crumb]").last()).toContainText(`${ป้าย} ก`);
@@ -166,7 +168,7 @@ test("[ui·hq] ภาพรวมยอดขาย แท็บรายเด�
   const แผง = page.locator("[data-month-drawer]");
   await ตรวจหน้าต่าง(page, แผง, "แผงรายเดือน");
   await expect(แผง.locator("[data-drawer-row]"), "เดือนนี้: 3 สาขาของข้อ").toHaveCount(3);
-  await แผง.locator(`[data-drawer-row="${B.รหัส}"]`).click();
+  await แผง.locator(`tr:has([data-drawer-row="${B.รหัส}"]) td.num`).first().click();   // ช่องชื่อเป็นลิงก์ไปหน้าดีลเลอร์ (11 พ.ย. 69) → กดช่องตัวเลข
   await expect(แผง).toHaveCount(0);
   await expect(page.locator("[data-crumbs] [data-crumb]").last(), "กดแถว = เจาะลงดีลเลอร์ B").toContainText(`${ป้าย} ข`);
 });
@@ -194,7 +196,8 @@ for (const path of ["/hq/leads", "/hq/quotations", "/hq/customers"]) {
     const แถวแรก = แผง.locator("[data-drawer-row]").first();
     await expect(แถวแรก).toBeVisible({ timeout: 20_000 });
     const ชื่อ = (await แถวแรก.innerText()).trim();
-    await แถวแรก.click();
+    // ช่องชื่อเป็นลิงก์ไปหน้าดีลเลอร์ (ลิงก์กลาง · บอสสั่ง 11 พ.ย. 69) → กดช่องตัวเลขของแถวเพื่อเจาะลง (กดกลางช่องชื่อ = โดนลิงก์ ผลขึ้นกับความยาวชื่อ)
+    await แผง.locator("tr:has([data-drawer-row]) td.num").first().click();
     await expect(แผง, "กดแถวแล้วหน้าต่างปิด").toHaveCount(0);
     await expect(page.locator("[data-drill-table]"), "เจาะลงดีลเลอร์: ตารางสรุปเป็นรายเดือน").toHaveAttribute("data-drill-table", "month", { timeout: 20_000 });
     await expect(page.locator("[data-crumbs] [data-crumb]").last(), "แถบระดับถึงดีลเลอร์ที่กด").toContainText(ชื่อ);

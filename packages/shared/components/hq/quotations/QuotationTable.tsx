@@ -3,6 +3,7 @@
 // ─── ตารางใบเสนอราคาทั้งเครือ ─────────────────────────────────────────────────
 // อ่านอย่างเดียว — มีปุ่ม "ดู" เท่านั้น ไม่มีสร้าง/แก้ไข/ลบ/อนุมัติ (HQ เป็นเจ้าของข้อมูล แต่ไม่ออกใบเอง)
 // คอลัมน์เกี่ยวกับการเปิดอ่าน ถูกลบทั้งหมดพร้อมสถานะ "เปิดอ่านแล้ว"
+import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "../../ui/RecordLink";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { Eye } from "lucide-react";
@@ -63,16 +64,17 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
           {/* พอดีกรอบ 1042px ที่จอ 1366 (บอสสั่ง 9 พ.ย. 69): สัดส่วนรวม 96% + ปุ่มดู 44px · ดีลเลอร์เป็นบรรทัดเล็กใต้ลูกค้า (เดิมคอลัมน์แยก 200px → ตารางกว้าง 1,678px)
               คอลัมน์จังหวัดที่ซ่อน (ทุกแถวเท่ากับระดับ) ยกที่ให้ลูกค้า */}
           <colgroup>
-            <col style={{ width: "20%" }} />{/* เลขที่ — ฉบับใหม่ต้องเห็น "-V2" เต็ม (Q-XXXXX-2026-0001-V2 ≈ 180px · round3-quote-lock) */}
+            {/* หัวบรรทัดเดียว (บอสสั่ง 10 พ.ย. 69): คอลัมน์ต้องไม่แคบกว่าหัว — เลขที่ 20→19% ยกให้ มูลค่า (ก่อน VAT) 7→7.5% · ราคาขายลูกค้า 6→6.5% (ที่ 1366 หัวขาด 4/3px แม้ลดตัวอักษรถึง 0.8) */}
+            <col style={{ width: "19%" }} />{/* เลขที่ — ฉบับใหม่ต้องเห็น "-V2" เต็ม (Q-XXXXX-2026-0001-V2 ≈ 180px · round3-quote-lock) */}
             <col style={{ width: `${10 + (ซ่อน.จังหวัด ? 7 : 0)}%` }} />{/* ลูกค้า / ดีลเลอร์ (บรรทัดเล็ก · ระดับดีลเลอร์ไม่มีบรรทัดนี้) */}
             {!ซ่อน.จังหวัด && <col style={{ width: "7%" }} />}{/* จังหวัดหน้างาน */}
-            <col style={{ width: "7%" }} />{/* มูลค่า (ก่อน VAT) */}
+            <col style={{ width: "7.5%" }} />{/* มูลค่า (ก่อน VAT) */}
             {/* ส่วนต่างรายใบ 4 คอลัมน์ (บอสสั่ง 2 พ.ย. 69) — ตัวเงินแบบย่อ ฿1.2M · หัวขึ้นบรรทัดได้ */}
-            <col style={{ width: "6%" }} /><col style={{ width: "6%" }} /><col style={{ width: "6%" }} /><col style={{ width: "6%" }} />
+            <col style={{ width: "6%" }} /><col style={{ width: "6.5%" }} /><col style={{ width: "6%" }} /><col style={{ width: "6%" }} />{/* ราคาจาก HQ · ราคาขายลูกค้า · ส่วนต่าง ฿ · ส่วนต่าง % */}
             <col style={{ width: "9.5%" }} />{/* สถานะ — "ส่งให้ลูกค้าแล้ว" ต้องเห็นเต็ม */}
             <col style={{ width: "9.25%" }} />{/* วันที่ส่ง "28 ต.ค. 2569" ไม่ตัด */}
             <col style={{ width: "9.25%" }} />{/* ยืนราคาถึง */}
-            <col style={{ width: 44 }} />{/* ปุ่มดู */}
+            <col style={{ width: "4%" }} />{/* ปุ่มดู · ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
           </colgroup>
           <thead>
             <tr>
@@ -99,8 +101,8 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
                 <ClickableRow key={`${q.dealerCode ?? ""}-${q.id}`} onActivate={() => onView(q)} label={`เปิดรายละเอียดใบเสนอราคา ${q.quoteNo}`}>
                   <td data-quote-no style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
                   <td title={ซ่อน.ดีลเลอร์ ? q.customer : `${q.customer} · ${ชื่อของ(q.dealerCode, q.dealerName)}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    <div data-col="customer" style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{q.customer}</div>
-                    {!ซ่อน.ดีลเลอร์ && <div data-col="dealer" data-row-sub style={{ color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{ชื่อของ(q.dealerCode, q.dealerName)}</div>}
+                    <div data-col="customer" style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}><ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล></div>
+                    {!ซ่อน.ดีลเลอร์ && <div data-col="dealer" data-row-sub style={{ color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: q.dealerCode }}>{ชื่อของ(q.dealerCode, q.dealerName)}</ลิงก์ข้อมูล></div>}
                   </td>
                   {!ซ่อน.จังหวัด && <td data-col="site-province" style={{ color: MUTED }}>{q.siteProvince || "—"}</td>}
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>

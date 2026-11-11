@@ -99,7 +99,7 @@ let สาขา2: สาขาของข้อ | null = null;
 const เลข = 970_000_000 + (Date.now() % 100_000) * 10;   // รหัสแถวของข้อ (คำขอ/ใบ HQ) ไม่ชนข้อมูลตั้งต้น
 test.afterAll(async () => {
   for (const [ส, id] of [[สาขา, เลข], [สาขา2, เลข + 1]] as const) {
-    if (!ส) continue;
+    if (!ส) continue;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
     รันSQLในฐาน(`set local session_replication_role = replica;
       delete from public.quotation_won_at where dealer_code = '${ส.รหัส}';
       delete from public.quotations where dealer_code = '${ส.รหัส}';

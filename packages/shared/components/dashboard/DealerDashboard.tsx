@@ -493,12 +493,15 @@ export default function DealerDashboard() {
         </div>
 
         {/* งานที่ต้องทำวันนี้ */}
-        <div className="card" style={card}>
-          <div style={hd}><span style={{ ...title, display: "flex", alignItems: "center", gap: 6 }}><CalendarClock size={15} color={NAVY} /> งานที่ต้องทำวันนี้</span>{more("/calendar")}</div>
+        {/* กดหัวการ์ด (ชื่อ · ดูทั้งหมด) หรือแถวใดก็ได้ → ปฏิทินมุมมองวันนี้ กรอง "วันนี้" ทันที · ย้อนกลับ = แดชบอร์ด (บอสตอบ 11 พ.ย. 69 · ไม่เพิ่มกล่องตัวเลข)
+            การ์ดโชว์สูงสุด 4 แถว (ไม่นับนัดที่ยกเลิก) — จำนวนเต็มอยู่ที่ปฏิทิน */}
+        <div className="card" style={card} data-card="today-tasks">
+          <div style={hd}><button type="button" data-act="today-tasks-head" onClick={() => router.push("/calendar?view=today")} title="เปิดปฏิทินวันนี้"
+            style={{ ...title, display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}><CalendarClock size={15} color={NAVY} /> งานที่ต้องทำวันนี้</button>{more("/calendar?view=today")}</div>
           {todayTasks.length === 0 ? <EmptyState icon={<CheckCircle2 size={26} />} title="ไม่มีงานวันนี้" description="—" compact /> : (
             <div style={listWrap}>
               {todayTasks.map(a => (
-                <button key={a.id} className="dash-row" onClick={() => router.push("/calendar")} title={`เปิดปฏิทิน · ${a.company}`} style={rowBtn}>
+                <button key={a.id} className="dash-row" onClick={() => router.push("/calendar?view=today")} title={`เปิดปฏิทินวันนี้ · ${a.company}`} data-today-task={a.id} style={rowBtn}>
                   <IconBox Icon={a.type === "follow_up" ? PhoneCall : a.type === "presentation" ? Mail : CalendarClock}
                     color={a.type === "follow_up" ? "#2563EB" : a.type === "presentation" ? "#EA580C" : "#7C3AED"}
                     bg={a.type === "follow_up" ? "#E8F0FE" : a.type === "presentation" ? "#FEF0E6" : "#F0EBFB"} />
@@ -519,7 +522,7 @@ export default function DealerDashboard() {
           {latestQuotes.length === 0 ? <EmptyState icon={<FileText size={26} />} title="ไม่มีใบเสนอราคาในช่วงนี้" description="ลองขยายช่วงเวลาด้านบน" compact /> : (
             <div style={listWrap}>
               {latestQuotes.map(q => { const sc = quotationStatusColor[q.status]; return (
-                <button key={q.id} className="dash-row" onClick={() => router.push("/quotations")} title={`เปิดใบเสนอราคา ${q.id}`} style={rowBtn}>
+                <button key={q.id} className="dash-row" data-latest-quote={q.id} onClick={() => router.push(`/quotations?open=${encodeURIComponent(q.id)}`)} title={`เปิดใบเสนอราคา ${q.id}`} style={rowBtn}>
                   <IconBox Icon={FileText} color={NAVY} bg="#F1F5F9" />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: TEXT, fontFamily: "monospace" }}>{q.id}</span>

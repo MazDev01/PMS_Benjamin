@@ -1638,6 +1638,9 @@ export type HQQuotation = {
   whtRate?: number;
   /** จังหวัดที่บันทึกในใบ (ช่องเดียวกับหน้าต่างใบของดีลเลอร์) */
   province?: string;
+  /** ลูกค้า/ลูกค้าเป้าหมายที่ใบผูก — ลิงก์ชื่อลูกค้าไปแผงของเรื่องนั้น (บอสสั่ง 11 พ.ย. 69 · RecordLink เป้าลูกค้าของใบ) */
+  customerId?: number;
+  dealId?: number;
 };
 
 export const hqAllQuotations: HQQuotation[] = [

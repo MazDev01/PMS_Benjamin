@@ -1,5 +1,7 @@
 "use client";
 
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
@@ -72,6 +74,8 @@ import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
+import { แถบสรุปเอกสาร } from "@pms/shared/components/ui/DocDetailParts";
 
 // ── Design tokens ────────────────────────────────────────────
 const PRIMARY = "#003366";
@@ -420,26 +424,14 @@ export default function CustomersPage(){
     const t = setTimeout(() => setLinkToast(null), 3200);
     return () => clearTimeout(t);
   }, [linkToast]);
-  useEffect(() => {
-    const openByParam = (qs: string) => {
-      const p = new URLSearchParams(qs).get("open");
-      if (!p) return;
-      const target = dataRef.current.find(c => String(c.id) === p);
-      if (target) setSelected(target);
-      else setLinkToast("ไม่พบลูกค้ารายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
-      window.history.replaceState(null, "", "/customers");
-    };
-    // 1) ตอนโหลดหน้า (mount) — จาก URL จริง
-    openByParam(window.location.search);
-    // 2) ตอนค้นหาจาก Topbar ขณะอยู่หน้าเดิม — Topbar ยิง event พร้อม href ปลายทาง
-    const onOpen = (e: Event) => {
-      const href = (e as CustomEvent<string>).detail ?? "";
-      const [path, query = ""] = href.split("?");
-      if (path === "/customers" && query) openByParam(`?${query}`);
-    };
-    window.addEventListener("bpms:open-record", onOpen);
-    return () => window.removeEventListener("bpms:open-record", onOpen);
-  }, []);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่
+  useเปิดตามURL("/customers", p => {
+    if (!p) { setSelected(null); return; }
+    const target = dataRef.current.find(c => String(c.id) === p);
+    if (target) setSelected(cur => cur?.id === target.id ? cur : target);
+    else { setLinkToast("ไม่พบลูกค้ารายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง"); ตั้งแผงในURL(null); }
+  }, data.length > 0);
+  useแผงในURL(selected ? String(selected.id) : null);
   // รายชื่อผู้รับผิดชอบดึงจาก PersonPicker เอง (registry กลาง) — ไม่ต้องเก็บ list ที่นี่
   // โมดัลรายละเอียด: ปิดด้วย Esc + ล็อกสกรอลล์พื้นหลัง (parity กับ RightDrawer)
   useEffect(() => {
@@ -1356,8 +1348,8 @@ export default function CustomersPage(){
         return (
           <>
             <div onClick={()=>setViewProject(null)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.5)",zIndex:240}}/>
-            <div className="modal-pop" style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-              width:1040, maxWidth:"calc(100vw - 24px)", height:"min(900px, calc(100vh - 24px))",
+            <div className="modal-pop" role="dialog" aria-modal="true" aria-label="รายละเอียดงาน" data-doc-window="customer-job" style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+              width:ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) · เดิม 1040 */, maxWidth:"calc(100vw - 24px)", height:"min(900px, calc(100vh - 24px))",
               zIndex:250, background:"#fff", boxShadow:"0 30px 90px rgba(0,0,0,.34)", borderRadius:18,
               display:"flex", flexDirection:"column", overflow:"hidden"}}>
 
@@ -1365,7 +1357,7 @@ export default function CustomersPage(){
               <div style={{background:PRIMARY,padding:"13px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexShrink:0}}>
                 <div style={{minWidth:0}}>
                   <div style={{fontSize:"1rem",fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project}</div>
-                  <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.72)",marginTop:2}}>{selected.company} · {q.id}</div>
+                  <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.72)",marginTop:2}}>{selected.company} · <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "quotation", รหัส: q.id }}>{q.id}</ลิงก์ข้อมูล></div>
                 </div>
                 <button onClick={()=>setViewProject(null)} title="ปิด"
                   style={{width:30,height:30,borderRadius:8,background:"rgba(255,255,255,.15)",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -1373,29 +1365,16 @@ export default function CustomersPage(){
                 </button>
               </div>
 
-              {/* ซ้าย: สรุปงาน · ขวา: ข้อมูลทั้งหมด */}
-              <div className="proj-shell" style={{flex:1,minHeight:0,display:"grid",gridTemplateColumns:"320px minmax(0,1fr)",background:"#f5f7fa"}}>
-                <div style={{padding:16,borderRight:"1px solid #e9edf2",display:"flex",flexDirection:"column",gap:12,overflowY:"auto"}}>
-                  <div style={cardS}>
-                    {([
-                      ["สถานะ", ""], ["วันที่ซื้อ", fmtDate(q.date)],
-                      ["พื้นที่", q.area>0 ? `${q.area.toLocaleString()} ตร.ม.` : "—"],
-                    ] as [string,string][]).map(([k,v])=>(
-                      <div key={k} style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",padding:"7px 0",borderBottom:"1px solid #f4f6f9",fontSize:"0.75rem"}}>
-                        <span style={{color:"#8a929c",flexShrink:0}}>{k}</span>
-                        {k==="สถานะ"
-                          ? <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span>
-                          : <span style={{fontWeight:700,color:STEEL,textAlign:"right",minWidth:0,wordBreak:"break-word"}}>{v}</span>}
-                      </div>
-                    ))}
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",paddingTop:10}}>
-                      <span style={{fontSize:"0.72rem",color:"#8a929c"}}>มูลค่างาน</span>
-                      <span style={{fontSize:"1.1rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums"}}>{fmtMoney(q.totalValue)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{padding:16,display:"flex",flexDirection:"column",gap:14,overflowY:"auto"}}>
+              {/* คอลัมน์เดียว (บอสตอบ 10 พ.ย. 69 · หน้าต่างเอกสาร 820): การ์ดสรุป (สถานะ · วันที่ซื้อ · พื้นที่ · มูลค่างาน) เป็นแถบบนแบบหน้าต่างใบเสนอราคา
+                  ตารางรายการเต็มกว้าง ไม่เลื่อนแนวนอน · เดิม 2 คอลัมน์ ซ้าย 320px (ที่ 820 ตารางเหลือ 432px < ขั้นต่ำ 560) */}
+              <แถบสรุปเอกสาร ช่อง={[
+                { คีย์: "status", ป้าย: "สถานะ", ค่า: <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span> },
+                { คีย์: "date", ป้าย: "วันที่ซื้อ", ค่า: fmtDate(q.date) },
+                { คีย์: "area", ป้าย: "พื้นที่", ค่า: q.area>0 ? `${q.area.toLocaleString()} ตร.ม.` : "—" },
+                { คีย์: "value", ป้าย: "มูลค่างาน", ค่า: fmtMoney(q.totalValue), เด่น: true },
+              ]} />
+              <div className="proj-shell" style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",background:"#f5f7fa"}}>
+                <div style={{padding:16,display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flex:1,minHeight:0}}>
 
                   {/* รายละเอียดเอกสาร — ชุดเดียวกับหน้าใบเสนอราคา (ไม่มีข้อมูล = "—" ไม่เดา) */}
                   <div style={cardS}>

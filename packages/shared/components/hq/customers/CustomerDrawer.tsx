@@ -3,6 +3,7 @@
 // ─── แผงรายละเอียดลูกค้า (HQ ดูอย่างเดียว) ──────────────────────────────────────
 // แท็บทั้งหมดอ่านจากข้อมูลจริง: ใบที่ปิดการขายได้ (รูปแม่แบบเอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // ไม่มีแท็บสัญญา / ใบส่งมอบ / แบบก่อสร้าง — ระบบไม่มีที่เก็บข้อมูลเหล่านั้น
+import { ลิงก์ข้อมูล } from "../../ui/RecordLink";
 import { Building2, IdCard, MapPin, Compass, Store, Repeat, CalendarDays, Wallet, StickyNote, History, Activity, User, Phone, Mail, Home } from "lucide-react";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
@@ -39,7 +40,7 @@ function BuildingCard({ b }: { b: PurchasedBuilding }) {
     <div style={{ display: "flex", gap: 10, padding: 10, border: "1px solid #e9edf2", borderRadius: 10 }}>
       <BuildingThumb />
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#2D2D2D" }}>{b.quoteNo}</div>
+        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#2D2D2D" }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "quotation", รหัส: b.quoteNo }}>{b.quoteNo}</ลิงก์ข้อมูล></div>
         <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>ปิดการขาย {b.wonDate}</div>
         <div style={{ fontSize: "0.7rem", fontWeight: 700, color: PRIMARY, marginTop: 4 }}>{fmtBaht(b.value)}</div>
       </div>
@@ -81,7 +82,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             <PanelRow icon={Repeat} label="ลูกค้าซื้อซ้ำ" value={row.isRepeat ? "ใช่" : "ไม่ใช่"} />
           </PanelSection>
           <PanelSection icon={Store} title="ดีลเลอร์ที่ดูแล">
-            <PanelRow icon={Store} label="ดีลเลอร์" value={ชื่อของ(row.dealerCode, row.dealerName)} />
+            <PanelRow icon={Store} label="ดีลเลอร์" value={<ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: row.dealerCode }}>{ชื่อของ(row.dealerCode, row.dealerName)}</ลิงก์ข้อมูล>} />
           </PanelSection>
           <PanelSection icon={Wallet} title="สรุปการซื้อ">
             <PanelRow icon={Wallet} label="ยอดซื้อรวม" value={row.totalRevenue > 0 ? fmtBaht(row.totalRevenue) : undefined} strong />
@@ -131,7 +132,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
             {[...row.buildings].reverse().map(b => (
               <div key={b.quoteNo} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "9px 11px", border: "1px solid #e9edf2", borderRadius: 9 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#2D2D2D" }}>{b.quoteNo}</div>
+                  <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#2D2D2D" }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "quotation", รหัส: b.quoteNo }}>{b.quoteNo}</ลิงก์ข้อมูล></div>
                   <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>ปิดการขาย {b.wonDate}</div>
                 </div>
                 <div style={{ fontSize: "0.74rem", fontWeight: 700, color: PRIMARY, whiteSpace: "nowrap" }}>{fmtBaht(b.value)}</div>
@@ -181,7 +182,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
       label="รายละเอียดลูกค้า"
       onClose={onClose}
       title={row.name}
-      subtitle={`${ชื่อของ(row.dealerCode, row.dealerName)} · ${row.province}`}
+      subtitle={<><ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "dealer", รหัส: row.dealerCode }}>{ชื่อของ(row.dealerCode, row.dealerName)}</ลิงก์ข้อมูล> · {row.province}</>}
       badges={[
         { ข้อความ: row.totalRevenue > 0 ? fmtBaht(row.totalRevenue) : "ยังไม่มียอดซื้อ" },
         ...(row.buildings.length ? [{ ข้อความ: `${row.buildings.length} อาคาร` }] : []),

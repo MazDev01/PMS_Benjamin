@@ -17,7 +17,8 @@ test("[ui·hq] ชี้ก้อนสีในโดนัท → ก้อน
   await โดนัท.scrollIntoViewIfNeeded();   // โดนัทหน้าลูกค้าเป้าหมายอยู่ใต้ตารางเจาะลึก — เลื่อนให้อยู่ในจอก่อนชี้เมาส์
   const ก้อน = โดนัท.locator("svg path, svg circle + circle");
   const จำนวนก้อน = await ก้อน.count();
-  test.skip(จำนวนก้อน < 2, "ฐานทดสอบยังมีข้อมูลไม่พอให้โดนัทมีหลายก้อน");
+  // ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69) — ข้อมูลตั้งต้นมีหลายภาค/หลายแหล่งที่มา โดนัทต้องมีอย่างน้อย 2 ก้อน
+  expect(จำนวนก้อน, "ขาดข้อมูล: โดนัทมีไม่ถึง 2 ก้อน (ข้อมูลตั้งต้นไม่พอ)").toBeGreaterThanOrEqual(2);
 
   const กลางก่อน = (await โดนัท.locator(".donut-center").innerText()).trim();
   const หนาก่อน = await ก้อน.first().getAttribute("stroke-width");
@@ -52,7 +53,7 @@ test("[ui·hq] ชี้ที่แถวคำอธิบาย → ก้อ
   await expect(โดนัท).toBeVisible({ timeout: 30_000 });
   await โดนัท.scrollIntoViewIfNeeded();   // โดนัทหน้าลูกค้าเป้าหมายอยู่ใต้ตารางเจาะลึก — เลื่อนให้อยู่ในจอก่อนชี้เมาส์
   const ก้อน = โดนัท.locator("svg path, svg circle + circle");
-  test.skip(await ก้อน.count() < 2, "ข้อมูลไม่พอ");
+  expect(await ก้อน.count(), "ขาดข้อมูล: โดนัทมีไม่ถึง 2 ก้อน (ข้อมูลตั้งต้นไม่พอ) — ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69)").toBeGreaterThanOrEqual(2);
 
   // แถวคำอธิบายแถวแรกในการ์ดของโดนัทใบเดียวกัน
   const แถว = โดนัท.locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' card ')][1]").locator('[aria-label]').filter({ hasText: "%" }).first();

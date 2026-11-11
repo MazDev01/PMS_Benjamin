@@ -17,7 +17,8 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { บันทึกเมื่อผ่าน, ไฟล์บันทึก } from "./lib/migrationGate.mjs";
-import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน, ไฟล์ยังไม่commit } from "./lib/commitGate.mjs";
+import { สภาพตอนเริ่ม, บันทึกcommitที่ผ่าน, ไฟล์ยังไม่commit, ไฟล์บันทึกโค้ด } from "./lib/commitGate.mjs";
+import { จดรอรับทราบ, เหตุรอรับทราบ, พิมพ์สรุปไม่นิ่ง, ไฟล์รับทราบ, ข้อไม่นิ่งของรอบ } from "./lib/flakyAck.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { ป้ายล็อกรอบทดสอบ } from "./lib/gateLockLabel.mjs";
 import { พอร์ต, ต้นทาง, ชื่อเซสชัน } from "./lib/session.mjs";
@@ -278,7 +279,7 @@ const รันprodLive = async () => {
 };
 if (รันต่อ.ได้) {
   // ── โหมดรันต่อ: รันเฉพาะไฟล์ที่ตกในช่วงเดิมของแต่ละไฟล์ → รันซ้ำไฟล์ที่ตกอีกครั้งแบบรอบเต็ม → ตัวตรวจท้ายรอบกับรายงานเดิม+ใหม่ ──
-  const รีพอร์ต = "--reporter=line,json";
+  const รีพอร์ต = "--reporter=line,json,./tests/reporters/flaky-names.ts";   // ชื่อข้อไม่นิ่งท้ายผลทุกช่วง (บอสสั่ง 11 พ.ย. 69)
   const ตามช่วง = new Map();
   for (const { ไฟล์, โปรเจกต์ } of รันต่อ.จด.ไฟล์ตก) ตามช่วง.set(โปรเจกต์, [...(ตามช่วง.get(โปรเจกต์) ?? []), ไฟล์]);
   const ลำดับ = ["tools", "chromium", "hq-settings", "safari", "stress"];
@@ -304,16 +305,24 @@ if (รันต่อ.ได้) {
   console.log("▶ ตัวตรวจรอบปิดด่าน (รายงานเดิมทุกช่วง + รันต่อ): ทุกข้อต้องได้รันจริง");
   const ตรวจต่อ = spawnSync("node", ["scripts/check-e2e-ran.mjs", ...รายงานรวม], { stdio: "inherit", shell: true });
   if (ตรวจไม่นิ่งท้ายรอบ([...ผลต่อ.map(c => c.รายงาน), ...ตัดสินต่อ.รายงานรันซ้ำ], { รอบ: `${ชื่อเซสชัน()}·${PMS_RUN_ID}·รันต่อ`, เพิ่ม: ตัดสินต่อ.ไม่นิ่ง })) ตกต่อ = 1;
+  const ไม่นิ่งต่อ = ข้อไม่นิ่งของรอบ([...ผลต่อ.map(c => c.รายงาน), ...ตัดสินต่อ.รายงานรันซ้ำ], ตัดสินต่อ.ไม่นิ่ง);
   สรุปเวลา();
-  if (บันทึกเมื่อผ่าน({ ตก: ตกต่อ, ตัวตรวจ: ตรวจต่อ.status ?? 1, ป้าย: `${PMS_RUN_ID} รันต่อจาก ${รันต่อ.จด.sha.slice(0, 7)}` })) {
-    const ไม่บันทึก = process.env.SKIP_BUILD ? "รอบนี้ข้าม build (SKIP_BUILD) — ไม่บันทึกผลผูก commit" : บันทึกcommitที่ผ่าน({ ...ตอนเริ่ม, ป้าย: `${PMS_RUN_ID} รันต่อจาก ${รันต่อ.จด.sha.slice(0, 7)}` });
-    console.log(ไม่บันทึก ? `⚠️ ${ไม่บันทึก}` : `▶ ผ่าน (รันต่อจากรอบ ${รันต่อ.จด.sha.slice(0, 7)}) — บันทึกลายนิ้วมือโค้ดของ commit ${ตอนเริ่ม.sha.slice(0, 7)} → supabase/gate-passed-code.txt (commit ไฟล์นี้พร้อมงาน)`);
-    const จบ = ไม่บันทึก ? null : จบรอบ({ sha: ตอนเริ่ม.sha, ป้าย: `${PMS_RUN_ID} รันต่อ` });   // ข้าม build = ไม่นับว่ารอบผ่าน
-    if (จบ) console.log(`▶ รอบ ${จบ.รอบ} ปิดจบ (ผ่าน) — ใช้ซ้ำไม่ได้ · งานของรอบออกจากรายการรอรอบแล้ว`);
+  if (บันทึกเมื่อผ่าน({ ตก: ตกต่อ, ตัวตรวจ: ตรวจต่อ.status ?? 1, ป้าย: `${PMS_RUN_ID} รันต่อจาก ${รันต่อ.จด.sha.slice(0, 7)}`, รอรับทราบ: ไม่นิ่งต่อ })) {
+    const ไม่บันทึก = process.env.SKIP_BUILD ? "รอบนี้ข้าม build (SKIP_BUILD) — ไม่บันทึกผลผูก commit" : บันทึกcommitที่ผ่าน({ ...ตอนเริ่ม, ป้าย: `${PMS_RUN_ID} รันต่อจาก ${รันต่อ.จด.sha.slice(0, 7)}`, รอรับทราบ: ไม่นิ่งต่อ.length > 0 });
+    if (!ไม่บันทึก && ไม่นิ่งต่อ.length) {
+      // มีข้อไม่นิ่ง = ยังไม่นับว่าผ่าน (บอสสั่ง 11 พ.ย. 69 · flakyAck.mjs) — รอบอสรับทราบ · รอบยังไม่ปิดจบ (round:ack ปิดให้)
+      จดรอรับทราบ({ ป้าย: PMS_RUN_ID, sha: ตอนเริ่ม.sha, ข้อ: ไม่นิ่งต่อ });
+      console.error(`⛔ ${เหตุรอรับทราบ(PMS_RUN_ID, ไม่นิ่งต่อ)}`);
+    } else {
+      console.log(ไม่บันทึก ? `⚠️ ${ไม่บันทึก}` : `▶ ผ่าน (รันต่อจากรอบ ${รันต่อ.จด.sha.slice(0, 7)}) — บันทึกลายนิ้วมือโค้ดของ commit ${ตอนเริ่ม.sha.slice(0, 7)} → supabase/gate-passed-code.txt (commit ไฟล์นี้พร้อมงาน)`);
+      const จบ = ไม่บันทึก ? null : จบรอบ({ sha: ตอนเริ่ม.sha, ป้าย: `${PMS_RUN_ID} รันต่อ` });   // ข้าม build = ไม่นับว่ารอบผ่าน
+      if (จบ) console.log(`▶ รอบ ${จบ.รอบ} ปิดจบ (ผ่าน) — ใช้ซ้ำไม่ได้ · งานของรอบออกจากรายการรอรอบแล้ว`);
+    }
     ลบที่จด();
   } else {
     console.error("✗ รอบรันต่อไม่ผ่าน — ผลรอบที่ตกเดิมยังจดไว้ (แก้ไฟล์ที่ตกแล้วรันใหม่ได้ · แตะไฟล์อื่น = รันเต็ม)");
   }
+  พิมพ์สรุปไม่นิ่ง(ไม่นิ่งต่อ, { รอบเต็ม: true });
   process.exit(ตกต่อ || ตรวจต่อ.status || 0);
 }
 if (process.env.PMS_GATE_ONLY_LIVE === "1") {   // เจาะช่วง prod-live อย่างเดียว (ใช้ตอนแก้ชุด prod-live)
@@ -329,7 +338,7 @@ if (process.env.PMS_GATE_ONLY_LIVE === "1") {   // เจาะช่วง prod
   else {
     console.log(`▶ ขั้นก่อนรอบเต็ม: รันไฟล์ทดสอบที่เปลี่ยนตั้งแต่รอบผ่าน ${ฐาน.slice(0, 7)} ก่อน ${ไฟล์.length} ไฟล์ — ${ไฟล์.join(" · ")}`);
     for (const โปรเจกต์ of ช่วงก่อนรอบเต็ม) {
-      const code = await จับเวลา(`ก่อนรอบเต็ม ${โปรเจกต์}`, () => รัน([`--project=${โปรเจกต์}`, ...ไฟล์, "--pass-with-no-tests", "--reporter=line"],
+      const code = await จับเวลา(`ก่อนรอบเต็ม ${โปรเจกต์}`, () => รัน([`--project=${โปรเจกต์}`, ...ไฟล์, "--pass-with-no-tests", "--reporter=line,./tests/reporters/flaky-names.ts"],
         { PMS_RUN_STAGE: `${โปรเจกต์}-precheck`, PLAYWRIGHT_JSON_OUTPUT_NAME: "", ...(โปรเจกต์ === "tools" ? { PMS_GLOBAL_SETUP_SKIP: "1" } : {}) }));
       if (code !== 0) {
         ปิดทั้งหมด();
@@ -342,7 +351,7 @@ if (process.env.PMS_GATE_ONLY_LIVE === "1") {   // เจาะช่วง prod
   }
 }
 const ช่วง = ["chromium", "hq-settings", "safari", "stress"];
-const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json";
+const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json,./tests/reporters/flaky-names.ts";   // ชื่อข้อไม่นิ่งท้ายผลทุกช่วง (บอสสั่ง 11 พ.ย. 69)
 const รายงานของ = (โปรเจกต์) => รายงานหลัก.replace(/\.json$/, "") + `.${โปรเจกต์}.json`;
 // ช่วง tools ไม่ใช้ฐานทดสอบ → ไม่ลงข้อมูลตั้งต้น/ไม่กวาดข้อมูลทดสอบ (กันชนช่วง chromium ที่รันพร้อมกัน · global-setup.ts)
 const envช่วง = (โปรเจกต์) => ({ PLAYWRIGHT_JSON_OUTPUT_NAME: รายงานของ(โปรเจกต์), PMS_RUN_STAGE: โปรเจกต์, ...(โปรเจกต์ === "tools" ? { PMS_GLOBAL_SETUP_SKIP: "1" } : {}) });
@@ -403,14 +412,24 @@ if (ตก || ตรวจ.status) {
 }
 // ผ่านครบ (ตก 0 + ตัวตรวจท้ายรอบผ่าน) → บันทึกลายนิ้วมือใบปรับฐานทุกใบ · db:push:prod ลงได้เฉพาะใบที่ตรงกับบันทึกนี้
 //   (บอสสั่ง 21 ต.ค. 69 · scripts/lib/migrationGate.mjs) · ต้อง commit ไฟล์บันทึกพร้อมงาน
-if (บันทึกเมื่อผ่าน({ ตก, ตัวตรวจ: ตรวจ.status ?? 1, ป้าย: PMS_RUN_ID })) {
-  console.log(`▶ บันทึกใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว → ${ไฟล์บันทึก()} (commit ไฟล์นี้พร้อมงาน)`);
+// ข้อไม่นิ่งของรอบ (ตกครั้งแรก ผ่านตอนรันซ้ำ · ในรอบ + รันซ้ำไฟล์ที่ตกท้ายรอบ) — มี = รอบนี้ "รอรับทราบ" ไม่นับว่าผ่าน (บอสสั่ง 11 พ.ย. 69 · flakyAck.mjs)
+const ไม่นิ่งรอบนี้ = ข้อไม่นิ่งของรอบ(รายงาน, ตัดสิน.ไม่นิ่ง);
+if (บันทึกเมื่อผ่าน({ ตก, ตัวตรวจ: ตรวจ.status ?? 1, ป้าย: PMS_RUN_ID, รอรับทราบ: ไม่นิ่งรอบนี้ })) {
+  console.log(`▶ บันทึกใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว → ${ไฟล์บันทึก()} (commit ไฟล์นี้พร้อมงาน)${ไม่นิ่งรอบนี้.length ? " · มีข้อไม่นิ่ง = db:push:prod ไม่ลงจนกว่าบอสรับทราบ" : ""}`);
   // ผลผ่านของ commit นี้ (scripts/lib/commitGate.mjs) — git pre-push ให้ขึ้น monorepo ได้เฉพาะ commit ที่มีผลนี้
   //   SKIP_BUILD = ทดสอบของที่ build ไว้ก่อน อาจไม่ใช่ commit นี้ → ไม่บันทึก
   const ไม่บันทึก = process.env.SKIP_BUILD ? "รอบนี้ข้าม build (SKIP_BUILD) — ของที่ทดสอบอาจไม่ใช่ commit นี้ จึงไม่บันทึกผลผูก commit"
-    : บันทึกcommitที่ผ่าน({ ...ตอนเริ่ม, ป้าย: PMS_RUN_ID });
-  console.log(ไม่บันทึก ? `⚠️ ${ไม่บันทึก}` : `▶ บันทึกลายนิ้วมือโค้ดของ commit ${ตอนเริ่ม.sha.slice(0, 7)} → supabase/gate-passed-code.txt — commit ไฟล์นี้พร้อม gate-passed-migrations.json (ส่งงาน/merge/ขึ้นเว็บได้เฉพาะ commit ที่มีบรรทัดนี้)`);
-  const จบ = ไม่บันทึก ? null : จบรอบ({ sha: ตอนเริ่ม.sha, ป้าย: PMS_RUN_ID });   // ข้าม build = ไม่นับว่ารอบผ่าน
-  if (จบ) console.log(`▶ รอบ ${จบ.รอบ} ปิดจบ (ผ่าน) — ใช้ซ้ำไม่ได้ · งานของรอบออกจากรายการรอรอบแล้ว`);
+    : บันทึกcommitที่ผ่าน({ ...ตอนเริ่ม, ป้าย: PMS_RUN_ID, รอรับทราบ: ไม่นิ่งรอบนี้.length > 0 });
+  if (!ไม่บันทึก && ไม่นิ่งรอบนี้.length) {
+    // ยังไม่นับว่าผ่าน — session:merge / pre-push / Vercel / db:push:prod ปฏิเสธจนกว่าบอสรัน round:ack · รอบยังไม่ปิดจบ (round:ack ปิดให้)
+    จดรอรับทราบ({ ป้าย: PMS_RUN_ID, sha: ตอนเริ่ม.sha, ข้อ: ไม่นิ่งรอบนี้ });
+    console.error(`⛔ ${เหตุรอรับทราบ(PMS_RUN_ID, ไม่นิ่งรอบนี้)}`);
+    console.error(`   commit ${ไฟล์บันทึกโค้ด} + gate-passed-migrations.json + ${ไฟล์รับทราบ} พร้อมงาน (ผลยังไม่นับจนกว่าบอสรับทราบ)`);
+  } else {
+    console.log(ไม่บันทึก ? `⚠️ ${ไม่บันทึก}` : `▶ บันทึกลายนิ้วมือโค้ดของ commit ${ตอนเริ่ม.sha.slice(0, 7)} → supabase/gate-passed-code.txt — commit ไฟล์นี้พร้อม gate-passed-migrations.json (ส่งงาน/merge/ขึ้นเว็บได้เฉพาะ commit ที่มีบรรทัดนี้)`);
+    const จบ = ไม่บันทึก ? null : จบรอบ({ sha: ตอนเริ่ม.sha, ป้าย: PMS_RUN_ID });   // ข้าม build = ไม่นับว่ารอบผ่าน
+    if (จบ) console.log(`▶ รอบ ${จบ.รอบ} ปิดจบ (ผ่าน) — ใช้ซ้ำไม่ได้ · งานของรอบออกจากรายการรอรอบแล้ว`);
+  }
 }
+พิมพ์สรุปไม่นิ่ง(ไม่นิ่งรอบนี้, { รอบเต็ม: true });   // ขึ้นท้ายผลชัด ๆ ทุกรอบ (ไม่ใช่แค่ตัวเลข flaky)
 process.exit(ตก || ตรวจ.status || 0);

@@ -41,7 +41,7 @@ test("คนที่ยังไม่ล็อกอิน ต้องอ่�
   for (const name of names) {
     if (PUBLIC_BY_DESIGN.includes(name)) continue;
     const r = await fetch(`${SUPABASE_URL}/${"rest/v1"}/${name}?select=*&limit=1`, { headers: { apikey: SUPABASE_ANON } });
-    if (!r.ok) continue;                       // ถูกปฏิเสธ = ถูกต้องแล้ว
+    if (!r.ok) continue;   // ไม่ใช่การข้าม: ถูกปฏิเสธ = ถูกต้อง (นับเฉพาะตารางที่หลุด)
     const rows = await r.json().catch(() => []);
     if (Array.isArray(rows) && rows.length > 0) leaked.push(`${name} (${rows.length} แถว)`);
   }

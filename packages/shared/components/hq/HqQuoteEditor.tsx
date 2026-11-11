@@ -18,6 +18,7 @@
 //   • ร่างที่พิมพ์ค้างไม่หายเมื่อสลับไปคำขออื่น — เก็บไว้ในที่เก็บร่างของหน้า (ร่างค้าง) แล้วคืนให้เมื่อกลับมา
 // ไฟล์แนบ 2 ทาง (บอสสั่ง 2 พ.ย. 69 · ใบ 0273): HQ แนบ/ลบไฟล์ของใบได้ตอนเป็นร่าง (ต้องบันทึกร่างก่อน — ไฟล์ผูกใบ HQ ฉบับนั้น)
 //   กด "ส่งใบ HQ ให้ดีลเลอร์" แล้วไฟล์ล็อกพร้อมใบ · ไฟล์ฉบับก่อน + ไฟล์จากดีลเลอร์ดูได้ในกล่องเดียวกัน
+import { ลิงก์ข้อมูล } from "../ui/RecordLink";
 import { useEffect, useMemo, useState } from "react";
 import { Send, X, Copy, Lock, Boxes, ClipboardList } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
@@ -37,6 +38,8 @@ import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
 import { FieldLabel, FieldError, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
+import { กริดรายละเอียด, ช่องกริด } from "@pms/shared/components/ui/DocDetailParts";
 
 const NAVY = "#003366";
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,9 +52,8 @@ const สเปกยาว = 160;
 /** ร่างที่พิมพ์ค้าง (ยังไม่บันทึก) ของคำขอหนึ่ง — หน้าแม่ถือไว้ข้ามการสลับคำขอ */
 export type ร่างใบHQ = { lines: แถววาง[]; validUntil: string; note: string };
 
-export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged, เต็มจอ = false }: {
-  /** หน้าต่างเต็มจอ แบบหน้าใบค่าแฟรนไชส์ (หน้าคำขอ HQ แบบตาราง · บอสสั่ง 6 พ.ย. 69) */
-  เต็มจอ?: boolean;
+export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged }: {
+  // หน้าต่างเต็มจอ (6 พ.ย. 69) เลิกแล้ว — หน้าต่างกลางจอ กว้างค่ากลาง ความกว้างหน้าต่าง (บอสตอบ 10 พ.ย. 69)
   request: QuoteRequest;
   dealerName: string;
   onClose: () => void;
@@ -194,7 +196,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const เหลือ = เหลือหรือเกิน(request.dueAt);
   // ชุดช่องมาตรฐาน (บอสสั่ง 26 ต.ค. 69 · lib/fieldLabels.ts): ข้อมูลลูกค้า + ข้อมูลงาน ชุดเดียวกับลีด ในกล่องเดียว
   const ข้อมูลลูกค้า: [string, React.ReactNode, string][] = [
-    [ป้ายช่อง.บริษัท, request.leadCompany || "—", "company"],
+    [ป้ายช่อง.บริษัท, request.leadCompany ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "lead", รหัส: request.leadNumId, สาขา: request.dealerCode }}>{request.leadCompany}</ลิงก์ข้อมูล> : "—", "company"],
     [ป้ายช่อง.ผู้ติดต่อ, request.leadContact || "—", "contact"],
     [ป้ายช่อง.โทรศัพท์, request.leadPhone || "—", "phone"],
     [ป้ายช่อง.อีเมล, request.leadEmail || "—", "email"],
@@ -208,7 +210,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       <>{บาท(Number(request.estimateTotal))} บาท <span style={{ fontWeight: 500, color: "#6b7280" }}>({(request.estimateItems ?? []).length} วัสดุ · {ป้ายราคาประเมิน}
         {request.estimateDeviationPct != null ? ` · คลาดจากใบ HQ ${ป้ายเปอร์เซ็นต์คลาด(request.estimateDeviationPct)}` : ""})</span></>
     ), "estimate"] as [string, React.ReactNode, string]] : []),
-    ["ดีลเลอร์", ชื่อของ(request.dealerCode, dealerName), "dealer"],
+    ["ดีลเลอร์", <ลิงก์ข้อมูล key="d" เป้า={{ ชนิด: "dealer", รหัส: request.dealerCode }}>{ชื่อของ(request.dealerCode, dealerName)}</ลิงก์ข้อมูล>, "dealer"],
   ];
   // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
   const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
@@ -224,7 +226,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
               ใบ HQ · {request.requestNo}{ใบ ? ` · ${ใบ.quoteNo}` : ""}
             </h2>
             <div style={{ fontSize: "0.78rem", opacity: 0.85, marginTop: 2 }}>
-              {ชื่อของ(request.dealerCode, dealerName)} · {request.leadCompany || "—"}
+              {/* หัวพื้นเข้ม = ลิงก์สีขาวขีดเส้นใต้ (บอสสั่ง 11 พ.ย. 69) */}
+              <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "dealer", รหัส: request.dealerCode }}>{ชื่อของ(request.dealerCode, dealerName)}</ลิงก์ข้อมูล> · {request.leadCompany ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "lead", รหัส: request.leadNumId, สาขา: request.dealerCode }}>{request.leadCompany}</ลิงก์ข้อมูล> : "—"}
             </div>
           </div>
           {ใบ && <span className="badge" style={{ background: ล็อก ? "#dcfce7" : "#fef3c7", color: ล็อก ? "#166534" : "#92400e" }}>{hqQuoteStatusLabel[ใบ.status]}</span>}
@@ -237,25 +240,16 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
           {/* สิ่งที่ดีลเลอร์ขอ — กล่องเดียว */}
           <div data-box="request-info" style={{ background: "#f8fafc", border: "1px solid #eef1f5", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 10 }}>
             <span style={{ ...ป้ายข้อมูล, color: NAVY }}>{กลุ่มช่อง.ลูกค้า}</span>
-            <div data-group="customer" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px 16px" }}>
-              {ข้อมูลลูกค้า.map(([ป้าย, ค่า, key]) => (
-                <div key={key} data-info={key} style={{ display: "grid", gap: 2, minWidth: 0 }}>
-                  <span style={ป้ายข้อมูล}>{ป้าย}</span>
-                  <span style={{ ...ค่าข้อมูล, overflowWrap: "anywhere" }}>{ค่า}</span>
-                </div>
-              ))}
-            </div>
+            {/* ข้อมูลลูกค้า/งาน = กริดรายละเอียดตัวกลางของหน้าต่างใบ (DocDetailParts) แบบ 2 คอลัมน์ (บอสสั่ง 10 พ.ย. 69 · เดิมเรียงอัตโนมัติ 150px) */}
+            <กริดรายละเอียด สองคอลัมน์ data-group="customer" style={{ padding: 0 }}>
+              {ข้อมูลลูกค้า.map(([ป้าย, ค่า, key]) => <ช่องกริด key={key} data-info={key} ป้าย={ป้าย} ค่า={ค่า} />)}
+            </กริดรายละเอียด>
             <span style={{ ...ป้ายข้อมูล, color: NAVY, borderTop: "1px solid #eef1f5", paddingTop: 8 }}>{กลุ่มช่อง.งาน}</span>
-            <div data-group="job" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px 16px" }}>
-              {ข้อมูลคำขอ.map(([ป้าย, ค่า, key]) => (
-                <div key={key} data-info={key} style={{ display: "grid", gap: 2, minWidth: 0 }}>
-                  <span style={ป้ายข้อมูล}>{ป้าย}</span>
-                  <span style={{ ...ค่าข้อมูล, overflowWrap: "anywhere" }}>{ค่า}</span>
-                </div>
-              ))}
+            <กริดรายละเอียด สองคอลัมน์ data-group="job" style={{ padding: 0 }}>
+              {ข้อมูลคำขอ.map(([ป้าย, ค่า, key]) => <ช่องกริด key={key} data-info={key} ป้าย={ป้าย} ค่า={ค่า} />)}
               {/* ยกเลิกแล้ว (ใบ 0280): เหตุผล · ใคร · เมื่อไร แทนกำหนดส่ง (คำขอที่ยกเลิกไม่มีกำหนดให้นับ) */}
               {request.status === "cancelled" && (
-                <div data-info="cancelled" style={{ display: "grid", gap: 2, minWidth: 0, gridColumn: "1 / -1" }}>
+                <div data-info="cancelled" className="doc-wide" style={{ display: "grid", gap: 2, minWidth: 0 }}>
                   <span style={ป้ายข้อมูล}>ยกเลิกแล้ว</span>
                   <span style={{ ...ค่าข้อมูล, overflowWrap: "anywhere" }} data-testid="cancel-info">
                     เหตุผล: {request.cancelReason || "—"} · โดย {request.cancelledByName || "—"} · เมื่อ {request.cancelledAt ?? request.closedAt ? วันไทยสั้น((request.cancelledAt ?? request.closedAt)!) : "—"}
@@ -271,7 +265,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                   </span>
                 </div>
               )}
-            </div>
+            </กริดรายละเอียด>
             <div style={{ display: "grid", gap: 2 }}>
               <span style={ป้ายข้อมูล}>{ป้ายช่อง.สเปก}</span>
               <span data-testid="request-spec" style={{ fontSize: "0.82rem", color: "#374151", whiteSpace: "pre-wrap",
@@ -360,7 +354,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   return (
     <div onClick={() => !busy && onClose()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <ModalCard onClose={() => !busy && onClose()} label="ใบ HQ" className="modal-fit"
-        style={{ width: เต็มจอ ? 1240 : 960, maxWidth: "100%", ...(เต็มจอ ? { height: "calc(100vh - 32px)" } : { maxHeight: "92vh" }), overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
+        style={{ width: ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) · เดิม 960 / เต็มจอ 1240 — กลางจอ ไม่เต็มจอ */, maxWidth: "100%", maxHeight: "92vh", overflow: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 24px 80px rgba(0,0,0,.28)" }}>
         {เนื้อหา}
       </ModalCard>
     </div>

@@ -113,7 +113,7 @@ test("[ui·dealer] ตารางใบเสนอราคา: ลำดั�
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขส่ง);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขส่ง);
   const ส่ง = page.locator("tbody tr").filter({ has: page.locator("[data-quote-no]", { hasText: new RegExp(`^${เลขส่ง}$`) }) }).first();
   const ใบร่าง = page.locator("tbody tr").filter({ has: page.locator("[data-quote-no]", { hasText: new RegExp(`^${เลขร่าง}$`) }) }).first();
   await expect(ส่ง).toBeVisible({ timeout: 20_000 });

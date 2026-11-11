@@ -49,7 +49,7 @@ test.beforeAll(async () => {
   if (r.error) throw new Error(r.error.message);
 });
 test.afterAll(async () => {
-  if (!สาขา) return;
+  if (!สาขา) return;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
   ล้างใบHQทดสอบ(สาขา.รหัส, [ก?.leadNum, ค?.leadNum, ง?.leadNum, เลขรอราคา].filter((n): n is number => !!n));
   await สาขา.ลบ();
 });

@@ -29,7 +29,7 @@ test.afterAll(() => { if (ใบHQดู) ล้างใบHQทดสอบ("R
 async function เปิดหน้าดูใบ(page: import("@playwright/test").Page) {
   await open(page, "dealer", "/quotations");
   await assertHealthyPage(page, "ใบเสนอราคา");
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบดู);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขใบดู);
   // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด" (หน้าดูใบในแผงลีดยังเป็นที่ทำงานกับใบ)
   await ไปแผงลีดจากแถวใบ(page.locator("tbody tr").filter({ hasText: เลขใบดู }).first());
   await page.waitForURL(/\/leads/, { timeout: 25_000 });
@@ -178,7 +178,7 @@ test("[ux·dealer] ใบเสนอราคาที่สร้างให�
   // แถวของใบที่ข้อนี้เพิ่งสร้าง (ค้นด้วยชื่อลูกค้าของข้อ) ต้องลงวันที่ของ "วันนี้" ระบบ
   //   เดิมอ่าน "แถวแรก" ของรายการใบ RYG — ข้ออื่นวางใบย้อนหลังของ RYG พร้อมกันแล้วขึ้นบนสุด (29 ต.ค. 69 · คิวข้อ 3)
   const expectedDate = appNowThaiShort();
-  await page.getByPlaceholder(/ค้นหา/).first().fill(ชื่อลูกค้า);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ชื่อลูกค้า);
   await expect.poll(
     async () => (await page.locator("tbody tr").filter({ hasText: ชื่อลูกค้า }).first().locator("td").allInnerTexts()).join(" | "),
     { message: `ใบที่สร้างใหม่ต้องลงวันที่ ${expectedDate} (วันนี้ของระบบ)`, timeout: 10_000 },
@@ -211,7 +211,8 @@ test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วั�
 
     await open(page, "dealer", "/leads");
     await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
-    await page.getByRole("button", { name: "ตาราง" }).click();
+    // exact: ลีดของข้ออื่นที่รันพร้อมกันมีคำว่า "ตาราง" ในชื่อ (ปุ่มลบของแถวชื่อซ้ำ · ผลไม่นิ่ง 10 พ.ย. 69)
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click();
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ป้าย);
 
     const idle = page.getByLabel("ค้างติดต่อทุกช่วง");

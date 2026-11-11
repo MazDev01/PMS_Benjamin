@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { quoteExpiryISO, daysUntilISO } from "@pms/shared/lib/quoteExpiry";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -173,7 +175,6 @@ function QuotationsPageInner(){
   const [page, setPage]             = useState(1);
   // เปิดใบตรงจากลิงก์ /quotations?open=<เลขใบ> — ปุ่ม "ขั้นต่อไป" ในแผงลูกค้าเป้าหมายพามา (ส่งให้ลูกค้า / บันทึกผล)
   //   รอข้อมูลโหลดก่อน · เปิดครั้งเดียวต่อการเข้าหน้า
-  const เปิดจากลิงก์ = useRef(false);
   // ใบที่กำลังจะลบ — เก็บ "ตัวใบ" ไม่ใช่ boolean เพราะลบได้จากรายการโดยไม่ต้องเปิดแผงรายละเอียด
   const [toast, setToast]           = useState<string|null>(null);
   // ลูกค้าใหม่ที่เพิ่งปิดการขาย — โชว์ปุ่มลัดพาไปหน้าลูกค้าพร้อมค้นหาให้เลย (เดิมหาไม่เจอง่าย
@@ -224,20 +225,14 @@ function QuotationsPageInner(){
     return undefined;
   };
   const ลูกค้าของใบ = ใบที่ดู ? ลูกค้าจากใบ(ใบที่ดู) : undefined;
-  useEffect(()=>{
-    if(!เปิดจากลิงก์.current){ เปิดจากลิงก์.current=true; setขอเปิด(new URLSearchParams(window.location.search).get("open")); }
-    const on=(e:Event)=>{
-      const href=String((e as CustomEvent).detail??"");
-      if(href.startsWith("/quotations?")) setขอเปิด(new URLSearchParams(href.slice(href.indexOf("?"))).get("open"));
-    };
-    window.addEventListener("bpms:open-record",on);
-    return ()=>window.removeEventListener("bpms:open-record",on);
-  },[]);
+  // หน้าต่างใบอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดตามที่อยู่
+  useเปิดตามURL("/quotations", p => { if(!p){ setขอเปิด(null); setดูใบ(null); return; } setขอเปิด(p); });
+  useแผงในURL(ดูใบ);
   useEffect(()=>{
     if(!ขอเปิด) return;
     const q=data.find(x=>x.id===ขอเปิด);
     // ลิงก์ ?open=<เลขใบ> (กระดิ่ง/ค้นหา) = เปิดแผงดูใบบนหน้านี้ เหมือนกดแถว (บอสสั่ง 28 ต.ค. 69 · เดิมรอบ 4 พาไปแผงลีด)
-    if(q){ setขอเปิด(null); window.history.replaceState(null,"","/quotations"); selectRow(q); }
+    if(q){ setขอเปิด(null); selectRow(q); }
   },[data,ขอเปิด]);
 
   // ตัวกรองอื่นของหน้า (ค้นหา/ผู้รับผิดชอบ/จังหวัด/สถานะของแถบกลาง · ไม่รวมช่วงเวลาและการ์ดที่กด) — ตารางกับการ์ด KPI ใช้ตัวเดียวกัน
@@ -363,19 +358,20 @@ function QuotationsPageInner(){
                       ของจริงต้องการรวม 1284px แต่กรอบมีแค่ 1012px (กรอบกว้างเท่านี้ตายตัว ขยายจอไม่ช่วย)
                       → คอลัมน์ห้ามตัด (เลขที่/มูลค่า/สถานะ/วันที่/ปุ่ม) ให้เต็มตามที่วัดได้ รวมหัวตารางด้วย
                         คอลัมน์ข้อความยาว (ลูกค้า/โครงการ/ประเภท/ผู้รับผิดชอบ) รับส่วนที่เหลือ → "..." + hover ดูเต็ม */}
-                  <col style={{width:170}} />{/* เลขที่ — เลขเต็ม "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69 · ย้ำ 28 ต.ค. 69 ใช้เลขเต็ม) · ฉบับแยกคอลัมน์ */}
+                  {/* ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) · ผู้ใช้ซ่อนคอลัมน์เอง (เมนูคอลัมน์) = ที่เหลือเกลี่ยตามสัดส่วน */}
+                  <col style={{width:"16.5%"}} />{/* เลขที่ — เลขเต็ม "Q-RYG-2026-4104-V2" ต้องเห็น "-V2" เต็ม (บอสสั่ง 21 ต.ค. 69 · ย้ำ 28 ต.ค. 69 ใช้เลขเต็ม) · ฉบับแยกคอลัมน์ */}
                   {/* คอลัมน์ข้อความหดลงรวม 32px เพื่อแลกที่ให้ปุ่ม "ลบ" ที่เพิ่มเข้ามา (13 ส.ค. 69)
                       หดได้เพราะยังกว้างกว่าหัวคอลัมน์ของตัวเอง — ข้อมูลยาวยังตัดด้วย … + hover ดูเต็มเหมือนเดิม */}
                   {/* 28 ต.ค. 69: คอลัมน์ปุ่มเหลือไอคอนดูใบอันเดียว (เดิม 5 ปุ่ม 190px) → คืนที่ให้ ผู้รับผิดชอบ (ชื่อเต็มไม่ตัด) + วันที่มีปี พ.ศ. */}
-                  <col style={{width:"12.5%",minWidth:78}} />{/* ลูกค้า (…) หัว 74 · รับส่วนของคอลัมน์ "ประเภท" ที่ถอดออก 16 ต.ค. 69 */}
-                  {!hiddenCols.includes("project")&&<col style={{width:"13%",minWidth:100}} />}{/* งานที่ต้องการ — ตกบรรทัดได้ ไม่ตัด */}
-                  <col style={{width:52}} />{/* ฉบับ "V1" "V2" (แทนคอลัมน์ประเภทเดิม) */}
-                  {!hiddenCols.includes("owner")&&<col style={{width:"14%",minWidth:120}} />}{/* ผู้รับผิดชอบ — วงย่อชื่อ + ชื่อเต็ม (ตกบรรทัดได้ ไม่ตัด) */}
-                  {!hiddenCols.includes("value")&&<col style={{width:"11.3%",minWidth:116}} />}{/* มูลค่า — ข้อมูล 114 ห้ามตัด */}
-                  <col style={{width:"10.9%",minWidth:110}} />{/* สถานะ — ป้ายยาวสุด "ส่งแล้ว"/"ปฏิเสธ" */}
-                  {!hiddenCols.includes("created")&&<col style={{width:"9.6%",minWidth:92}} />}{/* วันที่สร้าง — "28 ต.ค. 2569" */}
-                  {!hiddenCols.includes("expiry")&&<col style={{width:"9.6%",minWidth:92}} />}{/* หมดอายุ — "28 ต.ค. 2569" */}
-                  <col style={{width:124}} />{/* ปุ่ม ดู · พิมพ์ · แก้ · ลบ (ไอคอน 4 ปุ่ม · แก้/ลบ เฉพาะใบร่าง) */}
+                  <col style={{width:"10.3%"}} />{/* ลูกค้า (…) หัว 74 · รับส่วนของคอลัมน์ "ประเภท" ที่ถอดออก 16 ต.ค. 69 */}
+                  {!hiddenCols.includes("project")&&<col style={{width:"10.7%"}} />}{/* งานที่ต้องการ — ตกบรรทัดได้ ไม่ตัด */}
+                  <col style={{width:"5%"}} />{/* ฉบับ "V1" "V2" (แทนคอลัมน์ประเภทเดิม) */}
+                  {!hiddenCols.includes("owner")&&<col style={{width:"11.5%"}} />}{/* ผู้รับผิดชอบ — วงย่อชื่อ + ชื่อเต็ม (ตกบรรทัดได้ ไม่ตัด) */}
+                  {!hiddenCols.includes("value")&&<col style={{width:"9.3%"}} />}{/* มูลค่า — ข้อมูล 114 ห้ามตัด */}
+                  <col style={{width:"9%"}} />{/* สถานะ — ป้ายยาวสุด "ส่งแล้ว"/"ปฏิเสธ" */}
+                  {!hiddenCols.includes("created")&&<col style={{width:"7.85%"}} />}{/* วันที่สร้าง — "28 ต.ค. 2569" */}
+                  {!hiddenCols.includes("expiry")&&<col style={{width:"7.85%"}} />}{/* หมดอายุ — "28 ต.ค. 2569" */}
+                  <col style={{width:"12%"}} />{/* ปุ่ม ดู · พิมพ์ · แก้ · ลบ (ไอคอน 4 ปุ่ม · แก้/ลบ เฉพาะใบร่าง) */}
                 </colgroup>
                 <thead>
                   <tr>
@@ -411,14 +407,8 @@ function QuotationsPageInner(){
                           <span data-quote-no style={{fontSize:"0.8rem",fontWeight:700,color:STEEL,fontFamily:"monospace",whiteSpace:"nowrap"}}>{q.id}</span>
                         </td>
                         <td>
-                          {q.customerId ? (
-                            <button onClick={e=>{e.stopPropagation();router.push(`/customers?open=${q.customerId}`);}}
-                              style={{background:"none",border:"none",cursor:"pointer",color:PRIMARY,fontSize:"0.8rem",fontWeight:700,padding:0,textAlign:"left"}}>
-                              {q.customer}
-                            </button>
-                          ) : (
-                            <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL}}>{q.customer}</span>
-                          )}
+                          {/* ลิงก์กลาง (บอสสั่ง 11 พ.ย. 69): ผูกลูกค้า = แผงลูกค้า · ยังเป็นลูกค้าเป้าหมาย = แผงลูกค้าเป้าหมาย · ไม่ผูก = ข้อความ */}
+                          <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL}}><ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล></span>
                         </td>
                         {!hiddenCols.includes("project")&&(
                         <td style={{fontSize:"0.78rem",color:STEEL,overflowWrap:"anywhere"}}>{q.project||"—"}</td>
@@ -504,10 +494,9 @@ function QuotationsPageInner(){
                       <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span>
                     </div>
                     <div style={{padding:"12px 14px"}}>
-                      <button onClick={e=>{e.stopPropagation(); if(q.customerId) router.push(`/customers?open=${q.customerId}`);}}
-                        style={{background:"none",border:"none",cursor:q.customerId?"pointer":"default",color:q.customerId?PRIMARY:STEEL,fontSize:"0.92rem",fontWeight:800,padding:0,textAlign:"left",display:"block",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%"}}>
-                        {q.customer}
-                      </button>
+                      <div style={{color:STEEL,fontSize:"0.92rem",fontWeight:800,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%"}}>
+                        <ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล>
+                      </div>
                       <div style={{fontSize:"0.72rem",color:MUTED,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project} · {q.province}</div>
                       <div style={{display:"flex",gap:0,borderRadius:9,overflow:"hidden",border:"1px solid #f0f4f8",marginBottom:10}}>
                         {[{label:"พื้นที่",value:`${q.area?.toLocaleString()} ตร.ม.`}].map((item,i)=>(

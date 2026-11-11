@@ -12,7 +12,6 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Percent, Trophy, Eye, X, Coins, Search, Award, ArrowDown, ArrowUp } from "lucide-react";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
-import { ซ่อนคอลัมน์ว่าง } from "@pms/shared/lib/tableFit";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
@@ -39,7 +38,6 @@ import { ชื่อหัวข้อ, คำอธิบายหัวข้
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
 import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, แผงที่มา, กล่องล่าง, ล่าสุดของดีลเลอร์, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, แผงเดือน, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
-import { useกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/useNameColWidth";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -118,7 +116,7 @@ type คีย์เรียง = "code" | "name" | "region" | "leads" | "quote
 //   · ปิดได้ · ปิดไม่ได้ · ยังไม่รู้ผล · อัตราปิด · ยอดขาย · เป้าตามช่วง · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด · ดู — เรียงได้ทุกคอลัมน์ · ข้อความยาวแสดงเต็มเมื่อชี้
 //   พอดีจอ 1366/1920 (บอสสั่ง 6 พ.ย. 69): ชื่อยืดเต็มที่เหลือ (ไม่ระบุความกว้าง) · ตัวเลขช่องแน่น (.table-wrap.fit) · ความกว้างคุมที่ colgroup
 //   คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (ว่างได้: อัตราปิด · เป้า · % เป้า · ส่วนต่างกำไร · เสนอล่าสุด) · ไฟล์ส่งออกยังมีรหัส/ภูมิภาคครบ
-const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w?: number; ค่า?: (r: ผลงานดีลเลอร์) => unknown }[] = [
+const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w?: number | string; ค่า?: (r: ผลงานดีลเลอร์) => unknown }[] = [
   { k: "name", หัว: "ดีลเลอร์" },
   { k: "leads", หัว: "ลูกค้าเป้าหมาย", ชี้: "ลูกค้าเป้าหมายที่เข้ามาในช่วง", num: true },
   { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true },
@@ -131,10 +129,13 @@ const คอลัมน์: { k: คีย์เรียง | "view"; หั�
   { k: "pct", หัว: "% เป้า", num: true, ค่า: r => r.pct },
   { k: "marginPct", หัว: "ส่วนต่างกำไร", ชี้: "ส่วนบวกของใบที่ทำจากใบ HQ ตอบรับในช่วง · % ของราคาขาย", num: true, ค่า: r => r.marginPct },
   { k: "latest", หัว: "เสนอล่าสุด", ชี้: "วันออกใบเสนอราคาล่าสุดที่ส่งลูกค้าแล้ว", ค่า: r => r.latest },
-  { k: "view", หัว: "", w: 40 },
+  { k: "view", หัว: "", w: "4%" },
 ];
 // คอลัมน์ชื่อกว้างพอดีชื่อยาวสุดในตาราง ≤ 25% · คอลัมน์ตัวเลขไม่ระบุความกว้าง = เกลี่ยที่เหลือเท่ากัน (บอสสั่ง 6 พ.ย. 69 รอบ 2) · จอแคบกว่าความกว้างขั้นต่ำ = เลื่อนในกรอบ
 const กว้างชื่อขั้นต่ำ = 170, กว้างตัวเลขขั้นต่ำ = 64;
+// คอลัมน์ชื่อของตารางนี้ล็อก 19% (ไม่ใช่ค่ากลาง 24%) — หัวบรรทัดเดียว (บอสสั่ง 10 พ.ย. 69): คอลัมน์ตัวเลข 11 ช่องเกลี่ยเท่ากันต้องไม่แคบกว่าหัวยาวสุด
+//   "อัตราปิดการขาย" ≈ 73px ที่ตัวอักษรหัว 0.8 (จอ 1366 ตาราง ≈ 1,042px) → (100 − 19 − 4) ÷ 11 ≈ 7% ≈ 73px · ชื่อยาวตัดด้วย … ชี้แล้วเห็นเต็ม
+const ความกว้างชื่อผลงาน = "19%";
 
 export default function SalesAnalyticsPage() {
   const router = useRouter();
@@ -216,10 +217,10 @@ export default function SalesAnalyticsPage() {
   const หน้าจริง = Math.min(หน้า, pageCountOf(เรียงแล้ว.length) - 1);
   const ในหน้า = pageSlice(เรียงแล้ว, หน้าจริง);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ดูทุกแถวหลังตัวกรอง (ไม่ใช่แค่หน้าที่เห็น) · ยังไม่มีแถว = แสดงครบ
-  const คอลัมน์แสดง = useMemo(() => ซ่อนคอลัมน์ว่าง(คอลัมน์, เรียงแล้ว, (c, r) => c.ค่า ? c.ค่า(r) : 1), [เรียงแล้ว]);
+  // ไม่ซ่อนคอลัมน์ว่างแล้ว (บอสสั่ง 10 พ.ย. 69 · ล็อกความกว้างคอลัมน์) — ไม่มีค่า = "—" · ตำแหน่งคอลัมน์ไม่ขยับตามข้อมูล
+  const คอลัมน์แสดง = คอลัมน์;
   // เจาะภาค/จังหวัดอยู่ = ทุกแถวภาคเดียวกับระดับ (ตารางกรองตามระดับแล้ว) → ซ่อนบรรทัดภูมิภาค (กติกาเดียวกับ ซ่อนตามระดับ · drillColumns)
   const ซ่อนภาค = regionSel !== ALL || provSel !== ALL || dealerSel !== ALL;
-  const ชื่อคอล = useกว้างคอลัมน์ชื่อ(เรียงแล้ว.map(r => ชื่อแสดง(r.code, r.name) + (r.status === "inactive" ? " (ปิดใช้งาน)" : "")), { ขั้นต่ำ: 120 }, ซ่อนภาค ? [] : เรียงแล้ว.map(r => ชื่อภาค(r.region)));
   const แสดงคอล = useMemo(() => Object.fromEntries(คอลัมน์แสดง.map(c => [c.k, true])) as Partial<Record<คีย์เรียง | "view", boolean>>, [คอลัมน์แสดง]);
 
   // กราฟ: ยอดขาย เทียบ เป้าตามช่วง รายดีลเลอร์ (ลำดับเดียวกับตาราง · แบ่งหน้า 7 แถว)
@@ -382,8 +383,8 @@ export default function SalesAnalyticsPage() {
         {มิติจริง === "dealer" && <>
         <div className="table-wrap dense fit">
           {/* ไม่มีแถวรวมบนจอ (บอสสั่ง 6 พ.ย. 69) — ผลรวมชุดเดียวกับแถวในตาราง (หลังทุกตัวกรอง) อยู่ใน data-total ให้ข้อทดสอบเทียบกับการ์ด (การ์ดนับชุดเดียวกับตาราง) */}
-          <table ref={ชื่อคอล.ref} aria-label="ตารางผลงานดีลเลอร์" data-total={โหลด ? undefined : JSON.stringify({ sales: รวม.sales, rate: รวม.rate ?? "", margin: รวม.marginPct ?? "", onTarget: รวม.onTarget, won: รวม.won, lost: รวม.lost, leads: รวม.leads, quotes: รวม.quotes, n: เรียงแล้ว.length })} style={{ minWidth: คอลัมน์แสดง.reduce((s, c) => s + (c.w ?? (c.k === "name" ? กว้างชื่อขั้นต่ำ : กว้างตัวเลขขั้นต่ำ)), 0) }}>
-            <colgroup>{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} style={c.k === "name" ? { width: ชื่อคอล.กว้าง } : c.w ? { width: c.w } : undefined} />)}</colgroup>
+          <table aria-label="ตารางผลงานดีลเลอร์" data-total={โหลด ? undefined : JSON.stringify({ sales: รวม.sales, rate: รวม.rate ?? "", margin: รวม.marginPct ?? "", onTarget: รวม.onTarget, won: รวม.won, lost: รวม.lost, leads: รวม.leads, quotes: รวม.quotes, n: เรียงแล้ว.length })} style={{ minWidth: คอลัมน์แสดง.reduce((s, c) => s + (typeof c.w === "number" ? c.w : c.k === "name" ? กว้างชื่อขั้นต่ำ : กว้างตัวเลขขั้นต่ำ), 0) }}>
+            <colgroup>{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} style={c.k === "name" ? { width: ความกว้างชื่อผลงาน } : c.w ? { width: c.w } : undefined} />)}</colgroup>
             <thead>
               <tr>
                 {คอลัมน์แสดง.map(c => c.k === "view" ? <th key={c.k} aria-label="ดู" /> : c.k === "name" && ดีลเลอร์ที่ดู ? <th key={c.k} data-col-head="period">ผลงานในช่วง</th> : (

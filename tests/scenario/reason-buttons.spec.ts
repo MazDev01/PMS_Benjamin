@@ -160,7 +160,7 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await เปิดแผงลีด(page, ชื่อส่งใบ);
     const เปิดใบ = async () => {
-      if (await page.locator("[data-customer-result]").first().isVisible()) return;
+      if (await page.locator("[data-customer-result]").first().isVisible()) return;   // ไม่ใช่การข้าม: วนรอปุ่มผลจากลูกค้า (เจอแล้วจบวน)
       await page.locator('[data-next-step="await_customer"]').click({ timeout: 30_000 });
       await expect(page.locator("[data-customer-result]").first()).toBeVisible({ timeout: 20_000 });
     };
@@ -234,7 +234,7 @@ test.describe("HQ: กล่องเหตุผล", () => {
     await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
     await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
     const แถว = page.locator("tbody tr").filter({ hasText: ใบลูกค้า }).first();
     await expect(แถว).toBeVisible({ timeout: 25_000 });
     await แถว.getByRole("button", { name: /ดู/ }).first().click();

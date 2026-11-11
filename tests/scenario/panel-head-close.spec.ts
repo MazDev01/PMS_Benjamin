@@ -55,7 +55,7 @@ for (const [จอ, ขนาด] of [["จอกว้าง", { width: 1440, h
     await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
     await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(`หัวแผงยาว ${ส.รหัส}`);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(`หัวแผงยาว ${ส.รหัส}`);
     await page.getByText(บริษัท()).first().click({ timeout: 25_000 });
     await ตรวจหัวแผง(page, `${จอ} แผงลูกค้า (อีเมลยาวจริง)`);
     await page.keyboard.press("Escape");

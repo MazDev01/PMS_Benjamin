@@ -64,15 +64,17 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
   await expect(แถวรายชื่อ(page), "จำนวนแถวรายชื่อ = การ์ด").toHaveCount(5);
   // ทุกแถว: ภูมิภาค = ชื่อกลาง · ดีลเลอร์ = รหัส+ชื่อช่องเดียว · รหัสลูกค้า/วันที่ไม่ถูกตัด
   const แถว = แถวรายชื่อ(page);
-  // 9 พ.ย. 69 (บอสสั่ง): ระดับดีลเลอร์ ทุกแถวภาคเดียวกับระดับ = ไม่มีคอลัมน์ภูมิภาค/ดีลเลอร์ (ตัวกลาง drillColumns) — เดิมตรวจชื่อภาคในคอลัมน์ที่ระดับนี้
-  await expect(page.getByRole("table", { name: "รายชื่อลูกค้า" }), "ระดับดีลเลอร์: ซ่อนภูมิภาค + ดีลเลอร์").toHaveAttribute("data-hidden-cols", /dealer.*region|region.*dealer/);
-  await expect(แถว.locator('td[data-col="region"]'), "ระดับดีลเลอร์: ไม่มีคอลัมน์ภูมิภาค").toHaveCount(0);
+  // ตรวจกลับด้าน (บอสตอบ 10 พ.ย. 69 · ล็อกความกว้างคอลัมน์ ทับ 9 พ.ย.): ระดับดีลเลอร์ซ่อนเฉพาะคอลัมน์ดีลเลอร์ · ภูมิภาคแสดงเสมอ (ค่าซ้ำทุกแถวได้)
+  await expect(page.getByRole("table", { name: "รายชื่อลูกค้า" }), "ระดับดีลเลอร์: ซ่อนเฉพาะดีลเลอร์").toHaveAttribute("data-hidden-cols", "dealer");
+  await expect(แถว.locator('td[data-col="region"]'), "ระดับดีลเลอร์: คอลัมน์ภูมิภาคยังอยู่ทุกแถว").toHaveCount(5);
   // ช่องดีลเลอร์ = ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · เดิม "รหัส+ชื่อ" — ตรวจกลับด้าน: ไม่มีป้ายรหัส)
   //   ระดับดีลเลอร์ไม่มีคอลัมน์ดีลเลอร์ (หัวตาราง/แถบระดับบอกชื่อแล้ว) — ชื่อแสดงไม่มีรหัสตรวจที่แถบระดับข้างบน + hq-no-dealer-code.spec
   await expect(แถว.first().locator('td[data-col="dealer"]'), "ระดับดีลเลอร์: ไม่มีคอลัมน์ดีลเลอร์").toHaveCount(0);
+  // ช่องที่ถูกตัดด้วย … (ความกว้างคอลัมน์ล็อก % · บอสสั่ง 10 พ.ย. 69) ต้องชี้แล้วเห็นข้อความเต็ม — ไม่ถูกตัด = ผ่าน
   for (const td of await แถว.first().locator("td").all()) {
-    if (await td.getAttribute("title")) continue;   // ชื่อยาวตัดได้ — แสดงเต็มเมื่อชี้
-    expect(await td.evaluate(e => e.scrollWidth <= e.clientWidth + 1), `ช่องไม่ถูกตัด: ${(await td.innerText()).trim()}`).toBe(true);
+    if (!(await td.evaluate(e => e.scrollWidth > e.clientWidth + 1))) continue;
+    await td.hover();
+    await expect(td, `ช่องที่ถูกตัดชี้แล้วเห็นเต็ม: ${(await td.innerText()).trim()}`).toHaveAttribute("title", (await td.innerText()).replace(/s+/g, " ").trim());
   }
 
   // ลูกค้าใหม่ในช่วง = ลูกค้าของข้อที่วันเป็นลูกค้าอยู่ในช่วงของแถวการ์ด (ช่วงวันที่มุมขวาบน)

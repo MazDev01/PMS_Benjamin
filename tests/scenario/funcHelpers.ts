@@ -159,7 +159,7 @@ export async function waitGone(
     // อ่านไม่ได้ ≠ แถวหายแล้ว — เดิมถือว่า "หายแล้ว" ข้อทดสอบจึงผ่านทั้งที่ไม่ได้ตรวจอะไร
     //   (เจอ 13 ต.ค. 69: อ่านตาราง dealers ด้วย select * ถูกปฏิเสธสิทธิ์ แล้วข้อ "ลบสาขาแล้วแถวต้องหาย" ผ่านฟรี)
     if (error) throw new Error(`อ่าน ${table} ไม่ได้ จึงยืนยันไม่ได้ว่าแถวถูกลบแล้ว: ${error.message}`);
-    if (!data.length) return;
+    if (!data.length) return;   // ไม่ใช่การข้าม: ตัวช่วยรอ/ล้าง — ไม่มีแถว = ไม่มีอะไรต้องทำ
     await new Promise(r => setTimeout(r, 500));
   }
   throw new Error(`แถวใน ${table} ที่ ${JSON.stringify(match)} ยังไม่ถูกลบภายใน ${timeoutMs}ms`);

@@ -95,7 +95,7 @@ test("[flow·hq] ส่งใบ HQ แล้วคำขอล้มเหล�
 
 test("[flow·hq] ส่งใบ HQ แล้วคำขอช้า → ระหว่างรอไม่บอกว่าส่งแล้ว และกดส่งซ้ำไม่ได้", async ({ page }) => {
   // ใบของข้อก่อนส่งไปแล้ว → เตรียมคำขอเวอร์ชันใหม่ (ขอแก้ราคา) ให้มีร่างใหม่ให้ส่ง
-  test.skip(await สถานะใบในฐาน() !== "sent", "ข้อก่อนหน้าไม่ผ่าน");
+  test.skip(await สถานะใบในฐาน() !== "sent", "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   const ryg = await db(RYG);
   const แก้ = await ryg.rpc("quote_request_reprice", { p_id: requestId, p_reason: "ทดสอบส่งช้า" });
   if (แก้.error) throw new Error(แก้.error.message);

@@ -7,6 +7,7 @@
 //   ข้อทดสอบ: tests/scenario/drill-window.spec.ts
 import { useEffect, type ReactNode } from "react";
 import { X, type LucideIcon } from "lucide-react";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 
 const NAVY = "#003366";
 
@@ -32,7 +33,7 @@ export function หน้าต่างเจาะ({ ชื่อ, คำอ�
       style={{ position: "fixed", inset: 0, background: "rgba(8,16,32,.45)", zIndex: 240, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <section role="dialog" aria-modal="true" aria-label={ป้ายเข้าถึง ?? `ที่มา ${ชื่อ}`} data-drill-window="" {...ข้อมูล}
         onClick={e => e.stopPropagation()}
-        style={{ width: `min(${กว้าง}px, 100%)`, maxHeight: "calc(100vh - 32px)", background: "#f4f7fb", borderRadius: 14, overflow: "hidden",
+        style={{ width: `min(${Math.min(กว้าง, ความกว้างหน้าต่าง)}px, 100%)` /* ไม่เกินค่ากลาง (บอสตอบ 10 พ.ย. 69) */, maxHeight: "calc(100vh - 32px)", background: "#f4f7fb", borderRadius: 14, overflow: "hidden",
           display: "flex", flexDirection: "column", boxShadow: "0 24px 60px rgba(8,16,32,.28)" }}>
         <header data-drill-head style={{ background: NAVY, color: "#fff", padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 12, flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>

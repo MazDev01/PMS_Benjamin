@@ -73,9 +73,9 @@ test("[live·รอบ2] 3) แถว HQ ไม่อยู่ในรายช
   await page.goto(`${HQ}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
   await expect(page.locator("tbody tr").first(), "ทะเบียนโหลดแล้ว").toBeVisible({ timeout: 30_000 });
-  await page.getByPlaceholder(/ค้นหา/).first().fill("สำนักงานใหญ่");
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill("สำนักงานใหญ่");
   await expect(page.locator("td[data-col='code']").filter({ hasText: /^HQ$/ }), "ไม่มีแถว HQ").toHaveCount(0);
-  await page.getByPlaceholder(/ค้นหา/).first().fill("HQ");
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill("HQ");
   await expect(page.locator("td[data-col='code']").filter({ hasText: /^HQ$/ }), "ค้นด้วยรหัสก็ไม่มีแถว HQ").toHaveCount(0);
 });
 

@@ -15,6 +15,7 @@
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
 // ยกเลิก (บอสสั่ง 5 พ.ย. 69 · ใบ 0280): คำขอที่ส่งแล้วไม่ถูกลบ — ยังเห็นในแผงนี้ (คำขอที่ยกเลิกแล้ว: เหตุผล · ใคร · เมื่อไร · ไฟล์แนบเปิดดูได้)
 //   ขอราคาใหม่ได้ตามปกติ คำขอเก่าไม่ทับ · กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ไม่เก็บที่กรอก)
+import { ลิงก์ข้อมูล } from "./RecordLink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
@@ -222,7 +223,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
       {เปิด ? (
         <div style={{ fontSize: "0.8rem", color: "#374151", lineHeight: 1.8 }}>
           <div>
-            คำขอ <b>{เปิด.requestNo}</b> ·{" "}
+            คำขอ <b><ลิงก์ข้อมูล เป้า={{ ชนิด: "request", รหัส: lead.numId, สาขา: lead.dealerCode }}>{เปิด.requestNo}</ลิงก์ข้อมูล></b> ·{" "}
             <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
               {quoteRequestStatusLabel[เปิด.status]}
             </span>
@@ -242,7 +243,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           {ใบHQ && (
             <div data-panel="hq-quote" style={{ borderTop: "1px solid #e9d5ff", paddingTop: 8, marginTop: 8, display: "grid", gap: 6 }}>
               <div data-testid="hq-quote-summary" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontWeight: 700, color: "#3b0764" }}>ใบ HQ {ใบHQ.quoteNo} · ฉบับ {ใบHQ.version}</span>
+                <span style={{ fontWeight: 700, color: "#3b0764" }}>ใบ HQ <ลิงก์ข้อมูล เป้า={{ ชนิด: "hqQuote", รหัส: lead.numId, สาขา: lead.dealerCode }}>{ใบHQ.quoteNo}</ลิงก์ข้อมูล> · ฉบับ {ใบHQ.version}</span>
                 <span>· ต้นทุนรวมจาก HQ <b data-testid="hq-quote-summary-total">{บาท(Number(ใบHQ.totalCost))}</b> บาท</span>
                 <span>· ยืนราคาถึง {ใบHQ.validUntil ? วันไทยสั้น(ใบHQ.validUntil) : "—"}</span>
                 <span data-testid="hq-quote-summary-lines">· {ใบHQ.lineItems.length} รายการ</span>

@@ -20,6 +20,7 @@
 //   ต้นทุนจากใบ HQ · % ที่บวก · ราคาขาย · ส่วนบวกเป็นบาท + สรุปทั้งใบ บวกรวม (บาท) · % ของต้นทุน · % ของราคาขาย
 //   ตัวเลขคิดที่ฐานข้อมูล (quotation_margin · ใบ 0201) ไม่คิดซ้ำที่หน้าจอ · ราคาก่อนภาษี
 //   ใบเดิมที่ไม่ได้ทำจากใบ HQ = ไม่มีต้นทุนให้เทียบ → ขึ้นว่าไม่มีข้อมูล (ห้ามกุ)
+import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "../../ui/RecordLink";
 import { useEffect, useState } from "react";
 import { X, User, Store, Package, TrendingUp, FileText } from "lucide-react";
 import { quoteRequests as quoteRequestsRepo, metrics, dealerSettings as dealerSettingsRepo } from "@pms/shared/lib/data";
@@ -44,6 +45,7 @@ import { ป้ายฉบับ } from "@pms/shared/lib/quoteRevision";
 import { useQuoteValidityDays } from "@pms/shared/lib/useHQConfig";
 import { useModalA11y } from "@pms/shared/lib/useModalA11y";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
+import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 
 const PRIMARY = "#003366";
 const บาท2 = (n: number) => Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -147,14 +149,14 @@ function หน้าต่างใบ({ quote, onClose, onChanged }: Props) {
     <>
       <div onClick={onClose} className="drawer-overlay" style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex: 250 }} />
       <div ref={ref} role="dialog" aria-modal="true" aria-label="รายละเอียดใบเสนอราคา" data-hq-quote-view={quote.quoteNo} className="modal-pop"
-        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 820, maxWidth: "calc(100vw - 24px)",
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: ความกว้างหน้าต่าง /* ความกว้างหน้าต่างเอกสาร = ค่ากลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts) */, maxWidth: "calc(100vw - 24px)",
           maxHeight: "calc(100vh - 24px)", zIndex: 251, background: "#F8FAFC", boxShadow: "0 30px 90px rgba(0,0,0,.32)", borderRadius: 18,
           display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* แถบหัว = เลขที่ + ลูกค้า · ดีลเลอร์ + ปุ่มปิด — สถานะ/ฉบับ/ยอดอยู่ในแถบสรุปที่เดียว (บอสตอบ 9 พ.ย. 69) */}
         <div data-panel-head style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "nowrap" }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: "1.05rem", fontWeight: 800, color: "#fff", fontFamily: "monospace", overflowWrap: "anywhere" }}>{quote.quoteNo}</div>
-            <div style={{ fontSize: "0.74rem", color: "rgba(255,255,255,.75)", marginTop: 4, overflowWrap: "anywhere" }}>{quote.customer || "-"} · {ชื่อดีลเลอร์}</div>
+            <div style={{ fontSize: "0.74rem", color: "rgba(255,255,255,.75)", marginTop: 4, overflowWrap: "anywhere" }}>{quote.customer ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={เป้าลูกค้าของใบ(quote)}>{quote.customer}</ลิงก์ข้อมูล> : "-"} · {quote.dealerCode ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "dealer", รหัส: quote.dealerCode }}>{ชื่อดีลเลอร์}</ลิงก์ข้อมูล> : ชื่อดีลเลอร์}</div>
           </div>
           <button onClick={onClose} aria-label="ปิด" title="ปิด" style={{ background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, height: 30, width: 30, padding: 0,
             cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} /></button>
@@ -184,7 +186,7 @@ function หน้าต่างใบ({ quote, onClose, onChanged }: Props) {
           {/* กริด 3 คอลัมน์ × 2 แถว ชุดเดียวกับหน้าต่างใบของดีลเลอร์ */}
           <PanelSection icon={User} title="ลูกค้า">
             <กริดรายละเอียด data-quote-customer="">
-              <ช่องกริด data-field="ลูกค้า" ป้าย="ลูกค้า" ค่า={quote.customer} />
+              <ช่องกริด data-field="ลูกค้า" ป้าย="ลูกค้า" ค่า={quote.customer ? <ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(quote)}>{quote.customer}</ลิงก์ข้อมูล> : undefined} />
               <ช่องกริด data-field={ช่อง.งาน} ป้าย={ช่อง.งาน} ค่า={quote.productLine} />
               <ช่องกริด data-field="จังหวัด" ป้าย="จังหวัด" ค่า={quote.province} />
               <ช่องกริด data-field="ผู้รับผิดชอบ" ป้าย="ผู้รับผิดชอบ" ค่า={quote.salesperson} />
@@ -196,7 +198,7 @@ function หน้าต่างใบ({ quote, onClose, onChanged }: Props) {
           {/* ฝั่ง HQ เท่านั้น: ดีลเลอร์เจ้าของใบ (ชื่อแสดง ไม่มีรหัส) */}
           <PanelSection icon={Store} title="ดีลเลอร์">
             <กริดรายละเอียด data-quote-dealer="">
-              <ช่องกริด data-field="ดีลเลอร์" ป้าย="ดีลเลอร์" ค่า={ชื่อดีลเลอร์} />
+              <ช่องกริด data-field="ดีลเลอร์" ป้าย="ดีลเลอร์" ค่า={quote.dealerCode ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: quote.dealerCode }}>{ชื่อดีลเลอร์}</ลิงก์ข้อมูล> : ชื่อดีลเลอร์} />
               <ช่องกริด data-field="จังหวัดของดีลเลอร์" ป้าย="จังหวัดของดีลเลอร์" ค่า={quote.dealerProvince} />
               <ช่องกริด data-field="ภูมิภาค" ป้าย="ภูมิภาค" ค่า={regionDisplay(quote.region)} />
             </กริดรายละเอียด>
@@ -251,7 +253,7 @@ function หน้าต่างใบ({ quote, onClose, onChanged }: Props) {
               <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>— ใบนี้ไม่ได้ทำจากใบ HQ จึงไม่มีต้นทุนให้เทียบ</div>
             ) : (
               <div data-panel="quote-margin">
-                <div style={{ fontSize: "0.68rem", color: "#64748B", padding: "8px 12px 0" }}>จากใบ HQ {margin.hqQuoteNo} · ราคาก่อนภาษี</div>
+                <div style={{ fontSize: "0.68rem", color: "#64748B", padding: "8px 12px 0" }}>จากใบ HQ <ลิงก์ข้อมูล เป้า={{ ชนิด: "hqQuote", รหัส: margin.hqQuoteNo }}>{margin.hqQuoteNo}</ลิงก์ข้อมูล> · ราคาก่อนภาษี</div>
                 {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ (เดิมอยู่ใต้ชื่อเป็น "38 ตัน") หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
                 <ตารางรายการ ป้าย="ส่วนต่างกำไรรายบรรทัด" แน่น กว้างขั้นต่ำ={640} แถว={margin.lines} คุณสมบัติแถว={(_l, i) => ({ "data-margin-line": String(i) })} คอลัมน์={[
                   { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "24%", ค่า: l => l.name, ชี้: l => l.name },

@@ -220,6 +220,49 @@ test("[แดชบอร์ด HQ] วันนี้ต้องทำ: ตร
   await page.waitForURL(/\/hq\/quote-requests/, { timeout: 60_000 });
 });
 
+// กดตรงไหนของกล่องก็ได้ → หน้าปลายทางทันที (ไม่มีหน้าต่างเด้งคั่น) · จำนวนรายการในหน้า = ตัวเลขในกล่อง · ชี้แล้วเป็นรูปมือ · ย้อนกลับมาแดชบอร์ด (บอสสั่ง 11 พ.ย. 69)
+//   โค้ดเดิม: กล่องคำขอรอตีราคาลิงก์ ?overdue=1 → ตารางกรองเฉพาะเกินกำหนด (ปุ่ม only-overdue กดค้าง) จำนวนในหน้าไม่ใช่ตัวเลขในกล่อง → ตก
+//   ตัวเลขเป็นของทั้งเครือ ข้ออื่นสร้าง/ปิดคำขอระหว่างทางได้ → อ่านกล่องกับหน้าปลายทางเป็นคู่ในรอบเดียวกัน ซ้ำจนตรง (แบบเดียวกับข้อบน) ส่วนตัวกรอง/แท็บตรวจตรง ๆ
+test("[แดชบอร์ด HQ] วันนี้ต้องทำ: กดข้อความ/ตัวเลข/ลูกศร ไปหน้าเดียวกัน · จำนวนในหน้าเท่ากล่อง · รูปมือ · ย้อนกลับได้", async ({ page }) => {
+  await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
+  const แถว = page.locator("[aria-label='วันนี้ต้องทำ']");
+  const กล่อง = [
+    { id: "today-requests", url: /\/hq\/quote-requests/, ปลายทาง: async () => {
+        // แท็บต้องตีราคา · ไม่กรองเกินกำหนด · จำนวนในแท็บ = แถวที่เห็น
+        const แท็บ = page.locator("[data-view-tab='main']");
+        await expect(แท็บ).toHaveAttribute("aria-selected", "true", { timeout: 30_000 });
+        await expect(page.locator("[data-act='only-overdue']"), "ไม่กรองเฉพาะเกินกำหนด").toHaveAttribute("aria-pressed", "false");
+        await expect(แท็บ).not.toHaveAttribute("data-count", "", { timeout: 30_000 });
+        return Number(await แท็บ.getAttribute("data-count"));
+      } },
+    { id: "today-franchise", url: /\/hq\/proposals/, ปลายทาง: async () => {
+        const ชิป = page.getByTestId("filter-overdue");
+        await expect(ชิป).toContainText("เฉพาะใบค้างชำระ (", { timeout: 30_000 });
+        return Number(/\((\d+)\)/.exec(await ชิป.innerText())?.[1] ?? -1);
+      } },
+  ];
+  for (const g of กล่อง) {
+    const ตัว = แถว.getByTestId(g.id);
+    // ทุกส่วนของกล่อง: ข้อความ · ตัวเลข · ลูกศร (svg ตัวสุดท้าย)
+    for (const [ส่วน, ที่] of [["ข้อความ", () => ตัว.locator("span").first()], ["ตัวเลข", () => ตัว.locator("b[data-value]")], ["ลูกศร", () => ตัว.locator("svg").last()]] as const) {
+      let รอบ = { ในกล่อง: -1, ในหน้า: -2 };
+      await expect.poll(async () => {
+        await เปิด(page);
+        await expect(ตัว, "ข้อมูลตั้งต้นมีคำขอค้าง/ใบค้างชำระ (979200901 · 979200811)").toBeVisible({ timeout: 30_000 });
+        expect(await ที่().evaluate(e => getComputedStyle(e).cursor), `${g.id}·${ส่วน}: ชี้แล้วเป็นรูปมือ`).toBe("pointer");
+        const ในกล่อง = Number(await ตัว.locator("b[data-value]").getAttribute("data-value"));
+        await ที่().click();
+        await page.waitForURL(g.url, { timeout: 60_000 });
+        await expect(page.locator(".modal-pop, [role='dialog']"), `${g.id}·${ส่วน}: ไม่มีหน้าต่างเด้งคั่น`).toHaveCount(0);
+        รอบ = { ในกล่อง, ในหน้า: await g.ปลายทาง() };
+        await page.goBack();
+        await page.waitForURL(/\/hq\/dashboard/, { timeout: 30_000 });
+        return รอบ.ในหน้า === รอบ.ในกล่อง;
+      }, { timeout: 120_000, intervals: [1000, 3000], message: `${g.id}·${ส่วน}: จำนวนในหน้าปลายทาง = ตัวเลขในกล่อง (${JSON.stringify(รอบ)})` }).toBe(true);
+    }
+  }
+});
+
 test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บัญชีทดสอบไม่โผล่ · กดแล้วไปที่เรื่องนั้น · ภาคไม่นับแถว HQ", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
   await เปิด(page);

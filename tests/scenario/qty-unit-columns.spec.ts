@@ -29,6 +29,9 @@ test.setTimeout(240_000);
 const แท็ก = Date.now() % 100000;
 const บริษัท = `ZZTEST-จำนวนหน่วย-${แท็ก}`;
 const บริษัทขอราคา = `ZZTEST-จำนวนหน่วยขอราคา-${แท็ก}`;
+// ลูกค้าเป้าหมายที่ได้ใบ HQ แล้วแต่ยังไม่ทำใบให้ลูกค้า = ขั้นต่อไปคือ "ทำใบให้ลูกค้า" (ฟอร์มบวก %) — ลีด `บริษัท` ทำใบไปแล้วใน beforeAll จึงไม่มีปุ่มนี้
+//   (ตก 11 พ.ย. 69 หลังเลิกข้ามเงียบ: ข้อเดิมเปิดลีดที่ทำใบแล้วแล้วข้ามเมื่อไม่มีปุ่ม = ไม่เคยตรวจฟอร์มนี้จริง)
+const บริษัททำใบ = `ZZTEST-จำนวนหน่วยทำใบ-${แท็ก}`;
 const รายการ = [
   { name: "เหล็กโครงสร้างรูปพรรณ", qty: 38, unit: "ตัน", unitCost: 32_000, จำนวนบนจอ: "38" },
   { name: "แผ่นหลังคาเมทัลชีท", qty: 2240, unit: "ตร.ม.", unitCost: 350, จำนวนบนจอ: "2,240" },
@@ -38,7 +41,7 @@ const แม่แบบ = [
   { category: "ZZTEST", name: `ZZTEST แผ่นหลังคาเมทัลชีท ${แท็ก}`, unit: "ตร.ม.", unit_price: 350 },
 ];
 const svc = adminClient();
-let สาขา: สาขาของข้อ, ใบHQ: ใบHQพร้อมใช้, เลขใบ = "", ไอดีแม่แบบ: number[] = [];
+let สาขา: สาขาของข้อ, ใบHQ: ใบHQพร้อมใช้, ใบHQทำใบ: ใบHQพร้อมใช้ | null = null, เลขใบ = "", ไอดีแม่แบบ: number[] = [];
 const เลขลีดขอราคา = เลขลูกค้าเป้าหมายทดสอบ();
 test.beforeAll(async () => {
   สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
@@ -46,6 +49,8 @@ test.beforeAll(async () => {
   ใบHQ = await เตรียมใบHQ(สาขา.บัญชี, { dealerCode: สาขา.รหัส, company: บริษัท, province: "ตราด",
     lines: รายการ.map(({ name, qty, unit, unitCost }) => ({ name, qty, unit, unitCost })) });
   เลขใบ = (await ทำใบลูกค้าจากใบHQ(สาขา.บัญชี, ใบHQ, { customer: บริษัท, markupPercent: 10, status: "sent_to_client" })).id;
+  ใบHQทำใบ = await เตรียมใบHQ(สาขา.บัญชี, { dealerCode: สาขา.รหัส, company: บริษัททำใบ, province: "ตราด",
+    lines: รายการ.map(({ name, qty, unit, unitCost }) => ({ name, qty, unit, unitCost })) });
   const t = await svc.from("material_templates").insert(แม่แบบ).select("id");
   expect(t.error, "ใส่รายการวัสดุของข้อ").toBeNull();
   ไอดีแม่แบบ = (t.data ?? []).map(x => Number(x.id));
@@ -54,7 +59,7 @@ test.beforeAll(async () => {
   expect(l.error, "ลูกค้าเป้าหมายสำหรับฟอร์มขอราคา").toBeNull();
 });
 test.afterAll(async () => {
-  if (ใบHQ) ล้างใบHQทดสอบ(สาขา.รหัส, [ใบHQ.leadNum, เลขลีดขอราคา]);
+  if (ใบHQ) ล้างใบHQทดสอบ(สาขา.รหัส, [ใบHQ.leadNum, เลขลีดขอราคา, ...(ใบHQทำใบ ? [ใบHQทำใบ.leadNum] : [])]);
   if (ไอดีแม่แบบ.length) await svc.from("material_templates").delete().in("id", ไอดีแม่แบบ);
   await สาขา?.ลบ();
 });
@@ -116,7 +121,7 @@ async function วัด(page: Page, ชื่อรายการ: string[], �
       for (const tr of Array.from(t.querySelectorAll<HTMLTableRowElement>("tbody tr"))) {
         const ค่าทั้งแถว = (tr.textContent ?? "") + Array.from(tr.querySelectorAll("input")).map(i => i.value).join(" ");
         const ของข้อ = ชื่อรายการ.find(n => ค่าทั้งแถว.includes(n));
-        if (!ของข้อ || tr.cells.length !== หัวช่อง.length) continue;
+        if (!ของข้อ || tr.cells.length !== หัวช่อง.length) continue;   // ไม่ใช่การข้าม: เลือกเฉพาะแถวของข้อ (นับ แถวที่ตรวจ ท้ายวน)
         // หัวคอลัมน์ต้องเห็นเต็ม (ไม่ถูกตัดเป็น … — เจอ "ลำ…" ที่ตาราง BOQ ของ HQ 30 ต.ค. 69)
         if (!แถวที่ตรวจ) หัวช่อง.forEach((th, i) => { if (หัว[i] && th.scrollWidth > th.clientWidth + 1) ปัญหา.push(`หัว "${หัว[i]}" ถูกตัด (ต้องการ ${th.scrollWidth}px มี ${th.clientWidth}px)`); });
         แถวที่ตรวจ++;
@@ -158,7 +163,7 @@ async function ถ่าย(page: Page, ชื่อ: string) {
   const n = await ตาราง.count();
   for (let i = 0; i < n; i++) {
     const t = ตาราง.nth(i);
-    if (!(await t.isVisible())) continue;
+    if (!(await t.isVisible())) continue;   // ไม่ใช่การข้าม: ตารางที่ซ่อนอยู่ (แท็บอื่น) ไม่ถ่ายกรอบ
     await t.scrollIntoViewIfNeeded().catch(() => {});
     // ถ่ายกรอบรอบตาราง (รวมส่วนสรุป/ขอบ) — ถ้าหากรอบไม่ได้ ถ่ายตัวตาราง
     const กรอบ = t.locator("xpath=ancestor::*[contains(@class,'table-wrap') or contains(@class,'table-scroll') or @data-panel][1]");
@@ -211,12 +216,12 @@ test("[ui·dealer] กล่องใบ HQ · ใบลูกค้า (แผ�
   await เอกสาร.close();
 
   // ฟอร์มทำใบให้ลูกค้าจากใบ HQ (ตั้ง % รายบรรทัด) — ปุ่มที่แถบขั้นต่อไป (ลีดที่ทำใบแล้วอาจไม่มีปุ่ม = ไม่มีฟอร์มให้ตรวจ)
-  await เปิดแผงลีด(page, บริษัท);
+  await เปิดแผงลีด(page, บริษัททำใบ);   // ลีดที่ได้ใบ HQ แต่ยังไม่ทำใบ (ดูหัวไฟล์)
   const ปุ่มทำใบ = page.getByRole("button", { name: /ทำใบให้ลูกค้า/ });
-  if (await ปุ่มทำใบ.count()) {
-    await ปุ่มทำใบ.first().click();
-    await ตรวจหน้า(page, "ฟอร์มทำใบจากใบ-HQ");
-  }
+  // ไม่มีปุ่ม = ตก ไม่ใช่ข้ามเงียบ (บอสสั่ง 11 พ.ย. 69 · เดิม "ลีดที่ทำใบแล้วอาจไม่มีปุ่ม = ไม่มีฟอร์มให้ตรวจ")
+  await expect(ปุ่มทำใบ.first(), "ขาดข้อมูล: ไม่มีปุ่มทำใบให้ลูกค้าในแผงลูกค้าเป้าหมาย (ฟอร์มทำใบจากใบ HQ ไม่ได้ตรวจ)").toBeVisible({ timeout: 20_000 });
+  await ปุ่มทำใบ.first().click();
+  await ตรวจหน้า(page, "ฟอร์มทำใบจากใบ-HQ");
 });
 
 test("[ui·dealer] ราคาประเมินวัสดุตอนขอราคา — ตัวเลข/ช่องกรอกชิดขวา หัวตรงแนวข้อมูล จำนวน/หน่วยแยก", async ({ page }) => {

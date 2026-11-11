@@ -1,4 +1,5 @@
 "use client";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 import { useCallback, useEffect, useState } from "react";
@@ -132,11 +133,14 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
   // ── แผงด้านขวา (บอสสั่ง 30 ต.ค. 69): กดแถว = เปิดแผง ไม่เปลี่ยนหน้า · /hq/dealers/[รหัส] = เปิดแผงนั้นตั้งแต่แรก ──
   //   ปิดแผง = อยู่ที่เดิมในรายการ (ตัวกรอง/หน้า/ตำแหน่งเลื่อนคงอยู่ เพราะไม่เปลี่ยนหน้า) · มาจาก /hq/dealers/[รหัส] → URL กลับเป็น /hq/dealers
   const [แผง, setแผง] = useState<string | null>(เปิดรหัส ?? null);
-  const ปิดแผง = useCallback(() => {
-    setแผง(null);
-    // มาจากลิงก์ /hq/dealers/[รหัส] → ไปหน้ารายการ (replaceState ตรง ๆ ไม่ได้ — Next วาดหน้าเดิมใหม่ แผงเปิดซ้ำจากรหัสใน URL)
-    if (window.location.pathname !== "/hq/dealers") router.replace("/hq/dealers", { scroll: false });
-  }, [router]);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): /hq/dealers?open=รหัส · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่
+  //   ลิงก์เก่า /hq/dealers/[รหัส] → แทนที่เป็น /hq/dealers?open=รหัส (หน้าเดียว ที่อยู่แบบเดียว)
+  useEffect(() => {
+    if (เปิดรหัส && window.location.pathname !== "/hq/dealers") router.replace(`/hq/dealers?open=${encodeURIComponent(เปิดรหัส)}`, { scroll: false });
+  }, [เปิดรหัส, router]);
+  useเปิดตามURL("/hq/dealers", p => setแผง(p ? p.toUpperCase() : null));
+  useแผงในURL(เปิดรหัส ? null : แผง);
+  const ปิดแผง = useCallback(() => { setแผง(null); }, []);
   // แก้ไข / ปิด-เปิดใช้งาน (ย้ายจากหน้ารายละเอียดเดิม · บอสตัดสิน 19 ต.ค. 69) — ใช้ทั้งปุ่มท้ายแถวและหัวแผง
   const [แก้, setแก้] = useState<DealerRow | null>(null);
   const [ทับ, setทับ] = useState<Record<string, DealerRow>>({});   // ค่าที่เพิ่งบันทึก (ทับแถวที่โหลดมา)
@@ -366,13 +370,14 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
               {/* 10 พ.ย. 69 (หัว "ลำดับ" ขึ้น "ลำ..." · "กรุงเทพมหา..."): เดิม % + px รวมเกินพื้นที่ตาราง เบราว์เซอร์บีบทุกคอลัมน์ตามสัดส่วน
                   (minWidth ของ <col> ไม่มีผลใน table-layout: fixed) → คอลัมน์ที่ห้ามตัดกว้างตายตัว · ชื่อดีลเลอร์ไม่กำหนด = รับที่เหลือ (ยาวตัดด้วย … + title)
                   ตายตัวรวม 88+92+140+190+112+284 = 906px · จอ 1440 (ตาราง ~1,128px) ชื่อได้ ~220px */}
-              <col style={{ width: 88 }} />{/* ลำดับ — เลข 3 หลัก + หัว "ลำดับ" ห้ามตัด */}
-              <col style={{ width: 92 }} />{/* รหัส 5 ตัว (ZZWWW) ห้ามตัด */}
-              <col />{/* ดีลเลอร์ — รับพื้นที่ที่เหลือทั้งหมด */}
-              <col style={{ width: 140 }} />{/* จังหวัด — "กรุงเทพมหานคร" ห้ามตัด */}
-              <col style={{ width: 190 }} />{/* ภูมิภาค — "ภาคตะวันออกเฉียงเหนือ" ในป้าย ห้ามตัด */}
-              <col style={{ width: 112 }} />{/* สถานะ — "เปิดใช้งาน"/"ปิดใช้งาน" ห้ามตัด */}
-              <col style={{ width: 284 }} />{/* ปุ่มท้ายแถว */}
+              {/* ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
+              <col style={{ width: "8.5%" }} />{/* ลำดับ — เลข 3 หลัก + หัว "ลำดับ" ห้ามตัด (88px ที่ 1366) */}
+              <col style={{ width: "9%" }} />{/* รหัส 5 ตัว (ZZWWW) ห้ามตัด */}
+              <col style={{ width: "12%" }} />{/* ดีลเลอร์ — ยาวตัดด้วย … ชี้แล้วเห็นเต็ม */}
+              <col style={{ width: "13.5%" }} />{/* จังหวัด — "กรุงเทพมหานคร" ห้ามตัด */}
+              <col style={{ width: "18.5%" }} />{/* ภูมิภาค — "ภาคตะวันออกเฉียงเหนือ" ในป้าย ห้ามตัด */}
+              <col style={{ width: "11%" }} />{/* สถานะ — "เปิดใช้งาน"/"ปิดใช้งาน" ห้ามตัด */}
+              <col style={{ width: "27.5%" }} />{/* ปุ่มท้ายแถว (284px ที่ 1366) */}
             </colgroup>
             <thead>
               <tr>

@@ -8,6 +8,8 @@ const ชุด: [string, string][] = [
   ["tests/tools/pre-push-guard.test.mjs", "ตัวกัน push ขึ้น monorepo: ผลรอบตรวจ · ใบลงฐานจริงครบ · ถามฐานไม่ได้บอกวิธีแก้เป็นขั้นตอน"],
   ["tests/tools/vercel-gate.test.mjs", "Vercel ไม่ build commit ที่ไม่ผ่านรอบตรวจ"],
   ["tests/tools/flaky-log.test.mjs", "ตัวนับข้อไม่นิ่ง + บรรทัดต้นเหตุ"],
+  ["tests/tools/test-self-skip.test.mjs", "ตัวตรวจข้อทดสอบข้ามตัวเองเมื่อไม่มีข้อมูล + รายงานข้อที่ข้ามแยกตามเหตุผล"],
+  ["tests/tools/flaky-ack.test.mjs", "ชื่อข้อไม่นิ่งท้ายผล + รอบมีข้อไม่นิ่งรอบอสรับทราบ (round:ack กัน AI)"],
   ["tests/tools/prod-read-only.test.mjs", "prod:query ใส่ --yes เฉพาะคำสั่งอ่าน · คำสั่งเขียนถูกปฏิเสธก่อนต่อฐาน"],
   ["tests/tools/supabase-cli-rows.test.mjs", "อ่านผล Supabase CLI ได้ทั้ง 2 รูปแบบ · อ่านไม่ได้หยุดก่อนลบ · CLI รุ่นของโปรเจกต์"],
   ["tests/tools/restore-reset.test.mjs", "ล้างฐานซ้อมกู้ลองใหม่เฉพาะอาการคอนเทนเนอร์เตรียมโครงฐานล้ม"],
@@ -25,6 +27,8 @@ const ชุด: [string, string][] = [
   ["tests/tools/testdb-wait.test.mjs", "ชุดทดสอบที่ใช้ฐานทดสอบ เจอเซสชันอื่นถือล็อก → \"รอ\" ไม่ใช่ \"ตก\" (คิวข้อ 2 · 30 ต.ค. 69)"],
   ["tests/tools/stale-ports.test.mjs", "ตอนเริ่มรอบตรวจ ปิดโปรเซสค้างบนพอร์ตของเซสชันตัวเอง (คิวข้อ 1 · 30 ต.ค. 69)"],
   ["tests/tools/gate-dirty-tree.test.mjs", "รอบตรวจเต็มปฏิเสธเมื่อมีไฟล์ที่ยังไม่ commit ในโฟลเดอร์ (บอกชื่อไฟล์ · บอสสั่ง 9 พ.ย. 69)"],
+  ["tests/tools/check-fixture-regions.test.mjs", "ตัวตรวจชื่อภาคในข้อมูลตั้งต้น = รายการ th_provinces (10 พ.ย. 69)"],
+  ["tests/tools/migration-rehearsal.test.mjs", "ซ้อมลงใบปรับฐานแบบ db push บนฐานแยก (ไม่ห่อ transaction · ข้อมูลแปลงจริง · ลบคอนเทนเนอร์ทุกครั้ง)"],
 ];
 for (const [ไฟล์, อะไร] of ชุด) {
   test(`[tool] ${อะไร} (${ไฟล์})`, () => {

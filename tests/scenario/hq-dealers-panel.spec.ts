@@ -41,7 +41,7 @@ test.beforeAll(async () => {
   if (ผล === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางข้อมูลของข้อไม่ได้");
 });
 test.afterAll(async () => {
-  if (!ก) return;
+  if (!ก) return;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
   รันSQLในฐาน(`set local session_replication_role = replica;
     delete from public.quotations where dealer_code = '${ก.รหัส}';
     delete from public.customers where dealer_code = '${ก.รหัส}';
@@ -98,9 +98,10 @@ test("[H11·hq] ดีลเลอร์: ตารางตามแบบ ไ�
   await ค้นรายการ(page, ก!.รหัส);
   await expect(page.locator("button[title*='ลบ'], button[aria-label*='ลบ']"), "ไม่มีปุ่มลบดีลเลอร์").toHaveCount(0);
   // ชื่อดีลเลอร์ · ป้ายภูมิภาค · แพ็กเกจ · สถานะ ไม่ถูกตัดที่จอกว้าง · ภูมิภาคใช้ชื่อกลาง
-  const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='name'], td[data-col='region'] .badge, td[data-col='status'] .badge, td[data-col='name'] span"))
+  // ชื่อดีลเลอร์ตัดด้วย … ได้ (ล็อกความกว้างคอลัมน์ % · บอสสั่ง 10 พ.ย. 69) — ชี้แล้วเห็นเต็ม (title ด้านล่าง) · ป้ายภูมิภาค/สถานะห้ามตัด
+  const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='region'] .badge, td[data-col='status'] .badge"))
     .filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > (e.closest("td")!.getBoundingClientRect().right + 1)).map(e => e.textContent));
-  expect(ตัด, "จอ 1440: ชื่อ/ภูมิภาค/สถานะ ไม่ถูกตัด").toEqual([]);
+  expect(ตัด, "จอ 1440: ป้ายภูมิภาค/สถานะ ไม่ถูกตัด").toEqual([]);
   await expect(แถว.locator("td[data-col='region']")).toHaveText("ภาคตะวันออก");
   await expect(แถว.locator("td[data-col='name']"), "ชี้ที่ชื่อแล้วเห็นเต็ม").toHaveAttribute("title", "ZZTEST ดีลเลอร์แผงขวา");
   // ปุ่มปิดใช้งาน (ตาปิด) ต้องยืนยันก่อน แล้วลงฐานจริง · กดอีกครั้ง (ตาเปิด) = เปิดใช้งาน
@@ -136,9 +137,12 @@ test("[H11·hq] ดีลเลอร์: กดแถว = แผงด้า�
   await แถว.locator("td").nth(2).click();
   const แผง = แผงของ(page, ก!.รหัส);
   await expect(แผง).toBeVisible({ timeout: 15_000 });
-  expect(page.url(), "กดแถวแล้ว URL ไม่เปลี่ยนหน้า").toBe(ที่อยู่);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · กลับด้านจาก "URL เท่าเดิม"): หน้าเดิม + ?open=รหัส · ปิดแผง = ที่อยู่เดิม
+  expect(new URL(page.url()).pathname, "กดแถวแล้วไม่เปลี่ยนหน้า").toBe(new URL(ที่อยู่).pathname);
+  expect(new URL(page.url()).searchParams.get("open"), "แผงอยู่ในที่อยู่หน้าเว็บ").toBe(ก!.รหัส);
   await แผง.getByRole("button", { name: "ปิดแผง" }).click();
   await expect(แผง).toHaveCount(0);
+  expect(page.url(), "ปิดแผง = ที่อยู่เดิม (ไม่มี ?open)").toBe(ที่อยู่);
   await expect(page.getByPlaceholder(/ค้นหาดีลเลอร์/), "คำค้นอยู่ที่เดิม").toHaveValue(ก!.รหัส);
   await expect(page.getByLabel("กรองตามสถานะดีลเลอร์"), "ตัวกรองสถานะอยู่ที่เดิม").toHaveValue("active");
   expect(Math.abs((await เลื่อน()) - ก่อน), "ตำแหน่งเลื่อนอยู่ที่เดิม").toBeLessThan(2);
@@ -150,6 +154,10 @@ test("[H11·hq] ดีลเลอร์: กดแถว = แผงด้า�
   await แผงของ(page, ก!.รหัส).getByRole("button", { name: "ปิดแผง" }).click();
   await expect(page).toHaveURL(/\/hq\/dealers$/);
   await expect(page.locator("[data-dealer-panel]")).toHaveCount(0);
+  // ลิงก์เก่า /hq/dealers/[รหัส] → ที่อยู่แบบเดียว /hq/dealers?open=รหัส (บอสสั่ง 11 พ.ย. 69 · แผงอยู่ในที่อยู่)
+  await page.goto(`${HQ_ORIGIN}/hq/dealers/${ก!.รหัส}`, { waitUntil: "domcontentloaded" });
+  await expect(page, "ลิงก์เก่าแทนที่เป็น ?open=รหัส").toHaveURL(new RegExp(`/hq/dealers\\?open=${ก!.รหัส}$`), { timeout: 20_000 });
+  await expect(แผงของ(page, ก!.รหัส)).toBeVisible({ timeout: 20_000 });
   assertNoErrors(errs, "แผงดีลเลอร์ เปิด/ปิด");
 });
 

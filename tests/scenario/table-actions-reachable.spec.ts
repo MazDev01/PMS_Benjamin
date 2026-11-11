@@ -25,7 +25,7 @@ for (const [ชื่อ, path] of หน้า) {
         const wb = (w as HTMLElement).getBoundingClientRect();
         w.querySelectorAll("tbody tr td:last-child button, tbody tr td:last-child a").forEach(el => {
           const r = el.getBoundingClientRect();
-          if (!r.width) return;   // ปุ่มที่ซ่อนอยู่ ไม่ต้องวัด
+          if (!r.width) return;   // ไม่ใช่การข้าม: ปุ่มที่ซ่อนอยู่ไม่ต้องวัด
           out.push({ ชื่อ: (el.getAttribute("title") || el.textContent || "").trim().slice(0, 20),
                      หลุดขวา: Math.round(r.right - wb.right), หลุดซ้าย: Math.round(wb.left - r.left) });
         });

@@ -68,7 +68,7 @@ test("[ง] ใบเสนอราคา: หน้าแก้ใบแก้
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบลูกค้า);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขใบลูกค้า);
   const แถว = page.locator("tbody tr").filter({ hasText: เลขใบลูกค้า }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   // รอบ 4: กดแถวในหน้าใบเสนอราคา → แผงลีดของใบนั้น (ที่เดียวที่ดู/แก้ใบได้)
@@ -143,7 +143,7 @@ test("[ง] HQ: หน้าเข้าระบบไม่พูดถึง�
     await expect(page.getByText(/เป้าของดีลเลอร์เปลี่ยนตามทันที/), "ข้อความขัดกับใบ 0206").toHaveCount(0);
     await page.goto(`${HQ_ORIGIN}/hq/audit`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(`ZZTEST-${แท็ก}`);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(`ZZTEST-${แท็ก}`);
     const แถว = page.locator("tbody tr").filter({ hasText: `ZZTEST-${แท็ก}` }).first();
     await expect(แถว).toBeVisible({ timeout: 20_000 });
     await expect(แถว, "บทบาทเป็นภาษาไทย · บทบาทเดิมแสดงเป็น สำนักงานใหญ่ (HQ บทบาทเดียว · ใบ 0282)").toContainText("สำนักงานใหญ่");

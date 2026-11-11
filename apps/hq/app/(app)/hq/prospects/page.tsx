@@ -17,6 +17,8 @@
 //
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์ = ผู้มีสิทธิ์จัดการดีลเลอร์ (dealers:manage)
 //   RLS บังคับซ้ำที่ฐานข้อมูล — การซ่อนปุ่มตรงนี้เป็นแค่ความสะดวก ไม่ใช่ด่านจริง
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -308,23 +310,23 @@ export default function HQProspectsPage() {
 
   // ?open=ID → เปิดแผงรายนั้นหลังโหลดรายการเสร็จ (ลิงก์จากหน้าใบค่าแฟรนไชส์) · ล้างพารามิเตอร์กันเปิดซ้ำตอนรีเฟรช
   //   ไม่พบ = บอกตรง ๆ ไม่เงียบ (รายนั้นอาจถูกลบไปแล้ว)
-  const เปิดจากลิงก์แล้ว = useRef(false);
-  useEffect(() => {
-    if (!loaded || เปิดจากลิงก์แล้ว.current) return;
-    เปิดจากลิงก์แล้ว.current = true;
-    const รหัส = new URLSearchParams(window.location.search).get("open");
-    if (!รหัส) return;
-    window.history.replaceState(null, "", "/hq/prospects");
+  //   แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่ · ลิงก์กลางมาที่นี่
+  const listRef = useRef(list);
+  listRef.current = list;
+  useเปิดตามURL("/hq/prospects", รหัส => {
+    if (!รหัส) { if (เปิดอยู่Ref.current != null) ปิดแผงทันที(); return; }
+    if (เปิดอยู่Ref.current != null && String(เปิดอยู่Ref.current) === รหัส) return;
+    const list = listRef.current;
     const ราย = list.find(x => String(x.id) === รหัส);
     // เป็นดีลเลอร์แล้ว = ไม่อยู่หน้านี้ → พาไปหน้าดีลเลอร์นั้นแทน (ลิงก์เก่าจากกระดิ่ง/บันทึกการใช้งานยังใช้ได้)
     if (ราย?.status === "won") {
-      if (ราย.dealerCode) window.location.assign(`/hq/dealers/${ราย.dealerCode}`);
+      if (ราย.dealerCode) window.location.replace(`/hq/dealers?open=${encodeURIComponent(ราย.dealerCode)}`);
       else แจ้งพลาด(`“${ราย.name}” เป็นดีลเลอร์แล้ว แต่ไม่พบดีลเลอร์ที่ผูกไว้ (อาจถูกลบไปแล้ว)`);
     }
     else if (ราย) เปิดแผง(ราย);
     else if (!loadErr) แจ้งพลาด("ไม่พบผู้สนใจรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำครั้งเดียวตอนโหลดเสร็จ ไม่ต้องทำซ้ำเมื่อรายการเปลี่ยน
-  }, [loaded]);
+  }, loaded);
+  useแผงในURL(รายที่เปิด ? String(รายที่เปิด.id) : null);
 
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
   //   คงรหัส 2 จุดตามบอสตอบ: ช่องพิมพ์รหัสตอนตั้งดีลเลอร์ · กล่องบัญชีเข้าระบบดีลเลอร์ใหม่ (รหัสสาขา = ชื่อเข้าระบบ)
@@ -925,16 +927,19 @@ export default function HQProspectsPage() {
                 "ลำดับ" คอลัมน์แรก (บอสสั่ง 15 ก.ย. 69: "เพิ่มลำดับเข้าไป") — กว้างพอเลข 3 หลัก (ตอนนี้ 170 ราย) ไม่งั้นโดนตัดเป็น "1…"
                 10 คอลัมน์ minWidth รวม ~1,014px · % รวมต้องได้ 100 เสมอ */}
             <colgroup>
-              <col style={{ width: "5%", minWidth: 56 }} />{/* ลำดับ */}
-              <col style={{ width: "16%", minWidth: 170 }} />
-              <col style={{ width: "11%", minWidth: 110 }} />
-              <col style={{ width: "10%", minWidth: 104 }} />
-              <col style={{ width: "8%", minWidth: 84 }} />
-              <col style={{ width: "9%", minWidth: 90 }} />
-              <col style={{ width: "13%", minWidth: 140 }} />
-              <col style={{ width: "11%", minWidth: 100 }} />
-              <col style={{ width: "10%", minWidth: 100 }} />
-              <col style={{ width: "7%", minWidth: 60 }} />
+              {/* 10 พ.ย. 69: หัว "ลำดับ" ขึ้น "ลำ..." — 5% ของตารางแคบกว่าคำ (minWidth ของ <col> ไม่มีผลใน table-layout: fixed)
+                  → ลำดับกว้างตายตัว 88 · ชื่อไม่กำหนด = รับที่เหลือ · % ที่เหลือรวม 79 (ตายตัว 88 + 79% พอดีตารางตั้งแต่ ~420px) */}
+              {/* ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
+              <col style={{ width: "8.5%" }} />{/* ลำดับ — หัว "ลำดับ" + เลข 3 หลัก ห้ามตัด */}
+              <col style={{ width: "12.5%" }} />{/* ชื่อ */}
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
             </colgroup>
             <thead>
               <tr><th>ลำดับ</th><th>ชื่อ</th><th>ชื่อบนโซเชียล</th><th>เบอร์โทร</th><th>จังหวัด</th><th>แหล่งที่มา</th><th>ขั้น · ความคืบหน้า</th><th>ติดต่อล่าสุด</th><th>นัดติดตาม</th><th>ดีลเลอร์</th></tr>
@@ -987,7 +992,7 @@ export default function HQProspectsPage() {
                     </td>
                     <td>
                       {p.dealerCode
-                        ? <Link href={`/hq/dealers/${p.dealerCode}`} onClick={e => e.stopPropagation()} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode} style={{ color: PRIMARY, fontWeight: 700 }}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</Link>
+                        ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</ลิงก์ข้อมูล>
                         : "—"}
                     </td>
                   </ClickableRow>

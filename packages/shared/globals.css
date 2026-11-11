@@ -726,11 +726,7 @@ body {
   box-shadow: 0 6px 12px -10px rgba(16, 40, 80, .35);
 }
 @media (max-width: 768px) { .hq-sticky-filter, .cust-filter { position: static; box-shadow: none; } }
-/* Dealer · ลูกค้า → แผงรายละเอียดโครงการ: ซ้าย = ภาพแม่แบบ · ขวา = ข้อมูลโครงการ */
-@media (max-width: 860px) {
-  .proj-shell { grid-template-columns: 1fr !important; }
-  .proj-shell > div:first-child { border-right: none !important; border-bottom: 1px solid #e9edf2; }
-}
+/* Dealer · ลูกค้า → หน้าต่างงาน: คอลัมน์เดียวแล้ว (บอสตอบ 10 พ.ย. 69 · แถบสรุปบน) — เดิม 2 คอลัมน์ ซ้ายภาพแม่แบบ/สรุป ขวาข้อมูล */
 /* HQ · แดชบอร์ด — แถวการ์ดแจ้งเตือน (สูงสุด 5 ใบ ตามกฎที่เปิดไว้) */
 @media (max-width: 1440px) { .hq-alert-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 860px)  { .hq-alert-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -854,7 +850,7 @@ body {
 /* table-layout:fixed => คอลัมน์กว้างคงที่ ไม่ยืด/หดตามข้อมูลที่โชว์ (เสถียรทุกหน้า) */
 .table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
 .table-wrap thead { background: var(--muted); }
-.table-wrap th { padding: 0.6rem 1rem; text-align: left; font-weight: 700; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); white-space: nowrap; }
+.table-wrap th { padding: 0.6rem 1rem; text-align: left; font-weight: 700; font-size: calc(0.68rem * var(--th-scale, 1)); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); white-space: nowrap; }   /* --th-scale: ตัวกลาง useHeaderFit ลดทั้งแถวหัวเมื่อหัวช่องไหนยาวเกินช่อง (บอสสั่ง 10 พ.ย. 69) */
 .table-wrap td { padding: 0.72rem 1rem; border-top: 1px solid var(--border); vertical-align: middle; color: var(--foreground); }
 /* เนื้อหาที่ยาวเกินคอลัมน์ให้ตัดด้วย … แทนการดันคอลัมน์ให้กว้างขึ้นหรือล้นออกนอกกรอบ */
 /* white-space:nowrap จำเป็นคู่กับ text-overflow:ellipsis มิเช่นนั้นข้อความไทย (ไม่มีช่องว่างให้ตัดคำ) จะล้นออกนอกเซลล์แทนที่จะถูกตัด */
@@ -951,8 +947,8 @@ body {
 /*   ขนาดตัวอักษร (รอบ 3 · ใหญ่ขึ้นใช้ที่ว่าง): ตัวเลข/ชื่อ 0.84rem · บรรทัดย่อยใต้ชื่อ [data-row-sub] 0.72rem — ตรงกับ lib/tableFit.ts (ตัววัดคอลัมน์ชื่อ) */
 .table-wrap.fit th, .table-wrap.fit td { padding: 0.5rem 0.5rem; font-size: 0.84rem; }   /* ≥ 8px จากขอบกล่อง (ตัวตรวจ layout-spacing) */
 .table-wrap.fit td [data-row-sub] { font-size: 0.72rem !important; }
-.table-wrap.fit th { font-size: 0.7rem; padding-top: 0.6rem; }   /* หัวตารางห่างขอบบนกล่อง ≥ 8px */
-.table-wrap.fit th { white-space: normal; line-height: 1.4; vertical-align: bottom; letter-spacing: 0; }
+.table-wrap.fit th { font-size: calc(0.7rem * var(--th-scale, 1)); padding-top: 0.6rem; }   /* หัวตารางห่างขอบบนกล่อง ≥ 8px */
+.table-wrap.fit th { white-space: nowrap; line-height: 1.4; vertical-align: bottom; letter-spacing: 0; }   /* หัวบรรทัดเดียว (บอสสั่ง 10 พ.ย. 69 · เดิมขึ้นบรรทัดได้) */
 .table-wrap.fit td.num, .table-wrap.fit th.num { padding-left: 0.3rem; }
 
 /* ─── TableTools toolbar (component: src/components/ui/TableTools.tsx) ─── */
@@ -1311,6 +1307,17 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 .pg-crumb { font-size:.7rem; color:var(--sub); margin:0 0 6px; display:flex; align-items:center; gap:6px; }
 .pg-crumb a { color:var(--sub); text-decoration:none; }
 .pg-crumb a:hover { color:var(--pr); }
+/* ลิงก์กลางไปข้อมูลอื่น (components/ui/RecordLink.tsx · บอสสั่ง 11 พ.ย. 69): สีน้ำเงิน · ขีดเส้นใต้ตอนชี้ · เมาส์รูปมือ — หน้าตาเดียวกันทุกที่ */
+.rec-link { color:#1d4ed8; font-weight:inherit; text-decoration:none; cursor:pointer; overflow-wrap:anywhere; }
+.rec-link:hover, .rec-link:focus-visible { text-decoration:underline; text-underline-offset:2px; }
+/* แบบพื้นเข้ม (หัวหน้าต่าง/หัวแผงพื้นน้ำเงินเข้ม): สีขาว ขีดเส้นใต้ตลอด (สีน้ำเงินอ่านไม่ออกบนพื้นเข้ม) */
+.rec-link.rec-link-dark { color:#fff; text-decoration:underline; text-underline-offset:2px; text-decoration-color:rgba(255,255,255,.7); }
+.rec-link.rec-link-dark:hover, .rec-link.rec-link-dark:focus-visible { text-decoration-color:#fff; }
+/* จอเล็ก: เป้ากดสูงอย่างน้อย 30px ตามเกณฑ์ปุ่มบนมือถือ (tests/scenario/mobile-usable.spec.ts) — ตกรอบ deploy19: ลิงก์ชื่อในตารางสูง ~18px
+   inline-flex ให้สูงขึ้นได้โดยตัวอักษรอยู่กลางแนวตั้ง · ไม่ขยายความกว้าง (กดที่ว่างของแถวยังเปิดแผงของแถวได้ · บอสเลือก 11 พ.ย. 69) */
+@media (max-width: 760px) {
+  .rec-link { display:inline-flex; align-items:center; min-height:30px; max-width:100%; vertical-align:middle; }
+}
 .pg-title { font-size:1.6rem; font-weight:800; color:var(--text); line-height:1.2; margin:0 0 3px; letter-spacing:-.01em; }
 .pg-sub { font-size:.8rem; color:var(--sub); margin:0; }
 
@@ -1611,6 +1618,14 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 }
 .topbar-search:hover { border-color: #cdd8e6; box-shadow: 0 0 0 3px rgba(0,51,102,.06); }
 .topbar-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ช่องค้นหาเป็นช่องพิมพ์จริง + รายการผลใต้ช่อง กว้างเท่าช่อง (บอสสั่ง 10 พ.ย. 69 · เดิมเปิดหน้าต่างกลางจอ) */
+.topbar-search { position: relative; }
+.topbar-search:focus-within { border-color: #9fb3cc; box-shadow: 0 0 0 3px rgba(0,51,102,.10); }
+.topbar-search input { flex: 1; min-width: 0; height: 100%; border: none; outline: none; background: transparent; font-family: inherit; font-size: .86rem; color: #1F2937; }
+.topbar-search input::placeholder { color: #9ca3af; }
+.topbar-search input::-webkit-search-cancel-button { cursor: pointer; }
+.topbar-search-list { position: absolute; top: calc(100% + 6px); left: -1px; right: -1px; /* -1px = ชิดขอบนอกของช่อง (กว้างเท่าช่องรวมเส้นขอบ) */ z-index: 400; max-height: min(420px, 70vh); overflow-y: auto;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 18px 48px rgba(15,23,42,.18); padding: 4px 0; text-align: left; }
 .icon-btn, .user-chip { box-shadow: none; }
 .user-chip { border-radius: 12px; padding: .3rem .7rem .3rem .35rem; }
 
@@ -1645,6 +1660,10 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 @media (max-width: 640px) {
   .topbar-search { flex: 0 0 40px; padding: 0; justify-content: center; }
   .topbar-search span { display: none; }
+  /* จอแคบ: ช่องย่อเหลือไอคอน · แตะแล้วขยายเต็มแถบให้พิมพ์ได้ (รายการผลกว้างเท่าช่องที่ขยายแล้ว) */
+  .topbar-search input { width: 0; flex: 0 0 0; }
+  .topbar-search:focus-within { flex: 1 1 auto; padding: 0 12px; justify-content: flex-start; }
+  .topbar-search:focus-within input { flex: 1; }
 }
 
 /* กล่องงานคำขอราคา HQ (หน้า 5 · 19 ต.ค. 69): จอแคบ = กล่องงานบน ใบ HQ ล่าง */
@@ -1672,6 +1691,7 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 .doc-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 16px; }
 .doc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; padding: 12px 0; }
 .doc-grid > .doc-wide { grid-column: 1 / -1; }
+.doc-grid.doc-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* หน้าต่างทำใบ HQ: ข้อมูลลูกค้า/งาน 2 คอลัมน์ (บอสสั่ง 10 พ.ย. 69) */
 .doc-totals { width: 50%; margin-left: auto; }
 @media (max-width: 640px) {
   .doc-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

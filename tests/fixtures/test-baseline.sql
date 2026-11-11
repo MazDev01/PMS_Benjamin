@@ -9,11 +9,11 @@ insert into public.dealers (code,name,province,region,revenue_target,status,crea
 {"code":"BKK","name":"ดีลเลอร์ทดสอบ BKK","province":"กรุงเทพมหานคร","region":"กลาง","revenue_target":10000000,"status":"active","created_at":"2026-07-17T02:26:20.093425+00:00","target_manual":false,"prospect_id":null},
 {"code":"CBI","name":"ดีลเลอร์ทดสอบ CBI","province":"ชลบุรี","region":"ตะวันออก","revenue_target":20000000,"status":"active","created_at":"2026-07-17T02:26:23.472829+00:00","target_manual":false,"prospect_id":null},
 {"code":"CNX","name":"ดีลเลอร์ทดสอบ CNX","province":"เชียงใหม่","region":"เหนือ","revenue_target":30000000,"status":"active","created_at":"2026-06-17T02:22:18.305909+00:00","target_manual":false,"prospect_id":null},
-{"code":"KKN","name":"ดีลเลอร์ทดสอบ KKN","province":"ขอนแก่น","region":"ตะวันออกเฉียงเหนือ","revenue_target":40000000,"status":"active","created_at":"2026-07-17T02:26:26.751297+00:00","target_manual":false,"prospect_id":null},
-{"code":"NMA","name":"ดีลเลอร์ทดสอบ NMA","province":"นครราชสีมา","region":"ตะวันออกเฉียงเหนือ","revenue_target":50000000,"status":"active","created_at":"2026-07-17T02:26:30.157017+00:00","target_manual":false,"prospect_id":null},
+{"code":"KKN","name":"ดีลเลอร์ทดสอบ KKN","province":"ขอนแก่น","region":"อีสาน","revenue_target":40000000,"status":"active","created_at":"2026-07-17T02:26:26.751297+00:00","target_manual":false,"prospect_id":null},
+{"code":"NMA","name":"ดีลเลอร์ทดสอบ NMA","province":"นครราชสีมา","region":"อีสาน","revenue_target":50000000,"status":"active","created_at":"2026-07-17T02:26:30.157017+00:00","target_manual":false,"prospect_id":null},
 {"code":"PKT","name":"ดีลเลอร์ทดสอบ PKT","province":"ภูเก็ต","region":"ใต้","revenue_target":60000000,"status":"active","created_at":"2026-07-17T02:26:33.47353+00:00","target_manual":false,"prospect_id":null},
 {"code":"RYG","name":"ดีลเลอร์ทดสอบ RYG","province":"ระยอง","region":"ตะวันออก","revenue_target":70000000,"status":"active","created_at":"2026-06-17T02:22:18.305909+00:00","target_manual":false,"prospect_id":null},
-{"code":"UBN","name":"ดีลเลอร์ทดสอบ UBN","province":"อุบลราชธานี","region":"ตะวันออกเฉียงเหนือ","revenue_target":80000000,"status":"active","created_at":"2026-07-17T02:26:36.710802+00:00","target_manual":false,"prospect_id":null}
+{"code":"UBN","name":"ดีลเลอร์ทดสอบ UBN","province":"อุบลราชธานี","region":"อีสาน","revenue_target":80000000,"status":"active","created_at":"2026-07-17T02:26:36.710802+00:00","target_manual":false,"prospect_id":null}
 ]$fx$::jsonb);
 
 -- dealer_territories: 8 แถว
@@ -533,3 +533,17 @@ update public.leads l
     or l.reached_step is distinct from public._lead_reached_step(l.dealer_code, l.num_id);
 
 set session_replication_role = origin;
+
+-- ใบค่าแฟรนไชส์ตัวอย่าง (บอสสั่ง 11 พ.ย. 69): ข้อทดสอบหน้าใบค่าแฟรนไชส์ต้องมีแถวให้ตรวจ — ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (tests/scenario/record-links.spec.ts)
+--   ผู้สนใจ 1 ราย + ใบร่าง 1 ใบ (ร่าง = ไม่เข้าการ์ดรอตอบรับ/ค้างชำระ/แจ้งเตือน) · ชื่อ/เบอร์ตามสูตร · เลขใบให้ตัวดักออกเอง (ตัวนับตามปกติ)
+--   ลงหลังเปิดตัวดักแล้ว: ตัวดักบันทึกการใช้งานลงเฉพาะผู้ใช้ที่ล็อกอิน (ใบ 0240 _audit_hq) → ไม่มีแถวบันทึกเกิดจากชุดนี้
+insert into public.dealer_prospects (id, name, phone, province, region, status)
+values (9001, 'ผู้สนใจตัวอย่าง 001', '000-000-0901', 'แม่ฮ่องสอน', 'เหนือ', 'considering');
+select setval(pg_get_serial_sequence('public.dealer_prospects', 'id'), greatest((select max(id) from public.dealer_prospects), 9001));
+insert into public.dealer_package_proposals (prospect_id, status, amount, contract_months, annual_target, region, province, proposed_date, valid_until, terms, note)
+values (9001, 'draft', 0, 12, 1000000, 'เหนือ', 'แม่ฮ่องสอน', current_date, current_date + 30, '-', null);
+
+-- บันทึกการใช้งานตัวอย่าง 1 แถว (บอสสั่ง 11 พ.ย. 69 · ข้อทดสอบห้ามข้ามเองเมื่อไม่มีข้อมูล): audit-integrity.spec.ts ข้อ "แก้/ลบบันทึกย้อนหลังไม่ได้"
+--   ต้องมีแถวให้ลองแก้/ลบเสมอ (เดิมข้ามเมื่อไม่มีบันทึก) · วันที่เก่า (ไม่โผล่ในกิจกรรมล่าสุด) · ไม่ตรงเงื่อนไขแถวทดสอบของชุดล้าง (ชุดล้างลบไม่ได้)
+insert into public.audit_log ("user", role, action, target, at)
+values ('ระบบตั้งต้นทดสอบ', 'ระบบ', 'ข้อมูลตั้งต้นทดสอบ', 'บันทึกตัวอย่าง 001', '2026-01-01T00:00:00+07:00');

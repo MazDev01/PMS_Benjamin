@@ -11,7 +11,7 @@ import { open } from "./helpers";
 const ยิงข้อความเตือน = async (page: import("@playwright/test").Page, msg: string) => {
   for (let i = 0; i < 10; i++) {
     await page.evaluate((m) => window.dispatchEvent(new CustomEvent("pms:repo-save-error", { detail: m })), msg);
-    if (await page.getByRole("alert").filter({ hasText: "บันทึกไม่สำเร็จ" }).count()) return;
+    if (await page.getByRole("alert").filter({ hasText: "บันทึกไม่สำเร็จ" }).count()) return;   // ไม่ใช่การข้าม: วนรอให้แถบเตือนขึ้น (เจอแล้วจบวน)
     await page.waitForTimeout(500);
   }
 };

@@ -25,10 +25,12 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { if (ส) ล้างใบHQทดสอบ(ส.รหัส, [เลข]); await ส?.ลบ(); });
 
-/** นับการโหลดหน้าใหม่ — ข้อนี้ต้องอัปเดตโดยไม่ reload */
+/** นับการโหลดหน้าใหม่ — ข้อนี้ต้องอัปเดตโดยไม่ reload
+ *  ⚠️ นับด้วย "load" (โหลดเอกสารใหม่จริง) ไม่ใช่ "framenavigated" — 11 พ.ย. 69 บอสสั่งให้แผงอยู่ในที่อยู่หน้าเว็บ (?open=)
+ *     การเปิดแผงจึงเปลี่ยนที่อยู่แบบไม่โหลดหน้า (history) ซึ่ง framenavigated นับด้วย → ตกรอบ deploy19 ทั้งที่ trace ไม่มีการโหลดหน้าเลย */
 function นับการโหลดหน้า(page: Page) {
   const นับ = { n: 0 };
-  page.on("framenavigated", f => { if (f === page.mainFrame()) นับ.n++; });
+  page.on("load", () => { นับ.n++; });
   return นับ;
 }
 const ค่าการ์ด = (page: Page, kpi: string) => page.locator(`[data-kpi-row] [data-kpi="${kpi}"] [data-value]`).first();
@@ -46,6 +48,7 @@ test("[ux·dealer] ส่งคำขอราคาในแผง → แถ�
 
   const โหลด = นับการโหลดหน้า(page);
   await แถว(page).getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await expect(page, "เปิดแผง = ที่อยู่มี ?open= (บอสสั่ง 11 พ.ย. 69) โดยไม่โหลดหน้า").toHaveURL(/[?&]open=/);
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
   const แผง = page.locator("[data-panel='quote-request']");
@@ -63,6 +66,9 @@ test("[ux·dealer] ส่งคำขอราคาในแผง → แถ�
   await expect(แถว(page).locator("[data-stage-label]"), "ยกเลิกแล้วแถวกลับขั้นข้อมูลลูกค้าเอง").toHaveAttribute("data-stage-no", "1", { timeout: 15_000 });
   await expect(ค่าการ์ด(page, "hq-pricing"), "ยกเลิกแล้วการ์ดกลับเอง").toHaveAttribute("data-value", "0", { timeout: 15_000 });
   expect(โหลด.n, "ไม่ได้โหลดหน้าใหม่").toBe(0);
+  // ข้อมูลที่กรอกค้างต้องไม่หาย (บอสสั่ง 11 พ.ย. 69 ตอนอนุมัติแก้ข้อนี้) — โหลดหน้าใหม่ทั้งหน้าจะล้างคำค้นและปิดแผง
+  await expect(page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ..."), "คำค้นที่พิมพ์ไว้ยังอยู่หลังยกเลิก").toHaveValue(บริษัท());
+  await expect(แผง, "แผงยังเปิดอยู่หลังยกเลิก").toBeVisible();
   assertNoErrors(errs, "ดีลเลอร์อัปเดตเอง");
 });
 

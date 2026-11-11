@@ -5,7 +5,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { ถือแถวกลางชดเวลา } from "./sharedRowLock";
-import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน, หน้าต่างใบHQ } from "./helpers";
 
 // ── ขายหนึ่งงาน ขั้น 2–4 บนหน้าจอ + ตารางสถานะแถว 1–3, 6–7 (FLOW.html · ด่าน 1) ──────────────────────────────
 //   แถว 1 ดีลเลอร์ส่งคำขอ        → คำขอ "ใหม่" · ลูกค้าเป้าหมาย "รอราคา HQ" · อีเมลถึง HQ
@@ -135,6 +135,12 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   await admin.from("quote_requests").update({ due_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", id);
   await page.reload({ waitUntil: "domcontentloaded" });
   await settle(page);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69): รีโหลดแล้วหน้าต่างใบเดิมเปิดค้างเอง — ปิดก่อนแล้วค่อยหาแถวใหม่
+  //   (ตกรอบ deploy19: ข้อเดิมกดแถวทันที หน้าต่างที่เปิดเองบังแถว)
+  await expect(หน้าต่างใบHQ(page), "รีโหลดแล้วหน้าต่างใบ HQ เดิมยังเปิด (?open=)").toBeVisible({ timeout: 20_000 });
+  await expect(หน้าต่างใบHQ(page)).toContainText(COMPANY);
+  await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด" }).click();
+  await expect(หน้าต่างใบHQ(page)).toHaveCount(0);
   const { แถว: แถวใหม่ } = await เปิดใบHQในกล่องงาน(page, COMPANY);
   // เลยกำหนด = แดงที่คอลัมน์กำหนดส่งที่เดียว (ตาราง 6 พ.ย. 69 · เดิมป้ายแดงที่สถานะ 3 พ.ย. 69) — ไม่มี "เกิน 14 วัน" ซ้ำ · ป้ายสถานะ = สถานะจริง
   await expect(แถวใหม่.getByTestId("row-countdown"), "เลยกำหนดส่ง → แดงที่กำหนดส่ง").toHaveText(/^เกิน/, { timeout: 30_000 });

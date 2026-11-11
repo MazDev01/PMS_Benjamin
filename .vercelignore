@@ -58,4 +58,7 @@ scripts/*
 !scripts/lib/
 scripts/lib/*
 !scripts/lib/commitGate.mjs
+# commitGate นำเข้าตัวรับทราบข้อไม่นิ่ง (flakyAck → flakyLog · 11 พ.ย. 69) — ขาด = ด่านตรวจโหลดไม่ได้ = ไม่ build
+!scripts/lib/flakyAck.mjs
+!scripts/lib/flakyLog.mjs
 supabase/migrations/

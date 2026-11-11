@@ -78,7 +78,7 @@ test("[กฎที่ DB] อ้าง customer_id ของดีลเลอ�
     const { data: ของRYG } = await ryg.from("customers").select("id");
     const เลขRYG = new Set((ของRYG ?? []).map(c => c.id));
     const เป้า = (ของCNX ?? []).find(c => !เลขRYG.has(c.id));
-    test.skip(!เป้า, "ฐานทดสอบไม่มีลูกค้าของ CNX ที่เลขไม่ชนกับ RYG");
+    expect(เป้า, "ขาดข้อมูล: ฐานทดสอบไม่มีลูกค้าของ CNX ที่เลขไม่ชนกับ RYG — ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69)").toBeTruthy();
     const { error } = await ryg.from("leads").insert(ราย({ phone: "", province: "", customer_id: เป้า!.id }));
     expect(error, "ต้องถูกปฏิเสธ").not.toBeNull();
     expect(error!.message, "ลูกค้าของสาขาอื่นใช้เป็นข้อยกเว้นไม่ได้").toContain("leads_customer_fk");

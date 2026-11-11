@@ -11,12 +11,13 @@
 //
 // ใช้: node scripts/reset-test-db.mjs [--workdir <โฟลเดอร์ที่มี supabase/config.toml>]   ค่าตั้งต้น = โฟลเดอร์นี้ (พอร์ต 54321 · CI)
 //      node scripts/reset-test-db.mjs --skip-reset …   ข้าม ① (ฐานเพิ่งลงใบมาแล้ว)
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { copyFileSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createCipheriv, randomBytes, createHash } from "node:crypto";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { readEnvFile } from "./lib/targetEnv.mjs";
+import { warningที่ตก } from "./lib/migrationWarnings.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { อาร์กิวเมนต์psql, ระหว่างล้างฐาน, คอนเทนเนอร์ as คอนเทนเนอร์ฐานทดสอบ } from "./lib/testDbGuard.mjs";
 
@@ -71,9 +72,19 @@ if (ใบจาก) {
 if (!process.argv.includes("--skip-reset")) {
   console.log("① ล้างฐาน + ลงใบทั้งหมด …");
   // NOTICE หลายร้อยบรรทัด — พิมพ์เฉพาะตอนล้มเหลว
-  const ล้าง = () => sh("npx", ["supabase", "db", "reset", "--workdir", workdir], { stdio: "pipe" });
-  try { ฐานมีตัวกัน() ? ระหว่างล้างฐาน(ล้าง) : ล้าง(); }
-  catch (e) { console.error(String(e.stderr ?? e.message).split(/\r?\n/).filter(l => !/^NOTICE|^Applying/.test(l)).join("\n")); process.exit(1); }
+  //   เก็บผลทั้ง stdout + stderr — WARNING ตอนลงใบ = ตก (scripts/lib/migrationWarnings.mjs · คนรวมงาน 10 พ.ย. 69:
+  //   db push ฐานจริงใบ 0284 ขึ้น WARNING SET LOCAL ซึ่ง db reset ที่นี่ก็ขึ้นเหมือนกัน แต่เดิมทิ้งผลไป รอบตรวจจึงไม่เห็น)
+  const ล้าง = () => spawnSync("npx", ["supabase", "db", "reset", "--workdir", workdir], { encoding: "utf8", shell: process.platform === "win32", maxBuffer: 256 << 20 });
+  const ผลล้าง = ฐานมีตัวกัน() ? ระหว่างล้างฐาน(ล้าง) : ล้าง();
+  const ข้อความล้าง = `${ผลล้าง.stdout ?? ""}\n${ผลล้าง.stderr ?? ""}`;
+  if (ผลล้าง.status !== 0) { console.error(ข้อความล้าง.split(/\r?\n/).filter(l => !/^NOTICE|^Applying/.test(l)).join("\n")); process.exit(1); }
+  const เตือน = warningที่ตก(ข้อความล้าง);
+  if (เตือน.length) {
+    console.error(`❌ ลงใบปรับฐานแล้วขึ้น WARNING ${เตือน.length} จุด — ฐานจริง (db push) จะขึ้นเหมือนกัน · แก้ใบก่อน (ไม่ใช่ปิดคำเตือน)`);
+    for (const w of เตือน) console.error(`   ${w.ใบ || "(ไม่ทราบใบ)"}: WARNING${w.รหัส ? ` (${w.รหัส})` : ""} ${w.ข้อความ}`);
+    console.error("   SET LOCAL นอก transaction → ใช้ DO $$ begin perform set_config('session_replication_role', 'replica', true); … end $$;");
+    process.exit(1);
+  }
 }
 
 // ── ② ข้อมูลตั้งต้น ───────────────────────────────────────────────────────────────────────────────

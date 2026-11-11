@@ -330,10 +330,10 @@ test("[edge] ปิดการขายสำเร็จแล้ว — ย�
   // ลองย้อนสถานะเท่าที่หน้าจอเปิดให้ทำ — ถ้าไม่มีปุ่มให้กด แปลว่าระบบล็อกไว้ตามกติกา (ถูกต้อง)
   const rejectBtn = page.getByRole("button", { name: "ลูกค้าปฏิเสธ", exact: true });
   const canRevert = await rejectBtn.count() > 0 && await rejectBtn.first().isEnabled().catch(() => false);
-  if (canRevert) {
+  if (canRevert) {   // ไม่ใช่การข้าม: ขั้นย้อนสถานะทำเท่าที่หน้าจอเปิดให้ · ข้อตรวจยอดรวมหลักรันทุกครั้ง
     await rejectBtn.first().click();
     const picker = page.getByText("เลือกเหตุผลที่ลูกค้าปฏิเสธใบเสนอราคานี้");
-    if (await picker.isVisible().catch(() => false)) {
+    if (await picker.isVisible().catch(() => false)) {   // ไม่ใช่การข้าม: กล่องเหตุผลขึ้นเฉพาะบางสถานะ
       await picker.locator("xpath=following-sibling::div[1]//button").first().click();
       await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
     }

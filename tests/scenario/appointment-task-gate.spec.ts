@@ -53,7 +53,7 @@ test("[func·dealer] งานนัดหมายติ๊กเองไม�
     //   ที่รันพร้อมกันและมีนัดแล้ว (ติ๊กแล้ว) · เดิมกดแถวแรก = เปิดผิดราย (ต้นเหตุไม่นิ่ง 29 ต.ค. 69)
     const ชื่อ = "ZZTEST-APPT ทดสอบงานนัดหมาย";
     await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
-    await page.getByPlaceholder(/ค้นหา/).first().fill(ชื่อ);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ชื่อ);
     await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByRole("button", { name: "ดูรายละเอียด" }).click({ timeout: 20_000 });
     // รอบ 4 (บอสสั่ง 21 ต.ค. 69): รายการงานเป็นรายการเตือนในแท็บ "ประวัติ" · งานนัดหมาย = ช่องที่ระบบติ๊กให้เมื่อบันทึกนัดจริง
     //   กดติ๊กเองไม่ได้อีกต่อไป (ไม่ต้องพาไปฟอร์มแล้ว) — ช่องบอกวิธีไว้ในตัว · ตรวจว่ากดแล้วไม่ติ๊กทั้งบนจอและในฐาน

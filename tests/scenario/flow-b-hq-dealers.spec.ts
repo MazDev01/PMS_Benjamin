@@ -32,7 +32,7 @@ async function อยู่ในช่องครบ(cell: Locator): Promise<b
 async function ค้น(page: Page, path: string, คำ: string) {
   await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(คำ);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(คำ);
 }
 
 test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อและตัวเลขดีลเลอร์ (ทะเบียน · แดชบอร์ด · ภาพรวมยอดขาย)", async ({ page }) => {
@@ -48,13 +48,13 @@ test("[ข·1] แถว HQ ไม่อยู่ในรายชื่อแ�
   try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
+    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ป้าย);
     await expect(page.locator("tbody tr").filter({ hasText: ป้าย }), "ทะเบียน: สาขาของข้อครบ 2 แถว").toHaveCount(2, { timeout: 20_000 });
     await expect(การ์ดทั้งหมด, "การ์ดดีลเลอร์ทั้งหมด = สาขาที่ตรงคำค้น (2)").toHaveAttribute("data-value", "2", { timeout: 20_000 });
   } finally { for (const x of สาขา) await x.ลบ(); }
   const { data: ชื่อHQ } = await admin.from("dealers").select("name").eq("code", "HQ").single();
   expect(ชื่อHQ?.name, "ตั้งต้น: ฐานมีแถว HQ").toBeTruthy();
-  await page.getByPlaceholder(/ค้นหา/).first().fill("สำนักงานใหญ่");
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill("สำนักงานใหญ่");
   await expect(page.locator("td[data-col='code']").filter({ hasText: /^HQ$/ }), "ทะเบียนไม่มีแถว HQ").toHaveCount(0);
   await expect(page.getByText("ไม่พบข้อมูล")).toBeVisible({ timeout: 10_000 });
   await expect(การ์ดทั้งหมด, "ค้นชื่อแถว HQ → การ์ด 0 (ไม่นับสำนักงานใหญ่)").toHaveAttribute("data-value", "0", { timeout: 10_000 });
@@ -94,9 +94,12 @@ test("[ข·2] แถวทะเบียน: ปุ่มครบตามแ
   const ที่อยู่ = page.url();
   await แถว.locator("td").nth(2).click();
   await expect(page.locator(`[data-dealer-panel="${รหัสยาว}"]`), "กดแถว = แผงด้านขวาเปิด").toBeVisible({ timeout: 15_000 });
-  expect(page.url(), "หน้าไม่เปลี่ยน").toBe(ที่อยู่);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · กลับด้านจาก "URL เท่าเดิม"): หน้าเดิม + ?open=รหัส · ปิดแผง = ที่อยู่เดิม
+  expect(new URL(page.url()).pathname, "หน้าไม่เปลี่ยน").toBe(new URL(ที่อยู่).pathname);
+  expect(new URL(page.url()).searchParams.get("open"), "แผงอยู่ในที่อยู่หน้าเว็บ").toBe(รหัสยาว);
   await page.getByRole("button", { name: "ปิดแผง" }).click();
   await expect(page.locator("[data-dealer-panel]")).toHaveCount(0);
+  expect(page.url(), "ปิดแผง = ที่อยู่เดิม (ไม่มี ?open)").toBe(ที่อยู่);
 
   await page.getByRole("button", { name: /แสดงแบบการ์ด/ }).click().catch(() => {});
   const การ์ด = page.locator(".dealer-card").filter({ hasText: รหัสยาว }).first();

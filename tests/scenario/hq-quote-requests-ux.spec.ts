@@ -59,6 +59,10 @@ test("[ui·hq] ส่งใบเปล่าไม่ได้ — ปุ่ม
   }
   // แบบใหม่ (26 ต.ค. 69): เปิดมามีแถวว่างพร้อมพิมพ์ · แถวว่างไม่นับเป็นรายการ · ยอด 0 ส่งไม่ได้พร้อมเหตุผล
   await page.reload({ waitUntil: "domcontentloaded" });
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69): รีโหลดแล้วหน้าต่างใบเดิมเปิดค้างเอง — ตรวจแล้วปิดก่อนหาแถว (ตกรอบ deploy19: หน้าต่างบังแถว)
+  await expect(ใบ, "รีโหลดแล้วหน้าต่างใบ HQ เดิมยังเปิด (?open=)").toBeVisible({ timeout: 20_000 });
+  await ใบ.getByRole("button", { name: "ปิด" }).click();
+  await expect(ใบ).toHaveCount(0);
   const ใบใหม่ = (await เปิดใบHQในกล่องงาน(page, บริษัท("ข"))).ใบ;
   await ใบใหม่.getByLabel(/^ชื่อรายการ \d+$/).first().waitFor({ timeout: 20_000 });
   await expect(ใบใหม่.getByTestId("send-blocked-reason"), "ใบที่บันทึกยอด 0 ไว้ = ส่งไม่ได้").toContainText("ยอดรวมต้องมากกว่า 0");

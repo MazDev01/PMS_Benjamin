@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useเปิดตามURL, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { diffLeadFields, type LeadIntent, type LeadFields } from "@pms/shared/lib/leadIntent";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
@@ -1090,6 +1091,7 @@ export default function LeadsPage() {
 
   function openPanel(l: LeadRow) {
     if (selectedLead?.id === l.id) return closePanel();
+    ตั้งแผงในURL(String(l.numId));   // แผงอยู่ในที่อยู่หน้าเว็บ — ย้อนกลับจากเรื่องอื่นได้แผงนี้คืน (lib/panelUrl.ts · 11 พ.ย. 69)
     setSelectedLead(l); setDraft({...l});
     setEditingField(null); setShowDeleteConfirm(false);
     setDTab("overview");
@@ -1109,6 +1111,7 @@ export default function LeadsPage() {
       .catch(e => logRepoRead("leads.get", e));
   }
   function closePanel() {
+    ตั้งแผงในURL(null);
     setSelectedLead(null); setDraft(null); setQuoteFormSignal(0);
     setEditingField(null); setShowDeleteConfirm(false);
     setPopupField(null); setEditPopupPos(null);
@@ -1118,10 +1121,12 @@ export default function LeadsPage() {
   // เปิดโมดัลจากพารามิเตอร์ ?open=N — ใช้ทั้งตอนโหลดหน้า (deep link/ลิงก์เดิม) และตอนค้นหาจาก Topbar หน้าเดิม
   const allLeadsRef = useRef(allLeads);
   allLeadsRef.current = allLeads;
-  useEffect(() => {
-    const openByParam = (qs: string) => {
-      const p = new URLSearchParams(qs).get("open");
-      if (!p) return;
+  //   แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่
+  //   ?tab=quotes (ลิงก์เลขคำขอ/ใบ HQ · บอสตอบ 11 พ.ย. 69) = เปิดที่แท็บใบเสนอราคา
+  const selectedLeadRef = useRef(selectedLead);
+  selectedLeadRef.current = selectedLead;
+  useเปิดตามURL("/leads", (p, params) => {
+      if (!p) { if (selectedLeadRef.current) closePanel(); return; }
       const target = allLeadsRef.current.find(l => String(l.numId) === p || l.id === p);
       if (target) {
         if (target.status === "PAID") {
@@ -1129,26 +1134,15 @@ export default function LeadsPage() {
           router.replace(target.customerId != null ? `/customers?open=${target.customerId}` : "/customers");
           return;
         }
-        openPanel(target);
+        if (selectedLeadRef.current?.id !== target.id) openPanel(target);
+        if (params.get("tab") === "quotes") setDTab("quotation");
       } else {
         // ลิงก์เดิม/แชร์มาแต่ลูกค้าเป้าหมายถูกลบ/ไม่มีจริง — เดิมหายไปเงียบ ๆ ไม่มีข้อความอะไรเลย
         // (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
         setToast("ไม่พบลูกค้าเป้าหมายรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
+        ตั้งแผงในURL(null);
       }
-      window.history.replaceState(null, "", "/leads"); // ล้าง param กันเปิดซ้ำเมื่อรีเฟรช
-    };
-    // 1) ตอนโหลดหน้า (mount) — จาก URL จริง
-    openByParam(window.location.search);
-    // 2) ตอนค้นหาจาก Topbar ขณะอยู่หน้าเดิม — Topbar ยิง event พร้อม href ปลายทาง
-    const onOpen = (e: Event) => {
-      const href = (e as CustomEvent<string>).detail ?? "";
-      const [path, query = ""] = href.split("?");
-      if (path === "/leads" && query) openByParam(`?${query}`);
-    };
-    window.addEventListener("bpms:open-record", onOpen);
-    return () => window.removeEventListener("bpms:open-record", onOpen);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, allLeads.length > 0);
   async function ลบไฟล์นี้(f: DealerFile) {
     if (!(await ยืนยัน({ หัวข้อ: `ลบไฟล์ "${f.name}" ?`, รายละเอียด: "ย้อนกลับไม่ได้", ปุ่มตกลง: "ลบไฟล์", อันตราย: true }))) return;
     try { await ลบไฟล์(f); setToast("ลบไฟล์แล้ว"); }
@@ -1384,10 +1378,11 @@ export default function LeadsPage() {
                     → เติม minWidth ให้ครบเหมือนกัน */}
                 <colgroup>
                   {/* ลำดับคอลัมน์ตามที่บอสสั่ง 28 ต.ค. 69 · ข้อความตกบรรทัดได้ ไม่ตัดเป็น "…" */}
-                  <col style={{width:"15%", minWidth:150}} />{/* บริษัท / ผู้ติดต่อ */}
-                  {!hiddenCols.includes("province") && <col style={{width:"8%", minWidth:84}} />}
+                  {/* 10 พ.ย. 69: หัว "จังหวัดหน้างาน" ถูกตัดที่จอ 1366 (8% แคบกว่าคำ) → จังหวัด 13% · บริษัท 15→12 · งานที่ต้องการ 11→9 (ทั้งสองตกบรรทัดได้) · รวม 100 */}
+                  <col style={{width:"12%", minWidth:150}} />{/* บริษัท / ผู้ติดต่อ */}
+                  {!hiddenCols.includes("province") && <col style={{width:"13%", minWidth:84}} />}{/* จังหวัดหน้างาน — หัวห้ามตัด */}
                   {!hiddenCols.includes("source")   && <col style={{width:"8%", minWidth:84}} />}
-                  {!hiddenCols.includes("project")  && <col style={{width:"11%", minWidth:110}} />}{/* งานที่ต้องการ */}
+                  {!hiddenCols.includes("project")  && <col style={{width:"9%", minWidth:110}} />}{/* งานที่ต้องการ */}
                   {!hiddenCols.includes("area")     && <col style={{width:"7%", minWidth:76}} />}
                   <col style={{width:"11%", minWidth:124}} />{/* ขั้นตอน (ป้ายชื่อขั้นจากตัวกลาง) — minWidth พอให้ "เสนอราคาลูกค้า" + ป้ายย่อย อยู่ได้ */}
                   <col style={{width:"9%", minWidth:112}} />{/* ความคืบหน้า แถบ 4 ช่อง + % */}

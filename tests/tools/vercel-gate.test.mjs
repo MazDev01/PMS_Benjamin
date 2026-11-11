@@ -39,7 +39,7 @@ const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถู�
 try {
   mkdirSync(repo);
   execFileSync("git", ["init", "-q", "-b", "monorepo"], { cwd: repo });
-  for (const f of [".vercelignore", "scripts/vercel-should-build.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/session.mjs"]) คัด(f);
+  for (const f of [".vercelignore", "scripts/vercel-should-build.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/flakyAck.mjs", "scripts/lib/flakyLog.mjs", "scripts/lib/session.mjs"]) คัด(f);
   เขียน("scripts/check-อื่น.mjs", "// สคริปต์ดูแลระบบ — ต้องถูกกัน\n");
   เขียน("apps/hq/page.ts", "export const a = 1;\n");
   const พัง = process.env.PMS_VERCEL_MUTATE;

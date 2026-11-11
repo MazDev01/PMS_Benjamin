@@ -145,7 +145,7 @@ test("[tax] ใบเก่าที่ยังไม่มีข้อมู�
       await loginUI(page, DEALER_ORIGIN, "/login", RYG);
       await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
       await settle(page);
-      await page.getByPlaceholder(/ค้นหา/).first().fill(เก่า);
+      await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เก่า);
       const แถว = page.locator("tbody tr").filter({ hasText: เก่า }).first();
       await expect(แถว).toBeVisible({ timeout: 20_000 });
       await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"

@@ -1,4 +1,6 @@
 "use client";
+import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { มูลค่าลีด, วันที่สร้างอ่านง่าย } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -108,19 +110,23 @@ export default function HQLeadsPage() {
   const [เน้นเหตุผล, setเน้นเหตุผล] = useState<number | null>(null);  // Drawer — ดูอย่างเดียว
   // ?open=รหัสสาขา:รหัสลีด (กดแถวในแท็บลูกค้าเป้าหมายของแผงดีลเลอร์ · บอสสั่ง 30 ต.ค. 69) = เปิดแผงลีดนั้น แล้วล้างออกจาก URL
   //   รหัสลีดซ้ำกันได้ข้ามสาขา → ค้นในสาขานั้นเท่านั้น · ไม่พบ = ไม่เปิดอะไร
-  useEffect(() => {
-    const ค่า = new URLSearchParams(window.location.search).get("open");
-    if (!ค่า) return;
-    window.history.replaceState(null, "", window.location.pathname);
+  //   แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่ · ลิงก์กลางมาที่นี่
+  const viewLeadRef = useRef(viewLead);
+  viewLeadRef.current = viewLead;
+  useเปิดตามURL("/hq/leads", ค่า => {
+    if (!ค่า) { setViewLead(null); return; }
     const k = ค่า.indexOf(":");
-    const สาขา = ค่า.slice(0, k), รหัส = ค่า.slice(k + 1);
-    if (k < 1 || !รหัส) return;
-    let alive = true;
+    const สาขา = ค่า.slice(0, k);
+    // เลขลูกค้าเป้าหมาย (num_id) → รหัส '#L-' || (40321 + num_id) (ใบ 0036) — ลิงก์จากใบเสนอราคา/คำขอรู้แค่เลข
+    const ดิบ = ค่า.slice(k + 1), รหัส = /^\d+$/.test(ดิบ) ? `#L-${40321 + Number(ดิบ)}` : ดิบ;
+    if (k < 1 || !ดิบ) return;
+    const เดิม = viewLeadRef.current;
+    if (เดิม && เดิม.id === รหัส && dealerCodeOf(เดิม) === สาขา) return;
     leadsRepo.listPage(undefined, { limit: 20, offset: 0, dealerCodes: [สาขา], search: รหัส })
-      .then(r => { const l = r.rows.find(x => x.id === รหัส && dealerCodeOf(x) === สาขา); if (alive && l) setViewLead(l); })
+      .then(r => { const l = r.rows.find(x => (x.id === รหัส || String(x.numId) === รหัส) && dealerCodeOf(x) === สาขา); if (l) setViewLead(l); })
       .catch(e => logRepoRead("leads.listPage(open)", e));
-    return () => { alive = false; };
-  }, []);
+  });
+  useแผงในURL(viewLead ? `${dealerCodeOf(viewLead)}:${viewLead.id}` : null);
   // ระดับที่เลือก (ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์) — ทุกการ์ด/กราฟ/รายชื่อคิดตามระดับนี้ (บอสสั่ง 2 พ.ย. 69)
   const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
   const ช่วงการ์ด = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
@@ -554,7 +560,7 @@ export default function HQLeadsPage() {
               <col style={{ width: "8%" }} />{/* มูลค่า */}
               <col style={{ width: "7%" }} />{/* ผู้รับผิดชอบ */}
               <col style={{ width: "8%" }} />{/* กิจกรรมล่าสุด "28 ต.ค. 2569" + ต้องติดตาม */}
-              <col style={{ width: 44 }} />{/* ดู — ไอคอนล้วน */}
+              <col style={{ width: "4%" }} />{/* ดู — ไอคอนล้วน · ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
             </colgroup>
             <thead><tr>
               <th>บริษัท / ผู้ติดต่อ</th>{!ซ่อนรายชื่อ.ดีลเลอร์ && <th>ดีลเลอร์</th>}{!ซ่อนรายชื่อ.จังหวัด && <th>{ช่อง.จังหวัด}</th>}<th>{ช่อง.ช่องทาง}</th><th>{ช่อง.งาน}</th><th className="num">{ช่อง.พื้นที่}</th>
@@ -583,7 +589,7 @@ export default function HQLeadsPage() {
                     </td>
                     {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · ไม่มีรหัส) */}
                     {!ซ่อนรายชื่อ.ดีลเลอร์ && <td data-cell="dealer" title={DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"}
+                      {l.dealerCode ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</ลิงก์ข้อมูล> : "—"}
                     </td>}
                     {!ซ่อนรายชื่อ.จังหวัด && <td data-cell="province" style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>}
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source || undefined}>{l.source || "—"}</td>
@@ -645,7 +651,7 @@ export default function HQLeadsPage() {
               <ป้ายหัวแผง bg={c.bg} color={c.text} attrs={{ "data-stage-label": "" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</ป้ายหัวแผง>
               <ป้ายหัวแผง>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</ป้ายหัวแผง>
             </>}
-            subtitle={`${l.id} · ${l.contact || "—"} · ${DEALER_NAME.get(l.dealerCode ?? "") ?? "—"}`}
+            subtitle={<>{l.id} · {l.contact || "—"} · {l.dealerCode ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</ลิงก์ข้อมูล> : "—"}</>}
             tabs={[
               { key: "overview", label: "ภาพรวม" },
               { key: "activity", label: "กิจกรรม", count: l.activities?.length ?? 0 },
@@ -688,7 +694,7 @@ export default function HQLeadsPage() {
                 </PanelSection>
 
                 <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">
-                  <PanelRow icon={Store} label="ดีลเลอร์" value={DEALER_NAME.get(l.dealerCode ?? "")} />
+                  <PanelRow icon={Store} label="ดีลเลอร์" value={l.dealerCode ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</ลิงก์ข้อมูล> : undefined} />
                   <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={l.assigned} />
                 </PanelSection>
 

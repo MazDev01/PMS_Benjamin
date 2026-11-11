@@ -81,9 +81,9 @@ async function ตรวจตาราง(page: Page, cfg: ตั้งค่�
   await รอโหลด(page);
   const dim = await ตาราง(page).getAttribute("data-drill-table");
   for (const c of cfg.คอลัมน์) {
-    if (!c.sum) continue;   // อัตรา/ค่าเฉลี่ยรวมแถวไม่ได้ — การ์ดอัตราเทียบกับผลรวมด้านล่างของการ์ดเองอยู่แล้ว
+    if (!c.sum) continue;   // ไม่ใช่การข้าม: คอลัมน์อัตรา/ค่าเฉลี่ยรวมแถวไม่ได้ (ตามตั้งค่า ไม่ขึ้นกับข้อมูล)
     const ใบ = cfg.การ์ด.find(x => x.k === c.k);
-    if (!ใบ || (dim === "month" && !มีรายเดือน(ใบ))) continue;
+    if (!ใบ || (dim === "month" && !มีรายเดือน(ใบ))) continue;   // ไม่ใช่การข้าม: คอลัมน์ที่ไม่มีการ์ดคู่/ไม่มีรายเดือนตามตั้งค่า (ไม่ขึ้นกับข้อมูล)
     const รวม = await ผลรวมคอลัมน์(page, c.k);
     const ค่า = await ค่าการ์ด(page, ใบ.kpi);
     // คอลัมน์ถูกซ่อน (ทั้งตาราง "—") = การ์ดต้องไม่มีค่าเช่นกัน
@@ -128,7 +128,8 @@ async function ตรวจทุกแท็บ(page: Page, cfg: ตั้ง�
 /** 4: กดแถวเดือน → แผงรายดีลเลอร์ ไม่มีแถวรวม · ผลรวมรายดีลเลอร์ = แถวของเดือนนั้น */
 async function ตรวจแผงเดือน(page: Page, cfg: ตั้งค่าเจาะลึก, ระดับ: string) {
   const แถว = ตาราง(page).locator("tbody tr.clickable").first();
-  if (!(await แถว.count())) return;
+  // ไม่มีแถวเดือน = ตก ไม่ใช่ผ่านเงียบ (บอสสั่ง 11 พ.ย. 69)
+  expect(await แถว.count(), `ขาดข้อมูล: ${ระดับ} ไม่มีแถวรายเดือนให้กด`).toBeGreaterThan(0);
   const ค่าแถว = Object.fromEntries(await แถว.locator("[data-cell]").evaluateAll(es => es.map(e => [e.getAttribute("data-cell"), e.getAttribute("data-value")])));
   await แถว.click();
   const แผง = page.locator('[data-drill-drawer^="month:"]');

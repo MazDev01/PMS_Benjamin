@@ -14,10 +14,12 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { ไฟล์รับทราบ, คำรอรับทราบ, สถานะในcommit, เหตุรอรับทราบ } from "./flakyAck.mjs";
 
 export const ไฟล์บันทึกโค้ด = "supabase/gate-passed-code.txt";
 // tests/flaky-log.txt: ตัวนับข้อไม่นิ่ง (รอบตรวจเขียนเอง · คนเพิ่มบรรทัดต้นเหตุ) — ไม่นับในลายนิ้วมือ (scripts/lib/flakyLog.mjs)
-export const ไฟล์ของรอบตรวจ = [ไฟล์บันทึกโค้ด, "supabase/gate-passed-migrations.json", "tests/flaky-log.txt"];
+// supabase/gate-flaky-ack.txt: รอบที่มีข้อไม่นิ่ง รอบอสรับทราบ (scripts/lib/flakyAck.mjs · 11 พ.ย. 69) — ไม่นับในลายนิ้วมือเหมือนกัน
+export const ไฟล์ของรอบตรวจ = [ไฟล์บันทึกโค้ด, "supabase/gate-passed-migrations.json", "tests/flaky-log.txt", ไฟล์รับทราบ];
 
 const git = (args, cwd) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 << 20 }).trim();
 
@@ -48,12 +50,13 @@ export function สภาพตอนเริ่ม(cwd = process.cwd()) {
 }
 
 /** รอบตรวจผ่าน → ต่อท้ายลายนิ้วมือลงไฟล์บันทึก (ในโฟลเดอร์ทำงาน · commit ไฟล์นี้พร้อมงาน) · คืนเหตุผลถ้าไม่บันทึก ("" = บันทึกแล้ว) */
-export function บันทึกcommitที่ผ่าน({ sha, ค้าง, ป้าย = "", cwd = process.cwd() }) {
+/** รอรับทราบ = รอบผ่านแต่มีข้อไม่นิ่ง → บรรทัดลงท้ายคำว่า "รอรับทราบ" (ตรวจcommitผ่านไม่นับจนกว่าบอสรับทราบ · flakyAck.mjs) */
+export function บันทึกcommitที่ผ่าน({ sha, ค้าง, ป้าย = "", รอรับทราบ = false, cwd = process.cwd() }) {
   if (ค้าง.length) return `ตอนเริ่มรอบตรวจมีไฟล์ที่ยังไม่ commit ${ค้าง.length} ไฟล์ — ผลนี้ไม่ใช่ของ commit ${sha.slice(0, 7)} จึงไม่บันทึก`;
   const เวลา = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 19).replace("T", "_");
   const f = path.join(cwd, ไฟล์บันทึกโค้ด);
   if (!existsSync(f)) appendFileSync(f, "# ลายนิ้วมือโค้ดที่ผ่านรอบตรวจเต็ม — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (scripts/lib/commitGate.mjs)\n");
-  appendFileSync(f, `${ลายนิ้วมือโค้ด(sha, cwd)} ${เวลา} ${sha.slice(0, 12)} ${ป้าย}\n`);
+  appendFileSync(f, `${ลายนิ้วมือโค้ด(sha, cwd)} ${เวลา} ${sha.slice(0, 12)} ${ป้าย}${รอรับทราบ ? ` ${คำรอรับทราบ}` : ""}\n`);
   return "";
 }
 
@@ -62,8 +65,16 @@ export function ตรวจcommitผ่าน(sha = "HEAD", cwd = process.cwd()
   const ลาย = ลายนิ้วมือโค้ด(sha, cwd);
   let บันทึก = "";
   try { บันทึก = git(["show", `${sha}:${ไฟล์บันทึกโค้ด}`], cwd); } catch { /* ยังไม่มีไฟล์บันทึก */ }
-  const เจอ = บันทึก.split("\n").find(l => l.startsWith(ลาย + " "));
+  const ของลาย = บันทึก.split("\n").map(l => l.trimEnd()).filter(l => l.startsWith(ลาย + " "));
+  // บรรทัด "รอรับทราบ" (รอบมีข้อไม่นิ่ง · 11 พ.ย. 69) นับเมื่อบอสรับทราบรอบนั้นแล้ว (ไฟล์รับทราบใน commit เดียวกัน)
+  const รอ = (l) => l.endsWith(" " + คำรอรับทราบ);
+  const รับ = ของลาย.some(รอ) ? สถานะในcommit(sha, cwd) : null;
+  const เจอ = ของลาย.find(l => !รอ(l) || รับ.รับทราบแล้ว.has(l.split(" ")[3] ?? ""));
   if (เจอ) return { ผ่าน: true, ลายนิ้วมือ: ลาย, จาก: เจอ.split(" ")[2] ?? "" };
+  if (ของลาย.length) {
+    const ป้าย = ของลาย[0].split(" ")[3] ?? "";
+    return { ผ่าน: false, ลายนิ้วมือ: ลาย, รอรับทราบ: ป้าย, เหตุ: เหตุรอรับทราบ(ป้าย, รับ.รอ.find(x => x.ป้าย === ป้าย)?.ข้อ ?? []) };
+  }
   return { ผ่าน: false, ลายนิ้วมือ: ลาย,
     เหตุ: `commit ${git(["rev-parse", "--short", sha], cwd)} ยังไม่มีผลรอบตรวจเต็มผ่าน — รัน npm run test:prodbuild ให้ผ่าน (ตก 0) แล้ว commit ${ไฟล์บันทึกโค้ด}` };
 }

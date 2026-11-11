@@ -63,7 +63,8 @@ test("ดีลเลอร์เขียนบันทึกของสำ�
 test("แก้/ลบบันทึกย้อนหลังไม่ได้ (append-only)", async () => {
   const hq = await as(ADMIN);
   const { data: rows } = await hq.from("audit_log").select("id").limit(1);
-  test.skip(!rows?.length, "ยังไม่มีบันทึกในระบบให้ทดสอบ");
+  // ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69) — ข้อมูลตั้งต้นมีบันทึกการใช้งานตัวอย่าง 1 แถว (tests/fixtures/test-baseline.sql)
+  expect(rows?.length ?? 0, "ขาดข้อมูล: ไม่มีบันทึกการใช้งานในฐานทดสอบ (ข้อมูลตั้งต้นต้องมีแถวตัวอย่าง)").toBeGreaterThan(0);
   const id = rows![0].id;
 
   const upd = await hq.from("audit_log").update({ action: "ZZTEST-แก้ย้อนหลัง" }).eq("id", id).select();

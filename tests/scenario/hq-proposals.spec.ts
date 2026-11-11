@@ -83,11 +83,12 @@ test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาร�
     await expect(แผง.getByRole("button", { name: ปุ่ม, exact: true }), `แผงรายละเอียดไม่มีปุ่ม ${ปุ่ม}`).toHaveCount(0);
 
   // ลิงก์ไปผู้สนใจ → แผงรายนั้นต้องเปิดเอง · ตอบรับใบที่แผงผู้สนใจ
-  await แผง.getByRole("link", { name: "ผู้สนใจ" }).click();
+  await แผง.getByRole("link", { name: "ผู้สนใจ", exact: true }).click();
   await expect(page).toHaveURL(/\/hq\/prospects/, { timeout: 25_000 });
   const รายละเอียด = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await expect(รายละเอียด.locator("#pr-name"), "ต้องเปิดแผงของรายที่กดมา").toHaveValue(name, { timeout: 25_000 });
-  await expect(page, "ล้างพารามิเตอร์แล้ว รีเฟรชไม่เปิดซ้ำ").not.toHaveURL(/open=/);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · กลับด้านจาก "ล้างพารามิเตอร์"): ?open คงอยู่ → ย้อนกลับ/รีเฟรชได้แผงเดิม
+  await expect(page, "แผงผู้สนใจอยู่ในที่อยู่หน้าเว็บ").toHaveURL(/\/hq\/prospects\?open=\d+/);
   await รายละเอียด.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click();
   await รายละเอียด.getByLabel(`สถานะใบ ${เลขที่}`).selectOption("accepted");
   await กดตกลงในกล่องยืนยัน(page);

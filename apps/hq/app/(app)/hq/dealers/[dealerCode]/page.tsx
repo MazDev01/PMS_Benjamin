@@ -1,12 +1,15 @@
 "use client";
-import { use } from "react";
-import { AdminGate } from "@pms/shared/components/layout/AdminGate";
-import { DealersRegistry } from "../DealersRegistry";
+import { use, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-// ── /hq/dealers/[รหัส] = หน้ารายการดีลเลอร์พร้อมแผงของดีลเลอร์นั้น (บอสสั่ง 30 ต.ค. 69) ──
-//   ลิงก์เก่าและกระดิ่งที่ชี้มาที่นี่ยังใช้ได้ · ปิดแผง = อยู่หน้ารายการ (URL กลับเป็น /hq/dealers)
-//   เดิมเป็นหน้ารายละเอียดเต็มจอ (แท็บ ภาพรวม/ลูกค้าเป้าหมาย/ใบเสนอ/ลูกค้า/กิจกรรม) — ย้ายเข้าแผงทั้งหมดแล้ว
+// ── /hq/dealers/[รหัส] = ลิงก์เก่า (กระดิ่ง/บันทึก/ลิงก์ที่จดไว้) → ที่อยู่แบบเดียว /hq/dealers?open=รหัส (บอสสั่ง 11 พ.ย. 69 · แผงอยู่ในที่อยู่หน้าเว็บ) ──
+//   แทนที่ทันทีโดยไม่วาดแผงเอง — ถ้าวาดรายการ+แผงที่นี่แล้วค่อยแทนที่ หน้าวาดใหม่ แท็บที่กดไปแล้วกลับเป็นภาพรวม (ข้อทดสอบ hq-quote-detail-layout ตก)
+//   สิทธิ์ตรวจที่หน้าปลายทาง (AdminGate ของ /hq/dealers) · เดิม (30 ต.ค. 69) หน้านี้วาด DealersRegistry พร้อมแผงเอง
 export default function DealerDrillDownPage({ params }: { params: Promise<{ dealerCode: string }> }) {
   const { dealerCode } = use(params);
-  return <AdminGate perm="dealers:manage"><DealersRegistry เปิดรหัส={decodeURIComponent(dealerCode).toUpperCase()} /></AdminGate>;
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(`/hq/dealers?open=${encodeURIComponent(decodeURIComponent(dealerCode).toUpperCase())}`, { scroll: false });
+  }, [dealerCode, router]);
+  return null;
 }

@@ -39,7 +39,7 @@ test.beforeAll(async () => {
   เลขใบ = (await ทำใบลูกค้าจากใบHQ(สาขา.บัญชี, ใบ, { customer: ลูกค้า, markupPercent: 10, extra: { date: "2026-01-05" } })).id;
 });
 test.afterAll(async () => {
-  if (!สาขา) return;
+  if (!สาขา) return;   // ไม่ใช่การข้าม: ตัวล้างหลังทดสอบ — ขั้นเตรียมไม่สำเร็จ = ไม่มีอะไรต้องล้าง
   if (ใบ) ล้างใบHQทดสอบ(สาขา.รหัส, [ใบ.leadNum]);
   await สาขา.ลบ();
 });
@@ -52,7 +52,7 @@ const ใบในแผง = (page: import("@playwright/test").Page, id: string
 async function เปิดแผงใบ(page: import("@playwright/test").Page) {
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
   const แถว = page.locator("tbody tr").filter({ hasText: เลขใบ }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   await expect(แถว.getByTitle(/แก้ไข|ทำฉบับใหม่|ส่งให้ลูกค้า|ลบใบเสนอราคา/), "รอบ 4: แถวในหน้ารายการไม่มีปุ่มทำงานของใบ").toHaveCount(0);
@@ -201,7 +201,7 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
   const คาด = [เลขใบ, `${เลขใบ}-V2`].sort();
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(เลขใบ);
   const ดีลเลอร์ = await เลขที่ในตาราง(page, เลขใบ);
   expect(ดีลเลอร์.map(x => x.text).sort(), "ดีลเลอร์: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);
   expect(ดีลเลอร์.filter(x => x.ตัด), "ดีลเลอร์: เลขที่ไม่ถูกตัด").toEqual([]);

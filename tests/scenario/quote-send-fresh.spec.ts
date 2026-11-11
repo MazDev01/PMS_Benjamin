@@ -56,7 +56,7 @@ async function เตรียมV2แก้แล้ว(page: Page, ใบ: ใ
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByPlaceholder(/ค้นหา/).first().fill(v1);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(v1);
   const แถว = page.locator("tbody tr").filter({ hasText: v1 }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });
   await ไปแผงลีดจากแถวใบ(แถว);  // 28 ต.ค. 69: กดแถว = แผงดูใบในหน้าเดิม → ปุ่ม "ไปแผงลีด"
