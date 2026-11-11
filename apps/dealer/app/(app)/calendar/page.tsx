@@ -98,15 +98,20 @@ export default function CalendarPage() {
   const [editAppt, setEditAppt] = useState<AppointmentMock | null>(null);
 
   // นัดหมายทั้งหมดจาก context (allAppts มาจาก useSales ด้านบน)
+  // ตัวเลือก "แสดงนัดที่ยกเลิก" (บอสสั่ง 11 พ.ย. 69): ปิด = ซ่อนนัดที่ยกเลิกจากตารางเดือน/สัปดาห์/วัน รายการวันที่เลือก และรายการนัด (ชิปนับตามที่เห็น)
+  //   มาจากการ์ด "งานที่ต้องทำวันนี้" ของแดชบอร์ด (?view=today) = ปิดไว้ก่อน — นิยามเดียวกับการ์ด (ไม่นับนัดที่ยกเลิก) จำนวนจึงเท่ากัน
+  //   เปิดหน้าปกติ = แสดง (เหมือนเดิม) · การ์ด KPI 4 ใบด้านบนคิดที่ฐาน ไม่ขึ้นกับตัวเลือกนี้
+  const [แสดงยกเลิก, setแสดงยกเลิก] = useState(true);
+  const นัดที่เห็น = useMemo(() => แสดงยกเลิก ? allAppts : allAppts.filter(a => a.status !== "cancelled"), [allAppts, แสดงยกเลิก]);
 
   // Today / Upcoming / Overdue grouping (relative to GROUP_TODAY)
   const groups = useMemo(() => {
     const g = { today: [] as AppointmentMock[], upcoming: [] as AppointmentMock[], overdue: [] as AppointmentMock[] };
-    allAppts.forEach(a => { const key = apptGroup(a); if (key) g[key].push(a); });
+    นัดที่เห็น.forEach(a => { const key = apptGroup(a); if (key) g[key].push(a); });
     const sortFn = (a: AppointmentMock, b: AppointmentMock) => (a.date + a.time).localeCompare(b.date + b.time);
     g.today.sort(sortFn); g.upcoming.sort(sortFn); g.overdue.sort(sortFn);
     return g;
-  }, [allAppts]);
+  }, [นัดที่เห็น]);
 
   const groupedList = useMemo(() => {
     if (groupFilter === "all") return [...groups.today, ...groups.overdue, ...groups.upcoming];
@@ -115,9 +120,9 @@ export default function CalendarPage() {
 
   const byDate = useMemo(() => {
     const map: Record<string, AppointmentMock[]> = {};
-    allAppts.forEach(a => { (map[a.date] ??= []).push(a); });
+    นัดที่เห็น.forEach(a => { (map[a.date] ??= []).push(a); });
     return map;
-  }, [allAppts]);
+  }, [นัดที่เห็น]);
 
   const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -152,6 +157,13 @@ export default function CalendarPage() {
   // ?open=เลขนัด (กระดิ่ง "นัดหมายวันนี้" · ใบ 0231) — ไปวันนั้นแล้วเปิดรายละเอียดนัด · ล้างออกจาก URL
   //   อยู่หน้านี้อยู่แล้วกดกระดิ่งอีก = ฟัง bpms:open-record
   const [ขอเปิด, setขอเปิด] = useState<number | null>(null);
+  // ?view=today (การ์ด "งานที่ต้องทำวันนี้" ของแดชบอร์ด · บอสตอบ 11 พ.ย. 69) = มุมมองวันของวันนี้ + รายการนัดกรอง "วันนี้"
+  //   จำนวนนัดวันนี้ = กลุ่ม today (นัดที่วันที่ = วันนี้ ทุกสถานะ · นิยามเดียวกับการ์ด "นัดวันนี้" ที่ฐาน) · ล้างออกจาก URL (ย้อนกลับ = แดชบอร์ด)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("view") !== "today") return;
+    setView("day"); goToday(); setGroupFilter("today"); setแสดงยกเลิก(false);
+    window.history.replaceState(null, "", "/calendar");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setขอเปิด(Number(new URLSearchParams(window.location.search).get("open")) || null);
     const on = (e: Event) => {
@@ -206,6 +218,10 @@ export default function CalendarPage() {
       {/* Header */}
       {/* หัวหน้า/ปุ่ม → ไปอยู่บนแถบบน (ชื่อหน้ามาจาก Topbar) */}
       <TopbarActions>
+        <label data-act="show-cancelled" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 700, color: "#2D2D2D", cursor: "pointer", whiteSpace: "nowrap" }}>
+          <input type="checkbox" checked={แสดงยกเลิก} onChange={e => setแสดงยกเลิก(e.target.checked)} style={{ cursor: "pointer" }} />
+          แสดงนัดที่ยกเลิก
+        </label>
         <ViewSwitcher view={view} onChange={setView} />
         {/* ปุ่ม "+ เพิ่มกิจกรรม" บนแถบบน เอาออกตามที่บอสสั่ง
             (ยังเพิ่มกิจกรรมได้ที่ปุ่ม + ในแผงนัดหมายของวันที่เลือก) */}
@@ -353,7 +369,7 @@ export default function CalendarPage() {
             {selectedAppts.length === 0 ? (
               <div className="card-body" style={{ fontSize: "0.8rem", color: MUTED, textAlign: "center", padding: "18px 0 22px" }}>ไม่มีนัดหมายวันนี้</div>
             ) : (
-              <div>
+              <div data-day-list={selectedDate} data-count={selectedAppts.length}>
                 {selectedAppts.map(a => <ApptRow key={a.id} a={a} onOpen={() => setDetail(a)} />)}
               </div>
             )}
@@ -372,7 +388,7 @@ export default function CalendarPage() {
                 ]).map(c => {
                   const active = groupFilter === c.k;
                   return (
-                    <button key={c.k} onClick={() => setGroupFilter(c.k)}
+                    <button key={c.k} onClick={() => setGroupFilter(c.k)} data-group-chip={c.k} data-count={c.n} aria-pressed={active}
                       style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", padding: "5px 10px", borderRadius: 99,
                         border: active ? `1.5px solid ${c.col}` : `1px solid ${BORDER}`, background: active ? c.col : "#fff",
                         color: active ? "#fff" : "#2D2D2D", fontSize: "0.72rem", fontWeight: 700 }}>
@@ -666,7 +682,7 @@ function ViewSwitcher({ view, onChange }: { view: ViewMode; onChange: (v: ViewMo
       {items.map((it, i) => {
         const active = view === it.v;
         return (
-          <button key={it.v} onClick={() => onChange(it.v)}
+          <button key={it.v} onClick={() => onChange(it.v)} data-view={it.v} aria-pressed={active}
             style={{
               padding: "7px 16px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", border: "none",
               borderLeft: i === 0 ? "none" : `1px solid ${BORDER}`,

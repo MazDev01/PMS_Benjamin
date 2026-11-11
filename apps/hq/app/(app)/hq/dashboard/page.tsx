@@ -147,7 +147,9 @@ export default function HQDashboard() {
               </span>
             ) : (
               <>
-                <Link href="/hq/quote-requests?overdue=1" data-testid="today-requests" className="clickable"
+                {/* ทั้งกล่องเป็นลิงก์เดียว (ข้อความ · ตัวเลข · ลูกศร) ไปหน้าปลายทางทันที · ปุ่มย้อนกลับกลับมาแดชบอร์ด (บอสสั่ง 11 พ.ย. 69)
+                    ตัวเลข = คำขอ new/pricing ทั้งหมด → แท็บต้องตีราคาไม่กรองเพิ่ม (เดิม ?overdue=1 กรองเฉพาะเกินกำหนด จำนวนไม่ตรงกล่อง) */}
+                <Link href="/hq/quote-requests?view=todo" data-testid="today-requests" className="clickable"
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", border: "1px solid #e6eaf0", borderRadius: 12, textDecoration: "none", color: "inherit" }}>
                   <ClipboardList size={18} color={PRIMARY} />
                   <span style={{ fontSize: "0.82rem", color: "#374151" }}>คำขอใบเสนอราคารอตีราคา</span>

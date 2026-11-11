@@ -78,15 +78,16 @@ export default function HQQuoteRequestsPage() {
   const ตั้งกำลังบันทึก = useCallback((v: boolean) => { ล็อก.current = v; }, []);
 
   // มาจากกระดิ่ง (ใบ 0231): ?open=เลขคำขอ = เปิดหน้าต่างของคำขอนั้น · ?overdue=1 = เฉพาะเกินกำหนด · ?q= = เติมช่องค้นหา
+  //   ?view=todo (แถว "วันนี้ต้องทำ" ของแดชบอร์ด · บอสสั่ง 11 พ.ย. 69) = แท็บต้องตีราคา ไม่กรองเพิ่ม — จำนวนแถว = ตัวเลขในกล่อง (สถานะ new/pricing ทั้งเครือ)
   const เปิดจากลิงก์ = useCallback((search: string) => {
     const u = new URLSearchParams(search);
-    const q = u.get("q"), open = Number(u.get("open")), overdue = u.get("overdue");
-    if (!q && !open && !overdue) return;
+    const q = u.get("q"), open = Number(u.get("open")), overdue = u.get("overdue"), view = u.get("view");
+    if (!q && !open && !overdue && view !== "todo") return;
     window.history.replaceState(null, "", window.location.pathname);
     if (q) { setพิมพ์(q); return; }
     if (ล็อก.current) return;
     setพิมพ์(""); setดีลเลอร์("");
-    if (overdue) { setเปิดรหัส(null); setมุมมอง("main"); setเฉพาะเกิน(true); return; }
+    if (overdue || view === "todo") { setเปิดรหัส(null); setมุมมอง("main"); setเฉพาะเกิน(!!overdue); return; }
     setเฉพาะเกิน(false); setสถานะ("all"); setเปิดรหัส(open);   // มุมมองตามกลุ่มของคำขอนั้น (ด้านล่าง เมื่อโหลดแถวแล้ว)
   }, []);
   useEffect(() => { เปิดจากลิงก์(window.location.search); }, [เปิดจากลิงก์]);
