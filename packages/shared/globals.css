@@ -1313,6 +1313,11 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 /* แบบพื้นเข้ม (หัวหน้าต่าง/หัวแผงพื้นน้ำเงินเข้ม): สีขาว ขีดเส้นใต้ตลอด (สีน้ำเงินอ่านไม่ออกบนพื้นเข้ม) */
 .rec-link.rec-link-dark { color:#fff; text-decoration:underline; text-underline-offset:2px; text-decoration-color:rgba(255,255,255,.7); }
 .rec-link.rec-link-dark:hover, .rec-link.rec-link-dark:focus-visible { text-decoration-color:#fff; }
+/* จอเล็ก: เป้ากดสูงอย่างน้อย 30px ตามเกณฑ์ปุ่มบนมือถือ (tests/scenario/mobile-usable.spec.ts) — ตกรอบ deploy19: ลิงก์ชื่อในตารางสูง ~18px
+   inline-flex ให้สูงขึ้นได้โดยตัวอักษรอยู่กลางแนวตั้ง · ไม่ขยายความกว้าง (กดที่ว่างของแถวยังเปิดแผงของแถวได้ · บอสเลือก 11 พ.ย. 69) */
+@media (max-width: 760px) {
+  .rec-link { display:inline-flex; align-items:center; min-height:30px; max-width:100%; vertical-align:middle; }
+}
 .pg-title { font-size:1.6rem; font-weight:800; color:var(--text); line-height:1.2; margin:0 0 3px; letter-spacing:-.01em; }
 .pg-sub { font-size:.8rem; color:var(--sub); margin:0; }
 

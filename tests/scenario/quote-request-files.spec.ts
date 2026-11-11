@@ -321,14 +321,18 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByLabel("ค้นหาคำขอ").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
-  await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().click();
+  await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().locator("td").first().click();   // ช่องเลขคำขอ (ไม่ใช่ลิงก์ · บอสเลือก 11 พ.ย. 69)
   const ใบ = หน้าต่างใบHQ(page);
   await expect(ใบ.getByLabel("หน่วย 1", { exact: true }), "หน่วยเดิมนอกรายการยังแสดงตามที่บันทึก").toHaveValue("เที่ยว", { timeout: 20_000 });
   expect((await hq.rpc("hq_quote_send", { p_request_id: rid })).error).toBeNull();
   await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
+  // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69): รีโหลดแล้วหน้าต่างใบเดิมเปิดค้างเอง — ตรวจแล้วปิดก่อนเลือกกลุ่ม (ตกรอบ deploy19: หน้าต่างบังแท็บประวัติ)
+  await expect(ใบ, "รีโหลดแล้วหน้าต่างใบ HQ เดิมยังเปิด (?open=)").toBeVisible({ timeout: 20_000 });
+  await ใบ.getByRole("button", { name: "ปิด" }).click();
+  await expect(ใบ).toHaveCount(0);
   await เลือกกลุ่มคำขอ(page, "quoted");   // ส่งใบแล้ว = คำขอย้ายไปกลุ่ม "ส่งแล้ว รอดีลเลอร์"
   await page.getByLabel("ค้นหาคำขอ").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
-  await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().click();
+  await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().locator("td").first().click();   // ช่องเลขคำขอ (ไม่ใช่ลิงก์ · บอสเลือก 11 พ.ย. 69)
   await expect(ใบ.locator("[data-panel='quote-files'] [data-files-side='hq']"), "HQ หลังส่งใบ: กลุ่มไฟล์ HQ ยังอยู่").toBeVisible({ timeout: 20_000 });
   await expect(ใบ.locator("[data-file-drop]"), "หลังส่งใบ HQ ไม่มีกล่องแนบ").toHaveCount(0);
   await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกแล้ว — ส่งใบ HQ แล้ว/);

@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readdirSync, rmSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { ซ้อมใบ } from "../../scripts/lib/migrationRehearsal.mjs";
+import { ซ้อมใบ, อ่านความพร้อม, ข้อความผิดเต็ม } from "../../scripts/lib/migrationRehearsal.mjs";
 
 let ตก = 0;
 const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถูก) ตก++; console.log(`${ถูก ? "✓" : "✗"} ${ชื่อ}${ถูก ? "" : `\n   ${String(เพิ่ม).slice(0, 900)}`}`); };
@@ -22,6 +22,19 @@ create table public.zz_log (at timestamptz default now());
 create function public.zz_log_it() returns trigger language plpgsql as $$ begin insert into public.zz_log default values; return new; end $$;
 create trigger zz_probe_log after update on public.zz_probe for each row execute function public.zz_log_it();
 insert into public.zz_probe values (1);`;
+// ── ข้อไม่นิ่ง deploy19 (11 พ.ย. 69): ลงใบ 0001 ไม่สำเร็จ ข้อความว่าง ──
+//   เกณฑ์พร้อมเดิม "ถามได้ 3 วินาทีติดกัน" ผ่านได้ตอนยังเป็นเซิร์ฟเวอร์ชั่วคราวของ init · ข้อความผิดถูกกรองเหลือแค่บรรทัด ERROR
+//   ตกบนโค้ดเดิม: ไม่มี อ่านความพร้อม / ข้อความผิดเต็ม
+{
+  const ชั่วคราว = "1||2026-11-11 07:00:00+00", จริงก = "1|*|2026-11-11 07:00:05+00", จริงข = "1|*|2026-11-11 07:00:09+00";
+  ผล(!อ่านความพร้อม(ชั่วคราว, null).พร้อม && !อ่านความพร้อม(ชั่วคราว, "2026-11-11 07:00:00+00").พร้อม, "เซิร์ฟเวอร์ชั่วคราวของ init (ไม่ฟัง TCP) = ยังไม่พร้อม แม้ถามได้ติดกัน");
+  ผล(!อ่านความพร้อม(จริงก, null).พร้อม, "ตัวจริงครั้งแรก = ยังไม่พร้อม (ต้องเห็นเวลาเริ่มเดิมซ้ำ)");
+  ผล(อ่านความพร้อม(จริงก, อ่านความพร้อม(จริงก, null).เวลาเริ่ม).พร้อม, "ตัวจริง + เวลาเริ่มเท่าครั้งก่อน = พร้อม");
+  ผล(!อ่านความพร้อม(จริงข, "2026-11-11 07:00:05+00").พร้อม, "เวลาเริ่มเปลี่ยน (รีสตาร์ต) = ยังไม่พร้อม");
+  ผล(!อ่านความพร้อม("0|*|2026-11-11 07:00:05+00", "2026-11-11 07:00:05+00").พร้อม && !อ่านความพร้อม("", null).พร้อม, "ยังไม่มีบทบาท / ถามไม่ได้ = ยังไม่พร้อม");
+  const ข้อความ = ข้อความผิดเต็ม({ status: 2, stderr: "psql: error: connection to server on socket \"/var/run/postgresql/.s.PGSQL.5432\" failed: FATAL:  the database system is shutting down" });
+  ผล(/รหัสออก 2/.test(ข้อความ) && /shutting down/.test(ข้อความ), "ข้อความผิดที่ไม่มีคำว่า ERROR ยังแสดงครบ (ไม่ว่างแบบรอบ deploy19)", ข้อความ);
+}
 try {
   const ก่อนชื่อ = spawnSync("docker", ["ps", "-a", "--format", "{{.Names}}"], { encoding: "utf8" }).stdout;
   const r = ซ้อมใบ({ ใบ: "9999_zz_rehearsal_probe.sql", โฟลเดอร์ใบ: ใบ, ก่อนลงใบ: ข้อมูล,
