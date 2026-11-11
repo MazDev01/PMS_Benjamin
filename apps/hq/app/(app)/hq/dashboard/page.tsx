@@ -21,8 +21,7 @@ import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { PlanVsActualBars, GroupedBarChart, Donut } from "@pms/shared/components/ui/Charts";
 import { SalesTrendChart } from "@pms/shared/components/ui/SalesTrendChart";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
-import { MonthRangeToggle, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
-import { ความละเอียดของช่วง, ช่องเวลาในช่วง } from "@pms/shared/lib/trendBuckets";
+import { MonthRangeToggle, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { dealers as dealersRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
@@ -76,33 +75,21 @@ export default function HQDashboard() {
   }, [เริ่ม, จบ, dealerSel]);
   useEffect(() => { const t = setTimeout(() => void โหลด(), 150); return () => clearTimeout(t); }, [โหลด, salesVersion]);
 
-  const [barRange, setBarRange] = useState<MonthRange>(6);
-  const [tgtRange, setTgtRange] = useState<MonthRange>(6);
+  // ค่าเริ่มต้น 1 ปี (บอสสั่ง 11 พ.ย. 69 · เดิม 6 เดือน) — ข้อมูลรายเดือนจากฐานมี 12 เดือนล่าสุด (hq_dashboard)
+  const [barRange, setBarRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
+  const [tgtRange, setTgtRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
 
-  // ── กราฟแนวโน้มยอดขาย: ช่วงสั้นแยกรายชั่วโมง/วัน ช่วงยาวรายเดือน (ตรรกะแบ่งช่วงอยู่ที่ trendBuckets.ts) ──
-  const ละเอียด = ความละเอียดของช่วง(timeRange.start, timeRange.end);
-  const trend = useMemo(() => {
-    if (!ข้อมูล) return [];
-    const t = ข้อมูล.trend;
-    if (ละเอียด === "hour") {
-      const byH = new Map(t.byHour.map(r => [r.h, r.sales]));
-      return Array.from({ length: 24 }, (_, h) => ({ month: `${String(h).padStart(2, "0")}:00`, value: (byH.get(h) ?? 0) / 1e6 }));
-    }
-    if (ละเอียด === "day") {
-      const byD = new Map(t.byDay.map(r => [r.d, r.sales]));
-      const pts: { month: string; value: number }[] = [];
-      for (const d = new Date(timeRange.start.getFullYear(), timeRange.start.getMonth(), timeRange.start.getDate()); d <= timeRange.end; d.setDate(d.getDate() + 1))
-        pts.push({ month: `${d.getDate()} ${TH_ABBR[d.getMonth()]}`, value: (byD.get(isoDateOf(d)) ?? 0) / 1e6 });
-      return pts;
-    }
-    const byM = new Map(t.byMonth.map(r => [`${r.y}-${r.m}`, r.sales]));
-    // ช่องเดือน + ป้ายจากตัวกลาง (ข้ามปีติดปี พ.ศ. · 4 พ.ย. 69) · คีย์ช่องรายเดือน = "ปี-เดือน(0–11)" ตรงกับ byMonth
-    return ช่องเวลาในช่วง(timeRange.start, timeRange.end, "month").map(b => ({ month: b.label, value: (byM.get(b.key) ?? 0) / 1e6 }));
-  }, [ข้อมูล, ละเอียด, timeRange.start, timeRange.end]);
-  const มียอดในช่วง = (ข้อมูล?.cards.sales ?? 0) > 0;
-  const หน่วยเวลา = ละเอียด === "hour" ? "รายชั่วโมง" : ละเอียด === "day" ? "รายวัน" : "รายเดือน";
+  // ── กราฟแนวโน้มยอดขาย: รายเดือนตามปุ่มของกราฟเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี (ค่าเริ่มต้น 1 ปี) ──
+  //   ⚠️ บอสสั่ง 11 พ.ย. 69 ทับคำตัดสินเดิม "เดินตามแถบกรองด้านบน รายชั่วโมง/รายวัน/รายเดือนตามช่วง" (25 ส.ค. 69) เฉพาะกราฟนี้
+  //      ข้อมูล = 12 เดือนล่าสุดจากฐาน (hq_dashboard.monthly · ไม่ขึ้นกับช่วงเวลาของหน้า) · ตัวกรองดีลเลอร์ยังมีผล · ยอดขายตามวันตอบรับ
+  const [trendRange, setTrendRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
+  const trend = useMemo(() => (ข้อมูล?.monthly ?? []).slice(-trendRange)
+    .map(r => ({ month: ป้ายเดือนปี(r.y, r.m), value: r.sales / 1e6 })), [ข้อมูล, trendRange]);
+  const มียอดในช่วง = trend.some(r => r.value > 0);
+  const หน่วยเวลา = "รายเดือน";
   const trendTitle = selDealer ? `ยอดขาย ${selDealer.name.replace("Benjamin ", "")} ${หน่วยเวลา}` : `ยอดขายรวมทั้งเครือ ${หน่วยเวลา}`;
 
+  const trendToggle = <MonthRangeToggle value={trendRange} onChange={setTrendRange} label="ช่วงเวลากราฟแนวโน้มยอดขาย" />;
   const เดือน = (n: number) => (ข้อมูล?.monthly ?? []).slice(-n);
   const barRows = เดือน(barRange);
   const barมีข้อมูล = barRows.some(r => r.leads + r.quotes + r.won > 0);
@@ -193,9 +180,11 @@ export default function HQDashboard() {
         <div className="card" data-card="trend" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
           <div className="card-body" style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: "1.15rem" }}>
             {มียอดในช่วง
-              ? <SalesTrendChart title={trendTitle} monthly={trend} granularity={ละเอียด} height={395} />
+              ? <SalesTrendChart title={trendTitle} monthly={trend} granularity="month" height={395} ปุ่ม={trendToggle} />
               : (<>
-                  <div className="card-title" style={{ marginBottom: 12 }}>{trendTitle}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                    <div className="card-title">{trendTitle}</div>{trendToggle}
+                  </div>
                   <กรอบว่าง text="ยังไม่มียอดขาย" h={395} />
                 </>)}
           </div>
@@ -263,7 +252,7 @@ export default function HQDashboard() {
           </div>
           <div className="card-body" style={{ paddingTop: 4, flex: 1 }}>
             {barมีข้อมูล ? (
-              <GroupedBarChart months={barRows.map(r => TH_ABBR[r.m])} vw={820} height={260} fmt={v => `${Math.round(v)}`}
+              <GroupedBarChart months={barRows.map(r => ป้ายเดือนปี(r.y, r.m))} vw={820} height={260} fmt={v => `${Math.round(v)}`}
                 series={[
                   { name: "ลูกค้าเป้าหมายใหม่", color: "#003366", data: barRows.map(r => r.leads) },
                   { name: "ใบที่ส่ง", color: "#0891b2", data: barRows.map(r => r.quotes) },   // ใบที่ส่งลูกค้า ไม่นับร่าง/ถูกแทนที่ (ใบ 0268)
@@ -280,7 +269,7 @@ export default function HQDashboard() {
           <div className="card-body" style={{ paddingTop: 8 }}>
             {tgtมียอด ? (
               <PlanVsActualBars unit="M" aLabel="ยอดขายจริง" bLabel="เป้าหมาย"
-                data={tgtRows.map(r => ({ label: TH_ABBR[r.m], actual: Math.round(r.sales / 1e6 * 10) / 10, plan: Math.round(แผนเดือน * 10) / 10 }))} />
+                data={tgtRows.map(r => ({ label: ป้ายเดือนปี(r.y, r.m), actual: Math.round(r.sales / 1e6 * 10) / 10, plan: Math.round(แผนเดือน * 10) / 10 }))} />
             ) : <กรอบว่าง text="ยังไม่มียอดขาย" />}
           </div>
         </div>

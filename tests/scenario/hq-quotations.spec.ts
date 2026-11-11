@@ -158,6 +158,8 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect.poll(() => การ์ด("awaiting"), { message: "การ์ดรอลูกค้าตอบ" }).toBe(2);
     await expect.poll(async () => Number(await page.locator('[data-chart="aging"]').getAttribute("data-sum")), { message: "อายุใบรวม = การ์ดรอลูกค้าตอบ" }).toBe(2);
     // กราฟรายเดือน (ใบ 0268): ผลรวมใบที่ส่ง = การ์ดส่งลูกค้า · ผลรวมตอบรับ = จำนวนใบบนการ์ดตอบรับ
+    //   11 พ.ย. 69 กราฟมีปุ่มของตัวเอง (ค่าเริ่มต้น 1 ปี) ไม่เดินตามช่วงหน้า — ยังเท่าการ์ดเพราะใบของข้อส่ง/ตอบรับวันนี้ (W2 ส่ง 2 ปีก่อน = นอก 12 เดือน)
+    //   (ตรวจว่าไม่ขึ้นกับช่วงหน้า: tests/scenario/monthly-chart-ranges.spec.ts)
     const กราฟ = page.locator('[data-chart="quote-monthly"]');
     await expect.poll(async () => [await กราฟ.getAttribute("data-sum-sent"), await กราฟ.getAttribute("data-sum-won")], { message: "กราฟรายเดือนรวม = การ์ด (ส่ง 4 · ตอบรับ 2 (W2 ตามวันตอบรับ))", timeout: 20_000 })
       .toEqual(["4", "2"]);

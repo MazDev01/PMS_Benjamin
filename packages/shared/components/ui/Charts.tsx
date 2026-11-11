@@ -1,5 +1,6 @@
 "use client";
 
+import { ขั้นกลม, axisTicks, niceCeil, แบบป้ายแกน, ขนาดป้ายแกน } from "@pms/shared/lib/chartAxis";   // ตัวคำนวณล้วน (ข้อทดสอบหน่วย tests/unit/chartAxis.test.ts)
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { NAVY, SILVER, STEEL } from "@pms/shared/lib/theme";
 
@@ -22,23 +23,9 @@ const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626"];
  *  เพดาน 1.5 (กรณีกราฟที่ค่าสูงสุดเป็น 1) จึงได้ขีด [0,1,2] — ขีด "2" เกินเพดาน
  *  ตำแหน่งการวาดจึงติดลบ (อยู่เหนือกรอบกราฟ 34 หน่วย) แล้ว svg ตั้ง overflow:visible มันจึงไปโผล่ทับหัวข้อการ์ด
  *  วัดจริงจากหน้าเว็บ: ล้นเหนือกรอบ svg 40.1px */
-function axisTicks(ceiling: number): number[] {
-  if (ceiling <= 4) {
-    const top = Math.max(1, Math.floor(ceiling));
-    return Array.from({ length: top + 1 }, (_, i) => i);
-  }
-  if (ceiling <= 8) return [0, 2, 4, 6, 8].filter(v => v <= ceiling);
-  return Array.from({ length: 5 }, (_, i) => (ceiling / 4) * i);
-}
-
-function niceCeil(v: number): number {
-  if (!isFinite(v) || v <= 0) return 1;
-  const pow = Math.pow(10, Math.floor(Math.log10(v)));
-  const n = v / pow;
-  const step = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(s => n <= s) ?? 10;
-  return step * pow;
-}
-
+// ── แกนตั้งเลขกลม (บอสสั่ง 11 พ.ย. 69 · ตัวคำนวณย้ายไป lib/chartAxis.ts): ขีดเป็นผลคูณของขั้น 1 · 2 · 5 × 10ⁿ (0 · 10 · 20 … หรือ 0 · 5 · 10 …) ไม่ใช่ 13 · 25 · 38 ──
+//   เดิม: เพดาน "nice" แบบ 1/1.5/2/2.5/3/4/5/6/8 แล้วแบ่ง 4 ส่วนเท่ากัน → เพดาน 50 ได้ขีด 12.5 · 25 · 37.5 (ปัดแสดง 13 · 25 · 38)
+//   ตอนนี้: เพดาน = ขั้นกลม × จำนวนขีด (≤ 4 ช่อง) → ขีดลงตัวทุกขีด และขีดบนสุด = เพดานพอดี (ตำแหน่งไม่ล้นกรอบ · บั๊ก 19 ส.ค. 69)
 // เส้นโค้งแบบ monotone (Fritsch–Carlson) — โค้งเนียนแต่ "ห้ามแกว่งเกินจุดข้อมูล"
 // ต่างจาก Catmull-Rom ที่ overshoot ได้: ยอดพุ่งแล้วดิ่ง เส้นจะจุ่มต่ำกว่าจุดจริง
 // เช่น ยอดขาย ฿11.8M เดือนหนึ่งแล้ว ฿0 เดือนถัดไป Catmull-Rom จะลากเส้นลงต่ำกว่าศูนย์ = ติดลบ
@@ -88,14 +75,24 @@ function กว้างพอสำหรับ(บรรทัด: string[], f
   return Math.max(ขั้นต่ำ, Math.ceil(ยาวสุด * fontSize * 0.75) + ช่องไฟ);
 }
 
-function labelStep(slot: number, fontSize: number, labels: string[]): number {
-  const longest = labels.reduce((m, l) => Math.max(m, String(l).length), 1);
-  const need = fontSize * 0.55 * longest + 8;   // ความกว้างข้อความ + ช่องไฟขั้นต่ำ
-  return Math.max(1, Math.ceil(need / Math.max(slot, 1)));
-}
-/** ป้ายนี้ควรแสดงไหม — นับจากตัวสุดท้าย เพื่อให้ช่วงล่าสุดอยู่บนแกนเสมอ */
-function showLabel(i: number, total: number, step: number): boolean {
-  return step <= 1 || (total - 1 - i) % step === 0;
+// labelStep/showLabel (ข้ามป้ายเมื่อแคบ) เอาออก 11 พ.ย. 69 — ป้ายครบทุกช่อง ใช้ ป้ายแกน() ด้านล่าง
+// data-y-tick = ค่าขีดแกนตั้ง (ข้อทดสอบตรวจว่าเป็นเลขกลม · tests/scenario/monthly-chart-ranges.spec.ts)
+/** ป้ายแกนนอน "ครบทุกช่อง ไม่เว้นเดือน" (บอสสั่ง 11 พ.ย. 69 · เดิมข้ามป้ายเมื่อแคบ — labelStep/showLabel)
+ *  ป้ายมีเว้นวรรค = แยกบรรทัด ("พ.ย. 68" → "พ.ย." บน "68" ล่าง) · ยังกว้างเกินช่อง = เอียง 40° ชิดปลาย
+ *  data-x-label = ข้อความป้าย (ข้อทดสอบนับป้ายต่อแท่ง)
+ *  ⚠️ เลือกแบบเดียวทั้งกราฟจากป้ายทุกตัว (ทั้งหมด) — เดิมตัดสินทีละป้าย ได้บางตัวแยกบรรทัด บางตัวเอียง แล้วทับกัน
+ *     ("ก.พ. 69" แยก · "มี.ค. 69" เอียง เพราะนับสระ ี เป็นความกว้าง — chart-label-overlap ตก 11 พ.ย. 69) */
+function ป้ายแกน({ x, y, ป้าย, ช่อง, fs, fill, ทั้งหมด }: { x: number; y: number; ป้าย: string; ช่อง: number; fs: number; fill: string; ทั้งหมด: string[] }) {
+  const { แบบ, fs: ขนาด } = ขนาดป้ายแกน(ทั้งหมด, ช่อง, fs);
+  fs = ขนาด;   // ย่อตัวอักษรก่อนเอียง (11 พ.ย. 69)
+  const ส่วน = แบบ === "สอง" ? String(ป้าย).split(" ").filter(Boolean) : [String(ป้าย)];
+  if (แบบ === "เอียง")
+    return <text data-x-label={ป้าย} x={x} y={y} textAnchor="end" fontSize={fs} fill={fill} transform={`rotate(-40 ${x} ${y})`}>{ป้าย}</text>;
+  return (
+    <text data-x-label={ป้าย} x={x} y={y - (ส่วน.length > 1 ? fs * 0.5 : 0)} textAnchor="middle" fontSize={fs} fill={fill}>
+      {ส่วน.map((t, i) => <tspan key={i} x={x} dy={i === 0 ? 0 : fs * 1.05}>{t}</tspan>)}
+    </text>
+  );
 }
 
 export type BarPoint = { label: string; actual: number; plan: number };
@@ -118,14 +115,13 @@ export function PlanVsActualBars({
   const [hover, setHover] = useState<number | null>(null);
   const [drawn, setDrawn] = useState(false);
   useEffect(() => { const t = setTimeout(() => setDrawn(true), 60); return () => clearTimeout(t); }, []);
-  const max = Math.max(...data.flatMap(d => [d.actual, d.plan]), 1) * 1.15;
+  const max = niceCeil(Math.max(...data.flatMap(d => [d.actual, d.plan]), 1) * 1.15);   // เพดานกลม (11 พ.ย. 69 · เดิมไม่ปัด → ขีด 10.6 · 21.3)
   // pT เผื่อที่ให้ตัวเลขขีดบนสุด — เดิมชิดขอบจนเด้งไปทับคำอธิบายเหนือกราฟ (ผู้ใช้แจ้ง 19 ส.ค. 69)
   const W = 700, H = height ?? 210, pL = 48, pR = 14, pT = 26, pB = 42;   // pL/pB เผื่อป้ายตัวใหญ่ขึ้น (25 ส.ค. 69)
   const cW = W - pL - pR, cH = H - pT - pB, n = data.length;
   const slot = cW / n;
   const bw = Math.min(20, slot / 3);
   const yAt = (v: number) => pT + (1 - v / max) * cH;
-  const xStep = labelStep(slot, 9.5, data.map(d => d.label));
   const baseY = pT + cH;
   const fmt = fmtProp ?? ((v: number) => `฿${Math.round(v * 10) / 10}${unit}`);
   // ⚠️ กราฟที่นับ "จำนวนรายการ" ต้องใช้ขั้นเป็นจำนวนเต็ม (แก้ 10 ส.ค. 69)
@@ -149,7 +145,7 @@ export function PlanVsActualBars({
       {ticks.map((v, i) => (
         <g key={i}>
           <line x1={pL} y1={yAt(v)} x2={W - pR} y2={yAt(v)} stroke="#eef1f5" strokeWidth="1" strokeDasharray={i === 0 ? "0" : "3 3"} />
-          <text x={pL - 6} y={yAt(v) + (v === maxTick ? 10 : 3)} textAnchor="end" fontSize="13" fill="#8a94a3">{Math.round(v * 10) / 10}</text>
+          <text data-y-tick={v} x={pL - 6} y={yAt(v) + (v === maxTick ? 10 : 3)} textAnchor="end" fontSize="13" fill="#8a94a3">{Math.round(v * 10) / 10}</text>
         </g>
       ))}
       {data.map((d, i) => {
@@ -170,7 +166,7 @@ export function PlanVsActualBars({
             {/* plan (silver) */}
             <rect x={cx + 2} y={drawn ? yAt(d.plan) : baseY} width={bw} height={drawn ? pH : 0} rx={4}
               fill={bFill ?? "url(#pva-silver)"} opacity={d.plan > 0 ? (hover === null || isHover ? 1 : 0.5) : 0} style={grow} />
-            {showLabel(i, n, xStep) && <text x={cx} y={H - 12} textAnchor="middle" fontSize="13" fill="#8a94a3">{d.label}</text>}
+            <ป้ายแกน x={cx} y={H - 12} ป้าย={d.label} ช่อง={slot} fs={13} fill="#8a94a3" ทั้งหมด={data.map(x => x.label)} />
             {isHover && (() => {
               // ⚠️ กล่องต้องกว้างตามข้อความจริง ไม่ใช่ตรึง 104 (บอสทัก 25 ส.ค. 69: ตัวหนังสือล้นกรอบ)
               //    พอขยายฟอนต์เป็น 13/12 ข้อความยาวอย่าง "ลูกค้าเป้าหมายใหม่ 6 ราย" ก็ทะลุกรอบทันที
@@ -366,7 +362,7 @@ export function SalesLineChart({
       {ticks.map((v, i) => (
         <g key={i}>
           <line x1={pL} y1={cy(v)} x2={W - pR} y2={cy(v)} stroke="#eef1f5" strokeWidth="1" strokeDasharray={i === 0 ? "0" : "3 3"} />
-          <text x={pL - 6} y={cy(v) + (v === maxTick ? 10 : 3)} textAnchor="end" fontSize="13" fill="#8a94a3">{fmt(v)}</text>
+          <text data-y-tick={v} x={pL - 6} y={cy(v) + (v === maxTick ? 10 : 3)} textAnchor="end" fontSize="13" fill="#8a94a3">{fmt(v)}</text>
         </g>
       ))}
 
@@ -398,7 +394,7 @@ export function SalesLineChart({
         );
       })}
 
-      {pts.map((p, i) => showLabel(i, pts.length, labelStep(cW / Math.max(pts.length - 1, 1), 13, pts.map(q => q.label))) && <text key={`x${i}-${p.label}`} x={p.x} y={H - 10} textAnchor="middle" fontSize="13" fill="#8a94a3">{p.label}</text>)}
+      {pts.map((p, i) => <ป้ายแกน key={`x${i}-${p.label}`} x={p.x} y={H - 10} ป้าย={p.label} ช่อง={cW / Math.max(pts.length - 1, 1)} fs={13} fill="#8a94a3" ทั้งหมด={pts.map(q => q.label)} />)}
 
       {/* ชั้นรับเมาส์ + เส้นตั้ง + ป้ายค่า (เดือนที่ชี้เท่านั้น) */}
       {hover !== null && (() => {
@@ -625,11 +621,11 @@ export function LineTrendChart({
       {yTicks.map((v, i) => (
         <g key={i}>
           <line x1={pL} y1={cy(v)} x2={W - pR} y2={cy(v)} stroke="#e6e9f0" strokeWidth={1} strokeDasharray="5,5" />
-          <text x={pL - 12} y={cy(v) + (v === maxTick ? 13 : 4)} textAnchor="end" fontSize={Y_FS} fill="#b8bfca">{fmt(v)}</text>
+          <text data-y-tick={v} x={pL - 12} y={cy(v) + (v === maxTick ? 13 : 4)} textAnchor="end" fontSize={Y_FS} fill="#b8bfca">{fmt(v)}</text>
         </g>
       ))}
       {data.map((d, i) => (
-        showLabel(i, data.length, labelStep(cW / Math.max(data.length, 1), 15, data.map(x => x.month))) ? <text key={i} x={cx(i)} y={bottomY + 26} textAnchor="middle" fontSize="13.5" fill="#64748b">{d.month}</text> : null
+        <ป้ายแกน key={i} x={cx(i)} y={bottomY + 26} ป้าย={d.month} ช่อง={cW / Math.max(data.length - 1, 1)} fs={13.5} fill="#64748b" ทั้งหมด={data.map(x => x.month)} />
       ))}
       {/* พื้นที่เติมสี + เส้น (เผยจากซ้าย) */}
       <clipPath id={gid}><rect x={pL - 6} y={0} width={drawn ? cW + 12 : 0} height={H} style={{ transition: "width 1s cubic-bezier(.4,0,.2,1)" }} /></clipPath>
@@ -742,7 +738,7 @@ export function GroupedBarChart({
           return (
             <g key={i}>
               <line x1={pL} y1={y} x2={W - pR} y2={y} stroke="#eef1f5" strokeWidth={1} />
-              <text x={pL - 10} y={y + (v === maxTick ? fs - 1 : 4)} textAnchor="end" fontSize={fs} fill="#9ca3af">{fmt(v)}</text>
+              <text data-y-tick={v} x={pL - 10} y={y + (v === maxTick ? fs - 1 : 4)} textAnchor="end" fontSize={fs} fill="#9ca3af">{fmt(v)}</text>
             </g>
           );
         })}
@@ -770,7 +766,7 @@ export function GroupedBarChart({
                   </g>
                 );
               })}
-              {showLabel(i, n, labelStep(band, fs, months)) && <text x={pL + band * i + band / 2} y={bottomY + (narrow ? 22 : 26)} textAnchor="middle" fontSize={fs} fill="#6b7280">{m}</text>}
+              <ป้ายแกน x={pL + band * i + band / 2} y={bottomY + (narrow ? 22 : 26)} ป้าย={m} ช่อง={band} fs={fs} fill="#6b7280" ทั้งหมด={months} />
             </g>
           );
         })}
@@ -837,7 +833,7 @@ export function BarLineChart({
           return (
             <g key={i}>
               <line x1={pL} y1={y} x2={W - pR} y2={y} stroke="#eef1f5" strokeWidth={1} />
-              <text x={pL - 10} y={y + (v === maxTick ? fs - 1 : 4)} textAnchor="end" fontSize={fs} fill="#9ca3af">{fmt(v)}</text>
+              <text data-y-tick={v} x={pL - 10} y={y + (v === maxTick ? fs - 1 : 4)} textAnchor="end" fontSize={fs} fill="#9ca3af">{fmt(v)}</text>
             </g>
           );
         })}
@@ -855,7 +851,7 @@ export function BarLineChart({
                 width={bw} height={drawn ? Math.max(h, val > 0 ? 2 : 1.5) : 0}
                 rx={3} fill={bar.color} opacity={val > 0 ? (hover === null || isHover ? 1 : 0.45) : 0.22}
                 style={{ transition: "y .7s cubic-bezier(.4,0,.2,1), height .7s cubic-bezier(.4,0,.2,1), opacity .15s" }} />
-              {showLabel(i, n, labelStep(band, fs, months)) && <text x={cx(i)} y={bottomY + (narrow ? 22 : 26)} textAnchor="middle" fontSize={fs} fill="#6b7280">{m}</text>}
+              <ป้ายแกน x={cx(i)} y={bottomY + (narrow ? 22 : 26)} ป้าย={m} ช่อง={band} fs={fs} fill="#6b7280" ทั้งหมด={months} />
             </g>
           );
         })}
@@ -891,3 +887,4 @@ export function BarLineChart({
     </div>
   );
 }
+export { ขั้นกลม, axisTicks, niceCeil, แบบป้ายแกน };

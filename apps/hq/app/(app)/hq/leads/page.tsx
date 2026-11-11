@@ -18,7 +18,8 @@ import { ซ่อนตามระดับ } from "@pms/shared/lib/drillColum
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
-import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
+import { รวมคีย์, เดือนในช่วง, ช่วงย้อนหลังเดือน } from "@pms/shared/lib/hqDrill";
+import { MonthRangeToggle, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
   Users, AlarmClock, X, GitBranch, Eye,
   User, Phone, Mail, MapPin, Compass, Wallet, CalendarDays,
@@ -278,16 +279,24 @@ export default function HQLeadsPage() {
   const DEALER_NAME = useMemo(() => { const f = สร้างชื่อแสดง(allDealers); return new Map(allDealers.map(d => [d.code, f(d.code, d.name)])); }, [allDealers]);
 
 
-  // ── ลีดใหม่รายเดือน (แบบหน้า) — แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill) · รวมลีดใหม่ = การ์ดลีดใหม่ ──
+  // ── ลีดใหม่รายเดือน (แบบหน้า) — แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill) (เดิมรวม = การ์ดลีดใหม่ · ตอนนี้ช่วงจากปุ่มของกราฟ) ──
   //   ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้นและปิดแล้ว (= ภาพรวมยอดขาย)
+  //   ⚠️ บอสสั่ง 11 พ.ย. 69 ทับคำตัดสินเดิม "กราฟเดินตามช่วงเวลาของหน้า" เฉพาะกราฟนี้: ปุ่มของกราฟเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี
+  //      (ค่าเริ่มต้น 1 ปี) · ข้อมูล 12 เดือนล่าสุดดึงจากฐาน (hq_drill อีกชุด ช่วง 12 เดือน) · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล
+  const วันนี้ISO = isoDateOf(APP_NOW);
+  const [ช่วงกราฟเดือน, setช่วงกราฟเดือน] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
+  const ช่วง12เดือน = useMemo(() => ช่วงย้อนหลังเดือน(12, วันนี้ISO), [วันนี้ISO]);
+  const ช่วงปุ่มเดือน = useMemo(() => ช่วงย้อนหลังเดือน(ช่วงกราฟเดือน, วันนี้ISO), [ช่วงกราฟเดือน, วันนี้ISO]);
+  const เจาะลึก12เดือน = useเจาะลึก("leads", ช่วง12เดือน.start, ช่วง12เดือน.end, วันนี้ISO);
   const trend = useMemo(() => {
-    const ช่อง = เดือนในช่วง(ช่วงการ์ด.start, ช่วงการ์ด.end);
-    if (!เจาะลึก) return { months: ช่อง.map(c => c.label), newM: ช่อง.map(() => 0), wonM: ช่อง.map(() => 0), lostM: ช่อง.map(() => 0), ready: false };
-    const codes = new Set(ในขอบเขต(เจาะลึก.dealers, ขอบ).map(r => r.code));
-    const ms = เจาะลึก.months.filter(m => codes.has(m.code));
+    const ช่อง = เดือนในช่วง(ช่วงปุ่มเดือน.start, ช่วงปุ่มเดือน.end);
+    const months = ช่อง.map(c => ป้ายเดือนปี(c.y, c.m));
+    if (!เจาะลึก12เดือน) return { months, newM: ช่อง.map(() => 0), wonM: ช่อง.map(() => 0), lostM: ช่อง.map(() => 0), ready: false };
+    const codes = new Set(ในขอบเขต(เจาะลึก12เดือน.dealers, ขอบ).map(r => r.code));
+    const ms = เจาะลึก12เดือน.months.filter(m => codes.has(m.code));
     const ของ = (y: number, m: number, k: string) => รวมคีย์(ms.filter(x => x.y === y && x.m === m), k);
-    return { months: ช่อง.map(c => c.label), newM: ช่อง.map(c => ของ(c.y, c.m, "leads")), wonM: ช่อง.map(c => ของ(c.y, c.m, "won")), lostM: ช่อง.map(c => ของ(c.y, c.m, "lost")), ready: true };
-  }, [เจาะลึก, ขอบ, ช่วงการ์ด.start, ช่วงการ์ด.end]);
+    return { months, newM: ช่อง.map(c => ของ(c.y, c.m, "leads")), wonM: ช่อง.map(c => ของ(c.y, c.m, "won")), lostM: ช่อง.map(c => ของ(c.y, c.m, "lost")), ready: true };
+  }, [เจาะลึก12เดือน, ขอบ, ช่วงปุ่มเดือน.start, ช่วงปุ่มเดือน.end]);
 
   // ลูกค้าเป้าหมายตามแหล่งที่มา + ตามสถานะ (แท่งแนวนอน)
   const sources = useMemo(() => {
@@ -398,7 +407,9 @@ export default function HQLeadsPage() {
         {/* กราฟเส้นเป็น SVG ที่ย่อ/ขยายตามความกว้างการ์ด → ความสูงจริงไม่เท่า height ที่ส่งเข้าไป
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "รวม = การ์ดลูกค้าเป้าหมายใหม่", "ปิดสำเร็จ/ไม่สำเร็จ = ลูกค้าเป้าหมายที่เข้ามาในเดือนนั้น")} />
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงปุ่มเดือน, "ช่วงจากปุ่มของกราฟ (ไม่ขึ้นกับช่วงเวลาของหน้า)", "ปิดสำเร็จ/ไม่สำเร็จ = ลูกค้าเป้าหมายที่เข้ามาในเดือนนั้น")}>
+            <MonthRangeToggle value={ช่วงกราฟเดือน} onChange={setช่วงกราฟเดือน} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่รายเดือน" />
+          </BoxTitle>
           <div className="card-body" data-lead-monthly data-ready={trend.ready ? "1" : ""} data-sum-new={trend.newM.reduce((a, b) => a + b, 0)}
             data-sum-won={trend.wonM.reduce((a, b) => a + b, 0)} data-sum-lost={trend.lostM.reduce((a, b) => a + b, 0)}
             style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>

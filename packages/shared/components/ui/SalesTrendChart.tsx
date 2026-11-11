@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { LineTrendChart } from "@pms/shared/components/ui/Charts";
 
 // ── กราฟแนวโน้มยอดขายที่ "กำหนดช่วงเวลาได้" ในตัว (ปุ่ม inline) ──
@@ -15,6 +15,9 @@ import { LineTrendChart } from "@pms/shared/components/ui/Charts";
 //    เลือก "ปีนี้" (8 เดือน) แต่ปุ่มค้างที่ 6 เดือน → กราฟโชว์ 6 เดือน ไม่ตรงกับช่วงที่เลือก
 //    และผู้ใช้ก็งงว่าตกลงอันไหนคุมอยู่ · ตอนนี้เหลือตัวคุมเดียวคือแถบกรองด้านบน
 
+// ⚠️ 11 พ.ย. 69 บอสสั่งกลับ: กราฟรายเดือนทุกใบมีปุ่มของตัวเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี และ "เลิกเดินตามช่วงเวลาของหน้า"
+//    (ทับคำตัดสิน 25 ส.ค. 69 ข้างบน) → ผู้เรียกส่งปุ่มมาทาง prop "ปุ่ม" แล้วส่งข้อมูลเฉพาะเดือนที่ปุ่มเลือก
+
 export type MonthlyPoint = { month: string; value: number };
 
 export function SalesTrendChart({
@@ -24,6 +27,7 @@ export function SalesTrendChart({
   prevRatio = 0.86,
   height,
   granularity = "month",
+  ปุ่ม,
 }: {
   title: string;
   desc?: string;
@@ -35,6 +39,8 @@ export function SalesTrendChart({
    *            โหมดนี้ซ่อนปุ่ม 3/6/12 เดือน เพราะช่วงถูกกำหนดจากแถบกรองแล้ว
    *            (ปุ่มเดือนกับตัวกรองวันจะขัดกันเอง ผู้ใช้ไม่รู้ว่าอันไหนคุมอยู่) */
   granularity?: "month" | "day" | "hour";
+  /** ปุ่มช่วงเดือนของกราฟ (MonthRangeToggle) — วางมุมขวาบน */
+  ปุ่ม?: ReactNode;
 }) {
   const เป็นรายชั่วโมง = granularity === "hour";
   const เป็นรายวัน = granularity === "day" || เป็นรายชั่วโมง;
@@ -86,6 +92,7 @@ export function SalesTrendChart({
           </div>
           {/* คำอธิบายใต้หัวข้อกราฟถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) — เหลือเฉพาะหัวข้อกับตัวเลข */}
         </div>
+        {ปุ่ม}
       </div>
 
       <LineTrendChart key={`${granularity}-${data.length}`} data={data} height={height} />
