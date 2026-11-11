@@ -80,7 +80,8 @@ export default defineConfig({
   //   เทสต์ที่ล้มสลับหน้ากันไปมาทุกรอบล้วนล้มด้วย "รอ 8 วินาทีแล้วยังไม่ขึ้น" ไม่ใช่ผลที่ผิด (26 ส.ค. 69)
   //   ขยับเป็น 12 วินาที — บั๊กจริงล้มทุกค่า timeout อยู่แล้ว ตัวเลขนี้จึงไม่กลบบั๊ก แค่ตัดเสียงรบกวน
   expect: { timeout: 12_000 },
-  reporter: [["list"]],
+  // ชื่อข้อไม่นิ่ง (ตกครั้งแรก ผ่านตอนรันซ้ำ) ท้ายผลทุกครั้งที่รัน (บอสสั่ง 11 พ.ย. 69 · tests/reporters/flaky-names.ts)
+  reporter: [["list"], ["./tests/reporters/flaky-names.ts"]],
   use: {
     baseURL: ที่อยู่เว็บ.hq,
     headless: true,
