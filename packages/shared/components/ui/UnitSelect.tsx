@@ -44,7 +44,8 @@ export function UnitSelect({ value, onChange, ariaLabel, หน่วย, onKeyD
 }) {
   const v = value.trim();
   const [พิมพ์เอง, setพิมพ์เอง] = useState(false);
-  const ช่อง: React.CSSProperties = { width: "100%", minWidth: 96, boxSizing: "border-box", fontSize: "0.84rem", ...style };
+  // ⚠️ 11 พ.ย. 69: เลิกกว้างขั้นต่ำ 96px — ในคอลัมน์ที่แคบกว่า ช่องล้นทับช่องข้าง ๆ (ใบ HQ หน้าต่าง 820) · ความกว้างคุมที่คอลัมน์ของตาราง
+  const ช่อง: React.CSSProperties = { width: "100%", minWidth: 0, boxSizing: "border-box", fontSize: "0.84rem", ...style };
   if (พิมพ์เอง) {
     return (
       <span style={{ display: "flex", gap: 4, alignItems: "center" }}>

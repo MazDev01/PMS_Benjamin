@@ -93,7 +93,8 @@ export function MaterialAddModal({ open, onClose, onSaved, ที่มี, ห�
             <datalist id="mt-add-categories">{หมวด.map(h => <option key={h} value={h} />)}</datalist>
             <div className="table-wrap">
               <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 760 }}>
-                <colgroup><col style={{ width: 40 }} /><col style={{ width: "17%" }} /><col /><col style={{ width: "17%" }} /><col style={{ width: "17%" }} /><col style={{ width: 82 }} /><col style={{ width: 40 }} /></colgroup>
+                {/* 11 พ.ย. 69 (บอสสั่งแก้ก่อนปิดรอบ · form-table-fit.spec): หน้าต่างถูกจำกัด 820 — ราคา 17% แคบกว่าหัว "ราคาต่อหน่วย (ก่อน VAT)" (ถูกตัด) → หมวด 15 · หน่วย 15 · ราคา 23 · ชื่อวัสดุยังกว้างสุด */}
+                <colgroup><col style={{ width: 40 }} /><col style={{ width: "15%" }} /><col /><col style={{ width: "15%" }} /><col style={{ width: "23%" }} /><col style={{ width: 82 }} /><col style={{ width: 40 }} /></colgroup>
                 <thead><tr>
                   {["#", "หมวด", <>ชื่อวัสดุ<ดาวบังคับ /></>, <>หน่วย<ดาวบังคับ /></>, "ราคาต่อหน่วย (ก่อน VAT)", "เปิดใช้", ""].map((h, i) =>
                     <th key={i} style={{ ...เซลล์, textAlign: i === 4 ? "right" : "left", fontSize: "0.74rem", fontWeight: 700, color: "#6b7280", background: "#f8f9fb", whiteSpace: "nowrap" }}>{h}</th>)}

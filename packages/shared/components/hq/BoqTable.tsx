@@ -82,31 +82,33 @@ export function BoqTable({ lines, onChange, editable, area, แหล่ง = []
     <div data-boq-table style={{ display: "grid", gap: 10, minWidth: 0 }}>
       {editable && (
         <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>
-          พิมพ์แล้วกด Enter ที่แถวสุดท้ายเพื่อเพิ่มแถว · วางจาก Excel ได้หลายแถว (คอลัมน์ รายการ · จำนวน · หน่วย · ต้นทุนต่อหน่วย)
+          พิมพ์แล้วกด Enter ที่แถวสุดท้ายเพื่อเพิ่มแถว · วางจาก Excel ได้หลายแถว (คอลัมน์ รายการ · จำนวน · หน่วย · ราคาต่อหน่วย)
         </div>
       )}
       {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69)
           ความกว้าง (บอสสั่ง 10 พ.ย. 69 · หน้าต่างใบ HQ 820): % ทุกคอลัมน์ รวม 100 · รายการกว้างสุด · จำนวน/หน่วย/ราคาต่อหน่วย/ยอด แคบพอดีตัวเลข · หัวบรรทัดเดียว (ตัวกลาง useHeaderFit)
-          แก้ได้: ลำดับ 7 · รายการ 36 · จำนวน 10.5 · หน่วย 11.5 · ราคาต่อหน่วย 14 · ยอด 15.5 · ลบ 5.5 | ดูอย่างเดียว: ลำดับ 7 · รายการ 41 · จำนวน 10.5 · หน่วย 11 · ราคาต่อหน่วย 14 · ยอด 16.5 */}
-      <ตารางรายการ ป้าย={ป้ายตาราง} อ้างอิง={ตาราง} กว้างขั้นต่ำ={editable ? 720 : 640} กว้างลำดับ="7%" แถว={lines} คอลัมน์={[
-        { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: editable ? "36%" : "41%", แสดงเกิน: editable, ชี้: l => l.name, ค่า: (l, i) => editable
+          แก้ได้: ลำดับ 7 · รายการ 36 · จำนวน 10.5 · หน่วย 11.5 · ราคาต่อหน่วย 14 · ยอด 15.5 · ลบ 5.5 | ดูอย่างเดียว: ลำดับ 7 · รายการ 41 · จำนวน 10.5 · หน่วย 11 · ราคาต่อหน่วย 14 · ยอด 16.5
+          ⚠️ 11 พ.ย. 69 (บอสสั่งแก้ก่อนปิดรอบ): แก้ได้ = ตารางกระชับ (ระยะขอบช่องข้างละ 0.7rem) · ลำดับ 8 · รายการ 31 · จำนวน 11 · หน่วย 14 · ราคาต่อหน่วย 14 · ยอด 16 · ลบ 6
+            เดิมระยะขอบปกติข้างละ 1rem + ช่องหน่วยกว้างขั้นต่ำ 96px ในคอลัมน์ 11.5% → ช่องหน่วยล้นทับช่องราคา · หัว "ลำดับ" 7% ถูกตัด (form-table-fit.spec) */}
+      <ตารางรายการ ป้าย={ป้ายตาราง} อ้างอิง={ตาราง} กว้างขั้นต่ำ={editable ? 720 : 640} กว้างลำดับ={editable ? "8%" : "7%"} แน่น={editable} แถว={lines} คอลัมน์={[
+        { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: editable ? "31%" : "41%", แสดงเกิน: editable, ชี้: l => l.name, ค่า: (l, i) => editable
           ? <>
               <input aria-label={`ชื่อรายการ ${i + 1}`} value={l.name} onChange={e => แก้บรรทัด(i, { name: e.target.value })}
                 onKeyDown={e => กดปุ่มในแถว(e, i)} onPaste={e => วาง(e, i)} placeholder={i === 0 && lines.length === 1 ? "เช่น โครงสร้างเหล็ก" : undefined} style={ช่องกรอก} />
               {l.เตือน && <div role="alert" data-testid={`row-warning-${i + 1}`} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: "0.72rem", color: "#b45309", fontWeight: 600 }}><AlertTriangle size={12} /> {l.เตือน}</div>}
             </>
           : l.name },
-        { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: "10.5%", แสดงเกิน: editable, ค่า: (l, i) => editable
+        { key: "qty", หัว: "จำนวน", ชนิด: "จำนวน", กว้าง: editable ? "11%" : "10.5%", แสดงเกิน: editable, ค่า: (l, i) => editable
           ? <span onKeyDown={e => กดปุ่มในแถว(e, i)}><NumberInput ariaLabel={`จำนวน ${i + 1}`} value={Number(l.qty)} min={0} onChange={n => แก้บรรทัด(i, { qty: n })} style={ช่องกรอก} /></span>
           : จัดรูปจำนวน(l.qty) },
-        { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: editable ? "11.5%" : "11%", แสดงเกิน: editable, ค่า: (l, i) => editable
+        { key: "unit", หัว: "หน่วย", ชนิด: "หน่วย", กว้าง: editable ? "14%" : "11%", แสดงเกิน: editable, ค่า: (l, i) => editable
           ? <UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={l.unit} หน่วย={หน่วย} onChange={u => แก้บรรทัด(i, { unit: u })} onKeyDown={e => กดปุ่มในแถว(e as React.KeyboardEvent<HTMLInputElement>, i)} />
           : จัดรูปหน่วย(l.unit) },
         { key: "cost", หัว: "ราคาต่อหน่วย", ชนิด: "เงิน", กว้าง: "14%", แสดงเกิน: editable, ค่า: (l, i) => editable
           ? <span onKeyDown={e => กดปุ่มในแถว(e, i)}><NumberInput ariaLabel={`ต้นทุนต่อหน่วย ${i + 1}`} value={Number(l.unitCost)} min={0} onChange={n => แก้บรรทัด(i, { unitCost: n })} style={ช่องกรอก} /></span>
           : บาท(Number(l.unitCost)) },
-        { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: editable ? "15.5%" : "16.5%", สไตล์: () => ({ fontWeight: 600 }), ค่า: l => แถวว่าง(l) ? "—" : บาท(ยอดบรรทัด(l)) },
-        ...(editable ? [{ key: "del", หัว: "", ชนิด: "ปุ่ม" as const, กว้าง: "5.5%", แสดงเกิน: true, ค่า: (_l: typeof lines[number], i: number) =>
+        { key: "total", หัว: "ยอด", ชนิด: "เงิน", กว้าง: editable ? "16%" : "16.5%", สไตล์: () => ({ fontWeight: 600 }), ค่า: l => แถวว่าง(l) ? "—" : บาท(ยอดบรรทัด(l)) },
+        ...(editable ? [{ key: "del", หัว: "", ชนิด: "ปุ่ม" as const, กว้าง: "6%", แสดงเกิน: true, ค่า: (_l: typeof lines[number], i: number) =>
           <button type="button" aria-label={`ลบรายการ ${i + 1}`} onClick={() => ลบแถว(i)} style={{ background: "none", border: "none", color: "#b91c1c", cursor: "pointer", display: "inline-flex" }}><Trash2 size={15} /></button> }] : []),
       ]} คุณสมบัติแถว={l => ({ "data-row-warning": l.เตือน ? "true" : undefined, style: l.เตือน ? { background: "#fff7ed" } : undefined })}
         ท้าย={<>
