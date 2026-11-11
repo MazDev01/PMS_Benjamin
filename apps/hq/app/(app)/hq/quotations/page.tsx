@@ -23,7 +23,7 @@ import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { useNetworkQuotations, useNetworkLeads, useHQQuotationsSummary, useQuotationsPage, useQuotationSalesperson } from "@pms/shared/lib/useNetworkData";
 import {
-  toQuoteRows, agingBucketOf, regionDisplay, dealerLookups,
+  toQuoteRows, agingBucketOf, regionDisplay, dealerLookups, จังหวัดหน้างาน,
   type QuoteRow, type AgingBucket,
 } from "@pms/shared/lib/hqQuotations";
 
@@ -169,12 +169,13 @@ export default function NetworkQuotationPage() {
   const pageResult = useQuotationsPage(listOpts);
   // แถวจาก listPage เป็น QuotationMock ดิบ → map เป็น HQQuotation (เท่า useNetworkQuotations) ก่อน toQuoteRows
   const mapToHQ = (q: QuotationMock): HQQuotation => {
-    const lead = netLeads.find(l => (q.dealId != null && l.numId === q.dealId) || ((q.customerId ?? 0) > 0 && l.customerId === q.customerId));
     const code = q.dealerCode ?? DEFAULT_DEALER_CODE;
+    // ลีดของใบต้องเป็นสาขาเดียวกัน (เลขลีด/ลูกค้าซ้ำข้ามสาขา · กับดักแยกสาขา) — ฝั่ง HQ โหมดฐานจริงไม่มีลีดในเครื่อง (SalesContext gateHQ) จึงหาไม่เจอเป็นปกติ
+    const lead = netLeads.find(l => (l.dealerCode ?? DEFAULT_DEALER_CODE) === code && ((q.dealId != null && l.numId === q.dealId) || ((q.customerId ?? 0) > 0 && l.customerId === q.customerId)));
     return {
       id: `LIVE-${q.id}`, quoteNo: q.id, dealerCode: code, dealerName: nameOf.get(code) ?? code,
       customer: q.customer, valueNum: q.totalValue, status: q.status, createdAt: fmtISOToThai(q.date),
-      salesperson: lead?.assigned ?? `ดีลเลอร์ ${nameOf.get(code) ?? code}`, siteProvince: lead?.province || undefined, productLine: q.project || "",
+      salesperson: lead?.assigned ?? `ดีลเลอร์ ${nameOf.get(code) ?? code}`, siteProvince: จังหวัดหน้างาน(q, lead), productLine: q.project || "",
       materialCost: q.materialCost, lineItems: q.lineItems,
       // หน้าต่างใบเสนอราคา (แถบสรุป/กล่องยอดรวม) — ชุดเดียวกับ useNetworkQuotations
       dateISO: q.date, expiry: q.expiry, revision: q.revision, vatPercent: q.vatPercent, whtRate: q.whtRate, province: q.province || undefined,

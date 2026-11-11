@@ -4,6 +4,7 @@
 // รวม "ใบเสนอราคา/ลูกค้าที่ดีลเลอร์สร้างจริง" (SalesContext = สมุดงานสาขา CNX)
 // เข้ากับ seed ของสาขาอื่น (hqAllQuotations/hqAllCustomers)
 // → ดีลเลอร์สร้าง/แก้ใบเสนอราคา แล้ว HQ เห็นทันที (dedup ด้วยเลขที่/ชื่อ · live ทับ seed)
+import { จังหวัดหน้างาน } from "@pms/shared/lib/hqQuotations";
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { useMemo, useEffect, useState } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
@@ -294,15 +295,16 @@ export function useNetworkQuotations(): HQQuotation[] {
   const dealerInfoOf = useDealerInfo();
   return useMemo(() => {
     const live: HQQuotation[] = quotations.map(q => {
-      const lead = leads.find(l => (q.dealId != null && l.numId === q.dealId) || (q.customerId > 0 && l.customerId === q.customerId));
       const dl = dealerInfoOf(q.dealerCode); // สาขาเจ้าของใบจริง (undefined = CNX)
+      // ลีดของใบต้องเป็นสาขาเดียวกัน (เลขลีด/ลูกค้าซ้ำข้ามสาขา · กับดักแยกสาขา)
+      const lead = leads.find(l => (l.dealerCode ?? dl.code) === dl.code && ((q.dealId != null && l.numId === q.dealId) || (q.customerId > 0 && l.customerId === q.customerId)));
       return {
         id: `LIVE-${q.id}`, quoteNo: q.id,
         dealerCode: dl.code, dealerName: dl.name,
         customer: q.customer, valueNum: q.totalValue,
         status: q.status, createdAt: fmtISOToThai(q.date), savedAt: q.savedAt, salesDate: วันที่ขายของใบ(q),
         salesperson: lead?.assigned ?? `ดีลเลอร์ ${dl.code}`,
-        siteProvince: lead?.province || undefined,   // จังหวัดหน้างาน = ของลีดที่ใบผูกอยู่ (ใบไม่เก็บจังหวัดเอง) · ไม่เจอลีด = "—"
+        siteProvince: จังหวัดหน้างาน(q, lead),   // จังหวัดหน้างาน = จังหวัดที่ใบเก็บจากฐาน (quotations.province) ก่อน · ไม่มีค่อยใช้ของลีด (lib/hqQuotations.ts)
         productLine: q.project, // ไม่ใช้ประเภทอาคาร (แม่แบบ) — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
         // รายละเอียดราคาจริงของใบที่ดีลเลอร์สร้าง → HQ เจาะดูรายการสินค้าได้
         materialCost: q.materialCost, lineItems: q.lineItems,
