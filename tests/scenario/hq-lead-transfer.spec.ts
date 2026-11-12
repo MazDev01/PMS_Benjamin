@@ -66,7 +66,9 @@ test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ:
   await expect(การ์ด.getByRole("row", { name: /ลำพูน/ }).locator("[data-field-error]"), "ข้อความใต้ช่อง").toHaveText("ต้องเลือกสาขาที่จะโอนให้");
   await expect(page.getByRole("dialog"), "ไม่เลือกสาขา = ไม่ขึ้นกล่องยืนยันโอน").toHaveCount(0);
   expect((await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code), "ยังไม่ถูกโอน").toEqual(["HQ"]);
-  await expect(การ์ด.getByText(/คิวรอ/)).toBeVisible();
+  // ข้อความที่บอสเลือก 12 พ.ย. 69 แทน "คิวรอ" (ห้าม "รอโอน" — ชนกับรอโอนเงิน)
+  await expect(การ์ด.getByText(/ยังโอนให้ดีลเลอร์ไม่ได้ \d+ ราย/)).toBeVisible();
+  await expect(การ์ด.getByText(/คิวรอ|รอโอน/), "ไม่มีคำเดิม/คำที่บอสห้าม").toHaveCount(0);
 
   // 1) ยืนยันเป็นชุด
   await การ์ด.getByRole("button", { name: /โอนอัตโนมัติทั้งหมด/ }).click();

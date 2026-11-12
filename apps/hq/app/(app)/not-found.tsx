@@ -11,7 +11,7 @@ export default function NotFound() {
           ลิงก์นี้อาจไม่ถูกต้อง หรือหน้าที่ต้องการถูกย้าย/ลบไปแล้ว
         </p>
         <Link href="/hq/dashboard" className="btn btn-primary" style={{ display: "inline-flex", textDecoration: "none" }}>
-          กลับหน้าแดชบอร์ด
+          กลับหน้าหลัก
         </Link>
       </div>
     </div>

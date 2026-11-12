@@ -192,7 +192,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   const แผง = d.locator("[data-panel='quote-request']");
   await expect(แผง.getByLabel("แม่แบบ", { exact: true }), "คำขอราคาต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
   await แผง.getByLabel("งานที่ขอราคา").fill("โกดังเก็บสินค้า 20x40 ม.");
-  await แผง.getByLabel("สเปก / รายละเอียด").fill("สูง 8 ม. · ประตูม้วน 2 บาน");
+  await แผง.getByLabel(/^รายละเอียดงาน/).fill("สูง 8 ม. · ประตูม้วน 2 บาน");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   await expect.poll(ลีด, { timeout: 20_000 }).toBe("HQ_PRICING");
   expect((await คำขอ())?.product, "ชื่องานที่พิมพ์ต้องลงฐาน").toBe("โกดังเก็บสินค้า 20x40 ม.");

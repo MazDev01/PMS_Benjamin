@@ -385,7 +385,7 @@ export async function นำเข้าลูกค้าหนึ่งรา�
   // ชื่อซ้ำ = ระบบถามก่อนว่าจะอัปเดตหรือแทนที่ (บอสสั่ง 2 ก.ย. 69) — เทสต์เลือก "อัปเดตข้อมูล"
   const ป๊อปอัพซ้ำ = page.getByRole("dialog", { name: "พบชื่อลูกค้าซ้ำ" });
   if (await ป๊อปอัพซ้ำ.isVisible().catch(() => false)) {
-    await ป๊อปอัพซ้ำ.getByRole("button", { name: "อัปเดตข้อมูล" }).click();
+    await ป๊อปอัพซ้ำ.getByRole("button", { name: "แก้ไขข้อมูล" }).click();
   }
 }
 

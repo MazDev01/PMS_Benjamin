@@ -2,6 +2,7 @@
 // ของจริงคิดที่ฐาน (ตัวดัก leads_tasks_info_auto · _lead_customer_info_complete / _lead_job_info_complete)
 // ไฟล์นี้ = สูตรเดียวกันสำหรับโหมดในเครื่อง (applyLeadIntent · leadIntent.ts) — แก้ที่หนึ่งต้องแก้อีกที่ (ข้อทดสอบ tests/unit/leadInfoTasks.test.ts)
 import type { LeadRow, LeadTask } from "./mock";
+import { ผู้ทำโดยระบบ } from "./systemActor";
 
 type ข้อมูล = Pick<LeadRow, "company" | "contact" | "phone" | "province" | "project" | "note"> & { area?: number | string | null };   // ฐานเก็บพื้นที่เป็นข้อความ · หน้าเว็บเป็นตัวเลข
 const มี = (v: unknown) => String(v ?? "").trim() !== "";
@@ -21,7 +22,7 @@ export function ติ๊กข้อมูลอัตโนมัติ(tasks:
   const ลูกค้า = ข้อมูลลูกค้าครบ(lead), งาน = ข้อมูลงานครบ(lead);
   let t = tasks ?? [];
   if (!t.length) { if (!ลูกค้า && !งาน) return tasks; t = แม่แบบ(); }
-  const ผู้ทำ = (lead.assigned ?? "").trim() || "อัปเดตอัตโนมัติ";
+  const ผู้ทำ = (lead.assigned ?? "").trim() || ผู้ทำโดยระบบ;
   const ตั้ง = (key: string, label: string, ครบ: boolean) => {
     if (!t.some(x => x.key === key)) t = [...t, { key, label, done: false }];
     t = t.map(x => x.key !== key ? x

@@ -50,7 +50,7 @@ test("[flow·dealer] ขอราคา: เปิดฟอร์มแล้ว
   await กดขอราคา(page);
   await expect(แผง.getByLabel("งานที่ขอราคา"), "งานที่ขอราคา ← งานที่ต้องการของลีด").toHaveValue(งาน, { timeout: 15_000 });
   await expect(แผง.locator("#qr-area"), "พื้นที่ ← พื้นที่ของลีด").toHaveValue("800");
-  await expect(แผง.getByLabel("สเปก / รายละเอียด"), "สเปก ← สเปก / รายละเอียดงานของลีด").toHaveValue(สเปก);
+  await expect(แผง.getByLabel(/^รายละเอียดงาน/), "สเปก ← สเปก / รายละเอียดงานของลีด").toHaveValue(สเปก);
   await expect(แผง, "จังหวัดแสดงเหมือนเดิม").toContainText("จังหวัดหน้างาน: ระยอง");
 
   // แก้ในฟอร์มแล้วกดยกเลิก → เปิดใหม่ต้องกลับมาเป็นค่าของลีด ไม่ค้างค่าที่พิมพ์ไว้
@@ -76,13 +76,13 @@ test("[flow·dealer] ขอราคา: ลีดไม่มีพื้นท
   await expect(เติม, "ข้อมูลงานไม่ครบ = ฟอร์มเติมช่องที่ขาดก่อน (ใบ 0273)").toBeVisible({ timeout: 15_000 });
   await expect(เติม.getByLabel("งานที่ต้องการ", { exact: true }), "ลีดไม่มีงานที่ต้องการ → ช่องว่าง").toHaveValue("");
   await expect(เติม.getByLabel("พื้นที่ (ตร.ม.)", { exact: true }), "ลีดไม่มีพื้นที่ → ช่องว่าง").toHaveValue("");
-  await expect(เติม.getByLabel("สเปก / รายละเอียดงาน", { exact: true }), "สเปกที่ลีดมีแล้ว ไม่ถามซ้ำ").toHaveCount(0);
+  await expect(เติม.getByLabel("รายละเอียดงาน", { exact: true }), "สเปกที่ลีดมีแล้ว ไม่ถามซ้ำ").toHaveCount(0);
   await เติม.getByLabel("งานที่ต้องการ", { exact: true }).fill(งาน);
   await เติม.getByLabel("พื้นที่ (ตร.ม.)", { exact: true }).fill("640");
   await เติม.getByRole("button", { name: "บันทึกแล้วไปต่อ" }).click();
   await expect(แผง.getByLabel("งานที่ขอราคา"), "ฟอร์มขอราคา: งานจากที่เพิ่งกรอก").toHaveValue(งาน, { timeout: 15_000 });
   await expect(แผง.locator("#qr-area"), "ฟอร์มขอราคา: พื้นที่จากที่เพิ่งกรอก").toHaveValue("640");
-  await expect(แผง.getByLabel("สเปก / รายละเอียด"), "ช่องที่ลีดมีค่ายังกรอกให้").toHaveValue(สเปก);
+  await expect(แผง.getByLabel(/^รายละเอียดงาน/), "ช่องที่ลีดมีค่ายังกรอกให้").toHaveValue(สเปก);
 });
 
 test("[D5x] [flow·dealer] ขอแก้ราคา (D5x): สเปกกรอกจากคำขอล่าสุด", async ({ page }) => {
@@ -99,5 +99,5 @@ test("[D5x] [flow·dealer] ขอแก้ราคา (D5x): สเปกกร
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const แผง = await เปิดแท็บใบเสนอราคา(page, "แก้ราคา");
   await แผง.getByRole("button", { name: "ขอแก้ราคา" }).click();
-  await expect(page.locator("[data-reason-dialog]").getByLabel("สเปกที่ขอแก้ราคา"), "ขอแก้ราคา: สเปก ← คำขอล่าสุด (กล่องเหตุผลกลาง)").toHaveValue("ZZ สเปกในคำขอล่าสุด", { timeout: 15_000 });
+  await expect(page.locator("[data-reason-dialog]").getByLabel("รายละเอียดงานที่ขอแก้ราคา"), "ขอแก้ราคา: สเปก ← คำขอล่าสุด (กล่องเหตุผลกลาง)").toHaveValue("ZZ สเปกในคำขอล่าสุด", { timeout: 15_000 });
 });

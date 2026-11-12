@@ -1,7 +1,7 @@
 "use client";
 
 // ── นำเข้ารายการวัสดุจากไฟล์ (ตั้งค่า › รายการวัสดุ · บอสสั่ง 5 พ.ย. 69 · ใบ 0279) ─────────────────────────────────────────────
-//   เปิดจากเมนูนำเข้าตัวกลาง (ImportMenu): เลือกไฟล์ → ตรวจ 4 กลุ่ม พร้อม / อัปเดตราคา (ราคาเก่า→ใหม่) / ต้องตรวจ / ข้าม → นำเข้าทั้งชุด
+//   เปิดจากเมนูนำเข้าตัวกลาง (ImportMenu): เลือกไฟล์ → ตรวจ 4 กลุ่ม พร้อม / ปรับราคา (ราคาเก่า→ใหม่) / ต้องตรวจ / ข้าม → นำเข้าทั้งชุด
 //   ต้องตรวจ: หน่วยนอกรายการ = "ใช้หน่วยนี้" หรือเลือกหน่วยจากรายการ · หน่วยต่างจากของเดิม = "ใช้หน่วยเดิม" · ราคาผิด = พิมพ์ราคาใหม่ · เปิดใช้อ่านไม่ออก = เลือก
 //   ชุดที่นำเข้าล่าสุด: ยกเลิกทั้งชุดได้ถ้ายังไม่มีคำขอราคาใช้วัสดุในชุด และไม่มีใครแก้ราคาหลังนำเข้า (ฐานตัดสิน) · คืนราคาเดิมด้วย
 //   ตรรกะล้วนอยู่ lib/materialImport.ts · ฐานตรวจซ้ำทุกข้อ (hq_materials_import)
@@ -20,14 +20,14 @@ import {
   หาหัวตารางวัสดุ, เตรียมแถววัสดุ, จัดกลุ่มวัสดุ, แถวส่งฐานวัสดุ, นำเข้าวัสดุได้สูงสุด, type แถววัสดุ, type กลุ่มวัสดุ,
 } from "@pms/shared/lib/materialImport";
 
-const ป้ายกลุ่ม: Record<กลุ่มวัสดุ, string> = { ready: "พร้อม", update: "อัปเดตราคา", review: "ต้องตรวจ", skip: "ข้าม" };
+const ป้ายกลุ่ม: Record<กลุ่มวัสดุ, string> = { ready: "พร้อม", update: "ปรับราคา", review: "ต้องตรวจ", skip: "ข้าม" };
 const บาท = (n: number | null | undefined) => n == null ? "—" : Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function MaterialImportModal({ open, onClose, onImported, ไฟล์เริ่ม, ที่มี, หน่วย }: {
   open: boolean; onClose: () => void; onImported: () => void;
   /** ไฟล์ที่เลือกจากเมนูนำเข้า — เปิดแล้วอ่านทันที · ไม่มี = เปิดที่ชุดที่นำเข้าล่าสุด */
   ไฟล์เริ่ม?: File | null;
-  /** รายการวัสดุในระบบ (ตรวจอัปเดตราคา · ฐานตรวจอีกชั้น) */
+  /** รายการวัสดุในระบบ (ตรวจปรับราคา · ฐานตรวจอีกชั้น) */
   ที่มี: MaterialTemplate[];
   /** หน่วยที่รู้จัก: หน่วยมาตรฐาน + หน่วยที่รายการวัสดุใช้อยู่ (useรายการหน่วย) */
   หน่วย: string[];
@@ -64,13 +64,13 @@ export function MaterialImportModal({ open, onClose, onImported, ไฟล์เ
   async function นำเข้า() {
     if (!ไฟล์ || !ส่งได้.length) return;
     if (ส่งได้.length > นำเข้าวัสดุได้สูงสุด) { setพลาด(`นำเข้าได้ครั้งละไม่เกิน ${นำเข้าวัสดุได้สูงสุด.toLocaleString()} แถว — แบ่งไฟล์ก่อน`); return; }
-    if (!(await ยืนยัน({ หัวข้อ: `นำเข้ารายการวัสดุ: เพิ่ม ${นับ("ready")} · อัปเดตราคา ${นับ("update")} รายการ?`,
+    if (!(await ยืนยัน({ หัวข้อ: `นำเข้ารายการวัสดุ: เพิ่ม ${นับ("ready")} · ปรับราคา ${นับ("update")} รายการ?`,
       รายละเอียด: `แถวต้องตรวจที่ยังไม่แก้ ${นับ("review")} แถว และแถวข้าม ${นับ("skip")} แถว จะไม่ถูกนำเข้า · ไม่ลบวัสดุที่มีอยู่ · ยกเลิกทั้งชุดได้ภายหลัง (คืนราคาเดิม)`,
       ปุ่มตกลง: "นำเข้า" }))) return;
     setกำลัง(true); setพลาด("");
     try {
       const r = await repo.importRows(ไฟล์, ส่งได้.map(แถวส่งฐานวัสดุ));
-      แจ้งสำเร็จ(`นำเข้าแล้ว · เพิ่ม ${r.inserted} · อัปเดตราคา ${r.updated} รายการ`);
+      แจ้งสำเร็จ(`นำเข้าแล้ว · เพิ่ม ${r.inserted} · ปรับราคา ${r.updated} รายการ`);
       setดิบ(null); setไฟล์(null); onImported(); void โหลดชุด();
     } catch (e) { setพลาด(`นำเข้าไม่สำเร็จ (ไม่มีแถวใดถูกบันทึก): ${friendlyError(e)}`); }
     finally { setกำลัง(false); }
@@ -170,7 +170,7 @@ export function MaterialImportModal({ open, onClose, onImported, ไฟล์เ
               {ชุด.map(b => (
                 <div key={b.id} data-material-batch={b.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "0.76rem", padding: "6px 10px", border: "1px solid #eef0f3", borderRadius: 8, flexWrap: "wrap" }}>
                   <b>{b.fileName || "ไฟล์ไม่มีชื่อ"}</b>
-                  <span>เพิ่ม {b.inserted} · อัปเดตราคา {b.updated}</span>
+                  <span>เพิ่ม {b.inserted} · ปรับราคา {b.updated}</span>
                   <span style={{ color: "#9ca3af" }}>{b.createdBy} · {fmtISOToThai(String(b.createdAt).slice(0, 10))}</span>
                   <span style={{ flex: 1 }} />
                   {b.cancelledAt ? <span style={{ color: "#6b7280" }}>ยกเลิกแล้ว</span>

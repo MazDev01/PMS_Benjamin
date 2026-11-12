@@ -20,6 +20,6 @@ test("[func·hq] API ตอบสำเร็จแต่ว่าง → หน
   await page.route("**/api/v1/settings?k=leadRules*", r => r.fulfill({ status: 200, contentType: "application/json", body: "" }));
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(page.getByText("แดชบอร์ดสำนักงานใหญ่").first(), "หน้าต้องแสดงตามปกติ").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("หน้าหลักสำนักงานใหญ่").first(), "หน้าต้องแสดงตามปกติ").toBeVisible({ timeout: 20_000 });
   expect(คอนโซล.filter(t => /TypeError|is not iterable|Cannot read properties of null/.test(t)), "ต้องไม่มี TypeError จากค่าว่าง").toEqual([]);
 });

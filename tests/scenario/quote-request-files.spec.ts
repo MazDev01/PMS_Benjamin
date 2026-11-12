@@ -290,13 +290,13 @@ test("[ui·hq] ตั้งค่า › พื้นที่เก็บไฟ
     await settle(page);
     await page.getByRole("button", { name: "พื้นที่เก็บไฟล์" }).click();
     const แผง = page.locator("[data-panel='storage-usage']");
-    await expect(แผง.getByTestId("storage-quota"), "ยังไม่ตั้งโควตา = บอกตรง ๆ").toContainText("ยังไม่ได้ตั้งโควตา", { timeout: 20_000 });
+    await expect(แผง.getByTestId("storage-quota"), "ยังไม่ตั้งโควตา = บอกตรง ๆ").toContainText("ยังไม่ได้ตั้งพื้นที่ที่ให้ใช้", { timeout: 20_000 });
     await expect(แผง.getByTestId("storage-bar"), "ยังไม่ตั้งโควตา = ไม่มีหลอดเทียบ").toHaveCount(0);
     // ขนาดในตารางของถังไฟล์แนบ = ขนาดจริงจากฐาน (ข้อนี้มีไฟล์ของข้อก่อนอยู่แล้ว)
     const จริง = ((await hq.rpc("storage_usage")).data as { buckets: { bucket: string; bytes: number }[] }).buckets.find(b => b.bucket === "quote-files")!;
     expect(Number(จริง.bytes), "ถังไฟล์แนบมีไฟล์ของข้อนี้").toBeGreaterThan(0);
     await expect(แผง.locator("tr[data-bucket='quote-files']"), "แถวถังไฟล์แนบแสดงขนาดจริง (อ่านจากถังขณะแสดง)").toHaveAttribute("data-bytes", /^\d+$/);
-    await แผง.getByLabel("โควตาพื้นที่เก็บไฟล์ (GB)").fill("100");
+    await แผง.getByLabel("พื้นที่ที่ให้ใช้ (GB)").fill("100");
     await page.getByRole("button", { name: "บันทึก", exact: true }).click();
     await expect.poll(async () => ((await hq.rpc("storage_usage")).data as { quotaGb: number | null }).quotaGb, { timeout: 20_000, message: "ฐานได้โควตา 100 GB" }).toBe(100);
     await expect(แผง.getByTestId("storage-bar"), "ตั้งโควตาแล้วมีหลอดเทียบ").toBeVisible({ timeout: 20_000 });
@@ -335,7 +335,7 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await แถวคำขอ(page, `ZZTEST ไฟล์แนบ ${B.รหัส}`).first().locator("td").first().click();   // ช่องเลขคำขอ (ไม่ใช่ลิงก์ · บอสเลือก 11 พ.ย. 69)
   await expect(ใบ.locator("[data-panel='quote-files'] [data-files-side='hq']"), "HQ หลังส่งใบ: กลุ่มไฟล์ HQ ยังอยู่").toBeVisible({ timeout: 20_000 });
   await expect(ใบ.locator("[data-file-drop]"), "หลังส่งใบ HQ ไม่มีกล่องแนบ").toHaveCount(0);
-  await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/ล็อกแล้ว — ส่งใบ HQ แล้ว/);
+  await expect(ใบ.getByTestId("files-locked"), "หลังส่งใบ = ป้ายล็อกพร้อมใบ HQ").toHaveText(/แก้ไม่ได้แล้ว — ส่งใบ HQ แล้ว/);
 
   // ดีลเลอร์ B: บรรทัดสรุปบอก "ไม่มีไฟล์แนบจาก HQ" และไม่มีกล่องไฟล์ใต้ใบ
   // ออกจากหน้า HQ ก่อนล้างคุกกี้ — ต้นเหตุไม่นิ่ง (รอบตรวจ prodfmt 4 พ.ย. 69): ช่องค้นหาของกล่องงานยิงคำขอกลุ่มตามหลัง (หน่วงพิมพ์)

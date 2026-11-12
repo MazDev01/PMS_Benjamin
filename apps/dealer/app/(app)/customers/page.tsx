@@ -30,7 +30,7 @@ function warnBeforeUnloadDuring<T>(fn: () => Promise<T>): Promise<T> {
   return fn().finally(() => window.removeEventListener("beforeunload", onBeforeUnload));
 }
 
-// หมวดโน้ตจาก DB เป็นข้อความอิสระ — หมวดที่ไม่รู้จักต้องไม่ทำหน้าพัง ให้ใช้สีของ "ทั่วไป"
+// หมวดหมายเหตุจาก DB เป็นข้อความอิสระ — หมวดที่ไม่รู้จักต้องไม่ทำหน้าพัง ให้ใช้สีของ "ทั่วไป"
 const noteColorOf = (cat: string) =>
   (noteCategoryColor as Record<string, { bg: string; text: string; dot: string }>)[cat] ?? noteCategoryColor["ทั่วไป"];
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
@@ -373,8 +373,8 @@ export default function CustomersPage(){
   const customerNotes = useCustomerNotes(userProfile.profile.name);
   const [addingNote, setAddingNote] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
-  const โน้ตบังคับ = useช่องบังคับ();   // หัวข้อโน้ต บังคับ ("-" ได้) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
-  const [noteBody, setNoteBody] = useState(""); // โน้ตลูกค้าผ่าน repo (ผู้เขียน = ผู้ใช้ที่ล็อกอิน) // VAT จาก HQ ผ่าน repo (ดีลเลอร์ตั้งเองไม่ได้ · อัปเดตตามเมื่อ HQ แก้)
+  const หมายเหตุบังคับ = useช่องบังคับ();   // หัวข้อหมายเหตุ บังคับ ("-" ได้) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
+  const [noteBody, setNoteBody] = useState(""); // หมายเหตุลูกค้าผ่าน repo (ผู้เขียน = ผู้ใช้ที่ล็อกอิน) // VAT จาก HQ ผ่าน repo (ดีลเลอร์ตั้งเองไม่ได้ · อัปเดตตามเมื่อ HQ แก้)
   // scope ทุกอย่างเป็นของสาขาที่ล็อกอิน (multi-tenant) — RYG ไม่เห็นลูกค้า/ใบ/ลูกค้าเป้าหมายของ CNX
   // undefined = ของ CNX (สมุดงานเดิม) · ที่เหลือกรองด้วย dealerCode ตรง ๆ
   const data = useMemo(() => allCustomers.filter(c => (c.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code), [allCustomers, currentDealer.code]);
@@ -479,7 +479,7 @@ export default function CustomersPage(){
   const [importErr, setImportErr]     = useState("");
   const [importFile, setImportFile]   = useState("");   // ชื่อไฟล์ที่เลือก — ให้ผู้ใช้เห็นว่ากำลังดูไฟล์ไหน
   // ชื่อซ้ำตอนนำเข้า (บอสสั่ง 2 ก.ย. 69) — ห้ามเงียบ ๆ สร้างลูกค้าชื่อเดียวกันซ้อนอีกราย
-  //   ต้องถามก่อนว่าจะ "อัปเดตข้อมูล" (เติมเฉพาะช่องที่ว่างอยู่) หรือ "แทนที่" (เอาของในไฟล์ทับ)
+  //   ต้องถามก่อนว่าจะ "แก้ไขข้อมูล" (เติมเฉพาะช่องที่ว่างอยู่) หรือ "แทนที่" (เอาของในไฟล์ทับ)
   const [ซ้ำที่ต้องถาม, setซ้ำที่ต้องถาม] = useState<{ row: ImportRow; เดิม: CustomerRow }[] | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const savingImportRef = useRef(false); // กันกดนำเข้า CSV ซ้ำ — ดู commitImport()
@@ -666,7 +666,7 @@ export default function CustomersPage(){
   // ลูกค้าเป้าหมายทุกสถานะของลูกค้ารายนี้ — ใช้ผูกใบเสนอราคากลับไปหาลูกค้าเป้าหมาย (คนละชุดกับการ์ด "งานขายทั้งหมด")
   const customerDeals = selected ? leads.filter(l=>l.customerId===selected.id||l.company===selected.company) : [];
   const relatedAppointments = selected ? appointments.filter(a=>a.company===selected.company).sort((a,b)=>b.id-a.id) : [];
-  // โน้ตของลูกค้ารายนี้ — จากตาราง customer_notes (ของสาขาตัวเอง)
+  // หมายเหตุของลูกค้ารายนี้ — จากตาราง customer_notes (ของสาขาตัวเอง)
   // เดิมไม่มีที่เก็บจริง จึงต้องปิดแท็บไว้ในโหมด supabase · ตอนนี้จดได้จริงและอยู่ข้ามเครื่อง
   const relatedNotes        = selected ? customerNotes.notes.filter(n=>n.customerId===selected.id).sort((a,b)=>b.id-a.id) : [];
 
@@ -772,7 +772,7 @@ export default function CustomersPage(){
       const เพิ่มใหม่ = จำนวน - ซ้ำ.length;
       แจ้งสำเร็จ([
         ซ้ำ.length
-          ? `นำเข้าลูกค้า ${จำนวน} ราย — เพิ่มใหม่ ${เพิ่มใหม่} ราย · ${โหมดซ้ำ === "replace" ? "แทนที่" : "อัปเดต"}ของเดิม ${ซ้ำ.length} ราย`
+          ? `นำเข้าลูกค้า ${จำนวน} ราย — เพิ่มใหม่ ${เพิ่มใหม่} ราย · ${โหมดซ้ำ === "replace" ? "แทนที่" : "แก้ไข"}ของเดิม ${ซ้ำ.length} ราย`
           : `นำเข้าลูกค้า ${จำนวน} ราย`,
         ...(นอกช่วง.length
           ? [`${นอกช่วง.length} ราย เป็นลูกค้าตั้งแต่นอกช่วงเวลาที่กรองอยู่ — ขยายช่วงเวลาให้เห็นแล้ว`]
@@ -841,7 +841,7 @@ export default function CustomersPage(){
     {key:"deals",   label:`งานขาย (${customerDeals.length})`, icon:<FileText size={11}/>},
     {key:"quotes",  label:`ใบเสนอราคา (${relatedQuotations.length})`, icon:<FileText size={11}/>},
     {key:"appts",   label:`นัดหมาย (${relatedAppointments.length})`,icon:<Calendar size={11}/>},
-    {key:"notes",   label:`โน้ต (${relatedNotes.length})`, icon:<StickyNote size={11}/>},
+    {key:"notes",   label:`หมายเหตุ (${relatedNotes.length})`, icon:<StickyNote size={11}/>},
     {key:"files",   label:`ไฟล์ (${detailFileCount})`, icon:<Paperclip size={11}/>},
   ];
 
@@ -1147,45 +1147,45 @@ export default function CustomersPage(){
                 {purchasedRows.length>0 && <div style={cardStyle}>{purchasedTable}</div>}
                 <div style={cardStyle}>
                   <div style={{...secLabel, justifyContent:"space-between"}}>
-                    <span style={{display:"flex",alignItems:"center",gap:6}}><StickyNote size={13} color={PRIMARY}/> โน้ต</span>
+                    <span style={{display:"flex",alignItems:"center",gap:6}}><StickyNote size={13} color={PRIMARY}/> หมายเหตุลูกค้า</span>
                     <button type="button" onClick={()=>setAddingNote(true)} className="btn btn-secondary btn-sm" style={{color:PRIMARY}}>
-                      <Plus size={12}/> เพิ่มโน้ต
+                      <Plus size={12}/> เพิ่มหมายเหตุ
                     </button>
                   </div>
-                  {/* ฟอร์มเพิ่มโน้ต — เดิมมีแต่ส่วนแสดงผล ตารางกับ repo พร้อมแล้วแต่ไม่มีทางเพิ่มจากหน้าจอ */}
+                  {/* ฟอร์มเพิ่มหมายเหตุ — เดิมมีแต่ส่วนแสดงผล ตารางกับ repo พร้อมแล้วแต่ไม่มีทางเพิ่มจากหน้าจอ */}
                   {addingNote && (
                     <div style={{marginBottom:10,padding:12,borderRadius:10,background:"#f8f9fb",border:"1px solid #eef0f4",display:"flex",flexDirection:"column",gap:8}}>
                       <div>
                       <FieldLabel htmlFor="note-title" required>หัวข้อ</FieldLabel>
-                      {(() => { const ผ = โน้ตบังคับ.ผูก("noteTitle"); return (
-                      <input id="note-title" value={noteTitle} onChange={e=>{ โน้ตบังคับ.ล้าง("noteTitle"); setNoteTitle(e.target.value); }} placeholder="หัวข้อโน้ต"
+                      {(() => { const ผ = หมายเหตุบังคับ.ผูก("noteTitle"); return (
+                      <input id="note-title" value={noteTitle} onChange={e=>{ หมายเหตุบังคับ.ล้าง("noteTitle"); setNoteTitle(e.target.value); }} placeholder="หัวข้อหมายเหตุ"
                         {...ผ} style={{width:"100%",border:"1px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:"0.8rem",outline:"none",fontFamily:"inherit",...(ผ.style ?? {})}}/>); })()}
-                      <FieldError>{โน้ตบังคับ.ผิด.noteTitle}</FieldError>
+                      <FieldError>{หมายเหตุบังคับ.ผิด.noteTitle}</FieldError>
                       </div>
                       <textarea value={noteBody} onChange={e=>setNoteBody(e.target.value)} placeholder="รายละเอียดการติดตาม" rows={3}
                         style={{width:"100%",border:"1px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:"0.8rem",outline:"none",fontFamily:"inherit",resize:"vertical"}}/>
                       <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-                        <button type="button" onClick={()=>{setAddingNote(false);setNoteTitle("");setNoteBody("");โน้ตบังคับ.ล้าง("noteTitle");}} className="btn btn-secondary btn-sm" style={{color:"#374151"}}>ยกเลิก</button>
+                        <button type="button" onClick={()=>{setAddingNote(false);setNoteTitle("");setNoteBody("");หมายเหตุบังคับ.ล้าง("noteTitle");}} className="btn btn-secondary btn-sm" style={{color:"#374151"}}>ยกเลิก</button>
                         {/* ปุ่มกดได้เสมอ — กดตอนหัวข้อว่าง = บอกที่ช่องว่าขาดอะไร (ไม่ใช่ปุ่มเทาเงียบ ๆ · บอสสั่ง 4 พ.ย. 69) */}
                         <button type="button" className="btn btn-primary btn-sm"
                           onClick={async()=>{
-                            if (!โน้ตบังคับ.ตรวจ([{ key: "noteTitle", label: "หัวข้อโน้ต", value: noteTitle, ข้อความ: ข้อความช่องขีด("หัวข้อโน้ต") }])) return;
+                            if (!หมายเหตุบังคับ.ตรวจ([{ key: "noteTitle", label: "หัวข้อหมายเหตุ", value: noteTitle, ข้อความ: ข้อความช่องขีด("หัวข้อหมายเหตุ") }])) return;
                             try {
                               await customerNotes.add({ title:noteTitle.trim(), content:noteBody.trim(), category:"ลูกค้า", color:"#003366", customerId:selected.id });
                               setAddingNote(false); setNoteTitle(""); setNoteBody("");
-                            } catch(e){ แจ้งพลาด("บันทึกโน้ตไม่สำเร็จ: " + friendlyError(e)); }
-                          }}>บันทึกโน้ต</button>
+                            } catch(e){ แจ้งพลาด("บันทึกหมายเหตุไม่สำเร็จ: " + friendlyError(e)); }
+                          }}>บันทึกหมายเหตุ</button>
                       </div>
                     </div>
                   )}
                   {relatedNotes.length===0 && !addingNote?(
-                    <div style={{fontSize:"0.8rem",color:MUTED,textAlign:"center",padding:"18px 0"}}>ยังไม่มีโน้ต</div>
+                    <div style={{fontSize:"0.8rem",color:MUTED,textAlign:"center",padding:"18px 0"}}>ยังไม่มีหมายเหตุ</div>
                   ):(
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       {relatedNotes.map(n=>{
                         const c=noteColorOf(n.category);
                         return (
-                          <button key={n.id} type="button" onClick={()=>setViewNote(n)} title="กดเพื่อดูโน้ตเต็ม"
+                          <button key={n.id} type="button" onClick={()=>setViewNote(n)} title="กดเพื่อดูหมายเหตุเต็ม"
                             style={{padding:"10px 12px",borderRadius:10,background:"#f8f9fb",border:`1px solid #eef0f4`,cursor:"pointer",textAlign:"left",width:"100%"}}
                             onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background="#eef2f7";}}
                             onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background="#f8f9fb";}}>
@@ -1401,7 +1401,7 @@ export default function CustomersPage(){
 
                   {/* ไทม์ไลน์ของดีลที่ผูกกับใบนี้ */}
                   <div style={cardS}>
-                    <div style={secL}><CalendarClock size={13} color={PRIMARY}/> ไทม์ไลน์ที่เกี่ยวข้อง</div>
+                    <div style={secL}><CalendarClock size={13} color={PRIMARY}/> ประวัติที่เกี่ยวข้อง</div>
                     {acts.length===0 ? (
                       <div style={{fontSize:"0.78rem",color:MUTED}}>— ไม่มีบันทึกกิจกรรมของงานขายนี้</div>
                     ) : (
@@ -1427,11 +1427,11 @@ export default function CustomersPage(){
                           <div style={{fontSize:"0.78rem",color:MUTED}}>— ใบนี้ไม่ได้ผูกกับงานขายในระบบ จึงยังไม่มีที่เก็บรายงาน</div></>}
                   </div>
 
-                  {/* โน้ต ของลูกค้ารายนี้ */}
+                  {/* หมายเหตุ ของลูกค้ารายนี้ */}
                   <div style={cardS}>
-                    <div style={secL}><StickyNote size={13} color={PRIMARY}/> โน้ต</div>
+                    <div style={secL}><StickyNote size={13} color={PRIMARY}/> หมายเหตุลูกค้า</div>
                     {projNotes.length===0 ? (
-                      <div style={{fontSize:"0.78rem",color:MUTED}}>— ยังไม่มีโน้ต</div>
+                      <div style={{fontSize:"0.78rem",color:MUTED}}>— ยังไม่มีหมายเหตุ</div>
                     ) : projNotes.map(n=>(
                       <div key={n.id} style={{borderLeft:`3px solid ${n.color||PRIMARY}`,paddingLeft:10,marginBottom:10}}>
                         <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
@@ -1545,7 +1545,7 @@ export default function CustomersPage(){
               {[
                 { ที่: 1, หัว: "ดาวน์โหลดแบบฟอร์มตัวอย่าง", รอง: "เปิดด้วย Excel หรือ Google ชีต แล้วพิมพ์ต่อได้เลย — มีหัวคอลัมน์และแถวตัวอย่างให้พิมพ์ทับ" },
                 { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "${ช่อง.บริษัท}" ต้องมี ช่องอื่นเว้นว่างได้ · คอลัมน์: ${CSV_HEADERS.join(" · ")} · ในไฟล์มีแผ่น "ค่าที่เลือกได้" บอกจังหวัด/ผู้รับผิดชอบที่ระบบมีจริง` },
-                { ที่: 3, หัว: "อัปโหลดไฟล์กลับเข้ามา", รอง: `รับไฟล์ ${นามสกุลที่รับได้.map(n=>n.replace(".","")).join(" · ")} · ระบบจะให้ตรวจรายชื่อก่อน แล้วค่อยกดนำเข้า` },
+                { ที่: 3, หัว: "แนบไฟล์กลับเข้ามา", รอง: `รับไฟล์ ${นามสกุลที่รับได้.map(n=>n.replace(".","")).join(" · ")} · ระบบจะให้ตรวจรายชื่อก่อน แล้วค่อยกดนำเข้า` },
               ].map(ข => (
                 <div key={ข.ที่} style={{display:"flex",gap:11,alignItems:"flex-start"}}>
                   <span style={{flex:"0 0 22px",height:22,borderRadius:"50%",background:"#f0f4fa",color:PRIMARY,
@@ -1638,14 +1638,14 @@ export default function CustomersPage(){
                 </table>
               </div>
               <div style={{fontSize:"0.7rem",color:MUTED,lineHeight:1.7}}>
-                <b>อัปเดตข้อมูล</b> = เติมเฉพาะช่องที่ยังว่างอยู่ ของเดิมที่กรอกไว้แล้วไม่หาย<br/>
+                <b>แก้ไขข้อมูล</b> = เติมเฉพาะช่องที่ยังว่างอยู่ ของเดิมที่กรอกไว้แล้วไม่หาย<br/>
                 <b>แทนที่</b> = เอาข้อมูลในไฟล์ทับของเดิม (จำนวนงานขายและมูลค่ารวมยังคิดจากงานจริงเหมือนเดิม)
               </div>
             </div>
             <div style={{padding:"14px 20px",borderTop:`1px solid ${BORDER}`,background:"#fafafa",display:"flex",justifyContent:"flex-end",gap:8}}>
               <button className="btn btn-secondary btn-md" onClick={()=>setซ้ำที่ต้องถาม(null)}>ยกเลิก</button>
               <button className="btn btn-secondary btn-md" onClick={()=>{setซ้ำที่ต้องถาม(null); void commitImport("replace");}}>แทนที่</button>
-              <button className="btn btn-primary btn-md" onClick={()=>{setซ้ำที่ต้องถาม(null); void commitImport("update");}}><Check size={14}/> อัปเดตข้อมูล</button>
+              <button className="btn btn-primary btn-md" onClick={()=>{setซ้ำที่ต้องถาม(null); void commitImport("update");}}><Check size={14}/> แก้ไขข้อมูล</button>
             </div>
           </div>
         </div>
@@ -1704,7 +1704,7 @@ export default function CustomersPage(){
               )}
               {/* คำอธิบายต้องเป็นภาษาไทยทั้งบรรทัด — เดิมปน "pipeline" กับ "Dashboard" ทั้งที่หน้าจอเรียกว่า
                   "บอร์ดงานขาย" และ "แดชบอร์ด" อยู่แล้ว (มาตรฐานคำไทยของระบบ) */}
-              <div style={{fontSize:"0.65rem",color:"#9ca3af"}}>งานขายใหม่จะไปอยู่ในบอร์ดงานขายตามขั้นที่เลือก · นับรวมในแดชบอร์ดและรายงานทันที · เปิดหน้ารายละเอียดให้เลย</div>
+              <div style={{fontSize:"0.65rem",color:"#9ca3af"}}>งานขายใหม่จะไปอยู่ในบอร์ดงานขายตามขั้นที่เลือก · นับรวมในหน้าหลักและรายงานทันที · เปิดหน้ารายละเอียดให้เลย</div>
             </div>
             <div style={{padding:"14px 20px",borderTop:`1px solid ${BORDER}`,background:"#fafafa",display:"flex",justifyContent:"flex-end",gap:8}}>
               <button className="btn btn-secondary btn-md" onClick={()=>setShowNewDeal(false)}>ยกเลิก</button>
@@ -1755,7 +1755,7 @@ export default function CustomersPage(){
         </>
       )}
 
-      {/* รายละเอียดโน้ต (ดูในตัว) */}
+      {/* รายละเอียดหมายเหตุ (ดูในตัว) */}
       {viewNote && (
         <>
           <div onClick={()=>setViewNote(null)} style={{position:"fixed",inset:0,background:"rgba(45,45,45,.45)",zIndex:300}}/>

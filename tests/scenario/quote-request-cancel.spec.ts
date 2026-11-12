@@ -72,7 +72,7 @@ test("[flow·dealer] ยกเลิกฟอร์มขอราคา (ยั
 
   // 2) ส่งคำขอ แล้วยกเลิกพร้อมเหตุผล
   await ขั้นต่อไป.getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
-  await แผง.getByLabel("สเปก / รายละเอียด").fill("ZZTEST โกดัง 20x40 ม.");
+  await แผง.getByLabel(/^รายละเอียดงาน/).fill("ZZTEST โกดัง 20x40 ม.");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   await expect.poll(async () => (await คำขอ()).map(r => r.status), { timeout: 20_000 }).toEqual(["new"]);
   await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();
@@ -98,7 +98,7 @@ test("[flow·dealer] ยกเลิกฟอร์มขอราคา (ยั
   // ขอราคาใหม่ได้ คำขอเก่าไม่ทับ
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await ขั้นต่อไป.getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
-  await แผง.getByLabel("สเปก / รายละเอียด").fill("ZZTEST ขอใหม่");
+  await แผง.getByLabel(/^รายละเอียดงาน/).fill("ZZTEST ขอใหม่");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   await expect.poll(async () => (await คำขอ()).map(r => r.status), { timeout: 20_000, message: "คำขอเก่ายังอยู่ (ยกเลิกแล้ว) + คำขอใหม่" }).toEqual(["cancelled", "new"]);
   await expect(แผง.locator(`[data-cancelled-request="${ค1.request_no}"]`), "คำขอใหม่ไม่ทับคำขอที่ยกเลิก").toBeVisible();

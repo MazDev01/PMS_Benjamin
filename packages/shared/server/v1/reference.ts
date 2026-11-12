@@ -95,7 +95,7 @@ export const profilePUT = handler("profile.save", async (req: NextRequest, sb) =
   const id = await callerId(sb);
   if (!id) return fail(401, "ยังไม่ได้เข้าสู่ระบบ");
   const p = (await req.json().catch(() => null)) as UserProfile | null;
-  if (!p) return fail(400, "ข้อมูลโปรไฟล์ไม่ถูกต้อง");
+  if (!p) return fail(400, "ข้อมูลผู้ใช้ไม่ถูกต้อง");
   // เขียนเฉพาะฟิลด์ส่วนตัว — role/dealer_code ไม่ส่งไป (trigger ที่ DB กันไว้อีกชั้น)
   const { error } = await sb.from("profiles")
     .update({ name: p.name, phone: p.phone, contact_email: p.email, avatar: p.avatar ?? null }).eq("id", id);

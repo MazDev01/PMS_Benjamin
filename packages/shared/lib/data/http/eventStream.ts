@@ -115,7 +115,7 @@ async function loop(my: number) {
       // ต่อไม่ติดจริง ๆ — ถอยห่างขึ้นเรื่อย ๆ แล้วค่อยลองใหม่
       if (attempt >= RETRY_MS.length) {
         captureError(
-          new Error(`อัปเดตสด: ต่อใหม่ ${RETRY_MS.length} ครั้งแล้วยังไม่ติด — ข้อมูลจะช้ากว่าปกติ (ยังซิงก์ทุก 30 วินาที)`),
+          new Error(`ข้อมูลสด: ต่อใหม่ ${RETRY_MS.length} ครั้งแล้วยังไม่ติด — ข้อมูลจะช้ากว่าปกติ (ยังซิงก์ทุก 30 วินาที)`),
           "realtime",
         );
         attempt = 0;

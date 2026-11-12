@@ -71,7 +71,7 @@ export default function HQDashboard() {
   const { salesVersion } = useSales();
   const โหลด = useCallback(async () => {
     try { setข้อมูล(await metricsRepo.hqDashboard(เริ่ม, จบ, dealerSel === "all" ? null : dealerSel, isoDateOf(APP_NOW))); setErr(""); }
-    catch (e) { setErr(friendlyError(e, "โหลดแดชบอร์ดไม่สำเร็จ")); }
+    catch (e) { setErr(friendlyError(e, "โหลดหน้าหลักไม่สำเร็จ")); }
   }, [เริ่ม, จบ, dealerSel]);
   useEffect(() => { const t = setTimeout(() => void โหลด(), 150); return () => clearTimeout(t); }, [โหลด, salesVersion]);
 
@@ -162,7 +162,7 @@ export default function HQDashboard() {
       </section>
 
       {/* ── การ์ด 4 ใบ (ขึ้นกับตัวกรองช่วงเวลา/ดีลเลอร์) — ตัวเลขคิดที่ฐาน (hq_dashboard 0235) · คอมโพเนนต์กลาง KpiCard (ใบ 0246) ── */}
-      <KpiRow label="สรุปแดชบอร์ดสำนักงานใหญ่" range={{ start: เริ่ม, end: จบ }} style={{ marginBottom: "1.5rem" }}>
+      <KpiRow label="สรุปหน้าหลักสำนักงานใหญ่" range={{ start: เริ่ม, end: จบ }} style={{ marginBottom: "1.5rem" }}>
         <KpiCard kpi="sales" label="ยอดขาย (ใบที่ลูกค้าตอบรับ ก่อน VAT)" value={c ? fmtBaht(c.sales) : null} rawValue={c?.sales ?? null} empty="กำลังโหลด…"
           sub={<span data-target={c?.target ?? ""}>{!c ? " " : c.target == null ? "ยังไม่ได้ตั้งเป้า" : `เป้า ${fmtBaht(c.target)} (เฉลี่ยตามช่วง ${ช่วงคำ})`}</span>}
           ring={c && c.target ? Math.round(c.sales / c.target * 100) : null} icon={Target} actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/pipeline")} />

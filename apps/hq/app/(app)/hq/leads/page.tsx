@@ -710,7 +710,7 @@ export default function HQLeadsPage() {
                 </PanelSection>
 
                 </>}
-                {แท็บแผง === "activity" && <PanelSection icon={Activity} title="กิจกรรม / ไทม์ไลน์" style={{ marginTop: 0 }}>
+                {แท็บแผง === "activity" && <PanelSection icon={Activity} title="กิจกรรม / ประวัติ" style={{ marginTop: 0 }}>
                   {!l.activities?.length ? (
                     <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>— ไม่มีบันทึกกิจกรรม</div>
                   ) : (

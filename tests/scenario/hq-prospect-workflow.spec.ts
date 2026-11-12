@@ -169,7 +169,7 @@ test("[func·hq] รูปประจำตัว: อัปโหลดตั�
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click();
   const ฟอร์ม = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
-  await ฟอร์ม.getByLabel("อัปโหลดรูปผู้สนใจ").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: รูปทดสอบ });
+  await ฟอร์ม.getByLabel("แนบรูปผู้สนใจ").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: รูปทดสอบ });
   await expect(ฟอร์ม.getByRole("img", { name: "รูปประจำตัว" }), "เลือกรูปแล้วต้องเห็นตัวอย่างในฟอร์ม").toBeVisible({ timeout: 10_000 });
   await ฟอร์ม.locator("#pr-name").fill(name);
   await ฟอร์ม.locator("#pr-phone").fill(เบอร์ทดสอบ());   // เบอร์โทรเป็นช่องบังคับ (4 พ.ย. 69 · ใบ 0276)

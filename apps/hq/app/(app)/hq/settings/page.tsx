@@ -7,7 +7,7 @@ import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 // แท็บ "กฎธุรกิจ" ถูกยุบเข้า "เส้นทางการขาย" (เหลือ: เหตุผลปิดไม่สำเร็จ) — คีย์ localStorage เดิมทุกตัว ค่าที่ตั้งไว้ไม่หาย
 // การ์ดที่เป็นข้อความนโยบายล้วน ๆ (นโยบายราคา · ประเภทสินค้าและแม่แบบ) บอสสั่งลบ 17 ก.ค. 69 — ไม่มีช่องตั้งค่า ไม่ต้องมีในหน้าตั้งค่า
 // การ์ด "กฎใบเสนอราคา" (VAT · อายุใบ · เลขที่) บอสสั่งลบ 17 ก.ค. 69 — ค่ายังทำงานอยู่แต่ตรึงที่ค่าตั้งต้น แก้ผ่านหน้าจอไม่ได้แล้ว
-// ดีลเลอร์ไม่มีสิทธิ์เข้าหน้านี้ · ทุกอย่างชิดซ้าย · ปุ่มบันทึก/รีเซ็ตอยู่บนแถบบน
+// ดีลเลอร์ไม่มีสิทธิ์เข้าหน้านี้ · ทุกอย่างชิดซ้าย · ปุ่มบันทึก/คืนค่าเดิมอยู่บนแถบบน
 //
 // ไม่มีในหน้านี้ (ตัดตามสเปก): สินทรัพย์แบรนด์ · โลโก้/ธีม/สี/ฟอนต์ · ความปลอดภัย · SLA · LSA · AI · ส่วนลด
 //
@@ -625,7 +625,7 @@ function CompanyTab() {
 // ═══════════════════════ ROOT ═════════════════════════════════════════════════
 // ไม่มี ความปลอดภัย / SLA / LSA / แบรนด์ / ธีม / AI / ส่วนลด
 // แท็บ "ดีลเลอร์" ถูกยุบตามคำสั่ง — ทั้งใบซ้ำกับหน้า /hq/dealers (ตารางบัญชี · สลับสถานะ · เข้าระบบแทน)
-//   "รีเซ็ตรหัสผ่าน" ย้ายไปอยู่ในโมดัล "รหัสเข้าระบบ" ของหน้า /hq/dealers แล้ว (ไม่มีที่อื่นมาก่อน)
+//   "ตั้งรหัสผ่านใหม่" ย้ายไปอยู่ในโมดัล "รหัสเข้าระบบ" ของหน้า /hq/dealers แล้ว (ไม่มีที่อื่นมาก่อน)
 //   "ค่ามาตรฐานดีลเลอร์" (defaultQuota) ถูกลบ — ไม่มีใครอ่านค่านั้นเลย ค่าจริงตอนสร้างดีลเลอร์อยู่ที่ /hq/dealers
 type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "materials" | "notifications" | "storage";
 const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNode }[] = [
@@ -674,10 +674,10 @@ function HQSettingsPageInner() {
   return (
     <BusCtx.Provider value={{ report, toast: showToast }}>
       <div className="erp">
-        {/* ปุ่มบันทึก/รีเซ็ต → แถบบน (ชื่อหน้ามาจาก Topbar) — เลย์เอาต์เดียวกับหน้าตั้งค่าดีลเลอร์ */}
+        {/* ปุ่มบันทึก/คืนค่าเดิม → แถบบน (ชื่อหน้ามาจาก Topbar) — เลย์เอาต์เดียวกับหน้าตั้งค่าดีลเลอร์ */}
         <TopbarActions>
           {dirty && <span style={{ fontSize: "0.72rem", color: "#d97706", fontWeight: 600 }}>ยังไม่บันทึก</span>}
-          <button className="btn btn-secondary btn-sm" onClick={resetAll} disabled={!dirty} style={!dirty ? { opacity: .5, cursor: "not-allowed" } : undefined}><RotateCcw size={14} /> รีเซ็ต</button>
+          <button className="btn btn-secondary btn-sm" onClick={resetAll} disabled={!dirty} style={!dirty ? { opacity: .5, cursor: "not-allowed" } : undefined}><RotateCcw size={14} /> คืนค่าเดิม</button>
           <button className="btn btn-primary btn-sm" onClick={saveAll} disabled={!dirty} style={!dirty ? { opacity: .5, cursor: "not-allowed" } : undefined}><Save size={14} /> บันทึก</button>
         </TopbarActions>
         {/* คำโปรยใต้ชื่อหน้าถูกเอาออกทุกหน้า (บอสสั่ง 14 ส.ค. 69) */}

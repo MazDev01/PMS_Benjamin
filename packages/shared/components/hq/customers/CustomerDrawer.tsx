@@ -60,7 +60,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
   const tabs: แท็บแผง[] = [
     {
       key: "profile",
-      label: "โปรไฟล์",
+      label: "ข้อมูลลูกค้า",
       content: (
         <>
           {/* ตัวเลขสำคัญอยู่บนสุด — เห็นก่อนเลื่อนจอ (มาตรฐานเดียวกับแผงลูกค้าเป้าหมายทั้งเครือ) */}
@@ -150,9 +150,9 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
     //    "วันปิดการขาย + 90 วัน" ที่ระบบคิดเอง = ตัวเลขที่ไม่มีอยู่จริงในงาน
     {
       key: "timeline",
-      label: "ไทม์ไลน์",
+      label: "ประวัติ",
       content: row.buildings.length ? (
-        <PanelSection icon={Activity} title="ไทม์ไลน์" style={{ marginTop: 0 }} bodyStyle={{ padding: "12px 14px" }}>
+        <PanelSection icon={Activity} title="ประวัติ" style={{ marginTop: 0 }} bodyStyle={{ padding: "12px 14px" }}>
           {row.buildings.flatMap(b => [
             { at: b.wonAt, label: `ปิดการขาย ${b.quoteNo}`, sub: fmtBaht(b.value), color: PRIMARY },
           ])
@@ -173,7 +173,7 @@ export function CustomerDrawer({ row, onClose }: { row: CustomerDbRow | null; on
               </div>
             ))}
         </PanelSection>
-      ) : <Empty text="ยังไม่มีเหตุการณ์ — ไทม์ไลน์เริ่มจากใบที่ปิดการขายสำเร็จ" />,
+      ) : <Empty text="ยังไม่มีเหตุการณ์ — ประวัติเริ่มจากใบที่ปิดการขายสำเร็จ" />,
     },
   ];
 

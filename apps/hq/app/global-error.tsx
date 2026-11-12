@@ -11,7 +11,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
           <div style={{ maxWidth: 420, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 8 }}>ระบบเปิดใช้งานไม่สำเร็จ</div>
             <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20, lineHeight: 1.6 }}>
-              เกิดข้อผิดพลาดร้ายแรงขณะเปิดแอป กรุณาลองโหลดหน้าใหม่ ถ้ายังไม่หายให้แจ้งผู้ดูแลระบบ
+              เกิดข้อผิดพลาดร้ายแรงขณะเปิดระบบ กรุณาลองโหลดหน้าใหม่ ถ้ายังไม่หายให้แจ้งผู้ดูแลระบบ
             </p>
             <button
               style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#003366", color: "#fff", fontWeight: 600, cursor: "pointer" }}

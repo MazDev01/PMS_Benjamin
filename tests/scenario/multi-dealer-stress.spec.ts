@@ -217,8 +217,8 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   await page.getByPlaceholder("ค้นหาลูกค้า, เบอร์โทร, อีเมล...").fill(COMPANY);
   await expect(page.locator("tbody tr").filter({ hasText: COMPANY }).first()).toBeVisible({ timeout: 45_000 });
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().click();
-  await page.getByRole("button", { name: "เพิ่มโน้ต" }).first().click();
-  await page.getByPlaceholder("หัวข้อโน้ต").fill(`${TAG}-โน้ต-${code}`);
+  await page.getByRole("button", { name: "เพิ่มหมายเหตุ" }).first().click();
+  await page.getByPlaceholder("หัวข้อหมายเหตุ").fill(`${TAG}-โน้ต-${code}`);
   await page.getByPlaceholder("รายละเอียดการติดตาม").fill(`บันทึกจาก load test ${code}`);
   await page.getByRole("button", { name: "บันทึกโน้ต" }).click();
   await expect.poll(async () => (await sb.from("customer_notes").select("id").eq("title", `${TAG}-โน้ต-${code}`)).data?.length ?? 0,

@@ -57,7 +57,7 @@ export function NotifyPrefsTable({ canEdit = true }: { canEdit?: boolean }) {
   return (
     <SectionCard icon={<Bell size={19} />} title="แจ้งเตือนแต่ละเรื่อง">
       {แถว === undefined && <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>}
-      {แถว === null && <div role="alert" style={กล่องแดง}>โหลดตารางแจ้งเตือนไม่สำเร็จ — รีเฟรชหน้าแล้วลองใหม่</div>}
+      {แถว === null && <div role="alert" style={กล่องแดง}>โหลดตารางแจ้งเตือนไม่สำเร็จ — โหลดหน้าใหม่แล้วลองใหม่</div>}
       {แถว && (
         <div className="table-wrap" style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
           <table aria-label="ตั้งค่าแจ้งเตือนแต่ละเรื่อง" style={{ tableLayout: "fixed", width: "100%" }}>
@@ -188,7 +188,7 @@ export function DealerRecipientsCard() {
   return (
     <SectionCard icon={<Mail size={19} />} title="อีเมลผู้รับแจ้งเตือน">
       {รายการ === undefined && <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>}
-      {รายการ === null && <div role="alert" style={กล่องแดง}>โหลดรายชื่อผู้รับไม่สำเร็จ — รีเฟรชหน้าแล้วลองใหม่</div>}
+      {รายการ === null && <div role="alert" style={กล่องแดง}>โหลดรายชื่อผู้รับไม่สำเร็จ — โหลดหน้าใหม่แล้วลองใหม่</div>}
       {รายการ && ยืนยันแล้ว === 0 && (
         <div role="alert" data-testid="no-recipients" style={กล่องแดง}><Mail size={15} /> ยังไม่มีผู้รับ — อีเมลแจ้งเตือนจะไม่ถึงใครเลยจนกว่าจะยืนยันอีเมลอย่างน้อย 1 รายการ (กระดิ่งยังขึ้นตามปกติ)</div>
       )}

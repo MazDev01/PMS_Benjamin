@@ -167,7 +167,7 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
   // แผงลีดที่เปิดอยู่บังกระดิ่ง — กลับแดชบอร์ดด้วยการกดเมนู (ไม่โหลดหน้าใหม่ = ตรวจสถานะในหน้าเดิม)
   await page.locator(".drawer-overlay").click({ position: { x: 5, y: 5 } });   // ปิดแผงลีดก่อน (กดฉากหลัง = ปิด · ฉากหลังรับการกดแทนเมนู)
   await expect(page.locator(".drawer-overlay")).toHaveCount(0, { timeout: 10_000 });
-  await page.getByRole("link", { name: "แดชบอร์ด" }).first().click();
+  await page.getByRole("link", { name: "หน้าหลัก" }).first().click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
   await settle(page);
   await เปิดดูเรื่องนี้();

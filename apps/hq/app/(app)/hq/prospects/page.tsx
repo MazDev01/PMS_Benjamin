@@ -681,9 +681,9 @@ export default function HQProspectsPage() {
           border: `1px ${ร่าง.logo ? "solid" : "dashed"} #e5e7eb`, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {ร่าง.logo ? <img src={ร่าง.logo} alt="รูปประจำตัว" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <User size={22} color="#9ca3af" />}
         </span>
-        <input ref={รูปRef} type="file" accept="image/*" aria-label="อัปโหลดรูปผู้สนใจ" style={{ display: "none" }} onChange={e => void อัปโหลดรูป(e)} />
+        <input ref={รูปRef} type="file" accept="image/*" aria-label="แนบรูปผู้สนใจ" style={{ display: "none" }} onChange={e => void อัปโหลดรูป(e)} />
         <button type="button" onClick={() => รูปRef.current?.click()} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
-          <Paperclip size={12} /> {ร่าง.logo ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+          <Paperclip size={12} /> {ร่าง.logo ? "เปลี่ยนรูป" : "แนบรูป"}
         </button>
         {ร่าง.logo && (
           <button type="button" onClick={() => ตั้งค่า("logo", null)} className="btn btn-secondary btn-sm" style={{ color: "#dc2626" }}>

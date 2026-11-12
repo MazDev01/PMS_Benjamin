@@ -16,10 +16,10 @@ export default function NotFound() {
       <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#003366", lineHeight: 1 }}>404</div>
       <div style={{ fontSize: "1rem", fontWeight: 800, color: "#2D2D2D" }}>ไม่พบหน้าที่ต้องการ</div>
       <div style={{ fontSize: "0.84rem", color: "#6b7280", maxWidth: 420, lineHeight: 1.7 }}>
-        หน้านี้อาจถูกย้าย เปลี่ยนชื่อ หรือไม่มีอยู่แล้ว — ลองกลับไปที่แดชบอร์ดแล้วเข้าจากเมนูอีกครั้ง
+        หน้านี้อาจถูกย้าย เปลี่ยนชื่อ หรือไม่มีอยู่แล้ว — ลองกลับไปที่หน้าหลักแล้วเข้าจากเมนูอีกครั้ง
       </div>
       <Link href="/hq/dashboard" className="btn btn-primary btn-md" style={{ marginTop: 4 }}>
-        กลับไปหน้าแดชบอร์ด
+        กลับไปหน้าหลัก
       </Link>
     </div>
   );

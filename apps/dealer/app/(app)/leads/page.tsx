@@ -74,6 +74,7 @@ import { reportRepoSaveError } from "@pms/shared/lib/useRepoState";
 import { ReportEditor } from "@pms/shared/components/ui/ReportEditor";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
+import { ชื่อผู้ทำ } from "@pms/shared/lib/systemActor";
 
 // ─── Design tokens ────────────────────────────────────────────────────────
 
@@ -216,7 +217,7 @@ function seedActivities(lead: LeadRow): { date: string; text: string; type?: str
     .filter(t => t.done && t.doneAt)
     .map(t => ({
       date: t.doneAt!,
-      text: t.doneBy ? `${t.label} · ${t.doneBy}` : t.label,
+      text: t.doneBy ? `${t.label} · ${ชื่อผู้ทำ(t.doneBy)}` : t.label,   // แถวเก่า "อัปเดตอัตโนมัติ" แสดง "ระบบทำให้" (12 พ.ย. 69)
       type: TASK_ACTIVITY_TYPE[t.key] ?? "task",
     }));
 }
@@ -1655,7 +1656,7 @@ export default function LeadsPage() {
             )}
             <div style={{ display:"flex", justifyContent:"flex-end" }}>
               <button onClick={commitFieldPopup} className="btn btn-primary btn-md">
-                อัปเดต
+                บันทึก
               </button>
             </div>
           </div>
@@ -2050,7 +2051,7 @@ export default function LeadsPage() {
                         ปุ่ม "โทร" (tel: ลิงก์) ถูกเอาออก (บอสสั่ง 17 ก.ค. 69) — เบอร์โทรยังอยู่ในการ์ดข้อมูลลูกค้า แท็บภาพรวม */}
                     <button title="สร้างนัดหมาย" onClick={()=>{ setDTab("overview"); setApptAdding(true); setTimeout(() => rightApptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }} style={qa}><CalendarClock size={13} /> นัดหมาย</button>
                     {isCustomer && (
-                      <button title="ดูโปรไฟล์ลูกค้า" onClick={()=>{ closePanel(); router.push(c.customerId ? `/customers?open=${c.customerId}` : "/customers"); }} style={qa}><CheckCircle2 size={13} /> ลูกค้า</button>
+                      <button title="ดูข้อมูลลูกค้า" onClick={()=>{ closePanel(); router.push(c.customerId ? `/customers?open=${c.customerId}` : "/customers"); }} style={qa}><CheckCircle2 size={13} /> ลูกค้า</button>
                     )}
                     {ลบได้(c) && <button title="ลบ" onClick={()=>setShowDeleteConfirm(true)} style={{ ...qa, width:30, padding:0, justifyContent:"center", color:"#fecaca" }}><Trash2 size={14} /></button>}
                     <button onClick={closePanel} title="ปิด" style={{ ...qa, width:30, padding:0, justifyContent:"center" }}><X size={15} /></button>
@@ -2124,7 +2125,7 @@ export default function LeadsPage() {
                   </div>
                   <div ref={rightApptRef} style={cardStyle}>{tabAppts}</div>
                   <div style={cardStyle}>{tabFiles}</div>
-                  <div style={cardStyle}><div style={secLabel}><StickyNote size={13} color="#003366" /> โน้ต</div>{tabReport}</div>
+                  <div style={cardStyle}><div style={secLabel}><StickyNote size={13} color="#003366" /> หมายเหตุลูกค้าเป้าหมาย</div>{tabReport}</div>
                 </div>
 
                 {/* ── TAB: ใบเสนอราคา ── */}

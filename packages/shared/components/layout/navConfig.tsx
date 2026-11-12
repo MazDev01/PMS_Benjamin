@@ -25,7 +25,7 @@ export type NavGroup = {
 // Dealer = ฝ่ายขายล้วน (Sales-only)
 export const DEALER_NAV: NavGroup[] = [
   { key: "overview", group: "ภาพรวม", flat: true, items: [
-    { label: "แดชบอร์ด", href: "/dashboard", icon: <LayoutDashboard size={17} /> },
+    { label: "หน้าหลัก", href: "/dashboard", icon: <LayoutDashboard size={17} /> },
   ] },
   { key: "sales", group: "งานขาย", icon: <Phone size={15} />, items: [
     { label: "ลูกค้าเป้าหมาย", href: "/leads",      icon: <Phone size={16} /> },
@@ -45,7 +45,7 @@ export const DEALER_NAV: NavGroup[] = [
 //      "ผู้สนใจเป็นดีลเลอร์" + "ใบค่าแฟรนไชส์" มาก่อน "ดีลเลอร์" (บอสสั่ง 14 ก.ย. 69)
 export const HQ_NAV: NavGroup[] = [
   { key: "overview", group: "ภาพรวมทั้งเครือ", flat: true, items: [
-    { label: "แดชบอร์ดสำนักงานใหญ่", href: "/hq/dashboard", icon: <LayoutDashboard size={17} /> },
+    { label: "หน้าหลักสำนักงานใหญ่", href: "/hq/dashboard", icon: <LayoutDashboard size={17} /> },
   ] },
   { key: "recruit", group: "หาดีลเลอร์", icon: <UserPlus size={15} />, items: [
     { label: "ผู้สนใจเป็นดีลเลอร์",  href: "/hq/prospects", icon: <UserPlus size={16} /> },

@@ -176,7 +176,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
     หัวข้อ: `ขอแก้ราคาคำขอ ${คำขอ.requestNo} ?`,
     รายละเอียด: "ใบ HQ ใบเดิมปิด · เปิดคำขอใหม่ให้ HQ ตีราคาอีกครั้ง (เริ่มนับ 14 วันใหม่)",
     ป้ายช่อง: "เหตุผลที่ขอแก้ราคา", ปุ่มตกลง: "ส่งขอแก้ราคา", ปุ่มกำลังทำ: "กำลังส่งขอแก้ราคา…",
-    ช่องเพิ่ม: { ป้าย: "สเปกที่ขอแก้ราคา", ค่าตั้งต้น: คำขอ.spec ?? "" },
+    ช่องเพิ่ม: { ป้าย: "รายละเอียดงานที่ขอแก้ราคา", ค่าตั้งต้น: คำขอ.spec ?? "" },
     ทำ: async (เหตุผล, สเปก) => { await repo.reprice(คำขอ.id, เหตุผล, สเปก || undefined); await หลังทำ(); },
   });
 
@@ -279,7 +279,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
                 style={{ background: "none", border: "none", padding: 0, color: "#6b21a8", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Paperclip size={12} /> ไฟล์ที่คุณแนบกับคำขอ {ดูไฟล์ของฉัน ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
-              {ดูไฟล์ของฉัน && <div style={{ marginTop: 6 }}><QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="ล็อกแล้ว (HQ ส่งใบแล้ว)" /></div>}
+              {ดูไฟล์ของฉัน && <div style={{ marginTop: 6 }}><QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="แก้ไม่ได้แล้ว (HQ ส่งใบแล้ว)" /></div>}
             </div>
           )}
           {โหมด === "ดู" && (
@@ -293,7 +293,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
         </div>
       ) : (
         <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>
-          {ขอได้ ? "ยังไม่ได้ขอราคา — ส่งคำขอพร้อมชื่องานและสเปก สำนักงานใหญ่ทำ BOQ และส่งใบ HQ ภายใน 14 วัน"
+          {ขอได้ ? "ยังไม่ได้ขอราคา — ส่งคำขอพร้อมชื่องานและรายละเอียดงาน สำนักงานใหญ่ทำ BOQ และส่งใบ HQ ภายใน 14 วัน"
                  : lead.status === "HQ_PRICING" ? "กำลังโหลดคำขอ…" : `ขอราคาจาก HQ ได้ในขั้น “${ชื่อขั้นการขาย[0]}”`}
           {/* ปุ่ม "ขอราคาจาก HQ" อยู่ในกล่องขั้นต่อไปที่เดียว (รอบ 4) — กดแล้วฟอร์มเปิดที่นี่ */}
           {ขอได้ && โหมด === "ดู" && " · กด “ขอราคาจาก HQ” ที่กล่องขั้นต่อไปด้านบน"}

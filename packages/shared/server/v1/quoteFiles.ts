@@ -46,7 +46,7 @@ export const quoteFilesPOST = handler("quoteFiles.write", async (req: NextReques
       const path = String((data as { path?: string } | null)?.path ?? "");
       // ออกลิงก์ในนามผู้ใช้ — กฎเขียนของถังตรวจว่าผู้นี้จองที่นี้ไว้จริง
       const { data: s, error: e2 } = await sb.storage.from(BUCKET).createSignedUploadUrl(path);
-      if (e2 || !s) return dbFail("quoteFiles.sign", (e2 ?? { message: "ออกลิงก์อัปโหลดไม่สำเร็จ" }) as { message: string; code?: string });
+      if (e2 || !s) return dbFail("quoteFiles.sign", (e2 ?? { message: "ออกลิงก์แนบไฟล์ไม่สำเร็จ" }) as { message: string; code?: string });
       return ok({ path, token: s.token });
     }
     case "counts": {
@@ -58,7 +58,7 @@ export const quoteFilesPOST = handler("quoteFiles.write", async (req: NextReques
     }
     case "quota": {
       const gb = b.gb == null || b.gb === "" ? null : Number(b.gb);
-      if (gb != null && !Number.isFinite(gb)) return fail(400, "โควตาไม่ถูกต้อง");
+      if (gb != null && !Number.isFinite(gb)) return fail(400, "พื้นที่ที่ให้ใช้ไม่ถูกต้อง");
       const { error } = await sb.rpc("storage_quota_set", { p_gb: gb });
       if (error) return dbFail("quoteFiles.quota", error);
       return ok({ ok: true });

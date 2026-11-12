@@ -47,6 +47,6 @@ test("[ui·dealer] หน้าไฟล์ดูอย่างเดียว:
   await openAs(page, RYG, "dealer", "/files");
   await settle(page);
   await expect(page.getByRole("heading", { name: /ไฟล์/ }).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("button", { name: "อัปโหลดไฟล์" }), "หน้าไฟล์ไม่มีปุ่มอัปโหลดแล้ว").toHaveCount(0);
-  await expect(page.getByRole("dialog", { name: "อัปโหลดไฟล์" }), "ไม่มีหน้าต่างอัปโหลด").toHaveCount(0);
+  await expect(page.getByRole("button", { name: /อัปโหลดไฟล์|แนบไฟล์/ }), "หน้าไฟล์ไม่มีปุ่มอัปโหลดแล้ว").toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: /อัปโหลดไฟล์|แนบไฟล์/ }), "ไม่มีหน้าต่างอัปโหลด").toHaveCount(0);
 });

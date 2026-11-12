@@ -131,9 +131,9 @@ function PreviewBody({ f }: { f: PreviewFile }) {
           {[
             ["ประเภท", extLabel(f.ext)],
             ["ขนาด", f.size],
-            ["โฟลเดอร์", f.category],
+            ["แฟ้ม", f.category],
             ["โอกาสการขาย", f.project],
-            ["อัปโหลดโดย", f.uploadedBy],
+            ["ผู้แนบ", f.uploadedBy],
             ["วันที่", f.uploadedAt],
           ].map(([k, v], i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "9px 0", borderBottom: `1px solid ${BORDER}` }}>

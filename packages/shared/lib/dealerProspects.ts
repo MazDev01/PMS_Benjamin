@@ -113,7 +113,7 @@ export function ตรวจผู้สนใจ(p: ผู้สนใจที
   if (p.status === "won" && !p.dealerCode) return "สถานะ “เป็นดีลเลอร์แล้ว” ต้องผูกกับดีลเลอร์ — ใช้ปุ่ม “ตั้งเป็นดีลเลอร์”";
   if (p.dealerCode && !/^[A-Z]{2,5}$/.test(p.dealerCode)) return "รหัสดีลเลอร์ต้องเป็นตัวอักษร A–Z 2–5 ตัว";
   // ต้องเป็นรูปที่อัปโหลดจากหน้าจอ (ฐานข้อมูลบังคับซ้ำ) — กันยัดลิงก์ภายนอก/ไฟล์ใหญ่
-  if (p.logo && !p.logo.startsWith("data:image/")) return "รูปประจำตัวไม่ถูกต้อง — อัปโหลดไฟล์รูปใหม่";
+  if (p.logo && !p.logo.startsWith("data:image/")) return "รูปประจำตัวไม่ถูกต้อง — แนบไฟล์รูปใหม่";
   if (p.logo && p.logo.length > ขนาดรูปสูงสุด) return "รูปใหญ่เกินไป — ลองใช้รูปที่เล็กลง";
   return null;
 }

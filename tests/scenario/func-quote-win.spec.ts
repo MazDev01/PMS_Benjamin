@@ -201,10 +201,10 @@ test("[func] เพิ่มโน้ตให้ลูกค้า → โน�
     { timeout: 20_000 }).toContain(COMPANY);
   await page.getByText(COMPANY).first().click();
 
-  await page.getByRole("button", { name: "เพิ่มโน้ต" }).first().click();
-  await page.getByPlaceholder("หัวข้อโน้ต").fill(TITLE);
+  await page.getByRole("button", { name: "เพิ่มหมายเหตุ" }).first().click();
+  await page.getByPlaceholder("หัวข้อหมายเหตุ").fill(TITLE);
   await page.getByPlaceholder("รายละเอียดการติดตาม").fill("บันทึกอัตโนมัติจากชุดทดสอบ");
-  await page.getByRole("button", { name: "บันทึกโน้ต" }).click();
+  await page.getByRole("button", { name: "บันทึกหมายเหตุ" }).click();
 
   const note = await waitRow<{ title: string; dealer_code: string; customer_id: number }>(
     sb, "customer_notes", { title: TITLE }, 15_000);

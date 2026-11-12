@@ -8,6 +8,7 @@
 import { buildLeadTasks, leadStatusLabel, เป็นรายการระบบ, ระบบติ๊กเมื่อ,
   type LeadRow, type LeadStatus, type LeadTask, type LeadTaskDef, type LeadActivity } from "./mock";
 import { ติ๊กข้อมูลอัตโนมัติ } from "./leadInfoTasks";
+import { ผู้ทำโดยระบบ } from "./systemActor";
 
 /** ช่องที่ผู้ใช้แก้ได้ผ่าน fields — ตรงกับรายการใน lead_apply */
 export const LEAD_EDITABLE_FIELDS = ["name", "company", "contact", "phone", "email", "province", "product", "category", "value", "area",
@@ -63,7 +64,7 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
 }): LeadRow {
   const f = (intent.fields ?? {}) as Record<string, unknown>;
   const ผิดช่อง = Object.keys(f).find(k => !(LEAD_EDITABLE_FIELDS as readonly string[]).includes(k));
-  if (ผิดช่อง) throw new Error(`lead_field_not_allowed: ช่อง "${ผิดช่อง}" แก้ทางนี้ไม่ได้ (ขั้น/งาน/ไทม์ไลน์ ฐานเป็นเจ้าของ)`);
+  if (ผิดช่อง) throw new Error(`lead_field_not_allowed: ช่อง "${ผิดช่อง}" แก้ทางนี้ไม่ได้ (ขั้น/งาน/ประวัติ ฐานเป็นเจ้าของ)`);
   const จด = intent.log !== false;
   const logs: Omit<LeadActivity, "id">[] = [];
 
@@ -81,7 +82,7 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
     const เดิม = tasks.find(t => t.key === c.key)!;
     if (c.done && !เดิม.done) {
       tasks = tasks.map(t => t.key !== c.key ? t : { ...t, done: true, doneAt: c.doneAt || ctx.now,
-        doneBy: (c.doneBy ?? "").trim() || (lead.assigned ?? "").trim() || "อัปเดตอัตโนมัติ" });
+        doneBy: (c.doneBy ?? "").trim() || (lead.assigned ?? "").trim() || ผู้ทำโดยระบบ });
       งานเปลี่ยน = true;
       if (จด) logs.push({ date: ctx.now, icon: "task", type: "task", text: `ทำงาน: ${เดิม.label}` });
     } else if (!c.done && เดิม.done) {

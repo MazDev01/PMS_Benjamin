@@ -152,7 +152,7 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
     await แท็บใบเสนอราคา(page);
     await ตรวจกล่องเหตุผล(page, "ขอแก้ราคา", async () => {
       await page.getByRole("button", { name: "ขอแก้ราคา", exact: true }).click({ timeout: 30_000 });
-      await expect(page.locator("[data-reason-dialog]").getByLabel("สเปกที่ขอแก้ราคา"), "ช่องสเปกอยู่ในกล่องเดียวกัน").toBeVisible();
+      await expect(page.locator("[data-reason-dialog]").getByLabel("รายละเอียดงานที่ขอแก้ราคา"), "ช่องสเปกอยู่ในกล่องเดียวกัน").toBeVisible();
     });
   });
 
