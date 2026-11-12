@@ -38,6 +38,21 @@ try {
   ไฟล์("a.spec.ts", `test("x", async ({ page }) => {\n  await page.waitForTimeout(500);\n  await page.locator("tbody tr").first().click();\n  const แถว = page.locator("tbody tr");\n  for (let i = 0; i < 5; i++) await แถว.nth(i).locator("td").first().click();\n});\n`);
   ผล(!ตรวจ().ผ่าน, "(ข) เก็บรายการแถวในตัวแปรแล้วไล่ แถว.nth(i) (แบบ lost-reason-other เดิม) → ตก");
 
+  // (ค) ผ่านหลอก (12 พ.ย. 69): ตรวจเฉพาะเมื่อเจอ / กลืนความผิดพลาด → ตก
+  const ฐานค = `test("x", async ({ page }) => {\n  await page.waitForTimeout(500);\n  await page.locator("tbody tr").first().click();\n`;
+  for (const [ชื่อ, บรรทัด] of [
+    ["if (await x.count()) { expect }", `  if (await page.getByText("ป้าย").count()) await expect(page.getByText("ป้าย")).toHaveText("ก");\n`],
+    ["if (await x.isVisible())", `  if (await page.getByRole("button", { name: "ปิด", exact: true }).isVisible()) await page.keyboard.press("Escape");\n`],
+    [".catch(() => {}) กลืนผิดพลาด", `  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});\n`],
+    ["?: ด้วย count()", `  const มี = (await page.locator("x").count()) ? 1 : 0;\n`],
+  ]) {
+    ไฟล์("a.spec.ts", ฐานค + บรรทัด + "});\n");
+    const ร = ตรวจ();
+    ผล(!ร.ผ่าน && /ผ่านหลอก.*a\.spec\.ts: 1 จุด เกินเพดาน 0/.test(ร.ข้อความ), `(ค) ${ชื่อ} → ตก`, ร.ข้อความ);
+  }
+  ไฟล์("a.spec.ts", ฐานค + `  await expect(page.getByText("ป้าย")).toHaveText("ก");\n});\n`);
+  ผล(ตรวจ().ผ่าน, "(ค) ตรวจตรง ๆ ไม่ครอบเงื่อนไข → ผ่าน");
+
   // ไฟล์ใหม่ (ไม่มีในเพดาน) มีรอตายตัว → ตก · ตั้งชื่อ zz- ก็ไม่รอด
   ไฟล์("a.spec.ts", `test("x", async ({ page }) => {\n  await page.waitForTimeout(500);\n  await page.locator("tbody tr").first().click();\n});\n`);
   ไฟล์("zz-new.spec.ts", `test("y", async ({ page }) => { await page.waitForTimeout(100); });\n`);
