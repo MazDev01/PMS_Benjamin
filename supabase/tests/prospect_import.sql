@@ -204,7 +204,9 @@ begin
   b := (r->>'batch')::bigint;
   perform pitest.as_admin();
   pid := (select id from dealer_prospects where import_batch_id = b);
-  update prospect_import_batches set created_at = ((วันนี้::date)::timestamp + interval '8 hours') at time zone 'Asia/Bangkok' where id = b;   -- ชุดสร้าง 08:00 วันนี้
+  -- ชุดสร้าง 08:00 วันนี้ — แต่ไม่เลยเวลาปัจจุบัน: รันก่อน 08:00 (รอบตรวจตี 1 · 13 พ.ย. 69) เดิมเวลาชุดอยู่ในอนาคต บันทึกที่คนเพิ่มตอนนี้
+  --   จึงไม่ใหม่กว่าเวลาชุด → นับไม่ถูกแตะ = ข้อทดสอบตกตามเวลาที่รัน (ไม่ใช่บั๊กระบบ)
+  update prospect_import_batches set created_at = least(((วันนี้::date)::timestamp + interval '8 hours') at time zone 'Asia/Bangkok', now() - interval '1 minute') where id = b;
   perform pitest.ok((select count(*) from dealer_prospect_activities a where a.prospect_id = pid and a.import_batch_id = b
                        and a.created_at > (select created_at from prospect_import_batches where id = b)) = 1,
                     '6) บันทึกจากไฟล์ (09:00 วันนี้) ใหม่กว่าเวลาชุด (08:00) และติดรหัสชุด');
