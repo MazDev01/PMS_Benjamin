@@ -30,6 +30,7 @@ import { ตัดสินพร้อมรันซ้ำ } from "./lib/gateR
 import { อาร์กิวเมนต์psql, คอนเทนเนอร์ as คอนเทนเนอร์ฐานทดสอบ } from "./lib/testDbGuard.mjs";
 import { ตรวจก่อนรอบเต็ม, เริ่มรอบ as จดเริ่มรอบ, จบรอบ } from "./lib/roundQueue.mjs";
 import { ตรวจใบก่อนรอบเต็ม } from "./lib/migrationOrder.mjs";
+import { serverLogDir, attachServerLog } from "./lib/serverLog.mjs";
 
 const โฟลเดอร์build = process.env.PMS_TEST_DIST_DIR || ".next-test";
 if (process.argv.includes("--build-only")) {
@@ -134,7 +135,9 @@ const ล็อกฐาน = ขอล็อกฐานทดสอบ(ป้�
 // พอร์ตทดสอบของโฟลเดอร์นี้ (โฟลเดอร์หลัก = ค่าใน scripts/lib/ports.json · เซสชันลูก = .pms-session.json)
 const พอร์ตทดสอบ = พอร์ต("test"), ที่อยู่ = ต้นทาง("test");
 // PMS_LOCAL_HTTP_TEST: เซิร์ฟเวอร์ในเครื่องรันบน http — ให้คุกกี้ใบผ่านไม่ติด Secure (WebKit ทิ้งคุกกี้ Secure บน http · ดู _cookie.ts)
-const env = { ...process.env, PMS_DIST_DIR: โฟลเดอร์build, NEXT_PUBLIC_DATA_SOURCE: MODE, PMS_RUN_ID, PMS_LOCAL_HTTP_TEST: "1",
+// บันทึกข้อความเซิร์ฟเวอร์ของรอบ (บอสสั่ง 12 พ.ย. 69 · หลักฐานตอนข้อตก — scripts/lib/serverLog.mjs · tests/reporters/failure-evidence.ts)
+const บันทึกเซิร์ฟเวอร์ = path.resolve(serverLogDir(PMS_RUN_ID));
+const env = { ...process.env, PMS_DIST_DIR: โฟลเดอร์build, NEXT_PUBLIC_DATA_SOURCE: MODE, PMS_RUN_ID, PMS_LOCAL_HTTP_TEST: "1", PMS_SERVER_LOG_DIR: บันทึกเซิร์ฟเวอร์,
   PMS_TESTDB_LOCK_HELD: ล็อกฐาน.token, PMS_DEALER_ORIGIN: ที่อยู่.dealer, PMS_HQ_ORIGIN: ที่อยู่.hq,
   // ที่อยู่แอปที่ฝังตอน build (ลิงก์ข้ามแอป · CORS) = พอร์ตทดสอบของโฟลเดอร์นี้ — ค่าใน env ชนะ .env.local (เซสชันลูกมีพอร์ต dev ในไฟล์นั้น)
   NEXT_PUBLIC_DEALER_APP_URL: ที่อยู่.dealer, DEALER_APP_ORIGIN: ที่อยู่.dealer, NEXT_PUBLIC_HQ_ORIGIN: ที่อยู่.hq };
@@ -227,7 +230,10 @@ for (const a of แอป) {
 await จับเวลา("สตาร์ทเซิร์ฟเวอร์", async () => {
   for (const a of แอป) {
     console.log(`▶ สตาร์ท ${a.ชื่อ} แบบ production ที่พอร์ต ${a.port}`);
-    เซิร์ฟเวอร์.push(spawn("npx", ["next", "start", "-p", String(a.port)], { cwd: a.cwd, env, stdio: "ignore", shell: true }));
+    // ข้อความของเซิร์ฟเวอร์ลงไฟล์ของรอบ (เดิม stdio "ignore" ทิ้งหมด — ข้อตกเพราะเซิร์ฟเวอร์จึงไม่มีหลักฐาน)
+    const p = spawn("npx", ["next", "start", "-p", String(a.port)], { cwd: a.cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: true });
+    attachServerLog(p, path.join(บันทึกเซิร์ฟเวอร์, `${a.ชื่อ}.log`), a.ชื่อ);
+    เซิร์ฟเวอร์.push(p);
   }
   for (const a of แอป) {
     if (!await รอจนพร้อม(a.port)) { console.error(`${a.ชื่อ} ไม่ขึ้นภายในเวลาที่รอ — หยุด`); ปิดทั้งหมด(); process.exit(1); }
@@ -279,7 +285,7 @@ const รันprodLive = async () => {
 };
 if (รันต่อ.ได้) {
   // ── โหมดรันต่อ: รันเฉพาะไฟล์ที่ตกในช่วงเดิมของแต่ละไฟล์ → รันซ้ำไฟล์ที่ตกอีกครั้งแบบรอบเต็ม → ตัวตรวจท้ายรอบกับรายงานเดิม+ใหม่ ──
-  const รีพอร์ต = "--reporter=line,json,./tests/reporters/flaky-names.ts";   // ชื่อข้อไม่นิ่งท้ายผลทุกช่วง (บอสสั่ง 11 พ.ย. 69)
+  const รีพอร์ต = "--reporter=line,json,./tests/reporters/flaky-names.ts,./tests/reporters/failure-evidence.ts";   // ชื่อข้อไม่นิ่งท้ายผลทุกช่วง (บอสสั่ง 11 พ.ย. 69) + หลักฐานตอนตก (12 พ.ย. 69)
   const ตามช่วง = new Map();
   for (const { ไฟล์, โปรเจกต์ } of รันต่อ.จด.ไฟล์ตก) ตามช่วง.set(โปรเจกต์, [...(ตามช่วง.get(โปรเจกต์) ?? []), ไฟล์]);
   const ลำดับ = ["tools", "chromium", "hq-settings", "safari", "stress"];
@@ -338,7 +344,7 @@ if (process.env.PMS_GATE_ONLY_LIVE === "1") {   // เจาะช่วง prod
   else {
     console.log(`▶ ขั้นก่อนรอบเต็ม: รันไฟล์ทดสอบที่เปลี่ยนตั้งแต่รอบผ่าน ${ฐาน.slice(0, 7)} ก่อน ${ไฟล์.length} ไฟล์ — ${ไฟล์.join(" · ")}`);
     for (const โปรเจกต์ of ช่วงก่อนรอบเต็ม) {
-      const code = await จับเวลา(`ก่อนรอบเต็ม ${โปรเจกต์}`, () => รัน([`--project=${โปรเจกต์}`, ...ไฟล์, "--pass-with-no-tests", "--reporter=line,./tests/reporters/flaky-names.ts"],
+      const code = await จับเวลา(`ก่อนรอบเต็ม ${โปรเจกต์}`, () => รัน([`--project=${โปรเจกต์}`, ...ไฟล์, "--pass-with-no-tests", "--reporter=line,./tests/reporters/flaky-names.ts,./tests/reporters/failure-evidence.ts"],
         { PMS_RUN_STAGE: `${โปรเจกต์}-precheck`, PLAYWRIGHT_JSON_OUTPUT_NAME: "", ...(โปรเจกต์ === "tools" ? { PMS_GLOBAL_SETUP_SKIP: "1" } : {}) }));
       if (code !== 0) {
         ปิดทั้งหมด();
@@ -351,7 +357,7 @@ if (process.env.PMS_GATE_ONLY_LIVE === "1") {   // เจาะช่วง prod
   }
 }
 const ช่วง = ["chromium", "hq-settings", "safari", "stress"];
-const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json,./tests/reporters/flaky-names.ts";   // ชื่อข้อไม่นิ่งท้ายผลทุกช่วง (บอสสั่ง 11 พ.ย. 69)
+const รีพอร์ตเตอร์ = อาร์กิวเมนต์.find(a => a.startsWith("--reporter")) ?? "--reporter=line,json,./tests/reporters/flaky-names.ts,./tests/reporters/failure-evidence.ts";   // ชื่อข้อไม่นิ่งท้ายผลทุกช่วง (บอสสั่ง 11 พ.ย. 69)
 const รายงานของ = (โปรเจกต์) => รายงานหลัก.replace(/\.json$/, "") + `.${โปรเจกต์}.json`;
 // ช่วง tools ไม่ใช้ฐานทดสอบ → ไม่ลงข้อมูลตั้งต้น/ไม่กวาดข้อมูลทดสอบ (กันชนช่วง chromium ที่รันพร้อมกัน · global-setup.ts)
 const envช่วง = (โปรเจกต์) => ({ PLAYWRIGHT_JSON_OUTPUT_NAME: รายงานของ(โปรเจกต์), PMS_RUN_STAGE: โปรเจกต์, ...(โปรเจกต์ === "tools" ? { PMS_GLOBAL_SETUP_SKIP: "1" } : {}) });
