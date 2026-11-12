@@ -71,6 +71,17 @@ if (!process.env.PMS_TESTDB_PG_PASSWORD) {
   ผล(/^begin;$/m.test(ไฟล์ล้าง) && /^commit;$/m.test(ไฟล์ล้าง), "cleanup.sql เป็นทรานแซกชันเดียว (begin … commit)");
   const ตัวล้าง = ไฟล์ล้าง.replace(/^begin;$/m, "").replace(/^commit;$/m, "").replaceAll("__ชุดสำรองก่อนลบ__", "จำลองข้อทดสอบ cleanup-self-audit");
   const sql = `begin;
+-- ล็อกตารางที่รายการนี้จะปิด/เปิดตัวดัก ตั้งแต่ต้น ก่อนถือแถวใด ๆ — กันรอกันไขว้กับงานหน้าเว็บที่รันพร้อมกัน (deadlock hq_quote_save 11 พ.ย. 69)
+--   หลายตาราง = ได้ครบหรือไม่ได้เลย (nowait วนขอใหม่) · กติกาเดียวกับ scripts/check-sql-test-table-locks.mjs
+do $lk$ begin
+  loop
+    begin
+      lock table public.hq_quotes, public.quotations in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 -- สาขาทดสอบ ZZT + ลีด 3 ราย (วางแบบ replica = ตัวดักไม่ลงบันทึกตอนวาง) · ไม่ลบบันทึกเอง (ทางลบมีแค่ 2 ทาง · check-audit-delete-paths)
 set local session_replication_role = replica;
 insert into public.dealers (code, name, province, region, status) values ('ZZT', 'สาขาทดสอบชั่วคราว (ลบทิ้ง)', 'ตราด', 'ตะวันออก', 'active') on conflict (code) do nothing;

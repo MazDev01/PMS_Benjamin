@@ -1,7 +1,7 @@
 // ── ข้อทดสอบ: ตัวตรวจ check-sql-test-table-locks — ข้อทดสอบ SQL ต้องล็อกตารางแบบไม่ค้างกับงานหน้าเว็บ (deadlock · 4 พ.ย. 69) ──
 //   รันตัวตรวจจริงกับโฟลเดอร์จำลอง (อาร์กิวเมนต์โฟลเดอร์) — ไม่แตะไฟล์ทดสอบจริง
 // รัน: node tests/tools/sql-test-table-locks.test.mjs
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -36,6 +36,12 @@ r = ตรวจ("-- alter table leads disable trigger user; (หมายเห
 ผล(r.ผ่าน, "alter ก่อน begin / ในหมายเหตุ ไม่นับ → ผ่าน", r.ข้อความ);
 r = spawnSync(process.execPath, ["scripts/check-sql-test-table-locks.mjs"], { encoding: "utf8" });
 ผล(r.status === 0, "ข้อทดสอบ SQL จริงทั้งชุด (supabase/tests) → ผ่าน", (r.stdout ?? "") + (r.stderr ?? ""));
+// 12 พ.ย. 69 (งานคิว deadlock hq_quote_save): คำสั่งล้างเว็บจริง tests/prod-live/cleanup.sql ปิดตัวดัก hq_quotes · quotations กลางรายการ
+//   โดยไม่ล็อกก่อน = รอกันไขว้กับ HQ บันทึกใบที่รันพร้อมกัน (deadlock detected 11 พ.ย. 69) · เดิมตัวตรวจไม่ครอบโฟลเดอร์นี้
+r = spawnSync(process.execPath, ["scripts/check-sql-test-table-locks.mjs", "tests/prod-live"], { encoding: "utf8" });
+ผล(r.status === 0, "คำสั่งล้างเว็บจริง (tests/prod-live) ล็อกตารางก่อนปิดตัวดัก → ผ่าน", (r.stdout ?? "") + (r.stderr ?? ""));
+const ชุดตรวจ = JSON.parse(readFileSync("package.json", "utf8")).scripts.checks ?? "";
+ผล(ชุดตรวจ.includes("check-sql-test-table-locks.mjs tests/prod-live"), "ชุดตัวตรวจ (npm run checks) ครอบ tests/prod-live", ชุดตรวจ.slice(0, 200));
 
 console.log(ตก ? `\n✗ ตก ${ตก} ข้อ` : "\nALL PASS");
 process.exit(ตก ? 1 : 0);
