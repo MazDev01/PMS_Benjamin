@@ -50,6 +50,10 @@ const รอบ = readFileSync("scripts/test-prodbuild.mjs", "utf8");
 const ทางรายงาน = [...รอบ.matchAll(/"--reporter=[^"]*"/g)].map(m => m[0]);
 ผล(ทางรายงาน.length >= 2 && ทางรายงาน.every(r => r.includes("failure-evidence.ts")), "ทุกทางที่รอบตรวจสั่ง --reporter มีตัวรายงานหลักฐาน", ทางรายงาน.join("\n"));
 ผล(/failure-evidence\.ts/.test(readFileSync("playwright.config.ts", "utf8")), "ค่าตั้งต้นของ playwright (รันส่วนตัวเจาะไฟล์) มีตัวรายงานหลักฐาน");
+// 12 พ.ย. 69 (บอสสั่ง): 137fc379 ผ่านชุดตรวจก่อน commit ทั้งที่ตัวรายงาน (TS) import serverLog.mjs ที่ไม่มีไฟล์ประกาศชนิด
+//   → ชุดตรวจก่อน commit (npm run checks) ต้องตรวจชนิดข้อมูลของไฟล์ทดสอบด้วย
+ผล(existsSync("scripts/lib/serverLog.d.mts"), "มีไฟล์ประกาศชนิด scripts/lib/serverLog.d.mts");
+ผล(/typecheck:tests|tsc -p tests\/tsconfig\.json/.test(JSON.parse(readFileSync("package.json", "utf8")).scripts.checks ?? ""), "ชุดตรวจก่อน commit (npm run checks) ตรวจชนิดข้อมูลของไฟล์ทดสอบ");
 const คอนฟิก = readFileSync("playwright.config.ts", "utf8");
 ผล(/trace:\s*"retain-on-failure"/.test(คอนฟิก) && /screenshot:\s*"only-on-failure"/.test(คอนฟิก), "ข้อที่ตกเก็บ trace + ภาพหน้าจอ (ค่าตั้งต้น)");
 จบ();
