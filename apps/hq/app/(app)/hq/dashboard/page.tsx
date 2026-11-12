@@ -21,7 +21,7 @@ import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { PlanVsActualBars, GroupedBarChart, Donut } from "@pms/shared/components/ui/Charts";
 import { SalesTrendChart } from "@pms/shared/components/ui/SalesTrendChart";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
-import { MonthRangeToggle, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
+import { MonthRangeToggle, หัวกราฟรายเดือน, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { dealers as dealersRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
@@ -182,9 +182,7 @@ export default function HQDashboard() {
             {มียอดในช่วง
               ? <SalesTrendChart title={trendTitle} monthly={trend} granularity="month" height={395} ปุ่ม={trendToggle} />
               : (<>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-                    <div className="card-title">{trendTitle}</div>{trendToggle}
-                  </div>
+                  <หัวกราฟรายเดือน className="" ชื่อ={trendTitle} ปุ่ม={trendToggle} style={{ marginBottom: 12 }} />
                   <กรอบว่าง text="ยังไม่มียอดขาย" h={395} />
                 </>)}
           </div>
@@ -246,10 +244,8 @@ export default function HQDashboard() {
       {/* แถว 2: ลีด·ใบเสนอราคา·ปิดการขาย · เป้าหมายเทียบยอดขายจริง (ปุ่ม 3/6/12 เดือนของตัวเอง) */}
       <div className="hq-row2b" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem" }}>
         <div className="card" data-card="bars" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <div className="card-header">
-            <div className="card-title">ลูกค้าเป้าหมายใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)</div>
-            <MonthRangeToggle value={barRange} onChange={setBarRange} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่·ใบที่ส่ง·ปิดสำเร็จ" />
-          </div>
+          <หัวกราฟรายเดือน ชื่อ="ลูกค้าเป้าหมายใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)"
+            ปุ่ม={<MonthRangeToggle value={barRange} onChange={setBarRange} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่·ใบที่ส่ง·ปิดสำเร็จ" />} />
           <div className="card-body" style={{ paddingTop: 4, flex: 1 }}>
             {barมีข้อมูล ? (
               <GroupedBarChart months={barRows.map(r => ป้ายเดือนปี(r.y, r.m))} vw={820} height={260} fmt={v => `${Math.round(v)}`}
@@ -262,10 +258,8 @@ export default function HQDashboard() {
           </div>
         </div>
         <div className="card" data-card="target" style={{ marginBottom: 0 }}>
-          <div className="card-header">
-            <div className="card-title">เป้าหมาย เทียบ ยอดขายจริง</div>
-            <MonthRangeToggle value={tgtRange} onChange={setTgtRange} label="ช่วงเวลากราฟเป้าหมายเทียบยอดขายจริง" />
-          </div>
+          <หัวกราฟรายเดือน ชื่อ="เป้าหมาย เทียบ ยอดขายจริง"
+            ปุ่ม={<MonthRangeToggle value={tgtRange} onChange={setTgtRange} label="ช่วงเวลากราฟเป้าหมายเทียบยอดขายจริง" />} />
           <div className="card-body" style={{ paddingTop: 8 }}>
             {tgtมียอด ? (
               <PlanVsActualBars unit="M" aLabel="ยอดขายจริง" bLabel="เป้าหมาย"

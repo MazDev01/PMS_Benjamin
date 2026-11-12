@@ -10,6 +10,7 @@ import { QuotationAgingChart } from "./QuotationAgingChart";
 import type { AgingBucket } from "@pms/shared/lib/hqQuotations";
 import { GroupedBarChart } from "@pms/shared/components/ui/Charts";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+import { หัวกราฟรายเดือน } from "@pms/shared/components/ui/MonthRangeToggle";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import type { ReactNode } from "react";
 
@@ -23,8 +24,8 @@ export function QuotationAnalytics({ aging, รายเดือน, ระด�
     <div className="hq-quote-charts">
       <div className="card" data-chart="quote-monthly" data-waiting={รายเดือน ? undefined : "1"}
         data-sum-sent={รายเดือน ? รายเดือน.sent.reduce((a, b) => a + b, 0) : undefined} data-sum-won={รายเดือน ? รายเดือน.won.reduce((a, b) => a + b, 0) : undefined} style={{ marginBottom: 0 }}>
-        <BoxTitle ชื่อ={`กราฟใบเสนอราคารายเดือน: ใบที่ส่ง เทียบ ตอบรับ · ${ระดับ}`}
-          คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ช่วงจากปุ่มของกราฟ (ไม่ขึ้นกับช่วงเวลาของหน้า)", "ใบที่ส่งนับตามวันที่ส่ง · ตอบรับนับตามวันลูกค้าตอบรับ")}>{ปุ่ม}</BoxTitle>
+        {/* หัวกราฟรายเดือนตัวกลาง: ไม่มีข้อความกำกับใต้ชื่อ · ปุ่มชิดขวาใต้ชื่อ (บอสสั่ง 12 พ.ย. 69) */}
+        <หัวกราฟรายเดือน ชื่อ={`กราฟใบเสนอราคารายเดือน: ใบที่ส่ง เทียบ ตอบรับ · ${ระดับ}`} ปุ่ม={ปุ่ม} />
         {รายเดือน ? (
           <div className="card-body" style={{ paddingTop: 6 }}>
             {/* แกนตั้งเลขกลม (จำนวนใบ) · ใบที่ส่งตามวันที่ส่ง · ตอบรับตามวันลูกค้าตอบรับ */}

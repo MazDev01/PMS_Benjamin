@@ -34,6 +34,8 @@ async function ชี้แล้ววัด(page: Page, card: Locator, bar: Lo
 }
 
 test("[ui] กล่องตัวเลขในกราฟ ต้องไม่มีตัวหนังสือล้นกรอบ", async ({ page }) => {
+  // 2 หน้า × การ์ดกราฟ × สูงสุด 10 แท่ง (แท่งที่ไม่มีกล่องรอ ≤ 1.5 วิ ตามเงื่อนไขจริง ไม่ใช่รอตายตัว) — เพดาน 30 วิเดิมไม่พอเมื่อเครื่องหน่วง (13 พ.ย. 69)
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 1500, height: 1000 });
   for (const [ชื่อ, role, path] of [["HQ", "hq", "/hq/dashboard"], ["ดีลเลอร์", "dealer", "/dashboard"]] as const) {
     await open(page, role, path);

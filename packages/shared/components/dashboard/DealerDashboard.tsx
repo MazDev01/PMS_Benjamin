@@ -25,7 +25,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { PlanVsActualBars, SalesLineChart, CategoryRows, Donut, ProgressRing } from "@pms/shared/components/ui/Charts";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import {
-  MonthRangeToggle, lastNMonths, monthKey, monthKeyOf, MONTH_RANGE_DEFAULT, ป้ายเดือนปี,
+  MonthRangeToggle, หัวกราฟรายเดือน, lastNMonths, monthKey, monthKeyOf, MONTH_RANGE_DEFAULT, ป้ายเดือนปี,
   type MonthRange,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
@@ -378,13 +378,9 @@ export default function DealerDashboard() {
       <div className="dash-charts-2" style={{ marginBottom: 24 }}>
         {/* ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา — จำนวนรายการ */}
         <div className="card" style={card}>
-          <div style={hd}>
-            <span style={title}>ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <MonthRangeToggle value={lqRange} onChange={setLqRange} label="ช่วงเวลากราฟลูกค้าเป้าหมายเทียบใบเสนอราคา" />
-              {more("/leads")}
-            </span>
-          </div>
+          {/* หัวกราฟรายเดือนตัวกลาง: ชื่อ + ลิงก์ดูทั้งหมด · ปุ่มชิดขวาใต้ชื่อ (บอสสั่ง 12 พ.ย. 69) */}
+          <หัวกราฟรายเดือน className="" style={{ marginBottom: 16 }} สไตล์ชื่อ={title} ชื่อ="ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว" ขวา={more("/leads")}
+            ปุ่ม={<MonthRangeToggle value={lqRange} onChange={setLqRange} label="ช่วงเวลากราฟลูกค้าเป้าหมายเทียบใบเสนอราคา" />} />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             {/* คำอธิบายสีอยู่ใน PlanVsActualBars แล้ว — เดิมเขียนมือซ้ำไว้ใต้การ์ดนี้ใบเดียว
                 (อีก 2 การ์ดที่ใช้กราฟตัวเดียวกันเลยไม่มีคำอธิบายสีมาตลอด) */}
@@ -395,13 +391,8 @@ export default function DealerDashboard() {
 
         {/* ยอดขายรายเดือน — กราฟเส้น + เส้นประเป้าหมาย · ช่วงจากปุ่มของกราฟเอง (บอสสั่ง 11 พ.ย. 69 · เดิมตามแถบกรองด้านบน) */}
         <div className="card" style={card}>
-          <div style={hd}>
-            <span style={title}>ยอดขายรายเดือน</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <MonthRangeToggle value={salesRange} onChange={setSalesRange} label="ช่วงเวลากราฟยอดขายรายเดือน" />
-              {more("/quotations")}
-            </span>
-          </div>
+          <หัวกราฟรายเดือน className="" style={{ marginBottom: 16 }} สไตล์ชื่อ={title} ชื่อ="ยอดขายรายเดือน" ขวา={more("/quotations")}
+            ปุ่ม={<MonthRangeToggle value={salesRange} onChange={setSalesRange} label="ช่วงเวลากราฟยอดขายรายเดือน" />} />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <SalesLineChart data={salesData} target={monthTargetM} height={260}
               fmt={v => `฿${v.toFixed(1)}M`} targetLabel="เป้า/เดือน" />

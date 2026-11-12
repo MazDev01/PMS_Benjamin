@@ -25,6 +25,10 @@ test.afterAll(async () => { await สาขา?.ลบ(); });
 async function กล่องที่ไม่มีหัวข้อ(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const มีหัวข้อ = (el: Element | null) => {
+      // กราฟรายเดือน = หัวกราฟตัวกลาง ชื่ออย่างเดียว ไม่มีข้อความกำกับ (บอสสั่ง 12 พ.ย. 69 · ทับ "หัวข้อ 2 บรรทัด" เฉพาะกราฟรายเดือน
+      //   · ตรวจละเอียดที่ monthly-chart-ranges.spec.ts) — กราฟ/ตารางเจาะลึกอื่นยังต้องมีหัวข้อ 2 บรรทัด
+      const ด = el?.querySelector("[data-month-chart-head]");
+      if (ด) return !!ด.querySelector("[data-title]")?.textContent?.trim() && !ด.querySelector("[data-subtitle]");
       const h = el?.querySelector("[data-box-title]");
       return !!h && !!h.querySelector("[data-title]")?.textContent?.trim() && !!h.querySelector("[data-subtitle]")?.textContent?.trim();
     };

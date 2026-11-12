@@ -22,7 +22,7 @@ test("[ui·dealer] เลือกวันนี้ → กราฟยอด�
   await page.waitForTimeout(3000);
   await เลือกวันนี้(page);
   const การ์ด = page.locator(".card").filter({ hasText: "ยอดขายรายเดือน" }).first();
-  await expect(การ์ด.locator("span").first()).toHaveText("ยอดขายรายเดือน");
+  await expect(การ์ด.locator("[data-title]").first()).toHaveText("ยอดขายรายเดือน");   // หัวกราฟรายเดือนตัวกลาง (12 พ.ย. 69 · เดิม span แรก)
   await expect(การ์ด.locator("[data-month-range='12']"), "ปุ่ม 1 ปี ถูกเลือกอยู่").toHaveAttribute("aria-pressed", "true");
   const ป้าย = await การ์ด.locator("svg [data-x-label]").evaluateAll(els => els.map(e => e.getAttribute("data-x-label") ?? ""));
   expect(ป้าย.length, `ป้ายเดือนครบ 12: ${JSON.stringify(ป้าย)}`).toBe(12);

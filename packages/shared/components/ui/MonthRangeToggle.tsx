@@ -5,7 +5,8 @@
 // หน้าตา/พฤติกรรมเหมือนกันหมด (บอสสั่ง 17 ก.ค. 69)
 //
 // กติกา: กราฟที่มีปุ่มนี้ "ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน" — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
-// จึงต้องเขียนช่วงที่ครอบไว้ใต้หัวข้อด้วย monthRangeSubtitle() ทุกครั้ง ไม่งั้นคนอ่านไม่รู้ว่ากำลังดูช่วงไหน
+// (เดิมเขียนช่วงที่ครอบไว้ใต้หัวข้อด้วย monthRangeSubtitle() — 12 พ.ย. 69 บอสสั่งเอาข้อความใต้ชื่อกราฟออก ใช้ หัวกราฟรายเดือน แทน) ไม่งั้นคนอ่านไม่รู้ว่ากำลังดูช่วงไหน
+import type { CSSProperties, ReactNode } from "react";
 import { NAVY } from "@pms/shared/lib/theme";
 import { THAI_MONTHS, MONTH_RANGES, MONTH_RANGE_DEFAULT, ชื่อช่วงเดือน, ป้ายเดือนปี, type MonthRange } from "@pms/shared/lib/monthRange";   // ค่าคงที่/ตัวคำนวณล้วน (ข้อทดสอบหน่วย)
 export { MONTH_RANGES, MONTH_RANGE_DEFAULT, ชื่อช่วงเดือน, ป้ายเดือนปี, type MonthRange };
@@ -57,5 +58,30 @@ export function MonthRangeToggle({ value, onChange, label }: {
         );
       })}
     </span>
+  );
+}
+
+/** หัวกราฟรายเดือน — ตัวกลางเดียวทุกกราฟรายเดือน HQ + ดีลเลอร์ (บอสสั่ง 12 พ.ย. 69)
+ *  บรรทัดบน: ชื่อกราฟ (+ ของมุมขวา เช่นลิงก์ "ดูทั้งหมด") · บรรทัดล่าง: ปุ่ม 3/6/9 เดือน/1 ปี ชิดขวา ใต้ชื่อกราฟ
+ *  ไม่มีข้อความกำกับใต้ชื่อ (เดิม "ช่วง … · ช่วงจากปุ่มของกราฟ … · ปิดสำเร็จ/ไม่สำเร็จ = …" — บอกช่วงด้วยปุ่มที่ถูกเลือกแทน)
+ *  ข้อทดสอบ: tests/scenario/monthly-chart-ranges.spec.ts (ปุ่มอยู่ใต้ชื่อ ชิดขวา · ไม่มีข้อความกำกับ) */
+export function หัวกราฟรายเดือน({ ชื่อ, ปุ่ม, ขวา, className = "card-header", สไตล์ชื่อ, style }: {
+  ชื่อ: ReactNode;
+  /** <MonthRangeToggle … /> ของกราฟนี้ */
+  ปุ่ม: ReactNode;
+  /** ของมุมขวาบรรทัดชื่อ (ถ้ามี) */
+  ขวา?: ReactNode;
+  className?: string;
+  สไตล์ชื่อ?: CSSProperties;
+  style?: CSSProperties;
+}) {
+  return (
+    <div className={className} data-month-chart-head style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8, ...style }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, minWidth: 0 }}>
+        <div className={สไตล์ชื่อ ? undefined : "card-title"} data-title style={{ minWidth: 0, ...สไตล์ชื่อ }}>{ชื่อ}</div>
+        {ขวา}
+      </div>
+      <div data-month-range-row style={{ display: "flex", justifyContent: "flex-end" }}>{ปุ่ม}</div>
+    </div>
   );
 }

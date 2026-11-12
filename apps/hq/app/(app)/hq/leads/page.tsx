@@ -19,7 +19,7 @@ import { คำอธิบายหัวข้อ } from "@pms/shared/lib/dril
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { รวมคีย์, เดือนในช่วง, ช่วงย้อนหลังเดือน } from "@pms/shared/lib/hqDrill";
-import { MonthRangeToggle, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
+import { MonthRangeToggle, หัวกราฟรายเดือน, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
   Users, AlarmClock, X, GitBranch, Eye,
   User, Phone, Mail, MapPin, Compass, Wallet, CalendarDays,
@@ -407,9 +407,9 @@ export default function HQLeadsPage() {
         {/* กราฟเส้นเป็น SVG ที่ย่อ/ขยายตามความกว้างการ์ด → ความสูงจริงไม่เท่า height ที่ส่งเข้าไป
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงปุ่มเดือน, "ช่วงจากปุ่มของกราฟ (ไม่ขึ้นกับช่วงเวลาของหน้า)", "ปิดสำเร็จ/ไม่สำเร็จ = ลูกค้าเป้าหมายที่เข้ามาในเดือนนั้น")}>
-            <MonthRangeToggle value={ช่วงกราฟเดือน} onChange={setช่วงกราฟเดือน} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่รายเดือน" />
-          </BoxTitle>
+          {/* หัวกราฟรายเดือนตัวกลาง: ไม่มีข้อความกำกับใต้ชื่อ · ปุ่มชิดขวาใต้ชื่อ (บอสสั่ง 12 พ.ย. 69) */}
+          <หัวกราฟรายเดือน ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`}
+            ปุ่ม={<MonthRangeToggle value={ช่วงกราฟเดือน} onChange={setช่วงกราฟเดือน} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่รายเดือน" />} />
           <div className="card-body" data-lead-monthly data-ready={trend.ready ? "1" : ""} data-sum-new={trend.newM.reduce((a, b) => a + b, 0)}
             data-sum-won={trend.wonM.reduce((a, b) => a + b, 0)} data-sum-lost={trend.lostM.reduce((a, b) => a + b, 0)}
             style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>

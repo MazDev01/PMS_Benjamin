@@ -2,6 +2,7 @@
 
 import { useMemo, type ReactNode } from "react";
 import { LineTrendChart } from "@pms/shared/components/ui/Charts";
+import { หัวกราฟรายเดือน } from "@pms/shared/components/ui/MonthRangeToggle";
 
 // ── กราฟแนวโน้มยอดขายที่ "กำหนดช่วงเวลาได้" ในตัว (ปุ่ม inline) ──
 // ใช้ซ้ำได้ทุกหน้าที่มีกราฟแนวโน้ม (dashboard / reports / hq dashboard)
@@ -77,9 +78,11 @@ export function SalesTrendChart({
 
   return (
     <div style={{ width: "100%" }}>
+      {/* มีปุ่มช่วง = กราฟรายเดือน → หัวกราฟตัวกลาง: ชื่อ · ปุ่มชิดขวาใต้ชื่อ (บอสสั่ง 12 พ.ย. 69) */}
+      {ปุ่ม && <หัวกราฟรายเดือน className="" ชื่อ={title} ปุ่ม={ปุ่ม} สไตล์ชื่อ={{ fontWeight: 800, fontSize: "1rem", color: "var(--text, #2D2D2D)" }} />}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
         <div>
-          <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text, #2D2D2D)" }}>{title}</div>
+          {!ปุ่ม && <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text, #2D2D2D)" }}>{title}</div>}
           {/* ตัวเลขเด่น + trend (เหมือนการ์ดสถิติ) */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 2px" }}>
             <span style={{ fontSize: "1.5rem", fontWeight: 800, color: "#003366", lineHeight: 1 }}>฿{(total).toFixed(1)}M</span>
@@ -92,7 +95,6 @@ export function SalesTrendChart({
           </div>
           {/* คำอธิบายใต้หัวข้อกราฟถูกเอาออกทั้งระบบ (บอสสั่ง 27 ส.ค. 69) — เหลือเฉพาะหัวข้อกับตัวเลข */}
         </div>
-        {ปุ่ม}
       </div>
 
       <LineTrendChart key={`${granularity}-${data.length}`} data={data} height={height} />
