@@ -7,6 +7,8 @@ const ชุด: [string, string][] = [
   ["tests/tools/session-tools.test.mjs", "เครื่องมือหลายเซสชัน: ล็อก · จองเลขใบ · session:new/merge/close (รวมแล้วรายการใบไม่หาย) · git hook"],
   ["tests/tools/pre-push-guard.test.mjs", "ตัวกัน push ขึ้น monorepo: ผลรอบตรวจ · ใบลงฐานจริงครบ · ถามฐานไม่ได้บอกวิธีแก้เป็นขั้นตอน"],
   ["tests/tools/vercel-gate.test.mjs", "Vercel ไม่ build commit ที่ไม่ผ่านรอบตรวจ"],
+  ["tests/tools/live-check.test.mjs", "ตัวตรวจหน้าหลักหลังขึ้นเว็บ: อ่านอย่างเดียว (GET ไม่มีคุกกี้) · health/หน้าผิดพลาด/ยิงไม่ติด = ไม่ผ่าน"],
+  ["tests/tools/gate-fast.test.mjs", "ทางผ่านแบบเร็ว: แตะใบ/สิทธิ์/เงิน/เครื่องมือรอบ = รอบเต็ม · บรรทัดเร็วปลอมไม่นับ · clone ตื้นตรวจได้"],
   ["tests/tools/flaky-log.test.mjs", "ตัวนับข้อไม่นิ่ง + บรรทัดต้นเหตุ"],
   ["tests/tools/test-self-skip.test.mjs", "ตัวตรวจข้อทดสอบข้ามตัวเองเมื่อไม่มีข้อมูล + รายงานข้อที่ข้ามแยกตามเหตุผล"],
   ["tests/tools/flaky-ack.test.mjs", "ชื่อข้อไม่นิ่งท้ายผล + รอบมีข้อไม่นิ่งรอบอสรับทราบ (round:ack กัน AI)"],

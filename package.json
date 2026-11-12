@@ -14,6 +14,8 @@
     "test:api": "node scripts/test-api.mjs",
     "smoke:prod": "node scripts/smoke-prod.mjs",
     "test:prodbuild": "node scripts/test-prodbuild.mjs",
+    "gate:fast": "node scripts/gate-fast.mjs",
+    "live:check": "node scripts/live-check.mjs",
     "test:mobile": "playwright test -c playwright.mobile.config.ts",
     "test:unit": "vitest run",
     "audit:api": "node scripts/api-audit.mjs",

@@ -1,0 +1,54 @@
+{
+  "หมายเหตุ": "ไฟล์เสี่ยง (ใบปรับฐาน · สิทธิ์ · เงิน · เครื่องมือรอบ) — แตะไฟล์ไหนในรายการนี้ = ทางผ่านแบบเร็วปฏิเสธ ต้องรอบตรวจเต็ม (บอสสั่งโหมดเร็ว 12 พ.ย. 69 · คนรวมงานอนุมัติรายการ 13 พ.ย. 69 · scripts/lib/fastGate.mjs) · ไฟล์นี้เองอยู่ในรายการ (แก้รายการ = รอบเต็ม)",
+  "ฐาน": [
+    "supabase/migrations/**",
+    "supabase/seed.sql",
+    "supabase/config.toml",
+    "supabase/functions/**"
+  ],
+  "สิทธิ์": [
+    "apps/*/middleware.ts",
+    "apps/*/app/api/admin/**",
+    "apps/*/app/api/account/**",
+    "apps/*/app/api/v1/auth/**",
+    "apps/*/app/(auth)/**",
+    "packages/shared/server/v1/_ctx.ts",
+    "packages/shared/server/v1/auth.ts",
+    "packages/shared/lib/adminRoute.ts",
+    "packages/shared/lib/auth.ts",
+    "packages/shared/lib/cookieAuth.ts",
+    "packages/shared/lib/supabaseAuth.ts",
+    "packages/shared/lib/permissions.ts",
+    "packages/shared/lib/hqPermissionMatrix.ts",
+    "packages/shared/lib/passwordRule.ts",
+    "packages/shared/lib/dealerSecret.ts",
+    "packages/shared/lib/useImpersonating.ts",
+    "packages/shared/context/RoleContext.tsx",
+    "packages/shared/components/layout/AuthGuard.tsx"
+  ],
+  "เงิน": [
+    "packages/shared/lib/quoteTax.ts",
+    "packages/shared/lib/boq.ts",
+    "packages/shared/lib/hqQuotations.ts",
+    "packages/shared/lib/quoteRequests.ts",
+    "packages/shared/lib/closeWon.ts",
+    "packages/shared/lib/dealerProposals.ts",
+    "packages/shared/lib/quotationPrint.ts",
+    "packages/shared/lib/dealerProposalPrint.ts",
+    "packages/shared/components/ui/HqMarkupEditor.tsx",
+    "packages/shared/components/hq/ProposalPaymentsBox.tsx",
+    "apps/*/app/api/v1/quotations/**",
+    "apps/hq/app/api/v1/proposals/**"
+  ],
+  "เครื่องมือรอบ": [
+    "scripts/gate-risky-paths.json",
+    "scripts/gate-fast.mjs",
+    "scripts/lib/fastGate.mjs",
+    "scripts/lib/commitGate.mjs",
+    "scripts/vercel-should-build.mjs",
+    "scripts/git-hooks/**",
+    ".githooks/**",
+    ".vercelignore",
+    "apps/*/vercel.json"
+  ]
+}
