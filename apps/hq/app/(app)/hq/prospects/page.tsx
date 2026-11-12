@@ -284,6 +284,8 @@ export default function HQProspectsPage() {
   }, [รีเฟรชรายที่เปิด]);
 
   function เปิดแผง(p: DealerProspect, แท็บเริ่ม: แท็บ = "overview") {
+    // เป็นดีลเลอร์แล้ว (การ์ดในคอลัมน์ปิดแล้วของบอร์ด) = ไม่มีแผงผู้สนใจ → ไปแผงดีลเลอร์นั้น (เหมือนลิงก์เก่าในที่อยู่หน้าเว็บ ด้านล่าง)
+    if (p.status === "won" && p.dealerCode) { window.location.assign(`/hq/dealers?open=${encodeURIComponent(p.dealerCode)}`); return; }
     เปิดอยู่Ref.current = p.id;
     setรายที่เปิด(p);
     setแท็บที่เปิด(แท็บเริ่ม);
@@ -352,6 +354,11 @@ export default function HQProspectsPage() {
       : p.status === statusFilter;
     return ผ่านสถานะ && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q);
   }), [รายที่แสดงได้, statusFilter, provinceFilter, q, ย่อย]);
+  // บอร์ด: คอลัมน์ "ปิดแล้ว" มีผู้สนใจที่เป็นดีลเลอร์แล้วด้วย (ลิงก์ไปแผงดีลเลอร์ · ข้อ 17 ตาราง FLOW · บอสสั่ง 13 พ.ย. 69)
+  //   ตาราง · ตัวกรอง · ส่งออก · การ์ดตัวเลข ยังไม่นับรายที่เป็นดีลเลอร์แล้ว (บอสสั่ง 15 ก.ย. 69) · ตัวกรองสถานะเฉพาะ (ไม่ใช่ "ทุกสถานะ") = ไม่ใส่
+  const บนบอร์ด = useMemo(() => statusFilter !== "all" ? filtered : [...filtered,
+    ...list.filter(p => p.status === "won" && !!p.dealerCode && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q))],
+  [filtered, list, statusFilter, provinceFilter, q]);
   // การ์ดเดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ชุดจากทุกราย รวมที่เป็นดีลเลอร์แล้ว (การ์ด "เป็นดีลเลอร์แล้วเดือนนี้")
   //   ตัวกรองสถานะ = ปุ่มเดียวกับการ์ด "ถึงกำหนดติดตาม" → ไม่ใช่ตัวกรองของการ์ด (กดการ์ดแล้วใบอื่นต้องไม่เปลี่ยน)
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(list, p => (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q), p => p.id),
@@ -895,9 +902,9 @@ export default function HQProspectsPage() {
         );
       })()}
       {มุมมอง === "board" && (
-        <StageBoard<DealerProspect, คอลัมน์ผู้สนใจ> ป้ายบอร์ด="บอร์ดผู้สนใจเป็นดีลเลอร์" columns={[...คอลัมน์บอร์ดผู้สนใจ]} items={filtered}
+        <StageBoard<DealerProspect, คอลัมน์ผู้สนใจ> ป้ายบอร์ด="บอร์ดผู้สนใจเป็นดีลเลอร์" columns={[...คอลัมน์บอร์ดผู้สนใจ]} items={บนบอร์ด}
           idOf={p => p.id} colOf={p => คอลัมน์ของผู้สนใจ(p, ย่อย.get(p.id))} onOpen={p => เปิดแผง(p)} ข้อความว่าง="ไม่มีผู้สนใจ"
-          ทางย้าย={p => จัดการได้ ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
+          ทางย้าย={p => จัดการได้ && p.status !== "won" ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
           onMove={วางในคอลัมน์}
           renderCard={p => (
             <div data-prospect-card={p.id}>
@@ -905,6 +912,12 @@ export default function HQProspectsPage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "6px 0", fontSize: "0.68rem", color: "#64748b" }}>
                 <span>{p.province || "—"}</span><span>·</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{p.phone ? formatPhone(p.phone) || p.phone : "—"}</span>
               </div>
+              {/* เป็นดีลเลอร์แล้ว (คอลัมน์ปิดแล้ว) → ลิงก์ไปแผงดีลเลอร์นั้น (คำตัดสิน 15 ก.ย. 69 · ข้อ 17 ตาราง FLOW · ตัวกลาง RecordLink กดแล้วไม่เปิดแผงการ์ด) */}
+              {p.dealerCode && (
+                <div data-prospect-dealer-link style={{ fontSize: "0.7rem", margin: "0 0 6px", color: "#64748b" }}>
+                  เป็นดีลเลอร์แล้ว: <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</ลิงก์ข้อมูล>
+                </div>
+              )}
               <span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status}
                 style={{ background: prospectStatusColor[p.status].bg, color: prospectStatusColor[p.status].text }}>{ป้ายขั้น(p)}</span>
               <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, marginTop: 6 }}>ติดต่อล่าสุด {ติดต่อล่าสุดอ่านง่าย(p, APP_NOW_ISO)}</div>
