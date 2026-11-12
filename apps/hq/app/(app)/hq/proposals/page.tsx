@@ -39,6 +39,7 @@ import { ป้ายนับวันหมดอายุ } from "@pms/shared
 import { แถบสรุปเอกสาร, กริดรายละเอียด, ช่องกริด } from "@pms/shared/components/ui/DocDetailParts";
 import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 const STEEL = "#2D2D2D";
@@ -200,11 +201,8 @@ export default function HQProposalsPage() {
           </span>
         )}
         <div style={{ flex: 1 }} />
-        <select aria-label="กรองตามสถานะใบ" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as typeof statusFilter); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกสถานะ</option>
-          {PROPOSAL_STATUS_ORDER.map(s => <option key={s} value={s}>{proposalStatusLabel[s]}</option>)}
-          <option value="expired">ส่งแล้ว · เลยวันมีผล</option>
-        </select>
+        <FilterSelect label="กรองตามสถานะใบ" caption="ทุกสถานะ" all="all" value={statusFilter} onChange={v => { setStatusFilter(v as typeof statusFilter); setPage(0); }}
+          options={[...PROPOSAL_STATUS_ORDER.map(s => ({ v: s, l: proposalStatusLabel[s] })), { v: "expired", l: "ส่งแล้ว · เลยวันมีผล" }]} />
       </div>
 
       {loadErr && (

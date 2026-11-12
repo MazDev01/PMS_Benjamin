@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { open, settle } from "./helpers";
+import { open, settle, ช่องตัวกรอง, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
@@ -53,12 +53,14 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
   await expect(page.locator('[data-chart="by-dealer"], [data-chart="by-province"]'), "ไม่มีกราฟตามดีลเลอร์/ตามจังหวัด").toHaveCount(0);
   await expect(page.getByLabel("กรองตามจังหวัด"), "ไม่มีตัวกรองจังหวัดของลูกค้า (ระดับจังหวัด = จังหวัดของดีลเลอร์)").toHaveCount(0);
   // ตัวเลือกระดับภาค = "ทุกภูมิภาค" + ชื่อภาคกลาง
-  const ภาค = page.locator("[data-drill-scope]").getByLabel("ภูมิภาค");
-  await expect(ภาค.locator("option").first()).toHaveText("ทุกภูมิภาค", { timeout: 25_000 });
-  expect(await ภาค.locator("option").allInnerTexts(), "ชื่อภาคจากรายการกลาง").toContain("ภาคตะวันออกเฉียงเหนือ");
+  await expect(ช่องตัวกรอง(page, "ภูมิภาค", page.locator("[data-drill-scope]"))).toBeVisible({ timeout: 25_000 });
+  let ภาค: string[] = [];
+  await expect.poll(async () => (ภาค = (await ตัวเลือกของตัวกรอง(page, "ภูมิภาค", page.locator("[data-drill-scope]"))).map(o => o.ข้อความ)).length, { timeout: 25_000 }).toBeGreaterThan(1);
+  expect(ภาค[0], "ตัวเลือกแรก = ทุกภูมิภาค").toBe("ทุกภูมิภาค");
+  expect(ภาค, "ชื่อภาคจากรายการกลาง").toContain("ภาคตะวันออกเฉียงเหนือ");
 
   // เจาะลงดีลเลอร์ของข้อ → การ์ด = รายชื่อ = 5
-  await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(สาขา.รหัส);
+  await เลือกตัวกรอง(page, "ดีลเลอร์", { ค่า: สาขา.รหัส }, page.locator("[data-drill-scope]"));
   await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "แถบระดับถึงดีลเลอร์ (ชื่ออย่างเดียว)").toHaveText(สาขา.ชื่อ);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await expect.poll(async () => Number(await การ์ด(page, "total").getAttribute("data-value")), { message: "การ์ดลูกค้าทั้งหมด = 5", timeout: 20_000 }).toBe(5);
   await expect(แถวรายชื่อ(page), "จำนวนแถวรายชื่อ = การ์ด").toHaveCount(5);

@@ -26,6 +26,7 @@ import { หน้าต่างเจาะ, ส่วนเจาะ } from "
 import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
 import { ความกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/tableFit";
 import { บรรทัดใต้ชื่อดีลเลอร์, type ระดับเจาะ } from "@pms/shared/lib/drillColumns";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -158,11 +159,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
   const ตัวเลือกจังหวัด = useMemo(() => [...new Set(ทั้งหมด.filter(r => !ขอบ.ภาค || ภาคมาตรฐาน(r.region) === ขอบ.ภาค).map(r => r.province).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")), [ทั้งหมด, ขอบ.ภาค]);
   const ตัวเลือกดีลเลอร์ = useMemo(() => ทั้งหมด.filter(r => (!ขอบ.ภาค || ภาคมาตรฐาน(r.region) === ขอบ.ภาค) && (!ขอบ.จังหวัด || r.province === ขอบ.จังหวัด)), [ทั้งหมด, ขอบ.ภาค, ขอบ.จังหวัด]);
   const เลือก = (label: string, v: string | null, opts: { v: string; l: string }[], on: (v: string | null) => void, all: string) => (
-    <select aria-label={label} title={label} value={v ?? ""} onChange={e => on(e.target.value || null)} className="form-select"
-      style={{ flex: "1 1 0", minWidth: 140, maxWidth: 240, fontSize: "0.82rem" }}>
-      <option value="">{all}</option>
-      {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-    </select>
+    <FilterSelect label={label} caption={all} all="" value={v ?? ""} onChange={x => on(x || null)} options={opts} minWidth={140} maxWidth={240} style={{ flex: "1 1 0" }} />
   );
 
   const การ์ดที่ = (i: number) => {

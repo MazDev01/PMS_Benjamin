@@ -91,7 +91,8 @@ test("[ui·dealer] หน้าใบเสนอราคาไม่มีต�
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 25_000 });
-  await expect(page.locator("select").filter({ hasText: "ทุกประเภทอาคาร" }), "ต้องไม่มีตัวกรองประเภทอาคาร").toHaveCount(0);
+  // ช่องตัวกรองเป็นตัวกลาง (FilterSelect · ปุ่ม combobox) ตั้งแต่ 12 พ.ย. 69 — ตรวจทั้งแบบเดิมและแบบใหม่ ไม่ให้ผ่านเพราะหาแบบเดิมไม่เจอ
+  await expect(page.locator("select").filter({ hasText: "ทุกประเภทอาคาร" }).or(page.getByRole("combobox", { name: "ทุกประเภทอาคาร", exact: true })), "ต้องไม่มีตัวกรองประเภทอาคาร").toHaveCount(0);
   await expect(page.getByRole("columnheader", { name: "ประเภท", exact: true }), "ตารางต้องไม่มีคอลัมน์ประเภท").toHaveCount(0);
 
   // แดชบอร์ด: การ์ด "ต้องติดตามด่วน" เคยโชว์ "สนใจ: <แม่แบบ>" จากข้อมูลเก่าของลูกค้าเป้าหมาย

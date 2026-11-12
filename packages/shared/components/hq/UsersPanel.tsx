@@ -48,6 +48,7 @@ const สีบทบาท = "#003366";
 const แผนกHQ = ["บริหาร", "ฝ่ายขาย", "ไอทีและระบบ"] as const;
 export const เหตุปิดบัญชีสุดท้ายไม่ได้ = "บัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน — ปิดหรือลบไม่ได้ (เพิ่มบัญชีสำนักงานใหญ่คนใหม่ก่อน)";
 import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 // ไม่มีฟิลด์ "เข้าใช้ล่าสุด" — ระบบไม่ได้บันทึกเวลาเข้าสู่ระบบจริง (เดิมเป็นข้อความ seed ตายตัวที่ไม่มีอะไรอัปเดต)
 type AppUser = {
@@ -404,7 +405,7 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
           <div style={{ display: "flex", alignItems: "center", gap: 7, border: `1px solid ${BORDER}`, borderRadius: 9, padding: "0 10px", height: 36, flex: "1 1 220px", minWidth: 180 }}>
             <Search size={14} color={MUTED} /><input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="ค้นหาชื่อ หรือ อีเมล…" style={{ border: "none", outline: "none", flex: 1, fontSize: "0.82rem", color: STEEL, background: "transparent" }} />
           </div>
-          <select aria-label="กรองตามแผนก" style={selCls} value={deptF} onChange={e => { setDeptF(e.target.value); setPage(1); }}><option value="all">ทุกแผนก</option>{แผนกที่มีจริง.map(d => <option key={d} value={d}>{d}</option>)}</select>
+          <FilterSelect label="กรองตามแผนก" caption="ทุกแผนก" all="all" value={deptF} onChange={v => { setDeptF(v); setPage(1); }} options={แผนกที่มีจริง.map(d => ({ v: d, l: d }))} />
           <div style={{ display: "flex", gap: 2, background: "#f1f5f9", borderRadius: 9, padding: 3 }}>
             {([["all", "ทั้งหมด"], ["active", "ใช้งาน"], ["inactive", "ปิด"]] as const).map(([v, l]) => (
               <button key={v} onClick={() => { setStatusF(v); setPage(1); }} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", fontSize: "0.76rem", fontWeight: 700, fontFamily: "inherit", background: statusF === v ? "#fff" : "transparent", color: statusF === v ? PRIMARY : MUTED, boxShadow: statusF === v ? "0 1px 3px rgba(16,40,80,.12)" : "none" }}>{l}</button>

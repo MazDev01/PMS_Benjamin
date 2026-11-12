@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { open, assertHealthyPage, openLeadQuotationForm, settle, แถวตามชื่อ, ตั้งต้น } from "./helpers";
+import { open, assertHealthyPage, openLeadQuotationForm, settle, แถวตามชื่อ, ตั้งต้น, ตัวเลือกของตัวกรอง, เลือกตัวกรอง } from "./helpers";
 import { RYG } from "./supabaseEnv";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { REAL_BACKEND } from "./supabaseEnv";
@@ -217,8 +217,9 @@ test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วั�
 
     const idle = page.getByLabel("ค้างติดต่อทุกช่วง");
     await expect(idle).toBeVisible();
+    const เกณฑ์ = (await ตัวเลือกของตัวกรอง(page, "ค้างติดต่อทุกช่วง")).map(o => o.ข้อความ);   // ช่องตัวกรองตัวกลาง (FilterSelect)
     for (const d of [7, 14, 30]) {
-      await expect(idle.getByRole("option", { name: `ค้างติดต่อ >${d} วัน`, exact: true }), `ต้องมีเกณฑ์ >${d} วัน`).toHaveCount(1);
+      expect(เกณฑ์.filter(t => t === `ค้างติดต่อ >${d} วัน`), `ต้องมีเกณฑ์ >${d} วัน`).toHaveLength(1);
     }
     const ชื่อในตาราง = () => page.locator("tbody tr").filter({ hasText: ป้าย }).evaluateAll(trs => trs.map(tr => tr.textContent ?? ""));
     const จำนวนในตาราง = async () => (await ชื่อในตาราง()).length;
@@ -230,7 +231,7 @@ test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วั�
     };
     await expect.poll(จำนวนในตาราง, { timeout: 20_000, message: "ไม่กรอง: เห็นลีดชุดของข้อนี้ครบ 4 ราย" }).toBe(4);
     for (const d of [7, 14, 30]) {
-      await idle.selectOption(String(d));
+      await เลือกตัวกรอง(page, "ค้างติดต่อทุกช่วง", { ค่า: String(d) });
       const ควร = อายุชุด.filter(a => a > d);
       await expect.poll(จำนวนในตาราง, { timeout: 15_000, message: `ค้างติดต่อ >${d} วัน: ต้องเหลือ ${ควร.length} ราย (${ควร.join(", ")} วัน)` }).toBe(ควร.length);
       expect(await ยอด(), `ค้างติดต่อ >${d} วัน: ยอดรวมที่แถบแบ่งหน้า = แถวที่เห็น`).toBe(ควร.length);
@@ -240,7 +241,7 @@ test("[ux·dealer] Smart filter ค้างติดต่อ (>7/14/30 วั�
         else expect(เห็น, `ค้างติดต่อ >${d} วัน: ต้องไม่เห็นรายที่ติดต่อล่าสุด ${a} วันก่อน`).not.toContain(`${ป้าย}-${a}วัน`);
       }
     }
-    await idle.selectOption({ index: 0 });
+    await เลือกตัวกรอง(page, "ค้างติดต่อทุกช่วง", "ค้างติดต่อทุกช่วง");   // ตัวเลือกแรก = ทุกช่วง
     await expect.poll(จำนวนในตาราง, { timeout: 15_000, message: "ล้างตัวกรองแล้วต้องกลับเท่าเดิม (4 ราย)" }).toBe(4);
     expect(await ยอด(), "ล้างตัวกรองแล้ว ยอดรวมที่แถบแบ่งหน้ากลับเท่าเดิม").toBe(4);
   } finally {

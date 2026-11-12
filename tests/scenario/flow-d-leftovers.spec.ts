@@ -3,7 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, นำเข้าลูกค้าหนึ่งราย, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, ตัวเลือกของตัวกรอง, ช่องตัวกรอง } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── รอบ 2 ช่วง ง: ที่เหลือในตารางเทียบรอบ 1 (19 ต.ค. 69) + ข้อตัดสินของบอส 20 ต.ค. 69 ──────────────────────────────
@@ -56,10 +56,10 @@ test("[ง] หน้าลีด: ตัวกรองจังหวัด = 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const ตัวกรอง = page.getByRole("combobox").filter({ has: page.locator("option", { hasText: "ทุกจังหวัด" }) }).first();
-  await expect(ตัวกรอง).toBeVisible({ timeout: 20_000 });
-  await expect(ตัวกรอง.locator("option", { hasText: จังหวัดแปลก }), "จังหวัดของลีดจริงต้องอยู่ในตัวกรอง").toHaveCount(1);
-  await expect(ตัวกรอง.locator("option", { hasText: "อื่นๆ" }), "ไม่มีตัวเลือกของเดโมเดิม").toHaveCount(0);
+  await expect(ช่องตัวกรอง(page, "ทุกจังหวัด")).toBeVisible({ timeout: 20_000 });   // ช่องตัวกรองเป็นตัวกลางทำเอง (บอสสั่ง 11 พ.ย. 69 แทน <select>)
+  const ข้อความ = (await ตัวเลือกของตัวกรอง(page, "ทุกจังหวัด")).map(o => o.ข้อความ);
+  expect(ข้อความ.filter(t => t.includes(จังหวัดแปลก)), "จังหวัดของลีดจริงต้องอยู่ในตัวกรอง").toHaveLength(1);
+  expect(ข้อความ.filter(t => t.includes("อื่นๆ")), "ไม่มีตัวเลือกของเดโมเดิม").toHaveLength(0);
 });
 
 test("[ง] ใบเสนอราคา: หน้าแก้ใบแก้ได้เฉพาะ % (สถานะ/วันที่/วันหมดอายุ แสดงอย่างเดียว) · ไม่มีการ์ดประวัติต่อรองราคา", async ({ page }) => {

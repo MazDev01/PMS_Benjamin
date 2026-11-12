@@ -3,7 +3,7 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
 import { adminClient, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เลือกตัวกรอง } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { ล้างใบHQทดสอบ } from "./legacyQuotes";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
@@ -210,7 +210,7 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
   await loginUI(hq, HQ_ORIGIN, "/hq/login", ADMIN);
   await hq.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" }); await settle(hq);
   // 30 ต.ค. 69 (บอสสั่ง): ตาราง HQ ค่าเริ่มต้นไม่นับร่าง/ถูกแทนที่ — V1 ถูกแทนที่ ดูได้เมื่อเลือกสถานะเอง
-  await hq.getByLabel("กรองตามสถานะใบเสนอราคา").selectOption("all");
+  await เลือกตัวกรอง(hq, "กรองตามสถานะใบเสนอราคา", { ค่า: "all" });
   await hq.getByPlaceholder(/ค้นหาเลขที่/).fill(เลขใบ);
   const ทั้งเครือ = await เลขที่ในตาราง(hq, เลขใบ);
   expect(ทั้งเครือ.map(x => x.text).sort(), "HQ ทั้งเครือ: เลขที่ V1/V2 ไม่เหมือนกัน").toEqual(คาด);

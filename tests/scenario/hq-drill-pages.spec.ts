@@ -1,7 +1,7 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, ช่องตัวกรอง, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 import { ตั้งค่าเจาะลึกทั้งหมด, มีรายเดือน, type ตั้งค่าเจาะลึก } from "@pms/shared/lib/hqDrillConfig";
@@ -199,7 +199,7 @@ test("[drill·hq] ตัวเลขชุดเดียวกันตรง�
   const ภาพรวม = data as { sales: { value: number }; winRate: { won: number; lost: number } };
   expect([ภาพรวม.winRate.won, ภาพรวม.winRate.lost, Number(ภาพรวม.sales.value)], "ภาพรวมยอดขายของสาขาของข้อ = ค่าที่วางไว้").toEqual([1, 1, 2000]);
   // ลูกค้าเป้าหมาย ระดับดีลเลอร์ของข้อ: ผลรวมปิดสำเร็จ/ไม่สำเร็จ (รายเดือน) = การ์ดอัตราปิดของภาพรวมยอดขาย
-  await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(สาขา.รหัส);
+  await เลือกตัวกรอง(page, "ดีลเลอร์", { ค่า: สาขา.รหัส }, page.locator("[data-drill-scope]"));
   await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(สาขา.ชื่อ);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await รอโหลด(page);
   expect([await ผลรวมคอลัมน์(page, "won"), await ผลรวมคอลัมน์(page, "lost")],

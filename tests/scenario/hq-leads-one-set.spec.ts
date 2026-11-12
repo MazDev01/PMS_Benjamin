@@ -3,7 +3,7 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, ย้อนเดือนISO } from "./helpers";
+import { settle, ย้อนเดือนISO, ช่องตัวกรอง, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
@@ -88,12 +88,12 @@ async function ตรงค่า(page: Page, ชื่อ: string, ควร: {
   await expect.poll(async () => (ล่าสุด = await อ่าน(page)), { timeout: 30_000, message: `${ชื่อ}: การ์ด = กราฟขั้น 1–4 = วงกลมแหล่งที่มา = ตาราง` }).toEqual(ต้องได้);
   return ล่าสุด;
 }
-const เลือก = (page: Page, ป้ายช่อง: string) => page.getByLabel(ป้ายช่อง, { exact: true }).first();
+const เลือก = (page: Page, ป้ายช่อง: string) => ช่องตัวกรอง(page, ป้ายช่อง);   // ช่องตัวกรองตัวกลาง (FilterSelect · data-filter-value = ค่าที่เลือก)
 async function เปิดหน้าแล้วค้น(page: Page) {
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   // ระดับดีลเลอร์ของข้อ → การ์ด/กราฟเป็นของข้ออย่างเดียว · คำค้นป้ายของรอบ → รายชื่อเป็นของข้ออย่างเดียว
-  await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(ก!.รหัส);
+  await เลือกตัวกรอง(page, "ดีลเลอร์", { ค่า: ก!.รหัส }, page.locator("[data-drill-scope]"));
   await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(ก!.ชื่อ, { timeout: 25_000 });   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   await page.getByPlaceholder(/ค้นหาบริษัท/).fill(ป้าย);
 }
@@ -125,13 +125,13 @@ test("[H6·hq] ลีดทั้งเครือ: ทุกระดับ �
     expect(การ์ดเปิด, `ระดับ${ระดับ}: การ์ดเปิดอยู่ = ผลรวมแถวตารางเจาะลึก`).toBe(String(รวมเปิด));
     expect(Number(การ์ดเปิด), `ระดับ${ระดับ}: นับลีดเปิดของข้อรวมอยู่ด้วย`).toBeGreaterThanOrEqual(4);
   }
-  await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(ก!.รหัส);
+  await เลือกตัวกรอง(page, "ดีลเลอร์", { ค่า: ก!.รหัส }, page.locator("[data-drill-scope]"));
   // ช่องทาง Facebook (ตัวกรองรายชื่อ): รายชื่อเหลือ ก ข · การ์ด/กราฟไม่ขยับ (กลับด้านจากเดิมที่การ์ดเดินตามช่องทาง · บอสสั่ง 2 พ.ย. 69)
-  await เลือก(page, "ทุกแหล่งที่มา").selectOption("Facebook");
+  await เลือกตัวกรอง(page, "ทุกแหล่งที่มา", { ค่า: "Facebook" });
   await ตรงค่า(page, "ดีลเลอร์ของข้อ + Facebook", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 2 });
-  await เลือก(page, "ทุกแหล่งที่มา").selectOption("ALL");
+  await เลือกตัวกรอง(page, "ทุกแหล่งที่มา", { ค่า: "ALL" });
   // ตัวกรองขั้น (ปิดสำเร็จ) คุมตารางอย่างเดียว — การ์ดกับกราฟไม่ขยับ
-  await เลือก(page, "ขั้นตอน").selectOption("6");
+  await เลือกตัวกรอง(page, "ขั้นตอน", { ค่า: "6" });
   await ตรงค่า(page, "ดีลเลอร์ของข้อ + ขั้นปิดสำเร็จ", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 1 });
   assertNoErrors(errs, "หน้าลีดทั้งเครือ นับชุดเดียว");
 });
@@ -153,7 +153,7 @@ test("[H6·hq] ลีดทั้งเครือ: กดการ์ด = แ
   await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
     { message: "แผงที่มา ผลรวมแถว = การ์ด 5" }).toBe(5);
   await แผง.getByRole("button", { name: "ปิดแผง" }).click();
-  await expect(ช่องขั้น, "รายชื่อยังเป็นกำลังดำเนินการ").toHaveValue("OPEN");
+  await expect(ช่องขั้น, "รายชื่อยังเป็นกำลังดำเนินการ").toHaveAttribute("data-filter-value", "OPEN");
   await ตรงค่า(page, "หลังกดการ์ดลีดใหม่", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 4 });
 
   // ไม่เคลื่อนไหวเกิน 30 วัน = ช่องติ๊กของรายชื่อ

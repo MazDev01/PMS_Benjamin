@@ -64,7 +64,7 @@ test("[ui·hq] คำขอใบเสนอราคา: ตารางหล
   await expect(แท็บมุมมองคำขอ(page, "history"), "จำนวนบนแท็บประวัติ = 3").toHaveAttribute("data-count", "3");
 
   await แท็บมุมมองคำขอ(page, "history").click();
-  await expect(ตัวกรองสถานะ(page), "ประวัติ: ตัวกรองสถานะ ทุกสถานะ").toHaveValue("all");
+  await expect(ตัวกรองสถานะ(page), "ประวัติ: ตัวกรองสถานะ ทุกสถานะ").toHaveAttribute("data-filter-value", "all");
   await expect(ปุ่มเฉพาะเกินกำหนด(page), "ประวัติ: ไม่มีปุ่มเฉพาะเกินกำหนด").toHaveCount(0);
   await expect(แถวคำขอ(page, ป้าย), "ประวัติ: ส่งแล้ว + ปิด + ยกเลิก").toHaveCount(3, { timeout: 20_000 });
   await expect(แถวคำขอ(page, ชื่อ("ใหม่")), "ประวัติ: ไม่มีคำขอที่ต้องตีราคา").toHaveCount(0);
@@ -103,12 +103,12 @@ test("[ui·hq] การ์ดเวลาตอบเฉลี่ย / อั�
   const การ์ด = (k: string) => page.locator(`[data-kpi-row] [data-kpi="${k}"]`);
   await การ์ด("avg-response").click();
   await expect(แท็บมุมมองคำขอ(page, "history"), "การ์ดเวลาตอบเฉลี่ย → ประวัติ").toHaveAttribute("aria-selected", "true");
-  await expect(ตัวกรองสถานะ(page), "เวลาตอบเฉลี่ย → ประวัติทุกสถานะ").toHaveValue("all");
+  await expect(ตัวกรองสถานะ(page), "เวลาตอบเฉลี่ย → ประวัติทุกสถานะ").toHaveAttribute("data-filter-value", "all");
   await การ์ด("todo").click();
   await expect(แท็บมุมมองคำขอ(page, "main"), "การ์ดต้องตีราคา → ตารางหลัก").toHaveAttribute("aria-selected", "true");
   await การ์ด("cancel-rate").click();
   await expect(แท็บมุมมองคำขอ(page, "history"), "การ์ดอัตรายกเลิก → ประวัติ").toHaveAttribute("aria-selected", "true");
-  await expect(ตัวกรองสถานะ(page), "อัตรายกเลิก → ประวัติ ยกเลิกแล้ว").toHaveValue("cancelled");
+  await expect(ตัวกรองสถานะ(page), "อัตรายกเลิก → ประวัติ ยกเลิกแล้ว").toHaveAttribute("data-filter-value", "cancelled");
   await page.getByLabel("ค้นหาคำขอ").fill(ป้าย);
   await expect(แถวคำขอ(page, ป้าย), "ประวัติ ยกเลิกแล้ว: คำขอยกเลิกของข้อ").toHaveCount(1, { timeout: 20_000 });
   await การ์ด("overdue").click();

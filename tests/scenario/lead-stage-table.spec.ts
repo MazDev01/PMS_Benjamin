@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง } from "./helpers";
 import { RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag } from "./funcHelpers";
 import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, เติมข้อมูลลีดก่อนขอราคา } from "./hqQuoteFixture";
@@ -30,7 +30,7 @@ async function ขั้นในตารางและแผง(page: Page, c
   await settle(page);
   await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   // ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ · 28 ต.ค. 69) — ลีดปิดแล้วต้องเลือก "ทั้งหมด"
-  if (ทั้งหมด) await page.getByRole("combobox", { name: "ขั้นตอน", exact: true }).selectOption({ label: "ทั้งหมด" });
+  if (ทั้งหมด) await เลือกตัวกรอง(page, "ขั้นตอน", "ทั้งหมด");   // ช่องตัวกรองเป็นตัวกลางทำเอง (บอสสั่ง 11 พ.ย. 69 แทน <select>)
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });

@@ -5,7 +5,7 @@
 // ตอนนี้ทุกหน้าใช้คลาสมาตรฐาน .search-bar ตัวเดียวกัน
 import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
-import { openAs, settle } from "./helpers";
+import { openAs, settle, ช่องตัวกรอง } from "./helpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -43,7 +43,7 @@ test("[ui·hq] กรอบโฟกัส: คลิกไม่แสดง ·
   const ตัวที่ตรวจ = [
     ["ปุ่มการแจ้งเตือน", page.getByRole("button", { name: /การแจ้งเตือน/ }).first()],
     ["ช่องค้นหา", page.getByPlaceholder(/ค้นหาเลขที่/).first()],
-    ["ช่องเลือกดีลเลอร์", page.locator("select").filter({ has: page.locator("option", { hasText: "ทุกดีลเลอร์" }) }).first()],
+    ["ช่องเลือกดีลเลอร์", ช่องตัวกรอง(page, "ดีลเลอร์", page.locator("[data-drill-scope]"))],   // ช่องตัวกรองตัวกลาง (FilterSelect · ปุ่ม combobox)
     ["เมนูข้าง", page.locator(".nav-item.active").first()],
   ] as const;
   const สภาพ = (el: (typeof ตัวที่ตรวจ)[number][1]) => el.evaluate(e => {

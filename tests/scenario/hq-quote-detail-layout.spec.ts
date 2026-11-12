@@ -4,7 +4,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { สร้างสาขาของชุด, ลบสาขาของชุด, type บัญชีสาขาของชุด } from "./ownBranch";
 import { HQ_ORIGIN, loginUI, specNS, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { คิดภาษีใบเสนอราคา } from "../../packages/shared/lib/quoteTax";
 import { fmtFull } from "../../packages/shared/lib/format";
@@ -65,7 +65,7 @@ async function ชื่อสาขาในฐาน() {
 async function เปิดจากหน้าใบ(page: Page, id: string) {
   await page.goto(`${HQ_ORIGIN}/hq/quotations?dealer=${รหัสสาขา}`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByLabel("กรองตามสถานะใบเสนอราคา").selectOption("all");
+  await เลือกตัวกรอง(page, "กรองตามสถานะใบเสนอราคา", { ค่า: "all" });
   await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(id);
   const แถว = page.locator("tbody tr").filter({ has: page.locator("[data-quote-no]", { hasText: new RegExp(`^${id}$`) }) }).first();
   await expect(แถว).toBeVisible({ timeout: 25_000 });

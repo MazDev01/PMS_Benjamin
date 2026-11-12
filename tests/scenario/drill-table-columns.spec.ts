@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, ช่องตัวกรอง, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 
 // ── ตารางในหน้าเจาะลึก 4 หน้า (บอสสั่ง 9 พ.ย. 69 · ตัวกลาง lib/drillColumns.ts) ──────────────────────────────────────────
 //   1) เจาะถึงดีลเลอร์รายเดียว → ไม่มีคอลัมน์ "ดีลเลอร์" (หัวตารางบอกชื่อแล้ว) · ทั้งเครือ = มี
@@ -22,11 +22,17 @@ async function เปิด(page: Page, path: string) {
   await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" });
   await settle(page);
 }
+// ช่องตัวกรองเป็นตัวกลางทำเอง (FilterSelect · บอสสั่ง 11 พ.ย. 69 แทน <select>) — เลือกตามค่า รอจนตัวเลือกโหลด (คลิกรอตัวเลือกขึ้นเอง)
 async function เลือก(page: Page, ป้าย: string, ค่า: string) {
-  const s = page.getByLabel(ป้าย, { exact: true }).first();
-  await expect(s.locator(`option[value="${ค่า}"]`)).toHaveCount(1, { timeout: 25_000 });
-  await s.selectOption(ค่า);
+  await เลือกตัวกรอง(page, ป้าย, { ค่า });
+  await expect(ช่องตัวกรอง(page, ป้าย)).toHaveAttribute("data-filter-value", ค่า);
   await settle(page);
+}
+/** ตัวเลือกที่ 2 (ถัดจาก "ทั้งหมด") ของช่องตัวกรอง — รอจนรายการโหลด */
+async function ตัวเลือกที่สอง(page: Page, ป้าย: string) {
+  let ได้: { ค่า: string; ข้อความ: string }[] = [];
+  await expect.poll(async () => (ได้ = await ตัวเลือกของตัวกรอง(page, ป้าย)).length, { timeout: 25_000, message: `ตัวเลือกของ ${ป้าย} โหลดแล้ว` }).toBeGreaterThan(1);
+  return ได้[1];
 }
 const หัว = (page: Page, ตาราง: string) => page.getByRole("table", { name: ตาราง }).locator("thead th");
 
@@ -46,12 +52,12 @@ for (const { path, ตาราง, ช่องดีลเลอร์, หั
     await expect.poll(() => ล้น(page), { message: "ทั้งเครือ: จอ 1366 ไม่มีแถบเลื่อนแนวนอน" }).toEqual([]);
     const หัวทั้งเครือ = (await หัว(page, ตาราง).allInnerTexts()).map(t => t.trim());
     // ภูมิภาค (ภาคของดีลเลอร์ทดสอบ) — ตารางสรุปเปลี่ยนเป็นรายจังหวัด · ไม่ล้น
-    const ภาค = await page.getByLabel("ภูมิภาค", { exact: true }).first().locator("option").nth(1).getAttribute("value");
-    await เลือก(page, "ภูมิภาค", ภาค!);
+    const ภาค = (await ตัวเลือกที่สอง(page, "ภูมิภาค")).ค่า;
+    await เลือก(page, "ภูมิภาค", ภาค);
     await expect.poll(() => ล้น(page), { message: "ระดับภูมิภาค: จอ 1366 ไม่มีแถบเลื่อนแนวนอน" }).toEqual([]);
     await expect.poll(async () => (await หัว(page, ตาราง).allInnerTexts()).map(t => t.trim()), { message: "ระดับภูมิภาค: หัวคอลัมน์ชุดเดิม (ภูมิภาค/จังหวัดไม่ซ่อน)" }).toEqual(หัวทั้งเครือ);
-    const จังหวัด = await page.getByLabel("จังหวัด", { exact: true }).first().locator("option").nth(1).getAttribute("value");
-    await เลือก(page, "จังหวัด", จังหวัด!);
+    const จังหวัด = (await ตัวเลือกที่สอง(page, "จังหวัด")).ค่า;
+    await เลือก(page, "จังหวัด", จังหวัด);
     await expect.poll(async () => (await หัว(page, ตาราง).allInnerTexts()).map(t => t.trim()), { message: "ระดับจังหวัด: หัวคอลัมน์ชุดเดิม (ภูมิภาค/จังหวัดไม่ซ่อน)" }).toEqual(หัวทั้งเครือ);
     // ดีลเลอร์รายเดียว
     await เปิด(page, path);
@@ -69,9 +75,7 @@ test("[ui·hq] ตารางสรุปเจาะลึก: เจาะภ
   await page.setViewportSize({ width: 1366, height: 820 });
   await loginUI(page, HQ_ORIGIN, "/hq/leads", ADMIN);
   await settle(page);
-  const ภาคSel = page.getByLabel("ภูมิภาค", { exact: true }).first();
-  const ภาค = (await ภาคSel.locator("option").nth(1).getAttribute("value"))!;
-  const ชื่อภาค = (await ภาคSel.locator("option").nth(1).innerText()).trim();
+  const { ค่า: ภาค, ข้อความ: ชื่อภาค } = await ตัวเลือกที่สอง(page, "ภูมิภาค");
   // ทั้งเครือ (แท็บดีลเลอร์): บรรทัดใต้ชื่อมีภูมิภาค
   await expect(page.locator('[data-drill-table="dealer"] [data-row-sub]').first(), "ทั้งเครือ: บรรทัดใต้ชื่อมีภูมิภาค · จังหวัด").toContainText(" · ", { timeout: 30_000 });
   await เลือก(page, "ภูมิภาค", ภาค);
@@ -79,7 +83,7 @@ test("[ui·hq] ตารางสรุปเจาะลึก: เจาะภ
   const ใต้ชื่อ = page.locator('[data-drill-table="dealer"] [data-row-sub]');
   await expect(ใต้ชื่อ.first()).toBeVisible({ timeout: 20_000 });
   for (const t of await ใต้ชื่อ.allInnerTexts()) expect(t, "เจาะภาค: ไม่บอกภูมิภาคซ้ำ").not.toContain(ชื่อภาค);
-  const จังหวัด = (await page.getByLabel("จังหวัด", { exact: true }).first().locator("option").nth(1).getAttribute("value"))!;
+  const จังหวัด = (await ตัวเลือกที่สอง(page, "จังหวัด")).ค่า;
   await เลือก(page, "จังหวัด", จังหวัด);
   await expect(page.locator('[data-drill-table="dealer"] tbody tr').first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-drill-table="dealer"] [data-row-sub]'), "เจาะจังหวัด: ไม่มีบรรทัดภูมิภาค/จังหวัดใต้ชื่อ").toHaveCount(0);
@@ -92,7 +96,7 @@ test("[ui·hq] ภาพรวมยอดขาย: เจาะภาค = ไ
   const ผลงาน = page.getByRole("table", { name: "ตารางผลงานดีลเลอร์" });
   await expect(ผลงาน.locator("[data-row-sub]").first(), "ทั้งเครือ: บรรทัดภูมิภาคใต้ชื่อ").toBeVisible({ timeout: 30_000 });
   await expect.poll(() => ล้น(page), { message: "ทั้งเครือ: ไม่ล้น" }).toEqual([]);
-  const ภาค = (await page.getByLabel("ทุกภูมิภาค", { exact: true }).locator("option").nth(1).getAttribute("value"))!;
+  const ภาค = (await ตัวเลือกที่สอง(page, "ทุกภูมิภาค")).ค่า;
   await เลือก(page, "ทุกภูมิภาค", ภาค);
   await page.getByRole("tab", { name: "ดีลเลอร์" }).click().catch(() => {});
   await expect(ผลงาน.locator("tbody tr").first()).toBeVisible({ timeout: 20_000 });

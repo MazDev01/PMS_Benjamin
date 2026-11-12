@@ -3,7 +3,7 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, ช่องตัวกรอง, เลือกตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
@@ -115,7 +115,7 @@ test("[H11·hq] ดีลเลอร์: ตารางตามแบบ ไ�
   // ดูผลงาน → ภาพรวมยอดขาย เลือกดีลเลอร์นี้ไว้ให้ (ลิงก์อย่างเดียว ไม่แสดงตัวเลขในหน้านี้)
   await แถว.locator("[data-row-action='perf']").click();
   await expect(page).toHaveURL(/\/hq\/pipeline/, { timeout: 15_000 });
-  await expect(page.getByLabel("ทุกดีลเลอร์", { exact: true }).first(), "เลือกดีลเลอร์นี้ไว้ให้").toHaveValue(ก!.รหัส, { timeout: 15_000 });
+  await expect(ช่องตัวกรอง(page, "ทุกดีลเลอร์"), "เลือกดีลเลอร์นี้ไว้ให้").toHaveAttribute("data-filter-value", ก!.รหัส, { timeout: 15_000 });
   assertNoErrors(errs, "ตารางดีลเลอร์");
 });
 
@@ -125,7 +125,7 @@ test("[H11·hq] ดีลเลอร์: กดแถว = แผงด้า�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByLabel("กรองตามสถานะดีลเลอร์").selectOption("active");
+  await เลือกตัวกรอง(page, "กรองตามสถานะดีลเลอร์", { ค่า: "active" });
   await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill(ก!.รหัส);
   const แถว = page.locator("tbody tr").filter({ hasText: ก!.รหัส }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
@@ -144,7 +144,7 @@ test("[H11·hq] ดีลเลอร์: กดแถว = แผงด้า�
   await expect(แผง).toHaveCount(0);
   expect(page.url(), "ปิดแผง = ที่อยู่เดิม (ไม่มี ?open)").toBe(ที่อยู่);
   await expect(page.getByPlaceholder(/ค้นหาดีลเลอร์/), "คำค้นอยู่ที่เดิม").toHaveValue(ก!.รหัส);
-  await expect(page.getByLabel("กรองตามสถานะดีลเลอร์"), "ตัวกรองสถานะอยู่ที่เดิม").toHaveValue("active");
+  await expect(ช่องตัวกรอง(page, "กรองตามสถานะดีลเลอร์"), "ตัวกรองสถานะอยู่ที่เดิม").toHaveAttribute("data-filter-value", "active");
   expect(Math.abs((await เลื่อน()) - ก่อน), "ตำแหน่งเลื่อนอยู่ที่เดิม").toBeLessThan(2);
 
   // เปิด /hq/dealers/[รหัส] ตรง ๆ (ลิงก์เก่า/กระดิ่ง) = รายการ + แผงนั้น · ปิดแล้วอยู่หน้ารายการ

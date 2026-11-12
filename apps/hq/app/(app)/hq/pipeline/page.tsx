@@ -38,6 +38,7 @@ import { ชื่อหัวข้อ, คำอธิบายหัวข้
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
 import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, แผงที่มา, กล่องล่าง, ล่าสุดของดีลเลอร์, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, แผงเดือน, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -294,11 +295,7 @@ export default function SalesAnalyticsPage() {
   const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL);
   const ล้าง = () => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); };
   const sel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
-    <select aria-label={caption} title={caption} value={v} onChange={e => on(e.target.value)} className="form-select"
-      style={{ flex: "1 1 0", minWidth: 120, maxWidth: 210, fontSize: "0.82rem" }}>
-      <option value={ALL}>{caption}</option>
-      {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-    </select>
+    <FilterSelect label={caption} caption={caption} all={ALL} value={v} onChange={on} options={opts} minWidth={120} maxWidth={210} style={{ flex: "1 1 0" }} />
   );
   const เงิน = (v: number | null) => (v == null ? "—" : fmtBaht(v));
   const โหลด = แถวฐาน === null;

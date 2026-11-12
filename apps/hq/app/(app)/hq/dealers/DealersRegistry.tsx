@@ -27,6 +27,7 @@ import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
 import { TerritoryUnmatchedCard } from "@pms/shared/components/hq/TerritoryUnmatchedCard";
 import { ชื่อภาค, ภาคมาตรฐาน, REGIONS, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 // เวลาที่เพิ่มดีลเลอร์ (ms) — ไม่มีค่า (ข้อมูลตัวอย่างเดิม) = 0 ไปอยู่ท้าย
 const เวลาเพิ่ม = (d: DealerRow) => { const t = d.createdAt ? Date.parse(d.createdAt) : NaN; return Number.isFinite(t) ? t : 0; };
@@ -262,14 +263,11 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
         </div>
         <div style={{ flex: 1 }} />
         {/* ตัวเลือกแรกคือทั้งหมด — สร้างจากรายการ ["ทั้งหมด", ...REGIONS] */}
-        <select aria-label="กรองตามภูมิภาค" value={regionFilter} onChange={e => { setRegionFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="ทั้งหมด">{ป้ายทุกภูมิภาค}</option>
-          {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
-        </select>
+        <FilterSelect label="กรองตามภูมิภาค" caption={ป้ายทุกภูมิภาค} all="ทั้งหมด" value={regionFilter} onChange={v => { setRegionFilter(v); setPage(0); }}
+          options={REGIONS.map(r => ({ v: r, l: ชื่อภาค(r) }))} />
         {/* ตัวเลือกแรกคือทั้งหมด — สร้างจากรายการเช่นเดียวกับตัวกรองภูมิภาค */}
-        <select aria-label="กรองตามสถานะดีลเลอร์" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as DealerStatus | "all"); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          {STATUS_PILLS.map(p => <option key={p.value} value={p.value}>{p.value === "all" ? "ทุกสถานะ" : p.label}</option>)}
-        </select>
+        <FilterSelect label="กรองตามสถานะดีลเลอร์" caption="ทุกสถานะ" all="all" value={statusFilter} onChange={v => { setStatusFilter(v as DealerStatus | "all"); setPage(0); }}
+          options={STATUS_PILLS.filter(p => p.value !== "all").map(p => ({ v: p.value, l: p.label }))} />
         {/* สลับการ์ด/ตาราง — ขนาดหน้าต่างกัน (12 / 10) จึงกลับหน้า 1 ทุกครั้งที่สลับ */}
         <div role="group" aria-label="รูปแบบการแสดง" style={{ display: "flex", gap: 4 }}>
           {([["card", LayoutGrid, "แสดงแบบการ์ด"], ["table", List, "แสดงแบบตาราง"]] as const).map(([ค่า, Icon, ป้าย]) => (

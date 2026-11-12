@@ -57,6 +57,7 @@ import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
 import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";
 
 // ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
 //   มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — ยังไม่มีใบ = "—"
@@ -265,12 +266,9 @@ export default function HQLeadsPage() {
   // ปุ่ม "ล้างตัวกรอง" โผล่เมื่อมีตัวกรองทำงานอยู่จริงเท่านั้น — ไม่งั้นเป็นปุ่มที่กดแล้วไม่เกิดอะไร
   // ทุกช่องอยู่บรรทัดเดียว: แชร์ความกว้างเท่า ๆ กัน (flex:1) แล้วย่อได้เมื่อจอแคบ
   // ห้ามใช้ width:"auto" — select จะกว้างตามตัวเลือกที่ยาวที่สุด ("D-001 – ชื่อบริษัทเต็ม") แล้วดันจนตกบรรทัด
+  // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทน <select> · กางลงเสมอ · ค้นหาเมื่อเกิน 8)
   const leadSel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
-    <select aria-label={caption} value={v} onChange={e => on(e.target.value)} className="form-input"
-      style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
-      <option value="ALL">{caption}</option>
-      {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-    </select>
+    <FilterSelect label={caption} caption={caption} all="ALL" value={v} onChange={on} options={opts} minWidth={96} maxWidth={180} style={{ flex: "1 1 0" }} />
   );
   const anyFilter = !!query.trim() || status !== "OPEN" || srcSel !== "ALL" || overdueOnly;
 
@@ -532,13 +530,9 @@ export default function HQLeadsPage() {
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
           {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–4) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
-          <select aria-label={ช่อง.ขั้นตอน} value={status} onChange={e => setStatus(e.target.value)} className="form-input"
-            style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
-            <option value="OPEN">กำลังดำเนินการ</option>
-            <option value="6">{ชื่อขั้น(6)}</option>
-            <option value="7">{ชื่อขั้น(7)}</option>
-            <option value="ALL">ทั้งหมด</option>
-          </select>
+          {/* ค่าตั้งต้น (ตัวแรก) = กำลังดำเนินการ — ลำดับตัวเลือกเดิม */}
+          <FilterSelect label={ช่อง.ขั้นตอน} caption="กำลังดำเนินการ" all="OPEN" value={status} onChange={setStatus}
+            options={[{ v: "6", l: ชื่อขั้น(6) }, { v: "7", l: ชื่อขั้น(7) }, { v: "ALL", l: "ทั้งหมด" }]} minWidth={96} maxWidth={180} style={{ flex: "1 1 0" }} />
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.74rem", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
             <input type="checkbox" checked={overdueOnly} onChange={e => { setOverdueOnly(e.target.checked); if (e.target.checked) setStatus("OPEN"); }} />
             ไม่เคลื่อนไหวเกิน 30 วัน

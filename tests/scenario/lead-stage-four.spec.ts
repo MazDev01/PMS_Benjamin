@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { skipReason, ADMIN } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle, กดยกเลิกในกล่องยืนยัน } from "./helpers";
+import { settle, กดยกเลิกในกล่องยืนยัน, ช่องตัวกรอง, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { ลากการ์ด } from "./boardDrag";
@@ -162,7 +162,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await เปิดลีด(page);
 
     // ตัวกรองขั้นตอน: ไม่มีชื่อขั้นเดิม
-    const ตัวเลือก = await page.getByRole("combobox", { name: "ขั้นตอน", exact: true }).locator("option").allInnerTexts();
+    const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ขั้นตอน")).map(o => o.ข้อความ);
     expect(ตัวเลือก.join(" | "), "ตัวกรองขั้นตอนไม่มีชื่อขั้นเดิม").not.toMatch(ชื่อเดิม);
 
     // ตาราง: ป้ายย่อย + แถบ 4 ช่อง
@@ -228,7 +228,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     const เจาะ = page.locator("[data-drill-table]");
     await expect(เจาะ.locator("thead"), "หัวตารางเจาะลึก").toContainText("เสนอราคาลูกค้า", { timeout: 30_000 });
     await expect(เจาะ.locator("thead"), "หัวตารางเจาะลึกไม่มีชื่อขั้นเดิม").not.toContainText(ชื่อเดิม);
-    await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(ส.รหัส);
+    await เลือกตัวกรอง(page, "ดีลเลอร์", { ค่า: ส.รหัส }, page.locator("[data-drill-scope]"));
     await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(ส.ชื่อ, { timeout: 25_000 });
     await page.getByPlaceholder("ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…").fill(`ZZTEST ยุบขั้น ${ส.รหัส}`);
     const ตาราง = page.locator("[data-lead-table][data-ready='1']");
@@ -238,7 +238,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await expect(แถว("ทำใบ").locator("[data-stage-sub]")).toHaveText("ทำใบแล้ว (ยังไม่ส่ง)");
     await expect(แถว("ส่งแล้ว").locator("[data-stage-sub]")).toHaveText("ส่งให้ลูกค้าแล้ว");
     await expect(แถว("ได้ใบ").locator("[data-stage-label]")).toHaveText("ได้ใบ HQ");
-    const ตัวเลือก = await page.getByLabel("ขั้นตอน", { exact: true }).first().locator("option").allInnerTexts();
+    const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ขั้นตอน")).map(o => o.ข้อความ);
     expect(ตัวเลือก.join(" | "), "ตัวกรองขั้นตอน HQ ไม่มีชื่อขั้นเดิม").not.toMatch(ชื่อเดิม);
     const กราฟ = page.locator("[data-stage-chart][data-ready='1']");
     await expect(กราฟ).toBeVisible({ timeout: 25_000 });

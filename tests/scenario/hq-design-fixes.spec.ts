@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, ตัวเลือกของตัวกรอง } from "./helpers";
 
 // ── หน้า HQ ตามแบบ (บอสเลือกแก้ 30 ต.ค. 69) — คำเรียกบนจอที่บอสสั่ง (ตัวเลขตรวจที่ supabase/tests/hq_pages_monthly.sql · ใบ 0268) ──
 //   1. แดชบอร์ด: กราฟรายเดือน "ใบที่ส่ง" · "ปิดสำเร็จ" (คำเดียวกับขั้นตอนกลาง) · 2. ลิงก์ "บันทึกการใช้งาน ›" ที่กล่องกิจกรรมล่าสุด
@@ -28,7 +28,7 @@ test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง 
 
   await page.goto(`${HQ_ORIGIN}/hq/prospects`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const ขั้น = await page.getByLabel("กรองตามสถานะ").locator("option").allInnerTexts();
+  const ขั้น = (await ตัวเลือกของตัวกรอง(page, "กรองตามสถานะ")).map(o => o.ข้อความ);
   // 5 พ.ย. 69 (บอสสั่ง): "รอตัดสินใจ HQ" → "รอผู้สนใจตอบรับ" (คนตัดสินใจคือผู้สนใจ) — ตรวจกลับด้านจากข้อเดิม 30 ต.ค. 69
   expect(ขั้น.map(t => t.trim()), "ชื่อขั้นตาม FLOW").toEqual(expect.arrayContaining(["รอติดต่อ", "ติดต่อแล้ว", "ส่งข้อมูลบริษัทแล้ว", "นัดคุยแล้ว", "รอผู้สนใจตอบรับ"]));   // "เป็นดีลเลอร์แล้ว" ไม่อยู่ในตัวกรอง (ตั้งใจ)
   for (const เดิม of ["รอตัดสินใจ", "รอตัดสินใจ HQ"]) expect(ขั้น.map(t => t.trim()), `ไม่มีชื่อเดิม "${เดิม}"`).not.toContain(เดิม);

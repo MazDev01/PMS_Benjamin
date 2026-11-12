@@ -9,7 +9,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason, type Account } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง, ตัวเลือกของตัวกรอง, ช่องตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
@@ -52,13 +52,12 @@ async function ตรวจ(page: Page, kpi: string, นับ: ตัวนั�
   const ทั้งหมด = await นับ(null);
   expect(ทั้งหมด, `${ชื่อ}: ข้อมูลที่วางไว้ของสาขาของข้อ`).toBe(ควรทั้งหมด);
   await expect(ค่าการ์ด(page, kpi), `${ชื่อ}: ก่อนกรอง การ์ด = ทั้งหมดในฐาน`).toHaveAttribute("data-value", String(ทั้งหมด), { timeout: 25_000 });
-  const ช่อง = page.getByLabel("ทุกจังหวัด").first();
-  await expect(ช่อง).toBeVisible({ timeout: 20_000 });
-  const ตัวเลือก = await ช่อง.evaluate(el => [...(el as HTMLSelectElement).options].map(o => o.value).filter(v => v && v !== "ALL"));
+  await expect(ช่องตัวกรอง(page, "ทุกจังหวัด")).toBeVisible({ timeout: 20_000 });   // ช่องตัวกรองเป็นตัวกลางทำเอง (บอสสั่ง 11 พ.ย. 69 แทน <select>)
+  const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ทุกจังหวัด")).map(o => o.ค่า).filter(v => v && v !== "ALL");
   // จังหวัดที่ทำให้เลขต่างจากทั้งหมด (เลือกตัวที่มีแถวมากสุด)
   const ผล = (await Promise.all(ตัวเลือก.map(async p => ({ จังหวัด: p, เลข: await นับ(p) })))).filter(x => x.เลข !== ทั้งหมด).sort((a, b) => b.เลข - a.เลข);
   expect(ผล.length, `ขาดข้อมูล: ${ชื่อ} ไม่มีจังหวัดที่ทำให้ตัวเลขต่างจากทั้งหมด — ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69)`).toBeGreaterThan(0);
-  await ช่อง.selectOption(ผล[0].จังหวัด);
+  await เลือกตัวกรอง(page, "ทุกจังหวัด", { ค่า: ผล[0].จังหวัด });
   await expect(ค่าการ์ด(page, kpi), `${ชื่อ}: เลือก ${ผล[0].จังหวัด} แล้วการ์ดต้องนับเฉพาะที่กรอง (ไม่ใช่ทั้งหมด ${ทั้งหมด})`)
     .toHaveAttribute("data-value", String(ผล[0].เลข), { timeout: 20_000 });
 }
@@ -109,7 +108,7 @@ test("[ui·hq] หน้าลีดทั้งเครือ: การ์ด
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
   expect(await นับ(null), "ข้อมูลที่วางไว้ของสาขาของข้อ").toBe(7);
-  await page.locator("[data-drill-scope]").getByLabel("ดีลเลอร์").selectOption(สาขา.รหัส);
+  await เลือกตัวกรอง(page, "ดีลเลอร์", { ค่า: สาขา.รหัส }, page.locator("[data-drill-scope]"));
   await expect(ค่าการ์ด(page, "open"), "ระดับดีลเลอร์ของข้อ: การ์ด = ลีดเปิดของสาขาในฐาน").toHaveAttribute("data-value", "7", { timeout: 25_000 });
   await expect(page.getByLabel("ทุกจังหวัด", { exact: true }), "ไม่มีตัวกรองจังหวัดหน้างานของลีดแล้ว").toHaveCount(0);
   // ระดับจังหวัด (จังหวัดของดีลเลอร์ ตราด) = ตัวเลือกระดับ · การ์ดรวมลีดเปิดของสาขาของข้อด้วย

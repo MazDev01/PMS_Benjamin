@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
@@ -81,7 +81,7 @@ test("[ux·hq] ภาพรวมยอดขาย: การ์ดยอดข
   await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" });
   await settle(page);
   // เลือกดีลเลอร์ = สาขาของข้อ → การ์ดนับเฉพาะใบของสาขานี้ (ค่าที่รู้แน่นอน)
-  await page.getByLabel("ทุกดีลเลอร์").selectOption(CODE);
+  await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: CODE });
   await settle(page);
   const ค่าการ์ด = () => page.locator('[data-kpi="sales"] [data-value]').first().getAttribute("data-value").then(v => Number(v ?? NaN));
 

@@ -81,6 +81,7 @@ import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 import { ช่องทางติดต่อเริ่มต้น } from "@pms/shared/lib/recruitSettings";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
+import { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -845,19 +846,15 @@ export default function HQProspectsPage() {
           {q && <button aria-label="ล้างคำค้น" onClick={() => { setQ(""); setPage(0); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
         <div style={{ flex: 1 }} />
-        <select aria-label="กรองตามสถานะ" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as ตัวกรองสถานะ); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกสถานะ</option>
-          <option value="due">ถึงกำหนดติดตาม</option>
           {/* ตัวกรองติดตามด่วน (สเปก: ไม่ได้ติดต่อ 7 / 14 / 30 วัน) — นับเฉพาะรายที่ยังติดตามอยู่ */}
-          {เกณฑ์ไม่ได้ติดต่อ.map(ว => <option key={ว} value={`idle${ว}`}>ไม่ได้ติดต่อ {ว} วันขึ้นไป</option>)}
-          {PROSPECT_STATUS_ORDER.filter(s => s !== "won").flatMap(s => s === "considering"
-            ? (Object.keys(ชื่อขั้นย่อย) as ขั้นย่อยใบ["key"][]).map(k => <option key={k} value={`sub:${k}`}>{ชื่อขั้นย่อย[k]}</option>)
-            : [<option key={s} value={s}>{prospectStatusLabel[s]}</option>])}
-        </select>
-        <select aria-label="กรองตามจังหวัด" value={provinceFilter} onChange={e => { setProvinceFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกจังหวัด</option>
-          {จังหวัดในข้อมูล.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
+        <FilterSelect label="กรองตามสถานะ" caption="ทุกสถานะ" all="all" value={statusFilter} onChange={v => { setStatusFilter(v as ตัวกรองสถานะ); setPage(0); }}
+          options={[{ v: "due", l: "ถึงกำหนดติดตาม" },
+            ...เกณฑ์ไม่ได้ติดต่อ.map(ว => ({ v: `idle${ว}`, l: `ไม่ได้ติดต่อ ${ว} วันขึ้นไป` })),
+            ...PROSPECT_STATUS_ORDER.filter(s => s !== "won").flatMap((s): FilterOption[] => s === "considering"
+              ? (Object.keys(ชื่อขั้นย่อย) as ขั้นย่อยใบ["key"][]).map(k => ({ v: `sub:${k}`, l: ชื่อขั้นย่อย[k] }))
+              : [{ v: s, l: prospectStatusLabel[s] }])]} />
+        <FilterSelect label="กรองตามจังหวัด" caption="ทุกจังหวัด" all="all" value={provinceFilter} onChange={v => { setProvinceFilter(v); setPage(0); }}
+          options={จังหวัดในข้อมูล.map(p => ({ v: p, l: p }))} />
         {/* สลับมุมมอง ตาราง/บอร์ด — แบบเดียวกับหน้าลูกค้าเป้าหมาย */}
         <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", height: 30, boxSizing: "border-box", flexShrink: 0 }}>
           {([["table", LayoutList, "ตาราง"], ["board", Columns3, "บอร์ด"]] as const).map(([v, Ico, tip]) => (

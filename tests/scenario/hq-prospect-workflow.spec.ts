@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
 import { ช่องผู้สนใจครบ, ช่องใบครบ, เบอร์ทดสอบ } from "./requiredFixtures";
+import { ช่องตัวกรอง, เลือกตัวกรอง } from "./helpers";
 
 // ── เส้นทางการทำงานของผู้สนใจเป็นดีลเลอร์ — migration 0174 ──
 //   บอสสั่ง 14 ก.ย. 69: "ทำให้ ลูกค้าเป้าหมาย ออกแบบการทำออกมาใช้งานให้เสร็จ" · "ให้มันทำงานแบบเดียวกับดีลเลอร์"
@@ -212,16 +213,16 @@ test("[func·hq] ตัวกรองไม่ได้ติดต่อ 7/14/
   await expect(การ์ดเงียบ.locator("[data-value]"), "เงียบ 20 วัน = นับในการ์ด 14 วัน").toHaveAttribute("data-value", "1", { timeout: 20_000 });
   await expect(page.locator('[data-kpi-row] [data-kpi="proposalWaiting"]'), "การ์ดรอตอบใบค่าแฟรนไชส์ออกจากหน้านี้แล้ว").toHaveCount(0);
   await การ์ดเงียบ.click();
-  await expect(page.getByLabel("กรองตามสถานะ"), "กดการ์ด = ตัวกรองไม่ได้ติดต่อ 14 วัน").toHaveValue("idle14");
+  await expect(ช่องตัวกรอง(page, "กรองตามสถานะ"), "กดการ์ด = ตัวกรองไม่ได้ติดต่อ 14 วัน").toHaveAttribute("data-filter-value", "idle14");
   await expect(แถว).toBeVisible();
   await การ์ดเงียบ.click();
-  await expect(page.getByLabel("กรองตามสถานะ"), "กดซ้ำ = ล้างตัวกรอง").toHaveValue("all");
+  await expect(ช่องตัวกรอง(page, "กรองตามสถานะ"), "กดซ้ำ = ล้างตัวกรอง").toHaveAttribute("data-filter-value", "all");
 
-  await page.getByLabel("กรองตามสถานะ").selectOption("idle14");
+  await เลือกตัวกรอง(page, "กรองตามสถานะ", { ค่า: "idle14" });
   await expect(แถว, "เงียบ 20 วัน ต้องติดตัวกรอง 14 วัน").toBeVisible();
-  await page.getByLabel("กรองตามสถานะ").selectOption("idle30");
+  await เลือกตัวกรอง(page, "กรองตามสถานะ", { ค่า: "idle30" });
   await expect(แถว, "ยังไม่ถึง 30 วัน").toHaveCount(0);
-  await page.getByLabel("กรองตามสถานะ").selectOption("all");
+  await เลือกตัวกรอง(page, "กรองตามสถานะ", { ค่า: "all" });
 
   // บันทึกการติดต่อในแท็บ → ติดต่อล่าสุดเป็น "วันนี้" · ประวัติขึ้นในแท็บ
   //   ปุ่มลัดบนหัวแผงบอสสั่งเอาออก (14 ก.ย. 69) — ต้องไม่มีปุ่มนั้นบนหัวแผงแล้ว

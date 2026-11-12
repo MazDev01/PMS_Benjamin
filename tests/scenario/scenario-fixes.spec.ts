@@ -6,7 +6,7 @@
 // 4. รหัสผ่านดีลเลอร์โชว์เต็มทันทีที่เปิดแถว
 // 5. คำว่า "อัตราปิด/ปิดได้ %" ถูกใช้กับหลายสูตร จนอ่านเหมือนตัวเลขขัดกัน
 import { test, expect } from "@playwright/test";
-import { open, ย้อนเดือนISO } from "./helpers";
+import { open, ย้อนเดือนISO, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 import { adminClient } from "./testDealers";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { รันSQLในฐาน } from "./localDb";
@@ -61,8 +61,8 @@ test.describe("อื่น ๆ", () => {
       await page.getByRole("button", { name: "ตาราง", exact: true }).click();
       const ช่อง = page.getByLabel("ค้างติดต่อทุกช่วง");
       await expect(ช่อง, "มีรายการค้างตามเกณฑ์ 3 วัน → ช่องกรองขึ้น").toBeVisible({ timeout: 25_000 });
-      expect(await ช่อง.locator("option").allInnerTexts(), "ตัวเลือกมีเกณฑ์ของสาขา (>3 วัน) นำหน้าช่วงมาตรฐาน").toEqual(["ค้างติดต่อทุกช่วง", "ค้างติดต่อ >3 วัน", "ค้างติดต่อ >7 วัน", "ค้างติดต่อ >14 วัน", "ค้างติดต่อ >30 วัน"]);
-      await ช่อง.selectOption("3");
+      expect((await ตัวเลือกของตัวกรอง(page, "ค้างติดต่อทุกช่วง")).map(o => o.ข้อความ), "ตัวเลือกมีเกณฑ์ของสาขา (>3 วัน) นำหน้าช่วงมาตรฐาน").toEqual(["ค้างติดต่อทุกช่วง", "ค้างติดต่อ >3 วัน", "ค้างติดต่อ >7 วัน", "ค้างติดต่อ >14 วัน", "ค้างติดต่อ >30 วัน"]);
+      await เลือกตัวกรอง(page, "ค้างติดต่อทุกช่วง", { ค่า: "3" });
       await expect(page.getByRole("row", { name: `เปิดรายละเอียดลูกค้าเป้าหมาย ${เงียบ5}`, exact: true }), "เงียบ 5 วัน > 3 = อยู่ในรายการค้าง").toBeVisible();
       await expect(page.getByRole("row", { name: `เปิดรายละเอียดลูกค้าเป้าหมาย ${เงียบ2}`, exact: true }), "เงียบ 2 วัน ≤ 3 = ไม่อยู่").toHaveCount(0);
     } finally { await ล้าง(ส.รหัส); await ส.ลบ(); }
@@ -157,7 +157,7 @@ test.describe("อื่น ๆ", () => {
         expect(หัว.filter(h => h === ชื่อ), `ต้องมีคอลัมน์ "${ชื่อ}" แยกกันหนึ่งคอลัมน์ (ได้: ${หัว.join(" · ")})`).toHaveLength(1);
       // เลือกดีลเลอร์ทีละสาขาของข้อ → ตารางเหลือแถวของสาขานั้นแถวเดียว
       for (const [สาขา, อัตรา, ลีด, ใบ, ได้, ไม่ได้] of [[ก, "75%", "5", "3", "3", "1"], [ข, "—", "1", "1", "0", "0"]] as const) {
-        await page.getByLabel("ทุกดีลเลอร์", { exact: true }).first().selectOption(สาขา.รหัส);
+        await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: สาขา.รหัส });
         const แถว = tbl.locator("tbody tr").filter({ has: page.locator("td[data-perf-row]") });
         await expect(แถว, `เลือก ${สาขา.รหัส}: ตารางเหลือแถวเดียว`).toHaveCount(1, { timeout: 20_000 });
         // ระดับดีลเลอร์ไม่มีคอลัมน์ดีลเลอร์ (บอสสั่ง 9 พ.ย. 69 · คอลัมน์แรก = ผลงานในช่วง) — ตรวจว่าแถวเป็นของสาขาที่เลือกจากรหัสของแถว

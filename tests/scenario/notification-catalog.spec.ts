@@ -3,7 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, ช่องตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
@@ -137,7 +137,7 @@ test("[รอบ4·flow] HQ: ดีลเลอร์ยกเลิกคำข
     // ตาราง 6 พ.ย. 69: กระดิ่ง = หน้าต่างใบ HQ ของคำขอนั้น (ตัวกรองทุกสถานะ · คำขอที่ยกเลิกเปิดดูได้)
     // 9 พ.ย. 69: คำขอที่ยกเลิกอยู่แท็บประวัติ — กระดิ่งเปิดประวัติให้เอง
     await expect(page.locator('[data-view-tab="history"]'), "กระดิ่งคำขอที่ยกเลิก = แท็บประวัติ").toHaveAttribute("aria-selected", "true", { timeout: 20_000 });
-    await expect(page.getByLabel("กรองตามสถานะคำขอ"), "ตัวกรองทุกสถานะ (เห็นคำขอที่ยกเลิก)").toHaveValue("all", { timeout: 20_000 });
+    await expect(ช่องตัวกรอง(page, "กรองตามสถานะคำขอ"), "ตัวกรองทุกสถานะ (เห็นคำขอที่ยกเลิก)").toHaveAttribute("data-filter-value", "all", { timeout: 20_000 });
     await expect(page.getByRole("dialog", { name: "ใบ HQ" }), "เปิดคำขอนั้นตรง ๆ").toContainText(ชื่อ, { timeout: 20_000 });
   } finally {
     ล้างใบHQทดสอบ("RYG", [เลข]);

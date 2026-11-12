@@ -3,7 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI, waitRow } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง } from "./helpers";
 import { เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
 // ── ฟอร์มลีด · งานในแต่ละขั้น · ตัวกรองลีดที่ยังเปิดอยู่ (บอสสั่ง 28 ต.ค. 69 · FLOW D2 · D7 · /leads · /hq/leads) ─────────────
@@ -85,7 +85,7 @@ test("[ux·dealer] หน้าลูกค้าเป้าหมาย เป
   await ค้นหา.fill(ลีดปิด);
   await expect(page.getByText("ไม่พบลูกค้าเป้าหมาย").first(), "ตารางตอบผลค้นหาแล้ว").toBeVisible({ timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ลีดปิด }), "ค่าเริ่มต้น = กำลังดำเนินการ ไม่เห็นลีดปิดสำเร็จ").toHaveCount(0);
-  await page.getByLabel("ขั้นตอน", { exact: true }).selectOption({ label: "ปิดสำเร็จ" });
+  await เลือกตัวกรอง(page, "ขั้นตอน", "ปิดสำเร็จ");
   await expect(page.locator("tbody tr").filter({ hasText: ลีดปิด }).first(), "เลือกปิดสำเร็จ แล้วเห็น").toBeVisible({ timeout: 15_000 });
   await ค้นหา.fill(ลีดเปิด);
   await expect(page.locator("tbody tr").filter({ hasText: ลีดเปิด }), "ปิดสำเร็จไม่มีลีดที่ยังเปิด").toHaveCount(0);
@@ -101,6 +101,6 @@ test("[ux·hq] ลูกค้าเป้าหมายทั้งเคร�
   await ค้นหา.fill(ลีดปิด);
   await expect(page.getByText("ไม่พบลูกค้าเป้าหมาย").first(), "ตารางตอบผลค้นหาแล้ว").toBeVisible({ timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ลีดปิด }), "ค่าเริ่มต้น = กำลังดำเนินการ ไม่เห็นลีดปิดสำเร็จ").toHaveCount(0);
-  await page.getByLabel("ขั้นตอน", { exact: true }).selectOption({ label: "ปิดสำเร็จ" });
+  await เลือกตัวกรอง(page, "ขั้นตอน", "ปิดสำเร็จ");
   await expect(page.locator("tbody tr").filter({ hasText: ลีดปิด }).first(), "เลือกปิดสำเร็จ แล้วเห็น").toBeVisible({ timeout: 15_000 });
 });

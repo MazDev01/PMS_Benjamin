@@ -35,6 +35,7 @@ import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { HqQuoteEditor, type ร่างใบHQ } from "@pms/shared/components/hq/HqQuoteEditor";
 import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
 import { ความกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/tableFit";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366", STEEL = "#2D2D2D", MUTED = "#6b7280", BORDER = "#e5e7eb", แดง = "#b91c1c";
 const ร้อยละ = (v: number) => `${v.toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
@@ -235,18 +236,14 @@ export default function HQQuoteRequestsPage() {
             <AlarmClock size={13} /> เฉพาะเกินกำหนด{กล่อง ? ` (${นับเกิน.toLocaleString()})` : ""}
           </button>
         ) : (
-          <select aria-label="กรองตามสถานะคำขอ" value={สถานะ} onChange={e => setสถานะ(e.target.value as ตัวกรองประวัติ)} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-            <option value="all" data-count={กล่อง ? นับตัวเลือก("all") : ""}>ทุกสถานะ{กล่อง ? ` (${นับตัวเลือก("all").toLocaleString()})` : ""}</option>
-            {ตัวเลือกสถานะประวัติ.filter(o => o.key !== "all").map(o => {
+          <FilterSelect label="กรองตามสถานะคำขอ" caption={`ทุกสถานะ${กล่อง ? ` (${นับตัวเลือก("all").toLocaleString()})` : ""}`} all="all" captionN={กล่อง ? นับตัวเลือก("all") : undefined} value={สถานะ} onChange={v => setสถานะ(v as ตัวกรองประวัติ)}
+            options={ตัวเลือกสถานะประวัติ.filter(o => o.key !== "all").map(o => {
               const n = กล่อง ? นับตัวเลือก(o.key) : null;
-              return <option key={o.key} value={o.key} data-count={n ?? ""}>{o.label}{n == null ? "" : ` (${n.toLocaleString()})`}</option>;
-            })}
-          </select>
+              return { v: o.key, l: `${o.label}${n == null ? "" : ` (${n.toLocaleString()})`}`, n: n ?? undefined };
+            })} />
         )}
-        <select aria-label="กรองตามดีลเลอร์" value={ดีลเลอร์} onChange={e => setดีลเลอร์(e.target.value)} className="form-select" style={{ width: "auto", maxWidth: 260, cursor: "pointer" }}>
-          <option value="">ทุกดีลเลอร์</option>
-          {ตัวเลือกดีลเลอร์.map(([code, ชื่อ]) => <option key={code} value={code}>{ชื่อ}</option>)}
-        </select>
+        <FilterSelect label="กรองตามดีลเลอร์" caption="ทุกดีลเลอร์" all="" value={ดีลเลอร์} onChange={setดีลเลอร์}
+          options={ตัวเลือกดีลเลอร์.map(([code, ชื่อ]) => ({ v: code, l: ชื่อ }))} />
       </div>
 
       <div className="card">

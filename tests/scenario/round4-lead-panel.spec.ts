@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, loginUI } from "./funcHelpers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เลือกตัวกรอง } from "./helpers";
 import { adminClient } from "./testDealers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, ข้อมูลงานครบชุด } from "./hqQuoteFixture";
 
@@ -42,7 +42,7 @@ async function เปิดลีด(page: Page, company: string) {
   await settle(page);
   await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   // ข้อในไฟล์นี้เปิดลีดที่ปิดแล้วด้วย — ตัวกรองขั้นตอนค่าเริ่มต้นซ่อนลีดปิดแล้ว (บอสสั่ง 28 ต.ค. 69) จึงเลือก "ทั้งหมด"
-  await page.getByLabel("ขั้นตอน", { exact: true }).selectOption({ label: "ทั้งหมด" });
+  await เลือกตัวกรอง(page, "ขั้นตอน", "ทั้งหมด");
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   await page.locator("tbody tr").filter({ hasText: company }).first().locator("td").first().click();
   await expect(page.locator("[data-panel='next-step']:not([aria-busy])")).toBeVisible({ timeout: 20_000 });

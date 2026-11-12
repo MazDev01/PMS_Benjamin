@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, ช่องตัวกรอง, เลือกตัวกรอง } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
 // ── แถบระดับเจาะลึก ทั้งเครือ › ภาค › จังหวัด › ดีลเลอร์ (บอสสั่ง 5 พ.ย. 69 · บั๊ก "กดชิปจังหวัดแล้วเด้งกลับทั้งเครือ") ─────────────
@@ -41,9 +41,9 @@ for (const h of หน้า) {
     await loginUI(page, HQ_ORIGIN, h.ที่, ADMIN);
     await settle(page);
     await คาด(page, ["all"], "เริ่มที่ทั้งเครือ");
-    const ตัวเลือก = page.getByLabel(h.ตัวเลือกดีลเลอร์, { exact: true }).first();
-    await expect(ตัวเลือก.locator(`option[value="${สาขา.รหัส}"]`), "มีสาขาของข้อในตัวเลือก").toHaveCount(1, { timeout: 30_000 });
-    await ตัวเลือก.selectOption(สาขา.รหัส);
+    // ช่องตัวกรองตัวกลาง (FilterSelect) — คลิกตัวเลือกรอจนสาขาของข้อขึ้นในรายการ
+    await expect(ช่องตัวกรอง(page, h.ตัวเลือกดีลเลอร์), "มีช่องเลือกดีลเลอร์").toBeVisible({ timeout: 30_000 });
+    await เลือกตัวกรอง(page, h.ตัวเลือกดีลเลอร์, { ค่า: สาขา.รหัส });
     await คาด(page, ["all", "region", "prov", "dealer"], "เลือกดีลเลอร์ตรง = แถบครบ 4 ระดับ");
     await expect(page.locator('[data-crumbs] [data-crumb="prov"]')).toHaveText("ตราด");
 

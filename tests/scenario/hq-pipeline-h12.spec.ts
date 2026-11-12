@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
@@ -132,16 +132,16 @@ test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์�
 
   // เลือกดีลเลอร์ (สาขาเดียว) · ช่วงยอดขาย (ตัวกรองที่ขึ้นกับตัวเลข) · ถึงเป้า (กดการ์ด) — ผลรวมแถว = การ์ด ทุกครั้ง
   await page.getByLabel("ค้นหาดีลเลอร์").fill("");
-  await page.getByLabel("ทุกดีลเลอร์").selectOption(A.รหัส);
+  await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: A.รหัส });
   await expect(page.locator("[data-perf-row]")).toHaveCount(1, { timeout: 20_000 });
   await รวมเท่าการ์ด(page, "เลือกดีลเลอร์ A");
-  await page.getByLabel("ทุกดีลเลอร์").selectOption("ALL");
-  await page.getByLabel("ทุกภูมิภาค").selectOption("ใต้");
+  await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: "ALL" });
+  await เลือกตัวกรอง(page, "ทุกภูมิภาค", { ค่า: "ใต้" });
   await รวมเท่าการ์ด(page, "ภาคใต้");
-  await page.getByLabel("ทุกภูมิภาค").selectOption("ALL");
-  await page.getByLabel("ทุกช่วงยอดขาย").selectOption("lt5");
+  await เลือกตัวกรอง(page, "ทุกภูมิภาค", { ค่า: "ALL" });
+  await เลือกตัวกรอง(page, "ทุกช่วงยอดขาย", { ค่า: "lt5" });
   await รวมเท่าการ์ด(page, "ช่วงยอดขายต่ำกว่า ฿5M");
-  await page.getByLabel("ทุกช่วงยอดขาย").selectOption("ALL");
+  await เลือกตัวกรอง(page, "ทุกช่วงยอดขาย", { ค่า: "ALL" });
   // 9 พ.ย. 69 (บอสสั่ง · ตรวจกลับด้าน): แผงถึงเป้าไม่มีปุ่ม "แสดงเฉพาะดีลเลอร์ที่ถึงเป้าในตาราง" แล้ว — เปิดแผงไม่เปลี่ยนตาราง ผลรวม = การ์ดเหมือนเดิม
   //   (เดิม 30 ต.ค. 69: ปุ่มในแผงกรองตาราง · แผงใหม่ 2 กลุ่ม ตรวจที่ drill-window.spec.ts)
   await page.locator('[data-kpi-row] [data-kpi="onTarget"]').click();
