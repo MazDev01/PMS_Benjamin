@@ -10,6 +10,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/flaky-log.test.mjs", "ตัวนับข้อไม่นิ่ง + บรรทัดต้นเหตุ"],
   ["tests/tools/test-self-skip.test.mjs", "ตัวตรวจข้อทดสอบข้ามตัวเองเมื่อไม่มีข้อมูล + รายงานข้อที่ข้ามแยกตามเหตุผล"],
   ["tests/tools/flaky-ack.test.mjs", "ชื่อข้อไม่นิ่งท้ายผล + รอบมีข้อไม่นิ่งรอบอสรับทราบ (round:ack กัน AI)"],
+  ["tests/tools/skip-exemptions.test.mjs", "ข้อที่ถูกข้ามในรอบตรวจเต็มต้องอยู่ในรายชื่อยกเว้นที่บอสอนุมัติ (ไฟล์ + ชื่อตรงตัว)"],
   ["tests/tools/test-ratchet.test.mjs", "ข้อทดสอบ: รอตายตัว + หยิบแถวแรกของรายการ ห้ามเพิ่ม ลดได้ (เพดานรายไฟล์)"],
   ["tests/tools/no-remote-font.test.mjs", "ขั้นสร้างเว็บไม่ดึงฟอนต์จาก Google: ฟอนต์จากไฟล์ในโปรเจกต์ (next/font/local)"],
   ["tests/tools/failure-evidence.test.mjs", "หลักฐานตอนข้อตก: ข้อความเซิร์ฟเวอร์ลงไฟล์ของรอบ · ตัดช่วงของข้อที่ตกไปวางข้าง trace + ภาพหน้าจอ"],

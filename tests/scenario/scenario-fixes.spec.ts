@@ -11,11 +11,10 @@ import { adminClient } from "./testDealers";
 import { REAL_BACKEND } from "./supabaseEnv";
 import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ } from "./ownDealer";
+import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
 
-// เทสต์ [2]/[3] seed กฎผ่าน localStorage ใช้ได้กับ "โหมด local" เท่านั้น —
-// โหมด supabase แอปอ่านกฎจาก DB (dealer_lead_rules) ไม่ใช่ localStorage → seed ไม่มีผล
-// (แพตเทิร์นเดียวกับ dealer-lead-rules.spec.ts — DB-path ตรวจที่ migration 0058/0059 + supabase-rls แล้ว)
-const SEED_LOCAL_ONLY = "seed ผ่าน localStorage — ใช้โหมด local เท่านั้น (โหมด DB อ่านจาก dealer_lead_rules)";
+// [2]/[3] เดิมใส่เกณฑ์ใน localStorage แล้วข้ามเมื่อต่อฐาน = ข้ามทุกรอบตรวจ ไม่เคยตรวจจริง (12 พ.ย. 69 บอสสั่งเขียนใหม่)
+//   → สาขาของข้อ + เกณฑ์ที่ฐาน (dealer_lead_rules) แล้วตรวจบนจอ · ไม่มีทางข้าม
 
 // ข้อ 1 — HQ ต้องยุบเป็นคอลัมน์เดียวที่ ≤768px
 test.describe("768px", () => {
@@ -37,25 +36,57 @@ test.describe("768px", () => {
 test.describe("อื่น ๆ", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  // ข้อ 2 — การ์ด/ตัวกรองฝั่งดีลเลอร์ ต้องใช้เกณฑ์ของสาขา
-  test("[2] /leads ป้ายกับตัวกรองตรงกับกฎที่ตั้ง", async ({ page }) => {
-    test.skip(REAL_BACKEND, SEED_LOCAL_ONLY);
-    await page.addInitScript(() => localStorage.setItem("dealer_lead_rules", JSON.stringify({ CNX: { followUpAlertDays: 3, unassignedAlertHours: 48 } })));
-    await open(page, "dealer", "/leads");
-    const card = page.locator(".card").filter({ hasText: /^เกิน \d+ วัน/ }).first();
-    await expect(card).toContainText("เกิน 3 วัน");
-    await expect(page.getByText("เกิน 7 วัน")).toHaveCount(0);
+  // ข้อ 2–3 (12 พ.ย. 69 · บอสเลือกทาง ก): การ์ด "เกิน N วัน" / "ต้องติดตามด่วน" เอาออกตามคำสั่งการ์ด KPI 4 ใบ (22 ต.ค. 69)
+  //   → ตรวจที่ที่เกณฑ์ของดีลเลอร์แสดงอยู่ตอนนี้: ช่องกรอง "ค้างติดต่อ >N วัน" (ดีลเลอร์) · ป้าย "ต้องติดตาม" ในแถว (HQ)
+  //   เกณฑ์ตั้งที่ฐาน (dealer_lead_rules) ของสาขาของข้อ · ลูกค้าเป้าหมายวางที่ฐานปิดตัวดัก (ตัวดักตั้งวันติดต่อ = วันนี้เสมอ)
+  const วันก่อน = (n: number) => new Date(Date.now() + 7 * 3_600_000 - n * 86_400_000).toISOString().slice(0, 10);
+  const วางลีด = (รหัส: string, เลข: number, ชื่อ: string, เงียบ: number) => expect(รันSQLในฐาน(`set local session_replication_role = replica;
+    insert into public.leads (id, num_id, dealer_code, company, name, phone, province, source, status, assigned, created_date, last_contact_at)
+    values ('#L-${เลข}', ${เลข}, '${รหัส}', '${ชื่อ}', 'ZZTEST ผู้ติดต่อ', '000-000-0${String(เลข % 1000).padStart(3, "0")}', 'ตราด', 'Facebook', 'WAITING', 'ผู้ทดสอบ', '${วันก่อน(เงียบ)}', '${วันก่อน(เงียบ)}');
+    set local session_replication_role = origin;`), `วางลูกค้าเป้าหมาย ${ชื่อ}`).not.toBeNull();
+  const ตั้งเกณฑ์ = async (รหัส: string, วัน: number) =>
+    expect((await adminClient().from("dealer_lead_rules").upsert({ dealer_code: รหัส, follow_up_alert_days: วัน, unassigned_alert_hours: 48 })).error, `ตั้งเกณฑ์ ${วัน} วันที่ฐาน`).toBeNull();
+  const ล้าง = async (รหัส: string) => { await adminClient().from("leads").delete().eq("dealer_code", รหัส); await adminClient().from("dealer_lead_rules").delete().eq("dealer_code", รหัส); };
+
+  // ข้อ 2 — ช่องกรองฝั่งดีลเลอร์ใช้เกณฑ์ของสาขา
+  test("[2] /leads ช่องกรอง 'ค้างติดต่อ >N วัน' ตามเกณฑ์ที่สาขาตั้งในฐาน", async ({ page }) => {
+    const ส = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
+    const ฐาน = 1_900_000_000 + Math.floor(Math.random() * 400_000) * 10;
+    const เงียบ5 = `ZZTEST เงียบ 5 วัน ${ส.รหัส}`, เงียบ2 = `ZZTEST เงียบ 2 วัน ${ส.รหัส}`;
+    try {
+      await ตั้งเกณฑ์(ส.รหัส, 3);   // เกณฑ์ 3 วัน: เงียบ 5 วัน = ค้าง · เงียบ 2 วัน = ไม่ค้าง (เกณฑ์ตั้งต้น 7 วัน = ไม่มีใครค้าง → ไม่มีช่องกรอง)
+      วางลีด(ส.รหัส, ฐาน, เงียบ5, 5); วางลีด(ส.รหัส, ฐาน + 1, เงียบ2, 2);
+      await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
+      await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "ตาราง", exact: true }).click();
+      const ช่อง = page.getByLabel("ค้างติดต่อทุกช่วง");
+      await expect(ช่อง, "มีรายการค้างตามเกณฑ์ 3 วัน → ช่องกรองขึ้น").toBeVisible({ timeout: 25_000 });
+      expect(await ช่อง.locator("option").allInnerTexts(), "ตัวเลือกมีเกณฑ์ของสาขา (>3 วัน) นำหน้าช่วงมาตรฐาน").toEqual(["ค้างติดต่อทุกช่วง", "ค้างติดต่อ >3 วัน", "ค้างติดต่อ >7 วัน", "ค้างติดต่อ >14 วัน", "ค้างติดต่อ >30 วัน"]);
+      await ช่อง.selectOption("3");
+      await expect(page.getByRole("row", { name: `เปิดรายละเอียดลูกค้าเป้าหมาย ${เงียบ5}`, exact: true }), "เงียบ 5 วัน > 3 = อยู่ในรายการค้าง").toBeVisible();
+      await expect(page.getByRole("row", { name: `เปิดรายละเอียดลูกค้าเป้าหมาย ${เงียบ2}`, exact: true }), "เงียบ 2 วัน ≤ 3 = ไม่อยู่").toHaveCount(0);
+    } finally { await ล้าง(ส.รหัส); await ส.ลบ(); }
   });
 
-  // ข้อ 3 — HQ ต้องนับตามเกณฑ์รายสาขา ไม่ใช่รายการสถานะ
-  test("[3] HQ ต้องติดตามด่วน ขยับตามกฎสาขา", async ({ page }) => {
-    test.skip(REAL_BACKEND, SEED_LOCAL_ONLY);
-    await page.addInitScript(() => localStorage.setItem("dealer_lead_rules", JSON.stringify({ CNX: { followUpAlertDays: 1, unassignedAlertHours: 48 } })));
-    await open(page, "hq", "/hq/leads");
-    const card = page.locator("button.card").filter({ hasText: "ต้องติดตามด่วน" }).first();
-    await expect(card).toContainText("แล้วแต่สาขา");           // หลายสาขา = สรุปเป็นช่วง
-    await expect(page.getByText("ยังไม่ติดตาม (>7 วัน)")).toHaveCount(0);
-    await expect(page.getByRole("columnheader", { name: "เตือน 7 วัน" })).toHaveCount(0);
+  // ข้อ 3 — HQ: ป้าย "ต้องติดตาม" ในแต่ละแถวใช้เกณฑ์ของดีลเลอร์เจ้าของแถว (2 ดีลเลอร์เกณฑ์ต่างกัน)
+  test("[3] HQ ป้าย 'ต้องติดตาม' ในแถว ตามเกณฑ์ของดีลเลอร์เจ้าของแถว", async ({ page }) => {
+    const ก = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" }), ข = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
+    const ฐาน = 1_910_000_000 + Math.floor(Math.random() * 400_000) * 10;
+    const แถวก = `ZZTEST ติดตามตามเกณฑ์ ${ก.รหัส}`, แถวข = `ZZTEST ติดตามตามเกณฑ์ ${ข.รหัส}`;
+    try {
+      // ทั้งสองแถวเงียบ 5 วันเท่ากัน · ก เกณฑ์ 3 วัน = ต้องติดตาม · ข เกณฑ์ 10 วัน = ยังไม่ต้อง (เกณฑ์ตั้งต้น 7 ก็ไม่ต้อง)
+      await ตั้งเกณฑ์(ก.รหัส, 3); await ตั้งเกณฑ์(ข.รหัส, 10);
+      วางลีด(ก.รหัส, ฐาน, แถวก, 5); วางลีด(ข.รหัส, ฐาน + 1, แถวข, 5);
+      await open(page, "hq", "/hq/leads");
+      await page.locator(".content").getByPlaceholder(/ค้นหาบริษัท/).first().fill("ZZTEST ติดตามตามเกณฑ์");
+      const รก = page.getByRole("row", { name: `เปิดรายละเอียดลูกค้าเป้าหมาย ${แถวก}`, exact: true });
+      const รข = page.getByRole("row", { name: `เปิดรายละเอียดลูกค้าเป้าหมาย ${แถวข}`, exact: true });
+      await expect(รก).toBeVisible({ timeout: 25_000 }); await expect(รข).toBeVisible();
+      await expect(รก.getByText("ต้องติดตาม", { exact: true }), "ดีลเลอร์ ก (เกณฑ์ 3 วัน): เงียบ 5 วัน = ต้องติดตาม").toBeVisible();
+      await expect(รข.getByText("ต้องติดตาม", { exact: true }), "ดีลเลอร์ ข (เกณฑ์ 10 วัน): เงียบ 5 วัน = ยังไม่ต้อง").toHaveCount(0);
+      await expect(page.getByText("ยังไม่ติดตาม (>7 วัน)")).toHaveCount(0);
+      await expect(page.getByRole("columnheader", { name: "เตือน 7 วัน" })).toHaveCount(0);
+    } finally { await ล้าง(ก.รหัส); await ล้าง(ข.รหัส); await ก.ลบ(); await ข.ลบ(); }
   });
 
   // ข้อ 4 — รหัสผ่านต้องถูกปิดบัง
