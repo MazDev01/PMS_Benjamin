@@ -119,7 +119,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
 
   return (
     <>
-      {/* เปลือกแผง = ตัวกลาง RowPanel (แผงเลื่อนขวาจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69) */}
+      {/* เปลือกแผง = ตัวกลาง RowPanel (หน้าต่างจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69) */}
       <RowPanel label={`แผงดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดแผง"
         asideAttrs={{ "data-dealer-panel": code }} backdropAttrs={{ "data-dealer-panel-backdrop": "" }}
         title={dealer.name} titleAttrs={{ "data-panel-name": "" }}

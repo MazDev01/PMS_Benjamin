@@ -1083,7 +1083,7 @@ export default function CustomersPage(){
 
         return (
         <>
-          {/* Customer Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820") */}
+          {/* Customer Detail — แผงจากแถว = กรอบกลาง RowPanelShell (กลางจอ กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69) */}
           <RowPanelShell label="ข้อมูลลูกค้า" onClose={()=>setSelected(null)} zIndex={209} backdropClassName="drawer-overlay"
             asideAttrs={{ style: { background: "#fff" } }}>
 

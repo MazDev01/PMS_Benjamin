@@ -1356,12 +1356,18 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 .drawer-overlay { animation: overlay-in .18s ease; }
 @media (prefers-reduced-motion: reduce) { .side-drawer, .drawer-overlay { animation: none; } }
 
-/* ── แผงเลื่อนขวาที่เปิดจากแถวตาราง (RowPanel · คนรวมงานสั่ง 10 พ.ย. 69) — กว้าง 640 ทุกแผง = แผงดีลเลอร์ HQ (บอสสั่ง 10 พ.ย. 69 · 820 กว้างไป) · ชิดขวา · จอแคบกว่า 1024 เต็มจอ ── */
-.row-panel { position: fixed; top: 12px; right: 12px; bottom: 12px; width: 640px; max-width: calc(100vw - 24px);
+/* ── หน้าต่างรายละเอียดที่เปิดจากแถวตาราง (RowPanel · ตัวกลางเดียวทุกหน้า HQ + ดีลเลอร์) — กว้าง 640 ทุกหน้าต่าง (บอสสั่ง 10 พ.ย. 69 · 820 กว้างไป)
+   12 พ.ย. 69 (บอสสั่ง · ทับคำตัดสิน 10 พ.ย. "ชิดขวา"): เปิดกลางจอ — ซ้าย = ขวา · บน/ล่างห่างขอบ 12 · พื้นหลังมืด กดพื้นหลัง/Esc ปิด
+   จอแคบกว่า 1024 เต็มจอเหมือนเดิม · ข้อทดสอบ tests/scenario/row-panel-width.spec.ts ── */
+.row-panel { position: fixed; top: 12px; bottom: 12px; left: 0; right: 0; margin: 0 auto; width: 640px; max-width: calc(100vw - 24px);
   background: #F8FAFC; box-shadow: 0 24px 70px rgba(0,0,0,.24); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+/* เปิดกลางจอ = ค่อย ๆ ขึ้น (ไม่เลื่อนจากขวาแบบแผงข้างเดิม · .side-drawer ยังติดไว้ให้กฎ :has ของการ์ดทำงาน) */
+@keyframes row-panel-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+.side-drawer.row-panel { animation: row-panel-in .2s cubic-bezier(.4,0,.2,1); }
+@media (prefers-reduced-motion: reduce) { .side-drawer.row-panel { animation: none; } }
 .row-panel-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 @media (max-width: 1023.98px) {
-  .row-panel { top: 0; right: 0; bottom: 0; left: 0; width: 100%; max-width: none; border-radius: 0; }
+  .row-panel { top: 0; right: 0; bottom: 0; left: 0; margin: 0; width: 100%; max-width: none; border-radius: 0; }
 }
 /* ชิ้นกลางเดิม (DetailPanel) เมื่ออยู่ในแผงจากแถว: แถวข้อมูล = หัวข้อซ้าย 140px ค่าชิดติดกัน
    การ์ดสรุป = กริด 6 ช่อง การ์ดกินช่องตาม data-span → เต็มแถวทุกแถวตามจำนวนใบ (บอสสั่ง 10 พ.ย. 69 · ช่วงการ์ดเต็มแถว) */
