@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { open } from "./helpers";
+import { open, ตั้งต้น } from "./helpers";
 
 // ─── Persona: UI Expert ───────────────────────────────────────────────────────
 // "เลย์เอาต์แตกไหม · responsive ไหม · ไม่มี body เลื่อนแนวนอน · หัวข้อครบ"
@@ -46,7 +46,9 @@ test("[ui·hq] KPI หน้าดีลเลอร์ใช้มาตรฐ�
 test("[ui·desktop] modal ลูกค้า HQ ครอบเต็มจอ (fixed ยึด viewport)", async ({ page }) => {
   await open(page, "hq", "/hq/customers");
   // 2 พ.ย. 69 ตารางเจาะลึกอยู่บนรายชื่อ (กดแถว = เจาะลง) → เปิดแผงจากตารางรายชื่อลูกค้า
-  const row = page.getByRole("table", { name: "รายชื่อลูกค้า" }).locator("tbody tr").first();
+  // ลูกค้าตั้งต้นด้วยชื่อ (บอสสั่ง 12 พ.ย. 69) — เดิมแถวแรกของลูกค้าทั้งเครือ (ของข้ออื่น/ถูกลบระหว่างเปิดได้)
+  await page.locator(".content").getByPlaceholder(/ค้นหาชื่อลูกค้า/).first().fill(ตั้งต้น.ลูกค้าRYG);
+  const row = page.getByRole("table", { name: "รายชื่อลูกค้า" }).getByRole("row", { name: `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, exact: true });
   // ตารางแบ่งหน้าที่ DB (RPC async, M9 Phase 6) — แถวแรกตอนโหลดอาจเป็นแถว "กำลังโหลด…" ที่คลิกไม่ได้
   // รอปุ่ม "ดูรายละเอียด" (มีแค่แถวข้อมูลจริง) ก่อนคลิก ไม่งั้นคลิกแถวชั่วคราวแล้วโมดัลไม่เปิดเลย
   await expect(row.getByTitle("ดูรายละเอียด")).toBeVisible({ timeout: 15_000 });

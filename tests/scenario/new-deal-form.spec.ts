@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { open } from "./helpers";
+import { open, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 
 // ─── ฟอร์ม "เพิ่มงานขายใหม่" (หน้าลูกค้า) ต้องใช้กติกาเดียวกับฟอร์มเพิ่มลูกค้าเป้าหมาย ───
 // ทั้งสองฟอร์มสร้างของอย่างเดียวกัน (งานขาย 1 รายการ) แต่คนละไฟล์ เดิมกฎจึงไม่ตรงกัน (บอสสั่งให้ปรับ 25 ส.ค. 69)
@@ -10,7 +10,7 @@ import { open } from "./helpers";
 // ไม่ใช่ยึดข้อความบนปุ่ม ไม่งั้นเจอหลายตัวแล้วเทสต์ตกโดยที่ระบบไม่ได้ผิด
 async function เปิดฟอร์มเพิ่มงานขาย(page: import("@playwright/test").Page) {
   await open(page, "dealer", "/customers");
-  await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, ตั้งต้น.ลูกค้าRYG, /ค้นหาลูกค้า,/)).getByRole("button", { name: "ดูรายละเอียด" }).click();   // ลูกค้าตั้งต้นด้วยชื่อ ไม่หยิบแถวแรกของ RYG (12 พ.ย. 69)   // เปิดฟอร์มดูอย่างเดียว ไม่บันทึก
   // แผงลูกค้ามีทั้ง "แท็บ" และ "ปุ่ม" ที่ชื่อเดียวกัน — ต้องกดแท็บก่อน แล้วค่อยกดปุ่มข้างใน
   await page.getByRole("button", { name: "เพิ่มงานขายใหม่" }).first().click();
   await page.locator("button.btn-primary").filter({ hasText: "เพิ่มงานขายใหม่" }).first().click();

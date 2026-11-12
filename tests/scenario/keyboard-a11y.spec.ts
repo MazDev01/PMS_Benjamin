@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
-import { open } from "./helpers";
+import { open, ตั้งต้น } from "./helpers";
 
 // ── แถวตารางที่คลิกได้ ต้องใช้คีย์บอร์ดได้ด้วย (ตรวจสอบระบบ 5 ส.ค. 69) ──
 //
@@ -83,15 +83,17 @@ test("[ดีลเลอร์] ทุกแถวที่กดได้ ต�
   expect(checked, "ต้องมีอย่างน้อย 1 หน้าที่มีข้อมูลให้ตรวจจริง").toBeGreaterThan(0);
 });
 
-/** แถวข้อมูลที่กดได้แถวแรกของรายชื่อลูกค้า — ใช้กับเทสต์ที่ต้องกดจริง
- *  2 พ.ย. 69 หน้าลูกค้ามีตารางเจาะลึกอยู่บนรายชื่อ (กดแถว = เจาะลงระดับ ไม่ใช่เปิดรายละเอียด) → ชี้ตารางรายชื่อตรง ๆ */
-function firstClickableRow(page: Page) {
-  return page.getByRole("table", { name: "รายชื่อลูกค้า" }).locator("tbody tr.clickable, tbody tr[tabindex='0']").first();
+/** แถวของลูกค้าตั้งต้นในรายชื่อลูกค้า — ใช้กับเทสต์ที่ต้องกดจริง
+ *  2 พ.ย. 69 หน้าลูกค้ามีตารางเจาะลึกอยู่บนรายชื่อ (กดแถว = เจาะลงระดับ ไม่ใช่เปิดรายละเอียด) → ชี้ตารางรายชื่อตรง ๆ
+ *  12 พ.ย. 69 (บอสสั่ง): ค้นหาลูกค้าตั้งต้นด้วยชื่อแล้วเปิดแถวนั้น — เดิมแถวแรกของลูกค้าทั้งเครือ (ของข้ออื่น/ถูกลบระหว่างเปิดได้) */
+async function firstClickableRow(page: Page) {
+  await page.locator(".content").getByPlaceholder(/ค้นหาชื่อลูกค้า/).first().fill(ตั้งต้น.ลูกค้าRYG);
+  return page.getByRole("table", { name: "รายชื่อลูกค้า" }).getByRole("row", { name: `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, exact: true });
 }
 
 test("[HQ] กด Enter บนแถวที่โฟกัสอยู่ ต้องเปิดรายละเอียดได้เหมือนคลิก", async ({ page }) => {
   await open(page, "hq", "/hq/customers");
-  const row = firstClickableRow(page);
+  const row = await firstClickableRow(page);
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.focus();
   await page.keyboard.press("Enter");
@@ -103,7 +105,7 @@ test("[HQ] กด Enter บนแถวที่โฟกัสอยู่ ต�
 
 test("[HQ] กด Space บนแถว ต้องเปิดรายละเอียด และหน้าต้องไม่เลื่อนลง", async ({ page }) => {
   await open(page, "hq", "/hq/customers");
-  const row = firstClickableRow(page);
+  const row = await firstClickableRow(page);
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.focus();
   const beforeY = await page.evaluate(() => window.scrollY);
@@ -118,7 +120,7 @@ test("[HQ] กด Space บนแถว ต้องเปิดรายละ�
 
 test("[HQ] กด Enter ตอนโฟกัสอยู่ที่ปุ่มในแถว ต้องไม่เปิดซ้อนสองชั้น", async ({ page }) => {
   await open(page, "hq", "/hq/customers");
-  const row = firstClickableRow(page);
+  const row = await firstClickableRow(page);
   await expect(row).toBeVisible({ timeout: 30_000 });
 
   // โฟกัสไปที่ปุ่มในแถว แล้วกด Enter — ปุ่มต้องทำงานของมัน แถวต้องไม่ยิงซ้ำ

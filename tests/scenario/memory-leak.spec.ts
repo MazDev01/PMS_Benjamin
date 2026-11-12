@@ -1,7 +1,7 @@
 import { test, expect, type Page, type CDPSession } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 
 // ── Memory Leak — เปิด/ปิดหน้าเดิม หรือเปลี่ยนหน้าซ้ำๆ นานๆ แล้วดูว่าหน่วยความจำ (JS heap)
 //    ของเบราว์เซอร์โตขึ้นเรื่อยๆ ไม่มีที่สิ้นสุดไหม (สัญญาณของ event listener/subscription ที่ลืม cleanup)
@@ -44,14 +44,16 @@ test("[memory] เปิด-ปิดแผงรายละเอียดล�
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "ตาราง" }).click();
-  await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 15_000 });
+  // แถวของข้อมูลตั้งต้นด้วยชื่อ (บอสสั่ง 12 พ.ย. 69) — เดิมหยิบแถวแรกใหม่ทุกรอบ ซึ่งเป็นของข้ออื่นที่รันพร้อมกัน/ถูกลบระหว่าง 15 รอบได้
+  const ป้ายแถว = `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`;
+  await แถวตามชื่อ(page, ป้ายแถว, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/);
   const heap = await newHeapSampler(page);
 
   const samples: number[] = [];
   samples.push(await heap.sample());
   for (let i = 0; i < 15; i++) {
-    const row = page.locator("tbody tr").first();
-    await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+    const row = page.getByRole("row", { name: ป้ายแถว, exact: true });
+    await row.getByRole("button", { name: "ดูรายละเอียด" }).click();
     // getByTitle("ปิด") แบบไม่ exact ชนกับปุ่มกรอง "กรอง: อัตราปิดการขาย" (มีคำว่า "ปิด" อยู่ในนั้นด้วย)
     const closeBtn = page.getByTitle("ปิด", { exact: true });
     await expect(closeBtn).toBeVisible({ timeout: 8_000 });

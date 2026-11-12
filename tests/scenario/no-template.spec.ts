@@ -1,7 +1,7 @@
 import { test, expect, request as pwRequest } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
-import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 import { adminClient } from "./testDealers";
 import { ล้างใบHQทดสอบ, วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
@@ -52,7 +52,9 @@ test("[ui·dealer] ฟอร์มลูกค้าเป้าหมายไ�
 
   // แผงแก้ไขของลูกค้าเป้าหมายเดิม
   await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
-  await page.locator("tbody tr").first().getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  // ลูกค้าเป้าหมายตั้งต้นด้วยชื่อ (12 พ.ย. 69 · บอสสั่ง) — เดิมแถวแรกของ RYG: ถ้าแถวนั้นถูกลบระหว่างเปิด แผงไม่เปิด แต่ข้อ "ไม่มีช่อง" ยังผ่าน (ผ่านหลอก)
+  await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/)).getByRole("button", { name: "ดูรายละเอียด" }).click();
+  await expect(page.getByRole("button", { name: "ภาพรวม", exact: true }).first(), "แผงลูกค้าเป้าหมายเปิดจริง").toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click().catch(() => {});
   await settle(page);
   await expect(page.getByLabel("แม่แบบ", { exact: true }), "แผงแก้ไขต้องไม่มีช่องแม่แบบ").toHaveCount(0);

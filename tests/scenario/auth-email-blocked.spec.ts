@@ -76,7 +76,8 @@ test("[ui·hq] เมนูจัดการผู้ใช้ HQ ไม่ม�
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("tab", { name: "ผู้ใช้งาน" }).or(page.getByRole("button", { name: "ผู้ใช้งาน" })).first().click();
-  await page.getByTitle("จัดการ").first().click({ timeout: 20_000 });
+  // เมนูของแถวบัญชี HQ ของชุดทดสอบเอง (12 พ.ย. 69 · บอสสั่ง) — เดิมปุ่มจัดการตัวแรก (แถวผู้ใช้ชั่วคราวของข้ออื่นได้)
+  await page.locator("tbody tr").filter({ hasText: ADMIN.email }).getByTitle("จัดการ").click({ timeout: 20_000 });
   await expect(page.getByText("ตั้งรหัสผ่านใหม่ทันที (ไม่ต้องส่งอีเมล)")).toBeVisible();
   await expect(page.getByText(/ส่งลิงก์ทางอีเมล/), "ต้องไม่มีเมนูส่งลิงก์รีเซ็ตทางอีเมล").toHaveCount(0);
 });

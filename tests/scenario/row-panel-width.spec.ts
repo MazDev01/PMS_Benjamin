@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, DEALER_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { ช่องผู้สนใจครบ } from "./requiredFixtures";
-import { settle } from "./helpers";
+import { settle, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 
 // ── แผงเลื่อนขวาที่เปิดจากแถวตาราง = ตัวกลางเดียว (RowPanel · คนรวมงานสั่ง + บอสตอบขอบเขต 10 พ.ย. 69) ─────────────────
 //   ทุกแผงจากแถว (HQ: ดีลเลอร์ · ลูกค้าเป้าหมายทั้งเครือ · ลูกค้าทั้งเครือ · ผู้สนใจ · ตั้งค่า › ผู้ใช้งาน
@@ -54,18 +54,21 @@ async function ปิดแผง(page: Page) {
 test("[ui·hq] แผงจากแถวทุกหน้า HQ กว้าง 640 (= แผงดีลเลอร์) ชิดขวา · จอ < 1024 เต็มจอ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  // เปิดแถวของข้อมูลตั้งต้นด้วยชื่อตรงตัว (บอสสั่ง 12 พ.ย. 69) — เดิมกดแถวแรกของรายการทั้งเครือ ซึ่งเป็นของข้ออื่นที่รันพร้อมกันได้ (ถูกลบระหว่างเปิด = แผงปิดเอง)
+  const ชื่อRYG = ((await (await db(ADMIN)).from("dealers").select("name").eq("code", "RYG").single()).data as { name: string }).name;
   const เปิด: [string, () => Promise<void>][] = [
     ["แผงดีลเลอร์ /hq/dealers", async () => {
       await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" }); await settle(page);
-      await page.locator("tbody tr[aria-label^='เปิดแผงดีลเลอร์']").first().click();
+      await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill("RYG");
+      await (await แถวตามชื่อ(page, `เปิดแผงดีลเลอร์ ${ชื่อRYG}`)).click();
     }],
     ["แผงลูกค้าเป้าหมายทั้งเครือ /hq/leads", async () => {
       await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
-      await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+      await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท/)).getByRole("button", { name: "ดูรายละเอียด" }).click();
     }],
     ["แผงลูกค้าทั้งเครือ /hq/customers", async () => {
       await page.goto(`${HQ_ORIGIN}/hq/customers`, { waitUntil: "domcontentloaded" }); await settle(page);
-      await page.locator("tbody tr[aria-label^='เปิดรายละเอียดลูกค้า']").first().click();
+      await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, ตั้งต้น.ลูกค้าRYG, /ค้นหาชื่อลูกค้า/)).click();
     }],
     ["แผงผู้สนใจ /hq/prospects", async () => {
       await page.goto(`${HQ_ORIGIN}/hq/prospects`, { waitUntil: "domcontentloaded" }); await settle(page);
@@ -74,7 +77,7 @@ test("[ui·hq] แผงจากแถวทุกหน้า HQ กว้า�
     }],
     ["แผงผู้ใช้ ตั้งค่า › ผู้ใช้งาน", async () => {
       await page.goto(`${HQ_ORIGIN}/hq/users`, { waitUntil: "domcontentloaded" }); await settle(page);
-      await page.locator("tbody tr[aria-label^='เปิดรายละเอียดผู้ใช้']").first().click();
+      await page.locator("tbody tr[aria-label^='เปิดรายละเอียดผู้ใช้']").filter({ hasText: ADMIN.email }).click();   // บัญชี HQ ของชุดทดสอบเอง
     }],
   ];
   for (const { w, h } of จอ) {
@@ -91,11 +94,11 @@ test("[ui·dealer] แผงจากแถวฝั่งดีลเลอร�
     ["แผงลูกค้าเป้าหมาย /leads", async () => {
       await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
       await page.getByRole("button", { name: "ตาราง", exact: true }).click();
-      await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+      await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/)).getByRole("button", { name: "ดูรายละเอียด" }).click();
     }],
     ["แผงลูกค้า /customers", async () => {
       await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" }); await settle(page);
-      await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+      await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, ตั้งต้น.ลูกค้าRYG, /ค้นหาลูกค้า,/)).getByRole("button", { name: "ดูรายละเอียด" }).click();
     }],
   ];
   for (const { w, h } of จอ) {
@@ -114,7 +117,7 @@ test("[ui·hq] แผงซ้อนในแผงดีลเลอร์ (ล
   const แผงดีลเลอร์ = page.locator("[data-dealer-panel]");
   await expect(แผงดีลเลอร์).toBeVisible({ timeout: 20_000 });
   await แผงดีลเลอร์.locator("[data-panel-tab='customers']").click();
-  await แผงดีลเลอร์.locator("[data-panel-row]").first().click();
+  await แผงดีลเลอร์.locator("[data-panel-row]").filter({ hasText: ตั้งต้น.ลูกค้าRYG }).click();   // ลูกค้าตั้งต้นของ RYG (ไม่หยิบแถวแรก · 12 พ.ย. 69)
   await expect(แผง(page), "แผงลูกค้าซ้อนบนแผงดีลเลอร์").toHaveCount(2, { timeout: 20_000 });
   await page.keyboard.press("Escape");
   await expect(แผง(page), "Esc ปิดเฉพาะแผงบน").toHaveCount(1);

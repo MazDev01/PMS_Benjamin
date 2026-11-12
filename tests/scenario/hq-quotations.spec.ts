@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { open, assertHealthyPage } from "./helpers";
+import { open, assertHealthyPage, ปุ่มดูใบตั้งต้นHQ } from "./helpers";
 import { สร้างสาขาของข้อ } from "./ownDealer";
 import { รันSQLในฐาน } from "./localDb";
 
@@ -110,7 +110,7 @@ test("[ux·hq] ไม่มีปุ่มสร้าง/แก้ไข/ลบ
 test("[ux·hq] ลิ้นชักดูใบเสนอราคา อ่านอย่างเดียว", async ({ page }) => {
   await open(page, "hq", "/hq/quotations");
   // ปุ่มดูในตารางใบเสนอราคา = ปุ่มไอคอนล้วน aria-label="ดูรายละเอียด" (ตารางอันดับใช้ "ดูรายละเอียดดีลเลอร์" คนละตัว)
-  await page.getByRole("button", { name: "ดูรายละเอียด", exact: true }).first().click();
+  await (await ปุ่มดูใบตั้งต้นHQ(page)).click();   // ใบตั้งต้นด้วยเลขที่ ไม่หยิบแถวแรกของใบทั้งเครือ (12 พ.ย. 69)
   const drawer = page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
   await expect(drawer).toBeVisible();
   // หน้าต่างแบบเดียวกับดีลเลอร์ (บอสตอบ 9 พ.ย. 69): หัวข้อ "ข้อมูลใบเสนอราคา" เดิม → แถบสรุป 4 ช่อง + กริดลูกค้า

@@ -426,3 +426,27 @@ export async function ตั้งช่วงเอง(page: Page, ต้น: s
   await page.getByLabel("วันสิ้นสุดของช่วงที่กำหนดเอง").fill(ท้าย);
   await page.getByRole("button", { name: "ใช้ช่วงเวลานี้" }).click();
 }
+
+/** แถวของข้อมูลที่รู้ชื่อ — ไม่หยิบ "แถวแรก" ของข้อมูลที่ใช้ร่วมกัน (บอสสั่ง 12 พ.ย. 69 · ข้อไม่นิ่ง deploy20 window-width)
+ *  รายการเรียงใหม่สุดก่อน → แถวแรกเป็นของข้ออื่นที่รันพร้อมกันได้ (ยังไม่มีงาน/ถูกลบระหว่างเปิด)
+ *  ค้นหา = พิมพ์ในช่องค้นหาของหน้าก่อน (หน้าแบ่งหน้า/รายการยาว) · รอจนแถวที่ป้าย (aria-label ของแถว) ตรงตัวขึ้นจริง แล้วคืนแถวนั้น
+ *  ตัวตรวจ scripts/check-test-first-row.mjs นับจุดหยิบแถวแรกห้ามเพิ่ม */
+export async function แถวตามชื่อ(page: Page, ป้าย: string, ค้นหา?: string, ช่องค้นหา: RegExp = /ค้นหา/) {
+  if (ค้นหา !== undefined) await page.locator(".content").getByPlaceholder(ช่องค้นหา).first().fill(ค้นหา);
+  const แถว = page.getByRole("row", { name: ป้าย, exact: true });
+  await expect(แถว, `แถว "${ป้าย}" ขึ้นจริง`).toBeVisible({ timeout: 25_000 });
+  return แถว;
+}
+/** แถวของข้อมูลตั้งต้น (global-setup · ไม่มีข้อไหนลบ/เปลี่ยนระหว่างรอบ) สำหรับข้อที่เปิดดูอย่างเดียว — ข้อที่เขียนข้อมูลใช้สาขาของข้อ (ownDealer) */
+export const ตั้งต้น = {
+  ลูกค้าRYG: "ZZTEST-BASE-บจ. อาร์วายจีแปด",       // ลูกค้าที่มีงานปิดการขาย (ใบ ZZTEST-BASE-Q-RYG-1 ตอบรับ)
+  ลีดRYG: "ZZTEST-BASE-บจ. อาร์วายจีหนึ่ง",         // ลูกค้าเป้าหมายขั้นติดต่อแล้ว (WAITING)
+  ใบRYG: "ZZTEST-BASE-Q-RYG-1",
+} as const;
+/** HQ ใบเสนอราคาทั้งเครือ: เปิดใบตั้งต้น ZZTEST-BASE-Q-RYG-1 ด้วยเลขที่ (ไม่หยิบแถวแรกของใบทั้งเครือ · 12 พ.ย. 69) — คืนปุ่ม "ดูรายละเอียด" ของแถวนั้น */
+export async function ปุ่มดูใบตั้งต้นHQ(page: Page) {
+  await page.locator(".content").getByPlaceholder(/ค้นหาเลขที่/).first().fill(ตั้งต้น.ใบRYG);
+  const แถว = page.getByRole("table", { name: "รายการใบเสนอราคา" }).locator("tbody tr").filter({ hasText: ตั้งต้น.ลูกค้าRYG });
+  await expect(แถว, `ใบตั้งต้น ${ตั้งต้น.ใบRYG} ขึ้นในตาราง`).toHaveCount(1, { timeout: 25_000 });
+  return แถว.getByRole("button", { name: "ดูรายละเอียด", exact: true });
+}

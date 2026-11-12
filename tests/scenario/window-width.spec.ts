@@ -2,7 +2,7 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
 import { ช่องผู้สนใจครบ } from "./requiredFixtures";
-import { settle, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, เปิดใบHQในกล่องงาน, ตั้งต้น } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 import { ข้อมูลงานครบชุด, ล้างใบHQทดสอบ, วางใบเดิมที่ฐาน } from "./hqQuoteFixture";
 
@@ -68,7 +68,9 @@ test("[ui·hq] หน้าต่างกลางจอ HQ: เอกสาร
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   // ใบเสนอราคาทั้งเครือ (QuotationDrawer)
   await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
-  await page.getByRole("table", { name: "รายการใบเสนอราคา" }).locator("tbody tr").first().getByRole("button").last().click();
+  // ใบของข้อมูลตั้งต้นด้วยเลขที่ตรงตัว (บอสสั่ง 12 พ.ย. 69) — เดิมกดแถวแรกของใบทั้งเครือ (ใบชั่วคราวของข้ออื่นถูกลบระหว่างเปิดได้)
+  await page.locator(".content").getByPlaceholder(/ค้นหาเลขที่/).first().fill(ตั้งต้น.ใบRYG);
+  await page.getByRole("table", { name: "รายการใบเสนอราคา" }).locator("tbody tr").filter({ hasText: ตั้งต้น.ใบRYG }).getByRole("button").last().click({ timeout: 25_000 });
   await วัด(page, page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" }), "ใบเสนอราคา HQ", true);
   await page.keyboard.press("Escape");
   // ใบ HQ ทำใบ (หน้าคำขอใบเสนอราคา · คำขอของข้อในแท็บต้องตีราคา)
@@ -110,7 +112,9 @@ test("[ui·dealer] หน้าต่างกลางจอดีลเลอ�
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
-  await page.locator(".content tbody tr").first().locator("td").first().click();
+  // ใบของข้อมูลตั้งต้นด้วยเลขที่ตรงตัว (บอสสั่ง 12 พ.ย. 69 · แบบ panel-head-close) — เดิมกดแถวแรกของ RYG
+  await page.getByPlaceholder(/ค้นหาเลขที่/).first().fill(ตั้งต้น.ใบRYG);
+  await page.getByRole("button", { name: `ดูใบ ${ตั้งต้น.ใบRYG}`, exact: true }).click({ timeout: 25_000 });
   await วัด(page, page.locator("[data-quote-view]").first(), "ใบเสนอราคา ดีลเลอร์", true);
   await page.keyboard.press("Escape");
   // งานในแผงลูกค้า: ลูกค้าที่มีงานปิดการขาย (การ์ดงาน) → หน้าต่างงาน · คอลัมน์เดียว แถบสรุปบน · ไม่เลื่อนแนวนอนที่ 1920 และ 1366 (บอสตอบ 10 พ.ย. 69)

@@ -33,8 +33,11 @@ test("[func·dealer] บันทึกนัดหมาย → ระบบต
   try {
     await open(page, "dealer", "/leads");
     await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill("ZZTEST-APPT2");
-    await page.waitForTimeout(900);
-    await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+    // เปิดแถวของข้อด้วยชื่อตรงตัว รอจนแถวนั้นขึ้นจริง (บอสสั่ง 12 พ.ย. 69) — เดิมรอตายตัว 0.9 วิ แล้วกดแถวแรก
+    //   ถ้ากรองยังไม่ทัน = เปิดลูกค้าเป้าหมายของข้ออื่นใน RYG แล้วลงนัดให้ข้อนั้น
+    const แถวของข้อ = page.getByRole("row", { name: "เปิดรายละเอียดลูกค้าเป้าหมาย ZZTEST-APPT2 ติ๊กงานนัดหมาย", exact: true });
+    await expect(แถวของข้อ, "แถวของข้อขึ้นหลังกรอง").toBeVisible({ timeout: 20_000 });
+    await แถวของข้อ.getByRole("button", { name: "ดูรายละเอียด" }).click();
 
     // รอบ 4: รายการเตือน (งาน) + นัดหมาย อยู่ในแท็บ "ประวัติ" แท็บเดียว — งานนัดหมายเป็นช่องที่ระบบติ๊กให้
     const งานนัด = page.locator('[role="checkbox"][data-auto-task]').filter({ hasText: "นัดหมาย" }).first();

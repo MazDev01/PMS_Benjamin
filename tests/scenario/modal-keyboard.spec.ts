@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { open } from "./helpers";
+import { open, ปุ่มดูใบตั้งต้นHQ } from "./helpers";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 
 // ── โมดัลต้องใช้คีย์บอร์ดได้จริง ────────────────────────────────────────────────
@@ -17,8 +17,7 @@ test("[a11y] ลิ้นชักใบเสนอราคาฝั่ง HQ 
   // ⚠️ ต้อง exact — ตารางอันดับดีลเลอร์บนหน้าเดียวกันมีปุ่มชื่อ "ดูรายละเอียดดีลเลอร์"
   //    ซึ่งชื่อขึ้นต้นเหมือนกัน ถ้าไม่ระบุ exact จะไปกดปุ่มนั้นแล้วเด้งออกจากหน้านี้
   //    (hq-quotations.spec.ts เตือนกับดักนี้ไว้แล้ว)
-  const viewBtn = page.getByRole("button", { name: "ดูรายละเอียด", exact: true }).first();
-  await viewBtn.waitFor({ state: "visible", timeout: 30_000 });
+  const viewBtn = await ปุ่มดูใบตั้งต้นHQ(page);   // ใบตั้งต้นด้วยเลขที่ ไม่หยิบแถวแรกของใบทั้งเครือ (12 พ.ย. 69)
   await viewBtn.click();
 
   const dialog = page.locator('[role="dialog"]').first();
