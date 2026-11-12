@@ -1,6 +1,6 @@
 "use client";
 
-import { ขั้นกลม, axisTicks, niceCeil, แบบป้ายแกน, ขนาดป้ายแกน } from "@pms/shared/lib/chartAxis";   // ตัวคำนวณล้วน (ข้อทดสอบหน่วย tests/unit/chartAxis.test.ts)
+import { ขั้นกลม, axisTicks, niceCeil, แบบป้ายแกน, ขนาดป้ายแกน, ขอบล่างตามป้าย } from "@pms/shared/lib/chartAxis";   // ตัวคำนวณล้วน (ข้อทดสอบหน่วย tests/unit/chartAxis.test.ts)
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { NAVY, SILVER, STEEL } from "@pms/shared/lib/theme";
 
@@ -580,8 +580,11 @@ export function LineTrendChart({
   const ป้ายยาวสุด = axisTicks(hi).reduce((m, v) => Math.max(m, `฿${Math.round(v * 10) / 10}${unit}`.length), 3);
   const W = vw, H = height,
     pL = Math.max(narrow ? 46 : 56, Math.ceil(ป้ายยาวสุด * Y_FS * 0.58) + 16),
-    pR = narrow ? 16 : 40, pT = 26, pB = 40;
-  const cW = W - pL - pR, cH = H - pT - pB;
+    pR = narrow ? 16 : 40, pT = 26;
+  const cW = W - pL - pR;
+  // ขอบล่างตามป้ายแกน (ป้ายเอียงยื่นลงใต้แกน — 12 พ.ย. 69) · ป้ายวางที่ 26 ใต้แกน ขนาด 13.5 ช่องละ cW/(n-1)
+  const pB = ขอบล่างตามป้าย(data.map(x => x.month), cW / Math.max(n - 1, 1), 13.5, 26, 40);
+  const cH = H - pT - pB;
   const cx = (i: number) => (n <= 1 ? pL + cW / 2 : pL + (i / (n - 1)) * cW);
   const cy = (v: number) => pT + (1 - (v - lo) / (hi - lo)) * cH;
   const bottomY = pT + cH;
@@ -719,9 +722,12 @@ export function GroupedBarChart({
   const narrow = vw < 800;
   // pT ต้องเผื่อที่ให้ตัวเลขขีดบนสุดของแกนตั้ง — เดิม 22 ทำให้เลขชิดขอบบนของ svg
   // แล้วเด้งขึ้นไปชนบรรทัดคำอธิบายเหนือกราฟ (svg ตั้ง overflow:visible จึงล้นออกมาได้) — ผู้ใช้แจ้ง 19 ส.ค. 69
-  const W = vw, H = height, pL = narrow ? 46 : 60, pR = narrow ? 14 : 24, pT = 34, pB = narrow ? 34 : 42;
-  const cW = W - pL - pR, cH = H - pT - pB;
+  const W = vw, H = height, pL = narrow ? 46 : 60, pR = narrow ? 14 : 24, pT = 34;
+  const cW = W - pL - pR;
   const band = cW / n;
+  // ขอบล่างตามป้ายแกน (ป้ายเอียงยื่นลงใต้แกน — 12 พ.ย. 69) · ขนาด/ระยะเดียวกับ <ป้ายแกน> ด้านล่าง
+  const pB = ขอบล่างตามป้าย(months, band, narrow ? 13 : 15, narrow ? 22 : 26, narrow ? 34 : 42);
+  const cH = H - pT - pB;
   const groupW = Math.min(band * 0.68, 24 * series.length);
   const bw = groupW / series.length;
   const yTicks = axisTicks(ceiling);
@@ -811,9 +817,12 @@ export function BarLineChart({
   const narrow = vw < 800;
   // pT ต้องเผื่อที่ให้ตัวเลขขีดบนสุดของแกนตั้ง — เดิม 22 ทำให้เลขชิดขอบบนของ svg
   // แล้วเด้งขึ้นไปชนบรรทัดคำอธิบายเหนือกราฟ (svg ตั้ง overflow:visible จึงล้นออกมาได้) — ผู้ใช้แจ้ง 19 ส.ค. 69
-  const W = vw, H = height, pL = narrow ? 46 : 60, pR = narrow ? 14 : 24, pT = 34, pB = narrow ? 34 : 42;
-  const cW = W - pL - pR, cH = H - pT - pB;
+  const W = vw, H = height, pL = narrow ? 46 : 60, pR = narrow ? 14 : 24, pT = 34;
+  const cW = W - pL - pR;
   const band = cW / n;
+  // ขอบล่างตามป้ายแกน (ป้ายเอียงยื่นลงใต้แกน — 12 พ.ย. 69) · ขนาด/ระยะเดียวกับ <ป้ายแกน> ด้านล่าง
+  const pB = ขอบล่างตามป้าย(months, band, narrow ? 13 : 15, narrow ? 22 : 26, narrow ? 34 : 42);
+  const cH = H - pT - pB;
   const bw = Math.min(band * 0.5, 34);
   const yTicks = axisTicks(ceiling);
   // ขีดบนสุด — ป้ายต้องหลบมาอยู่ใต้เส้น ไม่งั้นจะโผล่พ้นขอบบนไปทับหัวข้อการ์ด
