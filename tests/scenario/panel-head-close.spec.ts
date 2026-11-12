@@ -62,7 +62,7 @@ for (const [จอ, ขนาด] of [["จอกว้าง", { width: 1440, h
 
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(`หัวแผงยาว ${ส.รหัส}`);
     await page.locator("tbody tr").filter({ hasText: บริษัท() }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 25_000 });
     await ตรวจหัวแผง(page, `${จอ} แผงลีด (อีเมลยาวจริง)`);

@@ -34,7 +34,7 @@ test("[func] ทำใบจากใบ HQ ที่มี 2 รายการ
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
   // 2) ได้ใบ HQ 2 รายการ → เปิดฟอร์มทำใบจากใบ HQ — รายการทั้งสองมาจากใบ HQ แก้ได้เฉพาะ %
@@ -58,7 +58,7 @@ test("[func] มีใบที่ยังแก้ได้อยู่ → �
   const sb = await db(RYG);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });

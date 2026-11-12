@@ -140,7 +140,7 @@ test("[kpi·dealer] ลูกค้าเป้าหมาย: กดการ�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   for (const k of ["hq-pricing", "hq-quoted", "quote-stage"]) {
     const การ์ด = page.locator(`[data-kpi="${k}"]`);
     await expect(การ์ด.locator("[data-value]")).not.toHaveAttribute("data-value", "", { timeout: 20_000 });

@@ -166,7 +166,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     expect(ตัวเลือก.join(" | "), "ตัวกรองขั้นตอนไม่มีชื่อขั้นเดิม").not.toMatch(ชื่อเดิม);
 
     // ตาราง: ป้ายย่อย + แถบ 4 ช่อง
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     const แถว = (x: string) => page.locator("tbody tr").filter({ hasText: ชื่อ(x) }).first();
     await expect(แถว("ส่งแล้ว")).toBeVisible({ timeout: 20_000 });
     await expect(แถว("ทำใบ").locator("[data-stage-label]")).toHaveText("เสนอราคาลูกค้า");

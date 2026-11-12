@@ -67,7 +67,7 @@ test("ช่วง ก · ดีลเลอร์: แผงลีดที่�
   //   (ลีดที่ปิดแล้ว เปิดจากลิงก์จะถูกพาไปหน้าลูกค้า)
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท);
   await page.locator("tbody tr").filter({ hasText: บริษัท }).first().locator("td").first().click();
   await page.getByRole("button", { name: "งาน", exact: true }).first().click();
@@ -116,7 +116,7 @@ test.describe("ช่วง ก2", () => {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     const ไปหน้าลีด = async () => {
       await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
-      await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+      await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
       await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill("ZZTEST-ภาพก2");
     };
     await ถ่าย(page, "ดีลเลอร์-ลีด-ป้ายได้ราคาHQ", ไปหน้าลีด);
@@ -185,7 +185,7 @@ test.describe("ช่วง ค", () => {
     await page.evaluate(() => localStorage.setItem("pms_notif_since_RYG", new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)));
     const ลีด = (ค้น: string) => async () => {
       await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
-      await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+      await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
       await page.getByPlaceholder(/ค้นหาบริษัท/).first().fill(ค้น); await settle(page);
     };
     await ถ่าย(page, "ดีลเลอร์-ลีด-ตาราง", ลีด("ZZTEST-ภาพค"));

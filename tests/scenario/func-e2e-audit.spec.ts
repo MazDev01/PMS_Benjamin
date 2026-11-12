@@ -48,10 +48,10 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
@@ -67,7 +67,7 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
 
   // 2) ปิดจากฝั่งลูกค้าเป้าหมายโดยตรง (ไม่แตะใบเสนอราคาเลย) — action ที่ดีลเลอร์น่าจะกดเป็นธรรมชาติที่สุด
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row2 = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
@@ -132,10 +132,10 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
     await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
     await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
     await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-    await page.getByRole("button", { name: "บันทึก" }).click();
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
     await waitRow(sb, "leads", { company });
 
-    await page.getByRole("button", { name: "ตาราง" }).click();
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click();
     // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
     const row = page.locator("tbody tr").filter({ hasText: company }).first();
@@ -199,7 +199,7 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
 
   // ดีลใหม่ = ลูกค้าเป้าหมายใหม่ผูก customerId — หาในหน้าลูกค้าเป้าหมาย แล้วออกใบ + ปิดให้ผ่านฟลว์เดียวกัน
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const dealRow = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
@@ -251,10 +251,10 @@ test("[audit] ลบใบเสนอราคาที่ won แล้ว —
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
@@ -320,10 +320,10 @@ test("[audit] เปิดฟอร์มสร้างใบเสนอรา
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
@@ -364,10 +364,10 @@ test("[audit] cross-role: ดีลเลอร์ปิดการขาย �
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();

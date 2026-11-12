@@ -43,7 +43,7 @@ test("[func] สร้างลูกค้าเป้าหมายผ่า�
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   // ต้องอยู่ใน DB — ไม่ใช่แค่โผล่บนจอ
   const row = await waitRow<{ company: string; dealer_code: string; status: string }>(
@@ -61,7 +61,7 @@ test("[func] แก้ลูกค้าเป้าหมายผ่านห�
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
 
   // ต้องค้นหาก่อน — ตารางลูกค้าเป้าหมายแบ่งหน้า และตอนรันชุดเต็มมีลูกค้าเป้าหมายทดสอบของสเปกอื่นบนสาขา RYG เดียวกันเพิ่มเข้ามา
   // ทำให้ลูกค้าเป้าหมายของเราหลุดไปหน้าหลัง แล้วเทสต์ล้มแบบสุ่ม (ไม่ใช่บั๊ก — เป็นการหาผิดที่)
@@ -94,7 +94,7 @@ test("[func] เลื่อนสถานะลูกค้าเป้าห�
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
 
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY); // ตารางแบ่งหน้า — ต้องค้นหาก่อน
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
@@ -132,7 +132,7 @@ test("[func] ลบลูกค้าเป้าหมายผ่านหน�
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
 
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY); // ตารางแบ่งหน้า — ต้องค้นหาก่อน
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();

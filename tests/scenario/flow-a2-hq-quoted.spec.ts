@@ -65,7 +65,7 @@ test("[D4] [H9] [ก2·1] HQ ส่งใบ → ฐานเป็น \"ได�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
 
   // ป้ายบนจอ
   const แถว = await แถวลีด(page, ได้ราคา);
@@ -111,7 +111,7 @@ test("[ก2·2] แผงลีด: ไม่มีช่องเลือก�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   const แถว = await แถวลีด(page, ได้ราคา);
   await แถว.locator("td").first().click();
   // ปุ่มทำใบ (ไม่นับปุ่มพับ/กางหัวขั้น "ทำใบให้ลูกค้า" ของงานในแต่ละขั้น · aria-expanded · 28 ต.ค. 69)
@@ -144,7 +144,7 @@ test("[ก2·3] ลีดปิดการขายแล้ว: ไม่ม�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await (await แถวลีด(page, ปิดแล้ว)).locator("td").first().click();
   // รอบ 4: ปิดสำเร็จได้ทางเดียว = ลูกค้าตอบรับที่ใบในแท็บใบเสนอราคาของแผงลีด (ปุ่ม "ได้งาน" เอาออก)
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();

@@ -23,7 +23,7 @@ const แท็ก = `${Date.now() % 100000}`;
 async function เปิดแผงลีด(page: Page, company: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const แถว = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
@@ -109,8 +109,8 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     await expect(page.getByRole("button", { name: /เปิดใหม่/ }), "ไม่มีปุ่มเปิดใหม่บนลีดที่ปิดการขายแล้ว").toHaveCount(0);
 
     await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-    const แถวใบ = page.locator("div").filter({ hasText: /ตอบรับ/ }).filter({ has: page.getByRole("button", { name: "ดู" }) }).last();
-    await expect(แถวใบ.getByRole("button", { name: "ดู" })).toBeVisible({ timeout: 15_000 });
+    const แถวใบ = page.locator("div").filter({ hasText: /ตอบรับ/ }).filter({ has: page.getByRole("button", { name: "ดู", exact: true }) }).last();
+    await expect(แถวใบ.getByRole("button", { name: "ดู", exact: true })).toBeVisible({ timeout: 15_000 });
     for (const ป้าย of ["แก้ไข", "ทำสำเนา", "ลบ"]) {
       await expect(แถวใบ.getByRole("button", { name: ป้าย, exact: true }), `ใบที่ตอบรับแล้วต้องไม่มีปุ่ม ${ป้าย}`).toHaveCount(0);
     }

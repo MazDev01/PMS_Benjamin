@@ -81,7 +81,7 @@ test("[ค·5] ดีลเลอร์: ไม่มีช่องประเ
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   const ร1 = await แถว(page, /ค้นหาบริษัท/, มีใบ);
   await expect(ร1, "ตาราง [กรณี 2]: มูลค่าจากใบที่ส่งแล้ว").toContainText("฿2.2M", { timeout: 20_000 });
   await expect(ร1, "ตาราง [กรณี 2]: ไม่ใช่ยอดใบร่าง").not.toContainText("฿3.0M");

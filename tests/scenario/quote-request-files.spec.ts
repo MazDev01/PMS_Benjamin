@@ -54,7 +54,7 @@ async function ตรวจกล่องแนบ(กล่อง: import("@pl
 async function เปิดแผงลีด(page: Page) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท());
   const row = page.locator("tbody tr").filter({ hasText: บริษัท() }).first();
   await expect(row).toBeVisible({ timeout: 25_000 });
@@ -328,7 +328,7 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
   // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69): รีโหลดแล้วหน้าต่างใบเดิมเปิดค้างเอง — ตรวจแล้วปิดก่อนเลือกกลุ่ม (ตกรอบ deploy19: หน้าต่างบังแท็บประวัติ)
   await expect(ใบ, "รีโหลดแล้วหน้าต่างใบ HQ เดิมยังเปิด (?open=)").toBeVisible({ timeout: 20_000 });
-  await ใบ.getByRole("button", { name: "ปิด" }).click();
+  await ใบ.getByRole("button", { name: "ปิด", exact: true }).click();
   await expect(ใบ).toHaveCount(0);
   await เลือกกลุ่มคำขอ(page, "quoted");   // ส่งใบแล้ว = คำขอย้ายไปกลุ่ม "ส่งแล้ว รอดีลเลอร์"
   await page.getByLabel("ค้นหาคำขอ").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
@@ -345,7 +345,7 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await loginUI(page, DEALER_ORIGIN, "/login", B.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(`ZZTEST ไฟล์แนบ ${B.รหัส}`);
   const row = page.locator("tbody tr").filter({ hasText: `ZZTEST ไฟล์แนบ ${B.รหัส}` }).first();
   await expect(row).toBeVisible({ timeout: 25_000 });

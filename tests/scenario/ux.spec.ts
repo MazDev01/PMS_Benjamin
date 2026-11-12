@@ -138,7 +138,7 @@ test("[ux·dealer] ตั้งค่าใช้ปุ่มบันทึก�
   // ตัวบ่งชี้ยังไม่บันทึก + ปุ่มบันทึกกลางบนหัวต้องกดได้
   await expect(page.getByText("ยังไม่บันทึก")).toBeVisible();
   await expect(page.getByRole("button", { name: "บันทึก", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "ผู้รับผิดชอบ" }).click();
+  await page.getByRole("button", { name: "ผู้รับผิดชอบ", exact: true }).click();
   expect(await กดยกเลิกในกล่องยืนยัน(page)).toContain("ยังไม่บันทึก");
 });
 

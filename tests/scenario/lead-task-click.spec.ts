@@ -45,7 +45,7 @@ const ติ๊กในฐาน = async (เลข: number, key: string) => (a
 async function เปิดลีด(page: Page, ชื่อ: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ชื่อ);
   await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
   await expect(page.locator("[data-lead-tasks]")).toBeVisible({ timeout: 30_000 });
@@ -88,7 +88,7 @@ test("[ui·dealer] กดงานที่ยังไม่ติ๊ก = เ�
   await expect(กล่อง.getByRole("radio", { name: "บันทึกการติดต่อ" }), "กล่องเลือกได้: บันทึกการติดต่อ").toBeVisible();
   await กล่อง.getByRole("radio", { name: "นัดหมาย" }).click();
   await expect(กล่อง.locator("#la-type"), "เลือกนัดหมาย = ฟอร์มนัดหมายในกล่องเดียว").toBeVisible();
-  await กล่อง.getByRole("button", { name: "ยกเลิก" }).click();
+  await กล่อง.getByRole("button", { name: "ยกเลิก", exact: true }).click();
   await expect(กล่อง).toHaveCount(0);
   await page.waitForTimeout(800);   // วัดว่าไม่ติ๊ก (ไม่ใช่รอให้ผ่าน)
   expect(await ติ๊กในฐาน(เลขA, "followCustomer"), "ยกเลิก = ไม่ติ๊ก").toBe(false);

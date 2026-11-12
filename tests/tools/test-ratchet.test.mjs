@@ -53,6 +53,20 @@ try {
   ไฟล์("a.spec.ts", ฐานค + `  await expect(page.getByText("ป้าย")).toHaveText("ก");\n});\n`);
   ผล(ตรวจ().ผ่าน, "(ค) ตรวจตรง ๆ ไม่ครอบเงื่อนไข → ผ่าน");
 
+  // (ง) ชื่อไม่ตรงตัว (12 พ.ย. 69 · บอสเลือก ก1): ปุ่ม "ตาราง" ชนปุ่มลบ "ลบ ZZTEST-…ตาราง…" → ตก · มี exact: true / regex → ไม่นับ
+  for (const [ชื่อ, บรรทัด, ตกไหม] of [
+    ['getByRole("button", { name: "ตาราง" })', `  await page.getByRole("button", { name: "ตาราง" }).click();\n`, true],
+    ['getByLabel("ค้นหา")', `  await page.getByLabel("ค้นหา").fill("x");\n`, true],
+    ['getByPlaceholder("ค้นหา…")', `  await page.getByPlaceholder("ค้นหาเลขที่").fill("x");\n`, true],
+    ['{ name: "ตาราง", exact: true }', `  await page.getByRole("button", { name: "ตาราง", exact: true }).click();\n`, false],
+    ['getByLabel("…", { exact: true })', `  await page.getByLabel("ค้นหา", { exact: true }).fill("x");\n`, false],
+    ["name เป็น regex", `  await page.getByRole("button", { name: /^ตาราง$/ }).click();\n`, false],
+  ]) {
+    ไฟล์("a.spec.ts", ฐานค + บรรทัด + "});\n");
+    const ร = ตรวจ();
+    ผล(ตกไหม ? !ร.ผ่าน && /ชื่อไม่ตรงตัว.*a\.spec\.ts: 1 จุด เกินเพดาน 0/.test(ร.ข้อความ) : ร.ผ่าน, `(ง) ${ชื่อ} → ${ตกไหม ? "ตก" : "ผ่าน"}`, ร.ข้อความ);
+  }
+
   // ไฟล์ใหม่ (ไม่มีในเพดาน) มีรอตายตัว → ตก · ตั้งชื่อ zz- ก็ไม่รอด
   ไฟล์("a.spec.ts", `test("x", async ({ page }) => {\n  await page.waitForTimeout(500);\n  await page.locator("tbody tr").first().click();\n});\n`);
   ไฟล์("zz-new.spec.ts", `test("y", async ({ page }) => { await page.waitForTimeout(100); });\n`);

@@ -90,7 +90,7 @@ test("[ui·hq] ประวัติคำขอ: เปิดดูได้ �
     await expect(ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" }), `คำขอ${k}: เพิ่มรายการไม่ได้`).toHaveCount(0);
     await expect(ใบ.locator("input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly])"), `คำขอ${k}: ไม่มีช่องที่แก้ได้`).toHaveCount(0);
     if (k === "ยกเลิก") await expect(ใบ.getByTestId("cancel-info"), "ยกเลิกแล้วยังเปิดดูรายละเอียดได้ (ใบ 0280)").toContainText("ZZTEST ลูกค้าเลื่อนโครงการ");
-    await ใบ.getByRole("button", { name: "ปิด" }).click();
+    await ใบ.getByRole("button", { name: "ปิด", exact: true }).click();
     await expect(ใบ).toHaveCount(0);
   }
   // เทียบ: ตารางหลักยังทำใบได้

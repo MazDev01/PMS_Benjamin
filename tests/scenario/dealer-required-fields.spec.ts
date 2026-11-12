@@ -50,7 +50,7 @@ async function เปิดแผงลีด(page: Page) {
   await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ลีด());
   const row = page.locator("tbody tr").filter({ hasText: ลีด() }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
@@ -193,7 +193,7 @@ test("[req·dealer] ตั้งค่าใบเสนอราคา + ผู
   for (const ชื่อ of ["ภาษีมูลค่าเพิ่ม %", "อายุใบเสนอราคา (วัน)"]) await ดาวแดง(page.locator("label").filter({ hasText: ชื่อ }).first(), ชื่อ);
   for (const ชื่อ of ["ภาษีหัก ณ ที่จ่าย %", "% บวกตั้งต้น", "หัวเอกสาร"]) await ไม่มีดาว(page.locator("label").filter({ hasText: ชื่อ }).first(), ชื่อ);
 
-  await page.getByRole("button", { name: "ผู้รับผิดชอบ" }).first().click();
+  await page.getByRole("button", { name: "ผู้รับผิดชอบ", exact: true }).first().click();
   await page.getByRole("button", { name: "เพิ่ม", exact: true }).click();
   await ดาวแดง(page.locator("label").filter({ hasText: "ชื่อ-นามสกุล" }).first(), "ชื่อ-นามสกุล");
   for (const ชื่อ of ["ตำแหน่ง", "อีเมล"]) await ไม่มีดาว(page.locator("label").filter({ hasText: new RegExp(`^${ชื่อ}`) }).first(), ชื่อ);

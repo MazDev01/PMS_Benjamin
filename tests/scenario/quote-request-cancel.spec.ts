@@ -49,7 +49,7 @@ async function เปิดแผงลีด(page: Page) {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
@@ -75,7 +75,7 @@ test("[flow·dealer] ยกเลิกฟอร์มขอราคา (ยั
   await แผง.getByLabel(/^รายละเอียดงาน/).fill("ZZTEST โกดัง 20x40 ม.");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   await expect.poll(async () => (await คำขอ()).map(r => r.status), { timeout: 20_000 }).toEqual(["new"]);
-  await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();
+  await แผง.getByRole("button", { name: "ยกเลิกคำขอ", exact: true }).click();
   const กล่อง = page.locator("[data-reason-dialog]");
   await กล่อง.getByLabel("เหตุผลที่ยกเลิก").fill("ZZTEST ลูกค้าเลื่อนโครงการ");
   await กล่อง.getByRole("button", { name: "ยืนยันยกเลิก" }).click();

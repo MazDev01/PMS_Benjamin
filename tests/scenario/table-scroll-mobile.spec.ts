@@ -61,7 +61,7 @@ test("[มือถือ] HQ คำขอใบเสนอราคา: ใบ
 test("[มือถือ] ดีลเลอร์: ตาราง % ที่บวกในแผงลีด หน้าไม่ล้นจอ", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ส่งแล้ว);
   const แถว = page.locator("tbody tr").filter({ hasText: ส่งแล้ว }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });

@@ -26,7 +26,7 @@ test.afterAll(() => { if (ใบHQ) ล้างใบHQทดสอบ("RYG", [
 async function เปิดหน้าดูใบ(page: import("@playwright/test").Page) {
   await open(page, "dealer", "/leads");
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท);
   await page.locator("tbody tr").filter({ hasText: บริษัท }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();

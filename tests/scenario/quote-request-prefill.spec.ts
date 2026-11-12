@@ -28,7 +28,7 @@ async function สร้างลีด(k: keyof typeof เลข, ช่อง:
 async function เปิดแท็บใบเสนอราคา(page: Page, k: keyof typeof เลข) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ(k));
   const row = page.locator("tbody tr").filter({ hasText: ชื่อ(k) }).first();
   await expect(row).toBeVisible({ timeout: 25_000 });

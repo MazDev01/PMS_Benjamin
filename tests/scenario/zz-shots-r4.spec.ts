@@ -37,7 +37,7 @@ async function ถ่าย(page: Page, ฉาก: string, เตรียม: (
 async function เปิดลีด(page: Page, company: string, แท็บ?: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   await page.locator("tbody tr").filter({ hasText: company }).first().locator("td").first().click({ timeout: 20_000 });
   await page.locator("[data-panel='next-step']:not([aria-busy])").waitFor({ timeout: 20_000 }).catch(() => {});
@@ -92,7 +92,7 @@ test("ดีลเลอร์ — แผงลีดทุกขั้น · �
   }
   await ถ่าย(page, "ดีลเลอร์-ลีด-ตาราง", async () => {
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(`ZZTEST-รอบ4`);
   });
   await ถ่าย(page, "ดีลเลอร์-ลีด-บอร์ด", async () => {

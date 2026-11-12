@@ -33,12 +33,12 @@ async function newLeadOpened(page: import("@playwright/test").Page, company: str
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   const sb = await db(RYG);
   await waitRow(sb, "leads", { company }, 40_000);
 
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company); // ตารางแบ่งหน้า
   const row = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(row, "ลูกค้าเป้าหมายที่เพิ่งสร้างต้องโผล่ในตาราง").toBeVisible({ timeout: 30_000 });
@@ -95,7 +95,7 @@ test("[edge] กด 'ปิดการขายสำเร็จ' รัว �
 
   const { data: ใบส่ง } = await sb.from("quotations").select("id").eq("dealer_code", "RYG").eq("customer", company).eq("status", "sent_to_client").limit(1);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row2 = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(row2).toBeVisible({ timeout: 30_000 });
@@ -211,7 +211,7 @@ test("[edge] เน็ตหลุดตอนกดบันทึกลูก�
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   // ต้องมีข้อความบอกผู้ใช้ว่าบันทึกไม่สำเร็จ — ไม่ใช่ปิดฟอร์มแล้วจบเหมือนปกติ
   await expect(page.getByText(/บันทึกไม่สำเร็จ/).first(),

@@ -14,7 +14,7 @@ test("[ui·hq] เป้ายอดขายดีลเลอร์ พิม�
   await ช่อง.fill("");
   await ช่อง.pressSequentially("12000000", { delay: 20 });
   await expect(ช่อง).toHaveValue("12,000,000");
-  await page.getByRole("dialog", { name: "ฟอร์มข้อมูลดีลเลอร์" }).getByRole("button", { name: "ยกเลิก" }).click();
+  await page.getByRole("dialog", { name: "ฟอร์มข้อมูลดีลเลอร์" }).getByRole("button", { name: "ยกเลิก", exact: true }).click();
 });
 
 // ข้อของดีลเลอร์ (ช่องราคาต่อหน่วยตอนแก้ใบเดิม) ลบแล้ว 16 ต.ค. 69 — ใบเดิมที่ไม่มีใบ HQ ดูได้อย่างเดียว

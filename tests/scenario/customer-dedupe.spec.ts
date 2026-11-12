@@ -74,7 +74,7 @@ test("[dealer] ปิดการขายลูกค้าเป้าหม�
     // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
     await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
     await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-    await page.getByRole("button", { name: "บันทึก" }).click();
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
     // ปิดการขายสำเร็จ (ทริกเกอร์การสร้าง/ผูกลูกค้า) — รอบ 4: ทางเดียว = "ลูกค้าตอบรับ" ที่ใบในแผงลีด (เมนู ▾ เปลี่ยนสถานะเอาออกแล้ว)
     //   เดินทางจริง: ขอราคา → HQ ส่งใบ HQ → ทำใบให้ลูกค้า (ส่งแล้ว) → กดลูกค้าตอบรับบนหน้าจอ
@@ -87,7 +87,7 @@ test("[dealer] ปิดการขายลูกค้าเป้าหม�
     const ใบ = await ทำใบลูกค้าจากใบHQ(สาขา.บัญชี, ใบHQ, { customer: EXISTING, markupPercent: 10, status: "sent_to_client" });
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(EXISTING);   // ตารางแบ่งหน้า — ค้นหาก่อนหาแถว
     await page.locator("tbody tr").filter({ hasText: EXISTING }).filter({ hasText: "ผู้ติดต่อทดสอบ" }).first()
       .getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });

@@ -24,7 +24,7 @@ test("ล้างตัวกรองต้องล้างช่วงเ�
   const หลังตั้ง = (await ปุ่มเวลา.innerText()).trim();
   console.log("ก่อน:", ก่อน, "→ ตั้งช่วงเอง:", หลังตั้ง);
   expect(หลังตั้ง).not.toBe(ก่อน);
-  const ล้าง = page.getByRole("button", { name: "ล้างตัวกรอง" });
+  const ล้าง = page.getByRole("button", { name: "ล้างตัวกรอง", exact: true });
   await expect(ล้าง, "เลือกช่วงเองแล้วปุ่มล้างต้องโผล่").toBeVisible();
   await ล้าง.click();
   await page.waitForTimeout(700);

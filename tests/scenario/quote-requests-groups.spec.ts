@@ -108,7 +108,7 @@ test("[ui·hq] คำขอใบเสนอราคา: ตัวกรอง
     await แถวคำขอ(page).nth(1).click();
     await expect(หน้าต่างใบHQ(page).getByRole("heading").first()).toContainText(ชื่อ.split(" ")[0], { timeout: 15_000 });
     เลือกคำขอ = Date.now() - t0;
-    await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด" }).click();
+    await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด", exact: true }).click();
   }
   await page.getByLabel("ค้นหาคำขอ").fill("");
   console.log(`[เวลา] เปิดหน้า ${เปิดหน้า} ms · เปลี่ยนตัวกรอง ${สลับสถานะ} ms · เปิดคำขอ ${เลือกคำขอ} ms`);

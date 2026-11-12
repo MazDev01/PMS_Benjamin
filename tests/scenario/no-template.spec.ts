@@ -51,7 +51,7 @@ test("[ui·dealer] ฟอร์มลูกค้าเป้าหมายไ�
   await page.keyboard.press("Escape");
 
   // แผงแก้ไขของลูกค้าเป้าหมายเดิม
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   // ลูกค้าเป้าหมายตั้งต้นด้วยชื่อ (12 พ.ย. 69 · บอสสั่ง) — เดิมแถวแรกของ RYG: ถ้าแถวนั้นถูกลบระหว่างเปิด แผงไม่เปิด แต่ข้อ "ไม่มีช่อง" ยังผ่าน (ผ่านหลอก)
   await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/)).getByRole("button", { name: "ดูรายละเอียด" }).click();
   await expect(page.getByRole("button", { name: "ภาพรวม", exact: true }).first(), "แผงลูกค้าเป้าหมายเปิดจริง").toBeVisible({ timeout: 20_000 });
@@ -125,7 +125,7 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
     await page.keyboard.press("Escape");
 
     // 2) นัดหมายใหม่จากแผงลูกค้าเป้าหมาย — ต้องไม่คัดลอกแม่แบบเก่าไปเก็บ
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ);
     const row = page.locator("tbody tr").filter({ hasText: ชื่อ }).first();
     await expect(row).toBeVisible({ timeout: 25_000 });
@@ -176,7 +176,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   const เปิดแผงใบ = async () => {
     await d.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(d);
-    await d.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await d.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await d.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท);
     const row = d.locator("tbody tr").filter({ hasText: บริษัท }).first();
     await expect(row).toBeVisible({ timeout: 25_000 });

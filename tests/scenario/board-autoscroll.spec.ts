@@ -74,7 +74,7 @@ test("[ui·dealer] บอร์ดลีด: ลากใกล้ขอบ = �
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "บอร์ด" }).first().click().catch(() => {});
+  await page.getByRole("button", { name: "บอร์ด", exact: true }).first().click().catch(() => {});
   const ป้าย = await page.locator("[data-stage-board]").first().getAttribute("aria-label");
   await ตรวจบอร์ด(page, ป้าย ?? "");
   assertNoErrors(errs, "บอร์ดลีดเลื่อนตาม");

@@ -182,7 +182,7 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   // ★ ปุ่มบันทึกต้องไม่ถูกอะไรทับ (บอสเจอ 20 ส.ค. 69: การ์ด "ความคืบหน้าเทียบเป้า" วาดทับครึ่งล่างของโมดัล)
   //   สาเหตุคือโมดัลอยู่ในกล่อง .card ที่มี transform → position:fixed ไปยึดกับการ์ดแทนขอบจอ
   //   ตรวจด้วยการถามเบราว์เซอร์ว่า "จุดกลางปุ่มบันทึก ใครอยู่บนสุด" ต้องเป็นตัวปุ่มเอง
-  const บนสุดตรงปุ่ม = await page.getByRole("button", { name: "บันทึก" }).first().evaluate(el => {
+  const บนสุดตรงปุ่ม = await page.getByRole("button", { name: "บันทึก", exact: true }).first().evaluate(el => {
     const b = el.getBoundingClientRect();
     const บน = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
     return { เป็นปุ่มเอง: el === บน || el.contains(บน), อยู่ในจอ: b.bottom <= window.innerHeight };
@@ -197,7 +197,7 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   //   ไล่แล้ว: ตอนลองเข้าระบบ บัญชีในฐานยังเป็นอีเมลเดิม (คำขอบันทึกยังไม่ตอบ) · รอคำตอบของคำขอบันทึกก่อน = ผ่าน
   //   แก้: รอคำตอบของคำขอบันทึกจริง (PATCH 200 · อีเมล/รหัสตรงที่กรอก) + หน้าต่างแก้ปิด = บันทึกเสร็จ — รอเหตุการณ์ ไม่ใช่เพิ่มเวลา
   const คำตอบบันทึก = page.waitForResponse(r => r.request().method() === "PATCH" && r.url().includes(`/api/admin/dealers?code=${CODE3}`));
-  await page.getByRole("button", { name: "บันทึก" }).first().click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).first().click();
   const ตอบ = await คำตอบบันทึก;
   expect(ตอบ.status(), "บันทึกผ่านเซิร์ฟเวอร์").toBe(200);
   expect(await ตอบ.json(), "เซิร์ฟเวอร์ตั้งอีเมล/รหัสตามที่กรอก").toMatchObject({ ok: true, email: EMAIL3.replace("@", "2@"), password: "ZZtest-UI-2569" });

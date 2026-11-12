@@ -122,7 +122,7 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
   async function เปิดแผงลีด(page: Page, ชื่อ: string) {
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ชื่อ);
     await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
     await expect(page.locator('[data-panel="next-step"] [role="status"]')).toBeVisible({ timeout: 30_000 });

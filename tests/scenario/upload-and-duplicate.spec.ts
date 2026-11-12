@@ -105,7 +105,7 @@ test("กดบันทึกรัวในแท็บเดียว ต้�
   await expect(companyInput).toHaveValue(company, { timeout: 10_000 });
   await expect(contactInput).toHaveValue("คุณทดสอบ", { timeout: 10_000 });
 
-  const btn = page.getByRole("button", { name: "บันทึก" }).first();
+  const btn = page.getByRole("button", { name: "บันทึก", exact: true }).first();
   await Promise.all([0, 1, 2, 3, 4].map(() => btn.click({ force: true, timeout: 5_000 }).catch(() => {})));
 
   const sb = await db(RYG);
@@ -145,7 +145,7 @@ test("กรอกบริษัทที่มีลูกค้าเป้�
   ).toBeVisible({ timeout: 10_000 });
 
   // เตือนเท่านั้น ห้ามบล็อก — หลายดีลของบริษัทเดียวกันเป็นเรื่องปกติของงานขาย
-  await expect(page.getByRole("button", { name: "บันทึก" }).first(),
+  await expect(page.getByRole("button", { name: "บันทึก", exact: true }).first(),
     "ปุ่มบันทึกต้องยังกดได้ (เตือน ไม่ใช่ห้าม)",
   ).toBeEnabled();
 });

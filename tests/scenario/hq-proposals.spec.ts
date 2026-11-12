@@ -122,7 +122,7 @@ test("[func·hq] ออกใบในแผงผู้สนใจ → ใบ�
   await expect(ฟอร์ม.locator("#pp-province"), "จังหวัดเติมจากผู้สนใจให้").toHaveValue("ลำปาง");
   await ฟอร์ม.locator("#pp-amount").fill("90000");
   await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
-  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ", exact: true }).click();
 
   const แถวใบ = await waitRow<{ id: number; proposal_no: string; status: string; amount: number }>(sb, "dealer_package_proposals", { prospect_id: prospectId });
   expect(แถวใบ.status).toBe("draft");
@@ -212,7 +212,7 @@ test("[func·hq] แถวใบร่าง 2 ปุ่ม (ดู · พิม
   await expect(ฟอร์ม.locator("#pp-amount"), "ฟอร์มแก้ต้องมีค่าเดิม").toHaveValue("100,000");
   await ฟอร์ม.locator("#pp-amount").fill("120000");
   await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
-  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ", exact: true }).click();
   await waitRow(sb, "dealer_package_proposals", { id: ใบId, amount: 120_000 });
   await แผง.getByRole("button", { name: `ลบใบ ${เลขที่}` }).click();
   await กดตกลงในกล่องยืนยัน(page);

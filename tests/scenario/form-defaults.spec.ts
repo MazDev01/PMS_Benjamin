@@ -28,7 +28,7 @@ test("[ui·dealer] ลงนัด: ปฏิทินไม่มีปุ่�
 
     await page.goto(page.url().replace(/\/calendar.*$/, "/leads"), { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ);
     await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
     await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();   // นัดหมาย/ไฟล์อยู่แท็บภาพรวม (28 ต.ค. 69)

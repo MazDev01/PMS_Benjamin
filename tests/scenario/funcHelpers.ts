@@ -339,7 +339,7 @@ export async function เปิดฟอร์มทำใบจากใบHQ(p
   //   ดันตารางลง 16px ระหว่างกด การกดลงผิดที่ แผงไม่เปิด (trace: จุดกด y=545 · ปุ่มจริง y=561) → รอการ์ดได้ค่าจากฐานครบ 4 ใบก่อนกด
   await expect(page.getByRole("group", { name: "สรุปลูกค้าเป้าหมาย" }).locator("[data-value]:not([data-value=\"\"])"),
     "การ์ด KPI หน้าลูกค้าเป้าหมายโหลดค่าครบก่อนกด (กันหน้าขยับระหว่างกด)").toHaveCount(4, { timeout: 20_000 });
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });

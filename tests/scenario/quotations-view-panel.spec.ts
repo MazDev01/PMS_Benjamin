@@ -112,7 +112,7 @@ test("[D6] [ux·dealer] ปิดแผงแล้วอยู่ที่เ�
   await แถว.locator("td").first().click();
   const แผง = page.locator("[data-quote-view]");
   await expect(แผง).toBeVisible({ timeout: 15_000 });
-  await แผง.getByRole("button", { name: "ปิด" }).click();
+  await แผง.getByRole("button", { name: "ปิด", exact: true }).click();
   await expect(แผง).toHaveCount(0);
   expect(new URL(page.url()).pathname).toBe("/quotations");
   await expect(page.getByText("หน้า 2 / 2", { exact: true }), "ยังอยู่หน้า 2").toBeVisible();

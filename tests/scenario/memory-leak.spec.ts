@@ -43,7 +43,7 @@ function analyzeGrowth(samples: number[], label: string) {
 test("[memory] เปิด-ปิดแผงรายละเอียดลูกค้าเป้าหมายซ้ำ 15 รอบ → หน่วยความจำต้องไม่โตต่อเนื่องไม่หยุด", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // แถวของข้อมูลตั้งต้นด้วยชื่อ (บอสสั่ง 12 พ.ย. 69) — เดิมหยิบแถวแรกใหม่ทุกรอบ ซึ่งเป็นของข้ออื่นที่รันพร้อมกัน/ถูกลบระหว่าง 15 รอบได้
   const ป้ายแถว = `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`;
   await แถวตามชื่อ(page, ป้ายแถว, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/);
@@ -75,7 +75,7 @@ test("[memory] เปิด-ปิดแผงรายละเอียดล�
 // ทุกตัวอย่าง ซึ่งไม่ใช่ผลจริง — เป็นเพราะ heap ถูกรีเซ็ตพร้อมหน้าใหม่ทุกครั้ง)
 test("[memory] สลับหน้าไปมา (ดีลเลอร์) 20 รอบ ผ่านเมนูจริง (client-side nav) → หน่วยความจำต้องไม่โตต่อเนื่องไม่หยุด", async ({ page }) => {
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-  const labels = ["แดชบอร์ด", "ลูกค้าเป้าหมาย", "ใบเสนอราคา", "ลูกค้า"];
+  const labels = ["หน้าหลัก", "ลูกค้าเป้าหมาย", "ใบเสนอราคา", "ลูกค้า"];
   await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   const heap = await newHeapSampler(page);
@@ -98,7 +98,7 @@ test("[memory] สลับหน้าไปมา (ดีลเลอร์) 2
 
 test("[memory·hq] สลับหน้า HQ (มีกราฟ) 15 รอบ ผ่านเมนูจริง (client-side nav) → หน่วยความจำต้องไม่โตต่อเนื่องไม่หยุด", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-  const labels = ["แดชบอร์ดสำนักงานใหญ่", "ภาพรวมยอดขาย", "ใบเสนอราคาทั้งเครือ", "ลูกค้าทั้งเครือ"];
+  const labels = ["หน้าหลักสำนักงานใหญ่", "ภาพรวมยอดขาย", "ใบเสนอราคาทั้งเครือ", "ลูกค้าทั้งเครือ"];
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   const heap = await newHeapSampler(page);

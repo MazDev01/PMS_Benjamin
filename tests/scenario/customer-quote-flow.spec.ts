@@ -47,7 +47,7 @@ async function เปิดแท็บใบเสนอราคา(page: Page
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const row = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });

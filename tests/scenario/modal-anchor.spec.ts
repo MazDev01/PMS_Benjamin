@@ -18,7 +18,7 @@ test.setTimeout(120_000);
 
 test("[ui] ป๊อปอัพเพิ่มผู้รับผิดชอบ — ตำแหน่งต้องไม่ขยับเมื่อเมาส์เข้า/ออกการ์ด", async ({ page }) => {
   await openAs(page, CNX, "dealer", "/settings");
-  await page.getByRole("button", { name: "ผู้รับผิดชอบ" }).click();
+  await page.getByRole("button", { name: "ผู้รับผิดชอบ", exact: true }).click();
   const addBtn = page.getByRole("button", { name: "เพิ่ม", exact: true }).first();
   await addBtn.waitFor({ state: "visible", timeout: 30_000 });
   await addBtn.click();

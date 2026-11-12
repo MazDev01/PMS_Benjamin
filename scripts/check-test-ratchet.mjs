@@ -36,12 +36,20 @@ const ผ่านหลอกแบบ = [
   /\.catch\(\s*\(\s*\)\s*=>\s*(\{\s*\}|false|null|undefined|0|""|''|\[\])\s*\)/,
 ];
 const ผ่านหลอก = (l) => ผ่านหลอกแบบ.some(re => re.test(l));
-const ชนิดทั้งหมด = ["รอตายตัว", "แถวแรก", "ผ่านหลอก"];
-const ชื่อชนิด = { รอตายตัว: "รอตายตัว (waitForTimeout/setTimeout)", แถวแรก: "หยิบแถวแรกของรายการ (.first()/.nth(0) ไม่กรองชื่อ)", ผ่านหลอก: "ผ่านหลอก (if count/isVisible · .catch กลืนผิดพลาด)" };
+// (ง) หาปุ่ม/ช่องด้วยชื่อแบบไม่ตรงตัว (บอสเลือก ก1 12 พ.ย. 69 · redesign:125 ปุ่ม "ตาราง" ชนปุ่มลบ "ลบ ZZTEST-R4P-ตาราง-…")
+//   getByRole(…, { name: "…" }) ไม่มี exact: true · getByLabel/getByPlaceholder/getByTitle("…") ไม่มี exact: true — นับต่อบรรทัด ห้ามเพิ่ม
+const ชื่อหลวม = (l) => {
+  // ตัวเลือก { … } อาจมี ${…} ในสตริงแม่แบบ — นับวงเล็บของ ${…} เป็นส่วนของตัวเลือก (เดิม [^}]* ตัดที่ } แรก แล้วมองไม่เห็น exact: true)
+  for (const m of l.matchAll(/getByRole\(\s*["']\w+["']\s*,\s*\{((?:[^{}]|\$\{[^}]*\})*)\}/g)) if (/\bname\s*:\s*["'`]/.test(m[1]) && !/exact\s*:\s*true/.test(m[1])) return true;
+  for (const m of l.matchAll(/getBy(Label|Placeholder|Title)\(\s*(["'`])(?:(?!\2).)*\2\s*(,\s*\{[^}]*\})?\s*\)/g)) if (!(m[3] && /exact\s*:\s*true/.test(m[3]))) return true;
+  return false;
+};
+const ชนิดทั้งหมด = ["รอตายตัว", "แถวแรก", "ผ่านหลอก", "ชื่อไม่ตรงตัว"];
+const ชื่อชนิด = { รอตายตัว: "รอตายตัว (waitForTimeout/setTimeout)", แถวแรก: "หยิบแถวแรกของรายการ (.first()/.nth(0) ไม่กรองชื่อ)", ผ่านหลอก: "ผ่านหลอก (if count/isVisible · .catch กลืนผิดพลาด)", ชื่อไม่ตรงตัว: "หาปุ่ม/ช่องด้วยชื่อไม่ตรงตัว (ไม่มี exact: true)" };
 
 export function นับ(ข้อความ) {
   const ล = บรรทัดโค้ด(ข้อความ);
-  return { รอตายตัว: ล.filter(l => รอตายตัว.test(l)).length, แถวแรก: ล.filter(แถวแรก).length, ผ่านหลอก: ล.filter(ผ่านหลอก).length };
+  return { รอตายตัว: ล.filter(l => รอตายตัว.test(l)).length, แถวแรก: ล.filter(แถวแรก).length, ผ่านหลอก: ล.filter(ผ่านหลอก).length, ชื่อไม่ตรงตัว: ล.filter(ชื่อหลวม).length };
 }
 
 const ไฟล์ = existsSync(โฟลเดอร์) ? readdirSync(โฟลเดอร์).filter(f => /\.(spec\.)?ts$/.test(f)) : [];   // รวมไฟล์ zz- ด้วย (ตั้งชื่อหลบตัวตรวจไม่ได้)
@@ -74,7 +82,7 @@ for (const ชนิด of ชนิดทั้งหมด) {
 }
 const รวม = (ชนิด) => Object.values(ผล).reduce((a, n) => a + n[ชนิด], 0);
 if (เกิน.length) {
-  console.error(`✗ check-test-ratchet: เกินเพดาน ${เกิน.length} จุด\n   ${เกิน.join("\n   ")}\n   แก้: รอจนสิ่งที่ต้องการขึ้นจริง (expect…toBeVisible / toHaveCount) แทนรอตายตัว · เปิดแถวด้วย แถวตามชื่อ() (helpers.ts) แทนแถวแรก · ตรวจตรง ๆ (expect…toBeVisible/toHaveCount) แทนครอบ if/.catch`);
+  console.error(`✗ check-test-ratchet: เกินเพดาน ${เกิน.length} จุด\n   ${เกิน.join("\n   ")}\n   แก้: รอจนสิ่งที่ต้องการขึ้นจริง (expect…toBeVisible / toHaveCount) แทนรอตายตัว · เปิดแถวด้วย แถวตามชื่อ() (helpers.ts) แทนแถวแรก · ตรวจตรง ๆ (expect…toBeVisible/toHaveCount) แทนครอบ if/.catch · หาด้วยชื่อตรงตัว { exact: true }`);
   process.exit(1);
 }
-console.log(`✓ check-test-ratchet: รอตายตัว ${รวม("รอตายตัว")} · หยิบแถวแรก ${รวม("แถวแรก")} · ผ่านหลอก ${รวม("ผ่านหลอก")} จุด ไม่เกินเพดาน${ลดได้.length && !ปรับ ? ` · ลดเพดานได้ ${ลดได้.length} ไฟล์ (node scripts/check-test-ratchet.mjs --update)` : ""}`);
+console.log(`✓ check-test-ratchet: รอตายตัว ${รวม("รอตายตัว")} · หยิบแถวแรก ${รวม("แถวแรก")} · ผ่านหลอก ${รวม("ผ่านหลอก")} · ชื่อไม่ตรงตัว ${รวม("ชื่อไม่ตรงตัว")} จุด ไม่เกินเพดาน${ลดได้.length && !ปรับ ? ` · ลดเพดานได้ ${ลดได้.length} ไฟล์ (node scripts/check-test-ratchet.mjs --update)` : ""}`);

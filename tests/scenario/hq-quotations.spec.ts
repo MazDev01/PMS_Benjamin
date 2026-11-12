@@ -101,7 +101,7 @@ test("[ux·hq] ไม่มีปุ่มสร้าง/แก้ไข/ลบ
   for (const name of [/เพิ่มใบเสนอราคา|สร้างใบเสนอราคา/, /^แก้ไข$/, /^ลบ$/, /^อนุมัติ$/]) {
     await expect(main.getByRole("button", { name })).toHaveCount(0);
   }
-  await expect(main.getByRole("button", { name: "ดู" }).first()).toBeVisible();
+  await expect(main.getByRole("button", { name: "ดูรายละเอียด", exact: true }).first()).toBeVisible();
 });
 
 // ลิ้นชักรายละเอียด = อ่านอย่างเดียว

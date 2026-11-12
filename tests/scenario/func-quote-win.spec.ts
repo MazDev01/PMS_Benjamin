@@ -35,11 +35,11 @@ test("[func] ออกใบเสนอราคาจากลูกค้า�
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");   // พื้นที่ → ใช้ตั้งต้น BOQ
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
 
   // 2) เปิดแผงลูกค้าเป้าหมาย → แท็บใบเสนอราคา → สร้าง
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางลูกค้าเป้าหมายแบ่งหน้า — ตอนรันชุดเต็มมีลูกค้าเป้าหมายทดสอบสะสมจนลูกค้าเป้าหมายของเทสต์นี้หลุดไปหน้าหลัง ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
@@ -72,7 +72,7 @@ test("[func] ปิดการขายสำเร็จ → ลูกค้�
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางลูกค้าเป้าหมายแบ่งหน้า — ตอนรันชุดเต็มมีลูกค้าเป้าหมายทดสอบสะสมจนลูกค้าเป้าหมายของเทสต์นี้หลุดไปหน้าหลัง ต้องค้นหาก่อน
 
   // ตารางแบ่งหน้า — ตอนรันชุดเต็ม สเปกอื่นเพิ่มข้อมูลของสาขาเดียวกันแทรกเข้ามาตลอด ต้องค้นหาก่อน
@@ -138,10 +138,10 @@ test("[func] ปิดการขายจากหน้าใบเสนอ�
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500"); // พื้นที่ → ใช้ตั้งต้น BOQ
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMP });
 
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ตารางลูกค้าเป้าหมายแบ่งหน้า — ตอนรันชุดเต็มมีลูกค้าเป้าหมายทดสอบสะสมจนลูกค้าเป้าหมายของเทสต์นี้หลุดไปหน้าหลัง ต้องค้นหาก่อน
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMP);
   const lrow = page.locator("tbody tr").filter({ hasText: COMP }).first();

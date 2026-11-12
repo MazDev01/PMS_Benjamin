@@ -48,7 +48,7 @@ test("[D2] [func·dealer] ฟอร์มเพิ่มลูกค้าเป
   await ฟอร์ม.getByPlaceholder("ชื่อผู้ติดต่อ").fill("ผู้ทดสอบ");
   await ฟอร์ม.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-0961");
   await ฟอร์ม.getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await ฟอร์ม.getByRole("button", { name: "บันทึก" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึก", exact: true }).click();
   const ลีด = await waitRow<{ status: string }>(await db(RYG), "leads", { company: ลีดใหม่ });
   expect(ลีด.status, "ลีดใหม่ = ขั้นข้อมูลลูกค้า (สถานะตั้งต้น)").toBe("WAITING");
 });
@@ -57,7 +57,7 @@ test("[D7] [ux·dealer] งานในแต่ละขั้นอยู่�
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ลีดเปิด);
   await page.locator("tbody tr").filter({ hasText: ลีดเปิด }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
   const งาน = page.locator("[data-lead-tasks]");
@@ -78,7 +78,7 @@ test("[ux·dealer] หน้าลูกค้าเป้าหมาย เป
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   const ค้นหา = page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first();
   await ค้นหา.fill(ลีดเปิด);
   await expect(page.locator("tbody tr").filter({ hasText: ลีดเปิด }).first(), "ลีดที่ยังเปิดอยู่แสดง").toBeVisible({ timeout: 20_000 });

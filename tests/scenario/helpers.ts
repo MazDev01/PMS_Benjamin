@@ -213,7 +213,7 @@ export async function openLeadQuotationForm(page: Page, opts?: { ใบใหม
     await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ชื่อ, province: "ระยอง",
       lines: [{ name: "โกดังสำเร็จรูป", qty: 100, unit: "ตร.ม.", unitCost: 4500 }] });
     await open(page, "dealer", "/leads");
-    await page.getByRole("button", { name: "ตาราง" }).click();
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click();
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ);
     const แถว = page.locator("tbody tr").filter({ hasText: ชื่อ }).first();
     await expect(แถว).toBeVisible({ timeout: 20_000 });

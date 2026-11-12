@@ -276,7 +276,7 @@ test("[ui·dealer] ป้ายขั้นตอนต้องอยู่ใ�
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "dealer", "/leads");
   await page.waitForTimeout(2000);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await expect(page.locator("tbody tr").first().locator("button.badge"), "ป้ายขั้นไม่ใช่ปุ่มแล้ว").toHaveCount(0);
   const chip = page.locator("tbody tr").first().locator("span.badge").first();
   await expect(chip).toBeVisible({ timeout: 15_000 });

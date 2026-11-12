@@ -65,7 +65,7 @@ test("[func·hq] เป้าหมาย: แก้เป้ารายดี�
     // เป้าทั้งเครือเดินตามทันที (ผลรวม รวมตัวเลขที่เพิ่งแก้ · ใบ 0283)
     const ก่อน = Number(await ตารางเป้า(page).locator('tfoot [data-sum="annual"]').getAttribute("data-value"));
     await expect(page.locator("[data-network-target]"), "เป้าทั้งเครือ = แถวรวมเป้าดีลเลอร์หลังแก้").toHaveAttribute("data-value", String(ก่อน));
-    await page.getByRole("button", { name: "บันทึก" }).first().click();
+    await page.getByRole("button", { name: "บันทึก", exact: true }).first().click();
     await expect.poll(async () => Number((await db.from("dealers").select("revenue_target").eq("code", สาขา.รหัส).single()).data?.revenue_target),
       { message: "เป้าใหม่ลงฐาน", timeout: 20_000 }).toBe(2_400_000);
     await expect(page.getByText("ยังไม่บันทึก")).toHaveCount(0);

@@ -29,10 +29,10 @@ test("[func·dealer] กดลูกค้าตอบรับแล้วเ�
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   const ลีด = await waitRow<{ id: string; num_id: number }>(sb, "leads", { company: COMPANY });
 
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
