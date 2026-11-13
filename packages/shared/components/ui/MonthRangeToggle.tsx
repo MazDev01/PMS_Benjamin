@@ -29,6 +29,17 @@ export function lastNMonths(n: number, now: Date): MonthBucket[] {
   });
 }
 
+/** ถังเดือนทุกเดือนที่ช่วงเวลาแตะ (เดือนของวันเริ่ม → เดือนของวันจบ) เรียงเก่า→ใหม่
+ *  ใช้กับกราฟรายเดือนบนหน้าที่มีตัวเลือกช่วงเวลาด้านบน (บอสสั่ง 13 พ.ย. 69 · ทับ 11 พ.ย. "ทุกกราฟมีปุ่มของตัวเอง")
+ *  ช่วงสั้นกว่าเดือน (วันนี้ / 7 วัน) = เดือนที่ช่วงนั้นแตะ 1–2 แท่ง ไม่เปลี่ยนเป็นรายวัน */
+export function เดือนตามช่วง(start: Date, end: Date): MonthBucket[] {
+  const out: MonthBucket[] = [];
+  for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+    out.push({ key: monthKey(d.getFullYear(), d.getMonth()), label: THAI_MONTHS[d.getMonth()], year: d.getFullYear() });
+  }
+  return out;
+}
+
 /** "ม.ค. 2569 – มิ.ย. 2569" — ป้ายแกนบอกแต่ชื่อเดือน ช่วงที่ครอบจึงต้องบอกไว้ใต้หัวข้อ */
 export function monthRangeSubtitle(n: number, now: Date): string {
   const b = lastNMonths(n, now), f = b[0], l = b[b.length - 1];
@@ -63,12 +74,13 @@ export function MonthRangeToggle({ value, onChange, label }: {
 
 /** หัวกราฟรายเดือน — ตัวกลางเดียวทุกกราฟรายเดือน HQ + ดีลเลอร์ (บอสสั่ง 12 พ.ย. 69)
  *  บรรทัดบน: ชื่อกราฟ (+ ของมุมขวา เช่นลิงก์ "ดูทั้งหมด") · บรรทัดล่าง: ปุ่ม 3/6/9 เดือน/1 ปี ชิดขวา ใต้ชื่อกราฟ
+ *  13 พ.ย. 69 บอสสั่ง: หน้าที่มีตัวเลือกช่วงเวลาด้านบน = ไม่ส่ง ปุ่ม (กราฟแสดงทุกเดือนตามช่วงด้านบน) · หน้าไม่มีตัวกรองด้านบน = ส่งปุ่ม ชิดขวา
  *  ไม่มีข้อความกำกับใต้ชื่อ (เดิม "ช่วง … · ช่วงจากปุ่มของกราฟ … · ปิดสำเร็จ/ไม่สำเร็จ = …" — บอกช่วงด้วยปุ่มที่ถูกเลือกแทน)
  *  ข้อทดสอบ: tests/scenario/monthly-chart-ranges.spec.ts (ปุ่มอยู่ใต้ชื่อ ชิดขวา · ไม่มีข้อความกำกับ) */
 export function หัวกราฟรายเดือน({ ชื่อ, ปุ่ม, ขวา, className = "card-header", สไตล์ชื่อ, style }: {
   ชื่อ: ReactNode;
-  /** <MonthRangeToggle … /> ของกราฟนี้ */
-  ปุ่ม: ReactNode;
+  /** <MonthRangeToggle … /> ของกราฟนี้ — เฉพาะหน้าที่ไม่มีตัวเลือกช่วงเวลาด้านบน */
+  ปุ่ม?: ReactNode;
   /** ของมุมขวาบรรทัดชื่อ (ถ้ามี) */
   ขวา?: ReactNode;
   className?: string;
@@ -81,7 +93,7 @@ export function หัวกราฟรายเดือน({ ชื่อ, �
         <div className={สไตล์ชื่อ ? undefined : "card-title"} data-title style={{ minWidth: 0, ...สไตล์ชื่อ }}>{ชื่อ}</div>
         {ขวา}
       </div>
-      <div data-month-range-row style={{ display: "flex", justifyContent: "flex-end" }}>{ปุ่ม}</div>
+      {ปุ่ม ? <div data-month-range-row style={{ display: "flex", justifyContent: "flex-end" }}>{ปุ่ม}</div> : null}
     </div>
   );
 }

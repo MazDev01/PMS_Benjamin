@@ -232,8 +232,8 @@ test("[ui·hq] ลีดทั้งเครือ: กล่องโอนล
   const แนวโน้ม = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: /^กราฟลูกค้าเป้าหมายใหม่รายเดือน · / }) }).first();
   for (const คำ of ["ลูกค้าเป้าหมายใหม่", "ปิดสำเร็จ", "ปิดไม่สำเร็จ"]) await expect(แนวโน้ม, `กราฟรายเดือนมีคำ "${คำ}"`).toContainText(คำ);
   await expect(แนวโน้ม, "ไม่มีชุดใบเสนอราคาในกราฟลีด").not.toContainText("ใบเสนอราคา");
-  // 11 พ.ย. 69 กราฟนี้มีปุ่มของตัวเอง (ค่าเริ่มต้น 1 ปี) ไม่เดินตามช่วงหน้าแล้ว — ยังเท่าการ์ดเพราะลีดของข้อในช่วงเข้ามาวันนี้ทั้งหมด
-  //   (ตรวจว่าไม่ขึ้นกับช่วงหน้า: tests/scenario/monthly-chart-ranges.spec.ts)
+  // 13 พ.ย. 69 กราฟรายเดือนเดินตามช่วงด้านบน ไม่มีปุ่ม (ทับ 11 พ.ย. ปุ่มของกราฟ) — ข้อมูลชุดเดียวกับการ์ด รวมกราฟ = การ์ด
+  //   (ตรวจกราฟตามช่วงด้านบน: tests/scenario/monthly-chart-ranges.spec.ts)
   await expect(page.locator("[data-lead-monthly][data-ready='1']"), "รวมลีดใหม่รายเดือน (1 ปี) = การ์ดลีดใหม่ (ข้อมูลของข้ออยู่เดือนนี้)").toHaveAttribute("data-sum-new",
     (await page.locator('[data-kpi-row] [data-kpi="new"] [data-value]').first().getAttribute("data-value")) ?? "");
   // ตรวจกลับด้าน (บอสเลือก 9 พ.ย. 69 ข้อ 1: ลีด → ลูกค้าเป้าหมาย ทั้งหมด · ทับคำในกราฟแบบหน้า 2 พ.ย. 69 ที่ใช้ "ลีดใหม่")

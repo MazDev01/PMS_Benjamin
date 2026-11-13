@@ -45,6 +45,7 @@ export function SalesTrendChart({
 }) {
   const เป็นรายชั่วโมง = granularity === "hour";
   const เป็นรายวัน = granularity === "day" || เป็นรายชั่วโมง;
+  const รายเดือน = Boolean(ปุ่ม) || granularity === "month";
 
   const data = useMemo(() => {
     // ⚠️ ใช้ "ทุกจุดที่ส่งมา" เสมอ ไม่ว่าจะรายชั่วโมง/รายวัน/รายเดือน (บอสทัก 25 ส.ค. 69)
@@ -78,11 +79,11 @@ export function SalesTrendChart({
 
   return (
     <div style={{ width: "100%" }}>
-      {/* มีปุ่มช่วง = กราฟรายเดือน → หัวกราฟตัวกลาง: ชื่อ · ปุ่มชิดขวาใต้ชื่อ (บอสสั่ง 12 พ.ย. 69) */}
-      {ปุ่ม && <หัวกราฟรายเดือน className="" ชื่อ={title} ปุ่ม={ปุ่ม} สไตล์ชื่อ={{ fontWeight: 800, fontSize: "1rem", color: "var(--text, #2D2D2D)" }} />}
+      {/* กราฟรายเดือน → หัวกราฟตัวกลาง: ชื่อ (· ปุ่มชิดขวาใต้ชื่อ เฉพาะหน้าที่ไม่มีตัวกรองช่วงด้านบน · บอสสั่ง 13 พ.ย. 69) */}
+      {รายเดือน && <หัวกราฟรายเดือน className="" ชื่อ={title} ปุ่ม={ปุ่ม} สไตล์ชื่อ={{ fontWeight: 800, fontSize: "1rem", color: "var(--text, #2D2D2D)" }} />}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
         <div>
-          {!ปุ่ม && <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text, #2D2D2D)" }}>{title}</div>}
+          {!รายเดือน && <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--text, #2D2D2D)" }}>{title}</div>}
           {/* ตัวเลขเด่น + trend (เหมือนการ์ดสถิติ) */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 2px" }}>
             <span style={{ fontSize: "1.5rem", fontWeight: 800, color: "#003366", lineHeight: 1 }}>฿{(total).toFixed(1)}M</span>

@@ -21,7 +21,7 @@ import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { PlanVsActualBars, GroupedBarChart, Donut } from "@pms/shared/components/ui/Charts";
 import { SalesTrendChart } from "@pms/shared/components/ui/SalesTrendChart";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
-import { MonthRangeToggle, หัวกราฟรายเดือน, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
+import { หัวกราฟรายเดือน, เดือนตามช่วง, monthKey, ป้ายเดือนปี } from "@pms/shared/components/ui/MonthRangeToggle";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { dealers as dealersRepo, metrics as metricsRepo } from "@pms/shared/lib/data";
@@ -75,25 +75,19 @@ export default function HQDashboard() {
   }, [เริ่ม, จบ, dealerSel]);
   useEffect(() => { const t = setTimeout(() => void โหลด(), 150); return () => clearTimeout(t); }, [โหลด, salesVersion]);
 
-  // ค่าเริ่มต้น 1 ปี (บอสสั่ง 11 พ.ย. 69 · เดิม 6 เดือน) — ข้อมูลรายเดือนจากฐานมี 12 เดือนล่าสุด (hq_dashboard)
-  const [barRange, setBarRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
-  const [tgtRange, setTgtRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
-
-  // ── กราฟแนวโน้มยอดขาย: รายเดือนตามปุ่มของกราฟเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี (ค่าเริ่มต้น 1 ปี) ──
-  //   ⚠️ บอสสั่ง 11 พ.ย. 69 ทับคำตัดสินเดิม "เดินตามแถบกรองด้านบน รายชั่วโมง/รายวัน/รายเดือนตามช่วง" (25 ส.ค. 69) เฉพาะกราฟนี้
-  //      ข้อมูล = 12 เดือนล่าสุดจากฐาน (hq_dashboard.monthly · ไม่ขึ้นกับช่วงเวลาของหน้า) · ตัวกรองดีลเลอร์ยังมีผล · ยอดขายตามวันตอบรับ
-  const [trendRange, setTrendRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
-  const trend = useMemo(() => (ข้อมูล?.monthly ?? []).slice(-trendRange)
-    .map(r => ({ month: ป้ายเดือนปี(r.y, r.m), value: r.sales / 1e6 })), [ข้อมูล, trendRange]);
+  // ── กราฟรายเดือน 3 ใบ: ทุกเดือนตามช่วงเวลาด้านบน (บอสสั่ง 13 พ.ย. 69 · ทับ 11 พ.ย. "ปุ่ม 3/6/9 เดือน/1 ปี ของกราฟเอง") ──
+  //   ข้อมูลรายเดือนจากฐาน = 12 เดือนล่าสุดถึงเดือนนี้ (hq_dashboard.monthly) → กรองเฉพาะเดือนที่ช่วงด้านบนแตะ
+  //   ช่วงสั้นกว่าเดือน = เดือนที่ช่วงแตะ 1–2 แท่ง · ตัวกรองดีลเลอร์ยังมีผล · ยอดขายตามวันตอบรับ
+  const เดือนในช่วง = useMemo(() => new Set(เดือนตามช่วง(timeRange.start, timeRange.end).map(b => b.key)), [timeRange]);
+  const เดือน = useMemo(() => (ข้อมูล?.monthly ?? []).filter(r => เดือนในช่วง.has(monthKey(r.y, r.m))), [ข้อมูล, เดือนในช่วง]);
+  const trend = useMemo(() => เดือน.map(r => ({ month: ป้ายเดือนปี(r.y, r.m), value: r.sales / 1e6 })), [เดือน]);
   const มียอดในช่วง = trend.some(r => r.value > 0);
   const หน่วยเวลา = "รายเดือน";
   const trendTitle = selDealer ? `ยอดขาย ${selDealer.name.replace("Benjamin ", "")} ${หน่วยเวลา}` : `ยอดขายรวมทั้งเครือ ${หน่วยเวลา}`;
 
-  const trendToggle = <MonthRangeToggle value={trendRange} onChange={setTrendRange} label="ช่วงเวลากราฟแนวโน้มยอดขาย" />;
-  const เดือน = (n: number) => (ข้อมูล?.monthly ?? []).slice(-n);
-  const barRows = เดือน(barRange);
+  const barRows = เดือน;
   const barมีข้อมูล = barRows.some(r => r.leads + r.quotes + r.won > 0);
-  const tgtRows = เดือน(tgtRange);
+  const tgtRows = เดือน;
   const tgtมียอด = tgtRows.some(r => r.sales > 0);
   const แผนเดือน = (ข้อมูล?.monthlyTarget ?? 0) / 1e6;
 
@@ -180,9 +174,9 @@ export default function HQDashboard() {
         <div className="card" data-card="trend" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
           <div className="card-body" style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: "1.15rem" }}>
             {มียอดในช่วง
-              ? <SalesTrendChart title={trendTitle} monthly={trend} granularity="month" height={395} ปุ่ม={trendToggle} />
+              ? <SalesTrendChart title={trendTitle} monthly={trend} granularity="month" height={395} />
               : (<>
-                  <หัวกราฟรายเดือน className="" ชื่อ={trendTitle} ปุ่ม={trendToggle} style={{ marginBottom: 12 }} />
+                  <หัวกราฟรายเดือน className="" ชื่อ={trendTitle} style={{ marginBottom: 12 }} />
                   <กรอบว่าง text="ยังไม่มียอดขาย" h={395} />
                 </>)}
           </div>
@@ -241,11 +235,10 @@ export default function HQDashboard() {
         </div>
       </div>
 
-      {/* แถว 2: ลีด·ใบเสนอราคา·ปิดการขาย · เป้าหมายเทียบยอดขายจริง (ปุ่ม 3/6/12 เดือนของตัวเอง) */}
+      {/* แถว 2: ลีด·ใบเสนอราคา·ปิดการขาย · เป้าหมายเทียบยอดขายจริง (ทุกเดือนตามช่วงด้านบน · 13 พ.ย. 69) */}
       <div className="hq-row2b" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", alignItems: "stretch", marginBottom: "1.25rem" }}>
         <div className="card" data-card="bars" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <หัวกราฟรายเดือน ชื่อ="ลูกค้าเป้าหมายใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)"
-            ปุ่ม={<MonthRangeToggle value={barRange} onChange={setBarRange} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่·ใบที่ส่ง·ปิดสำเร็จ" />} />
+          <หัวกราฟรายเดือน ชื่อ="ลูกค้าเป้าหมายใหม่ · ใบที่ส่ง · ปิดสำเร็จ (รายเดือน)" />
           <div className="card-body" style={{ paddingTop: 4, flex: 1 }}>
             {barมีข้อมูล ? (
               <GroupedBarChart months={barRows.map(r => ป้ายเดือนปี(r.y, r.m))} vw={820} height={260} fmt={v => `${Math.round(v)}`}
@@ -258,8 +251,7 @@ export default function HQDashboard() {
           </div>
         </div>
         <div className="card" data-card="target" style={{ marginBottom: 0 }}>
-          <หัวกราฟรายเดือน ชื่อ="เป้าหมาย เทียบ ยอดขายจริง"
-            ปุ่ม={<MonthRangeToggle value={tgtRange} onChange={setTgtRange} label="ช่วงเวลากราฟเป้าหมายเทียบยอดขายจริง" />} />
+          <หัวกราฟรายเดือน ชื่อ="เป้าหมาย เทียบ ยอดขายจริง" />
           <div className="card-body" style={{ paddingTop: 8 }}>
             {tgtมียอด ? (
               <PlanVsActualBars unit="M" aLabel="ยอดขายจริง" bLabel="เป้าหมาย"
