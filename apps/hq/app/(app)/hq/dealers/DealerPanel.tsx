@@ -119,8 +119,9 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
 
   return (
     <>
-      {/* เปลือกแผง = ตัวกลาง RowPanel (หน้าต่างจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69) */}
-      <RowPanel label={`แผงดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดแผง"
+      {/* เปลือกแผง = ตัวกลาง RowPanel (หน้าต่างจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69)
+          กว้าง 820 เท่าหน้าต่างใบเสนอราคา (บอสสั่ง 13 พ.ย. 69 · ข้อยกเว้นของกฎ 640 · หน้าอื่นคง 640) */}
+      <RowPanel กว้าง="กว้าง" label={`แผงดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดแผง"
         asideAttrs={{ "data-dealer-panel": code }} backdropAttrs={{ "data-dealer-panel-backdrop": "" }}
         title={dealer.name} titleAttrs={{ "data-panel-name": "" }}
         badges={<>

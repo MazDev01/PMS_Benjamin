@@ -1361,13 +1361,15 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
    จอแคบกว่า 1024 เต็มจอเหมือนเดิม · ข้อทดสอบ tests/scenario/row-panel-width.spec.ts ── */
 .row-panel { position: fixed; top: 12px; bottom: 12px; left: 0; right: 0; margin: 0 auto; width: 640px; max-width: calc(100vw - 24px);
   background: #F8FAFC; box-shadow: 0 24px 70px rgba(0,0,0,.24); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+/* ข้อยกเว้นของกฎ 640 (บอสสั่ง 13 พ.ย. 69): แผงดีลเลอร์ HQ กว้าง 820 เท่าหน้าต่างใบเสนอราคา — เลือกที่ตัวกลาง RowPanel กว้าง="กว้าง" · หน้าอื่นคง 640 */
+.row-panel[data-row-panel-width="กว้าง"] { width: 820px; }
 /* เปิดกลางจอ = ค่อย ๆ ขึ้น (ไม่เลื่อนจากขวาแบบแผงข้างเดิม · .side-drawer ยังติดไว้ให้กฎ :has ของการ์ดทำงาน) */
 @keyframes row-panel-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
 .side-drawer.row-panel { animation: row-panel-in .2s cubic-bezier(.4,0,.2,1); }
 @media (prefers-reduced-motion: reduce) { .side-drawer.row-panel { animation: none; } }
 .row-panel-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 @media (max-width: 1023.98px) {
-  .row-panel { top: 0; right: 0; bottom: 0; left: 0; margin: 0; width: 100%; max-width: none; border-radius: 0; }
+  .row-panel, .row-panel[data-row-panel-width="กว้าง"] { top: 0; right: 0; bottom: 0; left: 0; margin: 0; width: 100%; max-width: none; border-radius: 0; }
 }
 /* ชิ้นกลางเดิม (DetailPanel) เมื่ออยู่ในแผงจากแถว: แถวข้อมูล = หัวข้อซ้าย 140px ค่าชิดติดกัน
    การ์ดสรุป = กริด 6 ช่อง การ์ดกินช่องตาม data-span → เต็มแถวทุกแถวตามจำนวนใบ (บอสสั่ง 10 พ.ย. 69 · ช่วงการ์ดเต็มแถว) */
