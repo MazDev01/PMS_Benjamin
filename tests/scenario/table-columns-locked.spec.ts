@@ -103,9 +103,10 @@ test("[ui·hq] ข้อความในตารางที่ถูกต�
   await settle(page);
   const แถว = page.locator("tbody tr[aria-label^='เปิดแผงดีลเลอร์']");
   await expect(แถว.first()).toBeVisible({ timeout: 20_000 });
-  // บังคับให้ชื่อยาวกว่าช่อง (ชื่อดีลเลอร์ในคอลัมน์ 12%) แล้วชี้ → title = ข้อความเต็ม
-  const ช่อง = แถว.first().locator("td[data-col='name']");
-  await ช่อง.evaluate(td => { td.removeAttribute("title"); const s = td.querySelector("span") as HTMLElement; s.textContent = "ZZTEST ชื่อยาวมาก ".repeat(6).trim(); });
+  // บังคับให้ข้อความยาวกว่าช่อง (จังหวัด คอลัมน์ 13%) แล้วชี้ → title = ข้อความเต็ม
+  //   13 พ.ย. 69: เดิมใช้ช่องชื่อดีลเลอร์ — บอสสั่งชื่อดีลเลอร์แสดงเต็มไม่ตัด (ขึ้นบรรทัดใหม่) จึงย้ายมาช่องที่ยังตัดด้วย …
+  const ช่อง = แถว.first().locator("td[data-col='province']");
+  await ช่อง.evaluate(td => { td.removeAttribute("title"); td.textContent = "ZZTEST ชื่อยาวมาก ".repeat(6).trim(); });
   expect(await ช่อง.evaluate(td => td.scrollWidth > td.clientWidth + 1), "ชื่อยาวถูกตัด").toBe(true);
   await ช่อง.hover();
   await expect(ช่อง, "ชี้แล้วเห็นข้อความเต็ม").toHaveAttribute("title", "ZZTEST ชื่อยาวมาก ".repeat(6).trim());

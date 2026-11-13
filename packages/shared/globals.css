@@ -879,6 +879,8 @@ body {
 .table-compact th, .table-compact td { padding-left: 0.5rem; padding-right: 0.5rem; }
 .table-compact th:first-child, .table-compact td:first-child { padding-left: 0.9rem; }
 .table-compact th:last-child, .table-compact td:last-child { padding-right: 0.9rem; }
+/* แถวชิด — ลดระยะบน/ล่างของช่อง (ปกติ 0.72rem) · ตารางดีลเลอร์ HQ (บอสสั่ง 13 พ.ย. 69) · ใช้กับตารางอื่นได้ด้วย className="rows-tight" */
+.table-wrap table.rows-tight td { padding-top: 0.4rem; padding-bottom: 0.4rem; }
 .table-wrap tbody tr.clickable { cursor: pointer; }
 
 /* ── Table row entrance animation (opt-in via .anim-rows; runs when .in-view) ── */

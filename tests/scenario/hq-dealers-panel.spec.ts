@@ -8,7 +8,7 @@ import { รันSQLในฐาน } from "./localDb";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
 // ── หน้า HQ ดีลเลอร์ (/hq/dealers) ตารางตามแบบ + แผงด้านขวา (บอสสั่ง/ตัดสิน 30 ต.ค. 69 · FLOW H11 "งานดูแล ไม่มีตัวเลขยอดขาย") ──
-// ตาราง: ลำดับ · รหัส · ดีลเลอร์ · จังหวัด · ภูมิภาค · แพ็กเกจ · สถานะ · ปุ่ม — ไม่มี ยอด/เป้า · โอกาสขาย · ตรงเวลา · ไม่มีปุ่มลบ
+// ตาราง: รหัส · ดีลเลอร์ · (13 พ.ย. 69 บอสสั่งเอาคอลัมน์ลำดับออก · ชื่อเต็มไม่ตัด · tests/scenario/hq-dealers-table-fit.spec.ts) · จังหวัด · ภูมิภาค · แพ็กเกจ · สถานะ · ปุ่ม — ไม่มี ยอด/เป้า · โอกาสขาย · ตรงเวลา · ไม่มีปุ่มลบ
 // แผง: กดแถว = เปิดแผง (หน้าไม่เปลี่ยน) · /hq/dealers/[รหัส] = รายการ + แผงนั้น · ปิดแผงแล้วตัวกรอง/ตำแหน่งเลื่อนอยู่ที่เดิม
 //   ภาพรวม: ตัวเลขงานดูแล (= ฐาน hq_dealer_panel · ใบ 0266) กดแล้วไปแท็บ · ข้อมูลบริษัทไม่ครบ = เตือน · ไม่มี ฿ ในแผง
 // ข้อมูลของข้อ: สาขาของข้อ (ลีดเปิด 2 · ปิดสำเร็จ 1 · คำขอรอ HQ 1 · ใบรอลูกค้าตอบ 1 · ร่าง 1 · ลูกค้า 1 · ข้อมูลบริษัทขาดเลขผู้เสียภาษี)
@@ -86,7 +86,7 @@ test("[H11·hq] ดีลเลอร์: ตารางตามแบบ ไ�
   const ตาราง = page.locator(".table-wrap table").first();
   const แถว = ตาราง.locator("tbody tr").filter({ hasText: ก!.รหัส });
   await expect(แถว).toHaveCount(1, { timeout: 20_000 });
-  expect((await ตาราง.locator("thead th").allInnerTexts()).map(t => t.trim())).toEqual(["ลำดับ", "รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""]);
+  expect((await ตาราง.locator("thead th").allInnerTexts()).map(t => t.trim())).toEqual(["รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""]);   // ไม่มีลำดับ (บอสสั่ง 13 พ.ย. 69)
   // กันหลุดกลับมา: ไม่มีตัวเลขยอดขาย/เป้า/โอกาสขาย/ตรงเวลา ทั้งหน้า
   await expect(page.locator(".erp"), "หน้าดีลเลอร์ไม่มีตัวเลขยอดขาย/เป้า").not.toContainText(/฿|ยอดขาย|ยอด\s*\/\s*เป้า|เป้ายอด|โอกาสขาย|ตรงเวลา|ผลงานดีลเลอร์/);
   // มุมมองแบบการ์ดก็ต้องไม่มี ฿ ยอดขาย/เป้า (บอสสั่ง 30 ต.ค. 69 · ข้อนี้ครอบทั้งตารางและการ์ด)
@@ -98,10 +98,12 @@ test("[H11·hq] ดีลเลอร์: ตารางตามแบบ ไ�
   await ค้นรายการ(page, ก!.รหัส);
   await expect(page.locator("button[title*='ลบ'], button[aria-label*='ลบ']"), "ไม่มีปุ่มลบดีลเลอร์").toHaveCount(0);
   // ชื่อดีลเลอร์ · ป้ายภูมิภาค · แพ็กเกจ · สถานะ ไม่ถูกตัดที่จอกว้าง · ภูมิภาคใช้ชื่อกลาง
-  // ชื่อดีลเลอร์ตัดด้วย … ได้ (ล็อกความกว้างคอลัมน์ % · บอสสั่ง 10 พ.ย. 69) — ชี้แล้วเห็นเต็ม (title ด้านล่าง) · ป้ายภูมิภาค/สถานะห้ามตัด
+  // ชื่อดีลเลอร์ห้ามตัด (ตรวจกลับด้าน · บอสสั่ง 13 พ.ย. 69 ทับ 10 พ.ย. "ตัดด้วย … ได้ ชี้แล้วเห็นเต็ม") — ชื่อยาวขึ้นบรรทัดใหม่ ไม่มี …
   const ตัด = await แถว.evaluate(tr => Array.from(tr.querySelectorAll<HTMLElement>("td[data-col='region'] .badge, td[data-col='status'] .badge"))
     .filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > (e.closest("td")!.getBoundingClientRect().right + 1)).map(e => e.textContent));
   expect(ตัด, "จอ 1440: ป้ายภูมิภาค/สถานะ ไม่ถูกตัด").toEqual([]);
+  expect(await แถว.locator("td[data-col='name']").evaluate(td => td.scrollWidth - td.clientWidth), "จอ 1440: ชื่อดีลเลอร์ไม่ถูกตัด (scrollWidth ≤ clientWidth)").toBeLessThanOrEqual(0);
+  await expect(แถว.locator("td[data-col='name']"), "ชื่อดีลเลอร์เต็ม").toHaveText("ZZTEST ดีลเลอร์แผงขวา");
   await expect(แถว.locator("td[data-col='region']")).toHaveText("ภาคตะวันออก");
   await expect(แถว.locator("td[data-col='name']"), "ชี้ที่ชื่อแล้วเห็นเต็ม").toHaveAttribute("title", "ZZTEST ดีลเลอร์แผงขวา");
   // ปุ่มปิดใช้งาน (ตาปิด) ต้องยืนยันก่อน แล้วลงฐานจริง · กดอีกครั้ง (ตาเปิด) = เปิดใช้งาน
