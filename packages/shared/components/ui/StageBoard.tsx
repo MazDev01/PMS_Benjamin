@@ -184,17 +184,32 @@ function useเลื่อนตามตอนลาก(กล่อง: React
       if (รอบ === null) รอบ = requestAnimationFrame(ก้าว);
     };
     const หยุด = () => { จุด = null; if (รอบ !== null) cancelAnimationFrame(รอบ); รอบ = null; };
-    document.addEventListener("dragover", ขยับ, true);
-    document.addEventListener("drag", ขยับ, true);
+    // ยกเลิกด้วย Esc / ปล่อยเมาส์ = หยุดทันที (13 พ.ย. 69 · ข้อไม่นิ่ง board-autoscroll): บางเบราว์เซอร์ไม่ส่ง dragend ตอนยกเลิก
+    //   เดิมจึงเลื่อนต่อจนหมดเวลาค้าง 250 ms (วัดได้ 347 px) · หลังยกเลิก ไม่รับเหตุการณ์ลากที่ค้างมาจนกว่าจะเริ่มลากใหม่
+    let ยกเลิกแล้ว = false;
+    const ยกเลิก = () => { ยกเลิกแล้ว = true; หยุด(); };
+    const กดปุ่ม = (e: KeyboardEvent) => { if (e.key === "Escape") ยกเลิก(); };
+    const เริ่มใหม่ = () => { ยกเลิกแล้ว = false; };
+    const ขยับต่อ = (e: DragEvent) => { if (!ยกเลิกแล้ว) ขยับ(e); };
+    document.addEventListener("dragstart", เริ่มใหม่, true);
+    document.addEventListener("dragover", ขยับต่อ, true);
+    document.addEventListener("drag", ขยับต่อ, true);
     document.addEventListener("drop", หยุด, true);
     document.addEventListener("dragend", หยุด, true);
+    document.addEventListener("keydown", กดปุ่ม, true);
+    document.addEventListener("mouseup", ยกเลิก, true);
+    document.addEventListener("pointerup", ยกเลิก, true);
     window.addEventListener("blur", หยุด);
     return () => {
       หยุด();
-      document.removeEventListener("dragover", ขยับ, true);
-      document.removeEventListener("drag", ขยับ, true);
+      document.removeEventListener("dragstart", เริ่มใหม่, true);
+      document.removeEventListener("dragover", ขยับต่อ, true);
+      document.removeEventListener("drag", ขยับต่อ, true);
       document.removeEventListener("drop", หยุด, true);
       document.removeEventListener("dragend", หยุด, true);
+      document.removeEventListener("keydown", กดปุ่ม, true);
+      document.removeEventListener("mouseup", ยกเลิก, true);
+      document.removeEventListener("pointerup", ยกเลิก, true);
       window.removeEventListener("blur", หยุด);
     };
   }, [ลาก, กล่อง]);

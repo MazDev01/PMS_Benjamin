@@ -51,11 +51,23 @@ async function ตรวจบอร์ด(page: Page, ป้ายบอร์�
   for (let i = 0; i < 40; i++) await page.mouse.move(450 + (i % 3), 560 - 6, { steps: 5 });
   await expect.poll(() => ตำแหน่งแนวตั้ง(page), { timeout: 5_000, message: `${ป้ายบอร์ด}: ลากค้างใกล้ขอบล่าง = หน้าเลื่อนลง` }).toBeGreaterThan(ก่อนลง + 20);
   // ยกเลิกการลาก (Esc) แล้วปล่อย = หยุดเลื่อน
+  //   จำลองกรณีที่ทำให้ไม่นิ่ง (trace deploy21 13 พ.ย. 69): เบราว์เซอร์ไม่ส่ง dragend/drop ตอนยกเลิก — ดักไว้ก่อนถึงบอร์ด (ระดับ window ก่อน document)
+  //   ให้ผลแน่นอนทุกรอบ แทนที่จะขึ้นกับว่ารอบนั้นเบราว์เซอร์ส่งมาหรือไม่
+  await page.evaluate(() => { for (const t of ["dragend", "drop"]) window.addEventListener(t, e => e.stopImmediatePropagation(), { capture: true }); });
   await page.keyboard.press("Escape");
   await page.mouse.up();
-  const หลังซ้าย = await บอร์ด.evaluate(e => e.scrollLeft), หลังลง = await ตำแหน่งแนวตั้ง(page);
-  await page.waitForTimeout(800);   // วัดว่าหยุดจริง (ไม่ใช่รอให้ผ่าน)
-  expect([await บอร์ด.evaluate(e => e.scrollLeft), await ตำแหน่งแนวตั้ง(page)], `${ป้ายบอร์ด}: ปล่อย/ยกเลิกแล้วหยุดเลื่อน`).toEqual([หลังซ้าย, หลังลง]);
+  // วัดตำแหน่งทุกเฟรม 10 เฟรมติดกันทันทีหลังปล่อย — ต้องไม่ขยับเลย (13 พ.ย. 69 · เดิมรอ 800 ms แล้วเทียบ = ผลขึ้นกับจังหวะวัด
+  //   ไม่นิ่ง 2 ครั้ง: ตัวเลื่อนวิ่งต่อจนหมดเวลาค้าง 250 ms เพราะไม่ได้ dragend · ตอนนี้ตัวเลื่อนหยุดทันทีเมื่อ Esc/ปล่อยเมาส์)
+  //   ตกบนโค้ดเดิม: เฟรมถัดไปเลื่อนต่อทีละ ~22 px
+  const ทุกเฟรม = await บอร์ด.evaluate(async (e) => {
+    const ตัว = [...document.querySelectorAll<HTMLElement>("*")].filter(x => /(auto|scroll)/.test(getComputedStyle(x).overflowY) && x.scrollHeight > x.clientHeight + 20 && x.clientHeight > window.innerHeight / 2)
+      .sort((a, b) => b.clientHeight * b.clientWidth - a.clientHeight * a.clientWidth)[0];
+    const อ่าน = () => `${e.scrollLeft},${Math.max(window.scrollY, ตัว?.scrollTop ?? 0)}`;
+    const ได้: string[] = [อ่าน()];
+    for (let i = 0; i < 10; i++) { await new Promise(r => requestAnimationFrame(() => r(null))); ได้.push(อ่าน()); }
+    return ได้;
+  });
+  expect(new Set(ทุกเฟรม).size, `${ป้ายบอร์ด}: ปล่อย/ยกเลิกแล้วหยุดเลื่อนทันที (ตำแหน่ง 11 เฟรม: ${ทุกเฟรม.join(" · ")})`).toBe(1);
 }
 
 test("[ui·hq] บอร์ดผู้สนใจ: ลากใกล้ขอบ = บอร์ด/หน้าเลื่อนตาม · ปล่อยแล้วหยุด", async ({ page }) => {
