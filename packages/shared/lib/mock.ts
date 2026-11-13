@@ -423,14 +423,21 @@ export function isDealerSalesAudit(action: string): boolean {
 }
 
 /** ชื่อหมวดที่แสดงในหน้าบันทึกการใช้งาน — ครอบคลุมทุกค่าที่ hqAuditModule คืนได้ */
+//   12 พ.ย. 69 (บอสอนุมัติ 11 พ.ย. 69 · คำบนจอ): คอลัมน์ "โมดูล" → "เมนู" และค่าในคอลัมน์ = ชื่อเมนูซ้าย (+ แท็บของหน้าตั้งค่า)
+//   คีย์หมวดคงเดิม (คิดจากชื่อการกระทำตอนแสดง ไม่ได้เก็บในฐาน) · เข้า–ออกระบบไม่ใช่เมนู คงชื่อเดิม
 export const HQ_AUDIT_MODULE_LABEL: Record<string, string> = {
   auth: "เข้า–ออกระบบ",
   dealer: "ดีลเลอร์",
-  pricing: "ราคากลาง",
+  pricing: "ตั้งค่า › รายการวัสดุ",
   catalog: "แม่แบบ (เลิกใช้แล้ว · ประวัติเก่า)",   // เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 — เหลือไว้ให้ประวัติเก่าอ่านออก
-  users: "ผู้ใช้งาน",
-  target: "เป้าหมายและการตั้งค่า",
+  users: "ตั้งค่า › ผู้ใช้งาน",
+  target: "ตั้งค่า",
 };
+
+/** ชื่อการกระทำสำหรับแสดงในหน้าบันทึกการใช้งาน (ตาราง · ไฟล์ส่งออก · ค้นหา) — ชื่อในฐานคงเดิม แปลงตอนแสดงเท่านั้น
+ *  บอสตัดสิน 11 พ.ย. 69: "รีเซ็ตรหัสผ่านดีลเลอร์" (ชื่อการกระทำที่บันทึกไว้) แสดงเป็น "ตั้งรหัสผ่านใหม่ให้ดีลเลอร์" */
+const ชื่อการกระทำแสดง: Record<string, string> = { "รีเซ็ตรหัสผ่านดีลเลอร์": "ตั้งรหัสผ่านใหม่ให้ดีลเลอร์" };
+export const hqAuditActionLabel = (action: string): string => ชื่อการกระทำแสดง[action] ?? action;
 
 // ─── รูปแบบเลขที่ใบเสนอราคา (แหล่งเดียว = HQ) — ดีลเลอร์ใช้ตาม ห้ามแก้ ──────────────
 // ตั้งที่ /hq/settings → แท็บ "ระบบ" (hq_system.runningPrefix / runningNext)
@@ -697,7 +704,7 @@ export const APPOINTMENT_TASK_KEY = "appointment";
 export const SYSTEM_LEAD_TASKS: (LeadTaskDef & { auto: true; เมื่อ: string })[] = [
   // ใบ 0263 (บอสสั่ง 30 ต.ค. 69): ฐานติ๊กเองเมื่อข้อมูลหมวดนั้นครบ · ไม่ครบ = ติ๊กหาย (_lead_customer_info_complete / _lead_job_info_complete)
   { key: "collect",            label: "เก็บข้อมูลลูกค้า",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลลูกค้าครบ (ชื่อบริษัท · ผู้ติดต่อ · โทรศัพท์)" },
-  { key: "requirement",        label: "สรุปความต้องการ",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลงานครบ (จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ · สเปก)" },
+  { key: "requirement",        label: "สรุปความต้องการ",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลงานครบ (จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ · รายละเอียดงาน)" },
   { key: APPOINTMENT_TASK_KEY, label: "นัดหมาย",         step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อบันทึกนัดหมาย" },
   { key: "requestQuote",       label: "ส่งคำขอราคา",   /* ชื่องานตาม FLOW (ตรงรายการงานของฐาน _lead_system_tasks + งานที่บันทึกในลูกค้าเป้าหมายแล้ว) — เปลี่ยนพร้อมฐานเป็นงานแยก */      step: 2, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งคำขอใบเสนอราคาให้ HQ" },
   { key: "hqQuote",            label: "ได้ใบ HQ",         step: 3, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อ HQ ส่งใบ" },
@@ -1265,7 +1272,7 @@ export type AppointmentMock = {
 export const appointments: AppointmentMock[] = [
   { id: 11, leadId: 3, company: "หจก. ราชบุรีโลหะ", contact: "คุณประยุทธ ร.", phone: "083-456-7890", project: "โกดังสำเร็จรูป ราชบุรี", buildingType: "โกดังสำเร็จรูป", area: 480, province: "ราชบุรี", date: "2026-06-30", time: "14:00", type: "visit", assigned: "วิภา รัตนกุล", status: "upcoming", note: "นัดพบเก็บความต้องการเพิ่มเติม" },
   { id: 1, leadId: 1, company: "บจ. ไทยสตีล", contact: "คุณสมชาย ใจดี", phone: "081-234-5678", project: "โกดังสำเร็จรูป บจ. ไทยสตีล", buildingType: "อาคารสำเร็จรูปทุกประเภท", area: 1200, province: "นนทบุรี", date: "2026-06-24", time: "09:00", type: "visit", assigned: "สมชาย", status: "upcoming", note: "นัดพบลูกค้าคุยความต้องการโกดังสินค้า" },
-  { id: 2, leadId: 2, company: "บจ. ซีซีเอส", contact: "คุณกาญจนา ม.", phone: "082-345-6789", project: "โรงงานสำเร็จรูป บจ. ซีซีเอส", buildingType: "อาคารสำเร็จรูปทุกประเภท", area: 800, province: "เชียงใหม่", date: "2026-06-24", time: "13:30", type: "design_meet", assigned: "วิภา", status: "upcoming", note: "นำเสนอแบบและสเปกสินค้า" },
+  { id: 2, leadId: 2, company: "บจ. ซีซีเอส", contact: "คุณกาญจนา ม.", phone: "082-345-6789", project: "โรงงานสำเร็จรูป บจ. ซีซีเอส", buildingType: "อาคารสำเร็จรูปทุกประเภท", area: 800, province: "เชียงใหม่", date: "2026-06-24", time: "13:30", type: "design_meet", assigned: "วิภา", status: "upcoming", note: "นำเสนอแบบและรายละเอียดสินค้า" },
   { id: 3, leadId: 1, company: "บจ. ไทยสตีล", contact: "คุณสมชาย ใจดี", phone: "081-234-5678", project: "โกดังสำเร็จรูป บจ. ไทยสตีล", buildingType: "อาคารสำเร็จรูปทุกประเภท", area: 1200, province: "นนทบุรี", date: "2026-06-26", time: "09:00", type: "contract_sign", assigned: "สมชาย", status: "upcoming", note: "เซ็นสัญญาซื้อขาย" },
   { id: 4, leadId: 2, company: "บจ. ซีซีเอส", contact: "คุณกาญจนา ม.", phone: "082-345-6789", project: "โรงงานสำเร็จรูป บจ. ซีซีเอส", buildingType: "อาคารสำเร็จรูปทุกประเภท", area: 800, province: "เชียงใหม่", date: "2026-06-30", time: "13:00", type: "follow_up", assigned: "สมชาย", status: "upcoming", note: "ติดตามใบเสนอราคา" },
   { id: 5, leadId: 4, company: "บจ. สมุทรโกดัง", contact: "คุณดารัล ส.", phone: "084-567-8901", project: "โกดังปากน้ำ พระปราชญ์", buildingType: "อาคารสำเร็จรูปทุกประเภท", area: 2000, province: "สมุทรปราการ", date: "2026-07-03", time: "08:00", type: "visit", assigned: "วิชัย", status: "upcoming", note: "นัดพบลูกค้าเก็บความต้องการ" },

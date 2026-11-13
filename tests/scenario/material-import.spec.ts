@@ -93,7 +93,7 @@ test("[flow·hq] รายการวัสดุ: เพิ่มหลาย�
 
   // ── ยกเลิกทั้งชุด = ลบที่เพิ่ม + คืนราคาเดิม ──
   const ชุด = กล่อง.locator("[data-material-batch]").filter({ hasText: `ZZTEST-ราคาวัสดุ-${แท็ก}.xlsx` });
-  await expect(ชุด).toContainText("เพิ่ม 2 · อัปเดตราคา 2", { timeout: 20_000 });
+  await expect(ชุด).toContainText("เพิ่ม 2 · ปรับราคา 2", { timeout: 20_000 });
   await ชุด.locator("[data-cancel-batch]").click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(แถวในฐาน, { timeout: 20_000, message: "ยกเลิกทั้งชุด: กลับเป็นก่อนนำเข้า" })

@@ -61,7 +61,7 @@ const TABS: { key: SettingTab; label: string; icon: React.ReactNode }[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANY PROFILE TAB
 // ─────────────────────────────────────────────────────────────────────────────
-const COMPANY_KEY   = "dealer_issuer_profile_v2"; // v2 = รีเซ็ตข้อมูลเดโมเดิม
+const COMPANY_KEY   = "dealer_issuer_profile_v2"; // v2 = คืนค่าเดิมข้อมูลเดโมเดิม
 const LOGO_KEY      = "dealer_company_logo_v2";      // โลโก้สัญลักษณ์ (ไอคอน) → แถบเมนู
 type CompanyProfile = { company: string; address: string; phone: string; email: string; website: string; taxId: string };
 // ⛔ ต้องว่างเสมอ ห้ามใส่ข้อมูลบริษัทของสาขาใดสาขาหนึ่ง — เหตุผลเดียวกับ DEFAULT_ISSUER ใน mock.ts
@@ -111,7 +111,7 @@ function CompanyTab() {
     const cleanProf: UserProfile = { name: prof.name.trim() || session.name, email: prof.email.trim() || defaultProfileEmail(session.dealerCode), phone: prof.phone.trim(), avatar: prof.avatar };
     // รอให้เขียนเสร็จจริงทั้งคู่ — ไม่ยิงทิ้งแบบเดิม (ผู้ใช้กดเมนูอื่นต่อแล้วคำขอถูกยกเลิกกลางทาง)
     const งานโปรไฟล์ = userProfile.save(cleanProf)
-      .catch(() => แจ้งพลาด("บันทึกโปรไฟล์ไม่สำเร็จ — รูปอาจมีขนาดใหญ่เกินไป"));
+      .catch(() => แจ้งพลาด("บันทึกข้อมูลไม่สำเร็จ — รูปอาจมีขนาดใหญ่เกินไป"));
     // ข้อมูลบริษัท/โลโก้ = ของสาขา เขียนผ่าน repo · ล้มเหลวต้องบอก ไม่ใช่เงียบแล้วจอขึ้นว่าบันทึกแล้ว
     const งานบริษัท = dealerCfg.save({ issuer: form, logo })
       .catch(e => แจ้งพลาด("บันทึกข้อมูลบริษัทไม่สำเร็จ: " + friendlyError(e)));
@@ -128,7 +128,7 @@ function CompanyTab() {
     try {
       const url = await fileToResizedDataURL(file, 256);
       setProf(p => ({ ...p, avatar: url }));
-    } catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นรูปโปรไฟล์ไม่ได้"); }
+    } catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นรูปประจำตัวไม่ได้"); }
   }
   const dirty = baseline !== "" && JSON.stringify({ form, logo, prof }) !== baseline;
   const reset = useCallback(() => {
@@ -165,7 +165,7 @@ function CompanyTab() {
               style={{ position: "absolute", bottom: -1, right: -1, width: 28, height: 28, borderRadius: "50%", background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 2px 6px rgba(0,0,0,.15)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#003366" }}>
               <Camera size={14} />
             </button>
-            <input ref={avatarRef} type="file" accept="image/*" aria-label="อัปโหลดรูปโปรไฟล์" onChange={uploadAvatar} style={{ display: "none" }} />
+            <input ref={avatarRef} type="file" accept="image/*" aria-label="แนบรูปประจำตัว" onChange={uploadAvatar} style={{ display: "none" }} />
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -301,7 +301,7 @@ function ImageUploadBox({
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <button className="btn btn-secondary btn-sm" onClick={() => ref.current?.click()}>
-            <Upload size={13} /> อัปโหลด
+            <Upload size={13} /> แนบรูป
           </button>
           {value && (
             <button className="btn btn-ghost btn-sm" onClick={() => onChange("")}>ลบ</button>
@@ -309,7 +309,7 @@ function ImageUploadBox({
           <span style={{ fontSize: "0.65rem", color: "#9ca3af" }}>PNG, JPG · โปร่งใสได้</span>
         </div>
       </div>
-      <input ref={ref} type="file" accept="image/*" aria-label="อัปโหลดรูป" style={{ display: "none" }} onChange={upload} />
+      <input ref={ref} type="file" accept="image/*" aria-label="แนบรูป" style={{ display: "none" }} onChange={upload} />
     </div>
   );
 }
@@ -472,13 +472,13 @@ function DocumentsTab() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20 }}>
             <ImageUploadBox
               label="ตราประทับบริษัท"
-              hint="อัปโหลดตราประทับ"
+              hint="แนบรูปตราประทับ"
               value={doc.stamp}
               onChange={v => set("stamp", v)}
             />
             <ImageUploadBox
               label="ลายเซ็นดิจิทัล"
-              hint="อัปโหลดลายเซ็น"
+              hint="แนบรูปลายเซ็น"
               value={doc.signature}
               onChange={v => set("signature", v)}
             />
@@ -620,7 +620,7 @@ function PersonsTab() {
                       วงกลมทึบตัวอักษรแรกของชื่อ (ยังไม่พิมพ์ชื่อ = ไอคอนเพิ่มรูป) ไม่ใช่วงเส้นประ — เส้นประวงกลมเรนเดอร์เป็นจุด ๆ
                       ที่สั่นไหวตามระดับซูม/สเกลจอ ดูเหมือนภาพกระพริบ */}
                   <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-                    <label title="เพิ่ม/เปลี่ยนรูปโปรไฟล์" style={{ cursor: "pointer", position: "relative", display: "inline-block" }}>
+                    <label title="เพิ่ม/เปลี่ยนรูปประจำตัว" style={{ cursor: "pointer", position: "relative", display: "inline-block" }}>
                       <input type="file" accept="image/*" style={{ display: "none" }}
                         onChange={e => { readAvatar(e.target.files?.[0], url => setAvatar(url)); e.target.value = ""; }} />
                       {avatar
@@ -914,7 +914,7 @@ export default function SettingsPage() {
         {/* หัวหน้า/ปุ่มบันทึก → ไปอยู่บนแถบบน (ชื่อหน้ามาจาก Topbar) */}
         <TopbarActions>
           {dirty && <span style={{ fontSize: "0.72rem", color: "#d97706", fontWeight: 600 }}>ยังไม่บันทึก</span>}
-          <button className="btn btn-secondary btn-sm" onClick={resetAll} disabled={!dirty} style={!dirty ? { opacity: .5, cursor: "not-allowed" } : undefined}><RotateCcw size={14} /> รีเซ็ต</button>
+          <button className="btn btn-secondary btn-sm" onClick={resetAll} disabled={!dirty} style={!dirty ? { opacity: .5, cursor: "not-allowed" } : undefined}><RotateCcw size={14} /> คืนค่าเดิม</button>
           <button className="btn btn-primary btn-sm" onClick={() => void saveAll()} disabled={!dirty || กำลังบันทึก}
             style={!dirty || กำลังบันทึก ? { opacity: .5, cursor: กำลังบันทึก ? "wait" : "not-allowed" } : undefined}>
             <Save size={14} /> {กำลังบันทึก ? "กำลังบันทึก…" : "บันทึก"}</button>

@@ -41,7 +41,7 @@ test("[ux·dealer] ส่งคำขอราคาในแผง → แถ�
   await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท());
   await expect(แถว(page).locator("[data-stage-label]"), "เริ่มที่ขั้นข้อมูลลูกค้า").toHaveAttribute("data-stage-no", "1", { timeout: 25_000 });
   await expect(ค่าการ์ด(page, "hq-pricing"), "การ์ดขอราคา HQ เริ่มที่ 0").toHaveAttribute("data-value", "0", { timeout: 20_000 });
@@ -60,7 +60,7 @@ test("[ux·dealer] ส่งคำขอราคาในแผง → แถ�
   await expect(ค่าการ์ด(page, "hq-pricing"), "การ์ดขอราคา HQ เปลี่ยนเอง").toHaveAttribute("data-value", "1", { timeout: 15_000 });
 
   // ยกเลิกคำขอ → กลับขั้นข้อมูลลูกค้า · การ์ดกลับ 0
-  await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();
+  await แผง.getByRole("button", { name: "ยกเลิกคำขอ", exact: true }).click();
   await page.locator("[data-reason-dialog]").getByRole("textbox").fill("ZZTEST ลูกค้าขอเลื่อน");
   await page.locator("[data-reason-dialog]").getByRole("button", { name: "ยืนยันยกเลิก" }).click();
   await expect(แถว(page).locator("[data-stage-label]"), "ยกเลิกแล้วแถวกลับขั้นข้อมูลลูกค้าเอง").toHaveAttribute("data-stage-no", "1", { timeout: 15_000 });
@@ -97,7 +97,7 @@ test("[ux·hq] ส่งใบ HQ ในหน้าคำขอ → ตัว�
   await ใบ.getByRole("button", { name: "ส่งใบ HQ ให้ดีลเลอร์" }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect(ใบ.getByText(/ส่งให้ดีลเลอร์แล้ว/), "ใบล็อกแล้ว").toBeVisible({ timeout: 20_000 });
-  await ใบ.getByRole("button", { name: "ปิด" }).click();
+  await ใบ.getByRole("button", { name: "ปิด", exact: true }).click();
   await expect(ใบ).toBeHidden();
   await page.getByLabel("ค้นหาคำขอ").fill("");
   await expect.poll(() => นับแท็บ("main"), { timeout: 15_000, message: "แท็บต้องตีราคา ลดเอง" }).toBe(ก่อน.main - 1);

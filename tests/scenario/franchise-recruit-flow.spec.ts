@@ -83,7 +83,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await ฟอร์ม.locator("#pp-months").fill("12");
   await ฟอร์ม.locator("#pp-target").fill("6000000");
   await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
-  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ", exact: true }).click();
   const v1 = await waitRow<{ id: number; proposal_no: string }>(sb, "dealer_package_proposals", { prospect_id: ราย.id, status: "draft" });
   await แผง.getByLabel(`สถานะใบ ${v1.proposal_no}`).selectOption("sent");
   await กดตกลงในกล่องยืนยัน(page);
@@ -99,7 +99,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await expect(ฟอร์ม.locator("#pp-amount"), "เวอร์ชันใหม่คัดลอกเนื้อหาเดิม").toHaveValue("300,000");
   await ฟอร์ม.locator("#pp-amount").fill("250000");
   await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
-  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ", exact: true }).click();
   const v2no = `${v1.proposal_no}-V2`;
   // รอจนยอดใหม่ลงฐาน (ร่างเกิดทันทีตอนกดทำเวอร์ชันใหม่ — รอแค่ "มีร่าง" แล้วกดส่งต่อ = ส่งระหว่างที่บันทึกยังไม่เสร็จ)
   const v2 = await waitRow<{ id: number; version: number; supersedes_id: number }>(sb, "dealer_package_proposals", { proposal_no: v2no, status: "draft", amount: 250000 });
@@ -127,7 +127,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   ฟอร์ม = แผง.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
   await ฟอร์ม.locator("#pp-amount").fill("200000");
   await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
-  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ", exact: true }).click();
   const v3no = `${v1.proposal_no}-V3`;
   const v3 = await waitRow<{ id: number }>(sb, "dealer_package_proposals", { proposal_no: v3no, status: "draft", amount: 200000 });
   await แผง.getByLabel(`สถานะใบ ${v3no}`).selectOption("sent");

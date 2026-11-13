@@ -36,7 +36,7 @@ test("[func] ฟอร์มลูกค้าเป้าหมาย: ไม�
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   // บันทึกได้ · ประเมินราคาว่าง · มูลค่า (ยอดใบล่าสุด) ยังไม่มีเพราะยังไม่มีใบ
   await expect.poll(async () => (await sb.from("leads").select("value, quote_value").eq("dealer_code", "RYG").eq("company", C2)).data,
@@ -52,7 +52,7 @@ test("[func] ดาว * ต้องกันการบันทึกจร�
   const dlg = page.getByRole("dialog");
   await dlg.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill("ZZREQ ทดสอบดาว");
   await dlg.getByPlaceholder("ชื่อผู้ติดต่อ").fill("ผู้ทดสอบ");
-  await dlg.getByRole("button", { name: "บันทึก" }).click();
+  await dlg.getByRole("button", { name: "บันทึก", exact: true }).click();
   await page.waitForTimeout(800);
   // ดาวหลอก = ป้ายกำกับบอกว่าบังคับ แต่ระบบไม่ตรวจจริง — เทสต์นี้กันไว้
   const err = await dlg.locator("text=/กรอกให้ครบก่อนบันทึก/").innerText().catch(() => "");

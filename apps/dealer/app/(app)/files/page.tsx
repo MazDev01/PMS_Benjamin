@@ -54,10 +54,10 @@ const ALL_CATS: FileCategory[] = ["ใบเสนอราคา","แบบแ
 
 // คอลัมน์ที่ซ่อน/แสดงได้ของตาราง (มุมมองรายการ) — คอลัมน์ "ไฟล์" กับปุ่มการทำงานคงไว้เสมอ
 const COLS = [
-  { key: "category", label: "โฟลเดอร์" },
+  { key: "category", label: "แฟ้ม" },
   { key: "project",  label: "โอกาสการขาย" },
   { key: "size",     label: "ขนาด" },
-  { key: "uploadedBy", label: "อัปโหลดโดย" },
+  { key: "uploadedBy", label: "ผู้แนบ" },
   { key: "uploadedAt", label: "วันที่" },
 ];
 
@@ -102,7 +102,7 @@ function guessExt(name: string): FileExt {
 const SOURCE_LABEL: Record<DealerFile["source"], string> = {
   customer: "แนบจากลูกค้า",
   lead:     "แนบจากลูกค้าเป้าหมาย",
-  upload:   "อัปโหลดเข้าคลัง",
+  upload:   "แนบไฟล์เข้าคลัง",
 };
 
 // ไฟล์ตัวอย่างจริงที่วางไว้ในเว็บ (apps/dealer/public/demo-files — สร้างด้วย scripts/gen-demo-files.mjs)
@@ -214,7 +214,7 @@ export default function FilesPage() {
   const reloadFiles = () => {
     const myReq = ++reloadReqRef.current;
     return filesRepo.list({ dealerCode: currentDealer.code, isHQ: false })
-      // ชื่อโฟลเดอร์เก่า ("แม่แบบ") ที่ค้างอยู่ในฐานข้อมูล → แปลงเป็นชื่อปัจจุบันตอนอ่าน
+      // ชื่อแฟ้มเก่า ("แม่แบบ") ที่ค้างอยู่ในฐานข้อมูล → แปลงเป็นชื่อปัจจุบันตอนอ่าน
       .then(r => { if (reloadReqRef.current === myReq) setFiles(r.map(f => ({ ...f, category: normalizeFileCategory(f.category) }))); })
       .catch(e => logRepoRead("files.list", e));
   };
@@ -337,7 +337,7 @@ export default function FilesPage() {
 
       {/* ชิปสรุป (ไฟล์ทั้งหมด/ขนาดรวม/PDF/Excel/Word/PowerPoint) เอาออกตามที่บอสสั่ง */}
 
-      {/* การ์ดชิป "โฟลเดอร์" ถูกเอาออก (บอสสั่ง 28 ส.ค. 69) — ย้ายไปเป็นช่อง "ทุกโฟลเดอร์"
+      {/* การ์ดชิป "แฟ้ม" ถูกเอาออก (บอสสั่ง 28 ส.ค. 69) — ย้ายไปเป็นช่อง "ทุกแฟ้ม"
           ในแถบเครื่องมือแถวเดียวกับตัวกรองอื่น จะได้เห็นตัวกรองทั้งหมดพร้อมกันโดยไม่กินพื้นที่หน้าจอ */}
 
       {/* Toolbar */}
@@ -349,9 +349,9 @@ export default function FilesPage() {
           {query && <button onClick={() => setQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: MUTED, display: "flex", padding: 0 }}><X size={11} /></button>}
         </div>
         {/* ตัวเลือก "ทุกประเภท" เอาออกตามที่บอสสั่ง */}
-        {/* โฟลเดอร์ + แถบแยก "ไฟล์นี้ของใคร" (ผู้อัปโหลด · ที่มา · โอกาสการขาย) — FilterSelect มาตรฐานเดียวกับหน้าอื่น */}
+        {/* แฟ้ม + แถบแยก "ไฟล์นี้ของใคร" (ผู้อัปโหลด · ที่มา · โอกาสการขาย) — FilterSelect มาตรฐานเดียวกับหน้าอื่น */}
         {/* ความกว้าง = พอดีข้อความในช่อง (minWidth 0) — ก่อนหน้านี้ตั้ง 130–150 ทำให้ช่องยาวเกินคำว่างเป็นแถบ */}
-        <FilterSelect caption="ทุกโฟลเดอร์" label="กรองตามโฟลเดอร์" value={catFilter} onChange={v => setCat(v as FileCategory | "ALL")}
+        <FilterSelect caption="ทุกแฟ้ม" label="กรองตามแฟ้ม" value={catFilter} onChange={v => setCat(v as FileCategory | "ALL")}
           options={ALL_CATS.filter(c => catCounts[c] > 0).map(c => ({ v: c, l: `${c} (${catCounts[c]})` }))} minWidth={0} />
         <FilterSelect caption="ทุกที่มา" label="กรองตามที่มาของไฟล์" value={sourceFilter} onChange={setSource}
           options={sourceOptions.map(sv => ({ v: sv, l: SOURCE_LABEL[sv] }))} minWidth={0} />
@@ -393,10 +393,10 @@ export default function FilesPage() {
               <thead>
                 <tr>
                   {หัวเรียง("name", "ไฟล์")}
-                  {showCol("category")   && หัวเรียง("category", "โฟลเดอร์")}
+                  {showCol("category")   && หัวเรียง("category", "แฟ้ม")}
                   {showCol("project")    && หัวเรียง("project", "โอกาสการขาย")}
                   {showCol("size")       && หัวเรียง("size", "ขนาด")}
-                  {showCol("uploadedBy") && หัวเรียง("uploadedBy", "อัปโหลดโดย")}
+                  {showCol("uploadedBy") && หัวเรียง("uploadedBy", "ผู้แนบ")}
                   {showCol("uploadedAt") && หัวเรียง("uploadedAt", "วันที่")}
                   <th></th>
                 </tr>

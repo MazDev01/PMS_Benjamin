@@ -34,7 +34,7 @@ test("[D2] [func] กรอกที่อยู่ตอนเพิ่มล�
   await ฟอร์ม.getByLabel("จังหวัด").selectOption({ index: 1 });
   // ช่องที่อยู่ที่เพิ่งเพิ่มเข้ามา — เดิมไม่มีเลย
   await ฟอร์ม.getByPlaceholder(/เลขที่ ถนน ตำบล/).fill(ADDRESS);
-  await ฟอร์ม.getByRole("button", { name: "บันทึก" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   const sb = await db(RYG);
   await expect.poll(async () => {

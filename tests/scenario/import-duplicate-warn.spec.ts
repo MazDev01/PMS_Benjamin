@@ -42,7 +42,7 @@ test("[func·dealer] นำเข้าไฟล์ที่มีชื่อ�
   const ป๊อปอัพ = page.getByRole("dialog", { name: "พบชื่อลูกค้าซ้ำ" });
   await expect(ป๊อปอัพ, "เจอชื่อซ้ำต้องถามก่อน ห้ามเพิ่มแถวใหม่เงียบ ๆ").toBeVisible({ timeout: 15_000 });
   await expect(ป๊อปอัพ.getByRole("button", { name: "แทนที่" })).toBeVisible();
-  await ป๊อปอัพ.getByRole("button", { name: "อัปเดตข้อมูล" }).click();
+  await ป๊อปอัพ.getByRole("button", { name: "แก้ไขข้อมูล" }).click();
 
   // อัปเดต = เติมเฉพาะช่องที่ว่าง · ของเดิมต้องอยู่ครบ · ต้องไม่มีแถวที่สอง
   await expect.poll(async () => {

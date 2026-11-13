@@ -28,7 +28,7 @@ const ปกติ = (s: string) => s.replace(/[·✓]/g, " ").replace(/\s+/g, "
 async function ขั้นในตารางและแผง(page: Page, company: string, ทั้งหมด = false) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   // ค่าเริ่มต้นของตัวกรองซ่อนลีดที่ปิดแล้ว (กำลังดำเนินการ · 28 ต.ค. 69) — ลีดปิดแล้วต้องเลือก "ทั้งหมด"
   if (ทั้งหมด) await page.getByRole("combobox", { name: "ขั้นตอน", exact: true }).selectOption({ label: "ทั้งหมด" });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
@@ -71,7 +71,7 @@ async function เพิ่มลีด(page: Page, company: string) {
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณขั้นตอน");
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   return waitRow<{ num_id: number }>(await db(RYG), "leads", { company });
 }
 

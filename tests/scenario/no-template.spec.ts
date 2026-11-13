@@ -1,7 +1,7 @@
 import { test, expect, request as pwRequest } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
-import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 import { adminClient } from "./testDealers";
 import { ล้างใบHQทดสอบ, วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
@@ -51,8 +51,10 @@ test("[ui·dealer] ฟอร์มลูกค้าเป้าหมายไ�
   await page.keyboard.press("Escape");
 
   // แผงแก้ไขของลูกค้าเป้าหมายเดิม
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
-  await page.locator("tbody tr").first().getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
+  // ลูกค้าเป้าหมายตั้งต้นด้วยชื่อ (12 พ.ย. 69 · บอสสั่ง) — เดิมแถวแรกของ RYG: ถ้าแถวนั้นถูกลบระหว่างเปิด แผงไม่เปิด แต่ข้อ "ไม่มีช่อง" ยังผ่าน (ผ่านหลอก)
+  await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/)).getByRole("button", { name: "ดูรายละเอียด" }).click();
+  await expect(page.getByRole("button", { name: "ภาพรวม", exact: true }).first(), "แผงลูกค้าเป้าหมายเปิดจริง").toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click().catch(() => {});
   await settle(page);
   await expect(page.getByLabel("แม่แบบ", { exact: true }), "แผงแก้ไขต้องไม่มีช่องแม่แบบ").toHaveCount(0);
@@ -123,7 +125,7 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
     await page.keyboard.press("Escape");
 
     // 2) นัดหมายใหม่จากแผงลูกค้าเป้าหมาย — ต้องไม่คัดลอกแม่แบบเก่าไปเก็บ
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ);
     const row = page.locator("tbody tr").filter({ hasText: ชื่อ }).first();
     await expect(row).toBeVisible({ timeout: 25_000 });
@@ -174,7 +176,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   const เปิดแผงใบ = async () => {
     await d.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(d);
-    await d.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await d.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await d.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท);
     const row = d.locator("tbody tr").filter({ hasText: บริษัท }).first();
     await expect(row).toBeVisible({ timeout: 25_000 });
@@ -190,7 +192,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   const แผง = d.locator("[data-panel='quote-request']");
   await expect(แผง.getByLabel("แม่แบบ", { exact: true }), "คำขอราคาต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
   await แผง.getByLabel("งานที่ขอราคา").fill("โกดังเก็บสินค้า 20x40 ม.");
-  await แผง.getByLabel("สเปก / รายละเอียด").fill("สูง 8 ม. · ประตูม้วน 2 บาน");
+  await แผง.getByLabel(/^รายละเอียดงาน/).fill("สูง 8 ม. · ประตูม้วน 2 บาน");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
   await expect.poll(ลีด, { timeout: 20_000 }).toBe("HQ_PRICING");
   expect((await คำขอ())?.product, "ชื่องานที่พิมพ์ต้องลงฐาน").toBe("โกดังเก็บสินค้า 20x40 ม.");

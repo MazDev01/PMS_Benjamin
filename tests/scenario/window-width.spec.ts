@@ -2,9 +2,9 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
 import { ช่องผู้สนใจครบ } from "./requiredFixtures";
-import { settle, เปิดใบHQในกล่องงาน } from "./helpers";
+import { settle, เปิดใบHQในกล่องงาน, ตั้งต้น } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
-import { ข้อมูลงานครบชุด, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
+import { ข้อมูลงานครบชุด, ล้างใบHQทดสอบ, วางใบเดิมที่ฐาน } from "./hqQuoteFixture";
 
 // ── หน้าต่างกลางจอ กว้างค่าเดียวจากตัวกลาง (บอสตอบ 10 พ.ย. 69 · lib/windowSize.ts = 820) ─────────────────────────────
 //   หน้าต่างเอกสาร = 820 พอดี: ใบเสนอราคา (ดีลเลอร์ · HQ) · ใบ HQ (ทำใบ · เดิมเต็มจอ 1240) · ใบค่าแฟรนไชส์ (เดิม 760) · งานในแผงลูกค้าดีลเลอร์ (เดิม 1040)
@@ -21,6 +21,7 @@ let เลขใบค่า = "";
 let ส: สาขาของข้อ;
 const เลขลีด = 1_960_000_000 + Math.floor(Math.random() * 400_000) * 10;
 const บริษัท = () => `ZZTEST หน้าต่าง ${ส.รหัส}`;
+const ลูกค้ามีงาน = () => `ZZTEST ลูกค้ามีงาน ${ส.รหัส}`;
 test.beforeAll(async () => {
   ส = await สร้างสาขาของข้อ({ จังหวัด: "ตราด", ภาค: "ตะวันออก" });
   const sd = await db(ส.บัญชี);
@@ -34,6 +35,16 @@ test.beforeAll(async () => {
     region: "อีสาน", province: "ขอนแก่น", proposed_date: new Date().toISOString().slice(0, 10), valid_until: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), terms: "ZZTEST เงื่อนไข", note: null }).select("proposal_no").single();
   expect(ins.error?.message ?? "").toBe("");
   เลขใบค่า = (ins.data as { proposal_no: string }).proposal_no;
+  // ลูกค้าที่มีงานปิดการขายของสาขาของข้อ (บอสสั่ง 12 พ.ย. 69 · ข้อไม่นิ่ง deploy20) — เดิมเปิด "ลูกค้ารายแรก" ของ RYG
+  //   ซึ่งใช้ร่วมกับข้ออื่น: ข้ออื่นสร้างลูกค้าใหม่ (ยังไม่มีงาน) ขึ้นเป็นรายแรก → หาการ์ดงานไม่เจอ · ตอนนี้เปิดลูกค้ารายนี้ด้วยชื่อ
+  const เลข = await sd.rpc("next_entity_id", { p_dealer: ส.รหัส, p_entity: "customers" });
+  const cid = Number(เลข.data);
+  expect(cid, `เลขลูกค้าของสาขาของข้อ ${เลข.error?.message ?? ""}`).toBeGreaterThan(0);
+  expect((await sd.from("customers").insert({ id: cid, dealer_code: ส.รหัส, company: ลูกค้ามีงาน(), name: ลูกค้ามีงาน(),
+    province: "ตราด", status: "active", total_value: 500_000 })).error, "ลูกค้าของข้อ").toBeNull();
+  // ใบปิดการขายแบบเดิม (ไม่มีใบ HQ) สร้างผ่านแอปไม่ได้แล้ว (ด่าน 3) — ข้อนี้วัดความกว้างหน้าต่างงาน จึงวางที่ฐานตรง ๆ
+  วางใบเดิมที่ฐาน([{ id: `ZZTEST-หน้าต่าง-${ส.รหัส}-Q1`, dealer_code: ส.รหัส, customer_id: cid, status: "won",
+    date: new Date().toISOString().slice(0, 10), total_value: 500_000, customer: ลูกค้ามีงาน() }]);
 });
 test.afterAll(async () => {
   const sb = await db(ADMIN); await sb.from("dealer_prospects").delete().eq("name", NS);
@@ -57,7 +68,9 @@ test("[ui·hq] หน้าต่างกลางจอ HQ: เอกสาร
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   // ใบเสนอราคาทั้งเครือ (QuotationDrawer)
   await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
-  await page.getByRole("table", { name: "รายการใบเสนอราคา" }).locator("tbody tr").first().getByRole("button").last().click();
+  // ใบของข้อมูลตั้งต้นด้วยเลขที่ตรงตัว (บอสสั่ง 12 พ.ย. 69) — เดิมกดแถวแรกของใบทั้งเครือ (ใบชั่วคราวของข้ออื่นถูกลบระหว่างเปิดได้)
+  await page.locator(".content").getByPlaceholder(/ค้นหาเลขที่/).first().fill(ตั้งต้น.ใบRYG);
+  await page.getByRole("table", { name: "รายการใบเสนอราคา" }).locator("tbody tr").filter({ hasText: ตั้งต้น.ใบRYG }).getByRole("button").last().click({ timeout: 25_000 });
   await วัด(page, page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" }), "ใบเสนอราคา HQ", true);
   await page.keyboard.press("Escape");
   // ใบ HQ ทำใบ (หน้าคำขอใบเสนอราคา · คำขอของข้อในแท็บต้องตีราคา)
@@ -99,14 +112,19 @@ test("[ui·dealer] หน้าต่างกลางจอดีลเลอ�
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/quotations`, { waitUntil: "domcontentloaded" }); await settle(page);
-  await page.locator(".content tbody tr").first().locator("td").first().click();
+  // ใบของข้อมูลตั้งต้นด้วยเลขที่ตรงตัว (บอสสั่ง 12 พ.ย. 69 · แบบ panel-head-close) — เดิมกดแถวแรกของ RYG
+  await page.getByPlaceholder(/ค้นหาเลขที่/).first().fill(ตั้งต้น.ใบRYG);
+  await page.getByRole("button", { name: `ดูใบ ${ตั้งต้น.ใบRYG}`, exact: true }).click({ timeout: 25_000 });
   await วัด(page, page.locator("[data-quote-view]").first(), "ใบเสนอราคา ดีลเลอร์", true);
   await page.keyboard.press("Escape");
   // งานในแผงลูกค้า: ลูกค้าที่มีงานปิดการขาย (การ์ดงาน) → หน้าต่างงาน · คอลัมน์เดียว แถบสรุปบน · ไม่เลื่อนแนวนอนที่ 1920 และ 1366 (บอสตอบ 10 พ.ย. 69)
+  //   เข้าระบบเป็นสาขาของข้อ แล้วเปิดลูกค้าของข้อด้วยชื่อ (ไม่หยิบแถวแรกของข้อมูลที่ใช้ร่วมกัน)
+  await page.context().clearCookies();
+  await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
   for (const w of [1920, 1366]) {
     await page.setViewportSize({ width: w, height: w === 1920 ? 1080 : 768 });
     await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" }); await settle(page);
-    await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+    await page.getByRole("row", { name: `เปิดรายละเอียดลูกค้า ${ลูกค้ามีงาน()}`, exact: true }).getByRole("button", { name: "ดูรายละเอียด" }).click();
     const แผง = page.locator("[data-row-panel]");
     await expect(แผง).toBeVisible({ timeout: 20_000 });
     const การ์ดงาน = แผง.locator("button[title]").filter({ hasText: /Q-|฿/ }).first();

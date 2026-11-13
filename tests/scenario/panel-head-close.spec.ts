@@ -6,7 +6,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
@@ -62,7 +62,7 @@ for (const [จอ, ขนาด] of [["จอกว้าง", { width: 1440, h
 
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(`หัวแผงยาว ${ส.รหัส}`);
     await page.locator("tbody tr").filter({ hasText: บริษัท() }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 25_000 });
     await ตรวจหัวแผง(page, `${จอ} แผงลีด (อีเมลยาวจริง)`);
@@ -96,16 +96,23 @@ test("[ui·hq] แผงลูกค้า · ดีลเลอร์ · ผู
   expect(ใบ.error, "สร้างใบค่าแฟรนไชส์ของข้อ").toBeNull();
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   // แถวรายการของแต่ละหน้า (ป้ายแถวบอกว่ากดแล้วเปิดแผง) — ไม่ใช่แถวตารางเจาะลึกที่กดแล้วเจาะลง
-  for (const [ที่, path, แถว] of [
-    ["แผงลูกค้า HQ", "/hq/customers", /^เปิดรายละเอียดลูกค้า /],
-    ["แผงดีลเลอร์", "/hq/dealers", /^เปิดแผงดีลเลอร์ /],
-    ["แผงผู้สนใจ", "/hq/prospects", /^เปิดรายละเอียดผู้สนใจ /],
-    ["แผงใบค่าแฟรนไชส์", "/hq/proposals", /^เปิดใบค่าแฟรนไชส์ /],
+  //   12 พ.ย. 69 (บอสสั่ง): เปิดแถวที่รู้ชื่อ (ลูกค้าตั้งต้น · ดีลเลอร์ RYG · ผู้สนใจ/ใบของข้อ) — เดิมแถวแรกของรายการทั้งเครือ (ของข้ออื่น/ถูกลบระหว่างเปิดได้)
+  const ชื่อRYG = ((await (await db(ADMIN)).from("dealers").select("name").eq("code", "RYG").single()).data as { name: string }).name;
+  const ใบของข้อ = async () => {
+    await page.getByLabel("ค้นหาใบค่าแฟรนไชส์").fill(ชื่อผู้สนใจ());
+    const r = page.getByRole("row", { name: new RegExp(`^เปิดใบค่าแฟรนไชส์ \\S+ ของ ${ชื่อผู้สนใจ()}$`) });   // ชื่อผู้สนใจของข้อไม่มีอักขระพิเศษของ RegExp
+    await expect(r, "ใบค่าแฟรนไชส์ของข้อขึ้นจริง").toBeVisible({ timeout: 25_000 });
+    return r;
+  };
+  for (const [ที่, path, หาแถว] of [
+    ["แผงลูกค้า HQ", "/hq/customers", () => แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, ตั้งต้น.ลูกค้าRYG, /ค้นหาชื่อลูกค้า/)],
+    ["แผงดีลเลอร์", "/hq/dealers", () => แถวตามชื่อ(page, `เปิดแผงดีลเลอร์ ${ชื่อRYG}`, "RYG", /ค้นหาดีลเลอร์/)],
+    ["แผงผู้สนใจ", "/hq/prospects", () => แถวตามชื่อ(page, `เปิดรายละเอียดผู้สนใจ ${ชื่อผู้สนใจ()}`, ชื่อผู้สนใจ(), /ค้นหา/)],
+    ["แผงใบค่าแฟรนไชส์", "/hq/proposals", ใบของข้อ],
   ] as const) {
     await page.goto(`${HQ_ORIGIN}${path}`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    const r = page.getByRole("row", { name: แถว }).first();
-    await expect(r, `${ที่}: มีแถวให้เปิด`).toBeVisible({ timeout: 25_000 });
+    const r = await หาแถว();
     await r.click();
     await ตรวจหัวแผง(page, ที่, true);
     await page.keyboard.press("Escape");

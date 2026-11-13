@@ -32,7 +32,7 @@ describe("ติ๊กเอง / เอาติ๊กออกเอง", () =
   it("กรอกข้อมูลลูกค้าครบ → ติ๊ก เก็บข้อมูลลูกค้า · ข้อมูลงานยังไม่ครบ → สรุปความต้องการยังไม่ติ๊ก", () => {
     const r = applyLeadIntent(ลีด(), { fields: { contact: "คุณเอ", phone: "081" } }, { tpl, now });
     expect(ติ๊ก(r, "collect")).toBe(true);
-    expect(r.tasks!.find(t => t.key === "collect")).toMatchObject({ doneAt: now, doneBy: "อัปเดตอัตโนมัติ" });
+    expect(r.tasks!.find(t => t.key === "collect")).toMatchObject({ doneAt: now, doneBy: "ระบบทำให้" });   // บอสเลือก 12 พ.ย. 69 (เดิม "อัปเดตอัตโนมัติ")
     expect(ติ๊ก(r, "requirement")).toBe(false);
   });
   it("กรอกข้อมูลงานครบทีหลัง → ติ๊ก สรุปความต้องการ · ลบสเปกออก → ติ๊กหาย", () => {

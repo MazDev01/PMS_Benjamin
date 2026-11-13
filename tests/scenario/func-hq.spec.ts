@@ -187,8 +187,9 @@ test("[func·hq] รีเซ็ตรหัสผ่านผู้ใช้ = 
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/users`, { waitUntil: "domcontentloaded" });
 
-  const firstRow = page.locator("tbody tr").first();
-  await expect(firstRow, "ต้องมีผู้ใช้ในตาราง").toBeVisible({ timeout: 25_000 });
+  // แถวบัญชี HQ ของชุดทดสอบเอง (12 พ.ย. 69 · บอสสั่ง) — เดิมแถวแรก (ผู้ใช้ชั่วคราวของข้ออื่นถูกลบระหว่างเปิดเมนูได้)
+  const firstRow = page.locator("tbody tr").filter({ hasText: ADMIN.email });
+  await expect(firstRow, "แถวบัญชี HQ ของชุดทดสอบ").toBeVisible({ timeout: 25_000 });
   await firstRow.getByRole("button", { name: "จัดการ" }).click();
   await expect(page.getByRole("button", { name: /ตั้งรหัสผ่านใหม่ทันที/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /ส่งลิงก์ทางอีเมล/ }), "ต้องไม่มีเมนูส่งลิงก์ทางอีเมล").toHaveCount(0);

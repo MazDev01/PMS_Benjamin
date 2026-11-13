@@ -81,7 +81,20 @@ const ล็อก = ขอล็อกฐานทดสอบ("ข้อทด
 try {
   // ── ทางหลัก: แถวทดสอบหาย แถวจริงอยู่ ──
   const หลัก = รัน(`
-begin;
+begin isolation level repeatable read;
+-- เห็นข้อมูลชุดเดียวตลอดรายการ (12 พ.ย. 69): นับทั้งตาราง "ก่อนใส่ = หลังลบ" ไม่ขยับตามไฟล์อื่นที่เขียนพร้อมกัน
+--   (เดิม read committed: ไฟล์อื่นสร้างสาขา/ลีดระหว่างรายการ → นับไม่เท่า ตกแล้วผ่านตอนรันซ้ำ = ไม่นิ่ง)
+-- ล็อกตารางที่รายการนี้จะปิด/เปิดตัวดัก ตั้งแต่ต้น ก่อนถือแถวใด ๆ — กันรอกันไขว้กับงานหน้าเว็บที่รันพร้อมกัน (deadlock hq_quote_save 11 พ.ย. 69)
+--   หลายตาราง = ได้ครบหรือไม่ได้เลย (nowait วนขอใหม่) · กติกาเดียวกับ scripts/check-sql-test-table-locks.mjs
+do $lk$ begin
+  loop
+    begin
+      lock table public.dealers, public.dealer_prospects, public.dealer_package_proposals, public.dealer_proposal_payments, public.hq_quotes, public.quotations in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 set local client_min_messages = warning;
 create temp table ก่อนใส่ as select ${นับทุกตาราง} as n;
 ${ปิดด่าน}
@@ -192,6 +205,17 @@ ${ออก}`);
   // ── ด่านกันพลาด: ยกเลิกทั้งหมด ──
   const เตรียมด่าน = (แถว) => `
 begin;
+-- ล็อกตารางที่รายการนี้จะปิด/เปิดตัวดัก ตั้งแต่ต้น ก่อนถือแถวใด ๆ — กันรอกันไขว้กับงานหน้าเว็บที่รันพร้อมกัน (deadlock hq_quote_save 11 พ.ย. 69)
+--   หลายตาราง = ได้ครบหรือไม่ได้เลย (nowait วนขอใหม่) · กติกาเดียวกับ scripts/check-sql-test-table-locks.mjs
+do $lk$ begin
+  loop
+    begin
+      lock table public.dealers, public.dealer_prospects, public.dealer_package_proposals, public.dealer_proposal_payments, public.hq_quotes, public.quotations in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 set local client_min_messages = warning;
 ${ปิดด่าน}
 ${แถว}

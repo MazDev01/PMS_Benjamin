@@ -72,7 +72,7 @@ async function เปิดแท็บใบเสนอราคา(page: Page
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
@@ -88,7 +88,7 @@ test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอ
   await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
   // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69) — ดีลเลอร์พิมพ์ "งานที่ขอราคา" เอง และเป็นช่องบังคับ
   await expect(แผง.getByLabel("แม่แบบ", { exact: true }), "คำขอราคาต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
-  await แผง.getByLabel("สเปก / รายละเอียด").fill("โกดัง 20x40 ม. สูง 8 ม.");
+  await แผง.getByLabel(/^รายละเอียดงาน/).fill("โกดัง 20x40 ม. สูง 8 ม.");
   // ลีดข้อมูลครบแล้ว (ใบ 0273) ช่องงานกรอกจากลีดมาให้ — ล้างออกเพื่อตรวจว่าช่องนี้ยังบังคับตอนส่ง
   await แผง.getByLabel("งานที่ขอราคา").fill("");
   await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
@@ -139,7 +139,7 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
   //   (ตกรอบ deploy19: ข้อเดิมกดแถวทันที หน้าต่างที่เปิดเองบังแถว)
   await expect(หน้าต่างใบHQ(page), "รีโหลดแล้วหน้าต่างใบ HQ เดิมยังเปิด (?open=)").toBeVisible({ timeout: 20_000 });
   await expect(หน้าต่างใบHQ(page)).toContainText(COMPANY);
-  await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด" }).click();
+  await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด", exact: true }).click();
   await expect(หน้าต่างใบHQ(page)).toHaveCount(0);
   const { แถว: แถวใหม่ } = await เปิดใบHQในกล่องงาน(page, COMPANY);
   // เลยกำหนด = แดงที่คอลัมน์กำหนดส่งที่เดียว (ตาราง 6 พ.ย. 69 · เดิมป้ายแดงที่สถานะ 3 พ.ย. 69) — ไม่มี "เกิน 14 วัน" ซ้ำ · ป้ายสถานะ = สถานะจริง
@@ -153,7 +153,7 @@ test("[flow·hq] ขั้น 4: คำขอเข้ากล่องงา�
 test("[D3x] [flow·dealer] ยกเลิกคำขอ ต้องมีเหตุผล → ลูกค้าเป้าหมายกลับรวบรวมความต้องการ · อีเมลถึง HQ (แถว 6)", async ({ page }) => {
   const errs = watchErrors(page);
   const แผง = await เปิดแท็บใบเสนอราคา(page);
-  await แผง.getByRole("button", { name: "ยกเลิกคำขอ" }).click();
+  await แผง.getByRole("button", { name: "ยกเลิกคำขอ", exact: true }).click();
   // กล่องเหตุผลกลาง (28 ต.ค. 69): ไม่ใส่เหตุผล = ปุ่มยืนยันกดไม่ได้ + บอกที่ช่องเหตุผล
   const กล่อง = page.locator("[data-reason-dialog]");
   await expect(กล่อง.getByRole("button", { name: "ยืนยันยกเลิก" }), "ไม่ใส่เหตุผล ยกเลิกไม่ได้").toBeDisabled();

@@ -7,7 +7,7 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -17,9 +17,9 @@ test("[ui] ช่องประเมินราคาต้องไม่ม
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
 
-  const row = page.locator("tbody tr").first();
-  await expect(row).toBeVisible({ timeout: 30_000 });
-  await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  // แถวของข้อมูลตั้งต้นด้วยชื่อ (บอสสั่ง 12 พ.ย. 69 · ไม่หยิบแถวแรกของ RYG ที่ข้ออื่นแทรก/ลบได้)
+  const row = await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/);
+  await row.getByRole("button", { name: "ดูรายละเอียด" }).click();
   await expect(page.getByText("รายละเอียดงาน").first(), "แผงแก้ไขเปิดแล้ว").toBeVisible({ timeout: 20_000 });
   await expect(page.getByLabel("ประเมินราคา"), "แผงแก้ไขไม่มีช่องประเมินราคา").toHaveCount(0);
   await expect(page.locator('input[type="number"]').first(), "กลุ่มรายละเอียดงานยังมีช่องพื้นที่").toBeVisible();

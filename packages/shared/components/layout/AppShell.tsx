@@ -78,9 +78,9 @@ function SyncErrorBar() {
 // แถบเตือน "โหลดข้อมูลบางส่วนไม่สำเร็จ" — ต้องเห็นทุกหน้า เพราะหลาย hook (useNetworkCustomersForDealer ฯลฯ)
 // เดิม catch แล้ว log เงียบๆ ตอนโหลดพัง หน้าจอจึงโชว์ "0 รายการ" เหมือนข้อมูลว่างจริง แยกไม่ออกจาก
 // ของจริงที่ยังไม่มีข้อมูล — ผู้ใช้อาจเข้าใจผิดว่าข้อมูลหาย (Critical, พบจากผลตรวจสอบระบบ 30 ก.ค. 69)
-// ไม่มี retry ต่อ hook ให้เรียก (มีหลายสิบจุด) — รีเฟรชทั้งหน้าคือทางที่ตรงและเชื่อถือได้สุด
+// ไม่มี retry ต่อ hook ให้เรียก (มีหลายสิบจุด) — โหลดใหม่ทั้งหน้าคือทางที่ตรงและเชื่อถือได้สุด
 // แถบนี้ไม่หายเอง (ต่างจากแถบแดง) เพราะมันบอกว่า "ตัวเลขที่เห็นอยู่ตรงหน้าอาจไม่ครบ"
-//   ซึ่งยังเป็นจริงตราบที่ยังไม่รีเฟรช — แต่ล้างทิ้งเมื่อเปลี่ยนหน้า เพราะหน้าใหม่โหลดข้อมูลชุดใหม่
+//   ซึ่งยังเป็นจริงตราบที่ยังไม่โหลดใหม่ — แต่ล้างทิ้งเมื่อเปลี่ยนหน้า เพราะหน้าใหม่โหลดข้อมูลชุดใหม่
 function ReadErrorBar() {
   const [readError, setReadError] = useState<string | null>(null);
   const pathname = usePathname();
@@ -100,7 +100,7 @@ function ReadErrorBar() {
       <span style={{ flex: 1 }}>โหลดข้อมูลบางส่วนไม่สำเร็จ — ตัวเลขหรือรายการที่เห็นอาจไม่ครบถ้วน</span>
       <button onClick={() => window.location.reload()}
         style={{ background: "none", border: "1px solid #92400e", borderRadius: 6, cursor: "pointer", color: "#92400e", fontWeight: 700, padding: "3px 10px", fontSize: "0.75rem" }}>
-        รีเฟรช
+        โหลดใหม่
       </button>
       <button onClick={() => setReadError(null)} aria-label="ปิดการแจ้งเตือน"
         style={{ background: "none", border: "none", cursor: "pointer", color: "#92400e", fontWeight: 800 }}>✕</button>

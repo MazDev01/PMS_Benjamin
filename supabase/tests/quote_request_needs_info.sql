@@ -54,7 +54,7 @@ begin
   -- ══ 1) ไม่ครบ = ปฏิเสธ + บอกช่องที่ขาด ══
   perform qntest.must_fail('select quote_request_submit(994002, ''โกดัง'')', 'lead_incomplete: ข้อมูลลูกค้าเป้าหมายยังไม่ครบ — ขาด โทรศัพท์ · พื้นที่ (ตร.ม.)',
     'ขาดโทรศัพท์ + พื้นที่ = ปฏิเสธ บอก 2 ช่อง');
-  perform qntest.must_fail('select quote_request_submit(994003, ''โกดัง'')', 'ขาด จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ (ตร.ม.) · สเปก / รายละเอียดงาน',
+  perform qntest.must_fail('select quote_request_submit(994003, ''โกดัง'')', 'ขาด จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ (ตร.ม.) · รายละเอียดงาน',
     'ข้อมูลลูกค้าครบแต่ข้อมูลงานไม่ครบ = ปฏิเสธ บอก 4 ช่อง');
   perform qntest.as_admin();
   perform qntest.ok(not exists (select 1 from quote_requests where dealer_code = 'ZZQNI' and lead_num_id in (994002, 994003)), 'ไม่มีคำขอเกิดขึ้น');

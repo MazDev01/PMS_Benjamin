@@ -20,7 +20,7 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
   try {
     await openAs(page, RYG, "dealer", "/leads");
     await settle(page);
-    await page.getByRole("button", { name: "บอร์ด" }).click();
+    await page.getByRole("button", { name: "บอร์ด", exact: true }).click();
 
     // รอบ 4: การ์ดบนบอร์ดลากไม่ได้แล้ว (ดูอย่างเดียว · เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผง) — หาการ์ดจากโครงหัวการ์ด (ชื่อบริษัท)
     const การ์ดทั้งหมด = page.locator("div.card:has(> div > div[title])");

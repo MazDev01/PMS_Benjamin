@@ -46,16 +46,16 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, cb: () => voi
 
 const TITLE_MAP: { match: string; title: string }[] = [
   /* Dealer */
-  { match: "/dashboard",       title: "แดชบอร์ด" },
+  { match: "/dashboard",       title: "หน้าหลัก" },
   { match: "/leads",           title: "ลูกค้าเป้าหมาย" },
   { match: "/customers",       title: "ลูกค้า" },
   { match: "/quotations",      title: "ใบเสนอราคา" },
   { match: "/calendar",        title: "ปฏิทิน" },
   { match: "/files",           title: "ไฟล์" },
   { match: "/settings",        title: "ตั้งค่า" },
-  { match: "/profile",         title: "โปรไฟล์" },
+  { match: "/profile",         title: "ข้อมูลส่วนตัว" },
   /* HQ */
-  { match: "/hq/dashboard",      title: "แดชบอร์ดสำนักงานใหญ่" },
+  { match: "/hq/dashboard",      title: "หน้าหลักสำนักงานใหญ่" },
   { match: "/hq/pipeline",       title: "ภาพรวมยอดขาย" },
   // ต้องตรงกับชื่อในเมนูข้าง — เดิมเมนูเรียก "ดีลเลอร์" แต่หัวหน้าเพจเรียก "ดีลเลอร์"
   { match: "/hq/dealers",        title: "ดีลเลอร์" },
@@ -72,23 +72,23 @@ const TITLE_MAP: { match: string; title: string }[] = [
 
 function pageTitle(pathname: string): string {
   const hit = [...TITLE_MAP].sort((a, b) => b.match.length - a.match.length).find(t => pathname.startsWith(t.match));
-  return hit?.title ?? "แดชบอร์ด";
+  return hit?.title ?? "หน้าหลัก";
 }
 
 // ── หน้า/เมนูที่ค้นหาได้ทั้งระบบ (แยกตามบทบาท) — keywords รวมคำพ้อง/อังกฤษเพื่อให้ค้นเจอง่าย ──
 type PageEntry = { label: string; href: string; keywords: string };
 const DEALER_PAGES: PageEntry[] = [
-  { label: "แดชบอร์ด",       href: "/dashboard",  keywords: "แดชบอร์ด dashboard หน้าแรก home ภาพรวม สรุป" },
+  { label: "หน้าหลัก",       href: "/dashboard",  keywords: "หน้าหลัก dashboard หน้าแรก home ภาพรวม สรุป" },
   { label: "ลูกค้าเป้าหมาย", href: "/leads",      keywords: "ลูกค้าเป้าหมาย ลีด lead leads ลูกค้าเป้าหมาย โอกาสการขาย" },
   { label: "ลูกค้า",         href: "/customers",  keywords: "ลูกค้า customer customers" },
   { label: "ใบเสนอราคา",     href: "/quotations", keywords: "ใบเสนอราคา quotation quote เสนอราคา" },
   { label: "ปฏิทิน",         href: "/calendar",   keywords: "ปฏิทิน calendar นัดหมาย นัด appointment" },
   { label: "ไฟล์",           href: "/files",      keywords: "ไฟล์ file files เอกสาร document" },
   { label: "ตั้งค่า",         href: "/settings",   keywords: "ตั้งค่า setting settings config" },
-  { label: "บัญชีดีลเลอร์",   href: "/settings",   keywords: "บัญชี account โปรไฟล์ profile ข้อมูลส่วนตัว บริษัท ดีลเลอร์" },
+  { label: "บัญชีดีลเลอร์",   href: "/settings",   keywords: "บัญชี account profile ข้อมูลส่วนตัว บริษัท ดีลเลอร์" },
 ];
 const HQ_PAGES: PageEntry[] = [
-  { label: "แดชบอร์ดสำนักงานใหญ่", href: "/hq/dashboard",  keywords: "แดชบอร์ด dashboard สำนักงานใหญ่ hq ภาพรวม สรุป หน้าแรก" },
+  { label: "หน้าหลักสำนักงานใหญ่", href: "/hq/dashboard",  keywords: "หน้าหลัก dashboard สำนักงานใหญ่ hq ภาพรวม สรุป หน้าแรก" },
   { label: "ดีลเลอร์",              href: "/hq/dealers",    keywords: "ดีลเลอร์ dealer dealers จำหน่าย" },
   { label: "ผู้สนใจเป็นดีลเลอร์", href: "/hq/prospects", keywords: "ลูกค้าเป้าหมาย ผู้สนใจ สมัครดีลเลอร์ prospect prospects dealer ใหม่ hq" },
   { label: "ใบค่าแฟรนไชส์", href: "/hq/proposals", keywords: "ใบค่าแฟรนไชส์ ค่าแรกเข้า ระยะสัญญา proposal dp hq" },
@@ -98,10 +98,10 @@ const HQ_PAGES: PageEntry[] = [
   { label: "ใบเสนอราคาทั้งเครือ",   href: "/hq/quotations", keywords: "ใบเสนอราคา quotation quote ทั้งเครือ" },
   // หน้า /hq/company ถูกยุบเมื่อ 10 ส.ค. 69 — เนื้อหาซ้ำกับแท็บ "บริษัท" ในหน้าตั้งค่าทุกประการ
   // และไม่มีลิงก์ในเมนู (เข้าได้ด้วยการพิมพ์ที่อยู่เท่านั้น) · ค้นหาคำว่า "บริษัท" ให้ไปที่หน้าตั้งค่าแทน
-  { label: "บริษัท",              href: "/hq/settings",   keywords: "บริษัท องค์กร โปรไฟล์บริษัท ข้อมูลบริษัท" },
+  { label: "บริษัท",              href: "/hq/settings",   keywords: "บริษัท องค์กร ข้อมูลบริษัท" },
   { label: "ผู้ใช้งาน",            href: "/hq/users",      keywords: "ผู้ใช้งาน user users บัญชีผู้ใช้ สิทธิ์" },
   { label: "ตั้งค่า",              href: "/hq/settings",   keywords: "ตั้งค่า setting settings config" },
-  { label: "โปรไฟล์",             href: "/profile",       keywords: "โปรไฟล์ profile บัญชี account ข้อมูลส่วนตัว" },
+  { label: "ข้อมูลส่วนตัว",       href: "/profile",       keywords: "ข้อมูลส่วนตัว profile บัญชี account ข้อมูลส่วนตัว" },
 ];
 
 export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
@@ -399,7 +399,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
               <div style={{ padding:"6px 0" }}>
                 {[
                   // ดีลเลอร์: บัญชีดีลเลอร์รวมอยู่ในหน้า "ตั้งค่า" แล้ว → ไม่ต้องมีเมนูซ้ำ · HQ ยังมี "โปรไฟล์" (/profile) แยก
-                  ...(isHQ ? [{ Icon: UserCircle, label: "โปรไฟล์", href: "/profile" }] : []),
+                  ...(isHQ ? [{ Icon: UserCircle, label: "ข้อมูลส่วนตัว", href: "/profile" }] : []),
                   { Icon: Settings,    label:"ตั้งค่า",  href: isHQ ? "/hq/settings" : "/settings" },
                 ].map(item => (
                   <button key={item.label} onClick={async () => { if (!(await confirmDiscard())) return; setShowUser(false); router.push(item.href); }}

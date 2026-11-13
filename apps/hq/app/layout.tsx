@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_Thai } from "next/font/google";
+import { notoThai, notoLatin } from "@pms/shared/lib/fonts";   // ไฟล์ฟอนต์ในโปรเจกต์ ไม่ดึงจาก Google ตอน build (12 พ.ย. 69)
 import { RoleProvider } from "@pms/shared/context/RoleContext";
 import { SalesProvider } from "@pms/shared/context/SalesContext";
 import { leads as demoLeads } from "@pms/shared/lib/mock";
@@ -18,12 +18,6 @@ import "@pms/shared/globals.css";
 export const dynamic = "force-dynamic";
 
 
-const notoThai = Noto_Sans_Thai({
-  subsets: ["thai", "latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
-  variable: "--font-noto-thai",
-  display: "swap",
-});
 
 // เดิม title เดียวกันเป๊ะกับแอปดีลเลอร์ — เปิดสองแอปพร้อมกันแยกแท็บไม่ออก (พบจากผลตรวจสอบระบบรอบ 2, 31 ก.ค. 69)
 export const metadata: Metadata = {
@@ -33,8 +27,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="th" className={notoThai.variable}>
-      <body className={notoThai.className}>
+    <html lang="th" className={`${notoThai.variable} ${notoLatin.variable}`}>
+      <body>
         {/* ⚠️ ข้อมูลตัวอย่างส่งได้เฉพาะโหมดเดโม (local) เท่านั้น
             layout นี้เป็น Server Component — prop ที่ส่งให้ client component ถูกฝังลง HTML
             ของ "ทุกหน้า ทุกคำขอ" รวมหน้าที่ยังไม่ล็อกอิน · เจอจริงบนระบบจริง 14 ส.ค. 69:

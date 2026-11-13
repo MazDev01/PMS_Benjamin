@@ -69,7 +69,7 @@ async function เข้าหน้า(page: Page) {
 const แถวชุด = (page: Page) => แถวคำขอ(page, แท็ก);
 const แถวของ = (page: Page, k: string) => แถวคำขอ(page, ของ(k).บริษัท);
 const กล่องยืนยัน = (page: Page) => page.locator(".pms-confirm[role='alertdialog']");
-const ปิดใบ = async (page: Page) => { await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด" }).click(); await expect(หน้าต่างใบHQ(page)).toHaveCount(0); };
+const ปิดใบ = async (page: Page) => { await หน้าต่างใบHQ(page).getByRole("button", { name: "ปิด", exact: true }).click(); await expect(หน้าต่างใบHQ(page)).toHaveCount(0); };
 
 test("[H9x] [ui·hq] ตัวเลือกสถานะได้แถวตรงกับฐาน (hq_quote_board) และตรงค่าที่รู้ล่วงหน้า · คำค้นกรองทั้งจำนวนและรายการ · เรียงตามกำหนดส่ง", async ({ page }) => {
   await เข้าหน้า(page);
@@ -202,7 +202,7 @@ test("[ui·hq] ระหว่างบันทึกร่าง ปิดห�
   });
   await ใบ.getByRole("button", { name: "บันทึกร่าง" }).click();
   await expect.poll(() => กัก, { message: "คำสั่งบันทึกต้องออกไป (แล้วค้างอยู่)" }).toBe(1);
-  await expect(ใบ.getByRole("button", { name: "ปิด" }), "ระหว่างบันทึก ปุ่มปิดกดไม่ได้").toBeDisabled();
+  await expect(ใบ.getByRole("button", { name: "ปิด", exact: true }), "ระหว่างบันทึก ปุ่มปิดกดไม่ได้").toBeDisabled();
   await page.keyboard.press("Escape");
   await page.mouse.click(4, 4);   // ฉากหลังนอกกรอบ
   await expect(ใบ, "ระหว่างบันทึก หน้าต่างยังเปิดอยู่ (ห้ามเปลี่ยนคำขอระหว่างรอคำตอบ)").toBeVisible();
@@ -211,7 +211,7 @@ test("[ui·hq] ระหว่างบันทึกร่าง ปิดห�
   ปล่อย();
   await expect.poll(async () => (await admin.from("quote_requests").select("status").eq("id", ของ("B").id).single()).data?.status,
     { timeout: 20_000, message: "บันทึกร่าง = รับเรื่อง" }).toBe("pricing");
-  await expect(ใบ.getByRole("button", { name: "ปิด" }), "บันทึกเสร็จแล้วปิดได้").toBeEnabled({ timeout: 15_000 });
+  await expect(ใบ.getByRole("button", { name: "ปิด", exact: true }), "บันทึกเสร็จแล้วปิดได้").toBeEnabled({ timeout: 15_000 });
   await ปิดใบ(page);
   await page.getByLabel("ค้นหาคำขอ").fill(แท็ก);
   await แถวของ(page, "A").click();

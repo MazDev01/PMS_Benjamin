@@ -44,7 +44,7 @@ test("ถ่ายรูป: แท็บประวัติ (รายกา�
   await ถ่าย(page, "รายการเตือน-แผงลีด", async () => {
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(บริษัท);
     await page.locator("tbody tr").filter({ hasText: บริษัท }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
     await expect(async () => {

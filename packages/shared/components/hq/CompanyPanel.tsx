@@ -136,7 +136,7 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f5f7fa", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px", fontSize: "0.76rem", color: "#6b7280" }}>
                 <ImageIcon size={14} color="#003366" style={{ flexShrink: 0 }} />
-                ใช้โลโก้ Benjamin มาตรฐานเดียวทั้งระบบ — เปลี่ยน/อัปโหลดโลโก้อื่นไม่ได้
+                ใช้โลโก้ Benjamin มาตรฐานเดียวทั้งระบบ — เปลี่ยน/แนบโลโก้อื่นไม่ได้
               </div>
             </div>
           </div>

@@ -484,7 +484,7 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
   await ใบ.locator("#pp-target").fill("2000000");
   await expect(ใบ.locator("#pp-target"), "เป้ายอดซื้อต้องขึ้นลูกน้ำ").toHaveValue("2,000,000");
   await กรอกช่องบังคับใบที่ว่าง(ใบ);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
-  await ใบ.getByRole("button", { name: "บันทึกใบ" }).click();
+  await ใบ.getByRole("button", { name: "บันทึกใบ", exact: true }).click();
 
   const แถวใบ = await waitRow<{ id: number; proposal_no: string; status: string; amount: number; contract_months: number; annual_target: number }>(
     sb, "dealer_package_proposals", { prospect_id: prospectId });
@@ -511,7 +511,7 @@ test("[H3] [H4] [H5] [func·hq] ออกใบค่าแฟรนไชส์
     await expect(ปุ่มสร้าง).toBeDisabled();
     await ปิดกล่องตั้ง();
   };
-  const ปิดกล่องตั้ง = async () => { await ตั้ง.getByRole("button", { name: "ยกเลิก" }).click(); await expect(ตั้ง).toHaveCount(0); };
+  const ปิดกล่องตั้ง = async () => { await ตั้ง.getByRole("button", { name: "ยกเลิก", exact: true }).click(); await expect(ตั้ง).toHaveCount(0); };
 
   // ยังเป็นร่าง → กดสร้างไม่ได้ พร้อมบอกเหตุผล
   await ยังตั้งไม่ได้(/ต้องส่งใบค่าแฟรนไชส์/, /ยังไม่มีใบค่าแฟรนไชส์ที่ตอบรับ/);

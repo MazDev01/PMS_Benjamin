@@ -86,7 +86,7 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
     await d.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click({ timeout: 30_000 });
     const แผง = d.locator("[data-panel='quote-request']");
     await แผง.getByLabel("งานที่ขอราคา").fill("ทดสอบระบบ — โกดัง");   // ไม่มีตัวเลือกแม่แบบแล้ว (16 ต.ค. 69)
-    await แผง.getByLabel("สเปก / รายละเอียด").fill("ทดสอบระบบ — โกดัง 10x10 ม.");
+    await แผง.getByLabel("รายละเอียดงาน", { exact: true }).fill("ทดสอบระบบ — โกดัง 10x10 ม.");
     await แผง.locator("#qr-files").setInputFiles([ไฟล์ทดสอบ("ZZTEST แบบจากดีลเลอร์.pdf", 3000)]);   // แนบไฟล์ถึง HQ (ใบ 0273)
     await แผง.getByRole("button", { name: "ส่งคำขอ" }).click();
     await expect(แผง.getByText("ใหม่", { exact: true })).toBeVisible({ timeout: 30_000 });

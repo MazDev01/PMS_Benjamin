@@ -27,7 +27,7 @@ export const notesGET = handler("notes.list", async (req: NextRequest, sb) => {
 
 export const notesPOST = handler("notes.create", async (req: NextRequest, sb) => {
   const n = (await req.json().catch(() => null)) as Omit<CustomerNote, "id"> | null;
-  if (!n) return fail(400, "ข้อมูลโน้ตไม่ถูกต้อง");
+  if (!n) return fail(400, "ข้อมูลหมายเหตุไม่ถูกต้อง");
   const { data, error } = await sb.from("customer_notes").insert(toSnake(n as unknown as Row)).select().single();
   if (error) return dbFail("notes.create", error);
   return ok(toCamel<CustomerNote>(data as Row));
@@ -35,7 +35,7 @@ export const notesPOST = handler("notes.create", async (req: NextRequest, sb) =>
 
 export const notesPUT = handler("notes.update", async (req: NextRequest, sb) => {
   const n = (await req.json().catch(() => null)) as CustomerNote | null;
-  if (!n?.id) return fail(400, "ไม่ได้ระบุโน้ตที่จะแก้");
+  if (!n?.id) return fail(400, "ไม่ได้ระบุหมายเหตุที่จะแก้");
   const { data, error } = await sb.from("customer_notes").update(toSnake(n as unknown as Row)).eq("id", n.id).select().single();
   if (error) return dbFail("notes.update", error);
   return ok(toCamel<CustomerNote>(data as Row));
@@ -43,7 +43,7 @@ export const notesPUT = handler("notes.update", async (req: NextRequest, sb) => 
 
 export const notesDELETE = handler("notes.remove", async (req: NextRequest, sb) => {
   const id = Number(new URL(req.url).searchParams.get("id"));
-  if (!Number.isFinite(id)) return fail(400, "ไม่ได้ระบุโน้ตที่จะลบ");
+  if (!Number.isFinite(id)) return fail(400, "ไม่ได้ระบุหมายเหตุที่จะลบ");
   const { error } = await sb.from("customer_notes").delete().eq("id", id);
   if (error) return dbFail("notes.remove", error);
   return ok({ ok: true });

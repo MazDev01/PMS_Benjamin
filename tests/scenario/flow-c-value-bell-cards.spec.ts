@@ -81,7 +81,7 @@ test("[ค·5] ดีลเลอร์: ไม่มีช่องประเ
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   const ร1 = await แถว(page, /ค้นหาบริษัท/, มีใบ);
   await expect(ร1, "ตาราง [กรณี 2]: มูลค่าจากใบที่ส่งแล้ว").toContainText("฿2.2M", { timeout: 20_000 });
   await expect(ร1, "ตาราง [กรณี 2]: ไม่ใช่ยอดใบร่าง").not.toContainText("฿3.0M");
@@ -167,7 +167,7 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
   // แผงลีดที่เปิดอยู่บังกระดิ่ง — กลับแดชบอร์ดด้วยการกดเมนู (ไม่โหลดหน้าใหม่ = ตรวจสถานะในหน้าเดิม)
   await page.locator(".drawer-overlay").click({ position: { x: 5, y: 5 } });   // ปิดแผงลีดก่อน (กดฉากหลัง = ปิด · ฉากหลังรับการกดแทนเมนู)
   await expect(page.locator(".drawer-overlay")).toHaveCount(0, { timeout: 10_000 });
-  await page.getByRole("link", { name: "แดชบอร์ด" }).first().click();
+  await page.getByRole("link", { name: "หน้าหลัก" }).first().click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
   await settle(page);
   await เปิดดูเรื่องนี้();

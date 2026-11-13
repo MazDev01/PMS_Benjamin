@@ -73,7 +73,7 @@ export const GET = async (req: NextRequest): Promise<Response> => {
     await sb.realtime.setAuth(token);
   } catch (e) {
     console.error("[api/v1/events] ตั้งใบผ่านให้ realtime ไม่สำเร็จ", e);
-    return new Response(JSON.stringify({ error: "เปิดสายอัปเดตสดไม่สำเร็จ — ลองใหม่อีกครั้ง" }), {
+    return new Response(JSON.stringify({ error: "เปิดสายข้อมูลสดไม่สำเร็จ — ลองใหม่อีกครั้ง" }), {
       status: 503, headers: { "content-type": "application/json" },
     });
   }

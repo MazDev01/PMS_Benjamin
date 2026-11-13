@@ -15,6 +15,7 @@ import { APP_NOW } from "@pms/shared/context/FilterContext";
 import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { ชั่วโมงนาทีไทย, วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
 import { ชื่อขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อผู้ทำ } from "@pms/shared/lib/systemActor";   // แถวเก่า "อัปเดตอัตโนมัติ" → "ระบบทำให้" ตอนแสดง (12 พ.ย. 69)
 
 const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 // วันประทับ = "วันนี้" ของระบบ (APP_NOW) ไม่ใช่นาฬิกาเครื่อง — กติกาเดียวกับ useAudit/ทั้งระบบ · เวลา (ชม.:นาที) ใช้นาฬิกาจริง
@@ -101,7 +102,7 @@ export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนน�
                             {auto && <span data-system-badge className="badge" style={{ marginLeft: 6, background: "#eef3f8", color: "#475569", fontSize: "0.6rem", fontWeight: 700, verticalAlign: "middle" }}>{t.done ? "ระบบติ๊กให้" : "กดเพื่อทำ"}</span>}
                             {!t.done && auto && <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{auto}</span>}
                             {t.done && (t.doneBy || วันที่) && (
-                              <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>✓ {t.doneBy ?? "—"}{วันที่ ? ` · ${วันที่}` : ""}</span>
+                              <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>✓ {t.doneBy ? ชื่อผู้ทำ(t.doneBy) : "—"}{วันที่ ? ` · ${วันที่}` : ""}</span>
                             )}
                           </span>
                         </button>

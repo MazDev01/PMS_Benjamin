@@ -52,7 +52,7 @@ test("[func·dealer] งานนัดหมายติ๊กเองไม�
     // ค้นชื่อเต็ม + เปิดแถวที่ชื่อตรงเท่านั้น — "ZZTEST-APPT" เฉย ๆ ตรงกับ "ZZTEST-APPT2" ของ appointment-auto-tick.spec.ts
     //   ที่รันพร้อมกันและมีนัดแล้ว (ติ๊กแล้ว) · เดิมกดแถวแรก = เปิดผิดราย (ต้นเหตุไม่นิ่ง 29 ต.ค. 69)
     const ชื่อ = "ZZTEST-APPT ทดสอบงานนัดหมาย";
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ชื่อ);
     await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByRole("button", { name: "ดูรายละเอียด" }).click({ timeout: 20_000 });
     // รอบ 4 (บอสสั่ง 21 ต.ค. 69): รายการงานเป็นรายการเตือนในแท็บ "ประวัติ" · งานนัดหมาย = ช่องที่ระบบติ๊กให้เมื่อบันทึกนัดจริง

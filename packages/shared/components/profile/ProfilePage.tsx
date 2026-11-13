@@ -106,7 +106,7 @@ export default function ProfilePage() {
     if (!file) return;
     // ไฟล์ที่ไม่ผ่านการตรวจต้องบอกเหตุผล ไม่ใช่เงียบแล้วไม่มีอะไรเกิดขึ้น (ผู้ใช้จะนึกว่าปุ่มเสีย)
     try { set("avatar", await fileToResizedDataURL(file, 256)); } // ย่อก่อนเก็บ กัน quota เต็ม
-    catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นรูปโปรไฟล์ไม่ได้"); }
+    catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นรูปประจำตัวไม่ได้"); }
   }
 
   function save() {
@@ -118,7 +118,7 @@ export default function ProfilePage() {
     };
     // เขียนผ่าน repo · ล้มเหลวต้องบอก ไม่ใช่กลืน error แล้วขึ้นว่าบันทึกแล้ว
     void userProfile.save(clean)
-      .catch(e => แจ้งพลาด("บันทึกโปรไฟล์ไม่สำเร็จ: " + friendlyError(e)));
+      .catch(e => แจ้งพลาด("บันทึกข้อมูลไม่สำเร็จ: " + friendlyError(e)));
     setForm(clean);
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
@@ -185,11 +185,11 @@ export default function ProfilePage() {
               ) : (
                 <div style={{ width: 76, height: 76, borderRadius: "50%", background: PRIMARY, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.7rem", fontWeight: 900, boxShadow: "0 2px 8px rgba(0,51,102,.25)" }}>{initial}</div>
               )}
-              <button onClick={() => fileRef.current?.click()} title="เปลี่ยนรูปโปรไฟล์"
+              <button onClick={() => fileRef.current?.click()} title="เปลี่ยนรูปประจำตัว"
                 style={{ position: "absolute", bottom: -2, right: -2, width: 28, height: 28, borderRadius: "50%", background: "#fff", border: `1px solid ${BORDER}`, boxShadow: "0 2px 6px rgba(0,0,0,.15)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: PRIMARY }}>
                 <Camera size={14} />
               </button>
-              <input ref={fileRef} type="file" accept="image/*" aria-label="อัปโหลดรูปโปรไฟล์" onChange={onPickAvatar} style={{ display: "none" }} />
+              <input ref={fileRef} type="file" accept="image/*" aria-label="แนบรูปประจำตัว" onChange={onPickAvatar} style={{ display: "none" }} />
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: "1rem", fontWeight: 800, color: STEEL }}>{form.name || session.name}</div>
@@ -258,7 +258,7 @@ export default function ProfilePage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button className="btn btn-primary btn-md" onClick={save}><Check size={15} /> บันทึกโปรไฟล์</button>
+            <button className="btn btn-primary btn-md" onClick={save}><Check size={15} /> บันทึกข้อมูล</button>
             {saved && <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.8rem", fontWeight: 700, color: "#059669" }}><Check size={14} /> บันทึกแล้ว</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 12, fontSize: "0.65rem", color: "#9ca3af" }}>

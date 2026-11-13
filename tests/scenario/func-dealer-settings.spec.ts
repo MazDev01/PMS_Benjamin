@@ -31,7 +31,7 @@ async function fillWhenSettled(box: import("@playwright/test").Locator, value: s
 
 // ปุ่มบันทึกกลางเปิดเมื่อฟอร์ม dirty — ต้องรอ React ประมวลผลการพิมพ์ก่อน ไม่ใช่กดทันที
 async function clickSave(page: import("@playwright/test").Page) {
-  const btn = page.getByRole("button", { name: "บันทึก" }).first();
+  const btn = page.getByRole("button", { name: "บันทึก", exact: true }).first();
   await expect(btn, "ปุ่มบันทึกต้องเปิดหลังแก้ค่า").toBeEnabled({ timeout: 10_000 });
   await btn.click();
 }

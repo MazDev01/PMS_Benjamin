@@ -96,7 +96,7 @@ function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เ�
     try {
       const url = await fileToResizedDataURL(file, 160);
       setF(p => ({ ...p, avatar: url }));
-    } catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นรูปโปรไฟล์ไม่ได้"); }
+    } catch (err) { แจ้งพลาด(err instanceof Error ? err.message : "ใช้ไฟล์นี้เป็นรูปประจำตัวไม่ได้"); }
   }
   // ⚠️ ดาว * ต้องตรงกับที่ตรวจตรงนี้เสมอ — บทบาท/แผนก มีตัวเลือก "ยังไม่ระบุ" แล้ว (17 ส.ค. 69)
   //    ถ้าไม่บังคับ จะได้ผู้ใช้ที่ไม่มีบทบาท = เข้าระบบมาแล้วไม่รู้ว่าเห็นอะไรได้บ้าง
@@ -125,7 +125,7 @@ function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เ�
         <div className="form-grid modal-fit-body" style={{ padding: 22 }}>
           {/* รูปโปรไฟล์ — คลิกเพื่ออัปโหลด/เปลี่ยน */}
           <div className="col-full" style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
-            <label title="อัปโหลด/เปลี่ยนรูปโปรไฟล์" style={{ cursor: "pointer", position: "relative", display: "inline-block" }}>
+            <label title="แนบ/เปลี่ยนรูปประจำตัว" style={{ cursor: "pointer", position: "relative", display: "inline-block" }}>
               <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickAvatar} />
               {/* ยังไม่เลือกบทบาท = ไม่มีสีประจำ — ห้ามอ่าน .tone จาก undefined (หน้าจะขาว) */}
               {f.avatar
@@ -143,7 +143,7 @@ function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เ�
           <div><FieldLabel htmlFor="us-first" required>ชื่อ</FieldLabel><input id="us-first" {...บังคับ.ผูก("firstName")} style={{ ...inp, ...บังคับ.ผูก("firstName").style }} value={f.firstName} autoFocus onChange={e => { บังคับ.ล้าง("firstName"); setF({ ...f, firstName: e.target.value }); }} placeholder="ชื่อ" /><FieldError>{บังคับ.ผิด.firstName}</FieldError></div>
           <div><label className="form-label">นามสกุล</label><input style={inp} value={f.lastName} onChange={e => setF({ ...f, lastName: e.target.value })} placeholder="นามสกุล" /></div>
           <div className="col-full"><FieldLabel htmlFor="us-email" required>อีเมล (ใช้เข้าระบบ)</FieldLabel><input id="us-email" {...บังคับ.ผูก("email")} style={{ ...inp, ...บังคับ.ผูก("email").style }} value={f.email} onChange={e => { บังคับ.ล้าง("email"); setF({ ...f, email: e.target.value }); }} placeholder="name@benjamin.co.th" /><FieldError>{บังคับ.ผิด.email}</FieldError></div>
-          {!initial && <><div className="col-full"><label className="form-label">รหัสผ่านชั่วคราว</label><input style={{ ...inp, fontFamily: "monospace", fontWeight: 700 }} value={f.tempPassword} onChange={e => setF({ ...f, tempPassword: e.target.value.replace(/\s/g, "") })} /><div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 4 }}>ใช้รหัสนี้เข้าระบบครั้งแรก · อย่างน้อย 8 ตัว ห้ามมีช่องว่าง · เว้นว่าง = ระบบสุ่มให้ · ผู้ใช้เปลี่ยนเองได้ที่หน้าโปรไฟล์</div></div></>}
+          {!initial && <><div className="col-full"><label className="form-label">รหัสผ่านชั่วคราว</label><input style={{ ...inp, fontFamily: "monospace", fontWeight: 700 }} value={f.tempPassword} onChange={e => setF({ ...f, tempPassword: e.target.value.replace(/\s/g, "") })} /><div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 4 }}>ใช้รหัสนี้เข้าระบบครั้งแรก · อย่างน้อย 8 ตัว ห้ามมีช่องว่าง · เว้นว่าง = ระบบสุ่มให้ · ผู้ใช้เปลี่ยนเองได้ที่หน้าข้อมูลส่วนตัว</div></div></>}
           <div><label className="form-label">เบอร์โทร</label><input style={inp} inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: formatPhone(e.target.value) })} placeholder="08x-xxx-xxxx" /></div>
           <div className="form-section">บัญชี</div>
           {/* บทบาทเดียว "สำนักงานใหญ่" — ไม่มีช่องเลือกบทบาท (บอสสั่ง 5 พ.ย. 69 · ใบ 0282) */}

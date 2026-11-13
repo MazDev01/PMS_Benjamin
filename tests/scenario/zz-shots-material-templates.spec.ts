@@ -75,7 +75,7 @@ test("ถ่ายรูป: ตั้งค่า HQ · ฟอร์มขอ�
   await ถ่าย(ดีลเลอร์, "ฟอร์มขอราคา-ดีลเลอร์", async () => {
     await ดีลเลอร์.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(ดีลเลอร์);
-    await ดีลเลอร์.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await ดีลเลอร์.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await ดีลเลอร์.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท("ฟอร์ม"));
     const row = ดีลเลอร์.locator("tbody tr").filter({ hasText: บริษัท("ฟอร์ม") }).first();
     await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
@@ -86,7 +86,7 @@ test("ถ่ายรูป: ตั้งค่า HQ · ฟอร์มขอ�
   await ถ่าย(ดีลเลอร์, "ตารางเลือกวัสดุ-ดีลเลอร์", async () => {
     await ดีลเลอร์.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(ดีลเลอร์);
-    await ดีลเลอร์.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await ดีลเลอร์.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await ดีลเลอร์.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท("ฟอร์ม"));
     await ดีลเลอร์.locator("tbody tr").filter({ hasText: บริษัท("ฟอร์ม") }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click();
     await ดีลเลอร์.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();

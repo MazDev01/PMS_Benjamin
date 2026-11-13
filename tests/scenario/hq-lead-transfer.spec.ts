@@ -61,12 +61,14 @@ test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ:
   await expect(ช่องลำพูน, "หลายสาขา: ระบบต้องไม่เลือกสาขาให้").toHaveValue("");
   // ยังไม่เลือกสาขา = โอนไม่ได้ · เดิมปุ่มกดไม่ได้เฉย ๆ → ตั้งแต่ 4 พ.ย. 69 (ตัวกลางช่องบังคับ) กดได้แต่ไม่โอน: กรอบแดง + ข้อความใต้ช่อง (ตรวจกลับด้าน)
   await expect(การ์ด.getByRole("columnheader", { name: /การโอน/ }).locator("[data-required]"), "หัวคอลัมน์มี * แดง (ต้องเลือกสาขา)").toHaveCount(1);
-  await การ์ด.getByRole("row", { name: /ลำพูน/ }).getByRole("button", { name: "โอน" }).click();
+  await การ์ด.getByRole("row", { name: /ลำพูน/ }).getByRole("button", { name: "โอน", exact: true }).click();
   await expect(ช่องลำพูน, "ยังไม่เลือกสาขา = กรอบแดง").toHaveAttribute("aria-invalid", "true");
   await expect(การ์ด.getByRole("row", { name: /ลำพูน/ }).locator("[data-field-error]"), "ข้อความใต้ช่อง").toHaveText("ต้องเลือกสาขาที่จะโอนให้");
   await expect(page.getByRole("dialog"), "ไม่เลือกสาขา = ไม่ขึ้นกล่องยืนยันโอน").toHaveCount(0);
   expect((await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code), "ยังไม่ถูกโอน").toEqual(["HQ"]);
-  await expect(การ์ด.getByText(/คิวรอ/)).toBeVisible();
+  // ข้อความที่บอสเลือก 12 พ.ย. 69 แทน "คิวรอ" (ห้าม "รอโอน" — ชนกับรอโอนเงิน)
+  await expect(การ์ด.getByText(/ยังโอนให้ดีลเลอร์ไม่ได้ \d+ ราย/)).toBeVisible();
+  await expect(การ์ด.getByText(/คิวรอ|รอโอน/), "ไม่มีคำเดิม/คำที่บอสห้าม").toHaveCount(0);
 
   // 1) ยืนยันเป็นชุด
   await การ์ด.getByRole("button", { name: /โอนอัตโนมัติทั้งหมด/ }).click();
@@ -86,7 +88,7 @@ test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ:
   // 2) หลายสาขา — HQ เลือกสาขาที่ 2 เอง
   const แถวลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ });
   await แถวลำพูน.getByLabel("โอนจังหวัดลำพูนให้").selectOption("ZTLPB");
-  await แถวลำพูน.getByRole("button", { name: "โอน" }).click();
+  await แถวลำพูน.getByRole("button", { name: "โอน", exact: true }).click();
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code), { timeout: 20_000 })
     .toEqual(["ZTLPB"]);

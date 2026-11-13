@@ -34,7 +34,7 @@ async function สร้างลีด(k: keyof typeof เลข) {
 async function เปิดแผงขอราคา(page: Page, k: keyof typeof เลข) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท(k));
   const row = page.locator("tbody tr").filter({ hasText: บริษัท(k) }).first();
   await expect(row).toBeVisible({ timeout: 25_000 });
@@ -163,7 +163,7 @@ test("[flow·hq] ใบ HQ เปิดมามีรายการจาก�
   const ตัวเลือก = page.getByRole("dialog", { name: "เลือกจากรายการวัสดุ" });
   await ตัวเลือก.getByLabel("ค้นรายการวัสดุ").fill(ประตู);
   await ตัวเลือก.getByRole("button", { name: new RegExp(`เพิ่ม ${ประตู}`) }).click();
-  await ตัวเลือก.getByRole("button", { name: "เสร็จ" }).click();
+  await ตัวเลือก.getByRole("button", { name: "เสร็จ", exact: true }).click();
   await expect(ใบ.getByLabel("ชื่อรายการ 3"), "แถว 3 = วัสดุที่เลือกจากแม่แบบ").toHaveValue(ประตู);
   await ใบ.getByRole("button", { name: "ลบรายการ 3" }).click();
 

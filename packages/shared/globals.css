@@ -44,7 +44,8 @@
   --shadow-card: 0 1px 3px rgba(0,0,0, 0.06);
   --shadow-md:   0 4px 12px rgba(0,0,0, 0.10);
 
-  --font-sans: var(--font-noto-thai), "Noto Sans Thai", "Sarabun", system-ui, sans-serif;
+  /* ไฟล์ฟอนต์ในโปรเจกต์ (packages/shared/lib/fonts.ts · 12 พ.ย. 69): ละติน (ตัวเลข/อังกฤษ) ก่อน ไทยตามหลัง */
+  --font-sans: var(--font-noto-latin), var(--font-noto-thai), "Noto Sans Thai", "Sarabun", system-ui, sans-serif;
 }
 
 @layer base {

@@ -59,7 +59,7 @@ test.describe("[ui·hq] ฟอร์มเพิ่มผู้ใช้งา�
       "บทบาท", "แผนก", "สถานะ",
     ].map(t => t.toLowerCase()));
 
-    const ปุ่มปิด = กล่อง.getByRole("button", { name: "ปิด" });
+    const ปุ่มปิด = กล่อง.getByRole("button", { name: "ปิด", exact: true });
     const จัดกลาง = await ปุ่มปิด.evaluate(el => {
       const s = getComputedStyle(el);
       return s.display === "flex" && s.alignItems === "center" && s.justifyContent === "center";

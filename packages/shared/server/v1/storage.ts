@@ -39,7 +39,7 @@ export const POST = handler("storage.upload", async (req: NextRequest, sb) => {
     if (bucket === BUCKET && !dealer) return fail(400, "ต้องระบุสาขาและไฟล์");
     const path = pathOf(bucket, dealer, Number(b?.stamp) || Date.now(), name);
     const { data, error } = await sb.storage.from(bucket).createSignedUploadUrl(path);
-    if (error || !data) return dbFail("storage.sign", (error ?? { message: "ออกลิงก์อัปโหลดไม่สำเร็จ" }) as { message: string; code?: string });
+    if (error || !data) return dbFail("storage.sign", (error ?? { message: "ออกลิงก์แนบไฟล์ไม่สำเร็จ" }) as { message: string; code?: string });
     return ok({ path, token: data.token });
   }
   const form = await req.formData().catch(() => null);

@@ -28,7 +28,7 @@ begin
   select * into l from leads where dealer_code = 'RYG' and num_id = 979000001;
   if jsonb_array_length(l.tasks) <> (select jsonb_array_length(tasks) from hq_sales_journey limit 1) then raise exception 'FAIL: งานต้องสร้างจากแม่แบบ HQ'; end if;
   if not exists (select 1 from jsonb_array_elements(l.tasks) t where t->>'key' = 'makeQuote' and (t->>'done')::boolean
-                  and t->>'doneBy' = 'อัปเดตอัตโนมัติ' and t->>'doneAt' ~ '^\d{1,2} \S+ \d{4}$') then raise exception 'FAIL: ต้องติ๊ก makeQuote'; end if;
+                  and t->>'doneBy' = 'ระบบทำให้' and t->>'doneAt' ~ '^\d{1,2} \S+ \d{4}$') then raise exception 'FAIL: ต้องติ๊ก makeQuote'; end if;
   if exists (select 1 from jsonb_array_elements(l.tasks) t where t->>'key' = 'sendQuote' and (t->>'done')::boolean) then raise exception 'FAIL: ใบร่างต้องไม่ติ๊ก sendQuote'; end if;
   if (select count(*) from jsonb_array_elements(l.activities) a where a->>'text' = 'ออกใบเสนอราคา ZZ-QS-1 (V1) · ยอด ฿15' and a->>'id' = '1'
         and a->>'date' ~ '^\d{1,2} \S+ \d{4} · \d{2}:\d{2}$') <> 1 then raise exception 'FAIL: ต้องจดกิจกรรมออกใบ 1 บรรทัด'; end if;

@@ -4,11 +4,10 @@ import { REAL_BACKEND } from "./supabaseEnv";
 import { adminClient } from "./testDealers";
 import { สร้างสาขาของข้อ } from "./ownDealer";
 import { รันSQLในฐาน } from "./localDb";
+import { DEALER_ORIGIN, loginUI } from "./funcHelpers";
 
-// เทสต์ที่ seed กฎผ่าน localStorage ใช้ได้กับ "โหมด local" เท่านั้น —
-// โหมด supabase แอปอ่านกฎจาก DB (dealer_lead_rules) ไม่ใช่ localStorage → seed ไม่มีผล
-// DB-path (เขียน/อ่านกฎ + RLS แยกสาขา) ตรวจที่ migration 0058/0059 และ supabase-rls แล้ว
-const SEED_LOCAL_ONLY = "seed ผ่าน localStorage — ใช้โหมด local เท่านั้น (โหมด DB อ่านจาก dealer_lead_rules)";
+// โหมดต่อฐาน แอปอ่านกฎจาก dealer_lead_rules — ข้อทดสอบตั้งเกณฑ์ที่ฐานของสาขาของข้อ (12 พ.ย. 69 · เดิม localStorage ข้ามทุกรอบ)
+//   seedRules (localStorage) เหลือไว้เฉพาะทางโหมดไม่ต่อฐานของข้อ HQ ท้ายไฟล์
 
 // ─── ฟีเจอร์: กฎการดูแลลูกค้าเป้าหมาย "แยกรายสาขา" (ดีลเลอร์ตั้งเอง) ─────────────
 // เดิม HQ ตั้งค่าเดียวบังคับทุกสาขา · บอสสั่งย้ายให้ดีลเลอร์ตั้งเอง แยกกันรายสาขา
@@ -36,10 +35,21 @@ test("[user·hq] /hq/settings ไม่มีช่องตั้งเกณ�
   await expect(main.getByText("ต้องมีผู้รับผิดชอบภายใน")).toHaveCount(0);
 });
 
-// ── 2. ดีลเลอร์ตั้งเองได้ + ค่าถูกบันทึกลงคีย์รายสาขา ──
+// 12 พ.ย. 69 (บอสสั่ง): ข้อ 2–3 เดิมใส่เกณฑ์ใน localStorage แล้วข้ามเมื่อต่อฐาน = ข้ามทุกรอบตรวจ (ไม่เคยตรวจจริง)
+//   → เขียนใหม่: สาขาของข้อ + เกณฑ์ที่ฐาน (dealer_lead_rules) แล้วตรวจบนจอของดีลเลอร์สาขานั้น · ไม่มีทางข้าม
+/** สาขาของข้อพร้อมเกณฑ์ที่ฐาน (ไม่ส่งเกณฑ์ = ใช้ค่าตั้งต้นของฐาน) — คืน ส + ตัวลบ */
+async function สาขาพร้อมเกณฑ์(เกณฑ์?: { วัน: number; ชม: number }) {
+  const ส = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
+  if (เกณฑ์) expect((await adminClient().from("dealer_lead_rules").upsert({ dealer_code: ส.รหัส, follow_up_alert_days: เกณฑ์.วัน, unassigned_alert_hours: เกณฑ์.ชม })).error, "ตั้งเกณฑ์ของสาขาที่ฐาน").toBeNull();
+  return { ส, ลบ: async () => { await adminClient().from("dealer_lead_rules").delete().eq("dealer_code", ส.รหัส); await ส.ลบ(); } };
+}
+
+// ── 2. ดีลเลอร์ตั้งเองได้ + ค่าถูกบันทึกลงฐานของสาขานั้น ──
 test("[user·dealer] ดีลเลอร์ตั้งกฎเองได้ที่ ตั้งค่า › กฎดูแลลูกค้าเป้าหมาย แล้วค่าถูกบันทึก", async ({ page }) => {
-  test.skip(REAL_BACKEND, SEED_LOCAL_ONLY);
-  await open(page, "dealer", "/settings");
+  const { ส, ลบ } = await สาขาพร้อมเกณฑ์();
+  try {
+  await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
+  await page.goto(`${DEALER_ORIGIN}/settings`, { waitUntil: "domcontentloaded" });
   // แท็บ "การแจ้งเตือน" (สวิตช์รายหมวด) เอาออกแล้ว — การ์ดกฎย้ายมาแท็บของตัวเอง (ใบ 0231 · รอบ 4)
   await page.locator(".tab-bar").getByRole("button", { name: "กฎดูแลลูกค้าเป้าหมาย" }).click();
   await expect(page.getByText("กฎการดูแลลูกค้าเป้าหมาย")).toBeVisible();
@@ -51,26 +61,37 @@ test("[user·dealer] ดีลเลอร์ตั้งกฎเองได�
   await nums.nth(1).fill("3");   // เตือนเมื่อลูกค้าเป้าหมายไม่มีการติดต่อเกิน 7 → 3 วัน
   await page.getByRole("button", { name: /^บันทึก/ }).first().click();
 
-  // ค่าต้องลงคีย์ "รายสาขา" ไม่ใช่คีย์กลางของ HQ
-  const saved = await page.evaluate(k => localStorage.getItem(k), RULES_KEY);
-  expect(saved, "ต้องบันทึกลง dealer_lead_rules").toBeTruthy();
-  expect(JSON.parse(saved!).CNX.followUpAlertDays, "สาขา CNX ต้องได้ 3 วัน").toBe(3);
+  // ค่าต้องลงแถวของสาขานี้ในฐาน (dealer_lead_rules) ไม่ใช่ค่ากลางของ HQ
+  await expect.poll(async () => (await adminClient().from("dealer_lead_rules").select("follow_up_alert_days").eq("dealer_code", ส.รหัส).maybeSingle()).data?.follow_up_alert_days ?? null,
+    { timeout: 20_000, message: "เกณฑ์ของสาขานี้ในฐานต้องเป็น 3 วัน" }).toBe(3);
+  } finally { await ลบ(); }
 });
 
 // ── 3. ค่าที่ตั้งมีผลจริงกับหน้าของดีลเลอร์ (ไม่ใช่ช่องกรอกหลอก) ──
 test("[user·dealer] เกณฑ์ที่สาขาตั้ง มีผลกับการ์ด 'ต้องติดตามด่วน' บนแดชบอร์ด", async ({ page }) => {
-  test.skip(REAL_BACKEND, SEED_LOCAL_ONLY);
-  await seedRules(page, "CNX", 3, 48);   // ตั้ง 3 วัน
-  await open(page, "dealer", "/dashboard");
-  await expect(page.getByText("ต้องติดตามด่วน (เกิน 3 วัน)")).toBeVisible();
+  const { ส, ลบ } = await สาขาพร้อมเกณฑ์({ วัน: 3, ชม: 48 });   // ตั้ง 3 วันที่ฐาน
+  try {
+    await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
+    await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("ต้องติดตามด่วน (เกิน 3 วัน)")).toBeVisible({ timeout: 25_000 });
+  } finally { await ลบ(); }
 });
 
 test("[user·dealer·edge] ตั้งเกณฑ์สูงมาก (999 วัน) → ไม่มีลูกค้าเป้าหมายไหนค้าง", async ({ page }) => {
-  test.skip(REAL_BACKEND, SEED_LOCAL_ONLY);
-  await seedRules(page, "CNX", 999, 48);
-  await open(page, "dealer", "/dashboard");
-  await expect(page.getByText("ต้องติดตามด่วน (เกิน 999 วัน)")).toBeVisible();
-  await expect(page.getByText("ไม่มีรายการค้าง")).toBeVisible();
+  const { ส, ลบ } = await สาขาพร้อมเกณฑ์({ วัน: 999, ชม: 48 });
+  const เลข = 1_890_000_000 + Math.floor(Math.random() * 400_000) * 10;
+  const สิบวันก่อน = new Date(Date.now() + 7 * 3_600_000 - 10 * 86_400_000).toISOString().slice(0, 10);
+  try {
+    // ลูกค้าเป้าหมายไม่ได้ติดต่อ 10 วัน (มีผู้รับผิดชอบ) — เกณฑ์ 7 วันเดิมจะค้าง · เกณฑ์ 999 วันต้องไม่ค้าง (วางที่ฐานปิดตัวดัก แบบข้อ HQ ด้านล่าง)
+    expect(รันSQLในฐาน(`set local session_replication_role = replica;
+      insert into public.leads (id, num_id, dealer_code, company, name, phone, province, source, status, assigned, created_date, last_contact_at)
+      values ('#L-${เลข}', ${เลข}, '${ส.รหัส}', 'ZZTEST ไม่ได้ติดต่อ 10 วัน ${ส.รหัส}', 'ZZTEST ผู้ติดต่อ', '000-000-0302', 'ตราด', 'Facebook', 'WAITING', 'ผู้ทดสอบ', '${สิบวันก่อน}', '${สิบวันก่อน}');
+      set local session_replication_role = origin;`), "ลูกค้าเป้าหมายของข้อ").not.toBeNull();
+    await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
+    await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("ต้องติดตามด่วน (เกิน 999 วัน)")).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByText("ไม่มีรายการค้าง")).toBeVisible();
+  } finally { await adminClient().from("leads").delete().eq("num_id", เลข); await ลบ(); }
 });
 
 // ── 4. HQ ยังเห็นตามเกณฑ์ที่สาขาตั้ง — และไม่โกหกว่าเป็น "กฎสำนักงานใหญ่" ──

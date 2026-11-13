@@ -27,7 +27,7 @@ export const POST = withErrors("impersonate-dealer", async (req: NextRequest) =>
     "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — เข้าระบบแทนดีลเลอร์จากที่นี่ยังไม่ได้",
   );
   if (!authz.ok) return authz.res;
-  if (!DEALER_APP_URL) return bad(503, "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (NEXT_PUBLIC_DEALER_APP_URL) — ไม่รู้ที่อยู่แอปดีลเลอร์ จึงเข้าระบบแทนไม่ได้");
+  if (!DEALER_APP_URL) return bad(503, "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (NEXT_PUBLIC_DEALER_APP_URL) — ไม่รู้ที่อยู่ระบบดีลเลอร์ จึงเข้าระบบแทนไม่ได้");
   const { admin, callerId, prof } = authz.auth;
 
   // เข้าระบบแทนคือการเข้าถึงบัญชีคนอื่นเต็มรูปแบบ — จำกัดถี่กว่าจุดอื่นเล็กน้อย

@@ -6,9 +6,10 @@
 // ⚠️ "อื่นๆ" ต้องลบไม่ได้ และต้องไม่ถูกเก็บเป็นตัวเลือกจริงในรายการ
 //    ไม่งั้นเหตุผลที่บันทึกจะกลายเป็นคำว่า "อื่นๆ" ลอย ๆ ทุกใบ รายงานจะวิเคราะห์ไม่ได้
 import { test, expect } from "@playwright/test";
-import { ADMIN, RYG, skipReason } from "./supabaseEnv";
+import { ADMIN, skipReason } from "./supabaseEnv";
 import { openAs, settle } from "./helpers";
-import { db } from "./funcHelpers";
+import { db, loginUI, DEALER_ORIGIN } from "./funcHelpers";
+import { สร้างสาขาของข้อ } from "./ownDealer";
 
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
@@ -31,21 +32,20 @@ test("[func] ตัวเลือก 'อื่นๆ (ระบุเอง)' 
   const รายการ = (data?.lost as string[] | null) ?? [];
   expect(รายการ, "รายการในฐานข้อมูลต้องมีตัวเลือกนี้").toContain("อื่นๆ (ระบุเอง)");
 
-  await openAs(page, RYG, "dealer", "/leads");
-  await settle(page);
-
-  const แถว = page.locator("tbody tr");
-  const จำนวน = Math.min(await แถว.count(), 5);
-  let เปิดได้ = false;
-  for (let i = 0; i < จำนวน; i++) {
-    await แถว.nth(i).locator("td").first().click();
+  // ลูกค้าเป้าหมายที่ยังเปิดอยู่ของสาขาของข้อ (บอสสั่ง 12 พ.ย. 69) — เดิมไล่ 5 แถวแรกของ RYG หาแถวที่กดปิดไม่สำเร็จได้
+  //   แถวแรกของ RYG เป็นของข้ออื่นที่รันพร้อมกันได้ (ขั้นอื่น/ถูกลบระหว่างเปิด) → ตก "ขาดข้อมูล"
+  const ส = await สร้างสาขาของข้อ();
+  try {
+    const เลข = 1_970_000_000 + Math.floor(Math.random() * 400_000) * 10, ชื่อ = `ZZTEST เหตุผลอื่นๆ ${ส.รหัส}`;
+    expect((await (await db(ส.บัญชี)).from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: ส.รหัส, company: ชื่อ, name: ชื่อ,
+      contact: "ผู้ทดสอบ", phone: "000-000-0310", province: "ตราด", status: "BULLET" })).error, "ลูกค้าเป้าหมายของข้อ").toBeNull();
+    await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
+    await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
+    await page.getByRole("row", { name: `เปิดรายละเอียดลูกค้าเป้าหมาย ${ชื่อ}`, exact: true }).locator("td").first().click();
     // รอบ 4: ปิดไม่สำเร็จอยู่ที่กล่อง "ขั้นต่อไป" ที่เดียว (แท็บงาน/ปุ่มไม่ได้งานเอาออก)
-    await page.locator("[data-panel='next-step']:not([aria-busy])").waitFor({ timeout: 15_000 }).catch(() => {});
     const ปุ่ม = page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ปิดไม่สำเร็จ/ }).first();
-    if (await ปุ่ม.count() && await ปุ่ม.isEnabled().catch(() => false)) { await ปุ่ม.click(); เปิดได้ = true; break; }
-    await page.keyboard.press("Escape");
-  }
-  expect(เปิดได้, "ขาดข้อมูล: ไม่มีงานขายที่ยังเปิดอยู่ให้กดปิดไม่สำเร็จ — ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69)").toBe(true);
+    await expect(ปุ่ม, "ลูกค้าเป้าหมายที่ยังเปิดอยู่กดปิดไม่สำเร็จได้").toBeEnabled({ timeout: 20_000 });
+    await ปุ่ม.click();
 
   // ต้องมีปุ่มเดียว ไม่ใช่สองปุ่มซ้ำกัน (ตัวในรายการ + ตัวที่ระบบเติมให้)
   const ปุ่มอื่นๆ = page.getByRole("button", { name: "อื่นๆ (ระบุเอง)" });
@@ -58,4 +58,5 @@ test("[func] ตัวเลือก 'อื่นๆ (ระบุเอง)' 
   // ยังไม่พิมพ์ = ปุ่มยืนยันต้องกดไม่ได้ (กัน "อื่นๆ" ลอย ๆ หลุดลงฐานข้อมูล)
   await expect(page.getByRole("button", { name: "ยืนยันปิดการขาย" }),
     "ยังไม่พิมพ์เหตุผล ต้องกดยืนยันไม่ได้").toBeDisabled();
+  } finally { await ส.ลบ(); }
 });

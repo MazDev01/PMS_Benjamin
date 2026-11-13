@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── รอบ 2 ช่วง ก: ความปลอดภัยก่อน (บอสตัดสิน 19 ต.ค. 69 · docs/FLOW.html · docs/archive/ตารางเทียบ-flow-รอบ1.md) ─────────────
@@ -23,7 +23,7 @@ const แท็ก = `${Date.now() % 100000}`;
 async function เปิดแผงลีด(page: Page, company: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const แถว = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(แถว).toBeVisible({ timeout: 20_000 });
@@ -109,8 +109,8 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     await expect(page.getByRole("button", { name: /เปิดใหม่/ }), "ไม่มีปุ่มเปิดใหม่บนลีดที่ปิดการขายแล้ว").toHaveCount(0);
 
     await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-    const แถวใบ = page.locator("div").filter({ hasText: /ตอบรับ/ }).filter({ has: page.getByRole("button", { name: "ดู" }) }).last();
-    await expect(แถวใบ.getByRole("button", { name: "ดู" })).toBeVisible({ timeout: 15_000 });
+    const แถวใบ = page.locator("div").filter({ hasText: /ตอบรับ/ }).filter({ has: page.getByRole("button", { name: "ดู", exact: true }) }).last();
+    await expect(แถวใบ.getByRole("button", { name: "ดู", exact: true })).toBeVisible({ timeout: 15_000 });
     for (const ป้าย of ["แก้ไข", "ทำสำเนา", "ลบ"]) {
       await expect(แถวใบ.getByRole("button", { name: ป้าย, exact: true }), `ใบที่ตอบรับแล้วต้องไม่มีปุ่ม ${ป้าย}`).toHaveCount(0);
     }
@@ -225,8 +225,8 @@ test.describe("ลบลีด / ลบลูกค้า", () => {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    const แถว = page.locator("tbody tr").first();
-    await expect(แถว).toBeVisible({ timeout: 20_000 });
+    // ลูกค้าตั้งต้นด้วยชื่อ (บอสสั่ง 12 พ.ย. 69) — เดิมหยิบแถวแรกของ RYG (ของข้ออื่น/ถูกลบระหว่างเปิดได้)
+    const แถว = await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, ตั้งต้น.ลูกค้าRYG, /ค้นหาลูกค้า,/);
     await expect(page.getByTitle("ลบลูกค้า"), "ตารางไม่มีปุ่มลบลูกค้า").toHaveCount(0);
     await แถว.getByTitle("ดูรายละเอียด").click();
     await expect(page.getByRole("button", { name: /พิมพ์ข้อมูล/ })).toBeVisible({ timeout: 15_000 });

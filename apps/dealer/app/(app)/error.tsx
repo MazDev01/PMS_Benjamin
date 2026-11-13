@@ -19,7 +19,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
         </p>
         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
           <button className="btn btn-primary" onClick={() => reset()}>ลองใหม่</button>
-          <button className="btn btn-secondary" onClick={() => { window.location.href = "/dashboard"; }}>กลับหน้าแดชบอร์ด</button>
+          <button className="btn btn-secondary" onClick={() => { window.location.href = "/dashboard"; }}>กลับหน้าหลัก</button>
         </div>
       </div>
     </div>

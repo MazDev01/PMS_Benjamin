@@ -81,7 +81,8 @@ export default defineConfig({
   //   ขยับเป็น 12 วินาที — บั๊กจริงล้มทุกค่า timeout อยู่แล้ว ตัวเลขนี้จึงไม่กลบบั๊ก แค่ตัดเสียงรบกวน
   expect: { timeout: 12_000 },
   // ชื่อข้อไม่นิ่ง (ตกครั้งแรก ผ่านตอนรันซ้ำ) ท้ายผลทุกครั้งที่รัน (บอสสั่ง 11 พ.ย. 69 · tests/reporters/flaky-names.ts)
-  reporter: [["list"], ["./tests/reporters/flaky-names.ts"]],
+  // + หลักฐานตอนตก: server-log.txt ข้าง trace/ภาพหน้าจอ เมื่อรันผ่าน test-prodbuild (บอสสั่ง 12 พ.ย. 69 · tests/reporters/failure-evidence.ts)
+  reporter: [["list"], ["./tests/reporters/flaky-names.ts"], ["./tests/reporters/failure-evidence.ts"]],
   use: {
     baseURL: ที่อยู่เว็บ.hq,
     headless: true,

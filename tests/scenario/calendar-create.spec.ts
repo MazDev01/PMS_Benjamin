@@ -121,7 +121,7 @@ test("[D7] [flow·dealer] นัดจากปฏิทิน → แผงล�
   // แผงลีดเห็นนัด
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ลีดA());
   await page.locator("tbody tr").filter({ hasText: ลีดA() }).first().getByTitle("ดูรายละเอียด").click({ timeout: 20_000 });
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).first().click();

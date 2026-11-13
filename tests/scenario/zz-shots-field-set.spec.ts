@@ -37,7 +37,7 @@ async function ถ่าย(page: Page, ฉาก: string, เตรียม: (
 async function เปิดลีด(page: Page) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัทลีด);
   const row = page.locator("tbody tr").filter({ hasText: บริษัทลีด }).first();
   await expect(row).toBeVisible({ timeout: 25_000 });

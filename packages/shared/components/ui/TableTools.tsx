@@ -132,8 +132,8 @@ export function TableTools(props: {
           type="button"
           className="tt-btn"
           onClick={handleRefresh}
-          title="รีเฟรช"
-          aria-label="รีเฟรช"
+          title="โหลดใหม่"
+          aria-label="โหลดใหม่"
         >
           <RotateCw size={15} className={spinning ? "tt-spin" : undefined} />
         </button>

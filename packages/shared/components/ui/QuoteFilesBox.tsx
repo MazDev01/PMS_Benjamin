@@ -82,7 +82,7 @@ export function QuoteFilesBox({ requestId, uploadSide, canUpload, lockedReason, 
     }
     for (let i = 0; i < ผ่าน.length; i++) {
       const f = ผ่าน[i];
-      setกำลัง(`กำลังอัปโหลด ${i + 1}/${ผ่าน.length}…`);
+      setกำลัง(`กำลังแนบไฟล์ ${i + 1}/${ผ่าน.length}…`);
       try { await repo.upload(requestId, uploadSide, f); สำเร็จ++; }
       catch (e) { ใหม่.push({ key: `${f.name}-${Math.random().toString(36).slice(2, 8)}`, name: f.name, size: f.size, เหตุ: friendlyError(e) }); }
     }

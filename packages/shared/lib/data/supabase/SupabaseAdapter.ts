@@ -263,7 +263,7 @@ function subscribeWithRetry(label: string, build: () => RealtimeChannel): () => 
 
       if (attempt >= RETRY_DELAYS_MS.length) {
         captureError(
-          new Error(`realtime "${label}" ต่อใหม่ ${RETRY_DELAYS_MS.length} ครั้งแล้วยังไม่ติด — ข้อมูลจะอัปเดตช้ากว่าปกติ (ยังซิงก์ทุก 30 วินาที)`),
+          new Error(`realtime "${label}" ต่อใหม่ ${RETRY_DELAYS_MS.length} ครั้งแล้วยังไม่ติด — ข้อมูลจะเปลี่ยนช้ากว่าปกติ (ยังซิงก์ทุก 30 วินาที)`),
           "realtime",
         );
         return;
@@ -358,7 +358,7 @@ export const SupabaseAdapter: DataAdapter = {
       return ch;
     }),
     // โน้ตลูกค้า — RLS กรอง event ให้เห็นเฉพาะของสาขาตัวเอง (0028 เปิด Realtime + replica identity full)
-    subscribeNotes: (onChange) => subscribeWithRetry("โน้ตลูกค้า", () =>
+    subscribeNotes: (onChange) => subscribeWithRetry("หมายเหตุลูกค้า", () =>
       sb().channel(topic("notes-changes"))
         .on("postgres_changes", { event: "*", schema: "public", table: "customer_notes" }, () => onChange())),
     // ตั้งค่าของสาขา — 0024 เปิด Realtime + replica identity full · RLS กรองเฉพาะของสาขาตัวเอง (M4)

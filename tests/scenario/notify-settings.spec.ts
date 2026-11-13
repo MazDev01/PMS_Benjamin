@@ -104,7 +104,7 @@ test("[ui·hq] ตั้งค่า › การแจ้งเตือน: �
   for (const e of [...รายชื่อเดิม, อีเมล1]) await page.getByRole("button", { name: `ลบ ${e}` }).click();
   await expect(page.getByTestId("no-recipients"), "ไม่มีผู้รับ = กล่องแดง").toContainText("ยังไม่มีผู้รับ");
   await expect(page.getByTestId("no-recipients")).toHaveCSS("color", "rgb(185, 28, 28)");
-  await page.getByRole("button", { name: "รีเซ็ต" }).click();
+  await page.getByRole("button", { name: "คืนค่าเดิม" }).click();
   await expect(รายการ.locator("[data-recipient]"), "รีเซ็ตแล้วกลับเป็นรายชื่อที่บันทึก").toHaveCount(รายชื่อเดิม.length);
 
   // ฐานปฏิเสธรูปแบบผิด (ยิงตรง ไม่ผ่านหน้าจอ)

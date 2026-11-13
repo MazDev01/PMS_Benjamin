@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { open, assertHealthyPage, openLeadQuotationForm, settle } from "./helpers";
+import { open, assertHealthyPage, openLeadQuotationForm, settle, แถวตามชื่อ, ตั้งต้น } from "./helpers";
 import { RYG } from "./supabaseEnv";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { REAL_BACKEND } from "./supabaseEnv";
@@ -84,7 +84,7 @@ test("[ui·dealer] หน้าดูใบเสนอราคาบนจอ�
 test("[ui·dealer] โมดัลลูกค้าแบบแท็บ (ข้อมูลลูกค้า/เพิ่มงานขายใหม่) ไม่ล้นแนวนอน", async ({ page }) => {
   await open(page, "dealer", "/customers");
   await assertHealthyPage(page, "ลูกค้า");
-  await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้า ${ตั้งต้น.ลูกค้าRYG}`, ตั้งต้น.ลูกค้าRYG, /ค้นหาลูกค้า,/)).getByRole("button", { name: "ดูรายละเอียด" }).click();   // ลูกค้าตั้งต้นด้วยชื่อ ไม่หยิบแถวแรกของ RYG (12 พ.ย. 69)
   // แท็บ ข้อมูลลูกค้า (default) → โปรไฟล์ลูกค้า + ยอดขายรวม
   // (คำเดียวกันโผล่ในตารางเบื้องหลังด้วย จึงต้อง .first())
   await expect(page.getByText("รหัสลูกค้า").first()).toBeVisible();
@@ -255,7 +255,7 @@ test("[ui·dealer] แผงลูกค้าเป้าหมายมีค�
   await assertHealthyPage(page, "ลูกค้าเป้าหมาย");
   // exact: ลีดของข้ออื่นที่รันพร้อมกันอาจมีคำว่า "ตาราง" ในชื่อ (ปุ่มลบของแถวนั้นชื่อซ้อน)
   await page.getByRole("button", { name: "ตาราง", exact: true }).click(); // ค่าเริ่มต้น=บอร์ด → สลับเป็นตาราง
-  await page.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
+  await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้าเป้าหมาย ${ตั้งต้น.ลีดRYG}`, ตั้งต้น.ลีดRYG, /ค้นหาบริษัท ผู้ติดต่อ/)).getByRole("button", { name: "ดูรายละเอียด" }).click();   // ลูกค้าเป้าหมายตั้งต้นด้วยชื่อ ไม่หยิบแถวแรกของ RYG (12 พ.ย. 69)
   for (const tab of ["ภาพรวม", "ใบเสนอราคา", "ประวัติ"]) {
     await expect(page.getByRole("button", { name: tab, exact: true }).first(), `ต้องมีแท็บ "${tab}"`).toBeVisible();
   }
@@ -276,7 +276,7 @@ test("[ui·dealer] ป้ายขั้นตอนต้องอยู่ใ�
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "dealer", "/leads");
   await page.waitForTimeout(2000);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await expect(page.locator("tbody tr").first().locator("button.badge"), "ป้ายขั้นไม่ใช่ปุ่มแล้ว").toHaveCount(0);
   const chip = page.locator("tbody tr").first().locator("span.badge").first();
   await expect(chip).toBeVisible({ timeout: 15_000 });

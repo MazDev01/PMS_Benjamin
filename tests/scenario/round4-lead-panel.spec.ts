@@ -40,7 +40,7 @@ async function สถานะลีด(n: number) {
 async function เปิดลีด(page: Page, company: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   // ข้อในไฟล์นี้เปิดลีดที่ปิดแล้วด้วย — ตัวกรองขั้นตอนค่าเริ่มต้นซ่อนลีดปิดแล้ว (บอสสั่ง 28 ต.ค. 69) จึงเลือก "ทั้งหมด"
   await page.getByLabel("ขั้นตอน", { exact: true }).selectOption({ label: "ทั้งหมด" });
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
@@ -87,7 +87,7 @@ test("ข้อ 2 · ป้ายสถานะในตารางกดแ�
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   const แถว = page.locator("tbody tr").filter({ hasText: company }).first();
   await expect(แถว).toBeVisible();

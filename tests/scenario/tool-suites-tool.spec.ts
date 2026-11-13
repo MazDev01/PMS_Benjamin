@@ -10,6 +10,11 @@ const ชุด: [string, string][] = [
   ["tests/tools/flaky-log.test.mjs", "ตัวนับข้อไม่นิ่ง + บรรทัดต้นเหตุ"],
   ["tests/tools/test-self-skip.test.mjs", "ตัวตรวจข้อทดสอบข้ามตัวเองเมื่อไม่มีข้อมูล + รายงานข้อที่ข้ามแยกตามเหตุผล"],
   ["tests/tools/flaky-ack.test.mjs", "ชื่อข้อไม่นิ่งท้ายผล + รอบมีข้อไม่นิ่งรอบอสรับทราบ (round:ack กัน AI)"],
+  ["tests/tools/untracked-code.test.mjs", "ไฟล์โค้ดในแอป/แพ็กเกจที่ git ยังไม่เก็บ = ชุดตรวจก่อน commit ตก (ตัวตรวจอื่นอ่านไม่ถึง)"],
+  ["tests/tools/skip-exemptions.test.mjs", "ข้อที่ถูกข้ามในรอบตรวจเต็มต้องอยู่ในรายชื่อยกเว้นที่บอสอนุมัติ (ไฟล์ + ชื่อตรงตัว)"],
+  ["tests/tools/test-ratchet.test.mjs", "ข้อทดสอบ: รอตายตัว + หยิบแถวแรกของรายการ ห้ามเพิ่ม ลดได้ (เพดานรายไฟล์)"],
+  ["tests/tools/no-remote-font.test.mjs", "ขั้นสร้างเว็บไม่ดึงฟอนต์จาก Google: ฟอนต์จากไฟล์ในโปรเจกต์ (next/font/local)"],
+  ["tests/tools/failure-evidence.test.mjs", "หลักฐานตอนข้อตก: ข้อความเซิร์ฟเวอร์ลงไฟล์ของรอบ · ตัดช่วงของข้อที่ตกไปวางข้าง trace + ภาพหน้าจอ"],
   ["tests/tools/prod-read-only.test.mjs", "prod:query ใส่ --yes เฉพาะคำสั่งอ่าน · คำสั่งเขียนถูกปฏิเสธก่อนต่อฐาน"],
   ["tests/tools/supabase-cli-rows.test.mjs", "อ่านผล Supabase CLI ได้ทั้ง 2 รูปแบบ · อ่านไม่ได้หยุดก่อนลบ · CLI รุ่นของโปรเจกต์"],
   ["tests/tools/restore-reset.test.mjs", "ล้างฐานซ้อมกู้ลองใหม่เฉพาะอาการคอนเทนเนอร์เตรียมโครงฐานล้ม"],
@@ -29,6 +34,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/gate-dirty-tree.test.mjs", "รอบตรวจเต็มปฏิเสธเมื่อมีไฟล์ที่ยังไม่ commit ในโฟลเดอร์ (บอกชื่อไฟล์ · บอสสั่ง 9 พ.ย. 69)"],
   ["tests/tools/check-fixture-regions.test.mjs", "ตัวตรวจชื่อภาคในข้อมูลตั้งต้น = รายการ th_provinces (10 พ.ย. 69)"],
   ["tests/tools/migration-rehearsal.test.mjs", "ซ้อมลงใบปรับฐานแบบ db push บนฐานแยก (ไม่ห่อ transaction · ข้อมูลแปลงจริง · ลบคอนเทนเนอร์ทุกครั้ง)"],
+  ["tests/tools/migration-0286.test.mjs", "ซ้อมลงใบ 0286 คำบนจอที่ฐานสร้าง: แถวเก่าคงคำเดิม · 11 ฟังก์ชันไม่มีคำห้าม · ผู้ทำโดยระบบ = ระบบทำให้"],
 ];
 for (const [ไฟล์, อะไร] of ชุด) {
   test(`[tool] ${อะไร} (${ไฟล์})`, () => {

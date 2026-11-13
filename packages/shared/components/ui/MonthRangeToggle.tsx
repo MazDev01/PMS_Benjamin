@@ -1,19 +1,17 @@
 "use client";
 
-// ─── ปุ่มเลือกช่วงย้อนหลังของกราฟ (3 / 6 / 12 เดือน) — แหล่งเดียวของทั้งระบบ ──────
+// ─── ปุ่มเลือกช่วงย้อนหลังของกราฟ (3 เดือน / 6 เดือน / 9 เดือน / 1 ปี · ค่าเริ่มต้น 1 ปี · บอสสั่ง 11 พ.ย. 69 · เดิม 3/6/12) — แหล่งเดียวของทั้งระบบ ──────
 // เดิมโค้ดชุดนี้ฝังอยู่ในแดชบอร์ดดีลเลอร์ใบเดียว · ย้ายออกมาเพื่อให้กราฟรายเดือนทุกหน้า
 // หน้าตา/พฤติกรรมเหมือนกันหมด (บอสสั่ง 17 ก.ค. 69)
 //
 // กติกา: กราฟที่มีปุ่มนี้ "ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน" — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
 // จึงต้องเขียนช่วงที่ครอบไว้ใต้หัวข้อด้วย monthRangeSubtitle() ทุกครั้ง ไม่งั้นคนอ่านไม่รู้ว่ากำลังดูช่วงไหน
 import { NAVY } from "@pms/shared/lib/theme";
+import { THAI_MONTHS, MONTH_RANGES, MONTH_RANGE_DEFAULT, ชื่อช่วงเดือน, ป้ายเดือนปี, type MonthRange } from "@pms/shared/lib/monthRange";   // ค่าคงที่/ตัวคำนวณล้วน (ข้อทดสอบหน่วย)
+export { MONTH_RANGES, MONTH_RANGE_DEFAULT, ชื่อช่วงเดือน, ป้ายเดือนปี, type MonthRange };
 
 const BORDER = "#E5E7EB";
 const SUB = "#6B7280";
-const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-
-export const MONTH_RANGES = [3, 6, 12] as const;
-export type MonthRange = (typeof MONTH_RANGES)[number];
 
 /** คีย์ถังรายเดือน "YYYY-MM"
  *  ⚠️ ต้องมี "ปี" เสมอ — ถ้าใช้แต่เลขเดือน ยอด ก.ย. 2568 จะไปทับช่อง ก.ย. 2569 (บั๊กที่เคยเจอมาแล้ว) */
@@ -47,14 +45,14 @@ export function MonthRangeToggle({ value, onChange, label }: {
       {MONTH_RANGES.map(n => {
         const on = n === value;
         return (
-          <button key={n} type="button" onClick={() => onChange(n)} aria-pressed={on} title={`${label} — ย้อนหลัง ${n} เดือน`}
+          <button key={n} type="button" onClick={() => onChange(n)} aria-pressed={on} data-month-range={n} title={`${label} — ย้อนหลัง ${ชื่อช่วงเดือน(n)}`}
             style={{
               fontFamily: "inherit", fontSize: "0.68rem", fontWeight: 700, whiteSpace: "nowrap",
               padding: "5px 9px", borderRadius: 8, cursor: "pointer",
               border: `1px solid ${on ? NAVY : BORDER}`, background: on ? NAVY : "#fff", color: on ? "#fff" : SUB,
               transition: "background .15s ease, color .15s ease, border-color .15s ease",
             }}>
-            {n} เดือน
+            {ชื่อช่วงเดือน(n)}
           </button>
         );
       })}

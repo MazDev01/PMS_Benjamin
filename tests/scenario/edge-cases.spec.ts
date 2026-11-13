@@ -65,7 +65,7 @@ test("[edge] ชื่อบริษัทยาวผิดปกติ (2000 
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   const row = await waitRow<{ company: string }>(sb, "leads", { company: LONG });
   assertNoErrors(errs, "ชื่อบริษัทยาว 2000 ตัวอักษร");
@@ -73,7 +73,7 @@ test("[edge] ชื่อบริษัทยาวผิดปกติ (2000 
 
   // เปิดตารางแล้วต้องไม่พัง (ไม่ล้นจอ ไม่แครช) แม้มีชื่อยาวผิดปกติปนอยู่
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ต้องค้นหาก่อนเสมอ — ตารางลูกค้าเป้าหมายแบ่งหน้า และตอนรันทั้งชุดพร้อมกัน สเปกอื่นสร้างลูกค้าเป้าหมายใหม่ของสาขา
   // เดียวกันแทรกเข้ามาตลอด (เรียงใหม่สุดขึ้นก่อน) แถวของเทสต์นี้จึงถูกดันตกหน้าแรกไปเป็นครั้งคราว
   // → ตกด้วยข้อความ "ไม่เจอแถว" ทั้งที่ข้อมูลอยู่ครบ · กับดักเดียวกับที่แก้ไปแล้ว 6 จุดเมื่อ 6 ส.ค. 69
@@ -95,14 +95,14 @@ test("[edge] อักขระพิเศษ/emoji/แท็ก HTML ในช
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   const row = await waitRow<{ company: string }>(sb, "leads", { company: WEIRD });
   assertNoErrors(errs, "อักขระพิเศษ/emoji/HTML ในชื่อบริษัท");
   expect(row.company).toBe(WEIRD); // เก็บลง DB ตรงเป๊ะ ไม่ถูกกรอง/escape ผิดที่ชั้นเขียน
 
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click();
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click();
   // ค้นหาก่อนเสมอ — ตารางลูกค้าเป้าหมายแบ่งหน้า ตอนรันชุดเต็มมีลูกค้าเป้าหมายของสเปกอื่นบนสาขา RYG เดียวกันเพิ่มเข้ามา
   // ลูกค้าเป้าหมายของเราถูกดันไปหน้าหลัง แล้วเทสต์ล้มแบบสุ่มทั้งที่ระบบทำงานถูก (เป็นการหาผิดที่ ไม่ใช่บั๊ก)
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(tg("แปลก"));
@@ -127,7 +127,7 @@ test("[edge] กดปุ่มบันทึกซ้ำเร็ว ๆ (doub
   await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
 
-  const saveBtn = page.getByRole("button", { name: "บันทึก" });
+  const saveBtn = page.getByRole("button", { name: "บันทึก", exact: true });
   // ยิง pointerdown ตรง ๆ ผ่าน dispatchEvent 5 ครั้งรัว ๆ ในจังหวะเดียว (เร็วกว่าที่ React จะ re-render
   // ปุ่มเป็น disabled ทัน) — จำลองผู้ใช้กระวนกระวายกดซ้ำ/ดับเบิลคลิก ให้ตรงกว่าการเรียก .click() ของ
   // Playwright เอง (ซึ่งรอ actionability ทีละครั้ง จึงไม่มีทางยิงชนกันจริงเหมือนนิ้วผู้ใช้กดรัว)
@@ -160,7 +160,7 @@ test("[edge] พื้นที่ (ตร.ม.) ติดลบผ่าน fil
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   // type=number min=0 กัน spinner ได้ แต่ fill() เขียนค่าตรง ๆ ผ่าน DOM (จำลอง paste ค่าติดลบ)
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("-999");
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
   const row = await waitRow<{ area: number | null }>(sb, "leads", { company: COMPANY });
   assertNoErrors(errs, "พื้นที่ติดลบผ่าน fill() ตรง ๆ");
@@ -267,7 +267,7 @@ test("[edge·hq] กดปุ่ม 'บันทึก' (เพิ่มผู�
   // HQ บทบาทเดียว "สำนักงานใหญ่" (บอสสั่ง 5 พ.ย. 69 · ใบ 0282) — ไม่มีช่องเลือกบทบาทแล้ว แสดงเป็นข้อความตายตัว
   await expect(page.getByRole("dialog").getByLabel("บทบาท", { exact: true })).toHaveText("สำนักงานใหญ่");
 
-  const saveBtn = page.getByRole("button", { name: "บันทึก" });
+  const saveBtn = page.getByRole("button", { name: "บันทึก", exact: true });
   await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
   const btnHandle = await saveBtn.elementHandle();
   await page.evaluate((el) => {
@@ -308,7 +308,7 @@ test("[edge] พิมพ์เหตุผลปิดไม่สำเร็�
   try {
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "ตาราง" }).click();
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click();
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY); // กันเคสตกหน้าอื่นของ pagination
     const row = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
     await expect(row).toBeVisible({ timeout: 15_000 });

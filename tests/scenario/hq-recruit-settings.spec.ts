@@ -167,7 +167,7 @@ test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติม
   await expect(ฟอร์ม.locator("#pp-amount"), "ช่องเงินใส่ลูกน้ำให้").toHaveValue("99,000");
   await ฟอร์ม.locator("#pp-months").fill("12");
   await กรอกช่องบังคับใบที่ว่าง(ฟอร์ม);   // ช่องบังคับครบก่อนบันทึก (4 พ.ย. 69)
-  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ" }).click();
+  await ฟอร์ม.getByRole("button", { name: "บันทึกใบ", exact: true }).click();
 
   const แถว = await waitRow<{ amount: number; contract_months: number; terms: string; valid_until: string }>(
     sb, "dealer_package_proposals", { prospect_id: prospectId });

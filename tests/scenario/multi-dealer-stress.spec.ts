@@ -162,7 +162,7 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   // เปิดลูกค้าเป้าหมายใหม่จากตาราง (แผงที่เปิดค้างจาก ?open= ยังไม่รู้ว่ามีใบ HQ · ลิงก์ ?open= ใช้ได้ครั้งเดียว)
   await settle(page);   // รอคำขอบันทึกที่ค้าง (งาน/ไทม์ไลน์ของลูกค้าเป้าหมาย) จบก่อนเปลี่ยนหน้า — ไม่งั้นถูกตัดกลางทาง
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(COMPANY);
   const แถวดีล = page.locator("tbody tr").filter({ hasText: COMPANY }).first();
   await expect(แถวดีล, `${code}: งานขายต้องอยู่ในตาราง`).toBeVisible({ timeout: 45_000 });
@@ -217,10 +217,10 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   await page.getByPlaceholder("ค้นหาลูกค้า, เบอร์โทร, อีเมล...").fill(COMPANY);
   await expect(page.locator("tbody tr").filter({ hasText: COMPANY }).first()).toBeVisible({ timeout: 45_000 });
   await page.locator("tbody tr").filter({ hasText: COMPANY }).first().click();
-  await page.getByRole("button", { name: "เพิ่มโน้ต" }).first().click();
-  await page.getByPlaceholder("หัวข้อโน้ต").fill(`${TAG}-โน้ต-${code}`);
+  await page.getByRole("button", { name: "เพิ่มหมายเหตุ" }).first().click();
+  await page.getByPlaceholder("หัวข้อหมายเหตุ").fill(`${TAG}-โน้ต-${code}`);
   await page.getByPlaceholder("รายละเอียดการติดตาม").fill(`บันทึกจาก load test ${code}`);
-  await page.getByRole("button", { name: "บันทึกโน้ต" }).click();
+  await page.getByRole("button", { name: "บันทึกหมายเหตุ" }).click();
   await expect.poll(async () => (await sb.from("customer_notes").select("id").eq("title", `${TAG}-โน้ต-${code}`)).data?.length ?? 0,
     { timeout: 45_000, message: `${code}: โน้ตต้องลง DB` }).toBe(1);
   mark("note_added");

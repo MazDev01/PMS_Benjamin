@@ -79,7 +79,9 @@ for (const กว้าง of [1366, 1920]) {
     await settle(page);
     const แรก = page.locator("[data-testid='pipeline-table'] tbody tr.clickable").first();
     const ชื่อ = (await แรก.locator("[data-perf-row]").innerText()).split("\n")[0].replace("(ปิดใช้งาน)", "").trim();
-    await แรก.click();
+    // กดแถว "ที่มีชื่อที่อ่าน" (12 พ.ย. 69 · บอสสั่ง) — เดิมกด .first() ซ้ำ ซึ่งหาแถวแรกใหม่ตอนกด
+    //   ยอดของข้ออื่นที่รันพร้อมกันเปลี่ยนลำดับระหว่างอ่านกับกดได้ → กดดีลเลอร์อีกราย หัวตารางไม่ตรงชื่อที่อ่าน
+    await page.locator("[data-testid='pipeline-table'] tbody tr.clickable").filter({ has: page.locator("[data-perf-row]", { hasText: ชื่อ }) }).first().click();
     await expect(page.locator("[data-testid='pipeline-table']"), "กดแถว = เจาะลงระดับดีลเลอร์ (หัวตารางบอกชื่อดีลเลอร์)").toContainText(ชื่อ, { timeout: 15_000 });
     await expect(page.locator("[data-testid='pipeline-table'] tbody tr.clickable [data-perf-row]"), "ระดับดีลเลอร์ = ตารางเหลือดีลเลอร์ที่กดแถวเดียว").toHaveCount(1);
     assertNoErrors(errs, `ตารางพอดีจอ ${กว้าง}`);

@@ -9,7 +9,7 @@ import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, วันนี้ISO, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import type { AuditEntry } from "@pms/shared/lib/data/types";
 import { useAuditEntries, AUDIT_READ_CAP } from "@pms/shared/lib/useAudit";
-import { hqAuditModule, HQ_AUDIT_MODULE_LABEL } from "@pms/shared/lib/mock";
+import { hqAuditModule, HQ_AUDIT_MODULE_LABEL, hqAuditActionLabel } from "@pms/shared/lib/mock";
 import { APP_NOW, parseDate } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -58,7 +58,7 @@ export default function HQAuditPage() {
     if (userFilter !== "all" && e.user !== userFilter) return false;
     if (moduleFilter !== "all" && hqAuditModule(e.action) !== moduleFilter) return false;
     const s = q.trim().toLowerCase();
-    return !s || `${e.user} ${e.action} ${e.target}`.toLowerCase().includes(s);
+    return !s || `${e.user} ${e.action} ${hqAuditActionLabel(e.action)} ${e.target}`.toLowerCase().includes(s);   // ค้นได้ทั้งชื่อในฐานและชื่อที่แสดง
   }, [userFilter, moduleFilter, q]);
 
   // ── การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards hq.audit) · ไม่นับแถวทดสอบ (นิยามเดียวกับตัวล้าง 0241)
@@ -88,12 +88,12 @@ export default function HQAuditPage() {
         <ExportMenu
           filename="hq-audit-log"
           title="บันทึกการใช้งาน"
-          headers={["ผู้ใช้", "บทบาท", "โมดูล", "การกระทำ", "รายละเอียด", "เวลา"]}
+          headers={["ผู้ใช้", "บทบาท", "เมนู", "การกระทำ", "รายละเอียด", "เวลา"]}
           rows={filtered.map(e => [
             e.user,
             ROLE_LABEL[e.role]?.label ?? e.role ?? "",
             MODULE_LABEL[hqAuditModule(e.action)] ?? hqAuditModule(e.action),
-            e.action, e.target, e.at,
+            hqAuditActionLabel(e.action), e.target, e.at,
           ])}
         />
         {/* ⛔ ปุ่ม "ล้างบันทึก" ยกเลิกแล้ว (บอสสั่ง 26 ต.ค. 69 แทนคำสั่ง 14 ส.ค. 69) — บันทึกแก้/ลบไม่ได้ทุกบทบาท กันที่ฐาน (ใบ 0241)
@@ -124,8 +124,8 @@ export default function HQAuditPage() {
           {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
         <div style={{ flex: 1 }} />
-        <select aria-label="กรองตามหมวดงาน" value={moduleFilter} onChange={e => { setModuleFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกโมดูล</option>
+        <select aria-label="กรองตามเมนู" value={moduleFilter} onChange={e => { setModuleFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
+          <option value="all">ทุกเมนู</option>
           {modules.map(m => <option key={m} value={m}>{MODULE_LABEL[m] ?? m}</option>)}
         </select>
         <select aria-label="กรองตามผู้ใช้" value={userFilter} onChange={e => { setUserFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
@@ -148,7 +148,7 @@ export default function HQAuditPage() {
             {/* เพิ่มคอลัมน์ "โมดูล" → ต้องแก้ colgroup ด้วย (ใส่ที่ th ไม่มีผล เพราะ table-layout: fixed) */}
             <colgroup><col style={{ width: "18%" }} /><col style={{ width: "13%" }} /><col style={{ width: "14%" }} /><col style={{ width: "16%" }} /><col style={{ width: "23%" }} /><col style={{ width: "16%" }} /></colgroup>
             <thead>
-              <tr><th>ผู้ใช้</th><th>บทบาท</th><th>โมดูล</th><th>การกระทำ</th><th>รายละเอียด</th><th>เวลา</th></tr>
+              <tr><th>ผู้ใช้</th><th>บทบาท</th><th>เมนู</th><th>การกระทำ</th><th>รายละเอียด</th><th>เวลา</th></tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
@@ -174,7 +174,7 @@ export default function HQAuditPage() {
                     <td style={{ fontSize: "0.76rem", color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {MODULE_LABEL[hqAuditModule(e.action)] ?? "—"}
                     </td>
-                    <td><span className="badge" style={{ background: "#eef2f7", color: PRIMARY }}>{e.action}</span></td>
+                    <td><span className="badge" style={{ background: "#eef2f7", color: PRIMARY }}>{hqAuditActionLabel(e.action)}</span></td>
                     <td style={{ fontSize: "0.8rem", color: "#2D2D2D" }} data-audit-target>{แทนรหัส(e.target)}</td>
                     <td style={{ fontSize: "0.72rem", color: "#9ca3af", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{e.at}</td>
                   </tr>

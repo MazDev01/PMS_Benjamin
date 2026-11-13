@@ -22,7 +22,7 @@ const บริษัท = (i: number) => `ZZTEST ข้อมูลไม่ค
 async function เปิดแผง(page: Page, i: number) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+  await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(บริษัท(i));
   const row = page.locator("tbody tr").filter({ hasText: บริษัท(i) }).first();
   await expect(row).toBeVisible({ timeout: 25_000 });

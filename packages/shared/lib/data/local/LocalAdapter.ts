@@ -320,7 +320,7 @@ export const LocalAdapter: DataAdapter = {
     downloadUrl: () => ok(null),
     remove: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างลบไฟล์คำขอใบเสนอราคาไม่ได้")),
     usage: () => ok({ buckets: [], quotaGb: null }),
-    setQuota: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างตั้งโควตาไม่ได้")),
+    setQuota: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างตั้งพื้นที่ที่ให้ใช้ไม่ได้")),
   },
   // รายการวัสดุ — โหมดข้อมูลตัวอย่างไม่มี (ต้องมีฐานข้อมูล · ใบ 0244)
   materialTemplates: {

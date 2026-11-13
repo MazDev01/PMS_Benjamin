@@ -6,7 +6,7 @@
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
 import { useMemo, useState } from "react";
 import { มูลค่าลีด, ชื่อกิจกรรมใบ } from "@pms/shared/lib/mock";
-import { วันที่ขายของใบ, เวลาขายของใบ } from "@pms/shared/lib/salesDate";   // ยอดขายตามวันลูกค้าตอบรับ (ใบ 0260)   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
+import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";   // ยอดขายตามวันลูกค้าตอบรับ (ใบ 0260)   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
 import {
   Target, TrendingUp, PhoneCall, Activity, Building2, User,
@@ -20,13 +20,12 @@ import { useFilters, APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterCont
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, บาทเต็ม, วันที่ISO } from "@pms/shared/lib/kpiCards";
-import { ความละเอียดของช่วง, ช่องเวลาในช่วง, คีย์ช่อง, ยอดรายชั่วโมง } from "@pms/shared/lib/trendBuckets";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { PlanVsActualBars, SalesLineChart, CategoryRows, Donut, ProgressRing } from "@pms/shared/components/ui/Charts";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import {
-  MonthRangeToggle, lastNMonths, monthKey,
+  MonthRangeToggle, lastNMonths, monthKey, monthKeyOf, MONTH_RANGE_DEFAULT, ป้ายเดือนปี,
   type MonthRange,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
@@ -134,44 +133,29 @@ export default function DealerDashboard() {
 
   // ── กราฟใหญ่ 2 ใบ ── แต่ละใบมีปุ่มช่วงย้อนหลังของตัวเอง (3/6/12 เดือน) เป็นอิสระจากกัน
   // ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
-  const [lqRange, setLqRange] = useState<MonthRange>(6);
-  // ── กราฟยอดขาย: เดินตามแถบกรองด้านบน เหมือนฝั่งสำนักงานใหญ่ (บอสสั่ง 25 ส.ค. 69) ──
-  //   วันนี้ → รายชั่วโมง (ตามเวลาที่ระบบบันทึกใบ) · ไม่เกิน 62 วัน → รายวัน · ยาวกว่านั้น → รายเดือน
-  //   ⚠️ เดิมตรึงไว้ 6 เดือนเสมอ ไม่ว่าจะเลือกช่วงไหนบนแถบก็ไม่ขยับ
+  const [lqRange, setLqRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);   // ค่าเริ่มต้น 1 ปี (บอสสั่ง 11 พ.ย. 69 · เดิม 6 เดือน)
+  // ── กราฟยอดขายรายเดือน: ปุ่มของกราฟเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี (ค่าเริ่มต้น 1 ปี) ──
+//   ⚠️ บอสสั่ง 11 พ.ย. 69 ทับคำตัดสินเดิม "เดินตามแถบกรองด้านบน รายชั่วโมง/รายวัน/รายเดือนตามช่วง" (25 ส.ค. 69) เฉพาะกราฟนี้
+//      → เลิกเดินตามช่วงเวลาของหน้า เป็นรายเดือนย้อนหลังตามปุ่มเสมอ · ยอดขายยังนับตามวันลูกค้าตอบรับ (ใบ 0260)
   // q.date เก็บเป็น "YYYY-MM-DD" — แปลงเป็นวันที่แบบไม่ผ่าน timezone (new Date("2026-08-01") ได้ UTC แล้วเพี้ยนวัน)
   const parseISO = (v: string): Date | null => {
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v ?? "");
+    const m = /^(d{4})-(d{2})-(d{2})/.exec(v ?? "");
     return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
   };
-  const ละเอียดยอดขาย = ความละเอียดของช่วง(timeRange.start, timeRange.end);
+  const [salesRange, setSalesRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
   const salesData = useMemo(() => {
-    const won = quotations.filter(q => q.status === "won");
-    if (ละเอียดยอดขาย === "hour") {
-      const ของวันนั้น = won.filter(q => { const d = parseISO(วันที่ขายของใบ(q) ?? ""); return !!d && d >= timeRange.start && d <= timeRange.end; });
-      const pts = ยอดรายชั่วโมง(ของวันนั้น.map(q => ({ savedAt: เวลาขายของใบ(q), valueNum: q.totalValue })));
-      if (pts) return pts.map(p => ({ label: p.month, value: Math.round(p.value * 10) / 10 }));
-      // ⚠️ เลือก "วันนี้" ต้องเห็นแกน 24 ชั่วโมงเสมอ แม้ยังไม่มียอดขายเลย (บอสทัก 26 ส.ค. 69)
-      //    เดิมตกกลับไปเป็นรายวัน แล้วได้จุดเดียวโดด ๆ ใต้หัวข้อที่เขียนว่า "รายชั่วโมง"
-      //    กติกาเดียวกับแดชบอร์ดสำนักงานใหญ่ · ยกเว้นกรณีเดียว: วันนั้นมียอดขายจริงแต่ใบไม่มีเวลาบันทึก
-      //    → ต้องกลับไปรายวัน ไม่งั้นเงินที่ขายได้จะหายไปจากกราฟทั้งก้อน (ซ่อนของจริง = ห้ามเด็ดขาด)
-      const ยอดวันนั้น = ของวันนั้น.reduce((s, q) => s + q.totalValue, 0);
-      if (ยอดวันนั้น <= 0) {
-        return Array.from({ length: 24 }, (_, h) => ({ label: `${String(h).padStart(2, "0")}:00`, value: 0 }));
-      }
-      // ไม่มีเวลาบันทึก แต่มียอดจริง = ทำรายชั่วโมงไม่ได้ → ตกไปเป็นรายวัน ไม่เดาเวลาให้
-    }
-    const ช่อง = ช่องเวลาในช่วง(timeRange.start, timeRange.end, ละเอียดยอดขาย === "hour" ? "day" : ละเอียดยอดขาย);
     const ยอด = new Map<string, number>();
-    won.forEach(q => {
-      const d = parseISO(วันที่ขายของใบ(q) ?? ""); if (!d || d < timeRange.start || d > timeRange.end) return;   // ตามวันตอบรับ (0260)
-      const k = คีย์ช่อง(d, ละเอียดยอดขาย === "hour" ? "day" : ละเอียดยอดขาย);
+    quotations.forEach(q => {
+      if (q.status !== "won") return;
+      const d = parseISO(วันที่ขายของใบ(q) ?? ""); if (!d) return;   // ตามวันตอบรับ (0260)
+      const k = monthKeyOf(d);
       ยอด.set(k, (ยอด.get(k) ?? 0) + q.totalValue);
     });
-    return ช่อง.map(b => ({ label: b.label, value: Math.round(((ยอด.get(b.key) ?? 0) / 1e6) * 10) / 10 }));
-  }, [quotations, ละเอียดยอดขาย, timeRange.start, timeRange.end]);
-  // ความละเอียดที่ "แสดงจริง" อาจไม่เท่าที่ช่วงเวลาสั่ง (ดูกรณีตกกลับไปรายวันข้างบน)
-  const ละเอียดที่แสดงจริง = ละเอียดยอดขาย === "hour" && !salesData[0]?.label?.includes(":")
-    ? "day" : ละเอียดยอดขาย;
+    return lastNMonths(salesRange, MOCK_TODAY).map(b => ({
+      label: ป้ายเดือนปี(b.year, Number(b.key.slice(5)) - 1),
+      value: Math.round(((ยอด.get(b.key) ?? 0) / 1e6) * 10) / 10,
+    }));
+  }, [quotations, salesRange]);
   const monthTargetM = Math.round((monthTarget / 1e6) * 10) / 10;
   // ── ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว: แท่งคู่รายเดือน หน่วย "ราย" ทั้งคู่ ──
   //
@@ -191,7 +175,7 @@ export default function DealerDashboard() {
       lC.set(k, (lC.get(k) ?? 0) + 1);
       if (QUOTED_UP.includes(l.status)) qC.set(k, (qC.get(k) ?? 0) + 1);
     });
-    return lastNMonths(lqRange, MOCK_TODAY).map(b => ({ label: b.label, actual: lC.get(b.key) ?? 0, plan: qC.get(b.key) ?? 0 }));
+    return lastNMonths(lqRange, MOCK_TODAY).map(b => ({ label: ป้ายเดือนปี(b.year, Number(b.key.slice(5)) - 1), actual: lC.get(b.key) ?? 0, plan: qC.get(b.key) ?? 0 }));
   }, [myLeads, lqRange]);
 
   // สัดส่วนดีลตามขั้น — ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมแยกตามชื่อสถานะภายใน)
@@ -409,13 +393,14 @@ export default function DealerDashboard() {
           </div>
         </div>
 
-        {/* ยอดขาย — กราฟเส้น + เส้นประเป้าหมาย · ช่วง/ความละเอียดมาจากแถบกรองด้านบน */}
+        {/* ยอดขายรายเดือน — กราฟเส้น + เส้นประเป้าหมาย · ช่วงจากปุ่มของกราฟเอง (บอสสั่ง 11 พ.ย. 69 · เดิมตามแถบกรองด้านบน) */}
         <div className="card" style={card}>
           <div style={hd}>
-            {/* ⚠️ หัวข้อต้องตรงกับสิ่งที่กราฟแสดงจริง — เลือก "วันนี้" แต่ใบไม่มีเวลาบันทึก
-                กราฟจะตกไปเป็นรายวัน หัวข้อจึงห้ามยืนยันว่า "รายชั่วโมง" (บอสทัก 26 ส.ค. 69) */}
-            <span style={title}>ยอดขาย{ละเอียดที่แสดงจริง === "month" ? "รายเดือน" : ละเอียดที่แสดงจริง === "day" ? "รายวัน" : "รายชั่วโมง"}</span>
-            {more("/quotations")}
+            <span style={title}>ยอดขายรายเดือน</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+              <MonthRangeToggle value={salesRange} onChange={setSalesRange} label="ช่วงเวลากราฟยอดขายรายเดือน" />
+              {more("/quotations")}
+            </span>
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <SalesLineChart data={salesData} target={monthTargetM} height={260}

@@ -2,6 +2,19 @@
 -- รันหลัง run.mjs files · ทรานแซกชันเดียว · ปลดตัวกันลบชั่วคราวแล้วเปิดคืนในทรานแซกชันเดียวกัน
 -- ด่านกันพลาด: ถ้าสาขา ZZT ไม่ใช่สาขาทดสอบ (ชื่อไม่ตรง) → ยกเลิกทั้งหมด
 begin;
+-- ล็อกตารางที่จะปิด/เปิดตัวดัก (hq_quotes · quotations) ตั้งแต่ต้นรายการ ก่อนถือแถวใด ๆ (12 พ.ย. 69 · งานคิว deadlock hq_quote_save)
+--   เดิม alter table … disable trigger กลางรายการ = ขอล็อกทั้งตารางขณะงานหน้าเว็บ (HQ บันทึกใบ) ถือตารางนั้นอยู่และรอตารางอื่น
+--   → รอกันไขว้ "deadlock detected" (เจอ 11 พ.ย. 69 ข้อทดสอบรันคำสั่งล้างพร้อม HQ บันทึกใบ) · บนเว็บจริงก็เกิดได้ถ้ามีคนบันทึกใบระหว่างล้าง
+--   สองตาราง = ได้ครบหรือไม่ได้เลย (nowait วนขอใหม่) แบบ supabase/tests/flow_phase2.sql · ตัวตรวจ check-sql-test-table-locks ครอบโฟลเดอร์นี้แล้ว
+do $lk$ begin
+  loop
+    begin
+      lock table public.hq_quotes, public.quotations in share row exclusive mode nowait;
+      exit;
+    exception when lock_not_available then perform pg_sleep(0.02);
+    end;
+  end loop;
+end $lk$;
 -- ด่านแรก (5 พ.ย. 69): บัญชีที่รันต้องข้ามกฎสิทธิ์รายแถวได้ — ไม่ได้ = ทุกตารางที่มีกฎ (dealers · leads · audit_log …) มองเห็น/ลบได้ 0 แถว
 --   ด่านกันพลาดข้างล่างทุกข้อจะผ่านเงียบ ๆ (หาแถวที่ผิดไม่เจอ) และตรวจ "เหลือ 0" ก็ผ่านเท็จ → ยกเลิกทั้งชุดก่อนแตะอะไร
 do $$ begin

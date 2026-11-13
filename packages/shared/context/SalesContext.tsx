@@ -29,6 +29,7 @@ import { toThaiDate, ชั่วโมงนาทีไทย } from "@pms/sha
 import { useQuoteValidityDays, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { dealerSettings as dealerSettingsRepo, leads as leadsRepo, customers as customersRepo, quotations as quotationsRepo, appointments as appointmentsRepo, files as filesRepo, storage as fileStorage, realtime } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
+import { ผู้ทำโดยระบบ } from "@pms/shared/lib/systemActor";
 
 // โหมด backend — supabase: ลูกค้าเป้าหมายมาจาก DB (RLS แยกสาขา) · local: LocalAdapter (localStorage)
 // "ของจริง" = supabase หรือ api (ไม่ใช่โหมดเดโม) — ดู REAL_BACKEND ใน data/config.ts
@@ -693,7 +694,7 @@ export function SalesProvider({
       const งาน = keys.filter(k => !ทำแล้ว.has(k));
       if (!งาน.length) continue;
       // ติ๊กโดยระบบ: ผู้ทำ = ผู้รับผิดชอบ · ขั้นเลื่อนขึ้นเท่านั้น (ฐานคิดจากงานในฐาน · ไม่แตะ "รอราคา HQ") · ไม่จดไทม์ไลน์
-      บันทึกลีด(l.id, { tasks: งาน.map(key => ({ key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" })),
+      บันทึกลีด(l.id, { tasks: งาน.map(key => ({ key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || ผู้ทำโดยระบบ })),
         log: false, ระบบ: true });
     }
   }, [myDealerCode, บันทึกลีด]);
@@ -998,7 +999,7 @@ export function SalesProvider({
     const l = leadsRef.current.find(x => (x.dealerCode ?? DEFAULT_DEALER_CODE) === myDealerCode && x.numId === leadNumId);
     if (!l || l.status === "PAID" || l.status === "CANCELLED") return;
     if ((l.tasks ?? []).find(t => t.key === def.key)?.done) return;
-    บันทึกลีด(l.id, { tasks: [{ key: def.key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || "อัปเดตอัตโนมัติ" }],
+    บันทึกลีด(l.id, { tasks: [{ key: def.key, done: true, doneAt: fmtISOToThai(APP_NOW_ISO), doneBy: l.assigned || ผู้ทำโดยระบบ }],
       log: false, ระบบ: true });
   }, [myDealerCode, บันทึกลีด]);
 

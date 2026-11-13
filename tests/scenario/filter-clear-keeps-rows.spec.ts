@@ -52,7 +52,7 @@ test("[dealer] ล้างตัวกรองแล้วต้องไม�
   const แคบ = await แถว.count();
 
   // ล้างตัวกรอง → ต้องไม่น้อยกว่าตอนเริ่ม (ล้าง = ไม่กรองเวลา)
-  await page.getByRole("button", { name: "ล้างตัวกรอง" }).first().click();
+  await page.getByRole("button", { name: "ล้างตัวกรอง", exact: true }).first().click();
   await expect(แถว, "ล้างแล้ว (กลับ 1 ปี): 4 ราย").toHaveCount(4);
   const หลังล้าง = await แถว.count();
   expect(แคบ).toBeLessThanOrEqual(เริ่มต้น);

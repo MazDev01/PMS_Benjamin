@@ -36,7 +36,7 @@ async function เพิ่มลูกค้าเป้าหมาย(page: P
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณทดสอบ");
   await page.getByPlaceholder("0XX-XXX-XXXX").fill(phone);
   await กล่อง.getByLabel("จังหวัด").first().selectOption(province);
-  await page.getByRole("button", { name: "บันทึก" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 }
 const จำนวนในฐาน = async (company: string) => (await admin.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", "RYG").eq("company", company)).count ?? -1;
 

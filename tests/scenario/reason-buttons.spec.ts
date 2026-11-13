@@ -122,7 +122,7 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
   async function เปิดแผงลีด(page: Page, ชื่อ: string) {
     await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
+    await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").first().fill(ชื่อ);
     await page.locator("tbody tr").filter({ hasText: ชื่อ }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click({ timeout: 20_000 });
     await expect(page.locator('[data-panel="next-step"] [role="status"]')).toBeVisible({ timeout: 30_000 });
@@ -152,7 +152,7 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
     await แท็บใบเสนอราคา(page);
     await ตรวจกล่องเหตุผล(page, "ขอแก้ราคา", async () => {
       await page.getByRole("button", { name: "ขอแก้ราคา", exact: true }).click({ timeout: 30_000 });
-      await expect(page.locator("[data-reason-dialog]").getByLabel("สเปกที่ขอแก้ราคา"), "ช่องสเปกอยู่ในกล่องเดียวกัน").toBeVisible();
+      await expect(page.locator("[data-reason-dialog]").getByLabel("รายละเอียดงานที่ขอแก้ราคา"), "ช่องสเปกอยู่ในกล่องเดียวกัน").toBeVisible();
     });
   });
 
