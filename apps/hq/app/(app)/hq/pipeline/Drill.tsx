@@ -5,11 +5,11 @@
 //   ทุกตัวเลขมาจากฐาน: แถวรายดีลเลอร์ hq_pipeline_dealers (ใบ 0264) · ผลรวมกลุ่มใช้ รวมผลงาน() ตัวเดียวกับแถวรวมท้ายตาราง (= การ์ด)
 //   ลีดตามขั้น/เหตุผล/แหล่งที่มา = lead_summary ชุดสาขาเดียวกับตาราง
 //   "รายเดือน" (แท็บ · ที่มารายเดือนตอนเลือกดีลเลอร์) = hq_pipeline_months (ใบ 0268) · ฐานยังไม่ถึงใบนั้น = "รอข้อมูล" — ห้ามคิดเองจากรายการดิบในหน้าเว็บ
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { useRouter } from "next/navigation";
-import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 import { ChevronRight, CalendarDays, Users, CheckCircle2, Clock } from "lucide-react";
-import { หน้าต่างเจาะ, ส่วนเจาะ } from "../_drill/DrillWindow";
+import { DrillModal, ส่วนเจาะ } from "../_drill/DrillWindow";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { ชื่อภาค, ภาคมาตรฐาน } from "@pms/shared/lib/provinces";
@@ -157,11 +157,11 @@ export function ตารางรายเดือน({ แถว, รวม�
   );
 }
 /** แผงรายดีลเลอร์ของเดือนที่กด (แท็บรายเดือน) — แถวรวม = แถวของเดือนนั้น */
-export function แผงเดือน({ เดือน, rows, codes, ชื่อ, ปิด, เจาะ }: { เดือน: แถวเดือน; rows: ผลงานรายเดือน[]; codes: Set<string>; ชื่อ: Map<string, string>; ปิด: () => void; เจาะ: (code: string) => void }) {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
+export function MonthPanel({ เดือน, rows, codes, ชื่อ, ปิด, เจาะ }: { เดือน: แถวเดือน; rows: ผลงานรายเดือน[]; codes: Set<string>; ชื่อ: Map<string, string>; ปิด: () => void; เจาะ: (code: string) => void }) {
+  const ชื่อของ = useDealerNames();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const ของเดือน = rows.filter(r => r.y === เดือน.y && r.m === เดือน.m && codes.has(r.code)).sort((a, b) => b.sales - a.sales || a.code.localeCompare(b.code));
   return (
-    <หน้าต่างเจาะ ชื่อ={เดือน.label} ป้ายเข้าถึง={`รายดีลเลอร์ ${เดือน.label}`} data-month-drawer={เดือน.key} ปิด={ปิด}
+    <DrillModal ชื่อ={เดือน.label} ป้ายเข้าถึง={`รายดีลเลอร์ ${เดือน.label}`} data-month-drawer={เดือน.key} ปิด={ปิด}
       คำอธิบาย="แยกรายดีลเลอร์ · ยอดขายตามวันลูกค้าตอบรับ · กดแถว = เจาะดูดีลเลอร์"
       ป้าย={[{ คีย์: "dealers", ข้อความ: `${ของเดือน.length.toLocaleString()} ดีลเลอร์` }]}>
       <ส่วนเจาะ ไอคอน={Users} ชื่อ="ผลงานรายดีลเลอร์">
@@ -172,14 +172,14 @@ export function แผงเดือน({ เดือน, rows, codes, ชื�
             {!ของเดือน.length && <tr><td colSpan={6} className="empty-row">ไม่มีผลงานในเดือนนี้</td></tr>}
             {ของเดือน.map(r => (
               <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${ชื่อของ(r.code, ชื่อ.get(r.code))} (เจาะลงระดับดีลเลอร์)`}>
-                <td data-drawer-row={r.code} title={ชื่อของ(r.code, ชื่อ.get(r.code))} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อของ(r.code, ชื่อ.get(r.code))}</ลิงก์ข้อมูล></td>
+                <td data-drawer-row={r.code} title={ชื่อของ(r.code, ชื่อ.get(r.code))} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><DataLink เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อของ(r.code, ชื่อ.get(r.code))}</DataLink></td>
                 <td className="num">{r.leads}</td><td className="num">{r.quotes}</td><td className="num">{r.won}</td><td className="num">{r.lost}</td><td className="num">{fmtBaht(r.sales)}</td>
               </ClickableRow>
             ))}
           </tbody>
         </table>
       </ส่วนเจาะ>
-    </หน้าต่างเจาะ>
+    </DrillModal>
   );
 }
 
@@ -196,7 +196,7 @@ const สูตรการ์ด: Record<การ์ดที่มา, string
   onTarget: "ถึงเป้า = ยอดขายในช่วง ≥ เป้าตามช่วง (เป้าทั้งปี × วัน ÷ 365)",
 };
 const จำนวนวัน = (start: string, end: string) => Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86_400_000) + 1;
-export function แผงที่มา({ การ์ด, แถว, ดีลเลอร์, ปิด, เดือน, ช่วง, เจาะ }: {
+export function SourcePanel({ การ์ด, แถว, ดีลเลอร์, ปิด, เดือน, ช่วง, เจาะ }: {
   การ์ด: การ์ดที่มา; แถว: ผลงานดีลเลอร์[]; ดีลเลอร์: string | null; ปิด: () => void;
   /** ระดับดีลเลอร์: ที่มารายเดือน (ใบ 0268) · null = ฐานยังไม่ถึงใบนั้น → รอข้อมูล */
   เดือน: แถวเดือน[] | null;
@@ -204,7 +204,7 @@ export function แผงที่มา({ การ์ด, แถว, ดีล
   /** กดแถวดีลเลอร์ = เจาะลงดีลเลอร์นั้น */
   เจาะ: (code: string) => void;
 }) {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const เรียง = [...แถว].sort((a, b) => b.sales - a.sales || a.code.localeCompare(b.code));
   const คอลัมน์: Record<Exclude<การ์ดที่มา, "onTarget">, { หัว: string[]; ค่า: (r: ผลงานดีลเลอร์) => (string | number)[] }> = {
     sales: { หัว: ["ยอดขาย", "เป้าตามช่วง", "% เป้า"], ค่า: r => [fmtBaht(r.sales), r.target == null ? "—" : fmtBaht(r.target), เปอร์เซ็นต์(r.pct)] },
@@ -214,7 +214,7 @@ export function แผงที่มา({ การ์ด, แถว, ดีล
   const ช่วงอ่าน = `${fmtISOToThai(ช่วง.start)} – ${fmtISOToThai(ช่วง.end)} (${จำนวนวัน(ช่วง.start, ช่วง.end).toLocaleString()} วัน)`;
   const แถวดีลเลอร์ = (r: ผลงานดีลเลอร์, เซลล์: React.ReactNode) => (
     <ClickableRow key={r.code} className="clickable" onActivate={() => { ปิด(); เจาะ(r.code); }} label={`เปิดผลงานของ ${ชื่อของ(r.code, r.name)} (เจาะลงระดับดีลเลอร์)`}>
-      <td data-drawer-row={r.code} title={ชื่อของ(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อของ(r.code, r.name)}</ลิงก์ข้อมูล></td>
+      <td data-drawer-row={r.code} title={ชื่อของ(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}><DataLink เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อของ(r.code, r.name)}</DataLink></td>
       {เซลล์}
     </ClickableRow>
   );
@@ -250,7 +250,7 @@ export function แผงที่มา({ การ์ด, แถว, ดีล
       </table>
     );
     return (
-      <หน้าต่างเจาะ ชื่อ={หัวการ์ด.onTarget} data-card-drawer="onTarget" ปิด={ปิด} กว้าง={880}
+      <DrillModal ชื่อ={หัวการ์ด.onTarget} data-card-drawer="onTarget" ปิด={ปิด} กว้าง={880}
         คำอธิบาย={<>{ช่วงอ่าน}<br />{สูตรการ์ด.onTarget}</>}
         ป้าย={[{ คีย์: "reached", ข้อความ: `ถึงเป้า ${ถึง.length.toLocaleString()} จาก ${มีเป้า.length.toLocaleString()} ราย` },
                ...(ไม่ตั้งเป้า > 0 ? [{ คีย์: "no-target", ข้อความ: `ยังไม่ตั้งเป้า ${ไม่ตั้งเป้า.toLocaleString()} ราย (ไม่นับ)` }] : [])]}>
@@ -260,13 +260,13 @@ export function แผงที่มา({ การ์ด, แถว, ดีล
         <ส่วนเจาะ ไอคอน={Clock} ชื่อ={`ยังไม่ถึง (${ยัง.length.toLocaleString()})`} data-group="pending" data-count={String(ยัง.length)}>
           {ตาราง(ยัง, "pending", "ทุกดีลเลอร์ที่ตั้งเป้าถึงเป้าแล้ว")}
         </ส่วนเจาะ>
-      </หน้าต่างเจาะ>
+      </DrillModal>
     );
   }
 
   const c = คอลัมน์[การ์ด];
   return (
-    <หน้าต่างเจาะ ชื่อ={หัวการ์ด[การ์ด]} data-card-drawer={การ์ด} ปิด={ปิด}
+    <DrillModal ชื่อ={หัวการ์ด[การ์ด]} data-card-drawer={การ์ด} ปิด={ปิด}
       คำอธิบาย={<>{ช่วงอ่าน}<br />{สูตรการ์ด[การ์ด]}</>}
       ป้าย={[{ คีย์: "scope", ข้อความ: ดีลเลอร์ ? `ที่มารายเดือน · ${ชื่อของ(ดีลเลอร์)}` : `แยกรายดีลเลอร์ ${แถว.length.toLocaleString()} ราย · รวม = ตัวเลขบนการ์ด` }]}>
       {ดีลเลอร์ && !เดือน ? <div className="card" style={{ marginBottom: 0 }}><รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือนของดีลเลอร์" /></div>
@@ -297,7 +297,7 @@ export function แผงที่มา({ การ์ด, แถว, ดีล
           </table>
         </ส่วนเจาะ>
       )}
-    </หน้าต่างเจาะ>
+    </DrillModal>
   );
 }
 
@@ -359,9 +359,9 @@ export function กล่องล่าง({ รวมทั้งหมด, �
 
 // ── ระดับดีลเลอร์: ใบ/ลีดล่าสุด + ปุ่มเปิดแผงดีลเลอร์ ──────────────────────────────────────────────────────────
 //   ยิงคำขอเฉพาะตอนอยู่ระดับดีลเลอร์ (คอมโพเนนต์นี้แสดงเฉพาะระดับนั้น) — ไม่เพิ่มคำขอให้ระดับอื่น
-export function ล่าสุดของดีลเลอร์({ code }: { code: string }) {
+export function DealerRecent({ code }: { code: string }) {
   const router = useRouter();
-  const ชื่อของ = useชื่อดีลเลอร์();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const ใบผล = useQuotationsPage({ limit: 5, offset: 0, sort: { col: "created_at", dir: "desc" }, sentOnly: true, dealerCodes: [code] });
   const ลีดผล = useLeadsPage({ limit: 5, offset: 0, dealerCodes: [code] });
   const ใบ = ใบผล ? ใบผล.rows.map(q => ({ id: q.id, customer: q.customer, status: ชื่อสถานะใบHQ[q.status], date: q.date ? fmtISOToThai(q.date) : "—" })) : null;
@@ -384,7 +384,7 @@ export function ล่าสุดของดีลเลอร์({ code }: { 
     <>
       <div className="hq-dealer-charts">
         <การ์ดกล่อง title={`ตารางใบเสนอราคาล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 ใบล่าสุดที่ส่งลูกค้าแล้ว", "ใหม่สุดก่อน")} testid="dealer-latest-quotes">
-          {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [<ลิงก์ข้อมูล key="n" เป้า={{ ชนิด: "quotation", รหัส: q.id }}>{q.id}</ลิงก์ข้อมูล>, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
+          {ตาราง(["เลขที่", "ลูกค้า", "สถานะ", "วันที่"], ใบ?.map(q => [<DataLink key="n" เป้า={{ ชนิด: "quotation", รหัส: q.id }}>{q.id}</DataLink>, q.customer, q.status, q.date]) ?? null, "ยังไม่มีใบที่ส่งลูกค้า")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/quotations?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
         <การ์ดกล่อง title={`ตารางลูกค้าเป้าหมายล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">

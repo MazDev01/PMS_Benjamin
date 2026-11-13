@@ -3,7 +3,7 @@
 // ─── ตารางใบเสนอราคาทั้งเครือ ─────────────────────────────────────────────────
 // อ่านอย่างเดียว — มีปุ่ม "ดู" เท่านั้น ไม่มีสร้าง/แก้ไข/ลบ/อนุมัติ (HQ เป็นเจ้าของข้อมูล แต่ไม่ออกใบเอง)
 // คอลัมน์เกี่ยวกับการเปิดอ่าน ถูกลบทั้งหมดพร้อมสถานะ "เปิดอ่านแล้ว"
-import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "../../ui/RecordLink";
+import { DataLink, เป้าลูกค้าของใบ } from "../../ui/RecordLink";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { Eye } from "lucide-react";
@@ -15,7 +15,7 @@ import type { QuoteRow } from "@pms/shared/lib/hqQuotations";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { TablePagination, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { คีย์ใบ, type ส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
-import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 import { ซ่อนตามระดับ, type ระดับเจาะ } from "@pms/shared/lib/drillColumns";
 
 const PRIMARY = "#003366";
@@ -41,7 +41,7 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
   /** หัวข้อ 2 บรรทัดบนตาราง (บอสสั่ง 3 พ.ย. 69) */
   หัวข้อ?: { ชื่อ: string; คำอธิบาย: string };
 }) {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   // ระดับดีลเลอร์ = ไม่มีคอลัมน์ดีลเลอร์ · ทุกแถวจังหวัดหน้างานเดียวกับระดับ = ไม่มีคอลัมน์จังหวัด (บอสสั่ง 9 พ.ย. 69)
   const ซ่อน = ซ่อนตามระดับ(ระดับ, rows, { จังหวัด: q => q.siteProvince });
   const จำนวนคอล = 12 - (ซ่อน.จังหวัด ? 1 : 0);   // ดีลเลอร์เป็นบรรทัดเล็กใต้ลูกค้า (ไม่ใช่คอลัมน์แยก)
@@ -101,8 +101,8 @@ export function QuotationTable({ rows, onView, pagination, margins, หัวข
                 <ClickableRow key={`${q.dealerCode ?? ""}-${q.id}`} onActivate={() => onView(q)} label={`เปิดรายละเอียดใบเสนอราคา ${q.quoteNo}`}>
                   <td data-quote-no style={{ color: PRIMARY, fontWeight: 700, whiteSpace: "nowrap" }}>{q.quoteNo}</td>
                   <td title={ซ่อน.ดีลเลอร์ ? q.customer : `${q.customer} · ${ชื่อของ(q.dealerCode, q.dealerName)}`} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    <div data-col="customer" style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}><ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล></div>
-                    {!ซ่อน.ดีลเลอร์ && <div data-col="dealer" data-row-sub style={{ color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: q.dealerCode }}>{ชื่อของ(q.dealerCode, q.dealerName)}</ลิงก์ข้อมูล></div>}
+                    <div data-col="customer" style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}><DataLink เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</DataLink></div>
+                    {!ซ่อน.ดีลเลอร์ && <div data-col="dealer" data-row-sub style={{ color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}><DataLink เป้า={{ ชนิด: "dealer", รหัส: q.dealerCode }}>{ชื่อของ(q.dealerCode, q.dealerName)}</DataLink></div>}
                   </td>
                   {!ซ่อน.จังหวัด && <td data-col="site-province" style={{ color: MUTED }}>{q.siteProvince || "—"}</td>}
                   <td className="num" style={{ color: PRIMARY, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtBaht(q.valueNum)}</td>

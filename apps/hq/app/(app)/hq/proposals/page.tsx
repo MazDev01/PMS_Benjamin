@@ -10,8 +10,8 @@
 //
 // ⚠️ รอบ 4: หน้านี้ไม่มีฟอร์ม/คำสั่งเปลี่ยนสถานะแล้ว (อยู่แผงผู้สนใจ) · เดิม: ห้ามเขียนฟอร์ม/คำสั่งซ้ำในหน้านี้ — ใช้ ProposalFormModal + useProposalActions ชุดเดียวกับหน้าผู้สนใจ
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · ออกใบ/เปลี่ยนสถานะ = ผู้มีสิทธิ์จัดการดีลเลอร์ (RLS 0172 บังคับซ้ำ)
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
@@ -37,7 +37,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import { ป้ายนับวันหมดอายุ } from "@pms/shared/lib/quoteExpiry";
 import { แถบสรุปเอกสาร, กริดรายละเอียด, ช่องกริด } from "@pms/shared/components/ui/DocDetailParts";
-import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
@@ -58,7 +58,7 @@ const ปุ่มไอคอน = (อันตราย = false): React.CSSPr
 const ปุ่มปิดใช้: React.CSSProperties = { opacity: .35, cursor: "not-allowed" };
 
 export default function HQProposalsPage() {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
   const { พิมพ์ } = useProposalActions();
@@ -117,8 +117,8 @@ export default function HQProposalsPage() {
     return () => window.removeEventListener("bpms:open-record", on);
   }, [โหลด]);
   // ?open=เลขใบ: หน้าต่างใบอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts) — ไม่ล้างแล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดตามที่อยู่
-  useเปิดตามURL("/hq/proposals", ค่า => setดูรหัส(Number(ค่า) || null));
-  useแผงในURL(ดูรหัส == null ? null : String(ดูรหัส));
+  useOpenFromUrl("/hq/proposals", ค่า => setดูรหัส(Number(ค่า) || null));
+  usePanelInUrl(ดูรหัส == null ? null : String(ดูรหัส));
 
   const รายตามรหัส = useMemo(() => new Map(ราย.map(r => [r.id, r])), [ราย]);
 
@@ -249,7 +249,7 @@ export default function HQProposalsPage() {
                   <ClickableRow key={p.id} onActivate={() => setดูรหัส(p.id)} label={`เปิดใบค่าแฟรนไชส์ ${p.proposalNo ?? ""} ของ ${r?.name ?? ""}`}
                     style={{ background: ดูรหัส === p.id ? "#f0f6ff" : undefined }}>
                     <td style={{ fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap", fontFamily: "monospace" }}>{p.proposalNo ?? "—"}</td>
-                    <td title={r?.name} style={{ fontWeight: 700, color: STEEL, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "prospect", รหัส: r.id }}>{r.name}</ลิงก์ข้อมูล> : "—"}</td>
+                    <td title={r?.name} style={{ fontWeight: 700, color: STEEL, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r ? <DataLink เป้า={{ ชนิด: "prospect", รหัส: r.id }}>{r.name}</DataLink> : "—"}</td>
                     <td className="num" style={{ fontWeight: 800, color: STEEL, whiteSpace: "nowrap" }}>{มูลค่าอ่านง่าย(p.amount)}</td>
                     <td><span className="badge" style={{ background: สี.bg, color: สี.text }}>{proposalStatusLabel[p.status]}</span></td>
                     <td style={{ fontSize: "0.76rem", color: MUTED, whiteSpace: "nowrap" }}>{p.proposedDate ? fmtISOToThai(p.proposedDate) : "—"}</td>
@@ -297,7 +297,7 @@ export default function HQProposalsPage() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "rgba(255,255,255,.65)", fontFamily: "monospace", letterSpacing: "0.05em" }}>{p.proposalNo ?? "—"}</div>
-                      <h2 style={{ margin: "2px 0 0", fontSize: "1.08rem", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{r ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "prospect", รหัส: r.id }}>{r.name}</ลิงก์ข้อมูล> : "—"}</h2>
+                      <h2 style={{ margin: "2px 0 0", fontSize: "1.08rem", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{r ? <DataLink พื้นเข้ม เป้า={{ ชนิด: "prospect", รหัส: r.id }}>{r.name}</DataLink> : "—"}</h2>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "0.72rem", color: "rgba(255,255,255,.72)", marginTop: 4 }}>
                         <span style={{ display: "flex", alignItems: "center", gap: 3 }}><MapPin size={11} /> {พื้นที่ของใบ(p)}</span>
                         {r?.phone && <span>{formatPhone(r.phone) || r.phone}</span>}

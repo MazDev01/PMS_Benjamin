@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useเปิดตามURL, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
+import { useOpenFromUrl, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { diffLeadFields, type LeadIntent, type LeadFields } from "@pms/shared/lib/leadIntent";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
@@ -31,7 +31,7 @@ import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
-import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { refช่องในกล่อง } from "../_form/ผูกช่องห่อ";
 import { formatPhone } from "@pms/shared/lib/format";
@@ -315,7 +315,7 @@ function OverviewEditor({ lead, persons, onSave }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(seed()); setต้นฉบับ(lead); }, [lead.id]);
   // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69): บันทึกตอนช่องบังคับว่าง = ไม่บันทึก · กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรกที่ขาด
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
   const set = (k: keyof ReturnType<typeof seed>, v: string) => { setF(p => ({ ...p, [k]: v })); บังคับ.ล้าง(k); };
   // อัปโหลดโลโก้เอาออกจากฟอร์ม (บอสสั่ง 26 ต.ค. 69 · ชุดช่องมาตรฐาน) — คอลัมน์ logo ในฐานคงไว้ ค่าเดิมไม่ถูกแตะ
@@ -561,7 +561,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     return "";
   }, [isEdit, form.company, form.phone, customers, existingLeads, myDealer.code]);
   // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69) — กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรกที่ขาด
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
   function set(k: keyof typeof form, v: string) { setForm(p=>({...p,[k]:v})); บังคับ.ล้าง(k); if (submitError) setSubmitError(""); }
   function submit() {
@@ -913,7 +913,7 @@ export default function LeadsPage() {
   const apptSavingRef = useRef(false); // กันกดบันทึกนัดซ้ำระหว่างรอเลขนัดจาก DB (H8 · guard synchronous)
   const [apptSaving, setApptSaving] = useState(false); // ไว้ disable ปุ่ม (visual)
   // ช่องบังคับของนัด (ประเภท · วันที่ · เวลา) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
-  const นัดบังคับ = useช่องบังคับ();
+  const นัดบังคับ = useRequiredFields();
   const [apptErr, setApptErr] = useState("");
   // กล่อง "ติดตามลูกค้า" (บอสตอบ 6 พ.ย. 69 ข้อ 2 ข) — เลือกบันทึกการติดต่อ หรือ นัดหมาย ในกล่องเดียว · บันทึกแล้วติ๊ก · ยกเลิก = ไม่ติ๊ก
   const [ติดตาม, setติดตาม] = useState<{ แบบ: "ติดต่อ" | "นัด"; ช่องทาง: string; ข้อความ: string; err: string; busy: boolean } | null>(null);  // ฟ้องเมื่อยังไม่เลือกประเภทนัด — ห้ามกดแล้วเงียบ
@@ -1126,7 +1126,7 @@ export default function LeadsPage() {
   //   ?tab=quotes (ลิงก์เลขคำขอ/ใบ HQ · บอสตอบ 11 พ.ย. 69) = เปิดที่แท็บใบเสนอราคา
   const selectedLeadRef = useRef(selectedLead);
   selectedLeadRef.current = selectedLead;
-  useเปิดตามURL("/leads", (p, params) => {
+  useOpenFromUrl("/leads", (p, params) => {
       if (!p) { if (selectedLeadRef.current) closePanel(); return; }
       const target = allLeadsRef.current.find(l => String(l.numId) === p || l.id === p);
       if (target) {

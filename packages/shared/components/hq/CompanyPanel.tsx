@@ -8,7 +8,7 @@ import { hqCompany as hqCompanyRepo } from "@pms/shared/lib/data";
 import { Building2, Check, Save, Image as ImageIcon } from "lucide-react";
 import { useReportSection } from "@pms/shared/lib/settingsBus";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
-import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 
 // โลโก้ Benjamin เป็นแบรนด์มาตรฐานเดียว (ไฟล์ static) — ไม่มีคีย์เก็บโลโก้ที่อัปโหลดอีกแล้ว
@@ -60,7 +60,7 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
 
   // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · หัวใบค่าแฟรนไชส์/เอกสารที่ออกจาก HQ ใช้ข้อมูลชุดนี้)
   //   ชื่อบริษัท · ที่อยู่ · โทรศัพท์ · เลขผู้เสียภาษี (ไม่มีเลข = ใส่ "-") — ขาด = ไม่บันทึก · ฐานกันอีกชั้น (ใบ 0276)
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ชุดบังคับ = (f: CompanyProfile): ช่องบังคับ[] => [
     { key: "name", label: "ชื่อบริษัท", value: f.name },
     { key: "taxId", label: "เลขประจำตัวผู้เสียภาษี", value: f.taxId, ข้อความ: ข้อความช่องขีด("เลขประจำตัวผู้เสียภาษี") },

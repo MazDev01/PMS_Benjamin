@@ -1,5 +1,5 @@
 "use client";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 import { useCallback, useEffect, useState } from "react";
@@ -139,8 +139,8 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
   useEffect(() => {
     if (เปิดรหัส && window.location.pathname !== "/hq/dealers") router.replace(`/hq/dealers?open=${encodeURIComponent(เปิดรหัส)}`, { scroll: false });
   }, [เปิดรหัส, router]);
-  useเปิดตามURL("/hq/dealers", p => setแผง(p ? p.toUpperCase() : null));
-  useแผงในURL(เปิดรหัส ? null : แผง);
+  useOpenFromUrl("/hq/dealers", p => setแผง(p ? p.toUpperCase() : null));
+  usePanelInUrl(เปิดรหัส ? null : แผง);
   const ปิดแผง = useCallback(() => { setแผง(null); }, []);
   // แก้ไข / ปิด-เปิดใช้งาน (ย้ายจากหน้ารายละเอียดเดิม · บอสตัดสิน 19 ต.ค. 69) — ใช้ทั้งปุ่มท้ายแถวและหัวแผง
   const [แก้, setแก้] = useState<DealerRow | null>(null);

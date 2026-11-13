@@ -6,7 +6,7 @@ import { useRole } from "@pms/shared/context/RoleContext";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { DEMO_PASSWORD, DEMO_LOGINS } from "@pms/shared/lib/auth";
 import { ชื่อผู้ใช้เป็นอีเมล } from "@pms/shared/lib/dealerLogin";
-import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 
 // ── ทางเข้าเดโมของอีกฝั่ง (ตั้งที่ Vercel ของโปรเจกต์เดโมเท่านั้น) ──
 // ว่าง = ไม่มีปุ่ม · ระบบจริงไม่ตั้งค่านี้
@@ -46,7 +46,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // "ลืมรหัสผ่าน?" (ส่งลิงก์/เลขยืนยันทางอีเมล) ปิดแล้ว — บอสสั่ง 16 ต.ค. 69 · ลืมรหัสผ่าน = ติดต่อ HQ

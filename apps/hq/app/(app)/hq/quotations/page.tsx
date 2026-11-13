@@ -1,6 +1,6 @@
 "use client";
 import { quotations as quotationsRepoOpen } from "@pms/shared/lib/data";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -29,7 +29,7 @@ import {
 
 const QPAGE_SIZE = 10;
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
+import { DrillHeader, useDrill, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
@@ -52,20 +52,20 @@ export default function NetworkQuotationPage() {
   const [filters, setFilters] = useState<QuotationFilters>(EMPTY_FILTERS);
   const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
   const ช่วง = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
-  const เจาะลึก = useเจาะลึก("quotations", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
+  const เจาะลึก = useDrill("quotations", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
   const [viewQ, setViewQ] = useState<QuoteRow | null>(null);
   // หน้าต่างใบอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ?open=เลขที่ใบ · ลิงก์กลางมาที่นี่ · ย้อนกลับ = เปิด/ปิดตามที่อยู่
   //   ใบจากลิงก์อาจไม่อยู่ในหน้าตารางที่เห็น → ค้นใบนั้นที่ฐานด้วยเลขที่ใบ (ตรงตัว)
   const viewQRef = useRef(viewQ);
   viewQRef.current = viewQ;
-  useเปิดตามURL("/hq/quotations", ค่า => {
+  useOpenFromUrl("/hq/quotations", ค่า => {
     if (!ค่า) { setViewQ(null); return; }
     if (viewQRef.current?.id === ค่า) return;
     quotationsRepoOpen.listPage(undefined, { limit: 20, offset: 0, search: ค่า })
       .then(r => { const q = r.rows.find(x => x.id === ค่า); if (q) setViewQ(toQuoteRows([mapToHQ(q)], validityDays, look)[0] ?? null); })
       .catch(e => logRepoRead("quotations.listPage(open)", e));
   });
-  useแผงในURL(viewQ ? viewQ.id : null);
+  usePanelInUrl(viewQ ? viewQ.id : null);
 
   // อายุใบเสนอราคา = นโยบาย HQ — อ่านผ่าน repo (เดิมอ่าน localStorage ตรง ๆ
   // โหมด supabase เลยได้ค่า default 30 วันเสมอ ไม่ใช่ค่าจริงที่ HQ ตั้งไว้ → วันหมดอายุบนหน้าเพี้ยน)
@@ -237,7 +237,7 @@ export default function NetworkQuotationPage() {
       </TopbarActions>
 
       {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
-      <หัวเจาะลึก ตั้งค่า={ตั้งค่าใบ} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปใบเสนอราคาทั้งเครือ" />
+      <DrillHeader ตั้งค่า={ตั้งค่าใบ} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปใบเสนอราคาทั้งเครือ" />
 
       <div style={{ marginTop: 16 }}><QuotationAnalytics aging={aging} รายเดือน={รายเดือน} ระดับ={ป้ายระดับที่เลือก} ช่วง={ช่วง} /></div>
 

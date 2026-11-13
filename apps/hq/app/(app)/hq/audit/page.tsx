@@ -13,7 +13,7 @@ import { hqAuditModule, HQ_AUDIT_MODULE_LABEL, hqAuditActionLabel } from "@pms/s
 import { APP_NOW, parseDate } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
-import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
+import { useReplaceCodesInLog } from "@pms/shared/lib/dealerDisplay";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
@@ -36,7 +36,7 @@ const ROLE_LABEL: Record<string, { label: string; bg: string; color: string }> =
 
 export default function HQAuditPage() {
   // รหัสดีลเลอร์ในรายละเอียด → ชื่อแสดง ตอนแสดงผลเท่านั้น (บอสตอบ 6 พ.ย. 69 · ฐาน/ไฟล์ส่งออก/คำค้นคงข้อความดิบ · เลขเอกสารไม่แปลง)
-  const แทนรหัส = useแทนรหัสในบันทึก();
+  const แทนรหัส = useReplaceCodesInLog();
   const entries = useAuditEntries();
   const [q, setQ] = useState("");
   const [userFilter, setUserFilter] = useState("all");

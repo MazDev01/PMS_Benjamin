@@ -15,7 +15,7 @@
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
 // ยกเลิก (บอสสั่ง 5 พ.ย. 69 · ใบ 0280): คำขอที่ส่งแล้วไม่ถูกลบ — ยังเห็นในแผงนี้ (คำขอที่ยกเลิกแล้ว: เหตุผล · ใคร · เมื่อไร · ไฟล์แนบเปิดดูได้)
 //   ขอราคาใหม่ได้ตามปกติ คำขอเก่าไม่ทับ · กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ไม่เก็บที่กรอก)
-import { ลิงก์ข้อมูล } from "./RecordLink";
+import { DataLink } from "./RecordLink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
@@ -44,7 +44,7 @@ import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { provincesOfRegion, ALL_REGIONS } from "@pms/shared/lib/provinces";
 import { QuoteFilesBox } from "@pms/shared/components/ui/QuoteFilesBox";
 import { FileDropBox, แถวไฟล์, คัดไฟล์, type ไฟล์ไม่ผ่าน } from "@pms/shared/components/ui/FileDropBox";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 
 // ยกเลิกคำขอ / ขอแก้ราคา = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) — กล่องรอฐาน + รอรายการคำขอโหลดใหม่ก่อนปิด
 //   เดิมเป็นฟอร์มในแผง: ปุ่มไม่บอกว่ากำลังทำ · เหตุผลว่างกดได้แล้วขึ้นตัวแดงเล็ก · ปิดฟอร์มก่อนรายการโหลดใหม่
@@ -91,8 +91,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   // ฟอร์มเติมข้อมูลที่ขาด: ช่องที่ขาด ณ ตอนเปิด + ค่าที่พิมพ์
   const [ช่องขาด, setช่องขาด] = useState<ช่องลีด[]>([]);
   // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ช่องที่ขาดของลีด · งานที่ขอราคา — ว่าง = กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรก
-  const บังคับขาด = useช่องบังคับ();
-  const บังคับขอ = useช่องบังคับ();
+  const บังคับขาด = useRequiredFields();
+  const บังคับขอ = useRequiredFields();
   const [เติม, setเติม] = useState<Partial<Record<ช่องลีด, string>>>({});
   const { บันทึกลีดรอฐาน } = useSales();
 
@@ -223,7 +223,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
       {เปิด ? (
         <div style={{ fontSize: "0.8rem", color: "#374151", lineHeight: 1.8 }}>
           <div>
-            คำขอ <b><ลิงก์ข้อมูล เป้า={{ ชนิด: "request", รหัส: lead.numId, สาขา: lead.dealerCode }}>{เปิด.requestNo}</ลิงก์ข้อมูล></b> ·{" "}
+            คำขอ <b><DataLink เป้า={{ ชนิด: "request", รหัส: lead.numId, สาขา: lead.dealerCode }}>{เปิด.requestNo}</DataLink></b> ·{" "}
             <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
               {quoteRequestStatusLabel[เปิด.status]}
             </span>
@@ -243,7 +243,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           {ใบHQ && (
             <div data-panel="hq-quote" style={{ borderTop: "1px solid #e9d5ff", paddingTop: 8, marginTop: 8, display: "grid", gap: 6 }}>
               <div data-testid="hq-quote-summary" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontWeight: 700, color: "#3b0764" }}>ใบ HQ <ลิงก์ข้อมูล เป้า={{ ชนิด: "hqQuote", รหัส: lead.numId, สาขา: lead.dealerCode }}>{ใบHQ.quoteNo}</ลิงก์ข้อมูล> · ฉบับ {ใบHQ.version}</span>
+                <span style={{ fontWeight: 700, color: "#3b0764" }}>ใบ HQ <DataLink เป้า={{ ชนิด: "hqQuote", รหัส: lead.numId, สาขา: lead.dealerCode }}>{ใบHQ.quoteNo}</DataLink> · ฉบับ {ใบHQ.version}</span>
                 <span>· ต้นทุนรวมจาก HQ <b data-testid="hq-quote-summary-total">{บาท(Number(ใบHQ.totalCost))}</b> บาท</span>
                 <span>· ยืนราคาถึง {ใบHQ.validUntil ? วันไทยสั้น(ใบHQ.validUntil) : "—"}</span>
                 <span data-testid="hq-quote-summary-lines">· {ใบHQ.lineItems.length} รายการ</span>

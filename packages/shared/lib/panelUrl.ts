@@ -35,7 +35,7 @@ export function ไปเรื่องในหน้าเดียวกั�
 
 /** ที่อยู่ตามแผงที่เปิดอยู่ — หน้าที่เปิด/ปิดแผงหลายที่ (กดแถว · ปุ่มปิด · Esc) ส่งรหัสของแผงที่เปิด (null = ไม่มีแผง)
  *  ครั้งแรกไม่แตะที่อยู่ (ยังไม่ได้อ่าน ?open ตอนเปิดหน้า) · เปลี่ยนภายหลัง = แทนที่ ?open */
-export function useแผงในURL(ค่า: string | null) {
+export function usePanelInUrl(ค่า: string | null) {
   const ครั้งแรก = useRef(true);
   useEffect(() => {
     if (ครั้งแรก.current) { ครั้งแรก.current = false; return; }
@@ -45,7 +45,7 @@ export function useแผงในURL(ค่า: string | null) {
 
 /** หน้าเปิดแผงตาม ?open — เรียกตอนเปิดหน้า · ย้อนกลับ/ไปหน้า (popstate) · ลิงก์กลาง/ค้นหาบนแถบบนในหน้าเดียวกัน (bpms:open-record)
  *  เปิด(ค่า, พารามิเตอร์) — ค่า null = ที่อยู่ไม่มี ?open แล้ว (ย้อนกลับมาชั้นที่ไม่มีแผง) → ผู้เรียกปิดแผง */
-export function useเปิดตามURL(path: string, เปิด: (ค่า: string | null, พารามิเตอร์: URLSearchParams) => void, พร้อม = true) {
+export function useOpenFromUrl(path: string, เปิด: (ค่า: string | null, พารามิเตอร์: URLSearchParams) => void, พร้อม = true) {
   const ตัวเปิด = useRef(เปิด);
   ตัวเปิด.current = เปิด;
   // ข้อมูลของหน้ายังไม่มา (เช่น รายการลูกค้าเป้าหมายจากบริบท) = รอ แล้วค่อยเปิดตามที่อยู่ — กัน "ไม่พบ" เท็จตอนรีเฟรชหน้าที่มี ?open

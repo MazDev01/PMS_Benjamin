@@ -8,7 +8,7 @@ import { useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "rea
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 
-export function ปุ่มรอฐาน({ ทำ, กำลังทำ: ข้อความกำลังทำ = "กำลังบันทึก…", children, disabled, style, ...rest }:
+export function PendingButton({ ทำ, กำลังทำ: ข้อความกำลังทำ = "กำลังบันทึก…", children, disabled, style, ...rest }:
   Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "children"> & {
     /** งานที่ต้องรอฐาน */
     ทำ: () => Promise<unknown> | unknown;

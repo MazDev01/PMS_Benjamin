@@ -21,7 +21,7 @@ import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
@@ -118,7 +118,7 @@ export function ProposalFormModal({ prospect, choices, editing, onClose, onSaved
   });
 
   // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ฐานกันอีกชั้น dealer_package_proposals_required) — เงื่อนไขไม่มี = ใส่ "-" · หมายเหตุภายในไม่บังคับ
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ชุดบังคับ = (): ช่องบังคับ[] => [
     ...(เลือกในฟอร์ม ? [{ key: "prospect", label: "ผู้สนใจ", value: ร่าง.prospectId ?? null }] : []),
     { key: "amount", label: "ค่าแรกเข้า", value: ร่าง.มูลค่าที่พิมพ์ },

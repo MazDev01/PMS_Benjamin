@@ -16,7 +16,7 @@ import type { ชุดนำเข้าผู้สนใจ, ผลนำเ�
 import { อ่านสมุดงานจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
-import { ดาวบังคับ, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { ดาวบังคับ, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import {
   หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
@@ -94,7 +94,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   const นับ = (g: กลุ่มแถว) => (แถว ?? []).filter(r => r.กลุ่ม === g).length;
   // ช่องบังคับของแถวต้องตรวจ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): ชื่อ · เหตุผล (ขั้นไม่สำเร็จ) — ขาด = กด "ยืนยัน" แล้วแถวยังต้องตรวจ กรอบแดง + ข้อความใต้ช่อง
   //   เบอร์: แถวไม่มีเบอร์ไปกลุ่มข้ามเอง (ฐานกันอีกชั้น ใบ 0276) จึงมีแค่ * ที่หัวคอลัมน์
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ยืนยันแถว = (r: แถวนำเข้า) => {
     if (!บังคับ.ตรวจ([
       { key: `name:${r.row}`, label: "ชื่อ", value: r.name, ข้อความ: "ต้องระบุชื่อ" },
@@ -262,7 +262,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                               <select key={x.ช่อง} className="form-select" data-date-choice={x.ช่อง} aria-label={`เลือกเดือน${x.ช่อง === "firstContact" ? "วันเริ่มติดต่อ" : "วันติดตาม"} แถว ${r.row}`}
                                 value="" onChange={e => e.target.value && เลือกเดือน(r.row, x.ช่อง, e.target.value)} style={{ marginTop: 4, display: "block" }}>
                                 {/* ยังไม่เลือก = ยืนยันไม่ได้ (ไม่ใช่ตัวเลือกกรอง) */}
-                                <option value="">— {x.ช่อง === "firstContact" ? "วันเริ่มติดต่อ" : "วันติดตาม"} "{x.ดิบ}" เดือนไหน —</option>
+                                <option value="">— {x.ช่อง === "firstContact" ? "วันเริ่มติดต่อ" : "วันติดตาม"} &quot;{x.ดิบ}&quot; เดือนไหน —</option>
                                 {x.ตัวเลือก.map(d => <option key={d} value={d}>{fmtISOToThai(d)}</option>)}
                               </select>
                             ))}
@@ -280,7 +280,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                   <button type="button" className="btn btn-primary btn-sm" disabled={กำลัง || !พร้อม.length} onClick={() => void นำเข้า()}>
                     {กำลัง ? "กำลังนำเข้า…" : `นำเข้า ${พร้อม.length.toLocaleString()} ราย`}
                   </button>
-                  <span style={{ fontSize: "0.72rem", color: "#6b7280" }}>นำเข้าเฉพาะกลุ่มพร้อม · ต้องตรวจ = กด "ยืนยัน" ทีละแถวก่อน · ไม่เกิน {นำเข้าได้สูงสุด.toLocaleString()} แถวต่อครั้ง</span>
+                  <span style={{ fontSize: "0.72rem", color: "#6b7280" }}>นำเข้าเฉพาะกลุ่มพร้อม · ต้องตรวจ = กด &quot;ยืนยัน&quot; ทีละแถวก่อน · ไม่เกิน {นำเข้าได้สูงสุด.toLocaleString()} แถวต่อครั้ง</span>
                 </div>
               </section>
             )}

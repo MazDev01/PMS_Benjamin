@@ -54,7 +54,7 @@ export function StageBoard<T, K extends string>({
   const [เปิดดู, setเปิดดู] = useState<ReadonlySet<K>>(() => new Set());
   const ชื่อคอลัมน์ = (k: K) => columns.find(c => c.key === k)?.label ?? k;
   const กล่อง = useRef<HTMLDivElement>(null);
-  useเลื่อนตามตอนลาก(กล่อง, ลากอยู่ !== null);
+  useDragAutoScroll(กล่อง, ลากอยู่ !== null);
 
   // วางการ์ด / เลือกจากเมนู → ตรวจทางก่อน (ทางเดียวกันทั้งสองแบบ)
   function ย้าย(t: T, ไป: K) {
@@ -128,7 +128,7 @@ export function StageBoard<T, K extends string>({
                         boxShadow: "0 1px 4px rgba(0,0,0,.05)", opacity: ลากอยู่ === id ? 0.5 : 1 }}>
                       {renderCard(t)}
                       {ทาง.length > 0 && (
-                        <ปุ่มย้าย ทาง={ทาง} เปิด={เมนู === id} ตั้งเปิด={v => setเมนู(v ? id : null)} เลือก={ไป => { setเมนู(null); ย้าย(t, ไป); }} />
+                        <MoveButton ทาง={ทาง} เปิด={เมนู === id} ตั้งเปิด={v => setเมนู(v ? id : null)} เลือก={ไป => { setเมนู(null); ย้าย(t, ไป); }} />
                       )}
                     </div>
                   );
@@ -158,7 +158,7 @@ function ตัวเลื่อนแนวตั้ง(el: HTMLElement | null
 
 /** ลากแล้วเลื่อนตาม (บอสสั่ง 6 พ.ย. 69) — ระหว่างลากการ์ด: ขอบซ้าย/ขวาของบอร์ด = เลื่อนบอร์ด · ขอบบน/ล่างของจอ = เลื่อนหน้า
  *  ความเร็วตามระยะห่างจากขอบ (ใกล้สุด = เร็วสุด) · เหตุการณ์ลากหยุดมา (ปล่อย/ยกเลิก/ออกนอกหน้าต่าง) = หยุดเลื่อน */
-function useเลื่อนตามตอนลาก(กล่อง: React.RefObject<HTMLDivElement | null>, ลาก: boolean) {
+function useDragAutoScroll(กล่อง: React.RefObject<HTMLDivElement | null>, ลาก: boolean) {
   useEffect(() => {
     if (!ลาก) return;
     const ระยะขอบ = 64, เร็วสุด = 22, ค้างได้นาน = 250;
@@ -216,7 +216,7 @@ function useเลื่อนตามตอนลาก(กล่อง: React
 }
 
 /** ปุ่ม "ย้ายไปขั้น…" บนการ์ด — ทางเดียวกับการลาก (ทางที่ไม่ได้ = กดไม่ได้ + เหตุผลบนปุ่ม) */
-function ปุ่มย้าย<K extends string>({ ทาง, เปิด, ตั้งเปิด, เลือก }: { ทาง: ทางย้าย<K>[]; เปิด: boolean; ตั้งเปิด: (v: boolean) => void; เลือก: (k: K) => void }) {
+function MoveButton<K extends string>({ ทาง, เปิด, ตั้งเปิด, เลือก }: { ทาง: ทางย้าย<K>[]; เปิด: boolean; ตั้งเปิด: (v: boolean) => void; เลือก: (k: K) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!เปิด) return;

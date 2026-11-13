@@ -6,7 +6,7 @@
 //   แท็บรายเดือนกดแถว = แผงรายดีลเลอร์ของเดือนนั้น · ทุกตัวเลข = ผลรวมของแถวรายดีลเลอร์ชุดเดียว (hq_drill · ใบ 0271) → การ์ด = ผลรวมแถว
 //   ไม่มีแถวรวมทุกตาราง/แผง (บอสสั่ง 6 พ.ย. 69 · ตัวเลขรวมดูที่การ์ด) · ตารางพอดีจอ 1366/1920 (.table-wrap.fit · ซ่อนคอลัมน์ที่ทั้งตารางเป็น "—")
 //   ไม่มีรหัสหน้าชื่อ (ตาราง + กราฟแท่ง) · ภูมิภาค · จังหวัด เป็นบรรทัดเล็กใต้ชื่อดีลเลอร์
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Users, CalendarDays, PhoneCall, Inbox, AlarmClock, Send, Hourglass, CheckCircle2, Percent, UserPlus, Store, type LucideIcon } from "lucide-react";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
@@ -22,8 +22,8 @@ import { แถบระดับ, ชื่อมิติ, รอข้อม�
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
-import { หน้าต่างเจาะ, ส่วนเจาะ } from "./DrillWindow";
-import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
+import { DrillModal, ส่วนเจาะ } from "./DrillWindow";
+import { useLevelHistory } from "@pms/shared/lib/useDrillHistory";
 import { ความกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/tableFit";
 import { บรรทัดใต้ชื่อดีลเลอร์, type ระดับเจาะ } from "@pms/shared/lib/drillColumns";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
@@ -56,7 +56,7 @@ export const ป้ายระดับของขอบ = (s: ขอบเข
 
 // ── ข้อมูลจากฐาน ─────────────────────────────────────────────────────────────────────────────────────────────
 /** null = กำลังโหลด · ผิดพลาด = แถวว่าง (หน้าแสดง "—"/ว่าง ไม่เดาเลข) */
-export function useเจาะลึก(หน้า: หน้าเจาะลึก, start: string, end: string, today: string): ข้อมูลเจาะลึก | null {
+export function useDrill(หน้า: หน้าเจาะลึก, start: string, end: string, today: string): ข้อมูลเจาะลึก | null {
   const พร้อม = useAuthReady();
   const [d, setD] = useState<ข้อมูลเจาะลึก | null>(null);
   useEffect(() => {
@@ -87,7 +87,7 @@ function จัดกลุ่มแท็บ(rows: แถวเจาะลึ�
 const เดือนของกลุ่ม = (ms: เดือนเจาะลึก[], codes: Set<string>, y: number, m: number) => ms.filter(x => x.y === y && x.m === m && codes.has(x.code));
 
 // ── หัวหน้าเจาะลึก: แถบระดับ · การ์ด · ตัวเลือกระดับ · แท็บ (แท่ง + ตาราง) · แผงขวา ─────────────────────────────────────────
-export function หัวเจาะลึก({ ตั้งค่า, ข้อมูล, ขอบ, ตั้งขอบ, ช่วง, ชื่อแถวการ์ด }: {
+export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอบ, ตั้งขอบ, ช่วง, ชื่อแถวการ์ด }: {
   ตั้งค่า: ตั้งค่าเจาะลึก; ข้อมูล: ข้อมูลเจาะลึก | null; ขอบ: ขอบเขต; ตั้งขอบ: (s: ขอบเขต) => void;
   ช่วง: { start: string; end: string }; ชื่อแถวการ์ด: string;
 }) {
@@ -119,7 +119,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
     else ตั้งขอบ({ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: null, มิติ: "dealer" });
   };
   // ปุ่มย้อนกลับของเบราว์เซอร์ = ถอยทีละ 1 ระดับ (บอสสั่ง 5 พ.ย. 69 · ตัวกลาง useประวัติระดับ) — แท็บตั้งต้นของระดับ: ภาค = จังหวัด · อื่น = ดีลเลอร์
-  useประวัติระดับ({ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }, r => {
+  useLevelHistory({ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }, r => {
     setเรียง(null); setแผงการ์ด(null);
     ตั้งขอบ({ ...r, มิติ: r.ภาค && !r.จังหวัด && !r.ดีลเลอร์ ? "prov" : "dealer" });
   });
@@ -289,7 +289,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
                 {แถวแผง.map(r => รายเดือน
                   ? <tr key={r.key} data-drawer-row={r.key}><td title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td></tr>
                   : <ClickableRow key={r.key} className="clickable" onActivate={() => { setแผงการ์ด(null); เจาะ(`dealer:${r.key}`); }} label={`เปิดตัวเลขของ ${r.label} (เจาะลงระดับดีลเลอร์)`}>
-                      <td data-drawer-row={r.key} title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.key }}>{r.label}</ลิงก์ข้อมูล></td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td>
+                      <td data-drawer-row={r.key} title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}><DataLink เป้า={{ ชนิด: "dealer", รหัส: r.key }}>{r.label}</DataLink></td><td className="num" data-value={r.v ?? ""}>{แสดง(c, r.v)}</td>
                     </ClickableRow>)}
               </tbody>
             </table>
@@ -310,7 +310,7 @@ export function หัวเจาะลึก({ ตั้งค่า, ข้�
                 {rows.map(r => (
                   <ClickableRow key={r.code} className="clickable" onActivate={() => { setแผงเดือน(null); เจาะ(`dealer:${r.code}`); }} label={`เปิดตัวเลขของ ${ชื่อแสดง(r.code, r.name)} (เจาะลงระดับดีลเลอร์)`}>
                     <td data-drawer-row={r.code} title={ชื่อแสดง(r.code, r.name)} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อแสดง(r.code, r.name)}</ลิงก์ข้อมูล></td>
+                      <DataLink เป้า={{ ชนิด: "dealer", รหัส: r.code }}>{ชื่อแสดง(r.code, r.name)}</DataLink></td>
                     {ค.map(c => { const v = ค่าเดือน(c, ของเดือน.filter(x => x.code === r.code)); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; })}
                   </ClickableRow>
                 ))}
@@ -329,8 +329,8 @@ function แผงขวา({ ชื่อ, คำอธิบาย, ปิด,
   ป้าย?: { คีย์: string; ข้อความ: React.ReactNode }[]; หัวส่วน: string; ไอคอน: LucideIcon; children: React.ReactNode;
 }) {
   return (
-    <หน้าต่างเจาะ ชื่อ={ชื่อ} คำอธิบาย={คำอธิบาย} ปิด={ปิด} data-drill-drawer={testid} กว้าง={กว้าง} ป้าย={ป้าย}>
+    <DrillModal ชื่อ={ชื่อ} คำอธิบาย={คำอธิบาย} ปิด={ปิด} data-drill-drawer={testid} กว้าง={กว้าง} ป้าย={ป้าย}>
       <ส่วนเจาะ ไอคอน={ไอคอน} ชื่อ={หัวส่วน}>{children}</ส่วนเจาะ>
-    </หน้าต่างเจาะ>
+    </DrillModal>
   );
 }

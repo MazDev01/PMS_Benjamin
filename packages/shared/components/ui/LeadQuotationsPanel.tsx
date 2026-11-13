@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, Check, XCircle } from "lucide-react";
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { useLostReasons } from "@pms/shared/lib/useHQConfig";
-import { ปุ่มรอฐาน } from "@pms/shared/components/ui/BusyButton";
+import { PendingButton } from "@pms/shared/components/ui/BusyButton";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
   quotationStatusLabel, quotationStatusColor, fmtISOToThai,
@@ -652,9 +652,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
           {ทำฉบับใหม่ได้(q) && <button onClick={() => void ทำฉบับใหม่(q)} className="btn btn-secondary btn-sm" style={{ color: "#374151" }}><CopyPlus size={13} /> ทำฉบับใหม่</button>}
           {/* ส่งใบร่างให้ลูกค้า = ปุ่มในกล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง (ใบที่ส่งแล้ว) */}
           {แก้ได้(q) && q.status === "sent_to_client" && (
-            <ปุ่มรอฐาน ทำ={async () => { await sendQuote(q); setMode("list"); }} กำลังทำ="กำลังส่ง…" className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
+            <PendingButton ทำ={async () => { await sendQuote(q); setMode("list"); }} กำลังทำ="กำลังส่ง…" className="btn btn-secondary btn-sm" style={{ color: "#374151" }}>
               <Send size={13} /> ส่งอีกครั้ง
-            </ปุ่มรอฐาน>
+            </PendingButton>
           )}
         </div>
         <IssuerGuardNote ขาด={ขาดตอนพิมพ์(q)} การกระทำ="พิมพ์ใบให้ลูกค้า" style={{ marginTop: 12 }} />
@@ -703,10 +703,10 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                     {/* ส่งใบเสนอราคา — เด่นเป็นปุ่ม navy · แสดงเฉพาะใบที่ยังส่งได้ (ร่าง/ส่งแล้ว) · ซ่อนเมื่อดูอย่างเดียว */}
                     {/* ส่งใบร่าง = กล่องขั้นต่อไปที่เดียว (รอบ 4) · ที่นี่เหลือส่งอีกครั้ง */}
                     {แก้ได้(q) && q.status === "sent_to_client" && (
-                      <ปุ่มรอฐาน ทำ={() => sendQuote(q)} กำลังทำ="กำลังส่ง…" title="ส่งอีกครั้ง"
+                      <PendingButton ทำ={() => sendQuote(q)} กำลังทำ="กำลังส่ง…" title="ส่งอีกครั้ง"
                         className="btn btn-secondary btn-sm" style={{ height: 28, padding: "0 11px", color: "#374151" }}>
                         <Send size={12} /> ส่งอีกครั้ง
-                      </ปุ่มรอฐาน>
+                      </PendingButton>
                     )}
                     {([
                       { ic: <Eye size={13} />, t: "ดู", fn: () => { setEditing(q); setMode("view"); } },

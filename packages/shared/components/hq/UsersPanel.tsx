@@ -29,7 +29,7 @@ import {
   Eye, EyeOff, Pencil, Power, Clock, UserPlus, Phone, ImagePlus, Trash2, AlertTriangle, Mail, Building2, UserCheck, UserX, LogIn,
 } from "lucide-react";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 
 const PRIMARY = "#003366";
 const STEEL = "#2D2D2D";
@@ -47,7 +47,7 @@ const ชื่อบทบาท = "สำนักงานใหญ่";
 const สีบทบาท = "#003366";
 const แผนกHQ = ["บริหาร", "ฝ่ายขาย", "ไอทีและระบบ"] as const;
 export const เหตุปิดบัญชีสุดท้ายไม่ได้ = "บัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน — ปิดหรือลบไม่ได้ (เพิ่มบัญชีสำนักงานใหญ่คนใหม่ก่อน)";
-import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
+import { useReplaceCodesInLog } from "@pms/shared/lib/dealerDisplay";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 // ไม่มีฟิลด์ "เข้าใช้ล่าสุด" — ระบบไม่ได้บันทึกเวลาเข้าสู่ระบบจริง (เดิมเป็นข้อความ seed ตายตัวที่ไม่มีอะไรอัปเดต)
@@ -105,7 +105,7 @@ function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เ�
   // (เดิมเป็นช่องอิสระ เลือกบทบาทแล้วแผนกยังค้างเป็น "ยังไม่ระบุ" ได้ · บอสสั่งฟิก 3 ก.ย. 69)
   // ช่องบังคับ (4 พ.ย. 69 · ตัวกลาง): ชื่อ · อีเมล (บทบาทเดียว ไม่ต้องเลือก · ใบ 0282) — กดบันทึกแล้วขาด = กรอบแดง + ข้อความใต้ช่อง + เลื่อนไปช่องแรก
   //   (เดิมปุ่มบันทึกเป็นสีจางกดไม่ได้ ไม่บอกว่าขาดช่องไหน) · อีเมลผิดรูป = ข้อความใต้ช่องอีเมล
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const อีเมลถูกรูป = /\S+@\S+\.\S+/.test(f.email);
   const inp: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 9, border: `1px solid ${BORDER}`, fontSize: "0.84rem", color: STEEL, background: "#fff", outline: "none", boxSizing: "border-box" };
   const submit = () => {
@@ -652,7 +652,7 @@ function SetPasswordDialog({ user, onApply, onClose }: {
 // Timeline = บันทึกการใช้งานจริงของผู้ใช้คนนี้ (audit log) — เดิมเป็นวันที่ปลอมที่ hardcode ไว้
 // ระบบไม่ได้บันทึกการเข้าสู่ระบบ จึงไม่มีรายการ "เข้าสู่ระบบล่าสุด"
 function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: () => void; onEdit: () => void }) {
-  const แทนรหัส = useแทนรหัสในบันทึก();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
+  const แทนรหัส = useReplaceCodesInLog();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
   const auditEntries = useAuditEntries();
   const iconOf = (action: string) =>
     action.includes("รหัสผ่าน") ? { icon: <KeyRound size={13} />, color: "#d97706" }

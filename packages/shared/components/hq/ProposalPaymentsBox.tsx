@@ -12,7 +12,7 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { formatMoneyInput, parseMoneyInput } from "@pms/shared/lib/format";
 import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด } from "@pms/shared/lib/requiredFields";
 
 const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -52,7 +52,7 @@ export function ProposalPaymentsBox({ proposal, editable, onChanged }: {
   const ครบ = list != null && ชำระแล้ว >= ยอดในใบ;
 
   // ช่องบังคับ (ฐานบังคับ · 4 พ.ย. 69 ตัวกลาง): วันที่ชำระ · ยอด (> 0) · เลขอ้างอิง (ไม่มีเลข = ใส่ "-" เช่นจ่ายเงินสด)
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   async function บันทึก() {
     if (!บังคับ.ตรวจ([
       { key: "date", label: "วันที่ชำระ", value: วันที่, ข้อความ: "ต้องระบุวันที่ชำระ" },

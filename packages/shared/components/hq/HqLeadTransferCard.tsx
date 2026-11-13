@@ -14,14 +14,14 @@ import type { HqTransferPlanRow } from "@pms/shared/lib/data/ports";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
-import { ดาวบังคับ, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { ดาวบังคับ, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 
 export function HqLeadTransferCard({ dealerName, onTransferred }: { dealerName: (code: string) => string; onTransferred?: () => void }) {
   const [แผน, setแผน] = useState<HqTransferPlanRow[]>([]);
   const [เลือก, setเลือก] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง): จังหวัดที่มีหลายสาขา ต้องเลือกสาขาก่อนโอน — ไม่เลือก = กรอบแดง + ข้อความใต้ช่อง (เดิมปุ่มกดไม่ได้เฉย ๆ)
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const โหลด = useCallback(() => {
     territoriesRepo.transferPlan().then(setแผน).catch(e => {
       // บัญชีที่ไม่ใช่ผู้ดูแลระดับจัดการ = ไม่มีสิทธิ์ดูแผน (forbidden) → ไม่แสดงการ์ด ไม่ต้องบันทึก

@@ -36,8 +36,8 @@ import { fmtBaht } from "@pms/shared/lib/format";
 import { useLeadSummary } from "@pms/shared/lib/useNetworkData";
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
-import { useประวัติระดับ } from "@pms/shared/lib/useDrillHistory";
-import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, แผงที่มา, กล่องล่าง, ล่าสุดของดีลเลอร์, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, แผงเดือน, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
+import { useLevelHistory } from "@pms/shared/lib/useDrillHistory";
+import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, SourcePanel, กล่องล่าง, DealerRecent, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, MonthPanel, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
@@ -260,7 +260,7 @@ export default function SalesAnalyticsPage() {
     if (ระดับ === "prov") ไปที่ระดับ({ ภาค: ภาคที่ดู, จังหวัด: จังหวัดที่ดู, ดีลเลอร์: null });
   };
   // ปุ่มย้อนกลับของเบราว์เซอร์ = ถอยทีละ 1 ระดับ (ตัวกลาง useประวัติระดับ · ตัวเดียวกับหัวเจาะลึก 3 หน้า)
-  useประวัติระดับ({ ภาค: ภาคที่ดู, จังหวัด: จังหวัดที่ดู, ดีลเลอร์: ดีลเลอร์ที่ดู }, ไปที่ระดับ);
+  useLevelHistory({ ภาค: ภาคที่ดู, จังหวัด: จังหวัดที่ดู, ดีลเลอร์: ดีลเลอร์ที่ดู }, ไปที่ระดับ);
   const แท่งกลุ่ม: HRow[] = useMemo(() => กลุ่ม.map(g => ({ key: g.key, label: g.label, a: g.รวม.sales, b: g.รวม.target ?? 0,
     note: g.รวม.pct == null ? "ยังไม่ตั้งเป้า" : `${g.รวม.pct}% ของเป้า`, onClick: () => เจาะ(g.key) })), [กลุ่ม]);   // eslint-disable-line react-hooks/exhaustive-deps
   // ── รายเดือน (ใบ 0268 · hq_pipeline_months): ดึงเฉพาะตอนเปิดแท็บรายเดือน หรือแผงที่มาตอนอยู่ระดับดีลเลอร์ ──
@@ -432,16 +432,16 @@ export default function SalesAnalyticsPage() {
       </div>
 
       {/* ── 4 · ระดับดีลเลอร์: ใบ/ลีดล่าสุด + ปุ่มเปิดแผงดีลเลอร์ ── */}
-      {ดีลเลอร์ที่ดู && <div style={{ marginTop: 24 }}><ล่าสุดของดีลเลอร์ code={ดีลเลอร์ที่ดู} /></div>}
+      {ดีลเลอร์ที่ดู && <div style={{ marginTop: 24 }}><DealerRecent code={ดีลเลอร์ที่ดู} /></div>}
 
       {/* ── 5 · เส้นทางการขาย · งานค้างตามขั้นตอน (ตอนนี้) · เหตุผลปิดไม่สำเร็จ · ลีดตามแหล่งที่มา (ชุดสาขาเดียวกับตาราง) ── */}
       <div style={{ marginTop: 24 }}>
         <กล่องล่าง รวมทั้งหมด={รวม} ขั้นตอนนี้={ขั้นตอนนี้} ในช่วง={ลีดในช่วง} ระดับ={ป้ายระดับ(ระดับหัวข้อ)} ช่วง={ช่วง} />
       </div>
 
-      {แผงการ์ด && <แผงที่มา การ์ด={แผงการ์ด} แถว={แถว} ดีลเลอร์={ดีลเลอร์ที่ดู} ปิด={() => setแผงการ์ด(null)} เดือน={ดีลเลอร์ที่ดู ? เดือน : null} ช่วง={ช่วง}
+      {แผงการ์ด && <SourcePanel การ์ด={แผงการ์ด} แถว={แถว} ดีลเลอร์={ดีลเลอร์ที่ดู} ปิด={() => setแผงการ์ด(null)} เดือน={ดีลเลอร์ที่ดู ? เดือน : null} ช่วง={ช่วง}
         เจาะ={code => { setDealerSel(code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
-      {เดือนที่เปิด && รายเดือนฐาน && <แผงเดือน เดือน={เดือนที่เปิด} rows={รายเดือนฐาน} codes={รหัสในตาราง} ชื่อ={ชื่อดีลเลอร์} ปิด={() => setเดือนที่เปิด(null)}
+      {เดือนที่เปิด && รายเดือนฐาน && <MonthPanel เดือน={เดือนที่เปิด} rows={รายเดือนฐาน} codes={รหัสในตาราง} ชื่อ={ชื่อดีลเลอร์} ปิด={() => setเดือนที่เปิด(null)}
         เจาะ={code => { setDealerSel(code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
     </div>
   );

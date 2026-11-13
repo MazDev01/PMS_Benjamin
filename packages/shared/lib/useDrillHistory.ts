@@ -12,7 +12,7 @@ const คีย์ประวัติ = "pmsDrill";
 const ลายเซ็น = (r: ระดับเจาะ) => JSON.stringify([r.ภาค ?? null, r.จังหวัด ?? null, r.ดีลเลอร์ ?? null]);
 
 /** ผูกระดับที่ดูอยู่กับประวัติเบราว์เซอร์ · ไป = ตั้งระดับตามประวัติ (หน้าเลือกมิติ/แท็บตั้งต้นของระดับนั้นเอง) */
-export function useประวัติระดับ(ระดับ: ระดับเจาะ, ไป: (r: ระดับเจาะ) => void) {
+export function useLevelHistory(ระดับ: ระดับเจาะ, ไป: (r: ระดับเจาะ) => void) {
   const ล่าสุด = useRef<string | null>(null);
   const ตั้งต้น = useRef<ระดับเจาะ | null>(null);
   const ไปRef = useRef(ไป);

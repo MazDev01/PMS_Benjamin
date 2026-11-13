@@ -105,7 +105,7 @@ export function RowPanelShell({ label, onClose, onEscape, children, asideAttrs, 
   onEscape?: () => void;
   asideAttrs?: ข้อมูลแอตทริบิวต์ & HTMLAttributes<HTMLElement>; backdropAttrs?: ข้อมูลแอตทริบิวต์; zIndex?: number; backdropClassName?: string;
 }) {
-  const ref = useแผงบนสุด(onEscape ?? onClose);
+  const ref = useTopPanel(onEscape ?? onClose);
   return (
     <>
       <div onClick={onClose} data-row-panel-backdrop className={backdropClassName} {...backdropAttrs}
@@ -121,7 +121,7 @@ export function RowPanelShell({ label, onClose, onEscape, children, asideAttrs, 
 
 /** คีย์บอร์ดของแผง: เปิดแล้วโฟกัสเข้าแผง · Esc ปิด · Tab วนในแผง · ปิดแล้วโฟกัสกลับที่เดิม
  *  ทำเฉพาะเมื่อแผงนี้อยู่บนสุด — แผงดีลเลอร์เปิดแผงใบ/ลูกค้าซ้อน: Esc/Tab เป็นของแผงบน (แผงล่างไม่แย่งโฟกัส ไม่ปิดตาม) */
-function useแผงบนสุด(onClose: () => void) {
+function useTopPanel(onClose: () => void) {
   const ref = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;

@@ -4,7 +4,7 @@
 //   แถวทะเบียนเหลือ "เข้าระบบแทน" + กดแถวเปิดหน้ารายละเอียด · แก้ไข/ปิดใช้งาน/สถิติ อยู่ที่หน้ารายละเอียด
 //   ฟิลด์และกติกาเหมือนเดิมทุกข้อ: รหัสแก้ไม่ได้ · ภาคก่อนจังหวัด (ทุกภาค = ทุกจังหวัด) · เป้าไม่ติดลบ · จังหวัดเดิมนอกภาคยังเห็นค่าเดิม
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
@@ -44,7 +44,7 @@ export function DealerEditModal({ dealer, onClose, onSave }: {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   // ช่องบังคับ: ชื่อ · ภาค · จังหวัด (ฐานเก็บว่างไม่ได้ · ใบ 0276) — ขาด = กรอบแดง + ข้อความใต้ช่อง + เลื่อนไปช่องแรก
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
 
   // เปลี่ยนภาค: จังหวัดที่ไม่อยู่ในภาคใหม่ถูกล้าง (กันข้อมูลขัดกันเอง) · ทุกภาค = ทุกจังหวัด
   function changeRegion(region: string) {

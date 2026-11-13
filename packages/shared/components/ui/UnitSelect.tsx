@@ -24,7 +24,7 @@ function โหลดหน่วยวัสดุ(): Promise<string[]> {
 export const ล้างหน่วยจากวัสดุ = () => { หน่วยจากวัสดุ = null; };
 
 /** รายการหน่วย: มาตรฐานก่อน แล้วหน่วยจากรายการวัสดุ (ไม่ซ้ำ · เรียงตามตัวอักษร) + หน่วยเพิ่มเติมที่ผู้เรียกส่งมา */
-export function useรายการหน่วย(เพิ่ม: string[] = []): string[] {
+export function useUnitList(เพิ่ม: string[] = []): string[] {
   const [วัสดุ, setวัสดุ] = useState<string[]>([]);
   useEffect(() => { let alive = true; void โหลดหน่วยวัสดุ().then(u => { if (alive) setวัสดุ(u); }); return () => { alive = false; }; }, []);
   const คีย์ = เพิ่ม.join("|");

@@ -17,8 +17,8 @@
 //
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์ = ผู้มีสิทธิ์จัดการดีลเลอร์ (dealers:manage)
 //   RLS บังคับซ้ำที่ฐานข้อมูล — การซ่อนปุ่มตรงนี้เป็นแค่ความสะดวก ไม่ใช่ด่านจริง
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -73,7 +73,7 @@ import { formatPhone } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import { สรุปช่องที่ขาด, ตรวจช่องบังคับ, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
@@ -144,7 +144,7 @@ export default function HQProspectsPage() {
   const [ร่าง, setร่าง] = useState<Partial<DealerProspect>>(ร่างว่าง());
   const [formErr, setFormErr] = useState("");
   // ช่องบังคับของฟอร์มผู้สนใจ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ชื่อ + เบอร์โทร (ฐานกันอีกชั้น ใบ 0276)
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ชุดบังคับ = (r: Partial<DealerProspect>): ช่องบังคับ[] => [
     { key: "name", label: "ชื่อผู้ติดต่อ / ชื่อบริษัท", value: r.name, ข้อความ: "ต้องระบุชื่อผู้สนใจ" },
     { key: "phone", label: "เบอร์โทร", value: r.phone, ข้อความ: "ต้องระบุเบอร์โทร" },
@@ -177,7 +177,7 @@ export default function HQProspectsPage() {
   const [โหมดตั้ง, setโหมดตั้ง] = useState<"new" | "existing">("new");
   const [ฟอร์ม, setฟอร์ม] = useState<ฟอร์มดีลเลอร์>({ code: "", name: "", region: "", province: "", email: "", password: "", existingCode: "" });
   // ช่องบังคับของกล่องตั้งเป็นดีลเลอร์ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ข้อความเดิมของแต่ละช่องอยู่ใต้ช่อง · แถบผิดพลาดสรุปชื่อช่องที่ขาด (ไม่ซ้ำข้อความใต้ช่อง)
-  const บังคับแปลง = useช่องบังคับ();
+  const บังคับแปลง = useRequiredFields();
   const ชุดแปลง = (f: ฟอร์มดีลเลอร์, โหมด: "new" | "existing"): ช่องบังคับ[] => โหมด === "existing"
     ? [{ key: "existingCode", label: "ดีลเลอร์", value: f.existingCode, ข้อความ: "ต้องเลือกดีลเลอร์" }]
     : [
@@ -316,7 +316,7 @@ export default function HQProspectsPage() {
   //   แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่ · ลิงก์กลางมาที่นี่
   const listRef = useRef(list);
   listRef.current = list;
-  useเปิดตามURL("/hq/prospects", รหัส => {
+  useOpenFromUrl("/hq/prospects", รหัส => {
     if (!รหัส) { if (เปิดอยู่Ref.current != null) ปิดแผงทันที(); return; }
     if (เปิดอยู่Ref.current != null && String(เปิดอยู่Ref.current) === รหัส) return;
     const list = listRef.current;
@@ -329,7 +329,7 @@ export default function HQProspectsPage() {
     else if (ราย) เปิดแผง(ราย);
     else if (!loadErr) แจ้งพลาด("ไม่พบผู้สนใจรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
   }, loaded);
-  useแผงในURL(รายที่เปิด ? String(รายที่เปิด.id) : null);
+  usePanelInUrl(รายที่เปิด ? String(รายที่เปิด.id) : null);
 
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
   //   คงรหัส 2 จุดตามบอสตอบ: ช่องพิมพ์รหัสตอนตั้งดีลเลอร์ · กล่องบัญชีเข้าระบบดีลเลอร์ใหม่ (รหัสสาขา = ชื่อเข้าระบบ)
@@ -915,7 +915,7 @@ export default function HQProspectsPage() {
               {/* เป็นดีลเลอร์แล้ว (คอลัมน์ปิดแล้ว) → ลิงก์ไปแผงดีลเลอร์นั้น (คำตัดสิน 15 ก.ย. 69 · ข้อ 17 ตาราง FLOW · ตัวกลาง RecordLink กดแล้วไม่เปิดแผงการ์ด) */}
               {p.dealerCode && (
                 <div data-prospect-dealer-link style={{ fontSize: "0.7rem", margin: "0 0 6px", color: "#64748b" }}>
-                  เป็นดีลเลอร์แล้ว: <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</ลิงก์ข้อมูล>
+                  เป็นดีลเลอร์แล้ว: <DataLink เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</DataLink>
                 </div>
               )}
               <span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status}
@@ -1002,7 +1002,7 @@ export default function HQProspectsPage() {
                     </td>
                     <td>
                       {p.dealerCode
-                        ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</ลิงก์ข้อมูล>
+                        ? <DataLink เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</DataLink>
                         : "—"}
                     </td>
                   </ClickableRow>

@@ -16,7 +16,7 @@ import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealer
 import { งานมาตรฐาน, งานเสร็จแล้ว, ความคืบหน้า, ติ๊กงาน, ยกเลิกงาน, ลำดับขั้น } from "@pms/shared/lib/prospectJourney";
 import type { HQRecruitSettings } from "@pms/shared/lib/recruitSettings";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
-import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 
 const PRIMARY = "#003366";
 
@@ -47,7 +47,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
   onNeedProposal: () => void;
   onConvert: () => void;
 }) {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   const [hint, setHint] = useState("");
   // ไม่สำเร็จ = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) · มีรายการเหตุผลตั้งไว้ = เลือกจากรายการ (มี "อื่นๆ" ให้พิมพ์เอง) · ไม่มี = พิมพ์เอง
   const ไม่สำเร็จ = () => void ถามเหตุผล({

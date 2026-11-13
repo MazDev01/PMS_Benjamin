@@ -18,7 +18,7 @@ export { ที่อยู่เรื่อง, เป้าลูกค้า
 
 /** ลิงก์กลาง — ไม่มีที่ให้ไป = ข้อความธรรมดา (ลูกที่ส่งมา) */
 /** พื้นเข้ม = หัวหน้าต่าง/หัวแผงพื้นน้ำเงินเข้ม → ลิงก์สีขาวขีดเส้นใต้ (.rec-link-dark · บอสสั่ง 11 พ.ย. 69) */
-export function ลิงก์ข้อมูล({ เป้า, children, title, style, testId, พื้นเข้ม }: { เป้า: เป้าลิงก์ | null; children: ReactNode; title?: string; style?: CSSProperties; testId?: string; พื้นเข้ม?: boolean }) {
+export function DataLink({ เป้า, children, title, style, testId, พื้นเข้ม }: { เป้า: เป้าลิงก์ | null; children: ReactNode; title?: string; style?: CSSProperties; testId?: string; พื้นเข้ม?: boolean }) {
   const router = useRouter();
   const ฝั่ง = (usePathname() ?? "").startsWith("/hq") ? "hq" : "dealer";
   const สาขาฉัน = useCurrentDealer().code;

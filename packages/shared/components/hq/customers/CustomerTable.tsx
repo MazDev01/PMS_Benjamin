@@ -3,7 +3,7 @@
 // ─── ตารางฐานข้อมูลลูกค้าทั้งเครือ ───────────────────────────────────────────────
 // HQ ดูอย่างเดียว — มีแต่ปุ่ม "ดู" ไม่มี เพิ่ม/แก้ไข/ลบ
 // ช่องที่ไม่มีข้อมูลจริง (ลูกค้าที่ยังไม่มีใบปิดการขาย) ขึ้น "—" ไม่เดาแทน
-import { ลิงก์ข้อมูล } from "../../ui/RecordLink";
+import { DataLink } from "../../ui/RecordLink";
 import { Eye } from "lucide-react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
 import { customerCode, fmtISOToThai } from "@pms/shared/lib/mock";
@@ -12,7 +12,7 @@ import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import type { HQCustomerPageRow } from "@pms/shared/lib/data/ports";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { TablePagination, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
-import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 import { ซ่อนตามระดับ, type ระดับเจาะ } from "@pms/shared/lib/drillColumns";
 
 const PRIMARY = "#003366";
@@ -34,7 +34,7 @@ export function CustomerTable({ rows, onView, pagination, loading, ระดั�
    *  ทั้งที่กำลังโหลดอยู่ (ผู้ใช้เข้าใจผิดว่าไม่มีข้อมูล + คลิกแถวก็ไม่มีอะไรเกิดขึ้นเพราะยังไม่มีแถวจริง) */
   loading?: boolean;
 }) {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   // ระดับดีลเลอร์ = ไม่มีคอลัมน์ดีลเลอร์ · ทุกแถวภูมิภาค/จังหวัดเดียวกับระดับ = ไม่มีคอลัมน์นั้น (บอสสั่ง 9 พ.ย. 69)
   const ซ่อน = ซ่อนตามระดับ(ระดับ, rows, { ภาค: c => regionOf(c.province), จังหวัด: c => c.province });
   const จำนวนคอล = 8 - (ซ่อน.ดีลเลอร์ ? 1 : 0) - (ซ่อน.จังหวัด ? 1 : 0) - (ซ่อน.ภาค ? 1 : 0);
@@ -86,7 +86,7 @@ export function CustomerTable({ rows, onView, pagination, loading, ระดั�
                 </td>
                 <td style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={c.name}>{c.name}</td>
                 {!ซ่อน.ดีลเลอร์ && <td data-col="dealer" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={ชื่อของ(c.dealerCode, c.dealerName)}>
-                  <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: c.dealerCode }}>{ชื่อของ(c.dealerCode, c.dealerName)}</ลิงก์ข้อมูล>
+                  <DataLink เป้า={{ ชนิด: "dealer", รหัส: c.dealerCode }}>{ชื่อของ(c.dealerCode, c.dealerName)}</DataLink>
                 </td>}
                 {!ซ่อน.จังหวัด && <td data-col="province" style={{ whiteSpace: "nowrap" }}>{c.province || DASH}</td>}
                 {!ซ่อน.ภาค && <td data-col="region" style={{ whiteSpace: "nowrap", color: "#6b7280" }}>{regionOf(c.province) ? ชื่อภาค(regionOf(c.province)) : DASH}</td>}
