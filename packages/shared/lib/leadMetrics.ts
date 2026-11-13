@@ -30,18 +30,10 @@ export function parseThaiDate(s?: string): Date | null {
   return new Date(y, TH_MONTH[m[2]], +m[1]);
 }
 
-// วันที่สร้างลูกค้าเป้าหมาย — ลูกค้าเป้าหมาย seed ส่วนใหญ่ไม่มี createdAt → ใช้วันที่คงที่ (deterministic) จาก numId
-// กระจายภายใน ~150 วันล่าสุด เพื่อให้กราฟ/ไทม์ไลน์มีข้อมูลจริง ไม่แบนที่ 0
-export function leadCreatedDate(l: LeadRow): Date {
-  const d = parseThaiDate(l.createdAt);
-  if (d) return d;
-  const x = new Date(MOCK_TODAY);
-  x.setDate(x.getDate() - ((l.numId * 17) % 150));
-  return x;
-}
+// ⚠️ 13 พ.ย. 69: เอา leadCreatedDate() ออก — มันสังเคราะห์วันจาก numId เมื่อไม่มีวันจริง (กราฟ/ปฏิทิน/ตัวกรองแสดงเดือนที่ไม่จริง = กุข้อมูล)
+//    ทุกจุดใช้ leadEntryDate() แทน · ไม่มีวัน = ไม่ลงเดือนไหน / ไม่นับอายุ (กฎ "ไม่มีข้อมูล = —")
 
-/** วันที่ลูกค้าเป้าหมายเข้ามา (created_label/created_date ที่ฐานข้อมูล) — ไม่มีวัน = null
- *  ⚠️ ห้ามใช้ leadCreatedDate() แทน: มันสังเคราะห์วันจาก numId เมื่อไม่มีวันจริง */
+/** วันที่ลูกค้าเป้าหมายเข้ามา (created_label/created_date ที่ฐานข้อมูล) — ไม่มีวัน = null */
 export function leadEntryDate(l: LeadRow): Date | null {
   return parseThaiDate(l.createdAt);
 }

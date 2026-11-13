@@ -56,7 +56,7 @@ import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { Donut } from "@pms/shared/components/ui/Charts";
-import { leadCreatedDate } from "@pms/shared/lib/leadMetrics";
+import { leadEntryDate } from "@pms/shared/lib/leadMetrics";   // วันเข้าจริง ไม่มี = null (13 พ.ย. 69 · เลิกวันสังเคราะห์จาก numId)
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { provincesOfRegion } from "@pms/shared/lib/provinces";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -1270,8 +1270,8 @@ export default function LeadsPage() {
   const leadTrend = useMemo(() => {
     const newLeads = Array(12).fill(0), won = Array(12).fill(0);
     ฐานสรุปรวมปิดแล้ว.forEach(l => {
-      const d = leadCreatedDate(l);
-      if (d.getFullYear() !== CUR_YEAR) return;
+      const d = leadEntryDate(l);
+      if (!d || d.getFullYear() !== CUR_YEAR) return;   // ไม่มีวันเข้า = ไม่ลงเดือนไหน
       newLeads[d.getMonth()]++;
       if (l.status === "PAID") won[d.getMonth()]++;
     });
@@ -1281,7 +1281,7 @@ export default function LeadsPage() {
   // Lead vs Quotations — จำนวนลูกค้าเป้าหมาย (น้ำเงิน) เทียบ ใบเสนอราคา (ส้ม) รายเดือน · ปีปัจจุบันเท่านั้น
   const leadVsQuote = useMemo(() => {
     const leadC = Array(12).fill(0), quoteC = Array(12).fill(0);
-    ฐานสรุปรวมปิดแล้ว.forEach(l => { const d = leadCreatedDate(l); if (d.getFullYear() === CUR_YEAR) leadC[d.getMonth()]++; });
+    ฐานสรุปรวมปิดแล้ว.forEach(l => { const d = leadEntryDate(l); if (d && d.getFullYear() === CUR_YEAR) leadC[d.getMonth()]++; });
     quotations.filter(q => q.date.slice(0, 4) === String(CUR_YEAR))
       .forEach(q => { const mo = parseInt(q.date.slice(5, 7), 10) - 1; if (mo >= 0 && mo < 12) quoteC[mo]++; });
     return { leadC, quoteC };

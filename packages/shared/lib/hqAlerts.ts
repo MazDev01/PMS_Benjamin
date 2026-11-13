@@ -4,7 +4,7 @@
 // เหลือเฉพาะตัวกรองที่หน้า /hq/leads ใช้
 import { type LeadRules, type LeadRow } from "@pms/shared/lib/mock";
 import { APP_NOW } from "@pms/shared/lib/appTime";
-import { leadCreatedDate, isLeadOpen } from "@pms/shared/lib/leadMetrics";
+import { leadEntryDate, isLeadOpen } from "@pms/shared/lib/leadMetrics";
 
 /** ลูกค้าเป้าหมายของสาขาที่ยังไม่มีผู้รับผิดชอบ นานเกินเกณฑ์ของ "สาขาเจ้าของลูกค้าเป้าหมาย" — นับจากวันที่สร้าง
  *  ไม่ได้ขึ้นกระดิ่ง HQ แล้ว — ยังใช้เป็นตัวกรองในหน้า /hq/leads */
@@ -13,6 +13,9 @@ export function unassignedLeads(leads: LeadRow[], rulesOf: (dealerCode: string |
     if (l.assigned?.trim()) return false;
     if (!isLeadOpen(l)) return false; // ปิดแล้วไม่ต้องหาคนรับผิดชอบ
     const hours = rulesOf(l.dealerCode).unassignedAlertHours;
-    return (APP_NOW.getTime() - leadCreatedDate(l).getTime()) / 3_600_000 > hours;
+    // ไม่มีวันเข้าจริง = ไม่รู้อายุ → ไม่นับว่าเกินเกณฑ์ (13 พ.ย. 69 · เดิมใช้วันสังเคราะห์จาก numId = กุข้อมูล)
+    const d = leadEntryDate(l);
+    if (!d) return false;
+    return (APP_NOW.getTime() - d.getTime()) / 3_600_000 > hours;
   });
 }

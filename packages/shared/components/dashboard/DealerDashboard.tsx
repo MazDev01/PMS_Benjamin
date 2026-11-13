@@ -38,7 +38,7 @@ import type { DealerRow } from "@pms/shared/lib/data/types";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import {
   isLeadOpen, needsFollowUp, daysSinceContact,
-  MOCK_TODAY, leadCreatedDate, leadEntryDate, leadEnteredInRange,
+  MOCK_TODAY, leadEntryDate, leadEnteredInRange,
 } from "@pms/shared/lib/leadMetrics";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { เลขขั้นของลีด, ชื่อขั้น, สีกราฟขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
@@ -261,7 +261,8 @@ export default function DealerDashboard() {
   const recent = useMemo(() => {
     type Ev = { kind: string; icon: typeof FileText; title: string; customer: string; date: string; time?: string; color: string; bg: string; href: string };
     const ev: Ev[] = [];
-    leadsIn.forEach(l => ev.push({ kind: "lead", icon: UserPlus, title: "สร้างลูกค้าเป้าหมายใหม่", customer: l.company, date: localISO(leadCreatedDate(l)), color: "#2563EB", bg: "#E8F0FE", href: `/leads?open=${l.numId}` }));
+    // ไม่มีวันเข้าจริง = ไม่ขึ้นในกิจกรรมล่าสุด (13 พ.ย. 69 · เดิมวันสังเคราะห์จาก numId = กุข้อมูล)
+    leadsIn.forEach(l => { const d = leadEntryDate(l); if (d) ev.push({ kind: "lead", icon: UserPlus, title: "สร้างลูกค้าเป้าหมายใหม่", customer: l.company, date: localISO(d), color: "#2563EB", bg: "#E8F0FE", href: `/leads?open=${l.numId}` }); });
     // นัดหมายต้องอยู่ในช่วงเวลาที่เลือกด้วย — ไม่งั้นการ์ด "ล่าสุด" โผล่นัดของเดือนหน้าทั้งที่เลือกดูถึงแค่ มิ.ย.
     apptsIn.forEach(a => ev.push({ kind: "appt", icon: CalendarClock, title: "นัดหมาย", customer: a.company, date: a.date, time: a.time, color: "#7C3AED", bg: "#F0EBFB", href: "/calendar" }));
     quotesIn.forEach(q => {
