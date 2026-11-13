@@ -373,7 +373,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>{label}{key && sort.key === key && <span style={{ fontSize: "0.7rem" }}>{sort.dir === "asc" ? "▲" : "▼"}</span>}</span>
     </SortableTh>
   );
-  const selCls: React.CSSProperties = { padding: "8px 10px", borderRadius: 9, border: `1px solid ${BORDER}`, fontSize: "0.78rem", color: STEEL, background: "#fff", outline: "none", cursor: "pointer" };
   const กดสถานะ = (s: UserStatus | "all") => { setStatusF(v => (v === s ? "all" : s)); setPage(1); };
 
   return (

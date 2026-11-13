@@ -9,7 +9,6 @@
 import { QuotationAgingChart } from "./QuotationAgingChart";
 import type { AgingBucket } from "@pms/shared/lib/hqQuotations";
 import { GroupedBarChart } from "@pms/shared/components/ui/Charts";
-import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { หัวกราฟรายเดือน } from "@pms/shared/components/ui/MonthRangeToggle";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import type { ReactNode } from "react";
@@ -17,7 +16,7 @@ import type { ReactNode } from "react";
 /** รายเดือน = ใบที่ส่ง/ตอบรับทุกเดือนตามช่วงเวลาด้านบนของหน้า (hq_drill · ใบ 0268) · null = ยังโหลดไม่เสร็จ
 *  ⚠️ บอสสั่ง 13 พ.ย. 69 ทับ 11 พ.ย. "ปุ่มของกราฟเอง 3/6/9 เดือน/1 ปี": หน้านี้มีตัวเลือกช่วงด้านบน → ไม่ส่ง ปุ่ม · รวมทุกเดือน = การ์ด · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล */
 /** ระดับ = ป้ายระดับที่เลือก ("ทั้งเครือ" · "ภาคเหนือ" …) · ช่วง = ช่วงเวลาด้านบนของหน้า — ใช้ทำหัวข้อกราฟ (บอสสั่ง 3 พ.ย. 69) · ปุ่ม = MonthRangeToggle */
-export function QuotationAnalytics({ aging, รายเดือน, ระดับ, ช่วง, ปุ่ม }: { aging: { key: AgingBucket; count: number; value: number }[];
+export function QuotationAnalytics({ aging, รายเดือน, ระดับ, ปุ่ม }: { aging: { key: AgingBucket; count: number; value: number }[];
   รายเดือน: { months: string[]; sent: number[]; won: number[] } | null; ระดับ: string; ช่วง: { start: string; end: string }; ปุ่ม?: ReactNode }) {
   return (
     <div className="hq-quote-charts">

@@ -36,7 +36,6 @@ export function QuotationFilterBar({ filters, onChange }: {
   const dirty = filters.search !== "" || filters.status !== "sent";
 
   // ขนาดเดียวกับแถบกรองหน้าลูกค้าทั้งเครือ — ย่อตัวได้เมื่อจอแคบ ไม่ตกบรรทัด
-  const ช่องเลือก = { width: "auto", flex: "0 1 auto", minWidth: 0, maxWidth: 168, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" } as const;
 
   return (
     // ตัวกรองทั้งแถบต้องอยู่บรรทัดเดียว (บอสสั่ง 25 ส.ค. 69) — เดิม flexWrap:"wrap" ทำให้ "ทุกสถานะ" ตกไปบรรทัดสอง

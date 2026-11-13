@@ -67,7 +67,7 @@ export function FilterSelect({
   const ปิด = (คืนโฟกัส = true) => { setเปิด(false); if (คืนโฟกัส) ปุ่ม.current?.focus(); };
   const เลือก = (o: ตัวเลือก) => { ปิด(); if (o.v !== value) onChange(o.v); };
 
-  useLayoutEffect(() => { if (เปิด) วางตำแหน่ง(); }, [เปิด]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (เปิด) วางตำแหน่ง(); }, [เปิด]);
   useEffect(() => {
     if (!เปิด) return;
     if (มีช่องค้น) ช่องค้น.current?.focus(); else แผง.current?.focus();

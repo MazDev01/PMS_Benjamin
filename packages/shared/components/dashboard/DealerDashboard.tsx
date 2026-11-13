@@ -4,7 +4,7 @@
 // ขอบเขตข้อมูล: ลูกค้าเป้าหมายของดีลเลอร์รายนี้เท่านั้น (กติกาเดียวกับหน้า /leads และ /calendar)
 // S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + ขั้นตอนการขาย
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { มูลค่าลีด, ชื่อกิจกรรมใบ } from "@pms/shared/lib/mock";
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";   // ยอดขายตามวันลูกค้าตอบรับ (ใบ 0260)   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
