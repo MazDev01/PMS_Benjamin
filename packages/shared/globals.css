@@ -1518,6 +1518,8 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
    ⚠️ สไตล์ของ sonner ถูกฝังเป็น <style> ตอนรัน — CSP ของระบบเปิด style-src 'unsafe-inline' ไว้แล้ว
       (ดู securityHeaders.mjs) ถ้าวันหนึ่งปิด 'unsafe-inline' กล่องนี้จะหน้าตาพังบนเว็บจริงเท่านั้น */
 .pms-confirm-toast { width: min(420px, calc(100vw - 32px)); }
+/* ข้อความแจ้งผล (ไม่มีปุ่ม) กดทะลุได้ — ไม่บังปุ่มหัวหน้าต่างกลางจอที่อยู่ใต้มัน (13 พ.ย. 69) · กล่องยืนยันที่มีปุ่มยังกดได้ตามเดิม */
+.pms-notify-toast, .pms-notify-toast * { pointer-events: none !important; }
 
 .pms-confirm {
   background: #fff;
