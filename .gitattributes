@@ -5,3 +5,5 @@ supabase/gate-passed-code.txt merge=union
 # flaky-log: ขึ้นบรรทัดแบบ LF แบบเดียว (13 พ.ย. 69) — รวม session/ef (LF) กับ deploy21 (CRLF) แบบ union แล้วซ้ำทั้งไฟล์ เพราะบรรทัดเดียวกันต่างกันที่ท้ายบรรทัด (659c1c1e)
 tests/flaky-log.txt merge=union text eol=lf
 supabase/gate-flaky-ack.txt merge=union
+# รับทราบเพิ่มเพดานของตัวตรวจ (บอสสั่ง 13 พ.ย. 69 · npm run ceiling:ack) — หลายเซสชัน merge แล้วรวมบรรทัด · LF แบบเดียว
+scripts/ceiling-ack.txt merge=union text eol=lf
