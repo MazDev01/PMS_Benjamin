@@ -9,12 +9,24 @@
 // ใช้: node scripts/dev-sample-data.mjs                 (ส่วนที่มีแล้ว = ข้าม)
 //      node scripts/dev-sample-data.mjs --reset         (ลบทุกส่วนแล้วสร้างใหม่ · npm run dev:sample)
 //      node scripts/dev-sample-data.mjs --only=ชื่อ,ชื่อ  (เฉพาะบางส่วน · ใช้กับ --reset ได้)
+//      node scripts/dev-sample-data.mjs --ตรวจปลายทาง=<url> (ตรวจอย่างเดียว: ปลายทางนี้ลงได้ไหม · ไม่ต่อฐาน ไม่อ่าน ไม่เขียน · บอสสั่ง 13 พ.ย. 69)
 //      scripts/dev-db.mjs เรียกให้เองหลังใส่ข้อมูลตั้งต้นของฐาน dev
 // รหัสผ่านบัญชีที่ข้อมูลตัวอย่างสร้าง: C:/.claude/pms-dev/บัญชีตัวอย่าง.json (นอก repo)
-import { เตรียม } from "./dev-sample/ตัวช่วย.mjs";
+// ตัวกันฐานจริง: ตรวจปลายทาง() ใน scripts/dev-sample/ตัวช่วย.mjs — ทำงานก่อนสร้างการเชื่อมต่อ · ข้อทดสอบ tests/tools/dev-sample-guard.test.mjs
+import { เตรียม, ตรวจปลายทาง, พอร์ตฐานdev } from "./dev-sample/ตัวช่วย.mjs";
+
+// โหมดตรวจอย่างเดียว — ออกก่อนเตรียม() (ไม่เรียก supabase status · ไม่สร้างการเชื่อมต่อ)
+const ตรวจอย่างเดียว = process.argv.find(a => a.startsWith("--ตรวจปลายทาง="));
+if (ตรวจอย่างเดียว) {
+  const url = ตรวจอย่างเดียว.slice("--ตรวจปลายทาง=".length);
+  const ปฏิเสธ = ตรวจปลายทาง(url, พอร์ตฐานdev());
+  if (ปฏิเสธ) { console.error(`⛔ ${ปฏิเสธ}`); process.exit(1); }
+  console.log(`✓ ปลายทาง ${url} = ฐาน dev ในเครื่อง ลงข้อมูลตัวอย่างได้ (ตรวจอย่างเดียว ไม่ได้ต่อฐาน)`);
+  process.exit(0);
+}
 
 // ลำดับส่วน — ไฟล์ที่ยังไม่มี (ยังไม่ได้รวมงาน) ข้ามพร้อมบอก
-const ลำดับ = ["สาขา", "ขั้นทั้งหมด", "ใบเสนอราคา", "นัดหมาย", "ย้อนหลัง", "ลูกค้า", "ผู้ใช้และบันทึก"];
+const ลำดับ = ["สาขา", "ขั้นทั้งหมด", "ใบเสนอราคา", "นัดหมาย", "ย้อนหลัง", "ลูกค้า", "ผู้ใช้และบันทึก", "ใบตั้งต้นผ่านใบHQ"];
 const reset = process.argv.includes("--reset");
 const เฉพาะ = (process.argv.find(a => a.startsWith("--only=")) ?? "").slice(7).split(",").filter(Boolean);
 

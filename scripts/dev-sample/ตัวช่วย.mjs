@@ -26,6 +26,18 @@ export const ต้อง = (r, อะไร) => { if (r.error) throw new Error(
 export const หยุด = (m) => { console.error(`⛔ ${m}`); process.exit(1); };
 export const เบอร์ = (n) => `000-000-${String(n).slice(-4).padStart(4, "0")}`;
 
+/** ตัวกันปลายทาง (ทำงานก่อนสร้างการเชื่อมต่อใด ๆ) — ลงได้เฉพาะฐาน dev ในเครื่อง: เครื่องนี้ (127.0.0.1/localhost) + พอร์ต API ของฐาน dev
+ *  ฐานจริง (*.supabase.co · yhhhcrv) / ฐานทดสอบ (พอร์ต 55321) / ที่อื่นทั้งหมด = คืนข้อความปฏิเสธ · ผ่าน = คืน "" (บอสสั่ง 13 พ.ย. 69 · ข้อทดสอบ tests/tools/dev-sample-guard.test.mjs) */
+export function ตรวจปลายทาง(API, พอร์ตdev) {
+  let u;
+  try { u = new URL(API); } catch { return `ปลายทางอ่านไม่ได้ (${API}) — ข้อมูลตัวอย่างลงได้เฉพาะฐาน dev ในเครื่อง`; }
+  if (/\.supabase\.(co|in|net)$/i.test(u.hostname)) return `ปลายทางเป็นฐานบนคลาวด์ (${u.hostname}) — ฐานจริงห้ามลงข้อมูลตัวอย่าง`;
+  if (!["127.0.0.1", "localhost"].includes(u.hostname)) return `ไม่ใช่ฐานในเครื่อง (${u.hostname}) — ข้อมูลตัวอย่างลงได้เฉพาะฐาน dev ในเครื่อง`;
+  if (u.port !== String(พอร์ตdev)) return `ไม่ใช่ฐาน dev (${API}) — ข้อมูลตัวอย่างลงได้เฉพาะฐาน dev พอร์ต ${พอร์ตdev} (ฐานทดสอบ/ฐานอื่นห้ามรัน)`;
+  return "";
+}
+export const พอร์ตฐานdev = () => JSON.parse(readFileSync(path.join(รากโฟลเดอร์, "scripts/lib/ports.json"), "utf8")).ฐาน.dev.api;
+
 export async function เตรียม() {
   const ports = JSON.parse(readFileSync(path.join(รากโฟลเดอร์, "scripts/lib/ports.json"), "utf8")).ฐาน;
   const ที่ฐานdev = process.env.PMS_DEV_DB_DIR || "C:/.claude/pms-dev";
@@ -33,7 +45,8 @@ export async function เตรียม() {
   const ค่า = Object.fromEntries((st.stdout ?? "").split(/\r?\n/).map(l => l.match(/^([A-Z_]+)="?(.*?)"?$/)).filter(Boolean).map(m => [m[1], m[2]]));
   const API = ค่า.API_URL;
   if (!API || !ค่า.ANON_KEY || !ค่า.SERVICE_ROLE_KEY) หยุด("อ่านค่าฐาน dev ไม่ได้ — เปิดฐาน dev ก่อน (npm run dev หรือ node scripts/dev-db.mjs --prepare-only)");
-  if (new URL(API).port !== String(ports.dev.api)) หยุด(`ไม่ใช่ฐาน dev (${API}) — ข้อมูลตัวอย่างลงได้เฉพาะฐาน dev พอร์ต ${ports.dev.api}`);
+  // ⛔ ตัวกันปลายทาง — ก่อนสร้างการเชื่อมต่อใด ๆ (createClient / psql อยู่ใต้บรรทัดนี้ทั้งหมด)
+  { const ปฏิเสธ = ตรวจปลายทาง(API, ports.dev.api); if (ปฏิเสธ) หยุด(ปฏิเสธ); }
   const คอนเทนเนอร์ = `supabase_db_${process.env.PMS_DEV_PROJECT || "pms-dev"}`;
 
   // บัญชีของข้อมูลตั้งต้น (tests/.env.test · git ไม่เก็บ) + บัญชีที่ข้อมูลตัวอย่างสร้าง (ไฟล์นอก repo)

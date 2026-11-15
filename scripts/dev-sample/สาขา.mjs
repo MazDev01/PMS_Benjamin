@@ -78,9 +78,10 @@ export async function สร้าง(ctx) {
     if (ยังไม่พร้อม) throw new Error(`แปลง ${s.code} ไม่ได้: ${ยังไม่พร้อม}`);
 
     // ── H5 แปลงเป็นดีลเลอร์ (ขั้นเดียวกับเส้นทางผู้ดูแล) ──
-    const { data: ใบตอบรับ } = await svc.from("dealer_package_proposals").select("annual_target, package").eq("id", ใบ.id).single();
+    // 13 พ.ย. 69: เอาคอลัมน์ package ออก (เอาแพ็กเกจออก 30 ต.ค. 69 · ใบ 0269) — เดิมเลือก package แล้วได้ null เงียบ ๆ (ไม่ผ่าน ต้อง) → ข้อมูลตัวอย่างพังทั้งชุด
+    const ใบตอบรับ = ต้อง(await svc.from("dealer_package_proposals").select("annual_target").eq("id", ใบ.id).single(), `อ่านใบค่าแฟรนไชส์ ${s.code}`);
     ต้อง(await svc.from("dealers").insert({ code: s.code, name, province: s.province, region: s.region, status: "active",
-      revenue_target: Number(ใบตอบรับ.annual_target), package: ใบตอบรับ.package, prospect_id: ราย.id }), `ทะเบียนสาขา ${s.code}`);
+      revenue_target: Number(ใบตอบรับ.annual_target), prospect_id: ราย.id }), `ทะเบียนสาขา ${s.code}`);
     //   พื้นที่ดูแล = จังหวัดที่ตั้ง — ฐานเขียนให้เอง (ตัวดัก dealers_territory_sync · ใบ 0259) ไม่ใส่เอง
     await ctx.บัญชีผู้ใช้({ email: อีเมลสาขา(s.code), role: "DEALER_ADMIN", dealer_code: s.code, name });
     ต้อง(await svc.from("dealer_settings").insert({ dealer_code: s.code, issuer: { company: name } }), `ชื่อบริษัทตั้งต้น ${s.code}`);
