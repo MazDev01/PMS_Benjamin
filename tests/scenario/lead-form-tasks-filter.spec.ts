@@ -66,7 +66,7 @@ test("[D7] [ux·dealer] งานในแต่ละขั้นอยู่�
   await expect(page.getByText(/ติ๊กไว้กันลืม/), "ตัดคำอธิบายเดิม").toHaveCount(0);
   await expect(งาน.locator('[data-task-step="1"]'), "ขั้นปัจจุบัน (ข้อมูลลูกค้า) เปิดไว้").toHaveAttribute("data-open", "1");
   await expect(งาน.locator('[data-task-step="3"]'), "ขั้นอื่นพับไว้").toHaveAttribute("data-open", "0");
-  await expect(งาน.locator("section").first(), "หัวกลุ่มไม่มีเลขลำดับ").not.toContainText(/^\s*\d/);
+  await expect(งาน.locator("section").first(), "หัวกลุ่มขั้น 1 ขึ้นต้นด้วยเลขลำดับ (บอสสั่ง 13 พ.ย. 69 · กลับด้าน 28 ต.ค. 69)").toContainText(/^\s*1\. เก็บข้อมูลลูกค้า/);
   await page.getByRole("button", { name: "ประวัติ", exact: true }).first().click();
   const ประวัติ = page.locator('[data-tab-panel="history"]');
   await expect(ประวัติ).toBeVisible();

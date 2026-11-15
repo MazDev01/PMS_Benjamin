@@ -169,10 +169,10 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
     const แถว = (x: string) => page.locator("tbody tr").filter({ hasText: ชื่อ(x) }).first();
     await expect(แถว("ส่งแล้ว")).toBeVisible({ timeout: 20_000 });
-    await expect(แถว("ทำใบ").locator("[data-stage-label]")).toHaveText("เสนอราคาลูกค้า");
-    await expect(แถว("ทำใบ").locator("[data-stage-sub]")).toHaveText("ทำใบแล้ว (ยังไม่ส่ง)");
-    await expect(แถว("ส่งแล้ว").locator("[data-stage-label]")).toHaveText("เสนอราคาลูกค้า");
-    await expect(แถว("ส่งแล้ว").locator("[data-stage-sub]")).toHaveText("ส่งให้ลูกค้าแล้ว");
+    await expect(แถว("ทำใบ").locator("[data-stage-label]")).toHaveText("4. ทำใบเสนอราคาให้ลูกค้า");
+    await expect(แถว("ทำใบ").locator("[data-stage-sub]")).toHaveText("ยังไม่ส่ง");
+    await expect(แถว("ส่งแล้ว").locator("[data-stage-label]")).toHaveText("4. ทำใบเสนอราคาให้ลูกค้า");
+    await expect(แถว("ส่งแล้ว").locator("[data-stage-sub]")).toHaveText("ส่งแล้ว");
     await expect(แถว("ได้ใบ").locator("[data-stage-sub]"), "ได้ใบ HQ ไม่มีป้ายย่อย").toHaveCount(0);
     for (const x of ["ใหม่", "ได้ใบ", "ทำใบ", "ส่งแล้ว"]) await expect(แถว(x).locator("[data-progress-cell]"), `${x}: แถบ 4 ช่อง`).toHaveCount(4);
     await expect(แถว("ทำใบ").locator("[data-progress]")).toHaveAttribute("data-progress", "100");
@@ -186,9 +186,9 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     expect(await บอร์ด.locator("[data-board-column]").evaluateAll(es => es.map(e => e.getAttribute("data-board-column"))), "คอลัมน์บอร์ด").toEqual(["1", "2", "3", "4", "6", "7"]);
     await expect(บอร์ด, "บอร์ดไม่มีชื่อขั้นเดิม").not.toContainText(ชื่อเดิม);
     const คอล4 = บอร์ด.locator('[data-board-column="4"]');
-    await expect(คอล4, "หัวคอลัมน์").toContainText("เสนอราคาลูกค้า");
-    await expect(คอล4.locator("[data-board-card]").filter({ hasText: ชื่อ("ทำใบ") }).locator("[data-stage-sub]")).toHaveText("ทำใบแล้ว (ยังไม่ส่ง)");
-    await expect(คอล4.locator("[data-board-card]").filter({ hasText: ชื่อ("ส่งแล้ว") }).locator("[data-stage-sub]")).toHaveText("ส่งให้ลูกค้าแล้ว");
+    await expect(คอล4, "หัวคอลัมน์").toContainText("4. ทำใบเสนอราคาให้ลูกค้า");
+    await expect(คอล4.locator("[data-board-card]").filter({ hasText: ชื่อ("ทำใบ") }).locator("[data-stage-sub]")).toHaveText("ยังไม่ส่ง");
+    await expect(คอล4.locator("[data-board-card]").filter({ hasText: ชื่อ("ส่งแล้ว") }).locator("[data-stage-sub]")).toHaveText("ส่งแล้ว");
     await expect(บอร์ด.locator('[data-board-column="3"] [data-board-card]').filter({ hasText: ชื่อ("ได้ใบ") })).toHaveCount(1);
 
     // ลากใบร่าง (เสนอราคาลูกค้า) ไปปิดสำเร็จ = ฟอร์มส่งใบก่อน · ยกเลิก = การ์ดอยู่ที่เดิม ใบยังเป็นร่าง
@@ -204,7 +204,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await ลากการ์ด(page, บอร์ด.locator("[data-board-card]").filter({ hasText: ชื่อ("ได้ใบ") }), คอล4);
     await expect(page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last(), "ลากเข้าเสนอราคาลูกค้า = ฟอร์มทำใบ").toBeVisible({ timeout: 25_000 });
     // แถบในแผงลีด 4 ขั้น ไม่มีชื่อขั้นเดิม
-    await expect(page.getByRole("list", { name: "ขั้นตอนการขาย" }).locator("li")).toHaveText(["ข้อมูลลูกค้า", "ขอราคา HQ", /ได้ใบ HQ/, "เสนอราคาลูกค้า"].map(x => typeof x === "string" ? new RegExp(x) : x));
+    await expect(page.getByRole("list", { name: "ขั้นตอนการขาย" }).locator("li")).toHaveText(["1. เก็บข้อมูลลูกค้า", "2. รอราคาจาก HQ", "3. ได้ราคาจาก HQ แล้ว", "4. ทำใบเสนอราคาให้ลูกค้า"].map(x => new RegExp(x.replace(".", "[.]"))));
     assertNoErrors(errs, "บอร์ดลีด 4 ขั้น");
   });
 
@@ -214,7 +214,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await settle(page);
     const โดนัท = page.locator("[data-deal-stage-chart]");
     await expect(โดนัท, "กราฟสัดส่วนดีลตามขั้น").toBeVisible({ timeout: 25_000 });
-    await expect(โดนัท).toContainText("เสนอราคาลูกค้า");
+    await expect(โดนัท).toContainText("4. ทำใบเสนอราคาให้ลูกค้า");
     await expect(โดนัท).not.toContainText(ชื่อเดิม);
   });
 
@@ -226,7 +226,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await settle(page);
     // คอลัมน์ตารางเจาะลึกระดับทั้งเครือ: "เสนอราคาลูกค้า" (เดิม "รอลูกค้าตอบ") · ตัวเลขของคอลัมน์ตรวจที่ฐานในข้อ [db] (hq_drill)
     const เจาะ = page.locator("[data-drill-table]");
-    await expect(เจาะ.locator("thead"), "หัวตารางเจาะลึก").toContainText("เสนอราคาลูกค้า", { timeout: 30_000 });
+    await expect(เจาะ.locator("thead"), "หัวตารางเจาะลึก").toContainText("4. ทำใบเสนอราคาให้ลูกค้า", { timeout: 30_000 });
     await expect(เจาะ.locator("thead"), "หัวตารางเจาะลึกไม่มีชื่อขั้นเดิม").not.toContainText(ชื่อเดิม);
     await เลือกตัวกรอง(page, "ดีลเลอร์", { ค่า: ส.รหัส }, page.locator("[data-drill-scope]"));
     await expect(page.locator('[data-crumbs] [data-crumb="dealer"]')).toHaveText(ส.ชื่อ, { timeout: 25_000 });
@@ -234,10 +234,10 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     const ตาราง = page.locator("[data-lead-table][data-ready='1']");
     await expect(ตาราง).toBeVisible({ timeout: 25_000 });
     const แถว = (x: string) => ตาราง.locator("tbody tr").filter({ hasText: ชื่อ(x) }).first();
-    await expect(แถว("ทำใบ").locator("[data-stage-label]")).toHaveText("เสนอราคาลูกค้า", { timeout: 20_000 });
-    await expect(แถว("ทำใบ").locator("[data-stage-sub]")).toHaveText("ทำใบแล้ว (ยังไม่ส่ง)");
-    await expect(แถว("ส่งแล้ว").locator("[data-stage-sub]")).toHaveText("ส่งให้ลูกค้าแล้ว");
-    await expect(แถว("ได้ใบ").locator("[data-stage-label]")).toHaveText("ได้ใบ HQ");
+    await expect(แถว("ทำใบ").locator("[data-stage-label]")).toHaveText("4. ทำใบเสนอราคาให้ลูกค้า", { timeout: 20_000 });
+    await expect(แถว("ทำใบ").locator("[data-stage-sub]")).toHaveText("ยังไม่ส่ง");
+    await expect(แถว("ส่งแล้ว").locator("[data-stage-sub]")).toHaveText("ส่งแล้ว");
+    await expect(แถว("ได้ใบ").locator("[data-stage-label]")).toHaveText("3. ได้ราคาจาก HQ แล้ว");
     const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ขั้นตอน")).map(o => o.ข้อความ);
     expect(ตัวเลือก.join(" | "), "ตัวกรองขั้นตอน HQ ไม่มีชื่อขั้นเดิม").not.toMatch(ชื่อเดิม);
     const กราฟ = page.locator("[data-stage-chart][data-ready='1']");
@@ -247,11 +247,11 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await expect(page.locator("body"), "หน้าลีดทั้งเครือไม่มีชื่อขั้นเดิม").not.toContainText(ชื่อเดิม);
     // แผงลีด HQ: ขั้นตอน + ป้ายย่อย
     await แถว("ส่งแล้ว").click();
-    await expect(page.locator(".side-drawer [data-stage-label]").first()).toHaveText("เสนอราคาลูกค้า", { timeout: 15_000 });
+    await expect(page.locator(".side-drawer [data-stage-label]").first()).toHaveText("4. ทำใบเสนอราคาให้ลูกค้า", { timeout: 15_000 });
     // การ์ดขั้นตอน: ชื่อขั้นตัวใหญ่ · ขั้นย่อยบรรทัดเล็กใต้ (บอสสั่ง 10 พ.ย. 69 · เดิม "ชื่อขั้น · ขั้นย่อย" บรรทัดเดียว)
-    const การ์ดขั้น = page.locator(".side-drawer [data-stat-value]").filter({ hasText: "เสนอราคาลูกค้า" }).locator("..");
-    await expect(การ์ดขั้น.locator("[data-stat-value]"), "แผงลีด HQ: ชื่อขั้น").toHaveText("เสนอราคาลูกค้า");
-    await expect(การ์ดขั้น.locator("[data-stat-sub]"), "แผงลีด HQ บอกส่งแล้ว (ขั้นย่อย)").toHaveText("ส่งให้ลูกค้าแล้ว");
+    const การ์ดขั้น = page.locator(".side-drawer [data-stat-value]").filter({ hasText: "4. ทำใบเสนอราคาให้ลูกค้า" }).locator("..");
+    await expect(การ์ดขั้น.locator("[data-stat-value]"), "แผงลีด HQ: ชื่อขั้น").toHaveText("4. ทำใบเสนอราคาให้ลูกค้า");
+    await expect(การ์ดขั้น.locator("[data-stat-sub]"), "แผงลีด HQ บอกส่งแล้ว (ขั้นย่อย)").toHaveText("ส่งแล้ว");
     await expect(page.locator(".side-drawer")).not.toContainText(ชื่อเดิม);
     assertNoErrors(errs, "ลีดทั้งเครือ 4 ขั้น");
   });

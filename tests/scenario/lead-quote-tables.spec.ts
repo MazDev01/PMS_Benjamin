@@ -64,7 +64,7 @@ test("[ui·dealer] ตารางลีด: ลำดับคอลัมน�
   const หัว = await page.locator("thead th").allInnerTexts();
   const ช่องขั้น = หัว.findIndex(h => h.trim() === "ขั้นตอน");
   const ช่องคืบ = หัว.findIndex(h => h.trim() === "ความคืบหน้า");
-  await expect(แถว.locator("td").nth(ช่องขั้น), "ขั้น 3").toHaveText("ได้ใบ HQ");
+  await expect(แถว.locator("td").nth(ช่องขั้น), "ขั้น 3").toHaveText("3. ได้ราคาจาก HQ แล้ว");
   expect(await แถว.locator("td").nth(ช่องขั้น).locator("select, [role=combobox], [role=listbox]").count(), "ป้ายขั้นตอนไม่มีตัวเลือก").toBe(0);
   await expect(แถว.locator("td").nth(ช่องคืบ).getByRole("img"), "ได้ใบ HQ = 3 จาก 4 ขั้น = 75% (ยุบ 4 ขั้น 9 พ.ย. 69)").toHaveAttribute("aria-label", /^ความคืบหน้า 75%/);
   await expect(แถว.locator("td").nth(ช่องคืบ)).toContainText("75%");
@@ -94,7 +94,7 @@ test("[ui·hq] ตารางลีดทั้งเครือ: ลำดั
   expect(หัวHQ.filter(Boolean), "ลำดับคอลัมน์ = แบบดีลเลอร์ + ดีลเลอร์ · ไม่มีความคืบหน้า").toEqual(ลำดับHQ);
   await expect(แถว.locator("td").nth(หัวHQ.indexOf("ดีลเลอร์")), "คอลัมน์ดีลเลอร์ = ดีลเลอร์เจ้าของลีด").toContainText("RYG");
   await expect(แถว.locator('[data-cell="dealer"]'), "ช่องดีลเลอร์").toContainText("RYG");
-  await expect(แถว.locator("td").nth(หัวHQ.indexOf("ขั้นตอน")), "ได้ใบ HQ = ขั้น 3").toHaveText("ได้ใบ HQ");
+  await expect(แถว.locator("td").nth(หัวHQ.indexOf("ขั้นตอน")), "ได้ใบ HQ = ขั้น 3").toHaveText("3. ได้ราคาจาก HQ แล้ว");
   await expect(แถว.getByRole("img", { name: /^ความคืบหน้า/ }), "ไม่มีแถบความคืบหน้าในตาราง HQ").toHaveCount(0);
 
   // บอสตัดสิน 29 ต.ค. 69: ลีดเป็นงานของดีลเลอร์ — HQ ไม่มีปุ่มลบลีดของดีลเลอร์ แม้ลีดที่ฝั่งดีลเลอร์ลบได้ (ยังไม่มีคำขอ/ใบ) · ฐานก็ไม่ให้ HQ ลบ

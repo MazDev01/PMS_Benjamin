@@ -61,7 +61,7 @@ test("[func·dealer] รายการเตือน 4 ขั้น · ไม�
   const รายการ = await เปิดรายการเตือน(page, ชื่อลีด);
 
   // 1) จัดกลุ่ม 4 ขั้น ชื่อตาม leadStage.ts (ยุบ 9 พ.ย. 69 · ใบ 0284) · ไม่มีกลุ่มขั้น 5 / ชื่อขั้นเดิม
-  const ขั้น = ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "เสนอราคาลูกค้า"];
+  const ขั้น = ["1. เก็บข้อมูลลูกค้า", "2. รอราคาจาก HQ", "3. ได้ราคาจาก HQ แล้ว", "4. ทำใบเสนอราคาให้ลูกค้า"];
   for (const [i, ชื่อ] of ขั้น.entries())
     await expect.soft(page.locator(`[data-task-step="${i + 1}"]`).first(), `มีกลุ่มขั้น ${i + 1} ${ชื่อ}`).toContainText(ชื่อ, { timeout: 15_000 });
   await expect.soft(page.locator('[data-task-step="5"]'), "ไม่มีกลุ่มขั้น 5").toHaveCount(0);
@@ -74,7 +74,7 @@ test("[func·dealer] รายการเตือน 4 ขั้น · ไม�
     await expect.soft(page.getByRole("checkbox", { name: new RegExp(`^${เก่า}`) }), `ไม่มี "${เก่า}" แบบเดิม`).toHaveCount(0);
   // รายการตั้งต้นใหม่ครบ (ระบบติ๊ก = ปุ่มปิด)
   for (const [ชื่อ, ระบบ] of [["เก็บข้อมูลลูกค้า", true], ["สรุปความต้องการ", true], ["นัดหมาย", true], ["ส่งคำขอราคา", true],
-                             ["ได้ใบ HQ", true], ["จัดทำใบเสนอราคา", true], ["ส่งใบเสนอราคา", true], ["ติดตามลูกค้า", false]] as const) {
+                             ["ได้ราคาจาก HQ", true], ["จัดทำใบเสนอราคา", true], ["ส่งใบเสนอราคา", true], ["ติดตามลูกค้า", false]] as const) {
     const ช่อง = page.getByRole("checkbox", { name: new RegExp(`^${ชื่อ}`) }).first();
     await expect.soft(ช่อง, `มีรายการ "${ชื่อ}"`).toBeVisible();
     // บอสสั่ง 6 พ.ย. 69: ทุกงานกดได้ — งานของระบบกด = เปิดฟอร์ม/ดูรายละเอียด (ติ๊กเองไม่ได้ ข้อ 4 ตรวจที่ฐาน) · เดิม: งานของระบบกดไม่ได้
@@ -147,15 +147,15 @@ test("[func·hq] ตั้งค่า › เส้นทางการขา�
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByRole("button", { name: "ขั้นตอนการขายมาตรฐาน" }).first().click();
-  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "เสนอราคาลูกค้า"].entries())
+  for (const [i, ชื่อ] of ["1. เก็บข้อมูลลูกค้า", "2. รอราคาจาก HQ", "3. ได้ราคาจาก HQ แล้ว", "4. ทำใบเสนอราคาให้ลูกค้า"].entries())
     await expect.soft(page.locator(`[data-journey-step="${i + 1}"]`), `ขั้น ${i + 1} ${ชื่อ}`).toContainText(ชื่อ, { timeout: 15_000 });
   await expect.soft(page.locator("[data-journey-step]"), "ขั้นตอนการขายมาตรฐาน 4 ขั้น (ยุบ 9 พ.ย. 69)").toHaveCount(4);
   expect.soft(await page.locator('[data-journey-step="4"] [data-system-task]').evaluateAll(els => els.map(e => e.getAttribute("data-system-task"))),
     "งานของระบบของ 2 ขั้นเดิมรวมที่ขั้นเสนอราคาลูกค้า เรียงตามลำดับเดิม").toEqual(["makeQuote", "sendQuote"]);
   await expect.soft(page.locator('[data-journey-step="4"] input[value="ติดตามลูกค้า"]'), "ติดตามลูกค้าอยู่ขั้นเสนอราคาลูกค้า").toHaveCount(1);
-  // ป้ายขั้นไม่มีเลขลำดับ (บอสสั่ง 28 ต.ค. 69) — แถวขั้นต้องขึ้นต้นด้วยชื่อขั้น ไม่ใช่เลข
-  for (const [i, ชื่อ] of ["ข้อมูลลูกค้า", "ขอราคา HQ", "ได้ใบ HQ", "เสนอราคาลูกค้า"].entries())
-    expect.soft((await page.locator(`[data-journey-step="${i + 1}"]`).innerText()).trim(), `ขั้น ${ชื่อ}: ไม่มีเลขลำดับนำหน้า`).toMatch(new RegExp(`^${ชื่อ}`));
+  // ป้ายขั้นมีเลขลำดับนำหน้า (บอสสั่ง 13 พ.ย. 69 · กลับด้าน 28 ต.ค. 69) — แถวขั้นต้องขึ้นต้นด้วย "n. ชื่อขั้น"
+  for (const [i, ชื่อ] of ["1. เก็บข้อมูลลูกค้า", "2. รอราคาจาก HQ", "3. ได้ราคาจาก HQ แล้ว", "4. ทำใบเสนอราคาให้ลูกค้า"].entries())
+    expect.soft((await page.locator(`[data-journey-step="${i + 1}"]`).innerText()).trim(), `ขั้น ${ชื่อ}: ขึ้นต้นด้วยเลขลำดับ`).toMatch(new RegExp(`^${ชื่อ.replace(".", "[.]")}`));
   for (const ชื่อ of ["เก็บข้อมูลลูกค้า", "สรุปความต้องการ", "นัดหมาย", "ส่งคำขอราคา", "ได้ใบ HQ", "จัดทำใบเสนอราคา", "ส่งใบเสนอราคา"])
     await expect.soft(page.getByRole("button", { name: `ลบงาน ${ชื่อ}` }), `"${ชื่อ}" ระบบติ๊ก — ลบไม่ได้`).toHaveCount(0);
   await expect.soft(page.getByRole("button", { name: "ลบงาน ติดตามลูกค้า" }), "รายการติ๊กเองลบได้").toHaveCount(1);

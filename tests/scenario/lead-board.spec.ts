@@ -47,7 +47,7 @@ test("[ui·dealer] บอร์ดลีด: ลากทีละขั้น =
 
   // ปุ่ม "ย้ายไปขั้น…" = ขั้นถัดไป + ปิดไม่สำเร็จ
   await การ์ด(page).locator("[data-move-menu]").click();
-  await expect(การ์ด(page).locator("[data-move-to]")).toHaveText([/^ขอราคา HQ/, /^ปิดไม่สำเร็จ/]);
+  await expect(การ์ด(page).locator("[data-move-to]")).toHaveText([/^2\. รอราคาจาก HQ/, /^ปิดไม่สำเร็จ/]);
   await page.keyboard.press("Escape");
 
   // ลากไปขอราคา HQ = แผงลีดเปิด + ฟอร์มขอราคา (หรือฟอร์มช่องที่ขาดก่อนขอราคา) — ทางเดียวกับปุ่ม "ขอราคาจาก HQ"

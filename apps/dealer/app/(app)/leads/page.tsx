@@ -1524,7 +1524,7 @@ export default function LeadsPage() {
           <div ref={กระดานRef}>
             <StageBoard<LeadRow, string> ป้ายบอร์ด="บอร์ดลูกค้าเป้าหมาย" items={filtered} idOf={l => l.id} colOf={l => String(เลขขั้นของ(l))}
               columns={เลขขั้นทั้งหมด.map(n => ({ key: String(n), label: ชื่อขั้น(n), สี: สีขั้น(n), แคบ: n >= 6, คั่นก่อน: n === 6,
-                ย่อย: (() => { const t = filtered.filter(l => เลขขั้นของ(l) === n).reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0); return t > 0 ? fmtM(t) : undefined; })() }))}
+                ย่อย: (() => { const t = filtered.filter(l => เลขขั้นของ(l) === n).reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0); /* บอสสั่ง 13 พ.ย. 69 */ return t > 0 ? `มูลค่ารวม ${fmtM(t)}` : undefined; })() }))}
               ซ่อนว่าง={hideEmpty} ความสูง={ความสูงกระดาน ?? undefined} ข้อความว่าง="ไม่มีลูกค้าเป้าหมาย" onOpen={l => openPanel(l)}
               ทางย้าย={l => ทางย้ายลีด(เลขขั้นของ(l))}
               onMove={(l, ไป) => สั่งจากบอร์ด(l, ไป)}
