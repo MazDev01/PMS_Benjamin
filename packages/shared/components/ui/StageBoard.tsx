@@ -124,7 +124,9 @@ export function StageBoard<T, K extends string>({
                       onDragStart={e => { e.dataTransfer.setData(ชนิดลาก, String(id)); e.dataTransfer.effectAllowed = "move"; setลากอยู่(id); }}
                       onDragEnd={() => { setลากอยู่(null); setเหนือ(null); }}
                       onClick={() => onOpen?.(t)} className="card"
-                      style={{ position: "relative", padding: "12px 14px", cursor: ทาง.length ? "grab" : "pointer", userSelect: "none", borderRadius: 10,
+                      // การ์ดที่เปิดเมนู "ย้ายไปขั้น…" อยู่ = ชั้นบนสุดของคอลัมน์ (บั๊ก 13 พ.ย. 69: ชี้การ์ด = การ์ดยกลอย (transform ของ .card:hover)
+                      //   → เมนูถูกขังในชั้นของการ์ดใบนั้น การ์ดใบล่างวาดทับเมนู กดตัวเลือกล่าง ๆ ไม่ได้ · ข้อทดสอบ board-move-menu-overlap.spec.ts)
+                      style={{ position: "relative", zIndex: เมนู === id ? 40 : undefined, padding: "12px 14px", cursor: ทาง.length ? "grab" : "pointer", userSelect: "none", borderRadius: 10,
                         boxShadow: "0 1px 4px rgba(0,0,0,.05)", opacity: ลากอยู่ === id ? 0.5 : 1 }}>
                       {renderCard(t)}
                       {ทาง.length > 0 && (

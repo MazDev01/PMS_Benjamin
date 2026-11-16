@@ -55,7 +55,7 @@ import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTempla
 import { StorageUsagePanel } from "@pms/shared/components/hq/StorageUsagePanel";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { EmailListEditor, NotifyPrefsTable, NotifyTestButton } from "@pms/shared/components/ui/NotificationSettings";
-import { ชื่อขั้น, สีขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, สีขั้น, แปลงชื่อขั้นเดิม } from "@pms/shared/lib/leadStage";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
@@ -193,7 +193,7 @@ function JourneyTab() {
                 {tasksOf(n).map(t => t.auto ? (
                   <span key={t.key} data-system-task={t.key} title={ระบบติ๊กเมื่อ(t.key)}
                     style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#eef3f8", border: "1px dashed #b6c4d4", borderRadius: 8, padding: "4px 9px", fontSize: "0.74rem", fontWeight: 600, color: "#334155" }}>
-                    {t.label} <span style={{ fontSize: "0.64rem", color: "#64748b", fontWeight: 500 }}>· ระบบติ๊ก</span>
+                    {แปลงชื่อขั้นเดิม(t.label)} <span style={{ fontSize: "0.64rem", color: "#64748b", fontWeight: 500 }}>· ระบบติ๊ก</span>
                   </span>
                 ) : (
                   <span key={t.key} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#f1f5f9", borderRadius: 8, padding: "3px 4px 3px 9px" }}>

@@ -78,7 +78,7 @@ test("ข้อ 1 · รอราคา HQ = ไฮไลต์ขั้น 2 (�
   await page.keyboard.press("Escape");
   await เปิดลีด(page, รอ);
   await expect.poll(() => สภาพแถบ(page)).toEqual(["ผ่าน", "ตอนนี้", "ยังไม่ถึง", "ยังไม่ถึง"]);
-  await expect(page.locator("ol[aria-label='ขั้นตอนการขาย'] > li[aria-current='step']")).toContainText("ขอราคา HQ");
+  await expect(page.locator("ol[aria-label='ขั้นตอนการขาย'] > li[aria-current='step']")).toContainText("2. รอราคาจาก HQ");
   await expect(page.getByRole("button", { name: "ลบ", exact: true })).toHaveCount(0);
 });
 

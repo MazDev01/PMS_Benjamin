@@ -71,8 +71,8 @@ test("[D4] [H9] [ก2·1] HQ ส่งใบ → ฐานเป็น \"ได�
   const แถว = await แถวลีด(page, ได้ราคา);
   await expect(แถว).toBeVisible({ timeout: 20_000 });
   // ป้ายในตาราง = ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมชื่อสถานะ "ได้ราคา HQ")
-  await expect(แถว.getByText("ได้ใบ HQ", { exact: true }), "ป้ายในแถว = ขั้น 3 ได้ใบ HQ").toBeVisible();
-  await expect(แถว.getByText("ขอราคา HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
+  await expect(แถว.getByText("3. ได้ราคาจาก HQ แล้ว", { exact: true }), "ป้ายในแถว = ขั้น 3 ได้ใบ HQ").toBeVisible();
+  await expect(แถว.getByText("2. รอราคาจาก HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
 
   // ตัวกรอง
   // ตัวกรองขั้นตอนเป็นกลุ่ม (บอสสั่ง 28 ต.ค. 69): กำลังดำเนินการ (ค่าเริ่มต้น ขั้น 1–5) · ปิดสำเร็จ · ปิดไม่สำเร็จ · ทั้งหมด
@@ -80,7 +80,7 @@ test("[D4] [H9] [ก2·1] HQ ส่งใบ → ฐานเป็น \"ได�
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill("ZZTEST-");
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กำลังดำเนินการ: เห็นลีดขั้น 2 (รอราคา)").toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กำลังดำเนินการ: เห็นลีดขั้น 3 (ได้ใบ HQ)").toHaveCount(1);
-  await expect(page.locator("tbody tr").filter({ hasText: รอราคา }).getByText("ขอราคา HQ", { exact: true }), "ลีดที่ยังรอ = ป้ายขั้น 2 ขอราคา HQ").toBeVisible();
+  await expect(page.locator("tbody tr").filter({ hasText: รอราคา }).getByText("2. รอราคาจาก HQ", { exact: true }), "ลีดที่ยังรอ = ป้ายขั้น 2 ขอราคา HQ").toBeVisible();
   await เลือกตัวกรอง(page, "ขั้นตอน", "ปิดไม่สำเร็จ");
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "ปิดไม่สำเร็จ: ไม่เห็นลีดที่ยังเปิด").toHaveCount(0, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "ปิดไม่สำเร็จ: ไม่เห็นลีดที่ยังเปิด").toHaveCount(0);
@@ -99,7 +99,7 @@ test("[D4] [H9] [ก2·1] HQ ส่งใบ → ฐานเป็น \"ได�
   };
   await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  for (const [ป้าย, s, รู้ค่า] of [["ได้ใบ HQ", "HQ_QUOTED", 3], ["ขอราคา HQ", "HQ_PRICING", 1]] as const) {
+  for (const [ป้าย, s, รู้ค่า] of [["3. ได้ราคาจาก HQ แล้ว", "HQ_QUOTED", 3], ["2. รอราคาจาก HQ", "HQ_PRICING", 1]] as const) {
     expect(await นับ(s), `ฐาน: ${ป้าย} ของสาขาของชุด = ${รู้ค่า} ราย`).toBe(รู้ค่า);
     const ปุ่ม = page.getByTitle(`ดูลูกค้าเป้าหมายขั้นตอน ${ป้าย}`);
     await expect(ปุ่ม, `แดชบอร์ดมีแถว ${ป้าย}`).toBeVisible({ timeout: 20_000 });

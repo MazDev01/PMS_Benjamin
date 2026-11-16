@@ -144,6 +144,12 @@ export function วันที่ไม่ได้ติดต่อ(p: Pick<D
 
 export const เกณฑ์ไม่ได้ติดต่อ = [7, 14, 30] as const;
 
+/** "ติดต่อล่าสุด" นานเกิน = ตัวแดง — ค่าเดียวที่การ์ดบอร์ดและคอลัมน์ตารางผู้สนใจอ่าน (บอสตัดสิน 13 พ.ย. 69: 7 วัน ทั้งบอร์ดและตาราง)
+ *  ข้อทดสอบ board-card-shared.spec (8 วัน = แดงทั้งคู่ · 6 วัน = ไม่แดงทั้งคู่) */
+export const วันติดต่อล่าสุดนานเกิน = 7;
+export const ติดต่อล่าสุดนานเกิน = (p: Pick<DealerProspect, "status" | "lastContactAt" | "createdAt">, วันนี้ISO: string) =>
+  ไม่ได้ติดต่อเกิน(p, วันติดต่อล่าสุดนานเกิน, วันนี้ISO);
+
 /** ยังติดตามอยู่ และไม่ได้ติดต่อตั้งแต่ n วันขึ้นไป */
 export function ไม่ได้ติดต่อเกิน(p: Pick<DealerProspect, "status" | "lastContactAt" | "createdAt">, วัน: number, วันนี้ISO: string): boolean {
   return ยังติดตามอยู่(p.status) && (วันที่ไม่ได้ติดต่อ(p, วันนี้ISO) ?? -1) >= วัน;

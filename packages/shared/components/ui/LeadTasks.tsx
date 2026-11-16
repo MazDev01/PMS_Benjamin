@@ -14,7 +14,7 @@ import { applyTaskTemplate, ระบบติ๊กเมื่อ, FOLLOW_TASK
 import { APP_NOW } from "@pms/shared/context/FilterContext";
 import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { ชั่วโมงนาทีไทย, วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
-import { ชื่อขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
+import { ชื่อขั้น, แปลงชื่อขั้นเดิม, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { ชื่อผู้ทำ } from "@pms/shared/lib/systemActor";   // แถวเก่า "อัปเดตอัตโนมัติ" → "ระบบทำให้" ตอนแสดง (12 พ.ย. 69)
 
 const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -98,7 +98,7 @@ export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนน�
                             {t.done && <Check size={13} color="#fff" strokeWidth={3} />}
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: "0.84rem", fontWeight: 600, color: t.done ? "#065f46" : "#2D2D2D", textDecoration: t.done ? "line-through" : "none" }}>{t.label}</span>
+                            <span style={{ fontSize: "0.84rem", fontWeight: 600, color: t.done ? "#065f46" : "#2D2D2D", textDecoration: t.done ? "line-through" : "none" }}>{แปลงชื่อขั้นเดิม(t.label)}</span>
                             {auto && <span data-system-badge className="badge" style={{ marginLeft: 6, background: "#eef3f8", color: "#475569", fontSize: "0.6rem", fontWeight: 700, verticalAlign: "middle" }}>{t.done ? "ระบบติ๊กให้" : "กดเพื่อทำ"}</span>}
                             {!t.done && auto && <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{auto}</span>}
                             {t.done && (t.doneBy || วันที่) && (

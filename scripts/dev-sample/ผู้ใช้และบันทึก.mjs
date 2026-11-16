@@ -1,4 +1,4 @@
-// ── ส่วน "ผู้ใช้และบันทึก": ผู้ใช้ HQ หลายบทบาท + บันทึกการใช้งานหลายแบบ (บอสสั่ง 28 ต.ค. 69) ───────────────────────────────
+// ── ส่วน "ผู้ใช้และบันทึก": ผู้ใช้ HQ 4 ราย บทบาทเดียว "สำนักงานใหญ่" (SUPER_ADMIN · ฐานบังคับ profiles_hq_single_role · 13 พ.ย. 69 เดิมหลายบทบาท) + บันทึกการใช้งานหลายแบบ (บอสสั่ง 28 ต.ค. 69) ───────────────────────────────
 // ผู้ใช้ HQ 4 ราย (อีเมล @example.test · รหัสผ่านในไฟล์นอก repo): ผู้ดูแลระบบ · ผู้บริหาร · เจ้าหน้าที่ 2 คน (คนที่ 2 ถูกปิดใช้งาน)
 //   สร้างบัญชี = ขั้นของเส้นทางผู้ดูแล (apps/hq/app/api/admin/users/route.ts · กุญแจ service_role · ตัวรันทำงานก่อนเปิดเว็บ)
 // บันทึกการใช้งาน: เกิดจากการกระทำจริงผ่านคำสั่งของแอป ในนามผู้ใช้แต่ละคน — ฐานเป็นคนลงบันทึก (ใบ 0240) ไม่เขียนแถวบันทึกเอง
@@ -11,9 +11,9 @@ import { สาขาใหม่ } from "./สาขา.mjs";
 export const ชื่อ = "ผู้ใช้และบันทึก";
 const ผู้ใช้ = [
   { key: "super", email: "hq-super-admin@example.test", role: "SUPER_ADMIN", name: "ผู้ดูแลระบบตัวอย่าง", department: "ไอที", เบอร์: 5101 },
-  { key: "mgmt", email: "hq-management@example.test", role: "HQ_MANAGEMENT", name: "ผู้บริหารตัวอย่าง", department: "ฝ่ายขาย", เบอร์: 5102 },
-  { key: "staff1", email: "hq-staff-1@example.test", role: "HQ_STAFF", name: "เจ้าหน้าที่ตัวอย่าง 1", department: "ฝ่ายประเมินราคา", เบอร์: 5103 },
-  { key: "staff2", email: "hq-staff-2@example.test", role: "HQ_STAFF", name: "เจ้าหน้าที่ตัวอย่าง 2", department: "ฝ่ายประเมินราคา", เบอร์: 5104 },
+  { key: "mgmt", email: "hq-management@example.test", role: "SUPER_ADMIN", name: "ผู้บริหารตัวอย่าง", department: "ฝ่ายขาย", เบอร์: 5102 },
+  { key: "staff1", email: "hq-staff-1@example.test", role: "SUPER_ADMIN", name: "เจ้าหน้าที่ตัวอย่าง 1", department: "ฝ่ายประเมินราคา", เบอร์: 5103 },
+  { key: "staff2", email: "hq-staff-2@example.test", role: "SUPER_ADMIN", name: "เจ้าหน้าที่ตัวอย่าง 2", department: "ฝ่ายประเมินราคา", เบอร์: 5104 },
 ];
 const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
@@ -52,13 +52,13 @@ export async function สร้าง(ctx) {
   // เจ้าหน้าที่ 2 เข้าระบบ แล้วออก (ก่อนถูกปิดใช้งาน)
   { const sb = await เข้า("staff2"); ต้อง(await sb.rpc("audit_auth_event", { p_action: "ออกจากระบบ" }), "ออกจากระบบ"); เรื่อง.push("เข้า/ออกระบบ"); }
 
-  // ผู้ดูแลระบบ: เปลี่ยนบทบาท (แล้วเปลี่ยนกลับ) · ปิดใช้งานผู้ใช้ · ส่งออกการตั้งค่า
+  // ผู้ดูแลระบบ: แก้ฝ่ายของผู้ใช้ (แล้วแก้กลับ · HQ บทบาทเดียวจึงไม่มีการเปลี่ยนบทบาท) · ปิดใช้งานผู้ใช้ · ส่งออกการตั้งค่า
   { const sb = await เข้า("super");
-    ต้อง(await sb.from("profiles").update({ role: "HQ_MANAGEMENT" }).eq("id", บัญชี.staff1.id), "เปลี่ยนบทบาท");
-    ต้อง(await sb.from("profiles").update({ role: "HQ_STAFF" }).eq("id", บัญชี.staff1.id), "เปลี่ยนบทบาทกลับ");
+    ต้อง(await sb.from("profiles").update({ department: "ฝ่ายขาย" }).eq("id", บัญชี.staff1.id), "แก้ฝ่ายผู้ใช้");
+    ต้อง(await sb.from("profiles").update({ department: "ฝ่ายประเมินราคา" }).eq("id", บัญชี.staff1.id), "แก้ฝ่ายผู้ใช้กลับ");
     ต้อง(await sb.from("profiles").update({ status: "inactive" }).eq("id", บัญชี.staff2.id), "ปิดใช้งานผู้ใช้");
     ต้อง(await sb.rpc("hq_settings_audit_export", { p_file: "ตั้งค่า-HQ-ตัวอย่าง.json" }), "ส่งออกการตั้งค่า");
-    เรื่อง.push("เปลี่ยนบทบาทผู้ใช้ ×2", "ปิดใช้งานผู้ใช้", "ส่งออกการตั้งค่า"); }
+    เรื่อง.push("แก้ไขผู้ใช้ ×2", "ปิดใช้งานผู้ใช้", "ส่งออกการตั้งค่า"); }
 
   // ผู้บริหาร: แก้เป้าดีลเลอร์ (สาขาตัวอย่าง) · แก้ไขผู้สนใจเป็นดีลเลอร์
   { const sb = await เข้า("mgmt");

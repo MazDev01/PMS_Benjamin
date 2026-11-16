@@ -42,7 +42,7 @@ import {
   เตรียมบันทึก, ตรวจผู้สนใจ, ถึงกำหนดติดตาม, ตรงกับคำค้น,
 } from "@pms/shared/lib/dealerProspects";
 import {
-  ความคืบหน้า, ขั้นก่อนไม่สำเร็จ, มีบันทึกการติดต่อ, เกณฑ์ไม่ได้ติดต่อ, ไม่ได้ติดต่อเกิน, ติดต่อล่าสุดอ่านง่าย, เหตุยังตั้งดีลเลอร์ไม่ได้,
+  ความคืบหน้า, ติดต่อล่าสุดนานเกิน, ขั้นก่อนไม่สำเร็จ, มีบันทึกการติดต่อ, เกณฑ์ไม่ได้ติดต่อ, ไม่ได้ติดต่อเกิน, ติดต่อล่าสุดอ่านง่าย, เหตุยังตั้งดีลเลอร์ไม่ได้,
   ชื่อขั้นย่อย, type ขั้นย่อยใบ,
 } from "@pms/shared/lib/prospectJourney";
 import { useProspectSubStages } from "@pms/shared/lib/useProspectSubStages";
@@ -61,6 +61,8 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ProspectImportModal } from "@pms/shared/components/hq/ProspectImportModal";
 import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
 import { StageBoard } from "@pms/shared/components/ui/StageBoard";
+import { BoardCard, StepProgressBar } from "@pms/shared/components/ui/BoardCard";
+import { PersonAvatar } from "@pms/shared/components/ui/PersonPicker";
 import { คอลัมน์บอร์ดผู้สนใจ, คอลัมน์ของผู้สนใจ, ทางย้ายผู้สนใจ, ขั้นที่ขาด, เหตุเป็นดีลเลอร์ไม่ได้, type คอลัมน์ผู้สนใจ, type ฟอร์มขั้นผู้สนใจ } from "@pms/shared/lib/prospectBoard";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
@@ -906,23 +908,37 @@ export default function HQProspectsPage() {
           idOf={p => p.id} colOf={p => คอลัมน์ของผู้สนใจ(p, ย่อย.get(p.id))} onOpen={p => เปิดแผง(p)} ข้อความว่าง="ไม่มีผู้สนใจ"
           ทางย้าย={p => จัดการได้ && p.status !== "won" ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
           onMove={วางในคอลัมน์}
-          renderCard={p => (
-            <div data-prospect-card={p.id}>
-              <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#2D2D2D", lineHeight: 1.35 }} title={p.name}>{p.name}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "6px 0", fontSize: "0.68rem", color: "#64748b" }}>
-                <span>{p.province || "—"}</span><span>·</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{p.phone ? formatPhone(p.phone) || p.phone : "—"}</span>
+          renderCard={p => {
+            // การ์ดตัวกลาง BoardCard (บอสสั่ง 13 พ.ย. 69 · หน้าตาเดียวกับการ์ดบอร์ดลูกค้าเป้าหมายของดีลเลอร์) — ไม่มีข้อมูล = "—"
+            //   ติดต่อล่าสุด: ไม่เคยติดต่อ = "—" · นานเกิน = ติดต่อล่าสุดนานเกิน() ค่าเดียวกับคอลัมน์ตาราง (7 วัน · บอสตัดสิน 13 พ.ย. 69)
+            //   แถบ % = ความคืบหน้า(ขั้นจริง) ตัวเดียวกับแผง (ช่วงละ 20% · 5 ช่อง · จบแล้ว = 100 · ไม่สำเร็จ = สีแดง)
+            //   ผู้ดูแล = ผู้ใช้สำนักงานใหญ่ (รูปจากบัญชีผู้ใช้ · ไม่มีรูป = ตัวย่อชื่อ · ไม่มีผู้ดูแล = "—")
+            const pct = ความคืบหน้า(p.status);
+            const ผู้ดูแล = p.assigned?.trim() ? ผู้ใช้HQ.find(u => u.name === p.assigned) : undefined;
+            return (
+              <div data-prospect-card={p.id}>
+                <BoardCard ชื่อ={p.name} ป้ายชื่อ={p.social} ป้ายชื่อคือ="ชื่อบนโซเชียล"
+                  โทรศัพท์={p.phone ? formatPhone(p.phone) || p.phone : null} อีเมล={p.email} จังหวัด={p.province}
+                  เริ่มติดต่อ={p.firstContact ? fmtISOToThai(p.firstContact) : null}
+                  ติดต่อล่าสุด={p.lastContactAt ? ติดต่อล่าสุดอ่านง่าย(p, APP_NOW_ISO) : null} นานเกิน={ติดต่อล่าสุดนานเกิน(p, APP_NOW_ISO)}
+                  ผู้ดูแล={p.assigned?.trim()
+                    ? <span title={p.assigned} data-prospect-owner style={{ display: "flex" }}><PersonAvatar name={p.assigned} avatar={ผู้ดูแล?.avatar} size={24} /></span>
+                    : <span style={{ color: "#9ca3af", fontSize: "0.72rem" }}>—</span>}
+                  ป้ายสถานะ={<span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status}
+                    style={{ background: prospectStatusColor[p.status].bg, color: prospectStatusColor[p.status].text, alignSelf: "flex-start" }}>{ป้ายขั้น(p)}</span>}
+                  ความคืบหน้า={<StepProgressBar ขั้น={pct / 20} จำนวนขั้น={5} เปอร์เซ็นต์={pct} สีแถบ={prospectStatusColor[p.status].text}
+                    สีตัวเลข={p.status === "lost" ? prospectStatusColor.lost.text : undefined} ป้าย={p.status === "lost" ? "ไม่สำเร็จ" : undefined} />}
+                  ติดตามครั้งถัดไป={p.followUp ? fmtISOToThai(p.followUp) : null} เลยกำหนดติดตาม={ถึงกำหนดติดตาม(p, APP_NOW_ISO)}>
+                  {/* เป็นดีลเลอร์แล้ว (คอลัมน์ปิดแล้ว) → ลิงก์ไปแผงดีลเลอร์นั้น (คำตัดสิน 15 ก.ย. 69 · ข้อ 17 ตาราง FLOW · ตัวกลาง RecordLink กดแล้วไม่เปิดแผงการ์ด) */}
+                  {p.dealerCode && (
+                    <div data-prospect-dealer-link style={{ fontSize: "0.7rem", margin: "0 0 6px", color: "#64748b" }}>
+                      เป็นดีลเลอร์แล้ว: <DataLink เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</DataLink>
+                    </div>
+                  )}
+                </BoardCard>
               </div>
-              {/* เป็นดีลเลอร์แล้ว (คอลัมน์ปิดแล้ว) → ลิงก์ไปแผงดีลเลอร์นั้น (คำตัดสิน 15 ก.ย. 69 · ข้อ 17 ตาราง FLOW · ตัวกลาง RecordLink กดแล้วไม่เปิดแผงการ์ด) */}
-              {p.dealerCode && (
-                <div data-prospect-dealer-link style={{ fontSize: "0.7rem", margin: "0 0 6px", color: "#64748b" }}>
-                  เป็นดีลเลอร์แล้ว: <DataLink เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</DataLink>
-                </div>
-              )}
-              <span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status}
-                style={{ background: prospectStatusColor[p.status].bg, color: prospectStatusColor[p.status].text }}>{ป้ายขั้น(p)}</span>
-              <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, marginTop: 6 }}>ติดต่อล่าสุด {ติดต่อล่าสุดอ่านง่าย(p, APP_NOW_ISO)}</div>
-            </div>
-          )} />
+            );
+          }} />
       )}
 
       {/* ตาราง */}
@@ -963,7 +979,7 @@ export default function HQProspectsPage() {
               {pageSlice(filtered, page).map((p, i) => {
                 const สี = prospectStatusColor[p.status];
                 const เลยกำหนด = ถึงกำหนดติดตาม(p, APP_NOW_ISO);
-                const ไม่ได้ติดต่อนาน = ไม่ได้ติดต่อเกิน(p, 7, APP_NOW_ISO);
+                const ไม่ได้ติดต่อนาน = ติดต่อล่าสุดนานเกิน(p, APP_NOW_ISO);   // ค่าเดียวกับการ์ดบอร์ด (บอสตัดสิน 13 พ.ย. 69)
                 const pct = ความคืบหน้า(p.status);
                 // คีย์ใช้ p.id ได้: id ไม่ซ้ำทั้งระบบ (identity เดียวทั้งตาราง · dealerCode ในแถวนี้คือดีลเลอร์ที่รายนั้นกลายมาเป็น ไม่ใช่สาขาเจ้าของ)
                 return (

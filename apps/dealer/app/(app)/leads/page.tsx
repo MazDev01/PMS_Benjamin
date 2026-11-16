@@ -10,7 +10,7 @@ import { ยืนยัน, แจ้งพลาด } from "@pms/shared/compon
 import {
   leadStatusLabel, buildLeadReport, applyTaskTemplate, findAppointmentTask,
   seedLeadTasks, apptTypeLabel, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
-  DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย,
+  DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย, นัดยังเปิด,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
@@ -21,6 +21,7 @@ import { LeadQuotationsPanel } from "@pms/shared/components/ui/LeadQuotationsPan
 import { QuoteRequestPanel } from "@pms/shared/components/ui/QuoteRequestPanel";
 import { LeadNextStep, type คำสั่งบอร์ดลีด } from "@pms/shared/components/ui/LeadNextStep";
 import { StageBoard } from "@pms/shared/components/ui/StageBoard";
+import { BoardCard } from "@pms/shared/components/ui/BoardCard";
 import { ทางย้ายลีด, คำสั่งของปลายทาง } from "@pms/shared/lib/leadBoard";
 import { ขั้นของลีด, เลขขั้นของลีด, ชื่อขั้น, สีขั้น, เลขขั้นทั้งหมด, ขั้นเปิดอยู่, ป้ายย่อยขั้น, แปลงชื่อขั้นเดิม, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { วันที่แสดงไทย } from "@pms/shared/lib/thaiDate";
@@ -156,14 +157,7 @@ function ป้ายขั้นลีด({ l, มีใบร่าง }: { l:
   );
 }
 // แถบความคืบหน้า = ตัวกลาง LeadProgressBar (ขั้นละ 25% · ปิดสำเร็จ 100% · ปิดไม่สำเร็จ สีแดงตามขั้นที่ไปถึง · บอสสั่ง 28 ต.ค. 69)
-function MiniStage({ l, มีใบร่าง }: { l: LeadRow; มีใบร่าง: boolean }) {
-  return (
-    <div data-mini-stage style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
-      <ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่าง} />
-      <LeadProgressBar l={l} มีใบร่าง={มีใบร่าง} />
-    </div>
-  );
-}
+//   การ์ดบอร์ด = ตัวกลาง BoardCard (ป้ายขั้น + แถบอยู่ใน data-mini-stage ของการ์ด · บอสสั่ง 13 พ.ย. 69)
 // กิจกรรมล่าสุดของลูกค้าเป้าหมาย (activities เรียงใหม่สุดอยู่บน) — ไม่มีกิจกรรม/ไม่มีวันที่สร้าง = "—"
 // ห้าม fallback ไป leadCreatedDate(): มันสังเคราะห์วันจาก numId (numId × 17 % 150 วันก่อนวันนี้)
 // ซึ่งใช้ได้แค่กับกราฟรวมของลูกค้าเป้าหมาย seed — เอามาโชว์เป็น "ติดต่อล่าสุด" คือโกหกคนอ่าน
@@ -227,27 +221,8 @@ function seedFiles(_lead: LeadRow): string[] {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────
-// ── แถวป้ายกำกับบนการ์ดกระดาน — "หัวข้อ: ค่า" ทีละบรรทัด (บอสสั่ง 20 ส.ค. 69) ────
-//
-// ยึดหน้าตาตามระบบเดิมที่บอสใช้อยู่ (Grow CRM) เพื่อให้อ่านการ์ดได้โดยไม่ต้องเรียนรู้ใหม่
-// ⚠️ ไม่มีข้อมูล = ขึ้น "—" เสมอ ห้ามซ่อนทั้งบรรทัด: การ์ดแต่ละใบจะได้มีบรรทัดชุดเดียวกัน
-//    กวาดตาเทียบกันได้ และผู้ใช้แยกออกว่า "ยังไม่ได้กรอก" ต่างจาก "ไม่มีช่องนี้"
-function CardField({ icon: Ic, label, value, tone }: {
-  icon: typeof User; label: string; value?: string | null; tone?: string;
-}) {
-  const มีค่า = !!value && value !== "—";
-  return (
-    <span style={{ display:"flex", alignItems:"center", gap:5, minWidth:0 }}>
-      <Ic size={10} color="#94a3b8" style={{ flexShrink:0 }} />
-      <span style={{ color:"#94a3b8", fontWeight:600, flexShrink:0 }}>{label}:</span>
-      <span title={มีค่า ? String(value) : undefined}
-        style={{ color: มีค่า ? (tone ?? "#475569") : "#cbd5e1", fontWeight: tone ? 700 : 600,
-          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0 }}>
-        {มีค่า ? value : "—"}
-      </span>
-    </span>
-  );
-}
+// ── แถวป้ายกำกับบนการ์ดกระดาน — "หัวข้อ: ค่า" ทีละบรรทัด (บอสสั่ง 20 ส.ค. 69) — ย้ายไปการ์ดตัวกลาง BoardCard (13 พ.ย. 69) ────
+// ⚠️ ไม่มีข้อมูล = ขึ้น "—" เสมอ ห้ามซ่อนทั้งบรรทัด (กติกาเดิม คงไว้ใน BoardCard)
 
 function SortIcon({ field, sortKey, sortDir }: { field:string; sortKey:string; sortDir:"asc"|"desc" }) {
   if (sortKey !== field) return <ArrowUpDown size={11} color="#e5e7eb" />;
@@ -1549,63 +1524,27 @@ export default function LeadsPage() {
           <div ref={กระดานRef}>
             <StageBoard<LeadRow, string> ป้ายบอร์ด="บอร์ดลูกค้าเป้าหมาย" items={filtered} idOf={l => l.id} colOf={l => String(เลขขั้นของ(l))}
               columns={เลขขั้นทั้งหมด.map(n => ({ key: String(n), label: ชื่อขั้น(n), สี: สีขั้น(n), แคบ: n >= 6, คั่นก่อน: n === 6,
-                ย่อย: (() => { const t = filtered.filter(l => เลขขั้นของ(l) === n).reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0); return t > 0 ? fmtM(t) : undefined; })() }))}
+                ย่อย: (() => { const t = filtered.filter(l => เลขขั้นของ(l) === n).reduce((s, l) => s + (มูลค่าลีด(l) ?? 0), 0); /* บอสสั่ง 13 พ.ย. 69 */ return t > 0 ? `มูลค่ารวม ${fmtM(t)}` : undefined; })() }))}
               ซ่อนว่าง={hideEmpty} ความสูง={ความสูงกระดาน ?? undefined} ข้อความว่าง="ไม่มีลูกค้าเป้าหมาย" onOpen={l => openPanel(l)}
               ทางย้าย={l => ทางย้ายลีด(เลขขั้นของ(l))}
               onMove={(l, ไป) => สั่งจากบอร์ด(l, ไป)}
-              renderCard={l => (<>
-                      {/* Sales-only — ไม่มีรูปอาคาร/building type (โฟกัสโอกาสการขายอย่างเดียว)
-                          ไอคอนตา = แค่บอกใบ้ว่าคลิกการ์ดเปิดรายละเอียดได้ (การ์ดทั้งใบคลิกได้อยู่แล้ว เลยไม่ต้องมี onClick ซ้ำ)
-                          เดิมไม่มี affordance เลย ผู้ใช้ที่ไม่คุ้น kanban อาจไม่รู้ว่าคลิกการ์ดได้ */}
-                      {/* ── หัวการ์ด = ชื่อบริษัท (เดิมเป็นแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) ── */}
-                      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:6 }}>
-                        <div style={{ fontSize:"0.86rem", fontWeight:800, color:"#2D2D2D", minWidth:0,
-                          display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", lineHeight:1.35 }}
-                          title={l.company}>
-                          {l.company}
-                        </div>
-                        <Eye size={13} color="#9ca3af" style={{ flexShrink:0, marginTop:2 }} />
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:6, margin:"6px 0" }}>
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:"0.68rem", fontWeight:600, color:"#64748b",
-                          background:"#f1f5f9", borderRadius:6, padding:"2px 8px", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={l.contact}>
-                          <User size={10} /> {l.contact}
-                        </span>
-                        <span style={{ display:"inline-flex", alignItems:"center", fontSize:"0.72rem", fontWeight:800, color:"#003366",
-                          background:"#e3f0fb", borderRadius:6, padding:"2px 8px", fontVariantNumeric:"tabular-nums" }}>
-                          {fmtมูลค่าเต็ม(มูลค่าลีด(l))}
-                        </span>
-                      </div>
-
-                      {/* ข้อมูลติดต่อแบบแถวป้ายกำกับ + เตือนขาดการติดต่อ */}
-                      <div style={{ display:"flex", flexDirection:"column", gap:3, fontSize:"0.68rem",
-                        borderTop:"1px solid #f1f5f9", borderBottom:"1px solid #f1f5f9", padding:"7px 0", marginBottom:9 }}>
-                        <CardField icon={Phone} label={ช่อง.โทรศัพท์} value={l.phone} />
-                        <CardField icon={Mail} label={ช่อง.อีเมล} value={l.email} />
-                        <CardField icon={MapPin} label={ช่อง.จังหวัด} value={l.province} />
-                        <CardField icon={Calendar} label="สร้าง" value={l.createdAt} />
-                        {(() => {
-                          const d = daysSinceContact(l);
-                          // ไม่เคยติดต่อ = "—" (ห้ามเดาว่าเพิ่งติดต่อ) · เกินกำหนดของสำนักงานใหญ่ = แดง
-                          if (d === null) return <CardField icon={AlarmClock} label="ติดต่อล่าสุด" value={null} />;
-                          const late = d > followUpAlertDays;
-                          return <CardField icon={AlarmClock} label="ติดต่อล่าสุด" value={`${d} วันที่แล้ว`} tone={late ? "#DC3545" : undefined} />;
-                        })()}
-                      </div>
-
-                      {/* มูลค่าย้ายไปเป็นป้ายด้านบนแล้ว (ตามระบบเดิม) — ตรงนี้เหลือผู้รับผิดชอบ ไม่แสดงซ้ำสองที่ */}
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-start", marginBottom:10 }}>
-                        <AssigneeAvatars value={l.assigned} size={24} showName={false} />
-                      </div>
-
-                      {/* ขั้น 1–4 (ตัวแปลงกลาง) + กิจกรรมล่าสุด — % ความคืบหน้าจากงานเอาออก (รอบ 4) */}
-                      <MiniStage l={l} มีใบร่าง={มีใบร่างของ(l)} />
-                      {lastActivity(l) !== "—" && (
-                        <div style={{ display:"flex", alignItems:"center", gap:3, fontSize:"0.65rem", color:"#9ca3af", fontWeight:600, marginTop:5 }}>
-                          <CalendarClock size={10} /> {lastActivity(l)}
-                        </div>
-                      )}
-              </>)} />
+              renderCard={l => {
+                // การ์ดตัวกลาง BoardCard (บอสสั่ง 13 พ.ย. 69 · ตัวเดียวกับบอร์ดผู้สนใจ HQ) — ไม่มีข้อมูล = "—"
+                //   ติดต่อล่าสุด: ไม่เคยติดต่อ = "—" (ห้ามเดาว่าเพิ่งติดต่อ) · เกินเกณฑ์ของสาขา (ตั้งค่า › การแจ้งเตือน) = แดง
+                //   ติดตามครั้งถัดไป = นัดหมายที่ยังเปิดอยู่ของลีดนี้ วันใกล้สุดตั้งแต่วันนี้ (ไม่มี = "—")
+                const d = daysSinceContact(l);
+                const นัดถัดไป = appointments.filter(a => a.leadId === l.numId && นัดยังเปิด(a.status) && a.date >= APP_NOW_ISO)
+                  .sort((x, y) => (x.date + x.time < y.date + y.time ? -1 : 1))[0];
+                return (
+                  <BoardCard ชื่อ={l.company} ป้ายชื่อ={l.contact} ป้ายชื่อคือ={ช่อง.ผู้ติดต่อ} ป้ายมูลค่า={fmtมูลค่าเต็ม(มูลค่าลีด(l))}
+                    โทรศัพท์={l.phone} อีเมล={l.email} จังหวัด={l.province} เริ่มติดต่อ={l.createdAt}
+                    ติดต่อล่าสุด={d === null ? null : `${d} วันที่แล้ว`} นานเกิน={d !== null && d > followUpAlertDays}
+                    ผู้ดูแล={<AssigneeAvatars value={l.assigned} size={24} showName={false} />}
+                    ป้ายสถานะ={<ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่างของ(l)} />}
+                    ความคืบหน้า={<LeadProgressBar l={l} มีใบร่าง={มีใบร่างของ(l)} />}
+                    ติดตามครั้งถัดไป={นัดถัดไป ? `${fmtISOToThai(นัดถัดไป.date)} · ${นัดถัดไป.time} น.` : null} />
+                );
+              }} />
           </div>
         )}
 
