@@ -27,10 +27,10 @@ set local session_replication_role = replica;
 delete from hq_quotes; delete from quote_request_events; set local pms.quote_request_delete = 'test'; delete from quote_requests;   -- ใบ 0280 ห้ามลบคำขอ ยกเว้นชุดล้างทดสอบ
 delete from leads where company like 'ZZQB %';
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status) values
-  ('#L-QB-1', 9601, 'RYG', 'ZZQB ล1', 'ZZQB ล1', '0800009601', 'ตราด', 'BULLET'),
-  ('#L-QB-2', 9602, 'CNX', 'ZZQB ล2', 'ZZQB ล2', '0800009602', 'เชียงใหม่', 'BULLET'),
-  ('#L-QB-3', 9603, 'RYG', 'ZZQB ล3', 'ZZQB ล3', '0800009603', 'ตราด', 'BULLET'),
-  ('#L-QB-4', 9604, 'RYG', 'ZZQB ล4', 'ZZQB ล4', '0800009604', 'ตราด', 'BULLET');
+  ('#L-QB-1', 9601, 'RYG', 'ZZQB ล1', 'ZZQB ล1', '0000009034', 'ตราด', 'BULLET'),
+  ('#L-QB-2', 9602, 'CNX', 'ZZQB ล2', 'ZZQB ล2', '0000009035', 'เชียงใหม่', 'BULLET'),
+  ('#L-QB-3', 9603, 'RYG', 'ZZQB ล3', 'ZZQB ล3', '0000009036', 'ตราด', 'BULLET'),
+  ('#L-QB-4', 9604, 'RYG', 'ZZQB ล4', 'ZZQB ล4', '0000009037', 'ตราด', 'BULLET');
 -- ต้องตีราคา 4: เกินกำหนด (ทำราคาอยู่) · ขอแก้ราคา (ใหม่ มีเวอร์ชันก่อน) · ร่างค้าง · ใหม่
 -- รอดีลเลอร์ 2: ราคาหมดอายุ +5 วัน · +20 วัน · สั่งผลิต 1 · ปิด 3: แทนที่แล้ว (-3 วัน) · ไม่ได้งาน (-2 วัน) · ยกเลิก (-1 ชม.)
 insert into quote_requests (id, request_no, dealer_code, lead_num_id, product, province, status, supersedes_id, submitted_at, due_at, quoted_at, closed_at, cancel_reason) values

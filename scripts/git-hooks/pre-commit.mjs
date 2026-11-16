@@ -2,8 +2,15 @@
 //   โฟลเดอร์ที่มี .pms-session.json (เปิดด้วย npm run session:new) = เซสชันลูก → branch ต้องเป็น session/<ชื่อ>
 //   commit เข้า wip/* · monorepo · main หรือ branch อื่น = ปฏิเสธ · คนรวมงาน (โฟลเดอร์หลัก) ไม่ถูกจำกัด
 //   ข้อทดสอบ: tests/tools/session-tools.test.mjs · ห้ามข้ามด้วย --no-verify
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { อ่านเซสชัน } from "../lib/session.mjs";
+
+// ไฟล์ที่ git เก็บห้ามมีเบอร์โทรรูปแบบจริง/ป้ายข้อมูลจากฐานจริง (บอสสั่งด่วน 16 พ.ย. 69 ข้อ 5) — ตรวจทุกโฟลเดอร์ รวมโฟลเดอร์หลัก · ตก = commit ไม่ผ่าน
+const ตรวจเบอร์ = spawnSync(process.execPath, ["scripts/check-no-real-phones.mjs"], { stdio: "inherit" });
+if (ตรวจเบอร์.status !== 0) {
+  console.error("\n⛔ commit ไม่ผ่าน: มีเบอร์โทรรูปแบบจริง/ป้ายข้อมูลจากฐานจริงในไฟล์ที่ git เก็บ · ห้ามข้ามด้วย --no-verify\n");
+  process.exit(1);
+}
 
 const s = อ่านเซสชัน(process.cwd());
 if (!s) process.exit(0);

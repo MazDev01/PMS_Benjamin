@@ -26,13 +26,13 @@ test("[func·dealer] นำเข้าไฟล์ที่มีชื่อ�
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
 
   // รอบแรก: ยังไม่มีในระบบ → นำเข้าได้เลย ไม่ต้องถาม
-  await นำเข้าลูกค้าหนึ่งราย(page, company, { ผู้ติดต่อ: "คุณคนแรก", โทรศัพท์: "0811111111" });
+  await นำเข้าลูกค้าหนึ่งราย(page, company, { ผู้ติดต่อ: "คุณคนแรก", โทรศัพท์: "0000009076" });
   await waitRow(sb, "customers", { company }, 30_000);
 
   // รอบสอง: ชื่อเดียวกัน (พิมพ์ต่างตัวพิมพ์/มีช่องว่างเกิน ก็ต้องถือว่าซ้ำ)
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
   const หัว = "บริษัท,ผู้ติดต่อ,โทรศัพท์,อีเมล,ที่อยู่,จังหวัด,เป็นลูกค้าเมื่อ,ผู้รับผิดชอบ";
-  const แถว = `  ${company} ,,0822222222,ใหม่@example.com,,ระยอง,,`;
+  const แถว = `  ${company} ,,0000009077,ใหม่@example.com,,ระยอง,,`;
   await นำเข้าผ่านเมนู(page, "นำเข้าลูกค้าเดิม", "csv", {
     name: "ซ้ำ.csv", mimeType: "text/csv", buffer: Buffer.from("\ufeff" + หัว + "\n" + แถว, "utf8"),
   });
@@ -49,7 +49,7 @@ test("[func·dealer] นำเข้าไฟล์ที่มีชื่อ�
     const { data } = await sb.from("customers").select("id,name,phone,email").eq("company", company);
     return data ?? [];
   }, { timeout: 30_000, message: "ต้องมีลูกค้ารายเดียว และข้อมูลเดิมต้องไม่หาย" }).toEqual([
-    expect.objectContaining({ name: "คุณคนแรก", phone: "0811111111", email: "ใหม่@example.com" }),
+    expect.objectContaining({ name: "คุณคนแรก", phone: "0000009076", email: "ใหม่@example.com" }),
   ]);
 });
 

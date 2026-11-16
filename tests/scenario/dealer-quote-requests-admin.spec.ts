@@ -38,7 +38,7 @@ async function สร้างสาขา(code: string, name: string) {
 async function สร้างลูกค้าเป้าหมาย(code: string, num: number, company: string) {
   ต้องผ่าน(await admin.from("leads").insert({
     id: `#L-${num}`, num_id: num, dealer_code: code, company, name: company, contact: "ผู้ทดสอบ",
-    phone: "081-999-0101", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING",
+    phone: "000-000-9065", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING",
   }), `สร้างลูกค้าเป้าหมาย ${company}`);
 }
 async function สร้างคำขอราคา(code: string, leadNum: number, no: string, status = "new"): Promise<number> {

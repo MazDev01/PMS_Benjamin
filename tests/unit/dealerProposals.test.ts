@@ -75,7 +75,7 @@ describe("สถานะใบ (ตรงกับตัวดักของ�
 });
 
 describe("พิมพ์ใบค่าแฟรนไชส์", () => {
-  const hq: HQCompany = { name: "บริษัท ทดสอบสำนักงานใหญ่ จำกัด", address: "กรุงเทพฯ", taxId: "", phone: "02-000-0000", email: "", website: "" };
+  const hq: HQCompany = { name: "บริษัท ทดสอบสำนักงานใหญ่ จำกัด", address: "กรุงเทพฯ", taxId: "", phone: "000-000-9086", email: "", website: "" };
 
   it("หัวกระดาษเป็นของสำนักงานใหญ่ · มีเลขที่ พื้นที่ มูลค่า · ไม่มีแพ็กเกจ", () => {
     const html = buildDealerProposalHTML(ใบ({ region: "ตะวันออก", province: "ชลบุรี", amount: 150000, status: "sent" }),
@@ -111,16 +111,16 @@ describe("พิมพ์ใบค่าแฟรนไชส์", () => {
   it("หัวกระดาษยึดข้อมูลบริษัททุกช่อง · ช่องที่ไม่กรอกไม่ขึ้น (บอสสั่ง 14 ก.ย. 69)", () => {
     const ครบ: HQCompany = {
       name: "เบญจมินทร์ ( BENJAMIN )", address: "91/9 ต.อ้อมเกร็ด อ.ปากเกร็ด จ.นนทบุรี 11120",
-      taxId: "0105500000000", phone: "080-495-2929", email: "info@example.com", website: "example.com",
+      taxId: "0105500000000", phone: "000-000-9087", email: "info@example.com", website: "example.com",
     };
     const html = buildDealerProposalHTML(ใบ({}), { name: "ก" }, ครบ);
-    for (const ค่า of [ครบ.name, ครบ.address, "โทร. 080-495-2929", "อีเมล info@example.com", "example.com", "เลขประจำตัวผู้เสียภาษี 0105500000000"]) {
+    for (const ค่า of [ครบ.name, ครบ.address, "โทร. 000-000-9087", "อีเมล info@example.com", "example.com", "เลขประจำตัวผู้เสียภาษี 0105500000000"]) {
       expect(html).toContain(ค่า);
     }
     const บางช่อง = buildDealerProposalHTML(ใบ({}), { name: "ก" }, { ...ครบ, taxId: "", email: "", website: "" });
     expect(บางช่อง).not.toContain("เลขประจำตัวผู้เสียภาษี");
     expect(บางช่อง).not.toContain("อีเมล ");
-    expect(บางช่อง).toContain("โทร. 080-495-2929");
+    expect(บางช่อง).toContain("โทร. 000-000-9087");
   });
 });
 

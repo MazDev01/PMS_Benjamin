@@ -44,9 +44,9 @@ begin
   -- ── ข้อมูลตั้งต้น (ตัวดักปิดไว้ชั่วคราว — สร้างสภาพที่ต้องการตรง ๆ) ──
   set local session_replication_role = replica;
   insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status)
-  values ('#L-' || n2, n2, 'CNX', 'ZZTEST-onepath-2', 'ZZTEST-onepath-2', 'ผู้ทดสอบ', '0890000002', 'เชียงใหม่', 'โกดัง', 'QUOTED'),
-         ('#L-' || n3, n3, 'CNX', 'ZZTEST-onepath-3', 'ZZTEST-onepath-3', 'ผู้ทดสอบ', '0890000003', 'เชียงใหม่', 'โกดัง', 'QUOTED'),
-         ('#L-' || n4, n4, 'CNX', 'ZZTEST-onepath-4', 'ZZTEST-onepath-4', 'ผู้ทดสอบ', '0890000004', 'เชียงใหม่', 'โกดัง', 'QUOTED');
+  values ('#L-' || n2, n2, 'CNX', 'ZZTEST-onepath-2', 'ZZTEST-onepath-2', 'ผู้ทดสอบ', '0000009041', 'เชียงใหม่', 'โกดัง', 'QUOTED'),
+         ('#L-' || n3, n3, 'CNX', 'ZZTEST-onepath-3', 'ZZTEST-onepath-3', 'ผู้ทดสอบ', '0000009042', 'เชียงใหม่', 'โกดัง', 'QUOTED'),
+         ('#L-' || n4, n4, 'CNX', 'ZZTEST-onepath-4', 'ZZTEST-onepath-4', 'ผู้ทดสอบ', '0000009043', 'เชียงใหม่', 'โกดัง', 'QUOTED');
   insert into quotations (dealer_code, id, customer, project, status, deal_id, total, total_value, date, customer_id)
   values ('CNX', 'ZZ-OP-2', 'ZZTEST-onepath-2', 'p', 'sent_to_client', n2, '฿1', 1, current_date, null),
          ('CNX', 'ZZ-OP-3', 'ZZTEST-onepath-3', 'p', 'won', n3, '฿1', 1, current_date,
@@ -56,10 +56,10 @@ begin
   -- ── ดีลเลอร์ ──
   perform onepath.as_dealer();
   perform onepath.must_fail(format($s$insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status)
-    values ('#L-%s', %s, 'CNX', 'ZZTEST-onepath-1', 'ZZTEST-onepath-1', 'ผู้ทดสอบ', '0890000001', 'เชียงใหม่', 'โกดัง', 'QUOTED')$s$, n1, n1),
+    values ('#L-%s', %s, 'CNX', 'ZZTEST-onepath-1', 'ZZTEST-onepath-1', 'ผู้ทดสอบ', '0000009044', 'เชียงใหม่', 'โกดัง', 'QUOTED')$s$, n1, n1),
     'lead_new_status_locked', 'ดีลเลอร์สร้างลีดใหม่ที่ขั้นเสนอราคา (ใบ 0256: ลีดใหม่ = ขั้นข้อมูลลูกค้าเสมอ)');
   insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status)
-  values ('#L-' || n1, n1, 'CNX', 'ZZTEST-onepath-1', 'ZZTEST-onepath-1', 'ผู้ทดสอบ', '0890000001', 'เชียงใหม่', 'โกดัง', 'WAITING');
+  values ('#L-' || n1, n1, 'CNX', 'ZZTEST-onepath-1', 'ZZTEST-onepath-1', 'ผู้ทดสอบ', '0000009044', 'เชียงใหม่', 'โกดัง', 'WAITING');
   perform onepath.ok(true, 'ดีลเลอร์สร้างลีดใหม่ที่ขั้นติดต่อแล้วได้');
 
   perform onepath.must_fail(format($s$select lead_apply('#L-%s', '{"stage":{"status":"BULLET"}}'::jsonb)$s$, n1), 'lead_status_one_path',

@@ -30,7 +30,7 @@ test("[D2] [func] กรอกที่อยู่ตอนเพิ่มล�
   const ฟอร์ม = page.getByRole("dialog").filter({ hasText: "เพิ่มลูกค้าเป้าหมาย" }).first();
   await ฟอร์ม.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await ฟอร์ม.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณสมชาย");
-  await ฟอร์ม.getByPlaceholder("0XX-XXX-XXXX").first().fill("081-234-5678");
+  await ฟอร์ม.getByPlaceholder("0XX-XXX-XXXX").first().fill("000-000-9001");
   await ฟอร์ม.getByLabel("จังหวัด").selectOption({ index: 1 });
   // ช่องที่อยู่ที่เพิ่งเพิ่มเข้ามา — เดิมไม่มีเลย
   await ฟอร์ม.getByPlaceholder(/เลขที่ ถนน ตำบล/).fill(ADDRESS);

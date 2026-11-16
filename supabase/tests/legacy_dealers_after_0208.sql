@@ -31,7 +31,7 @@ begin
     ('ZZLG1', 'ZZTEST ดีลเลอร์เดิม 1', 'ตราด', 'ตะวันออก', 1000000, 'active'),
     ('ZZLG2', 'ZZTEST ดีลเลอร์เดิม 2', 'ตราด', 'ตะวันออก', 1000000, 'active');
   insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status)
-  values ('#L-ZZLG-1', 1, 'ZZLG1', 'ZZTEST ลูกค้าของดีลเลอร์เดิม', 'ZZTEST ลูกค้าของดีลเลอร์เดิม', 'ผู้ทดสอบ', '0891112233', 'ตราด', 'โกดังสำเร็จรูป', 'BULLET');
+  values ('#L-ZZLG-1', 1, 'ZZLG1', 'ZZTEST ลูกค้าของดีลเลอร์เดิม', 'ZZTEST ลูกค้าของดีลเลอร์เดิม', 'ผู้ทดสอบ', '0000009006', 'ตราด', 'โกดังสำเร็จรูป', 'BULLET');
 
   -- ── HQ แก้ตรงที่ตาราง: ชื่อ · เป้า · ปิดใช้งาน ──
   perform flowtest.as_hq(hq);

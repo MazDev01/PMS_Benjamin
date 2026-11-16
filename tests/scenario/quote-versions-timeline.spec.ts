@@ -24,7 +24,7 @@ async function seedLead() {
   const { data: journey } = await sb.from("hq_sales_journey").select("tasks").eq("id", 1).maybeSingle();
   const tpl = (journey?.tasks as { key: string; label: string }[] | null) ?? [];
   const ถึงออกใบ = tpl.findIndex(t => t.key === "makeQuote");
-  await sb.from("leads").insert({ phone: "081-999-0101",
+  await sb.from("leads").insert({ phone: "000-000-9065",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: COMPANY, name: COMPANY,
     contact: "ผู้ทดสอบ", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",
     value: "800000", area: "200", assigned: "ผู้ทดสอบ",

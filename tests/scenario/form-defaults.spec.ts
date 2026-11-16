@@ -17,7 +17,7 @@ test("[ui·dealer] ลงนัด: ปฏิทินไม่มีปุ่�
   const ชื่อ = `ZZTEST-ฟอร์มนัด-${Date.now() % 100000}`;
   const เลข = 979_500_000 + (Date.now() % 90_000);
   const ins = await sb.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ชื่อ, name: ชื่อ,
-    phone: "0810000999", province: "ระยอง", status: "WAITING" });
+    phone: "0000009068", province: "ระยอง", status: "WAITING" });
   expect(ins.error).toBeNull();
   try {
     await openAs(page, RYG, "dealer", "/calendar");

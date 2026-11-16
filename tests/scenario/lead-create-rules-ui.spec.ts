@@ -13,7 +13,7 @@ test.describe.configure({ mode: "serial" });
 
 const admin = adminClient();
 const COMPANY = `ZZTEST-กฎสร้างลูกค้าเป้าหมาย-${Date.now() % 100000}`;
-const PHONE = "081-555-0199";
+const PHONE = "000-000-9066";
 const ล้าง = async () => { await admin.from("leads").delete().eq("dealer_code", "RYG").like("company", "ZZTEST-กฎสร้างลูกค้าเป้าหมาย%"); };
 test.beforeAll(async () => {
   await ล้าง();
@@ -41,7 +41,7 @@ async function เพิ่มลูกค้าเป้าหมาย(page: P
 const จำนวนในฐาน = async (company: string) => (await admin.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", "RYG").eq("company", company)).count ?? -1;
 
 test("[flow·dealer] ขั้น 2: ชื่อ + เบอร์ซ้ำกับงานที่เปิดอยู่ → หน้าจอบอกว่าซ้ำ และไม่มีแถวใหม่ในฐาน", async ({ page }) => {
-  await เพิ่มลูกค้าเป้าหมาย(page, COMPANY, "0815550199", "ระยอง");
+  await เพิ่มลูกค้าเป้าหมาย(page, COMPANY, "0000009066", "ระยอง");
   await expect(page.getByText(/มีลูกค้าเป้าหมายชื่อและเบอร์โทรนี้เปิดอยู่แล้ว/).first(), "ต้องบอกผู้ใช้ว่าซ้ำ").toBeVisible({ timeout: 20_000 });
   await expect.poll(() => จำนวนในฐาน(COMPANY), { timeout: 10_000 }).toBe(1);
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -51,7 +51,7 @@ test("[flow·dealer] ขั้น 2: ชื่อ + เบอร์ซ้ำก�
 
 test("[flow·dealer] ขั้น 2: หน้างานอยู่ในพื้นที่ของดีลเลอร์อื่น → หน้าจอบอกเหตุผล และไม่มีแถวในฐาน", async ({ page }) => {
   const อื่น = `${COMPANY}-นอกพื้นที่`;
-  await เพิ่มลูกค้าเป้าหมาย(page, อื่น, "081-555-0198", "ชลบุรี");
+  await เพิ่มลูกค้าเป้าหมาย(page, อื่น, "000-000-9078", "ชลบุรี");
   // ข้อความใหม่ (ใบ 0225): ไม่อ้างกฎหนึ่งจังหวัดหนึ่งดีลเลอร์ที่ยกเลิกแล้ว · บอกทางไปต่อ
   await expect(page.getByText(/พื้นที่ของดีลเลอร์อื่น/).first(), "ต้องบอกว่าเป็นพื้นที่ของดีลเลอร์อื่น").toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/ติดต่อสำนักงานใหญ่ถ้าต้องการเพิ่มจังหวัด/).first(), "บอกทางไปต่อ").toBeVisible();

@@ -97,7 +97,7 @@ test("กดบันทึกรัวในแท็บเดียว ต้�
   await companyInput.fill(company);
   await contactInput.fill("คุณทดสอบ");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69)
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   // ยืนยันว่าค่าติดอยู่ในฟอร์มจริงก่อนกด — ช่องเป็น controlled input ตอนรันขนานหนัก ๆ React อาจยัง
   // ไม่ทัน commit ค่า แล้วกดบันทึกจะติด validation "ต้องระบุชื่อบริษัท" แทนที่จะบันทึก (ไม่มีแถวลง DB เลย)
@@ -126,7 +126,7 @@ test("กรอกบริษัทที่มีลูกค้าเป้�
   // มีลูกค้าเป้าหมายของบริษัทนี้อยู่แล้วในสาขา (เหมือนเพิ่งกดบันทึกไปในอีกแท็บ)
   const { data: seq } = await sb.from("leads").select("num_id").order("num_id", { ascending: false }).limit(1);
   const nextId = Number(seq?.[0]?.num_id ?? 0) + 9001;
-  const { error } = await sb.from("leads").insert({ phone: "081-999-0101",
+  const { error } = await sb.from("leads").insert({ phone: "000-000-9065",
     id: nextId, num_id: nextId, dealer_code: "RYG", company, contact: "คุณทดสอบ",
     status: "WAITING", province: "ระยอง",
   });

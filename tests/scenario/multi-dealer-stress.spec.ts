@@ -118,10 +118,10 @@ async function runDealerFlow(page: Page, sb: SupabaseClient, code: string, willW
   await expect(phoneInput).toBeVisible({ timeout: 30_000 });
   // ⚠️ ช่องเบอร์โทรใส่ขีดให้อัตโนมัติตั้งแต่ตอนพิมพ์ (บอสสั่ง 21 ส.ค. 69) — พิมพ์เลขล้วน
   //    แต่ค่าที่บันทึกจริงคือรูปแบบมีขีด เทสต์จึงต้องคาดหวังรูปแบบที่ผู้ใช้เห็นจริง
-  await phoneInput.fill("0899999999");
+  await phoneInput.fill("0000009027");
   await page.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
   await expect.poll(async () => (await sb.from("customers").select("phone").eq("company", COMPANY)).data?.[0]?.phone,
-    { timeout: 45_000, message: `${code}: เบอร์โทรต้องอัปเดต` }).toBe("089-999-9999");
+    { timeout: 45_000, message: `${code}: เบอร์โทรต้องอัปเดต` }).toBe("000-000-9027");
   mark("customer_edited");
 
   // 4) สร้างดีลใหม่ (เพิ่มงานขายใหม่ → เพิ่มงานขาย) — เปิด redirect ไปหน้าลูกค้าเป้าหมายพร้อม detail

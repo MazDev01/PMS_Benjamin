@@ -87,18 +87,18 @@ begin
 
   -- ══ ง. ลูกค้าเป้าหมายใหม่: หน้างานต้องอยู่ในพื้นที่ตัวเอง ══
   perform flowtest.as_dealer('RYG', c.ryg_uid);
-  perform flowtest.new_lead('RYG', '#TT-1', 'บจ. ทดสอบพื้นที่ระยอง', '081-100-0001', 'ระยอง');
+  perform flowtest.new_lead('RYG', '#TT-1', 'บจ. ทดสอบพื้นที่ระยอง', '000-000-9051', 'ระยอง');
   perform flowtest.ok(true, 'หน้างานอยู่ในพื้นที่ตัวเอง → สร้างได้');
-  perform flowtest.must_fail('select flowtest.new_lead(''RYG'', ''#TT-2'', ''บจ. ทดสอบนอกพื้นที่'', ''081-100-0002'', ''ชลบุรี'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''RYG'', ''#TT-2'', ''บจ. ทดสอบนอกพื้นที่'', ''000-000-9052'', ''ชลบุรี'')',
     'lead_outside_territory', 'หน้างานอยู่ในพื้นที่ของดีลเลอร์อื่น (ชลบุรี = CBI) → สร้างไม่ได้');
 
   -- ══ จ. จังหวัดว่าง: ใครยื่นก่อนได้งาน ══
-  perform flowtest.new_lead('RYG', '#TT-3', 'บจ. โกดังบึงกาฬ', '081-100-0003', 'บึงกาฬ');
+  perform flowtest.new_lead('RYG', '#TT-3', 'บจ. โกดังบึงกาฬ', '000-000-9053', 'บึงกาฬ');
   perform flowtest.ok(true, 'จังหวัดว่าง → ดีลเลอร์ใดก็ยื่นได้');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
-  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-4'', ''  บจ.  โกดังบึงกาฬ '', ''0811000003'', ''บึงกาฬ'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-4'', ''  บจ.  โกดังบึงกาฬ '', ''0000009053'', ''บึงกาฬ'')',
     'lead_taken', 'จังหวัดว่าง งานเดียวกัน (ชื่อ+เบอร์เดียวกันหลังปรับรูปแบบ) ดีลเลอร์อื่นยื่นไว้ก่อน → ยื่นซ้ำไม่ได้');
-  perform flowtest.new_lead('CNX', '#TT-5', 'บจ. งานอื่นที่บึงกาฬ', '081-100-0005', 'บึงกาฬ');
+  perform flowtest.new_lead('CNX', '#TT-5', 'บจ. งานอื่นที่บึงกาฬ', '000-000-9054', 'บึงกาฬ');
   perform flowtest.ok(true, 'จังหวัดว่าง งานคนละงาน → ยื่นได้');
 
   -- ══ ฉ. จังหวัดที่ดูแลร่วมกัน: ดีลเลอร์ทุกรายที่ดูแลสร้างลีดได้ · รายที่ไม่ได้ดูแลสร้างไม่ได้ ══
@@ -106,12 +106,12 @@ begin
   --   ใบ 0259: ลำพูนดูแลร่วม = สาขาทดสอบ 2 สาขาจังหวัดเดียวกัน (สิทธิ์เขียนอ่านจากรหัสสาขาในบัตรผ่าน)
   insert into dealers (code, name, province, region, status) values ('ZZTLA', 'ZZTEST ลำพูน A', 'ลำพูน', 'เหนือ', 'active'), ('ZZTLB', 'ZZTEST ลำพูน B', 'ลำพูน', 'เหนือ', 'active');
   perform flowtest.as_dealer('ZZTLA', c.ryg_uid);
-  perform flowtest.new_lead('ZZTLA', '#TT-6', 'บจ. ลำพูนหนึ่ง', '081-100-0006', 'ลำพูน');
+  perform flowtest.new_lead('ZZTLA', '#TT-6', 'บจ. ลำพูนหนึ่ง', '000-000-9055', 'ลำพูน');
   perform flowtest.as_dealer('ZZTLB', c.cnx_uid);
-  perform flowtest.new_lead('ZZTLB', '#TT-7', 'บจ. ลำพูนสอง', '081-100-0007', 'ลำพูน');
+  perform flowtest.new_lead('ZZTLB', '#TT-7', 'บจ. ลำพูนสอง', '000-000-9056', 'ลำพูน');
   perform flowtest.ok(true, 'จังหวัดที่ดูแลร่วมกัน → ดีลเลอร์ทั้งสองรายสร้างลูกค้าเป้าหมายได้');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
-  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-8'', ''บจ. ลำพูนสาม'', ''081-100-0008'', ''ลำพูน'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#TT-8'', ''บจ. ลำพูนสาม'', ''000-000-9057'', ''ลำพูน'')',
     'lead_outside_territory', 'ดีลเลอร์ที่ไม่ได้ดูแลจังหวัด สร้างลูกค้าเป้าหมายในจังหวัดนั้นไม่ได้');
 
   -- ══ ซ. ลูกค้าเป้าหมายเดิมไม่ถูกบล็อกจนกว่าจะแก้จังหวัด ══
@@ -132,7 +132,7 @@ begin
   get diagnostics n = row_count;
   perform flowtest.ok(n = 0, 'ดีลเลอร์แก้พื้นที่เองไม่ได้');
   -- ══ ญ. จังหวัดของลูกค้าเป้าหมายต้องอยู่ในรายชื่อมาตรฐาน (กันเลี่ยงกฎพื้นที่ด้วยชื่อย่อ/สะกดผิด) ══
-  perform flowtest.must_fail('select flowtest.new_lead(''RYG'', ''#TT-10'', ''บจ. ชื่อย่อจังหวัด'', ''081-100-0010'', ''กรุงเทพฯ'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''RYG'', ''#TT-10'', ''บจ. ชื่อย่อจังหวัด'', ''000-000-9058'', ''กรุงเทพฯ'')',
     'lead_province_invalid', 'สร้างลูกค้าเป้าหมายจังหวัด "กรุงเทพฯ" (ไม่ตรงรายชื่อมาตรฐาน) → ถูกปฏิเสธ');
   perform flowtest.must_fail('update leads set province = ''ระยองง'' where dealer_code = ''RYG'' and id = ''#TT-9''',
     'lead_province_invalid', 'แก้จังหวัดเป็นชื่อที่สะกดผิด → ถูกปฏิเสธ');
@@ -148,7 +148,7 @@ begin
   -- ข้อมูลเดิมที่จังหวัดไม่ตรงรายชื่อ (มีอยู่ก่อนกฎ) แก้ช่องอื่นได้ตามปกติ — ไม่บล็อกจนกว่าจะแก้จังหวัด
   alter table leads disable trigger user;
   insert into leads (id, dealer_code, num_id, name, company, phone, province, status)
-  values ('#TT-12', 'RYG', 980999997, 'เดิม', 'บจ. รายเดิมจังหวัดชื่อย่อ', '081-100-0012', 'กรุงเทพฯ', 'WAITING');
+  values ('#TT-12', 'RYG', 980999997, 'เดิม', 'บจ. รายเดิมจังหวัดชื่อย่อ', '000-000-9059', 'กรุงเทพฯ', 'WAITING');
   alter table leads enable trigger user;
   perform flowtest.as_dealer('RYG', c.ryg_uid);
   update leads set note = 'แก้โน้ตรายเดิม' where dealer_code = 'RYG' and id = '#TT-12';

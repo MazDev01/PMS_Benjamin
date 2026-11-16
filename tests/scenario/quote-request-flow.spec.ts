@@ -48,7 +48,7 @@ test.beforeAll(async () => {
   leadNum = 978_000_000 + (Date.now() % 99_999);
   const r = await (await db(RYG)).from("leads").insert({
     id: `#L-${leadNum}`, num_id: leadNum, dealer_code: "RYG", company: COMPANY, name: COMPANY, contact: "ผู้ทดสอบ",
-    phone: "081-777-0001", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท",
+    phone: "000-000-9081", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท",
   });
   if (r.error) throw new Error(r.error.message);
 });

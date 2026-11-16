@@ -89,7 +89,7 @@ test("[2] ดีลเลอร์สร้างลูกค้าเป้า�
   expect(Number(numId), "เลขลูกค้าเป้าหมายต้องมาจากตัวนับของฐานข้อมูล").toBeGreaterThan(0);
   const r = await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id: `#L-${numId}`, dealerCode: "RYG", numId, name: บริษัท("ดีลหลัก"), company: บริษัท("ดีลหลัก"),
-    contact: "คุณทดสอบ", phone: "081-000-0001", province: "ระยอง", product: "โรงงาน",
+    contact: "คุณทดสอบ", phone: "000-000-9024", province: "ระยอง", product: "โรงงาน",
     status: "WAITING", value: String(ยอดดีล), area: "300", assigned: "ทดสอบระบบ", source: "โทรเข้า", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก",
   } });
   expect(r.status(), "สร้างลูกค้าเป้าหมายต้องผ่าน").toBe(200);
@@ -145,7 +145,7 @@ test("[5-6] ปิดการขายสำเร็จ → ลูกค้า
 
   const r = await request.post(`${DEALER_ORIGIN}/api/v1/customers?op=close-won`, { data: {
     dealer: "RYG", knownCustomerId: null, leadCompany: บริษัท("ดีลหลัก"), targetQuoteId: q!.id, cascadeWon: true,
-    payload: { name: บริษัท("ดีลหลัก"), company: บริษัท("ดีลหลัก"), province: "ระยอง", phone: "081-000-0001",
+    payload: { name: บริษัท("ดีลหลัก"), company: บริษัท("ดีลหลัก"), province: "ระยอง", phone: "000-000-9024",
       joinDate: "2026-08-27", status: "active", totalValue: 0 },
   } });
   expect(r.status(), "ปิดการขายต้องผ่าน").toBe(200);
@@ -218,7 +218,7 @@ test("[11] ปิดการขายไม่สำเร็จ: ไม่ใ�
   //   กฎที่ข้อนี้วัด (ปิดไม่สำเร็จต้องมีเหตุผล) ใช้ได้กับลีดทุกขั้นที่ยังเปิดอยู่
   const สร้าง = await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id, dealerCode: "RYG", numId, name: บริษัท("ดีลแพ้"), company: บริษัท("ดีลแพ้"), contact: "x",
-    phone: "081-000-0002", province: "ระยอง", status: "WAITING", value: "500000", area: "100", assigned: "ทดสอบระบบ", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก" } });
+    phone: "000-000-9025", province: "ระยอง", status: "WAITING", value: "500000", area: "100", assigned: "ทดสอบระบบ", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก" } });
   expect(สร้าง.ok(), `สร้างลีดตั้งต้นต้องสำเร็จ: ${await สร้าง.text()}`).toBe(true);
 
   // ทางแก้ลูกค้าเป้าหมายทางเดียว: op=apply (ส่วนต่าง · ใบ 0211) — กฎปิดการขายบังคับในฐาน (เดิมตรวจที่เซิร์ฟเวอร์แอป ตอบ 422)
@@ -322,7 +322,7 @@ test("[16-17] ปิดการขายใบเดียวกันพร้
   const numId = await (await request.post(`${DEALER_ORIGIN}/api/v1/leads?op=next`, { data: { dealerCode: "RYG" } })).json();
   await request.post(`${DEALER_ORIGIN}/api/v1/leads`, { data: {
     id: `#L-${numId}`, dealerCode: "RYG", numId, name: COMPANY, company: COMPANY, contact: "x",
-    phone: "081-000-0003", province: "ระยอง", status: "BULLET", value: "800000", area: "200", assigned: "ทดสอบระบบ", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก" } });
+    phone: "000-000-9026", province: "ระยอง", status: "BULLET", value: "800000", area: "200", assigned: "ทดสอบระบบ", project: "ZZTEST โรงงาน", note: "ZZTEST สเปก" } });
   // ด่าน 3: ใบทำจากใบ HQ (ต้นทุน 800,000 บวก 0%)
   const ใบHQid = await ใบHQผ่านAPI(request, playwright, Number(numId), 800_000);
   const ใบ = await (await request.post(`${DEALER_ORIGIN}/api/v1/quotations?op=numbered`, { data: {
@@ -333,7 +333,7 @@ test("[16-17] ปิดการขายใบเดียวกันพร้
   await db.from("quotations").update({ status: "sent_to_client" }).eq("id", ใบ.id);
 
   const payload = { dealer: "RYG", knownCustomerId: null, leadCompany: COMPANY, targetQuoteId: ใบ.id, cascadeWon: true,
-    payload: { name: COMPANY, company: COMPANY, province: "ระยอง", phone: "081-000-0003",
+    payload: { name: COMPANY, company: COMPANY, province: "ระยอง", phone: "000-000-9026",
       joinDate: "2026-08-27", status: "active", totalValue: 0 } };
   const ผล = await Promise.all(Array.from({ length: 10 }, () =>
     request.post(`${DEALER_ORIGIN}/api/v1/customers?op=close-won`, { data: payload }).then(r => r.status())));

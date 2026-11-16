@@ -191,7 +191,7 @@ async function สร้างลูกค้าเป้าหมายว่�
   const ชื่อ = `${ชื่อลูกค้าเป้าหมายว่าง}-${numId}`;
   const { error } = await sb.from("leads").insert({
     id: `#L-${numId}`, dealer_code: "RYG", num_id: numId, name: ชื่อ, company: ชื่อ,
-    contact: "คุณทดสอบออกใบ", phone: "081-000-0007", province: "ระยอง", product: "โรงงาน",
+    contact: "คุณทดสอบออกใบ", phone: "000-000-9072", province: "ระยอง", product: "โรงงาน",
     status: "QUOTED", value: "500000", area: "100", assigned: "ทดสอบระบบ",
   });
   if (error) throw new Error(`[helpers] สร้างลูกค้าเป้าหมายสำหรับออกใบใหม่ไม่ได้: ${error.message}`);

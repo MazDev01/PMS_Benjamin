@@ -41,7 +41,7 @@ test("[func] สร้างลูกค้าเป้าหมายผ่า�
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณทดสอบ");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
@@ -57,7 +57,7 @@ test("[func] สร้างลูกค้าเป้าหมายผ่า�
 test("[func] แก้ลูกค้าเป้าหมายผ่านหน้าจอ → ค่าใหม่ลงฐานข้อมูล", async ({ page }) => {
   const errs = watchErrors(page);
   const sb = await db(RYG);
-  const PHONE = "081-999-0001";
+  const PHONE = "000-000-9070";
 
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
@@ -108,7 +108,7 @@ test("[func] เลื่อนสถานะลูกค้าเป้าห�
 
   // เลื่อนตามงานจริง: ขอราคาจาก HQ ที่กล่องขั้นต่อไป → รอราคา HQ ลงฐาน
   const เลข = 940000 + (Date.now() % 9000);
-  const ins = await sb.from("leads").insert({ phone: "081-999-0102", id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG",
+  const ins = await sb.from("leads").insert({ phone: "000-000-9071", id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG",
     company: ADV_COMPANY, name: ADV_COMPANY, province: "ระยอง", status: "WAITING", contact: "ผู้ทดสอบ", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(ins.error).toBeNull();
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ADV_COMPANY);
@@ -155,7 +155,7 @@ test("[func] ปิดการขายไม่สำเร็จ: เลื�
   const sb = await db(RYG);
   await cleanup(sb, "RYG", NS);
   const numId = 940000 + (Date.now() % 9000);
-  await sb.from("leads").insert({ phone: "081-999-0101",
+  await sb.from("leads").insert({ phone: "000-000-9065",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: LOST_COMPANY, name: LOST_COMPANY,
     contact: "t", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET", value: "฿600,000", assigned: "t", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท",
   });

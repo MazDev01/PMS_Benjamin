@@ -37,7 +37,7 @@ console.log("เตรียมดีลแล้ว: ใบ " + qid);
 console.log("");
 console.log("=== 1) ปิดการขายพร้อมกัน 10 สาย บนดีลเดียวกัน ===");
 const payload = { dealer: "RYG", knownCustomerId: null, leadCompany: COMPANY, targetQuoteId: qid, cascadeWon: true,
-  payload: { name: COMPANY, company: COMPANY, province: "ระยอง", phone: "0800000000", joinDate: "2026-08-27", status: "active", totalValue: 0 } };
+  payload: { name: COMPANY, company: COMPANY, province: "ระยอง", phone: "0000009022", joinDate: "2026-08-27", status: "active", totalValue: 0 } };
 const t0 = Date.now();
 const res = await Promise.all(Array.from({ length: 10 }, () => api("POST", "/api/v1/customers?op=close-won", payload)));
 console.log("  ใช้เวลา " + (Date.now() - t0) + "ms · สถานะที่ได้: " + JSON.stringify(res.reduce((a, x) => (a[x.s] = (a[x.s] ?? 0) + 1, a), {})));

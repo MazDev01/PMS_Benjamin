@@ -89,7 +89,7 @@ test.afterAll(async () => {
 
 test("[security] ดีลเลอร์มองไม่เห็น และเขียนลูกค้าเป้าหมายของสำนักงานใหญ่ไม่ได้", async () => {
   const hq = await db(ADMIN);
-  const { error: hqErr } = await hq.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ลับ`, phone: "0800000000" });
+  const { error: hqErr } = await hq.from("dealer_prospects").insert({ ...ช่องผู้สนใจครบ(), name: `${NS}-ลับ`, phone: "0000009022" });
   expect(hqErr, "ผู้ดูแลสำนักงานใหญ่ต้องเพิ่มได้").toBeNull();
 
   const dealer = await db(RYG);
@@ -121,7 +121,7 @@ test("[H2] [func·hq] เพิ่มลูกค้าเป้าหมาย 
   await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click();
   const แก้ไข = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await แก้ไข.locator("#pr-name").fill(name);
-  await แก้ไข.locator("#pr-phone").fill("089 980 4558");
+  await แก้ไข.locator("#pr-phone").fill("000 000 9073");
   await แก้ไข.getByRole("button", { name: "เพิ่มผู้สนใจ" }).click();
   const row = await waitRow<{ status: string }>(sb, "dealer_prospects", { name });
   expect(row.status).toBe("new");

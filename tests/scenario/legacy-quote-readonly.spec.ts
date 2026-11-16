@@ -20,7 +20,7 @@ test("[func·dealer] ใบเดิมที่ไม่มีใบ HQ: ไม
   const เลข = 979_700_000 + (Date.now() % 90_000);
   const ใบ = `ZZTEST-LEGACY-${แท็ก}`;
   const ลีด = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: บริษัท, name: บริษัท,
-    phone: "0810000997", province: "ระยอง", status: "QUOTED" });
+    phone: "0000009080", province: "ระยอง", status: "QUOTED" });
   expect(ลีด.error, `วางลีดไม่สำเร็จ: ${ลีด.error?.message}`).toBeNull();
   วางใบเดิมที่ฐาน([{ id: ใบ, dealer_code: "RYG", customer: บริษัท, deal_id: เลข, status: "draft", total_value: 1000,
     line_items: [{ name: "งานเดิม", qty: 1, unit: "งาน", unitPrice: 1000 }], date: new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10) }]);

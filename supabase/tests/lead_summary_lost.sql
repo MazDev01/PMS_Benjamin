@@ -13,7 +13,7 @@ begin
   -- เพิ่มลีดปิดไม่สำเร็จ 1 ราย (ข้อมูลทดสอบ · ปิดตัวดักชั่วคราว) แล้วดูว่าสรุปนับเพิ่มตาม
   set local session_replication_role = replica;
   insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status, created_date)
-  values ('#L-989100001', 989100001, 'CNX', 'ZZTEST-sumlost', 'ZZTEST-sumlost', 'ผู้ทดสอบ', '0891000001', 'เชียงใหม่', 'โกดัง', 'CANCELLED', current_date);
+  values ('#L-989100001', 989100001, 'CNX', 'ZZTEST-sumlost', 'ZZTEST-sumlost', 'ผู้ทดสอบ', '0000009045', 'เชียงใหม่', 'โกดัง', 'CANCELLED', current_date);
   set local session_replication_role = origin;
 
   select count(*) filter (where status = 'PAID'), count(*) filter (where status = 'CANCELLED') into v_won, v_lost

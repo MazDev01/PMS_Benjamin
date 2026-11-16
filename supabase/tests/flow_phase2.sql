@@ -145,12 +145,12 @@ begin
   -- ══ จ. ลูกค้าเป้าหมาย: เบอร์/จังหวัดบังคับ · กันซ้ำในดีลเลอร์เดียวกัน ══
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.must_fail('insert into leads (id, dealer_code, num_id, name, company, phone, province) values (''#T2-1'', ''CNX'', 880000001, ''ก'', ''บจ. ทดสอบซ้ำ'', '''', ''เชียงใหม่'')', 'lead_phone_required', 'ลูกค้าเป้าหมายใหม่ไม่มีเบอร์โทร สร้างไม่ได้');
-  perform flowtest.must_fail('insert into leads (id, dealer_code, num_id, name, company, phone, province) values (''#T2-1'', ''CNX'', 880000001, ''ก'', ''บจ. ทดสอบซ้ำ'', ''081-234-5678'', '' '')', 'lead_province_required', 'ลูกค้าเป้าหมายใหม่ไม่มีจังหวัด สร้างไม่ได้');
-  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-1', 'CNX', 880000001, 'ก', 'บจ. ทดสอบซ้ำ', '081-234-5678', 'เชียงใหม่', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
-  perform flowtest.must_fail('insert into leads (id, dealer_code, num_id, name, company, phone, province) values (''#T2-2'', ''CNX'', 880000002, ''ก'', ''  บจ.  ทดสอบซ้ำ '', ''0812345678'', ''เชียงใหม่'')', 'lead_duplicate', 'ชื่อ + เบอร์ซ้ำ (ต่างแค่ช่องว่าง/ขีด) กับรายที่เปิดอยู่ สร้างไม่ได้');
-  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-3', 'CNX', 880000003, 'ก', 'บจ. ทดสอบซ้ำ', '089-999-9999', 'เชียงใหม่', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
+  perform flowtest.must_fail('insert into leads (id, dealer_code, num_id, name, company, phone, province) values (''#T2-1'', ''CNX'', 880000001, ''ก'', ''บจ. ทดสอบซ้ำ'', ''000-000-9001'', '' '')', 'lead_province_required', 'ลูกค้าเป้าหมายใหม่ไม่มีจังหวัด สร้างไม่ได้');
+  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-1', 'CNX', 880000001, 'ก', 'บจ. ทดสอบซ้ำ', '000-000-9001', 'เชียงใหม่', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
+  perform flowtest.must_fail('insert into leads (id, dealer_code, num_id, name, company, phone, province) values (''#T2-2'', ''CNX'', 880000002, ''ก'', ''  บจ.  ทดสอบซ้ำ '', ''0000009001'', ''เชียงใหม่'')', 'lead_duplicate', 'ชื่อ + เบอร์ซ้ำ (ต่างแค่ช่องว่าง/ขีด) กับรายที่เปิดอยู่ สร้างไม่ได้');
+  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-3', 'CNX', 880000003, 'ก', 'บจ. ทดสอบซ้ำ', '000-000-9027', 'เชียงใหม่', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.ok(true, 'ชื่อเดียวกันแต่เบอร์ต่าง สร้างได้');
-  insert into leads (id, dealer_code, num_id, name, company, phone, province, customer_id, contact, project, area, note) values ('#T2-4', 'CNX', 880000004, 'ก', 'บจ. ทดสอบซ้ำ', '081-234-5678', 'เชียงใหม่', c.cust_id, 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
+  insert into leads (id, dealer_code, num_id, name, company, phone, province, customer_id, contact, project, area, note) values ('#T2-4', 'CNX', 880000004, 'ก', 'บจ. ทดสอบซ้ำ', '000-000-9001', 'เชียงใหม่', c.cust_id, 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.ok(true, 'ลูกค้าเดิม (เพิ่มงานขายใหม่จากหน้าลูกค้า) ไม่นับว่าซ้ำ');
   insert into leads (id, dealer_code, num_id, name, company, phone, province, customer_id, contact, project, area, note) values ('#T2-4B', 'CNX', 880000014, 'ก', 'บจ. ลูกค้าเก่าไม่มีเบอร์', '', '', c.cust_id, 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.ok(true, 'งานขายใหม่ของลูกค้าเดิมที่ไม่มีเบอร์/จังหวัดในระบบ ยังเพิ่มได้');
@@ -161,13 +161,13 @@ begin
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   perform flowtest.ok(n is not null, 'มีลูกค้าของ RYG ที่เลขไม่ชนกับ CNX ให้ใช้ทดสอบ');
   perform flowtest.must_fail(format('insert into leads (id, dealer_code, num_id, name, company, phone, province, customer_id) values (''#T2-X2'', ''CNX'', 880000022, ''ก'', ''บจ. อ้างลูกค้าสาขาอื่น'', '''', '''', %s)', n), 'leads_customer_fk', 'อ้าง customer_id ของดีลเลอร์อื่น + ไม่มีเบอร์ → ถูกปฏิเสธ');
-  perform flowtest.must_fail('update leads set phone = ''081 234 5678'' where dealer_code = ''CNX'' and id = ''#T2-3''', 'lead_duplicate', 'แก้เบอร์ให้ไปชนกับรายที่เปิดอยู่ไม่ได้');
+  perform flowtest.must_fail('update leads set phone = ''000 000 9001'' where dealer_code = ''CNX'' and id = ''#T2-3''', 'lead_duplicate', 'แก้เบอร์ให้ไปชนกับรายที่เปิดอยู่ไม่ได้');
   perform flowtest.as_dealer('RYG', c.ryg_uid);
-  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-R', 'RYG', 880000009, 'ก', 'บจ. ทดสอบซ้ำ', '081-234-5678', 'ระยอง', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
+  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-R', 'RYG', 880000009, 'ก', 'บจ. ทดสอบซ้ำ', '000-000-9001', 'ระยอง', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.ok(true, 'ดีลเลอร์คนละรายมีงานชื่อ + เบอร์เดียวกันได้ (พื้นที่ทับกันได้)');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   update leads set status = 'CANCELLED' where dealer_code = 'CNX' and id = '#T2-1';
-  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-5', 'CNX', 880000005, 'ก', 'บจ. ทดสอบซ้ำ', '081-234-5678', 'เชียงใหม่', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
+  insert into leads (id, dealer_code, num_id, name, company, phone, province, contact, project, area, note) values ('#T2-5', 'CNX', 880000005, 'ก', 'บจ. ทดสอบซ้ำ', '000-000-9001', 'เชียงใหม่', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.ok(true, 'รายเดิมปิดไปแล้ว สร้างรายใหม่ชื่อ + เบอร์เดิมได้');
   perform flowtest.must_fail('update leads set status = ''WAITING'' where dealer_code = ''CNX'' and id = ''#T2-1''', 'lead_duplicate', 'เปิดรายที่ปิดแล้วกลับมาชนกับรายที่เปิดอยู่ไม่ได้');
   -- รอบ 4 (ใบ 0232): ไม่ชนรายอื่นก็เปิดกลับไม่ได้ — ดีลเลอร์ไม่มี "เปิดใหม่" แล้ว (ทดสอบใน lead_one_path.sql)

@@ -63,7 +63,7 @@ type LeadSeed = {
 
 // ── ข้อมูลชุดตั้งต้น "กรอกครบทุกช่อง" (บอสสั่ง 20 ส.ค. 69) ──────────────────────
 //
-// เดิมทุกแถวใช้ค่าเดียวกันหมด (คุณทดสอบ / 0800000000 / test@example.com / มูลค่า "0")
+// เดิมทุกแถวใช้ค่าเดียวกันหมด (คุณทดสอบ / 0000009022 / test@example.com / มูลค่า "0")
 //   หน้าจอที่เปิดดูจึงเป็น "—" กับ 0 เต็มไปหมด ดูไม่ออกว่าของจริงจะหน้าตายังไง
 //   และบั๊กที่โผล่เฉพาะตอนมีข้อมูล (เช่นคอลัมน์ล้น/ตัวเลขไม่จัดหลัก) ก็ไม่มีทางเจอ
 // ตอนนี้แต่ละแถวมีค่าของตัวเองครบทุกช่อง — ยังเป็นข้อมูลทดสอบที่ติดป้าย ZZTEST เหมือนเดิม
@@ -195,7 +195,7 @@ export default async function globalSetup() {
   }));
   custRows.push({
     id: EXISTING_CUSTOMER_ID, dealer_code: "RYG", name: EXISTING_CUSTOMER_NAME, company: EXISTING_CUSTOMER_NAME,
-    email: "test@example.com", phone: "0800000000", province: "ระยอง", category: "โรงงาน", status: "active",
+    email: "test@example.com", phone: "0000009022", province: "ระยอง", category: "โรงงาน", status: "active",
     join_date: isoDate(200), owner: "ทดสอบระบบ", initials: "ทส", color: "#003366", total_value: 2_500_000,
   });
   const { error: custErr } = await admin.from("customers").insert(custRows);

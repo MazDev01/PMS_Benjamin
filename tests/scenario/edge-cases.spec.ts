@@ -63,7 +63,7 @@ test("[edge] ชื่อบริษัทยาวผิดปกติ (2000 
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(LONG);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณยาว");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
@@ -93,7 +93,7 @@ test("[edge] อักขระพิเศษ/emoji/แท็ก HTML ในช
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(WEIRD);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณแปลก");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
 
@@ -124,7 +124,7 @@ test("[edge] กดปุ่มบันทึกซ้ำเร็ว ๆ (doub
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณกดซ้ำ");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
 
   const saveBtn = page.getByRole("button", { name: "บันทึก", exact: true });
@@ -156,7 +156,7 @@ test("[edge] พื้นที่ (ตร.ม.) ติดลบผ่าน fil
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณพื้นที่ลบ");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   // type=number min=0 กัน spinner ได้ แต่ fill() เขียนค่าตรง ๆ ผ่าน DOM (จำลอง paste ค่าติดลบ)
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("-999");
@@ -298,7 +298,7 @@ test("[edge] พิมพ์เหตุผลปิดไม่สำเร็�
   const CUSTOM_REASON = "ราคา สูง เกินไป";
 
   // ลีดจริงมีเลขลีดเสมอ (ระบบออกให้ตอนสร้าง) — ลีดไม่มีเลขจะถูกจับคู่กับใบที่ไม่ผูกดีล (ข้อมูลที่ไม่มีในระบบจริง)
-  const { error: insErr } = await sb.from("leads").insert({ phone: "081-999-0101", num_id: 979_400_000 + (Date.now() % 90_000),
+  const { error: insErr } = await sb.from("leads").insert({ phone: "000-000-9065", num_id: 979_400_000 + (Date.now() % 90_000),
     id: `${COMPANY}`, dealer_code: "RYG", company: COMPANY, contact: "คุณวรรคหาย",
     province: "ระยอง", product: "โกดังสำเร็จรูป", status: "WAITING", value: "฿1,000,000",
     assigned: "—", source: "เว็บไซต์",

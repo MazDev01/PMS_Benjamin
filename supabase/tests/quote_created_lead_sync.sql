@@ -8,8 +8,8 @@ lock table quotations in share row exclusive mode;
 alter table public.quotations disable trigger quotations_hq_link_guard;
 
 insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status, tasks, activities, assigned)
-values ('#L-ZQS1', 979000001, 'RYG', 'ZZTEST-QSYNC บริษัท', 'ZZTEST-QSYNC', 'ผู้ทดสอบ', '0800000001', 'ระยอง', 'โกดังสำเร็จรูป', 'BULLET', '[]', '[]', ''),
-       ('#L-ZQS2', 979000002, 'RYG', 'ZZTEST-QSYNC2', 'ZZTEST-QSYNC2', 'ผู้ทดสอบ', '0800000002', 'ระยอง', 'โกดังสำเร็จรูป', 'BULLET', '[]', '[]', 'พนักงานขายทดสอบ');
+values ('#L-ZQS1', 979000001, 'RYG', 'ZZTEST-QSYNC บริษัท', 'ZZTEST-QSYNC', 'ผู้ทดสอบ', '0000009028', 'ระยอง', 'โกดังสำเร็จรูป', 'BULLET', '[]', '[]', ''),
+       ('#L-ZQS2', 979000002, 'RYG', 'ZZTEST-QSYNC2', 'ZZTEST-QSYNC2', 'ผู้ทดสอบ', '0000009029', 'ระยอง', 'โกดังสำเร็จรูป', 'BULLET', '[]', '[]', 'พนักงานขายทดสอบ');
 -- สถานะ "รอราคา HQ"/ปิดแล้ว ฐานเป็นคนตั้ง (ตัวดักกันการตั้งเอง) — ตั้งผ่านทางเดียวกับฐาน
 select set_config('pms.flow_sync', '1', true);
 update public.leads set status = 'HQ_PRICING' where dealer_code = 'RYG' and num_id = 979000001;
