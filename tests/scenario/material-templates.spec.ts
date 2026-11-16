@@ -131,7 +131,7 @@ test("[D3] [ui·dealer] ขอราคา: HQ ยังไม่เปิดใ
   const กล่อง = แผง.locator("[data-box='material-estimate']");
   await expect(กล่อง.getByLabel("เลือกวัสดุ"), "ช่องเพิ่มวัสดุยังอยู่").toBeVisible({ timeout: 20_000 });
   await expect(กล่อง.getByLabel("เลือกวัสดุ"), "ไม่มีวัสดุเปิดใช้ = กดไม่ได้").toBeDisabled();
-  await expect(กล่อง.getByTestId("material-empty-reason")).toHaveText("เพิ่มวัสดุไม่ได้ — HQ ยังไม่ได้เปิดใช้รายการวัสดุ");
+  await expect(กล่อง.getByTestId("material-empty-reason")).toHaveText("เพิ่มวัสดุไม่ได้ — HQ ยังไม่ได้เปิดใช้งานรายการวัสดุ");
   await expect(แผง.getByText("สำนักงานใหญ่ยังไม่มีรายการวัสดุ"), "ข้อความเดิมเอาออก").toHaveCount(0);
   assertNoErrors(errs, "ขอราคาไม่มีวัสดุ");
 });

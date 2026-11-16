@@ -69,7 +69,7 @@ export default function HQProposalsPage() {
   const [loadErr, setLoadErr] = useState("");
 
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "expired" | DealerProposalStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "past_valid" | DealerProposalStatus>("all");
   // ?overdue=1 (แถว "วันนี้ต้องทำ" ของแดชบอร์ด) = เฉพาะใบค้างชำระ — รายการเลขใบมาจากตัวคำนวณเดียวกับแดชบอร์ด (hq_dashboard · ใบ 0235)
   const [ค้างชำระ, setค้างชำระ] = useState<Set<number> | null>(null);
   // ชุดเลขใบที่กรองอยู่มาจากไหน (การ์ด KPI · ใบ 0246 / ลิงก์แดชบอร์ด) — ป้ายบนชิปกรอง
@@ -132,7 +132,7 @@ export default function HQProposalsPage() {
   }, [q, รายตามรหัส]);
   const filtered = useMemo(() => ใบ.filter(p => {
     if (ค้างชำระ && !ค้างชำระ.has(p.id)) return false;
-    if (statusFilter === "expired" ? !หมดอายุแล้ว(p, APP_NOW_ISO) : statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (statusFilter === "past_valid" ? !หมดอายุแล้ว(p, APP_NOW_ISO) : statusFilter !== "all" && p.status !== statusFilter) return false;
     return ตรงตัวกรองอื่น(p);
   }), [ใบ, statusFilter, ตรงตัวกรองอื่น, ค้างชำระ]);
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(ใบ, ตรงตัวกรองอื่น, p => p.id), [ใบ, ตรงตัวกรองอื่น]);
@@ -202,7 +202,7 @@ export default function HQProposalsPage() {
         )}
         <div style={{ flex: 1 }} />
         <FilterSelect label="กรองตามสถานะใบ" caption="ทุกสถานะ" all="all" value={statusFilter} onChange={v => { setStatusFilter(v as typeof statusFilter); setPage(0); }}
-          options={[...PROPOSAL_STATUS_ORDER.map(s => ({ v: s, l: proposalStatusLabel[s] })), { v: "expired", l: "ส่งแล้ว · เลยวันมีผล" }]} />
+          options={[...PROPOSAL_STATUS_ORDER.map(s => ({ v: s, l: proposalStatusLabel[s] })), { v: "past_valid", l: "ส่งแล้ว · เลยวันมีผล" }]} />   {/* ค่าคำนวณ ต้องไม่ชนสถานะ "expired" ของฐาน (เดิมใช้ค่าเดียวกัน = key ซ้ำ + เลือกสถานะหมดอายุแล้วได้ผลแบบคำนวณ · 16 พ.ย. 69) */}
       </div>
 
       {loadErr && (

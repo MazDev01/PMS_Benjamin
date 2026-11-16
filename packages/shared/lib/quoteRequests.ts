@@ -118,6 +118,8 @@ export const ยอดรวมใบ = (lines: Pick<HqQuoteLine, "qty" | "unitC
 // ── ตาราง BOQ ของ HQ (หน้าคำขอใบเสนอราคา · บอสสั่ง 26 ต.ค. 69) ──────────────────────────────────────────────
 /** หน่วยที่เลือกได้ในตาราง BOQ — พิมพ์หน่วยอื่นเองได้ */
 export const หน่วยBOQ = ["ตร.ม.", "ตัน", "เมตร", "ชุด", "งาน"] as const;
+/** รายการหน่วยไม่ซ้ำ (ตัดช่องว่างหัวท้าย · ตัดค่าว่าง · คงลำดับที่เจอครั้งแรก) */
+export const หน่วยไม่ซ้ำ = (หน่วย: readonly string[]): string[] => [...new Set(หน่วย.map(u => u.trim()).filter(Boolean))];
 /** แถวที่ยังไม่ได้กรอกอะไร (ไม่มีชื่อ ไม่มีต้นทุน) — ไม่นับเป็นรายการ ไม่ส่งเข้าฐาน ไม่ถือว่า "แก้ค้าง" */
 export const แถวว่าง = (l: Pick<HqQuoteLine, "name" | "unitCost">) => !l.name.trim() && !(Number(l.unitCost) > 0);
 export const แถวเปล่าใหม่ = (): HqQuoteLine => ({ name: "", qty: 1, unit: "", unitCost: 0 });

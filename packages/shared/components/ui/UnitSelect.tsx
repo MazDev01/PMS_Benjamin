@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { materialTemplates } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
-import { หน่วยBOQ } from "@pms/shared/lib/quoteRequests";
+import { หน่วยBOQ, หน่วยไม่ซ้ำ } from "@pms/shared/lib/quoteRequests";
 
 const อื่น = "__other__";
 let หน่วยจากวัสดุ: Promise<string[]> | null = null;
@@ -43,6 +43,9 @@ export function UnitSelect({ value, onChange, ariaLabel, หน่วย, onKeyD
   style?: React.CSSProperties;
 }) {
   const v = value.trim();
+  // ตัดซ้ำที่ตัวกลาง — ผู้เรียกต่อหน่วยของแถวเข้ากับรายการมาตรฐาน (หน้าต่างเพิ่ม/นำเข้าวัสดุ) ได้ "ตร.ม." ซ้ำ
+  //   = key ซ้ำ React เตือน (เจอ 16 พ.ย. 69 · material-import/material-templates.spec ตกในโหมด dev · ตกบน e4bdb10a ด้วย)
+  const รายการ = หน่วยไม่ซ้ำ(หน่วย);
   const [พิมพ์เอง, setพิมพ์เอง] = useState(false);
   // ⚠️ 11 พ.ย. 69: เลิกกว้างขั้นต่ำ 96px — ในคอลัมน์ที่แคบกว่า ช่องล้นทับช่องข้าง ๆ (ใบ HQ หน้าต่าง 820) · ความกว้างคุมที่คอลัมน์ของตาราง
   const ช่อง: React.CSSProperties = { width: "100%", minWidth: 0, boxSizing: "border-box", fontSize: "0.84rem", ...style };
@@ -61,9 +64,9 @@ export function UnitSelect({ value, onChange, ariaLabel, หน่วย, onKeyD
       onChange={e => { if (e.target.value === อื่น) { setพิมพ์เอง(true); onChange(""); } else onChange(e.target.value); }}
       className="form-select" style={{ ...ช่อง, padding: "6px 24px 6px 8px" }}>
       <option value="">— ยังไม่ระบุ —</option>
-      {หน่วย.map(u => <option key={u} value={u}>{u}</option>)}
+      {รายการ.map(u => <option key={u} value={u}>{u}</option>)}
       {/* หน่วยเดิมที่ไม่อยู่ในรายการ — แสดงตามที่บันทึกไว้ */}
-      {v && !หน่วย.includes(v) && <option value={v}>{v}</option>}
+      {v && !รายการ.includes(v) && <option value={v}>{v}</option>}
       <option value={อื่น}>+ หน่วยอื่น (พิมพ์เอง)</option>
     </select>
   );
