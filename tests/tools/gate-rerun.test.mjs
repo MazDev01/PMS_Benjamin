@@ -9,10 +9,11 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { ตัดสินพร้อมรันซ้ำ } from "../../scripts/lib/gateRerun.mjs";
+import { envตัวลูกแยกจากรอบ } from "../../scripts/lib/childEnv.mjs";
 import { ตรวจไม่นิ่งท้ายรอบ, ไฟล์บันทึกไม่นิ่ง } from "../../scripts/lib/flakyLog.mjs";
 
 const ราก = process.cwd();
-const ที่ = path.join(ราก, "test-results", `gate-rerun-sim-${process.pid}`);   // ใน repo (หา @playwright/test เจอ) · git ไม่เก็บ
+const ที่ = path.join(ราก, "tests/tools/test-results", `gate-rerun-sim-${process.pid}`);   // ใน repo (หา @playwright/test เจอ · ไม่อยู่ใต้ node_modules ที่ playwright ข้ามตอนรันซ้ำระบุไฟล์) · git ไม่เก็บ (test-results/) · ไม่ใช่ test-results ของรอบที่ราก (16 พ.ย. 69)
 const config = path.join(ที่, "pw.config.mjs");
 let ตก = 0;
 const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถูก) ตก++; console.log(`${ถูก ? "✓" : "✗"} ${ชื่อ}${ถูก ? "" : `\n   ${String(เพิ่ม).slice(-1500)}`}`); };
@@ -41,7 +42,7 @@ test("ข้อที่ผ่านเสมอ", () => { expect(1).toBe(1); })
     Array.from({ length: ไม่นิ่งเดิม }, (_, i) => `ไม่นิ่ง | 2026-10-2${i} | รอบก่อน${i} | sim.spec.mjs › ข้อจำลองไม่นิ่ง`).join("\n") + "\n");
 }
 const pw = (args, รายงาน) => spawnSync(process.execPath, [path.join(ราก, "node_modules/@playwright/test/cli.js"), "test", "-c", config, "--reporter=line,json", ...args],
-  { cwd: ราก, encoding: "utf8", env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: รายงาน } });
+  { cwd: ราก, encoding: "utf8", env: envตัวลูกแยกจากรอบ(process.env, { PLAYWRIGHT_JSON_OUTPUT_NAME: รายงาน }) });   // cwd ราก (รันซ้ำส่งชื่อไฟล์อ้างจากราก) · ผลไปโฟลเดอร์ out ของค่าตั้งจำลอง · ไม่รับ env ของรอบ (token · รายงาน · โฟลเดอร์ผล)
 
 async function รอบ(ตกกี่ครั้ง, ไม่นิ่งเดิม = 0) {
   เตรียม(ตกกี่ครั้ง, ไม่นิ่งเดิม);

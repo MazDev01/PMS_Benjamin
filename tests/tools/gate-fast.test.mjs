@@ -128,5 +128,5 @@ try {
 } finally {
   rmSync(ที่, { recursive: true, force: true });
 }
-console.log(ตก ? `ตก ${ตก}` : "ผ่านทั้งหมด");
+console.log(ตก ? `ตก ${ตก}` : "ALL PASS");   // ตัวรันชุดเครื่องมือ (tool-suites-tool.spec.ts) จับคำนี้
 process.exit(ตก ? 1 : 0);

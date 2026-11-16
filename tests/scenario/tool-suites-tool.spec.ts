@@ -14,6 +14,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/ceiling-guard.test.mjs", "เพิ่มเพดานตัวตรวจ (lint · รอตายตัว · แถวแรก · ผ่านหลอก · หาไม่ตรงตัว) ต้องมีบอสรับทราบตรงค่า · ceiling:ack AI รันไม่ได้ (บอสสั่ง 13 พ.ย. 69)"],
   ["tests/tools/lint-gate.test.mjs", "ตัวตรวจ lint: ข้อผิดพลาด 1 ข้อ = ตก · คำเตือนเกินเพดาน = ตก · ไม่มีการปิดกฎ rules-of-hooks (บอสสั่ง 12 พ.ย. 69)"],
   ["tests/tools/test-self-skip.test.mjs", "ตัวตรวจข้อทดสอบข้ามตัวเองเมื่อไม่มีข้อมูล + รายงานข้อที่ข้ามแยกตามเหตุผล"],
+  ["tests/tools/nested-playwright-isolation.test.mjs", "ข้อทดสอบเครื่องมือที่รัน playwright ซ้อนไม่แตะของรอบ: ไฟล์บันทึก · ล็อก · โฟลเดอร์ผล · รายงาน JSON (รอบ deploy22 ครั้งที่ 4 ล้ม 16 พ.ย. 69)"],
   ["tests/tools/flaky-ack.test.mjs", "ชื่อข้อไม่นิ่งท้ายผล + รอบมีข้อไม่นิ่งรอบอสรับทราบ (round:ack กัน AI)"],
   ["tests/tools/untracked-code.test.mjs", "ไฟล์โค้ดในแอป/แพ็กเกจที่ git ยังไม่เก็บ = ชุดตรวจก่อน commit ตก (ตัวตรวจอื่นอ่านไม่ถึง)"],
   ["tests/tools/skip-exemptions.test.mjs", "ข้อที่ถูกข้ามในรอบตรวจเต็มต้องอยู่ในรายชื่อยกเว้นที่บอสอนุมัติ (ไฟล์ + ชื่อตรงตัว)"],

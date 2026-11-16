@@ -88,6 +88,7 @@ test.describe("ชื่อดีลเลอร์ซ้ำ", () => {
       await settle(page);
       // แดชบอร์ด: ตัวเลือกดีลเลอร์เป็นเมนูเลื่อนลง (SelectFilter) — เปิดก่อนอ่านรายการ
       if (path === "/hq/dashboard") await page.getByRole("button", { name: /ทุกดีลเลอร์/ }).first().click();
+      if (path === "/hq/pipeline") await page.getByRole("combobox", { name: "ทุกดีลเลอร์", exact: true }).click();
       await expect.poll(async () => page.evaluate(() => [...document.querySelectorAll("select option, [role=option], [role=menuitemradio], button")].map(o => (o.textContent ?? "").trim())),
         { timeout: 25_000, message: `${path}: ตัวเลือกดีลเลอร์มีคู่ชื่อซ้ำพร้อมรหัสในวงเล็บ` })
         .toEqual(expect.arrayContaining(รหัส.map(c => `${ชื่อซ้ำ} (${c})`)));

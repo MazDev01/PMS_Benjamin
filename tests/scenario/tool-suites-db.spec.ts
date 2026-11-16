@@ -9,6 +9,7 @@ test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน")
 // [ไฟล์, อะไร, คำที่ชุดนั้นพิมพ์ตอนผ่านทุกข้อ] — db-push-prod-guard พิมพ์ "ผ่านทั้งหมด" (ไม่ใช่ ALL PASS · 29 ต.ค. 69 ตัวห่อรอคำผิดจนตก)
 const ชุด: [string, string, string][] = [
   ["tests/tools/db-push-prod-guard.test.mjs", "เครื่องมือ db:push ฐานจริง + สำรอง/ซ้อมกู้ (เทียบตัวนับกับไฟล์สำรอง)", "ผ่านทั้งหมด"],
+  ["tests/tools/testdb-lock-release-guard.test.mjs", "ตัวลูกปล่อยล็อกฐานทดสอบของงานแม่ไม่ได้ · ล็อกแม่หาย = หยุด ไม่ขอใหม่ (รอบ deploy22 ล็อกหลุดกลางรอบ · 13 พ.ย. 69)", "ALL PASS"],
   ["tests/tools/testdb-schema.test.mjs", "โครงฐานทดสอบตรงกับใบปรับฐานในโฟลเดอร์", "ALL PASS"],
   ["tests/tools/prod-live-cleanup-race.test.mjs", "ล้างข้อมูลทดสอบเว็บจริง: ไม่ซ้อนกับขั้นอื่น · นับ/ลบในทรานแซกชันเดียวหลังล็อกตาราง (จำลองเขียนแถวแทรก)", "ALL PASS"],
   ["tests/tools/cleanup-lock-order.test.mjs", "คำสั่งล้างเว็บจริงไม่รอกันไขว้กับงานหน้าเว็บ (บังคับลำดับล็อก 2 การเชื่อมต่อ · deadlock 11 พ.ย. 69)", "ALL PASS"],
