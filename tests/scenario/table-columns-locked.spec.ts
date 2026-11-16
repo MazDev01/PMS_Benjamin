@@ -101,7 +101,7 @@ test("[ui·hq] ข้อความในตารางที่ถูกต�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  const แถว = page.locator("tbody tr[aria-label^='เปิดแผงดีลเลอร์']");
+  const แถว = page.locator("tbody tr[aria-label^='เปิดหน้าต่างรายละเอียดดีลเลอร์']");
   await expect(แถว.first()).toBeVisible({ timeout: 20_000 });
   // บังคับให้ข้อความยาวกว่าช่อง (จังหวัด คอลัมน์ 13%) แล้วชี้ → title = ข้อความเต็ม
   //   13 พ.ย. 69: เดิมใช้ช่องชื่อดีลเลอร์ — บอสสั่งชื่อดีลเลอร์แสดงเต็มไม่ตัด (ขึ้นบรรทัดใหม่) จึงย้ายมาช่องที่ยังตัดด้วย …

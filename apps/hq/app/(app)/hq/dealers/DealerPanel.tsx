@@ -121,7 +121,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
     <>
       {/* เปลือกแผง = ตัวกลาง RowPanel (หน้าต่างจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69)
           กว้าง 820 เท่าหน้าต่างใบเสนอราคา (บอสสั่ง 13 พ.ย. 69 · ข้อยกเว้นของกฎ 640 · หน้าอื่นคง 640) */}
-      <RowPanel กว้าง="กว้าง" label={`แผงดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดแผง"
+      <RowPanel กว้าง="กว้าง" label={`หน้าต่างรายละเอียดดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดหน้าต่าง"
         asideAttrs={{ "data-dealer-panel": code }} backdropAttrs={{ "data-dealer-panel-backdrop": "" }}
         title={dealer.name} titleAttrs={{ "data-panel-name": "" }}
         badges={<>
@@ -140,14 +140,14 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
         tab={แท็บ} onTab={k => setแท็บ(k as แท็บ)}>
           {/* ป้ายบอกขอบเขต — ไม่บอกคลุมว่าแก้อะไรไม่ได้เลย (บอสแจ้ง 20 ส.ค. 69) · ชี้ทางว่าแก้อะไรได้ที่ไหน */}
           <div data-readonly-note style={{ background: "#f5f7fa", border: "1px solid #e5e7eb", borderLeft: `3px solid ${PRIMARY}`, borderRadius: 10, padding: "8px 12px", marginBottom: 12, fontSize: "0.74rem", color: "#374151", lineHeight: 1.6 }}>
-            <strong style={{ color: PRIMARY }}>ข้อมูลงานขายดูอย่างเดียว</strong> — ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า แก้จากแผงนี้ไม่ได้
+            <strong style={{ color: PRIMARY }}>ข้อมูลงานขายดูอย่างเดียว</strong> — ลูกค้าเป้าหมาย/ใบเสนอราคา/ลูกค้า แก้จากหน้าต่างนี้ไม่ได้
             {" · "}ข้อมูลดีลเลอร์แก้ที่ปุ่ม “แก้ไข” · บัญชีเข้าระบบแก้ได้ที่การ์ด “ข้อมูลเข้าระบบของดีลเลอร์” ในแท็บภาพรวม
           </div>
           {แท็บ === "overview" && (ข้อมูล === undefined
             ? <div style={{ padding: 30, textAlign: "center", color: MUTED, fontSize: "0.8rem" }}>กำลังโหลด…</div>
             : <ภาพรวม ข้อมูล={ข้อมูล} dealer={dealer} ไปแท็บ={ไปแท็บ} />)}
           {แท็บ === "leads" && (
-            <SubTable หัว={["รหัส", "ลูกค้า", "จังหวัด", "ขั้นตอน"]} ว่าง="ไม่มีลูกค้าเป้าหมาย" หน่วย="ราย" กว้าง={[120, "38%", "22%", 140]}
+            <SubTable หัว={["รหัส", "ลูกค้า", "จังหวัด", "ขั้น"]} ว่าง="ไม่มีลูกค้าเป้าหมาย" หน่วย="ราย" กว้าง={[120, "38%", "22%", 140]}
               แถว={detail.leads.map(l => ({ key: l.id, ป้าย: `เปิดลูกค้าเป้าหมาย ${l.name}`,
                 เปิด: () => router.push(`/hq/leads?open=${encodeURIComponent(`${code}:${l.id}`)}`),
                 ช่อง: [l.id, l.name, l.province || "—", <span key="s" className="badge" style={{ background: สีขั้น(เลขขั้นจากผล(l.stage)).bg, color: สีขั้น(เลขขั้นจากผล(l.stage)).text }}>{ชื่อขั้น(เลขขั้นจากผล(l.stage))}</span>] }))} />

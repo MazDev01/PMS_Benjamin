@@ -50,7 +50,7 @@ async function เข้าระบบ(page: Page, origin: string, path: string
       const ok2 = await email.inputValue() === who.email && await pass.inputValue() === who.password;
       if (ok1 && ok2) break;
     }
-    await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+    await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
     const ออกจากหน้าเข้าระบบ = await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 30_000 })
       .then(() => true).catch(() => false);
     if (ออกจากหน้าเข้าระบบ) { await รอเงียบ(page); return; }

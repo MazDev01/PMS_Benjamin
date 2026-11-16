@@ -116,7 +116,7 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
       .toBe(k === "onTarget" ? 1 : Number(await ผลรวม(page, "n")));
     await expect(แผง.locator("tfoot, [data-drawer-total]"), `แผง ${k}: ไม่มีแถวรวม`).toHaveCount(0);
     await expect(แผง, `แผง ${k}: คำอธิบายไม่มี แถวรวม`).not.toContainText("แถวรวม");
-    await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+    await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   }
 
   // แท็บภูมิภาค → ผลรวมแถว = การ์ด · กดแถวแรก = เจาะลงภูมิภาคนั้น (แท็บจังหวัด)
@@ -157,7 +157,7 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
   await expect(MonthPanel.locator("[data-drawer-row]"), "เดือนนี้: สาขา A").toHaveCount(1);
   await expect(MonthPanel.locator("[data-drawer-row]").first().locator("xpath=.."), "ยอดของสาขาในแผง = แถวเดือน").toContainText(ยอดเดือนนี้);
   await expect(MonthPanel.locator("tfoot, [data-drawer-total]"), "แผงเดือนไม่มีแถวรวม").toHaveCount(0);
-  await MonthPanel.getByRole("button", { name: "ปิดแผง" }).click();
+  await MonthPanel.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   await page.locator('[data-dim="dealer"]').click();
 
   // กดดีลเลอร์ → ระดับดีลเลอร์: แถบระดับ 4 ชั้น · ใบ/ลีดล่าสุด · ปุ่มเปิดแผงดีลเลอร์ · ผลรวมแถว = การ์ด
@@ -175,7 +175,7 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
   await expect(แผงยอด.locator("tfoot, [data-drawer-total]"), "แผงรายเดือนไม่มีแถวรวม").toHaveCount(0);
   expect(await ผลรวม(page, "sales"), "ระดับดีลเลอร์: ผลรวมของตาราง = การ์ด (ยอดขาย A 400,000)").toBe("400000");
   await expect(แผงยอด.locator("[data-drawer-row]").first(), "แผงรายเดือนมีแถวรายเดือน").toBeVisible();
-  await แผงยอด.getByRole("button", { name: "ปิดแผง" }).click();
+  await แผงยอด.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   await page.locator('[data-act="open-dealer-panel"]').click();
   await expect(page.locator(`[data-dealer-panel="${รหัส}"]`), "ปุ่มเปิดแผงดีลเลอร์").toBeVisible({ timeout: 25_000 });
 

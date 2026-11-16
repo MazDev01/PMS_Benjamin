@@ -45,7 +45,7 @@ test.afterAll(async () => {
 
 const หัวคอลัมน์ = async (page: Page) =>
   (await page.locator("thead th").allInnerTexts()).map(t => t.replace(/\s+/g, " ").trim()).filter(Boolean);
-const ลำดับลีด = ["บริษัท / ผู้ติดต่อ", "จังหวัดหน้างาน", "ช่องทางที่มา", "งานที่ต้องการ", "พื้นที่ (ตร.ม.)", "ขั้นตอน", "ความคืบหน้า", "มูลค่า", "ผู้รับผิดชอบ", "กิจกรรมล่าสุด"];
+const ลำดับลีด = ["บริษัท / ผู้ติดต่อ", "จังหวัดหน้างาน", "ช่องทางที่มา", "งานที่ต้องการ", "พื้นที่ (ตร.ม.)", "ขั้น", "ความคืบหน้า", "มูลค่า", "ผู้รับผิดชอบ", "กิจกรรมล่าสุด"];
 
 async function แถวลีดดีลเลอร์(page: Page, company: string) {
   await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
@@ -62,7 +62,7 @@ test("[ui·dealer] ตารางลีด: ลำดับคอลัมน�
   const แถว = await แถวลีดดีลเลอร์(page, ลีดได้ใบ);
   expect(await หัวคอลัมน์(page), "ลำดับคอลัมน์ตามที่บอสสั่ง").toEqual(ลำดับลีด);
   const หัว = await page.locator("thead th").allInnerTexts();
-  const ช่องขั้น = หัว.findIndex(h => h.trim() === "ขั้นตอน");
+  const ช่องขั้น = หัว.findIndex(h => h.trim() === "ขั้น");
   const ช่องคืบ = หัว.findIndex(h => h.trim() === "ความคืบหน้า");
   await expect(แถว.locator("td").nth(ช่องขั้น), "ขั้น 3").toHaveText("3. ได้ราคาจาก HQ แล้ว");
   expect(await แถว.locator("td").nth(ช่องขั้น).locator("select, [role=combobox], [role=listbox]").count(), "ป้ายขั้นตอนไม่มีตัวเลือก").toBe(0);
@@ -94,7 +94,7 @@ test("[ui·hq] ตารางลีดทั้งเครือ: ลำดั
   expect(หัวHQ.filter(Boolean), "ลำดับคอลัมน์ = แบบดีลเลอร์ + ดีลเลอร์ · ไม่มีความคืบหน้า").toEqual(ลำดับHQ);
   await expect(แถว.locator("td").nth(หัวHQ.indexOf("ดีลเลอร์")), "คอลัมน์ดีลเลอร์ = ดีลเลอร์เจ้าของลีด").toContainText("RYG");
   await expect(แถว.locator('[data-cell="dealer"]'), "ช่องดีลเลอร์").toContainText("RYG");
-  await expect(แถว.locator("td").nth(หัวHQ.indexOf("ขั้นตอน")), "ได้ใบ HQ = ขั้น 3").toHaveText("3. ได้ราคาจาก HQ แล้ว");
+  await expect(แถว.locator("td").nth(หัวHQ.indexOf("ขั้น")), "ได้ใบ HQ = ขั้น 3").toHaveText("3. ได้ราคาจาก HQ แล้ว");
   await expect(แถว.getByRole("img", { name: /^ความคืบหน้า/ }), "ไม่มีแถบความคืบหน้าในตาราง HQ").toHaveCount(0);
 
   // บอสตัดสิน 29 ต.ค. 69: ลีดเป็นงานของดีลเลอร์ — HQ ไม่มีปุ่มลบลีดของดีลเลอร์ แม้ลีดที่ฝั่งดีลเลอร์ลบได้ (ยังไม่มีคำขอ/ใบ) · ฐานก็ไม่ให้ HQ ลบ

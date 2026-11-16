@@ -50,7 +50,7 @@ export const materialTemplatesPOST = handler("materialTemplates.save", async (re
     const d = (data ?? {}) as { deleted?: number; restored?: number };
     return ok({ deleted: Number(d.deleted ?? 0), restored: Number(d.restored ?? 0) });
   }
-  if (!b || !Array.isArray(b.rows)) return fail(400, "ข้อมูลไม่ถูกต้อง");
+  if (!b || !Array.isArray(b.rows)) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const ids = Array.isArray(b.deleteIds) ? b.deleteIds.map(Number).filter(n => Number.isInteger(n) && n > 0) : [];
   const { data, error } = await sb.rpc("material_templates_save", { p_rows: b.rows, p_delete_ids: ids });
   if (error) return dbFail("materialTemplates.save", error);

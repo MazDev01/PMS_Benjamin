@@ -118,7 +118,7 @@ test("[ui·hq] แผงดีลเลอร์ HQ กว้าง 820 กล�
     await page.setViewportSize(จอ);
     await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" }); await settle(page);
     await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill("RYG");
-    await page.getByRole("row", { name: `เปิดแผงดีลเลอร์ ${ชื่อRYG}`, exact: true }).click({ timeout: 25_000 });
+    await page.getByRole("row", { name: `เปิดหน้าต่างรายละเอียดดีลเลอร์ ${ชื่อRYG}`, exact: true }).click({ timeout: 25_000 });
     const แผง = page.locator("[data-dealer-panel='RYG']");
     await วัด(page, แผง, `แผงดีลเลอร์ @${จอ.width}`, true);
     const แท็บ = await แผง.locator("[data-panel-tab]").evaluateAll(els => els.map(e => e.getAttribute("data-panel-tab") ?? ""));

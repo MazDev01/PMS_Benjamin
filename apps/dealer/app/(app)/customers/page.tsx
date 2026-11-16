@@ -188,7 +188,7 @@ function printCustomer(c:CustomerRow, rows:QuotationMock[], code:string){
     // แถว "แม่แบบ" เอาออก — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
     [ช่อง.จังหวัด, esc(c.province)],
     ["เป็นลูกค้าเมื่อ", fmtDate(c.joinDate)], [ช่อง.ผู้รับผิดชอบ, esc(c.owner)],
-    ["สถานะ", c.status==="active"?"ใช้งาน":"ไม่ใช้งาน"],
+    ["สถานะ", c.status==="active"?"เปิดใช้งาน":"ปิดใช้งาน"],
   ];
   const total = rows.reduce((s,q)=>s+q.totalValue,0);
   win.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ข้อมูลลูกค้า — ${esc(c.company)}</title>
@@ -927,11 +927,11 @@ export default function CustomersPage(){
           <div className="card" style={{ marginBottom:16 }}>
             {hasActiveFilter ? (
               <EmptyState icon={<User size={28}/>} title="ไม่พบลูกค้าที่ตรงกับเงื่อนไข"
-                description="ลองปรับคำค้นหรือล้างตัวกรองเพื่อดูลูกค้าทั้งหมด"
-                action={<button className="btn btn-secondary btn-md" style={{color:PRIMARY}} onClick={()=>{ setProvFilter("ALL"); setOwnerFilter("ALL"); setQuery(""); }}>ล้างตัวกรอง</button>} />
+                description="ลองปรับคำค้นหรือตัวกรอง"
+                action={<button className="btn btn-secondary btn-md" style={{color:PRIMARY}} onClick={()=>{ setProvFilter("ALL"); setOwnerFilter("ALL"); setQuery(""); }}>แสดงทั้งหมด</button>} />
             ) : (
               <EmptyState icon={<User size={28}/>} title="ยังไม่มีลูกค้าในระบบ"
-                description="ลูกค้าจะถูกสร้างให้อัตโนมัติเมื่อปิดการขายลูกค้าเป้าหมายได้สำเร็จ"
+                description="ระบบสร้างลูกค้าให้เองเมื่อปิดการขายลูกค้าเป้าหมายสำเร็จ"
                 action={<button className="btn btn-primary btn-md" onClick={()=>router.push("/leads")}>ไปที่ลูกค้าเป้าหมาย</button>} />
             )}
           </div>
@@ -1542,7 +1542,7 @@ export default function CustomersPage(){
                   ทำเป็น 3 ขั้นชัด ๆ เพราะของเดิมเป็นปุ่มเรียงกัน ผู้ใช้ไม่รู้ว่าต้องเริ่มตรงไหน */}
               {[
                 { ที่: 1, หัว: "ดาวน์โหลดแบบฟอร์มตัวอย่าง", รอง: "เปิดด้วย Excel หรือ Google ชีต แล้วพิมพ์ต่อได้เลย — มีหัวคอลัมน์และแถวตัวอย่างให้พิมพ์ทับ" },
-                { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "${ช่อง.บริษัท}" ต้องมี ช่องอื่นเว้นว่างได้ · คอลัมน์: ${CSV_HEADERS.join(" · ")} · ในไฟล์มีแผ่น "ค่าที่เลือกได้" บอกจังหวัด/ผู้รับผิดชอบที่ระบบมีจริง` },
+                { ที่: 2, หัว: "กรอกลูกค้าเดิมจากระบบเก่า", รอง: `ใส่ทีละแถว · ช่อง "${ช่อง.บริษัท}" ต้องมี ที่เหลือเว้นว่างได้ · จังหวัด/ผู้รับผิดชอบดูในแผ่น "ค่าที่เลือกได้"` },
                 { ที่: 3, หัว: "แนบไฟล์กลับเข้ามา", รอง: `รับไฟล์ ${นามสกุลที่รับได้.map(n=>n.replace(".","")).join(" · ")} · ระบบจะให้ตรวจรายชื่อก่อน แล้วค่อยกดนำเข้า` },
               ].map(ข => (
                 <div key={ข.ที่} style={{display:"flex",gap:11,alignItems:"flex-start"}}>
@@ -1554,7 +1554,7 @@ export default function CustomersPage(){
                     {ข.ที่===1 && (
                       <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginTop:8}}>
                         <button className="btn btn-primary btn-sm" onClick={()=>downloadXlsxTemplate(ค่าที่ระบบมี)}>
-                          <Download size={13}/> ดาวน์โหลดแบบฟอร์มตัวอย่าง (Excel)
+                          <Download size={13}/> แบบฟอร์มตัวอย่าง (Excel)
                         </button>
                         {/* เป็นปุ่มเหมือนกัน (บอสสั่ง 28 ส.ค. 69) — ของเดิมเป็นข้อความขีดเส้นใต้ ดูไม่ออกว่ากดได้ */}
                         <button className="btn btn-secondary btn-sm" onClick={()=>downloadCsvTemplate(ค่าที่ระบบมี)}>
@@ -1805,7 +1805,7 @@ function CustomerKpiRow({ ช่วง, ตัวกรอง, รุ่น, ก
     <KpiRow label="สรุปลูกค้า" range={ช่วง} style={{ marginBottom: 16 }}>
       {cards.map(k => (
         <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={k.value} rawValue={k.raw} unit={k.unit} icon={k.icon} color={k.color} bg={k.bg}
-          actionLabel={k.kpi === "sales" ? "ดูใบที่ตอบรับ" : k.on && k.kpi !== "total" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กด(k.kpi)} />
+          actionLabel={k.kpi === "sales" ? "ดูใบที่ตอบรับ" : k.on && k.kpi !== "total" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กด(k.kpi)} />
       ))}
     </KpiRow>
   );

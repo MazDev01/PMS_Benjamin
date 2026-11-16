@@ -21,6 +21,7 @@ import { checkRateLimit } from "@pms/shared/lib/rateLimit";
 import { auditLog, withErrors, รหัสผ่านยังเข้าระบบได้ } from "@pms/shared/lib/adminRoute";
 import { decryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { dealerCors, dealerJson, ดีลเลอร์ที่เรียก, ปิดบางส่วนของอีเมล } from "@pms/shared/lib/dealerCaller";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,7 @@ export const POST = withErrors("dealer-reveal-password", async (req: NextRequest
   const who = await ดีลเลอร์ที่เรียก(req);
   if (!who.ok) return who.res;
   const { admin, userId, email, dealerCode, name } = who.who;
-  if (!ANON_KEY) return dealerJson(req, { error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ — ดูรหัสผ่านยังไม่ได้" }, 501);
+  if (!ANON_KEY) return dealerJson(req, { error: ตั้งค่าไม่ครบ("NEXT_PUBLIC_SUPABASE_ANON_KEY", "account-reveal") }, 501);
 
   const body = (await req.json().catch(() => null)) as null | { op?: string; code?: string };
   const op = String(body?.op ?? "").trim();
@@ -61,7 +62,7 @@ export const POST = withErrors("dealer-reveal-password", async (req: NextRequest
       const msg = String(error.message ?? "");
       // อีเมลของระบบล็อกอินปิดอยู่ (Send Email Hook · ใบ 0213 · บอสสั่ง 16 ต.ค. 69) — บอกตรง ๆ ไม่ใช่ "ลองใหม่"
       if (/auth_email_disabled/.test(msg)) {
-        return dealerJson(req, { error: "ดูรหัสผ่านทางอีเมลปิดชั่วคราว — ลืมรหัสผ่าน ติดต่อ HQ" }, 403);
+        return dealerJson(req, { error: "ดูรหัสผ่านทางอีเมลปิดชั่วคราว — ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่" }, 403);
       }
       // อีเมลโดเมนสมมติ = ส่งไม่ถึงตัวจริง ต้องบอกให้ชัดว่าต้องแก้อีเมลก่อน ไม่ใช่ "ลองใหม่"
       if (/invalid/i.test(msg) && /email/i.test(msg)) {
@@ -111,7 +112,7 @@ export const POST = withErrors("dealer-reveal-password", async (req: NextRequest
     if (data.user.id !== userId) return dealerJson(req, { error: "เลขยืนยันไม่ตรงกับบัญชีที่กำลังใช้งาน" }, 403);
 
     if (!dealerSecretReady()) {
-      return dealerJson(req, { error: "ยังไม่ได้ตั้งกุญแจถอดรหัสที่เซิร์ฟเวอร์ (DEALER_SECRET_KEY) — ดูรหัสผ่านไม่ได้" }, 501);
+      return dealerJson(req, { error: ตั้งค่าไม่ครบ("DEALER_SECRET_KEY", "account-reveal") }, 501);
     }
     const { data: row, error: readErr } = await admin
       .from("dealer_login_secrets").select("secret").eq("dealer_code", dealerCode).maybeSingle();
@@ -138,5 +139,5 @@ export const POST = withErrors("dealer-reveal-password", async (req: NextRequest
     return dealerJson(req, { password });
   }
 
-  return dealerJson(req, { error: "คำสั่งไม่ถูกต้อง" }, 400);
+  return dealerJson(req, { error: "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง" }, 400);
 });

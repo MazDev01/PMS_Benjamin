@@ -79,7 +79,7 @@ test("[func·dealer] รายการเตือน 4 ขั้น · ไม�
     await expect.soft(ช่อง, `มีรายการ "${ชื่อ}"`).toBeVisible();
     // บอสสั่ง 6 พ.ย. 69: ทุกงานกดได้ — งานของระบบกด = เปิดฟอร์ม/ดูรายละเอียด (ติ๊กเองไม่ได้ ข้อ 4 ตรวจที่ฐาน) · เดิม: งานของระบบกดไม่ได้
     await expect.soft(ช่อง, `"${ชื่อ}" กดได้`).toBeEnabled();
-    if (ระบบ) await expect.soft(ช่อง.locator("[data-system-badge]"), `"${ชื่อ}" ป้ายตามสถานะ`).toHaveText((await ช่อง.getAttribute("aria-checked")) === "true" ? "ระบบติ๊กให้" : "กดเพื่อทำ");
+    if (ระบบ) await expect.soft(ช่อง.locator("[data-system-badge]"), `"${ชื่อ}" ป้ายตามสถานะ`).toHaveText((await ช่อง.getAttribute("aria-checked")) === "true" ? "ระบบทำให้" : "กดเพื่อทำ");
   }
   await expect.soft(page.getByRole("checkbox", { name: /^ติดต่อแล้ว/ }), 'ไม่มี "ติดต่อแล้ว" (ใบ 0263)').toHaveCount(0);
   // ใบ 0263: ข้อมูลลูกค้าครบ → "เก็บข้อมูลลูกค้า" ติ๊กแล้ว · ข้อมูลงานยังไม่ครบ → "สรุปความต้องการ" ยังไม่ติ๊ก
@@ -146,7 +146,7 @@ test("[func·hq] ตั้งค่า › เส้นทางการขา�
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "ขั้นตอนการขายมาตรฐาน" }).first().click();
+  await page.getByRole("button", { name: "ขั้นการขายมาตรฐาน" }).first().click();
   for (const [i, ชื่อ] of ["1. เก็บข้อมูลลูกค้า", "2. รอราคาจาก HQ", "3. ได้ราคาจาก HQ แล้ว", "4. ทำใบเสนอราคาให้ลูกค้า"].entries())
     await expect.soft(page.locator(`[data-journey-step="${i + 1}"]`), `ขั้น ${i + 1} ${ชื่อ}`).toContainText(ชื่อ, { timeout: 15_000 });
   await expect.soft(page.locator("[data-journey-step]"), "ขั้นตอนการขายมาตรฐาน 4 ขั้น (ยุบ 9 พ.ย. 69)").toHaveCount(4);

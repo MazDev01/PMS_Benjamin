@@ -19,7 +19,8 @@ export function isAbortedRequest(e: unknown): boolean {
   if (typeof DOMException !== "undefined" && e instanceof DOMException && e.name === "AbortError") return true;
   const msg = e instanceof Error ? e.message : String(e);
   // เบราว์เซอร์แต่ละตัวใช้ข้อความต่างกัน แต่ทั้งหมดหมายถึง "คำขอไม่ถึงปลายทาง"
-  return /Failed to fetch|NetworkError when attempting|Load failed|aborted/i.test(msg);
+  //   "โหลดข้อมูลไม่เสร็จ" = ข้อความของ HttpAdapter เมื่อถูกตัดกลางทาง (เดิมมีคำ aborted บนจอ · ตรวจคำขั้น 4 กลุ่ม ข 16 พ.ย. 69)
+  return /Failed to fetch|NetworkError when attempting|Load failed|aborted|โหลดข้อมูลไม่เสร็จ/i.test(msg);
 }
 
 // แจ้งการอ่านที่ล้มเหลวจริง (ไม่ใช่ถูกยกเลิกเพราะเปลี่ยนหน้า) ผ่าน event เดียวกันทั้งแอป —

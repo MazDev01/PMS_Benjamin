@@ -78,7 +78,7 @@ export default function HQAuditPage() {
     return การ์ดที่กด === "impersonations" ? e.action === "เข้าระบบแทนดีลเลอร์" : e.action.startsWith("ย้อน") || e.action.startsWith("ยกเลิก");
   }, [การ์ดที่กด, ช่วงเดือนนี้]);
   const กดการ์ด = (k: "today" | "impersonations" | "reversals") => { setการ์ดที่กด(v => (v === k ? null : k)); setPage(0); };
-  const ป้ายกด = (k: "today" | "impersonations" | "reversals") => (การ์ดที่กด === k ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ");
+  const ป้ายกด = (k: "today" | "impersonations" | "reversals") => (การ์ดที่กด === k ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ");
 
   const filtered = useMemo(() => entries.filter(e => ตรงตัวกรอง(e) && ตรงการ์ด(e)), [entries, ตรงตัวกรอง, ตรงการ์ด]);
 

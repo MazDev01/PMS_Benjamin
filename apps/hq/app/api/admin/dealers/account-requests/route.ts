@@ -11,6 +11,8 @@ import { checkRateLimit } from "@pms/shared/lib/rateLimit";
 import { bad, authorizeAdmin, auditLog, withErrors, findDealerAccount, อีเมลถูกใช้แล้ว } from "@pms/shared/lib/adminRoute";
 import { decryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
+import { อีเมลซ้ำ } from "@pms/shared/lib/emailTaken";
 
 export const runtime = "nodejs";
 
@@ -19,11 +21,10 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 const DENY = "ไม่มีสิทธิ์จัดการคำขอเปลี่ยนบัญชีของดีลเลอร์";
-const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — จัดการคำขอจากที่นี่ยังไม่ได้";
 
 // ── รายการคำขอ (ค้างก่อน แล้วตามด้วยที่ตัดสินแล้ว) ──
 export const GET = withErrors("list-account-requests", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin } = authz.auth;
 
@@ -62,7 +63,7 @@ export const GET = withErrors("list-account-requests", async (req: NextRequest) 
 
 // ── อนุมัติ / ปฏิเสธ ──
 export const PATCH = withErrors("decide-account-request", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
 
@@ -75,7 +76,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
   const action = String(body?.action ?? "");
   const reason = String(body?.reason ?? "").trim();
   if (!id) return bad(400, "ไม่ได้ระบุคำขอ");
-  if (action !== "approve" && action !== "reject") return bad(400, "คำสั่งไม่ถูกต้อง");
+  if (action !== "approve" && action !== "reject") return bad(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
 
   const { data: ใบ, error: readErr } = await admin.from("dealer_account_requests")
     .select("id, dealer_code, kind, new_email, secret, status").eq("id", id).maybeSingle();
@@ -84,7 +85,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
     return bad(503, "อ่านคำขอไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }
   if (!ใบ) return bad(404, "ไม่พบคำขอนี้");
-  if (String(ใบ.status) !== "pending") return bad(409, "คำขอนี้ถูกตัดสินไปแล้ว");
+  if (String(ใบ.status) !== "pending") return bad(409, "คำขอนี้อนุมัติหรือปฏิเสธไปแล้ว");
 
   const code = String(ใบ.dealer_code);
   const อีเมลใหม่ = ใบ.new_email ? String(ใบ.new_email) : "";
@@ -104,7 +105,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
       console.error(`[account-requests] อัปเดตสถานะคำขอ ${id} ไม่สำเร็จ`, error);
       return bad(503, "บันทึกผลไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
     }
-    return ได้?.length ? null : bad(409, "คำขอนี้ถูกตัดสินไปแล้ว");
+    return ได้?.length ? null : bad(409, "คำขอนี้อนุมัติหรือปฏิเสธไปแล้ว");
   }
   // รหัสผ่านที่ขอไว้ (เข้ารหัส) ไม่ต้องเก็บต่อหลังตัดสินแล้ว — อนุมัติแล้วสำเนาย้ายไปอยู่ dealer_login_secrets
   async function ล้างรหัสในคำขอ() {
@@ -122,7 +123,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
 
     let รหัสใหม่ = "";
     if (ใบ.secret) {
-      if (!dealerSecretReady()) return bad(501, "ยังไม่ได้ตั้ง DEALER_SECRET_KEY ที่เซิร์ฟเวอร์ — อนุมัติคำขอเปลี่ยนรหัสผ่านไม่ได้");
+      if (!dealerSecretReady()) return bad(501, ตั้งค่าไม่ครบ("DEALER_SECRET_KEY", "dealer-account-requests"));
       รหัสใหม่ = decryptSecret(String(ใบ.secret)) ?? "";
       if (!รหัสใหม่) return bad(500, "ถอดรหัสคำขอไม่สำเร็จ — ให้ดีลเลอร์ส่งคำขอใหม่");
       // คำขอเก่าที่ส่งมาก่อนมีกติกากลาง อาจมีรหัสที่ใช้เข้าระบบไม่ได้จริง (เช่น มีช่องว่าง)
@@ -132,7 +133,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
 
     // อีเมลซ้ำ = คำขอนี้อนุมัติไม่ได้ ต้องบอกให้ชัด (ระบบยืนยันตัวตนตอบ 500 เนื้อความว่าง จับจากข้อความไม่ได้)
     if (อีเมลใหม่ && (await อีเมลถูกใช้แล้ว(SUPABASE_URL, SERVICE_KEY, อีเมลใหม่, found.id)) === true) {
-      return bad(400, `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบ — ให้ดีลเลอร์ส่งคำขอใหม่ด้วยอีเมลอื่น`);
+      return bad(400, อีเมลซ้ำ);
     }
     // อีเมลเดิมเก็บลงประวัติ (เหมือนตอนดีลเลอร์แก้เอง) — ประวัติจะได้ตอบได้ว่าเปลี่ยนจากอะไรเป็นอะไร
     const { data: บัญชีเดิม } = await admin.auth.admin.getUserById(found.id);
@@ -150,7 +151,7 @@ export const PATCH = withErrors("decide-account-request", async (req: NextReques
       const { error: คืนErr } = await admin.from("dealer_account_requests")
         .update({ status: "pending", decided_at: null, decided_by: null, reason: null }).eq("id", id);
       if (คืนErr) console.error(`[account-requests] คืนสถานะคำขอ ${id} เป็นรออนุมัติไม่สำเร็จ`, คืนErr);
-      if (/already|registered|exists/i.test(upErr.message ?? "")) return bad(400, `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบ`);
+      if (/already|registered|exists/i.test(upErr.message ?? "")) return bad(400, อีเมลซ้ำ);
       console.error(`[account-requests] อนุมัติคำขอของ ${code} ไม่สำเร็จ`, upErr);
       return bad(503, "อนุมัติไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
     }

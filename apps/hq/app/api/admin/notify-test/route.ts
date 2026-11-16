@@ -10,10 +10,9 @@ import { ส่งอีเมลทดสอบ } from "@pms/shared/server/cont
 
 export const runtime = "nodejs";
 const DENY = "ไม่มีสิทธิ์ส่งอีเมลทดสอบการแจ้งเตือน";
-const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY)";
 
 export const POST = withErrors("hq-notify-test", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "settings:edit", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "settings:edit", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
   if (!(await checkRateLimit(admin, `hq-notify-test:${callerId}`, 5, 300))) return bad(429, "ส่งอีเมลทดสอบถี่เกินไป — รอสักครู่แล้วลองใหม่");

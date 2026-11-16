@@ -49,7 +49,7 @@ const ลีด: ตั้งค่าเจาะลึก = {
   การ์ด: [
     { k: "open", kpi: "open", l: "ลูกค้าเป้าหมายที่เปิดอยู่", sum: "open", sub: () => "ราย · ตอนนี้ ยังไม่ปิดการขาย", icon: "users", color: "#2563a8", bg: "#2563a817" },
     { k: "leads", kpi: "new", l: "ลูกค้าเป้าหมายใหม่ในช่วงนี้", sum: "leads", month: true, sub: () => "ราย · เข้ามาในช่วงที่เลือก", icon: "phone", color: "#7c3aed", bg: "#7c3aed17" },
-    { k: "qr", kpi: "qr", l: "รอราคา HQ", sum: "qr", sub: () => `ราย · ขั้น${ชื่อขั้น(2)} ตอนนี้`, icon: "inbox", color: "#0891B2", bg: "#0891B217" },
+    { k: "qr", kpi: "qr", l: ชื่อขั้น(2), sum: "qr", sub: () => `ราย · ขั้น${ชื่อขั้น(2)} ตอนนี้`, icon: "inbox", color: "#0891B2", bg: "#0891B217" },
     { k: "stale", kpi: "idle", l: "ไม่เคลื่อนไหวเกิน 30 วัน", sum: "stale", sub: () => "ราย · ตอนนี้ ติดต่อล่าสุดเกิน 30 วัน", icon: "alarm", color: "#EA580C", bg: "#EA580C17", danger: true },
   ],
   คอลัมน์: [

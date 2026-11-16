@@ -65,7 +65,7 @@ export function MaterialImportModal({ open, onClose, onImported, ไฟล์เ
     if (!ไฟล์ || !ส่งได้.length) return;
     if (ส่งได้.length > นำเข้าวัสดุได้สูงสุด) { setพลาด(`นำเข้าได้ครั้งละไม่เกิน ${นำเข้าวัสดุได้สูงสุด.toLocaleString()} แถว — แบ่งไฟล์ก่อน`); return; }
     if (!(await ยืนยัน({ หัวข้อ: `นำเข้ารายการวัสดุ: เพิ่ม ${นับ("ready")} · ปรับราคา ${นับ("update")} รายการ?`,
-      รายละเอียด: `แถวต้องตรวจที่ยังไม่แก้ ${นับ("review")} แถว และแถวข้าม ${นับ("skip")} แถว จะไม่ถูกนำเข้า · ไม่ลบวัสดุที่มีอยู่ · ยกเลิกทั้งชุดได้ภายหลัง (คืนราคาเดิม)`,
+      รายละเอียด: `แถวที่ยังไม่แก้ ${นับ("review")} แถว และแถวข้าม ${นับ("skip")} แถว จะไม่นำเข้า · ไม่ลบวัสดุเดิม · ยกเลิกทั้งชุดภายหลังได้`,
       ปุ่มตกลง: "นำเข้า" }))) return;
     setกำลัง(true); setพลาด("");
     try {
@@ -109,7 +109,7 @@ export function MaterialImportModal({ open, onClose, onImported, ไฟล์เ
                 <div className="table-wrap">
                   <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                     <colgroup><col style={{ width: 56 }} /><col style={{ width: "14%" }} /><col /><col style={{ width: "16%" }} /><col style={{ width: "18%" }} /><col style={{ width: "26%" }} /></colgroup>
-                    <thead><tr>{["แถว", "หมวด", "ชื่อวัสดุ", "หน่วย", ดู === "update" ? "ราคาเก่า → ใหม่" : "ราคาต่อหน่วย", ดู === "ready" ? "เปิดใช้" : "เหตุผล / แก้"].map(h =>
+                    <thead><tr>{["แถว", "หมวด", "ชื่อวัสดุ", "หน่วย", ดู === "update" ? "ราคาเก่า → ใหม่" : "ราคาต่อหน่วย", ดู === "ready" ? "เปิดใช้งาน" : "เหตุผล / แก้"].map(h =>
                       <th key={h} style={{ ...เซลล์, textAlign: "left", fontWeight: 700, color: "#6b7280", background: "#f8f9fb" }}>{h}</th>)}</tr></thead>
                     <tbody>
                       {แสดง.length === 0 && <tr><td colSpan={6} style={{ ...เซลล์, color: "#9ca3af", textAlign: "center", padding: 18 }}>ไม่มีแถวในกลุ่มนี้</td></tr>}
@@ -142,8 +142,8 @@ export function MaterialImportModal({ open, onClose, onImported, ไฟล์เ
                                       <button type="button" className="btn btn-secondary btn-sm" data-use-old-unit onClick={() => แก้(r.row, { unit: r.เดิม!.unit })}>ใช้หน่วยเดิม ({r.เดิม.unit})</button>}
                                     {!r.เดิม && r.active === null &&
                                       <>
-                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => แก้(r.row, { เปิดใช้ดิบ: "เปิด" })}>เปิดใช้</button>
-                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => แก้(r.row, { เปิดใช้ดิบ: "ปิด" })}>ปิดใช้</button>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => แก้(r.row, { เปิดใช้ดิบ: "เปิด" })}>เปิดใช้งาน</button>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => แก้(r.row, { เปิดใช้ดิบ: "ปิด" })}>ปิดใช้งาน</button>
                                       </>}
                                   </div>
                                 )}

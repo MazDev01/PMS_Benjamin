@@ -37,7 +37,7 @@ async function เข้าระบบ(page: Page, origin: string, path: string
       await page.waitForTimeout(300);
       if (await email.inputValue() === who.email && await pass.inputValue() === who.password) break;
     }
-    await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+    await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
     if (await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 30_000 }).then(() => true).catch(() => false)) {
       await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
       return;

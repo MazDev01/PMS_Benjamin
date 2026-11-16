@@ -97,7 +97,7 @@ test("[ข·2] แถวทะเบียน: ปุ่มครบตามแ
   // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · กลับด้านจาก "URL เท่าเดิม"): หน้าเดิม + ?open=รหัส · ปิดแผง = ที่อยู่เดิม
   expect(new URL(page.url()).pathname, "หน้าไม่เปลี่ยน").toBe(new URL(ที่อยู่).pathname);
   expect(new URL(page.url()).searchParams.get("open"), "แผงอยู่ในที่อยู่หน้าเว็บ").toBe(รหัสยาว);
-  await page.getByRole("button", { name: "ปิดแผง" }).click();
+  await page.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   await expect(page.locator("[data-dealer-panel]")).toHaveCount(0);
   expect(page.url(), "ปิดแผง = ที่อยู่เดิม (ไม่มี ?open)").toBe(ที่อยู่);
 

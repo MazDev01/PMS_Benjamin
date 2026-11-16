@@ -149,7 +149,7 @@ test("[kpi·dealer] ลูกค้าเป้าหมาย: กดการ�
     await การ์ด.click();
     const แถว = page.locator("tbody tr[data-lead-row], tbody tr").filter({ hasNot: page.locator("td[colspan]") });
     if (ค่า <= 10) await expect(แถว, `กด ${k}: ตารางเหลือ ${ค่า} แถว`).toHaveCount(ค่า, { timeout: 15_000 });
-    await expect(การ์ด, `กด ${k}: การ์ดบอกว่ากำลังกรองอยู่`).toContainText("กดอีกครั้งเพื่อล้างตัวกรอง");
+    await expect(การ์ด, `กด ${k}: การ์ดบอกว่ากำลังกรองอยู่`).toContainText("กดอีกครั้งเพื่อแสดงทั้งหมด");
     await การ์ด.click();   // ล้าง
   }
 });

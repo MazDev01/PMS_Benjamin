@@ -183,7 +183,7 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect(แผง.locator("tfoot"), "แผงที่มาไม่มีแถวรวม").toHaveCount(0);
     await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
       { message: "แผงที่มา ผลรวมแถว = การ์ด 3000" }).toBe(3000);
-    await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+    await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
     await expect(ช่องตัวกรอง(page, ช่องสถานะ), "รายการยังเป็นค่าเริ่มต้น").toHaveAttribute("data-filter-value", "sent");
     await expect(แถว).toHaveCount(4);
   } finally {

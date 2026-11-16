@@ -15,6 +15,7 @@
 //    ที่นี่จึงไม่ใช่ "ประตูลัด" — แค่ย้ายที่แนบใบผ่านจากเบราว์เซอร์มาไว้ที่เซิร์ฟเวอร์
 import { NextResponse, type NextRequest } from "next/server";
 import { callerToken } from "./_cookie";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ async function ส่งต่อ(req: NextRequest, method: "GET" | "POST", ป�
   const origin = hqOrigin();
   if (!origin) {
     return NextResponse.json(
-      { error: "ยังไม่ได้ตั้งค่า NEXT_PUBLIC_HQ_ORIGIN ที่เซิร์ฟเวอร์ — เปลี่ยนบัญชีเข้าระบบยังไม่ได้" },
+      { error: ตั้งค่าไม่ครบ("NEXT_PUBLIC_HQ_ORIGIN", "account-proxy") },
       { status: 501 },
     );
   }

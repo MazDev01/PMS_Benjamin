@@ -41,8 +41,8 @@ test("[ux·hq] เตือน unsaved เมื่อออกจากหั�
 test("[ux·dealer] บัญชีดีลเลอร์ รวมโปรไฟล์+บริษัท+ข้อมูลบัญชี ในที่เดียว", async ({ page }) => {
   await open(page, "dealer", "/settings"); // แท็บแรก = บัญชีดีลเลอร์
   await expect(page.getByText("ข้อมูลบริษัท (ออกในนามดีลเลอร์)")).toBeVisible();
-  await expect(page.getByText("จัดการข้อมูลบัญชีและการเข้าสู่ระบบของคุณ")).toBeVisible();
-  await expect(page.getByText("อีเมลเข้าสู่ระบบ").first()).toBeVisible();
+  await expect(page.getByText("จัดการข้อมูลบัญชีและการเข้าระบบของคุณ")).toBeVisible();
+  await expect(page.getByText("อีเมลเข้าระบบ").first()).toBeVisible();
   // ทางเข้าไปแก้บัญชี = ปุ่มเดียว · หน้ารวมต้องไม่มีช่องรหัสผ่านเปิดค้างไว้
   await expect(page.getByRole("button", { name: /เปลี่ยนอีเมล \/ รหัสผ่าน/ })).toBeVisible();
   await expect(page.getByLabel("รหัสผ่านปัจจุบัน")).toHaveCount(0);
@@ -91,7 +91,7 @@ test("[ux·dealer] คำนำหน้าเลขที่ใบเสนอ�
   await expect(page.getByText("เลขลำดับถัดไป"), "ไม่มีป้ายเลขลำดับถัดไป").toHaveCount(0);
 
   // VAT ยังกำหนดโดยสำนักงานใหญ่
-  await expect(page.getByText("ภาษีมูลค่าเพิ่ม %")).toBeVisible();
+  await expect(page.getByText("ภาษีมูลค่าเพิ่ม (VAT) %")).toBeVisible();
 });
 
 // ฟอร์มเพิ่มลูกค้าเป้าหมาย: เลือกขั้นได้เฉพาะก่อน "เสนอราคา" (ขั้นเสนอราคาต้องมีใบก่อน)
@@ -103,7 +103,7 @@ test("[ux·dealer] ฟอร์มเพิ่มลูกค้าเป้า�
   // ฟอร์มไม่มีช่องขั้นตอนเลย (บอสสั่ง 28 ต.ค. 69 · FLOW D2) — ตั้งขั้นเสนอราคา (หรือขั้นไหนก็ตาม) เองตอนสร้างไม่ได้
   //   เจาะในกล่องฟอร์ม — ตัวกรองขั้นตอนบนแถบเครื่องมือ (หลังโมดัล) ใช้ชื่อเดียวกัน
   const ฟอร์ม = page.getByRole("dialog", { name: "เพิ่มลูกค้าเป้าหมาย" });
-  await expect(ฟอร์ม.getByLabel("ขั้นตอน", { exact: true }), "ไม่มีช่องขั้นตอน").toHaveCount(0);
+  await expect(ฟอร์ม.getByLabel("ขั้น", { exact: true }), "ไม่มีช่องขั้นตอน").toHaveCount(0);
   await expect(ฟอร์ม.getByRole("option", { name: "เสนอราคา", exact: true }), "ไม่มีตัวเลือกเสนอราคา").toHaveCount(0);
 });
 

@@ -21,6 +21,7 @@ import { auditLog, withErrors } from "@pms/shared/lib/adminRoute";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
 import { decryptSecret, encryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { callerToken } from "@pms/shared/server/v1/_cookie";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 export const runtime = "nodejs";
 
@@ -34,7 +35,7 @@ type ผู้เรียก = { admin: SupabaseClient; userId: string; email: 
 
 /** ผู้เรียกต้องเป็นบัญชีของสำนักงานใหญ่ (ไม่สังกัดสาขา) และยังเปิดใช้งานอยู่ */
 async function ผู้ใช้HQที่เรียก(req: NextRequest): Promise<{ ok: true; who: ผู้เรียก } | { ok: false; res: NextResponse }> {
-  if (!SUPABASE_URL || !SERVICE_KEY) return { ok: false, res: ตอบ({ error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์" }, 501) };
+  if (!SUPABASE_URL || !SERVICE_KEY) return { ok: false, res: ตอบ({ error: ตั้งค่าไม่ครบ("NEXT_PUBLIC_SUPABASE_URL · SUPABASE_SERVICE_ROLE_KEY", "hq-secret") }, 501) };
   const token = callerToken(req);
   if (!token) return { ok: false, res: ตอบ({ error: "unauthorized" }, 401) };
 
@@ -49,7 +50,7 @@ async function ผู้ใช้HQที่เรียก(req: NextRequest): P
     return { ok: false, res: ตอบ({ error: "ตรวจสอบสิทธิ์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503) };
   }
   if (!prof || String(prof.status ?? "active") !== "active") {
-    return { ok: false, res: ตอบ({ error: "บัญชีนี้ถูกปิดการใช้งานแล้ว" }, 403) };
+    return { ok: false, res: ตอบ({ error: "บัญชีนี้ปิดใช้งานแล้ว — ติดต่อสำนักงานใหญ่" }, 403) };
   }
   // สังกัดสาขา = ดีลเลอร์ ต้องไปใช้เส้นทางของดีลเลอร์ (/api/account/reveal) ซึ่งอ่านคนละตาราง
   if (String(prof.dealer_code ?? "").trim()) {
@@ -70,7 +71,7 @@ export const POST = withErrors("hq-own-password", async (req: NextRequest) => {
   const who = await ผู้ใช้HQที่เรียก(req);
   if (!who.ok) return who.res;
   const { admin, userId, email, name } = who.who;
-  if (!ANON_KEY) return ตอบ({ error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ — ใช้งานหน้านี้ยังไม่ได้" }, 501);
+  if (!ANON_KEY) return ตอบ({ error: ตั้งค่าไม่ครบ("NEXT_PUBLIC_SUPABASE_ANON_KEY", "hq-secret") }, 501);
 
   const body = (await req.json().catch(() => null)) as null | { op?: string; code?: string; password?: string };
   const op = String(body?.op ?? "").trim();
@@ -83,7 +84,7 @@ export const POST = withErrors("hq-own-password", async (req: NextRequest) => {
     const ผิดกติกา = ตรวจรหัสผ่านใหม่(password);
     if (ผิดกติกา) return ตอบ({ error: ผิดกติกา }, 400);
     if (!dealerSecretReady()) {
-      return ตอบ({ error: "ยังไม่ได้ตั้งกุญแจเข้ารหัสที่เซิร์ฟเวอร์ (DEALER_SECRET_KEY)" }, 501);
+      return ตอบ({ error: ตั้งค่าไม่ครบ("DEALER_SECRET_KEY", "hq-secret") }, 501);
     }
     // ⚠️ ต้องพิสูจน์ก่อนว่ารหัสนี้ "ใช้เข้าระบบได้จริง" — ไม่งั้นใครยิง API ตรง ๆ ก็ยัดค่ามั่วเข้ามาได้
     //    แล้วเจ้าของบัญชีจะเปิดดูแล้วเห็นรหัสผิด ซึ่งแย่กว่าไม่มีสำเนาเสียอีก
@@ -120,7 +121,7 @@ export const POST = withErrors("hq-own-password", async (req: NextRequest) => {
       const msg = String(error.message ?? "");
       // อีเมลของระบบล็อกอินปิดอยู่ (Send Email Hook · ใบ 0213 · บอสสั่ง 16 ต.ค. 69)
       if (/auth_email_disabled/.test(msg)) {
-        return ตอบ({ error: "ดูรหัสผ่านทางอีเมลปิดชั่วคราว — ติดต่อผู้ดูแลให้ตั้งรหัสใหม่ให้" }, 403);
+        return ตอบ({ error: "ดูรหัสผ่านทางอีเมลปิดชั่วคราว — ติดต่อสำนักงานใหญ่ให้ตั้งรหัสใหม่ให้" }, 403);
       }
       if (/invalid/i.test(msg) && /email/i.test(msg)) {
         return ตอบ({ error: `ส่งเลขยืนยันไปที่ ${email} ไม่ได้ — อีเมลนี้ใช้ส่งจริงไม่ได้ ต้องเปลี่ยนอีเมลบัญชีก่อน` }, 400);
@@ -160,7 +161,7 @@ export const POST = withErrors("hq-own-password", async (req: NextRequest) => {
     if (data.user.id !== userId) return ตอบ({ error: "เลขยืนยันไม่ตรงกับบัญชีที่กำลังใช้งาน" }, 403);
 
     if (!dealerSecretReady()) {
-      return ตอบ({ error: "ยังไม่ได้ตั้งกุญแจถอดรหัสที่เซิร์ฟเวอร์ (DEALER_SECRET_KEY) — ดูรหัสผ่านไม่ได้" }, 501);
+      return ตอบ({ error: ตั้งค่าไม่ครบ("DEALER_SECRET_KEY", "hq-secret") }, 501);
     }
     const { data: row, error: readErr } = await admin
       .from("hq_login_secrets").select("secret").eq("user_id", userId).maybeSingle();
@@ -177,5 +178,5 @@ export const POST = withErrors("hq-own-password", async (req: NextRequest) => {
     return ตอบ({ password });
   }
 
-  return ตอบ({ error: "คำสั่งไม่ถูกต้อง" }, 400);
+  return ตอบ({ error: "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง" }, 400);
 });

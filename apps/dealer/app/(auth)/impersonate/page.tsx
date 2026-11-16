@@ -116,9 +116,9 @@ export default function ImpersonatePage() {
           <button type="button" onClick={กลับไปสำนักงานใหญ่}
             style={{ fontFamily: "inherit", fontSize: "0.85rem", fontWeight: 800, color: "#fff", background: "#003366",
               border: "none", borderRadius: 10, padding: "10px 18px", cursor: "pointer" }}>
-            กลับไปหน้าดีลเลอร์ของสำนักงานใหญ่{ถอยใน !== null && ถอยใน > 0 ? ` (${ถอยใน})` : ""}
+            กลับหน้าดีลเลอร์ (สำนักงานใหญ่){ถอยใน !== null && ถอยใน > 0 ? ` (${ถอยใน})` : ""}
           </button>
-          <a href="/login" style={{ fontSize: "0.78rem", color: "#8a94a3", fontWeight: 600 }}>หรือเข้าสู่ระบบด้วยบัญชีดีลเลอร์</a>
+          <a href="/login" style={{ fontSize: "0.78rem", color: "#8a94a3", fontWeight: 600 }}>หรือเข้าระบบด้วยบัญชีดีลเลอร์</a>
         </>
       ) : (
         <>

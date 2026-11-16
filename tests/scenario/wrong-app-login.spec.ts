@@ -27,7 +27,7 @@ async function tryLogin(page: Page, origin: string, path: string, who: { email: 
     await page.waitForTimeout(300);
     if (await email.inputValue() === who.email && await pass.inputValue() === who.password) break;
   }
-  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+  await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
   await page.waitForTimeout(6000);
 }
 

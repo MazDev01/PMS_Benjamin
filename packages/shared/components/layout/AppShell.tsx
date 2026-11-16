@@ -55,7 +55,7 @@ function SyncErrorBar() {
         background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c",
         borderRadius: 10, padding: "10px 14px", fontSize: "0.8rem", fontWeight: 600,
       }}>
-        <span style={{ flex: 1 }}>บันทึกไม่สำเร็จ: {repoError} · การเปลี่ยนแปลงยังไม่ถูกบันทึก กรุณาลองใหม่</span>
+        <span style={{ flex: 1 }}>บันทึกไม่สำเร็จ: {repoError} · ยังบันทึกการเปลี่ยนแปลงไม่ได้ — ลองใหม่อีกครั้ง</span>
         <button onClick={() => setRepoError(null)} aria-label="ปิดการแจ้งเตือน"
           style={{ background: "none", border: "none", cursor: "pointer", color: "#b91c1c", fontWeight: 800 }}>✕</button>
       </div>
@@ -68,7 +68,7 @@ function SyncErrorBar() {
       background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c",
       borderRadius: 10, padding: "10px 14px", fontSize: "0.8rem", fontWeight: 600,
     }}>
-      <span style={{ flex: 1 }}>{syncError} · ระบบดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์มาแสดงแทนแล้ว</span>
+      <span style={{ flex: 1 }}>{syncError} · ระบบดึงข้อมูลล่าสุดมาแสดงแทนแล้ว</span>
       <button onClick={clearSyncError} aria-label="ปิดการแจ้งเตือน"
         style={{ background: "none", border: "none", cursor: "pointer", color: "#b91c1c", fontWeight: 800 }}>✕</button>
     </div>

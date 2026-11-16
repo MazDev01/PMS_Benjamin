@@ -55,7 +55,7 @@ export function FilterRow({
               style={{ border: "none", outline: "none", fontSize: "0.72rem", color: STEEL, background: "transparent", flex: 1, minWidth: 0, fontFamily: "inherit" }}
             />
             {query && (
-              <button onClick={() => onQuery("")} aria-label="ล้างคำค้นหา"
+              <button onClick={() => onQuery("")} aria-label="ล้างคำค้น"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: MUTED, display: "flex" }}>
                 <X size={12} />
               </button>

@@ -17,7 +17,7 @@ export { runtime } from "./_ctx";
 
 export const prospectActivitiesGET = handler("prospectActivities.list", async (req: NextRequest, sb) => {
   const prospect = Number(new URL(req.url).searchParams.get("prospect"));
-  if (!Number.isInteger(prospect) || prospect <= 0) return fail(400, "รหัสลูกค้าเป้าหมายไม่ถูกต้อง");
+  if (!Number.isInteger(prospect) || prospect <= 0) return fail(400, "รหัสผู้สนใจไม่ถูกต้อง");
   // ⚠️ ไล่ทีละหน้าเสมอ — ฐานข้อมูลคืนสูงสุด 1,000 แถว/คำขอ
   const rows: Row[] = [];
   for (let from = 0; ; from += PAGE) {
@@ -35,7 +35,7 @@ export const prospectActivitiesGET = handler("prospectActivities.list", async (r
 
 export const prospectActivitiesPOST = handler("prospectActivities.contact", async (req: NextRequest, sb) => {
   const body = (await req.json().catch(() => null)) as Partial<ProspectContactInput> | null;
-  if (!body || typeof body !== "object") return fail(400, "ข้อมูลบันทึกการติดต่อไม่ถูกต้อง");
+  if (!body || typeof body !== "object") return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const row = เตรียมบันทึกการติดต่อ(body);
   const ผิด = ตรวจบันทึกการติดต่อ(row);
   if (ผิด) return fail(400, ผิด);

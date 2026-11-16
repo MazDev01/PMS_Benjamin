@@ -25,7 +25,7 @@ async function login(page: Page, origin: string, path: string, who: Account) {
       await page.waitForTimeout(300);
       if (ok1 && await email.inputValue() === who.email) break;
     }
-    await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+    await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
     const left = await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 20_000 })
       .then(() => true).catch(() => false);
     if (left) return;

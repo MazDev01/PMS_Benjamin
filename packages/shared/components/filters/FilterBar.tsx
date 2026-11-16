@@ -222,7 +222,7 @@ export function TimeRangePills({ style }: { style?: React.CSSProperties }) {
           <input type="date" aria-label="วันเริ่มต้นของช่วงที่กำหนดเอง" value={cs} onChange={e => setCs(e.target.value)} style={inp} />
           <span style={{ color: "#9ca3af", fontSize: "0.72rem" }}>–</span>
           <input type="date" aria-label="วันสิ้นสุดของช่วงที่กำหนดเอง" value={ce} onChange={e => setCe(e.target.value)} style={inp} />
-          <button className="btn btn-primary btn-sm" onClick={() => { setCustomRange(cs, ce); setShowCustom(false); }}>ใช้</button>
+          <button className="btn btn-primary btn-sm" onClick={() => { setCustomRange(cs, ce); setShowCustom(false); }}>ใช้ช่วงนี้</button>
         </span>
       )}
     </div>

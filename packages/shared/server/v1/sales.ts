@@ -148,12 +148,12 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
     const id = typeof b?.id === "string" ? b.id : "";
     const i = b?.intent as Record<string, unknown> | undefined;
     const ผิด = !id || id.length > 40 ? "ไม่ได้ระบุลูกค้าเป้าหมายที่จะแก้"
-      : !i || typeof i !== "object" || Array.isArray(i) ? "เจตนาไม่ถูกต้อง"
-      : i.fields != null && (typeof i.fields !== "object" || Array.isArray(i.fields)) ? "fields ต้องเป็นออบเจ็กต์"
-      : i.tasks != null && (!Array.isArray(i.tasks) || i.tasks.length > 50) ? "tasks ต้องเป็นรายการ (ไม่เกิน 50)"
-      : i.activities != null && (!Array.isArray(i.activities) || i.activities.length > 20) ? "activities ต้องเป็นรายการ (ไม่เกิน 20)"
+      : !i || typeof i !== "object" || Array.isArray(i) ? "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง"
+      : i.fields != null && (typeof i.fields !== "object" || Array.isArray(i.fields)) ? "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง"
+      : i.tasks != null && (!Array.isArray(i.tasks) || i.tasks.length > 50) ? "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง"
+      : i.activities != null && (!Array.isArray(i.activities) || i.activities.length > 20) ? "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง"
       : i.stage != null && (typeof i.stage !== "object" || !(LEAD_STATUS as readonly string[]).includes(String((i.stage as { status?: unknown }).status))) ? "ขั้นไม่ถูกต้อง"
-      : i.deriveStage != null && i.deriveStage !== "any" && i.deriveStage !== "up" ? "deriveStage ไม่ถูกต้อง"   // แอปรุ่นเก่ายังส่ง — ฐานเมินแล้ว (ใบ 0232)
+      : i.deriveStage != null && i.deriveStage !== "any" && i.deriveStage !== "up" ? "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง"   // แอปรุ่นเก่ายังส่ง — ฐานเมินแล้ว (ใบ 0232)
       : JSON.stringify(i).length > 400_000 ? "ข้อมูลใหญ่เกิน" : "";
     if (ผิด) return fail(400, ผิด);
     const { data, error } = await sb.rpc("lead_apply", { p_id: id, p_intent: leadIntentToWire(i as LeadIntent) });
@@ -195,7 +195,7 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
     return ok({ rows: (d.rows ?? []).map(rowToLead), total: นับได้ < 0 ? f.knownTotal : นับได้ });
   }
   const row = await body<LeadRow>(req);
-  if (!row) return fail(400, "ข้อมูลลูกค้าเป้าหมายไม่ถูกต้อง");
+  if (!row) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const { data, error } = await sb.from("leads").insert(leadToRow(row)).select().single();
   if (error) return dbFail("leads.create", error);
   return ok(rowToLead(data as Row));
@@ -205,7 +205,7 @@ export const leadsPOST = handler("leads.write", async (req, sb) => {
 // หน้าที่เปิดค้างเขียนสำเนาเก่าทับงาน/ขั้นที่ฐานเพิ่งตั้ง → ใช้ POST /leads?op=apply (ส่วนต่าง) ทางเดียว
 // กฎปิดการขาย (ปิดสำเร็จต้องมีใบที่ส่งแล้ว · ปิดไม่สำเร็จต้องมีเหตุผล) ย้ายไปบังคับในฐาน (lead_apply · ใบ 0211)
 export const leadsPUT = handler("leads.update", async () =>
-  fail(410, "ทางนี้ปิดแล้ว — แก้ลูกค้าเป้าหมายด้วย POST /api/v1/leads?op=apply (ส่งเฉพาะส่วนต่าง)"));
+  fail(410, "ทำรายการนี้ไม่ได้ — โหลดหน้าใหม่แล้วลองอีกครั้ง ถ้ายังเป็นอีกให้แจ้งสำนักงานใหญ่"));
 
 // -- ลบแล้วต้องรู้ว่าลบได้จริงไหม (ตรวจพบ 27 ส.ค. 69 จากการยิง API จริง) --
 // เดิม delete() ไม่ขอผลกลับ -> ฐานข้อมูลกันไว้ (กฎความปลอดภัยข้ามสาขา) หรือไม่มีแถวนั้นอยู่จริง
@@ -317,7 +317,7 @@ export const quotesPOST = handler("quotations.write", async (req, sb) => {
   }
   // ทางเขียนใบตรง ๆ (Flow เก่า: ใบไม่มีใบ HQ) ปิดแล้ว 16 ต.ค. 69 — ใบใหม่ใช้ op=numbered ที่ผูกใบ HQ เท่านั้น
   //   (ฐานปฏิเสธใบที่ไม่มีใบ HQ อยู่แล้วตั้งแต่ใบ 0201 · ตอบ 410 ให้ชัดว่าทางนี้เลิกใช้ ไม่ใช่ข้อมูลผิด)
-  return fail(410, "ทางนี้ปิดแล้ว — ออกใบเสนอราคาใหม่ด้วย POST /api/v1/quotations?op=numbered จากใบ HQ");
+  return fail(410, "ทำรายการนี้ไม่ได้ — โหลดหน้าใหม่แล้วลองอีกครั้ง ถ้ายังเป็นอีกให้แจ้งสำนักงานใหญ่");
 }, { อ่าน: อ่านเมื่อop("page") });
 
 export const quotesPUT = handler("quotations.update", async (req, sb) => {
@@ -413,7 +413,7 @@ export const customersPOST = handler("customers.write", async (req, sb) => {
   }
   if (o === "upsert-company" || o === "close-won") {
     const b = await body<Record<string, unknown>>(req);
-    if (!b) return fail(400, "ข้อมูลไม่ถูกต้อง");
+    if (!b) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
     const payload = toSnake((b.payload ?? {}) as Row);
     delete payload.id; delete payload.created_at; delete payload.dealer_code;   // DB เป็นคนออกให้
     if (o === "upsert-company") {
@@ -445,7 +445,7 @@ export const customersPOST = handler("customers.write", async (req, sb) => {
     return ok(normalizeCustomer(toCamel<CustomerRow>(data as Row)));
   }
   const row = await body<CustomerRow>(req);
-  if (!row) return fail(400, "ข้อมูลลูกค้าไม่ถูกต้อง");
+  if (!row) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const { data, error } = await sb.from("customers").insert(toSnake(row as unknown as Row)).select().single();
   if (error) return dbFail("customers.create", error);
   return ok(normalizeCustomer(toCamel<CustomerRow>(data as Row)));
@@ -497,7 +497,7 @@ export const apptPOST = handler("appointments.write", async (req, sb) => {
     return ok(Number(data));
   }
   const row = await body<AppointmentMock>(req);
-  if (!row) return fail(400, "ข้อมูลนัดหมายไม่ถูกต้อง");
+  if (!row) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const { data, error } = await sb.from("appointments").insert(apptToRow(row)).select().single();
   if (error) return dbFail("appointments.create", error);
   return ok(rowToAppt(data as Row));

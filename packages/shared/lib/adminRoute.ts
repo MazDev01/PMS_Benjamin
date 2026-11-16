@@ -12,6 +12,7 @@ import { callerToken } from "@pms/shared/server/v1/_cookie";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hasPermission, type Permission } from "@pms/shared/lib/permissions";
 import type { UserRole } from "@pms/shared/lib/mock";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -35,10 +36,11 @@ export async function authorizeAdmin(
   req: NextRequest,
   permission: Permission,
   denyMessage: string,
-  notConfiguredMessage: string,
 ): Promise<{ ok: true; auth: Authorized } | { ok: false; res: NextResponse }> {
   if (!SUPABASE_URL || !SERVICE_KEY) {
-    return { ok: false, res: bad(501, notConfiguredMessage) };
+    // ชื่อตัวแปรที่ขาดลงบันทึกฝั่งระบบ · ผู้ใช้เห็นประโยคเดียว (ตรวจคำขั้น 4 กลุ่ม ข)
+    const ขาด = [!SUPABASE_URL && "NEXT_PUBLIC_SUPABASE_URL", !SERVICE_KEY && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean).join(" · ");
+    return { ok: false, res: bad(501, ตั้งค่าไม่ครบ(ขาด, req.nextUrl.pathname)) };
   }
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -63,7 +65,7 @@ export async function authorizeAdmin(
   //   จึงยังสร้างดีลเลอร์ รีเซ็ตรหัสผ่าน หรือลบผู้ใช้ได้อีกนานถึง 1 ชั่วโมงหลังถูกปิดบัญชี
   //   (ผลตรวจสอบระบบรอบ 2 · ระดับสูง) · ตรวจที่นี่ที่เดียวครอบทุก /api/admin/*
   if (prof && String(prof.status) !== "active") {
-    return { ok: false, res: bad(403, "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อผู้ดูแลระบบ") };
+    return { ok: false, res: bad(403, "บัญชีนี้ปิดใช้งานแล้ว — ติดต่อสำนักงานใหญ่") };
   }
   if (!prof || !hasPermission(String(prof.role) as UserRole, permission)) {
     return { ok: false, res: bad(403, denyMessage) };
@@ -127,7 +129,7 @@ export function withErrors(
       return await handler(req);
     } catch (e) {
       console.error(`[${label}] ล้มเหลวโดยไม่คาดคิด`, e);
-      return bad(500, "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์ — ลองใหม่อีกครั้ง");
+      return bad(500, "ระบบขัดข้อง ลองใหม่อีกครั้ง");
     }
   };
 }

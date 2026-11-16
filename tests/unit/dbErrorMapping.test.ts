@@ -13,7 +13,7 @@ describe("แปลงข้อผิดพลาดของฐานข้อ�
   it("ใบผ่านหมดอายุ/ไม่ถูกต้อง → 401 พร้อมข้อความที่คนอ่านรู้เรื่อง", async () => {
     const { status, body } = await อ่าน(dbFail("t", { message: "JWT cryptographic operation failed", code: "PGRST301" }));
     expect(status).toBe(401);
-    expect(body.error).toContain("เข้าสู่ระบบใหม่");
+    expect(body.error).toContain("เข้าระบบใหม่");
     expect(body.error).not.toContain("JWT");
   });
 

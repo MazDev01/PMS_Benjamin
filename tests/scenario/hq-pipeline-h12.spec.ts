@@ -147,7 +147,7 @@ test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์�
   await page.locator('[data-kpi-row] [data-kpi="onTarget"]').click();
   await expect(page.locator('[data-card-drawer="onTarget"]')).toBeVisible();
   await expect(page.locator('[data-card-drawer="onTarget"] [data-act="only-on-target"]'), "ไม่มีปุ่มกรองถึงเป้าในแผง").toHaveCount(0);
-  await page.getByRole("button", { name: "ปิดแผง" }).click();
+  await page.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   await รวมเท่าการ์ด(page, "หลังเปิด/ปิดแผงถึงเป้า (ตารางไม่ถูกกรอง)");
 });
 

@@ -15,11 +15,10 @@ import { bad, authorizeAdmin, auditLog, withErrors } from "@pms/shared/lib/admin
 export const runtime = "nodejs";
 
 const DENY = "ไม่มีสิทธิ์จัดการดีลเลอร์";
-const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — ผูกกับดีลเลอร์จากที่นี่ยังไม่ได้";
 const HQ_CODE = "HQ";
 
 export const POST = withErrors("link-prospect", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
 
@@ -30,7 +29,7 @@ export const POST = withErrors("link-prospect", async (req: NextRequest) => {
   const body = (await req.json().catch(() => null)) as null | { prospectId?: number; dealerCode?: string };
   const prospectId = Number(body?.prospectId);
   const code = String(body?.dealerCode ?? "").trim().toUpperCase();
-  if (!Number.isInteger(prospectId) || prospectId <= 0) return bad(400, "ไม่พบลูกค้าเป้าหมายที่อ้างถึง");
+  if (!Number.isInteger(prospectId) || prospectId <= 0) return bad(400, "ไม่พบผู้สนใจที่อ้างถึง");
   if (!/^[A-Z]{2,5}$/.test(code) || code === HQ_CODE) return bad(400, "ต้องเลือกดีลเลอร์");
 
   // ── ลูกค้าเป้าหมายต้องมีอยู่จริง และยังไม่เป็นดีลเลอร์ ──
@@ -38,10 +37,10 @@ export const POST = withErrors("link-prospect", async (req: NextRequest) => {
     .select("id, name, status, dealer_code").eq("id", prospectId).maybeSingle();
   if (prErr) {
     console.error("[link-prospect] อ่านลูกค้าเป้าหมายไม่สำเร็จ", prErr);
-    return bad(503, "ตรวจข้อมูลลูกค้าเป้าหมายไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+    return bad(503, "ตรวจข้อมูลผู้สนใจไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }
-  if (!pr) return bad(404, "ไม่พบลูกค้าเป้าหมายรายนี้แล้ว — อาจถูกลบไปก่อนหน้า");
-  if (pr.status === "won") return bad(409, `ลูกค้าเป้าหมายรายนี้เป็นดีลเลอร์แล้ว (รหัส ${pr.dealer_code ?? "—"})`);
+  if (!pr) return bad(404, "ไม่พบผู้สนใจรายนี้แล้ว — อาจถูกลบไปก่อนหน้า");
+  if (pr.status === "won") return bad(409, `ผู้สนใจรายนี้เป็นดีลเลอร์แล้ว (รหัส ${pr.dealer_code ?? "—"})`);
 
   // ── สาขาต้องมีอยู่จริงและเปิดใช้งานอยู่ ──
   const { data: dealer, error: dErr } = await admin.from("dealers")
@@ -51,17 +50,17 @@ export const POST = withErrors("link-prospect", async (req: NextRequest) => {
     return bad(503, "ตรวจทะเบียนดีลเลอร์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }
   if (!dealer) return bad(404, `ไม่พบดีลเลอร์รหัส "${code}" — อาจถูกลบไปแล้ว`);
-  if (dealer.status !== "active") return bad(409, `ดีลเลอร์ ${code} ถูกปิดใช้งานอยู่ — เปิดใช้งานก่อนแล้วค่อยผูก`);
+  if (dealer.status !== "active") return bad(409, `ดีลเลอร์ ${code} ปิดใช้งานอยู่ — เปิดใช้งานก่อนแล้วค่อยผูก`);
 
   // ── สาขาต้องยังไม่ถูกผูกกับลูกค้าเป้าหมายรายอื่น ──
   const { data: ผูกแล้ว, error: lErr } = await admin.from("dealer_prospects")
     .select("id, name").eq("dealer_code", code).neq("id", prospectId).limit(1);
   if (lErr) {
     console.error("[link-prospect] ตรวจการผูกซ้ำไม่สำเร็จ", lErr);
-    return bad(503, "ตรวจข้อมูลลูกค้าเป้าหมายไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+    return bad(503, "ตรวจข้อมูลผู้สนใจไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }
   if (ผูกแล้ว?.length) {
-    return bad(409, `ดีลเลอร์ ${code} ถูกผูกกับลูกค้าเป้าหมาย “${ผูกแล้ว[0].name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`);
+    return bad(409, `ดีลเลอร์ ${code} ถูกผูกกับผู้สนใจ “${ผูกแล้ว[0].name}” อยู่แล้ว — หนึ่งสาขาผูกได้รายเดียว`);
   }
 
   // ── มีบัญชีเข้าระบบหรือยัง (ไม่ห้ามผูก แค่บอกหน้าจอ) ──

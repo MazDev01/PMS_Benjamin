@@ -89,7 +89,7 @@ test("[admin] รหัสผ่านสั้นเกินไป/อีเ�
   const ผู้ดูแล = (await (await db(ADMIN)).auth.getUser()).data.user?.email ?? "";
   const ซ้ำ = await call({ email: ผู้ดูแล, password: PASSWORD });
   expect(ซ้ำ.status(), "อีเมลซ้ำต้องได้ 400 ที่แก้เองได้").toBe(400);
-  expect((await ซ้ำ.json() as { error?: string }).error ?? "").toMatch(/ถูกใช้ไปแล้ว/);
+  expect((await ซ้ำ.json() as { error?: string }).error ?? "").toBe("อีเมลนี้มีคนใช้อยู่แล้ว — ใช้อีเมลอื่น");   // ข้อความเดียวทั้งระบบ (บอสตัดสิน 13 พ.ย. 69 · ตรวจคำขั้น 4)
 
   // ต้องไม่มีสาขา/บัญชีตกค้างจากคำขอที่ถูกปฏิเสธ
   const { data: ตกค้าง } = await admin.from("dealers").select("code").eq("code", "ZTD");
@@ -167,7 +167,7 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
     "ต้องไม่มีปุ่มรีเซ็ตรหัสผ่านซ้ำอีก").toHaveCount(0);
 
   await page.getByRole("button", { name: "แก้อีเมล/รหัสผ่าน" }).first().click();
-  const ช่องอีเมล = page.getByLabel("อีเมลเข้าสู่ระบบใหม่");
+  const ช่องอีเมล = page.getByLabel("อีเมลเข้าระบบใหม่");
   await expect(ช่องอีเมล).toBeVisible({ timeout: 15_000 });
 
   // ช่องอีเมลต้องมีอีเมลปัจจุบันอยู่แล้ว ไม่ใช่ว่างเปล่าให้เดาเอง
@@ -201,7 +201,7 @@ test("[ui·hq] แก้อีเมล/รหัสผ่านผ่านห�
   const ตอบ = await คำตอบบันทึก;
   expect(ตอบ.status(), "บันทึกผ่านเซิร์ฟเวอร์").toBe(200);
   expect(await ตอบ.json(), "เซิร์ฟเวอร์ตั้งอีเมล/รหัสตามที่กรอก").toMatchObject({ ok: true, email: EMAIL3.replace("@", "2@"), password: "ZZtest-UI-2569" });
-  await expect(page.getByLabel("อีเมลเข้าสู่ระบบใหม่"), "บันทึกเสร็จแล้วหน้าต่างแก้ปิด").toHaveCount(0);
+  await expect(page.getByLabel("อีเมลเข้าระบบใหม่"), "บันทึกเสร็จแล้วหน้าต่างแก้ปิด").toHaveCount(0);
 
   // บันทึกแล้วอีเมลบนการ์ดต้องเปลี่ยนตามทันที ไม่ต้องรีโหลดหน้า
   //   ต้นเหตุ "อีเมลใหม่ขึ้นก่อนบันทึกเสร็จ" (ไล่ 1 พ.ย. 69): ที่เห็นก่อนคำตอบคือแถวประวัติการใช้งานของหน้า "ZTF · <อีเมลใหม่> · ผู้ดูแลระบบสำนักงานใหญ่"

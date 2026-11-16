@@ -142,7 +142,7 @@ test("[H11·hq] ดีลเลอร์: กดแถว = แผงด้า�
   // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · กลับด้านจาก "URL เท่าเดิม"): หน้าเดิม + ?open=รหัส · ปิดแผง = ที่อยู่เดิม
   expect(new URL(page.url()).pathname, "กดแถวแล้วไม่เปลี่ยนหน้า").toBe(new URL(ที่อยู่).pathname);
   expect(new URL(page.url()).searchParams.get("open"), "แผงอยู่ในที่อยู่หน้าเว็บ").toBe(ก!.รหัส);
-  await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+  await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   await expect(แผง).toHaveCount(0);
   expect(page.url(), "ปิดแผง = ที่อยู่เดิม (ไม่มี ?open)").toBe(ที่อยู่);
   await expect(page.getByPlaceholder(/ค้นหาดีลเลอร์/), "คำค้นอยู่ที่เดิม").toHaveValue(ก!.รหัส);
@@ -153,7 +153,7 @@ test("[H11·hq] ดีลเลอร์: กดแถว = แผงด้า�
   await page.goto(`${HQ_ORIGIN}/hq/dealers/${ก!.รหัส}`, { waitUntil: "domcontentloaded" });
   await expect(แผงของ(page, ก!.รหัส), "เปิดตรง = แผงของดีลเลอร์นั้น").toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".table-wrap table").first(), "ใต้แผงคือหน้ารายการ").toBeAttached();
-  await แผงของ(page, ก!.รหัส).getByRole("button", { name: "ปิดแผง" }).click();
+  await แผงของ(page, ก!.รหัส).getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   await expect(page).toHaveURL(/\/hq\/dealers$/);
   await expect(page.locator("[data-dealer-panel]")).toHaveCount(0);
   // ลิงก์เก่า /hq/dealers/[รหัส] → ที่อยู่แบบเดียว /hq/dealers?open=รหัส (บอสสั่ง 11 พ.ย. 69 · แผงอยู่ในที่อยู่)

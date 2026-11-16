@@ -174,17 +174,17 @@ export default function HQProposalsPage() {
 
       <KpiRow label="สรุปใบค่าแฟรนไชส์" range={ช่วงเดือนนี้}>
         <KpiCard kpi="waiting" label="รอคำตอบ" value={นับ(ค่า(kpi, "waiting"))} rawValue={ค่า(kpi, "waiting")} unit="ใบ · ส่งแล้ว ยังไม่ตอบ" icon={Send}
-          actionLabel={statusFilter === "sent" && !ค้างชำระ ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"}
+          actionLabel={statusFilter === "sent" && !ค้างชำระ ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"}
           onClick={() => { setค้างชำระ(null); setStatusFilter(statusFilter === "sent" ? "all" : "sent"); setPage(0); }} />
         <KpiCard kpi="unpaid" label="ค้างชำระ" value={นับ(ค่า(kpi, "unpaid.count"))} rawValue={ค่า(kpi, "unpaid.count")} unit="ใบ · ตอบรับแล้ว ยังจ่ายไม่ครบ"
           sub={ค่า(kpi, "unpaid.amount") ? `คงค้าง ${บาทเต็ม(ค่า(kpi, "unpaid.amount"))}` : undefined} icon={Wallet} color="#EA580C" bg="#FEF0E6"
-          actionLabel={ค้างชำระ && ป้ายชุด === "ค้างชำระ" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กรองชุด("unpaid", "ค้างชำระ")} />
+          actionLabel={ค้างชำระ && ป้ายชุด === "ค้างชำระ" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กรองชุด("unpaid", "ค้างชำระ")} />
         <KpiCard kpi="overdue" label="เกินกำหนดชำระ" value={นับ(ค่า(kpi, "overdue.count"))} rawValue={ค่า(kpi, "overdue.count")} unit="ใบ · เลยวันครบกำหนดชำระ"
           sub={ค่า(kpi, "overdue.amount") ? `คงค้าง ${บาทเต็ม(ค่า(kpi, "overdue.amount"))}` : undefined} danger={(ค่า(kpi, "overdue.count") ?? 0) > 0} icon={AlarmClock} color="#DC2626" bg="#FEE2E2"
-          actionLabel={ค้างชำระ && ป้ายชุด === "เกินกำหนดชำระ" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กรองชุด("overdue", "เกินกำหนดชำระ")} />
+          actionLabel={ค้างชำระ && ป้ายชุด === "เกินกำหนดชำระ" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กรองชุด("overdue", "เกินกำหนดชำระ")} />
         <KpiCard kpi="paid" label="รับชำระแล้วเดือนนี้" value={บาทเต็ม(ค่า(kpi, "paid.amount"))} rawValue={ค่า(kpi, "paid.amount")}
           unit={`${นับ(ค่า(kpi, "paid.count")) ?? "—"} รายการรับชำระ`} icon={Coins} color="#16A34A" bg="#E6F7EE"
-          actionLabel={ค้างชำระ && ป้ายชุด === "รับชำระเดือนนี้" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กรองชุด("paid", "รับชำระเดือนนี้")} />
+          actionLabel={ค้างชำระ && ป้ายชุด === "รับชำระเดือนนี้" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กรองชุด("paid", "รับชำระเดือนนี้")} />
       </KpiRow>
 
       {/* Toolbar */}
@@ -237,7 +237,7 @@ export default function HQProposalsPage() {
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={8} style={{ textAlign: "center", padding: "36px 14px", color: "#9ca3af", fontSize: "0.8rem" }}>
-                  {!loaded ? "กำลังโหลด…" : ใบ.length === 0 ? "ยังไม่มีใบค่าแฟรนไชส์ — ออกใบได้ที่แผงผู้สนใจเป็นดีลเลอร์ (แท็บใบค่าแฟรนไชส์)" : "ไม่พบใบค่าแฟรนไชส์ตามตัวกรองที่เลือก"}
+                  {!loaded ? "กำลังโหลด…" : ใบ.length === 0 ? "ยังไม่มีใบค่าแฟรนไชส์ — ออกใบได้ที่หน้าต่างรายละเอียดผู้สนใจเป็นดีลเลอร์ (แท็บใบค่าแฟรนไชส์)" : "ไม่พบใบค่าแฟรนไชส์ตามตัวกรองที่เลือก"}
                 </td></tr>
               )}
               {pageSlice(filtered, page).map(p => {

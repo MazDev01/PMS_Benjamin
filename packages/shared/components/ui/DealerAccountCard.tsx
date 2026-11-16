@@ -42,7 +42,7 @@ function useAccountState(dealerCode: string, currentEmail: string) {
 
 /* ── 1) หน้าตั้งค่า: สรุปบัญชี + ทางเข้าไปจัดการ (หน้าตาตามตัวอย่างที่บอสส่งมา 28 ส.ค. 69) ──
    ⚠️ ใส่เฉพาะเรื่องที่ระบบทำได้จริง — ในตัวอย่างมีการ์ด "ยืนยันตัวตนสองขั้นตอน (2FA)" ·
-      "อุปกรณ์ที่เชื่อมต่อ" · "ประวัติการเข้าสู่ระบบ" ซึ่งระบบนี้ยังไม่มีของจริงรองรับ
+      "อุปกรณ์ที่เชื่อมต่อ" · "ประวัติการเข้าระบบ" ซึ่งระบบนี้ยังไม่มีของจริงรองรับ
       ถ้าวางไว้ให้ครบตามภาพจะได้ปุ่มที่กดแล้วไม่มีอะไรเกิดขึ้น (หรือแย่กว่า: ผู้ใช้เชื่อว่าเปิด 2FA แล้ว
       ทั้งที่ไม่มี) จึงใส่เท่าที่มีจริงไว้ก่อน แล้วค่อยเติมเมื่อทำของจริงเสร็จ */
 function ไทล์({ ไอคอน: Ico, หัวข้อ, รอง, onClick }: {
@@ -83,7 +83,7 @@ export function DealerAccountSummary({ dealerCode, currentEmail, onOpen }: {
         </span>
         <span>
           <span style={{ display: "block", fontSize: "0.88rem", fontWeight: 800, color: "#1F2937" }}>ข้อมูลบัญชี</span>
-          <span style={{ display: "block", fontSize: "0.68rem", color: "#64748B", marginTop: 1 }}>จัดการข้อมูลบัญชีและการเข้าสู่ระบบของคุณ</span>
+          <span style={{ display: "block", fontSize: "0.68rem", color: "#64748B", marginTop: 1 }}>จัดการข้อมูลบัญชีและการเข้าระบบของคุณ</span>
         </span>
       </div>
 
@@ -93,7 +93,7 @@ export function DealerAccountSummary({ dealerCode, currentEmail, onOpen }: {
           <Lock size={14} color="#64748B" />
           <span>
             <span style={{ display: "block", fontSize: "0.8rem", fontWeight: 800, color: "#1F2937" }}>บัญชีที่ใช้งานอยู่ตอนนี้</span>
-            <span style={{ display: "block", fontSize: "0.66rem", color: "#64748B", marginTop: 1 }}>ตรวจสอบบัญชีและจัดการการเข้าสู่ระบบ</span>
+            <span style={{ display: "block", fontSize: "0.66rem", color: "#64748B", marginTop: 1 }}>ตรวจสอบบัญชีและจัดการการเข้าระบบ</span>
           </span>
         </div>
         {/* อีเมลกับปุ่มอยู่บรรทัดเดียวกัน (บอสสั่ง 28 ส.ค. 69) — จอแคบค่อยตกลงมาซ้อนกันเอง */}
@@ -104,7 +104,7 @@ export function DealerAccountSummary({ dealerCode, currentEmail, onOpen }: {
               <Mail size={15} color="#003366" />
             </span>
             <span style={{ minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: "0.66rem", color: "#64748B" }}>อีเมลเข้าสู่ระบบ</span>
+              <span style={{ display: "block", fontSize: "0.66rem", color: "#64748B" }}>อีเมลเข้าระบบ</span>
               <span style={{ display: "block", fontSize: "0.84rem", fontWeight: 800, color: email ? "#1F2937" : "#94A3B8",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email || "—"}</span>
             </span>
@@ -113,8 +113,8 @@ export function DealerAccountSummary({ dealerCode, currentEmail, onOpen }: {
           <div>
         <ไทล์ ไอคอน={KeyRound} หัวข้อ="เปลี่ยนอีเมล / รหัสผ่าน"
           รอง={เหลือ === 0 ? "ใช้สิทธิ์แก้เองครบแล้ว — ครั้งต่อไปต้องขออนุมัติจากสำนักงานใหญ่"
-            : เหลือ == null ? "เปลี่ยนบัญชีเข้าสู่ระบบเพื่อความปลอดภัย"
-            : `เปลี่ยนบัญชีเข้าสู่ระบบ · แก้เองได้อีก ${เหลือ} ครั้ง`}
+            : เหลือ == null ? "เปลี่ยนบัญชีเข้าระบบเพื่อความปลอดภัย"
+            : `เปลี่ยนบัญชีเข้าระบบ · แก้เองได้อีก ${เหลือ} ครั้ง`}
           onClick={onOpen} />
           </div>
         </div>
@@ -222,7 +222,7 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
       //   ถ้าเป็นแค่คำขอรออนุมัติ (ครั้งที่ 3 เป็นต้นไป) รหัสยังไม่เปลี่ยน ใบผ่านเดิมยังใช้ได้ตามปกติ
       // (โหมดข้อมูลตัวอย่างไม่มีระบบยืนยันตัวตนจริง จึงไม่ต้องเด้งออก)
       if (r.applied && REAL_BACKEND) {
-        setMsgPw({ ok: true, text: `${r.message} — กำลังพาไปเข้าสู่ระบบใหม่ด้วยรหัสผ่านใหม่` });
+        setMsgPw({ ok: true, text: `${r.message} — กำลังพาไปเข้าระบบใหม่ด้วยรหัสผ่านใหม่` });
         setTimeout(() => {
           // ต้องเป็น "ล้างในเครื่อง" — ใบผ่านถูกยกเลิกไปแล้ว สั่งออกที่เซิร์ฟเวอร์จะได้ 403
           //   แล้วของในเครื่องไม่ถูกล้าง ผู้ใช้กดย้อนกลับเข้าหน้าเดิมได้ทั้งที่ใช้งานจริงไม่ได้
@@ -234,7 +234,7 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
               Object.keys(localStorage)
                 .filter(k => k.startsWith("sb-") && k.endsWith("-auth-token"))
                 .forEach(k => localStorage.removeItem(k));
-            } catch { /* เบราว์เซอร์ปิด storage — ยังไงก็ต้องพาไปหน้าเข้าสู่ระบบ */ }
+            } catch { /* เบราว์เซอร์ปิด storage — ยังไงก็ต้องพาไปหน้าเข้าระบบ */ }
             window.location.href = "/login";
           });
         }, 1800);
@@ -249,7 +249,7 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
   async function เปลี่ยนอีเมล() {
     setMsgEmail(null);
     บังคับอีเมล.ตรวจ([
-      { key: "email", label: "อีเมลเข้าสู่ระบบใหม่", value: email, ข้อความ: "ต้องกรอกอีเมลใหม่" },
+      { key: "email", label: "อีเมลเข้าระบบใหม่", value: email, ข้อความ: "ต้องกรอกอีเมลใหม่" },
       { key: "current", label: "รหัสผ่านปัจจุบัน", value: emailCurrent, ข้อความ: "ต้องกรอกรหัสผ่านปัจจุบัน" },
     ]);
     const ใหม่ = email.trim();
@@ -279,7 +279,7 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
           บัญชีที่ใช้อยู่ตอนนี้
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: "0.78rem" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748B" }}><Mail size={14} color="#94A3B8" /> อีเมลเข้าสู่ระบบ</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748B" }}><Mail size={14} color="#94A3B8" /> อีเมลเข้าระบบ</span>
           <span style={{ fontWeight: 700, color: อีเมลปัจจุบัน ? "#1F2937" : "#94A3B8" }}>{อีเมลปัจจุบัน || "—"}</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, fontSize: "0.78rem", borderTop: "1px solid #F1F5F9", marginTop: 8, paddingTop: 10 }}>
@@ -322,7 +322,7 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
           <ShieldCheck size={13} style={{ marginTop: 1, flexShrink: 0 }} />
           <span>
             คำขอเปลี่ยน{state.lastRejected.kind === "email" ? "อีเมลเข้าระบบ" : state.lastRejected.kind === "password" ? "รหัสผ่าน" : "อีเมลและรหัสผ่าน"}
-            {" "}ที่ส่งเมื่อ {fmtISOToThai(String(state.lastRejected.requestedAt).slice(0, 10))} ถูกสำนักงานใหญ่ปฏิเสธ
+            {" "}ที่ส่งเมื่อ {fmtISOToThai(String(state.lastRejected.requestedAt).slice(0, 10))} สำนักงานใหญ่ปฏิเสธ
             {state.lastRejected.reason ? ` — เหตุผล: ${state.lastRejected.reason}` : ""}
             {" "}· บัญชียังเป็นแบบเดิม ส่งคำขอใหม่ได้
           </span>
@@ -330,13 +330,13 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
       )}
 
       {/* อีเมลอยู่บน แล้วค่อยรหัสผ่าน (บอสสั่ง 28 ส.ค. 69) */}
-      <ก้อน ไอคอน={Mail} หัวข้อ="เปลี่ยนอีเมลเข้าสู่ระบบ" รอง="อีเมลนี้ใช้เข้าระบบและรับการติดต่อจากสำนักงานใหญ่" เน้น={focus === "email"}>
+      <ก้อน ไอคอน={Mail} หัวข้อ="เปลี่ยนอีเมลเข้าระบบ" รอง="อีเมลนี้ใช้เข้าระบบและรับการติดต่อจากสำนักงานใหญ่" เน้น={focus === "email"}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           <div>
-            <FieldLabel htmlFor="ac-email" required>อีเมลเข้าสู่ระบบใหม่</FieldLabel>
+            <FieldLabel htmlFor="ac-email" required>อีเมลเข้าระบบใหม่</FieldLabel>
             <input id="ac-email" className="form-input" value={email} disabled={ล็อก}
               onChange={e => { setEmail(e.target.value.replace(/\s/g, "")); บังคับอีเมล.ล้าง("email"); }} {...บังคับอีเมล.ผูก("email")}
-              aria-label="อีเมลเข้าสู่ระบบ" placeholder={อีเมลปัจจุบัน ? `เช่น ${อีเมลปัจจุบัน}` : "name@company.co.th"} />
+              aria-label="อีเมลเข้าระบบ" placeholder={อีเมลปัจจุบัน ? `เช่น ${อีเมลปัจจุบัน}` : "name@company.co.th"} />
             <FieldError>{บังคับอีเมล.ผิด.email}</FieldError>
           </div>
           <div>

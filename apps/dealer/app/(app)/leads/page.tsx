@@ -763,7 +763,7 @@ export default function LeadsPage() {
   // แถวตาราง: ฐานบอกว่ามีคำขอ/ใบหรือยัง (has_quotes ใบ 0258) + ใบในเครื่องที่เพิ่งสร้าง
   const ลบได้ในแถว = (l: LeadRow) => l.status !== "PAID" && l.hasQuotes === false && !quotations.some(q => quoteBelongsToLead(q, l));
   async function ลบจากแถว(l: LeadRow) {
-    if (!await ยืนยัน({ หัวข้อ: `ลบ ${l.company}?`, รายละเอียด: "การลบไม่สามารถย้อนกลับได้", ปุ่มตกลง: "ลบลูกค้าเป้าหมาย", อันตราย: true })) return;
+    if (!await ยืนยัน({ หัวข้อ: `ลบ ${l.company}?`, รายละเอียด: "ลบแล้วกู้คืนไม่ได้", ปุ่มตกลง: "ลบลูกค้าเป้าหมาย", อันตราย: true })) return;
     removeLead(l.id);
   }
   const myAllLeads = useMemo(
@@ -1295,7 +1295,7 @@ export default function LeadsPage() {
         <KpiRow label="สรุปลูกค้าเป้าหมาย">
           {kpiCards.map(k => (
             <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={นับ(k.value)} rawValue={k.value} unit={k.unit} icon={k.icon} color={k.color} bg={k.bg}
-              actionLabel={k.on ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={k.onClick} />
+              actionLabel={k.on ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={k.onClick} />
           ))}
         </KpiRow>
 
@@ -1723,7 +1723,7 @@ export default function LeadsPage() {
           const ติ๊กให้ = apptDef && c.status !== "PAID" && c.status !== "CANCELLED"
             && !applyTaskTemplate(c.tasks, taskTpl, c.status).find(t => t.key === apptDef.key)?.done
             ? apptDef.label : "";
-          setToast(ติ๊กให้ ? `บันทึกนัดหมายแล้ว · ติ๊กงาน “${ติ๊กให้}” ให้อัตโนมัติ` : "บันทึกนัดหมายแล้ว");
+          setToast(ติ๊กให้ ? `บันทึกนัดหมายแล้ว · ระบบทำงาน “${ติ๊กให้}” ให้แล้ว` : "บันทึกนัดหมายแล้ว");
           } finally { apptSavingRef.current = false; setApptSaving(false); }
         };
         const aInp: React.CSSProperties = { width:"100%", border:"1px solid #e5e7eb", borderRadius:9, padding:"8px 11px", fontSize:"0.8rem", color:"#2D2D2D", outline:"none", boxSizing:"border-box", fontFamily:"inherit", background:"#fff" };
@@ -1839,7 +1839,7 @@ export default function LeadsPage() {
               tasks: t && !t.done ? [{ key: FOLLOW_TASK_KEY, done: true, label: t.label, doneAt: stampNow(), doneBy: c.assigned || session.name }] : [],
             });
             setติดตาม(null);
-            setToast(t && !t.done ? `บันทึกการติดต่อแล้ว · ติ๊กงาน “${t.label}” ให้` : "บันทึกการติดต่อแล้ว");
+            setToast(t && !t.done ? `บันทึกการติดต่อแล้ว · ระบบทำงาน “${t.label}” ให้แล้ว` : "บันทึกการติดต่อแล้ว");
           } catch (e) {
             setติดตาม(x => x && { ...x, busy: false, err: friendlyError(e, "บันทึกไม่สำเร็จ") });
           }
@@ -1873,7 +1873,7 @@ export default function LeadsPage() {
               <div style={{ color:"#9aa2ad", fontSize:"0.8rem", padding:"22px 0", textAlign:"center" }}>
                 <MessageSquare size={26} color="#C0C0C0" style={{ marginBottom:8 }} />
                 <div>ยังไม่มีกิจกรรม</div>
-                <div style={{ fontSize:"0.72rem", marginTop:3 }}>ระบบบันทึกให้อัตโนมัติเมื่อขอราคา ทำใบ ส่งใบ หรือลงนัดหมาย</div>
+                <div style={{ fontSize:"0.72rem", marginTop:3 }}>ระบบบันทึกให้อัตโนมัติเมื่อขอราคา ทำใบ ส่งใบ หรือบันทึกนัดหมายหมาย</div>
               </div>
             ) : (
               <div style={{ position:"relative", display:"flex", flexDirection:"column", gap:2 }}>
@@ -2095,7 +2095,7 @@ export default function LeadsPage() {
                   style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:460, maxWidth:"calc(100vw - 24px)", maxHeight:"calc(100vh - 24px)", overflowY:"auto",
                     zIndex:230, background:"#fff", borderRadius:14, boxShadow:"0 24px 70px rgba(0,0,0,.3)", padding:18 }}>
                   <div style={{ fontSize:"0.92rem", fontWeight:800, color:"#2D2D2D", marginBottom:4 }}>{งานติดตาม()?.label ?? "ติดตามลูกค้า"} · {c.company}</div>
-                  <div style={{ fontSize:"0.72rem", color:"#6b7280", marginBottom:12 }}>บันทึกแล้วระบบติ๊กงานให้ · ยกเลิก = ไม่ติ๊ก</div>
+                  <div style={{ fontSize:"0.72rem", color:"#6b7280", marginBottom:12 }}>บันทึกแล้วระบบทำงานนี้ให้ · ยกเลิก = งานยังไม่เสร็จ</div>
                   <div role="radiogroup" aria-label="ติดตามด้วย" style={{ display:"flex", gap:6, marginBottom:14 }}>
                     {([["ติดต่อ", "บันทึกการติดต่อ"], ["นัด", "นัดหมาย"]] as const).map(([k, label]) => (
                       <button key={k} type="button" role="radio" aria-checked={ติดตาม.แบบ === k} disabled={ติดตาม.busy || apptSaving}

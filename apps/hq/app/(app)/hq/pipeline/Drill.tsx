@@ -25,6 +25,7 @@ const MUTED = "var(--muted-foreground)";
 // ชื่อมิติ/ชนิดมิติ ย้ายไปไฟล์กลางของหัวข้อกราฟ/ตาราง (ใบหัวข้อ 3 พ.ย. 69) — ส่งต่อชื่อเดิมให้ผู้เรียกเดิม
 import { ชื่อมิติ, คำอธิบายหัวข้อ, type มิติ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+import { InfoTip } from "@pms/shared/components/ui/InfoTip";
 import { ความกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/tableFit";
 export { ชื่อมิติ, type มิติ };
 export type รวม = ReturnType<typeof รวมผลงาน>;
@@ -152,7 +153,7 @@ export function ตารางรายเดือน({ แถว, รวม�
           ) : <tr key={g.key}><td data-month-row={g.key}><strong>{g.label}</strong></td>{ช่อง(g.รวม)}<td /></tr>)}
         </tbody>
       </table>
-      <div style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · ตัวเลขรวมดูที่การ์ดด้านบน (เป้าตามช่วง = เป้าทั้งปี × วัน ÷ 365 จึงต่างจากผลรวมรายเดือนเล็กน้อย)</div>
+      <div data-target-note style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · ตัวเลขรวมดูที่การ์ดด้านบน (คิดตามจำนวนวัน จึงต่างเล็กน้อย)<InfoTip label="วิธีคิดเป้าตามช่วง">เป้าตามช่วง = เป้าทั้งปี × จำนวนวัน ÷ 365 จึงต่างจากผลรวมรายเดือนเล็กน้อย</InfoTip></div>
     </div>
   );
 }
@@ -347,10 +348,10 @@ export function กล่องล่าง({ รวมทั้งหมด, �
     <>
       <div className="hq-dealer-charts">
         <การ์ดกล่อง title={`กราฟเส้นทางการขาย · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่เข้ามาในช่วง → ใบที่ส่ง → ผลปิดการขาย", "ตัวเลขเดียวกับแถวรวมของตาราง")} testid="pipeline-funnel"><แถบนับ rows={เส้นทาง} empty="ยังไม่มีลูกค้าเป้าหมายในช่วงที่เลือก" /></การ์ดกล่อง>
-        <การ์ดกล่อง title={`กราฟงานค้างตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่ยังเปิดอยู่ แยกตามขั้นที่อยู่ตอนนี้")} testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลูกค้าเป้าหมายที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟงานค้างตามขั้น · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่ยังเปิดอยู่ แยกตามขั้นที่อยู่ตอนนี้")} testid="pipeline-stages">{ขั้นตอนนี้ ? <แถบนับ rows={ขั้น} empty="ไม่มีลูกค้าเป้าหมายที่เปิดอยู่" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
       <div className="hq-dealer-charts">
-        <การ์ดกล่อง title={`กราฟเหตุผลที่ปิดไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่ปิดไม่สำเร็จ แยกตามเหตุผลที่บันทึก")} testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลูกค้าเป้าหมายที่ปิดไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
+        <การ์ดกล่อง title={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่ปิดการขายไม่สำเร็จ แยกตามเหตุผลที่บันทึก")} testid="pipeline-lost">{ในช่วง ? <แถบนับ rows={เหตุผล} empty="ไม่มีลูกค้าเป้าหมายที่ปิดการขายไม่สำเร็จในช่วงนี้" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
         <การ์ดกล่อง title={`กราฟลูกค้าเป้าหมายตามแหล่งที่มา · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ลูกค้าเป้าหมายที่เข้ามาในช่วง แยกตามแหล่งที่มา")} testid="pipeline-sources">{ในช่วง ? <แถบนับ rows={แหล่ง} empty="ยังไม่มีลูกค้าเป้าหมายในช่วงที่เลือก" /> : <div style={{ fontSize: "0.76rem", color: MUTED }}>กำลังโหลด…</div>}</การ์ดกล่อง>
       </div>
     </>
@@ -388,12 +389,12 @@ export function DealerRecent({ code }: { code: string }) {
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/quotations?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
         <การ์ดกล่อง title={`ตารางลูกค้าเป้าหมายล่าสุดของ ${ชื่อของ(code)}`} คำอธิบาย={คำอธิบายหัวข้อ(null, "5 รายล่าสุด", "ใหม่สุดก่อน")} testid="dealer-latest-leads">
-          {ตาราง(["บริษัท", "ขั้นตอน", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลูกค้าเป้าหมาย")}
+          {ตาราง(["บริษัท", "ขั้น", "วันที่เข้ามา"], ลีด?.map(l => [l.company, l.stage, l.date]) ?? null, "ยังไม่มีลูกค้าเป้าหมาย")}
           <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => router.push(`/hq/leads?dealer=${code}`)}>ดูทั้งหมด ›</button>
         </การ์ดกล่อง>
       </div>
       <div style={{ marginBottom: 24 }}>
-        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers?open=${encodeURIComponent(code)}`)}>เปิดแผงดูแลดีลเลอร์ {ชื่อของ(code)}</button>
+        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers?open=${encodeURIComponent(code)}`)}>เปิดหน้าต่างรายละเอียดดีลเลอร์ {ชื่อของ(code)}</button>
       </div>
     </>
   );

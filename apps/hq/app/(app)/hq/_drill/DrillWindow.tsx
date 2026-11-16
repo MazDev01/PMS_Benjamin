@@ -48,7 +48,7 @@ export function DrillModal({ ชื่อ, คำอธิบาย, ป้า�
               </div>
             )}
           </div>
-          <button type="button" onClick={ปิด} aria-label="ปิดแผง" title="ปิด (Esc)"
+          <button type="button" onClick={ปิด} aria-label="ปิดหน้าต่าง" title="ปิด (Esc)"
             style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(255,255,255,.3)", background: "rgba(255,255,255,.1)", color: "#fff", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} /></button>
         </header>

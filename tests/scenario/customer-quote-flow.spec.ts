@@ -58,7 +58,7 @@ async function เปิดแท็บใบเสนอราคา(page: Page
 test("[flow·dealer] ปิดทางเดิม: ไม่มีใบ HQ = ทำใบไม่ได้ ทั้งหน้าจอและ API", async ({ page, request }) => {
   await เปิดแท็บใบเสนอราคา(page, ไม่มีใบ);
   // ปุ่มทำใบมีที่แถบขั้นต่อไปที่เดียว (บอสสั่ง 19 ต.ค. 69) — ยังไม่ได้ใบ HQ = แถบชวนขอราคา ไม่มีปุ่มทำใบเลย
-  await expect(page.getByText(/ต้องได้ราคาจากสำนักงานใหญ่ก่อน/).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/ต้องได้ราคาจาก HQ ก่อน/).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: /ทำใบให้ลูกค้า/ }), "ยังไม่ได้ใบ HQ ต้องไม่มีปุ่มทำใบ").toHaveCount(0);
 
   // ทาง API เดิมทั้งสองทาง + ยิงตรงฐาน — ต้องถูกปฏิเสธทั้งหมด

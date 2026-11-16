@@ -212,9 +212,9 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
       onToast?.(`ใบ ${ใบที่ส่งแล้วของใบHQนี้.id} ส่งให้ลูกค้าแล้ว แก้ทับไม่ได้ — ลูกค้าต่อรองให้กด "ทำฉบับใหม่" ที่ใบนั้น`);
       return;
     }
-    if (!REAL_BACKEND) { onToast?.("ข้อมูลตัวอย่างไม่มีขั้นขอราคาจากสำนักงานใหญ่ — ออกใบเสนอราคาได้ในระบบจริงเท่านั้น"); return; }
+    if (!REAL_BACKEND) { onToast?.("ข้อมูลตัวอย่างไม่มีขั้นขอราคาจาก HQ — ออกใบเสนอราคาได้ในระบบจริงเท่านั้น"); return; }
     if (!ใบHQ) {
-      onToast?.(รอใบHQ ? "กำลังโหลดใบ HQ…" : "ต้องได้ราคาจากสำนักงานใหญ่ก่อน — ส่งคำขอที่แผง “ราคาจากสำนักงานใหญ่” ด้านบน");
+      onToast?.(รอใบHQ ? "กำลังโหลดใบ HQ…" : "ต้องได้ราคาจาก HQ ก่อน — ส่งคำขอที่กล่อง “ราคาจาก HQ” ด้านบน");
       return;
     }
     const f = emptyForm();
@@ -273,7 +273,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     let เหตุผลที่บันทึก = "";
     if (!(await ถามเหตุผล({
       หัวข้อ: `ลูกค้าปฏิเสธใบ ${q.id} — เลือกเหตุผล`,
-      รายละเอียด: "ลูกค้าเป้าหมายปิดไม่สำเร็จให้อัตโนมัติ",
+      รายละเอียด: "ลูกค้าเป้าหมายปิดการขายไม่สำเร็จให้อัตโนมัติ",
       ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือก: lostReasons,
       ปุ่มตกลง: "ยืนยันลูกค้าปฏิเสธ", ปุ่มกำลังทำ: "กำลังบันทึกลูกค้าปฏิเสธ…", อันตราย: true,
       ทำ: async reason => {
@@ -283,7 +283,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
       },
     }))) return;
     setEditing(e => e?.id === q.id ? { ...e, status: "lost", lostReason: เหตุผลที่บันทึก } : e);
-    onToast?.(`บันทึกลูกค้าปฏิเสธใบ ${q.id} แล้ว — ลูกค้าเป้าหมายปิดไม่สำเร็จ`);
+    onToast?.(`บันทึกลูกค้าปฏิเสธใบ ${q.id} แล้ว — ลูกค้าเป้าหมายปิดการขายไม่สำเร็จ`);
   }
   const ปุ่มผลลูกค้า = (q: QuotationMock) => บันทึกผลได้(q) && (
     <div data-customer-result style={{ display: "flex", gap: 6 }}>
@@ -677,8 +677,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
       {related.length === 0 ? (
         <div style={{ textAlign: "center", padding: "28px 0", color: "#9aa2ad", fontSize: "0.8rem" }}>ยังไม่มีใบเสนอราคา{!readOnly && (REAL_BACKEND
           ? (ใบHQ ? " — กด “ทำใบให้ลูกค้า” ที่กล่องขั้นต่อไปด้านบน"
-            : lead?.status === "HQ_PRICING" ? " — รอราคาจากสำนักงานใหญ่ (ได้ราคาแล้วระบบแจ้ง)"
-            : " — ต้องได้ราคาจากสำนักงานใหญ่ก่อน (กด “ขอราคาจาก HQ” ที่กล่องขั้นต่อไปด้านบน)")
+            : lead?.status === "HQ_PRICING" ? " — รอราคาจาก HQ (ได้ราคาแล้วระบบแจ้ง)"
+            : " — ต้องได้ราคาจาก HQ ก่อน (กด “ขอราคาจาก HQ” ที่กล่องขั้นต่อไปด้านบน)")
           : " — กด “สร้างใบเสนอราคา” เพื่อเริ่ม")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

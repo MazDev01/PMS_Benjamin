@@ -186,7 +186,7 @@ test("[api] ผูกกับดีลเลอร์ที่มีอยู�
   const ข = await เพิ่มราย("ผูกซ้ำสาขาเดิม");
   const ซ้ำ = await ผูก(ข, NOACC_CODE);
   expect(ซ้ำ.status, "หนึ่งสาขาผูกได้รายเดียว").toBe(409);
-  expect(((await ซ้ำ.json()) as { error: string }).error).toMatch(/ผูกกับลูกค้าเป้าหมาย/);
+  expect(((await ซ้ำ.json()) as { error: string }).error).toMatch(/ผูกกับผู้สนใจ/);
   expect(((await ผูก(ก, "CNX")).status), "รายที่เป็นดีลเลอร์แล้วผูกใหม่ไม่ได้").toBe(409);
 
   // ปลดรายแรกออก แล้วปิดใช้งานสาขา → ผูกไม่ได้เพราะปิดใช้งาน

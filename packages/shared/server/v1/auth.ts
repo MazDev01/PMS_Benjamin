@@ -122,12 +122,12 @@ export const POST = async (req: NextRequest): Promise<Response> => {
 
   if (op === "refresh") {
     const rt = req.cookies.get(REFRESH_COOKIE)?.value;
-    if (!rt) return fail(401, "ยังไม่ได้เข้าสู่ระบบ");
+    if (!rt) return fail(401, "ยังไม่ได้เข้าระบบ");
     const { data, error } = await anonClient().auth.refreshSession({ refresh_token: rt });
     const s = data?.session;
     if (error || !s?.access_token) {
       // ต่ออายุไม่ได้ = ใบผ่านใช้ไม่ได้แล้ว → ล้างทิ้ง ไม่ปล่อยให้ค้างแล้วพังซ้ำ ๆ
-      const res = fail(401, "หมดเวลาใช้งาน — กรุณาเข้าสู่ระบบใหม่");
+      const res = fail(401, "หมดเวลาใช้งาน — กรุณาเข้าระบบใหม่");
       res.cookies.set(clearCookie(ACCESS_COOKIE, req));
       res.cookies.set(clearCookie(REFRESH_COOKIE, req));
       return res;

@@ -23,7 +23,7 @@ export type แท็บแผงแถว = { key: string; label: ReactNode; co
 type ข้อมูลแอตทริบิวต์ = Record<`data-${string}`, string | number | undefined>;
 
 export function RowPanel({
-  label, title, titleAttrs, badges, subtitle, actions, tabs, tab, onTab, onClose, children, footer, asideAttrs, backdropAttrs, bodyAttrs, zIndex = 240, closeLabel = "ปิดแผง", กว้าง = "ปกติ",
+  label, title, titleAttrs, badges, subtitle, actions, tabs, tab, onTab, onClose, children, footer, asideAttrs, backdropAttrs, bodyAttrs, zIndex = 240, closeLabel = "ปิดหน้าต่าง", กว้าง = "ปกติ",
 }: {
   /** ความกว้างหน้าต่าง: "ปกติ" 640 (ทุกหน้า) · "กว้าง" 820 (ข้อยกเว้น: แผงดีลเลอร์ HQ · 13 พ.ย. 69) */
   กว้าง?: ขนาดแผงแถว;

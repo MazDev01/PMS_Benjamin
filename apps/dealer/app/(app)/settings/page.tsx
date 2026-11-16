@@ -33,7 +33,7 @@ import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 
 // ป้ายตำแหน่งตาม role (ใช้ในบัญชีดีลเลอร์)
 const ROLE_LABEL: Record<string, string> = {
-  HQ_MANAGEMENT: "ผู้บริหารสำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "พนักงานขาย", DEALER_SITE: "พนักงานขายภาคสนาม",
+  HQ_MANAGEMENT: "สำนักงานใหญ่", DEALER_ADMIN: "ผู้จัดการดีลเลอร์", DEALER_SALES: "พนักงานขาย", DEALER_SITE: "พนักงานขายภาคสนาม",
 };
 
 type SettingTab = "company" | "documents" | "persons" | "leadRules" | "notifications";
@@ -391,10 +391,10 @@ function DocumentsTab() {
             <div>
               {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69)
                   ใบที่ออกไปแล้วไม่กระทบ — ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง */}
-              <FieldLabel htmlFor="doc-vat" required>ภาษีมูลค่าเพิ่ม %</FieldLabel>
+              <FieldLabel htmlFor="doc-vat" required>ภาษีมูลค่าเพิ่ม (VAT) %</FieldLabel>
               {/* ผูกชื่อช่องไว้ด้วย — โปรแกรมอ่านหน้าจอต้องบอกได้ว่าช่องตัวเลขนี้คืออะไร
                   (ป้ายข้างบนไม่ได้ผูกกับช่องด้วย htmlFor จึงต้องระบุที่ตัวช่องเอง) */}
-              <NumberInput id="doc-vat" ariaLabel="ภาษีมูลค่าเพิ่ม %" min={0} max={100} step="0.01"
+              <NumberInput id="doc-vat" ariaLabel="ภาษีมูลค่าเพิ่ม (VAT) %" min={0} max={100} step="0.01"
                 value={doc.vatPercent} onChange={n => set("vatPercent", n)}
                 style={{ fontFamily: "monospace" }} />
             </div>
@@ -704,7 +704,7 @@ function PersonsTab() {
                 <th>โทรศัพท์</th>
                 <th>อีเมล</th>
                 <th style={{ width: 110 }}>สถานะ</th>
-                <th className="num" style={{ width: 160 }}>การจัดการ</th>
+                <th className="num" style={{ width: 160 }}>จัดการ</th>
               </tr>
             </thead>
             <tbody>
@@ -731,7 +731,7 @@ function PersonsTab() {
                         color: p.active ? "#059669" : "#9ca3af" }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", display: "inline-block",
                         background: p.active ? "#059669" : "#C0C0C0" }} />
-                      {p.active ? "ใช้งาน" : "ไม่ใช้งาน"}
+                      {p.active ? "เปิดใช้งาน" : "ปิดใช้งาน"}
                     </button>
                   </td>
                   <td className="num">

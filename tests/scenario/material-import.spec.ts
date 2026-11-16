@@ -52,7 +52,7 @@ test("[flow·hq] รายการวัสดุ: เพิ่มหลาย�
   }, ข้อความ);
   await expect(เพิ่ม.locator("[data-add-row]"), "วาง 3 แถว = 3 แถว").toHaveCount(3);
   await expect(เพิ่ม.getByLabel("ราคาต่อหน่วย แถว 2")).toHaveValue("1,250.50");
-  await expect(เพิ่ม.getByLabel("เปิดใช้ แถว 2")).not.toBeChecked();
+  await expect(เพิ่ม.getByLabel("เปิดใช้งาน แถว 2")).not.toBeChecked();
   await เพิ่ม.locator("[data-add-save]").click();
   await expect(เพิ่ม.locator('[data-add-row="3"]'), "แถวผิด (ไม่มีหน่วย) = กรอบแดง").toHaveAttribute("data-invalid", "1");
   await expect(เพิ่ม.getByText("ต้องเลือกหน่วย")).toBeVisible();

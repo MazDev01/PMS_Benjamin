@@ -15,6 +15,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkRateLimit } from "@pms/shared/lib/rateLimit";
 import { bad, authorizeAdmin, auditLog, withErrors, findDealerAccount } from "@pms/shared/lib/adminRoute";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 export const runtime = "nodejs";
 
@@ -24,10 +25,9 @@ const DEALER_APP_URL = process.env.NEXT_PUBLIC_DEALER_APP_URL ?? "";
 export const POST = withErrors("impersonate-dealer", async (req: NextRequest) => {
   const authz = await authorizeAdmin(
     req, "dealers:manage", "ไม่มีสิทธิ์จัดการดีลเลอร์",
-    "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — เข้าระบบแทนดีลเลอร์จากที่นี่ยังไม่ได้",
   );
   if (!authz.ok) return authz.res;
-  if (!DEALER_APP_URL) return bad(503, "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (NEXT_PUBLIC_DEALER_APP_URL) — ไม่รู้ที่อยู่ระบบดีลเลอร์ จึงเข้าระบบแทนไม่ได้");
+  if (!DEALER_APP_URL) return bad(503, ตั้งค่าไม่ครบ("NEXT_PUBLIC_DEALER_APP_URL", "impersonate-dealer"));
   const { admin, callerId, prof } = authz.auth;
 
   // เข้าระบบแทนคือการเข้าถึงบัญชีคนอื่นเต็มรูปแบบ — จำกัดถี่กว่าจุดอื่นเล็กน้อย

@@ -13,7 +13,7 @@ test("[dealer] ช่อง % ภาษี ลบแล้วว่าง พิ
   // แท็บ "ตั้งค่าใบเสนอราคา" ตรงตัว — เดิมจับปุ่มแรกที่มีคำว่า "เอกสาร"/"ใบเสนอราคา" แล้วกลืนข้อผิดพลาด
   //   ชื่อบริษัทของสาขามีคำว่า "เอกสาร" (ข้อทดสอบพิมพ์ใบ) = ไปกดเมนูบัญชีแทน แล้วหาช่อง VAT ไม่เจอ (รอบตรวจ deploy16)
   await page.getByRole("button", { name: "ตั้งค่าใบเสนอราคา", exact: true }).click();
-  const vat = page.getByLabel("ภาษีมูลค่าเพิ่ม %");
+  const vat = page.getByLabel("ภาษีมูลค่าเพิ่ม (VAT) %");
   await expect(vat).toBeVisible({ timeout: 20_000 });
 
   await vat.click();

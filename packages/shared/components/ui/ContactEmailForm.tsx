@@ -90,7 +90,7 @@ export function ContactEmailForm({ initialEmail, dealerCode, onVerified }: {
       {err && <div role="alert" style={{ fontSize: "0.76rem", color: "#dc2626", fontWeight: 600, marginBottom: 10, lineHeight: 1.6 }}>{err}</div>}
       <button type="button" onClick={() => void ตรวจอีกครั้ง()} disabled={busy}
         style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.76rem", cursor: "pointer", padding: 0 }}>
-        สำนักงานใหญ่ยืนยันแทนให้แล้ว? ตรวจอีกครั้ง
+        ตรวจสถานะการยืนยันอีกครั้ง
       </button>
     </div>
   );

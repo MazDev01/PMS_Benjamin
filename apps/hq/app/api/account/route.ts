@@ -20,6 +20,8 @@ import { auditLog, withErrors, อีเมลถูกใช้แล้ว, �
 import { encryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
 import { สถานะอีเมลติดต่อ, ส่งโค้ดยืนยันอีเมล, ยืนยันโค้ดอีเมล, ส่งโค้ดผู้รับแจ้งเตือน, ยืนยันโค้ดผู้รับแจ้งเตือน, ส่งอีเมลทดสอบ } from "@pms/shared/server/contactEmail";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
+import { อีเมลซ้ำ } from "@pms/shared/lib/emailTaken";
 
 export const runtime = "nodejs";
 
@@ -60,7 +62,7 @@ type ผู้เรียก = {
 /** ตรวจใบผ่าน → คืนบัญชี "ของสาขา" ที่เรียกมา · ไม่ใช่ดีลเลอร์ = ปฏิเสธ */
 async function ดีลเลอร์ที่เรียก(req: NextRequest): Promise<{ ok: true; who: ผู้เรียก } | { ok: false; res: NextResponse }> {
   if (!SUPABASE_URL || !SERVICE_KEY) {
-    return { ok: false, res: json(req, { error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ — เปลี่ยนบัญชีเข้าระบบยังไม่ได้" }, 501) };
+    return { ok: false, res: json(req, { error: ตั้งค่าไม่ครบ("NEXT_PUBLIC_SUPABASE_URL · SUPABASE_SERVICE_ROLE_KEY", "account") }, 501) };
   }
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!token) return { ok: false, res: json(req, { error: "unauthorized" }, 401) };
@@ -77,7 +79,7 @@ async function ดีลเลอร์ที่เรียก(req: NextRequest
     return { ok: false, res: json(req, { error: "ตรวจสอบสิทธิ์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503) };
   }
   if (!prof || String(prof.status ?? "active") !== "active") {
-    return { ok: false, res: json(req, { error: "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อสำนักงานใหญ่" }, 403) };
+    return { ok: false, res: json(req, { error: "บัญชีนี้ปิดใช้งานแล้ว — ติดต่อสำนักงานใหญ่" }, 403) };
   }
   const dealerCode = String(prof.dealer_code ?? "").trim().toUpperCase();
   if (!dealerCode) {
@@ -186,7 +188,7 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
 
   // ตั้งรหัสครั้งแรก (ไม่ต้องใส่รหัสเดิม · ไม่นับโควตา) ยกเลิกแล้ว — ไม่มีขั้นบังคับตั้งรหัส (บอสตัดสิน 19 ต.ค. 69)
   //   เปลี่ยนรหัสผ่านทางเดียว = ข้างล่าง (ต้องใส่รหัสเดิม · นับโควตา) · ข้อทดสอบ: tests/scenario/flow-a-safety.spec.ts
-  if (body?.op === "first-password") return json(req, { error: "ยกเลิกแล้ว — เปลี่ยนรหัสผ่านได้ที่ ตั้งค่า › บัญชีเข้าสู่ระบบ (ต้องใส่รหัสผ่านปัจจุบัน)" }, 410);
+  if (body?.op === "first-password") return json(req, { error: "ยกเลิกแล้ว — เปลี่ยนรหัสผ่านได้ที่ ตั้งค่า › บัญชีเข้าระบบ (ต้องใส่รหัสผ่านปัจจุบัน)" }, 410);
   // ── อีเมลติดต่อ (ด่าน 1 · ใบ 0194): ส่งโค้ด / ยืนยันโค้ด — ไม่ต้องกรอกรหัสผ่านปัจจุบัน (ไม่ใช่อีเมลเข้าระบบ) ──
   if (body?.op === "contact-email-send") {
     const r = await ส่งโค้ดยืนยันอีเมล(admin, who.who, String(body.email ?? ""));
@@ -228,7 +230,7 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
   if (อีเมลเดิมเป๊ะ && !รหัสใหม่) return json(req, { error: "อีเมลนี้เป็นอีเมลเข้าระบบเดิมอยู่แล้ว" }, 400);
   const อีเมลใหม่ = อีเมลเดิมเป๊ะ ? "" : อีเมลที่ส่ง;
   if (!อีเมลใหม่ && !รหัสใหม่) return json(req, { error: "ยังไม่ได้กรอกอีเมลหรือรหัสผ่านใหม่" }, 400);
-  if (อีเมลใหม่ && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมลใหม่)) return json(req, { error: "รูปแบบอีเมลไม่ถูกต้อง" }, 400);
+  if (อีเมลใหม่ && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมลใหม่)) return json(req, { error: "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th" }, 400);
   // กติการหัสผ่านชุดเดียวทั้งระบบ (ยาว ≥ 8 · ห้ามช่องว่าง) — ใช้ทั้งตอนมีผลทันทีและตอนเก็บเป็นคำขอ
   const ผิดกติกา = รหัสใหม่ ? ตรวจรหัสผ่านใหม่(รหัสใหม่) : null;
   if (ผิดกติกา) return json(req, { error: ผิดกติกา }, 400);
@@ -253,13 +255,13 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
   //   เดิมตรวจเฉพาะตอนมีผลทันที: คำขอที่ใช้อีเมลซ้ำจึงรอสำนักงานใหญ่อนุมัติไปเปล่า ๆ แล้วค่อยพังตอนกดอนุมัติ
   //   ระบบยืนยันตัวตนตอบกรณีซ้ำเป็น 500 เนื้อความว่าง ถ้าไม่ถามก่อนผู้ใช้จะได้ "ลองใหม่อีกครั้ง" ที่ลองกี่ครั้งก็ไม่สำเร็จ
   if (อีเมลใหม่ && (await อีเมลถูกใช้แล้ว(SUPABASE_URL, SERVICE_KEY, อีเมลใหม่, userId)) === true) {
-    return json(req, { error: `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบ — กรุณาใช้อีเมลอื่น` }, 400);
+    return json(req, { error: อีเมลซ้ำ }, 400);
   }
 
   // ── เกินโควตา → เก็บเป็นคำขอ ยังไม่แตะบัญชีจริง ──
   if (สถานะ.selfChangesUsed >= SELF_LIMIT) {
     if (รหัสใหม่ && !dealerSecretReady()) {
-      return json(req, { error: "เซิร์ฟเวอร์ยังไม่พร้อมรับคำขอเปลี่ยนรหัสผ่าน — ติดต่อสำนักงานใหญ่" }, 501);
+      return json(req, { error: "ระบบยังไม่พร้อมรับคำขอเปลี่ยนรหัสผ่าน — ติดต่อสำนักงานใหญ่" }, 501);
     }
     const { error } = await admin.from("dealer_account_requests").insert({
       dealer_code: dealerCode, kind,
@@ -284,7 +286,7 @@ export const POST = withErrors("dealer-account-change", async (req: NextRequest)
   });
   if (upErr) {
     if (/already|registered|exists/i.test(upErr.message ?? "")) {
-      return json(req, { error: `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบ` }, 400);
+      return json(req, { error: อีเมลซ้ำ }, 400);
     }
     console.error(`[account] เปลี่ยนบัญชีของสาขา ${dealerCode} ไม่สำเร็จ`, upErr);
     return json(req, { error: "เปลี่ยนบัญชีไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503);

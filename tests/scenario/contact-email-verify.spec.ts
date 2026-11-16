@@ -107,7 +107,7 @@ test("[email·dealer] ระบบส่งอีเมลล่ม → ดี�
   try {
     await การ์ด.locator("#ce-email").fill(B.ติดต่อ);
     await การ์ด.getByRole("button", { name: /^ส่งเลขยืนยัน/ }).click();
-    await expect(การ์ด.getByText(/ระบบส่งอีเมลขัดข้อง ส่งเลขยืนยันไม่สำเร็จ/), "ต้องบอกชัดว่าส่งไม่สำเร็จและทางออก").toBeVisible({ timeout: 60_000 });
+    await expect(การ์ด.getByText(/ส่งเลขยืนยันไม่สำเร็จ \(ระบบอีเมลขัดข้อง\)/), "ต้องบอกชัดว่าส่งไม่สำเร็จและทางออก").toBeVisible({ timeout: 60_000 });
   } finally {
     execFileSync("docker", ["start", ชื่อคอนเทนเนอร์], { stdio: "ignore" });
   }
@@ -125,7 +125,7 @@ test("[email·dealer] ระบบส่งอีเมลล่ม → ดี�
   const เอง = await request.post(`${HQ_ORIGIN}/api/admin/dealers/contact-email?code=${B.code}`, { headers: { authorization: `Bearer ${ses.session?.access_token ?? ""}` } });
   expect(เอง.status(), "ดีลเลอร์ยืนยันอีเมลตัวเองผ่านเส้นทางของ HQ ไม่ได้").toBe(403);
 
-  await การ์ด.getByRole("button", { name: /ตรวจอีกครั้ง/ }).click();
+  await การ์ด.getByRole("button", { name: "ตรวจสถานะการยืนยันอีกครั้ง", exact: true }).click();
   await expect(การ์ด.getByText(`ยืนยันแล้ว: ${B.ติดต่อ}`), "HQ ยืนยันแทนแล้ว กดตรวจอีกครั้งต้องขึ้นยืนยันแล้ว").toBeVisible({ timeout: 30_000 });
   expect(await สถานะในฐาน(B.code)).toEqual({ email: B.ติดต่อ, verified: true, mustVerify: false });
 });

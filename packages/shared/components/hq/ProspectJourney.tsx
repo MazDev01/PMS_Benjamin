@@ -91,7 +91,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
   return (
     <div>
       <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: ".06em", color: PRIMARY, marginBottom: 12 }}>
-        งานตามเส้นทาง · ติ๊กแล้วเลื่อนขั้นอัตโนมัติ
+        งานตามเส้นทาง · ทำแล้วเลื่อนขั้นให้เอง
       </div>
 
       {/* ความคืบหน้า — คำนวณจากงาน (อ่านอย่างเดียว) */}
@@ -107,7 +107,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
           <div className="bar-grow" style={{ height: "100%", width: `${pct}%`, borderRadius: 999, background: สีแถบ }} />
         </div>
         <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: 6 }}>
-          คำนวณจากงานที่ทำ — เลื่อนขั้นอัตโนมัติเมื่อติ๊กงาน (ปรับ % เองไม่ได้)
+          คำนวณจากงานที่ทำ — เลื่อนขั้นให้เองเมื่อทำงาน (ปรับ % เองไม่ได้)
         </div>
       </div>
 
@@ -158,7 +158,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
       {!จบแล้ว && editable && ล่าสุด >= 0 && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
           <button type="button" className="btn btn-secondary btn-sm" data-undo-last disabled={ปิดปุ่ม} onClick={ยกเลิกล่าสุด}
-            title="ถอยกลับ 1 ขั้น — ยกเลิกงานล่าสุดที่ติ๊ก">
+            title="ถอยกลับ 1 ขั้น — ยกเลิกงานล่าสุดที่ทำ">
             <RotateCcw size={13} /> ยกเลิกงานล่าสุด ({ชื่อ(งานมาตรฐาน[ล่าสุด])})
           </button>
         </div>
@@ -176,7 +176,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <XCircle size={18} color="#dc2626" />
               <div>
-                <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#dc2626" }}>ปิดว่าไม่สำเร็จ</div>
+                <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#dc2626" }}>ปิดไม่สำเร็จ</div>
                 {prospect.lostReason && <div style={{ fontSize: "0.72rem", color: "#991b1b" }}>เหตุผล: {prospect.lostReason}</div>}
               </div>
             </div>

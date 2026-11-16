@@ -49,7 +49,7 @@ async function เข้าด้วยรหัสสาขา(page: Page, พ�
     await page.waitForTimeout(300);
     if (await ช่อง.inputValue() === พิมพ์ && await ช่องรหัส.inputValue() === PASSWORD) break;
   }
-  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+  await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
 }
 
 test("[auth·hq] HQ สร้างดีลเลอร์ → บัญชีไม่มีเครื่องหมายบังคับตั้งรหัส/ยืนยันอีเมล", async ({ request }) => {
@@ -98,5 +98,5 @@ test("[auth·dealer] หน้าบัญชีมีที่เปลี่�
   await expect(อีเมล).toBeVisible({ timeout: 30_000 });
   await expect(อีเมล.getByText("ใส่อีเมลแล้วจะได้รับแจ้งเตือนจากสำนักงานใหญ่")).toBeVisible();
   await expect(อีเมล.locator("#ce-email")).toBeVisible();
-  await expect(page.getByText("บัญชีเข้าสู่ระบบ")).toBeVisible();
+  await expect(page.getByText("บัญชีเข้าระบบ")).toBeVisible();
 });

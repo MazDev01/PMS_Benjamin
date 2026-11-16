@@ -63,7 +63,7 @@ async function เข้าระบบ(page: Page, origin: string, p: string, w
     await page.waitForTimeout(300);
     if (await email.inputValue() === who.email && await pass.inputValue() === who.password) break;
   }
-  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+  await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
   await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 30_000 });
   await เงียบ(page);
 }
@@ -269,7 +269,7 @@ test("ทดลอง · จอกว้าง · D1–D9 · H1–H12", async ({
     await d.goto(`${DEALER}/leads`, { waitUntil: "domcontentloaded" }); await เงียบ(d);
     await d.getByRole("button", { name: "ตาราง" }).click().catch(() => {});
     await d.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ก);
-    await expect(d.locator("tbody tr").filter({ hasText: ก }).getByText("ได้ราคา HQ", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(d.locator("tbody tr").filter({ hasText: ก }).getByText("ได้ราคาจาก HQ", { exact: true })).toBeVisible({ timeout: 20_000 });
   });
   await ขั้น("D5x", "ขอแก้ราคา", d, async () => {
     await เปิดลีด(d, ก, "ใบเสนอราคา");

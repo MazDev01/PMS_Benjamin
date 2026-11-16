@@ -334,7 +334,7 @@ export async function เข้าระบบผ่านหน้าจอ(pag
     await page.waitForTimeout(300);
     if (await ช่องอีเมล.inputValue() === email && await ช่องรหัส.inputValue() === password) break;
   }
-  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+  await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
   await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 30_000 });
 }
 

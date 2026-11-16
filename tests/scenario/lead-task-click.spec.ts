@@ -108,7 +108,7 @@ test("[ui·dealer] กดงานที่ยังไม่ติ๊ก = เ�
   await expect.poll(() => ติ๊กในฐาน(เลขA, "followCustomer"), { timeout: 15_000, message: "บันทึกแล้ว = ติ๊ก" }).toBe(true);
   expect((await งานในฐาน(เลขA)).activities?.some(a => (a.text ?? "").includes(คุย)), "บันทึกการติดต่อลงไทม์ไลน์").toBe(true);
   await expect(ติดตาม).toHaveAttribute("aria-checked", "true");
-  await expect(ติดตาม.locator("[data-system-badge]"), "ติ๊กแล้ว = ป้าย ระบบติ๊กให้").toHaveText("ระบบติ๊กให้");
+  await expect(ติดตาม.locator("[data-system-badge]"), "ติ๊กแล้ว = ป้าย ระบบติ๊กให้").toHaveText("ระบบทำให้");
 
   // ติ๊กแล้ว = ดูรายละเอียด (ไทม์ไลน์) ไม่ถอนติ๊ก
   await ติดตาม.click();
@@ -132,7 +132,7 @@ test("[ui·dealer] ได้ใบ HQ ระหว่างรอ HQ = เปิ
 
   await ไปภาพรวม(page);
   const ขอ = งานบนจอ(page, "requestQuote");
-  await expect(ขอ.locator("[data-system-badge]")).toHaveText("ระบบติ๊กให้");
+  await expect(ขอ.locator("[data-system-badge]")).toHaveText("ระบบทำให้");
   await ขอ.click();
   await expect(page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first(), "ติ๊กแล้ว = ดูคำขอ").toHaveCSS("font-weight", "800");
   await page.waitForTimeout(800);   // วัดว่าไม่ถอนติ๊ก (ไม่ใช่รอให้ผ่าน)

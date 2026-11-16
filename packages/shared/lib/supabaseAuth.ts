@@ -151,7 +151,7 @@ export async function sbSignIn(email: string, password: string): Promise<AuthRes
   // ไม่งั้นล็อกอินผ่านแล้วเจอหน้าจอเปล่าเพราะฐานข้อมูลปฏิเสธทุกคำขอ — ผู้ใช้ไม่รู้ว่าเกิดอะไรขึ้น
   if (!(await stillValid(session, data.user?.id ?? ""))) {
     await sbSignOutLocal();
-    return { ok: false, error: "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อสำนักงานใหญ่" };
+    return { ok: false, error: "บัญชีนี้ปิดใช้งานแล้ว — ติดต่อสำนักงานใหญ่" };
   }
   return { ok: true, session };
 }
@@ -248,7 +248,7 @@ export type ResetResult = { ok: true } | { ok: false; error: string };
 /** ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมล · redirect กลับมาหน้า /reset-password ของแอปเดียวกัน */
 export async function sbSendPasswordReset(email: string): Promise<ResetResult> {
   const e = email.trim().toLowerCase();
-  if (!/^\S+@\S+\.\S+$/.test(e)) return { ok: false, error: "อีเมลไม่ถูกต้อง" };
+  if (!/^\S+@\S+\.\S+$/.test(e)) return { ok: false, error: "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th" };
   try {
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
     const { error } = await getSupabase().auth.resetPasswordForEmail(e, { redirectTo });
@@ -348,7 +348,7 @@ export async function sbLoginWithCode(email: string, codeOrLink: string): Promis
     if (DATA_SOURCE === "api") {
       // หน้าเว็บถือ session เองไม่ได้ในโหมดนี้ — ต้องให้เซิร์ฟเวอร์ตั้ง cookie ให้
       const ok = await caAdoptTokens(data.session.access_token, data.session.refresh_token);
-      if (!ok) return { ok: false, error: "เข้าสู่ระบบไม่สำเร็จ — ลองใหม่อีกครั้ง" };
+      if (!ok) return { ok: false, error: "เข้าระบบไม่สำเร็จ — ลองใหม่อีกครั้ง" };
     }
     return { ok: true };
   } catch (err) {
@@ -378,7 +378,7 @@ export async function sbChangeOwnPassword(current: string, next: string): Promis
   const sb = getSupabase();
   const { data: sess } = await sb.auth.getSession();
   const email = sess.session?.user?.email;
-  if (!email) return { ok: false, error: "ยังไม่ได้เข้าสู่ระบบ" };
+  if (!email) return { ok: false, error: "ยังไม่ได้เข้าระบบ" };
   // ยืนยันรหัสปัจจุบัน
   const { error: reauth } = await sb.auth.signInWithPassword({ email, password: current });
   if (reauth) return { ok: false, error: "รหัสผ่านปัจจุบันไม่ถูกต้อง" };

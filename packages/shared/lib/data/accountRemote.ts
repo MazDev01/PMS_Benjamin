@@ -12,6 +12,7 @@ import type { AccountChangeResult, AccountRepo, AccountRequest, AccountState } f
 import type { NotifyTestResult } from "./types";
 import { getAccessToken } from "./supabase/client";
 import { DATA_SOURCE } from "./config";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 /** โหมด api = ใบผ่านอยู่ใน cookie httpOnly ที่หน้าเว็บอ่านไม่ได้ (ระยะ 4)
  *  แอปดีลเลอร์จึงแนบ Bearer ไปหาสำนักงานใหญ่เองไม่ได้ → ยิงผ่านเซิร์ฟเวอร์ของตัวเองแทน
@@ -38,7 +39,7 @@ async function อ่านคำตอบ<T>(res: Response): Promise<T> {
   let body: unknown = null;
   try { body = text ? JSON.parse(text) : null; } catch { /* ไม่ใช่ JSON = จัดการข้างล่าง */ }
   if (!res.ok) throw new Error((body as { error?: string } | null)?.error || `คำขอไม่สำเร็จ (${res.status})`);
-  if (body === null || typeof body !== "object") throw new Error(`คำตอบจากเซิร์ฟเวอร์ว่างหรืออ่านไม่ได้ (${res.status})`);
+  if (body === null || typeof body !== "object") throw new Error(`ระบบตอบกลับผิดปกติ (รหัส ${res.status})`);
   return body as T;
 }
 
@@ -55,7 +56,7 @@ async function ยิง<T>(path: string, init?: RequestInit): Promise<T> {
 
   const origin = hqOrigin();
   if (!origin && process.env.PMS_APP !== "hq") {
-    throw new Error("ยังไม่ได้ตั้งค่า NEXT_PUBLIC_HQ_ORIGIN — เปลี่ยนบัญชีเข้าระบบจากหน้านี้ยังไม่ได้");
+    throw new Error(ตั้งค่าไม่ครบ("NEXT_PUBLIC_HQ_ORIGIN", "account-remote"));
   }
   const token = await getAccessToken();
   const res = await fetch(`${origin}${path}`, {

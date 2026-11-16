@@ -131,8 +131,8 @@ function QuoteDocPanel({ q, ทั้งหมด, ผู้รับผิด�
               title={ขาด.length ? `พิมพ์ไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาด.join(" · ")})` : "พิมพ์ PDF"}><Printer size={13} /> พิมพ์ PDF</button>
             {onGoLead && (
               <button onClick={onGoLead} data-goto-lead style={{ ...ปุ่มหัว, background: "#fff", color: "#003366", fontWeight: 800 }}
-                title="ส่งให้ลูกค้า · บันทึกผลจากลูกค้า · ทำฉบับใหม่ ทำที่แผงลูกค้าเป้าหมาย">
-                {q.dealId != null ? "ไปแผงลูกค้าเป้าหมาย" : "ไปแผงลูกค้า"} <ArrowRight size={13} />
+                title="ทำรายการเหล่านี้ที่หน้าลูกค้าเป้าหมาย">
+                {q.dealId != null ? "ไปหน้าลูกค้าเป้าหมาย" : "ไปหน้าลูกค้า"} <ArrowRight size={13} />
               </button>
             )}
             <button onClick={onClose} aria-label="ปิด" title="ปิด" style={{ ...ปุ่มหัว, width: 30, padding: 0, justifyContent: "center" }}><X size={15} /></button>

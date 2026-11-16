@@ -217,7 +217,7 @@ test("[flow·hq] รายการวัสดุ: วัสดุที่เ�
   const แถวผนัง = แผง.locator(`tbody tr[data-mt-row="${id.ผนัง}"]`);
   await expect(แถวผนัง.locator("[data-mt-used='1']"), "วัสดุที่เคยใช้ขึ้น \"ใช้แล้ว\"").toHaveText("ใช้แล้ว", { timeout: 20_000 });
   await expect(แถวผนัง.getByRole("button", { name: /^ลบ / }), "ไม่มีปุ่มลบ").toHaveCount(0);
-  await expect(แถวผนัง.getByLabel(/^เปิดใช้ \d+$/), "ปิดใช้ได้").toBeEnabled();
+  await expect(แถวผนัง.getByLabel(/^เปิดใช้งาน \d+$/), "ปิดใช้ได้").toBeEnabled();
   // วัสดุที่ยังไม่เคยใช้มีปุ่มลบตามปกติ (เดิมใช้แถวใหม่ในตาราง — ปุ่มเพิ่มวัสดุเปลี่ยนเป็นตารางเพิ่มหลายแถว 5 พ.ย. 69)
   const ไม่ใช้ = `ZZTEST-ยังไม่ใช้-${แท็ก}`;
   const ใส่ = await svc.from("material_templates").insert({ category: หมวด, name: ไม่ใช้, unit: "ชุด", unit_price: 1 }).select("id").single();

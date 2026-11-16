@@ -139,7 +139,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
       // ได้ใบ HQ: คำขอรออยู่ = เปิดคำขอ + บอกว่ารอ HQ ส่งใบ (บอสตอบ 6 พ.ย. 69 ข้อ 1 ก) · ยังไม่มีคำขอรอ = ไปทางขอราคาด้านล่าง
       if (งาน === "hqQuote" && คำขอ && (คำขอ.status === "new" || คำขอ.status === "pricing")) {
         onAction("ดูคำขอ");
-        return แจ้งสำเร็จ("รอ HQ ส่งใบอยู่ — ระบบติ๊กให้เมื่อ HQ ส่งใบ");
+        return แจ้งสำเร็จ("รอ HQ ส่งใบอยู่ — ระบบทำให้เมื่อ HQ ส่งใบ");
       }
       if (!ขั้น.action || !(ปุ่มของงาน[งาน] ?? []).includes(ขั้น.action.kind)) return แจ้งพลาด(`ยังทำงานนี้ไม่ได้ตอนนี้ — ${ขั้น.title}: ${ขั้น.detail}`);
       if (งาน === "hqQuote") แจ้งสำเร็จ("ยังไม่ได้ส่งคำขอใบเสนอราคาให้ HQ — ส่งคำขอก่อน แล้ว HQ จะส่งใบกลับมา");
@@ -147,7 +147,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
     if (เป้า === "ปิดไม่สำเร็จ") {
       if (ขั้น.ปิดไม่สำเร็จได้) return ปิดไม่สำเร็จ();
       if (ขั้น.action?.kind === "customer_result") return onAction("customer_result", ใบที่ส่งอยู่?.id);   // ส่งใบแล้ว = "ลูกค้าปฏิเสธ" ที่ใบ (L3)
-      return แจ้งพลาด(`ปิดไม่สำเร็จไม่ได้ — ${ขั้น.title}`);
+      return แจ้งพลาด(`ปิดการขายไม่สำเร็จไม่ได้ — ${ขั้น.title}`);
     }
     if (เป้า === "ปิดสำเร็จ") {
       if (ขั้น.action?.kind === "customer_result") return onAction("customer_result", ใบที่ส่งอยู่?.id);   // บันทึก "ลูกค้าตอบรับ" ที่ใบ (L2)
@@ -156,7 +156,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
         if (กันส่ง) return แจ้งพลาด(`ส่งไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาดตอนส่ง.join(" · ")})`);
         return onAction("send_quote", ใบล่าสุด?.id, true);
       }
-      return แจ้งพลาด(`ปิดสำเร็จได้เมื่อส่งใบให้ลูกค้าแล้ว — ตอนนี้: ${ขั้น.title}`);
+      return แจ้งพลาด(`ปิดการขายสำเร็จได้เมื่อส่งใบให้ลูกค้าแล้ว — ตอนนี้: ${ขั้น.title}`);
     }
     if (!ขั้น.action) return แจ้งพลาด(`${ขั้น.title} — ${ขั้น.detail}`);
     if (กันส่ง) return แจ้งพลาด(`ส่งไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาดตอนส่ง.join(" · ")})`);
@@ -169,7 +169,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
     // รอราคา HQ อยู่ = ยกเลิกคำขอพร้อมปิดลีด (ฐานเลื่อนลีดให้เอง) · อย่างอื่น = บันทึกปิดไม่สำเร็จที่ลีด
     const รอHQ = !!คำขอ && (คำขอ.status === "new" || คำขอ.status === "pricing");
     void ถามเหตุผล({
-      หัวข้อ: รอHQ ? "ปิดไม่สำเร็จ — ระบบยกเลิกคำขอใบเสนอราคาที่รอ HQ ให้ด้วย" : "ปิดไม่สำเร็จ — เลือกเหตุผลที่ปิดการขายไม่สำเร็จ",
+      หัวข้อ: รอHQ ? "ปิดการขายไม่สำเร็จ — ระบบยกเลิกคำขอใบเสนอราคาที่รอ HQ ให้ด้วย" : "ปิดการขายไม่สำเร็จ — เลือกเหตุผล",
       ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือก: lostReasons,
       ปุ่มตกลง: "ยืนยันปิดการขาย", ปุ่มกำลังทำ: "กำลังปิดการขาย…", อันตราย: true,
       ทำ: async reason => {
@@ -182,7 +182,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
 
   return (
     <div data-panel="next-step" style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "12px 20px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-      <ol aria-label="ขั้นตอนการขาย" style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: `repeat(${จำนวนขั้น}, minmax(0, 1fr))`, gap: 6 }}>
+      <ol aria-label="ขั้นการขาย" style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: `repeat(${จำนวนขั้น}, minmax(0, 1fr))`, gap: 6 }}>
         {ชื่อขั้นการขาย.map((ชื่อ, i) => {
           const สภาพ = แถบ[i];
           const ผ่าน = สภาพ === "ผ่าน", ตอนนี้ = สภาพ === "ตอนนี้";

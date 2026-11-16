@@ -6,6 +6,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ส่งอีเมลค้างส่ง, คลังบนฐาน, ตัวส่งSMTP } from "@pms/shared/server/mail/outbox";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 401 });
   }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "", key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  if (!url || !key) return NextResponse.json({ error: "ยังไม่ได้ตั้งค่าการเชื่อมต่อฐานข้อมูลฝั่งเซิร์ฟเวอร์" }, { status: 501 });
+  if (!url || !key) return NextResponse.json({ error: ตั้งค่าไม่ครบ("NEXT_PUBLIC_SUPABASE_URL · SUPABASE_SERVICE_ROLE_KEY", "cron-send-email") }, { status: 501 });
   const admin = createClient(url, key, { auth: { persistSession: false } });
   const ผล = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin), await ตัวส่งSMTP());
   if (ผล.ข้าม) console.warn(`[cron/send-email] ${ผล.ข้าม}`);

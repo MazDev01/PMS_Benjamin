@@ -27,14 +27,14 @@ export const proposalsGET = handler("proposals.list", async (req: NextRequest, s
   // พร้อมแปลงเป็นดีลเลอร์ไหม (ฐานข้อมูลตอบ · คำสั่งตรวจว่าเป็น HQ เอง)
   if (sp.get("view") === "ready") {
     const prospect = Number(sp.get("prospect"));
-    if (!Number.isInteger(prospect) || prospect <= 0) return fail(400, "รหัสลูกค้าเป้าหมายไม่ถูกต้อง");
+    if (!Number.isInteger(prospect) || prospect <= 0) return fail(400, "รหัสผู้สนใจไม่ถูกต้อง");
     const { data, error } = await sb.rpc("dealer_conversion_ready", { p_prospect: prospect });
     if (error) return dbFail("proposals.ready", error);
     return ok({ reason: (data as string | null) ?? null });
   }
   const raw = sp.get("prospect");
   const prospect = raw == null ? null : Number(raw);
-  if (prospect !== null && (!Number.isInteger(prospect) || prospect <= 0)) return fail(400, "รหัสลูกค้าเป้าหมายไม่ถูกต้อง");
+  if (prospect !== null && (!Number.isInteger(prospect) || prospect <= 0)) return fail(400, "รหัสผู้สนใจไม่ถูกต้อง");
   // ⚠️ ไล่ทีละหน้าเสมอ — ฐานข้อมูลคืนสูงสุด 1,000 แถว/คำขอ
   const rows: Row[] = [];
   for (let from = 0; ; from += PAGE) {
@@ -94,7 +94,7 @@ export const proposalsPOST = handler("proposals.create", async (req: NextRequest
     return ok(toCamel<DealerPackageProposal>(data as Row));
   }
   const body = (await req.json().catch(() => null)) as Partial<DealerPackageProposal> | null;
-  if (!body || typeof body !== "object") return fail(400, "ข้อมูลใบค่าแฟรนไชส์ไม่ถูกต้อง");
+  if (!body || typeof body !== "object") return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const row = เตรียมบันทึกใบ(body);
   const ผิด = ตรวจใบเสนอ(row);
   if (ผิด) return fail(400, ผิด);

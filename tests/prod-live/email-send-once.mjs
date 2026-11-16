@@ -31,7 +31,7 @@ for (let attempt = 1; attempt <= 3 && !เข้าได้; attempt++) {
     await email.fill(ดีลเลอร์.email); await pass.fill(st.password); await page.waitForTimeout(300);
     if (await email.inputValue() === ดีลเลอร์.email && await pass.inputValue() === st.password) break;
   }
-  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+  await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
   เข้าได้ = await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 30_000 }).then(() => true, () => false);
 }
 if (!เข้าได้) { await browser.close(); console.error("✗ ล็อกอินเว็บดีลเลอร์ไม่ผ่าน — ยังไม่ได้ส่ง"); process.exit(1); }

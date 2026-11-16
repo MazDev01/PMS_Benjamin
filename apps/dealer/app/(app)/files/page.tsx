@@ -408,7 +408,7 @@ export default function FilesPage() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={2 + COLS.filter(c => showCol(c.key)).length} style={{ padding: 0 }}>
                     <EmptyState icon={<FolderOpen size={28} />} title="ไม่พบไฟล์"
-                      description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือล้างตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
+                      description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
                   </td></tr>
                 ) : null}
                 {/* แถวไม่กดเปิดหน้าต่างพรีวิวแล้ว (บอสสั่ง 28 ส.ค. 69) — ใช้ปุ่มด้านขวาแทน
@@ -498,7 +498,7 @@ export default function FilesPage() {
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState icon={<FolderOpen size={28} />} title="ไม่พบไฟล์"
-              description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือล้างตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
+              description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
               {paged.map(f => (

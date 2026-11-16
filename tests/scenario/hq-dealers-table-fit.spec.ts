@@ -28,7 +28,7 @@ test("[ui·hq] ตารางดีลเลอร์: ไม่มีคอล
     await settle(page);
     await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill(ส!.รหัส);
     const ตาราง = page.locator("table[data-dealers-table]");
-    const แถว = page.getByRole("row", { name: `เปิดแผงดีลเลอร์ ${ชื่อยาว}`, exact: true });
+    const แถว = page.getByRole("row", { name: `เปิดหน้าต่างรายละเอียดดีลเลอร์ ${ชื่อยาว}`, exact: true });
     await expect(แถว, `จอ ${w}: แถวของสาขาของข้อ`).toBeVisible({ timeout: 20_000 });
 
     // 1) ไม่มีคอลัมน์ลำดับ
