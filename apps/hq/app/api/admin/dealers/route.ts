@@ -22,6 +22,7 @@ import {
 import { encryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
+import { อีเมลซ้ำ } from "@pms/shared/lib/emailTaken";
 
 // รันบน Node เสมอ (ต้องใช้ service_role — ห้าม edge ที่อาจแคช env แปลก ๆ)
 export const runtime = "nodejs";
@@ -34,7 +35,6 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 // ขั้นตอนตรวจ service_role → JWT → บทบาท → สิทธิ์ ย้ายไปอยู่ที่ adminRoute.ts (ใช้ร่วมกับ route อื่น)
 // permission "dealers:manage" ผูกตรงกับ permissions.ts/RLS can_write_master · SSOT
-const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — จัดการดีลเลอร์จากที่นี่ยังไม่ได้";
 const DENY = "ไม่มีสิทธิ์จัดการดีลเลอร์";
 
 async function must(p: PromiseLike<{ error: { message: string } | null }>) {
@@ -59,7 +59,7 @@ async function rememberSecret(admin: SupabaseClient, code: string, password: str
 
 export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   // ── 1) ตรวจ service_role + ยืนยันตัวตน + สิทธิ์ของ "ผู้เรียก" ที่เซิร์ฟเวอร์ (ห้ามเชื่อหน้าจอ) ──
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
 
@@ -76,7 +76,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     code?: string; name?: string; province?: string; region?: string; revenueTarget?: number;
     email?: string; password?: string; prospectId?: number; provinces?: unknown;
   };
-  if (!body) return bad(400, "รูปแบบข้อมูลไม่ถูกต้อง");
+  if (!body) return bad(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const code = String(body.code ?? "").trim().toUpperCase();
   const name = String(body.name ?? "").trim();
   const province = String(body.province ?? "").trim();
@@ -110,15 +110,15 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   }
   const prospectId = Number(body.prospectId);
   {
-    if (!Number.isInteger(prospectId) || prospectId <= 0) return bad(400, "ไม่พบลูกค้าเป้าหมายที่อ้างถึง");
+    if (!Number.isInteger(prospectId) || prospectId <= 0) return bad(400, "ไม่พบผู้สนใจที่อ้างถึง");
     const { data: pr, error: prErr } = await admin.from("dealer_prospects")
       .select("id, status, dealer_code").eq("id", prospectId).maybeSingle();
     if (prErr) {
       console.error("[create-dealer] ตรวจลูกค้าเป้าหมายไม่สำเร็จ", prErr);
-      return bad(503, "ตรวจข้อมูลลูกค้าเป้าหมายไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+      return bad(503, "ตรวจข้อมูลผู้สนใจไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
     }
-    if (!pr) return bad(404, "ไม่พบลูกค้าเป้าหมายรายนี้แล้ว — อาจถูกลบไปก่อนหน้า");
-    if (pr.status === "won" && pr.dealer_code) return bad(409, `ลูกค้าเป้าหมายรายนี้เป็นดีลเลอร์แล้ว (รหัส ${pr.dealer_code})`);
+    if (!pr) return bad(404, "ไม่พบผู้สนใจรายนี้แล้ว — อาจถูกลบไปก่อนหน้า");
+    if (pr.status === "won" && pr.dealer_code) return bad(409, `ผู้สนใจรายนี้เป็นดีลเลอร์แล้ว (รหัส ${pr.dealer_code})`);
 
     // ── ตกลง + ชำระ (ด่าน 4 · บอสตัดสิน 15 ต.ค. 69 · 0208) ──
     //   แปลงได้เมื่อ ใบค่าแฟรนไชส์ตอบรับ + ยอดชำระรวม (ไม่นับที่ยกเลิก) ≥ ยอดในใบ — ฐานข้อมูลตอบ (dealer_conversion_ready)
@@ -174,7 +174,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   const อีเมลที่กรอก = String(body.email ?? "").trim().toLowerCase();
   const รหัสที่กรอก = String(body.password ?? "");
   if (อีเมลที่กรอก && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมลที่กรอก)) {
-    return bad(400, "รูปแบบอีเมลไม่ถูกต้อง");
+    return bad(400, "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th");
   }
   // กติการหัสผ่านชุดเดียวทั้งระบบ (ยาว ≥ 8 · ห้ามช่องว่าง) — ดู passwordRule.ts
   const ผิดกติกา = รหัสที่กรอก ? ตรวจรหัสผ่านใหม่(รหัสที่กรอก) : null;
@@ -186,7 +186,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   //   ระบบยืนยันตัวตนตอบกรณีซ้ำเป็น 500 เนื้อความว่าง (ดู อีเมลถูกใช้แล้ว) → ถ้าไม่ถามก่อน ผู้ใช้จะได้
   //   "สร้างไม่สำเร็จชั่วคราว — ลองใหม่" ซึ่งลองกี่ครั้งก็ไม่สำเร็จ (PATCH/อนุมัติคำขอ/ดีลเลอร์แก้เอง ถามก่อนอยู่แล้ว)
   if ((await อีเมลถูกใช้แล้ว(SUPABASE_URL, SERVICE_KEY, email)) === true) {
-    return bad(400, `อีเมล ${email} ถูกใช้ไปแล้วในระบบยืนยันตัวตน — ใช้อีเมลอื่น`);
+    return bad(400, อีเมลซ้ำ);
   }
 
   // ── 3) สร้างบัญชี auth (ยืนยันอีเมลให้เลย เพราะเป็นบัญชีที่ HQ ออกให้) ──
@@ -202,7 +202,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
     //   400 = ผู้ใช้แก้เองได้ (เปลี่ยนรหัสสาขา) · 503 = ระบบขัดข้อง ให้ลองใหม่ ไม่ใช่ความผิดผู้ใช้
     // เดิมตอบ 400 พร้อมข้อความดิบจากระบบยืนยันตัวตนทุกกรณี — ผู้ใช้เห็นแล้วนึกว่าตัวเองกรอกผิด
     // แล้วลองแก้ข้อมูลไปเรื่อย ๆ ทั้งที่ปัญหาอยู่ที่เซิร์ฟเวอร์ · ทั้งยังเผยรายละเอียดภายในออกไปด้วย
-    if (/already/i.test(msg)) return bad(400, `อีเมล ${email} ถูกใช้ไปแล้วในระบบยืนยันตัวตน`);
+    if (/already/i.test(msg)) return bad(400, อีเมลซ้ำ);
     console.error(`[create-dealer] สร้างบัญชีเข้าระบบของสาขา ${code} ไม่สำเร็จ`, createErr);
     return bad(503, "สร้างบัญชีเข้าระบบไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }
@@ -267,7 +267,7 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
 // HQ พิมพ์รหัสเองได้ (บอสสั่ง 20 ส.ค. 69) · ไม่ส่งรหัสมา = สุ่มให้ · ตรวจกติกาเดียวกับทุกทาง (passwordRule.ts)
 // ทุกครั้งที่เปลี่ยน: เก็บสำเนารหัส (ถ้าเปลี่ยนรหัส) · บันทึกประวัติ dealer_account_changes (by_self=false) · audit
 export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
 
@@ -290,7 +290,7 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
   const แก้ = (await req.json().catch(() => null)) as null | { email?: string; password?: string };
   const อีเมลใหม่ = String(แก้?.email ?? "").trim().toLowerCase();
   const รหัสที่กรอก = String(แก้?.password ?? "");
-  if (อีเมลใหม่ && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมลใหม่)) return bad(400, "รูปแบบอีเมลไม่ถูกต้อง");
+  if (อีเมลใหม่ && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมลใหม่)) return bad(400, "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th");
   const ผิดกติกา = รหัสที่กรอก ? ตรวจรหัสผ่านใหม่(รหัสที่กรอก) : null;
   if (ผิดกติกา) return bad(400, ผิดกติกา);
 
@@ -300,7 +300,7 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
 
   // ถามระบบยืนยันตัวตนก่อนว่าอีเมลใหม่ว่างไหม — กรณีซ้ำมันตอบ 500 เนื้อความว่าง จับจากข้อความไม่ได้
   if (อีเมลใหม่ && (await อีเมลถูกใช้แล้ว(SUPABASE_URL, SERVICE_KEY, อีเมลใหม่, found.id)) === true) {
-    return bad(400, `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบยืนยันตัวตน — ใช้อีเมลอื่น`);
+    return bad(400, อีเมลซ้ำ);
   }
   // อีเมลเดิมไว้ลงประวัติ — ประวัติการเปลี่ยนบัญชีต้องครบทุกทาง (ดีลเลอร์แก้เอง/อนุมัติคำขอ/ลืมรหัส มีอยู่แล้ว ขาดทางนี้ทางเดียว)
   const { data: บัญชีเดิม } = await admin.auth.admin.getUserById(found.id);
@@ -313,7 +313,7 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
   if (updateErr || !updated.user) {
     const msg = updateErr?.message ?? "";
     // อีเมลชนกับบัญชีอื่น = ผู้ใช้แก้เองได้ (เปลี่ยนอีเมล) ไม่ใช่ระบบขัดข้อง
-    if (/already|registered|exists/i.test(msg)) return bad(400, `อีเมล ${อีเมลใหม่} ถูกใช้ไปแล้วในระบบยืนยันตัวตน`);
+    if (/already|registered|exists/i.test(msg)) return bad(400, อีเมลซ้ำ);
     console.error(`[reset-dealer-pw] แก้บัญชีเข้าระบบของสาขา ${code} ไม่สำเร็จ`, updateErr);
     return bad(503, "แก้บัญชีเข้าระบบไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }
@@ -339,7 +339,7 @@ export const PATCH = withErrors("reset-dealer-pw", async (req: NextRequest) => {
 //   ใช้ "ปิดใช้งาน" ที่หน้ารายละเอียดดีลเลอร์แทน · ตรวจสิทธิ์ก่อนเหมือนเดิม (คนนอก/ดีลเลอร์ยังได้ 401/403)
 //   คำสั่งของฐาน delete_dealer_atomic ยังอยู่สำหรับงานดูแลระบบด้วยกุญแจฝั่งเซิร์ฟเวอร์เท่านั้น · ข้อทดสอบ: flow-b-hq-dealers.spec.ts
 export const DELETE = withErrors("delete-dealer", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   return NextResponse.json({ error: "ยกเลิกแล้ว — ลบดีลเลอร์ไม่ได้ ใช้ปิดใช้งานที่หน้ารายละเอียดดีลเลอร์แทน" }, { status: 410 });
 });

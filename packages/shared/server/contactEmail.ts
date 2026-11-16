@@ -7,6 +7,7 @@ import { createHash, randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ส่งอีเมลค้างส่ง, คลังบนฐาน, ตัวส่งSMTP } from "./mail/outbox";
 import { เป็นอีเมลเข้าระบบดีลเลอร์ } from "@pms/shared/lib/dealerLogin";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 export const อายุโค้ดนาที = 15;
 export const ส่งใหม่ได้หลังวินาที = 60;
@@ -25,7 +26,7 @@ export async function สถานะอีเมลติดต่อ(admin: Su
 /** บันทึกอีเมลติดต่อ (สถานะยืนยันถูกล้างเองที่ฐาน) แล้วส่งโค้ด 6 หลักไปที่อีเมลนั้นทันที */
 export async function ส่งโค้ดยืนยันอีเมล(admin: SupabaseClient, who: { userId: string; dealerCode: string }, อีเมลที่กรอก: string): Promise<ผลส่งโค้ด> {
   const email = อีเมลที่กรอก.trim().toLowerCase();
-  if (!รูปแบบอีเมล.test(email)) return { ok: false, status: 400, error: "รูปแบบอีเมลไม่ถูกต้อง" };
+  if (!รูปแบบอีเมล.test(email)) return { ok: false, status: 400, error: "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th" };
   if (เป็นอีเมลเข้าระบบดีลเลอร์(email)) return { ok: false, status: 400, error: "อีเมลนี้เป็นอีเมลเข้าระบบที่ไม่มีกล่องจดหมายจริง — ใช้อีเมลที่ติดต่อได้จริง" };
 
   const { data: เดิม } = await admin.from("contact_email_codes").select("sent_at").eq("user_id", who.userId).maybeSingle();
@@ -58,7 +59,7 @@ export async function ส่งโค้ดยืนยันอีเมล(adm
   const ผล = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin, Number(จดหมาย.id)), await ตัวส่งSMTP(), 1);
   if (ผล.ส่งแล้ว !== 1) {
     if (ผล.ข้าม) console.warn(`[contact-email] ${ผล.ข้าม}`);
-    return { ok: false, status: 503, error: "ระบบส่งอีเมลขัดข้อง ส่งเลขยืนยันไม่สำเร็จ — ลองกด “ส่งเลขยืนยันใหม่” ภายหลัง หรือติดต่อสำนักงานใหญ่ให้ยืนยันอีเมลแทน (ใช้งานระบบต่อได้ตามปกติ)" };
+    return { ok: false, status: 503, error: "ส่งเลขยืนยันไม่สำเร็จ (ระบบอีเมลขัดข้อง) — กด “ส่งเลขยืนยันใหม่” ภายหลัง หรือให้สำนักงานใหญ่ยืนยันแทน" };
   }
   return { ok: true, sentTo: email };
 }
@@ -138,8 +139,8 @@ export async function ส่งโค้ดผู้รับแจ้งเต�
   if (codeErr) return { ok: false, status: 503, error: "สร้างเลขยืนยันไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" };
   const { data: จดหมาย, error: mailErr } = await admin.from("email_outbox").insert({
     kind: "notify_recipient_verify", to_email: r.row.email, ref_table: "dealer_notify_recipients", ref_id: String(id),
-    subject: `เลขยืนยันอีเมลรับแจ้งเตือน Benjamin PMS: ${code}`,
-    body: `เลขยืนยันอีเมลรับแจ้งเตือนของดีลเลอร์ ${who.dealerCode} คือ ${code}\n\nกรอกเลขยืนยันนี้ในหน้า ตั้งค่า › การแจ้งเตือน ภายใน ${อายุโค้ดนาที} นาที\n`
+    subject: `เลขยืนยันอีเมลผู้รับแจ้งเตือน Benjamin PMS: ${code}`,
+    body: `เลขยืนยันอีเมลผู้รับแจ้งเตือนของดีลเลอร์ ${who.dealerCode} คือ ${code}\n\nกรอกเลขยืนยันนี้ในหน้า ตั้งค่า › การแจ้งเตือน ภายใน ${อายุโค้ดนาที} นาที\n`
       + "ยืนยันแล้วอีเมลนี้จะได้รับแจ้งเตือนจากระบบ เช่น เมื่อสำนักงานใหญ่ส่งราคาให้\n"
       + "ถ้าไม่ได้ขอเลขยืนยันนี้ ไม่ต้องทำอะไร",
   }).select("id").single();
@@ -147,7 +148,7 @@ export async function ส่งโค้ดผู้รับแจ้งเต�
   const ผล = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin, Number(จดหมาย.id)), await ตัวส่งSMTP(), 1);
   if (ผล.ส่งแล้ว !== 1) {
     if (ผล.ข้าม) console.warn(`[notify-recipient] ${ผล.ข้าม}`);
-    return { ok: false, status: 503, error: "ระบบส่งอีเมลขัดข้อง ส่งเลขยืนยันไม่สำเร็จ — ลองกด “ส่งเลขยืนยัน” อีกครั้งภายหลัง" };
+    return { ok: false, status: 503, error: "ส่งเลขยืนยันไม่สำเร็จ (ระบบอีเมลขัดข้อง) — กด “ส่งเลขยืนยัน” อีกครั้งภายหลัง" };
   }
   return { ok: true, sentTo: r.row.email };
 }
@@ -180,15 +181,15 @@ export async function ส่งอีเมลทดสอบ(admin: SupabaseCli
   const ตัวส่ง = await ตัวส่งSMTP();
   const ผล: ผลอีเมลทดสอบ[] = [];
   for (const email of [...new Set(รายชื่อ.map(e => e.trim().toLowerCase()).filter(Boolean))]) {
-    if (!ตัวส่ง) { ผล.push({ email, ok: false, error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ส่งอีเมล" }); continue; }
+    if (!ตัวส่ง) { ผล.push({ email, ok: false, error: ตั้งค่าไม่ครบ("SMTP_*", "notify-test") }); continue; }
     const { data: จดหมาย, error } = await admin.from("email_outbox").insert({
       kind: "notify_test", to_email: email, ref_table: "notify_test", ref_id: ฝั่ง,
       subject: "อีเมลทดสอบการแจ้งเตือน Benjamin PMS",
-      body: `อีเมลนี้ส่งจากปุ่ม “ส่งอีเมลทดสอบ” ในหน้า ตั้งค่า › การแจ้งเตือน (${ฝั่ง})\n\nได้รับอีเมลนี้ = อีเมลแจ้งเตือนของระบบส่งถึงที่อยู่นี้ได้\nไม่ต้องตอบกลับ`,
+      body: `อีเมลทดสอบจากปุ่ม “ส่งอีเมลทดสอบ” (ตั้งค่า › การแจ้งเตือน)\n\nได้รับ = ระบบส่งแจ้งเตือนถึงที่อยู่นี้ได้\nไม่ต้องตอบกลับ`,
     }).select("id").single();
     if (error || !จดหมาย) { ผล.push({ email, ok: false, error: "วางจดหมายไม่สำเร็จชั่วคราว" }); continue; }
     const r = await ส่งอีเมลค้างส่ง(คลังบนฐาน(admin, Number(จดหมาย.id)), ตัวส่ง, 1);
-    ผล.push(r.ส่งแล้ว === 1 ? { email, ok: true } : { email, ok: false, error: "เซิร์ฟเวอร์อีเมลไม่รับ — ตรวจที่อยู่อีเมลหรือลองใหม่ภายหลัง" });
+    ผล.push(r.ส่งแล้ว === 1 ? { email, ok: true } : { email, ok: false, error: "ระบบอีเมลไม่รับ — ตรวจที่อยู่อีเมลหรือลองใหม่ภายหลัง" });
   }
   return ผล;
 }

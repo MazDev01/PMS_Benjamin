@@ -305,7 +305,7 @@ export default function CalendarPage() {
                   return (
                     <button key={i} onClick={() => { setSelectedDate(date); if (appts.length === 0) setสร้างนัด({ date, time: "09:00" }); }}
                       data-day={date} data-empty-day={appts.length === 0 ? "1" : undefined}
-                      aria-label={appts.length === 0 ? `ลงนัดวันที่ ${d} ${THAI_MONTHS[month]}` : undefined}
+                      aria-label={appts.length === 0 ? `บันทึกนัดหมายวันที่ ${d} ${THAI_MONTHS[month]}` : undefined}
                       style={{
                         height: 108, borderRadius: 10, border: isSel ? `1.5px solid ${PRIMARY}` : `1px solid ${BORDER}`,
                         background: isSel ? "#f4f8fc" : isToday ? "#eef3f8" : "#fff", cursor: "pointer", padding: "6px 6px 5px",
@@ -364,7 +364,7 @@ export default function CalendarPage() {
                 <CalendarDays size={15} color={PRIMARY} /> {selectedDate === TODAY ? "วันนี้" : `${parseInt(selectedDate.split("-")[2])} ${THAI_MONTHS[parseYmd(selectedDate).getMonth()]}`}
               </div>
               {/* สร้างนัดได้จากปฏิทินอีกทาง (FLOW D7 เปลี่ยน 3 พ.ย. 69 · ทับรอบ 4 "สร้างที่แผงลีดที่เดียว") — ใช้ตัวสร้างเดียวกับแผงลีด */}
-              <button onClick={() => setสร้างนัด({ date: selectedDate, time: "09:00" })} className="btn btn-secondary btn-sm" aria-label="ลงนัดวันที่เลือก"><Plus size={13} /></button>
+              <button onClick={() => setสร้างนัด({ date: selectedDate, time: "09:00" })} className="btn btn-secondary btn-sm" aria-label="บันทึกนัดหมายวันที่เลือก"><Plus size={13} /></button>
             </div>
             {selectedAppts.length === 0 ? (
               <div className="card-body" style={{ fontSize: "0.8rem", color: MUTED, textAlign: "center", padding: "18px 0 22px" }}>ไม่มีนัดหมายวันนี้</div>
@@ -768,7 +768,7 @@ function ตารางช่องเวลา({ วัน, byDate, วัน�
                 display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
                 {ใน.length > 0
                   ? ใน.map(a => <WeekChip key={a.id} a={a} onOpen={() => onเปิด(a)} />)
-                  : <button type="button" aria-label={`ลงนัด ${parseYmd(date).getDate()} ${THAI_MONTHS[parseYmd(date).getMonth()]} เวลา ${hh}`} onClick={() => onลงนัด(date, hh)}
+                  : <button type="button" aria-label={`บันทึกนัดหมาย ${parseYmd(date).getDate()} ${THAI_MONTHS[parseYmd(date).getMonth()]} เวลา ${hh}`} onClick={() => onลงนัด(date, hh)}
                       className="slot-empty" style={{ flex: 1, minHeight: 32, border: "none", background: "transparent", cursor: "pointer", borderRadius: 6, color: "transparent", fontFamily: "inherit" }}
                       onMouseEnter={e => { e.currentTarget.style.background = "#f4f8fc"; e.currentTarget.style.color = PRIMARY; }}
                       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "transparent"; }}>
@@ -865,7 +865,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
                   <div data-picked={เลือก.kind} style={{ display: "flex", alignItems: "center", gap: 8, border: `1px solid ${BORDER}`, borderRadius: 9, padding: "8px 11px" }}>
                     <span style={{ flex: 1, fontSize: "0.82rem", fontWeight: 700 }}>{ชื่อที่เลือก}</span>
                     <span style={{ fontSize: "0.68rem", color: MUTED }}>{เลือก.kind === "lead" ? "ลูกค้าเป้าหมาย" : "ลูกค้า"}</span>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setเลือก(null)}>เปลี่ยน</button>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setเลือก(null)}>เลือกใหม่</button>
                   </div>
                 ) : (
                   <>

@@ -14,7 +14,7 @@ export const prospectImportGET = handler("prospectImport.batches", async (_req: 
 
 export const prospectImportPOST = handler("prospectImport.write", async (req: NextRequest, sb) => {
   const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!b) return fail(400, "ข้อมูลไม่ถูกต้อง");
+  if (!b) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   if (b.op === "import") {
     if (!Array.isArray(b.rows)) return fail(400, "ไม่มีแถวให้นำเข้า");
     const { data, error } = await sb.rpc("hq_prospects_import", { p_file: String(b.fileName ?? ""), p_rows: b.rows });
@@ -26,5 +26,5 @@ export const prospectImportPOST = handler("prospectImport.write", async (req: Ne
     if (error) return dbFail("prospectImport.cancel", error);
     return ok({ deleted: Number((data as { deleted?: number } | null)?.deleted ?? 0) });
   }
-  return fail(400, "คำสั่งไม่ถูกต้อง");
+  return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
 });

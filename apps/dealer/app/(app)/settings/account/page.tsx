@@ -60,7 +60,7 @@ export default function DealerAccountPage() {
             <ShieldCheck size={18} color="#fff" />
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#fff" }}>บัญชีเข้าสู่ระบบ</div>
+            <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#fff" }}>บัญชีเข้าระบบ</div>
             <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,.72)", marginTop: 3 }}>
               {session.dealerName ?? ""} · รหัสดีลเลอร์ {session.dealerCode}
             </div>

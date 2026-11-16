@@ -7,10 +7,9 @@ import { authorizeAdmin, withErrors } from "@pms/shared/lib/adminRoute";
 export const runtime = "nodejs";
 
 const DENY = "ไม่มีสิทธิ์จัดการดีลเลอร์";
-const NOT_CONFIGURED = "ระบบยังไม่ได้ตั้งค่าสิทธิ์ผู้ดูแล";
 
 export const POST = withErrors("move-dealer-data", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   return NextResponse.json({ error: "ยกเลิกแล้ว — ย้ายข้อมูลระหว่างสาขาไม่ได้" }, { status: 410 });
 });

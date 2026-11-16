@@ -85,7 +85,7 @@ export async function loginUI(page: Page, origin: string, path: string, who: Acc
       const ok2 = await email.inputValue() === who.email && await pass.inputValue() === who.password;
       if (ok1 && ok2) break;
     }
-    await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+    await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
     const left = await page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 20_000 })
       .then(() => true).catch(() => false);
     if (left) return;

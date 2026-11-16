@@ -3,7 +3,7 @@ import HeroSection from "@pms/shared/components/auth/HeroSection";
 import LoginCard from "@pms/shared/components/auth/LoginCard";
 
 export const metadata: Metadata = {
-  title: "เข้าสู่ระบบสำนักงานใหญ่ · Benjamin PMS",
+  title: "เข้าระบบสำนักงานใหญ่ · Benjamin PMS",
   description: "ศูนย์บริหารเครือข่ายดีลเลอร์ Benjamin — สำหรับทีมสำนักงานใหญ่",
 };
 

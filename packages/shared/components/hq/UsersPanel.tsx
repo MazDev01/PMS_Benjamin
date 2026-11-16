@@ -14,6 +14,7 @@ import { useAuditEntries } from "@pms/shared/lib/useAudit";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { RightDrawer } from "@pms/shared/components/ui/RightDrawer";
+import { InfoTip } from "@pms/shared/components/ui/InfoTip";
 import { PanelSection, PanelRow } from "@pms/shared/components/ui/DetailPanel";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -113,7 +114,7 @@ function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เ�
       { key: "firstName", label: "ชื่อ", value: f.firstName },
       { key: "email", label: "อีเมล", value: f.email },
     ])) return;
-    if (!อีเมลถูกรูป) { บังคับ.ตั้งผิด("email", "อีเมลไม่ถูกรูปแบบ เช่น name@benjamin.co.th"); return; }
+    if (!อีเมลถูกรูป) { บังคับ.ตั้งผิด("email", "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th"); return; }
     onSave({ name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(), email: f.email.trim(), phone: f.phone.trim(), role: "SUPER_ADMIN", department: f.department, status: f.status, avatar: f.avatar }, initial ? undefined : f.tempPassword); onClose(); };
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);   // Esc ปิด · Tab วนในกล่อง · คืนโฟกัสเดิม
   return (
@@ -144,7 +145,7 @@ function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เ�
           <div><FieldLabel htmlFor="us-first" required>ชื่อ</FieldLabel><input id="us-first" {...บังคับ.ผูก("firstName")} style={{ ...inp, ...บังคับ.ผูก("firstName").style }} value={f.firstName} autoFocus onChange={e => { บังคับ.ล้าง("firstName"); setF({ ...f, firstName: e.target.value }); }} placeholder="ชื่อ" /><FieldError>{บังคับ.ผิด.firstName}</FieldError></div>
           <div><label className="form-label">นามสกุล</label><input style={inp} value={f.lastName} onChange={e => setF({ ...f, lastName: e.target.value })} placeholder="นามสกุล" /></div>
           <div className="col-full"><FieldLabel htmlFor="us-email" required>อีเมล (ใช้เข้าระบบ)</FieldLabel><input id="us-email" {...บังคับ.ผูก("email")} style={{ ...inp, ...บังคับ.ผูก("email").style }} value={f.email} onChange={e => { บังคับ.ล้าง("email"); setF({ ...f, email: e.target.value }); }} placeholder="name@benjamin.co.th" /><FieldError>{บังคับ.ผิด.email}</FieldError></div>
-          {!initial && <><div className="col-full"><label className="form-label">รหัสผ่านชั่วคราว</label><input style={{ ...inp, fontFamily: "monospace", fontWeight: 700 }} value={f.tempPassword} onChange={e => setF({ ...f, tempPassword: e.target.value.replace(/\s/g, "") })} /><div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 4 }}>ใช้รหัสนี้เข้าระบบครั้งแรก · อย่างน้อย 8 ตัว ห้ามมีช่องว่าง · เว้นว่าง = ระบบสุ่มให้ · ผู้ใช้เปลี่ยนเองได้ที่หน้าข้อมูลส่วนตัว</div></div></>}
+          {!initial && <><div className="col-full"><label className="form-label">รหัสผ่านชั่วคราว</label><input style={{ ...inp, fontFamily: "monospace", fontWeight: 700 }} value={f.tempPassword} onChange={e => setF({ ...f, tempPassword: e.target.value.replace(/\s/g, "") })} /><div style={{ fontSize: "0.66rem", color: MUTED, marginTop: 4 }}>รหัสเข้าระบบครั้งแรก · อย่างน้อย 8 ตัว ห้ามเว้นวรรค · เว้นว่าง = ระบบสุ่มให้<InfoTip label="เปลี่ยนรหัสผ่านภายหลัง">ผู้ใช้เปลี่ยนเองได้ที่หน้าข้อมูลส่วนตัว</InfoTip></div></div></>}
           <div><label className="form-label">เบอร์โทร</label><input style={inp} inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: formatPhone(e.target.value) })} placeholder="08x-xxx-xxxx" /></div>
           <div className="form-section">บัญชี</div>
           {/* บทบาทเดียว "สำนักงานใหญ่" — ไม่มีช่องเลือกบทบาท (บอสสั่ง 5 พ.ย. 69 · ใบ 0282) */}
@@ -318,7 +319,7 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
     if (REAL_BACKEND) { void createRemote(data, tempPassword); return; }
     // โหมดเดโม (local): ไม่มีระบบยืนยันตัวตนจริง — เพิ่มไว้ในมุมมองพอให้ทดลอง UI
     if (!canCreate) {
-      notify("เพิ่มผู้ใช้จากหน้านี้ไม่ได้ — บัญชีเข้าระบบถูกจัดการโดยระบบยืนยันตัวตน ต้องสร้างบัญชีที่นั่นก่อน แล้วชื่อจะขึ้นในหน้านี้เอง");
+      notify("เพิ่มผู้ใช้จากหน้านี้ไม่ได้ — ต้องสร้างบัญชีเข้าระบบก่อน แล้วชื่อจะขึ้นในหน้านี้เอง");
       return;
     }
     const nid = String(Date.now());
@@ -382,10 +383,10 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
       <KpiRow label="สรุปผู้ใช้งานสำนักงานใหญ่">
         <KpiCard kpi="total" label="ผู้ใช้ทั้งหมด" value={นับ(ค่า(kpi, "total"))} rawValue={ค่า(kpi, "total")} unit="บัญชี · เฉพาะสำนักงานใหญ่" icon={Users}
           onClick={() => { setStatusF("all"); setPage(1); }} />
-        <KpiCard kpi="active" label="ใช้งานอยู่" value={นับ(ค่า(kpi, "active"))} rawValue={ค่า(kpi, "active")} unit="บัญชี" icon={UserCheck} color="#059669" bg="#E6F6EF"
-          actionLabel={statusF === "active" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดสถานะ("active")} />
+        <KpiCard kpi="active" label="เปิดใช้งาน" value={นับ(ค่า(kpi, "active"))} rawValue={ค่า(kpi, "active")} unit="บัญชี" icon={UserCheck} color="#059669" bg="#E6F6EF"
+          actionLabel={statusF === "active" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กดสถานะ("active")} />
         <KpiCard kpi="inactive" label="ปิดใช้งาน" value={นับ(ค่า(kpi, "inactive"))} rawValue={ค่า(kpi, "inactive")} unit="บัญชี" icon={UserX} color="#6B7280" bg="#F3F4F6"
-          actionLabel={statusF === "inactive" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดสถานะ("inactive")} />
+          actionLabel={statusF === "inactive" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กดสถานะ("inactive")} />
         <KpiCard kpi="signedIn30" label="เข้าระบบใน 30 วัน" value={นับ(ค่า(kpi, "signedIn30"))} rawValue={ค่า(kpi, "signedIn30")} unit="บัญชี · ตามเวลาเข้าระบบล่าสุด"
           icon={LogIn} color="#0891B2" bg="#E6F4F9" />
       </KpiRow>
@@ -527,7 +528,7 @@ function NewCredsDialog({ name, email, password, onClose }: { name: string; emai
           <div style={{ fontSize: "0.82rem", color: MUTED, marginBottom: 14, lineHeight: 1.6 }}>
             บัญชีเข้าระบบของ <strong style={{ color: STEEL }}>{name}</strong> พร้อมใช้แล้ว · <strong style={{ color: "#b45309" }}>รหัสนี้แสดงครั้งเดียว</strong> — คัดลอกไปแจ้งผู้ใช้ แล้วให้เปลี่ยนเองหลังเข้าครั้งแรก
           </div>
-          {row("อีเมลเข้าสู่ระบบ", email)}
+          {row("อีเมลเข้าระบบ", email)}
           {row("รหัสผ่านชั่วคราว", password, true)}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
             <button onClick={onClose} className="btn btn-primary btn-md">เสร็จสิ้น</button>

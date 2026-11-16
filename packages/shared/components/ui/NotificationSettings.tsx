@@ -62,7 +62,7 @@ export function NotifyPrefsTable({ canEdit = true }: { canEdit?: boolean }) {
         <div className="table-wrap" style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
           <table aria-label="ตั้งค่าแจ้งเตือนแต่ละเรื่อง" style={{ tableLayout: "fixed", width: "100%" }}>
             <colgroup><col style={{ width: "40%" }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} /><col /></colgroup>
-            <thead><tr><th>เรื่อง</th><th style={{ textAlign: "center" }}>กระดิ่ง</th><th style={{ textAlign: "center" }}>อีเมล</th><th>กดแล้วไปไหน</th></tr></thead>
+            <thead><tr><th>เรื่อง</th><th style={{ textAlign: "center" }}>กระดิ่ง</th><th style={{ textAlign: "center" }}>อีเมล</th><th>เปิดหน้า</th></tr></thead>
             <tbody>
               {แถว.map(p => (
                 <tr key={p.kind} data-notif-kind={p.kind} data-flow-row={p.flowRow} data-locked={p.locked ? "1" : "0"}>
@@ -135,7 +135,7 @@ export function EmailListEditor({ value, onChange, label = "อีเมลผ�
   const เพิ่ม = () => {
     const e = พิมพ์.trim().toLowerCase();
     if (!e) { setเตือน("พิมพ์อีเมลก่อนกดเพิ่ม"); return; }
-    if (!รูปแบบอีเมลผู้รับ.test(e)) { setเตือน(`“${e}” ไม่ใช่รูปแบบอีเมล`); return; }
+    if (!รูปแบบอีเมลผู้รับ.test(e)) { setเตือน(`“${e}” รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th`); return; }
     if (value.includes(e)) { setเตือน(`${e} อยู่ในรายชื่อแล้ว`); return; }
     onChange([...value, e]); setพิมพ์(""); setเตือน("");
   };
@@ -179,7 +179,7 @@ export function DealerRecipientsCard() {
   };
   const เพิ่ม = () => {
     const e = พิมพ์.trim().toLowerCase();
-    if (!รูปแบบอีเมลผู้รับ.test(e)) { setเตือน(`“${e || "(ว่าง)"}” ไม่ใช่รูปแบบอีเมล`); return; }
+    if (!รูปแบบอีเมลผู้รับ.test(e)) { setเตือน(`“${e || "(ว่าง)"}” รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th`); return; }
     if (โดเมนเข้าระบบดีลเลอร์.test(e)) { setเตือน("อีเมลเข้าระบบของดีลเลอร์ไม่มีกล่องจดหมายจริง — ใช้อีเมลที่ติดต่อได้จริง"); return; }
     void ทำ("add", () => notificationsRepo.addRecipient(e), () => setพิมพ์(""));
   };

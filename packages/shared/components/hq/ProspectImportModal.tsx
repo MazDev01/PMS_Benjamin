@@ -171,7 +171,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                     {[ปีพศนี้() - 1, ปีพศนี้(), ปีพศนี้() + 1].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                   <span data-year-rule style={{ fontSize: "0.68rem", color: "#6b7280", flexBasis: "100%" }}>
-                    วันเริ่มติดต่อที่เลยวันนี้ไป ระบบถอยเป็นปีก่อนให้เอง (เช่น 24.12 → ธ.ค. ปีก่อน) · วันติดตาม (ที่ผ่านมา) ไม่ก่อนวันเริ่ม และต้องไม่เกินวันนี้
+                    วันเริ่มติดต่อที่เลยวันนี้ ระบบถอยเป็นปีก่อนให้ (เช่น 24.12 → ธ.ค. ปีก่อน) · วันติดตามต้องอยู่ระหว่างวันเริ่มกับวันนี้
                   </span>
                 </div>
                 {แถวหัว >= 0 && (
@@ -290,7 +290,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
               <section aria-label="ผลการนำเข้า" data-testid="import-result" data-inserted={ผล.inserted} style={{ display: "grid", gap: 8, fontSize: "0.82rem" }}>
                 <div><b>นำเข้าแล้ว {ผล.inserted.toLocaleString()} ราย</b> · ระบบข้าม {ผล.skipped.length.toLocaleString()} แถว · ไม่ได้ส่ง (ต้องตรวจ/ข้าม) {(นับ("review") + นับ("skip")).toLocaleString()} แถว</div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={ดาวน์โหลดที่ข้าม}><Download size={13} /> ดาวน์โหลดแถวที่ไม่ได้นำเข้า (พร้อมเหตุผล)</button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={ดาวน์โหลดที่ข้าม}><Download size={13} /> ดาวน์โหลดแถวที่ข้าม</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={ล้าง}>นำเข้าไฟล์อื่น</button>
                 </div>
               </section>

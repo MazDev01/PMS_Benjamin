@@ -34,7 +34,7 @@ export function MaterialEstimatePicker({ value, onChange, disabled }: { value: �
   const ตัวเลือก = useMemo(() => ค้นแม่แบบ((แม่แบบ ?? []).filter(t => !value.some(v => v.templateId === t.id)), ค้น).slice(0, 50), [แม่แบบ, value, ค้น]);
 
   const ไม่มีวัสดุ = !!แม่แบบ && แม่แบบ.length === 0;
-  const เหตุไม่มี = "HQ ยังไม่ได้เปิดใช้รายการวัสดุ";
+  const เหตุไม่มี = "HQ ยังไม่ได้เปิดใช้งานรายการวัสดุ";
   return (
     <div className="no-print" data-box="material-estimate" style={{ border: "1px dashed #d8b4fe", background: "#fff", borderRadius: 10, padding: "10px 12px", display: "grid", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 700, color: "#3b0764" }}>

@@ -133,7 +133,7 @@ export default function ProfilePage() {
 
     // H3 — เปลี่ยนรหัสจริงในโหมด supabase (ยืนยันรหัสปัจจุบันก่อน) · โหมดเดโมไม่มีระบบยืนยันตัวตนจริง
     if (!REAL_BACKEND) {
-      setPwMsg({ ok: false, text: "โหมดข้อมูลตัวอย่าง: เปลี่ยนรหัสผ่านจริงไม่ได้ (ต้องมีระบบยืนยันตัวตน)" });
+      setPwMsg({ ok: false, text: "โหมดข้อมูลตัวอย่าง: เปลี่ยนรหัสผ่านจริงไม่ได้" });
       return;
     }
     setPwBusy(true);
@@ -215,7 +215,7 @@ export default function ProfilePage() {
 
           {/* อีเมล — HQ แก้ได้ · ดีลเลอร์ใช้อีเมลล็อกอินที่ HQ ตั้งให้ (read-only) */}
           <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>อีเมล{!isHQ && " (สำหรับเข้าสู่ระบบ)"}</label>
+            <label style={lbl}>อีเมล{!isHQ && " (สำหรับเข้าระบบ)"}</label>
             {isHQ ? (
               <div style={{ position: "relative" }}>
                 <Mail size={15} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: MUTED }} />
@@ -330,9 +330,9 @@ export default function ProfilePage() {
                 </span>
                 <div>
                   {/* ข้อความเดิม "ดีลเลอร์เปลี่ยนรหัสผ่านเองไม่ได้" ขัดกับระบบปัจจุบัน (ดีลเลอร์แก้เองได้ 2 ครั้ง · บอสสั่ง 28 ส.ค. 69) */}
-                  <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL, marginBottom: 3 }}>เปลี่ยนอีเมล/รหัสผ่านที่หน้าบัญชีเข้าสู่ระบบ</div>
+                  <div style={{ fontSize: "0.86rem", fontWeight: 700, color: STEEL, marginBottom: 3 }}>เปลี่ยนอีเมล/รหัสผ่านที่หน้าบัญชีเข้าระบบ</div>
                   <div style={{ fontSize: "0.72rem", color: MUTED, lineHeight: 1.6 }}>
-                    ไปที่ ตั้งค่า › บัญชีเข้าสู่ระบบ · แก้เองได้ 2 ครั้ง ครั้งต่อไปต้องให้สำนักงานใหญ่อนุมัติ · ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่
+                    แก้ที่ ตั้งค่า › บัญชีเข้าระบบ · แก้เองได้ 2 ครั้ง ครั้งต่อไปให้สำนักงานใหญ่อนุมัติ · ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่
                   </div>
                 </div>
               </div>

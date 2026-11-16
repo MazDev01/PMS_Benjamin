@@ -82,7 +82,7 @@ test("[ui·hq] แผงจากแถวทุกหน้า HQ กว้า�
     ["แผงดีลเลอร์ /hq/dealers", async () => {
       await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" }); await settle(page);
       await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill("RYG");
-      await (await แถวตามชื่อ(page, `เปิดแผงดีลเลอร์ ${ชื่อRYG}`)).click();
+      await (await แถวตามชื่อ(page, `เปิดหน้าต่างรายละเอียดดีลเลอร์ ${ชื่อRYG}`)).click();
     }],
     ["แผงลูกค้าเป้าหมายทั้งเครือ /hq/leads", async () => {
       await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
@@ -135,7 +135,7 @@ test("[ui·hq] แผงซ้อนในแผงดีลเลอร์ (ล
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" }); await settle(page);
   await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill("RYG");
-  await page.locator("tbody tr[aria-label^='เปิดแผงดีลเลอร์']").filter({ hasText: "RYG" }).first().click();
+  await page.locator("tbody tr[aria-label^='เปิดหน้าต่างรายละเอียดดีลเลอร์']").filter({ hasText: "RYG" }).first().click();
   const แผงดีลเลอร์ = page.locator("[data-dealer-panel]");
   await expect(แผงดีลเลอร์).toBeVisible({ timeout: 20_000 });
   await แผงดีลเลอร์.locator("[data-panel-tab='customers']").click();

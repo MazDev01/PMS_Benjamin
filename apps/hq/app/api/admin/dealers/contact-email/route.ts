@@ -10,11 +10,10 @@ import { ยืนยันอีเมลแทนดีลเลอร์ } fr
 
 export const runtime = "nodejs";
 const DENY = "ไม่มีสิทธิ์จัดการอีเมลติดต่อของดีลเลอร์";
-const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY)";
 const รหัสจากคำขอ = (req: NextRequest) => (new URL(req.url).searchParams.get("code") ?? "").trim().toUpperCase();
 
 export const GET = withErrors("dealer-contact-email-state", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const code = รหัสจากคำขอ(req);
   if (!/^[A-Z]{2,5}$/.test(code)) return bad(400, "รหัสดีลเลอร์ไม่ถูกต้อง");
@@ -25,7 +24,7 @@ export const GET = withErrors("dealer-contact-email-state", async (req: NextRequ
 });
 
 export const POST = withErrors("dealer-contact-email-verify", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
   if (!(await checkRateLimit(admin, `verify-contact-email:${callerId}`, 20, 60))) return bad(429, "กดถี่เกินไป — รอสักครู่แล้วลองใหม่");

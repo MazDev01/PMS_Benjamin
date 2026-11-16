@@ -7,7 +7,7 @@
 // (ตัวกรอง "ช่วงมูลค่า" ถูกลบทั้งฟีเจอร์ตามที่บอสสั่ง — อย่าใส่กลับ)
 // หมายเหตุ: "จังหวัด" = จังหวัดของดีลเลอร์ที่ออกใบ ไม่ใช่จังหวัดลูกค้า/หน้างาน
 // (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง — ป้ายบนตัวเลือกจึงต้องเขียนว่า "จังหวัดดีลเลอร์" ให้ชัด)
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
 import type { QuotationStatus } from "@pms/shared/lib/mock";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
@@ -21,7 +21,7 @@ export type QuotationFilters = {
 
 /** ชื่อสถานะบนหน้า HQ ใบเสนอราคาทั้งเครือ — คำเดียวกับ FLOW (ส่งให้ลูกค้าแล้ว · ตอบรับ · ลูกค้าปฏิเสธ · ถูกแทนที่ · ร่าง) */
 export const ชื่อสถานะใบHQ: Record<QuotationStatus, string> = {
-  sent_to_client: "ส่งให้ลูกค้าแล้ว", won: "ตอบรับ", lost: "ลูกค้าปฏิเสธ", expired: "หมดอายุ", superseded: "ถูกแทนที่", draft: "ร่าง",
+  sent_to_client: "ส่งให้ลูกค้าแล้ว", won: "ตอบรับ", lost: "ลูกค้าปฏิเสธ", expired: "หมดอายุ", superseded: "ฉบับเก่า", draft: "ร่าง",
 };
 
 export const EMPTY_FILTERS: QuotationFilters = {
@@ -33,7 +33,6 @@ export function QuotationFilterBar({ filters, onChange }: {
   onChange: (f: QuotationFilters) => void;
 }) {
   const set = <K extends keyof QuotationFilters>(k: K, v: QuotationFilters[K]) => onChange({ ...filters, [k]: v });
-  const dirty = filters.search !== "" || filters.status !== "sent";
 
   // ขนาดเดียวกับแถบกรองหน้าลูกค้าทั้งเครือ — ย่อตัวได้เมื่อจอแคบ ไม่ตกบรรทัด
 
@@ -58,15 +57,11 @@ export function QuotationFilterBar({ filters, onChange }: {
 
 
       {/* ต้องมีค่าเสมอ — ค่าเริ่มต้น "ส่งลูกค้าแล้ว" = ชุดเดียวกับการ์ด (บอสสั่ง 30 ต.ค. 69) · "ทุกสถานะ" เป็นตัวเลือกท้ายสุด */}
-      <FilterSelect label="กรองตามสถานะใบเสนอราคา" caption="ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)" all="sent" value={filters.status} onChange={v => set("status", v as QuotationFilters["status"])}
+      <FilterSelect label="กรองตามสถานะใบเสนอราคา" caption="ส่งลูกค้าแล้ว (ไม่นับฉบับร่างและฉบับเก่า)" all="sent" value={filters.status} onChange={v => set("status", v as QuotationFilters["status"])}
         options={[...(Object.keys(ชื่อสถานะใบHQ) as QuotationStatus[]).map(s => ({ v: s, l: ชื่อสถานะใบHQ[s] })), { v: "all", l: "ทุกสถานะ" }]} />
 
 
-      {dirty && (
-        <button onClick={() => onChange(EMPTY_FILTERS)} className="btn btn-secondary btn-sm" style={{ gap: 5 }}>
-          <X size={13} /> ล้างตัวกรอง
-        </button>
-      )}
+      {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
     </div>
   );
 }

@@ -320,8 +320,6 @@ function QuotationsPageInner(){
             "ทุกสถานะ" ใช้ state เดียวกับการ์ด KPI ด้านบน → กดที่ไหนก็ตรงกัน */}
         <FilterRow
           query={query} onQuery={setQuery} placeholder={`ค้นหาเลขที่ / ลูกค้า / ${ช่อง.งาน}...`}
-          showClear={filterStatus!=="ALL" || ownerFilter!=="ALL" || provFilter!=="ALL" || !!query}
-          onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setOwnerFilter("ALL"); setProvFilter("ALL"); }}
           right={
             /* สลับมุมมอง รายการ/การ์ด — อยู่ท้ายแถบตัวกรองเหมือนหน้าลูกค้าเป้าหมาย (ช่อง right ของ FilterRow)
                ขนาดเล็กกว่าช่องกรอง (สูง 30 · ไอคอน 12) เพราะเป็นตัวควบคุมรอง ไม่ใช่ตัวกรอง */
@@ -454,7 +452,7 @@ function QuotationsPageInner(){
                               <button title="ดูใบ" aria-label={`ดูใบ ${q.id}`} onClick={e=>{e.stopPropagation();selectRow(q);}} style={ปุ่ม}><Eye size={14} aria-hidden /></button>
                               <button title={ขาด.length?`พิมพ์ไม่ได้ — กรอกข้อมูลบริษัทให้ครบก่อน (ยังขาด: ${ขาด.join(" · ")})`:"พิมพ์ PDF"} aria-label={`พิมพ์ ${q.id}`} disabled={ขาด.length>0}
                                 onClick={e=>{e.stopPropagation();void พิมพ์ใบ.พิมพ์(q,ลูกค้าจากใบ(q));}} style={{...ปุ่ม,opacity:ขาด.length?.4:1,cursor:ขาด.length?"not-allowed":"pointer"}}><Printer size={14} aria-hidden /></button>
-                              {q.status==="draft"&&(q.dealId!=null||!!q.customerId)&&<button title="แก้ใบร่าง (ที่แผงลูกค้าเป้าหมาย)" aria-label={`แก้ ${q.id}`} onClick={e=>{e.stopPropagation();ไปแผงลีด(q);}} style={ปุ่ม}><Pencil size={14} aria-hidden /></button>}
+                              {q.status==="draft"&&(q.dealId!=null||!!q.customerId)&&<button title="แก้ใบร่าง (ที่หน้าต่างรายละเอียดลูกค้าเป้าหมาย)" aria-label={`แก้ ${q.id}`} onClick={e=>{e.stopPropagation();ไปแผงลีด(q);}} style={ปุ่ม}><Pencil size={14} aria-hidden /></button>}
                               {q.status==="draft"&&<button title="ลบใบร่าง" aria-label={`ลบ ${q.id}`} onClick={e=>{e.stopPropagation();void ลบใบร่าง(q);}} style={{...ปุ่ม,color:"#dc2626"}}><Trash2 size={14} aria-hidden /></button>}
                             </>; })()}
                         </td>
@@ -569,7 +567,7 @@ function KpiCardsRow({ ช่วง, วันนี้, ตัวกรอง, 
     <KpiRow label="สรุปใบเสนอราคา" range={ช่วง} style={{ marginBottom: 16 }}>
       {cards.map(k => (
         <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={นับ(k.value)} rawValue={k.value} unit={k.unit} sub={k.sub} danger={k.danger}
-          icon={k.icon} color={k.color} bg={k.bg} actionLabel={k.on ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กด(k.s, k.หมด)} />
+          icon={k.icon} color={k.color} bg={k.bg} actionLabel={k.on ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กด(k.s, k.หมด)} />
       ))}
     </KpiRow>
   );

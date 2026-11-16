@@ -50,7 +50,7 @@ const EMPTY_HQ_COMPANY: HQCompany = { name: "", address: "", taxId: "", phone: "
 // กำลังกู้เซสชันอยู่ ซึ่งคอมโพเนนต์ที่อยู่ยาว (แถบบน/เมนูข้าง) เริ่มขอข้อมูลไปแล้ว
 // คำขอช่วงนั้นถูกฐานข้อมูลปฏิเสธ 100% (401) จึงไม่มีเหตุผลให้ยิงออกไป — หยุดตั้งแต่ที่นี่
 // ⚠️ ไม่ใช่การ "เปิดสิทธิ์ให้ผ่าน" — สิทธิ์ฝั่งฐานข้อมูลยังเข้มเท่าเดิมทุกประการ
-const NO_SESSION = "ยังไม่ได้เข้าสู่ระบบ";
+const NO_SESSION = "ยังไม่ได้เข้าระบบ";
 const sb = () => {
   if (!hasStoredSession()) throw new DbError(NO_SESSION, "no-session");
   return getSupabase();
@@ -263,7 +263,7 @@ function subscribeWithRetry(label: string, build: () => RealtimeChannel): () => 
 
       if (attempt >= RETRY_DELAYS_MS.length) {
         captureError(
-          new Error(`realtime "${label}" ต่อใหม่ ${RETRY_DELAYS_MS.length} ครั้งแล้วยังไม่ติด — ข้อมูลจะเปลี่ยนช้ากว่าปกติ (ยังซิงก์ทุก 30 วินาที)`),
+          new Error(`เชื่อมต่อข้อมูลล่าสุดไม่ได้ (ลอง ${RETRY_DELAYS_MS.length} ครั้งแล้ว) — ตัวเลขอาจช้ากว่าปกติ ระบบจะโหลดซ้ำทุก 30 วินาที`),
           "realtime",
         );
         return;
@@ -402,7 +402,7 @@ export const SupabaseAdapter: DataAdapter = {
     // เช็ก FK-restrict ครบ 6 ตาราง + ลบบัญชี auth ของสาขาด้วย + เขียน audit log ก่อนลบจริง — .delete() ตรง
     // ที่นี่ไม่มีอะไรกันเลยสักอย่าง (ผลตรวจสอบ DB×หน้าจอทั้งระบบ พบว่าไม่มีจุดไหนเรียกเมธอดนี้ในโหมด supabase
     // จริงเลย — คงไว้เพื่อให้ตรงตาม DealersRepo interface เท่านั้น แต่ทำให้ throw ชัดเจนแทนลบเงียบๆ ถ้าถูกเรียกผิดจุด)
-    remove: async () => { throw new Error("ห้ามลบดีลเลอร์ผ่านทางนี้ — ใช้ DELETE /api/admin/dealers เท่านั้น (กัน FK/บัญชีกำพร้า)"); },
+    remove: async () => { throw new Error("ทำรายการนี้ไม่ได้ — โหลดหน้าใหม่แล้วลองอีกครั้ง ถ้ายังเป็นอีกให้แจ้งสำนักงานใหญ่"); },   // ทางลบดีลเลอร์ที่ถูก = DELETE /api/admin/dealers (กัน FK/บัญชีกำพร้า)
   },
   files: {
     list: (scope) => selectScoped<DealerFile>("files", scope),
@@ -550,7 +550,7 @@ export const SupabaseAdapter: DataAdapter = {
     save: async (p) => {
       const { data: sess } = await sb().auth.getSession();
       const id = sess.session?.user?.id;
-      if (!id) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+      if (!id) throw new Error("ยังไม่ได้เข้าระบบ");
       // อัปเดตเฉพาะฟิลด์ส่วนตัว — role/dealer_code ไม่ส่งไป (และ trigger ที่ DB กันไว้อีกชั้น)
       await must(sb().from("profiles")
         .update({ name: p.name, phone: p.phone, contact_email: p.email, avatar: p.avatar ?? null })

@@ -270,7 +270,6 @@ export default function HQLeadsPage() {
   const leadSel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
     <FilterSelect label={caption} caption={caption} all="ALL" value={v} onChange={on} options={opts} minWidth={96} maxWidth={180} style={{ flex: "1 1 0" }} />
   );
-  const anyFilter = !!query.trim() || status !== "OPEN" || srcSel !== "ALL" || overdueOnly;
 
 
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
@@ -361,7 +360,7 @@ export default function HQLeadsPage() {
           <FilterBar dims={[]} />
           {/* ส่งออก = สิ่งที่เห็นบนจอตอนนี้ (ผ่านตัวกรองทุกตัวแล้ว) · คอลัมน์เรียงตรงกับตาราง */}
           <ExportMenu filename="hq-leads" title="ลูกค้าเป้าหมายทั้งเครือ"
-            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","แหล่งที่มา","มูลค่า","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","ขั้นตอน","เหตุผลที่ปิดไม่สำเร็จ"]}
+            headers={["รหัสลูกค้าเป้าหมาย","รหัสดีลเลอร์","ดีลเลอร์","ลูกค้า","ผู้ติดต่อ","จังหวัด","แหล่งที่มา","มูลค่า","ติดต่อล่าสุด","ต้องติดตาม","ผู้รับผิดชอบ","ขั้น","เหตุผลที่ปิดไม่สำเร็จ"]}
             rows={filtered.map(leadToCells)} getRows={exportGetRows} />
       </TopbarActions>
 
@@ -418,7 +417,7 @@ export default function HQLeadsPage() {
           </div>
         </div>
         <div className="card" style={{ marginBottom: 0 }}>
-          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายตามขั้นตอน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–4 = ลูกค้าเป้าหมายที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
+          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายตามขั้น · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ขั้น 1–4 = ลูกค้าเป้าหมายที่เปิดอยู่ ณ ตอนนี้", "ปิดสำเร็จ/ไม่สำเร็จ = ปิดในช่วง")} />
           {/* data-ready = ตัวเลขมาจากฐานครบทั้งสองชุดแล้ว (ข้อทดสอบรอก่อนอ่าน · ระหว่างโหลดเป็นทางสำรองในเครื่อง) */}
           <div className="card-body" data-stage-chart data-ready={chartSummary && openSummary ? "1" : ""} style={{ paddingTop: 6, display: "flex", flexDirection: "column", gap: 10 }}>
             {byStatus.map(s => { const c = สีกราฟขั้น[s.stage]; return (
@@ -470,7 +469,7 @@ export default function HQLeadsPage() {
         </div>
         {/* โดนัท: เหตุผลรวมกันได้ 100% ของลูกค้าเป้าหมายที่ปิดไม่สำเร็จพอดี → เป็นสัดส่วนของก้อนเดียว เหมาะกับโดนัทมากกว่าแท่ง */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่ปิดไม่สำเร็จ แยกตามเหตุผล", "ไม่ได้บันทึกเหตุผล = รวมอยู่ใน “อื่นๆ”")} />
+          <BoxTitle ชื่อ={`กราฟเหตุผลที่ปิดการขายไม่สำเร็จ · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่ปิดการขายไม่สำเร็จ แยกตามเหตุผล", "ไม่ได้บันทึกเหตุผล = รวมอยู่ใน “อื่นๆ”")} />
           <div className="card-body" style={{ paddingTop: 6, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
             {!lostReasons.length ? (
               <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)" }}>— ไม่มีข้อมูลในช่วงที่เลือก</div>
@@ -531,10 +530,7 @@ export default function HQLeadsPage() {
             <input type="checkbox" checked={overdueOnly} onChange={e => { setOverdueOnly(e.target.checked); if (e.target.checked) setStatus("OPEN"); }} />
             ไม่เคลื่อนไหวเกิน 30 วัน
           </label>
-          {anyFilter && (
-            <button onClick={() => { setQuery(""); setSrcSel("ALL"); setStatus("OPEN"); setOverdueOnly(false); }}
-              className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>ล้างตัวกรอง</button>
-          )}
+          {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
         </div>
       </div>
 

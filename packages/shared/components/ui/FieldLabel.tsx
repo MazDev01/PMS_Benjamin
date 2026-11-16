@@ -8,7 +8,9 @@ import { useCallback, useRef, useState, type CSSProperties, type ReactNode } fro
 import { ตรวจช่องบังคับ, สรุปช่องที่ขาด, type ช่องบังคับ, type ผลตรวจช่อง } from "@pms/shared/lib/requiredFields";
 
 export const สีบังคับ = "#dc2626";
-export const กรอบผิด: CSSProperties = { borderColor: สีบังคับ, boxShadow: `0 0 0 1px ${สีบังคับ}` };
+//   ใช้ border แบบย่อ ไม่ใช่ borderColor — ช่องส่วนใหญ่ตั้ง border แบบย่อไว้ · ผสมแบบย่อกับ borderColor แล้วกรอกถูก (ถอดกรอบแดง) = React เตือน
+//   "Removing borderColor … when a conflicting property is set (border)" (เจอ 16 พ.ย. 69 · quote-request-flow.spec ตกในโหมด dev · ตกบน e4bdb10a ด้วย)
+export const กรอบผิด: CSSProperties = { border: `1px solid ${สีบังคับ}`, boxShadow: `0 0 0 1px ${สีบังคับ}` };
 
 export function FieldLabel({ children, required, htmlFor, className = "form-label", style }: {
   children: ReactNode; required?: boolean; htmlFor?: string; className?: string; style?: CSSProperties;

@@ -45,7 +45,7 @@ async function เข้าระบบ(page: Page, พิมพ์: string, pas
     await page.waitForTimeout(300);
     if (await ช่อง.inputValue() === ควรได้ && await ช่องรหัส.inputValue() === password) break;
   }
-  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).first().click();
+  await page.getByRole("button", { name: "เข้าระบบ", exact: true }).first().click();
   return page.waitForFunction(() => !location.pathname.includes("/login"), null, { timeout: 20_000 }).then(() => true, () => false);
 }
 

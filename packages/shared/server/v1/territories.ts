@@ -46,5 +46,5 @@ export const territoriesPOST = handler("territories.write", async (req: NextRequ
     return ok({ moved: Number(data ?? 0) });
   }
   // op=resolve-overlap (เคลียร์จังหวัดทับซ้อน) เอาออกแล้ว — ใบ 0214
-  return fail(400, "คำสั่งไม่ถูกต้อง");
+  return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
 });

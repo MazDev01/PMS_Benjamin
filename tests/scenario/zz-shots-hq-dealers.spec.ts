@@ -35,7 +35,7 @@ test("[shots] /hq/dealers", async ({ page }) => {
       await page.waitForTimeout(800);
       await page.screenshot({ path: path.join(ที่เก็บ, `${ชื่อ}.png`) });
     }
-    await page.getByRole("button", { name: "ปิดแผง" }).click();
+    await page.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" });

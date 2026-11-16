@@ -217,7 +217,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
     <div data-panel="quote-request" style={{ border: "1px solid #e9d5ff", background: "#faf5ff", borderRadius: 12, padding: 14, marginBottom: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <Send size={15} color="#6b21a8" />
-        <strong style={{ fontSize: "0.86rem", color: "#3b0764" }}>ราคาจากสำนักงานใหญ่</strong>
+        <strong style={{ fontSize: "0.86rem", color: "#3b0764" }}>ราคาจาก HQ</strong>
       </div>
 
       {เปิด ? (

@@ -83,6 +83,7 @@ import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 import { ช่องทางติดต่อเริ่มต้น } from "@pms/shared/lib/recruitSettings";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
+import { อีเมลซ้ำ } from "@pms/shared/lib/emailTaken";
 import { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
@@ -604,7 +605,7 @@ export default function HQProspectsPage() {
     if (!ฟอร์ม.region) { setConvErr("ต้องเลือกภาคก่อน — รายการจังหวัดขึ้นกับภาคที่เลือก"); return; }
     if (!ฟอร์ม.province || !provincesOfRegion(ALL_REGIONS).includes(ฟอร์ม.province)) { setConvErr("ต้องเลือกจังหวัดที่ดูแล 1 จังหวัดจากรายชื่อ"); return; }
     const อีเมล = ฟอร์ม.email.trim();
-    if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setConvErr("รูปแบบอีเมลไม่ถูกต้อง"); return; }
+    if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setConvErr("รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th"); return; }
     if (ฟอร์ม.password && ฟอร์ม.password.length < 8) { setConvErr("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
 
     // โหมดเดโม (ไม่มีระบบยืนยันตัวตนจริง) — สร้างทะเบียนสาขาในเครื่องแล้วผูกรายนี้ ให้เล่นครบวงได้เหมือนของจริง
@@ -616,7 +617,7 @@ export default function HQProspectsPage() {
         const ทะเบียน = await dealersRepo.list();
         const อีเมลเดโม = (อีเมล || อีเมลเข้าระบบของสาขา(code)).toLowerCase();
         if (ทะเบียน.some(d => d.credentials?.email?.toLowerCase() === อีเมลเดโม)) {
-          setConvErr(`อีเมล ${อีเมลเดโม} ถูกใช้กับดีลเลอร์รายอื่นแล้ว — ใช้อีเมลอื่น`);
+          setConvErr(อีเมลซ้ำ);
           return;
         }
         const แถวใหม่: DealerRow = {
@@ -661,7 +662,7 @@ export default function HQProspectsPage() {
     await โหลด();
     if (res.prospectLinked === false) {
       // สาขาถูกสร้างแล้วจริง (บัญชีใช้ได้) แต่ผูกกลับมาที่รายนี้ไม่สำเร็จ — บอกทางแก้ที่ทำได้เอง
-      แจ้งพลาด(`สร้างดีลเลอร์ ${ฟอร์ม.name.trim() || ชื่อแสดง(code)} แล้ว แต่ผูกกับผู้สนใจรายนี้ไม่สำเร็จ — เปิดรายนี้อีกครั้ง แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว” → ${code}`);
+      แจ้งพลาด(`สร้างดีลเลอร์ ${ฟอร์ม.name.trim() || ชื่อแสดง(code)} แล้ว แต่ผูกกับผู้สนใจรายนี้ไม่สำเร็จ — เปิดรายนี้แล้วเลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว”`);
     }
     setCreds({ name: ฟอร์ม.name.trim(), code, email: res.email, password: res.password });
     setConverting(null); ปิดแผงทันที();
@@ -825,11 +826,11 @@ export default function HQProspectsPage() {
           icon={Users} actionLabel={statusFilter === "all" ? "ดูรายการ" : "ดูทั้งหมด"} onClick={() => { setStatusFilter("all"); setPage(0); }} />
         <KpiCard kpi="followDue" label="ถึงกำหนดติดตาม" value={นับ(ค่า(kpi, "followDue"))} rawValue={ค่า(kpi, "followDue")} unit="ราย · วันนัดติดตามถึงแล้ว"
           danger={(ค่า(kpi, "followDue") ?? 0) > 0} icon={AlarmClock} color="#EA580C" bg="#FEF0E6"
-          actionLabel={statusFilter === "due" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "due" ? "all" : "due"); setPage(0); }} />
+          actionLabel={statusFilter === "due" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "due" ? "all" : "due"); setPage(0); }} />
         {/* ไม่ได้ติดต่อ 14 วัน (บอสสั่ง 1 พ.ย. 69 · แทน "รอตอบใบค่าแฟรนไชส์" ที่ยังดูได้ที่หน้าใบค่าแฟรนไชส์ · ใบ 0270) — สูตรเดียวกับตัวกรอง idle14 */}
         <KpiCard kpi="idle14" label="ไม่ได้ติดต่อ 14 วัน" value={นับ(ค่า(kpi, "idle14"))} rawValue={ค่า(kpi, "idle14")} unit="ราย · ยังติดตามอยู่ เงียบ 14 วันขึ้นไป"
           danger={(ค่า(kpi, "idle14") ?? 0) > 0} icon={PhoneOff} color="#7C3AED" bg="#F3E8FF"
-          actionLabel={statusFilter === "idle14" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "idle14" ? "all" : "idle14"); setPage(0); }} />
+          actionLabel={statusFilter === "idle14" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "idle14" ? "all" : "idle14"); setPage(0); }} />
         <KpiCard kpi="converted" label="เป็นดีลเลอร์แล้วเดือนนี้" value={นับ(ค่า(kpi, "converted"))} rawValue={ค่า(kpi, "converted")} unit="ราย · ตั้งเป็นดีลเลอร์ในเดือนนี้"
           icon={Store} color="#16A34A" bg="#E6F7EE" onClick={() => router.push("/hq/dealers")} />
       </KpiRow>
@@ -838,7 +839,7 @@ export default function HQProspectsPage() {
         return (
           <div className="card" data-testid="prospect-overview" style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", marginBottom: 12, fontSize: "0.8rem", color: "#374151" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <MapPin size={13} color="#b45309" /> จังหวัดที่มีลูกค้าเป้าหมายแต่ยังไม่มีดีลเลอร์:
+              <MapPin size={13} color="#b45309" /> จังหวัดที่มีผู้สนใจแต่ยังไม่มีดีลเลอร์:
               {ภาพรวม.provincesNoDealer.length === 0
                 ? <b data-testid="provinces-no-dealer" style={{ color: "#059669" }}>ไม่มี</b>
                 : <b data-testid="provinces-no-dealer" style={{ color: "#b45309" }}>{ภาพรวม.provincesNoDealer.map(x => `${x.province} (${x.leads})`).join(" · ")}</b>}
@@ -1169,14 +1170,14 @@ export default function HQProspectsPage() {
                       onLost={reason => เปลี่ยนขั้น("lost", reason, true)}
                       onNeedContact={() => {
                         setแท็บที่เปิด("contact"); setโหมดนัดคุย(false); setฟอร์มติดต่อเปิด(true);
-                        แจ้งสำเร็จ("บันทึกการติดต่อครั้งแรก — บันทึกแล้วระบบติ๊กงานให้เอง");
+                        แจ้งสำเร็จ("บันทึกการติดต่อครั้งแรก — บันทึกแล้วระบบทำให้เอง");
                       }}
                       onNeedProposal={() => {
                         setแท็บที่เปิด("proposals");
                         if (!ใบของรายที่เปิด.length) setสัญญาณออกใบ(n => n + 1);
                         แจ้งสำเร็จ(ใบของรายที่เปิด.length
-                          ? "เปลี่ยนสถานะใบเป็น “ส่งแล้ว” แล้วระบบจะติ๊กงานให้เอง"
-                          : "ออกใบค่าแฟรนไชส์แล้วเปลี่ยนเป็น “ส่งแล้ว” ระบบจะติ๊กงานให้เอง");
+                          ? "เปลี่ยนสถานะใบเป็น “ส่งแล้ว” แล้วระบบจะทำให้เอง"
+                          : "ออกใบค่าแฟรนไชส์แล้วเปลี่ยนเป็น “ส่งแล้ว” ระบบจะทำให้เอง");
                       }}
                       onConvert={() => เปิดตั้งดีลเลอร์(ราย)}
                       ค่าตั้ง={ค่าตั้ง}
@@ -1240,7 +1241,7 @@ export default function HQProspectsPage() {
                 <div role="note" style={{ background: "#fff8e6", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", fontSize: "0.78rem", color: "#92400e", fontWeight: 600, lineHeight: 1.6 }}>
                   {ยังไม่พร้อมแปลง === undefined ? "กำลังตรวจใบค่าแฟรนไชส์…" : <>
                     ยังสร้างดีลเลอร์ใหม่ไม่ได้ — {ยังไม่พร้อมแปลง}
-                    <br />ต้องตกลง + ชำระ: ใบค่าแฟรนไชส์ “ตอบรับ” และยอดชำระรวมครบตามใบ (บันทึกในแท็บใบค่าแฟรนไชส์) · ถ้าเป็นดีลเลอร์อยู่แล้ว เลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว”
+                    <br />ต้องตอบรับใบค่าแฟรนไชส์และชำระครบตามใบก่อน · เป็นดีลเลอร์อยู่แล้ว = เลือก “ผูกกับดีลเลอร์ที่มีอยู่แล้ว”
                   </>}
                 </div>
               )}

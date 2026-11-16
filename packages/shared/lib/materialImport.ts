@@ -12,14 +12,14 @@ export type ช่องวัสดุ = "category" | "name" | "unit" | "unitPr
 export const ลำดับช่องวัสดุ: readonly ช่องวัสดุ[] = ["category", "name", "unit", "unitPrice", "active"];
 /** หัวตารางของแบบฟอร์มตัวอย่าง (ตรงกับที่ระบบอ่าน) */
 export const หัวแบบฟอร์มวัสดุ: Record<ช่องวัสดุ, string> = {
-  category: "หมวด", name: "ชื่อวัสดุ*", unit: "หน่วย*", unitPrice: "ราคาต่อหน่วย (ก่อน VAT)", active: "เปิดใช้",
+  category: "หมวด", name: "ชื่อวัสดุ*", unit: "หน่วย*", unitPrice: "ราคาต่อหน่วย (ก่อน VAT)", active: "เปิดใช้งาน",
 };
 const ชื่อเรียก: Record<ช่องวัสดุ, string[]> = {
   category: ["หมวด", "หมวดหมู่", "หมวดวัสดุ", "category"],
   name: ["ชื่อวัสดุ", "ชื่อ", "วัสดุ", "รายการ", "name"],
   unit: ["หน่วย", "unit"],
   unitPrice: ["ราคาต่อหน่วย(ก่อนvat)", "ราคาต่อหน่วย", "ราคา", "price", "unitprice"],
-  active: ["เปิดใช้", "สถานะ", "active"],
+  active: ["เปิดใช้งาน", "เปิดใช้", "สถานะ", "active"],   // "เปิดใช้" = หัวแบบฟอร์มเดิม (ก่อน 16 พ.ย. 69) ยังอ่านได้
 };
 const คีย์หัว = (s: string) => String(s ?? "").toLowerCase().replace(/[\s*]/g, "");
 const คีย์ซ้ำ = (หมวด: string, ชื่อ: string) => `${หมวด.trim().toLowerCase()}\u001f${ชื่อ.trim().toLowerCase()}`;
@@ -49,8 +49,8 @@ export function อ่านราคา(ดิบ: string | number | null | und
 /** เปิดใช้จากไฟล์: ว่าง = เปิดใช้ · อ่านไม่ออก = null (ต้องตรวจ) */
 export function อ่านเปิดใช้(ดิบ: string | null | undefined): boolean | null {
   const s = String(ดิบ ?? "").trim().toLowerCase();
-  if (s === "" || ["เปิด", "เปิดใช้", "ใช้", "ใช่", "true", "yes", "y", "1", "✓"].includes(s)) return true;
-  if (["ปิด", "ปิดใช้", "ไม่ใช้", "ไม่", "false", "no", "n", "0"].includes(s)) return false;
+  if (s === "" || ["เปิด", "เปิดใช้งาน", "เปิดใช้", "ใช้", "ใช่", "true", "yes", "y", "1", "✓"].includes(s)) return true;
+  if (["ปิด", "ปิดใช้งาน", "ปิดใช้", "ไม่ใช้", "ไม่", "false", "no", "n", "0"].includes(s)) return false;
   return null;
 }
 

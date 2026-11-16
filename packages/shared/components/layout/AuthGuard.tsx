@@ -51,7 +51,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               animation: "spin 0.8s linear infinite",
             }} />
             <div style={{ fontSize: "0.82rem", color: "#6b7280", fontWeight: 600 }}>กำลังเชื่อมต่อ…</div>
-            <div style={{ fontSize: "0.72rem", color: "#9ca3af" }}>ยังอยู่ในระบบ ไม่ต้องเข้าสู่ระบบใหม่</div>
+            <div style={{ fontSize: "0.72rem", color: "#9ca3af" }}>ยังอยู่ในระบบ ไม่ต้องเข้าระบบใหม่</div>
             <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
           </div>
         )}

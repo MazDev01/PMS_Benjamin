@@ -104,7 +104,7 @@ test("[flow·dealer] ขั้น 2–3: ส่งคำขอใบเสนอ
   expect(await อีเมล("request_new"), "อีเมลคำขอใหม่ถึง HQ (ตารางกลาง H1 · ใบ 0231)").toBe(1);
   // ระหว่างรอ เปลี่ยนขั้นเองไม่ได้ (เมนูขั้นบอกเหตุผล)
   // ขั้นที่อยู่ตอนนี้ในแถบ 5 ขั้น = "ขอราคา HQ" (ชื่อขั้นจากตัวกลาง · เดิมป้ายสถานะ "รอราคา HQ") — ต้องเปลี่ยนทันทีไม่ต้องรีเฟรช
-  await expect(page.getByRole("list", { name: "ขั้นตอนการขาย" }).locator('li[aria-current="step"]').filter({ visible: true }).first(),
+  await expect(page.getByRole("list", { name: "ขั้นการขาย" }).locator('li[aria-current="step"]').filter({ visible: true }).first(),
     "หน้าจอแสดงขั้น 2. รอราคาจาก HQ ทันที (ไม่ต้องรีเฟรช)").toContainText("2. รอราคาจาก HQ", { timeout: 15_000 });
   assertNoErrors(errs, "ส่งคำขอราคา");
 });

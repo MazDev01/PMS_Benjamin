@@ -53,7 +53,7 @@ const PING_TABLES: { table: string; ch: string }[] = [
 export const GET = async (req: NextRequest): Promise<Response> => {
   const token = callerToken(req);   // cookie ก่อน แล้วค่อย header (ระยะ 4)
   if (!token || !URL_ || !ANON) {
-    return new Response(JSON.stringify({ error: "ยังไม่ได้เข้าสู่ระบบ" }), {
+    return new Response(JSON.stringify({ error: "ยังไม่ได้เข้าระบบ" }), {
       status: 401, headers: { "content-type": "application/json" },
     });
   }

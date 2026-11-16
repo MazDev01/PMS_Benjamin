@@ -360,10 +360,7 @@ export default function FilesPage() {
           options={custOptions} minWidth={0} maxWidth={150} />
         <FilterSelect caption="ทุกโอกาสการขาย" label="กรองตามโอกาสการขาย" value={projFilter} onChange={setProj}
           options={projOptions.map(pj => ({ v: pj, l: pj }))} minWidth={0} maxWidth={150} />
-        {(sourceFilter !== "ALL" || projFilter !== "ALL" || catFilter !== "ALL" || custFilter !== "ALL" || !!query) && (
-          <button onClick={() => { setQuery(""); setCat("ALL"); setSource("ALL"); setProj("ALL"); setCust("ALL"); }}
-            className="btn btn-secondary btn-sm">ล้างตัวกรอง</button>
-        )}
+        {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
         <div style={{ display: "flex", border: `1px solid ${BORDER}`, borderRadius: 9, overflow: "hidden", marginLeft: "auto", height: 36, boxSizing: "border-box" }}>
           {(["list","grid"] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
@@ -411,7 +408,7 @@ export default function FilesPage() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={2 + COLS.filter(c => showCol(c.key)).length} style={{ padding: 0 }}>
                     <EmptyState icon={<FolderOpen size={28} />} title="ไม่พบไฟล์"
-                      description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือล้างตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
+                      description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
                   </td></tr>
                 ) : null}
                 {/* แถวไม่กดเปิดหน้าต่างพรีวิวแล้ว (บอสสั่ง 28 ส.ค. 69) — ใช้ปุ่มด้านขวาแทน
@@ -501,7 +498,7 @@ export default function FilesPage() {
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState icon={<FolderOpen size={28} />} title="ไม่พบไฟล์"
-              description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือล้างตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
+              description={query || catFilter !== "ALL" || sourceFilter !== "ALL" || projFilter !== "ALL" || custFilter !== "ALL" ? "ลองปรับคำค้นหรือตัวกรอง" : "ไฟล์จะปรากฏเมื่อแนบกับลูกค้าเป้าหมายหรือลูกค้า"} />
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
               {paged.map(f => (

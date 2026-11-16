@@ -163,7 +163,8 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
     [state.preset, state.customStart, state.customEnd],
   );
 
-  const setPreset = useCallback((p: TimePreset) => setState(s => ({ ...s, preset: p })), []);
+  // เลือกช่วงสำเร็จรูป = ล้างวันที่ของช่วงที่กำหนดเองด้วย (เดิมปุ่มล้างตัวกรองทำ · ปุ่มถูกถอด 13 พ.ย. 69 — กลับค่าตั้งต้นทางนี้ ไม่ค้างวันที่เก่า · filter-clear.spec)
+  const setPreset = useCallback((p: TimePreset) => setState(s => ({ ...s, preset: p, ...(p === "custom" ? {} : { customStart: "", customEnd: "" }) })), []);
   const setCustomRange = useCallback((start: string, end: string) =>
     setState(s => ({ ...s, preset: "custom", customStart: start, customEnd: end })), []);
   const setDealer = useCallback((v: string) => setState(s => ({ ...s, dealer: v })), []);

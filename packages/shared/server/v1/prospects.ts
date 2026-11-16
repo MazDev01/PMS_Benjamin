@@ -32,11 +32,11 @@ export const prospectsGET = handler("prospects.list", async (_req: NextRequest, 
 
 export const prospectsPOST = handler("prospects.create", async (req: NextRequest, sb) => {
   const body = (await req.json().catch(() => null)) as (Partial<DealerProspect> & { op?: string }) | null;
-  if (!body || typeof body !== "object") return fail(400, "ข้อมูลลูกค้าเป้าหมายไม่ถูกต้อง");
+  if (!body || typeof body !== "object") return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   // op=undo: ยกเลิกงานล่าสุด = ถอย 1 ขั้น (ใบ 0278 · ทางเดียวที่คนถอยขั้นได้ · ฐานตรวจสิทธิ์ในนามผู้เรียก)
   if (body.op === "undo") {
     const id = Number(body.id);
-    if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุลูกค้าเป้าหมาย");
+    if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุผู้สนใจ");
     const { data, error } = await sb.rpc("prospect_undo_last_task", { p_id: id });
     if (error) return dbFail("prospects.undo", error);
     return ok(toCamel<DealerProspect>(data as Row));
@@ -52,7 +52,7 @@ export const prospectsPOST = handler("prospects.create", async (req: NextRequest
 export const prospectsPUT = handler("prospects.update", async (req: NextRequest, sb) => {
   const body = (await req.json().catch(() => null)) as Partial<DealerProspect> | null;
   const id = Number(body?.id);
-  if (!body || !Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุลูกค้าเป้าหมายที่จะแก้");
+  if (!body || !Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุผู้สนใจที่จะแก้");
   const row = เตรียมบันทึก(body);
   const ผิด = ตรวจผู้สนใจ(row);
   if (ผิด) return fail(400, ผิด);
@@ -63,7 +63,7 @@ export const prospectsPUT = handler("prospects.update", async (req: NextRequest,
 
 export const prospectsDELETE = handler("prospects.remove", async (req: NextRequest, sb) => {
   const id = Number(new URL(req.url).searchParams.get("id"));
-  if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุลูกค้าเป้าหมายที่จะลบ");
+  if (!Number.isInteger(id) || id <= 0) return fail(400, "ไม่ได้ระบุผู้สนใจที่จะลบ");
   const { error } = await sb.from("dealer_prospects").delete().eq("id", id);
   if (error) return dbFail("prospects.remove", error);
   return ok({ ok: true });

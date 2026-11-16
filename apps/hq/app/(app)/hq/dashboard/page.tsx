@@ -163,7 +163,7 @@ export default function HQDashboard() {
         <KpiCard kpi="leads" label={selDealer ? `ลูกค้าเป้าหมายใหม่ของ ${ชื่อแสดง(selDealer.code, selDealer.name)}` : "ลูกค้าเป้าหมายใหม่ทั้งเครือ"} value={c ? c.leadsNew.toLocaleString("th-TH") : null} rawValue={c?.leadsNew ?? null}
           unit="ราย · เข้ามาในช่วงที่เลือก" empty="กำลังโหลด…" icon={Users2} color="#7C3AED" bg="#F0EBFB" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/leads")} />
         <KpiCard kpi="quotes" label="ใบเสนอราคาที่ส่งลูกค้า" value={c ? c.quotesSent.toLocaleString("th-TH") : null} rawValue={c?.quotesSent ?? null}
-          unit="ใบ · ออกในช่วงที่เลือก (ไม่นับร่าง/ถูกแทนที่)" empty="กำลังโหลด…" icon={FileText} color="#0891B2" bg="#E6F4F9" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/quotations")} />
+          unit="ใบ · ในช่วงที่เลือก (ไม่นับฉบับร่างและฉบับเก่า)" empty="กำลังโหลด…" icon={FileText} color="#0891B2" bg="#E6F4F9" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/quotations")} />
         <KpiCard kpi="winrate" label={ชื่ออัตราปิดการขาย} value={อัตรา == null ? null : `${อัตรา}%`} rawValue={อัตรา}
           unit={c ? `ลูกค้าเป้าหมายปิดสำเร็จ ${c.closedWon} · ไม่สำเร็จ ${c.closedLost}` : " "} empty={c ? "ยังไม่มีลูกค้าเป้าหมายที่ปิด" : "กำลังโหลด…"}
           icon={Percent} color="#D97706" bg="#FEF0E6" actionLabel="ดูรายละเอียด" onClick={() => router.push("/hq/pipeline")} />

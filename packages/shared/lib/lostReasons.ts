@@ -44,7 +44,7 @@ export function withUnspecified(
 ) {
   if (!(ไม่ได้ระบุ > 0)) return rows;
   return [...rows, { reason: UNSPECIFIED_REASON_LABEL, count: ไม่ได้ระบุ, value: 0,
-    details: ["ปิดไม่สำเร็จแต่ไม่ได้บันทึกเหตุผลไว้"] }];
+    details: ["ปิดการขายไม่สำเร็จแต่ไม่ได้บันทึกเหตุผลไว้"] }];
 }
 
 export const UNSPECIFIED_REASON_LABEL = "อื่นๆ (ไม่ได้ระบุเหตุผล)";

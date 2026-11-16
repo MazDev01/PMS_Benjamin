@@ -5,6 +5,6 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-const ปิดแล้ว = () => NextResponse.json({ error: "ยกเลิกแล้ว — เปลี่ยนรหัสผ่านได้ที่ ตั้งค่า › บัญชีเข้าสู่ระบบ · ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่" }, { status: 410 });
+const ปิดแล้ว = () => NextResponse.json({ error: "ยกเลิกแล้ว — เปลี่ยนรหัสผ่านได้ที่ ตั้งค่า › บัญชีเข้าระบบ · ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่" }, { status: 410 });
 export const POST = ปิดแล้ว;
 export const OPTIONS = ปิดแล้ว;

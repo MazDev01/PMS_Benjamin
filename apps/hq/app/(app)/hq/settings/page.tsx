@@ -54,6 +54,7 @@ import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
 import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
 import { StorageUsagePanel } from "@pms/shared/components/hq/StorageUsagePanel";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
+import { InfoTip } from "@pms/shared/components/ui/InfoTip";
 import { EmailListEditor, NotifyPrefsTable, NotifyTestButton } from "@pms/shared/components/ui/NotificationSettings";
 import { ชื่อขั้น, สีขั้น, แปลงชื่อขั้นเดิม } from "@pms/shared/lib/leadStage";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -100,11 +101,11 @@ function useRepoDraft<T>(load: () => Promise<T>, save: (v: T) => void, initial: 
 }
 
 // ── reusable UI ───────────────────────────────────────────────────────────────
-function Row({ label, desc, children, error }: { label: string; desc?: string; children: ReactNode; error?: string }) {
+function Row({ label, desc, children, error, info }: { label: string; desc?: string; children: ReactNode; error?: string; info?: ReactNode }) {
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", padding: "13px 0", borderTop: "1px solid var(--border,#f1f5f9)" }}>
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-        <div style={{ fontSize: "0.84rem", fontWeight: 700, color: `var(--foreground,${STEEL})` }}>{label}</div>
+        <div style={{ fontSize: "0.84rem", fontWeight: 700, color: `var(--foreground,${STEEL})` }}>{label}{info}</div>
         {desc && <div style={{ fontSize: "0.72rem", color: "var(--muted-foreground,#6b7280)", marginTop: 2 }}>{desc}</div>}
       </div>
       <div style={{ flex: "0 0 340px", maxWidth: "100%" }}>
@@ -180,7 +181,7 @@ function JourneyTab() {
 
   return (
     <>
-      <SectionCard icon={<GitMerge size={19} />} title="ขั้นตอนการขายมาตรฐาน"
+      <SectionCard icon={<GitMerge size={19} />} title="ขั้นการขายมาตรฐาน"
         desc="4 ขั้นเดียวกันทุกดีลเลอร์ — สำนักงานใหญ่กำหนดรายการเตือนของแต่ละขั้น ดีลเลอร์แก้ไขไม่ได้">
         <div style={{ border: "1px solid var(--border,#e5e7eb)", borderRadius: 12, overflow: "hidden", marginTop: 6 }}>
           {ขั้นทั้งหมด.map((n, idx) => (
@@ -193,7 +194,7 @@ function JourneyTab() {
                 {tasksOf(n).map(t => t.auto ? (
                   <span key={t.key} data-system-task={t.key} title={ระบบติ๊กเมื่อ(t.key)}
                     style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#eef3f8", border: "1px dashed #b6c4d4", borderRadius: 8, padding: "4px 9px", fontSize: "0.74rem", fontWeight: 600, color: "#334155" }}>
-                    {แปลงชื่อขั้นเดิม(t.label)} <span style={{ fontSize: "0.64rem", color: "#64748b", fontWeight: 500 }}>· ระบบติ๊ก</span>
+                    {แปลงชื่อขั้นเดิม(t.label)} <span style={{ fontSize: "0.64rem", color: "#64748b", fontWeight: 500 }}>· ระบบทำให้</span>
                   </span>
                 ) : (
                   <span key={t.key} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#f1f5f9", borderRadius: 8, padding: "3px 4px 3px 9px" }}>
@@ -370,7 +371,7 @@ function RecruitTab() {
 
         <SectionCard fill icon={<X size={19} />} title="เหตุผลที่ไม่สำเร็จ (ผู้สนใจเป็นดีลเลอร์)">
           <ListEditor label="เหตุผลที่ไม่สำเร็จ" items={d.lostReasons} onChange={ตั้งรายการ("lostReasons")} placeholder="เช่น เงินทุนไม่พอ"
-            emptyNote="ยังไม่ได้ตั้ง — ตอนปิดว่าไม่สำเร็จยังพิมพ์เหตุผลเองได้"
+            emptyNote="ยังไม่ได้ตั้ง — ตอนปิดการขายไม่สำเร็จยังพิมพ์เหตุผลเองได้"
             note="มีตัวเลือก “อื่น ๆ (ระบุเอง)” ให้ด้วยเสมอ · ปฏิเสธ/หมดอายุใบค่าแฟรนไชส์ต้องมีเหตุผล · แยกจากเหตุผลของดีลเลอร์" noteLines={2} />
         </SectionCard>
       </div>
@@ -437,8 +438,8 @@ function TargetsTab() {
 
   return (
     <>
-      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="= ผลรวมเป้ารายดีลเลอร์ด้านล่างอัตโนมัติ · ใช้ในการ์ดยอดขายเทียบเป้า · เป้าตามช่วง = ผลรวมเป้าตามช่วงรายดีลเลอร์ (เป้าทั้งปี × จำนวนวัน ÷ 365)">
-        <Row label="เป้ายอดขายทั้งปี" desc="บาท ก่อน VAT — คำนวณเอง แก้ไม่ได้ · ต้องการเปลี่ยน ให้แก้เป้ารายดีลเลอร์ในตารางด้านล่าง">
+      <SectionCard icon={<Target size={19} />} title="เป้าหมายยอดขายทั้งเครือ" desc="= ผลรวมเป้าของดีลเลอร์ทุกรายด้านล่าง (ระบบรวมให้) · ใช้ในการ์ดยอดขายเทียบเป้า">
+        <Row label="เป้ายอดขายทั้งปี" info={<InfoTip label="วิธีคิดเป้าตามช่วง">เป้าตามช่วง = ผลรวมเป้าตามช่วงของดีลเลอร์ทุกราย (เป้าทั้งปี × จำนวนวัน ÷ 365)</InfoTip>} desc="บาท ก่อน VAT — คำนวณเอง แก้ไม่ได้ · ต้องการเปลี่ยน ให้แก้เป้ารายดีลเลอร์ในตารางด้านล่าง">
           <strong data-network-target data-value={ผลรวมเป้าดีลเลอร์} title="ผลรวมเป้าทั้งปีของทุกดีลเลอร์ (รวมตัวเลขที่เพิ่งแก้ยังไม่บันทึก)"
             style={{ fontSize: "1rem", fontWeight: 800, color: STEEL, fontVariantNumeric: "tabular-nums" }}>{fmtB(ผลรวมเป้าดีลเลอร์)}</strong>
         </Row>
@@ -608,7 +609,7 @@ function BackupCard() {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
         <button className="btn btn-secondary btn-md" onClick={() => void exportAll()}><Download size={14} /> ส่งออก (สำรองข้อมูล)</button>
         <label className="btn btn-secondary btn-md" style={{ cursor: "pointer" }}><Upload size={14} /> นำเข้า (กู้คืน)<input type="file" accept=".xlsx,.csv,.json" style={{ display: "none" }} onChange={e => void importAll(e)} /></label>
-        <button className="btn btn-md" style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca" }} onClick={() => void restoreDefaults()}><RotateCcw size={14} /> คืนค่าเริ่มต้น (นโยบาย/เป้า/แจ้งเตือน)</button>
+        <button className="btn btn-md" style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca" }} onClick={() => void restoreDefaults()} title="คืนค่าเริ่มต้นของนโยบาย เป้าหมาย กฎแจ้งเตือน และเหตุผลปิดการขาย"><RotateCcw size={14} /> คืนค่าเดิม</button>
       </div>
     </SectionCard>
   );
@@ -631,7 +632,7 @@ type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "materia
 const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNode }[] = [
   { key: "company", label: "บริษัท", icon: <Building2 size={15} />, render: () => <CompanyTab /> },
   { key: "users", label: "ผู้ใช้งาน", icon: <Users size={15} />, render: () => <UsersPanel embedded /> },
-  { key: "journey", label: "ขั้นตอนการขายมาตรฐาน", icon: <GitMerge size={15} />, render: () => <JourneyTab /> },
+  { key: "journey", label: "ขั้นการขายมาตรฐาน", icon: <GitMerge size={15} />, render: () => <JourneyTab /> },
   // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
   { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
   { key: "targets", label: "เป้าหมายยอดขาย", icon: <Target size={15} />, render: () => <TargetsTab /> },

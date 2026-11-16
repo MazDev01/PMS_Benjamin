@@ -36,7 +36,7 @@ export const quoteFilesGET = handler("quoteFiles.read", async (req: NextRequest,
 
 export const quoteFilesPOST = handler("quoteFiles.write", async (req: NextRequest, sb) => {
   const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!b) return fail(400, "ข้อมูลไม่ถูกต้อง");
+  if (!b) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   switch (b.op) {
     case "reserve": {
       const { data, error } = await sb.rpc("quote_file_reserve", {
@@ -63,7 +63,7 @@ export const quoteFilesPOST = handler("quoteFiles.write", async (req: NextReques
       if (error) return dbFail("quoteFiles.quota", error);
       return ok({ ok: true });
     }
-    default: return fail(400, "คำสั่งไม่ถูกต้อง");
+    default: return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   }
 });
 

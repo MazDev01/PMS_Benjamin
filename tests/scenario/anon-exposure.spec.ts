@@ -85,7 +85,7 @@ test("[security] ?autologin=1 ต้องไม่มีผลกับระ�
     await page.goto(`${origin}${path}?autologin=1`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(3000);
     expect(page.url(), `${path} ต้องไม่ถูกพาเข้าระบบ`).toContain("login");
-    expect(await page.getByRole("button", { name: /เข้าสู่ระบบ/ }).count(),
+    expect(await page.getByRole("button", { name: "เข้าระบบ", exact: true }).count(),
       "ต้องยังอยู่หน้ากรอกอีเมล/รหัสตามเดิม").toBeGreaterThan(0);
   }
 });

@@ -89,14 +89,14 @@ export function MaterialAddModal({ open, onClose, onSaved, ที่มี, ห�
             <button type="button" aria-label="ปิด" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={16} /></button>
           </div>
           <div style={{ padding: 18, overflowY: "auto", display: "grid", gap: 10 }}>
-            <div style={{ fontSize: "0.76rem", color: "#6b7280" }}>กรอกได้หลายแถว · คัดลอกหลายแถวจาก Excel (หมวด · ชื่อวัสดุ · หน่วย · ราคา · เปิดใช้) แล้ววางที่ช่องแรกได้เลย · บันทึกครั้งเดียวทั้งชุด</div>
+            <div style={{ fontSize: "0.76rem", color: "#6b7280" }}>กรอกได้หลายแถว · วางจาก Excel ที่ช่องแรกได้เลย (หมวด · ชื่อวัสดุ · หน่วย · ราคา · เปิดใช้งาน)</div>
             <datalist id="mt-add-categories">{หมวด.map(h => <option key={h} value={h} />)}</datalist>
             <div className="table-wrap">
               <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 760 }}>
                 {/* 11 พ.ย. 69 (บอสสั่งแก้ก่อนปิดรอบ · form-table-fit.spec): หน้าต่างถูกจำกัด 820 — ราคา 17% แคบกว่าหัว "ราคาต่อหน่วย (ก่อน VAT)" (ถูกตัด) → หมวด 15 · หน่วย 15 · ราคา 23 · ชื่อวัสดุยังกว้างสุด */}
                 <colgroup><col style={{ width: 40 }} /><col style={{ width: "15%" }} /><col /><col style={{ width: "15%" }} /><col style={{ width: "23%" }} /><col style={{ width: 82 }} /><col style={{ width: 40 }} /></colgroup>
                 <thead><tr>
-                  {["#", "หมวด", <>ชื่อวัสดุ<ดาวบังคับ /></>, <>หน่วย<ดาวบังคับ /></>, "ราคาต่อหน่วย (ก่อน VAT)", "เปิดใช้", ""].map((h, i) =>
+                  {["#", "หมวด", <>ชื่อวัสดุ<ดาวบังคับ /></>, <>หน่วย<ดาวบังคับ /></>, "ราคาต่อหน่วย (ก่อน VAT)", "เปิดใช้งาน", ""].map((h, i) =>
                     <th key={i} style={{ ...เซลล์, textAlign: i === 4 ? "right" : "left", fontSize: "0.74rem", fontWeight: 700, color: "#6b7280", background: "#f8f9fb", whiteSpace: "nowrap" }}>{h}</th>)}
                 </tr></thead>
                 <tbody>
@@ -114,7 +114,7 @@ export function MaterialAddModal({ open, onClose, onSaved, ที่มี, ห�
                         <td style={เซลล์}><input aria-label={`ราคาต่อหน่วย แถว ${i + 1}`} inputMode="decimal" placeholder="0.00" style={{ ...ช่อง, textAlign: "right", ...(ผิด?.price ? กรอบผิด : {}) }} value={r.price}
                           onChange={e => แก้(r.key, { price: e.target.value })} onPaste={e => วาง(e, r.key, "price")} />{ข้อความผิด(ผิด?.price)}</td>
                         <td style={เซลล์}><label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
-                          <input type="checkbox" aria-label={`เปิดใช้ แถว ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}</label></td>
+                          <input type="checkbox" aria-label={`เปิดใช้งาน แถว ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}</label></td>
                         <td style={เซลล์}>{แถว.length > 1 &&
                           <button type="button" aria-label={`ลบแถว ${i + 1}`} onClick={() => setแถว(rs => rs.filter(x => x.key !== r.key))}
                             style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={14} /></button>}</td>

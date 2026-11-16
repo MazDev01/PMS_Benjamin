@@ -104,7 +104,7 @@ export function ตรวจภาคกับจังหวัด(region: stri
 /** ตรวจความถูกต้อง — คืนข้อความที่ผู้ใช้อ่านเข้าใจ หรือ null ถ้าผ่าน */
 export function ตรวจผู้สนใจ(p: ผู้สนใจที่จะบันทึก): string | null {
   if (!p.name) return "ต้องระบุชื่อผู้สนใจ";
-  if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(p.email)) return "รูปแบบอีเมลไม่ถูกต้อง";
+  if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(p.email)) return "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th";
   if (p.firstContact && p.followUp && p.followUp < p.firstContact) return "วันติดตามต้องไม่ก่อนวันเริ่มติดต่อ";
   // ภาค/จังหวัด (บอสสั่ง 14 ก.ย. 69: เลือกภาคก่อน แล้วค่อยเลือกจังหวัด · มี "ทุกภาค")
   const ผิดพื้นที่ = ตรวจภาคกับจังหวัด(p.region ?? null, p.province ?? null);

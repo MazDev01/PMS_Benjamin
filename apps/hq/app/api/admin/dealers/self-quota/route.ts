@@ -12,7 +12,6 @@ import { SELF_CHANGE_LIMIT } from "@pms/shared/lib/data/local/accountLocal";
 export const runtime = "nodejs";
 
 const DENY = "ไม่มีสิทธิ์จัดการดีลเลอร์";
-const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — จัดการสิทธิ์แก้บัญชีจากที่นี่ยังไม่ได้";
 
 function รหัสสาขา(req: NextRequest): string | null {
   const code = (new URL(req.url).searchParams.get("code") ?? "").trim().toUpperCase();
@@ -20,7 +19,7 @@ function รหัสสาขา(req: NextRequest): string | null {
 }
 
 export const GET = withErrors("dealer-self-quota", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const code = รหัสสาขา(req);
   if (!code) return bad(400, "รหัสดีลเลอร์ไม่ถูกต้อง");
@@ -35,7 +34,7 @@ export const GET = withErrors("dealer-self-quota", async (req: NextRequest) => {
 });
 
 export const POST = withErrors("dealer-self-quota-reset", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "dealers:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
   if (!(await checkRateLimit(admin, `self-quota-reset:${callerId}`, 10, 60))) {

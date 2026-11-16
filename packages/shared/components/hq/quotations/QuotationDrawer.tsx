@@ -18,7 +18,7 @@
 //
 // margin (ด่าน 3 · FLOW "% ที่ดีลเลอร์บวก → HQ ดู margin"): ใบที่ทำจากใบ HQ แสดงรายบรรทัด
 //   ต้นทุนจากใบ HQ · % ที่บวก · ราคาขาย · ส่วนบวกเป็นบาท + สรุปทั้งใบ บวกรวม (บาท) · % ของต้นทุน · % ของราคาขาย
-//   ตัวเลขคิดที่ฐานข้อมูล (quotation_margin · ใบ 0201) ไม่คิดซ้ำที่หน้าจอ · ราคาก่อนภาษี
+//   ตัวเลขคิดที่ฐานข้อมูล (quotation_margin · ใบ 0201) ไม่คิดซ้ำที่หน้าจอ · ราคาก่อน VAT
 //   ใบเดิมที่ไม่ได้ทำจากใบ HQ = ไม่มีต้นทุนให้เทียบ → ขึ้นว่าไม่มีข้อมูล (ห้ามกุ)
 import { DataLink, เป้าลูกค้าของใบ } from "../../ui/RecordLink";
 import { useEffect, useState } from "react";
@@ -242,7 +242,7 @@ function QuoteDocWindow({ quote, onClose, onChanged }: Props) {
               ))}
             </div>
             <div style={{ fontSize: "0.66rem", color: "#64748B", margin: "6px 0 10px" }}>
-              {ขายต่อ === null ? "ใบนี้ไม่ได้ทำจากใบ HQ จึงไม่มีราคาจาก HQ ให้เทียบ" : "ราคาก่อนภาษี · ส่วนต่าง % = ส่วนต่าง ÷ ราคาขาย (สูตรเดียวกับการ์ดส่วนต่างกำไรเฉลี่ย)"}
+              {ขายต่อ === null ? "ใบนี้ไม่ได้ทำจากใบ HQ จึงไม่มีราคาจาก HQ ให้เทียบ" : "ราคาก่อน VAT · ส่วนต่าง % = ส่วนต่าง ÷ ราคาขาย (สูตรเดียวกับการ์ดส่วนต่างกำไรเฉลี่ย)"}
             </div>
           </PanelSection>
 
@@ -253,7 +253,7 @@ function QuoteDocWindow({ quote, onClose, onChanged }: Props) {
               <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>— ใบนี้ไม่ได้ทำจากใบ HQ จึงไม่มีต้นทุนให้เทียบ</div>
             ) : (
               <div data-panel="quote-margin">
-                <div style={{ fontSize: "0.68rem", color: "#64748B", padding: "8px 12px 0" }}>จากใบ HQ <DataLink เป้า={{ ชนิด: "hqQuote", รหัส: margin.hqQuoteNo }}>{margin.hqQuoteNo}</DataLink> · ราคาก่อนภาษี</div>
+                <div style={{ fontSize: "0.68rem", color: "#64748B", padding: "8px 12px 0" }}>จากใบ HQ <DataLink เป้า={{ ชนิด: "hqQuote", รหัส: margin.hqQuoteNo }}>{margin.hqQuoteNo}</DataLink> · ราคาก่อน VAT</div>
                 {/* ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ (เดิมอยู่ใต้ชื่อเป็น "38 ตัน") หัวตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) */}
                 <ตารางรายการ ป้าย="ส่วนต่างกำไรรายบรรทัด" แน่น กว้างขั้นต่ำ={640} แถว={margin.lines} คุณสมบัติแถว={(_l, i) => ({ "data-margin-line": String(i) })} คอลัมน์={[
                   { key: "name", หัว: "รายการ", ชนิด: "ข้อความ", กว้าง: "24%", ค่า: l => l.name, ชี้: l => l.name },

@@ -76,7 +76,7 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
     const ทำอยู่ = !!(lead.tasks ?? []).find(t => t.key === c.key)?.done;
     if (เป็นรายการระบบ(c.key) && !intent.ระบบ && !!c.done !== ทำอยู่) {
       const ชื่อ = ระบบติ๊กเมื่อ(c.key) ? (c.label ?? (lead.tasks ?? []).find(t => t.key === c.key)?.label ?? c.key) : c.key;
-      throw new Error(`system_task_locked: รายการ "${ชื่อ}" ระบบติ๊กให้เมื่อทำจริง — ติ๊กเองไม่ได้`);
+      throw new Error(`system_task_locked: รายการ "${ชื่อ}" ระบบทำให้เมื่อทำจริง — กดทำเองไม่ได้`);
     }
     if (!tasks.some(t => t.key === c.key)) tasks = [...tasks, { key: c.key, label: c.label ?? c.key, done: false }];
     const เดิม = tasks.find(t => t.key === c.key)!;
@@ -99,7 +99,7 @@ export function applyLeadIntent(lead: LeadRow, intent: LeadIntent, ctx: {
   }
   // งานไม่เลื่อนขั้นแล้ว (รอบ 4 · ใบ 0232) · ดีลเลอร์เปลี่ยนเองได้เฉพาะ "ปิดไม่สำเร็จ" — ตรงกับตัวดัก leads_status_one_path
   if (status !== lead.status && status !== "CANCELLED")
-    throw new Error('lead_status_one_path: เปลี่ยนสถานะเองได้เฉพาะ "ปิดไม่สำเร็จ" ที่กล่องขั้นต่อไป — ขั้นอื่นระบบเลื่อนให้เองตามคำขอใบเสนอราคาและใบเสนอราคา');
+    throw new Error('lead_status_one_path: เปลี่ยนเองได้เฉพาะ "ปิดการขายไม่สำเร็จ" ที่กล่องขั้นต่อไป — ขั้นอื่นระบบเลื่อนให้ตามคำขอและใบเสนอราคา');
   if (status !== lead.status) {
     if (status === "CANCELLED" && !(lostReason ?? "").trim())
       throw new Error("lead_lost_needs_reason: ปิดการขายไม่สำเร็จต้องระบุเหตุผลเสมอ");

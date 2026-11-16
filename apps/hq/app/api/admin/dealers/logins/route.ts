@@ -17,7 +17,6 @@ export const runtime = "nodejs";
 export const GET = withErrors("list-dealer-logins", async (req: NextRequest) => {
   const authz = await authorizeAdmin(
     req, "dealers:manage", "ไม่มีสิทธิ์ดูข้อมูลเข้าระบบของดีลเลอร์",
-    "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — ดูอีเมลเข้าระบบของดีลเลอร์ยังไม่ได้",
   );
   if (!authz.ok) return authz.res;
   const { admin, callerId } = authz.auth;

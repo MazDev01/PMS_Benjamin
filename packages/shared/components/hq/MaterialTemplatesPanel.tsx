@@ -125,7 +125,7 @@ export function MaterialTemplatesPanel() {
     <div data-panel="material-templates">
       <KpiRow label="สรุปรายการวัสดุ">
         <KpiCard kpi="mt-total" icon={Boxes} label="วัสดุทั้งหมด" value={บันทึกแล้ว ? String(บันทึกแล้ว.length) : null} rawValue={บันทึกแล้ว?.length ?? null} unit="รายการ" empty="กำลังโหลด…" />
-        <KpiCard kpi="mt-active" icon={CheckCircle2} color="#16A34A" bg="#E6F7EE" label="เปิดใช้ (ดีลเลอร์เห็น)" value={บันทึกแล้ว ? String(บันทึกแล้ว.filter(r => r.active).length) : null}
+        <KpiCard kpi="mt-active" icon={CheckCircle2} color="#16A34A" bg="#E6F7EE" label="เปิดใช้งาน (ดีลเลอร์เห็น)" value={บันทึกแล้ว ? String(บันทึกแล้ว.filter(r => r.active).length) : null}
           rawValue={บันทึกแล้ว?.filter(r => r.active).length ?? null} unit="รายการ" empty="กำลังโหลด…" />
         <KpiCard kpi="mt-accuracy" icon={Target} color="#7C3AED" bg="#F3E8FF" testId="estimate-accuracy" label="ราคาประเมินคลาดจากใบ HQ (เฉลี่ย)"
           value={ความแม่น && ความแม่น.n > 0 && ความแม่น.avgAbsPct != null ? `${Number(ความแม่น.avgAbsPct).toFixed(1)}%` : null}
@@ -142,7 +142,7 @@ export function MaterialTemplatesPanel() {
             <Search size={14} color="#9ca3af" />
             <input aria-label="ค้นรายการวัสดุ" placeholder="ค้นชื่อ / หมวด / หน่วย" value={ค้น} onChange={e => { setค้น(e.target.value); setหน้า(0); }} />
           </div>
-          <span className="note">เปิดใช้ {เปิดใช้} จาก {rows.length} รายการ</span>
+          <span className="note">เปิดใช้งาน {เปิดใช้} จาก {rows.length} รายการ</span>
           {/* ปิดไว้จนรายการโหลดเสร็จ — เดิมกดเพิ่มก่อนโหลดเสร็จ รายการจากฐานมาทับ แถวที่เพิ่มหายเงียบ ๆ (เจอจากรอบตรวจ 27 ต.ค. 69) */}
           <ImportMenu label="นำเข้าจากไฟล์" onFile={f => { if (ก่อนเพิ่ม()) setนำเข้า({ ไฟล์: f }); }} onTemplate={แบบฟอร์ม}
             extraActions={[{ label: "ชุดที่นำเข้าล่าสุด", desc: "ดู/ยกเลิกทั้งชุด", icon: <History size={15} />, onClick: () => setนำเข้า({ ไฟล์: null }) }]} />
@@ -163,8 +163,8 @@ export function MaterialTemplatesPanel() {
                   <UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={r.unit} หน่วย={หน่วย} onChange={u => แก้(r.key, { unit: u })} style={บังคับ.ผิด[`unit:${r.key}`] ? กรอบผิด : undefined} />
                 </span>) },
             { key: "price", หัว: "ราคาต่อหน่วย (ก่อน VAT)", ชนิด: "เงิน", กว้าง: "17%", แสดงเกิน: true, ค่า: (r, i) => <NumberInput ariaLabel={`ราคาต่อหน่วย ${i + 1}`} value={Number(r.unitPrice)} min={0} onChange={n => แก้(r.key, { unitPrice: n })} style={{ ...ช่องกรอก, textAlign: "right" }} /> },
-            { key: "active", หัว: "เปิดใช้", ชนิด: "ข้อความ", กว้าง: "9%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
-                <input type="checkbox" aria-label={`เปิดใช้ ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}
+            { key: "active", หัว: "เปิดใช้งาน", ชนิด: "ข้อความ", กว้าง: "9%", ค่า: (r, i) => <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem", cursor: "pointer" }}>
+                <input type="checkbox" aria-label={`เปิดใช้งาน ${i + 1}`} checked={r.active} onChange={e => แก้(r.key, { active: e.target.checked })} />{r.active ? "เปิด" : "ปิด"}
               </label> },
             { key: "updated", หัว: "ปรับราคา", ชนิด: "ข้อความ", กว้าง: "11%", สไตล์: () => ({ fontSize: "0.78rem", color: "var(--muted-foreground)" }),
               ค่า: r => <span data-testid="price-updated">{r.priceUpdatedAt ? วันไทยสั้น(r.priceUpdatedAt) : "ยังไม่บันทึก"}</span> },
@@ -175,7 +175,7 @@ export function MaterialTemplatesPanel() {
                   style={{ fontWeight: 700, color: ค?.avgPct != null && Math.abs(ค.avgPct) > 5 ? "#dc2626" : "#374151" }}>{ป้ายเปอร์เซ็นต์คลาด(ค?.avgPct)}</span>;
               } },
             { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: "5%", ค่า: (r, i) => r.id != null && (เคยใช้ === null || เคยใช้.has(r.id))
-                ? <span data-mt-used={เคยใช้ ? "1" : ""} title={เคยใช้ ? "เคยใช้ในคำขอใบเสนอราคา/ใบ HQ แล้ว — ลบไม่ได้ ใช้ “ปิดใช้” แทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
+                ? <span data-mt-used={เคยใช้ ? "1" : ""} title={เคยใช้ ? "เคยใช้ในคำขอใบเสนอราคา/ใบ HQ แล้ว — ลบไม่ได้ ใช้ “ปิดใช้งาน” แทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
                     style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{เคยใช้ ? "ใช้แล้ว" : "…"}</span>
                 : <button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
                 style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={15} /></button> },

@@ -18,7 +18,7 @@ test.setTimeout(300_000);
 test("แดชบอร์ดดีลเลอร์: การ์ดผลงาน/ขั้นตอน ยังแสดงผลได้ · ไม่มีการ์ดแม่แบบ", async ({ page }) => {
   await openAs(page, RYG, "dealer", "/dashboard");
   await settle(page); await page.waitForTimeout(2500);
-  for (const ชื่อ of ["ผลงานผู้รับผิดชอบ", "ขั้นตอนการขาย"]) {
+  for (const ชื่อ of ["ผลงานผู้รับผิดชอบ", "ขั้นการขาย"]) {
     await expect(page.getByText(ชื่อ).first(), `ต้องมีการ์ด "${ชื่อ}"`).toBeVisible();
   }
   await expect(page.getByText("ยอดขายตามแม่แบบ"), "การ์ดยอดขายตามแม่แบบถูกเอาออกแล้ว").toHaveCount(0);

@@ -7,7 +7,9 @@ do $$
 declare
   คำ text[] := array['ตัวแทนจำหน่าย', 'ตัวแทน', 'ใบเสนอแพ็กเกจ', 'โปรเจกต์', 'โปรเจค', 'ราคาส่ง HQ', 'ปิดดีล', 'ปิดการขายได้', 'ก๊อป', 'ล็อกอิน', 'เซสชัน', 'แอดมิน', 'เทมเพลต', 'กริด', 'โค้ดยืนยัน', 'ส่งโค้ด', 'เหตุผลที่เสีย', 'เหตุผลที่ปิดการขายไม่ได้', 'ลีด', 'ราคาส่งดีลเลอร์', 'โครงการ', 'เวอร์ชัน', 'คำขอราคา', 'ผู้ใช้งานและสิทธิ์', 'ผู้ใช้และสิทธิ์', 'เซลส์', 'ติดต่อผู้ดูแลระบบ', 'ม²', 'รีเซ็ตรหัสผ่าน', 'โหมดเดโม', 'โหมดสาธิต', 'โหมดทดลองใช้งาน', 'ราคาใช้ได้ถึง', ' vs ', 'รอบรวมงานฐาน', 'npx ', 'migration',
     -- ใบ 0286 (บอสอนุมัติ 11–12 พ.ย. 69): คำทับศัพท์ + โมดูล + คิวรอ
-    'แดชบอร์ด', 'โปรไฟล์', 'โน้ต', 'อัปโหลด', 'อัปเดต', 'โควตา', 'ไทม์ไลน์', 'สเปก', 'โฟลเดอร์', 'ล็อกแล้ว', 'รีเฟรช', 'รีเซ็ต', 'แอป', 'ป๊อปอัป', 'เปอร์เซ็นต์', 'คิวรอ', 'โมดูล'];
+    'แดชบอร์ด', 'โปรไฟล์', 'โน้ต', 'อัปโหลด', 'อัปเดต', 'โควตา', 'ไทม์ไลน์', 'สเปก', 'โฟลเดอร์', 'ล็อกแล้ว', 'รีเฟรช', 'รีเซ็ต', 'แอป', 'ป๊อปอัป', 'เปอร์เซ็นต์', 'คิวรอ', 'โมดูล',
+    -- คำบนการ์ด (บอสสั่ง 13 พ.ย. 69 · งาน A)
+    'ถูกแทนที่', 'เจาะดูที่มา'];
   แบบ text[] := array['ดีล(?!เลอร์)', 'อัตราปิด(?!การขาย)', 'เพจ(?! ?Facebook)', 'รอโอน(?!เงิน)'];   -- regex (คำที่เป็นส่วนของคำอื่น เช่น ดีล ใน ดีลเลอร์)
   ฟ record;   -- ใบ 0286: ฟังก์ชันที่สร้างข้อความบนจอ
   k text; n int; ตัวอย่าง text; ข้อความhook text := public.hook_send_email('{}'::jsonb) #>> '{error,message}';
@@ -44,6 +46,18 @@ begin
             where s.nspname = 'public' and p.proname in ('_lead_info_tasks', '_lead_sync_append', '_lead_tasks_five_steps', 'lead_apply', 'quotations_created_lead_sync') loop
     if position('''ระบบทำให้''' in ฟ.prosrc) = 0 then raise exception 'FAIL: % ไม่ได้บันทึกผู้ทำโดยระบบเป็น ระบบทำให้', ฟ.proname; end if;
   end loop;
+  -- ── คำบนการ์ด (บอสสั่ง 13 พ.ย. 69): quotations_version_guard ไม่มีคำห้ามนอกจาก 2 ข้อความที่แอปแปลเอง (แบบ ข · ไม่มีใบปรับฐาน)
+  --   ข้อยกเว้นตรงตัว: ฟังก์ชัน quotations_version_guard + รหัส quote_superseded · quote_superseded_manual (ตัดเฉพาะบรรทัด raise ของ 2 รหัสนี้)
+  --   แอปแปลที่ packages/shared/lib/dbMessages.ts (DbError + friendlyError · tests/unit/dbMessages.test.ts)
+  --   ⚠️ ลบข้อยกเว้นนี้ในรอบที่มีใบปรับฐานถัดไป (แก้ข้อความในฐานเป็น "ฉบับเก่า" แล้วตรวจทั้งฟังก์ชัน) — คิวใน docs/FLOW.html กฎ card-words-nov13
+  for ฟ in select p.proname, regexp_replace(regexp_replace(p.prosrc, '--[^\n]*', '', 'g'),
+              'raise exception ''quote_superseded(_manual)?:[^\n]*', '', 'g') as src
+            from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'quotations_version_guard' loop
+    foreach k in array คำ loop
+      if position(k in ฟ.src) > 0 then raise exception 'FAIL: ฟังก์ชัน % มีคำห้าม "%" นอกข้อความที่ยกเว้น', ฟ.proname, k; end if;
+    end loop;
+  end loop;
+  if not exists (select 1 from pg_proc where proname = 'quotations_version_guard') then raise exception 'FAIL: ไม่พบฟังก์ชัน quotations_version_guard (ชื่อเปลี่ยน = แก้ข้อยกเว้น)'; end if;
   raise notice 'ALL PASS';
 end $$;
 select 'ALL PASS' as result;

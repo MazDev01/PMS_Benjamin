@@ -108,14 +108,14 @@ async function loop(my: number) {
       // ⚠️ 401/403 = "ยังไม่ได้ล็อกอิน / หมดสิทธิ์แล้ว" ไม่ใช่สายขัดข้อง — ต่อใหม่ถี่ ๆ ก็ได้ 401 เหมือนเดิม
       //    ต้องรอเงียบ ๆ ไม่ใช่รายงานว่า "อัปเดตสดใช้ไม่ได้" ให้ผู้ใช้ตกใจตอนอยู่หน้าเข้าสู่ระบบ
       if (res.status === 401 || res.status === 403) { await wait(30_000); continue; }
-      if (!res.ok) throw new Error(`เซิร์ฟเวอร์ตอบกลับ ${res.status}`);
+      if (!res.ok) throw new Error(`ระบบตอบกลับผิดปกติ (รหัส ${res.status})`);
       connected = await readStream(res);
     } catch (e) {
       if (!mine() || (e instanceof DOMException && e.name === "AbortError")) break;
       // ต่อไม่ติดจริง ๆ — ถอยห่างขึ้นเรื่อย ๆ แล้วค่อยลองใหม่
       if (attempt >= RETRY_MS.length) {
         captureError(
-          new Error(`ข้อมูลสด: ต่อใหม่ ${RETRY_MS.length} ครั้งแล้วยังไม่ติด — ข้อมูลจะช้ากว่าปกติ (ยังซิงก์ทุก 30 วินาที)`),
+          new Error(`เชื่อมต่อข้อมูลล่าสุดไม่ได้ (ลอง ${RETRY_MS.length} ครั้งแล้ว) — ตัวเลขอาจช้ากว่าปกติ ระบบจะโหลดซ้ำทุก 30 วินาที`),
           "realtime",
         );
         attempt = 0;

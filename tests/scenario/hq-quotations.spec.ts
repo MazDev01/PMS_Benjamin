@@ -16,7 +16,7 @@ test("[ux·hq] KPI 4 ตัว คำนวณสอดคล้องกัน 
   const tiles = page.locator("[data-kpi-row] [data-kpi]");
   await expect(tiles).toHaveCount(4);
   // ชื่อการ์ดตามแบบหน้า (บอสสั่ง 2 พ.ย. 69 · DCFG.quo)
-  for (const label of ["ส่งลูกค้าในช่วงนี้", "รอลูกค้าตอบ", "ตอบรับ (มูลค่า)", "อัตราตอบรับ"]) {
+  for (const label of ["ใบเสนอราคาที่ส่งลูกค้า", "รอลูกค้าตอบ", "ตอบรับ (มูลค่า)", "อัตราตอบรับ"]) {
     await expect(page.locator("[data-kpi-row]").getByText(label, { exact: true })).toBeVisible();
   }
   // อัตราตอบรับต้องกำกับตัวหารไว้ให้ตรวจสอบได้ (ต่างจากอัตราปิดการขายที่นับจากลีด)
@@ -149,8 +149,8 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     const การ์ด = async (k: string) => Number(await page.locator(`[data-kpi-row] [data-kpi="${k}"] [data-value]`).first().getAttribute("data-value"));
     const แถว = page.locator('table[aria-label="รายการใบเสนอราคา"] tbody tr');
     const ช่องสถานะ = "กรองตามสถานะใบเสนอราคา";   // ช่องตัวกรองตัวกลาง (FilterSelect)
-    await expect(ช่องตัวกรอง(page, ช่องสถานะ), "ค่าเริ่มต้น = ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)").toHaveAttribute("data-filter-value", "sent");
-    await expect.poll(() => การ์ด("sent"), { message: "การ์ดส่งลูกค้าในช่วงนี้", timeout: 20_000 }).toBe(4);
+    await expect(ช่องตัวกรอง(page, ช่องสถานะ), "ค่าเริ่มต้น = ส่งลูกค้าแล้ว (ไม่นับฉบับร่างและฉบับเก่า)").toHaveAttribute("data-filter-value", "sent");
+    await expect.poll(() => การ์ด("sent"), { message: "การ์ดใบเสนอราคาที่ส่งลูกค้า", timeout: 20_000 }).toBe(4);
     await expect(แถว, "ตารางค่าเริ่มต้น = การ์ด").toHaveCount(4, { timeout: 20_000 });
     await expect(page.locator(".erp").getByText(`Q-${c}-D1`), "ใบร่างไม่อยู่ในตารางค่าเริ่มต้น").toHaveCount(0);
     expect(new Set(await แถว.locator("[data-quote-status]").allInnerTexts()), "ชื่อสถานะตาม FLOW").toEqual(new Set(["ส่งให้ลูกค้าแล้ว", "ตอบรับ", "ลูกค้าปฏิเสธ"]));
@@ -169,7 +169,7 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect(แถว.first().locator("[data-quote-status]")).toHaveText("ร่าง");
     await expect(แถว.first().locator('[data-col="sent-date"]'), "ใบร่างยังไม่ได้ส่ง = —").toHaveText("—");
     await เลือกตัวกรอง(page, ช่องสถานะ, { ค่า: "superseded" });
-    await expect(แถว.first().locator("[data-quote-status]")).toHaveText("ถูกแทนที่");
+    await expect(แถว.first().locator("[data-quote-status]")).toHaveText("ฉบับเก่า");
     await เลือกตัวกรอง(page, ช่องสถานะ, { ค่า: "all" });
     await expect(แถว, "ทุกสถานะ = 6 ใบ").toHaveCount(6);
     // การ์ดตอบรับ: 2 ใบ (W1 · W2 ส่งนอกช่วงแต่ตอบรับในช่วง) มูลค่า 3,000 ตามวันลูกค้าตอบรับ
@@ -183,7 +183,7 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect(แผง.locator("tfoot"), "แผงที่มาไม่มีแถวรวม").toHaveCount(0);
     await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
       { message: "แผงที่มา ผลรวมแถว = การ์ด 3000" }).toBe(3000);
-    await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+    await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
     await expect(ช่องตัวกรอง(page, ช่องสถานะ), "รายการยังเป็นค่าเริ่มต้น").toHaveAttribute("data-filter-value", "sent");
     await expect(แถว).toHaveCount(4);
   } finally {

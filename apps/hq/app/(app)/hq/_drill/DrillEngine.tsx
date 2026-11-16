@@ -167,7 +167,7 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
     const v = โหลด ? null : ค่าแถว(c, rows, ทั้งหมด);
     return <KpiCard key={c.k} kpi={c.kpi} label={c.l} value={โหลด ? null : แสดง(c, v)} rawValue={v} unit={โหลด ? undefined : c.sub(rows)}
       empty="กำลังโหลด…" danger={c.danger && (v ?? 0) > 0} icon={รูปไอคอน[c.icon]} color={c.color} bg={c.bg}
-      actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด(c.k)} />;
+      actionLabel="ดูรายละเอียด" onClick={() => setแผงการ์ด(c.k)} />;
   };
 
   return (

@@ -3,7 +3,7 @@ import HeroSection from "@pms/shared/components/auth/HeroSection";
 import LoginCard from "@pms/shared/components/auth/LoginCard";
 
 export const metadata: Metadata = {
-  title: "เข้าสู่ระบบ · Benjamin PMS",
+  title: "เข้าระบบ · Benjamin PMS",
   description: "ระบบบริหารงานขายและดีลเลอร์ สำหรับธุรกิจอาคารเหล็กสำเร็จรูป",
 };
 

@@ -66,7 +66,7 @@ export const quoteRequestsGET = handler("quoteRequests.list", async (req: NextRe
     return ok(((data ?? []) as Row[]).map(r => Number(r.lead_num_id)));
   }
   const dealer = String(q.get("dealer") ?? "").trim().toUpperCase(), lead = Number(q.get("lead"));
-  if (!/^[A-Z]{2,5}$/.test(dealer) || !Number.isInteger(lead)) return fail(400, "ระบุ dealer และ lead");
+  if (!/^[A-Z]{2,5}$/.test(dealer) || !Number.isInteger(lead)) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const { data, error } = await sb.from("quote_requests").select("*").eq("dealer_code", dealer).eq("lead_num_id", lead).order("id", { ascending: false });
   if (error) return dbFail("quoteRequests.forLead", error);
   return ok(toCamelList((data ?? []) as Row[]));
@@ -74,7 +74,7 @@ export const quoteRequestsGET = handler("quoteRequests.list", async (req: NextRe
 
 export const quoteRequestsPOST = handler("quoteRequests.write", async (req: NextRequest, sb) => {
   const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!b) return fail(400, "ข้อมูลไม่ถูกต้อง");
+  if (!b) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const id = Number(b.id);
   switch (b.op) {
     case "submit": {
@@ -134,6 +134,6 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
       if (error) return dbFail("quoteRequests.revertWon", error);
       return ok({ ok: true });
     }
-    default: return fail(400, "คำสั่งไม่ถูกต้อง");
+    default: return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   }
 });

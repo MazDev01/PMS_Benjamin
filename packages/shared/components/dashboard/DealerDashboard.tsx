@@ -424,13 +424,13 @@ export default function DealerDashboard() {
 
         {/* ขั้นตอนการขาย (โดนัท) */}
         <div className="card" style={card} data-deal-stage-chart>
-          <div style={hd}><span style={title}>สัดส่วนตามขั้นตอนการขาย</span>{more("/leads")}</div>
+          <div style={hd}><span style={title}>สัดส่วนตามขั้นการขาย</span>{more("/leads")}</div>
           {dealStatus.length === 0 ? <EmptyState icon={<Target size={26} />} title="ไม่มีงานขายในช่วงนี้" description="ลองขยายช่วงเวลาด้านบน" compact /> : (
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
               <Donut segments={dealStatus} centerLabel="งานขายทั้งหมด" centerValue={`${leadsIn.length}`} size={118} />
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 168 }}>
                 {dealStatus.map(s => (
-                  <button key={s.label} className="dash-row" onClick={() => router.push("/leads")} title={`ดูลูกค้าเป้าหมายขั้นตอน ${s.label}`}
+                  <button key={s.label} className="dash-row" onClick={() => router.push("/leads")} title={`ดูลูกค้าเป้าหมายขั้น ${s.label}`}
                     style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", whiteSpace: "nowrap", background: "none", border: "none", padding: "5px 8px", margin: "0 -8px", cursor: "pointer", fontFamily: "inherit", borderRadius: 8, textAlign: "left" }}>
                     <span style={{ width: 9, height: 9, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
                     <span style={{ flex: 1, color: TEXT, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>

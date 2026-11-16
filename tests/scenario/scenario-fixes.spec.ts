@@ -94,7 +94,7 @@ test.describe("อื่น ๆ", () => {
     await open(page, "hq", "/hq/dealers?view=table");   // หน้าเริ่มเป็นการ์ด — เทสต์นี้ใช้แถวตาราง
     // แถวดีลเลอร์ RYG (12 พ.ย. 69 · บอสสั่ง) — เดิมแถวแรก (สาขาชั่วคราวของข้ออื่นถูกลบระหว่างเปิดแผงได้)
     await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill("RYG");
-    await page.locator("table tbody tr[aria-label^='เปิดแผงดีลเลอร์']").filter({ hasText: "RYG" }).filter({ hasNotText: "ZZTEST" }).click();
+    await page.locator("table tbody tr[aria-label^='เปิดหน้าต่างรายละเอียดดีลเลอร์']").filter({ hasText: "RYG" }).filter({ hasNotText: "ZZTEST" }).click();
     // ต้องขึ้นจุดไข่ปลา + ปุ่มให้กดดู — ไม่ใช่โชว์รหัสมาเลย
     // (เดิมช่องนี้เป็นช่องปิดบังธรรมดาที่ค่าเป็น "—" เสมอ · ตอนนี้ดึงรหัสจริงตอนกดดูได้แล้ว
     //  จึงต้องยืนยันว่ายัง "ไม่ดึงมาก่อนกด" ตามที่ออกแบบไว้)

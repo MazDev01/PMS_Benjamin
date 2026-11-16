@@ -86,7 +86,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
     setBusy(true); setErr("");
     try {
       await activitiesRepo.addContact(row);
-      แจ้งสำเร็จ(โหมดนัดคุย ? "บันทึกนัดคุยแล้ว" : prospect.status === "new" ? "บันทึกการติดต่อแล้ว · ติ๊กงาน “ติดต่อครั้งแรก” ให้อัตโนมัติ" : "บันทึกการติดต่อแล้ว");
+      แจ้งสำเร็จ(โหมดนัดคุย ? "บันทึกนัดคุยแล้ว" : prospect.status === "new" ? "บันทึกการติดต่อแล้ว · ระบบทำงาน “ติดต่อครั้งแรก” ให้แล้ว" : "บันทึกการติดต่อแล้ว");
       setChannel(""); setBody(""); setNextFollowUp(""); setวันนัด(""); setเวลานัด(""); setสถานที่("");
       setFormOpen(false);
       onAdded();

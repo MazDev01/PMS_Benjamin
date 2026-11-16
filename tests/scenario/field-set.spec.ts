@@ -68,7 +68,7 @@ test("[ui·dealer] ฟอร์มเพิ่มลีด: 3 กลุ่ม �
   await expect(ฟอร์ม.getByRole("button", { name: /อัปโหลดรูป|แนบรูป|เปลี่ยนรูป/ }), "ไม่มีอัปโหลดโลโก้").toHaveCount(0);
   // ไม่มีช่องขั้นตอนในฟอร์ม (บอสสั่ง 28 ต.ค. 69 · FLOW D2) — ลีดใหม่อยู่ขั้นข้อมูลลูกค้าเสมอ ฐานตั้งเอง (ใบ 0256)
   await expect(ฟอร์ม.locator("label").filter({ hasText: /^ขั้นตอน$/ }), "ไม่มีช่องขั้นตอน (D2)").toHaveCount(0);
-  await expect(ฟอร์ม.getByRole("combobox", { name: "ขั้นตอน" }), "ไม่มีช่องเลือกขั้นตอน (D2)").toHaveCount(0);
+  await expect(ฟอร์ม.getByRole("combobox", { name: "ขั้น", exact: true }), "ไม่มีช่องเลือกขั้นตอน (D2)").toHaveCount(0);
   // จังหวัดหน้างานอยู่หลังหัวกลุ่มข้อมูลงาน (ไม่ใช่ในข้อมูลลูกค้า)
   const ลำดับ = await ฟอร์ม.locator(".form-section, label").allInnerTexts();
   expect(ลำดับ.findIndex(t => t.replace(/\s*\*$/, "") === ช่อง.จังหวัด),"จังหวัดหน้างานอยู่กลุ่มข้อมูลงาน").toBeGreaterThan(ลำดับ.indexOf(กลุ่มช่อง.งาน));

@@ -91,7 +91,7 @@ test("[func] งาน 'จัดทำใบเสนอราคา' ระบ
   await งานออกใบ.click();
   await expect(page.getByRole("status").filter({ hasText: "ยังทำงานนี้ไม่ได้ตอนนี้" }), "ยังไม่มีใบ HQ = บอกเหตุผล").toBeVisible({ timeout: 10_000 });
   await expect(งานออกใบ, "กดแล้วไม่ติ๊กเอง").toHaveAttribute("aria-checked", "false");
-  await expect(page.getByText("ระบบติ๊กให้เมื่อทำใบเสนอราคา").first(), "บอกว่าระบบติ๊กให้เมื่อไร").toBeVisible();
+  await expect(page.getByText("ระบบทำให้เมื่อทำใบเสนอราคา").first(), "บอกว่าระบบติ๊กให้เมื่อไร").toBeVisible();
 
   const sb = await db(RYG);
   const lead = (await sb.from("leads").select("tasks,status").eq("company", COMPANY).single())
@@ -164,7 +164,7 @@ test("[func] งาน 'ส่งใบเสนอราคา' ระบบต
   await expect(ยืนยันส่ง, "กดงานส่งใบ = กล่องยืนยันส่ง (ทางเดียวกับกล่องขั้นต่อไป)").toBeVisible({ timeout: 15_000 });
   await ยืนยันส่ง.locator("[data-dialog-cancel]").click();
   await expect(งานส่ง, "ยกเลิก = ไม่ติ๊ก").toHaveAttribute("aria-checked", "false");
-  await expect(page.getByText("ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า").first()).toBeVisible();
+  await expect(page.getByText("ระบบทำให้เมื่อส่งใบให้ลูกค้า").first()).toBeVisible();
 
   const sb = await db(RYG);
   const lead = (await sb.from("leads").select("tasks").eq("company", COMPANY).single())

@@ -162,7 +162,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await เปิดลีด(page);
 
     // ตัวกรองขั้นตอน: ไม่มีชื่อขั้นเดิม
-    const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ขั้นตอน")).map(o => o.ข้อความ);
+    const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ขั้น")).map(o => o.ข้อความ);
     expect(ตัวเลือก.join(" | "), "ตัวกรองขั้นตอนไม่มีชื่อขั้นเดิม").not.toMatch(ชื่อเดิม);
 
     // ตาราง: ป้ายย่อย + แถบ 4 ช่อง
@@ -204,7 +204,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await ลากการ์ด(page, บอร์ด.locator("[data-board-card]").filter({ hasText: ชื่อ("ได้ใบ") }), คอล4);
     await expect(page.getByRole("button", { name: "สร้างใบเสนอราคา" }).last(), "ลากเข้าเสนอราคาลูกค้า = ฟอร์มทำใบ").toBeVisible({ timeout: 25_000 });
     // แถบในแผงลีด 4 ขั้น ไม่มีชื่อขั้นเดิม
-    await expect(page.getByRole("list", { name: "ขั้นตอนการขาย" }).locator("li")).toHaveText(["1. เก็บข้อมูลลูกค้า", "2. รอราคาจาก HQ", "3. ได้ราคาจาก HQ แล้ว", "4. ทำใบเสนอราคาให้ลูกค้า"].map(x => new RegExp(x.replace(".", "[.]"))));
+    await expect(page.getByRole("list", { name: "ขั้นการขาย" }).locator("li")).toHaveText(["1. เก็บข้อมูลลูกค้า", "2. รอราคาจาก HQ", "3. ได้ราคาจาก HQ แล้ว", "4. ทำใบเสนอราคาให้ลูกค้า"].map(x => new RegExp(x.replace(".", "[.]"))));
     assertNoErrors(errs, "บอร์ดลีด 4 ขั้น");
   });
 
@@ -238,7 +238,7 @@ test.describe("หน้าจอ 4 ขั้น", () => {
     await expect(แถว("ทำใบ").locator("[data-stage-sub]")).toHaveText("ยังไม่ส่ง");
     await expect(แถว("ส่งแล้ว").locator("[data-stage-sub]")).toHaveText("ส่งแล้ว");
     await expect(แถว("ได้ใบ").locator("[data-stage-label]")).toHaveText("3. ได้ราคาจาก HQ แล้ว");
-    const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ขั้นตอน")).map(o => o.ข้อความ);
+    const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ขั้น")).map(o => o.ข้อความ);
     expect(ตัวเลือก.join(" | "), "ตัวกรองขั้นตอน HQ ไม่มีชื่อขั้นเดิม").not.toMatch(ชื่อเดิม);
     const กราฟ = page.locator("[data-stage-chart][data-ready='1']");
     await expect(กราฟ).toBeVisible({ timeout: 25_000 });

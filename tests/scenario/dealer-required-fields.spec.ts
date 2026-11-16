@@ -190,7 +190,7 @@ test("[req·dealer] ตั้งค่าใบเสนอราคา + ผู
   await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/settings`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "ตั้งค่าใบเสนอราคา" }).first().click();
-  for (const ชื่อ of ["ภาษีมูลค่าเพิ่ม %", "อายุใบเสนอราคา (วัน)"]) await ดาวแดง(page.locator("label").filter({ hasText: ชื่อ }).first(), ชื่อ);
+  for (const ชื่อ of ["ภาษีมูลค่าเพิ่ม (VAT) %", "อายุใบเสนอราคา (วัน)"]) await ดาวแดง(page.locator("label").filter({ hasText: ชื่อ }).first(), ชื่อ);
   for (const ชื่อ of ["ภาษีหัก ณ ที่จ่าย %", "% บวกตั้งต้น", "หัวเอกสาร"]) await ไม่มีดาว(page.locator("label").filter({ hasText: ชื่อ }).first(), ชื่อ);
 
   await page.getByRole("button", { name: "ผู้รับผิดชอบ", exact: true }).first().click();

@@ -34,7 +34,7 @@ test("[func·dealer] เพิ่มงานขายใหม่: ช่อง
   // ช่องเดียวกันห้ามเรียกคนละชื่อคนละหน้า
   await expect(page.getByText("พื้นที่ (ตร.ม.)")).toBeVisible();
   // ขั้นตอน — ต้องมีชุดตัวเลือกเดียวกับฟอร์มลูกค้าเป้าหมาย (เฉพาะขั้นก่อนเสนอราคา)
-  const ขั้นตอน = page.getByLabel("ขั้นตอน");
+  const ขั้นตอน = page.getByLabel("ขั้น", { exact: true });
   await expect(ขั้นตอน).toBeVisible();
   expect(await ขั้นตอน.locator("option").count(), "เลือกได้เฉพาะขั้นก่อนเสนอราคา").toBe(2);
   // คำอธิบายต้องไม่ปนศัพท์อังกฤษที่หน้าจอมีคำไทยใช้อยู่แล้ว

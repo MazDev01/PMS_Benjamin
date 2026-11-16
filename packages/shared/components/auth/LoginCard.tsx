@@ -66,8 +66,8 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
   // ⚠️ ต้องออกจากระบบให้ด้วย — ตอนเช็คเจอ ใบผ่านถูกออกให้ไปแล้ว
   //    ถ้าปล่อยไว้ = มีใบผ่านของคนสำนักงานใหญ่ค้างอยู่บนโดเมนของดีลเลอร์
   const WRONG_APP = isHQ
-    ? "บัญชีนี้เป็นของดีลเลอร์ — กรุณาเข้าสู่ระบบที่หน้าของดีลเลอร์"
-    : "บัญชีนี้เป็นของสำนักงานใหญ่ — กรุณาเข้าสู่ระบบที่หน้าของสำนักงานใหญ่";
+    ? "บัญชีนี้เป็นของดีลเลอร์ — กรุณาเข้าระบบที่หน้าของดีลเลอร์"
+    : "บัญชีนี้เป็นของสำนักงานใหญ่ — กรุณาเข้าระบบที่หน้าของสำนักงานใหญ่";
 
   /** เข้าได้จริงหรือไม่ · คืน true = พาเข้าแล้ว · false = ปฏิเสธและแสดงเหตุผลแล้ว */
   const enter = (scopeAll: boolean): boolean => {
@@ -138,8 +138,8 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
       <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-sm">
           {/* Heading */}
-          <h2 className="text-[2rem] font-extrabold tracking-tight text-[#0e2a5c]">เข้าสู่ระบบ</h2>
-          <p className="mt-1.5 text-sm text-slate-500">{isHQ ? "เข้าสู่ระบบสำนักงานใหญ่" : "เข้าสู่ระบบเพื่อใช้งานระบบ"}</p>
+          <h2 className="text-[2rem] font-extrabold tracking-tight text-[#0e2a5c]">เข้าระบบ</h2>
+          <p className="mt-1.5 text-sm text-slate-500">{isHQ ? "เข้าระบบสำนักงานใหญ่" : "เข้าระบบเพื่อใช้งานระบบ"}</p>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4" noValidate>
@@ -162,7 +162,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
             {/* Password */}
             <div>
               {/* ตัดช่องว่างเหมือนช่องอีเมล (บอสสั่ง 25 ส.ค. 69) — ใช้กับทั้งสำนักงานใหญ่และดีลเลอร์
-                  เพราะไฟล์นี้เป็นหน้าเข้าสู่ระบบตัวเดียวกันของทั้งสองแอป (variant hq/dealer)
+                  เพราะไฟล์นี้เป็นหน้าเข้าระบบตัวเดียวกันของทั้งสองแอป (variant hq/dealer)
                   ⚠️ ผลข้างเคียงที่ต้องรู้: ถ้าวันหนึ่งมีรหัสผ่านที่ตั้งใจให้มีเว้นวรรคจริง จะพิมพ์ไม่ได้
                   ตอนนี้ไม่มีบัญชีแบบนั้น และช่องว่างติดมากับการ copy-paste เป็นปัญหาที่เจอจริงมากกว่า */}
               <FieldLabel htmlFor="login-password" required className="mb-1 block text-[0.78rem] font-bold text-[#0e2a5c]">รหัสผ่าน</FieldLabel>
@@ -192,7 +192,7 @@ export default function LoginCard({ variant = "dealer" }: { variant?: "dealer" |
               className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0e2a5c] text-[0.95rem] font-bold text-white shadow-[0_10px_30px_-12px_rgba(14,42,92,0.55)] transition hover:bg-[#12326e] active:scale-[0.99] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70">
               {loading
                 ? <span className="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white/30 border-t-white" aria-hidden="true" />
-                : "เข้าสู่ระบบ"}
+                : "เข้าระบบ"}
             </button>
           </form>
 

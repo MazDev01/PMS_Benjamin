@@ -27,7 +27,7 @@ export const notesGET = handler("notes.list", async (req: NextRequest, sb) => {
 
 export const notesPOST = handler("notes.create", async (req: NextRequest, sb) => {
   const n = (await req.json().catch(() => null)) as Omit<CustomerNote, "id"> | null;
-  if (!n) return fail(400, "ข้อมูลหมายเหตุไม่ถูกต้อง");
+  if (!n) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const { data, error } = await sb.from("customer_notes").insert(toSnake(n as unknown as Row)).select().single();
   if (error) return dbFail("notes.create", error);
   return ok(toCamel<CustomerNote>(data as Row));
@@ -95,7 +95,7 @@ export const filesGET = handler("files.list", async (req: NextRequest, sb) => {
 
 export const filesPOST = handler("files.add", async (req: NextRequest, sb) => {
   const f = (await req.json().catch(() => null)) as Omit<DealerFile, "id"> | null;
-  if (!f) return fail(400, "ข้อมูลไฟล์ไม่ถูกต้อง");
+  if (!f) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const { data, error } = await sb.from("files").insert(toSnake(f as unknown as Row)).select().single();
   if (error) return dbFail("files.add", error);
   return ok(toCamel<DealerFile>(data as Row));

@@ -11,6 +11,7 @@
 //   • คีย์ service_role อยู่ที่แอปสำนักงานใหญ่เท่านั้น
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -42,7 +43,7 @@ export async function ดีลเลอร์ที่เรียก(
   req: NextRequest,
 ): Promise<{ ok: true; who: ดีลเลอร์ผู้เรียก } | { ok: false; res: NextResponse }> {
   if (!SUPABASE_URL || !SERVICE_KEY) {
-    return { ok: false, res: dealerJson(req, { error: "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ — ใช้งานหน้านี้ยังไม่ได้" }, 501) };
+    return { ok: false, res: dealerJson(req, { error: ตั้งค่าไม่ครบ("NEXT_PUBLIC_SUPABASE_URL · SUPABASE_SERVICE_ROLE_KEY", "dealer-caller") }, 501) };
   }
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!token) return { ok: false, res: dealerJson(req, { error: "unauthorized" }, 401) };
@@ -58,7 +59,7 @@ export async function ดีลเลอร์ที่เรียก(
     return { ok: false, res: dealerJson(req, { error: "ตรวจสอบสิทธิ์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง" }, 503) };
   }
   if (!prof || String(prof.status ?? "active") !== "active") {
-    return { ok: false, res: dealerJson(req, { error: "บัญชีนี้ถูกปิดการใช้งานแล้ว — ติดต่อสำนักงานใหญ่" }, 403) };
+    return { ok: false, res: dealerJson(req, { error: "บัญชีนี้ปิดใช้งานแล้ว — ติดต่อสำนักงานใหญ่" }, 403) };
   }
   const dealerCode = String(prof.dealer_code ?? "").trim().toUpperCase();
   if (!dealerCode) {

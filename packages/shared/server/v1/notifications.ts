@@ -34,7 +34,7 @@ export const GET = handler("notifications.list", async (req: NextRequest, sb) =>
 //   ยืนยันโค้ด/ส่งอีเมลทดสอบ ไม่อยู่ที่นี่ (ต้องใช้กุญแจฝั่งเซิร์ฟเวอร์ + ตัวส่งอีเมล) — ดู /api/account · /api/admin/notify-test
 export const POST = handler("notifications.write", async (req: NextRequest, sb) => {
   const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!b) return fail(400, "ข้อมูลไม่ถูกต้อง");
+  if (!b) return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   switch (b.op) {
     case "set-pref": {
       if (typeof b.bell !== "boolean" || typeof b.email !== "boolean") return fail(400, "ต้องระบุเปิด/ปิดทั้งกระดิ่งและอีเมล");
@@ -52,6 +52,6 @@ export const POST = handler("notifications.write", async (req: NextRequest, sb) 
       if (error) return dbFail("notifications.removeRecipient", error);
       return ok({ ok: true });
     }
-    default: return fail(400, "คำสั่งไม่ถูกต้อง");
+    default: return fail(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   }
 });

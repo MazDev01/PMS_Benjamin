@@ -76,7 +76,7 @@ export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนน�
                   style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "8px 10px", background: "none", border: "none",
                     cursor: "pointer", fontFamily: "inherit", fontSize: "0.76rem", fontWeight: 800, color: "#475569", textAlign: "left" }}>
                   {เปิดอยู่ ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  <span style={{ flex: 1 }}>{g.ชื่อ}{g.step === ขั้นตอนนี้ && <span style={{ marginLeft: 6, fontSize: "0.64rem", fontWeight: 700, color: "#b45309" }}>· ขั้นตอนนี้</span>}</span>
+                  <span style={{ flex: 1 }}>{g.ชื่อ}{g.step === ขั้นตอนนี้ && <span style={{ marginLeft: 6, fontSize: "0.64rem", fontWeight: 700, color: "#b45309" }}>· ขั้นนี้</span>}</span>
                   <span style={{ fontSize: "0.66rem", fontWeight: 600, color: "#94a3b8" }}>{เสร็จ}/{g.งาน.length}</span>
                 </button>
                 {เปิดอยู่ && (g.งาน.length === 0 ? (
@@ -99,7 +99,7 @@ export function LeadTasks({ lead, performedBy, onSave, ขั้นตอนน�
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ fontSize: "0.84rem", fontWeight: 600, color: t.done ? "#065f46" : "#2D2D2D", textDecoration: t.done ? "line-through" : "none" }}>{แปลงชื่อขั้นเดิม(t.label)}</span>
-                            {auto && <span data-system-badge className="badge" style={{ marginLeft: 6, background: "#eef3f8", color: "#475569", fontSize: "0.6rem", fontWeight: 700, verticalAlign: "middle" }}>{t.done ? "ระบบติ๊กให้" : "กดเพื่อทำ"}</span>}
+                            {auto && <span data-system-badge className="badge" style={{ marginLeft: 6, background: "#eef3f8", color: "#475569", fontSize: "0.6rem", fontWeight: 700, verticalAlign: "middle" }}>{t.done ? "ระบบทำให้" : "กดเพื่อทำ"}</span>}
                             {!t.done && auto && <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>{auto}</span>}
                             {t.done && (t.doneBy || วันที่) && (
                               <span style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>✓ {t.doneBy ? ชื่อผู้ทำ(t.doneBy) : "—"}{วันที่ ? ` · ${วันที่}` : ""}</span>

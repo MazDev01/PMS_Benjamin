@@ -171,7 +171,7 @@ export const accountLocal = {
   async decide(id: string, action: "approve" | "reject", reason?: string): Promise<void> {
     const ทั้งหมด = requests();
     const ใบ = ทั้งหมด.find(r => r.id === id);
-    if (!ใบ || ใบ.status !== "pending") throw new Error("ไม่พบคำขอนี้ หรือถูกตัดสินไปแล้ว");
+    if (!ใบ || ใบ.status !== "pending") throw new Error("ไม่พบคำขอนี้ หรือคำขอนี้อนุมัติ/ปฏิเสธไปแล้ว");
     const at = new Date().toISOString();
     if (action === "approve") {
       const รหัสที่ขอ = read<Record<string, string>>(`${SECRETS_KEY}:pending`, {})[id];

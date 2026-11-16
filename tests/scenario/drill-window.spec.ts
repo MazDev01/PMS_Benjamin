@@ -91,7 +91,7 @@ test("[ui·hq] ภาพรวมยอดขาย: ทุกแผงการ
     const แผง = page.locator(`[data-card-drawer="${k}"]`);
     await ตรวจหน้าต่าง(page, แผง, `การ์ด ${k}`);
     await expect(แผง.locator("[data-drawer-row]"), `การ์ด ${k}: แถวรายดีลเลอร์ = ดีลเลอร์ในตาราง`).toHaveCount(3);
-    await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+    await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
     await expect(แผง).toHaveCount(0);
   }
 
@@ -149,7 +149,7 @@ test("[ui·hq] ภาพรวมยอดขาย: ทุกแผงการ
   await page.locator('[data-kpi-row] [data-kpi="sales"]').click();
   const แผงยอด = page.locator('[data-card-drawer="sales"]');
   await ตรวจหน้าต่าง(page, แผงยอด, "การ์ดยอดขาย ระดับดีลเลอร์ (รายเดือน)");
-  await แผงยอด.getByRole("button", { name: "ปิดแผง", exact: true }).click();
+  await แผงยอด.getByRole("button", { name: "ปิดหน้าต่าง", exact: true }).click();
   await expect(แผงยอด).toHaveCount(0);
   assertNoErrors(errs, "/hq/pipeline");
 });
@@ -187,7 +187,7 @@ for (const path of ["/hq/leads", "/hq/quotations", "/hq/customers"]) {
       await page.locator(`[data-kpi-row] button[data-kpi="${k}"]`).click();
       const แผง = page.locator('[data-drill-drawer^="card:"]');
       await ตรวจหน้าต่าง(page, แผง, `${path} การ์ด ${k}`);
-      await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+      await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
       await expect(แผง).toHaveCount(0);
     }
     // กดแถวดีลเลอร์ในหน้าต่าง = เจาะลงดีลเลอร์นั้น (ตารางสรุปเป็นรายเดือน)

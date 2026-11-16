@@ -138,8 +138,8 @@ export const ACTIVE_LEAD_STATUSES: LeadStatus[] = LEAD_STATUS_ORDER.filter(s => 
 export const leadStatusLabel: Record<LeadStatus, string> = {
   WAITING:   "ติดต่อแล้ว",
   BULLET:    "รวบรวมความต้องการ",
-  HQ_PRICING: "รอราคา HQ",
-  HQ_QUOTED: "ได้ราคา HQ",
+  HQ_PRICING: "รอราคาจาก HQ",
+  HQ_QUOTED: "ได้ราคาจาก HQ",
   QUOTED:    "เสนอราคา",
   PAID:      "ปิดการขายสำเร็จ",
   CANCELLED: "ปิดการขายไม่สำเร็จ",
@@ -436,7 +436,7 @@ export const HQ_AUDIT_MODULE_LABEL: Record<string, string> = {
 
 /** ชื่อการกระทำสำหรับแสดงในหน้าบันทึกการใช้งาน (ตาราง · ไฟล์ส่งออก · ค้นหา) — ชื่อในฐานคงเดิม แปลงตอนแสดงเท่านั้น
  *  บอสตัดสิน 11 พ.ย. 69: "รีเซ็ตรหัสผ่านดีลเลอร์" (ชื่อการกระทำที่บันทึกไว้) แสดงเป็น "ตั้งรหัสผ่านใหม่ให้ดีลเลอร์" */
-const ชื่อการกระทำแสดง: Record<string, string> = { "รีเซ็ตรหัสผ่านดีลเลอร์": "ตั้งรหัสผ่านใหม่ให้ดีลเลอร์" };
+const ชื่อการกระทำแสดง: Record<string, string> = { "เข้าสู่ระบบ": "เข้าระบบ", "รีเซ็ตรหัสผ่านดีลเลอร์": "ตั้งรหัสผ่านใหม่ให้ดีลเลอร์" };
 export const hqAuditActionLabel = (action: string): string => ชื่อการกระทำแสดง[action] ?? action;
 
 // ─── รูปแบบเลขที่ใบเสนอราคา (แหล่งเดียว = HQ) — ดีลเลอร์ใช้ตาม ห้ามแก้ ──────────────
@@ -703,13 +703,13 @@ export const APPOINTMENT_TASK_KEY = "appointment";
 /** รายการของระบบ + ข้อความบอกว่าระบบติ๊กเมื่อไร (ลำดับ = ลำดับในแม่แบบ · ตรงกับฐาน _lead_system_tasks) */
 export const SYSTEM_LEAD_TASKS: (LeadTaskDef & { auto: true; เมื่อ: string })[] = [
   // ใบ 0263 (บอสสั่ง 30 ต.ค. 69): ฐานติ๊กเองเมื่อข้อมูลหมวดนั้นครบ · ไม่ครบ = ติ๊กหาย (_lead_customer_info_complete / _lead_job_info_complete)
-  { key: "collect",            label: "เก็บข้อมูลลูกค้า",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลลูกค้าครบ (ชื่อบริษัท · ผู้ติดต่อ · โทรศัพท์)" },
-  { key: "requirement",        label: "สรุปความต้องการ",  step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อข้อมูลงานครบ (จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ · รายละเอียดงาน)" },
-  { key: APPOINTMENT_TASK_KEY, label: "นัดหมาย",         step: 1, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อบันทึกนัดหมาย" },
-  { key: "requestQuote",       label: "ส่งคำขอราคา",   /* ชื่องานตาม FLOW (ตรงรายการงานของฐาน _lead_system_tasks + งานที่บันทึกในลูกค้าเป้าหมายแล้ว) — เปลี่ยนพร้อมฐานเป็นงานแยก */      step: 2, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งคำขอใบเสนอราคาให้ HQ" },
-  { key: "hqQuote",            label: "ได้ใบ HQ",         step: 3, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อ HQ ส่งใบ" },
-  { key: QUOTE_TASK_KEY,       label: "จัดทำใบเสนอราคา",  step: 4, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อทำใบเสนอราคา" },
-  { key: SEND_QUOTE_TASK_KEY,  label: "ส่งใบเสนอราคา",    step: 4, auto: true, เมื่อ: "ระบบติ๊กให้เมื่อส่งใบให้ลูกค้า" },
+  { key: "collect",            label: "เก็บข้อมูลลูกค้า",  step: 1, auto: true, เมื่อ: "ระบบทำให้เมื่อข้อมูลลูกค้าครบ (ชื่อบริษัท · ผู้ติดต่อ · โทรศัพท์)" },
+  { key: "requirement",        label: "สรุปความต้องการ",  step: 1, auto: true, เมื่อ: "ระบบทำให้เมื่อข้อมูลงานครบ (จังหวัดหน้างาน · งานที่ต้องการ · พื้นที่ · รายละเอียดงาน)" },
+  { key: APPOINTMENT_TASK_KEY, label: "นัดหมาย",         step: 1, auto: true, เมื่อ: "ระบบทำให้เมื่อบันทึกนัดหมาย" },
+  { key: "requestQuote",       label: "ส่งคำขอราคา",   /* ชื่องานตาม FLOW (ตรงรายการงานของฐาน _lead_system_tasks + งานที่บันทึกในลูกค้าเป้าหมายแล้ว) — เปลี่ยนพร้อมฐานเป็นงานแยก */      step: 2, auto: true, เมื่อ: "ระบบทำให้เมื่อส่งคำขอใบเสนอราคาให้ HQ" },
+  { key: "hqQuote",            label: "ได้ใบ HQ",         step: 3, auto: true, เมื่อ: "ระบบทำให้เมื่อ HQ ส่งใบ" },
+  { key: QUOTE_TASK_KEY,       label: "จัดทำใบเสนอราคา",  step: 4, auto: true, เมื่อ: "ระบบทำให้เมื่อทำใบเสนอราคา" },
+  { key: SEND_QUOTE_TASK_KEY,  label: "ส่งใบเสนอราคา",    step: 4, auto: true, เมื่อ: "ระบบทำให้เมื่อส่งใบให้ลูกค้า" },
 ];
 const รหัสระบบ = new Set(SYSTEM_LEAD_TASKS.map(t => t.key));
 /** รายการนี้ระบบติ๊กให้เองไหม (ดีลเลอร์/HQ ติ๊ก แก้ ลบเองไม่ได้) */
@@ -722,7 +722,7 @@ export const ระบบติ๊กเมื่อ = (key: string) => SYSTEM_L
 /** งาน "ติดตามลูกค้า" — ไม่ใช่รายการของระบบ (ฐานไม่กัน) แต่หน้าจอไม่ให้ติ๊กเปล่า ๆ: กดแล้วเปิดกล่องบันทึกการติดต่อ/นัดหมาย ติ๊กเมื่อบันทึก (บอสตอบ 6 พ.ย. 69 ข้อ 2 ข)
  *  ลีดเก่าที่ติ๊กไว้แล้วคงเดิม */
 export const FOLLOW_TASK_KEY = "followCustomer";
-export const ติดตามติ๊กเมื่อ = "ติ๊กให้เมื่อบันทึกการติดต่อหรือนัดหมาย";
+export const ติดตามติ๊กเมื่อ = "ระบบทำให้เมื่อบันทึกการติดต่อหรือนัดหมาย";
 const ระบบ = (key: string): LeadTaskDef => { const s = SYSTEM_LEAD_TASKS.find(t => t.key === key)!; return { key: s.key, label: s.label, step: s.step, auto: true }; };
 //   ใบ 0263 (30 ต.ค. 69): "ติดต่อแล้ว" เอาออก · เก็บข้อมูลลูกค้า/สรุปความต้องการ เป็นรายการของระบบ
 export const LEAD_TASK_TEMPLATE: LeadTaskDef[] = [
@@ -1067,7 +1067,7 @@ export const ใบที่มีผล = (q: { status: QuotationStatus }) => q
 // สถานะใบเสนอราคาตามสเปก: Draft / Sent / Viewed / Accepted / Rejected / Expired
 export const quotationStatusLabel: Record<QuotationStatus, string> = {
   draft: "ร่าง", sent_to_client: "ส่งแล้ว",
-  won: "ตอบรับ", lost: "ปฏิเสธ", expired: "หมดอายุ", superseded: "ถูกแทนที่",
+  won: "ตอบรับ", lost: "ปฏิเสธ", expired: "หมดอายุ", superseded: "ฉบับเก่า",
 };
 export const quotationStatusColor: Record<QuotationStatus, { bg: string; text: string }> = {
   draft:          { bg: "#f0f0f5", text: "#6b7280" },
@@ -1740,7 +1740,7 @@ export const notes: NoteMock[] = [
   },
   {
     id: 2, title: "ประชุมทีมขาย ประจำสัปดาห์", category: "ประชุม", pinned: true,
-    content: "ประชุมวันจันทร์ที่ 23 มิ.ย. 2569\n\nสรุปประเด็น:\n1. โอกาสการขายรวม ฿14.6M (กำลังดำเนินการ 6 รายการ)\n2. เป้าหมาย Q2 ต้องปิด 2 deals เพิ่ม\n3. ลูกค้าเป้าหมายรายใหม่จาก นิคมฯ อมตะ 3 ราย\n\nAction items:\n- วิภา: follow up บจ. อุตรดิตถ์โลหะ ภายใน 3 วัน\n- วิชัย: นำเสนอ spec ให้ VCS Asia รอบ 2",
+    content: "ประชุมวันจันทร์ที่ 23 มิ.ย. 2569\n\nสรุปประเด็น:\n1. โอกาสการขายรวม ฿14.6M (กำลังดำเนินการ 6 รายการ)\n2. เป้าหมาย Q2 ต้องปิด 2 งานขายเพิ่ม\n3. ลูกค้าเป้าหมายรายใหม่จาก นิคมฯ อมตะ 3 ราย\n\nสิ่งที่ต้องทำ:\n- วิภา: ติดตาม บจ. อุตรดิตถ์โลหะ ภายใน 3 วัน\n- วิชัย: นำเสนอรายละเอียดงานให้ VCS Asia รอบ 2",
     author: "กาญจนา", createdAt: "2026-06-23 10:00", updatedAt: "2026-06-23 10:45", color: "#15803d",
   },
   {

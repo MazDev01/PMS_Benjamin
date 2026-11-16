@@ -94,7 +94,7 @@ test("[ui·hq] ตั้งค่า › การแจ้งเตือน: �
   // ตรวจรูปแบบทันที (ยังไม่บันทึก)
   await ช่อง.fill("ไม่ใช่อีเมล");
   await page.getByRole("button", { name: "เพิ่มอีเมล" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "ไม่ใช่รูปแบบอีเมล" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th" })).toBeVisible();
   await ช่อง.fill(อีเมล1);
   await page.getByRole("button", { name: "เพิ่มอีเมล" }).click();
   await expect(รายการ.locator(`[data-recipient="${อีเมล1}"]`)).toBeVisible();
@@ -205,8 +205,8 @@ test("[ui·hq] แผงดีลเลอร์: เห็นรายชื่
   await page.goto(`${HQ_ORIGIN}/hq/dealers`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await page.getByPlaceholder("ค้นหาดีลเลอร์...").fill(ส.รหัส);
-  await page.getByRole("row", { name: /^เปิดแผงดีลเลอร์ / }).filter({ hasText: ส.รหัส }).first().click({ timeout: 25_000 });
-  const รายชื่อ = page.getByRole("list", { name: `อีเมลรับแจ้งเตือนของ ${ส.รหัส}` });
+  await page.getByRole("row", { name: /^เปิดหน้าต่างรายละเอียดดีลเลอร์ / }).filter({ hasText: ส.รหัส }).first().click({ timeout: 25_000 });
+  const รายชื่อ = page.getByRole("list", { name: `อีเมลผู้รับแจ้งเตือนของ ${ส.รหัส}` });
   await expect(รายชื่อ.locator(`[data-recipient="${อีเมล1}"]`), "อีเมลที่ยืนยันแล้ว").toHaveAttribute("data-verified", "1", { timeout: 30_000 });
   await expect(รายชื่อ.locator(`[data-recipient="${อีเมล2}"]`), "อีเมลที่รอยืนยัน").toHaveAttribute("data-verified", "0");
   await expect(page.getByText("อีเมลติดต่อ (รับแจ้งเตือน): —"), "ไม่มีบรรทัดเดิม").toHaveCount(0);

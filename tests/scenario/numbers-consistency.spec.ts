@@ -64,7 +64,7 @@ test("ชื่อการ์ดอัตราปิดการขายต�
 test("สัดส่วนขั้นตอนการขายบนแดชบอร์ดดีลเลอร์ ต้องรวมได้ 100%", async ({ page }) => {
   await openAs(page, RYG, "dealer", "/dashboard");
   await settle(page); await page.waitForTimeout(2500);
-  const card = page.locator(".card").filter({ hasText: "ขั้นตอนการขาย" }).first();
+  const card = page.locator(".card").filter({ hasText: "ขั้นการขาย" }).first();
   const pcts = [...(await card.innerText()).matchAll(/\((\d+)%\)/g)].map(m => Number(m[1]));
   console.log("เปอร์เซ็นต์แต่ละขั้น:", pcts.join(" + "), "=", pcts.reduce((s, v) => s + v, 0));
   expect(pcts.length).toBeGreaterThan(0);

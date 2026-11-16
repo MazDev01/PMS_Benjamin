@@ -14,13 +14,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { checkRateLimit } from "@pms/shared/lib/rateLimit";
 import { bad, authorizeAdmin, auditLog, withErrors, findDealerAccount, รหัสผ่านยังเข้าระบบได้ } from "@pms/shared/lib/adminRoute";
 import { decryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
+import { ตั้งค่าไม่ครบ } from "@pms/shared/lib/configMissing";
 
 export const runtime = "nodejs";
 
 export const GET = withErrors("view-dealer-secret", async (req: NextRequest) => {
   const authz = await authorizeAdmin(
     req, "dealers:manage", "ไม่มีสิทธิ์ดูรหัสผ่านดีลเลอร์",
-    "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — ดูรหัสผ่านดีลเลอร์จากที่นี่ยังไม่ได้",
   );
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
@@ -34,7 +34,7 @@ export const GET = withErrors("view-dealer-secret", async (req: NextRequest) => 
   if (!/^[A-Z]{2,5}$/.test(code)) return bad(400, "รหัสดีลเลอร์ไม่ถูกต้อง");
 
   if (!dealerSecretReady()) {
-    return bad(501, "ยังไม่ได้ตั้งค่า DEALER_SECRET_KEY ที่เซิร์ฟเวอร์ — เปิดดูรหัสผ่านย้อนหลังไม่ได้");
+    return bad(501, ตั้งค่าไม่ครบ("DEALER_SECRET_KEY", "view-dealer-secret"));
   }
 
   const { data, error } = await admin.from("dealer_login_secrets")
@@ -65,7 +65,7 @@ export const GET = withErrors("view-dealer-secret", async (req: NextRequest) => 
       const { error: ลบErr } = await admin.from("dealer_login_secrets").delete().eq("dealer_code", code);
       if (ลบErr) console.error(`[view-dealer-secret] ลบสำเนารหัสที่ใช้ไม่ได้แล้วของ ${code} ไม่สำเร็จ`, ลบErr);
       await auditLog(admin, prof, "ลบสำเนารหัสผ่านดีลเลอร์ที่ใช้เข้าระบบไม่ได้แล้ว", code);
-      return bad(404, `รหัสผ่านที่บันทึกไว้ของสาขา "${code}" ใช้เข้าระบบไม่ได้แล้ว (ดีลเลอร์อาจตั้งรหัสใหม่เอง) — กด "แก้อีเมล/รหัสผ่าน" เพื่อตั้งรหัสใหม่`);
+      return bad(404, `รหัสผ่านที่บันทึกไว้ของสาขา "${code}" ใช้ไม่ได้แล้ว (ดีลเลอร์อาจเปลี่ยนเอง) — กด "แก้อีเมล/รหัสผ่าน" เพื่อตั้งใหม่`);
     }
   }
 

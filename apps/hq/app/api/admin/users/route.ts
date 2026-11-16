@@ -23,10 +23,10 @@ import { encryptSecret, dealerSecretReady } from "@pms/shared/lib/dealerSecret";
 // รันบน Node เสมอ (ต้องใช้ service_role — ห้าม edge ที่อาจแคช env แปลก ๆ)
 export const runtime = "nodejs";
 import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
+import { อีเมลซ้ำ } from "@pms/shared/lib/emailTaken";
 
 // ขั้นตอนตรวจ service_role → JWT → บทบาท → สิทธิ์ ย้ายไปอยู่ที่ adminRoute.ts (ใช้ร่วมกับ route อื่น)
 // permission "users:manage" ดู permissions.ts — แหล่งเดียวกับ RLS/ตัวแอป · SSOT
-const NOT_CONFIGURED = "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ (SUPABASE_SERVICE_ROLE_KEY) — จัดการผู้ใช้ HQ จากที่นี่ยังไม่ได้";
 const DENY = "ไม่มีสิทธิ์จัดการผู้ใช้สำนักงานใหญ่";
 
 // บทบาทที่อนุญาตให้ "ตั้ง" ให้ผู้ใช้ HQ (ฝั่งสำนักงานใหญ่เท่านั้น — ไม่ออกบัญชีดีลเลอร์จากที่นี่)
@@ -53,7 +53,7 @@ async function must(p: PromiseLike<{ error: { message: string } | null }>) {
 
 // ── สร้างผู้ใช้ HQ + บัญชีเข้าระบบจริง ──
 export const POST = withErrors("create-user", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "users:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "users:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
 
@@ -66,7 +66,7 @@ export const POST = withErrors("create-user", async (req: NextRequest) => {
     name?: string; email?: string; phone?: string; role?: string; department?: string;
     status?: string; avatar?: string; password?: string;
   };
-  if (!body) return bad(400, "รูปแบบข้อมูลไม่ถูกต้อง");
+  if (!body) return bad(400, "ข้อมูลที่ส่งมาไม่ครบ — โหลดหน้าใหม่แล้วลองอีกครั้ง");
   const name = String(body.name ?? "").trim();
   const email = String(body.email ?? "").trim().toLowerCase();
   const phone = String(body.phone ?? "").trim();
@@ -76,14 +76,14 @@ export const POST = withErrors("create-user", async (req: NextRequest) => {
   const status = body.status === "inactive" ? "inactive" : "active";
   const avatar = typeof body.avatar === "string" ? body.avatar : "";
   if (!name) return bad(400, "ต้องระบุชื่อ");
-  if (!/^\S+@\S+\.\S+$/.test(email)) return bad(400, "อีเมลไม่ถูกต้อง");
+  if (!/^\S+@\S+\.\S+$/.test(email)) return bad(400, "รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th");
   if (role !== "SUPER_ADMIN") return bad(400, "บทบาทไม่ถูกต้อง — ผู้ใช้สำนักงานใหญ่มีบทบาทเดียว (สำนักงานใหญ่)");
   // ตั้งบัญชีใหม่เป็น SUPER_ADMIN ได้เฉพาะผู้เรียกที่เป็น SUPER_ADMIN เอง — กันผู้บริหาร HQ
   // (ก็มีสิทธิ์ users:manage เหมือนกัน) ยกระดับบัญชีขึ้นไปเทียบเท่า/เหนือกว่าตัวเอง
   // ตรงกับกฎที่ RLS ของ profiles สงวนไว้อยู่แล้ว (0002_rls.sql) แต่ route นี้ใช้ service_role ข้าม RLS
   // จึงต้องบังคับซ้ำเองตรงนี้ (พบจากผลตรวจสอบตรรกะระบบ 31 ก.ค. 69)
   if (role === "SUPER_ADMIN" && String(prof.role) !== "SUPER_ADMIN") {
-    return bad(403, "ตั้งบัญชีใหม่เป็นผู้ดูแลสูงสุดได้เฉพาะผู้ดูแลสูงสุดเท่านั้น");
+    return bad(403, "ไม่มีสิทธิ์ทำรายการนี้");
   }
 
   // รหัสผ่านชั่วคราวที่ผู้ดูแลกรอกในฟอร์ม (15 ก.ย. 69) — เดิมช่องนี้แสดงอยู่แต่ไม่ถูกส่งมาใช้
@@ -101,7 +101,7 @@ export const POST = withErrors("create-user", async (req: NextRequest) => {
     const msg = createErr?.message ?? "สร้างบัญชีเข้าระบบไม่สำเร็จ";
     // 400 = ผู้ใช้แก้เองได้ (เปลี่ยนอีเมล) · 503 = ระบบขัดข้อง ให้ลองใหม่ ไม่ใช่ความผิดผู้ใช้
     // เดิมตอบ 400 พร้อมข้อความดิบทุกกรณี ผู้ใช้จึงเข้าใจผิดว่ากรอกผิด แล้วไล่แก้ข้อมูลไปเรื่อย ๆ
-    if (/already/i.test(msg)) return bad(400, `อีเมล ${email} ถูกใช้ไปแล้วในระบบยืนยันตัวตน`);
+    if (/already/i.test(msg)) return bad(400, อีเมลซ้ำ);
     console.error(`[create-user] สร้างบัญชีเข้าระบบ ${email} ไม่สำเร็จ`, createErr);
     return bad(503, "สร้างบัญชีเข้าระบบไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
   }
@@ -131,7 +131,7 @@ export const POST = withErrors("create-user", async (req: NextRequest) => {
 
 // ── ลบผู้ใช้ HQ (hard delete) — ลบ auth.users แล้ว profile หายตาม (FK on delete cascade) ──
 export const DELETE = withErrors("delete-user", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "users:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "users:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
 
@@ -158,7 +158,7 @@ export const DELETE = withErrors("delete-user", async (req: NextRequest) => {
 
   // ลบบัญชี SUPER_ADMIN ได้เฉพาะผู้เรียกที่เป็น SUPER_ADMIN เอง (เหตุผลเดียวกับตอนสร้าง — เหตุผลด้านบน)
   if (String(target.role) === "SUPER_ADMIN" && String(prof.role) !== "SUPER_ADMIN") {
-    return bad(403, "ลบบัญชีผู้ดูแลสูงสุดได้เฉพาะผู้ดูแลสูงสุดเท่านั้น");
+    return bad(403, "ไม่มีสิทธิ์ทำรายการนี้");
   }
   // กันลบบัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน (ใบ 0282 · ฐานกันซ้ำ last_hq_account) — นับเฉพาะบัญชีที่ใช้งาน
   if (String(target.role) === "SUPER_ADMIN" && String((target as { status?: string }).status ?? "active") === "active") {
@@ -200,12 +200,12 @@ export const DELETE = withErrors("delete-user", async (req: NextRequest) => {
 //      (PATCH /api/admin/dealers) ถ้าตั้งจากที่นี่ รหัสที่เก็บไว้จะไม่ตรงกับของจริงทันที
 //   3) จำกัด 10 ครั้ง/นาที · บันทึก audit ทุกครั้ง (ใครเปลี่ยนรหัสให้ใคร)
 export const PATCH = withErrors("reset-hq-user-pw", async (req: NextRequest) => {
-  const authz = await authorizeAdmin(req, "users:manage", DENY, NOT_CONFIGURED);
+  const authz = await authorizeAdmin(req, "users:manage", DENY);
   if (!authz.ok) return authz.res;
   const { admin, callerId, prof } = authz.auth;
 
   if (String(prof?.role) !== "SUPER_ADMIN") {
-    return bad(403, "ตั้งรหัสผ่านให้ผู้ใช้คนอื่นได้เฉพาะผู้ดูแลสูงสุด");
+    return bad(403, "ไม่มีสิทธิ์ทำรายการนี้");
   }
   if (!(await checkRateLimit(admin, `reset-hq-user-pw:${callerId}`, 10, 60))) {
     return bad(429, "ตั้งรหัสผ่านถี่เกินไป — รอสักครู่แล้วลองใหม่");

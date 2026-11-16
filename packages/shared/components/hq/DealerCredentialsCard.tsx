@@ -178,7 +178,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
     const อีเมล = แก้บัญชี.email.trim();
     const รหัส = แก้บัญชี.password;
     if (!อีเมล && !รหัส) { setผิดพลาด("กรอกอีเมลใหม่หรือรหัสผ่านใหม่อย่างน้อยหนึ่งอย่าง"); return; }
-    if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setผิดพลาด("รูปแบบอีเมลไม่ถูกต้อง"); return; }
+    if (อีเมล && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(อีเมล)) { setผิดพลาด("รูปแบบอีเมลไม่ถูกต้อง เช่น name@benjamin.co.th"); return; }
     if (รหัส && รหัส.length < 8) { setผิดพลาด("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
     if (!REAL_BACKEND) { setผิดพลาด("โหมดข้อมูลตัวอย่างไม่รองรับการแก้บัญชีเข้าระบบ"); return; }
     setResetting(true);
@@ -212,8 +212,8 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
           {email === "—"
             ? "ยังไม่ทราบบัญชีเข้าระบบของดีลเลอร์นี้"
             : ใช้รหัสสาขาได้
-              ? <>ดีลเลอร์พิมพ์รหัสสาขา <b>{dealer.code}</b> + รหัสผ่าน ที่หน้าเข้าสู่ระบบของดีลเลอร์ (อีเมลเข้าสู่ระบบ {email} พิมพ์เต็มแทนได้)</>
-              : <>บัญชีนี้เปลี่ยนอีเมลเข้าสู่ระบบเป็น {email} แล้ว — ดีลเลอร์ต้องพิมพ์อีเมลนี้เต็ม ๆ (พิมพ์รหัสสาขาเข้าไม่ได้)</>}
+              ? <>ดีลเลอร์พิมพ์รหัสสาขา <b>{dealer.code}</b> + รหัสผ่าน ที่หน้าเข้าระบบของดีลเลอร์ (อีเมลเข้าระบบ {email} พิมพ์เต็มแทนได้)</>
+              : <>บัญชีนี้เปลี่ยนอีเมลเข้าระบบเป็น {email} แล้ว — ดีลเลอร์ต้องพิมพ์อีเมลนี้เต็ม ๆ (พิมพ์รหัสสาขาเข้าไม่ได้)</>}
         </div>
         {/* เหลือปุ่มเดียว (บอสสั่ง 20 ส.ค. 69) — ปุ่ม "รีเซ็ตรหัสผ่าน" ถูกถอดออก
             เพราะซ้ำกับปุ่มนี้: อยากได้รหัสใหม่ก็พิมพ์รหัสที่ต้องการลงไปตรง ๆ ได้เลย
@@ -264,8 +264,8 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
             </div>
             <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280" }}>
-                อีเมลเข้าสู่ระบบ
-                <input type="email" aria-label="อีเมลเข้าสู่ระบบใหม่" value={แก้บัญชี.email}
+                อีเมลเข้าระบบ
+                <input type="email" aria-label="อีเมลเข้าระบบใหม่" value={แก้บัญชี.email}
                   onChange={e => { setพิมพ์อีเมลเอง(true); setแก้บัญชี(v => v && ({ ...v, email: e.target.value })); }}
                   placeholder="เว้นไว้ = ใช้อีเมลเดิม" style={ช่องกรอก} />
                 {/* บอกของเดิมไว้เสมอ — ผู้ใช้จะได้รู้ว่ากำลังจะเปลี่ยนจากอะไรเป็นอะไร ไม่ต้องเดาจากช่องว่าง */}
@@ -357,10 +357,10 @@ function DealerContactEmailRow({ code }: { code: string }) {
   return (
     <div data-testid="dealer-contact-email" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #eef1f5" }}>
       <div style={{ fontSize: "0.74rem", color: "#374151", display: "grid", gap: 4 }}>
-        <span>อีเมลรับแจ้งเตือน:</span>
+        <span>อีเมลผู้รับแจ้งเตือน:</span>
         {ผู้รับ && ผู้รับ.length === 0 && <b data-testid="dealer-recipients-empty" style={{ color: "#b91c1c" }}>ยังไม่มีผู้รับ — อีเมลแจ้งเตือนไม่ถึงดีลเลอร์รายนี้</b>}
         {ผู้รับ && ผู้รับ.length > 0 && (
-          <ul aria-label={`อีเมลรับแจ้งเตือนของ ${code}`} style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 2 }}>
+          <ul aria-label={`อีเมลผู้รับแจ้งเตือนของ ${code}`} style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 2 }}>
             {ผู้รับ.map(r => (
               <li key={r.id} data-recipient={r.email} data-verified={r.verified ? "1" : "0"}>
                 <b>{r.email}</b>{" "}

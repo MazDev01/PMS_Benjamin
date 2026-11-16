@@ -246,13 +246,13 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
         <KpiCard kpi="total" label="ดีลเลอร์ทั้งหมด" value={นับ(ค่า(kpi, "total"))} rawValue={ค่า(kpi, "total")} unit="ราย · ไม่นับสำนักงานใหญ่" icon={Store}
           onClick={() => { setกลุ่มเคลื่อนไหว(null); setStatusFilter("all"); setPage(0); }} />
         <KpiCard kpi="active" label="เปิดใช้งาน" value={นับ(ค่า(kpi, "active"))} rawValue={ค่า(kpi, "active")} unit="ราย · เข้าระบบได้" icon={CheckCircle2} color="#16A34A" bg="#E6F7EE"
-          actionLabel={statusFilter === "active" && !กลุ่มเคลื่อนไหว ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"}
+          actionLabel={statusFilter === "active" && !กลุ่มเคลื่อนไหว ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"}
           onClick={() => { setกลุ่มเคลื่อนไหว(null); setStatusFilter(statusFilter === "active" ? "all" : "active"); setPage(0); }} />
         <KpiCard kpi="moving" label="มีความเคลื่อนไหวใน 30 วัน" value={นับ(ค่า(kpi, "moving"))} rawValue={ค่า(kpi, "moving")} unit="ราย · มีงานขายใน 30 วัน" icon={Activity} color="#0891B2" bg="#E6F4F9"
-          actionLabel={กลุ่มเคลื่อนไหว === "moving" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดกลุ่ม("moving", "all")} />
+          actionLabel={กลุ่มเคลื่อนไหว === "moving" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กดกลุ่ม("moving", "all")} />
         <KpiCard kpi="idle" label="ไม่เคลื่อนไหวเกิน 30 วัน" value={นับ(ค่า(kpi, "idle"))} rawValue={ค่า(kpi, "idle")} unit="ราย · ไม่มีงานขายเกิน 30 วัน"
           danger={(ค่า(kpi, "idle") ?? 0) > 0} icon={MoonStar} color="#DC2626" bg="#FEE2E2"
-          actionLabel={กลุ่มเคลื่อนไหว === "idle" ? "กดอีกครั้งเพื่อล้างตัวกรอง" : "ดูรายการ"} onClick={() => กดกลุ่ม("idle", "all")} />
+          actionLabel={กลุ่มเคลื่อนไหว === "idle" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กดกลุ่ม("idle", "all")} />
       </KpiRow>
 
       {/* Toolbar — ค้นหา + ดีลเลอร์/ภาค/สถานะ รวมแถวเดียว (เหมือนหน้าอื่นทั้งระบบ) */}
@@ -383,7 +383,7 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
               <tr>
                 {/* ⚠️ คอลัมน์ปุ่มตรึงไว้ขวาสุด (sticky) — จอแคบตารางเลื่อนแนวนอนได้ ปุ่มยังอยู่ให้กด (บอสทัก 26 ส.ค. 69) */}
                 {["รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""].map((h, i, arr) => (
-                  <th key={i} style={i === arr.length - 1 ? ตรึงคอลัมน์ปุ่ม(true) : undefined} aria-label={h || "ปุ่ม"}>{h}</th>
+                  <th key={i} style={i === arr.length - 1 ? ตรึงคอลัมน์ปุ่ม(true) : undefined} aria-label={h || "จัดการ"}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -392,7 +392,7 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
                 <tr><td colSpan={6} className="empty-row">{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
               ) : pageSlice(filtered, Math.min(page, pageCountOf(filtered.length) - 1)).map(d => (
                 <ClickableRow key={d.id} className="clickable" style={{ opacity: dealerStatus(d) === "active" ? 1 : 0.55 }}
-                  onActivate={() => setแผง(d.code)} label={`เปิดแผงดีลเลอร์ ${d.name}`}>
+                  onActivate={() => setแผง(d.code)} label={`เปิดหน้าต่างรายละเอียดดีลเลอร์ ${d.name}`}>
                   <td data-col="code" style={{ overflow: "visible", textOverflow: "clip" }}>
                     <span style={{ fontWeight: 800, color: "#003366", fontSize: "0.8rem", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{d.code}</span>
                   </td>

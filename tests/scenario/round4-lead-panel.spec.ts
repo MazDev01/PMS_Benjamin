@@ -42,12 +42,12 @@ async function เปิดลีด(page: Page, company: string) {
   await settle(page);
   await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   // ข้อในไฟล์นี้เปิดลีดที่ปิดแล้วด้วย — ตัวกรองขั้นตอนค่าเริ่มต้นซ่อนลีดปิดแล้ว (บอสสั่ง 28 ต.ค. 69) จึงเลือก "ทั้งหมด"
-  await เลือกตัวกรอง(page, "ขั้นตอน", "ทั้งหมด");
+  await เลือกตัวกรอง(page, "ขั้น", "ทั้งหมด");
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(company);
   await page.locator("tbody tr").filter({ hasText: company }).first().locator("td").first().click();
   await expect(page.locator("[data-panel='next-step']:not([aria-busy])")).toBeVisible({ timeout: 20_000 });
 }
-const สภาพแถบ = (page: Page) => page.locator("ol[aria-label='ขั้นตอนการขาย'] > li").evaluateAll(els => els.map(e => e.getAttribute("data-step-state")));
+const สภาพแถบ = (page: Page) => page.locator("ol[aria-label='ขั้นการขาย'] > li").evaluateAll(els => els.map(e => e.getAttribute("data-step-state")));
 const กล่อง = (page: Page) => page.getByRole("status", { name: "ขั้นต่อไป" });
 
 test.afterAll(() => { if (ลีด.length) ล้างใบHQทดสอบ("RYG", ลีด); });
@@ -78,7 +78,7 @@ test("ข้อ 1 · รอราคา HQ = ไฮไลต์ขั้น 2 (�
   await page.keyboard.press("Escape");
   await เปิดลีด(page, รอ);
   await expect.poll(() => สภาพแถบ(page)).toEqual(["ผ่าน", "ตอนนี้", "ยังไม่ถึง", "ยังไม่ถึง"]);
-  await expect(page.locator("ol[aria-label='ขั้นตอนการขาย'] > li[aria-current='step']")).toContainText("2. รอราคาจาก HQ");
+  await expect(page.locator("ol[aria-label='ขั้นการขาย'] > li[aria-current='step']")).toContainText("2. รอราคาจาก HQ");
   await expect(page.getByRole("button", { name: "ลบ", exact: true })).toHaveCount(0);
 });
 

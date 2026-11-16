@@ -131,7 +131,7 @@ test("[D3] [ui·dealer] ขอราคา: HQ ยังไม่เปิดใ
   const กล่อง = แผง.locator("[data-box='material-estimate']");
   await expect(กล่อง.getByLabel("เลือกวัสดุ"), "ช่องเพิ่มวัสดุยังอยู่").toBeVisible({ timeout: 20_000 });
   await expect(กล่อง.getByLabel("เลือกวัสดุ"), "ไม่มีวัสดุเปิดใช้ = กดไม่ได้").toBeDisabled();
-  await expect(กล่อง.getByTestId("material-empty-reason")).toHaveText("เพิ่มวัสดุไม่ได้ — HQ ยังไม่ได้เปิดใช้รายการวัสดุ");
+  await expect(กล่อง.getByTestId("material-empty-reason")).toHaveText("เพิ่มวัสดุไม่ได้ — HQ ยังไม่ได้เปิดใช้งานรายการวัสดุ");
   await expect(แผง.getByText("สำนักงานใหญ่ยังไม่มีรายการวัสดุ"), "ข้อความเดิมเอาออก").toHaveCount(0);
   assertNoErrors(errs, "ขอราคาไม่มีวัสดุ");
 });
@@ -217,7 +217,7 @@ test("[flow·hq] รายการวัสดุ: วัสดุที่เ�
   const แถวผนัง = แผง.locator(`tbody tr[data-mt-row="${id.ผนัง}"]`);
   await expect(แถวผนัง.locator("[data-mt-used='1']"), "วัสดุที่เคยใช้ขึ้น \"ใช้แล้ว\"").toHaveText("ใช้แล้ว", { timeout: 20_000 });
   await expect(แถวผนัง.getByRole("button", { name: /^ลบ / }), "ไม่มีปุ่มลบ").toHaveCount(0);
-  await expect(แถวผนัง.getByLabel(/^เปิดใช้ \d+$/), "ปิดใช้ได้").toBeEnabled();
+  await expect(แถวผนัง.getByLabel(/^เปิดใช้งาน \d+$/), "ปิดใช้ได้").toBeEnabled();
   // วัสดุที่ยังไม่เคยใช้มีปุ่มลบตามปกติ (เดิมใช้แถวใหม่ในตาราง — ปุ่มเพิ่มวัสดุเปลี่ยนเป็นตารางเพิ่มหลายแถว 5 พ.ย. 69)
   const ไม่ใช้ = `ZZTEST-ยังไม่ใช้-${แท็ก}`;
   const ใส่ = await svc.from("material_templates").insert({ category: หมวด, name: ไม่ใช้, unit: "ชุด", unit_price: 1 }).select("id").single();

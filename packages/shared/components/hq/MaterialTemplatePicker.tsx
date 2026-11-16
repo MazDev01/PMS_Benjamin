@@ -41,7 +41,7 @@ export function MaterialTemplatePicker({ onAdd, onClose }: { onAdd: (rows: แ�
           </div>
           {แม่แบบ === null && <div style={{ color: "#9ca3af", fontSize: "0.84rem" }}>กำลังโหลด…</div>}
           {แม่แบบ !== null && แสดง.length === 0 && (
-            <div style={{ color: "#6b7280", fontSize: "0.84rem" }}>{แม่แบบ.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีรายการวัสดุที่เปิดใช้ — ตั้งได้ที่ ตั้งค่า › รายการวัสดุ"}</div>
+            <div style={{ color: "#6b7280", fontSize: "0.84rem" }}>{แม่แบบ.length ? "ไม่พบวัสดุที่ค้น" : "ยังไม่มีรายการวัสดุที่เปิดใช้งาน — ตั้งได้ที่ ตั้งค่า › รายการวัสดุ"}</div>
           )}
           {แสดง.map(t => (
             <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #f1f5f9", paddingBottom: 8 }}>

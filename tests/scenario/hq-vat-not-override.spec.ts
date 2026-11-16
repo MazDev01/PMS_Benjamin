@@ -29,7 +29,7 @@ test("[func·hq→dealer] สำนักงานใหญ่แก้ VAT แ�
     await page.getByRole("button", { name: "ตั้งค่าใบเสนอราคา" }).first().click();
 
     // ค่าอยู่ในช่องกรอก ไม่ใช่ข้อความในหน้า — ต้องอ่านจากช่องโดยตรง
-    const ช่องVat = page.getByLabel("ภาษีมูลค่าเพิ่ม %");
+    const ช่องVat = page.getByLabel("ภาษีมูลค่าเพิ่ม (VAT) %");
     await expect(ช่องVat, "หน้าตั้งค่าของดีลเลอร์ต้องโหลดเสร็จ").toBeVisible({ timeout: 20_000 });
     await expect(ช่องVat, "ต้องเห็น VAT ของสาขาตัวเอง ไม่ใช่ค่าที่สำนักงานใหญ่เพิ่งเปลี่ยน")
       .toHaveValue(String(vatของสาขา), { timeout: 20_000 });

@@ -60,7 +60,7 @@ export async function caSignIn(email: string, password: string): Promise<AuthRes
   }
   const body = (await res.json().catch(() => null)) as (PublicSession & { error?: string }) | null;
   if (!res.ok || !body || body.error) {
-    return { ok: false, error: body?.error ?? "เข้าสู่ระบบไม่สำเร็จ" };
+    return { ok: false, error: body?.error ?? "เข้าระบบไม่สำเร็จ" };
   }
   return { ok: true, session: toSession(body) };
 }

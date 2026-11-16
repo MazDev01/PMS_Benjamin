@@ -31,7 +31,8 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await สาขา.ลบ(); });
 
-test("[dealer] ล้างตัวกรองแล้วต้องไม่มีแถวหายไป", async ({ page }) => {
+// ปุ่ม "ล้างตัวกรอง" ถูกถอดจากแถบตัวกรองทุกหน้า (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นด้วยตัวเลือกช่วงเวลา "1 ปี" แทน · ข้อตรวจแถวไม่หายเท่าเดิม
+test("[dealer] กลับช่วงเวลาค่าตั้งต้นแล้วต้องไม่มีแถวหายไป · ไม่มีปุ่มล้างตัวกรอง", async ({ page }) => {
   test.setTimeout(150_000);
   await page.setViewportSize({ width: 1440, height: 950 });
   const แถว = page.locator("tbody tr").filter({ hasNot: page.locator("td[colspan]") });
@@ -51,8 +52,10 @@ test("[dealer] ล้างตัวกรองแล้วต้องไม�
   await expect(แถว, "1 เดือน: เหลือ 2 ราย").toHaveCount(2);
   const แคบ = await แถว.count();
 
-  // ล้างตัวกรอง → ต้องไม่น้อยกว่าตอนเริ่ม (ล้าง = ไม่กรองเวลา)
-  await page.getByRole("button", { name: "ล้างตัวกรอง", exact: true }).first().click();
+  // ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) → กลับค่าตั้งต้นที่ตัวเลือกช่วงเวลา "1 ปี" → ต้องไม่น้อยกว่าตอนเริ่ม
+  await expect(page.getByRole("button", { name: "ล้างตัวกรอง", exact: true }), "แถบตัวกรองไม่มีปุ่มล้างตัวกรอง").toHaveCount(0);
+  await ปุ่มเวลา.click();
+  await page.getByRole("button", { name: "1 ปี", exact: true }).click();
   await expect(แถว, "ล้างแล้ว (กลับ 1 ปี): 4 ราย").toHaveCount(4);
   const หลังล้าง = await แถว.count();
   expect(แคบ).toBeLessThanOrEqual(เริ่มต้น);

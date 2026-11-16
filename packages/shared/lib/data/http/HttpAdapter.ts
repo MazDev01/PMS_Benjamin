@@ -146,7 +146,7 @@ async function once(path: string, init?: RequestInit): Promise<Response> {
 // ── พาไปหน้าเข้าสู่ระบบเมื่อเซสชันจบจริง (เรียกซ้ำได้ ทำงานครั้งเดียว) ────────
 // ⚠️ ห้ามเรียกจากฝั่งเซิร์ฟเวอร์ · ห้ามยิงซ้ำหลายรอบตอนหลายคำขอพัง 401 พร้อมกัน
 let กำลังพาไปล็อกอิน = false;
-function พาไปเข้าสู่ระบบใหม่(): void {
+function พาไปเข้าระบบใหม่(): void {
   if (กำลังพาไปล็อกอิน) return;
   กำลังพาไปล็อกอิน = true;
   const หน้าเข้าสู่ระบบ = process.env.NEXT_PUBLIC_LOGIN_PATH || "/login";
@@ -169,17 +169,17 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     //
     // เงื่อนไข: ต้องเป็น 401 ซ้ำหลังพยายามต่ออายุแล้วเท่านั้น — ไม่ใช่ 401 ครั้งแรก
     //   (401 ครั้งแรกเป็นเรื่องปกติของใบผ่านหมดอายุตามรอบ ต่ออายุแล้วไปต่อได้)
-    else if (res.status === 401 && typeof window !== "undefined") พาไปเข้าสู่ระบบใหม่();
+    else if (res.status === 401 && typeof window !== "undefined") พาไปเข้าระบบใหม่();
   }
   // อ่าน body ก่อนเช็ค ok — ข้อความอธิบายเหตุผลอยู่ใน body ไม่ใช่ status
   // ⚠️ "สำเร็จแต่อ่านเนื้อความไม่ได้" ต้องเป็นข้อผิดพลาด ห้ามคืน null ไปเหมือนสำเร็จ (16 ต.ค. 69 · errcheck ฝั่ง HQ)
   //   เปลี่ยนหน้าระหว่างรับคำตอบ → เบราว์เซอร์ตัดกลางทาง → เดิม .json().catch(() => null) คืน null
   //   → ผู้เรียกวนลูป/อ่านช่องจากค่าว่าง = TypeError ("e is not iterable")
-  //   ถูกตัดกลางทาง = ข้อความมีคำว่า aborted → logRepoRead ไม่นับเป็นข้อผิดพลาด (isAbortedRequest)
+  //   ถูกตัดกลางทาง = ข้อความ "โหลดข้อมูลไม่เสร็จ" → logRepoRead ไม่นับเป็นข้อผิดพลาด (isAbortedRequest รู้จักคำนี้ · เดิมใช้คำ aborted บนจอ)
   //   JSON "null" ที่เซิร์ฟเวอร์ตั้งใจตอบ (เช่น ยังไม่มีใบ HQ) ยังเป็นค่าที่ถูกต้อง
   let ข้อความ: string;
   try { ข้อความ = await res.text(); }
-  catch { throw new DbError("การโหลดถูกยกเลิกกลางทาง (aborted) — ลองใหม่อีกครั้ง"); }
+  catch { throw new DbError("โหลดข้อมูลไม่เสร็จ — ลองใหม่อีกครั้ง"); }
   let body: { error?: string; code?: string } | T | null = null;
   let อ่านได้ = ข้อความ !== "";
   if (อ่านได้) { try { body = JSON.parse(ข้อความ); } catch { อ่านได้ = false; } }
@@ -187,9 +187,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     // ต้องเป็น DbError พร้อมรหัสของ Postgres — friendlyError ทั้งแอปอ่านรหัสนี้เพื่อแปลงเป็น
     // ข้อความที่คนอ่านรู้เรื่อง (เช่น 23503 = ยังมีข้อมูลอ้างถึงอยู่) . โยน Error เปล่าจะเสียตรงนั้นไป
     const b = body && typeof body === "object" ? body as { error?: string; code?: string } : null;
-    throw new DbError(b?.error ? String(b.error) : `เซิร์ฟเวอร์ตอบกลับ ${res.status}`, b?.code);
+    throw new DbError(b?.error ? String(b.error) : `ระบบตอบกลับผิดปกติ (รหัส ${res.status})`, b?.code);
   }
-  if (!อ่านได้) throw new DbError(`คำตอบจากเซิร์ฟเวอร์ว่างหรืออ่านไม่ได้ (${res.status})`);
+  if (!อ่านได้) throw new DbError(`ระบบตอบกลับผิดปกติ (รหัส ${res.status})`);
   return body as T;
 }
 
@@ -197,7 +197,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 async function listAll<T>(path: string, label: string, scope?: Scope): Promise<T[]> {
   const r = await apiFetch<{ rows: T[]; partial: boolean } | null>(`${path}${scopeQ(scope)}`);
   // ตอบ 2xx แต่ไม่มีเนื้อหา (คำขอถูกตัดกลางทาง) — เดิมอ่าน r.partial ตรง ๆ แล้วพังด้วย TypeError ที่ไม่บอกอะไร (trace 15 ต.ค. 69)
-  if (!r || !Array.isArray(r.rows)) throw new DbError(`โหลด "${label}" ไม่สำเร็จ — เซิร์ฟเวอร์ตอบกลับไม่ครบ ลองใหม่อีกครั้ง`);
+  if (!r || !Array.isArray(r.rows)) throw new DbError(`โหลด "${label}" ไม่สำเร็จ — ระบบตอบกลับไม่ครบ ลองใหม่อีกครั้ง`);
   if (r.partial) {
     reportPartialData(`ข้อมูลที่แสดงไม่ครบ — "${label}" มีจำนวนมากเกินกว่าที่ระบบโหลดไหวในครั้งเดียว กรุณาใช้ตัวกรองช่วยแคบผลลัพธ์`);
   }

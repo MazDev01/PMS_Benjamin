@@ -105,7 +105,7 @@ async function ตรวจแผงที่มา(page: Page, cfg: ตั้�
       const แถว = await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)));
       expect(แถว.reduce((a, b) => a + b, 0), `${ป้าย}: แผงที่มา "${c.l}" ผลรวมแถว = การ์ด`).toBeCloseTo(ค่า ?? 0, 2);
     }
-    await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+    await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
     await expect(แผง).toHaveCount(0);
   }
 }
@@ -141,7 +141,7 @@ async function ตรวจแผงเดือน(page: Page, cfg: ตั้�
       expect(ช่อง.reduce((a, b) => a + b, 0), `${ระดับ}: แผงเดือน "${c.l}" ผลรวมรายดีลเลอร์ = แถวของเดือน`).toBeCloseTo(เลข(ค่าแถว[c.k] ?? null) ?? 0, 2);
     }
   }
-  await แผง.getByRole("button", { name: "ปิดแผง" }).click();
+  await แผง.getByRole("button", { name: "ปิดหน้าต่าง" }).click();
 }
 /** เจาะลงหนึ่งระดับตามเส้นทางของสาขาของข้อ: แท็บ dim แล้วกดแถว key → แถบระดับต้องเพิ่มชิ้น */
 async function เจาะลง(page: Page, dim: string, ระดับใหม่: string, key: string) {
