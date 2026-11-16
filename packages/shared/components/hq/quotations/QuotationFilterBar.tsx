@@ -21,7 +21,7 @@ export type QuotationFilters = {
 
 /** ชื่อสถานะบนหน้า HQ ใบเสนอราคาทั้งเครือ — คำเดียวกับ FLOW (ส่งให้ลูกค้าแล้ว · ตอบรับ · ลูกค้าปฏิเสธ · ถูกแทนที่ · ร่าง) */
 export const ชื่อสถานะใบHQ: Record<QuotationStatus, string> = {
-  sent_to_client: "ส่งให้ลูกค้าแล้ว", won: "ตอบรับ", lost: "ลูกค้าปฏิเสธ", expired: "หมดอายุ", superseded: "ถูกแทนที่", draft: "ร่าง",
+  sent_to_client: "ส่งให้ลูกค้าแล้ว", won: "ตอบรับ", lost: "ลูกค้าปฏิเสธ", expired: "หมดอายุ", superseded: "ฉบับเก่า", draft: "ร่าง",
 };
 
 export const EMPTY_FILTERS: QuotationFilters = {
@@ -58,7 +58,7 @@ export function QuotationFilterBar({ filters, onChange }: {
 
 
       {/* ต้องมีค่าเสมอ — ค่าเริ่มต้น "ส่งลูกค้าแล้ว" = ชุดเดียวกับการ์ด (บอสสั่ง 30 ต.ค. 69) · "ทุกสถานะ" เป็นตัวเลือกท้ายสุด */}
-      <FilterSelect label="กรองตามสถานะใบเสนอราคา" caption="ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)" all="sent" value={filters.status} onChange={v => set("status", v as QuotationFilters["status"])}
+      <FilterSelect label="กรองตามสถานะใบเสนอราคา" caption="ส่งลูกค้าแล้ว (ไม่นับฉบับร่างและฉบับเก่า)" all="sent" value={filters.status} onChange={v => set("status", v as QuotationFilters["status"])}
         options={[...(Object.keys(ชื่อสถานะใบHQ) as QuotationStatus[]).map(s => ({ v: s, l: ชื่อสถานะใบHQ[s] })), { v: "all", l: "ทุกสถานะ" }]} />
 
 

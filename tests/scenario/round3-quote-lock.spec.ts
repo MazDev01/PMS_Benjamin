@@ -160,11 +160,11 @@ test("[รอบ3·ฉบับใหม่] ทำฉบับใหม่ → 
 
   // V1 อ่านอย่างเดียว: ป้ายถูกแทนที่ · ไม่มีปุ่มทำฉบับใหม่/ลบ/แก้ไข/ส่ง · หน้าดูใบไม่มีปุ่มตอบรับ
   await เปิดแผงใบ(page);
-  await expect(ใบV1().getByText("ถูกแทนที่", { exact: true }), "V1 ขึ้นถูกแทนที่").toBeVisible({ timeout: 15_000 });
+  await expect(ใบV1().getByText("ฉบับเก่า", { exact: true }), "V1 ขึ้นฉบับเก่า").toBeVisible({ timeout: 15_000 });
   for (const t of ["ทำฉบับใหม่", "ลบ", "แก้ไข", "ส่งอีกครั้ง", "ทำสำเนา"]) await expect(ใบV1().getByTitle(t, { exact: true }), `V1 ไม่มีปุ่ม ${t}`).toHaveCount(0);
   await expect(ใบV1().locator("[data-customer-result]"), "V1 ไม่มีปุ่มบันทึกผลลูกค้า").toHaveCount(0);
   await ใบV1().getByTitle("ดู", { exact: true }).click();
-  await expect(page.getByText("ถูกแทนที่", { exact: true }).first(), "หน้าดู V1: ถูกแทนที่").toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("ฉบับเก่า", { exact: true }).first(), "หน้าดู V1: ฉบับเก่า").toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: /ลูกค้าตอบรับ/ }), "หน้าดู V1: ไม่มีปุ่มลูกค้าตอบรับ").toHaveCount(0);
   await page.getByRole("button", { name: "กลับ" }).click();
 
@@ -220,7 +220,7 @@ test("[รอบ3·ฉบับใหม่] เลขที่ V1/V2 แสด�
     const td = el.closest("td")!;
     return { text: (el.textContent ?? "").trim(), ตัด: el.getBoundingClientRect().right > td.getBoundingClientRect().right + 1 };
   }));
-  expect(ป้าย.map(x => x.text).sort(), "HQ ทั้งเครือ: ป้ายสถานะ V1/V2").toEqual(["ตอบรับ", "ถูกแทนที่"]);
+  expect(ป้าย.map(x => x.text).sort(), "HQ ทั้งเครือ: ป้ายสถานะ V1/V2").toEqual(["ฉบับเก่า", "ตอบรับ"]);
   expect(ป้าย.filter(x => x.ตัด), "HQ ทั้งเครือ: ป้ายสถานะไม่ถูกตัด").toEqual([]);
 
   await hq.goto(`${HQ_ORIGIN}/hq/dealers/${สาขา.รหัส}`, { waitUntil: "domcontentloaded" }); await settle(hq);

@@ -195,7 +195,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     try {
       const ใหม่ = await newQuotationVersion(q);
       openEdit(ใหม่);
-      onToast?.(`ทำฉบับใหม่ ${ใหม่.id} (${ใหม่.revision ?? ""}) แล้ว — แก้ % แล้วส่งให้ลูกค้า ใบเดิมจะเป็น "ถูกแทนที่"`);
+      onToast?.(`ทำฉบับใหม่ ${ใหม่.id} (${ใหม่.revision ?? ""}) แล้ว — แก้ % แล้วส่งให้ลูกค้า ใบเดิมจะเป็น "ฉบับเก่า"`);
     } catch (e) {
       onToast?.(e instanceof Error ? e.message : String(e));
     }

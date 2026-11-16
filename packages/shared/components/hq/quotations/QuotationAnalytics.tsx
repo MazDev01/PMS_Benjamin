@@ -32,7 +32,7 @@ export function QuotationAnalytics({ aging, รายเดือน, ระด�
           </div>
         ) : (
           <div className="card-body" style={{ minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", color: "var(--muted-foreground)", fontSize: "0.8rem", lineHeight: 1.7 }}>
-            <div><strong style={{ color: "#374151" }}>รอข้อมูล</strong><br />ฐานข้อมูลยังไม่นับใบที่ส่งรายเดือนแยกจากใบร่าง/ถูกแทนที่</div>
+            <div><strong style={{ color: "#374151" }}>รอข้อมูล</strong><br />ฐานข้อมูลยังไม่นับใบที่ส่งรายเดือนแยกจากฉบับร่างและฉบับเก่า</div>
           </div>
         )}
       </div>

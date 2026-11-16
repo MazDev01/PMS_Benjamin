@@ -113,7 +113,7 @@ test("[live·รอบ3] ส่ง V1 → ทำฉบับใหม่ → ส
   await เปิดรายการ();
   const เลขที่ = await page.locator("tbody tr").filter({ hasText: v1 }).locator("[data-quote-no]").allTextContents();
   expect(เลขที่.map(t => t.trim()).sort(), "เลขที่ V1/V2 บนตาราง").toEqual([v1, v2].sort());
-  await expect(page.locator("tbody tr").filter({ hasText: v1 }).filter({ hasNotText: v2 }).getByText("ถูกแทนที่", { exact: true })).toBeVisible();
+  await expect(page.locator("tbody tr").filter({ hasText: v1 }).filter({ hasNotText: v2 }).getByText("ฉบับเก่า", { exact: true })).toBeVisible();
 
   // ฐาน: ตอบรับ V1 ไม่ได้ · ลบใบที่ส่งแล้วไม่ได้
   expect((await ด.from("quotations").update({ status: "won" }).eq("dealer_code", สาขา).eq("id", v1)).error?.message ?? "", "ตอบรับ V1 ไม่ได้").toMatch(/quote_superseded/);

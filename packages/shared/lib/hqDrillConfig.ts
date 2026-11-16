@@ -72,7 +72,7 @@ const ร้อยละ = (x: number) => `${x.toFixed(1)}%`;
 const ใบ: ตั้งค่าเจาะลึก = {
   หน้า: "quotations", ป้ายแถว: "ใบเสนอราคา", แท่ง: "sent", ป้ายแท่ง: "ใบที่ส่งในช่วง",
   การ์ด: [
-    { k: "sent", kpi: "sent", l: "ส่งลูกค้าในช่วงนี้", sum: "sent", month: true, sub: () => "ใบ · ไม่นับร่าง/ถูกแทนที่", icon: "send" },
+    { k: "sent", kpi: "sent", l: "ใบเสนอราคาที่ส่งลูกค้า", sum: "sent", month: true, sub: () => "ใบ · ในช่วงที่เลือก (ไม่นับฉบับร่างและฉบับเก่า)", icon: "send" },
     { k: "wait", kpi: "awaiting", l: "รอลูกค้าตอบ", sum: "wait", sub: () => "ใบ · ส่งแล้ว ยังไม่ตอบ (ตอนนี้)", icon: "hourglass", color: "#d97706", bg: "#FEF3C7" },
     { k: "sales", kpi: "won", l: "ตอบรับ (มูลค่า)", sum: "sales", month: true, f: fmtBaht,
       sub: rows => `${รวมคีย์(rows, "won").toLocaleString()} ใบ · ตามวันที่ลูกค้าตอบรับ ก่อน VAT`, icon: "check", color: "#059669", bg: "#E6F6EF" },

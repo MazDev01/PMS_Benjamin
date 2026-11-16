@@ -11,11 +11,13 @@
 // Error ธรรมดา) — แม่นยำกว่าการเดาจาก message string ล้วน ๆ แต่ยัง fallback เป็น regex บน
 // message ได้เมื่อไม่มี code (เช่น auth error, network error, RPC ที่ raise exception เอง)
 import { แปลงชื่อขั้นเดิม } from "./leadStage";
+import { แปลข้อความฐาน } from "./dbMessages";
 
 export class DbError extends Error {
   code?: string;
   constructor(message: string, code?: string) {
-    super(message);
+    // ข้อความฐานที่ยังใช้คำเก่า (quote_superseded …) แปลตั้งแต่ตอนสร้าง — ทุกทางที่ข้อความขึ้นจอได้คำปัจจุบัน (บอสสั่ง 13 พ.ย. 69 · lib/dbMessages.ts)
+    super(แปลข้อความฐาน(message));
     this.name = "DbError";
     this.code = code;
   }
@@ -39,7 +41,7 @@ export function friendlyError(e: unknown, fallback = "เกิดข้อผ�
   // ตัดรหัสข้อผิดพลาดที่ RPC ติดหน้ามาออก (เช่น "no_sent_quotation: …" · "id_conflict:…")
   // — รหัสนั้นมีไว้ให้โค้ดฝั่งแอปแยกเคส ไม่ใช่สิ่งที่ผู้ใช้ต้องอ่าน
   //   ชื่อขั้นการขายเดิมในข้อความของฐาน (เช่น "คำขอที่ได้ใบ HQ แล้ว") แปลงเป็นคำปัจจุบันตอนแสดง (บอสสั่ง 13 พ.ย. 69 · ไม่มีใบปรับฐาน)
-  if (THAI_RE.test(msg)) return แปลงชื่อขั้นเดิม(msg.replace(/^[a-z0-9_]+:\s*/i, ""));
+  if (THAI_RE.test(msg)) return แปลงชื่อขั้นเดิม(แปลข้อความฐาน(msg).replace(/^[a-z0-9_]+:\s*/i, ""));
 
   // RPC บางตัว raise exception เป็น "forbidden: ..." (ภาษาอังกฤษ) — เคสสิทธิ์ที่เจาะจงได้
   if (/^forbidden:/i.test(msg)) return "ไม่มีสิทธิ์ทำรายการนี้";

@@ -120,7 +120,7 @@ type คีย์เรียง = "code" | "name" | "region" | "leads" | "quote
 const คอลัมน์: { k: คีย์เรียง | "view"; หัว: string; ชี้?: string; num?: boolean; w?: number | string; ค่า?: (r: ผลงานดีลเลอร์) => unknown }[] = [
   { k: "name", หัว: "ดีลเลอร์" },
   { k: "leads", หัว: "ลูกค้าเป้าหมาย", ชี้: "ลูกค้าเป้าหมายที่เข้ามาในช่วง", num: true },
-  { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่) ออกในช่วง", num: true },
+  { k: "quotes", หัว: "ใบที่ส่ง", ชี้: "ใบที่ส่งลูกค้าแล้ว ในช่วงที่เลือก (ไม่นับฉบับร่างและฉบับเก่า)", num: true },
   { k: "won", หัว: "ปิดสำเร็จ", ชี้: "ลูกค้าเป้าหมายปิดสำเร็จ (เข้ามาในช่วง)", num: true },
   { k: "lost", หัว: "ปิดไม่สำเร็จ", ชี้: "ลูกค้าเป้าหมายปิดไม่สำเร็จ (เข้ามาในช่วง)", num: true },
   { k: "pend", หัว: "ยังไม่รู้ผล", ชี้: "ลูกค้าเป้าหมายที่เข้ามาในช่วงที่ยังไม่ปิด (ลูกค้าเป้าหมาย − ปิดสำเร็จ − ปิดไม่สำเร็จ)", num: true },
@@ -318,16 +318,16 @@ export default function SalesAnalyticsPage() {
         <KpiCard kpi="sales" label="ยอดขาย (เทียบเป้า)" value={บาทเต็ม(ยอดการ์ด)} rawValue={ยอดการ์ด} empty="กำลังโหลด…"
           unit={เป้าการ์ด == null ? "ยังไม่ได้ตั้งเป้า" : `เป้าในช่วง ${บาทเต็ม(เป้าการ์ด)} · ตามวันลูกค้าตอบรับ`}
           ring={ยอดการ์ด != null && เป้าการ์ด ? Math.round(ยอดการ์ด / เป้าการ์ด * 100) : null} icon={Trophy}
-          actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("sales")} />
+          actionLabel="ดูรายละเอียด" onClick={() => setแผงการ์ด("sales")} />
         <KpiCard kpi="winRate" label={ชื่ออัตราปิดการขาย} value={ค่า(การ์ด, "winRate.rate") == null ? null : `${ค่า(การ์ด, "winRate.rate")}%`} rawValue={ค่า(การ์ด, "winRate.rate")}
           unit={คำอธิบายอัตราปิดการขาย} empty={การ์ด ? "ยังไม่มีลูกค้าเป้าหมายที่ปิดในช่วงนี้" : "กำลังโหลด…"} icon={Percent}
-          sub={การ์ด ? `ปิดสำเร็จ ${ค่า(การ์ด, "winRate.won") ?? 0} · ไม่สำเร็จ ${ค่า(การ์ด, "winRate.lost") ?? 0}` : undefined} actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("winRate")} />
+          sub={การ์ด ? `ปิดสำเร็จ ${ค่า(การ์ด, "winRate.won") ?? 0} · ไม่สำเร็จ ${ค่า(การ์ด, "winRate.lost") ?? 0}` : undefined} actionLabel="ดูรายละเอียด" onClick={() => setแผงการ์ด("winRate")} />
         <KpiCard kpi="margin" label="ส่วนต่างกำไรเฉลี่ย" value={ค่า(การ์ด, "margin.pct") == null ? null : `${Number(ค่า(การ์ด, "margin.pct")).toFixed(1)}%`} rawValue={ค่า(การ์ด, "margin.pct")}
           unit={`ส่วนต่างกำไร % ของราคาขาย · จาก ${ค่า(การ์ด, "margin.quotes") ?? 0} ใบที่ผูกใบ HQ`} empty={การ์ด ? "ยังไม่มีใบที่ตอบรับจากใบ HQ ในช่วงนี้" : "กำลังโหลด…"}
-          icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("margin")} />
+          icon={Coins} color="#059669" bg="#E6F6EF" actionLabel="ดูรายละเอียด" onClick={() => setแผงการ์ด("margin")} />
         <KpiCard kpi="onTarget" label="ดีลเลอร์ที่ถึงเป้า" value={ค่า(การ์ด, "onTarget.reached") == null ? null : `${ค่า(การ์ด, "onTarget.reached")} จาก ${ค่า(การ์ด, "onTarget.of") ?? 0}`}
           rawValue={ค่า(การ์ด, "onTarget.reached")} unit="ราย · ยอดในช่วงถึงเป้าตามช่วง" empty="กำลังโหลด…" icon={Award} color="#d97706" bg="#FEF3C7"
-          actionLabel="เจาะดูที่มา" onClick={() => setแผงการ์ด("onTarget")} />
+          actionLabel="ดูรายละเอียด" onClick={() => setแผงการ์ด("onTarget")} />
       </KpiRow>
 
       {/* ── ตัวกรองแถวเดียว — ค้างใต้แถบบนตอนเลื่อน (พื้นทึบ ไม่ทับเนื้อหา · ส่วนกลาง .hq-sticky-filter) ── */}

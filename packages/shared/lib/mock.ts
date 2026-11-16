@@ -1067,7 +1067,7 @@ export const ใบที่มีผล = (q: { status: QuotationStatus }) => q
 // สถานะใบเสนอราคาตามสเปก: Draft / Sent / Viewed / Accepted / Rejected / Expired
 export const quotationStatusLabel: Record<QuotationStatus, string> = {
   draft: "ร่าง", sent_to_client: "ส่งแล้ว",
-  won: "ตอบรับ", lost: "ปฏิเสธ", expired: "หมดอายุ", superseded: "ถูกแทนที่",
+  won: "ตอบรับ", lost: "ปฏิเสธ", expired: "หมดอายุ", superseded: "ฉบับเก่า",
 };
 export const quotationStatusColor: Record<QuotationStatus, { bg: string; text: string }> = {
   draft:          { bg: "#f0f0f5", text: "#6b7280" },
