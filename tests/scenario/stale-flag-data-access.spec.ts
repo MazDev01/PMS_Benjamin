@@ -38,7 +38,7 @@ const ผ่านแอป = (req: APIRequestContext, path: string, token: stri
   });
 const แถวลูกค้าเป้าหมาย = (n: number, ชื่อ: string) => ({
   id: `ZZTEST-TEMPPASS-${n}`, num_id: n, dealer_code: CODE, name: ชื่อ, company: ชื่อ,
-  contact: "ผู้ทดสอบ", phone: "081-555-0142", province: "ระยอง", status: "WAITING",
+  contact: "ผู้ทดสอบ", phone: "000-000-9084", province: "ระยอง", status: "WAITING",
 });
 const นับในฐาน = async (ชื่อ: string) =>
   (await admin.from("leads").select("id", { count: "exact", head: true }).eq("dealer_code", CODE).eq("company", ชื่อ)).count ?? 0;
@@ -104,7 +104,7 @@ test("[0216] เครื่องหมายค้าง · ผ่าน /api/
   const เขียน = await ผ่านแอป(request, "leads", ใบผ่าน.access_token, {
     method: "POST",
     data: { id: "ZZTEST-TEMPPASS-3", numId: 880_100_003, dealerCode: CODE, name: ชื่อ, company: ชื่อ, contact: "ผู้ทดสอบ",
-            phone: "081-555-0143", province: "ระยอง", status: "WAITING", value: "", product: "", assigned: "" },
+            phone: "000-000-9085", province: "ระยอง", status: "WAITING", value: "", product: "", assigned: "" },
   });
   expect(เขียน.status(), `เพิ่มผ่าน /api/v1 ต้องสำเร็จ (ได้ ${เขียน.status()} ${await เขียน.text()})`).toBeLessThan(400);
   expect(await นับในฐาน(ชื่อ), "แถวต้องลงฐาน").toBe(1);

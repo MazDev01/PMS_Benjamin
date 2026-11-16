@@ -29,7 +29,7 @@ function ราย(ทับ: Record<string, unknown> = {}) {
   const n = 870_000_000 + Math.floor(Math.random() * 9_000_000) + ++ลำดับ;
   return {
     id: `${TAG}-${n}`, num_id: n, dealer_code: "RYG", name: `${TAG}-${n}`, company: `${TAG}-${n}`,
-    contact: "ผู้ทดสอบ", phone: "081-555-0199", province: "ระยอง", status: "WAITING", ...ทับ,
+    contact: "ผู้ทดสอบ", phone: "000-000-9066", province: "ระยอง", status: "WAITING", ...ทับ,
   };
 }
 
@@ -57,10 +57,10 @@ test("[กฎที่ DB] ข้อมูลครบ → สร้างได
   const แรก = ราย();
   expect((await ryg.from("leads").insert(แรก)).error, "รายแรกข้อมูลครบต้องสร้างได้").toBeNull();
   // ต่างกันแค่ช่องว่างในชื่อและขีดในเบอร์ = รายเดียวกัน
-  const ซ้ำ = ราย({ company: `  ${แรก.company} `, phone: "0815550199" });
+  const ซ้ำ = ราย({ company: `  ${แรก.company} `, phone: "0000009066" });
   expect((await ryg.from("leads").insert(ซ้ำ)).error?.message ?? "", "รายซ้ำต้องถูกปฏิเสธ").toContain("lead_duplicate");
   // เบอร์ต่าง = คนละราย
-  expect((await ryg.from("leads").insert(ราย({ company: แรก.company, phone: "081-555-0200" }))).error,
+  expect((await ryg.from("leads").insert(ราย({ company: แรก.company, phone: "000-000-9067" }))).error,
     "ชื่อเดียวกันแต่เบอร์ต่างต้องสร้างได้").toBeNull();
 });
 

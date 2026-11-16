@@ -39,7 +39,7 @@ test("[func] สร้างนัดหมายผ่านหน้าจอ 
   const ลีดนัด = tg("ลีดลงนัด");
   const เลข = 979_600_000 + (Date.now() % 90_000);
   const ins = await sb.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: ลีดนัด, name: ลีดนัด,
-    phone: "0810000998", province: "ระยอง", status: "WAITING" });
+    phone: "0000009069", province: "ระยอง", status: "WAITING" });
   expect(ins.error).toBeNull();
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   await page.goto(`${DEALER_ORIGIN}/calendar`, { waitUntil: "domcontentloaded" });
@@ -92,7 +92,7 @@ test("[func] แนบไฟล์ที่ลูกค้าเป้าหม�
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณไฟล์");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
@@ -135,7 +135,7 @@ async function openLeadFileInput(page: Page, sb: SupabaseClient, company: string
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(company);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณไฟล์ล้ม");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company });

@@ -55,7 +55,7 @@ async function seedLead() {
       ? { doneAt: "1 ส.ค. 2569 · 10:00", doneBy: "ผู้ทดสอบ" } : {}),
   }));
 
-  await sb.from("leads").insert({ phone: "081-999-0101",
+  await sb.from("leads").insert({ phone: "000-000-9065",
     id: `#L-${numId}`, num_id: numId, dealer_code: "RYG", company: COMPANY, name: COMPANY,
     contact: "ผู้ทดสอบ", province: "ระยอง", product: "โกดังสำเร็จรูป", status: "BULLET",   // หน้างานต้องอยู่ในพื้นที่ของ RYG (กฎพื้นที่ ใบ 0195)
     value: "฿600,000", assigned: "ผู้ทดสอบ",

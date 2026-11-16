@@ -48,7 +48,7 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   await page.getByRole("button", { name: "เพิ่มผู้สนใจ" }).first().click();
   const แผง = page.getByRole("dialog", { name: "ข้อมูลผู้สนใจ" });
   await แผง.locator("#pr-name").fill(ชื่อ);
-  await แผง.locator("#pr-phone").fill("089 111 2233");
+  await แผง.locator("#pr-phone").fill("000 000 9006");
   await แผง.locator("#pr-region").selectOption("ตะวันออก");
   await แผง.locator("#pr-province").selectOption(จังหวัด);
   await แผง.locator("#pr-channel").selectOption({ index: 1 });

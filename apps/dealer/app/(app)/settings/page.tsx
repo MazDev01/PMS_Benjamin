@@ -213,7 +213,7 @@ function CompanyTab() {
             <FieldLabel htmlFor="is-phone" required>โทรศัพท์บริษัท</FieldLabel>
             {/* เติมขีดให้เองระหว่างพิมพ์ — เดิมพิมพ์ 222555205 แล้วเก็บติดกันแบบนั้น
                 หน้าอื่นที่แสดงเบอร์ทั้งระบบใช้รูปแบบมีขีด สองแบบปนกันแล้วอ่านยากและค้นไม่เจอ */}
-            <input id="is-phone" className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="02-000-0000" {...บังคับ.ผูก("phone")} />
+            <input id="is-phone" className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="0x-xxx-xxxx" {...บังคับ.ผูก("phone")} />
             <FieldError>{บังคับ.ผิด.phone}</FieldError>
           </div>
           <div style={{ gridColumn: "1/-1" }}>

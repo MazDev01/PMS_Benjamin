@@ -50,11 +50,11 @@ insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, stat
 -- จังหวัดที่มีลูกค้าเป้าหมาย (ยังเปิด) แต่ยังไม่มีดีลเลอร์: ตราด 2 · สตูล 1 · (ระยองมีดีลเลอร์ = ไม่นับ · ลูกค้าเป้าหมายที่ปิดแล้วไม่นับ)
 insert into dealer_territories (province, dealer_code) values ('ระยอง', 'RYG');
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status) values
-  ('#L-OV-1', 1, 'RYG', 'ZZOV ล1', 'ZZOV ล1', '0800000001', 'ตราด', 'BULLET'),
-  ('#L-OV-2', 2, 'RYG', 'ZZOV ล2', 'ZZOV ล2', '0800000002', 'ตราด', 'QUOTED'),
-  ('#L-OV-3', 3, 'RYG', 'ZZOV ล3', 'ZZOV ล3', '0800000003', 'สตูล', 'WAITING'),
-  ('#L-OV-4', 4, 'RYG', 'ZZOV ล4', 'ZZOV ล4', '0800000004', 'ระยอง', 'BULLET'),
-  ('#L-OV-5', 5, 'RYG', 'ZZOV ล5', 'ZZOV ล5', '0800000005', 'นราธิวาส', 'PAID');
+  ('#L-OV-1', 1, 'RYG', 'ZZOV ล1', 'ZZOV ล1', '0000009028', 'ตราด', 'BULLET'),
+  ('#L-OV-2', 2, 'RYG', 'ZZOV ล2', 'ZZOV ล2', '0000009029', 'ตราด', 'QUOTED'),
+  ('#L-OV-3', 3, 'RYG', 'ZZOV ล3', 'ZZOV ล3', '0000009030', 'สตูล', 'WAITING'),
+  ('#L-OV-4', 4, 'RYG', 'ZZOV ล4', 'ZZOV ล4', '0000009031', 'ระยอง', 'BULLET'),
+  ('#L-OV-5', 5, 'RYG', 'ZZOV ล5', 'ZZOV ล5', '0000009032', 'นราธิวาส', 'PAID');
 
 -- กล่อง 2 · คำขอใบเสนอราคา
 --   เปิดอยู่: สมชาย 2 (เกิน 14 วัน 1) · ยังไม่มีผู้รับ 1 (เกิน 1) → คิวงาน 3 · เกิน 14 วัน 2

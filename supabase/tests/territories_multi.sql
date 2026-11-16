@@ -67,19 +67,19 @@ begin
 
   -- ══ ข. ดีลเลอร์ทั้ง 2 รายสร้างลีดในจังหวัดนั้นได้ ══
   perform flowtest.as_dealer('ZZMA', c.ryg_uid);
-  perform flowtest.new_lead('ZZMA', '#ZZM-1', 'บจ. ลำพูนหนึ่ง', '0810000001', 'ลำพูน');
+  perform flowtest.new_lead('ZZMA', '#ZZM-1', 'บจ. ลำพูนหนึ่ง', '0000009024', 'ลำพูน');
   perform flowtest.as_dealer('ZZMB', c.cnx_uid);
-  perform flowtest.new_lead('ZZMB', '#ZZM-2', 'บจ. ลำพูนสอง', '0810000002', 'ลำพูน');
+  perform flowtest.new_lead('ZZMB', '#ZZM-2', 'บจ. ลำพูนสอง', '0000009025', 'ลำพูน');
   perform flowtest.as_root();
   perform flowtest.ok((select count(*) from leads where id in ('#ZZM-1', '#ZZM-2')) = 2, 'สร้างลีดในจังหวัดที่ดูแลร่วมกันได้ทั้งคู่');
 
   -- ══ ค. กติกาที่คงไว้ ══
   perform flowtest.as_dealer('RYG', c.ryg_uid);
-  perform flowtest.must_fail('select flowtest.new_lead(''RYG'', ''#ZZM-3'', ''บจ. นอกพื้นที่'', ''0810000003'', ''เชียงใหม่'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''RYG'', ''#ZZM-3'', ''บจ. นอกพื้นที่'', ''0000009026'', ''เชียงใหม่'')',
     'lead_outside_territory', 'สร้างลีดในจังหวัดที่มีดีลเลอร์อื่นดูแล (ตัวเองไม่ได้ดูแล) ไม่ได้');
-  perform flowtest.new_lead('RYG', '#ZZM-4', 'บจ. จังหวัดว่าง', '0810000004', 'น่าน');
+  perform flowtest.new_lead('RYG', '#ZZM-4', 'บจ. จังหวัดว่าง', '0000009060', 'น่าน');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
-  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#ZZM-5'', ''บจ. จังหวัดว่าง'', ''0810000004'', ''น่าน'')',
+  perform flowtest.must_fail('select flowtest.new_lead(''CNX'', ''#ZZM-5'', ''บจ. จังหวัดว่าง'', ''0000009060'', ''น่าน'')',
     'lead_taken', 'จังหวัดว่าง: งานเดียวกันที่ดีลเลอร์อื่นยื่นก่อน = คนแรกได้');
 
   -- ══ ง. โอนลีดของ HQ: หลายสาขา = HQ เลือก · สาขาเดียว = อัตโนมัติ ══

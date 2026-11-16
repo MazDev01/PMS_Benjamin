@@ -26,7 +26,7 @@ test("[func·dealer] กดลูกค้าตอบรับแล้วเ�
   await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณเน็ตหลุด");
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();

@@ -159,7 +159,7 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
             <div className="form-section">ช่องทางติดต่อ</div>
             <div>
               <FieldLabel htmlFor="co-phone" required>โทรศัพท์</FieldLabel>
-              <input id="co-phone" className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="02-000-0000" {...บังคับ.ผูก("phone")} />
+              <input id="co-phone" className="form-input" inputMode="tel" value={form.phone} onChange={e => set("phone", formatPhone(e.target.value))} placeholder="0x-xxx-xxxx" {...บังคับ.ผูก("phone")} />
               <FieldError>{บังคับ.ผิด.phone}</FieldError>
             </div>
             <div>

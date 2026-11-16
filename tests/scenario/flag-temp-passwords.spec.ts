@@ -84,7 +84,7 @@ test("[script] flag-temp-passwords --unset บนฐานทดสอบ: ล�
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error: เข้า } = await sb.auth.signInWithPassword({ email: อีเมล(ครบ), password: รหัส });
   expect(เข้า).toBeNull();
-  const เขียน = await sb.from("leads").insert({ id: "#L-ZTX-1", num_id: 1, dealer_code: ครบ, company: "ZZTEST", name: "ZZTEST", phone: "0800000000", province: "ตราด", status: "BULLET" });
+  const เขียน = await sb.from("leads").insert({ id: "#L-ZTX-1", num_id: 1, dealer_code: ครบ, company: "ZZTEST", name: "ZZTEST", phone: "0000009022", province: "ตราด", status: "BULLET" });
   expect(เขียน.error, "ล้างเครื่องหมายแล้วต้องเขียนข้อมูลของสาขาได้").toBeNull();
   const อ่าน = await sb.from("leads").select("id").eq("dealer_code", ครบ);
   expect(อ่าน.data?.length ?? 0, "และอ่านได้").toBe(1);

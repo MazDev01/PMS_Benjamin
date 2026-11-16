@@ -70,7 +70,7 @@ begin
   h := hq_quote_send(r.id);
   perform flowtest.as_root();
   insert into leads (id, dealer_code, num_id, name, company, phone, province, status, created_label, contact, project, area, note)
-  values ('#ZZVIS-2', 'CNX', 978000002, 'ก', 'ZZVIS-ร่าง', '081-600-0002', 'เชียงใหม่', 'BULLET', '1 ม.ค. 2569', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
+  values ('#ZZVIS-2', 'CNX', 978000002, 'ก', 'ZZVIS-ร่าง', '000-000-9061', 'เชียงใหม่', 'BULLET', '1 ม.ค. 2569', 'ZZ ผู้ติดต่อ', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
   perform flowtest.as_dealer('CNX', c.cnx_uid);
   d_r := quote_request_submit(978000002, 'โกดังและคลังสินค้า');
   perform flowtest.as_hq(c.hq_uid);
@@ -116,7 +116,7 @@ begin
   perform flowtest.no_write(format('update leads set note = note where dealer_code = %L and num_id = %s', 'CNX', c.lead_id), 'Lead: HQ แก้ตรงที่ตารางไม่ได้ (อ่านอย่างเดียว)');
   perform flowtest.no_write(format('update customers set name = name where id = %s', cust), 'ลูกค้า: HQ แก้ไม่ได้');
   perform flowtest.no_write(format('delete from leads where dealer_code = %L and num_id = %s', 'CNX', c.lead_id), 'Lead: HQ ลบไม่ได้');
-  perform flowtest.no_write($q$insert into leads (id, dealer_code, num_id, name, company, phone, province, status) values ('#ZZVIS-HQ', 'CNX', 978000009, 'ก', 'ZZVIS-HQ', '081-600-0009', 'เชียงใหม่', 'WAITING')$q$, 'Lead: HQ สร้างให้ดีลเลอร์ตรงที่ตารางไม่ได้');
+  perform flowtest.no_write($q$insert into leads (id, dealer_code, num_id, name, company, phone, province, status) values ('#ZZVIS-HQ', 'CNX', 978000009, 'ก', 'ZZVIS-HQ', '000-000-9062', 'เชียงใหม่', 'WAITING')$q$, 'Lead: HQ สร้างให้ดีลเลอร์ตรงที่ตารางไม่ได้');
   perform flowtest.no_write(format('update appointments set note = note where dealer_code = %L', 'CNX'), 'นัดหมาย: HQ แก้ไม่ได้');
 
   -- ══ คำขอใบเสนอราคา: ดีลเลอร์เจ้าของ + HQ ══

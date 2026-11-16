@@ -39,7 +39,7 @@ test("[func·dealer] งานนัดหมายติ๊กเองไม�
   await admin.from("leads").delete().eq("id", ID);
   const { error: insErr } = await admin.from("leads").insert({
     id: ID, num_id: NUM, dealer_code: "RYG", name: "ZZTEST-APPT ทดสอบงานนัดหมาย",
-    company: "ZZTEST-APPT ทดสอบงานนัดหมาย", contact: "คุณทดสอบ", phone: "081-000-0777",
+    company: "ZZTEST-APPT ทดสอบงานนัดหมาย", contact: "คุณทดสอบ", phone: "000-000-9064",
     email: "appt@example.co.th", province: "ระยอง", product: "โรงงาน", category: "โรงงาน",
     status: "BULLET", value: "1000000", area: "300", assigned: "ทดสอบระบบ", source: "โทรเข้า",
   });

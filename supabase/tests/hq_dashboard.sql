@@ -74,12 +74,12 @@ insert into quotation_won_at (dealer_code, quote_id, won_at) values
 
 -- ลีด: ต.ค. RYG 3 (ปิดสำเร็จ 1 · ไม่สำเร็จ 1) · CNX 1 (สำเร็จ) · แถว HQ 1 (ไม่นับ) · RYG เข้ามา ก.ย. 1
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status, created_date) values
-  ('#L-HD-1', 9601, 'RYG', 'ZZHD ล1', 'ZZHD', '0800000001', 'ระยอง',   'PAID',      '2026-10-02'),
-  ('#L-HD-2', 9602, 'RYG', 'ZZHD ล2', 'ZZHD', '0800000002', 'ระยอง',   'CANCELLED', '2026-10-03'),
-  ('#L-HD-3', 9603, 'RYG', 'ZZHD ล3', 'ZZHD', '0800000003', 'ระยอง',   'WAITING',   '2026-10-31'),
-  ('#L-HD-4', 9604, 'CNX', 'ZZHD ล4', 'ZZHD', '0800000004', 'เชียงใหม่', 'PAID',      '2026-10-01'),
-  ('#L-HD-5', 9605, 'HQ',  'ZZHD ล5', 'ZZHD', '0800000005', 'ตราด',    'WAITING',   '2026-10-04'),
-  ('#L-HD-6', 9606, 'RYG', 'ZZHD ล6', 'ZZHD', '0800000006', 'ระยอง',   'PAID',      '2026-09-15');
+  ('#L-HD-1', 9601, 'RYG', 'ZZHD ล1', 'ZZHD', '0000009028', 'ระยอง',   'PAID',      '2026-10-02'),
+  ('#L-HD-2', 9602, 'RYG', 'ZZHD ล2', 'ZZHD', '0000009029', 'ระยอง',   'CANCELLED', '2026-10-03'),
+  ('#L-HD-3', 9603, 'RYG', 'ZZHD ล3', 'ZZHD', '0000009030', 'ระยอง',   'WAITING',   '2026-10-31'),
+  ('#L-HD-4', 9604, 'CNX', 'ZZHD ล4', 'ZZHD', '0000009031', 'เชียงใหม่', 'PAID',      '2026-10-01'),
+  ('#L-HD-5', 9605, 'HQ',  'ZZHD ล5', 'ZZHD', '0000009032', 'ตราด',    'WAITING',   '2026-10-04'),
+  ('#L-HD-6', 9606, 'RYG', 'ZZHD ล6', 'ZZHD', '0000009033', 'ระยอง',   'PAID',      '2026-09-15');
 
 -- คำขอราคา: รอตีราคา 3 (เลยกำหนด 1) · ส่งใบแล้ว 1 ไม่นับ
 insert into quote_requests (id, request_no, dealer_code, lead_num_id, product, status, submitted_at, due_at) values

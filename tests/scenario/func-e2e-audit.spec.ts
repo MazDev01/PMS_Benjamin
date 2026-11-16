@@ -45,7 +45,7 @@ test("[audit] ปิดการขายลัดคิวต้องถูก
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณลัดคิว");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
@@ -129,7 +129,7 @@ test("[audit] ดีลที่สองของลูกค้าเดิม
     await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(company);
     await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill(contact);
     // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-    await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+    await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
     await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
     await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
     await page.getByRole("button", { name: "บันทึก", exact: true }).click();
@@ -248,7 +248,7 @@ test("[audit] ลบใบเสนอราคาที่ won แล้ว —
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณลบวอน");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
@@ -318,7 +318,7 @@ test("[audit] เปิดฟอร์มสร้างใบเสนอรา
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณค้างฟอร์ม");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await waitRow(sb, "leads", { company: COMPANY });
@@ -361,7 +361,7 @@ test("[audit] cross-role: ดีลเลอร์ปิดการขาย �
   await page.getByPlaceholder("เช่น บริษัท ตัวอย่าง จำกัด").fill(COMPANY);
   await page.getByPlaceholder("ชื่อผู้ติดต่อ").fill("คุณครอสโรล");
   // โทรศัพท์/จังหวัด = ช่องบังคับ (บอสสั่ง 17 ส.ค. 69) — ไม่กรอกจะบันทึกไม่ผ่าน
-  await page.getByPlaceholder("0XX-XXX-XXXX").fill("081-000-0000");
+  await page.getByPlaceholder("0XX-XXX-XXXX").fill("000-000-9023");
   await page.getByRole("dialog").getByLabel("จังหวัด").first().selectOption({ index: 1 });
   await page.getByPlaceholder("เช่น 1200", { exact: true }).fill("500");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();

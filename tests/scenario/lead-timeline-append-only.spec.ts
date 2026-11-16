@@ -30,7 +30,7 @@ const อ่าน = async () => {
 test("[db] ดีลเลอร์เขียนไทม์ไลน์จากสำเนาที่ไม่ครบ — บรรทัดเดิมต้องอยู่ครบ บรรทัดใหม่ต่อท้าย เลขไม่ซ้ำ", async () => {
   const ins = await admin.from("leads").insert({
     id: ID, num_id: 990_000_101, dealer_code: "RYG", company: "ZZTEST-ไทม์ไลน์ต่อท้าย", name: "ZZTEST-ไทม์ไลน์ต่อท้าย",
-    phone: "081-999-0111", province: "ระยอง", status: "WAITING",
+    phone: "000-000-9079", province: "ระยอง", status: "WAITING",
     activities: [บ(1, "ออกใบเสนอราคา Q-1 (V1)"), บ(2, "ส่งใบเสนอราคา Q-1 (V1) ให้ลูกค้า")],
   });
   expect(ins.error, `เตรียมลูกค้าเป้าหมายต้องผ่าน (${ins.error?.message})`).toBeNull();

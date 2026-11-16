@@ -28,7 +28,7 @@ test("[cleanup] คำสั่งลบของระบบล้ม — ต�
 
   // ทำให้คำสั่งลบของระบบล้ม: ใส่ลูกค้าเป้าหมายให้สาขานี้หนึ่งราย — ระบบไม่ยอมลบสาขาที่ยังมีข้อมูลงานขาย
   const leadId = `ZZTEST-CLEANUP-${CODE}`;
-  const ใส่ = await admin.from("leads").insert({ id: leadId, dealer_code: CODE, company: "ZZTEST-ลูกค้าของสาขาที่ลบไม่ได้", status: "WAITING", phone: "081-999-0101", province: "ระยอง" });
+  const ใส่ = await admin.from("leads").insert({ id: leadId, dealer_code: CODE, company: "ZZTEST-ลูกค้าของสาขาที่ลบไม่ได้", status: "WAITING", phone: "000-000-9065", province: "ระยอง" });
   expect(ใส่.error, `ใส่ลูกค้าเป้าหมายของสาขาทดสอบต้องผ่าน (${ใส่.error?.message})`).toBeNull();
 
   const ลบผ่านระบบ = await request.delete(`${HQ_ORIGIN}/api/admin/dealers?code=${CODE}`, { headers: { authorization: `Bearer ${token}` } });

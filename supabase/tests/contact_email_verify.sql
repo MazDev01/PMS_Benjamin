@@ -58,7 +58,7 @@ begin
   update profiles set contact_email_verified_at = now() where id = c.cnx_uid;    -- ฝั่งเซิร์ฟเวอร์ยืนยัน B
   select contact_email_verified_at into v from profiles where id = c.cnx_uid;
   perform flowtest.as_dealer('CNX', c.cnx_uid);
-  update profiles set phone = '081-000-0000' where id = c.cnx_uid;
+  update profiles set phone = '000-000-9023' where id = c.cnx_uid;
   perform flowtest.as_root();
   perform flowtest.ok((select contact_email_verified_at = v from profiles where id = c.cnx_uid), 'แก้ช่องอื่นของโปรไฟล์ → สถานะยืนยันไม่หาย');
   perform flowtest.ok(_dealer_notify_emails('CNX') = array['b@example.test'], 'ยืนยัน B แล้ว → แจ้งเตือนไป B');

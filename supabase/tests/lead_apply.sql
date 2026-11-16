@@ -32,7 +32,7 @@ create function latest.done(p_id text, p_key text) returns boolean language sql 
 grant execute on function latest.done(text, text) to authenticated;
 
 insert into leads (id, num_id, dealer_code, company, name, contact, phone, province, product, status, tasks, activities, assigned)
-values ('#L-ZLA1', 978000001, 'RYG', 'ZZTEST-LAPPLY', 'ZZTEST-LAPPLY', 'ผู้ทดสอบ', '0810000001', 'ระยอง', 'โกดังสำเร็จรูป', 'WAITING', '[]', '[]', 'พนักงานขายทดสอบ');
+values ('#L-ZLA1', 978000001, 'RYG', 'ZZTEST-LAPPLY', 'ZZTEST-LAPPLY', 'ผู้ทดสอบ', '0000009024', 'ระยอง', 'โกดังสำเร็จรูป', 'WAITING', '[]', '[]', 'พนักงานขายทดสอบ');
 
 do $$
 declare r leads; uid uuid := (select ryg_uid from latest.ctx); cnx uuid := (select cnx_uid from latest.ctx); n int;
@@ -41,7 +41,7 @@ begin
 
   -- ① แก้ช่องเดียว → ช่องอื่นไม่ถูกแตะ · ลูกค้าเป้าหมายที่ยังไม่มีรายการงานได้งานจากแม่แบบ HQ เมื่อติ๊ก
   r := lead_apply('#L-ZLA1', '{"fields":{"contact":"ผู้ติดต่อใหม่"}}');
-  perform latest.ok(r.contact = 'ผู้ติดต่อใหม่' and r.phone = '0810000001' and r.status = 'WAITING', 'แก้ช่องเดียว ช่องอื่นคงเดิม');
+  perform latest.ok(r.contact = 'ผู้ติดต่อใหม่' and r.phone = '0000009024' and r.status = 'WAITING', 'แก้ช่องเดียว ช่องอื่นคงเดิม');
   --   งาน: ข้อมูลลูกค้าครบ → ฐานติ๊ก "เก็บข้อมูลลูกค้า" ให้เอง (ใบ 0263) · รายการอื่นไม่ถูกติ๊ก · ไทม์ไลน์ไม่แตะ
   perform latest.ok((select array_agg(t ->> 'key') from jsonb_array_elements(r.tasks) t where (t ->> 'done')::boolean) = array['collect']
                     and r.activities = '[]'::jsonb, 'แก้ช่องธรรมดา ไม่แตะไทม์ไลน์ · งานติ๊กเฉพาะ เก็บข้อมูลลูกค้า (ระบบ)');
@@ -67,8 +67,8 @@ begin
   update leads set tasks = (select jsonb_agg(case when t ->> 'key' = 'makeQuote' then t || '{"done":true,"doneBy":"อัปเดตอัตโนมัติ"}' else t end)
                               from jsonb_array_elements(tasks) t) where id = '#L-ZLA1';
   perform latest.as_dealer('RYG', uid);
-  r := lead_apply('#L-ZLA1', '{"fields":{"phone":"0810000099"}}');
-  perform latest.ok(latest.done('#L-ZLA1', 'makeQuote') and r.phone = '0810000099', 'แก้ช่องจากหน้าค้าง: งานที่ฐานติ๊กยังอยู่');
+  r := lead_apply('#L-ZLA1', '{"fields":{"phone":"0000009040"}}');
+  perform latest.ok(latest.done('#L-ZLA1', 'makeQuote') and r.phone = '0000009040', 'แก้ช่องจากหน้าค้าง: งานที่ฐานติ๊กยังอยู่');
   r := lead_apply('#L-ZLA1', '{"tasks":[{"key":"task_bullet_1","done":true}],"deriveStage":"up"}');
   perform latest.ok(latest.done('#L-ZLA1', 'makeQuote') and latest.done('#L-ZLA1', 'task_bullet_1'), 'ติ๊กงานจากหน้าค้าง: งานที่ฐานติ๊กยังอยู่');
   perform latest.ok(r.status = 'WAITING', 'งานในฐานไม่เลื่อนขั้น (ใบ 0232)');

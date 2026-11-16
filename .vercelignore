@@ -38,6 +38,9 @@ node_modules/
 **/.next/
 .turbo/
 **/.turbo/
+# ผล build ของรอบตรวจ (test-prodbuild · >100MB ทำ deploy demo ล้ม · 16 พ.ย. 69)
+.next-test/
+**/.next-test/
 
 # ชุดทดสอบและเอกสาร — ไม่ได้ใช้ตอนรันเว็บ
 tests/

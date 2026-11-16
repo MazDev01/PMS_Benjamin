@@ -29,9 +29,9 @@ begin
     ('ZTXB', 'สาขาทดสอบ ข', 'ระยอง', 'ตะวันออก', 'active'),
     ('ZTXC', 'สาขาทดสอบ ค', 'ระยอง', 'ตะวันออก', 'active');
   insert into leads (id, dealer_code, num_id, name, company, phone, province) values
-    ('#T9-7', 'ZTXA', 990000007, 'ก', 'บจ. ทดสอบย้าย-หนึ่ง', '081-000-0001', 'ระยอง'),
-    ('#T9-3', 'ZTXA', 990000003, 'ข', 'บจ. ทดสอบย้าย-สอง',  '081-000-0002', 'ระยอง'),
-    ('#T9-5', 'ZTXC', 990000005, 'ค', 'บจ. ทดสอบย้าย-สาม',  '081-000-0003', 'ระยอง');
+    ('#T9-7', 'ZTXA', 990000007, 'ก', 'บจ. ทดสอบย้าย-หนึ่ง', '000-000-9024', 'ระยอง'),
+    ('#T9-3', 'ZTXA', 990000003, 'ข', 'บจ. ทดสอบย้าย-สอง',  '000-000-9025', 'ระยอง'),
+    ('#T9-5', 'ZTXC', 990000005, 'ค', 'บจ. ทดสอบย้าย-สาม',  '000-000-9026', 'ระยอง');
   insert into quote_requests (request_no, dealer_code, lead_num_id, status, due_at) values ('T9-RQ-A', 'ZTXA', 990000007, 'pricing', now() + interval '14 days') returning id into ra;
   insert into quote_requests (request_no, dealer_code, lead_num_id, status, due_at) values ('T9-RQ-B', 'ZTXA', 990000003, 'new',     now() + interval '14 days') returning id into rb;
   insert into quote_requests (request_no, dealer_code, lead_num_id, status, due_at) values ('T9-RQ-C', 'ZTXC', 990000005, 'pricing', now() + interval '14 days') returning id into rc;

@@ -9,7 +9,7 @@ const ของจริง: ชุดการตั้งค่า = {
   targets: { annualTarget: 260_000_000 },
   notifRules: { ...DEFAULT_HQ_NOTIF_RULES },
   lostReasons: ["ราคาสูงกว่าคู่แข่ง", "ลูกค้าเลื่อนโครงการ"],
-  company: { name: "เบญจมิน", address: "กรุงเทพฯ", taxId: "0105500000000", phone: "021234567", email: "info@example.com", website: "example.com" },
+  company: { name: "เบญจมิน", address: "กรุงเทพฯ", taxId: "0105500000000", phone: "0000009088", email: "info@example.com", website: "example.com" },
   dealers: [
     { id: "d1", code: "CNX", name: "เชียงใหม่", province: "เชียงใหม่", region: "เหนือ", revenueTarget: 12_000_000, status: "active" },
     { id: "d2", code: "RYG", name: "ระยอง", province: "ระยอง", region: "ตะวันออก", revenueTarget: 8_000_000, status: "inactive" },

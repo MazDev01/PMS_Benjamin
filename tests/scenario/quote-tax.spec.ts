@@ -35,7 +35,7 @@ test.beforeAll(async () => {
   const numId = 971_000 + (Date.now() % 900);
   const { error } = await admin.from("leads").insert({
     id: `#L-${numId}`, dealer_code: "RYG", num_id: numId, name: COMPANY, company: COMPANY,
-    contact: "คุณทดสอบภาษี", phone: "081-000-0009", province: "ระยอง", product: "โรงงาน",
+    contact: "คุณทดสอบภาษี", phone: "000-000-9082", province: "ระยอง", product: "โรงงาน",
     // ด่าน 3: ต้องขอราคาจาก HQ ได้ (ขั้นติดต่อแล้ว/รวบรวมความต้องการเท่านั้น) — เดิมตั้งเป็นเสนอราคาไว้เลย
     status: "BULLET", value: "500000", area: "100", assigned: "ทดสอบระบบ",
   });
@@ -133,7 +133,7 @@ test("[tax] ใบเก่าที่ยังไม่มีข้อมู�
     // ใบเดิมบนระบบจริงผูกลูกค้าเป้าหมายทุกใบ — วางลีดคู่กัน (รอบ 4: ดู/พิมพ์ใบที่แผงลีด หน้าใบเสนอราคาเป็นรายการ)
     const เลข = 979_800_000 + (Date.now() % 90_000);
     const ลีด = await admin.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: เก่า, name: เก่า,
-      phone: "0810000996", province: "ระยอง", status: "QUOTED" });
+      phone: "0000009083", province: "ระยอง", status: "QUOTED" });
     expect(ลีด.error, `วางลีดไม่สำเร็จ: ${ลีด.error?.message}`).toBeNull();
     วางใบเดิมที่ฐาน([{
       id: `${NS}-OLD`, dealer_code: "RYG", customer: เก่า, project: เก่า, date: "2026-08-20", deal_id: เลข,

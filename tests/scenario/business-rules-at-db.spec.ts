@@ -47,7 +47,7 @@ async function makeSet(label: string, leadStatus: string, withQuote: boolean) {
   //   ลีดขั้นอื่นจึงวางด้วยกุญแจฝั่งเซิร์ฟเวอร์ (ข้อมูลตั้งต้น) · ลีดปิดสำเร็จ = วางที่ขั้นเสนอราคา + ใบตอบรับ แล้วค่อยปิด
   //   กฎที่วัดในไฟล์นี้ (การลบ) ยังยิงด้วยกุญแจของดีลเลอร์เหมือนเดิม
   const ปิดสำเร็จ = leadStatus === "PAID";
-  const insLead = await adminClient().from("leads").insert({ phone: "081-999-0101", province: "ระยอง",
+  const insLead = await adminClient().from("leads").insert({ phone: "000-000-9065", province: "ระยอง",
     id: leadId, dealer_code: "RYG", num_id: numId, company, status: ปิดสำเร็จ ? "QUOTED" : leadStatus, customer_id: cid,
   }).select();
   expect(insLead.error, `สร้างดีลทดสอบไม่ได้: ${JSON.stringify(insLead.error)}`).toBeNull();

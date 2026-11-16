@@ -14,8 +14,8 @@ declare j jsonb; ids text;
 begin
   alter table leads disable trigger user;   -- วางสถานะตรง ๆ (ปกติรอราคา HQ มาจากคำสั่งส่งคำขอเท่านั้น)
   insert into leads (id, dealer_code, num_id, name, company, phone, province, status, created_label) values
-    ('#IDLE-1', 'RYG', 976000001, 'ก', 'ZZIDLE-รวบรวม', '081-400-0001', 'ระยอง', 'BULLET', '1 ม.ค. 2569'),
-    ('#IDLE-2', 'RYG', 976000002, 'ข', 'ZZIDLE-รอราคา', '081-400-0002', 'ระยอง', 'HQ_PRICING', '1 ม.ค. 2569');
+    ('#IDLE-1', 'RYG', 976000001, 'ก', 'ZZIDLE-รวบรวม', '000-000-9038', 'ระยอง', 'BULLET', '1 ม.ค. 2569'),
+    ('#IDLE-2', 'RYG', 976000002, 'ข', 'ZZIDLE-รอราคา', '000-000-9039', 'ระยอง', 'HQ_PRICING', '1 ม.ค. 2569');
   update leads set created_date = '2026-01-01', last_contact_at = '2026-01-01' where id in ('#IDLE-1', '#IDLE-2') and dealer_code = 'RYG';
   alter table leads enable trigger user;
 

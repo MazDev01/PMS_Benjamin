@@ -57,7 +57,7 @@ await del();
 const SEED = {
   ...MARK,
   name: "ZZ ซ้อมกู้คืน", company: "ZZ-บริษัททดสอบการกู้คืนข้อมูล",
-  phone: "0800000000", province: "ระยอง", status: "WAITING", value: 1234567,
+  phone: "0000009022", province: "ระยอง", status: "WAITING", value: 1234567,
   note: "แถวนี้สร้างโดย scripts/backup-drill.mjs — ถ้าเห็นค้างอยู่แปลว่าการซ้อมหยุดกลางคัน ลบได้เลย",
   created_at: new Date().toISOString(),
 };

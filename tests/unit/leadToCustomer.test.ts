@@ -9,7 +9,7 @@ import type { LeadRow } from "../../packages/shared/lib/mock";
 
 const lead: LeadRow = {
   id: "#L-1", numId: 1, name: "บจ. ทดสอบ", company: "บจ. ทดสอบ", contact: "คุณสมชาย",
-  phone: "081-234-5678", email: "somchai@test.co.th",
+  phone: "000-000-9001", email: "somchai@test.co.th",
   province: "เชียงใหม่", address: "99/1 ถ.นิมมานเหมินท์ ต.สุเทพ อ.เมือง เชียงใหม่ 50200",
   product: "โกดังสำเร็จรูป", category: "โกดังสำเร็จรูป",
   // value = ช่องประเมินราคาเดิม (เลิกใช้ · ข้อ 5) ตั้งให้ต่างจากยอดใบ เพื่อพิสูจน์ว่าไม่ถูกหยิบไปใช้

@@ -31,7 +31,7 @@ describe("เทมเพลตนำเข้าลูกค้าเดิม"
     expect(ได้[0]).toEqual({
       company: "บจ. ตัวอย่างสตีล",
       name: "คุณสมชาย ใจดี",
-      phone: "081-234-5678",
+      phone: "000-000-9001",
       email: "contact@example.com",
       address: "26 หมู่ 3 ต.หนองบัว อ.เมือง จ.เชียงใหม่ 50000",
       province: "เชียงใหม่",
