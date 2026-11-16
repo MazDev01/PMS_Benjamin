@@ -320,8 +320,6 @@ function QuotationsPageInner(){
             "ทุกสถานะ" ใช้ state เดียวกับการ์ด KPI ด้านบน → กดที่ไหนก็ตรงกัน */}
         <FilterRow
           query={query} onQuery={setQuery} placeholder={`ค้นหาเลขที่ / ลูกค้า / ${ช่อง.งาน}...`}
-          showClear={filterStatus!=="ALL" || ownerFilter!=="ALL" || provFilter!=="ALL" || !!query}
-          onClear={()=>{ setQuery(""); setFilterStatus("ALL"); setOwnerFilter("ALL"); setProvFilter("ALL"); }}
           right={
             /* สลับมุมมอง รายการ/การ์ด — อยู่ท้ายแถบตัวกรองเหมือนหน้าลูกค้าเป้าหมาย (ช่อง right ของ FilterRow)
                ขนาดเล็กกว่าช่องกรอง (สูง 30 · ไอคอน 12) เพราะเป็นตัวควบคุมรอง ไม่ใช่ตัวกรอง */

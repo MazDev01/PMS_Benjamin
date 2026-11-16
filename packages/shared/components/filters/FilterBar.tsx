@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { CalendarDays, ChevronDown, Check, X } from "lucide-react";
+import { CalendarDays, ChevronDown, Check } from "lucide-react";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useDealerOptions, useProvinceOptions, usePersonOptions } from "@pms/shared/lib/useFilterOptions";
 import {
@@ -248,7 +248,6 @@ export function FilterBar({
   const {
     dealer, province, status, person,
     setDealer, setProvince, setStatus, setPerson,
-    activeCount, reset,
   } = useFilters();
 
   // ตัวเลือกจากข้อมูลจริง (repo) — ผู้เรียกยัง override ผ่าน prop ได้เหมือนเดิม
@@ -285,11 +284,7 @@ export function FilterBar({
           options={personOptions ?? livePersons} onChange={setPerson} />
       )}
 
-      {activeCount > 0 && (
-        <button className="btn btn-ghost btn-sm" onClick={reset} style={{ gap: 4 }}>
-          <X size={13} /> ล้างตัวกรอง
-        </button>
-      )}
+      {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
     </div>
   );
 }

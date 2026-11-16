@@ -292,8 +292,6 @@ export default function SalesAnalyticsPage() {
   const ขั้นตอนนี้ = useLeadSummary({ dealerCodes: ชุดลีด });
   const ลีดในช่วง = useLeadSummary({ dealerCodes: ชุดลีด, dateStart: ช่วง.start, dateEnd: ช่วง.end });
 
-  const anyFilter = q.trim() !== "" || [dealerSel, regionSel, provSel, salesSel].some(v => v !== ALL);
-  const ล้าง = () => { setQ(""); setDealerSel(ALL); setRegionSel(ALL); setProvSel(ALL); setSalesSel(ALL); };
   const sel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
     <FilterSelect label={caption} caption={caption} all={ALL} value={v} onChange={on} options={opts} minWidth={120} maxWidth={210} style={{ flex: "1 1 0" }} />
   );
@@ -342,7 +340,7 @@ export default function SalesAnalyticsPage() {
           {sel(regionSel, setRegionSel, ป้ายทุกภูมิภาค, regionOpts.map(r => ({ v: r, l: ชื่อภาค(r) })))}
           {sel(provSel, setProvSel, "ทุกจังหวัด", provOpts.map(p => ({ v: p, l: p })))}
           {sel(salesSel, setSalesSel, "ทุกช่วงยอดขาย", SALES_BANDS.map(b => ({ v: b.v, l: b.l })))}
-          {anyFilter && <button onClick={ล้าง} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>ล้างตัวกรอง</button>}
+          {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
         </div>
       </div>
 

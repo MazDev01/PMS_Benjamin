@@ -10,7 +10,9 @@ import { ADMIN, skipReason } from "./supabaseEnv";
 import { openAs, settle, ปุ่มช่วงเวลา } from "./helpers";
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(180_000);
-test("ล้างตัวกรองต้องล้างช่วงเวลาที่กำหนดเองด้วย", async ({ page }) => {
+// ปุ่ม "ล้างตัวกรอง" ถูกถอดจากแถบตัวกรองทุกหน้า (บอสสั่ง 13 พ.ย. 69 · ทับที่มาของข้อนี้ 24 ส.ค. 69) — กลับข้อนี้เป็น:
+//   ตั้งช่วงเอง → ไม่มีปุ่มล้างตัวกรองโผล่ · เลือก "1 ปี" = กลับค่าตั้งต้นเดิมตอนเปิดหน้า ไม่ค้างช่วงที่กำหนดเอง
+test("ไม่มีปุ่มล้างตัวกรอง · เลือก 1 ปี กลับค่าตั้งต้นจากช่วงที่กำหนดเอง", async ({ page }) => {
   await openAs(page, ADMIN, "hq", "/hq/leads");
   await settle(page); await page.waitForTimeout(1200);
   const ปุ่มเวลา = ปุ่มช่วงเวลา(page);
@@ -24,9 +26,9 @@ test("ล้างตัวกรองต้องล้างช่วงเ�
   const หลังตั้ง = (await ปุ่มเวลา.innerText()).trim();
   console.log("ก่อน:", ก่อน, "→ ตั้งช่วงเอง:", หลังตั้ง);
   expect(หลังตั้ง).not.toBe(ก่อน);
-  const ล้าง = page.getByRole("button", { name: "ล้างตัวกรอง", exact: true });
-  await expect(ล้าง, "เลือกช่วงเองแล้วปุ่มล้างต้องโผล่").toBeVisible();
-  await ล้าง.click();
+  await expect(page.getByRole("button", { name: "ล้างตัวกรอง", exact: true }), "เลือกช่วงเองแล้วต้องไม่มีปุ่มล้างตัวกรอง (ถอดแล้ว)").toHaveCount(0);
+  await ปุ่มเวลา.click();
+  await page.getByRole("button", { name: "1 ปี", exact: true }).click();
   await page.waitForTimeout(700);
   const หลังล้าง = (await ปุ่มเวลา.innerText()).trim();
   console.log("หลังล้าง:", หลังล้าง);

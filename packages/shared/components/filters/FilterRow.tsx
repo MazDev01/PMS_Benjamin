@@ -17,16 +17,13 @@ const STEEL = "#374151";
 export { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";
 
 export function FilterRow({
-  query, onQuery, placeholder, children, onClear, showClear, note, right, style,
+  query, onQuery, placeholder, children, note, right, style,
 }: {
   query: string;
   onQuery: (v: string) => void;
   placeholder: string;
   /** ใส่ <FilterSelect/> ของแต่ละหน้าตรงนี้ */
   children?: React.ReactNode;
-  onClear: () => void;
-  /** true เมื่อมีตัวกรองทำงานอยู่ → โชว์ปุ่มล้างตัวกรอง */
-  showClear: boolean;
   /** ข้อความสรุปท้ายแถว เช่น "12 จาก 40 รายการ" */
   note?: React.ReactNode;
   /** ตัวควบคุมชิดขวาสุด เช่น สลับมุมมองรายการ/การ์ด */
@@ -67,9 +64,7 @@ export function FilterRow({
 
           {children}
 
-          {showClear && (
-            <button onClick={onClear} className="btn btn-secondary btn-sm">ล้างตัวกรอง</button>
-          )}
+          {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
         </div>
 
         {(note || right) && (

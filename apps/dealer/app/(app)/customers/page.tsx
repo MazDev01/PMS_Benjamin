@@ -909,8 +909,6 @@ export default function CustomersPage(){
             "ลูกค้าทั้งหมด N รายการ" เอาออกตามที่บอสสั่ง — จำนวนดูได้ที่การ์ด KPI และแถบแบ่งหน้า */}
         <FilterRow
           query={query} onQuery={setQuery} placeholder="ค้นหาลูกค้า, เบอร์โทร, อีเมล..."
-          showClear={provFilter!=="ALL" || ownerFilter!=="ALL" || !!query}
-          onClear={()=>{ setQuery(""); setProvFilter("ALL"); setOwnerFilter("ALL"); }}
         >
           <FilterSelect caption="ทุกจังหวัด" value={provFilter} onChange={setProvFilter}
             options={provOptions.map(p=>({v:p,l:p}))} />

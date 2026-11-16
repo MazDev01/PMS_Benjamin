@@ -1023,7 +1023,6 @@ export default function LeadsPage() {
 
   // totalValue / wonLeads / nonLost / winRate ถูกลบ — คำนวณไว้แต่ไม่มีใครแสดง
   // และทั้งสามคิดจาก allLeads (ทั้งเครือ) ซึ่งผิดขอบเขตของหน้าดีลเลอร์อยู่แล้ว
-  const hasActiveFilters = !!(fAssignee || fProvince || fSource || fValueMin || fValueMax);
   // ช่วงมูลค่าใน FilterRow ↔ fValueMin/fValueMax ที่ตัวกรองจริงใช้ (แหล่งความจริงเดียวยังเป็นสองค่านี้)
   const valueBand = VALUE_BANDS.find(b => b.min === fValueMin && b.max === fValueMax)?.v ?? "ALL";
   const pickValueBand = (v: string) => {
@@ -1308,8 +1307,6 @@ export default function LeadsPage() {
             ตัวกรองขั้นตอน = กลุ่ม: กำลังดำเนินการ (ค่าเริ่มต้น) · ปิดสำเร็จ · ปิดไม่สำเร็จ · ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
         <FilterRow
           query={query} onQuery={setQuery} placeholder="ค้นหาบริษัท ผู้ติดต่อ..."
-          showClear={hasActiveFilters || filterStatus!=="OPEN" || followUpDays!==0 || !!query}
-          onClear={()=>{ setQuery(""); setFilterStatus("OPEN"); setFollowUpDays(0); setขั้นจากการ์ด(null); setFAssignee(""); setFProvince(""); setFSource(""); setFValueMin(""); setFValueMax(""); }}
           right={
             /* สลับมุมมอง ตาราง/บอร์ด — กลับมาอยู่ท้ายแถบตัวกรองเหมือนเดิม (ช่อง right ของ FilterRow เตรียมไว้ให้พอดี)
                ขนาดเล็กกว่าช่องกรอง (สูง 30 · ไอคอน 12) เพราะเป็นตัวควบคุมรอง ไม่ใช่ตัวกรอง */

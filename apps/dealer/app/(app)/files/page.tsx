@@ -360,10 +360,7 @@ export default function FilesPage() {
           options={custOptions} minWidth={0} maxWidth={150} />
         <FilterSelect caption="ทุกโอกาสการขาย" label="กรองตามโอกาสการขาย" value={projFilter} onChange={setProj}
           options={projOptions.map(pj => ({ v: pj, l: pj }))} minWidth={0} maxWidth={150} />
-        {(sourceFilter !== "ALL" || projFilter !== "ALL" || catFilter !== "ALL" || custFilter !== "ALL" || !!query) && (
-          <button onClick={() => { setQuery(""); setCat("ALL"); setSource("ALL"); setProj("ALL"); setCust("ALL"); }}
-            className="btn btn-secondary btn-sm">ล้างตัวกรอง</button>
-        )}
+        {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
         <div style={{ display: "flex", border: `1px solid ${BORDER}`, borderRadius: 9, overflow: "hidden", marginLeft: "auto", height: 36, boxSizing: "border-box" }}>
           {(["list","grid"] as const).map(v => (
             <button key={v} onClick={() => setView(v)}

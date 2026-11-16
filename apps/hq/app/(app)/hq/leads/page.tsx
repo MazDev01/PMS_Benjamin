@@ -270,7 +270,6 @@ export default function HQLeadsPage() {
   const leadSel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
     <FilterSelect label={caption} caption={caption} all="ALL" value={v} onChange={on} options={opts} minWidth={96} maxWidth={180} style={{ flex: "1 1 0" }} />
   );
-  const anyFilter = !!query.trim() || status !== "OPEN" || srcSel !== "ALL" || overdueOnly;
 
 
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
@@ -531,10 +530,7 @@ export default function HQLeadsPage() {
             <input type="checkbox" checked={overdueOnly} onChange={e => { setOverdueOnly(e.target.checked); if (e.target.checked) setStatus("OPEN"); }} />
             ไม่เคลื่อนไหวเกิน 30 วัน
           </label>
-          {anyFilter && (
-            <button onClick={() => { setQuery(""); setSrcSel("ALL"); setStatus("OPEN"); setOverdueOnly(false); }}
-              className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>ล้างตัวกรอง</button>
-          )}
+          {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
         </div>
       </div>
 
