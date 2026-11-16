@@ -1,4 +1,4 @@
-import { Page, expect } from "@playwright/test";
+import { Page, Locator, expect } from "@playwright/test";
 import { createClient, type Session } from "@supabase/supabase-js";
 import { RYG, CNX, ADMIN, SUPABASE_URL, SUPABASE_ANON, REAL_BACKEND, type Account, appEnv } from "./supabaseEnv";
 import { ที่อยู่เว็บ } from "./sessionPorts";
@@ -375,12 +375,12 @@ export async function เลือกกลุ่มคำขอ(page: Page, k: 
   }
   await แท็บมุมมองคำขอ(page, "history").click();
   await expect(แท็บมุมมองคำขอ(page, "history")).toHaveAttribute("aria-selected", "true");
-  await page.getByLabel("กรองตามสถานะคำขอ").selectOption(k);
-  await expect(page.getByLabel("กรองตามสถานะคำขอ")).toHaveValue(k);
+  await เลือกตัวกรอง(page, "กรองตามสถานะคำขอ", { ค่า: k });
+  await expect(ช่องตัวกรอง(page, "กรองตามสถานะคำขอ")).toHaveAttribute("data-filter-value", k);
 }
 /** จำนวนของตัวกรอง (ชุดเดียวกับตาราง · data-count): todo = แท็บต้องตีราคา · overdue = ปุ่มเกินกำหนด · อื่น = ตัวเลือกในประวัติ (ต้องอยู่แท็บประวัติ) */
 export const จำนวนสถานะคำขอ = (page: Page, k: สถานะคำขอบนจอ) => k === "todo" ? แท็บมุมมองคำขอ(page, "main")
-  : k === "overdue" ? ปุ่มเฉพาะเกินกำหนด(page) : page.getByLabel("กรองตามสถานะคำขอ").locator(`option[value="${k}"]`);
+  : k === "overdue" ? ปุ่มเฉพาะเกินกำหนด(page) : page.locator(`[data-filter-counts="กรองตามสถานะคำขอ"] [data-option-value="${k}"]`);   // สำเนาจำนวนของช่องตัวกรอง (FilterSelect)
 export const ตารางคำขอ = (page: Page) => page.getByRole("table", { name: "ตารางคำขอใบเสนอราคา" });
 /** แถวคำขอในตาราง (ข้อความในแถว เช่น ชื่อลูกค้า · เลขคำขอ) */
 export const แถวคำขอ = (page: Page, ข้อความ?: string) => {
@@ -449,4 +449,32 @@ export async function ปุ่มดูใบตั้งต้นHQ(page: Page
   const แถว = page.getByRole("table", { name: "รายการใบเสนอราคา" }).locator("tbody tr").filter({ hasText: ตั้งต้น.ลูกค้าRYG });
   await expect(แถว, `ใบตั้งต้น ${ตั้งต้น.ใบRYG} ขึ้นในตาราง`).toHaveCount(1, { timeout: 25_000 });
   return แถว.getByRole("button", { name: "ดูรายละเอียด", exact: true });
+}
+
+// ── ช่องเลือกในแถบตัวกรอง = ตัวกลางทำเอง (components/filters/FilterSelect.tsx · บอสสั่ง 11 พ.ย. 69 แทน <select>) ──
+//   ปุ่ม role="combobox" (ชื่อ = label/caption · data-filter-value = ค่าที่เลือก) → รายการ role="listbox" ใต้ช่อง · ตัวเลือก role="option" (data-option-value)
+//   ใช้แทน selectOption / toHaveValue / อ่าน <option> ของช่องตัวกรองเดิม
+//   ใน = ขอบเขตที่หาช่อง (เช่น page.locator("[data-drill-scope]")) — ไม่ใส่ = ทั้งหน้า · รายการที่กางอยู่ใน body เสมอ
+export const ช่องตัวกรอง = (page: Page, ชื่อช่อง: string | RegExp, ใน?: Locator) =>
+  (ใน ?? page).getByRole("combobox", { name: ชื่อช่อง, exact: typeof ชื่อช่อง === "string" }).first();
+/** เลือกค่าในช่องตัวกรองตามข้อความที่เห็น (หรือ { ค่า } = ค่าภายใน) */
+export async function เลือกตัวกรอง(page: Page, ชื่อช่อง: string | RegExp, เลือก: string | RegExp | { ค่า: string }, ใน?: Locator) {
+  await ช่องตัวกรอง(page, ชื่อช่อง, ใน).click();
+  const รายการ = page.locator("[data-filter-select-list]");
+  await expect(รายการ, `รายการของช่อง ${ชื่อช่อง} กางลง`).toBeVisible();
+  const ตัว = typeof เลือก === "object" && !(เลือก instanceof RegExp)
+    ? รายการ.locator(`[role="option"][data-option-value="${เลือก.ค่า}"]`)
+    : รายการ.getByRole("option", { name: เลือก, exact: typeof เลือก === "string" });
+  await ตัว.first().click();
+  await expect(รายการ, "เลือกแล้วรายการปิด").toHaveCount(0);
+}
+/** ตัวเลือกทั้งหมดของช่องตัวกรอง [{ ค่า, ข้อความ }] — เปิดดูแล้วปิดด้วย Esc */
+export async function ตัวเลือกของตัวกรอง(page: Page, ชื่อช่อง: string | RegExp, ใน?: Locator): Promise<{ ค่า: string; ข้อความ: string }[]> {
+  await ช่องตัวกรอง(page, ชื่อช่อง, ใน).click();
+  const รายการ = page.locator("[data-filter-select-list]");
+  await expect(รายการ).toBeVisible();
+  const ออก = await รายการ.locator('[role="option"]').evaluateAll(els => els.map(e => ({ ค่า: e.getAttribute("data-option-value") ?? "", ข้อความ: (e.textContent ?? "").trim() })));
+  await page.keyboard.press("Escape");
+  await expect(รายการ).toHaveCount(0);
+  return ออก;
 }

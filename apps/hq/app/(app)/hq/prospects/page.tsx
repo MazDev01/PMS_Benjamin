@@ -17,8 +17,8 @@
 //
 // สิทธิ์: ดูได้ทุกบทบาทฝั่งสำนักงานใหญ่ · เพิ่ม/แก้/ลบ/ตั้งเป็นดีลเลอร์ = ผู้มีสิทธิ์จัดการดีลเลอร์ (dealers:manage)
 //   RLS บังคับซ้ำที่ฐานข้อมูล — การซ่อนปุ่มตรงนี้เป็นแค่ความสะดวก ไม่ใช่ด่านจริง
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -73,7 +73,7 @@ import { formatPhone } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import { สรุปช่องที่ขาด, ตรวจช่องบังคับ, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
@@ -81,6 +81,7 @@ import { useRecruitSettings } from "@pms/shared/lib/useHQConfig";
 import { ช่องทางติดต่อเริ่มต้น } from "@pms/shared/lib/recruitSettings";
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
+import { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -143,7 +144,7 @@ export default function HQProspectsPage() {
   const [ร่าง, setร่าง] = useState<Partial<DealerProspect>>(ร่างว่าง());
   const [formErr, setFormErr] = useState("");
   // ช่องบังคับของฟอร์มผู้สนใจ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ชื่อ + เบอร์โทร (ฐานกันอีกชั้น ใบ 0276)
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ชุดบังคับ = (r: Partial<DealerProspect>): ช่องบังคับ[] => [
     { key: "name", label: "ชื่อผู้ติดต่อ / ชื่อบริษัท", value: r.name, ข้อความ: "ต้องระบุชื่อผู้สนใจ" },
     { key: "phone", label: "เบอร์โทร", value: r.phone, ข้อความ: "ต้องระบุเบอร์โทร" },
@@ -176,7 +177,7 @@ export default function HQProspectsPage() {
   const [โหมดตั้ง, setโหมดตั้ง] = useState<"new" | "existing">("new");
   const [ฟอร์ม, setฟอร์ม] = useState<ฟอร์มดีลเลอร์>({ code: "", name: "", region: "", province: "", email: "", password: "", existingCode: "" });
   // ช่องบังคับของกล่องตั้งเป็นดีลเลอร์ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ข้อความเดิมของแต่ละช่องอยู่ใต้ช่อง · แถบผิดพลาดสรุปชื่อช่องที่ขาด (ไม่ซ้ำข้อความใต้ช่อง)
-  const บังคับแปลง = useช่องบังคับ();
+  const บังคับแปลง = useRequiredFields();
   const ชุดแปลง = (f: ฟอร์มดีลเลอร์, โหมด: "new" | "existing"): ช่องบังคับ[] => โหมด === "existing"
     ? [{ key: "existingCode", label: "ดีลเลอร์", value: f.existingCode, ข้อความ: "ต้องเลือกดีลเลอร์" }]
     : [
@@ -283,6 +284,8 @@ export default function HQProspectsPage() {
   }, [รีเฟรชรายที่เปิด]);
 
   function เปิดแผง(p: DealerProspect, แท็บเริ่ม: แท็บ = "overview") {
+    // เป็นดีลเลอร์แล้ว (การ์ดในคอลัมน์ปิดแล้วของบอร์ด) = ไม่มีแผงผู้สนใจ → ไปแผงดีลเลอร์นั้น (เหมือนลิงก์เก่าในที่อยู่หน้าเว็บ ด้านล่าง)
+    if (p.status === "won" && p.dealerCode) { window.location.assign(`/hq/dealers?open=${encodeURIComponent(p.dealerCode)}`); return; }
     เปิดอยู่Ref.current = p.id;
     setรายที่เปิด(p);
     setแท็บที่เปิด(แท็บเริ่ม);
@@ -313,7 +316,7 @@ export default function HQProspectsPage() {
   //   แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่ · ลิงก์กลางมาที่นี่
   const listRef = useRef(list);
   listRef.current = list;
-  useเปิดตามURL("/hq/prospects", รหัส => {
+  useOpenFromUrl("/hq/prospects", รหัส => {
     if (!รหัส) { if (เปิดอยู่Ref.current != null) ปิดแผงทันที(); return; }
     if (เปิดอยู่Ref.current != null && String(เปิดอยู่Ref.current) === รหัส) return;
     const list = listRef.current;
@@ -326,7 +329,7 @@ export default function HQProspectsPage() {
     else if (ราย) เปิดแผง(ราย);
     else if (!loadErr) แจ้งพลาด("ไม่พบผู้สนใจรายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง");
   }, loaded);
-  useแผงในURL(รายที่เปิด ? String(รายที่เปิด.id) : null);
+  usePanelInUrl(รายที่เปิด ? String(รายที่เปิด.id) : null);
 
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัสบนจอ · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
   //   คงรหัส 2 จุดตามบอสตอบ: ช่องพิมพ์รหัสตอนตั้งดีลเลอร์ · กล่องบัญชีเข้าระบบดีลเลอร์ใหม่ (รหัสสาขา = ชื่อเข้าระบบ)
@@ -351,6 +354,11 @@ export default function HQProspectsPage() {
       : p.status === statusFilter;
     return ผ่านสถานะ && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q);
   }), [รายที่แสดงได้, statusFilter, provinceFilter, q, ย่อย]);
+  // บอร์ด: คอลัมน์ "ปิดแล้ว" มีผู้สนใจที่เป็นดีลเลอร์แล้วด้วย (ลิงก์ไปแผงดีลเลอร์ · ข้อ 17 ตาราง FLOW · บอสสั่ง 13 พ.ย. 69)
+  //   ตาราง · ตัวกรอง · ส่งออก · การ์ดตัวเลข ยังไม่นับรายที่เป็นดีลเลอร์แล้ว (บอสสั่ง 15 ก.ย. 69) · ตัวกรองสถานะเฉพาะ (ไม่ใช่ "ทุกสถานะ") = ไม่ใส่
+  const บนบอร์ด = useMemo(() => statusFilter !== "all" ? filtered : [...filtered,
+    ...list.filter(p => p.status === "won" && !!p.dealerCode && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q))],
+  [filtered, list, statusFilter, provinceFilter, q]);
   // การ์ดเดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69) — ชุดจากทุกราย รวมที่เป็นดีลเลอร์แล้ว (การ์ด "เป็นดีลเลอร์แล้วเดือนนี้")
   //   ตัวกรองสถานะ = ปุ่มเดียวกับการ์ด "ถึงกำหนดติดตาม" → ไม่ใช่ตัวกรองของการ์ด (กดการ์ดแล้วใบอื่นต้องไม่เปลี่ยน)
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(list, p => (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q), p => p.id),
@@ -845,19 +853,15 @@ export default function HQProspectsPage() {
           {q && <button aria-label="ล้างคำค้น" onClick={() => { setQ(""); setPage(0); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
         <div style={{ flex: 1 }} />
-        <select aria-label="กรองตามสถานะ" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as ตัวกรองสถานะ); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกสถานะ</option>
-          <option value="due">ถึงกำหนดติดตาม</option>
           {/* ตัวกรองติดตามด่วน (สเปก: ไม่ได้ติดต่อ 7 / 14 / 30 วัน) — นับเฉพาะรายที่ยังติดตามอยู่ */}
-          {เกณฑ์ไม่ได้ติดต่อ.map(ว => <option key={ว} value={`idle${ว}`}>ไม่ได้ติดต่อ {ว} วันขึ้นไป</option>)}
-          {PROSPECT_STATUS_ORDER.filter(s => s !== "won").flatMap(s => s === "considering"
-            ? (Object.keys(ชื่อขั้นย่อย) as ขั้นย่อยใบ["key"][]).map(k => <option key={k} value={`sub:${k}`}>{ชื่อขั้นย่อย[k]}</option>)
-            : [<option key={s} value={s}>{prospectStatusLabel[s]}</option>])}
-        </select>
-        <select aria-label="กรองตามจังหวัด" value={provinceFilter} onChange={e => { setProvinceFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกจังหวัด</option>
-          {จังหวัดในข้อมูล.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
+        <FilterSelect label="กรองตามสถานะ" caption="ทุกสถานะ" all="all" value={statusFilter} onChange={v => { setStatusFilter(v as ตัวกรองสถานะ); setPage(0); }}
+          options={[{ v: "due", l: "ถึงกำหนดติดตาม" },
+            ...เกณฑ์ไม่ได้ติดต่อ.map(ว => ({ v: `idle${ว}`, l: `ไม่ได้ติดต่อ ${ว} วันขึ้นไป` })),
+            ...PROSPECT_STATUS_ORDER.filter(s => s !== "won").flatMap((s): FilterOption[] => s === "considering"
+              ? (Object.keys(ชื่อขั้นย่อย) as ขั้นย่อยใบ["key"][]).map(k => ({ v: `sub:${k}`, l: ชื่อขั้นย่อย[k] }))
+              : [{ v: s, l: prospectStatusLabel[s] }])]} />
+        <FilterSelect label="กรองตามจังหวัด" caption="ทุกจังหวัด" all="all" value={provinceFilter} onChange={v => { setProvinceFilter(v); setPage(0); }}
+          options={จังหวัดในข้อมูล.map(p => ({ v: p, l: p }))} />
         {/* สลับมุมมอง ตาราง/บอร์ด — แบบเดียวกับหน้าลูกค้าเป้าหมาย */}
         <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", height: 30, boxSizing: "border-box", flexShrink: 0 }}>
           {([["table", LayoutList, "ตาราง"], ["board", Columns3, "บอร์ด"]] as const).map(([v, Ico, tip]) => (
@@ -898,9 +902,9 @@ export default function HQProspectsPage() {
         );
       })()}
       {มุมมอง === "board" && (
-        <StageBoard<DealerProspect, คอลัมน์ผู้สนใจ> ป้ายบอร์ด="บอร์ดผู้สนใจเป็นดีลเลอร์" columns={[...คอลัมน์บอร์ดผู้สนใจ]} items={filtered}
+        <StageBoard<DealerProspect, คอลัมน์ผู้สนใจ> ป้ายบอร์ด="บอร์ดผู้สนใจเป็นดีลเลอร์" columns={[...คอลัมน์บอร์ดผู้สนใจ]} items={บนบอร์ด}
           idOf={p => p.id} colOf={p => คอลัมน์ของผู้สนใจ(p, ย่อย.get(p.id))} onOpen={p => เปิดแผง(p)} ข้อความว่าง="ไม่มีผู้สนใจ"
-          ทางย้าย={p => จัดการได้ ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
+          ทางย้าย={p => จัดการได้ && p.status !== "won" ? ทางย้ายผู้สนใจ(p, ย่อย.get(p.id), ย่อยโหลดแล้ว) : []}
           onMove={วางในคอลัมน์}
           renderCard={p => (
             <div data-prospect-card={p.id}>
@@ -908,6 +912,12 @@ export default function HQProspectsPage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "6px 0", fontSize: "0.68rem", color: "#64748b" }}>
                 <span>{p.province || "—"}</span><span>·</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{p.phone ? formatPhone(p.phone) || p.phone : "—"}</span>
               </div>
+              {/* เป็นดีลเลอร์แล้ว (คอลัมน์ปิดแล้ว) → ลิงก์ไปแผงดีลเลอร์นั้น (คำตัดสิน 15 ก.ย. 69 · ข้อ 17 ตาราง FLOW · ตัวกลาง RecordLink กดแล้วไม่เปิดแผงการ์ด) */}
+              {p.dealerCode && (
+                <div data-prospect-dealer-link style={{ fontSize: "0.7rem", margin: "0 0 6px", color: "#64748b" }}>
+                  เป็นดีลเลอร์แล้ว: <DataLink เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</DataLink>
+                </div>
+              )}
               <span className="badge" data-prospect-stage={(p.status === "considering" ? ย่อย.get(p.id)?.key : undefined) ?? p.status}
                 style={{ background: prospectStatusColor[p.status].bg, color: prospectStatusColor[p.status].text }}>{ป้ายขั้น(p)}</span>
               <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, marginTop: 6 }}>ติดต่อล่าสุด {ติดต่อล่าสุดอ่านง่าย(p, APP_NOW_ISO)}</div>
@@ -992,7 +1002,7 @@ export default function HQProspectsPage() {
                     </td>
                     <td>
                       {p.dealerCode
-                        ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</ลิงก์ข้อมูล>
+                        ? <DataLink เป้า={{ ชนิด: "dealer", รหัส: p.dealerCode }} title={ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}>{ชื่อดีลเลอร์.get(p.dealerCode) ?? p.dealerCode}</DataLink>
                         : "—"}
                     </td>
                   </ClickableRow>
@@ -1039,7 +1049,7 @@ export default function HQProspectsPage() {
         const ป้าย: React.CSSProperties = { display: "flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "rgba(255,255,255,.18)", color: "#fff" };
         const อักษรย่อ = ราย.name.replace(/บจ\.|หจก\.|บริษัท|คุณ/g, "").trim().slice(0, 2) || "—";
         return (
-          // แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69) — หัวน้ำเงิน + แท็บของแผงนี้คงเดิม
+          // แผงจากแถว = กรอบกลาง RowPanelShell (กลางจอ กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69) — หัวน้ำเงิน + แท็บของแผงนี้คงเดิม
           <RowPanelShell label="ข้อมูลผู้สนใจ" onClose={ปิดแผง} zIndex={1050} asideAttrs={{ style: { background: "#fff" } }}>
               {/* หัวน้ำเงิน + ปุ่มลัด */}
               <div style={{ background: PRIMARY, padding: "14px 20px", flexShrink: 0 }}>

@@ -29,7 +29,7 @@ import {
   Eye, EyeOff, Pencil, Power, Clock, UserPlus, Phone, ImagePlus, Trash2, AlertTriangle, Mail, Building2, UserCheck, UserX, LogIn,
 } from "lucide-react";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 
 const PRIMARY = "#003366";
 const STEEL = "#2D2D2D";
@@ -47,7 +47,8 @@ const ชื่อบทบาท = "สำนักงานใหญ่";
 const สีบทบาท = "#003366";
 const แผนกHQ = ["บริหาร", "ฝ่ายขาย", "ไอทีและระบบ"] as const;
 export const เหตุปิดบัญชีสุดท้ายไม่ได้ = "บัญชีสำนักงานใหญ่คนสุดท้ายที่ใช้งาน — ปิดหรือลบไม่ได้ (เพิ่มบัญชีสำนักงานใหญ่คนใหม่ก่อน)";
-import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
+import { useReplaceCodesInLog } from "@pms/shared/lib/dealerDisplay";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 // ไม่มีฟิลด์ "เข้าใช้ล่าสุด" — ระบบไม่ได้บันทึกเวลาเข้าสู่ระบบจริง (เดิมเป็นข้อความ seed ตายตัวที่ไม่มีอะไรอัปเดต)
 type AppUser = {
@@ -104,7 +105,7 @@ function UserDialog({ initial, onSave, onClose, ปิดไม่ได้เ�
   // (เดิมเป็นช่องอิสระ เลือกบทบาทแล้วแผนกยังค้างเป็น "ยังไม่ระบุ" ได้ · บอสสั่งฟิก 3 ก.ย. 69)
   // ช่องบังคับ (4 พ.ย. 69 · ตัวกลาง): ชื่อ · อีเมล (บทบาทเดียว ไม่ต้องเลือก · ใบ 0282) — กดบันทึกแล้วขาด = กรอบแดง + ข้อความใต้ช่อง + เลื่อนไปช่องแรก
   //   (เดิมปุ่มบันทึกเป็นสีจางกดไม่ได้ ไม่บอกว่าขาดช่องไหน) · อีเมลผิดรูป = ข้อความใต้ช่องอีเมล
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const อีเมลถูกรูป = /\S+@\S+\.\S+/.test(f.email);
   const inp: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 9, border: `1px solid ${BORDER}`, fontSize: "0.84rem", color: STEEL, background: "#fff", outline: "none", boxSizing: "border-box" };
   const submit = () => {
@@ -372,7 +373,6 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>{label}{key && sort.key === key && <span style={{ fontSize: "0.7rem" }}>{sort.dir === "asc" ? "▲" : "▼"}</span>}</span>
     </SortableTh>
   );
-  const selCls: React.CSSProperties = { padding: "8px 10px", borderRadius: 9, border: `1px solid ${BORDER}`, fontSize: "0.78rem", color: STEEL, background: "#fff", outline: "none", cursor: "pointer" };
   const กดสถานะ = (s: UserStatus | "all") => { setStatusF(v => (v === s ? "all" : s)); setPage(1); };
 
   return (
@@ -404,7 +404,7 @@ export function UsersPanel({ embedded }: { embedded?: boolean } = {}) {
           <div style={{ display: "flex", alignItems: "center", gap: 7, border: `1px solid ${BORDER}`, borderRadius: 9, padding: "0 10px", height: 36, flex: "1 1 220px", minWidth: 180 }}>
             <Search size={14} color={MUTED} /><input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="ค้นหาชื่อ หรือ อีเมล…" style={{ border: "none", outline: "none", flex: 1, fontSize: "0.82rem", color: STEEL, background: "transparent" }} />
           </div>
-          <select aria-label="กรองตามแผนก" style={selCls} value={deptF} onChange={e => { setDeptF(e.target.value); setPage(1); }}><option value="all">ทุกแผนก</option>{แผนกที่มีจริง.map(d => <option key={d} value={d}>{d}</option>)}</select>
+          <FilterSelect label="กรองตามแผนก" caption="ทุกแผนก" all="all" value={deptF} onChange={v => { setDeptF(v); setPage(1); }} options={แผนกที่มีจริง.map(d => ({ v: d, l: d }))} />
           <div style={{ display: "flex", gap: 2, background: "#f1f5f9", borderRadius: 9, padding: 3 }}>
             {([["all", "ทั้งหมด"], ["active", "ใช้งาน"], ["inactive", "ปิด"]] as const).map(([v, l]) => (
               <button key={v} onClick={() => { setStatusF(v); setPage(1); }} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", fontSize: "0.76rem", fontWeight: 700, fontFamily: "inherit", background: statusF === v ? "#fff" : "transparent", color: statusF === v ? PRIMARY : MUTED, boxShadow: statusF === v ? "0 1px 3px rgba(16,40,80,.12)" : "none" }}>{l}</button>
@@ -651,7 +651,7 @@ function SetPasswordDialog({ user, onApply, onClose }: {
 // Timeline = บันทึกการใช้งานจริงของผู้ใช้คนนี้ (audit log) — เดิมเป็นวันที่ปลอมที่ hardcode ไว้
 // ระบบไม่ได้บันทึกการเข้าสู่ระบบ จึงไม่มีรายการ "เข้าสู่ระบบล่าสุด"
 function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: () => void; onEdit: () => void }) {
-  const แทนรหัส = useแทนรหัสในบันทึก();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
+  const แทนรหัส = useReplaceCodesInLog();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
   const auditEntries = useAuditEntries();
   const iconOf = (action: string) =>
     action.includes("รหัสผ่าน") ? { icon: <KeyRound size={13} />, color: "#d97706" }

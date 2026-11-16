@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { execFileSync, spawnSync } from "node:child_process";
+import { envตัวลูกแยกจากรอบ } from "../../scripts/lib/childEnv.mjs";
 
 const ราก = process.cwd();
 let ตก = 0;
@@ -25,12 +26,14 @@ const นำเข้า = async (p) => { try { return await import(pathToFileUR
   const ที่ = join(ราก, "node_modules/.cache", `flaky-ack-${process.pid}`);
   mkdirSync(ที่, { recursive: true });
   try {
-    writeFileSync(join(ที่, "pw.config.mjs"), `export default { testDir: ".", testMatch: /ปลอม\\.spec\\.mjs$/, retries: 1, workers: 1, reporter: [["line"], [${JSON.stringify(ตัวรายงาน)}]] };\n`);
+    writeFileSync(join(ที่, "pw.config.mjs"), `export default { testDir: ".", testMatch: /ปลอม\\.spec\\.mjs$/, retries: 1, workers: 1, outputDir: ${JSON.stringify(join(ที่, "out"))}, reporter: [["line"], [${JSON.stringify(ตัวรายงาน)}]] };\n`);
     writeFileSync(join(ที่, "ปลอม.spec.mjs"), `import { test, expect } from "@playwright/test";
 test("[ปลอม] ตกครั้งแรก ผ่านตอนรันซ้ำ", async ({}, info) => { expect(info.retry, "ตกครั้งแรก").toBe(1); });
 test("[ปลอม] ผ่านตั้งแต่ครั้งแรก", async () => { expect(1).toBe(1); });
 `);
-    const r = spawnSync("npx", ["playwright", "test", "-c", join(ที่, "pw.config.mjs")], { cwd: ราก, encoding: "utf8", shell: true, env: { ...process.env, PMS_GLOBAL_SETUP_SKIP: "1" } });
+    // playwright ซ้อนต้องไม่แตะของรอบตรวจเต็ม (รอบ deploy22 ครั้งที่ 4 ล้ม 16 พ.ย. 69): เดิม cwd = ราก + env ของรอบทั้งชุด
+    //   → ล้าง test-results ของรอบ (gate-logs หาย) · เขียนทับรายงาน JSON ของรอบ · ได้ token/รหัสฐานทดสอบ — ตอนนี้ cwd + outputDir อยู่ในโฟลเดอร์ชั่วคราว · env ตัดของรอบ
+    const r = spawnSync("npx", ["playwright", "test", "-c", join(ที่, "pw.config.mjs")], { cwd: ที่, encoding: "utf8", shell: true, env: envตัวลูกแยกจากรอบ(process.env, { PMS_GLOBAL_SETUP_SKIP: "1" }) });
     const ออก = `${r.stdout}\n${r.stderr}`;
     ผล(/1 flaky/.test(ออก), "playwright นับข้อปลอมเป็น flaky (จำลองถูก)", ออก);
     ผล(/ข้อทดสอบไม่นิ่ง 1 ข้อ/.test(ออก) && ออก.includes("ปลอม.spec.mjs") && ออก.includes("[ปลอม] ตกครั้งแรก ผ่านตอนรันซ้ำ"),

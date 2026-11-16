@@ -15,7 +15,10 @@ if (คำสั่ง === "acquire") {
   env.PMS_TESTDB_LOCK_HELD = ล็อก.token;
   process.stdout.write(JSON.stringify(env));
 } else if (คำสั่ง === "release") {
-  ปล่อยล็อกฐานทดสอบ(ค่า("--token"), ค่า("--key"));
+  // ผู้ขอปล่อย = ตัวแม่ของคำสั่งช่วย (ตัวที่ถือล็อก · acquire --pid) — ตัวลูกอื่นที่ได้ token ทาง env เรียกคำสั่งนี้ = ไม่ทำ (ตัวกัน 13 พ.ย. 69)
+  if (!ปล่อยล็อกฐานทดสอบ(ค่า("--token"), ค่า("--key"), { ผู้ขอปล่อย: process.ppid })) {
+    console.error("⚠️ ไม่ปล่อยล็อก — ผู้เรียกไม่ใช่เจ้าของล็อก หรือล็อกไม่อยู่แล้ว (จดในประวัติล็อก)");
+  }
 } else {
   console.error("ใช้: node scripts/testdb-lock-cli.mjs acquire --pid <pid> --job <งาน> [--wait <นาที>] | release --token <รหัส> --key <กุญแจ>");
   process.exit(2);

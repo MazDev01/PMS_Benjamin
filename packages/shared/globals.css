@@ -879,6 +879,8 @@ body {
 .table-compact th, .table-compact td { padding-left: 0.5rem; padding-right: 0.5rem; }
 .table-compact th:first-child, .table-compact td:first-child { padding-left: 0.9rem; }
 .table-compact th:last-child, .table-compact td:last-child { padding-right: 0.9rem; }
+/* แถวชิด — ลดระยะบน/ล่างของช่อง (ปกติ 0.72rem) · ตารางดีลเลอร์ HQ (บอสสั่ง 13 พ.ย. 69) · ใช้กับตารางอื่นได้ด้วย className="rows-tight" */
+.table-wrap table.rows-tight td { padding-top: 0.4rem; padding-bottom: 0.4rem; }
 .table-wrap tbody tr.clickable { cursor: pointer; }
 
 /* ── Table row entrance animation (opt-in via .anim-rows; runs when .in-view) ── */
@@ -1356,12 +1358,20 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 .drawer-overlay { animation: overlay-in .18s ease; }
 @media (prefers-reduced-motion: reduce) { .side-drawer, .drawer-overlay { animation: none; } }
 
-/* ── แผงเลื่อนขวาที่เปิดจากแถวตาราง (RowPanel · คนรวมงานสั่ง 10 พ.ย. 69) — กว้าง 640 ทุกแผง = แผงดีลเลอร์ HQ (บอสสั่ง 10 พ.ย. 69 · 820 กว้างไป) · ชิดขวา · จอแคบกว่า 1024 เต็มจอ ── */
-.row-panel { position: fixed; top: 12px; right: 12px; bottom: 12px; width: 640px; max-width: calc(100vw - 24px);
+/* ── หน้าต่างรายละเอียดที่เปิดจากแถวตาราง (RowPanel · ตัวกลางเดียวทุกหน้า HQ + ดีลเลอร์) — กว้าง 640 ทุกหน้าต่าง (บอสสั่ง 10 พ.ย. 69 · 820 กว้างไป)
+   12 พ.ย. 69 (บอสสั่ง · ทับคำตัดสิน 10 พ.ย. "ชิดขวา"): เปิดกลางจอ — ซ้าย = ขวา · บน/ล่างห่างขอบ 12 · พื้นหลังมืด กดพื้นหลัง/Esc ปิด
+   จอแคบกว่า 1024 เต็มจอเหมือนเดิม · ข้อทดสอบ tests/scenario/row-panel-width.spec.ts ── */
+.row-panel { position: fixed; top: 12px; bottom: 12px; left: 0; right: 0; margin: 0 auto; width: 640px; max-width: calc(100vw - 24px);
   background: #F8FAFC; box-shadow: 0 24px 70px rgba(0,0,0,.24); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+/* ข้อยกเว้นของกฎ 640 (บอสสั่ง 13 พ.ย. 69): แผงดีลเลอร์ HQ กว้าง 820 เท่าหน้าต่างใบเสนอราคา — เลือกที่ตัวกลาง RowPanel กว้าง="กว้าง" · หน้าอื่นคง 640 */
+.row-panel[data-row-panel-width="กว้าง"] { width: 820px; }
+/* เปิดกลางจอ = ค่อย ๆ ขึ้น (ไม่เลื่อนจากขวาแบบแผงข้างเดิม · .side-drawer ยังติดไว้ให้กฎ :has ของการ์ดทำงาน) */
+@keyframes row-panel-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+.side-drawer.row-panel { animation: row-panel-in .2s cubic-bezier(.4,0,.2,1); }
+@media (prefers-reduced-motion: reduce) { .side-drawer.row-panel { animation: none; } }
 .row-panel-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 @media (max-width: 1023.98px) {
-  .row-panel { top: 0; right: 0; bottom: 0; left: 0; width: 100%; max-width: none; border-radius: 0; }
+  .row-panel, .row-panel[data-row-panel-width="กว้าง"] { top: 0; right: 0; bottom: 0; left: 0; margin: 0; width: 100%; max-width: none; border-radius: 0; }
 }
 /* ชิ้นกลางเดิม (DetailPanel) เมื่ออยู่ในแผงจากแถว: แถวข้อมูล = หัวข้อซ้าย 140px ค่าชิดติดกัน
    การ์ดสรุป = กริด 6 ช่อง การ์ดกินช่องตาม data-span → เต็มแถวทุกแถวตามจำนวนใบ (บอสสั่ง 10 พ.ย. 69 · ช่วงการ์ดเต็มแถว) */
@@ -1508,6 +1518,8 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
    ⚠️ สไตล์ของ sonner ถูกฝังเป็น <style> ตอนรัน — CSP ของระบบเปิด style-src 'unsafe-inline' ไว้แล้ว
       (ดู securityHeaders.mjs) ถ้าวันหนึ่งปิด 'unsafe-inline' กล่องนี้จะหน้าตาพังบนเว็บจริงเท่านั้น */
 .pms-confirm-toast { width: min(420px, calc(100vw - 32px)); }
+/* ข้อความแจ้งผล (ไม่มีปุ่ม) กดทะลุได้ — ไม่บังปุ่มหัวหน้าต่างกลางจอที่อยู่ใต้มัน (13 พ.ย. 69) · กล่องยืนยันที่มีปุ่มยังกดได้ตามเดิม */
+.pms-notify-toast, .pms-notify-toast * { pointer-events: none !important; }
 
 .pms-confirm {
   background: #fff;

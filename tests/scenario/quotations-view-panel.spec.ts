@@ -4,7 +4,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { สร้างสาขาของชุด, ลบสาขาของชุด, type บัญชีสาขาของชุด } from "./ownBranch";
 import { DEALER_ORIGIN, loginUI, db } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง, ตัวเลือกของตัวกรอง, ช่องตัวกรอง } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── หน้าใบเสนอราคาดีลเลอร์: กดแล้วเปิดดูใบได้เลย (บอสสั่ง 28 ต.ค. 69) ─────────────────────────────────────────
@@ -98,7 +98,7 @@ test("[D6] [ui·dealer] ตาราง: ป้ายฉบับ V1/V2 ทุ�
   const วันที่ = await แถว.locator("[data-date-cell]").allTextContents();
   expect(วันที่.length, "แต่ละแถวมีวันที่สร้าง + หมดอายุ").toBe((await แถว.count()) * 2);
   for (const d of วันที่) expect(d, "วันที่ในตารางมีปี พ.ศ.").toMatch(/ 25\d\d$/);
-  const ตัวเลือก = await page.getByLabel("ทุกสถานะ").locator("option").allTextContents();
+  const ตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "ทุกสถานะ")).map(o => o.ข้อความ);   // ช่องตัวกรองเป็นตัวกลางทำเอง (บอสสั่ง 11 พ.ย. 69 แทน <select>)
   expect(ตัวเลือก, "ช่องกรองใช้คำเต็ม").toContain("ส่งให้ลูกค้าแล้ว");
   expect(ตัวเลือก).not.toContain("ส่งแล้ว");
 });
@@ -119,13 +119,13 @@ test("[D6] [ux·dealer] ปิดแผงแล้วอยู่ที่เ�
   await expect(ช่องค้นหา(page), "คำค้นยังอยู่").toHaveValue(ชุด);
 
   // ตัวกรองสถานะ + กด Esc ปิด
-  await page.getByLabel("ทุกสถานะ").selectOption({ label: "ส่งให้ลูกค้าแล้ว" });
+  await เลือกตัวกรอง(page, "ทุกสถานะ", "ส่งให้ลูกค้าแล้ว");   // ช่องตัวกรองเป็นตัวกลางทำเอง (บอสสั่ง 11 พ.ย. 69 แทน <select>)
   const แถวส่งแล้ว = page.locator("tbody tr").filter({ hasText: ชุด }).first();
   await expect(แถวส่งแล้ว).toBeVisible({ timeout: 15_000 });
   await แถวส่งแล้ว.locator("td").first().click();
   await expect(แผง).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press("Escape");
   await expect(แผง).toHaveCount(0);
-  await expect(page.getByLabel("ทุกสถานะ"), "ตัวกรองสถานะยังอยู่").toHaveValue("sent_to_client");
+  await expect(ช่องตัวกรอง(page, "ทุกสถานะ"), "ตัวกรองสถานะยังอยู่").toHaveAttribute("data-filter-value", "sent_to_client");
   await expect(ช่องค้นหา(page)).toHaveValue(ชุด);
 });

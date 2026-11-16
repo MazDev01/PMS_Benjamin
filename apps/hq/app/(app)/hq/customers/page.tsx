@@ -1,6 +1,6 @@
 "use client";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
@@ -34,7 +34,7 @@ import { useHQCustomersPage, useCustomerBuildings } from "@pms/shared/lib/useNet
 import { metrics as metricsRepo } from "@pms/shared/lib/data";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import type { HQCustomerPageRow } from "@pms/shared/lib/data/ports";
-import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, type ขอบเขต, ป้ายระดับของขอบ } from "../_drill/DrillEngine";
+import { DrillHeader, useDrill, ในขอบเขต, ขอบเขตทั้งเครือ, type ขอบเขต, ป้ายระดับของขอบ } from "../_drill/DrillEngine";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { CustomerTable } from "@pms/shared/components/hq/customers/CustomerTable";
@@ -58,7 +58,7 @@ export default function HQCustomersPage() {
   // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ?open=รหัสสาขา:เลขลูกค้า · ลิงก์กลางมาที่นี่ · ย้อนกลับ = เปิด/ปิดตามที่อยู่
   //   แถวจากลิงก์อาจไม่อยู่ในหน้าตารางที่เห็น → ดึงแถวสรุปของลูกค้ารายนั้นแยก (ลูกค้าของสาขานั้น)
   const [แถวจากลิงก์, setแถวจากลิงก์] = useState<NonNullable<ReturnType<typeof useHQCustomersPage>>["rows"][number] | null>(null);
-  useเปิดตามURL("/hq/customers", ค่า => {
+  useOpenFromUrl("/hq/customers", ค่า => {
     const k = ค่า ? ค่า.indexOf(":") : -1;
     const code = k > 0 ? ค่า!.slice(0, k) : null, id = k > 0 ? Number(ค่า!.slice(k + 1)) : NaN;
     if (!code || !Number.isFinite(id)) { setViewId(null); setViewCode(null); return; }
@@ -68,12 +68,12 @@ export default function HQCustomersPage() {
       .then(r => setแถวจากลิงก์(r.rows.find(x => x.id === id && x.dealerCode === code) ?? null))
       .catch(e => logRepoRead("metrics.hqCustomersPage(open)", e));
   });
-  useแผงในURL(viewId != null && viewCode ? `${viewCode}:${viewId}` : null);
+  usePanelInUrl(viewId != null && viewCode ? `${viewCode}:${viewId}` : null);
   // ช่วงวันที่มุมขวาบนแบบเดียวกับหน้า HQ อื่น (บอสสั่ง 30 ต.ค. 69 · แทนตัวกรอง "ทุกช่วงเวลาที่ซื้อ")
   //   ใช้กับการ์ด "ลูกค้าใหม่ในช่วงนี้" เท่านั้น — ตาราง/กราฟ/การ์ดลูกค้าทั้งหมด = ฐานข้อมูลทั้งชุด (ลูกค้าเก่าไม่หาย)
   const { timeRange } = useFilters();
   const ช่วง = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
-  const เจาะลึก = useเจาะลึก("customers", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
+  const เจาะลึก = useDrill("customers", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
   // รายชื่อด้านล่าง = ดีลเลอร์ในระดับที่เลือก (ทั้งเครือ = ไม่กรอง)
   const ชุดดีลเลอร์ = useMemo(() => ขอบ.ภาค || ขอบ.จังหวัด || ขอบ.ดีลเลอร์ ? ในขอบเขต(เจาะลึก?.dealers ?? [], ขอบ).map(r => r.code) : undefined, [เจาะลึก, ขอบ]);
 
@@ -179,7 +179,7 @@ export default function HQCustomersPage() {
       </TopbarActions>
 
       {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
-      <หัวเจาะลึก ตั้งค่า={ตั้งค่าลูกค้า} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปลูกค้าทั้งเครือ" />
+      <DrillHeader ตั้งค่า={ตั้งค่าลูกค้า} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปลูกค้าทั้งเครือ" />
 
       {/* รายชื่อลูกค้า — ดีลเลอร์ในระดับที่เลือก + คำค้น */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, margin: "16px 0", alignItems: "center", flexWrap: "nowrap", padding: "10px 14px" }}>

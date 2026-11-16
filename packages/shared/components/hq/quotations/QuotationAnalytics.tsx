@@ -9,22 +9,21 @@
 import { QuotationAgingChart } from "./QuotationAgingChart";
 import type { AgingBucket } from "@pms/shared/lib/hqQuotations";
 import { GroupedBarChart } from "@pms/shared/components/ui/Charts";
-import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+import { หัวกราฟรายเดือน } from "@pms/shared/components/ui/MonthRangeToggle";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import type { ReactNode } from "react";
 
-/** รายเดือน = ใบที่ส่ง/ตอบรับตามปุ่มช่วงเดือนของกราฟ (hq_drill · ใบ 0268) · null = ยังโหลดไม่เสร็จ → รอข้อมูล
- *  ⚠️ บอสสั่ง 11 พ.ย. 69: กราฟนี้มีปุ่มของตัวเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี (ค่าเริ่มต้น 1 ปี) เลิกเดินตามช่วงเวลาของหน้า
- *     (ทับคำตัดสินเดิม "รวมทุกเดือน = การ์ด") · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล */
-/** ระดับ = ป้ายระดับที่เลือก ("ทั้งเครือ" · "ภาคเหนือ" …) · ช่วง = ช่วงของปุ่มกราฟรายเดือน — ใช้ทำหัวข้อกราฟ (บอสสั่ง 3 พ.ย. 69) · ปุ่ม = MonthRangeToggle */
-export function QuotationAnalytics({ aging, รายเดือน, ระดับ, ช่วง, ปุ่ม }: { aging: { key: AgingBucket; count: number; value: number }[];
+/** รายเดือน = ใบที่ส่ง/ตอบรับทุกเดือนตามช่วงเวลาด้านบนของหน้า (hq_drill · ใบ 0268) · null = ยังโหลดไม่เสร็จ
+*  ⚠️ บอสสั่ง 13 พ.ย. 69 ทับ 11 พ.ย. "ปุ่มของกราฟเอง 3/6/9 เดือน/1 ปี": หน้านี้มีตัวเลือกช่วงด้านบน → ไม่ส่ง ปุ่ม · รวมทุกเดือน = การ์ด · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล */
+/** ระดับ = ป้ายระดับที่เลือก ("ทั้งเครือ" · "ภาคเหนือ" …) · ช่วง = ช่วงเวลาด้านบนของหน้า — ใช้ทำหัวข้อกราฟ (บอสสั่ง 3 พ.ย. 69) · ปุ่ม = MonthRangeToggle */
+export function QuotationAnalytics({ aging, รายเดือน, ระดับ, ปุ่ม }: { aging: { key: AgingBucket; count: number; value: number }[];
   รายเดือน: { months: string[]; sent: number[]; won: number[] } | null; ระดับ: string; ช่วง: { start: string; end: string }; ปุ่ม?: ReactNode }) {
   return (
     <div className="hq-quote-charts">
       <div className="card" data-chart="quote-monthly" data-waiting={รายเดือน ? undefined : "1"}
         data-sum-sent={รายเดือน ? รายเดือน.sent.reduce((a, b) => a + b, 0) : undefined} data-sum-won={รายเดือน ? รายเดือน.won.reduce((a, b) => a + b, 0) : undefined} style={{ marginBottom: 0 }}>
-        <BoxTitle ชื่อ={`กราฟใบเสนอราคารายเดือน: ใบที่ส่ง เทียบ ตอบรับ · ${ระดับ}`}
-          คำอธิบาย={คำอธิบายหัวข้อ(ช่วง, "ช่วงจากปุ่มของกราฟ (ไม่ขึ้นกับช่วงเวลาของหน้า)", "ใบที่ส่งนับตามวันที่ส่ง · ตอบรับนับตามวันลูกค้าตอบรับ")}>{ปุ่ม}</BoxTitle>
+        {/* หัวกราฟรายเดือนตัวกลาง: ไม่มีข้อความกำกับใต้ชื่อ · ไม่มีปุ่ม (ตามช่วงด้านบน · 13 พ.ย. 69) */}
+        <หัวกราฟรายเดือน ชื่อ={`กราฟใบเสนอราคารายเดือน: ใบที่ส่ง เทียบ ตอบรับ · ${ระดับ}`} ปุ่ม={ปุ่ม} />
         {รายเดือน ? (
           <div className="card-body" style={{ paddingTop: 6 }}>
             {/* แกนตั้งเลขกลม (จำนวนใบ) · ใบที่ส่งตามวันที่ส่ง · ตอบรับตามวันลูกค้าตอบรับ */}

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS } from "./funcHelpers";
-import { กดตกลงในกล่องยืนยัน } from "./helpers";
+import { กดตกลงในกล่องยืนยัน, เลือกตัวกรอง } from "./helpers";
 import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
 import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
@@ -68,9 +68,9 @@ test("[func·hq] หน้าใบค่าแฟรนไชส์: ตาร�
     await expect(page.getByRole("button", { name: ปุ่ม }), `หน้ารวมไม่มีปุ่ม ${ปุ่ม}`).toHaveCount(0);
   await expect(page.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }), "หน้ารวมไม่มีปุ่มออกใบ").toHaveCount(0);
 
-  await page.getByLabel("กรองตามสถานะใบ").selectOption("accepted");
+  await เลือกตัวกรอง(page, "กรองตามสถานะใบ", { ค่า: "accepted" });
   await expect(แถว, "กรอง “ตอบรับ” ต้องไม่เห็นใบที่ส่งแล้ว").toHaveCount(0);
-  await page.getByLabel("กรองตามสถานะใบ").selectOption("all");
+  await เลือกตัวกรอง(page, "กรองตามสถานะใบ", { ค่า: "all" });
   await expect(แถว).toBeVisible();
 
   // ปุ่มดู → แผงรายละเอียดกลางจอ · ข้อมูลครบ · ไม่มีปุ่มเปลี่ยนสถานะ

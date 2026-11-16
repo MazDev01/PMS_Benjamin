@@ -1,7 +1,7 @@
 "use client";
 
-// ── แผงเลื่อนขวาที่เปิดจากแถวตาราง — ตัวกลางเดียวทุกหน้า HQ + ดีลเลอร์ (คนรวมงานสั่ง + บอสตอบขอบเขต 10 พ.ย. 69 · แบบเดียวกับแผงดีลเลอร์ /hq/dealers) ──
-//   กว้างเท่ากันทุกแผง (ความกว้างแผงแถว) · ชิดขวาห่างขอบ 12 · จอแคบกว่า 1024 = เต็มจอ (.row-panel ใน globals.css)
+// ── หน้าต่างรายละเอียดที่เปิดจากแถวตาราง (เปิดกลางจอ · บอสสั่ง 12 พ.ย. 69 ทับ "ชิดขวา" 10 พ.ย.) — ตัวกลางเดียวทุกหน้า HQ + ดีลเลอร์ (คนรวมงานสั่ง + บอสตอบขอบเขต 10 พ.ย. 69 · แบบเดียวกับแผงดีลเลอร์ /hq/dealers) ──
+//   กว้างเท่ากันทุกแผง (ความกว้างแผงแถว) · กลางจอ บน/ล่างห่างขอบ 12 · พื้นหลังมืด กดพื้นหลัง/Esc ปิด · จอแคบกว่า 1024 = เต็มจอ (.row-panel ใน globals.css)
 //   หัวน้ำเงิน: ชื่อ + ป้าย + ข้อความรอง + ปุ่มหลัก · แท็บใต้หัว · เนื้อเลื่อนได้
 //   ชิ้นในเนื้อ: แผงสรุป (กริด 3 ช่อง) · ส่วน (การ์ดมีหัวข้อ) · แถวข้อมูล (หัวข้อซ้าย ค่าขวาชิดกัน ไม่กวาดข้ามจอ)
 //   ไม่ใช้กับ: หน้าต่างเจาะลึกจากการ์ด (DrillWindow) · หน้าต่างใบเสนอราคา / ใบค่าแฟรนไชส์ / ใบ HQ (หน้าต่างกลางจอตามที่บอสสั่ง)
@@ -14,13 +14,19 @@ const PRIMARY = "#003366";
 const MUTED = "#6b7280";
 /** ความกว้างแผงจากแถว (px) — ค่าเดียวทั้งระบบ (บอสสั่ง 10 พ.ย. 69: 640 = แผงดีลเลอร์ HQ ทุกแผง · เดิมเลือก 820 กว้างไป) */
 export const ความกว้างแผงแถว = 640;
+/** ข้อยกเว้นของกฎ 640 (บอสสั่ง 13 พ.ย. 69): แผงดีลเลอร์ HQ กว้าง 820 เท่าหน้าต่างใบเสนอราคา — หน้าอื่นคง 640
+ *  เลือกต่อหน้าผ่าน prop กว้าง="กว้าง" (ตัวกลาง · ไม่ใช่ CSS เฉพาะจุด) · CSS: .row-panel[data-row-panel-width="กว้าง"] ใน globals.css */
+export const ความกว้างแผงแถวกว้าง = 820;
+export type ขนาดแผงแถว = "ปกติ" | "กว้าง";
 
 export type แท็บแผงแถว = { key: string; label: ReactNode; count?: number | null };
 type ข้อมูลแอตทริบิวต์ = Record<`data-${string}`, string | number | undefined>;
 
 export function RowPanel({
-  label, title, titleAttrs, badges, subtitle, actions, tabs, tab, onTab, onClose, children, footer, asideAttrs, backdropAttrs, bodyAttrs, zIndex = 240, closeLabel = "ปิดแผง",
+  label, title, titleAttrs, badges, subtitle, actions, tabs, tab, onTab, onClose, children, footer, asideAttrs, backdropAttrs, bodyAttrs, zIndex = 240, closeLabel = "ปิดแผง", กว้าง = "ปกติ",
 }: {
+  /** ความกว้างหน้าต่าง: "ปกติ" 640 (ทุกหน้า) · "กว้าง" 820 (ข้อยกเว้น: แผงดีลเลอร์ HQ · 13 พ.ย. 69) */
+  กว้าง?: ขนาดแผงแถว;
   /** ชื่อที่โปรแกรมอ่านหน้าจออ่าน (aria-label ของแผง) */
   label: string;
   title: ReactNode;
@@ -46,7 +52,7 @@ export function RowPanel({
   closeLabel?: string;
 }) {
   return (
-    <RowPanelShell label={label} onClose={onClose} asideAttrs={asideAttrs} backdropAttrs={backdropAttrs} zIndex={zIndex}>
+    <RowPanelShell label={label} onClose={onClose} asideAttrs={asideAttrs} backdropAttrs={backdropAttrs} zIndex={zIndex} กว้าง={กว้าง}>
         <header style={{ background: "linear-gradient(135deg,#003366 0%,#00284F 60%,#001B36 100%)", padding: "16px 18px 14px", color: "#fff", flexShrink: 0 }}>
           <div data-panel-head style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -89,20 +95,22 @@ export function RowPanel({
   );
 }
 
-/** กรอบแผงจากแถว (ฉากหลัง + แผงชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · คีย์บอร์ด) — ทุกแผงจากแถวต้องอยู่ในกรอบนี้
+/** กรอบแผงจากแถว (ฉากหลังมืด + หน้าต่างกลางจอ กว้าง 640 · จอ < 1024 เต็มจอ · คีย์บอร์ด) — ทุกแผงจากแถวต้องอยู่ในกรอบนี้
  *  แผงที่มีหัว/แท็บของตัวเองซับซ้อน (แผงลูกค้าเป้าหมาย/ลูกค้าดีลเลอร์ · ผู้สนใจ HQ) ใช้กรอบนี้ตรง ๆ · แผงทั่วไปใช้ RowPanel (หัว+แท็บสำเร็จรูป) */
-export function RowPanelShell({ label, onClose, onEscape, children, asideAttrs, backdropAttrs, zIndex = 240, backdropClassName }: {
+export function RowPanelShell({ label, onClose, onEscape, children, asideAttrs, backdropAttrs, zIndex = 240, backdropClassName, กว้าง = "ปกติ" }: {
   label: string; onClose: () => void; children: ReactNode;
+  /** ความกว้างหน้าต่าง: "ปกติ" 640 · "กว้าง" 820 (ข้อยกเว้นของกฎ 640 · แผงดีลเลอร์ HQ · 13 พ.ย. 69) */
+  กว้าง?: ขนาดแผงแถว;
   /** Esc (ไม่ส่ง = ปิดแผง) — แผงที่มีกล่องซ้อนในตัวเองปิดกล่องก่อน */
   onEscape?: () => void;
   asideAttrs?: ข้อมูลแอตทริบิวต์ & HTMLAttributes<HTMLElement>; backdropAttrs?: ข้อมูลแอตทริบิวต์; zIndex?: number; backdropClassName?: string;
 }) {
-  const ref = useแผงบนสุด(onEscape ?? onClose);
+  const ref = useTopPanel(onEscape ?? onClose);
   return (
     <>
       <div onClick={onClose} data-row-panel-backdrop className={backdropClassName} {...backdropAttrs}
         style={{ position: "fixed", inset: 0, background: "rgba(45,45,45,.45)", zIndex }} />
-      <aside ref={ref} role="dialog" aria-modal="true" aria-label={label} data-row-panel {...asideAttrs} className={`side-drawer row-panel ${asideAttrs?.className ?? ""}`}
+      <aside ref={ref} role="dialog" aria-modal="true" aria-label={label} data-row-panel data-row-panel-width={กว้าง} {...asideAttrs} className={`side-drawer row-panel ${asideAttrs?.className ?? ""}`}
         onClick={e => e.stopPropagation()}
         style={{ zIndex: zIndex + 1, ...(asideAttrs?.style ?? {}) }}>
         {children}
@@ -113,7 +121,7 @@ export function RowPanelShell({ label, onClose, onEscape, children, asideAttrs, 
 
 /** คีย์บอร์ดของแผง: เปิดแล้วโฟกัสเข้าแผง · Esc ปิด · Tab วนในแผง · ปิดแล้วโฟกัสกลับที่เดิม
  *  ทำเฉพาะเมื่อแผงนี้อยู่บนสุด — แผงดีลเลอร์เปิดแผงใบ/ลูกค้าซ้อน: Esc/Tab เป็นของแผงบน (แผงล่างไม่แย่งโฟกัส ไม่ปิดตาม) */
-function useแผงบนสุด(onClose: () => void) {
+function useTopPanel(onClose: () => void) {
   const ref = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;

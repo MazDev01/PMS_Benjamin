@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { open, assertHealthyPage, ปุ่มดูใบตั้งต้นHQ } from "./helpers";
+import { open, assertHealthyPage, ปุ่มดูใบตั้งต้นHQ, ช่องตัวกรอง, เลือกตัวกรอง } from "./helpers";
 import { สร้างสาขาของข้อ } from "./ownDealer";
 import { รันSQLในฐาน } from "./localDb";
 
@@ -148,8 +148,8 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "ลิงก์ดีลเลอร์ = ระดับดีลเลอร์").toContainText(c, { timeout: 25_000 });
     const การ์ด = async (k: string) => Number(await page.locator(`[data-kpi-row] [data-kpi="${k}"] [data-value]`).first().getAttribute("data-value"));
     const แถว = page.locator('table[aria-label="รายการใบเสนอราคา"] tbody tr');
-    const สถานะ = page.getByLabel("กรองตามสถานะใบเสนอราคา");
-    await expect(สถานะ, "ค่าเริ่มต้น = ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)").toHaveValue("sent");
+    const ช่องสถานะ = "กรองตามสถานะใบเสนอราคา";   // ช่องตัวกรองตัวกลาง (FilterSelect)
+    await expect(ช่องตัวกรอง(page, ช่องสถานะ), "ค่าเริ่มต้น = ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)").toHaveAttribute("data-filter-value", "sent");
     await expect.poll(() => การ์ด("sent"), { message: "การ์ดส่งลูกค้าในช่วงนี้", timeout: 20_000 }).toBe(4);
     await expect(แถว, "ตารางค่าเริ่มต้น = การ์ด").toHaveCount(4, { timeout: 20_000 });
     await expect(page.locator(".erp").getByText(`Q-${c}-D1`), "ใบร่างไม่อยู่ในตารางค่าเริ่มต้น").toHaveCount(0);
@@ -158,22 +158,22 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect.poll(() => การ์ด("awaiting"), { message: "การ์ดรอลูกค้าตอบ" }).toBe(2);
     await expect.poll(async () => Number(await page.locator('[data-chart="aging"]').getAttribute("data-sum")), { message: "อายุใบรวม = การ์ดรอลูกค้าตอบ" }).toBe(2);
     // กราฟรายเดือน (ใบ 0268): ผลรวมใบที่ส่ง = การ์ดส่งลูกค้า · ผลรวมตอบรับ = จำนวนใบบนการ์ดตอบรับ
-    //   11 พ.ย. 69 กราฟมีปุ่มของตัวเอง (ค่าเริ่มต้น 1 ปี) ไม่เดินตามช่วงหน้า — ยังเท่าการ์ดเพราะใบของข้อส่ง/ตอบรับวันนี้ (W2 ส่ง 2 ปีก่อน = นอก 12 เดือน)
-    //   (ตรวจว่าไม่ขึ้นกับช่วงหน้า: tests/scenario/monthly-chart-ranges.spec.ts)
+    // 13 พ.ย. 69 กราฟรายเดือนเดินตามช่วงด้านบน ไม่มีปุ่ม (ทับ 11 พ.ย. ปุ่มของกราฟ) — ข้อมูลชุดเดียวกับการ์ด รวมกราฟ = การ์ด
+    //   (ตรวจกราฟตามช่วงด้านบน: tests/scenario/monthly-chart-ranges.spec.ts)
     const กราฟ = page.locator('[data-chart="quote-monthly"]');
     await expect.poll(async () => [await กราฟ.getAttribute("data-sum-sent"), await กราฟ.getAttribute("data-sum-won")], { message: "กราฟรายเดือนรวม = การ์ด (ส่ง 4 · ตอบรับ 2 (W2 ตามวันตอบรับ))", timeout: 20_000 })
       .toEqual(["4", "2"]);
     // เลือกสถานะเอง: ร่าง · ถูกแทนที่ · ทุกสถานะ
-    await สถานะ.selectOption("draft");
+    await เลือกตัวกรอง(page, ช่องสถานะ, { ค่า: "draft" });
     await expect(แถว, "เลือกร่าง = ใบร่าง 1 ใบ").toHaveCount(1);
     await expect(แถว.first().locator("[data-quote-status]")).toHaveText("ร่าง");
     await expect(แถว.first().locator('[data-col="sent-date"]'), "ใบร่างยังไม่ได้ส่ง = —").toHaveText("—");
-    await สถานะ.selectOption("superseded");
+    await เลือกตัวกรอง(page, ช่องสถานะ, { ค่า: "superseded" });
     await expect(แถว.first().locator("[data-quote-status]")).toHaveText("ถูกแทนที่");
-    await สถานะ.selectOption("all");
+    await เลือกตัวกรอง(page, ช่องสถานะ, { ค่า: "all" });
     await expect(แถว, "ทุกสถานะ = 6 ใบ").toHaveCount(6);
     // การ์ดตอบรับ: 2 ใบ (W1 · W2 ส่งนอกช่วงแต่ตอบรับในช่วง) มูลค่า 3,000 ตามวันลูกค้าตอบรับ
-    await สถานะ.selectOption("sent");
+    await เลือกตัวกรอง(page, ช่องสถานะ, { ค่า: "sent" });
     await expect(page.locator('[data-kpi-row] [data-kpi="won"]').first(), "การ์ดตอบรับ 2 ใบ").toContainText("2 ใบ");
     expect(await การ์ด("won"), "มูลค่าตอบรับ = 1,000 + 2,000").toBe(3000);
     // กลับด้าน (บอสสั่ง 2 พ.ย. 69 · เจาะลึก): กดการ์ด = แผงที่มา (ระดับดีลเลอร์ = รายเดือน) · ไม่มีแถวรวม (6 พ.ย. 69) ผลรวมแถว = การ์ด · รายการใบไม่ถูกกรองตามการ์ดแล้ว
@@ -184,7 +184,7 @@ test("[H10·hq] ตาราง/อายุใบ = การ์ด ทุก�
     await expect.poll(async () => (await แผง.locator("tbody [data-value]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
       { message: "แผงที่มา ผลรวมแถว = การ์ด 3000" }).toBe(3000);
     await แผง.getByRole("button", { name: "ปิดแผง" }).click();
-    await expect(สถานะ, "รายการยังเป็นค่าเริ่มต้น").toHaveValue("sent");
+    await expect(ช่องตัวกรอง(page, ช่องสถานะ), "รายการยังเป็นค่าเริ่มต้น").toHaveAttribute("data-filter-value", "sent");
     await expect(แถว).toHaveCount(4);
   } finally {
     รันSQLในฐาน(`set local session_replication_role = replica; delete from public.quotation_won_at where dealer_code = '${c}'; delete from public.quotations where dealer_code = '${c}'; delete from public.customers where dealer_code = '${c}'; set local session_replication_role = origin;`);

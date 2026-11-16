@@ -19,9 +19,9 @@ import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ActivityTimeline, type ActivityTimelineItem } from "@pms/shared/components/ui/ActivityTimeline";
-import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
+import { useReplaceCodesInLog } from "@pms/shared/lib/dealerDisplay";
 
 const ป้ายชนิด: Record<ProspectActivity["kind"], { type: string; label: string }> = {
   created:  { type: "note",   label: "เพิ่มรายชื่อ" },
@@ -50,7 +50,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
   onReload: () => void;
   onAdded: () => void;
 }) {
-  const แทนรหัส = useแทนรหัสในบันทึก();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
+  const แทนรหัส = useReplaceCodesInLog();   // รหัสดีลเลอร์ในข้อความบันทึก → ชื่อ ตอนแสดง (บอสตอบ 6 พ.ย. 69 · ฐานคงข้อความดิบ)
   const [channel, setChannel] = useState("");
   const [body, setBody] = useState("");
   const [nextFollowUp, setNextFollowUp] = useState("");
@@ -67,7 +67,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
   }, [formOpen, prospect.id]);
 
   // ช่องบังคับ: ช่องทาง · คุยอะไรไป (ฐานบังคับ · 4 พ.ย. 69 ตัวกลาง) — ขาด = กรอบแดง + ข้อความใต้ช่อง · ตัวตรวจเดิมยังตรวจความยาว/วันย้อนหลัง
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   async function บันทึก() {
     if (!บังคับ.ตรวจ(โหมดนัดคุย ? [
       { key: "channel", label: "ช่องทาง", value: channel, ข้อความ: "ต้องเลือกช่องทางที่ติดต่อ" },

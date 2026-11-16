@@ -31,7 +31,7 @@ export function FieldError({ children, id }: { children?: ReactNode; id?: string
 }
 
 type องค์ประกอบช่อง = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLElement;
-export function useช่องบังคับ() {
+export function useRequiredFields() {
   const [ผิด, setผิด] = useState<ผลตรวจช่อง>({});
   const ref = useRef(new Map<string, องค์ประกอบช่อง | null>());
   /** ตรวจทั้งชุด — ผ่าน = true · ขาด = แสดงกรอบแดง/ข้อความ + เลื่อนไปช่องแรกที่ขาด คืน false */

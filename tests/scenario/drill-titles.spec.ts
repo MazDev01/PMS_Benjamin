@@ -8,7 +8,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
 import { ชื่อหัวข้อ, ป้ายช่วง, type มิติ, type ระดับหัวข้อ } from "@pms/shared/lib/drillTitles";
@@ -25,6 +25,10 @@ test.afterAll(async () => { await สาขา?.ลบ(); });
 async function กล่องที่ไม่มีหัวข้อ(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const มีหัวข้อ = (el: Element | null) => {
+      // กราฟรายเดือน = หัวกราฟตัวกลาง ชื่ออย่างเดียว ไม่มีข้อความกำกับ (บอสสั่ง 12 พ.ย. 69 · ทับ "หัวข้อ 2 บรรทัด" เฉพาะกราฟรายเดือน
+      //   · ตรวจละเอียดที่ monthly-chart-ranges.spec.ts) — กราฟ/ตารางเจาะลึกอื่นยังต้องมีหัวข้อ 2 บรรทัด
+      const ด = el?.querySelector("[data-month-chart-head]");
+      if (ด) return !!ด.querySelector("[data-title]")?.textContent?.trim() && !ด.querySelector("[data-subtitle]");
       const h = el?.querySelector("[data-box-title]");
       return !!h && !!h.querySelector("[data-title]")?.textContent?.trim() && !!h.querySelector("[data-subtitle]")?.textContent?.trim();
     };
@@ -130,7 +134,7 @@ test("[ui·hq] /hq/pipeline: ทุกกราฟ/ตารางมีหั�
   }
   expect(แท็บที่ตรวจ, "ไม่มีแท็บมิติให้ตรวจหัวข้อเลย — ตก ไม่ใช่ผ่านเงียบ (บอสสั่ง 11 พ.ย. 69)").toBeGreaterThan(0);
   // ระดับดีลเลอร์ (ตัวเลือกดีลเลอร์บนแถบตัวกรอง) — หัวข้อเปลี่ยนเป็นรายเดือนของดีลเลอร์
-  await page.locator("[data-filter-row] select").first().selectOption(สาขา.รหัส);
+  await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: สาขา.รหัส });   // ช่องตัวกรองตัวกลาง (FilterSelect)
   await expect(ตาราง.locator("[data-title]").first()).toHaveText(`ตารางผลงานรายเดือน · ดีลเลอร์ ${ชื่อสาขา()}`, { timeout: 20_000 });
   await expect(page.locator("[data-testid='pipeline-funnel'] [data-title]")).toContainText(`ดีลเลอร์ ${ชื่อสาขา()}`);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
   expect(await กล่องที่ไม่มีหัวข้อ(page), "ระดับดีลเลอร์: ทุกกราฟ/ตารางยังมีหัวข้อ").toEqual([]);

@@ -13,7 +13,8 @@ import { hqAuditModule, HQ_AUDIT_MODULE_LABEL, hqAuditActionLabel } from "@pms/s
 import { APP_NOW, parseDate } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
-import { useแทนรหัสในบันทึก } from "@pms/shared/lib/dealerDisplay";
+import { useReplaceCodesInLog } from "@pms/shared/lib/dealerDisplay";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 // ⚠️ ห้ามกลับไปใช้ hqAuditCategory ของกระดิ่งแจ้งเตือน (บั๊กจริง 10 ส.ค. 69)
@@ -35,7 +36,7 @@ const ROLE_LABEL: Record<string, { label: string; bg: string; color: string }> =
 
 export default function HQAuditPage() {
   // รหัสดีลเลอร์ในรายละเอียด → ชื่อแสดง ตอนแสดงผลเท่านั้น (บอสตอบ 6 พ.ย. 69 · ฐาน/ไฟล์ส่งออก/คำค้นคงข้อความดิบ · เลขเอกสารไม่แปลง)
-  const แทนรหัส = useแทนรหัสในบันทึก();
+  const แทนรหัส = useReplaceCodesInLog();
   const entries = useAuditEntries();
   const [q, setQ] = useState("");
   const [userFilter, setUserFilter] = useState("all");
@@ -124,14 +125,10 @@ export default function HQAuditPage() {
           {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", display: "flex", padding: 0 }}><X size={13} /></button>}
         </div>
         <div style={{ flex: 1 }} />
-        <select aria-label="กรองตามเมนู" value={moduleFilter} onChange={e => { setModuleFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ทุกเมนู</option>
-          {modules.map(m => <option key={m} value={m}>{MODULE_LABEL[m] ?? m}</option>)}
-        </select>
-        <select aria-label="กรองตามผู้ใช้" value={userFilter} onChange={e => { setUserFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="all">ผู้ใช้ทุกคน</option>
-          {users.map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
+        <FilterSelect label="กรองตามเมนู" caption="ทุกเมนู" all="all" value={moduleFilter} onChange={v => { setModuleFilter(v); setPage(0); }}
+          options={modules.map(m => ({ v: m, l: MODULE_LABEL[m] ?? m }))} />
+        <FilterSelect label="กรองตามผู้ใช้" caption="ผู้ใช้ทุกคน" all="all" value={userFilter} onChange={v => { setUserFilter(v); setPage(0); }}
+          options={users.map(u => ({ v: u, l: u }))} />
       </div>
 
       {/* ชนเพดานอ่าน (M8) — แจ้งชัด ไม่ตัดเงียบ: กำลังดูเฉพาะล่าสุด N รายการ */}

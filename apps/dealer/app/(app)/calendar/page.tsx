@@ -15,7 +15,7 @@ import { useMyProvinces } from "@pms/shared/lib/useMyProvinces";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useSales } from "@pms/shared/context/SalesContext";
 import { PersonPicker } from "@pms/shared/components/ui/PersonPicker";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import { ChevronLeft, ChevronRight, Clock, MapPin, CalendarDays, CalendarCheck, Plus, X, User, Phone, Building2, GitBranch, Users, Edit2, Trash2, AlarmClock, CheckCircle2 } from "lucide-react";
 
 // ── Tokens (CI) ───────────────────────────────────────────────
@@ -547,7 +547,7 @@ function AddApptModal({ initial, defaultDate, onSave, onClose }: { initial?: App
   const [note, setNote] = useState(initial?.note ?? "");
   const savingRef = useRef(false); // กันกดปุ่มบันทึกซ้ำระหว่างรอเลขนัดจาก DB (H8 · guard แบบ synchronous)
   const [saving, setSaving] = useState(false); // ไว้ disable ปุ่มให้เห็น (visual)
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   // นัดเก่าที่ไม่ได้ผูกลีด (ก่อนบังคับผูก · ใบ 0274) แก้ได้โดยไม่ต้องผูก · นัดใหม่/นัดที่ผูกอยู่ ต้องมีลีด (คนรวมงานตัดสิน 4 พ.ย. 69)
   const ต้องผูกลีด = !initial || initial.leadId != null;
   const [err, setErr] = useState("");           // ช่องบังคับยังไม่ครบ — ต้องฟ้องให้เห็น ห้ามบันทึกเงียบ
@@ -803,7 +803,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [assigned, setAssigned] = useState(session.name);
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);

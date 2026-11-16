@@ -1,7 +1,7 @@
 ﻿"use client";
 
-import { ลิงก์ข้อมูล, เป้าลูกค้าของใบ } from "@pms/shared/components/ui/RecordLink";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { DataLink, เป้าลูกค้าของใบ } from "@pms/shared/components/ui/RecordLink";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { quoteExpiryISO, daysUntilISO } from "@pms/shared/lib/quoteExpiry";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -226,8 +226,8 @@ function QuotationsPageInner(){
   };
   const ลูกค้าของใบ = ใบที่ดู ? ลูกค้าจากใบ(ใบที่ดู) : undefined;
   // หน้าต่างใบอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดตามที่อยู่
-  useเปิดตามURL("/quotations", p => { if(!p){ setขอเปิด(null); setดูใบ(null); return; } setขอเปิด(p); });
-  useแผงในURL(ดูใบ);
+  useOpenFromUrl("/quotations", p => { if(!p){ setขอเปิด(null); setดูใบ(null); return; } setขอเปิด(p); });
+  usePanelInUrl(ดูใบ);
   useEffect(()=>{
     if(!ขอเปิด) return;
     const q=data.find(x=>x.id===ขอเปิด);
@@ -408,7 +408,7 @@ function QuotationsPageInner(){
                         </td>
                         <td>
                           {/* ลิงก์กลาง (บอสสั่ง 11 พ.ย. 69): ผูกลูกค้า = แผงลูกค้า · ยังเป็นลูกค้าเป้าหมาย = แผงลูกค้าเป้าหมาย · ไม่ผูก = ข้อความ */}
-                          <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL}}><ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล></span>
+                          <span style={{fontSize:"0.8rem",fontWeight:700,color:STEEL}}><DataLink เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</DataLink></span>
                         </td>
                         {!hiddenCols.includes("project")&&(
                         <td style={{fontSize:"0.78rem",color:STEEL,overflowWrap:"anywhere"}}>{q.project||"—"}</td>
@@ -495,7 +495,7 @@ function QuotationsPageInner(){
                     </div>
                     <div style={{padding:"12px 14px"}}>
                       <div style={{color:STEEL,fontSize:"0.92rem",fontWeight:800,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%"}}>
-                        <ลิงก์ข้อมูล เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</ลิงก์ข้อมูล>
+                        <DataLink เป้า={เป้าลูกค้าของใบ(q)}>{q.customer}</DataLink>
                       </div>
                       <div style={{fontSize:"0.72rem",color:MUTED,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project} · {q.province}</div>
                       <div style={{display:"flex",gap:0,borderRadius:9,overflow:"hidden",border:"1px solid #f0f4f8",marginBottom:10}}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { SortableTh } from "@pms/shared/components/ui/SortableTh";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -438,9 +438,9 @@ export default function FilesPage() {
                           <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
                             <span style={{ fontSize:"0.72rem", color:STEEL }}>{f.project}</span>
                             {f.customerId && (
-                              <span style={{ fontSize:"0.65rem", fontWeight:700 }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "customer", รหัส: f.customerId }}>
+                              <span style={{ fontSize:"0.65rem", fontWeight:700 }}><DataLink เป้า={{ ชนิด: "customer", รหัส: f.customerId }}>
                                 {customers.find(c=>c.id===f.customerId)?.company ?? `ลูกค้า #${f.customerId}`}
-                              </ลิงก์ข้อมูล></span>
+                              </DataLink></span>
                             )}
                           </div>
                         ) : (

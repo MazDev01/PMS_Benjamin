@@ -1,6 +1,6 @@
 "use client";
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { มูลค่าลีด, วันที่สร้างอ่านง่าย } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -13,13 +13,13 @@ import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/compo
 import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { useRouter } from "next/navigation";
-import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
+import { DrillHeader, useDrill, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
 import { ซ่อนตามระดับ } from "@pms/shared/lib/drillColumns";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
-import { รวมคีย์, เดือนในช่วง, ช่วงย้อนหลังเดือน } from "@pms/shared/lib/hqDrill";
-import { MonthRangeToggle, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
+import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
+import { หัวกราฟรายเดือน, ป้ายเดือนปี } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
   Users, AlarmClock, X, GitBranch, Eye,
   User, Phone, Mail, MapPin, Compass, Wallet, CalendarDays,
@@ -57,6 +57,7 @@ import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
 import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";
 
 // ── ตัวเลขและเบอร์โทรบนหน้าสำนักงานใหญ่ ต้องอ่านง่ายเหมือนฝั่งดีลเลอร์ (บอสสั่ง 21 ส.ค. 69) ──
 //   มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (บอสตัดสิน 20 ต.ค. 69 · ข้อ 5 · ใบ 0223) — ยังไม่มีใบ = "—"
@@ -114,7 +115,7 @@ export default function HQLeadsPage() {
   //   แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่ · ลิงก์กลางมาที่นี่
   const viewLeadRef = useRef(viewLead);
   viewLeadRef.current = viewLead;
-  useเปิดตามURL("/hq/leads", ค่า => {
+  useOpenFromUrl("/hq/leads", ค่า => {
     if (!ค่า) { setViewLead(null); return; }
     const k = ค่า.indexOf(":");
     const สาขา = ค่า.slice(0, k);
@@ -127,11 +128,11 @@ export default function HQLeadsPage() {
       .then(r => { const l = r.rows.find(x => (x.id === รหัส || String(x.numId) === รหัส) && dealerCodeOf(x) === สาขา); if (l) setViewLead(l); })
       .catch(e => logRepoRead("leads.listPage(open)", e));
   });
-  useแผงในURL(viewLead ? `${dealerCodeOf(viewLead)}:${viewLead.id}` : null);
+  usePanelInUrl(viewLead ? `${dealerCodeOf(viewLead)}:${viewLead.id}` : null);
   // ระดับที่เลือก (ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์) — ทุกการ์ด/กราฟ/รายชื่อคิดตามระดับนี้ (บอสสั่ง 2 พ.ย. 69)
   const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
   const ช่วงการ์ด = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
-  const เจาะลึก = useเจาะลึก("leads", ช่วงการ์ด.start, ช่วงการ์ด.end, isoDateOf(APP_NOW));
+  const เจาะลึก = useDrill("leads", ช่วงการ์ด.start, ช่วงการ์ด.end, isoDateOf(APP_NOW));
   // ?dealer=รหัส (ปุ่ม "ดูทั้งหมด" ลีดล่าสุดของดีลเลอร์ในภาพรวมยอดขาย · 30 ต.ค. 69) = เจาะลงดีลเลอร์นั้น (รอแถวรายดีลเลอร์โหลดก่อน) แล้วล้างออกจาก URL
   const [ดีลเลอร์จากลิงก์, setดีลเลอร์จากลิงก์] = useState<string | null>(null);
   useEffect(() => {
@@ -265,12 +266,9 @@ export default function HQLeadsPage() {
   // ปุ่ม "ล้างตัวกรอง" โผล่เมื่อมีตัวกรองทำงานอยู่จริงเท่านั้น — ไม่งั้นเป็นปุ่มที่กดแล้วไม่เกิดอะไร
   // ทุกช่องอยู่บรรทัดเดียว: แชร์ความกว้างเท่า ๆ กัน (flex:1) แล้วย่อได้เมื่อจอแคบ
   // ห้ามใช้ width:"auto" — select จะกว้างตามตัวเลือกที่ยาวที่สุด ("D-001 – ชื่อบริษัทเต็ม") แล้วดันจนตกบรรทัด
+  // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทน <select> · กางลงเสมอ · ค้นหาเมื่อเกิน 8)
   const leadSel = (v: string, on: (x: string) => void, caption: string, opts: { v: string; l: string }[]) => (
-    <select aria-label={caption} value={v} onChange={e => on(e.target.value)} className="form-input"
-      style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
-      <option value="ALL">{caption}</option>
-      {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-    </select>
+    <FilterSelect label={caption} caption={caption} all="ALL" value={v} onChange={on} options={opts} minWidth={96} maxWidth={180} style={{ flex: "1 1 0" }} />
   );
   const anyFilter = !!query.trim() || status !== "OPEN" || srcSel !== "ALL" || overdueOnly;
 
@@ -279,24 +277,19 @@ export default function HQLeadsPage() {
   const DEALER_NAME = useMemo(() => { const f = สร้างชื่อแสดง(allDealers); return new Map(allDealers.map(d => [d.code, f(d.code, d.name)])); }, [allDealers]);
 
 
-  // ── ลีดใหม่รายเดือน (แบบหน้า) — แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill) (เดิมรวม = การ์ดลีดใหม่ · ตอนนี้ช่วงจากปุ่มของกราฟ) ──
+  // ── ลีดใหม่รายเดือน (แบบหน้า) — แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill) (รวม = การ์ดลีดใหม่ · ช่วงตามตัวเลือกด้านบน 13 พ.ย. 69) ──
   //   ปิดสำเร็จ/ไม่สำเร็จ = ลีดที่เข้ามาในเดือนนั้นและปิดแล้ว (= ภาพรวมยอดขาย)
-  //   ⚠️ บอสสั่ง 11 พ.ย. 69 ทับคำตัดสินเดิม "กราฟเดินตามช่วงเวลาของหน้า" เฉพาะกราฟนี้: ปุ่มของกราฟเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี
-  //      (ค่าเริ่มต้น 1 ปี) · ข้อมูล 12 เดือนล่าสุดดึงจากฐาน (hq_drill อีกชุด ช่วง 12 เดือน) · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล
-  const วันนี้ISO = isoDateOf(APP_NOW);
-  const [ช่วงกราฟเดือน, setช่วงกราฟเดือน] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
-  const ช่วง12เดือน = useMemo(() => ช่วงย้อนหลังเดือน(12, วันนี้ISO), [วันนี้ISO]);
-  const ช่วงปุ่มเดือน = useMemo(() => ช่วงย้อนหลังเดือน(ช่วงกราฟเดือน, วันนี้ISO), [ช่วงกราฟเดือน, วันนี้ISO]);
-  const เจาะลึก12เดือน = useเจาะลึก("leads", ช่วง12เดือน.start, ช่วง12เดือน.end, วันนี้ISO);
+  //   ⚠️ บอสสั่ง 13 พ.ย. 69 ทับ 11 พ.ย. "ปุ่มของกราฟเอง 3/6/9 เดือน/1 ปี": หน้านี้มีตัวเลือกช่วงเวลาด้านบน → กราฟแสดงทุกเดือนตามช่วงด้านบน ไม่มีปุ่ม
+  //      ข้อมูล = แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill ช่วงของหน้า) · ช่วงสั้นกว่าเดือน = เดือนที่ช่วงแตะ · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล
   const trend = useMemo(() => {
-    const ช่อง = เดือนในช่วง(ช่วงปุ่มเดือน.start, ช่วงปุ่มเดือน.end);
+    const ช่อง = เดือนในช่วง(ช่วงการ์ด.start, ช่วงการ์ด.end);
     const months = ช่อง.map(c => ป้ายเดือนปี(c.y, c.m));
-    if (!เจาะลึก12เดือน) return { months, newM: ช่อง.map(() => 0), wonM: ช่อง.map(() => 0), lostM: ช่อง.map(() => 0), ready: false };
-    const codes = new Set(ในขอบเขต(เจาะลึก12เดือน.dealers, ขอบ).map(r => r.code));
-    const ms = เจาะลึก12เดือน.months.filter(m => codes.has(m.code));
+    if (!เจาะลึก) return { months, newM: ช่อง.map(() => 0), wonM: ช่อง.map(() => 0), lostM: ช่อง.map(() => 0), ready: false };
+    const codes = new Set(ในขอบเขต(เจาะลึก.dealers, ขอบ).map(r => r.code));
+    const ms = เจาะลึก.months.filter(m => codes.has(m.code));
     const ของ = (y: number, m: number, k: string) => รวมคีย์(ms.filter(x => x.y === y && x.m === m), k);
     return { months, newM: ช่อง.map(c => ของ(c.y, c.m, "leads")), wonM: ช่อง.map(c => ของ(c.y, c.m, "won")), lostM: ช่อง.map(c => ของ(c.y, c.m, "lost")), ready: true };
-  }, [เจาะลึก12เดือน, ขอบ, ช่วงปุ่มเดือน.start, ช่วงปุ่มเดือน.end]);
+  }, [เจาะลึก, ขอบ, ช่วงการ์ด.start, ช่วงการ์ด.end]);
 
   // ลูกค้าเป้าหมายตามแหล่งที่มา + ตามสถานะ (แท่งแนวนอน)
   const sources = useMemo(() => {
@@ -376,7 +369,7 @@ export default function HQLeadsPage() {
       <HqLeadTransferCard dealerName={c => allDealers.find(d => d.code === c)?.name ?? ""} />
 
       {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
-      <หัวเจาะลึก ตั้งค่า={ตั้งค่าลีด} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วงการ์ด} ชื่อแถวการ์ด="สรุปลูกค้าเป้าหมายทั้งเครือ" />
+      <DrillHeader ตั้งค่า={ตั้งค่าลีด} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วงการ์ด} ชื่อแถวการ์ด="สรุปลูกค้าเป้าหมายทั้งเครือ" />
       <div style={{ height: 16 }} />
 
       {/* ── เตือน: ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบเกิน 48 ชม. (กฎ HQ) ──
@@ -407,9 +400,8 @@ export default function HQLeadsPage() {
         {/* กราฟเส้นเป็น SVG ที่ย่อ/ขยายตามความกว้างการ์ด → ความสูงจริงไม่เท่า height ที่ส่งเข้าไป
             การ์ดถูกยืดให้สูงเท่าเพื่อนในแถว จึงเหลือที่ว่างท้ายการ์ด ~190px → จัดกึ่งกลางแนวตั้งแทน */}
         <div className="card" style={{ marginBottom: 0, display: "flex", flexDirection: "column" }}>
-          <BoxTitle ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`} คำอธิบาย={คำอธิบายหัวข้อ(ช่วงปุ่มเดือน, "ช่วงจากปุ่มของกราฟ (ไม่ขึ้นกับช่วงเวลาของหน้า)", "ปิดสำเร็จ/ไม่สำเร็จ = ลูกค้าเป้าหมายที่เข้ามาในเดือนนั้น")}>
-            <MonthRangeToggle value={ช่วงกราฟเดือน} onChange={setช่วงกราฟเดือน} label="ช่วงเวลากราฟลูกค้าเป้าหมายใหม่รายเดือน" />
-          </BoxTitle>
+          {/* หัวกราฟรายเดือนตัวกลาง: ไม่มีข้อความกำกับใต้ชื่อ · ปุ่มชิดขวาใต้ชื่อ (บอสสั่ง 12 พ.ย. 69) */}
+          <หัวกราฟรายเดือน ชื่อ={`กราฟลูกค้าเป้าหมายใหม่รายเดือน · ${ระดับ}`} />
           <div className="card-body" data-lead-monthly data-ready={trend.ready ? "1" : ""} data-sum-new={trend.newM.reduce((a, b) => a + b, 0)}
             data-sum-won={trend.wonM.reduce((a, b) => a + b, 0)} data-sum-lost={trend.lostM.reduce((a, b) => a + b, 0)}
             style={{ paddingTop: 4, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -532,13 +524,9 @@ export default function HQLeadsPage() {
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
           {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–4) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
-          <select aria-label={ช่อง.ขั้นตอน} value={status} onChange={e => setStatus(e.target.value)} className="form-input"
-            style={{ flex: "1 1 0", minWidth: 96, maxWidth: 180, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer", textOverflow: "ellipsis" }}>
-            <option value="OPEN">กำลังดำเนินการ</option>
-            <option value="6">{ชื่อขั้น(6)}</option>
-            <option value="7">{ชื่อขั้น(7)}</option>
-            <option value="ALL">ทั้งหมด</option>
-          </select>
+          {/* ค่าตั้งต้น (ตัวแรก) = กำลังดำเนินการ — ลำดับตัวเลือกเดิม */}
+          <FilterSelect label={ช่อง.ขั้นตอน} caption="กำลังดำเนินการ" all="OPEN" value={status} onChange={setStatus}
+            options={[{ v: "6", l: ชื่อขั้น(6) }, { v: "7", l: ชื่อขั้น(7) }, { v: "ALL", l: "ทั้งหมด" }]} minWidth={96} maxWidth={180} style={{ flex: "1 1 0" }} />
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.74rem", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
             <input type="checkbox" checked={overdueOnly} onChange={e => { setOverdueOnly(e.target.checked); if (e.target.checked) setStatus("OPEN"); }} />
             ไม่เคลื่อนไหวเกิน 30 วัน
@@ -600,7 +588,7 @@ export default function HQLeadsPage() {
                     </td>
                     {/* ดีลเลอร์เจ้าของลีด (ลีดทั้งเครือ) — ชื่ออย่างเดียว (บอสสั่ง 6 พ.ย. 69 · ไม่มีรหัส) */}
                     {!ซ่อนรายชื่อ.ดีลเลอร์ && <td data-cell="dealer" title={DEALER_NAME.get(l.dealerCode ?? "") ?? l.dealerCode ?? "—"} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {l.dealerCode ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</ลิงก์ข้อมูล> : "—"}
+                      {l.dealerCode ? <DataLink เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</DataLink> : "—"}
                     </td>}
                     {!ซ่อนรายชื่อ.จังหวัด && <td data-cell="province" style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>}
                     <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source || undefined}>{l.source || "—"}</td>
@@ -662,7 +650,7 @@ export default function HQLeadsPage() {
               <ป้ายหัวแผง bg={c.bg} color={c.text} attrs={{ "data-stage-label": "" }}>{ชื่อขั้น(เลขขั้นแถว(l))}</ป้ายหัวแผง>
               <ป้ายหัวแผง>{มูลค่าอ่านง่าย(มูลค่าลีด(l))}</ป้ายหัวแผง>
             </>}
-            subtitle={<>{l.id} · {l.contact || "—"} · {l.dealerCode ? <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</ลิงก์ข้อมูล> : "—"}</>}
+            subtitle={<>{l.id} · {l.contact || "—"} · {l.dealerCode ? <DataLink พื้นเข้ม เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</DataLink> : "—"}</>}
             tabs={[
               { key: "overview", label: "ภาพรวม" },
               { key: "activity", label: "กิจกรรม", count: l.activities?.length ?? 0 },
@@ -705,7 +693,7 @@ export default function HQLeadsPage() {
                 </PanelSection>
 
                 <PanelSection icon={Store} title="ข้อมูลดีลเลอร์">
-                  <PanelRow icon={Store} label="ดีลเลอร์" value={l.dealerCode ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</ลิงก์ข้อมูล> : undefined} />
+                  <PanelRow icon={Store} label="ดีลเลอร์" value={l.dealerCode ? <DataLink เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</DataLink> : undefined} />
                   <PanelRow icon={UserCheck} label="ผู้รับผิดชอบ" value={l.assigned} />
                 </PanelSection>
 

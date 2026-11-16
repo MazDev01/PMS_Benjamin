@@ -13,40 +13,8 @@ const MUTED = "#6B7280";
 const BORDER = "#E5E7EB";
 const STEEL = "#374151";
 
-export type FilterOption = { v: string; l: string };
-
-/** dropdown ตัวกรองหนึ่งตัว — ค่าว่าง (all) แสดง caption เช่น "ทุกสถานะ" */
-export function FilterSelect({
-  value, onChange, caption, options, all = "ALL", minWidth = 112, maxWidth, label,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  caption: string;
-  options: FilterOption[];
-  all?: string;
-  /** ชื่อช่องสำหรับโปรแกรมอ่านหน้าจอ — ไม่ใส่ = ใช้ caption
-   *  ใส่เมื่อ caption ("ทุกโฟลเดอร์") ไปชนกับชื่อช่องในฟอร์มของหน้าเดียวกัน ("โฟลเดอร์")
-   *  จนแยกไม่ออกว่ากำลังพูดถึงตัวกรองหรือช่องกรอก (เจอจริงที่หน้าไฟล์ 1 ก.ย. 69) */
-  label?: string;
-  minWidth?: number;
-  /** จำกัดความกว้างเมื่อค่าที่เลือกเป็นข้อความยาว (เช่น ชื่อบริษัท) — กันแถบตกบรรทัด */
-  maxWidth?: number;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      aria-label={label ?? caption}
-      className="form-input"
-      // กระชับ (padding 8 · font 0.72) — หน้าลูกค้าเป้าหมายมีตัวกรอง 6 ตัว + ค้นหา + ปุ่มมุมมอง
-      // ถ้าใหญ่กว่านี้จะตกบรรทัดที่จอ 1440
-      style={{ width: "auto", minWidth, maxWidth, padding: "7px 8px", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer" }}
-    >
-      <option value={all}>{caption}</option>
-      {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-    </select>
-  );
-}
+// ช่องเลือกตัวกรอง = ตัวกลางทำเอง (บอสสั่ง 11 พ.ย. 69 · เดิม <select> ของเบราว์เซอร์อยู่ในไฟล์นี้) — ค่าเข้า-ออกเดิม
+export { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";
 
 export function FilterRow({
   query, onQuery, placeholder, children, onClear, showClear, note, right, style,

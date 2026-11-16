@@ -1,5 +1,5 @@
 "use client";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 
 import { useCallback, useEffect, useState } from "react";
@@ -8,7 +8,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { DealerEditModal, type DealerEdit } from "@pms/shared/components/hq/DealerEditModal";
 import { DealerPanel } from "./DealerPanel";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
-import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
+import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { dealerStatusLabel, dealerStatusColor, type DealerRow, type DealerStatus } from "@pms/shared/lib/mock";
 import { useRepoState } from "@pms/shared/lib/useRepoState";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
@@ -27,6 +27,7 @@ import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { AccountRequestsCard } from "@pms/shared/components/hq/AccountRequestsCard";
 import { TerritoryUnmatchedCard } from "@pms/shared/components/hq/TerritoryUnmatchedCard";
 import { ชื่อภาค, ภาคมาตรฐาน, REGIONS, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 // เวลาที่เพิ่มดีลเลอร์ (ms) — ไม่มีค่า (ข้อมูลตัวอย่างเดิม) = 0 ไปอยู่ท้าย
 const เวลาเพิ่ม = (d: DealerRow) => { const t = d.createdAt ? Date.parse(d.createdAt) : NaN; return Number.isFinite(t) ? t : 0; };
@@ -138,8 +139,8 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
   useEffect(() => {
     if (เปิดรหัส && window.location.pathname !== "/hq/dealers") router.replace(`/hq/dealers?open=${encodeURIComponent(เปิดรหัส)}`, { scroll: false });
   }, [เปิดรหัส, router]);
-  useเปิดตามURL("/hq/dealers", p => setแผง(p ? p.toUpperCase() : null));
-  useแผงในURL(เปิดรหัส ? null : แผง);
+  useOpenFromUrl("/hq/dealers", p => setแผง(p ? p.toUpperCase() : null));
+  usePanelInUrl(เปิดรหัส ? null : แผง);
   const ปิดแผง = useCallback(() => { setแผง(null); }, []);
   // แก้ไข / ปิด-เปิดใช้งาน (ย้ายจากหน้ารายละเอียดเดิม · บอสตัดสิน 19 ต.ค. 69) — ใช้ทั้งปุ่มท้ายแถวและหัวแผง
   const [แก้, setแก้] = useState<DealerRow | null>(null);
@@ -262,14 +263,11 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
         </div>
         <div style={{ flex: 1 }} />
         {/* ตัวเลือกแรกคือทั้งหมด — สร้างจากรายการ ["ทั้งหมด", ...REGIONS] */}
-        <select aria-label="กรองตามภูมิภาค" value={regionFilter} onChange={e => { setRegionFilter(e.target.value); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          <option value="ทั้งหมด">{ป้ายทุกภูมิภาค}</option>
-          {REGIONS.map(r => <option key={r} value={r}>{ชื่อภาค(r)}</option>)}
-        </select>
+        <FilterSelect label="กรองตามภูมิภาค" caption={ป้ายทุกภูมิภาค} all="ทั้งหมด" value={regionFilter} onChange={v => { setRegionFilter(v); setPage(0); }}
+          options={REGIONS.map(r => ({ v: r, l: ชื่อภาค(r) }))} />
         {/* ตัวเลือกแรกคือทั้งหมด — สร้างจากรายการเช่นเดียวกับตัวกรองภูมิภาค */}
-        <select aria-label="กรองตามสถานะดีลเลอร์" value={statusFilter} onChange={e => { setStatusFilter(e.target.value as DealerStatus | "all"); setPage(0); }} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-          {STATUS_PILLS.map(p => <option key={p.value} value={p.value}>{p.value === "all" ? "ทุกสถานะ" : p.label}</option>)}
-        </select>
+        <FilterSelect label="กรองตามสถานะดีลเลอร์" caption="ทุกสถานะ" all="all" value={statusFilter} onChange={v => { setStatusFilter(v as DealerStatus | "all"); setPage(0); }}
+          options={STATUS_PILLS.filter(p => p.value !== "all").map(p => ({ v: p.value, l: p.label }))} />
         {/* สลับการ์ด/ตาราง — ขนาดหน้าต่างกัน (12 / 10) จึงกลับหน้า 1 ทุกครั้งที่สลับ */}
         <div role="group" aria-label="รูปแบบการแสดง" style={{ display: "flex", gap: 4 }}>
           {([["card", LayoutGrid, "แสดงแบบการ์ด"], ["table", List, "แสดงแบบตาราง"]] as const).map(([ค่า, Icon, ป้าย]) => (
@@ -347,7 +345,7 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
       {มุมมอง === "table" && (
       <div className="card">
         <div className="table-wrap">
-          <table>
+          <table className="rows-tight" data-dealers-table>
             {/* เพิ่มคอลัมน์ "จังหวัด" → เกลี่ย % ใหม่ทั้งชุด (รวมต้องได้ 100)
                 เดิมมีแค่คอลัมน์ "จังหวัด"/ปุ่ม ที่ตั้ง minWidth ไว้ — คอลัมน์อื่นเป็น % ล้วน
                 พอจอแคบ (768px) จึงบีบสัดส่วนจนตัวอักษรเหลือตัวเดียว+จุดไข่ปลา แทนที่จะดัน .table-wrap ให้ scroll
@@ -371,33 +369,34 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
                   (minWidth ของ <col> ไม่มีผลใน table-layout: fixed) → คอลัมน์ที่ห้ามตัดกว้างตายตัว · ชื่อดีลเลอร์ไม่กำหนด = รับที่เหลือ (ยาวตัดด้วย … + title)
                   ตายตัวรวม 88+92+140+190+112+284 = 906px · จอ 1440 (ตาราง ~1,128px) ชื่อได้ ~220px */}
               {/* ล็อกความกว้าง 10 พ.ย. 69 (บอสสั่ง): % ของตาราง รวม 100 · ไม่ขึ้นกับข้อมูล · คิดจากจอ 1366 (ตาราง ≈ 1,042px) */}
-              <col style={{ width: "8.5%" }} />{/* ลำดับ — เลข 3 หลัก + หัว "ลำดับ" ห้ามตัด (88px ที่ 1366) */}
-              <col style={{ width: "9%" }} />{/* รหัส 5 ตัว (ZZWWW) ห้ามตัด */}
-              <col style={{ width: "12%" }} />{/* ดีลเลอร์ — ยาวตัดด้วย … ชี้แล้วเห็นเต็ม */}
-              <col style={{ width: "13.5%" }} />{/* จังหวัด — "กรุงเทพมหานคร" ห้ามตัด */}
-              <col style={{ width: "18.5%" }} />{/* ภูมิภาค — "ภาคตะวันออกเฉียงเหนือ" ในป้าย ห้ามตัด */}
-              <col style={{ width: "11%" }} />{/* สถานะ — "เปิดใช้งาน"/"ปิดใช้งาน" ห้ามตัด */}
-              <col style={{ width: "27.5%" }} />{/* ปุ่มท้ายแถว (284px ที่ 1366) */}
+              {/* 13 พ.ย. 69 (บอสสั่ง): เอาคอลัมน์ลำดับออก · ชื่อดีลเลอร์เต็มไม่ตัด (รับที่เหลือทั้งหมด ยาวเกินขึ้นบรรทัดใหม่ ไม่มี …)
+                  · ภูมิภาคกว้างพอดีป้ายยาวสุด "ภาคตะวันออกเฉียงเหนือ" (px ตายตัว — % ทำให้จอกว้างมีที่ว่างเกินป้าย) · แถวชิด (rows-tight)
+                  คอลัมน์อื่นล็อก % เดิม · % + px ที่จอ 1366 (ตาราง ≈ 1,042px): 8 + 13 + 10.5 + 27 = 58.5% (610px) + 172px = 782px → ชื่อได้ ≈ 260px */}
+              <col style={{ width: "8%" }} />{/* รหัส 5 ตัว (ZZWWW) ห้ามตัด */}
+              <col />{/* ดีลเลอร์ — รับที่เหลือ · เต็มไม่ตัด (บอสสั่ง 13 พ.ย. 69 · ทับ 10 พ.ย. "ตัดด้วย …") */}
+              <col style={{ width: "13%" }} />{/* จังหวัด — "กรุงเทพมหานคร" ห้ามตัด */}
+              <col style={{ width: 172 }} />{/* ภูมิภาค — พอดีป้าย "ภาคตะวันออกเฉียงเหนือ" + ระยะขอบช่อง */}
+              <col style={{ width: "10.5%" }} />{/* สถานะ — "เปิดใช้งาน"/"ปิดใช้งาน" ห้ามตัด */}
+              <col style={{ width: "27%" }} />{/* ปุ่มท้ายแถว (281px ที่ 1366) */}
             </colgroup>
             <thead>
               <tr>
                 {/* ⚠️ คอลัมน์ปุ่มตรึงไว้ขวาสุด (sticky) — จอแคบตารางเลื่อนแนวนอนได้ ปุ่มยังอยู่ให้กด (บอสทัก 26 ส.ค. 69) */}
-                {["ลำดับ", "รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""].map((h, i, arr) => (
+                {["รหัส", "ดีลเลอร์", "จังหวัด", "ภูมิภาค", "สถานะ", ""].map((h, i, arr) => (
                   <th key={i} style={i === arr.length - 1 ? ตรึงคอลัมน์ปุ่ม(true) : undefined} aria-label={h || "ปุ่ม"}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={7} className="empty-row">{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
-              ) : pageSlice(filtered, Math.min(page, pageCountOf(filtered.length) - 1)).map((d, i) => (
+                <tr><td colSpan={6} className="empty-row">{dealersLoaded ? "ไม่พบข้อมูล" : "กำลังโหลดข้อมูล…"}</td></tr>
+              ) : pageSlice(filtered, Math.min(page, pageCountOf(filtered.length) - 1)).map(d => (
                 <ClickableRow key={d.id} className="clickable" style={{ opacity: dealerStatus(d) === "active" ? 1 : 0.55 }}
                   onActivate={() => setแผง(d.code)} label={`เปิดแผงดีลเลอร์ ${d.name}`}>
-                  <td style={{ fontSize: "0.72rem", color: "#6b7280", fontWeight: 600 }}>{Math.min(page, pageCountOf(filtered.length) - 1) * ROWS_PER_PAGE + i + 1}</td>
                   <td data-col="code" style={{ overflow: "visible", textOverflow: "clip" }}>
                     <span style={{ fontWeight: 800, color: "#003366", fontSize: "0.8rem", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{d.code}</span>
                   </td>
-                  <td data-col="name" title={d.name}>
+                  <td data-col="name" className="wrap" title={d.name} style={{ overflow: "visible", overflowWrap: "anywhere" }}>
                     <span style={{ fontSize: "0.86rem", fontWeight: 700, color: "#2D2D2D" }}>{d.name}</span>
                   </td>
                   <td data-col="province" style={{ fontSize: "0.82rem", color: "#374151" }} title={d.province}>{d.province || "—"}</td>

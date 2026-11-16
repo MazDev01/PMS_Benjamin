@@ -133,8 +133,12 @@ test("[func] ทะเบียนพนักงานขายจาก DB →
     await settle(page);   // รอหน้าพร้อมรับการกดก่อน (ไม่นิ่ง: กดก่อนหน้าพร้อม การกดหาย ฟอร์มไม่เปิด)
     await page.getByRole("button", { name: "เพิ่มลูกค้าเป้าหมาย" }).first().click();
 
-    await expect.poll(async () => page.evaluate(() => document.body.innerText),
-      { timeout: 20_000, message: "ชื่อพนักงานจากทะเบียนต้องโผล่ในฟอร์มลูกค้าเป้าหมาย" }).toContain(PERSON);
+    // ช่องผู้รับผิดชอบในฟอร์ม (PersonPicker) วาดรายชื่อตอนเปิด — เปิดก่อนอ่าน · ตรวจในช่องของฟอร์มเอง (เดิมอ่านทั้งหน้า ชื่อมาจาก <select> ตัวกรองของตาราง
+    //   ซึ่ง e12e3378 เปลี่ยนเป็นช่องเลือกที่วาดตัวเลือกตอนเปิด · รอบ deploy22 ครั้งที่ 5 ตก 16 พ.ย. 69)
+    const ปุ่มดูแล = page.getByRole("button", { name: "เลือกผู้รับผิดชอบ", exact: true });
+    const ช่องดูแล = page.locator('[data-form-pair="การดูแล"]').filter({ has: ปุ่มดูแล });   // กล่อง "การดูแล" มี 2 กล่อง (ช่องทาง · ผู้รับผิดชอบ)
+    await ปุ่มดูแล.click();
+    await expect(ช่องดูแล, "ชื่อพนักงานจากทะเบียนต้องโผล่ในช่องผู้รับผิดชอบของฟอร์มลูกค้าเป้าหมาย").toContainText(PERSON, { timeout: 20_000 });
 
     assertNoErrors(errs, "ทะเบียนพนักงาน");
   } finally {

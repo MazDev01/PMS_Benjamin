@@ -1,6 +1,6 @@
 "use client";
 import { quotations as quotationsRepoOpen } from "@pms/shared/lib/data";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
@@ -29,11 +29,11 @@ import {
 
 const QPAGE_SIZE = 10;
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-import { หัวเจาะลึก, useเจาะลึก, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
+import { DrillHeader, useDrill, ในขอบเขต, ขอบเขตทั้งเครือ, ขอบเขตของดีลเลอร์, ป้ายระดับของขอบ, type ขอบเขต } from "../_drill/DrillEngine";
 import { คำอธิบายหัวข้อ } from "@pms/shared/lib/drillTitles";
 import { ตั้งค่าเจาะลึกทั้งหมด } from "@pms/shared/lib/hqDrillConfig";
-import { รวมคีย์, เดือนในช่วง, ช่วงย้อนหลังเดือน } from "@pms/shared/lib/hqDrill";
-import { MonthRangeToggle, MONTH_RANGE_DEFAULT, ป้ายเดือนปี, type MonthRange } from "@pms/shared/components/ui/MonthRangeToggle";
+import { รวมคีย์, เดือนในช่วง } from "@pms/shared/lib/hqDrill";
+import { ป้ายเดือนปี } from "@pms/shared/components/ui/MonthRangeToggle";
 
 // ── เจาะลึกแบบเดียวกับภาพรวมยอดขาย (บอสสั่ง 2 พ.ย. 69 · ใบ 0271) — การ์ด/คอลัมน์จากตั้งค่ากลาง (แหล่งเดียวกับข้อทดสอบ) ──
 const ตั้งค่าใบ = ตั้งค่าเจาะลึกทั้งหมด.quotations;
@@ -52,20 +52,20 @@ export default function NetworkQuotationPage() {
   const [filters, setFilters] = useState<QuotationFilters>(EMPTY_FILTERS);
   const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
   const ช่วง = useMemo(() => ({ start: isoDateOf(timeRange.start), end: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]);
-  const เจาะลึก = useเจาะลึก("quotations", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
+  const เจาะลึก = useDrill("quotations", ช่วง.start, ช่วง.end, isoDateOf(APP_NOW));
   const [viewQ, setViewQ] = useState<QuoteRow | null>(null);
   // หน้าต่างใบอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ?open=เลขที่ใบ · ลิงก์กลางมาที่นี่ · ย้อนกลับ = เปิด/ปิดตามที่อยู่
   //   ใบจากลิงก์อาจไม่อยู่ในหน้าตารางที่เห็น → ค้นใบนั้นที่ฐานด้วยเลขที่ใบ (ตรงตัว)
   const viewQRef = useRef(viewQ);
   viewQRef.current = viewQ;
-  useเปิดตามURL("/hq/quotations", ค่า => {
+  useOpenFromUrl("/hq/quotations", ค่า => {
     if (!ค่า) { setViewQ(null); return; }
     if (viewQRef.current?.id === ค่า) return;
     quotationsRepoOpen.listPage(undefined, { limit: 20, offset: 0, search: ค่า })
       .then(r => { const q = r.rows.find(x => x.id === ค่า); if (q) setViewQ(toQuoteRows([mapToHQ(q)], validityDays, look)[0] ?? null); })
       .catch(e => logRepoRead("quotations.listPage(open)", e));
   });
-  useแผงในURL(viewQ ? viewQ.id : null);
+  usePanelInUrl(viewQ ? viewQ.id : null);
 
   // อายุใบเสนอราคา = นโยบาย HQ — อ่านผ่าน repo (เดิมอ่าน localStorage ตรง ๆ
   // โหมด supabase เลยได้ค่า default 30 วันเสมอ ไม่ใช่ค่าจริงที่ HQ ตั้งไว้ → วันหมดอายุบนหน้าเพี้ยน)
@@ -141,21 +141,16 @@ export default function NetworkQuotationPage() {
   // กราฟ = ระดับที่เลือกเท่านั้น (ไม่ขึ้นกับคำค้น/สถานะของรายการ) → รวมกราฟ = การ์ด
   //   อายุใบที่รอลูกค้าตอบ = ณ ตอนนี้ (รวม = การ์ดรอลูกค้าตอบ) · รายเดือน = แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill)
   const nowSummary = useHQQuotationsSummary({ dealerCodes: resolvedDealerCodes, asOf: isoDateOf(APP_NOW) });
-  //   ⚠️ บอสสั่ง 11 พ.ย. 69 ทับคำตัดสินเดิม "กราฟรายเดือนเดินตามช่วงเวลาของหน้า" เฉพาะกราฟนี้: ปุ่มของกราฟเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี
-  //      (ค่าเริ่มต้น 1 ปี) · ข้อมูล 12 เดือนล่าสุดดึงจากฐาน (hq_drill อีกชุด ช่วง 12 เดือน) · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล
-  const วันนี้ISO = isoDateOf(APP_NOW);
-  const [ช่วงกราฟเดือน, setช่วงกราฟเดือน] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
-  const ช่วง12เดือน = useMemo(() => ช่วงย้อนหลังเดือน(12, วันนี้ISO), [วันนี้ISO]);
-  const ช่วงปุ่มเดือน = useMemo(() => ช่วงย้อนหลังเดือน(ช่วงกราฟเดือน, วันนี้ISO), [ช่วงกราฟเดือน, วันนี้ISO]);
-  const เจาะลึก12เดือน = useเจาะลึก("quotations", ช่วง12เดือน.start, ช่วง12เดือน.end, วันนี้ISO);
+  //   ⚠️ บอสสั่ง 13 พ.ย. 69 ทับ 11 พ.ย. "ปุ่มของกราฟเอง 3/6/9 เดือน/1 ปี": หน้านี้มีตัวเลือกช่วงเวลาด้านบน → กราฟแสดงทุกเดือนตามช่วงด้านบน ไม่มีปุ่ม
+  //      ข้อมูล = แถวรายดีลเลอร์รายเดือนชุดเดียวกับการ์ด (hq_drill ช่วงของหน้า) · ช่วงสั้นกว่าเดือน = เดือนที่ช่วงแตะ · ระดับ ภาค/จังหวัด/ดีลเลอร์ ยังมีผล
   const รายเดือน = useMemo(() => {
-    if (!เจาะลึก12เดือน) return null;
-    const codes = new Set(ในขอบเขต(เจาะลึก12เดือน.dealers, ขอบ).map(r => r.code));
-    const ms = เจาะลึก12เดือน.months.filter(m => codes.has(m.code));
-    const ช่อง = เดือนในช่วง(ช่วงปุ่มเดือน.start, ช่วงปุ่มเดือน.end);
+    if (!เจาะลึก) return null;
+    const codes = new Set(ในขอบเขต(เจาะลึก.dealers, ขอบ).map(r => r.code));
+    const ms = เจาะลึก.months.filter(m => codes.has(m.code));
+    const ช่อง = เดือนในช่วง(ช่วง.start, ช่วง.end);
     const ของ = (y: number, m: number, k: string) => รวมคีย์(ms.filter(x => x.y === y && x.m === m), k);
     return { months: ช่อง.map(c => ป้ายเดือนปี(c.y, c.m)), sent: ช่อง.map(c => ของ(c.y, c.m, "sent")), won: ช่อง.map(c => ของ(c.y, c.m, "won")) };
-  }, [เจาะลึก12เดือน, ขอบ, ช่วงปุ่มเดือน.start, ช่วงปุ่มเดือน.end]);
+  }, [เจาะลึก, ขอบ, ช่วง.start, ช่วง.end]);
 
   const aging = useMemo(() => {
     if (nowSummary) return nowSummary.aging.map(a => ({ key: a.bucket as AgingBucket, count: a.count, value: a.value }));
@@ -242,10 +237,9 @@ export default function NetworkQuotationPage() {
       </TopbarActions>
 
       {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
-      <หัวเจาะลึก ตั้งค่า={ตั้งค่าใบ} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปใบเสนอราคาทั้งเครือ" />
+      <DrillHeader ตั้งค่า={ตั้งค่าใบ} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วง} ชื่อแถวการ์ด="สรุปใบเสนอราคาทั้งเครือ" />
 
-      <div style={{ marginTop: 16 }}><QuotationAnalytics aging={aging} รายเดือน={รายเดือน} ระดับ={ป้ายระดับที่เลือก} ช่วง={ช่วงปุ่มเดือน}
-        ปุ่ม={<MonthRangeToggle value={ช่วงกราฟเดือน} onChange={setช่วงกราฟเดือน} label="ช่วงเวลากราฟใบที่ส่งเทียบตอบรับ" />} /></div>
+      <div style={{ marginTop: 16 }}><QuotationAnalytics aging={aging} รายเดือน={รายเดือน} ระดับ={ป้ายระดับที่เลือก} ช่วง={ช่วง} /></div>
 
       <QuotationFilterBar filters={filters} onChange={setFilters} />
 

@@ -15,8 +15,8 @@
 //   ข้อมูล: ฐานส่งทุกแถวครั้งเดียว (hq_quote_board "all" · ค้นหาที่ฐาน) — ตัวกรองสถานะ/ดีลเลอร์ + ตัวนับตัวเลือกคิดจากชุดเดียวกับตาราง (กติกากลุ่มเดียวกับฐาน)
 // คงจากเดิม: ไม่มีปุ่ม "รับเรื่อง" (บันทึกร่าง = รับเรื่อง) · ร่างที่พิมพ์ค้างไม่หาย ปิดหน้าต่างแล้วเปิดใหม่ยังอยู่ · ออกจากหน้าขณะมีร่างค้าง = เตือน
 //   ระหว่างบันทึก/ส่งใบ ปิดหน้าต่างไม่ได้ · มาจากกระดิ่ง ?open=เลขคำขอ = เปิดคำขอนั้น · ?overdue=1 = เฉพาะเกินกำหนด
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
-import { useเปิดตามURL, useแผงในURL } from "@pms/shared/lib/panelUrl";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, ClipboardList, AlarmClock, Timer, Ban, Paperclip, Eye, FilePen, History } from "lucide-react";
 import { quoteRequests as repo, metrics as metricsRepo, quoteFiles } from "@pms/shared/lib/data";
@@ -33,8 +33,9 @@ import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/compo
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { HqQuoteEditor, type ร่างใบHQ } from "@pms/shared/components/hq/HqQuoteEditor";
-import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 import { ความกว้างคอลัมน์ชื่อ } from "@pms/shared/lib/tableFit";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366", STEEL = "#2D2D2D", MUTED = "#6b7280", BORDER = "#e5e7eb", แดง = "#b91c1c";
 const ร้อยละ = (v: number) => `${v.toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
@@ -52,7 +53,7 @@ const บรรทัดสถานะ = (r: QuoteBoardRow): string => {
 };
 
 export default function HQQuoteRequestsPage() {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   // มุมมอง (บอสสั่ง 9 พ.ย. 69): ตารางหลัก = ต้องตีราคา · ประวัติ = ส่งแล้ว/ปิด/ยกเลิก
   const [มุมมอง, setมุมมอง] = useState<"main" | "history">("main");
   const [เฉพาะเกิน, setเฉพาะเกิน] = useState(false);
@@ -97,7 +98,7 @@ export default function HQQuoteRequestsPage() {
   เปิดรหัสRef.current = เปิดรหัส;
   //   ?open=เลขใบ HQ (ลิงก์จากหน้าต่างใบเสนอราคา · ไม่ใช่ตัวเลขล้วน) = หาคำขอของใบนั้นเมื่อแถวโหลดแล้ว (ด้านล่าง)
   const [ขอเปิดเลขใบ, setขอเปิดเลขใบ] = useState<string | null>(null);
-  useเปิดตามURL("/hq/quote-requests", ค่า => {
+  useOpenFromUrl("/hq/quote-requests", ค่า => {
     if (ล็อก.current) return;
     if (ค่า && !/^\d+$/.test(ค่า)) { setขอเปิดเลขใบ(ค่า); return; }
     const id = Number(ค่า) || null;
@@ -105,7 +106,7 @@ export default function HQQuoteRequestsPage() {
     if (id != null) { setพิมพ์(""); setดีลเลอร์(""); setเฉพาะเกิน(false); setสถานะ("all"); }
     setเปิดรหัส(id);
   });
-  useแผงในURL(เปิดรหัส == null ? null : String(เปิดรหัส));
+  usePanelInUrl(เปิดรหัส == null ? null : String(เปิดรหัส));
   useEffect(() => { เปิดจากลิงก์(window.location.search); }, [เปิดจากลิงก์]);
   useEffect(() => {
     const on = (e: Event) => {
@@ -235,18 +236,14 @@ export default function HQQuoteRequestsPage() {
             <AlarmClock size={13} /> เฉพาะเกินกำหนด{กล่อง ? ` (${นับเกิน.toLocaleString()})` : ""}
           </button>
         ) : (
-          <select aria-label="กรองตามสถานะคำขอ" value={สถานะ} onChange={e => setสถานะ(e.target.value as ตัวกรองประวัติ)} className="form-select" style={{ width: "auto", cursor: "pointer" }}>
-            <option value="all" data-count={กล่อง ? นับตัวเลือก("all") : ""}>ทุกสถานะ{กล่อง ? ` (${นับตัวเลือก("all").toLocaleString()})` : ""}</option>
-            {ตัวเลือกสถานะประวัติ.filter(o => o.key !== "all").map(o => {
+          <FilterSelect label="กรองตามสถานะคำขอ" caption={`ทุกสถานะ${กล่อง ? ` (${นับตัวเลือก("all").toLocaleString()})` : ""}`} all="all" captionN={กล่อง ? นับตัวเลือก("all") : undefined} value={สถานะ} onChange={v => setสถานะ(v as ตัวกรองประวัติ)}
+            options={ตัวเลือกสถานะประวัติ.filter(o => o.key !== "all").map(o => {
               const n = กล่อง ? นับตัวเลือก(o.key) : null;
-              return <option key={o.key} value={o.key} data-count={n ?? ""}>{o.label}{n == null ? "" : ` (${n.toLocaleString()})`}</option>;
-            })}
-          </select>
+              return { v: o.key, l: `${o.label}${n == null ? "" : ` (${n.toLocaleString()})`}`, n: n ?? undefined };
+            })} />
         )}
-        <select aria-label="กรองตามดีลเลอร์" value={ดีลเลอร์} onChange={e => setดีลเลอร์(e.target.value)} className="form-select" style={{ width: "auto", maxWidth: 260, cursor: "pointer" }}>
-          <option value="">ทุกดีลเลอร์</option>
-          {ตัวเลือกดีลเลอร์.map(([code, ชื่อ]) => <option key={code} value={code}>{ชื่อ}</option>)}
-        </select>
+        <FilterSelect label="กรองตามดีลเลอร์" caption="ทุกดีลเลอร์" all="" value={ดีลเลอร์} onChange={setดีลเลอร์}
+          options={ตัวเลือกดีลเลอร์.map(([code, ชื่อ]) => ({ v: code, l: ชื่อ }))} />
       </div>
 
       <div className="card">
@@ -287,9 +284,9 @@ export default function HQQuoteRequestsPage() {
                   <ClickableRow key={`${r.dealerCode}-${r.id}`} className="clickable" onActivate={() => เปิดแถว(r)} label={`${r.requestNo} ${r.leadCompany}`}
                     style={{ background: เปิดรหัส === r.id ? "#f0f6ff" : เกิน ? "#fff7f7" : undefined }}>
                     <td style={{ fontWeight: 800, color: PRIMARY, fontFamily: "monospace", ...ตัดบรรทัด }}>{r.requestNo}</td>
-                    <td title={ชื่อของ(r.dealerCode, r.dealerName)} style={{ fontWeight: 600, color: STEEL, ...ตัดบรรทัด }}><ลิงก์ข้อมูล เป้า={{ ชนิด: "dealer", รหัส: r.dealerCode }}>{ชื่อของ(r.dealerCode, r.dealerName)}</ลิงก์ข้อมูล></td>
+                    <td title={ชื่อของ(r.dealerCode, r.dealerName)} style={{ fontWeight: 600, color: STEEL, ...ตัดบรรทัด }}><DataLink เป้า={{ ชนิด: "dealer", รหัส: r.dealerCode }}>{ชื่อของ(r.dealerCode, r.dealerName)}</DataLink></td>
                     <td title={`${r.leadCompany || "—"} · ${งาน}`} style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, color: STEEL, ...ตัดบรรทัด }}>{r.leadCompany ? <ลิงก์ข้อมูล เป้า={{ ชนิด: "lead", รหัส: r.leadNumId, สาขา: r.dealerCode }}>{r.leadCompany}</ลิงก์ข้อมูล> : "—"}</div>
+                      <div style={{ fontWeight: 700, color: STEEL, ...ตัดบรรทัด }}>{r.leadCompany ? <DataLink เป้า={{ ชนิด: "lead", รหัส: r.leadNumId, สาขา: r.dealerCode }}>{r.leadCompany}</DataLink> : "—"}</div>
                       <div data-row-sub style={{ color: MUTED, fontWeight: 500, ...ตัดบรรทัด }}>{งาน}</div>
                       {f && f.dealer + f.hq > 0 && (
                         <div data-testid="row-files" data-dealer-files={f.dealer} data-hq-files={f.hq} data-row-sub

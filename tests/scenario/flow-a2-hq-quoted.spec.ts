@@ -3,7 +3,7 @@ import { skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, ช่องตัวกรอง, เลือกตัวกรอง } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { ล้างใบHQทดสอบ } from "./legacyQuotes";
@@ -76,15 +76,15 @@ test("[D4] [H9] [ก2·1] HQ ส่งใบ → ฐานเป็น \"ได�
 
   // ตัวกรอง
   // ตัวกรองขั้นตอนเป็นกลุ่ม (บอสสั่ง 28 ต.ค. 69): กำลังดำเนินการ (ค่าเริ่มต้น ขั้น 1–5) · ปิดสำเร็จ · ปิดไม่สำเร็จ · ทั้งหมด
-  const ตัวกรอง = page.getByRole("combobox", { name: "ขั้นตอน", exact: true });
+  await expect(ช่องตัวกรอง(page, "ขั้นตอน")).toBeVisible();   // ช่องตัวกรองตัวกลาง (FilterSelect)
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill("ZZTEST-");
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "กำลังดำเนินการ: เห็นลีดขั้น 2 (รอราคา)").toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "กำลังดำเนินการ: เห็นลีดขั้น 3 (ได้ใบ HQ)").toHaveCount(1);
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }).getByText("ขอราคา HQ", { exact: true }), "ลีดที่ยังรอ = ป้ายขั้น 2 ขอราคา HQ").toBeVisible();
-  await ตัวกรอง.selectOption({ label: "ปิดไม่สำเร็จ" });
+  await เลือกตัวกรอง(page, "ขั้นตอน", "ปิดไม่สำเร็จ");
   await expect(page.locator("tbody tr").filter({ hasText: รอราคา }), "ปิดไม่สำเร็จ: ไม่เห็นลีดที่ยังเปิด").toHaveCount(0, { timeout: 15_000 });
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "ปิดไม่สำเร็จ: ไม่เห็นลีดที่ยังเปิด").toHaveCount(0);
-  await ตัวกรอง.selectOption({ label: "ทั้งหมด" });
+  await เลือกตัวกรอง(page, "ขั้นตอน", "ทั้งหมด");
   await expect(page.locator("tbody tr").filter({ hasText: ได้ราคา }), "ทั้งหมด: เห็นอีกครั้ง").toHaveCount(1, { timeout: 15_000 });
 
   // ตัวเลขแดชบอร์ด (โดนัทขั้นตอนการขาย) = นับจากฐาน = ค่าที่รู้ (สาขาของชุด: ข้ออื่นไม่แตะ)

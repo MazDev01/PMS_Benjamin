@@ -14,13 +14,13 @@ import { สร้างชื่อแสดง, แทนรหัสด้ว
 export { สร้างชื่อแสดง };
 
 /** ชื่อแสดงของดีลเลอร์ (โหลดทะเบียนดีลเลอร์ครั้งเดียวต่อหน้า) — ใช้ทุกหน้าฝั่ง HQ ที่แสดงดีลเลอร์ */
-export function useชื่อดีลเลอร์(): (code: string | null | undefined, สำรอง?: string | null) => string {
+export function useDealerNames(): (code: string | null | undefined, สำรอง?: string | null) => string {
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   return useMemo(() => สร้างชื่อแสดง(dealers), [dealers]);
 }
 
 /** แปลงรหัสดีลเลอร์ในข้อความบันทึกเป็นชื่อแสดง ตอนแสดงผล (กิจกรรมล่าสุด · /hq/audit · บอสตอบ 6 พ.ย. 69) — ข้อมูลในฐาน/ไฟล์ส่งออกคงข้อความดิบ */
-export function useแทนรหัสในบันทึก(): (ข้อความ: string) => string {
+export function useReplaceCodesInLog(): (ข้อความ: string) => string {
   const dealers = useRepoValue<DealerRow[]>(() => dealersRepo.list(), []);
   return useMemo(() => {
     const ชื่อของ = สร้างชื่อแสดง(dealers);

@@ -108,6 +108,42 @@ test("[ui·hq] หน้าต่างกลางจอ HQ: เอกสาร
   await วัด(page, page.locator("[data-drill-window]").first(), "หน้าต่างเจาะลึก", false);
 });
 
+// ── แผงดีลเลอร์ HQ กว้าง 820 เท่าหน้าต่างใบเสนอราคา (บอสสั่ง 13 พ.ย. 69 · ข้อยกเว้นของกฎ 640 · หน้าอื่นคง 640: row-panel-width.spec.ts) ──
+//   ทุกแท็บ: ไม่มีแถบเลื่อนแนวนอน · หัวตารางบรรทัดเดียว · ตกบนโค้ดเดิม: แผงดีลเลอร์กว้าง 640
+test("[ui·hq] แผงดีลเลอร์ HQ กว้าง 820 กลางจอ · ทุกแท็บไม่มีแถบเลื่อนแนวนอน · หัวตารางบรรทัดเดียว", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
+  const ชื่อRYG = ((await (await db(ADMIN)).from("dealers").select("name").eq("code", "RYG").single()).data as { name: string }).name;
+  for (const จอ of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }]) {
+    await page.setViewportSize(จอ);
+    await page.goto(`${HQ_ORIGIN}/hq/dealers?view=table`, { waitUntil: "domcontentloaded" }); await settle(page);
+    await page.getByPlaceholder(/ค้นหาดีลเลอร์/).fill("RYG");
+    await page.getByRole("row", { name: `เปิดแผงดีลเลอร์ ${ชื่อRYG}`, exact: true }).click({ timeout: 25_000 });
+    const แผง = page.locator("[data-dealer-panel='RYG']");
+    await วัด(page, แผง, `แผงดีลเลอร์ @${จอ.width}`, true);
+    const แท็บ = await แผง.locator("[data-panel-tab]").evaluateAll(els => els.map(e => e.getAttribute("data-panel-tab") ?? ""));
+    expect(แท็บ.length, "แผงดีลเลอร์มีแท็บ").toBeGreaterThan(1);
+    for (const k of แท็บ) {
+      await แผง.locator(`[data-panel-tab='${k}']`).click();
+      await expect(แผง.locator(`[data-panel-tab='${k}']`)).toHaveAttribute("aria-selected", "true");
+      await settle(page);
+      await วัด(page, แผง, `แผงดีลเลอร์ แท็บ ${k} @${จอ.width}`, true);
+      // หัวตาราง: ข้อความทุกช่องอยู่บรรทัดเดียว (กรอบข้อความในช่องอยู่แถวเดียว)
+      const หัวหลายบรรทัด = await แผง.locator("table thead th").evaluateAll(ths => ths.filter(th => {
+        const r = document.createRange(); r.selectNodeContents(th);
+        // ความสูงรวมของข้อความ > 2.2 เท่าขนาดตัวอักษร = ตกบรรทัด (ไอคอนเรียงที่สูงต่างกันเล็กน้อยไม่นับ)
+        const กรอบ = [...r.getClientRects()].filter(x => x.width > 0);
+        if (!กรอบ.length) return false;
+        const สูง = Math.max(...กรอบ.map(x => x.bottom)) - Math.min(...กรอบ.map(x => x.top));
+        return สูง > parseFloat(getComputedStyle(th).fontSize) * 2.2;
+      }).map(th => (th.textContent ?? "").trim()));
+      expect(หัวหลายบรรทัด, `แผงดีลเลอร์ แท็บ ${k} @${จอ.width}: หัวตารางบรรทัดเดียว`).toEqual([]);
+    }
+    await page.keyboard.press("Escape");
+    await expect(แผง).toHaveCount(0);
+  }
+});
+
 test("[ui·dealer] หน้าต่างกลางจอดีลเลอร์: ใบเสนอราคา + งานในแผงลูกค้า = 820", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);

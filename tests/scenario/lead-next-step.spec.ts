@@ -1,7 +1,7 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เลือกตัวกรอง } from "./helpers";
 import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, ข้อมูลงานครบชุด } from "./hqQuoteFixture";
 import { รันSQLในฐาน } from "./localDb";
 import { adminClient } from "./testDealers";
@@ -29,7 +29,7 @@ async function เปิดแผง(page: Page, k: keyof typeof เลข) {
   await settle(page);
   await page.getByRole("button", { name: "ตาราง", exact: true }).click().catch(() => {});
   // มีข้อที่เปิดลีดปิดไม่สำเร็จ — ตัวกรองขั้นตอนค่าเริ่มต้นซ่อนลีดปิดแล้ว (บอสสั่ง 28 ต.ค. 69) จึงเลือก "ทั้งหมด"
-  await page.getByLabel("ขั้นตอน", { exact: true }).selectOption({ label: "ทั้งหมด" });
+  await เลือกตัวกรอง(page, "ขั้นตอน", "ทั้งหมด");
   await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อ(k));
   const row = page.locator("tbody tr").filter({ hasText: ชื่อ(k) }).first();
   await expect(row).toBeVisible({ timeout: 25_000 });

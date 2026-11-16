@@ -59,7 +59,7 @@ import { ชื่อขั้น, สีขั้น } from "@pms/shared/lib/le
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useUnsavedGuard } from "@pms/shared/lib/useUnsavedGuard";
 import { SettingsBusCtx as BusCtx, type SectionApi } from "@pms/shared/lib/settingsBus";
-import { useชื่อดีลเลอร์ } from "@pms/shared/lib/dealerDisplay";
+import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 import {
   Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, ArrowUp, ArrowDown,
   Save, RotateCcw, Plus, Trash2, Check, X,
@@ -412,7 +412,7 @@ function RecruitTab() {
 //   ฐานคิดผลรวมเองทุกที่ (การ์ดภาพรวมยอดขาย · แดชบอร์ด HQ) · ค่าเดิมใน hq_targets คงไว้ในฐาน ไม่ลบ แต่ไม่มีที่อ่านแล้ว
 // เป้ารายดีลเลอร์ = DealerRow.revenueTarget (บันทึกทางเดียวกับหน้าดีลเลอร์)
 function TargetsTab() {
-  const ชื่อของ = useชื่อดีลเลอร์();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
+  const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
   const toast = useToast();
   const [dealers, setDealers] = useState<DealerRow[]>([]); // ของจริงมาจาก repo — ห้ามตั้งต้นด้วย seed
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)

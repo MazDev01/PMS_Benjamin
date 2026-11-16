@@ -25,11 +25,11 @@ import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
-import { ดาวบังคับ, กรอบผิด, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { ดาวบังคับ, กรอบผิด, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import type { ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { วันไทยสั้น } from "@pms/shared/lib/quoteRequests";
-import { UnitSelect, useรายการหน่วย, ล้างหน่วยจากวัสดุ } from "@pms/shared/components/ui/UnitSelect";
+import { UnitSelect, useUnitList, ล้างหน่วยจากวัสดุ } from "@pms/shared/components/ui/UnitSelect";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import {
   type MaterialTemplate, type EstimateAccuracy, หมวดที่มี, ค้นแม่แบบ, ป้ายเปอร์เซ็นต์คลาด,
@@ -59,13 +59,13 @@ export function MaterialTemplatesPanel() {
   //   ราคาต่อหน่วยเป็นช่องตัวเลข ว่างไม่ได้จริง (เว้นว่าง = 0) จึงไม่มี * — เดิมใส่ * แล้วหัว "ราคาต่อหน่วย (ก่อน VAT)" ตัดบรรทัด
   //   หัวไม่ตรงแนวข้อมูล (รอบตรวจ deploy16 · qty-unit-columns.spec)
   //   ขาด = ไม่บันทึก · กรอบแดงช่องที่ขาด · พาไปหน้าของแถวแรกที่ขาดแล้วเลื่อนไปช่องนั้น
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ช่องของแถว = (rs: แถว[]): ช่องบังคับ[] => rs.flatMap(r => [
     { key: `name:${r.key}`, label: "ชื่อวัสดุ", value: r.name },
     { key: `unit:${r.key}`, label: "หน่วย", value: r.unit },
   ]);
   // ช่องหน่วยแบบดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69) — หน่วยมาตรฐาน + หน่วยที่รายการวัสดุใช้อยู่ (รวมแถวที่เพิ่งพิมพ์)
-  const หน่วย = useรายการหน่วย(rows.map(r => r.unit));
+  const หน่วย = useUnitList(rows.map(r => r.unit));
 
   const โหลด = useCallback(() => {
     repo.list().then(ls => { const r = ls.map(จากฐาน); setบันทึกแล้ว(r); setRows(r); }).catch(e => logRepoRead("materialTemplates.list", e));

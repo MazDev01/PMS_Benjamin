@@ -152,12 +152,12 @@ test("[H12·hq] เจาะลึก: ทุกระดับ/แท็บ แ
   const เดือนนี้ = ตารางเดือน.locator("tbody tr").filter({ has: page.locator("[data-month-row]") }).last();
   const ยอดเดือนนี้ = (await เดือนนี้.locator("td[data-value]").innerText()).trim();
   await เดือนนี้.click();
-  const แผงเดือน = page.locator("[data-month-drawer]");
-  await expect(แผงเดือน, "กดเดือน = แผงรายดีลเลอร์").toBeVisible();
-  await expect(แผงเดือน.locator("[data-drawer-row]"), "เดือนนี้: สาขา A").toHaveCount(1);
-  await expect(แผงเดือน.locator("[data-drawer-row]").first().locator("xpath=.."), "ยอดของสาขาในแผง = แถวเดือน").toContainText(ยอดเดือนนี้);
-  await expect(แผงเดือน.locator("tfoot, [data-drawer-total]"), "แผงเดือนไม่มีแถวรวม").toHaveCount(0);
-  await แผงเดือน.getByRole("button", { name: "ปิดแผง" }).click();
+  const MonthPanel = page.locator("[data-month-drawer]");
+  await expect(MonthPanel, "กดเดือน = แผงรายดีลเลอร์").toBeVisible();
+  await expect(MonthPanel.locator("[data-drawer-row]"), "เดือนนี้: สาขา A").toHaveCount(1);
+  await expect(MonthPanel.locator("[data-drawer-row]").first().locator("xpath=.."), "ยอดของสาขาในแผง = แถวเดือน").toContainText(ยอดเดือนนี้);
+  await expect(MonthPanel.locator("tfoot, [data-drawer-total]"), "แผงเดือนไม่มีแถวรวม").toHaveCount(0);
+  await MonthPanel.getByRole("button", { name: "ปิดแผง" }).click();
   await page.locator('[data-dim="dealer"]').click();
 
   // กดดีลเลอร์ → ระดับดีลเลอร์: แถบระดับ 4 ชั้น · ใบ/ลีดล่าสุด · ปุ่มเปิดแผงดีลเลอร์ · ผลรวมแถว = การ์ด

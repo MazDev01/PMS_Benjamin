@@ -66,7 +66,7 @@ function ปุ่มตกลงของกล่อง({ o, กำลัง�
 }
 
 /** กล่องยืนยันที่ทำงานรอฐานเอง (มี ทำ) */
-function กล่องยืนยันรอฐาน({ o, ตอบ, กำลังทำRef }: { o: ตัวเลือกยืนยัน; ตอบ: (ผล: boolean) => void; กำลังทำRef: { current: boolean } }) {
+function PendingConfirmDialog({ o, ตอบ, กำลังทำRef }: { o: ตัวเลือกยืนยัน; ตอบ: (ผล: boolean) => void; กำลังทำRef: { current: boolean } }) {
   const [กำลังทำ, setกำลังทำ] = useState(false);
   const [ผิด, setผิด] = useState("");
   async function กด() {
@@ -101,7 +101,7 @@ let ใบที่ค้าง: { id: string | number; ยกเลิก: () =
  *  sonner ส่งคำสั่งปิดผ่าน requestAnimationFrame 2 ชั้น แต่เพิ่มใบผ่าน setTimeout — เครื่องทำงานหนัก (timer ช้ากว่าเฟรม)
  *  คำสั่งปิดถึงก่อนใบถูกเพิ่ม = หาใบไม่เจอ คำสั่งหาย → ใบเก่าค้างจอตลอด (duration Infinity) ซ้อนกับใบใหม่
  *  และปุ่มตกลงของใบเก่าไม่ทำอะไรเลย (ตอบไปแล้วว่ายกเลิก) · ข้อทดสอบ: tests/scenario/confirm-toast-race.spec.ts */
-function ปิดเองถ้ายกเลิกแล้ว({ t, ตอบแล้ว, children }: { t: string | number; ตอบแล้ว: () => boolean; children: ReactNode }) {
+function AutoCloseIfCancelled({ t, ตอบแล้ว, children }: { t: string | number; ตอบแล้ว: () => boolean; children: ReactNode }) {
   useEffect(() => { if (ตอบแล้ว()) toast.dismiss(t); }, [t, ตอบแล้ว]);
   return <>{children}</>;
 }
@@ -121,11 +121,11 @@ export function ยืนยัน(o: ตัวเลือกยืนยัน
     };
 
     const id = toast.custom((t) => o.ทำ ? (
-      <ปิดเองถ้ายกเลิกแล้ว t={t} ตอบแล้ว={() => ตอบแล้ว}>
-        <กล่องยืนยันรอฐาน o={o} กำลังทำRef={กำลังทำ} ตอบ={ผล => { ตอบ(ผล); toast.dismiss(t); }} />
-      </ปิดเองถ้ายกเลิกแล้ว>
+      <AutoCloseIfCancelled t={t} ตอบแล้ว={() => ตอบแล้ว}>
+        <PendingConfirmDialog o={o} กำลังทำRef={กำลังทำ} ตอบ={ผล => { ตอบ(ผล); toast.dismiss(t); }} />
+      </AutoCloseIfCancelled>
     ) : (
-      <ปิดเองถ้ายกเลิกแล้ว t={t} ตอบแล้ว={() => ตอบแล้ว}>
+      <AutoCloseIfCancelled t={t} ตอบแล้ว={() => ตอบแล้ว}>
       <div className="pms-confirm" role="alertdialog" aria-modal="false" aria-label={o.หัวข้อ}>
         <div className="pms-confirm-head">
           {o.อันตราย && <AlertTriangle size={16} className="pms-confirm-icon" aria-hidden />}
@@ -145,7 +145,7 @@ export function ยืนยัน(o: ตัวเลือกยืนยัน
           </button>
         </div>
       </div>
-      </ปิดเองถ้ายกเลิกแล้ว>
+      </AutoCloseIfCancelled>
     ), {
       duration: Infinity,        // คำถามต้องรอคำตอบ ห้ามหายเอง
       dismissible: !o.ทำ,        // งานรอฐาน: ปัดทิ้งไม่ได้ — ปิดด้วยปุ่มยกเลิก (ก่อนกด) หรือฐานตอบสำเร็จเท่านั้น
@@ -176,7 +176,7 @@ export type ตัวเลือกถามเหตุผล = Omit<ตัว
 
 const ช่องในกล่อง: React.CSSProperties = { width: "100%", marginTop: 6, padding: "7px 9px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.82rem", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", background: "#fff" };
 
-function กล่องเหตุผล({ o, ตอบ, กำลังทำRef }: { o: ตัวเลือกถามเหตุผล; ตอบ: (สำเร็จ: boolean) => void; กำลังทำRef: { current: boolean } }) {
+function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัวเลือกถามเหตุผล; ตอบ: (สำเร็จ: boolean) => void; กำลังทำRef: { current: boolean } }) {
   const รายการ = o.ตัวเลือก ?? [];
   const ใช้รายการ = รายการ.length > 0;
   const [เลือก, setเลือก] = useState("");
@@ -260,9 +260,9 @@ export function ถามเหตุผล(o: ตัวเลือกถาม
       resolve(ผล);
     };
     const id = toast.custom((t) => (
-      <ปิดเองถ้ายกเลิกแล้ว t={t} ตอบแล้ว={() => ตอบแล้ว}>
-        <กล่องเหตุผล o={o} กำลังทำRef={กำลังทำ} ตอบ={ผล => { ตอบ(ผล); toast.dismiss(t); }} />
-      </ปิดเองถ้ายกเลิกแล้ว>
+      <AutoCloseIfCancelled t={t} ตอบแล้ว={() => ตอบแล้ว}>
+        <ReasonDialog o={o} กำลังทำRef={กำลังทำ} ตอบ={ผล => { ตอบ(ผล); toast.dismiss(t); }} />
+      </AutoCloseIfCancelled>
     ), {
       duration: Infinity,
       dismissible: false,        // ปัดทิ้งไม่ได้ — ปิดด้วยปุ่มยกเลิก (ก่อนกด) หรือฐานตอบสำเร็จเท่านั้น
@@ -290,7 +290,9 @@ function แจ้ง(ข้อความ: string, o: { ผิดพลาด?
       </div>
       {ที่เหลือ.length > 0 && <div className="pms-confirm-detail">{ที่เหลือ.join(ขึ้นบรรทัดใหม่)}</div>}
     </div>
-  ), { duration: (o.วินาที ?? (o.ผิดพลาด ? 7 : 4)) * 1000, className: "pms-confirm-toast" });
+  ), { duration: (o.วินาที ?? (o.ผิดพลาด ? 7 : 4)) * 1000, className: "pms-confirm-toast pms-notify-toast" });
+  // pms-notify-toast: ข้อความแจ้งผลไม่มีปุ่ม → กดทะลุได้ (globals.css) — หน้าต่างกลางจอ (12 พ.ย. 69) หัวหน้าต่างอยู่ใต้ข้อความแจ้งพอดี
+  //   เดิมข้อความบังปุ่มหัวหน้าต่าง 4–7 วินาที (รอบ deploy22 · hq-prospects ปุ่ม "ผูกกับดีลเลอร์ที่มีอยู่แล้ว" กดไม่ได้)
 }
 
 /** บอกว่า "ทำไม่สำเร็จ / ทำไม่ได้" — ค้างนานกว่าปกติ เพราะผู้ใช้ต้องอ่านเหตุผล */

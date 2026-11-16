@@ -1,7 +1,7 @@
 "use client";
 
-import { ลิงก์ข้อมูล } from "@pms/shared/components/ui/RecordLink";
-import { useเปิดตามURL, useแผงในURL, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
+import { DataLink } from "@pms/shared/components/ui/RecordLink";
+import { useOpenFromUrl, usePanelInUrl, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
@@ -63,7 +63,7 @@ import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRo
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { useFilters, APP_NOW, APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { ช่อง, ตัวอย่างช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
-import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด } from "@pms/shared/lib/requiredFields";
 import { refช่องในกล่อง } from "../_form/ผูกช่องห่อ";
 import { Plus, X, ChevronUp, ChevronDown, Upload, Download, Phone, Building2, Calendar, FileText, StickyNote, Check, User, Paperclip, Eye, Printer, MapPin, Mail, Coins, Layers, CalendarClock, Users, Trash2, UserPlus, Briefcase } from "lucide-react";
@@ -291,7 +291,7 @@ function CustomerOverviewEditor({ customer, code, onSave }:{
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(seed()); }, [customer.id]);
   // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69): ชื่อบริษัท · ผู้ติดต่อ ("-" ได้) · โทร — ว่าง = ไม่บันทึก
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
   const set = <K extends keyof CustomerForm>(k:K,v:CustomerForm[K])=>{ setF(p=>({...p,[k]:v})); บังคับ.ล้าง(k as string); };
   function บันทึก() {
@@ -373,7 +373,7 @@ export default function CustomersPage(){
   const customerNotes = useCustomerNotes(userProfile.profile.name);
   const [addingNote, setAddingNote] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
-  const หมายเหตุบังคับ = useช่องบังคับ();   // หัวข้อหมายเหตุ บังคับ ("-" ได้) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
+  const หมายเหตุบังคับ = useRequiredFields();   // หัวข้อหมายเหตุ บังคับ ("-" ได้) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
   const [noteBody, setNoteBody] = useState(""); // หมายเหตุลูกค้าผ่าน repo (ผู้เขียน = ผู้ใช้ที่ล็อกอิน) // VAT จาก HQ ผ่าน repo (ดีลเลอร์ตั้งเองไม่ได้ · อัปเดตตามเมื่อ HQ แก้)
   // scope ทุกอย่างเป็นของสาขาที่ล็อกอิน (multi-tenant) — RYG ไม่เห็นลูกค้า/ใบ/ลูกค้าเป้าหมายของ CNX
   // undefined = ของ CNX (สมุดงานเดิม) · ที่เหลือกรองด้วย dealerCode ตรง ๆ
@@ -425,13 +425,13 @@ export default function CustomersPage(){
     return () => clearTimeout(t);
   }, [linkToast]);
   // แผงอยู่ในที่อยู่หน้าเว็บ (บอสสั่ง 11 พ.ย. 69 · lib/panelUrl.ts): ไม่ล้าง ?open แล้ว · ย้อนกลับ/ไปหน้า = เปิด/ปิดแผงตามที่อยู่
-  useเปิดตามURL("/customers", p => {
+  useOpenFromUrl("/customers", p => {
     if (!p) { setSelected(null); return; }
     const target = dataRef.current.find(c => String(c.id) === p);
     if (target) setSelected(cur => cur?.id === target.id ? cur : target);
     else { setLinkToast("ไม่พบลูกค้ารายนี้ — อาจถูกลบหรือลิงก์ไม่ถูกต้อง"); ตั้งแผงในURL(null); }
   }, data.length > 0);
-  useแผงในURL(selected ? String(selected.id) : null);
+  usePanelInUrl(selected ? String(selected.id) : null);
   // รายชื่อผู้รับผิดชอบดึงจาก PersonPicker เอง (registry กลาง) — ไม่ต้องเก็บ list ที่นี่
   // โมดัลรายละเอียด: ปิดด้วย Esc + ล็อกสกรอลล์พื้นหลัง (parity กับ RightDrawer)
   useEffect(() => {
@@ -472,7 +472,7 @@ export default function CustomersPage(){
   const [dealForm, setDealForm] = useState({project:"",value:"",area:"",province:"",status:"WAITING" as LeadStatus,assigned:"",note:""});
   // ข้อความฟ้องตอนกดบันทึก — ต้องมีเหมือนฟอร์มเพิ่มลูกค้าเป้าหมาย ไม่ใช่กดแล้วเงียบ
   const [dealErr, setDealErr] = useState("");
-  const งานบังคับ = useช่องบังคับ();   // งานขายใหม่: จังหวัดหน้างาน บังคับ (FLOW D2 · ฐานบังคับ)
+  const งานบังคับ = useRequiredFields();   // งานขายใหม่: จังหวัดหน้างาน บังคับ (FLOW D2 · ฐานบังคับ)
   // นำเข้าลูกค้าเดิม (ดีลเลอร์) — ลูกค้าก่อนมีระบบ / ไม่ได้ผ่าน Lead→Won · CSV + คีย์มือ
   const [showImport, setShowImport]   = useState(false);
   const [importRows, setImportRows]   = useState<ImportRow[]>([]);
@@ -1083,7 +1083,7 @@ export default function CustomersPage(){
 
         return (
         <>
-          {/* Customer Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820") */}
+          {/* Customer Detail — แผงจากแถว = กรอบกลาง RowPanelShell (กลางจอ กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69) */}
           <RowPanelShell label="ข้อมูลลูกค้า" onClose={()=>setSelected(null)} zIndex={209} backdropClassName="drawer-overlay"
             asideAttrs={{ style: { background: "#fff" } }}>
 
@@ -1357,7 +1357,7 @@ export default function CustomersPage(){
               <div style={{background:PRIMARY,padding:"13px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexShrink:0}}>
                 <div style={{minWidth:0}}>
                   <div style={{fontSize:"1rem",fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project}</div>
-                  <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.72)",marginTop:2}}>{selected.company} · <ลิงก์ข้อมูล พื้นเข้ม เป้า={{ ชนิด: "quotation", รหัส: q.id }}>{q.id}</ลิงก์ข้อมูล></div>
+                  <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.72)",marginTop:2}}>{selected.company} · <DataLink พื้นเข้ม เป้า={{ ชนิด: "quotation", รหัส: q.id }}>{q.id}</DataLink></div>
                 </div>
                 <button onClick={()=>setViewProject(null)} title="ปิด"
                   style={{width:30,height:30,borderRadius:8,background:"rgba(255,255,255,.15)",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>

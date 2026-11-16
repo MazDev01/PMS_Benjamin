@@ -17,7 +17,7 @@ import {
 } from "@pms/shared/lib/quoteRequests";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
-import { UnitSelect, useรายการหน่วย } from "@pms/shared/components/ui/UnitSelect";
+import { UnitSelect, useUnitList } from "@pms/shared/components/ui/UnitSelect";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 
@@ -40,7 +40,7 @@ export function BoqTable({ lines, onChange, editable, area, แหล่ง = []
   ป้ายพื้นที่?: string;
 }) {
   // ช่องหน่วยแบบดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69) — หน่วยมาตรฐาน + หน่วยจากรายการวัสดุ · หน่วยเดิมนอกรายการยังแสดง
-  const หน่วย = useรายการหน่วย();
+  const หน่วย = useUnitList();
   const ตาราง = useRef<HTMLTableElement>(null);
   const [โฟกัสแถว, setโฟกัสแถว] = useState<number | null>(null);
   const รวม = useMemo(() => ยอดรวมใบ(lines.filter(l => !แถวว่าง(l))), [lines]);

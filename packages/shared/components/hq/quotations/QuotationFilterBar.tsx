@@ -9,6 +9,7 @@
 // (ใบเสนอราคาไม่เก็บจังหวัดของตัวเอง — ป้ายบนตัวเลือกจึงต้องเขียนว่า "จังหวัดดีลเลอร์" ให้ชัด)
 import { Search, X } from "lucide-react";
 import type { QuotationStatus } from "@pms/shared/lib/mock";
+import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const MUTED = "#6b7280";
 
@@ -35,7 +36,6 @@ export function QuotationFilterBar({ filters, onChange }: {
   const dirty = filters.search !== "" || filters.status !== "sent";
 
   // ขนาดเดียวกับแถบกรองหน้าลูกค้าทั้งเครือ — ย่อตัวได้เมื่อจอแคบ ไม่ตกบรรทัด
-  const ช่องเลือก = { width: "auto", flex: "0 1 auto", minWidth: 0, maxWidth: 168, padding: "7px 10px", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" } as const;
 
   return (
     // ตัวกรองทั้งแถบต้องอยู่บรรทัดเดียว (บอสสั่ง 25 ส.ค. 69) — เดิม flexWrap:"wrap" ทำให้ "ทุกสถานะ" ตกไปบรรทัดสอง
@@ -58,13 +58,8 @@ export function QuotationFilterBar({ filters, onChange }: {
 
 
       {/* ต้องมีค่าเสมอ — ค่าเริ่มต้น "ส่งลูกค้าแล้ว" = ชุดเดียวกับการ์ด (บอสสั่ง 30 ต.ค. 69) · "ทุกสถานะ" เป็นตัวเลือกท้ายสุด */}
-      <select aria-label="กรองตามสถานะใบเสนอราคา" value={filters.status} onChange={e => set("status", e.target.value as QuotationFilters["status"])} className="form-select" style={{ ...ช่องเลือก, maxWidth: 260 }}>
-        <option value="sent">ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)</option>
-        {(Object.keys(ชื่อสถานะใบHQ) as QuotationStatus[]).map(s => (
-          <option key={s} value={s}>{ชื่อสถานะใบHQ[s]}</option>
-        ))}
-        <option value="all">ทุกสถานะ</option>
-      </select>
+      <FilterSelect label="กรองตามสถานะใบเสนอราคา" caption="ส่งลูกค้าแล้ว (ไม่นับร่าง/ถูกแทนที่)" all="sent" value={filters.status} onChange={v => set("status", v as QuotationFilters["status"])}
+        options={[...(Object.keys(ชื่อสถานะใบHQ) as QuotationStatus[]).map(s => ({ v: s, l: ชื่อสถานะใบHQ[s] })), { v: "all", l: "ทุกสถานะ" }]} />
 
 
       {dirty && (

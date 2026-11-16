@@ -61,4 +61,7 @@ scripts/lib/*
 # commitGate นำเข้าตัวรับทราบข้อไม่นิ่ง (flakyAck → flakyLog · 11 พ.ย. 69) — ขาด = ด่านตรวจโหลดไม่ได้ = ไม่ build
 !scripts/lib/flakyAck.mjs
 !scripts/lib/flakyLog.mjs
+# commitGate นำเข้าตัวตรวจผลทางเร็ว (fastGate · โหมดเร็ว 13 พ.ย. 69) — ขาด = ด่านตรวจโหลดไม่ได้ = ไม่ build
+#   รายการไฟล์เสี่ยง (scripts/gate-risky-paths.json) อ่านจาก git ของ commit (git show) ไม่ต้องอัพขึ้น
+!scripts/lib/fastGate.mjs
 supabase/migrations/

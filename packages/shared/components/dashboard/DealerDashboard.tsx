@@ -4,7 +4,7 @@
 // ขอบเขตข้อมูล: ลูกค้าเป้าหมายของดีลเลอร์รายนี้เท่านั้น (กติกาเดียวกับหน้า /leads และ /calendar)
 // S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + ขั้นตอนการขาย
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { มูลค่าลีด, ชื่อกิจกรรมใบ } from "@pms/shared/lib/mock";
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";   // ยอดขายตามวันลูกค้าตอบรับ (ใบ 0260)   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 import { useRouter } from "next/navigation";
@@ -25,8 +25,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { PlanVsActualBars, SalesLineChart, CategoryRows, Donut, ProgressRing } from "@pms/shared/components/ui/Charts";
 import { EmptyState } from "@pms/shared/components/ui/EmptyState";
 import {
-  MonthRangeToggle, lastNMonths, monthKey, monthKeyOf, MONTH_RANGE_DEFAULT, ป้ายเดือนปี,
-  type MonthRange,
+  หัวกราฟรายเดือน, เดือนตามช่วง, monthKey, monthKeyOf, ป้ายเดือนปี,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
   apptTypeLabel, fmtISOToThai,
@@ -39,7 +38,7 @@ import type { DealerRow } from "@pms/shared/lib/data/types";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import {
   isLeadOpen, needsFollowUp, daysSinceContact,
-  MOCK_TODAY, leadCreatedDate, leadEnteredInRange,
+  MOCK_TODAY, leadEntryDate, leadEnteredInRange,
 } from "@pms/shared/lib/leadMetrics";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { เลขขั้นของลีด, ชื่อขั้น, สีกราฟขั้น, เลขขั้นทั้งหมด, type เลขขั้น } from "@pms/shared/lib/leadStage";
@@ -131,31 +130,32 @@ export default function DealerDashboard() {
   const lostCount = useMemo(() => leadsIn.filter(l => l.status === "CANCELLED").length, [leadsIn]);
   const winRate = อัตราปิดการขาย(wonCount, lostCount);
 
-  // ── กราฟใหญ่ 2 ใบ ── แต่ละใบมีปุ่มช่วงย้อนหลังของตัวเอง (3/6/12 เดือน) เป็นอิสระจากกัน
-  // ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
-  const [lqRange, setLqRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);   // ค่าเริ่มต้น 1 ปี (บอสสั่ง 11 พ.ย. 69 · เดิม 6 เดือน)
-  // ── กราฟยอดขายรายเดือน: ปุ่มของกราฟเอง 3 เดือน · 6 เดือน · 9 เดือน · 1 ปี (ค่าเริ่มต้น 1 ปี) ──
-//   ⚠️ บอสสั่ง 11 พ.ย. 69 ทับคำตัดสินเดิม "เดินตามแถบกรองด้านบน รายชั่วโมง/รายวัน/รายเดือนตามช่วง" (25 ส.ค. 69) เฉพาะกราฟนี้
-//      → เลิกเดินตามช่วงเวลาของหน้า เป็นรายเดือนย้อนหลังตามปุ่มเสมอ · ยอดขายยังนับตามวันลูกค้าตอบรับ (ใบ 0260)
+  // ── กราฟใหญ่ 2 ใบ (รายเดือน) ── ทุกเดือนตามช่วงเวลาด้านบน ไม่มีปุ่มของกราฟ
+  //   ⚠️ บอสสั่ง 13 พ.ย. 69 ทับ 11 พ.ย. "ปุ่มของกราฟเอง 3/6/9 เดือน/1 ปี": หน้านี้มีตัวเลือกช่วงเวลาด้านบน → กราฟเดินตามช่วงด้านบน
+  //      ช่วงสั้นกว่าเดือน (วันนี้ / 7 วัน) = เดือนที่ช่วงแตะ 1–2 แท่ง ไม่เปลี่ยนเป็นรายวัน · ยอดขายยังนับตามวันลูกค้าตอบรับ (ใบ 0260)
+  const เดือนของกราฟ = useMemo(() => เดือนตามช่วง(timeRange.start, timeRange.end), [timeRange.start, timeRange.end]);
+  //   ค่าในแต่ละเดือน = เฉพาะที่อยู่ในช่วงด้านบน (ช่วงเริ่ม/จบกลางเดือน = เดือนหัว/ท้ายนับไม่เต็มเดือน)
+  const วันต้นช่วง = useMemo(() => new Date(timeRange.start.getFullYear(), timeRange.start.getMonth(), timeRange.start.getDate()), [timeRange.start]);
+  const วันท้ายช่วง = useMemo(() => new Date(timeRange.end.getFullYear(), timeRange.end.getMonth(), timeRange.end.getDate()), [timeRange.end]);
   // q.date เก็บเป็น "YYYY-MM-DD" — แปลงเป็นวันที่แบบไม่ผ่าน timezone (new Date("2026-08-01") ได้ UTC แล้วเพี้ยนวัน)
   const parseISO = (v: string): Date | null => {
-    const m = /^(d{4})-(d{2})-(d{2})/.exec(v ?? "");
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v ?? "");   // ⚠️ 13 พ.ย. 69: dbf5e33d ทำ \d หาย (แทนข้อความผ่าน shell) → ยอดขายรายเดือนเป็น 0 ทุกเดือน
     return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
   };
-  const [salesRange, setSalesRange] = useState<MonthRange>(MONTH_RANGE_DEFAULT);
   const salesData = useMemo(() => {
     const ยอด = new Map<string, number>();
     quotations.forEach(q => {
       if (q.status !== "won") return;
       const d = parseISO(วันที่ขายของใบ(q) ?? ""); if (!d) return;   // ตามวันตอบรับ (0260)
+      if (d < วันต้นช่วง || d > วันท้ายช่วง) return;   // นับเฉพาะในช่วงด้านบน (รวมกราฟ = การ์ด · 13 พ.ย. 69)
       const k = monthKeyOf(d);
       ยอด.set(k, (ยอด.get(k) ?? 0) + q.totalValue);
     });
-    return lastNMonths(salesRange, MOCK_TODAY).map(b => ({
+    return เดือนของกราฟ.map(b => ({
       label: ป้ายเดือนปี(b.year, Number(b.key.slice(5)) - 1),
       value: Math.round(((ยอด.get(b.key) ?? 0) / 1e6) * 10) / 10,
     }));
-  }, [quotations, salesRange]);
+  }, [quotations, เดือนของกราฟ, วันต้นช่วง, วันท้ายช่วง]);
   const monthTargetM = Math.round((monthTarget / 1e6) * 10) / 10;
   // ── ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว: แท่งคู่รายเดือน หน่วย "ราย" ทั้งคู่ ──
   //
@@ -170,13 +170,15 @@ export default function DealerDashboard() {
   // นับลงถังตามคีย์ปี-เดือน → ข้อมูลข้ามปีไม่ทับกัน ไม่ต้องกรองปีทิ้งอีก
   const leadQuoteData = useMemo(() => {
     const lC = new Map<string, number>(), qC = new Map<string, number>();
-    myLeads.forEach(l => {
-      const d = leadCreatedDate(l), k = monthKey(d.getFullYear(), d.getMonth());
+    leadsIn.forEach(l => {   // ลูกค้าเป้าหมายที่เข้ามาในช่วงด้านบน (ชุดเดียวกับการ์ด · 13 พ.ย. 69)
+      // วันที่เข้ามาจริงเท่านั้น (13 พ.ย. 69 · เดิม leadCreatedDate สังเคราะห์วันจาก numId เมื่อไม่มีวัน = กราฟแสดงเดือนที่ไม่จริง) · ไม่มีวัน = ไม่ลงเดือนไหน
+      const d = leadEntryDate(l); if (!d) return;
+      const k = monthKey(d.getFullYear(), d.getMonth());
       lC.set(k, (lC.get(k) ?? 0) + 1);
       if (QUOTED_UP.includes(l.status)) qC.set(k, (qC.get(k) ?? 0) + 1);
     });
-    return lastNMonths(lqRange, MOCK_TODAY).map(b => ({ label: ป้ายเดือนปี(b.year, Number(b.key.slice(5)) - 1), actual: lC.get(b.key) ?? 0, plan: qC.get(b.key) ?? 0 }));
-  }, [myLeads, lqRange]);
+    return เดือนของกราฟ.map(b => ({ label: ป้ายเดือนปี(b.year, Number(b.key.slice(5)) - 1), actual: lC.get(b.key) ?? 0, plan: qC.get(b.key) ?? 0 }));
+  }, [leadsIn, เดือนของกราฟ]);
 
   // สัดส่วนดีลตามขั้น — ชื่อขั้นจากตัวกลาง leadStage.ts (บอสสั่ง 27 ต.ค. 69 · เดิมแยกตามชื่อสถานะภายใน)
   const dealStatus = useMemo(() => {
@@ -259,7 +261,8 @@ export default function DealerDashboard() {
   const recent = useMemo(() => {
     type Ev = { kind: string; icon: typeof FileText; title: string; customer: string; date: string; time?: string; color: string; bg: string; href: string };
     const ev: Ev[] = [];
-    leadsIn.forEach(l => ev.push({ kind: "lead", icon: UserPlus, title: "สร้างลูกค้าเป้าหมายใหม่", customer: l.company, date: localISO(leadCreatedDate(l)), color: "#2563EB", bg: "#E8F0FE", href: `/leads?open=${l.numId}` }));
+    // ไม่มีวันเข้าจริง = ไม่ขึ้นในกิจกรรมล่าสุด (13 พ.ย. 69 · เดิมวันสังเคราะห์จาก numId = กุข้อมูล)
+    leadsIn.forEach(l => { const d = leadEntryDate(l); if (d) ev.push({ kind: "lead", icon: UserPlus, title: "สร้างลูกค้าเป้าหมายใหม่", customer: l.company, date: localISO(d), color: "#2563EB", bg: "#E8F0FE", href: `/leads?open=${l.numId}` }); });
     // นัดหมายต้องอยู่ในช่วงเวลาที่เลือกด้วย — ไม่งั้นการ์ด "ล่าสุด" โผล่นัดของเดือนหน้าทั้งที่เลือกดูถึงแค่ มิ.ย.
     apptsIn.forEach(a => ev.push({ kind: "appt", icon: CalendarClock, title: "นัดหมาย", customer: a.company, date: a.date, time: a.time, color: "#7C3AED", bg: "#F0EBFB", href: "/calendar" }));
     quotesIn.forEach(q => {
@@ -372,19 +375,14 @@ export default function DealerDashboard() {
         ))}
       </KpiRow>
 
-      {/* SECTION 2 — 2 กราฟใหญ่ · แต่ละใบมีปุ่มช่วงย้อนหลังของตัวเอง (3/6/12 เดือน) เป็นอิสระจากกัน
-          ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
+      {/* SECTION 2 — 2 กราฟใหญ่ (รายเดือน)
+          ทุกเดือนตามช่วงเวลาด้านบน (บอสสั่ง 13 พ.ย. 69 · ทับ 11 พ.ย. ปุ่มของกราฟ)
           แยกการ์ดเพราะคนละหน่วย: จำนวนรายการ (แท่งคู่) กับ บาท (เส้น) */}
       <div className="dash-charts-2" style={{ marginBottom: 24 }}>
         {/* ลูกค้าเป้าหมาย เทียบ ใบเสนอราคา — จำนวนรายการ */}
         <div className="card" style={card}>
-          <div style={hd}>
-            <span style={title}>ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <MonthRangeToggle value={lqRange} onChange={setLqRange} label="ช่วงเวลากราฟลูกค้าเป้าหมายเทียบใบเสนอราคา" />
-              {more("/leads")}
-            </span>
-          </div>
+          {/* หัวกราฟรายเดือนตัวกลาง: ชื่อ + ลิงก์ดูทั้งหมด · ไม่มีปุ่ม (ตามช่วงด้านบน · บอสสั่ง 13 พ.ย. 69) */}
+          <หัวกราฟรายเดือน className="" style={{ marginBottom: 16 }} สไตล์ชื่อ={title} ชื่อ="ลูกค้าเป้าหมาย เทียบ ที่ออกใบเสนอราคาแล้ว" ขวา={more("/leads")} />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             {/* คำอธิบายสีอยู่ใน PlanVsActualBars แล้ว — เดิมเขียนมือซ้ำไว้ใต้การ์ดนี้ใบเดียว
                 (อีก 2 การ์ดที่ใช้กราฟตัวเดียวกันเลยไม่มีคำอธิบายสีมาตลอด) */}
@@ -393,15 +391,9 @@ export default function DealerDashboard() {
           </div>
         </div>
 
-        {/* ยอดขายรายเดือน — กราฟเส้น + เส้นประเป้าหมาย · ช่วงจากปุ่มของกราฟเอง (บอสสั่ง 11 พ.ย. 69 · เดิมตามแถบกรองด้านบน) */}
+        {/* ยอดขายรายเดือน — กราฟเส้น + เส้นประเป้าหมาย · ทุกเดือนตามช่วงด้านบน (บอสสั่ง 13 พ.ย. 69 · ทับ 11 พ.ย. ปุ่มของกราฟ) */}
         <div className="card" style={card}>
-          <div style={hd}>
-            <span style={title}>ยอดขายรายเดือน</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <MonthRangeToggle value={salesRange} onChange={setSalesRange} label="ช่วงเวลากราฟยอดขายรายเดือน" />
-              {more("/quotations")}
-            </span>
-          </div>
+          <หัวกราฟรายเดือน className="" style={{ marginBottom: 16 }} สไตล์ชื่อ={title} ชื่อ="ยอดขายรายเดือน" ขวา={more("/quotations")} />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <SalesLineChart data={salesData} target={monthTargetM} height={260}
               fmt={v => `฿${v.toFixed(1)}M`} targetLabel="เป้า/เดือน" />

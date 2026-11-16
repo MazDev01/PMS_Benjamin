@@ -32,6 +32,8 @@ const RAMP = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626"];
 // ซึ่งเป็นไปไม่ได้ในข้อมูลจริง · monotone รับประกันว่าเส้นอยู่ระหว่างค่าสองจุดเสมอ
 function monotonePath(pts: Array<{ x: number; y: number }>): string {
   const n = pts.length;
+  // จุดเดียว (ช่วงด้านบนแตะเดือนเดียว · 13 พ.ย. 69) = เริ่มเส้นที่จุดนั้น — เดิมคืน "" แล้วพื้นที่ใต้เส้นขึ้นต้นด้วย " L…" ไม่มี M (เบราว์เซอร์แจ้งข้อผิดพลาด)
+  if (n === 1) return `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
   if (n < 2) return "";
   const dx: number[] = [], dy: number[] = [], m: number[] = [];
   for (let i = 0; i < n - 1; i++) {

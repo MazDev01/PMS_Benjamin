@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason, type Account } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
-import { settle } from "./helpers";
+import { settle, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 
 // ── ล็อกความกว้างคอลัมน์ตารางทุกหน้า (บอสสั่ง 10 พ.ย. 69 · HQ + ดีลเลอร์) ─────────────────────────────────────────────
 //   ความกว้างคอลัมน์ตายตัวเป็น % ของตาราง ไม่ขึ้นกับข้อมูล → เปลี่ยนหน้า / ค้นหา / เลือกภูมิภาค แล้วหัวคอลัมน์อยู่ตำแหน่งเดิมเป๊ะ
@@ -72,9 +72,11 @@ async function ตรวจหน้า(page: Page, origin: string, h: ตั้
   }
   // 3) เลือกภูมิภาค (ระดับเจาะ) — ภูมิภาค/จังหวัดไม่ซ่อน หัวคอลัมน์ตำแหน่งเดิม (ซ่อนเฉพาะดีลเลอร์ตอนเจาะถึงดีลเลอร์)
   if (h.ภูมิภาค) {
-    const s = page.getByLabel(h.ภูมิภาค, { exact: true }).first();
-    const ค่า = await s.locator("option").nth(1).getAttribute("value");
-    await s.selectOption(ค่า!);
+    const ช่องภาค = h.ภูมิภาค;
+    // ช่องตัวกรองตัวกลาง (FilterSelect) — ตัวเลือกที่ 2 (ถัดจาก "ทั้งหมด") รอจนรายการโหลด
+    let ตัวเลือก: { ค่า: string }[] = [];
+    await expect.poll(async () => (ตัวเลือก = await ตัวเลือกของตัวกรอง(page, ช่องภาค)).length, { timeout: 25_000 }).toBeGreaterThan(1);
+    await เลือกตัวกรอง(page, ช่องภาค, { ค่า: ตัวเลือก[1].ค่า });
     await settle(page);
     await expect(ตาราง.locator("thead th").first()).toBeVisible();
     expect(await ตำแหน่งหัว(page, h.ตาราง), `${h.path}: เลือกภูมิภาคแล้วหัวคอลัมน์ตำแหน่งเดิม`).toEqual(ตั้งต้น);
@@ -101,9 +103,10 @@ test("[ui·hq] ข้อความในตารางที่ถูกต�
   await settle(page);
   const แถว = page.locator("tbody tr[aria-label^='เปิดแผงดีลเลอร์']");
   await expect(แถว.first()).toBeVisible({ timeout: 20_000 });
-  // บังคับให้ชื่อยาวกว่าช่อง (ชื่อดีลเลอร์ในคอลัมน์ 12%) แล้วชี้ → title = ข้อความเต็ม
-  const ช่อง = แถว.first().locator("td[data-col='name']");
-  await ช่อง.evaluate(td => { td.removeAttribute("title"); const s = td.querySelector("span") as HTMLElement; s.textContent = "ZZTEST ชื่อยาวมาก ".repeat(6).trim(); });
+  // บังคับให้ข้อความยาวกว่าช่อง (จังหวัด คอลัมน์ 13%) แล้วชี้ → title = ข้อความเต็ม
+  //   13 พ.ย. 69: เดิมใช้ช่องชื่อดีลเลอร์ — บอสสั่งชื่อดีลเลอร์แสดงเต็มไม่ตัด (ขึ้นบรรทัดใหม่) จึงย้ายมาช่องที่ยังตัดด้วย …
+  const ช่อง = แถว.first().locator("td[data-col='province']");
+  await ช่อง.evaluate(td => { td.removeAttribute("title"); td.textContent = "ZZTEST ชื่อยาวมาก ".repeat(6).trim(); });
   expect(await ช่อง.evaluate(td => td.scrollWidth > td.clientWidth + 1), "ชื่อยาวถูกตัด").toBe(true);
   await ช่อง.hover();
   await expect(ช่อง, "ชี้แล้วเห็นข้อความเต็ม").toHaveAttribute("title", "ZZTEST ชื่อยาวมาก ".repeat(6).trim());

@@ -15,6 +15,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { ไฟล์รับทราบ, คำรอรับทราบ, สถานะในcommit, เหตุรอรับทราบ } from "./flakyAck.mjs";
+import { ป้ายเร็วยังใช้ได้ } from "./fastGate.mjs";
 
 export const ไฟล์บันทึกโค้ด = "supabase/gate-passed-code.txt";
 // tests/flaky-log.txt: ตัวนับข้อไม่นิ่ง (รอบตรวจเขียนเอง · คนเพิ่มบรรทัดต้นเหตุ) — ไม่นับในลายนิ้วมือ (scripts/lib/flakyLog.mjs)
@@ -65,7 +66,10 @@ export function ตรวจcommitผ่าน(sha = "HEAD", cwd = process.cwd()
   const ลาย = ลายนิ้วมือโค้ด(sha, cwd);
   let บันทึก = "";
   try { บันทึก = git(["show", `${sha}:${ไฟล์บันทึกโค้ด}`], cwd); } catch { /* ยังไม่มีไฟล์บันทึก */ }
-  const ของลาย = บันทึก.split("\n").map(l => l.trimEnd()).filter(l => l.startsWith(ลาย + " "));
+  const ทุกบรรทัด = บันทึก.split("\n").map(l => l.trimEnd()).filter(l => l.startsWith(ลาย + " "));
+  // บรรทัดทางเร็ว (ป้าย "เร็ว:" · scripts/lib/fastGate.mjs · โหมดเร็ว 12 พ.ย. 69) นับเมื่อไฟล์เสี่ยงของ commit นี้ตรงกับของฐานตอนบันทึก
+  const เร็วใช้ไม่ได้ = [];
+  const ของลาย = ทุกบรรทัด.filter(l => { const ร = ป้ายเร็วยังใช้ได้(l.split(" ")[3] ?? "", sha, cwd); if (!ร.ได้) เร็วใช้ไม่ได้.push(ร.เหตุ); return ร.ได้; });
   // บรรทัด "รอรับทราบ" (รอบมีข้อไม่นิ่ง · 11 พ.ย. 69) นับเมื่อบอสรับทราบรอบนั้นแล้ว (ไฟล์รับทราบใน commit เดียวกัน)
   const รอ = (l) => l.endsWith(" " + คำรอรับทราบ);
   const รับ = ของลาย.some(รอ) ? สถานะในcommit(sha, cwd) : null;
@@ -75,6 +79,7 @@ export function ตรวจcommitผ่าน(sha = "HEAD", cwd = process.cwd()
     const ป้าย = ของลาย[0].split(" ")[3] ?? "";
     return { ผ่าน: false, ลายนิ้วมือ: ลาย, รอรับทราบ: ป้าย, เหตุ: เหตุรอรับทราบ(ป้าย, รับ.รอ.find(x => x.ป้าย === ป้าย)?.ข้อ ?? []) };
   }
+  if (เร็วใช้ไม่ได้.length) return { ผ่าน: false, ลายนิ้วมือ: ลาย, เหตุ: `commit ${git(["rev-parse", "--short", sha], cwd)}: ${เร็วใช้ไม่ได้[0]}` };
   return { ผ่าน: false, ลายนิ้วมือ: ลาย,
     เหตุ: `commit ${git(["rev-parse", "--short", sha], cwd)} ยังไม่มีผลรอบตรวจเต็มผ่าน — รัน npm run test:prodbuild ให้ผ่าน (ตก 0) แล้ว commit ${ไฟล์บันทึกโค้ด}` };
 }

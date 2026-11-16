@@ -20,7 +20,7 @@ import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { sbSignOutLocal } from "@pms/shared/lib/supabaseAuth";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 
 const กล่อง: React.CSSProperties = {
   background: "#F8FAFC", border: "1px solid #E7EDF4", borderRadius: 12, padding: "12px 14px",
@@ -197,8 +197,8 @@ export function DealerAccountForm({ dealerCode, currentEmail, focus }: {
   const ปุ่ม = ต้องขออนุมัติ ? "ส่งคำขอ" : "บันทึก";
 
   // ช่องบังคับ (บอสสั่ง 4 พ.ย. 69 · ตัวกลาง) — ว่าง = กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรก · ข้อความข้างปุ่มคงเดิม
-  const บังคับอีเมล = useช่องบังคับ();
-  const บังคับรหัส = useช่องบังคับ();
+  const บังคับอีเมล = useRequiredFields();
+  const บังคับรหัส = useRequiredFields();
   async function เปลี่ยนรหัสผ่าน() {
     setMsgPw(null);
     บังคับรหัส.ตรวจ([

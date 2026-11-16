@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, db, waitRow, specNS, ลูกค้าเป้าหมายรองรับสาขา } from "./funcHelpers";
-import { กดตกลงในกล่องยืนยัน } from "./helpers";
+import { กดตกลงในกล่องยืนยัน, ตัวเลือกของตัวกรอง } from "./helpers";
 import { ลบสาขาทดสอบตรง } from "./testDealers";
 import { กรอกช่องบังคับใบที่ว่าง } from "./proposalFormFill";
 import { ช่องผู้สนใจครบ, ช่องใบครบ, เบอร์ทดสอบ } from "./requiredFixtures";
@@ -155,7 +155,7 @@ test("[H2] [func·hq] เพิ่มลูกค้าเป้าหมาย 
   await waitRow(sb, "dealer_prospects", { name, status: "won", dealer_code: "CNX" });
   // เป็นดีลเลอร์แล้ว = ไปอยู่หน้าดีลเลอร์ ไม่แสดงในหน้าลูกค้าเป้าหมาย (บอสสั่ง 15 ก.ย. 69)
   await expect(แถว, "เป็นดีลเลอร์แล้วต้องหายจากตารางลูกค้าเป้าหมาย").toHaveCount(0, { timeout: 15_000 });
-  await expect(page.getByLabel("กรองตามสถานะ").locator("option", { hasText: "เป็นดีลเลอร์แล้ว" }), "ไม่มีตัวกรองเป็นดีลเลอร์แล้ว").toHaveCount(0);
+  expect((await ตัวเลือกของตัวกรอง(page, "กรองตามสถานะ")).filter(o => o.ข้อความ.includes("เป็นดีลเลอร์แล้ว")), "ไม่มีตัวกรองเป็นดีลเลอร์แล้ว").toEqual([]);
   assertNoErrors(errs, "หน้าผู้สนใจเป็นดีลเลอร์");
 });
 

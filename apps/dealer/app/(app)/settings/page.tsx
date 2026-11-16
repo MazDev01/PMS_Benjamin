@@ -18,7 +18,7 @@ import { useDealerSettings } from "@pms/shared/lib/useDealerSettings";
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { NumberInput } from "@pms/shared/components/ui/NumberInput";
-import { FieldLabel, FieldError, useช่องบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด } from "@pms/shared/lib/requiredFields";
 import { markupPctOf } from "@pms/shared/lib/boq";
 import { useRouter } from "next/navigation";
@@ -95,7 +95,7 @@ function CompanyTab() {
   }, [dealerCfg.loaded, dealerCfg.settings, userProfile.loaded, userProfile.profile, session.dealerCode, session.name]);
 
   // ข้อมูลผู้ออกใบ (หัวใบเสนอราคา · ใบ 0247 ส่ง/พิมพ์ไม่ได้ถ้าขาด): ชื่อบริษัท · ที่อยู่ · โทร · เลขผู้เสียภาษี ("-" ได้)
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ตรวจบังคับ = บังคับ.ตรวจ;
   function set<K extends keyof CompanyProfile>(k: K, v: CompanyProfile[K]) {
     setForm(p => ({ ...p, [k]: v }));
@@ -502,7 +502,7 @@ function reindexPersons(arr: unknown): ResponsiblePerson[] {
 
 function PersonsTab() {
   const currentDealer = useCurrentDealer(); // พนักงานขายเป็นของสาขานี้ (multi-tenant)
-  const คนบังคับ = useช่องบังคับ();   // ชื่อ-นามสกุล บังคับ (ตัวกลางช่องบังคับ · บอสสั่ง 4 พ.ย. 69) — ทั้งเพิ่มและแก้
+  const คนบังคับ = useRequiredFields();   // ชื่อ-นามสกุล บังคับ (ตัวกลางช่องบังคับ · บอสสั่ง 4 พ.ย. 69) — ทั้งเพิ่มและแก้
   // เริ่มว่างเสมอ — เดิมตั้งต้นด้วยพนักงานตัวอย่าง 5 คน ถ้าโหลดพลาดแล้วผู้ใช้กดแก้/เพิ่ม
   // save() จะเขียนคนปลอมทั้ง 5 ลง DB จริง
   const [persons, setPersons] = useState<ResponsiblePerson[]>([]);

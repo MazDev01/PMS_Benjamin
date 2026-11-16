@@ -15,6 +15,7 @@
 //   <ที่>/rounds/<รอบ>.json  สำเนาของทุกรอบที่ปิด (ประวัติ · ไม่ลบ)
 // ข้อทดสอบ: tests/tools/round-queue.test.mjs
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -54,27 +55,54 @@ const จัดใบ = (ใบ) => {
   return [...new Set((ใบ ?? []).map(String))].sort();
 };
 
-/** เพิ่มงานเข้ารายการรอรอบ → คืนแถวที่เพิ่ม */
-export function เพิ่มงาน({ งาน, เซสชัน, ทดสอบผ่าน = false, ใบ = [] }) {
+/** ไฟล์ที่ commit แตะ (git ของโฟลเดอร์ที่สั่ง) — ไม่มี commit นี้ = ปฏิเสธ */
+const ไฟล์ของcommitจากgit = (c) => {
+  try { return execFileSync("git", ["show", "--name-only", "--format=", String(c)], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).split(/\r?\n/).filter(Boolean); }
+  catch { throw new Error(`ไม่พบ commit ${c} ในโฟลเดอร์นี้ (สั่งจากโฟลเดอร์เซสชันที่มี commit นั้น)`); }
+};
+
+/** ตั้งผ่านต้องบอกว่างานเป็นคำสั่งบอสไหม (แบบ ก · บอสสั่ง 12 พ.ย. 69 "คำตัดสินบอสต้องลง FLOW ในงานเดียวกับแก้โค้ด")
+ *  --ไม่ใช่บอสสั่ง = ผ่าน · --บอสสั่ง = ต้องมี --commit (≥ 1) และอย่างน้อย 1 commit แตะ docs/FLOW.html
+ *  ข้อยกเว้น: --บอสสั่ง --ไม่เกี่ยว-FLOW "<เหตุ>" (เช่น แก้ข้อทดสอบตามคำสั่ง ไม่มีคำตัดสินใหม่) — เหตุถูกจดในรายการให้คนรวมงานเห็น
+ *  ไม่ระบุทั้งคู่ / ระบุทั้งคู่ = ปฏิเสธ · ข้อทดสอบ: tests/tools/round-queue.test.mjs */
+export function ตรวจFLOWของงาน({ บอสสั่ง = false, ไม่ใช่บอสสั่ง = false, commit = [], ไม่เกี่ยวFLOW, ไฟล์ของcommit = ไฟล์ของcommitจากgit } = {}) {
+  if (!!บอสสั่ง === !!ไม่ใช่บอสสั่ง) throw new Error("ตั้งผ่านต้องระบุ --บอสสั่ง หรือ --ไม่ใช่บอสสั่ง อย่างใดอย่างหนึ่ง (งานบอสสั่งต้องลง docs/FLOW.html · บอสสั่ง 12 พ.ย. 69)");
+  if (ไม่ใช่บอสสั่ง) return { บอสสั่ง: false };
+  const เหตุ = String(ไม่เกี่ยวFLOW ?? "").trim();
+  if (เหตุ) return { บอสสั่ง: true, ไม่เกี่ยวFLOW: เหตุ, ...(commit.length ? { commit: [...commit] } : {}) };
+  if (!commit.length) throw new Error("งานบอสสั่งต้องระบุ --commit <sha> (ตรวจว่าแก้ docs/FLOW.html ในงานเดียวกัน) หรือ --ไม่เกี่ยว-FLOW \"<เหตุ>\"");
+  const ไฟล์ = commit.flatMap(c => ไฟล์ของcommit(c));
+  if (!ไฟล์.includes("docs/FLOW.html"))
+    throw new Error(`งานบอสสั่งแต่ commit ${commit.join(", ")} ไม่แก้ docs/FLOW.html — ลงคำตัดสินใน FLOW (ระบุวันที่ · ทับคำตัดสินไหน) ใน commit ของงาน แล้วตั้งผ่านใหม่ · ถ้างานนี้ไม่มีคำตัดสินที่ต้องลง ใช้ --ไม่เกี่ยว-FLOW "<เหตุ>"`);
+  return { บอสสั่ง: true, commit: [...commit] };
+}
+const ป้ายFLOW = (x) => x.บอสสั่ง === true ? ` · บอสสั่ง (${x.ไม่เกี่ยวFLOW ? `ไม่เกี่ยว FLOW: ${x.ไม่เกี่ยวFLOW}` : `FLOW ใน ${(x.commit ?? []).map(c => String(c).slice(0, 8)).join(", ")}`})` : x.บอสสั่ง === false ? " · ไม่ใช่บอสสั่ง" : "";
+
+/** เพิ่มงานเข้ารายการรอรอบ → คืนแถวที่เพิ่ม · --ทดสอบผ่าน ต้องผ่าน ตรวจFLOWของงาน (FLOW) */
+export function เพิ่มงาน({ งาน, เซสชัน, ทดสอบผ่าน = false, ใบ = [], FLOW }) {
   if (!String(งาน ?? "").trim()) throw new Error("ต้องระบุงาน (--งาน \"<ข้อความ>\")");
   if (!String(เซสชัน ?? "").trim()) throw new Error("ต้องระบุเซสชัน (--เซสชัน <ชื่อ>)");
   const ใบงาน = จัดใบ(ใบ);
+  const ผลFLOW = ทดสอบผ่าน ? ตรวจFLOWของงาน(FLOW) : {};
   return ใต้ล็อก(`เพิ่มงาน ${งาน}`, () => {
     const รายการ = อ่านรายการ();
     const id = `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
     const แถว = { id, งาน: String(งาน).trim(), เซสชัน: String(เซสชัน).trim(), ทดสอบผ่าน: !!ทดสอบผ่าน, เวลาเพิ่ม: new Date().toISOString(),
-      ...(ทดสอบผ่าน ? { ผ่านเมื่อ: new Date().toISOString() } : {}), ...(ใบงาน.length ? { ใบ: ใบงาน } : {}) };
+      ...(ทดสอบผ่าน ? { ผ่านเมื่อ: new Date().toISOString() } : {}), ...(ใบงาน.length ? { ใบ: ใบงาน } : {}), ...ผลFLOW };
     เขียน("queue.json", { งาน: [...รายการ, แถว] });
     return แถว;
   });
 }
 
-/** ตั้งสถานะ "ทดสอบส่วนตัวผ่าน" ของงานที่มีอยู่ */
-export function ตั้งผ่าน(id) {
+/** ตั้งสถานะ "ทดสอบส่วนตัวผ่าน" ของงานที่มีอยู่ · ต้องผ่าน ตรวจFLOWของงาน (FLOW) */
+export function ตั้งผ่าน(id, FLOW) {
   return ใต้ล็อก(`ตั้งผ่าน ${id}`, () => {
     const รายการ = อ่านรายการ();
     const แถว = รายการ.find(x => x.id === id);
     if (!แถว) throw new Error(`ไม่มีงานรหัส ${id} ในรายการรอรอบ (ดู npm run round:list)`);
+    const ผลFLOW = ตรวจFLOWของงาน(FLOW);
+    delete แถว.commit; delete แถว.ไม่เกี่ยวFLOW;
+    Object.assign(แถว, ผลFLOW);
     แถว.ทดสอบผ่าน = true; แถว.ผ่านเมื่อ = new Date().toISOString();
     เขียน("queue.json", { งาน: รายการ });
     return แถว;
@@ -84,7 +112,7 @@ export function ตั้งผ่าน(id) {
 /** ข้อความพร้อมใช้ในกล่องคำถามถึงบอส (round:list) */
 export function สรุปรายการ() {
   const รายการ = อ่านรายการ(), รอบ = อ่านรอบ();
-  const บรรทัด = รายการ.map((x, i) => `${i + 1}. ${x.งาน} — เซสชัน ${x.เซสชัน} · ${x.ทดสอบผ่าน ? "ทดสอบส่วนตัวผ่าน" : "ยังไม่ผ่านทดสอบส่วนตัว"}${x.ใบ?.length ? ` · ใบ ${x.ใบ.join(", ")}` : ""} · เพิ่ม ${เวลาไทย(x.เวลาเพิ่ม)} · รหัส ${x.id}`);
+  const บรรทัด = รายการ.map((x, i) => `${i + 1}. ${x.งาน} — เซสชัน ${x.เซสชัน} · ${x.ทดสอบผ่าน ? "ทดสอบส่วนตัวผ่าน" : "ยังไม่ผ่านทดสอบส่วนตัว"}${x.ใบ?.length ? ` · ใบ ${x.ใบ.join(", ")}` : ""}${ป้ายFLOW(x)} · เพิ่ม ${เวลาไทย(x.เวลาเพิ่ม)} · รหัส ${x.id}`);
   const ใบ = ใบรวม(รายการ);
   const ยังไม่ผ่าน = รายการ.filter(x => !x.ทดสอบผ่าน);
   return [

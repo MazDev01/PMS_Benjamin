@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useเปิดตามURL, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
+import { useOpenFromUrl, ตั้งแผงในURL } from "@pms/shared/lib/panelUrl";
 import { ProvinceSelect } from "@pms/shared/components/ui/ProvinceSelect";
 import { diffLeadFields, type LeadIntent, type LeadFields } from "@pms/shared/lib/leadIntent";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
@@ -31,7 +31,7 @@ import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
-import { FieldLabel, FieldError, useช่องบังคับ, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
+import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
 import { refช่องในกล่อง } from "../_form/ผูกช่องห่อ";
 import { formatPhone } from "@pms/shared/lib/format";
@@ -56,7 +56,7 @@ import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { FilterRow, FilterSelect } from "@pms/shared/components/filters/FilterRow";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { Donut } from "@pms/shared/components/ui/Charts";
-import { leadCreatedDate } from "@pms/shared/lib/leadMetrics";
+import { leadEntryDate } from "@pms/shared/lib/leadMetrics";   // วันเข้าจริง ไม่มี = null (13 พ.ย. 69 · เลิกวันสังเคราะห์จาก numId)
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { provincesOfRegion } from "@pms/shared/lib/provinces";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -315,7 +315,7 @@ function OverviewEditor({ lead, persons, onSave }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(seed()); setต้นฉบับ(lead); }, [lead.id]);
   // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69): บันทึกตอนช่องบังคับว่าง = ไม่บันทึก · กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรกที่ขาด
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
   const set = (k: keyof ReturnType<typeof seed>, v: string) => { setF(p => ({ ...p, [k]: v })); บังคับ.ล้าง(k); };
   // อัปโหลดโลโก้เอาออกจากฟอร์ม (บอสสั่ง 26 ต.ค. 69 · ชุดช่องมาตรฐาน) — คอลัมน์ logo ในฐานคงไว้ ค่าเดิมไม่ถูกแตะ
@@ -561,7 +561,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
     return "";
   }, [isEdit, form.company, form.phone, customers, existingLeads, myDealer.code]);
   // ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69) — กรอบแดง + ข้อความใต้ช่อง + โฟกัสช่องแรกที่ขาด
-  const บังคับ = useช่องบังคับ();
+  const บังคับ = useRequiredFields();
   const ผูกช่อง = (k: string, base: React.CSSProperties) => { const p = บังคับ.ผูก(k); return { ...p, style: { ...base, ...(p.style ?? {}) } }; };
   function set(k: keyof typeof form, v: string) { setForm(p=>({...p,[k]:v})); บังคับ.ล้าง(k); if (submitError) setSubmitError(""); }
   function submit() {
@@ -913,7 +913,7 @@ export default function LeadsPage() {
   const apptSavingRef = useRef(false); // กันกดบันทึกนัดซ้ำระหว่างรอเลขนัดจาก DB (H8 · guard synchronous)
   const [apptSaving, setApptSaving] = useState(false); // ไว้ disable ปุ่ม (visual)
   // ช่องบังคับของนัด (ประเภท · วันที่ · เวลา) — ตัวกลางช่องบังคับ (บอสสั่ง 4 พ.ย. 69)
-  const นัดบังคับ = useช่องบังคับ();
+  const นัดบังคับ = useRequiredFields();
   const [apptErr, setApptErr] = useState("");
   // กล่อง "ติดตามลูกค้า" (บอสตอบ 6 พ.ย. 69 ข้อ 2 ข) — เลือกบันทึกการติดต่อ หรือ นัดหมาย ในกล่องเดียว · บันทึกแล้วติ๊ก · ยกเลิก = ไม่ติ๊ก
   const [ติดตาม, setติดตาม] = useState<{ แบบ: "ติดต่อ" | "นัด"; ช่องทาง: string; ข้อความ: string; err: string; busy: boolean } | null>(null);  // ฟ้องเมื่อยังไม่เลือกประเภทนัด — ห้ามกดแล้วเงียบ
@@ -1126,7 +1126,7 @@ export default function LeadsPage() {
   //   ?tab=quotes (ลิงก์เลขคำขอ/ใบ HQ · บอสตอบ 11 พ.ย. 69) = เปิดที่แท็บใบเสนอราคา
   const selectedLeadRef = useRef(selectedLead);
   selectedLeadRef.current = selectedLead;
-  useเปิดตามURL("/leads", (p, params) => {
+  useOpenFromUrl("/leads", (p, params) => {
       if (!p) { if (selectedLeadRef.current) closePanel(); return; }
       const target = allLeadsRef.current.find(l => String(l.numId) === p || l.id === p);
       if (target) {
@@ -1270,8 +1270,8 @@ export default function LeadsPage() {
   const leadTrend = useMemo(() => {
     const newLeads = Array(12).fill(0), won = Array(12).fill(0);
     ฐานสรุปรวมปิดแล้ว.forEach(l => {
-      const d = leadCreatedDate(l);
-      if (d.getFullYear() !== CUR_YEAR) return;
+      const d = leadEntryDate(l);
+      if (!d || d.getFullYear() !== CUR_YEAR) return;   // ไม่มีวันเข้า = ไม่ลงเดือนไหน
       newLeads[d.getMonth()]++;
       if (l.status === "PAID") won[d.getMonth()]++;
     });
@@ -1281,7 +1281,7 @@ export default function LeadsPage() {
   // Lead vs Quotations — จำนวนลูกค้าเป้าหมาย (น้ำเงิน) เทียบ ใบเสนอราคา (ส้ม) รายเดือน · ปีปัจจุบันเท่านั้น
   const leadVsQuote = useMemo(() => {
     const leadC = Array(12).fill(0), quoteC = Array(12).fill(0);
-    ฐานสรุปรวมปิดแล้ว.forEach(l => { const d = leadCreatedDate(l); if (d.getFullYear() === CUR_YEAR) leadC[d.getMonth()]++; });
+    ฐานสรุปรวมปิดแล้ว.forEach(l => { const d = leadEntryDate(l); if (d && d.getFullYear() === CUR_YEAR) leadC[d.getMonth()]++; });
     quotations.filter(q => q.date.slice(0, 4) === String(CUR_YEAR))
       .forEach(q => { const mo = parseInt(q.date.slice(5, 7), 10) - 1; if (mo >= 0 && mo < 12) quoteC[mo]++; });
     return { leadC, quoteC };
@@ -2019,7 +2019,7 @@ export default function LeadsPage() {
         const qa: React.CSSProperties = { background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, height:30, padding:"0 11px", cursor:"pointer", color:"#fff", display:"flex", alignItems:"center", gap:6, fontSize:"0.72rem", fontWeight:600, fontFamily:"inherit", whiteSpace:"nowrap" };
         return (
           <>
-            {/* Lead Detail — แผงจากแถว = กรอบกลาง RowPanelShell (ชิดขวา กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · ทับ "แผงกลางจอ 820")
+            {/* Lead Detail — แผงจากแถว = กรอบกลาง RowPanelShell (กลางจอ กว้าง 640 · จอ < 1024 เต็มจอ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69)
                 Esc: ปิดกล่องที่ซ้อนอยู่ก่อน (ยืนยันลบ / กล่องแก้ช่อง) แล้วค่อยปิดแผง */}
             <RowPanelShell label="ข้อมูลลูกค้าเป้าหมาย" onClose={closePanel} zIndex={209} backdropClassName="drawer-overlay"
               onEscape={() => { if (showDeleteConfirm) setShowDeleteConfirm(false); else if (popupField) closeFieldPopup(); else closePanel(); }}

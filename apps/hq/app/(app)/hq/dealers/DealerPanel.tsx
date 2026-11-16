@@ -119,8 +119,9 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
 
   return (
     <>
-      {/* เปลือกแผง = ตัวกลาง RowPanel (แผงเลื่อนขวาจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69) */}
-      <RowPanel label={`แผงดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดแผง"
+      {/* เปลือกแผง = ตัวกลาง RowPanel (หน้าต่างจากแถวตารางทุกหน้าใช้แบบนี้ · 10 พ.ย. 69 · กลางจอ 12 พ.ย. 69)
+          กว้าง 820 เท่าหน้าต่างใบเสนอราคา (บอสสั่ง 13 พ.ย. 69 · ข้อยกเว้นของกฎ 640 · หน้าอื่นคง 640) */}
+      <RowPanel กว้าง="กว้าง" label={`แผงดีลเลอร์ ${dealer.name}`} onClose={onClose} closeLabel="ปิดแผง"
         asideAttrs={{ "data-dealer-panel": code }} backdropAttrs={{ "data-dealer-panel-backdrop": "" }}
         title={dealer.name} titleAttrs={{ "data-panel-name": "" }}
         badges={<>
@@ -146,18 +147,18 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
             ? <div style={{ padding: 30, textAlign: "center", color: MUTED, fontSize: "0.8rem" }}>กำลังโหลด…</div>
             : <ภาพรวม ข้อมูล={ข้อมูล} dealer={dealer} ไปแท็บ={ไปแท็บ} />)}
           {แท็บ === "leads" && (
-            <ตารางย่อย หัว={["รหัส", "ลูกค้า", "จังหวัด", "ขั้นตอน"]} ว่าง="ไม่มีลูกค้าเป้าหมาย" หน่วย="ราย" กว้าง={[120, "38%", "22%", 140]}
+            <SubTable หัว={["รหัส", "ลูกค้า", "จังหวัด", "ขั้นตอน"]} ว่าง="ไม่มีลูกค้าเป้าหมาย" หน่วย="ราย" กว้าง={[120, "38%", "22%", 140]}
               แถว={detail.leads.map(l => ({ key: l.id, ป้าย: `เปิดลูกค้าเป้าหมาย ${l.name}`,
                 เปิด: () => router.push(`/hq/leads?open=${encodeURIComponent(`${code}:${l.id}`)}`),
                 ช่อง: [l.id, l.name, l.province || "—", <span key="s" className="badge" style={{ background: สีขั้น(เลขขั้นจากผล(l.stage)).bg, color: สีขั้น(เลขขั้นจากผล(l.stage)).text }}>{ชื่อขั้น(เลขขั้นจากผล(l.stage))}</span>] }))} />
           )}
           {แท็บ === "quotes" && (
-            <ตารางย่อย หัว={["เลขที่", "ลูกค้า", "สถานะ", "วันที่"]} ว่าง="ไม่มีใบเสนอราคา" หน่วย="ใบ" กว้าง={[200, "38%", 128, 112]}
+            <SubTable หัว={["เลขที่", "ลูกค้า", "สถานะ", "วันที่"]} ว่าง="ไม่มีใบเสนอราคา" หน่วย="ใบ" กว้าง={[200, "38%", 128, 112]}
               แถว={detail.quotes.map(q => ({ key: q.quoteNo, ป้าย: `เปิดใบเสนอราคา ${q.quoteNo}`, เปิด: () => void เปิดใบ(q.quoteNo),
                 ช่อง: [<span key="n" data-quote-no style={{ fontWeight: 700, color: PRIMARY, whiteSpace: "nowrap" }}>{q.quoteNo}</span>, q.customer, <span key="s" className="badge" style={{ background: quotationStatusColor[q.status].bg, color: quotationStatusColor[q.status].text }}>{quotationStatusLabel[q.status]}</span>, q.date] }))} />
           )}
           {แท็บ === "customers" && (
-            <ตารางย่อย หัว={["ลูกค้า", "จังหวัด", "ผู้ติดต่อ", "ซื้อล่าสุด"]} ว่าง={ลูกค้า ? "ยังไม่มีลูกค้า" : "กำลังโหลด…"} หน่วย="ราย" กว้าง={["36%", "20%", "24%", 112]}
+            <SubTable หัว={["ลูกค้า", "จังหวัด", "ผู้ติดต่อ", "ซื้อล่าสุด"]} ว่าง={ลูกค้า ? "ยังไม่มีลูกค้า" : "กำลังโหลด…"} หน่วย="ราย" กว้าง={["36%", "20%", "24%", 112]}
               แถว={(ลูกค้า?.rows ?? []).map(c => ({ key: String(c.id), ป้าย: `เปิดลูกค้า ${c.name}`, เปิด: () => setดูลูกค้า(c.id),
                 ช่อง: [c.name, c.province || "—", c.contact || "—", c.lastPurchaseAt ? fmtISOToThai(c.lastPurchaseAt) : "—"] }))} />
           )}
@@ -241,7 +242,7 @@ function รายการกิจกรรม({ รายการ }: { ร�
 }
 
 /** ตารางดูอย่างเดียวในแผง — กดแถว = เปิดแผงของเรื่องนั้น · แบ่งหน้า 10 แถว (แถบเปลี่ยนหน้ากลาง) */
-function ตารางย่อย({ หัว, แถว, ว่าง, หน่วย, กว้าง }: { หัว: string[]; แถว: { key: string; ป้าย: string; เปิด: () => void; ช่อง: React.ReactNode[] }[]; ว่าง: string; หน่วย: string;
+function SubTable({ หัว, แถว, ว่าง, หน่วย, กว้าง }: { หัว: string[]; แถว: { key: string; ป้าย: string; เปิด: () => void; ช่อง: React.ReactNode[] }[]; ว่าง: string; หน่วย: string;
   /** ความกว้างคอลัมน์ (table-layout: fixed — แก้ที่ colgroup เท่านั้น) */ กว้าง: (number | string)[] }) {
   const [หน้า, setหน้า] = useState(0);
   const cur = Math.min(หน้า, pageCountOf(แถว.length) - 1);

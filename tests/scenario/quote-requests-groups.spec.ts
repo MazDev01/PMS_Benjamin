@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, db, loginUI } from "./funcHelpers";
-import { settle, แถวคำขอ, หน้าต่างใบHQ, เลือกกลุ่มคำขอ, แท็บมุมมองคำขอ, ปุ่มเฉพาะเกินกำหนด, จำนวนสถานะคำขอ } from "./helpers";
+import { settle, แถวคำขอ, หน้าต่างใบHQ, เลือกกลุ่มคำขอ, แท็บมุมมองคำขอ, ปุ่มเฉพาะเกินกำหนด, จำนวนสถานะคำขอ, ช่องตัวกรอง, เลือกตัวกรอง, ตัวเลือกของตัวกรอง } from "./helpers";
 import { เรียงคำขอตามกำหนด } from "../../packages/shared/lib/quoteRequests";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
@@ -81,7 +81,7 @@ test("[ui·hq] คำขอใบเสนอราคา: ตัวกรอง
   await expect(แท็บมุมมองคำขอ(page, "main"), "ค่าเริ่มต้น = ตารางหลัก ต้องตีราคา").toHaveAttribute("aria-selected", "true");
   await expect(ตัวกรอง(page), "ตารางหลักไม่มีตัวกรองสถานะ (9 พ.ย. 69)").toHaveCount(0);
   await expect(ปุ่มเฉพาะเกินกำหนด(page), "ตารางหลักมีปุ่มเฉพาะเกินกำหนด").toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByLabel("กรองตามดีลเลอร์"), "มีตัวกรองดีลเลอร์").toHaveValue("");
+  await expect(ช่องตัวกรอง(page, "กรองตามดีลเลอร์"), "มีตัวกรองดีลเลอร์").toHaveAttribute("data-filter-value", "");
 
   // ── 5) ความเร็วเปลี่ยนตัวกรอง + เปิดคำขอ ──
   //   แถวแรกที่คาด = ลำดับเดียวกับหน้าจอ (ส่งแล้ว = ไม่มีกำหนดส่ง เรียงใหม่สุดก่อน · ตัวเรียงกลาง)
@@ -124,8 +124,8 @@ test("[ui·hq] คำขอใบเสนอราคา: ตัวกรอง
     expect.soft(a && b && Math.abs((a.y + a.height / 2) - (b.y + b.height / 2)) < 8, "จอ 1440px: ปุ่มเฉพาะเกินกำหนดอยู่บรรทัดเดียวกับช่องค้นหา").toBe(true);
   }
   await แท็บมุมมองคำขอ(page, "history").click();
-  await expect(ตัวกรอง(page), "ประวัติ: ตัวกรองสถานะ ค่าเริ่มต้นทุกสถานะ").toHaveValue("all");
-  const ชื่อตัวเลือก = (await ตัวกรอง(page).locator("option").allInnerTexts()).map(t => t.replace(/\s*\([\d,]+\)\s*$/, "").trim());
+  await expect(ตัวกรอง(page), "ประวัติ: ตัวกรองสถานะ ค่าเริ่มต้นทุกสถานะ").toHaveAttribute("data-filter-value", "all");
+  const ชื่อตัวเลือก = (await ตัวเลือกของตัวกรอง(page, "กรองตามสถานะคำขอ")).map(o => o.ข้อความ).map(t => t.replace(/\s*\([\d,]+\)\s*$/, "").trim());
   // 9 พ.ย. 69: ตัวเลือกของประวัติ (ไม่มีต้องตีราคา/เกินกำหนด — อยู่ตารางหลัก) · เดิม: ["ทุกสถานะ", "ต้องตีราคา", "ต้องตีราคา · เกินกำหนด", "ส่งแล้ว รอดีลเลอร์", "ปิด", "ยกเลิกแล้ว"]
   expect.soft(ชื่อตัวเลือก, "ตัวเลือกสถานะของประวัติ (บอสสั่ง 9 พ.ย. 69)").toEqual(["ทุกสถานะ", "ส่งแล้ว รอดีลเลอร์", "ปิด", "ยกเลิกแล้ว"]);
   {
@@ -153,12 +153,12 @@ test("[ui·hq] คำขอใบเสนอราคา: ตัวกรอง
   }
   // ตัวกรองดีลเลอร์: ชื่อดีลเลอร์ (ไม่มีรหัสในตัวเลือก) · เลือกแล้วแถว = คำขอของดีลเลอร์นั้น (ของข้อทั้งหมดเป็น RYG)
   const ชื่อRYG = ((await hq.from("dealers").select("name").eq("code", "RYG").single()).data?.name as string).trim();
-  await page.getByLabel("กรองตามดีลเลอร์").selectOption({ label: ชื่อRYG });
+  await เลือกตัวกรอง(page, "กรองตามดีลเลอร์", ชื่อRYG);
   await expect.poll(() => จำนวนแถว(page), { timeout: 20_000, message: "ตัวกรองดีลเลอร์ RYG (ประวัติทุกสถานะ): แถวของข้อ 2" }).toBe(2);
   await แท็บมุมมองคำขอ(page, "main").click();
   await expect.poll(() => จำนวนแถว(page), { timeout: 20_000, message: "ตัวกรองดีลเลอร์ RYG (ตารางหลัก): แถวของข้อ 2 · รวม 4 ครบ" }).toBe(2);
-  expect.soft(await page.getByLabel("กรองตามดีลเลอร์").locator("option").allInnerTexts(), "ตัวเลือกดีลเลอร์ไม่มีรหัส RYG").not.toContain("RYG");
-  await page.getByLabel("กรองตามดีลเลอร์").selectOption("");
+  expect.soft((await ตัวเลือกของตัวกรอง(page, "กรองตามดีลเลอร์")).map(o => o.ข้อความ), "ตัวเลือกดีลเลอร์ไม่มีรหัส RYG").not.toContain("RYG");
+  await เลือกตัวกรอง(page, "กรองตามดีลเลอร์", { ค่า: "" });
   await page.getByLabel("ค้นหาคำขอ").fill("");
 
   // ── 3) กดการ์ด → ตัวกรองเปลี่ยนตาม · ตัวเลขการ์ด = จำนวนแถว ──
@@ -170,7 +170,7 @@ test("[ui·hq] คำขอใบเสนอราคา: ตัวกรอง
       await expect(ปุ่มเฉพาะเกินกำหนด(page), `กดการ์ด ${kpi} → เฉพาะเกินกำหนด ${k === "overdue"}`).toHaveAttribute("aria-pressed", String(k === "overdue"));
     } else {
       await expect(แท็บมุมมองคำขอ(page, "history"), `กดการ์ด ${kpi} → หน้าประวัติ`).toHaveAttribute("aria-selected", "true");
-      await expect(ตัวกรอง(page), `กดการ์ด ${kpi} → ตัวกรอง ${k}`).toHaveValue(k);
+      await expect(ตัวกรอง(page), `กดการ์ด ${kpi} → ตัวกรอง ${k}`).toHaveAttribute("data-filter-value", k);
     }
     if (นับ) await expect.poll(async () => {
       const ก = await หาค่าการ์ด(page, kpi), ร = await จำนวนแถว(page);
