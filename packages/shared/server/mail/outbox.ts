@@ -10,6 +10,7 @@
 //   - "จอง" ก่อนส่ง (เพิ่มครั้งที่พยายาม + เลื่อนเวลาครั้งถัดไป) — สองเครื่องรันพร้อมกันไม่ส่งฉบับเดียวกันซ้ำ
 //   - ล้มครบ 5 ครั้ง = เลิก (failed) เหลือร่องรอยข้อผิดพลาดไว้ให้ดู
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { คำปัจจุบันจากฐาน } from "@pms/shared/lib/dbMessages";
 
 export const พยายามสูงสุด = 5;
 
@@ -33,7 +34,7 @@ export async function ส่งอีเมลค้างส่ง(คลัง
   const ผล: ผลการส่ง = { ส่งแล้ว: 0, ไม่สำเร็จ: 0, ข้าม: "" };
   for (const m of await คลัง.จองที่ถึงเวลา(จำนวน)) {
     try {
-      await ตัวส่ง.ส่ง({ to: m.to_email, subject: m.subject, text: m.body });
+      await ตัวส่ง.ส่ง({ to: m.to_email, subject: คำปัจจุบันจากฐาน(m.subject), text: คำปัจจุบันจากฐาน(m.body) });   // ฐานสร้างข้อความ → คำปัจจุบันตอนส่ง (ตรวจคำขั้น 4 ส่วน 2)
       await คลัง.บันทึกส่งแล้ว(m.id);
       ผล.ส่งแล้ว++;
     } catch (e) {

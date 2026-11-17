@@ -701,7 +701,7 @@ function UserDetailDrawer({ user, onClose, onEdit }: { user: AppUser; onClose: (
     const เวลา = /T(\d{2}:\d{2})/.exec(t)?.[1];
     return เวลา ? `${วัน} · ${เวลา} น.` : วัน;
   };
-  const เข้าล่าสุด = timeline.find(t => /เข้าสู่ระบบ/.test(t.label))?.at;
+  const เข้าล่าสุด = timeline.find(t => /เข้า(?:สู่)?ระบบ(?!แทน)/.test(t.label))?.at;
   const สรุป: { label: string; value: string }[] = [
     { label: "เข้าใช้งานล่าสุด", value: เข้าล่าสุด ? เวลาไทย(เข้าล่าสุด) : "ยังไม่เคยเข้าใช้งาน" },
     { label: "สร้างบัญชีเมื่อ", value: เวลาไทย(String(user.createdAt)) },

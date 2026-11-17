@@ -1642,7 +1642,7 @@ export default function LeadsPage() {
             </div>
             <p style={{ fontSize:"0.8rem", color:"#6b7280", lineHeight:1.6, margin:"0 0 20px" }}>
               ต้องการลบ <strong style={{ color:"#2D2D2D" }}>{selectedLead.company}</strong> ({selectedLead.id}) หรือไม่?
-              การลบไม่สามารถย้อนกลับได้
+              ลบแล้วกู้คืนไม่ได้
             </p>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
               <button onClick={()=>setShowDeleteConfirm(false)}

@@ -401,7 +401,7 @@ export function hqAuditCategory(action: string): string {
 // ต้นเหตุ: ฟังก์ชันเดียวถูกใช้สองวัตถุประสงค์ที่ต้องการหมวดคนละชุด
 //   → แยกออกมาเป็นของหน้านี้เอง เพิ่มหมวดได้อิสระโดยไม่กระทบ toggle การแจ้งเตือน
 export function hqAuditModule(action: string): string {
-  if (/เข้าสู่ระบบ|ออกจากระบบ|เข้าระบบแทน/.test(action)) return "auth";
+  if (/เข้า(?:สู่)?ระบบ|ออกจากระบบ/.test(action)) return "auth";   // "เข้าระบบ" = ป้ายที่แปลงตอนแสดงแล้ว (ค่าในฐาน "เข้าสู่ระบบ")
   if (คำเรียกดีลเลอร์.test(action)) return "dealer";
   if (action.includes("ราคากลาง")) return "pricing";
   if (/แม่แบบ|แคตตาล็อก/.test(action)) return "catalog";
