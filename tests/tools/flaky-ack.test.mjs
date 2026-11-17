@@ -107,5 +107,42 @@ if (ack && cg && mg) {
   } finally { rmSync(repo, { recursive: true, force: true }); }
 }
 
+// ── 4) ข้อไม่นิ่งของขั้นก่อนรอบเต็มต้องนับด้วย (deploy20 11 พ.ย. 69: 2 ข้อไม่นิ่งในขั้นก่อนรอบไม่อยู่ในรายการรอรับทราบ) ──
+//   ตกบนโค้ดเดิม: ไม่มี ตัวเลือกก่อนรอบ · ข้อไม่นิ่งของรอบไม่อ่านรายงานก่อนรอบ · test-prodbuild ขั้นก่อนรอบไม่มีรายงาน JSON
+{
+  const pre = await นำเข้า("scripts/lib/gatePrecheck.mjs");
+  const ack = await นำเข้า("scripts/lib/flakyAck.mjs");
+  const ตัวเลือก = pre?.ตัวเลือกก่อนรอบ;
+  ผล(typeof ตัวเลือก === "function", "gatePrecheck มีตัวเลือกก่อนรอบ (รายงาน JSON ของขั้นก่อนรอบเต็ม)");
+  if (typeof ตัวเลือก === "function" && ack) {
+    const หลัก = "test-results/gate-report.json";
+    const ทุกช่วง = (pre.ช่วงก่อนรอบเต็ม ?? []).map(p => ตัวเลือก(p, หลัก));
+    const ชื่อรายงาน = ทุกช่วง.map(x => x.รายงาน);
+    const รายงานรอบหลัก = ["chromium", "hq-settings", "safari", "stress", "tools"].map(p => `test-results/gate-report.${p}.json`);
+    ผล(ทุกช่วง.length > 0 && ทุกช่วง.every(x => /(^|,)json(,|$)/.test(x.reporter.replace("--reporter=", "")) && x.env.PLAYWRIGHT_JSON_OUTPUT_NAME === x.รายงาน)
+      && new Set(ชื่อรายงาน).size === ชื่อรายงาน.length && !ชื่อรายงาน.some(n => รายงานรอบหลัก.includes(n) || n === หลัก),
+      "ทุกช่วงของขั้นก่อนรอบมีรายงาน JSON ของตัวเอง (ไม่ซ้ำกัน · ไม่ทับรายงานรอบหลัก)", JSON.stringify(ทุกช่วง, null, 1));
+    ผล(ตัวเลือก("tools", หลัก).env.PMS_GLOBAL_SETUP_SKIP === "1" && !ตัวเลือก("chromium", หลัก).env.PMS_GLOBAL_SETUP_SKIP,
+      "ช่วง tools ของขั้นก่อนรอบยังข้ามข้อมูลตั้งต้น (เหมือนเดิม)");
+    const ที่ = mkdtempSync(join(tmpdir(), "flaky-precheck-"));
+    try {
+      const รายงานจำลอง = (ไฟล์, ข้อ, สถานะ) => {
+        const f = join(ที่, ไฟล์);
+        writeFileSync(f, JSON.stringify({ suites: [{ specs: [{ file: "ปลอม.spec.ts", title: ข้อ, tests: [{ status: สถานะ }] }] }] }));
+        return f;
+      };
+      const รอบหลัก = รายงานจำลอง("main.json", "ข้อในรอบหลัก", "expected");
+      const ก่อนรอบ = รายงานจำลอง("pre.json", "ข้อไม่นิ่งขั้นก่อนรอบ", "flaky");
+      const ได้ = ack.ข้อไม่นิ่งของรอบ([รอบหลัก], [], [ก่อนรอบ]);
+      ผล(ได้.length === 1 && ได้[0].includes("ข้อไม่นิ่งขั้นก่อนรอบ"), "ข้อไม่นิ่งในขั้นก่อนรอบเต็ม → อยู่ในข้อไม่นิ่งของรอบ (รอบอสรับทราบ)", JSON.stringify(ได้));
+    } finally { rmSync(ที่, { recursive: true, force: true }); }
+    // ตัวรันรอบตรวจเต็มส่งรายงานก่อนรอบเข้าทั้งรายการรอรับทราบและตัวนับไม่นิ่ง
+    const ตัวรัน = String(execFileSync(process.execPath, ["-e", `process.stdout.write(require("fs").readFileSync("scripts/test-prodbuild.mjs","utf8"))`], { cwd: ราก }));
+    ผล(/ตัวเลือกก่อนรอบ\(/.test(ตัวรัน) && /ข้อไม่นิ่งของรอบ\(รายงาน, ตัดสิน\.ไม่นิ่ง, รายงานก่อนรอบ\)/.test(ตัวรัน)
+      && /ตรวจไม่นิ่งท้ายรอบ\(\[\.\.\.รายงาน, \.\.\.รายงานก่อนรอบ\]/.test(ตัวรัน) && !/PLAYWRIGHT_JSON_OUTPUT_NAME: ""/.test(ตัวรัน),
+      "test-prodbuild: ขั้นก่อนรอบใช้ตัวเลือกก่อนรอบ + ส่งรายงานก่อนรอบเข้ารายการรอรับทราบและตัวนับไม่นิ่ง");
+  }
+}
+
 console.log(ตก ? `\n✗ ตก ${ตก} ข้อ` : "\nALL PASS");
 process.exit(ตก ? 1 : 0);
