@@ -113,7 +113,8 @@ if (โปรเจกต์ === "pms-dev") {
 if (process.argv.includes("--prepare-only")) process.exit(0);
 
 // ④ เปิดเว็บชี้ฐาน dev — ค่าใน env ชนะ .env.local (ซึ่งชี้ฐานทดสอบไว้ให้ชุดทดสอบ)
-const env = { ...process.env, PMS_DB_TARGET: "dev", NEXT_PUBLIC_SUPABASE_URL: API, SMTP_PORT: String(ports.dev.smtp) };
+//   โหมดข้อมูล = api เหมือนเว็บจริง (บอสตัดสิน 16 พ.ย. 69 · ชนะ .env.local · สั่งอื่นได้ผ่าน env) — ตัวเฝ้า localhost (pms-preview) เรียก npm run dev ตัวนี้
+const env = { ...process.env, PMS_DB_TARGET: "dev", NEXT_PUBLIC_SUPABASE_URL: API, SMTP_PORT: String(ports.dev.smtp), NEXT_PUBLIC_DATA_SOURCE: process.env.NEXT_PUBLIC_DATA_SOURCE || "api" };
 console.log(`▶ เปิดเว็บกับฐาน dev (${API}) — ข้อมูลที่บันทึกตอนลองใช้อยู่ในฐาน dev ไม่ใช่ฐานทดสอบ`);
 const ลูก = spawn("npx", ["turbo", "dev", ...process.argv.slice(2).filter(a => a !== "--prepare-only")], { stdio: "inherit", shell: true, env });
 ลูก.on("exit", (code) => process.exit(code ?? 1));
