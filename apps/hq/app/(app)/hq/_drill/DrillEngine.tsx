@@ -229,7 +229,8 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
         {/* พอดีจอ (บอสสั่ง 6 พ.ย. 69): คอลัมน์ชื่อพอดีชื่อยาวสุด ≤ 25% · ตัวเลขเกลี่ยเท่ากัน · จอแคบกว่าความกว้างขั้นต่ำ = เลื่อนในกรอบ */}
         <div className="table-wrap dense fit">
           <table aria-label={`ตาราง${ตั้งค่า.ป้ายแถว}แยกตาม${หัวคอลัมน์แรก}`} style={{ minWidth: 170 + คอลัมน์แสดง.length * 72 + 96 }}>
-            <colgroup><col data-col-key="__name" style={{ width: ความกว้างคอลัมน์ชื่อ }} />{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} style={c.กว้าง ? { width: c.กว้าง } : undefined} />)}<col style={{ width: "9%" }} /></colgroup>
+            {/* คอลัมน์ชื่อของหน้า (ตั้งค่า.ชื่อกว้าง · ลูกค้าเป้าหมาย 12% บอสตัดสิน 17 พ.ย. 69) หรือค่ากลาง · คอลัมน์ตัวเลขไม่ระบุ = เท่ากันทั้งชุด (hq-tables-fit) */}
+            <colgroup><col data-col-key="__name" style={{ width: ตั้งค่า.ชื่อกว้าง ?? ความกว้างคอลัมน์ชื่อ }} />{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} />)}<col style={{ width: "9%" }} /></colgroup>
             <thead>
               <tr>
                 {[{ k: dim === "month" ? "__idx" : "__name", l: หัวคอลัมน์แรก, num: false }, ...คอลัมน์แสดง.map(c => ({ k: c.k, l: c.l, num: true }))].map(h => (
@@ -248,9 +249,13 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
               {!โหลด && !กลุ่ม.length && <tr><td colSpan={คอลัมน์แสดง.length + 2} className="empty-row">ไม่พบข้อมูลในระดับนี้</td></tr>}
               {!โหลด && กลุ่ม.map(g => {
                 const เซลล์ = คอลัมน์แสดง.map(c => { const v = ค่าของกลุ่ม(c, g); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; });
-                const ป้าย = <td data-group-row={g.key} title={g.label} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                // ชื่อขึ้นบรรทัด (ตั้งค่า.ชื่อขึ้นบรรทัด · บอสตัดสิน 17 พ.ย. 69): ชื่อยาวขึ้นบรรทัดใหม่ ไม่ตัด … (แบบตาราง HQ › ดีลเลอร์) · หน้าอื่นคงตัด … ชี้แล้วเห็นเต็ม
+                const ขึ้นบรรทัด = !!ตั้งค่า.ชื่อขึ้นบรรทัด;
+                const ป้าย = <td data-group-row={g.key} title={g.label} className={ขึ้นบรรทัด ? "wrap" : undefined}
+                  style={ขึ้นบรรทัด ? { overflow: "visible", overflowWrap: "anywhere", textOverflow: "clip" } : { overflow: "hidden", textOverflow: "ellipsis" }}>
                   <strong style={{ color: "#1F2937", fontWeight: g.code ? 600 : 800 }}>{g.label}</strong>
-                  {g.sub && <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sub}</div>}
+                  {g.sub && <div data-row-sub style={{ fontSize: "0.66rem", color: MUTED, fontWeight: 500,
+                    ...(ขึ้นบรรทัด ? { whiteSpace: "normal", overflowWrap: "anywhere" } : { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }) }}>{g.sub}</div>}
                 </td>;
                 if (g.เดือน && ขอบ.ดีลเลอร์) return <tr key={g.key}>{ป้าย}{เซลล์}<td /></tr>;
                 return (
