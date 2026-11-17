@@ -229,7 +229,7 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
         {/* พอดีจอ (บอสสั่ง 6 พ.ย. 69): คอลัมน์ชื่อพอดีชื่อยาวสุด ≤ 25% · ตัวเลขเกลี่ยเท่ากัน · จอแคบกว่าความกว้างขั้นต่ำ = เลื่อนในกรอบ */}
         <div className="table-wrap dense fit">
           <table aria-label={`ตาราง${ตั้งค่า.ป้ายแถว}แยกตาม${หัวคอลัมน์แรก}`} style={{ minWidth: 170 + คอลัมน์แสดง.length * 72 + 96 }}>
-            <colgroup><col data-col-key="__name" style={{ width: ความกว้างคอลัมน์ชื่อ }} />{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} />)}<col style={{ width: "9%" }} /></colgroup>
+            <colgroup><col data-col-key="__name" style={{ width: ความกว้างคอลัมน์ชื่อ }} />{คอลัมน์แสดง.map(c => <col key={c.k} data-col-key={c.k} style={c.กว้าง ? { width: c.กว้าง } : undefined} />)}<col style={{ width: "9%" }} /></colgroup>
             <thead>
               <tr>
                 {[{ k: dim === "month" ? "__idx" : "__name", l: หัวคอลัมน์แรก, num: false }, ...คอลัมน์แสดง.map(c => ({ k: c.k, l: c.l, num: true }))].map(h => (

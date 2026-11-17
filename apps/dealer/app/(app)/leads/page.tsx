@@ -1534,7 +1534,9 @@ export default function LeadsPage() {
                   .sort((x, y) => (x.date + x.time < y.date + y.time ? -1 : 1))[0];
                 return (
                   <BoardCard ชื่อ={l.company} ป้ายชื่อ={l.contact} ป้ายชื่อคือ={ช่อง.ผู้ติดต่อ} ป้ายมูลค่า={fmtมูลค่าเต็ม(มูลค่าลีด(l))}
-                    โทรศัพท์={l.phone} อีเมล={l.email} จังหวัด={l.province} เริ่มติดต่อ={l.createdAt}
+                    โทรศัพท์={l.phone} อีเมล={l.email} จังหวัด={l.province}
+                    /* วันที่ไทยแบบเดียวกับช่อง "สร้างเมื่อ" ในแผง — เดิมส่งค่าดิบ การ์ดขึ้น "2026-11-17T04:33:05…" (รอบ deploy23 17 พ.ย. 69) */
+                    เริ่มติดต่อ={l.createdAt ? วันที่สร้างอ่านง่าย(l.createdAt) : null}
                     ติดต่อล่าสุด={d === null ? null : `${d} วันที่แล้ว`} นานเกิน={d !== null && d > followUpAlertDays}
                     ผู้ดูแล={<AssigneeAvatars value={l.assigned} size={24} showName={false} />}
                     ป้ายสถานะ={<ป้ายขั้นลีด l={l} มีใบร่าง={มีใบร่างของ(l)} />}
