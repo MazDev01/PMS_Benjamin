@@ -34,3 +34,15 @@ export function ไฟล์ทดสอบที่เปลี่ยน(cwd = 
 
 /** ช่วงที่ต้องรันไฟล์เหล่านี้ ตามลำดับของรอบตรวจเต็ม (ช่วงที่ไม่มีไฟล์ตรง = playwright ข้ามเอง ด้วย --pass-with-no-tests) */
 export const ช่วงก่อนรอบเต็ม = ["tools", "chromium", "hq-settings", "safari", "stress"];
+
+/** ตัวเลือกของขั้นก่อนรอบเต็มต่อช่วง — มีรายงาน JSON ของตัวเอง (ไม่ทับรายงานของรอบหลัก) เพื่อให้นับข้อไม่นิ่งของขั้นนี้ได้
+ *  เหตุ (deploy20 · 11 พ.ย. 69): ขั้นนี้เดิมไม่มีรายงาน JSON → ข้อที่ตกครั้งแรกแล้วผ่านตอนรันซ้ำในขั้นนี้ไม่เข้ารายการรอบอสรับทราบ/ตัวนับไม่นิ่ง
+ *  คืน { รายงาน, reporter, env } · รายงาน = <รายงานหลักไม่มี .json>.<ช่วง>-precheck.json */
+export function ตัวเลือกก่อนรอบ(โปรเจกต์, รายงานหลัก) {
+  const รายงาน = String(รายงานหลัก).replace(/\.json$/, "") + `.${โปรเจกต์}-precheck.json`;
+  return {
+    รายงาน,
+    reporter: "--reporter=line,json,./tests/reporters/flaky-names.ts,./tests/reporters/failure-evidence.ts",
+    env: { PMS_RUN_STAGE: `${โปรเจกต์}-precheck`, PLAYWRIGHT_JSON_OUTPUT_NAME: รายงาน, ...(โปรเจกต์ === "tools" ? { PMS_GLOBAL_SETUP_SKIP: "1" } : {}) },
+  };
+}

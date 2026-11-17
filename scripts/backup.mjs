@@ -15,7 +15,9 @@
 //   ⚠️ รายชื่อบัญชีผู้ใช้ — เก็บได้แค่ "ใครมีบัญชีบ้าง" (อีเมล/บทบาท/สาขา)
 //      **รหัสผ่านสำรองไม่ได้** เพราะระบบยืนยันตัวตนไม่เปิดให้อ่านออกมา
 //      → ถ้าต้องกู้จริง ผู้ใช้ทุกคนต้องตั้งรหัสผ่านใหม่ ระบบจะไม่กลับมาเองทั้งหมด
-//   ❌ ไฟล์แนบที่อัปโหลด (รูป/เอกสาร) — อยู่คนละที่กับฐานข้อมูล ตัวนี้ไม่ได้สำรองให้
+//   ✅ ไฟล์แนบที่อัปโหลด (รูป/เอกสาร) — ทุก bucket ของที่เก็บไฟล์ลง <ชุด>/_attachments (บอสเลือกทาง 3 · 18 พ.ย. 69)
+//      ดาวน์โหลดเฉพาะไฟล์ใหม่/เปลี่ยนตั้งแต่ชุดก่อนที่ครบ · ที่ไม่เปลี่ยนคัดลอกจากชุดก่อน (ตรวจ sha256) → ทุกชุดกู้ได้ครบด้วยตัวเอง
+//      ตัวทำงาน: scripts/lib/attachmentBackup.mjs · กู้ด้วย scripts/restore.mjs ชุดเดียวกัน
 //
 // 🔒 ไฟล์ที่ได้มีข้อมูลลูกค้าจริงและรหัสลับของดีลเลอร์ — ห้ามส่งต่อ ห้าม commit ขึ้น git
 //    (โฟลเดอร์ backups/ ถูกกันไว้ใน .gitignore แล้ว)
@@ -24,6 +26,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { สำรองไฟล์แนบ } from "./lib/attachmentBackup.mjs";
 import path from "node:path";
 
 const PAGE = 1000;   // ฐานข้อมูลคืนสูงสุด 1,000 แถวต่อคำขอ ขอมากกว่านี้ก็ได้เท่านี้ — ต้องไล่ทีละหน้า
@@ -119,8 +122,18 @@ try {
   console.log(`  ❌ _auth_users             ${String(e.message).slice(0, 60)}`);
 }
 
+// ── ไฟล์แนบ (ดาวน์โหลดเฉพาะไฟล์ใหม่/เปลี่ยน · ที่เหลือคัดลอกจากชุดก่อน) ──
+try {
+  const ผล = await สำรองไฟล์แนบ({ svc, dir, ฐาน: BASE, ต้นทาง: URL_ });
+  manifest.ไฟล์แนบ = { ไฟล์: ผล.ทั้งหมด, ดาวน์โหลด: ผล.ดาวน์โหลด, คัดลอก: ผล.คัดลอก, พลาด: ผล.พลาด.length };
+  if (!ผล.ครบ) failed++;
+} catch (e) {
+  failed++;
+  manifest.ไฟล์แนบ = { error: String(e.message).slice(0, 120) };
+  console.log(`  ❌ ${"ไฟล์แนบ".padEnd(24)} ${String(e.message).slice(0, 60)}`);
+}
+
 manifest.warnings.push("ไม่ครอบคลุมรหัสผ่านผู้ใช้ — กู้แล้วทุกคนต้องตั้งรหัสผ่านใหม่");
-manifest.warnings.push("ไม่ครอบคลุมไฟล์แนบที่อัปโหลด (เก็บคนละที่กับฐานข้อมูล)");
 manifest.warnings.push("มีข้อมูลลูกค้าจริงและรหัสลับดีลเลอร์ — ห้ามส่งต่อ ห้าม commit");
 writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
 

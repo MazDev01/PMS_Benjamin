@@ -13,6 +13,7 @@ const ชุด: [string, string, string][] = [
   ["tests/tools/testdb-schema.test.mjs", "โครงฐานทดสอบตรงกับใบปรับฐานในโฟลเดอร์", "ALL PASS"],
   ["tests/tools/prod-live-cleanup-race.test.mjs", "ล้างข้อมูลทดสอบเว็บจริง: ไม่ซ้อนกับขั้นอื่น · นับ/ลบในทรานแซกชันเดียวหลังล็อกตาราง (จำลองเขียนแถวแทรก)", "ALL PASS"],
   ["tests/tools/cleanup-lock-order.test.mjs", "คำสั่งล้างเว็บจริงไม่รอกันไขว้กับงานหน้าเว็บ (บังคับลำดับล็อก 2 การเชื่อมต่อ · deadlock 11 พ.ย. 69)", "ALL PASS"],
+  ["tests/tools/attachment-backup.test.mjs", "สำรองไฟล์แนบดาวน์โหลดเฉพาะไฟล์ใหม่/เปลี่ยน · ที่เหลือคัดลอกจากชุดก่อน (ตรวจ sha256) · ซ้อมกู้ไฟล์หาย/ถูกเขียนทับกลับมาตรง (ข้อ 8 · 18 พ.ย. 69)", "ALL PASS"],
   ["tests/tools/cleanup-self-audit.test.mjs", "ลบ 0: บันทึกที่ cleanup.sql สร้างเองตอนลบลีด/ใบ ZZT ขั้นนับก่อนลบมองไม่เห็น · ข้อความจบใช้สรุปการลบของฐาน", "ALL PASS"],
 ];
 for (const [ไฟล์, อะไร, คำผ่าน] of ชุด) {

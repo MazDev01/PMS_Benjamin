@@ -11,8 +11,8 @@
 //     · รายการใบผ่านรอบตรวจ = ของเซสชันเสมอ รวมแล้วต้องไม่หายใบ — บอสสั่ง 29 ต.ค. 69)
 //   ไม่ตรง → บอกงานที่รอรวมของทุกเซสชัน · รวมให้ครบก่อนแล้วรันรอบตรวจรวมทีเดียว · ห้ามข้าม (pre-push/Vercel ปฏิเสธ commit ที่ไม่มีผลผ่าน)
 // ข้อทดสอบ: tests/tools/session-merge-reuse.test.mjs
-import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { เป็นโฟลเดอร์หลัก } from "./lib/session.mjs";
 import { gitใน, ชื่อถูกแบบ } from "./lib/sessions.mjs";
@@ -30,6 +30,29 @@ const branch = `session/${ชื่อ}`;
 let ปลาย;
 try { ปลาย = git("rev-parse", "--verify", `refs/heads/${branch}`); } catch { ตาย(`ไม่มี branch ${branch}`); }
 if (git("status", "--porcelain")) ตาย("โฟลเดอร์หลักมีไฟล์ที่ยังไม่ commit — เก็บให้เรียบร้อยก่อน");
+
+// ── ตัวรวมงาน/ตัวตรวจรุ่นเดียวกับโค้ดที่ผ่านรอบ (งาน rmwbytl2x0d1 · deploy20 11 พ.ย. 69) ──
+//   เดิมรันสคริปต์ของโฟลเดอร์หลักเสมอ → งานที่เปลี่ยนรูปแบบบันทึกผลรอบ (บรรทัดรอรับทราบของ deploy20) ถูกตัวรุ่นเก่าอ่านผิด
+//   ต้องไปรันตัวของ deploy20 เอง · ตอนนี้: โฟลเดอร์ scripts ของ commit ที่ผ่านรอบต่างจากโฟลเดอร์หลัก → ดึง scripts ของ commit นั้น
+//   ไปไว้ชั่วคราว (node_modules/.cache) แล้วรันตัวนั้นแทน (cwd = โฟลเดอร์หลักเหมือนเดิม) · PMS_MERGE_TOOL_FROM กันวนซ้ำ
+if (!process.env.PMS_MERGE_TOOL_FROM) {
+  const ต้นไม้ = (sha) => { try { return git("rev-parse", `${sha}:scripts`); } catch { return ""; } };
+  if (ต้นไม้(ปลาย) && ต้นไม้(ปลาย) !== ต้นไม้("HEAD")) {
+    const ชั่วคราว = path.join(cwd, "node_modules/.cache", `session-merge-${ปลาย.slice(0, 12)}-${process.pid}`);
+    try {
+      for (const f of git("ls-tree", "-r", "-z", "--name-only", ปลาย, "scripts").split("\0").filter(Boolean)) {
+        const ปลายทาง = path.join(ชั่วคราว, f);
+        mkdirSync(path.dirname(ปลายทาง), { recursive: true });
+        writeFileSync(ปลายทาง, execFileSync("git", ["show", `${ปลาย}:${f}`], { cwd, maxBuffer: 64 << 20 }));
+      }
+      console.log(`▶ scripts ของ ${branch} (${ปลาย.slice(0, 7)}) ต่างจากโฟลเดอร์หลัก — ใช้ตัวรวมงาน/ตัวตรวจรุ่นของ commit ที่ผ่านรอบ`);
+      const r = spawnSync(process.execPath, [path.join(ชั่วคราว, "scripts/session-merge.mjs"), ...process.argv.slice(2)],
+        { cwd, stdio: "inherit", env: { ...process.env, PMS_MERGE_TOOL_FROM: ปลาย } });
+      process.exitCode = r.status ?? 1;
+    } finally { rmSync(ชั่วคราว, { recursive: true, force: true }); }
+    process.exit(process.exitCode);
+  }
+}
 
 const ผล = ตรวจcommitผ่าน(ปลาย, cwd);
 if (!ผล.ผ่าน) ตาย(`${ผล.เหตุ}\n   (commit ล่าสุดของ ${branch} · ให้เซสชัน ${ชื่อ} รันรอบตรวจเต็มให้ผ่านในโฟลเดอร์ของตัวเอง แล้ว commit ไฟล์บันทึก)`);

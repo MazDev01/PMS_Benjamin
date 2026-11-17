@@ -19,6 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { กู้ไฟล์แนบ } from "./lib/attachmentBackup.mjs";
 
 const dir = process.argv.slice(2).find(a => !a.startsWith("--"));
 const APPLY = process.argv.includes("--apply");
@@ -130,9 +131,12 @@ for (const r of report) {
   console.log(`  ${flag} ${r.table.padEnd(24)} ไฟล์ ${String(r.dump).padStart(6)} · ฐานข้อมูล ${String(r.live).padStart(6)}   ${detail}`);
 }
 
-const needFix = report.reduce((n, r) => n + (r.missing ?? 0) + (r.differ ?? 0), 0);
+let needFix = report.reduce((n, r) => n + (r.missing ?? 0) + (r.differ ?? 0), 0);
 
 if (!APPLY) {
+  // ไฟล์แนบ (ชุดที่สำรองไฟล์แนบไว้ · บอสเลือกทาง 3 18 พ.ย. 69) — เทียบเนื้อหาไฟล์ ไม่แตะที่เก็บไฟล์
+  const ไฟล์ = await กู้ไฟล์แนบ({ svc, dir, apply: false });
+  if (ไฟล์) needFix += ไฟล์.หาย + ไฟล์.ต่าง + ไฟล์.พลาด.length;
   console.log(`\n${needFix ? `🔴 ต้องกู้คืน ${needFix} แถว — สั่ง --apply --yes เพื่อกู้จริง` : "✅ ข้อมูลในฐานข้อมูลครบตรงกับไฟล์สำรอง"}`);
   if (manifest.warnings?.length) { console.log(""); for (const w of manifest.warnings) console.log(`  ⚠️  ${w}`); }
   console.log("");
@@ -172,10 +176,15 @@ while (queue.length && pass < 4) {
     : "\n  ✅ ปรับตัวนับเลขอัตโนมัติให้ตรงกับข้อมูลแล้ว");
 }
 
-console.log(`\n${queue.length ? `❌ ยังกู้ไม่ได้ ${queue.length} ตาราง: ${queue.map(q => q.table).join(", ")}` : "✅ กู้คืนครบแล้ว"}`);
+// ── ไฟล์แนบ: อัปโหลดกลับเฉพาะไฟล์ที่หาย/เนื้อหาไม่ตรง (ไฟล์ที่เกิดใหม่หลังวันสำรองไม่แตะ) ──
+console.log("");
+const ไฟล์แนบ = await กู้ไฟล์แนบ({ svc, dir, apply: true });
+const ไฟล์ค้าง = ไฟล์แนบ ? ไฟล์แนบ.พลาด.length : 0;
+
+console.log(`\n${queue.length || ไฟล์ค้าง ? `❌ ยังกู้ไม่ได้${queue.length ? ` ${queue.length} ตาราง: ${queue.map(q => q.table).join(", ")}` : ""}${ไฟล์ค้าง ? ` · ไฟล์แนบ ${ไฟล์ค้าง} ไฟล์` : ""}` : "✅ กู้คืนครบแล้ว"}`);
 console.log("   แนะนำ: รัน node scripts/restore.mjs " + dir + " อีกครั้ง (โหมดตรวจ) เพื่อยืนยันว่าครบจริง");
 if (existsSync(path.join(dir, "_auth_users.json"))) {
   console.log("   ⚠️  บัญชีผู้ใช้ไม่ได้ถูกกู้ (สำรองรหัสผ่านไม่ได้) — ดูรายชื่อได้ที่ _auth_users.json แล้วสร้างใหม่พร้อมตั้งรหัสผ่านใหม่");
 }
 console.log("");
-process.exit(queue.length ? 1 : 0);
+process.exit(queue.length || ไฟล์ค้าง ? 1 : 0);
