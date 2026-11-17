@@ -11,10 +11,9 @@
 #    scripts/reset-test-db.mjs --workdir <ฐานเปล่า> + test:prodbuild กับฐานนั้นแล้ว
 name: ทดสอบหน้าจอเต็มชุด
 
+# ปิดรันอัตโนมัติ (บอสสั่ง 17 พ.ย. 69 "ปิด CI e2e") — รันเองจากหน้า Actions เท่านั้น · รอบตรวจเต็มบน Docker ในเครื่องเป็นตัวหลัก
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
 
 concurrency:
   group: e2e-${{ github.ref }}
