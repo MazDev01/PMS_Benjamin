@@ -67,7 +67,7 @@ test("[func·hq] สร้างดีลเลอร์ = สร้างบั
 
   // ผลอย่างใดอย่างหนึ่ง: โมดัลสำเร็จ (มี key) หรือ ข้อความ error ในฟอร์ม (ไม่มี key)
   const okModal = page.getByText("สร้างดีลเลอร์สำเร็จ");
-  const errMsg = page.getByText(/service_role|ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์/i);
+  const errMsg = page.getByText(/ระบบยังตั้งค่าไม่ครบ/);   // ข้อความใหม่ (ตรวจคำ 16 พ.ย. 69 · ชื่อตัวแปรระบบห้ามขึ้นจอ)
   await expect(okModal.or(errMsg).first(), "ต้องเห็นผลจริงอย่างใดอย่างหนึ่ง").toBeVisible({ timeout: 25_000 });
 
   const rows = (await sb.from("dealers").select("code,name").eq("code", NEW_CODE)).data ?? [];

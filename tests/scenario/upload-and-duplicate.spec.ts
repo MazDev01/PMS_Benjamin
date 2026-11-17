@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db, specNS, nsTag, cleanup, waitRow } from "./funcHelpers";
+import { เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 import { open, ดักข้อความแจ้งเตือน, settle } from "./helpers";
 
 // ── ความปลอดภัยรอง: ไฟล์รูปที่รับเข้าระบบ + การสร้างข้อมูลซ้ำ (ตรวจสอบระบบ 5 ส.ค. 69) ──
@@ -124,8 +125,9 @@ test("กรอกบริษัทที่มีลูกค้าเป้�
   const company = tg("เตือนซ้ำ");
   const sb = await db(RYG);
   // มีลูกค้าเป้าหมายของบริษัทนี้อยู่แล้วในสาขา (เหมือนเพิ่งกดบันทึกไปในอีกแท็บ)
-  const { data: seq } = await sb.from("leads").select("num_id").order("num_id", { ascending: false }).limit(1);
-  const nextId = Number(seq?.[0]?.num_id ?? 0) + 9001;
+  // เลขของข้อเอง (17 พ.ย. 69 · คิว first-row-shared-data-fix): เดิม "num_id สูงสุดทั้งฐาน + 9001" → ข้ออื่นที่เพิ่มลูกค้าเป้าหมายพร้อมกัน
+  //   อ่านเลขสูงสุดชุดเดียวกันแล้วได้เลขชนกันได้ · ตอนนี้ใช้ช่วงเลขของข้อทดสอบ (hqQuoteFixture · ไม่ซ้ำภายในตัวรัน)
+  const nextId = เลขลูกค้าเป้าหมายทดสอบ();
   const { error } = await sb.from("leads").insert({ phone: "000-000-9065",
     id: nextId, num_id: nextId, dealer_code: "RYG", company, contact: "คุณทดสอบ",
     status: "WAITING", province: "ระยอง",

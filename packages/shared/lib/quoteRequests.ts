@@ -110,7 +110,7 @@ export const hqQuoteStatusLabel: Record<HqQuoteStatus, string> = {
   draft: "ร่าง (ดีลเลอร์ยังไม่เห็น)",
   sent: "ส่งแล้ว",
   ordered: "สั่งผลิตแล้ว",
-  superseded: "มีฉบับใหม่แทน",
+  superseded: "ฉบับเก่า",   // ตรวจคำขั้น 4 (ฉบับเก่า ชุดเดียวกับใบเสนอราคา · งาน A)
 };
 /** ยอดรายบรรทัด — ปัดสองตำแหน่งแบบเดียวกับฐานข้อมูล (hq_quote_save) */
 export const ยอดบรรทัด = (l: Pick<HqQuoteLine, "qty" | "unitCost">) => Math.round(Number(l.qty) * Number(l.unitCost) * 100) / 100;

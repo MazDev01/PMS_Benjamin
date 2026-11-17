@@ -9,6 +9,7 @@
 //     → หน้าแม่ต้องโหลดรายนั้นใหม่ (onAdded) ไม่งั้นตารางยังโชว์ค่าเก่า
 //   ประวัติ: ระบบบันทึกเอง แก้/ลบไม่ได้ — ไม่มีปุ่มแก้/ลบให้กดตั้งแต่ต้น
 import { ชื่อขั้นปัจจุบัน } from "@pms/shared/lib/dealerProspects";
+import { คำปัจจุบันประวัติผู้สนใจ } from "@pms/shared/lib/dbMessages";
 import React, { useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import { prospectActivities as activitiesRepo } from "@pms/shared/lib/data";
@@ -102,7 +103,7 @@ export function ProspectActivityPanel({ prospect, activities, loaded, loadErr, e
     id: a.id,
     type: ป้ายชนิด[a.kind]?.type ?? "note",
     label: a.kind === "contact" && a.channel ? `ติดต่อทาง ${a.channel}` : ป้ายชนิด[a.kind]?.label,
-    text: แทนรหัส(ชื่อขั้นปัจจุบัน(a.kind === "contact" && a.nextFollowUp ? `${a.body} · นัดติดตาม ${fmtISOToThai(a.nextFollowUp)}` : a.body)),   // รหัสดีลเลอร์ → ชื่อ ตอนแสดง (6 พ.ย. 69)   // ชื่อขั้นเดิม → ใหม่ตอนแสดง
+    text: แทนรหัส(ชื่อขั้นปัจจุบัน(a.kind === "contact" ? (a.nextFollowUp ? `${a.body} · นัดติดตาม ${fmtISOToThai(a.nextFollowUp)}` : a.body) : คำปัจจุบันประวัติผู้สนใจ(a.body))),   // บันทึกการติดต่อ = ข้อความผู้ใช้ ไม่แปลง · แถวอื่น = ฐานเขียน → คำปัจจุบัน   // รหัสดีลเลอร์ → ชื่อ ตอนแสดง (6 พ.ย. 69)   // ชื่อขั้นเดิม → ใหม่ตอนแสดง
     time: `${วันเวลาไทย(new Date(a.createdAt))} · ${a.actor === "system" ? "ระบบ" : a.actor}`,
   }));
 

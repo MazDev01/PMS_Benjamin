@@ -24,7 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ขอล็อก } from "./lib/prodLock.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
-import { อ่านคำสั่งสำรอง } from "./lib/backupArgs.mjs";
+import { อ่านคำสั่งสำรอง, ย่อข้อผิดพลาดdump } from "./lib/backupArgs.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
 import { บันทึกผลซ้อมกู้ } from "./lib/prodBackupMark.mjs";
@@ -137,7 +137,7 @@ for (const [f, extra] of ชุด) {
     const ข้อความ = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
     const ชน = /deadlock detected/i.test(ข้อความ) ? " (ชนกับงานอื่นที่กำลังแก้ฐานพร้อมกัน — deadlock)" : "";
     writeFileSync(path.join(D, ".dump.log"), ข้อความ);
-    ไม่ผ่าน(`ขั้น "ดึงไฟล์สำรอง ${f}" ล้ม — ${r.status !== 0 ? `คำสั่งจบด้วยรหัส ${r.status}` : `ได้ไฟล์ว่างหรือเล็กผิดปกติ (${ขนาด} ไบต์)`}${ชน} · รายละเอียด ${path.join(D, ".dump.log")}`);
+    ไม่ผ่าน(`ขั้น "ดึงไฟล์สำรอง ${f}" ล้ม — ${r.status !== 0 ? `คำสั่งจบด้วยรหัส ${r.status}` : `ได้ไฟล์ว่างหรือเล็กผิดปกติ (${ขนาด} ไบต์)`}${ชน} · รายละเอียด ${path.join(D, ".dump.log")}${ย่อข้อผิดพลาดdump(ข้อความ) ? `\n   ข้อความจากคำสั่ง: ${ย่อข้อผิดพลาดdump(ข้อความ)}` : ""}`);
   }
 }
 

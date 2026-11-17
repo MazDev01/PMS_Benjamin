@@ -60,7 +60,7 @@ test("[ui·dealer] บอร์ดลีด: ลากทีละขั้น =
 
   // ปิดไม่สำเร็จ = กล่องเหตุผล · ยกเลิก = อยู่ที่เดิม
   await ลากการ์ด(page, การ์ด(page), คอลัมน์(page, "7"));
-  await expect(page.getByRole("alertdialog"), "ลากไปปิดไม่สำเร็จ = กล่องเหตุผล").toContainText("ปิดไม่สำเร็จ", { timeout: 20_000 });
+  await expect(page.getByRole("alertdialog"), "ลากไปปิดไม่สำเร็จ = กล่องเหตุผล").toContainText("ปิดการขายไม่สำเร็จ", { timeout: 20_000 });   // หัวกล่องเหตุผล = ข้อความเต็ม (บอสตัดสิน 16 พ.ย. 69)
   await page.getByRole("alertdialog").locator("[data-dialog-cancel]").click();
   await page.keyboard.press("Escape");
   await อยู่ที่(page, "1", "ยกเลิกเหตุผล = การ์ดอยู่ที่เดิม");

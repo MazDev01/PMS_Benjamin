@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason } from "./supabaseEnv";
+import { EXISTING_CUSTOMER_ID } from "./global-setup";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
@@ -64,8 +65,11 @@ test("[รอบ4] ดีลเลอร์: ส่งคำขอเองไ�
 
 test("[รอบ4] ดีลเลอร์: นัดหมายวันนี้ → กระดิ่ง (งานตั้งเวลารัน 2 รอบได้เรื่องเดียว) · กดแล้วเปิดรายละเอียดนัดนั้น", async ({ page }) => {
   // นัดต้องผูกลีดหรือลูกค้าของสาขา (ใบ 0274) — ผูกลูกค้าตั้งต้นของ RYG (ไม่แตะงาน/ไทม์ไลน์ของลีดในข้อมูลตั้งต้น)
-  const { data: ลูกค้า } = await admin.from("customers").select("id").eq("dealer_code", "RYG").order("id").limit(1).single();
-  const ins = await admin.from("appointments").insert({ id: เลขนัด, dealer_code: "RYG", customer_id: ลูกค้า?.id ?? null, company: นัด, date: วันนี้(), time: "10:30", type: "follow_up", status: "upcoming", note: "", assigned: "ทดสอบ" });
+  // ลูกค้าข้อมูลตั้งต้น (EXISTING_CUSTOMER_ID · global-setup · ลบตอน teardown เท่านั้น) — เดิมหยิบลูกค้า RYG รายไหนก็ได้แถวแรก
+  //   → อาจได้ลูกค้าของข้ออื่นที่ถูกลบระหว่างทาง (17 พ.ย. 69 · คิว first-row-shared-data-fix) · ไม่เจอ = ตก
+  const { data: ลูกค้า } = await admin.from("customers").select("id").eq("dealer_code", "RYG").eq("id", EXISTING_CUSTOMER_ID).maybeSingle();
+  expect(ลูกค้า?.id, "มีลูกค้าข้อมูลตั้งต้นของ RYG").toBe(EXISTING_CUSTOMER_ID);
+  const ins = await admin.from("appointments").insert({ id: เลขนัด, dealer_code: "RYG", customer_id: ลูกค้า!.id, company: นัด, date: วันนี้(), time: "10:30", type: "follow_up", status: "upcoming", note: "", assigned: "ทดสอบ" });
   expect(ins.error?.message ?? "").toBe("");
   expect(สแกน(), "งานตั้งเวลารันที่ฐานทดสอบ (หาฐานไม่เจอ = null)").not.toBeNull();
   สแกน();

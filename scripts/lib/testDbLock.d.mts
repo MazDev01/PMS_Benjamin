@@ -4,3 +4,4 @@ export function ขอล็อกฐานทดสอบ(งาน: string, op
 export function ปล่อยล็อกฐานทดสอบ(token: string, key: string, opt?: { ผู้ขอปล่อย?: number }): boolean;
 export function ประวัติผู้ถือล็อก(): { เซสชัน: string; งาน: string; เริ่ม: string; จบ?: string }[];
 export function ใครถือล็อกตอน(เวลา: string | Date): { เซสชัน: string; งาน: string; เริ่ม: string; จบ?: string } | null;
+export function ที่มาของแถว(เวลา: string | Date, ตอนตรวจ?: string | Date, ประวัติ?: { เซสชัน: string; งาน: string; เริ่ม: string; จบ?: string }[]): string;

@@ -22,32 +22,35 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
     await settle(page);
     await page.getByRole("button", { name: "บอร์ด", exact: true }).click();
 
-    // รอบ 4: การ์ดบนบอร์ดลากไม่ได้แล้ว (ดูอย่างเดียว · เปลี่ยนขั้นที่กล่องขั้นต่อไปในแผง) — หาการ์ดจากโครงหัวการ์ด (ชื่อบริษัท)
-    const การ์ดทั้งหมด = page.locator("div.card:has(> div > div[title])");
+    // การ์ดตัวกลาง BoardCard (บอสสั่ง 13 พ.ย. 69 · 63c62a15) — หาการ์ดจาก data-board-card + ชื่อการ์ด (data-board-name)
+    //   เดิมหาจากโครง div.card:has(> div > div[title]) ของการ์ดรุ่นก่อน → รอบ deploy23 17 พ.ย. หาการ์ดไม่เจอทั้งที่ขึ้นจอ
+    const การ์ดทั้งหมด = page.locator("[data-board-card]:has([data-board-card-body])");
     await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ป้ายลีด);
-    const การ์ด = การ์ดทั้งหมด.filter({ hasText: ป้ายลีด }).first();
+    const การ์ด = การ์ดทั้งหมด.filter({ has: page.locator("[data-board-name]", { hasText: ป้ายลีด }) }).first();
     await expect(การ์ด, "ต้องมีการ์ดอย่างน้อยหนึ่งใบ").toBeVisible({ timeout: 30_000 });
     // ตรวจกลับด้าน (บอสตัดสิน 5 พ.ย. 69 · ทับรอบ 4 ที่บอร์ดดูอย่างเดียว): บอร์ดลูกค้าเป้าหมายลากการ์ดได้ (ลากแล้วเด้งฟอร์มของขั้นนั้น)
     await expect(page.locator('[draggable="true"]').filter({ hasText: ป้ายลีด }), "การ์ดบนบอร์ดลากได้ (บอสตัดสิน 5 พ.ย. 69)").toHaveCount(1);
 
-    // ชื่อป้ายมาจากชุดช่องมาตรฐาน (lib/fieldLabels.ts · 26 ต.ค. 69 "จังหวัด" → "จังหวัดหน้างาน")
-    const ป้ายการ์ด = [`${ช่อง.โทรศัพท์}:`, `${ช่อง.อีเมล}:`, `${ช่อง.จังหวัด}:`, "สร้าง:", "ติดต่อล่าสุด:"];
-    for (const ป้าย of ป้ายการ์ด) {
-      await expect(การ์ด.getByText(ป้าย, { exact: true }), `การ์ดต้องมีบรรทัด "${ป้าย}"`).toBeVisible();
+    // ช่องของการ์ดตัวกลาง (ช่องการ์ดบอร์ด ใน BoardCard.tsx · ชุดเดียวกับ board-card-shared.spec) — "สร้าง" เดิม = "เริ่มติดต่อ"
+    const ช่องการ์ด = ["โทรศัพท์", "อีเมล", "จังหวัด", "เริ่มติดต่อ", "ติดต่อล่าสุด", "ติดตามครั้งถัดไป"];
+    for (const ป้าย of ช่องการ์ด) {
+      await expect(การ์ด.locator(`[data-board-field="${ป้าย}"]`).getByText(`${ป้าย}:`, { exact: true }), `การ์ดต้องมีบรรทัด "${ป้าย}:"`).toBeVisible();
     }
+    expect(ช่อง.โทรศัพท์, "ชื่อช่องโทรศัพท์ตรงชุดช่องมาตรฐาน").toBe("โทรศัพท์");
 
     // ทุกบรรทัดต้องมีค่าต่อท้ายเสมอ — ถ้ายังไม่มีข้อมูลต้องเป็น "—" (ห้ามปล่อยว่าง)
-    const บรรทัด = await การ์ด.evaluate((el, ป้าย) =>
-      Array.from(el.querySelectorAll("span"))
-        .filter(s => ป้าย.includes(s.textContent ?? ""))
-        .map(s => ({ ป้าย: s.textContent, ค่า: (s.nextElementSibling?.textContent ?? "").trim() })), ป้ายการ์ด);
-    expect(บรรทัด.length, "ต้องเจอครบ 5 บรรทัด").toBe(5);
+    const บรรทัด = await การ์ด.evaluate((el, ป้าย) => ป้าย.map(k => ({ ป้าย: k, ค่า: (el.querySelector(`[data-board-value-of="${k}"]`)?.textContent ?? "").trim() })), ช่องการ์ด);
+    expect(บรรทัด.length, `ต้องเจอครบ ${ช่องการ์ด.length} บรรทัด`).toBe(ช่องการ์ด.length);
     for (const b of บรรทัด) expect(b.ค่า, `บรรทัด ${b.ป้าย} ต้องมีค่าหรือขีด`).not.toBe("");
+    // วันที่บนการ์ดต้องเป็นวันที่ไทยอ่านง่าย (เช่น "17 พ.ย. 2569") ไม่ใช่ค่าดิบจากฐาน (เจอรอบ deploy23 17 พ.ย. 69: "2026-11-17T04:33:05.906247+00:00")
+    const เริ่ม = บรรทัด.find(b => b.ป้าย === "เริ่มติดต่อ")?.ค่า ?? "";
+    expect(เริ่ม, "เริ่มติดต่อ = วันที่ไทย (ลีดของข้อนี้เพิ่งสร้าง)").toMatch(/^\d{1,2} [ก-๙.]+ \d{4}$/);
+    expect(await การ์ด.innerText(), "การ์ดไม่มีวันที่รูปแบบดิบของฐาน (ISO)").not.toMatch(/\d{4}-\d{2}-\d{2}(T|\s\d{2}:)/);
 
     // หัวการ์ด = ชื่อบริษัท (เดิมเป็นแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69) · ไม่มีป้าย "สนใจ:" ซ้ำอีก
     const ลำดับ = await การ์ด.evaluate(el => {
       const t = (el.textContent ?? "").replace(/\s+/g, " ");
-      return { หัว: (el.firstElementChild?.textContent ?? "").trim(), เต็ม: t };
+      return { หัว: (el.querySelector("[data-board-name]")?.textContent ?? "").trim(), เต็ม: t };
     });
     expect(ลำดับ.เต็ม, 'ป้าย "สนใจ:" ต้องถูกถอดออกแล้ว').not.toContain("สนใจ:");
     expect(ลำดับ.หัว, "หัวการ์ดต้องไม่ว่าง").not.toBe("");
@@ -64,10 +67,7 @@ test("[ui·dealer] การ์ดกระดานแสดงป้ายก�
     // ราคาต้องเป็นตัวเต็ม ฿10,000,000.00 ไม่ใช่ตัวย่อ ฿10.0M (บอสสั่ง "แสดงราคาด้วย")
     // ลูกค้าเป้าหมายที่ยังไม่กรอกมูลค่าต้องขึ้น "—" ไม่ใช่ป้ายว่างเปล่า
     const ป้ายราคา = await การ์ดทั้งหมด.evaluateAll(cards =>
-      cards.map(c => {
-        const chip = c.querySelector('span[style*="rgb(227, 240, 251)"]');
-        return (chip?.textContent ?? "").trim();
-      }));
+      cards.map(c => (c.querySelector("[data-board-value]")?.textContent ?? "").trim()));   // ป้ายมูลค่าของการ์ดตัวกลาง
     expect(ป้ายราคา.length, "ต้องมีการ์ดให้ตรวจ").toBeGreaterThan(0);
     for (const ราคา of ป้ายราคา) {
       expect(ราคา, "ทุกการ์ดต้องมีป้ายราคา (ไม่มีมูลค่า = ขีด)").not.toBe("");

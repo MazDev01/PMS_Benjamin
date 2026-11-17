@@ -31,6 +31,7 @@
     "backup": "node scripts/backup.mjs",
     "db:push:prod": "node scripts/db-push-prod.mjs",
     "backup:verify": "node scripts/prod-backup-verify.mjs",
+    "docker:cleanup": "node scripts/post-deploy-docker-cleanup.mjs",
     "prod:query": "node scripts/prod-query.mjs",
     "test:push-guard": "node tests/tools/db-push-prod-guard.test.mjs",
     "hooks:install": "git config core.hooksPath .githooks",

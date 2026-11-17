@@ -13,7 +13,7 @@ import { captureError, เตือนถ้าDsnเพี้ยน, dsnใช�
 export async function register() {
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  if (!เตือนถ้าDsnเพี้ยน(dsn, "เซิร์ฟเวอร์")) return;
+  if (!เตือนถ้าDsnเพี้ยน(dsn, "ฝั่งระบบ")) return;
   const Sentry = await import("@sentry/nextjs");
   Sentry.init({ dsn, tracesSampleRate: 0 });
 }

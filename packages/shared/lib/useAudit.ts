@@ -8,6 +8,7 @@
 // เพราะ LocalAdapter (ชั้นข้อมูล) ต้องใช้ส่วนนั้น แล้วเกิดวงจร import ย้อนกลับมาที่ไฟล์นี้
 // (ดูเหตุผลเต็มใน auditStore.ts · พบจากผลตรวจสอบระบบ 5 ส.ค. 69)
 import { ชื่อขั้นปัจจุบัน } from "@pms/shared/lib/dealerProspects";
+import { คำปัจจุบันจากฐาน } from "@pms/shared/lib/dbMessages";   // ชื่อการกระทำที่ฐานเขียน → คำปัจจุบันตอนแสดง (ช่องเป้าหมายมีชื่อที่ผู้ใช้ตั้ง ไม่แปลง)
 import { useCallback, useEffect, useState } from "react";
 import { logRepoRead } from "./repoLog";
 import { useRole } from "@pms/shared/context/RoleContext";
@@ -47,7 +48,7 @@ export function useAuditEntries(limit: number = AUDIT_READ_CAP): AuditEntry[] {
   useEffect(() => {
     if (!isHQ) { setEntries([]); return; }
     // ชื่อขั้นผู้สนใจรุ่นเดิมแปลงตอนแสดง (ไม่แก้บันทึกในฐาน · 30 ต.ค. 69)
-    const read = () => { auditRepo.list(limit).then(l => setEntries(l.map(e => ({ ...e, action: ชื่อขั้นปัจจุบัน(e.action), target: ชื่อขั้นปัจจุบัน(e.target) })))).catch((e) => logRepoRead("audit.list", e)); };
+    const read = () => { auditRepo.list(limit).then(l => setEntries(l.map(e => ({ ...e, action: คำปัจจุบันจากฐาน(ชื่อขั้นปัจจุบัน(e.action)), target: ชื่อขั้นปัจจุบัน(e.target) })))).catch((e) => logRepoRead("audit.list", e)); };
     read();
     window.addEventListener(AUDIT_EVENT, read);
     window.addEventListener("storage", read);

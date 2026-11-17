@@ -53,7 +53,8 @@ test("[func] ปุ่ม \"ดูรหัสผ่าน\" (ขอเลขท
   //   ใช้ร่วมกัน = ได้ 429 ก่อนถึงตัวกันที่ต้องการตรวจ (เจอในรอบเต็ม 16 ต.ค. 69)
   const ด = await api.post(`${HQ_ORIGIN}/api/account/reveal`, { headers: { authorization: `Bearer ${await tok(CNX)}`, "content-type": "application/json" }, data: { op: "send" } });
   expect(ด.status(), "ดีลเลอร์ขอเลขดูรหัส").toBe(403);
-  expect(JSON.stringify(await ด.json())).toContain("ติดต่อ HQ");
+  // คำบนจอใหม่ (ตรวจคำขั้น 4 · บอสตัดสิน 16 พ.ย. 69): "ลืมรหัสผ่าน ติดต่อสำนักงานใหญ่" — เดิม "ติดต่อ HQ" (รอบ deploy23 17 พ.ย. ตกข้อนี้)
+  expect(JSON.stringify(await ด.json())).toContain("ติดต่อสำนักงานใหญ่");
   // HQ: ต้องมีสำเนารหัสก่อน ไม่งั้นตอบ "ไม่มีสำเนา" (404) ก่อนถึงขั้นขอเลข = ไม่ได้ตรวจทางอีเมลจริง
   const หัวHQ = { authorization: `Bearer ${await tok(ADMIN)}`, "content-type": "application/json" };
   const { data: เดิม } = await adminClient().from("hq_login_secrets").select("user_id").limit(100);

@@ -76,8 +76,10 @@ test.describe("ตรวจ input ก่อนสร้างบัญชี", (
 test("หนึ่งสาขาหนึ่งบัญชี — DB ปฏิเสธโปรไฟล์ซ้ำ dealer_code (0105)", async () => {
   // ยิงตรงที่ DB ด้วย service_role (ข้าม RLS) — พิสูจน์ว่า constraint อยู่ที่ฐานข้อมูลจริง
   // ไม่ใช่แค่ logic ใน route ที่เลี่ยงได้ถ้าเขียนข้อมูลทางอื่น
+  // บัญชีของสาขาทดสอบตั้งต้น RYG (17 พ.ย. 69 · คิว first-row-shared-data-fix): เดิมหยิบโปรไฟล์ดีลเลอร์ใดก็ได้แถวแรก
+  //   → อาจได้สาขาของข้ออื่นที่ถูกลบระหว่างทาง แล้วฐานตอบเรื่องอื่น (ไม่ใช่ข้อมูลซ้ำ) · RYG ไม่มีข้อไหนลบ
   const { data: existing } = await admin.from("profiles")
-    .select("id, dealer_code").not("dealer_code", "eq", "").limit(1);
+    .select("id, dealer_code").eq("dealer_code", "RYG").order("id").limit(1);
   // ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69) — ข้อมูลตั้งต้นมีบัญชีดีลเลอร์ทดสอบ (RYG/CNX) เสมอ
   expect(existing?.length ?? 0, "ขาดข้อมูล: ไม่มีบัญชีดีลเลอร์ในฐานทดสอบ (ข้อมูลตั้งต้นต้องมีบัญชี RYG/CNX)").toBeGreaterThan(0);
 

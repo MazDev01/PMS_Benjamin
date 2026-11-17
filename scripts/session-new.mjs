@@ -58,7 +58,8 @@ for (const f of [".env.local", "apps/dealer/.env.local", "apps/hq/.env.local", "
   copyFileSync(path.join(cwd, f), ไป);
   const s = readFileSync(ไป, "utf8")
     .replaceAll(`localhost:${หลัก.dealer}`, `localhost:${ข้อมูล.dev.dealer}`)
-    .replaceAll(`localhost:${หลัก.hq}`, `localhost:${ข้อมูล.dev.hq}`);
+    .replaceAll(`localhost:${หลัก.hq}`, `localhost:${ข้อมูล.dev.hq}`)
+    .replace(/^NEXT_PUBLIC_DATA_SOURCE=.*$/m, "NEXT_PUBLIC_DATA_SOURCE=api");   // โหมด api เหมือนเว็บจริง (บอสตัดสิน 16 พ.ย. 69)
   writeFileSync(ไป, s);
 }
 

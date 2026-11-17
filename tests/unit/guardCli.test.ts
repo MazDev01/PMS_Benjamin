@@ -97,7 +97,9 @@ describe("คำสั่ง git ที่เขียนทับไฟล์�
         `git checkout ${เก่า}`, `git switch --detach ${เก่า}`, `git switch -c จากเก่า ${เก่า}`, "git checkout -- .", "git restore .", "git checkout .", `git -C ${repo} reset --hard ${เก่า}`])
         expect(ใน(c), `ต้องกัน: ${c}`).not.toBe("");
       expect(ใน(`cd ${repo.replace(/\\/g, "/")} && git reset --hard ${เก่า}`, os.homedir()), "cd แล้ว reset --hard (ติดตามโฟลเดอร์)").not.toBe("");
-      for (const c of ["git reset --hard", `git reset --hard ${งานอื่น}`, "git stash list", "git stash", "git switch เหมือนกัน", "git status", "git log -3", `git reset --soft ${เก่า}`,
+      // git stash (push) เฉย ๆ = กันเสมอตั้งแต่บอสสั่ง 16 พ.ย. 69 (กัน stash ทุกคำสั่งย่อยยกเว้น list/show) — ตรวจกลับด้าน ไม่ลบข้อตรวจ
+      expect(ใน("git stash"), "git stash (push) = กัน แม้ไฟล์ตัวกันไม่ถูกแก้ (บอสสั่ง 16 พ.ย. 69)").not.toBe("");
+      for (const c of ["git reset --hard", `git reset --hard ${งานอื่น}`, "git stash list", "git switch เหมือนกัน", "git status", "git log -3", `git reset --soft ${เก่า}`,
         "git switch -q -c work/ใหม่", "git checkout -b fix/ใหม่", `git switch -c ต่อจากงานอื่น ${งานอื่น}`])
         expect(ใน(c), `ต้องผ่าน: ${c}`).toBe("");
       writeFileSync(path.join(repo, ".claude/settings.json"), "{\"hooks\":{\"x\":1}}\n");

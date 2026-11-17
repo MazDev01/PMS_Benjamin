@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
+import { EXISTING_CUSTOMER_ID } from "./global-setup";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, loginUI, specNS, nsTag } from "./funcHelpers";
 import { adminClient } from "./testDealers";
@@ -24,7 +25,9 @@ test("[D7] ปฏิทิน: นัดเลยกำหนดที่ยั�
   // นัดของ RYG ย้อนหลัง 3 วัน: ค่า "scheduled" (สถานะที่ฐานเก็บได้ นอกจาก upcoming) กับ "cancelled"
   const ก่อน3วัน = new Date(Date.now() + 7 * 3_600_000 - 3 * 86_400_000).toISOString().slice(0, 10);
   // นัดต้องผูกลีดหรือลูกค้าของสาขา (ใบ 0274) — ผูกลูกค้าตั้งต้นของ RYG (ไม่แตะงาน/ไทม์ไลน์ของลีดในข้อมูลตั้งต้น)
-  const { data: ลูกค้า } = await admin.from("customers").select("id").eq("dealer_code", "RYG").order("id").limit(1).single();
+  // ลูกค้าข้อมูลตั้งต้น (EXISTING_CUSTOMER_ID · global-setup · ลบตอน teardown เท่านั้น) — เดิมหยิบลูกค้า RYG รายไหนก็ได้แถวแรก
+  //   → อาจได้ลูกค้าของข้ออื่นที่ถูกลบระหว่างทาง (17 พ.ย. 69 · คิว first-row-shared-data-fix) · ไม่เจอ = ตก
+  const { data: ลูกค้า } = await admin.from("customers").select("id").eq("dealer_code", "RYG").eq("id", EXISTING_CUSTOMER_ID).maybeSingle();
   expect(ลูกค้า?.id, "มีลูกค้าของ RYG ในข้อมูลตั้งต้น").toBeTruthy();
   const r = await admin.from("appointments").insert([
     { id: เลข[0], dealer_code: "RYG", customer_id: ลูกค้า!.id, company: ยังเปิด, contact: "ผู้ทดสอบ", date: ก่อน3วัน, time: "10:00", type: "visit", status: "scheduled", note: "" },
