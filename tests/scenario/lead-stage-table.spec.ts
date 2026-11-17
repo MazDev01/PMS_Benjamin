@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { settle, เลือกตัวกรอง } from "./helpers";
 import { RYG, skipReason } from "./supabaseEnv";
+import { NS as ฐานNS } from "./global-setup";
 import { DEALER_ORIGIN, loginUI, db, waitRow, cleanup, specNS, nsTag } from "./funcHelpers";
 import { ใบHQให้ลูกค้าเป้าหมายเดิม, ทำใบลูกค้าจากใบHQ, เติมข้อมูลลีดก่อนขอราคา } from "./hqQuoteFixture";
 
@@ -111,11 +112,14 @@ test("[ui·dealer] ชื่อในช่องขั้นตอนของ�
   await เทียบ(ก, "ขั้น 4 ส่งแล้ว", "ส่งแล้ว");
 
   // ปิดไม่สำเร็จ (ข้อมูลตั้งต้น) — แผงไม่มีขั้นปัจจุบัน ตารางต้องบอก "ปิดไม่สำเร็จ" ไม่ใช่ชื่อสถานะภายใน
-  const { data: ปิด } = await sb.from("leads").select("company, reached_step").eq("dealer_code", "RYG").eq("status", "CANCELLED").limit(1);
-  if (ปิด?.[0]) {
-    const { ในตาราง, คืบหน้า, ป้ายแถบ } = await ขั้นในตารางและแผง(page, ปิด[0].company as string, true);
-    expect(ในตาราง, "ลีดปิดไม่สำเร็จ: ตารางแสดงชื่อขั้นกลาง").toBe("ปิดไม่สำเร็จ");
-    expect(คืบหน้า, "ลีดปิดไม่สำเร็จ: แถบเต็มเท่าขั้นไกลสุดที่เคยไปถึง (ฐานคิด)").toBe(Number(ปิด[0].reached_step));
-    expect(ป้ายแถบ, "ลีดปิดไม่สำเร็จ: แถบบอกว่าปิดไม่สำเร็จ (สีแดง)").toContain("ปิดไม่สำเร็จ");
-  }
+  //   ไม่นิ่งรอบ deploy24 (17 พ.ย. 69): เดิมหยิบ "ลีดปิดไม่สำเร็จรายไหนก็ได้ของ RYG" แถวแรก → ได้ ZZTEST-ขั้นต่อไป-ปิด-… ของ lead-next-step
+  //   ซึ่งลบลีดของตัวเองตอนจบ (afterAll) ระหว่างข้อนี้ค้นในตาราง → แถวหายก่อนขึ้น 20 วิ · ตอนนี้หยิบเฉพาะข้อมูลตั้งต้น (ZZTEST-BASE · global-setup
+  //   ไม่มีข้อไหนลบระหว่างรอบ) เรียงตาม num_id ให้ได้รายเดิมทุกครั้ง · ไม่เจอ = ตก (เดิมข้ามเงียบด้วย if)
+  const { data: ปิด } = await sb.from("leads").select("company, reached_step").eq("dealer_code", "RYG").eq("status", "CANCELLED")
+    .like("company", `${ฐานNS}-%`).order("num_id").limit(1);
+  expect(ปิด?.[0], "ข้อมูลตั้งต้นมีลีด RYG ปิดไม่สำเร็จ (global-setup)").toBeTruthy();
+  const { ในตาราง, คืบหน้า, ป้ายแถบ } = await ขั้นในตารางและแผง(page, ปิด![0].company as string, true);
+  expect(ในตาราง, "ลีดปิดไม่สำเร็จ: ตารางแสดงชื่อขั้นกลาง").toBe("ปิดไม่สำเร็จ");
+  expect(คืบหน้า, "ลีดปิดไม่สำเร็จ: แถบเต็มเท่าขั้นไกลสุดที่เคยไปถึง (ฐานคิด)").toBe(Number(ปิด![0].reached_step));
+  expect(ป้ายแถบ, "ลีดปิดไม่สำเร็จ: แถบบอกว่าปิดไม่สำเร็จ (สีแดง)").toContain("ปิดไม่สำเร็จ");
 });
