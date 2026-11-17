@@ -62,16 +62,24 @@ test("ดีลเลอร์เขียนบันทึกของสำ�
 
 test("แก้/ลบบันทึกย้อนหลังไม่ได้ (append-only)", async () => {
   const hq = await as(ADMIN);
-  const { data: rows } = await hq.from("audit_log").select("id").limit(1);
+  // 17 พ.ย. 69 (คิว first-row-shared-data-fix): เดิมหยิบแถวไหนก็ได้ แล้วนับ "แก้/ลบได้ 0 แถว" ว่าถูกปฏิเสธ
+  //   → ถ้าแถวหายไปเอง (ข้ออื่นล้างระหว่างทาง) หรือ RLS กรองจนมองไม่เห็น ก็ผ่านหลอกได้ · ตอนนี้หยิบแถวเก่าสุด (เรียง id)
+  //   และตรวจที่ฐานด้วยกุญแจฝั่งเซิร์ฟเวอร์ว่าแถวยังอยู่ ค่า action เท่าเดิม หลังลองแก้และลบ
+  const { data: rows } = await hq.from("audit_log").select("id, action").order("id").limit(1);
   // ไม่มีข้อมูล = ตก ไม่ใช่ข้าม (บอสสั่ง 11 พ.ย. 69) — ข้อมูลตั้งต้นมีบันทึกการใช้งานตัวอย่าง 1 แถว (tests/fixtures/test-baseline.sql)
   expect(rows?.length ?? 0, "ขาดข้อมูล: ไม่มีบันทึกการใช้งานในฐานทดสอบ (ข้อมูลตั้งต้นต้องมีแถวตัวอย่าง)").toBeGreaterThan(0);
   const id = rows![0].id;
+  const เดิม = String(rows![0].action);
+  const ที่ฐาน = async () => (await svc.from("audit_log").select("id, action").eq("id", id).maybeSingle()).data as { id: number; action: string } | null;
+  expect(await ที่ฐาน(), "ก่อนลอง: กุญแจฝั่งเซิร์ฟเวอร์เห็นแถวเดียวกัน").toEqual({ id, action: เดิม });
 
   const upd = await hq.from("audit_log").update({ action: "ZZTEST-แก้ย้อนหลัง" }).eq("id", id).select();
   expect(upd.error !== null || (upd.data ?? []).length === 0, "แก้บันทึกย้อนหลังต้องทำไม่ได้").toBe(true);
+  expect(await ที่ฐาน(), "หลังลองแก้: แถวยังอยู่ ค่าไม่เปลี่ยน (ตรวจที่ฐาน)").toEqual({ id, action: เดิม });
 
   const del = await hq.from("audit_log").delete().eq("id", id).select();
   expect(del.error !== null || (del.data ?? []).length === 0, "ลบบันทึกย้อนหลังต้องทำไม่ได้").toBe(true);
+  expect(await ที่ฐาน(), "หลังลองลบ: แถวยังอยู่ (ตรวจที่ฐาน)").toEqual({ id, action: เดิม });
 });
 
 // ── ปุ่มล้างบันทึกยกเลิกแล้ว (บอสสั่ง 26 ต.ค. 69 แทนคำสั่ง 14 ส.ค. 69 · ใบ 0241) ──────────────────────────────────────
