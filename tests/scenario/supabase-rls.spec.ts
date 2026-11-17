@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON, RYG, CNX, ADMIN, skipReason, type Account } from "./supabaseEnv";
+import { EXISTING_CUSTOMER_ID } from "./global-setup";
 import { วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 import { adminClient } from "./testDealers";
 import { ถือแถวกลาง } from "./sharedRowLock";
@@ -410,7 +411,9 @@ test("[notes] โน้ตลูกค้าเก็บที่ DB · สา�
   let id: number | null = null;
   try {
     // customer_notes_customer_fk (0089) บังคับให้ customer_id ต้องมีลูกค้าอยู่จริง — ดึงลูกค้าจริงของ RYG มาใช้
-    const anyCustomer = await ryg.from("customers").select("id").eq("dealer_code", "RYG").limit(1).maybeSingle();
+    // ลูกค้าข้อมูลตั้งต้น (EXISTING_CUSTOMER_ID · global-setup · ลบตอน teardown เท่านั้น) — เดิมหยิบลูกค้า RYG รายไหนก็ได้แถวแรก
+    //   → อาจได้ลูกค้าของข้ออื่นที่ถูกลบระหว่างทาง (17 พ.ย. 69 · คิว first-row-shared-data-fix) · ไม่เจอ = ตก
+    const anyCustomer = await ryg.from("customers").select("id").eq("dealer_code", "RYG").eq("id", EXISTING_CUSTOMER_ID).maybeSingle();
     expect(anyCustomer.error, `หาลูกค้า RYG ไม่ได้: ${JSON.stringify(anyCustomer.error)}`).toBeNull();
     const customerId = (anyCustomer.data as { id: number } | null)?.id;
     expect(customerId, "ต้องมีลูกค้าอย่างน้อย 1 รายของ RYG ไว้ใช้ทดสอบโน้ต").toBeTruthy();
