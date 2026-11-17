@@ -5,7 +5,7 @@ import { HQ_ORIGIN, DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
 import { settle } from "./helpers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
-import { ข้อมูลงานครบชุด, ล้างใบHQทดสอบ } from "./hqQuoteFixture";
+import { ข้อมูลงานครบชุด, ล้างใบHQทดสอบ, เตรียมใบHQ, ทำใบลูกค้าจากใบHQ } from "./hqQuoteFixture";
 
 // ── ทุกชื่อ/เลขที่ที่อ้างถึงข้อมูลอื่นกดเข้าไปดูได้ (บอสสั่ง 11 พ.ย. 69 · ลิงก์กลาง components/ui/RecordLink.tsx) ─────────────
 //   1) HQ หน้าหลัก: ชื่อดีลเลอร์ (ลูกค้าเป้าหมาย · ลูกค้า · ใบเสนอราคา · คำขอ) · ชื่อลูกค้าเป้าหมายในคำขอ · ชื่อผู้สนใจในใบค่าแฟรนไชส์ = ลิงก์กลาง
@@ -31,7 +31,8 @@ test.beforeAll(async () => {
     contact: "ผู้ทดสอบ", phone: "000-000-0303", province: "ตราด", status: "BULLET", ...ข้อมูลงานครบชุด })).error, "ลูกค้าเป้าหมายของข้อ").toBeNull();
   expect((await sd.rpc("quote_request_submit", { p_lead_num_id: เลขลีด, p_product: "โกดัง" })).error, "ส่งคำขอ").toBeNull();
 });
-test.afterAll(async () => { if (ส) { ล้างใบHQทดสอบ(ส.รหัส, [เลขลีด]); await ส.ลบ(); } });
+const ลีดที่สร้างเพิ่ม: number[] = [];
+test.afterAll(async () => { if (ส) { ล้างใบHQทดสอบ(ส.รหัส, [เลขลีด, ...ลีดที่สร้างเพิ่ม]); await ส.ลบ(); } });
 
 /** ทุกเซลล์ที่เลือกมีลิงก์กลางของชนิดนั้น (นับเท่ากัน) · หน้าตาเดียวกัน */
 async function ทุกเซลล์เป็นลิงก์(page: Page, เซลล์: string, ชนิด: string, ชื่อ: string) {
@@ -109,15 +110,24 @@ test("[HQ] แผงอยู่ในที่อยู่หน้าเว็
   await expect(page.getByRole("dialog", { name: "ใบ HQ" }), "ย้อนอีกชั้น = หน้าต่างคำขอเดิม").toBeVisible({ timeout: 30_000 });
 });
 
-test("[ดีลเลอร์] หน้าต่างใบ → ลิงก์ลูกค้า → แผงลูกค้าเป้าหมาย → ย้อนกลับ = หน้าต่างใบเดิม · ไม่มีลิงก์ข้ามสาขา/หน้า HQ", async ({ page }) => {
-  // ใบของ RYG ที่ผูกลูกค้าเป้าหมาย (ยังไม่ผูกลูกค้า) — ลิงก์ชื่อลูกค้าไปแผงลูกค้าเป้าหมาย
-  const { data: ใบ } = await admin.from("quotations").select("id, deal_id, customer_id").eq("dealer_code", "RYG").not("deal_id", "is", null)
-    .or("customer_id.is.null,customer_id.eq.0").neq("status", "superseded").order("id").limit(1);
+test("[ดีลเลอร์] หน้าต่างใบ → ลิงก์ลูกค้า → แผงลูกค้าเป้าหมาย → ย้อนกลับ = หน้าต่างใบเดิม · ไม่มีลิงก์ข้ามสาขา/หน้า HQ", async ({ page: หน้าRYG, browser }) => {
+  // ใบของข้อเอง (17 พ.ย. 69 · คิว first-row-shared-data-fix): เดิมหยิบ "ใบ RYG ใดก็ได้ที่ผูกลูกค้าเป้าหมาย" แถวแรก → ได้ใบของข้ออื่น
+  //   ที่ลบระหว่างทางได้ · ตอนนี้สร้างลูกค้าเป้าหมาย + ใบ HQ + ใบลูกค้าร่าง (ผูก deal_id · ยังไม่ผูกลูกค้า) ในสาขาของข้อ
+  //   ส่วนหน้าต่างใบ → ลิงก์ → ย้อนกลับ ทำในบริบทเบราว์เซอร์ของสาขาของข้อ · สแกนลิงก์ข้ามสาขายังทำกับ RYG (ข้อมูลหลากหลายเท่าเดิม)
+  const เลข2 = เลขลีด + 1;
+  ลีดที่สร้างเพิ่ม.push(เลข2);
+  const ใบHQ2 = await เตรียมใบHQ(ส.บัญชี, { dealerCode: ส.รหัส, company: `${บริษัท()} ใบ`, province: "ตราด", leadNum: เลข2,
+    lines: [{ name: "โกดังสำเร็จรูป", qty: 100, unit: "ตร.ม.", unitCost: 4500 }] });
+  const ใบลูกค้า = await ทำใบลูกค้าจากใบHQ(ส.บัญชี, ใบHQ2, { customer: `${บริษัท()} ใบ`, status: "draft" });
+  const { data: ใบ } = await admin.from("quotations").select("id, deal_id, customer_id").eq("dealer_code", ส.รหัส).eq("id", ใบลูกค้า.id)
+    .not("deal_id", "is", null).or("customer_id.is.null,customer_id.eq.0").limit(1);
   const q = ใบ?.[0] as { id: string; deal_id: number } | undefined;
-  expect(q, "ข้อมูลตั้งต้นมีใบของ RYG ที่ผูกลูกค้าเป้าหมาย").toBeTruthy();
-  const { data: ลีด } = await admin.from("leads").select("company, status").eq("dealer_code", "RYG").eq("num_id", q!.deal_id).single();
+  expect(q, "ใบของข้อผูกลูกค้าเป้าหมาย (ยังไม่ผูกลูกค้า)").toBeTruthy();
+  const { data: ลีด } = await admin.from("leads").select("company, status").eq("dealer_code", ส.รหัส).eq("num_id", q!.deal_id).single();
 
-  await loginUI(page, DEALER_ORIGIN, `/quotations?open=${encodeURIComponent(q!.id)}`, RYG);
+  const บริบท = await browser.newContext();
+  const page = await บริบท.newPage();
+  await loginUI(page, DEALER_ORIGIN, `/quotations?open=${encodeURIComponent(q!.id)}`, ส.บัญชี);
   const หน้าต่าง = page.locator(`[data-quote-view='${q!.id}']`);
   await expect(หน้าต่าง, "เปิดหน้าต่างใบจากที่อยู่").toBeVisible({ timeout: 30_000 });
   const ลิงก์ = หน้าต่าง.locator("[data-quote-customer] a.rec-link[data-rec='lead']");
@@ -132,12 +142,14 @@ test("[ดีลเลอร์] หน้าต่างใบ → ลิงก
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/quotations\\?open=${encodeURIComponent(q!.id)}`), { timeout: 30_000 });
   await expect(หน้าต่าง, "ย้อนกลับ = หน้าต่างใบเดิม").toBeVisible({ timeout: 30_000 });
+  await บริบท.close();
 
-  // ไม่มีลิงก์ข้ามสาขา/ไปหน้า HQ — ทุกลิงก์กลางบนหน้าหลักของดีลเลอร์
+  // ไม่มีลิงก์ข้ามสาขา/ไปหน้า HQ — ทุกลิงก์กลางบนหน้าหลักของดีลเลอร์ (RYG · ข้อมูลหลากหลาย)
+  await loginUI(หน้าRYG, DEALER_ORIGIN, "/quotations", RYG);
   for (const path of ["/quotations", "/leads", "/customers", "/files", "/dashboard"]) {
-    await page.goto(`${DEALER_ORIGIN}${path}`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    const ลิงก์ทั้งหมด = await page.locator("a.rec-link").evaluateAll(es => es.map(e => ({ href: e.getAttribute("href") ?? "", ชนิด: e.getAttribute("data-rec") ?? "" })));
+    await หน้าRYG.goto(`${DEALER_ORIGIN}${path}`, { waitUntil: "domcontentloaded" });
+    await settle(หน้าRYG);
+    const ลิงก์ทั้งหมด = await หน้าRYG.locator("a.rec-link").evaluateAll(es => es.map(e => ({ href: e.getAttribute("href") ?? "", ชนิด: e.getAttribute("data-rec") ?? "" })));
     for (const l of ลิงก์ทั้งหมด) {
       expect(l.href, `${path}: ลิงก์ไปหน้าของสาขาตัวเองเท่านั้น`).toMatch(/^\/(customers|leads|quotations)\?open=/);
       expect(["customer", "lead", "quotation", "request", "hqQuote"], `${path}: ไม่มีลิงก์ดีลเลอร์/ผู้สนใจ/ใบค่าแฟรนไชส์`).toContain(l.ชนิด);
