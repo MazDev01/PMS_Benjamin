@@ -226,6 +226,23 @@ try {
   ผล(m.ได้ && รายการหลัง.includes("0004_q_zero.sql") && รายการหลัง.length === 4 && globalThis.__cg.ตรวจcommitผ่าน("HEAD", repo).ผ่าน,
     "session:merge: รายการใบผ่านรอบตรวจชนกัน (สาขาหลักเป็นฉบับเก่า) → ได้ฉบับของเซสชัน ไม่หายใบ", `${รายการหลัง} · ${m.ข้อความ}`);
 
+  // ═══ 6ข) session:merge ใช้ตัวรวมงาน/ตัวตรวจรุ่นของ commit ที่ผ่านรอบ (งาน rmwbytl2x0d1 · deploy20 11 พ.ย. 69) ═══
+  //   aa เปลี่ยนสคริปต์รวมงาน (จำลองงานที่เปลี่ยนรูปแบบบันทึกผลรอบ) → merge จากโฟลเดอร์หลักต้องรันรุ่นของ aa ไม่ใช่รุ่นของโฟลเดอร์หลัก
+  //   ตกบนโค้ดเดิม: รันรุ่นของโฟลเดอร์หลักเสมอ (ไม่มีป้ายของรุ่น aa)
+  {
+    const ไฟล์ = join(A, "scripts/session-merge.mjs");
+    const เดิม = readFileSync(ไฟล์, "utf8").replace(/\r\n/g, "\n");
+    writeFileSync(ไฟล์, เดิม.replace("const cwd = process.cwd();", 'console.log("ป้าย:ตัวรวมงานรุ่นของเซสชัน aa");\nconst cwd = process.cwd();'));
+    gitIn(A, "add", "-A"); gitIn(A, "commit", "-qm", "aa เปลี่ยนตัวรวมงาน");
+    m = รัน(repo, "scripts/session-merge.mjs", ["aa"]);
+    ผล(/ป้าย:ตัวรวมงานรุ่นของเซสชัน aa/.test(m.ข้อความ) && /ใช้ตัวรวมงาน\/ตัวตรวจรุ่นของ commit ที่ผ่านรอบ/.test(m.ข้อความ)
+      && !existsSync(join(repo, ".git/MERGE_HEAD")) && !git("status", "--porcelain")
+      && !(existsSync(join(repo, "node_modules/.cache")) && readdirSync(join(repo, "node_modules/.cache")).some(f => f.startsWith("session-merge-"))),
+      "session:merge: scripts ของเซสชันต่างจากโฟลเดอร์หลัก → รันตัวรวมงานรุ่นของเซสชัน (ไม่ค้างไฟล์ชั่วคราว · โฟลเดอร์หลักสะอาด)", m.ข้อความ);
+    const ไม่วน = รัน(repo, "scripts/session-merge.mjs", ["aa"], { PMS_MERGE_TOOL_FROM: "x" });
+    ผล(!/ป้าย:ตัวรวมงานรุ่นของเซสชัน aa/.test(ไม่วน.ข้อความ), "session:merge: ตัวที่ถูกเรียกต่อ (PMS_MERGE_TOOL_FROM) ไม่ดึงรุ่นซ้ำ", ไม่วน.ข้อความ);
+  }
+
   // ═══ 7) session:close — ยังไม่ merge = ไม่ปิด · ถอดทางลัดก่อนลบ ไฟล์นอกโฟลเดอร์ไม่หาย ═══
   let c = รัน(repo, "scripts/session-close.mjs", ["aa"]);
   ผล(!c.ได้ && /ยังไม่ได้ merge/.test(c.ข้อความ) && existsSync(A), "session:close: งานยังไม่ merge → ไม่ปิด ไม่ลบ", c.ข้อความ);
