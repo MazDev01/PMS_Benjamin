@@ -1,7 +1,7 @@
 // ── ส่วน "ขั้นทั้งหมด": ลีดครบทุกขั้นใน FLOW ของ RYG/CNX + รายการวัสดุ + ผู้รับผิดชอบ + ลีด HQ รอโอน + ผู้สนใจ/ใบค่าแฟรนไชส์ ──
 // (ย้ายจากรุ่นแรกของ scripts/dev-sample-data.mjs · 28 ต.ค. 69) · เลขลีด 996_1xx_xxx (RYG) · 996_2xx_xxx (CNX) · 996_900_00x (ลีด HQ)
 //   ลีด → ขอราคา → HQ รับเรื่อง/ตีราคา/ส่งใบ → ทำใบ → ส่งใบ → ตอบรับ/ปฏิเสธ · ยกเลิกคำขอ · ขอแก้ราคา · ปิดไม่สำเร็จ · นัด · คำขอเกิน 14 วัน
-import { ป้าย } from "./ตัวช่วย.mjs";
+import { รายการโกดัง, สเปกโกดัง, ตัวย้อนเวลา, ชื่อบริษัทสมจริง, ผู้ติดต่อสมจริง, ที่อยู่สมจริง, หมายเหตุลีด } from "./งานขาย.mjs";
 
 export const ชื่อ = "ขั้นทั้งหมด";
 const สาขา = [
@@ -25,7 +25,19 @@ const สถานการณ์ = [
   "D8x ลูกค้าปฏิเสธ",
   "D8y ปิดไม่สำเร็จ (ยังไม่ได้ส่งใบ)",
 ];
-const ชื่อบริษัท = (s, i) => `บริษัท ตัวอย่าง ${s.code}-${String(i + 1).padStart(2, "0")} จำกัด`;
+// ชื่อ/ผู้ติดต่อ/ที่อยู่สมจริง (ตัวช่วยกลาง งานขาย.mjs · 18 พ.ย. 69 เดิม "บริษัท ตัวอย่าง RYG-06 จำกัด") · กุญแจ สาขา:เลขลีด
+const ชื่อบริษัท = (s, i) => ชื่อบริษัทสมจริง(`${s.code}:${s.base + i}`);
+
+// ── ข้อมูลให้สัมพันธ์กันทุกขั้น (บอสสั่ง 18 พ.ย. 69 "ตัวอย่างข้อมูลสมจริงให้สัมพันธ์กันทั้งหมด") ──
+//   เดิม: พื้นที่ 600+50×ลำดับ แต่เหตุผลขอแก้ราคาเขียน "900" ตายตัว · ใบ HQ ทุกใบเหล็ก 12 ตัน + หลังคา 700 ตร.ม. (707,000) ไม่ขึ้นกับพื้นที่
+//   ตอนนี้: พื้นที่ของแต่ละราย → คำขอราคา (พื้นที่ · สเปก) → ใบ HQ (รายการวัสดุคำนวณจากพื้นที่) → ใบลูกค้า (บวก % ดีลเลอร์)
+//   ขอแก้ราคา: ใบ V1 ตามพื้นที่เดิม → เหตุผล "ขยายพื้นที่จาก A เป็น B" → คำขอใหม่พื้นที่ B · HQ ร่างใบ V2 จาก V1 ขยายตามพื้นที่ B
+export const พื้นที่ตามสถานการณ์ = [480, 560, 640, 720, 800, 880, 960, 1040, 1120, 900, 1200, 1350, 1500, 1600, 750];
+export const พื้นที่หลังขอแก้ = 1050;   // สถานการณ์ลำดับ 9 (D5x): 900 → 1,050 ตร.ม.
+// เส้นเวลาของแต่ละราย (วันที่ถอยหลังจากวันนี้ ต่อขั้น: ลีดเข้า · ขอราคา · HQ รับ/ส่งใบ/ยกเลิก · ใบลูกค้า/ขอแก้ · ลูกค้าตอบ) — ไม่ข้ามลำดับ
+export const เส้นเวลา = [[0], [10], [4], [6, 5], [8, 6, 5], [24, 20], [12, 10, 8], [15, 13, 9], [30, 28, 24], [20, 18, 14, 6],
+  [16, 14, 10, 3], [22, 20, 15, 8], [40, 37, 32, 26, 12], [35, 33, 28, 22, 9], [18, 5]];
+// รายการวัสดุ/สเปกตามพื้นที่ = ตัวช่วยกลาง (งานขาย.mjs) ตัวเดียวกับทุกส่วน
 
 
 export async function มีแล้ว(ctx) {
@@ -37,7 +49,10 @@ export async function มีแล้ว(ctx) {
 //   แบบเดียวกับตัวล้างของข้อทดสอบ (tests/scenario/legacyQuotes.ts) · เลือกเฉพาะแถวของชุดตัวอย่าง (เลขลีด 996xxxxxx · ชื่อ "… ตัวอย่าง …")
 export function ลบ(ctx) {
   const เลข = [...สาขา.flatMap(s => สถานการณ์.map((_, i) => s.base + i)), 996_900_000, 996_900_001, 996_900_002].join(",");
+  // ผู้สนใจของส่วน = อีเมล sample-prospect-…@example.test (ชื่อสมจริงตั้งแต่ 18 พ.ย. 69) หรือชื่อแบบเดิม "ผู้สนใจตัวอย่าง …"
+  const ผู้สนใจของส่วน = `(d.email like 'sample-prospect-%@example.test' or d.name like 'ผู้สนใจตัวอย่าง %')`;
   const sql = `begin;
+    create temp table ชื่อในส่วน on commit drop as select distinct company from public.leads where num_id in (${เลข}) and coalesce(company, '') <> '';
     alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
     alter table public.quotations disable trigger quotations_no_delete_won;
     delete from public.quotations where deal_id in (${เลข});
@@ -50,15 +65,15 @@ export function ลบ(ctx) {
     delete from public.quote_requests where lead_num_id in (${เลข});
     delete from public.appointments where lead_id in (${เลข});
     delete from public.leads where num_id in (${เลข});
-    delete from public.customers where company like 'บริษัท ตัวอย่าง %';   -- หลังลีด (ลีดอ้างลูกค้า)
+    delete from public.customers where company in (select company from ชื่อในส่วน) or company like 'บริษัท ตัวอย่าง %';   -- หลังลีด (ลีดอ้างลูกค้า) · ชื่อเก็บก่อนลบลีด
     alter table public.dealer_proposal_payments disable trigger dealer_proposal_payments_guard;   -- บันทึกการชำระลบไม่ได้ (ต้องยกเลิกพร้อมเหตุผล)
     alter table public.dealer_package_proposals disable trigger dealer_package_proposals_before_delete;
     delete from public.dealer_proposal_payments p using public.dealer_package_proposals x, public.dealer_prospects d
-      where p.proposal_id = x.id and x.prospect_id = d.id and d.name like 'ผู้สนใจตัวอย่าง %';
-    delete from public.dealer_package_proposals x using public.dealer_prospects d where x.prospect_id = d.id and d.name like 'ผู้สนใจตัวอย่าง %';
+      where p.proposal_id = x.id and x.prospect_id = d.id and ${ผู้สนใจของส่วน};
+    delete from public.dealer_package_proposals x using public.dealer_prospects d where x.prospect_id = d.id and ${ผู้สนใจของส่วน};
     alter table public.dealer_proposal_payments enable trigger dealer_proposal_payments_guard;
     alter table public.dealer_package_proposals enable trigger dealer_package_proposals_before_delete;
-    delete from public.dealer_prospects where name like 'ผู้สนใจตัวอย่าง %';
+    delete from public.dealer_prospects d where ${ผู้สนใจของส่วน};
     delete from public.material_templates where name like '% (ตัวอย่าง)';
     commit;`;
   ctx.sql(sql);
@@ -69,19 +84,26 @@ export async function สร้าง(ctx) {
   const { svc, เข้า, ทดสอบ: บัญชี, วัน, ป้ายวัน, ต้อง } = ctx;
 
   const hq = await เข้า(บัญชี.TEST_ADMIN_EMAIL, บัญชี.TEST_ADMIN_PASSWORD);
+  // ลำดับเลขคำขอ/ใบ HQ ต่อจากเลขสูงสุดที่มีอยู่ (ข้อมูลตั้งต้นของฐาน dev ใส่เลขเองโดยไม่เลื่อนลำดับ → เลขชนตอนขอราคา)
+  ctx.sql(`select setval(pg_get_serial_sequence('public.quote_requests', 'id'), greatest((select coalesce(max(id), 0) from public.quote_requests), 1));
+    select setval(pg_get_serial_sequence('public.hq_quotes', 'id'), greatest((select coalesce(max(id), 0) from public.hq_quotes), 1));`);
 
   // ── HQ: รายการวัสดุ (ดีลเลอร์เลือกตอนขอราคา) ──
-  const แม่แบบ = ต้อง(await hq.rpc("material_templates_save", { p_rows: [
+  const แถวแม่แบบ = [
     { category: "โครงสร้าง", name: "เหล็กโครงสร้างหลัก (ตัวอย่าง)", unit: "ตัน", unitPrice: 42000 },
     { category: "โครงสร้าง", name: "แป/โครงหลังคา (ตัวอย่าง)", unit: "ตร.ม.", unitPrice: 380 },
     { category: "หลังคา/ผนัง", name: "แผ่นหลังคาเมทัลชีท 0.47 มม. (ตัวอย่าง)", unit: "ตร.ม.", unitPrice: 290 },
     { category: "หลังคา/ผนัง", name: "ผนังเมทัลชีท 0.40 มม. (ตัวอย่าง)", unit: "ตร.ม.", unitPrice: 240 },
     { category: "ประตู", name: "ประตูม้วน 4x5 ม. (ตัวอย่าง)", unit: "ชุด", unitPrice: 65000 },
-  ], p_delete_ids: [] }), "บันทึกรายการวัสดุ");
+  ];
+  const แม่แบบ = ต้อง(await hq.rpc("material_templates_save", { p_rows: แถวแม่แบบ, p_delete_ids: [] }), "บันทึกรายการวัสดุ");
   // จับคู่ด้วยชื่อ — ลำดับที่ฐานคืนมาไม่ใช่ลำดับที่ส่ง (เคยจับจำนวนผิดวัสดุ ราคาประเมินเพี้ยนเป็นหลายสิบล้าน)
   const รหัสของ = (ชื่อ) => Number((แม่แบบ ?? []).find(m => m.name === ชื่อ)?.id);
-  const วัสดุประเมิน = [["เหล็กโครงสร้างหลัก (ตัวอย่าง)", 12], ["แผ่นหลังคาเมทัลชีท 0.47 มม. (ตัวอย่าง)", 700], ["ผนังเมทัลชีท 0.40 มม. (ตัวอย่าง)", 400]]
-    .map(([ชื่อ, qty]) => ({ templateId: รหัสของ(ชื่อ), qty }));
+  // รายการประเมินของดีลเลอร์: จำนวนตามพื้นที่ × ตัวคูณประจำราย (ดีลเลอร์กะเผื่อ/กะขาด) — ยอดต่างจากใบ HQ ±5–15% ไม่เท่าพอดี
+  const ตัวคูณประเมิน = [0.92, 1.07, 0.88, 1.10, 0.95, 1.13, 0.90, 1.06, 0.87, 1.09, 0.94, 1.12, 0.91, 1.08, 0.86];
+  const ประเมินของ = (A, i) => { const f = ตัวคูณประเมิน[i % ตัวคูณประเมิน.length];
+    return รายการโกดัง(A).map(l => ({ templateId: รหัสของ(`${l.name} (ตัวอย่าง)`), name: `${l.name} (ตัวอย่าง)`,
+      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) })).filter(x => x.templateId); };
   console.log("✓ รายการวัสดุ 5 รายการ");
 
   // ── ผู้รับผิดชอบของทุกสาขา = ชื่อพนักงานขายที่ลีดอ้างถึง (เดิมแผงลีดขึ้น "ยังไม่มอบหมาย" · ตารางเทียบ FLOW แถว D6) ──
@@ -101,6 +123,7 @@ export async function สร้าง(ctx) {
   }
 
   // ── ดีลเลอร์: ลีดครบทุกขั้น ──
+  const ย้อน = await ตัวย้อนเวลา(ctx);
   for (const s of สาขา) {
     const sb = await เข้า(s.email(บัญชี), s.password(บัญชี));
     const { data: คน } = await svc.from("responsible_persons").select("name").eq("dealer_code", s.code).limit(1);
@@ -108,24 +131,31 @@ export async function สร้าง(ctx) {
     const ลีด = async (i) => {
       const n = s.base + i, company = ชื่อบริษัท(s, i);
       ต้อง(await sb.from("leads").insert({
-        id: `#L-${n}`, num_id: n, dealer_code: s.code, company, name: company, contact: `ผู้ติดต่อตัวอย่าง ${s.code}-${String(i + 1).padStart(2, "0")}`,
+        id: `#L-${n}`, num_id: n, dealer_code: s.code, company, name: company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`),
         phone: `000-000-${String(n).slice(-4)}`, email: `sample-${s.code.toLowerCase()}-${i + 1}@example.test`,
-        address: `ที่อยู่ตัวอย่าง ${i + 1} ${s.province}`, province: s.province, product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(600 + i * 50),
-        note: `${ป้าย}: ${สถานการณ์[i]} · สเปก โครงเหล็ก ผนังเมทัลชีท`, source: "ลูกค้าแนะนำ", assigned: ผู้รับผิดชอบ, status: "WAITING",
-        created_label: ป้ายวัน(วัน(-i)),
+        address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province), province: s.province, product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ตามสถานการณ์[i]),
+        // หมายเหตุ = ความต้องการของลูกค้าแบบจริง (สถานการณ์ของรายนี้อยู่ในรายการ สถานการณ์ ด้านบน · เดิมขึ้นบนจอ "ข้อมูลตัวอย่าง: D5x …")
+        note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][i % 4], assigned: ผู้รับผิดชอบ, status: "WAITING",
+        created_label: ป้ายวัน(วัน(-เส้นเวลา[i][0])),
       }), `สร้างลีด ${company}`);
       return { n, company };
     };
-    const ขอราคา = async (n, วัสดุ = false) => {
-      const i = n - s.base;
-      const r = ต้อง(await sb.rpc("quote_request_submit", { p_lead_num_id: n, p_product: "โกดังเก็บสินค้า", p_subtype: "", p_area: 600 + i * 50,
-        p_spec: "โครงเหล็ก ผนังเมทัลชีท สูง 8 ม.", p_province: s.province,
-        p_estimate: วัสดุ ? วัสดุประเมิน : [] }), `ขอราคา ${n}`);
+    const ขอราคา = async (n, วัสดุ = true) => {   // ทุกคำขอเลือกวัสดุจากแม่แบบตามพื้นที่ (ปุ่ม "รายการจากคำขอดีลเลอร์" มีของ · บอสสั่ง 18 พ.ย. 69)
+      const i = n - s.base, A = พื้นที่ตามสถานการณ์[i];
+      // ราคาประเมินเบื้องต้น = วัสดุจากแม่แบบตามพื้นที่จริงของงาน · ดีลเลอร์กะจำนวนเอง จึงต่างจากใบ HQ ±5–15%
+      const ประเมิน = วัสดุ ? ประเมินของ(A, i).map(({ templateId, qty }) => ({ templateId, qty })) : [];
+      const r = ต้อง(await sb.rpc("quote_request_submit", { p_lead_num_id: n, p_product: "โกดังเก็บสินค้า", p_subtype: "", p_area: A,
+        p_spec: สเปกโกดัง(A), p_province: s.province, p_estimate: ประเมิน }), `ขอราคา ${n}`);
       return Number(r.id);
     };
+    // ใบ HQ: รายการวัสดุคำนวณจากพื้นที่ของคำขอนั้น (อ่านจากคำขอ — ใบตรงกับคำขอเสมอ)
+    const รายการของคำขอ = async (rid) => {
+      const { data } = await svc.from("quote_requests").select("area").eq("id", rid).single();
+      return รายการโกดัง(Number(data?.area ?? 0));
+    };
     const HQส่งใบ = async (rid, วันยืนราคา = 30) => {
-      ต้อง(await hq.rpc("hq_quote_save", { p_request_id: rid, p_valid_until: วัน(วันยืนราคา), p_note: "ราคาตัวอย่าง",
-        p_lines: [{ name: "เหล็กโครงสร้างหลัก", qty: 12, unit: "ตัน", unitCost: 42000 }, { name: "แผ่นหลังคาเมทัลชีท 0.47 มม.", qty: 700, unit: "ตร.ม.", unitCost: 290 }] }), `HQ บันทึกใบ ${rid}`);
+      ต้อง(await hq.rpc("hq_quote_save", { p_request_id: rid, p_valid_until: วัน(วันยืนราคา), p_note: "ราคาวัสดุตามพื้นที่ในคำขอ · ไม่รวมงานฐานราก",
+        p_lines: await รายการของคำขอ(rid) }), `HQ บันทึกใบ ${rid}`);
       const h = ต้อง(await hq.rpc("hq_quote_send", { p_request_id: rid }), `HQ ส่งใบ ${rid}`);
       return Number(h.id);
     };
@@ -139,50 +169,73 @@ export async function สร้าง(ctx) {
     };
     const ส่งใบ = async (id) => ต้อง(await sb.rpc("quotation_send", { p_dealer: s.code, p_id: id }), `ส่งใบ ${id}`);
     const นัด = async (n, company, ห่างวัน, status = "upcoming") => ต้อง(await sb.from("appointments").insert({
-      id: n * 10 + (ห่างวัน < 0 ? 1 : 2), dealer_code: s.code, lead_id: n, company, contact: "ผู้ติดต่อตัวอย่าง", phone: `000-000-${String(n).slice(-4)}`,
+      id: n * 10 + (ห่างวัน < 0 ? 1 : 2), dealer_code: s.code, lead_id: n, company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`), phone: `000-000-${String(n).slice(-4)}`,
       project: "โกดังเก็บสินค้า", province: s.province, date: วัน(ห่างวัน), time: "10:00", type: "visit", assigned: ผู้รับผิดชอบ, status,
-      note: `${ป้าย}: นัดดูหน้างาน` }), `นัด ${company}`);
+      note: "นัดดูหน้างาน วัดพื้นที่จริง" }), `นัด ${company}`);
 
+    // แต่ละรายเดินตามเวลาจริง: จด(ขั้น) ก่อนเริ่มขั้น → ตัวย้อนเวลาเลื่อนเวลาของแถวที่ขั้นนั้นสร้างไปวันตาม เส้นเวลา[i] (ลีดเข้า → ขอราคา → HQ → ใบลูกค้า → ลูกค้าตอบ)
+    const เริ่ม = async (i) => { const จด = ย้อน.งาน(s.code, s.base + i, เส้นเวลา[i], i % 5); await จด(0); return { จด, ...(await ลีด(i)) }; };
     // 0 D2 ลีดใหม่
-    await ลีด(0);
+    await เริ่ม(0);
     // 1–2 D7 นัด
-    { const { n, company } = await ลีด(1); await นัด(n, company, -3); }
-    { const { n, company } = await ลีด(2); await นัด(n, company, 1); }
+    { const { n, company } = await เริ่ม(1); await นัด(n, company, -3); }
+    { const { n, company } = await เริ่ม(2); await นัด(n, company, 1); }
     // 3 D3 รอ HQ
-    { const { n } = await ลีด(3); await ขอราคา(n, true); }   // เลือกวัสดุจากแม่แบบ = ราคาประเมินเบื้องต้น
+    { const { n, จด } = await เริ่ม(3); await จด(1); await ขอราคา(n, true); }   // เลือกวัสดุจากแม่แบบ = ราคาประเมินเบื้องต้น
     // 4 H7 HQ รับเรื่อง
-    { const { n } = await ลีด(4); const rid = await ขอราคา(n); ต้อง(await hq.rpc("quote_request_accept", { p_id: rid, p_assignee: null }), "HQ รับเรื่อง"); }
-    // 5 H9x เกิน 14 วัน (ย้อนเวลาส่งคำขอ — สถานะเดินตามจริง)
-    { const { n } = await ลีด(5); const rid = await ขอราคา(n);
-      ต้อง(await svc.from("quote_requests").update({ submitted_at: new Date(Date.now() - 20 * 86_400_000).toISOString(), due_at: new Date(Date.now() - 6 * 86_400_000).toISOString() }).eq("id", rid), "ย้อนเวลาคำขอ"); }
+    { const { n, จด } = await เริ่ม(4); await จด(1); const rid = await ขอราคา(n); await จด(2); ต้อง(await hq.rpc("quote_request_accept", { p_id: rid, p_assignee: null }), "HQ รับเรื่อง");
+      // HQ กำลังตีราคา = มีร่างใบ HQ แล้ว (รายการตามพื้นที่ · ยังไม่ส่ง) — เปิดมาเห็นรายการ ไม่ใช่ฟอร์มว่าง
+      ต้อง(await hq.rpc("hq_quote_save", { p_request_id: rid, p_valid_until: วัน(30), p_note: "ร่าง — ตีราคาวัสดุตามพื้นที่ในคำขอ รอตรวจทานก่อนส่ง", p_lines: await รายการของคำขอ(rid) }), "HQ ร่างใบ"); }
+    // 5 H9x เกิน 14 วัน (ส่งคำขอ 20 วันก่อน — ตัวย้อนเวลาเลื่อนวันส่ง/กำหนดเสร็จตามขั้น · สถานะเดินตามจริง)
+    { const { n, จด } = await เริ่ม(5); await จด(1); await ขอราคา(n); }
     // 6 D3x ยกเลิกคำขอ
-    { const { n } = await ลีด(6); const rid = await ขอราคา(n); ต้อง(await sb.rpc("quote_request_cancel", { p_id: rid, p_reason: "ลูกค้าขอเลื่อนโครงการ", p_close_lead: false }), "ยกเลิกคำขอ"); }
+    { const { n, จด } = await เริ่ม(6); await จด(1); const rid = await ขอราคา(n); await จด(2); ต้อง(await sb.rpc("quote_request_cancel", { p_id: rid, p_reason: "ลูกค้าขอเลื่อนโครงการ", p_close_lead: false }), "ยกเลิกคำขอ"); }
     // 7 D4 ได้ใบ HQ · 8 ใกล้หมดอายุ
-    { const { n } = await ลีด(7); await HQส่งใบ(await ขอราคา(n)); }
-    { const { n } = await ลีด(8); await HQส่งใบ(await ขอราคา(n), 3); }
-    // 9 D5x ขอแก้ราคา
-    { const { n } = await ลีด(9); const rid = await ขอราคา(n); await HQส่งใบ(rid);
-      ต้อง(await sb.rpc("quote_request_reprice", { p_id: rid, p_reason: "ลูกค้าขอเพิ่มพื้นที่", p_spec: "เพิ่มพื้นที่เป็น 900 ตร.ม." }), "ขอแก้ราคา"); }
+    { const { n, จด } = await เริ่ม(7); await จด(1); const rid = await ขอราคา(n); await จด(2); await HQส่งใบ(rid); }
+    { const { n, จด } = await เริ่ม(8); await จด(1); const rid = await ขอราคา(n); await จด(2); await HQส่งใบ(rid, 3); }
+    // 9 D5x ขอแก้ราคา: V1 ตามพื้นที่เดิม 900 → ลูกค้าขยายเป็น 1,050 → คำขอใหม่พื้นที่ 1,050 → HQ ร่าง V2 (เริ่มจาก V1 ปรับจำนวนตามพื้นที่ใหม่)
+    { const { n, จด } = await เริ่ม(9); await จด(1); const rid = await ขอราคา(n); await จด(2); await HQส่งใบ(rid); await จด(3);
+      const เดิม = พื้นที่ตามสถานการณ์[9], ใหม่ = พื้นที่หลังขอแก้;
+      const r2 = ต้อง(await sb.rpc("quote_request_reprice", { p_id: rid,
+        p_reason: `ลูกค้าขอขยายพื้นที่จาก ${เดิม.toLocaleString("en-US")} เป็น ${ใหม่.toLocaleString("en-US")} ตร.ม. (เพิ่มช่องเก็บสินค้าอีก 1 ช่วงเสา)`,
+        p_spec: สเปกโกดัง(ใหม่) }), "ขอแก้ราคา");
+      // คำขอใหม่คัดลอกพื้นที่จากคำขอเดิม (ฟังก์ชันขอแก้ราคา) → ตั้งพื้นที่ใหม่ให้ตรงกับเหตุผล · ลูกค้าเป้าหมายก็ขยายพื้นที่ด้วย
+      // ราคาประเมินของคำขอใหม่คิดจากพื้นที่ใหม่ด้วย (ฟังก์ชันขอแก้ราคาคัดลอกรายการประเมินของคำขอเดิม 900 ตร.ม. มา)
+      const ประเมินใหม่ = ประเมินของ(ใหม่, 9).map(x => { const m = แถวแม่แบบ.find(r => r.name === x.name);
+        return { templateId: x.templateId, category: m.category, name: m.name, unit: m.unit, qty: x.qty, unitPrice: m.unitPrice }; });
+      const ยอดประเมินใหม่ = ประเมินใหม่.reduce((a, x) => a + Math.round(x.qty * x.unitPrice * 100) / 100, 0);
+      ต้อง(await svc.from("quote_requests").update({ area: ใหม่, estimate_items: ประเมินใหม่, estimate_total: ยอดประเมินใหม่ }).eq("id", r2.id), "พื้นที่คำขอใหม่");
+      ต้อง(await svc.from("leads").update({ area: String(ใหม่) }).eq("dealer_code", s.code).eq("num_id", n), "พื้นที่ลูกค้าเป้าหมาย");
+      ต้อง(await hq.rpc("hq_quote_save", { p_request_id: r2.id, p_valid_until: วัน(30),
+        p_note: `ร่างฉบับใหม่จาก V1 — ปรับจำนวนตามพื้นที่ ${ใหม่.toLocaleString("en-US")} ตร.ม. (เดิม ${เดิม.toLocaleString("en-US")})`,
+        p_lines: รายการโกดัง(ใหม่) }), "HQ ร่างใบ V2"); }
     // 10 D5 ใบร่าง · 11 D6 ส่งแล้ว · 12 D8 ตอบรับ · 13 D8x ปฏิเสธ
     for (const i of [10, 11, 12, 13]) {
-      const { n, company } = await ลีด(i);
-      const id = await ทำใบ(n, company, await HQส่งใบ(await ขอราคา(n)));
+      const { n, company, จด } = await เริ่ม(i);
+      await จด(1); const rid = await ขอราคา(n);
+      await จด(2); const hqId = await HQส่งใบ(rid);
+      await จด(3); const id = await ทำใบ(n, company, hqId);
       if (i === 10) continue;
       await ส่งใบ(id);
+      await จด(4);
       if (i === 12) ต้อง(await sb.rpc("close_won_quotation", { p_dealer: s.code, p_known_customer_id: null, p_lead_company: company, p_target_quote_id: id,
-        p_cascade_won: false, p_customer_payload: { company, contact: `ผู้ติดต่อตัวอย่าง ${s.code}-13`, phone: `000-000-${String(n).slice(-4)}`, province: s.province } }), "ลูกค้าตอบรับ");
+        p_cascade_won: false, p_customer_payload: { company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`), address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province),
+          phone: `000-000-${String(n).slice(-4)}`, province: s.province } }), "ลูกค้าตอบรับ");
       if (i === 13) ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: "ราคาสูงกว่าคู่แข่ง" }).eq("dealer_code", s.code).eq("id", id), "ลูกค้าปฏิเสธ");
     }
     // 14 D8y ปิดไม่สำเร็จ
-    { const { n } = await ลีด(14); ต้อง(await sb.rpc("lead_apply", { p_id: `#L-${n}`, p_intent: { stage: { status: "CANCELLED", lostReason: "ลูกค้าไม่สนใจแล้ว" }, fields: {} } }), "ปิดไม่สำเร็จ"); }
+    { const { n, จด } = await เริ่ม(14); await จด(1); ต้อง(await sb.rpc("lead_apply", { p_id: `#L-${n}`, p_intent: { stage: { status: "CANCELLED", lostReason: "ลูกค้าไม่สนใจแล้ว" }, fields: {} } }), "ปิดไม่สำเร็จ"); }
     console.log(`✓ ${s.code}: ลีดตัวอย่าง ${สถานการณ์.length} ราย ครบขั้น 1–5 · ปิดสำเร็จ · ปิดไม่สำเร็จ · คำขอราคา · ใบ HQ · ใบลูกค้า · นัดหมาย`);
   }
+  ย้อน.พัก();
+  console.log(`✓ เลื่อนเวลาตามขั้นของงาน ${ย้อน.สั่ง()} งาน (ลีดเข้า → ขอราคา → HQ ส่งใบ → ใบลูกค้า → ลูกค้าตอบ เรียงตามจริง)`);
 
   // ── HQ: ลีดของ HQ รอโอน (H6) — ลีดของ HQ เข้ามาทางหลังบ้าน (ฟอร์มเว็บ/นำเข้า) ไม่ใช่ผู้ใช้กดสร้าง → กุญแจฝั่งเซิร์ฟเวอร์ ──
   for (const [i, จังหวัด] of ["ระยอง", "เชียงใหม่", "ชลบุรี"].entries()) {
-    const n = 996_900_000 + i, company = `บริษัท ตัวอย่าง HQ-${String(i + 1).padStart(2, "0")} จำกัด`;
-    ต้อง(await svc.from("leads").insert({ id: `#L-${n}`, num_id: n, dealer_code: "HQ", company, name: company, contact: `ผู้ติดต่อตัวอย่าง HQ-${i + 1}`,
-      phone: `000-000-${String(n).slice(-4)}`, province: จังหวัด, product: "โรงงาน", source: "เว็บไซต์", status: "WAITING", note: `${ป้าย}: H6 ลีดของ HQ รอโอนให้ดีลเลอร์`,
+    const n = 996_900_000 + i, company = ชื่อบริษัทสมจริง(`HQ:${n}`);
+    ต้อง(await svc.from("leads").insert({ id: `#L-${n}`, num_id: n, dealer_code: "HQ", company, name: company, contact: ผู้ติดต่อสมจริง(`HQ:${n}`),
+      phone: `000-000-${String(n).slice(-4)}`, province: จังหวัด, product: "โรงงาน", source: "เว็บไซต์", status: "WAITING",
+      note: "กรอกฟอร์มติดต่อผ่านเว็บไซต์ · สนใจสร้างโรงงานโครงเหล็ก ขอให้ดีลเลอร์ในพื้นที่ติดต่อกลับ",   // H6 ลีดของ HQ รอโอนให้ดีลเลอร์
       created_label: ป้ายวัน(วัน()) }), `ลีด HQ ${company}`);
   }
   console.log("✓ ลีดของ HQ รอโอน 3 ราย");
@@ -192,13 +245,32 @@ export async function สร้าง(ctx) {
     ["new", "ลำปาง", 3], ["contacted", "นครสวรรค์", -2], ["profile_sent", "สุราษฎร์ธานี", 5], ["meeting", "ขอนแก่น", 2],
     ["considering", "อุดรธานี", -1], ["lost", "ตราด", null],
   ];
+  const หมายเหตุผู้สนใจ = {
+    new: "เจอที่บูธงานแสดงสินค้า สนใจเปิดสาขาในจังหวัด", contacted: "โทรคุยแล้ว ทำธุรกิจวัสดุก่อสร้างอยู่เดิม",
+    profile_sent: "ส่งข้อมูลบริษัทและเงื่อนไขทางอีเมลแล้ว", meeting: "นัดคุยรายละเอียดที่สำนักงานใหญ่",
+    considering: "ส่งใบค่าแฟรนไชส์แล้ว รอตัดสินใจ", lost: "ยังไม่พร้อมลงทุนปีนี้",
+  };
   const pid = {};
   for (const [i, [status, province, ติดตาม]] of ผู้สนใจ.entries()) {
-    const r = ต้อง(await hq.from("dealer_prospects").insert({ name: `ผู้สนใจตัวอย่าง ${String(i + 1).padStart(2, "0")}`, province, status,
-      phone: `000-000-${String(8000 + i)}`, email: `prospect-${i + 1}@example.test`, channel: "งานแสดงสินค้า", first_contact: วัน(-14),
-      note: `${ป้าย}: ผู้สนใจขั้น ${status}`, ...(status === "lost" ? { lost_reason: "ยังไม่พร้อมลงทุน" } : {}),
+    // ชื่อผู้สนใจ = ชื่อคน + "(ตัวอย่าง)" (เดิม "ผู้สนใจตัวอย่าง 01") · ลบด้วยอีเมล sample-prospect-…@example.test · หมายเหตุตามขั้นแบบที่ HQ จดจริง
+    // ชื่อบนโซเชียล: 4 ใน 6 รายมี (ทักมาทางเพจ/ไลน์) · ที่เหลือว่าง = "—" แบบจริง
+    const r = ต้อง(await hq.from("dealer_prospects").insert({ name: `${ผู้ติดต่อสมจริง(`ผู้สนใจ:${i}`)} (ตัวอย่าง)`, province, status,
+      social: [`เพจ ${province}วัสดุก่อสร้าง`, null, `LINE ${province} โฮมเซ็นเตอร์`, `เพจ ช่างเหล็ก${province}`, null, `LINE ร้านเหล็ก${province}`][i] ?? null,
+      phone: `000-000-${String(8000 + i)}`, email: `sample-prospect-${i + 1}@example.test`, channel: "งานแสดงสินค้า", first_contact: วัน(-14 - i * 3),
+      note: หมายเหตุผู้สนใจ[status], ...(status === "lost" ? { lost_reason: "ยังไม่พร้อมลงทุน" } : {}),
       follow_up: ติดตาม == null ? null : วัน(ติดตาม) }).select("id").single(), `ผู้สนใจ ${status}`);
     pid[status] = r.id;
+  }
+  // บันทึกการติดต่อของผู้สนใจที่ผ่านขั้นติดต่อแล้ว (ทางเดียวกับแผงผู้สนใจ › บันทึกการติดต่อ) — เดิมทุกรายขึ้น "ยังไม่เคยติดต่อ" ทั้งที่อยู่ขั้นคุย/ส่งใบแล้ว
+  //   ฐานตั้งเวลาเป็นตอนนี้เสมอ (ตัวดัก) → ถอยเวลาบันทึก + ติดต่อล่าสุด ด้วย SQL ฐาน dev (replica · แตะเฉพาะ 2 คอลัมน์เวลา)
+  const ติดต่อเมื่อ = { contacted: 3, profile_sent: 5, meeting: 2, considering: 6, lost: 20 };
+  for (const [status, วันก่อน] of Object.entries(ติดต่อเมื่อ)) {
+    const a = ต้อง(await hq.from("dealer_prospect_activities").insert({ prospect_id: pid[status], kind: "contact", channel: "โทรศัพท์",
+      body: หมายเหตุผู้สนใจ[status] }).select("id").single(), `บันทึกการติดต่อ ${status}`);
+    ctx.sql(`begin; set local session_replication_role = replica;
+      update public.dealer_prospect_activities set created_at = now() - interval '${วันก่อน} days 3 hours' where id = ${Number(a.id)};
+      update public.dealer_prospects set last_contact_at = now() - interval '${วันก่อน} days 3 hours' where id = ${Number(pid[status])};
+      commit;`);
   }
   // ใบต้องครบ 8 ช่องบังคับ (ใบ 0276) · ภาค/จังหวัด = ของผู้สนใจ · ช่องแพ็กเกจลบไปแล้ว (ใบ 0269)
   const ใบค่า = (prospect, [region, province], status, extra = {}) => hq.from("dealer_package_proposals").insert({ prospect_id: prospect, status,

@@ -4,29 +4,34 @@
 //   นำเข้าลูกค้าเดิม = ทางเดียวกับปุ่ม "นำเข้าลูกค้าเดิม" (เลขจาก next_entity_id แล้วเพิ่มแถว imported = true · วันที่เป็นลูกค้าจากไฟล์)
 //   ไฟล์แนบ = ทางเดียวกับแท็บไฟล์ของลูกค้า: อัปโหลดเข้าถัง dealer-files (พาธขึ้นต้นรหัสสาขา) แล้วเพิ่มแถว files (source customer)
 //   ไฟล์ตัวอย่างสร้างในสคริปต์ (PDF/PNG ขนาดไม่กี่ร้อยไบต์ · ไม่มีข้อมูลจริง)
-import { งานขายของสาขา, เข้าHQ, บัญชีสาขา, ตัวย้อนเวลา, sqlลบงานขาย, มีลีดในช่วง } from "./งานขาย.mjs";
+import { งานขายของสาขา, เข้าHQ, บัญชีสาขา, ตัวย้อนเวลา, sqlลบงานขาย, มีลีดในช่วง, ชื่อบริษัทสมจริง, ผู้ติดต่อสมจริง, ที่อยู่สมจริง } from "./งานขาย.mjs";
 
 export const ชื่อ = "ลูกค้า";
 const ช่วง = [996_600_000, 996_699_999];
+// ชื่อแบบเดิม (ฐานที่ลงก่อน 18 พ.ย. 69) · ชื่อสมจริงตั้งแต่ 18 พ.ย. 69: ลูกค้าจากการขาย = ชื่อของลีดในช่วงเลข (sqlลบงานขาย)
+//   ลูกค้าเดิมที่นำเข้า = อีเมล legacy-…@example.test (ไม่มีลีด)
 const ชื่อลูกค้า = ["บริษัท ลูกค้าตัวอย่าง %", "บริษัท ลูกค้าเดิมตัวอย่าง %"];
+const อีเมลนำเข้า = "legacy-%@example.test";
 const ถัง = "dealer-files";
 
 export async function มีแล้ว(ctx) {
   if (await มีลีดในช่วง(ctx, ช่วง)) return true;
-  const { count } = await ctx.svc.from("customers").select("id", { count: "exact", head: true }).like("company", ชื่อลูกค้า[1]);
+  const { count } = await ctx.svc.from("customers").select("id", { count: "exact", head: true }).like("email", อีเมลนำเข้า);
   return (count ?? 0) > 0;
 }
 
 export async function ลบ(ctx) {
-  // ไฟล์ในถังของลูกค้าชุดนี้ก่อน (แถว files ลบด้วย SQL ด้านล่าง)
-  const { data: ลูกค้า } = await ctx.svc.from("customers").select("id").or(ชื่อลูกค้า.map(p => `company.like.${p.replace(/ /g, "\\ ")}`).join(","));
-  const ids = (ลูกค้า ?? []).map(c => c.id);
+  // ไฟล์ในถังของลูกค้าชุดนี้ก่อน (แถว files ลบด้วย SQL ด้านล่าง) — ลูกค้าจากลีดในช่วง + ลูกค้าที่นำเข้า + ชื่อแบบเดิม
+  const { data: ลีดในส่วน } = await ctx.svc.from("leads").select("customer_id").gte("num_id", ช่วง[0]).lte("num_id", ช่วง[1]).not("customer_id", "is", null);
+  const { data: นำเข้าแล้ว } = await ctx.svc.from("customers").select("id, company").like("email", อีเมลนำเข้า);
+  const { data: ชื่อเดิม } = await ctx.svc.from("customers").select("id").or(ชื่อลูกค้า.map(p => `company.like.${p.replace(/ /g, "\\ ")}`).join(","));
+  const ids = [...new Set([...(ลีดในส่วน ?? []).map(l => l.customer_id), ...(นำเข้าแล้ว ?? []).map(c => c.id), ...(ชื่อเดิม ?? []).map(c => c.id)])];
   if (ids.length) {
     const { data: ไฟล์ } = await ctx.svc.from("files").select("storage_path").in("customer_id", ids).not("storage_path", "is", null);
     const พาธ = (ไฟล์ ?? []).map(f => f.storage_path).filter(Boolean);
     if (พาธ.length) ctx.ต้อง(await ctx.svc.storage.from(ถัง).remove(พาธ), "ลบไฟล์ในถัง");
   }
-  ctx.sql(sqlลบงานขาย([ช่วง], ชื่อลูกค้า));
+  ctx.sql(sqlลบงานขาย([ช่วง], [...ชื่อลูกค้า, ...(นำเข้าแล้ว ?? []).map(c => c.company)]));   // ชื่อที่นำเข้า = ตรงตัว (ไม่มี % _)
 }
 
 // ── ไฟล์ตัวอย่าง (สร้างเอง) ──
@@ -100,17 +105,36 @@ export async function สร้าง(ctx) {
   ]) { await แนบไฟล์(ctx, sb, "RYG", { id: f.ลูกค้า.customerId, company: f.ลูกค้า.company }, { ...f, ผู้อัปโหลด: ง.ผู้รับผิดชอบ }); นับ.ไฟล์++; }
 
   // ── นำเข้าลูกค้าเดิม (RYG 3 · CNX 2) ──
+  //   ลูกค้าเดิมทุกรายมีงานที่ซื้อในระบบ 1 งาน (บอสสั่ง 18 พ.ย. 69 · ประวัติการซื้อ "ลูกค้าทุกรายมีประวัติ") — เดิมนำเข้าแล้วไม่มีใบ = ฿0 · ประวัติการซื้อว่าง
+  //   ลูกค้าที่ยังไม่ซื้อตั้งใจไว้ 2 ราย = ลูกค้าที่ HQ ย้อนการตอบรับ (ส่วน "ใบเสนอราคา" ลำดับ 11 · RYG + CNX)
+  const ซื้อซ้ำเดิม = [];   // [code, ง, customer, company]
   for (const [code, province, จำนวน] of [["RYG", "ระยอง", 3], ["CNX", "เชียงใหม่", 2]]) {
     const bb = บัญชีสาขา(ctx, code);
     const s2 = code === "RYG" ? sb : await ctx.เข้า(bb.email, bb.password);
+    const ง2 = code === "RYG" ? ง : await งานขายของสาขา(ctx, { code, province, sb: s2, hq, ป้ายส่วน: "ลูกค้าตัวอย่าง" });
     for (let i = 1; i <= จำนวน; i++) {
-      const company = `บริษัท ลูกค้าเดิมตัวอย่าง ${code}-${String(i).padStart(2, "0")} จำกัด`;
-      const c = await นำเข้า(ctx, s2, code, { company, name: `ผู้ติดต่อลูกค้าเดิม ${code}-${i}`, email: `legacy-${code.toLowerCase()}-${i}@example.test`,
-        phone: ctx.เบอร์(6000 + i), address: `ที่อยู่ลูกค้าเดิมตัวอย่าง ${i} ${province}`, province, joinDate: `${2023 + i}-0${i + 2}-15` });
+      // ชื่อ/ผู้ติดต่อ/ที่อยู่สมจริง (ตัวช่วยกลาง · กุญแจ นำเข้า:สาขา:ลำดับ · เดิม "บริษัท ลูกค้าเดิมตัวอย่าง RYG-01 จำกัด")
+      const company = ชื่อบริษัทสมจริง(`นำเข้า:${code}:${i}`);
+      const c = await นำเข้า(ctx, s2, code, { company, name: ผู้ติดต่อสมจริง(`นำเข้า:${code}:${i}`), email: `legacy-${code.toLowerCase()}-${i}@example.test`,
+        phone: ctx.เบอร์(6000 + i), address: ที่อยู่สมจริง(`นำเข้า:${code}:${i}`, province), province, joinDate: `${2023 + i}-0${i + 2}-15` });
       นับ.นำเข้า++;
       if (i === 1) { await แนบไฟล์(ctx, s2, code, c, { name: "ใบส่งมอบงานเดิม-ตัวอย่าง.pdf", category: "อื่นๆ",
         bytes: pdf("Sample handover (dev sample data)"), ผู้อัปโหลด: "" }); นับ.ไฟล์++; }
+      ซื้อซ้ำเดิม.push([code, ง2, Number(c.id), company]);
     }
   }
-  console.log(`✓ ลูกค้าจากการปิดการขาย ${นับ.ปิดการขาย} ราย (ซื้อซ้ำ 2 งาน ${นับ.ซื้อซ้ำ} ราย) · นำเข้าลูกค้าเดิม ${นับ.นำเข้า} ราย · ไฟล์แนบ ${นับ.ไฟล์} ไฟล์`);
+  // ⚠️ ลูกค้าของข้อมูลตั้งต้น (CNX ลูกค้าเลข 8 · ยอดยกมา ไม่มีใบ) ไม่ทำงานให้ — ลบส่วนนี้หาลูกค้าจากลีดในช่วงเลข จะลบลูกค้าตั้งต้นไปด้วย
+  // งานของลูกค้าเดิม: ลีดผูกลูกค้า → ขอราคา → ใบ HQ → ใบลูกค้า → ตอบรับ · 3–10 เดือนก่อน (ตัวย้อนเวลาแยก)
+  const ย้อนเดิม = await ตัวย้อนเวลา(ctx);
+  for (const [k, [code, ง2, customerId, company]] of ซื้อซ้ำเดิม.entries()) {
+    const n = 996_600_100 + k, จบ = 90 + k * 45;
+    const จด = ย้อนเดิม.งาน(code, n, [จบ + 12, จบ + 10, จบ + 7, จบ + 4, จบ], k % 5);
+    await จด(0);
+    await ง2.ลีด(n, { ย้อนวัน: จบ + 12, เรื่อง: "ลูกค้าเดิมสั่งงานในระบบ", company, customerId, ขนาด: [1.4, 0.9, 2.1, 1.2, 1.7, 1.0][k % 6] });
+    const { qid } = await ง2.ถึงส่งใบ(n, company, { ขนาด: [1.4, 0.9, 2.1, 1.2, 1.7, 1.0][k % 6], จด });
+    await จด(4); await ง2.ตอบรับ(n, company, qid, { customerId });
+  }
+  ย้อนเดิม.พัก(); ย้อนเดิม.สั่ง();
+  console.log(`✓ ลูกค้าจากการปิดการขาย ${นับ.ปิดการขาย} ราย (ซื้อซ้ำ 2 งาน ${นับ.ซื้อซ้ำ} ราย) · นำเข้าลูกค้าเดิม ${นับ.นำเข้า} ราย · ไฟล์แนบ ${นับ.ไฟล์} ไฟล์`
+    + ` · งานของลูกค้าเดิม ${ซื้อซ้ำเดิม.length} งาน (ลูกค้าทุกรายมีประวัติการซื้อ ยกเว้น 2 รายที่ HQ ย้อนการตอบรับ)`);
 }

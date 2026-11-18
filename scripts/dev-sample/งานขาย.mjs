@@ -7,7 +7,6 @@
 //   → เลื่อนด้วย SQL ฐาน dev ในธุรกรรมเดียว (session_replication_role = replica · แตะเฉพาะคอลัมน์เวลา ไม่แตะสถานะ/ยอด)
 //   ยกเว้นบันทึกการใช้งาน (audit_log) — ห้ามแก้/ลบนอก 2 ทางที่บอสอนุญาต จึงคงเวลาจริง (วันที่สร้างข้อมูลตัวอย่าง)
 import { spawn } from "node:child_process";
-import { ป้าย } from "./ตัวช่วย.mjs";
 
 /** บัญชีเข้าระบบของสาขา — RYG/CNX จากข้อมูลตั้งต้น (tests/.env.test) · สาขาที่ส่วน "สาขา" สร้าง จากไฟล์บัญชีนอก repo */
 export function บัญชีสาขา(ctx, code) {
@@ -22,12 +21,66 @@ export function บัญชีสาขา(ctx, code) {
 /** เข้าระบบ HQ (ผู้ดูแลระบบของข้อมูลตั้งต้น) */
 export const เข้าHQ = (ctx) => ctx.เข้า(ctx.ทดสอบ.TEST_ADMIN_EMAIL, ctx.ทดสอบ.TEST_ADMIN_PASSWORD);
 
-/** รายการราคาใบ HQ ตามขนาดงาน (ตัวคูณ 1 = โกดังราว 700 ตร.ม.) */
-export const รายการHQ = (ตัวคูณ = 1) => [
-  { name: "เหล็กโครงสร้างหลัก", qty: Math.round(12 * ตัวคูณ), unit: "ตัน", unitCost: 42000 },
-  { name: "แผ่นหลังคาเมทัลชีท 0.47 มม.", qty: Math.round(700 * ตัวคูณ), unit: "ตร.ม.", unitCost: 290 },
-  { name: "ผนังเมทัลชีท 0.40 มม.", qty: Math.round(400 * ตัวคูณ), unit: "ตร.ม.", unitCost: 240 },
-];
+// ── ชื่อ/ผู้ติดต่อ/ที่อยู่ที่อ่านแล้วเหมือนจริง (บอสสั่ง 18 พ.ย. 69 "ดูไม่เหมือนจริง") ─────────────────────────────────────────────
+//   เดิม "บริษัท ตัวอย่าง RYG-06 จำกัด" · "ผู้ติดต่อตัวอย่าง RYG-06" · "ที่อยู่ตัวอย่าง 6 ระยอง" = รหัสสาขา/ลำดับบนจอทุกแถว
+//   ตอนนี้: ชื่อบริษัทจากคำ 2 ชุด (20 × 20) + "(ตัวอย่าง)" กันชื่อซ้ำบริษัทจริง · ผู้ติดต่อ ชื่อ-สกุลจากชุดคำ · ที่อยู่ เลขที่/หมู่/ถนน/อำเภอเมือง
+//   คงที่ตามกุญแจ (สาขา:เลขลีด) · ไม่ซ้ำกันในรอบเดียว (ชนแล้วเลื่อนไปชื่อถัดไป) · ลบส่วน = ชื่อของลีดในช่วงเลขของส่วน (sqlลบงานขาย)
+const ต้นชื่อ = ["สยาม", "ไทยรุ่งเรือง", "เจริญผล", "ศรีสวัสดิ์", "บูรพา", "ทองไทย", "ชัยพัฒนา", "มั่นคง", "รวมใจ", "เอเชีย",
+  "ประเสริฐ", "อุดมสุข", "พูนผล", "นครทอง", "วังทอง", "ศิริมงคล", "กิจเจริญ", "ธนพัฒน์", "สินทวี", "ไพบูลย์"];
+const ท้ายชื่อ = ["คลังสินค้า", "โลจิสติกส์", "ฟู้ดส์", "อุตสาหกรรม", "การเกษตร", "พลาสติก", "ค้าวัสดุ", "อะไหล่ยนต์", "เฟอร์นิเจอร์", "บรรจุภัณฑ์",
+  "ห้องเย็น", "ปุ๋ยเคมี", "อาหารสัตว์", "เทรดดิ้ง", "สิ่งทอ", "ยางพารา", "ค้าข้าว", "เครื่องดื่ม", "วัสดุก่อสร้าง", "เหล็กการช่าง"];
+const ชื่อคน = ["สมชาย", "วิชัย", "สุนทร", "ประเสริฐ", "อนุชา", "กิตติ", "ธนากร", "ณัฐพล", "สุรเชษฐ์", "พงศกร",
+  "สุภาพร", "วรรณา", "จันทร์เพ็ญ", "นภาพร", "กัญญา", "ศิริพร", "อรุณี", "ปวีณา", "รัตนา", "มาลี"];
+const สกุล = ["ใจดี", "ศรีสุข", "ทองดี", "บุญมา", "แก้วประเสริฐ", "รุ่งเรืองศรี", "สมบูรณ์ชัย", "วงศ์สวัสดิ์", "พรหมมา", "จันทร์แก้ว",
+  "สุขเจริญ", "มณีรัตน์", "ชัยมงคล", "ศักดิ์สิทธิ์", "อินทร์แก้ว", "เพชรรัตน์", "บุญเรือง", "ทองมา", "สิทธิชัย", "พงษ์พันธ์"];
+const ถนน = ["เทศบาล 1", "ราษฎร์บำรุง", "สุขาภิบาล 2", "ประชาร่วมใจ", "เจริญสุข", "ศรีสุนทร", "นิมิตใหม่", "พัฒนาการ"];   // ชื่อถนนทั่วไป (ไม่ผูกทางหลวงจริงของภาคใด)
+const เลขกุญแจ = (k) => { let h = 2166136261; for (const ch of String(k)) h = Math.imul(h ^ ch.codePointAt(0), 16777619) >>> 0; return h; };
+const ชื่อที่ใช้แล้ว = new Map();   // ชื่อ → กุญแจ (ไม่ซ้ำกันในรอบเดียว)
+/** ชื่อบริษัทลูกค้า (คงที่ตามกุญแจ · ไม่ซ้ำในรอบ) เช่น "บริษัท สยามคลังสินค้า (ตัวอย่าง) จำกัด" */
+export function ชื่อบริษัทสมจริง(กุญแจ) {
+  const ทั้งหมด = ต้นชื่อ.length * ท้ายชื่อ.length;
+  for (let k = 0, i = เลขกุญแจ(กุญแจ) % ทั้งหมด; k < ทั้งหมด; k++, i = (i + 37) % ทั้งหมด) {
+    const ชื่อ = `บริษัท ${ต้นชื่อ[Math.floor(i / ท้ายชื่อ.length)]}${ท้ายชื่อ[i % ท้ายชื่อ.length]} (ตัวอย่าง) จำกัด`;
+    const เจ้าของ = ชื่อที่ใช้แล้ว.get(ชื่อ);
+    if (เจ้าของ == null || เจ้าของ === String(กุญแจ)) { ชื่อที่ใช้แล้ว.set(ชื่อ, String(กุญแจ)); return ชื่อ; }
+  }
+  throw new Error("ชื่อบริษัทตัวอย่างไม่พอ");
+}
+const ความต้องการ = ["ต้องการเริ่มก่อสร้างภายใน 3 เดือน", "ขอเทียบราคา 2–3 ราย ก่อนตัดสินใจ", "มีที่ดินแล้ว รอยื่นขออนุญาตก่อสร้าง",
+  "ขยายจากโกดังเดิมที่เต็มแล้ว", "ต้องการพื้นที่เก็บสต็อกเพิ่มช่วงปลายปี", "งบประมาณอนุมัติแล้ว รอใบเสนอราคา", "ให้ช่วยดูหน้างานก่อนสรุปขนาด",
+  "ต้องการประตูม้วนรถบรรทุกเข้าได้"];
+/** หมายเหตุลีดแบบที่พนักงานขายจดจริง: สเปกตามพื้นที่ + ความต้องการของลูกค้า (คงที่ตามเลขลีด) */
+export const หมายเหตุลีด = (n, A) => `${สเปกโกดัง(A)} · ${ความต้องการ[เลขกุญแจ(`หมายเหตุ:${n}`) % ความต้องการ.length]}`;
+/** ผู้ติดต่อ เช่น "คุณสมชาย ใจดี" (คงที่ตามกุญแจ) */
+export const ผู้ติดต่อสมจริง = (กุญแจ) => { const h = เลขกุญแจ(`คน:${กุญแจ}`); return `คุณ${ชื่อคน[h % ชื่อคน.length]} ${สกุล[Math.floor(h / 97) % สกุล.length]}`; };
+/** ที่อยู่ เช่น "88/12 หมู่ 4 ถ.สุขุมวิท อ.เมืองระยอง จ.ระยอง" (คงที่ตามกุญแจ · กรุงเทพฯ = เขต) */
+export const ที่อยู่สมจริง = (กุญแจ, จังหวัด) => {
+  const h = เลขกุญแจ(`ที่:${กุญแจ}`);
+  const เลข = `${10 + (h % 290)}/${1 + (Math.floor(h / 7) % 40)}`, หมู่ = 1 + (Math.floor(h / 13) % 9), ถ = ถนน[Math.floor(h / 31) % ถนน.length];
+  return จังหวัด === "กรุงเทพมหานคร" ? `${เลข} ถ.${ถ} เขตบางนา กรุงเทพมหานคร` : `${เลข} หมู่ ${หมู่} ถ.${ถ} อ.เมือง${จังหวัด} จ.${จังหวัด}`;
+};
+
+// ── ข้อมูลให้สัมพันธ์กันทุกขั้น (บอสสั่ง 18 พ.ย. 69 "ตัวอย่างข้อมูลสมจริงให้สัมพันธ์กันทั้งหมด") ──
+//   พื้นที่ของงาน → คำขอราคา (พื้นที่ · สเปกบอกพื้นที่) → ใบ HQ (รายการวัสดุคำนวณจากพื้นที่) → ใบลูกค้า (บวก % ดีลเลอร์)
+/** รายการวัสดุของโกดังโครงเหล็ก พื้นที่ A ตร.ม. (สูง 8 ม.) — ต้นทุน HQ ราว 2,100–2,400 บาท/ตร.ม. (โครงสร้าง/หลังคา/ผนัง/ประตู · ไม่รวมฐานราก) */
+export function รายการโกดัง(A) {
+  const ด้าน = Math.sqrt(A);
+  return [
+    { name: "เหล็กโครงสร้างหลัก", qty: Math.round(A * 0.028 * 10) / 10, unit: "ตัน", unitCost: 42000 },          // ~28 กก./ตร.ม.
+    { name: "แป/โครงหลังคา", qty: A, unit: "ตร.ม.", unitCost: 380 },
+    { name: "แผ่นหลังคาเมทัลชีท 0.47 มม.", qty: Math.ceil(A * 1.08), unit: "ตร.ม.", unitCost: 290 },           // เผื่อลาดเอียง/ทับซ้อน 8%
+    { name: "ผนังเมทัลชีท 0.40 มม.", qty: Math.round(4 * ด้าน * 7), unit: "ตร.ม.", unitCost: 240 },            // เส้นรอบรูป × สูงผนัง 7 ม.
+    { name: "ประตูม้วน 4x5 ม.", qty: 1 + Math.floor(A / 800), unit: "ชุด", unitCost: 65000 },
+  ];
+}
+export const ยอดรายการ = (lines) => lines.reduce((s, l) => s + Math.round(l.qty * l.unitCost * 100) / 100, 0);
+export const สเปกโกดัง = (A) => `โกดังเก็บสินค้า ${A.toLocaleString("en-US")} ตร.ม. · โครงเหล็ก สูง 8 ม. · หลังคา/ผนังเมทัลชีท · ประตูม้วน`;
+/** พื้นที่ตามขนาดงาน (ตัวคูณ 1 = โกดังราว 700 ตร.ม. · ปัดหลักสิบ) */
+export const พื้นที่ของขนาด = (ตัวคูณ = 1) => Math.round(700 * ตัวคูณ / 10) * 10;
+/** ตัวคูณจำนวนในราคาประเมินของดีลเลอร์ (กะเผื่อ/กะขาด) — ยอดประเมินต่างจากใบ HQ ±5–15% */
+export const ตัวคูณประเมิน = [0.92, 1.07, 0.88, 1.10, 0.95, 1.13, 0.90, 1.06, 0.87, 1.09, 0.94, 1.12, 0.91, 1.08, 0.86];
+/** รายการราคาใบ HQ ตามขนาดงาน = รายการโกดังของพื้นที่นั้น */
+export const รายการHQ = (ตัวคูณ = 1) => รายการโกดัง(พื้นที่ของขนาด(ตัวคูณ));
 
 /**
  * งานขายของสาขาหนึ่ง — คืนคำสั่งทีละขั้นแบบที่หน้าเว็บเรียก
@@ -38,27 +91,41 @@ export async function งานขายของสาขา(ctx, { code, provi
   const { svc, วัน, ป้ายวัน, ต้อง, เบอร์ } = ctx;
   const { data: คน } = await svc.from("responsible_persons").select("name").eq("dealer_code", code).eq("active", true).limit(1);
   const ผู้รับผิดชอบ = คน?.[0]?.name ?? "";
-  const ชื่อบริษัท = (n) => `บริษัท ${ป้ายส่วน} ${code}-${String(n % 10_000).padStart(3, "0")} จำกัด`;
+  // ชื่อ/ผู้ติดต่อ/ที่อยู่สมจริง (ตัวช่วยกลางด้านบน · กุญแจ สาขา:เลขลีด) — ป้ายส่วนไม่อยู่ในชื่อแล้ว (ลบส่วนตามช่วงเลขลีด)
+  void ป้ายส่วน;
+  const ชื่อบริษัท = (n) => ชื่อบริษัทสมจริง(`${code}:${n}`);
+  const ผู้ติดต่อ = (n) => ผู้ติดต่อสมจริง(`${code}:${n}`);
 
-  /** ลีดใหม่ (WAITING · ทางเดียวที่ฐานยอม) · ย้อนวัน = วันที่ลีดเข้ามา (ป้ายวันที่ที่แอปเก็บ · created_date ฐานคิดจากป้ายนี้) */
+  /** ลีดใหม่ (WAITING · ทางเดียวที่ฐานยอม) · ย้อนวัน = วันที่ลีดเข้ามา (ป้ายวันที่ที่แอปเก็บ · created_date ฐานคิดจากป้ายนี้)
+   *  เรื่อง = สถานการณ์ของรายนี้ (เอกสารในโค้ดเท่านั้น · หมายเหตุบนจอ = ความต้องการของลูกค้าแบบจริง · เดิมขึ้น "ข้อมูลตัวอย่าง: <สถานการณ์>") */
   const ลีด = async (n, { ย้อนวัน = 0, เรื่อง = "", customerId = null, company, ขนาด = 1 } = {}) => {
+    void เรื่อง;
     const บริษัท = company ?? ชื่อบริษัท(n);
     ต้อง(await sb.from("leads").insert({
       id: `#L-${n}`, num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
-      contact: `ผู้ติดต่อตัวอย่าง ${code}-${String(n % 10_000).padStart(3, "0")}`, phone: เบอร์(n),
-      email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, address: `ที่อยู่ตัวอย่าง ${n % 1000} ${province}`, province,
-      product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(Math.round(700 * ขนาด)), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][n % 4],
-      assigned: ผู้รับผิดชอบ, status: "WAITING", note: `${ป้าย}: ${เรื่อง}`, created_label: ป้ายวัน(วัน(-ย้อนวัน)),
+      contact: ผู้ติดต่อ(n), phone: เบอร์(n),
+      email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, address: ที่อยู่สมจริง(`${code}:${n}`, province), province,
+      product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ของขนาด(ขนาด)), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][n % 4],
+      assigned: ผู้รับผิดชอบ, status: "WAITING", note: หมายเหตุลีด(n, พื้นที่ของขนาด(ขนาด)), created_label: ป้ายวัน(วัน(-ย้อนวัน)),
       ...(customerId ? { customer_id: customerId } : {}),
     }), `สร้างลีด ${บริษัท}`);
     return { n, company: บริษัท };
   };
+  // ราคาประเมินของดีลเลอร์ (คนรวมงานสั่ง 18 พ.ย. 69): วัสดุจากแม่แบบตามพื้นที่ของคำขอ × ตัวคูณประจำงาน → ต่างจากใบ HQ ±5–15% ไม่เท่าพอดี
+  //   แม่แบบสร้างที่ส่วน "ขั้นทั้งหมด" · ยังไม่มี (รันส่วนนี้เดี่ยว) = ไม่มีราคาประเมิน
+  let แม่แบบ = null;
+  const ประเมิน = async (n, A) => {
+    if (!แม่แบบ) { const { data } = await svc.from("material_templates").select("id, name"); แม่แบบ = new Map((data ?? []).map(m => [m.name, Number(m.id)])); }
+    const f = ตัวคูณประเมิน[n % ตัวคูณประเมิน.length];
+    return รายการโกดัง(A).map(l => ({ templateId: แม่แบบ.get(`${l.name} (ตัวอย่าง)`),
+      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) })).filter(x => x.templateId);
+  };
   const ขอราคา = async (n, ขนาด = 1) => Number(ต้อง(await sb.rpc("quote_request_submit", {
-    p_lead_num_id: n, p_product: "โกดังเก็บสินค้า", p_subtype: "", p_area: Math.round(700 * ขนาด),
-    p_spec: "โครงเหล็ก ผนังเมทัลชีท สูง 8 ม.", p_province: province, p_estimate: [] }), `ขอราคา ${n}`).id);
+    p_lead_num_id: n, p_product: "โกดังเก็บสินค้า", p_subtype: "", p_area: พื้นที่ของขนาด(ขนาด),
+    p_spec: สเปกโกดัง(พื้นที่ของขนาด(ขนาด)), p_province: province, p_estimate: await ประเมิน(n, พื้นที่ของขนาด(ขนาด)) }), `ขอราคา ${n}`).id);
   const HQรับเรื่อง = async (rid) => ต้อง(await hq.rpc("quote_request_accept", { p_id: rid, p_assignee: null }), `HQ รับเรื่อง ${rid}`);
   const HQบันทึกใบ = async (rid, { ขนาด = 1, วันยืนราคา = 30 } = {}) => ต้อง(await hq.rpc("hq_quote_save", {
-    p_request_id: rid, p_valid_until: วัน(วันยืนราคา), p_note: "ราคาตัวอย่าง", p_lines: รายการHQ(ขนาด) }), `HQ บันทึกใบ ${rid}`);
+    p_request_id: rid, p_valid_until: วัน(วันยืนราคา), p_note: "ราคาวัสดุตามพื้นที่ในคำขอ · ไม่รวมงานฐานราก", p_lines: รายการHQ(ขนาด) }), `HQ บันทึกใบ ${rid}`);
   const HQส่งใบ = async (rid, o = {}) => {
     await HQบันทึกใบ(rid, o);
     return Number(ต้อง(await hq.rpc("hq_quote_send", { p_request_id: rid }), `HQ ส่งใบ ${rid}`).id);
@@ -83,7 +150,7 @@ export async function งานขายของสาขา(ctx, { code, provi
   /** ลูกค้าตอบรับ — ทางเดียวที่ปิดสำเร็จ (ลีด → PAID · สร้าง/ผูกลูกค้า · คำขอ + ใบ HQ → สั่งผลิต) · ลูกค้าเดิม = ส่งเลขลูกค้า */
   const ตอบรับ = async (n, company, id, { customerId = null } = {}) => ต้อง(await sb.rpc("close_won_quotation", {
     p_dealer: code, p_known_customer_id: customerId, p_lead_company: company, p_target_quote_id: id, p_cascade_won: false,
-    p_customer_payload: { company, name: company, contact: `ผู้ติดต่อตัวอย่าง ${code}-${String(n % 10_000).padStart(3, "0")}`,
+    p_customer_payload: { company, name: company, contact: ผู้ติดต่อ(n), address: ที่อยู่สมจริง(`${code}:${n}`, province),
       phone: เบอร์(n), email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, province } }), `ลูกค้าตอบรับ ${id}`);
   const ปฏิเสธ = async (id, เหตุผล = "ราคาสูงกว่าคู่แข่ง") => ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: เหตุผล })
     .eq("dealer_code", code).eq("id", id), `ลูกค้าปฏิเสธ ${id}`);
@@ -92,9 +159,9 @@ export async function งานขายของสาขา(ctx, { code, provi
   /** นัดหมาย (สร้างที่แผงลีด › นัดหมาย) · สถานะเริ่ม upcoming แล้วค่อยกดเสร็จ/ยกเลิก แบบหน้าปฏิทิน */
   const นัด = async (n, company, { ห่างวัน = 0, เวลา = "10:00", type = "visit", ลำดับ = 1, เรื่อง = "นัดดูหน้างาน" } = {}) => {
     const id = n * 10 + ลำดับ;
-    ต้อง(await sb.from("appointments").insert({ id, dealer_code: code, lead_id: n, company, contact: `ผู้ติดต่อตัวอย่าง ${code}`,
+    ต้อง(await sb.from("appointments").insert({ id, dealer_code: code, lead_id: n, company, contact: ผู้ติดต่อ(n),
       phone: เบอร์(n), project: "โกดังเก็บสินค้า", province, date: วัน(ห่างวัน), time: เวลา, type, assigned: ผู้รับผิดชอบ,
-      status: "upcoming", note: `${ป้าย}: ${เรื่อง}` }), `นัด ${company}`);
+      status: "upcoming", note: เรื่อง }), `นัด ${company}`);   // หมายเหตุนัด = เรื่องที่นัด (เดิมขึ้น "ข้อมูลตัวอย่าง: …")
     return id;
   };
   const สถานะนัด = async (id, status) => ต้อง(await sb.from("appointments").update({ status }).eq("dealer_code", code).eq("id", id), `นัด ${id} → ${status}`);
@@ -219,7 +286,7 @@ function คำสั่งของงาน(g, จบ) {
     update public.hq_quotes set created_at = ${S("created_at")}, updated_at = ${S("updated_at")}, sent_at = ${S("sent_at")},
         ordered_at = ${S("ordered_at")}, valid_until = valid_until - (${วันไทย("coalesce(sent_at, created_at)")} - ${วันไทย(S("coalesce(sent_at, created_at)"))})
       where request_id in ${คำขอ};
-    update public.quote_requests set submitted_at = ${S("submitted_at")}, due_at = ${S("due_at")}, accepted_at = ${S("accepted_at")},
+    update public.quote_requests set submitted_at = ${S("submitted_at")}, due_at = due_at - ${O("submitted_at")}, accepted_at = ${S("accepted_at")},
         quoted_at = ${S("quoted_at")}, closed_at = ${S("closed_at")}, updated_at = ${S("updated_at")}, overdue_notified_at = ${S("overdue_notified_at")}
       where id in ${คำขอ};
     update public.quotation_won_at w set won_at = ${S("w.won_at")}
@@ -227,7 +294,8 @@ function คำสั่งของงาน(g, จบ) {
     update public.customers c set created_at = ${S("c.created_at")}, join_date = to_char(${วันไทย(S("c.created_at"))}, 'YYYY-MM-DD')
       where c.dealer_code = ${D} and ${ในช่วง("c.created_at")} and c.id in (select customer_id from ${ใบ});
     -- ใบลูกค้า: วันที่ใบ/วันหมดอายุเลื่อนตามวันที่สร้างใบ
-    update public.quotations set created_at = ${S("created_at")}, updated_at = ${S("updated_at")},
+    -- won_at ของใบ (คอลัมน์ที่รายงานยอดขายอ่าน · _q_report_date) เลื่อนด้วย — เดิมเลื่อนแค่ตาราง quotation_won_at → ยอดย้อนหลังกองที่เดือนนี้ (18 พ.ย. 69)
+    update public.quotations set created_at = ${S("created_at")}, updated_at = ${S("updated_at")}, won_at = ${S("won_at")},
         date = case when date ~ '^\\d{4}-\\d{2}-\\d{2}' then to_char(${วันไทย(S("created_at"))}, 'YYYY-MM-DD') else date end,
         date_normalized = case when date ~ '^\\d{4}-\\d{2}-\\d{2}' then ${วันไทย(S("created_at"))} else date_normalized end,
         expiry = case when expiry ~ '^\\d{4}-\\d{2}-\\d{2}' then to_char(substring(expiry, 1, 10)::date - (${วันไทย("created_at")} - ${วันไทย(S("created_at"))}), 'YYYY-MM-DD') else expiry end
@@ -246,8 +314,12 @@ function คำสั่งของงาน(g, จบ) {
  */
 export function sqlลบงานขาย(ช่วง, บริษัท = []) {
   const ใน = (c) => `(${ช่วง.map(([a, b]) => `${c} between ${a} and ${b}`).join(" or ")})`;
-  const ลูกค้า = บริษัท.length ? `(${บริษัท.map(p => `company like ${q(p)}`).join(" or ")})` : "false";
+  // ลูกค้าของส่วน = ชื่อบริษัทของลีดในช่วงเลขของส่วน (เก็บก่อนลบลีด · ชื่อสมจริงไม่มีป้ายส่วนแล้ว 18 พ.ย. 69) + รูปแบบชื่อเดิม (ฐานที่ลงก่อนหน้า)
+  const ลูกค้า = `(company in (select company from ชื่อในส่วน)${บริษัท.length ? ` or ${บริษัท.map(p => `company like ${q(p)}`).join(" or ")}` : ""})`;
+  const แจ้งเตือน = `(exists (select 1 from ชื่อในส่วน c where coalesce(title, '') || coalesce(body, '') like '%' || replace(replace(c.company, 'บริษัท ', ''), ' จำกัด', '') || '%')${
+    บริษัท.length ? ` or ${บริษัท.map(p => `coalesce(title, '') || coalesce(body, '') like ${q(p.replace(/^บริษัท /, "%"))}`).join(" or ")}` : ""})`;
   return `begin;
+    create temp table ชื่อในส่วน on commit drop as select distinct company from public.leads where ${ใน("num_id")} and coalesce(company, '') <> '';
     alter table public.hq_quotes disable trigger hq_quotes_lock_sent;
     alter table public.quotations disable trigger quotations_no_delete_won;
     delete from public.files where ${ใน("record_id")} or customer_id in (select id from public.customers where ${ลูกค้า});
@@ -262,7 +334,7 @@ export function sqlลบงานขาย(ช่วง, บริษัท = [
     delete from public.quote_requests where ${ใน("lead_num_id")};
     delete from public.appointments where ${ใน("lead_id")};
     delete from public.leads where ${ใน("num_id")} or customer_id in (select id from public.customers where ${ลูกค้า});
-    delete from public.notifications where ${บริษัท.length ? บริษัท.map(p => `coalesce(title, '') || coalesce(body, '') like ${q(p.replace(/^บริษัท /, "%"))}`).join(" or ") : "false"};
+    delete from public.notifications where ${แจ้งเตือน};
     delete from public.customers where ${ลูกค้า};
     commit;`;
 }
