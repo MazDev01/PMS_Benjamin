@@ -360,7 +360,8 @@ export function กล่องล่าง({ รวมทั้งหมด, �
 
 // ── ระดับดีลเลอร์: ใบ/ลีดล่าสุด + ปุ่มเปิดแผงดีลเลอร์ ──────────────────────────────────────────────────────────
 //   ยิงคำขอเฉพาะตอนอยู่ระดับดีลเลอร์ (คอมโพเนนต์นี้แสดงเฉพาะระดับนั้น) — ไม่เพิ่มคำขอให้ระดับอื่น
-export function DealerRecent({ code }: { code: string }) {
+//   ปุ่มเปิดแผง = แผงดีลเลอร์บนหน้าเดิม (เปิดแผง · บอสตัดสิน 18 พ.ย. 69 ไม่ออกจากหน้า) · ไม่ส่ง = ไปหน้าดีลเลอร์ (?open=)
+export function DealerRecent({ code, เปิดแผง }: { code: string; เปิดแผง?: () => void }) {
   const router = useRouter();
   const ชื่อของ = useDealerNames();   // ไม่มีรหัสบนจอ (บอสสั่ง 6 พ.ย. 69)
   const ใบผล = useQuotationsPage({ limit: 5, offset: 0, sort: { col: "created_at", dir: "desc" }, sentOnly: true, dealerCodes: [code] });
@@ -394,7 +395,7 @@ export function DealerRecent({ code }: { code: string }) {
         </การ์ดกล่อง>
       </div>
       <div style={{ marginBottom: 24 }}>
-        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={() => router.push(`/hq/dealers?open=${encodeURIComponent(code)}`)}>เปิดหน้าต่างรายละเอียดดีลเลอร์ {ชื่อของ(code)}</button>
+        <button type="button" className="btn btn-primary btn-sm" data-act="open-dealer-panel" onClick={เปิดแผง ?? (() => router.push(`/hq/dealers?open=${encodeURIComponent(code)}`))}>เปิดหน้าต่างรายละเอียดดีลเลอร์ {ชื่อของ(code)}</button>
       </div>
     </>
   );

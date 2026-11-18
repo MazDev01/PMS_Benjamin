@@ -9,7 +9,6 @@
 //   เป้าบนการ์ด = ผลรวมเป้าตามช่วงของสาขาในตารางเสมอ รวมตอนไม่กรอง (ใบ 0283 · บอสสั่ง 9 พ.ย. 69 · ทับข้อตัดสิน 22 ต.ค. 69 ที่ใช้เป้าทั้งเครือแยก)
 //   ถึงเป้า = ยอดในช่วง ≥ เป้าตามช่วง (ช่วงเดียวกับการ์ด) · แผงที่มาเป็นหน้าต่างกลางจอ ไม่มีแถวรวม · ไม่มีปุ่มกรองถึงเป้าในแผงแล้ว
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { Percent, Trophy, Eye, X, Coins, Search, Award, ArrowDown, ArrowUp } from "lucide-react";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
@@ -39,6 +38,9 @@ import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
 import { useLevelHistory } from "@pms/shared/lib/useDrillHistory";
 import { แถบระดับ, จัดกลุ่ม, ตารางกลุ่ม, รอข้อมูลรายเดือน, SourcePanel, กล่องล่าง, DealerRecent, ยังไม่รู้ผล, ชื่อมิติ, จัดรายเดือน, ตารางรายเดือน, MonthPanel, type มิติ, type การ์ดที่มา, type แถวเดือน } from "./Drill";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
+import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
+import { DealerPanel } from "../dealers/DealerPanel";
+import { useDealerPanelActions } from "../dealers/useDealerPanelActions";
 
 const PRIMARY = "#003366";
 const MUTED = "var(--muted-foreground)";
@@ -139,13 +141,18 @@ const กว้างชื่อขั้นต่ำ = 170, กว้างต
 const ความกว้างชื่อผลงาน = "19%";
 
 export default function SalesAnalyticsPage() {
-  const router = useRouter();
   const { timeRange } = useFilters();
   const ready = useAuthReady();
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
   const allDealers = useRepoValue<DealerRow[]>(() => dealersRepo.list().then(l => l.filter(ไม่ใช่แถวHQ)), []);
   // ชื่อแสดงของดีลเลอร์ (ตัวกลาง · ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" · บอสสั่ง 6 พ.ย. 69)
   const ชื่อแสดง = useMemo(() => สร้างชื่อแสดง(allDealers), [allDealers]);
+  // ปุ่มรูปตาท้ายแถว = แผงดีลเลอร์ตัวเดียวกับ /hq/dealers บนหน้าเดิม (บอสตัดสิน 18 พ.ย. 69: รูปตาทุกหน้าไม่ออกจากหน้า)
+  //   เดิม router.push(/hq/dealers/รหัส) = ออกจากหน้า ("กดแล้วเด้งไปหน้าอื่น") · ?open=รหัส ในที่อยู่ · ย้อนกลับ = ปิดแผง · กดแถว = เจาะลงเหมือนเดิม
+  const [แผงดีลเลอร์, setแผงดีลเลอร์] = useState<string | null>(null);
+  useOpenFromUrl("/hq/pipeline", p => setแผงดีลเลอร์(p ? p.toUpperCase() : null));
+  usePanelInUrl(แผงดีลเลอร์);
+  const ปุ่มดีลเลอร์ = useDealerPanelActions();
 
   // ── ตัวกรอง (แถวเดียว ค้างใต้แถบบนตอนเลื่อน — ส่วนกลาง .hq-sticky-filter) ──
   const [q, setQ] = useState("");
@@ -415,7 +422,7 @@ export default function SalesAnalyticsPage() {
                   {แสดงคอล.marginPct && <td className="num" data-cell="margin">{r.marginPct == null ? "—" : `${r.marginPct.toFixed(1)}%`}</td>}
                   {แสดงคอล.latest && <td style={{ color: MUTED, whiteSpace: "normal" }} title={r.latest ? fmtISOToThai(r.latest) : "ยังไม่มีใบที่ส่งลูกค้า"}>{r.latest ? fmtISOToThai(r.latest) : "—"}</td>}
                   <td onClick={e => e.stopPropagation()}>
-                    <button title="เปิดหน้าดีลเลอร์" aria-label={`เปิดหน้าดีลเลอร์ ${r.name}`} onClick={() => router.push(`/hq/dealers/${r.code}`)}
+                    <button type="button" title="ดูรายละเอียดดีลเลอร์" aria-label={`ดูรายละเอียดดีลเลอร์ ${r.name}`} data-act="dealer-panel" onClick={() => setแผงดีลเลอร์(r.code)}
                       style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #dbe3ec", background: "#fff", color: PRIMARY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Eye size={13} />
                     </button>
@@ -430,7 +437,7 @@ export default function SalesAnalyticsPage() {
       </div>
 
       {/* ── 4 · ระดับดีลเลอร์: ใบ/ลีดล่าสุด + ปุ่มเปิดแผงดีลเลอร์ ── */}
-      {ดีลเลอร์ที่ดู && <div style={{ marginTop: 24 }}><DealerRecent code={ดีลเลอร์ที่ดู} /></div>}
+      {ดีลเลอร์ที่ดู && <div style={{ marginTop: 24 }}><DealerRecent code={ดีลเลอร์ที่ดู} เปิดแผง={() => setแผงดีลเลอร์(ดีลเลอร์ที่ดู)} /></div>}
 
       {/* ── 5 · เส้นทางการขาย · งานค้างตามขั้นตอน (ตอนนี้) · เหตุผลปิดไม่สำเร็จ · ลีดตามแหล่งที่มา (ชุดสาขาเดียวกับตาราง) ── */}
       <div style={{ marginTop: 24 }}>
@@ -441,6 +448,13 @@ export default function SalesAnalyticsPage() {
         เจาะ={code => { setDealerSel(code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
       {เดือนที่เปิด && รายเดือนฐาน && <MonthPanel เดือน={เดือนที่เปิด} rows={รายเดือนฐาน} codes={รหัสในตาราง} ชื่อ={ชื่อดีลเลอร์} ปิด={() => setเดือนที่เปิด(null)}
         เจาะ={code => { setDealerSel(code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
+      {(() => {
+        const d = แผงดีลเลอร์ ? allDealers.map(ปุ่มดีลเลอร์.แถวจริง).find(x => x.code === แผงดีลเลอร์) : undefined;
+        if (!d) return null;   // ยังโหลดรายชื่อไม่เสร็จ / รหัสไม่ใช่ดีลเลอร์ = ไม่เปิด
+        return <DealerPanel dealer={d} onClose={() => setแผงดีลเลอร์(null)} {...ปุ่มดีลเลอร์.ปุ่มแผง(d)}
+          onPerf={() => { setแผงดีลเลอร์(null); setDealerSel(d.code); window.scrollTo({ top: 0, behavior: "smooth" }); }} />;
+      })()}
+      {ปุ่มดีลเลอร์.หน้าต่างแก้}
     </div>
   );
 }

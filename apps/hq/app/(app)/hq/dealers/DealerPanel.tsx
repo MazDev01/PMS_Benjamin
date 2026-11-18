@@ -39,8 +39,10 @@ const เวลา = (s: string | null | undefined) => { if (!s) return "—"; c
 const ส่วน = ส่วนแผง;
 const แถว = แถวข้อมูล;
 
-export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, entering }: {
+export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, entering, onPerf }: {
   dealer: DealerRow; onClose: () => void; onEdit: () => void; onToggle: () => void; onEnter: () => void; entering: boolean;
+  /** ปุ่ม "ดูผลงาน" เมื่อแผงเปิดอยู่บนหน้าภาพรวมยอดขายเอง (ปุ่มรูปตา · 18 พ.ย. 69) = เลือกดีลเลอร์นี้บนหน้าเดิม · ไม่ส่ง = ไปหน้าภาพรวมยอดขาย */
+  onPerf?: () => void;
 }) {
   const router = useRouter();
   const code = dealer.code;
@@ -134,7 +136,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
           {ปุ่ม("แก้ไข", "แก้ไขข้อมูลดีลเลอร์", <Pencil size={13} />, onEdit)}
           {ปุ่ม(dealer.status === "active" ? "ปิดใช้งาน" : "เปิดใช้งาน", dealer.status === "active" ? "ปิดใช้งานดีลเลอร์ (เข้าระบบไม่ได้)" : "เปิดใช้งานดีลเลอร์",
             dealer.status === "active" ? <EyeOff size={13} /> : <Eye size={13} />, onToggle)}
-          {ปุ่ม("ดูผลงาน", "ดูผลงานที่ภาพรวมยอดขาย (เลือกดีลเลอร์นี้ไว้ให้)", <BarChart3 size={13} />, () => router.push(ลิงก์ผลงาน))}
+          {ปุ่ม("ดูผลงาน", "ดูผลงานที่ภาพรวมยอดขาย (เลือกดีลเลอร์นี้ไว้ให้)", <BarChart3 size={13} />, onPerf ?? (() => router.push(ลิงก์ผลงาน)))}
         </>}
         tabs={(Object.keys(ชื่อแท็บ) as แท็บ[]).map(t => ({ key: t, label: ชื่อแท็บ[t], count: จำนวนแท็บ[t] }))}
         tab={แท็บ} onTab={k => setแท็บ(k as แท็บ)}>
