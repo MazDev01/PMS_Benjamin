@@ -36,6 +36,7 @@ import type { DataAdapter, DealerRollup, QuoteRangeRow } from "../ports";
 import type { SalesTable, SalesChange } from "../ports";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { วันเวลาไทย } from "@pms/shared/lib/thaiDate";
+import { เติมพื้นที่จากลีด } from "../../purchaseArea";
 import type {
   DealerRow, DealerFile, ResponsiblePerson,
   HQPolicy, HQTargets, HQNotifRules, DealerLeadRulesMap, LeadRules,
@@ -1324,7 +1325,8 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().from("quotations").select("*")
         .eq("dealer_code", dealerCode).eq("customer_id", customerId).eq("status", "won").order("date", { ascending: true });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
-      return (data as Row[]).map(rowToQuote);
+      // ประวัติการซื้อ: พื้นที่ของงานจากลูกค้าเป้าหมาย (ใบจากใบ HQ ไม่เก็บพื้นที่ · 18 พ.ย. 69 · ตัวเดียวกับเซิร์ฟเวอร์)
+      return ((await เติมพื้นที่จากลีด(sb(), dealerCode, data as Row[])) as Row[]).map(rowToQuote);
     },
     // ผูกใบกำพร้าทั้งชุดในคำสั่งเดียว (RPC, 0093) — แทนที่ N คำขอ update แยกกัน (Phase 4 transaction)
     relinkCustomerQuotes: async (dealer, customerId, company, cascadeWon) => {
