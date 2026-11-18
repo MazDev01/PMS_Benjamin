@@ -204,7 +204,7 @@ export default function HQCustomersPage() {
         <CustomerTable rows={tableRows} onView={r => { setViewId(r.id); setViewCode(r.dealerCode ?? null); }} pagination={pagination} loading={isLoading} ระดับ={{ ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ }} />
       </div>
 
-      <CustomerDrawer row={viewDetail} onClose={() => { setViewId(null); setViewCode(null); }} />
+      <CustomerDrawer row={viewDetail} ใบ={needsRemoteDetail ? remoteBuildQuotes : undefined} onClose={() => { setViewId(null); setViewCode(null); }} />
     </div>
   );
 }

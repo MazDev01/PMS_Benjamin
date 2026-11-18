@@ -163,7 +163,9 @@ test("[ui·dealer] หน้าต่างกลางจอดีลเลอ�
     await page.getByRole("row", { name: `เปิดรายละเอียดลูกค้า ${ลูกค้ามีงาน()}`, exact: true }).getByRole("button", { name: "ดูรายละเอียด" }).click();
     const แผง = page.locator("[data-row-panel]");
     await expect(แผง).toBeVisible({ timeout: 20_000 });
-    const การ์ดงาน = แผง.locator("button[title]").filter({ hasText: /Q-|฿/ }).first();
+    // งานที่ซื้ออยู่แท็บ "ประวัติการซื้อ" (บอสสั่ง 18 พ.ย. 69 · ตัวกลาง PurchaseHistory) — เดิมการ์ดงานอยู่ในแท็บข้อมูลลูกค้า
+    await แผง.getByRole("button", { name: /^ประวัติการซื้อ/ }).click();
+    const การ์ดงาน = แผง.locator("[data-purchase-row]").filter({ hasText: /Q-|฿/ }).first();
     await expect(การ์ดงาน, "ลูกค้ามีงานปิดการขาย (ข้อมูลตั้งต้น)").toBeVisible({ timeout: 20_000 });
     await การ์ดงาน.click();
     const งาน = page.locator("[data-doc-window='customer-job']");
