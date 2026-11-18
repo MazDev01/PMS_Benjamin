@@ -3,6 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { HQ_ORIGIN, DEALER_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { ช่องผู้สนใจครบ } from "./requiredFixtures";
 import { settle, แถวตามชื่อ, ตั้งต้น } from "./helpers";
+import { ความกว้างหน้าต่าง } from "../../packages/shared/lib/windowSize";
 
 // ── หน้าต่างรายละเอียดที่เปิดจากแถวตาราง = ตัวกลางเดียว (RowPanel · คนรวมงานสั่ง + บอสตอบขอบเขต 10 พ.ย. 69) ─────────────────
 //   ทุกแผงจากแถว (HQ: ดีลเลอร์ · ลูกค้าเป้าหมายทั้งเครือ · ลูกค้าทั้งเครือ · ผู้สนใจ · ตั้งค่า › ผู้ใช้งาน
@@ -15,6 +16,8 @@ import { settle, แถวตามชื่อ, ตั้งต้น } from ".
 //   ไม่มีแผงไหนมี [data-row-panel] และจอแคบไม่เต็มจอ
 //   13 พ.ย. 69 บอสสั่ง (ข้อยกเว้นของกฎ 640): แผงดีลเลอร์ HQ กว้าง 820 เท่าหน้าต่างใบเสนอราคา · แผงอื่นทุกหน้า (รวมแผงลูกค้าที่ซ้อนบนแผงดีลเลอร์) คง 640
 //     เลือกที่ตัวกลาง RowPanel กว้าง="กว้าง" · ตกบนโค้ดเดิม: แผงดีลเลอร์ 640
+//   18 พ.ย. 69 บอสตัดสิน (ทับ 640 + ข้อยกเว้น): ทุกแผงจากแถว HQ + ดีลเลอร์ กว้างเท่าหน้าต่างใบเสนอราคา (ความกว้างหน้าต่าง 820 · lib/windowSize)
+//     ตกบนโค้ดเดิม: แผงลูกค้าเป้าหมาย/ลูกค้า/ผู้สนใจ/ผู้ใช้ 640
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
 
@@ -28,9 +31,9 @@ test.afterAll(async () => { await (await db(ADMIN)).from("dealer_prospects").del
 const แผง = (page: Page) => page.locator("[data-row-panel]");
 const จอ = [{ w: 1366, h: 768 }, { w: 1920, h: 1080 }, { w: 900, h: 760 }] as const;
 
-/** ตรวจกรอบแผงที่จอปัจจุบัน: ≥ 1024 = กว้างเท่าแผงดีลเลอร์ (640) กลางจอ (ซ้าย = ขวา) บน/ล่าง 12 · < 1024 = เต็มจอ */
+/** ตรวจกรอบแผงที่จอปัจจุบัน: ≥ 1024 = กว้างเท่าหน้าต่างใบเสนอราคา (820 · 18 พ.ย. 69) กลางจอ (ซ้าย = ขวา) บน/ล่าง 12 · < 1024 = เต็มจอ */
 /** จำนวน = แผงที่ต้องเปิดอยู่ (ซ้อน = 2) · วัดแผงบนสุด (ตัวท้ายในเอกสาร) */
-async function ตรวจกรอบ(page: Page, ชื่อ: string, จำนวน = 1, กว้าง = 640) {
+async function ตรวจกรอบ(page: Page, ชื่อ: string, จำนวน = 1, กว้าง = ความกว้างหน้าต่าง) {
   await expect(แผง(page), `${ชื่อ}: แผงจากแถวเปิด (ตัวกลาง RowPanel)`).toHaveCount(จำนวน, { timeout: 25_000 });
   const ตัว = แผง(page).last();
   await expect(ตัว).toBeVisible();
@@ -40,7 +43,7 @@ async function ตรวจกรอบ(page: Page, ชื่อ: string, จำ
   const vp = page.viewportSize()!;
   const ที่ = `${ชื่อ} @${vp.width}×${vp.height}`;
   if (vp.width >= 1024) {
-    expect(Math.round(กรอบ.width), `${ที่}: กว้าง ${กว้าง}${กว้าง === 820 ? " (แผงดีลเลอร์ HQ · ข้อยกเว้น 13 พ.ย. 69)" : ""}`).toBe(กว้าง);
+    expect(Math.round(กรอบ.width), `${ที่}: กว้าง ${กว้าง} = หน้าต่างใบเสนอราคา (บอสตัดสิน 18 พ.ย. 69)`).toBe(กว้าง);
     const ซ้าย = Math.round(กรอบ.x), ขวา = Math.round(vp.width - (กรอบ.x + กรอบ.width));
     expect(Math.abs(ซ้าย - ขวา), `${ที่}: กลางจอ — ช่องว่างซ้าย ${ซ้าย} = ขวา ${ขวา} (ไม่ชิดขวาแบบเดิม)`).toBeLessThanOrEqual(1);
     expect(ซ้าย, `${ที่}: มีพื้นหลังให้กดทั้งสองข้าง`).toBeGreaterThan(12);
@@ -73,7 +76,7 @@ async function ปิดแผง(page: Page) {
   }
 }
 
-test("[ui·hq] แผงจากแถวทุกหน้า HQ กว้าง 640 (แผงดีลเลอร์ 820) กลางจอ · พื้นหลังมืด กดปิดได้ · จอ < 1024 เต็มจอ", async ({ page }) => {
+test("[ui·hq] แผงจากแถวทุกหน้า HQ กว้างเท่าหน้าต่างใบเสนอราคา (820) กลางจอ · พื้นหลังมืด กดปิดได้ · จอ < 1024 เต็มจอ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   // เปิดแถวของข้อมูลตั้งต้นด้วยชื่อตรงตัว (บอสสั่ง 12 พ.ย. 69) — เดิมกดแถวแรกของรายการทั้งเครือ ซึ่งเป็นของข้ออื่นที่รันพร้อมกันได้ (ถูกลบระหว่างเปิด = แผงปิดเอง)
@@ -104,12 +107,12 @@ test("[ui·hq] แผงจากแถวทุกหน้า HQ กว้า�
   ];
   for (const { w, h } of จอ) {
     await page.setViewportSize({ width: w, height: h });
-    for (const [ชื่อ, ทำ] of เปิด) { await ทำ(); await ตรวจกรอบ(page, ชื่อ, 1, ชื่อ.startsWith("แผงดีลเลอร์") ? 820 : 640); await ปิดแผง(page); }
+    for (const [ชื่อ, ทำ] of เปิด) { await ทำ(); await ตรวจกรอบ(page, ชื่อ); await ปิดแผง(page); }
   }
   assertNoErrors(errs, "แผงจากแถว HQ");
 });
 
-test("[ui·dealer] แผงจากแถวฝั่งดีลเลอร์ (ลูกค้าเป้าหมาย · ลูกค้า) กว้าง 640 กลางจอ · พื้นหลังมืด กดปิดได้ · จอ < 1024 เต็มจอ", async ({ page }) => {
+test("[ui·dealer] แผงจากแถวฝั่งดีลเลอร์ (ลูกค้าเป้าหมาย · ลูกค้า) กว้างเท่าหน้าต่างใบเสนอราคา (820) กลางจอ · พื้นหลังมืด กดปิดได้ · จอ < 1024 เต็มจอ", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", RYG);
   const เปิด: [string, () => Promise<void>][] = [

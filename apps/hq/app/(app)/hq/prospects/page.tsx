@@ -67,6 +67,8 @@ import { คอลัมน์บอร์ดผู้สนใจ, คอลั
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
+import { DealerPanel } from "../dealers/DealerPanel";
+import { useDealerPanelActions } from "../dealers/useDealerPanelActions";
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
@@ -120,6 +122,9 @@ export default function HQProspectsPage() {
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState("");
   const [dealers, setDealers] = useState<DealerRow[]>([]);
+  // การ์ดคอลัมน์ "เป็นดีลเลอร์แล้ว" (มีรูปตา) = แผงดีลเลอร์ตัวเดียวกับ /hq/dealers บนหน้าเดิม (บอสตัดสิน 18 พ.ย. 69 รูปตาไม่ออกจากหน้า)
+  const [แผงดีลเลอร์, setแผงดีลเลอร์] = useState<string | null>(null);
+  const ปุ่มดีลเลอร์ = useDealerPanelActions();
   const [ผู้ใช้HQ, setผู้ใช้HQ] = useState<SystemUser[]>([]);
 
   const [q, setQ] = useState("");
@@ -287,8 +292,9 @@ export default function HQProspectsPage() {
   }, [รีเฟรชรายที่เปิด]);
 
   function เปิดแผง(p: DealerProspect, แท็บเริ่ม: แท็บ = "overview") {
-    // เป็นดีลเลอร์แล้ว (การ์ดในคอลัมน์ปิดแล้วของบอร์ด) = ไม่มีแผงผู้สนใจ → ไปแผงดีลเลอร์นั้น (เหมือนลิงก์เก่าในที่อยู่หน้าเว็บ ด้านล่าง)
-    if (p.status === "won" && p.dealerCode) { window.location.assign(`/hq/dealers?open=${encodeURIComponent(p.dealerCode)}`); return; }
+    // เป็นดีลเลอร์แล้ว (การ์ดในคอลัมน์ปิดแล้วของบอร์ด) = ไม่มีแผงผู้สนใจ → แผงดีลเลอร์นั้นบนหน้าเดิม
+    //   (เดิมไปหน้า /hq/dealers = "กดแล้วเด้งไปหน้าอื่น" · บอสตัดสิน 18 พ.ย. 69) · ลิงก์เก่าในที่อยู่หน้าเว็บ (ด้านล่าง) ยังพาไปหน้าดีลเลอร์
+    if (p.status === "won" && p.dealerCode) { setแผงดีลเลอร์(p.dealerCode.toUpperCase()); return; }
     เปิดอยู่Ref.current = p.id;
     setรายที่เปิด(p);
     setแท็บที่เปิด(แท็บเริ่ม);
@@ -1400,6 +1406,17 @@ export default function HQProspectsPage() {
           </ModalCard>
         </div>
       )}
+      {(() => {
+        const d = แผงดีลเลอร์ ? dealers.map(ปุ่มดีลเลอร์.แถวจริง).find(x => x.code === แผงดีลเลอร์) : undefined;
+        if (!แผงดีลเลอร์) return null;
+        if (!d) return (
+          <div role="alert" className="card" style={{ position: "fixed", right: 24, bottom: 24, zIndex: 241, padding: "12px 16px", fontSize: "0.82rem", display: "flex", gap: 10, alignItems: "center" }}>
+            ไม่พบดีลเลอร์รหัส &quot;{แผงดีลเลอร์}&quot; <button className="btn btn-secondary btn-sm" onClick={() => setแผงดีลเลอร์(null)}>ปิด</button>
+          </div>
+        );
+        return <DealerPanel dealer={d} onClose={() => setแผงดีลเลอร์(null)} {...ปุ่มดีลเลอร์.ปุ่มแผง(d)} />;
+      })()}
+      {ปุ่มดีลเลอร์.หน้าต่างแก้}
     </div>
   );
 }
