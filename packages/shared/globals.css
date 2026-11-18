@@ -298,6 +298,11 @@ body {
     transition: color 0.12s, border-color 0.12s;
     font-family: inherit;
     line-height: 1;
+    /* ไอคอนอยู่หน้า (ซ้าย) ข้อความ บรรทัดเดียวกัน ทุกแถบแท็บ (บอสสั่ง 18 พ.ย. 69) — svg เป็น block (preflight) เดิมแท็บที่ไม่ตั้ง flex เอง
+       (คำขอใบเสนอราคา) ไอคอนขึ้นไปอยู่ "ข้างบน" ข้อความ · ระยะห่าง 7px เท่าแท็บตั้งค่า HQ/ดีลเลอร์ · ข้อทดสอบ tab-icon-inline.spec */
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
   }
   .tab-item:hover { color: #2D2D2D; }
   .tab-item.active {
