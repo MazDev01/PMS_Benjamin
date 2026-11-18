@@ -9,11 +9,13 @@
 import { สาขาใหม่ } from "./สาขา.mjs";
 
 export const ชื่อ = "ผู้ใช้และบันทึก";
+// ชื่อคนจริงแบบสมมติ (บอสสั่ง 18 พ.ย. 69 "ดูไม่เหมือนจริง" · เดิม "ผู้บริหารตัวอย่าง" · "เจ้าหน้าที่ตัวอย่าง 1") · หน้าที่อยู่ที่แผนก
+//   บันทึกการใช้งานของรอบก่อนคงชื่อเดิม (ตารางต่อท้ายอย่างเดียว ห้ามแก้)
 const ผู้ใช้ = [
-  { key: "super", email: "hq-super-admin@example.test", role: "SUPER_ADMIN", name: "ผู้ดูแลระบบตัวอย่าง", department: "ไอที", เบอร์: 5101 },
-  { key: "mgmt", email: "hq-management@example.test", role: "SUPER_ADMIN", name: "ผู้บริหารตัวอย่าง", department: "ฝ่ายขาย", เบอร์: 5102 },
-  { key: "staff1", email: "hq-staff-1@example.test", role: "SUPER_ADMIN", name: "เจ้าหน้าที่ตัวอย่าง 1", department: "ฝ่ายประเมินราคา", เบอร์: 5103 },
-  { key: "staff2", email: "hq-staff-2@example.test", role: "SUPER_ADMIN", name: "เจ้าหน้าที่ตัวอย่าง 2", department: "ฝ่ายประเมินราคา", เบอร์: 5104 },
+  { key: "super", email: "hq-super-admin@example.test", role: "SUPER_ADMIN", name: "ศักดิ์ชัย วงศ์ประเสริฐ", department: "ไอที", เบอร์: 5101 },
+  { key: "mgmt", email: "hq-management@example.test", role: "SUPER_ADMIN", name: "ปรีชา ธนากุล", department: "ฝ่ายขาย", เบอร์: 5102 },
+  { key: "staff1", email: "hq-staff-1@example.test", role: "SUPER_ADMIN", name: "กมลวรรณ ศรีสมบูรณ์", department: "ฝ่ายประเมินราคา", เบอร์: 5103 },
+  { key: "staff2", email: "hq-staff-2@example.test", role: "SUPER_ADMIN", name: "ธนวัฒน์ จันทร์หอม", department: "ฝ่ายประเมินราคา", เบอร์: 5104 },
 ];
 const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
@@ -57,7 +59,7 @@ export async function สร้าง(ctx) {
     ต้อง(await sb.from("profiles").update({ department: "ฝ่ายขาย" }).eq("id", บัญชี.staff1.id), "แก้ฝ่ายผู้ใช้");
     ต้อง(await sb.from("profiles").update({ department: "ฝ่ายประเมินราคา" }).eq("id", บัญชี.staff1.id), "แก้ฝ่ายผู้ใช้กลับ");
     ต้อง(await sb.from("profiles").update({ status: "inactive" }).eq("id", บัญชี.staff2.id), "ปิดใช้งานผู้ใช้");
-    ต้อง(await sb.rpc("hq_settings_audit_export", { p_file: "ตั้งค่า-HQ-ตัวอย่าง.json" }), "ส่งออกการตั้งค่า");
+    ต้อง(await sb.rpc("hq_settings_audit_export", { p_file: "ตั้งค่า-HQ-2569-11.json" }), "ส่งออกการตั้งค่า");
     เรื่อง.push("แก้ไขผู้ใช้ ×2", "ปิดใช้งานผู้ใช้", "ส่งออกการตั้งค่า"); }
 
   // ผู้บริหาร: แก้เป้าดีลเลอร์ (สาขาตัวอย่าง) · แก้ไขผู้สนใจเป็นดีลเลอร์
@@ -70,7 +72,7 @@ export async function สร้าง(ctx) {
       เรื่อง.push(`แก้ไขดีลเลอร์ (${code})`);
     }
     // ผู้สนใจต้นทางของสาขาตัวอย่าง (ของส่วน "สาขา") — สลับระหว่าง 2 ค่า (ค่าเดิมซ้ำ = ฐานไม่ลงบันทึก · รันซ้ำไม่ต่อท้ายเรื่อย ๆ)
-    const { data: ราย } = await svc.from("dealer_prospects").select("id, business_type").eq("name", `ว่าที่ดีลเลอร์ตัวอย่าง ${code}`).limit(1);
+    const { data: ราย } = await svc.from("dealer_prospects").select("id, business_type").eq("email", `prospect-${code.toLowerCase()}@example.test`).limit(1);   // อีเมลผู้สนใจต้นทางของสาขา (ส่วน "สาขา" · ชื่อสมจริงแล้ว 18 พ.ย. 69)
     if (ราย?.[0]) {
       const ประเภท = ราย[0].business_type === "ผู้รับเหมาก่อสร้าง" ? "ร้านวัสดุก่อสร้าง" : "ผู้รับเหมาก่อสร้าง";
       ต้อง(await sb.from("dealer_prospects").update({ business_type: ประเภท }).eq("id", ราย[0].id), "แก้ไขผู้สนใจ");

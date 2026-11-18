@@ -54,7 +54,9 @@ async function กล่องที่ไม่มีหัวข้อ(page: P
 const หัว = (page: Page, sel: string) => page.locator(`${sel} [data-box-title]`).first();
 async function ตรวจหัวข้อเจาะลึก(page: Page, หน้า: keyof typeof ตั้งค่าเจาะลึกทั้งหมด, dim: มิติ, r: ระดับหัวข้อ, ช่วง: { start: string; end: string }, ที่: string) {
   const cfg = ตั้งค่าเจาะลึกทั้งหมด[หน้า];
-  await expect(หัว(page, "[data-drill-chart]").locator("[data-title]"), `${ที่}: หัวข้อกราฟ`).toHaveText(`กราฟ${ชื่อหัวข้อ(cfg.ป้ายแท่ง, dim, r)}`);
+  // แท็บรายเดือน: หน้าที่ตั้งแท่งรายเดือน (ลูกค้า = ลูกค้าใหม่ · 18 พ.ย. 69) ชื่อกราฟตามแท่งนั้น
+  const ป้ายแท่ง = dim === "month" ? (cfg.แท่งรายเดือน?.ป้าย ?? cfg.ป้ายแท่ง) : cfg.ป้ายแท่ง;
+  await expect(หัว(page, "[data-drill-chart]").locator("[data-title]"), `${ที่}: หัวข้อกราฟ`).toHaveText(`กราฟ${ชื่อหัวข้อ(ป้ายแท่ง, dim, r)}`);
   await expect(หัว(page, "[data-drill-table]").locator("[data-title]"), `${ที่}: หัวข้อตาราง`).toHaveText(`ตาราง${ชื่อหัวข้อ(cfg.ป้ายแถว, dim, r)}`);
   for (const sel of ["[data-drill-chart]", "[data-drill-table]"]) {
     const sub = หัว(page, sel).locator("[data-subtitle]");

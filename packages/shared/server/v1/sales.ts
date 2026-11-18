@@ -14,6 +14,7 @@
 // ⚠️ ค่ากลาง (APP_NOW / DEFAULT_LEAD_RULES / DEFAULT_HQ_POLICY) เป็นของฝั่งแอป —
 //    ผู้เรียกเติมมาให้แล้ว เซิร์ฟเวอร์ส่งต่อตรง ๆ (เหตุผลเดียวกับ settings/dealerSettings)
 import { ตัวกรองวันใบ } from "@pms/shared/lib/salesDate";
+import { เติมพื้นที่จากลีด } from "@pms/shared/lib/purchaseArea";
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail, อ่านเมื่อop } from "./_ctx";
 import { parse, str, num, bool, oneOf, arrOf, mapOfNum, isoDate } from "./_valid";
@@ -238,7 +239,8 @@ export const quotesGET = handler("quotations.list", async (req, sb) => {
     const { data, error } = await sb.from("quotations").select("*")
       .eq("dealer_code", dealer).eq("customer_id", cid).eq("status", "won").order("date", { ascending: true });
     if (error) return dbFail("quotations.listForCustomer", error);
-    return ok((data as Row[]).map(rowToQuote));
+    // ประวัติการซื้อ: พื้นที่ของงานจากลูกค้าเป้าหมาย (ใบจากใบ HQ ไม่เก็บพื้นที่ · 18 พ.ย. 69)
+    return ok(((await เติมพื้นที่จากลีด(sb, dealer, data as Row[])) as Row[]).map(rowToQuote));
   }
   const { dealer, isHQ } = scopeOf(req);
   const { rows, partial } = await listAll(sb, "quotations", dealer, isHQ);

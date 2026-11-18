@@ -74,6 +74,8 @@ import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
+import { PurchaseHistory, JobAttachments } from "@pms/shared/components/ui/PurchaseHistory";
+import { พื้นที่จากข้อความ } from "@pms/shared/lib/purchaseArea";
 import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 import { แถบสรุปเอกสาร } from "@pms/shared/components/ui/DocDetailParts";
 
@@ -409,7 +411,7 @@ export default function CustomersPage(){
   const [sortKey, setSortKey]         = useState<SortKey|null>(null);
   const [sortDir, setSortDir]         = useState<SortDir>("asc");
   const [selected, setSelected]       = useState<CustomerRow|null>(null);
-  const [custTab, setCustTab]         = useState<"overview"|"deals">("overview"); // แท็บ detail
+  const [custTab, setCustTab]         = useState<"overview"|"purchases"|"deals">("overview"); // แท็บ detail
   // (โหมดอ่าน/แก้ไขถูกถอดแล้ว — การ์ดข้อมูลลูกค้าแก้ในที่เดิมได้ตลอด · CustomerOverviewEditor reseed เองเมื่อสลับลูกค้า)
   useEffect(() => { setCustTab("overview"); }, [selected?.id]);
   const [page, setPage]               = useState(1);
@@ -1032,52 +1034,12 @@ export default function CustomersPage(){
         const totalSales = totalSalesFor(selected.id, quotations) || selected.totalValue;
         // โครงการที่ซื้อไปแล้ว (ใบเสนอราคาที่ปิดการขาย) — 1 ใบต่อ 1 งาน · เรียงวันปิดล่าสุดขึ้นก่อน
         // เดิมจัดกลุ่มตามแม่แบบ — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
-        const purchasedRows = purchasedFor(selected.id, quotations);
-        const purchasedTotal = purchasedRows.reduce((s,q)=>s+q.totalValue,0);
+        // พื้นที่ของงาน = พื้นที่ของลูกค้าเป้าหมายของงาน (ใบจากใบ HQ ไม่เก็บพื้นที่ · ตัวกลาง purchaseArea · 18 พ.ย. 69)
+        const purchasedRows = purchasedFor(selected.id, quotations).map(q => q.area > 0 || q.dealId == null ? q
+          : { ...q, area: พื้นที่จากข้อความ(leads.find(l => l.numId === q.dealId)?.area) });
         // รหัสลูกค้า = รูปแบบแสดงผลของ id จริง (ไม่ใช่ฟิลด์ใหม่)
         const custCode = customerCode(currentDealer.code, selected.id); // แหล่งเดียวกับฝั่ง HQ
 
-        // ประวัติการปิดการขาย — การ์ดต่อใบ (ชื่องาน / เลขที่ใบ / วันที่ซื้อ / ราคา) · ปิดท้ายด้วยแถวรวม
-        // ไม่มีคอลัมน์ "สถานะ" (บอสสั่งตัด — สถานะแบบ โอน/ผ่อน/จอง เป็นของธุรกิจอสังหา ระบบนี้ไม่มี)
-        const purchasedTable = (
-          <>
-            <div style={{...secLabel, marginBottom:12}}><Layers size={13} color={PRIMARY}/> ประวัติการปิดการขาย ({purchasedRows.length})</div>
-            {purchasedRows.length===0 ? (
-              <div style={{fontSize:"0.8rem",color:MUTED,textAlign:"center",padding:"20px 0"}}>
-                ยังไม่มีงานที่ปิดการขาย — จะขึ้นที่นี่เมื่อใบเสนอราคาถูกตอบรับ
-              </div>
-            ) : (
-              <>
-                {/* การ์ด = 1 ใบต่อ 1 งานที่ปิดการขาย · กดแล้วเปิดรายละเอียดงานนั้นเลย
-                    เดิมเป็นการ์ดต่อ "แม่แบบ" + รูปแม่แบบ + ตัวเลือกงานเมื่อมีหลายงาน — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69 */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12}}>
-                  {purchasedRows.map(q=>(
-                    <button key={q.id}
-                      onClick={()=>setViewProject({q})}
-                      title={q.project || q.id}
-                      style={{border:"1px solid #eef1f5",borderRadius:12,overflow:"hidden",background:"#fff",padding:0,
-                        cursor:"pointer",textAlign:"left",fontFamily:"inherit",display:"flex",flexDirection:"column"}}
-                      onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="rgba(0,51,102,.25)"; }}
-                      onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#eef1f5"; }}>
-                      <span style={{padding:"10px 12px",display:"block",minWidth:0}}>
-                        <span style={{display:"block",fontSize:"0.78rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.project || q.id}</span>
-                        <span style={{display:"block",fontSize:"0.66rem",color:MUTED,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:2}}>{q.id}</span>
-                        <span style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:6,marginTop:6}}>
-                          <span style={{fontSize:"0.62rem",color:"#8a929c",whiteSpace:"nowrap"}}>{fmtDate(q.date)}</span>
-                          <span style={{fontSize:"0.72rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{fmtMoney(q.totalValue)}</span>
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",borderTop:"1px solid #eef1f5",marginTop:12,paddingTop:10}}>
-                  <span style={{fontSize:"0.75rem",color:"#8a929c",fontWeight:700}}>รวมมูลค่าทั้งหมด</span>
-                  <span style={{fontSize:"0.95rem",fontWeight:800,color:PRIMARY,fontVariantNumeric:"tabular-nums"}}>{fmtMoney(purchasedTotal)}</span>
-                </div>
-              </>
-            )}
-          </>
-        );
 
         return (
         <>
@@ -1118,7 +1080,7 @@ export default function CustomersPage(){
             {/* Tab bar — ภาพรวม / ดีล / ใบเสนอราคา / ไทม์ไลน์ (มาตรฐานเดียวกับหน้าลูกค้าเป้าหมาย) */}
             <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb", background:"#fff", flexShrink:0, padding:"0 8px" }}>
               {/* 2 แท็บ: ข้อมูลลูกค้า (มีตารางประวัติการปิดการขาย) · เพิ่มงานขายใหม่ (ดีลของลูกค้ารายนี้ + ปุ่มสร้าง) */}
-              {([["overview","ข้อมูลลูกค้า"],["deals","เพิ่มงานขายใหม่"]] as ["overview"|"deals",string][]).map(([k,label])=>(
+              {([["overview","ข้อมูลลูกค้า"],["purchases",`ประวัติการซื้อ (${purchasedRows.length})`],["deals","เพิ่มงานขายใหม่"]] as ["overview"|"purchases"|"deals",string][]).map(([k,label])=>(
                 <button key={k} onClick={()=>setCustTab(k)}
                   style={{ padding:"11px 14px", border:"none", borderBottom:`2px solid ${custTab===k?PRIMARY:"transparent"}`, background:"transparent", cursor:"pointer", fontFamily:"inherit", fontSize:"0.8rem", fontWeight:custTab===k?800:600, color:custTab===k?PRIMARY:"#6b7280", marginBottom:-1 }}>{label}</button>
               ))}
@@ -1142,7 +1104,7 @@ export default function CustomersPage(){
 
                 {/* ประวัติการปิดการขาย — การ์ดต่อใบ + แถวรวมมูลค่า
                     ยังไม่มีโครงการ = ไม่ต้องโชว์การ์ดเปล่า (ดูได้ที่แท็บ "ประวัติการปิดการขาย") */}
-                {purchasedRows.length>0 && <div style={cardStyle}>{purchasedTable}</div>}
+                {/* ประวัติการปิดการขาย ย้ายไปแท็บ "ประวัติการซื้อ" (บอสสั่ง 18 พ.ย. 69 · ตัวกลาง PurchaseHistory เดียวกับ HQ) */}
                 <div style={cardStyle}>
                   <div style={{...secLabel, justifyContent:"space-between"}}>
                     <span style={{display:"flex",alignItems:"center",gap:6}}><StickyNote size={13} color={PRIMARY}/> หมายเหตุลูกค้า</span>
@@ -1258,6 +1220,11 @@ export default function CustomersPage(){
               </div>
 
               {/* ── ดีล/โครงการ ── */}
+              {/* ── ประวัติการซื้อ (บอสสั่ง 18 พ.ย. 69) — ตัวกลาง PurchaseHistory เดียวกับ HQ · กดรายการ = หน้าต่างงานเดิม (มีรูปแปลน/ไฟล์ของงาน) ── */}
+              <div style={{ padding:16, display:custTab==="purchases"?"flex":"none", flexDirection:"column", gap:14 }}>
+                <PurchaseHistory ใบ={purchasedRows} ฝั่ง="dealer" เปิด={q => setViewProject({ q })} />
+              </div>
+
               <div style={{ padding:16, display:custTab==="deals"?"flex":"none", flexDirection:"column", gap:14 }}>
                 {/* ตารางประวัติการปิดการขายอยู่ในแท็บ "ข้อมูลลูกค้า" ที่เดียว (บอสสั่งไม่ให้ซ้ำที่นี่)
                     แท็บนี้ = ดีลทั้งหมดของลูกค้า รวมที่ยังไม่ปิดการขาย */}
@@ -1393,6 +1360,9 @@ export default function CustomersPage(){
                       ))}
                     </div>
                   </div>
+
+                  {/* รูปแปลน/ไฟล์แนบของงาน (บอสสั่ง 18 พ.ย. 69 · ตัวกลางเดียวกับหน้าต่างงานฝั่ง HQ) — ไฟล์ที่แนบที่ลูกค้าเป้าหมายของงานนี้ */}
+                  <JobAttachments q={q} ฝั่ง="dealer" />
 
                   {/* การ์ด "ไฟล์" ย้ายไปแผงลูกค้า (แท็บข้อมูลลูกค้า) ที่เดียว — ไฟล์เป็นของลูกค้า ไม่ใช่ของใบ
                       (FLOW: แนบ/ลบไฟล์ — แผงลีด หรือ แผงลูกค้า · ตรวจเทียบ FLOW รอบ 5) ไม่ซ้ำไว้ที่นี่อีก */}

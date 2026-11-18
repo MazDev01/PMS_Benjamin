@@ -9,8 +9,7 @@
 //   ไม่ทำ: สำเนารหัสผ่านเข้ารหัส (dealer_login_secrets · ต้องใช้กุญแจของเว็บ · ฟีเจอร์ดูรหัสปิดอยู่) · แถวบันทึก "สร้างดีลเลอร์"
 //   (เส้นทางเว็บเขียนแถวบันทึกตรง — ข้อมูลตัวอย่างไม่เขียนแถวบันทึกเอง)
 // ฐานบังคับหนึ่งสาขาหนึ่งบัญชี (profiles_dealer_code_unique) — บทบาทหลายแบบในสาขาเดียวทำไม่ได้
-import { ป้าย } from "./ตัวช่วย.mjs";
-import { เข้าHQ } from "./งานขาย.mjs";
+import { เข้าHQ, ที่อยู่สมจริง } from "./งานขาย.mjs";
 
 export const ชื่อ = "สาขา";
 export const สาขาใหม่ = [
@@ -18,8 +17,13 @@ export const สาขาใหม่ = [
   { code: "RYT", province: "ระยอง", region: "ตะวันออก", ครบ: true, เบอร์: 7101 },
   { code: "SKN", province: "สกลนคร", region: "ตะวันออกเฉียงเหนือ", ครบ: false, เบอร์: 7102 },
 ];
-const ชื่อสาขา = (code) => `ดีลเลอร์ตัวอย่าง ${code}`;
-const ชื่อผู้สนใจ = (code) => `ว่าที่ดีลเลอร์ตัวอย่าง ${code}`;   // ไม่ขึ้นต้น "ผู้สนใจตัวอย่าง" (ของส่วนขั้นทั้งหมด)
+// ชื่อสมจริง (บอสสั่ง 18 พ.ย. 69 · เดิม "ดีลเลอร์ตัวอย่าง RYT" · "ว่าที่ดีลเลอร์ตัวอย่าง RYT" · "พนักงานขายตัวอย่าง RYT-1")
+const ชื่อดีลเลอร์ใหม่ = { RYT: "มาบตาพุดสตีลโฮม (ตัวอย่าง)", SKN: "สกลนครเมทัลชีท (ตัวอย่าง)" };
+const ชื่อสาขา = (code) => ชื่อดีลเลอร์ใหม่[code] ?? `ดีลเลอร์ตัวอย่าง ${code}`;
+const ชื่อผู้สนใจ = (code) => ({ RYT: "คุณสุรพล วัฒนกิจ (ตัวอย่าง)", SKN: "คุณอำนวย ศรีภูมิ (ตัวอย่าง)" })[code] ?? `ว่าที่ดีลเลอร์ตัวอย่าง ${code}`;
+const พนักงานสาขา = { RYT: ["วิทยา ชัยศรี", "อรอุมา ทองสุข"], SKN: ["ประยุทธ หอมจันทร์", "สมใจ ภูมิพันธ์"] };
+// ผู้สนใจต้นทางของสาขา = อีเมล prospect-<รหัส>@example.test (ส่วนอื่นหาด้วยอีเมลนี้ · ชื่อแบบเดิมยังลบได้)
+export const อีเมลผู้สนใจสาขา = (code) => `prospect-${code.toLowerCase()}@example.test`;
 export const อีเมลสาขา = (code) => `${code.toLowerCase()}@dealer.benjaminpebsteel.com`;
 
 export async function มีแล้ว(ctx) {
@@ -31,7 +35,8 @@ export async function มีแล้ว(ctx) {
 //   ปิดตัวดักทั้งหมดในธุรกรรมเดียว (replica) — ใบที่ส่งแล้ว/บันทึกการชำระ ฐานกันการลบ
 export async function ลบ(ctx) {
   const รหัส = สาขาใหม่.map(s => `'${s.code}'`).join(",");
-  const ผู้สนใจ = สาขาใหม่.map(s => `'${ชื่อผู้สนใจ(s.code)}'`).join(",");
+  const ผู้สนใจ = `select id from public.dealer_prospects where email in (${สาขาใหม่.map(s => `'${อีเมลผู้สนใจสาขา(s.code)}'`).join(",")})
+    or name in (${สาขาใหม่.map(s => `'ว่าที่ดีลเลอร์ตัวอย่าง ${s.code}'`).join(",")})`;
   ctx.sql(`begin;
     set local session_replication_role = replica;
     do $$ declare t text; begin
@@ -42,12 +47,16 @@ export async function ลบ(ctx) {
       end loop;
     end $$;
     delete from public.quotation_won_at where dealer_code in (${รหัส});
-    delete from public.dealer_proposal_payments p using public.dealer_package_proposals x, public.dealer_prospects d
-      where p.proposal_id = x.id and x.prospect_id = d.id and d.name in (${ผู้สนใจ});
-    delete from public.dealer_package_proposals x using public.dealer_prospects d where x.prospect_id = d.id and d.name in (${ผู้สนใจ});
-    delete from public.dealer_prospect_activities a using public.dealer_prospects d where a.prospect_id = d.id and d.name in (${ผู้สนใจ});
+    delete from public.dealer_proposal_payments p using public.dealer_package_proposals x
+      where p.proposal_id = x.id and x.prospect_id in (${ผู้สนใจ});
+    delete from public.dealer_package_proposals x where x.prospect_id in (${ผู้สนใจ});
+    delete from public.dealer_prospect_activities a where a.prospect_id in (${ผู้สนใจ});
     delete from public.dealers where code in (${รหัส});
-    delete from public.dealer_prospects where name in (${ผู้สนใจ});
+    delete from public.dealer_prospects where id in (${ผู้สนใจ});
+    -- ใบค่าแฟรนไชส์ที่ผู้สนใจถูกลบไปแล้ว (รอบก่อน 18 พ.ย. 69 ลบผู้สนใจในโหมด replica → ใบค้างไม่มีเจ้าของ ขึ้น "—" ในหน้าใบค่าแฟรนไชส์ · เพิ่มรอบละ 2 ใบ)
+    delete from public.dealer_proposal_payments p using public.dealer_package_proposals x
+      where p.proposal_id = x.id and not exists (select 1 from public.dealer_prospects d where d.id = x.prospect_id);
+    delete from public.dealer_package_proposals x where not exists (select 1 from public.dealer_prospects d where d.id = x.prospect_id);
     commit;`);
   // บัญชีเข้าระบบ (โปรไฟล์ลบไปกับตารางด้านบนแล้ว)
   const { data: list } = await ctx.svc.auth.admin.listUsers({ perPage: 1000 });
@@ -65,8 +74,8 @@ export async function สร้าง(ctx) {
     const name = ชื่อสาขา(s.code);
     // ── H2 ผู้สนใจเป็นดีลเลอร์ (HQ เพิ่มที่หน้าผู้สนใจ) ──
     const ราย = ต้อง(await hq.from("dealer_prospects").insert({ name: ชื่อผู้สนใจ(s.code), province: s.province, region: s.region,
-      status: "considering", phone: เบอร์(s.เบอร์), email: `prospect-${s.code.toLowerCase()}@example.test`, channel: "งานแสดงสินค้า",
-      first_contact: วัน(-60), note: `${ป้าย}: ผู้สนใจที่แปลงเป็นดีลเลอร์ ${s.code}` }).select("id").single(), `ผู้สนใจ ${s.code}`);
+      status: "considering", phone: เบอร์(s.เบอร์), email: อีเมลผู้สนใจสาขา(s.code), channel: "งานแสดงสินค้า",
+      first_contact: วัน(-60), note: `ทำร้านวัสดุก่อสร้างใน${s.province}มา 10 ปี สนใจเปิดสาขาขายโกดังโครงเหล็ก` }).select("id").single(), `ผู้สนใจ ${s.code}`);
     // ── H3–H4 ใบค่าแฟรนไชส์: ส่ง → ตอบรับ → ชำระครบ ──
     // ใบต้องครบ 8 ช่องบังคับ (ใบ 0276) · ช่องแพ็กเกจลบไปแล้ว (ใบ 0269)
     const ใบ = ต้อง(await hq.from("dealer_package_proposals").insert({ prospect_id: ราย.id, status: "sent",
@@ -91,13 +100,14 @@ export async function สร้าง(ctx) {
     // ── ดีลเลอร์เข้าระบบครั้งแรก: ผู้รับผิดชอบ (พนักงานขาย) + ข้อมูลบริษัท (หน้าตั้งค่า) ──
     const b = ctx.อ่านบัญชี().บัญชี.find(x => x.email === อีเมลสาขา(s.code));
     const sb = await ctx.เข้า(b.email, b.password);
-    ต้อง(await sb.from("responsible_persons").insert([1, 2].map(i => ({ dealer_code: s.code, name: `พนักงานขายตัวอย่าง ${s.code}-${i}`,
+    ต้อง(await sb.from("responsible_persons").insert([1, 2].map(i => ({ dealer_code: s.code, name: พนักงานสาขา[s.code]?.[i - 1] ?? `พนักงานขายตัวอย่าง ${s.code}-${i}`,
       title: "พนักงานขาย", phone: เบอร์(s.เบอร์ * 10 + i), email: `sales-${s.code.toLowerCase()}-${i}@example.test`, active: true }))), `ผู้รับผิดชอบ ${s.code}`);
     if (s.ครบ) {
       ต้อง(await sb.from("dealer_settings").upsert({ dealer_code: s.code, updated_at: new Date().toISOString(),
-        issuer: { company: `บริษัท ${name} จำกัด`, address: `ที่อยู่ตัวอย่าง ดีลเลอร์ ${s.code} ${s.province}`, taxId: "0000000000000",
+        issuer: { company: `บริษัท ${name.replace(" (ตัวอย่าง)", "")} (ตัวอย่าง) จำกัด`, address: ที่อยู่สมจริง(`สาขา:${s.code}`, s.province), taxId: "0000000000000",
           phone: เบอร์(s.เบอร์), email: `${s.code.toLowerCase()}@example.test`, website: "" },
-        document: { vatPercent: 7, validityDays: 30, quotePrefix: "Q-", termsAndConditions: `เงื่อนไขตัวอย่างของ ${s.code}` } },
+        document: { vatPercent: 7, validityDays: 30, quotePrefix: "Q-",
+          termsAndConditions: "ชำระมัดจำ 30% เมื่อเซ็นสัญญา · 60% เมื่อส่งโครงเหล็กถึงหน้างาน · 10% เมื่อส่งมอบงาน · ราคานี้ไม่รวมงานฐานราก" } },
         { onConflict: "dealer_code" }), `ข้อมูลบริษัท ${s.code}`);
     }
     console.log(`✓ ${s.code} ${s.province} · บัญชี ${อีเมลสาขา(s.code)} · พื้นที่ ${s.province} · ข้อมูลบริษัท${s.ครบ ? "ครบ" : "ไม่ครบ (มีแค่ชื่อ)"}`);

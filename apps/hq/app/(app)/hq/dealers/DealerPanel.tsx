@@ -169,7 +169,7 @@ export function DealerPanel({ dealer, onClose, onEdit, onToggle, onEnter, enteri
           )}
       </RowPanel>
       {ดูใบ && <QuotationDrawer quote={ดูใบ} onClose={() => setดูใบ(null)} />}
-      {ดูลูกค้า != null && <CustomerDrawer row={รายละเอียดลูกค้า} onClose={() => setดูลูกค้า(null)} />}
+      {ดูลูกค้า != null && <CustomerDrawer row={รายละเอียดลูกค้า} ใบ={REAL_BACKEND ? ใบของลูกค้า : undefined} onClose={() => setดูลูกค้า(null)} />}
     </>
   );
 }
