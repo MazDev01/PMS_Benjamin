@@ -298,6 +298,11 @@ body {
     transition: color 0.12s, border-color 0.12s;
     font-family: inherit;
     line-height: 1;
+    /* ไอคอนอยู่หน้า (ซ้าย) ข้อความ บรรทัดเดียวกัน ทุกแถบแท็บ (บอสสั่ง 18 พ.ย. 69) — svg เป็น block (preflight) เดิมแท็บที่ไม่ตั้ง flex เอง
+       (คำขอใบเสนอราคา) ไอคอนขึ้นไปอยู่ "ข้างบน" ข้อความ · ระยะห่าง 7px เท่าแท็บตั้งค่า HQ/ดีลเลอร์ · ข้อทดสอบ tab-icon-inline.spec */
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
   }
   .tab-item:hover { color: #2D2D2D; }
   .tab-item.active {
@@ -1361,7 +1366,8 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 /* ── หน้าต่างรายละเอียดที่เปิดจากแถวตาราง (RowPanel · ตัวกลางเดียวทุกหน้า HQ + ดีลเลอร์) — กว้าง 640 ทุกหน้าต่าง (บอสสั่ง 10 พ.ย. 69 · 820 กว้างไป)
    12 พ.ย. 69 (บอสสั่ง · ทับคำตัดสิน 10 พ.ย. "ชิดขวา"): เปิดกลางจอ — ซ้าย = ขวา · บน/ล่างห่างขอบ 12 · พื้นหลังมืด กดพื้นหลัง/Esc ปิด
    จอแคบกว่า 1024 เต็มจอเหมือนเดิม · ข้อทดสอบ tests/scenario/row-panel-width.spec.ts ── */
-.row-panel { position: fixed; top: 12px; bottom: 12px; left: 0; right: 0; margin: 0 auto; width: 640px; max-width: calc(100vw - 24px);
+/* 18 พ.ย. 69 (บอสตัดสิน · ทับ 640): ทุกแผงจากแถวกว้าง 820 = หน้าต่างเอกสาร (lib/windowSize ความกว้างหน้าต่าง · ค่าเดียวกันใน RowPanel.tsx) */
+.row-panel { position: fixed; top: 12px; bottom: 12px; left: 0; right: 0; margin: 0 auto; width: 820px; max-width: calc(100vw - 24px);
   background: #F8FAFC; box-shadow: 0 24px 70px rgba(0,0,0,.24); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
 /* ข้อยกเว้นของกฎ 640 (บอสสั่ง 13 พ.ย. 69): แผงดีลเลอร์ HQ กว้าง 820 เท่าหน้าต่างใบเสนอราคา — เลือกที่ตัวกลาง RowPanel กว้าง="กว้าง" · หน้าอื่นคง 640 */
 .row-panel[data-row-panel-width="กว้าง"] { width: 820px; }
