@@ -92,5 +92,28 @@ begin
     '3) ย้ายจาก HQ ไปดีลเลอร์อื่นยังแจ้งตามเดิม');
 end $$;
 
+-- 4) ไฟล์แนบที่ย้ายมา (ตัวไฟล์อยู่โฟลเดอร์ HQ/ เดิม): HQD อ่านได้ผ่านแถว files ของตัวเอง · ดีลเลอร์อื่นอ่านไม่ได้ · ไม่มีแถว = อ่านไม่ได้
+insert into storage.objects (bucket_id, name) values ('dealer-files', 'HQ/zzhqd-moved.pdf'), ('dealer-files', 'HQ/zzhqd-no-row.pdf');
+insert into files (dealer_code, name, source, storage_path) values ('HQD', 'ZZTEST ไฟล์ที่ย้ายมา.pdf', 'lead', 'HQ/zzhqd-moved.pdf');
+select set_config('request.jwt.claims', json_build_object('role', 'authenticated', 'user_role', 'DEALER_ADMIN', 'dealer_code', 'HQD')::text, true);
+set local role authenticated;
+do $$ begin
+  if (select count(*) from storage.objects where bucket_id = 'dealer-files' and name = 'HQ/zzhqd-moved.pdf') <> 1 then
+    raise exception 'FAIL: 4) HQD อ่านไฟล์ที่ย้ายมา (แถว files ของ HQD ชี้ไฟล์ใต้ HQ/) ไม่ได้'; end if;
+  raise notice 'ok  4) HQD อ่านไฟล์ที่ย้ายมาได้ (กฎ dealer_files_read_by_row)';
+  if exists (select 1 from storage.objects where bucket_id = 'dealer-files' and name = 'HQ/zzhqd-no-row.pdf') then
+    raise exception 'FAIL: 4) HQD อ่านไฟล์ใต้ HQ/ ที่ไม่มีแถว files ของตัวเองได้'; end if;
+  raise notice 'ok  4) ไฟล์ใต้ HQ/ ที่ไม่มีแถวของ HQD อ่านไม่ได้';
+end $$;
+reset role;
+select set_config('request.jwt.claims', json_build_object('role', 'authenticated', 'user_role', 'DEALER_ADMIN', 'dealer_code', 'RYG')::text, true);
+set local role authenticated;
+do $$ begin
+  if exists (select 1 from storage.objects where bucket_id = 'dealer-files' and name = 'HQ/zzhqd-moved.pdf') then
+    raise exception 'FAIL: 4) ดีลเลอร์อื่นอ่านไฟล์ที่ย้ายไป HQD ได้'; end if;
+  raise notice 'ok  4) ดีลเลอร์อื่นอ่านไฟล์ที่ย้ายไป HQD ไม่ได้';
+end $$;
+reset role;
+
 select 'ALL PASS' as result;
 rollback;

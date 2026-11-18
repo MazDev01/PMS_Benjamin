@@ -93,9 +93,12 @@ begin
   perform hqtest.eq(hqtest.s(r) = 4, true, '4) ส่งใบถึงลูกค้าแล้ว ขั้นที่ไปถึง = 4 เสนอราคาลูกค้า (ยุบ 4 ขั้น ใบ 0284 · เดิม 5)');
 
   -- 5) ตรงกับตัวกันลบ 0217 ทุกแถว: has_quotes = false ⇔ ลบได้
-  perform hqtest.eq((select bool_and(has_quotes = _lead_has_quotes(dealer_code, num_id)) from public.leads), true,
+  -- ทุกลีดของข้อมูลตั้งต้น (ไม่รวมแถวของข้อทดสอบ ZZ* — ข้อทดสอบหน้าเว็บที่รันขนานกันวางลีดแบบปิดตัวดัก ไม่ผ่านตัวเติมค่า · รอบ HQD 18 พ.ย. 69)
+  perform hqtest.eq((select bool_and(has_quotes = _lead_has_quotes(dealer_code, num_id)) from public.leads
+                      where dealer_code not like 'Z%' and company not like 'ZZ%'), true,
     '5) ทุกลีดในฐาน has_quotes ตรงกับเงื่อนไขกันลบ (เติมค่าตอนลงใบครบ)');
-  perform hqtest.eq((select bool_and(reached_step = _lead_reached_step(dealer_code, num_id)) from public.leads), true,
+  perform hqtest.eq((select bool_and(reached_step = _lead_reached_step(dealer_code, num_id)) from public.leads
+                      where dealer_code not like 'Z%' and company not like 'ZZ%'), true,
     '5) ทุกลีดในฐาน reached_step ตรงกับประวัติคำขอ/ใบ (เติมค่าตอนลงใบครบ)');
   begin
     delete from public.leads where dealer_code = 'CNX' and num_id = r;

@@ -2,10 +2,9 @@
 -- ทับข้อตัดสิน "HQ ไม่ขายตรง" (14 ต.ค. 69 · ใบ 0197): สำนักงานใหญ่ขายตรงได้ ผ่านรหัสดีลเลอร์ HQD ที่เข้าฝั่งดีลเลอร์ได้ 1 บัญชี
 -- คำตัดสินบอส:
 --   1) ดีลเลอร์ HQD ชื่อ "สำนักงานใหญ่ (ขายตรง)" · ไม่ดูแลจังหวัดใด (ไม่มีแถวพื้นที่ · ไม่มีจังหวัดที่ตั้ง/ภาค)
---   2) ย้ายลูกค้าเป้าหมายใต้ HQ ที่ยังเปิดอยู่ (ไม่ใช่ PAID/CANCELLED) ไป HQD รวมรายที่ไม่มีจังหวัด — วิธีเดียวกับใบ 0197
---      (เลขใหม่ของ HQD · นัดหมายตามไป · บรรทัดประวัติ "รับโอนจากสำนักงานใหญ่") · ไม่สร้างแจ้งเตือน "HQ ส่งลีดใหม่ให้" (0231)
---      รายที่มีใบเสนอราคา/คำขอราคา/ลูกค้าผูก/ไฟล์แนบ ไม่ย้าย — นับและรายงานในผล (NOTICE + บันทึกการใช้งาน) ไม่ข้ามเงียบ
---      รายที่ปิดแล้ว (PAID/CANCELLED) อยู่ใต้ HQ ตามเดิม — ผลบอกจำนวนที่เหลือใต้ HQ แยกตามสถานะ
+--   2) ย้ายทุกอย่างใต้ HQ ไป HQD (บอสสั่งเพิ่ม 18 พ.ย. 69): ลูกค้าเป้าหมายทั้งหมดรวมที่ปิดแล้ว + นัดหมาย/ใบเสนอราคา/คำขอราคา/ลูกค้า/ไฟล์
+--      หลังลง ใต้ HQ = 0 · คงเลขเดิม · บรรทัดประวัติ "รับโอนจากสำนักงานใหญ่" · ไม่สร้างแจ้งเตือน · จดแถวเดิมในตารางย้อนกลับ hqd_move_0287
+--      ย้อนกลับ: supabase/rollback/0287_rollback.sql · HQD อ่านไฟล์ที่ย้ายมาได้ (กฎ dealer_files_read_by_row)
 --   3) บัญชีเข้าฝั่งดีลเลอร์: ไม่มีในใบนี้ (ไม่มีรหัสผ่านในใบ) — บอสสร้าง/ตั้งรหัสเอง
 --   4) ตัวเลข: HQD นับในยอดรวมทั้งเครือ (ตัวนับแถวลีด/ใบ/ยอดขายตัด 'HQ' อย่างเดียว คงเดิม) แต่
 --      ไม่ติดอันดับ (หน้าหลัก 10 อันดับ) · ไม่มีเป้า (ฐานกัน · ไม่อยู่ในเป้ารวม/ถึงเป้า) · ไม่นับในจำนวนดีลเลอร์
@@ -522,89 +521,112 @@ AS $function$
     from dealers where code not in ('HQ', 'HQD') and coalesce(revenue_target, 0) > 0 and (p_codes is null or code = any(p_codes)) $function$;
 
 
--- ═══ 6) ย้ายลูกค้าเป้าหมายใต้ HQ ที่ยังเปิดอยู่ไป HQD — วิธีเดียวกับ transfer_hq_leads (ใบ 0197) ═══
---   ต่างจาก 0197: ไม่ดูจังหวัด (รายที่ไม่มีจังหวัดย้ายด้วย) · ปลายทาง HQD ตายตัว · ออกเลขเองจากตัวนับของ HQD
---     (next_entity_id ต้องมีผู้ใช้ HQ ล็อกอิน — ใบปรับฐาน/กุญแจฝั่งเซิร์ฟเวอร์ไม่มี)
---   ไม่ย้าย + รายงาน: มีลูกค้าผูก · มีใบเสนอราคา · มีคำขอราคา · มีไฟล์แนบ (ไฟล์อยู่ในที่เก็บของ HQ — ย้ายแถวแล้วเปิดไฟล์ไม่ได้)
---   คืนผลเป็น JSON: ย้าย · ไม่ย้าย (รายการ + เหตุ) · เหลือใต้ HQ แยกสถานะ · จดบันทึกการใช้งาน 1 บรรทัด
---   เรียกได้เฉพาะใบปรับฐาน/กุญแจฝั่งเซิร์ฟเวอร์ (ข้อทดสอบ) — ผู้ใช้ที่ล็อกอินเรียกไม่ได้
-create or replace function public.move_hq_open_leads_to_direct() returns jsonb
-  language plpgsql security definer set search_path to 'public' as $$
+-- ═══ 6) ย้ายทุกอย่างใต้ HQ ไป HQD — ลูกค้าเป้าหมายทั้งหมด (เปิดอยู่ + ปิดแล้ว · บอสสั่งเพิ่ม 18 พ.ย. 69: หลังลง ใต้ HQ = 0) ═══
+--   ย้ายพร้อมของที่ผูกกัน: นัดหมาย · ใบเสนอราคา (+วันตอบรับ · ประวัติพิมพ์) · คำขอราคา (+ไฟล์คำขอ) · ลูกค้า (+โน้ตลูกค้า) · แถวไฟล์แนบ · ผู้รับผิดชอบ
+--   คงเลขเดิมทุกแถว (คนรวมงานอนุมัติ 18 พ.ย. 69 · HQD ว่าง ไม่มีเลขชน · ใบ/ลูกค้าที่อ้างกันไม่ต้องตามแก้ · ย้อนกลับได้ตรงตัว)
+--     ตัวนับเลขของ HQD ต่อจากเลขสูงสุดที่ย้ายมา
+--   ทำในคำสั่งเดียว (DO = ธุรกรรมเดียว) แบบปิดตัวดัก/ข้อผูก (session_replication_role = replica · วิธีเดียวกับใบ 0250/0252/0257/0284)
+--     — ข้อผูกพาย้ายตามกันทีละตารางไม่ได้ (ใบเสนอราคาผูกทั้งลูกค้าเป้าหมายและลูกค้าด้วยรหัสสาขาช่องเดียว) และตัวดักของใบ
+--       (ล็อกใบที่ส่งแล้ว · บันทึก · แจ้งเตือน) ไม่ควรทำงานกับการย้ายเจ้าของ · ตรวจความครบของข้อผูกเองท้ายคำสั่ง (ขาด = ใบล้ม ย้อนทั้งหมด)
+--   ตารางย้อนกลับ public.hqd_move_0287: แถวเดิมทั้งแถว (JSON) ของทุกแถวที่ย้าย ก่อนแก้ · คำสั่งย้อนกลับ supabase/rollback/0287_rollback.sql
+create table if not exists public.hqd_move_0287 (
+  id      bigint generated always as identity primary key,
+  tbl     text not null,
+  old_row jsonb not null,
+  at      timestamptz not null default now()
+);
+alter table public.hqd_move_0287 enable row level security;   -- ไม่มี policy = anon/authenticated อ่าน/เขียนไม่ได้
+revoke all on table public.hqd_move_0287 from public, anon, authenticated;
+comment on table public.hqd_move_0287 is 'ใบ 0287: แถวเดิมก่อนย้ายจาก HQ ไป HQD (ย้อนกลับด้วย supabase/rollback/0287_rollback.sql) — ห้ามแก้มือ';
+
+-- อ่านไฟล์ที่ย้ายมา: ที่เก็บ dealer-files กันสิทธิ์ตามโฟลเดอร์สาขา (HQ/…) → HQD เปิดไฟล์เดิมไม่ได้
+--   กฎเพิ่ม: อ่านได้เมื่อมีแถวในตาราง files ของสาขาตัวเองชี้ไฟล์นั้นพอดี (storage_path = ชื่อไฟล์) · เขียน/ลบยังตามโฟลเดอร์เดิม
+drop policy if exists dealer_files_read_by_row on storage.objects;
+create policy dealer_files_read_by_row on storage.objects for select
+  using (bucket_id = 'dealer-files' and exists (
+    select 1 from public.files f where f.storage_path = storage.objects.name and f.dealer_code = public.auth_dealer() and f.dealer_code <> ''));
+
+-- ปิดตัวดัก/ข้อผูกระหว่างย้าย (คำสั่ง SET ระดับบนสุดแบบใบ 0252 · บัญชี postgres ตั้งผ่าน set_config ในฟังก์ชันไม่ได้) — คืนค่าท้ายคำสั่ง
+set session_replication_role = replica;
+do $$
 declare
-  l record; a record; new_num integer; new_appt integer; hist jsonb; max_id bigint;
-  ย้าย int := 0; ไม่ย้าย jsonb := '[]'::jsonb; เหลือ jsonb; ใบ int; คำขอ int; ไฟล์ int;
+  ตาราง text[] := array['leads', 'appointments', 'customers', 'customer_notes', 'quotations', 'quotation_won_at', 'quotation_prints',
+                       'quote_requests', 'quote_files', 'files', 'responsible_persons'];
+  t text; n int; ผล jsonb := '{}'::jsonb; ขาด text; วัน text;
 begin
-  if coalesce(auth.role(), '') in ('authenticated', 'anon') then
-    raise exception 'forbidden: ย้ายลูกค้าเป้าหมายไปขายตรงทำได้จากใบปรับฐานเท่านั้น';
-  end if;
-  if not exists (select 1 from dealers where code = 'HQD') then raise exception 'hq_direct_missing: ยังไม่มีดีลเลอร์ HQD'; end if;
-  perform pg_advisory_xact_lock(hashtextextended('transfer-hq-leads#HQD', 0));
-  insert into entity_counters (dealer_code, entity, next_id)
-    select 'HQD', 'leads', coalesce(max(num_id), 0) + 1 from leads where dealer_code = 'HQD'
-    on conflict (dealer_code, entity) do nothing;
-  insert into entity_counters (dealer_code, entity, next_id)
-    select 'HQD', 'appointments', coalesce(max(id), 0) + 1 from appointments where dealer_code = 'HQD'
-    on conflict (dealer_code, entity) do nothing;
+  if not exists (select 1 from dealers where code = 'HQD') then raise exception 'ใบ 0287: ยังไม่มีดีลเลอร์ HQD'; end if;
+  if exists (select 1 from hqd_move_0287) then raise exception 'ใบ 0287: ตารางย้อนกลับมีข้อมูลแล้ว (ลงซ้ำ?) — หยุด'; end if;
+  -- ตัวดัก 2 ตัวของใบเสนอราคาตั้งให้ทำงานตลอด (ALWAYS · แม้ปิดตัวดัก) — แก้เวลาปรับปรุง/VAT ระหว่างย้าย → ปิดชั่วคราวในธุรกรรมนี้ แล้วคืนเป็น ALWAYS
+  alter table public.quotations disable trigger zz_quotations_updated_at;
+  alter table public.quotations disable trigger quotations_vat_fill;
 
-  for l in select * from leads x
-            where x.dealer_code = 'HQ' and x.status not in ('PAID', 'CANCELLED')
-            order by x.num_id for update loop
-    select count(*) into ใบ from quotations q where q.dealer_code = 'HQ' and q.deal_id = l.num_id;
-    select count(*) into คำขอ from quote_requests r where r.dealer_code = 'HQ' and r.lead_num_id = l.num_id;
-    select count(*) into ไฟล์ from files f where f.dealer_code = 'HQ' and f.source = 'lead' and f.record_id = l.num_id;
-    if l.customer_id is not null or ใบ > 0 or คำขอ > 0 or ไฟล์ > 0 then
-      ไม่ย้าย := ไม่ย้าย || jsonb_build_array(jsonb_build_object('lead', l.id, 'status', l.status,
-        'customer', l.customer_id is not null, 'quotes', ใบ, 'requests', คำขอ, 'files', ไฟล์));
-      continue;
-    end if;
+  -- จดแถวเดิม (ทั้งแถว) ก่อนแก้
+  foreach t in array ตาราง loop
+    execute format('insert into hqd_move_0287 (tbl, old_row) select %L, to_jsonb(x) from public.%I x where x.dealer_code = %L', t, t, 'HQ');
+    get diagnostics n = row_count;
+    ผล := ผล || jsonb_build_object(t, n);
+  end loop;
+  -- ตัวนับเลขเดิมของ HQD (ไม่มี = ย้อนกลับลบทิ้ง)
+  insert into hqd_move_0287 (tbl, old_row) select 'entity_counters', to_jsonb(x) from entity_counters x where x.dealer_code = 'HQD';
+  insert into hqd_move_0287 (tbl, old_row) select 'quote_counters', to_jsonb(x) from quote_counters x where x.dealer_code = 'HQD';
 
-    update entity_counters set next_id = next_id + 1 where dealer_code = 'HQD' and entity = 'leads' returning next_id - 1 into new_num;
-    while exists (select 1 from leads where dealer_code = 'HQD' and (num_id = new_num or id = '#L-' || (40321 + new_num))) loop
-      update entity_counters set next_id = next_id + 1 where dealer_code = 'HQD' and entity = 'leads' returning next_id - 1 into new_num;
-    end loop;
+  -- บรรทัดประวัติ "รับโอนจากสำนักงานใหญ่" ในลูกค้าเป้าหมายทุกราย (ต่อท้าย · ไม่แก้ของเดิม)
+  วัน := to_char(now() at time zone 'Asia/Bangkok', 'FMDD') || ' ' ||
+         (array['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'])[extract(month from now() at time zone 'Asia/Bangkok')::int]
+         || ' ' || (extract(year from now() at time zone 'Asia/Bangkok')::int + 543) || ' · ' || to_char(now() at time zone 'Asia/Bangkok', 'HH24:MI');
+  update leads l set activities = coalesce(l.activities, '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+      'id', coalesce((select max((x ->> 'id')::bigint) from jsonb_array_elements(coalesce(l.activities, '[]'::jsonb)) x where (x ->> 'id') ~ '^\d+$'), 0) + 1,
+      'type', 'note', 'icon', 'note', 'date', วัน, 'text', 'รับโอนจากสำนักงานใหญ่ (ขายตรง HQD)'))
+   where l.dealer_code = 'HQ';
 
-    select coalesce(max((x ->> 'id')::bigint), 0) into max_id
-      from jsonb_array_elements(coalesce(l.activities, '[]'::jsonb)) x where (x ->> 'id') ~ '^\d+$';
-    hist := coalesce(l.activities, '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
-      'id', max_id + 1, 'type', 'note', 'icon', 'note',
-      'date', to_char(now() at time zone 'Asia/Bangkok', 'FMDD') || ' ' ||
-              (array['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'])[extract(month from now() at time zone 'Asia/Bangkok')::int]
-              || ' ' || (extract(year from now() at time zone 'Asia/Bangkok')::int + 543) || ' · ' || to_char(now() at time zone 'Asia/Bangkok', 'HH24:MI'),
-      'text', 'รับโอนจากสำนักงานใหญ่ (ขายตรง HQD)'));
-
-    -- นัดหมาย: เลขชั่วคราวติดลบก่อน (กันชนกับเลขของ HQD ตอนกุญแจนอกพาย้าย) แล้วออกเลขใหม่ของ HQD
-    update appointments set id = -id where dealer_code = 'HQ' and lead_id = l.num_id;
-    perform set_config('pms.flow_sync', '1', true);   -- ข้ามตัวดักของงานขาย (ไม่ใช่การกระทำของดีลเลอร์)
-    update leads set dealer_code = 'HQD', num_id = new_num, id = '#L-' || (40321 + new_num), activities = hist
-     where dealer_code = 'HQ' and id = l.id;
-    perform set_config('pms.flow_sync', '', true);
-    for a in select id from appointments where dealer_code = 'HQD' and id < 0 loop
-      update entity_counters set next_id = next_id + 1 where dealer_code = 'HQD' and entity = 'appointments' returning next_id - 1 into new_appt;
-      while exists (select 1 from appointments where dealer_code = 'HQD' and id = new_appt) loop
-        update entity_counters set next_id = next_id + 1 where dealer_code = 'HQD' and entity = 'appointments' returning next_id - 1 into new_appt;
-      end loop;
-      update appointments set id = new_appt where dealer_code = 'HQD' and id = a.id;
-    end loop;
-    ย้าย := ย้าย + 1;
+  -- ย้ายเจ้าของ (เลขเดิม)
+  foreach t in array ตาราง loop
+    execute format('update public.%I set dealer_code = %L where dealer_code = %L', t, 'HQD', 'HQ');
   end loop;
 
-  select coalesce(jsonb_object_agg(status, n), '{}'::jsonb) into เหลือ
-    from (select status::text as status, count(*) as n from leads where dealer_code = 'HQ' group by 1) x;
-  insert into audit_log("user", role, action, target)
-  values (audit_actor(), auth_role(), 'ย้ายลูกค้าเป้าหมายของ HQ ไปขายตรง (HQD)',
-          'ย้าย ' || ย้าย || ' ราย · ไม่ย้าย ' || jsonb_array_length(ไม่ย้าย) || ' ราย (มีใบเสนอราคา/คำขอราคา/ลูกค้าผูก/ไฟล์แนบ)'
-          || ' · เหลือใต้ HQ ' || (select count(*) from leads where dealer_code = 'HQ') || ' ราย');
-  return jsonb_build_object('moved', ย้าย, 'notMoved', ไม่ย้าย, 'remainingHq', เหลือ);
-end $$;
-revoke all on function public.move_hq_open_leads_to_direct() from public, anon, authenticated, service_role;
-grant execute on function public.move_hq_open_leads_to_direct() to service_role;
+  -- ตัวนับเลขของ HQD ต่อจากเลขสูงสุด (ลูกค้าเป้าหมาย · นัดหมาย · ลูกค้า) · เลขใบเสนอราคาต่อจากตัวนับของ HQ
+  insert into entity_counters (dealer_code, entity, next_id)
+  values ('HQD', 'leads', coalesce((select max(num_id) from leads where dealer_code = 'HQD'), 0) + 1),
+         ('HQD', 'appointments', coalesce((select max(id) from appointments where dealer_code = 'HQD'), 0) + 1),
+         ('HQD', 'customers', coalesce((select max(id) from customers where dealer_code = 'HQD'), 0) + 1)
+  on conflict (dealer_code, entity) do update set next_id = greatest(entity_counters.next_id, excluded.next_id);
+  insert into quote_counters (dealer_code, next_no)
+  select 'HQD', q.next_no from quote_counters q where q.dealer_code = 'HQ'
+  on conflict (dealer_code) do update set next_no = greatest(quote_counters.next_no, excluded.next_no);
 
--- ═══ 7) ย้ายตอนลงใบ — ผลขึ้นเป็น NOTICE (บอสเห็นตอนลงใบ) + บันทึกการใช้งาน ═══
-do $$
-declare r jsonb;
-begin
-  r := public.move_hq_open_leads_to_direct();
-  raise notice 'ใบ 0287 ย้ายลูกค้าเป้าหมายใต้ HQ ไป HQD: ย้าย % ราย', r ->> 'moved';
-  raise notice 'ใบ 0287 ไม่ย้าย % ราย (มีใบเสนอราคา/คำขอราคา/ลูกค้าผูก/ไฟล์แนบ): %', jsonb_array_length(r -> 'notMoved'), r -> 'notMoved';
-  raise notice 'ใบ 0287 เหลือใต้ HQ แยกตามสถานะ: %', r -> 'remainingHq';
+  -- ความครบของข้อผูก (ปิดตัวดักอยู่ จึงตรวจเอง) — ขาด = ใบล้ม ย้อนทั้งหมด
+  select string_agg(x, ' · ') into ขาด from (
+    select 'นัดหมาย→ลูกค้าเป้าหมาย ' || a.dealer_code || ':' || a.id as x from appointments a
+     where a.dealer_code = 'HQD' and a.lead_id is not null and not exists (select 1 from leads l where l.dealer_code = a.dealer_code and l.num_id = a.lead_id)
+    union all select 'ใบ→ลูกค้าเป้าหมาย ' || q.dealer_code || ':' || q.id from quotations q
+     where q.dealer_code = 'HQD' and q.deal_id is not null and not exists (select 1 from leads l where l.dealer_code = q.dealer_code and l.num_id = q.deal_id)
+    union all select 'ใบ→ลูกค้า ' || q.dealer_code || ':' || q.id from quotations q
+     where q.dealer_code = 'HQD' and q.customer_id is not null and not exists (select 1 from customers c where c.dealer_code = q.dealer_code and c.id = q.customer_id)
+    union all select 'คำขอ→ลูกค้าเป้าหมาย ' || r.id from quote_requests r
+     where r.dealer_code = 'HQD' and not exists (select 1 from leads l where l.dealer_code = r.dealer_code and l.num_id = r.lead_num_id)
+    union all select 'วันตอบรับ→ใบ ' || w.dealer_code || ':' || w.quote_id from quotation_won_at w
+     where w.dealer_code = 'HQD' and not exists (select 1 from quotations q where q.dealer_code = w.dealer_code and q.id = w.quote_id)
+    union all select 'โน้ต→ลูกค้า ' || n.id from customer_notes n
+     where n.dealer_code = 'HQD' and not exists (select 1 from customers c where c.dealer_code = n.dealer_code and c.id = n.customer_id)
+    union all select 'ลูกค้าเป้าหมาย→ลูกค้า ' || l.dealer_code || ':' || l.num_id from leads l
+     where l.dealer_code = 'HQD' and l.customer_id is not null and not exists (select 1 from customers c where c.dealer_code = l.dealer_code and c.id = l.customer_id)
+  ) z;
+  if ขาด is not null then raise exception 'ใบ 0287: ข้อผูกขาดหลังย้าย — %', left(ขาด, 2000); end if;
+  foreach t in array ตาราง loop
+    execute format('select count(*) from public.%I where dealer_code = %L', t, 'HQ') into n;
+    if n > 0 then raise exception 'ใบ 0287: ยังเหลือใต้ HQ ในตาราง % (% แถว)', t, n; end if;
+  end loop;
+
+  alter table public.quotations enable always trigger zz_quotations_updated_at;
+  alter table public.quotations enable always trigger quotations_vat_fill;
+  insert into audit_log("user", role, action, target)
+  values (audit_actor(), auth_role(), 'ย้ายข้อมูลของ HQ ไปขายตรง (HQD)',
+          'ลูกค้าเป้าหมาย ' || (ผล ->> 'leads') || ' ราย · นัดหมาย ' || (ผล ->> 'appointments') || ' · ลูกค้า ' || (ผล ->> 'customers')
+          || ' · ใบเสนอราคา ' || (ผล ->> 'quotations') || ' · คำขอราคา ' || (ผล ->> 'quote_requests') || ' · ไฟล์ ' || (ผล ->> 'files')
+          || ' · ไฟล์คำขอ ' || (ผล ->> 'quote_files') || ' · เลขเดิม · ย้อนกลับได้ (supabase/rollback/0287_rollback.sql)');
+  raise notice 'ใบ 0287 ย้ายจาก HQ ไป HQD (จำนวนแถวต่อตาราง): %', ผล;
+  raise notice 'ใบ 0287 ลูกค้าเป้าหมายที่ย้าย แยกตามสถานะ: %',
+    (select coalesce(jsonb_object_agg(s, k), '{}'::jsonb) from (select (old_row ->> 'status') s, count(*) k from hqd_move_0287 where tbl = 'leads' group by 1) x);
+  raise notice 'ใบ 0287 ไฟล์แนบที่ย้าย % แถว (อ่านได้ผ่านกฎ dealer_files_read_by_row · ตัวไฟล์อยู่โฟลเดอร์ HQ/ เดิม)', ผล ->> 'files';
 end $$;
+set session_replication_role = origin;

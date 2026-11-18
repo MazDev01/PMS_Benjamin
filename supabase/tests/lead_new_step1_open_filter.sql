@@ -28,6 +28,16 @@ begin perform set_config('role', 'none', true); perform set_config('request.jwt.
 grant usage on schema nstest to authenticated;
 grant execute on all functions in schema nstest to authenticated;
 
+-- สาขาของข้อ (ในธุรกรรมนี้ · ย้อนตอนจบ): ข้อนับ leads_page เทียบเฉพาะสาขานี้ — เดิมนับทั้งฐาน ข้อทดสอบอื่นที่รันขนานกัน
+--   ใส่ลีด (รวมลีดใต้ HQ ที่ leads_page ไม่นับ) ระหว่างสองคำสั่ง → ตัวเลขไม่ตรงแบบสุ่ม (รอบ HQD 18 พ.ย. 69)
+set local session_replication_role = replica;
+insert into dealers (code, name, province, region, status) values ('ZZNSD', 'ZZNS ดีลเลอร์ของข้อ', 'ตราด', 'ตะวันออก', 'active');
+insert into leads (id, num_id, dealer_code, company, name, status, province) values
+  ('#L-ZZNSD1', 990961, 'ZZNSD', 'ZZNS ของข้อ 1', 'ZZNS', 'WAITING', 'ตราด'), ('#L-ZZNSD2', 990962, 'ZZNSD', 'ZZNS ของข้อ 2', 'ZZNS', 'BULLET', 'ตราด'),
+  ('#L-ZZNSD3', 990963, 'ZZNSD', 'ZZNS ของข้อ 3', 'ZZNS', 'QUOTED', 'ตราด'), ('#L-ZZNSD4', 990964, 'ZZNSD', 'ZZNS ของข้อ 4', 'ZZNS', 'PAID', 'ตราด'),
+  ('#L-ZZNSD5', 990965, 'ZZNSD', 'ZZNS ของข้อ 5', 'ZZNS', 'CANCELLED', 'ตราด');
+set local session_replication_role = origin;
+
 do $$
 declare r jsonb;
 begin
@@ -57,10 +67,12 @@ begin
   perform nstest.ok(jsonb_array_length(r -> 'rows') > 0, 'กำลังดำเนินการ: มีลีด');
   perform nstest.ok(not exists (select 1 from jsonb_array_elements(r -> 'rows') x where x ->> 'status' in ('PAID', 'CANCELLED')),
     'กำลังดำเนินการ: ไม่มีลีดปิดสำเร็จ/ปิดไม่สำเร็จ');
-  perform nstest.ok((r ->> 'total')::int = (select count(*) from leads where status not in ('PAID', 'CANCELLED')),
-    'กำลังดำเนินการ: นับเท่าลีดที่ยังไม่ปิดทั้งเครือ');
-  perform nstest.ok((leads_page(1, 0) ->> 'total')::int = (select count(*) from leads), 'ไม่ส่งขั้น = ทั้งหมด (รวมลีดปิดแล้ว)');
-  perform nstest.ok((leads_page(1, 0, p_stage => 6) ->> 'total')::int = (select count(*) from leads where status = 'PAID'), 'ขั้น 6 = ปิดสำเร็จ');
+  -- นับตรงเป๊ะเฉพาะสาขาของข้อ (ลีดเปิด 3 · ปิดสำเร็จ 1 · ปิดไม่สำเร็จ 1)
+  r := leads_page(1000, 0, p_stage => 0, p_dealer_codes => array['ZZNSD']);
+  perform nstest.ok((r ->> 'total')::int = 3 and jsonb_array_length(r -> 'rows') = 3,
+    'กำลังดำเนินการ: นับเท่าลีดที่ยังไม่ปิดของสาขา (3) — ได้ ' || (r ->> 'total'));
+  perform nstest.ok((leads_page(1, 0, p_dealer_codes => array['ZZNSD']) ->> 'total')::int = 5, 'ไม่ส่งขั้น = ทั้งหมด รวมลีดปิดแล้ว (5)');
+  perform nstest.ok((leads_page(1, 0, p_stage => 6, p_dealer_codes => array['ZZNSD']) ->> 'total')::int = 1, 'ขั้น 6 = ปิดสำเร็จ (1)');
   perform nstest.as_root();
 end $$;
 
