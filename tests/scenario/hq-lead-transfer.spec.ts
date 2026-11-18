@@ -3,10 +3,12 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, loginUI, db, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { กดตกลงในกล่องยืนยัน, รอข้อความแจ้งเตือน } from "./helpers";
 import { สร้างสาขาของชุด, ลบสาขาของชุด } from "./ownBranch";
 
 // ── HQ โอนลูกค้าเป้าหมายใต้รหัส HQ ให้ดีลเลอร์ (ด่าน 1 · ใบ 0197) ───────────────────────────────────────
+// 18 พ.ย. 69 (บอสสั่ง · ใบ 0287): ลูกค้าเป้าหมายที่เปิดอยู่ใต้ HQ ย้ายไป HQD (ขายตรง) หมดแล้ว → เอาการ์ดโอนออกจาก /hq/leads
+//   ข้อนี้ตรวจว่าการ์ดไม่อยู่แล้ว + ข้อตรวจการโอนเดิมทุกข้อคงไว้ที่คำสั่งโอนของฐาน (สิทธิ์ HQ · ผลเดิม) — ไม่ลดข้อตรวจ
+//   ข้อที่เป็นหน้าตาของการ์ดเท่านั้น (กรอบแดง/ข้อความใต้ช่อง/กล่องยืนยัน) หมดไปพร้อมการ์ด
 // ข้อตัดสินของบอส 14 ต.ค. 69: ดีลเลอร์รายเดียว → โอนอัตโนมัติ (HQ กดยืนยันเป็นชุด) · ทับซ้อน → HQ เลือกต่อจังหวัด
 //   ไม่มีจังหวัด / จังหวัดว่าง → คิวรอ ไม่โอน · โอนแล้วย้ายพร้อมประวัติ นัดหมาย โน้ต · ห้ามรันกับระบบจริง
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
@@ -48,34 +50,31 @@ test.afterAll(async () => {
   await ล้าง();
 });
 
-test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ: ยืนยันเป็นชุด (ดีลเลอร์รายเดียว) · เลือกเองเมื่อทับซ้อน · คิวรอไม่โอน", async ({ page }) => {
+test("[H6] [hq] /hq/leads ไม่มีการ์ดโอนแล้ว · โอนที่ฐาน: ยืนยันเป็นชุด (ดีลเลอร์รายเดียว) · เลือกเองเมื่อทับซ้อน · ไม่มีจังหวัดไม่โอน", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" });
-  const การ์ด = page.locator(".card").filter({ hasText: "โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์" }).first();
-  await expect(การ์ด).toBeVisible({ timeout: 30_000 });
-  await expect(การ์ด.getByRole("row", { name: /ระยอง/ })).toContainText("RYG");
-  // จังหวัดสาขาเดียว (ระยอง) = โอนอัตโนมัติ · จังหวัดหลายสาขา (ลำพูน: ZTLPA + ZTLPB · ใบ 0214) = HQ ต้องเลือกเอง ระบบไม่เลือกให้
-  await expect(การ์ด.getByRole("row", { name: /ระยอง/ }).getByText("โอนอัตโนมัติได้")).toBeVisible();
-  const ช่องลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ }).getByLabel("โอนจังหวัดลำพูนให้");
-  await expect(ช่องลำพูน, "หลายสาขา: ระบบต้องไม่เลือกสาขาให้").toHaveValue("");
-  // ยังไม่เลือกสาขา = โอนไม่ได้ · เดิมปุ่มกดไม่ได้เฉย ๆ → ตั้งแต่ 4 พ.ย. 69 (ตัวกลางช่องบังคับ) กดได้แต่ไม่โอน: กรอบแดง + ข้อความใต้ช่อง (ตรวจกลับด้าน)
-  await expect(การ์ด.getByRole("columnheader", { name: /การโอน/ }).locator("[data-required]"), "หัวคอลัมน์มี * แดง (ต้องเลือกสาขา)").toHaveCount(1);
-  await การ์ด.getByRole("row", { name: /ลำพูน/ }).getByRole("button", { name: "โอน", exact: true }).click();
-  await expect(ช่องลำพูน, "ยังไม่เลือกสาขา = กรอบแดง").toHaveAttribute("aria-invalid", "true");
-  await expect(การ์ด.getByRole("row", { name: /ลำพูน/ }).locator("[data-field-error]"), "ข้อความใต้ช่อง").toHaveText("ต้องเลือกสาขาที่จะโอนให้");
-  await expect(page.getByRole("dialog"), "ไม่เลือกสาขา = ไม่ขึ้นกล่องยืนยันโอน").toHaveCount(0);
+  // หน้าโหลดรายชื่อเสร็จ แล้วการ์ดโอนต้องไม่อยู่ (ตกบนโค้ดเดิม: การ์ดขึ้นเพราะมีลูกค้าเป้าหมายใต้ HQ ของข้อ)
+  await expect(page.locator("[data-lead-table]")).toHaveAttribute("data-ready", "1", { timeout: 30_000 });
+  await expect(page.locator(".card").filter({ hasText: "โอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์" }), "เอาการ์ดโอนออกแล้ว (บอสสั่ง 18 พ.ย. 69)").toHaveCount(0);
+
+  const hq = await db(ADMIN);
+  // แผนการโอน: ระยอง (สาขาเดียว) = โอนอัตโนมัติ · ลำพูน (2 สาขา) = HQ เลือกเอง ระบบไม่เลือกให้ · ไม่มีจังหวัด = โอนไม่ได้
+  const { data: แผน, error: e0 } = await hq.rpc("hq_lead_transfer_plan");
+  expect(e0?.message ?? "").toBe("");
+  const แถว = (p: string) => (แผน as { province: string; mode: string; dealer_codes: string[] }[]).find(r => r.province === p);
+  expect([แถว("ระยอง")?.mode, แถว("ระยอง")?.dealer_codes], "ระยอง = โอนอัตโนมัติให้ RYG").toEqual(["auto", ["RYG"]]);
+  expect([แถว("ลำพูน")?.mode, แถว("ลำพูน")?.dealer_codes], "ลำพูน หลายสาขา = HQ เลือกเอง").toEqual(["choose", [...สาขาลำพูน]]);
+  expect(แถว("")?.mode, "ไม่มีจังหวัด = โอนไม่ได้").toBe("queue");
+  // ยังไม่เลือกสาขา/เลือกสาขาที่ไม่ได้ดูแล = ไม่โอน
+  const ผิดสาขา = await hq.rpc("transfer_hq_leads", { p_province: "ลำพูน", p_to: "RYG" });
+  expect(ผิดสาขา.error?.message ?? "", "โอนให้สาขาที่ไม่ได้ดูแลจังหวัดไม่ได้").toMatch(/transfer_not_owner/);
   expect((await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code), "ยังไม่ถูกโอน").toEqual(["HQ"]);
-  // ข้อความที่บอสเลือก 12 พ.ย. 69 แทน "คิวรอ" (ห้าม "รอโอน" — ชนกับรอโอนเงิน)
-  await expect(การ์ด.getByText(/ยังโอนให้ดีลเลอร์ไม่ได้ \d+ ราย/)).toBeVisible();
-  await expect(การ์ด.getByText(/คิวรอ|รอโอน/), "ไม่มีคำเดิม/คำที่บอสห้าม").toHaveCount(0);
 
   // 1) ยืนยันเป็นชุด
-  await การ์ด.getByRole("button", { name: /โอนอัตโนมัติทั้งหมด/ }).click();
-  await กดตกลงในกล่องยืนยัน(page);
-  await รอข้อความแจ้งเตือน(page, /โอนแล้ว/);
-  await expect.poll(async () => (await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ระยอง`)).data?.map(r => r.dealer_code), { timeout: 20_000 })
-    .toEqual(["RYG"]);
+  const ชุด = await hq.rpc("transfer_hq_leads_auto");
+  expect(ชุด.error?.message ?? "").toBe("");
+  expect((await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ระยอง`)).data?.map(r => r.dealer_code)).toEqual(["RYG"]);
   const { data: ย้าย } = await admin.from("leads").select("num_id, note, activities").eq("dealer_code", "RYG").eq("company", `${ป้าย}-ระยอง`).single();
   expect(ย้าย!.note, "โน้ตย้ายตาม").toBe("โน้ตจาก HQ");
   expect(JSON.stringify(ย้าย!.activities), "ประวัติบอกว่ารับโอนจาก HQ").toContain("รับโอนจากสำนักงานใหญ่");
@@ -86,15 +85,14 @@ test("[H6] [hq] โอนลูกค้าเป้าหมายของ HQ:
   expect(เห็น?.length, "RYG เห็นลูกค้าเป้าหมายที่รับโอน").toBe(1);
 
   // 2) หลายสาขา — HQ เลือกสาขาที่ 2 เอง
-  const แถวลำพูน = การ์ด.getByRole("row", { name: /ลำพูน/ });
-  await แถวลำพูน.getByLabel("โอนจังหวัดลำพูนให้").selectOption("ZTLPB");
-  await แถวลำพูน.getByRole("button", { name: "โอน", exact: true }).click();
-  await กดตกลงในกล่องยืนยัน(page);
-  await expect.poll(async () => (await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code), { timeout: 20_000 })
-    .toEqual(["ZTLPB"]);
+  const เลือก = await hq.rpc("transfer_hq_leads", { p_province: "ลำพูน", p_to: "ZTLPB" });
+  expect(เลือก.error?.message ?? "").toBe("");
+  expect((await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ลำพูน`)).data?.map(r => r.dealer_code)).toEqual(["ZTLPB"]);
 
-  // 3) คิวรอยังอยู่ที่ HQ
+  // 3) ไม่มีจังหวัด ยังอยู่ที่ HQ (คำสั่งโอนปฏิเสธ)
+  const ไม่มีจังหวัด = await hq.rpc("transfer_hq_leads", { p_province: "", p_to: "RYG" });
+  expect(ไม่มีจังหวัด.error?.message ?? "", "ไม่มีจังหวัด = โอนไม่ได้").toMatch(/transfer_queue/);
   const { data: คิว } = await admin.from("leads").select("dealer_code").like("company", `${ป้าย}-ไม่มีจังหวัด`);
-  expect(คิว?.map(r => r.dealer_code), "ไม่มีจังหวัด = คิวรอ ไม่ถูกโอน").toEqual(["HQ"]);
+  expect(คิว?.map(r => r.dealer_code), "ไม่มีจังหวัด = ไม่ถูกโอน").toEqual(["HQ"]);
   assertNoErrors(errs, "หน้าลูกค้าเป้าหมายของ HQ");
 });

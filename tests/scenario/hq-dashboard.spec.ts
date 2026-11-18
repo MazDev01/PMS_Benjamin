@@ -281,7 +281,7 @@ test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บ
   const กลางโดนัท = page.locator("[data-card='regions'] .donut-center .dc-val").last();
   const ทะเบียน = async (ไม่นับHQ: boolean) => {
     const q = admin.from("dealers").select("code", { count: "exact", head: true });
-    return (await (ไม่นับHQ ? q.neq("code", "HQ") : q)).count ?? -1;
+    return (await (ไม่นับHQ ? q.not("code", "in", "(HQ,HQD)") : q)).count ?? -1;   // ไม่นับแถว HQ และ HQD ขายตรง (ใบ 0287)
   };
   await expect.poll(async () => { await เปิด(page); return Number(await กลางโดนัท.innerText()) === await ทะเบียน(true); },
     { timeout: 60_000, intervals: [1000, 3000, 5000], message: "โดนัท = ทะเบียนดีลเลอร์ไม่นับแถว HQ" }).toBe(true);

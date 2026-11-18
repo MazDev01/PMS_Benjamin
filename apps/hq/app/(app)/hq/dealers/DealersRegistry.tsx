@@ -18,7 +18,7 @@ import { impersonateDealer, listDealerLoginEmails } from "@pms/shared/lib/adminA
 import { useRole } from "@pms/shared/context/RoleContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { useRouter } from "next/navigation";
-import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { ไม่ใช่แถวHQ, นับเป็นดีลเลอร์ } from "@pms/shared/lib/hqDealerRow";
 import { Search, LogIn, Store, LayoutGrid, List, CheckCircle2, Activity, MoonStar, BarChart3, Pencil, EyeOff, Eye, KeyRound } from "lucide-react";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -166,7 +166,7 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
   //   การ์ดเดินตามตัวกรองภาค/คำค้น (บอสตัดสิน 27 ต.ค. 69) · สถานะ/กลุ่มเคลื่อนไหว = ปุ่มเดียวกับการ์ด ไม่ใช่ตัวกรองของการ์ด
   const ตรงตัวกรองอื่น = (d: DealerRow) => (regionFilter === "ทั้งหมด" || ภาคมาตรฐาน(d.region) === regionFilter)
     && (!q || `${d.code} ${d.name} ${d.province} ${d.region}`.toLowerCase().includes(q.toLowerCase()));
-  const ชุดการ์ด = ชุดที่กรอง(dealers.filter(ไม่ใช่แถวHQ), ตรงตัวกรองอื่น, d => d.code);
+  const ชุดการ์ด = ชุดที่กรอง(dealers.filter(นับเป็นดีลเลอร์), ตรงตัวกรองอื่น, d => d.code);
   const kpi = useKpiCards("hq.dealers", { today: APP_NOW_ISO, filters: ชุดการ์ด, รุ่น: dealers.map(d => `${d.code}:${d.status}`).join(",") });
   const รหัสกลุ่ม = new Set(((กลุ่มเคลื่อนไหว ? kpi?.[กลุ่มเคลื่อนไหว === "moving" ? "movingCodes" : "idleCodes"] : []) as string[] | undefined) ?? []);
   const กดกลุ่ม = (g: "moving" | "idle" | null, s: DealerStatus | "all") => { setกลุ่มเคลื่อนไหว(กลุ่มเคลื่อนไหว === g && statusFilter === s ? null : g); setStatusFilter(s); setPage(0); };
@@ -174,7 +174,7 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
   // Filter + sort — กรองจริงด้วยสถานะ/ภาค/ค้นหา (local ในหน้านี้ทั้งหมด)
   const filtered = dealers.map(แถวจริง).filter(d => {
     // แถว HQ ไม่ใช่ดีลเลอร์ — ซ่อนจากทะเบียนและไม่นับในตัวเลขดีลเลอร์ (บอสตัดสิน 19 ต.ค. 69 · ยกเลิกตรึงบนสุด 7 ก.ย. 69)
-    if (!ไม่ใช่แถวHQ(d)) return false;
+    if (!นับเป็นดีลเลอร์(d)) return false;   // HQD (ขายตรง · ใบ 0287) ไม่นับเป็นดีลเลอร์ · แผง ?open=HQD ยังเปิดได้
     if (statusFilter !== "all" && dealerStatus(d) !== statusFilter) return false;
     if (กลุ่มเคลื่อนไหว && !รหัสกลุ่ม.has(d.code)) return false;
     return ตรงตัวกรองอื่น(d);
