@@ -25,6 +25,16 @@ for (const กว้าง of [1366, 1920]) {
     await settle(page);
     const ตาราง = page.locator("[data-drill-table='dealer'] table").first();
     const ช่อง = ตาราง.locator("td[data-group-row]").filter({ hasText: ชื่อยาว.slice(0, 30) }).first();
+    // ตารางแบ่งหน้า 10 แถว · แถว 0 ทั้งแถวอยู่ท้าย (บอสสั่ง 18 พ.ย. 69) — สาขาของข้อไม่มีลูกค้าเป้าหมาย → ไล่หน้าถัดไปจนเจอ
+    const กล่อง = page.locator("[data-drill-table='dealer']");
+    await expect(ตาราง.locator("td[data-group-row]")).not.toHaveCount(0, { timeout: 30_000 });
+    const ถัดไป = กล่อง.getByRole("button", { name: "หน้าถัดไป", exact: true });
+    const ชื่อในหน้า = () => ตาราง.locator("td[data-group-row]").evaluateAll(es => es.map(e => e.getAttribute("title") ?? ""));
+    for (let i = 0; i < 50 && !(await ชื่อในหน้า()).includes(ชื่อยาว) && await ถัดไป.isEnabled(); i++) {
+      const ป้ายก่อน = await กล่อง.getByText(/^หน้า \d+ \/ \d+$/).innerText();
+      await ถัดไป.click();
+      await expect(กล่อง.getByText(/^หน้า \d+ \/ \d+$/), "เปลี่ยนหน้าแล้ว").not.toHaveText(ป้ายก่อน);
+    }
     await expect(ช่อง, "มีแถวของดีลเลอร์ชื่อยาว (สาขาของข้อ)").toBeVisible({ timeout: 30_000 });
     const วัด = await ช่อง.evaluate(td => {
       const strong = td.querySelector("strong") as HTMLElement;

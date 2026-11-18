@@ -69,9 +69,25 @@ async function รอโหลด(page: Page) {
   await expect(ตาราง(page).locator("tfoot"), "ไม่มีแถวรวม (บอสสั่ง 6 พ.ย. 69)").toHaveCount(0);
   await expect(ตาราง(page), "คำอธิบายไม่มี แถวรวม = การ์ด").not.toContainText("แถวรวม");
 }
+/** ค่าคอลัมน์ k ทุกแถวของตาราง ไล่ทุกหน้า (ตารางแบ่งหน้า 10 แถว · บอสสั่ง 18 พ.ย. 69) แล้วกลับหน้าแรก — ผลรวมยังเทียบทุกแถวกับการ์ด */
+async function ค่าทุกหน้า(page: Page, k: string): Promise<(string | null)[]> {
+  const t = ตาราง(page);
+  const ป้ายหน้า = t.getByText(/^หน้า \d+ \/ \d+$/);
+  const อ่าน = async () => (await ป้ายหน้า.innerText()).match(/หน้า (\d+) \/ (\d+)/)!.slice(1).map(Number);
+  const ก่อน = t.getByRole("button", { name: "หน้าก่อนหน้า", exact: true }), ถัด = t.getByRole("button", { name: "หน้าถัดไป", exact: true });
+  let [หน้า, ทั้งหมด] = await อ่าน();
+  while (หน้า > 1) { await ก่อน.click(); await expect(ป้ายหน้า).toHaveText(`หน้า ${หน้า - 1} / ${ทั้งหมด}`); [หน้า, ทั้งหมด] = await อ่าน(); }
+  const ค่า: (string | null)[] = [];
+  for (let i = 1; i <= ทั้งหมด; i++) {
+    if (i > 1) { await ถัด.click(); await expect(ป้ายหน้า).toHaveText(`หน้า ${i} / ${ทั้งหมด}`); }
+    ค่า.push(...await t.locator(`tbody [data-cell="${k}"]`).evaluateAll(es => es.map(e => e.getAttribute("data-value"))));
+  }
+  for (let i = ทั้งหมด; i > 1; i--) { await ก่อน.click(); await expect(ป้ายหน้า).toHaveText(`หน้า ${i - 1} / ${ทั้งหมด}`); }
+  return ค่า;
+}
 /** ผลรวมของคอลัมน์ k ในตาราง (คอลัมน์ถูกซ่อนเพราะทั้งตารางว่าง = null) */
 async function ผลรวมคอลัมน์(page: Page, k: string): Promise<number | null> {
-  const ช่อง = await ตาราง(page).locator(`tbody [data-cell="${k}"]`).evaluateAll(es => es.map(e => e.getAttribute("data-value")));
+  const ช่อง = await ค่าทุกหน้า(page, k);
   if (!ช่อง.length) return null;
   return ช่อง.reduce((a, v) => a + Number(v || 0), 0);
 }
