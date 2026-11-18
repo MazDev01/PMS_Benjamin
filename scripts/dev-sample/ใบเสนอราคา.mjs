@@ -18,6 +18,14 @@ const เหตุการณ์ = [
   "ใกล้หมดอายุ (เหลือ 2 วัน)", "ใบ HQ ร่าง (HQ กำลังตีราคา)", "ใบ HQ ส่งแล้ว ยังไม่ทำใบลูกค้า", "HQ ย้อนการตอบรับ → ส่งแล้ว",
 ];
 
+// ขนาดงาน (ตัวคูณของ 700 ตร.ม.) → พื้นที่ 600 · 860 · 1,120 · 1,440 · 780 · 1,680 · 920 · 1,280 · 680 · 1,020 · 1,220 · 1,520
+const ขนาดงาน = [0.86, 1.23, 1.6, 2.06, 1.11, 2.4, 1.31, 1.83, 0.97, 1.46, 1.74, 2.17];
+// วันที่ถอยหลังต่อขั้นของแต่ละราย (ลำดับเดียวกับ เหตุการณ์ · ไม่เพิ่มขึ้นตามขั้น · ราย 7 ใช้ชุดของตัวเอง)
+const เส้นเวลาใบ = [
+  [9, 8, 6, 3], [14, 12, 9, 5], [20, 18, 15, 10, 2], [25, 23, 20, 14, 4], [33, 31, 27, 21, 8], [28, 26, 22, 15, 6],
+  [24, 22, 18, 12, 5], [40, 39, 38, 36, 36], [6, 5, 2, 0], [7, 5, 3], [10, 8, 4], [26, 24, 20, 13, 7],
+];
+
 export const มีแล้ว = (ctx) => มีลีดในช่วง(ctx, ช่วง);
 export function ลบ(ctx) { ctx.sql(sqlลบงานขาย([ช่วง], ["บริษัท ใบตัวอย่าง %"])); }
 
@@ -27,28 +35,46 @@ export async function สร้าง(ctx) {
   for (const s of สาขา) {
     const b = บัญชีสาขา(ctx, s.code);
     const ง = await งานขายของสาขา(ctx, { ...s, sb: await ctx.เข้า(b.email, b.password), hq, ป้ายส่วน: "ใบตัวอย่าง" });
-    const ลีด = (i) => ง.ลีด(s.base + i, { ย้อนวัน: 12 - i, เรื่อง: เหตุการณ์[i], ขนาด: 1 + (i % 4) * 0.5 });
-    const ขนาด = (i) => 1 + (i % 4) * 0.5;
+    // ขนาดงานต่างกันทุกราย (เดิม 1/1.5/2/2.5 วนซ้ำ = พื้นที่ 700/1,050/1,400/1,750 ซ้ำกันทั้งตาราง · 18 พ.ย. 69) · CNX เลื่อนชุด
+    const ขนาด = (i) => ขนาดงาน[(i + (s.code === "CNX" ? 5 : 0)) % ขนาดงาน.length];
+    // ทุกงานมีเส้นเวลา (วันที่ถอยหลังต่อขั้น: ลีดเข้า · ขอราคา · HQ รับ/ส่งใบ · ทำ/ส่งใบลูกค้า · ลูกค้าตอบ/ฉบับใหม่)
+    //   เดิม: ลีดย้อน 12−i วัน แต่คำขอ/ใบ HQ/ใบลูกค้าเกิด "วันนี้" ทั้งหมด → วันขอราคาก่อนวันลีดเข้า ไม่ได้ · กำหนดส่งทุกใบวันเดียวกัน
+    const ย้อน = await ตัวย้อนเวลา(ctx);
+    const ลีด = async (i) => {
+      const จด = ย้อน.งาน(s.code, s.base + i, เส้นเวลาใบ[i], (i * 5) % 9);
+      await จด(0);
+      return { ...(await ง.ลีด(s.base + i, { ย้อนวัน: เส้นเวลาใบ[i][0], เรื่อง: เหตุการณ์[i], ขนาด: ขนาด(i) })), จด };
+    };
 
-    { const { n, company } = await ลีด(0);
-      const rid = await ง.ขอราคา(n, ขนาด(0)); await ง.HQรับเรื่อง(rid); await ง.ทำใบ(n, company, await ง.HQส่งใบ(rid, { ขนาด: ขนาด(0) })); }
-    { const { n, company } = await ลีด(1); await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(1) }); }
-    { const { n, company } = await ลีด(2); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(2) }); await ง.ฉบับใหม่(qid, 12); }
-    { const { n, company } = await ลีด(3); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(3) }); await ง.ส่งใบ(await ง.ฉบับใหม่(qid, 10)); }
-    { const { n, company } = await ลีด(4); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(4) });
-      const v2 = await ง.ฉบับใหม่(qid, 13); await ง.ส่งใบ(v2); await ง.ตอบรับ(n, company, v2); }
-    { const { n, company } = await ลีด(5); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(5) }); await ง.ตอบรับ(n, company, qid); }
-    { const { n, company } = await ลีด(6); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(6) }); await ง.ปฏิเสธ(qid, "ลูกค้าเลือกผู้รับเหมารายอื่น"); }
-    // 7 หมดอายุ: งานนี้เกิดเมื่อ 40 วันก่อน (ใบ HQ ยืนราคา 30 วัน → หมดไปแล้ว) แล้วให้งานตามเวลาของฐานทำงาน
-    { const ย้อน = await ตัวย้อนเวลา(ctx); const จด = ย้อน.งาน(s.code, s.base + 7, [40, 39, 38, 36, 36], 1);
-      await จด(0); const { n, company } = await ง.ลีด(s.base + 7, { ย้อนวัน: 40, เรื่อง: เหตุการณ์[7] });
-      await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(7), จด }); ย้อน.พัก(); ย้อน.สั่ง();
+    { const { n, company, จด } = await ลีด(0);
+      await จด(1); const rid = await ง.ขอราคา(n, ขนาด(0)); await จด(2); await ง.HQรับเรื่อง(rid); const hqId = await ง.HQส่งใบ(rid, { ขนาด: ขนาด(0) });
+      await จด(3); await ง.ทำใบ(n, company, hqId); }
+    { const { n, company, จด } = await ลีด(1); await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(1), จด }); }
+    { const { n, company, จด } = await ลีด(2); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(2), จด }); await จด(4); await ง.ฉบับใหม่(qid, 12); }
+    { const { n, company, จด } = await ลีด(3); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(3), จด }); await จด(4); await ง.ส่งใบ(await ง.ฉบับใหม่(qid, 10)); }
+    { const { n, company, จด } = await ลีด(4); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(4), จด });
+      await จด(4); const v2 = await ง.ฉบับใหม่(qid, 13); await ง.ส่งใบ(v2); await ง.ตอบรับ(n, company, v2); }
+    { const { n, company, จด } = await ลีด(5); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(5), จด }); await จด(4); await ง.ตอบรับ(n, company, qid); }
+    { const { n, company, จด } = await ลีด(6); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(6), จด }); await จด(4); await ง.ปฏิเสธ(qid, "ลูกค้าเลือกผู้รับเหมารายอื่น"); }
+    ย้อน.พัก(); ย้อน.สั่ง();
+    // 7 หมดอายุ: งานนี้เกิดเมื่อ 40 วันก่อน (ใบ HQ ยืนราคา 30 วัน → หมดไปแล้ว) แล้วให้งานตามเวลาของฐานทำงาน (ตัวย้อนแยก · สั่งก่อนงานตามเวลา)
+    { const ย้อน7 = await ตัวย้อนเวลา(ctx); const จด = ย้อน7.งาน(s.code, s.base + 7, [40, 39, 38, 36, 36], 1);
+      await จด(0); const { n, company } = await ง.ลีด(s.base + 7, { ย้อนวัน: 40, เรื่อง: เหตุการณ์[7], ขนาด: ขนาด(7) });
+      await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(7), จด }); ย้อน7.พัก(); ย้อน7.สั่ง();
       ctx.ต้อง(await ctx.svc.rpc("expire_hq_linked_quotations"), "งานตามเวลา: ใบ HQ หมดอายุ"); }
-    { const { n, company } = await ลีด(8); await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(8), วันยืนราคา: 2 }); }
-    { const { n } = await ลีด(9); const rid = await ง.ขอราคา(n, ขนาด(9)); await ง.HQรับเรื่อง(rid); await ง.HQบันทึกใบ(rid, { ขนาด: ขนาด(9) }); }
-    { const { n } = await ลีด(10); const rid = await ง.ขอราคา(n, ขนาด(10)); await ง.HQรับเรื่อง(rid); await ง.HQส่งใบ(rid, { ขนาด: ขนาด(10) }); }
-    { const { n, company } = await ลีด(11); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(11) }); await ง.ตอบรับ(n, company, qid);
+    const ย้อน2 = await ตัวย้อนเวลา(ctx);
+    const ลีด2 = async (i) => {
+      const จด = ย้อน2.งาน(s.code, s.base + i, เส้นเวลาใบ[i], (i * 5) % 9);
+      await จด(0);
+      return { ...(await ง.ลีด(s.base + i, { ย้อนวัน: เส้นเวลาใบ[i][0], เรื่อง: เหตุการณ์[i], ขนาด: ขนาด(i) })), จด };
+    };
+    // 8 ใกล้หมดอายุ: ทำ/ส่งใบลูกค้าวันนี้ (ขั้น 3 = 0 วัน) วันยืนราคาจึงเหลือ 2 วันจริง
+    { const { n, company, จด } = await ลีด2(8); await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(8), วันยืนราคา: 2, จด }); }
+    { const { n, จด } = await ลีด2(9); await จด(1); const rid = await ง.ขอราคา(n, ขนาด(9)); await จด(2); await ง.HQรับเรื่อง(rid); await ง.HQบันทึกใบ(rid, { ขนาด: ขนาด(9) }); }
+    { const { n, จด } = await ลีด2(10); await จด(1); const rid = await ง.ขอราคา(n, ขนาด(10)); await จด(2); await ง.HQรับเรื่อง(rid); await ง.HQส่งใบ(rid, { ขนาด: ขนาด(10) }); }
+    { const { n, company, จด } = await ลีด2(11); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(11), จด }); await จด(4); await ง.ตอบรับ(n, company, qid);
       ctx.ต้อง(await hq.rpc("quotation_revert_won", { p_dealer: s.code, p_id: qid, p_reason: "ลูกค้าขอเลื่อนชำระมัดจำ (ตัวอย่าง)", p_to: "sent_to_client" }), "HQ ย้อนการตอบรับ"); }
+    ย้อน2.พัก(); ย้อน2.สั่ง();
 
     const { data } = await ctx.svc.from("quotations").select("status").eq("dealer_code", s.code).gte("deal_id", s.base).lte("deal_id", s.base + 999);
     นับ[s.code] = (data ?? []).reduce((m, q) => ({ ...m, [q.status]: (m[q.status] ?? 0) + 1 }), {});
