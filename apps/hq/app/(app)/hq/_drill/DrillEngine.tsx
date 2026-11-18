@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Users, CalendarDays, PhoneCall, Inbox, AlarmClock, Send, Hourglass, CheckCircle2, Percent, UserPlus, Store, type LucideIcon } from "lucide-react";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
+import { TablePagination, pageSlice, pageCountOf } from "@pms/shared/components/ui/TablePagination";
 import { ชื่อภาค, ภาคมาตรฐาน, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { metrics } from "@pms/shared/lib/data";
@@ -133,16 +134,23 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
     : ค่าแถว(c, g.rows, ทั้งหมด);
   const กลุ่ม = useMemo(() => {
     const gs = จัดกลุ่มแท็บ(rows, dim, ช่วง.start, ช่วง.end, ชื่อแสดง, { ภาค: ขอบ.ภาค, จังหวัด: ขอบ.จังหวัด, ดีลเลอร์: ขอบ.ดีลเลอร์ });
-    const คีย์ = เรียง?.k ?? (dim === "month" ? "__idx" : ตั้งค่า.แท่ง), ลง = เรียง ? เรียง.ลง : dim !== "month";
+    const คีย์ = เรียง?.k ?? (dim === "month" ? "__idx" : ตั้งค่า.เรียงตั้งต้น ?? ตั้งค่า.แท่ง), ลง = เรียง ? เรียง.ลง : dim !== "month";
     const c = ตั้งค่า.คอลัมน์.find(x => x.k === คีย์);
     const ค่า = (g: กลุ่ม): number | string => คีย์ === "__idx" ? g.เดือน?.idx ?? 0 : คีย์ === "__name" ? g.label : c ? (ค่าของกลุ่ม(c, g) ?? -1) : 0;
+    // เรียงตั้งต้น (ยังไม่กดหัวคอลัมน์): แถวที่ทุกคอลัมน์เป็น 0/ไม่มีค่า ไปท้าย (บอสสั่ง 18 พ.ย. 69) · กดหัวคอลัมน์ = เรียงตามคอลัมน์นั้นล้วน
+    const ศูนย์ทั้งแถว = (g: กลุ่ม) => ตั้งค่า.คอลัมน์.every(x => !(Number(ค่าของกลุ่ม(x, g) ?? 0) > 0));
     return [...gs].sort((a, b) => {
+      if (!เรียง && dim !== "month") { const za = ศูนย์ทั้งแถว(a), zb = ศูนย์ทั้งแถว(b); if (za !== zb) return za ? 1 : -1; }
       const x = ค่า(a), y = ค่า(b);
       const r = typeof x === "string" ? x.localeCompare(String(y), "th") : x - Number(y);
       return (ลง ? -r : r) || a.label.localeCompare(b.label, "th");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, dim, ช่วง.start, ช่วง.end, เรียง, เดือนทั้งหมด, ตั้งค่า, ชื่อแสดง, ขอบ.ภาค, ขอบ.จังหวัด, ขอบ.ดีลเลอร์]);
+  // หน้าของตาราง — เปลี่ยนระดับ/แท็บ/การเรียง = กลับหน้าแรก (ตัวตรวจ check-filter-resets-page)
+  const [หน้า, setหน้า] = useState(0);
+  useEffect(() => { setหน้า(0); }, [เรียง, dim, ขอบ.ภาค, ขอบ.จังหวัด, ขอบ.ดีลเลอร์, ช่วง.start, ช่วง.end]);
+  const หน้าจริง = Math.min(หน้า, pageCountOf(กลุ่ม.length) - 1);
   // คอลัมน์ที่ทั้งตารางเป็น "—" ซ่อนเอง (บอสสั่ง 6 พ.ย. 69) — ยังโหลด/ไม่มีแถว = แสดงครบ (ไม่เดาว่าว่าง)
   // ไม่ซ่อนคอลัมน์ว่างแล้ว (บอสสั่ง 10 พ.ย. 69 · ล็อกความกว้างคอลัมน์) — ไม่มีค่า = "—" · ตำแหน่งคอลัมน์ไม่ขยับตามข้อมูล
   const คอลัมน์แสดง = คอลัมน์;
@@ -247,7 +255,7 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
             <tbody>
               {โหลด && <tr><td colSpan={คอลัมน์แสดง.length + 2} className="empty-row">กำลังโหลด…</td></tr>}
               {!โหลด && !กลุ่ม.length && <tr><td colSpan={คอลัมน์แสดง.length + 2} className="empty-row">ไม่พบข้อมูลในระดับนี้</td></tr>}
-              {!โหลด && กลุ่ม.map(g => {
+              {!โหลด && pageSlice(กลุ่ม, หน้าจริง).map(g => {
                 const เซลล์ = คอลัมน์แสดง.map(c => { const v = ค่าของกลุ่ม(c, g); return <td key={c.k} className="num" data-cell={c.k} data-value={v ?? ""}>{แสดง(c, v)}</td>; });
                 // ชื่อขึ้นบรรทัด (ตั้งค่า.ชื่อขึ้นบรรทัด · บอสตัดสิน 17 พ.ย. 69): ชื่อยาวขึ้นบรรทัดใหม่ ไม่ตัด … (แบบตาราง HQ › ดีลเลอร์) · หน้าอื่นคงตัด … ชี้แล้วเห็นเต็ม
                 const ขึ้นบรรทัด = !!ตั้งค่า.ชื่อขึ้นบรรทัด;
@@ -269,6 +277,8 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
             </tbody>
           </table>
         </div>
+        {/* แถบเปลี่ยนหน้าตัวกลาง แสดงตลอด 10 แถว/หน้า (บอสสั่ง 18 พ.ย. 69 · ทั้งเครือ 154 แถว) — ไม่ซ่อนแถวใด แค่แบ่งหน้า */}
+        <TablePagination page={หน้าจริง} total={กลุ่ม.length} onPage={setหน้า} unit="แถว" />
         <div style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>
           {กลุ่ม.length.toLocaleString()} แถว · ตัวเลขรวมดูที่การ์ดด้านบน{dim === "month" ? " · ตัวเลข \"ตอนนี้\" ไม่มีรายเดือน ดูที่การ์ด" : ""}
         </div>

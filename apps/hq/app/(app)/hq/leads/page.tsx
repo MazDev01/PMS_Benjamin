@@ -8,7 +8,7 @@ import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 // ─── HQ · ลูกค้าเป้าหมายทั้งเครือ (Network Leads) ──────────────────────────────
 // ภาพรวมลูกค้าเป้าหมายของทุกดีลเลอร์ · กรอง (ค้นหา/สถานะ/จังหวัด/ช่วงเวลา) · KPI · กราฟ · ตาราง drill-down
 // ใช้ข้อมูลจริงจาก SalesContext (leads) — HQ ดูอย่างเดียว (Sales CRM เท่านั้น)
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { ตรึงคอลัมน์ปุ่ม } from "@pms/shared/components/ui/stickyActionCol";
 import { AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { TablePagination, pageSlice, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
@@ -29,7 +29,7 @@ import { useNetworkLeads, useLeadSummary, useLeadsPage, useUnassignedLeads, useL
 import type { LeadSummaryFilters, LeadListOpts } from "@pms/shared/lib/data/ports";
 import { DEFAULT_LEAD_RULES } from "@pms/shared/lib/mock";
 import { useLeadRulesOf } from "@pms/shared/lib/useHQRules";
-import { unassignedLeads } from "@pms/shared/lib/hqAlerts";
+import { unassignedLeads, ไม่มีผู้รับผิดชอบเกินเกณฑ์ตามฐาน } from "@pms/shared/lib/hqAlerts";
 import { lastContactLabel, needsFollowUp } from "@pms/shared/lib/leadMetrics";
 import { fmtISOToThai, type LeadRow } from "@pms/shared/lib/mock";
 // ชิ้นส่วนกลางของแผงรายละเอียด — หน้าตาเดียวกันทุกหน้า (ห้ามประกาศสไตล์เองซ้ำ)
@@ -139,7 +139,10 @@ export default function HQLeadsPage() {
     const code = new URLSearchParams(window.location.search).get("dealer");
     if (!code) return;
     setดีลเลอร์จากลิงก์(code.toUpperCase());
-    window.history.replaceState(null, "", window.location.pathname);
+    // ล้างเฉพาะ ?dealer — ค่าอื่นในที่อยู่ (?unassigned · ?open) คงไว้
+    const u = new URL(window.location.href);
+    u.searchParams.delete("dealer");
+    window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
   }, []);
   useEffect(() => {
     if (!ดีลเลอร์จากลิงก์ || !เจาะลึก) return;
@@ -237,9 +240,42 @@ export default function HQLeadsPage() {
   useEffect(() => { setLeadPage(0); }, [leadTableKey]); // เปลี่ยนตัวกรอง → หน้า 1
   // local ต้องตัดเป็นหน้า ๆ ที่ client ด้วย — ไม่งั้นแถบบอกเลขหน้าแต่ตารางเทมาทั้งชุด
   const localLeadPage = Math.min(leadPage, Math.max(1, Math.ceil(filtered.length / LEADS_PAGE)) - 1);
-  const displayLeads = leadsPage?.rows ?? pageSlice(filtered, localLeadPage, LEADS_PAGE);
-  const leadTotal = leadsPage ? leadsPage.total : filtered.length;
-  const leadPagination = { page: leadsPage ? leadPage : localLeadPage, total: leadTotal, onPage: setLeadPage };
+
+  // ── การ์ด "ยังไม่มีผู้รับผิดชอบ" กดแล้ว = รายชื่อเฉพาะรายที่การ์ดนับ (บอสสั่ง 18 พ.ย. 69) ──
+  //   อยู่ในที่อยู่หน้าเว็บ ?unassigned=1 (รีเฟรช/ส่งลิงก์แล้วคงอยู่) · ใช้ตารางเดิมของหน้านี้ ไม่มีหน้าใหม่
+  //   แถวมาจากฐาน (leads_page · ช่วง/แหล่ง/คำค้น/ระดับเดียวกับการ์ด) แล้วคัดด้วยกติกาเดียวกับที่ฐานนับการ์ด (unassigned_leads)
+  const [เฉพาะไม่มีผู้รับผิดชอบ, setเฉพาะไม่มีผู้รับผิดชอบ] = useState(false);
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("unassigned") === "1") setเฉพาะไม่มีผู้รับผิดชอบ(true); }, []);
+  const ตั้งเฉพาะไม่มีผู้รับผิดชอบ = (เปิด: boolean) => {
+    setเฉพาะไม่มีผู้รับผิดชอบ(เปิด);
+    setLeadPage(0);
+    const u = new URL(window.location.href);
+    if (เปิด) u.searchParams.set("unassigned", "1"); else u.searchParams.delete("unassigned");
+    window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
+  };
+  // การ์ดนับลูกค้าเป้าหมายของดีลเลอร์เท่านั้น — ลีดใต้รหัส HQ ไม่นับในหน้านี้ (บอสตัดสิน 30 ต.ค. 69 · ตรงตาราง leads_page)
+  //   ทั้งเครือ = ส่งรายชื่อดีลเลอร์ทุกรายยกเว้นแถว HQ (ฐาน unassigned_leads นับ HQ ด้วยถ้าไม่ระบุ) · ยังโหลดรายชื่อไม่เสร็จ = ยังไม่ขึ้นการ์ด
+  const ดีลเลอร์ไม่รวมHQ = useMemo(() => allDealers.filter(ไม่ใช่แถวHQ).map(d => d.code), [allDealers]);
+  const ชุดการ์ดไม่มีผู้รับผิดชอบ = leadDealerCodes ?? (ดีลเลอร์ไม่รวมHQ.length ? ดีลเลอร์ไม่รวมHQ : null);
+  const [รายไม่มีผู้รับผิดชอบ, setรายไม่มีผู้รับผิดชอบ] = useState<LeadRow[] | null>(null);
+  const ชั่วโมงของสาขา = useCallback((code: string | undefined) => rulesOf(code).unassignedAlertHours, [rulesOf]);
+  useEffect(() => {
+    if (!เฉพาะไม่มีผู้รับผิดชอบ || !ชุดการ์ดไม่มีผู้รับผิดชอบ) { setรายไม่มีผู้รับผิดชอบ(null); return; }
+    let ทิ้ง = false;
+    leadsRepo.listPage(undefined, {
+      limit: 20000, offset: 0, stage: 0, dealerCodes: ชุดการ์ดไม่มีผู้รับผิดชอบ,
+      source: srcSel === "ALL" ? undefined : srcSel, search: query.trim() || undefined,
+      dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
+    }).then(r => { if (!ทิ้ง) setรายไม่มีผู้รับผิดชอบ(r.rows.filter(l => ไม่มีผู้รับผิดชอบเกินเกณฑ์ตามฐาน(l, ชั่วโมงของสาขา, isoDateOf(APP_NOW)))); })
+      .catch(e => logRepoRead("leads.listPage(unassigned)", e));
+    return () => { ทิ้ง = true; };
+  }, [เฉพาะไม่มีผู้รับผิดชอบ, ชุดการ์ดไม่มีผู้รับผิดชอบ, srcSel, query, timeRange.start, timeRange.end, ชั่วโมงของสาขา]);
+  const แสดงไม่มีผู้รับผิดชอบ = เฉพาะไม่มีผู้รับผิดชอบ;
+  const displayLeads = แสดงไม่มีผู้รับผิดชอบ
+    ? pageSlice(รายไม่มีผู้รับผิดชอบ ?? [], leadPage, LEADS_PAGE)
+    : leadsPage?.rows ?? pageSlice(filtered, localLeadPage, LEADS_PAGE);
+  const leadTotal = แสดงไม่มีผู้รับผิดชอบ ? (รายไม่มีผู้รับผิดชอบ?.length ?? 0) : leadsPage ? leadsPage.total : filtered.length;
+  const leadPagination = { page: แสดงไม่มีผู้รับผิดชอบ || leadsPage ? leadPage : localLeadPage, total: leadTotal, onPage: setLeadPage };
 
 
   // ── เตือน: ลูกค้าเป้าหมายยังไม่มีผู้รับผิดชอบนานเกินเกณฑ์ (กฎธุรกิจ HQ · ค่าเริ่มต้น 48 ชม.) ──
@@ -248,10 +284,10 @@ export default function HQLeadsPage() {
   const perDealerHours = useMemo(() => Object.fromEntries(allDealers.map(d => [d.code, rulesOf(d.code).unassignedAlertHours])), [allDealers, rulesOf]);
   const unassignedSummary = useUnassignedLeads(useMemo(() => ({
     asOf: isoDateOf(APP_NOW), defaultHours: DEFAULT_LEAD_RULES.unassignedAlertHours, perDealer: perDealerHours,
-    dealerCodes: leadDealerCodes,
+    dealerCodes: ชุดการ์ดไม่มีผู้รับผิดชอบ ?? ["-"],   // ยังโหลดรายชื่อดีลเลอร์ไม่เสร็จ = นับ 0 (การ์ดยังไม่ขึ้น) ไม่นับรวม HQ ชั่วคราว
     source: srcSel === "ALL" ? undefined : srcSel,
     search: query.trim() || undefined, dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end),
-  }), [perDealerHours, leadDealerCodes, srcSel, query, timeRange.start, timeRange.end]));
+  }), [perDealerHours, ชุดการ์ดไม่มีผู้รับผิดชอบ, srcSel, query, timeRange.start, timeRange.end]));
   const unassignedClient = useMemo(() => unassignedLeads(kpiBase, rulesOf), [kpiBase, rulesOf]);
   const unassignedCount = unassignedSummary ? unassignedSummary.total : unassignedClient.length;
   // ป้ายบอกเกณฑ์ — หน้านี้รวมหลายสาขาที่ตั้งเกณฑ์ต่างกันได้ จึงสรุปเป็นช่วงเมื่อไม่เท่ากัน
@@ -375,8 +411,12 @@ export default function HQLeadsPage() {
           อยู่บนสุดใต้ KPI — เป็นเรื่องต้องรีบ ไม่ควรให้ต้องเลื่อนผ่านกราฟ 4 ใบกว่าจะเจอ
           แสดงเฉพาะตอนมีจริง — ไม่มี = ไม่ขึ้นการ์ดเปล่า */}
       {unassignedCount > 0 && (
-        <div className="card" style={{ marginBottom: 16, borderLeft: "3px solid #dc2626" }}>
-          <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px" }}>
+        <div className="card" data-card="unassigned" style={{ marginBottom: 16, borderLeft: "3px solid #dc2626" }}>
+          {/* กดการ์ด = รายชื่อด้านล่างเหลือเฉพาะรายที่การ์ดนับ (บอสสั่ง 18 พ.ย. 69 · ?unassigned=1) */}
+          <button type="button" className="card-body" aria-pressed={เฉพาะไม่มีผู้รับผิดชอบ}
+            aria-label={`ดูรายชื่อลูกค้าเป้าหมายที่ยังไม่มีผู้รับผิดชอบ ${unassignedCount} ราย`}
+            onClick={() => { ตั้งเฉพาะไม่มีผู้รับผิดชอบ(true); document.querySelector("[data-lead-table]")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", width: "100%", background: "transparent", border: 0, textAlign: "left", cursor: "pointer", font: "inherit" }}>
             <span style={{ width: 34, height: 34, borderRadius: 9, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <AlarmClock size={16} color="#dc2626" />
             </span>
@@ -386,7 +426,8 @@ export default function HQLeadsPage() {
             </span>
             <span style={{ fontSize: "1.15rem", fontWeight: 800, color: "#dc2626", fontVariantNumeric: "tabular-nums" }}>{unassignedCount}</span>
             <span style={{ fontSize: "0.66rem", color: "var(--muted-foreground)" }}>ราย</span>
-          </div>
+            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#dc2626", whiteSpace: "nowrap" }}>ดูรายชื่อ ›</span>
+          </button>
         </div>
       )}
 
@@ -516,25 +557,34 @@ export default function HQLeadsPage() {
           <div data-box-title style={{ flex: "0 0 auto", marginRight: 6 }}>
             <div className="card-title" data-title>ตารางรายชื่อลูกค้าเป้าหมาย · {ระดับ}</div>
             <div data-subtitle style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>
-              {status === "OPEN" ? คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่กำลังดำเนินการ", "กดแถวเพื่อเปิด") : คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่เข้ามาในช่วง", "กดแถวเพื่อเปิด")}
+              {เฉพาะไม่มีผู้รับผิดชอบ ? คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่ยังไม่มีผู้รับผิดชอบเกินเกณฑ์ของสาขา", "กดแถวเพื่อเปิด")
+                : status === "OPEN" ? คำอธิบายหัวข้อ(null, "ลูกค้าเป้าหมายที่กำลังดำเนินการ", "กดแถวเพื่อเปิด") : คำอธิบายหัวข้อ(ช่วงการ์ด, "ลูกค้าเป้าหมายที่เข้ามาในช่วง", "กดแถวเพื่อเปิด")}
             </div>
           </div>
+          {/* เปิดจากการ์ด "ยังไม่มีผู้รับผิดชอบ" — ป้ายบอกว่ากรองอยู่ + ปุ่มกลับรายชื่อปกติ */}
+          {เฉพาะไม่มีผู้รับผิดชอบ && (
+            <span data-unassigned-filter style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 6px 4px 10px", borderRadius: 999, background: "#fef2f2", color: "#b91c1c", fontSize: "0.72rem", fontWeight: 700 }}>
+              เฉพาะยังไม่มีผู้รับผิดชอบ
+              <button type="button" onClick={() => ตั้งเฉพาะไม่มีผู้รับผิดชอบ(false)} aria-label="เลิกกรองเฉพาะยังไม่มีผู้รับผิดชอบ"
+                style={{ border: 0, background: "#fff", color: "#b91c1c", borderRadius: 999, padding: "1px 8px", cursor: "pointer", fontSize: "0.7rem", fontWeight: 700 }}>ดูทั้งหมด ✕</button>
+            </span>
+          )}
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…" aria-label="ค้นหาลูกค้าเป้าหมาย"
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
           {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
           {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–4) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
           {/* ค่าตั้งต้น (ตัวแรก) = กำลังดำเนินการ — ลำดับตัวเลือกเดิม */}
-          <FilterSelect label={ช่อง.ขั้นตอน} caption="กำลังดำเนินการ" all="OPEN" value={status} onChange={setStatus}
+          <FilterSelect label={ช่อง.ขั้นตอน} caption="กำลังดำเนินการ" all="OPEN" value={status} onChange={v => { setStatus(v); if (เฉพาะไม่มีผู้รับผิดชอบ) ตั้งเฉพาะไม่มีผู้รับผิดชอบ(false); }}
             options={[{ v: "6", l: ชื่อขั้น(6) }, { v: "7", l: ชื่อขั้น(7) }, { v: "ALL", l: "ทั้งหมด" }]} minWidth={96} maxWidth={180} style={{ flex: "1 1 0" }} />
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.74rem", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
-            <input type="checkbox" checked={overdueOnly} onChange={e => { setOverdueOnly(e.target.checked); if (e.target.checked) setStatus("OPEN"); }} />
+            <input type="checkbox" checked={overdueOnly} onChange={e => { setOverdueOnly(e.target.checked); if (e.target.checked) setStatus("OPEN"); if (เฉพาะไม่มีผู้รับผิดชอบ) ตั้งเฉพาะไม่มีผู้รับผิดชอบ(false); }} />
             ไม่เคลื่อนไหวเกิน 30 วัน
           </label>
           {/* ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นที่ตัวกรองแต่ละช่อง */}
         </div>
       </div>
 
-      <div className="card" data-lead-table data-ready={leadsPage ? "1" : ""} data-total={leadTotal} style={{ marginBottom: 0, overflow: "hidden" }}>
+      <div className="card" data-lead-table data-ready={(เฉพาะไม่มีผู้รับผิดชอบ ? รายไม่มีผู้รับผิดชอบ !== null : !!leadsPage) ? "1" : ""} data-unassigned={เฉพาะไม่มีผู้รับผิดชอบ ? "1" : undefined} data-total={leadTotal} style={{ marginBottom: 0, overflow: "hidden" }}>
         {/* พอดีจอ 1366 ไม่มีแถบเลื่อนแนวนอน (บอสสั่ง 9 พ.ย. 69 · .table-wrap.fit · สัดส่วน % ไม่มีความกว้างขั้นต่ำ · ตัดคำด้วย … ชี้แล้วเห็นเต็ม)
             คอลัมน์ที่ระดับเจาะบอกอยู่แล้ว ซ่อน (ตัวกลาง drillColumns): ระดับดีลเลอร์ = ไม่มีคอลัมน์ดีลเลอร์ · ทุกแถวจังหวัดเดียวกับระดับ = ไม่มีคอลัมน์จังหวัด */}
         <div className="table-wrap fit">
