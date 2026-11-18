@@ -174,37 +174,19 @@ test("[H6·hq] ลีดทั้งเครือ: กดการ์ด = แ
   // การ์ด "ลีดของ HQ รอโอน" เอาออก (กล่องโอนอยู่บนสุดของหน้าแล้ว) — มี "รอราคา HQ" แทน
   await expect(page.locator('[data-kpi="hqWaiting"]'), "ไม่มีการ์ดลีด HQ รอโอน").toHaveCount(0);
   await expect(page.locator('[data-kpi-row] [data-kpi="qr"] [data-value]').first(), "รอราคา HQ ของข้อ = 0 (ไม่มีลีดขั้นขอราคา HQ)").toHaveAttribute("data-value", "0");
-  await expect(page.locator("[data-card='hq-lead-transfer']"), "กล่องโอนลีด HQ ยังอยู่").toBeVisible();
+  await expect(page.locator("[data-card='hq-lead-transfer']"), "กล่องโอนลีด HQ เอาออกแล้ว (บอสสั่ง 18 พ.ย. 69 · ใบ 0287 ย้ายลีด HQ ไป HQD)").toHaveCount(0);
   assertNoErrors(errs, "กดการ์ดลีดทั้งเครือ");
 });
 
-test("[ui·hq] ลีดทั้งเครือ: กล่องโอนลีดเหมือนตารางอื่น · ตารางไม่มีความคืบหน้า มีคอลัมน์ดีลเลอร์ · ข้อความไม่ถูกตัดที่จอกว้าง · คำในกราฟตรงขั้นตอนกลาง", async ({ page }) => {
+test("[ui·hq] ลีดทั้งเครือ: ไม่มีกล่องโอนลีด · ตารางไม่มีความคืบหน้า มีคอลัมน์ดีลเลอร์ · ข้อความไม่ถูกตัดที่จอกว้าง · คำในกราฟตรงขั้นตอนกลาง", async ({ page }) => {
   const errs = watchErrors(page);
   await page.setViewportSize({ width: 1600, height: 1000 });
   await loginUI(page, HQ_ORIGIN, "/hq/leads", ADMIN);
   await เปิดหน้าแล้วค้น(page);
   await ตรงค่า(page, "ค่าตั้งต้น", { เปิด: 4, ใหม่: 5, เงียบ: 1, ตาราง: 4 });
 
-  // ── กล่องโอน: หัวการ์ด + เนื้อการ์ดมีระยะขอบ · หัวคอลัมน์ขนาดเท่าตารางลีด · หัวตรงแนวข้อมูล ──
-  const กล่อง = page.locator("[data-card='hq-lead-transfer']");
-  await expect(กล่อง.getByRole("row", { name: new RegExp(จังหวัด) }), "แถวจังหวัดของข้อ (สองสาขาดูแล)").toBeVisible();
-  const ขนาด = async (l: Locator) => l.evaluate(el => getComputedStyle(el).fontSize);
-  expect(await ขนาด(กล่อง.locator("thead th").first()), "หัวคอลัมน์กล่องโอน = ขนาดเดียวกับตารางลีด").toBe(await ขนาด(page.locator("[data-lead-table] thead th").first()));
-  const ระยะ = await กล่อง.evaluate(el => {
-    const r = el.getBoundingClientRect(), t = el.querySelector("table")!.getBoundingClientRect(), h = el.querySelector(".card-title")!.getBoundingClientRect();
-    return { ตารางซ้าย: t.left - r.left, ตารางขวา: r.right - t.right, หัวซ้าย: h.left - r.left };
-  });
-  expect(ระยะ.ตารางซ้าย, "ตารางในกล่องโอนมีระยะขอบซ้าย").toBeGreaterThanOrEqual(12);
-  expect(ระยะ.ตารางขวา, "ตารางในกล่องโอนมีระยะขอบขวา").toBeGreaterThanOrEqual(12);
-  expect(ระยะ.หัวซ้าย, "หัวกล่องมีระยะขอบ").toBeGreaterThanOrEqual(12);
-  const แนว = await กล่อง.locator("table").evaluate(t => {
-    const th = Array.from(t.querySelectorAll("thead th")).map(x => x.getBoundingClientRect());
-    const td = Array.from(t.querySelector("tbody tr")!.children).map(x => x.getBoundingClientRect());
-    return th.map((h, i) => Math.abs(h.left - td[i].left) + Math.abs(h.right - td[i].right));
-  });
-  expect(แนว.every(d => d < 1), `หัวคอลัมน์กล่องโอนตรงแนวข้อมูล (${แนว.join(",")})`).toBe(true);
-  const ชิด = await กล่อง.locator("table").evaluate(t => [getComputedStyle(t.querySelectorAll("thead th")[1]).textAlign, getComputedStyle(t.querySelector("tbody tr")!.children[1]).textAlign]);
-  expect(ชิด, "จำนวนลูกค้าเป้าหมาย ชิดขวาทั้งหัวและข้อมูล").toEqual(["right", "right"]);
+  // ── กล่องโอน: เอาออกแล้ว (บอสสั่ง 18 พ.ย. 69 · ลีดเปิดอยู่ใต้ HQ ย้ายไป HQD ขายตรง ใบ 0287) — ข้อหน้าตากล่องโอนหมดไปพร้อมกล่อง ──
+  await expect(page.locator("[data-card='hq-lead-transfer']"), "ไม่มีกล่องโอนแม้มีลีดของ HQ ของข้อ").toHaveCount(0);
 
   // ── ตารางลีด: คอลัมน์ตามแบบดีลเลอร์ + ดีลเลอร์ · ไม่มีความคืบหน้า ──
   const ตาราง = page.locator("[data-lead-table] table");

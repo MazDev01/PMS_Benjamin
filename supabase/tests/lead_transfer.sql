@@ -64,10 +64,17 @@ begin
   perform flowtest.must_fail('select * from hq_lead_transfer_plan()', 'forbidden', 'ดีลเลอร์ดูแผนการโอนของ HQ ไม่ได้');
   perform flowtest.must_fail('select transfer_hq_leads_auto()', 'forbidden', 'ดีลเลอร์สั่งโอนไม่ได้');
   perform flowtest.as_hq(c.hq_uid);
-  select string_agg(coalesce(nullif(province, ''), '(ไม่มีจังหวัด)') || ':' || mode || ':' || leads || ':' || array_to_string(dealer_codes, '+'), ' ' order by province)
-    into s from hq_lead_transfer_plan() where province in ('ยโสธร', 'ลำพูน', 'บึงกาฬ', '');
-  perform flowtest.ok(s = '(ไม่มีจังหวัด):queue:1: บึงกาฬ:queue:1: ยโสธร:auto:2:ZZLTY ลำพูน:choose:1:ZZLPA+ZZLPB',
-    'แผน: ดีลเลอร์รายเดียว = โอนอัตโนมัติ · ทับซ้อน = HQ เลือก · ไม่มีจังหวัด/จังหวัดว่าง = คิวรอ (ได้ ' || coalesce(s, 'ว่าง') || ')');
+  -- นับตรงเป๊ะเฉพาะจังหวัดที่ข้อนี้ใช้คนเดียว (ยโสธร · บึงกาฬ) — ลำพูน/ไม่มีจังหวัด ข้อทดสอบหน้าเว็บ (hq-lead-transfer.spec ·
+  --   hq-leads-one-set.spec) ใส่ลีด HQ + สาขาลำพูนของตัวเองพร้อมกัน → ตรวจว่ามีของข้อนี้ครบ (โหมด · สาขาของข้อ · จำนวน ≥ ของข้อ) (รอบ HQD 18 พ.ย. 69)
+  select string_agg(province || ':' || mode || ':' || leads || ':' || array_to_string(dealer_codes, '+'), ' ' order by province)
+    into s from hq_lead_transfer_plan() where province in ('ยโสธร', 'บึงกาฬ');
+  perform flowtest.ok(s = 'บึงกาฬ:queue:1: ยโสธร:auto:2:ZZLTY',
+    'แผน: ดีลเลอร์รายเดียว = โอนอัตโนมัติ · จังหวัดว่าง = คิวรอ (ได้ ' || coalesce(s, 'ว่าง') || ')');
+  perform flowtest.ok(exists (select 1 from hq_lead_transfer_plan() p where p.province = 'ลำพูน' and p.mode = 'choose' and p.leads >= 1
+                               and p.dealer_codes @> array['ZZLPA', 'ZZLPB']),
+    'แผน: ทับซ้อน (ลำพูน · ZZLPA + ZZLPB) = HQ เลือก');
+  perform flowtest.ok(exists (select 1 from hq_lead_transfer_plan() p where p.province = '' and p.mode = 'queue' and p.leads >= 1),
+    'แผน: ไม่มีจังหวัด = คิวรอ');
 
   -- ══ ข. HQ กดยืนยันโอนอัตโนมัติเป็นชุด ══
   n := transfer_hq_leads_auto();

@@ -55,7 +55,6 @@ import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
 import { fmtBaht, fmtFull, formatPhone } from "@pms/shared/lib/format";
 import { groupLostReasons, withUnspecified } from "@pms/shared/lib/lostReasons";
-import { HqLeadTransferCard } from "@pms/shared/components/hq/HqLeadTransferCard";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { FilterSelect } from "@pms/shared/components/filters/FilterSelect";
 
@@ -400,8 +399,7 @@ export default function HQLeadsPage() {
             rows={filtered.map(leadToCells)} getRows={exportGetRows} />
       </TopbarActions>
 
-      {/* โอนลูกค้าเป้าหมายใต้รหัส HQ ให้ดีลเลอร์ (ด่าน 1 · ใบ 0197) — HQ ไม่ขายตรง · ไม่มีลูกค้าเป้าหมายของ HQ = ไม่แสดง */}
-      <HqLeadTransferCard dealerName={c => allDealers.find(d => d.code === c)?.name ?? ""} />
+      {/* การ์ดโอนลูกค้าเป้าหมายของ HQ ให้ดีลเลอร์ เอาออกแล้ว (บอสสั่ง 18 พ.ย. 69 · ใบ 0287 ย้ายลูกค้าเป้าหมายที่ยังเปิดอยู่ใต้ HQ ไป HQD ขายตรงหมดแล้ว) */}
 
       {/* ── เจาะลึก: ทั้งเครือ › ภูมิภาค › จังหวัด › ดีลเลอร์ › เดือน (บอสสั่ง 2 พ.ย. 69) · ทุกส่วนคิดตามระดับที่เลือก · แถวรวม = การ์ด ── */}
       <DrillHeader ตั้งค่า={ตั้งค่าลีด} ข้อมูล={เจาะลึก} ขอบ={ขอบ} ตั้งขอบ={setขอบ} ช่วง={ช่วงการ์ด} ชื่อแถวการ์ด="สรุปลูกค้าเป้าหมายทั้งเครือ" />

@@ -38,6 +38,22 @@ test.afterAll(async () => {
 });
 
 const การ์ด = (page: Page, k: string) => page.locator(`[data-kpi-row] [data-kpi="${k}"] [data-value]`).first();
+/** ค่าคอลัมน์ k ทุกแถวของตารางเจาะลึก ไล่ทุกหน้า (แบ่งหน้า 10 แถว · บอสสั่ง 18 พ.ย. 69) แล้วกลับหน้าแรก — แบบเดียวกับ hq-drill-pages.spec */
+async function ค่าทุกหน้า(page: Page, k: string): Promise<number[]> {
+  const t = page.locator("[data-drill-table]");
+  const ป้ายหน้า = t.getByText(/^หน้า \d+ \/ \d+$/);
+  const อ่าน = async () => (await ป้ายหน้า.innerText()).match(/หน้า (\d+) \/ (\d+)/)!.slice(1).map(Number);
+  const ก่อน = t.getByRole("button", { name: "หน้าก่อนหน้า", exact: true }), ถัด = t.getByRole("button", { name: "หน้าถัดไป", exact: true });
+  let [หน้า, ทั้งหมด] = await อ่าน();
+  while (หน้า > 1) { await ก่อน.click(); await expect(ป้ายหน้า).toHaveText(`หน้า ${หน้า - 1} / ${ทั้งหมด}`); [หน้า, ทั้งหมด] = await อ่าน(); }
+  const ค่า: number[] = [];
+  for (let i = 1; i <= ทั้งหมด; i++) {
+    if (i > 1) { await ถัด.click(); await expect(ป้ายหน้า).toHaveText(`หน้า ${i} / ${ทั้งหมด}`); }
+    ค่า.push(...await t.locator(`tbody [data-cell="${k}"]`).evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0))));
+  }
+  for (let i = ทั้งหมด; i > 1; i--) { await ก่อน.click(); await expect(ป้ายหน้า).toHaveText(`หน้า ${i - 1} / ${ทั้งหมด}`); }
+  return ค่า;
+}
 // รายชื่อลูกค้า (ไม่ใช่ตารางเจาะลึกด้านบน)
 const แถวรายชื่อ = (page: Page) => page.locator('table[aria-label="รายชื่อลูกค้า"] tbody tr');
 
@@ -88,6 +104,7 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
   await expect.poll(async () => Number(await การ์ด(page, "new").getAttribute("data-value")), { message: "ลูกค้าใหม่ในช่วงนี้" }).toBe(คาดใหม่);
   // ระดับดีลเลอร์ = รายเดือน: ผลรวมลูกค้าใหม่รายเดือน = การ์ด (ไม่มีแถวรวมแล้ว · รวมจากแถวรายเดือน)
   await expect(page.locator("[data-drill-table] tfoot"), "ไม่มีแถวรวม").toHaveCount(0);
-  await expect.poll(async () => (await page.locator('[data-drill-table] tbody [data-cell="newc"]').evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
-    { message: "ผลรวมลูกค้าใหม่รายเดือน = การ์ด" }).toBe(คาดใหม่);
+  //   ตารางแบ่งหน้า 10 แถว (บอสสั่ง 18 พ.ย. 69 · 0f66156) — รวมทุกหน้า (ช่วงตั้งต้น 1 ปี = 13 เดือน > 1 หน้า) ไม่ใช่เฉพาะหน้าแรก
+  await expect.poll(async () => (await ค่าทุกหน้า(page, "newc")).reduce((a, b) => a + b, 0),
+    { message: "ผลรวมลูกค้าใหม่รายเดือน (ทุกหน้า) = การ์ด" }).toBe(คาดใหม่);
 });

@@ -130,8 +130,9 @@ begin
                   and drtest.msum(q, 'sales', ทุก) = drtest.sum(q, 'sales', ทุก), 'ใบ: ผลรวมรายเดือน = แถวรายดีลเลอร์ (ส่ง · ตอบรับ · มูลค่า)');
     k := kpi_cards('hq.customers', '2026-09-01', '2026-10-27', null, '2026-10-27', case when ทุก is null then null else jsonb_build_object('dealerCodes', to_jsonb(ทุก)) end);
     perform drtest.ok((k->>'total')::numeric = drtest.sum(c, 'cust', ทุก) and (k->>'new')::numeric = drtest.sum(c, 'newc', ทุก)
-                  and (k#>>'{dealers,with}')::int = (select count(*) from jsonb_array_elements(c->'dealers') r where (ทุก is null or r->>'code' = any(ทุก)) and (r->>'cust')::int > 0)
-                  and (k#>>'{dealers,of}')::int = (select count(*) from jsonb_array_elements(c->'dealers') r where ทุก is null or r->>'code' = any(ทุก)),
+                  and (k#>>'{dealers,with}')::int = (select count(*) from jsonb_array_elements(c->'dealers') r where (ทุก is null or r->>'code' = any(ทุก)) and (r->>'cust')::int > 0 and r->>'code' <> 'HQD')
+                  -- ดีลเลอร์ที่มีลูกค้า/ทั้งหมด ไม่นับ HQD ขายตรง (ใบ 0287) · ยอดลูกค้ารวมยังนับ HQD
+                  and (k#>>'{dealers,of}')::int = (select count(*) from jsonb_array_elements(c->'dealers') r where (ทุก is null or r->>'code' = any(ทุก)) and r->>'code' <> 'HQD'),
       format('ลูกค้า %s: การ์ด = ผลรวมแถวรายดีลเลอร์ (การ์ด %s)', coalesce(array_to_string(ทุก, ','), 'ทั้งเครือ'), k));
     perform drtest.ok(drtest.msum(c, 'newc', ทุก) = drtest.sum(c, 'newc', ทุก), 'ลูกค้า: ผลรวมรายเดือน = แถวรายดีลเลอร์ (ลูกค้าใหม่)');
   end loop;

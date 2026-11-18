@@ -187,7 +187,7 @@ begin
   perform flowtest.ok((a->>'monthlyTarget')::numeric = (select round(sum(revenue_target) / 12) from dealers where code <> 'HQ') and (g->>'monthlyTarget')::numeric = 3041667, 'เป้ารายเดือน = เป้าทั้งปี ÷ 12');
 
   -- ภาค
-  perform flowtest.ok((a->>'dealerCount')::int = (select count(*) from dealers where code <> 'HQ'), 'จำนวนดีลเลอร์ = ทะเบียน ไม่นับแถว HQ');
+  perform flowtest.ok((a->>'dealerCount')::int = (select count(*) from dealers where code not in ('HQ', 'HQD')), 'จำนวนดีลเลอร์ = ทะเบียน ไม่นับแถว HQ และ HQD ขายตรง (ใบ 0287)');
   perform flowtest.ok((select sum((x->>'dealers')::int) from jsonb_array_elements(a->'regions') x) = (a->>'dealerCount')::int, 'โดนัทภาครวม = จำนวนดีลเลอร์');
   perform flowtest.ok((select sum((x->>'sales')::numeric) from jsonb_array_elements(a->'regions') x) = 130000, 'ยอดตามภาครวม = ยอดขาย');
   perform flowtest.ok((g->>'dealerCount')::int = 1, 'เลือก RYG: ดีลเลอร์ 1');

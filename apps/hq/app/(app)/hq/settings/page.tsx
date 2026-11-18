@@ -1,5 +1,5 @@
 ﻿"use client";
-import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
+import { นับเป็นดีลเลอร์ } from "@pms/shared/lib/hqDealerRow";
 
 // ─── HQ · ตั้งค่า (Enterprise Administration) ──────────────────────────────────
 // แท็บแนวนอน 6 หัวข้อ (เลย์เอาต์เดียวกับหน้าตั้งค่าดีลเลอร์ /settings):
@@ -417,7 +417,7 @@ function TargetsTab() {
   const toast = useToast();
   const [dealers, setDealers] = useState<DealerRow[]>([]); // ของจริงมาจาก repo — ห้ามตั้งต้นด้วย seed
   // แถว HQ ไม่ใช่ดีลเลอร์ — ไม่นับ/ไม่แสดง (บอสตัดสิน 19 ต.ค. 69 · lib/hqDealerRow.ts)
-  const โหลดดีลเลอร์ = () => dealersRepo.list().then(l => setDealers(l.filter(ไม่ใช่แถวHQ).sort((a, b) => a.code.localeCompare(b.code)))).catch(e => logRepoRead("dealers.list", e));
+  const โหลดดีลเลอร์ = () => dealersRepo.list().then(l => setDealers(l.filter(นับเป็นดีลเลอร์).sort((a, b) => a.code.localeCompare(b.code)))).catch(e => logRepoRead("dealers.list", e));
   useEffect(() => { void โหลดดีลเลอร์(); }, []);
   // เป้ารายดีลเลอร์ที่แก้ในตาราง (ยังไม่บันทึก) — บันทึกพร้อมปุ่มบันทึกกลางของหน้าตั้งค่า
   const [แก้เป้า, setแก้เป้า] = useState<Record<string, number>>({});

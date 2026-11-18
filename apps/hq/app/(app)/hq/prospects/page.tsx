@@ -1253,7 +1253,7 @@ export default function HQProspectsPage() {
                     onChange={e => { แก้ช่องแปลง("existingCode", e.target.value); setConvErr(""); }} {...บังคับแปลง.ผูก("existingCode")} style={{ cursor: "pointer", ...บังคับแปลง.ผูก("existingCode").style }}>
                     <option value="">— เลือกดีลเลอร์ —</option>
                     {/* ปิดใช้งาน / ผูกกับรายอื่นแล้ว = เลือกไม่ได้ (เซิร์ฟเวอร์ตรวจซ้ำเสมอ) */}
-                    {dealers.filter(d => d.code !== HQ_CODE).map(d => {
+                    {dealers.filter(d => d.code !== HQ_CODE && d.code !== "HQD").map(d => {   /* HQD ขายตรง (ใบ 0287) ไม่ผูกผู้สนใจ */
                       const ผูกกับ = list.find(x => x.id !== converting.id && x.dealerCode === d.code);
                       const ปิด = d.status === "inactive";
                       return (

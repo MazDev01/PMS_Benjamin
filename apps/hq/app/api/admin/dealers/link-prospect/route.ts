@@ -30,7 +30,7 @@ export const POST = withErrors("link-prospect", async (req: NextRequest) => {
   const prospectId = Number(body?.prospectId);
   const code = String(body?.dealerCode ?? "").trim().toUpperCase();
   if (!Number.isInteger(prospectId) || prospectId <= 0) return bad(400, "ไม่พบผู้สนใจที่อ้างถึง");
-  if (!/^[A-Z]{2,5}$/.test(code) || code === HQ_CODE) return bad(400, "ต้องเลือกดีลเลอร์");
+  if (!/^[A-Z]{2,5}$/.test(code) || code === HQ_CODE || code === "HQD") return bad(400, "ต้องเลือกดีลเลอร์");   // HQD = สำนักงานใหญ่ขายตรง (ใบ 0287) ไม่ใช่ดีลเลอร์ของผู้สนใจ
 
   // ── ลูกค้าเป้าหมายต้องมีอยู่จริง และยังไม่เป็นดีลเลอร์ ──
   const { data: pr, error: prErr } = await admin.from("dealer_prospects")
