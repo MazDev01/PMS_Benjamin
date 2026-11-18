@@ -8,6 +8,17 @@ import { leadEntryDate, isLeadOpen } from "@pms/shared/lib/leadMetrics";
 
 /** ลูกค้าเป้าหมายของสาขาที่ยังไม่มีผู้รับผิดชอบ นานเกินเกณฑ์ของ "สาขาเจ้าของลูกค้าเป้าหมาย" — นับจากวันที่สร้าง
  *  ไม่ได้ขึ้นกระดิ่ง HQ แล้ว — ยังใช้เป็นตัวกรองในหน้า /hq/leads */
+/** แถวจากฐาน (leads_page) — กติกาเดียวกับการ์ดที่ฐานคิด (unassigned_leads) ตัวต่อตัว: ยังเปิดอยู่ · ไม่มีผู้รับผิดชอบ ·
+ *  วันเข้า created_date (YYYY-MM-DD จากฐาน · ไม่มี = ไม่นับ) · (วันนี้ − วันเข้า) × 24 > เกณฑ์ชั่วโมงของสาขาเจ้าของ
+ *  ใช้กับรายชื่อที่เปิดจากการ์ด "ยังไม่มีผู้รับผิดชอบ" (บอสสั่ง 18 พ.ย. 69) — จำนวนแถวต้องเท่าตัวเลขบนการ์ด */
+export function ไม่มีผู้รับผิดชอบเกินเกณฑ์ตามฐาน(l: LeadRow & { createdDate?: string | null }, ชั่วโมง: (dealerCode: string | undefined) => number, วันนี้ISO: string): boolean {
+  if (l.assigned?.trim() || !isLeadOpen(l)) return false;
+  const วัน = /^\d{4}-\d{2}-\d{2}/.exec(String(l.createdDate ?? ""))?.[0];
+  if (!วัน) return false;
+  const ห่าง = (Date.parse(`${วันนี้ISO.slice(0, 10)}T00:00:00Z`) - Date.parse(`${วัน}T00:00:00Z`)) / 86_400_000;
+  return ห่าง * 24 > ชั่วโมง(l.dealerCode);
+}
+
 export function unassignedLeads(leads: LeadRow[], rulesOf: (dealerCode: string | undefined) => LeadRules): LeadRow[] {
   return leads.filter(l => {
     if (l.assigned?.trim()) return false;
