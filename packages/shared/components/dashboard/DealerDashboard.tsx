@@ -28,7 +28,7 @@ import {
   หัวกราฟรายเดือน, เดือนตามช่วง, monthKey, monthKeyOf, ป้ายเดือนปี,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
-  apptTypeLabel, ป้ายประเภทนัด, fmtISOToThai,
+  ป้ายประเภทนัด, fmtISOToThai,
   quotationStatusLabel, quotationStatusColor, DEFAULT_DEALER_CODE, QUOTED_UP,
 } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
