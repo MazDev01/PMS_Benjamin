@@ -25,6 +25,8 @@ export const เวลาย้อน = (n, hh = 10) => new Date(`${วัน(-n
 export const ต้อง = (r, อะไร) => { if (r.error) throw new Error(`${อะไร}: ${r.error.message}`); return r.data; };
 export const หยุด = (m) => { console.error(`⛔ ${m}`); process.exit(1); };
 export const เบอร์ = (n) => `000-000-${String(n).slice(-4).padStart(4, "0")}`;
+/** เบอร์ของงานขาย (เลขลีด 99S_D_0NNN) = หลักชุด S + 3 หลักท้าย — 4 หลักท้ายตรง ๆ ชนกันข้ามชุด (996310011 กับ 996510011 → 0011 ทั้งคู่ · 19 พ.ย. 69) */
+export const เบอร์งาน = (n) => `000-000-${Math.floor(n / 100_000) % 10}${String(n % 1000).padStart(3, "0")}`;
 
 /** ตัวกันปลายทาง (ทำงานก่อนสร้างการเชื่อมต่อใด ๆ) — ลงได้เฉพาะฐาน dev ในเครื่อง: เครื่องนี้ (127.0.0.1/localhost) + พอร์ต API ของฐาน dev
  *  ฐานจริง (*.supabase.co · yhhhcrv) / ฐานทดสอบ (พอร์ต 55321) / ที่อื่นทั้งหมด = คืนข้อความปฏิเสธ · ผ่าน = คืน "" (บอสสั่ง 13 พ.ย. 69 · ข้อทดสอบ tests/tools/dev-sample-guard.test.mjs) */

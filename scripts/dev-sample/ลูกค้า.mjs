@@ -116,7 +116,7 @@ export async function สร้าง(ctx) {
       // ชื่อ/ผู้ติดต่อ/ที่อยู่สมจริง (ตัวช่วยกลาง · กุญแจ นำเข้า:สาขา:ลำดับ · เดิม "บริษัท ลูกค้าเดิมตัวอย่าง RYG-01 จำกัด")
       const company = ชื่อบริษัทสมจริง(`นำเข้า:${code}:${i}`);
       const c = await นำเข้า(ctx, s2, code, { company, name: ผู้ติดต่อสมจริง(`นำเข้า:${code}:${i}`), email: `legacy-${code.toLowerCase()}-${i}@example.test`,
-        phone: ctx.เบอร์(6000 + i), address: ที่อยู่สมจริง(`นำเข้า:${code}:${i}`, province), province, joinDate: `${2023 + i}-0${i + 2}-15` });
+        phone: ctx.เบอร์(7000 + i)   /* ชุด 7 ว่าง — 6xxx ชนเบอร์งานชุด 996_6 */, address: ที่อยู่สมจริง(`นำเข้า:${code}:${i}`, province), province, joinDate: `${2023 + i}-0${i + 2}-15` });
       นับ.นำเข้า++;
       if (i === 1) { await แนบไฟล์(ctx, s2, code, c, { name: "ใบส่งมอบงานเดิม-ตัวอย่าง.pdf", category: "อื่นๆ",
         bytes: pdf("Sample handover (dev sample data)"), ผู้อัปโหลด: "" }); นับ.ไฟล์++; }

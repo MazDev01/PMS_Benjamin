@@ -22,6 +22,7 @@ import { ค่าแถว, ค่าเดือน, มีรายเดื�
 import { แถบระดับ, ชื่อมิติ, รอข้อมูลรายเดือน, type มิติ } from "../pipeline/Drill";
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
+import { GroupedBarChart } from "@pms/shared/components/ui/Charts";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { DrillModal, ส่วนเจาะ } from "./DrillWindow";
 import { useLevelHistory } from "@pms/shared/lib/useDrillHistory";
@@ -212,6 +213,22 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
             </div>
           )}
         </BoxTitle>
+        {/* แท็บรายเดือน = กราฟแท่งแนวตั้ง (บอสสั่ง 19 พ.ย. 69 "ทำเป็นกราฟแท่ง" · เดิมแถบแนวนอนเหมือนหลอดความคืบหน้า + แถบเลื่อน)
+            เดือนเรียงซ้าย→ขวาตามช่วงวันที่ด้านบน (ไม่ตามการเรียงของตาราง) · เดือนที่เป็น 0 ยังมีช่อง · ตัวเลขบนหัวแท่ง
+            ไม่มีแถบเลื่อนแนวตั้ง · จอแคบ = เลื่อนแนวนอนในกรอบ · ตัวกราฟกลาง GroupedBarChart (SVG) ทั้ง 3 หน้า */}
+        {dim === "month" && !โหลด && มีรายเดือน(คอลัมน์แท่ง) && กลุ่ม.length > 0 ? (() => {
+          const เดือนเรียง = [...กลุ่ม].sort((a, b) => (a.เดือน?.idx ?? 0) - (b.เดือน?.idx ?? 0));
+          return (
+            <div className="card-body" data-month-bars style={{ overflowX: "auto", overflowY: "hidden" }}>
+              <div style={{ minWidth: 560 }}>
+                <GroupedBarChart months={เดือนเรียง.map(g => g.label)} vw={1000} height={300} ค่าบนแท่ง ป้ายชุด={false}
+                  คีย์แท่ง={เดือนเรียง.map(g => g.key)} fmt={v => แสดง(คอลัมน์แท่ง, v)}
+                  กดแท่ง={ขอบ.ดีลเลอร์ ? undefined : i => setแผงเดือน(เดือนเรียง[i])}
+                  series={[{ name: ป้ายแท่ง, color: PRIMARY, data: เดือนเรียง.map(ค่าแท่ง) }]} />
+              </div>
+            </div>
+          );
+        })() : (
         <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflowY: "auto" }}>
           {โหลด ? <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
             : dim === "month" && !มีรายเดือน(คอลัมน์แท่ง) ? <รอข้อมูลรายเดือน ข้อความ="ตัวเลขนี้ไม่มีรายเดือน" />
@@ -232,6 +249,7 @@ export function DrillHeader({ ตั้งค่า, ข้อมูล, ขอ�
               );
             })}
         </div>
+        )}
       </div>
 
       {/* ── ตาราง (ไม่มีแถวรวม · ตัวเลขรวมดูที่การ์ด · บอสสั่ง 6 พ.ย. 69) ── */}

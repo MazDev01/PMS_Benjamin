@@ -2,6 +2,7 @@
 // (ย้ายจากรุ่นแรกของ scripts/dev-sample-data.mjs · 28 ต.ค. 69) · เลขลีด 996_1xx_xxx (RYG) · 996_2xx_xxx (CNX) · 996_900_00x (ลีด HQ)
 //   ลีด → ขอราคา → HQ รับเรื่อง/ตีราคา/ส่งใบ → ทำใบ → ส่งใบ → ตอบรับ/ปฏิเสธ · ยกเลิกคำขอ · ขอแก้ราคา · ปิดไม่สำเร็จ · นัด · คำขอเกิน 14 วัน
 import { รายการโกดัง, สเปกโกดัง, ตัวย้อนเวลา, ชื่อบริษัทสมจริง, ผู้ติดต่อสมจริง, ที่อยู่สมจริง, หมายเหตุลีด } from "./งานขาย.mjs";
+import { เบอร์งาน } from "./ตัวช่วย.mjs";
 
 export const ชื่อ = "ขั้นทั้งหมด";
 const สาขา = [
@@ -132,7 +133,7 @@ export async function สร้าง(ctx) {
       const n = s.base + i, company = ชื่อบริษัท(s, i);
       ต้อง(await sb.from("leads").insert({
         id: `#L-${n}`, num_id: n, dealer_code: s.code, company, name: company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`),
-        phone: `000-000-${String(n).slice(-4)}`, email: `sample-${s.code.toLowerCase()}-${i + 1}@example.test`,
+        phone: เบอร์งาน(n), email: `sample-${s.code.toLowerCase()}-${i + 1}@example.test`,
         address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province), province: s.province, product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ตามสถานการณ์[i]),
         // หมายเหตุ = ความต้องการของลูกค้าแบบจริง (สถานการณ์ของรายนี้อยู่ในรายการ สถานการณ์ ด้านบน · เดิมขึ้นบนจอ "ข้อมูลตัวอย่าง: D5x …")
         note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][i % 4], assigned: ผู้รับผิดชอบ, status: "WAITING",
@@ -169,7 +170,7 @@ export async function สร้าง(ctx) {
     };
     const ส่งใบ = async (id) => ต้อง(await sb.rpc("quotation_send", { p_dealer: s.code, p_id: id }), `ส่งใบ ${id}`);
     const นัด = async (n, company, ห่างวัน, status = "upcoming") => ต้อง(await sb.from("appointments").insert({
-      id: n * 10 + (ห่างวัน < 0 ? 1 : 2), dealer_code: s.code, lead_id: n, company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`), phone: `000-000-${String(n).slice(-4)}`,
+      id: n * 10 + (ห่างวัน < 0 ? 1 : 2), dealer_code: s.code, lead_id: n, company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`), phone: เบอร์งาน(n),
       project: "โกดังเก็บสินค้า", province: s.province, date: วัน(ห่างวัน), time: "10:00", type: "visit", assigned: ผู้รับผิดชอบ, status,
       note: "นัดดูหน้างาน วัดพื้นที่จริง" }), `นัด ${company}`);
 
@@ -220,7 +221,7 @@ export async function สร้าง(ctx) {
       await จด(4);
       if (i === 12) ต้อง(await sb.rpc("close_won_quotation", { p_dealer: s.code, p_known_customer_id: null, p_lead_company: company, p_target_quote_id: id,
         p_cascade_won: false, p_customer_payload: { company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`), address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province),
-          phone: `000-000-${String(n).slice(-4)}`, province: s.province } }), "ลูกค้าตอบรับ");
+          phone: เบอร์งาน(n), province: s.province } }), "ลูกค้าตอบรับ");
       if (i === 13) ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: "ราคาสูงกว่าคู่แข่ง" }).eq("dealer_code", s.code).eq("id", id), "ลูกค้าปฏิเสธ");
     }
     // 14 D8y ปิดไม่สำเร็จ
@@ -234,7 +235,7 @@ export async function สร้าง(ctx) {
   for (const [i, จังหวัด] of ["ระยอง", "เชียงใหม่", "ชลบุรี"].entries()) {
     const n = 996_900_000 + i, company = ชื่อบริษัทสมจริง(`HQ:${n}`);
     ต้อง(await svc.from("leads").insert({ id: `#L-${n}`, num_id: n, dealer_code: "HQ", company, name: company, contact: ผู้ติดต่อสมจริง(`HQ:${n}`),
-      phone: `000-000-${String(n).slice(-4)}`, province: จังหวัด, product: "โรงงาน", source: "เว็บไซต์", status: "WAITING",
+      phone: เบอร์งาน(n), province: จังหวัด, product: "โรงงาน", source: "เว็บไซต์", status: "WAITING",
       note: "กรอกฟอร์มติดต่อผ่านเว็บไซต์ · สนใจสร้างโรงงานโครงเหล็ก ขอให้ดีลเลอร์ในพื้นที่ติดต่อกลับ",   // H6 ลีดของ HQ รอโอนให้ดีลเลอร์
       created_label: ป้ายวัน(วัน()) }), `ลีด HQ ${company}`);
   }
