@@ -370,67 +370,69 @@ function DocumentsTab() {
       </div>
       <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 22 }}>
 
-        {/* Quote number format — ดีลเลอร์ตั้งเลขลำดับ/อายุใบ/VAT เองได้ · ล็อกเฉพาะคำนำหน้าเลขที่ (ระบบออกให้) */}
-        <div>
-          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#003366", letterSpacing: "0.05em", marginBottom: 10, textTransform: "uppercase" }}>
-            เลขที่ใบเสนอราคา
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(150px, 180px) minmax(84px, 104px) minmax(84px, 104px) minmax(0, 1fr)", gap: 12, alignItems: "end" }}>
-            <div>
-              <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                คำนำหน้าเลขที่ <Lock size={11} style={{ color: "#9ca3af" }} />
-              </label>
-              <div className="form-input" data-testid="quote-prefix" style={{ fontFamily: "monospace", background: "#f8fafc", color: "#6b7280",
-                display: "flex", alignItems: "center", cursor: "not-allowed", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
-                title="รูปแบบเลขที่กำหนดโดยระบบ — แก้ไม่ได้">
-                {lockedPrefix}
+        {/* ฟอร์มตั้งค่าใบเสนอราคา (บอสสั่ง 19 พ.ย. 69 "แก้หน้าฟอร์มก่อน" · "ช่องให้ดี"): 2 กลุ่ม กริดเดียวกันทั้งฟอร์ม (auto-fill ขั้นต่ำ 170px)
+              · เลขที่ใบเสนอราคา: คำนำหน้าเลขที่ (ล็อก · ระบบออกให้) | ตัวอย่างเลขที่ถัดไป (กล่องสูงเท่าช่อง แถวเดียวกัน)
+              · ราคาและภาษี: VAT · หัก ณ ที่จ่าย · % บวกตั้งต้น · อายุใบเสนอราคา — 4 ช่องกว้างเท่ากัน แถวเดียว (จอแคบ 2×2 / เรียงลง)
+              ป้ายบรรทัดเดียวทุกช่อง · ช่องตัวเลขตัวกลางไม่มีลูกศร มีหน่วยท้ายช่อง (% / วัน)
+              เดิม: คำนำหน้า + VAT + หัก ณ ที่จ่าย + % บวก ปนแถวเดียว (VAT/หัก ณ ที่จ่ายแคบ ป้ายตกบรรทัด · % บวกยืดเต็ม) · ตัวอย่างเลขที่ห้อยใต้ · อายุใบลอยแถวถัดไป */}
+        {(() => {
+          const กริด: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12, alignItems: "end" };
+          const หัวกลุ่ม = (t: string) => <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#003366", letterSpacing: "0.05em", marginBottom: 10, textTransform: "uppercase" }}>{t}</div>;
+          const ป้าย: React.CSSProperties = { whiteSpace: "nowrap" };
+          return (
+            <>
+              <div data-doc-group="numbering">
+                {หัวกลุ่ม("เลขที่ใบเสนอราคา")}
+                <div style={กริด}>
+                  <div>
+                    <label className="form-label" style={{ ...ป้าย, display: "flex", alignItems: "center", gap: 5 }}>
+                      คำนำหน้าเลขที่ <Lock size={11} style={{ color: "#9ca3af" }} />
+                    </label>
+                    <div className="form-input" data-testid="quote-prefix" style={{ fontFamily: "monospace", background: "#f8fafc", color: "#6b7280",
+                      display: "flex", alignItems: "center", cursor: "not-allowed", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                      title="รูปแบบเลขที่กำหนดโดยระบบ — แก้ไม่ได้">
+                      {lockedPrefix}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="form-label" style={ป้าย}>ตัวอย่างเลขที่ถัดไป</div>
+                    <div className="form-input" data-testid="quote-next-no" style={{ fontFamily: "monospace", fontWeight: 800, color: "#003366", background: "#f0f4fa",
+                      borderColor: "#dce5f0", display: "flex", alignItems: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewNo}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-            {/* ช่อง "เลขลำดับถัดไป" เอาออก (บอสตัดสิน 20 ต.ค. 69): ไม่มีผล — ฐานออกเลขเอง (next_entity_id)
-                และตัวนับเลขเอกสารไม่ควรให้ใครแก้จากหน้าเว็บ */}
-            <div>
-              {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69)
-                  ใบที่ออกไปแล้วไม่กระทบ — ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง */}
-              <FieldLabel htmlFor="doc-vat" required>ภาษีมูลค่าเพิ่ม (VAT) %</FieldLabel>
-              {/* ผูกชื่อช่องไว้ด้วย — โปรแกรมอ่านหน้าจอต้องบอกได้ว่าช่องตัวเลขนี้คืออะไร
-                  (ป้ายข้างบนไม่ได้ผูกกับช่องด้วย htmlFor จึงต้องระบุที่ตัวช่องเอง) */}
-              <NumberInput id="doc-vat" ariaLabel="ภาษีมูลค่าเพิ่ม (VAT) %" min={0} max={100} step="0.01"
-                value={doc.vatPercent} onChange={n => set("vatPercent", n)}
-                style={{ fontFamily: "monospace" }} />
-            </div>
-            <div>
-              {/* ภาษีหัก ณ ที่จ่าย — ค่าตั้งต้นของสาขาเท่านั้น (บอสสั่ง 28 ส.ค. 69)
-                  ตอนออกใบยังติ๊กเปิด/ปิดและแก้อัตรารายใบได้ · ใบที่ออกไปแล้วไม่กระทบ
-                  เพราะทุกใบตรึงอัตราไว้กับตัวเองตั้งแต่วันที่ออก */}
-              <label className="form-label">ภาษีหัก ณ ที่จ่าย %</label>
-              <NumberInput ariaLabel="ภาษีหัก ณ ที่จ่าย %" min={0} max={100} step={0.5}
-                value={doc.whtPercent} onChange={n => set("whtPercent", n)}
-                style={{ fontFamily: "monospace" }} />
-            </div>
-            <div>
-              {/* % บวกตั้งต้น — ใช้ตั้งต้น % ของทุกบรรทัดตอนทำใบให้ลูกค้าจากใบ HQ (แก้รายบรรทัดได้)
-                  ตั้งได้อิสระ ไม่มีเพดาน ไม่มีขั้นต่ำ (ห้ามใส่ตัวตรวจเทียบต้นทุน) */}
-              <label className="form-label">% บวกตั้งต้น</label>
-              <NumberInput ariaLabel="% บวกตั้งต้น" step={0.5}
-                value={pct} onChange={n => setPct(n)}
-                style={{ fontFamily: "monospace" }} />
-            </div>
-            <div style={{ padding: "10px 14px", background: "#f0f4fa", borderRadius: 10, border: "1px solid #dce5f0" }}>
-              <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginBottom: 3 }}>ตัวอย่างเลขที่ถัดไป</div>
-              <div style={{ fontFamily: "monospace", fontWeight: 800, color: "#003366", fontSize: "1rem" }}>{previewNo}</div>
-            </div>
-          </div>
-          {/* ค่าเริ่มต้น: อายุใบเสนอราคา (ดีลเลอร์ตั้งได้เอง) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 200px))", gap: 12, marginTop: 14 }}>
-            <div>
-              <FieldLabel htmlFor="doc-validity" required>อายุใบเสนอราคา (วัน)</FieldLabel>
-              <NumberInput id="doc-validity" ariaLabel="อายุใบเสนอราคา (วัน)" min={1} value={doc.validityDays}
-                onChange={n => set("validityDays", n)}
-                style={{ fontFamily: "monospace" }} />
-            </div>
-            {/* ช่อง "เตือนก่อนหมดอายุ (วัน)" เอาออก 21 ต.ค. 69 — กระดิ่งเตือนใบส่งลูกค้าเหลือ 3 วันตายตัว (ใบ 0231) */}
-          </div>
-        </div>
+              <div data-doc-group="pricing">
+                {หัวกลุ่ม("ราคาและภาษี")}
+                <div data-doc-rates style={กริด}>
+                  <div data-doc-rate="vat">
+                    {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69) · ใบที่ออกไปแล้วไม่กระทบ (ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง) */}
+                    <FieldLabel htmlFor="doc-vat" required style={ป้าย}>VAT (%)</FieldLabel>
+                    <NumberInput id="doc-vat" ariaLabel="ภาษีมูลค่าเพิ่ม (VAT) %" min={0} max={100} step="0.01" หน่วย="%"
+                      value={doc.vatPercent} onChange={n => set("vatPercent", n)} />
+                  </div>
+                  <div data-doc-rate="wht">
+                    {/* ภาษีหัก ณ ที่จ่าย — ค่าตั้งต้นของสาขาเท่านั้น (บอสสั่ง 28 ส.ค. 69) · ตอนออกใบยังเปิด/ปิดและแก้อัตรารายใบได้ */}
+                    <label className="form-label" htmlFor="doc-wht" style={ป้าย}>หัก ณ ที่จ่าย (%)</label>
+                    <NumberInput id="doc-wht" ariaLabel="ภาษีหัก ณ ที่จ่าย %" min={0} max={100} step={0.5} หน่วย="%"
+                      value={doc.whtPercent} onChange={n => set("whtPercent", n)} />
+                  </div>
+                  <div data-doc-rate="markup">
+                    {/* % บวกตั้งต้น — ตั้งต้น % ของทุกบรรทัดตอนทำใบให้ลูกค้าจากใบ HQ (แก้รายบรรทัดได้) · ไม่มีเพดาน ไม่มีขั้นต่ำ (ห้ามใส่ตัวตรวจเทียบต้นทุน) */}
+                    <label className="form-label" htmlFor="doc-markup" style={ป้าย}>% บวกตั้งต้น</label>
+                    <NumberInput id="doc-markup" ariaLabel="% บวกตั้งต้น" step={0.5} หน่วย="%"
+                      value={pct} onChange={n => setPct(n)} />
+                  </div>
+                  <div data-doc-rate="validity">
+                    {/* อายุใบเสนอราคา (ดีลเลอร์ตั้งได้เอง) · ช่อง "เตือนก่อนหมดอายุ (วัน)" เอาออก 21 ต.ค. 69 — กระดิ่งเตือนเหลือ 3 วันตายตัว (ใบ 0231) */}
+                    <FieldLabel htmlFor="doc-validity" required style={ป้าย}>อายุใบเสนอราคา</FieldLabel>
+                    <NumberInput id="doc-validity" ariaLabel="อายุใบเสนอราคา (วัน)" min={1} หน่วย="วัน"
+                      value={doc.validityDays} onChange={n => set("validityDays", n)} />
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 18 }}>
           <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#003366", letterSpacing: "0.05em", marginBottom: 12,

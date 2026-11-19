@@ -14,7 +14,7 @@
 import { useState, type CSSProperties } from "react";
 
 export function NumberInput({
-  value, onChange, min, max, step, fallback, className = "form-input", style, ariaLabel, id,
+  value, onChange, min, max, step, fallback, className = "form-input", style, ariaLabel, id, หน่วย,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -27,6 +27,8 @@ export function NumberInput({
   style?: CSSProperties;
   ariaLabel?: string;
   id?: string;
+  /** หน่วยท้ายช่อง เช่น "%" "฿" "ตร.ม." (19 พ.ย. 69 · ช่องตัวเลขทุกช่องไม่มีลูกศรขึ้นลง — class number-input ใน globals.css) */
+  หน่วย?: string;
 }) {
   // null = ไม่ได้กำลังพิมพ์ → แสดงค่าจริง · string = ข้อความที่ผู้ใช้พิมพ์อยู่ (ว่างได้)
   const [ร่าง, setร่าง] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function NumberInput({
     if (max !== undefined) x = Math.min(max, x);
     return x;
   };
-  return (
+  const ช่อง = (
     <input
       id={id}
       type="number"
@@ -45,8 +47,8 @@ export function NumberInput({
       min={min}
       max={max}
       step={step}
-      className={className}
-      style={style}
+      className={`${className} number-input`}
+      style={หน่วย ? { width: "100%", paddingRight: `${0.9 + หน่วย.length * 0.55}rem`, ...style } : style}
       value={ร่าง ?? String(value)}
       onChange={e => {
         const t = e.target.value;
@@ -62,5 +64,12 @@ export function NumberInput({
         if (t !== null && t.trim() === "") onChange(fallback ?? min ?? 0);
       }}
     />
+  );
+  if (!หน่วย) return ช่อง;
+  return (
+    <span data-number-unit={หน่วย} style={{ position: "relative", display: "block" }}>
+      {ช่อง}
+      <span aria-hidden style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.78rem", fontWeight: 700, color: "#8a929c", pointerEvents: "none" }}>{หน่วย}</span>
+    </span>
   );
 }

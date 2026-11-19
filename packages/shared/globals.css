@@ -1720,3 +1720,8 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 @media (max-width: 420px) {
   .doc-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ช่องตัวเลขตัวกลาง (NumberInput) ไม่มีลูกศรขึ้นลงของเบราว์เซอร์ (บอสสั่ง 19 พ.ย. 69 "ช่องให้ดี") — พิมพ์ตัวเลขเอง */
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.number-input { -moz-appearance: textfield; appearance: textfield; }
