@@ -104,10 +104,12 @@ test("[ui·hq] ภาพรวมยอดขาย: เจาะภาค = ไ
   await expect.poll(() => ล้น(page), { message: "ระดับภูมิภาค: ไม่ล้น" }).toEqual([]);
   await เปิด(page, "/hq/pipeline");
   await เลือก(page, "ทุกดีลเลอร์", DEALER);
-  // ระดับดีลเลอร์: แถวเดียวของดีลเลอร์ (ตัวเลข = การ์ด) แต่ไม่มีคอลัมน์ดีลเลอร์ — คอลัมน์แรก "ผลงานในช่วง" · ไม่มีบรรทัดภูมิภาค
-  await expect(ผลงาน.locator("tbody tr").first(), "ระดับดีลเลอร์: แถวผลงานแถวเดียว").toBeVisible({ timeout: 30_000 });
-  await expect(ผลงาน.locator("thead th").first(), "ระดับดีลเลอร์: คอลัมน์แรกไม่ใช่ดีลเลอร์").toHaveText("ผลงานในช่วง");
-  await expect(ผลงาน.locator("thead th").filter({ hasText: /^ดีลเลอร์$/ }), "ระดับดีลเลอร์: ไม่มีหัวคอลัมน์ดีลเลอร์").toHaveCount(0);
-  await expect(ผลงาน.locator("[data-row-sub]"), "ระดับดีลเลอร์: ไม่มีบรรทัดภูมิภาค").toHaveCount(0);
+  // ระดับดีลเลอร์ (บอสสั่ง 19 พ.ย. 69 · ทับ 9 พ.ย. "แถวเดียว ผลงานในช่วง"): ไม่มีแท็บดีลเลอร์ · ตารางเป็นรายเดือน · ไม่มีคอลัมน์ดีลเลอร์/บรรทัดภูมิภาค
+  const รายเดือน = page.getByRole("table", { name: "ตารางผลงานรายเดือน", exact: true });
+  await expect(รายเดือน.locator("tbody tr").first(), "ระดับดีลเลอร์: ตารางผลงานรายเดือน").toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[role="tab"][data-dim="dealer"]'), "ระดับดีลเลอร์: ไม่มีแท็บดีลเลอร์").toHaveCount(0);
+  await expect(ผลงาน, "ระดับดีลเลอร์: ไม่มีตารางแถวเดียว").toHaveCount(0);
+  await expect(รายเดือน.locator("thead th").filter({ hasText: /^ดีลเลอร์$/ }), "ระดับดีลเลอร์: ไม่มีหัวคอลัมน์ดีลเลอร์").toHaveCount(0);
+  await expect(รายเดือน.locator("[data-row-sub]"), "ระดับดีลเลอร์: ไม่มีบรรทัดภูมิภาค").toHaveCount(0);
   await expect.poll(() => ล้น(page), { message: "ระดับดีลเลอร์: ไม่ล้น" }).toEqual([]);
 });

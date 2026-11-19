@@ -139,14 +139,6 @@ test("[ui·hq] /hq/pipeline: ทุกกราฟ/ตารางมีหั�
   await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: สาขา.รหัส });   // ช่องตัวกรองตัวกลาง (FilterSelect)
   await expect(ตาราง.locator("[data-title]").first()).toHaveText(`ตารางผลงานรายเดือน · ดีลเลอร์ ${ชื่อสาขา()}`, { timeout: 20_000 });
   await expect(page.locator("[data-testid='pipeline-funnel'] [data-title]")).toContainText(`ดีลเลอร์ ${ชื่อสาขา()}`);   // ชื่ออย่างเดียว ไม่มีรหัส (บอสสั่ง 6 พ.ย. 69)
-  // ระดับดีลเลอร์ แท็บดีลเลอร์ = แถวเดียวรวมทั้งช่วง → หัวข้อไม่มีคำ "รายเดือน" · ป้ายแถว = ช่วงวันที่จริง (ไม่ใช่ "ทั้งช่วงที่เลือก") (บอสสั่ง 19 พ.ย. 69)
-  //   ตกบนโค้ดเดิม (97a8ab9e): หัวข้อ "ตารางผลงานรายเดือน · …" ทั้งที่มีแถวเดียว · ป้ายแถว "ทั้งช่วงที่เลือก"
-  const แท็บดีลเลอร์ = กราฟ.locator('[role="tab"][data-dim="dealer"]');
-  await แท็บดีลเลอร์.click();
-  await expect(ตาราง.locator("[data-title]").first(), "แท็บดีลเลอร์ ระดับดีลเลอร์: ไม่มีคำ รายเดือน").toHaveText(`ตารางผลงาน · ดีลเลอร์ ${ชื่อสาขา()}`);
-  await expect(กราฟ.locator("[data-title]").first()).toHaveText(`กราฟยอดขาย เทียบ เป้าตามช่วง · ดีลเลอร์ ${ชื่อสาขา()}`);
-  await expect(ตาราง.locator(`td[data-perf-row="${สาขา.รหัส}"]`), "ป้ายแถว = ช่วงวันที่ด้านบน").toContainText(ป้ายช่วง(ช่วง));
-  await expect(ตาราง, "ไม่มีป้าย ทั้งช่วงที่เลือก").not.toContainText("ทั้งช่วงที่เลือก");
   expect(await กล่องที่ไม่มีหัวข้อ(page), "ระดับดีลเลอร์: ทุกกราฟ/ตารางยังมีหัวข้อ").toEqual([]);
   assertNoErrors(errs, "หัวข้อ /hq/pipeline");
 });

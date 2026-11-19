@@ -30,16 +30,16 @@ test("[ui·dealer] การ์ด KPI หน้าปฏิทินมีท�
 });
 
 // 30 ต.ค. 69 (บอสสั่งยุบหน้า /hq/pipeline ให้ตรง FLOW H12): กราฟ "ใบเสนอราคาที่ออก เทียบ ปิดการขายได้" ถูกเอาออก
-//   เหลือกราฟเดียว "ยอดขาย เทียบ เป้าตามช่วง · รายดีลเลอร์" — ตรวจแท่งของกราฟนี้แทน
-//   19 พ.ย. 69 (บอสสั่ง "ทำเป็นกราฟแท่ง"): แถบนอน .bar-grow → แท่งตั้ง SVG ตัวกลาง GroupedBarChart — โตขึ้นจากแกนล่าง (เลื่อน y/height)
+//   เหลือกราฟเดียว "ยอดขาย เทียบ เป้าตามช่วง · รายดีลเลอร์" (แท่งแนวนอน .bar-grow) — ตรวจแท่งของกราฟนี้แทน
 test("[ui·hq] กราฟผลงานดีลเลอร์ที่ /hq/pipeline มีแท่งโตขึ้นตอนเปิดหน้า", async ({ page }) => {
   await openAs(page, ADMIN, "hq", "/hq/pipeline");
   await settle(page);
   // หัวข้อกราฟใหม่ (3 พ.ย. 69 · lib/drillTitles.ts): "กราฟ<เรื่อง>แยกตาม<มิติ> · <ระดับ>"
   const กราฟ = page.locator(".card").filter({ has: page.locator(".card-title", { hasText: "กราฟยอดขาย เทียบ เป้าตามช่วง แยกตามดีลเลอร์ · ทั้งเครือ" }) }).first();
   await expect(กราฟ).toBeVisible({ timeout: 30_000 });
-  const แท่ง = กราฟ.locator("[data-pair-bars] rect[data-bar-col]").first();
+  const แท่ง = กราฟ.locator(".bar-grow").first();
   await expect(แท่ง, "กราฟต้องมีแท่งข้อมูล").toBeVisible({ timeout: 30_000 });
-  const st = await แท่ง.evaluate(el => getComputedStyle(el).transitionProperty);
-  expect(st, "แท่งกราฟต้องโตขึ้นจากเส้นฐาน (เลื่อนความสูง) ตอนเปิดหน้า").toContain("height");
+  const st = await แท่ง.evaluate(el => { const c = getComputedStyle(el); return { anim: c.animationName, origin: c.transformOrigin }; });
+  expect(st.anim, "แท่งกราฟต้องมีแอนิเมชันโตขึ้นจากเส้นฐานตอนเปิดหน้า").toBe("bar-grow");
+  expect(st.origin.startsWith("0px"), `แท่งต้องโตจากซ้าย (เส้นฐาน) — ได้ ${st.origin}`).toBe(true);
 });
