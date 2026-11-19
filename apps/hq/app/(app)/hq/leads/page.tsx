@@ -31,7 +31,7 @@ import { DEFAULT_LEAD_RULES } from "@pms/shared/lib/mock";
 import { useLeadRulesOf } from "@pms/shared/lib/useHQRules";
 import { unassignedLeads, ไม่มีผู้รับผิดชอบเกินเกณฑ์ตามฐาน } from "@pms/shared/lib/hqAlerts";
 import { lastContactLabel, needsFollowUp } from "@pms/shared/lib/leadMetrics";
-import { fmtISOToThai, type LeadRow } from "@pms/shared/lib/mock";
+import { fmtISOToThai, apptTypeLabel, ป้ายสถานะนัด, type LeadRow, type ApptType } from "@pms/shared/lib/mock";
 // ชิ้นส่วนกลางของแผงรายละเอียด — หน้าตาเดียวกันทุกหน้า (ห้ามประกาศสไตล์เองซ้ำ)
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
 import { RowPanel, ป้ายหัวแผง } from "@pms/shared/components/ui/RowPanel";
@@ -698,8 +698,8 @@ export default function HQLeadsPage() {
             tabs={[
               { key: "overview", label: "ภาพรวม" },
               { key: "activity", label: "กิจกรรม", count: l.activities?.length ?? 0 },
-              { key: "appts", label: "นัดหมาย", count: (drawerAppts ?? appointments.filter(a => a.leadId === l.numId)).length },
-              { key: "files", label: "ไฟล์แนบ", count: dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId).length },
+              { key: "appts", label: "นัดหมาย", count: (drawerAppts ?? appointments.filter(a => a.leadId === l.numId && dealerCodeOf(a) === dealerCodeOf(l))).length },
+              { key: "files", label: "ไฟล์แนบ", count: dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId && dealerCodeOf(f) === dealerCodeOf(l)).length },
             ]}
             tab={แท็บแผง} onTab={setแท็บแผง}
             footer={<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -767,7 +767,7 @@ export default function HQLeadsPage() {
 
                 {แท็บแผง === "appts" && <PanelSection icon={CalendarClock} title="ประวัตินัดหมาย" style={{ marginTop: 0 }}>
                   {(() => {
-                    const appts = drawerAppts ?? appointments.filter(a => a.leadId === l.numId);
+                    const appts = drawerAppts ?? appointments.filter(a => a.leadId === l.numId && dealerCodeOf(a) === dealerCodeOf(l));   // เลขลีดซ้ำข้ามสาขาได้ — เทียบสาขาด้วย
                     return !appts.length ? (
                       <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>— ไม่มีนัดหมาย</div>
                     ) : (
@@ -775,7 +775,12 @@ export default function HQLeadsPage() {
                         {appts.map((a, i) => (
                           <div key={a.id} style={{ padding: "9px 0", borderBottom: i === appts.length - 1 ? "none" : "1px solid #F1F5F9" }}>
                             <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.project || a.company}</div>
-                            <div style={{ fontSize: "0.66rem", color: "#64748B", marginTop: 3 }}>{fmtISOToThai(a.date)} · {a.time} · {a.assigned}</div>
+                            {/* ประเภท · สถานะ · สถานที่ · บันทึก/ผลหลังนัด (19 พ.ย. 69 · เดิมแสดงแค่หัวข้อ/วัน/ผู้รับผิดชอบ ทั้งที่มีข้อมูล) · ไม่มี = ไม่แสดงบรรทัด */}
+                            <div data-appt-meta style={{ fontSize: "0.66rem", color: "#64748B", marginTop: 3 }}>
+                              {[apptTypeLabel[a.type as ApptType] ?? a.type, ป้ายสถานะนัด(a.status), `${fmtISOToThai(a.date)} · ${a.time}`, a.assigned].filter(Boolean).join(" · ")}
+                            </div>
+                            {a.location?.trim() && <div data-appt-location style={{ fontSize: "0.66rem", color: "#64748B", marginTop: 2, overflowWrap: "anywhere" }}>สถานที่: {a.location.trim()}</div>}
+                            {a.note?.trim() && <div data-appt-note style={{ fontSize: "0.68rem", color: "#374151", marginTop: 4, background: "#F8FAFC", borderRadius: 6, padding: "5px 8px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{a.note.trim()}</div>}
                           </div>
                         ))}
                       </div>
@@ -785,7 +790,7 @@ export default function HQLeadsPage() {
 
                 {แท็บแผง === "files" && <PanelSection icon={Paperclip} title="ไฟล์แนบ" style={{ marginTop: 0 }}>
                   {(() => {
-                    const files = dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId);
+                    const files = dealerFiles.filter(f => f.source === "lead" && f.recordId === l.numId && dealerCodeOf(f) === dealerCodeOf(l));
                     return !files.length ? (
                       <div style={{ fontSize: "0.76rem", color: "#94A3B8", padding: "10px 0" }}>— ไม่มีไฟล์แนบ</div>
                     ) : (
