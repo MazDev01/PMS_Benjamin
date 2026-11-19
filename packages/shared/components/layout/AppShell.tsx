@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-import { FilterProvider } from "@pms/shared/context/FilterContext";
+import { FilterProvider, ALL } from "@pms/shared/context/FilterContext";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useImpersonating, clearImpersonation } from "@pms/shared/lib/useImpersonating";
 import { useSales } from "@pms/shared/context/SalesContext";
@@ -143,6 +143,20 @@ function ImpersonationBanner() {
 export function AppShell({ children, notice }: { children: React.ReactNode; notice?: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
+  // กดเมนูของหน้าที่อยู่ = รีเซ็ตหน้าเป็นค่าตั้งต้น (บอสสั่ง 19 พ.ย. 69): ระดับเจาะลึก/แท็บ/ตัวเลือกดีลเลอร์-ภาค-จังหวัด/แผงที่เปิด กลับค่าตั้งต้น
+  //   ช่วงเวลาด้านบนคงไว้ · ล้างตัวเลือกอื่นในที่เก็บตัวกรองของหน้า · ตัดคำค้นใน URL (?open=…) · เปลี่ยน key → หน้า mount ใหม่ทั้งหน้า
+  //   ปุ่มย้อนกลับของเบราว์เซอร์ยังถอยระดับได้ (รายการประวัติระดับเดิมยังอยู่ · useLevelHistory)
+  const [รอบเมนู, setรอบเมนู] = useState(0);
+  const รีเซ็ตหน้า = () => {
+    for (const คีย์ of [`bpms_filters:${pathname}`, "bpms_global_filters"]) {
+      try {
+        const raw = sessionStorage.getItem(คีย์);
+        if (raw) sessionStorage.setItem(คีย์, JSON.stringify({ ...JSON.parse(raw), dealer: ALL, province: ALL, status: ALL, person: ALL }));
+      } catch { /* ไม่มีที่เก็บ = ไม่มีอะไรค้าง */ }
+    }
+    if (window.location.search || window.location.hash) window.history.replaceState(window.history.state, "", pathname);
+    setรอบเมนู(n => n + 1);
+  };
   // ล้างรายชื่อดีลเลอร์รุ่นเก่าที่ค้างในเครื่อง (ดู HQ_DEALERS_KEY ใน mock.ts) — ทำครั้งเดียวตอนเข้าแอป
   useEffect(() => { purgeOldDealerKeys(); }, []);
   // ข้อความในตารางที่ถูกตัดด้วย … ชี้แล้วเห็นเต็ม — ตัวกลางเดียวทุกตาราง (บอสสั่ง 10 พ.ย. 69)
@@ -152,7 +166,7 @@ export function AppShell({ children, notice }: { children: React.ReactNode; noti
   const { isHQ } = useRole(); // เมนู HQ ชื่อยาวกว่า (แดชบอร์ดสำนักงานใหญ่ / ใบเสนอราคาทั้งเครือ) → ขยายแถบข้าง
   return (
     <div className={`app${isHQ ? " app-hq" : ""}`}>
-      <Sidebar mobileOpen={navOpen} onNavigate={() => setNavOpen(false)} />
+      <Sidebar mobileOpen={navOpen} onNavigate={() => setNavOpen(false)} onSamePage={รีเซ็ตหน้า} />
       {navOpen && <div className="nav-overlay" onClick={() => setNavOpen(false)} />}
       <div className="main">
         <Topbar onMenu={() => setNavOpen(o => !o)} />
@@ -162,7 +176,7 @@ export function AppShell({ children, notice }: { children: React.ReactNode; noti
         {notice}
         {/* ตัวกรองแยกอิสระต่อหน้า — key+storageKey ต่อ pathname (เปลี่ยนหน้า A ไม่กระทบหน้า B) */}
         <div className="content">
-          <FilterProvider key={pathname} storageKey={`bpms_filters:${pathname}`}>
+          <FilterProvider key={`${pathname}#${รอบเมนู}`} storageKey={`bpms_filters:${pathname}`}>
             {children}
           </FilterProvider>
         </div>

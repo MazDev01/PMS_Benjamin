@@ -17,7 +17,8 @@ import { useDealerDisplayName } from "@pms/shared/lib/useCurrentDealer";
 import { useAuthReady } from "@pms/shared/lib/useAuthReady";
 import { HQ_NAV, DEALER_NAV, isActiveHref } from "./navConfig";
 
-export function Sidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boolean; onNavigate?: () => void } = {}) {
+/** onSamePage = กดเมนูของหน้าที่อยู่ (ที่อยู่ตรงกับเมนูพอดี) → เชลล์รีเซ็ตหน้าเป็นค่าตั้งต้น (บอสสั่ง 19 พ.ย. 69 · ระดับเจาะลึกกลับ "ทั้งเครือ") */
+export function Sidebar({ mobileOpen = false, onNavigate, onSamePage }: { mobileOpen?: boolean; onNavigate?: () => void; onSamePage?: () => void } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { isHQ, session, logout } = useRole();
@@ -65,7 +66,7 @@ export function Sidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boole
                 {g.items.map(item => {
                   const active = isActiveHref(pathname, item.href);
                   return (
-                    <Link key={item.href} href={item.href} onClick={onNavigate} className={`nav-item nav-flat${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
+                    <Link key={item.href} href={item.href} onClick={() => { onNavigate?.(); if (pathname === item.href) onSamePage?.(); }} data-nav-href={item.href} className={`nav-item nav-flat${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
                       {item.icon}
                       <span style={{ flex: 1 }}>{item.label}</span>
                       {item.badge ? <span className="badge-mini">{item.badge}</span> : null}
@@ -81,7 +82,7 @@ export function Sidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boole
               {g.items.map(item => {
                 const active = isActiveHref(pathname, item.href);
                 return (
-                  <Link key={item.href} href={item.href} onClick={onNavigate} className={`nav-item${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
+                  <Link key={item.href} href={item.href} onClick={() => { onNavigate?.(); if (pathname === item.href) onSamePage?.(); }} data-nav-href={item.href} className={`nav-item${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
                     {item.icon}
                     <span style={{ flex: 1 }}>{item.label}</span>
                     {item.badge ? <span className="badge-mini">{item.badge}</span> : null}
