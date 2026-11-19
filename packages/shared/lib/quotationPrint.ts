@@ -9,7 +9,9 @@ import { loadHQPolicy, fmtISOToThai, type IssuerProfile, type QuotationMock } fr
 import { คิดภาษีใบเสนอราคา } from "./quoteTax";
 import { คลาสของชนิด, จัดรูปจำนวน, จัดรูปหน่วย, type ชนิดคอลัมน์ } from "./lineItemColumns";
 
-export type DocProfile = { stamp: string; signature: string; vatPercent: number; quotePrefix: string; runningNumber: number; termsAndConditions?: string; validityDays?: number };
+export type DocProfile = { stamp: string; signature: string; vatPercent: number; quotePrefix: string; runningNumber: number; termsAndConditions?: string; validityDays?: number;
+  /** หัว/ท้ายเอกสาร (ตั้งค่าดีลเลอร์ › เอกสาร · 19 พ.ย. 69 เดิมบันทึกแล้วไม่พิมพ์) — หัว = ใต้ข้อมูลบริษัท · ท้าย = ก่อนลายเซ็น · ว่าง = ไม่พิมพ์ */
+  header?: string; footer?: string };
 // quotePrefix เป็นแค่ป้ายนำหน้า — รหัสสาขา+ปี+เลขรันต่อท้ายเสมอที่ฝั่งสร้างใบ (ดู DEFAULT_QUOTE_NUMBERING)
 export const DEFAULT_DOC: DocProfile = { stamp: "", signature: "", vatPercent: 7, quotePrefix: "Q-", runningNumber: 1001, termsAndConditions: "", validityDays: 30 };
 export const DOC_KEY = "dealer_document_settings";
@@ -113,6 +115,8 @@ table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical
 .sign .line{border-top:1px dotted #999;margin-top:44px;padding-top:6px;font-size:11px;color:#555;line-height:1.5}
 .sign .sig{display:block;max-height:48px;max-width:150px;object-fit:contain;margin:0 auto 2px}
 .sign .stamp{position:absolute;right:8px;bottom:18px;max-height:72px;max-width:72px;object-fit:contain;opacity:.9}
+.doc-header{margin-top:8px;font-size:11px;color:#374151;white-space:pre-line;max-width:360px}
+.doc-footer{margin-top:14px;font-size:11px;color:#374151;white-space:pre-line;text-align:center}
 .bar{margin-top:6px;font-size:10px;color:#9ca3af;text-align:center}
 @media print{@page{size:A4;margin:0}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sheet{margin:0;box-shadow:none}}
 </style></head><body>
@@ -122,6 +126,7 @@ table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical
       ${/* Constitution V2 · Branding: ดีลเลอร์อัปโหลดโลโก้เองไม่ได้ → หัวเอกสารใช้ "ชื่อบริษัทดีลเลอร์" เป็นข้อความเท่านั้น (ไม่มีชื่อ/โลโก้ Benjamin) */""}
       <div class="issuer-name">${esc(issuer.company)}</div>
       <div class="issuer-meta">${esc(issuerMeta)}</div>
+      ${(doc.header ?? "").trim() ? `<div class="doc-header" data-doc-header>${esc((doc.header ?? "").trim())}</div>` : ""}
     </div>
     <div class="doc-title">
       <h1>ใบเสนอราคา</h1>
@@ -162,6 +167,7 @@ table.items td{padding:10px;border-bottom:1px solid #eee;font-size:12px;vertical
     <div class="line grand"><span>ยอดชำระสุทธิ</span><span>฿${n(ภาษี.netPayable)}</span></div>
   </div>
   ${termsHTML}
+  ${(doc.footer ?? "").trim() ? `<div class="doc-footer" data-doc-footer>${esc((doc.footer ?? "").trim())}</div>` : ""}
   <div class="signs">
     <div class="sign">
       ${doc.signature ? `<img class="sig" src="${esc(doc.signature)}" alt="ลายเซ็น"/>` : ""}

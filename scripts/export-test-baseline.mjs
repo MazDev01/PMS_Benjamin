@@ -44,9 +44,15 @@ const ผู้ออกเอกสาร = code => ({ company: `บริษ�
 // ── อ่าน + แทนค่า ─────────────────────────────────────────────────────────────────────────────────────
 const NZ = "dealer_code not like 'Z%'";
 const dealers = อ่าน("dealers", "code not like 'Z%'", "code").map(d => ({ ...d, name: `ดีลเลอร์ทดสอบ ${d.code}` }));
+// คีย์เอกสารรุ่นเก่า (vat/terms/prefix/running) → คีย์ที่แอปอ่าน (vatPercent/termsAndConditions/quotePrefix/runningNumber · 19 พ.ย. 69)
+//   ฐานทดสอบเดิมเก็บคีย์เก่าที่แอปไม่อ่าน (เงื่อนไขในใบพิมพ์ว่าง) · ฐานจริงไม่มีคีย์เก่า (นับ 19 พ.ย. 69: 0 จาก 156) · คีย์ใหม่ที่มีอยู่แล้วชนะ
+const คีย์เอกสารใหม่ = { vat: "vatPercent", terms: "termsAndConditions", prefix: "quotePrefix", running: "runningNumber" };
+const แปลงคีย์เอกสาร = (doc) => Object.fromEntries(Object.entries(doc)
+  .filter(([k]) => !(k in คีย์เอกสารใหม่ && คีย์เอกสารใหม่[k] in doc))
+  .map(([k, v]) => [คีย์เอกสารใหม่[k] ?? k, v]));
 const dealer_settings = อ่าน("dealer_settings", NZ, "dealer_code").map(s => ({
   ...s, issuer: ผู้ออกเอกสาร(s.dealer_code), logo: แทนถ้ามี(s.logo, ""), wordmark: แทนถ้ามี(s.wordmark, `ดีลเลอร์ทดสอบ ${s.dealer_code}`),
-  document: s.document && Object.fromEntries(Object.entries(s.document).map(([k, v]) =>
+  document: s.document && Object.fromEntries(Object.entries(แปลงคีย์เอกสาร(s.document)).map(([k, v]) =>
     ["header", "footer", "terms", "termsAndConditions"].includes(k) ? [k, แทนถ้ามี(v, `ข้อความเอกสารทดสอบ ${s.dealer_code}`)]
       : ["signature", "stamp"].includes(k) ? [k, แทนถ้ามี(v, "")] : [k, v])),
 }));

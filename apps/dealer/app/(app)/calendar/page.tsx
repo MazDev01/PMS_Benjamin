@@ -482,6 +482,13 @@ function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, cust
                 <span style={{ minWidth: 0 }}>{val}</span>
               </div>
             ))}
+            {/* สถานที่นัด (ช่อง "สถานที่" ของฟอร์มนัดใหม่ · 19 พ.ย. 69 เดิมบันทึกแล้วไม่มีที่แสดง) · ไม่มี = ไม่แสดงบรรทัด */}
+            {a.location?.trim() && (
+              <div data-appt-location style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "0.8rem", color: "#2D2D2D" }}>
+                <span style={{ color: MUTED, flexShrink: 0, display: "flex" }}><MapPin size={13} /></span>
+                <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>สถานที่: {a.location.trim()}</span>
+              </div>
+            )}
             {a.note && (
               <div style={{ fontSize: "0.72rem", color: MUTED, background: "#f4f6f9", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "10px 12px", marginTop: 2 }}>{a.note}</div>
             )}
@@ -729,6 +736,7 @@ function ApptRow({ a, showDate, groupColor, onOpen }: { a: AppointmentMock; show
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Clock size={10} /> {showDate ? `${parseInt(a.date.split("-")[2])}/${parseInt(a.date.split("-")[1])} · ` : ""}{a.time} น.</span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><MapPin size={10} /> {a.province}</span>
         </div>
+        {a.location?.trim() && <div className="activity-meta" data-appt-location style={{ marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.location.trim()}>สถานที่: {a.location.trim()}</div>}
       </div>
     </div>
   );
