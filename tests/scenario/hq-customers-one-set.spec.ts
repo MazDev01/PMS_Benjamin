@@ -107,6 +107,6 @@ test("[H·hq] ลูกค้าทั้งเครือ: การ์ด 3 �
   const กราฟ = page.locator("[data-drill-chart]");
   await expect(กราฟ, "ระดับดีลเลอร์มีกราฟรายเดือน").not.toContainText("ตัวเลขนี้ไม่มีรายเดือน");
   await expect(กราฟ, "ชื่อกราฟบอกว่าเป็นลูกค้าใหม่").toContainText("กราฟลูกค้าใหม่รายเดือน");
-  expect((await กราฟ.locator("[data-bar-row]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
+  expect((await กราฟ.locator("[data-month-bars] rect[data-bar-col]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-value") || 0)))).reduce((a, b) => a + b, 0),
     "ระดับดีลเลอร์: ผลรวมแท่งลูกค้าใหม่รายเดือน = การ์ด").toBe(คาดใหม่);
 });

@@ -706,13 +706,21 @@ export function LineTrendChart({
  *  เอามาซ้อนแล้วยอดรวมจะไม่มีความหมาย) · ถ้าชุดข้อมูลบวกกันแล้วได้ยอดรวมจริง ให้ใช้ StackedBarChart
  *  series[i].data ต้องเรียงตรงกับ months · vw = ความกว้าง viewBox (ลดลงเมื่ออยู่ในการ์ดแคบ) */
 export function GroupedBarChart({
-  months, series, fmt = v => `${Math.round(v)}`, height = 340, vw = 1180,
+  months, series, fmt = v => `${Math.round(v)}`, height = 340, vw = 1180, ค่าบนแท่ง = false, กดแท่ง, คีย์แท่ง, ป้ายชุด = true,
 }: {
   months: string[];
   series: { name: string; color: string; data: number[] }[];
   fmt?: (v: number) => string;
   height?: number;
   vw?: number;
+  /** ตัวเลขบนหัวแท่งทุกแท่งตลอด (ไม่ต้องชี้) — กราฟรายเดือนหน้าเจาะลึก (บอสสั่ง 19 พ.ย. 69 "ทำเป็นกราฟแท่ง") */
+  ค่าบนแท่ง?: boolean;
+  /** กดช่องของเดือน i (เช่น เปิดรายดีลเลอร์ของเดือน) — ไม่ใส่ = กดไม่ได้ */
+  กดแท่ง?: (i: number) => void;
+  /** คีย์ของแต่ละช่อง → data-bar-col บนแท่ง (ข้อทดสอบอ่านค่า/ตำแหน่งแท่ง) */
+  คีย์แท่ง?: string[];
+  /** แถบชื่อชุดข้อมูลใต้กราฟ — ชุดเดียวที่ชื่ออยู่ในหัวข้อแล้ว ปิดได้ */
+  ป้ายชุด?: boolean;
 }) {
   const [drawn, setDrawn] = useState(false);
   const [hover, setHover] = useState<number | null>(null);
@@ -754,7 +762,8 @@ export function GroupedBarChart({
           const gx = pL + band * i + band / 2 - groupW / 2;
           const isHover = hover === i;
           return (
-            <g key={`${i}-${m}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            <g key={`${i}-${m}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
+              onClick={กดแท่ง ? () => กดแท่ง(i) : undefined} style={กดแท่ง ? { cursor: "pointer" } : undefined}>
               {/* hit area — ชี้ที่ไหนก็ได้ในเดือนนั้น แล้วโชว์ตัวเลขทุกแท่ง */}
               <rect x={pL + band * i} y={pT} width={band} height={cH} fill="transparent" />
               {series.map((ser, si) => {
@@ -764,12 +773,12 @@ export function GroupedBarChart({
                 return (
                   <g key={ser.name}>
                     {/* แท่งค่า 0 ยังวาดเป็นขีดบาง ๆ ให้เห็นว่าเดือนนั้นมีชุดข้อมูลนี้แต่เป็นศูนย์ */}
-                    <rect x={x + bw * 0.12} y={drawn ? bottomY - Math.max(h, val > 0 ? 2 : 1.5) : bottomY}
+                    <rect data-bar-col={คีย์แท่ง?.[i]} data-bar-series={ser.name} data-value={val} x={x + bw * 0.12} y={drawn ? bottomY - Math.max(h, val > 0 ? 2 : 1.5) : bottomY}
                       width={bw * 0.76} height={drawn ? Math.max(h, val > 0 ? 2 : 1.5) : 0}
                       rx={3} fill={ser.color} opacity={val > 0 ? (hover === null || isHover ? 1 : 0.45) : 0.22}
                       style={{ transition: "y .7s cubic-bezier(.4,0,.2,1), height .7s cubic-bezier(.4,0,.2,1), opacity .15s" }} />
-                    {isHover && (
-                      <text x={x + bw / 2} y={bottomY - h - 7} textAnchor="middle" fontSize={fs - 1} fontWeight="800" fill={ser.color}>{fmt(val)}</text>
+                    {(isHover || ค่าบนแท่ง) && (
+                      <text data-bar-label={คีย์แท่ง?.[i]} x={x + bw / 2} y={bottomY - h - 7} textAnchor="middle" fontSize={fs - 1} fontWeight="800" fill={ser.color}>{fmt(val)}</text>
                     )}
                   </g>
                 );
@@ -779,6 +788,7 @@ export function GroupedBarChart({
           );
         })}
       </svg>
+      {ป้ายชุด && (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginTop: 14, paddingTop: 12, borderTop: "1px solid #f0f4f8" }}>
         {series.map(ser => (
           <span key={ser.name} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.72rem", color: STEEL }}>
@@ -787,6 +797,7 @@ export function GroupedBarChart({
           </span>
         ))}
       </div>
+      )}
     </div>
   );
 }
