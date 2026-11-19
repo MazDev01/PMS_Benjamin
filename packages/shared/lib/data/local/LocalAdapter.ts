@@ -2,6 +2,7 @@
 
 // LocalAdapter — ห่อ loader / localStorage เดิม (mock.ts, useAudit.ts) โดยไม่แก้ของเดิม
 // เป็น adapter เริ่มต้น (NEXT_PUBLIC_DATA_SOURCE=local) · พฤติกรรมเท่าเดิม แค่รวมเข้าท่อเดียว
+import { ประกอบเส้นเวลา } from "../../customerTimeline";
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";
 import { แดชบอร์ดHQว่าง } from "../../hqDashboard";
 import { applyLeadIntent } from "@pms/shared/lib/leadIntent";
@@ -1290,6 +1291,22 @@ export const LocalAdapter: DataAdapter = {
       return ok(row);
     },
     // โหมด local เครื่องเดียว → คำนวณจากอาร์เรย์ในเครื่องตรง ๆ พอ (ไม่มี race ข้าม session จริงแบบ supabase)
+    // เส้นเวลาของลูกค้า (โหมดเครื่องเดียว) — ประกอบจากอาร์เรย์ในเครื่องด้วยตัวกลางเดียวกับฐาน (ไม่มีคำขอราคาในโหมดนี้)
+    timeline: (dealerCode, customerId) => {
+      const ของสาขา = <T extends { dealerCode?: string }>(xs: T[]) => xs.filter(x => (x.dealerCode ?? DEFAULT_DEALER_CODE) === dealerCode);
+      const c = ของสาขา(readKey<CustomerRow[]>(SALES.customers, initialCustomers)).find(x => x.id === customerId);
+      const ใบ = new Set(ของสาขา(readKey<QuotationMock[]>(SALES.quotations, quoteSeed)).filter(q => q.customerId === customerId && q.dealId != null).map(q => Number(q.dealId)));
+      const ลีด = ของสาขา(readKey<LeadRow[]>(SALES.leads, leadSeed)).filter(l => l.customerId === customerId || ใบ.has(l.numId));
+      const เลข = new Set(ลีด.map(l => l.numId));
+      return ok(ประกอบเส้นเวลา({
+        ลูกค้า: c ? { created_at: (c as { createdAt?: string }).createdAt ?? null } : null,
+        ลีด: ลีด.map(l => ({ num_id: l.numId, company: l.company, project: l.project, created_at: (l as { createdAt?: string }).createdAt ?? null, activities: l.activities })),
+        คำขอ: [],
+        นัด: ของสาขา(readKey<AppointmentMock[]>(SALES.appointments, apptSeed)).filter(a => a.leadId != null && เลข.has(a.leadId))
+          .map(a => ({ lead_id: a.leadId, project: a.project, date: a.date, time: a.time, type: a.type, status: a.status, note: a.note })),
+        บันทึก: ของสาขา(readKey<CustomerNote[]>(NOTES_KEY, [])).filter(n => n.customerId === customerId).map(n => ({ title: n.title, author: n.author, created_at: n.createdAt })),
+      }));
+    },
     reconcileWonTotal: (customerId) => {
       const custs = readKey<CustomerRow[]>(SALES.customers, initialCustomers);
       const quotes = readKey<QuotationMock[]>(SALES.quotations, quoteSeed);

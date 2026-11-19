@@ -1,5 +1,6 @@
 import type { LeadIntent } from "../leadIntent";
 import type { HqOverview } from "../hqOverview";
+import type { เหตุการณ์ลูกค้า } from "../customerTimeline";
 import type { HqDashboard } from "../hqDashboard";
 // Ports — สัญญา (interface) ที่ทุก adapter ต้องมี
 // context/hook เรียกผ่าน repository เหล่านี้เท่านั้น · เบื้องหลังสลับ adapter ได้
@@ -694,6 +695,8 @@ export interface CustomersRepo {
   // รวมยอดลูกค้าใหม่จากใบ won ปัจจุบันตรงจาก DB (ไม่รับผลรวมจาก client) — กัน race ตอนแก้ 2 ใบพร้อมกัน (0078)
   // supabase: subquery SUM ในสเตตเมนต์ UPDATE เดียว ที่ DB · local: คำนวณจากอาร์เรย์ในเครื่อง (ไม่มี race จริง)
   reconcileWonTotal(customerId: number): Promise<CustomerRow>;
+  /** เส้นเวลาของลูกค้า (ทุกงานของลูกค้า ใหม่สุดก่อน · เฉพาะเหตุการณ์ที่ระบบบันทึกจริง · lib/customerTimeline) — บอสสั่ง 19 พ.ย. 69 */
+  timeline(dealerCode: string, customerId: number): Promise<เหตุการณ์ลูกค้า[]>;
   /** ปิดการขายสำเร็จแบบ atomic ทั้งก้อน (Phase 4, 0094) — หา/สร้างลูกค้า + relink ใบกำพร้าของบริษัทนี้
    *  (cascade เป็น won ด้วยถ้า cascadeWon) + บังคับใบเป้าหมายเป็น won (ถ้าระบุ targetQuoteId) + รวมยอดใหม่
    *  ในทรานแซกชันเดียว — แทนที่ upsertForCompany + relink แยก + setStatus แยก + reconcile แยก (4 คำสั่งเขียน

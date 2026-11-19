@@ -75,6 +75,7 @@ import { ตารางรายการ } from "@pms/shared/components/ui/Lin
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 import { PurchaseHistory, JobAttachments } from "@pms/shared/components/ui/PurchaseHistory";
+import { CustomerTimeline } from "@pms/shared/components/ui/CustomerTimeline";
 import { พื้นที่จากข้อความ } from "@pms/shared/lib/purchaseArea";
 import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 import { แถบสรุปเอกสาร } from "@pms/shared/components/ui/DocDetailParts";
@@ -411,7 +412,7 @@ export default function CustomersPage(){
   const [sortKey, setSortKey]         = useState<SortKey|null>(null);
   const [sortDir, setSortDir]         = useState<SortDir>("asc");
   const [selected, setSelected]       = useState<CustomerRow|null>(null);
-  const [custTab, setCustTab]         = useState<"overview"|"purchases"|"deals">("overview"); // แท็บ detail
+  const [custTab, setCustTab]         = useState<"overview"|"purchases"|"timeline"|"deals">("overview"); // แท็บ detail
   // (โหมดอ่าน/แก้ไขถูกถอดแล้ว — การ์ดข้อมูลลูกค้าแก้ในที่เดิมได้ตลอด · CustomerOverviewEditor reseed เองเมื่อสลับลูกค้า)
   useEffect(() => { setCustTab("overview"); }, [selected?.id]);
   const [page, setPage]               = useState(1);
@@ -1080,7 +1081,7 @@ export default function CustomersPage(){
             {/* Tab bar — ภาพรวม / ดีล / ใบเสนอราคา / ไทม์ไลน์ (มาตรฐานเดียวกับหน้าลูกค้าเป้าหมาย) */}
             <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb", background:"#fff", flexShrink:0, padding:"0 8px" }}>
               {/* 2 แท็บ: ข้อมูลลูกค้า (มีตารางประวัติการปิดการขาย) · เพิ่มงานขายใหม่ (ดีลของลูกค้ารายนี้ + ปุ่มสร้าง) */}
-              {([["overview","ข้อมูลลูกค้า"],["purchases",`ประวัติการซื้อ (${purchasedRows.length})`],["deals","เพิ่มงานขายใหม่"]] as ["overview"|"purchases"|"deals",string][]).map(([k,label])=>(
+              {([["overview","ข้อมูลลูกค้า"],["purchases",`ประวัติการซื้อ (${purchasedRows.length})`],["timeline","ประวัติ"],["deals","เพิ่มงานขายใหม่"]] as ["overview"|"purchases"|"timeline"|"deals",string][]).map(([k,label])=>(
                 <button key={k} onClick={()=>setCustTab(k)}
                   style={{ padding:"11px 14px", border:"none", borderBottom:`2px solid ${custTab===k?PRIMARY:"transparent"}`, background:"transparent", cursor:"pointer", fontFamily:"inherit", fontSize:"0.8rem", fontWeight:custTab===k?800:600, color:custTab===k?PRIMARY:"#6b7280", marginBottom:-1 }}>{label}</button>
               ))}
@@ -1224,6 +1225,13 @@ export default function CustomersPage(){
               <div style={{ padding:16, display:custTab==="purchases"?"flex":"none", flexDirection:"column", gap:14 }}>
                 <PurchaseHistory ใบ={purchasedRows} ฝั่ง="dealer" เปิด={q => setViewProject({ q })} />
               </div>
+
+              {/* ── ประวัติ (บอสสั่ง 19 พ.ย. 69) — เส้นเวลาทุกงานของลูกค้า ตัวกลาง CustomerTimeline เดียวกับ HQ · โหลดเมื่อเปิดแท็บ ── */}
+              {custTab==="timeline" && (
+                <div style={{ padding:16, display:"flex", flexDirection:"column", gap:14 }}>
+                  <CustomerTimeline dealerCode={currentDealer.code} customerId={selected.id} />
+                </div>
+              )}
 
               <div style={{ padding:16, display:custTab==="deals"?"flex":"none", flexDirection:"column", gap:14 }}>
                 {/* ตารางประวัติการปิดการขายอยู่ในแท็บ "ข้อมูลลูกค้า" ที่เดียว (บอสสั่งไม่ให้ซ้ำที่นี่)
