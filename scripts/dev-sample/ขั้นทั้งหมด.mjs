@@ -136,7 +136,7 @@ export async function สร้าง(ctx) {
         phone: เบอร์งาน(n), email: `sample-${s.code.toLowerCase()}-${i + 1}@example.test`,
         address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province), province: s.province, product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ตามสถานการณ์[i]),
         // หมายเหตุ = ความต้องการของลูกค้าแบบจริง (สถานการณ์ของรายนี้อยู่ในรายการ สถานการณ์ ด้านบน · เดิมขึ้นบนจอ "ข้อมูลตัวอย่าง: D5x …")
-        note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][i % 4], assigned: ผู้รับผิดชอบ, status: "WAITING",
+        note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["แนะนำต่อ", "เว็บไซต์", "Facebook", "LINE", "ลูกค้าเข้ามาเอง", "งานแสดงสินค้า"][i % 6], assigned: ผู้รับผิดชอบ, status: "WAITING",
         created_label: ป้ายวัน(วัน(-เส้นเวลา[i][0])),
       }), `สร้างลีด ${company}`);
       return { n, company };
@@ -257,7 +257,7 @@ export async function สร้าง(ctx) {
     // ชื่อบนโซเชียล: 4 ใน 6 รายมี (ทักมาทางเพจ/ไลน์) · ที่เหลือว่าง = "—" แบบจริง
     const r = ต้อง(await hq.from("dealer_prospects").insert({ name: `${ผู้ติดต่อสมจริง(`ผู้สนใจ:${i}`)} (ตัวอย่าง)`, province, status,
       social: [`เพจ ${province}วัสดุก่อสร้าง`, null, `LINE ${province} โฮมเซ็นเตอร์`, `เพจ ช่างเหล็ก${province}`, null, `LINE ร้านเหล็ก${province}`][i] ?? null,
-      phone: `000-000-${String(8000 + i)}`, email: `sample-prospect-${i + 1}@example.test`, channel: "งานแสดงสินค้า", first_contact: วัน(-14 - i * 3),
+      phone: `000-000-${String(8000 + i)}`, email: `sample-prospect-${i + 1}@example.test`, channel: ["Facebook", "LINE OA", "แนะนำต่อ", "โทรเข้ามาเอง"][i % 4], first_contact: วัน(-14 - i * 3),
       note: หมายเหตุผู้สนใจ[status], ...(status === "lost" ? { lost_reason: "ยังไม่พร้อมลงทุน" } : {}),
       follow_up: ติดตาม == null ? null : วัน(ติดตาม) }).select("id").single(), `ผู้สนใจ ${status}`);
     pid[status] = r.id;
