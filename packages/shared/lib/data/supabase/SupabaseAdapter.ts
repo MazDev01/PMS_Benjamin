@@ -3,6 +3,7 @@
 // SupabaseAdapter — เชื่อม repository ทุกตัวเข้ากับตาราง Supabase (เฟส B)
 // map ตาราง ↔ type ตาม BACKEND-DESIGN.md · ขอบเขตข้อมูล (dealer_code) บังคับด้วย RLS ที่ DB
 // แปลง snake_case (DB) ↔ camelCase (type) ด้วย mappers.ts
+import { อ่านเส้นเวลาลูกค้า } from "../../customerTimeline";
 import { ตัวกรองวันใบ } from "@pms/shared/lib/salesDate";
 import { leadIntentToWire } from "@pms/shared/lib/leadIntent";
 import { เตรียมบันทึกใบ } from "@pms/shared/lib/dealerProposals";
@@ -1391,6 +1392,7 @@ export const SupabaseAdapter: DataAdapter = {
       return normalizeCustomer(toCamel<CustomerRow>(data as Row));
     },
     // รวมยอด won ที่ DB ตรง ๆ (0078) — กัน race ตอนแก้สถานะ 2 ใบพร้อมกันจาก 2 session
+    timeline: (dealerCode, customerId) => withNetworkRetry(() => อ่านเส้นเวลาลูกค้า(sb(), dealerCode, customerId)),
     reconcileWonTotal: (customerId) => withNetworkRetry(async () => {
       const { data, error } = await sb().rpc("reconcile_customer_won_total", { p_customer_id: customerId });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);

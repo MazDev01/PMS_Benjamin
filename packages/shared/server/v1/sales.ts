@@ -15,6 +15,7 @@
 //    ผู้เรียกเติมมาให้แล้ว เซิร์ฟเวอร์ส่งต่อตรง ๆ (เหตุผลเดียวกับ settings/dealerSettings)
 import { ตัวกรองวันใบ } from "@pms/shared/lib/salesDate";
 import { เติมพื้นที่จากลีด } from "@pms/shared/lib/purchaseArea";
+import { อ่านเส้นเวลาลูกค้า } from "@pms/shared/lib/customerTimeline";
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail, อ่านเมื่อop } from "./_ctx";
 import { parse, str, num, bool, oneOf, arrOf, mapOfNum, isoDate } from "./_valid";
@@ -378,6 +379,13 @@ export const quotesDELETE = handler("quotations.remove", async (req, sb) => {
 
 // ── ลูกค้า ──────────────────────────────────────────────────────────────────────
 export const customersGET = handler("customers.list", async (req, sb) => {
+  // เส้นเวลาของลูกค้า (แท็บประวัติ HQ + ดีลเลอร์ · บอสสั่ง 19 พ.ย. 69) — อ่านด้วยสิทธิ์ผู้เรียก (ดีลเลอร์เห็นเฉพาะสาขาตัวเอง)
+  if (qp(req, "op") === "timeline") {
+    const สาขา = str({ max: 20 })(qp(req, "dealer"), "dealer");
+    const เลข = num({ int: true, min: 1 })(qp(req, "id"), "id");
+    try { return ok(await อ่านเส้นเวลาลูกค้า(sb, สาขา, เลข)); }
+    catch (e) { return dbFail("customers.timeline", { message: (e as Error).message }); }
+  }
   const { dealer, isHQ } = scopeOf(req);
   const { rows, partial } = await listAll(sb, "customers", dealer, isHQ);
   return ok({ rows: rows.map(r => normalizeCustomer(toCamel<CustomerRow>(r))), partial });

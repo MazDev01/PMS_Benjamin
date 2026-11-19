@@ -501,6 +501,7 @@ const customers: CustomersRepo = {
   remove: async (id) => { await apiFetch(`/customers?id=${id}`, { method: "DELETE" }); },
   upsertForCompany: (dealer, row) => post("/customers?op=upsert-company", { dealer, payload: row }),
   reconcileWonTotal: (customerId) => post("/customers?op=reconcile", { customerId }),
+  timeline: (dealerCode, customerId) => apiFetch(`/customers?op=timeline&dealer=${encodeURIComponent(dealerCode)}&id=${customerId}`),
   closeWon: ({ dealer, knownCustomerId, leadCompany, targetQuoteId, cascadeWon, customerPayload }) =>
     post("/customers?op=close-won", { dealer, knownCustomerId, leadCompany, targetQuoteId, cascadeWon, payload: customerPayload }),
   deleteCascade: (id) => post<CustomerDeletionResult>("/customers?op=delete-cascade", { customerId: id }),
