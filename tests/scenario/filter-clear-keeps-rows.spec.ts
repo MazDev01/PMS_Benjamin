@@ -12,6 +12,9 @@ import { สร้างสาขาของข้อ, type สาขาขอ�
 //   3 พ.ย. 69 (ตัวเลือกช่วงเวลา 4 ตัว): วันนี้ 2 · 2 เดือนก่อน 1 · 6 เดือนก่อน 1 · 18 เดือนก่อน 1
 //   → เปิดหน้า (ค่าตั้งต้น "1 ปี") 4 · 1 เดือน 2 · 3 เดือน 3 · ล้างแล้ว (กลับ 1 ปี) 4
 //   เกณฑ์เดิม (แคบ ≤ เริ่ม · ล้างแล้ว ≥ เริ่ม) ยังอยู่ · เพิ่มค่าที่รู้ตรงเป๊ะ
+// กลับด้าน 19 พ.ย. 69 (บอสตัดสิน ③ ก): ตารางลูกค้าฝั่งดีลเลอร์ไม่กรองตามช่วงเวลาแล้ว — แสดงทุกราย เท่าการ์ด "ลูกค้าทั้งหมด" (เหมือน HQ)
+//   เดิม 1 ปี 4 · 3 เดือน 3 · 1 เดือน 2 (ลูกค้า 18 เดือนก่อนหายจากตาราง แต่การ์ดนับ 5 — ข้อมูลตัวอย่าง CNX การ์ด 25 ตาราง 24)
+//   ตอนนี้ทุกช่วง = 5 = การ์ด · ตกบนโค้ดเดิม (e506ce56): เปิดหน้าได้ 4 แถว ≠ การ์ด 5
 test.skip(() => !REAL_BACKEND, "ต้องมีฐานทดสอบ (สาขาของข้อ)");
 let สาขา: สาขาของข้อ;
 const ไทย = new Date(Date.now() + 7 * 3600_000);
@@ -31,34 +34,25 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await สาขา.ลบ(); });
 
-// ปุ่ม "ล้างตัวกรอง" ถูกถอดจากแถบตัวกรองทุกหน้า (บอสสั่ง 13 พ.ย. 69) — กลับค่าตั้งต้นด้วยตัวเลือกช่วงเวลา "1 ปี" แทน · ข้อตรวจแถวไม่หายเท่าเดิม
-test("[dealer] กลับช่วงเวลาค่าตั้งต้นแล้วต้องไม่มีแถวหายไป · ไม่มีปุ่มล้างตัวกรอง", async ({ page }) => {
+// ปุ่ม "ล้างตัวกรอง" ถูกถอดจากแถบตัวกรองทุกหน้า (บอสสั่ง 13 พ.ย. 69) · ตารางลูกค้าไม่กรองตามช่วง (บอสตัดสิน 19 พ.ย. 69)
+test("[dealer] ตารางลูกค้าแสดงทุกราย เท่าการ์ดลูกค้าทั้งหมด ทุกช่วงเวลา · ไม่มีปุ่มล้างตัวกรอง", async ({ page }) => {
   test.setTimeout(150_000);
   await page.setViewportSize({ width: 1440, height: 950 });
   const แถว = page.locator("tbody tr").filter({ hasNot: page.locator("td[colspan]") });
+  const การ์ดทั้งหมด = page.locator('[data-kpi-row] [data-kpi="total"] [data-value]');
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await page.goto(`${DEALER_ORIGIN}/customers`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(แถว, "เปิดหน้า (1 ปี): ลูกค้าที่เคลื่อนไหวใน 12 เดือน 4 ราย").toHaveCount(4, { timeout: 20_000 });
-  const เริ่มต้น = await แถว.count();
+  await expect(การ์ดทั้งหมด, "การ์ดลูกค้าทั้งหมด = 5").toHaveAttribute("data-value", "5", { timeout: 20_000 });
+  await expect(แถว, "เปิดหน้า (1 ปี): ตารางทุกราย 5 = การ์ด (รวมลูกค้า 18 เดือนก่อน)").toHaveCount(5, { timeout: 20_000 });
 
-  // แคบช่วงเวลาเป็น "3 เดือน" แล้ว "1 เดือน"
   const ปุ่มเวลา = ปุ่มช่วงเวลา(page);
-  await ปุ่มเวลา.click();
-  await page.getByRole("button", { name: "3 เดือน", exact: true }).click();
-  await expect(แถว, "3 เดือน: เหลือ 3 ราย").toHaveCount(3);
-  await ปุ่มเวลา.click();
-  await page.getByRole("button", { name: "1 เดือน", exact: true }).click();
-  await expect(แถว, "1 เดือน: เหลือ 2 ราย").toHaveCount(2);
-  const แคบ = await แถว.count();
-
-  // ไม่มีปุ่มล้างตัวกรอง (บอสสั่ง 13 พ.ย. 69) → กลับค่าตั้งต้นที่ตัวเลือกช่วงเวลา "1 ปี" → ต้องไม่น้อยกว่าตอนเริ่ม
+  for (const ช่วง of ["3 เดือน", "1 เดือน", "1 ปี"]) {
+    await ปุ่มเวลา.click();
+    await page.getByRole("button", { name: ช่วง, exact: true }).click();
+    await expect(แถว, `${ช่วง}: ตารางยังแสดงทุกราย 5`).toHaveCount(5);
+    await expect(การ์ดทั้งหมด, `${ช่วง}: การ์ดลูกค้าทั้งหมดยัง 5`).toHaveAttribute("data-value", "5");
+  }
   await expect(page.getByRole("button", { name: "ล้างตัวกรอง", exact: true }), "แถบตัวกรองไม่มีปุ่มล้างตัวกรอง").toHaveCount(0);
-  await ปุ่มเวลา.click();
-  await page.getByRole("button", { name: "1 ปี", exact: true }).click();
-  await expect(แถว, "ล้างแล้ว (กลับ 1 ปี): 4 ราย").toHaveCount(4);
-  const หลังล้าง = await แถว.count();
-  expect(แคบ).toBeLessThanOrEqual(เริ่มต้น);
-  expect(หลังล้าง, "ล้างแล้วแถวต้องไม่หายไป").toBeGreaterThanOrEqual(เริ่มต้น);
-  await expect(page.locator("[data-time-range]").first(), "ล้างแล้วกลับค่าตั้งต้น 1 ปี").toHaveAttribute("data-time-range", "y1");
+  await expect(page.locator("[data-time-range]").first(), "กลับค่าตั้งต้น 1 ปี").toHaveAttribute("data-time-range", "y1");
 });

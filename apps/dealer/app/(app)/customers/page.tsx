@@ -391,7 +391,7 @@ export default function CustomersPage(){
     ผู้รับผิดชอบ: persons.filter(p => p.active !== false).map(p => p.name),
   }), [จังหวัดของสาขา, persons]);
   const taskTpl = useLeadTaskTemplate(); // งานมาตรฐานที่ HQ ตั้ง — ดีลใหม่ต้องได้ checklist ชุดเดียวกับลูกค้าเป้าหมายอื่น
-  const { passes, timeRange, inRange, setPreset, setCustomRange } = useFilters(); // ตัวกรองช่วงเวลา (กรองตามกิจกรรมล่าสุดของลูกค้า)
+  const { timeRange, inRange, setPreset, setCustomRange } = useFilters(); // ช่วงเวลา (การ์ด/นำเข้า · ตารางไม่กรองตามช่วง 19 พ.ย. 69)
   // ตัวกรองช่วงเวลากลาง (วันเดือนปี) — กรองจากวันที่เข้าเป็นลูกค้า
   const [query, setQuery]             = useState("");
   // ตัวกรอง "แม่แบบ" + ลิงก์ ?template= จากแดชบอร์ด เอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69
@@ -585,9 +585,9 @@ export default function CustomersPage(){
   const ชุดการ์ด = useMemo(()=>ชุดที่กรอง(data, ตรงตัวกรองอื่น, c=>c.id),[data,ตรงตัวกรองอื่น]);
   const filtered = useMemo(()=>{
     let rows=data.filter(c=>{
-      // กรองตามช่วงเวลา — ใช้ "กิจกรรมล่าสุด" ของลูกค้า (โชว์ลูกค้าที่มีความเคลื่อนไหวในช่วงที่เลือก)
-      const matchT=passes({date:lastActivityFor(c.id,c.joinDate,quotations)});
-      return ตรงตัวกรองอื่น(c)&&matchT&&ตรงการ์ด(c);
+      // ไม่กรองตามช่วงเวลา — ตารางแสดงลูกค้าทุกราย เท่าการ์ด "ลูกค้าทั้งหมด" (บอสตัดสิน 19 พ.ย. 69 เหมือน HQ ·
+      //   เดิมกรองตามกิจกรรมล่าสุดในช่วง → CNX การ์ด 25 ตาราง 24) · การ์ด "ลูกค้าใหม่ในช่วงนี้" ยังกดกรองตามช่วงได้ (ตรงการ์ด)
+      return ตรงตัวกรองอื่น(c)&&ตรงการ์ด(c);
     });
     if(sortKey===null) return [...rows].sort((a,b)=>b.id-a.id);
     const sortVal=(c:CustomerRow):string|number=>{
@@ -610,7 +610,7 @@ export default function CustomersPage(){
       return 0;
     });
     return rows;
-  },[data,quotations,ตรงตัวกรองอื่น,sortKey,sortDir,timeRange,passes,ตรงการ์ด]);
+  },[data,quotations,ตรงตัวกรองอื่น,sortKey,sortDir,ตรงการ์ด]);
 
   // ตัวเลือกตัวกรอง — ดึงจากข้อมูลลูกค้าจริงที่มีอยู่ (ไม่ hardcode รายการจังหวัด/พนักงาน)
   const provOptions  = useMemo(()=>[...new Set(data.map(c=>c.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th")),[data]);
@@ -635,9 +635,8 @@ export default function CustomersPage(){
     const matchQ=!q||c.company.toLowerCase().includes(q)||c.name.toLowerCase().includes(q)||c.province.toLowerCase().includes(q)||c.phone.includes(q);
     const matchP=provFilter==="ALL"||c.province===provFilter;
     const matchO=ownerFilter==="ALL"||(c.owner||"")===ownerFilter;
-    const matchT=passes({date:lastActivityFor(c.id,c.joinDate,quotations)});
-    return matchQ&&matchP&&matchO&&matchT;
-  }),[data,query,provFilter,ownerFilter,passes,quotations]);
+    return matchQ&&matchP&&matchO;   // ไม่กรองตามช่วง — ชุดเดียวกับตาราง (19 พ.ย. 69)
+  }),[data,query,provFilter,ownerFilter]);
   const totalAll      = scoped.length;
   const totalValue    = scoped.reduce((s,c)=>s+c.totalValue,0);
 

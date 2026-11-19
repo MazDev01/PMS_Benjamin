@@ -120,7 +120,11 @@ export default function HQDashboard() {
       {/* ── วันนี้ต้องทำ (ไม่ขึ้นกับตัวกรอง) ── */}
       <section aria-label="วันนี้ต้องทำ" className="card" style={{ marginBottom: "1.25rem", padding: "14px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#1F2937", minWidth: 110 }}>วันนี้ต้องทำ</div>
+          {/* ป้ายเล็ก "ทั้งเครือ" (บอสตัดสิน 19 พ.ย. 69): แถวนี้ไม่ตามตัวกรองดีลเลอร์/ช่วงเวลา — เลือกดีลเลอร์แล้วตัวเลขยังเป็นของทั้งเครือ */}
+          <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#1F2937", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            วันนี้ต้องทำ
+            <span data-today-scope style={{ fontSize: "0.68rem", fontWeight: 700, color: "#475569", background: "#EEF2F7", borderRadius: 999, padding: "2px 8px" }}>ทั้งเครือ</span>
+          </div>
           {!td ? <span style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>กำลังโหลด…</span>
             : !มีงานค้าง ? (
               <span data-testid="today-clear" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#059669", fontWeight: 700, fontSize: "0.86rem" }}>

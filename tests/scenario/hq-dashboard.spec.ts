@@ -297,3 +297,14 @@ test("[แดชบอร์ด HQ] กิจกรรมล่าสุด: บ
   const ช่อง = page.locator("[data-audit-target]").filter({ hasText: กิจกรรมจริง }).first();
   await expect(ช่อง, "/hq/audit: ค้นด้วยรหัสเจอ · แสดงเป็นชื่อ · เลขเอกสารคงเดิม").toHaveText(คาดบนจอ, { timeout: 25_000 });
 });
+
+// ป้ายเล็ก "ทั้งเครือ" ที่แถววันนี้ต้องทำ (บอสตัดสิน 19 พ.ย. 69 ④): แถวนี้ไม่ตามตัวกรองดีลเลอร์ — เลือกดีลเลอร์แล้วป้ายยังบอกว่าเป็นของทั้งเครือ
+//   ตกบนโค้ดเดิม (e506ce56): ไม่มีป้าย [data-today-scope]
+test("[แดชบอร์ด HQ] วันนี้ต้องทำ มีป้าย \"ทั้งเครือ\" ทั้งตอนไม่กรองและหลังเลือกดีลเลอร์", async ({ page }) => {
+  await loginUI(page, HQ_ORIGIN, "/hq/dashboard", ADMIN);
+  await เปิด(page);
+  const ป้าย = page.getByRole("region", { name: "วันนี้ต้องทำ", exact: true }).locator("[data-today-scope]");
+  await expect(ป้าย, "ไม่กรอง: ป้ายทั้งเครือ").toHaveText("ทั้งเครือ");
+  await เลือกดีลเลอร์(page, ของข้อ[0].รหัส);
+  await expect(ป้าย, "เลือกดีลเลอร์แล้ว: แถวยังเป็นของทั้งเครือ ป้ายยังอยู่").toHaveText("ทั้งเครือ");
+});
