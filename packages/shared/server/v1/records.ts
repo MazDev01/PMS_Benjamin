@@ -2,6 +2,7 @@
 // ระยะ 1 กลุ่มที่ 9–11 · คัดพฤติกรรมมาจาก SupabaseAdapter ตรง ๆ
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
+import { pageAll, TIEBREAK_COL } from "./_page";
 import { toCamel, toCamelList, toSnake } from "@pms/shared/lib/data/supabase/mappers";
 import type { CustomerNote, DealerFile, SystemUser } from "@pms/shared/lib/data/types";
 
@@ -18,11 +19,16 @@ function scopeOf(req: NextRequest) {
 // ── โน้ตลูกค้า ──
 export const notesGET = handler("notes.list", async (req: NextRequest, sb) => {
   const { dealer, isHQ } = scopeOf(req);
-  let q = sb.from("customer_notes").select("*").order("id", { ascending: true });
-  if (!isHQ && dealer) q = q.eq("dealer_code", dealer);
-  const { data, error } = await q;
-  if (error) return dbFail("notes.list", error);
-  return ok(toCamelList<CustomerNote>((data ?? []) as Row[]));
+  // แบ่งหน้าจนครบ (19 พ.ย. 69 · ฐานคืนสูงสุด 1,000 แถว/คำขอ — HQ อ่านทั้งเครือ)
+  try {
+    const { rows } = await pageAll((from, to) => {
+      const base = sb.from("customer_notes").select("*").order("id", { ascending: true }).order(TIEBREAK_COL, { ascending: true }).range(from, to);
+      return !isHQ && dealer ? base.eq("dealer_code", dealer) : base;
+    });
+    return ok(toCamelList<CustomerNote>(rows));
+  } catch (e) {
+    return dbFail("notes.list", { message: (e as Error).message, code: (e as { code?: string }).code });
+  }
 });
 
 export const notesPOST = handler("notes.create", async (req: NextRequest, sb) => {
@@ -84,13 +90,18 @@ export const usersPUT = handler("users.update", async (req: NextRequest, sb) => 
 });
 
 // ── ไฟล์ (metadata) ──
+// อ่านแบบแบ่งหน้าจนครบ (19 พ.ย. 69 · บั๊ก: เดิมอ่านครั้งเดียว ฐานคืนสูงสุด 1,000 แถว → ไฟล์ใหม่กว่าแถวที่ 1,000 ไม่ขึ้นทุกหน้า)
 export const filesGET = handler("files.list", async (req: NextRequest, sb) => {
   const { dealer, isHQ } = scopeOf(req);
-  let q = sb.from("files").select("*").order("id", { ascending: true });
-  if (!isHQ && dealer) q = q.eq("dealer_code", dealer);
-  const { data, error } = await q;
-  if (error) return dbFail("files.list", error);
-  return ok(toCamelList<DealerFile>((data ?? []) as Row[]));
+  try {
+    const { rows } = await pageAll((from, to) => {
+      const base = sb.from("files").select("*").order("id", { ascending: true }).order(TIEBREAK_COL, { ascending: true }).range(from, to);
+      return !isHQ && dealer ? base.eq("dealer_code", dealer) : base;
+    });
+    return ok(toCamelList<DealerFile>(rows));
+  } catch (e) {
+    return dbFail("files.list", { message: (e as Error).message, code: (e as { code?: string }).code });
+  }
 });
 
 export const filesPOST = handler("files.add", async (req: NextRequest, sb) => {
