@@ -31,6 +31,7 @@ import { useFilters, APP_NOW } from "@pms/shared/context/FilterContext";
 import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { ชื่อภาค, ภาคมาตรฐาน, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
 import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
+import { GroupedBarChart } from "@pms/shared/components/ui/Charts";
 import { fmtBaht } from "@pms/shared/lib/format";
 import { useLeadSummary } from "@pms/shared/lib/useNetworkData";
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
@@ -47,69 +48,26 @@ const MUTED = "var(--muted-foreground)";
 const isoDateOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const ALL = "ALL";
 
-// ── แท่งแนวนอนคู่ — ใช้ซ้ำใน Section 1 / 2 / 3 (แท่งหลัก + แท่งเทียบ) ──
-// เปิดมาโชว์ครบทุกแถวเลย (บอสสั่ง 17 ก.ค. 69) — ให้อ่านคู่กับตารางข้าง ๆ ที่ก็ลิสต์ครบทุกดีลเลอร์เหมือนกัน
-// การ์ดไม่ยืดตามจำนวนแถว เพราะความสูงตรึงด้วย .chart-l แล้วให้ .chart-scroll เลื่อนข้างใน
-// (กติกาใน globals.css: ข้อมูลล้น = เลื่อนใน .chart-scroll หรือตัด Top N + ปุ่มดูทั้งหมด — ที่นี่ใช้แบบเลื่อน)
-// ปุ่มย่อกลับเป็น 5 อันดับแรกยังอยู่ เผื่ออยากดูเฉพาะหัวตาราง
-const TOP_N = 5;
 type HRow = { key: string; label: string; a: number; b: number; note?: string; onClick?: () => void; /** บรรทัดเล็กใต้ชื่อ (ภูมิภาค) */ sub?: string };
-function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt, paged = false }: {
+// กราฟยอดขายเทียบเป้า = แท่งคู่แนวตั้ง (บอสสั่ง 19 พ.ย. 69 "ทำเป็นกราฟแท่ง" · เดิมแถบนอนคู่แบบหลอด) — ตัวกลาง GroupedBarChart (SVG)
+//   แกนนอน = ดีลเลอร์/ภูมิภาค/จังหวัด/เดือน · แท่งเข้ม = ยอดขาย · แท่งอ่อน = เป้า · ค่าบนหัวแท่ง · กดแท่ง = เจาะลง (เหมือนกดแถว)
+//   ระดับดีลเลอร์เดียวก็เป็นแท่ง · ชื่อยาวย่อ/เอียงตามช่อง (ป้ายแกนตัวกลาง) · หลายแท่ง = เลื่อนแนวนอนในกรอบ (กว้างขั้นต่ำ 120px ต่อกลุ่ม)
+//   แท่งทุกแท่งอยู่ในกรอบการ์ด · ตัวเลขบนแท่งคู่ไม่ทับกัน (ตัวกลางขยายช่องแท่ง/ย่อฟอนต์ตัวเลข) · data-bar-col = คีย์แถว (ข้อทดสอบเทียบค่าแท่งกับตาราง)
+function PairBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt }: {
   rows: HRow[]; aLabel: string; bLabel: string; aColor?: string; bColor?: string; fmt: (v: number) => string;
-  /** แบ่งหน้าจากข้างนอกแล้ว (มีแถบเปลี่ยนหน้า) — แสดงทุกแถวที่ส่งมา ไม่มีปุ่มย่อ/ดูทั้งหมด (บอสสั่ง 22 ก.ย. 69) */
+  /** แบ่งหน้าจากข้างนอกแล้ว (มีแถบเปลี่ยนหน้า) */
   paged?: boolean;
 }) {
-  const [allState, setAll] = useState(true);
-  const all = paged || allState;
-  // max คิดจากทุกแถวเสมอ — ไม่งั้นพอกด "ดูทั้งหมด" ความยาวแท่งจะขยับ ทั้งที่ข้อมูลเท่าเดิม
-  const max = Math.max(...rows.flatMap(r => [r.a, r.b]), 1);
-  const shown = all ? rows : rows.slice(0, TOP_N);
-  const hidden = rows.length - shown.length;
-  // flex: 1 — เดิมได้ความยืดมาจากคลาส chart-l ของการ์ด พอเลิกล็อกความสูงตายตัวก็ต้องยืดเอง
-  // ไม่งั้นเนื้อในหดตามจำนวนข้อมูล การ์ดเลยเตี้ยกลับไปไม่เท่าเพื่อนในแถวเหมือนเดิม
+  if (!rows.length) return (
+    <div className="card-body"><EmptyState icon={<Coins size={26} />} title="ไม่พบข้อมูลในช่วงที่เลือก" description="ลองปรับตัวกรอง" compact /></div>
+  );
   return (
-    <div className="card-body" style={{ paddingTop: 4, display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}>
-      {/* คำอธิบายสี — ต้องมี ไม่งั้นแท่งคู่อ่านไม่ออกว่าอันไหนคืออะไร */}
-      <div style={{ display: "flex", gap: 14, marginBottom: 12, flexShrink: 0 }}>
-        {[[aLabel, aColor], [bLabel, bColor]].map(([l, c]) => (
-          <span key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.66rem", fontWeight: 700, color: MUTED }}>
-            <span style={{ width: 9, height: 9, borderRadius: 3, background: c, flexShrink: 0 }} /> {l}
-          </span>
-        ))}
+    <div className="card-body" data-pair-bars style={{ paddingTop: 4, overflowX: "auto", overflowY: "hidden" }}>
+      <div style={{ minWidth: Math.max(480, rows.length * 120) }}>
+        <GroupedBarChart months={rows.map(r => r.label)} vw={Math.max(1000, rows.length * 170)} height={300} fmt={fmt} ค่าบนแท่ง
+          คีย์แท่ง={rows.map(r => r.key)} กดแท่ง={(i: number) => rows[i]?.onClick?.()}
+          series={[{ name: aLabel, color: aColor, data: rows.map(r => r.a) }, { name: bLabel, color: bColor, data: rows.map(r => r.b) }]} />
       </div>
-      {!rows.length ? (
-        <EmptyState icon={<Coins size={26} />} title="ไม่พบข้อมูลในช่วงที่เลือก" description="ลองปรับตัวกรอง" compact />
-      ) : (<>
-        <div className="chart-scroll" style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-          {shown.map(r => (
-            <div key={r.key} onClick={r.onClick} style={{ cursor: r.onClick ? "pointer" : "default" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.72rem", marginBottom: 4 }}>
-                <span style={{ color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }} title={r.label}>
-                  {r.label}{r.sub && <span data-row-sub style={{ color: MUTED, fontWeight: 500, fontSize: "0.64rem", marginLeft: 6 }}>{r.sub}</span>}
-                </span>
-                <span style={{ flexShrink: 0, fontWeight: 700, color: "#1F2937", fontVariantNumeric: "tabular-nums" }}>
-                  {fmt(r.a)} <span style={{ color: MUTED, fontWeight: 400 }}>/ {fmt(r.b)}</span>
-                  {r.note && <span style={{ color: MUTED, fontWeight: 400 }}> · {r.note}</span>}
-                </span>
-              </div>
-              <div style={{ height: 8, background: "var(--muted)", borderRadius: 999, overflow: "hidden", marginBottom: 3 }}>
-                <div className="bar-grow" style={{ height: "100%", width: `${Math.round(r.a / max * 100)}%`, background: aColor, borderRadius: 999 }} />
-              </div>
-              <div style={{ height: 5, background: "var(--muted)", borderRadius: 999, overflow: "hidden" }}>
-                <div className="bar-grow" style={{ height: "100%", width: `${Math.round(r.b / max * 100)}%`, background: bColor, borderRadius: 999 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-        {/* บอกจำนวนที่ซ่อนไว้เสมอ — ห้ามตัดเงียบ ไม่งั้นคนอ่านนึกว่าเห็นครบแล้ว */}
-        {!paged && (hidden > 0 || (all && rows.length > 5)) && (
-          <button type="button" onClick={() => setAll(v => !v)}
-            style={{ marginTop: 10, flexShrink: 0, alignSelf: "flex-start", background: "none", border: "none", padding: 0,
-              cursor: "pointer", fontFamily: "inherit", fontSize: "0.68rem", fontWeight: 700, color: PRIMARY }}>
-            {all ? "ย่อกลับเป็น 5 อันดับแรก" : `ดูทั้งหมด (อีก ${hidden} ราย)`}
-          </button>
-        )}
-      </>)}
     </div>
   );
 }
@@ -367,10 +325,10 @@ export default function SalesAnalyticsPage() {
           )}
         </BoxTitle>
         <div style={{ flex: 1 }}>
-          {มิติจริง === "month" ? (เดือน ? <HBars rows={แท่งเดือน} aLabel="ยอดขายในเดือน" bLabel="เป้ารายเดือน" fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือน" />)
+          {มิติจริง === "month" ? (เดือน ? <PairBars rows={แท่งเดือน} aLabel="ยอดขายในเดือน" bLabel="เป้ารายเดือน" fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือน" />)
             : โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
-            : มิติจริง === "dealer" ? <HBars rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} paged />
-            : <HBars rows={แท่งกลุ่ม} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} />}
+            : มิติจริง === "dealer" ? <PairBars rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} paged />
+            : <PairBars rows={แท่งกลุ่ม} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} />}
         </div>
         {มิติจริง === "dealer" && <TablePagination page={หน้ากราฟจริง} total={แท่ง.length} onPage={setหน้ากราฟ} size={ขนาดกราฟ} unit="ดีลเลอร์" />}
       </div>
