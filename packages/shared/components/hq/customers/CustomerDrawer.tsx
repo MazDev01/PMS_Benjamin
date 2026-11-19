@@ -4,13 +4,12 @@
 // แท็บทั้งหมดอ่านจากข้อมูลจริง: ใบที่ปิดการขายได้ (รูปแม่แบบเอาออกแล้ว — เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
 // ไม่มีแท็บสัญญา / ใบส่งมอบ / แบบก่อสร้าง — ระบบไม่มีที่เก็บข้อมูลเหล่านั้น
 import { DataLink } from "../../ui/RecordLink";
-import { Building2, IdCard, MapPin, Compass, Store, Repeat, CalendarDays, Wallet, StickyNote, Activity, User, Phone, Mail, Home } from "lucide-react";
+import { Building2, IdCard, MapPin, Compass, Store, Repeat, CalendarDays, Wallet, StickyNote, User, Phone, Mail, Home } from "lucide-react";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
 import { SidePanel, type แท็บแผง } from "@pms/shared/components/ui/SidePanel";
 import { customerCode, noteCategoryColor } from "@pms/shared/lib/mock";
 import { fmtBaht } from "@pms/shared/lib/format";
-import { toThaiDate } from "@pms/shared/lib/thaiDate";
 import { useCustomerNotesForDealer } from "@pms/shared/lib/useCustomerNotes";
 import { type CustomerDbRow } from "@pms/shared/lib/customerDb";
 import { dealerCodeOf } from "@pms/shared/lib/dealerCode";
@@ -18,11 +17,11 @@ import { ชื่อภาค } from "@pms/shared/lib/provinces";
 import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
 import type { QuotationMock } from "@pms/shared/lib/mock";
 import { PurchaseHistory } from "@pms/shared/components/ui/PurchaseHistory";
+import { CustomerTimeline } from "@pms/shared/components/ui/CustomerTimeline";
 
 const noteColorOf = (cat: string) =>
   (noteCategoryColor as Record<string, { bg: string; text: string; dot: string }>)[cat] ?? noteCategoryColor["ทั่วไป"];
 
-const PRIMARY = "#003366";
 
 const Empty = ({ text }: { text: string }) => (
   <div style={{ fontSize: "0.74rem", color: "var(--muted-foreground)", padding: "8px 2px" }}>{text}</div>
@@ -110,32 +109,12 @@ export function CustomerDrawer({ row, onClose, ใบ: ใบที่ส่ง 
     // ⚠️ เคยมีแท็บ "การส่งมอบ" ตรงนี้ — ลบทั้งแท็บแล้ว (บอสสั่ง 20 ส.ค. 69)
     //    ไม่มีที่กรอกวันส่งมอบจริงทั้งฝั่งดีลเลอร์และสำนักงานใหญ่ · ที่โชว์อยู่คือ
     //    "วันปิดการขาย + 90 วัน" ที่ระบบคิดเอง = ตัวเลขที่ไม่มีอยู่จริงในงาน
+    // ประวัติ = เส้นเวลาทุกงานของลูกค้า จากข้อมูลที่ระบบบันทึกจริง (บอสสั่ง 19 พ.ย. 69 · ตัวกลาง CustomerTimeline ใช้ร่วมกับดีลเลอร์)
+    //   เดิมแสดงแค่ "ปิดการขาย" ของใบที่ตอบรับ · โหมดเดโม (ไม่มีรหัสลูกค้าในสาขา) = ว่าง
     {
       key: "timeline",
       label: "ประวัติ",
-      content: row.buildings.length ? (
-        <PanelSection icon={Activity} title="ประวัติ" style={{ marginTop: 0 }} bodyStyle={{ padding: "12px 14px" }}>
-          {row.buildings.flatMap(b => [
-            { at: b.wonAt, label: `ปิดการขาย ${b.quoteNo}`, sub: fmtBaht(b.value), color: PRIMARY },
-          ])
-            .filter((e): e is { at: Date; label: string; sub: string; color: string } => !!e.at)
-            .sort((a, b) => b.at.getTime() - a.at.getTime())
-            .map((e, i, arr) => (
-              <div key={`${e.label}-${i}`} style={{ display: "flex", gap: 10 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: 99, background: e.color, marginTop: 5 }} />
-                  {i < arr.length - 1 && <span style={{ flex: 1, width: 2, background: "#e9edf2" }} />}
-                </div>
-                <div style={{ paddingBottom: i < arr.length - 1 ? 14 : 0, minWidth: 0 }}>
-                  <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#2D2D2D" }}>{e.label}</div>
-                  <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 1 }}>
-                    {toThaiDate(e.at)}{e.sub && ` · ${e.sub}`}
-                  </div>
-                </div>
-              </div>
-            ))}
-        </PanelSection>
-      ) : <Empty text="ยังไม่มีเหตุการณ์ — ประวัติเริ่มจากใบที่ปิดการขายสำเร็จ" />,
+      content: <CustomerTimeline dealerCode={row.dealerCode} customerId={row.localId ?? row.id} />,
     },
   ];
 
