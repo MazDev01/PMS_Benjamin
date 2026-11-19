@@ -57,17 +57,18 @@ const TOP_N = 5;
 type HRow = { key: string; label: string; a: number; b: number; note?: string; onClick?: () => void; /** บรรทัดเล็กใต้ชื่อ (ภูมิภาค) */ sub?: string };
 // แท็บรายเดือน = แท่งคู่แนวตั้ง ยอดขาย/เป้า ต่อเดือน (บอสสั่ง 19 พ.ย. 69) — เดือนเรียงซ้าย→ขวาตามช่วงเวลาด้านบน (ค่าตั้งต้น 1 ปี = 12 เดือน)
 //   ตัวกลาง GroupedBarChart · แท่งเข้ม = ยอดขายในเดือน · แท่งอ่อน = เป้ารายเดือน · ตัวเลขบนหัวแท่ง (คู่ไม่ทับกัน) · กดแท่ง = เหมือนกดแถว
-//   แท็บที่เทียบหลายกลุ่ม (ดีลเลอร์/ภูมิภาค/จังหวัด) คงหลอดแนวนอน HBars (บอสตัดสิน 19 พ.ย. 69 · ถอย 617bad17)
-function แท่งรายเดือน({ rows, fmt }: { rows: HRow[]; fmt: (v: number) => string }) {
+//   แท็บที่เทียบหลายกลุ่ม (ดีลเลอร์/ภูมิภาค/จังหวัด) ระดับทั้งเครือ/ภาค คงหลอดแนวนอน HBars (บอสตัดสิน 19 พ.ย. 69 · ถอย 617bad17)
+//   ระดับจังหวัด แท็บดีลเลอร์ = แท่งคู่แนวตั้งต่อดีลเลอร์ (บอสสั่ง 19 พ.ย. 69 "ดีลเลอร์ในจังหวัดเดียวกันก็ใช้กราฟแท่ง") · กดแท่ง = เจาะลงดีลเลอร์
+function แท่งคู่ตั้ง({ rows, fmt, aLabel, bLabel, ชนิด }: { rows: HRow[]; fmt: (v: number) => string; aLabel: string; bLabel: string; ชนิด: "month" | "prov-dealer" }) {
   if (!rows.length) return (
     <div className="card-body"><EmptyState icon={<Coins size={26} />} title="ไม่พบข้อมูลในช่วงที่เลือก" description="ลองปรับตัวกรอง" compact /></div>
   );
   return (
-    <div className="card-body" data-month-pair-bars style={{ paddingTop: 4, overflowX: "auto", overflowY: "hidden" }}>
+    <div className="card-body" data-pair-bars={ชนิด} style={{ paddingTop: 4, overflowX: "auto", overflowY: "hidden" }}>
       <div style={{ minWidth: Math.max(480, rows.length * 64) }}>
         <GroupedBarChart months={rows.map(r => r.label)} vw={Math.max(1000, rows.length * 100)} height={300} fmt={fmt} ค่าบนแท่ง
           คีย์แท่ง={rows.map(r => r.key)} กดแท่ง={(i: number) => rows[i]?.onClick?.()}
-          series={[{ name: "ยอดขายในเดือน", color: PRIMARY, data: rows.map(r => r.a) }, { name: "เป้ารายเดือน", color: "#C0C0C0", data: rows.map(r => r.b) }]} />
+          series={[{ name: aLabel, color: PRIMARY, data: rows.map(r => r.a) }, { name: bLabel, color: "#C0C0C0", data: rows.map(r => r.b) }]} />
       </div>
     </div>
   );
@@ -386,8 +387,9 @@ export default function SalesAnalyticsPage() {
           )}
         </BoxTitle>
         <div style={{ flex: 1 }}>
-          {มิติจริง === "month" ? (เดือน ? <แท่งรายเดือน rows={แท่งเดือน} fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือน" />)
+          {มิติจริง === "month" ? (เดือน ? <แท่งคู่ตั้ง ชนิด="month" rows={แท่งเดือน} aLabel="ยอดขายในเดือน" bLabel="เป้ารายเดือน" fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือน" />)
             : โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
+            : มิติจริง === "dealer" && provSel !== ALL ? <แท่งคู่ตั้ง ชนิด="prov-dealer" rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} />
             : มิติจริง === "dealer" ? <HBars rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} paged />
             : <HBars rows={แท่งกลุ่ม} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} />}
         </div>
