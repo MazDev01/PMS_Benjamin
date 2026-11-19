@@ -76,7 +76,9 @@ export function buildQuotationHTML(q: QuotationMock, issuer: IssuerProfile, cust
     ? q.lineItems.map((it, i) => `<tr>${ช่อง("ลำดับ", String(i + 1))}${ช่อง("ข้อความ", `<b>${esc(it.name)}</b>`)}${ช่อง("จำนวน", จัดรูปจำนวน(it.qty))}${ช่อง("หน่วย", esc(จัดรูปหน่วย(it.unit)))}${ช่อง("เงิน", n(it.unitPrice))}${ช่อง("เงิน", n(it.qty * it.unitPrice))}</tr>`).join("")
     : `<tr>${ช่อง("ลำดับ", "1")}${ช่อง("ข้อความ", `<b>${esc(q.project)}</b><br/><span style="color:#888;font-size:11px">${esc(q.buildingType)} · อาคารสำเร็จรูป</span>`)}${ช่อง("จำนวน", จัดรูปจำนวน(q.area))}${ช่อง("หน่วย", "ตร.ม.")}${ช่อง("เงิน", "-")}${ช่อง("เงิน", n(subtotal))}</tr>`;
   const หัว = (ช: ชนิดคอลัมน์, ข้อความ: string, กว้าง?: number) => `<th class="${คลาสของชนิด(ช)}"${กว้าง ? ` style="width:${กว้าง}px"` : ""}>${ข้อความ}</th>`;
-  const issuerMeta = [issuer.address, issuer.phone ? ("โทร. " + issuer.phone) : "", issuer.taxId ? ("เลขผู้เสียภาษี " + issuer.taxId) : ""].filter(Boolean).join("\n");
+  // อีเมล/เว็บไซต์ต่อจากโทร (ใบ 0289 · บอสเลือก ก 19 พ.ย. 69 · เดิมบันทึกแล้วไม่พิมพ์) · ว่าง = ไม่พิมพ์บรรทัด
+  const issuerMeta = [issuer.address, issuer.phone ? ("โทร. " + issuer.phone) : "", (issuer.email ?? "").trim() ? ("อีเมล " + (issuer.email ?? "").trim()) : "",
+    (issuer.website ?? "").trim(), issuer.taxId ? ("เลขผู้เสียภาษี " + issuer.taxId) : ""].filter(Boolean).join("\n");
   return `<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/>
 <title>ใบเสนอราคา ${esc(q.id)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">

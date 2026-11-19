@@ -362,18 +362,21 @@ test("ทดลอง · จอกว้าง · D1–D9 · H1–H12", async ({
     await expect.poll(async () => (await ลีด(ค))?.status, { timeout: 20_000 }).toBe("CANCELLED");
   });
 
-  // ── H10 ย้อนการตอบรับ ──
-  await ขั้น("H10", "HQ ย้อนการตอบรับ (ไม่ใส่เหตุผลก่อน แล้วใส่เหตุผล)", h, async () => {
+  // ── H10 HQ ดูอย่างเดียว · D8r ดีลเลอร์ย้อนการตอบรับ (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69 · เดิม HQ ย้อน) ──
+  await ขั้น("H10", "HQ เปิดใบที่ตอบรับ — ดูอย่างเดียว ไม่มีปุ่มย้อน", h, async () => {
     await h.goto(`${HQ}/hq/quotations`, { waitUntil: "domcontentloaded" }); await เงียบ(h);
     await h.getByPlaceholder(/ค้นหาเลขที่/).fill(ก);
-    await h.locator("tbody tr").filter({ hasText: "ตอบรับ" }).filter({ hasText: ก.slice(0, 12) }).first().click().catch(async () => {
-      await h.locator("tbody tr").first().click();
-    });
-    await h.getByRole("button", { name: /ย้อนเป็นส่งให้ลูกค้าแล้ว/ }).click();
-    const ย้อน = h.getByRole("button", { name: "ย้อนการตอบรับ", exact: true });
-    await ย้อน.click().catch(() => {});   // ไม่ใส่เหตุผลก่อน — ต้องไม่ผ่าน
-    await h.waitForTimeout(800);
-    await h.getByPlaceholder("เหตุผลที่ย้อน").fill("ทดลองย้อนการตอบรับ");
+    await h.locator("tbody tr").filter({ hasText: "ตอบรับ" }).filter({ hasText: ก.slice(0, 12) }).first().click();
+    await expect(h.locator('[data-panel="won-readonly"]')).toBeVisible({ timeout: 20_000 });
+    await expect(h.getByRole("button", { name: /ย้อนเป็น/ })).toHaveCount(0);
+  });
+  await ขั้น("D8r", "ดีลเลอร์ย้อนการตอบรับ (ไม่ใส่เหตุผลก่อน แล้วใส่เหตุผล)", d, async () => {
+    await d.goto(`${DEALER}/leads?open=${(await ลีด(ก))!.num_id}`, { waitUntil: "domcontentloaded" }); await เงียบ(d);
+    await d.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+    await d.locator("[data-revert-won]").getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).first().click();
+    const ย้อน = d.locator("[data-reason-dialog]").getByRole("button", { name: "ย้อนการตอบรับ", exact: true });
+    await expect(ย้อน).toBeDisabled();   // ไม่ใส่เหตุผลก่อน — ต้องกดไม่ได้
+    await d.locator("[data-reason-dialog]").getByLabel("เหตุผลที่ย้อน", { exact: true }).fill("ทดลองย้อนการตอบรับ");
     await ย้อน.click();
     await expect.poll(async () => (await ใบของ((await ลีด(ก))!.num_id)).map(q => q.status).join(","), { timeout: 20_000 }).toBe("superseded,sent_to_client");
   });

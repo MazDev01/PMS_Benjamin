@@ -11,7 +11,7 @@ import { เตรียมใบHQ, ทำใบลูกค้าจากใ�
 //   1) /reset-password ปิด (เปิด URL แล้วถูกพาไปหน้าหลัก) · เปลี่ยนรหัสได้ที่หน้าบัญชีเท่านั้น (ทางลัดเดิม 2 ทาง ตอบ 410)
 //   2) ใบที่ลูกค้าตอบรับแล้ว: ไม่มีปุ่มแก้ไข / ลบ / ทำสำเนา (ทำสำเนาใบ won ไม่ได้ใบร่างจริง — ฐานปฏิเสธ)
 //   3) ลีดที่ปิดการขายสำเร็จ: ไม่มีปุ่ม "เปิดใหม่" ฝั่งดีลเลอร์ · ฐานกัน (ใบ 0217)
-//   4) HQ ย้อนการตอบรับ → ลีดกลับเป็นสถานะก่อนปิดการขาย (ใบ 0217)
+//   4) ดีลเลอร์ย้อนการตอบรับ (ใบ 0288 · เดิม HQ) → ลีดกลับเป็นสถานะก่อนปิดการขาย (ใบ 0217)
 //   6) ลบลีดได้เฉพาะลีดที่ยังไม่มีคำขอราคา/ใบ (มีแล้วไม่มีปุ่ม · ฐานบอกให้ใช้ "เสียโอกาส") · ไม่มีปุ่มลบลูกค้า
 //   ข้อทดสอบระดับฐาน: supabase/tests/lead_close_rules.sql (รันใน db-rule-tests.spec.ts)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
@@ -162,19 +162,18 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
     expect(r.error?.message ?? "", "สำเนาของใบ won ต้องถูกปฏิเสธ").toMatch(/hq_quote_required|ใบ HQ|lead_closed/);
   });
 
-  test("[ก·4] HQ ย้อนการตอบรับ → ลีดกลับเป็น \"รวบรวมความต้องการ\" (สถานะก่อนปิดการขาย)", async ({ page }) => {
-    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-    await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
-    const แถว = page.locator("tbody tr").filter({ hasText: ใบลูกค้า }).first();
-    await expect(แถว).toBeVisible({ timeout: 25_000 });
-    await แถว.getByRole("button", { name: /ดู/ }).first().click();
-    const แผง = page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
-    await แผง.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว" }).click();
-    const ถาม = page.getByRole("alertdialog", { name: /ย้อนการตอบรับใบ/ });
-    await ถาม.getByLabel("เหตุผลที่ย้อน").fill("ทดสอบช่วงก ลูกค้าขอเลื่อน");
-    await ถาม.getByRole("button", { name: "ย้อนการตอบรับ" }).click();
+  test("[ก·4] ดีลเลอร์ย้อนการตอบรับ → ลีดกลับเป็น \"รวบรวมความต้องการ\" (สถานะก่อนปิดการขาย)", async ({ page }) => {
+    // ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ ภายใน 7 วัน (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69 · เดิม HQ) — แผงลีด › ใบเสนอราคา
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    const แถว = await เปิดแผงลีด(page, บริษัท);
+    await แถว.locator("td").first().click();
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+    const ย้อน = page.locator(`[data-quote-item="${ใบลูกค้า}"] [data-revert-won]`);
+    await expect(ย้อน, "ใบที่ตอบรับวันนี้มีปุ่มย้อน").toBeVisible({ timeout: 25_000 });
+    await ย้อน.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).click();
+    const ถาม = page.locator("[data-reason-dialog]");
+    await ถาม.getByLabel("เหตุผลที่ย้อน", { exact: true }).fill("ทดสอบช่วงก ลูกค้าขอเลื่อน");
+    await ถาม.getByRole("button", { name: "ย้อนการตอบรับ", exact: true }).click();
     await expect.poll(async () => (await admin.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single()).data?.status,
       { timeout: 20_000, message: "ลีดต้องกลับเป็นรวบรวมความต้องการ" }).toBe("BULLET");
     const { data: l } = await admin.from("leads").select("activities").eq("dealer_code", "RYG").eq("num_id", ใบ.leadNum).single();

@@ -166,3 +166,22 @@ describe("ตั้งค่าเอกสารว่าง = ค่าตั�
     expect(DEFAULT_DOC).toMatchObject({ vatPercent: 7, validityDays: 30, quotePrefix: "Q-", runningNumber: 1001 });
   });
 });
+
+// ── อีเมล/เว็บไซต์ของบริษัทบนหัวใบ (ใบ 0289 · บอสเลือก ก 19 พ.ย. 69) — ต่อจากโทร · ว่าง = ไม่พิมพ์บรรทัด ──
+//   ตกบนโค้ดเดิม: หัวใบไม่มีอีเมล/เว็บไซต์
+describe("อีเมล/เว็บไซต์บนหัวใบ", () => {
+  it("กรอกแล้ว → พิมพ์ต่อจากบรรทัดโทร ก่อนเลขผู้เสียภาษี", () => {
+    const html = buildQuotationHTML(ใบ(), { ...ผู้ออก, email: "cnx@example.test", website: "https://cnx.example.test" }, undefined, DEFAULT_DOC);
+    const ส่วน = html.slice(html.indexOf('<div class="issuer-meta">'), html.indexOf("</div>", html.indexOf('<div class="issuer-meta">')));
+    expect(ส่วน).toContain("อีเมล cnx@example.test");
+    expect(ส่วน).toContain("https://cnx.example.test");
+    expect(ส่วน.indexOf("โทร. ")).toBeLessThan(ส่วน.indexOf("อีเมล "));
+    expect(ส่วน.indexOf("https://cnx.example.test")).toBeLessThan(ส่วน.indexOf("เลขผู้เสียภาษี"));
+  });
+  it("ว่าง/ช่องว่างล้วน/ไม่มีช่อง → ไม่มีบรรทัดอีเมล/เว็บไซต์", () => {
+    for (const x of [ผู้ออก, { ...ผู้ออก, email: "  ", website: "" }]) {
+      const html = buildQuotationHTML(ใบ(), x, undefined, DEFAULT_DOC);
+      expect(html).not.toContain("อีเมล ");
+    }
+  });
+});

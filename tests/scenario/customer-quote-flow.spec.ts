@@ -213,39 +213,53 @@ test("[D8x] [flow·dealer] ขั้น 10–11 + ลูกค้าปฏิเ
   expect(qลับ).toBeTruthy();
 });
 
-test("[flow·hq] HQ ย้อนการตอบรับ (won) พร้อมเหตุผล — ปุ่มอยู่ที่แผงใบของ HQ · ไทม์ไลน์บอกว่าใคร/เหตุผล · ใบที่ไม่ใช่ won ไม่มีปุ่ม", async ({ page }) => {
-  // BACKLOG "ต้องแก้ก่อนขึ้นระบบจริง" (ด่าน 3 → ด่าน 5): ก่อนนี้ย้อนได้ทางเดียวคือคำสั่งของฐาน quotation_revert_won
-  const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
+test("[H10] [flow·hq] ใบที่ลูกค้าตอบรับ — HQ ดูอย่างเดียว: ไม่มีปุ่มย้อน · กล่องบอกว่าดีลเลอร์ย้อนเอง · ฐานปฏิเสธ HQ (บอสตัดสิน 18 พ.ย. 69 · ใบ 0288)", async ({ page }) => {
+  const q10 = await ใบของ(ก.leadNum);
   test.skip(q10?.status !== "won", "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-  const เปิดใบ = async (id: string) => {
-    await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(id);
-    const แถว = page.locator("tbody tr").filter({ hasText: id }).first();
-    await expect(แถว).toBeVisible({ timeout: 25_000 });
-    await แถว.getByRole("button", { name: /ดู/ }).first().click();
-    return page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
-  };
+  await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(q10!.id);
+  const แถว = page.locator("tbody tr").filter({ hasText: q10!.id }).first();
+  await expect(แถว).toBeVisible({ timeout: 25_000 });
+  await แถว.getByRole("button", { name: "ดูรายละเอียด", exact: true }).click();
+  const แผง = page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
+  await expect(แผง.locator("[data-panel=won-readonly]"), "ใบ won: กล่องบอกว่าดีลเลอร์เจ้าของใบย้อนได้ภายใน 7 วัน").toContainText("ภายใน 7 วัน");
+  await expect(แผง.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }), "HQ ไม่มีปุ่มย้อน").toHaveCount(0);
+  await expect(แผง.getByRole("button", { name: "ย้อนเป็นลูกค้าปฏิเสธ", exact: true }), "HQ ไม่มีปุ่มย้อน").toHaveCount(0);
+  const { error } = await (await db(ADMIN)).rpc("quotation_revert_won", { p_dealer: "RYG", p_id: q10!.id, p_reason: "ZZTEST HQ ลองย้อน", p_to: "sent_to_client" });
+  expect(error?.message ?? "", "HQ เรียกคำสั่งย้อนตรง = ฐานปฏิเสธ").toContain("forbidden");
+  expect((await ใบของ(ก.leadNum))?.status, "ใบยังตอบรับอยู่").toBe("won");
+  assertNoErrors(errs, "HQ ดูใบ won");
+});
 
+test("[D8r] [flow·dealer] ดีลเลอร์ย้อนการตอบรับภายใน 7 วัน พร้อมเหตุผล — ใบ HQ/คำขอกลับส่งแล้ว · ไทม์ไลน์ · แจ้ง HQ 1 รายการ", async ({ page }) => {
+  const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
+  test.skip(q10?.status !== "won", "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
+  const errs = watchErrors(page);
   // ใบที่ลูกค้าปฏิเสธ (ไม่ใช่ won) ไม่มีปุ่มย้อน
-  const แผงลับ = await เปิดใบ(qลับ!.id);
-  await expect(แผงลับ.locator("[data-panel='revert-won']"), "ใบที่ไม่ใช่ won ไม่มีปุ่มย้อน").toHaveCount(0);
-  await page.keyboard.press("Escape");
+  await เปิดแท็บใบเสนอราคา(page, ลับ);
+  await expect(page.locator(`[data-quote-item="${qลับ!.id}"]`), "ใบที่ปฏิเสธอยู่ในรายการ").toBeVisible({ timeout: 25_000 });
+  await expect(page.locator(`[data-quote-item="${qลับ!.id}"] [data-revert-won]`), "ใบที่ไม่ใช่ won ไม่มีปุ่มย้อน").toHaveCount(0);
 
-  const แผง = await เปิดใบ(q10!.id);
-  await แผง.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว" }).click();
-  const ถาม = page.getByRole("alertdialog", { name: /ย้อนการตอบรับใบ/ });
-  await expect(ถาม.getByRole("button", { name: "ย้อนการตอบรับ" }), "ยังไม่กรอกเหตุผล กดย้อนไม่ได้").toBeDisabled();
-  await ถาม.getByLabel("เหตุผลที่ย้อน").fill("ดีลเลอร์กดตอบรับผิดใบ");
-  await ถาม.getByRole("button", { name: "ย้อนการตอบรับ" }).click();
+  await เปิดแท็บใบเสนอราคา(page, สิบ);
+  const ย้อน = page.locator(`[data-quote-item="${q10!.id}"] [data-revert-won]`);
+  await expect(ย้อน, "ใบที่ตอบรับวันนี้มีปุ่มย้อน (ภายใน 7 วัน)").toBeVisible({ timeout: 25_000 });
+  await ย้อน.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).click();
+  const ถาม = page.locator("[data-reason-dialog]");
+  await expect(ถาม.getByRole("button", { name: "ย้อนการตอบรับ", exact: true }), "ยังไม่กรอกเหตุผล กดย้อนไม่ได้").toBeDisabled();
+  await ถาม.getByLabel("เหตุผลที่ย้อน", { exact: true }).fill("ลูกค้าขอเลื่อนชำระมัดจำ");
+  await ถาม.getByRole("button", { name: "ย้อนการตอบรับ", exact: true }).click();
   await expect.poll(async () => (await ใบของ(ก.leadNum))?.status, { timeout: 20_000, message: "ย้อนแล้วใบต้องเป็นส่งให้ลูกค้าแล้ว" }).toBe("sent_to_client");
-  // ตารางต้องอัปเดตเองโดยไม่ต้องรีเฟรชหน้า (ตารางเทียบรอบ 1 · รอบ 2 ช่วง ง — เดิมยังขึ้น "ตอบรับ" จนกว่าจะรีเฟรช)
-  const แถวหลังย้อน = page.locator("tbody tr").filter({ hasText: q10!.id }).first();
-  await expect(แถวหลังย้อน, "ตารางอัปเดตสถานะเองหลังย้อน").toContainText("ส่งให้ลูกค้าแล้ว", { timeout: 15_000 });   // ชื่อสถานะตาม FLOW บนหน้า HQ (30 ต.ค. 69)
-  await expect(แถวหลังย้อน).not.toContainText("ตอบรับ");
-  const { data: ลีด } = await admin.from("leads").select("activities").eq("dealer_code", "RYG").eq("num_id", ก.leadNum).single();
-  expect(JSON.stringify(ลีด?.activities ?? []), "ไทม์ไลน์ต้องบอกว่าสำนักงานใหญ่ย้อน พร้อมเหตุผล").toMatch(/สำนักงานใหญ่.*ย้อนการตอบรับ.*ดีลเลอร์กดตอบรับผิดใบ/);
-  assertNoErrors(errs, "HQ ย้อนการตอบรับ");
+  expect((await admin.from("hq_quotes").select("status").eq("id", ก.hqQuoteId).single()).data?.status, "ใบ HQ กลับเป็นส่งแล้ว").toBe("sent");
+  expect((await admin.from("quote_requests").select("status").eq("id", ก.requestId).single()).data?.status, "คำขอกลับเปิด (ส่งแล้ว)").toBe("quoted");
+  await expect(ย้อน, "ย้อนแล้วปุ่มย้อนหายไป").toHaveCount(0);
+  // ลีดของข้อนี้ (ชื่อบริษัทมีป้ายของข้อ — ไม่ใช่ข้อมูลตั้งต้นร่วม)
+  const { data: ลีด } = await admin.from("leads").select("activities").eq("dealer_code", "RYG").eq("company", สิบ).single();
+  expect(JSON.stringify(ลีด?.activities ?? []), "ไทม์ไลน์บอกว่าย้อนใบไหน พร้อมเหตุผล").toMatch(new RegExp(`ย้อนการตอบรับใบเสนอราคา ${q10!.id}.*ลูกค้าขอเลื่อนชำระมัดจำ`));
+  const { count } = await admin.from("notifications").select("id", { count: "exact", head: true })
+    .eq("kind", "won_reverted_by_dealer").eq("audience", "hq").like("body", `%${q10!.id}%ลูกค้าขอเลื่อนชำระมัดจำ%`);
+  expect(count, "แจ้ง HQ 1 รายการ (H9)").toBe(1);
+  assertNoErrors(errs, "ดีลเลอร์ย้อนการตอบรับ");
 });

@@ -189,7 +189,7 @@ test.describe("HQ: กล่องเหตุผล", () => {
   let ใบปฏิเสธ = "", ใบชำระ = "", prospectId = 0;
 
   test.beforeAll(async () => {
-    // ใบที่ลูกค้าตอบรับแล้ว (HQ ย้อนได้)
+    // ใบที่ลูกค้าตอบรับแล้ว (ดีลเลอร์ย้อนได้ภายใน 7 วัน · ใบ 0288)
     ตอบรับ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ชื่อตอบรับ, province: "ระยอง", lines: [{ name: "โครงเหล็กทดสอบย้อน", qty: 1, unit: "ชุด", unitCost: 30000 }], validDays: 30 });
     ใบลูกค้า = (await ทำใบลูกค้าจากใบHQ(RYG, ตอบรับ, { customer: ชื่อตอบรับ, markupPercent: 10 })).id;
     const ส่ง = await (await db(RYG)).from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", ใบลูกค้า);
@@ -230,17 +230,20 @@ test.describe("HQ: กล่องเหตุผล", () => {
     await admin.from("dealer_prospects").delete().like("name", `${NS}%`);
   });
 
-  test("[ux·hq] ย้อนการตอบรับ: กล่องเหตุผลกลาง · ว่างกดไม่ได้ · ฐานช้า กำลัง… · ผิดพลาดในกล่อง", async ({ page }) => {
-    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-    await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
+  test("[ux·dealer] ย้อนการตอบรับ: กล่องเหตุผลกลาง · ว่างกดไม่ได้ · ฐานช้า กำลัง… · ผิดพลาดในกล่อง", async ({ page }) => {
+    // ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ ภายใน 7 วัน (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69 · เดิมปุ่มอยู่หน้าต่างใบของ HQ — HQ ดูอย่างเดียวแล้ว)
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
     await settle(page);
-    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
-    const แถว = page.locator("tbody tr").filter({ hasText: ใบลูกค้า }).first();
+    // หน้าลูกค้าเป้าหมายเปิดเป็นตารางเป็นค่าเริ่มต้น (leads/page.tsx view = "list")
+    await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อตอบรับ);
+    const แถว = page.locator("tbody tr").filter({ hasText: ชื่อตอบรับ }).first();
     await expect(แถว).toBeVisible({ timeout: 25_000 });
-    await แถว.getByRole("button", { name: /ดู/ }).first().click();
-    const แผง = page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
+    await แถว.locator("td").first().click();
+    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+    const ย้อน = page.locator(`[data-quote-item="${ใบลูกค้า}"] [data-revert-won]`);
     await ตรวจกล่องเหตุผล(page, "ย้อนการตอบรับ", async () => {
-      await แผง.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว" }).click();
+      await ย้อน.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).click({ timeout: 25_000 });
     });
     const { data } = await admin.from("quotations").select("status").eq("dealer_code", "RYG").eq("id", ใบลูกค้า).single();
     expect(data?.status, "คำสั่งที่ดักไว้ไม่ถึงฐาน").toBe("won");
