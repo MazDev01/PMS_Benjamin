@@ -1253,6 +1253,10 @@ export const apptTypeLabel: Record<ApptType, string> = {
   close: "ปิดการขาย",
   follow_up: "โทรติดตาม",
 };
+/** ชื่อประเภทนัดสำหรับแสดง — รวมประเภทเก่าที่ฟอร์มเลิกใช้แต่ยังมีในข้อมูล (site_visit/call/meeting · ชุดเดียวกับเส้นเวลาลูกค้า)
+ *  ไม่รู้จัก/ว่าง = "—" (ห้ามแสดงรหัสภาษาอังกฤษบนจอ · 19 พ.ย. 69 แผงลีด HQ ขึ้น "meeting") */
+export const ป้ายประเภทนัด = (t: string | null | undefined): string =>
+  (t && ((apptTypeLabel as Record<string, string>)[t] ?? ({ site_visit: "นัดดูหน้างาน", call: "โทรติดตาม", meeting: "ประชุม" } as Record<string, string>)[t])) || "—";
 
 export type AppointmentMock = {
   id: number; company: string; contact: string; phone: string;

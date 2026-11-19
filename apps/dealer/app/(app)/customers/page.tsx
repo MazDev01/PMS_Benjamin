@@ -11,7 +11,7 @@ import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, บาทเต็ม, วันที่ISO, ชุดที่กรอง, type KpiFilters } from "@pms/shared/lib/kpiCards";
 import { validateUpload, humanFileSize, UPLOAD_ACCEPTED_EXT } from "@pms/shared/lib/uploadLimits";
 import { printQuotation } from "@pms/shared/lib/quotationPrint";
-import { buildLeadTasks, leadStatusLabel, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
+import { buildLeadTasks, leadStatusLabel, QUOTED_UP, DEFAULT_DEALER_CODE, quotationStatusLabel, quotationStatusColor, noteCategoryColor, fmtISOToThai, customerCode, DEALER_FILES_EVENT, extOfName, guessFileCategory, apptTypeLabel, ป้ายประเภทนัด, type QuotationMock, type QuoteLineItem, type LeadRow, type CustomerRow, type DealerFile, type LeadStatus, type AppointmentMock, type LeadActivity, type CustomerStatus } from "@pms/shared/lib/mock";
 import { useCustomerNotes } from "@pms/shared/lib/useCustomerNotes";
 import { อ่านตารางจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
 import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
@@ -1175,7 +1175,7 @@ export default function CustomersPage(){
                           onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background="#f8f9fb";}}>
                           <div style={{flex:1,minWidth:0}}>
                             <div style={{fontSize:"0.72rem",fontWeight:700,color:STEEL}}>{a.project}</div>
-                            <div style={{fontSize:"0.65rem",color:MUTED,marginTop:2}}>{apptTypeLabel[a.type]} · {fmtISOToThai(a.date)} · {a.time} น.</div>
+                            <div style={{fontSize:"0.65rem",color:MUTED,marginTop:2}}>{ป้ายประเภทนัด(a.type)} · {fmtISOToThai(a.date)} · {a.time} น.</div>
                           </div>
                           <span className="badge" style={{flexShrink:0,background:"#dce5f0",color:PRIMARY}}>{a.status==="upcoming"?"กำลังจะมาถึง":a.status==="done"?"เสร็จแล้ว":"ยกเลิก"}</span>
                           <Eye size={14} color={PRIMARY} style={{flexShrink:0}}/>
@@ -1427,7 +1427,7 @@ export default function CustomersPage(){
                       <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #f4f6f9"}}>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:"0.78rem",fontWeight:700,color:STEEL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.project}</div>
-                          <div style={{fontSize:"0.65rem",color:MUTED}}>{apptTypeLabel[a.type]} · {fmtDate(a.date)} · {a.time} น.</div>
+                          <div style={{fontSize:"0.65rem",color:MUTED}}>{ป้ายประเภทนัด(a.type)} · {fmtDate(a.date)} · {a.time} น.</div>
                         </div>
                         <span className="badge" style={{background:a.status==="upcoming"?"#fff8e1":a.status==="done"?"#e5faf0":"#f0f0f5",color:a.status==="upcoming"?"#b7892a":a.status==="done"?"#059669":"#9ca3af",flexShrink:0}}>
                           {a.status==="upcoming"?"กำลังจะถึง":a.status==="done"?"เสร็จแล้ว":"ยกเลิก"}
@@ -1707,7 +1707,7 @@ export default function CustomersPage(){
             </div>
             <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:2}}>
               {[
-                ["ประเภท", apptTypeLabel[viewAppt.type]],
+                ["ประเภท", ป้ายประเภทนัด(viewAppt.type)],
                 ["วันที่", `${fmtISOToThai(viewAppt.date)} · ${viewAppt.time} น.`],
                 ["สถานะ", viewAppt.status==="upcoming"?"กำลังจะมาถึง":viewAppt.status==="done"?"เสร็จแล้ว":"ยกเลิก"],
                 [ช่อง.ผู้รับผิดชอบ, viewAppt.assigned||"—"],

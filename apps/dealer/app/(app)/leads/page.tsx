@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { ยืนยัน, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import {
   leadStatusLabel, buildLeadReport, applyTaskTemplate, findAppointmentTask,
-  seedLeadTasks, apptTypeLabel, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
+  seedLeadTasks, apptTypeLabel, ป้ายประเภทนัด, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย, นัดยังเปิด,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
@@ -1783,7 +1783,7 @@ export default function LeadsPage() {
                     <span style={{ width:32, height:32, borderRadius:"50%", background:"#e7eef7", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Calendar size={15} color="#003366" /></span>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:"0.8rem", fontWeight:700, color:"#2D2D2D" }}>{a.project}</div>
-                      <div style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2 }}>{apptTypeLabel[a.type]} · {fmtISOToThai(a.date)} · {a.time} น.</div>
+                      <div style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2 }}>{ป้ายประเภทนัด(a.type)} · {fmtISOToThai(a.date)} · {a.time} น.</div>
                     </div>
                     <span className="badge" style={{ flexShrink:0, background:"#dce5f0", color:"#003366" }}>
                       {a.status === "upcoming" ? "กำลังจะมาถึง" : a.status === "done" ? "เสร็จแล้ว" : "ยกเลิก"}

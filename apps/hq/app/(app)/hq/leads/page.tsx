@@ -31,7 +31,7 @@ import { DEFAULT_LEAD_RULES } from "@pms/shared/lib/mock";
 import { useLeadRulesOf } from "@pms/shared/lib/useHQRules";
 import { unassignedLeads, ไม่มีผู้รับผิดชอบเกินเกณฑ์ตามฐาน } from "@pms/shared/lib/hqAlerts";
 import { lastContactLabel, needsFollowUp } from "@pms/shared/lib/leadMetrics";
-import { fmtISOToThai, apptTypeLabel, ป้ายสถานะนัด, type LeadRow, type ApptType } from "@pms/shared/lib/mock";
+import { fmtISOToThai, ป้ายประเภทนัด, ป้ายสถานะนัด, type LeadRow } from "@pms/shared/lib/mock";
 // ชิ้นส่วนกลางของแผงรายละเอียด — หน้าตาเดียวกันทุกหน้า (ห้ามประกาศสไตล์เองซ้ำ)
 import { PanelSection, PanelRow, PanelStats, PanelStat } from "@pms/shared/components/ui/DetailPanel";
 import { RowPanel, ป้ายหัวแผง } from "@pms/shared/components/ui/RowPanel";
@@ -777,7 +777,7 @@ export default function HQLeadsPage() {
                             <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.project || a.company}</div>
                             {/* ประเภท · สถานะ · สถานที่ · บันทึก/ผลหลังนัด (19 พ.ย. 69 · เดิมแสดงแค่หัวข้อ/วัน/ผู้รับผิดชอบ ทั้งที่มีข้อมูล) · ไม่มี = ไม่แสดงบรรทัด */}
                             <div data-appt-meta style={{ fontSize: "0.66rem", color: "#64748B", marginTop: 3 }}>
-                              {[apptTypeLabel[a.type as ApptType] ?? a.type, ป้ายสถานะนัด(a.status), `${fmtISOToThai(a.date)} · ${a.time}`, a.assigned].filter(Boolean).join(" · ")}
+                              {[ป้ายประเภทนัด(a.type), ป้ายสถานะนัด(a.status), `${fmtISOToThai(a.date)} · ${a.time}`, a.assigned].filter(Boolean).join(" · ")}
                             </div>
                             {a.location?.trim() && <div data-appt-location style={{ fontSize: "0.66rem", color: "#64748B", marginTop: 2, overflowWrap: "anywhere" }}>สถานที่: {a.location.trim()}</div>}
                             {a.note?.trim() && <div data-appt-note style={{ fontSize: "0.68rem", color: "#374151", marginTop: 4, background: "#F8FAFC", borderRadius: 6, padding: "5px 8px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{a.note.trim()}</div>}
