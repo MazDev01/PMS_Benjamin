@@ -7,6 +7,7 @@
 //   → เลื่อนด้วย SQL ฐาน dev ในธุรกรรมเดียว (session_replication_role = replica · แตะเฉพาะคอลัมน์เวลา ไม่แตะสถานะ/ยอด)
 //   ยกเว้นบันทึกการใช้งาน (audit_log) — ห้ามแก้/ลบนอก 2 ทางที่บอสอนุญาต จึงคงเวลาจริง (วันที่สร้างข้อมูลตัวอย่าง)
 import { spawn } from "node:child_process";
+import { เบอร์งาน } from "./ตัวช่วย.mjs";
 
 /** บัญชีเข้าระบบของสาขา — RYG/CNX จากข้อมูลตั้งต้น (tests/.env.test) · สาขาที่ส่วน "สาขา" สร้าง จากไฟล์บัญชีนอก repo */
 export function บัญชีสาขา(ctx, code) {
@@ -103,7 +104,7 @@ export async function งานขายของสาขา(ctx, { code, provi
     const บริษัท = company ?? ชื่อบริษัท(n);
     ต้อง(await sb.from("leads").insert({
       id: `#L-${n}`, num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
-      contact: ผู้ติดต่อ(n), phone: เบอร์(n),
+      contact: ผู้ติดต่อ(n), phone: เบอร์งาน(n),
       email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, address: ที่อยู่สมจริง(`${code}:${n}`, province), province,
       product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ของขนาด(ขนาด)), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][n % 4],
       assigned: ผู้รับผิดชอบ, status: "WAITING", note: หมายเหตุลีด(n, พื้นที่ของขนาด(ขนาด)), created_label: ป้ายวัน(วัน(-ย้อนวัน)),
@@ -151,7 +152,7 @@ export async function งานขายของสาขา(ctx, { code, provi
   const ตอบรับ = async (n, company, id, { customerId = null } = {}) => ต้อง(await sb.rpc("close_won_quotation", {
     p_dealer: code, p_known_customer_id: customerId, p_lead_company: company, p_target_quote_id: id, p_cascade_won: false,
     p_customer_payload: { company, name: company, contact: ผู้ติดต่อ(n), address: ที่อยู่สมจริง(`${code}:${n}`, province),
-      phone: เบอร์(n), email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, province } }), `ลูกค้าตอบรับ ${id}`);
+      phone: เบอร์งาน(n), email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, province } }), `ลูกค้าตอบรับ ${id}`);
   const ปฏิเสธ = async (id, เหตุผล = "ราคาสูงกว่าคู่แข่ง") => ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: เหตุผล })
     .eq("dealer_code", code).eq("id", id), `ลูกค้าปฏิเสธ ${id}`);
   const ปิดไม่สำเร็จ = async (n, เหตุผล = "ลูกค้าไม่สนใจแล้ว") => ต้อง(await sb.rpc("lead_apply", { p_id: `#L-${n}`,
@@ -160,7 +161,7 @@ export async function งานขายของสาขา(ctx, { code, provi
   const นัด = async (n, company, { ห่างวัน = 0, เวลา = "10:00", type = "visit", ลำดับ = 1, เรื่อง = "นัดดูหน้างาน" } = {}) => {
     const id = n * 10 + ลำดับ;
     ต้อง(await sb.from("appointments").insert({ id, dealer_code: code, lead_id: n, company, contact: ผู้ติดต่อ(n),
-      phone: เบอร์(n), project: "โกดังเก็บสินค้า", province, date: วัน(ห่างวัน), time: เวลา, type, assigned: ผู้รับผิดชอบ,
+      phone: เบอร์งาน(n), project: "โกดังเก็บสินค้า", province, date: วัน(ห่างวัน), time: เวลา, type, assigned: ผู้รับผิดชอบ,
       status: "upcoming", note: เรื่อง }), `นัด ${company}`);   // หมายเหตุนัด = เรื่องที่นัด (เดิมขึ้น "ข้อมูลตัวอย่าง: …")
     return id;
   };
