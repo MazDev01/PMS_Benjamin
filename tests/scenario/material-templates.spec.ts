@@ -215,7 +215,12 @@ test("[flow·hq] รายการวัสดุ: วัสดุที่เ�
   const แผง = page.locator("[data-panel='material-templates']");
   await แผง.getByLabel("ค้นรายการวัสดุ").fill(ผนัง);
   const แถวผนัง = แผง.locator(`tbody tr[data-mt-row="${id.ผนัง}"]`);
-  await expect(แถวผนัง.locator("[data-mt-used='1']"), "วัสดุที่เคยใช้ขึ้น \"ใช้แล้ว\"").toHaveText("ใช้แล้ว", { timeout: 20_000 });
+  // ไอคอนกุญแจ + ข้อความตอนชี้ (บอสสั่ง 19 พ.ย. 69 · เดิมข้อความ "ใช้แล้ว" ถูกตัด) — ตกบนโค้ดเดิม: ไม่มีชื่อ/ข้อความชี้นี้
+  const กุญแจ = แถวผนัง.locator("[data-mt-used='1']");
+  await expect(กุญแจ, "วัสดุที่เคยใช้ขึ้นไอคอนกุญแจ ชื่อบอกเหตุ").toHaveAttribute("aria-label", "ใช้ในคำขอแล้ว — ลบไม่ได้ ปิดใช้งานแทน", { timeout: 20_000 });
+  await expect(กุญแจ, "ชี้แล้วเห็นข้อความ").toHaveAttribute("title", "ใช้ในคำขอแล้ว — ลบไม่ได้ ปิดใช้งานแทน");
+  await expect(กุญแจ.locator("svg"), "เป็นไอคอน ไม่ใช่ข้อความที่ถูกตัด").toHaveCount(1);
+  await expect(กุญแจ, "ไม่มีข้อความ ใช้แล้ว").not.toContainText("ใช้แล้ว");
   await expect(แถวผนัง.getByRole("button", { name: /^ลบ / }), "ไม่มีปุ่มลบ").toHaveCount(0);
   await expect(แถวผนัง.getByLabel(/^เปิดใช้งาน \d+$/), "ปิดใช้ได้").toBeEnabled();
   // วัสดุที่ยังไม่เคยใช้มีปุ่มลบตามปกติ (เดิมใช้แถวใหม่ในตาราง — ปุ่มเพิ่มวัสดุเปลี่ยนเป็นตารางเพิ่มหลายแถว 5 พ.ย. 69)

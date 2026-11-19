@@ -15,14 +15,13 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { type StorageUsage, ขนาดไฟล์ } from "@pms/shared/lib/quoteFiles";
 
-/** ชื่อถังที่ผู้ใช้อ่านรู้เรื่อง — ถังอื่น (รวมถังที่เลิกใช้) แสดงชื่อกลาง แต่ยังนับจำนวน/ขนาดตามจริง */
+/** ที่เก็บที่ใช้อยู่ — ตารางแสดงเฉพาะถังเหล่านี้ (บอสสั่ง 19 พ.ย. 69 "(เลิกใช้) เอามาทำไม เอาออก")
+ *  ถังที่เลิกใช้ (รูปแคตตาล็อก ฯลฯ) ไม่ขึ้นเป็นแถว แต่ยังนับในการ์ดพื้นที่ที่ใช้ไป/จำนวนไฟล์ (ยอดรวมทุกถังจากฐาน · ตัวเลขการ์ดไม่เปลี่ยน) */
 const ชื่อถัง: Record<string, string> = {
   "quote-files": "ไฟล์แนบคำขอใบเสนอราคา (ดีลเลอร์ ↔ HQ)",
   "dealer-files": "ไฟล์ของดีลเลอร์ (ลูกค้า/ลูกค้าเป้าหมาย)",
   "avatars": "รูปประจำตัว",
-  "catalog-images": "รูปแคตตาล็อก (เลิกใช้)",
 };
-const ชื่อถังอื่น = "ไฟล์อื่น (เลิกใช้)";
 const GB = 1024 ** 3;
 
 export function StorageUsagePanel() {
@@ -92,9 +91,9 @@ export function StorageUsagePanel() {
               <thead><tr><th>ที่เก็บ</th><th className="num">จำนวนไฟล์</th><th className="num">ขนาด</th></tr></thead>
               <tbody>
                 {!ข้อมูล ? <tr><td colSpan={3} style={{ textAlign: "center", color: "#9ca3af" }}>{ว่าง}</td></tr>
-                  : ข้อมูล.buckets.map(b => (
+                  : ข้อมูล.buckets.filter(b => b.bucket in ชื่อถัง).map(b => (
                     <tr key={b.bucket} data-bucket={b.bucket} data-bytes={b.bytes}>
-                      <td>{ชื่อถัง[b.bucket] ?? ชื่อถังอื่น}</td>
+                      <td>{ชื่อถัง[b.bucket]}</td>
                       <td className="num">{Number(b.files).toLocaleString()}</td>
                       <td className="num">{ขนาดไฟล์(Number(b.bytes))}</td>
                     </tr>

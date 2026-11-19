@@ -296,6 +296,14 @@ test("[ui·hq] ตั้งค่า › พื้นที่เก็บไฟ
     const จริง = ((await hq.rpc("storage_usage")).data as { buckets: { bucket: string; bytes: number }[] }).buckets.find(b => b.bucket === "quote-files")!;
     expect(Number(จริง.bytes), "ถังไฟล์แนบมีไฟล์ของข้อนี้").toBeGreaterThan(0);
     await expect(แผง.locator("tr[data-bucket='quote-files']"), "แถวถังไฟล์แนบแสดงขนาดจริง (อ่านจากถังขณะแสดง)").toHaveAttribute("data-bytes", /^\d+$/);
+    // ไม่มีแถวที่เก็บที่เลิกใช้ (บอสสั่ง 19 พ.ย. 69) · การ์ดพื้นที่ที่ใช้ไป = ทุกถังรวมถังที่เลิกใช้ (ตัวเลขการ์ดไม่เปลี่ยน)
+    //   ตกบนโค้ดเดิม (97a8ab9e): มีแถว "รูปแคตตาล็อก (เลิกใช้)" / "ไฟล์อื่น (เลิกใช้)"
+    const ทุกถัง = ((await hq.rpc("storage_usage")).data as { buckets: { bucket: string; bytes: number }[] }).buckets;
+    const ใช้อยู่ = ["quote-files", "dealer-files", "avatars"];
+    await expect(แผง.getByRole("table", { name: "พื้นที่เก็บไฟล์แยกตามที่เก็บ", exact: true }), "ไม่มีแถวที่เก็บที่เลิกใช้").not.toContainText("เลิกใช้");
+    const แถวถัง = await แผง.locator("tr[data-bucket]").evaluateAll(es => es.map(e => e.getAttribute("data-bucket") ?? ""));
+    expect(แถวถัง.filter(b => !ใช้อยู่.includes(b)), "แถว = เฉพาะที่เก็บที่ใช้อยู่").toEqual([]);
+    expect(ทุกถัง.some(b => !ใช้อยู่.includes(b.bucket)), "ฐานทดสอบมีถังที่เลิกใช้ (ข้อนี้ตรวจว่าไม่ขึ้นเป็นแถว)").toBe(true);
     await แผง.getByLabel("พื้นที่ที่ให้ใช้ (GB)").fill("100");
     await page.getByRole("button", { name: "บันทึก", exact: true }).click();
     await expect.poll(async () => ((await hq.rpc("storage_usage")).data as { quotaGb: number | null }).quotaGb, { timeout: 20_000, message: "ฐานได้โควตา 100 GB" }).toBe(100);
