@@ -7,12 +7,14 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
 
-export function InfoTip({ children, label = "คำอธิบายเพิ่มเติม", size = 13 }: {
+export function InfoTip({ children, label = "คำอธิบายเพิ่มเติม", size = 13, ในปุ่ม = false }: {
   /** ข้อความที่ขึ้นเมื่อชี้/กด */
   children: ReactNode;
   /** ชื่อปุ่มสำหรับโปรแกรมอ่านจอ/ข้อทดสอบ */
   label?: string;
   size?: number;
+  /** อยู่ในปุ่มอื่น (เช่น การ์ด KPI ที่ทั้งใบกดได้) — ใช้ span role=button แทน <button> ซ้อน · กดไอคอนไม่ทำให้การ์ดถูกกด */
+  ในปุ่ม?: boolean;
 }) {
   const [ชี้, setชี้] = useState(false);
   const [กดค้าง, setกดค้าง] = useState(false);
@@ -30,14 +32,26 @@ export function InfoTip({ children, label = "คำอธิบายเพิ�
   return (
     <span ref={กรอบ} data-info-tip style={{ position: "relative", display: "inline-flex", verticalAlign: "middle", marginLeft: 4 }}
       onPointerEnter={e => { if (e.pointerType === "mouse") setชี้(true); }} onPointerLeave={e => { if (e.pointerType === "mouse") setชี้(false); }}>
-      <button type="button" aria-label={label} aria-expanded={เปิด} aria-describedby={id}
-        onClick={() => { if (เปิด) { setชี้(false); setกดค้าง(false); } else setกดค้าง(true); }}
-        onFocus={e => { if (e.currentTarget.matches(":focus-visible")) setชี้(true); }} onBlur={() => { setชี้(false); setกดค้าง(false); }}
-        onKeyDown={e => { if (e.key === "Escape") { setชี้(false); setกดค้าง(false); } }}
-        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 2, margin: -2, border: 0, background: "transparent",
-          color: "var(--muted-foreground,#6b7280)", cursor: "pointer", borderRadius: 999, lineHeight: 0 }}>
-        <Info size={size} aria-hidden="true" />
-      </button>
+      {(() => {
+        const สลับ = () => { if (เปิด) { setชี้(false); setกดค้าง(false); } else setกดค้าง(true); };
+        const คุณสมบัติ = {
+          "aria-label": label, "aria-expanded": เปิด, "aria-describedby": id,
+          onFocus: (e: React.FocusEvent<HTMLElement>) => { if (e.currentTarget.matches(":focus-visible")) setชี้(true); },
+          onBlur: () => { setชี้(false); setกดค้าง(false); },
+          style: { display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 2, margin: -2, border: 0, background: "transparent",
+            color: "var(--muted-foreground,#6b7280)", cursor: "pointer", borderRadius: 999, lineHeight: 0 } as React.CSSProperties,
+        };
+        return ในปุ่ม
+          ? <span role="button" tabIndex={0} {...คุณสมบัติ}
+              onClick={e => { e.stopPropagation(); e.preventDefault(); สลับ(); }}
+              onKeyDown={e => { if (e.key === "Escape") { setชี้(false); setกดค้าง(false); } else if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); สลับ(); } }}>
+              <Info size={size} aria-hidden="true" />
+            </span>
+          : <button type="button" {...คุณสมบัติ} onClick={สลับ}
+              onKeyDown={e => { if (e.key === "Escape") { setชี้(false); setกดค้าง(false); } }}>
+              <Info size={size} aria-hidden="true" />
+            </button>;
+      })()}
       <span id={id} role="tooltip" hidden={!เปิด} data-info-tip-text
         style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", zIndex: 50,
           width: "max-content", maxWidth: "min(280px, 80vw)", padding: "7px 10px", borderRadius: 8,

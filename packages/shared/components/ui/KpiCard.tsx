@@ -9,6 +9,19 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronRight } from "lucide-react";
 import { ProgressRing } from "@pms/shared/components/ui/Charts";
+import { InfoTip } from "@pms/shared/components/ui/InfoTip";
+
+// ── ใต้ตัวเลขเหลือแค่หน่วยสั้น (บอสสั่ง 19 พ.ย. 69 "ข้อมูลแบบนี้เอาออก") ──────────────────────────────────────────────
+//   การ์ดทุกใบ: ชื่อการ์ด · ตัวเลข · หน่วยสั้น (คำเดียว เช่น "ราย" "ใบ" "คำขอ") · ลิงก์ดูรายละเอียด
+//   คำอธิบาย/สูตร/ขอบเขต (ส่วนหลัง " · " ของหน่วย · หน่วยที่ยาวเป็นประโยค · บรรทัดรอง sub · เหตุผลตอนไม่มีข้อมูล) → ไอคอน ⓘ ข้างชื่อการ์ด
+//   ความหมายไม่หาย (ข้อความเดิมอยู่ใน ⓘ ครบ) · data-kpi-unit = หน่วยที่แสดง · data-kpi-tip = ข้อความใน ⓘ (ข้อทดสอบ kpi-card-short.spec)
+export function แยกหน่วย(unit: string | undefined): { สั้น: string; อธิบาย: string } {
+  const u = (unit ?? "").trim();
+  if (!u) return { สั้น: "", อธิบาย: "" };
+  const [หัว, ...ที่เหลือ] = u.split(" · ");
+  const สั้นพอ = /^[฀-๿A-Za-z%]{1,9}$/.test(หัว);   // คำเดียว (อักษรไทย/อังกฤษ) ไม่มีตัวเลข/ช่องว่าง/ลูกศร
+  return สั้นพอ ? { สั้น: หัว, อธิบาย: ที่เหลือ.join(" · ") } : { สั้น: "", อธิบาย: u };
+}
 
 const NAVY = "#003366";
 const ป้าย: React.CSSProperties = { fontSize: "0.8rem", color: "var(--muted-foreground)" };
@@ -47,14 +60,19 @@ export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger,
   ring?: number | null;
 }) {
   const ว่าง = value == null;
+  const { สั้น, อธิบาย } = แยกหน่วย(ว่าง ? undefined : unit);
+  const มีคำอธิบาย = !!(อธิบาย || (sub && !ว่าง) || ว่าง);
   const เนื้อ = (
     <>
       <span style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, width: "100%" }}>
         <span style={{ minWidth: 0, display: "grid", gap: 2 }}>
-          <span style={ป้าย}>{label}</span>
+          <span style={{ ...ป้าย, display: "inline-flex", alignItems: "center", gap: 2 }}>{label}
+            {มีคำอธิบาย && <span data-kpi-tip style={{ display: "inline-flex" }}><InfoTip ในปุ่ม={!!onClick} label={`คำอธิบาย ${label}`}>
+              {ว่าง ? (empty ?? "ยังไม่มีข้อมูล") : <>{อธิบาย}{อธิบาย && sub ? <br /> : null}{sub}</>}
+            </InfoTip></span>}
+          </span>
           <b data-testid={testId} data-value={rawValue ?? ""} style={{ ...ตัวเลข, marginTop: 4, color: ว่าง ? "#9ca3af" : danger ? "#dc2626" : ตัวเลข.color }}>{ว่าง ? "—" : value}</b>
-          <span style={{ ...ป้าย, fontSize: "0.76rem" }}>{ว่าง ? (empty ?? "ยังไม่มีข้อมูล") : unit}</span>
-          {sub && !ว่าง && <span style={{ ...ป้าย, fontSize: "0.74rem" }}>{sub}</span>}
+          {สั้น && <span data-kpi-unit style={{ ...ป้าย, fontSize: "0.76rem" }}>{สั้น}</span>}
         </span>
         {ring !== undefined
           ? <span data-kpi-ring={ring ?? ""} style={{ flexShrink: 0 }}><ProgressRing pct={ring} size={50} /></span>

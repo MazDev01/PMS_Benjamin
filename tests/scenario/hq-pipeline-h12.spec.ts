@@ -86,7 +86,7 @@ async function รวมเท่าการ์ด(page: Page, ที่: strin
   await expect.poll(async () => {
     const การ์ด = { sales: await ค่าการ์ด(page, "sales"), rate: await ค่าการ์ด(page, "winRate"), margin: await ค่าการ์ด(page, "margin"), onTarget: await ค่าการ์ด(page, "onTarget") };
     const ตาราง = { sales: await ค่ารวม(page, "sales"), rate: await ค่ารวม(page, "rate"), margin: await ค่ารวม(page, "margin"), onTarget: await ค่ารวม(page, "onTarget") };
-    const ใต้การ์ด = await page.locator(`[data-kpi-row] [data-kpi="winRate"]`).innerText();
+    const ใต้การ์ด = (await page.locator(`[data-kpi-row] [data-kpi="winRate"] [data-kpi-tip]`).textContent()) ?? "";   // จำนวนปิดสำเร็จ/ไม่สำเร็จอยู่ใน ⓘ (19 พ.ย. 69)
     const [, ได้, เสีย] = ใต้การ์ด.match(/ปิดสำเร็จ\s*([\d,]+)\s*·\s*ไม่สำเร็จ\s*([\d,]+)/) ?? [];
     const n = (v: string | null | undefined) => (v == null || v === "" ? "—" : String(Number(String(v).replace(/,/g, ""))));
     const ผล = { sales: n(ตาราง.sales) === n(การ์ด.sales), rate: n(ตาราง.rate) === n(การ์ด.rate), margin: n(ตาราง.margin) === n(การ์ด.margin), onTarget: n(ตาราง.onTarget) === n(การ์ด.onTarget),
