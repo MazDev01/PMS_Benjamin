@@ -14,7 +14,9 @@ async function ตรวจการ์ด(page: Page, ที่: string) {
   await expect(page.locator("[data-kpi-row]").first(), `${ที่}: การ์ดโหลดเสร็จ`).not.toContainText("กำลังโหลด", { timeout: 25_000 });
   const ข้อมูล = await การ์ด.evaluateAll(es => es.map(e => {
     // ข้อความที่เห็นบนการ์ด (innerText ไม่นับ ⓘ ที่ซ่อนอยู่)
-    const บรรทัด = (e as HTMLElement).innerText.split("\n").map(s => s.trim()).filter(Boolean);
+    //   ไม่นับตัวเลขในวง % (data-kpi-ring) — เป็นกราฟิกข้างตัวเลข ไม่ใช่บรรทัดอธิบาย
+    const วง = ((e.querySelector("[data-kpi-ring]") as HTMLElement | null)?.innerText ?? "").split("\n").map(s => s.trim()).filter(Boolean);
+    const บรรทัด = (e as HTMLElement).innerText.split("\n").map(s => s.trim()).filter(Boolean).filter(b => !วง.includes(b));
     const หน่วย = e.querySelector("[data-kpi-unit]")?.textContent ?? "";
     const tip = e.querySelector("[data-kpi-tip] [data-info-tip-text]")?.textContent ?? "";
     return { kpi: e.getAttribute("data-kpi"), บรรทัด, หน่วย, tip, มีปุ่มซ้อน: !!e.matches("button") && !!e.querySelector("button") };

@@ -55,7 +55,7 @@ test.afterAll(async () => {
 
 // คีย์การ์ดบนจอ (data-kpi) → ช่องในผลของ kpi_cards
 const ดีลเลอร์: { ที่: string; หน้า: string; การ์ด: [string, string][] }[] = [
-  { ที่: "/dashboard", หน้า: "dealer.dashboard", การ์ด: [["target", "target.annual"], ["pipeline", "pipeline.value"], ["awaiting", "awaiting.count"], ["won", "won.count"]] },
+  { ที่: "/dashboard", หน้า: "dealer.dashboard", การ์ด: [["target", "target.ytd"],   /* 19 พ.ย. 69: ตัวเลขใหญ่ = ยอดขายสะสมปีนี้ (เดิม เป้าทั้งปี) */ ["pipeline", "pipeline.value"], ["awaiting", "awaiting.count"], ["won", "won.count"]] },
   { ที่: "/leads", หน้า: "dealer.leads", การ์ด: [["open", "open"], ["hq-pricing", "hqPricing"], ["hq-quoted", "hqQuotedNoDraft"], ["quote-stage", "quoteStage"]] },
   { ที่: "/quotations", หน้า: "dealer.quotations", การ์ด: [["drafts", "drafts"], ["awaiting", "awaiting"], ["won", "won.count"], ["expiring", "expiring"]] },
   { ที่: "/customers", หน้า: "dealer.customers", การ์ด: [["total", "total"], ["new", "new"], ["sales", "sales"], ["openDeal", "openDeal"]] },

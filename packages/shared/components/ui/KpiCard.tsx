@@ -34,7 +34,7 @@ export function KpiRow({ label, children, style, range, สามใบ }: { lab
     style={{ marginBottom: "1.25rem", ...style }}>{children}</div>;
 }
 
-export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger, icon: Icon, color = NAVY, bg = "#E8F0FE", onClick, actionLabel = "ดูรายการ", testId, ring }: {
+export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, บรรทัดล่าง, danger, icon: Icon, color = NAVY, bg = "#E8F0FE", onClick, actionLabel = "ดูรายการ", testId, ring }: {
   /** ชื่อการ์ด (data-kpi) */
   kpi: string;
   label: string;
@@ -45,8 +45,10 @@ export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger,
   unit?: string;
   /** คำอธิบายเมื่อไม่มีข้อมูล (แสดงแทนหน่วย) */
   empty?: string;
-  /** บรรทัดรอง (เช่น "3 จาก 40") */
+  /** บรรทัดรอง (เช่น "3 จาก 40") — ย้ายไป ⓘ */
   sub?: ReactNode;
+  /** บรรทัดใต้ตัวเลขที่บอสสั่งให้แสดงบนการ์ด (แทนหน่วย · เช่น การ์ดยอดขายปีนี้เทียบเป้า "จากเป้าทั้งปี ฿70,000,000" · 19 พ.ย. 69) */
+  บรรทัดล่าง?: string;
   /** ตัวเลขสีแดง (เกินกำหนด) */
   danger?: boolean;
   icon: LucideIcon;
@@ -72,7 +74,8 @@ export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, danger,
             </InfoTip></span>}
           </span>
           <b data-testid={testId} data-value={rawValue ?? ""} style={{ ...ตัวเลข, marginTop: 4, color: ว่าง ? "#9ca3af" : danger ? "#dc2626" : ตัวเลข.color }}>{ว่าง ? "—" : value}</b>
-          {สั้น && <span data-kpi-unit style={{ ...ป้าย, fontSize: "0.76rem" }}>{สั้น}</span>}
+          {บรรทัดล่าง && !ว่าง ? <span data-kpi-line style={{ ...ป้าย, fontSize: "0.76rem" }}>{บรรทัดล่าง}</span>
+            : สั้น && <span data-kpi-unit style={{ ...ป้าย, fontSize: "0.76rem" }}>{สั้น}</span>}
         </span>
         {ring !== undefined
           ? <span data-kpi-ring={ring ?? ""} style={{ flexShrink: 0 }}><ProgressRing pct={ring} size={50} /></span>
