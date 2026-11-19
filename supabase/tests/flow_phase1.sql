@@ -124,11 +124,9 @@ begin
   select status::text into s from leads where dealer_code = 'CNX' and num_id = l1;
   perform flowtest.ok(r.status = 'won' and h.status = 'ordered' and h.ordered_at is not null and s = 'PAID',
                      'ลูกค้าตอบรับ → คำขอปิด (won) · ใบ HQ สั่งผลิต · ลูกค้าเป้าหมาย ปิดการขายสำเร็จ');
-  -- ย้อนการตอบรับ: ดีลเลอร์ทำเองไม่ได้แล้ว (0204) — HQ ย้อนผ่าน quotation_revert_won() เท่านั้น
-  perform flowtest.must_fail($q$update quotations set status = 'sent_to_client' where dealer_code = 'CNX' and id = 'T-CNX-1'$q$, 'quote_won_locked', 'ดีลเลอร์ย้อนการตอบรับเองไม่ได้');
-  perform flowtest.as_hq(c.hq_uid);
+  -- ย้อนการตอบรับ: แก้สถานะตรงที่ตารางไม่ได้ — ดีลเลอร์เจ้าของใบย้อนผ่าน quotation_revert_won() เท่านั้น (ใบ 0288 · เดิม HQ 0204)
+  perform flowtest.must_fail($q$update quotations set status = 'sent_to_client' where dealer_code = 'CNX' and id = 'T-CNX-1'$q$, 'quote_won_locked', 'ดีลเลอร์แก้สถานะใบ won ตรงที่ตารางไม่ได้');
   perform quotation_revert_won('CNX', 'T-CNX-1', 'ทดสอบย้อน');
-  perform flowtest.as_dealer('CNX', c.cnx_uid);
   select * into r from quote_requests where id = r.id; select * into h from hq_quotes where id = h.id;
   perform flowtest.ok(r.status = 'quoted' and h.status = 'sent' and h.ordered_at is null, 'HQ ย้อนการตอบรับ → ใบ HQ กลับเป็นส่งแล้ว คำขอกลับมาเปิด');
 

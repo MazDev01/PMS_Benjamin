@@ -66,7 +66,7 @@ type LeadQuotationsPanelProps =
   | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined; openViewSignal?: undefined; onWon?: undefined };
 
 export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon }: LeadQuotationsPanelProps) {
-  const { quotations, createQuotation, updateQuotation, sendQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus } = useSales();
+  const { quotations, createQuotation, updateQuotation, sendQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus, refreshSales } = useSales();
   const lostReasons = useLostReasons();   // เหตุผล "ลูกค้าปฏิเสธ" = รายการของ HQ (กล่องเหตุผลกลาง)
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
   const [editing, setEditing] = useState<QuotationMock | null>(null);
@@ -261,7 +261,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   async function ลูกค้าตอบรับ(q: QuotationMock) {
     if (!(await ยืนยัน({
       หัวข้อ: `ลูกค้าตอบรับใบ ${q.id} ?`,
-      รายละเอียด: "ปิดการขายสำเร็จ — ระบบสร้าง/ผูกลูกค้าให้อัตโนมัติ และใบ HQ เปลี่ยนเป็นสั่งผลิต · ย้อนได้เฉพาะสำนักงานใหญ่",
+      รายละเอียด: "ปิดการขายสำเร็จ — ระบบสร้าง/ผูกลูกค้าให้อัตโนมัติ และใบ HQ เปลี่ยนเป็นสั่งผลิต · ย้อนการตอบรับได้ภายใน 7 วัน (พร้อมเหตุผล)",
       ปุ่มตกลง: "ลูกค้าตอบรับ", ปุ่มกำลังทำ: "กำลังบันทึกลูกค้าตอบรับ…", อันตราย: true,
       ทำ: async () => { const ผิด = await setQuotationStatus(q.id, "won"); if (ผิด) throw new Error(ผิด); },
     }))) return;
@@ -291,6 +291,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
       <button type="button" onClick={() => void ลูกค้าปฏิเสธ(q)} className="btn btn-sm" style={{ background: "#fff", color: "#dc2626", border: "1px solid #fecaca", height: 28, padding: "0 11px" }}><XCircle size={12} /> ลูกค้าปฏิเสธ</button>
     </div>
   );
+
+  // ย้อนการตอบรับ (ใบ 0288) อยู่ที่หน้าต่างงานของลูกค้า (RevertWonButton) — ลีดที่ปิดการขายสำเร็จเปิดแผงนี้ไม่ได้ (ส่งต่อหน้าลูกค้า)
 
   function openEdit(q: QuotationMock) {
     if (!แก้เนื้อหาได้(q)) return;   // ใบที่ส่งแล้วล็อก (ฐานปฏิเสธอยู่แล้ว · ใบ 0226) — ไม่เปิดฟอร์มให้แก้เสียเปล่า

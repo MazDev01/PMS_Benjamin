@@ -69,11 +69,15 @@ do $$ begin
     'lead_won_not_paid', 'ปิดไม่สำเร็จทั้งที่ใบตอบรับแล้ว = ปฏิเสธ');
   perform wptest.ok(wptest.สถานะ(990902) = 'PAID', 'ลีดยังปิดสำเร็จ');
 
-  -- ย้อนการตอบรับ (HQ · ใบ won → ส่งแล้ว แล้วลีดกลับขั้นเดิม ในคำสั่งเดียว) ยังทำได้
-  perform wptest.as_user('SUPER_ADMIN', '');
+  -- ย้อนการตอบรับ (ดีลเลอร์เจ้าของใบ · ใบ 0288 · ใบ won → ส่งแล้ว แล้วลีดกลับขั้นเดิม ในคำสั่งเดียว) ยังทำได้
+  --   ใบลงด้วยโหมด replica = ไม่มีวันตอบรับที่ฐาน → ตั้งเป็นตอนนี้ (กติกาย้อนได้ภายใน 7 วัน)
+  perform wptest.as_root();
+  insert into quotation_won_at (dealer_code, quote_id, won_at) values ('RYG', 'Q-ZZWP-2', now())
+    on conflict (dealer_code, quote_id) do update set won_at = excluded.won_at;
+  perform wptest.as_user('DEALER_ADMIN', 'RYG');
   perform quotation_revert_won('RYG', 'Q-ZZWP-2', 'ทดสอบย้อน', 'sent_to_client');
   perform wptest.as_root();
-  perform wptest.ok(wptest.สถานะ(990902) = 'QUOTED', format('HQ ย้อนการตอบรับ → ลีดกลับเสนอราคา (ได้ %s)', wptest.สถานะ(990902)));
+  perform wptest.ok(wptest.สถานะ(990902) = 'QUOTED', format('ดีลเลอร์ย้อนการตอบรับ → ลีดกลับเสนอราคา (ได้ %s)', wptest.สถานะ(990902)));
 end $$;
 
 select 'ALL PASS' as result;

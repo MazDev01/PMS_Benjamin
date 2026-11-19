@@ -92,8 +92,9 @@ begin
     'won_reverted/D6/dealer/true/true request_new/H1/hq/true/true request_reprice/H2/hq/true/true '
     'requests_overdue/H3/hq/true/true customer_accepted/H4/hq/true/true franchise_payment_overdue/H5/hq/true/false '
     'request_cancelled/H6/hq/true/true prospect_followup_due/H7/hq/true/false prospect_idle/H7/hq/true/false '
+    'won_reverted_by_dealer/H9/hq/true/true '   -- ใบ 0288: ดีลเลอร์ย้อนการตอบรับ → แจ้ง HQ
     'proposal_awaiting/H8/hq/true/false proposal_expired/H8/hq/true/false',
-    '0) ตารางกลางมี 17 ชนิด (14 แถว) ตรงตาราง FLOW (ได้ ' || bad || ')');
+    '0) ตารางกลางมี 18 ชนิด (15 แถว) ตรงตาราง FLOW (ได้ ' || bad || ')');
 
   -- ══ 1) H1 คำขอราคาใหม่ → HQ กระดิ่ง + อีเมล · ดีลเลอร์ (คนทำ) ไม่ได้อะไร ══
   n1 := ntest.lead('ZZTEST-แจ้งเตือน-1');
@@ -137,12 +138,14 @@ begin
     '4) ลูกค้าตอบรับ → กระดิ่ง HQ 1 + อีเมล HQ 1');
   perform ntest.ok(not exists (select 1 from notifications where audience = 'dealer' and dealer_code = 'CNX' and kind not in ('hq_quote_sent')),
     '4) ดีลเลอร์ที่กดตอบรับเองไม่ได้แจ้งเตือน');
-  perform ntest.as_hq();
+  -- ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69) → แจ้ง HQ (H9) · ดีลเลอร์ทำเองไม่แจ้งตัวเอง
+  perform ntest.as_dealer('CNX');
   perform public.quotation_revert_won('CNX', q, 'ZZTEST ลูกค้ายังไม่โอนมัดจำ');
   perform ntest.as_db();
-  perform ntest.ok(ntest.n('won_reverted', '%ZZTEST ลูกค้ายังไม่โอนมัดจำ%') = 1 and ntest.mail('won_reverted', CNX_MAIL) = 1,
-    '4) HQ ย้อนการปิดการขาย → กระดิ่งดีลเลอร์ (มีเหตุผล) + อีเมล');
-  perform ntest.ok(not exists (select 1 from notifications where audience = 'hq' and kind = 'won_reverted'), '4) HQ ที่ย้อนเองไม่ได้แจ้งเตือน');
+  perform ntest.ok(ntest.n('won_reverted_by_dealer', '%ZZTEST ลูกค้ายังไม่โอนมัดจำ%') = 1 and ntest.mail('won_reverted_by_dealer', HQ_MAIL) = 1,
+    '4) ดีลเลอร์ย้อนการตอบรับ → กระดิ่ง HQ (มีเหตุผล) + อีเมล HQ');
+  perform ntest.ok(not exists (select 1 from notifications where audience = 'dealer' and kind in ('won_reverted', 'won_reverted_by_dealer')),
+    '4) ดีลเลอร์ที่ย้อนเองไม่ได้แจ้งเตือน');
 
   -- ══ 5) H6 ดีลเลอร์ยกเลิกคำขอ → HQ กระดิ่ง + อีเมล พร้อมเหตุผล (คืนตาม FLOW D3x · ใบ 0236) · ลูกค้าปฏิเสธ = ห้ามแจ้ง ══
   total := (select count(*) from notifications);

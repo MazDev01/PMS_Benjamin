@@ -617,7 +617,9 @@ export function syncAddQuotationFile(q: QuotationMock) {
 // ─── Global: โปรไฟล์ผู้ออกใบเสนอราคา (บริษัทดีลเลอร์) ────────────────
 // แหล่งเดียว — ใช้ทั้งหน้าใบเสนอราคา และใบเสนอราคาแบบ inline ในหน้า Lead
 // ให้หัวกระดาษ (ชื่อบริษัท/ที่อยู่/โทร/เลขภาษี) ตรงกันทุกที่เมื่อยังไม่ได้ตั้งค่าโปรไฟล์
-export type IssuerProfile = { company: string; address: string; phone: string; taxId: string };
+export type IssuerProfile = { company: string; address: string; phone: string; taxId: string;
+  /** อีเมล/เว็บไซต์ของบริษัท (ตั้งค่า › ข้อมูลบริษัท) — พิมพ์บนหัวใบต่อจากโทร · ว่าง = ไม่พิมพ์ (ใบ 0289 · 19 พ.ย. 69) */
+  email?: string; website?: string };
 export const ISSUER_KEY = "dealer_issuer_profile_v2";
 // ⛔ ห้ามใส่ข้อมูลบริษัทของสาขาใดสาขาหนึ่งเป็นค่าเริ่มต้นเด็ดขาด — ต้องว่างเสมอ
 //   ค่านี้คือ "ค่าที่ใช้เมื่อสาขายังไม่เคยตั้งค่าหัวกระดาษ" ซึ่งใช้ร่วมกันทุกสาขา

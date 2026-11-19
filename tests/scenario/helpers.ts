@@ -478,3 +478,18 @@ export async function ตัวเลือกของตัวกรอง(pag
   await expect(รายการ).toHaveCount(0);
   return ออก;
 }
+
+/** ดีลเลอร์เปิดหน้าต่างงานของลูกค้า (หน้าลูกค้า › ประวัติการซื้อ › กดใบ) — ที่ของปุ่มย้อนการตอบรับ (ใบ 0288 · RevertWonButton)
+ *  page ต้องเข้าระบบดีลเลอร์แล้ว · origin = ที่อยู่เว็บดีลเลอร์ · ลูกค้า = ชื่อบริษัทของลูกค้า (มีป้ายของข้อ) */
+export async function เปิดหน้าต่างงานของลูกค้า(page: Page, origin: string, ลูกค้า: string, เลขใบ: string): Promise<Locator> {
+  await page.goto(`${origin}/customers`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  await (await แถวตามชื่อ(page, `เปิดรายละเอียดลูกค้า ${ลูกค้า}`, ลูกค้า, /ค้นหาลูกค้า,/)).getByRole("button", { name: "ดูรายละเอียด", exact: true }).click();
+  const แผง = page.locator("[data-row-panel]").last();
+  await expect(แผง, `แผงลูกค้า ${ลูกค้า}`).toBeVisible({ timeout: 20_000 });
+  await แผง.getByRole("button", { name: /^ประวัติการซื้อ/ }).click();
+  await แผง.locator(`[data-purchase-row="${เลขใบ}"]`).click({ timeout: 25_000 });
+  const หน้าต่าง = page.locator("[data-doc-window='customer-job']");
+  await expect(หน้าต่าง, `หน้าต่างงานของใบ ${เลขใบ}`).toBeVisible({ timeout: 20_000 });
+  return หน้าต่าง;
+}

@@ -90,8 +90,15 @@ begin
   update quotations set status = 'sent_to_client' where dealer_code = 'ZZQ' and id = 'ZZQ-Q2';
   perform flowtest.ok((select status::text from quotations where dealer_code = 'ZZQ' and id = 'ZZQ-Q2') = 'sent_to_client', 'ข้อมูลครบ = เปลี่ยนสถานะได้');
   k := quotation_print_data('ZZQ', 'ZZQ-Q1');
-  perform flowtest.ok(k -> 'issuer' = '{"company":"ZZQ บริษัทใหม่","address":"ZZQ ที่อยู่ใหม่","phone":"000-000-0002","taxId":"0000000000002"}'::jsonb
-    and k ->> 'printedAt' is not null, format('พิมพ์ได้ · หัวกระดาษ = ข้อมูลบริษัทปัจจุบัน (ใบไม่ได้ตรึงไว้) (ได้ %s)', k));
+  -- ใบ 0289: คืนอีเมล/เว็บไซต์ด้วย (ไม่กรอก = '')
+  perform flowtest.ok(k -> 'issuer' = '{"company":"ZZQ บริษัทใหม่","address":"ZZQ ที่อยู่ใหม่","phone":"000-000-0002","taxId":"0000000000002","email":"","website":""}'::jsonb
+    and k ->> 'printedAt' is not null, format('พิมพ์ได้ · หัวกระดาษ = ข้อมูลบริษัทปัจจุบัน (ใบไม่ได้ตรึงไว้) · อีเมล/เว็บไซต์ไม่กรอก = ว่าง (ได้ %s)', k));
+  perform flowtest.as_root();
+  update dealer_settings set issuer = issuer || '{"email":" zzq@example.test ","website":"https://zzq.example.test"}' where dealer_code = 'ZZQ';
+  perform flowtest.as_user('DEALER_ADMIN', 'ZZQ');
+  k := quotation_print_data('ZZQ', 'ZZQ-Q1');
+  perform flowtest.ok(k #>> '{issuer,email}' = 'zzq@example.test' and k #>> '{issuer,website}' = 'https://zzq.example.test',
+    format('ใบ 0289: หัวกระดาษมีอีเมล/เว็บไซต์ของบริษัท (ตัดช่องว่างหัวท้าย) (ได้ %s)', k));
   perform flowtest.must_fail($q$select count(*) from quotation_prints$q$, 'permission denied', 'ผู้ใช้อ่านบันทึกการพิมพ์ตรงไม่ได้');
   perform flowtest.must_fail($q$insert into quotation_prints (dealer_code, quote_id) values ('ZZQ', 'ZZQ-Q1')$q$, 'permission denied',
     'ผู้ใช้เขียนบันทึกการพิมพ์เองไม่ได้ (ต้องผ่านคำสั่งพิมพ์)');
@@ -106,9 +113,9 @@ begin
   -- ═══ บันทึกเวลาพิมพ์ ═══
   perform flowtest.as_root();
   select count(*) into n from quotation_prints where dealer_code = 'ZZQ';
-  perform flowtest.ok(n = 2, format('จดเวลาพิมพ์ทุกครั้งที่พิมพ์สำเร็จ (Q4 + Q1) · ครั้งที่ถูกปฏิเสธไม่จด (ได้ %s)', n));
-  perform flowtest.ok((select count(*) from quotation_prints where dealer_code = 'ZZQ' and quote_id = 'ZZQ-Q1' and printed_at is not null) = 1,
-    'บันทึกการพิมพ์มีเลขใบและเวลา');
+  perform flowtest.ok(n = 3, format('จดเวลาพิมพ์ทุกครั้งที่พิมพ์สำเร็จ (Q4 + Q1 + Q1 หลังเติมอีเมล/เว็บไซต์ · ใบ 0289) · ครั้งที่ถูกปฏิเสธไม่จด (ได้ %s)', n));
+  perform flowtest.ok((select count(*) from quotation_prints where dealer_code = 'ZZQ' and quote_id = 'ZZQ-Q1' and printed_at is not null) = 2,
+    'บันทึกการพิมพ์มีเลขใบและเวลา (Q1 พิมพ์ 2 ครั้ง)');
 
   -- ═══ งานระบบ (ข้อมูลตั้งต้นของชุดทดสอบ) ไม่ผ่านกติกานี้ ═══
   -- ล้างข้อมูลบริษัทที่กรอกแล้วเป็นว่าง: ฐานปฏิเสธตั้งแต่ใบ 0276 แม้เป็นงานระบบ → จำลองแถวเก่าที่ว่างด้วยการข้ามด่าน

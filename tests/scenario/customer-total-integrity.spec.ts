@@ -38,12 +38,11 @@ async function ใบจากHQ(ชื่อ: string, ยอด: number, status
   ใบเลข.set(ชื่อ, q.id);
   return q;
 }
-/** HQ ย้อนการตอบรับ → ไม่สำเร็จ (ทางเดียวที่ใบ won เปลี่ยนสถานะได้ · 0204) */
-async function ย้อนโดยHQ(id: string) {
+/** ดีลเลอร์เจ้าของใบย้อนการตอบรับ → ไม่สำเร็จ (ทางเดียวที่ใบ won เปลี่ยนสถานะได้ · ใบ 0288: ดีลเลอร์ภายใน 7 วัน · HQ ดูอย่างเดียว) */
+async function ย้อนโดยดีลเลอร์(id: string) {
   const { db: เข้าระบบ } = await import("./funcHelpers");
-  const { ADMIN } = await import("./supabaseEnv");
-  const { error } = await (await เข้าระบบ(ADMIN)).rpc("quotation_revert_won", { p_dealer: DEALER, p_id: id, p_reason: "ข้อทดสอบยอดลูกค้า", p_to: "lost" });
-  if (error) throw new Error(`HQ ย้อนการตอบรับไม่สำเร็จ: ${error.message}`);
+  const { error } = await (await เข้าระบบ(RYG)).rpc("quotation_revert_won", { p_dealer: DEALER, p_id: id, p_reason: "ข้อทดสอบยอดลูกค้า", p_to: "lost" });
+  if (error) throw new Error(`ดีลเลอร์ย้อนการตอบรับไม่สำเร็จ: ${error.message}`);
 }
 async function cleanup() {
   ล้างใบHQทดสอบ(DEALER, ใบของข้อทดสอบ.map(h => h.leadNum));
@@ -77,8 +76,8 @@ test("เลื่อนใบร่างเป็นปิดการขา�
 });
 
 test("ย้อนใบกลับเป็นไม่สำเร็จ → ยอดลดลงตาม ไม่ค้างเกินจริง", async () => {
-  // ใบที่ won ย้อนได้เฉพาะ HQ ผ่านคำสั่ง quotation_revert_won (0204) — แก้สถานะตรงที่ตารางไม่ได้แล้ว
-  await ย้อนโดยHQ(ใบเลข.get("Q2")!);
+  // ใบที่ won ย้อนได้ผ่านคำสั่ง quotation_revert_won เท่านั้น (ดีลเลอร์เจ้าของใบ ภายใน 7 วัน · ใบ 0288) — แก้สถานะตรงที่ตารางไม่ได้
+  await ย้อนโดยดีลเลอร์(ใบเลข.get("Q2")!);
   expect(await totalOf(), "ยอดต้องลดกลับ").toBe(500_000);
 });
 
@@ -88,7 +87,7 @@ test("ลบใบที่ปิดการขายได้ → ถูกป
   const ลบ = await db.from("quotations").delete().eq("id", ใบเลข.get("Q1")!).eq("dealer_code", DEALER);
   expect(ลบ.error?.message ?? "", "ใบ won ต้องลบไม่ได้").toContain("quote_won_locked");
   expect(await totalOf(), "ลบไม่สำเร็จ ยอดต้องคงเดิม").toBe(500_000);
-  await ย้อนโดยHQ(ใบเลข.get("Q1")!);
+  await ย้อนโดยดีลเลอร์(ใบเลข.get("Q1")!);
   expect(await totalOf(), "ย้อนเป็นไม่สำเร็จแล้วยอดต้องกลับเป็น 0").toBe(0);
   const ลบหลังย้อน = await db.from("quotations").delete().eq("id", ใบเลข.get("Q1")!).eq("dealer_code", DEALER);
   expect(ลบหลังย้อน.error?.message ?? "", "ใบที่ไม่สำเร็จ (ส่งลูกค้าแล้ว) ลบไม่ได้").toContain("quote_sent_no_delete");

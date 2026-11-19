@@ -10,6 +10,7 @@ const repo = process.cwd();
 const ไฟล์จริง = [
   "supabase/migrations/0231_notification_catalog.sql",
   "supabase/migrations/0236_notification_flow_restore.sql",
+  "supabase/migrations/0288_dealer_revert_won.sql",   // เรื่อง won_reverted_by_dealer (H9 · FLOW อ้าง)
   "docs/FLOW.html",
   "packages/shared/components/layout/NotificationBell.tsx",
   "packages/shared/lib/useNotifications.ts",
