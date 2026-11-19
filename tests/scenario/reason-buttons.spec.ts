@@ -3,7 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, เปิดหน้าต่างงานของลูกค้า } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
@@ -233,15 +233,9 @@ test.describe("HQ: กล่องเหตุผล", () => {
   test("[ux·dealer] ย้อนการตอบรับ: กล่องเหตุผลกลาง · ว่างกดไม่ได้ · ฐานช้า กำลัง… · ผิดพลาดในกล่อง", async ({ page }) => {
     // ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ ภายใน 7 วัน (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69 · เดิมปุ่มอยู่หน้าต่างใบของ HQ — HQ ดูอย่างเดียวแล้ว)
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-    await page.goto(`${DEALER_ORIGIN}/leads`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    // หน้าลูกค้าเป้าหมายเปิดเป็นตารางเป็นค่าเริ่มต้น (leads/page.tsx view = "list")
-    await page.getByPlaceholder("ค้นหาบริษัท ผู้ติดต่อ...").fill(ชื่อตอบรับ);
-    const แถว = page.locator("tbody tr").filter({ hasText: ชื่อตอบรับ }).first();
-    await expect(แถว).toBeVisible({ timeout: 25_000 });
-    await แถว.locator("td").first().click();
-    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-    const ย้อน = page.locator(`[data-quote-item="${ใบลูกค้า}"] [data-revert-won]`);
+    // ใบที่ตอบรับแล้ว = งานของลูกค้า → หน้าลูกค้า › ประวัติการซื้อ › หน้าต่างงาน
+    const หน้าต่าง = await เปิดหน้าต่างงานของลูกค้า(page, DEALER_ORIGIN, ชื่อตอบรับ, ใบลูกค้า);
+    const ย้อน = หน้าต่าง.locator(`[data-revert-won="${ใบลูกค้า}"]`);
     await ตรวจกล่องเหตุผล(page, "ย้อนการตอบรับ", async () => {
       await ย้อน.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).click({ timeout: 25_000 });
     });

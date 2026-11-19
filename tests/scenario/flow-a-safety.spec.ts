@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน, แถวตามชื่อ, ตั้งต้น } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, แถวตามชื่อ, ตั้งต้น, เปิดหน้าต่างงานของลูกค้า } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── รอบ 2 ช่วง ก: ความปลอดภัยก่อน (บอสตัดสิน 19 ต.ค. 69 · docs/FLOW.html · docs/archive/ตารางเทียบ-flow-รอบ1.md) ─────────────
@@ -163,12 +163,10 @@ test.describe("ปิดการขาย: ใบที่ตอบรับแ
   });
 
   test("[ก·4] ดีลเลอร์ย้อนการตอบรับ → ลีดกลับเป็น \"รวบรวมความต้องการ\" (สถานะก่อนปิดการขาย)", async ({ page }) => {
-    // ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ ภายใน 7 วัน (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69 · เดิม HQ) — แผงลีด › ใบเสนอราคา
+    // ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ ภายใน 7 วัน (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69 · เดิม HQ) — หน้าลูกค้า › ประวัติการซื้อ › หน้าต่างงาน
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
-    const แถว = await เปิดแผงลีด(page, บริษัท);
-    await แถว.locator("td").first().click();
-    await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
-    const ย้อน = page.locator(`[data-quote-item="${ใบลูกค้า}"] [data-revert-won]`);
+    const หน้าต่าง = await เปิดหน้าต่างงานของลูกค้า(page, DEALER_ORIGIN, บริษัท, ใบลูกค้า);
+    const ย้อน = หน้าต่าง.locator(`[data-revert-won="${ใบลูกค้า}"]`);
     await expect(ย้อน, "ใบที่ตอบรับวันนี้มีปุ่มย้อน").toBeVisible({ timeout: 25_000 });
     await ย้อน.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).click();
     const ถาม = page.locator("[data-reason-dialog]");

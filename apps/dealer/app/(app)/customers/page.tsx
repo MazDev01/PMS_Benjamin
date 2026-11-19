@@ -76,6 +76,7 @@ import { จัดรูปจำนวน, จัดรูปหน่วย } 
 import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 import { PurchaseHistory, JobAttachments } from "@pms/shared/components/ui/PurchaseHistory";
 import { CustomerTimeline } from "@pms/shared/components/ui/CustomerTimeline";
+import { RevertWonButton } from "@pms/shared/components/ui/RevertWonButton";
 import { พื้นที่จากข้อความ } from "@pms/shared/lib/purchaseArea";
 import { ความกว้างหน้าต่าง } from "@pms/shared/lib/windowSize";
 import { แถบสรุปเอกสาร } from "@pms/shared/components/ui/DocDetailParts";
@@ -1345,6 +1346,8 @@ export default function CustomersPage(){
                 { คีย์: "area", ป้าย: "พื้นที่", ค่า: q.area>0 ? `${q.area.toLocaleString()} ตร.ม.` : "—" },
                 { คีย์: "value", ป้าย: "มูลค่างาน", ค่า: fmtMoney(q.totalValue), เด่น: true },
               ]} />
+              {/* ย้อนการตอบรับ (ใบ 0288 · ดีลเลอร์เจ้าของใบ ภายใน 7 วัน) — ใบที่ตอบรับแล้ว = งานของลูกค้า จึงอยู่ที่หน้าต่างนี้ */}
+              <div style={{ padding: "0 20px" }}><RevertWonButton q={q} onDone={() => setViewProject(null)} /></div>
               <div className="proj-shell" style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",background:"#f5f7fa"}}>
                 <div style={{padding:16,display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flex:1,minHeight:0}}>
 

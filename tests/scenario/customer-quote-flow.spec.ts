@@ -5,7 +5,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, กดตกลงในกล่องยืนยัน } from "./helpers";
+import { เปิดหน้าต่างงานของลูกค้า, settle, กดตกลงในกล่องยืนยัน } from "./helpers";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 
 // ── ขายหนึ่งงาน ขั้น 7–11 บนหน้าจอ + ตารางสถานะ (ส่งใบให้ลูกค้า / won / lost) · ด่าน 3 (FLOW.html) ──────────────
@@ -235,16 +235,13 @@ test("[H10] [flow·hq] ใบที่ลูกค้าตอบรับ — H
 });
 
 test("[D8r] [flow·dealer] ดีลเลอร์ย้อนการตอบรับภายใน 7 วัน พร้อมเหตุผล — ใบ HQ/คำขอกลับส่งแล้ว · ไทม์ไลน์ · แจ้ง HQ 1 รายการ", async ({ page }) => {
-  const q10 = await ใบของ(ก.leadNum), qลับ = await ใบของ(ข.leadNum);
+  const q10 = await ใบของ(ก.leadNum);
   test.skip(q10?.status !== "won", "ข้อก่อนหน้าไม่ผ่าน");   // ข้ามตั้งใจ: ข้อก่อนหน้าในไฟล์ตก (ข้อตกขึ้นที่ข้อนั้นแล้ว)
   const errs = watchErrors(page);
-  // ใบที่ลูกค้าปฏิเสธ (ไม่ใช่ won) ไม่มีปุ่มย้อน
-  await เปิดแท็บใบเสนอราคา(page, ลับ);
-  await expect(page.locator(`[data-quote-item="${qลับ!.id}"]`), "ใบที่ปฏิเสธอยู่ในรายการ").toBeVisible({ timeout: 25_000 });
-  await expect(page.locator(`[data-quote-item="${qลับ!.id}"] [data-revert-won]`), "ใบที่ไม่ใช่ won ไม่มีปุ่มย้อน").toHaveCount(0);
-
-  await เปิดแท็บใบเสนอราคา(page, สิบ);
-  const ย้อน = page.locator(`[data-quote-item="${q10!.id}"] [data-revert-won]`);
+  // ใบที่ตอบรับแล้ว = งานของลูกค้า → ปุ่มย้อนอยู่ที่หน้าต่างงานของลูกค้า (หน้าลูกค้า › ประวัติการซื้อ · ใบ 0288)
+  await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+  const หน้าต่าง = await เปิดหน้าต่างงานของลูกค้า(page, DEALER_ORIGIN, สิบ, q10!.id);
+  const ย้อน = หน้าต่าง.locator(`[data-revert-won="${q10!.id}"]`);
   await expect(ย้อน, "ใบที่ตอบรับวันนี้มีปุ่มย้อน (ภายใน 7 วัน)").toBeVisible({ timeout: 25_000 });
   await ย้อน.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).click();
   const ถาม = page.locator("[data-reason-dialog]");
@@ -254,7 +251,7 @@ test("[D8r] [flow·dealer] ดีลเลอร์ย้อนการตอ�
   await expect.poll(async () => (await ใบของ(ก.leadNum))?.status, { timeout: 20_000, message: "ย้อนแล้วใบต้องเป็นส่งให้ลูกค้าแล้ว" }).toBe("sent_to_client");
   expect((await admin.from("hq_quotes").select("status").eq("id", ก.hqQuoteId).single()).data?.status, "ใบ HQ กลับเป็นส่งแล้ว").toBe("sent");
   expect((await admin.from("quote_requests").select("status").eq("id", ก.requestId).single()).data?.status, "คำขอกลับเปิด (ส่งแล้ว)").toBe("quoted");
-  await expect(ย้อน, "ย้อนแล้วปุ่มย้อนหายไป").toHaveCount(0);
+  await expect(ย้อน, "ย้อนแล้วปุ่มย้อนหายไป (หน้าต่างปิด)").toHaveCount(0);
   // ลีดของข้อนี้ (ชื่อบริษัทมีป้ายของข้อ — ไม่ใช่ข้อมูลตั้งต้นร่วม)
   const { data: ลีด } = await admin.from("leads").select("activities").eq("dealer_code", "RYG").eq("company", สิบ).single();
   expect(JSON.stringify(ลีด?.activities ?? []), "ไทม์ไลน์บอกว่าย้อนใบไหน พร้อมเหตุผล").toMatch(new RegExp(`ย้อนการตอบรับใบเสนอราคา ${q10!.id}.*ลูกค้าขอเลื่อนชำระมัดจำ`));

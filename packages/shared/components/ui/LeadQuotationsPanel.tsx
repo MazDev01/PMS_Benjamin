@@ -292,28 +292,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     </div>
   );
 
-  // ── ย้อนการตอบรับ (บอสตัดสิน 18 พ.ย. 69 · ใบ 0288 · เดิมเฉพาะสำนักงานใหญ่): ดีลเลอร์เจ้าของใบ ภายใน 7 วันหลังตอบรับ · ต้องมีเหตุผล ──
-  //   ฐานตรวจซ้ำทุกข้อ (สาขา · 7 วันจากวันตอบรับที่ฐานเก็บ · เหตุผล) · ลีดกลับขั้นก่อนปิด · ไทม์ไลน์ · บันทึกการใช้งาน · แจ้ง HQ
-  const ย้อนได้ = (q: QuotationMock) => แก้ได้(q) && q.status === "won" && !!q.wonAt
-    && Date.now() - Date.parse(q.wonAt) <= 7 * 24 * 3_600_000;
-  async function ย้อนการตอบรับ(q: QuotationMock, to: "sent_to_client" | "lost") {
-    const ป้าย = to === "lost" ? "ลูกค้าปฏิเสธ" : "ส่งให้ลูกค้าแล้ว";
-    if (!(await ถามเหตุผล({
-      หัวข้อ: `ย้อนการตอบรับใบ ${q.id} เป็น “${ป้าย}” ?`,
-      รายละเอียด: "ยอดขายของใบนี้จะไม่นับแล้ว · ลูกค้าเป้าหมายกลับไปขั้นก่อนปิดการขาย · บันทึกในประวัติพร้อมเหตุผล และแจ้งสำนักงานใหญ่",
-      ป้ายช่อง: "เหตุผลที่ย้อน", ปุ่มตกลง: "ย้อนการตอบรับ", ปุ่มกำลังทำ: "กำลังย้อนการตอบรับ…", อันตราย: true,
-      ทำ: async reason => { await quoteRequestsRepo.revertWon(dealerCodeOf(q), q.id, reason, to); await refreshSales(); },
-    }))) return;
-    setEditing(e => e?.id === q.id ? { ...e, status: to } : e);
-    onToast?.(`ย้อนการตอบรับใบ ${q.id} เป็น “${ป้าย}” แล้ว — แจ้งสำนักงานใหญ่แล้ว`);
-  }
-  const ปุ่มย้อนการตอบรับ = (q: QuotationMock) => ย้อนได้(q) && (
-    <div data-revert-won style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-      <span style={{ fontSize: "0.68rem", color: "#9A3412" }}>ลูกค้าเปลี่ยนใจ? ย้อนได้ภายใน 7 วันหลังตอบรับ</span>
-      <button type="button" onClick={() => void ย้อนการตอบรับ(q, "sent_to_client")} className="btn btn-secondary btn-sm" style={{ height: 28, padding: "0 11px" }}>ย้อนเป็นส่งให้ลูกค้าแล้ว</button>
-      <button type="button" onClick={() => void ย้อนการตอบรับ(q, "lost")} className="btn btn-sm" style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", height: 28, padding: "0 11px" }}>ย้อนเป็นลูกค้าปฏิเสธ</button>
-    </div>
-  );
+  // ย้อนการตอบรับ (ใบ 0288) อยู่ที่หน้าต่างงานของลูกค้า (RevertWonButton) — ลีดที่ปิดการขายสำเร็จเปิดแผงนี้ไม่ได้ (ส่งต่อหน้าลูกค้า)
 
   function openEdit(q: QuotationMock) {
     if (!แก้เนื้อหาได้(q)) return;   // ใบที่ส่งแล้วล็อก (ฐานปฏิเสธอยู่แล้ว · ใบ 0226) — ไม่เปิดฟอร์มให้แก้เสียเปล่า
@@ -750,7 +729,6 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
                   </div>
                 </div>
                 {บันทึกผลได้(q) && <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", marginTop: 8 }}>{ปุ่มผลลูกค้า(q)}</div>}
-                {ย้อนได้(q) && <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", marginTop: 8 }}>{ปุ่มย้อนการตอบรับ(q)}</div>}
                 {confirmDel === q.id && (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid #eef0f4" }}>
                     <span style={{ fontSize: "0.72rem", color: "#dc2626", marginRight: "auto" }}>ลบใบเสนอราคานี้?</span>

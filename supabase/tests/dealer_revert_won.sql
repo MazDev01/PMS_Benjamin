@@ -65,7 +65,6 @@ begin
   update quotations set status = 'won', customer_id = c1 where id = q.id and dealer_code = 'CNX';
   perform flowtest.as_root();
   perform flowtest.ok(exists (select 1 from quotation_won_at where dealer_code = 'CNX' and quote_id = q.id), 'ใบ won มีวันตอบรับที่ฐาน');
-  select total_value into tot from customers where dealer_code = 'CNX' and id = c1;
 
   -- ใบเก่า won (ผูกลูกค้าเป้าหมาย l1 · ลูกค้า c1) — สร้างหลังใบจากใบ HQ: ใบ 0252 ตั้งลีดเป็น PAID ทันทีที่มีใบ won
   alter table quotations disable trigger quotations_hq_link_guard;
@@ -78,6 +77,8 @@ begin
   values ('ZZR-OLD-WON-8D', 'CNX', 'ZZR เก่า 8 วัน', li, 1000, 'won', c1);
   alter table quotations enable trigger quotations_hq_link_guard;
   update quotation_won_at set won_at = now() - interval '8 days' where dealer_code = 'CNX' and quote_id = 'ZZR-OLD-WON-8D';
+  -- ยอดลูกค้าก่อนย้อน = หลังใส่ใบ won ทั้งหมดแล้ว (เดิมอ่านก่อนใส่ใบเก่า 2 ใบ → ยอดหลังย้อนมากกว่าก่อนย้อน)
+  select total_value into tot from customers where dealer_code = 'CNX' and id = c1;
 
   -- ══ แก้สถานะใบ won ตรงที่ตารางยังไม่ได้ (ทุกคน) ══
   perform flowtest.as_dealer(cnx);

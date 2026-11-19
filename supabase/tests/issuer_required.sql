@@ -113,9 +113,9 @@ begin
   -- ═══ บันทึกเวลาพิมพ์ ═══
   perform flowtest.as_root();
   select count(*) into n from quotation_prints where dealer_code = 'ZZQ';
-  perform flowtest.ok(n = 2, format('จดเวลาพิมพ์ทุกครั้งที่พิมพ์สำเร็จ (Q4 + Q1) · ครั้งที่ถูกปฏิเสธไม่จด (ได้ %s)', n));
-  perform flowtest.ok((select count(*) from quotation_prints where dealer_code = 'ZZQ' and quote_id = 'ZZQ-Q1' and printed_at is not null) = 1,
-    'บันทึกการพิมพ์มีเลขใบและเวลา');
+  perform flowtest.ok(n = 3, format('จดเวลาพิมพ์ทุกครั้งที่พิมพ์สำเร็จ (Q4 + Q1 + Q1 หลังเติมอีเมล/เว็บไซต์ · ใบ 0289) · ครั้งที่ถูกปฏิเสธไม่จด (ได้ %s)', n));
+  perform flowtest.ok((select count(*) from quotation_prints where dealer_code = 'ZZQ' and quote_id = 'ZZQ-Q1' and printed_at is not null) = 2,
+    'บันทึกการพิมพ์มีเลขใบและเวลา (Q1 พิมพ์ 2 ครั้ง)');
 
   -- ═══ งานระบบ (ข้อมูลตั้งต้นของชุดทดสอบ) ไม่ผ่านกติกานี้ ═══
   -- ล้างข้อมูลบริษัทที่กรอกแล้วเป็นว่าง: ฐานปฏิเสธตั้งแต่ใบ 0276 แม้เป็นงานระบบ → จำลองแถวเก่าที่ว่างด้วยการข้ามด่าน
