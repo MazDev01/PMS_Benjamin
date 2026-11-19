@@ -26,6 +26,8 @@ export const ต้อง = (r, อะไร) => { if (r.error) throw new Error(
 export const หยุด = (m) => { console.error(`⛔ ${m}`); process.exit(1); };
 export const เบอร์ = (n) => `000-000-${String(n).slice(-4).padStart(4, "0")}`;
 /** เบอร์ของงานขาย (เลขลีด 99S_D_0NNN) = หลักชุด S + 3 หลักท้าย — 4 หลักท้ายตรง ๆ ชนกันข้ามชุด (996310011 กับ 996510011 → 0011 ทั้งคู่ · 19 พ.ย. 69) */
+/** รหัสลีดตามกติกาแอป (ใบ 0036 · leads/page.tsx · customers/page.tsx): "#L-" + (40321 + เลขลีด) — HQ เปิดแผงจากลิงก์ที่รู้แค่เลขด้วยกติกานี้ (19 พ.ย. 69 · เดิมตัวสร้างใช้ "#L-<เลข>" เปิดไม่เจอ) */
+export const รหัสลีด = (n) => `#L-${40321 + Number(n)}`;
 export const เบอร์งาน = (n) => `000-000-${Math.floor(n / 100_000) % 10}${String(n % 1000).padStart(3, "0")}`;
 
 /** ตัวกันปลายทาง (ทำงานก่อนสร้างการเชื่อมต่อใด ๆ) — ลงได้เฉพาะฐาน dev ในเครื่อง: เครื่องนี้ (127.0.0.1/localhost) + พอร์ต API ของฐาน dev
@@ -78,8 +80,9 @@ export async function เตรียม() {
     return { ...b, id: u.id };
   };
   /** SQL ตรงบนฐาน dev (ใช้เฉพาะลบชุดเดิมที่ฐานกันการลบ · ไม่ใช้สร้างข้อมูล) */
-  const sql = (text) => {
-    const r = spawnSync("docker", ["exec", "-i", คอนเทนเนอร์, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-At"], { input: text, encoding: "utf8" });
+  // ผู้ใช้ = postgres (ค่าเริ่มต้น) · supabase_admin เฉพาะคำสั่งที่ต้องเป็นเจ้าของตารางระบบ (ตัวดักของถังไฟล์ · ฐาน dev เท่านั้น)
+  const sql = (text, ผู้ใช้ = "postgres") => {
+    const r = spawnSync("docker", ["exec", "-i", คอนเทนเนอร์, "psql", "-U", ผู้ใช้, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-At"], { input: text, encoding: "utf8" });
     if (r.status !== 0) throw new Error(`SQL ฐาน dev: ${(r.stderr || r.stdout).trim().split(/\r?\n/).slice(-3).join(" ")}`);
     return r.stdout;
   };

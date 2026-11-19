@@ -91,7 +91,7 @@ export async function สร้าง(ctx) {
     -- กำหนดส่ง = วันขอ + 14 วัน (กติกาเดียวกับคำขอจริง · เดิมวันขอ + 3)
     insert into public.quote_requests (id, request_no, dealer_code, lead_num_id, product, area, province, spec, status, submitted_at, due_at, accepted_at, quoted_at, closed_at, updated_at, estimate_items, estimate_total)
       select เลข.คำขอ + n, 'RQ-' || extract(year from วัน) || '-' || lpad((เลข.คำขอ + n)::text, 5, '0'), dealer_code, ลีด,
-             'โกดังเก็บสินค้า', พื้นที่, province, สเปก,
+             coalesce((select nullif(l.project, '') from public.leads l where l.dealer_code = งาน.dealer_code and l.num_id = งาน.ลีด), 'โกดังเก็บสินค้า'), พื้นที่, province, สเปก,   -- งานที่ขอราคา = งานของลีด (19 พ.ย. 69 · เดิมตายตัว "โกดังเก็บสินค้า")
              case when ตอบรับ then 'won' when ปฏิเสธหมด then 'lost' else 'quoted' end,
              (วัน - 5)::timestamptz, (วัน + 9)::timestamptz, (วัน - 4)::timestamptz, (วัน - 1)::timestamptz,
              case when ตอบรับ or ปฏิเสธหมด then วัน::timestamptz end, วัน::timestamptz, coalesce(ประเมิน, '[]'::jsonb), ยอดประเมิน   -- ไม่มีราคาประเมิน = รายการว่าง (คอลัมน์ไม่รับค่าว่าง · แบบเดียวกับคำขอที่ไม่เลือกวัสดุ)
@@ -105,6 +105,12 @@ export async function สร้าง(ctx) {
     update public.quotations x set hq_quote_id = เลข.ใบ + g.n, markup_percent = ${บวก}
       from งาน g cross join lateral jsonb_array_elements_text(g.ใบ) t(qid), เลข
      where x.dealer_code = g.dealer_code and x.id = t.qid;
+    -- พื้นที่ของงานชุดเดียว (19 พ.ย. 69 · คนรวมงานพบ "ห้องเย็น 900 ตร.ม." แต่คำขอ 3,320 ตร.ม.): พื้นที่ที่คิดจากมูลค่าใบ → ลีด + ใบลูกค้าของงานนั้น
+    update public.leads l set area = g.พื้นที่::int::text from งาน g
+     where l.dealer_code = g.dealer_code and l.num_id = g.ลีด and g.พื้นที่ is not null;
+    update public.quotations x set area = g.พื้นที่::int::text
+      from งาน g cross join lateral jsonb_array_elements_text(g.ใบ) t(qid)
+     where x.dealer_code = g.dealer_code and x.id = t.qid and g.พื้นที่ is not null;
     select setval(pg_get_serial_sequence('public.quote_requests', 'id'), (select max(id) from public.quote_requests));
     select setval(pg_get_serial_sequence('public.hq_quotes', 'id'), (select max(id) from public.hq_quotes));
     commit;`);

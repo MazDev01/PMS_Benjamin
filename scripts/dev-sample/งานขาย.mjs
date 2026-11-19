@@ -7,7 +7,7 @@
 //   → เลื่อนด้วย SQL ฐาน dev ในธุรกรรมเดียว (session_replication_role = replica · แตะเฉพาะคอลัมน์เวลา ไม่แตะสถานะ/ยอด)
 //   ยกเว้นบันทึกการใช้งาน (audit_log) — ห้ามแก้/ลบนอก 2 ทางที่บอสอนุญาต จึงคงเวลาจริง (วันที่สร้างข้อมูลตัวอย่าง)
 import { spawn } from "node:child_process";
-import { เบอร์งาน } from "./ตัวช่วย.mjs";
+import { เบอร์งาน, รหัสลีด } from "./ตัวช่วย.mjs";
 
 /** บัญชีเข้าระบบของสาขา — RYG/CNX จากข้อมูลตั้งต้น (tests/.env.test) · สาขาที่ส่วน "สาขา" สร้าง จากไฟล์บัญชีนอก repo */
 export function บัญชีสาขา(ctx, code) {
@@ -103,7 +103,7 @@ export async function งานขายของสาขา(ctx, { code, provi
     void เรื่อง;
     const บริษัท = company ?? ชื่อบริษัท(n);
     ต้อง(await sb.from("leads").insert({
-      id: `#L-${n}`, num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
+      id: รหัสลีด(n), num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
       contact: ผู้ติดต่อ(n), phone: เบอร์งาน(n),
       email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, address: ที่อยู่สมจริง(`${code}:${n}`, province), province,
       product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ของขนาด(ขนาด)), source: ["แนะนำต่อ", "เว็บไซต์", "Facebook", "LINE", "ลูกค้าเข้ามาเอง", "งานแสดงสินค้า"][n % 6],
@@ -155,7 +155,7 @@ export async function งานขายของสาขา(ctx, { code, provi
       phone: เบอร์งาน(n), email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, province } }), `ลูกค้าตอบรับ ${id}`);
   const ปฏิเสธ = async (id, เหตุผล = "ราคาสูงกว่าคู่แข่ง") => ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: เหตุผล })
     .eq("dealer_code", code).eq("id", id), `ลูกค้าปฏิเสธ ${id}`);
-  const ปิดไม่สำเร็จ = async (n, เหตุผล = "ลูกค้าไม่สนใจแล้ว") => ต้อง(await sb.rpc("lead_apply", { p_id: `#L-${n}`,
+  const ปิดไม่สำเร็จ = async (n, เหตุผล = "ลูกค้าไม่สนใจแล้ว") => ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n),
     p_intent: { stage: { status: "CANCELLED", lostReason: เหตุผล }, fields: {} } }), `ปิดไม่สำเร็จ ${n}`);
   /** นัดหมาย (สร้างที่แผงลีด › นัดหมาย) · สถานะเริ่ม upcoming แล้วค่อยกดเสร็จ/ยกเลิก แบบหน้าปฏิทิน */
   const นัด = async (n, company, { ห่างวัน = 0, เวลา = "10:00", type = "visit", ลำดับ = 1, เรื่อง = "นัดดูหน้างาน" } = {}) => {
