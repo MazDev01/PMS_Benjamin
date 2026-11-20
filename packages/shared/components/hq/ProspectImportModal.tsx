@@ -7,13 +7,12 @@
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
-import { Upload, X, Download, Check, Undo2 } from "lucide-react";
+import { X, Download, Check, Undo2 } from "lucide-react";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { ยืนยัน, แจ้งสำเร็จ, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import { prospects as prospectsRepo } from "@pms/shared/lib/data";
 import type { ชุดนำเข้าผู้สนใจ, ผลนำเข้าผู้สนใจ } from "@pms/shared/lib/data/types";
-import { อ่านสมุดงานจากไฟล์, นามสกุลที่รับได้ } from "@pms/shared/lib/importSheet";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ดาวบังคับ, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
@@ -42,12 +41,8 @@ const ปีพศนี้ = () => new Date(Date.now() + 7 * 3_600_000).getUTCF
 const อ่านที่จำ = (): Record<string, การจับคู่> => { try { return JSON.parse(localStorage.getItem(ที่จำ) ?? "{}"); } catch { return {}; } };
 const จำ = (ลาย: string, คู่: การจับคู่) => { try { localStorage.setItem(ที่จำ, JSON.stringify({ ...อ่านที่จำ(), [ลาย]: คู่ })); } catch { /* จำไม่ได้ = ครั้งหน้าเดาใหม่ */ } };
 
-export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, รายที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ, ไฟล์เริ่ม, เริ่มที่ชีต = false }: {
+export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, รายที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ }: {
   open: boolean; onClose: () => void; onImported: () => void;
-  /** เปิดจากปุ่ม "นำเข้าจาก Google Sheets" — ช่องวางลิงก์อยู่บนสุด (บอสสั่ง 20 พ.ย. 69) */
-  เริ่มที่ชีต?: boolean;
-  /** ไฟล์ที่เลือกจากเมนูนำเข้า (ImportMenu) — เปิดกล่องแล้วอ่านไฟล์นี้ทันที ไปหน้าจับคู่คอลัมน์ (ไม่มีกล่องเปล่าคั่น · บอสสั่ง 5 พ.ย. 69) */
-  ไฟล์เริ่ม?: File | null;
   /** เบอร์ของผู้สนใจที่มีอยู่ (ตรวจซ้ำก่อนส่ง · ฐานตรวจอีกชั้น) */
   เบอร์ที่มีอยู่: string[];
   /** ผู้สนใจที่มีอยู่ เบอร์ + ชื่อ — หน้าตัวอย่างไฟล์ Facebook บอกว่าซ้ำกับใคร (บอส 20 พ.ย. 69 "ซ้ำยังไง") · ไม่ส่ง = ใช้เบอร์อย่างเดียว */
@@ -73,10 +68,9 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   const [ดูเฟซบุ๊ก, setดูเฟซบุ๊ก] = useState<กลุ่มเฟซบุ๊ก>("import");
   const [ลิงก์ชีต, setลิงก์ชีต] = useState("");
   const [กำลังดึงชีต, setกำลังดึงชีต] = useState(false);
-  useEffect(() => { if (open && เริ่มที่ชีต) setลิงก์ชีต(v => v || อ่านลิงก์ชีต()); }, [open, เริ่มที่ชีต]);
+  useEffect(() => { if (open) setลิงก์ชีต(v => v || อ่านลิงก์ชีต()); }, [open]);
   const โหลดชุด = () => prospectsRepo.importBatches().then(setชุด).catch(() => setชุด([]));
   useEffect(() => { if (open) void โหลดชุด(); }, [open]);
-  useEffect(() => { if (open && ไฟล์เริ่ม) void เลือกไฟล์(ไฟล์เริ่ม); }, [open, ไฟล์เริ่ม]);   // eslint-disable-line react-hooks/exhaustive-deps
   const ล้าง = () => { setไฟล์(null); setเฟซบุ๊ก(null); setแถว(null); setผล(null); setพลาด(""); setแถวหัว(-1); setคู่({}); };
 
   const หัว = ไฟล์ && แถวหัว >= 0 ? ไฟล์.ตาราง[แถวหัว] ?? [] : [];
@@ -87,12 +81,6 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   }, [ไฟล์, คู่.channel, แถวหัว]);
   const คีย์ช่องทาง = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 
-  async function เลือกไฟล์(f: File | undefined) {
-    if (!f) return;
-    ล้าง();
-    try { รับสมุดงาน(f.name, await อ่านสมุดงานจากไฟล์(f)); }
-    catch (e) { setพลาด(`อ่านไฟล์ไม่ได้: ${friendlyError(e)}`); }
-  }
   // ดึงจากลิงก์ Google Sheets (บอสสั่ง 20 พ.ย. 69) — เซิร์ฟเวอร์ดึงให้ (/api/v1/prospect-sheet) แล้วเข้าตัวอ่านเดียวกับไฟล์ (ไม่มีทางที่สอง)
   async function ดึงชีต() {
     const ลิงก์ = ลิงก์ชีต.trim();
@@ -206,19 +194,15 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
             <button type="button" aria-label="ปิด" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={16} /></button>
           </div>
           <div style={{ padding: 18, overflowY: "auto", display: "grid", gap: 14 }}>
-            {/* 1 · อัปโหลด — เลือกไฟล์อื่น · ลิงก์ Google Sheets · แบบฟอร์มตัวอย่าง (ย้ายจากเมนูเข้ามา · บอสสั่ง 20 พ.ย. 69) */}
+            {/* 1 · ลิงก์ Google Sheets ทางเดียว (บอสสั่ง 20 พ.ย. 69 เอาปุ่มเลือกไฟล์ออก) · แบบฟอร์มตัวอย่าง */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <label className="btn btn-secondary btn-sm" style={{ cursor: "pointer" }}>
-                <Upload size={13} /> เลือกไฟล์ (.xlsx / .csv)
-                <input type="file" aria-label="ไฟล์ผู้สนใจ" accept={นามสกุลที่รับได้.join(",")} hidden onChange={e => void เลือกไฟล์(e.target.files?.[0])} />
-              </label>
               {ไฟล์ && <span data-testid="import-file" style={{ fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {ไฟล์.ตาราง.length.toLocaleString()} แถวที่มีข้อมูล</span>}
               <button type="button" data-act="import-template" onClick={ดาวน์โหลดแบบฟอร์ม}
                 style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, color: "#003366", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Download size={13} /> ดาวน์โหลดแบบฟอร์มตัวอย่าง
               </button>
             </div>
-            {(เริ่มที่ชีต || ลิงก์ชีต) && (
+            {(
               <div data-sheet-import style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <label htmlFor="pi-sheet-link" style={{ fontSize: "0.76rem", fontWeight: 700, color: "#4b5563" }}>ลิงก์ Google Sheets</label>
                 <input id="pi-sheet-link" className="form-input" type="url" inputMode="url" value={ลิงก์ชีต} onChange={e => setลิงก์ชีต(e.target.value.trim())}
