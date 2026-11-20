@@ -9,6 +9,8 @@ import { NumberInput } from "@pms/shared/components/ui/NumberInput";
 import { UnitSelect, useUnitList } from "@pms/shared/components/ui/UnitSelect";
 
 export type รายการคำขอ = { name: string; qty: number; unit: string };
+/** ความกว้างคอลัมน์ ลำดับ · รายการ (ที่เหลือ) · จำนวน · หน่วย — ตัวเดียวทั้งฟอร์มขอราคา/ขอแก้ราคา และตารางอ่านอย่างเดียว */
+const คอลัมน์รายการคำขอ = [60, undefined, 150, 140] as const;
 export const สูงสุดรายการคำขอ = 50;
 
 /** แถวที่ส่งได้ (ตัดแถวว่างทั้งแถวทิ้ง) · ข้อผิด = แถวที่กรอกไม่ครบ (มีชื่อแต่จำนวน ≤ 0 · มีจำนวน/หน่วยแต่ไม่มีชื่อ) */
@@ -26,13 +28,15 @@ export function RequestItemsEditor({ value, onChange, disabled }: { value: ร�
   const หน่วย = useUnitList();
   const แก้ = (i: number, p: Partial<รายการคำขอ>) => onChange(value.map((r, j) => (j === i ? { ...r, ...p } : r)));
   const ช่อง: React.CSSProperties = { width: "100%", boxSizing: "border-box" };
+  // ความกว้างคุมที่ colgroup (table-layout: fixed · บอสสั่ง 20 พ.ย. 69): จำนวนพอ 7 หลัก + ทศนิยม ชิดขวา · หน่วยเห็นค่าเต็ม (ตร.ม.)
+  //   จอแคบกว่าตาราง = เลื่อนแนวนอนในกล่องตาราง (ชื่อรายการไม่ถูกบีบจนอ่านไม่ออก)
   return (
     <div data-field="request-items" style={{ display: "grid", gap: 6 }}>
       <div className="form-label" style={{ marginBottom: 0 }}>รายการที่ต้องการ <span style={{ fontWeight: 400, color: "#6b7280" }}>(ไม่บังคับ · HQ ตีราคา)</span></div>
       {value.length > 0 && (
         <div className="table-wrap">
-          <table aria-label="รายการในคำขอ" style={{ tableLayout: "fixed", width: "100%" }}>
-            <colgroup><col style={{ width: "6%" }} /><col /><col style={{ width: "18%" }} /><col style={{ width: "20%" }} /><col style={{ width: 40 }} /></colgroup>
+          <table aria-label="รายการในคำขอ" style={{ tableLayout: "fixed", width: "100%", minWidth: 600 }}>
+            <colgroup>{คอลัมน์รายการคำขอ.map((w, i) => <col key={i} style={{ width: w }} />)}<col style={{ width: 48 }} /></colgroup>
             <thead><tr><th>ลำดับ</th><th>รายการ</th><th className="num">จำนวน</th><th>หน่วย</th><th aria-label="ลบ" /></tr></thead>
             <tbody>
               {value.map((r, i) => (
@@ -40,7 +44,7 @@ export function RequestItemsEditor({ value, onChange, disabled }: { value: ร�
                   <td>{i + 1}</td>
                   <td><input aria-label={`รายการ ${i + 1}`} value={r.name} maxLength={200} disabled={disabled} style={ช่อง}
                     onChange={e => แก้(i, { name: e.target.value })} placeholder="เช่น เสาเหล็กรูปตัวเอช 200x200" /></td>
-                  <td className="num"><NumberInput ariaLabel={`จำนวน ${i + 1}`} value={Number(r.qty)} min={0} onChange={n => แก้(i, { qty: n })} style={ช่อง} /></td>
+                  <td className="num"><NumberInput ariaLabel={`จำนวน ${i + 1}`} value={Number(r.qty)} min={0} onChange={n => แก้(i, { qty: n })} style={{ ...ช่อง, textAlign: "right" }} /></td>
                   <td><UnitSelect ariaLabel={`หน่วย ${i + 1}`} value={r.unit} onChange={u => แก้(i, { unit: u })} หน่วย={หน่วย} style={ช่อง} /></td>
                   <td><button type="button" className="btn-icon" aria-label={`ลบรายการ ${i + 1}`} disabled={disabled}
                     onClick={() => onChange(value.filter((_, j) => j !== i))}><Trash2 size={14} /></button></td>
@@ -63,8 +67,8 @@ export function RequestItemsTable({ items, label = "รายการในค�
   if (!items?.length) return null;
   return (
     <div className="table-wrap" data-request-items-view>
-      <table aria-label={label} style={{ tableLayout: "fixed", width: "100%" }}>
-        <colgroup><col style={{ width: "8%" }} /><col /><col style={{ width: "18%" }} /><col style={{ width: "18%" }} /></colgroup>
+      <table aria-label={label} style={{ tableLayout: "fixed", width: "100%", minWidth: 480 }}>
+        <colgroup>{คอลัมน์รายการคำขอ.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead><tr><th>ลำดับ</th><th>รายการ</th><th className="num">จำนวน</th><th>หน่วย</th></tr></thead>
         <tbody>
           {items.map((r, i) => (

@@ -25,6 +25,7 @@ import { AlertTriangle } from "lucide-react";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { OTHER_LOST_REASON, OTHER_REASON_OPTION } from "@pms/shared/lib/mock";
 import { ดาวบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 
 export type ตัวเลือกยืนยัน = {
   หัวข้อ: string;
@@ -213,8 +214,7 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
         color: on ? "#dc2626" : เส้นประ ? "#6b7280" : "#2D2D2D", fontWeight: on || เส้นประ ? 700 : 400 }}>{r}</button>
   );
 
-  return (
-    <div className="pms-confirm" role="alertdialog" aria-modal="false" aria-label={o.หัวข้อ} aria-busy={กำลังทำ || undefined} data-reason-dialog>
+  const เนื้อ = (<>
       <div className="pms-confirm-head">
         {o.อันตราย && <AlertTriangle size={16} className="pms-confirm-icon" aria-hidden />}
         <div className="pms-confirm-title">{o.หัวข้อ}</div>
@@ -251,10 +251,29 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
       )}
       {o.รายการคำขอ && <div style={{ marginTop: 10 }}><RequestItemsEditor value={รายการขอ} onChange={setรายการขอ} disabled={กำลังทำ} /></div>}
       <ข้อผิดพลาดในกล่อง ข้อความ={ผิด} />
-      <div className="pms-confirm-actions">
+  </>);
+  const ปุ่ม = (<>
         <button type="button" data-dialog-cancel className="btn btn-secondary btn-sm" disabled={กำลังทำ} onClick={() => ตอบ(false)}>{o.ปุ่มยกเลิก ?? "ยกเลิก"}</button>
         <ปุ่มตกลงของกล่อง o={o} กำลังทำ={กำลังทำ} ปิดไว้={ว่าง} อธิบาย={ว่าง ? idคำบอก : undefined} onClick={() => void กด()} />
+  </>);
+  // มีตารางรายการ (ขอแก้ราคา · ขอราคาใหม่) = หน้าต่างเอกสารกว้าง 820 กลางจอ (ภาษาออกแบบดีลเลอร์ · บอสสั่ง 20 พ.ย. 69 "มันดูยาก/หน้าต่างมันแคบ")
+  //   เดิมอยู่ในกล่องแจ้งเตือนกว้าง 420 → ช่องจำนวน/หน่วยเหลือที่แสดงไม่ถึง 30px (ค่าหน่วยมีอยู่แต่ถูกตัดจนดูเหมือนว่าง) · ปุ่มส่งตกขอบล่างจอ
+  //   ปุ่มส่ง/ยกเลิกติดล่างหน้าต่าง เนื้อในเลื่อนเอง · แขวนที่ <body> (กล่องแจ้งเตือนของ sonner มี transform)
+  if (o.รายการคำขอ) return (
+    <ModalPortal>
+      <div data-reason-dialog-backdrop style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1070, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div className="pms-confirm" role="alertdialog" aria-modal="true" aria-label={o.หัวข้อ} aria-busy={กำลังทำ || undefined} data-reason-dialog data-reason-dialog-wide
+          style={{ width: 820, maxWidth: "100%", maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}>
+          <div style={{ overflowY: "auto", padding: "16px 20px 12px", minHeight: 0 }}>{เนื้อ}</div>
+          <div className="pms-confirm-actions" style={{ margin: 0, padding: "12px 20px", borderTop: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}>{ปุ่ม}</div>
+        </div>
       </div>
+    </ModalPortal>
+  );
+  return (
+    <div className="pms-confirm" role="alertdialog" aria-modal="false" aria-label={o.หัวข้อ} aria-busy={กำลังทำ || undefined} data-reason-dialog>
+      {เนื้อ}
+      <div className="pms-confirm-actions">{ปุ่ม}</div>
     </div>
   );
 }
