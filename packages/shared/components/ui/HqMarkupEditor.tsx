@@ -44,10 +44,12 @@ export function HqMarkupEditor({ hqLines, items, onChange, readOnly }: {
     <div data-editor="hq-markup">
       {!readOnly && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: "0.78rem", color: "#374151" }}>
-          <span>บวกทั้งใบ</span>
-          <NumberInput ariaLabel="% ที่บวกทั้งใบ" value={ทั้งใบ} min={0} onChange={n => setทั้งใบ(n)} style={{ width: 80, border: "1px solid #e5e7eb", borderRadius: 8, padding: "5px 8px" }} />
+          {/* บั๊ก 20 พ.ย. 69 (บอสเจอ HQ-2026-00048-V1): เดิมกรอกแล้วต้องกด "ใช้กับทุกรายการ" แถวถึงเปลี่ยน — กรอก 9 แล้วทุกแถวยัง 12
+              ตอนนี้: กรอกแล้วทุกแถวเปลี่ยนทันที (ราคาขาย/ยอดคิดใหม่) · แก้รายแถวในตารางได้ต่อ · เปลี่ยนช่องนี้อีกครั้ง = ทุกแถวกลับเป็นค่านี้ */}
+          <label htmlFor="markup-all">บวกทั้งใบ</label>
+          <NumberInput id="markup-all" ariaLabel="% ที่บวกทั้งใบ" value={ทั้งใบ} min={0} onChange={n => { setทั้งใบ(n); ตั้งทั้งใบ(n); }} style={{ width: 80, border: "1px solid #e5e7eb", borderRadius: 8, padding: "5px 8px" }} />
           <span>%</span>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => ตั้งทั้งใบ(ทั้งใบ)}>ใช้กับทุกรายการ</button>
+          <span data-testid="markup-all-hint" style={{ color: "#6b7280" }}>ใช้กับทุกรายการทันที · แก้รายแถวในตารางได้ (เปลี่ยนช่องนี้อีกครั้ง = ทุกแถวกลับเป็นค่านี้)</span>
           <span style={{ marginLeft: "auto", color: "#6b7280" }}>รายการและจำนวนมาจากใบ HQ — แก้ได้เฉพาะ % ที่บวก</span>
         </div>
       )}
