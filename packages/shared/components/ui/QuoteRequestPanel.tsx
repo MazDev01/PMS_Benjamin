@@ -68,7 +68,8 @@ const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigi
 const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d5dbe4", borderRadius: 9, padding: "9px 11px", fontSize: "0.84rem", fontFamily: "inherit", boxSizing: "border-box" };
 
 /** openSignal = ปุ่ม "ขั้นต่อไป" ในหัวแผงสั่งเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) · n เปลี่ยน = สั่งใหม่ (หน้า 3 UI ตาม flow · 16 ต.ค. 69) */
-/** พับ = ฟอร์มทำใบให้ลูกค้าเปิดอยู่ด้านล่าง → ย่อเหลือบรรทัดสรุป (กด "ดูคำขอและใบ HQ" กางได้ · บอสสั่ง 20 พ.ย. 69) */
+/** ได้ใบ HQ แล้ว = กล่องนี้พับเหลือบรรทัดสรุปเป็นค่าเริ่มต้นตั้งแต่เปิดแท็บ (บอสสั่ง 20 พ.ย. 69 "หุบไว้") · กด "ดูคำขอและใบ HQ" กางเอง
+ *  พับ = ฟอร์มทำใบ/ใบที่บันทึกผลเปิดอยู่ด้านล่าง → พับกลับเสมอ (แม้กางไว้) · ระหว่างคำขออยู่กับ HQ ยังกางเต็ม (แนบไฟล์/ยกเลิกคำขอ) */
 export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = false }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number }; พับ?: boolean }) {
   const [กางเอง, setกางเอง] = useState(false);
   useEffect(() => { if (พับ) setกางเอง(false); }, [พับ]);   // เปิดฟอร์มใหม่ทุกครั้ง = พับใหม่
@@ -217,6 +218,10 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
     finally { setBusy(false); }
   };
 
+  // ขอแก้ราคาได้ (เงื่อนไขเดิม): ได้ราคาแล้ว · ลีดยังไม่ปิดการขาย (ใบ 0221) · ราคายังไม่หมดอายุ (หมดแล้ว = "ขอราคาใหม่" ในกล่องขั้นต่อไป)
+  const ขอแก้ได้ = (r: NonNullable<typeof เปิด>) => r.status === "quoted" && lead.status !== "PAID"
+    && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10));
+
   return (
     <div data-panel="quote-request" style={{ border: "1px solid #e9d5ff", background: "#faf5ff", borderRadius: 12, padding: 14, marginBottom: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -224,17 +229,24 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
         <strong style={{ fontSize: "0.86rem", color: "#3b0764" }}>ราคาจาก HQ</strong>
       </div>
 
-      {เปิด && พับ && !กางเอง ? (
+      {เปิด && ใบHQ && โหมด === "ดู" && !กางเอง ? (
         <div data-quote-request-folded style={{ fontSize: "0.8rem", color: "#374151", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span>คำขอ <b>{เปิด.requestNo}</b> · {quoteRequestStatusLabel[เปิด.status]}</span>
+          <span>คำขอ <b>{เปิด.requestNo}</b> ·</span>
+          <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
+            {quoteRequestStatusLabel[เปิด.status]}
+          </span>
           {ใบHQ && <span>· ใบ HQ <b>{ใบHQ.quoteNo}</b> ฉบับ {ใบHQ.version} · {ใบHQ.lineItems.length} รายการ</span>}
-          <button type="button" className="btn btn-secondary btn-sm" aria-expanded={false} onClick={() => setกางเอง(true)} style={{ marginLeft: "auto" }}>
-            ดูคำขอและใบ HQ <ChevronDown size={13} />
-          </button>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            {/* ขอแก้ราคา = ปุ่มเดิม (เงื่อนไขเดิม) — อยู่ในบรรทัดพับด้วย ไม่ต้องกางก่อน */}
+            {ขอแก้ได้(เปิด) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
+            <button type="button" className="btn btn-secondary btn-sm" aria-expanded={false} onClick={() => setกางเอง(true)}>
+              ดูคำขอและใบ HQ <ChevronDown size={13} />
+            </button>
+          </span>
         </div>
       ) : เปิด ? (
         <div style={{ fontSize: "0.8rem", color: "#374151", lineHeight: 1.8 }}>
-          {พับ && (
+          {ใบHQ && โหมด === "ดู" && (
             <button type="button" className="btn btn-secondary btn-sm" aria-expanded onClick={() => setกางเอง(false)} style={{ float: "right" }}>
               พับคำขอและใบ HQ <ChevronUp size={13} />
             </button>
@@ -300,7 +312,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
               {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ยกเลิกคำขอ(เปิด)}>ยกเลิกคำขอ</button>}
               {/* ลีดปิดการขายแล้ว = ขอแก้ราคาไม่ได้ (ใบ 0221 กันที่ฐาน) */}
               {/* ราคาหมดอายุ = ปุ่ม "ขอราคาใหม่" ในกล่องขั้นต่อไป (ไม่ซ้ำสองปุ่ม · รอบ 4) */}
-              {เปิด.status === "quoted" && lead.status !== "PAID" && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
+              {ขอแก้ได้(เปิด) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
             </div>
           )}
         </div>

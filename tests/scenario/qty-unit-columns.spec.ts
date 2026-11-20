@@ -191,6 +191,7 @@ test("[ui·dealer] กล่องใบ HQ · ใบลูกค้า (แผ�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงลีด(page, บริษัท);
   // ใบ HQ ฝั่งดีลเลอร์พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — กาง "ดูรายการ" ก่อน ให้ตารางรายการใบ HQ ถูกตรวจเหมือนเดิม
+  await page.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 20_000 });   // ได้ใบ HQ แล้ว = กล่องพับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69)
   await page.locator("[data-panel='hq-quote']").getByRole("button", { name: /ดูรายการ/ }).click({ timeout: 20_000 });
   await expect(page.getByRole("table", { name: "รายการในใบ HQ" }), "ตารางรายการใบ HQ กางแล้ว").toBeVisible();
   await ตรวจหน้า(page, "แผงลีด-ใบHQ-และใบลูกค้า");
@@ -243,6 +244,7 @@ test("[ui·มือถือ] กล่องใบ HQ + ใบลูกค้�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงลีด(page, บริษัท);
   // ใบ HQ ฝั่งดีลเลอร์พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — กาง "ดูรายการ" ก่อน ให้ตารางรายการใบ HQ ถูกตรวจเหมือนเดิม
+  await page.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 20_000 });   // ได้ใบ HQ แล้ว = กล่องพับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69)
   await page.locator("[data-panel='hq-quote']").getByRole("button", { name: /ดูรายการ/ }).click({ timeout: 20_000 });
   await expect(page.getByRole("table", { name: "รายการในใบ HQ" }), "ตารางรายการใบ HQ กางแล้ว").toBeVisible();
   await ตรวจหน้า(page, "มือถือ-แผงลีด");

@@ -2052,7 +2052,7 @@ export default function LeadsPage() {
               </div>
 
               {/* Body — เนื้อหาตามแท็บ */}
-              <div style={{ flex:1, overflowY:"auto", background:"#f5f7fa" }}>
+              <div data-lead-drawer-scroll style={{ flex:1, overflowY:"auto", background:"#f5f7fa" }}>
                 {/* ── TAB: ภาพรวม ── */}
                 {/* บอสสั่ง 28 ต.ค. 69: งานในแต่ละขั้นอยู่แท็บภาพรวม ใต้แถบ 4 ขั้น · แท็บประวัติเหลือไทม์ไลน์อย่างเดียว */}
                 <div style={{ padding:16, display:dTab==="overview"?"flex":"none", flexDirection:"column", gap:14 }}>

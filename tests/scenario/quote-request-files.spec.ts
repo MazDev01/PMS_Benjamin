@@ -169,6 +169,7 @@ test("[H9] [flow·dealer] ส่งใบ HQ แล้ว: กระดิ่ง
   await loginUI(page, DEALER_ORIGIN, "/login", A.บัญชี);
   const แผง = await เปิดแผงลีด(page);
   // ใบ HQ พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — ตัวเลขตรงฐาน · ตารางไม่กาง
+  await แผง.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 20_000 });   // ได้ใบ HQ แล้ว = กล่องพับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69)
   const ใบHQ = แผง.locator("[data-panel='hq-quote']");
   const ฐานใบ = (await hq.from("hq_quotes").select("total_cost, line_items").eq("request_id", คำขอ.id).single()).data!;
   await expect(ใบHQ.getByTestId("hq-quote-summary-total"), "บรรทัดสรุป: ต้นทุนรวมตรงฐาน").toHaveText(Number(ฐานใบ.total_cost).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { timeout: 30_000 });
@@ -359,6 +360,7 @@ test("[ui] ใบ HQ ที่ไม่มีไฟล์จาก HQ = ไม�
   await expect(row).toBeVisible({ timeout: 25_000 });
   await row.getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await page.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 20_000 });   // ได้ใบ HQ แล้ว = กล่องพับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69)
   const ใบHQ = page.locator("[data-panel='hq-quote']");
   await expect(ใบHQ.getByTestId("hq-quote-summary-files")).toContainText("ไม่มีไฟล์แนบจาก HQ", { timeout: 30_000 });
   await expect(ใบHQ.locator("[data-panel='quote-files']"), "ไม่มีไฟล์จาก HQ = ไม่มีกล่อง").toHaveCount(0);
