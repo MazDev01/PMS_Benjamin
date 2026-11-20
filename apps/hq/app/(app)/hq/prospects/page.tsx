@@ -27,7 +27,7 @@ import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
 import { ค่า, นับ, เดือนนี้, ชุดที่กรอง } from "@pms/shared/lib/kpiCards";
 import {
-  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, History, LayoutList, Columns3,
+  UserPlus, Users, AlarmClock, Store, PhoneOff, Search, X, Trash2, Copy, Check, MapPin, Phone, User, Paperclip, LayoutList, Columns3, Upload, Sheet,
   Link2,
 } from "lucide-react";
 import {
@@ -59,13 +59,10 @@ import { APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
 import { ExportMenu } from "@pms/shared/components/ui/ExportMenu";
 import { TopbarActions } from "@pms/shared/components/layout/TopbarActions";
 import { ProspectImportModal } from "@pms/shared/components/hq/ProspectImportModal";
-import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
 import { StageBoard } from "@pms/shared/components/ui/StageBoard";
 import { BoardCard, StepProgressBar } from "@pms/shared/components/ui/BoardCard";
 import { PersonAvatar } from "@pms/shared/components/ui/PersonPicker";
 import { คอลัมน์บอร์ดผู้สนใจ, คอลัมน์ของผู้สนใจ, ทางย้ายผู้สนใจ, ขั้นที่ขาด, เหตุเป็นดีลเลอร์ไม่ได้, type คอลัมน์ผู้สนใจ, type ฟอร์มขั้นผู้สนใจ } from "@pms/shared/lib/prospectBoard";
-import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
-import { หัวไฟล์เฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { DealerPanel } from "../dealers/DealerPanel";
 import { useDealerPanelActions } from "../dealers/useDealerPanelActions";
@@ -114,7 +111,8 @@ export default function HQProspectsPage() {
   const ค่าตั้ง = useRecruitSettings();
   // นำเข้าจากไฟล์ทำงานจริงของทีม (ใบ 0275 · บอสสั่ง 3 พ.ย. 69)
   const [เปิดนำเข้า, setเปิดนำเข้า] = useState(false);
-  const [ไฟล์นำเข้า, setไฟล์นำเข้า] = useState<File | null>(null);   // เลือกจากเมนูนำเข้า → กล่องอ่านไฟล์นี้ทันที
+  const [ไฟล์นำเข้า, setไฟล์นำเข้า] = useState<File | null>(null);
+  const [เริ่มที่ชีต, setเริ่มที่ชีต] = useState(false);   // เปิดจากปุ่ม "นำเข้าจาก Google Sheets"   // เลือกจากเมนูนำเข้า → กล่องอ่านไฟล์นี้ทันที
   // "อื่น ๆ" ต่อท้ายให้เสมอ — ช่องทางที่ไม่อยู่ในรายการยังเลือกได้
   const ตัวเลือกช่องทาง = ค่าตั้ง.channels.includes("อื่น ๆ") ? ค่าตั้ง.channels : [...ค่าตั้ง.channels, "อื่น ๆ"];
 
@@ -808,12 +806,18 @@ export default function HQProspectsPage() {
           ])}
         />
         {จัดการได้ && (
-          // เมนูนำเข้า ตัวกลาง (บอสสั่ง 5 พ.ย. 69): Excel · CSV · แบบฟอร์มตัวอย่าง + ชุดที่นำเข้าล่าสุด (ดู/ยกเลิกทั้งชุด · บอสตอบ M1 = ก)
-          <ImportMenu label="นำเข้าจากไฟล์"
-            onFile={f => { setไฟล์นำเข้า(f); setเปิดนำเข้า(true); }}
-            // แบบฟอร์มตัวอย่าง = หัวตารางเดียวกับไฟล์ลีดจาก Facebook (บอสสั่ง 20 พ.ย. 69) · ไฟล์ทีมแบบเดิมยังนำเข้าได้ (หน้าจับคู่คอลัมน์)
-            onTemplate={() => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "ผู้สนใจ", หัวตาราง: [...หัวไฟล์เฟซบุ๊ก], แถว: [] }]), "แบบฟอร์มนำเข้าผู้สนใจ.xlsx")}
-            extraActions={[{ label: "ชุดที่นำเข้าล่าสุด", desc: "ดู/ยกเลิกทั้งชุด", icon: <History size={15} />, onClick: () => { setไฟล์นำเข้า(null); setเปิดนำเข้า(true); } }]} />
+          // บอสสั่ง 20 พ.ย. 69: "นำเข้าจากไฟล์" = เปิดหน้าเลือกไฟล์ทันที ไม่มีเมนู (ทับเมนูนำเข้า 5 พ.ย. 69)
+          //   แบบฟอร์มตัวอย่าง + ชุดที่นำเข้าล่าสุด/ยกเลิกชุด ย้ายเข้าหน้าต่างนำเข้า · "นำเข้าจาก Google Sheets" = ปุ่มแยก เปิดกล่องวางลิงก์
+          <>
+            <label className="btn btn-secondary btn-sm" style={{ cursor: "pointer", gap: 6 }}>
+              <Upload size={14} /> นำเข้าจากไฟล์
+              <input type="file" aria-label="นำเข้าจากไฟล์" data-import-input="file" accept=".xlsx,.csv" hidden
+                onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { setเริ่มที่ชีต(false); setไฟล์นำเข้า(f); setเปิดนำเข้า(true); } }} />
+            </label>
+            <button type="button" className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={() => { setไฟล์นำเข้า(null); setเริ่มที่ชีต(true); setเปิดนำเข้า(true); }}>
+              <Sheet size={14} /> นำเข้าจาก Google Sheets
+            </button>
+          </>
         )}
         {จัดการได้ && (
           <button className="btn btn-primary btn-sm" onClick={เปิดเพิ่ม}>
@@ -821,7 +825,7 @@ export default function HQProspectsPage() {
           </button>
         )}
       </TopbarActions>
-      <ProspectImportModal open={เปิดนำเข้า} onClose={() => { setเปิดนำเข้า(false); setไฟล์นำเข้า(null); }} ไฟล์เริ่ม={ไฟล์นำเข้า}
+      <ProspectImportModal open={เปิดนำเข้า} onClose={() => { setเปิดนำเข้า(false); setไฟล์นำเข้า(null); setเริ่มที่ชีต(false); }} ไฟล์เริ่ม={ไฟล์นำเข้า} เริ่มที่ชีต={เริ่มที่ชีต}
         onImported={() => { void prospectsRepo.list().then(setList).catch(() => {}); }}
         เบอร์ที่มีอยู่={list.map(p => p.phone ?? "").filter(Boolean)}
         รายที่มีอยู่={list.filter(p => p.phone).map(p => ({ phone: p.phone ?? "", name: p.name ?? "" }))}

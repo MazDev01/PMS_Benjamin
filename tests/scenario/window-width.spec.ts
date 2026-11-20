@@ -93,9 +93,8 @@ test("[ui·hq] หน้าต่างกลางจอ HQ: เอกสาร
   await page.keyboard.press("Escape");
   // นำเข้าผู้สนใจ (เดิม 1080) · ฟอร์มเพิ่มผู้สนใจ — ≤ 820
   await page.goto(`${HQ_ORIGIN}/hq/prospects`, { waitUntil: "domcontentloaded" }); await settle(page);
-  // หน้าต่างนำเข้าผู้สนใจ: เมนูนำเข้า › "ชุดที่นำเข้าล่าสุด" (เปิดหน้าต่างเดียวกันโดยไม่ต้องเลือกไฟล์)
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click();
-  await page.getByText("ชุดที่นำเข้าล่าสุด").first().click();
+  // หน้าต่างนำเข้าผู้สนใจ: ปุ่ม "นำเข้าจาก Google Sheets" (เปิดหน้าต่างเดียวกันโดยไม่ต้องเลือกไฟล์ · เลิกเมนูนำเข้า 20 พ.ย. 69)
+  await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
   const นำเข้า = page.locator("[role='dialog'][aria-modal='true']").last();
   await วัด(page, นำเข้า, "นำเข้าผู้สนใจ", false);
   await page.keyboard.press("Escape");

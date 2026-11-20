@@ -354,6 +354,21 @@ export async function เปิดฟอร์มทำใบจากใบHQ(p
 
 /** นำเข้าไฟล์ผ่านเมนูนำเข้า ตัวกลาง (ImportMenu · บอสสั่ง 5 พ.ย. 69): กดปุ่มเมนู → เลือก Excel/CSV → หน้าต่างเลือกไฟล์เปิดทันที
  *  ตรวจว่าหน้าต่างเลือกไฟล์รับเฉพาะนามสกุลของตัวเลือก (accept) แล้วใส่ไฟล์ */
+/** หน้าผู้สนใจเป็นดีลเลอร์: ปุ่ม "นำเข้าจากไฟล์" = เปิดหน้าเลือกไฟล์ทันที ไม่มีเมนู (บอสสั่ง 20 พ.ย. 69) · รับ .xlsx + .csv */
+export async function นำเข้าไฟล์ผู้สนใจ(page: Page, ไฟล์: string | { name: string; mimeType: string; buffer: Buffer }) {
+  const [หน้าต่าง] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 15_000 }),
+    page.getByText("นำเข้าจากไฟล์", { exact: true }).click(),
+  ]);
+  expect(await หน้าต่าง.element().getAttribute("accept"), "รับ .xlsx และ .csv").toBe(".xlsx,.csv");
+  await expect(page.getByRole("menu", { name: "นำเข้าจากไฟล์", exact: true }), "ไม่มีเมนูคั่น").toHaveCount(0);
+  await หน้าต่าง.setFiles(ไฟล์);
+}
+/** เปิดหน้าต่างนำเข้าผู้สนใจโดยไม่เลือกไฟล์ (ปุ่ม "นำเข้าจาก Google Sheets") — ดูชุดที่นำเข้าล่าสุด · แบบฟอร์มตัวอย่าง */
+export async function เปิดนำเข้าจากชีต(page: Page) {
+  await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
+  await expect(page.getByLabel("ลิงก์ Google Sheets", { exact: true })).toBeVisible({ timeout: 15_000 });
+}
 export async function นำเข้าผ่านเมนู(page: Page, ปุ่ม: string, ชนิด: "xlsx" | "csv",
   ไฟล์: string | { name: string; mimeType: string; buffer: Buffer }) {
   await page.getByRole("button", { name: ปุ่ม }).first().click();

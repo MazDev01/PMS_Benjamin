@@ -4,7 +4,8 @@ import path from "node:path";
 import os from "node:os";
 import { ADMIN, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
-import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, นำเข้าผ่านเมนู } from "./funcHelpers";
+import { HQ_ORIGIN, loginUI, watchErrors, assertNoErrors, นำเข้าไฟล์ผู้สนใจ, เปิดนำเข้าจากชีต } from "./funcHelpers";
+import { กดตกลงในกล่องยืนยัน } from "./helpers";
 import { settle } from "./helpers";
 import { adminClient } from "./testDealers";
 import { สร้างไฟล์Xlsx } from "../../packages/shared/lib/exportWorkbook";
@@ -52,7 +53,7 @@ test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
-  await นำเข้าผ่านเมนู(page, "นำเข้าจากไฟล์", "xlsx", ไฟล์);
+  await นำเข้าไฟล์ผู้สนใจ(page, ไฟล์);
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ", exact: true });
   const ตัวอย่าง = กล่อง.locator("[data-facebook-preview]");
   await expect(ตัวอย่าง, "ไฟล์ Facebook = หน้าตัวอย่าง (ไม่มีหน้าจับคู่คอลัมน์)").toBeVisible({ timeout: 20_000 });
@@ -91,10 +92,44 @@ test("[ui·hq] นำเข้าไฟล์เดิมซ้ำ = หน้�
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
-  await นำเข้าผ่านเมนู(page, "นำเข้าจากไฟล์", "xlsx", ไฟล์);
+  await นำเข้าไฟล์ผู้สนใจ(page, ไฟล์);
   const ตัวอย่าง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ", exact: true }).locator("[data-facebook-preview]");
   await expect(ตัวอย่าง.locator('[data-fb-group="dup"] [data-count]'), "ทุกเบอร์มีอยู่แล้ว").toHaveAttribute("data-count", "5", { timeout: 20_000 });
   await expect(ตัวอย่าง.locator('[data-fb-group="import"] [data-count]')).toHaveAttribute("data-count", "0");
   await expect(ตัวอย่าง.getByRole("button", { name: "ยืนยันนำเข้า 0 ราย", exact: true })).toBeDisabled();
   assertNoErrors(errs, "นำเข้าไฟล์ Facebook ซ้ำ");
+});
+
+// ── นำเข้าตรงจากลิงก์ Google Sheets (บอสสั่ง 20 พ.ย. 69) + แถบ "ยกเลิกชุดนี้" หลังนำเข้า ──────────────────────────────────────
+//   เส้นทางดึงชีตจริง (/api/v1/prospect-sheet) ตรวจด้วยตัวดึงจำลองใน tests/unit/prospectSheet.test.ts — ข้อนี้จำลองคำตอบของเส้นทาง
+//   (ไม่ออกไป Google · ไม่มีลิงก์ชีตจริง) แล้วตรวจว่าหน้าเว็บส่งลิงก์ไป → เข้าหน้าตัวอย่างเดิม → นำเข้า → ยกเลิกชุดนี้ได้
+test("[ui·hq] Google Sheets: วางลิงก์ → หน้าตัวอย่างเดิม → นำเข้า → ยกเลิกชุดนี้", async ({ page }) => {
+  const errs = watchErrors(page);
+  const ลิงก์ = "https://docs.google.com/spreadsheets/d/ZZtest_fake-sheet-id-0000000000/edit#gid=0";
+  let ส่งมา: unknown = null;
+  await page.route("**/api/v1/prospect-sheet", async route => {
+    ส่งมา = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: "Google Sheets ZZtest…", sheets: [
+      ["12.26", [[...หัวไฟล์เฟซบุ๊ก], [`${เมื่อวาน}T10:00:00+07:00`, "ZZ แคมเปญ", "Songkha", "zzfb@example.test", `${แท็ก} จากชีต`, เบอร์(31)]]],
+    ] }) });
+  });
+  await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+  await settle(page);
+  await เปิดนำเข้าจากชีต(page);
+  const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ", exact: true });
+  await กล่อง.getByLabel("ลิงก์ Google Sheets", { exact: true }).fill(ลิงก์);
+  await กล่อง.getByRole("button", { name: "ดึงข้อมูลจากชีต", exact: true }).click();
+  const ตัวอย่าง = กล่อง.locator("[data-facebook-preview]");
+  await expect(ตัวอย่าง, "เข้าหน้าตัวอย่างเดิม").toBeVisible({ timeout: 20_000 });
+  expect(ส่งมา, "ส่งลิงก์ให้เซิร์ฟเวอร์ดึง (หน้าเว็บไม่ดึงเอง)").toEqual({ url: ลิงก์ });
+  await expect(ตัวอย่าง.locator('[data-fb-row="12.26:2"]'), "Songkha = สงขลา").toContainText("สงขลา");
+  await กล่อง.getByRole("button", { name: "ยืนยันนำเข้า 1 ราย", exact: true }).click();
+  await expect(กล่อง.getByTestId("import-result")).toHaveAttribute("data-inserted", "1", { timeout: 30_000 });
+  const แถบ = กล่อง.locator("[data-batch-undo]");
+  await แถบ.getByRole("button", { name: "ยกเลิกชุดนี้", exact: true }).click({ timeout: 20_000 });
+  await กดตกลงในกล่องยืนยัน(page);
+  await expect(แถบ, "ยกเลิกแล้ว").toContainText("ยกเลิกชุดนี้แล้ว", { timeout: 20_000 });
+  const { count } = await admin.from("dealer_prospects").select("id", { count: "exact", head: true }).eq("name", `${แท็ก} จากชีต`);
+  expect(count, "ยกเลิกชุดแล้วไม่เหลือราย").toBe(0);
+  assertNoErrors(errs, "นำเข้าจาก Google Sheets");
 });

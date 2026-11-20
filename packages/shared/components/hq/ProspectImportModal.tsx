@@ -21,9 +21,15 @@ import {
   หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
 } from "@pms/shared/lib/prospectImport";
-import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, เป็นแถวซ้ำ, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
+import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, เป็นแถวซ้ำ, หัวไฟล์เฟซบุ๊ก, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
+import { apiFetch } from "@pms/shared/lib/data/http/HttpAdapter";
 
 const ที่จำ = "bpms_prospect_import_map";
+const ที่จำลิงก์ชีต = "bpms_prospect_sheet_link";   // ลิงก์ Google Sheets ล่าสุด (เครื่องนี้เท่านั้น · ไม่ส่งไปเก็บที่ไหน)
+const อ่านลิงก์ชีต = () => { try { return localStorage.getItem(ที่จำลิงก์ชีต) ?? ""; } catch { return ""; } };
+const จำลิงก์ชีต = (v: string) => { try { localStorage.setItem(ที่จำลิงก์ชีต, v); } catch { /* จำไม่ได้ = ครั้งหน้าวางใหม่ */ } };
+/** แบบฟอร์มตัวอย่าง = หัวตารางเดียวกับไฟล์ Facebook (บอสสั่ง 20 พ.ย. 69 · ย้ายจากเมนูเข้ามาในหน้าต่าง) */
+const ดาวน์โหลดแบบฟอร์ม = () => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "ผู้สนใจ", หัวตาราง: [...หัวไฟล์เฟซบุ๊ก], แถว: [] }]), "แบบฟอร์มนำเข้าผู้สนใจ.xlsx");
 const ขั้นที่นำเข้าได้: { k: ขั้นนำเข้า; label: string }[] = [
   { k: "new", label: "รอติดต่อ" }, { k: "contacted", label: "ติดต่อแล้ว" }, { k: "profile_sent", label: "ส่งข้อมูลบริษัทแล้ว" }, { k: "lost", label: "ไม่สำเร็จ" },
 ];
@@ -36,8 +42,10 @@ const ปีพศนี้ = () => new Date(Date.now() + 7 * 3_600_000).getUTCF
 const อ่านที่จำ = (): Record<string, การจับคู่> => { try { return JSON.parse(localStorage.getItem(ที่จำ) ?? "{}"); } catch { return {}; } };
 const จำ = (ลาย: string, คู่: การจับคู่) => { try { localStorage.setItem(ที่จำ, JSON.stringify({ ...อ่านที่จำ(), [ลาย]: คู่ })); } catch { /* จำไม่ได้ = ครั้งหน้าเดาใหม่ */ } };
 
-export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, รายที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ, ไฟล์เริ่ม }: {
+export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, รายที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ, ไฟล์เริ่ม, เริ่มที่ชีต = false }: {
   open: boolean; onClose: () => void; onImported: () => void;
+  /** เปิดจากปุ่ม "นำเข้าจาก Google Sheets" — ช่องวางลิงก์อยู่บนสุด (บอสสั่ง 20 พ.ย. 69) */
+  เริ่มที่ชีต?: boolean;
   /** ไฟล์ที่เลือกจากเมนูนำเข้า (ImportMenu) — เปิดกล่องแล้วอ่านไฟล์นี้ทันที ไปหน้าจับคู่คอลัมน์ (ไม่มีกล่องเปล่าคั่น · บอสสั่ง 5 พ.ย. 69) */
   ไฟล์เริ่ม?: File | null;
   /** เบอร์ของผู้สนใจที่มีอยู่ (ตรวจซ้ำก่อนส่ง · ฐานตรวจอีกชั้น) */
@@ -63,6 +71,9 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   // ไฟล์ลีดจาก Facebook Lead Ads (บอสสั่ง 20 พ.ย. 69 · ใบ 0292) — รู้จักจากหัว full_name + phone_number · อ่านทุกชีต · ไม่มีหน้าจับคู่คอลัมน์
   const [เฟซบุ๊ก, setเฟซบุ๊ก] = useState<แถวเฟซบุ๊ก[] | null>(null);
   const [ดูเฟซบุ๊ก, setดูเฟซบุ๊ก] = useState<กลุ่มเฟซบุ๊ก>("import");
+  const [ลิงก์ชีต, setลิงก์ชีต] = useState("");
+  const [กำลังดึงชีต, setกำลังดึงชีต] = useState(false);
+  useEffect(() => { if (open && เริ่มที่ชีต) setลิงก์ชีต(v => v || อ่านลิงก์ชีต()); }, [open, เริ่มที่ชีต]);
   const โหลดชุด = () => prospectsRepo.importBatches().then(setชุด).catch(() => setชุด([]));
   useEffect(() => { if (open) void โหลดชุด(); }, [open]);
   useEffect(() => { if (open && ไฟล์เริ่ม) void เลือกไฟล์(ไฟล์เริ่ม); }, [open, ไฟล์เริ่ม]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -79,21 +90,36 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   async function เลือกไฟล์(f: File | undefined) {
     if (!f) return;
     ล้าง();
+    try { รับสมุดงาน(f.name, await อ่านสมุดงานจากไฟล์(f)); }
+    catch (e) { setพลาด(`อ่านไฟล์ไม่ได้: ${friendlyError(e)}`); }
+  }
+  // ดึงจากลิงก์ Google Sheets (บอสสั่ง 20 พ.ย. 69) — เซิร์ฟเวอร์ดึงให้ (/api/v1/prospect-sheet) แล้วเข้าตัวอ่านเดียวกับไฟล์ (ไม่มีทางที่สอง)
+  async function ดึงชีต() {
+    const ลิงก์ = ลิงก์ชีต.trim();
+    if (!/^https:\/\/docs\.google\.com\/spreadsheets\/d\//.test(ลิงก์)) { setพลาด("วางลิงก์ Google Sheets (https://docs.google.com/spreadsheets/d/…)"); return; }
+    ล้าง(); setกำลังดึงชีต(true);
     try {
-      const เล่ม = await อ่านสมุดงานจากไฟล์(f);
+      const r = await apiFetch<{ fileName: string; sheets: [string, string[][]][] }>("/prospect-sheet", { method: "POST", body: JSON.stringify({ url: ลิงก์ }) });
+      จำลิงก์ชีต(ลิงก์);
+      รับสมุดงาน(r.fileName, new Map(r.sheets));
+    } catch (e) { setพลาด(friendlyError(e)); }
+    finally { setกำลังดึงชีต(false); }
+  }
+  function รับสมุดงาน(ชื่อ: string, เล่ม: Map<string, string[][]>) {
+    {
       const ตาราง = [...เล่ม.values()][0] ?? [];
       if (เป็นไฟล์เฟซบุ๊ก(เล่ม)) {
         const ได้ = เตรียมแถวเฟซบุ๊ก(เล่ม, รายที่มีอยู่ ?? เบอร์ที่มีอยู่, APP_NOW_ISO);
-        setไฟล์({ ชื่อ: f.name, ตาราง }); setเฟซบุ๊ก(ได้); setดูเฟซบุ๊ก("import");
+        setไฟล์({ ชื่อ, ตาราง }); setเฟซบุ๊ก(ได้); setดูเฟซบุ๊ก("import");
         if (!ได้.length) setพลาด("ไฟล์ Facebook นี้ไม่มีแถวข้อมูล");
         return;
       }
       const h = หาแถวหัวตาราง(ตาราง);
-      setไฟล์({ ชื่อ: f.name, ตาราง });
+      setไฟล์({ ชื่อ, ตาราง });
       setแถวหัว(h);
       if (h >= 0) setคู่(อ่านที่จำ()[ลายเซ็นหัว(ตาราง[h])] ?? เดาคอลัมน์(ตาราง[h]));
       else setพลาด("หาแถวหัวตารางไม่เจอ (ต้องมีหัวคอลัมน์ เช่น เบอร์ · จังหวัด · ชื่อ) — เลือกแถวหัวตารางเองด้านล่าง");
-    } catch (e) { setพลาด(`อ่านไฟล์ไม่ได้: ${friendlyError(e)}`); }
+    }
   }
   function ไปตรวจ() {
     if (!ไฟล์ || แถวหัว < 0) return;
@@ -180,14 +206,29 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
             <button type="button" aria-label="ปิด" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={16} /></button>
           </div>
           <div style={{ padding: 18, overflowY: "auto", display: "grid", gap: 14 }}>
-            {/* 1 · อัปโหลด */}
-            <div>
+            {/* 1 · อัปโหลด — เลือกไฟล์อื่น · ลิงก์ Google Sheets · แบบฟอร์มตัวอย่าง (ย้ายจากเมนูเข้ามา · บอสสั่ง 20 พ.ย. 69) */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <label className="btn btn-secondary btn-sm" style={{ cursor: "pointer" }}>
                 <Upload size={13} /> เลือกไฟล์ (.xlsx / .csv)
                 <input type="file" aria-label="ไฟล์ผู้สนใจ" accept={นามสกุลที่รับได้.join(",")} hidden onChange={e => void เลือกไฟล์(e.target.files?.[0])} />
               </label>
-              {ไฟล์ && <span data-testid="import-file" style={{ marginLeft: 8, fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {ไฟล์.ตาราง.length.toLocaleString()} แถวที่มีข้อมูล</span>}
+              {ไฟล์ && <span data-testid="import-file" style={{ fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {ไฟล์.ตาราง.length.toLocaleString()} แถวที่มีข้อมูล</span>}
+              <button type="button" data-act="import-template" onClick={ดาวน์โหลดแบบฟอร์ม}
+                style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, color: "#003366", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <Download size={13} /> ดาวน์โหลดแบบฟอร์มตัวอย่าง
+              </button>
             </div>
+            {(เริ่มที่ชีต || ลิงก์ชีต) && (
+              <div data-sheet-import style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <label htmlFor="pi-sheet-link" style={{ fontSize: "0.76rem", fontWeight: 700, color: "#4b5563" }}>ลิงก์ Google Sheets</label>
+                <input id="pi-sheet-link" className="form-input" type="url" inputMode="url" value={ลิงก์ชีต} onChange={e => setลิงก์ชีต(e.target.value.trim())}
+                  onKeyDown={e => { if (e.key === "Enter") void ดึงชีต(); }} placeholder="https://docs.google.com/spreadsheets/d/…" style={{ flex: "1 1 320px", minWidth: 0 }} />
+                <button type="button" className="btn btn-primary btn-sm" disabled={กำลังดึงชีต || !ลิงก์ชีต} onClick={() => void ดึงชีต()}>
+                  {กำลังดึงชีต ? "กำลังดึงข้อมูล…" : "ดึงข้อมูลจากชีต"}
+                </button>
+                <span style={{ flexBasis: "100%", fontSize: "0.68rem", color: "#6b7280" }}>ชีตต้องเปิดแชร์ &quot;ทุกคนที่มีลิงก์ดูได้&quot; · อ่านทุกชีต (หัวตารางเดียวกับไฟล์ Facebook) · ระบบไม่เก็บไฟล์</span>
+              </div>
+            )}
             {พลาด && <div role="alert" style={{ padding: "8px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: "0.78rem", fontWeight: 600 }}>{พลาด}</div>}
 
             {/* 2ก · ไฟล์ Facebook: หน้าตัวอย่าง → บอสกดยืนยัน (บอสสั่ง 20 พ.ย. 69) */}
@@ -381,6 +422,18 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                   <button type="button" className="btn btn-secondary btn-sm" onClick={ดาวน์โหลดที่ข้าม}><Download size={13} /> ดาวน์โหลดแถวที่ข้าม</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={ล้าง}>นำเข้าไฟล์อื่น</button>
                 </div>
+                {/* แถบ "ยกเลิกชุดนี้" (บอสสั่ง 20 พ.ย. 69) — กติกาเดิมของยกเลิกทั้งชุด (ฐานกันรายที่ถูกแตะแล้ว) */}
+                {(() => {
+                  const b = ชุด.find(x => x.id === ผล.batch);
+                  if (!b || !ผล.inserted) return null;
+                  return (
+                    <div data-batch-undo={b.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 12px", borderRadius: 8, background: "#f7f9fc", border: "1px solid #e5e7eb" }}>
+                      <span style={{ flex: 1, fontSize: "0.76rem", color: "#374151" }}>นำเข้าผิดชุด? ยกเลิกทั้งชุดได้จนกว่าจะมีรายถูกบันทึกการติดต่อ/เปลี่ยนขั้น/ออกใบ</span>
+                      {b.cancelledAt ? <span style={{ color: "#6b7280", fontSize: "0.76rem" }}>ยกเลิกชุดนี้แล้ว</span>
+                        : <button type="button" className="btn btn-secondary btn-sm" disabled={b.touched > 0} onClick={() => void ยกเลิกชุด(b)}><Undo2 size={12} /> ยกเลิกชุดนี้</button>}
+                    </div>
+                  );
+                })()}
               </section>
             )}
 
