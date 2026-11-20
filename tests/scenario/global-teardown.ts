@@ -62,6 +62,9 @@ async function sweep(admin: SupabaseClient, เก็บชุดตั้งต
     // ผู้สนใจเป็นดีลเลอร์ ที่ข้อทดสอบสร้างไว้รองรับการสร้างสาขา — ใบค่าแฟรนไชส์/บันทึกการติดต่อหายตามกุญแจนอก
     //   (เคยค้างสะสม 12 แถว: ข้อทดสอบลบสาขาตรงที่ตาราง รายต้นทางหลุดจากสาขาแต่ไม่ถูกลบ · พบ 13 ต.ค. 69)
     await del("dealer_prospects", "name", mark);
+    // ชุดนำเข้าผู้สนใจ (ใบ 0275) ของข้อทดสอบนำเข้า — ลบหลังผู้สนใจ (ผู้สนใจอ้างชุดด้วยกุญแจนอก) · ข้อที่ตกกลางทางไม่ถึง afterAll
+    //   พบ 20 พ.ย. 69 รอบ deploy29: check-test-leftovers เจอ prospect_import_batches.file_name ค้าง 1 แถว
+    await del("prospect_import_batches", "file_name", mark);
   }
   return removed.join(" · ");
 }

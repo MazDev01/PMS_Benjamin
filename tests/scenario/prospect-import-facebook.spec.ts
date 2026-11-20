@@ -109,7 +109,8 @@ test("[ui·hq] Google Sheets: วางลิงก์ → หน้าตัว
   let ส่งมา: unknown = null;
   await page.route("**/api/v1/prospect-sheet", async route => {
     ส่งมา = route.request().postDataJSON();
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: "Google Sheets ZZtest…", sheets: [
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: `${แท็ก}-ชีต.xlsx`, sheets: [   // ชื่อชุดขึ้นต้นด้วยป้ายของข้อ — afterAll ลบชุดตาม `${แท็ก}%` (เดิม "Google Sheets ZZtest…" ค้างในฐาน · คนรวมงาน 20 พ.ย. 69)
+      
       ["12.26", [[...หัวไฟล์เฟซบุ๊ก], [`${เมื่อวาน}T10:00:00+07:00`, "ZZ แคมเปญ", "Songkha", "zzfb@example.test", `${แท็ก} จากชีต`, เบอร์(31)]]],
     ] }) });
   });
