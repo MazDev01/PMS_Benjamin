@@ -1042,6 +1042,7 @@ export default function LeadsPage() {
   function resetApptForm() { นัดบังคับ.ล้าง("apptType"); นัดบังคับ.ล้าง("apptDate"); นัดบังคับ.ล้าง("apptTime"); setApptAdding(false); setApptForm({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" }); }
   // พาไปแท็บใบเสนอราคาของลูกค้าเป้าหมายนี้ — ใช้ทั้งตอนพาไปออกใบใหม่ และตอนพาไปกดส่งใบที่มีอยู่
   const [quoteFormSignal, setQuoteFormSignal] = useState(0);
+  const [ฟอร์มใบเปิด, setฟอร์มใบเปิด] = useState(false);   // ฟอร์มทำใบในแท็บใบเสนอราคาเปิดอยู่ (พับคำขอ/ใบ HQ ข้างบน)
   // ปุ่ม "ขั้นต่อไป" สั่งแผงคำขอราคาเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) — n เปลี่ยน = สั่งใหม่
   const [reqSignal, setReqSignal] = useState<{ mode: "ขอราคา" | "แก้ราคา"; n: number } | undefined>(undefined);
   // ปุ่ม "บันทึกผลจากลูกค้า" สั่งแท็บใบเสนอราคาเปิดใบที่รอลูกค้าตอบ (ทำในแผง · รอบ 4)
@@ -1914,9 +1915,10 @@ export default function LeadsPage() {
         const tabQuotation = (
           <DrawerSection title="ใบเสนอราคา">
             {/* ราคาจากสำนักงานใหญ่ (Flow ใหม่ · ขั้น 3) — ส่งคำขอ / ยกเลิก / ขอแก้ราคา · ฐานข้อมูลขยับสถานะเอง */}
-            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} />
+            {/* ฟอร์มทำใบเปิด = พับคำขอ/ใบ HQ ข้างบน + เลื่อนจอมาที่ฟอร์มเอง (บอสสั่ง 20 พ.ย. 69) */}
+            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} พับ={ฟอร์มใบเปิด} />
             <LeadQuotationsPanel lead={c} onToast={setToast} openCreateSignal={quoteFormSignal} openViewSignal={quoteViewSignal}
-              onWon={company => setJustWonCompany(company)} />
+              onWon={company => setJustWonCompany(company)} onFormOpenChange={setฟอร์มใบเปิด} />
           </DrawerSection>
         );
 

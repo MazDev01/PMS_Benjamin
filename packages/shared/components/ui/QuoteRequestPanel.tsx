@@ -68,7 +68,10 @@ const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigi
 const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d5dbe4", borderRadius: 9, padding: "9px 11px", fontSize: "0.84rem", fontFamily: "inherit", boxSizing: "border-box" };
 
 /** openSignal = ปุ่ม "ขั้นต่อไป" ในหัวแผงสั่งเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) · n เปลี่ยน = สั่งใหม่ (หน้า 3 UI ตาม flow · 16 ต.ค. 69) */
-export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number } }) {
+/** พับ = ฟอร์มทำใบให้ลูกค้าเปิดอยู่ด้านล่าง → ย่อเหลือบรรทัดสรุป (กด "ดูคำขอและใบ HQ" กางได้ · บอสสั่ง 20 พ.ย. 69) */
+export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = false }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number }; พับ?: boolean }) {
+  const [กางเอง, setกางเอง] = useState(false);
+  useEffect(() => { if (พับ) setกางเอง(false); }, [พับ]);   // เปิดฟอร์มใหม่ทุกครั้ง = พับใหม่
   const [รายการ, setรายการ] = useState<QuoteRequest[] | null>(null);
   const [โหมด, setโหมด] = useState<โหมด>("ดู");
   const [product, setProduct] = useState("");
@@ -221,8 +224,21 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
         <strong style={{ fontSize: "0.86rem", color: "#3b0764" }}>ราคาจาก HQ</strong>
       </div>
 
-      {เปิด ? (
+      {เปิด && พับ && !กางเอง ? (
+        <div data-quote-request-folded style={{ fontSize: "0.8rem", color: "#374151", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>คำขอ <b>{เปิด.requestNo}</b> · {quoteRequestStatusLabel[เปิด.status]}</span>
+          {ใบHQ && <span>· ใบ HQ <b>{ใบHQ.quoteNo}</b> ฉบับ {ใบHQ.version} · {ใบHQ.lineItems.length} รายการ</span>}
+          <button type="button" className="btn btn-secondary btn-sm" aria-expanded={false} onClick={() => setกางเอง(true)} style={{ marginLeft: "auto" }}>
+            ดูคำขอและใบ HQ <ChevronDown size={13} />
+          </button>
+        </div>
+      ) : เปิด ? (
         <div style={{ fontSize: "0.8rem", color: "#374151", lineHeight: 1.8 }}>
+          {พับ && (
+            <button type="button" className="btn btn-secondary btn-sm" aria-expanded onClick={() => setกางเอง(false)} style={{ float: "right" }}>
+              พับคำขอและใบ HQ <ChevronUp size={13} />
+            </button>
+          )}
           <div>
             คำขอ <b><DataLink เป้า={{ ชนิด: "request", รหัส: lead.numId, สาขา: lead.dealerCode }}>{เปิด.requestNo}</DataLink></b> ·{" "}
             <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
