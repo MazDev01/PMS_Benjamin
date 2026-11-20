@@ -373,7 +373,7 @@ function DocumentsTab() {
         {/* ฟอร์มตั้งค่าใบเสนอราคา (บอสสั่ง 19 พ.ย. 69 "แก้หน้าฟอร์มก่อน" · "ช่องให้ดี"): 2 กลุ่ม กริดเดียวกันทั้งฟอร์ม (auto-fill ขั้นต่ำ 170px)
               · เลขที่ใบเสนอราคา: คำนำหน้าเลขที่ (ล็อก · ระบบออกให้) | ตัวอย่างเลขที่ถัดไป (กล่องสูงเท่าช่อง แถวเดียวกัน)
               · ราคาและภาษี: VAT · หัก ณ ที่จ่าย · % บวกตั้งต้น · อายุใบเสนอราคา — 4 ช่องกว้างเท่ากัน แถวเดียว (จอแคบ 2×2 / เรียงลง)
-              ป้ายบรรทัดเดียวทุกช่อง · ช่องตัวเลขตัวกลางไม่มีลูกศร มีหน่วยท้ายช่อง (% / วัน)
+              ป้ายบรรทัดเดียวทุกช่อง (ข้อความป้ายเดิม ไม่ย่อ — รอบตรวจ deploy29 dealer-required-fields: ป้ายเดิมต้องคงถ้าบอสไม่ได้สั่ง) · ช่องตัวเลขตัวกลางไม่มีลูกศร มีหน่วยท้ายช่อง (% / วัน)
               เดิม: คำนำหน้า + VAT + หัก ณ ที่จ่าย + % บวก ปนแถวเดียว (VAT/หัก ณ ที่จ่ายแคบ ป้ายตกบรรทัด · % บวกยืดเต็ม) · ตัวอย่างเลขที่ห้อยใต้ · อายุใบลอยแถวถัดไป */}
         {(() => {
           const กริด: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12, alignItems: "end" };
@@ -407,13 +407,13 @@ function DocumentsTab() {
                 <div data-doc-rates className="doc-rate-grid">
                   <div data-doc-rate="vat">
                     {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69) · ใบที่ออกไปแล้วไม่กระทบ (ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง) */}
-                    <FieldLabel htmlFor="doc-vat" required style={ป้าย}>VAT (%)</FieldLabel>
+                    <FieldLabel htmlFor="doc-vat" required style={ป้าย}>ภาษีมูลค่าเพิ่ม (VAT) %</FieldLabel>
                     <NumberInput id="doc-vat" ariaLabel="ภาษีมูลค่าเพิ่ม (VAT) %" min={0} max={100} step="0.01" หน่วย="%"
                       value={doc.vatPercent} onChange={n => set("vatPercent", n)} />
                   </div>
                   <div data-doc-rate="wht">
                     {/* ภาษีหัก ณ ที่จ่าย — ค่าตั้งต้นของสาขาเท่านั้น (บอสสั่ง 28 ส.ค. 69) · ตอนออกใบยังเปิด/ปิดและแก้อัตรารายใบได้ */}
-                    <label className="form-label" htmlFor="doc-wht" style={ป้าย}>หัก ณ ที่จ่าย (%)</label>
+                    <label className="form-label" htmlFor="doc-wht" style={ป้าย}>ภาษีหัก ณ ที่จ่าย %</label>
                     <NumberInput id="doc-wht" ariaLabel="ภาษีหัก ณ ที่จ่าย %" min={0} max={100} step={0.5} หน่วย="%"
                       value={doc.whtPercent} onChange={n => set("whtPercent", n)} />
                   </div>
@@ -425,7 +425,7 @@ function DocumentsTab() {
                   </div>
                   <div data-doc-rate="validity">
                     {/* อายุใบเสนอราคา (ดีลเลอร์ตั้งได้เอง) · ช่อง "เตือนก่อนหมดอายุ (วัน)" เอาออก 21 ต.ค. 69 — กระดิ่งเตือนเหลือ 3 วันตายตัว (ใบ 0231) */}
-                    <FieldLabel htmlFor="doc-validity" required style={ป้าย}>อายุใบเสนอราคา</FieldLabel>
+                    <FieldLabel htmlFor="doc-validity" required style={ป้าย}>อายุใบเสนอราคา (วัน)</FieldLabel>
                     <NumberInput id="doc-validity" ariaLabel="อายุใบเสนอราคา (วัน)" min={1} หน่วย="วัน"
                       value={doc.validityDays} onChange={n => set("validityDays", n)} />
                   </div>
