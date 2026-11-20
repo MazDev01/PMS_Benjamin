@@ -2,7 +2,8 @@
 -- ไฟล์ Facebook: created_time · ad_name · จังหวัด (ลูกค้าพิมพ์เอง) · email · full_name · phone_number ("p:+66…") · ลูกค้าทิ้งเบอร์ไว้ HQ โทรกลับเอง
 -- เพิ่มคีย์ในแถว (ไม่ส่ง = ทำงานเหมือนใบ 0277 ทุกทาง · ชื่อ/อาร์กิวเมนต์/สิทธิ์คำสั่งเดิม):
 --   follow_up_today: true → นัดติดตาม = วันนี้ (เวลาไทย) ขึ้นการ์ด "ถึงกำหนดติดตาม" ทันที · ใช้กับขั้นไม่สำเร็จไม่ได้
---   phone_incomplete: true → รับเบอร์ไม่ครบ (0 + ตัวเลข 5–10 หลัก) เก็บตามที่มี · ต่ำกว่านั้นยังข้าม · ตรวจซ้ำที่ฐานเหมือนเดิม
+--   phone_incomplete: true → รับเบอร์ไม่ครบ (มีตัวเลข 1–15 หลัก · บอส 20 พ.ย. 69 "ลงทั้งหมด จะครบไม่ครบไม่เป็นไร") เก็บตัวเลขตามที่มี ไม่จัดรูป
+--                     (หน้าจอตัดสินว่าไม่ครบ: 10 หลัก = ครบ · 9 หลักขึ้นต้น 02 03 04 05 07 = บ้าน/ออฟฟิศ ครบ · อื่น ๆ = ไม่ครบ) · ตรวจซ้ำที่ฐานเหมือนเดิม
 --   entered_at: วันที่ลูกค้าทิ้งเบอร์ (YYYY-MM-DD · ไม่เกินวันนี้ · ผิดรูปแบบ = ปฏิเสธ) → created_at ของผู้สนใจ = วันนั้น 09:00 เวลาไทย
 --               ไม่สร้างบันทึกการติดต่อ (ลูกค้าทิ้งเบอร์ ≠ HQ ติดต่อแล้ว) · ติดต่อล่าสุดว่าง
 --   email: อีเมลที่ลูกค้ากรอก (ช่อง email เดิมของตาราง · ว่าง = ไม่ใส่)
@@ -41,7 +42,7 @@ begin
       ข้าม := ข้าม || jsonb_build_object('row', แถวที่, 'reason', 'ไม่มีชื่อ'); continue;
     end if;
     -- แยกตัวแปรก่อน: plpgsql อ่านเงื่อนไข IF ถึงคำ THEN ตัวแรก (THEN ของ CASE ในเงื่อนไข = ใบพัง)
-    แบบเบอร์ := case when ไม่ครบ then '^0\d{5,10}$' else '^0\d{8,9}$' end;
+    แบบเบอร์ := case when ไม่ครบ then '^\d{1,15}$' else '^0\d{8,9}$' end;
     if เบอร์ !~ แบบเบอร์ then
       ข้าม := ข้าม || jsonb_build_object('row', แถวที่, 'reason', 'ไม่มีเบอร์โทรที่ถูกต้อง'); continue;
     end if;
@@ -86,9 +87,10 @@ begin
 
     insert into dealer_prospects (name, social, phone, email, province, region, channel, first_contact, follow_up, note, status, lost_reason, import_batch_id, created_at)
     values (left(ชื่อ, 200), nullif(left(btrim(coalesce(r->>'social', '')), 200), ''),
-            case when length(เบอร์) = 10 then substr(เบอร์, 1, 3) || '-' || substr(เบอร์, 4, 3) || '-' || substr(เบอร์, 7)
+            case when ไม่ครบ then เบอร์                                           -- เบอร์ไม่ครบ (รวม 9 หลักมือถือขาดตัว) = ตัวเลขตามที่มี ไม่จัดรูปให้ดูเหมือนเบอร์บ้าน
+                 when length(เบอร์) = 10 then substr(เบอร์, 1, 3) || '-' || substr(เบอร์, 4, 3) || '-' || substr(เบอร์, 7)
                  when length(เบอร์) = 9 then substr(เบอร์, 1, 2) || '-' || substr(เบอร์, 3, 3) || '-' || substr(เบอร์, 6)
-                 else เบอร์ end,                                            -- เบอร์ไม่ครบ = เก็บตัวเลขตามที่มี (ใบ 0292)
+                 else เบอร์ end,
             nullif(left(btrim(coalesce(r->>'email', '')), 200), ''),
             จังหวัด, (select t.region from th_provinces t where t.name = จังหวัด),
             nullif(left(btrim(coalesce(r->>'channel', '')), 50), ''), เริ่ม,

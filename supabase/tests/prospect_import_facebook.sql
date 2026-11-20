@@ -1,6 +1,6 @@
 -- ── ข้อทดสอบใบ 0292: นำเข้าไฟล์ลีด Facebook ผ่านคำสั่งนำเข้าเดิม (บอสสั่ง 20 พ.ย. 69) — ข้อมูลปลอมทั้งหมด (000-000-NNNN) ─────────
 --   1) follow_up_today = นัดติดตามวันนี้ (เวลาไทย) · entered_at = created_at วันนั้น 09:00 · ไม่สร้างบันทึกการติดต่อ · ติดต่อล่าสุดว่าง · อีเมลเก็บ
---   2) phone_incomplete: เบอร์ไม่ครบ (0 + 5–10 หลัก) นำเข้าได้ เก็บตัวเลขตามที่มี · สั้นกว่านั้นข้าม · ไม่ส่งคีย์ = เบอร์ไม่ครบข้ามเหมือนเดิม
+--   2) phone_incomplete: เบอร์ไม่ครบ (มีตัวเลข 1–15 หลัก · บอส 20 พ.ย. 69 "ลงทั้งหมด") นำเข้าได้ เก็บตัวเลขตามที่มี ไม่จัดรูป (รวม 9 หลักมือถือขาดตัว) · ไม่มีตัวเลขเลย = ข้าม · ไม่ส่งคีย์ = เบอร์ไม่ครบข้ามเหมือนเดิม
 --   3) ซ้ำที่ฐาน: ในไฟล์ / กับที่มีอยู่ / ชุดที่สอง (กดซ้ำ · สองแท็บ) = ข้าม ไม่สร้างซ้ำ
 --   4) entered_at ผิดรูปแบบ / ไม่มีจริง / เกินวันนี้ = ปฏิเสธทั้งชุด · follow_up_today กับขั้นไม่สำเร็จ = ปฏิเสธ
 --   5) ไม่ส่งคีย์ใหม่ = เหมือนใบ 0277 (นัดติดตามว่าง · created_at = ตอนนำเข้า)
@@ -48,16 +48,18 @@ begin
       'follow_up_today', true, 'entered_at', to_char(วันนี้ - 20, 'YYYY-MM-DD')),
     jsonb_build_object('row', '10.26:3', 'name', 'ZZTEST-FB-ไม่ครบ', 'phone', '0000082', 'channel', 'Facebook', 'status', 'new',
       'follow_up_today', true, 'phone_incomplete', true, 'entered_at', to_char(วันนี้ - 3, 'YYYY-MM-DD')),
-    jsonb_build_object('row', '10.26:4', 'name', 'ZZTEST-FB-สั้นเกิน', 'phone', '0000', 'status', 'new', 'follow_up_today', true, 'phone_incomplete', true),
+    jsonb_build_object('row', '10.26:4', 'name', 'ZZTEST-FB-สั้นมาก', 'phone', '0000', 'status', 'new', 'follow_up_today', true, 'phone_incomplete', true),
+    jsonb_build_object('row', '10.26:5', 'name', 'ZZTEST-FB-มือถือขาดตัว', 'phone', '000008213', 'status', 'new', 'follow_up_today', true, 'phone_incomplete', true),
+    jsonb_build_object('row', '10.26:6', 'name', 'ZZTEST-FB-ไม่มีเบอร์', 'phone', 'ไม่ให้เบอร์', 'status', 'new', 'follow_up_today', true, 'phone_incomplete', true),
     jsonb_build_object('row', '11.26:2', 'name', 'ZZTEST-FB-ซ้ำในไฟล์', 'phone', '000-000-8201', 'status', 'new', 'follow_up_today', true),
     jsonb_build_object('row', '11.26:3', 'name', 'ZZTEST-FB-ซ้ำของเดิม', 'phone', '0000008299', 'status', 'new', 'follow_up_today', true),
     jsonb_build_object('row', '11.26:4', 'name', 'ZZTEST-FB-ไม่ส่งคีย์', 'phone', '0000083', 'status', 'new')));
   perform pftest.as_admin();
-  perform pftest.ok((r->>'inserted')::int = 2, '1) นำเข้า 2 ราย (หนึ่ง · ไม่ครบ)');
-  perform pftest.ok(jsonb_array_length(r->'skipped') = 4, '2-3) ข้าม 4 แถว: สั้นเกิน · ซ้ำในไฟล์ · ซ้ำของเดิม · ไม่ส่งคีย์เบอร์ไม่ครบ');
+  perform pftest.ok((r->>'inserted')::int = 4, '1) นำเข้า 4 ราย (หนึ่ง · ไม่ครบ · สั้นมาก · มือถือขาดตัว)');
+  perform pftest.ok(jsonb_array_length(r->'skipped') = 4, '2-3) ข้าม 4 แถว: ไม่มีเบอร์ · ซ้ำในไฟล์ · ซ้ำของเดิม · ไม่ส่งคีย์เบอร์ไม่ครบ');
   perform pftest.ok(exists (select 1 from jsonb_array_elements(r->'skipped') x where x->>'row' = '11.26:2' and x->>'reason' = 'เบอร์ซ้ำกับแถวก่อนหน้าในไฟล์'), '3) ซ้ำในไฟล์');
   perform pftest.ok(exists (select 1 from jsonb_array_elements(r->'skipped') x where x->>'row' = '11.26:3' and x->>'reason' = 'เบอร์นี้มีผู้สนใจอยู่แล้ว'), '3) ซ้ำกับที่มีอยู่');
-  perform pftest.ok(exists (select 1 from jsonb_array_elements(r->'skipped') x where x->>'row' = '10.26:4' and x->>'reason' = 'ไม่มีเบอร์โทรที่ถูกต้อง'), '2) สั้นกว่า 6 หลักยังข้าม');
+  perform pftest.ok(exists (select 1 from jsonb_array_elements(r->'skipped') x where x->>'row' = '10.26:6' and x->>'reason' = 'ไม่มีเบอร์โทรที่ถูกต้อง'), '2) ไม่มีตัวเลขเบอร์เลย = ข้าม');
   perform pftest.ok(exists (select 1 from jsonb_array_elements(r->'skipped') x where x->>'row' = '11.26:4' and x->>'reason' = 'ไม่มีเบอร์โทรที่ถูกต้อง'), '5) ไม่ส่ง phone_incomplete = เบอร์ไม่ครบข้ามเหมือนเดิม');
 
   select * into p from dealer_prospects where name = 'ZZTEST-FB-หนึ่ง';
@@ -68,6 +70,8 @@ begin
   perform pftest.ok(p.email = 'zzfb1@example.test' and p.channel = 'Facebook' and p.phone = '000-000-8201' and p.province = 'ขอนแก่น', '1) อีเมล · แหล่งที่มา · เบอร์จัดรูป · จังหวัด');
   select * into p from dealer_prospects where name = 'ZZTEST-FB-ไม่ครบ';
   perform pftest.ok(p.phone = '0000082' and p.follow_up = วันนี้, '2) เบอร์ไม่ครบเก็บตัวเลขตามที่มี + นัดวันนี้');
+  perform pftest.ok((select phone from dealer_prospects where name = 'ZZTEST-FB-สั้นมาก') = '0000', '2) สั้นมาก (4 หลัก) ยังนำเข้า · ตัวเลขตามที่มี');
+  perform pftest.ok((select phone from dealer_prospects where name = 'ZZTEST-FB-มือถือขาดตัว') = '000008213', '2) 9 หลักที่ไม่ครบ = ไม่จัดรูปเป็นเบอร์บ้าน');
 
   -- 3) ชุดที่สอง (กดซ้ำ/สองแท็บ) ด้วยไฟล์เดียวกัน = ข้ามทั้งหมด ไม่สร้างซ้ำ
   perform pftest.as_hq();

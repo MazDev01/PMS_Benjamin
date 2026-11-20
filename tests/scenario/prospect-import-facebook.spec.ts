@@ -64,7 +64,10 @@ test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย
   await expect(นับ("noprov")).toHaveAttribute("data-count", "1");
   await expect(ตัวอย่าง.locator('[data-fb-row="10.26:5"] [data-tag="phone-short"]'), "ป้ายเบอร์ไม่ครบ").toHaveText("เบอร์ไม่ครบ");
   await ตัวอย่าง.locator('[data-fb-group="dup"]').click();
-  await expect(ตัวอย่าง.locator('[data-fb-row="11.26:2"]'), "รายการซ้ำแสดงก่อนบันทึก").toContainText("เบอร์ซ้ำกับแถว 10.26:2");
+  // บอกเต็มว่าซ้ำกับอะไร · ตัดบรรทัดได้ ไม่ตัดด้วย … (บอส 20 พ.ย. 69 "ซ้ำยังไง")
+  const เหตุผล = ตัวอย่าง.locator('[data-fb-row="11.26:2"] [data-fb-reason]');
+  await expect(เหตุผล, "รายการซ้ำแสดงก่อนบันทึก").toHaveText(`เบอร์ซ้ำกับแถว 10.26:2 (${แท็ก} หนึ่ง) ในไฟล์นี้`);
+  expect(await เหตุผล.evaluate(e => e.scrollWidth - e.clientWidth), "ข้อความเหตุผลไม่ถูกตัด").toBeLessThanOrEqual(0);
   await กล่อง.getByRole("button", { name: "ยืนยันนำเข้า 4 ราย", exact: true }).click();
   await expect(กล่อง.getByTestId("import-result"), "นำเข้า 4 ราย").toHaveAttribute("data-inserted", "4", { timeout: 30_000 });
 

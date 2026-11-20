@@ -21,14 +21,14 @@ import {
   หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
 } from "@pms/shared/lib/prospectImport";
-import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
+import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, เป็นแถวซ้ำ, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
 
 const ที่จำ = "bpms_prospect_import_map";
 const ขั้นที่นำเข้าได้: { k: ขั้นนำเข้า; label: string }[] = [
   { k: "new", label: "รอติดต่อ" }, { k: "contacted", label: "ติดต่อแล้ว" }, { k: "profile_sent", label: "ส่งข้อมูลบริษัทแล้ว" }, { k: "lost", label: "ไม่สำเร็จ" },
 ];
 type กลุ่มเฟซบุ๊ก = "import" | "dup" | "short" | "noprov" | "skip";
-const เป็นซ้ำ = (r: แถวเฟซบุ๊ก) => !!r.ข้าม && (r.ข้าม.startsWith("เบอร์ซ้ำ") || r.ข้าม === "เบอร์นี้มีผู้สนใจอยู่แล้ว");
+const เป็นซ้ำ = เป็นแถวซ้ำ;
 const ในกลุ่มเฟซบุ๊ก = (r: แถวเฟซบุ๊ก, g: กลุ่มเฟซบุ๊ก) =>
   g === "import" ? !r.ข้าม : g === "dup" ? เป็นซ้ำ(r) : g === "short" ? !r.ข้าม && r.เบอร์ไม่ครบ : g === "noprov" ? !r.ข้าม && !r.province : !!r.ข้าม && !เป็นซ้ำ(r);
 const ป้ายกลุ่ม: Record<กลุ่มแถว, string> = { ready: "พร้อม", review: "ต้องตรวจ", skip: "ข้าม" };
@@ -36,12 +36,14 @@ const ปีพศนี้ = () => new Date(Date.now() + 7 * 3_600_000).getUTCF
 const อ่านที่จำ = (): Record<string, การจับคู่> => { try { return JSON.parse(localStorage.getItem(ที่จำ) ?? "{}"); } catch { return {}; } };
 const จำ = (ลาย: string, คู่: การจับคู่) => { try { localStorage.setItem(ที่จำ, JSON.stringify({ ...อ่านที่จำ(), [ลาย]: คู่ })); } catch { /* จำไม่ได้ = ครั้งหน้าเดาใหม่ */ } };
 
-export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ, ไฟล์เริ่ม }: {
+export function ProspectImportModal({ open, onClose, onImported, เบอร์ที่มีอยู่, รายที่มีอยู่, แหล่งที่มา, เหตุผลไม่สำเร็จ, ไฟล์เริ่ม }: {
   open: boolean; onClose: () => void; onImported: () => void;
   /** ไฟล์ที่เลือกจากเมนูนำเข้า (ImportMenu) — เปิดกล่องแล้วอ่านไฟล์นี้ทันที ไปหน้าจับคู่คอลัมน์ (ไม่มีกล่องเปล่าคั่น · บอสสั่ง 5 พ.ย. 69) */
   ไฟล์เริ่ม?: File | null;
   /** เบอร์ของผู้สนใจที่มีอยู่ (ตรวจซ้ำก่อนส่ง · ฐานตรวจอีกชั้น) */
   เบอร์ที่มีอยู่: string[];
+  /** ผู้สนใจที่มีอยู่ เบอร์ + ชื่อ — หน้าตัวอย่างไฟล์ Facebook บอกว่าซ้ำกับใคร (บอส 20 พ.ย. 69 "ซ้ำยังไง") · ไม่ส่ง = ใช้เบอร์อย่างเดียว */
+  รายที่มีอยู่?: { phone: string; name: string }[];
   /** รายการแหล่งที่มาของหน้าตั้งค่า (ตารางแปลงช่องทางเลือกจากนี้) */
   แหล่งที่มา: string[];
   เหตุผลไม่สำเร็จ: string[];
@@ -81,7 +83,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
       const เล่ม = await อ่านสมุดงานจากไฟล์(f);
       const ตาราง = [...เล่ม.values()][0] ?? [];
       if (เป็นไฟล์เฟซบุ๊ก(เล่ม)) {
-        const ได้ = เตรียมแถวเฟซบุ๊ก(เล่ม, เบอร์ที่มีอยู่, APP_NOW_ISO);
+        const ได้ = เตรียมแถวเฟซบุ๊ก(เล่ม, รายที่มีอยู่ ?? เบอร์ที่มีอยู่, APP_NOW_ISO);
         setไฟล์({ ชื่อ: f.name, ตาราง }); setเฟซบุ๊ก(ได้); setดูเฟซบุ๊ก("import");
         if (!ได้.length) setพลาด("ไฟล์ Facebook นี้ไม่มีแถวข้อมูล");
         return;
@@ -211,7 +213,9 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                     ))}
                   </div>
                   <div className="table-wrap" style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 10 }}>
-                    <table aria-label={`แถว Facebook: ${กลุ่ม.find(g => g.k === ดูเฟซบุ๊ก)?.label ?? ""}`} style={{ width: "100%" }}>
+                    <table aria-label={`แถว Facebook: ${กลุ่ม.find(g => g.k === ดูเฟซบุ๊ก)?.label ?? ""}`} style={{ width: "100%", tableLayout: "fixed", minWidth: 860 }}>
+                      {/* กว้างที่ colgroup · คอลัมน์สุดท้าย (เหตุผล/อีเมล) ตัดบรรทัดได้ ห้ามตัดด้วย … (บอส 20 พ.ย. 69 "ซ้ำยังไง") */}
+                      <colgroup><col style={{ width: 90 }} /><col style={{ width: "20%" }} /><col style={{ width: 150 }} /><col style={{ width: "17%" }} /><col style={{ width: 110 }} /><col /></colgroup>
                       <thead><tr><th>ชีต:แถว</th><th>ชื่อ</th><th>เบอร์</th><th>จังหวัด</th><th>วันที่ทิ้งเบอร์</th><th>{ดูเฟซบุ๊ก === "dup" || ดูเฟซบุ๊ก === "skip" ? "เหตุผลที่ข้าม" : "อีเมล"}</th></tr></thead>
                       <tbody>
                         {แสดง.map(r => (
@@ -221,7 +225,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                             <td style={เซลล์}>{r.phone || "—"}{r.เบอร์ไม่ครบ && <span data-tag="phone-short" style={{ marginLeft: 6, fontSize: "0.66rem", fontWeight: 700, color: "#b45309", background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 6, padding: "1px 6px" }}>เบอร์ไม่ครบ</span>}</td>
                             <td style={เซลล์}>{r.province ?? "—"}{r.จังหวัดเดิม && r.จังหวัดเดิม !== r.province && <div style={{ fontSize: "0.66rem", color: "#9ca3af" }}>ลูกค้าพิมพ์: {r.จังหวัดเดิม}</div>}</td>
                             <td style={เซลล์}>{r.enteredAt ? fmtISOToThai(r.enteredAt) : "—"}</td>
-                            <td style={{ ...เซลล์, color: r.ข้าม ? "#b45309" : "#52606d" }}>{r.ข้าม ?? (r.email || "—")}</td>
+                            <td className="wrap" data-fb-reason style={{ ...เซลล์, color: r.ข้าม ? "#b45309" : "#52606d", whiteSpace: "normal", overflowWrap: "anywhere", textOverflow: "clip" }}>{r.ข้าม ?? (r.email || "—")}</td>
                           </tr>
                         ))}
                         {!แสดง.length && <tr><td colSpan={6} style={{ ...เซลล์, textAlign: "center", color: "#9ca3af" }}>ไม่มีแถวในกลุ่มนี้</td></tr>}

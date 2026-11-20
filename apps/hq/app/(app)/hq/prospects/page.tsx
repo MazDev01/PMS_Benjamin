@@ -824,6 +824,7 @@ export default function HQProspectsPage() {
       <ProspectImportModal open={เปิดนำเข้า} onClose={() => { setเปิดนำเข้า(false); setไฟล์นำเข้า(null); }} ไฟล์เริ่ม={ไฟล์นำเข้า}
         onImported={() => { void prospectsRepo.list().then(setList).catch(() => {}); }}
         เบอร์ที่มีอยู่={list.map(p => p.phone ?? "").filter(Boolean)}
+        รายที่มีอยู่={list.filter(p => p.phone).map(p => ({ phone: p.phone ?? "", name: p.name ?? "" }))}
         แหล่งที่มา={ค่าตั้ง.channels} เหตุผลไม่สำเร็จ={ค่าตั้ง.lostReasons} />
 
       {/* การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · เดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69)
