@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, Send, FileText, Calendar, Coins, Check, XCircle } from "lucide-react";
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
+import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { useLostReasons } from "@pms/shared/lib/useHQConfig";
 import { PendingButton } from "@pms/shared/components/ui/BusyButton";
 import { useSales } from "@pms/shared/context/SalesContext";
@@ -62,13 +64,30 @@ type FormState = { project: string; province: string; area: string; items: strin
 // openViewSignal = กล่อง "ขั้นต่อไป" สั่งเปิดใบที่รอลูกค้าตอบ (บันทึกผลจากลูกค้า · รอบ 4 ทำงานในแผง ไม่พาไปหน้าใบเสนอราคา)
 // onWon = ลูกค้าตอบรับแล้ว (ผู้เรียกแจ้ง/พาไปลูกค้าใหม่)
 type LeadQuotationsPanelProps =
-  | { lead: LeadRow; customer?: undefined; onToast?: (m: string) => void; openCreateSignal?: number; openViewSignal?: { id: string; n: number }; onWon?: (company: string) => void }
-  | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined; openViewSignal?: undefined; onWon?: undefined };
+  | { lead: LeadRow; customer?: undefined; onToast?: (m: string) => void; openCreateSignal?: number; openViewSignal?: { id: string; n: number }; onWon?: (company: string) => void; onFormOpenChange?: (open: boolean) => void; onSignalUsed?: (ชนิด: "create" | "view") => void }
+  | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined; openViewSignal?: undefined; onWon?: undefined; onFormOpenChange?: undefined; onSignalUsed?: undefined };
 
-export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon }: LeadQuotationsPanelProps) {
+export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon, onFormOpenChange, onSignalUsed }: LeadQuotationsPanelProps) {
   const { quotations, createQuotation, updateQuotation, sendQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus, refreshSales } = useSales();
   const lostReasons = useLostReasons();   // เหตุผล "ลูกค้าปฏิเสธ" = รายการของ HQ (กล่องเหตุผลกลาง)
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
+  // เปิดฟอร์มทำใบ/แก้ใบ = บอกหน้าแม่ให้พับส่วนคำขอ/ใบ HQ ข้างบน แล้วเลื่อนจอมาที่ฟอร์มเอง (บอสสั่ง 20 พ.ย. 69
+  //   "พับข้างบนไว้แล้วเด้งเลื่อนมาให้อัตโนมัติ" · เดิมตารางรายการในคำขอยาวดันฟอร์มลงไปข้างล่าง ต้องเลื่อนหาเอง)
+  //   + ปุ่ม "บันทึกผลจากลูกค้า" (เปิดใบจากกล่องขั้นต่อไป) พับแบบเดียวกัน แล้วเลื่อนไปที่ใบ (บอสสั่ง 20 พ.ย. 69)
+  const ฟอร์มRef = useRef<HTMLDivElement>(null);
+  const [ดูผลลูกค้า, setดูผลลูกค้า] = useState(false);   // ใบนี้เปิดจากปุ่ม "บันทึกผลจากลูกค้า"
+  // ใบที่กำลังให้เลือกผล (กล่องเด้ง ลูกค้าตอบรับ / ลูกค้าปฏิเสธ · บอสสั่ง 20 พ.ย. 69) — ปุ่มในกล่องเรียกฟังก์ชันเดิมของปุ่มบนใบ
+  const [เลือกผล, setเลือกผล] = useState<QuotationMock | null>(null);
+  useEffect(() => { if (mode !== "view") { setดูผลลูกค้า(false); setเลือกผล(null); } }, [mode]);
+  const ฟอร์มเปิด = mode === "create" || mode === "edit" || (mode === "view" && ดูผลลูกค้า);
+  useEffect(() => {
+    onFormOpenChange?.(ฟอร์มเปิด);
+    if (!ฟอร์มเปิด) return;
+    // รอเฟรมถัดไป: ส่วนข้างบนพับเสร็จก่อน ตำแหน่งฟอร์มจึงนิ่ง
+    const f = requestAnimationFrame(() => requestAnimationFrame(() => ฟอร์มRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })));
+    return () => cancelAnimationFrame(f);
+  }, [ฟอร์มเปิด]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onFormOpenChange?.(false), []);   // eslint-disable-line react-hooks/exhaustive-deps
   const [editing, setEditing] = useState<QuotationMock | null>(null);
   const ฉบับใหม่ = !!editing?.supersedesId;   // ฉบับใหม่ (V2 …): ลูกค้า โครงการ ภาษี คัดลอกจากใบเดิม แก้ไม่ได้ (0228)
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
@@ -238,8 +257,10 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   //   เดิมใช้คำสั่งไปตอนนั้นเลย → ขึ้น "กำลังโหลดใบ HQ…" แล้วคำสั่งหาย ฟอร์มไม่เปิด
   const lastSignal = useRef(0);
   useEffect(() => {
-    if (!openCreateSignal || openCreateSignal === lastSignal.current || รอใบHQ) return;
+    if (!openCreateSignal) { lastSignal.current = 0; return; }   // หน้าแม่ล้างคำสั่งแล้ว = นับใหม่
+    if (openCreateSignal === lastSignal.current || รอใบHQ) return;
     lastSignal.current = openCreateSignal;
+    onSignalUsed?.("create");   // ใช้ครั้งเดียว — สลับแท็บกลับมาไม่เปิดฟอร์มเอง (บั๊ก 20 พ.ย. 69)
     if (readOnly) return;
     openCreate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,11 +268,16 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   // กล่องขั้นต่อไปสั่งเปิดใบ (บันทึกผลจากลูกค้า) — เทียบเลขรอบ ไม่ใช่ค่าตอน mount (เหตุผลเดียวกับ openCreateSignal)
   const lastView = useRef(0);
   useEffect(() => {
-    if (!openViewSignal || openViewSignal.n === lastView.current) return;
+    if (!openViewSignal) { lastView.current = 0; return; }
+    if (openViewSignal.n === lastView.current) return;
     const q = quotations.find(x => x.id === openViewSignal.id);
     if (!q) return;
     lastView.current = openViewSignal.n;
+    onSignalUsed?.("view");   // ใช้ครั้งเดียว — สลับแท็บกลับมาไม่เด้งกล่องเลือกผลเอง (บั๊ก 20 พ.ย. 69)
     setEditing(q); setMode("view");
+    // กดจาก "บันทึกผลจากลูกค้า" = พับข้างบน เลื่อนไปที่ใบ + เด้งให้เลือกผลทันที (ใบที่ยังบันทึกผลได้เท่านั้น)
+    setดูผลลูกค้า(true);
+    if (บันทึกผลได้(q)) setเลือกผล(q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openViewSignal, quotations]);
 
@@ -285,6 +311,26 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     setEditing(e => e?.id === q.id ? { ...e, status: "lost", lostReason: เหตุผลที่บันทึก } : e);
     onToast?.(`บันทึกลูกค้าปฏิเสธใบ ${q.id} แล้ว — ลูกค้าเป้าหมายปิดการขายไม่สำเร็จ`);
   }
+  const กล่องเลือกผล = เลือกผล && (
+    <ModalPortal>
+      <div onClick={() => setเลือกผล(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1060, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <ModalCard onClose={() => setเลือกผล(null)} label="บันทึกผลจากลูกค้า"
+          style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)", width: 380, maxWidth: "100%", padding: "18px 20px" }}>
+          <h3 style={{ margin: 0, fontSize: "0.92rem", fontWeight: 800, color: "#2D2D2D" }}>บันทึกผลจากลูกค้า</h3>
+          <div style={{ fontSize: "0.74rem", color: "#6b7280", marginTop: 4 }}>ใบ {เลือกผล.id} · {เลือกผล.customer}</div>
+          <div data-customer-result-choice style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button type="button" className="btn btn-sm" style={{ flex: 1, background: "#059669", color: "#fff", height: 36 }}
+              onClick={() => { const q = เลือกผล; setเลือกผล(null); void ลูกค้าตอบรับ(q); }}><Check size={13} /> ลูกค้าตอบรับ</button>
+            <button type="button" className="btn btn-sm" style={{ flex: 1, background: "#fff", color: "#dc2626", border: "1px solid #fecaca", height: 36 }}
+              onClick={() => { const q = เลือกผล; setเลือกผล(null); void ลูกค้าปฏิเสธ(q); }}><XCircle size={13} /> ลูกค้าปฏิเสธ</button>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setเลือกผล(null)}>ยังไม่บันทึก</button>
+          </div>
+        </ModalCard>
+      </div>
+    </ModalPortal>
+  );
   const ปุ่มผลลูกค้า = (q: QuotationMock) => บันทึกผลได้(q) && (
     <div data-customer-result style={{ display: "flex", gap: 6 }}>
       <button type="button" onClick={() => void ลูกค้าตอบรับ(q)} className="btn btn-sm" style={{ background: "#059669", color: "#fff", height: 28, padding: "0 11px" }}><Check size={12} /> ลูกค้าตอบรับ</button>
@@ -406,7 +452,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
       whtPercent: form.whtOn ? Number(form.whtPct) : 0,
     });
     return (
-      <div>
+      <div ref={ฟอร์มRef} data-quote-form style={{ scrollMarginTop: 12 }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <button onClick={() => setMode("list")} className="btn btn-secondary btn-sm" style={{ color: "#374151", padding: "5px 10px" }}><ArrowLeft size={13} /> กลับ</button>
@@ -572,7 +618,8 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     const th: React.CSSProperties = { textAlign: "left", fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", padding: "8px 10px", background: "#f7f9fc", whiteSpace: "nowrap" };
     const td: React.CSSProperties = { fontSize: "0.78rem", color: "#2D2D2D", padding: "9px 10px", borderTop: "1px solid #eef0f4" };
     return (
-      <div>
+      <div ref={ฟอร์มRef} data-quote-view={q.id} style={{ scrollMarginTop: 12 }}>
+        {กล่องเลือกผล}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <button onClick={() => setMode("list")} className="btn btn-secondary btn-sm" style={{ color: "#374151", padding: "5px 10px" }}><ArrowLeft size={13} /> กลับ</button>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

@@ -32,6 +32,7 @@ import { FilterBar } from "@pms/shared/components/filters/FilterBar";
 import { ชื่อภาค, ภาคมาตรฐาน, ป้ายทุกภูมิภาค } from "@pms/shared/lib/provinces";
 import { รวมผลงาน, type ผลงานดีลเลอร์, type ผลงานรายเดือน } from "@pms/shared/lib/hqPipeline";
 import { fmtBaht } from "@pms/shared/lib/format";
+import { GroupedBarChart } from "@pms/shared/components/ui/Charts";
 import { useLeadSummary } from "@pms/shared/lib/useNetworkData";
 import { ชื่อหัวข้อ, คำอธิบายหัวข้อ, คำแนะนำกดแถว, ป้ายระดับ } from "@pms/shared/lib/drillTitles";
 import { BoxTitle } from "@pms/shared/components/ui/BoxTitle";
@@ -54,6 +55,24 @@ const ALL = "ALL";
 // ปุ่มย่อกลับเป็น 5 อันดับแรกยังอยู่ เผื่ออยากดูเฉพาะหัวตาราง
 const TOP_N = 5;
 type HRow = { key: string; label: string; a: number; b: number; note?: string; onClick?: () => void; /** บรรทัดเล็กใต้ชื่อ (ภูมิภาค) */ sub?: string };
+// แท็บรายเดือน = แท่งคู่แนวตั้ง ยอดขาย/เป้า ต่อเดือน (บอสสั่ง 19 พ.ย. 69) — เดือนเรียงซ้าย→ขวาตามช่วงเวลาด้านบน (ค่าตั้งต้น 1 ปี = 12 เดือน)
+//   ตัวกลาง GroupedBarChart · แท่งเข้ม = ยอดขายในเดือน · แท่งอ่อน = เป้ารายเดือน · ตัวเลขบนหัวแท่ง (คู่ไม่ทับกัน) · กดแท่ง = เหมือนกดแถว
+//   แท็บที่เทียบหลายกลุ่ม (ดีลเลอร์/ภูมิภาค/จังหวัด) ระดับทั้งเครือ/ภาค คงหลอดแนวนอน HBars (บอสตัดสิน 19 พ.ย. 69 · ถอย 617bad17)
+//   ระดับจังหวัด แท็บดีลเลอร์ = แท่งคู่แนวตั้งต่อดีลเลอร์ (บอสสั่ง 19 พ.ย. 69 "ดีลเลอร์ในจังหวัดเดียวกันก็ใช้กราฟแท่ง") · กดแท่ง = เจาะลงดีลเลอร์
+function แท่งคู่ตั้ง({ rows, fmt, aLabel, bLabel, ชนิด }: { rows: HRow[]; fmt: (v: number) => string; aLabel: string; bLabel: string; ชนิด: "month" | "prov-dealer" }) {
+  if (!rows.length) return (
+    <div className="card-body"><EmptyState icon={<Coins size={26} />} title="ไม่พบข้อมูลในช่วงที่เลือก" description="ลองปรับตัวกรอง" compact /></div>
+  );
+  return (
+    <div className="card-body" data-pair-bars={ชนิด} style={{ paddingTop: 4, overflowX: "auto", overflowY: "hidden" }}>
+      <div style={{ minWidth: Math.max(480, rows.length * 64) }}>
+        <GroupedBarChart months={rows.map(r => r.label)} vw={Math.max(1000, rows.length * 100)} height={300} fmt={fmt} ค่าบนแท่ง
+          คีย์แท่ง={rows.map(r => r.key)} กดแท่ง={(i: number) => rows[i]?.onClick?.()}
+          series={[{ name: aLabel, color: PRIMARY, data: rows.map(r => r.a) }, { name: bLabel, color: "#C0C0C0", data: rows.map(r => r.b) }]} />
+      </div>
+    </div>
+  );
+}
 function HBars({ rows, aLabel, bLabel, aColor = PRIMARY, bColor = "#C0C0C0", fmt, paged = false }: {
   rows: HRow[]; aLabel: string; bLabel: string; aColor?: string; bColor?: string; fmt: (v: number) => string;
   /** แบ่งหน้าจากข้างนอกแล้ว (มีแถบเปลี่ยนหน้า) — แสดงทุกแถวที่ส่งมา ไม่มีปุ่มย่อ/ดูทั้งหมด (บอสสั่ง 22 ก.ย. 69) */
@@ -243,7 +262,8 @@ export default function SalesAnalyticsPage() {
 
   // ระดับที่ดูอยู่ (แถบระดับ): เลือกดีลเลอร์ = ระดับดีลเลอร์ (ตาราง/กราฟเป็นรายเดือน = รอข้อมูล)
   const ดีลเลอร์ที่ดู = dealerSel !== ALL ? dealerSel : null;
-  const แท็บ: มิติ[] = ดีลเลอร์ที่ดู ? ["dealer", "month"] : (["dealer", "region", "prov", "month"] as มิติ[]).filter(m => !(m === "region" && (regionSel !== ALL || provSel !== ALL)) && !(m === "prov" && provSel !== ALL));
+  // เลือกดีลเลอร์รายเดียว = รายเดือนอย่างเดียว ไม่มีแท็บดีลเลอร์ (บอสสั่ง 19 พ.ย. 69 · เดิม ["dealer","month"] แท็บดีลเลอร์มีแถวเดียว "ทั้งช่วงที่เลือก")
+  const แท็บ: มิติ[] = ดีลเลอร์ที่ดู ? ["month"] : (["dealer", "region", "prov", "month"] as มิติ[]).filter(m => !(m === "region" && (regionSel !== ALL || provSel !== ALL)) && !(m === "prov" && provSel !== ALL));
   const มิติจริง: มิติ = แท็บ.includes(มิติเลือก) ? มิติเลือก : แท็บ[0];
   const กลุ่ม = useMemo(() => (มิติจริง === "region" || มิติจริง === "prov") ? จัดกลุ่ม(แถว, มิติจริง) : [], [แถว, มิติจริง]);
   const เจาะ = (key: string) => {
@@ -367,8 +387,9 @@ export default function SalesAnalyticsPage() {
           )}
         </BoxTitle>
         <div style={{ flex: 1 }}>
-          {มิติจริง === "month" ? (เดือน ? <HBars rows={แท่งเดือน} aLabel="ยอดขายในเดือน" bLabel="เป้ารายเดือน" fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือน" />)
+          {มิติจริง === "month" ? (เดือน ? <แท่งคู่ตั้ง ชนิด="month" rows={แท่งเดือน} aLabel="ยอดขายในเดือน" bLabel="เป้ารายเดือน" fmt={fmtBaht} /> : <รอข้อมูลรายเดือน ข้อความ="ยังไม่มีข้อมูลผลงานรายเดือน" />)
             : โหลด ? <div className="card-body" style={{ fontSize: "0.8rem", color: "#9ca3af" }}>กำลังโหลด…</div>
+            : มิติจริง === "dealer" && provSel !== ALL ? <แท่งคู่ตั้ง ชนิด="prov-dealer" rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} />
             : มิติจริง === "dealer" ? <HBars rows={pageSlice(แท่ง, หน้ากราฟจริง, ขนาดกราฟ)} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} paged />
             : <HBars rows={แท่งกลุ่ม} aLabel="ยอดขายในช่วง" bLabel="เป้าตามช่วง" fmt={fmtBaht} />}
         </div>

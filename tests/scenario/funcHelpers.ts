@@ -354,6 +354,26 @@ export async function เปิดฟอร์มทำใบจากใบHQ(p
 
 /** นำเข้าไฟล์ผ่านเมนูนำเข้า ตัวกลาง (ImportMenu · บอสสั่ง 5 พ.ย. 69): กดปุ่มเมนู → เลือก Excel/CSV → หน้าต่างเลือกไฟล์เปิดทันที
  *  ตรวจว่าหน้าต่างเลือกไฟล์รับเฉพาะนามสกุลของตัวเลือก (accept) แล้วใส่ไฟล์ */
+/** หน้าผู้สนใจเป็นดีลเลอร์: นำเข้าทาง Google Sheets ทางเดียว (บอสสั่ง 20 พ.ย. 69 เอาปุ่ม "นำเข้าจากไฟล์" ออก)
+ *  จำลองคำตอบของ /api/v1/prospect-sheet ด้วยตารางจากไฟล์ .xlsx ปลอม (แปลงด้วยตัวอ่านเดียวกับเซิร์ฟเวอร์) · ลิงก์ชีตปลอม
+ *  ตัวดึงชีตจริงตรวจที่ tests/unit/prospectSheet.test.ts (ตัวดึงจำลอง) — ข้อทดสอบหน้าเว็บไม่ออกไป Google */
+export async function นำเข้าผู้สนใจผ่านชีต(page: Page, ไฟล์: string) {
+  const { readFileSync } = await import("node:fs");
+  const { basename } = await import("node:path");
+  const { แยกสมุดงานจากXlsx } = await import("../../packages/shared/lib/importSheet");
+  const b = readFileSync(ไฟล์);
+  const sheets = [...(await แยกสมุดงานจากXlsx(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer)).entries()];
+  await page.unroute("**/api/v1/prospect-sheet");
+  await page.route("**/api/v1/prospect-sheet", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: basename(ไฟล์), sheets }) }));
+  await เปิดนำเข้าจากชีต(page);
+  await page.getByLabel("ลิงก์ Google Sheets", { exact: true }).fill("https://docs.google.com/spreadsheets/d/ZZtest_fake-sheet-id-0000000000/edit");
+  await page.getByRole("button", { name: "ดึงข้อมูลจากชีต", exact: true }).click();
+}
+/** เปิดหน้าต่างนำเข้าผู้สนใจโดยไม่เลือกไฟล์ (ปุ่ม "นำเข้าจาก Google Sheets") — ดูชุดที่นำเข้าล่าสุด · แบบฟอร์มตัวอย่าง */
+export async function เปิดนำเข้าจากชีต(page: Page) {
+  await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
+  await expect(page.getByLabel("ลิงก์ Google Sheets", { exact: true })).toBeVisible({ timeout: 15_000 });
+}
 export async function นำเข้าผ่านเมนู(page: Page, ปุ่ม: string, ชนิด: "xlsx" | "csv",
   ไฟล์: string | { name: string; mimeType: string; buffer: Buffer }) {
   await page.getByRole("button", { name: ปุ่ม }).first().click();

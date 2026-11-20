@@ -1,12 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { writeFileSync, mkdirSync, rmSync, readFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { สร้างไฟล์Xlsx } from "../../packages/shared/lib/exportWorkbook";
+import { แยกสมุดงานจากXlsx } from "../../packages/shared/lib/importSheet";
 
 // ── prod-live นำเข้าผู้สนใจจากไฟล์ทำงานจริงของทีม (ใบ 0275 · บอสสั่ง 4 พ.ย. 69) ─────────────────────────────────────────────
-//   HQ เปิดหน้าผู้สนใจ → นำเข้าจากไฟล์ → จับคู่คอลัมน์ → หน้าตรวจ → นำเข้า → ผู้สนใจเห็นในตาราง → ยกเลิกทั้งชุด → ผู้สนใจของชุดหายจริง
+//   (บอสสั่ง 20 พ.ย. 69: หน้าผู้สนใจเหลือปุ่ม "นำเข้าจาก Google Sheets" ปุ่มเดียว · ไม่มีทางเลือกไฟล์ — ข้อนี้ตรวจว่าไม่มีปุ่มนำเข้าจากไฟล์
+//    แล้วนำเข้าผ่านช่องลิงก์ชีต โดยจำลองคำตอบของ /api/v1/prospect-sheet ในเบราว์เซอร์ด้วยตารางจากไฟล์ปลอม — ไม่ออกไปดึง Google Sheets จริง)
+//   HQ เปิดหน้าผู้สนใจ → นำเข้าจาก Google Sheets → จับคู่คอลัมน์ → หน้าตรวจ → นำเข้า → ผู้สนใจเห็นในตาราง → ยกเลิกทั้งชุด → ผู้สนใจของชุดหายจริง
 //   กดผ่านหน้าจอทุกขั้น · อ่านฐานด้วยกุญแจฝั่งเซิร์ฟเวอร์เพื่อตรวจผลเท่านั้น · ใช้บัญชี HQ ชั่วคราวที่ run.mjs setup สร้าง
 //   ไฟล์ปลอมสร้างตอนรัน (โฟลเดอร์ชั่วคราวนอก repo) โครงเดียวกับไฟล์ทำงานจริง: หัวตารางแถว 2 · แถวหัวข้อแทรก "BJM PEB"
 //     · แถวอัดชื่อ+เบอร์+จังหวัดในช่องเดียว · จังหวัดย่อ (อุบล · กทม · ปทุม) · วันที่ 24.8 ไม่มีปี · คอลัมน์ Channel/หมายเหตุ/คอลัมน์อื่นที่ข้าม
@@ -111,18 +114,20 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   const การ์ดถึงกำหนด = page.locator('[data-kpi="followDue"] [data-value]');
   await expect(การ์ดถึงกำหนด, "การ์ดถึงกำหนดติดตามโหลดแล้ว").not.toHaveAttribute("data-value", "", { timeout: 30_000 });
   const ถึงกำหนดก่อน = await การ์ดถึงกำหนด.getAttribute("data-value");
-  // เมนูนำเข้าตัวกลาง (บอสสั่ง 5 พ.ย. 69): ปุ่ม "นำเข้าจากไฟล์" → เมนู → Excel (.xlsx) → หน้าต่างเลือกไฟล์ → กล่องเปิดเองที่หน้าจับคู่คอลัมน์
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click({ timeout: 30_000 });
-  const เมนู = page.getByRole("menu", { name: "นำเข้าจากไฟล์" });
-  await expect(เมนู, "กดปุ่มแล้วเปิดเมนูนำเข้า").toBeVisible();
-  const [หน้าต่างเลือกไฟล์] = await Promise.all([
-    page.waitForEvent("filechooser", { timeout: 15_000 }),
-    เมนู.locator('[data-import-option="xlsx"]').click(),
-  ]);
-  expect(await หน้าต่างเลือกไฟล์.element().getAttribute("accept"), "เลือก Excel = รับเฉพาะ .xlsx").toBe(".xlsx");
-  await หน้าต่างเลือกไฟล์.setFiles(ไฟล์);
+  // บอสสั่ง 20 พ.ย. 69: ไม่มีปุ่ม/ช่องเลือกไฟล์ · ปุ่ม "นำเข้าจาก Google Sheets" ปุ่มเดียว
+  await expect(page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }), "มีปุ่มนำเข้าจาก Google Sheets").toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("นำเข้าจากไฟล์", { exact: true }), "ไม่มีปุ่มนำเข้าจากไฟล์").toHaveCount(0);
+  await expect(page.locator('input[type="file"]'), "ไม่มีช่องเลือกไฟล์").toHaveCount(0);
+  // จำลองคำตอบเส้นทางดึงชีต (ในเบราว์เซอร์นี้เท่านั้น) — ตารางจากไฟล์ปลอม แปลงด้วยตัวอ่านเดียวกับเซิร์ฟเวอร์ · ไม่ดึง Google Sheets จริง
+  const ไบต์ = readFileSync(ไฟล์);
+  const ตาราง = [...(await แยกสมุดงานจากXlsx(ไบต์.buffer.slice(ไบต์.byteOffset, ไบต์.byteOffset + ไบต์.byteLength) as ArrayBuffer)).entries()];
+  await page.route("**/api/v1/prospect-sheet", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: ชื่อไฟล์, sheets: ตาราง }) }));
+  await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
-  await expect(กล่อง.getByRole("region", { name: "จับคู่คอลัมน์" }), "เลือกไฟล์แล้วกล่องเปิดเองที่หน้าจับคู่คอลัมน์").toBeVisible({ timeout: 20_000 });
+  await expect(กล่อง.locator('input[type="file"]'), "ไม่มีช่องเลือกไฟล์ในหน้าต่าง").toHaveCount(0);
+  await กล่อง.getByLabel("ลิงก์ Google Sheets", { exact: true }).fill("https://docs.google.com/spreadsheets/d/ZZtest_fake-sheet-id-0000000000/edit");
+  await กล่อง.getByRole("button", { name: "ดึงข้อมูลจากชีต", exact: true }).click();
+  await expect(กล่อง.getByRole("region", { name: "จับคู่คอลัมน์" }), "ดึงชีตแล้วเข้าหน้าจับคู่คอลัมน์").toBeVisible({ timeout: 20_000 });
   await expect(กล่อง.getByTestId("import-file")).toContainText(ชื่อไฟล์, { timeout: 20_000 });
 
   // ── 2) จับคู่คอลัมน์: หัวตารางแถว 2 · เดาคอลัมน์ · ปีครั้งเดียว · ตารางแปลงช่องทาง ──
@@ -277,9 +282,8 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await expect(การ์ดถึงกำหนด, "หลังนำเข้า การ์ดถึงกำหนดติดตามเท่าเดิม").toHaveAttribute("data-value", ถึงกำหนดก่อน ?? "", { timeout: 30_000 });
 
   // ── 6) ยกเลิกทั้งชุด ──
-  // เมนูนำเข้า → "ชุดที่นำเข้าล่าสุด" → กล่องเปิดพร้อมรายการชุด (ไม่ต้องเลือกไฟล์)
-  await page.getByRole("button", { name: "นำเข้าจากไฟล์" }).first().click();
-  await page.getByRole("menu", { name: "นำเข้าจากไฟล์" }).getByRole("menuitem", { name: /ชุดที่นำเข้าล่าสุด/ }).click();
+  // ปุ่ม "นำเข้าจาก Google Sheets" → หน้าต่างนำเข้าพร้อมรายการ "ชุดที่นำเข้าล่าสุด" (บอสสั่ง 20 พ.ย. 69 · เลิกเมนู)
+  await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
   const รายการ = กล่อง.getByRole("region", { name: "ชุดที่นำเข้าล่าสุด" });
   const แถวชุด = รายการ.locator(`li[data-batch="${เลขชุด}"]`);
   await expect(แถวชุด, "ชุดนี้อยู่ในรายการ").toContainText(ชื่อไฟล์, { timeout: 20_000 });

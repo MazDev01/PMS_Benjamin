@@ -86,7 +86,7 @@ async function รวมเท่าการ์ด(page: Page, ที่: strin
   await expect.poll(async () => {
     const การ์ด = { sales: await ค่าการ์ด(page, "sales"), rate: await ค่าการ์ด(page, "winRate"), margin: await ค่าการ์ด(page, "margin"), onTarget: await ค่าการ์ด(page, "onTarget") };
     const ตาราง = { sales: await ค่ารวม(page, "sales"), rate: await ค่ารวม(page, "rate"), margin: await ค่ารวม(page, "margin"), onTarget: await ค่ารวม(page, "onTarget") };
-    const ใต้การ์ด = await page.locator(`[data-kpi-row] [data-kpi="winRate"]`).innerText();
+    const ใต้การ์ด = (await page.locator(`[data-kpi-row] [data-kpi="winRate"] [data-kpi-tip]`).textContent()) ?? "";   // จำนวนปิดสำเร็จ/ไม่สำเร็จอยู่ใน ⓘ (19 พ.ย. 69)
     const [, ได้, เสีย] = ใต้การ์ด.match(/ปิดสำเร็จ\s*([\d,]+)\s*·\s*ไม่สำเร็จ\s*([\d,]+)/) ?? [];
     const n = (v: string | null | undefined) => (v == null || v === "" ? "—" : String(Number(String(v).replace(/,/g, ""))));
     const ผล = { sales: n(ตาราง.sales) === n(การ์ด.sales), rate: n(ตาราง.rate) === n(การ์ด.rate), margin: n(ตาราง.margin) === n(การ์ด.margin), onTarget: n(ตาราง.onTarget) === n(การ์ด.onTarget),
@@ -130,11 +130,20 @@ test("[H12·hq] ผลรวมรายดีลเลอร์ = การ์�
   // ค่าดิบ (data-value) — ข้อความบนจอย่อเป็น "฿30.3M"
   expect.soft(await แถว(A.รหัส).locator('[data-cell="target"]').getAttribute("data-value"), "A เป้าตามช่วง = เป้าทั้งปี × วัน ÷ 365").toBe(String(Number(ฐาน)));
 
+  // ค่าของแถว A ตอนค้นด้วยป้าย (ใช้เทียบการ์ดตอนเลือกดีลเลอร์ A ด้านล่าง)
+  const ของA = { sales: await แถว(A.รหัส).locator('[data-cell="sales"]').getAttribute("data-value"), rate: await ช่อง(A.รหัส, "rate"), margin: await ช่อง(A.รหัส, "margin") };
+
   // เลือกดีลเลอร์ (สาขาเดียว) · ช่วงยอดขาย (ตัวกรองที่ขึ้นกับตัวเลข) · ถึงเป้า (กดการ์ด) — ผลรวมแถว = การ์ด ทุกครั้ง
   await page.getByLabel("ค้นหาดีลเลอร์").fill("");
   await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: A.รหัส });
-  await expect(page.locator("[data-perf-row]")).toHaveCount(1, { timeout: 20_000 });
-  await รวมเท่าการ์ด(page, "เลือกดีลเลอร์ A");
+  // บอสตัดสิน 19 พ.ย. 69 (3530fc90): ดีลเลอร์เดียว = กราฟ/ตารางรายเดือนของดีลเลอร์นั้น ไม่มีแถวรายดีลเลอร์ (เดิมคาดแถว 1 แถว · รอบตรวจ deploy29)
+  //   → การ์ด (ยอดขาย · อัตราปิด · ส่วนต่างกำไร) = ค่าของแถว A ที่เห็นตอนค้นด้วยป้าย
+  await expect(page.locator("[data-perf-row]"), "ดีลเลอร์เดียว = ไม่มีแถวรายดีลเลอร์").toHaveCount(0, { timeout: 20_000 });
+  const ตัวเลข = (v: string | null) => (v == null || v === "" ? "—" : String(Number(v.replace(/,/g, ""))));
+  const ข้อความการ์ด = async (kpi: string) => ((await page.locator(`[data-kpi-row] [data-kpi="${kpi}"] [data-value]`).first().innerText()) ?? "").trim();
+  await expect.poll(async () => JSON.stringify({ sales: ตัวเลข(await ค่าการ์ด(page, "sales")), rate: await ข้อความการ์ด("winRate"), margin: await ข้อความการ์ด("margin") }),
+    { timeout: 30_000, message: "เลือกดีลเลอร์ A: การ์ด = ค่าของแถว A" })
+    .toBe(JSON.stringify({ sales: ตัวเลข(ของA.sales), rate: ของA.rate, margin: ของA.margin }));
   await เลือกตัวกรอง(page, "ทุกดีลเลอร์", { ค่า: "ALL" });
   await เลือกตัวกรอง(page, "ทุกภูมิภาค", { ค่า: "ใต้" });
   await รวมเท่าการ์ด(page, "ภาคใต้");

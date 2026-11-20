@@ -15,6 +15,7 @@
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
 // ยกเลิก (บอสสั่ง 5 พ.ย. 69 · ใบ 0280): คำขอที่ส่งแล้วไม่ถูกลบ — ยังเห็นในแผงนี้ (คำขอที่ยกเลิกแล้ว: เหตุผล · ใคร · เมื่อไร · ไฟล์แนบเปิดดูได้)
 //   ขอราคาใหม่ได้ตามปกติ คำขอเก่าไม่ทับ · กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ไม่เก็บที่กรอก)
+import { RequestItemsEditor, RequestItemsTable, ตรวจรายการคำขอ, type รายการคำขอ } from "@pms/shared/components/ui/RequestItems";
 import { DataLink } from "./RecordLink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
@@ -31,8 +32,6 @@ import type { LeadRow } from "@pms/shared/lib/mock";
 // ชื่อขั้นจากแหล่งเดียว (leadStage.ts) — เดิมพิมพ์ชื่อสถานะเก่า "ติดต่อแล้ว/รวบรวมความต้องการ" ไม่ตรงแถบ 5 ขั้น (บอสสั่ง 28 ต.ค. 69)
 import { ชื่อขั้นการขาย } from "@pms/shared/lib/leadStage";
 import { ช่องขอราคา, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
-import { MaterialEstimatePicker, type วัสดุที่เลือก } from "@pms/shared/components/ui/MaterialEstimatePicker";
-import { ป้ายราคาประเมิน } from "@pms/shared/lib/materialTemplates";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
@@ -69,19 +68,24 @@ const บาท = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigi
 const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d5dbe4", borderRadius: 9, padding: "9px 11px", fontSize: "0.84rem", fontFamily: "inherit", boxSizing: "border-box" };
 
 /** openSignal = ปุ่ม "ขั้นต่อไป" ในหัวแผงสั่งเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) · n เปลี่ยน = สั่งใหม่ (หน้า 3 UI ตาม flow · 16 ต.ค. 69) */
-export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number } }) {
+/** ได้ใบ HQ แล้ว = กล่องนี้พับเหลือบรรทัดสรุปเป็นค่าเริ่มต้นตั้งแต่เปิดแท็บ (บอสสั่ง 20 พ.ย. 69 "หุบไว้") · กด "ดูคำขอและใบ HQ" กางเอง
+ *  พับ = ฟอร์มทำใบ/ใบที่บันทึกผลเปิดอยู่ด้านล่าง → พับกลับเสมอ (แม้กางไว้) · ระหว่างคำขออยู่กับ HQ ยังกางเต็ม (แนบไฟล์/ยกเลิกคำขอ) */
+/** onSignalUsed = ใช้คำสั่งแล้ว → หน้าแม่ล้างคำสั่งทิ้ง (บั๊ก 20 พ.ย. 69 "ทำไมกดแล้วมันเด้ง": คำสั่งค้าง → แผงที่เปิดใหม่/สลับแท็บกลับมาเปิดกล่องเอง) */
+export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = false, onSignalUsed }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number }; พับ?: boolean; onSignalUsed?: () => void }) {
+  const [กางเอง, setกางเอง] = useState(false);
+  useEffect(() => { if (พับ) setกางเอง(false); }, [พับ]);   // เปิดฟอร์มใหม่ทุกครั้ง = พับใหม่
   const [รายการ, setรายการ] = useState<QuoteRequest[] | null>(null);
   const [โหมด, setโหมด] = useState<โหมด>("ดู");
   const [product, setProduct] = useState("");
   const [spec, setSpec] = useState("");
   const [area, setArea] = useState("");
-  // วัสดุจากแม่แบบ (ไม่บังคับ · ใบ 0244) — ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา
-  const [วัสดุ, setวัสดุ] = useState<วัสดุที่เลือก[]>([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
   // ไฟล์ที่เลือกในฟอร์มขอราคา — ส่งตามไปหลังฐานสร้างคำขอแล้ว (ไฟล์ต้องผูกเลขคำขอ)
   const [ไฟล์รอส่ง, setไฟล์รอส่ง] = useState<File[]>([]);
+  // รายการที่ต้องการ (ดีลเลอร์พิมพ์เอง · 20 พ.ย. 69)
+  const [รายการขอ, setรายการขอ] = useState<รายการคำขอ[]>([]);
   const [ไฟล์ไม่ผ่านฟอร์ม, setไฟล์ไม่ผ่านฟอร์ม] = useState<ไฟล์ไม่ผ่าน[]>([]);
   // ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69 "ทำไมมันกางแบบนี้"): ค่าเริ่มต้น = บรรทัดสรุป · กด "ดูรายการ" แล้วกางตาราง
   const [กางรายการ, setกางรายการ] = useState(false);
@@ -132,7 +136,6 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
       setProduct(ล่าสุด.project ?? "");
       setArea(ล่าสุด.area != null && Number(ล่าสุด.area) > 0 ? String(ล่าสุด.area) : "");
       setSpec(ล่าสุด.note ?? "");
-      setวัสดุ([]);
       setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
     }
     setโหมด(m);
@@ -177,14 +180,18 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
     รายละเอียด: "ใบ HQ ใบเดิมปิด · เปิดคำขอใหม่ให้ HQ ตีราคาอีกครั้ง (เริ่มนับ 14 วันใหม่)",
     ป้ายช่อง: "เหตุผลที่ขอแก้ราคา", ปุ่มตกลง: "ส่งขอแก้ราคา", ปุ่มกำลังทำ: "กำลังส่งขอแก้ราคา…",
     ช่องเพิ่ม: { ป้าย: "รายละเอียดงานที่ขอแก้ราคา", ค่าตั้งต้น: คำขอ.spec ?? "" },
-    ทำ: async (เหตุผล, สเปก) => { await repo.reprice(คำขอ.id, เหตุผล, สเปก || undefined); await หลังทำ(); },
+    // รายการในคำขอ (ใบ 0290): ตั้งต้น = รายการของคำขอเดิม (ชื่อ · จำนวน · หน่วย) แก้/เพิ่ม/ลบได้ · ส่งไปกับคำขอใหม่
+    รายการคำขอ: { ค่าตั้งต้น: (คำขอ.estimateItems ?? []).map(i => ({ name: i.name, qty: Number(i.qty), unit: i.unit ?? "" })) },
+    ทำ: async (เหตุผล, สเปก, รายการ) => { await repo.reprice(คำขอ.id, เหตุผล, สเปก || undefined, รายการ); await หลังทำ(); },
   });
 
   // สั่งเปิดฟอร์มจากปุ่ม "ขั้นต่อไป" — รอให้รายการคำขอโหลดเสร็จก่อน (ต้องรู้ว่ามีคำขอเปิดอยู่ไหม)
   const สัญญาณล่าสุด = useRef(0);
   useEffect(() => {
-    if (!openSignal || openSignal.n === สัญญาณล่าสุด.current || รายการ === null) return;
+    if (!openSignal) { สัญญาณล่าสุด.current = 0; return; }   // หน้าแม่ล้างคำสั่งแล้ว = นับใหม่ (คำสั่งถัดไปเริ่มที่ 1 ได้)
+    if (openSignal.n === สัญญาณล่าสุด.current || รายการ === null) return;
     สัญญาณล่าสุด.current = openSignal.n;
+    onSignalUsed?.();   // คำสั่งใช้ได้ครั้งเดียว — ห้ามค้างให้แผงที่ mount ใหม่ (สลับแท็บ/ลูกค้ารายอื่น) เปิดกล่องเอง
     if (openSignal.mode === "แก้ราคา") { if (เปิด) void ขอแก้ราคา(เปิด); }
     else เข้าโหมด("ขอราคา");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,21 +204,26 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const ส่งคำขอ = async () => {
     if (busy) return;
     if (!บังคับขอ.ตรวจ([{ key: "product", label: ช่องขอราคา.งาน, value: product, ข้อความ: "ระบุงานที่ขอราคาก่อน" }])) { setErr(`กรอกให้ครบก่อน: ${ช่องขอราคา.งาน}`); return; }
-    if (วัสดุ.some(v => !(v.qty > 0))) { setErr("จำนวนวัสดุต้องมากกว่า 0 — แก้หรือเอาออกก่อนส่ง"); return; }
+    const ตรวจรายการ = ตรวจรายการคำขอ(รายการขอ);
+    if (ตรวจรายการ.ผิด) { setErr(ตรวจรายการ.ผิด); return; }
     setErr(""); setBusy(true);
     try {
-      const คำขอ = await repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: วัสดุ });
+      const คำขอ = await repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: ตรวจรายการ.ส่ง });   // รายการที่ดีลเลอร์พิมพ์เอง { name, qty, unit } (20 พ.ย. 69)
       // ไฟล์ตามไปหลังมีเลขคำขอ — ไฟล์ไหนไม่ผ่าน บอกชื่อ (คำขอส่งแล้ว แนบเพิ่มได้ในกล่องไฟล์แนบ)
       const ไม่ผ่าน: string[] = [];
       for (const f of ไฟล์รอส่ง) {
         try { await quoteFiles.upload(คำขอ.id, "dealer", f); } catch (e) { ไม่ผ่าน.push(`${f.name}: ${friendlyError(e)}`); }
       }
       await หลังทำ();
-      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setวัสดุ([]); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
+      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setรายการขอ([]); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
       if (ไม่ผ่าน.length) setErr(`ส่งคำขอแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${ไม่ผ่าน.join(" · ")} (แนบใหม่ได้ที่กล่องไฟล์แนบ)`);
     } catch (e) { setErr(friendlyError(e)); }
     finally { setBusy(false); }
   };
+
+  // ขอแก้ราคาได้ (เงื่อนไขเดิม): ได้ราคาแล้ว · ลีดยังไม่ปิดการขาย (ใบ 0221) · ราคายังไม่หมดอายุ (หมดแล้ว = "ขอราคาใหม่" ในกล่องขั้นต่อไป)
+  const ขอแก้ได้ = (r: NonNullable<typeof เปิด>) => r.status === "quoted" && lead.status !== "PAID"
+    && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10));
 
   return (
     <div data-panel="quote-request" style={{ border: "1px solid #e9d5ff", background: "#faf5ff", borderRadius: 12, padding: 14, marginBottom: 14 }}>
@@ -220,8 +232,28 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
         <strong style={{ fontSize: "0.86rem", color: "#3b0764" }}>ราคาจาก HQ</strong>
       </div>
 
-      {เปิด ? (
+      {เปิด && ใบHQ && โหมด === "ดู" && !กางเอง ? (
+        <div data-quote-request-folded style={{ fontSize: "0.8rem", color: "#374151", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>คำขอ <b>{เปิด.requestNo}</b> ·</span>
+          <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
+            {quoteRequestStatusLabel[เปิด.status]}
+          </span>
+          {ใบHQ && <span>· ใบ HQ <b>{ใบHQ.quoteNo}</b> ฉบับ {ใบHQ.version} · {ใบHQ.lineItems.length} รายการ</span>}
+          <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            {/* ขอแก้ราคา = ปุ่มเดิม (เงื่อนไขเดิม) — อยู่ในบรรทัดพับด้วย ไม่ต้องกางก่อน */}
+            {ขอแก้ได้(เปิด) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
+            <button type="button" className="btn btn-secondary btn-sm" aria-expanded={false} onClick={() => setกางเอง(true)}>
+              ดูคำขอและใบ HQ <ChevronDown size={13} />
+            </button>
+          </span>
+        </div>
+      ) : เปิด ? (
         <div style={{ fontSize: "0.8rem", color: "#374151", lineHeight: 1.8 }}>
+          {ใบHQ && โหมด === "ดู" && (
+            <button type="button" className="btn btn-secondary btn-sm" aria-expanded onClick={() => setกางเอง(false)} style={{ float: "right" }}>
+              พับคำขอและใบ HQ <ChevronUp size={13} />
+            </button>
+          )}
           <div>
             คำขอ <b><DataLink เป้า={{ ชนิด: "request", รหัส: lead.numId, สาขา: lead.dealerCode }}>{เปิด.requestNo}</DataLink></b> ·{" "}
             <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
@@ -231,12 +263,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
             {เปิด.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
           </div>
           <div>งานที่ขอราคา: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
-          {เปิด.estimateTotal != null && (
-            <div className="no-print" data-testid="request-estimate">
-              ราคาประเมินจากวัสดุ {(เปิด.estimateItems ?? []).length} รายการ: <b>{บาท(Number(เปิด.estimateTotal))} บาท</b>{" "}
-              <span className="badge" style={{ background: "#fef3c7", color: "#92400e" }}>{ป้ายราคาประเมิน}</span>
-            </div>
-          )}
+          {/* ราคาประเมินจากวัสดุ: เอาออก (บอสสั่ง 20 พ.ย. 69) · รายการในคำขอ (ดีลเลอร์พิมพ์เอง · ไม่มีราคา) แสดงเป็นตารางอ่านอย่างเดียว */}
+          <RequestItemsTable items={เปิด.estimateItems} />
           {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
           {/* ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69): บรรทัดสรุปเดียว · "ดูรายการ" กางตาราง · ไม่ซ้อนกรอบเพิ่ม (กล่องม่วง = ชั้นเดียว)
               ใต้ใบ = เฉพาะไฟล์ที่ HQ แนบกับใบฉบับนี้ ไม่มี = ไม่แสดงกล่อง ("ให้แสดงเฉพาะไฟล์ที่ HQ แนบมา") · ปุ่มทำใบให้ลูกค้าอยู่ที่กล่องขั้นต่อไปเหมือนเดิม */}
@@ -287,7 +315,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
               {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ยกเลิกคำขอ(เปิด)}>ยกเลิกคำขอ</button>}
               {/* ลีดปิดการขายแล้ว = ขอแก้ราคาไม่ได้ (ใบ 0221 กันที่ฐาน) */}
               {/* ราคาหมดอายุ = ปุ่ม "ขอราคาใหม่" ในกล่องขั้นต่อไป (ไม่ซ้ำสองปุ่ม · รอบ 4) */}
-              {เปิด.status === "quoted" && lead.status !== "PAID" && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
+              {ขอแก้ได้(เปิด) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
             </div>
           )}
         </div>
@@ -344,7 +372,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           <label className="form-label" htmlFor="qr-spec">{ช่องขอราคา.สเปก}</label>
           <textarea id="qr-spec" aria-label={ช่องขอราคา.สเปก} rows={3} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
           <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>{ช่องขอราคา.จังหวัด}: {lead.province || "—"}</div>
-          <MaterialEstimatePicker value={วัสดุ} onChange={setวัสดุ} disabled={busy} />
+          {/* รายการที่ต้องการ (บอสสั่ง 20 พ.ย. 69 · แทนส่วนเลือกวัสดุ/ราคาประเมิน): รายการ + จำนวน + หน่วย · ไม่มีราคา · ไม่บังคับ */}
+          <RequestItemsEditor value={รายการขอ} onChange={setรายการขอ} disabled={busy} />
           {/* ไฟล์แนบถึง HQ (ไม่บังคับ · ใบ 0273) — กล่องแนบไฟล์กลาง หน้าตาเดียวกับฝั่ง HQ (บอสสั่ง 3 พ.ย. 69 "ทำเป็นปุ่มแบบของ HQ")
               ไฟล์ส่งตามคำขอทันทีหลังส่ง · ไฟล์ที่ไม่ผ่านขึ้นเป็นแถวเตือนของไฟล์นั้น ไม่ถูกส่ง */}
           <div data-field="request-files" style={{ display: "grid", gap: 6, background: "#f8fafc", border: "1px solid #eef1f5", borderRadius: 12, padding: "10px 12px" }}>

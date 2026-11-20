@@ -89,7 +89,7 @@ test("[func·dealer] ขั้นต่อไปเดินตามจริ�
   // กดแล้วไปแผงของใบนั้นในหน้าใบเสนอราคา → บันทึกว่าลูกค้าตอบรับ (ทางเดียวกับดีลเลอร์ใช้จริง · ฐานสร้าง/ผูกลูกค้าให้)
   await กล่อง.getByRole("button", { name: /บันทึกผลจากลูกค้า/ }).click();
   await expect(page, "ไม่พาไปหน้าอื่น").toHaveURL(/\/leads/);
-  await page.locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click({ timeout: 20_000 });
+  await page.locator("[data-customer-result-choice]").getByRole("button", { name: "ลูกค้าตอบรับ", exact: true }).click({ timeout: 20_000 });   // กดแล้วเด้งให้เลือกผล (บอสสั่ง 20 พ.ย. 69)
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await sb.from("leads").select("status").eq("dealer_code", "RYG").eq("num_id", เลข.เดิน).single()).data?.status,
     { timeout: 25_000, message: "ตอบรับแล้วลีดต้องเป็นปิดการขายสำเร็จ" }).toBe("PAID");

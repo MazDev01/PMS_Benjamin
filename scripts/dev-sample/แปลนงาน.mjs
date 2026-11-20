@@ -19,7 +19,7 @@ const ก้อน = (ชนิด, ข้อมูล) => {
   const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td));
   return Buffer.concat([len, td, crc]);
 };
-function png(w, h, px) {   // px = Uint8Array RGB
+export function png(w, h, px) {   // px = Uint8Array RGB
   const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
   const raw = Buffer.alloc((w * 3 + 1) * h);
   for (let y = 0; y < h; y++) { raw[y * (w * 3 + 1)] = 0; Buffer.from(px.buffer, y * w * 3, w * 3).copy(raw, y * (w * 3 + 1) + 1); }

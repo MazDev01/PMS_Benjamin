@@ -138,7 +138,7 @@ test("ข้อ 3 · ส่งใบให้ลูกค้าจากกล�
   await expect(กล่อง(page).getByRole("button", { name: /ปิดไม่สำเร็จ/ })).toHaveCount(0);
   await กล่อง(page).getByRole("button", { name: /บันทึกผลจากลูกค้า/ }).click();
   expect(new URL(page.url()).pathname).toBe("/leads");
-  await page.locator("[data-customer-result]").getByRole("button", { name: /ลูกค้าตอบรับ/ }).first().click();
+  await page.locator("[data-customer-result-choice]").getByRole("button", { name: "ลูกค้าตอบรับ", exact: true }).click();   // กดแล้วเด้งให้เลือกผล (บอสสั่ง 20 พ.ย. 69)
   await กดตกลงในกล่องยืนยัน(page);
   await expect.poll(async () => (await สถานะลีด(ใบ.leadNum)).status, { timeout: 30_000 }).toBe("PAID");
   const qq = (await adminClient().from("quotations").select("status").eq("dealer_code", "RYG").eq("id", q.id).single()).data!;

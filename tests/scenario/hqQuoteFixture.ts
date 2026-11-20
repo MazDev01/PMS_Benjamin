@@ -36,6 +36,8 @@ export const เลขลูกค้าเป้าหมายทดสอบ 
 /** สร้างลูกค้าเป้าหมาย → ขอราคา → HQ ส่งใบ HQ (ยืนราคา validDays วัน) */
 export async function เตรียมใบHQ(dealer: Account & { code?: string }, opts: {
   dealerCode: string; company: string; province: string; lines: ใบHQบรรทัด[]; validDays?: number; product?: string; leadNum?: number;
+  /** รายการในคำขอ (ใบ 0290 · ดีลเลอร์พิมพ์เอง ไม่มีราคา) — ไม่ส่ง = คำขอไม่มีรายการ (เหมือนเดิม) */
+  estimate?: { name: string; qty: number; unit: string }[];
 }): Promise<ใบHQพร้อมใช้> {
   const sb = await db(dealer);
   const leadNum = opts.leadNum ?? เลขลูกค้าเป้าหมายทดสอบ();
@@ -52,10 +54,10 @@ export async function เตรียมใบHQ(dealer: Account & { code?: stri
 
 /** ลูกค้าเป้าหมายที่มีอยู่แล้ว (สร้างผ่านหน้าจอ ฯลฯ · ต้องอยู่ขั้นติดต่อแล้ว/รวบรวมความต้องการ) → ขอราคา → HQ ส่งใบ HQ */
 export async function ใบHQให้ลูกค้าเป้าหมายเดิม(dealer: Account, dealerCode: string, leadNum: number, lines?: ใบHQบรรทัด[],
-  opts: { validDays?: number; product?: string } = {}): Promise<ใบHQพร้อมใช้> {
+  opts: { validDays?: number; product?: string; estimate?: { name: string; qty: number; unit: string }[] } = {}): Promise<ใบHQพร้อมใช้> {
   const sb = await db(dealer);
   await เติมข้อมูลลีดก่อนขอราคา(sb, dealerCode, leadNum);
-  const r = await sb.rpc("quote_request_submit", { p_lead_num_id: leadNum, p_product: opts.product ?? "โกดังสำเร็จรูป" });
+  const r = await sb.rpc("quote_request_submit", { p_lead_num_id: leadNum, p_product: opts.product ?? "โกดังสำเร็จรูป", ...(opts.estimate ? { p_estimate: opts.estimate } : {}) });
   if (r.error) throw new Error(`ส่งคำขอราคาไม่สำเร็จ: ${r.error.message}`);
   const requestId = Number((r.data as { id: number }).id);
   const hq = await db(ADMIN);

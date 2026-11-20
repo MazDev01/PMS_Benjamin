@@ -136,6 +136,8 @@ test("[live] ดีลเลอร์ขอราคา → HQ ส่งใบ �
 
   await test.step("2b ดีลเลอร์เห็นไฟล์จาก HQ + ดาวน์โหลดได้ · ไฟล์ล็อกแล้ว", async () => {
     await เปิดแท็บใบเสนอราคาของลีด(d);
+    // HQ ส่งใบแล้ว = กล่องคำขอ/ใบ HQ พับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69 · 6c69288b) → กางก่อนดูไฟล์ (รอบตรวจ deploy29)
+    await d.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 30_000 });
     const กล่องไฟล์ = d.locator("[data-panel='quote-request'] [data-panel='quote-files']");
     const ของHQ = กล่องไฟล์.locator("[data-files-side='hq'] [data-file-row]");
     await expect(ของHQ, "ดีลเลอร์เห็นไฟล์ HQ หลังส่งใบ").toHaveCount(1, { timeout: 30_000 });

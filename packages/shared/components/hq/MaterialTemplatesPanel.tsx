@@ -11,7 +11,7 @@
 //     · "นำเข้าจากไฟล์" = เมนูนำเข้าตัวกลาง Excel/CSV/แบบฟอร์มตัวอย่าง/ชุดที่นำเข้าล่าสุด (MaterialImportModal · ใบ 0279)
 //     ตารางมีการแก้ที่ยังไม่บันทึก = ต้องบันทึก/ยกเลิกก่อน (บันทึกจาก 2 ทางนี้โหลดรายการใหม่ทับตาราง)
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Boxes, Plus, Search, Trash2, CheckCircle2, Target, Tags, History } from "lucide-react";
+import { Boxes, Plus, Search, Trash2, CheckCircle2, Target, Tags, History, Lock } from "lucide-react";
 import { ImportMenu } from "@pms/shared/components/ui/ImportMenu";
 import { MaterialImportModal } from "@pms/shared/components/hq/MaterialImportModal";
 import { MaterialAddModal } from "@pms/shared/components/hq/MaterialAddModal";
@@ -175,8 +175,10 @@ export function MaterialTemplatesPanel() {
                   style={{ fontWeight: 700, color: ค?.avgPct != null && Math.abs(ค.avgPct) > 5 ? "#dc2626" : "#374151" }}>{ป้ายเปอร์เซ็นต์คลาด(ค?.avgPct)}</span>;
               } },
             { key: "del", หัว: "", ชนิด: "ปุ่ม", กว้าง: "5%", ค่า: (r, i) => r.id != null && (เคยใช้ === null || เคยใช้.has(r.id))
-                ? <span data-mt-used={เคยใช้ ? "1" : ""} title={เคยใช้ ? "เคยใช้ในคำขอใบเสนอราคา/ใบ HQ แล้ว — ลบไม่ได้ ใช้ “ปิดใช้งาน” แทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
-                    style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{เคยใช้ ? "ใช้แล้ว" : "…"}</span>
+                // ไอคอนกุญแจ + ข้อความตอนชี้ (บอสสั่ง 19 พ.ย. 69 · เดิมข้อความ "ใช้แล้ว" ในคอลัมน์ 5% ถูกตัดเป็น "ใช้แ…")
+                ? <span data-mt-used={เคยใช้ ? "1" : ""} role="img" aria-label={เคยใช้ ? "ใช้ในคำขอแล้ว — ลบไม่ได้ ปิดใช้งานแทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
+                    title={เคยใช้ ? "ใช้ในคำขอแล้ว — ลบไม่ได้ ปิดใช้งานแทน" : "กำลังตรวจว่าเคยใช้หรือไม่"}
+                    style={{ display: "inline-flex", padding: 4, color: "var(--muted-foreground)", cursor: "help" }}>{เคยใช้ ? <Lock size={15} /> : "…"}</span>
                 : <button type="button" aria-label={`ลบ ${r.name || `แถว ${i + 1}`}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}
                 style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", display: "inline-flex", padding: 4 }}><Trash2 size={15} /></button> },
           ]} />

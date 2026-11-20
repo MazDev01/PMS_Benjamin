@@ -81,8 +81,11 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
       const { data, error } = await sb.rpc("quote_request_submit", {
         p_lead_num_id: Number(b.leadNumId), p_product: String(b.product ?? ""), p_subtype: String(b.subtype ?? ""),
         p_area: b.area == null || b.area === "" ? null : Number(b.area), p_spec: String(b.spec ?? ""), p_province: String(b.province ?? ""),
-        // วัสดุจากแม่แบบ (ใบ 0244) — ส่งต่อแค่ วัสดุ + จำนวน ฐานคิดราคาจากแม่แบบเอง (ไม่รับราคาจากหน้าเว็บ)
-        p_estimate: Array.isArray(b.estimate) ? (b.estimate as { templateId?: unknown; qty?: unknown }[]).slice(0, 200).map(e => ({ templateId: Number(e?.templateId), qty: Number(e?.qty) })) : [],
+        // รายการในคำขอ (20 พ.ย. 69): ดีลเลอร์พิมพ์เอง { name, qty, unit } ไม่มีราคา (ฐานตรวจ/ตัดความยาว) · แบบเดิม { templateId, qty } ส่งต่อตามเดิม
+        //   ไม่รับราคาจากหน้าเว็บทุกแบบ
+        p_estimate: Array.isArray(b.estimate) ? (b.estimate as { templateId?: unknown; qty?: unknown; name?: unknown; unit?: unknown }[]).slice(0, 200).map(e =>
+          e?.templateId != null && e.templateId !== "" ? { templateId: Number(e.templateId), qty: Number(e?.qty) }
+            : { name: String(e?.name ?? "").slice(0, 200), qty: Number(e?.qty), unit: String(e?.unit ?? "").slice(0, 30) }) : [],
       });
       if (error) return dbFail("quoteRequests.submit", error);
       return ok(toCamel(data as Row));
@@ -98,7 +101,10 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
       return ok({ ok: true });
     }
     case "reprice": {
-      const { data, error } = await sb.rpc("quote_request_reprice", { p_id: id, p_reason: String(b.reason ?? ""), p_spec: b.spec == null ? null : String(b.spec) });
+      // รายการในคำขอ (ใบ 0290): ส่งมา = ใช้รายการใหม่ { name, qty, unit } · ไม่ส่ง = ฐานคัดลอกของคำขอเดิม
+      const { data, error } = await sb.rpc("quote_request_reprice", { p_id: id, p_reason: String(b.reason ?? ""), p_spec: b.spec == null ? null : String(b.spec),
+        p_estimate: Array.isArray(b.estimate) ? (b.estimate as { name?: unknown; qty?: unknown; unit?: unknown }[]).slice(0, 50)
+          .map(e => ({ name: String(e?.name ?? "").slice(0, 200), qty: Number(e?.qty), unit: String(e?.unit ?? "").slice(0, 30) })) : null });
       if (error) return dbFail("quoteRequests.reprice", error);
       return ok(toCamel(data as Row));
     }

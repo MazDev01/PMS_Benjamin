@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 // หัวข้อความปลอดภัยชุดเดียวกันทั้งสองแอป — แก้ที่เดียวมีผลทั้งระบบ
 import { securityHeaderRules } from "../../packages/shared/lib/securityHeaders.mjs";
 
+// รุ่น build สำหรับเว็บ demo (โหมดข้อมูลตัวอย่าง) — เปลี่ยนทุก build → ตัวล้างข้อมูลเก่าในเบราว์เซอร์ (lib/data/local/demoBuildReset.ts)
+//   โหมดที่มีฐาน = ค่าว่างคงที่ ไม่ทำให้แคช build ล้างทุกรอบ
+const รุ่นเดโม = () => ["api", "supabase"].includes(process.env.NEXT_PUBLIC_DATA_SOURCE ?? "") ? "" : String(Date.now());
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@pms/shared"],
   // ที่เก็บไฟล์ที่ build แล้ว — ตั้งทับด้วย PMS_DIST_DIR (รอบตรวจ build ลง .next-test แยกจาก .next ของ npm run dev · 28 ต.ค. 69)
@@ -12,7 +16,7 @@ const nextConfig: NextConfig = {
 
   eslint: { ignoreDuringBuilds: true },
   // แอป HQ: หน้า login อยู่ที่ /hq/login (ไม่มี /login เปล่า) — ให้ AuthGuard (แชร์) เด้งมาที่นี่แทน /login
-  env: { NEXT_PUBLIC_LOGIN_PATH: "/hq/login", PMS_APP: "hq" },
+  env: { NEXT_PUBLIC_LOGIN_PATH: "/hq/login", PMS_APP: "hq", PMS_BUILD_ID: รุ่นเดโม() },
   // รวมหน้า login เก่า /login/hq (ดีไซน์ dark-stripe) → หน้า HQ ใหม่ /hq/login (split-panel) ให้เหลือดีไซน์เดียว
   async redirects() {
     return [{ source: "/login/hq", destination: "/hq/login", permanent: false }];

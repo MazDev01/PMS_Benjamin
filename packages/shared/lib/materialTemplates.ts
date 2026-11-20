@@ -25,7 +25,8 @@ export type ผลนำเข้าวัสดุ = { batch: number; inserted:
 export type MaterialTemplateDraft = Omit<MaterialTemplate, "id" | "priceUpdatedAt"> & { id?: number };
 
 /** สำเนารายการประเมินที่คำขอเก็บไว้ ณ ตอนส่ง (HQ เปลี่ยนราคาทีหลัง สำเนานี้ไม่เปลี่ยน) */
-export type EstimateItem = { templateId: number; category: string; name: string; unit: string; qty: number; unitPrice: number };
+/** รายการในคำขอ (estimate_items) — แบบเดิมจากรายการวัสดุ (มีรหัส/หมวด/ราคา) · แบบใหม่ดีลเลอร์พิมพ์เอง { name, qty, unit } ไม่มีราคา (20 พ.ย. 69) */
+export type EstimateItem = { templateId?: number; category?: string; name: string; unit: string; qty: number; unitPrice?: number };
 
 /** ความแม่นของราคาประเมิน — n = 0 → ค่าเฉลี่ย null (แสดง "—") */
 /** byTemplate = % คลาดเฉลี่ยรายวัสดุ (ใบ 0268): ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ ของคำขอที่เลือกวัสดุนั้น · ไม่มี = ฐานยังไม่ถึงใบนั้น */

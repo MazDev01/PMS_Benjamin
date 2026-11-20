@@ -20,7 +20,8 @@
 //   กด "ส่งใบ HQ ให้ดีลเลอร์" แล้วไฟล์ล็อกพร้อมใบ · ไฟล์ฉบับก่อน + ไฟล์จากดีลเลอร์ดูได้ในกล่องเดียวกัน
 import { DataLink } from "../ui/RecordLink";
 import { useEffect, useMemo, useState } from "react";
-import { Send, X, Copy, Lock, Boxes, ClipboardList } from "lucide-react";
+import { Send, X, Copy, Lock, ClipboardList } from "lucide-react";
+import { RequestItemsTable } from "@pms/shared/components/ui/RequestItems";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
 import {
   type QuoteRequest, type HqQuote, type HqQuoteLine, type แถววาง, hqQuoteStatusLabel, ยอดรวมใบ, วันไทยสั้น, เกินกำหนด,
@@ -28,8 +29,6 @@ import {
 } from "@pms/shared/lib/quoteRequests";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { BoqTable, type แหล่งรายการ } from "@pms/shared/components/hq/BoqTable";
-import { MaterialTemplatePicker } from "@pms/shared/components/hq/MaterialTemplatePicker";
-import { รายการประเมินเป็นแถวHQ, ป้ายราคาประเมิน, ป้ายเปอร์เซ็นต์คลาด } from "@pms/shared/lib/materialTemplates";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
 import { ช่อง as ป้ายช่อง, กลุ่มช่อง } from "@pms/shared/lib/fieldLabels";
 import { ยืนยัน, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
@@ -81,8 +80,6 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const [busy, setBusy] = useState(false);
   const [กู้ร่าง, setกู้ร่าง] = useState(false);
   const [สเปกเต็ม, setสเปกเต็ม] = useState(false);
-  // หน้าต่างเลือกจากรายการวัสดุ — เก็บตัวแทรกของตาราง (BoqTable แหล่ง) ไว้ส่งรายการกลับ
-  const [แทรกแม่แบบ, setแทรกแม่แบบ] = useState<((rows: แถววาง[]) => void) | null>(null);
   // ภาพของใบตอนโหลด/บันทึกล่าสุด — ต่างจากที่อยู่บนจอ = มีการแก้ที่ยังไม่บันทึก (แถวว่างไม่นับ)
   const [ภาพที่บันทึก, setภาพที่บันทึก] = useState<string | null>(null);
   const ภาพ = (ls: HqQuoteLine[], v: string, n: string) =>
@@ -103,9 +100,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       } else {
         // ใบที่แก้ได้และยังไม่มีรายการ: มีวัสดุจากคำขอ = เปิดมามีรายการนั้น (H8 · ใบ 0244) · ไม่มี = แถวว่างพร้อมพิมพ์ 1 แถว
         //   รายการจากคำขอนับเป็นจุดเริ่ม (ไม่ถือว่าแก้ค้าง) — ออกไปแล้วกลับมาก็เปิดมาเหมือนเดิม
-        const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
-        const เริ่ม = แก้ได้ตอนโหลด && บันทึกแล้ว.length === 0 ? (จากคำขอ.length ? จากคำขอ : [แถวเปล่าใหม่()]) : บันทึกแล้ว;
-        if (แก้ได้ตอนโหลด && บันทึกแล้ว.length === 0 && จากคำขอ.length) setภาพที่บันทึก(ภาพ(จากคำขอ, ยืน, h?.note ?? ""));
+        //   20 พ.ย. 69 (บอสสั่งเอารายการวัสดุออกทั้งระบบ · ทาง ก): ไม่ใส่วัสดุจากคำขอให้เอง — เปิดมาเป็นแถวว่าง 1 แถวทุกคำขอ
+        const เริ่ม = แก้ได้ตอนโหลด && บันทึกแล้ว.length === 0 ? [แถวเปล่าใหม่()] : บันทึกแล้ว;
         setLines(เริ่ม);
         setยืนราคาถึง(ยืน); setหมายเหตุ(h?.note ?? "");
       }
@@ -206,17 +202,15 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
     [ป้ายช่อง.จังหวัด, request.province || "—", "province"],
     [ป้ายช่อง.งาน, `${request.product || "—"}${request.subtype ? ` · ${request.subtype}` : ""}`, "job"],
     [ป้ายช่อง.พื้นที่, พื้นที่ ? พื้นที่.toLocaleString() : "—", "area"],
-    ...(request.estimateTotal != null ? [["ราคาประเมินของดีลเลอร์", (
-      <>{บาท(Number(request.estimateTotal))} บาท <span style={{ fontWeight: 500, color: "#6b7280" }}>({(request.estimateItems ?? []).length} วัสดุ · {ป้ายราคาประเมิน}
-        {request.estimateDeviationPct != null ? ` · คลาดจากใบ HQ ${ป้ายเปอร์เซ็นต์คลาด(request.estimateDeviationPct)}` : ""})</span></>
-    ), "estimate"] as [string, React.ReactNode, string]] : []),
+    // ราคาประเมินของดีลเลอร์ / % คลาดจากใบ HQ: เอาออก (บอสสั่ง 20 พ.ย. 69 · เอารายการวัสดุออกทั้งระบบ)
     ["ดีลเลอร์", <DataLink key="d" เป้า={{ ชนิด: "dealer", รหัส: request.dealerCode }}>{ชื่อของ(request.dealerCode, dealerName)}</DataLink>, "dealer"],
   ];
   // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
-  const จากคำขอ = รายการประเมินเป็นแถวHQ(request.estimateItems);
+  //   "เลือกจากรายการวัสดุ" เอาออก (บอสสั่ง 20 พ.ย. 69) · "ใส่รายการจากคำขอ" = รายการที่ดีลเลอร์พิมพ์ในคำขอ (รายการ · จำนวน · หน่วย)
+  //   ใส่เป็นแถวราคาว่างให้ HQ กรอก · กดเองเท่านั้น ไม่ใส่ให้อัตโนมัติ (บอสสั่ง 20 พ.ย. 69 · แทน H8 เดิม)
+  const จากคำขอ: แถววาง[] = (request.estimateItems ?? []).map(i => ({ name: i.name, qty: Number(i.qty) || 1, unit: i.unit ?? "", unitCost: 0 }));
   const แหล่ง: แหล่งรายการ[] = [
-    { key: "material-templates", label: "เลือกจากรายการวัสดุ", icon: Boxes, เปิด: แทรก => setแทรกแม่แบบ(() => แทรก) },
-    { key: "request-items", label: "รายการจากคำขอดีลเลอร์", icon: ClipboardList, disabled: จากคำขอ.length === 0, เปิด: แทรก => แทรก(จากคำขอ) },
+    { key: "request-items", label: "ใส่รายการจากคำขอ", icon: ClipboardList, disabled: จากคำขอ.length === 0, เปิด: แทรก => แทรก(จากคำขอ) },
   ];
   const เนื้อหา = (
     <>
@@ -266,6 +260,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                 </div>
               )}
             </กริดรายละเอียด>
+            {/* รายการที่ดีลเลอร์ระบุในคำขอ (อ่านอย่างเดียว · ไม่มีราคา · 20 พ.ย. 69) — ไม่มีรายการ = ไม่แสดง */}
+            <RequestItemsTable items={request.estimateItems} label="รายการที่ดีลเลอร์ระบุในคำขอ" />
             <div style={{ display: "grid", gap: 2 }}>
               <span style={ป้ายข้อมูล}>{ป้ายช่อง.สเปก}</span>
               <span data-testid="request-spec" style={{ fontSize: "0.82rem", color: "#374151", whiteSpace: "pre-wrap",
@@ -303,7 +299,6 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
               )}
               {/* ตาราง BOQ กลาง (BoqTable) — แหล่งรายการเพิ่ม (รายการวัสดุ · รายการจากคำขอดีลเลอร์) ส่งเข้ามาทาง แหล่ง โดยไม่รื้อตาราง */}
               <BoqTable lines={lines} onChange={setLines} editable={แก้ได้} area={พื้นที่} แหล่ง={แหล่ง} />
-              {แทรกแม่แบบ && <MaterialTemplatePicker onAdd={rows => แทรกแม่แบบ(rows)} onClose={() => setแทรกแม่แบบ(null)} />}
 
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                 <div style={{ display: "grid", gap: 4, fontSize: "0.8rem", fontWeight: 600, color: "#374151" }}>

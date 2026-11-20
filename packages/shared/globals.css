@@ -1519,6 +1519,14 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 }
 
 
+/* ── ดีลเลอร์ › ตั้งค่าใบเสนอราคา › ราคาและภาษี: 4 ช่องกว้างเท่ากัน แถวเดียว · กล่องแคบ 2×2 · แคบมาก เรียงลง (บอสสั่ง 19 พ.ย. 69) ──
+   เดิม auto-fill ≥ 170px → กล่องกว้าง ~600px ได้ 3 ช่อง + 1 ช่องค้างแถวสอง (รอบตรวจ deploy29 · dealer-doc-settings-form.spec จอ 700)
+   วัดจากความกว้างกล่องจริง (container query) ไม่ใช่จอ — แถบเมนูซ้ายยุบ/กาง ก็ยังได้ 4 / 2 / 1 */
+.doc-rate-wrap { container-type: inline-size; }
+.doc-rate-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
+@container (max-width: 760px) { .doc-rate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 360px) { .doc-rate-grid { grid-template-columns: minmax(0, 1fr); } }
+
 /* ── กล่องยืนยัน (sonner) — แทน confirm() ของเบราว์เซอร์ (บอสสั่ง 28 ส.ค. 69) ──────
    sonner ถูกตั้ง unstyled ไว้ หน้าตาทั้งหมดจึงมาจากที่นี่ที่เดียว = เข้าชุดกับ CI เหมือนการ์ดอื่น
    ⚠️ สไตล์ของ sonner ถูกฝังเป็น <style> ตอนรัน — CSP ของระบบเปิด style-src 'unsafe-inline' ไว้แล้ว
@@ -1720,3 +1728,8 @@ html.kbd-nav .tab-item:focus-visible, html.kbd-nav .nav-item:focus-visible { out
 @media (max-width: 420px) {
   .doc-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ช่องตัวเลขตัวกลาง (NumberInput) ไม่มีลูกศรขึ้นลงของเบราว์เซอร์ (บอสสั่ง 19 พ.ย. 69 "ช่องให้ดี") — พิมพ์ตัวเลขเอง */
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.number-input { -moz-appearance: textfield; appearance: textfield; }

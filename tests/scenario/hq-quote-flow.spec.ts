@@ -151,6 +151,7 @@ test("[flow·hq] ขั้น 6 + แถว HQ ส่งใบ: ส่งใบ 
   await expect(row.getByText("2. รอราคาจาก HQ", { exact: true }), "ไม่มีป้ายขั้นรอราคาค้าง").toHaveCount(0);
   await row.locator("td").first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
+  await page.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 20_000 });   // ได้ใบ HQ แล้ว = กล่องพับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69)
   const ใบ = page.locator("[data-panel='hq-quote']");
   await expect(ใบ, "ดีลเลอร์เห็นใบ HQ ที่ส่งแล้ว").toBeVisible({ timeout: 20_000 });
   // ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69): บรรทัดสรุปบอกยอดเดียวกัน · ตารางพับไว้ กด "ดูรายการ" แล้วกาง

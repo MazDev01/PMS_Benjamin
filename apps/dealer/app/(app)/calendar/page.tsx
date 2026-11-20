@@ -5,7 +5,7 @@ import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
-import { apptTypeLabel, fmtISOToThai, นัดยังเปิด, ป้ายสถานะนัด, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
+import { apptTypeLabel, ป้ายประเภทนัด, fmtISOToThai, นัดยังเปิด, ป้ายสถานะนัด, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -247,7 +247,7 @@ export default function CalendarPage() {
                 <thead><tr><th>วันที่</th><th>เวลา</th><th>ลูกค้า</th><th>ประเภท</th><th>สถานะ</th></tr></thead>
                 <tbody>{นัดตามการ์ด.map(a => (
                   <tr key={a.id} data-appt-row={a.id} onClick={() => { selectDate(a.date); setView("day"); setDetail(a); }} style={{ cursor: "pointer" }}>
-                    <td>{fmtISOToThai(a.date)}</td><td>{a.time || "—"}</td><td>{a.company || "—"}</td><td>{apptTypeLabel[a.type as ApptType] ?? a.type}</td>
+                    <td>{fmtISOToThai(a.date)}</td><td>{a.time || "—"}</td><td>{a.company || "—"}</td><td>{ป้ายประเภทนัด(a.type)}</td>
                     <td>{ป้ายสถานะนัด(a.status)}</td>
                   </tr>
                 ))}</tbody>
@@ -469,7 +469,7 @@ function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, cust
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: "0.92rem", fontWeight: 800, color: "#fff" }}>{a.company}</div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                <span style={{ fontSize: "0.65rem", fontWeight: 700, color: m.color, background: "#fff", borderRadius: 999, padding: "2px 10px" }}>{apptTypeLabel[a.type]}</span>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, color: m.color, background: "#fff", borderRadius: 999, padding: "2px 10px" }}>{ป้ายประเภทนัด(a.type)}</span>
                 <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,.8)" }}>{statusLabel}</span>
               </div>
             </div>
@@ -730,7 +730,7 @@ function ApptRow({ a, showDate, groupColor, onOpen }: { a: AppointmentMock; show
       <div className="activity-text">
         <div className="activity-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.company}</div>
         <div className="activity-meta" style={{ marginBottom: 3 }}>
-          <span style={{ color: c, fontWeight: 700 }}>{apptTypeLabel[a.type]}</span>
+          <span style={{ color: c, fontWeight: 700 }}>{ป้ายประเภทนัด(a.type)}</span>
         </div>
         <div className="activity-meta" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Clock size={10} /> {showDate ? `${parseInt(a.date.split("-")[2])}/${parseInt(a.date.split("-")[1])} · ` : ""}{a.time} น.</span>

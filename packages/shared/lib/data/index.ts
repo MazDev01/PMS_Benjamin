@@ -8,6 +8,8 @@
 //
 // สถานะ (18 ส.ค. 69): ครบทั้งสามเส้นทาง — LocalAdapter (เดโม) · SupabaseAdapter (ที่ใช้จริงตอนนี้)
 //   · HttpAdapter (ผ่าน backend ของเราเอง · ย้ายครบ 18 พอร์ตแล้ว รอสลับใช้จริง)
+// เว็บ demo: ล้างข้อมูลรุ่นเก่าในเบราว์เซอร์ก่อนอ่านอะไรทั้งนั้น (ต้องเป็น import แรก · 19 พ.ย. 69)
+import "./local/demoBuildReset";
 import { DATA_SOURCE } from "./config";
 import { LocalAdapter } from "./local/LocalAdapter";
 import { SupabaseAdapter } from "./supabase/SupabaseAdapter";

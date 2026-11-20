@@ -296,7 +296,7 @@ const quoteRequests: QuoteRequestsRepo = {
   submit: (i) => post<QuoteRequest>("/quote-requests", { op: "submit", ...i }),
   cancel: async (id, reason, closeLead) => { await post("/quote-requests", { op: "cancel", id, reason, closeLead }); },
   abandonForm: async (leadNumId) => { await post("/quote-requests", { op: "abandon-form", leadNumId }); },
-  reprice: (id, reason, spec) => post<QuoteRequest>("/quote-requests", { op: "reprice", id, reason, spec }),
+  reprice: (id, reason, spec, estimate) => post<QuoteRequest>("/quote-requests", { op: "reprice", id, reason, spec, estimate }),
   accept: async (id) => { await post("/quote-requests", { op: "accept", id }); },
   hqQuoteFor: (requestId) => apiFetch<HqQuote | null>(`/quote-requests?view=hq-quote&request=${requestId}`),
   saveHqQuote: (requestId, lines, validUntil, note) => post<HqQuote>("/quote-requests", { op: "save-hq", id: requestId, lines, validUntil, note }),

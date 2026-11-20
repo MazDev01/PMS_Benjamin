@@ -64,20 +64,18 @@ export async function สร้าง(ctx) {
   if (!งาน?.length) { console.log("✓ ใบข้อมูลตั้งต้นมีใบ HQ ครบแล้ว"); return; }
 
   // 2) รายการใบ HQ ตามต้นทุนของแต่ละงาน (คิดใน JS ตัวเดียวกับส่วนอื่น) → ใส่ทั้งชุดในธุรกรรมเดียว
-  const ดิบแม่แบบ = ctx.sql(`select coalesce(json_agg(json_build_object('id', id, 'category', category, 'name', name, 'unit', unit, 'unitPrice', unit_price)), '[]') from public.material_templates;`);
-  const แม่แบบ = JSON.parse(ดิบแม่แบบ.slice(ดิบแม่แบบ.indexOf("["), ดิบแม่แบบ.lastIndexOf("]") + 1));
+  // รายการในคำขอ (ใบ 0290 · 20 พ.ย. 69): ดีลเลอร์พิมพ์ รายการ · จำนวน · หน่วย (ไม่มีราคา · ไม่มีราคาประเมิน) · งานเหมาเล็ก = ไม่มีรายการ
   const ประเมิน = (A, i) => {
     if (!A) return [];
     const f = ตัวคูณประเมิน[i % ตัวคูณประเมิน.length];
-    return รายการโกดัง(A).map(l => { const m = แม่แบบ.find(x => x.name === `${l.name} (ตัวอย่าง)`);
-      return m && { templateId: Number(m.id), category: m.category, name: m.name, unit: m.unit, unitPrice: Number(m.unitPrice),
-        qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) }; }).filter(Boolean);
+    return รายการโกดัง(A).filter(l => l.unit === "ตัน" || /หลังคา/.test(l.name)).map(l => ({ name: l.name, unit: l.unit,
+      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) }));
   };
   const แถว = งาน.map((g, i) => {
     const ต้นทุน = Math.round(g.ต่ำสุด / (1 + บวก / 100) * 100) / 100;
     const { A, lines } = รายการตามต้นทุน(ต้นทุน);
     const ประเมินงาน = ประเมิน(A, i);
-    const ยอดประเมิน = ประเมินงาน.length ? ประเมินงาน.reduce((s, x) => s + Math.round(x.qty * x.unitPrice * 100) / 100, 0) : null;
+    const ยอดประเมิน = null;   // ไม่มีราคาในรายการคำขอ (HQ ตีราคา · ใบ 0290)
     return { ...g, n: i + 1, ต้นทุน, A, lines, สเปก: A ? สเปกโกดัง(A) : "งานโครงเหล็กขนาดเล็ก (ราคาเหมา)", ประเมินงาน, ยอดประเมิน };
   });
   const ค่า = แถว.map(r => `(${r.n}, ${q(r.dealer_code)}, ${Number(r.ลีด)}, ${q(r.province)}, ${q(r.วัน)}::date, ${r.ตอบรับ}, ${r.ปฏิเสธหมด}, ${r.ต้นทุน}, ${r.A ?? "null"}, ${q(r.สเปก)}, ${q(JSON.stringify(r.lines))}::jsonb, ${q(JSON.stringify(r.ใบ))}::jsonb, ${r.ประเมินงาน.length ? `${q(JSON.stringify(r.ประเมินงาน))}::jsonb` : "null"}, ${r.ยอดประเมิน ?? "null"})`).join(",\n      ");
@@ -91,7 +89,7 @@ export async function สร้าง(ctx) {
     -- กำหนดส่ง = วันขอ + 14 วัน (กติกาเดียวกับคำขอจริง · เดิมวันขอ + 3)
     insert into public.quote_requests (id, request_no, dealer_code, lead_num_id, product, area, province, spec, status, submitted_at, due_at, accepted_at, quoted_at, closed_at, updated_at, estimate_items, estimate_total)
       select เลข.คำขอ + n, 'RQ-' || extract(year from วัน) || '-' || lpad((เลข.คำขอ + n)::text, 5, '0'), dealer_code, ลีด,
-             'โกดังเก็บสินค้า', พื้นที่, province, สเปก,
+             coalesce((select nullif(l.project, '') from public.leads l where l.dealer_code = งาน.dealer_code and l.num_id = งาน.ลีด), 'โกดังเก็บสินค้า'), พื้นที่, province, สเปก,   -- งานที่ขอราคา = งานของลีด (19 พ.ย. 69 · เดิมตายตัว "โกดังเก็บสินค้า")
              case when ตอบรับ then 'won' when ปฏิเสธหมด then 'lost' else 'quoted' end,
              (วัน - 5)::timestamptz, (วัน + 9)::timestamptz, (วัน - 4)::timestamptz, (วัน - 1)::timestamptz,
              case when ตอบรับ or ปฏิเสธหมด then วัน::timestamptz end, วัน::timestamptz, coalesce(ประเมิน, '[]'::jsonb), ยอดประเมิน   -- ไม่มีราคาประเมิน = รายการว่าง (คอลัมน์ไม่รับค่าว่าง · แบบเดียวกับคำขอที่ไม่เลือกวัสดุ)
@@ -105,6 +103,12 @@ export async function สร้าง(ctx) {
     update public.quotations x set hq_quote_id = เลข.ใบ + g.n, markup_percent = ${บวก}
       from งาน g cross join lateral jsonb_array_elements_text(g.ใบ) t(qid), เลข
      where x.dealer_code = g.dealer_code and x.id = t.qid;
+    -- พื้นที่ของงานชุดเดียว (19 พ.ย. 69 · คนรวมงานพบ "ห้องเย็น 900 ตร.ม." แต่คำขอ 3,320 ตร.ม.): พื้นที่ที่คิดจากมูลค่าใบ → ลีด + ใบลูกค้าของงานนั้น
+    update public.leads l set area = g.พื้นที่::int::text from งาน g
+     where l.dealer_code = g.dealer_code and l.num_id = g.ลีด and g.พื้นที่ is not null;
+    update public.quotations x set area = g.พื้นที่::int::text
+      from งาน g cross join lateral jsonb_array_elements_text(g.ใบ) t(qid)
+     where x.dealer_code = g.dealer_code and x.id = t.qid and g.พื้นที่ is not null;
     select setval(pg_get_serial_sequence('public.quote_requests', 'id'), (select max(id) from public.quote_requests));
     select setval(pg_get_serial_sequence('public.hq_quotes', 'id'), (select max(id) from public.hq_quotes));
     commit;`);

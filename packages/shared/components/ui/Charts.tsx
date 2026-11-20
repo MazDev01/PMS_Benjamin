@@ -738,13 +738,17 @@ export function GroupedBarChart({
   // ขอบล่างตามป้ายแกน (ป้ายเอียงยื่นลงใต้แกน — 12 พ.ย. 69) · ขนาด/ระยะเดียวกับ <ป้ายแกน> ด้านล่าง
   const pB = ขอบล่างตามป้าย(months, band, narrow ? 13 : 15, narrow ? 22 : 26, narrow ? 34 : 42);
   const cH = H - pT - pB;
-  const groupW = Math.min(band * 0.68, 24 * series.length);
+  const fs = narrow ? 13 : 15;
+  // ค่าบนแท่งหลายชุด (แท่งคู่ยอดขาย/เป้า — 19 พ.ย. 69): ตัวเลขของแท่งข้างกันต้องไม่ทับกัน
+  //   ช่องแท่งกว้างพอตัวเลขยาวสุด (ไม่เกิน 92% ของช่องกลุ่ม) · ยังแคบอยู่ = ย่อฟอนต์ตัวเลขลงจนพอดีช่อง
+  const ยาวสุด = ค่าบนแท่ง && series.length > 1 ? Math.max(...series.flatMap(s => s.data.map(v => fmt(v).length)), 1) : 0;
+  const groupW = ยาวสุด ? Math.min(band * 0.92, Math.max(24, ยาวสุด * (fs - 1) * 0.6 + 6) * series.length) : Math.min(band * 0.68, 24 * series.length);
   const bw = groupW / series.length;
+  const fsค่า = ยาวสุด ? Math.max(8, Math.min(fs - 1, (bw - 2) / (ยาวสุด * 0.6))) : fs - 1;
   const yTicks = axisTicks(ceiling);
   // ขีดบนสุด — ป้ายต้องหลบมาอยู่ใต้เส้น ไม่งั้นจะโผล่พ้นขอบบนไปทับหัวข้อการ์ด
   const maxTick = yTicks[yTicks.length - 1];
   const bottomY = pT + cH;
-  const fs = narrow ? 13 : 15;
 
   return (
     <div>
@@ -778,7 +782,7 @@ export function GroupedBarChart({
                       rx={3} fill={ser.color} opacity={val > 0 ? (hover === null || isHover ? 1 : 0.45) : 0.22}
                       style={{ transition: "y .7s cubic-bezier(.4,0,.2,1), height .7s cubic-bezier(.4,0,.2,1), opacity .15s" }} />
                     {(isHover || ค่าบนแท่ง) && (
-                      <text data-bar-label={คีย์แท่ง?.[i]} x={x + bw / 2} y={bottomY - h - 7} textAnchor="middle" fontSize={fs - 1} fontWeight="800" fill={ser.color}>{fmt(val)}</text>
+                      <text data-bar-label={คีย์แท่ง?.[i]} x={x + bw / 2} y={bottomY - h - 7} textAnchor="middle" fontSize={fsค่า} fontWeight="800" fill={ser.color}>{fmt(val)}</text>
                     )}
                   </g>
                 );

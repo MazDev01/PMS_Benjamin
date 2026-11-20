@@ -262,6 +262,72 @@ export const POST = withErrors("create-dealer", async (req: NextRequest) => {
   return NextResponse.json({ ok: true, email, password, prospectLinked });
 });
 
+// ── HQ ตั้งบัญชีเข้าระบบให้สาขาที่ยังไม่มีบัญชี (บอสเลือกทาง ก 18 พ.ย. 69 · ทำ 20 พ.ย. 69) ─────────────────────────
+//   เหตุ: ดีลเลอร์ HQD (ขายตรง · ใบ 0287) ไม่ได้มาจากผู้สนใจ จึงไม่มีบัญชี · เดิมสร้างบัญชีได้ทางเดียว = แปลงผู้สนใจ (POST ข้างบน)
+//   PUT /api/admin/dealers?code=HQD  { email, password }
+//   · สาขาต้องมีในทะเบียน (ไม่สร้างทับ/สร้างสาขาใหม่) · มีบัญชีแล้ว = ปฏิเสธ (หนึ่งสาขาหนึ่งบัญชี · ไม่สร้างซ้ำ)
+//   · อีเมลต้องเป็น <รหัสสาขา>@dealer.benjaminpebsteel.com (ไม่ส่ง = ค่านี้) · รหัสผ่านบังคับ ตามกติกาเดียว (passwordRule.ts)
+//   · บัญชี/โปรไฟล์/สำเนารหัส/บันทึกการใช้งาน เหมือนทางแปลงผู้สนใจทุกอย่าง (DEALER_ADMIN · ยืนยันอีเมลแล้ว · ไม่มีเครื่องหมายบังคับเปลี่ยนรหัส)
+//   · สิทธิ์ = dealers:manage (HQ บทบาทเดียว) · โปรไฟล์ล้ม = ลบบัญชีที่เพิ่งสร้างทิ้ง (ไม่เหลือบัญชีกำพร้า)
+export const PUT = withErrors("create-dealer-account", async (req: NextRequest) => {
+  const authz = await authorizeAdmin(req, "dealers:manage", DENY);
+  if (!authz.ok) return authz.res;
+  const { admin, callerId, prof } = authz.auth;
+  if (!(await checkRateLimit(admin, `create-dealer-account:${callerId}`, 10, 60))) {
+    return bad(429, "ตั้งบัญชีถี่เกินไป — รอสักครู่แล้วลองใหม่");
+  }
+
+  const code = (new URL(req.url).searchParams.get("code") ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2,5}$/.test(code)) return bad(400, "รหัสดีลเลอร์ไม่ถูกต้อง");
+  const body = (await req.json().catch(() => null)) as null | { email?: string; password?: string };
+  const อีเมลที่ต้องเป็น = อีเมลเข้าระบบของสาขา(code);
+  const email = String(body?.email ?? "").trim().toLowerCase() || อีเมลที่ต้องเป็น;
+  if (email !== อีเมลที่ต้องเป็น) return bad(400, `อีเมลเข้าระบบของสาขานี้ต้องเป็น ${อีเมลที่ต้องเป็น}`);
+  const password = String(body?.password ?? "");
+  if (!password) return bad(400, "ตั้งรหัสผ่านก่อน");
+  const ผิดกติกา = ตรวจรหัสผ่านใหม่(password);
+  if (ผิดกติกา) return bad(400, ผิดกติกา);
+
+  // สาขาต้องมีในทะเบียน — ทางนี้ไม่สร้างสาขา (สร้างสาขา = แปลงผู้สนใจ)
+  const { data: สาขา, error: สาขาErr } = await admin.from("dealers").select("code, name").eq("code", code).maybeSingle();
+  if (สาขาErr) {
+    console.error(`[create-dealer-account] อ่านทะเบียนสาขา ${code} ไม่สำเร็จ`, สาขาErr);
+    return bad(503, "อ่านทะเบียนดีลเลอร์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+  }
+  if (!สาขา) return bad(404, `ไม่พบดีลเลอร์รหัส "${code}"`);
+  // หนึ่งสาขาหนึ่งบัญชี — มีแล้วไม่สร้างซ้ำ (ใช้ "แก้อีเมล/รหัสผ่าน" แทน)
+  const { data: มีบัญชี, error: บัญชีErr } = await admin.from("profiles").select("id").eq("dealer_code", code);
+  if (บัญชีErr) {
+    console.error(`[create-dealer-account] ตรวจบัญชีของสาขา ${code} ไม่สำเร็จ`, บัญชีErr);
+    return bad(503, "ตรวจบัญชีของดีลเลอร์ไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+  }
+  if (มีบัญชี && มีบัญชี.length > 0) return bad(409, `ดีลเลอร์ "${code}" มีบัญชีเข้าระบบแล้ว — ใช้ "แก้อีเมล/รหัสผ่าน" แทน`);
+  if ((await อีเมลถูกใช้แล้ว(SUPABASE_URL, SERVICE_KEY, email)) === true) return bad(400, อีเมลซ้ำ);
+
+  const { data: createdUser, error: createErr } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (createErr || !createdUser.user) {
+    if (/already/i.test(createErr?.message ?? "")) return bad(400, อีเมลซ้ำ);
+    console.error(`[create-dealer-account] สร้างบัญชีเข้าระบบของสาขา ${code} ไม่สำเร็จ`, createErr);
+    return bad(503, "สร้างบัญชีเข้าระบบไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+  }
+  const uid = createdUser.user.id;
+  try {
+    await must(admin.from("profiles").upsert({
+      id: uid, role: "DEALER_ADMIN", dealer_code: code, name: String(สาขา.name ?? code), status: "active",
+    }, { onConflict: "id" }));
+  } catch (e) {
+    await deleteAuthUserLoud(admin, uid, "create-dealer-account");
+    console.error(`[create-dealer-account] สร้างโปรไฟล์ของสาขา ${code} ไม่สำเร็จ`, e);
+    return bad(503, "ตั้งบัญชีไม่สำเร็จชั่วคราว — ลองใหม่อีกครั้ง");
+  }
+  // ชื่อบริษัทตั้งต้น = ชื่อในทะเบียน (เหมือนตอนสร้างสาขา · ไม่ทับของที่ตั้งไว้แล้ว)
+  const { error: setErr } = await admin.from("dealer_settings").insert({ dealer_code: code, issuer: { company: สาขา.name } });
+  if (setErr && setErr.code !== "23505") console.error(`[create-dealer-account] ตั้งชื่อบริษัทตั้งต้นของสาขา ${code} ไม่สำเร็จ`, setErr);
+  await rememberSecret(admin, code, password, String(prof.name ?? ""));
+  await auditLog(admin, prof, "ตั้งบัญชีเข้าระบบดีลเลอร์", `${code} · ${สาขา.name} · ${email}`);
+  return NextResponse.json({ ok: true, email });
+});
+
 // ── HQ แก้อีเมลเข้าระบบ / ตั้งรหัสผ่านใหม่ให้ดีลเลอร์ (ปุ่ม "แก้อีเมล/รหัสผ่าน" หน้ารายละเอียดดีลเลอร์) ──
 // ดีลเลอร์แก้เองได้ด้วย (/api/account · 2 ครั้ง แล้วต้องขออนุมัติ) — ทางนี้คือทางของสำนักงานใหญ่ ไม่นับโควตาของดีลเลอร์
 // HQ พิมพ์รหัสเองได้ (บอสสั่ง 20 ส.ค. 69) · ไม่ส่งรหัสมา = สุ่มให้ · ตรวจกติกาเดียวกับทุกทาง (passwordRule.ts)

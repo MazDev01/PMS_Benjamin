@@ -35,9 +35,9 @@ test("[H12·hq] แดชบอร์ด: กราฟ ใบที่ส่ง 
 
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
-  const แผง = page.locator("[data-panel='material-templates']");
-  await expect(แผง.locator("thead th").filter({ hasText: "% คลาดเฉลี่ย" }), "คอลัมน์ % คลาดเฉลี่ยรายแถว").toHaveCount(1, { timeout: 20_000 });
+  // รายการวัสดุ + % คลาดเฉลี่ย เอาออกทั้งระบบ (บอสสั่ง 20 พ.ย. 69 · ทับข้อ 6 เดิม) — ตรวจกลับด้าน: ไม่มีแท็บ
+  await expect(page.getByRole("button", { name: "บริษัท", exact: true }), "หน้าตั้งค่าโหลดแล้ว (แท็บแรกชื่อ บริษัท)").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "รายการวัสดุ", exact: true }), "ไม่มีแท็บรายการวัสดุ").toHaveCount(0);
   assertNoErrors(errs, "หน้า HQ ตามแบบ");
 });
 

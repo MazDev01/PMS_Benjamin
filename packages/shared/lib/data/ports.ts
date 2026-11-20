@@ -102,7 +102,8 @@ export interface TerritoriesRepo {
 // ── คำขอใบเสนอราคา (Flow ใหม่ · ใบ 0183) — ทุกคำสั่งเรียกคำสั่งของฐาน ฐานขยับสถานะทั้งสองฝั่งเอง ──
 export type QuoteRequestInput = { leadNumId: number; product: string; subtype?: string; area?: number | null; spec?: string; province?: string;
   /** วัสดุจากแม่แบบที่ดีลเลอร์เลือก (ไม่บังคับ · ใบ 0244) — ส่งแค่ วัสดุ + จำนวน ฐานคิดราคาและเก็บสำเนาเอง */
-  estimate?: { templateId: number; qty: number }[] };
+  /** รายการในคำขอ (20 พ.ย. 69): ดีลเลอร์พิมพ์เอง { name, qty, unit } ไม่มีราคา · แบบเดิม { templateId, qty } ไม่มีหน้าใช้แล้ว */
+  estimate?: ({ name: string; qty: number; unit: string } | { templateId: number; qty: number })[] };
 // ── รายการวัสดุ (ใบ 0244) — HQ เห็นทุกแถว ดีลเลอร์เห็นเฉพาะที่เปิดใช้ (ฐานกรอง) · บันทึกได้เฉพาะผู้ดูแล/ผู้บริหาร HQ ──
 export interface MaterialTemplatesRepo {
   list(): Promise<import("../materialTemplates").MaterialTemplate[]>;
@@ -148,7 +149,8 @@ export interface QuoteRequestsRepo {
   /** กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ใบ 0280 · ไม่เก็บข้อมูลที่กรอก) */
   abandonForm(leadNumId: number): Promise<void>;
   /** ขอแก้ราคา (หลัง HQ ส่งใบ) — คำขอเดิมปิด เปิดคำขอใหม่ เริ่มนับ 14 วันใหม่ */
-  reprice(id: number, reason: string, spec?: string): Promise<import("../quoteRequests").QuoteRequest>;
+  /** estimate = รายการในคำขอใหม่ (ใบ 0290) · ไม่ส่ง = คัดลอกของคำขอเดิม */
+  reprice(id: number, reason: string, spec?: string, estimate?: { name: string; qty: number; unit: string }[]): Promise<import("../quoteRequests").QuoteRequest>;
   /** HQ กดรับเรื่อง → กำลังทำราคา (ผู้รับผิดชอบ = ผู้กด) */
   accept(id: number): Promise<void>;
   /** ใบ HQ ของคำขอ (ขั้น 5–6 · ด่าน 2) — ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้ว (ฐานกรองให้) · ยังไม่มี = null */

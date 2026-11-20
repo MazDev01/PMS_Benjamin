@@ -48,7 +48,8 @@ test("ชื่อการ์ดอัตราปิดการขายต�
   const a = await page.locator("body").innerText();
   // รอบ 4 (บอสตัดสิน 21 ต.ค. 69): ชื่อเดียว "อัตราปิดการขาย" + คำอธิบายตัวหาร (นับจากลีด · lib/winRate.ts)
   expect(a).toContain("อัตราปิดการขาย");
-  expect(a, "บอกตัวหาร").toContain("ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ)");
+  // คำอธิบายตัวหารอยู่ใน ⓘ ของการ์ด (บอสสั่ง 19 พ.ย. 69 · 7d33c7a5) — ข้อความซ่อน ไม่อยู่ใน innerText ของหน้า (รอบตรวจ deploy29)
+  await expect(page.locator('[data-kpi-row] [data-kpi="winRate"] [data-kpi-tip]').first(), "บอกตัวหาร (ใน ⓘ)").toContainText("ลูกค้าเป้าหมายปิดสำเร็จ ÷ (ปิดสำเร็จ + ปิดไม่สำเร็จ)");
   expect(a, "ไม่มีชื่อเก่าที่คิดจากใบ").not.toContain("อัตราปิดการขาย (จากใบที่รู้ผลแล้ว)");
   await openAs(page, ADMIN, "hq", "/hq/quotations");
   await settle(page); await page.waitForTimeout(1500);

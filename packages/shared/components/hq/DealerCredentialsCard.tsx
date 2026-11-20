@@ -13,7 +13,8 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff, Copy, Check, Key, X } from "lucide-react";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { viewDealerPassword, resetDealerPassword, listDealerLoginEmails, getDealerSelfQuota, resetDealerSelfQuota } from "@pms/shared/lib/adminApi";
+import { ตรวจรหัสผ่านใหม่ } from "@pms/shared/lib/passwordRule";
+import { viewDealerPassword, resetDealerPassword, createDealerLoginAccount, listDealerLoginEmails, getDealerSelfQuota, resetDealerSelfQuota } from "@pms/shared/lib/adminApi";
 import { REAL_BACKEND } from "@pms/shared/lib/data/config";
 import { fmtISOToThai, type DealerRow } from "@pms/shared/lib/mock";
 import { useRole } from "@pms/shared/context/RoleContext";
@@ -116,16 +117,24 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
   //   สาขาที่มีอยู่จริงใช้อีเมลธุรกิจของตัวเอง) · ไม่รู้ = "—" ไม่เดาให้ผู้ใช้เข้าใจผิด
   const [email, setEmail] = useState("—");
   const [resetting, setResetting] = useState(false);
-  const [newCreds, setNewCreds] = useState<{ email: string; password: string } | null>(null);
+  const [newCreds, setNewCreds] = useState<{ email: string; password: string; ใหม่?: boolean } | null>(null);
   // แก้อีเมล/ตั้งรหัสผ่านเอง (บอสสั่ง 20 ส.ค. 69) — เว้นช่องไหนไว้ = ไม่แตะของเดิมช่องนั้น
   const [แก้บัญชี, setแก้บัญชี] = useState<{ email: string; password: string } | null>(null);
   // ผู้ใช้พิมพ์ในช่องอีเมลเองแล้วหรือยัง — กันไม่ให้ค่าที่เพิ่งโหลดมาทับสิ่งที่กำลังพิมพ์
   const [พิมพ์อีเมลเอง, setพิมพ์อีเมลเอง] = useState(false);
   const [ผิดพลาด, setผิดพลาด] = useState("");
+  // สาขาที่ "รู้แน่" ว่ายังไม่มีบัญชี (ถามเซิร์ฟเวอร์สำเร็จ แต่ไม่มีอีเมลของสาขานี้) → ให้ตั้งบัญชีได้ (บอสสั่ง 20 พ.ย. 69 · HQD)
+  //   ถามไม่สำเร็จ (ได้ {}) ≠ ไม่มีบัญชี — ไม่โชว์ปุ่ม กันตั้งบัญชีซ้อนตอนเน็ตสะดุด (เซิร์ฟเวอร์ก็ปฏิเสธซ้ำอีกชั้น)
+  const [ไม่มีบัญชี, setไม่มีบัญชี] = useState(false);
+  const [ตั้งบัญชี, setตั้งบัญชี] = useState<{ email: string; password: string } | null>(null);
 
   useEffect(() => {
     let alive = true;
-    listDealerLoginEmails().then(m => { if (alive) setEmail(m[dealer.code] ?? "—"); }).catch(() => {});
+    listDealerLoginEmails().then(m => {
+      if (!alive) return;
+      setEmail(m[dealer.code] ?? "—");
+      setไม่มีบัญชี(Object.keys(m).length > 0 && !m[dealer.code]);
+    }).catch(() => {});
     return () => { alive = false; };
   }, [dealer.code]);
 
@@ -193,6 +202,22 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
     else แจ้งสำเร็จ(`เปลี่ยนอีเมลเข้าระบบของ "${dealer.name}" เป็น ${res.email} แล้ว — รหัสผ่านเดิมยังใช้ได้`);
   }
 
+  async function บันทึกตั้งบัญชี() {
+    if (!ตั้งบัญชี) return;
+    const อีเมล = ตั้งบัญชี.email.trim().toLowerCase();
+    const ต้องเป็น = อีเมลเข้าระบบของสาขา(dealer.code);
+    if (อีเมล !== ต้องเป็น) { setผิดพลาด(`อีเมลเข้าระบบของสาขานี้ต้องเป็น ${ต้องเป็น}`); return; }
+    const ผิดรหัส = ตรวจรหัสผ่านใหม่(ตั้งบัญชี.password);
+    if (ผิดรหัส) { setผิดพลาด(ผิดรหัส); return; }
+    if (!REAL_BACKEND) { setผิดพลาด("โหมดข้อมูลตัวอย่างไม่รองรับการตั้งบัญชีเข้าระบบ"); return; }
+    setResetting(true); setผิดพลาด("");
+    const res = await createDealerLoginAccount(dealer.code, { email: อีเมล, password: ตั้งบัญชี.password });
+    setResetting(false);
+    if (!res.ok) { setผิดพลาด(res.error); return; }
+    setEmail(res.email); setไม่มีบัญชี(false); setตั้งบัญชี(null);
+    setNewCreds({ email: res.email, password: res.password, ใหม่: true });
+  }
+
   return (
     <div className="card" style={{ padding: "18px 20px", gridColumn: "1 / -1" }}>
       <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em",
@@ -210,7 +235,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
         <div style={{ fontSize: "0.72rem", color: "#6b7280" }} data-testid="dealer-login-hint">
           {email === "—"
-            ? "ยังไม่ทราบบัญชีเข้าระบบของดีลเลอร์นี้"
+            ? ไม่มีบัญชี ? "ดีลเลอร์นี้ยังไม่มีบัญชีเข้าระบบ — กด \"ตั้งบัญชีเข้าระบบ\" เพื่อสร้าง" : "ยังไม่ทราบบัญชีเข้าระบบของดีลเลอร์นี้"
             : ใช้รหัสสาขาได้
               ? <>ดีลเลอร์พิมพ์รหัสสาขา <b>{dealer.code}</b> + รหัสผ่าน ที่หน้าเข้าระบบของดีลเลอร์ (อีเมลเข้าระบบ {email} พิมพ์เต็มแทนได้)</>
               : <>บัญชีนี้เปลี่ยนอีเมลเข้าระบบเป็น {email} แล้ว — ดีลเลอร์ต้องพิมพ์อีเมลนี้เต็ม ๆ (พิมพ์รหัสสาขาเข้าไม่ได้)</>}
@@ -219,12 +244,21 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
             เพราะซ้ำกับปุ่มนี้: อยากได้รหัสใหม่ก็พิมพ์รหัสที่ต้องการลงไปตรง ๆ ได้เลย
             และแบบนั้นผู้ดูแลรู้ว่ารหัสคืออะไรทันที ไม่ต้องรอระบบสุ่มมาแล้วค่อยคัดลอก */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {ไม่มีบัญชี ? (
+        <button onClick={() => { setผิดพลาด(""); setตั้งบัญชี({ email: อีเมลเข้าระบบของสาขา(dealer.code), password: "" }); }} disabled={resetting}
+          style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: "#003366", color: "#fff",
+            fontSize: "0.76rem", fontWeight: 700, cursor: resetting ? "not-allowed" : "pointer", opacity: resetting ? 0.6 : 1,
+            display: "flex", alignItems: "center", gap: 7, fontFamily: "inherit" }}>
+          <Key size={13} /> ตั้งบัญชีเข้าระบบ
+        </button>
+        ) : (
         <button onClick={() => { setผิดพลาด(""); setพิมพ์อีเมลเอง(false); setแก้บัญชี({ email: email === "—" ? "" : email, password: "" }); }} disabled={resetting}
           style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid #d5dbe4", background: "#fff", color: "#003366",
             fontSize: "0.76rem", fontWeight: 700, cursor: resetting ? "not-allowed" : "pointer", opacity: resetting ? 0.6 : 1,
             display: "flex", alignItems: "center", gap: 7, fontFamily: "inherit" }}>
           <Key size={13} /> แก้อีเมล/รหัสผ่าน
         </button>
+        )}
         </div>
       </div>
       {สิทธิ์ && (
@@ -300,6 +334,50 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
         </ModalPortal>
       )}
 
+      {/* ตั้งบัญชีให้สาขาที่ยังไม่มีบัญชี (บอสสั่ง 20 พ.ย. 69 · HQD) — อีเมลเติมให้ แก้ได้แต่ต้องตรงรูปแบบ รหัสสาขา@dealer.benjaminpebsteel.com */}
+      {ตั้งบัญชี && (
+        <ModalPortal>
+        <div onClick={() => setตั้งบัญชี(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1060, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <ModalCard onClose={() => setตั้งบัญชี(null)} label="ตั้งบัญชีเข้าระบบของดีลเลอร์"
+            style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 14px rgba(0,51,102,.07)", width: 400, maxWidth: "100%" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "0.92rem", fontWeight: 800, color: "#2D2D2D" }}>ตั้งบัญชีเข้าระบบ</h3>
+                <div style={{ fontSize: "0.72rem", color: "#6b7280", marginTop: 2 }}>{dealer.name}</div>
+              </div>
+              <button onClick={() => setตั้งบัญชี(null)} aria-label="ปิด" style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex" }}><X size={16} /></button>
+            </div>
+            <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280" }}>
+                อีเมลเข้าระบบ <span style={{ color: "#dc2626" }}>*</span>
+                <input type="email" aria-label="อีเมลเข้าระบบของบัญชีใหม่" value={ตั้งบัญชี.email}
+                  onChange={e => setตั้งบัญชี(v => v && ({ ...v, email: e.target.value }))} style={ช่องกรอก} />
+                <span style={{ display: "block", fontWeight: 600, color: "#8a929c", marginTop: 4 }}>
+                  ต้องเป็น {อีเมลเข้าระบบของสาขา(dealer.code)} — ดีลเลอร์พิมพ์รหัสสาขา {dealer.code} แทนอีเมลได้
+                </span>
+              </label>
+              <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280" }}>
+                รหัสผ่าน <span style={{ color: "#dc2626" }}>*</span>
+                <input type="text" aria-label="รหัสผ่านของบัญชีใหม่" value={ตั้งบัญชี.password}
+                  onChange={e => setตั้งบัญชี(v => v && ({ ...v, password: e.target.value.replace(/\s/g, "") }))}
+                  placeholder="อย่างน้อย 8 ตัว ห้ามมีช่องว่าง" style={ช่องกรอก} />
+              </label>
+              {ผิดพลาด && (
+                <div role="alert" data-account-create-error style={{ fontSize: "0.74rem", color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 11px" }}>{ผิดพลาด}</div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button onClick={() => setตั้งบัญชี(null)} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid #d5dbe4", background: "#fff", color: "#374151", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>ยกเลิก</button>
+                <button onClick={บันทึกตั้งบัญชี} disabled={resetting}
+                  style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: "#003366", color: "#fff", fontSize: "0.76rem", fontWeight: 700, cursor: resetting ? "not-allowed" : "pointer", opacity: resetting ? 0.6 : 1, fontFamily: "inherit" }}>
+                  {resetting ? "กำลังตั้งบัญชี…" : "ตั้งบัญชี"}
+                </button>
+              </div>
+            </div>
+          </ModalCard>
+        </div>
+        </ModalPortal>
+      )}
+
       {/* รหัสใหม่หลังรีเซ็ต — ต้องคัดลอกไปแจ้งดีลเลอร์ทันที ปิดแล้วดูซ้ำได้ที่ปุ่ม "ดูรหัสผ่าน" ด้านบน */}
       {newCreds && (
         <ModalPortal>
@@ -317,7 +395,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
               <CopyField label="อีเมล" value={newCreds.email} />
               <CopyField label="รหัสผ่านใหม่" value={newCreds.password} secret defaultShown />
               <div style={{ fontSize: "0.72rem", color: "#7a5b12", background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 8, padding: "9px 12px", marginTop: 6 }}>
-                รหัสเดิมใช้ไม่ได้แล้ว — ต้องแจ้งรหัสใหม่นี้ให้ดีลเลอร์ทราบ
+                {newCreds.ใหม่ ? "ตั้งบัญชีแล้ว — แจ้งอีเมลและรหัสผ่านนี้ให้ดีลเลอร์ทราบ" : "รหัสเดิมใช้ไม่ได้แล้ว — ต้องแจ้งรหัสใหม่นี้ให้ดีลเลอร์ทราบ"}
               </div>
             </div>
           </ModalCard>

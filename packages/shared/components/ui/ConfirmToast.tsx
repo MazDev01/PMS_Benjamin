@@ -18,12 +18,14 @@
 //   กล่องเปิดค้างจนฐานตอบ · ปุ่มเปลี่ยนเป็น "กำลัง…" กดซ้ำไม่ได้ · ฐานตอบผิดพลาด = ข้อความในกล่อง ไม่ปิดเอง
 //   ⚠️ ใน ทำ ห้ามเรียก แจ้งพลาด() — โยน error ออกมา (ที่วางกล่องแสดงทีละใบ ข้อความแจ้งใบใหม่จะบังกล่องที่ค้าง)
 //   ถามเหตุผล() บังคับ ทำ เสมอ = กล่องเหตุผลตัวเดียวทั้งระบบ (ตัวตรวจ check-reason-dialogs ห้ามเขียนช่องเหตุผลเอง)
+import { RequestItemsEditor, ตรวจรายการคำขอ, type รายการคำขอ } from "@pms/shared/components/ui/RequestItems";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Toaster, toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { OTHER_LOST_REASON, OTHER_REASON_OPTION } from "@pms/shared/lib/mock";
 import { ดาวบังคับ } from "@pms/shared/components/ui/FieldLabel";
+import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 
 export type ตัวเลือกยืนยัน = {
   หัวข้อ: string;
@@ -170,8 +172,10 @@ export type ตัวเลือกถามเหตุผล = Omit<ตัว
   ตัวเลือก?: readonly string[];
   /** ช่องข้อความเพิ่ม (ไม่บังคับ) เช่น สเปกตอนขอแก้ราคา */
   ช่องเพิ่ม?: { ป้าย: string; ค่าตั้งต้น?: string };
-  /** งานที่ต้องรอฐาน — รับเหตุผล (ตัดช่องว่างแล้ว) + ช่องเพิ่ม · โยน error = แสดงในกล่อง */
-  ทำ: (เหตุผล: string, เพิ่ม: string) => Promise<unknown>;
+  /** ตารางรายการในคำขอ (ขอแก้ราคา · ใบ 0290 · 20 พ.ย. 69) — รายการ + จำนวน + หน่วย · ไม่มีราคา · ไม่บังคับ */
+  รายการคำขอ?: { ค่าตั้งต้น: รายการคำขอ[] };
+  /** งานที่ต้องรอฐาน — รับเหตุผล (ตัดช่องว่างแล้ว) + ช่องเพิ่ม + รายการ (ตรวจแล้ว · ไม่มีตาราง = undefined) · โยน error = แสดงในกล่อง */
+  ทำ: (เหตุผล: string, เพิ่ม: string, รายการ?: รายการคำขอ[]) => Promise<unknown>;
 };
 
 const ช่องในกล่อง: React.CSSProperties = { width: "100%", marginTop: 6, padding: "7px 9px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.82rem", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", background: "#fff" };
@@ -182,6 +186,7 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
   const [เลือก, setเลือก] = useState("");
   const [พิมพ์, setพิมพ์] = useState("");
   const [เพิ่ม, setเพิ่ม] = useState(o.ช่องเพิ่ม?.ค่าตั้งต้น ?? "");
+  const [รายการขอ, setรายการขอ] = useState<รายการคำขอ[]>(o.รายการคำขอ?.ค่าตั้งต้น ?? []);
   const [กำลังทำ, setกำลังทำ] = useState(false);
   const [ผิด, setผิด] = useState("");
   const พิมพ์เอง = !ใช้รายการ || เลือก === OTHER_LOST_REASON;
@@ -192,7 +197,13 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
   async function กด() {
     if (ว่าง || กำลังทำRef.current) return;   // กดรัว = ครั้งแรกครั้งเดียว (state ยังไม่ทันเปลี่ยน)
     กำลังทำRef.current = true; setกำลังทำ(true); setผิด("");
-    try { await o.ทำ(เหตุผล, เพิ่ม.trim()); ตอบ(true); }
+    let รายการส่ง: รายการคำขอ[] | undefined;
+    if (o.รายการคำขอ) {
+      const ตรวจ = ตรวจรายการคำขอ(รายการขอ);
+      if (ตรวจ.ผิด) { setผิด(ตรวจ.ผิด); กำลังทำRef.current = false; setกำลังทำ(false); return; }
+      รายการส่ง = ตรวจ.ส่ง;
+    }
+    try { await o.ทำ(เหตุผล, เพิ่ม.trim(), รายการส่ง); ตอบ(true); }
     catch (e) { setผิด(friendlyError(e)); }
     finally { กำลังทำRef.current = false; setกำลังทำ(false); }
   }
@@ -203,8 +214,7 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
         color: on ? "#dc2626" : เส้นประ ? "#6b7280" : "#2D2D2D", fontWeight: on || เส้นประ ? 700 : 400 }}>{r}</button>
   );
 
-  return (
-    <div className="pms-confirm" role="alertdialog" aria-modal="false" aria-label={o.หัวข้อ} aria-busy={กำลังทำ || undefined} data-reason-dialog>
+  const เนื้อ = (<>
       <div className="pms-confirm-head">
         {o.อันตราย && <AlertTriangle size={16} className="pms-confirm-icon" aria-hidden />}
         <div className="pms-confirm-title">{o.หัวข้อ}</div>
@@ -239,11 +249,31 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
           <textarea aria-label={o.ช่องเพิ่ม.ป้าย} value={เพิ่ม} rows={2} disabled={กำลังทำ} onChange={e => setเพิ่ม(e.target.value)} style={ช่องในกล่อง} />
         </label>
       )}
+      {o.รายการคำขอ && <div style={{ marginTop: 10 }}><RequestItemsEditor value={รายการขอ} onChange={setรายการขอ} disabled={กำลังทำ} /></div>}
       <ข้อผิดพลาดในกล่อง ข้อความ={ผิด} />
-      <div className="pms-confirm-actions">
+  </>);
+  const ปุ่ม = (<>
         <button type="button" data-dialog-cancel className="btn btn-secondary btn-sm" disabled={กำลังทำ} onClick={() => ตอบ(false)}>{o.ปุ่มยกเลิก ?? "ยกเลิก"}</button>
         <ปุ่มตกลงของกล่อง o={o} กำลังทำ={กำลังทำ} ปิดไว้={ว่าง} อธิบาย={ว่าง ? idคำบอก : undefined} onClick={() => void กด()} />
+  </>);
+  // มีตารางรายการ (ขอแก้ราคา · ขอราคาใหม่) = หน้าต่างเอกสารกว้าง 820 กลางจอ (ภาษาออกแบบดีลเลอร์ · บอสสั่ง 20 พ.ย. 69 "มันดูยาก/หน้าต่างมันแคบ")
+  //   เดิมอยู่ในกล่องแจ้งเตือนกว้าง 420 → ช่องจำนวน/หน่วยเหลือที่แสดงไม่ถึง 30px (ค่าหน่วยมีอยู่แต่ถูกตัดจนดูเหมือนว่าง) · ปุ่มส่งตกขอบล่างจอ
+  //   ปุ่มส่ง/ยกเลิกติดล่างหน้าต่าง เนื้อในเลื่อนเอง · แขวนที่ <body> (กล่องแจ้งเตือนของ sonner มี transform)
+  if (o.รายการคำขอ) return (
+    <ModalPortal>
+      <div data-reason-dialog-backdrop style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", zIndex: 1070, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div className="pms-confirm" role="alertdialog" aria-modal="true" aria-label={o.หัวข้อ} aria-busy={กำลังทำ || undefined} data-reason-dialog data-reason-dialog-wide
+          style={{ width: 820, maxWidth: "100%", maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}>
+          <div style={{ overflowY: "auto", padding: "16px 20px 12px", minHeight: 0 }}>{เนื้อ}</div>
+          <div className="pms-confirm-actions" style={{ margin: 0, padding: "12px 20px", borderTop: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}>{ปุ่ม}</div>
+        </div>
       </div>
+    </ModalPortal>
+  );
+  return (
+    <div className="pms-confirm" role="alertdialog" aria-modal="false" aria-label={o.หัวข้อ} aria-busy={กำลังทำ || undefined} data-reason-dialog>
+      {เนื้อ}
+      <div className="pms-confirm-actions">{ปุ่ม}</div>
     </div>
   );
 }

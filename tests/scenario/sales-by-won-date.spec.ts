@@ -72,8 +72,13 @@ test("[ux·dealer] แดชบอร์ดดีลเลอร์: ยอด�
   await settle(page);
   const การ์ด = page.locator('[data-kpi="target"]');
   const ควร = ยอดA + (ใช้B ? ยอดB : 0);
-  await expect.poll(async () => ตัวเลข((await การ์ด.innerText()).match(/ยอดขายสะสมทั้งปี\s*฿?([\d,]+)/)?.[1]), {
-    timeout: 30_000, message: `ยอดขายสะสมทั้งปี = ใบที่ลูกค้าตอบรับปีนี้ (${ควร.toLocaleString()})` }).toBe(ควร);
+  // 19 พ.ย. 69 (บอสเลือก): การ์ด "ยอดขายปีนี้เทียบเป้า" — ตัวเลขใหญ่ = ยอดขายสะสมปีนี้ · บรรทัดล่าง = "จากเป้าทั้งปี ฿12,000,000" (เป้าของสาขาของข้อ)
+  //   ตกบนโค้ดเดิม (7d33c7a5): ตัวเลขใหญ่ = เป้าทั้งปี · ไม่มีบรรทัด [data-kpi-line]
+  await expect.poll(async () => Number(await การ์ด.locator("[data-value]").getAttribute("data-value")), {
+    timeout: 30_000, message: `ตัวเลขใหญ่ = ยอดขายสะสมปีนี้ ตามปีที่ลูกค้าตอบรับ (${ควร.toLocaleString()})` }).toBe(ควร);
+  await expect(การ์ด, "ชื่อการ์ดตรงความหมาย").toContainText("ยอดขายปีนี้เทียบเป้า");
+  await expect(การ์ด.locator("[data-kpi-line]"), "บรรทัดล่าง = เป้าทั้งปีของสาขา").toHaveText("จากเป้าทั้งปี ฿12,000,000");
+  await expect(การ์ด.locator("[data-kpi-tip] [data-info-tip-text]"), "ⓘ อธิบาย YTD ไม่เฉลี่ยตามช่วง").toContainText("ไม่เฉลี่ยตามช่วงเวลา");
 });
 
 test("[ux·hq] ภาพรวมยอดขาย: การ์ดยอดขายนับใบเข้าเดือนที่ลูกค้าตอบรับ ไม่ใช่เดือนที่ออกใบ", async ({ page }) => {

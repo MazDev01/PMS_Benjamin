@@ -6,7 +6,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
 import { settle } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
-import { adminClient, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
+import { กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
 // ── ตารางรายการกลาง: จำนวน/หน่วยคนละคอลัมน์ · ตัวเลขชิดขวา · หัวคอลัมน์ตรงแนวข้อมูล (บอสสั่ง 30 ต.ค. 69) ─────────────────
@@ -36,12 +36,7 @@ const รายการ = [
   { name: "เหล็กโครงสร้างรูปพรรณ", qty: 38, unit: "ตัน", unitCost: 32_000, จำนวนบนจอ: "38" },
   { name: "แผ่นหลังคาเมทัลชีท", qty: 2240, unit: "ตร.ม.", unitCost: 350, จำนวนบนจอ: "2,240" },
 ];
-const แม่แบบ = [
-  { category: "ZZTEST", name: `ZZTEST เหล็กโครงสร้างรูปพรรณ ${แท็ก}`, unit: "ตัน", unit_price: 32000 },
-  { category: "ZZTEST", name: `ZZTEST แผ่นหลังคาเมทัลชีท ${แท็ก}`, unit: "ตร.ม.", unit_price: 350 },
-];
-const svc = adminClient();
-let สาขา: สาขาของข้อ, ใบHQ: ใบHQพร้อมใช้, ใบHQทำใบ: ใบHQพร้อมใช้ | null = null, เลขใบ = "", ไอดีแม่แบบ: number[] = [];
+let สาขา: สาขาของข้อ, ใบHQ: ใบHQพร้อมใช้, ใบHQทำใบ: ใบHQพร้อมใช้ | null = null, เลขใบ = "";
 const เลขลีดขอราคา = เลขลูกค้าเป้าหมายทดสอบ();
 test.beforeAll(async () => {
   สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
@@ -51,16 +46,12 @@ test.beforeAll(async () => {
   เลขใบ = (await ทำใบลูกค้าจากใบHQ(สาขา.บัญชี, ใบHQ, { customer: บริษัท, markupPercent: 10, status: "sent_to_client" })).id;
   ใบHQทำใบ = await เตรียมใบHQ(สาขา.บัญชี, { dealerCode: สาขา.รหัส, company: บริษัททำใบ, province: "ตราด",
     lines: รายการ.map(({ name, qty, unit, unitCost }) => ({ name, qty, unit, unitCost })) });
-  const t = await svc.from("material_templates").insert(แม่แบบ).select("id");
-  expect(t.error, "ใส่รายการวัสดุของข้อ").toBeNull();
-  ไอดีแม่แบบ = (t.data ?? []).map(x => Number(x.id));
   const l = await (await db(สาขา.บัญชี)).from("leads").insert({ id: `#L-${เลขลีดขอราคา}`, num_id: เลขลีดขอราคา, dealer_code: สาขา.รหัส,
     company: บริษัทขอราคา, name: บริษัทขอราคา, contact: "ผู้ทดสอบ", phone: `08${String(เลขลีดขอราคา).slice(-8)}`, province: "ตราด", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
   expect(l.error, "ลูกค้าเป้าหมายสำหรับฟอร์มขอราคา").toBeNull();
 });
 test.afterAll(async () => {
   if (ใบHQ) ล้างใบHQทดสอบ(สาขา.รหัส, [ใบHQ.leadNum, เลขลีดขอราคา, ...(ใบHQทำใบ ? [ใบHQทำใบ.leadNum] : [])]);
-  if (ไอดีแม่แบบ.length) await svc.from("material_templates").delete().in("id", ไอดีแม่แบบ);
   await สาขา?.ลบ();
 });
 
@@ -200,6 +191,7 @@ test("[ui·dealer] กล่องใบ HQ · ใบลูกค้า (แผ�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงลีด(page, บริษัท);
   // ใบ HQ ฝั่งดีลเลอร์พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — กาง "ดูรายการ" ก่อน ให้ตารางรายการใบ HQ ถูกตรวจเหมือนเดิม
+  await page.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 20_000 });   // ได้ใบ HQ แล้ว = กล่องพับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69)
   await page.locator("[data-panel='hq-quote']").getByRole("button", { name: /ดูรายการ/ }).click({ timeout: 20_000 });
   await expect(page.getByRole("table", { name: "รายการในใบ HQ" }), "ตารางรายการใบ HQ กางแล้ว").toBeVisible();
   await ตรวจหน้า(page, "แผงลีด-ใบHQ-และใบลูกค้า");
@@ -224,19 +216,9 @@ test("[ui·dealer] กล่องใบ HQ · ใบลูกค้า (แผ�
   await ตรวจหน้า(page, "ฟอร์มทำใบจากใบ-HQ");
 });
 
-test("[ui·dealer] ราคาประเมินวัสดุตอนขอราคา — ตัวเลข/ช่องกรอกชิดขวา หัวตรงแนวข้อมูล จำนวน/หน่วยแยก", async ({ page }) => {
-  await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
-  await เปิดแผงลีด(page, บริษัทขอราคา);
-  await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
-  const กล่อง = page.locator("[data-box='material-estimate']");
-  await expect(กล่อง).toBeVisible({ timeout: 20_000 });
-  for (const id of ไอดีแม่แบบ) await กล่อง.getByLabel("เลือกวัสดุ").selectOption(String(id));
-  await กล่อง.getByLabel("จำนวนวัสดุ 1").fill("38");
-  await กล่อง.getByLabel("จำนวนวัสดุ 2").fill("2240");
-  await ตรวจหน้า(page, "ราคาประเมินวัสดุ", แม่แบบ.map(t => t.name), { [แม่แบบ[0].name]: "38", [แม่แบบ[1].name]: "2,240" });
-});
+// ราคาประเมินวัสดุตอนขอราคา: เอาออกทั้งระบบ (บอสสั่ง 20 พ.ย. 69) — ตรวจกลับด้านใน form-table-fit.spec (ไม่มีกล่องวัสดุ)
 
-test("[ui·hq] ตาราง BOQ ของใบ HQ ที่ส่งแล้ว + รายการวัสดุ — ตัวเลขชิดขวา หัวตรงแนวข้อมูล · สรุปตัวหนาชิดขวาใต้ยอด", async ({ page }) => {
+test("[ui·hq] ตาราง BOQ ของใบ HQ ที่ส่งแล้ว — ตัวเลขชิดขวา หัวตรงแนวข้อมูล · สรุปตัวหนาชิดขวาใต้ยอด", async ({ page }) => {
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests?open=${ใบHQ.requestId}`, { waitUntil: "domcontentloaded" });
   await settle(page);
@@ -254,13 +236,7 @@ test("[ui·hq] ตาราง BOQ ของใบ HQ ที่ส่งแล�
   expect.soft(สรุป.หนา, "\"ราคาจาก HQ (ก่อน VAT)\" ตัวหนา").toBeGreaterThanOrEqual(700);
   expect.soft(สรุป.ป้ายชิด, "ป้ายสรุปชิดขวา").toBe("right");
   expect.soft(Math.abs(สรุป.ห่างจากหัวยอด), "ยอดรวมชิดขวาใต้คอลัมน์ยอด (ขอบขวาตรงหัว \"ยอด\")").toBeLessThanOrEqual(2);
-
-  // ตั้งค่า › รายการวัสดุ (ค้นแม่แบบของข้อ)
-  await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  await page.getByRole("button", { name: "รายการวัสดุ" }).click();
-  await page.getByLabel("ค้นรายการวัสดุ").fill(`${แท็ก}`);
-  await ตรวจหน้า(page, "รายการวัสดุ", แม่แบบ.map(t => t.name), {});
+  // ตั้งค่า › รายการวัสดุ: เอาออกทั้งระบบ (บอสสั่ง 20 พ.ย. 69)
 });
 
 test("[ui·มือถือ] กล่องใบ HQ + ใบลูกค้าบนจอ 390px: หน้าไม่ล้นจอ ตารางเลื่อนในกล่องตัวเอง · ตัวเลขชิดขวา หัวตรงแนว", async ({ page }) => {
@@ -268,6 +244,7 @@ test("[ui·มือถือ] กล่องใบ HQ + ใบลูกค้�
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   await เปิดแผงลีด(page, บริษัท);
   // ใบ HQ ฝั่งดีลเลอร์พับเป็นบรรทัดสรุป (บอสสั่ง 3 พ.ย. 69) — กาง "ดูรายการ" ก่อน ให้ตารางรายการใบ HQ ถูกตรวจเหมือนเดิม
+  await page.locator("[data-panel='quote-request']").getByRole("button", { name: "ดูคำขอและใบ HQ", exact: true }).click({ timeout: 20_000 });   // ได้ใบ HQ แล้ว = กล่องพับเป็นค่าเริ่มต้น (บอสสั่ง 20 พ.ย. 69)
   await page.locator("[data-panel='hq-quote']").getByRole("button", { name: /ดูรายการ/ }).click({ timeout: 20_000 });
   await expect(page.getByRole("table", { name: "รายการในใบ HQ" }), "ตารางรายการใบ HQ กางแล้ว").toBeVisible();
   await ตรวจหน้า(page, "มือถือ-แผงลีด");

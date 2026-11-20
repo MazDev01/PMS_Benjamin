@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { ยืนยัน, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import {
   leadStatusLabel, buildLeadReport, applyTaskTemplate, findAppointmentTask,
-  seedLeadTasks, apptTypeLabel, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
+  seedLeadTasks, apptTypeLabel, ป้ายประเภทนัด, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย, นัดยังเปิด,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
@@ -1042,11 +1042,19 @@ export default function LeadsPage() {
   function resetApptForm() { นัดบังคับ.ล้าง("apptType"); นัดบังคับ.ล้าง("apptDate"); นัดบังคับ.ล้าง("apptTime"); setApptAdding(false); setApptForm({ type: "", date: APP_NOW_ISO, time: "10:00", title: "", note: "" }); }
   // พาไปแท็บใบเสนอราคาของลูกค้าเป้าหมายนี้ — ใช้ทั้งตอนพาไปออกใบใหม่ และตอนพาไปกดส่งใบที่มีอยู่
   const [quoteFormSignal, setQuoteFormSignal] = useState(0);
+  const [ฟอร์มใบเปิด, setฟอร์มใบเปิด] = useState(false);   // ฟอร์มทำใบในแท็บใบเสนอราคาเปิดอยู่ (พับคำขอ/ใบ HQ ข้างบน)
   // ปุ่ม "ขั้นต่อไป" สั่งแผงคำขอราคาเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) — n เปลี่ยน = สั่งใหม่
   const [reqSignal, setReqSignal] = useState<{ mode: "ขอราคา" | "แก้ราคา"; n: number } | undefined>(undefined);
   // ปุ่ม "บันทึกผลจากลูกค้า" สั่งแท็บใบเสนอราคาเปิดใบที่รอลูกค้าตอบ (ทำในแผง · รอบ 4)
   const [quoteViewSignal, setQuoteViewSignal] = useState<{ id: string; n: number } | undefined>(undefined);
+  // เปลี่ยน/ปิดลูกค้าเป้าหมาย = ล้างคำสั่งขอแก้ราคา/บันทึกผลที่ยังค้าง (บั๊ก 20 พ.ย. 69 บอส "ทำไมกดแล้วมันเด้ง":
+  //   กด "ขอราคาใหม่" ที่รายหนึ่งแล้ว เปิดอีกราย → กล่องขอแก้ราคาของรายใหม่เด้งเอง) · สองคำสั่งนี้ตั้งจากกล่องขั้นต่อไปของรายที่เปิดอยู่เท่านั้น
+  //   (คำสั่งทำใบตั้งพร้อมเปลี่ยนรายได้ — ล้างที่ openPanel/closePanel + ใช้แล้วล้าง แทน)
+  const รหัสลีดที่เปิด = selectedLead?.id;
+  useEffect(() => { setReqSignal(undefined); setQuoteViewSignal(undefined); }, [รหัสลีดที่เปิด]);
+  function ล้างคำสั่งค้าง() { setReqSignal(undefined); setQuoteViewSignal(undefined); }
   function focusQuotationTab(l: LeadRow) {
+    if (selectedLead?.id !== l.id) ล้างคำสั่งค้าง();   // เปลี่ยนรายแล้วเท่านั้น (คำสั่งทำใบของรายนี้ตั้งต่อจากนี้)
     setSelectedLead(l); setDraft({ ...l });
     setEditingField(null); setShowDeleteConfirm(false);
     setPopupField(null); setEditPopupPos(null);
@@ -1071,6 +1079,7 @@ export default function LeadsPage() {
     setEditingField(null); setShowDeleteConfirm(false);
     setDTab("overview");
     setQuoteFormSignal(0); // เปิดแผงตามปกติ = ไม่ได้สั่งออกใบ (กันฟอร์มค้างจากลูกค้าเป้าหมายก่อนหน้า)
+    ล้างคำสั่งค้าง();      // กันกล่องขอแก้ราคา/เลือกผลเด้งเองตอนเปิดหน้าต่าง (บั๊ก 20 พ.ย. 69) — ล้างในรอบเดียวกับที่เปิด ไม่รอ effect
     setPopupField(null); setEditPopupPos(null);
     resetApptForm(); // กันฟอร์มนัดหมายค้างข้ามลูกค้าเป้าหมาย
     // รายงานติดตาม (report) กับไทม์ไลน์ (activities) ไม่ได้มากับรายการ
@@ -1087,7 +1096,7 @@ export default function LeadsPage() {
   }
   function closePanel() {
     ตั้งแผงในURL(null);
-    setSelectedLead(null); setDraft(null); setQuoteFormSignal(0);
+    setSelectedLead(null); setDraft(null); setQuoteFormSignal(0); ล้างคำสั่งค้าง();
     setEditingField(null); setShowDeleteConfirm(false);
     setPopupField(null); setEditPopupPos(null);
     resetApptForm();
@@ -1783,7 +1792,7 @@ export default function LeadsPage() {
                     <span style={{ width:32, height:32, borderRadius:"50%", background:"#e7eef7", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Calendar size={15} color="#003366" /></span>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:"0.8rem", fontWeight:700, color:"#2D2D2D" }}>{a.project}</div>
-                      <div style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2 }}>{apptTypeLabel[a.type]} · {fmtISOToThai(a.date)} · {a.time} น.</div>
+                      <div style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2 }}>{ป้ายประเภทนัด(a.type)} · {fmtISOToThai(a.date)} · {a.time} น.</div>
                       {/* สถานที่นัด (ฟอร์มนัดใหม่ในปฏิทิน · 19 พ.ย. 69 เดิมบันทึกแล้วไม่มีที่แสดง) · ไม่มี = ไม่แสดงบรรทัด */}
                       {a.location?.trim() && <div data-appt-location style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2, overflowWrap:"anywhere" }}>สถานที่: {a.location.trim()}</div>}
                     </div>
@@ -1914,9 +1923,11 @@ export default function LeadsPage() {
         const tabQuotation = (
           <DrawerSection title="ใบเสนอราคา">
             {/* ราคาจากสำนักงานใหญ่ (Flow ใหม่ · ขั้น 3) — ส่งคำขอ / ยกเลิก / ขอแก้ราคา · ฐานข้อมูลขยับสถานะเอง */}
-            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} />
+            {/* ฟอร์มทำใบเปิด = พับคำขอ/ใบ HQ ข้างบน + เลื่อนจอมาที่ฟอร์มเอง (บอสสั่ง 20 พ.ย. 69) */}
+            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} พับ={ฟอร์มใบเปิด} onSignalUsed={() => setReqSignal(undefined)} />
             <LeadQuotationsPanel lead={c} onToast={setToast} openCreateSignal={quoteFormSignal} openViewSignal={quoteViewSignal}
-              onWon={company => setJustWonCompany(company)} />
+              onWon={company => setJustWonCompany(company)} onFormOpenChange={setฟอร์มใบเปิด}
+              onSignalUsed={ชนิด => (ชนิด === "create" ? setQuoteFormSignal(0) : setQuoteViewSignal(undefined))} />
           </DrawerSection>
         );
 
@@ -2050,7 +2061,7 @@ export default function LeadsPage() {
               </div>
 
               {/* Body — เนื้อหาตามแท็บ */}
-              <div style={{ flex:1, overflowY:"auto", background:"#f5f7fa" }}>
+              <div data-lead-drawer-scroll style={{ flex:1, overflowY:"auto", background:"#f5f7fa" }}>
                 {/* ── TAB: ภาพรวม ── */}
                 {/* บอสสั่ง 28 ต.ค. 69: งานในแต่ละขั้นอยู่แท็บภาพรวม ใต้แถบ 4 ขั้น · แท็บประวัติเหลือไทม์ไลน์อย่างเดียว */}
                 <div style={{ padding:16, display:dTab==="overview"?"flex":"none", flexDirection:"column", gap:14 }}>

@@ -28,7 +28,7 @@ import {
   หัวกราฟรายเดือน, เดือนตามช่วง, monthKey, monthKeyOf, ป้ายเดือนปี,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
-  apptTypeLabel, fmtISOToThai,
+  ป้ายประเภทนัด, fmtISOToThai,
   quotationStatusLabel, quotationStatusColor, DEFAULT_DEALER_CODE, QUOTED_UP,
 } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -335,8 +335,12 @@ export default function DealerDashboard() {
   const kpi = useKpiCards("dealer.dashboard", { ...ช่วงการ์ด, today: วันที่ISO(APP_NOW), รุ่น: salesVersion });
   const เป้าปี = ค่า(kpi, "target.annual"), ยอดปี = ค่า(kpi, "target.ytd"), อัตราปิด = ค่า(kpi, "won.rate");
   const kpiCards = [
-    { kpi: "target", label: "เป้าหมายยอดขาย", value: บาทเต็ม(เป้าปี), rawValue: เป้าปี, unit: "เป้าหมายทั้งปี", empty: kpi ? "ยังไม่ได้ตั้งเป้า" : "กำลังโหลด…",
-      sub: ยอดปี == null ? undefined : `ยอดขายสะสมทั้งปี ${บาทเต็ม(ยอดปี)}`, ring: ค่า(kpi, "target.pct"), icon: Target, href: "/quotations" },
+    // ยอดขายปีนี้เทียบเป้า (บอสเลือก 19 พ.ย. 69): ตัวเลขใหญ่ = ยอดขายสะสมตั้งแต่ต้นปี · บรรทัดล่าง = "จากเป้าทั้งปี ฿…" · วง % เดิม
+    //   ⓘ = YTD เทียบเป้าทั้งปี ไม่เฉลี่ยตามช่วง (ความจำ sales-goal-annual-ytd) · เดิมตัวเลขใหญ่ = เป้าทั้งปี ยอดสะสมเป็นบรรทัดรอง
+    { kpi: "target", label: "ยอดขายปีนี้เทียบเป้า", value: บาทเต็ม(ยอดปี), rawValue: ยอดปี, empty: kpi ? "ยังไม่มีข้อมูลยอดขายปีนี้" : "กำลังโหลด…",
+      บรรทัดล่าง: เป้าปี == null ? "ยังไม่ได้ตั้งเป้าทั้งปี" : `จากเป้าทั้งปี ${บาทเต็ม(เป้าปี)}`,
+      unit: "ยอดขายสะสมตั้งแต่ต้นปีถึงวันนี้ (ใบที่ลูกค้าตอบรับ) เทียบเป้าทั้งปี · ไม่เฉลี่ยตามช่วงเวลา · ไม่ขึ้นกับตัวกรองช่วงเวลา",
+      ring: ค่า(kpi, "target.pct"), icon: Target, href: "/quotations" },
     { kpi: "pipeline", label: "โอกาสการขาย", value: บาทเต็ม(ค่า(kpi, "pipeline.value")), rawValue: ค่า(kpi, "pipeline.value"),
       unit: `${นับ(ค่า(kpi, "pipeline.count")) ?? "—"} งานขาย · รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่`, icon: TrendingUp, color: SUCCESS, bg: "#E6F7EE", href: "/leads" },
     { kpi: "awaiting", label: "รอลูกค้าตอบ", value: นับ(ค่า(kpi, "awaiting.count")), rawValue: ค่า(kpi, "awaiting.count"),
@@ -370,7 +374,8 @@ export default function DealerDashboard() {
       {/* SECTION 1 — การ์ด KPI 4 ใบ (คอมโพเนนต์กลาง · ทั้งใบกดได้ ไปรายการที่ตรงเรื่อง) */}
       <KpiRow label="สรุปงานขายของสาขา" range={ช่วงการ์ด} style={{ marginBottom: 24 }}>
         {kpiCards.map(k => (
-          <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={k.value} rawValue={k.rawValue} unit={k.unit} empty={k.empty} sub={k.sub}
+          <KpiCard key={k.kpi} kpi={k.kpi} label={k.label} value={k.value} rawValue={k.rawValue} unit={k.unit} empty={k.empty} sub={"sub" in k ? k.sub : undefined}
+            บรรทัดล่าง={"บรรทัดล่าง" in k ? k.บรรทัดล่าง : undefined}
             ring={"ring" in k ? k.ring : undefined} icon={k.icon} color={k.color} bg={k.bg} actionLabel="ดูรายละเอียด" onClick={() => router.push(k.href)} />
         ))}
       </KpiRow>
@@ -483,7 +488,7 @@ export default function DealerDashboard() {
                     color={a.type === "follow_up" ? "#2563EB" : a.type === "presentation" ? "#EA580C" : "#7C3AED"}
                     bg={a.type === "follow_up" ? "#E8F0FE" : a.type === "presentation" ? "#FEF0E6" : "#F0EBFB"} />
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 700, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{apptTypeLabel[a.type]} {a.company}</span>
+                    <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 700, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ป้ายประเภทนัด(a.type)} {a.company}</span>
                     <span style={{ display: "block", fontSize: "0.76rem", color: SUB, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.project}</span>
                   </span>
                   <span style={{ fontSize: "0.82rem", fontWeight: 700, color: SUB, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{a.time}</span>

@@ -10,6 +10,7 @@
 //   profile  : อ่าน/เขียนของ "ตัวเอง" เท่านั้น — id มาจากใบผ่าน ไม่ใช่จากผู้เรียก
 import type { NextRequest } from "next/server";
 import { handler, ok, dbFail, fail } from "./_ctx";
+import { pageAll } from "./_page";
 import { toCamelList, toSnake } from "@pms/shared/lib/data/supabase/mappers";
 import type { DealerRow, ResponsiblePerson, UserProfile, HQCompany, DealerSettings } from "@pms/shared/lib/data/types";
 
@@ -19,12 +20,18 @@ export { runtime } from "./_ctx";
 // ── ผู้รับผิดชอบ (พนักงานขายของสาขา) ──
 export const personsGET = handler("persons.list", async (req: NextRequest, sb) => {
   const dealer = new URL(req.url).searchParams.get("dealer") ?? "";
-  let q = sb.from("responsible_persons").select("*").order("id", { ascending: true });
-  if (dealer) q = q.eq("dealer_code", dealer);
-  const { data, error } = await q;
-  if (error) return dbFail("persons.list", error);
+  // แบ่งหน้าจนครบ (19 พ.ย. 69 · HQ อ่านพนักงานขายทุกสาขา — ฐานคืนสูงสุด 1,000 แถว/คำขอ)
+  let data: Row[];
+  try {
+    ({ rows: data } = await pageAll((from, to) => {
+      const base = sb.from("responsible_persons").select("*").order("id", { ascending: true }).range(from, to);
+      return dealer ? base.eq("dealer_code", dealer) : base;
+    }));
+  } catch (e) {
+    return dbFail("persons.list", { message: (e as Error).message, code: (e as { code?: string }).code });
+  }
   // id ในแอปเป็นแค่ลำดับท้องถิ่น (ใช้เป็น React key) — ต้อง reindex ให้ตรงกับของเดิม
-  const rows = toCamelList<ResponsiblePerson>((data ?? []) as Row[]).map((p, i) => ({ ...p, id: i + 1 }));
+  const rows = toCamelList<ResponsiblePerson>(data).map((p, i) => ({ ...p, id: i + 1 }));
   return ok(rows);
 });
 
