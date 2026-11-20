@@ -51,7 +51,6 @@ import {
 // แท็บ "บริษัท" / "ผู้ใช้งาน" ฝังหน้าจัดการจริงเต็ม
 import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
 import { UsersPanel } from "@pms/shared/components/hq/UsersPanel";
-import { MaterialTemplatesPanel } from "@pms/shared/components/hq/MaterialTemplatesPanel";
 import { StorageUsagePanel } from "@pms/shared/components/hq/StorageUsagePanel";
 import { SectionCard } from "@pms/shared/components/ui/SectionCard";
 import { InfoTip } from "@pms/shared/components/ui/InfoTip";
@@ -65,7 +64,7 @@ import {
   Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, ArrowUp, ArrowDown,
   Save, RotateCcw, Plus, Trash2, Check, X,
   Download, Upload, RefreshCw, AlertCircle,
-  Mail, Boxes, HardDrive,
+  Mail, HardDrive,
 } from "lucide-react";
 
 // ── tokens (Benjamin CI) ────────────────────────────────────────────────────
@@ -636,8 +635,7 @@ const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNo
   // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
   { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
   { key: "targets", label: "เป้าหมายยอดขาย", icon: <Target size={15} />, render: () => <TargetsTab /> },
-  // รายการวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) — วัสดุ/ส่วนประกอบ + ราคาต่อหน่วย ดีลเลอร์เลือกตอนขอราคา (ไม่ใช่แม่แบบอาคารแบบเดิม)
-  { key: "materials", label: "รายการวัสดุ", icon: <Boxes size={15} />, render: () => <MaterialTemplatesPanel /> },
+  // รายการวัสดุ: เอาออกทั้งระบบ (บอสสั่ง 20 พ.ย. 69 · ทับ 26 ต.ค. 69) — ตาราง material_templates ในฐานคงไว้ ไม่ลบ (ซ่อนหน้าจอเท่านั้น)
   { key: "notifications", label: "การแจ้งเตือน", icon: <Bell size={15} />, render: () => <NotificationsTab /> },
   // พื้นที่เก็บไฟล์ (บอสสั่ง 2 พ.ย. 69 · ใบ 0273) — ที่ใช้ไปทุกถัง เทียบโควตาที่ HQ ใส่เอง (ไม่ใส่ = ไม่เดา)
   { key: "storage", label: "พื้นที่เก็บไฟล์", icon: <HardDrive size={15} />, render: () => <StorageUsagePanel /> },

@@ -31,8 +31,6 @@ import type { LeadRow } from "@pms/shared/lib/mock";
 // ชื่อขั้นจากแหล่งเดียว (leadStage.ts) — เดิมพิมพ์ชื่อสถานะเก่า "ติดต่อแล้ว/รวบรวมความต้องการ" ไม่ตรงแถบ 5 ขั้น (บอสสั่ง 28 ต.ค. 69)
 import { ชื่อขั้นการขาย } from "@pms/shared/lib/leadStage";
 import { ช่องขอราคา, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
-import { MaterialEstimatePicker, type วัสดุที่เลือก } from "@pms/shared/components/ui/MaterialEstimatePicker";
-import { ป้ายราคาประเมิน } from "@pms/shared/lib/materialTemplates";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
 import { ตารางรายการ } from "@pms/shared/components/ui/LineItemsTable";
 import { จัดรูปจำนวน, จัดรูปหน่วย } from "@pms/shared/lib/lineItemColumns";
@@ -75,8 +73,6 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const [product, setProduct] = useState("");
   const [spec, setSpec] = useState("");
   const [area, setArea] = useState("");
-  // วัสดุจากแม่แบบ (ไม่บังคับ · ใบ 0244) — ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา
-  const [วัสดุ, setวัสดุ] = useState<วัสดุที่เลือก[]>([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
@@ -132,7 +128,6 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
       setProduct(ล่าสุด.project ?? "");
       setArea(ล่าสุด.area != null && Number(ล่าสุด.area) > 0 ? String(ล่าสุด.area) : "");
       setSpec(ล่าสุด.note ?? "");
-      setวัสดุ([]);
       setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
     }
     setโหมด(m);
@@ -197,17 +192,16 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const ส่งคำขอ = async () => {
     if (busy) return;
     if (!บังคับขอ.ตรวจ([{ key: "product", label: ช่องขอราคา.งาน, value: product, ข้อความ: "ระบุงานที่ขอราคาก่อน" }])) { setErr(`กรอกให้ครบก่อน: ${ช่องขอราคา.งาน}`); return; }
-    if (วัสดุ.some(v => !(v.qty > 0))) { setErr("จำนวนวัสดุต้องมากกว่า 0 — แก้หรือเอาออกก่อนส่ง"); return; }
     setErr(""); setBusy(true);
     try {
-      const คำขอ = await repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: วัสดุ });
+      const คำขอ = await repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: [] });   // ไม่มีวัสดุ/ราคาประเมินแล้ว (บอสสั่ง 20 พ.ย. 69)
       // ไฟล์ตามไปหลังมีเลขคำขอ — ไฟล์ไหนไม่ผ่าน บอกชื่อ (คำขอส่งแล้ว แนบเพิ่มได้ในกล่องไฟล์แนบ)
       const ไม่ผ่าน: string[] = [];
       for (const f of ไฟล์รอส่ง) {
         try { await quoteFiles.upload(คำขอ.id, "dealer", f); } catch (e) { ไม่ผ่าน.push(`${f.name}: ${friendlyError(e)}`); }
       }
       await หลังทำ();
-      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setวัสดุ([]); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
+      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
       if (ไม่ผ่าน.length) setErr(`ส่งคำขอแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${ไม่ผ่าน.join(" · ")} (แนบใหม่ได้ที่กล่องไฟล์แนบ)`);
     } catch (e) { setErr(friendlyError(e)); }
     finally { setBusy(false); }
@@ -231,12 +225,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
             {เปิด.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
           </div>
           <div>งานที่ขอราคา: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
-          {เปิด.estimateTotal != null && (
-            <div className="no-print" data-testid="request-estimate">
-              ราคาประเมินจากวัสดุ {(เปิด.estimateItems ?? []).length} รายการ: <b>{บาท(Number(เปิด.estimateTotal))} บาท</b>{" "}
-              <span className="badge" style={{ background: "#fef3c7", color: "#92400e" }}>{ป้ายราคาประเมิน}</span>
-            </div>
-          )}
+          {/* ราคาประเมินจากวัสดุ: เอาออก (บอสสั่ง 20 พ.ย. 69 เอารายการวัสดุออกทั้งระบบ) — estimate ของคำขอเก่าอยู่ในฐาน ไม่แสดง */}
           {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
           {/* ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69): บรรทัดสรุปเดียว · "ดูรายการ" กางตาราง · ไม่ซ้อนกรอบเพิ่ม (กล่องม่วง = ชั้นเดียว)
               ใต้ใบ = เฉพาะไฟล์ที่ HQ แนบกับใบฉบับนี้ ไม่มี = ไม่แสดงกล่อง ("ให้แสดงเฉพาะไฟล์ที่ HQ แนบมา") · ปุ่มทำใบให้ลูกค้าอยู่ที่กล่องขั้นต่อไปเหมือนเดิม */}
@@ -344,7 +333,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           <label className="form-label" htmlFor="qr-spec">{ช่องขอราคา.สเปก}</label>
           <textarea id="qr-spec" aria-label={ช่องขอราคา.สเปก} rows={3} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
           <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>{ช่องขอราคา.จังหวัด}: {lead.province || "—"}</div>
-          <MaterialEstimatePicker value={วัสดุ} onChange={setวัสดุ} disabled={busy} />
+          {/* เลือกวัสดุ/ราคาประเมิน: เอาออก (บอสสั่ง 20 พ.ย. 69) — คำขอใหม่ส่ง estimate ว่าง */}
           {/* ไฟล์แนบถึง HQ (ไม่บังคับ · ใบ 0273) — กล่องแนบไฟล์กลาง หน้าตาเดียวกับฝั่ง HQ (บอสสั่ง 3 พ.ย. 69 "ทำเป็นปุ่มแบบของ HQ")
               ไฟล์ส่งตามคำขอทันทีหลังส่ง · ไฟล์ที่ไม่ผ่านขึ้นเป็นแถวเตือนของไฟล์นั้น ไม่ถูกส่ง */}
           <div data-field="request-files" style={{ display: "grid", gap: 6, background: "#f8fafc", border: "1px solid #eef1f5", borderRadius: 12, padding: "10px 12px" }}>

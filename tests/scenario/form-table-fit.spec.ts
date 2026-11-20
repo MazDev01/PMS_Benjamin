@@ -4,7 +4,7 @@ import { SERVICE_ROLE_READY } from "./adminEnv";
 import { HQ_ORIGIN, DEALER_ORIGIN, db, loginUI, watchErrors, assertNoErrors } from "./funcHelpers";
 import { settle, เปิดใบHQในกล่องงาน } from "./helpers";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, ข้อมูลงานครบชุด, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
-import { adminClient, กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
+import { กรอกข้อมูลบริษัททดสอบ } from "./testDealers";
 import { สร้างสาขาของข้อ, type สาขาของข้อ } from "./ownDealer";
 
 // ── ตารางกรอกในหน้าต่าง 820: ช่องในแถวไม่ทับกัน · หัวคอลัมน์ไม่ถูกตัด (บอสสั่งแก้ก่อนปิดรอบ 11 พ.ย. 69 · บั๊กงานหน้าต่าง 820) ──
@@ -21,12 +21,7 @@ const แท็ก = Date.now() % 100000;
 const บริษัทขอราคา = `ZZTEST-ช่องทับ-ขอราคา-${แท็ก}`;
 const บริษัทใบHQ = `ZZTEST-ช่องทับ-ใบHQ-${แท็ก}`;
 const บริษัททำใบ = `ZZTEST-ช่องทับ-ทำใบ-${แท็ก}`;
-const แม่แบบ = [
-  { category: "ZZTEST", name: `ZZTEST เหล็กโครงสร้างรูปพรรณ ${แท็ก}`, unit: "ตัน", unit_price: 32000 },
-  { category: "ZZTEST", name: `ZZTEST แผ่นหลังคาเมทัลชีท ${แท็ก}`, unit: "ตร.ม.", unit_price: 350 },
-];
-const svc = adminClient();
-let สาขา: สาขาของข้อ, ใบทำใบ: ใบHQพร้อมใช้ | null = null, ไอดีแม่แบบ: number[] = [];
+let สาขา: สาขาของข้อ, ใบทำใบ: ใบHQพร้อมใช้ | null = null;
 const เลขขอราคา = เลขลูกค้าเป้าหมายทดสอบ(), เลขใบHQ = เลขลูกค้าเป้าหมายทดสอบ();
 
 // ข้อมูลตั้งที่ beforeAll ครั้งเดียว · ข้อ HQ ไม่ใช้ใบที่บันทึกแล้ว · ใบ HQ ของฝั่งดีลเลอร์เตรียมใน beforeAll เดียวกัน
@@ -35,9 +30,6 @@ test.describe.configure({ mode: "serial" });
 test.beforeAll(async () => {
   สาขา = await สร้างสาขาของข้อ({ จังหวัด: "ตราด" });
   await กรอกข้อมูลบริษัททดสอบ(สาขา.รหัส);
-  const t = await svc.from("material_templates").insert(แม่แบบ).select("id");
-  expect(t.error, "รายการวัสดุของข้อ").toBeNull();
-  ไอดีแม่แบบ = (t.data ?? []).map(x => Number(x.id));
   const sd = await db(สาขา.บัญชี);
   for (const [เลข, ชื่อ] of [[เลขขอราคา, บริษัทขอราคา], [เลขใบHQ, บริษัทใบHQ]] as const)
     expect((await sd.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: สาขา.รหัส, company: ชื่อ, name: ชื่อ, contact: "ผู้ทดสอบ",
@@ -48,7 +40,6 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   if (สาขา) ล้างใบHQทดสอบ(สาขา.รหัส, [เลขขอราคา, เลขใบHQ, ...(ใบทำใบ ? [ใบทำใบ.leadNum] : [])]);
-  if (ไอดีแม่แบบ.length) await svc.from("material_templates").delete().in("id", ไอดีแม่แบบ);
   await สาขา?.ลบ();
 });
 
@@ -109,15 +100,7 @@ test("[ui·hq] ตารางกรอกในหน้าต่าง 820: �
     await expect(คำบรรยาย).not.toContainText("ต้นทุนต่อหน่วย");
     await page.keyboard.press("Escape");
 
-    await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" }); await settle(page);
-    await page.getByRole("button", { name: "รายการวัสดุ" }).click();
-    const แผง = page.locator("[data-panel='material-templates']");
-    await expect(แผง.getByRole("button", { name: "เพิ่มวัสดุ" })).toBeEnabled({ timeout: 20_000 });
-    await แผง.getByRole("button", { name: "เพิ่มวัสดุ" }).click();
-    const เพิ่ม = page.getByRole("dialog", { name: "เพิ่มวัสดุ" });
-    await expect(เพิ่ม).toBeVisible();
-    await ตรวจตาราง(เพิ่ม.locator("table").first(), `เพิ่มวัสดุหลายแถว @${ขนาด.width}`);
-    await page.keyboard.press("Escape");
+    // หน้าต่างเพิ่มวัสดุหลายแถว (HQ › ตั้งค่า › รายการวัสดุ) เอาออก — รายการวัสดุเอาออกทั้งระบบ (บอสสั่ง 20 พ.ย. 69)
   }
   assertNoErrors(errs, "ตารางกรอก HQ");
 });
@@ -131,18 +114,16 @@ async function เปิดแผงลีด(page: Page, company: string) {
   await แถว.locator("td").first().click();
 }
 
-test("[ui·dealer] ตารางกรอกในหน้าต่าง 820: ฟอร์มขอราคา (ราคาประเมินวัสดุ) + ฟอร์มทำใบ (บวก %) — ช่องไม่ทับกัน หัวไม่ถูกตัด (1366 · 1920)", async ({ page }) => {
+test("[ui·dealer] ตารางกรอกในหน้าต่าง 820: ฟอร์มทำใบ (บวก %) — ช่องไม่ทับกัน หัวไม่ถูกตัด (1366 · 1920)", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, DEALER_ORIGIN, "/login", สาขา.บัญชี);
   for (const ขนาด of จอ) {
     await page.setViewportSize(ขนาด);
+    // ฟอร์มขอราคา: ตารางราคาประเมินวัสดุเอาออก (บอสสั่ง 20 พ.ย. 69 · ตรวจกลับด้าน: ไม่มีกล่องวัสดุ)
     await เปิดแผงลีด(page, บริษัทขอราคา);
     await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
-    const กล่อง = page.locator("[data-box='material-estimate']");
-    await expect(กล่อง).toBeVisible({ timeout: 20_000 });
-    for (const id of ไอดีแม่แบบ) await กล่อง.getByLabel("เลือกวัสดุ").selectOption(String(id));
-    await กล่อง.getByLabel("จำนวนวัสดุ 2").fill("2240");
-    await ตรวจตาราง(กล่อง.locator("table").first(), `ฟอร์มขอราคา @${ขนาด.width}`);
+    await expect(page.locator("#qr-product"), "ฟอร์มขอราคาเปิด").toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("[data-box='material-estimate']"), "ไม่มีกล่องเลือกวัสดุ/ราคาประเมิน").toHaveCount(0);
 
     await เปิดแผงลีด(page, บริษัททำใบ);
     await page.locator('[data-panel="next-step"]:not([aria-busy]) [data-next-step="make_quote"]').click({ timeout: 20_000 });
