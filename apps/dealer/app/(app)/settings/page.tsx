@@ -401,9 +401,10 @@ function DocumentsTab() {
                   </div>
                 </div>
               </div>
-              <div data-doc-group="pricing">
+              <div data-doc-group="pricing" className="doc-rate-wrap">
                 {หัวกลุ่ม("ราคาและภาษี")}
-                <div data-doc-rates style={กริด}>
+                {/* 4 / 2 / 1 ช่องต่อแถวตามความกว้างกล่อง (globals.css .doc-rate-grid) — เดิม auto-fill ได้ 3 + 1 ค้าง (deploy29) */}
+                <div data-doc-rates className="doc-rate-grid">
                   <div data-doc-rate="vat">
                     {/* เดิมล็อกไว้ให้สำนักงานใหญ่กำหนดทั้งเครือ · บอสสั่งเปิดให้ดีลเลอร์ตั้งเอง (7 ส.ค. 69) · ใบที่ออกไปแล้วไม่กระทบ (ทุกใบตรึง % VAT ไว้ตั้งแต่ตอนสร้าง) */}
                     <FieldLabel htmlFor="doc-vat" required style={ป้าย}>VAT (%)</FieldLabel>

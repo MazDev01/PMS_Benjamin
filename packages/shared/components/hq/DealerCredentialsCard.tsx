@@ -363,7 +363,7 @@ export function DealerCredentialsCard({ dealer }: { dealer: DealerRow }) {
                   placeholder="อย่างน้อย 8 ตัว ห้ามมีช่องว่าง" style={ช่องกรอก} />
               </label>
               {ผิดพลาด && (
-                <div role="alert" style={{ fontSize: "0.74rem", color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 11px" }}>{ผิดพลาด}</div>
+                <div role="alert" data-account-create-error style={{ fontSize: "0.74rem", color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 11px" }}>{ผิดพลาด}</div>
               )}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button onClick={() => setตั้งบัญชี(null)} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid #d5dbe4", background: "#fff", color: "#374151", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>ยกเลิก</button>

@@ -58,7 +58,8 @@ test("[H·hq] แผงดีลเลอร์ไม่มีบัญชี �
   await ช่องอีเมล.fill("zztest-other@example.test");
   await page.getByLabel("รหัสผ่านของบัญชีใหม่", { exact: true }).fill(รหัสผ่าน);
   await page.getByRole("button", { name: "ตั้งบัญชี", exact: true }).click();
-  await expect(page.getByRole("alert"), "อีเมลผิดรูปแบบสาขา").toContainText(อีเมล);
+  // ตัวชี้ตรงตัว: หน้าต่างดีลเลอร์มี role=alert อื่นด้วย (เตือนข้อมูลบริษัทไม่ครบ · ตัวประกาศเส้นทางของ Next) — รอบตรวจ deploy29
+  await expect(page.locator("[data-account-create-error]"), "อีเมลผิดรูปแบบสาขา").toHaveText(`อีเมลเข้าระบบของสาขานี้ต้องเป็น ${อีเมล}`);
   await ช่องอีเมล.fill(อีเมล);
   await page.getByRole("button", { name: "ตั้งบัญชี", exact: true }).click();
   await expect(page.getByText("ตั้งบัญชีแล้ว — แจ้งอีเมลและรหัสผ่านนี้ให้ดีลเลอร์ทราบ", { exact: true }), "โชว์บัญชีใหม่ให้คัดลอก").toBeVisible({ timeout: 20_000 });
