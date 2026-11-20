@@ -21,11 +21,16 @@ import {
   หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
 } from "@pms/shared/lib/prospectImport";
+import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
 
 const ที่จำ = "bpms_prospect_import_map";
 const ขั้นที่นำเข้าได้: { k: ขั้นนำเข้า; label: string }[] = [
   { k: "new", label: "รอติดต่อ" }, { k: "contacted", label: "ติดต่อแล้ว" }, { k: "profile_sent", label: "ส่งข้อมูลบริษัทแล้ว" }, { k: "lost", label: "ไม่สำเร็จ" },
 ];
+type กลุ่มเฟซบุ๊ก = "import" | "dup" | "short" | "noprov" | "skip";
+const เป็นซ้ำ = (r: แถวเฟซบุ๊ก) => !!r.ข้าม && (r.ข้าม.startsWith("เบอร์ซ้ำ") || r.ข้าม === "เบอร์นี้มีผู้สนใจอยู่แล้ว");
+const ในกลุ่มเฟซบุ๊ก = (r: แถวเฟซบุ๊ก, g: กลุ่มเฟซบุ๊ก) =>
+  g === "import" ? !r.ข้าม : g === "dup" ? เป็นซ้ำ(r) : g === "short" ? !r.ข้าม && r.เบอร์ไม่ครบ : g === "noprov" ? !r.ข้าม && !r.province : !!r.ข้าม && !เป็นซ้ำ(r);
 const ป้ายกลุ่ม: Record<กลุ่มแถว, string> = { ready: "พร้อม", review: "ต้องตรวจ", skip: "ข้าม" };
 const ปีพศนี้ = () => new Date(Date.now() + 7 * 3_600_000).getUTCFullYear() + 543;
 const อ่านที่จำ = (): Record<string, การจับคู่> => { try { return JSON.parse(localStorage.getItem(ที่จำ) ?? "{}"); } catch { return {}; } };
@@ -53,10 +58,13 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   const [ผล, setผล] = useState<ผลนำเข้าผู้สนใจ | null>(null);
   const [พลาด, setพลาด] = useState("");
   const [ชุด, setชุด] = useState<ชุดนำเข้าผู้สนใจ[]>([]);
+  // ไฟล์ลีดจาก Facebook Lead Ads (บอสสั่ง 20 พ.ย. 69 · ใบ 0292) — รู้จักจากหัว full_name + phone_number · อ่านทุกชีต · ไม่มีหน้าจับคู่คอลัมน์
+  const [เฟซบุ๊ก, setเฟซบุ๊ก] = useState<แถวเฟซบุ๊ก[] | null>(null);
+  const [ดูเฟซบุ๊ก, setดูเฟซบุ๊ก] = useState<กลุ่มเฟซบุ๊ก>("import");
   const โหลดชุด = () => prospectsRepo.importBatches().then(setชุด).catch(() => setชุด([]));
   useEffect(() => { if (open) void โหลดชุด(); }, [open]);
   useEffect(() => { if (open && ไฟล์เริ่ม) void เลือกไฟล์(ไฟล์เริ่ม); }, [open, ไฟล์เริ่ม]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const ล้าง = () => { setไฟล์(null); setแถว(null); setผล(null); setพลาด(""); setแถวหัว(-1); setคู่({}); };
+  const ล้าง = () => { setไฟล์(null); setเฟซบุ๊ก(null); setแถว(null); setผล(null); setพลาด(""); setแถวหัว(-1); setคู่({}); };
 
   const หัว = ไฟล์ && แถวหัว >= 0 ? ไฟล์.ตาราง[แถวหัว] ?? [] : [];
   // ช่องทางดิบที่พบในไฟล์ (ทำตารางแปลงให้แก้)
@@ -72,6 +80,12 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     try {
       const เล่ม = await อ่านสมุดงานจากไฟล์(f);
       const ตาราง = [...เล่ม.values()][0] ?? [];
+      if (เป็นไฟล์เฟซบุ๊ก(เล่ม)) {
+        const ได้ = เตรียมแถวเฟซบุ๊ก(เล่ม, เบอร์ที่มีอยู่, APP_NOW_ISO);
+        setไฟล์({ ชื่อ: f.name, ตาราง }); setเฟซบุ๊ก(ได้); setดูเฟซบุ๊ก("import");
+        if (!ได้.length) setพลาด("ไฟล์ Facebook นี้ไม่มีแถวข้อมูล");
+        return;
+      }
       const h = หาแถวหัวตาราง(ตาราง);
       setไฟล์({ ชื่อ: f.name, ตาราง });
       setแถวหัว(h);
@@ -116,7 +130,27 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     } catch (e) { setพลาด(`นำเข้าไม่สำเร็จ (ไม่มีแถวใดถูกบันทึก): ${friendlyError(e)}`); }
     finally { setกำลัง(false); }
   }
+  const พร้อมเฟซบุ๊ก = (เฟซบุ๊ก ?? []).filter(r => !r.ข้าม);
+  async function นำเข้าเฟซบุ๊ก() {
+    if (!ไฟล์ || !พร้อมเฟซบุ๊ก.length) return;
+    if (พร้อมเฟซบุ๊ก.length > นำเข้าได้สูงสุด) { setพลาด(`นำเข้าได้ครั้งละไม่เกิน ${นำเข้าได้สูงสุด.toLocaleString()} แถว — แบ่งไฟล์ก่อน`); return; }
+    setกำลัง(true); setพลาด("");
+    try {
+      // ฐานตรวจซ้ำอีกชั้นตอนบันทึก (กดซ้ำ/สองแท็บ = ข้าม ไม่สร้างซ้ำ · ใบ 0277/0292)
+      const r = await prospectsRepo.importRows(ไฟล์.ชื่อ, พร้อมเฟซบุ๊ก.map(แถวเฟซบุ๊กส่งฐาน));
+      setผล(r); แจ้งสำเร็จ(`นำเข้าแล้ว ${r.inserted.toLocaleString()} ราย`); onImported(); void โหลดชุด();
+    } catch (e) { setพลาด(`นำเข้าไม่สำเร็จ (ไม่มีแถวใดถูกบันทึก): ${friendlyError(e)}`); }
+    finally { setกำลัง(false); }
+  }
   function ดาวน์โหลดที่ข้าม() {
+    if (เฟซบุ๊ก) {
+      const จากฐาน = new Map((ผล?.skipped ?? []).map(s => [String(s.row), s.reason]));
+      const รายการ = เฟซบุ๊ก.filter(r => r.ข้าม || จากฐาน.has(r.row));
+      const blob = สร้างไฟล์Xlsx([{ ชื่อ: "แถวที่ไม่ได้นำเข้า", หัวตาราง: ["ชีต:แถว", "เหตุผล", "full_name", "phone_number", "จังหวัดที่ลูกค้าพิมพ์", "created_time"],
+        แถว: รายการ.map(r => [r.row, จากฐาน.get(r.row) ?? r.ข้าม ?? "", r.name, r.phone, r.จังหวัดเดิม, r.createdRaw]) }]);
+      ดาวน์โหลดไฟล์(blob, `แถวที่ไม่ได้นำเข้า-${ไฟล์?.ชื่อ.replace(/\.[^.]+$/, "") ?? "ไฟล์"}.xlsx`);
+      return;
+    }
     if (!แถว) return;
     const จากฐาน = new Map((ผล?.skipped ?? []).map(s => [String(s.row), s.reason]));
     const รายการ = แถว.filter(r => r.กลุ่ม !== "ready" || จากฐาน.has(String(r.row)));
@@ -154,8 +188,58 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
             </div>
             {พลาด && <div role="alert" style={{ padding: "8px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: "0.78rem", fontWeight: 600 }}>{พลาด}</div>}
 
+            {/* 2ก · ไฟล์ Facebook: หน้าตัวอย่าง → บอสกดยืนยัน (บอสสั่ง 20 พ.ย. 69) */}
+            {เฟซบุ๊ก && !ผล && (() => {
+              const ส = สรุปเฟซบุ๊ก(เฟซบุ๊ก);
+              const กลุ่ม: { k: กลุ่มเฟซบุ๊ก; label: string; n: number }[] = [
+                { k: "import", label: "จะนำเข้า", n: ส.นำเข้า }, { k: "dup", label: "ซ้ำ", n: ส.ซ้ำ },
+                { k: "short", label: "เบอร์ไม่ครบ", n: ส.เบอร์ไม่ครบ }, { k: "noprov", label: "จังหวัดจับคู่ไม่ได้", n: ส.จังหวัดไม่ได้ },
+                ...(ส.ข้ามอื่น ? [{ k: "skip" as const, label: "ข้าม (ไม่มีชื่อ/เบอร์)", n: ส.ข้ามอื่น }] : []),
+              ];
+              const แสดง = เฟซบุ๊ก.filter(r => ในกลุ่มเฟซบุ๊ก(r, ดูเฟซบุ๊ก));
+              return (
+                <section aria-label="ตัวอย่างก่อนนำเข้าไฟล์ Facebook" data-facebook-preview style={{ display: "grid", gap: 10 }}>
+                  <div style={{ fontSize: "0.78rem", color: "#374151" }}>
+                    ไฟล์รายชื่อจาก Facebook · ทุกรายเข้าขั้น <b>รอติดต่อ</b> และขึ้น <b>ถึงกำหนดติดตาม</b> วันนี้ · แหล่งที่มา Facebook · ข้อความจังหวัด/โฆษณา/วันที่ทิ้งเบอร์เก็บในหมายเหตุ
+                  </div>
+                  <div role="tablist" aria-label="สรุปไฟล์ Facebook" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {กลุ่ม.map(g => (
+                      <button key={g.k} type="button" role="tab" aria-selected={ดูเฟซบุ๊ก === g.k} data-fb-group={g.k}
+                        className={ดูเฟซบุ๊ก === g.k ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"} onClick={() => setดูเฟซบุ๊ก(g.k)}>
+                        {g.label} <span data-count={g.n}>{g.n.toLocaleString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="table-wrap" style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 10 }}>
+                    <table aria-label={`แถว Facebook: ${กลุ่ม.find(g => g.k === ดูเฟซบุ๊ก)?.label ?? ""}`} style={{ width: "100%" }}>
+                      <thead><tr><th>ชีต:แถว</th><th>ชื่อ</th><th>เบอร์</th><th>จังหวัด</th><th>วันที่ทิ้งเบอร์</th><th>{ดูเฟซบุ๊ก === "dup" || ดูเฟซบุ๊ก === "skip" ? "เหตุผลที่ข้าม" : "อีเมล"}</th></tr></thead>
+                      <tbody>
+                        {แสดง.map(r => (
+                          <tr key={r.row} data-fb-row={r.row}>
+                            <td style={เซลล์}>{r.row}</td>
+                            <td style={เซลล์}>{r.name || "—"}</td>
+                            <td style={เซลล์}>{r.phone || "—"}{r.เบอร์ไม่ครบ && <span data-tag="phone-short" style={{ marginLeft: 6, fontSize: "0.66rem", fontWeight: 700, color: "#b45309", background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 6, padding: "1px 6px" }}>เบอร์ไม่ครบ</span>}</td>
+                            <td style={เซลล์}>{r.province ?? "—"}{r.จังหวัดเดิม && r.จังหวัดเดิม !== r.province && <div style={{ fontSize: "0.66rem", color: "#9ca3af" }}>ลูกค้าพิมพ์: {r.จังหวัดเดิม}</div>}</td>
+                            <td style={เซลล์}>{r.enteredAt ? fmtISOToThai(r.enteredAt) : "—"}</td>
+                            <td style={{ ...เซลล์, color: r.ข้าม ? "#b45309" : "#52606d" }}>{r.ข้าม ?? (r.email || "—")}</td>
+                          </tr>
+                        ))}
+                        {!แสดง.length && <tr><td colSpan={6} style={{ ...เซลล์, textAlign: "center", color: "#9ca3af" }}>ไม่มีแถวในกลุ่มนี้</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={กำลัง || !พร้อมเฟซบุ๊ก.length} onClick={() => void นำเข้าเฟซบุ๊ก()}>
+                      {กำลัง ? "กำลังนำเข้า…" : `ยืนยันนำเข้า ${พร้อมเฟซบุ๊ก.length.toLocaleString()} ราย`}
+                    </button>
+                    <span style={{ fontSize: "0.72rem", color: "#6b7280" }}>แถวซ้ำ/ข้ามไม่ถูกนำเข้า · ระบบตรวจเบอร์ซ้ำอีกครั้งตอนบันทึก · ยกเลิกทั้งชุดได้ภายหลัง</span>
+                  </div>
+                </section>
+              );
+            })()}
+
             {/* 2 · จับคู่คอลัมน์ */}
-            {ไฟล์ && !แถว && (
+            {ไฟล์ && !แถว && !เฟซบุ๊ก && (
               <section aria-label="จับคู่คอลัมน์" style={{ display: "grid", gap: 10 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: "0.78rem" }}>
                   <label htmlFor="pi-header">แถวหัวตาราง</label>
@@ -288,7 +372,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
             {/* 4 · สรุปผล */}
             {ผล && (
               <section aria-label="ผลการนำเข้า" data-testid="import-result" data-inserted={ผล.inserted} style={{ display: "grid", gap: 8, fontSize: "0.82rem" }}>
-                <div><b>นำเข้าแล้ว {ผล.inserted.toLocaleString()} ราย</b> · ระบบข้าม {ผล.skipped.length.toLocaleString()} แถว · ไม่ได้ส่ง (ต้องตรวจ/ข้าม) {(นับ("review") + นับ("skip")).toLocaleString()} แถว</div>
+                <div><b>นำเข้าแล้ว {ผล.inserted.toLocaleString()} ราย</b> · ระบบข้าม {ผล.skipped.length.toLocaleString()} แถว · ไม่ได้ส่ง (ต้องตรวจ/ข้าม) {(เฟซบุ๊ก ? เฟซบุ๊ก.filter(r => r.ข้าม).length : นับ("review") + นับ("skip")).toLocaleString()} แถว</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={ดาวน์โหลดที่ข้าม}><Download size={13} /> ดาวน์โหลดแถวที่ข้าม</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={ล้าง}>นำเข้าไฟล์อื่น</button>

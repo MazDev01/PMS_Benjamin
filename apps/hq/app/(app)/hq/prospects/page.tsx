@@ -65,7 +65,7 @@ import { BoardCard, StepProgressBar } from "@pms/shared/components/ui/BoardCard"
 import { PersonAvatar } from "@pms/shared/components/ui/PersonPicker";
 import { คอลัมน์บอร์ดผู้สนใจ, คอลัมน์ของผู้สนใจ, ทางย้ายผู้สนใจ, ขั้นที่ขาด, เหตุเป็นดีลเลอร์ไม่ได้, type คอลัมน์ผู้สนใจ, type ฟอร์มขั้นผู้สนใจ } from "@pms/shared/lib/prospectBoard";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
-import { หัวแบบฟอร์มผู้สนใจ } from "@pms/shared/lib/prospectImport";
+import { หัวไฟล์เฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { DealerPanel } from "../dealers/DealerPanel";
 import { useDealerPanelActions } from "../dealers/useDealerPanelActions";
@@ -811,7 +811,8 @@ export default function HQProspectsPage() {
           // เมนูนำเข้า ตัวกลาง (บอสสั่ง 5 พ.ย. 69): Excel · CSV · แบบฟอร์มตัวอย่าง + ชุดที่นำเข้าล่าสุด (ดู/ยกเลิกทั้งชุด · บอสตอบ M1 = ก)
           <ImportMenu label="นำเข้าจากไฟล์"
             onFile={f => { setไฟล์นำเข้า(f); setเปิดนำเข้า(true); }}
-            onTemplate={() => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "ผู้สนใจ", หัวตาราง: Object.values(หัวแบบฟอร์มผู้สนใจ), แถว: [] }]), "แบบฟอร์มนำเข้าผู้สนใจ.xlsx")}
+            // แบบฟอร์มตัวอย่าง = หัวตารางเดียวกับไฟล์ลีดจาก Facebook (บอสสั่ง 20 พ.ย. 69) · ไฟล์ทีมแบบเดิมยังนำเข้าได้ (หน้าจับคู่คอลัมน์)
+            onTemplate={() => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "ผู้สนใจ", หัวตาราง: [...หัวไฟล์เฟซบุ๊ก], แถว: [] }]), "แบบฟอร์มนำเข้าผู้สนใจ.xlsx")}
             extraActions={[{ label: "ชุดที่นำเข้าล่าสุด", desc: "ดู/ยกเลิกทั้งชุด", icon: <History size={15} />, onClick: () => { setไฟล์นำเข้า(null); setเปิดนำเข้า(true); } }]} />
         )}
         {จัดการได้ && (
