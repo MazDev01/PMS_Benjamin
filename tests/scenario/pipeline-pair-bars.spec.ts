@@ -63,7 +63,8 @@ test("[H·hq] ภาพรวมยอดขาย ระดับจังห�
   const เป้า = (code: string) => ข้อมูล.find(d => d.key === code && d.ชุด === "เป้าตามช่วง")!;
   expect(เป้า(ก.รหัส).สูง, "แท่งเป้า ก (เป้าปีสูงกว่า) สูงกว่า ข").toBeGreaterThan(เป้า(ข.รหัส).สูง);
   await expect(กล่อง.locator("text[data-bar-label]"), "ตัวเลขบนหัวแท่งทุกแท่ง").toHaveCount(4);
-  await กล่อง.locator(`rect[data-bar-col="${ก.รหัส}"]`).first().click();
+  // กดแท่งเป้า (แท่งสูง) ของดีลเลอร์ ก — ทั้งกลุ่มแท่งของดีลเลอร์กดเจาะลงได้ · แท่งยอดขาย ฿0 สูง 1.5px มีตัวเลขทับ กดตรง ๆ ไม่ได้ (รันยืนยัน deploy29)
+  await กล่อง.locator(`rect[data-bar-col="${ก.รหัส}"][data-bar-series="เป้าตามช่วง"]`).click();
   await expect(page.locator('[data-crumbs] [data-crumb="dealer"]'), "กดแท่ง = เจาะลงดีลเลอร์").toHaveText(`${ป้าย} ก`);
 });
 
