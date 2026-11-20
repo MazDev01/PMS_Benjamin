@@ -64,10 +64,10 @@ type FormState = { project: string; province: string; area: string; items: strin
 // openViewSignal = กล่อง "ขั้นต่อไป" สั่งเปิดใบที่รอลูกค้าตอบ (บันทึกผลจากลูกค้า · รอบ 4 ทำงานในแผง ไม่พาไปหน้าใบเสนอราคา)
 // onWon = ลูกค้าตอบรับแล้ว (ผู้เรียกแจ้ง/พาไปลูกค้าใหม่)
 type LeadQuotationsPanelProps =
-  | { lead: LeadRow; customer?: undefined; onToast?: (m: string) => void; openCreateSignal?: number; openViewSignal?: { id: string; n: number }; onWon?: (company: string) => void; onFormOpenChange?: (open: boolean) => void }
-  | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined; openViewSignal?: undefined; onWon?: undefined; onFormOpenChange?: undefined };
+  | { lead: LeadRow; customer?: undefined; onToast?: (m: string) => void; openCreateSignal?: number; openViewSignal?: { id: string; n: number }; onWon?: (company: string) => void; onFormOpenChange?: (open: boolean) => void; onSignalUsed?: (ชนิด: "create" | "view") => void }
+  | { lead?: undefined; customer: CustomerRow; onToast?: (m: string) => void; openCreateSignal?: undefined; openViewSignal?: undefined; onWon?: undefined; onFormOpenChange?: undefined; onSignalUsed?: undefined };
 
-export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon, onFormOpenChange }: LeadQuotationsPanelProps) {
+export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon, onFormOpenChange, onSignalUsed }: LeadQuotationsPanelProps) {
   const { quotations, createQuotation, updateQuotation, sendQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus, refreshSales } = useSales();
   const lostReasons = useLostReasons();   // เหตุผล "ลูกค้าปฏิเสธ" = รายการของ HQ (กล่องเหตุผลกลาง)
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
@@ -257,8 +257,10 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   //   เดิมใช้คำสั่งไปตอนนั้นเลย → ขึ้น "กำลังโหลดใบ HQ…" แล้วคำสั่งหาย ฟอร์มไม่เปิด
   const lastSignal = useRef(0);
   useEffect(() => {
-    if (!openCreateSignal || openCreateSignal === lastSignal.current || รอใบHQ) return;
+    if (!openCreateSignal) { lastSignal.current = 0; return; }   // หน้าแม่ล้างคำสั่งแล้ว = นับใหม่
+    if (openCreateSignal === lastSignal.current || รอใบHQ) return;
     lastSignal.current = openCreateSignal;
+    onSignalUsed?.("create");   // ใช้ครั้งเดียว — สลับแท็บกลับมาไม่เปิดฟอร์มเอง (บั๊ก 20 พ.ย. 69)
     if (readOnly) return;
     openCreate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -266,10 +268,12 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
   // กล่องขั้นต่อไปสั่งเปิดใบ (บันทึกผลจากลูกค้า) — เทียบเลขรอบ ไม่ใช่ค่าตอน mount (เหตุผลเดียวกับ openCreateSignal)
   const lastView = useRef(0);
   useEffect(() => {
-    if (!openViewSignal || openViewSignal.n === lastView.current) return;
+    if (!openViewSignal) { lastView.current = 0; return; }
+    if (openViewSignal.n === lastView.current) return;
     const q = quotations.find(x => x.id === openViewSignal.id);
     if (!q) return;
     lastView.current = openViewSignal.n;
+    onSignalUsed?.("view");   // ใช้ครั้งเดียว — สลับแท็บกลับมาไม่เด้งกล่องเลือกผลเอง (บั๊ก 20 พ.ย. 69)
     setEditing(q); setMode("view");
     // กดจาก "บันทึกผลจากลูกค้า" = พับข้างบน เลื่อนไปที่ใบ + เด้งให้เลือกผลทันที (ใบที่ยังบันทึกผลได้เท่านั้น)
     setดูผลลูกค้า(true);

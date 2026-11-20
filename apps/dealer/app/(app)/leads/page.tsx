@@ -1047,7 +1047,14 @@ export default function LeadsPage() {
   const [reqSignal, setReqSignal] = useState<{ mode: "ขอราคา" | "แก้ราคา"; n: number } | undefined>(undefined);
   // ปุ่ม "บันทึกผลจากลูกค้า" สั่งแท็บใบเสนอราคาเปิดใบที่รอลูกค้าตอบ (ทำในแผง · รอบ 4)
   const [quoteViewSignal, setQuoteViewSignal] = useState<{ id: string; n: number } | undefined>(undefined);
+  // เปลี่ยน/ปิดลูกค้าเป้าหมาย = ล้างคำสั่งขอแก้ราคา/บันทึกผลที่ยังค้าง (บั๊ก 20 พ.ย. 69 บอส "ทำไมกดแล้วมันเด้ง":
+  //   กด "ขอราคาใหม่" ที่รายหนึ่งแล้ว เปิดอีกราย → กล่องขอแก้ราคาของรายใหม่เด้งเอง) · สองคำสั่งนี้ตั้งจากกล่องขั้นต่อไปของรายที่เปิดอยู่เท่านั้น
+  //   (คำสั่งทำใบตั้งพร้อมเปลี่ยนรายได้ — ล้างที่ openPanel/closePanel + ใช้แล้วล้าง แทน)
+  const รหัสลีดที่เปิด = selectedLead?.id;
+  useEffect(() => { setReqSignal(undefined); setQuoteViewSignal(undefined); }, [รหัสลีดที่เปิด]);
+  function ล้างคำสั่งค้าง() { setReqSignal(undefined); setQuoteViewSignal(undefined); }
   function focusQuotationTab(l: LeadRow) {
+    if (selectedLead?.id !== l.id) ล้างคำสั่งค้าง();   // เปลี่ยนรายแล้วเท่านั้น (คำสั่งทำใบของรายนี้ตั้งต่อจากนี้)
     setSelectedLead(l); setDraft({ ...l });
     setEditingField(null); setShowDeleteConfirm(false);
     setPopupField(null); setEditPopupPos(null);
@@ -1072,6 +1079,7 @@ export default function LeadsPage() {
     setEditingField(null); setShowDeleteConfirm(false);
     setDTab("overview");
     setQuoteFormSignal(0); // เปิดแผงตามปกติ = ไม่ได้สั่งออกใบ (กันฟอร์มค้างจากลูกค้าเป้าหมายก่อนหน้า)
+    ล้างคำสั่งค้าง();      // กันกล่องขอแก้ราคา/เลือกผลเด้งเองตอนเปิดหน้าต่าง (บั๊ก 20 พ.ย. 69) — ล้างในรอบเดียวกับที่เปิด ไม่รอ effect
     setPopupField(null); setEditPopupPos(null);
     resetApptForm(); // กันฟอร์มนัดหมายค้างข้ามลูกค้าเป้าหมาย
     // รายงานติดตาม (report) กับไทม์ไลน์ (activities) ไม่ได้มากับรายการ
@@ -1088,7 +1096,7 @@ export default function LeadsPage() {
   }
   function closePanel() {
     ตั้งแผงในURL(null);
-    setSelectedLead(null); setDraft(null); setQuoteFormSignal(0);
+    setSelectedLead(null); setDraft(null); setQuoteFormSignal(0); ล้างคำสั่งค้าง();
     setEditingField(null); setShowDeleteConfirm(false);
     setPopupField(null); setEditPopupPos(null);
     resetApptForm();
@@ -1916,9 +1924,10 @@ export default function LeadsPage() {
           <DrawerSection title="ใบเสนอราคา">
             {/* ราคาจากสำนักงานใหญ่ (Flow ใหม่ · ขั้น 3) — ส่งคำขอ / ยกเลิก / ขอแก้ราคา · ฐานข้อมูลขยับสถานะเอง */}
             {/* ฟอร์มทำใบเปิด = พับคำขอ/ใบ HQ ข้างบน + เลื่อนจอมาที่ฟอร์มเอง (บอสสั่ง 20 พ.ย. 69) */}
-            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} พับ={ฟอร์มใบเปิด} />
+            <QuoteRequestPanel lead={c} onChanged={() => void syncLeadFromServer(c.id)} openSignal={reqSignal} พับ={ฟอร์มใบเปิด} onSignalUsed={() => setReqSignal(undefined)} />
             <LeadQuotationsPanel lead={c} onToast={setToast} openCreateSignal={quoteFormSignal} openViewSignal={quoteViewSignal}
-              onWon={company => setJustWonCompany(company)} onFormOpenChange={setฟอร์มใบเปิด} />
+              onWon={company => setJustWonCompany(company)} onFormOpenChange={setฟอร์มใบเปิด}
+              onSignalUsed={ชนิด => (ชนิด === "create" ? setQuoteFormSignal(0) : setQuoteViewSignal(undefined))} />
           </DrawerSection>
         );
 

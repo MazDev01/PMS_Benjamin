@@ -70,7 +70,8 @@ const ช่อง: React.CSSProperties = { width: "100%", border: "1px solid #d
 /** openSignal = ปุ่ม "ขั้นต่อไป" ในหัวแผงสั่งเปิดฟอร์ม (ขอราคา / ขอราคาใหม่) · n เปลี่ยน = สั่งใหม่ (หน้า 3 UI ตาม flow · 16 ต.ค. 69) */
 /** ได้ใบ HQ แล้ว = กล่องนี้พับเหลือบรรทัดสรุปเป็นค่าเริ่มต้นตั้งแต่เปิดแท็บ (บอสสั่ง 20 พ.ย. 69 "หุบไว้") · กด "ดูคำขอและใบ HQ" กางเอง
  *  พับ = ฟอร์มทำใบ/ใบที่บันทึกผลเปิดอยู่ด้านล่าง → พับกลับเสมอ (แม้กางไว้) · ระหว่างคำขออยู่กับ HQ ยังกางเต็ม (แนบไฟล์/ยกเลิกคำขอ) */
-export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = false }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number }; พับ?: boolean }) {
+/** onSignalUsed = ใช้คำสั่งแล้ว → หน้าแม่ล้างคำสั่งทิ้ง (บั๊ก 20 พ.ย. 69 "ทำไมกดแล้วมันเด้ง": คำสั่งค้าง → แผงที่เปิดใหม่/สลับแท็บกลับมาเปิดกล่องเอง) */
+export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = false, onSignalUsed }: { lead: LeadRow; onChanged?: () => void; openSignal?: { mode: "ขอราคา" | "แก้ราคา"; n: number }; พับ?: boolean; onSignalUsed?: () => void }) {
   const [กางเอง, setกางเอง] = useState(false);
   useEffect(() => { if (พับ) setกางเอง(false); }, [พับ]);   // เปิดฟอร์มใหม่ทุกครั้ง = พับใหม่
   const [รายการ, setรายการ] = useState<QuoteRequest[] | null>(null);
@@ -187,8 +188,10 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
   // สั่งเปิดฟอร์มจากปุ่ม "ขั้นต่อไป" — รอให้รายการคำขอโหลดเสร็จก่อน (ต้องรู้ว่ามีคำขอเปิดอยู่ไหม)
   const สัญญาณล่าสุด = useRef(0);
   useEffect(() => {
-    if (!openSignal || openSignal.n === สัญญาณล่าสุด.current || รายการ === null) return;
+    if (!openSignal) { สัญญาณล่าสุด.current = 0; return; }   // หน้าแม่ล้างคำสั่งแล้ว = นับใหม่ (คำสั่งถัดไปเริ่มที่ 1 ได้)
+    if (openSignal.n === สัญญาณล่าสุด.current || รายการ === null) return;
     สัญญาณล่าสุด.current = openSignal.n;
+    onSignalUsed?.();   // คำสั่งใช้ได้ครั้งเดียว — ห้ามค้างให้แผงที่ mount ใหม่ (สลับแท็บ/ลูกค้ารายอื่น) เปิดกล่องเอง
     if (openSignal.mode === "แก้ราคา") { if (เปิด) void ขอแก้ราคา(เปิด); }
     else เข้าโหมด("ขอราคา");
     // eslint-disable-next-line react-hooks/exhaustive-deps
