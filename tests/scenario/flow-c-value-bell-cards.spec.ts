@@ -109,7 +109,8 @@ test("[ค·5] ดีลเลอร์: ไม่มีช่องประเ
   // แดชบอร์ด: การ์ดโอกาสการขายรวมจากยอดใบล่าสุด
   await page.goto(`${DEALER_ORIGIN}/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(page.getByText("รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่"), "การ์ดโอกาสการขายบอกที่มาใหม่").toBeVisible({ timeout: 20_000 });
+  // คำอธิบายใต้การ์ดย้ายเข้า ⓘ (บอสสั่ง 19 พ.ย. 69 "ข้อมูลแบบนี้เอาออก" · 7d33c7a5) — ข้อความเดิมอยู่ใน ⓘ ครบ (รอบตรวจ deploy29)
+  await expect(page.locator("[data-kpi-row] [data-kpi-tip]").filter({ hasText: "รวมยอดใบเสนอราคาล่าสุดของงานที่ยังเปิดอยู่" }), "การ์ดโอกาสการขายบอกที่มาใหม่ (ใน ⓘ)").toHaveCount(1, { timeout: 20_000 });
   await expect(page.getByText("ประเมินราคา", { exact: true }), "แดชบอร์ดไม่มีคำว่าประเมินราคา").toHaveCount(0);
 });
 

@@ -136,7 +136,9 @@ test("[ui·hq] ภาพรวมยอดขาย: ทุกแผงการ
   //      (ตกรอบ deploy19: กดกลางช่องชื่อ = โดนลิงก์ ไปหน้าดีลเลอร์แทนการเจาะลง)
   await ถึง.locator(`tr:has([data-drawer-row="${A.รหัส}"]) [data-cell="sales"]`).click();
   await expect(แผง, "กดแถวแล้วหน้าต่างปิด").toHaveCount(0);
-  await expect(page.locator("[data-perf-row]"), "เจาะลงดีลเลอร์ A").toHaveCount(1, { timeout: 20_000 });
+  // บอสตัดสิน 19 พ.ย. 69 (3530fc90): ระดับดีลเลอร์ = ตารางรายเดือน ไม่มีแถวรายดีลเลอร์ (เดิมคาด 1 แถว · รอบตรวจ deploy29)
+  await expect(page.getByRole("table", { name: "ตารางผลงานรายเดือน", exact: true }), "เจาะลงดีลเลอร์ A = ตารางรายเดือน").toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-perf-row]"), "ระดับดีลเลอร์ = ไม่มีแถวรายดีลเลอร์").toHaveCount(0);
   await expect(page.locator("[data-crumbs] [data-crumb]").last()).toContainText(`${ป้าย} ก`);
   // ระดับดีลเลอร์: แผงถึงเป้าเหลือดีลเลอร์นี้ · จำนวน = การ์ด
   await page.locator('[data-kpi-row] [data-kpi="onTarget"]').click();

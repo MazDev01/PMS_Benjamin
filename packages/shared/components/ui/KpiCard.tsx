@@ -68,7 +68,8 @@ export function KpiCard({ kpi, label, value, rawValue, unit, empty, sub, บร�
     <>
       <span style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, width: "100%" }}>
         <span style={{ minWidth: 0, display: "grid", gap: 2 }}>
-          <span style={{ ...ป้าย, display: "inline-flex", alignItems: "center", gap: 2 }}>{label}
+          {/* ชื่อการ์ดอยู่ใน span ของตัวเอง — ชิ้นป้ายมี ⓘ + ข้อความ tooltip (ซ่อน) อยู่ด้วย หาชื่อการ์ดด้วยข้อความตรงตัวต้องเจอชื่อล้วน (รอบตรวจ deploy29) */}
+          <span style={{ ...ป้าย, display: "inline-flex", alignItems: "center", gap: 2 }}><span data-kpi-label style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
             {มีคำอธิบาย && <span data-kpi-tip style={{ display: "inline-flex" }}><InfoTip ในปุ่ม={!!onClick} label={`คำอธิบาย ${label}`}>
               {ว่าง ? (empty ?? "ยังไม่มีข้อมูล") : <>{อธิบาย}{อธิบาย && sub ? <br /> : null}{sub}</>}
             </InfoTip></span>}
