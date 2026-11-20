@@ -89,23 +89,13 @@ export async function สร้าง(ctx) {
   ctx.sql(`select setval(pg_get_serial_sequence('public.quote_requests', 'id'), greatest((select coalesce(max(id), 0) from public.quote_requests), 1));
     select setval(pg_get_serial_sequence('public.hq_quotes', 'id'), greatest((select coalesce(max(id), 0) from public.hq_quotes), 1));`);
 
-  // ── HQ: รายการวัสดุ (ดีลเลอร์เลือกตอนขอราคา) ──
-  const แถวแม่แบบ = [
-    { category: "โครงสร้าง", name: "เหล็กโครงสร้างหลัก (ตัวอย่าง)", unit: "ตัน", unitPrice: 42000 },
-    { category: "โครงสร้าง", name: "แป/โครงหลังคา (ตัวอย่าง)", unit: "ตร.ม.", unitPrice: 380 },
-    { category: "หลังคา/ผนัง", name: "แผ่นหลังคาเมทัลชีท 0.47 มม. (ตัวอย่าง)", unit: "ตร.ม.", unitPrice: 290 },
-    { category: "หลังคา/ผนัง", name: "ผนังเมทัลชีท 0.40 มม. (ตัวอย่าง)", unit: "ตร.ม.", unitPrice: 240 },
-    { category: "ประตู", name: "ประตูม้วน 4x5 ม. (ตัวอย่าง)", unit: "ชุด", unitPrice: 65000 },
-  ];
-  const แม่แบบ = ต้อง(await hq.rpc("material_templates_save", { p_rows: แถวแม่แบบ, p_delete_ids: [] }), "บันทึกรายการวัสดุ");
-  // จับคู่ด้วยชื่อ — ลำดับที่ฐานคืนมาไม่ใช่ลำดับที่ส่ง (เคยจับจำนวนผิดวัสดุ ราคาประเมินเพี้ยนเป็นหลายสิบล้าน)
-  const รหัสของ = (ชื่อ) => Number((แม่แบบ ?? []).find(m => m.name === ชื่อ)?.id);
-  // รายการประเมินของดีลเลอร์: จำนวนตามพื้นที่ × ตัวคูณประจำราย (ดีลเลอร์กะเผื่อ/กะขาด) — ยอดต่างจากใบ HQ ±5–15% ไม่เท่าพอดี
+  // ── รายการในคำขอ (ใบ 0290 · 20 พ.ย. 69): ดีลเลอร์พิมพ์ รายการ · จำนวน · หน่วย เอง (ไม่มีราคา · HQ ตีราคา) ──
+  //   รายการวัสดุ (แม่แบบ) เอาออกทั้งระบบแล้ว (2b19425a) → ไม่สร้างแม่แบบ (เดิมรันซ้ำชน material_templates_name_uq)
+  //   ดีลเลอร์กะจำนวนเอง ต่างจากใบ HQ ±5–15% (ตัวคูณประจำราย) · ระบุเฉพาะงานโครงเหล็ก + หลังคา (ไม่ครบทุกบรรทัดแบบใบ HQ)
   const ตัวคูณประเมิน = [0.92, 1.07, 0.88, 1.10, 0.95, 1.13, 0.90, 1.06, 0.87, 1.09, 0.94, 1.12, 0.91, 1.08, 0.86];
   const ประเมินของ = (A, i) => { const f = ตัวคูณประเมิน[i % ตัวคูณประเมิน.length];
-    return รายการโกดัง(A).map(l => ({ templateId: รหัสของ(`${l.name} (ตัวอย่าง)`), name: `${l.name} (ตัวอย่าง)`,
-      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) })).filter(x => x.templateId); };
-  console.log("✓ รายการวัสดุ 5 รายการ");
+    return รายการโกดัง(A).filter(l => l.unit === "ตัน" || /หลังคา/.test(l.name)).map(l => ({ name: l.name, unit: l.unit,
+      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) })); };
 
   // ── ผู้รับผิดชอบของทุกสาขา = ชื่อพนักงานขายที่ลีดอ้างถึง (เดิมแผงลีดขึ้น "ยังไม่มอบหมาย" · ตารางเทียบ FLOW แถว D6) ──
   {
@@ -144,8 +134,8 @@ export async function สร้าง(ctx) {
     const ขอราคา = async (n, วัสดุ = true) => {   // ทุกคำขอเลือกวัสดุจากแม่แบบตามพื้นที่ (ปุ่ม "รายการจากคำขอดีลเลอร์" มีของ · บอสสั่ง 18 พ.ย. 69)
       const i = n - s.base, A = พื้นที่ตามสถานการณ์[i];
       // ราคาประเมินเบื้องต้น = วัสดุจากแม่แบบตามพื้นที่จริงของงาน · ดีลเลอร์กะจำนวนเอง จึงต่างจากใบ HQ ±5–15%
-      const ประเมิน = วัสดุ ? ประเมินของ(A, i).map(({ templateId, qty }) => ({ templateId, qty })) : [];
-      const r = ต้อง(await sb.rpc("quote_request_submit", { p_lead_num_id: n, p_product: "โกดังเก็บสินค้า", p_subtype: "", p_area: A,
+      const ประเมิน = วัสดุ ? ประเมินของ(A, i) : [];
+      const r = ต้อง(await sb.rpc("quote_request_submit", { p_lead_num_id: n, p_product: "โกดังโครงเหล็กเก็บสินค้า", p_subtype: "", p_area: A,
         p_spec: สเปกโกดัง(A), p_province: s.province, p_estimate: ประเมิน }), `ขอราคา ${n}`);
       return Number(r.id);
     };
@@ -164,7 +154,7 @@ export async function สร้าง(ctx) {
       const { data: hqq } = await sb.from("hq_quotes").select("line_items").eq("id", hqQuoteId).single();
       const lines = (hqq?.line_items ?? []).map(l => ({ name: l.name, qty: l.qty, unit: l.unit, unitPrice: 0, markupPct: 15 }));
       const q = ต้อง(await sb.rpc("create_quotation", { p_dealer: s.code, p_prefix: "Q-", p_payload: {
-        customer: company, project: "โกดังเก็บสินค้า", province: s.province, total: "0", status: "draft", date: วัน(),
+        customer: company, project: "โกดังโครงเหล็กเก็บสินค้า", province: s.province, total: "0", status: "draft", date: วัน(),
         line_items: lines, items: lines.length, hq_quote_id: hqQuoteId, deal_id: n, markup_percent: 15 } }), `ทำใบ ${company}`);
       return String(q.id);
     };
@@ -199,13 +189,11 @@ export async function สร้าง(ctx) {
       const เดิม = พื้นที่ตามสถานการณ์[9], ใหม่ = พื้นที่หลังขอแก้;
       const r2 = ต้อง(await sb.rpc("quote_request_reprice", { p_id: rid,
         p_reason: `ลูกค้าขอขยายพื้นที่จาก ${เดิม.toLocaleString("en-US")} เป็น ${ใหม่.toLocaleString("en-US")} ตร.ม. (เพิ่มช่องเก็บสินค้าอีก 1 ช่วงเสา)`,
-        p_spec: สเปกโกดัง(ใหม่) }), "ขอแก้ราคา");
+        p_spec: สเปกโกดัง(ใหม่), p_estimate: ประเมินของ(ใหม่, 9) }), "ขอแก้ราคา");
       // คำขอใหม่คัดลอกพื้นที่จากคำขอเดิม (ฟังก์ชันขอแก้ราคา) → ตั้งพื้นที่ใหม่ให้ตรงกับเหตุผล · ลูกค้าเป้าหมายก็ขยายพื้นที่ด้วย
       // ราคาประเมินของคำขอใหม่คิดจากพื้นที่ใหม่ด้วย (ฟังก์ชันขอแก้ราคาคัดลอกรายการประเมินของคำขอเดิม 900 ตร.ม. มา)
-      const ประเมินใหม่ = ประเมินของ(ใหม่, 9).map(x => { const m = แถวแม่แบบ.find(r => r.name === x.name);
-        return { templateId: x.templateId, category: m.category, name: m.name, unit: m.unit, qty: x.qty, unitPrice: m.unitPrice }; });
-      const ยอดประเมินใหม่ = ประเมินใหม่.reduce((a, x) => a + Math.round(x.qty * x.unitPrice * 100) / 100, 0);
-      ต้อง(await svc.from("quote_requests").update({ area: ใหม่, estimate_items: ประเมินใหม่, estimate_total: ยอดประเมินใหม่ }).eq("id", r2.id), "พื้นที่คำขอใหม่");
+      //   รายการในคำขอใหม่ส่งไปกับการขอแก้ราคาแล้ว (p_estimate · ใบ 0290) — ที่นี่ตั้งแค่พื้นที่
+      ต้อง(await svc.from("quote_requests").update({ area: ใหม่ }).eq("id", r2.id), "พื้นที่คำขอใหม่");
       ต้อง(await svc.from("leads").update({ area: String(ใหม่) }).eq("dealer_code", s.code).eq("num_id", n), "พื้นที่ลูกค้าเป้าหมาย");
       ต้อง(await hq.rpc("hq_quote_save", { p_request_id: r2.id, p_valid_until: วัน(30),
         p_note: `ร่างฉบับใหม่จาก V1 — ปรับจำนวนตามพื้นที่ ${ใหม่.toLocaleString("en-US")} ตร.ม. (เดิม ${เดิม.toLocaleString("en-US")})`,

@@ -118,14 +118,12 @@ export async function งานขายของสาขา(ctx, { code, provi
     }), `สร้างลีด ${บริษัท}`);
     return { n, company: บริษัท };
   };
-  // ราคาประเมินของดีลเลอร์ (คนรวมงานสั่ง 18 พ.ย. 69): วัสดุจากแม่แบบตามพื้นที่ของคำขอ × ตัวคูณประจำงาน → ต่างจากใบ HQ ±5–15% ไม่เท่าพอดี
-  //   แม่แบบสร้างที่ส่วน "ขั้นทั้งหมด" · ยังไม่มี (รันส่วนนี้เดี่ยว) = ไม่มีราคาประเมิน
-  let แม่แบบ = null;
+  // รายการในคำขอ (ใบ 0290 · 20 พ.ย. 69): ดีลเลอร์พิมพ์ รายการ · จำนวน · หน่วย เอง ไม่มีราคา · เฉพาะงานโครงเหล็ก + หลังคา
+  //   ดีลเลอร์กะจำนวนเอง ต่างจากใบ HQ ±5–15% (ตัวคูณประจำงาน) · เดิมเลือกจากรายการวัสดุ (เอาออกทั้งระบบแล้ว)
   const ประเมิน = async (n, A) => {
-    if (!แม่แบบ) { const { data } = await svc.from("material_templates").select("id, name"); แม่แบบ = new Map((data ?? []).map(m => [m.name, Number(m.id)])); }
     const f = ตัวคูณประเมิน[n % ตัวคูณประเมิน.length];
-    return รายการโกดัง(A).map(l => ({ templateId: แม่แบบ.get(`${l.name} (ตัวอย่าง)`),
-      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) })).filter(x => x.templateId);
+    return รายการโกดัง(A).filter(l => l.unit === "ตัน" || /หลังคา/.test(l.name)).map(l => ({ name: l.name, unit: l.unit,
+      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) }));
   };
   const ขอราคา = async (n, ขนาด = 1) => Number(ต้อง(await sb.rpc("quote_request_submit", {
     p_lead_num_id: n, p_product: "โกดังโครงเหล็กเก็บสินค้า", p_subtype: "", p_area: พื้นที่ของขนาด(ขนาด),
@@ -141,8 +139,14 @@ export async function งานขายของสาขา(ctx, { code, provi
   const ทำใบ = async (n, company, hqQuoteId, { บวก = 15, วันยืนราคา = null } = {}) => {
     const { data: hqq } = await sb.from("hq_quotes").select("line_items").eq("id", hqQuoteId).single();
     const lines = (hqq?.line_items ?? []).map(l => ({ name: l.name, qty: l.qty, unit: l.unit, unitPrice: 0, markupPct: บวก }));
+    // รายการของดีลเลอร์ (ใบ 0291 · 20 พ.ย. 69): งานลูกค้าเลขคู่ ดีลเลอร์รับงานที่ใบ HQ ไม่มีเอง — รางน้ำ/ครอบหลังคา + เทพื้นคอนกรีต (ราคาขายตั้งเอง)
+    if (n % 2 === 0) {
+      const พื้นที่ = Math.round((hqq?.line_items ?? []).find(l => /หลังคา/.test(l.name) && l.unit === "ตร.ม.")?.qty / 1.08 || 700);
+      lines.push({ source: "dealer", name: "รางน้ำฝนและครอบหลังคา (ดีลเลอร์จัดหาเอง)", qty: 1, unit: "งาน", unitPrice: 30000 + (n % 5) * 5000 },
+                 { source: "dealer", name: "งานเทพื้นคอนกรีตหนา 15 ซม. (ผู้รับเหมาของดีลเลอร์)", qty: พื้นที่, unit: "ตร.ม.", unitPrice: 650 + (n % 4) * 25 });
+    }
     return String(ต้อง(await sb.rpc("create_quotation", { p_dealer: code, p_prefix: "Q-", p_payload: {
-      customer: company, project: "โกดังเก็บสินค้า", province, total: "0", status: "draft", date: วัน(),
+      customer: company, project: "โกดังโครงเหล็กเก็บสินค้า", province, total: "0", status: "draft", date: วัน(),
       line_items: lines, items: lines.length, hq_quote_id: hqQuoteId, deal_id: n, markup_percent: บวก,
       ...(วันยืนราคา != null ? { expiry: วัน(วันยืนราคา) } : {}) } }), `ทำใบ ${company}`).id);
   };

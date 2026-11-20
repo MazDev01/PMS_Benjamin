@@ -64,20 +64,18 @@ export async function สร้าง(ctx) {
   if (!งาน?.length) { console.log("✓ ใบข้อมูลตั้งต้นมีใบ HQ ครบแล้ว"); return; }
 
   // 2) รายการใบ HQ ตามต้นทุนของแต่ละงาน (คิดใน JS ตัวเดียวกับส่วนอื่น) → ใส่ทั้งชุดในธุรกรรมเดียว
-  const ดิบแม่แบบ = ctx.sql(`select coalesce(json_agg(json_build_object('id', id, 'category', category, 'name', name, 'unit', unit, 'unitPrice', unit_price)), '[]') from public.material_templates;`);
-  const แม่แบบ = JSON.parse(ดิบแม่แบบ.slice(ดิบแม่แบบ.indexOf("["), ดิบแม่แบบ.lastIndexOf("]") + 1));
+  // รายการในคำขอ (ใบ 0290 · 20 พ.ย. 69): ดีลเลอร์พิมพ์ รายการ · จำนวน · หน่วย (ไม่มีราคา · ไม่มีราคาประเมิน) · งานเหมาเล็ก = ไม่มีรายการ
   const ประเมิน = (A, i) => {
     if (!A) return [];
     const f = ตัวคูณประเมิน[i % ตัวคูณประเมิน.length];
-    return รายการโกดัง(A).map(l => { const m = แม่แบบ.find(x => x.name === `${l.name} (ตัวอย่าง)`);
-      return m && { templateId: Number(m.id), category: m.category, name: m.name, unit: m.unit, unitPrice: Number(m.unitPrice),
-        qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) }; }).filter(Boolean);
+    return รายการโกดัง(A).filter(l => l.unit === "ตัน" || /หลังคา/.test(l.name)).map(l => ({ name: l.name, unit: l.unit,
+      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) }));
   };
   const แถว = งาน.map((g, i) => {
     const ต้นทุน = Math.round(g.ต่ำสุด / (1 + บวก / 100) * 100) / 100;
     const { A, lines } = รายการตามต้นทุน(ต้นทุน);
     const ประเมินงาน = ประเมิน(A, i);
-    const ยอดประเมิน = ประเมินงาน.length ? ประเมินงาน.reduce((s, x) => s + Math.round(x.qty * x.unitPrice * 100) / 100, 0) : null;
+    const ยอดประเมิน = null;   // ไม่มีราคาในรายการคำขอ (HQ ตีราคา · ใบ 0290)
     return { ...g, n: i + 1, ต้นทุน, A, lines, สเปก: A ? สเปกโกดัง(A) : "งานโครงเหล็กขนาดเล็ก (ราคาเหมา)", ประเมินงาน, ยอดประเมิน };
   });
   const ค่า = แถว.map(r => `(${r.n}, ${q(r.dealer_code)}, ${Number(r.ลีด)}, ${q(r.province)}, ${q(r.วัน)}::date, ${r.ตอบรับ}, ${r.ปฏิเสธหมด}, ${r.ต้นทุน}, ${r.A ?? "null"}, ${q(r.สเปก)}, ${q(JSON.stringify(r.lines))}::jsonb, ${q(JSON.stringify(r.ใบ))}::jsonb, ${r.ประเมินงาน.length ? `${q(JSON.stringify(r.ประเมินงาน))}::jsonb` : "null"}, ${r.ยอดประเมิน ?? "null"})`).join(",\n      ");
