@@ -42,7 +42,7 @@ test("[H·hq] ไม่มีแท็บรายการวัสดุ · �
   await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
   await page.goto(`${HQ_ORIGIN}/hq/settings`, { waitUntil: "domcontentloaded" });
   await settle(page);
-  await expect(page.getByRole("button", { name: "ข้อมูลบริษัท", exact: true }), "หน้าตั้งค่าโหลดแล้ว").toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "บริษัท", exact: true }), "หน้าตั้งค่าโหลดแล้ว (แท็บแรกชื่อ บริษัท)").toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: "รายการวัสดุ", exact: true }), "ไม่มีแท็บรายการวัสดุ").toHaveCount(0);
 
   await page.goto(`${HQ_ORIGIN}/hq/quote-requests`, { waitUntil: "domcontentloaded" });

@@ -21,11 +21,12 @@ test.beforeAll(async () => {
     insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status) values
       ('#L-' || (40321 + ${เลข}), ${เลข}, '${ก.รหัส}', 'ZZTEST ลีดนัด ${เลข}', 'ZZTEST ลีดนัด ${เลข}', 'ผู้ทดสอบ', '000-000-0951', 'ตราด', 'BULLET'),
       ('#L-' || (40321 + ${เลข}), ${เลข}, '${ข.รหัส}', 'ZZTEST ลีดนัดสาขาอื่น ${เลข}', 'ZZTEST ลีดนัดสาขาอื่น ${เลข}', 'ผู้ทดสอบ', '000-000-0952', 'ตราด', 'BULLET');
-    insert into public.appointments (dealer_code, lead_id, company, contact, project, province, date, time, type, status, note, location, assigned) values
-      ('${ก.รหัส}', ${เลข}, 'ZZTEST ลีดนัด ${เลข}', 'ผู้ทดสอบ', 'ZZTEST เสนอราคาโกดัง ${เลข}', 'ตราด', '2026-11-10', '10:00', 'presentation', 'done',
+    -- appointments.id ไม่มีค่าเริ่มต้น (แอปตั้งให้) และ replica ปิดตัวดัก → ใส่ id เองแบบข้ออื่น (รอบตรวจ deploy29 · null value in column "id")
+    insert into public.appointments (id, dealer_code, lead_id, company, contact, project, province, date, time, type, status, note, location, assigned) values
+      (${เลข}, '${ก.รหัส}', ${เลข}, 'ZZTEST ลีดนัด ${เลข}', 'ผู้ทดสอบ', 'ZZTEST เสนอราคาโกดัง ${เลข}', 'ตราด', '2026-11-10', '10:00', 'presentation', 'done',
         'ลูกค้าขอปรับหลังคาเป็นเมทัลชีทหนา 0.47', 'สำนักงานลูกค้า อ.เมือง จ.ตราด', 'ผู้ทดสอบ'),
-      ('${ก.รหัส}', ${เลข}, 'ZZTEST ลีดนัด ${เลข}', 'ผู้ทดสอบ', 'ZZTEST โทรติดตามใบเสนอราคา ${เลข}', 'ตราด', '2026-11-25', '14:30', 'follow_up', 'scheduled', '', '', 'ผู้ทดสอบ'),
-      ('${ข.รหัส}', ${เลข}, 'ZZTEST ลีดนัดสาขาอื่น ${เลข}', 'ผู้ทดสอบ', 'ZZTEST นัดสาขาอื่น ${เลข}', 'ตราด', '2026-11-12', '09:00', 'visit', 'scheduled', '', '', 'ผู้ทดสอบ');
+      (${เลข + 1}, '${ก.รหัส}', ${เลข}, 'ZZTEST ลีดนัด ${เลข}', 'ผู้ทดสอบ', 'ZZTEST โทรติดตามใบเสนอราคา ${เลข}', 'ตราด', '2026-11-25', '14:30', 'follow_up', 'scheduled', '', '', 'ผู้ทดสอบ'),
+      (${เลข + 2}, '${ข.รหัส}', ${เลข}, 'ZZTEST ลีดนัดสาขาอื่น ${เลข}', 'ผู้ทดสอบ', 'ZZTEST นัดสาขาอื่น ${เลข}', 'ตราด', '2026-11-12', '09:00', 'visit', 'scheduled', '', '', 'ผู้ทดสอบ');
     set local session_replication_role = origin;`);
   if (ผล === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางข้อมูลของข้อไม่ได้");
 });

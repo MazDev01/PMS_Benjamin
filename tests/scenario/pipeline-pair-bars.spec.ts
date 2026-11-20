@@ -26,7 +26,8 @@ test("[H·hq] ภาพรวมยอดขาย หลายดีลเล�
   await settle(page);
   await page.getByLabel("ค้นหาดีลเลอร์", { exact: true }).fill(ป้าย);
   const กราฟ = page.getByTestId("pipeline-chart");
-  await expect(กราฟ.getByText(`${ป้าย} ก`, { exact: true }), "หลอดของดีลเลอร์ของข้อ").toBeVisible({ timeout: 30_000 });
+  // ชื่อแถวมีป้ายภาคต่อท้ายในชิ้นเดียวกัน ("… ก ภาคตะวันออก") → หาจาก title ของชื่อแถว (ชื่อเต็มตรงตัว · รอบตรวจ deploy29)
+  await expect(กราฟ.locator(`[title="${ป้าย} ก"]`), "หลอดของดีลเลอร์ของข้อ").toBeVisible({ timeout: 30_000 });
   await expect(กราฟ.locator(".bar-grow"), "2 ดีลเลอร์ × หลอดยอดขาย/เป้า").toHaveCount(4);
   await expect(กราฟ.locator("rect[data-bar-col]"), "ไม่มีแท่งตั้ง").toHaveCount(0);
   await expect(กราฟ.locator('[role="tab"][data-dim="dealer"]'), "ทั้งเครือมีแท็บดีลเลอร์").toHaveCount(1);

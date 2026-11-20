@@ -107,7 +107,10 @@ test("[D·dealer] กดขอราคาใหม่แล้วยกเล�
     // ตรวจว่า "ไม่เกิด" ต้องให้โอกาสเกิดก่อน: รอกล่องขึ้นได้ถึง 2 วิ (คำสั่งค้างเปิดกล่องทันทีที่กล่องราคาจาก HQ โหลดรายการเสร็จ)
     const เด้ง = await page.locator("[data-reason-dialog]").waitFor({ state: "attached", timeout: 2_000 }).then(() => true, () => false);
     expect(เด้ง, `${ที่}: ไม่มีกล่องขอแก้ราคาเด้งเอง`).toBe(false);
-    await expect(page.getByRole("dialog"), `${ที่}: ไม่มีหน้าต่างอื่นเด้ง`).toHaveCount(0);
+    // หน้าต่างลูกค้าเป้าหมายเองเป็น role=dialog (RowPanel) — นับเฉพาะหน้าต่างอื่น (รอบตรวจ deploy29: ภาพยืนยันว่าไม่มีกล่องเด้ง · นับเดิมรวมหน้าต่างลูกค้า)
+    await expect(page.getByRole("dialog", { name: "ข้อมูลลูกค้าเป้าหมาย", exact: true }), `${ที่}: หน้าต่างลูกค้าเป้าหมายเปิด`).toHaveCount(1);
+    await expect(page.getByRole("dialog"), `${ที่}: ไม่มีหน้าต่างอื่นเด้ง (มีแค่หน้าต่างลูกค้าเป้าหมาย)`).toHaveCount(1);
+    await expect(page.getByRole("alertdialog"), `${ที่}: ไม่มีกล่องยืนยัน/เหตุผลเด้ง`).toHaveCount(0);
     await expect(page.getByRole("button", { name: "ภาพรวม", exact: true }).first(), `${ที่}: อยู่แท็บภาพรวม`).toBeVisible();
   };
   // 1) รายแรก: กด "ขอราคาใหม่" แล้วยกเลิก (คำสั่งเคยค้างตรงนี้)
