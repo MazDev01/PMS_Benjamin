@@ -229,6 +229,29 @@ export async function resetDealerPassword(
   }
 }
 
+/** ตั้งบัญชีเข้าระบบให้สาขาที่ยังไม่มีบัญชี (เช่น HQD · บอสสั่ง 20 พ.ย. 69)
+ *  อีเมลต้องเป็น <รหัสสาขา>@dealer.benjaminpebsteel.com · บทบาท/ค่าบัญชีเหมือนสร้างผ่านผู้สนใจเป็นดีลเลอร์
+ *  สาขาที่มีบัญชีแล้ว = เซิร์ฟเวอร์ปฏิเสธ (ใช้ "แก้อีเมล/รหัสผ่าน" แทน) */
+export async function createDealerLoginAccount(
+  code: string, บัญชี: { email: string; password: string },
+): Promise<CreateDealerResult> {
+  if (!REAL_BACKEND) return { ok: false, error: "โหมดข้อมูลตัวอย่าง: ตั้งบัญชีเข้าระบบจริงไม่ได้" };
+  const token = await callerToken();
+  if (!token) return { ok: false, error: "ยังไม่ได้เข้าระบบ" };
+  try {
+    const res = await adminFetch(`/api/admin/dealers?code=${encodeURIComponent(code)}`, { credentials: "same-origin",
+      method: "PUT",
+      headers: authHeaders(token, true),
+      body: JSON.stringify({ email: บัญชี.email.trim(), password: บัญชี.password }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { error?: string; email?: string };
+    if (!res.ok) return { ok: false, error: json.error ?? `ระบบตอบกลับผิดปกติ (รหัส ${res.status})` };
+    return { ok: true, email: json.email ?? บัญชี.email.trim(), password: บัญชี.password };
+  } catch (e) {
+    return { ok: false, error: friendlyError(e, "ติดต่อระบบไม่ได้ — ตรวจอินเทอร์เน็ตแล้วลองใหม่") };
+  }
+}
+
 /** อีเมลเข้าระบบจริงของแต่ละสาขา (รหัสสาขา → อีเมล) — สาขาที่ไม่มีบัญชีจะไม่มีคีย์
  *  ต้องถามเซิร์ฟเวอร์ ห้ามคำนวณเอาเองจากรหัสสาขา (อีเมลจริงของแต่ละสาขาไม่ได้เป็นสูตรเดียวกัน) */
 // ผลอ่านอีเมลเข้าระบบทั้งเครือ ใช้ร่วมกันในหน้าเดียว 30 วินาที (30 ต.ค. 69)
