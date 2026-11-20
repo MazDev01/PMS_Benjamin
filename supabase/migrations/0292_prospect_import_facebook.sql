@@ -14,7 +14,7 @@ declare
   r jsonb; ชุด bigint; pid bigint; ลำดับ int := 0; เพิ่ม int := 0; แถวที่ text;
   ข้าม jsonb := '[]'::jsonb; เห็นแล้ว text[] := '{}'; เบอร์ text; ชื่อ text; สถานะ text; จังหวัด text; หมายเหตุติดต่อ text; เริ่ม date; ตาม date; วันนี้ date := (now() at time zone 'Asia/Bangkok')::date;
   วันบันทึก date[]; d date; aid bigint;
-  ตามวันนี้ boolean; ไม่ครบ boolean; เข้าดิบ text; เข้า date;
+  ตามวันนี้ boolean; ไม่ครบ boolean; เข้าดิบ text; เข้า date; แบบเบอร์ text;
 begin
   if not can_write_master() then raise exception 'forbidden: นำเข้าผู้สนใจได้เฉพาะผู้ดูแลระบบ/ผู้บริหารสำนักงานใหญ่'; end if;
   if jsonb_typeof(p_rows) is distinct from 'array' then raise exception 'import_rows: ข้อมูลแถวไม่ถูกต้อง'; end if;
@@ -40,7 +40,9 @@ begin
     if ชื่อ = '' then
       ข้าม := ข้าม || jsonb_build_object('row', แถวที่, 'reason', 'ไม่มีชื่อ'); continue;
     end if;
-    if เบอร์ !~ case when ไม่ครบ then '^0\d{5,10}$' else '^0\d{8,9}$' end then
+    -- แยกตัวแปรก่อน: plpgsql อ่านเงื่อนไข IF ถึงคำ THEN ตัวแรก (THEN ของ CASE ในเงื่อนไข = ใบพัง)
+    แบบเบอร์ := case when ไม่ครบ then '^0\d{5,10}$' else '^0\d{8,9}$' end;
+    if เบอร์ !~ แบบเบอร์ then
       ข้าม := ข้าม || jsonb_build_object('row', แถวที่, 'reason', 'ไม่มีเบอร์โทรที่ถูกต้อง'); continue;
     end if;
     if เบอร์ = any(เห็นแล้ว) then
