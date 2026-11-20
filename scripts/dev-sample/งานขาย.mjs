@@ -7,7 +7,7 @@
 //   → เลื่อนด้วย SQL ฐาน dev ในธุรกรรมเดียว (session_replication_role = replica · แตะเฉพาะคอลัมน์เวลา ไม่แตะสถานะ/ยอด)
 //   ยกเว้นบันทึกการใช้งาน (audit_log) — ห้ามแก้/ลบนอก 2 ทางที่บอสอนุญาต จึงคงเวลาจริง (วันที่สร้างข้อมูลตัวอย่าง)
 import { spawn } from "node:child_process";
-import { เบอร์งาน } from "./ตัวช่วย.mjs";
+import { เบอร์งาน, รหัสลีด } from "./ตัวช่วย.mjs";
 
 /** บัญชีเข้าระบบของสาขา — RYG/CNX จากข้อมูลตั้งต้น (tests/.env.test) · สาขาที่ส่วน "สาขา" สร้าง จากไฟล์บัญชีนอก repo */
 export function บัญชีสาขา(ctx, code) {
@@ -66,16 +66,22 @@ export const ที่อยู่สมจริง = (กุญแจ, จั�
 /** รายการวัสดุของโกดังโครงเหล็ก พื้นที่ A ตร.ม. (สูง 8 ม.) — ต้นทุน HQ ราว 2,100–2,400 บาท/ตร.ม. (โครงสร้าง/หลังคา/ผนัง/ประตู · ไม่รวมฐานราก) */
 export function รายการโกดัง(A) {
   const ด้าน = Math.sqrt(A);
+  // โครงเหล็กเป็นสัดส่วนหลักของใบ (บอสสั่ง 20 พ.ย. 69 "ข้อมูลตัวอย่างเน้นโครงเหล็ก") — เสา คาน โครงหลังคา แป ~70% ของยอด
+  //   น้ำหนักเหล็กรวม ~40 กก./ตร.ม. (เสา 12 · คาน 10 · โครงถัก 8 · แป 6 · ค้ำยัน/แผ่นต่อ 4) · หลังคา/ผนัง/ประตู = ส่วนที่เหลือ
+  const ตัน = (กกต่อตรม) => Math.max(0.1, Math.round(A * กกต่อตรม / 1000 * 10) / 10);
   return [
-    { name: "เหล็กโครงสร้างหลัก", qty: Math.round(A * 0.028 * 10) / 10, unit: "ตัน", unitCost: 42000 },          // ~28 กก./ตร.ม.
-    { name: "แป/โครงหลังคา", qty: A, unit: "ตร.ม.", unitCost: 380 },
+    { name: "เสาเหล็ก H-Beam", qty: ตัน(12), unit: "ตัน", unitCost: 42000 },
+    { name: "คานเหล็ก H-Beam", qty: ตัน(10), unit: "ตัน", unitCost: 42000 },
+    { name: "โครงหลังคาเหล็ก (โครงถัก)", qty: ตัน(8), unit: "ตัน", unitCost: 44000 },
+    { name: "แปเหล็กตัวซี", qty: ตัน(6), unit: "ตัน", unitCost: 38000 },
+    { name: "เหล็กค้ำยันและแผ่นต่อ", qty: ตัน(4), unit: "ตัน", unitCost: 40000 },
     { name: "แผ่นหลังคาเมทัลชีท 0.47 มม.", qty: Math.ceil(A * 1.08), unit: "ตร.ม.", unitCost: 290 },           // เผื่อลาดเอียง/ทับซ้อน 8%
     { name: "ผนังเมทัลชีท 0.40 มม.", qty: Math.round(4 * ด้าน * 7), unit: "ตร.ม.", unitCost: 240 },            // เส้นรอบรูป × สูงผนัง 7 ม.
     { name: "ประตูม้วน 4x5 ม.", qty: 1 + Math.floor(A / 800), unit: "ชุด", unitCost: 65000 },
   ];
 }
 export const ยอดรายการ = (lines) => lines.reduce((s, l) => s + Math.round(l.qty * l.unitCost * 100) / 100, 0);
-export const สเปกโกดัง = (A) => `โกดังเก็บสินค้า ${A.toLocaleString("en-US")} ตร.ม. · โครงเหล็ก สูง 8 ม. · หลังคา/ผนังเมทัลชีท · ประตูม้วน`;
+export const สเปกโกดัง = (A) => `อาคารโครงเหล็ก ${A.toLocaleString("en-US")} ตร.ม. · เสา/คาน H-Beam · โครงหลังคาเหล็กถัก · แปตัวซี · สูง 8 ม. · หลังคา/ผนังเมทัลชีท · ประตูม้วน`;
 /** พื้นที่ตามขนาดงาน (ตัวคูณ 1 = โกดังราว 700 ตร.ม. · ปัดหลักสิบ) */
 export const พื้นที่ของขนาด = (ตัวคูณ = 1) => Math.round(700 * ตัวคูณ / 10) * 10;
 /** ตัวคูณจำนวนในราคาประเมินของดีลเลอร์ (กะเผื่อ/กะขาด) — ยอดประเมินต่างจากใบ HQ ±5–15% */
@@ -103,7 +109,7 @@ export async function งานขายของสาขา(ctx, { code, provi
     void เรื่อง;
     const บริษัท = company ?? ชื่อบริษัท(n);
     ต้อง(await sb.from("leads").insert({
-      id: `#L-${n}`, num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
+      id: รหัสลีด(n), num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
       contact: ผู้ติดต่อ(n), phone: เบอร์งาน(n),
       email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, address: ที่อยู่สมจริง(`${code}:${n}`, province), province,
       product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ของขนาด(ขนาด)), source: ["แนะนำต่อ", "เว็บไซต์", "Facebook", "LINE", "ลูกค้าเข้ามาเอง", "งานแสดงสินค้า"][n % 6],
@@ -112,17 +118,15 @@ export async function งานขายของสาขา(ctx, { code, provi
     }), `สร้างลีด ${บริษัท}`);
     return { n, company: บริษัท };
   };
-  // ราคาประเมินของดีลเลอร์ (คนรวมงานสั่ง 18 พ.ย. 69): วัสดุจากแม่แบบตามพื้นที่ของคำขอ × ตัวคูณประจำงาน → ต่างจากใบ HQ ±5–15% ไม่เท่าพอดี
-  //   แม่แบบสร้างที่ส่วน "ขั้นทั้งหมด" · ยังไม่มี (รันส่วนนี้เดี่ยว) = ไม่มีราคาประเมิน
-  let แม่แบบ = null;
+  // รายการในคำขอ (ใบ 0290 · 20 พ.ย. 69): ดีลเลอร์พิมพ์ รายการ · จำนวน · หน่วย เอง ไม่มีราคา · เฉพาะงานโครงเหล็ก + หลังคา
+  //   ดีลเลอร์กะจำนวนเอง ต่างจากใบ HQ ±5–15% (ตัวคูณประจำงาน) · เดิมเลือกจากรายการวัสดุ (เอาออกทั้งระบบแล้ว)
   const ประเมิน = async (n, A) => {
-    if (!แม่แบบ) { const { data } = await svc.from("material_templates").select("id, name"); แม่แบบ = new Map((data ?? []).map(m => [m.name, Number(m.id)])); }
     const f = ตัวคูณประเมิน[n % ตัวคูณประเมิน.length];
-    return รายการโกดัง(A).map(l => ({ templateId: แม่แบบ.get(`${l.name} (ตัวอย่าง)`),
-      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) })).filter(x => x.templateId);
+    return รายการโกดัง(A).filter(l => l.unit === "ตัน" || /หลังคา/.test(l.name)).map(l => ({ name: l.name, unit: l.unit,
+      qty: l.unit === "ตัน" ? Math.round(l.qty * f * 10) / 10 : Math.max(1, Math.round(l.qty * f)) }));
   };
   const ขอราคา = async (n, ขนาด = 1) => Number(ต้อง(await sb.rpc("quote_request_submit", {
-    p_lead_num_id: n, p_product: "โกดังเก็บสินค้า", p_subtype: "", p_area: พื้นที่ของขนาด(ขนาด),
+    p_lead_num_id: n, p_product: "โกดังโครงเหล็กเก็บสินค้า", p_subtype: "", p_area: พื้นที่ของขนาด(ขนาด),
     p_spec: สเปกโกดัง(พื้นที่ของขนาด(ขนาด)), p_province: province, p_estimate: await ประเมิน(n, พื้นที่ของขนาด(ขนาด)) }), `ขอราคา ${n}`).id);
   const HQรับเรื่อง = async (rid) => ต้อง(await hq.rpc("quote_request_accept", { p_id: rid, p_assignee: null }), `HQ รับเรื่อง ${rid}`);
   const HQบันทึกใบ = async (rid, { ขนาด = 1, วันยืนราคา = 30 } = {}) => ต้อง(await hq.rpc("hq_quote_save", {
@@ -135,8 +139,14 @@ export async function งานขายของสาขา(ctx, { code, provi
   const ทำใบ = async (n, company, hqQuoteId, { บวก = 15, วันยืนราคา = null } = {}) => {
     const { data: hqq } = await sb.from("hq_quotes").select("line_items").eq("id", hqQuoteId).single();
     const lines = (hqq?.line_items ?? []).map(l => ({ name: l.name, qty: l.qty, unit: l.unit, unitPrice: 0, markupPct: บวก }));
+    // รายการของดีลเลอร์ (ใบ 0291 · 20 พ.ย. 69): งานลูกค้าเลขคู่ ดีลเลอร์รับงานที่ใบ HQ ไม่มีเอง — รางน้ำ/ครอบหลังคา + เทพื้นคอนกรีต (ราคาขายตั้งเอง)
+    if (n % 2 === 0) {
+      const พื้นที่ = Math.round((hqq?.line_items ?? []).find(l => /หลังคา/.test(l.name) && l.unit === "ตร.ม.")?.qty / 1.08 || 700);
+      lines.push({ source: "dealer", name: "รางน้ำฝนและครอบหลังคา (ดีลเลอร์จัดหาเอง)", qty: 1, unit: "งาน", unitPrice: 30000 + (n % 5) * 5000 },
+                 { source: "dealer", name: "งานเทพื้นคอนกรีตหนา 15 ซม. (ผู้รับเหมาของดีลเลอร์)", qty: พื้นที่, unit: "ตร.ม.", unitPrice: 650 + (n % 4) * 25 });
+    }
     return String(ต้อง(await sb.rpc("create_quotation", { p_dealer: code, p_prefix: "Q-", p_payload: {
-      customer: company, project: "โกดังเก็บสินค้า", province, total: "0", status: "draft", date: วัน(),
+      customer: company, project: "โกดังโครงเหล็กเก็บสินค้า", province, total: "0", status: "draft", date: วัน(),
       line_items: lines, items: lines.length, hq_quote_id: hqQuoteId, deal_id: n, markup_percent: บวก,
       ...(วันยืนราคา != null ? { expiry: วัน(วันยืนราคา) } : {}) } }), `ทำใบ ${company}`).id);
   };
@@ -155,7 +165,7 @@ export async function งานขายของสาขา(ctx, { code, provi
       phone: เบอร์งาน(n), email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, province } }), `ลูกค้าตอบรับ ${id}`);
   const ปฏิเสธ = async (id, เหตุผล = "ราคาสูงกว่าคู่แข่ง") => ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: เหตุผล })
     .eq("dealer_code", code).eq("id", id), `ลูกค้าปฏิเสธ ${id}`);
-  const ปิดไม่สำเร็จ = async (n, เหตุผล = "ลูกค้าไม่สนใจแล้ว") => ต้อง(await sb.rpc("lead_apply", { p_id: `#L-${n}`,
+  const ปิดไม่สำเร็จ = async (n, เหตุผล = "ลูกค้าไม่สนใจแล้ว") => ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n),
     p_intent: { stage: { status: "CANCELLED", lostReason: เหตุผล }, fields: {} } }), `ปิดไม่สำเร็จ ${n}`);
   /** นัดหมาย (สร้างที่แผงลีด › นัดหมาย) · สถานะเริ่ม upcoming แล้วค่อยกดเสร็จ/ยกเลิก แบบหน้าปฏิทิน */
   const นัด = async (n, company, { ห่างวัน = 0, เวลา = "10:00", type = "visit", ลำดับ = 1, เรื่อง = "นัดดูหน้างาน" } = {}) => {

@@ -73,7 +73,7 @@ export async function สร้าง(ctx) {
     { const { n, จด } = await ลีด2(9); await จด(1); const rid = await ง.ขอราคา(n, ขนาด(9)); await จด(2); await ง.HQรับเรื่อง(rid); await ง.HQบันทึกใบ(rid, { ขนาด: ขนาด(9) }); }
     { const { n, จด } = await ลีด2(10); await จด(1); const rid = await ง.ขอราคา(n, ขนาด(10)); await จด(2); await ง.HQรับเรื่อง(rid); await ง.HQส่งใบ(rid, { ขนาด: ขนาด(10) }); }
     { const { n, company, จด } = await ลีด2(11); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(11), จด }); await จด(4); await ง.ตอบรับ(n, company, qid);
-      ctx.ต้อง(await hq.rpc("quotation_revert_won", { p_dealer: s.code, p_id: qid, p_reason: "ลูกค้าขอเลื่อนชำระมัดจำ (ตัวอย่าง)", p_to: "sent_to_client" }), "HQ ย้อนการตอบรับ"); }
+      ctx.ต้อง(await ง.sb.rpc("quotation_revert_won", { p_dealer: s.code, p_id: qid,   /* ใบ 0288: ดีลเลอร์เจ้าของใบย้อนเอง (HQ ดูอย่างเดียว) */ p_reason: "ลูกค้าขอเลื่อนชำระมัดจำ (ตัวอย่าง)", p_to: "sent_to_client" }), "ดีลเลอร์ย้อนการตอบรับ"); }
     ย้อน2.พัก(); ย้อน2.สั่ง();
 
     const { data } = await ctx.svc.from("quotations").select("status").eq("dealer_code", s.code).gte("deal_id", s.base).lte("deal_id", s.base + 999);

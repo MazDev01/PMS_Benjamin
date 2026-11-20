@@ -67,6 +67,13 @@ function sqlเติม() {
     (select min(id) from public.customers where dealer_code = 'RYG') ลูกค้า,
     (select min(id) from public.quotations where dealer_code = 'RYG' and status <> 'draft') ใบ;
 
+  -- ── รหัสลีดตามกติกาแอป "#L-" + (40321 + เลขลีด) (ใบ 0036) — ข้อมูลตั้งต้นใช้ "#L-<เลข>" → HQ เปิดแผงจากลิงก์ที่รู้แค่เลขไม่เจอ ──
+  --    ตารางอื่นอ้างลีดด้วยเลข (num_id) ไม่ใช่รหัส · ทำก่อนเติมช่องอื่น (ช่องที่สุ่มตามรหัสคงที่ทุกรอบ)
+  update public.leads set id = '#L-' || (40321 + num_id) where id is distinct from '#L-' || (40321 + num_id);
+  -- มูลค่าลีด = ใบล่าสุดที่ส่งแล้ว (ตัวกลางฐาน _lead_quote_value · ใบ 0223) — ใบตั้งต้นลงแบบปิดตัวดัก ค่ามูลค่าลีดจึงไม่ถูกคำนวณ (หัวแผงขึ้น "—")
+  update public.leads l set quote_value = public._lead_quote_value(l.dealer_code, l.num_id)
+   where l.quote_value is distinct from public._lead_quote_value(l.dealer_code, l.num_id);
+
   -- ── ลูกค้าเป้าหมาย: หมายเหตุลูกค้าเป้าหมาย (report) · อีเมล · ที่อยู่ · บันทึกการติดต่อ ──
   update public.leads l set report = case l.status::text
       ${Object.entries(รายงานลีด).map(([s, xs]) => `when ${q(s)} then ${เลือก(xs, "l.id")}`).join("\n      ")}
@@ -79,14 +86,17 @@ function sqlเติม() {
    where coalesce(l.address, '') = '' and l.num_id <> (select ลีด from เว้น);
   ${เติมที่อยู่("leads", "address", "province")}
   -- บันทึกการติดต่อของข้อมูลตั้งต้นที่ยังเป็นคำทดสอบ → ข้อความจริง
-  update public.leads l set activities = (select jsonb_agg(case when x->>'text' ~ '^บันทึกการติดต่อทดสอบ' then jsonb_set(x, '{text}', to_jsonb(${เลือก(ติดต่อ, "l.id || (x->>'id')")})) else x end order by o)
+  update public.leads l set activities = (select jsonb_agg(case when x->>'text' ~ '^บันทึกการติดต่อทดสอบ' then jsonb_set(x, '{text}', to_jsonb((array[
+    'ติดตามลูกค้า (โทร) · โทรแนะนำบริษัท ' || coalesce(nullif(l.contact, ''), 'ลูกค้า') || ' สนใจอาคารราว ' || coalesce(nullif(l.area, ''), '600') || ' ตร.ม. ที่' || l.province,
+    'ติดตามลูกค้า (LINE) · ส่งผลงาน' || coalesce(nullif(l.project, ''), 'โกดัง') || 'ใน' || l.province || ' ' || (2 + abs(hashtext('w' || l.id || coalesce(x->>'id', ''))) % 4) || ' แห่งให้ ' || l.company,
+    'ติดตามลูกค้า (โทร) · ' || coalesce(nullif(l.contact, ''), 'ลูกค้า') || ' ถามระยะเวลาผลิตและติดตั้งงาน ' || coalesce(nullif(l.area, ''), '600') || ' ตร.ม. ตอบว่าราว ' || (35 + abs(hashtext('t' || l.id)) % 30) || ' วัน',
+    'ส่งข้อมูล (อีเมล) · ส่งสเปกหลังคาและผนังสำหรับ' || coalesce(nullif(l.project, ''), 'โกดัง') || ' ให้ ' || l.company,
+    'เข้าพบลูกค้า (พบลูกค้า) · วัดพื้นที่จริงที่' || l.province || ' หน้ากว้างถนน ' || (6 + abs(hashtext('r' || l.id)) % 10) || ' ม. รถเครนเข้าได้',
+    'ติดตามลูกค้า (โทร) · ' || coalesce(nullif(l.contact, ''), 'ลูกค้า') || ' ขอเวลาปรึกษาหุ้นส่วนอีก ' || (3 + abs(hashtext('d' || l.id || coalesce(x->>'id', ''))) % 12) || ' วัน'
+  ])[1 + abs(hashtext(l.id || coalesce(x->>'id', '')))::bigint % 6])) else x end order by o)
       from jsonb_array_elements(l.activities) with ordinality t(x, o))
    where l.activities::text like '%บันทึกการติดต่อทดสอบ%';
-  -- ลีดที่ไม่มีบันทึกการติดต่อเลย (เข้ามาเกิน 1 วัน) → โทรครั้งแรก 1 รายการ วันถัดจากวันเข้า (เว้นลีดเข้าใหม่วันนี้ = ยังไม่ได้ติดต่อจริง)
-  update public.leads l set activities = jsonb_build_array(jsonb_build_object('id', 1, 'type', 'call', 'icon', 'phone',
-        'text', ${เลือก(ติดต่อ.slice(0, 3), "l.id")}, 'date', ${ไทยเวลา("l.created_at + interval '1 day 2 hours'")})),
-      last_contact_at = ((l.created_at + interval '1 day 2 hours') at time zone 'Asia/Bangkok')::date
-   where coalesce(jsonb_array_length(l.activities), 0) = 0 and l.created_at < now() - interval '1 day';
+  -- บันทึกการติดต่อครั้งแรก/ตามขั้น: ส่วน งานขายเต็ม.mjs (ทุกลีด รวมที่เข้าวันนี้ · บอสสั่ง 19 พ.ย. 69)
 
   -- ── ลูกค้า: ผู้ติดต่อ (name) · อีเมล · ที่อยู่เต็ม · ผู้รับผิดชอบ (owner = ผู้รับผิดชอบลีด หรือพนักงานขายของสาขา) ──
   update public.customers c set name = coalesce((select l.contact from public.leads l where l.dealer_code = c.dealer_code and l.customer_id = c.id and coalesce(l.contact, '') <> '' order by l.num_id limit 1), 'คุณ' || ${เลือก(["สมชาย ใจดี", "วิภาวรรณ ทองดี", "ประเสริฐ มั่นคง", "อรุณี ศรีสุข"], "c.id::text")})
@@ -137,9 +147,27 @@ function sqlเติม() {
    where coalesce(s.issuer->>'website', '') = '' and s.issuer ? 'company';
   update public.dealer_settings s set issuer = jsonb_set(s.issuer, '{address}', to_jsonb(regexp_replace(s.issuer->>'address', ' (อ\\.|เขต|จ\\.).*$', '') || ${ท้ายที่อยู่("d.province")}))
     from public.dealers d where d.code = s.dealer_code and coalesce(s.issuer->>'address', '') <> '' and (s.issuer->>'address') !~ '[0-9]{5}$';
-  update public.dealer_settings s set document = jsonb_build_object('vatPercent', 7, 'validityDays', 30, 'whtPercent', 3, 'quotePrefix', 'Q-' || s.dealer_code || '-',
-      'termsAndConditions', ${q(เงื่อนไขเอกสาร)}) || coalesce(s.document, '{}'::jsonb)
-   where coalesce(s.document->>'termsAndConditions', '') = '';
+  -- ตั้งค่าเอกสาร: คีย์ที่แอปอ่าน (vatPercent/validityDays/whtPercent/quotePrefix/termsAndConditions/header/footer) — เติมทุกคีย์ที่ว่างหรือยังเป็นคำทดสอบ
+  --   คีย์รุ่นเก่า (vat/terms/prefix/running) เอาออก · หัว/ท้ายเอกสารสมจริงทุกสาขา (บอสสั่ง 19 พ.ย. 69 · เดิม CNX ท้ายเอกสาร "ข้อความเอกสารทดสอบ CNX")
+  --   เดิม: ค่าใหม่ || ค่าเดิม → ช่องที่มีอยู่แต่ว่าง (termsAndConditions = '') ชนะค่าใหม่ เติมไม่ติด
+  update public.dealer_settings s set document = (coalesce(s.document, '{}'::jsonb) - 'vat' - 'terms' - 'prefix' - 'running') || jsonb_strip_nulls(jsonb_build_object(
+      'vatPercent',   case when jsonb_typeof(s.document->'vatPercent') = 'number' then null else to_jsonb(7) end,
+      'validityDays', case when jsonb_typeof(s.document->'validityDays') = 'number' then null else to_jsonb(30) end,
+      'whtPercent',   case when jsonb_typeof(s.document->'whtPercent') = 'number' then null else to_jsonb(3) end,
+      'quotePrefix',  case when coalesce(s.document->>'quotePrefix', '') <> '' then null else to_jsonb('Q-' || s.dealer_code || '-') end,
+      'termsAndConditions', case when coalesce(s.document->>'termsAndConditions', '') <> '' and s.document->>'termsAndConditions' not like '%ทดสอบ%' then null else to_jsonb(${q(เงื่อนไขเอกสาร)}::text) end,
+      'header', case when coalesce(s.document->>'header', '') <> '' and s.document->>'header' not like '%ทดสอบ%' then null
+                     else to_jsonb('ผู้แทนจำหน่ายอาคารเหล็กสำเร็จรูป · ออกแบบ ผลิต ติดตั้งครบวงจร' || coalesce(' · จ.' || nullif(d.province, ''), '')) end,
+      'footer', case when coalesce(s.document->>'footer', '') <> '' and s.document->>'footer' not like '%ทดสอบ%' then null
+                     else to_jsonb(${เลือก([
+                       "เงื่อนไขชำระเงิน: มัดจำ 30% เมื่อยืนยันสั่งผลิต · 60% เมื่อส่งโครงเหล็กถึงหน้างาน · 10% เมื่อส่งมอบงาน · ระยะส่งมอบประมาณ 45–60 วัน · รับประกันโครงสร้าง 5 ปี หลังคารั่วซึม 2 ปี",
+                       "ชำระเงินโอนเข้าบัญชีบริษัทเท่านั้น · ระยะผลิตและติดตั้งประมาณ 50 วันหลังยืนยันแบบ · รับประกันงานโครงสร้าง 5 ปี · ขอบคุณที่ไว้วางใจ",
+                       "ราคานี้รวมค่าขนส่งและติดตั้ง ไม่รวมงานฐานรากและไฟฟ้า · ระยะส่งมอบ 45 วัน · รับประกันโครงสร้าง 5 ปี สีหลังคา 10 ปี"], "s.dealer_code")}::text) end))
+    from public.dealers d where d.code = s.dealer_code;
+  -- ผู้ทำงานรายขั้นที่ยังเป็นชื่อทดสอบ (ข้อมูลตั้งต้น "ผู้ใช้ทดสอบ") → ผู้รับผิดชอบของลีด
+  update public.leads l set tasks = (select jsonb_agg(case when t->>'doneBy' like '%ทดสอบ%' then jsonb_set(t, '{doneBy}', to_jsonb(coalesce(nullif(l.assigned, ''), 'พนักงานขาย'))) else t end order by o)
+      from jsonb_array_elements(l.tasks) with ordinality x(t, o))
+   where jsonb_typeof(l.tasks) = 'array' and l.tasks::text like '%ทดสอบ%';
   update public.dealer_settings s set pricing = coalesce(s.pricing, '{}'::jsonb) || jsonb_build_object('defaultPct', 10 + abs(hashtext(s.dealer_code)) % 8)
    where coalesce(s.pricing->>'defaultPct', '') = '';
 
@@ -150,7 +178,7 @@ function sqlเติม() {
   update public.responsible_persons p set phone = '000-000-' || lpad((4000 + abs(hashtext(p.name)) % 900)::text, 4, '0') where coalesce(p.phone, '') = '';
   update public.responsible_persons p set email = 'sales-' || lower(p.dealer_code) || '-' || (abs(hashtext(p.name)) % 1000) || '@example.test' where coalesce(p.email, '') = '';
 
-  -- ── บันทึกของลูกค้า 1–3 รายการ (เว้นลูกค้า 1 ใน 7 = ยังไม่มีบันทึก) · วันที่ระหว่างวันเป็นลูกค้า–วันนี้ · ผู้เขียน = พนักงานขายของสาขา ──
+  -- ── บันทึกของลูกค้า 1–3 รายการ ทุกราย (บอสสั่ง 19 พ.ย. 69 "ทุกแท็บมีของ") · วันที่ระหว่างวันเป็นลูกค้า–วันนี้ · ผู้เขียน = พนักงานขายของสาขา ──
   insert into public.customer_notes (id, dealer_code, customer_id, title, content, category, pinned, color, author, created_at, updated_at) overriding system value
   select 970000000 + row_number() over (order by c.dealer_code, c.id, k), c.dealer_code, c.id, (b.x)[1], (b.x)[2], 'ลูกค้า', false, '#003366',
          coalesce(nullif(c.owner, ''), (select p.name from public.responsible_persons p where p.dealer_code = c.dealer_code order by p.name limit 1), ''),
@@ -162,7 +190,7 @@ function sqlเติม() {
                                + ((8 + abs(hashtext('ช:' || c.id || k)) % 9)::int) * interval '1 hour') at time zone 'Asia/Bangkok' เวลา) ว
     cross join lateral (select array[${บันทึกลูกค้า.map(([h, b]) => `array[${q(h)}, ${q(b)}]`).join(", ")}] ชุด) ช2
     cross join lateral (select array[ช2.ชุด[1 + (abs(hashtext('ห:' || c.id)) + k) % ${บันทึกลูกค้า.length}][1], ช2.ชุด[1 + (abs(hashtext('ห:' || c.id)) + k) % ${บันทึกลูกค้า.length}][2]] x) b
-   where c.id % 7 <> 0 and ช.เริ่ม <= current_date
+   where ช.เริ่ม <= current_date
      and not exists (select 1 from public.customer_notes n where n.dealer_code = c.dealer_code and n.customer_id = c.id);
   commit;`;
 }
@@ -171,7 +199,26 @@ export async function มีแล้ว(ctx) {
   return Number(ctx.sql(`select count(*) from public.customer_notes where id >= 970000000;`).trim()) > 0;
 }
 
+// ── ชื่องานเป็นอาคารโครงเหล็กทุกงาน (บอสสั่ง 20 พ.ย. 69 "ข้อมูลตัวอย่างเน้นโครงเหล็ก") ─────────────────────────────────
+//   ลีด/คำขอ/ใบ/ไฟล์/นัด ที่ลงก่อนวันนี้ยังใช้ชื่อเดิม (ชื่อสมจริงแทนครั้งเดียวตอนสร้างฐาน) → แทนเป็นชื่อโครงเหล็กชุดเดียวกับ ชื่อสมจริง.mjs
+//   regexp_replace + (?!โครงเหล็ก) กันแทนซ้ำเมื่อชื่อใหม่ขึ้นต้นด้วยชื่อเดิม (โรงจอดรถบรรทุก → โรงจอดรถบรรทุกโครงเหล็ก) · รันซ้ำได้
+//   ไม่แตะ notifications/audit_log (ข้อความที่ส่งไปแล้ว)
+const ชื่องานโครงเหล็ก = [
+  ["โกดังเก็บสินค้า", "โกดังโครงเหล็กเก็บสินค้า"], ["โรงงานผลิตชิ้นส่วน", "โรงงานโครงเหล็กผลิตชิ้นส่วน"],
+  ["อาคารโครงเหล็กสำนักงาน", "อาคารสำนักงานโครงเหล็ก"], ["ห้องเย็นเก็บผลผลิต", "ห้องเย็นโครงเหล็กเก็บผลผลิต"],
+  ["โรงจอดรถบรรทุก", "โรงจอดรถบรรทุกโครงเหล็ก"], ["โกดังพักสินค้า", "โกดังโครงเหล็กพักสินค้า"],
+  ["อาคารคลังสินค้าเกษตร", "อาคารโครงเหล็กคลังสินค้าเกษตร"],
+];
+const ช่องชื่องาน = [["leads", "project"], ["leads", "product"], ["quote_requests", "product"], ["quotations", "project"],
+  ["quotations", "product_line"], ["files", "project"], ["appointments", "building_type"]];
+function sqlชื่องานโครงเหล็ก() {
+  const คำสั่ง = ช่องชื่องาน.map(([t, c]) => `update public.${t} set ${c} = ${ชื่องานโครงเหล็ก.reduce((x, [เดิม, ใหม่]) =>
+    `regexp_replace(${x}, '${เดิม}(?!โครงเหล็ก)', '${ใหม่}', 'g')`, c)} where ${c} ~ '(${ชื่องานโครงเหล็ก.map(([เดิม]) => เดิม).join("|")})';`);
+  return `begin; set local session_replication_role = replica;\n${คำสั่ง.join("\n")}\ncommit;`;
+}
+
 export async function สร้าง(ctx) {
+  ctx.sql(sqlชื่องานโครงเหล็ก());
   ctx.sql(sqlเติม());
   const นับ = (s) => Number(ctx.sql(s).trim());
   console.log(`✓ ช่องครบ: บันทึกของลูกค้า ${นับ("select count(*) from public.customer_notes where id >= 970000000")} รายการ`
