@@ -20,7 +20,8 @@
 //   กด "ส่งใบ HQ ให้ดีลเลอร์" แล้วไฟล์ล็อกพร้อมใบ · ไฟล์ฉบับก่อน + ไฟล์จากดีลเลอร์ดูได้ในกล่องเดียวกัน
 import { DataLink } from "../ui/RecordLink";
 import { useEffect, useMemo, useState } from "react";
-import { Send, X, Copy, Lock } from "lucide-react";
+import { Send, X, Copy, Lock, ClipboardList } from "lucide-react";
+import { RequestItemsTable } from "@pms/shared/components/ui/RequestItems";
 import { quoteRequests as repo } from "@pms/shared/lib/data";
 import {
   type QuoteRequest, type HqQuote, type HqQuoteLine, type แถววาง, hqQuoteStatusLabel, ยอดรวมใบ, วันไทยสั้น, เกินกำหนด,
@@ -205,8 +206,12 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
     ["ดีลเลอร์", <DataLink key="d" เป้า={{ ชนิด: "dealer", รหัส: request.dealerCode }}>{ชื่อของ(request.dealerCode, dealerName)}</DataLink>, "dealer"],
   ];
   // แหล่งรายการของตาราง BOQ กลาง (ไม่รื้อตาราง — ส่งปุ่มเข้าไปทาง แหล่ง)
-  //   "เลือกจากรายการวัสดุ" · "รายการจากคำขอดีลเลอร์" เอาออก (บอสสั่ง 20 พ.ย. 69) — เหลือพิมพ์เอง/วางจาก Excel
-  const แหล่ง: แหล่งรายการ[] = [];
+  //   "เลือกจากรายการวัสดุ" เอาออก (บอสสั่ง 20 พ.ย. 69) · "ใส่รายการจากคำขอ" = รายการที่ดีลเลอร์พิมพ์ในคำขอ (รายการ · จำนวน · หน่วย)
+  //   ใส่เป็นแถวราคาว่างให้ HQ กรอก · กดเองเท่านั้น ไม่ใส่ให้อัตโนมัติ (บอสสั่ง 20 พ.ย. 69 · แทน H8 เดิม)
+  const จากคำขอ: แถววาง[] = (request.estimateItems ?? []).map(i => ({ name: i.name, qty: Number(i.qty) || 1, unit: i.unit ?? "", unitCost: 0 }));
+  const แหล่ง: แหล่งรายการ[] = [
+    { key: "request-items", label: "ใส่รายการจากคำขอ", icon: ClipboardList, disabled: จากคำขอ.length === 0, เปิด: แทรก => แทรก(จากคำขอ) },
+  ];
   const เนื้อหา = (
     <>
         <div style={{ background: NAVY, color: "#fff", padding: "16px 22px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -255,6 +260,8 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
                 </div>
               )}
             </กริดรายละเอียด>
+            {/* รายการที่ดีลเลอร์ระบุในคำขอ (อ่านอย่างเดียว · ไม่มีราคา · 20 พ.ย. 69) — ไม่มีรายการ = ไม่แสดง */}
+            <RequestItemsTable items={request.estimateItems} label="รายการที่ดีลเลอร์ระบุในคำขอ" />
             <div style={{ display: "grid", gap: 2 }}>
               <span style={ป้ายข้อมูล}>{ป้ายช่อง.สเปก}</span>
               <span data-testid="request-spec" style={{ fontSize: "0.82rem", color: "#374151", whiteSpace: "pre-wrap",

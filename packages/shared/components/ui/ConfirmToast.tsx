@@ -18,6 +18,7 @@
 //   กล่องเปิดค้างจนฐานตอบ · ปุ่มเปลี่ยนเป็น "กำลัง…" กดซ้ำไม่ได้ · ฐานตอบผิดพลาด = ข้อความในกล่อง ไม่ปิดเอง
 //   ⚠️ ใน ทำ ห้ามเรียก แจ้งพลาด() — โยน error ออกมา (ที่วางกล่องแสดงทีละใบ ข้อความแจ้งใบใหม่จะบังกล่องที่ค้าง)
 //   ถามเหตุผล() บังคับ ทำ เสมอ = กล่องเหตุผลตัวเดียวทั้งระบบ (ตัวตรวจ check-reason-dialogs ห้ามเขียนช่องเหตุผลเอง)
+import { RequestItemsEditor, ตรวจรายการคำขอ, type รายการคำขอ } from "@pms/shared/components/ui/RequestItems";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Toaster, toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
@@ -170,8 +171,10 @@ export type ตัวเลือกถามเหตุผล = Omit<ตัว
   ตัวเลือก?: readonly string[];
   /** ช่องข้อความเพิ่ม (ไม่บังคับ) เช่น สเปกตอนขอแก้ราคา */
   ช่องเพิ่ม?: { ป้าย: string; ค่าตั้งต้น?: string };
-  /** งานที่ต้องรอฐาน — รับเหตุผล (ตัดช่องว่างแล้ว) + ช่องเพิ่ม · โยน error = แสดงในกล่อง */
-  ทำ: (เหตุผล: string, เพิ่ม: string) => Promise<unknown>;
+  /** ตารางรายการในคำขอ (ขอแก้ราคา · ใบ 0290 · 20 พ.ย. 69) — รายการ + จำนวน + หน่วย · ไม่มีราคา · ไม่บังคับ */
+  รายการคำขอ?: { ค่าตั้งต้น: รายการคำขอ[] };
+  /** งานที่ต้องรอฐาน — รับเหตุผล (ตัดช่องว่างแล้ว) + ช่องเพิ่ม + รายการ (ตรวจแล้ว · ไม่มีตาราง = undefined) · โยน error = แสดงในกล่อง */
+  ทำ: (เหตุผล: string, เพิ่ม: string, รายการ?: รายการคำขอ[]) => Promise<unknown>;
 };
 
 const ช่องในกล่อง: React.CSSProperties = { width: "100%", marginTop: 6, padding: "7px 9px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.82rem", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", background: "#fff" };
@@ -182,6 +185,7 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
   const [เลือก, setเลือก] = useState("");
   const [พิมพ์, setพิมพ์] = useState("");
   const [เพิ่ม, setเพิ่ม] = useState(o.ช่องเพิ่ม?.ค่าตั้งต้น ?? "");
+  const [รายการขอ, setรายการขอ] = useState<รายการคำขอ[]>(o.รายการคำขอ?.ค่าตั้งต้น ?? []);
   const [กำลังทำ, setกำลังทำ] = useState(false);
   const [ผิด, setผิด] = useState("");
   const พิมพ์เอง = !ใช้รายการ || เลือก === OTHER_LOST_REASON;
@@ -192,7 +196,13 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
   async function กด() {
     if (ว่าง || กำลังทำRef.current) return;   // กดรัว = ครั้งแรกครั้งเดียว (state ยังไม่ทันเปลี่ยน)
     กำลังทำRef.current = true; setกำลังทำ(true); setผิด("");
-    try { await o.ทำ(เหตุผล, เพิ่ม.trim()); ตอบ(true); }
+    let รายการส่ง: รายการคำขอ[] | undefined;
+    if (o.รายการคำขอ) {
+      const ตรวจ = ตรวจรายการคำขอ(รายการขอ);
+      if (ตรวจ.ผิด) { setผิด(ตรวจ.ผิด); กำลังทำRef.current = false; setกำลังทำ(false); return; }
+      รายการส่ง = ตรวจ.ส่ง;
+    }
+    try { await o.ทำ(เหตุผล, เพิ่ม.trim(), รายการส่ง); ตอบ(true); }
     catch (e) { setผิด(friendlyError(e)); }
     finally { กำลังทำRef.current = false; setกำลังทำ(false); }
   }
@@ -239,6 +249,7 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
           <textarea aria-label={o.ช่องเพิ่ม.ป้าย} value={เพิ่ม} rows={2} disabled={กำลังทำ} onChange={e => setเพิ่ม(e.target.value)} style={ช่องในกล่อง} />
         </label>
       )}
+      {o.รายการคำขอ && <div style={{ marginTop: 10 }}><RequestItemsEditor value={รายการขอ} onChange={setรายการขอ} disabled={กำลังทำ} /></div>}
       <ข้อผิดพลาดในกล่อง ข้อความ={ผิด} />
       <div className="pms-confirm-actions">
         <button type="button" data-dialog-cancel className="btn btn-secondary btn-sm" disabled={กำลังทำ} onClick={() => ตอบ(false)}>{o.ปุ่มยกเลิก ?? "ยกเลิก"}</button>

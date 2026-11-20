@@ -15,6 +15,7 @@
 // โหมดข้อมูลตัวอย่าง (ไม่มีฐานข้อมูล) ไม่แสดงแผงนี้
 // ยกเลิก (บอสสั่ง 5 พ.ย. 69 · ใบ 0280): คำขอที่ส่งแล้วไม่ถูกลบ — ยังเห็นในแผงนี้ (คำขอที่ยกเลิกแล้ว: เหตุผล · ใคร · เมื่อไร · ไฟล์แนบเปิดดูได้)
 //   ขอราคาใหม่ได้ตามปกติ คำขอเก่าไม่ทับ · กดยกเลิกฟอร์มขอราคา (ยังไม่ส่ง) = ฐานจดประวัติของลีด "เริ่มขอราคาแล้วยกเลิก" + ใคร (ไม่เก็บที่กรอก)
+import { RequestItemsEditor, RequestItemsTable, ตรวจรายการคำขอ, type รายการคำขอ } from "@pms/shared/components/ui/RequestItems";
 import { DataLink } from "./RecordLink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
@@ -78,6 +79,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
   // ไฟล์ที่เลือกในฟอร์มขอราคา — ส่งตามไปหลังฐานสร้างคำขอแล้ว (ไฟล์ต้องผูกเลขคำขอ)
   const [ไฟล์รอส่ง, setไฟล์รอส่ง] = useState<File[]>([]);
+  // รายการที่ต้องการ (ดีลเลอร์พิมพ์เอง · 20 พ.ย. 69)
+  const [รายการขอ, setรายการขอ] = useState<รายการคำขอ[]>([]);
   const [ไฟล์ไม่ผ่านฟอร์ม, setไฟล์ไม่ผ่านฟอร์ม] = useState<ไฟล์ไม่ผ่าน[]>([]);
   // ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69 "ทำไมมันกางแบบนี้"): ค่าเริ่มต้น = บรรทัดสรุป · กด "ดูรายการ" แล้วกางตาราง
   const [กางรายการ, setกางรายการ] = useState(false);
@@ -172,7 +175,9 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
     รายละเอียด: "ใบ HQ ใบเดิมปิด · เปิดคำขอใหม่ให้ HQ ตีราคาอีกครั้ง (เริ่มนับ 14 วันใหม่)",
     ป้ายช่อง: "เหตุผลที่ขอแก้ราคา", ปุ่มตกลง: "ส่งขอแก้ราคา", ปุ่มกำลังทำ: "กำลังส่งขอแก้ราคา…",
     ช่องเพิ่ม: { ป้าย: "รายละเอียดงานที่ขอแก้ราคา", ค่าตั้งต้น: คำขอ.spec ?? "" },
-    ทำ: async (เหตุผล, สเปก) => { await repo.reprice(คำขอ.id, เหตุผล, สเปก || undefined); await หลังทำ(); },
+    // รายการในคำขอ (ใบ 0290): ตั้งต้น = รายการของคำขอเดิม (ชื่อ · จำนวน · หน่วย) แก้/เพิ่ม/ลบได้ · ส่งไปกับคำขอใหม่
+    รายการคำขอ: { ค่าตั้งต้น: (คำขอ.estimateItems ?? []).map(i => ({ name: i.name, qty: Number(i.qty), unit: i.unit ?? "" })) },
+    ทำ: async (เหตุผล, สเปก, รายการ) => { await repo.reprice(คำขอ.id, เหตุผล, สเปก || undefined, รายการ); await หลังทำ(); },
   });
 
   // สั่งเปิดฟอร์มจากปุ่ม "ขั้นต่อไป" — รอให้รายการคำขอโหลดเสร็จก่อน (ต้องรู้ว่ามีคำขอเปิดอยู่ไหม)
@@ -192,16 +197,18 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
   const ส่งคำขอ = async () => {
     if (busy) return;
     if (!บังคับขอ.ตรวจ([{ key: "product", label: ช่องขอราคา.งาน, value: product, ข้อความ: "ระบุงานที่ขอราคาก่อน" }])) { setErr(`กรอกให้ครบก่อน: ${ช่องขอราคา.งาน}`); return; }
+    const ตรวจรายการ = ตรวจรายการคำขอ(รายการขอ);
+    if (ตรวจรายการ.ผิด) { setErr(ตรวจรายการ.ผิด); return; }
     setErr(""); setBusy(true);
     try {
-      const คำขอ = await repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: [] });   // ไม่มีวัสดุ/ราคาประเมินแล้ว (บอสสั่ง 20 พ.ย. 69)
+      const คำขอ = await repo.submit({ leadNumId: lead.numId!, product: product.trim(), spec, area: area ? Number(area) : null, province: lead.province ?? "", estimate: ตรวจรายการ.ส่ง });   // รายการที่ดีลเลอร์พิมพ์เอง { name, qty, unit } (20 พ.ย. 69)
       // ไฟล์ตามไปหลังมีเลขคำขอ — ไฟล์ไหนไม่ผ่าน บอกชื่อ (คำขอส่งแล้ว แนบเพิ่มได้ในกล่องไฟล์แนบ)
       const ไม่ผ่าน: string[] = [];
       for (const f of ไฟล์รอส่ง) {
         try { await quoteFiles.upload(คำขอ.id, "dealer", f); } catch (e) { ไม่ผ่าน.push(`${f.name}: ${friendlyError(e)}`); }
       }
       await หลังทำ();
-      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
+      setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setรายการขอ([]); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
       if (ไม่ผ่าน.length) setErr(`ส่งคำขอแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${ไม่ผ่าน.join(" · ")} (แนบใหม่ได้ที่กล่องไฟล์แนบ)`);
     } catch (e) { setErr(friendlyError(e)); }
     finally { setBusy(false); }
@@ -225,7 +232,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
             {เปิด.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
           </div>
           <div>งานที่ขอราคา: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
-          {/* ราคาประเมินจากวัสดุ: เอาออก (บอสสั่ง 20 พ.ย. 69 เอารายการวัสดุออกทั้งระบบ) — estimate ของคำขอเก่าอยู่ในฐาน ไม่แสดง */}
+          {/* ราคาประเมินจากวัสดุ: เอาออก (บอสสั่ง 20 พ.ย. 69) · รายการในคำขอ (ดีลเลอร์พิมพ์เอง · ไม่มีราคา) แสดงเป็นตารางอ่านอย่างเดียว */}
+          <RequestItemsTable items={เปิด.estimateItems} />
           {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
           {/* ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69): บรรทัดสรุปเดียว · "ดูรายการ" กางตาราง · ไม่ซ้อนกรอบเพิ่ม (กล่องม่วง = ชั้นเดียว)
               ใต้ใบ = เฉพาะไฟล์ที่ HQ แนบกับใบฉบับนี้ ไม่มี = ไม่แสดงกล่อง ("ให้แสดงเฉพาะไฟล์ที่ HQ แนบมา") · ปุ่มทำใบให้ลูกค้าอยู่ที่กล่องขั้นต่อไปเหมือนเดิม */}
@@ -333,7 +341,8 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal }: { lead: LeadR
           <label className="form-label" htmlFor="qr-spec">{ช่องขอราคา.สเปก}</label>
           <textarea id="qr-spec" aria-label={ช่องขอราคา.สเปก} rows={3} style={ช่อง} value={spec} onChange={e => setSpec(e.target.value)} disabled={busy} />
           <div style={{ fontSize: "0.74rem", color: "#6b7280" }}>{ช่องขอราคา.จังหวัด}: {lead.province || "—"}</div>
-          {/* เลือกวัสดุ/ราคาประเมิน: เอาออก (บอสสั่ง 20 พ.ย. 69) — คำขอใหม่ส่ง estimate ว่าง */}
+          {/* รายการที่ต้องการ (บอสสั่ง 20 พ.ย. 69 · แทนส่วนเลือกวัสดุ/ราคาประเมิน): รายการ + จำนวน + หน่วย · ไม่มีราคา · ไม่บังคับ */}
+          <RequestItemsEditor value={รายการขอ} onChange={setรายการขอ} disabled={busy} />
           {/* ไฟล์แนบถึง HQ (ไม่บังคับ · ใบ 0273) — กล่องแนบไฟล์กลาง หน้าตาเดียวกับฝั่ง HQ (บอสสั่ง 3 พ.ย. 69 "ทำเป็นปุ่มแบบของ HQ")
               ไฟล์ส่งตามคำขอทันทีหลังส่ง · ไฟล์ที่ไม่ผ่านขึ้นเป็นแถวเตือนของไฟล์นั้น ไม่ถูกส่ง */}
           <div data-field="request-files" style={{ display: "grid", gap: 6, background: "#f8fafc", border: "1px solid #eef1f5", borderRadius: 12, padding: "10px 12px" }}>
