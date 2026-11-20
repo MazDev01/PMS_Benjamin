@@ -1784,6 +1784,8 @@ export default function LeadsPage() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:"0.8rem", fontWeight:700, color:"#2D2D2D" }}>{a.project}</div>
                       <div style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2 }}>{ป้ายประเภทนัด(a.type)} · {fmtISOToThai(a.date)} · {a.time} น.</div>
+                      {/* สถานที่นัด (ฟอร์มนัดใหม่ในปฏิทิน · 19 พ.ย. 69 เดิมบันทึกแล้วไม่มีที่แสดง) · ไม่มี = ไม่แสดงบรรทัด */}
+                      {a.location?.trim() && <div data-appt-location style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2, overflowWrap:"anywhere" }}>สถานที่: {a.location.trim()}</div>}
                     </div>
                     <span className="badge" style={{ flexShrink:0, background:"#dce5f0", color:"#003366" }}>
                       {a.status === "upcoming" ? "กำลังจะมาถึง" : a.status === "done" ? "เสร็จแล้ว" : "ยกเลิก"}

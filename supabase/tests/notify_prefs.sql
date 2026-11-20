@@ -68,8 +68,8 @@ declare v jsonb; n int;
 begin
   -- ═══ 1) ตารางกลาง ═══
   perform nptest.ok((select array_agg(kind order by kind) from notification_kinds where locked)
-                    = array['hq_quote_sent', 'lead_from_hq', 'request_new', 'requests_overdue', 'won_reverted'],
-                    '1) เรื่องจำเป็น = HQ: คำขอราคาใหม่ · สรุปคำขอค้าง / ดีลเลอร์: HQ ส่งราคา · ย้อนปิดการขาย · HQ ส่งลีด');
+                    = array['hq_quote_sent', 'lead_from_hq', 'request_new', 'requests_overdue', 'won_reverted', 'won_reverted_by_dealer'],
+                    '1) เรื่องจำเป็น = HQ: คำขอราคาใหม่ · สรุปคำขอค้าง · ดีลเลอร์ย้อนการตอบรับ (ใบ 0288) / ดีลเลอร์: HQ ส่งราคา · ย้อนปิดการขาย · HQ ส่งลีด');
   perform nptest.ok(not exists (select 1 from notification_kinds where btrim(goes_to) = ''), '1) ทุกเรื่องมี "กดแล้วไปไหน"');
 
   perform nptest.as_a();

@@ -127,3 +127,61 @@ describe("ภาษีหัก ณ ที่จ่ายบนเอกสา�
     expect(html).toContain("95,000");      // 100,000 − 5,000
   });
 });
+
+// ── หัว/ท้ายเอกสาร (ตั้งค่าดีลเลอร์ › เอกสาร · 19 พ.ย. 69 เดิมบันทึกแล้วไม่พิมพ์) · ว่าง = ไม่พิมพ์ ──
+//   ตกบนโค้ดเดิม (97a8ab9e): ไม่มี data-doc-header/data-doc-footer ในเอกสาร
+describe("หัว/ท้ายเอกสารจากตั้งค่าดีลเลอร์", () => {
+  it("กรอกหัว/ท้าย → พิมพ์ หัวใต้ข้อมูลบริษัท · ท้ายก่อนลายเซ็น", () => {
+    const html = buildQuotationHTML(ใบ(), ผู้ออก, undefined, { ...DEFAULT_DOC, header: "ตัวแทนจำหน่ายอาคารเหล็กสำเร็จรูป", footer: "ขอบคุณที่ไว้วางใจ" } as DocProfile);
+    expect(html).toContain('<div class="doc-header" data-doc-header>ตัวแทนจำหน่ายอาคารเหล็กสำเร็จรูป</div>');
+    expect(html).toContain('<div class="doc-footer" data-doc-footer>ขอบคุณที่ไว้วางใจ</div>');
+    expect(html.indexOf("data-doc-header")).toBeGreaterThan(html.indexOf('class="issuer-meta"'));
+    expect(html.indexOf("data-doc-header")).toBeLessThan(html.indexOf('class="parties"'));
+    expect(html.indexOf("data-doc-footer")).toBeLessThan(html.indexOf('<div class="signs">'));
+  });
+  it("หัว/ท้ายว่าง (หรือมีแต่ช่องว่าง) → ไม่พิมพ์กล่อง", () => {
+    for (const doc of [DEFAULT_DOC, { ...DEFAULT_DOC, header: "  ", footer: "" } as DocProfile]) {
+      const html = buildQuotationHTML(ใบ(), ผู้ออก, undefined, doc);
+      expect(html).not.toContain("data-doc-header");
+      expect(html).not.toContain("data-doc-footer");
+    }
+  });
+  it("อักขระพิเศษในหัว/ท้ายถูกแปลงก่อนใส่เอกสาร", () => {
+    const html = buildQuotationHTML(ใบ(), ผู้ออก, undefined, { ...DEFAULT_DOC, header: "<script>x</script>" } as DocProfile);
+    expect(html).not.toContain("<script>x</script>");
+  });
+});
+
+// ── ตั้งค่าเอกสารว่างทั้งก้อน (ฐานจริง 19 พ.ย. 69: dealer_settings.document ว่าง 156 จาก 156) → ใช้ค่าตั้งต้น พิมพ์ได้ครบ ──
+//   ที่อ่านตั้งค่า: { ...DEFAULT_DOC, ...document } (HttpAdapter/SupabaseAdapter) — document = {} ได้ DEFAULT_DOC พอดี
+describe("ตั้งค่าเอกสารว่าง = ค่าตั้งต้น", () => {
+  it("VAT 7% · ยืนราคา 30 วันจากวันที่ออก · ไม่มีเงื่อนไขแต่งเอง · ไม่มีหัว/ท้าย", () => {
+    const ตั้งค่า = { ...DEFAULT_DOC, ...({} as Partial<DocProfile>) };
+    const html = buildQuotationHTML(ใบ({ date: "2026-06-01", expiry: undefined }), ผู้ออก, undefined, ตั้งค่า);
+    expect(html).toContain("ภาษีมูลค่าเพิ่ม 7%");
+    expect(html).toContain("฿1,070,000");
+    expect(html).toContain("ราคานี้ยืนยันถึงวันที่ 1 ก.ค. 2569");
+    expect(html).not.toContain("data-doc-header");
+    expect(html).not.toContain("data-doc-footer");
+    expect(DEFAULT_DOC).toMatchObject({ vatPercent: 7, validityDays: 30, quotePrefix: "Q-", runningNumber: 1001 });
+  });
+});
+
+// ── อีเมล/เว็บไซต์ของบริษัทบนหัวใบ (ใบ 0289 · บอสเลือก ก 19 พ.ย. 69) — ต่อจากโทร · ว่าง = ไม่พิมพ์บรรทัด ──
+//   ตกบนโค้ดเดิม: หัวใบไม่มีอีเมล/เว็บไซต์
+describe("อีเมล/เว็บไซต์บนหัวใบ", () => {
+  it("กรอกแล้ว → พิมพ์ต่อจากบรรทัดโทร ก่อนเลขผู้เสียภาษี", () => {
+    const html = buildQuotationHTML(ใบ(), { ...ผู้ออก, email: "cnx@example.test", website: "https://cnx.example.test" }, undefined, DEFAULT_DOC);
+    const ส่วน = html.slice(html.indexOf('<div class="issuer-meta">'), html.indexOf("</div>", html.indexOf('<div class="issuer-meta">')));
+    expect(ส่วน).toContain("อีเมล cnx@example.test");
+    expect(ส่วน).toContain("https://cnx.example.test");
+    expect(ส่วน.indexOf("โทร. ")).toBeLessThan(ส่วน.indexOf("อีเมล "));
+    expect(ส่วน.indexOf("https://cnx.example.test")).toBeLessThan(ส่วน.indexOf("เลขผู้เสียภาษี"));
+  });
+  it("ว่าง/ช่องว่างล้วน/ไม่มีช่อง → ไม่มีบรรทัดอีเมล/เว็บไซต์", () => {
+    for (const x of [ผู้ออก, { ...ผู้ออก, email: "  ", website: "" }]) {
+      const html = buildQuotationHTML(ใบ(), x, undefined, DEFAULT_DOC);
+      expect(html).not.toContain("อีเมล ");
+    }
+  });
+});

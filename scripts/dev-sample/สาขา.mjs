@@ -74,7 +74,7 @@ export async function สร้าง(ctx) {
     const name = ชื่อสาขา(s.code);
     // ── H2 ผู้สนใจเป็นดีลเลอร์ (HQ เพิ่มที่หน้าผู้สนใจ) ──
     const ราย = ต้อง(await hq.from("dealer_prospects").insert({ name: ชื่อผู้สนใจ(s.code), province: s.province, region: s.region,
-      status: "considering", phone: เบอร์(s.เบอร์), email: อีเมลผู้สนใจสาขา(s.code), channel: "งานแสดงสินค้า",
+      status: "considering", phone: เบอร์(s.เบอร์), email: อีเมลผู้สนใจสาขา(s.code), channel: "แนะนำต่อ",
       first_contact: วัน(-60), note: `ทำร้านวัสดุก่อสร้างใน${s.province}มา 10 ปี สนใจเปิดสาขาขายโกดังโครงเหล็ก` }).select("id").single(), `ผู้สนใจ ${s.code}`);
     // ── H3–H4 ใบค่าแฟรนไชส์: ส่ง → ตอบรับ → ชำระครบ ──
     // ใบต้องครบ 8 ช่องบังคับ (ใบ 0276) · ช่องแพ็กเกจลบไปแล้ว (ใบ 0269)

@@ -73,15 +73,20 @@ begin
   select status_before_paid into v_bp from leads where dealer_code = 'CNX' and num_id = v_paid;
   perform closetest.ok(v_bp = 'BULLET', 'เข้า PAID แล้วฐานจดสถานะก่อนปิด = รวบรวมความต้องการ');
 
-  perform closetest.as_dealer();
-  perform closetest.must_fail(format($s$select quotation_revert_won('CNX', %L, 'ทดสอบ')$s$, v_q), 'forbidden', 'ดีลเลอร์ย้อนการตอบรับเอง');
-
+  -- ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69) · HQ ดูอย่างเดียว
+  --   ใบตั้งต้นที่ตอบรับ ลงด้วยโหมด replica = ไม่มีวันตอบรับที่ฐาน → ตั้งเป็นตอนนี้ (กติกาย้อนได้ภายใน 7 วัน)
+  perform closetest.as_db();
+  insert into quotation_won_at (dealer_code, quote_id, won_at) values ('CNX', v_q, now())
+    on conflict (dealer_code, quote_id) do update set won_at = excluded.won_at;
   perform closetest.as_hq();
+  perform closetest.must_fail(format($s$select quotation_revert_won('CNX', %L, 'ทดสอบ')$s$, v_q), 'forbidden', 'HQ ย้อนการตอบรับไม่ได้ (ดูอย่างเดียว)');
+
+  perform closetest.as_dealer();
   perform quotation_revert_won('CNX', v_q, 'ลูกค้าขอเลื่อนตัดสินใจ (ทดสอบ)');
   select status, status_before_paid into v_st, v_bp from leads where dealer_code = 'CNX' and num_id = v_paid;
   select x ->> 'text' into v_txt from leads, jsonb_array_elements(activities) x
    where dealer_code = 'CNX' and num_id = v_paid order by (x ->> 'id')::numeric desc limit 1;
-  perform closetest.ok(v_st = 'BULLET', 'HQ ย้อนการตอบรับ → ลีดกลับเป็น "รวบรวมความต้องการ" (สถานะก่อนปิด) — ได้ ' || v_st);
+  perform closetest.ok(v_st = 'BULLET', 'ดีลเลอร์ย้อนการตอบรับ → ลีดกลับเป็น "รวบรวมความต้องการ" (สถานะก่อนปิด) — ได้ ' || v_st);
   perform closetest.ok(v_bp is null, 'ล้างช่องสถานะก่อนปิดหลังย้อน');
   perform closetest.ok(v_txt like '%ลูกค้าเป้าหมายกลับเป็น "รวบรวมความต้องการ"%', 'ไทม์ไลน์บอกว่าลีดกลับเป็นอะไร');
 
@@ -90,7 +95,7 @@ begin
   update quotations set status = 'won' where dealer_code = 'CNX' and id = v_q;
   update leads set status = 'PAID' where dealer_code = 'CNX' and num_id = v_paid;
   update leads set status_before_paid = null where dealer_code = 'CNX' and num_id = v_paid;
-  perform closetest.as_hq();
+  perform closetest.as_dealer();
   perform quotation_revert_won('CNX', v_q, 'ทดสอบไม่มีประวัติ', 'lost');
   select status into v_st from leads where dealer_code = 'CNX' and num_id = v_paid;
   perform closetest.ok(v_st = 'QUOTED', 'ไม่มีประวัติก่อนปิด → ลีดกลับเป็น "เสนอราคา" — ได้ ' || v_st);

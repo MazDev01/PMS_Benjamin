@@ -13,7 +13,6 @@ import { fmtISOToThai, DEFAULT_DEALER_CODE, type HQQuotation } from "@pms/shared
 import type { QuotationMock } from "@pms/shared/lib/data/types";
 import { useQuoteValidityDays } from "@pms/shared/lib/useHQConfig";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
-import { useSales } from "@pms/shared/context/SalesContext";
 import { dealers as dealersRepo, quotations as quotationsRepo, metrics } from "@pms/shared/lib/data";
 import { คีย์ใบ, type ส่วนต่างใบ } from "@pms/shared/lib/hqQuoteMargins";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
@@ -47,7 +46,6 @@ import { QuotationDrawer } from "@pms/shared/components/hq/quotations/QuotationD
 export default function NetworkQuotationPage() {
   const { inRange, timeRange } = useFilters();
   const netQuotes = useNetworkQuotations();
-  const { refreshSales } = useSales();
   const netLeads = useNetworkLeads();
   const [filters, setFilters] = useState<QuotationFilters>(EMPTY_FILTERS);
   const [ขอบ, setขอบ] = useState<ขอบเขต>(ขอบเขตทั้งเครือ);
@@ -250,7 +248,7 @@ export default function NetworkQuotationPage() {
         หัวข้อ={{ ชื่อ: `ตารางรายการใบเสนอราคา · ${ป้ายระดับที่เลือก}`, คำอธิบาย: คำอธิบายหัวข้อ(ช่วง, "ตามสถานะและคำค้นด้านบน", "ใหม่สุดก่อน", "กดแถวเพื่อเปิดใบ") }} />
 
       {/* ย้อนการตอบรับแล้ว ตาราง/การ์ด/กราฟ ต้องดึงใหม่เอง (ตารางเทียบรอบ 1: เดิมต้องรีเฟรชหน้าเอง) */}
-      {viewQ && <QuotationDrawer quote={drawerSp ? { ...viewQ, salesperson: drawerSp } : viewQ} onClose={() => setViewQ(null)} onChanged={refreshSales} />}
+      {viewQ && <QuotationDrawer quote={drawerSp ? { ...viewQ, salesperson: drawerSp } : viewQ} onClose={() => setViewQ(null)} />}
     </div>
   );
 }

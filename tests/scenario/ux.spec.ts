@@ -181,7 +181,8 @@ test("[ux·hq] Dealer Detail อ่านอย่างเดียว + แท
 // รอบ 4 (บอสสั่ง 21 ต.ค. 69 · ใบ 0231): แจ้งเตือนมาจากตารางกลางที่ฐาน กระดิ่ง/อีเมลตายตัวตามเรื่อง
 //   หน้าตั้งค่า HQ › การแจ้งเตือน เหลือรายชื่อผู้รับอีเมลอย่างเดียว — สวิตช์รายหมวด/กฎแจ้งเตือนงาน HQ/หมวดบันทึกการใช้งาน เอาออก
 const ชนิดของHQ = ["request_new", "request_reprice", "requests_overdue", "customer_accepted", "franchise_payment_overdue",
-  "request_cancelled", "prospect_followup_due", "prospect_idle", "proposal_awaiting", "proposal_expired"];
+  "request_cancelled", "prospect_followup_due", "prospect_idle", "proposal_awaiting", "proposal_expired",
+  "won_reverted_by_dealer"];   // ใบ 0288 (19 พ.ย. 69): ดีลเลอร์ย้อนการตอบรับ → แจ้ง HQ (H9 · จำเป็น)
 const ชนิดของดีลเลอร์ = ["hq_quote_sent", "hq_quote_expiring", "hq_quote_expired", "quote_expiring", "appointment_due", "lead_from_hq", "won_reverted"];
 
 // ใบ 0274 (บอสสั่ง 3 พ.ย. 69 · ทับ "ไม่มีสวิตช์รายหมวด"): สวิตช์มีเฉพาะรายเรื่องในตารางของ HQ — กลับด้านจากข้อเดิม · หัวข้อกฎเดิมยังไม่มี

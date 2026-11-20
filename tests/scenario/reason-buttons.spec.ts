@@ -3,7 +3,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, db, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, เปิดหน้าต่างงานของลูกค้า } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
 
@@ -189,7 +189,7 @@ test.describe("HQ: กล่องเหตุผล", () => {
   let ใบปฏิเสธ = "", ใบชำระ = "", prospectId = 0;
 
   test.beforeAll(async () => {
-    // ใบที่ลูกค้าตอบรับแล้ว (HQ ย้อนได้)
+    // ใบที่ลูกค้าตอบรับแล้ว (ดีลเลอร์ย้อนได้ภายใน 7 วัน · ใบ 0288)
     ตอบรับ = await เตรียมใบHQ(RYG, { dealerCode: "RYG", company: ชื่อตอบรับ, province: "ระยอง", lines: [{ name: "โครงเหล็กทดสอบย้อน", qty: 1, unit: "ชุด", unitCost: 30000 }], validDays: 30 });
     ใบลูกค้า = (await ทำใบลูกค้าจากใบHQ(RYG, ตอบรับ, { customer: ชื่อตอบรับ, markupPercent: 10 })).id;
     const ส่ง = await (await db(RYG)).from("quotations").update({ status: "sent_to_client" }).eq("dealer_code", "RYG").eq("id", ใบลูกค้า);
@@ -230,17 +230,14 @@ test.describe("HQ: กล่องเหตุผล", () => {
     await admin.from("dealer_prospects").delete().like("name", `${NS}%`);
   });
 
-  test("[ux·hq] ย้อนการตอบรับ: กล่องเหตุผลกลาง · ว่างกดไม่ได้ · ฐานช้า กำลัง… · ผิดพลาดในกล่อง", async ({ page }) => {
-    await loginUI(page, HQ_ORIGIN, "/hq/login", ADMIN);
-    await page.goto(`${HQ_ORIGIN}/hq/quotations`, { waitUntil: "domcontentloaded" });
-    await settle(page);
-    await page.locator(".content").getByPlaceholder(/ค้นหา/).first().fill(ใบลูกค้า);
-    const แถว = page.locator("tbody tr").filter({ hasText: ใบลูกค้า }).first();
-    await expect(แถว).toBeVisible({ timeout: 25_000 });
-    await แถว.getByRole("button", { name: /ดู/ }).first().click();
-    const แผง = page.getByRole("dialog", { name: "รายละเอียดใบเสนอราคา" });
+  test("[ux·dealer] ย้อนการตอบรับ: กล่องเหตุผลกลาง · ว่างกดไม่ได้ · ฐานช้า กำลัง… · ผิดพลาดในกล่อง", async ({ page }) => {
+    // ย้อนการตอบรับ = ดีลเลอร์เจ้าของใบ ภายใน 7 วัน (ใบ 0288 · บอสตัดสิน 18 พ.ย. 69 · เดิมปุ่มอยู่หน้าต่างใบของ HQ — HQ ดูอย่างเดียวแล้ว)
+    await loginUI(page, DEALER_ORIGIN, "/login", RYG);
+    // ใบที่ตอบรับแล้ว = งานของลูกค้า → หน้าลูกค้า › ประวัติการซื้อ › หน้าต่างงาน
+    const หน้าต่าง = await เปิดหน้าต่างงานของลูกค้า(page, DEALER_ORIGIN, ชื่อตอบรับ, ใบลูกค้า);
+    const ย้อน = หน้าต่าง.locator(`[data-revert-won="${ใบลูกค้า}"]`);
     await ตรวจกล่องเหตุผล(page, "ย้อนการตอบรับ", async () => {
-      await แผง.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว" }).click();
+      await ย้อน.getByRole("button", { name: "ย้อนเป็นส่งให้ลูกค้าแล้ว", exact: true }).click({ timeout: 25_000 });
     });
     const { data } = await admin.from("quotations").select("status").eq("dealer_code", "RYG").eq("id", ใบลูกค้า).single();
     expect(data?.status, "คำสั่งที่ดักไว้ไม่ถึงฐาน").toBe("won");

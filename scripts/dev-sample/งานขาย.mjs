@@ -106,7 +106,7 @@ export async function งานขายของสาขา(ctx, { code, provi
       id: `#L-${n}`, num_id: n, dealer_code: code, company: บริษัท, name: บริษัท,
       contact: ผู้ติดต่อ(n), phone: เบอร์งาน(n),
       email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, address: ที่อยู่สมจริง(`${code}:${n}`, province), province,
-      product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ของขนาด(ขนาด)), source: ["ลูกค้าแนะนำ", "เว็บไซต์", "โทรเข้า", "งานแสดงสินค้า"][n % 4],
+      product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ของขนาด(ขนาด)), source: ["แนะนำต่อ", "เว็บไซต์", "Facebook", "LINE", "ลูกค้าเข้ามาเอง", "งานแสดงสินค้า"][n % 6],
       assigned: ผู้รับผิดชอบ, status: "WAITING", note: หมายเหตุลีด(n, พื้นที่ของขนาด(ขนาด)), created_label: ป้ายวัน(วัน(-ย้อนวัน)),
       ...(customerId ? { customer_id: customerId } : {}),
     }), `สร้างลีด ${บริษัท}`);
