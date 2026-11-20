@@ -1,35 +1,30 @@
 import { test, expect, type Page } from "@playwright/test";
 import { RYG, skipReason } from "./supabaseEnv";
-import { SERVICE_ROLE_READY } from "./adminEnv";
 import { DEALER_ORIGIN, db, loginUI } from "./funcHelpers";
-import { adminClient } from "./testDealers";
 import { settle } from "./helpers";
 import { ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
-// ── ตารางเลือกวัสดุตอนขอราคา (ดีลเลอร์) ต้องเป็นตารางกลางและไม่เบียดกัน (บอสสั่ง 27 ต.ค. 69) ─────────────────────────
-//   อาการบนเว็บจริง: ช่องหน่วยทับกับช่องจำนวน · ไอคอนถังขยะชิดยอดรวม
+// ── ตารางรายการในคำขอราคา (ดีลเลอร์) ต้องเป็นตารางกลางและไม่เบียดกัน ─────────────────────────────────────────────────
+//   เดิม (บอสสั่ง 27 ต.ค. 69): ตารางเลือกวัสดุ — รายการวัสดุเอาออกทั้งระบบ (บอสสั่ง 20 พ.ย. 69) แทนที่ด้วยตารางรายการในคำขอ
+//   (RequestItems · ดีลเลอร์พิมพ์รายการ/จำนวน/หน่วยเอง · ใบ 0290) ในตำแหน่งเดียวกัน → ตรวจตารางใหม่ด้วยเกณฑ์เดิม (รอบตรวจ deploy29)
+//   อาการเดิมบนเว็บจริง: ช่องหน่วยทับกับช่องจำนวน · ไอคอนถังขยะชิดยอดรวม
 //   ตรวจทั้งจอกว้างและมือถือ: 1) ตารางกลาง (.table-wrap · colgroup ครบทุกคอลัมน์)  2) ช่องกรอก/ปุ่มไม่ล้นออกนอกช่องของตัวเอง
 //     3) เนื้อหาช่องที่ติดกันห่างกันอย่างน้อย 12px (รวมถังขยะกับยอด)  4) หัวคอลัมน์จัดแนวเดียวกับข้อมูล  5) หน้าไม่เลื่อนแนวนอน
-//     6) ตัวเลขเงินไม่ถูกตัดเป็น … (ยอดหลักล้าน)
-//   ต้องตกบนโค้ดก่อนแก้ (ตารางเขียนเอง ไม่มี .table-wrap/colgroup · ช่องจำนวนล้นทับหน่วย · ถังขยะชิดยอด)
-test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
+//     6) ตัวเลขไม่ถูกตัดเป็น … (จำนวนหลักล้าน)
+//   ตกบนโค้ดก่อนแก้ (240adbd1): คอลัมน์ลบกว้าง 48px หักขอบช่องเหลือ 16px → ปุ่มลบ 36px ล้นช่อง
+test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
 
-const svc = adminClient();
 const แท็ก = Date.now() % 100_000;
 const เลข = เลขลูกค้าเป้าหมายทดสอบ();
-const บริษัท = `ZZTEST-ตารางวัสดุ-${แท็ก}`;
-// ชื่อยาว + หน่วยยาว = กรณีที่เบียดที่สุดที่ HQ ตั้งได้จริง (หน่วยพิมพ์เองได้ · ใบ 0244)
-const วัสดุ = [
-  { category: "ZZTEST", name: `ZZTEST ผนังเมทัลชีท 0.35 มม. สีขาวนวล พร้อมฉนวนกันความร้อน ${แท็ก}`, unit: "ตร.ม. (ตารางเมตร)", unit_price: 1234567.89 },
-  { category: "ZZTEST", name: `ZZTEST ประตูม้วน ${แท็ก}`, unit: "ชุด", unit_price: 45000 },
+const บริษัท = `ZZTEST-ตารางรายการคำขอ-${แท็ก}`;
+// ชื่อยาว + จำนวนหลักล้านทศนิยม = กรณีที่เบียดที่สุดที่ดีลเลอร์พิมพ์ได้
+const รายการ = [
+  { ชื่อ: `ZZTEST ผนังเมทัลชีท 0.35 มม. สีขาวนวล พร้อมฉนวนกันความร้อน ${แท็ก}`, จำนวน: "1234567.5" },
+  { ชื่อ: `ZZTEST ประตูม้วน ${แท็ก}`, จำนวน: "2" },
 ];
-let ไอดี: number[] = [];
 
 test.beforeAll(async () => {
-  const r = await svc.from("material_templates").insert(วัสดุ).select("id");
-  expect(r.error, "ใส่วัสดุทดสอบ").toBeNull();
-  ไอดี = (r.data ?? []).map(x => Number(x.id));
   const sb = await db(RYG);
   const l = await sb.from("leads").insert({ id: `#L-${เลข}`, num_id: เลข, dealer_code: "RYG", company: บริษัท, name: บริษัท,
     contact: "ผู้ทดสอบ", phone: `08${String(เลข).slice(-8)}`, province: "ระยอง", status: "BULLET", project: "ZZTEST งานโกดัง 20x40 ม.", area: "800", note: "ZZTEST สเปกหลังคาเมทัลชีท"  });
@@ -37,7 +32,6 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   ล้างใบHQทดสอบ("RYG", [เลข]);
-  await svc.from("material_templates").delete().in("id", ไอดี);
 });
 
 async function เปิดฟอร์มขอราคา(page: Page) {
@@ -48,10 +42,16 @@ async function เปิดฟอร์มขอราคา(page: Page) {
   await page.locator("tbody tr").filter({ hasText: บริษัท }).first().getByRole("button", { name: "ดูรายละเอียด" }).first().click();
   await page.getByRole("button", { name: "ใบเสนอราคา", exact: true }).first().click();
   await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ขอราคาจาก HQ/ }).click();
-  const กล่อง = page.locator("[data-box='material-estimate']");
+  const กล่อง = page.locator("[data-field='request-items']");
   await expect(กล่อง).toBeVisible({ timeout: 20_000 });
-  for (const id of ไอดี) await กล่อง.getByLabel("เลือกวัสดุ").selectOption(String(id));
-  await expect(กล่อง.locator("[data-estimate-row]")).toHaveCount(2);
+  const เพิ่ม = กล่อง.getByRole("button", { name: "เพิ่มรายการ", exact: true });
+  for (const [i, r] of รายการ.entries()) {
+    await เพิ่ม.click();
+    await กล่อง.getByLabel(`รายการ ${i + 1}`, { exact: true }).fill(r.ชื่อ);
+    await กล่อง.getByLabel(`จำนวน ${i + 1}`, { exact: true }).fill(r.จำนวน);
+    await กล่อง.getByLabel(`หน่วย ${i + 1}`, { exact: true }).selectOption({ index: 1 });
+  }
+  await expect(กล่อง.locator("[data-request-item]")).toHaveCount(2);
   return กล่อง;
 }
 
@@ -59,7 +59,7 @@ type ผล = { ตารางกลาง: boolean; คอลัมน์: str
 
 async function วัด(page: Page): Promise<ผล> {
   return page.evaluate(() => {
-    const ตาราง = document.querySelector<HTMLTableElement>("[data-box='material-estimate'] table")!;
+    const ตาราง = document.querySelector<HTMLTableElement>("[data-field='request-items'] table")!;
     const หัว = Array.from(ตาราง.querySelectorAll<HTMLTableCellElement>("thead tr:last-child th"));
     const คอล = ตาราง.querySelectorAll("colgroup > col").length;
     const ตารางกลาง = !!ตาราง.closest(".table-wrap") && getComputedStyle(ตาราง).tableLayout === "fixed";
@@ -127,7 +127,7 @@ async function วัด(page: Page): Promise<ผล> {
 }
 
 for (const จอ of [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }, { ชื่อ: "มือถือ", w: 390, h: 844 }]) {
-  test(`[ui·dealer] ตารางเลือกวัสดุตอนขอราคา (${จอ.ชื่อ}): ตารางกลาง · ไม่ล้น · ไม่ชิดกัน · หัวตรงข้อมูล`, async ({ page }) => {
+  test(`[ui·dealer] ตารางรายการในคำขอราคา (${จอ.ชื่อ}): ตารางกลาง · ไม่ล้น · ไม่ชิดกัน · หัวตรงข้อมูล`, async ({ page }) => {
     await page.setViewportSize({ width: จอ.w, height: จอ.h });
     await loginUI(page, DEALER_ORIGIN, "/login", RYG);
     await เปิดฟอร์มขอราคา(page);
@@ -137,7 +137,12 @@ for (const จอ of [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }
     expect.soft(ผล.ล้น, "ช่องกรอก/ปุ่ม/ไอคอนอยู่ในช่องของตัวเอง").toEqual([]);
     expect.soft(ผล.ชิด, "เนื้อหาช่องที่ติดกันห่างกันอย่างน้อย 12px").toEqual([]);
     expect.soft(ผล.หัวไม่ตรง, "หัวคอลัมน์จัดแนวเดียวกับข้อมูล").toEqual([]);
-    expect.soft(ผล.เงินถูกตัด, "ตัวเลขเงินเห็นครบ ไม่ถูกตัดเป็น …").toEqual([]);
+    expect.soft(ผล.เงินถูกตัด, "ตัวเลขเห็นครบ ไม่ถูกตัดเป็น …").toEqual([]);
     expect.soft(ผล.ล้นหน้า, "หน้าไม่เลื่อนแนวนอน").toBeLessThanOrEqual(1);
+    // ช่องจำนวนไม่ถูกตัด (7 หลัก + ทศนิยม)
+    for (const i of [1, 2]) {
+      const ล้น = await page.getByLabel(`จำนวน ${i}`, { exact: true }).evaluate(e => (e as HTMLInputElement).scrollWidth - (e as HTMLInputElement).clientWidth);
+      expect.soft(ล้น, `ช่องจำนวนแถว ${i} ไม่ถูกตัด`).toBeLessThanOrEqual(0);
+    }
   });
 }

@@ -162,6 +162,11 @@ test.describe("ดีลเลอร์: กล่องเหตุผล + ป
     const เปิดใบ = async () => {
       if (await page.locator("[data-customer-result]").first().isVisible()) return;   // ไม่ใช่การข้าม: วนรอปุ่มผลจากลูกค้า (เจอแล้วจบวน)
       await page.locator('[data-next-step="await_customer"]').click({ timeout: 30_000 });
+      // กดแล้วเด้งกล่องเลือกผล (บอสสั่ง 20 พ.ย. 69 · bb3035f4) บังปุ่มบนการ์ด — ข้อนี้ทดสอบกล่องเหตุผล/ปุ่มรอฐานของปุ่มบนการ์ด → "ยังไม่บันทึก" ปิดกล่องเลือกก่อน
+      //   (ปุ่มในกล่องเลือกผลเรียกฟังก์ชันเดียวกับปุ่มบนการ์ด · ตรวจที่ quote-form-fold.spec · รอบตรวจ deploy29)
+      const เลือกผล = page.getByRole("dialog", { name: "บันทึกผลจากลูกค้า", exact: true });
+      await เลือกผล.getByRole("button", { name: "ยังไม่บันทึก", exact: true }).click({ timeout: 20_000 });
+      await expect(เลือกผล).toHaveCount(0);
       await expect(page.locator("[data-customer-result]").first()).toBeVisible({ timeout: 20_000 });
     };
     await ตรวจกล่องเหตุผล(page, "ลูกค้าปฏิเสธ", async () => {

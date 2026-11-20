@@ -36,7 +36,7 @@ export function RequestItemsEditor({ value, onChange, disabled }: { value: ร�
       {value.length > 0 && (
         <div className="table-wrap">
           <table aria-label="รายการในคำขอ" style={{ tableLayout: "fixed", width: "100%", minWidth: 600 }}>
-            <colgroup>{คอลัมน์รายการคำขอ.map((w, i) => <col key={i} style={{ width: w }} />)}<col style={{ width: 48 }} /></colgroup>
+            <colgroup>{คอลัมน์รายการคำขอ.map((w, i) => <col key={i} style={{ width: w }} />)}<col style={{ width: 72 }} /></colgroup>
             <thead><tr><th>ลำดับ</th><th>รายการ</th><th className="num">จำนวน</th><th>หน่วย</th><th aria-label="ลบ" /></tr></thead>
             <tbody>
               {value.map((r, i) => (
