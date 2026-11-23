@@ -112,21 +112,53 @@ export function จังหวัดเฟซบุ๊ก(ค่า: unknown): 
 }
 
 // ── วันที่ ───────────────────────────────────────────────────────────────────────────────────────────
-/** created_time → YYYY-MM-DD (เวลาไทย) · รับ ISO มีเขตเวลา ("2026-10-05T14:22:10+0700") · "2026-10-05 14:22" · เลขวันของ Excel · อ่านไม่ออก = null */
-export function วันเฟซบุ๊ก(ค่า: unknown): string | null {
+const ชื่อเดือนย่อ = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const สองหลัก = (n: number) => String(n).padStart(2, "0");
+export type เวลาที่อ่านได้ = {
+  /** วันตามเวลาไทย YYYY-MM-DD */
+  วัน: string;
+  /** วันเวลา ISO เวลาไทย (YYYY-MM-DDTHH:mm:ss+07:00) · ไม่มีเวลาในไฟล์ = null (ฐานใช้ 09:00) */
+  เวลา: string | null;
+  /** ข้อความอ่านง่าย เช่น "24 ต.ค. 2569 02:47" (ลงหมายเหตุแทนค่าดิบ) */
+  แสดง: string;
+};
+/** วันเวลาไทยจากเวลาสากล (มิลลิวินาที) */
+function จากเวลาสากล(t: number): เวลาที่อ่านได้ {
+  const d = new Date(t + 7 * 3_600_000);   // เลื่อนเป็นเวลาไทยแล้วอ่านด้วย getUTC*
+  const วัน = `${d.getUTCFullYear()}-${สองหลัก(d.getUTCMonth() + 1)}-${สองหลัก(d.getUTCDate())}`;
+  const hh = สองหลัก(d.getUTCHours()), mm = สองหลัก(d.getUTCMinutes()), ss = สองหลัก(d.getUTCSeconds());
+  return { วัน, เวลา: `${วัน}T${hh}:${mm}:${ss}+07:00`,
+    แสดง: `${d.getUTCDate()} ${ชื่อเดือนย่อ[d.getUTCMonth()]} ${d.getUTCFullYear() + 543} ${hh}:${mm}` };
+}
+/** created_time → วัน + วันเวลา (เวลาไทย) + ข้อความอ่านง่าย (บอสตัดสิน 23 พ.ย. 69 · นำเข้าจาก Google Sheets บนเว็บจริงได้เลขซีเรียล)
+ *  รับ: เลขซีเรียลของ Excel/Google Sheets (ช่องชนิดวันที่ ส่งออก .xlsx เป็นตัวเลข เช่น 46323.84993055555 = เวลาไทยตามชีต)
+ *       · ข้อความ "YYYY-MM-DD HH:mm[:ss]" (ไม่มีเขตเวลา = เวลาไทย) · ISO มีเขตเวลา (+07:00 · +0000 · Z — แบบไฟล์จาก Facebook ตรง)
+ *       · "YYYY-MM-DD" (ไม่มีเวลา) · อ่านไม่ออก = null */
+export function เวลาเฟซบุ๊ก(ค่า: unknown): เวลาที่อ่านได้ | null {
   const s = String(ค่า ?? "").trim();
   if (!s) return null;
-  if (/^\d+(\.\d+)?$/.test(s)) {                                          // เลขวันของ Excel (เปิดแล้วบันทึกใน Excel)
+  if (/^\d+(\.\d+)?$/.test(s)) {
     const n = Number(s);
     if (n < 20000 || n > 80000) return null;
-    return new Date(Date.UTC(1899, 11, 30) + Math.floor(n) * 86_400_000).toISOString().slice(0, 10);
+    // ซีเรียล = วันนับจาก 30 ธ.ค. 1899 + เศษ = เวลาในวัน (ตามเขตเวลาของชีต = เวลาไทย) → ปัดเป็นวินาที
+    const วินาที = Math.round(n * 86_400);
+    return จากเวลาสากล(Date.UTC(1899, 11, 30) + วินาที * 1000 - 7 * 3_600_000);
   }
   const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(Z|[+-]\d{2}:?\d{2})?)?$/.exec(s);
   if (!m) return null;
-  if (!m[7]) return `${m[1]}-${m[2]}-${m[3]}`;                            // ไม่มีเขตเวลา = วันตามที่เขียน
-  const t = Date.parse(s.replace(" ", "T").replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+  if (!m[4]) {   // วันอย่างเดียว
+    const วัน = `${m[1]}-${m[2]}-${m[3]}`;
+    if (Number.isNaN(Date.parse(`${วัน}T00:00:00Z`))) return null;
+    return { วัน, เวลา: null, แสดง: `${Number(m[3])} ${ชื่อเดือนย่อ[Number(m[2]) - 1]} ${Number(m[1]) + 543}` };
+  }
+  const เขต = m[7] ? (m[7] === "Z" ? "Z" : m[7].replace(/^([+-]\d{2}):?(\d{2})$/, "$1:$2")) : "+07:00";   // ไม่มีเขตเวลา = เวลาไทย
+  const t = Date.parse(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6] ?? "00"}${เขต}`);
   if (Number.isNaN(t)) return null;
-  return new Date(t + 7 * 3_600_000).toISOString().slice(0, 10);          // วันตามเวลาไทย
+  return จากเวลาสากล(t);
+}
+/** created_time → YYYY-MM-DD (เวลาไทย) · อ่านไม่ออก = null */
+export function วันเฟซบุ๊ก(ค่า: unknown): string | null {
+  return เวลาเฟซบุ๊ก(ค่า)?.วัน ?? null;
 }
 
 // ── แถว ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -137,7 +169,10 @@ export type แถวเฟซบุ๊ก = {
   /** เบอร์ที่แสดง/ส่งฐาน · ตัวเลขล้วนใช้เทียบซ้ำ */
   phone: string; ตัวเลข: string; เบอร์ไม่ครบ: boolean;
   province: string | null; จังหวัดเดิม: string;
+  /** วันที่ลูกค้าทิ้งเบอร์ (วัน หรือวันเวลา ISO เวลาไทย) — ฐานตั้ง created_at + ติดต่อล่าสุด (ใบ 0293) · เกินวันนี้ = null */
   enteredAt: string | null; adName: string; createdRaw: string;
+  /** created_time แบบอ่านง่าย (ลงหมายเหตุ) · อ่านไม่ออก = ค่าดิบ */
+  createdText: string;
   /** ข้าม = ไม่ส่งฐาน (ไม่มีชื่อ · ไม่มีเบอร์ · เบอร์ซ้ำ) — ข้อความเต็มที่บอกว่าซ้ำกับอะไร (บอส 20 พ.ย. 69 "ซ้ำยังไง") */
   ข้าม: string | null;
   /** ชนิดที่ข้าม — ใช้จัดกลุ่มหน้าตัวอย่าง (ไม่เทียบข้อความ) */
@@ -164,7 +199,7 @@ export function เตรียมแถวเฟซบุ๊ก(เล่ม: M
       const r = ตาราง[i] ?? [];
       if (!r.some(v => String(v ?? "").trim())) continue;                // แถวว่าง
       const name = ค่า(r, c.name), เบอร์ = เบอร์เฟซบุ๊ก(ค่า(r, c.phone)), จังหวัดเดิม = ค่า(r, c.province);
-      const createdRaw = ค่า(r, c.created), วัน = วันเฟซบุ๊ก(createdRaw);
+      const createdRaw = ค่า(r, c.created), เวลา = เวลาเฟซบุ๊ก(createdRaw), วัน = เวลา?.วัน ?? null;
       const row = `${ชีต}:${i + 1}`;
       let ข้าม: string | null = null, ชนิดข้าม: แถวเฟซบุ๊ก["ชนิดข้าม"] = null;
       const ก่อน = เห็น.get(เบอร์.ตัวเลข);
@@ -176,7 +211,7 @@ export function เตรียมแถวเฟซบุ๊ก(เล่ม: M
       ผล.push({
         row, name, email: ค่า(r, c.email), phone: เบอร์.แสดง, ตัวเลข: เบอร์.ตัวเลข, เบอร์ไม่ครบ: !!เบอร์.ตัวเลข && !เบอร์.ครบ,
         province: จังหวัดเฟซบุ๊ก(จังหวัดเดิม), จังหวัดเดิม,
-        enteredAt: วัน && วัน <= วันนี้ ? วัน : null, adName: ค่า(r, c.ad), createdRaw, ข้าม, ชนิดข้าม,
+        enteredAt: วัน && วัน <= วันนี้ ? (เวลา!.เวลา ?? วัน) : null, adName: ค่า(r, c.ad), createdRaw, createdText: เวลา?.แสดง ?? createdRaw, ข้าม, ชนิดข้าม,
       });
     }
   }
@@ -201,7 +236,7 @@ export function แถวเฟซบุ๊กส่งฐาน(r: แถวเ
   const note = [
     r.จังหวัดเดิม && `จังหวัดที่ลูกค้าพิมพ์: ${r.จังหวัดเดิม}`,
     r.adName && `โฆษณา: ${r.adName}`,
-    r.createdRaw && `ทิ้งเบอร์เมื่อ: ${r.createdRaw}`,
+    r.createdRaw && `ทิ้งเบอร์เมื่อ: ${r.createdText}`,
     r.เบอร์ไม่ครบ && "เบอร์ไม่ครบ",
     r.email && !อีเมลใช้ได้(r.email) && `อีเมลที่กรอก: ${r.email}`,
   ].filter(Boolean).join(" · ");

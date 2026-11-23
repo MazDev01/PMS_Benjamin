@@ -28,6 +28,8 @@ const ชื่อไฟล์ = `${แท็ก}.xlsx`;
 const ไฟล์ = path.join(os.tmpdir(), "pms-prospect-import", ชื่อไฟล์);
 const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 const เมื่อวาน = new Date(Date.now() + 7 * 3_600_000 - 86_400_000).toISOString().slice(0, 10);
+// เลขซีเรียลของ "เมื่อวาน 14:24 เวลาไทย" แบบช่องวันที่ของ Google Sheets/Excel (วันนับจาก 30 ธ.ค. 1899 + เศษของวัน)
+const ซีเรียลเมื่อวาน = String((Date.parse(`${เมื่อวาน}T14:24:00Z`) - Date.UTC(1899, 11, 30)) / 86_400_000);
 
 test.beforeAll(async () => {
   const หัว = [...หัวไฟล์เฟซบุ๊ก, "", ""];
@@ -72,13 +74,17 @@ test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย
   await กล่อง.getByRole("button", { name: "ยืนยันนำเข้า 4 ราย", exact: true }).click();
   await expect(กล่อง.getByTestId("import-result"), "นำเข้า 4 ราย").toHaveAttribute("data-inserted", "4", { timeout: 30_000 });
 
-  const { data, error } = await admin.from("dealer_prospects").select("name, phone, province, status, follow_up, channel, email, note, created_at").like("name", `${แท็ก}%`).order("name");
+  const { data, error } = await admin.from("dealer_prospects").select("name, phone, province, status, follow_up, channel, email, note, created_at, last_contact_at").like("name", `${แท็ก}%`).order("name");
   expect(error).toBeNull();
   expect(data ?? [], "ฐานมี 4 ราย (ซ้ำไม่สร้าง)").toHaveLength(4);
   for (const p of data ?? []) {
     expect(p, `${p.name}: รอติดต่อ · นัดวันนี้ · Facebook`).toMatchObject({ status: "new", follow_up: วันนี้, channel: "Facebook", email: "zzfb@example.test" });
     expect(new Date(new Date(p.created_at as string).getTime() + 7 * 3_600_000).toISOString().slice(0, 10), `${p.name}: วันที่เข้า = วันที่ทิ้งเบอร์`).toBe(เมื่อวาน);
     expect(p.note as string, "หมายเหตุเก็บโฆษณา").toContain("โฆษณา: ZZ แคมเปญตัวแทน");
+    // ใบ 0293 (บอสเลือก 23 พ.ย. 69): วันเวลาที่ทิ้งเบอร์ = created_at + ติดต่อล่าสุด (10:00 เวลาไทย) · หมายเหตุอ่านง่าย
+    expect(new Date(p.created_at as string).toISOString(), `${p.name}: วันเวลาเข้า = 10:00 เวลาไทย`).toBe(new Date(`${เมื่อวาน}T10:00:00+07:00`).toISOString());
+    expect(p.last_contact_at && new Date(p.last_contact_at as string).toISOString(), `${p.name}: ติดต่อล่าสุด = วันเวลาที่ทิ้งเบอร์`).toBe(new Date(`${เมื่อวาน}T10:00:00+07:00`).toISOString());
+    expect(p.note as string, "หมายเหตุวันที่อ่านง่าย ไม่ใช่ค่าดิบ").toMatch(/ทิ้งเบอร์เมื่อ: \d{1,2} \S+ \d{4} 10:00/);
   }
   const หนึ่ง = (data ?? []).find(p => p.name === `${แท็ก} หนึ่ง`);
   expect(หนึ่ง, "จังหวัดอังกฤษจับคู่ได้ · ข้อความเดิมในหมายเหตุ").toMatchObject({ province: "ขอนแก่น", phone: `000-${กลาง}-0001` });
@@ -111,7 +117,7 @@ test("[ui·hq] Google Sheets: วางลิงก์ → หน้าตัว
     ส่งมา = route.request().postDataJSON();
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: `${แท็ก}-ชีต.xlsx`, sheets: [   // ชื่อชุดขึ้นต้นด้วยป้ายของข้อ — afterAll ลบชุดตาม `${แท็ก}%` (เดิม "Google Sheets ZZtest…" ค้างในฐาน · คนรวมงาน 20 พ.ย. 69)
       
-      ["12.26", [[...หัวไฟล์เฟซบุ๊ก], [`${เมื่อวาน}T10:00:00+07:00`, "ZZ แคมเปญ", "Songkha", "zzfb@example.test", `${แท็ก} จากชีต`, เบอร์(31)]]],
+      ["12.26", [[...หัวไฟล์เฟซบุ๊ก], [ซีเรียลเมื่อวาน, "ZZ แคมเปญ", "Songkha", "zzfb@example.test", `${แท็ก} จากชีต`, เบอร์(31)]]],
     ] }) });
   });
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
@@ -126,6 +132,12 @@ test("[ui·hq] Google Sheets: วางลิงก์ → หน้าตัว
   await expect(ตัวอย่าง.locator('[data-fb-row="12.26:2"]'), "Songkha = สงขลา").toContainText("สงขลา");
   await กล่อง.getByRole("button", { name: "ยืนยันนำเข้า 1 ราย", exact: true }).click();
   await expect(กล่อง.getByTestId("import-result")).toHaveAttribute("data-inserted", "1", { timeout: 30_000 });
+  // created_time เป็นเลขซีเรียล (ช่องวันที่ใน Google Sheets · บั๊กเว็บจริง 23 พ.ย. 69) → ฐานได้วันเวลาไทยที่ถูก + ติดต่อล่าสุด · หมายเหตุไม่ใช่ตัวเลข
+  const { data: จากชีต } = await admin.from("dealer_prospects").select("created_at, last_contact_at, note").eq("name", `${แท็ก} จากชีต`).single();
+  const ควรเป็น = new Date(`${เมื่อวาน}T14:24:00+07:00`).toISOString();
+  expect(new Date(จากชีต!.created_at as string).toISOString(), "ซีเรียล → วันเวลาเข้า 14:24 เวลาไทย").toBe(ควรเป็น);
+  expect(new Date(จากชีต!.last_contact_at as string).toISOString(), "ติดต่อล่าสุด = วันเวลาที่ทิ้งเบอร์").toBe(ควรเป็น);
+  expect(จากชีต!.note as string, "หมายเหตุไม่มีเลขซีเรียลดิบ").not.toContain(ซีเรียลเมื่อวาน);
   const แถบ = กล่อง.locator("[data-batch-undo]");
   await แถบ.getByRole("button", { name: "ยกเลิกชุดนี้", exact: true }).click({ timeout: 20_000 });
   await กดตกลงในกล่องยืนยัน(page);

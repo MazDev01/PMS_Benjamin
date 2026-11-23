@@ -201,10 +201,11 @@ test("[ui·hq] หน้าตรวจนำเข้า: วันที่ก
   assertNoErrors(errs, "หน้าตรวจนำเข้า: เลือกเดือน + ช่องบังคับ");
 });
 
-// ── ปุ่มนำเข้า (บอสสั่ง 20 พ.ย. 69 ดู 471cf822 "เอาออก มี นำเข้าจาก Google Sheets แล้ว"): เหลือปุ่ม "นำเข้าจาก Google Sheets" ปุ่มเดียว ──
-//   ไม่มีทางเลือกไฟล์บนหน้านี้ (ทั้งหน้าและในหน้าต่าง) · แบบฟอร์มตัวอย่างอยู่ในหน้าต่าง = หัวไฟล์ Facebook → ดึงกลับ = หน้าตัวอย่าง Facebook ไม่มีแถว
-//   ตกบนโค้ดเดิม (471cf822): มีปุ่ม "นำเข้าจากไฟล์" + ปุ่มเลือกไฟล์ในหน้าต่าง
-test("[ui·hq] นำเข้าผู้สนใจ: ปุ่ม Google Sheets ปุ่มเดียว · ไม่มีทางเลือกไฟล์ · แบบฟอร์มตัวอย่างในหน้าต่าง = หัวไฟล์ Facebook", async ({ page }) => {
+// ── ปุ่มนำเข้า (บอสสั่ง 20 พ.ย. 69 ดู 471cf822 "เอาออก มี นำเข้าจาก Google Sheets แล้ว"): บนหน้าเหลือปุ่ม "นำเข้าจาก Google Sheets" ปุ่มเดียว ──
+//   บอสสั่ง 23 พ.ย. 69 "ทำปุ่มอัพไฟล์ในนี้ด้วย" (ทับเฉพาะในหน้าต่าง): ในหน้าต่างมีปุ่ม "เลือกไฟล์ (.xlsx, .csv)" ข้างช่องลิงก์ · บนหน้ายังไม่มี
+//   แบบฟอร์มตัวอย่างในหน้าต่าง = หัวไฟล์ Facebook → อัปโหลดกลับในหน้าต่าง = หน้าตัวอย่าง Facebook ไม่มีแถว
+//   ตกบนโค้ดเดิม (0e7ddc34): ในหน้าต่างไม่มีช่องเลือกไฟล์
+test("[ui·hq] นำเข้าผู้สนใจ: บนหน้า = ปุ่ม Google Sheets ปุ่มเดียว · ในหน้าต่าง = ลิงก์ชีต หรือ เลือกไฟล์ · แบบฟอร์มตัวอย่าง = หัวไฟล์ Facebook", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
@@ -213,13 +214,16 @@ test("[ui·hq] นำเข้าผู้สนใจ: ปุ่ม Google Shee
   await expect(page.locator('input[type="file"]'), "ไม่มีช่องเลือกไฟล์บนหน้า").toHaveCount(0);
   await เปิดนำเข้าจากชีต(page);
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ", exact: true });
-  await expect(กล่อง.locator('input[type="file"]'), "ไม่ซ่อนทางเลือกไฟล์ไว้ในหน้าต่าง").toHaveCount(0);
+  await expect(กล่อง.locator('input[type="file"]'), "ในหน้าต่างมีช่องเลือกไฟล์ 1 ตัว (บอสสั่ง 23 พ.ย. 69)").toHaveCount(1);
+  await expect(กล่อง.locator('input[type="file"]')).toHaveAttribute("accept", ".xlsx,.csv");
   const [ไฟล์] = await Promise.all([page.waitForEvent("download", { timeout: 25_000 }), กล่อง.locator('[data-act="import-template"]').click()]);
   expect(ไฟล์.suggestedFilename()).toBe("แบบฟอร์มนำเข้าผู้สนใจ.xlsx");
   const ที่อยู่ = path.join(os.tmpdir(), "pms-prospect-import", `${แท็ก}-แบบฟอร์ม.xlsx`);
   await ไฟล์.saveAs(ที่อยู่);
-  await กล่อง.getByRole("button", { name: "ปิด", exact: true }).click();
-  await นำเข้าผู้สนใจผ่านชีต(page, ที่อยู่);
+  // อัปโหลดแบบฟอร์มกลับด้วยปุ่มในหน้าต่าง (ตัวอ่านเดิม · ไม่ผ่าน Google Sheets)
+  const [หน้าต่างไฟล์] = await Promise.all([page.waitForEvent("filechooser", { timeout: 15_000 }), กล่อง.locator('[data-act="import-file"]').click()]);
+  await หน้าต่างไฟล์.setFiles(ที่อยู่);
+  await expect(กล่อง.getByTestId("import-file"), "อ่านไฟล์ที่เลือก").toContainText(`${แท็ก}-แบบฟอร์ม.xlsx`, { timeout: 20_000 });
   await expect(กล่อง.locator("[data-facebook-preview]"), "แบบฟอร์ม = หัวไฟล์ Facebook → หน้าตัวอย่าง Facebook").toBeVisible({ timeout: 20_000 });
   await expect(กล่อง.getByRole("alert"), "แบบฟอร์มเปล่า = ไม่มีแถวข้อมูล").toContainText("ไม่มีแถวข้อมูล");
   assertNoErrors(errs, "ปุ่มนำเข้าผู้สนใจ");
