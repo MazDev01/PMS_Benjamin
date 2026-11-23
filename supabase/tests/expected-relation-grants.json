@@ -1,5 +1,5 @@
 {
- "migration": "0285",
+ "migration": "0295",
  "relations": [
   {
    "r": "appointments",
@@ -362,6 +362,22 @@
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
   {
+   "r": "hqd_move_0287",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "hqd_move_0287_id_seq",
+   "kind": "S",
+   "rls": false,
+   "anon": "SELECT,UPDATE,USAGE",
+   "authenticated": "SELECT,UPDATE,USAGE",
+   "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
    "r": "leads",
    "kind": "r",
    "rls": true,
@@ -480,6 +496,22 @@
    "anon": "SELECT,UPDATE,USAGE",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
+  },
+  {
+   "r": "prospect_import_keys",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "r": "prospect_sheet_sync",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
   {
    "r": "quotation_prints",

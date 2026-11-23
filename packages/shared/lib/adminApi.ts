@@ -360,3 +360,18 @@ export async function resetHQUserPassword(id: string, password?: string): Promis
     return { ok: false, error: friendlyError(e, "ติดต่อระบบไม่ได้ — ตรวจอินเทอร์เน็ตแล้วลองใหม่") };
   }
 }
+
+/** ปุ่ม "ดึงตอนนี้" ในหน้าต่างนำเข้าจาก Google Sheets (ใบ 0295) — ดึงชีตที่ตั้งไว้หนึ่งรอบ ทางเดียวกับตัวตั้งเวลา (เซิร์ฟเวอร์ถือ service_role) */
+export async function ดึงชีตผู้สนใจตอนนี้(): Promise<{ ok: true; ข้อความ: string; สำเร็จ: boolean } | { ok: false; error: string }> {
+  if (!REAL_BACKEND) return { ok: false, error: "โหมดข้อมูลตัวอย่าง: ดึงชีตไม่ได้" };
+  const token = await callerToken();
+  if (!token) return { ok: false, error: "ยังไม่ได้เข้าระบบ" };
+  try {
+    const res = await adminFetch("/api/admin/prospect-sheet", { credentials: "same-origin", method: "POST", headers: authHeaders(token) });
+    const json = (await res.json().catch(() => ({}))) as { error?: string; สถานะ?: string; ข้อความ?: string };
+    if (!res.ok) return { ok: false, error: json.error ?? `ระบบตอบกลับผิดปกติ (รหัส ${res.status})` };
+    return { ok: true, ข้อความ: json.ข้อความ ?? "", สำเร็จ: json.สถานะ === "done" };
+  } catch (e) {
+    return { ok: false, error: friendlyError(e, "ติดต่อระบบไม่ได้ — ตรวจอินเทอร์เน็ตแล้วลองใหม่") };
+  }
+}

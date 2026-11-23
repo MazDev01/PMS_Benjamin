@@ -83,7 +83,9 @@ import { ช่องทางติดต่อเริ่มต้น } from 
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { อีเมลซ้ำ } from "@pms/shared/lib/emailTaken";
-import { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
+import { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";
+import { ProspectDataTags } from "@pms/shared/components/hq/ProspectDataTags";
+import { ข้อมูลไม่ครบของราย, แผนที่เบอร์ซ้ำ } from "@pms/shared/lib/prospectSheetSync";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
@@ -343,6 +345,8 @@ export default function HQProspectsPage() {
   // เป็นดีลเลอร์แล้ว (ครบ 100%) = ไปอยู่หน้าดีลเลอร์ ไม่แสดงในหน้านี้ (บอสสั่ง 15 ก.ย. 69)
   //   ตาราง · ตัวกรอง · ส่งออก · การ์ดตัวเลข ใช้รายการนี้ทั้งหมด — ข้อมูลยังอยู่ครบในฐานข้อมูล (ประวัติ/ใบเสนอไม่หาย)
   const รายที่แสดงได้ = useMemo(() => list.filter(p => p.status !== "won"), [list]);
+  // ป้ายข้อมูลไม่ครบ/เบอร์ซ้ำ (บอสสั่ง 23 พ.ย. 69 · นำเข้า Facebook เอาทุกข้อมูล) — เทียบเบอร์กับทุกราย (รวมที่เป็นดีลเลอร์แล้ว)
+  const เบอร์ซ้ำ = useMemo(() => แผนที่เบอร์ซ้ำ(list), [list]);
   const จังหวัดในข้อมูล = useMemo(
     () => [...new Set(รายที่แสดงได้.map(p => (p.province ?? "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")),
     [list],
@@ -921,6 +925,7 @@ export default function HQProspectsPage() {
             const ผู้ดูแล = p.assigned?.trim() ? ผู้ใช้HQ.find(u => u.name === p.assigned) : undefined;
             return (
               <div data-prospect-card={p.id}>
+                <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(p)} ซ้ำกับ={เบอร์ซ้ำ.get(p.id)} style={{ marginBottom: 4 }} />
                 <BoardCard ชื่อ={p.name} ป้ายชื่อ={p.social} ป้ายชื่อคือ="ชื่อบนโซเชียล"
                   โทรศัพท์={p.phone ? formatPhone(p.phone) || p.phone : null} อีเมล={p.email} จังหวัด={p.province}
                   เริ่มติดต่อ={p.firstContact ? fmtISOToThai(p.firstContact) : null}
@@ -998,6 +1003,7 @@ export default function HQProspectsPage() {
                         </span>
                         <div style={{ minWidth: 0 }}>
                           <div title={p.name} style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                          <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(p)} ซ้ำกับ={เบอร์ซ้ำ.get(p.id)} style={{ maxWidth: "100%", overflow: "hidden" }} />
                           {p.businessType && (
                             <div title={p.businessType} style={{ fontSize: "0.7rem", color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.businessType}</div>
                           )}
@@ -1080,6 +1086,7 @@ export default function HQProspectsPage() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{ราย.name}</h2>
+                      <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(ราย)} ซ้ำกับ={เบอร์ซ้ำ.get(ราย.id)} บนพื้นเข้ม style={{ marginTop: 4 }} />
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "0.72rem", color: "rgba(255,255,255,.72)", marginTop: 4 }}>
                         {ราย.phone && <a href={`tel:${ราย.phone.replace(/[^\d+]/g, "")}`} style={{ color: "inherit", display: "flex", alignItems: "center", gap: 3 }}><Phone size={11} /> {formatPhone(ราย.phone) || ราย.phone}</a>}
                         {ราย.province && <span style={{ display: "flex", alignItems: "center", gap: 3 }}><MapPin size={11} /> {ราย.province}</span>}

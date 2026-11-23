@@ -6,7 +6,13 @@ import { handler, ok, dbFail, fail } from "./_ctx";
 
 export { runtime } from "./_ctx";
 
-export const prospectImportGET = handler("prospectImport.batches", async (_req: NextRequest, sb) => {
+export const prospectImportGET = handler("prospectImport.batches", async (req: NextRequest, sb) => {
+  // ?view=keys = กุญแจแถวที่นำเข้าแล้ว (ใบ 0295 · หน้าตัวอย่างแยกแท็บ "เคยนำเข้าแล้ว")
+  if (new URL(req.url).searchParams.get("view") === "keys") {
+    const { data, error } = await sb.rpc("hq_prospect_import_keys");
+    if (error) return dbFail("prospectImport.keys", error);
+    return ok((data ?? []) as string[]);
+  }
   const { data, error } = await sb.rpc("hq_prospect_import_batches");
   if (error) return dbFail("prospectImport.batches", error);
   return ok(data ?? []);
