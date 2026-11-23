@@ -85,16 +85,18 @@ begin
   delete from notifications;
 
   -- ══ 0) ตารางกลาง = 12 ชนิดตาม FLOW (11 แถว · D6 มี 2 ชนิด) กระดิ่ง/อีเมลตามที่บอสสั่ง ══
-  select string_agg(kind || '/' || flow_row || '/' || audience || '/' || bell || '/' || email, ' ' order by sort) into bad from notification_kinds;
+  select string_agg(kind || '/' || flow_row || '/' || audience || '/' || bell || '/' || email, ' ' order by sort, kind) into bad from notification_kinds;   -- sort ซ้ำได้ (180: H8/H9) → เรียงชื่อชนิดต่อ ไม่งั้นลำดับไม่นิ่ง
   perform ntest.ok(bad =
     'hq_quote_sent/D1/dealer/true/true hq_quote_expiring/D2/dealer/true/true hq_quote_expired/D3/dealer/true/false '
     'quote_expiring/D4/dealer/true/false appointment_due/D5/dealer/true/false lead_from_hq/D6/dealer/true/true '
     'won_reverted/D6/dealer/true/true request_new/H1/hq/true/true request_reprice/H2/hq/true/true '
     'requests_overdue/H3/hq/true/true customer_accepted/H4/hq/true/true franchise_payment_overdue/H5/hq/true/false '
     'request_cancelled/H6/hq/true/true prospect_followup_due/H7/hq/true/false prospect_idle/H7/hq/true/false '
+    'proposal_awaiting/H8/hq/true/false '
     'won_reverted_by_dealer/H9/hq/true/true '   -- ใบ 0288: ดีลเลอร์ย้อนการตอบรับ → แจ้ง HQ
-    'proposal_awaiting/H8/hq/true/false proposal_expired/H8/hq/true/false',
-    '0) ตารางกลางมี 18 ชนิด (15 แถว) ตรงตาราง FLOW (ได้ ' || bad || ')');
+    'proposal_expired/H8/hq/true/false '
+    'prospect_sheet_imported/H10/hq/true/false prospect_sheet_failed/H10/hq/true/false',   -- ใบ 0295: ดึงชีตอัตโนมัติ (นำเข้า N ราย · ดึงไม่ได้)
+    '0) ตารางกลางมี 20 ชนิด (16 แถว) ตรงตาราง FLOW (ได้ ' || bad || ')');
 
   -- ══ 1) H1 คำขอราคาใหม่ → HQ กระดิ่ง + อีเมล · ดีลเลอร์ (คนทำ) ไม่ได้อะไร ══
   n1 := ntest.lead('ZZTEST-แจ้งเตือน-1');
