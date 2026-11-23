@@ -115,17 +115,28 @@ export function รอข้อมูลรายเดือน({ ข้อค�
 // ── รายเดือน (ใบ 0268) ─────────────────────────────────────────────────────────────────────────────────────
 const ชื่อเดือน = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 export type แถวเดือน = { key: string; label: string; y: number; m: number; รวม: รวม };
-/** เดือนในช่วง (ทุกเดือน แม้ไม่มีข้อมูล) · ผลรวมด้วย รวมผลงาน() · เป้าเดือน = ผลรวมเป้าทั้งปี ÷ 12 ของสาขาที่ตั้งเป้า */
+/** เดือนในช่วง (ทุกเดือน แม้ไม่มีข้อมูล) · ผลรวมด้วย รวมผลงาน()
+ *  เป้าเดือน = เป้าตามช่วงแบบเดียวกับการ์ด (เป้าทั้งปี × วันของเดือนที่อยู่ในช่วง ÷ 365) ของสาขาที่ตั้งเป้า
+ *    เดิม = เป้าทั้งปี ÷ 12 เต็มเดือนทุกแถว → ช่วง 3 เดือน (4 แถว เดือนต้น/ท้ายไม่เต็ม) รวมแถว 23.2M แต่การ์ด ≈ 17.8M (ผู้ตรวจ 23 พ.ย. 69)
+ *    ปัดแบบสะสมรายสาขา: เดือนที่ i = round(เป้า × วันสะสมถึงเดือน i ÷ 365) − round(เป้า × วันสะสมถึงเดือนก่อน ÷ 365)
+ *    → ผลรวมทุกเดือนของสาขา = round(เป้า × วันทั้งช่วง ÷ 365) = ตัวที่ฐานใช้บนการ์ด พอดีถึงบาท (ไม่ต่างจากการปัดทีละเดือน) */
 export function จัดรายเดือน(rows: ผลงานรายเดือน[], codes: Set<string>, start: string, end: string, เป้าทั้งปี: Map<string, number | null>): แถวเดือน[] {
   const out: แถวเดือน[] = [];
   const s = new Date(`${start}T00:00:00`), e = new Date(`${end}T00:00:00`);
-  const เป้า = [...codes].map(c => เป้าทั้งปี.get(c) ?? null).filter((v): v is number => v != null);
+  // ฐานนับ "ตั้งเป้า" = เป้า > 0 (0 = ยังไม่ตั้ง · ใบ 0264 revenue_target = 0 → null)
+  const เป้า = [...codes].map(c => เป้าทั้งปี.get(c) ?? null).filter((v): v is number => v != null && v > 0);
+  const วันละ = 86_400_000;
+  let วันสะสม = 0;
   for (let d = new Date(s.getFullYear(), s.getMonth(), 1); d <= e; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
     const y = d.getFullYear(), m = d.getMonth();
     const ของเดือน = rows.filter(r => r.y === y && r.m === m && codes.has(r.code));
     const ร = รวมผลงาน(ของเดือน.map(r => ({ ...r, name: "", region: "", province: "", status: "", latest: null, rate: null, target: null, pct: null,
       marginPct: null, ytd: 0, onTarget: false })));
-    const target = เป้า.length ? Math.round(เป้า.reduce((a, b) => a + b, 0) / 12) : null;
+    // วันของเดือนนี้ที่อยู่ในช่วง (นับรวมวันแรกและวันสุดท้าย เหมือนฐาน p_end - p_start + 1)
+    const ต้น = d < s ? s : d, ท้ายเดือน = new Date(y, m + 1, 0), ท้าย = ท้ายเดือน > e ? e : ท้ายเดือน;
+    const วันในเดือน = Math.round((Date.UTC(ท้าย.getFullYear(), ท้าย.getMonth(), ท้าย.getDate()) - Date.UTC(ต้น.getFullYear(), ต้น.getMonth(), ต้น.getDate())) / วันละ) + 1;
+    const ก่อน = วันสะสม; วันสะสม += Math.max(0, วันในเดือน);
+    const target = เป้า.length ? เป้า.reduce((a, t) => a + Math.round(t * วันสะสม / 365) - Math.round(t * ก่อน / 365), 0) : null;
     out.push({ key: `${y}-${m}`, label: `${ชื่อเดือน[m]} ${y + 543}`, y, m, รวม: { ...ร, target, pct: target ? Math.round(100 * ร.sales / target) : null, onTarget: 0 } });
   }
   return out;
@@ -154,7 +165,7 @@ export function ตารางรายเดือน({ แถว, รวม�
           ) : <tr key={g.key}><td data-month-row={g.key}><strong>{g.label}</strong></td>{ช่อง(g.รวม)}<td /></tr>)}
         </tbody>
       </table>
-      <div data-target-note style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · ตัวเลขรวมดูที่การ์ดด้านบน (คิดตามจำนวนวัน จึงต่างเล็กน้อย)<InfoTip label="วิธีคิดเป้าตามช่วง">เป้าตามช่วง = เป้าทั้งปี × จำนวนวัน ÷ 365 จึงต่างจากผลรวมรายเดือนเล็กน้อย</InfoTip></div>
+      <div data-target-note style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือนคิดตามจำนวนวันของเดือนที่อยู่ในช่วง · ตัวเลขรวมดูที่การ์ดด้านบน (รวมทุกเดือน = การ์ด)<InfoTip label="วิธีคิดเป้าตามช่วง">เป้าตามช่วง = เป้าทั้งปี × จำนวนวัน ÷ 365 · เดือนแรก/เดือนสุดท้ายที่ไม่เต็มเดือนคิดเฉพาะวันที่อยู่ในช่วง</InfoTip></div>
     </div>
   );
 }

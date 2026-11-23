@@ -64,6 +64,15 @@ export function fmtFull(v: number | null | undefined): string {
   return `฿${(v ?? 0).toLocaleString()}`;
 }
 
+// ยอดของใบเสนอราคาบนจอ — อ่านจากตัวเลข total_value (ตัวเดียวกับที่ HQ ใช้นับยอด) ไม่ใช่ข้อความ total
+//   ฐาน dev มีใบที่ total (ข้อความ) = '0' แต่ total_value > 0 → หน้าดีลเลอร์ขึ้น "0" ขณะ HQ ขึ้น ฿1.9M (ผู้ตรวจ 23 พ.ย. 69)
+//   รูปแบบเดียวกับที่ฟอร์มออกใบเขียนลงข้อความ ("฿" + th-TH) · ไม่มีตัวเลข (ใบเก่ามาก) = ใช้ข้อความเดิม
+export function ยอดใบเสนอราคา(q: { totalValue?: number | null; total?: string | null }): string {
+  const n = Number(q.totalValue);
+  if (q.totalValue != null && Number.isFinite(n)) return "฿" + n.toLocaleString("th-TH");
+  return q.total?.trim() || "—";
+}
+
 // เท่ากับ fmtFull แต่ปัดเศษก่อนแสดง (ค่าที่มีจุดทศนิยม เช่นผลรวมที่คำนวณจากหลายรายการ)
 export function fmtFullRounded(v: number | null | undefined): string {
   return fmtFull(Math.round(v ?? 0));
@@ -113,6 +122,15 @@ export function formatPhone(v: string): string {
   if (เลข.length <= 3) return เลข;
   if (เลข.length <= 6) return `${เลข.slice(0, 3)}-${เลข.slice(3)}`;
   return `${เลข.slice(0, 3)}-${เลข.slice(3, 6)}-${เลข.slice(6, 10)}`;
+}
+
+/** เบอร์บนจอ (ไม่ใช่ช่องพิมพ์): เบอร์ครบ (02 = 9 หลัก · อื่น = 10 หลัก) จัดรูปตาม formatPhone · ไม่ครบ = แสดงตามที่เก็บ
+ *  เดิมเบอร์ไม่ครบที่นำเข้า ("000000") ขึ้น "000-000" ดูเหมือนเบอร์ถูกรูปแบบ (ผู้ตรวจ 23 พ.ย. 69 · นำเข้า Facebook เอาทุกข้อมูล) */
+export function แสดงเบอร์(v: string | null | undefined): string {
+  const เดิม = String(v ?? "").trim();
+  const เลข = เดิม.replace(/\D/g, "");
+  const ครบ = เลข.startsWith("02") ? เลข.length === 9 : เลข.length === 10;
+  return ครบ ? formatPhone(เลข) : เดิม;
 }
 
 /** ขนาดไฟล์แบบที่คนอ่านรู้เรื่อง — ต่ำกว่า 1 MB บอกเป็น KB (ปัดขึ้นอย่างน้อย 1 KB ไม่ให้ขึ้น "0 KB") */

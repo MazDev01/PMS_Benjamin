@@ -28,6 +28,7 @@ import { QuotationViewPanel, usePrintQuote } from "@pms/shared/components/ui/Quo
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
 import { ป้ายฉบับ } from "@pms/shared/lib/quoteRevision";
 import { ช่อง } from "@pms/shared/lib/fieldLabels";
+import { ยอดใบเสนอราคา } from "@pms/shared/lib/format";
 import { X, FileText, LayoutList, LayoutGrid, ChevronUp, ChevronDown, Eye, Printer, Pencil, Trash2, ChevronLeft, ChevronRight, Check, Hourglass, AlarmClock } from "lucide-react";
 
 // ── Tokens ────────────────────────────────────────────────────
@@ -432,7 +433,7 @@ function QuotationsPageInner(){
                           );
                         })()}
                         {!hiddenCols.includes("value")&&(
-                        <td className="num" style={{fontSize:"0.86rem",fontWeight:800,color:STEEL,whiteSpace:"nowrap"}}>{q.total}</td>
+                        <td className="num" style={{fontSize:"0.86rem",fontWeight:800,color:STEEL,whiteSpace:"nowrap"}}>{ยอดใบเสนอราคา(q)}</td>
                         )}
                         <td>
                           <span className="badge" style={{background:sc.bg,color:sc.text}}>{quotationStatusLabel[q.status]}</span>
@@ -504,7 +505,7 @@ function QuotationsPageInner(){
                           </div>
                         ))}
                       </div>
-                      <div style={{fontSize:"1.15rem",fontWeight:800,color:PRIMARY}}>{q.total}</div>
+                      <div style={{fontSize:"1.15rem",fontWeight:800,color:PRIMARY}}>{ยอดใบเสนอราคา(q)}</div>
                     </div>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderTop:"1px solid #f0f4f8",background:"#fafbfc"}}>
                       <span style={{fontSize:"0.65rem",color:MUTED}}>{fmtDate(q.date)}</span>

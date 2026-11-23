@@ -240,9 +240,11 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     {
       const li = รายการจากใบHQ(ใบHQ);
       f.lineItems = li; f.items = String(li.length);
-      // พื้นที่ตั้งต้น = จำนวนของรายการที่คิดเป็น ตร.ม. (เดิมคิดตอนบันทึก) — ดีลเลอร์แก้ได้ในช่อง
-      const ตรม = li.filter(it => it.unit === "ตร.ม.").reduce((s, it) => s + it.qty, 0);
-      f.area = ตรม > 0 ? String(ตรม) : "";
+      // พื้นที่ตั้งต้น = พื้นที่ของลูกค้าเป้าหมาย (ที่กรอกไว้ตอนเพิ่ม) — ดีลเลอร์แก้ได้ในช่อง
+      //   เดิมรวมจำนวนทุกแถวหน่วย "ตร.ม." ในรายการ → ราย 800 ตร.ม. + แถวเสา 12 หน่วย ตร.ม. = 812 ลงฐาน
+      //   แล้วไปโผล่ในประวัติการซื้อของลูกค้า (ผู้ตรวจ scn-flow 23 พ.ย. 69) — รายการเป็นของ HQ ไม่ใช่พื้นที่อาคาร
+      const พื้นที่ราย = Number(subj.area);
+      f.area = Number.isFinite(พื้นที่ราย) && พื้นที่ราย > 0 ? String(พื้นที่ราย) : "";
       f.price = String(li.reduce((s, it) => s + it.qty * it.unitPrice, 0));
     }
     setEditing(null); setForm(f); setMode("create");

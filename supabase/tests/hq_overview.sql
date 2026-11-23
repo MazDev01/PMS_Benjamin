@@ -40,14 +40,16 @@ delete from dealer_proposal_payments; delete from dealer_package_proposals; dele
 delete from hq_quotes; delete from quote_request_events; set local pms.quote_request_delete = 'test'; delete from quote_requests; delete from quotations; delete from leads; delete from dealer_territories;   -- ใบ 0280 ห้ามลบคำขอ ยกเว้นชุดล้างทดสอบ
 
 -- กล่อง 1 · หาดีลเลอร์ใหม่: ผู้สนใจ new 2 · meeting 1 · considering 1 · won 1 · lost 1
-insert into dealer_prospects (id, name, status) values
-  (9001, 'ZZOV ก', 'new'), (9002, 'ZZOV ข', 'new'), (9003, 'ZZOV ค', 'meeting'),
-  (9004, 'ZZOV ง', 'considering'), (9005, 'ZZOV จ', 'won'), (9006, 'ZZOV ฉ', 'lost');
+-- จังหวัดของผู้สนใจ (ใบ 0298 · ป้ายจังหวัดที่มีผู้สนใจแต่ยังไม่มีดีลเลอร์ นับจากผู้สนใจที่ยังไม่ปิด):
+--   ตราด 2 (นับ) · ระยอง = มีเขตขาย (ไม่นับ) · จังหวัดที่ CNX ตั้งอยู่ = มีดีลเลอร์ (ไม่นับ) · สตูล = ปิดแล้วทั้งคู่ won/lost (ไม่นับ)
+insert into dealer_prospects (id, name, status, province) values
+  (9001, 'ZZOV ก', 'new', 'ตราด'), (9002, 'ZZOV ข', 'new', 'ตราด'), (9003, 'ZZOV ค', 'meeting', 'ระยอง'),
+  (9004, 'ZZOV ง', 'considering', (select province from dealers where code = 'CNX')), (9005, 'ZZOV จ', 'won', 'สตูล'), (9006, 'ZZOV ฉ', 'lost', 'สตูล');
 -- ใบค่าแฟรนไชส์รอตอบ (ส่งแล้ว) 2 ใบ รวม 450,000 · ร่าง/ตอบรับ ไม่นับ
 insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status) values
   (9101, 9004, 'DP-OV-1', 300000, 'sent'), (9102, 9003, 'DP-OV-2', 150000, 'sent'),
   (9103, 9002, 'DP-OV-3', 999999, 'draft'), (9104, 9005, 'DP-OV-4', 500000, 'accepted');
--- จังหวัดที่มีลูกค้าเป้าหมาย (ยังเปิด) แต่ยังไม่มีดีลเลอร์: ตราด 2 · สตูล 1 · (ระยองมีดีลเลอร์ = ไม่นับ · ลูกค้าเป้าหมายที่ปิดแล้วไม่นับ)
+-- ลูกค้าเป้าหมายในจังหวัดที่ไม่มีดีลเลอร์ (สตูล · ตราด) — ใบ 0298 ไม่นับลูกค้าเป้าหมายแล้ว: สตูลต้องไม่โผล่ในป้าย
 insert into dealer_territories (province, dealer_code) values ('ระยอง', 'RYG');
 insert into leads (id, num_id, dealer_code, company, name, phone, province, status) values
   ('#L-OV-1', 1, 'RYG', 'ZZOV ล1', 'ZZOV ล1', '0000009028', 'ตราด', 'BULLET'),
@@ -102,8 +104,8 @@ begin
     format('ผู้สนใจแต่ละขั้น (ได้ %s)', o #> '{recruit,stages}'));
   perform flowtest.ok(o #> '{recruit,proposalsWaiting}' = '{"count":2,"amount":450000}'::jsonb,
     format('ใบค่าแฟรนไชส์ที่รอตอบ 2 ใบ 450,000 (ได้ %s)', o #> '{recruit,proposalsWaiting}'));
-  perform flowtest.ok(o #> '{recruit,provincesNoDealer}' = '[{"province":"ตราด","leads":2},{"province":"สตูล","leads":1}]'::jsonb,
-    format('จังหวัดที่มีลูกค้าเป้าหมายแต่ไม่มีดีลเลอร์ (ได้ %s)', o #> '{recruit,provincesNoDealer}'));
+  perform flowtest.ok(o #> '{recruit,provincesNoDealer}' = '[{"province":"ตราด","leads":2}]'::jsonb,
+    format('จังหวัดที่มีผู้สนใจ (ยังไม่ปิด) แต่ไม่มีดีลเลอร์/เขตขาย — ไม่นับลูกค้าเป้าหมาย (ใบ 0298 · ได้ %s)', o #> '{recruit,provincesNoDealer}'));
 
   -- กล่อง 2
   perform flowtest.ok(o #> '{requests,queue}' = '[{"assignee":"สมชาย","open":2,"overdue":1},{"assignee":null,"open":1,"overdue":1}]'::jsonb,

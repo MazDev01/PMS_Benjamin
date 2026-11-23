@@ -239,7 +239,10 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
           <div style={{ padding: 18, overflowY: "auto", display: "grid", gap: 14 }}>
             {/* 1 · ลิงก์ Google Sheets หรือ อัปโหลดไฟล์ในหน้าต่าง (บอสสั่ง 23 พ.ย. 69 · ปุ่มบนหน้ายังไม่มี) · แบบฟอร์มตัวอย่าง */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {ไฟล์ && <span data-testid="import-file" style={{ fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {ไฟล์.ตาราง.length.toLocaleString()} แถวที่มีข้อมูล</span>}
+              {/* จำนวนแถวข้อมูล ไม่นับแถวหัวตาราง (ผู้ตรวจ 23 พ.ย. 69: ไฟล์ 8 แถว ขึ้น 9) · ไฟล์ Facebook = แถวที่อ่านได้ทุกชีต · ยังไม่รู้หัว = ทุกแถว */}
+              {ไฟล์ && <span data-testid="import-file" style={{ fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {(เฟซบุ๊ก ? เฟซบุ๊ก.length
+                : แถวหัว >= 0 ? ไฟล์.ตาราง.slice(แถวหัว + 1).filter(r => r.some(c => String(c ?? "").trim() !== "")).length
+                : ไฟล์.ตาราง.length).toLocaleString()} แถวที่มีข้อมูล</span>}
               <button type="button" data-act="import-template" onClick={ดาวน์โหลดแบบฟอร์ม}
                 style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, color: "#003366", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Download size={13} /> ดาวน์โหลดแบบฟอร์มตัวอย่าง

@@ -71,7 +71,7 @@ import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/sha
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { useOptionList, ตัวเลือกกล่องเหตุผล } from "@pms/shared/lib/useOptionList";
-import { formatPhone } from "@pms/shared/lib/format";
+import { formatPhone, แสดงเบอร์ } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { ThaiDateInput } from "@pms/shared/components/ui/ThaiDateInput";
@@ -97,7 +97,10 @@ const ร่างว่าง = (): Partial<DealerProspect> => ({ name: "", sta
 type ฟอร์มดีลเลอร์ = { code: string; name: string; region: string; province: string; email: string; password: string; existingCode: string };
 type แท็บ = "overview" | "tasks" | "contact" | "proposals";
 // ขั้นหลังส่งใบแยก 3 ตัวเลือกตามสถานะย่อย (บอสสั่ง 5 พ.ย. 69 · ขั้นย่อยหลังส่งใบ)
-type ตัวกรองสถานะ = "all" | "due" | "idle7" | "idle14" | "idle30" | Exclude<DealerProspectStatus, "considering"> | `sub:${ขั้นย่อยใบ["key"]}`;
+type ตัวกรองสถานะ = "all" | "talking" | "due" | "idle7" | "idle14" | "idle30" | Exclude<DealerProspectStatus, "considering"> | `sub:${ขั้นย่อยใบ["key"]}`;
+// การ์ด "กำลังคุย" (ฐาน kpi_cards ใบ 0246 → 0291): status in new · contacted · profile_sent · meeting · considering
+const ขั้นกำลังคุย: ReadonlySet<DealerProspectStatus> = new Set<DealerProspectStatus>(["new", "contacted", "profile_sent", "meeting", "considering"]);
+const กำลังคุย = (p: Pick<DealerProspect, "status">) => ขั้นกำลังคุย.has(p.status);
 
 const แท็บทั้งหมด: { key: แท็บ; label: string }[] = [
   { key: "overview",  label: "ภาพรวม" },
@@ -356,6 +359,8 @@ export default function HQProspectsPage() {
   const filtered = useMemo(() => รายที่แสดงได้.filter(p => {
     const ผ่านสถานะ =
       statusFilter === "all" ? true
+      // กำลังคุย = นิยามเดียวกับการ์ด (ฐาน kpi_cards: ทุกขั้นที่ยังไม่จบ ไม่นับไม่สำเร็จ) — เดิมกดการ์ดได้ "ทุกสถานะ" 141 ขณะการ์ด 139 (ผู้ตรวจ 23 พ.ย. 69)
+      : statusFilter === "talking" ? กำลังคุย(p)
       : statusFilter === "due" ? ถึงกำหนดติดตาม(p, APP_NOW_ISO)
       : statusFilter === "idle7" ? ไม่ได้ติดต่อเกิน(p, 7, APP_NOW_ISO)
       : statusFilter === "idle14" ? ไม่ได้ติดต่อเกิน(p, 14, APP_NOW_ISO)
@@ -374,6 +379,12 @@ export default function HQProspectsPage() {
   const ชุดการ์ด = useMemo(() => ชุดที่กรอง(list, p => (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q), p => p.id),
     [list, provinceFilter, q]);
   const kpi = useKpiCards("hq.prospects", { ...ช่วงเดือนนี้, today: ช่วงเดือนนี้.end, filters: ชุดการ์ด, รุ่น: รุ่นการ์ด });
+  // การ์ด "เป็นดีลเลอร์แล้วเดือนนี้" กด = หน้าดีลเลอร์เฉพาะรายในการ์ด (นิยามเดียวกับฐาน: won + converted_at วันไทยอยู่ในเดือนนี้ · ตามตัวกรองจังหวัด/คำค้น)
+  //   เดิมพาไป /hq/dealers ไม่กรอง (ผู้ตรวจ 23 พ.ย. 69)
+  const รหัสเป็นดีลเลอร์เดือนนี้ = useMemo(() => [...new Set(list.filter(p => p.status === "won" && !!p.dealerCode && !!p.convertedAt
+      && (provinceFilter === "all" || (p.province ?? "").trim() === provinceFilter) && ตรงกับคำค้น(p, q)
+      && (() => { const ว = new Date(new Date(p.convertedAt!).getTime() + 7 * 3_600_000).toISOString().slice(0, 10); return ว >= ช่วงเดือนนี้.start && ว <= ช่วงเดือนนี้.end; })())
+    .map(p => p.dealerCode!))].sort(), [list, provinceFilter, q, ช่วงเดือนนี้]);
 
 
   // ── เพิ่มรายใหม่ ──
@@ -831,7 +842,7 @@ export default function HQProspectsPage() {
             หน้านี้ไม่มีตัวกรองช่วงเวลา → "เป็นดีลเลอร์แล้ว" นับเดือนนี้ (บอสตัดสิน 27 ต.ค. 69) · กดการ์ด = ไปรายการที่ตรงเรื่อง */}
       <KpiRow label="สรุปผู้สนใจเป็นดีลเลอร์" range={ช่วงเดือนนี้}>
         <KpiCard kpi="talking" testId="prospect-talking" label="กำลังคุย" value={นับ(ค่า(kpi, "talking"))} rawValue={ค่า(kpi, "talking")} unit="ราย · ทุกขั้นที่ยังไม่จบ"
-          icon={Users} actionLabel={statusFilter === "all" ? "ดูรายการ" : "ดูทั้งหมด"} onClick={() => { setStatusFilter("all"); setPage(0); }} />
+          icon={Users} actionLabel={statusFilter === "talking" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "talking" ? "all" : "talking"); setPage(0); }} />
         <KpiCard kpi="followDue" label="ถึงกำหนดติดตาม" value={นับ(ค่า(kpi, "followDue"))} rawValue={ค่า(kpi, "followDue")} unit="ราย · วันนัดติดตามถึงแล้ว"
           danger={(ค่า(kpi, "followDue") ?? 0) > 0} icon={AlarmClock} color="#EA580C" bg="#FEF0E6"
           actionLabel={statusFilter === "due" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "due" ? "all" : "due"); setPage(0); }} />
@@ -840,7 +851,8 @@ export default function HQProspectsPage() {
           danger={(ค่า(kpi, "idle14") ?? 0) > 0} icon={PhoneOff} color="#7C3AED" bg="#F3E8FF"
           actionLabel={statusFilter === "idle14" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => { setStatusFilter(statusFilter === "idle14" ? "all" : "idle14"); setPage(0); }} />
         <KpiCard kpi="converted" label="เป็นดีลเลอร์แล้วเดือนนี้" value={นับ(ค่า(kpi, "converted"))} rawValue={ค่า(kpi, "converted")} unit="ราย · ตั้งเป็นดีลเลอร์ในเดือนนี้"
-          icon={Store} color="#16A34A" bg="#E6F7EE" onClick={() => router.push("/hq/dealers")} />
+          icon={Store} color="#16A34A" bg="#E6F7EE" actionLabel="ดูรายการ"
+          onClick={() => router.push(`/hq/dealers?codes=${encodeURIComponent(รหัสเป็นดีลเลอร์เดือนนี้.join(","))}&from=prospects-month`)} />
       </KpiRow>
 
       {ภาพรวม && (() => {
@@ -866,7 +878,7 @@ export default function HQProspectsPage() {
         <div style={{ flex: 1 }} />
           {/* ตัวกรองติดตามด่วน (สเปก: ไม่ได้ติดต่อ 7 / 14 / 30 วัน) — นับเฉพาะรายที่ยังติดตามอยู่ */}
         <FilterSelect label="กรองตามสถานะ" caption="ทุกสถานะ" all="all" value={statusFilter} onChange={v => { setStatusFilter(v as ตัวกรองสถานะ); setPage(0); }}
-          options={[{ v: "due", l: "ถึงกำหนดติดตาม" },
+          options={[{ v: "talking", l: "กำลังคุย (ทุกขั้นที่ยังไม่จบ)" }, { v: "due", l: "ถึงกำหนดติดตาม" },
             ...เกณฑ์ไม่ได้ติดต่อ.map(ว => ({ v: `idle${ว}`, l: `ไม่ได้ติดต่อ ${ว} วันขึ้นไป` })),
             ...PROSPECT_STATUS_ORDER.filter(s => s !== "won").flatMap((s): FilterOption[] => s === "considering"
               ? (Object.keys(ชื่อขั้นย่อย) as ขั้นย่อยใบ["key"][]).map(k => ({ v: `sub:${k}`, l: ชื่อขั้นย่อย[k] }))
@@ -928,7 +940,7 @@ export default function HQProspectsPage() {
               <div data-prospect-card={p.id}>
                 <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(p)} ซ้ำกับ={เบอร์ซ้ำ.get(p.id)} style={{ marginBottom: 4 }} />
                 <BoardCard ชื่อ={p.name} ป้ายชื่อ={p.social} ป้ายชื่อคือ="ชื่อบนโซเชียล"
-                  โทรศัพท์={p.phone ? formatPhone(p.phone) || p.phone : null} อีเมล={p.email} จังหวัด={p.province}
+                  โทรศัพท์={p.phone ? แสดงเบอร์(p.phone) : null} อีเมล={p.email} จังหวัด={p.province}
                   เริ่มติดต่อ={p.firstContact ? fmtISOToThai(p.firstContact) : null}
                   ติดต่อล่าสุด={p.lastContactAt ? ติดต่อล่าสุดอ่านง่าย(p, APP_NOW_ISO) : null} นานเกิน={ติดต่อล่าสุดนานเกิน(p, APP_NOW_ISO)}
                   ผู้ดูแล={p.assigned?.trim()
@@ -1012,7 +1024,7 @@ export default function HQProspectsPage() {
                       </div>
                     </td>
                     <td title={p.social ?? undefined} style={{ fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.social || "—"}</td>
-                    <td style={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{p.phone ? formatPhone(p.phone) || p.phone : "—"}</td>
+                    <td style={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{p.phone ? แสดงเบอร์(p.phone) : "—"}</td>
                     <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.province || "—"}</td>
                     <td title={p.channel ?? undefined} style={{ fontSize: "0.78rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.channel || "—"}</td>
                     <td>
@@ -1089,7 +1101,7 @@ export default function HQProspectsPage() {
                       <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{ราย.name}</h2>
                       <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(ราย)} ซ้ำกับ={เบอร์ซ้ำ.get(ราย.id)} บนพื้นเข้ม style={{ marginTop: 4 }} />
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "0.72rem", color: "rgba(255,255,255,.72)", marginTop: 4 }}>
-                        {ราย.phone && <a href={`tel:${ราย.phone.replace(/[^\d+]/g, "")}`} style={{ color: "inherit", display: "flex", alignItems: "center", gap: 3 }}><Phone size={11} /> {formatPhone(ราย.phone) || ราย.phone}</a>}
+                        {ราย.phone && <a href={`tel:${ราย.phone.replace(/[^\d+]/g, "")}`} style={{ color: "inherit", display: "flex", alignItems: "center", gap: 3 }}><Phone size={11} /> {แสดงเบอร์(ราย.phone)}</a>}
                         {ราย.province && <span style={{ display: "flex", alignItems: "center", gap: 3 }}><MapPin size={11} /> {ราย.province}</span>}
                         {ราย.assigned && <span>ผู้ดูแล {ราย.assigned}</span>}
                       </div>

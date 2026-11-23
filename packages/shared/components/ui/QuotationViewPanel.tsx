@@ -11,7 +11,7 @@ import { DataLink, เป้าลูกค้าของใบ } from "./Recor
 import { Printer, X, ArrowRight, FileText, User, Coins, Layers } from "lucide-react";
 import { quotationStatusLabel, quotationStatusColor, fmtISOToThai, type QuotationMock } from "@pms/shared/lib/mock";
 import { boqLineItems } from "@pms/shared/lib/boq";
-import { fmtFull } from "@pms/shared/lib/format";
+import { fmtFull, ยอดใบเสนอราคา } from "@pms/shared/lib/format";
 import { คิดภาษีใบเสนอราคา } from "@pms/shared/lib/quoteTax";
 import { printQuotation, type PrintCustomer } from "@pms/shared/lib/quotationPrint";
 import { quotations as quotationsRepo } from "@pms/shared/lib/data";
@@ -214,7 +214,7 @@ function QuoteDocPanel({ q, ทั้งหมด, ผู้รับผิด�
                     <span style={{ fontFamily: "monospace", fontSize: "0.76rem", fontWeight: 700, color: "#2D2D2D", overflowWrap: "anywhere" }}>{v.id}</span>
                     <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>{v.date ? fmtISOToThai(v.date) : "—"}</span>
                     <span className="badge" style={{ background: c.bg, color: c.text, marginLeft: "auto" }}>{quotationStatusLabel[v.status]}</span>
-                    <span style={{ fontSize: "0.76rem", fontWeight: 800, color: "#003366", whiteSpace: "nowrap" }}>{v.total || "—"}</span>
+                    <span style={{ fontSize: "0.76rem", fontWeight: 800, color: "#003366", whiteSpace: "nowrap" }}>{ยอดใบเสนอราคา(v)}</span>
                   </button>
                 );
               })}
